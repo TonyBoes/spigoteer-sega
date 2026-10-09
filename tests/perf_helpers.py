@@ -141,9 +141,9 @@ class WorstCase:
         for p in range(MAX_P):
             if pst[p]:
                 continue
-            for b in range(4):                      # a bar whose door is clear
-                if not any(pst[q] and pbar[q] == b and px[q] < 34 for q in range(MAX_P)):
-                    self.put_patron(p, b, 0, WALKING, 1 if p % 3 == 0 else 0)
+            for b in range(4):                      # a bar whose left end is clear (no doors: put in at ENTRY_X 16,
+                if not any(pst[q] and pbar[q] == b and px[q] < 50 for q in range(MAX_P)):   # where a BG patron may stand)
+                    self.put_patron(p, b, 16, WALKING, 1 if p % 3 == 0 else 0)
                     break
         mst = gb.read("mug_state", MAX_M)
         mbar = gb.read("mug_bar", MAX_M)
@@ -266,7 +266,7 @@ class OverlapCase:
         st, px = gb.read("patron_state", MAX_P), gb.read("patron_x", MAX_P)
         mst, mbar, mx = gb.read("mug_state", MAX_M), gb.read("mug_bar", MAX_M), gb.read("mug_x", MAX_M)
         for m in range(MAX_M):
-            if mst[m] == EMPTY and mx[m] >= 110:           # an empty before the bartender slides again from the door end
+            if mst[m] == EMPTY and mx[m] >= 110:           # an empty before the bartender slides again from the left end
                 put(gb, "mug_x", m, 20)
         for b, (a, c, d) in self.slots.items():
             if not st[d] or (st[d] == WALKING and px[d] < self.PUSHER_X - 20):   # drunk (or served out): back on his spot
@@ -306,10 +306,10 @@ def overlap_run(gb, frames, check=None, mugs=4):
 # ---- M13c: the realistic peak of play ---------------------------------------------------------------------------------
 class RealisticPeak:
     """Level 9 at the most the game's own limits produce (see test_perf.test_realistic_peak for the arithmetic): about 8
-    patrons over the 4 bars at level-9 speeds (hurried ones among them), new ones stepping out from behind the door, at
+    patrons over the 4 bars at level-9 speeds (hurried ones among them), new ones sliding in from the left edge, at
     most 3 full mugs and 3 empties sliding plus the mugs drinkers hold, a tip on the counter OR the show (never both).
     The bartender plays the level-8 script (fills, launches, catches); everything else is the game's own rules: spawns
-    are real (try_spawn + emergence, made due at once while fewer than `target` patrons are in, at most every
+    are real (try_spawn + the entry from the left edge, made due at once while fewer than `target` patrons are in, at most every
     SPAWN_GAP frames), catches push patrons back through the others (lifts), drinkers send real empties.
     The test only (1) adds a full mug from the tap end, at most one every FULL_GAP frames and 3 in flight in all,
     for the bar whose front walker is furthest in, as a second bartender would; (2) takes an empty off the counter
@@ -324,8 +324,8 @@ class RealisticPeak:
         self.frame = 0
         self.last_full = -100
         self.last_spawn = -100
-        self.stats = {"patrons": [], "mugs": [], "full": [], "empty": [], "held": [], "behind": 0, "hurried": set(),
-                      "tip": 0, "show": 0, "both": 0, "spawned": 0}
+        self.stats = {"patrons": [], "mugs": [], "full": [], "empty": [], "held": [], "edge": 0, "hurried": set(),
+                      "tip": 0, "show": 0, "both": 0, "spawned": 0, "leaving": 0}
 
     def seed(self):
         """Two patrons per bar: a walker and a drinker holding his mug."""
@@ -430,7 +430,8 @@ class RealisticPeak:
         s["full"].append(sum(1 for v in mst if v == FULL))
         s["empty"].append(sum(1 for v in mst if v == EMPTY))
         s["held"].append(sum(1 for v in mst if v == HELD))
-        s["behind"] += sum(1 for p in range(MAX_P) if st[p] and lift[p] == 2)
+        s["edge"] += sum(1 for p in range(MAX_P) if st[p] and lift[p] == 2)      # LIFT_EDGE: entering or leaving
+        s["leaving"] += sum(1 for p in range(MAX_P) if st[p] == 4)
         s["hurried"] |= {p for p in range(MAX_P) if st[p] and hurry[p]}
         oam = gb.oam()                                    # (what the screen shows: the coin, the dancers)
         tip, show = bool(oam[27]["y"]), any(oam[28 + k]["y"] for k in range(12))

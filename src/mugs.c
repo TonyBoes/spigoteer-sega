@@ -1,4 +1,4 @@
-// Mugs: the pool and its rules (a full mug slides left until a patron catches it or it falls off the door
+// Mugs: the pool and its rules (a full mug slides left until a patron catches it or it falls off the left
 // end; an empty slides right until the bartender catches it or it falls off the tap end; a breaking glass
 // plays out), and their sprites (one OAM entry per mug, two per breaking glass, the fill glass in his hand).
 //
@@ -209,6 +209,7 @@ static void draw_held(uint8_t i) {
     // starts left of his right entry: dx 8 (level with it; the lower OAM index wins the tie), 16 for the last throw pose.
     if (!is_cgb && patron_lift[g]) x = t == WINDUP_T0 / 4 + 7 ? 16 : 8;
     x += patron_draw[g];
+    if (patron_lift[g] == LIFT_EDGE) x -= patron_aux[g];     // (a served patron sliding out past the left edge takes it along)
     mug_x[i] = x;
     g = pose_tile[t];
     // DMG: the held full mug uses OBP0 (beer light grey, foam white) like the fill glass so it shows on the

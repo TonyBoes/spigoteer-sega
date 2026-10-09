@@ -213,7 +213,7 @@ def test_loop_3_starts_at_level_19(gb):
 
 
 def base_speed(step):
-    return ((2048 // step) * (GAME["PATRON_FAR_X"] - GAME["DOOR_X"]) + GAME["PATRON_FAR_X"] // 2) // GAME["PATRON_FAR_X"]
+    return ((2048 // step) * (GAME["PATRON_FAR_X"] - GAME["ENTRY_X"]) + GAME["PATRON_FAR_X"] // 2) // GAME["PATRON_FAR_X"]
 
 
 @pytest.mark.parametrize("model", ["dmg"])

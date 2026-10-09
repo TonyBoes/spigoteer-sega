@@ -3,7 +3,7 @@
 // venue_t (tile data pointers, tilemaps, CGB attributes, palettes) into WRAM, and the functions here put it on
 // screen. Screen transitions only: everything here writes VRAM / palettes with the LCD off.
 //
-// BG tile ids: the theme's stage tiles load over TILE_STAGE_BASE (20 ids), its bar/door/keg/spout/floor tiles over
+// BG tile ids: the theme's stage tiles load over TILE_STAGE_BASE (20 ids), its bar/keg/spout/floor tiles over
 // TILE_BAR_BASE (16 ids); the shared HUD tiles follow at TILE_GENERIC_BASE. OBJ: the drink's 10 frames load over the
 // mug ids (OBJ_MUG, OBJ_MUG_FILL, OBJ_MUG_DRINK) and the 3 show performers over OBJ_DANCER.
 #pragma bank 255
@@ -77,7 +77,7 @@ void draw_venue(void) BANKED {
     set_bkg_tiles(0, FLOOR_ROW, 20, 1, vrow);
 }
 
-// A plain wall of the current venue (no door, no keg) from row `first` down: the wall rows' pattern of columns
+// A plain wall of the current venue (no keg) from row `first` down: the wall rows' pattern of columns
 // 2-16, a counter row at `counter_row`, the floor on row 17. The title screen and the bonus round stand in it. LCD off.
 void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED {
     uint8_t y, i, k;

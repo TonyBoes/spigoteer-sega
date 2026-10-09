@@ -11,7 +11,7 @@ from test_patrons import (BACK_BASE, BASE, BG_TILES_TOTAL, DRINKING, EMPTY, FREE
 
 pytestmark = pytest.mark.timeout(90)
 
-DOOR_X = GAME["DOOR_X"]
+ENTRY_X = GAME["ENTRY_X"]
 ART_H = (ROOT / "build" / "art.h").read_text()
 
 
@@ -53,12 +53,12 @@ def test_walking_drawn_x_advances_in_1_px_steps(gb):
 
 
 def test_level_1_crossing_time_still_about_16_seconds(gb):
-    """M8a: 120 px (to the spout) in 960 frames (16 s). Door fix: the walk starts at DOOR_X (104 px) at 28/256 px per
+    """M8a: 120 px (to the spout) in 960 frames (16 s). Door fix: the walk starts at ENTRY_X (104 px) at 28/256 px per
     frame: 951 frames, within 2% of the old 960 (and above the 15 s guarantee)."""
     assert gb.mem("patron_speed") == 28 and gb.mem("step_frames") == 64
     clear_patrons(gb)
     go(gb)
-    set_patron(gb, 0, DOOR_X)
+    set_patron(gb, 0, ENTRY_X)
     n = 0
     while gb.mem("lives") == 3 and n < 1200:
         gb.run(1)
@@ -86,21 +86,22 @@ def test_pushed_patron_slides_one_px_per_frame(gb):
     assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == xs[-1]
 
 
-def test_pushed_out_through_the_door_is_served(gb):
+def test_pushed_back_to_entry_x_is_served_and_slides_out(gb):
     clear_patrons(gb)
     freeze(gb)
-    p = set_patron(gb, 1, DOOR_X + 20)
-    inject_mug(gb, 1, DOOR_X + 30)
+    p = set_patron(gb, 1, ENTRY_X + 20)
+    inject_mug(gb, 1, ENTRY_X + 30)
     for _ in range(8):
         gb.run(1)
         if gb.read("patron_state", MAX_P)[p] == PUSHED:
             break
     x0 = gb.read("patron_x", MAX_P)[p]
-    gb.run(x0 - DOOR_X - 2)
+    gb.run(x0 - ENTRY_X - 2)
     assert gb.read("patron_state", MAX_P)[p] == PUSHED and gb.mem("served") == 0
     gb.run(6)
-    assert gb.read("patron_state", MAX_P)[p] == 0 and gb.mem("served") == 1 and tp.score(gb) == 50
-    assert mugs(gb) == []
+    assert gb.read("patron_state", MAX_P)[p] == 4 and gb.mem("served") == 1 and tp.score(gb) == 50   # LEAVING
+    gb.run(2 * ENTRY_X)
+    assert gb.read("patron_state", MAX_P)[p] == 0 and mugs(gb) == []
 
 
 def catch_one(gb, bar=1, x=96):
@@ -180,7 +181,7 @@ def test_held_mugs_count_against_the_per_bar_cap_and_the_scanline_limit(gb):
     clear_patrons(gb)
     freeze(gb)
     for k, t in enumerate((0, 20, 40, 70)):
-        i = set_patron(gb, 0, DOOR_X + 32 * k, state=DRINKING, timer=t)
+        i = set_patron(gb, 0, ENTRY_X + 32 * k, state=DRINKING, timer=t)
         hold_mug(gb, i, 0)
     inject_mug(gb, 0, 130)
     inject_mug(gb, 0, 120)
@@ -203,7 +204,7 @@ def test_spawn_mug_refuses_a_seventh_mug_when_held_ones_fill_the_bar(gb):
     clear_patrons(gb)
     freeze(gb)
     for k in range(5):
-        i = set_patron(gb, 0, DOOR_X + 32 * k, state=DRINKING, timer=10)
+        i = set_patron(gb, 0, ENTRY_X + 32 * k, state=DRINKING, timer=10)
         hold_mug(gb, i, 0)
     gb.hold("a")
     gb.run(30)
@@ -231,7 +232,7 @@ def test_drawn_x_follows_patron_x_every_pixel(gb):
     shows the matching pre-shifted tiles (a frame behind at most: the copy goes out in the next VBlank)."""
     clear_patrons(gb)
     go(gb)
-    p = set_patron(gb, 2, DOOR_X + 3, variant=1)
+    p = set_patron(gb, 2, ENTRY_X + 3, variant=1)
     gb.run(2)
     xs, exact = [], 0
     # (patron_x and patron_draw are compared where the game's frame ends, vq_frame_end: the emulator's frame boundary
@@ -278,11 +279,11 @@ def test_bg_tile_budget(gb):
     clear_patrons(gb)
     freeze(gb)
     for b in range(4):                            # all three variants, odd and even shifts, everywhere
-        set_patron(gb, b, DOOR_X + 5 + 9 * b, variant=b % 3)
+        set_patron(gb, b, ENTRY_X + 5 + 9 * b, variant=b % 3)
         set_patron(gb, b, 50 + 11 * b, variant=(b + 1) % 3)
         set_patron(gb, b, 95 + 3 * b, variant=(b + 2) % 3)
     gb.run(10)
     used = {t & 0xFF for row in gb.bg_tilemap()[:18] for t in row[:20]}
     assert max(used) < BG_TILES_TOTAL, max(used)
-    assert all(s["tile"] < 128 or s["tile"] >= BG_TILES_TOTAL for s in gb.visible_sprites()), "no OBJ tile in the shared 0x8800 block (the door puff's are above the BG ids)"
+    assert all(s["tile"] < 128 or s["tile"] >= BG_TILES_TOTAL for s in gb.visible_sprites()), "no OBJ tile in the shared 0x8800 block"
     assert max(used) >= 128, "the patrons do reach into the shared block (so the OBJ rule matters)"

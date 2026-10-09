@@ -93,7 +93,7 @@ def test_the_windup_lasts_windup_frames_then_the_empty_slides(gb):
 
 # ---- fair empties include the wind-up -------------------------------------------------------------------
 def test_empties_arrive_empty_gap_apart_counting_the_windup(gb):
-    """Three patrons finish together; the one nearest the tap and the one at the door (whose empty would arrive late
+    """Three patrons finish together; the one nearest the tap and the one at the left end (whose empty would arrive late
     enough anyway) wind up at once, the middle one sips on until his arrival is fair. Arrival = the frame the
     bartender takes the empty off the counter (its slot is freed; the score can show it a frame later)."""
     clear_patrons(gb)

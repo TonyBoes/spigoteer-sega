@@ -85,8 +85,13 @@ def test_worst_case_pile(rom):
     # gives 113 / 117 late. Guard at the M13b level with a short margin.
     # M13c: DMG 220 / 229 late, CGB 221 / 232 late: the pile's replacement walkers are put at x 0, in the doorway, where
     # a BG patron is now clipped at the door (composed at every pixel, no quick redraws) and walks at EMERGE_SPEED.
-    assert r["missed"] <= 245, r
-    assert r["end"] <= 230, r
+    # No doors (2026-10-09): replacements are put at ENTRY_X 16 (where a BG patron may stand); served ones in the pile
+    # find no sprite room (the 20 mugs) and go at once. DMG 278 / 244 late, CGB 278 / 245 late. The distribution is the
+    # M13c one (DMG median end LY 157 vs 159, 90th percentile 188 vs 189, measured with the same script on both builds);
+    # the worst frame is a pair of frames whose start lands badly against VBlank (logic LY ~270), which the same script
+    # also shows on the M13c build (264, 255 late) though not in this test's run of it. Guard at the new level.
+    assert r["missed"] <= 260, r
+    assert r["end"] <= 290, r
 
 
 def patron_cols(gb, bar):
@@ -166,7 +171,9 @@ def test_level9_overlap_scenario(rom):
     assert_music_every_frame(ticks)
     assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
     assert rom.mem("lift_lifts") > 0, "the scenario lifts patrons"
-    assert r["end"] <= 200 and r["missed"] <= 320, r          # (guard; the target is END_LY_TARGET and 0, see above)
+    # (guard; the target is END_LY_TARGET and 0, see above. M13b 175 / 229, 180 / 264; M13c 171 / 259, 176 / 299;
+    # no doors: DMG 175 / 268, CGB 179 / 299)
+    assert r["end"] <= 200 and r["missed"] <= 320, r
 
 
 # ---- M13c: the realistic peak of play -------------------------------------------------------------------------------
@@ -189,7 +196,8 @@ def realistic(rom):
         n = len(s["patrons"])
         summary = dict(patrons_mean=round(sum(s["patrons"]) / n, 2), patrons_max=max(s["patrons"]), mugs_max=max(s["mugs"]),
                        full_max=max(s["full"]), empty_max=max(s["empty"]), held_max=max(s["held"]),
-                       mugs_mean=round(sum(s["mugs"]) / n, 2), behind_frames=s["behind"], hurried=len(s["hurried"]),
+                       mugs_mean=round(sum(s["mugs"]) / n, 2), edge_frames=s["edge"], leaving_frames=s["leaving"],
+                       hurried=len(s["hurried"]),
                        tip=s["tip"], show=s["show"], both=s["both"], spawned=s["spawned"], lifts=lifts)
         print(rom.model_name, "realistic peak", r, worst, summary)
         _realistic[rom.model_name] = (r, worst, summary, ticks, rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly"))
@@ -202,9 +210,9 @@ def test_realistic_peak(rom):
 
     Why this is the peak (the game's own limits, level 9: spawn interval 210 frames, quota 16, step 52 frames per 8 px,
     empty gap 80 frames):
-      - patrons: one arrives every 210 frames and takes ~11 s from the door to the tap, pushes keep them in longer: about
-        8 on screen at once; hurried ones (1 in 4) among them, pushed ones sliding back through the others (lifts), new
-        ones stepping out from behind the door;
+      - patrons: one arrives every 210 frames and takes ~11 s from the left end to the tap, pushes keep them in longer:
+        about 8 on screen at once; hurried ones (1 in 4) among them, pushed ones sliding back through the others (lifts),
+        new ones sliding in from the left edge and served ones sliding out past it (sprites);
       - full mugs: one bartender fills for 16 frames and a mug slides ~104 px at 2 px a frame (~52 frames): at most 3 in
         flight;
       - empties: fair empties keep their arrivals >= 80 frames apart and one slides ~200 frames: at most 3 at once;
@@ -217,18 +225,19 @@ def test_realistic_peak(rom):
     # the scenario is what it says (empties: 3 at most before each frame; one more may be sent during it)
     assert 7 <= summary["patrons_mean"] <= 9 and summary["patrons_max"] <= 10, summary
     assert summary["full_max"] <= 3 and summary["empty_max"] <= 4 and 8 <= summary["mugs_max"] <= 11, summary
-    assert summary["behind_frames"] > 0 and summary["spawned"] >= 3 and summary["hurried"] >= 2, summary
+    assert summary["edge_frames"] > 0 and summary["leaving_frames"] > 0 and summary["spawned"] >= 3 and summary["hurried"] >= 2, summary
     assert summary["lifts"] > 0 and summary["tip"] > 0 and summary["show"] > 0 and summary["both"] == 0, summary
     # the budgets, every frame
     assert all(line <= 10 and n <= 40 for _, _, line, n, _ in ticks), [t for t in ticks if t[2] > 10 or t[3] > 40][:5]
     assert_music_every_frame([(f, m) for f, m, _, _, _ in ticks])
     assert drain_ok
-    # regression guard (measured M13c: DMG end 190-195 / 59-65 missed, CGB 208 / 88 missed of 1200)
+    # regression guard (measured M13c: DMG end 190-195 / 59-65 missed, CGB 208 / 88 missed of 1200; no doors, served
+    # patrons sliding out as sprites: DMG 187 / 59, CGB 193 / 99)
     assert r["end"] <= 230 and r["missed"] <= 140, r
 
 
-@pytest.mark.xfail(strict=True, reason="owner target NOT met at the realistic peak (M13c, PyBoy): DMG end LY ~190, "
-                   "~60 of 1200 frames missed; CGB end LY ~208, ~88 missed. Per frame (median, DIV ticks, ~1.8 a line): "
+@pytest.mark.xfail(strict=True, reason="owner target NOT met at the realistic peak (PyBoy; no doors): DMG end LY ~187, "
+                   "~59 of 1200 frames missed; CGB end LY ~193, ~99 missed. Per frame (M13c) (median, DIV ticks, ~1.8 a line): "
                    "update_patrons ~35, draw_mugs + draw_lifted ~43, lift_frame ~29, update_mugs ~22, queue_vram ~15. "
                    "Meeting it needs those paths cheaper, not tuning; this test turns XPASS (fails) once it is met.")
 def test_realistic_peak_frame_time_target(rom):

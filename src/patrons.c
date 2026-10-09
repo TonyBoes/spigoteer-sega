@@ -1,5 +1,5 @@
-// Patrons: the pool, its rules (walk, catch a full mug, get pushed back, drink, send the empty back, leave
-// through the door), spawning and the start patrons, tips and the dancers' show.
+// Patrons: the pool, its rules (walk in from the screen's left edge, catch a full mug, get pushed back, drink, send the
+// empty back, slide out past the left edge when served), spawning and the start patrons, tips and the dancers' show.
 //
 // The pool is structure-of-arrays (patron_x[p], ...) because the tests read and poke it by name. SDCC pays a
 // 16-bit address computation (and usually a stack spill) for every patron_xxx[p], so the rules are written to
@@ -27,7 +27,8 @@ uint8_t  patron_frac[MAX_PATRONS];     // sub-pixel fraction, 1/256 px
 uint8_t  patron_draw[MAX_PATRONS];     // x it is drawn at (patron_x, +2 while swaying; | DRAW_BACK in its back view); 255 = not drawn yet
 uint8_t  patron_variant[MAX_PATRONS];  // 0..2
 uint8_t  patron_timer[MAX_PATRONS];
-uint8_t  patron_aux[MAX_PATRONS];      // PUSHED: px left to be pushed back; DRINKING: DRINK_MIN / DRINK_WAIT / DRINK_WINDUP (M8d)
+uint8_t  patron_aux[MAX_PATRONS];      // PUSHED: px left to be pushed back; DRINKING: DRINK_MIN / DRINK_WAIT / DRINK_WINDUP (M8d);
+                                       // WALKING (entering) / LEAVING: px of him beyond the screen's left edge (game.h ENTRY_X)
 uint8_t  patron_mug[MAX_PATRONS];      // mug slot held while pushed/drinking, NO_SLOT otherwise
 uint8_t  patron_catchx[MAX_PATRONS];   // x of the last full mug it caught (where its tip would lie)
 uint8_t  patron_drinks[MAX_PATRONS];    // mugs caught since spawning: the push-back is pushback_px times this (thirst)
@@ -205,7 +206,8 @@ uint8_t col_scan(uint8_t b, uint8_t k, uint8_t p) {
     return cnt;
 }
 
-// Is another patron of bar b within PATRON_SPACING px behind x (to the left)? (The spawn check at the door.)
+// Is another patron of bar b within PATRON_SPACING px behind x (to the left)? (The spawn check: one entering or leaving
+// at the left end counts, he stands at x 0..16.)
 static uint8_t blocked_behind(uint8_t b, uint8_t x) {
     const uint8_t *q;
     uint8_t n, s, qx;
@@ -239,13 +241,13 @@ static uint8_t fc_best, fc_x;
 // its empty (DRINK_WAIT / DRINK_WINDUP). One still in his minimum drink lets it slide past.
 static uint8_t can_catch(uint8_t s) {
     uint8_t st = patron_state[s];
-    if (st == PATRON_WALKING) return !patron_dist[s];   // distracted: the mug slides past
+    if (st == PATRON_WALKING) return !(patron_dist[s] | patron_aux[s]);   // distracted (or still off the screen): the mug slides past
     return st == PATRON_DRINKING && patron_aux[s] != DRINK_MIN;
 }
 
 static void catcher_candidate(uint8_t s) {          // (can_catch, inlined: asked for every patron of the bar)
     uint8_t l = patron_state[s];
-    if (l == PATRON_WALKING) { if (patron_dist[s]) return; }
+    if (l == PATRON_WALKING) { if (patron_dist[s] | patron_aux[s]) return; }   // (aux: part of him still off the screen)
     else if (l != PATRON_DRINKING || patron_aux[s] == DRINK_MIN) return;
     l = patron_x[s];
     if (fc_best == NO_SLOT || l > fc_x) { fc_best = s; fc_x = l; }
@@ -323,10 +325,10 @@ uint8_t catch_full(uint8_t i) {
 }
 
 // ---- spawning ------------------------------------------------------------------------------------
-// New patron behind the door of a random bar (M13c: at SPAWN_X, lifted behind the BG so the door hides him while he
-// steps out), if the PATRON_SPACING px from SPAWN_X are free. No sprite room for him on that bar now (lift.c's budgets,
-// or this frame's copy list): he is taken back and the spawn is tried again SPAWN_RETRY frames later. No door puff: the
-// emergence replaces it.
+// New patron at the left edge of a random bar, if the PATRON_SPACING px from SPAWN_X are free: at SPAWN_X with all of
+// him still off the screen (patron_aux = PATRON_W), a sprite from the start (LIFT_EDGE, lift.c). No sprite room for him
+// on that bar now (lift.c's budgets, or this frame's copy list): he is taken back and the spawn is tried again
+// SPAWN_RETRY frames later.
 static uint8_t try_spawn(void) {
     uint8_t b = (next_rand() >> 2) & 3, v;
     if (blocked_behind(b, SPAWN_X + PATRON_SPACING)) return 0;   // someone within PATRON_SPACING px of the spawn point
@@ -337,6 +339,7 @@ static uint8_t try_spawn(void) {
     if (v >= 3) v -= 3;
     if (hurry_speed && !(next_rand() & 3)) np_h = 1;   // M13b: about 1 in 4 hurries (from level 3; level.c)
     if (!add_patron(b, SPAWN_X, v)) { np_h = 0; return 0; }
+    patron_aux[np_p] = PATRON_W;
     if (!lift_spawn(np_p)) { remove_patron(np_p); return 0; }
     spawned++;
     return 1;
@@ -351,12 +354,13 @@ static uint8_t go_now;                // the intro delay is over: walkers walk
 // A walker's whole pixel: blocked, one px on, or at the tap (a life). Returns 0 when he is gone.
 static uint8_t walker_pixel(uint8_t p, uint8_t f) {
     uint8_t x = patron_x[p];
+    if (patron_aux[p]) { patron_aux[p]--; patron_frac[p] = f; return 1; }   // entering: one more px of him on the screen
     // M13b: he passes slower walkers and drinkers. He waits (the fraction stays where it was) only if this step would
     // make three patrons share a tile column: from a multiple of 8 the step takes him into column (x >> 3) + 2.
     if (!(x & 7) && col_scan(patron_bar[p], (x >> 3) + 2, p) >= 2) return 1;
     patron_frac[p] = f;
     patron_x[p] = ++x;
-    if (x == DOOR_X && patron_lift[p] == LIFT_BEHIND) patron_lift[p] = LIFT_OBJ;   // M13c: out of the door, in front
+    if (x == ENTRY_X && patron_lift[p] == LIFT_EDGE) patron_lift[p] = LIFT_OBJ;   // in: an ordinary lifted patron (drops when clear)
     if (x >= PATRON_FAR_X) {                              // reached the tap
         remove_patron(p);
         lose_life();
@@ -370,7 +374,7 @@ static uint8_t walking_step(uint8_t p) {
     if (patron_dist[p]) return watch_step(p);           // distracted by the show: no walking
     if (go_now) {
         o = patron_frac[p];
-        f = o + (patron_x[p] < DOOR_X ? EMERGE_SPEED : patron_hurry[p] ? hurry_speed : patron_speed);   // (M13c: emerging)
+        f = o + (patron_x[p] < ENTRY_X ? EMERGE_SPEED : patron_hurry[p] ? hurry_speed : patron_speed);   // (entering)
         if (f < o) {                                      // carried: one whole pixel
             if (!walker_pixel(p, f)) return 0;
         } else {
@@ -380,6 +384,7 @@ static uint8_t walking_step(uint8_t p) {
     o = patron_x[p];                                      // a walker who is not watching is drawn at his x, facing
     f = patron_draw[p];                                   // the bar (a stale back view, bit 7, differs too)
     if (o == f) return 1;
+    if (patron_lift[p] == LIFT_EDGE) { patron_draw[p] = o; return 1; }   // entering: a sprite only, nothing on the BG
     if ((uint8_t)(o ^ f) & 0xF8) redraw_at(p, o);
     else {                                                // a 1 px step within his columns (redraw_at's quick case)
         patron_draw[p] = o; mark_quick(p);
@@ -393,26 +398,47 @@ static void start_drinking(uint8_t p) {
     patron_timer[p] = 0;
 }
 
-static void served_out(uint8_t p) {                       // pushed out through the door: served
-    remove_patron(p);
-    door_puff(patron_bar[p]);
+// Served (pushed back to ENTRY_X): he leaves, a sprite sliding out past the screen's left edge with the mug in his hand
+// (leaving_step). Score, tip and the count as before.
+static void served_out(uint8_t p) {
+    patron_state[p] = PATRON_LEAVING;
+    patron_aux[p] = 0;
     served++;
     add_score(serve_score);
     SFX(SFX_SERVE);
     maybe_tip(p);
 }
 
-// One px toward the door. M13b: he slides through anyone in his way (lift.c lifts him over them); the push ends only
-// when it is used up or he goes out through the door (pushed_step).
+// Leaving: lifted first (LIFT_EDGE; no sprite room: he is gone at once), then PUSH_SPEED px a frame to x 0 and on past
+// the edge (patron_aux px of him gone); removed when all of him is. A sprite only: nothing on the BG changes. One lifted
+// off the BG here stands still (patron_timer 1) until his BG copy is off the screen (the sprite covers it exactly).
+static uint8_t leaving_step(uint8_t p) {
+    uint8_t x;
+    if (patron_lift[p] != LIFT_EDGE) {
+        if (!(x = lift_leave(p))) { remove_patron(p); return 0; }
+        patron_timer[p] = x - 1;
+    }
+    if (patron_timer[p]) {
+        if (vq_held || bg_pending(p)) return 1;
+        patron_timer[p] = 0;
+    }
+    if ((x = patron_x[p])) { patron_x[p] = patron_draw[p] = x - PUSH_SPEED; return 1; }
+    if ((patron_aux[p] += PUSH_SPEED) < PATRON_W) return 1;
+    remove_patron(p);
+    return 0;
+}
+
+// One px toward the left end. M13b: he slides through anyone in his way (lift.c lifts him over them); the push ends
+// only when it is used up or he reaches ENTRY_X (served, pushed_step).
 static void push_px(uint8_t p) {
     patron_x[p] -= PUSH_SPEED;
     if ((patron_aux[p] -= PUSH_SPEED) == 0) start_drinking(p);
 }
 
-// Pushed back by a caught mug: one px a frame toward the door, then he drinks.
+// Pushed back by a caught mug: one px a frame toward the left end, then he drinks.
 static uint8_t pushed_step(uint8_t p) {
     if (patron_aux[p] == 0) start_drinking(p);
-    else if (patron_x[p] <= DOOR_X) { served_out(p); return 0; }
+    else if (patron_x[p] <= ENTRY_X) { served_out(p); return leaving_step(p); }
     else push_px(p);
     refresh_patron(p);
     return 1;
@@ -501,7 +527,6 @@ void update_patrons(void) {
     uint8_t p, st, live = 0;
 
     if (next_arrival) next_arrival--;
-    if (puff_timer) puff_timer--;
     go_now = (intro_timer == 0);
     if (!go_now) {
         if (intro_timer) intro_timer--;
@@ -514,6 +539,7 @@ void update_patrons(void) {
         if ((st = patron_state[p]) == PATRON_NONE) continue;
         if (st == PATRON_WALKING) live += walking_step(p);
         else if (st == PATRON_PUSHED) live += pushed_step(p);
+        else if (st == PATRON_LEAVING) live += leaving_step(p);
         else live += drinking_step(p);
     }
     patrons_live = live;

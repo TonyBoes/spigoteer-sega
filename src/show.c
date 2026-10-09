@@ -43,7 +43,7 @@ void start_show(void) BANKED {
     dancer_frame = 0; dance_tick = 0;
     for (p = 0; p < MAX_PATRONS; p++) {
         patron_dist[p] = 0;
-        if (patron_state[p] != PATRON_WALKING || patron_x[p] < DOOR_X) continue;   // (M13c: not while in the doorway)
+        if (patron_state[p] != PATRON_WALKING || patron_x[p] < ENTRY_X) continue;   // (not while entering at the left end)
         if (first == NO_SLOT) first = p;
         if (!(next_rand() & 0x40) || near_watcher(p)) continue;
         patron_dist[p] = 1; patron_timer[p] = 0; any = 1;
@@ -52,13 +52,13 @@ void start_show(void) BANKED {
     if (!any && first != NO_SLOT) { patron_dist[first] = 1; patron_timer[first] = 0; }
 }
 
-// Put the level's start patrons on the bars (from DOOR_X; a 2nd group 32 px on where the level has two),
+// Put the level's start patrons on the bars (from ENTRY_X; a 2nd group 32 px on where the level has two),
 // but never more than the quota still to serve.
 void place_start_patrons(void) BANKED {
     uint8_t b, k, placed = 0, remaining = quota > served ? quota - served : 0;
     for (k = 0; k < start_per_bar; k++)
         for (b = 0; b < NUM_BARS; b++)
-            if ((start_mask & bar_bit[b]) && placed < remaining) { add_patron(b, DOOR_X + PATRON_SPACING * k, next_rand() % 3); placed++; }
+            if ((start_mask & bar_bit[b]) && placed < remaining) { add_patron(b, ENTRY_X + PATRON_SPACING * k, next_rand() % 3); placed++; }
     spawned = served + placed;
     patrons_live = placed;
 }
@@ -71,7 +71,7 @@ static uint8_t watch_free(uint8_t b, uint8_t c, uint8_t p) {
 }
 
 // Distracted by the show: shuffle 1 px a frame to the nearest multiple of 8 px (at most SHUFFLE_MAX px, never onto
-// the tap end), then turn round: the back view, which exists only at shift 0. 4 px off: toward the door if that place
+// the tap end), then turn round: the back view, which exists only at shift 0. 4 px off: toward the left end if that place
 // is free, else toward the tap. M13b: a place is free unless another distracted patron covers its columns (neither can
 // be lifted) or two others do (watch_free). A patron who cannot get there waits facing the bar and tries again next
 // frame. It stays put either way.

@@ -47,7 +47,7 @@ typedef struct {
 // (fair empties, patrons.c) never drops below 80 frames now, above the old 45 floor, so a bar switch and a
 // short walk always fit.
 // M13b (overlapping patrons): from level 3 about 1 in 4 spawns is hurried, at 1.5x the level's walk speed (HURRY_*).
-// To keep the difficulty where it was, the step column of levels 3-9 is retuned so the AVERAGE door-to-tap time is
+// To keep the difficulty where it was, the step column of levels 3-9 is retuned so the AVERAGE entry-to-tap time is
 // unchanged: with 3/4 at speed v and 1/4 at 1.5 v the mean crossing time is (3/4 + 1/4 / 1.5) = 11/12 of a v walker's,
 // so step_new = step_old x 12/11 (rounded):
 //   level      3    4    5    6    7    8    9
@@ -103,9 +103,9 @@ void start_level(void) BANKED {
     spawn_interval -= (uint16_t)(spawn_interval * (uint8_t)(k * LOOP_SPAWN_PCT)) / 100;
     pushback_cols = c->pushback_cols; pushback_px = pushback_cols << 3;
     // 8 px per step_frames in 1/256 px per frame (the old speed over a 120 px walk), scaled by the walk's new length:
-    // the patrons now come in at DOOR_X, so (PATRON_FAR_X - DOOR_X) / PATRON_FAR_X of the distance (13/15 = 104/120)
-    // at the same door-to-tap time (within 2%; the speed has a 1/256 px resolution).
-    patron_speed = (uint8_t)((((2048u / step_frames) * (PATRON_FAR_X - DOOR_X)) + PATRON_FAR_X / 2) / PATRON_FAR_X);
+    // the level's speed starts at ENTRY_X (left of it a patron is entering, game.h), so (PATRON_FAR_X - ENTRY_X) /
+    // PATRON_FAR_X of the distance (13/15 = 104/120) at the same time to the tap (within 2%; 1/256 px resolution).
+    patron_speed = (uint8_t)((((2048u / step_frames) * (PATRON_FAR_X - ENTRY_X)) + PATRON_FAR_X / 2) / PATRON_FAR_X);
     patron_speed += (uint8_t)((uint16_t)(patron_speed * (uint8_t)(k * LOOP_SPEED_PCT)) / 100);
     // M13b: hurried walkers (patrons.c try_spawn, about 1 in 4) from level HURRY_FROM on, loops included, at 1.5x the
     // speed above (so the loop's +10 % steps apply to them too)

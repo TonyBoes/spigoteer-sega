@@ -199,14 +199,15 @@ def test_stage_golden(gb):
     check_golden(gb, "stage")
 
 
-# ---- M8a: counter to the door, the spout, walking speed ------------------------------------
-def test_counter_runs_to_the_door_and_the_door_is_on_the_wall_rows_only(gb):
+# ---- M8a: the counter to the left edge (no door, owner 2026-10-09), the spout, walking speed --------------------
+def test_counter_and_wall_run_to_the_left_edge(gb):
     bar_map = venue_rows("saloon", "bar_map")
-    for b in (1, 3):                                          # level 1 has no patron at these doors
-        assert _row(gb, bar_top_row(b), 0, 2) == bar_map[0][0:2], f"bar {b} door, upper wall row"
-        assert _row(gb, bar_top_row(b) + 1, 0, 2) == bar_map[1][0:2], f"bar {b} door, lower wall row"
-    assert set(bar_map[2][0:2]) <= set(bar_map[2][2:18]), "the counter runs in front of the door (columns 0-1)"
-    assert not set(bar_map[0][0:2] + bar_map[1][0:2]) & set(bar_map[2]), "the door is on the wall rows only"
+    walls = set(bar_map[0][2:17] + bar_map[1][2:17])
+    for b in (1, 3):                                          # level 1 has no patron on these bars
+        assert _row(gb, bar_top_row(b), 0, 2) == bar_map[0][0:2], f"bar {b}, upper wall row"
+        assert _row(gb, bar_top_row(b) + 1, 0, 2) == bar_map[1][0:2], f"bar {b}, lower wall row"
+    assert set(bar_map[0][0:2] + bar_map[1][0:2]) <= walls, "columns 0-1 of the wall rows are wall (no door)"
+    assert set(bar_map[2][0:2]) <= set(bar_map[2][2:18]), "the counter runs to the left edge (columns 0-1)"
     for b in range(4):
         assert _row(gb, bar_counter_row(b), 0, 2) == bar_map[2][0:2], f"bar {b}: counter at columns 0-1"
 

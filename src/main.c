@@ -98,7 +98,7 @@ uint8_t  life_lost;         // a life went this frame; the state machine reacts 
 uint8_t  overlay_on;        // window banner shown
 uint32_t hi_score;          // entry 1 of the top-5 table (save.c, SRAM)
 uint8_t  hi_digits[6];
-uint8_t  served;            // patrons served (left through the door) this level
+uint8_t  served;            // patrons served (pushed back to the left end) this level
 uint8_t  start_mask, start_per_bar, cur_group;
 uint8_t  hud_dirty;         // HUD_LIVES / HUD_SCORE bits: needs redrawing
 uint8_t  score_digits[6];   // the HUD digits, most significant first
@@ -133,7 +133,7 @@ static void load_cgb_palettes(void) {
     set_bkg_palette(BGPAL_HUD, 1, p);
 
     set_sprite_palette(OBJPAL_BARTENDER, 1, palettes[PAL_BARTENDER]);
-    // M13a: the glass / puff share the venue's empty-drink palette, the coin slot 5 (render.c), patrons 3/6/7 (lift.c)
+    // M13a: the glass shares the venue's empty-drink palette, the coin slot 5 (render.c), patrons 3/6/7 (lift.c)
 }
 
 // ---- scene -------------------------------------------------------------------
@@ -253,7 +253,6 @@ static void init(void) {
     SPRITES_8x16;
     spr_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);
     spr_data(OBJ_GLASS, GLASS_TILE_COUNT, glass_tiles);
-    spr_data(OBJ_PUFF, PUFF_FRAMES * 2, puff_tiles);
     spr_data(OBJ_COIN, COIN_TILE_COUNT, coin_tiles);      // the drink and show tiles come with each venue (load_venue)
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 

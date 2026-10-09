@@ -77,7 +77,7 @@ entries) until clear, then dropped back to BG.
 - **Tests whose expected behaviour changes:** test_patrons.py around lines 162, 174 and 270 (waiting
   behind), test_tips.py 331 and 342 (the show shuffle), test_door.py 48 and 59 (the spawn point, in M13c).
 
-## Door entrance (M13c)
+## Door entrance (M13c; superseded 2026-10-09: no doors, see PLAN.md "No doors as built")
 - **Spawn.** At x = 0 (OAM X 8), lifted with the OAM priority bit: hidden behind door colours 1-3, shown over
   colour 0.
   - Needs LCDC bit 0 = 1, and the door's BG attributes must have bit 7 clear (check the generated ones).

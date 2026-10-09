@@ -35,8 +35,8 @@ def goto_group(gb, group):
     assert gb.mem("cur_group") == group and gb.mem("level") == level
 
 
-# bar: [(x, variant, distracted)]: fronts at shift 0 and at odd shifts, and the three back views on bar 3. (M13c: the
-# first column moved 16 px right, out of the doorway: a patron in the doorway is drawn behind the door.)
+# bar: [(x, variant, distracted)]: fronts at shift 0 and at odd shifts, and the three back views on bar 3 (the first
+# column from ENTRY_X: left of it patrons are only sprites, entering or leaving).
 LINEUP = {
     0: [(16, 0, 0), (40, 1, 0), (80, 2, 0)],
     1: [(29, 0, 0), (51, 1, 0), (93, 2, 0)],
