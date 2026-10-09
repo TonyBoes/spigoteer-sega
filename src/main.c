@@ -76,26 +76,36 @@ typedef struct {
 } level_cfg_t;
 #define LEVEL_ROWS 9
 // One row per patron group, in the order of gen_art.py's PATRON_GROUPS.
-// The curve is a gentle ramp: level 1 is meant for a first-time player. Patrons
-// start on only 2 bars and take ~17 s to cross a bar (16 steps x 64 frames), a
-// new one arrives every 5 s, and only 8 must be served. Each level then opens
-// one more bar (L2: 3 bars, L3: all 4), shortens the spawn interval
-// (300 -> 150 frames) and the step time (64 -> 34 frames per column), and raises
-// the quota (8 -> 22). From L6 a second patron per bar is waiting at the start.
-// Level 9 lands near what levels 4-5 used to be. Pushback is 4 columns up to
-// L4, 3 after. Levels past 9 keep the last row's speeds. The empty gap (fair empties, patrons.c) falls from
-// 2 s at L1 to a floor of 45 frames at L9, still enough for a bar switch and a short walk.
+// Playtest 4 flattened the curve: the old one was impossible by level 6. Level 1 is meant for a first-time
+// player (2 bars started, ~17 s to cross a bar, a patron every 5 s, 8 to serve); L2 is unchanged. From L2
+// every column is interpolated in a straight line to the NEW L6 = the OLD L3 row, and on to the NEW L9 = the
+// OLD L5 row (rounded); levels past 9 keep the last row's speeds (the plateau). Old -> new, per level:
+//   level      1    2    3    4    5    6    7    8    9
+//   quota old  8   10   12   14   16   18   20   21   22
+//   quota new  8   10   10   11   11   12   13   15   16
+//   spawn old 300  275  250  230  210  190  175  160  150
+//   spawn new 300  275  269  263  256  250  237  223  210
+//   step  old 64   60   56   52   48   44   40   37   34
+//   step  new 64   60   59   58   57   56   53   51   48
+//   push  old 4    4    4    4    3    3    3    3    3
+//   push  new 4    4    4    4    4    4    4    3    3
+//   gap   old 120  110  100  90   80   70   60   52   45
+//   gap   new 120  110  108  105  102  100  93   87   80
+// The start patrons are one per started bar throughout (the old L6+ second patron is gone: old L5 had one);
+// bars 0+2 at L1, bars 0-2 at L2, all four from L3. The serve score column is unchanged. The empty gap
+// (fair empties, patrons.c) never drops below 80 frames now, above the old 45 floor, so a bar switch and a
+// short walk always fit.
 //                 grp mask per quota spawn step push score gap
 static const level_cfg_t level_table[LEVEL_ROWS] = {
     { 0, 0x5, 1,  8, 300, 64, 4,  50, 120 },   // 1 cowboys: bars 0 and 2
     { 1, 0x7, 1, 10, 275, 60, 4,  75, 110 },   // 2 sports: bars 0-2
-    { 2, 0xF, 1, 12, 250, 56, 4,  75, 100 },   // 3 lumberjacks: all bars
-    { 3, 0xF, 1, 14, 230, 52, 4, 100,  90 },   // 4 chefs
-    { 4, 0xF, 1, 16, 210, 48, 3, 100,  80 },   // 5 divers
-    { 5, 0xF, 2, 18, 190, 44, 3, 125,  70 },   // 6 robots
-    { 6, 0xF, 2, 20, 175, 40, 3, 125,  60 },   // 7 ninjas
-    { 7, 0xF, 2, 21, 160, 37, 3, 150,  52 },   // 8 aliens
-    { 8, 0xF, 2, 22, 150, 34, 3, 150,  45 },   // 9 zoo; later levels reuse this row's speeds with cycling art
+    { 2, 0xF, 1, 10, 269, 59, 4,  75, 108 },   // 3 lumberjacks: all bars
+    { 3, 0xF, 1, 11, 263, 58, 4, 100, 105 },   // 4 chefs
+    { 4, 0xF, 1, 11, 256, 57, 4, 100, 102 },   // 5 divers
+    { 5, 0xF, 1, 12, 250, 56, 4, 125, 100 },   // 6 robots: plays like the old level 3
+    { 6, 0xF, 1, 13, 237, 53, 4, 125,  93 },   // 7 ninjas
+    { 7, 0xF, 1, 15, 223, 51, 3, 150,  87 },   // 8 aliens
+    { 8, 0xF, 1, 16, 210, 48, 3, 150,  80 },   // 9 zoo: plays like the old level 5; later levels reuse this row's speeds with cycling art
 };
 
 // game flow

@@ -11,10 +11,10 @@ MAX_P, MAX_M = 16, 20
 BT_FAIL = 6
 
 # (group, start bar mask, start per bar, quota, spawn interval, step frames, pushback, serve score, empty gap)
-TABLE = [
-    (0, 0x5, 1, 8, 300, 64, 4, 50, 120), (1, 0x7, 1, 10, 275, 60, 4, 75, 110), (2, 0xF, 1, 12, 250, 56, 4, 75, 100),
-    (3, 0xF, 1, 14, 230, 52, 4, 100, 90), (4, 0xF, 1, 16, 210, 48, 3, 100, 80), (5, 0xF, 2, 18, 190, 44, 3, 125, 70),
-    (6, 0xF, 2, 20, 175, 40, 3, 125, 60), (7, 0xF, 2, 21, 160, 37, 3, 150, 52), (8, 0xF, 2, 22, 150, 34, 3, 150, 45),
+TABLE = [   # playtest 4: L6 = old L3, L9 = old L5, linear in between, plateau after
+    (0, 0x5, 1, 8, 300, 64, 4, 50, 120), (1, 0x7, 1, 10, 275, 60, 4, 75, 110), (2, 0xF, 1, 10, 269, 59, 4, 75, 108),
+    (3, 0xF, 1, 11, 263, 58, 4, 100, 105), (4, 0xF, 1, 11, 256, 57, 4, 100, 102), (5, 0xF, 1, 12, 250, 56, 4, 125, 100),
+    (6, 0xF, 1, 13, 237, 53, 4, 125, 93), (7, 0xF, 1, 15, 223, 51, 3, 150, 87), (8, 0xF, 1, 16, 210, 48, 3, 150, 80),
 ]
 ART_H = (ROOT / "build" / "art.h").read_text()
 PATRON_TILES = int(re.search(r"#define PATRON_GROUP_TILES (\d+)", ART_H).group(1))   # M8b: 144 shifted + 12 back views
@@ -285,7 +285,7 @@ def test_level_table_and_wrap(gb):
         assert (gb.mem("quota"), gb.mem16("spawn_interval"), gb.mem("step_frames"), gb.mem("pushback_cols"),
                 gb.mem("serve_score")) == (row[3], row[4], row[5], row[6], row[7]), lvl
         assert gb.mem("start_mask") == row[1]
-        assert gb.mem("empty_gap") == row[8], lvl                # M8a: fair empties, 120 frames at L1 down to 45
+        assert gb.mem("empty_gap") == row[8], lvl                # M8a: fair empties, 120 frames at L1 down to 80
         assert len(patrons(gb)) == bin(row[1]).count("1") * row[2], lvl
         assert tilemap_row(gb, LAYOUT["HUD_ROW"], 18, 2) == [tile_id("GLYPH_0") + lvl // 10, tile_id("GLYPH_0") + lvl % 10]
         gb.write("level_clear", 1)

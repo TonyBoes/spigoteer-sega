@@ -124,7 +124,7 @@ class WorstCase:
             gb.write("tip_bar", 1)
             gb.write("tip_x", 60)
         if gb.mem16("show_timer") < 100:
-            put16(gb, "show_timer", 576)
+            put16(gb, "show_timer", 704)
 
     def tick(self):
         """Call once per frame, before gb.run(1): refill what the game consumed."""
