@@ -102,9 +102,16 @@ that, switch to MBC5 (`-Wm-yt0x19`, `-autobank`).
 ## Owner playtest 2 (queued as M8, after M7)
 
 - Tap grace 16 -> 32 px.
-- Bartender always faces left (toward the bar) while filling.
+- Bartender faces the tap (right) while filling, holding the mug under a spout that reaches left from the keg; he turns left as he slides it (owner's choice).
 - Empties slide back slower: 1 -> 0.5 px/frame (full mugs stay 2).
 - Bartender walks slower (2 -> 1.5 px/frame) with a calmer cycle: walk1, idle, walk2, idle.
 - Counter runs all the way to the door (cols 0-1); the door shrinks to the wall rows, so patrons never show their missing legs.
 - Patrons pre-shifted at every pixel (8 shifts, 144 BG tiles per group) instead of 2 px steps.
 - Art (proposals for approval first): bartender mustache; patrons in 3/4 view facing right.
+
+## Owner playtest 2b (also M8)
+
+- Spout from the keg pouring into the mug while it fills.
+- A full mug (A still held) can be carried to another bar with Up/Down; releasing A there slides it.
+- Faster fill: 24 -> 16 frames.
+- Art round 3 (proposals in the session scratchpad, owner approves before import): balanced mustache; cowboy without far ear; sports fan redesigned (foam finger in jersey colour); slot B of every group except zoo is a woman; all patrons 3/4 view facing right.
