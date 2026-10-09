@@ -182,3 +182,9 @@ tools/check_music.py (routes one channel to the output and prints expected vs de
 Caveat: the melodies were written from memory and nobody has listened to them; the owner's Oh! Susanna and the
 given Entertainer note list are exact, the rest (especially the Galop, Funiculi, the later phrases of the
 ball-game and mountain tunes, Skaters' Waltz, Blue Danube) are best-effort and need an ear check.
+
+## Owner playtest 3 (M8c, after M8b)
+
+- Show lasts one Galop loop (~576 frames, 9.6 s) instead of 360.
+- Thirst: each patron counts drinks; push-back distance = pushback_px x (drinks so far, starting at
+  1), so the 2nd drink pushes twice as far and the 3rd three times; clumps break up.
