@@ -1,4 +1,7 @@
-# Tapper GB: plan
+# Spigoteer: plan
+
+(Working title was "Tapper GB". The owner named the game **Spigoteer**; "Tapper" is a Bally Midway
+trademark and must not appear in the shipped game.)
 
 A Game Boy / Game Boy Color clone of the arcade game *Tapper*, written in C on
 GBDK-2020. It runs on both DMG and CGB, and CGB gets the full-colour art from
@@ -161,3 +164,9 @@ to the Ball Game"; lumber lodge "She'll Be Coming 'Round the Mountain"; bistro "
 Funicula"; igloo "The Skaters' Waltz"; robot factory "In the Hall of the Mountain King"; teahouse
 "Sakura Sakura"; space lounge "The Blue Danube"; jungle zoo "Pop Goes the Weasel"; title "The
 Entertainer". (Proposed to the owner; non-owner picks may still change.)
+
+## Rename (queued after M8a)
+
+Title screen logo "SPIGOTEER" (own lettering, wider than today's TAPPER: 9 letters), cartridge
+header title SPIGOTEER, credits/README text. The saloon's TAPS stage sign stays (it's the
+bar's name, not the game's). Idea: bartender pouring from a spigot under the logo.
