@@ -169,10 +169,14 @@ def test_cap_is_per_bar(gb):
 
 def test_three_breaks_end_the_game(gb):
     no_patrons(gb)
-    for _ in range(3):
+    for n in range(3):
+        no_patrons(gb)                             # M4: a lost life re-places the start patrons
         fill_and_launch(gb)
-        gb.run(5)
-    gb.run(130)
+        for _ in range(250):                       # M4: each lost life freezes play, so wait it out
+            gb.run(1)
+            if gb.mem("lives") == 2 - n and gb.mem("game_state") != 2:
+                break
+    gb.run(5)
     assert gb.mem("lives") == 0
     assert gb.mem("game_over") == 1
     x = gb.mem("bartender_x")

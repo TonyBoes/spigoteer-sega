@@ -11,13 +11,31 @@ GOLDEN = ROOT / "tests" / "golden"
 UPDATE = os.environ.get("GB_UPDATE_GOLDEN") == "1"
 
 
+PLAYING = 1
+OLD_INTRO_LEFT = 44    # intro_timer the M1-M3 fixture had after 120 frames; kept so old tests see the same timing
+
+
 @pytest.fixture(params=["dmg", "cgb"])
-def gb(request):
-    """A booted ROM, once per hardware model. Boot takes ~70 frames; we run 120 to be safe."""
+def boot(request):
+    """A booted ROM sitting on the title screen, once per hardware model."""
     with Rom(ROM, request.param) as rom:
         rom.run(120)
         rom.model_name = request.param
         yield rom
+
+
+@pytest.fixture
+def gb(boot):
+    """Gameplay: boot, press START, then run until the intro delay is where the M1-M3 tests expect it."""
+    boot.press("start", 2)
+    for _ in range(30):
+        if boot.mem("game_state") == PLAYING:
+            break
+        boot.run(1)
+    assert boot.mem("game_state") == PLAYING
+    while boot.mem("intro_timer") > OLD_INTRO_LEFT:
+        boot.run(1)
+    return boot
 
 
 def check_golden(gb, name):

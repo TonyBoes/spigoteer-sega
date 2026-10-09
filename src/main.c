@@ -52,9 +52,28 @@ typedef struct {
     uint8_t pushback_cols;
     uint8_t serve_score;
 } level_cfg_t;
-static const level_cfg_t level_table[] = {
-    { 0, 1, 12, 180, 40, 4, 50 },   // level 1: cowboys
+#define LEVEL_ROWS 9
+// one row per patron group, in the order of gen_art.py's PATRON_GROUPS
+static const level_cfg_t level_table[LEVEL_ROWS] = {
+    { 0, 1, 12, 180, 40, 4,  50 },   // 1 cowboys
+    { 1, 1, 14, 165, 37, 4,  75 },   // 2 sports
+    { 2, 1, 16, 150, 34, 4,  75 },   // 3 lumberjacks
+    { 3, 2, 18, 135, 31, 4, 100 },   // 4 chefs
+    { 4, 2, 20, 125, 29, 3, 100 },   // 5 divers
+    { 5, 2, 22, 115, 27, 3, 125 },   // 6 robots
+    { 6, 2, 24, 105, 25, 3, 125 },   // 7 ninjas
+    { 7, 2, 26,  95, 23, 3, 150 },   // 8 aliens
+    { 8, 2, 28,  90, 22, 3, 150 },   // 9 zoo; later levels reuse this row's speeds with cycling art
 };
+
+// game flow
+enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED };
+#define LIFE_FREEZE_FRAMES  120
+#define CLEAR_FRAMES        150
+#define LEVEL_BONUS        1000
+#define START_LIVES           3
+#define BANNER_WY            64   // window overlay: 3 tile rows at y 64..87
+#define BANNER_LYC           86   // line where the LCD interrupt switches the window off again
 
 // bartender animation frames (order of assets/art/bartender.txt)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
@@ -99,11 +118,19 @@ uint8_t  frame_counter;
 uint8_t  joy, joy_prev;
 uint32_t score;             // HUD shows 6 digits
 uint8_t  is_cgb;            // running on colour hardware
-uint8_t  lives = 3;
+uint8_t  lives = START_LIVES;
 uint8_t  level = 1;
 uint8_t  fill_timer;        // frames A has been held at the tap (0 = not filling)
 uint8_t  slide_timer;       // frames left showing the "slide" pose
 uint8_t  game_over;         // set when lives reach 0; gameplay freezes
+uint8_t  game_state;        // GS_*
+uint8_t  state_timer;       // frames spent in LIFE_LOST / LEVEL_CLEAR
+uint8_t  life_lost;         // a life went this frame; the state machine reacts at the end of update()
+uint8_t  overlay_on;        // window banner shown
+uint32_t hi_score;          // WRAM only for now
+uint8_t  hi_digits[6];
+uint8_t  served;            // patrons served (left through the door) this level
+uint8_t  start_per_bar, cur_group;
 uint8_t  hud_dirty;         // HUD_LIVES / HUD_SCORE bits: needs redrawing
 uint8_t  score_digits[6];   // the HUD digits, most significant first
 static uint8_t score_tiles[6];   // ... as BG tile ids, prepared outside VBlank
@@ -258,6 +285,7 @@ static void lose_life(void) {
     if (lives) lives--;
     hud_dirty |= HUD_LIVES;
     prep_hud();
+    life_lost = 1;
     if (lives == 0) game_over = 1;
 }
 
@@ -538,9 +566,14 @@ static void draw_bartender(void) {
     o->y = ybot; o->x = xb; o->tile = base + 6; o->prop = flags;
 }
 
-static void start_level(void);
+static void lcd_isr(void) {          // LYC: switch the banner window off below the banner
+    HIDE_WIN;
+}
+
 
 // ---- game -----------------------------------------------------------------------
+static void win_init(void);
+static void enter_title(void);
 static void init(void) {
     uint8_t i;
 
@@ -566,16 +599,11 @@ static void init(void) {
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 
     rng_state = 0xA7;
-    start_level();
-    init_scene();
-
-    bar = 0; bartender_x = TAP_X; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
-    walk_timer = 0; frame_counter = 0; joy = joy_prev = 0;
-    fill_timer = 0; slide_timer = 0; game_over = 0; mugs_live = 0;
-    for (i = 0; i < MAX_MUGS; i++) mug_state[i] = MUG_FREE;
-    draw_bartender();
+    frame_counter = 0; joy = joy_prev = 0;
+    game_over = 0; game_state = GS_TITLE;
+    win_init();
     SHOW_BKG; SHOW_SPRITES;
-    DISPLAY_ON;
+    enter_title();                 // turns the LCD on
 }
 
 // ---- mugs and patrons ---------------------------------------------------------------
@@ -652,6 +680,7 @@ static uint8_t catch_full(uint8_t i) {
     if (best == 255) return 0;
     if (patron_col[best] < pushback_cols) {       // close to the door: out he goes
         remove_patron(best);
+        served++;
         add_score(serve_score);
     } else {
         patron_state[best] = PATRON_PUSHED;
@@ -796,35 +825,213 @@ static void draw_mugs(void) {
     oam_used = n;
 }
 
-static void start_level(void) {
-    const level_cfg_t *c = &level_table[(level - 1) < (sizeof level_table / sizeof level_table[0]) ? level - 1 : 0];
-    uint8_t b, k;
-    quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
-    pushback_cols = c->pushback_cols; serve_score = c->serve_score;
-    spawned = 0; spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES; level_clear = 0;
-    for (b = 0; b < MAX_PATRONS; b++) patron_state[b] = PATRON_NONE;
-    clear_dirty();
-    load_patron_group(c->group);
-    for (b = 0; b < NUM_BARS; b++)
-        for (k = 0; k < c->start_per_bar; k++) {
-            add_patron(b, 4 * k, next_rand() % 3);
-            spawned++;
-        }
-    patrons_live = spawned;
+// Put the level's start patrons on the bars (2nd group at column 4 where the level has two),
+// but never more than the quota still to serve.
+static void place_start_patrons(void) {
+    uint8_t b, k, placed = 0, remaining = quota > served ? quota - served : 0;
+    for (k = 0; k < start_per_bar; k++)
+        for (b = 0; b < NUM_BARS; b++)
+            if (placed < remaining) { add_patron(b, 4 * k, next_rand() % 3); placed++; }
+    spawned = served + placed;
+    patrons_live = placed;
 }
 
-static void update(void) {
-    uint8_t pressed, moved = 0, old_x, old_bar;
+static void start_level(void) {
+    uint8_t idx = level - 1, b;
+    const level_cfg_t *c = &level_table[idx < LEVEL_ROWS ? idx : LEVEL_ROWS - 1];
+    cur_group = idx % LEVEL_ROWS;               // art cycles, speeds stay at the last row
+    quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
+    pushback_cols = c->pushback_cols; serve_score = c->serve_score; start_per_bar = c->start_per_bar;
+    served = 0; spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES; level_clear = 0;
+    for (b = 0; b < MAX_PATRONS; b++) patron_state[b] = PATRON_NONE;
+    clear_dirty();
+    load_patron_group(cur_group);
+    place_start_patrons();
+}
 
-    vq_flush();                      // first thing after vsync: still in VBlank
-    if (game_over) return;           // everything stops (M4 adds the screen)
+// ---- screens and state changes --------------------------------------------------------
+static uint8_t glyph_for(char c) {
+    if (c >= '0' && c <= '9') return TILE_GLYPH_0 + (c - '0');
+    switch (c) {
+    case 'A': return TILE_GLYPH_A; case 'C': return TILE_GLYPH_C; case 'E': return TILE_GLYPH_E;
+    case 'G': return TILE_GLYPH_G; case 'H': return TILE_GLYPH_H; case 'I': return TILE_GLYPH_I;
+    case 'L': return TILE_GLYPH_L; case 'M': return TILE_GLYPH_M; case 'O': return TILE_GLYPH_O;
+    case 'P': return TILE_GLYPH_P; case 'R': return TILE_GLYPH_R; case 'S': return TILE_GLYPH_S;
+    case 'T': return TILE_GLYPH_T; case 'U': return TILE_GLYPH_U; case 'V': return TILE_GLYPH_V;
+    }
+    return TILE_HUD_BLANK;
+}
 
-    joy_prev = joy;
-    joy = joypad();
-    pressed = joy & ~joy_prev;
+// text into row_buf at column x, then onto BG row y (LCD off only)
+static void text_at(uint8_t y, uint8_t x, const char *s) {
+    uint8_t n = 0;
+    while (s[n]) { row_buf[n] = glyph_for(s[n]); n++; }
+    vram_put(x, y, row_buf, n);
+}
+
+static void fill_row(uint8_t y, uint8_t tile) {
+    uint8_t i;
+    for (i = 0; i < 20; i++) row_buf[i] = tile;
+    put_row(y);
+}
+
+static void hide_all_sprites(void) {
+    uint8_t i;
+    for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
+    oam_used = 4;
+}
+
+// Banner window (tile rows 0..2 of the 0x9C00 map): frame, a text row that
+// show_overlay() rewrites through the VBlank queue, frame. Attributes are HUD palette.
+static void win_init(void) {
+    uint8_t i;
+    for (i = 0; i < 20; i++) row_buf[i] = TILE_PANEL_TOP;
+    vram_put(0, 32, row_buf, 20);
+    for (i = 0; i < 20; i++) row_buf[i] = TILE_HUD_BLANK;
+    vram_put(0, 33, row_buf, 20);
+    for (i = 0; i < 20; i++) row_buf[i] = TILE_PANEL_BOT;
+    vram_put(0, 34, row_buf, 20);
+    if (is_cgb) {
+        VBK_REG = VBK_BANK_1;
+        for (i = 0; i < 20; i++) row_buf[i] = BGPAL_HUD;
+        vram_put(0, 32, row_buf, 20); vram_put(0, 33, row_buf, 20); vram_put(0, 34, row_buf, 20);
+        VBK_REG = VBK_BANK_0;
+    }
+    LCDC_REG |= LCDCF_WIN9C00;
+    WX_REG = 7; WY_REG = BANNER_WY;
+    STAT_REG = STATF_LYC; LYC_REG = BANNER_LYC;
+    add_LCD(lcd_isr);
+    set_interrupts(VBL_IFLAG | LCD_IFLAG);
+}
+
+static void hide_banner_sprites(void) {      // 8x16 sprites that would overlap the banner lines
+    uint8_t i;
+    for (i = 0; i < 40; i++)
+        if (shadow_OAM[i].y > BANNER_WY && shadow_OAM[i].y < BANNER_WY + 40) shadow_OAM[i].y = 0;
+}
+
+static uint8_t win_tiles[20];
+static void show_overlay(const char *s) {
+    uint8_t n = 0, i;
+    for (i = 0; i < 20; i++) win_tiles[i] = TILE_HUD_BLANK;
+    while (s[n]) n++;
+    for (i = 0; i < n; i++) win_tiles[((20 - n) >> 1) + i] = glyph_for(s[i]);
+    vq_add(0, win_tiles, 0, 33, 20);
+    overlay_on = 1;
+    hide_banner_sprites();
+}
+
+static void enter_title(void) {
+    uint8_t i, y;
+    DISPLAY_OFF;
+    overlay_on = 0; HIDE_WIN; vq_count = 0; hud_dirty = 0;
+    hide_all_sprites();
+    set_bkg_data(0, BAR_TILE_COUNT, bar_tiles);
+    if (is_cgb) {
+        palette_t p;                                  // title lettering: pale gold, amber, dark brown
+        p[0] = WALL_RGB; p[1] = RGB15(31, 29, 16); p[2] = RGB15(29, 20, 4); p[3] = RGB15(10, 3, 2);
+        set_bkg_palette(BGPAL_PATRON, 1, p);
+    }
+    for (y = 0; y < 18; y++) fill_row(y, y == 16 ? TILE_COUNTER_TOP : y == 17 ? TILE_COUNTER_FRONT : TILE_WALL);
+    for (y = 0; y < 2; y++) {                         // TAPPER, 6 letters of 2x2 tiles at columns 4..15
+        static const uint8_t letters[6] = { TILE_TITLE_T, TILE_TITLE_A, TILE_TITLE_P, TILE_TITLE_P,
+                                            TILE_TITLE_E, TILE_TITLE_R };
+        for (i = 0; i < 12; i++) row_buf[i] = letters[i >> 1] + y * 2 + (i & 1);
+        vram_put(4, 4 + y, row_buf, 12);
+    }
+    fill_row(9, TILE_HUD_BLANK);  text_at(9, 4, "PRESS START");
+    fill_row(12, TILE_HUD_BLANK); text_at(12, 5, "HI");
+    for (i = 0; i < 6; i++) row_buf[i] = digit_tile(hi_digits[i]);
+    vram_put(8, 12, row_buf, 6);
+    if (is_cgb) {
+        VBK_REG = VBK_BANK_1;
+        for (y = 0; y < 18; y++) {
+            for (i = 0; i < 20; i++) row_buf[i] = (y == 9 || y == 12) ? BGPAL_HUD : BGPAL_BAR;
+            if (y == 4 || y == 5) for (i = 4; i < 16; i++) row_buf[i] = BGPAL_PATRON;
+            put_row(y);
+        }
+        VBK_REG = VBK_BANK_0;
+    }
+    game_state = GS_TITLE;
+    DISPLAY_ON;
+}
+
+static void reset_actors(void) {
+    uint8_t i;
+    bar = 0; bartender_x = TAP_X; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
+    walk_timer = 0; fill_timer = 0; slide_timer = 0;
+    for (i = 0; i < MAX_MUGS; i++) mug_state[i] = MUG_FREE;
+    mugs_live = 0;
+}
+
+// Draw the playfield for the current level/lives/score. Screen transition: LCD off.
+static void enter_level_screen(void) {
+    DISPLAY_OFF;
+    overlay_on = 0; HIDE_WIN; vq_count = 0; hud_dirty = 0; life_lost = 0;
+    start_level();
+    init_scene();
+    reset_actors();
+    hide_all_sprites();
+    draw_bartender();
+    game_over = 0;
+    game_state = GS_PLAYING;
+    DISPLAY_ON;
+}
+
+static void start_new_game(void) {
+    uint8_t i;
+    lives = START_LIVES; level = 1; score = 0;
+    for (i = 0; i < 6; i++) score_digits[i] = 0;
+    enter_level_screen();
+}
+
+// after a lost life: same level, same served count, fresh bars
+static void resume_after_life(void) {
+    uint8_t p;
+    for (p = 0; p < MAX_PATRONS; p++) if (patron_state[p]) remove_patron(p);
+    reset_actors();
+    hide_all_sprites();
+    life_lost = 0;
+    spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES;
+    place_start_patrons();
+    draw_bartender();
+    game_state = GS_PLAYING;
+}
+
+static void enter_game_over(void) {
+    uint8_t i;
+    if (score > hi_score) {
+        hi_score = score;
+        for (i = 0; i < 6; i++) hi_digits[i] = score_digits[i];
+    }
+    game_state = GS_GAME_OVER;
+    show_overlay("GAME OVER");
+}
+
+static void enter_level_clear(void) {
+    add_score(LEVEL_BONUS);
+    state_timer = 0;
+    game_state = GS_LEVEL_CLEAR;
+    show_overlay("LEVEL CLEAR");
+}
+
+// glass pieces keep falling while the rest of the picture is frozen
+static void update_glass(void) {
+    uint8_t i, live = 0;
+    for (i = 0; i < MAX_MUGS; i++) {
+        if (mug_state[i] == MUG_FREE) continue;
+        if (mug_state[i] == MUG_BREAKING && ++mug_timer[i] >= GLASS_FRAMES * GLASS_FRAME_TIME) {
+            mug_state[i] = MUG_FREE; continue;
+        }
+        live++;
+    }
+    mugs_live = live;
+}
+
+static void play_frame(uint8_t pressed) {
+    uint8_t moved = 0, old_x, old_bar;
 
     old_x = bartender_x; old_bar = bar;
-
     // Up/Down: change bar (wrapping) and snap to that bar's tap, facing the bar
     if (pressed & J_UP)        bar = bar == 0 ? NUM_BARS - 1 : bar - 1;
     else if (pressed & J_DOWN) bar = bar == NUM_BARS - 1 ? 0 : bar + 1;
@@ -872,10 +1079,70 @@ static void update(void) {
 
     update_mugs();
     update_patrons();
+}
+
+static void update(void) {
+    uint8_t pressed;
+
+    vq_flush();                      // first thing after vsync: still in VBlank
+    if (overlay_on) SHOW_WIN; else HIDE_WIN;
+
+    joy_prev = joy;
+    joy = joypad();
+    pressed = joy & ~joy_prev;
+
+    switch (game_state) {
+    case GS_TITLE:
+        if (pressed & J_START) start_new_game();
+        frame_counter++;
+        return;
+    case GS_PLAYING:
+        if (pressed & J_START) {
+            game_state = GS_PAUSED;
+            show_overlay("PAUSE");
+            break;
+        }
+        play_frame(pressed);
+        break;
+    case GS_LIFE_LOST:
+        update_glass();
+        fill_timer = 0;
+        bartender_frame = BT_FAIL;
+        if (++state_timer >= LIFE_FREEZE_FRAMES) {
+            if (lives == 0) enter_game_over(); else resume_after_life();
+        }
+        break;
+    case GS_LEVEL_CLEAR:
+        if (++state_timer >= CLEAR_FRAMES) {
+            if (level < 99) level++;
+            enter_level_screen();
+            return;
+        }
+        break;
+    case GS_GAME_OVER:
+        if (pressed & J_START) { enter_title(); return; }
+        break;
+    case GS_PAUSED:
+        if (pressed & J_START) { game_state = GS_PLAYING; overlay_on = 0; }
+        break;
+    }
+
     compose_dirty();
     if (vram_pending || hud_dirty) queue_vram();
-    draw_bartender();
-    draw_mugs();
+    if (game_state == GS_PLAYING || game_state == GS_LIFE_LOST) {
+        draw_bartender();
+        draw_mugs();
+    }
+    if (game_state == GS_PLAYING) {              // reactions to what this frame did
+        if (life_lost) {
+            life_lost = 0;
+            state_timer = 0;
+            game_state = GS_LIFE_LOST;
+        } else if (level_clear) {
+            enter_level_clear();
+        }
+    }
+    if (overlay_on) hide_banner_sprites();
     frame_counter++;
 }
 

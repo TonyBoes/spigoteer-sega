@@ -246,7 +246,7 @@ def test_level_clear(gb):
         inject_mug(gb, b, 16)
     gb.run(8)
     assert patrons(gb) == []
-    assert score(gb) == 4 * SERVE
+    assert score(gb) == 4 * SERVE + 1000          # M4: the screen-clear bonus
     assert gb.mem("level_clear") == 1
 
 
