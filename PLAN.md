@@ -330,3 +330,10 @@ FULL custom pictures only for the intro (KA-SPLOOSH), the finale (first pour) an
 every other scene uses the LIGHTER style (the venue's in-game stage + bar as the backdrop, the
 Spigoteer's normal sprite, a framed 32x32 speaker portrait above a full-width 3x18 text box).
 Portraits for every speaker (assets/approved/story/portrait_*.txt; Spigoteer and Sadie done).
+
+## Overlapping patrons (M13, owner 2026-10-09)
+Patrons must overlap and pass, as in arcade Tapper; one patron shoving another is rejected (the interim
+"chain shove" stall fix was dropped). Design, measurements and owner decisions: docs/overlap_design.md.
+Owner decisions: occasional hurried patron (~1 in 4 from L3, ~1.5x); redraw the igloo door for the door
+entrance; CGB frees palettes both ways (coin shares with the show AND glass/puff use the drink palette);
+DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lift), M13b rules, M13c door.
