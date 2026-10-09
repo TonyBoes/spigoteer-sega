@@ -152,3 +152,6 @@ Themed shows: the dancers' 32 OBJ tiles are reloaded per theme (3 performers, 16
 can-can (saloon), cheerleaders (sports), Sasquatch (lumber), plate-spinning waiters (bistro),
 penguins (igloo), breakdancing robots (factory), taiko drummers (teahouse), alien band (space),
 flamingo chorus line (zoo).
+Show music per theme (all public domain): teahouse "Sakura Sakura" (traditional), igloo "The Skaters'
+Waltz" (Waldteufel, 1882), sports bar "Take Me Out to the Ball Game" (Von Tilzer, 1908); every
+other theme plays the "Galop Infernal". Show tunes are short loops (~8-12 s) for the 6 s show.
