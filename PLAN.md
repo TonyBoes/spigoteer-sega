@@ -236,3 +236,10 @@ round in the venue just played). The breaking-glass shards stay the generic ones
 - Music: game tempos (Entertainer 112, Sakura 120, Funiculi 112 dotted q, Skaters 192, Danube 192,
   Ball Game 192) and drums back on every tune (shared drum pattern). Galop: waiting for the
   owner's spec; the current one was written from memory and sounds wrong.
+
+## Door fix (queued after the difficulty pass)
+
+Patrons spawn at x = 16 (right of the 16 px door) and leave (served) when pushed back past x = 16,
+so they never overlap the door tiles. Door swings: a short open/shut tile swap per venue if the
+bar tile slot has room, otherwise a small dust-puff sprite at the doorway on enter/leave. Walk
+speeds rescaled so crossing times are unchanged (level-1 crossing still >= 15 s).
