@@ -17,6 +17,14 @@ TABLE = [
     (6, 0xF, 2, 20, 175, 40, 3, 125), (7, 0xF, 2, 21, 160, 37, 3, 150), (8, 0xF, 2, 22, 150, 34, 3, 150),
 ]
 ART_H = (ROOT / "build" / "art.h").read_text()
+PATRON_TILES = int(re.search(r"#define PATRON_TILES_PER_GROUP (\d+)", ART_H).group(1))
+
+
+def patron_group_tiles(g):
+    """Bytes of patron group g as generated (the ROM keeps them in a switchable bank, so read build/patrons.c)."""
+    src = (ROOT / "build" / "patrons.c").read_text()
+    data = bytes(int(h, 16) for h in re.findall(r"0x([0-9A-F]{2})", src))
+    return data[g * PATRON_TILES * 16:(g + 1) * PATRON_TILES * 16]
 
 
 def tile_id(name):
@@ -24,8 +32,8 @@ def tile_id(name):
 
 
 def patrons(gb):
-    st, bar, col = (gb.read(n, MAX_P) for n in ("patron_state", "patron_bar", "patron_col"))
-    return sorted((bar[i], col[i]) for i in range(MAX_P) if st[i])
+    st, bar, x = (gb.read(n, MAX_P) for n in ("patron_state", "patron_bar", "patron_x"))
+    return sorted((bar[i], x[i]) for i in range(MAX_P) if st[i])
 
 
 def mugs(gb):
@@ -57,10 +65,11 @@ def put(gb, name, i, v):
     gb.write(gb.addr(name) + i, v)
 
 
-def set_patron(gb, bar, col, pstate=1, timer=0):
+def set_patron(gb, bar, x, pstate=1, frac=0):
     i = list(gb.read("patron_state", MAX_P)).index(0)
-    for n, v in (("patron_state", pstate), ("patron_bar", bar), ("patron_col", col), ("patron_variant", 0),
-                 ("patron_timer", timer), ("patron_aux", 0)):
+    for n, v in (("patron_state", pstate), ("patron_bar", bar), ("patron_x", x), ("patron_variant", 0),
+                 ("patron_frac", frac), ("patron_timer", 0), ("patron_aux", 0), ("patron_draw", 255),
+                 ("patron_mug", 255)):
         put(gb, n, i, v)
     gb.write("patrons_live", gb.mem("patrons_live") + 1)
 
@@ -75,7 +84,7 @@ def inject_mug(gb, bar, x, st=1):
 def lose_a_life(gb):
     """A patron one step from the tap on the top bar."""
     gb.write("intro_timer", 0)
-    set_patron(gb, 0, 15, timer=60)
+    set_patron(gb, 0, 127, frac=255)       # takes its last pixel on the next frame
     run_until(gb, lambda: state(gb) == LIFE_LOST, 20)
 
 
@@ -211,9 +220,9 @@ def test_level_clear_scores_shows_banner_and_loads_level_2(gb):
     gb.run(15)
     assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_2")]   # L02
     base = int(re.search(r"BAR_TILE_COUNT (\d+)", ART_H).group(1))
-    vram = bytes(gb.read(0x9000 + base * 16, 192))   # BG tiles 0..127 live at 0x9000 (LCDC bit 4 = 0)
-    rom = bytes(gb.read(gb.addr("patron_tiles") + 192, 192))
-    assert vram == rom, "the sports group is in VRAM"
+    vram = b"".join(bytes(gb.read((0x9000 + t * 16) if t < 128 else (0x8800 + (t - 128) * 16), 16))   # LCDC bit 4 = 0: ids 0..127 at 0x9000, 128..255 at 0x8800
+                    for t in range(base, base + PATRON_TILES))
+    assert vram == patron_group_tiles(1), "the sports group is in VRAM"
     check_golden(gb, "level2")
 
 

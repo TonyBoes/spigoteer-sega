@@ -18,6 +18,8 @@
 #include "palettes.h"
 #include "layout.h"
 
+BANKREF_EXTERN(patron_tiles)
+
 // ---- tunables --------------------------------------------------------------
 #define TAP_X         144   // bartender_x at the tap (columns 18-19)
 #define TAP_GRACE      16   // A pressed within this many px left of the tap snaps to it and fills
@@ -26,12 +28,17 @@
 #define WALK_ANIM_FRAMES 8  // walk1/walk2 swap period
 #define NUM_BARS        4
 
-// patrons (16x16 = 2x2 BG tiles on the two back-wall rows of a bar)
+// patrons: 16x16 px, drawn as a 3x2-tile BG footprint on the two back-wall rows of a bar.
+// Position is in pixels (patron_x, left edge of the 16 px figure) plus a fraction; the picture
+// is pre-shifted by 0/2/4/6 px in the tile set, so it moves in 2 px steps by swapping map entries.
 #define MAX_PATRONS      16
-#define PATRON_SPACING    4   // min column distance between two patrons on a bar
-#define PATRON_FAR_COL   16   // a walker whose left column gets here has reached the tap
-#define PUSHED_STEP_FRAMES 4  // frames per column while pushed back
+#define PATRON_SPACING   32   // min px between the left edges of two patrons on a bar (no shared tile column)
+#define PATRON_FAR_X    128   // a walker whose patron_x gets here has reached the tap (old column 16)
+#define PATRON_W         16
+#define PUSH_SPEED        1   // px per frame while pushed back
 #define DRINK_FRAMES     90
+#define SWAY_FRAMES      12   // while drinking the drawn shift alternates by 2 px this often
+#define NO_SLOT         255
 #define INTRO_FRAMES     90   // nothing moves or spawns for this long after a level starts
 #define SPAWN_RETRY      20   // frames before trying again when the door is crowded
 #define PATRON_TILE_BASE BAR_TILE_COUNT
@@ -48,10 +55,10 @@ enum { PATRON_NONE, PATRON_WALKING, PATRON_PUSHED, PATRON_DRINKING };
 typedef struct {
     uint8_t group;          // patron art group (index into patron_tiles)
     uint8_t start_mask;     // bit b set: bar b starts with patrons
-    uint8_t start_per_bar;  // patrons per started bar (stacked 4 columns apart)
+    uint8_t start_per_bar;  // patrons per started bar (stacked 32 px apart)
     uint8_t quota;          // patrons spawned in the level, including the start ones
     uint16_t spawn_interval; // frames
-    uint8_t step_frames;    // frames per column step
+    uint8_t step_frames;    // frames per 8 px of walking (patron_speed = 8 px / step_frames)
     uint8_t pushback_cols;
     uint8_t serve_score;
 } level_cfg_t;
@@ -108,7 +115,8 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define GLASS_X            0   // screen x of the glass breaking at the door end
 #define GLASS_X_RIGHT    144   // ... and at the tap end
 #define GLASS_FRAME_TIME   8   // frames per glass frame
-enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING };
+#define OBJ_MUG_DRINK   (OBJ_MUG_FILL + MUG_FILL_TILE_COUNT)
+enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caught, in a patron's hand
 
 // CGB OBJ palette slots
 #define OBJPAL_BARTENDER 0
@@ -155,6 +163,8 @@ uint8_t  level_clear;       // quota spawned, no patrons, no mugs
 
 // level state (loaded from level_table by start_level)
 uint8_t  quota, spawned, step_frames, pushback_cols, serve_score;
+uint8_t  patron_speed;      // walking speed in 1/256 px per frame
+uint8_t  pushback_px;       // pushback_cols * 8
 uint16_t spawn_interval, spawn_timer;   // frames; 16-bit: level 1 spawns every 300
 uint8_t  intro_timer;
 uint8_t  rng_state;
@@ -163,10 +173,13 @@ uint8_t  drain_ticks_max;   // longest VRAM drain so far in DIV ticks (256 cycle
 // patron pool
 uint8_t  patron_state[MAX_PATRONS];    // PATRON_*
 uint8_t  patron_bar[MAX_PATRONS];
-uint8_t  patron_col[MAX_PATRONS];      // left tile column, 0..16
+uint8_t  patron_x[MAX_PATRONS];        // pixel x of the figure's left edge, 0..127 (screen coords)
+uint8_t  patron_frac[MAX_PATRONS];     // sub-pixel fraction, 1/256 px
+uint8_t  patron_draw[MAX_PATRONS];     // x it is drawn at (patron_x & ~1, +2 while swaying); 255 = not drawn yet
 uint8_t  patron_variant[MAX_PATRONS];  // 0..2
 uint8_t  patron_timer[MAX_PATRONS];
-uint8_t  patron_aux[MAX_PATRONS];      // columns left to be pushed back
+uint8_t  patron_aux[MAX_PATRONS];      // px left to be pushed back
+uint8_t  patron_mug[MAX_PATRONS];      // mug slot held while pushed/drinking, NO_SLOT otherwise
 uint8_t  patrons_live;
 
 // mug pool (plain arrays so tests can read them by name)
@@ -174,6 +187,7 @@ uint8_t  mug_state[MAX_MUGS];   // MUG_FREE / MUG_FULL / MUG_EMPTY / MUG_BREAKIN
 uint8_t  mug_bar[MAX_MUGS];
 uint8_t  mug_x[MAX_MUGS];       // pixel x of the mug's left edge
 uint8_t  mug_timer[MAX_MUGS];   // frames since breaking began
+uint8_t  mug_patron[MAX_MUGS];  // MUG_HELD: the patron holding it
 uint8_t  mugs_live;             // number of non-free slots
 
 // ---- palettes ----------------------------------------------------------------
@@ -211,7 +225,10 @@ static void load_cgb_palettes(void) {
 static void load_patron_group(uint8_t g) {
     palette_t p;
     uint8_t v, i;
+    uint8_t saved = CURRENT_BANK;
+    SWITCH_ROM(BANK(patron_tiles));              // the tile data lives in a switchable bank (LCD is off here)
     set_bkg_data(PATRON_TILE_BASE, PATRON_TILES_PER_GROUP, patron_tiles + (uint16_t)g * PATRON_GROUP_BYTES);
+    SWITCH_ROM(saved);
     if (!is_cgb) return;
     for (v = 0; v < 3; v++) {                    // colour 0 = the wall, so the art needs no transparency
         p[0] = WALL_RGB;
@@ -386,8 +403,8 @@ static void init_scene(void) {
 // ---- patrons: shadow of the two wall rows of each bar + dirty spans ---------------
 // The picture is composed into sh_tile/sh_attr during the frame; the changed
 // column spans are copied into VRAM at the start of the next frame, right after
-// vsync (inside VBlank). A patron step touches 3 columns x 2 rows x (tile +
-// attribute) = 12 bytes, so even 4 simultaneous steps stay well inside VBlank
+// vsync (inside VBlank). A patron redraw touches 3-4 columns x 2 rows x (tile +
+// attribute) = 16-24 bytes, so even 4 simultaneous redraws stay inside VBlank
 // (vram_ly_min proves it in the tests).
 // rows indexed (bar << 1) | r, 32 wide: power-of-two strides keep SDCC from calling its slow multiply
 static uint8_t sh_tile[NUM_BARS * 2][32];
@@ -423,7 +440,7 @@ static void base_fill(uint8_t b, uint8_t x0, uint8_t x1) {
 // Redraw the dirty span of every bar marked this frame: base tiles, then each
 // patron stamped over it (one pass over the patron pool, not one per bar).
 static void compose_dirty(void) {
-    uint8_t b, p, k, r, row, cc, v, c;
+    uint8_t b, p, k, r, row, cc, v, c, t0;
     if (!fresh) return;
     for (b = 0; b < NUM_BARS; b++)
         if (fresh & bar_bit[b]) base_fill(b, dirty_x0[b], dirty_x1[b]);
@@ -431,14 +448,17 @@ static void compose_dirty(void) {
         if (patron_state[p] == PATRON_NONE) continue;
         b = patron_bar[p];
         if (!(fresh & bar_bit[b])) continue;
+        c = patron_draw[p];
+        if (c == 255) continue;                    // not drawn yet
         v = patron_variant[p];
-        c = patron_col[p];
-        for (k = 0; k < 2; k++) {
+        t0 = PATRON_TILE_BASE + (v << 4) + (v << 3) + (((c >> 1) & 3) * 6);   // variant v * 24 + shift * 6
+        c >>= 3;
+        for (k = 0; k < 3; k++) {
             cc = c + k;
             if (cc < dirty_x0[b] || cc >= dirty_x1[b]) continue;
             for (r = 0; r < 2; r++) {
                 row = (b << 1) | r;
-                sh_tile[row][cc] = PATRON_TILE_BASE + v * 4 + r * 2 + k;
+                sh_tile[row][cc] = t0 + r * 3 + k;
                 sh_attr[row][cc] = BGPAL_PATRON + v;
             }
         }
@@ -624,6 +644,7 @@ static void init(void) {
     set_sprite_data(OBJ_MUG, MUG_TILE_COUNT, mug_tiles);
     set_sprite_data(OBJ_GLASS, GLASS_TILE_COUNT, glass_tiles);
     set_sprite_data(OBJ_MUG_FILL, MUG_FILL_TILE_COUNT, mug_fill_tiles);
+    set_sprite_data(OBJ_MUG_DRINK, MUG_DRINK_TILE_COUNT, mug_drink_tiles);
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 
     rng_state = 0xA7;
@@ -661,60 +682,90 @@ static void launch_mug(void) {
     spawn_mug(bar, MUG_START_X, MUG_FULL);
 }
 
-static uint8_t add_patron(uint8_t b, uint8_t col, uint8_t variant) {
+// Where patron p is drawn: its position at 2 px granularity, +2 px on alternate beats while drinking (sway).
+static uint8_t drawn_x(uint8_t p) {
+    uint8_t x = patron_x[p] & 0xFE;
+    if (patron_state[p] == PATRON_DRINKING && ((patron_timer[p] / SWAY_FRAMES) & 1)) x += 2;
+    return x;
+}
+
+// Redraw p if its drawn position changed: mark the columns it leaves and the ones it covers.
+static void refresh_patron(uint8_t p) {
+    uint8_t nd = drawn_x(p), od = patron_draw[p], lo, hi, b = patron_bar[p];
+    if (nd == od) return;
+    patron_draw[p] = nd;
+    if (od == 255) od = nd;
+    lo = (nd < od ? nd : od) >> 3;
+    hi = (nd < od ? od : nd) >> 3;
+    mark_dirty(b, lo, hi + 3);
+}
+
+static uint8_t add_patron(uint8_t b, uint8_t x, uint8_t variant) {
     uint8_t p;
     for (p = 0; p < MAX_PATRONS; p++) {
         if (patron_state[p] != PATRON_NONE) continue;
         patron_state[p] = PATRON_WALKING;
-        patron_bar[p] = b; patron_col[p] = col; patron_variant[p] = variant;
-        patron_timer[p] = 0; patron_aux[p] = 0;
-        mark_dirty(b, col, col + 2);
+        patron_bar[p] = b; patron_x[p] = x; patron_frac[p] = 0; patron_variant[p] = variant;
+        patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
+        patron_draw[p] = 255;
+        refresh_patron(p);
         return 1;
     }
     return 0;
 }
 
+static void free_held_mug(uint8_t p) {
+    uint8_t m = patron_mug[p];
+    if (m != NO_SLOT && mug_state[m] == MUG_HELD) {
+        mug_state[m] = MUG_FREE;
+        if (mugs_live) mugs_live--;
+    }
+    patron_mug[p] = NO_SLOT;
+}
+
 static void remove_patron(uint8_t p) {
+    uint8_t d = patron_draw[p] >> 3;
     patron_state[p] = PATRON_NONE;
-    mark_dirty(patron_bar[p], patron_col[p], patron_col[p] + 2);
+    free_held_mug(p);
+    if (patron_draw[p] != 255) mark_dirty(patron_bar[p], d, d + 3);
+    patron_draw[p] = 255;
 }
 
-// is another patron too close ahead (to the right) for p to step one column right?
+// is another patron too close ahead (to the right) for p to step one px right?
 static uint8_t blocked_ahead(uint8_t p) {
-    uint8_t q, c = patron_col[p];
+    uint8_t q, x = patron_x[p];
     for (q = 0; q < MAX_PATRONS; q++)
-        if (patron_state[q] && patron_bar[q] == patron_bar[p] && patron_col[q] > c
-            && patron_col[q] < c + 1 + PATRON_SPACING) return 1;
+        if (patron_state[q] && patron_bar[q] == patron_bar[p] && patron_x[q] > x
+            && (uint8_t)(patron_x[q] - x) <= PATRON_SPACING) return 1;
     return 0;
 }
 
-// ... or behind (to the left) for p to slide one column left?
+// ... or behind (to the left) for p to slide one px left?
 static uint8_t blocked_behind(uint8_t p) {
-    uint8_t q, c = patron_col[p];
+    uint8_t q, x = patron_x[p];
     for (q = 0; q < MAX_PATRONS; q++)
-        if (patron_state[q] && patron_bar[q] == patron_bar[p] && patron_col[q] < c
-            && c - 1 < patron_col[q] + PATRON_SPACING) return 1;
+        if (patron_state[q] && q != p && patron_bar[q] == patron_bar[p] && patron_x[q] < x
+            && (uint8_t)(x - patron_x[q]) <= PATRON_SPACING) return 1;
     return 0;
 }
 
-// Full mug at mug_x[i] reaches the rightmost walking patron whose 16 px contain it.
+// Full mug i at mug_x[i] reaches the rightmost walking patron whose 16 px contain it:
+// he catches it, the mug stays in his hand (MUG_HELD) and he is pushed back.
 static uint8_t catch_full(uint8_t i) {
     uint8_t p, best = 255, x = mug_x[i], l;
     for (p = 0; p < MAX_PATRONS; p++) {
         if (patron_state[p] != PATRON_WALKING || patron_bar[p] != mug_bar[i]) continue;
-        l = patron_col[p] << 3;
-        if (x >= l && x < l + 16 && (best == 255 || patron_col[p] > patron_col[best])) best = p;
+        l = patron_x[p];
+        if (x >= l && x < l + PATRON_W && (best == 255 || l > patron_x[best])) best = p;
     }
     if (best == 255) return 0;
-    if (patron_col[best] < pushback_cols) {       // close to the door: out he goes
-        remove_patron(best);
-        served++;
-        add_score(serve_score);
-    } else {
-        patron_state[best] = PATRON_PUSHED;
-        patron_timer[best] = 0;
-        patron_aux[best] = pushback_cols;
-    }
+    patron_state[best] = PATRON_PUSHED;
+    patron_timer[best] = 0;
+    patron_aux[best] = pushback_px;
+    patron_frac[best] = 0;
+    patron_mug[best] = i;
+    mug_state[i] = MUG_HELD;
+    mug_patron[i] = best;
     return 1;
 }
 
@@ -726,7 +777,7 @@ static void update_mugs(void) {
         if (st == MUG_FREE) continue;
         if (st == MUG_FULL) {
             mug_x[i] -= MUG_SPEED_FULL;
-            if (catch_full(i)) { mug_state[i] = MUG_FREE; continue; }
+            if (catch_full(i)) { live++; continue; }
             if (mug_x[i] < MUG_END_X) {          // fell off the left end
                 mug_state[i] = MUG_BREAKING;
                 mug_timer[i] = 0;
@@ -746,17 +797,19 @@ static void update_mugs(void) {
             }
         } else if (st == MUG_BREAKING) {
             if (++mug_timer[i] >= GLASS_FRAMES * GLASS_FRAME_TIME) { mug_state[i] = MUG_FREE; continue; }
+        } else if (st == MUG_HELD) {             // its patron is gone (or never held it): let it go
+            if (patron_state[mug_patron[i]] == PATRON_NONE || patron_mug[mug_patron[i]] != i) { mug_state[i] = MUG_FREE; continue; }
         }
         live++;
     }
     mugs_live = live;
 }
 
-// New patron at the door of a random bar, if columns 0..PATRON_SPACING-1 of it are free.
+// New patron at the door of a random bar, if its first PATRON_SPACING px are free.
 static uint8_t try_spawn(void) {
     uint8_t b = (next_rand() >> 2) & 3, p, v;
     for (p = 0; p < MAX_PATRONS; p++)
-        if (patron_state[p] && patron_bar[p] == b && patron_col[p] < PATRON_SPACING) return 0;
+        if (patron_state[p] && patron_bar[p] == b && patron_x[p] < PATRON_SPACING) return 0;
     v = next_rand() % 3;
     if (!add_patron(b, 0, v)) return 0;
     spawned++;
@@ -764,8 +817,8 @@ static uint8_t try_spawn(void) {
 }
 
 static void update_patrons(void) {
-    uint8_t p, st, live = 0, go = (intro_timer == 0), old, sf = step_frames;
-    uint8_t *ps = patron_state, *pt = patron_timer;   // pointer walk: much cheaper than indexing in SDCC
+    uint8_t p, st, live = 0, go = (intro_timer == 0), f, m;
+    uint8_t *ps = patron_state;                       // pointer walk: much cheaper than indexing in SDCC
 
     if (!go) {
         intro_timer--;
@@ -774,47 +827,54 @@ static void update_patrons(void) {
         else spawn_timer = try_spawn() ? spawn_interval : SPAWN_RETRY;
     }
 
-    for (p = 0; p < MAX_PATRONS; p++, ps++, pt++) {
+    for (p = 0; p < MAX_PATRONS; p++, ps++) {
         st = *ps;
         if (st == PATRON_NONE) continue;
         if (st == PATRON_WALKING) {
             if (go) {
-                if (*pt < sf) { (*pt)++; live++; continue; }
-                if (!blocked_ahead(p)) {
-                    old = patron_col[p];
-                    patron_timer[p] = 0;
-                    patron_col[p] = old + 1;
-                    mark_dirty(patron_bar[p], old, old + 3);
-                    if (old + 1 >= PATRON_FAR_COL) {      // reached the tap
-                        patron_state[p] = PATRON_NONE;
-                        lose_life();
-                        continue;
+                f = patron_frac[p] + patron_speed;
+                if (f < patron_frac[p]) {                 // carried: one whole pixel
+                    if (!blocked_ahead(p)) {
+                        patron_frac[p] = f;
+                        if (++patron_x[p] >= PATRON_FAR_X) {   // reached the tap
+                            remove_patron(p);
+                            lose_life();
+                            continue;
+                        }
                     }
+                } else {
+                    patron_frac[p] = f;
                 }
             }
         } else if (st == PATRON_PUSHED) {
-            if (++patron_timer[p] >= PUSHED_STEP_FRAMES) {
-                patron_timer[p] = 0;
-                if (patron_aux[p] && patron_col[p] && !blocked_behind(p)) {
-                    old = patron_col[p];
-                    patron_col[p] = old - 1;
-                    patron_aux[p]--;
-                    mark_dirty(patron_bar[p], old - 1, old + 2);
-                } else {
-                    patron_aux[p] = 0;
-                }
-                if (patron_aux[p] == 0) patron_state[p] = PATRON_DRINKING;
+            if (patron_aux[p] == 0) {
+                *ps = PATRON_DRINKING; patron_timer[p] = 0;
+            } else if (patron_x[p] == 0) {                // pushed out through the door: served
+                remove_patron(p);
+                served++;
+                add_score(serve_score);
+                continue;
+            } else if (blocked_behind(p)) {               // no room: stay put and drink
+                patron_aux[p] = 0;
+                *ps = PATRON_DRINKING; patron_timer[p] = 0;
+            } else {
+                patron_x[p] -= PUSH_SPEED;
+                patron_aux[p] -= PUSH_SPEED;
+                if (patron_aux[p] == 0) { *ps = PATRON_DRINKING; patron_timer[p] = 0; }
             }
-        } else {                                          // drinking, then back to walking
+        } else {                                          // drinking, then the empty slides out and he walks on
             if (++patron_timer[p] >= DRINK_FRAMES) {
-                if (spawn_mug(patron_bar[p], (patron_col[p] << 3) + 16, MUG_EMPTY)) {
-                    patron_state[p] = PATRON_WALKING;
-                    patron_timer[p] = 0;
-                } else {
-                    patron_timer[p] = DRINK_FRAMES;       // pool or bar full: try again next frame
+                m = patron_mug[p];
+                if (m != NO_SLOT && mug_state[m] == MUG_HELD) {
+                    mug_state[m] = MUG_EMPTY;
+                    mug_x[m] = patron_x[p] + PATRON_W;
                 }
+                patron_mug[p] = NO_SLOT;
+                *ps = PATRON_WALKING;
+                patron_timer[p] = 0;
             }
         }
+        refresh_patron(p);
         live++;
     }
     patrons_live = live;
@@ -831,6 +891,16 @@ static void draw_fill(void) {
     o->y = y; o->x = (uint8_t)(MUG_START_X + 8);
     o->tile = OBJ_MUG_FILL + fill_stage * 2; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;   // DMG: OBP0 (beer light grey) shows on the white wall; OBP1 would make it white
 }
+
+// Held-mug pose by drinking time (index = patron_timer / 4, 0..22): the mug rises from the hand to the
+// mouth, tilts and tips while he drinks, and is lowered empty. dx is the sprite's offset from the
+// drawn patron x, dy from the bar's top pixel row (art is in sprite rows 2-12, so dy 1 puts a tilted
+// mug at face height and dy 6 at the hand, always inside the bar's 24 lines).
+#define HELD_DX_CARRY 9
+#define HELD_DY_CARRY 6
+static const uint8_t drink_frame[23] = { 0,0,0, 1,1,1,1,1,1,1,1, 2,2,2,2,2,2,2,2, 3,3,3,3 };
+static const uint8_t drink_dx[23]    = { 9,9,8, 8,8,8,8,8,8,8,8, 8,8,8,8,8,8,8,8, 8,9,9,9 };
+static const uint8_t drink_dy[23]    = { 5,3,2, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 2,3,5,6 };
 
 // OAM 5.. : one entry per mug, two per breaking glass. Entries used last frame
 // but not this one are hidden (y = 0).
@@ -851,6 +921,23 @@ static void draw_mugs(void) {
                 o->y = y; o->x = gx + 8;  o->tile = t;     o->prop = S_PALETTE | OBJPAL_GLASS; o++;
                 o->y = y; o->x = gx + 16; o->tile = t + 2; o->prop = S_PALETTE | OBJPAL_GLASS; o++;
                 n += 2;
+            } else if (st == MUG_HELD) {
+                if (n > 39) continue;
+                gx = mug_patron[i];
+                t = patron_state[gx] == PATRON_DRINKING ? patron_timer[gx] >> 2 : 255;
+                if (t > 22) {                                 // being carried back: upright, full, at the hand
+                    t = 0; mug_x[i] = patron_draw[gx] + HELD_DX_CARRY;
+                    o->y = BAR_TOP_Y(mug_bar[i]) + HELD_DY_CARRY + 16;
+                } else {
+                    mug_x[i] = patron_draw[gx] + drink_dx[t];
+                    o->y = BAR_TOP_Y(mug_bar[i]) + drink_dy[t] + 16;
+                    t = drink_frame[t];
+                }
+                o->x = mug_x[i] + 8; o->tile = OBJ_MUG_DRINK + t * 2;
+                // CGB: full / empty OBJ palette. DMG: the full mug uses OBP0 (beer light grey, foam white) like the
+                // fill glass so it shows on the white wall; the empty one uses OBP1 like every empty mug.
+                o->prop = t == 3 ? (S_PALETTE | OBJPAL_MUG_EMPTY) : (is_cgb ? OBJPAL_MUG_FULL : 0);
+                o++; n++;
             } else {
                 if (n > 39) continue;
                 o->y = y; o->x = mug_x[i] + 8;
@@ -864,13 +951,13 @@ static void draw_mugs(void) {
     oam_used = n;
 }
 
-// Put the level's start patrons on the bars (2nd group at column 4 where the level has two),
+// Put the level's start patrons on the bars (2nd group 32 px on where the level has two),
 // but never more than the quota still to serve.
 static void place_start_patrons(void) {
     uint8_t b, k, placed = 0, remaining = quota > served ? quota - served : 0;
     for (k = 0; k < start_per_bar; k++)
         for (b = 0; b < NUM_BARS; b++)
-            if ((start_mask & bar_bit[b]) && placed < remaining) { add_patron(b, 4 * k, next_rand() % 3); placed++; }
+            if ((start_mask & bar_bit[b]) && placed < remaining) { add_patron(b, PATRON_SPACING * k, next_rand() % 3); placed++; }
     spawned = served + placed;
     patrons_live = placed;
 }
@@ -880,7 +967,9 @@ static void start_level(void) {
     const level_cfg_t *c = &level_table[idx < LEVEL_ROWS ? idx : LEVEL_ROWS - 1];
     cur_group = idx % LEVEL_ROWS;               // art cycles, speeds stay at the last row
     quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
-    pushback_cols = c->pushback_cols; serve_score = c->serve_score; start_per_bar = c->start_per_bar;
+    pushback_cols = c->pushback_cols; pushback_px = pushback_cols << 3;
+    patron_speed = (uint8_t)(2048u / step_frames);          // 8 px per step_frames, in 1/256 px per frame
+    serve_score = c->serve_score; start_per_bar = c->start_per_bar;
     start_mask = c->start_mask;
     served = 0; spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES; level_clear = 0;
     for (b = 0; b < MAX_PATRONS; b++) patron_state[b] = PATRON_NONE;
