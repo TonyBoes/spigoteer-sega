@@ -436,3 +436,31 @@ DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lif
   would need the per-patron and per-mug frame work itself cheaper (update_patrons, update_mugs / catch, draw_mugs,
   the BG compose: a hand-written rewrite of those paths), not more overlap tuning. Real play is unaffected (level 8 / 9
   scripts 0 late). The pile guard is tightened to the M13b level.
+
+## M13c as built (door entrance) and the realistic-peak perf test
+- Spawn (src/patrons.c try_spawn): blocked_behind(b, SPAWN_X + PATRON_SPACING); the patron is added at SPAWN_X = 0 and
+  lifted at once behind the BG (lift.c `lift_spawn`: try_lift with LIFT_BEHIND, OAM X 8, counted in every budget); if the
+  lift is refused (LIFT_MAX / LIFT_PER_BAR / OAM / 10 per line / this frame's copy list) he is taken back and the spawn
+  retried SPAWN_RETRY frames later. No entry puff. He walks EMERGE_SPEED (64/256 px) while x < DOOR_X, then the level's
+  (or hurried) speed: door-to-tap time from x 16 unchanged. At x == DOOR_X LIFT_BEHIND becomes LIFT_OBJ (in front); the
+  M13b drop rules then apply (clear 8 frames, x >= DOOR_X). He may catch a mug while emerging (served out at once; his
+  sprite goes the frame the puff starts). start_show never distracts a patron in the doorway.
+- The door is never drawn over: render.c put_col / stamp3 never stamp columns < DOOR_COLS, and a patron with draw < DOOR_X
+  gets no quick redraw. A BG patron in the doorway (only after a forced drop) is therefore clipped at the door, which is
+  pixel-identical to the behind-BG sprite because no door has colour 0. try_lift lifts anyone with x < DOOR_X as LIFT_BEHIND.
+- Igloo door redrawn (owner decision): its 82 colour-0 pixels (wall purple around the dome) became colour 3 (dark blue),
+  nothing else changed; bar tiles still 16. Previews out/m13c/igloo_door_{before,after}.{cgb,dmg}.png. Every venue's door
+  has no colour 0 (test). LCDC bit 0 is on in play and the door attributes have bit 7 clear (test).
+- Forced drop on a held frame (vq_held): the sprite now goes at once and the BG copy follows with the next list (he is
+  missing a frame or two) instead of an ordinary drop that kept 11 objects on a line for a frame.
+- main.c: OAM DMA is disabled while the sprites are redrawn (DISABLE_OAM_DMA / ENABLE_OAM_DMA around the draw calls): a
+  frame that overran into VBlank DMA'd a half-drawn OAM (the realistic peak showed 11 objects on a line that way).
+- Perf (PyBoy, end LY / missed): level 8 script DMG 91 / 0, CGB 101 / 0; level 9 script (2400) DMG 100 / 0, CGB 109 / 0;
+  REALISTIC PEAK (new, perf_helpers.RealisticPeak: ~7.5 patrons, <= 3 full, <= 3 empty, up to 7 held, tip or show,
+  emergence, lifts) DMG 190 / 65 of 1200, CGB 208 / 88: the owner target (0 missed, end <= 118) is NOT met; asserted
+  as a strict xfail plus a regression guard; budgets (<= 10 per line, <= 40) and the music hold. Where it goes (sections
+  build, median DIV ticks, ~1.8 a line): update_patrons ~36, draw_mugs + draw_lifted ~43, lift_frame ~29, update_mugs ~23,
+  queue_vram ~15, music ~14. Stress tests: level-9 overlap DMG 171 / 259, CGB 176 / 299; pile DMG 220 / 229, CGB 221 / 232
+  (guard 230 / 245: its replacement walkers at x 0 are now doorway patrons, composed at every pixel).
+- Known: on CGB (always) and DMG (x < 4) an emerging patron's sprite masks the serve-out puff of another patron on the same
+  bar where his pixels are; an emerging patron overlapping a BG patron at columns 2-3 is behind him, then in front at x 16.

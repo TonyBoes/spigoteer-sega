@@ -26,9 +26,14 @@
 #define WALK_FRAC     128
 #define WALK_STEP_FRAMES 10 // frames per step of the walk cycle walk1, idle, walk2, idle
 #define NUM_BARS        4
-// The door: columns 0-1 (16 px) of every bar's two wall rows. Patrons come in at DOOR_X, just right of it, and
-// are served out (pushed back) when they would go left of it, so their 3-tile footprint never covers the door.
+// The door: columns 0-1 (16 px) of every bar's two wall rows. Patrons are served out (pushed back) when they would go
+// left of DOOR_X. M13c: a new patron steps out from behind the door: he spawns at SPAWN_X lifted behind the BG
+// (LIFT_BEHIND: the door's colours 1-3 hide him, and no venue's door has colour 0), walks EMERGE_SPEED / 256 px a frame
+// until DOOR_X, then at the level's speed; the door's tiles never change (render.c never stamps a patron on columns 0-1).
 #define DOOR_X         16
+#define DOOR_COLS       2
+#define SPAWN_X         0
+#define EMERGE_SPEED   64
 
 // patrons: 16x16 px, drawn as a 3x2-tile BG footprint on the two back-wall rows of a bar.
 // Position is in pixels (patron_x, left edge of the 16 px figure) plus a fraction; the picture
@@ -282,6 +287,7 @@ extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds: 1 the 
 void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palettes / DMG copies and looks, no one lifted
 void lift_frame(void) BANKED;                 // after the rules, before queue_vram: drops, forced drops, the test hook
 void draw_lifted(void) BANKED;                // OAM 25 down, after draw_mugs
+uint8_t lift_spawn(uint8_t p) BANKED;         // M13c: lift a new patron behind the door now (1), or not (0: no room)
 // ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
 extern uint8_t venue_id;
 void load_venue(uint8_t t) BANKED;                      // tiles, palettes, base_tile/base_attr of theme t

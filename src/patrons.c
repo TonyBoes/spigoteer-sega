@@ -108,11 +108,13 @@ static void refresh_patron(uint8_t p) {
 
 // (Split in two so SDCC keeps the slot in a register while it fills the fields: add_patron runs on a spawn frame,
 // usually the busiest of all.)
-static uint8_t np_b, np_x, np_v, np_h;
+static uint8_t np_b, np_x, np_v, np_h, np_p;
 static void init_patron(uint8_t p) {
+    np_p = p;
     patron_state[p] = PATRON_WALKING;
     patron_bar[p] = np_b; patron_x[p] = np_x; patron_frac[p] = 0; patron_variant[p] = np_v;
     patron_hurry[p] = np_h; np_h = 0;
+    patron_lift[p] = LIFT_BG;                         // (M13c: lift_spawn needs it; a test may have emptied a lifted slot)
     patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
     patron_dist[p] = 0; patron_facing[p] = 0; patron_catchx[p] = np_x; patron_drinks[p] = 0;
     patron_draw[p] = np_x;                            // drawn where he stands, facing the bar: his 3 columns change
@@ -321,18 +323,21 @@ uint8_t catch_full(uint8_t i) {
 }
 
 // ---- spawning ------------------------------------------------------------------------------------
-// New patron at the door of a random bar, if its first PATRON_SPACING px are free.
+// New patron behind the door of a random bar (M13c: at SPAWN_X, lifted behind the BG so the door hides him while he
+// steps out), if the PATRON_SPACING px from SPAWN_X are free. No sprite room for him on that bar now (lift.c's budgets,
+// or this frame's copy list): he is taken back and the spawn is tried again SPAWN_RETRY frames later. No door puff: the
+// emergence replaces it.
 static uint8_t try_spawn(void) {
     uint8_t b = (next_rand() >> 2) & 3, v;
-    if (blocked_behind(b, DOOR_X + PATRON_SPACING)) return 0;   // someone within PATRON_SPACING px of the door's edge
+    if (blocked_behind(b, SPAWN_X + PATRON_SPACING)) return 0;   // someone within PATRON_SPACING px of the spawn point
     v = next_rand();                              // v % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
     v = (v >> 4) + (v & 15);
     v = (v >> 2) + (v & 3);
     v = (v >> 2) + (v & 3);
     if (v >= 3) v -= 3;
     if (hurry_speed && !(next_rand() & 3)) np_h = 1;   // M13b: about 1 in 4 hurries (from level 3; level.c)
-    if (!add_patron(b, DOOR_X, v)) { np_h = 0; return 0; }
-    door_puff(b);
+    if (!add_patron(b, SPAWN_X, v)) { np_h = 0; return 0; }
+    if (!lift_spawn(np_p)) { remove_patron(np_p); return 0; }
     spawned++;
     return 1;
 }
@@ -351,6 +356,7 @@ static uint8_t walker_pixel(uint8_t p, uint8_t f) {
     if (!(x & 7) && col_scan(patron_bar[p], (x >> 3) + 2, p) >= 2) return 1;
     patron_frac[p] = f;
     patron_x[p] = ++x;
+    if (x == DOOR_X && patron_lift[p] == LIFT_BEHIND) patron_lift[p] = LIFT_OBJ;   // M13c: out of the door, in front
     if (x >= PATRON_FAR_X) {                              // reached the tap
         remove_patron(p);
         lose_life();
@@ -364,7 +370,7 @@ static uint8_t walking_step(uint8_t p) {
     if (patron_dist[p]) return watch_step(p);           // distracted by the show: no walking
     if (go_now) {
         o = patron_frac[p];
-        f = o + (patron_hurry[p] ? hurry_speed : patron_speed);
+        f = o + (patron_x[p] < DOOR_X ? EMERGE_SPEED : patron_hurry[p] ? hurry_speed : patron_speed);   // (M13c: emerging)
         if (f < o) {                                      // carried: one whole pixel
             if (!walker_pixel(p, f)) return 0;
         } else {

@@ -500,7 +500,7 @@ def test_spawning_stops_at_quota(gb):
     gb.run(30)
     assert gb.mem("spawned") == 3 and len(patrons(gb)) == 1
     p = patrons(gb)[0]
-    assert DOOR_X <= p["x"] <= DOOR_X + 8 and p["state"] == WALKING
+    assert 0 <= p["x"] <= 8 and p["state"] == WALKING        # (M13c: stepping out from behind the door, x 0 -> 16)
     spawn_now(gb)
     gb.run(300)
     assert gb.mem("spawned") == 3
