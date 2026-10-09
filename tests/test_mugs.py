@@ -30,6 +30,13 @@ def inject(gb, bar, x, state=FULL):
     gb.write("mugs_live", gb.mem("mugs_live") + 1)
 
 
+def no_patrons(gb):
+    """Take the patrons off the bars so a mug can reach the left end (M3 patrons would catch it)."""
+    for i in range(16):
+        gb.write(gb.addr("patron_state") + i, 0)
+    gb.write("patrons_live", 0)
+
+
 def fill_and_launch(gb, frames=30):
     gb.hold("a")
     gb.run(frames)
@@ -108,6 +115,7 @@ def test_moving_while_filling_cancels(gb, button):
 
 
 def test_mug_breaks_at_left_end_and_costs_a_life(gb):
+    no_patrons(gb)
     assert gb.mem("lives") == 3
     fill_and_launch(gb)
     gb.run(100)
@@ -118,6 +126,7 @@ def test_mug_breaks_at_left_end_and_costs_a_life(gb):
 
 
 def test_breaking_state_is_visible_then_frees(gb):
+    no_patrons(gb)
     fill_and_launch(gb)
     seen = set()
     for _ in range(120):
@@ -159,6 +168,7 @@ def test_cap_is_per_bar(gb):
 
 
 def test_three_breaks_end_the_game(gb):
+    no_patrons(gb)
     for _ in range(3):
         fill_and_launch(gb)
         gb.run(5)

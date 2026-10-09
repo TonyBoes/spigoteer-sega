@@ -14,6 +14,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
+PATRON_GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "ninjas", "aliens", "zoo"]
 IDX = {".": 0, "-": 1, "+": 2, "#": 3, "0": 0, "1": 1, "2": 2, "3": 3}
 GREY = [(255, 255, 255), (170, 170, 170), (85, 85, 85), (0, 0, 0)]
 
@@ -147,6 +148,23 @@ def main():
                 f"#define GLASS_TILE_COUNT {len(gt) // 16}", "extern const uint8_t glass_tiles[];", ""]
     c.append(fmt("glass_tiles", gt))
     png(glass, prev / "glass_x8.png", 8, transparent=True)
+
+    # ---- patrons: 9 groups x 3 variants x (2x2 tiles, row-major tl,tr,bl,br) ----
+    pt = []
+    for g in PATRON_GROUPS:
+        vs = [r for _, r in blocks(ROOT / f"assets/art/patrons/{g}.txt")]
+        assert len(vs) == 3 and all(len(v) == 16 and len(v[0]) == 16 for v in vs), g
+        for v in vs:
+            for ty in (0, 8):
+                for tx in (0, 8):
+                    pt += tile_bytes(v, tx, ty)
+        png([r for _, r in blocks(ROOT / f"assets/art/patrons/{g}.txt")], prev / f"patrons_{g}_x8.png", 8)
+    h[-2:-2] = [f"#define PATRON_GROUPS {len(PATRON_GROUPS)}",
+                "#define PATRON_TILES_PER_GROUP 12   // 3 variants x 4 tiles",
+                "#define PATRON_GROUP_BYTES 192",
+                "// group order: " + ", ".join(PATRON_GROUPS),
+                "extern const uint8_t patron_tiles[];", ""]
+    c.append(fmt("patron_tiles", pt))
 
     (outdir / "art.h").write_text("\n".join(h))
     (outdir / "art.c").write_text("\n".join(c))

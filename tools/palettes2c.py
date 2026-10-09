@@ -24,7 +24,17 @@ for i, k in enumerate(keys):
     h.append(f"#define PAL_{k.upper()} {i}")
     r = data[k]["rgb15"]
     c.append(f"    {{0, {r[0]}, {r[1]}, {r[2]}}},  // {k} {' '.join(data[k]['hex'])}")
+groups = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "ninjas", "aliens", "zoo"]  # = gen_art.PATRON_GROUPS
+ids = []
+for g in groups:
+    names = ["zoo_monkey", "zoo_panda", "zoo_lion"] if g == "zoo" else [f"{g}_{v}" for v in "abc"]
+    ids.append([keys.index(n) for n in names])
+h += ["", "// patron palettes per group (same order as the art): PAL_* ids of variants A, B, C",
+      f"#define PATRON_PAL_GROUPS {len(groups)}", "extern const uint8_t patron_pal_ids[PATRON_PAL_GROUPS][3];"]
+c += []
 h += ["", f"#define PAL_COUNT {len(keys)}", "extern const palette_t palettes[PAL_COUNT];", "", "#endif", ""]
+c += ["};", "", "const uint8_t patron_pal_ids[PATRON_PAL_GROUPS][3] = {"]
+c += [f"    {{{a}, {b}, {d}}},  // {g}" for (a, b, d), g in zip(ids, groups)]
 c += ["};", ""]
 outdir.mkdir(parents=True, exist_ok=True)
 (outdir / "palettes.h").write_text("\n".join(h))
