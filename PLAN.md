@@ -139,3 +139,12 @@ time ((tap_x - x) / empty speed, in frames) must be >= last scheduled arrival + 
 EMPTY_GAP comes from the level table, shrinking with level (about 120 frames at L1 to a floor of
 ~45 frames), never below what an instant bar switch plus a short walk needs. Spacing by arrival,
 not by throw, because a patron near the tap throws later but arrives sooner.
+
+## Themed venues (owner request; art in progress, wired in M9 after M8)
+
+Per level theme: a stage (20x4 tiles, <= 20 unique tiles loaded over the stage tile ids at level
+start, <= 2 CGB palettes), a bar palette (wall/counter/door; wall = colour 0 behind patrons), and
+a drink replacing the mug (10 OBJ frames: full, empty, 4 fill, 4 drink poses, loaded over the mug
+tile ids; own full/empty OBJ palettes). Saloon/beer, sports bar/soda, lumber lodge/coffee,
+bistro/wine, igloo/cocoa, robot factory/oil can, teahouse/green tea, space lounge/glowing
+beaker, jungle zoo/coconut.
