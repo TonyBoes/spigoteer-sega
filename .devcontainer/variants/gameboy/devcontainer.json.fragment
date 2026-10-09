@@ -1,0 +1,25 @@
+{
+  // gameboy variant: merged over the base by bin/new-project (lists concatenate,
+  // dicts merge recursively). No host ports: everything is headless. No
+  // firewall domains: every tool and document is baked into the image.
+  "containerEnv": {
+    "GBDK_HOME": "/opt/gbdk/",
+    "GAMEBOY_DOC": "/usr/share/doc/gameboy"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // RGBDS assembly syntax, hover docs and symbol navigation. Unverified
+        // against the marketplace from the build host; drop it if VS Code
+        // reports it missing — nothing depends on it.
+        "donaldhays.rgbds-z80",
+        "ms-vscode.cpptools"
+      ],
+      "settings": {
+        "files.associations": { "*.inc": "rgbds", "*.asm": "rgbds", "*.2bpp": "binary" },
+        "C_Cpp.default.includePath": ["/opt/gbdk/include"],
+        "C_Cpp.default.defines": ["__SDCC", "__PORT_sm83"]
+      }
+    }
+  }
+}

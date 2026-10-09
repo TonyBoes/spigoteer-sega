@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gbtools"
+version = "0.1.0"
+description = "Agent-facing helpers for the gameboy devcontainer variant: headless test harness, sprite and level converters, SameBoy check wrapper"
+requires-python = ">=3.11"
+dependencies = ["pyboy", "pillow", "numpy"]
+
+[project.scripts]
+gbtest   = "gbtools.cli:gbtest_main"
+gbsprite = "gbtools.sprite:main"
+lvl2gb   = "gbtools.level:main"
+gbcheck  = "gbtools.check:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gbtools*"]

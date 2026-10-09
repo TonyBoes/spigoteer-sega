@@ -1,0 +1,62 @@
+# Reference repositories cloned into /usr/share/doc/gameboy/reference/ at
+# image build time. One per line: <dir> <owner/repo> <commit> <use> <note>
+#
+# <use> is the rule the agent must follow, copied into MANIFEST.md:
+#   study    commercial disassembly - read for technique, copy NOTHING
+#   reuse    open-source homebrew/library - reusable under its own licence
+#   docs     documentation, tutorials, tables
+#   test     emulator test suites - for sanity-checking emulators, not our ROMs
+#
+# Pinned 2026-10-08. To move one forward, replace its commit here and rebuild.
+# Blank lines and lines starting with # are ignored.
+
+# --- platformers and action (study) ---------------------------------------
+wario-land          Kak2X/wl                                 2e2f3095c07d36bef85951e6ed981275bf4fcb88 study  Wario Land (SML3). Bit-perfect, actively maintained. Scrolling, enemy state machines, player physics.
+kirbys-dream-land   huderlem/kirbydreamland                  4b35e31d908c387a6ebac938b5e0bfa5e921b906 study  Kirby's Dream Land. pret-style labels. Float/inhale physics, bosses.
+super-mario-land    kaspermeerts/supermarioland              618d00ed6c330928e106719533c6e294ae5d5726 study  Super Mario Land. Compact platformer, good first read.
+super-mario-land-2  froggestspirit/marioland2                c596a9577379fddaf3a9a37309286662116d33c9 study  Super Mario Land 2. Builds with RGBDS.
+donkey-kong-94      CelestialAmber/DKGBDisasm                c6e29723edf53b00fb0f7587381bae972afa4b8f study  Donkey Kong '94. Puzzle-platformer, rich player animation, documented compression.
+mole-mania          froggestspirit/mmania                    9629c91caca2e9a45ea5f41e0dac13cf5dc6cb7d study  Mole Mania. Action-puzzle, builds with RGBDS.
+jungle-book         not-chciken/jungle-book-gb-disassembly   bab42038ffc258fd4d8dd07b106fa80cc0e632e4 study  The Jungle Book. Third-party platformer engine.
+metroid-2           Vashy777/metroid2                        a892576930f3d931c636665d7bd643c766b50a2a study  Metroid II. WORK IN PROGRESS, raw mgbdis output, few labels. Low value until labelled.
+pokemon-pinball     pret/pokepinball                         2636f53e38b85360515d0ce47436f904086c6ed4 study  Pokemon Pinball. Real-time physics, CGB double speed, rumble.
+tetris              alexsteb/tetris_disassembly              b4bbceb3cc086121ab4fe9bf4dad6752fe956ec0 study  Tetris. A whole game readable in one sitting.
+
+# --- top-down / RPG engines (study) ---------------------------------------
+pokered             pret/pokered                             af519899719f0754965776faac0e836a3b906e6d study  Pokemon Red/Blue. Best-documented GB codebase: banking, text engine, maps, sound driver, saves.
+pokeyellow          pret/pokeyellow                          e89ead154b9968aa50eed9328ff2b38b6c194382 study  Pokemon Yellow.
+pokegold            pret/pokegold                            ef0201d8daf47e8b3ea1518eacf890f37d4cd5e8 study  Pokemon Gold/Silver. GBC-era engine.
+pokecrystal         pret/pokecrystal                         3bc8daa4173e96a7f4011dad3922eb6fa5dad5c6 study  Pokemon Crystal. The most complete pret project.
+pokegold-spaceworld pret/pokegold-spaceworld                 ade9207b0dd57dc455c47118a14426de1e37ccd0 study  1997 Gold prototype. A game mid-development.
+poketcg             pret/poketcg                             2d81ec3cbff4ebb2fd3f1f770ba245227a702ead study  Pokemon TCG. Card logic, menus, AI.
+links-awakening     zladx/LADX-Disassembly                   2a5c2c0d6df93a54df81ae9e1fe28b5c2fd60d03 study  Link's Awakening DX. Top-down action, entity system.
+oracles             Stewmath/oracles-disasm                  21c924afdc8a13225e849214479d5113da2ec226 study  Oracle of Ages/Seasons. GBC-native, large.
+
+# --- open-source homebrew (reuse per licence) -----------------------------
+tobutobugirl-dx     SimonLarsen/tobutobugirl-dx              4985d4d282aa43229f250ffa3b0d86998ebd55d3 reuse  Arcade platformer, GBDK/C. MIT code, CC-BY-4.0 assets. The primary C-side action example.
+super-princess-2092 Zal0/gbjam2016                           79ab23b14bfd1ed581e09c7b556ddaba0dd07785 reuse  Side-scrolling platformer on the ZGB engine.
+zgb                 Zal0/ZGB                                 40c8b6f186e5ca48c8f588f9d504cda97aff678c reuse  ZGB engine on top of GBDK (MIT).
+ucity               AntonioND/ucity                          71fb08e7ca53fe4228e66316968d9c6bea3439ba reuse  City builder, RGBDS, GPL. Large GBC project.
+libbet              pinobatch/libbet                         1232e71dc1ac852786ad9825316e19d2b341bc4a reuse  Puzzle game, RGBDS, zlib. Tight engineering.
+little-things-gb    pinobatch/little-things-gb               3fea6a7d4bc4426da948f470f7ae93a8e8fa3ef7 reuse  Small demos of specific hardware tricks.
+gb-boilerplate      ISSOtm/gb-boilerplate                    a4fbd25f2a3f55035de4da89560f6d36b5e07907 reuse  Canonical RGBDS project skeleton.
+gb-starter-kit      ISSOtm/gb-starter-kit                    b8ae3d675abb7ec5392e96e45b05fa5cdc2ac8e2 reuse  RGBDS starter with VWF, sound, menus.
+
+# --- libraries and drivers (reuse per licence) ----------------------------
+hugedriver          SuperDisk/hUGEDriver                     d6863d29472e1e2fa75e75c3c826cda7e70b0c8e reuse  Music driver (MIT). Works with RGBDS and GBDK.
+hugetracker         SuperDisk/hUGETracker                    3fedced393807bdc5d818fd39be59f6de0e84b60 reuse  Tracker for hUGEDriver (source; the GUI runs on the Mac).
+gbt-player          AntonioND/gbt-player                     557d2055a4f71b1bdc5fa17c85ad0d2709d22b30 reuse  Music driver (MIT).
+fxhammer            DevEd2/FXHammer-Disasm                   b953e92360dfe02c3edd309374f1c2c361927a61 reuse  Sound-effects driver.
+vgm2gbsfx           untoxa/vgm2gbsfx                         62108bca3afd282ebb6177902d21fb2bebe6f5e6 reuse  Sound-effects pipeline for GBDK.
+gb-vwf              ISSOtm/gb-vwf                            194c2e1e929759b89fe06310b1af5a69358f863b reuse  Variable-width font / text engine.
+mgbdis              mattcurrie/mgbdis                        95d951a9881a0d7ff1a42a94d1be175da92b1777 reuse  Disassembler (installed at /opt/mgbdis).
+
+# --- documentation ---------------------------------------------------------
+pandocs             gbdev/pandocs                            0191af06ac49661587dcde3d57a241a626b8df75 docs   Pan Docs. THE hardware reference. Markdown in src/.
+gb-asm-tutorial     gbdev/gb-asm-tutorial                    c931a929eac276156d65e0cb44cf422a7d19990b docs   RGBDS tutorial. Markdown in src/.
+gb-opcodes          gbdev/gb-opcodes                         376f61c86fdac2048f7ce5fe838ae756b306017e docs   Opcode table as JSON.
+awesome-gbdev       gbdev/awesome-gbdev                      f265eef5b2f6135dba0d4880870c6278e7f0b7b0 docs   Index of the ecosystem.
+
+# --- emulator test suites (not for our ROMs) -------------------------------
+mooneye-test-suite  Gekkio/mooneye-test-suite                31510e12eea6286d36eea060a6adde755e1067aa test   Hardware-behaviour tests. Sanity-check PyBoy vs SameBoy if they disagree.
+gb-test-roms        retrio/gb-test-roms                      c240dd7d700e5c0b00a7bbba52b53e4ee67b5f15 test   blargg's tests (prebuilt ROMs).
