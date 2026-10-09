@@ -498,3 +498,5 @@ lumberjack C; small pixel fixes; outline pass to <= ~45% dark). Lion: must not r
 no protruding forehead, a mane framing the whole head, ears, a cat muzzle. Eskimos: the lighter re-indexed
 redraw; the third Eskimo gets a beard. Round 6 is proposals first; the owner approves before import.
 Still open: the enhanced-variant engine work (one 4-colour-plus patron per group) and keg recolours outside the saloon.
+Owner (later, same day): keg recolours outside the saloon are OK, to make room for enhanced patrons. All art is done by
+our own agents; the external artist hand-off package is no longer in use.
