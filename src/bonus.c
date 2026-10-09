@@ -27,9 +27,11 @@ extern void clear_dirty(void);
 extern void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 extern uint8_t glyph_for(char c);
 extern void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n);
+void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // venue.c
 
 // ---- layout (screen px unless noted) ----
-#define OBJ_BONUS        96     // first OBJ tile: the dancers' 32 tiles (96..127) are borrowed and reloaded by main
+#define OBJ_BONUS        96     // first OBJ tile: the show performers' 32 tiles (96..127) are borrowed; the next level's
+                                // load_venue() reloads them
 #define OBJ_FOAM         (OBJ_BONUS + CAN_TILE_COUNT)
 #define OBJ_CURSOR       (OBJ_FOAM + FOAM_FRAMES * 2)
 #define OBJPAL_CAN       6
@@ -106,23 +108,17 @@ static void load_palettes(void) {
     set_sprite_palette(OBJPAL_FOAM, 1, p);
 }
 
-// whole screen, LCD off
+// whole screen, LCD off. The round is played in the venue of the level just cleared (its BG tiles and palettes
+// are still loaded): its plain wall, one counter row, its floor.
 static void draw_scene(void) {
-    uint8_t y, i;
+    uint8_t i;
     draw_hud();
-    for (y = 1; y < 18; y++) {
-        if (y == TEXT_ROW) { make_text("BONUS ROUND"); vram_put(0, y, txt, 20); continue; }
-        for (i = 0; i < 20; i++)
-            rowbuf[i] = y == 17 ? TILE_FLOOR : y == COUNTER_ROW ? TILE_COUNTER
-                      : (y & 1) && (i & 1) ? TILE_WALL2 : TILE_WALL;
-        vram_put(0, y, rowbuf, 20);
-    }
+    venue_backdrop(1, COUNTER_ROW);
+    make_text("BONUS ROUND"); vram_put(0, TEXT_ROW, txt, 20);
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
-        for (y = 1; y < 18; y++) {
-            for (i = 0; i < 20; i++) rowbuf[i] = y == TEXT_ROW ? 1 : 0;      // BG palette 1 = HUD, 0 = wall/counter
-            vram_put(0, y, rowbuf, 20);
-        }
+        for (i = 0; i < 20; i++) rowbuf[i] = 1;      // BG palette 1 = HUD
+        vram_put(0, TEXT_ROW, rowbuf, 20);
         VBK_REG = VBK_BANK_0;
     }
 }

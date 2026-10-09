@@ -46,7 +46,8 @@
 #define DRAW_BACK        0x80 // patron_draw bit 7: drawn in its back view (x < 128, so the bit is free)
 #define SHUFFLE_MAX         4 // a patron turning to watch the show shuffles at most this far to a multiple of 8 px
 // BG tile budget (signed 0x8800 mode, LCDC bit 4 clear): ids 0..255. OBJ tiles stay below 128, so BG ids 128+
-// (VRAM 0x8800-0x8FFF, which OBJ would see as 128+) are free for the patrons: scene + 144 + 12 = 246 of 256.
+// (VRAM 0x8800-0x8FFF, which OBJ would see as 128+) are free for the patrons. M9: scene = venue stage slot 0-19 + venue bar
+// slot 20-35 + shared HUD tiles 36-71 (72), patrons 72-215 + back views 216-227: 228 of 256.
 #if PATRON_TILE_BASE + PATRON_GROUP_TILES > 256
 #error "BG tile budget: scene + patron tiles exceed 256"
 #endif
@@ -107,7 +108,12 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define BGPAL_BAR        0
 #define BGPAL_HUD        1
 #define BGPAL_PATRON     2   // 2, 3, 4 = patron variants A, B, C
-#define BGPAL_STAGE      5   // stage, curtains, sign (6, 7 free)
+#define BGPAL_STAGE      5   // the venue's stage palettes A and B (M9)
+#define BGPAL_STAGE_B    6
+#define BGPAL_BAR_B      7   // the venue's second bar palette (keg / spout)
+#if BGPAL_STAGE != VENUE_BGPAL_STAGE_A || BGPAL_STAGE_B != VENUE_BGPAL_STAGE_B || BGPAL_BAR != VENUE_BGPAL_BAR || BGPAL_BAR_B != VENUE_BGPAL_BAR_B
+#error "tools/gen_art.py PAL_* must match the BGPAL_* slots"
+#endif
 
 // tips and the stage show
 #define TIP_FRAMES       480   // a tip stays this long (8 s)
@@ -186,8 +192,14 @@ void vq_frame_begin(void);
 void vq_frame_end(void);
 void vq_reset(void);
 void queue_vram(void);
+extern uint8_t base_tile[2][20], base_attr[2][20];   // the bar's two wall rows without patrons (current venue)
 void draw_bartender(void);
 void draw_stage_fx(void);
 void hide_all_sprites(void);
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
+// ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
+extern uint8_t venue_id;
+void load_venue(uint8_t t) BANKED;                      // tiles, palettes, base_tile/base_attr of theme t
+void draw_venue(void) BANKED;                           // stage, counter rows, floor, HUD attributes
+void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // plain venue wall + counter + floor (title, bonus)
 #endif

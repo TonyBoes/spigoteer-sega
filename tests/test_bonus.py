@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import ROOT, check_golden
+from conftest import ROOT, check_golden, venue
 from test_flow import (BONUS, LEVEL_CLEAR, PLAYING, clear_level, patrons, run_until, score, state, tile_id,
                        tilemap_row)
 
@@ -256,16 +256,19 @@ def test_next_level_loads_and_the_bar_scene_is_intact(gb):
     assert gb.mem("level") == 3 and gb.mem("cur_group") == 2 and gb.mem("overlay_on") == 0
     assert patrons(gb) == [(0, 0), (1, 0), (2, 0), (3, 0)]
     assert tilemap_row(gb, 0, 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_3")]
-    # bar rows are the bar again (counter row of bar 0 = row 7, floor row 17)
-    assert tilemap_row(gb, 7, 2, 12) == [tile_id("COUNTER")] * 12
-    assert tilemap_row(gb, 17, 0, 20) == [tile_id("FLOOR")] * 20
-    # tile data: the BG set, and the OBJ tiles the bonus round borrowed (dancers) are back
+    # bar rows are the level 3 venue's (the lodge): counter row of bar 0 = row 7, floor row 17 (M9)
+    lodge = venue("lodge")
+    assert tilemap_row(gb, 7, 0, 20) == lodge["bar_map"][40:60]
+    assert tilemap_row(gb, 17, 0, 20) == [lodge["floor_tile"]] * 20
+    # tile data: the shared BG set and the venue's, and the OBJ tiles the bonus round borrowed are the lodge's
+    # show performers again
     bg = array("bar_tiles")
-    vram = b"".join(bytes(gb.read(0x9000 + t * 16, 16)) for t in range(art("BAR_TILE_COUNT")))
+    vram = b"".join(bytes(gb.read(0x9000 + t * 16, 16)) for t in range(art("TILE_GENERIC_BASE"), art("BAR_TILE_COUNT")))
     assert vram == bg
-    dancers = array("dancer_tiles")
+    vt = b"".join(bytes(gb.read(0x9000 + (art("TILE_BAR_BASE") + t) * 16, 16)) for t in range(lodge["bar_n"]))
+    assert vt == bytes(lodge["bar_tiles"])
     obj = b"".join(bytes(gb.read(0x8000 + t * 16, 16)) for t in range(96, 96 + 32))
-    assert obj == dancers
+    assert obj == bytes(lodge["show"])
     check_golden(gb, "bonus_after")
 
 

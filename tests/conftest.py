@@ -110,3 +110,21 @@ def mug_top_y(b):
 
 # ---- game tunables: parsed from src/game.h (plain numeric defines only) ----
 GAME = {m.group(1): int(m.group(2)) for m in _re.finditer(r"#define (\w+)\s+(\d+)\b", (ROOT / "src" / "game.h").read_text())}
+
+
+# ---- M9 themed venues: build/venues.json (tools/gen_art.py) has each theme's tile ids, maps, attributes, palettes ----
+import json as _json
+
+VENUES = _json.loads((ROOT / "build" / "venues.json").read_text())
+THEMES = VENUES["themes"]                     # theme index = patron group index (saloon = 0)
+
+
+def venue(theme):
+    """Theme (name or index) -> dict: stage_map / stage_attr (20x4), bar_map / bar_attr (20x3), floor_tile, pal, ..."""
+    return VENUES["venues"][THEMES[theme] if isinstance(theme, int) else theme]
+
+
+def venue_rows(theme, key):
+    """A 20-wide map of the venue as a list of rows."""
+    m = venue(theme)[key]
+    return [m[i:i + 20] for i in range(0, len(m), 20)]

@@ -133,7 +133,7 @@ def test_walking_golden(gb):
 
 # ---- M4.6 layout: HUD row, stage rows 1-4, three-row bars, floor ------------------------
 import re as _re
-from conftest import ROOT as _ROOT, bar_counter_row, bar_top_row, mug_top_y
+from conftest import ROOT as _ROOT, bar_counter_row, bar_top_row, mug_top_y, venue, venue_rows
 
 _ART_H = (_ROOT / "build" / "art.h").read_text()
 
@@ -147,21 +147,24 @@ def _row(gb, y, x0=0, n=20):
 
 
 def test_bars_have_their_counter_rows_at_the_layout_rows(gb):
+    """M9: the rows come from the level's venue (level 1: the saloon, build/venues.json)."""
+    bar_map = venue_rows("saloon", "bar_map")
+    counter = bar_map[2]
     assert [bar_counter_row(b) for b in range(4)] == [7, 10, 13, 16], "layout.h: bars at rows 5+3b..7+3b"
     for b in range(4):
-        assert _row(gb, bar_counter_row(b), 0, 18) == [_tile("COUNTER")] * 18, f"bar {b} counter row (M8a: from column 0)"
-        assert _row(gb, bar_counter_row(b), 18, 2) == [_tile("TAP") + 4, _tile("TAP") + 5]
-        assert _tile("COUNTER") not in _row(gb, bar_top_row(b), 0, 18) + _row(gb, bar_top_row(b) + 1, 0, 18)
-    assert _row(gb, LAYOUT["FLOOR_ROW"]) == [_tile("FLOOR")] * 20
+        assert _row(gb, bar_counter_row(b)) == counter, f"bar {b} counter row (M8a: from column 0; keg at 18-19)"
+        assert not set(counter[2:17]) & set(_row(gb, bar_top_row(b), 2, 15) + _row(gb, bar_top_row(b) + 1, 2, 15)), \
+            "no counter tile on the wall rows"
+    assert _row(gb, LAYOUT["FLOOR_ROW"]) == [venue("saloon")["floor_tile"]] * 20
 
 
-def test_stage_rows_hold_the_sign_and_the_platform_edge(gb):
+def test_stage_rows_hold_the_venue_stage(gb):
     first, last = LAYOUT["STAGE_FIRST_ROW"], LAYOUT["STAGE_LAST_ROW"]
     assert (LAYOUT["HUD_ROW"], first, last, LAYOUT["BAR_FIRST_ROW"]) == (0, 1, 4, 5)
-    assert _row(gb, first, 7, 6) == [_tile("SIGN") + i for i in range(6)], "sign centred (cols 7-12)"
-    assert _row(gb, first + 1, 7, 6) == [_tile("SIGN") + 6 + i for i in range(6)]
-    assert _row(gb, last, 2, 16) == [_tile("STAGE_EDGE")] * 16, "platform edge"
-    assert _row(gb, first)[0] == _tile("CURTAIN_L0") and _row(gb, first)[19] == _tile("CURTAIN_R1")
+    stage = venue_rows("saloon", "stage_map")
+    for i, y in enumerate(range(first, last + 1)):
+        assert _row(gb, y) == stage[i], f"stage row {y}"
+    assert all(_tile("STAGE_BASE") <= t < _tile("STAGE_BASE") + 20 for r in stage for t in r)
 
 
 def test_no_sprites_on_the_stage_rows_during_play(gb):
@@ -198,20 +201,23 @@ def test_stage_golden(gb):
 
 # ---- M8a: counter to the door, the spout, walking speed ------------------------------------
 def test_counter_runs_to_the_door_and_the_door_is_on_the_wall_rows_only(gb):
-    door = _tile("DOOR")
+    bar_map = venue_rows("saloon", "bar_map")
     for b in (1, 3):                                          # level 1 has no patron at these doors
-        assert _row(gb, bar_top_row(b), 0, 2) == [door, door + 1], f"bar {b} door, upper wall row"
-        assert _row(gb, bar_top_row(b) + 1, 0, 2) == [door + 2, door + 3], f"bar {b} door, lower wall row"
+        assert _row(gb, bar_top_row(b), 0, 2) == bar_map[0][0:2], f"bar {b} door, upper wall row"
+        assert _row(gb, bar_top_row(b) + 1, 0, 2) == bar_map[1][0:2], f"bar {b} door, lower wall row"
+    assert set(bar_map[2][0:2]) <= set(bar_map[2][2:18]), "the counter runs in front of the door (columns 0-1)"
+    assert not set(bar_map[0][0:2] + bar_map[1][0:2]) & set(bar_map[2]), "the door is on the wall rows only"
     for b in range(4):
-        assert _row(gb, bar_counter_row(b), 0, 2) == [_tile("COUNTER")] * 2, f"bar {b}: counter at columns 0-1"
-    assert _tile("TAP") - door == 4, "the door block is 2x2 tiles (16x16): no third door row any more"
+        assert _row(gb, bar_counter_row(b), 0, 2) == bar_map[2][0:2], f"bar {b}: counter at columns 0-1"
 
 
 def test_spout_reaches_over_column_17_on_the_lower_wall_row(gb):
+    bar_map = venue_rows("saloon", "bar_map")
     for b in range(4):
-        assert _row(gb, bar_top_row(b) + 1, 17, 1) == [_tile("SPOUT")], f"bar {b}"
-        assert _row(gb, bar_top_row(b), 17, 1) == [_tile("WALL")], "the upper wall row above the spout is plain wall"
-        assert _row(gb, bar_top_row(b), 18, 2) == [_tile("TAP"), _tile("TAP") + 1]
+        assert _row(gb, bar_top_row(b) + 1, 17, 1) == [bar_map[1][17]], f"bar {b}"
+        assert _row(gb, bar_top_row(b), 17, 3) == bar_map[0][17:20], "the upper wall row above the spout, the keg"
+    walls = set(bar_map[0][2:17] + bar_map[1][2:17])
+    assert bar_map[1][17] not in walls, "the spout is its own tile"
     assert GAME["SPOUT_X"] == 17 * 8 and GAME["TAP_X"] == GAME["SPOUT_X"] - 16
 
 

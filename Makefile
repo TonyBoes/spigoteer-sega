@@ -20,7 +20,10 @@ LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots ninjas aliens zoo
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patron_load.c
-GEN      := $(BUILD)/art.c $(PATRON_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat3.c
+# M9 themed venues (theme index = patron group): stage, bar, floor, drink, show and palettes per theme, one banked file each
+VENUES   := saloon sports lodge bistro igloo factory teahouse space zoo
+VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
+GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat3.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
 # rgb2sdas.py, placed in ROM bank 2 next to the order tables and src/music.c (all `#pragma bank 2`); the song patterns are
 # in bank 3 (build/music_pat3.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
@@ -38,13 +41,13 @@ assets: $(GEN)
 $(BUILD) $(OUT)/preview:
 	mkdir -p $@
 
-# Tile and sprite data: bar.txt (BG tiles), bartender.txt and mug.txt (8x16 OBJ
-# tiles, padded so each bartender frame is 4 OAM entries) -> build/art.c/.h.
-# Also writes x8 previews to out/preview/.
-$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tiles/title.txt assets/art/bartender.txt assets/art/mug.txt assets/art/mug_fill.txt assets/art/mug_drink.txt assets/art/glass.txt assets/art/coin.txt assets/art/dancer.txt assets/art/can.txt assets/art/foam.txt assets/art/cursor.txt $(wildcard assets/art/patrons/*.txt) | $(BUILD) $(OUT)/preview
+# Tile and sprite data: bar.txt (shared BG tiles), bartender.txt (8x16 OBJ tiles, padded so each bartender frame is
+# 4 OAM entries), the patrons, and the venues (assets/approved/venues: stage, bar, drink, show per theme)
+# -> build/art.c/.h, build/patrons_*.c, build/venue_*.c, build/venues.json. Also writes x8 previews to out/preview/.
+$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tiles/title.txt assets/art/bartender.txt assets/art/glass.txt assets/art/coin.txt assets/art/can.txt assets/art/foam.txt assets/art/cursor.txt $(wildcard assets/art/patrons/*.txt) $(wildcard assets/approved/venues/*) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
-$(PATRON_C) $(BUILD)/can_tiles.h: $(BUILD)/art.c
+$(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h: $(BUILD)/art.c
 	@test -f $@
 
 # CGB palettes: assets/palettes.json -> build/palettes.c/.h

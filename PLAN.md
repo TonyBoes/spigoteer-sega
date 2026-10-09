@@ -205,3 +205,17 @@ As built (M8c): SHOW_FRAMES 576; patron_drinks[] (reset in add_patron) scales th
 capped at 255 px). Title logo SPIGOTEER: assets/tiles/title.txt, 8 letters x 4 tiles generated from stroke shapes,
 loaded over the patron tile ids by enter_title (the level load's load_patron_tiles restores them); BAR_TILE_COUNT
 dropped by the 20 old title tiles, so BG ids in use are now 70 scene + 156 patron = 226 of 256. Header title SPIGOTEER.
+
+## M9 as built (themed venues)
+
+Art: assets/approved/venues/<theme>_* (owner-approved). tools/gen_art.py cuts each theme into build/venue_<theme>.c
+(one autobanked file: stage/bar tiles, 20x4 stage map + attributes, 20x3 bar map + attributes, floor id, 20 drink OBJ
+tiles, 32 show OBJ tiles, 7 palettes), build/venue_load.c (venue_fetch: far_copy of the theme's venue_t into WRAM) and
+build/venues.json (the tests' reference); the build fails if a theme's stage needs more than 20 tiles or its bar +
+floor more than 16. Theme index = patron group (saloon 0 ... zoo 8). BG ids: venue stage slot 0-19, venue bar slot
+20-35, shared HUD tiles 36-71, patrons 72-215, back views 216-227 (228 of 256); title lettering still loads over the
+patron range on the title only. OBJ: the drink loads over the mug ids (56-59 full/empty, 76-83 fill, 84-91 drink),
+the performers over the dancer ids (96-127). CGB BG palettes: 0 bar, 1 HUD, 2-4 patrons (colour 0 = the venue's wall),
+5/6 stage A/B, 7 bar B (keg/spout). src/venue.c (banked): load_venue (tiles, palettes, base_tile/base_attr that
+render.c restores under patrons), draw_venue (stage, counters, floor), venue_backdrop (title in the saloon, bonus
+round in the venue just played). The breaking-glass shards stay the generic ones in every venue.

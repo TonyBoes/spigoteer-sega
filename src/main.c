@@ -13,6 +13,7 @@
 #include <gb/gb.h>
 #include <gb/cgb.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "game.h"
 #include "palettes.h"
@@ -21,20 +22,31 @@
 
 BANKREF_EXTERN(art_tiles)
 
-// The tile data (build/art.c) is in a switchable bank; these copy it to VRAM (LCD off or VBlank only).
-static void bkg_data(uint8_t first, uint8_t n, const uint8_t *d) {
+// Tile data lives in switchable banks (build/art.c, build/venue_*.c); these copy it to VRAM (LCD off or VBlank
+// only) or WRAM and switch back to the caller's bank, so banked code (venue.c) can use them too.
+void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank) {
     uint8_t saved = CURRENT_BANK;
-    SWITCH_ROM(BANK(art_tiles));
+    SWITCH_ROM(bank);
     set_bkg_data(first, n, d);
     SWITCH_ROM(saved);
 }
 
-static void spr_data(uint8_t first, uint8_t n, const uint8_t *d) {
+void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank) {
     uint8_t saved = CURRENT_BANK;
-    SWITCH_ROM(BANK(art_tiles));
+    SWITCH_ROM(bank);
     set_sprite_data(first, n, d);
     SWITCH_ROM(saved);
 }
+
+void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank) {
+    uint8_t saved = CURRENT_BANK;
+    SWITCH_ROM(bank);
+    memcpy(dst, src, n);
+    SWITCH_ROM(saved);
+}
+
+#define bkg_data(first, n, d) bkg_data_far(first, n, d, BANK(art_tiles))
+#define spr_data(first, n, d) spr_data_far(first, n, d, BANK(art_tiles))
 
 // Per-section frame cost in DIV ticks (256 cycles), only in a measurement build (-DPERF_SECTIONS).
 enum { SEC_FLUSH, SEC_INPUT, SEC_MUGS, SEC_PATRONS, SEC_COMPOSE, SEC_QUEUE, SEC_DRAW_BT, SEC_DRAW_MUGS, SEC_FX, SEC_REST, SEC_MUSIC, SEC_N };
@@ -94,7 +106,7 @@ static const level_cfg_t level_table[LEVEL_ROWS] = {
 #define BANNER_WY  BAR_TOP_Y(1)       // window overlay: 3 tile rows over bar 1 (y 64..87), clear of the HUD and stage
 #define BANNER_LYC (BAR_TOP_Y(1) + 22)  // line where the LCD interrupt switches the window off again
 
-#define WALL_RGB    ((uint16_t)(12 | (5 << 5) | (8 << 10)))   // dusky wine
+#define WALL_RGB    (venue.pal[VENUE_PAL_BAR][0])   // the venue's wall: colour 0 of the bar and of the patron palettes
 
 // ---- state (globals => symbols) ----------------------------------------------
 uint8_t  bar;               // 0 top .. 3 bottom
@@ -146,13 +158,8 @@ uint8_t  dance_tick;        // frames in the current dance step
 
 static void load_cgb_palettes(void) {
     palette_t p;
-    uint8_t i;
 
-    // BG 0: wall (colour 0) + counter ramp, shared by door, counter and tap
-    for (i = 1; i < 4; i++) p[i] = palettes[PAL_COUNTER][i];
-    p[0] = WALL_RGB;
-    set_bkg_palette(BGPAL_BAR, 1, p);
-
+    // BG 0, 5, 6, 7 (bar, stage, keg) and the drink / show OBJ palettes come with the venue (load_venue)
     // BG 1: HUD, light text on a dark band (art: '.' text, '#' band)
     p[0] = RGB15(31, 29, 22);
     p[1] = RGB15(24, 20, 10);
@@ -160,25 +167,9 @@ static void load_cgb_palettes(void) {
     p[3] = RGB15(3, 2, 8);
     set_bkg_palette(BGPAL_HUD, 1, p);
 
-    // BG 5: stage. 0 cream (sign lettering), 1 mauve backdrop, 2 wine curtains, 3 near black
-    p[0] = RGB15(31, 28, 18);
-    p[1] = RGB15(19, 11, 17);
-    p[2] = RGB15(14, 5, 8);
-    p[3] = RGB15(3, 2, 6);
-    set_bkg_palette(BGPAL_STAGE, 1, p);
-
     set_sprite_palette(OBJPAL_BARTENDER, 1, palettes[PAL_BARTENDER]);
-    set_sprite_palette(OBJPAL_MUG_FULL, 1, palettes[PAL_MUG_FULL]);
-    set_sprite_palette(OBJPAL_MUG_EMPTY, 1, palettes[PAL_MUG_EMPTY]);
     set_sprite_palette(OBJPAL_GLASS, 1, palettes[PAL_GLASS]);
     set_sprite_palette(OBJPAL_COIN, 1, palettes[PAL_COIN]);
-
-    // dancers: 1 skin, 2 gold plume and sequins, 3 teal costume/outline (index 0 is transparent)
-    p[0] = 0;
-    p[1] = RGB15(31, 24, 18);
-    p[2] = RGB15(31, 26, 6);
-    p[3] = RGB15(1, 8, 13);
-    set_sprite_palette(OBJPAL_DANCER, 1, p);
 }
 
 static void load_patron_group(uint8_t g) {
@@ -271,59 +262,12 @@ void draw_hud(void) {
     glyph_row(HUD_ROW, 18, buf, 2);
 }
 
-static void draw_stage(void) {
-    uint8_t y, c;
-    for (y = STAGE_FIRST_ROW; y <= STAGE_LAST_ROW; y++) {
-        for (c = 2; c < 18; c++) row_buf[c] = (y == STAGE_LAST_ROW) ? TILE_STAGE_EDGE
-                                           : ((c + y) & 1) ? TILE_STAGE_WALL2 : TILE_STAGE_WALL;
-        row_buf[0] = TILE_CURTAIN_L0; row_buf[1] = TILE_CURTAIN_L1;
-        row_buf[18] = TILE_CURTAIN_R0; row_buf[19] = TILE_CURTAIN_R1;
-        if (y == STAGE_LAST_ROW) row_buf[0] = row_buf[1] = row_buf[18] = row_buf[19] = TILE_STAGE_EDGE;
-        if (y == 1 || y == 2) for (c = 0; c < 6; c++) row_buf[7 + c] = TILE_SIGN + (y - 1) * 6 + c;
-        put_row(y);
-    }
-}
-
-static void draw_bars(void) {
-    uint8_t b, r, c, y;
-    draw_stage();
-    for (b = 0; b < NUM_BARS; b++) {
-        for (r = 0; r < 3; r++) {
-            y = BAR_TOP_ROW(b) + r;
-            for (c = 0; c < 18; c++) {               // the counter runs from the door (column 0) to the keg
-                row_buf[c] = r == 2 ? TILE_COUNTER
-                           : (r == 1 && (c & 1)) ? TILE_WALL2 : TILE_WALL;
-            }
-            if (r < 2) {                             // the door: the two wall rows only
-                row_buf[0] = TILE_DOOR + r * 2;
-                row_buf[1] = TILE_DOOR + r * 2 + 1;
-            }
-            if (r == 1) row_buf[17] = TILE_SPOUT;
-            row_buf[18] = TILE_TAP + r * 2;
-            row_buf[19] = TILE_TAP + r * 2 + 1;
-            put_row(y);
-        }
-    }
-    for (c = 0; c < 20; c++) row_buf[c] = TILE_FLOOR;
-    put_row(FLOOR_ROW);
-}
-
+// The level screen (LCD off): shared tiles, the venue's stage / counters / floor, the HUD, then the bars' wall
+// rows with their patrons (render.c). load_venue() has run (start_level).
 static void init_scene(void) {
-    uint8_t y, i;
-    uint8_t attr[20];
-
-    bkg_data(0, BAR_TILE_COUNT, bar_tiles);
-    draw_bars();
+    bkg_data(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles);
+    draw_venue();
     draw_hud();
-
-    if (is_cgb) {                                // palette per row via VRAM bank 1
-        VBK_REG = VBK_BANK_1;
-        for (y = 0; y < 18; y++) {
-            for (i = 0; i < 20; i++) attr[i] = y == HUD_ROW ? BGPAL_HUD : y <= STAGE_LAST_ROW ? BGPAL_STAGE : BGPAL_BAR;
-            set_bkg_tiles(0, y, 20, 1, attr);
-        }
-        VBK_REG = VBK_BANK_0;
-    }
     write_all_bars();
 }
 
@@ -357,12 +301,8 @@ static void init(void) {
     hi_load();
     SPRITES_8x16;
     spr_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);
-    spr_data(OBJ_MUG, MUG_TILE_COUNT, mug_tiles);
     spr_data(OBJ_GLASS, GLASS_TILE_COUNT, glass_tiles);
-    spr_data(OBJ_MUG_FILL, MUG_FILL_TILE_COUNT, mug_fill_tiles);
-    spr_data(OBJ_MUG_DRINK, MUG_DRINK_TILE_COUNT, mug_drink_tiles);
-    spr_data(OBJ_COIN, COIN_TILE_COUNT, coin_tiles);
-    spr_data(OBJ_DANCER, DANCER_FRAMES * DANCER_TILES_PER_FRAME, dancer_tiles);
+    spr_data(OBJ_COIN, COIN_TILE_COUNT, coin_tiles);      // the drink and show tiles come with each venue (load_venue)
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 
     rng_state = 0xA7;
@@ -393,6 +333,7 @@ static void start_level(void) {
     served = 0; spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES; level_clear = 0;
     clear_patrons();
     clear_dirty();
+    load_venue(cur_group);                      // M9: the venue of the level's theme (theme index = patron group)
     load_patron_group(cur_group);
     place_start_patrons();
 }
@@ -478,14 +419,15 @@ static void enter_title(void) {
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0;
     hide_all_sprites();
-    bkg_data(0, BAR_TILE_COUNT, bar_tiles);
+    bkg_data(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles);
+    load_venue(0);                                    // the title stands in the saloon
     bkg_data(BAR_TILE_COUNT, TITLE_TILE_COUNT, title_tiles);   // lettering over the patron ids; the level load puts them back
     if (is_cgb) {
         palette_t p;                                  // title lettering: pale gold, amber, dark brown
         p[0] = WALL_RGB; p[1] = RGB15(31, 29, 16); p[2] = RGB15(29, 20, 4); p[3] = RGB15(10, 3, 2);
         set_bkg_palette(BGPAL_PATRON, 1, p);
     }
-    for (y = 0; y < 18; y++) fill_row(y, y == 16 ? TILE_COUNTER : y == 17 ? TILE_FLOOR : TILE_WALL);
+    venue_backdrop(0, 16);                            // wall rows 0-15, counter row 16, floor 17 (tiles + attributes)
     for (y = 0; y < 2; y++) {                         // SPIGOTEER, 9 letters of 2x2 tiles at columns 1..18, rows 4..5
         static const uint8_t letters[9] = { TILE_TITLE_S, TILE_TITLE_P, TILE_TITLE_I, TILE_TITLE_G, TILE_TITLE_O,
                                             TILE_TITLE_T, TILE_TITLE_E, TILE_TITLE_E, TILE_TITLE_R };
@@ -499,11 +441,10 @@ static void enter_title(void) {
     vram_put(8, 12, row_buf, 6);
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
-        for (y = 0; y < 18; y++) {
-            for (i = 0; i < 20; i++) row_buf[i] = (y == 9 || y == 12 || y == 14) ? BGPAL_HUD : BGPAL_BAR;
-            if (y == 4 || y == 5) for (i = 1; i < 19; i++) row_buf[i] = BGPAL_PATRON;
-            put_row(y);
-        }
+        for (i = 0; i < 20; i++) row_buf[i] = BGPAL_HUD;
+        put_row(9); put_row(12); put_row(14);
+        for (i = 1; i < 19; i++) row_buf[i] = BGPAL_PATRON;
+        vram_put(1, 4, row_buf + 1, 18); vram_put(1, 5, row_buf + 1, 18);
         VBK_REG = VBK_BANK_0;
     }
     game_state = GS_TITLE;
@@ -523,8 +464,7 @@ static void reset_actors(void) {
 
 // Draw the playfield for the current level/lives/score. Screen transition: LCD off.
 static void enter_level_screen(void) {
-    DISPLAY_OFF;
-    spr_data(OBJ_DANCER, DANCER_FRAMES * DANCER_TILES_PER_FRAME, dancer_tiles);   // the bonus round borrows these OBJ tiles
+    DISPLAY_OFF;                                  // (start_level reloads the show tiles the bonus round borrowed)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0;
     start_level();
     init_scene();

@@ -19,12 +19,11 @@ const uint8_t bar_bit[NUM_BARS] = { 1, 2, 4, 8 };
 #define OAM_Y(b) ((uint8_t)(BAR_TOP_Y(b) + 16u))
 const uint8_t bar_oam_y[NUM_BARS] = { OAM_Y(0), OAM_Y(1), OAM_Y(2), OAM_Y(3) };
 
-// Generic byte copy and fill, hand-written (SDCC's loops cost ~160 cycles per byte, GBDK's memcpy ~500 cycles
-// of setup per call): copy_n() copies cp_n bytes cp_src -> cp_dst, fill_n() stores cp_val into cp_n bytes at
-// cp_dst. Arguments travel in globals so the asm does not depend on the calling convention. cp_n >= 1.
+// Generic byte copy, hand-written (SDCC's loops cost ~160 cycles per byte, GBDK's memcpy ~500 cycles of setup
+// per call): copy_n() copies cp_n bytes cp_src -> cp_dst. Arguments travel in globals so the asm does not depend on the calling convention. cp_n >= 1.
 // vram_put() uses copy_n() for raw BG map writes (map at 0x9800): only with the LCD off or during VBlank.
 uint16_t cp_dst, cp_src;
-uint8_t  cp_n, cp_val;
+uint8_t  cp_n;
 
 void copy_n(void) {
 __asm
@@ -42,24 +41,6 @@ __asm
 1$:
     ld   a, (de)
     inc  de
-    ld   (hl+), a
-    dec  b
-    jr   nz, 1$
-    pop  bc
-__endasm;
-}
-
-void fill_n(void) {
-__asm
-    push bc
-    ld   hl, #_cp_dst
-    ld   a, (hl+)
-    ld   h, (hl)
-    ld   l, a
-    ld   a, (_cp_n)
-    ld   b, a
-    ld   a, (_cp_val)
-1$:
     ld   (hl+), a
     dec  b
     jr   nz, 1$
@@ -93,13 +74,10 @@ static uint8_t dirty_x0[NUM_BARS], dirty_x1[NUM_BARS];
 static uint8_t attr_x0[NUM_BARS], attr_x1[NUM_BARS];   // CGB: the part of the dirty span whose attributes changed
 uint8_t vram_pending;             // dirty spans left to queue (keeps idle frames cheap)
 
-// wall/door/tap tiles of a bar's two wall rows, by row and column: what compose_dirty() restores under (and
-// around) the patrons. The same picture draw_bars() paints.
-#define BT(r, c) ((c) < 2 ? TILE_DOOR + (r) * 2 + (c) : (c) >= 18 ? TILE_TAP + (r) * 2 + ((c) - 18) \
-                  : ((r) == 1 && (c) == 17) ? TILE_SPOUT : ((r) == 1 && ((c) & 1)) ? TILE_WALL2 : TILE_WALL)
-#define BTROW(r) BT(r, 0), BT(r, 1), BT(r, 2), BT(r, 3), BT(r, 4), BT(r, 5), BT(r, 6), BT(r, 7), BT(r, 8), BT(r, 9), \
-                 BT(r, 10), BT(r, 11), BT(r, 12), BT(r, 13), BT(r, 14), BT(r, 15), BT(r, 16), BT(r, 17), BT(r, 18), BT(r, 19)
-static const uint8_t base_tile[2][20] = { { BTROW(0) }, { BTROW(1) } };
+// The bar's two wall rows without patrons (door, wall, spout, keg), tile ids and CGB attributes by row and column:
+// what compose_dirty() restores under (and around) the patrons. Filled from the level's venue (load_venue, M9), the
+// same picture the level screen starts with. Row 1 follows row 0 directly (restore_base relies on it).
+uint8_t base_tile[2][20], base_attr[2][20];
 
 void mark_dirty(uint8_t b, uint8_t x0, uint8_t x1) {
     if (x1 > 20) x1 = 20;
@@ -201,9 +179,8 @@ static void restore_base(void) {                         // the wall over the sp
     cp_dst += 32; cp_src += 20; copy_n();
     if (!cz_attrs) { cz_attr = 0; return; }
     cz_attr = cz_tile + sizeof sh_tile;                   // sh_attr follows sh_tile
-    cp_val = BGPAL_BAR;
-    cp_dst = (uint16_t)(cz_attr + cz_x0); fill_n();
-    cp_dst += 32; fill_n();
+    cp_dst = (uint16_t)(cz_attr + cz_x0); cp_src = (uint16_t)&base_attr[0][cz_x0]; copy_n();
+    cp_dst += 32; cp_src += 20; copy_n();
 }
 
 static void stamp_bar(uint8_t b) {
