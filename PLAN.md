@@ -219,3 +219,12 @@ the performers over the dancer ids (96-127). CGB BG palettes: 0 bar, 1 HUD, 2-4 
 5/6 stage A/B, 7 bar B (keg/spout). src/venue.c (banked): load_venue (tiles, palettes, base_tile/base_attr that
 render.c restores under patrons), draw_venue (stage, counters, floor), venue_backdrop (title in the saloon, bonus
 round in the venue just played). The breaking-glass shards stay the generic ones in every venue.
+
+## Owner playtest 4 (queued)
+
+- Difficulty: flatter curve. Level 6 should play like the old level 3, level 9 like the old
+  level 5; speed plateaus there. Ramp spawn rate, start patrons, push-back and empty_gap gently too.
+  (After M8d, which touches the same code.)
+- Music: game tempos (Entertainer 112, Sakura 120, Funiculi 112 dotted q, Skaters 192, Danube 192,
+  Ball Game 192) and drums back on every tune (shared drum pattern). Galop: waiting for the
+  owner's spec; the current one was written from memory and sounds wrong.
