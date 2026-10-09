@@ -1,4 +1,4 @@
-# M8d: a finished drinker sips on (no frozen hold), winds up before sending the empty, can catch a new full mug
+# M8d: a finished drinker sips on (no frozen hold), winds up (draws the empty back, swings it forward) before sending the empty, can catch a new full mug
 # while he waits (his empty goes at once), and the bartender standing on him takes the glass.
 import pytest
 from conftest import GAME, bar_top_y
@@ -64,11 +64,12 @@ def test_the_windup_lasts_windup_frames_then_the_empty_slides(gb):
         if state(gb, p)[1] == DRINK_WINDUP:
             break
     assert state(gb, p) == (DRINKING, DRINK_WINDUP), "a lone patron winds up at once"
-    frames, tiles, offs, drawn = 0, set(), [], set()
+    frames, tiles, offs, drawn, xs = 0, set(), [], set(), []
     while gb.read("mug_state", MAX_M)[m] == HELD:
         ss = drink_sprites(gb)
         tiles.add((ss[0]["tile"] - OBJ_DRINK) // 2)
         offs.append((ss[0]["x"] - 8 - gb.read("patron_draw", MAX_P)[p], ss[0]["y"] - 16 - bar_top_y(1)))
+        xs.append(ss[0]["x"] - 8)
         drawn.add(gb.read("patron_draw", MAX_P)[p])
         gb.run(1)
         frames += 1
@@ -78,7 +79,15 @@ def test_the_windup_lasts_windup_frames_then_the_empty_slides(gb):
     assert gb.read("mug_x", MAX_M)[m] in (30 + 16, 30 + 17), "the empty starts at his right edge"
     assert tiles == {3}, "the empty mug frame throughout"
     assert offs[0][1] < offs[-1][1] == 6, "lowered to his hand"
-    assert len({dx for dx, dy in offs[-12:]}) == 2, "then waggled 1 px"
+    # the pull-back: the mug is drawn back to the left, held a beat, then swung forward to the launch x
+    lo = min(xs)
+    assert xs[0] - lo >= 4, ("drawn back to the left by at least 4 px", xs)
+    assert xs[0] - lo <= 6, "... but not more than 6"
+    k = xs.index(lo)
+    assert all(a >= b for a, b in zip(xs[:k + 1], xs[1:k + 1])), "easing left, never forward, until the hold"
+    assert xs.count(lo) >= 4, "held a beat at the back"
+    assert xs[-1] > lo + 4 and all(a <= b for a, b in zip(xs[xs.index(lo) + 1:], xs[xs.index(lo) + 2:])), "then swung forward"
+    assert xs[-1] < 30 + 16, "and the slide begins from his edge"
     assert drawn == {30}, "he stands still while he winds up"
 
 

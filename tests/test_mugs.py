@@ -446,3 +446,62 @@ def test_walking_left_with_a_full_mug_cancels_and_right_cannot_move_him(gb):
     gb.release("a")
     gb.run(2)
     assert gb.mem("mugs_live") == 0, "the cancelled mug is not launched"
+
+
+# ---- empties past the spout: at TAP_X his span reaches the bar end ---------------------------------------------
+def _score(gb):
+    return gb.mem("score") | gb.mem(gb.addr("score") + 1) << 8
+
+
+def _quiet(gb):
+    no_patrons(gb)
+    gb.write("intro_timer", 255)
+
+
+@pytest.mark.parametrize("x", [140, 150])
+def test_an_empty_already_past_him_is_caught_on_arrival_by_a_bar_change(gb, x):
+    _quiet(gb)
+    inject(gb, 2, x, EMPTY)
+    s0 = _score(gb)
+    gb.press("down", 1)
+    gb.press("down", 1)                        # bar 0 -> 1 -> 2, landing at TAP_X
+    gb.run(2)
+    assert gb.mem("bar") == 2 and gb.mem("bartender_x") == TAP_X
+    assert _score(gb) == s0 + 100 and mugs(gb) == [], "caught, not broken"
+    assert gb.mem("lives") == 3
+
+
+def test_an_empty_passing_beyond_the_bartender_at_the_tap_is_caught(gb):
+    _quiet(gb)
+    inject(gb, 0, 138, EMPTY)                  # well right of his 16 px span (120..135)
+    gb.run(2)
+    assert _score(gb) == 100 and mugs(gb) == []
+    inject(gb, 1, 140, EMPTY)                  # another bar: his span does not reach it
+    gb.run(30)
+    assert _score(gb) == 100 and gb.mem("lives") == 2, "it broke at the end"
+
+
+def test_the_catch_window_away_from_the_tap_is_unchanged(gb):
+    _quiet(gb)
+    gb.hold("left")
+    gb.run(20)
+    gb.release("left")
+    bx = gb.mem("bartender_x")
+    assert bx < TAP_X
+    inject(gb, 0, bx + 20, EMPTY)              # right of his span, but he is not at the tap
+    gb.run(10)
+    assert _score(gb) == 0 and len(mugs(gb)) == 1
+
+
+def test_the_bartender_cannot_walk_right_of_the_tap(gb):
+    gb.hold("right")
+    gb.run(20)
+    assert gb.mem("bartender_x") == TAP_X
+    gb.release("right")
+    gb.hold("left")
+    gb.run(6)
+    gb.release("left")
+    gb.hold("right")
+    gb.run(40)
+    gb.release("right")
+    assert gb.mem("bartender_x") == TAP_X

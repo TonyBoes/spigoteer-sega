@@ -17,6 +17,10 @@ LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynSPIGOTEER
 # under `#pragma bank 255` (all nine would not fit one bank); bankpack places each in a switchable bank. -Wm-yoA sizes the ROM.
 LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 
+# DEBUG_MENU: the START+SELECT debug level select (src/main.c). On in the normal build; `make release` leaves it out.
+DEBUGFLAGS := -DDEBUG_MENU
+LCCFLAGS += $(DEBUGFLAGS)
+
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots ninjas aliens zoo
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patron_load.c
@@ -32,7 +36,7 @@ HUGE_OBJ := $(BUILD)/hUGEDriver.o
 BONUS_H  := $(BUILD)/can_tiles.h
 ROM      := $(BUILD)/$(NAME).gb
 
-.PHONY: all test check preview clean assets
+.PHONY: all test check preview clean assets release
 
 all: $(ROM)
 
@@ -71,6 +75,15 @@ $(HUGE_OBJ): $(BUILD)/hUGEDriver.obj $(HUGE)/tools/rgb2sdas.py
 $(ROM): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
 	$(LCC) $(LCCFLAGS) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ)
 	@romusage $(BUILD)/$(NAME).noi 2>/dev/null | head -12 || true
+
+# build/release.gb: the same flags without the debug menu (build/release.noi must not name its symbols)
+RELEASE  := $(BUILD)/release.gb
+release: $(RELEASE)
+
+$(RELEASE): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
+	$(LCC) $(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ)
+	@! grep -q debug_menu_open $(BUILD)/release.noi || { echo "release build still has the debug menu"; false; }
+	@romusage $(BUILD)/release.noi 2>/dev/null | head -12 || true
 
 test: $(ROM)
 	python3 -m pytest -q tests

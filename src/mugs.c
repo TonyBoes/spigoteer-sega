@@ -67,7 +67,8 @@ static uint8_t full_step(uint8_t i) {
 static uint8_t empty_step(uint8_t i) {
     uint8_t x = mug_x[i];
     if (!(++mug_timer[i] & 1)) mug_x[i] = ++x;          // 0.5 px per frame: d px take exactly 2d frames
-    if (x >= bartender_x && (uint8_t)(x - bartender_x) < 16 && mug_bar[i] == bar) {
+    // His span reaches the bar end when he stands at TAP_X (his furthest position): an empty at x >= TAP_X is his.
+    if (x >= bartender_x && ((uint8_t)(x - bartender_x) < 16 || bartender_x == TAP_X) && mug_bar[i] == bar) {
         mug_state[i] = MUG_FREE;                        // caught
         add_score(EMPTY_SCORE);
         SFX(SFX_CATCH);
@@ -130,15 +131,16 @@ void draw_fill(void) {
 
 // Held-mug pose by drinking time (index = patron_timer / 4): 0..22 while he drinks (and, M8d, sips on while he
 // waits to send the empty: the timer loops over 6..22), the mug rising from the hand to the mouth, then tilted and
-// tipped; 24..31 the wind-up (timer WINDUP_T0..): the empty is lowered to the hand and waggled 1 px. dx is the
+// tipped; 24..31 the wind-up (timer WINDUP_T0..): the empty is lowered to the hand and drawn back to the left (poses 24-27,
+// dx 8 -> 4), held a beat (28-29), then swung forward (30-31) to where it is launched (his right edge, dx 16). dx is the
 // sprite's offset from the drawn patron x, dy from the bar's top pixel row (art is in sprite rows 2-12, so dy 1 puts
 // a tilted mug at face height and dy 6 at the hand, always inside the bar's 24 lines). Pose 32: carried back while
 // he is pushed, upright and full at the hand.
 #define HELD_POSES 33
 static const uint8_t pose_dx[HELD_POSES]   = { 9,9,8, 8,8,8,8,8,8,8,8, 8,8,8,8,8,8,8,8,8,8,8,8, 8,
-                                               8,9,9,9, 10,9,10,9, 9 };
+                                               8,6,4,4, 4,4,10,14, 9 };
 static const uint8_t pose_dy[HELD_POSES]   = { 5,3,2, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1, 1,
-                                               2,3,5,6, 6,6,6,6, 6 };
+                                               2,4,6,6, 6,6,6,6, 6 };
 static const uint8_t pose_tile[HELD_POSES] = {
 #define PT(f) (OBJ_MUG_DRINK + (f) * 2)
     PT(0),PT(0),PT(0), PT(1),PT(1),PT(1),PT(1),PT(1),PT(1),PT(1),PT(1),

@@ -42,7 +42,7 @@
 #define DRINK_FRAMES     90
 #define SWAY_FRAMES      12   // while drinking the drawn shift alternates by 2 px this often
 // M8d: a drinker who has finished (DRINK_FRAMES) but may not send its empty yet (fair empties) sips on: its timer
-// loops SIP_LOOP_T..DRINK_FRAMES-1. When the empty may go it winds up (lowers the mug and waggles it) for
+// loops SIP_LOOP_T..DRINK_FRAMES-1. When the empty may go it winds up (lowers the mug, draws it back, swings it forward) for
 // WINDUP_FRAMES, timer WINDUP_T0.., then the empty slides. Sub-state in patron_aux while DRINKING (DRINK_*).
 // A finished drinker (waiting or winding up) catches a full mug, and the bartender standing on him takes the glass.
 #define SIP_LOOP_T       24
@@ -85,7 +85,7 @@ enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caugh
 #define HUD_SCORE         2
 
 // game flow
-enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS };
+enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS, GS_DEBUG };   // GS_DEBUG: the debug level select (DEBUG_MENU builds)
 
 // bartender animation frames (order of assets/art/bartender.txt)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };

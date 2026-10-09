@@ -492,12 +492,67 @@ static void enter_level_screen(void) {
     DISPLAY_ON;
 }
 
-static void start_new_game(void) {
+static void start_new_game(uint8_t lv) {
     uint8_t i;
-    lives = START_LIVES; level = 1; score = 0; bonus_round = 0;
+    lives = START_LIVES; level = lv; score = 0; bonus_round = 0;
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     enter_level_screen();
 }
+
+#ifdef DEBUG_MENU
+// Debug level select (build flag DEBUG_MENU; `make release` leaves it out). Hold START + SELECT for
+// DEBUG_COMBO_FRAMES on the title or in play (a START press pauses first, so play opens it from the pause). A
+// banner shows "LEVEL nn": Left/Down and Right/Up change it (1..DEBUG_LEVELS, wrapping), A starts that level
+// from scratch (fresh lives and score), B closes the box (back to the title, or unpauses). game_state is GS_DEBUG
+// while it is open, so nothing moves.
+#define DEBUG_COMBO_FRAMES 30
+#define DEBUG_LEVELS       18
+uint8_t debug_menu_open;
+uint8_t debug_level;
+static uint8_t combo_timer, debug_from_title, debug_toggled;
+
+static void debug_show(void) {
+    char s[9] = "LEVEL 00";
+    s[6] = '0' + debug_level / 10; s[7] = '0' + debug_level % 10;
+    show_overlay(s);
+}
+
+static void debug_open(void) {
+    debug_from_title = game_state == GS_TITLE;
+    if (debug_from_title) {
+        debug_level = 1;
+        if (debug_toggled) { music_set_on(!sound_on); build_music_text(); vq_add(0, music_tiles, 5, 14, 9); }
+    } else debug_level = level < DEBUG_LEVELS ? level : DEBUG_LEVELS;
+    debug_toggled = 0;
+    game_state = GS_DEBUG;
+    debug_menu_open = 1;
+    debug_show();
+}
+
+// before the state machine: counts the held combo
+static void debug_watch(void) {
+    if ((joy & (J_START | J_SELECT)) != (J_START | J_SELECT)) { combo_timer = 0; return; }
+    if (combo_timer > DEBUG_COMBO_FRAMES) return;                // already used: wait for a release
+    if (game_state != GS_TITLE && game_state != GS_PLAYING && game_state != GS_PAUSED) return;
+    if (++combo_timer < DEBUG_COMBO_FRAMES) return;
+    combo_timer = DEBUG_COMBO_FRAMES + 1;
+    debug_open();
+}
+
+// 1: A started a level (the frame is over)
+static uint8_t debug_step(uint8_t pressed) {
+    uint8_t l = debug_level;
+    if (pressed & (J_RIGHT | J_UP)) l = l == DEBUG_LEVELS ? 1 : l + 1;
+    else if (pressed & (J_LEFT | J_DOWN)) l = l == 1 ? DEBUG_LEVELS : l - 1;
+    if (l != debug_level) { debug_level = l; debug_show(); }
+    if (pressed & J_A) { debug_menu_open = 0; start_new_game(l); return 1; }
+    if (pressed & J_B) {
+        debug_menu_open = 0; overlay_on = 0;
+        game_state = debug_from_title ? GS_TITLE : GS_PLAYING;
+    }
+    return 0;
+}
+#endif
 
 // after a lost life: same level, same served count, fresh bars
 static void resume_after_life(void) {
@@ -650,12 +705,21 @@ static void update(void) {
 
     switch (game_state) {
     case GS_TITLE:
+#ifdef DEBUG_MENU
+        debug_toggled = (joy & J_SELECT) != 0;
+#endif
         if (pressed & J_SELECT) {
             music_set_on(!sound_on);
             build_music_text();
             vq_add(0, music_tiles, 5, 14, 9);
         }
-        if (pressed & J_START) start_new_game();
+#ifdef DEBUG_MENU
+        if ((pressed & J_START) && (joy & J_SELECT)) pressed &= ~J_START;   // START + SELECT is the debug combo
+#endif
+        if (pressed & J_START) start_new_game(1);
+#ifdef DEBUG_MENU
+        debug_watch();
+#endif
         frame_counter++;
         return;
     case GS_PLAYING:
@@ -693,6 +757,11 @@ static void update(void) {
             return;
         }
         break;
+#ifdef DEBUG_MENU
+    case GS_DEBUG:
+        if (debug_step(pressed)) { frame_counter++; return; }
+        break;
+#endif
     case GS_GAME_OVER:
         if (pressed & J_START) { enter_title(); return; }
         break;
@@ -724,6 +793,9 @@ static void update(void) {
         }
     }
     if (overlay_on) hide_banner_sprites();
+#ifdef DEBUG_MENU
+    debug_watch();                                   // last: the game's own frame work keeps its timing
+#endif
     frame_counter++;
     SEC(SEC_REST);
 }
