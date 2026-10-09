@@ -21,6 +21,7 @@
 
 #include "game.h"
 #include "bonus.h"
+#include "palettes.h"
 #include "music.h"
 #include "bonus2_art.h"     // this bank's own art data
 
@@ -29,9 +30,10 @@ extern void draw_hud(void);
 extern uint8_t glyph_for(char c);
 
 #define OBJ_B2          96      // the show performers' OBJ tiles (96..127) are borrowed, as in the shake-up
-#define B2_BG           PATRON_TILE_BASE    // BG ids over the patron tiles (no patrons here; the level load reloads them)
+#define B2_BG           BAR_TILE_COUNT      // BG ids over the patron tiles (no patrons here; the level load reloads them)
 #define OPAL_DRINK      6
 #define OPAL_RED        7
+#define OPAL_TAP        3                   // the tap: the game's old glass palette (slot 3 is a lifted patron's in play, M13a)
 #define BPAL_GLASS      BGPAL_PATRON        // the level load sets the patron palettes again
 #define COUNTER_ROW     11
 #define TEXT_ROW_A      2
@@ -171,6 +173,9 @@ static void load_palettes(void) {
     p[2] = RGB8(224, 48, 48);
     p[3] = RGB8(40, 48, 64);
     set_bkg_palette(BPAL_GLASS, 1, p);
+    set_sprite_palette(OPAL_TAP, 1, palettes[PAL_GLASS]);     // M13a: the game's slots 3 and 5 hold a patron and the show
+    set_sprite_palette(OBJPAL_COIN, 1, palettes[PAL_COIN]);  // (the level load puts them back)
+    pal5_cur = 1;
 }
 
 static void banner(const char *a, const char *b) {   // LCD off: the two text rows in the HUD colours
@@ -306,7 +311,7 @@ static void draw_pour(void) {
         spr(20, PG_X + 24, y, PT(F_ARROW), k | S_FLIPX);
     } else hide(19, 2);
     // the tap
-    k = is_cgb ? OBJPAL_GLASS : 0;
+    k = is_cgb ? OPAL_TAP : 0;
     x = PG_X;
     spr(25, x,      TAP_Y + 16, PT(F_TAPA), k);
     spr(26, x + 8,  TAP_Y + 16, pouring ? PT(F_TAPB_OPEN) : PT(F_TAPB), k);
@@ -485,7 +490,7 @@ uint8_t bonus2_update(void) BANKED {
     bonus_timer++;
     if (bonus_phase == PH_END) {
         if (bonus_timer >= BONUS_END_LEN) {
-            if (!is_cgb) OBP1_REG = 0xC4;       // the game's OBP1 (mugs, glass)
+            if (!is_cgb) OBP1_REG = OBP1_MENU;  // OBP1 as before the round (the level load sets OBP1_PLAY)
             return 1;
         }
         if (bonus_kind == 1) draw_pour(); else draw_tips();

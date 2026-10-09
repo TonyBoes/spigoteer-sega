@@ -17,6 +17,9 @@ uint8_t  mug_timer[MAX_MUGS];   // frames since breaking began; an empty's frame
 uint8_t  mug_patron[MAX_MUGS];  // MUG_HELD: the patron holding it
 uint8_t  mugs_live;             // number of non-free slots
 uint8_t  oam_used = OAM_FILL + 1;   // OAM entries the mugs (and the fill glass) occupied last frame
+// Tile and attribute of the mug sprites (lift.c lift_level_init, M13a): CGB the venue's ids and palettes; DMG OBP0 with the
+// bit-plane-swapped copies (OBP1 belongs to the lifted patrons now; the glass shards show their light shades swapped).
+uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p, spr_glass_p;
 
 uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
     // walks mug_state / mug_bar with pointers (indexed, SDCC computes two 16-bit addresses per slot)
@@ -171,8 +174,8 @@ static void draw_full(uint8_t i) {
     uint8_t *o = oam_next;
     *o++ = bar_oam_y[mug_bar[i]] + MUG_DY;
     *o++ = mug_x[i] + 8;
-    *o++ = OBJ_MUG;
-    *o++ = S_PALETTE | OBJPAL_MUG_FULL;
+    *o++ = spr_full_t;
+    *o++ = spr_full_p;
     oam_next = o;
 }
 
@@ -180,8 +183,8 @@ static void draw_empty(uint8_t i) {
     uint8_t *o = oam_next;
     *o++ = bar_oam_y[mug_bar[i]] + MUG_DY;
     *o++ = mug_x[i] + 8;
-    *o++ = OBJ_MUG + 2;
-    *o++ = S_PALETTE | OBJPAL_MUG_EMPTY;
+    *o++ = spr_empty_t;
+    *o++ = spr_empty_p;
     oam_next = o;
 }
 
@@ -190,8 +193,8 @@ static void draw_glass(uint8_t i) {
     y = bar_oam_y[mug_bar[i]] + MUG_DY + (t >> 2);         // falls a little as it breaks
     x = mug_x[i] > 80 ? GLASS_X_RIGHT + 8 : GLASS_X + 8;     // left or right end
     t = OBJ_GLASS + ((t >> 1) & ~3);                         // + (timer / GLASS_FRAME_TIME) * GLASS_TILES_PER_FRAME
-    oam_put(y, x, t, S_PALETTE | OBJPAL_GLASS);
-    oam_put(y, x + 8, t + 2, S_PALETTE | OBJPAL_GLASS);
+    oam_put(y, x, t, spr_glass_p);
+    oam_put(y, x + 8, t + 2, spr_glass_p);
 }
 
 static void draw_held(uint8_t i) {
@@ -202,14 +205,15 @@ static void draw_held(uint8_t i) {
     mug_x[i] = x;
     g = pose_tile[t];
     // DMG: the held full mug uses OBP0 (beer light grey, foam white) like the fill glass so it shows on the
-    // white wall; the empty one uses OBP1 like every empty mug. CGB: the full / empty OBJ palette.
-    oam_put(bar_oam_y[mug_bar[i]] + pose_dy[t], x + 8, g, g == TILE_DRINK_EMPTY ? (S_PALETTE | OBJPAL_MUG_EMPTY) : prop_full_held);
+    // white wall; the empty one looks like every empty mug (spr_hempty_*). CGB: the full / empty OBJ palette.
+    if (g == TILE_DRINK_EMPTY) oam_put(bar_oam_y[mug_bar[i]] + pose_dy[t], x + 8, spr_hempty_t, spr_hempty_p);
+    else oam_put(bar_oam_y[mug_bar[i]] + pose_dy[t], x + 8, g, prop_full_held);
 }
 
 void draw_mugs(void) {
     uint8_t i, st, n;
     oam_next = (uint8_t *)(shadow_OAM + OAM_FILL + 1);
-    oam_left = OAM_MUG_END - (OAM_FILL + 1);
+    oam_left = OAM_MUG_END - (OAM_FILL + 1) - 2 * lift_total;   // M13a: lifted patrons use the top entries
     if (mugs_live) {
         prop_full_held = is_cgb ? OBJPAL_MUG_FULL : 0;
         for (i = 0; i != MAX_MUGS; i++) {
@@ -228,7 +232,7 @@ void draw_mugs(void) {
             else draw_full(i);
         }
     }
-    n = OAM_MUG_END - oam_left;
+    n = OAM_MUG_END - 2 * lift_total - oam_left;                 // first entry not used by a mug
     for (i = n; i < oam_used; i++) shadow_OAM[i].y = 0;       // hide what is no longer used
     oam_used = n;
 }

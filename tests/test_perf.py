@@ -7,7 +7,7 @@ import re
 from conftest import ROM, ROOT, bar_top_row
 import perf_helpers as ph
 
-BASE = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))   # first patron tile
+BASE = int(re.search(r"#define PATRON_FIRST_TILE (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))   # first patron tile
 
 pytestmark = pytest.mark.timeout(300)
 LEVEL8_FRAMES, WORST_FRAMES = 1200, 600

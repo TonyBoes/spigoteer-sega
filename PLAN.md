@@ -337,3 +337,26 @@ Patrons must overlap and pass, as in arcade Tapper; one patron shoving another i
 Owner decisions: occasional hurried patron (~1 in 4 from L3, ~1.5x); redraw the igloo door for the door
 entrance; CGB frees palettes both ways (coin shares with the show AND glass/puff use the drink palette);
 DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lift), M13b rules, M13c door.
+
+## M13a as built (lifted-patron plumbing; no rule changes)
+- Tiles (Option A): each patron group is stored column by column from PATRON_FIRST_TILE = 78 (BAR_TILE_COUNT rounded up
+  to even; id 77 is unused in play), shifts 1-7 first (v * 42 + (s - 1) * 6), the shift-0 poses last at 204/210/216
+  (PATRON_SHIFT0_OFS 126), back views 222-233 as before. render.c stamp3 / put_col / id_seq / stamp_tile and title.c's
+  scene patron follow the layout; the puff stays at OBJ 234.
+- State (src/lift.c, bank 5): patron_lift[16] (0 BG, 1 OBJ, 2 OBJ behind BG, | 0x80 dropping), lift_n[4], lift_total;
+  test hook lift_hook_p / lift_hook_op (1 lift, 2 lift behind BG, 3 drop) / lift_hook_res (1 done, 2 refused).
+  lift_frame() runs only while someone is lifted or the hook is set; draw_lifted() fills OAM 25 down; draw_mugs ends at
+  26 - 2 * lift_total. A lifted patron's BG footprint is plain wall drawn with his own palette's colour 0 (PATRON_BLANK,
+  the 3rd column of his shift-0 pose), so the wall's specks stay hidden and the picture does not change.
+- Ordering: a lift writes the sprite and queues the BG erase at the head of the frame's copy list (bg_urgent: up to two
+  3-column spans outside the budget), so both reach the screen in the same VBlank; never while vq_held or his BG copy
+  is pending. A drop queues the BG stamp first and keeps the sprite until it is out (>= 1 frame). A forced drop (more
+  than 10 objects estimated on the bar's patron lines, or mugs + lifted entries > 19 of 21) swaps BG copy and sprite
+  in one VBlank when this frame's list can take it, else it is an ordinary drop.
+- Palettes: CGB OBJ 2 = glass + puff (the venue's empty drink), 3/6/7 = patron variants, 5 = show or coin (render.c
+  pal5_check asks, the VBlank handler writes), 4 spare; bonus2 loads its tap palette into 3 and the coin into 5.
+  DMG: OBP1 = 0xE4 in play (0xC4 on the title / bonus), sliding mugs, held empty and puff on OBP0 from bit-plane-swapped
+  copies at OBJ 240-251 made at level load; glass shards on OBP0 with light grey and white swapped (accepted).
+- start_level() and the level table moved from main.c to src/level.c (bank 5): ROM0 had no room for M13a.
+- Known for M13b: on DMG the lower X wins between sprites, so a lifted patron covers a mug / the bartender to his right
+  where both are opaque; on CGB the coin (OAM 27) and puff (26) are behind lifted patrons.

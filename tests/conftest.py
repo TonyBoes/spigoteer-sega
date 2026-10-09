@@ -128,3 +128,27 @@ def venue_rows(theme, key):
     """A 20-wide map of the venue as a list of rows."""
     m = venue(theme)[key]
     return [m[i:i + 20] for i in range(0, len(m), 20)]
+
+
+# ---- M13a: on DMG the mug / empty / puff sprites use bit-plane-swapped copies of their tiles at OBJ 240-251 (OBP0;
+# OBP1 belongs to lifted patrons). logical_tile() maps a copy back to the tile it was made from, so tests can ask
+# "which frame is this" on both models.
+_ART = (ROOT / "build" / "art.h").read_text()
+
+
+def _art(name):
+    return int(_re.search(rf"#define {name} (\d+)", _ART).group(1))
+
+
+OBJ_MUG_ID = _art("BARTENDER_TILE_COUNT")
+OBJ_MUG_DRINK_ID = OBJ_MUG_ID + _art("MUG_TILE_COUNT") + _art("GLASS_TILE_COUNT") + _art("MUG_FILL_TILE_COUNT")
+OBJ_PUFF_ID = (_art("PATRON_FIRST_TILE") + _art("PATRON_GROUP_TILES") + 1) & ~1
+OBJ_DMG_COPY = GAME["OBJ_DMG_COPY"]
+DMG_COPIES = {OBJ_DMG_COPY + k: OBJ_MUG_ID + k for k in range(4)}                     # sliding full, sliding empty
+DMG_COPIES.update({OBJ_DMG_COPY + 4 + k: OBJ_MUG_DRINK_ID + 6 + k for k in range(2)})  # the empty in a patron's hand
+DMG_COPIES.update({OBJ_DMG_COPY + 6 + k: OBJ_PUFF_ID + k for k in range(6)})          # the door puff
+
+
+def logical_tile(t):
+    """The tile a sprite shows, with a DMG copy (OBJ 240-251) mapped back to its original id."""
+    return DMG_COPIES.get(t, t)

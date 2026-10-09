@@ -62,53 +62,6 @@ static uint8_t sec_t;
 #define SEC(i)
 #endif
 
-// per-level knobs; start_level() copies one row into the globals below
-typedef struct {
-    uint8_t group;          // patron art group (index into patron_tiles)
-    uint8_t start_mask;     // bit b set: bar b starts with patrons
-    uint8_t start_per_bar;  // patrons per started bar (stacked 32 px apart)
-    uint8_t quota;          // patrons spawned in the level, including the start ones
-    uint16_t spawn_interval; // frames
-    uint8_t step_frames;    // frames per 8 px of walking (patron_speed = 8 px / step_frames)
-    uint8_t pushback_cols;
-    uint8_t serve_score;
-    uint8_t empty_gap;      // frames kept between two empties' arrivals at the bartender's end (fair empties)
-} level_cfg_t;
-#define LEVEL_ROWS 9
-// One row per patron group, in the order of gen_art.py's PATRON_GROUPS.
-// Playtest 4 flattened the curve: the old one was impossible by level 6. Level 1 is meant for a first-time
-// player (2 bars started, ~17 s to cross a bar, a patron every 5 s, 8 to serve); L2 is unchanged. From L2
-// every column is interpolated in a straight line to the NEW L6 = the OLD L3 row, and on to the NEW L9 = the
-// OLD L5 row (rounded). M10b: past level 9 the rows come round again, a little harder per loop (start_level).
-// Old -> new, per level:
-//   level      1    2    3    4    5    6    7    8    9
-//   quota old  8   10   12   14   16   18   20   21   22
-//   quota new  8   10   10   11   11   12   13   15   16
-//   spawn old 300  275  250  230  210  190  175  160  150
-//   spawn new 300  275  269  263  256  250  237  223  210
-//   step  old 64   60   56   52   48   44   40   37   34
-//   step  new 64   60   59   58   57   56   53   51   48
-//   push  old 4    4    4    4    3    3    3    3    3
-//   push  new 4    4    4    4    4    4    4    3    3
-//   gap   old 120  110  100  90   80   70   60   52   45
-//   gap   new 120  110  108  105  102  100  93   87   80
-// The start patrons are one per started bar throughout (the old L6+ second patron is gone: old L5 had one);
-// bars 0+2 at L1, bars 0-2 at L2, all four from L3. The serve score column is unchanged. The empty gap
-// (fair empties, patrons.c) never drops below 80 frames now, above the old 45 floor, so a bar switch and a
-// short walk always fit.
-//                 grp mask per quota spawn step push score gap
-static const level_cfg_t level_table[LEVEL_ROWS] = {
-    { 0, 0x5, 1,  8, 300, 64, 4,  50, 120 },   // 1 cowboys: bars 0 and 2
-    { 1, 0x7, 1, 10, 275, 60, 4,  75, 110 },   // 2 sports: bars 0-2
-    { 2, 0xF, 1, 10, 269, 59, 4,  75, 108 },   // 3 lumberjacks: all bars
-    { 3, 0xF, 1, 11, 263, 58, 4, 100, 105 },   // 4 chefs
-    { 4, 0xF, 1, 11, 256, 57, 4, 100, 102 },   // 5 divers
-    { 5, 0xF, 1, 12, 250, 56, 4, 125, 100 },   // 6 robots: plays like the old level 3
-    { 6, 0xF, 1, 13, 237, 53, 4, 125,  93 },   // 7 ninjas
-    { 7, 0xF, 1, 15, 223, 51, 3, 150,  87 },   // 8 aliens
-    { 8, 0xF, 1, 16, 210, 48, 3, 150,  80 },   // 9 zoo: plays like the old level 5; level 10 is row 1 again (loop 2)
-};
-
 // game flow
 #define LIFE_FREEZE_FRAMES  120
 #define CLEAR_FRAMES        150
@@ -117,7 +70,6 @@ static const level_cfg_t level_table[LEVEL_ROWS] = {
 #define BANNER_WY  BAR_TOP_Y(1)       // window overlay: 3 tile rows over bar 1 (y 64..87), clear of the HUD and stage
 #define BANNER_LYC (BAR_TOP_Y(1) + 22)  // line where the LCD interrupt switches the window off again
 
-#define WALL_RGB    (venue.pal[VENUE_PAL_BAR][0])   // the venue's wall: colour 0 of the bar and of the patron palettes
 
 // ---- state (globals => symbols) ----------------------------------------------
 uint8_t  bar;               // 0 top .. 3 bottom
@@ -181,20 +133,7 @@ static void load_cgb_palettes(void) {
     set_bkg_palette(BGPAL_HUD, 1, p);
 
     set_sprite_palette(OBJPAL_BARTENDER, 1, palettes[PAL_BARTENDER]);
-    set_sprite_palette(OBJPAL_GLASS, 1, palettes[PAL_GLASS]);
-    set_sprite_palette(OBJPAL_COIN, 1, palettes[PAL_COIN]);
-}
-
-static void load_patron_group(uint8_t g) {
-    palette_t p;
-    uint8_t v, i;
-    load_patron_tiles(g, PATRON_TILE_BASE);      // 144 pre-shifted + 12 back-view tiles, from the group's bank (LCD is off)
-    if (!is_cgb) return;
-    for (v = 0; v < 3; v++) {                    // colour 0 = the wall, so the art needs no transparency
-        p[0] = WALL_RGB;
-        for (i = 1; i < 4; i++) p[i] = palettes[patron_pal_ids[g][v]][i];
-        set_bkg_palette(BGPAL_PATRON + v, 1, p);
-    }
+    // M13a: the glass / puff share the venue's empty-drink palette, the coin slot 5 (render.c), patrons 3/6/7 (lift.c)
 }
 
 // ---- scene -------------------------------------------------------------------
@@ -307,7 +246,7 @@ static void init(void) {
     } else {
         BGP_REG  = 0xE4;   // 11 10 01 00: index 3 darkest
         OBP0_REG = 0xD0;   // bartender: idx1 white, idx2 light grey, idx3 black
-        OBP1_REG = 0xC4;   // mugs, glass: idx1 light grey, idx2 white, idx3 black (shows on the grey counter)
+        OBP1_REG = OBP1_MENU;   // title: mugs, sparkles: idx1 light grey, idx2 white, idx3 black; in play OBP1_PLAY (lift.c)
     }
     music_init();
     hi_load();
@@ -334,46 +273,10 @@ uint8_t next_rand(void) {                    // 8-bit xorshift, fixed seed => re
     return rng_state;
 }
 
-// M10b arcade loops: after level 9 the venues come round again (level 10 = venue 0 = loop 2, level 19 = loop 3, ...),
-// each loop a little harder than the table row, up to LOOP_STEPS_MAX loops' worth: walk speed +LOOP_SPEED_PCT % per
-// loop (cap +30 %), spawn interval -LOOP_SPAWN_PCT % per loop (cap -24 %), empty gap -LOOP_GAP_STEP frames per loop,
-// never below EMPTY_GAP_FLOOR. Quota, start patrons, push-back and the serve score stay the row's.
-#define LOOP_STEPS_MAX   3
-#define LOOP_SPEED_PCT  10
-#define LOOP_SPAWN_PCT   8
-#define LOOP_GAP_STEP    5
-#define EMPTY_GAP_FLOOR 80
 #define LOOP_FRAMES    120              // the "LOOP n" banner, before the level's intro
 #define GAMEOVER_FRAMES 240             // the GAME OVER banner goes on to the initials / table by itself after 4 s
 uint8_t arcade_loop = 1;                // pass through the nine venues: 1, 2, ...
-
-static void start_level(void) {
-    uint8_t idx = level - 1, k, g;
-    const level_cfg_t *c;
-    cur_group = idx % LEVEL_ROWS;
-    c = &level_table[cur_group];
-    arcade_loop = idx / LEVEL_ROWS + 1;
-    k = arcade_loop - 1;
-    if (k > LOOP_STEPS_MAX) k = LOOP_STEPS_MAX;
-    quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
-    spawn_interval -= (uint16_t)(spawn_interval * (uint8_t)(k * LOOP_SPAWN_PCT)) / 100;
-    pushback_cols = c->pushback_cols; pushback_px = pushback_cols << 3;
-    // 8 px per step_frames in 1/256 px per frame (the old speed over a 120 px walk), scaled by the walk's new length:
-    // the patrons now come in at DOOR_X, so (PATRON_FAR_X - DOOR_X) / PATRON_FAR_X of the distance (13/15 = 104/120)
-    // at the same door-to-tap time (within 2%; the speed has a 1/256 px resolution).
-    patron_speed = (uint8_t)((((2048u / step_frames) * (PATRON_FAR_X - DOOR_X)) + PATRON_FAR_X / 2) / PATRON_FAR_X);
-    patron_speed += (uint8_t)((uint16_t)(patron_speed * (uint8_t)(k * LOOP_SPEED_PCT)) / 100);
-    g = c->empty_gap; k *= LOOP_GAP_STEP;
-    empty_gap = g >= EMPTY_GAP_FLOOR + k ? g - k : EMPTY_GAP_FLOOR;
-    serve_score = c->serve_score; start_per_bar = c->start_per_bar;
-    start_mask = c->start_mask;
-    served = 0; spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES; level_clear = 0;
-    clear_patrons();
-    clear_dirty();
-    load_venue(cur_group);                      // M9: the venue of the level's theme (theme index = patron group)
-    load_patron_group(cur_group);
-    place_start_patrons();
-}
+void start_level(void) BANKED;          // src/level.c: the level table, the arcade loops' difficulty, the level load
 
 // ---- screens and state changes --------------------------------------------------------
 uint8_t glyph_for(char c) {
@@ -450,7 +353,6 @@ static void enter_level_screen(void) {
     hide_all_sprites();
     draw_bartender();
     game_over = 0;
-    game_state = GS_PLAYING;
     if (cur_group == 0 && level > 1) {            // M10b: a new loop begins: "LOOP n" first, then the level's intro
         char s[8] = "LOOP ";
         if (arcade_loop >= 10) { s[5] = '0' + arcade_loop / 10; s[6] = '0' + arcade_loop % 10; }
@@ -458,7 +360,7 @@ static void enter_level_screen(void) {
         show_overlay(s);
         state_timer = 0;
         game_state = GS_LOOP;
-    }
+    } else game_state = GS_PLAYING;               // (one write: a test sampling mid-load never sees PLAYING before LOOP)
     music_play(TUNE_VENUE0 + cur_group);          // the venue's own tune
     DISPLAY_ON;
 }
@@ -747,6 +649,7 @@ static void update(void) {
     }
 
     SEC(SEC_REST);
+    if ((lift_total | lift_hook_op) && (game_state == GS_PLAYING || game_state == GS_LIFE_LOST)) lift_frame();   // M13a
     if (vram_pending || hud_dirty) queue_vram();
     SEC(SEC_QUEUE);
     if (game_state == GS_PLAYING || game_state == GS_LIFE_LOST) {
@@ -754,6 +657,7 @@ static void update(void) {
         draw_fill();
         SEC(SEC_DRAW_BT);
         draw_mugs();
+        if (lift_total | lift_oam_n) draw_lifted();
         SEC(SEC_DRAW_MUGS);
         draw_stage_fx();
         SEC(SEC_FX);

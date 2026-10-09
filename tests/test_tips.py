@@ -79,7 +79,7 @@ def test_served_patron_leaves_a_tip_where_it_caught_its_last_mug(gb):
     assert len(cs) == 1
     assert cs[0]["x"] - 8 == 90 and cs[0]["y"] - 16 == bar_top_y(2) + MUG_DY
     if gb.model_name == "cgb":
-        assert cs[0]["flags"] & 7 == 4, "coin OBJ palette"
+        assert cs[0]["flags"] & 7 == 5, "coin OBJ palette (M13a: slot 5, shared with the show)"
 
 
 def test_a_catch_remembers_where_the_mug_was_caught(gb):

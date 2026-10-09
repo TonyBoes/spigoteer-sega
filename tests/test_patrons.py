@@ -22,7 +22,8 @@ START_BARS = [0, 2]                   # level 1 starts with patrons on these bar
 import re as _re
 from conftest import ROOT as _ROOT
 _ART_H = (_ROOT / "build" / "art.h").read_text()
-BASE = int(_re.search(r"#define BAR_TILE_COUNT (\d+)", _ART_H).group(1))
+BASE = int(_re.search(r"#define PATRON_FIRST_TILE (\d+)", _ART_H).group(1))           # M13a: BAR_TILE_COUNT rounded up to even
+SHIFT0_OFS = int(_re.search(r"#define PATRON_SHIFT0_OFS (\d+)", _ART_H).group(1))     # the shift-0 poses come last (OBJ-able)
 SHIFTED = int(_re.search(r"#define PATRON_TILES_PER_GROUP (\d+)", _ART_H).group(1))     # M8b: 3 x 8 shifts x 6 = 144
 BACK_BASE = BASE + SHIFTED                                                                # then 3 back views x 4 tiles
 BG_TILES_TOTAL = BASE + int(_re.search(r"#define PATRON_GROUP_TILES (\d+)", _ART_H).group(1))
@@ -41,8 +42,14 @@ def patrons(gb):
 
 def drawn_tiles(variant, x, bar):
     """(column, [row0 ids, row1 ids]) the tilemap must show for a patron drawn at x (M8b: 1 px, 8 shifts)."""
-    first = BASE + variant * 48 + (x & 7) * 6
-    return x >> 3, [[first + r * 3 + k for k in range(3)] for r in range(2)]
+    first = pose_first(variant, x & 7)
+    return x >> 3, [[first + 2 * k + r for k in range(3)] for r in range(2)]
+
+
+def pose_first(variant, shift):
+    """M13a (Option A): first tile id of a pose; stored column by column (column k: + 2k top, + 2k + 1 bottom), shifts
+    1..7 first (variant * 42 + (shift - 1) * 6), the three shift-0 poses last (SHIFT0_OFS + variant * 6)."""
+    return BASE + (SHIFT0_OFS + variant * 6 if shift == 0 else variant * 42 + (shift - 1) * 6)
 
 
 def map_ids(gb, bar, col):

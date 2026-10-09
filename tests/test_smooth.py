@@ -3,7 +3,7 @@
 import re
 
 import pytest
-from conftest import GAME, ROOT, bar_top_row, bar_top_y, check_golden
+from conftest import GAME, ROOT, bar_top_row, bar_top_y, check_golden, logical_tile
 
 import test_patrons as tp
 from test_patrons import (BACK_BASE, BASE, BG_TILES_TOTAL, DRINKING, EMPTY, FREE, FULL, HELD, MAX_M, MAX_P, PUSHED,
@@ -29,7 +29,8 @@ def drawn(gb, i):
 
 
 def drink_sprites(gb):
-    return [s for s in gb.visible_sprites() if s["tile"] in DRINK_TILES]
+    """The held-drink sprites (M13a: a DMG copy is reported as the tile it was made from)."""
+    return [dict(s, tile=logical_tile(s["tile"])) for s in gb.visible_sprites() if logical_tile(s["tile"]) in DRINK_TILES]
 
 
 def test_walking_drawn_x_advances_in_1_px_steps(gb):
@@ -257,7 +258,7 @@ def test_tile_ids_for_an_odd_x(gb):
     gb.run(4)
     assert drawn(gb, p) == 37
     col, ids = drawn_tiles(2, 37, 1)
-    assert col == 4 and ids[0][0] == BASE + 2 * 48 + 5 * 6, "variant C, shift 5"
+    assert col == 4 and ids[0][0] == BASE + 2 * 42 + 4 * 6, "variant C, shift 5 (M13a layout)"
     assert map_ids(gb, 1, col) == ids
     tm = gb.bg_tilemap()
     assert (tm[bar_top_row(1)][3] & 0xFF) < BASE and (tm[bar_top_row(1)][7] & 0xFF) < BASE, "wall either side"

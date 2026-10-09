@@ -434,7 +434,8 @@ def test_next_level_loads_with_the_venue_restored(gb, kind):
     assert tilemap_row(gb, 17, 0, 20) == [lodge["floor_tile"]] * 20
     obj = b"".join(bytes(gb.read(0x8000 + t * 16, 16)) for t in range(96, 128))
     assert obj == bytes(lodge["show"]), "the performer tiles are back"
-    bg = b"".join(bytes(gb.read(0x9000 + t * 16, 16)) for t in range(B2_BASE, B2_BASE + 24))
+    first = (B2_BASE + 1) & ~1                   # M13a: the patron tiles start at the next even id (B2_BASE itself is unused in play)
+    bg = b"".join(bytes(gb.read(0x9000 + t * 16, 16)) for t in range(first, first + 24))
     assert bg == patron_group_tiles(2)[:24 * 16], "the patron tiles are back over the glass and '!'"
     if gb.model_name == "dmg":
-        assert gb.mem(0xFF49) == 0xC4, "OBP1 is the game's again"
+        assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's again (M13a: 0xE4 in play, for lifted patrons)"

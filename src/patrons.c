@@ -148,6 +148,7 @@ static void list_remove(uint8_t p) {
 void remove_patron(uint8_t p) {
     uint8_t d = (patron_draw[p] & ~DRAW_BACK) >> 3;
     patron_state[p] = PATRON_NONE;
+    patron_lift[p] = LIFT_BG;                         // (a lifted one's sprite goes with the next draw_lifted; lift.c recounts)
     if (lists_ok) list_remove(p);
     free_held_mug(p);
     if (patron_draw[p] != 255) mark_dirty_attrs(patron_bar[p], d, d + 3);
@@ -156,7 +157,8 @@ void remove_patron(uint8_t p) {
 
 void clear_patrons(void) {
     uint8_t p;
-    for (p = 0; p < MAX_PATRONS; p++) patron_state[p] = PATRON_NONE;
+    for (p = 0; p < MAX_PATRONS; p++) { patron_state[p] = PATRON_NONE; patron_lift[p] = LIFT_BG; }
+    lift_n[0] = lift_n[1] = lift_n[2] = lift_n[3] = 0; lift_total = 0;
     lists_ok = 0;
 }
 

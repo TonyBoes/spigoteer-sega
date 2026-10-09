@@ -10,8 +10,13 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "palettes.h"
 
 uint8_t row_buf[20];
+uint8_t pal5_cur;                 // CGB OBJ palette 5 holds: 1 the coin, 2 the show (load_venue loads the show's); see pal5_check
+static volatile uint8_t pal5_req;
+static const uint16_t *pal5_src;
+static void pal5_write(void);
 uint8_t score_tiles[6];      // the HUD digits as BG tile ids, prepared outside VBlank
 uint8_t lives_tiles[3];
 
@@ -151,7 +156,9 @@ void build_lists(void);
 static uint8_t cz_x0, cz_x1, cz_pal;      // span of the bar being composed, palette of the patron being stamped
 static uint8_t *cz_tile, *cz_attr;        // its first wall row in sh_tile / sh_attr (cz_attr 0 on DMG)
 
-#define ST(v, s) ((uint8_t)(PATRON_TILE_BASE + (v) * 48u + (s) * 6u))   // first tile of variant v pre-shifted by s px
+// First tile of variant v pre-shifted by s px (M13a, column-major: column k is tiles + 2k (top) and + 2k + 1 (bottom);
+// shifts 1..7 first, the shift-0 poses last, so they double as 8x16 OBJ tiles for a lifted patron)
+#define ST(v, s) ((uint8_t)((s) ? PATRON_TILE_BASE + (v) * 42u + ((s) ? (s) - 1u : 0u) * 6u : PATRON_OBJ_BASE + (v) * 6u))
 #define ST8(v) ST(v, 0), ST(v, 1), ST(v, 2), ST(v, 3), ST(v, 4), ST(v, 5), ST(v, 6), ST(v, 7)
 static const uint8_t stamp_tile[32] = { ST8(0), ST8(1), ST8(2), ST8(0) };   // (variant 3 does not occur)
 #define SB(v) ((uint8_t)(PATRON_BACK_BASE + (v) * 4u))                     // first back-view tile of variant v
@@ -167,9 +174,9 @@ static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal for 
 
 static void stamp3(uint8_t c) {                          // the whole 3x2 footprint at column c
     uint8_t *r = cz_tile + c, t = st_t;
-    r[0] = t; r[1] = t + 1; r[2] = t + 2;
+    r[0] = t; r[1] = t + 2; r[2] = t + 4;
     r += 32;
-    r[0] = t + 3; r[1] = t + 4; r[2] = t + 5;
+    r[0] = t + 1; r[1] = t + 3; r[2] = t + 5;
     if (!cz_attr) return;
     r = cz_attr + c; t = cz_pal;
     r[0] = t; r[1] = t; r[2] = t;
@@ -181,7 +188,7 @@ static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if i
     uint8_t *r;
     if (c < cz_x0 || c >= cz_x1) return;
     r = cz_tile + c;
-    r[0] = t; r[32] = t + 3;
+    r[0] = t; r[32] = t + 1;
     if (!cz_attr) return;
     r = cz_attr + c;
     r[0] = cz_pal; r[32] = cz_pal;
@@ -215,7 +222,19 @@ static void stamp(uint8_t s) {
     if (d & DRAW_BACK) { stamp_back(s, c); return; }
     stamp_look(s, d);
     if (c >= cz_x0 && c + 3 <= cz_x1) { stamp3(c); return; }
-    put_col(c, st_t); put_col(c + 1, st_t + 1); put_col(c + 2, st_t + 2);
+    put_col(c, st_t); put_col(c + 1, st_t + 2); put_col(c + 2, st_t + 4);
+}
+
+// M13a: a lifted patron (a sprite) leaves his BG footprint as plain wall: colour 0 of his own palette, as his BG copy
+// would show it there (the wall's specks stay hidden, so lifting and dropping change no pixel). Stamped before the BG
+// patrons of the bar, so it never covers one of them.
+static void stamp_blank(uint8_t s) {
+    uint8_t d = patron_draw[s], c;
+    if (d == 255) return;
+    c = (d & ~DRAW_BACK) >> 3;
+    if (c + 3 <= cz_x0 || c >= cz_x1) return;
+    cz_pal = BGPAL_PATRON + (patron_variant[s] & 3);
+    put_col(c, PATRON_BLANK); put_col(c + 1, PATRON_BLANK); put_col(c + 2, PATRON_BLANK);
 }
 
 static uint8_t cz_attrs;                  // compose the attributes too (CGB, and they changed)
@@ -232,6 +251,14 @@ static void restore_base(void) {                         // the wall over the sp
 static void stamp_bar(uint8_t b) {
     const uint8_t *q = bar_list[b];
     uint8_t n;
+    if (lift_n[b]) {                                      // lifted ones first: plain wall under their sprites
+        for (n = bar_n[b]; n; n--, q++)
+            if (patron_state[*q] != PATRON_NONE && LIFT_OFF_BG(patron_lift[*q])) stamp_blank(*q);
+        q = bar_list[b];
+        for (n = bar_n[b]; n; n--, q++)
+            if (patron_state[*q] != PATRON_NONE && !LIFT_OFF_BG(patron_lift[*q])) stamp(*q);
+        return;
+    }
     for (n = bar_n[b]; n; n--, q++)
         if (patron_state[*q] != PATRON_NONE) stamp(*q);
 }
@@ -258,9 +285,29 @@ void mark_quick(uint8_t p) {
     vram_pending = 1;
 }
 
+static uint8_t urg_n, urg_b[2], urg_c[2];   // M13a: spans queued first thing this frame (bg_urgent)
+
+// Patron p's BG copy is not on its way yet: a quick redraw or a dirty span over his footprint waits to be queued.
+uint8_t bg_pending(uint8_t p) {
+    uint8_t b = patron_bar[p] & (NUM_BARS - 1), c = (patron_draw[p] & ~DRAW_BACK) >> 3;
+    if (quick_on[p]) return 1;
+    return dirty_x0[b] < (uint8_t)(c + 3) && dirty_x1[b] > c;
+}
+
+// Columns c..c+2 of bar b are composed and queued at the head of this frame's list (outside the budget: at most two
+// spans, 48 units, beside the HUD's 15), so they go out in the VBlank that also shows this frame's OAM. 0: not
+// possible this frame (last frame's list still waits, or two are queued already).
+uint8_t bg_urgent(uint8_t b, uint8_t c) {
+    if (vq_held || urg_n >= 2) return 0;
+    urg_b[urg_n] = b; urg_c[urg_n] = c; urg_n++;
+    vram_pending = 1;
+    return 1;
+}
+
 void clear_dirty(void) {
     uint8_t b;
     vram_pending = 0;
+    urg_n = 0;
     while (quick_n) quick_on[quick_list[--quick_n]] = 0;
     for (b = 0; b < NUM_BARS; b++) { dirty_x0[b] = 255; dirty_x1[b] = 0; attr_x0[b] = 255; attr_x1[b] = 0; }
 }
@@ -378,6 +425,7 @@ __endasm;
 // VBL interrupt handler (registered in init()).
 void vq_vbl(void) {
     uint8_t t0, t, ly, vbk;
+    if (pal5_req) pal5_write();
     if (!vq_ready) return;
     ly = LY_REG;
     vq_drain_ly_last = ly;
@@ -502,8 +550,10 @@ static uint8_t queue_bar(uint8_t b) {
 // id_seq (ROM0: the drain reads it from the VBlank interrupt, whatever bank is mapped then); the shadow rows are not
 // touched (a later span recomposes its columns from the patrons anyway). A patron who has left, or turned to his
 // back view, since he was listed falls back to a dirty span.
+// M13a: the tiles are stored column by column, so the table holds each pose's ids in row order: top t, t+2, t+4,
+// bottom t+1, t+3, t+5 (at the pose's own offset, so the lookup is unchanged).
 #define QI(n)   (uint8_t)(PATRON_TILE_BASE + (n))
-#define QI6(n)  QI(n), QI((n) + 1), QI((n) + 2), QI((n) + 3), QI((n) + 4), QI((n) + 5)
+#define QI6(n)  QI(n), QI((n) + 2), QI((n) + 4), QI((n) + 1), QI((n) + 3), QI((n) + 5)
 #define QI48(n) QI6(n), QI6((n) + 6), QI6((n) + 12), QI6((n) + 18), QI6((n) + 24), QI6((n) + 30), QI6((n) + 36), QI6((n) + 42)
 static const uint8_t id_seq[PATRON_TILES_PER_GROUP] = { QI48(0), QI48(48), QI48(96) };
 #define QUICK_COST 16          // logic time like 2/3 of a 3-column span (measured); the drain is half a span's
@@ -527,10 +577,26 @@ static void queue_quick(void) {
         quick_on[p] = 0;
         d = patron_draw[p];
         if (patron_state[p] == PATRON_NONE || d == 255) continue;   // gone: remove_patron() marked his columns
+        if (LIFT_OFF_BG(patron_lift[p])) continue;                  // lifted: his columns stay plain wall
         if (d & DRAW_BACK) { d = (d & ~DRAW_BACK) >> 3; mark_dirty(patron_bar[p] & (NUM_BARS - 1), d, d + 3); continue; }
         qv_cost += QUICK_COST;
         quick_entries(p, d);
     }
+}
+
+// An urgent span (bg_urgent): composed and queued whatever the budget, tiles and (CGB) attributes.
+static void queue_urgent(uint8_t b, uint8_t c) {
+    uint8_t x1 = c + 3;
+    if (x1 > 20) x1 = 20;
+    qv_bar = b; cz_x0 = c; cz_x1 = x1; qv_w = x1 - c;
+    qv_cost += chunk_cost[qv_w];
+    cz_attrs = is_cgb;
+    compose_bar(b);
+    qv_src = (uint16_t)(cz_tile + c);
+    qv_dst = (uint16_t)(bar_map[b] + c);
+    queue_row();
+    qv_src += 32; qv_dst += 32;
+    queue_row();
 }
 
 void queue_vram(void) {
@@ -542,6 +608,7 @@ void queue_vram(void) {
     if (!vram_pending) return;
     vram_pending = 0;
     qv_p = (uint8_t *)&vq[vq_count];
+    while (urg_n) { urg_n--; queue_urgent(urg_b[urg_n], urg_c[urg_n]); }
     if (quick_n) queue_quick();
     if (queue_bar(0) && queue_bar(1) && queue_bar(2)) queue_bar(3);
 }
@@ -586,6 +653,24 @@ static void draw_coin(void) {
     o->prop = is_cgb ? OBJPAL_COIN : 0;
 }
 
+// CGB OBJ palette 5 (M13a): the coin's or the show's, whichever is on screen. Asked for at the end of the frame's
+// drawing, written by the VBlank interrupt (vq_vbl) right after the OAM DMA that shows the frame.
+static void pal5_check(void) {
+    uint8_t want = show_timer ? 2 : tip_timer ? 1 : 0;
+    if (!want || want == pal5_cur || !is_cgb) return;
+    pal5_src = want == 1 ? palettes[PAL_COIN] : venue.pal[VENUE_PAL_SHOW];
+    pal5_cur = want;
+    pal5_req = 1;
+}
+
+static void pal5_write(void) {
+    const uint8_t *s = (const uint8_t *)pal5_src;
+    uint8_t i;
+    OCPS_REG = 0x80 | (OBJPAL_COIN << 3);
+    for (i = 0; i < 8; i++) OCPD_REG = s[i];
+    pal5_req = 0;
+}
+
 // OAM 26: the door puff on the bar where a patron just came in or left (3 frames of PUFF_TOTAL / 3 game frames).
 uint8_t puff_bar, puff_timer;
 static uint8_t puff_shown;
@@ -597,8 +682,8 @@ static void draw_puff(void) {
     puff_shown = 1;
     o->y = bar_oam_y[puff_bar];
     o->x = PUFF_X + 8;
-    o->tile = OBJ_PUFF + (t > 8 ? 0 : t > 4 ? 2 : 4);
-    o->prop = S_PALETTE | OBJPAL_GLASS;
+    o->tile = spr_puff_t + (t > 8 ? 0 : t > 4 ? 2 : 4);
+    o->prop = spr_puff_p;
 }
 
 // What the dancer entries must show: 0x80 | dance frame << 3 | bit k: dancer k is on stage. They pop in one
@@ -632,6 +717,7 @@ void draw_stage_fx(void) {
     uint8_t k, sig;
     draw_coin();
     draw_puff();
+    pal5_check();
     if (!show_timer) {
         if (dancers_vis) {
             OAM_item_t *o = shadow_OAM + OAM_DANCERS;
@@ -658,6 +744,7 @@ void hide_all_sprites(void) {
     uint8_t i;
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
     oam_used = OAM_FILL + 1;
+    lift_oam_n = 0;
     puff_timer = 0; puff_shown = 0;
     dancers_vis = 0;
     oam_touched();

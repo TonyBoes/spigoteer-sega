@@ -4,7 +4,7 @@
 import re
 
 import pytest
-from conftest import GAME, LAYOUT, ROOT, THEMES, VENUES, bar_counter_row, bar_top_row, check_golden, venue
+from conftest import GAME, LAYOUT, ROOT, THEMES, VENUES, bar_counter_row, bar_top_row, check_golden, logical_tile, venue
 from test_art import GROUPS, goto_group
 from test_bonus import enter_bonus, pick
 from test_flow import BONUS, PLAYING, run_until, state, tilemap_row
@@ -153,7 +153,7 @@ def test_the_drink_frames_in_oam_are_the_venue_drink(gb, group):
     assert all(obj_vram(gb, OBJ_MUG_FILL + 2 * k, 2) == frame(2 + k) for k in range(4))
     gb.release("a")
     gb.run(4)
-    full = [s for s in gb.visible_sprites() if s["tile"] == OBJ_MUG]
+    full = [s for s in gb.visible_sprites() if logical_tile(s["tile"]) == OBJ_MUG]   # (M13a: DMG shows a copy)
     assert len(full) == 1 and obj_vram(gb, OBJ_MUG, 2) == frame(0), "the sliding full drink"
     assert obj_vram(gb, OBJ_MUG + 2, 2) == frame(1), "the sliding empty"
     # held: a drinking patron holds frames 6..9 at his face

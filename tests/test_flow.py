@@ -421,7 +421,7 @@ def test_level_clear_scores_shows_banner_and_loads_level_2(gb):
     assert patrons(gb) == [(0, DOOR_X), (1, DOOR_X), (2, DOOR_X)] and gb.mem("bar") == 0 and mugs(gb) == []
     gb.run(15)
     assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_2")]   # L02
-    base = int(re.search(r"BAR_TILE_COUNT (\d+)", ART_H).group(1))
+    base = int(re.search(r"PATRON_FIRST_TILE (\d+)", ART_H).group(1))
     vram = b"".join(bytes(gb.read((0x9000 + t * 16) if t < 128 else (0x8800 + (t - 128) * 16), 16))   # LCDC bit 4 = 0: ids 0..127 at 0x9000, 128..255 at 0x8800
                     for t in range(base, base + PATRON_TILES))
     assert vram == patron_group_tiles(1), "the sports group is in VRAM"
@@ -479,7 +479,7 @@ def test_lower_score_keeps_the_hi_score(gb):
 
 # ---- level table ---------------------------------------------------------------------
 def loop_row(lvl):
-    """M10b: the level table row of level lvl with its arcade loop's difficulty (see main.c start_level)."""
+    """M10b: the level table row of level lvl with its arcade loop's difficulty (see src/level.c start_level)."""
     row = list(TABLE[(lvl - 1) % 9])
     k = min((lvl - 1) // 9, 3)
     row[4] -= row[4] * (8 * k) // 100                      # spawn interval -8 % per loop, cap -24 %

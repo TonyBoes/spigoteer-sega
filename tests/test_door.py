@@ -4,7 +4,7 @@
 import re
 
 import pytest
-from conftest import GAME, ROOT, bar_top_row, venue
+from conftest import GAME, ROOT, bar_top_row, logical_tile, venue
 from test_art import goto_group
 from test_bonus import pick
 from test_flow import PLAYING, BONUS, TABLE, run_until, state
@@ -32,7 +32,8 @@ def venue_door(group, b=0):
 
 
 def puffs(gb):
-    return [s for s in gb.visible_sprites() if s["tile"] in PUFF_TILES]
+    """The puff sprites (M13a: on DMG they show copies at OBJ 246-251, reported as the tile they were made from)."""
+    return [dict(s, tile=logical_tile(s["tile"])) for s in gb.visible_sprites() if logical_tile(s["tile"]) in PUFF_TILES]
 
 
 def drawn_xs(gb):
@@ -203,7 +204,7 @@ def test_puff_when_a_patron_enters(gb):
     assert all(len(s) == 1 and s[0]["x"] == PUFF_X + 8 and s[0]["y"] == 16 + bar_top_row(b) * 8 for s in shown)
     assert {s[0]["tile"] for s in shown} == PUFF_TILES, "all three frames show"
     assert seen[-1] == [] and puffs(gb) == [], "gone again"
-    assert [i for i, s in enumerate(gb.oam()) if s["tile"] in PUFF_TILES and s["y"]] == [] 
+    assert [i for i, s in enumerate(gb.oam()) if logical_tile(s["tile"]) in PUFF_TILES and s["y"]] == [] 
 
 
 def test_puff_when_a_patron_leaves(gb):

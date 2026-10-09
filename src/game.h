@@ -51,7 +51,12 @@
 #define NO_SLOT         255
 #define INTRO_FRAMES     90   // nothing moves or spawns for this long after a level starts
 #define SPAWN_RETRY      20   // frames before trying again when the door is crowded
-#define PATRON_TILE_BASE BAR_TILE_COUNT
+#define PATRON_TILE_BASE PATRON_FIRST_TILE   // M13a: BAR_TILE_COUNT rounded up to even (the shift-0 poses double as 8x16 OBJ tiles)
+#define PATRON_OBJ_BASE  (PATRON_TILE_BASE + PATRON_SHIFT0_OFS)   // shift-0 pose of variant v: + v * 6, column-major (OBJ tiles t, t + 2)
+#define PATRON_BLANK     (PATRON_OBJ_BASE + 4)   // its 3rd column: plain colour 0 (the wall), what a lifted patron leaves on the BG
+#if PATRON_FIRST_TILE != ((BAR_TILE_COUNT + 1) & ~1) || PATRON_OBJ_BASE < 128 || (PATRON_OBJ_BASE & 1)
+#error "patron tile layout (tools/gen_art.py): shift-0 poses must be even OBJ ids >= 128"
+#endif
 #define PATRON_BACK_BASE (PATRON_TILE_BASE + PATRON_TILES_PER_GROUP)   // the 12 back-view tiles follow the 144 shifted ones
 #define DRAW_BACK        0x80 // patron_draw bit 7: drawn in its back view (x < 128, so the bit is free)
 #define SHUFFLE_MAX         4 // a patron turning to watch the show shuffles at most this far to a multiple of 8 px
@@ -114,19 +119,34 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #error "OBJ tile budget: the puff tiles do not fit above the patron BG tiles"
 #endif
 // OAM budget (40): bartender 0-3, fill 4, mugs 5..25 (20 mugs + 1 spare for a breaking glass's 2nd entry),
-// door puff 26, tip coin 27, three dancers x 4 entries 28..39
+// door puff 26, tip coin 27, three dancers x 4 entries 28..39. M13a: lifted patrons (2 entries each) count down from 25,
+// and the mugs then end at OAM_MUG_END - 2 * lift_total.
 #define OAM_MUG_END    26
 #define OAM_PUFF       26
 #define OAM_COIN       27
 #define OAM_DANCERS    28
 
-// CGB OBJ palette slots
+// CGB OBJ palette slots (M13a): the breaking glass and the door puff use the venue's empty-drink palette (2); the tip
+// coin shares slot 5 with the show (never on screen together: render.c rewrites it in VBlank when one appears);
+// lifted patrons use 3, 6, 7 (variants A, B, C; colours 1-3 of their BG palettes); 4 is spare.
 #define OBJPAL_BARTENDER 0
 #define OBJPAL_MUG_FULL  1
 #define OBJPAL_MUG_EMPTY 2
-#define OBJPAL_GLASS     3
-#define OBJPAL_COIN      4
+#define OBJPAL_GLASS     OBJPAL_MUG_EMPTY
+#define OBJPAL_PATRON_A  3
+#define OBJPAL_SPARE     4
+#define OBJPAL_COIN      5
 #define OBJPAL_DANCER    5
+#define OBJPAL_PATRON_B  6
+#define OBJPAL_PATRON_C  7
+// DMG (M13a): OBP1 = 0xE4 in play (lifted patrons, the BG's shades); what used OBP1 (0xC4) before draws with OBP0 (0xD0)
+// from copies of its tiles with the two bit planes swapped (colours 1 and 2 trade places), made at level load
+#define OBP1_PLAY        0xE4
+#define OBP1_MENU        0xC4   // the title / bonus OBP1 (mugs, sparkles)
+#define OBJ_DMG_COPY     240    // sliding full mug 240, sliding empty 242, held empty 244, door puff 246-251
+#if OBJ_PUFF + PUFF_FRAMES * 2 > OBJ_DMG_COPY
+#error "OBJ tiles: the puff runs into the DMG copies"
+#endif
 // CGB BG palette slots (2..7 are free for patrons)
 #define BGPAL_BAR        0
 #define BGPAL_HUD        1
@@ -168,6 +188,19 @@ extern uint8_t  patron_catchx[MAX_PATRONS], patron_drinks[MAX_PATRONS], patron_d
 extern uint8_t  mug_state[MAX_MUGS], mug_bar[MAX_MUGS], mug_x[MAX_MUGS], mug_timer[MAX_MUGS];
 extern uint8_t  mug_patron[MAX_MUGS], mugs_live;
 extern uint8_t  oam_used;
+// M13a lifted patrons (lift.c): patron_lift[p] LIFT_BG / LIFT_OBJ / LIFT_BEHIND, | LIFT_DROP while the BG copy is being put
+// back (the sprite stays until it is on screen); lift_n[b] patrons of bar b drawn as sprites, lift_total all of them.
+#define LIFT_BG          0
+#define LIFT_OBJ         1
+#define LIFT_BEHIND      2    // OBJ behind BG colours 1-3 (M13c door)
+#define LIFT_DROP        0x80
+#define LIFT_OFF_BG(v)   ((uint8_t)((v) - 1) < 2)   // lifted, not dropping: the BG shows plain wall in his footprint
+#define LIFT_MAX         4
+#define LIFT_PER_BAR     2
+#define LINE_OBJ_MAX    10
+extern uint8_t  patron_lift[MAX_PATRONS], lift_n[NUM_BARS], lift_total, lift_oam_n;
+extern uint8_t  lift_hook_op, lift_hook_p, lift_hook_res;
+extern uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p, spr_glass_p, spr_puff_t, spr_puff_p;
 
 extern const uint8_t bar_bit[NUM_BARS];
 extern const uint8_t bar_oam_y[NUM_BARS];     // OAM y (+16) of the bar's top pixel row
@@ -202,7 +235,7 @@ void clear_mugs(void);
 
 // ---- render.c ------------------------------------------------------------------------------
 extern uint8_t row_buf[20];
-extern uint8_t vram_pending, vq_count, drain_ticks_max;
+extern uint8_t vram_pending, vq_count, drain_ticks_max, vq_held;
 extern uint8_t score_tiles[6], lives_tiles[3];
 void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 void put_row(uint8_t y);
@@ -223,6 +256,13 @@ void draw_stage_fx(void);
 void hide_all_sprites(void);
 void door_puff(uint8_t b);                    // a patron came in / left on bar b: start the dust puff at its door
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
+uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
+uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c..c+2 of bar b first thing this frame (0: not now)
+extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds: 1 the coin, 2 the show
+// ---- lift.c (banked, M13a lifted patrons) ------------------------------------------------------
+void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palettes / DMG copies and looks, no one lifted
+void lift_frame(void) BANKED;                 // after the rules, before queue_vram: drops, forced drops, the test hook
+void draw_lifted(void) BANKED;                // OAM 25 down, after draw_mugs
 // ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
 extern uint8_t venue_id;
 void load_venue(uint8_t t) BANKED;                      // tiles, palettes, base_tile/base_attr of theme t

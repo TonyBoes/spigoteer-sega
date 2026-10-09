@@ -136,14 +136,15 @@ void title_enter(void) BANKED {
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0;
     hide_all_sprites();
+    if (!is_cgb) OBP1_REG = OBP1_MENU;               // (play used OBP1_PLAY)
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
     load_venue(0);                                    // the title stands in the saloon (and its drink frames)
     set_bkg_data(BAR_TILE_COUNT, TITLE_TILE_COUNT, title_tiles);   // lettering over the patron ids; the level load puts them back
     set_bkg_data(TT_EXTRA_BASE, TT_EXTRA_COUNT, tt_extra_tiles);
     set_bkg_data(0, TT_LOW_COUNT, tt_low_tiles);
     for (r = 0; r < 2; r++)                           // the patron: cowboys variant 0, unshifted, 2x2 of its 3x2 tiles
-        for (i = 0; i < 2; i++)
-            bkg_data_far(TT_PATRON_BASE + r * 2 + i, 1, patron_tiles_cowboys + (r * 3 + i) * 16, BANK(patron_tiles_cowboys));
+        for (i = 0; i < 2; i++)                       // (M13a: stored column by column, the shift-0 poses at PATRON_SHIFT0_OFS)
+            bkg_data_far(TT_PATRON_BASE + r * 2 + i, 1, patron_tiles_cowboys + (PATRON_SHIFT0_OFS + i * 2 + r) * 16, BANK(patron_tiles_cowboys));
     set_sprite_data(OBJ_FX, TT_FX_TILES, tt_fx_tiles);
     if (is_cgb) {
         p[0] = WALL_RGB_T; p[1] = RGB15(31, 30, 24); p[2] = RGB15(29, 19, 4); p[3] = RGB15(10, 3, 2);   // logo: foam, beer, outline
