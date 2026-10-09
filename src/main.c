@@ -103,9 +103,14 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define OBJ_GLASS       (OBJ_MUG + MUG_TILE_COUNT)
 #define OBJ_MUG_FILL    (OBJ_GLASS + GLASS_TILE_COUNT)
 #define OAM_FILL        4     // OAM entry of the filling mug; pooled mugs start at 5
+// OAM budget (40): bartender 0-3, fill 4, mugs 5..26 (20 mugs + 2 spare for a breaking glass's 2nd entry),
+// tip coin 27, three dancers x 4 entries 28..39
+#define OAM_MUG_END    27
+#define OAM_COIN       27
+#define OAM_DANCERS    28
 
 // mugs
-#define MAX_MUGS          24
+#define MAX_MUGS          20   // pool size: the OAM budget (was 24 before the M5 dancers); the per-bar cap below is unchanged
 #define MUGS_PER_BAR       6
 #define MUG_START_X      136   // just left of the bartender at the tap
 #define MUG_END_X         16   // a mug past x < 16 has left the counter
@@ -116,6 +121,9 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define GLASS_X_RIGHT    144   // ... and at the tap end
 #define GLASS_FRAME_TIME   8   // frames per glass frame
 #define OBJ_MUG_DRINK   (OBJ_MUG_FILL + MUG_FILL_TILE_COUNT)
+#define OBJ_COIN        (OBJ_MUG_DRINK + MUG_DRINK_TILE_COUNT)
+#define OBJ_DANCER      (OBJ_COIN + COIN_TILE_COUNT)
+// OBJ tile ids stay below 128: ids 128+ share VRAM (0x8800 block) with the patron BG tiles
 enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caught, in a patron's hand
 
 // CGB OBJ palette slots
@@ -123,12 +131,26 @@ enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caugh
 #define OBJPAL_MUG_FULL  1
 #define OBJPAL_MUG_EMPTY 2
 #define OBJPAL_GLASS     3
+#define OBJPAL_COIN      4
+#define OBJPAL_DANCER    5
 // CGB BG palette slots (2..7 are free for patrons)
 #define BGPAL_BAR        0
 #define BGPAL_HUD        1
 #define BGPAL_PATRON     2   // 2, 3, 4 = patron variants A, B, C
 #define BGPAL_STAGE      5   // stage, curtains, sign (6, 7 free)
 #define WALL_RGB    ((uint16_t)(12 | (5 << 5) | (8 << 10)))   // dusky wine
+
+// tips and the stage show
+#define TIP_FRAMES       480   // a tip stays this long (8 s)
+#define TIP_BLINK         60   // ... and blinks for the last second
+#define TIP_SCORE       1500
+#define TIP_CHANCE_DEFAULT 64  // out of 256 per served patron (255 = always, 0 = never)
+#define SHOW_FRAMES      360
+#define DANCER_BEAT       12   // frames per dance step
+#define DANCER_STAGGER     8   // dancers pop in / out one after the other
+#define DIST_BOB          10   // a distracted patron shifts by 2 px this often
+#define SHOW_SPAWN_DIV     4   // after a show the next patron comes after spawn_interval / this (once)
+#define NUM_DANCERS        3
 
 // ---- state (globals => symbols) ----------------------------------------------
 uint8_t  bar;               // 0 top .. 3 bottom
@@ -168,6 +190,13 @@ uint8_t  pushback_px;       // pushback_cols * 8
 uint16_t spawn_interval, spawn_timer;   // frames; 16-bit: level 1 spawns every 300
 uint8_t  intro_timer;
 uint8_t  rng_state;
+uint8_t  tip_chance = TIP_CHANCE_DEFAULT;   // 0..255 out of 256; 255 = always
+uint16_t tip_timer;         // frames the tip has left (0 = no tip on screen)
+uint8_t  tip_bar, tip_x;    // where the coin lies (screen x of its left edge)
+uint16_t show_timer;        // frames the show has left (0 = no show)
+uint8_t  dancer_frame;      // 0 stand, 1 left kick, 2 arms up, 3 right kick
+uint8_t  dance_tick;        // frames in the current dance step
+static uint8_t dancers_vis; // dancer OAM entries written (and so to be hidden again)
 uint8_t  drain_ticks_max;   // longest VRAM drain so far in DIV ticks (256 cycles each); VBlank is ~17 ticks
 
 // patron pool
@@ -180,6 +209,8 @@ uint8_t  patron_variant[MAX_PATRONS];  // 0..2
 uint8_t  patron_timer[MAX_PATRONS];
 uint8_t  patron_aux[MAX_PATRONS];      // px left to be pushed back
 uint8_t  patron_mug[MAX_PATRONS];      // mug slot held while pushed/drinking, NO_SLOT otherwise
+uint8_t  patron_catchx[MAX_PATRONS];   // x of the last full mug it caught (where its tip would lie)
+uint8_t  patron_dist[MAX_PATRONS];     // 1: watching the show (stands still, ignores mugs)
 uint8_t  patrons_live;
 
 // mug pool (plain arrays so tests can read them by name)
@@ -220,6 +251,14 @@ static void load_cgb_palettes(void) {
     set_sprite_palette(OBJPAL_MUG_FULL, 1, palettes[PAL_MUG_FULL]);
     set_sprite_palette(OBJPAL_MUG_EMPTY, 1, palettes[PAL_MUG_EMPTY]);
     set_sprite_palette(OBJPAL_GLASS, 1, palettes[PAL_GLASS]);
+    set_sprite_palette(OBJPAL_COIN, 1, palettes[PAL_COIN]);
+
+    // dancers: 1 skin, 2 gold plume and sequins, 3 teal costume/outline (index 0 is transparent)
+    p[0] = 0;
+    p[1] = RGB15(31, 24, 18);
+    p[2] = RGB15(31, 26, 6);
+    p[3] = RGB15(1, 8, 13);
+    set_sprite_palette(OBJPAL_DANCER, 1, p);
 }
 
 static void load_patron_group(uint8_t g) {
@@ -645,6 +684,8 @@ static void init(void) {
     set_sprite_data(OBJ_GLASS, GLASS_TILE_COUNT, glass_tiles);
     set_sprite_data(OBJ_MUG_FILL, MUG_FILL_TILE_COUNT, mug_fill_tiles);
     set_sprite_data(OBJ_MUG_DRINK, MUG_DRINK_TILE_COUNT, mug_drink_tiles);
+    set_sprite_data(OBJ_COIN, COIN_TILE_COUNT, coin_tiles);
+    set_sprite_data(OBJ_DANCER, DANCER_FRAMES * DANCER_TILES_PER_FRAME, dancer_tiles);
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 
     rng_state = 0xA7;
@@ -686,6 +727,7 @@ static void launch_mug(void) {
 static uint8_t drawn_x(uint8_t p) {
     uint8_t x = patron_x[p] & 0xFE;
     if (patron_state[p] == PATRON_DRINKING && ((patron_timer[p] / SWAY_FRAMES) & 1)) x += 2;
+    else if (patron_dist[p] && ((patron_timer[p] / DIST_BOB) & 1)) x += 2;   // watching the show: shifts about
     return x;
 }
 
@@ -707,6 +749,7 @@ static uint8_t add_patron(uint8_t b, uint8_t x, uint8_t variant) {
         patron_state[p] = PATRON_WALKING;
         patron_bar[p] = b; patron_x[p] = x; patron_frac[p] = 0; patron_variant[p] = variant;
         patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
+        patron_dist[p] = 0; patron_catchx[p] = x;
         patron_draw[p] = 255;
         refresh_patron(p);
         return 1;
@@ -729,6 +772,36 @@ static void remove_patron(uint8_t p) {
     free_held_mug(p);
     if (patron_draw[p] != 255) mark_dirty(patron_bar[p], d, d + 3);
     patron_draw[p] = 255;
+}
+
+// A served patron may leave a tip where it last caught a mug: not while a tip lies there or a show runs.
+static void maybe_tip(uint8_t p) {
+    if (tip_timer || show_timer) return;
+    if (!tip_chance || (tip_chance != 255 && next_rand() >= tip_chance)) return;   // 0 never (and draws no random number)
+    tip_timer = TIP_FRAMES;
+    tip_bar = patron_bar[p];
+    tip_x = patron_catchx[p];
+}
+
+static void end_show(void) {
+    uint8_t p;
+    show_timer = 0;
+    for (p = 0; p < MAX_PATRONS; p++) { patron_dist[p] = 0; patron_timer[p] = 0; }
+    if (spawn_timer > (spawn_interval / SHOW_SPAWN_DIV)) spawn_timer = spawn_interval / SHOW_SPAWN_DIV;   // new patrons come sooner, once
+}
+
+// The tip is picked up: each walking patron is distracted with probability 1/2 (at least one if any walk).
+static void start_show(void) {
+    uint8_t p, any = 0, first = NO_SLOT;
+    show_timer = SHOW_FRAMES;
+    dancer_frame = 0; dance_tick = 0;
+    for (p = 0; p < MAX_PATRONS; p++) {
+        patron_dist[p] = 0;
+        if (patron_state[p] != PATRON_WALKING) continue;
+        if (first == NO_SLOT) first = p;
+        if (next_rand() & 0x40) { patron_dist[p] = 1; patron_timer[p] = 0; any = 1; }
+    }
+    if (!any && first != NO_SLOT) { patron_dist[first] = 1; patron_timer[first] = 0; }
 }
 
 // is another patron too close ahead (to the right) for p to step one px right?
@@ -754,7 +827,7 @@ static uint8_t blocked_behind(uint8_t p) {
 static uint8_t catch_full(uint8_t i) {
     uint8_t p, best = 255, x = mug_x[i], l;
     for (p = 0; p < MAX_PATRONS; p++) {
-        if (patron_state[p] != PATRON_WALKING || patron_bar[p] != mug_bar[i]) continue;
+        if (patron_state[p] != PATRON_WALKING || patron_dist[p] || patron_bar[p] != mug_bar[i]) continue;   // distracted: the mug slides past
         l = patron_x[p];
         if (x >= l && x < l + PATRON_W && (best == 255 || l > patron_x[best])) best = p;
     }
@@ -764,6 +837,7 @@ static uint8_t catch_full(uint8_t i) {
     patron_aux[best] = pushback_px;
     patron_frac[best] = 0;
     patron_mug[best] = i;
+    patron_catchx[best] = x;
     mug_state[i] = MUG_HELD;
     mug_patron[i] = best;
     return 1;
@@ -831,7 +905,9 @@ static void update_patrons(void) {
         st = *ps;
         if (st == PATRON_NONE) continue;
         if (st == PATRON_WALKING) {
-            if (go) {
+            if (patron_dist[p]) {
+                patron_timer[p]++;                        // watching the show: no walking, just the bob
+            } else if (go) {
                 f = patron_frac[p] + patron_speed;
                 if (f < patron_frac[p]) {                 // carried: one whole pixel
                     if (!blocked_ahead(p)) {
@@ -853,6 +929,7 @@ static void update_patrons(void) {
                 remove_patron(p);
                 served++;
                 add_score(serve_score);
+                maybe_tip(p);
                 continue;
             } else if (blocked_behind(p)) {               // no room: stay put and drink
                 patron_aux[p] = 0;
@@ -914,7 +991,7 @@ static void draw_mugs(void) {
             if (st == MUG_FREE) continue;
             y = BAR_TOP_Y(mug_bar[i]) + MUG_DY + 16;         // mug stands on the counter surface
             if (st == MUG_BREAKING) {
-                if (n > 38) continue;
+                if (n > OAM_MUG_END - 2) continue;
                 gx = mug_x[i] > 80 ? GLASS_X_RIGHT : GLASS_X;   // left or right end
                 t = OBJ_GLASS + (mug_timer[i] / GLASS_FRAME_TIME) * GLASS_TILES_PER_FRAME;
                 y += mug_timer[i] >> 2;                      // falls a little as it breaks
@@ -922,7 +999,7 @@ static void draw_mugs(void) {
                 o->y = y; o->x = gx + 16; o->tile = t + 2; o->prop = S_PALETTE | OBJPAL_GLASS; o++;
                 n += 2;
             } else if (st == MUG_HELD) {
-                if (n > 39) continue;
+                if (n >= OAM_MUG_END) continue;
                 gx = mug_patron[i];
                 t = patron_state[gx] == PATRON_DRINKING ? patron_timer[gx] >> 2 : 255;
                 if (t > 22) {                                 // being carried back: upright, full, at the hand
@@ -939,7 +1016,7 @@ static void draw_mugs(void) {
                 o->prop = t == 3 ? (S_PALETTE | OBJPAL_MUG_EMPTY) : (is_cgb ? OBJPAL_MUG_FULL : 0);
                 o++; n++;
             } else {
-                if (n > 39) continue;
+                if (n >= OAM_MUG_END) continue;
                 o->y = y; o->x = mug_x[i] + 8;
                 if (st == MUG_EMPTY) { o->tile = OBJ_MUG + 2; o->prop = S_PALETTE | OBJPAL_MUG_EMPTY; }
                 else                 { o->tile = OBJ_MUG;     o->prop = S_PALETTE | OBJPAL_MUG_FULL; }
@@ -949,6 +1026,49 @@ static void draw_mugs(void) {
     }
     for (i = n; i < oam_used; i++) shadow_OAM[i].y = 0;       // hide what is no longer used
     oam_used = n;
+}
+
+static const uint8_t dancer_x[NUM_DANCERS] = { 24, 72, 120 };   // screen x of the left edge, across the stage
+static const uint8_t dance_seq[4] = { 0, 1, 2, 3 };               // stand, left kick, arms up, right kick
+
+// OAM 27: the tip coin on its bar's counter (blinks in its last second, glints every half second).
+// OAM 28..39: the dancers on the platform, 4 entries each (16x24 art, feet on the top of row STAGE_LAST_ROW).
+static void draw_stage_fx(void) {
+    OAM_item_t *o = shadow_OAM + OAM_COIN;
+    uint8_t k, base, flags, y, elapsed, vis, x;
+
+    if (!tip_timer || (tip_timer < TIP_BLINK && (tip_timer & 4))) {
+        o->y = 0;
+    } else {
+        o->y = BAR_TOP_Y(tip_bar) + MUG_DY + 16;
+        o->x = tip_x + 8;
+        o->tile = OBJ_COIN + (((tip_timer >> 3) & 7) == 0 ? 2 : 0);
+        o->prop = is_cgb ? OBJPAL_COIN : 0;
+    }
+
+    o = shadow_OAM + OAM_DANCERS;
+    if (!show_timer) {
+        if (dancers_vis) {
+            for (k = 0; k < NUM_DANCERS * 4; k++) o[k].y = 0;
+            dancers_vis = 0;
+        }
+        return;
+    }
+    dancers_vis = 1;
+    elapsed = SHOW_FRAMES - show_timer > 255 ? 255 : SHOW_FRAMES - show_timer;
+    base = OBJ_DANCER + dance_seq[dancer_frame] * DANCER_TILES_PER_FRAME;
+    flags = is_cgb ? OBJPAL_DANCER : 0;
+    y = STAGE_LAST_ROW * 8 - 24 + 16;           // OAM y of the top entry: art 24 px tall, feet on the platform
+    for (k = 0; k < NUM_DANCERS; k++, o += 4) {
+        // pop in one after another at the start and leave in the same order at the end
+        vis = elapsed >= (k + 1) * DANCER_STAGGER && show_timer > (k + 1) * DANCER_STAGGER;
+        if (!vis) { o[0].y = o[1].y = o[2].y = o[3].y = 0; continue; }
+        x = dancer_x[k] + 8;
+        o[0].y = y;      o[0].x = x;     o[0].tile = base;     o[0].prop = flags;
+        o[1].y = y;      o[1].x = x + 8; o[1].tile = base + 2; o[1].prop = flags;
+        o[2].y = y + 16; o[2].x = x;     o[2].tile = base + 4; o[2].prop = flags;
+        o[3].y = y + 16; o[3].x = x + 8; o[3].tile = base + 6; o[3].prop = flags;
+    }
 }
 
 // Put the level's start patrons on the bars (2nd group 32 px on where the level has two),
@@ -1008,6 +1128,7 @@ static void hide_all_sprites(void) {
     uint8_t i;
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
     oam_used = OAM_FILL + 1;
+    dancers_vis = 0;
 }
 
 // Banner window (tile rows 0..2 of the 0x9C00 map): frame, a text row that
@@ -1091,6 +1212,8 @@ static void reset_actors(void) {
     walk_timer = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0;
     for (i = 0; i < MAX_MUGS; i++) mug_state[i] = MUG_FREE;
     mugs_live = 0;
+    tip_timer = 0; show_timer = 0; dancers_vis = 0;      // a bar reset ends the show and takes the tip away
+    for (i = 0; i < MAX_PATRONS; i++) patron_dist[i] = 0;
 }
 
 // Draw the playfield for the current level/lives/score. Screen transition: LCD off.
@@ -1138,6 +1261,10 @@ static void enter_game_over(void) {
 }
 
 static void enter_level_clear(void) {
+    uint8_t i;
+    tip_timer = 0; show_timer = 0;               // a tip is simply forgotten when the level ends
+    for (i = OAM_COIN; i < 40; i++) shadow_OAM[i].y = 0;
+    dancers_vis = 0;
     add_score(LEVEL_BONUS);
     state_timer = 0;
     game_state = GS_LEVEL_CLEAR;
@@ -1213,6 +1340,20 @@ static void play_frame(uint8_t pressed) {
         walk_timer = 0;
     }
 
+    // tip: counts down, and is picked up by standing on it (16 px span overlapping its 8 px)
+    if (tip_timer) {
+        tip_timer--;
+        if (tip_timer && bar == tip_bar && bartender_x < (uint8_t)(tip_x + 8) && (uint8_t)(bartender_x + 16) > tip_x) {
+            tip_timer = 0;
+            add_score(TIP_SCORE);
+            start_show();
+        }
+    }
+    if (show_timer) {
+        if (++dance_tick >= DANCER_BEAT) { dance_tick = 0; dancer_frame = (dancer_frame + 1) & 3; }
+        if (--show_timer == 0) end_show();
+    }
+
     update_mugs();
     update_patrons();
 }
@@ -1269,6 +1410,7 @@ static void update(void) {
         draw_bartender();
         draw_fill();
         draw_mugs();
+        draw_stage_fx();
     }
     if (game_state == GS_PLAYING) {              // reactions to what this frame did
         if (life_lost) {

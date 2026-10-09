@@ -4,7 +4,7 @@ from conftest import LAYOUT, bar_counter_row, bar_top_y, check_golden, mug_top_y
 
 pytestmark = pytest.mark.timeout(60)
 
-MAX_MUGS = 24
+MAX_MUGS = 20
 FREE, FULL, EMPTY, BREAKING = 0, 1, 2, 3
 
 

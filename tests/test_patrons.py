@@ -5,7 +5,7 @@ from conftest import bar_top_row, bar_top_y, check_golden
 
 pytestmark = pytest.mark.timeout(60)
 
-MAX_P, MAX_M = 16, 24
+MAX_P, MAX_M = 16, 20
 NONE, WALKING, PUSHED, DRINKING = 0, 1, 2, 3
 FREE, FULL, EMPTY, BREAKING = 0, 1, 2, 3
 STEP, PUSHBACK, SERVE = 64, 4, 50     # level 1 values (level_table in main.c): 8 px per STEP frames, PUSHBACK*8 px back

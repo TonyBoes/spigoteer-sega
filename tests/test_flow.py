@@ -7,7 +7,7 @@ from conftest import LAYOUT, ROOT, bar_top_row, check_golden
 pytestmark = pytest.mark.timeout(120)
 
 TITLE, PLAYING, LIFE_LOST, LEVEL_CLEAR, GAME_OVER, PAUSED = range(6)
-MAX_P, MAX_M = 16, 24
+MAX_P, MAX_M = 16, 20
 BT_FAIL = 6
 
 # (group, start bar mask, start per bar, quota, spawn interval, step frames, pushback, serve score)

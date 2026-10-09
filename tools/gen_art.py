@@ -176,6 +176,33 @@ def main():
     c.append(fmt("mug_drink_tiles", dt))
     png(drinks, prev / "mug_drink_x8.png", 8, transparent=True)
 
+    # ---- coin (tip): 8x8 art in the lower half of an 8x16 entry; frame 1 swaps the two body shades (glint) ----
+    coin = [r for _, r in blocks(ROOT / "assets/art/coin.txt")][0]
+    assert len(coin) == 8 and len(coin[0]) == 8
+    swap = str.maketrans("-+", "+-")
+    coin_frames = [["." * 8] * 8 + coin, ["." * 8] * 8 + [r.translate(swap) for r in coin]]
+    ct = []
+    for f in coin_frames:
+        ct += tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)
+    h[-2:-2] = ["#define COIN_FRAMES 2", f"#define COIN_TILE_COUNT {len(ct) // 16}",
+                "extern const uint8_t coin_tiles[];", ""]
+    c.append(fmt("coin_tiles", ct))
+    png(coin_frames, prev / "coin_x8.png", 8, transparent=True)
+
+    # ---- dancer (stage show): 4 frames 16x24, laid out like the bartender (8 tiles per frame) ----
+    dframes = [r for _, r in blocks(ROOT / "assets/art/dancer.txt")]
+    assert len(dframes) >= 3 and all(len(f) == 24 and len(f[0]) == 16 for f in dframes)
+    dt = []
+    for f in dframes:
+        pad = list(f) + ["." * 16] * 8
+        for ty in (0, 16):
+            for cx in (0, 8):
+                dt += tile_bytes(pad, cx, ty) + tile_bytes(pad, cx, ty + 8)
+    h[-2:-2] = [f"#define DANCER_FRAMES {len(dframes)}", "#define DANCER_TILES_PER_FRAME 8",
+                f"#define DANCER_TILE_COUNT {len(dt) // 16}", "extern const uint8_t dancer_tiles[];", ""]
+    c.append(fmt("dancer_tiles", dt))
+    png(dframes, prev / "dancer_x8.png", 8, transparent=True)
+
     # ---- patrons: 9 groups x 3 variants x 4 shifts x (3x2 tiles, row-major) ----
     # The 16x16 patron is pasted at x offset 0/2/4/6 into a 24x16 canvas of colour 0 (the wall colour in
     # the patron palettes), so a patron moves in 2 px steps by swapping tilemap entries only.

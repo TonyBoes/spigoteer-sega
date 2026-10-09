@@ -33,6 +33,7 @@ def gb(boot):
             break
         boot.run(1)
     assert boot.mem("game_state") == PLAYING
+    boot.write("tip_chance", 0)      # tips are M5; the M1-M4 tests and goldens must not see a coin (test_tips sets it)
     while boot.mem("intro_timer") > OLD_INTRO_LEFT:
         boot.run(1)
     return boot
