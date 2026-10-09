@@ -17,7 +17,8 @@
 #include "can_tiles.h"      // static const uint8_t bonus_tiles[]: this bank's own art data
 
 // ---- shared with main.c (bank 0) ----
-extern uint8_t is_cgb, level, overlay_on, hud_dirty, life_lost, vq_count, vram_pending;
+extern uint8_t is_cgb, level, overlay_on, hud_dirty, life_lost, vram_pending;
+extern void vq_reset(void);
 extern uint32_t score;
 extern uint8_t next_rand(void);
 extern void add_score(uint16_t n);
@@ -138,7 +139,7 @@ static void shuffle_order(void) {
 void bonus_enter(void) BANKED {
     uint8_t i;
     DISPLAY_OFF;
-    overlay_on = 0; HIDE_WIN; vq_count = 0; hud_dirty = 0; life_lost = 0; vram_pending = 0;
+    overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0; vram_pending = 0;
     clear_dirty();
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
     set_sprite_data(OBJ_BONUS, BONUS_TILE_COUNT, bonus_tiles);

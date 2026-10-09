@@ -1,0 +1,222 @@
+// Mugs: the pool and its rules (a full mug slides left until a patron catches it or it falls off the door
+// end; an empty slides right until the bartender catches it or it falls off the tap end; a breaking glass
+// plays out), and their sprites (one OAM entry per mug, two per breaking glass, the fill glass in his hand).
+//
+// Structure-of-arrays like the patrons (the tests read mug_state[] etc. by name); the loops walk the arrays
+// with pointers and use tables for everything SDCC would multiply or divide.
+#include <gb/gb.h>
+#include <stdint.h>
+
+#include "game.h"
+#include "music.h"
+
+uint8_t  mug_state[MAX_MUGS];   // MUG_FREE / MUG_FULL / MUG_EMPTY / MUG_BREAKING / MUG_HELD
+uint8_t  mug_bar[MAX_MUGS];
+uint8_t  mug_x[MAX_MUGS];       // pixel x of the mug's left edge
+uint8_t  mug_timer[MAX_MUGS];   // frames since breaking began
+uint8_t  mug_patron[MAX_MUGS];  // MUG_HELD: the patron holding it
+uint8_t  mugs_live;             // number of non-free slots
+uint8_t  oam_used = OAM_FILL + 1;   // OAM entries the mugs (and the fill glass) occupied last frame
+
+uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
+    uint8_t i, n = 0, slot = MAX_MUGS;
+    for (i = 0; i < MAX_MUGS; i++) {
+        if (mug_state[i] == MUG_FREE) { if (slot == MAX_MUGS) slot = i; }
+        else if (mug_bar[i] == b) n++;
+    }
+    if (n >= MUGS_PER_BAR || slot == MAX_MUGS) return 0;
+    mug_state[slot] = state;
+    mug_bar[slot] = b;
+    mug_x[slot] = x;
+    mug_timer[slot] = 0;
+    mugs_live++;
+    return 1;
+}
+
+void launch_mug(void) {
+    spawn_mug(bar, MUG_START_X, MUG_FULL);
+    SFX(SFX_LAUNCH);
+}
+
+void clear_mugs(void) {
+    uint8_t i;
+    for (i = 0; i < MAX_MUGS; i++) mug_state[i] = MUG_FREE;
+    mugs_live = 0;
+}
+
+// The per-state rules, one small function each: SDCC keeps the slot number in a register in a function this
+// size, so each mug_xxx[i] is a 16-bit add and a load. (In one big loop body it spills everything to the
+// stack, and a pointer kept per array is worse still.) Each returns 1 while the slot stays in use.
+static void break_mug(uint8_t i) {
+    mug_state[i] = MUG_BREAKING;
+    mug_timer[i] = 0;
+    SFX(SFX_BREAK);
+    lose_life();
+}
+
+static uint8_t full_step(uint8_t i) {
+    uint8_t x = mug_x[i] - MUG_SPEED_FULL;
+    mug_x[i] = x;
+    if (x < catch_lim[mug_bar[i] & (NUM_BARS - 1)] && catch_full(i)) return 1;   // (catch_lim: see patrons.c)
+    if (x < MUG_END_X) break_mug(i);                    // fell off the left end
+    return 1;
+}
+
+static uint8_t empty_step(uint8_t i) {
+    uint8_t x = mug_x[i] + MUG_SPEED_EMPTY;
+    mug_x[i] = x;
+    if (x >= bartender_x && (uint8_t)(x - bartender_x) < 16 && mug_bar[i] == bar) {
+        mug_state[i] = MUG_FREE;                        // caught
+        add_score(EMPTY_SCORE);
+        SFX(SFX_CATCH);
+        return 0;
+    }
+    if (x > MUG_RIGHT_END) break_mug(i);                // fell off the right end
+    return 1;
+}
+
+static uint8_t glass_step(uint8_t i) {
+    if (++mug_timer[i] < GLASS_FRAMES * GLASS_FRAME_TIME) return 1;
+    mug_state[i] = MUG_FREE;
+    return 0;
+}
+
+static uint8_t held_step(uint8_t i) {                   // its patron is gone (or never held it): let it go
+    uint8_t q = mug_patron[i];
+    if (patron_state[q] != PATRON_NONE && patron_mug[q] == i) return 1;
+    mug_state[i] = MUG_FREE;
+    return 0;
+}
+
+void update_mugs(void) {
+    uint8_t i, st, live = 0;
+    if (mugs_live == 0) return;
+    begin_catch_frame();
+    for (i = 0; i != MAX_MUGS; i++) {
+        st = mug_state[i];
+        if (st == MUG_FREE) continue;
+        if (st == MUG_FULL) live += full_step(i);
+        else if (st == MUG_EMPTY) live += empty_step(i);
+        else if (st == MUG_BREAKING) live += glass_step(i);
+        else if (st == MUG_HELD) live += held_step(i);
+        else live++;
+    }
+    mugs_live = live;
+}
+
+// glass pieces keep falling while the rest of the picture is frozen
+void update_glass(void) {
+    uint8_t i, st, live = 0;
+    for (i = 0; i != MAX_MUGS; i++) {
+        st = mug_state[i];
+        if (st == MUG_FREE) continue;
+        if (st == MUG_BREAKING) live += glass_step(i);
+        else live++;
+    }
+    mugs_live = live;
+}
+
+// OAM 4: the glass the bartender holds under the tap while filling (hidden otherwise).
+// It sits where the launched mug will start (MUG_START_X, the counter-top row).
+void draw_fill(void) {
+    OAM_item_t *o = shadow_OAM + OAM_FILL;
+    if (!fill_timer) { o->y = 0; return; }
+    o->y = bar_oam_y[bar] + MUG_DY; o->x = (uint8_t)(MUG_START_X + 8);
+    o->tile = OBJ_MUG_FILL + fill_stage * 2; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;   // DMG: OBP0 (beer light grey) shows on the white wall; OBP1 would make it white
+}
+
+// Held-mug pose by drinking time (index = patron_timer / 4, 0..22): the mug rises from the hand to the
+// mouth, tilts and tips while he drinks, and is lowered empty. dx is the sprite's offset from the
+// drawn patron x, dy from the bar's top pixel row (art is in sprite rows 2-12, so dy 1 puts a tilted
+// mug at face height and dy 6 at the hand, always inside the bar's 24 lines). Pose 23: carried back
+// while he is pushed, upright and full at the hand.
+#define HELD_POSES 24
+static const uint8_t pose_dx[HELD_POSES]   = { 9,9,8, 8,8,8,8,8,8,8,8, 8,8,8,8,8,8,8,8, 8,9,9,9, 9 };
+static const uint8_t pose_dy[HELD_POSES]   = { 5,3,2, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 2,3,5,6, 6 };
+static const uint8_t pose_tile[HELD_POSES] = {
+#define PT(f) (OBJ_MUG_DRINK + (f) * 2)
+    PT(0),PT(0),PT(0), PT(1),PT(1),PT(1),PT(1),PT(1),PT(1),PT(1),PT(1),
+    PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2), PT(3),PT(3),PT(3),PT(3), PT(0)
+#undef PT
+};
+#define POSE_CARRY 23
+#define TILE_DRINK_EMPTY (OBJ_MUG_DRINK + 3 * 2)
+
+// OAM 5.. : one entry per mug, two per breaking glass. Entries used last frame
+// but not this one are hidden (y = 0). The entries are written through oam_next by small writers (SDCC keeps
+// the pointer in a register while it stores the four bytes); oam_left counts the entries still free.
+static uint8_t *oam_next;
+static uint8_t oam_left;
+static uint8_t prop_full_held;
+
+static void oam_put(uint8_t y, uint8_t x, uint8_t tile, uint8_t prop) {
+    uint8_t *o = oam_next;
+    *o++ = y; *o++ = x; *o++ = tile; *o++ = prop;
+    oam_next = o;
+}
+
+static void draw_full(uint8_t i) {
+    uint8_t *o = oam_next;
+    *o++ = bar_oam_y[mug_bar[i]] + MUG_DY;
+    *o++ = mug_x[i] + 8;
+    *o++ = OBJ_MUG;
+    *o++ = S_PALETTE | OBJPAL_MUG_FULL;
+    oam_next = o;
+}
+
+static void draw_empty(uint8_t i) {
+    uint8_t *o = oam_next;
+    *o++ = bar_oam_y[mug_bar[i]] + MUG_DY;
+    *o++ = mug_x[i] + 8;
+    *o++ = OBJ_MUG + 2;
+    *o++ = S_PALETTE | OBJPAL_MUG_EMPTY;
+    oam_next = o;
+}
+
+static void draw_glass(uint8_t i) {
+    uint8_t t = mug_timer[i], y, x;
+    y = bar_oam_y[mug_bar[i]] + MUG_DY + (t >> 2);         // falls a little as it breaks
+    x = mug_x[i] > 80 ? GLASS_X_RIGHT + 8 : GLASS_X + 8;     // left or right end
+    t = OBJ_GLASS + ((t >> 1) & ~3);                         // + (timer / GLASS_FRAME_TIME) * GLASS_TILES_PER_FRAME
+    oam_put(y, x, t, S_PALETTE | OBJPAL_GLASS);
+    oam_put(y, x + 8, t + 2, S_PALETTE | OBJPAL_GLASS);
+}
+
+static void draw_held(uint8_t i) {
+    uint8_t g = mug_patron[i], t, x;
+    t = patron_state[g] == PATRON_DRINKING ? patron_timer[g] >> 2 : 255;
+    if (t >= POSE_CARRY) t = POSE_CARRY;                     // being carried back: upright, full, at the hand
+    x = patron_draw[g] + pose_dx[t];
+    mug_x[i] = x;
+    g = pose_tile[t];
+    // DMG: the held full mug uses OBP0 (beer light grey, foam white) like the fill glass so it shows on the
+    // white wall; the empty one uses OBP1 like every empty mug. CGB: the full / empty OBJ palette.
+    oam_put(bar_oam_y[mug_bar[i]] + pose_dy[t], x + 8, g, g == TILE_DRINK_EMPTY ? (S_PALETTE | OBJPAL_MUG_EMPTY) : prop_full_held);
+}
+
+void draw_mugs(void) {
+    uint8_t i, st, n;
+    oam_next = (uint8_t *)(shadow_OAM + OAM_FILL + 1);
+    oam_left = OAM_MUG_END - (OAM_FILL + 1);
+    if (mugs_live) {
+        prop_full_held = is_cgb ? OBJPAL_MUG_FULL : 0;
+        for (i = 0; i != MAX_MUGS; i++) {
+            st = mug_state[i];
+            if (st == MUG_FREE) continue;
+            if (st == MUG_BREAKING) {
+                if (oam_left < 2) continue;
+                oam_left -= 2;
+                draw_glass(i);
+                continue;
+            }
+            if (oam_left == 0) continue;
+            oam_left--;
+            if (st == MUG_HELD) draw_held(i);
+            else if (st == MUG_EMPTY) draw_empty(i);
+            else draw_full(i);
+        }
+    }
+    n = OAM_MUG_END - oam_left;
+    for (i = n; i < oam_used; i++) shadow_OAM[i].y = 0;       // hide what is no longer used
+    oam_used = n;
+}
