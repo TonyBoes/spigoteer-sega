@@ -136,6 +136,18 @@ def main():
     c.append(fmt("mug_tiles", mt))
     png(mugs, prev / "mug_x8.png", 8, transparent=True)
 
+    # ---- glass (breaking mug): 4 frames 16x16 = 2 OAM entries of 8x16 each ----
+    glass = [r for _, r in blocks(ROOT / "assets/art/glass.txt")]
+    assert len(glass) == 4 and all(len(f) == 16 and len(f[0]) == 16 for f in glass)
+    gt = []
+    for f in glass:
+        for cx in (0, 8):
+            gt += tile_bytes(f, cx, 0) + tile_bytes(f, cx, 8)
+    h[-2:-2] = ["#define GLASS_FRAMES 4", "#define GLASS_TILES_PER_FRAME 4",
+                f"#define GLASS_TILE_COUNT {len(gt) // 16}", "extern const uint8_t glass_tiles[];", ""]
+    c.append(fmt("glass_tiles", gt))
+    png(glass, prev / "glass_x8.png", 8, transparent=True)
+
     (outdir / "art.h").write_text("\n".join(h))
     (outdir / "art.c").write_text("\n".join(c))
 

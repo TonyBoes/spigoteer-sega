@@ -30,11 +30,25 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // OBJ tile layout in VRAM
 #define OBJ_BARTENDER   0
 #define OBJ_MUG         (BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME)
+#define OBJ_GLASS       (OBJ_MUG + MUG_TILE_COUNT)
+
+// mugs
+#define MAX_MUGS          24
+#define MUGS_PER_BAR       6
+#define MUG_START_X      136   // just left of the bartender at the tap
+#define MUG_END_X         16   // a mug past x < 16 has left the counter
+#define MUG_SPEED_FULL     2
+#define FILL_FRAMES       24
+#define SLIDE_FRAMES       8
+#define GLASS_X            0   // screen x of the breaking glass (door side)
+#define GLASS_FRAME_TIME   8   // frames per glass frame
+enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING };
 
 // CGB OBJ palette slots
 #define OBJPAL_BARTENDER 0
 #define OBJPAL_MUG_FULL  1
 #define OBJPAL_MUG_EMPTY 2
+#define OBJPAL_GLASS     3
 // CGB BG palette slots (2..7 are free for patrons)
 #define BGPAL_BAR        0
 #define BGPAL_HUD        1
@@ -52,6 +66,17 @@ uint32_t score;             // HUD shows 6 digits
 uint8_t  is_cgb;            // running on colour hardware
 uint8_t  lives = 3;
 uint8_t  level = 1;
+uint8_t  fill_timer;        // frames A has been held at the tap (0 = not filling)
+uint8_t  slide_timer;       // frames left showing the "slide" pose
+uint8_t  game_over;         // set when lives reach 0; gameplay freezes
+uint8_t  hud_dirty;         // lives need redrawing
+
+// mug pool (plain arrays so tests can read them by name)
+uint8_t  mug_state[MAX_MUGS];   // MUG_FREE / MUG_FULL / MUG_EMPTY / MUG_BREAKING
+uint8_t  mug_bar[MAX_MUGS];
+uint8_t  mug_x[MAX_MUGS];       // pixel x of the mug's left edge
+uint8_t  mug_timer[MAX_MUGS];   // frames since breaking began
+uint8_t  mugs_live;             // number of non-free slots
 
 // ---- palettes ----------------------------------------------------------------
 #define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
@@ -75,6 +100,7 @@ static void load_cgb_palettes(void) {
     set_sprite_palette(OBJPAL_BARTENDER, 1, palettes[PAL_BARTENDER]);
     set_sprite_palette(OBJPAL_MUG_FULL, 1, palettes[PAL_MUG_FULL]);
     set_sprite_palette(OBJPAL_MUG_EMPTY, 1, palettes[PAL_MUG_EMPTY]);
+    set_sprite_palette(OBJPAL_GLASS, 1, palettes[PAL_GLASS]);
 }
 
 // ---- scene -------------------------------------------------------------------
@@ -89,6 +115,14 @@ static void glyph_row(uint8_t y, uint8_t x, const uint8_t *tiles, uint8_t n) {
 }
 
 static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
+
+// one mug per life, row 1 cols 10-12 (3 tiles: small enough for VBlank)
+static void draw_lives(void) {
+    uint8_t buf[3], i;
+    for (i = 0; i < 3; i++) buf[i] = (i < lives) ? TILE_HUD_MUG : TILE_HUD_BLANK;
+    glyph_row(1, 10, buf, 3);
+    hud_dirty = 0;
+}
 
 static void draw_hud(void) {
     uint8_t buf[6], i;
@@ -108,8 +142,7 @@ static void draw_hud(void) {
     buf[0] = TILE_GLYPH_L; buf[1] = TILE_GLYPH_I; buf[2] = TILE_GLYPH_V;
     buf[3] = TILE_GLYPH_E; buf[4] = TILE_GLYPH_S;
     glyph_row(0, 9, buf, 5);
-    for (i = 0; i < 3; i++) buf[i] = (i < lives) ? TILE_HUD_MUG : TILE_HUD_BLANK;
-    glyph_row(1, 10, buf, 3);
+    draw_lives();
 
     // "LV" row 0 cols 17-18, level as two digits row 1
     buf[0] = TILE_GLYPH_L; buf[1] = TILE_GLYPH_V;
@@ -162,17 +195,16 @@ static void init_scene(void) {
 static void draw_bartender(void) {
     uint8_t base = OBJ_BARTENDER + bartender_frame * BARTENDER_TILES_PER_FRAME;
     uint8_t ytop = (3 + 4 * bar) * 8 + 16;        // feet on the bottom of the counter front
-    uint8_t xl = bartender_x + 8, xr = bartender_x + 16;
-    uint8_t flags = facing ? S_FLIPX : 0;
-    uint8_t i, left_col = facing ? 1 : 0;
+    uint8_t ybot = ytop + 16;
+    uint8_t flags = (facing ? S_FLIPX : 0) | OBJPAL_BARTENDER;
+    uint8_t xa = facing ? bartender_x + 16 : bartender_x + 8;   // art column A (left half)
+    uint8_t xb = facing ? bartender_x + 8 : bartender_x + 16;   // art column B
+    OAM_item_t *o = shadow_OAM;
 
-    for (i = 0; i < 4; i++) {
-        uint8_t col = i & 1;                       // which art column this entry holds
-        uint8_t x = (col == left_col) ? xl : xr;
-        move_sprite(i, x, ytop + (i & 2 ? 16 : 0));
-        set_sprite_tile(i, base + i * 2);
-        set_sprite_prop(i, flags | OBJPAL_BARTENDER);
-    }
+    o->y = ytop; o->x = xa; o->tile = base;     o->prop = flags; o++;
+    o->y = ytop; o->x = xb; o->tile = base + 2; o->prop = flags; o++;
+    o->y = ybot; o->x = xa; o->tile = base + 4; o->prop = flags; o++;
+    o->y = ybot; o->x = xb; o->tile = base + 6; o->prop = flags;
 }
 
 // ---- game -----------------------------------------------------------------------
@@ -180,35 +212,119 @@ static void init(void) {
     uint8_t i;
 
     DISPLAY_OFF;
-    // _cpu alone is not enough: PyBoy's DMG mode still hands the cart A=0x11,
-    // but FF4F (VBK) only reads 0xFE|bank on real colour hardware.
+    // _cpu alone is not enough under PyBoy: its DMG mode still hands the cart
+    // A=0x11. FF4F (VBK) reads 0xFE|bank on colour hardware, but plain 0x00 in
+    // PyBoy's DMG mode, so the VBK test rejects PyBoy-DMG. It cannot tell a real
+    // DMG apart (unmapped I/O reads 0xFF, which also passes), but a real DMG
+    // already fails the _cpu test, so the pair is right on all three.
     VBK_REG = VBK_BANK_0;
     is_cgb = (_cpu == CGB_TYPE) && ((VBK_REG & 0xFE) == 0xFE);
     if (is_cgb) {
         load_cgb_palettes();
     } else {
-        BGP_REG = OBP0_REG = OBP1_REG = 0xE4;      // 11 10 01 00: index 3 darkest
+        BGP_REG  = 0xE4;   // 11 10 01 00: index 3 darkest
+        OBP0_REG = 0xD0;   // bartender: idx1 white, idx2 light grey, idx3 black
+        OBP1_REG = 0xC4;   // mugs, glass: idx1 light grey, idx2 white, idx3 black (shows on the grey counter)
     }
     SPRITES_8x16;
     set_sprite_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);
-    set_sprite_data(OBJ_MUG, MUG_TILE_COUNT, mug_tiles);   // unused until M2
+    set_sprite_data(OBJ_MUG, MUG_TILE_COUNT, mug_tiles);
+    set_sprite_data(OBJ_GLASS, GLASS_TILE_COUNT, glass_tiles);
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 
     init_scene();
 
     bar = 0; bartender_x = TAP_X; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
     walk_timer = 0; frame_counter = 0; joy = joy_prev = 0;
+    fill_timer = 0; slide_timer = 0; game_over = 0; mugs_live = 0;
+    for (i = 0; i < MAX_MUGS; i++) mug_state[i] = MUG_FREE;
     draw_bartender();
     SHOW_BKG; SHOW_SPRITES;
     DISPLAY_ON;
 }
 
+// ---- mugs -------------------------------------------------------------------------
+static void launch_mug(void) {
+    uint8_t i, n = 0, slot = MAX_MUGS;
+    for (i = 0; i < MAX_MUGS; i++) {
+        if (mug_state[i] == MUG_FREE) { if (slot == MAX_MUGS) slot = i; }
+        else if (mug_bar[i] == bar) n++;
+    }
+    if (n >= MUGS_PER_BAR || slot == MAX_MUGS) return;
+    mug_state[slot] = MUG_FULL;
+    mug_bar[slot] = bar;
+    mug_x[slot] = MUG_START_X;
+    mug_timer[slot] = 0;
+    mugs_live++;
+}
+
+static void update_mugs(void) {
+    uint8_t i, st, live = 0;
+    if (mugs_live == 0) return;
+    for (i = 0; i < MAX_MUGS; i++) {
+        st = mug_state[i];
+        if (st == MUG_FREE) continue;
+        if (st == MUG_FULL) {
+            mug_x[i] -= MUG_SPEED_FULL;
+            if (mug_x[i] < MUG_END_X) {          // fell off the left end
+                mug_state[i] = MUG_BREAKING;
+                mug_timer[i] = 0;
+                if (lives) lives--;
+                hud_dirty = 1;
+                if (lives == 0) game_over = 1;
+            }
+        } else if (st == MUG_BREAKING) {
+            if (++mug_timer[i] >= GLASS_FRAMES * GLASS_FRAME_TIME) { mug_state[i] = MUG_FREE; continue; }
+        }
+        live++;
+    }
+    mugs_live = live;
+}
+
+// OAM 4.. : one entry per mug, two per breaking glass. Entries used last frame
+// but not this one are hidden (y = 0).
+static uint8_t oam_used = 4;
+static void draw_mugs(void) {
+    uint8_t i, n = 4, st, y, t;
+    OAM_item_t *o = shadow_OAM + 4;
+    if (mugs_live) {
+        for (i = 0; i < MAX_MUGS; i++) {
+            st = mug_state[i];
+            if (st == MUG_FREE) continue;
+            y = (3 + 4 * mug_bar[i]) * 8 + 16;               // mug sits on the counter-top row
+            if (st == MUG_BREAKING) {
+                if (n > 38) continue;
+                t = OBJ_GLASS + (mug_timer[i] / GLASS_FRAME_TIME) * GLASS_TILES_PER_FRAME;
+                y += mug_timer[i] >> 2;                      // falls a little as it breaks
+                o->y = y; o->x = GLASS_X + 8;  o->tile = t;     o->prop = S_PALETTE | OBJPAL_GLASS; o++;
+                o->y = y; o->x = GLASS_X + 16; o->tile = t + 2; o->prop = S_PALETTE | OBJPAL_GLASS; o++;
+                n += 2;
+            } else {
+                if (n > 39) continue;
+                o->y = y; o->x = mug_x[i] + 8;
+                if (st == MUG_EMPTY) { o->tile = OBJ_MUG + 2; o->prop = S_PALETTE | OBJPAL_MUG_EMPTY; }
+                else                 { o->tile = OBJ_MUG;     o->prop = S_PALETTE | OBJPAL_MUG_FULL; }
+                o++; n++;
+            }
+        }
+    }
+    for (i = n; i < oam_used; i++) shadow_OAM[i].y = 0;       // hide what is no longer used
+    oam_used = n;
+}
+
 static void update(void) {
-    uint8_t pressed, moving = 0;
+    uint8_t pressed, moved = 0, old_x, old_bar;
+
+    if (hud_dirty) draw_lives();     // first thing after vsync: still in VBlank
+    if (game_over) return;           // everything stops (M4 adds the screen)
 
     joy_prev = joy;
     joy = joypad();
     pressed = joy & ~joy_prev;
+
+    update_mugs();
+
+    old_x = bartender_x; old_bar = bar;
 
     // Up/Down: change bar (wrapping) and snap to that bar's tap, facing the bar
     if (pressed & J_UP)        bar = bar == 0 ? NUM_BARS - 1 : bar - 1;
@@ -218,22 +334,45 @@ static void update(void) {
     // Left/Right: walk
     if (joy & J_LEFT) {
         facing = 0;
-        if (bartender_x > LEFT_LIMIT) { bartender_x -= WALK_SPEED; moving = 1; }
+        if (bartender_x > LEFT_LIMIT) bartender_x -= WALK_SPEED;
     } else if (joy & J_RIGHT) {
         facing = 1;
-        if (bartender_x < TAP_X) { bartender_x += WALK_SPEED; moving = 1; }
+        if (bartender_x < TAP_X) bartender_x += WALK_SPEED;
     }
     at_tap = bartender_x == TAP_X;
+    moved = (bartender_x != old_x) || (bar != old_bar) || (pressed & (J_UP | J_DOWN));
 
-    if (moving) {
+    // Filling: A pressed at the tap starts it; any move or letting go ends it,
+    // and letting go after FILL_FRAMES launches a mug.
+    if (fill_timer) {
+        if (moved || !at_tap || !(joy & J_A)) {
+            if (!moved && at_tap && fill_timer >= FILL_FRAMES) {
+                launch_mug();
+                slide_timer = SLIDE_FRAMES;
+            }
+            fill_timer = 0;
+        } else if (fill_timer < FILL_FRAMES) {
+            fill_timer++;
+        }
+    } else if (at_tap && (pressed & J_A)) {
+        fill_timer = 1;
+    }
+
+    if (slide_timer) slide_timer--;
+
+    if (fill_timer) {
+        bartender_frame = BT_FILL;
+        walk_timer = 0;
+    } else if (bartender_x != old_x) {
         bartender_frame = ((walk_timer / WALK_ANIM_FRAMES) & 1) ? BT_WALK2 : BT_WALK1;
         walk_timer++;
     } else {
-        bartender_frame = BT_IDLE;
+        bartender_frame = slide_timer ? BT_SLIDE : BT_IDLE;
         walk_timer = 0;
     }
 
     draw_bartender();
+    draw_mugs();
     frame_counter++;
 }
 
