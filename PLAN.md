@@ -490,3 +490,11 @@ DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lif
   patrons. Perf (PyBoy, end LY / missed): level 8 script DMG 107 / 0, CGB 111 / 0 (M13c 91 / 101: a served patron is now a
   sprite for 32 frames and the serve frame lifts him); level 9 overlap DMG 175 / 268, CGB 179 / 299; realistic peak DMG
   187 / 59, CGB 193 / 99 (strict xfail stays); pile DMG 278 / 244, CGB 278 / 245 (same distribution as M13c, guard 290 / 260).
+
+## Patron review decisions (owner, 2026-10-09)
+Review: session scratchpad patron_review/REVIEW.md. Owner approved the redraw order (alien A; wall-contrast palette
+fixes; zoo trio to 3/4 (the 3/4 rule applies to the zoo) and the samurai; own silhouettes for cowboy C and
+lumberjack C; small pixel fixes; outline pass to <= ~45% dark). Lion: must not read as "a bald man with a shawl";
+no protruding forehead, a mane framing the whole head, ears, a cat muzzle. Eskimos: the lighter re-indexed
+redraw; the third Eskimo gets a beard. Round 6 is proposals first; the owner approves before import.
+Still open: the enhanced-variant engine work (one 4-colour-plus patron per group) and keg recolours outside the saloon.
