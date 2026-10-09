@@ -30,6 +30,7 @@ import songs                 # noqa: E402
 from check_music import detect, note_hz      # noqa: E402
 
 GS_LEVEL_CLEAR = 3
+GS_SCORES = 10
 
 
 def sfx_count(gb, i):
@@ -242,6 +243,9 @@ def test_game_over_and_bonus_tunes(srom):
             run_until(srom, lambda: state(srom) == PLAYING, 200)
     run_until(srom, lambda: state(srom) == GAME_OVER, 200)
     assert srom.mem("cur_tune") == TUNE_OVER
+    srom.press("start", 2)                      # M10b: a score of 0 makes no entry: the top-5 table, then the title
+    run_until(srom, lambda: state(srom) == GS_SCORES, 30)
+    srom.run(2)
     srom.press("start", 2)
     run_until(srom, lambda: state(srom) == TITLE, 30)
     assert srom.mem("cur_tune") == TUNE_TITLE
@@ -528,7 +532,8 @@ def test_select_does_nothing_outside_the_title(gb):
     assert gb.mem("sound_on") == 1
 
 
-# ---- saved hi score --------------------------------------------------------------------------
+# ---- saved hi score (M10b: the top-5 table, SRAM version 2: "TPR2", 5 x (3 initials, 3-byte score), checksum at 34) ----
+V2_SUM = 34
 def earn_fifty_and_lose(rom):
     start_game(rom)
     rom.write("intro_timer", 255)
@@ -550,7 +555,7 @@ def test_hi_score_survives_a_reset(model):
     assert hi_score(rom) == 0, "a fresh cartridge starts at 0"
     earn_fifty_and_lose(rom)
     ram = save_ram(rom)
-    assert ram[:4] == b"TPR1" and int.from_bytes(ram[4:8], "little") == 50
+    assert ram[:4] == b"TPR2" and ram[4:7] == b"AAA" and int.from_bytes(ram[7:10], "little") == 50
     with make_rom(model, ram, sound=False) as again:     # power cycle with the same battery RAM
         again.run(120)
         assert hi_score(again) == 50
@@ -573,7 +578,7 @@ def test_a_lower_score_does_not_overwrite_the_saved_hi(model):
                 run_until(again, lambda: state(again) == PLAYING, 200)
         run_until(again, lambda: state(again) == GAME_OVER, 200)
         assert hi_score(again) == 50
-        assert save_ram(again)[:10] == ram[:10], "SRAM unchanged when the hi score is not beaten"
+        assert save_ram(again)[:V2_SUM + 2] == ram[:V2_SUM + 2], "SRAM unchanged when the score makes no entry"
 
 
 def corrupt(ram, edit):
@@ -590,17 +595,17 @@ def test_invalid_save_data_loads_as_zero(model):
     good = save_ram(rom)
     cases = {
         "bad signature": corrupt(good, lambda r: r.__setitem__(0, ord("X"))),
-        "flipped score bit": corrupt(good, lambda r: r.__setitem__(4, r[4] ^ 0x01)),
-        "bad checksum": corrupt(good, lambda r: r.__setitem__(8, (r[8] + 1) & 255)),
-        "bad complement": corrupt(good, lambda r: r.__setitem__(9, r[9] ^ 0xFF)),
+        "flipped score bit": corrupt(good, lambda r: r.__setitem__(7, r[7] ^ 0x01)),
+        "bad checksum": corrupt(good, lambda r: r.__setitem__(V2_SUM, (r[V2_SUM] + 1) & 255)),
+        "bad complement": corrupt(good, lambda r: r.__setitem__(V2_SUM + 1, r[V2_SUM + 1] ^ 0xFF)),
         "blank": bytes(len(good)),
         "garbage": bytes((i * 37 + 11) & 255 for i in range(len(good))),
     }
 
     def with_checksum(r):                       # a well-formed record whose score is absurd (>= 1,000,000)
-        r[4:8] = (2_000_000).to_bytes(4, "little")
-        c = (0x5A + sum(r[:8])) & 255
-        r[8], r[9] = c, c ^ 0xFF
+        r[7:10] = (2_000_000).to_bytes(3, "little")
+        c = (0x5A + sum(r[:V2_SUM])) & 255
+        r[V2_SUM], r[V2_SUM + 1] = c, c ^ 0xFF
     cases["out of range"] = corrupt(good, with_checksum)
     for name, ram in cases.items():
         with make_rom(model, ram, sound=False) as again:

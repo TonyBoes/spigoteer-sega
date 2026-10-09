@@ -79,7 +79,8 @@ typedef struct {
 // Playtest 4 flattened the curve: the old one was impossible by level 6. Level 1 is meant for a first-time
 // player (2 bars started, ~17 s to cross a bar, a patron every 5 s, 8 to serve); L2 is unchanged. From L2
 // every column is interpolated in a straight line to the NEW L6 = the OLD L3 row, and on to the NEW L9 = the
-// OLD L5 row (rounded); levels past 9 keep the last row's speeds (the plateau). Old -> new, per level:
+// OLD L5 row (rounded). M10b: past level 9 the rows come round again, a little harder per loop (start_level).
+// Old -> new, per level:
 //   level      1    2    3    4    5    6    7    8    9
 //   quota old  8   10   12   14   16   18   20   21   22
 //   quota new  8   10   10   11   11   12   13   15   16
@@ -105,7 +106,7 @@ static const level_cfg_t level_table[LEVEL_ROWS] = {
     { 5, 0xF, 1, 12, 250, 56, 4, 125, 100 },   // 6 robots: plays like the old level 3
     { 6, 0xF, 1, 13, 237, 53, 4, 125,  93 },   // 7 ninjas
     { 7, 0xF, 1, 15, 223, 51, 3, 150,  87 },   // 8 aliens
-    { 8, 0xF, 1, 16, 210, 48, 3, 150,  80 },   // 9 zoo: plays like the old level 5; later levels reuse this row's speeds with cycling art
+    { 8, 0xF, 1, 16, 210, 48, 3, 150,  80 },   // 9 zoo: plays like the old level 5; level 10 is row 1 again (loop 2)
 };
 
 // game flow
@@ -142,7 +143,7 @@ uint8_t  game_state;        // GS_*
 uint8_t  state_timer;       // frames spent in LIFE_LOST / LEVEL_CLEAR
 uint8_t  life_lost;         // a life went this frame; the state machine reacts at the end of update()
 uint8_t  overlay_on;        // window banner shown
-uint32_t hi_score;          // loaded from SRAM at boot (save.c), written back at game over when beaten
+uint32_t hi_score;          // entry 1 of the top-5 table (save.c, SRAM)
 uint8_t  hi_digits[6];
 uint8_t  served;            // patrons served (left through the door) this level
 uint8_t  start_mask, start_per_bar, cur_group;
@@ -332,17 +333,38 @@ uint8_t next_rand(void) {                    // 8-bit xorshift, fixed seed => re
     return rng_state;
 }
 
+// M10b arcade loops: after level 9 the venues come round again (level 10 = venue 0 = loop 2, level 19 = loop 3, ...),
+// each loop a little harder than the table row, up to LOOP_STEPS_MAX loops' worth: walk speed +LOOP_SPEED_PCT % per
+// loop (cap +30 %), spawn interval -LOOP_SPAWN_PCT % per loop (cap -24 %), empty gap -LOOP_GAP_STEP frames per loop,
+// never below EMPTY_GAP_FLOOR. Quota, start patrons, push-back and the serve score stay the row's.
+#define LOOP_STEPS_MAX   3
+#define LOOP_SPEED_PCT  10
+#define LOOP_SPAWN_PCT   8
+#define LOOP_GAP_STEP    5
+#define EMPTY_GAP_FLOOR 80
+#define LOOP_FRAMES    120              // the "LOOP n" banner, before the level's intro
+#define GAMEOVER_FRAMES 240             // the GAME OVER banner goes on to the initials / table by itself after 4 s
+uint8_t arcade_loop = 1;                // pass through the nine venues: 1, 2, ...
+
 static void start_level(void) {
-    uint8_t idx = level - 1;
-    const level_cfg_t *c = &level_table[idx < LEVEL_ROWS ? idx : LEVEL_ROWS - 1];
-    cur_group = idx % LEVEL_ROWS;               // art cycles, speeds stay at the last row
+    uint8_t idx = level - 1, k, g;
+    const level_cfg_t *c;
+    cur_group = idx % LEVEL_ROWS;
+    c = &level_table[cur_group];
+    arcade_loop = idx / LEVEL_ROWS + 1;
+    k = arcade_loop - 1;
+    if (k > LOOP_STEPS_MAX) k = LOOP_STEPS_MAX;
     quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
+    spawn_interval -= (uint16_t)(spawn_interval * (uint8_t)(k * LOOP_SPAWN_PCT)) / 100;
     pushback_cols = c->pushback_cols; pushback_px = pushback_cols << 3;
     // 8 px per step_frames in 1/256 px per frame (the old speed over a 120 px walk), scaled by the walk's new length:
     // the patrons now come in at DOOR_X, so (PATRON_FAR_X - DOOR_X) / PATRON_FAR_X of the distance (13/15 = 104/120)
     // at the same door-to-tap time (within 2%; the speed has a 1/256 px resolution).
     patron_speed = (uint8_t)((((2048u / step_frames) * (PATRON_FAR_X - DOOR_X)) + PATRON_FAR_X / 2) / PATRON_FAR_X);
-    serve_score = c->serve_score; start_per_bar = c->start_per_bar; empty_gap = c->empty_gap;
+    patron_speed += (uint8_t)((uint16_t)(patron_speed * (uint8_t)(k * LOOP_SPEED_PCT)) / 100);
+    g = c->empty_gap; k *= LOOP_GAP_STEP;
+    empty_gap = g >= EMPTY_GAP_FLOOR + k ? g - k : EMPTY_GAP_FLOOR;
+    serve_score = c->serve_score; start_per_bar = c->start_per_bar;
     start_mask = c->start_mask;
     served = 0; spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES; level_clear = 0;
     clear_patrons();
@@ -428,6 +450,14 @@ static void enter_level_screen(void) {
     draw_bartender();
     game_over = 0;
     game_state = GS_PLAYING;
+    if (cur_group == 0 && level > 1) {            // M10b: a new loop begins: "LOOP n" first, then the level's intro
+        char s[8] = "LOOP ";
+        if (arcade_loop >= 10) { s[5] = '0' + arcade_loop / 10; s[6] = '0' + arcade_loop % 10; }
+        else s[5] = '0' + arcade_loop;
+        show_overlay(s);
+        state_timer = 0;
+        game_state = GS_LOOP;
+    }
     music_play(TUNE_VENUE0 + cur_group);          // the venue's own tune
     DISPLAY_ON;
 }
@@ -508,14 +538,12 @@ static void resume_after_life(void) {
     music_play(TUNE_VENUE0 + cur_group);         // a show that was running ended with the life: back to the venue's tune
 }
 
+uint8_t new_rank = TOP_N;   // M10b: the game's place in the top 5 (TOP_N: none)
 static void enter_game_over(void) {
-    uint8_t i;
-    if (score > hi_score) {
-        hi_score = score;
-        for (i = 0; i < 6; i++) hi_digits[i] = score_digits[i];
-        hi_save();
-    }
+    new_rank = top_insert(score, (const uint8_t *)"AAA");   // in at once (initials follow), so a power-off keeps it
+    if (new_rank < TOP_N) hi_save();
     show_overlay("GAME OVER");
+    state_timer = 0;
     music_play(TUNE_OVER);
     game_state = GS_GAME_OVER;
 }
@@ -651,7 +679,10 @@ static void update(void) {
 #ifdef DEBUG_MENU
         if ((pressed & J_START) && (joy & J_SELECT)) pressed &= ~J_START;   // START + SELECT is the debug combo
 #endif
-        if (title_update(pressed)) start_new_game(1);   // the menu (title.c): 1 = ARCADE
+        switch (title_update(pressed)) {               // the menu (title.c): 1 = ARCADE, 2 = idle: the top-5 table
+        case 1: start_new_game(1); break;
+        case 2: scores_table(); break;
+        }
 #ifdef DEBUG_MENU
         debug_watch();
 #endif
@@ -697,11 +728,18 @@ static void update(void) {
         if (debug_step(pressed)) { frame_counter++; return; }
         break;
 #endif
-    case GS_GAME_OVER:
-        if (pressed & J_START) { title_enter(); return; }
+    case GS_GAME_OVER:                           // M10b: then the initials (top 5) or the table, then the title
+        if ((pressed & (J_START | J_A)) || ++state_timer >= GAMEOVER_FRAMES) { scores_after_game(); return; }
+        break;
+    case GS_INITIALS:
+    case GS_SCORES:
+        if (scores_update(pressed)) { title_enter(); return; }
         break;
     case GS_PAUSED:
         if (pressed & J_START) { game_state = GS_PLAYING; overlay_on = 0; }
+        break;
+    case GS_LOOP:
+        if (++state_timer >= LOOP_FRAMES) { game_state = GS_PLAYING; overlay_on = 0; }
         break;
     }
 

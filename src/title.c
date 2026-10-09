@@ -69,6 +69,7 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define LOGO_DONE_T   (SPARKLE_T0 + LOGO_LETTERS * SPARKLE_EACH)
 #define DRIP_LEN       22
 #define MSG_FRAMES     60       // "COMING SOON"
+#define TITLE_IDLE_FRAMES 1200  // 20 s
 
 enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
 #define SC_IDLE_FRAMES   40
@@ -81,6 +82,7 @@ enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
 uint16_t title_t;               // frames since the title appeared
 uint8_t  title_sel;             // 0 ARCADE, 1 STORY, 2 MUSIC
 uint8_t  title_msg;             // frames left of "COMING SOON" (0: the menu)
+uint16_t title_idle;            // M10b: frames without a key; at TITLE_IDLE_FRAMES the top-5 table shows (scores.c)
 uint8_t  logo_state[LOGO_LETTERS];   // fill state per letter: 0 empty .. TT_LOGO_STATES-1 the final art
 uint8_t  logo_done;             // filled and sparkled
 uint8_t  tscene_phase, tscene_timer, tscene_mug_x, tscene_loops;
@@ -193,7 +195,7 @@ void title_enter(void) BANKED {
         set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR) + 1, 2, 1, row_buf);
         VBK_REG = VBK_BANK_0;
     }
-    title_t = 0; logo_done = 0;
+    title_t = 0; logo_done = 0; title_idle = 0;
     tscene_phase = SC_IDLE; tscene_timer = 0; tscene_mug_x = 0; tscene_loops = 0;
     bubble_y[0] = bubble_y[1] = 0; bubble_timer = 90;
     bar = SCENE_BAR; bartender_x = BT_X; facing = 0; bartender_frame = BT_IDLE;
@@ -325,10 +327,12 @@ static void cursor_frame(void) {
     o->tile = OBJ_MUG; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;     // DMG: OBP0 like the held mug (shows on the white wall)
 }
 
-// One title frame. 1: ARCADE was chosen (main.c starts the game).
+// One title frame. 1: ARCADE was chosen (main.c starts the game); 2: no key for TITLE_IDLE_FRAMES (the table).
 uint8_t title_update(uint8_t pressed) BANKED {
     uint8_t old = title_sel;
     title_t++;
+    if (pressed) title_idle = 0;
+    else if (++title_idle >= TITLE_IDLE_FRAMES) return 2;
     if (pressed & J_SELECT) title_music_toggle();
     if (title_msg) {
         if (!--title_msg) {                         // "COMING SOON" is over: STORY again

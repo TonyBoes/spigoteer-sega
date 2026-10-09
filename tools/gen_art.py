@@ -273,7 +273,7 @@ TITLE_LETTERS = "SPIGOTER"            # the order of the @title_* blocks in titl
 LOGO_FILL = [0, 4, 8, 12]             # px of beer in the fill states before the final art (5 steps per letter)
 MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "music_off": "MUSIC OFF",
                 "soon": "COMING SOON"}
-TITLE_TILE_LIMIT = 228                # BG ids up to the end of the patron range (the puff's OBJ tiles follow)
+PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 
 
 def _px_tile_bytes(px):
@@ -400,8 +400,8 @@ def title_art(outdir, prev, base, ttiles, bg):
     strip_prev.append(hi_px)
     n_total = len(pool_px)
     patron_base = first + n_total            # 4 tiles of the scene's patron (copied from the cowboys group at run time)
-    if patron_base + 4 > TITLE_TILE_LIMIT:
-        sys.exit(f"gen_art: title tiles end at {patron_base + 4}, past {TITLE_TILE_LIMIT} (fill {n_fill}, all {n_total})")
+    if patron_base + 4 > base + PATRON_RANGE:     # the end of the patron range (the puff's OBJ tiles follow)
+        sys.exit(f"gen_art: title tiles end at {patron_base + 4}, past {base + PATRON_RANGE} (fill {n_fill}, all {n_total})")
 
     # effect sprites: 8x8 frames in the top half of 8x16 entries
     fx = [r for _, r in blocks(ROOT / "assets/art/title_fx.txt")]

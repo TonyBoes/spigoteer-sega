@@ -7,6 +7,7 @@ from conftest import GAME, LAYOUT, ROOT, bar_top_row, check_golden
 pytestmark = pytest.mark.timeout(120)
 
 TITLE, PLAYING, LIFE_LOST, LEVEL_CLEAR, GAME_OVER, PAUSED, BONUS = range(7)
+GS_LOOP, GS_INITIALS, GS_SCORES = 8, 9, 10      # M10b
 MAX_P, MAX_M = 16, 20
 BT_FAIL = 6
 DOOR_X = GAME["DOOR_X"]
@@ -436,7 +437,7 @@ def test_level_clear_banner_is_the_window(gb):
 
 
 # ---- game over -----------------------------------------------------------------------
-def test_three_lost_lives_end_the_game_and_start_returns_to_title(gb):
+def test_three_lost_lives_end_the_game_and_start_goes_on_to_the_title(gb):
     gb.write("intro_timer", 255)
     inject_mug(gb, 0, DOOR_X + 8)
     gb.run(6)
@@ -453,6 +454,10 @@ def test_three_lost_lives_end_the_game_and_start_returns_to_title(gb):
     x = gb.mem("bartender_x")
     gb.press("left", 5)
     assert state(gb) == GAME_OVER and gb.mem("bartender_x") == x
+    gb.press("start", 2)                                # M10b: 50 makes the top 5: initials, A saves, the table
+    run_until(gb, lambda: state(gb) == GS_INITIALS, 30)
+    gb.press("a", 2)
+    run_until(gb, lambda: state(gb) == GS_SCORES, 30)
     gb.press("start", 2)
     run_until(gb, lambda: state(gb) == TITLE, 30)       # the redraw runs with the LCD off and takes a few frames
     gb.run(3)
@@ -473,9 +478,18 @@ def test_lower_score_keeps_the_hi_score(gb):
 
 
 # ---- level table ---------------------------------------------------------------------
+def loop_row(lvl):
+    """M10b: the level table row of level lvl with its arcade loop's difficulty (see main.c start_level)."""
+    row = list(TABLE[(lvl - 1) % 9])
+    k = min((lvl - 1) // 9, 3)
+    row[4] -= row[4] * (8 * k) // 100                      # spawn interval -8 % per loop, cap -24 %
+    row[8] = max(80, row[8] - 5 * k)                       # empty gap -5 frames per loop, never below 80
+    return row
+
+
 def test_level_table_and_wrap(gb):
     for lvl in range(1, 12):
-        row = TABLE[min(lvl, 9) - 1]
+        row = loop_row(lvl)                     # M10b: level 10 is venue 0 again (loop 2), a little harder
         assert gb.mem("level") == lvl
         assert gb.mem("cur_group") == (lvl - 1) % 9
         assert (gb.mem("quota"), gb.mem16("spawn_interval"), gb.mem("step_frames"), gb.mem("pushback_cols"),
@@ -486,7 +500,7 @@ def test_level_table_and_wrap(gb):
         assert tilemap_row(gb, LAYOUT["HUD_ROW"], 18, 2) == [tile_id("GLYPH_0") + lvl // 10, tile_id("GLYPH_0") + lvl % 10]
         gb.write("level_clear", 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 5)
-        run_until(gb, lambda: state(gb) in (PLAYING, BONUS), 200)
+        run_until(gb, lambda: state(gb) in (PLAYING, BONUS), 400)     # (the LOOP 2 banner before level 10)
         if state(gb) == BONUS:                  # M6: even levels are followed by the bonus round; jump to its last frame
             gb.write("bonus_phase", 4)
             gb.write("bonus_timer", 129)

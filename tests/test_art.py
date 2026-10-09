@@ -8,6 +8,7 @@ pytestmark = pytest.mark.timeout(60)
 
 GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "ninjas", "aliens", "zoo"]
 GS_LEVEL_CLEAR = 3
+GS_BONUS = 6
 
 
 def w16(gb, name, v):
@@ -16,12 +17,19 @@ def w16(gb, name, v):
 
 
 def goto_group(gb, group):
-    """The level that shows patron group `group` ((level - 1) % 9), reached from a level-clear state whose level
-    is odd, so no bonus round comes between."""
-    level = group + 1 if group % 2 else group + 10
+    """Level group + 1, the first loop's level of patron group `group` ((level - 1) % 9). An odd level before it is
+    left from its last level-clear frame; an even one (followed by a bonus round) from the bonus round's last frame.
+    (Before M10b an even level was reached as group + 10, which had the same speeds then; it is loop 2 now.)"""
+    level = group + 1
     gb.write("level", level - 1)
-    gb.write("game_state", GS_LEVEL_CLEAR)
-    gb.write("state_timer", 149)
+    if group % 2:
+        gb.write("game_state", GS_LEVEL_CLEAR)
+        gb.write("state_timer", 149)
+    else:
+        gb.write("bonus_kind", 0)
+        gb.write("bonus_phase", 4)
+        gb.write("bonus_timer", 129)
+        gb.write("game_state", GS_BONUS)
     gb.run(1)
     run_until(gb, lambda: state(gb) == PLAYING, 30)
     assert gb.mem("cur_group") == group and gb.mem("level") == level

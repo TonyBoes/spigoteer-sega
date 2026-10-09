@@ -85,7 +85,9 @@ enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caugh
 #define HUD_SCORE         2
 
 // game flow
-enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS, GS_DEBUG };   // GS_DEBUG: the debug level select (DEBUG_MENU builds)
+// GS_DEBUG: the debug level select (DEBUG_MENU builds). M10b: GS_LOOP the "LOOP n" banner before the first level of a
+// loop, GS_INITIALS the initials entry after a game over that made the top 5, GS_SCORES the top-5 table (scores.c)
+enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS, GS_DEBUG, GS_LOOP, GS_INITIALS, GS_SCORES };
 
 // bartender animation frames (order of assets/art/bartender.txt)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
@@ -228,6 +230,10 @@ void draw_venue(void) BANKED;                           // stage, counter rows, 
 void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // plain venue wall + counter + floor (title, bonus)
 // ---- title.c (banked, M10a title screen) -----------------------------------------------------
 void title_enter(void) BANKED;                          // LCD off: draws the title and turns the LCD on
-uint8_t title_update(uint8_t pressed) BANKED;           // one title frame; 1: ARCADE chosen
+uint8_t title_update(uint8_t pressed) BANKED;           // one title frame; 1: ARCADE chosen, 2: idle, show the table
 void title_music_toggle(void) BANKED;                   // music on/off and the MUSIC line
+// ---- scores.c (banked, M10b initials entry and top-5 table) --------------------------------------
+void scores_table(void) BANKED;                         // LCD off: the table screen (GS_SCORES)
+void scores_after_game(void) BANKED;                    // after GAME OVER: initials (GS_INITIALS) or the table
+uint8_t scores_update(uint8_t pressed) BANKED;          // one frame of either; 1: back to the title
 #endif

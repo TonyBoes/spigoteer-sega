@@ -15,6 +15,7 @@ PR_NONE, PR_PERFECT, PR_GOOD, PR_LOW, PR_HIGH, PR_SPILL = range(6)
 SFX_BREAK, SFX_COIN = 4, 6
 SFX_COUNT = 9
 B2H = (ROOT / "build" / "bonus2_art.h").read_text()
+B2_BASE = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))   # B2_BG: the patron range
 B2 = json.loads((ROOT / "build" / "bonus2.json").read_text())
 SRC = (ROOT / "src" / "bonus2.c").read_text()
 
@@ -128,7 +129,7 @@ def test_pour_banner_glass_and_line(gb):
     assert line == B2["pour_targets"][k]
     # the glass on the BG: 2 x 5 tiles; the line's row shows that line's tiles
     rows = [tilemap_row(gb, GLASS_ROW + r, GLASS_COL, 2) for r in range(5)]
-    base = 72
+    base = B2_BASE
     lr = B2["line_row"][k]
     for r in range(5):
         want = [base + 10 + 2 * k, base + 11 + 2 * k] if r == lr else [base + 2 * r, base + 2 * r + 1]
@@ -199,7 +200,7 @@ def test_overflow_spills_and_scores_nothing(gb):
     assert sfx(gb, SFX_BREAK) == breaks + 1
     gb.run(4)
     assert shows(gb, 3, "SPILL")
-    assert text_row(gb, 3)[12] == 72 + define("B2_BANG", B2H), "SPILL!"
+    assert text_row(gb, 3)[12] == B2_BASE + define("B2_BANG", B2H), "SPILL!"
     sp = gb.visible_sprites()
     assert len([s for s in sp if s["tile"] == T_DOME]) == 2, "the foam heaps over the rim"
     heads0 = sorted(s["y"] for s in sp if s["tile"] == T_HEAD)
@@ -224,7 +225,7 @@ def test_three_glasses_with_different_lines_then_the_end(gb):
         gb.run(2)
         # the line row on the map is this glass's
         k = gb.mem("pour_target")
-        assert tilemap_row(gb, GLASS_ROW + B2["line_row"][k], GLASS_COL, 2)[0] == 72 + 10 + 2 * k
+        assert tilemap_row(gb, GLASS_ROW + B2["line_row"][k], GLASS_COL, 2)[0] == B2_BASE + 10 + 2 * k
     assert len(set(lines_seen)) == 3, lines_seen
     run_until(gb, lambda: gb.mem("bonus_phase") == PH_END, 300)
     gb.run(4)
@@ -433,7 +434,7 @@ def test_next_level_loads_with_the_venue_restored(gb, kind):
     assert tilemap_row(gb, 17, 0, 20) == [lodge["floor_tile"]] * 20
     obj = b"".join(bytes(gb.read(0x8000 + t * 16, 16)) for t in range(96, 128))
     assert obj == bytes(lodge["show"]), "the performer tiles are back"
-    bg = b"".join(bytes(gb.read(0x9000 + t * 16, 16)) for t in range(72, 72 + 24))
+    bg = b"".join(bytes(gb.read(0x9000 + t * 16, 16)) for t in range(B2_BASE, B2_BASE + 24))
     assert bg == patron_group_tiles(2)[:24 * 16], "the patron tiles are back over the glass and '!'"
     if gb.model_name == "dmg":
         assert gb.mem(0xFF49) == 0xC4, "OBP1 is the game's again"

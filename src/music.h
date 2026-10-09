@@ -47,6 +47,12 @@ extern uint8_t sfx_req;         // bit (id-1): effect id requested since the las
 extern uint16_t music_late;      // frames whose music tick was postponed because the frame was nearly full
 #define MUSIC_LATEST_LY 124     // one tick takes up to ~16 lines (a row start with all channels busy): not started when the frame's logic ended on line 124..143
 
-void hi_load(void) BANKED;                  // SRAM -> hi_score / hi_digits (0 when invalid)
-void hi_save(void) BANKED;                  // hi_score -> SRAM
+// src/save.c (M10b): the top-5 table with initials in SRAM; hi_score / hi_digits mirror entry 1
+#define TOP_N 5
+extern uint8_t  top_names[TOP_N * 3];
+extern uint32_t top_scores[TOP_N];
+void hi_load(void) BANKED;                  // SRAM -> the table (empty when invalid; a version-1 save migrates)
+void hi_save(void) BANKED;                  // the table -> SRAM
+uint8_t top_rank(uint32_t s) BANKED;        // where s would go (TOP_N: not in the table)
+uint8_t top_insert(uint32_t s, const uint8_t *n) BANKED;   // insert with initials n[0..2]; returns the rank
 #endif
