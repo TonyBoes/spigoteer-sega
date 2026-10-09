@@ -61,6 +61,7 @@ typedef struct {
     uint8_t step_frames;    // frames per 8 px of walking (patron_speed = 8 px / step_frames)
     uint8_t pushback_cols;
     uint8_t serve_score;
+    uint8_t empty_gap;      // frames kept between two empties' arrivals at the bartender's end (fair empties)
 } level_cfg_t;
 #define LEVEL_ROWS 9
 // One row per patron group, in the order of gen_art.py's PATRON_GROUPS.
@@ -71,18 +72,19 @@ typedef struct {
 // (300 -> 150 frames) and the step time (64 -> 34 frames per column), and raises
 // the quota (8 -> 22). From L6 a second patron per bar is waiting at the start.
 // Level 9 lands near what levels 4-5 used to be. Pushback is 4 columns up to
-// L4, 3 after. Levels past 9 keep the last row's speeds.
-//                 grp mask per quota spawn step push score
+// L4, 3 after. Levels past 9 keep the last row's speeds. The empty gap (fair empties, patrons.c) falls from
+// 2 s at L1 to a floor of 45 frames at L9, still enough for a bar switch and a short walk.
+//                 grp mask per quota spawn step push score gap
 static const level_cfg_t level_table[LEVEL_ROWS] = {
-    { 0, 0x5, 1,  8, 300, 64, 4,  50 },   // 1 cowboys: bars 0 and 2
-    { 1, 0x7, 1, 10, 275, 60, 4,  75 },   // 2 sports: bars 0-2
-    { 2, 0xF, 1, 12, 250, 56, 4,  75 },   // 3 lumberjacks: all bars
-    { 3, 0xF, 1, 14, 230, 52, 4, 100 },   // 4 chefs
-    { 4, 0xF, 1, 16, 210, 48, 3, 100 },   // 5 divers
-    { 5, 0xF, 2, 18, 190, 44, 3, 125 },   // 6 robots
-    { 6, 0xF, 2, 20, 175, 40, 3, 125 },   // 7 ninjas
-    { 7, 0xF, 2, 21, 160, 37, 3, 150 },   // 8 aliens
-    { 8, 0xF, 2, 22, 150, 34, 3, 150 },   // 9 zoo; later levels reuse this row's speeds with cycling art
+    { 0, 0x5, 1,  8, 300, 64, 4,  50, 120 },   // 1 cowboys: bars 0 and 2
+    { 1, 0x7, 1, 10, 275, 60, 4,  75, 110 },   // 2 sports: bars 0-2
+    { 2, 0xF, 1, 12, 250, 56, 4,  75, 100 },   // 3 lumberjacks: all bars
+    { 3, 0xF, 1, 14, 230, 52, 4, 100,  90 },   // 4 chefs
+    { 4, 0xF, 1, 16, 210, 48, 3, 100,  80 },   // 5 divers
+    { 5, 0xF, 2, 18, 190, 44, 3, 125,  70 },   // 6 robots
+    { 6, 0xF, 2, 20, 175, 40, 3, 125,  60 },   // 7 ninjas
+    { 7, 0xF, 2, 21, 160, 37, 3, 150,  52 },   // 8 aliens
+    { 8, 0xF, 2, 22, 150, 34, 3, 150,  45 },   // 9 zoo; later levels reuse this row's speeds with cycling art
 };
 
 // game flow
@@ -98,10 +100,12 @@ static const level_cfg_t level_table[LEVEL_ROWS] = {
 // ---- state (globals => symbols) ----------------------------------------------
 uint8_t  bar;               // 0 top .. 3 bottom
 uint8_t  bartender_x;       // pixel x of the bartender's left edge (screen coords)
+uint8_t  bartender_frac;    // sub-pixel part of his walk (1/256 px); 0 whenever he stands
 uint8_t  facing;            // 0 left, 1 right
 uint8_t  bartender_frame;   // BT_*
 uint8_t  at_tap;            // 1 when bartender_x == TAP_X
-uint8_t  walk_timer;        // frames spent walking, drives the walk cycle
+uint8_t  walk_timer;        // frames into the current step of the walk cycle (0..WALK_STEP_FRAMES-1)
+uint8_t  walk_phase;        // step of the walk cycle: 0 walk1, 1 idle, 2 walk2, 3 idle
 uint8_t  frame_counter;
 uint8_t  joy, joy_prev;
 uint32_t score;             // HUD shows 6 digits
@@ -125,7 +129,7 @@ uint8_t  score_digits[6];   // the HUD digits, most significant first
 uint8_t  level_clear;       // quota spawned, no patrons, no mugs
 
 // level state (loaded from level_table by start_level)
-uint8_t  quota, spawned, step_frames, pushback_cols, serve_score;
+uint8_t  quota, spawned, step_frames, pushback_cols, serve_score, empty_gap;
 uint8_t  patron_speed;      // walking speed in 1/256 px per frame
 uint8_t  pushback_px;       // pushback_cols * 8
 uint16_t spawn_interval, spawn_timer;   // frames; 16-bit: level 1 spawns every 300
@@ -290,12 +294,15 @@ static void draw_bars(void) {
     for (b = 0; b < NUM_BARS; b++) {
         for (r = 0; r < 3; r++) {
             y = BAR_TOP_ROW(b) + r;
-            for (c = 2; c < 18; c++) {
+            for (c = 0; c < 18; c++) {               // the counter runs from the door (column 0) to the keg
                 row_buf[c] = r == 2 ? TILE_COUNTER
                            : (r == 1 && (c & 1)) ? TILE_WALL2 : TILE_WALL;
             }
-            row_buf[0]  = TILE_DOOR + r * 2;
-            row_buf[1]  = TILE_DOOR + r * 2 + 1;
+            if (r < 2) {                             // the door: the two wall rows only
+                row_buf[0] = TILE_DOOR + r * 2;
+                row_buf[1] = TILE_DOOR + r * 2 + 1;
+            }
+            if (r == 1) row_buf[17] = TILE_SPOUT;
             row_buf[18] = TILE_TAP + r * 2;
             row_buf[19] = TILE_TAP + r * 2 + 1;
             put_row(y);
@@ -385,7 +392,7 @@ static void start_level(void) {
     quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
     pushback_cols = c->pushback_cols; pushback_px = pushback_cols << 3;
     patron_speed = (uint8_t)(2048u / step_frames);          // 8 px per step_frames, in 1/256 px per frame
-    serve_score = c->serve_score; start_per_bar = c->start_per_bar;
+    serve_score = c->serve_score; start_per_bar = c->start_per_bar; empty_gap = c->empty_gap;
     start_mask = c->start_mask;
     served = 0; spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES; level_clear = 0;
     clear_patrons();
@@ -509,9 +516,10 @@ static void enter_title(void) {
 
 static void reset_actors(void) {
     uint8_t i;
-    bar = 0; bartender_x = TAP_X; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
-    walk_timer = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0;
+    bar = 0; bartender_x = TAP_X; bartender_frac = 0; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
+    walk_timer = 0; walk_phase = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0;
     clear_mugs();
+    next_arrival = 0;
     tip_timer = 0; show_timer = 0; dancers_vis = 0; oam_touched();      // a bar reset ends the show and takes the tip away
     for (i = 0; i < MAX_PATRONS; i++) patron_dist[i] = 0;
 }
@@ -576,39 +584,55 @@ static void enter_level_clear(void) {
     game_state = GS_LEVEL_CLEAR;                 // last: whoever sees the state sees the banner and the jingle
 }
 
-static void play_frame(uint8_t pressed) {
-    uint8_t moved = 0, old_x, old_bar;
+// One walking step: 1.5 px per frame as 1 px plus a 1/256 px fraction.
+static uint8_t walk_px(void) {
+    uint8_t f = bartender_frac;
+    bartender_frac = f + WALK_FRAC;
+    return bartender_frac < f ? WALK_PX + 1 : WALK_PX;
+}
 
-    old_x = bartender_x; old_bar = bar;
-    // Up/Down: change bar (wrapping) and snap to that bar's tap, facing the bar
+static const uint8_t walk_cycle[4] = { BT_WALK1, BT_IDLE, BT_WALK2, BT_IDLE };
+
+static void play_frame(uint8_t pressed) {
+    uint8_t walked = 0, switched, carry, x, d;
+
+    // A full mug still held (A down) is carried along to another bar instead of being cancelled.
+    carry = fill_timer >= FILL_FRAMES && (joy & J_A);
+    // Up/Down: change bar (wrapping) and snap to that bar's fill position, facing the bar
+    switched = pressed & (J_UP | J_DOWN);
     if (pressed & J_UP)        bar = bar == 0 ? NUM_BARS - 1 : bar - 1;
     else if (pressed & J_DOWN) bar = bar == NUM_BARS - 1 ? 0 : bar + 1;
-    if (pressed & (J_UP | J_DOWN)) { bartender_x = TAP_X; facing = 0; }
+    if (switched) { bartender_x = TAP_X; facing = 0; }
 
-    // Left/Right: walk
+    // Left/Right: walk (1.5 px per frame)
+    x = bartender_x;
     if (joy & J_LEFT) {
         facing = 0;
-        if (bartender_x > LEFT_LIMIT) bartender_x -= WALK_SPEED;
+        if (x > LEFT_LIMIT) { d = walk_px(); x = x - d < LEFT_LIMIT ? LEFT_LIMIT : x - d; }
     } else if (joy & J_RIGHT) {
         facing = 1;
-        if (bartender_x < TAP_X) bartender_x += WALK_SPEED;
+        if (x < TAP_X) { d = walk_px(); x = x + d > TAP_X ? TAP_X : x + d; }
     }
-    // A pressed close enough to the tap: snap to it, facing the bar (a fresh press only)
+    if (x != bartender_x) { bartender_x = x; walked = 1; }
+    else bartender_frac = 0;                     // standing (or against a wall): the next walk starts afresh
+    // A pressed close enough to the fill position: snap to it (a fresh press only)
     if ((pressed & J_A) && !fill_timer && bartender_x >= TAP_X - TAP_GRACE && bartender_x < TAP_X) {
-        bartender_x = TAP_X; facing = 0;
+        bartender_x = TAP_X; bartender_frac = 0;
     }
     at_tap = bartender_x == TAP_X;
-    moved = (bartender_x != old_x) || (bar != old_bar) || (pressed & (J_UP | J_DOWN));
 
-    // Filling: A pressed at the tap starts it; any move or letting go ends it,
-    // and letting go after FILL_FRAMES launches a mug.
+    // Filling: A pressed at the fill position starts it; walking, a bar change (unless carrying a full mug)
+    // or letting go ends it, and letting go after FILL_FRAMES launches a mug on the bar he is at.
     if (fill_timer) {
-        if (moved || !at_tap || !(joy & J_A)) {
-            if (!moved && at_tap && fill_timer >= FILL_FRAMES) {
+        if (switched && carry && !walked) {
+            // carried to the new bar's fill position: still holding the full mug under the spout
+        } else if (walked || switched || !at_tap || !(joy & J_A)) {
+            if (!walked && !switched && at_tap && fill_timer >= FILL_FRAMES) {
                 launch_mug();
                 slide_timer = SLIDE_FRAMES;
             }
             fill_timer = 0;
+            if (!walked) facing = 0;             // turns back to the bar (and slides the mug that way)
         } else if (fill_timer < FILL_FRAMES) {
             fill_timer++;
         }
@@ -619,18 +643,19 @@ static void play_frame(uint8_t pressed) {
         SFX(SFX_FILL);
     }
     if (!fill_timer) fill_stage = 0;
+    else facing = 1;                             // filling: faces the tap, the mug under the spout
 
     if (slide_timer) slide_timer--;
 
     if (fill_timer) {
         bartender_frame = BT_FILL;
-        walk_timer = 0;
-    } else if (bartender_x != old_x) {
-        bartender_frame = ((walk_timer / WALK_ANIM_FRAMES) & 1) ? BT_WALK2 : BT_WALK1;
-        walk_timer++;
+        walk_timer = 0; walk_phase = 0;
+    } else if (walked) {                         // walk1, idle, walk2, idle, WALK_STEP_FRAMES each
+        bartender_frame = walk_cycle[walk_phase];
+        if (++walk_timer >= WALK_STEP_FRAMES) { walk_timer = 0; walk_phase = (walk_phase + 1) & 3; }
     } else {
         bartender_frame = slide_timer ? BT_SLIDE : BT_IDLE;
-        walk_timer = 0;
+        walk_timer = 0; walk_phase = 0;
     }
 
     // tip: counts down, and is picked up by standing on it (16 px span overlapping its 8 px)
@@ -659,7 +684,7 @@ static void update(void) {
     uint8_t pressed;
 
     vq_frame_begin();                // the VBlank interrupt has drained last frame's copy list (or it waits)
-    lists_ok = 0;                    // patron state may have been written since the last frame (the tests do)
+    if (lists_dirty) { lists_dirty = 0; lists_ok = 0; }   // a test poked patron_state / patron_bar: rebuild the bar lists
     SEC(SEC_FLUSH);
     if (overlay_on) SHOW_WIN; else HIDE_WIN;
 

@@ -1,7 +1,7 @@
 # M3: patrons (background tiles), full-mug catches, empty mugs, lives, level clear.
 # Situations are set up by poking state through symbol addresses, as in test_mugs.
 import pytest
-from conftest import bar_top_row, bar_top_y, check_golden
+from conftest import GAME, bar_top_row, bar_top_y, check_golden
 
 pytestmark = pytest.mark.timeout(60)
 
@@ -10,6 +10,7 @@ NONE, WALKING, PUSHED, DRINKING = 0, 1, 2, 3
 FREE, FULL, EMPTY, BREAKING = 0, 1, 2, 3
 STEP, PUSHBACK, SERVE = 64, 4, 50     # level 1 values (level_table in main.c): 8 px per STEP frames, PUSHBACK*8 px back
 PX = 8 * PUSHBACK
+FAR_X = GAME["PATRON_FAR_X"]          # M8a: 120, a walker here has reached the bartender's end
 HELD = 4
 SPACING = 32
 START_BARS = [0, 2]                   # level 1 starts with patrons on these bars (start_mask 0x5)
@@ -183,7 +184,7 @@ def test_served_further_in_is_pushed_back_then_drinks_and_returns_an_empty(gb):
     x = ms[0]["x"]
     assert x >= (64 - PX) + 16
     gb.run(10)
-    assert mugs(gb)[0]["x"] == x + 10, "1 px per frame to the right"
+    assert mugs(gb)[0]["x"] == x + 5, "M8a: 0.5 px per frame to the right"
 
 
 def test_pushed_patron_stops_at_the_patron_behind(gb):
@@ -200,10 +201,10 @@ def test_pushed_patron_stops_at_the_patron_behind(gb):
 
 def test_bartender_catches_an_empty_mug(gb):
     clear_patrons(gb)
-    inject_mug(gb, 0, 120, EMPTY)
+    inject_mug(gb, 0, 104, EMPTY)                 # M8a: 16 px from the bartender at the fill position (x 120)
     gb.run(15)
-    assert len(mugs(gb)) == 1 and mugs(gb)[0]["x"] > 120
-    gb.run(15)
+    assert len(mugs(gb)) == 1 and mugs(gb)[0]["x"] > 104
+    gb.run(25)
     assert mugs(gb) == []
     assert score(gb) == 100
     assert gb.mem("lives") == 3
@@ -213,7 +214,7 @@ def test_bartender_on_another_bar_misses_the_empty(gb):
     clear_patrons(gb)
     gb.press("down", 2)
     inject_mug(gb, 0, 130, EMPTY)
-    gb.run(30)
+    gb.run(50)                                    # M8a: 0.5 px per frame, 23 px to the right end
     assert score(gb) == 0
     assert gb.mem("lives") == 2, "missed empty costs a life"
     assert [m["state"] for m in mugs(gb)] == [BREAKING]
@@ -225,16 +226,16 @@ def test_bartender_on_another_bar_misses_the_empty(gb):
 
 def test_bartender_away_from_the_mug_misses_it(gb):
     clear_patrons(gb)
-    gb.press("left", 20)                 # x = 104
+    gb.press("left", 20)                 # x = 90
     inject_mug(gb, 0, 130, EMPTY)
-    gb.run(40)
+    gb.run(60)
     assert score(gb) == 0 and gb.mem("lives") == 2
 
 
 def test_patron_reaching_the_tap_costs_a_life(gb):
     clear_patrons(gb)
     go(gb)
-    set_patron(gb, 0, 127, frac=255)
+    set_patron(gb, 0, FAR_X - 1, frac=255)
     gb.run(4)
     assert patrons(gb) == []
     assert gb.mem("lives") == 2
@@ -245,7 +246,7 @@ def test_three_patrons_at_the_tap_on_one_frame_cost_one_life(gb):
     clear_patrons(gb)
     go(gb)
     for b in range(3):
-        set_patron(gb, b, 127, frac=255)
+        set_patron(gb, b, FAR_X - 1, frac=255)
     gb.run(5)
     assert gb.mem("lives") == 2 and gb.mem("game_over") == 0
 
@@ -390,8 +391,8 @@ def test_level_1_patron_takes_at_least_15_s_to_reach_the_tap(gb):
 def test_two_patrons_reaching_the_tap_on_one_frame_cost_one_life(gb):
     clear_patrons(gb)
     go(gb)
-    set_patron(gb, 0, 127, frac=255)
-    set_patron(gb, 2, 127, frac=255)
+    set_patron(gb, 0, FAR_X - 1, frac=255)
+    set_patron(gb, 2, FAR_X - 1, frac=255)
     gb.run(4)
     assert gb.mem("lives") == 2 and gb.mem("game_state") == 2
 
@@ -399,9 +400,95 @@ def test_two_patrons_reaching_the_tap_on_one_frame_cost_one_life(gb):
 def test_mug_breaking_and_patron_arriving_on_one_frame_cost_one_life(gb):
     clear_patrons(gb)
     go(gb)
-    set_patron(gb, 0, 127, frac=255)
+    set_patron(gb, 0, FAR_X - 1, frac=255)
     inject_mug(gb, 1, 17)                # breaks at the left end on the next frame
     gb.run(6)
     assert gb.mem("lives") == 2 and gb.mem("game_state") == 2
     gb.run(30)
     assert gb.mem("lives") == 2
+
+
+# ---- M8a: half-speed empties, fair empties ---------------------------------------------------------
+TAP_X = GAME["TAP_X"]
+
+
+def test_empties_move_one_px_every_second_frame(gb):
+    clear_patrons(gb)
+    freeze(gb)
+    gb.press("down", 2)                           # the bartender is on bar 1; the empty is on bar 3
+    m = inject_mug(gb, 3, 40, EMPTY)
+    xs = []
+    for _ in range(20):
+        gb.run(1)
+        xs.append(gb.read("mug_x", MAX_M)[m])
+    steps = [b - a for a, b in zip([40] + xs, xs)]
+    assert steps == [0, 1] * 10, steps
+    full = inject_mug(gb, 3, 100, FULL)
+    gb.run(1)
+    x0 = gb.read("mug_x", MAX_M)[full]
+    gb.run(5)
+    assert gb.read("mug_x", MAX_M)[full] == x0 - 10, "full mugs stay at 2 px per frame"
+
+
+def drinker_with_mug(gb, bar, x, timer):
+    p = set_patron(gb, bar, x, state=DRINKING, timer=timer)
+    hold_mug(gb, p, bar)
+    return p
+
+
+def catch_frames(gb, frames):
+    """Frame numbers on which an empty was caught (the score rises by 100)."""
+    out, s = [], score(gb)
+    for f in range(frames):
+        gb.run(1)
+        n = score(gb)
+        if n != s:
+            assert n - s == 100
+            out.append(f)
+            s = n
+    return out
+
+
+def test_two_patrons_finishing_at_once_send_empties_that_arrive_empty_gap_apart(gb):
+    clear_patrons(gb)
+    freeze(gb)                                    # nobody walks; drinking and empties go on
+    gap = gb.mem("empty_gap")
+    assert gap == 120, "level 1"
+    near = drinker_with_mug(gb, 0, 70, 89)        # both finish on the next frame
+    far = drinker_with_mug(gb, 0, 20, 89)
+    gb.run(2)
+    st = gb.read("patron_state", MAX_P)
+    assert st[near] == WALKING, "the one nearer the bartender sends his empty at once"
+    assert st[far] == DRINKING, "the other holds his: it would arrive too soon after the first"
+    t_near = 2 * (TAP_X - (70 + 16))
+    assert t_near - 2 <= gb.mem16("next_arrival") - gap <= t_near, "next_arrival = his arrival + empty_gap"
+    caught = catch_frames(gb, 400)
+    assert len(caught) == 2, caught
+    assert caught[1] - caught[0] >= gap, caught
+    assert caught[1] - caught[0] <= gap + 2, "and no later than needed"
+
+
+def test_a_patron_holding_his_empty_keeps_the_pose_and_does_not_walk_on(gb):
+    clear_patrons(gb)
+    gb.write("intro_timer", 0)                    # walkers walk now
+    gb.write("spawn_timer", 255)
+    gb.write("next_arrival", 250)                 # an empty has just been scheduled: nothing may arrive for a while
+    gb.write(gb.addr("next_arrival") + 1, 0)
+    p = drinker_with_mug(gb, 2, 40, 89)
+    m = list(gb.read("patron_mug", MAX_P))[p]
+    for _ in range(60):
+        gb.run(1)
+        assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == 40
+        assert gb.read("patron_timer", MAX_P)[p] == 89, "the last drinking pose: the empty lowered to his hand"
+        assert gb.read("mug_state", MAX_M)[m] == HELD
+    t = 2 * (TAP_X - 56)
+    gb.run(250 - 60 - t + 4)
+    assert gb.read("patron_state", MAX_P)[p] == WALKING and gb.read("mug_state", MAX_M)[m] == EMPTY
+
+
+def test_a_lone_patron_is_never_held_back(gb):
+    clear_patrons(gb)
+    freeze(gb)
+    p = drinker_with_mug(gb, 1, 30, 89)
+    gb.run(2)
+    assert gb.read("patron_state", MAX_P)[p] == WALKING and [m["state"] for m in mugs(gb)] == [EMPTY]

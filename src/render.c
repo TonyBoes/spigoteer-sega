@@ -96,7 +96,7 @@ uint8_t vram_pending;             // dirty spans left to queue (keeps idle frame
 // wall/door/tap tiles of a bar's two wall rows, by row and column: what compose_dirty() restores under (and
 // around) the patrons. The same picture draw_bars() paints.
 #define BT(r, c) ((c) < 2 ? TILE_DOOR + (r) * 2 + (c) : (c) >= 18 ? TILE_TAP + (r) * 2 + ((c) - 18) \
-                  : ((r) == 1 && ((c) & 1)) ? TILE_WALL2 : TILE_WALL)
+                  : ((r) == 1 && (c) == 17) ? TILE_SPOUT : ((r) == 1 && ((c) & 1)) ? TILE_WALL2 : TILE_WALL)
 #define BTROW(r) BT(r, 0), BT(r, 1), BT(r, 2), BT(r, 3), BT(r, 4), BT(r, 5), BT(r, 6), BT(r, 7), BT(r, 8), BT(r, 9), \
                  BT(r, 10), BT(r, 11), BT(r, 12), BT(r, 13), BT(r, 14), BT(r, 15), BT(r, 16), BT(r, 17), BT(r, 18), BT(r, 19)
 static const uint8_t base_tile[2][20] = { { BTROW(0) }, { BTROW(1) } };
@@ -371,7 +371,6 @@ static uint8_t * const bar_map[NUM_BARS] = {
 // End of the logic phase: turn the HUD flags and dirty bar spans into queue entries, composing the bar columns
 // as they are queued (in small steps, for the same reason as the compose functions).
 static uint8_t qv_cost, qv_w, qv_bar;
-static const uint8_t *qv_costs;          // chunk_cost[is_cgb]
 static uint8_t *qv_p;                    // next entry, as bytes
 static uint16_t qv_src, qv_dst;
 
@@ -422,14 +421,16 @@ static void queue_chunk(void) {
 }
 
 // Queue (a chunk of) bar b's dirty span. Returns 0 when the frame's budget is used up.
-static const uint8_t chunk_cost[2][VQ_CHUNK + 1] = {     // (is_cgb ? 4 : 2) * (3 + w), by w
-    { 6, 8, 10, 12, 14, 16, 18 }, { 12, 16, 20, 24, 28, 32, 36 } };
+// Cost of a chunk w columns wide, 4 * (3 + w): what a CGB chunk (tiles + attributes) costs to drain. A DMG chunk
+// drains in half that, but composing it costs the same as on CGB, and composing is what bounds the frame's logic
+// time: so DMG queues no more chunks per frame than CGB does (M8a perf; a redraw at most waits a frame longer).
+static const uint8_t chunk_cost[VQ_CHUNK + 1] = { 12, 16, 20, 24, 28, 32, 36 };
 static uint8_t queue_bar(uint8_t b) {
     uint8_t x0 = dirty_x0[b], w, c;
     if (x0 >= dirty_x1[b]) return 1;
     w = dirty_x1[b] - x0;
     if (w > VQ_CHUNK) w = VQ_CHUNK;
-    c = qv_costs[w];
+    c = chunk_cost[w];
     if (qv_cost && (uint8_t)(qv_cost + c) > VQ_BUDGET) { vram_pending = 1; return 0; }
     qv_cost += c;
     qv_w = w; qv_bar = b; cz_x0 = x0; cz_x1 = x0 + w;
@@ -445,7 +446,6 @@ void queue_vram(void) {
     hud_dirty = 0;
     if (!vram_pending) return;
     vram_pending = 0;
-    qv_costs = chunk_cost[is_cgb ? 1 : 0];
     qv_p = (uint8_t *)&vq[vq_count];
     if (queue_bar(0) && queue_bar(1) && queue_bar(2)) queue_bar(3);
 }

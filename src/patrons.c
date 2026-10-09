@@ -5,9 +5,12 @@
 // 16-bit address computation (and usually a stack spill) for every patron_xxx[p], so the rules are written to
 // touch few fields per patron per frame, and every question about "the other patrons on this bar" goes through
 // per-bar lists instead of a scan of all 16 slots:
-//   - bar_list[b] holds the live slots of bar b in slot order. It is rebuilt lazily: lists_ok is cleared at the
-//     start of every frame (so state written between frames, as the tests do, is always seen) and by
-//     add_patron(); remove_patron() leaves a dead entry behind, which every user skips.
+//   - bar_list[b] holds the live slots of bar b (in no particular order: patrons on a bar keep PATRON_SPACING px
+//     apart, so their footprints never overlap and no rule depends on the order). It is kept up to date
+//     incrementally: add_patron() appends, remove_patron() takes the entry out (patrons never change bars). It is
+//     rebuilt from the pool (build_lists) only when lists_ok is clear: after clear_patrons(), or when a test has
+//     poked patron_state / patron_bar between frames and set lists_dirty (tests/conftest.py does that for every
+//     such write); the next frame then clears lists_ok. Users still skip an entry whose state is PATRON_NONE.
 //   - catch_full() answers "who catches this full mug" from the bar's rightmost catcher, found once per bar per
 //     frame (and again after a catch), so the usual case is one compare.
 #include <gb/gb.h>
@@ -34,6 +37,12 @@ uint8_t  patrons_live;
 uint8_t  bar_list[NUM_BARS][MAX_PATRONS];
 uint8_t  bar_n[NUM_BARS];
 uint8_t  lists_ok;
+uint8_t  lists_dirty;                  // test hook: patron_state / patron_bar were written behind the game's back
+
+// Fair empties: an empty is only sent when it arrives at the bartender's end no sooner than empty_gap frames
+// after the last one scheduled. next_arrival = frames from now until the earliest moment the next empty may
+// arrive (the last scheduled arrival + empty_gap), counting down to 0.
+uint16_t next_arrival;
 
 // the rightmost patron of each bar who would catch a full mug (walking, not watching the show)
 static uint8_t catch_p[NUM_BARS], catch_x[NUM_BARS];
@@ -96,7 +105,7 @@ uint8_t add_patron(uint8_t b, uint8_t x, uint8_t variant) {
         patron_dist[p] = 0; patron_catchx[p] = x;
         patron_draw[p] = 255;
         refresh_patron(p);
-        lists_ok = 0;
+        if (lists_ok) list_add(p);
         return 1;
     }
     return 0;
@@ -111,9 +120,21 @@ static void free_held_mug(uint8_t p) {
     patron_mug[p] = NO_SLOT;
 }
 
+// Take slot p out of its bar's list (the last entry moves into its place).
+static void list_remove(uint8_t p) {
+    uint8_t b = patron_bar[p] & (NUM_BARS - 1), n = bar_n[b];
+    uint8_t *q = bar_list[b];
+    for (; n; n--, q++) {
+        if (*q != p) continue;
+        *q = bar_list[b][--bar_n[b]];
+        return;
+    }
+}
+
 void remove_patron(uint8_t p) {
     uint8_t d = patron_draw[p] >> 3;
-    patron_state[p] = PATRON_NONE;              // its bar_list entry stays behind, dead: every user checks the state
+    patron_state[p] = PATRON_NONE;
+    if (lists_ok) list_remove(p);
     free_held_mug(p);
     if (patron_draw[p] != 255) mark_dirty_attrs(patron_bar[p], d, d + 3);
     patron_draw[p] = 255;
@@ -270,9 +291,14 @@ uint8_t catch_full(uint8_t i) {
 // ---- spawning ------------------------------------------------------------------------------------
 // New patron at the door of a random bar, if its first PATRON_SPACING px are free.
 static uint8_t try_spawn(void) {
-    uint8_t b = (next_rand() >> 2) & 3, p, v;
-    for (p = 0; p < MAX_PATRONS; p++)
-        if (patron_state[p] && patron_bar[p] == b && patron_x[p] < PATRON_SPACING) return 0;
+    uint8_t b = (next_rand() >> 2) & 3, n, s, v;
+    const uint8_t *q;
+    if (!lists_ok) build_lists();
+    q = bar_list[b];
+    for (n = bar_n[b]; n; n--) {
+        s = *q++;
+        if (patron_state[s] != PATRON_NONE && patron_x[s] < PATRON_SPACING) return 0;
+    }
     v = next_rand() % 3;
     if (!add_patron(b, 0, v)) return 0;
     spawned++;
@@ -364,20 +390,39 @@ static uint8_t pushed_step(uint8_t p) {
     return 1;
 }
 
+// May patron p send his empty now? Its predicted arrival at the bartender's end (frames from now: the px from
+// where it starts to TAP_X, EMPTY_STEP_FRAMES each) must be no sooner than next_arrival; if so, it is scheduled.
+static uint8_t empty_may_go(uint8_t p) {
+    uint8_t x = patron_x[p] + PATRON_W;                    // where the empty starts
+    uint16_t t = x >= TAP_X ? 0 : (uint16_t)(uint8_t)(TAP_X - x) * EMPTY_STEP_FRAMES;
+    if (t < next_arrival) return 0;
+    next_arrival = t + empty_gap;
+    return 1;
+}
+
 // Done drinking: the empty slides out to the right and he walks on.
 static void drink_done(uint8_t p) {
     uint8_t m = patron_mug[p];
     if (m != NO_SLOT && mug_state[m] == MUG_HELD) {
         mug_state[m] = MUG_EMPTY;
         mug_x[m] = patron_x[p] + PATRON_W;
+        mug_timer[m] = 0;                                 // (its half-px step phase, see mugs.c)
     }
     patron_mug[p] = NO_SLOT;
     patron_state[p] = PATRON_WALKING;
     patron_timer[p] = 0;
 }
 
+// Drinking; at the end he holds the empty (last pose, standing still) until it may go (fair empties).
 static uint8_t drinking_step(uint8_t p) {
-    if (++patron_timer[p] >= DRINK_FRAMES) drink_done(p);
+    uint8_t t = patron_timer[p] + 1, m;
+    if (t < DRINK_FRAMES) patron_timer[p] = t;
+    else {
+        m = patron_mug[p];
+        if (m != NO_SLOT && mug_state[m] == MUG_HELD && !empty_may_go(p))
+            return 1;                                     // holds the empty: the pose is frozen, nothing to redraw
+        drink_done(p);
+    }
     refresh_patron(p);
     return 1;
 }
@@ -385,6 +430,7 @@ static uint8_t drinking_step(uint8_t p) {
 void update_patrons(void) {
     uint8_t p, st, live = 0;
 
+    if (next_arrival) next_arrival--;
     go_now = (intro_timer == 0);
     if (!go_now) {
         if (intro_timer) intro_timer--;

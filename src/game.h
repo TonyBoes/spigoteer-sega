@@ -15,11 +15,16 @@
 #include "layout.h"
 
 // ---- tunables --------------------------------------------------------------
-#define TAP_X         144   // bartender_x at the tap (columns 18-19)
-#define TAP_GRACE      16   // A pressed within this many px left of the tap snaps to it and fills
-#define LEFT_LIMIT     16   // column 2, the end of the door
-#define WALK_SPEED      2   // px per frame
-#define WALK_ANIM_FRAMES 8  // walk1/walk2 swap period
+// The keg stands on columns 18-19; its spout reaches left over column 17 (SPOUT_X), where the mug is filled.
+// TAP_X is the fill position: the bartender (16 px) stands just left of the spout (columns 15-16), the right end
+// of his walk. He faces right (the tap) while filling and turns left when he slides the mug.
+#define SPOUT_X       136   // screen x of the spout's column (17): the fill mug's x, and where a launched mug starts
+#define TAP_X         120   // bartender_x at the fill position (SPOUT_X - 16)
+#define TAP_GRACE      32   // A pressed within this many px left of the fill position snaps to it and fills
+#define LEFT_LIMIT     16   // column 2
+#define WALK_PX         1   // walking speed 1.5 px per frame: 1 px + WALK_FRAC/256 px
+#define WALK_FRAC     128
+#define WALK_STEP_FRAMES 10 // frames per step of the walk cycle walk1, idle, walk2, idle
 #define NUM_BARS        4
 
 // patrons: 16x16 px, drawn as a 3x2-tile BG footprint on the two back-wall rows of a bar.
@@ -27,7 +32,7 @@
 // is pre-shifted by 0/2/4/6 px in the tile set, so it moves in 2 px steps by swapping map entries.
 #define MAX_PATRONS      16
 #define PATRON_SPACING   32   // min px between the left edges of two patrons on a bar (no shared tile column)
-#define PATRON_FAR_X    128   // a walker whose patron_x gets here has reached the tap (old column 16)
+#define PATRON_FAR_X    120   // a walker whose patron_x gets here has reached the bartender's end (right edge at the spout)
 #define PATRON_W         16
 #define PUSH_SPEED        1   // px per frame while pushed back
 #define DRINK_FRAMES     90
@@ -41,13 +46,13 @@ enum { PATRON_NONE, PATRON_WALKING, PATRON_PUSHED, PATRON_DRINKING };
 // mugs
 #define MAX_MUGS          20   // pool size: the OAM budget (was 24 before the M5 dancers); the per-bar cap below is unchanged
 #define MUGS_PER_BAR       6
-#define MUG_START_X      136   // just left of the bartender at the tap
+#define MUG_START_X  SPOUT_X   // a launched mug starts under the spout
 #define MUG_END_X         16   // a mug past x < 16 has left the counter
 #define MUG_SPEED_FULL     2
-#define MUG_SPEED_EMPTY    1
+#define EMPTY_STEP_FRAMES  2   // an empty slides 1 px every 2nd frame of its own (0.5 px per frame); fixed in mugs.c
 #define MUG_RIGHT_END    152   // an empty mug past this x has left the counter
 #define EMPTY_SCORE      100
-#define FILL_FRAMES       24
+#define FILL_FRAMES       16
 #define SLIDE_FRAMES       8
 #define GLASS_X            0   // screen x of the glass breaking at the door end
 #define GLASS_X_RIGHT    144   // ... and at the tap end
@@ -105,10 +110,11 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define NUM_DANCERS        3
 
 // ---- state (globals => symbols the tests read) ----------------------------------
-extern uint8_t  bar, bartender_x, facing, bartender_frame, fill_timer, fill_stage, is_cgb;
+extern uint8_t  bar, bartender_x, bartender_frac, facing, bartender_frame, fill_timer, fill_stage, is_cgb;
 extern uint8_t  lives, life_lost, game_state, hud_dirty, level_clear;
 extern uint8_t  quota, spawned, served, serve_score, patron_speed, pushback_px, intro_timer;
-extern uint8_t  start_mask, start_per_bar;
+extern uint8_t  start_mask, start_per_bar, empty_gap;
+extern uint16_t next_arrival;
 extern uint16_t spawn_interval, spawn_timer;
 extern uint8_t  tip_chance, tip_bar, tip_x, dancer_frame, dance_tick, dancers_vis, dancer_sig;
 extern uint16_t tip_timer, show_timer;
@@ -131,6 +137,7 @@ void lose_life(void);
 
 // ---- patrons.c --------------------------------------------------------------------------
 extern uint8_t lists_ok;                      // 0: bar lists must be rebuilt before use (see patrons.c)
+extern uint8_t lists_dirty;                   // set by the tests after poking patron_state / patron_bar
 uint8_t add_patron(uint8_t b, uint8_t x, uint8_t variant);
 void remove_patron(uint8_t p);
 uint8_t catch_full(uint8_t i);                // mugs.c asks for every full mug

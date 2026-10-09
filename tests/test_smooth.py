@@ -50,8 +50,8 @@ def test_walking_drawn_x_advances_in_2_px_steps(gb):
         assert map_ids(gb, p["bar"], col) == ids
 
 
-def test_level_1_crossing_time_still_about_17_seconds(gb):
-    """8 px per 64 frames: 128 px in 1024 frames (17.1 s)."""
+def test_level_1_crossing_time_still_about_16_seconds(gb):
+    """8 px per 64 frames: M8a, 120 px (to the spout) in 960 frames (16 s)."""
     assert gb.mem("patron_speed") == 32 and gb.mem("step_frames") == 64
     clear_patrons(gb)
     go(gb)
@@ -60,7 +60,7 @@ def test_level_1_crossing_time_still_about_17_seconds(gb):
     while gb.mem("lives") == 3 and n < 1200:
         gb.run(1)
         n += 1
-    assert 1020 <= n <= 1030, n
+    assert 955 <= n <= 965, n
 
 
 def test_pushed_patron_slides_one_px_per_frame(gb):
@@ -147,8 +147,8 @@ def test_drinking_mug_tilts_then_the_empty_slides_right(gb):
     assert len(ms) == 1 and ms[0]["state"] == EMPTY
     assert ms[0]["x"] >= gb.read("patron_x", MAX_P)[p] + 16
     x = ms[0]["x"]
-    gb.run(5)
-    assert mugs(gb)[0]["x"] == x + 5
+    gb.run(6)
+    assert mugs(gb)[0]["x"] == x + 3, "M8a: 0.5 px per frame"
     assert gb.read("patron_state", MAX_P)[p] == WALKING
 
 

@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import LAYOUT, ROOT, bar_top_y, check_golden
+from conftest import GAME, LAYOUT, ROOT, bar_top_y, check_golden
 from test_flow import LEVEL_CLEAR, LIFE_LOST, PAUSED, PLAYING, clear_level, lose_a_life, run_until, state
 from test_patrons import (DRINKING, FULL, HELD, MAX_M, MAX_P, PUSHED, WALKING, clear_patrons, go, inject_mug,
                           mugs, patrons, put, score, set_patron)
@@ -185,7 +185,7 @@ def test_standing_at_the_tap_picks_up_a_coin_that_lies_there(gb):
     quiet(gb)
     w16(gb, "tip_timer", 300)
     gb.write("tip_bar", gb.mem("bar"))
-    gb.write("tip_x", 140)
+    gb.write("tip_x", GAME["TAP_X"] + 8)   # M8a: under the bartender at the fill position
     s0 = score(gb)
     started(gb)
     assert score(gb) == s0 + TIP_SCORE and gb.mem16("show_timer") > 0
@@ -230,7 +230,7 @@ def test_the_show_distracts_some_walking_patrons(gb):
     ps = crowd(gb)
     w16(gb, "tip_timer", 300)
     gb.write("tip_bar", gb.mem("bar"))
-    gb.write("tip_x", 140)
+    gb.write("tip_x", GAME["TAP_X"] + 8)   # M8a: under the bartender at the fill position
     started(gb)
     assert gb.mem16("show_timer") > 0
     d = dist(gb)
@@ -255,8 +255,8 @@ def test_at_least_one_is_distracted_if_any_walk(gb):
         gb.write("intro_timer", 255)
         w16(gb, "tip_timer", 300)
         gb.write("tip_bar", gb.mem("bar"))
-        gb.write("tip_x", 140)
-        gb.write("bartender_x", 144)
+        gb.write("tip_x", GAME["TAP_X"] + 8)   # M8a: under the bartender at the fill position
+        gb.write("bartender_x", GAME["TAP_X"])
         started(gb)
         assert dist(gb)[i] == 1, n
         w16(gb, "show_timer", 0)
@@ -269,7 +269,7 @@ def test_a_show_with_nobody_walking_distracts_nobody(gb):
     i = set_patron(gb, 0, 50, state=DRINKING, timer=10)
     w16(gb, "tip_timer", 300)
     gb.write("tip_bar", 0)
-    gb.write("tip_x", 140)
+    gb.write("tip_x", GAME["TAP_X"] + 8)   # M8a: under the bartender at the fill position
     started(gb)
     assert gb.mem16("show_timer") > 0 and sum(dist(gb)) == 0
 
@@ -370,7 +370,7 @@ def test_oam_and_scanline_budget_during_a_busy_show(gb):
     w16(gb, "tip_timer", 300)
     gb.write("tip_bar", 0)
     gb.write("tip_x", 100)
-    gb.write("bartender_x", 144)
+    gb.write("bartender_x", GAME["TAP_X"])
     gb.write("bar", 0)
     gb.hold("a")
     for _ in range(30):

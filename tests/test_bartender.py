@@ -1,10 +1,10 @@
 # M1: bar scene + bartender movement. Every assertion reads a named variable
 # from build/game.noi; every test runs on DMG and CGB (see conftest.gb).
-from conftest import LAYOUT, bar_top_y, check_golden
+from conftest import GAME, LAYOUT, bar_top_y, check_golden
 
 pytestmark = __import__("pytest").mark.timeout(60)
 
-TAP_X, LEFT_LIMIT = 144, 16
+TAP_X, LEFT_LIMIT = GAME["TAP_X"], GAME["LEFT_LIMIT"]     # M8a: the fill position, just left of the spout (120)
 
 
 def test_boots(gb):
@@ -41,7 +41,7 @@ def test_up_down_is_edge_triggered(gb):
 
 def test_walk_left_and_right(gb):
     gb.press("left", 10)
-    assert gb.mem("bartender_x") == TAP_X - 20, "2 px per frame"
+    assert gb.mem("bartender_x") == TAP_X - 15, "1.5 px per frame"
     assert gb.mem("facing") == 0
     assert gb.mem("at_tap") == 0
     gb.press("right", 10)
@@ -62,22 +62,25 @@ def test_clamped_at_both_ends(gb):
 
 
 def test_walk_animation_alternates(gb):
+    """M8a: a calmer cycle, walk1, idle, walk2, idle, 10 frames each."""
     assert gb.mem("bartender_frame") == 0
     seen = []
     gb.hold("left")
-    for _ in range(24):
+    for _ in range(50):
         gb.run(1)
         seen.append(gb.mem("bartender_frame"))
     gb.release("left")
-    assert set(seen) == {1, 2}, seen
-    assert seen[:8] == [1] * 8 and seen[8:16] == [2] * 8 and seen[16:24] == [1] * 8, seen
+    n = GAME["WALK_STEP_FRAMES"]
+    assert n == 10
+    assert seen[:4 * n] == [1] * n + [0] * n + [2] * n + [0] * n, seen
+    assert seen[4 * n:5 * n] == [1] * n, "and around again"
     gb.run(2)
     assert gb.mem("bartender_frame") == 0, "idle when still"
 
 
 def test_bar_change_snaps_to_tap(gb):
     gb.press("left", 30)
-    assert gb.mem("bartender_x") == TAP_X - 60
+    assert gb.mem("bartender_x") == TAP_X - 45
     gb.press("up", 2)
     assert gb.mem("bar") == 3
     assert gb.mem("bartender_x") == TAP_X
@@ -124,7 +127,7 @@ def test_walking_golden(gb):
     gb.press("down", 2)
     gb.press("down", 2)
     gb.press("left", 20)
-    assert gb.mem("bar") == 2 and gb.mem("bartender_x") == TAP_X - 40
+    assert gb.mem("bar") == 2 and gb.mem("bartender_x") == TAP_X - 30
     check_golden(gb, "walking")
 
 
@@ -146,10 +149,9 @@ def _row(gb, y, x0=0, n=20):
 def test_bars_have_their_counter_rows_at_the_layout_rows(gb):
     assert [bar_counter_row(b) for b in range(4)] == [7, 10, 13, 16], "layout.h: bars at rows 5+3b..7+3b"
     for b in range(4):
-        assert _row(gb, bar_counter_row(b), 2, 16) == [_tile("COUNTER")] * 16, f"bar {b} counter row"
-        assert _row(gb, bar_counter_row(b), 0, 2) == [_tile("DOOR") + 4, _tile("DOOR") + 5]
+        assert _row(gb, bar_counter_row(b), 0, 18) == [_tile("COUNTER")] * 18, f"bar {b} counter row (M8a: from column 0)"
         assert _row(gb, bar_counter_row(b), 18, 2) == [_tile("TAP") + 4, _tile("TAP") + 5]
-        assert _tile("COUNTER") not in _row(gb, bar_top_row(b), 2, 16) + _row(gb, bar_top_row(b) + 1, 2, 16)
+        assert _tile("COUNTER") not in _row(gb, bar_top_row(b), 0, 18) + _row(gb, bar_top_row(b) + 1, 0, 18)
     assert _row(gb, LAYOUT["FLOOR_ROW"]) == [_tile("FLOOR")] * 20
 
 
@@ -192,3 +194,38 @@ def test_no_sprites_on_the_stage_rows_during_play(gb):
 def test_stage_golden(gb):
     gb.run(30)
     check_golden(gb, "stage")
+
+
+# ---- M8a: counter to the door, the spout, walking speed ------------------------------------
+def test_counter_runs_to_the_door_and_the_door_is_on_the_wall_rows_only(gb):
+    door = _tile("DOOR")
+    for b in (1, 3):                                          # level 1 has no patron at these doors
+        assert _row(gb, bar_top_row(b), 0, 2) == [door, door + 1], f"bar {b} door, upper wall row"
+        assert _row(gb, bar_top_row(b) + 1, 0, 2) == [door + 2, door + 3], f"bar {b} door, lower wall row"
+    for b in range(4):
+        assert _row(gb, bar_counter_row(b), 0, 2) == [_tile("COUNTER")] * 2, f"bar {b}: counter at columns 0-1"
+    assert _tile("TAP") - door == 4, "the door block is 2x2 tiles (16x16): no third door row any more"
+
+
+def test_spout_reaches_over_column_17_on_the_lower_wall_row(gb):
+    for b in range(4):
+        assert _row(gb, bar_top_row(b) + 1, 17, 1) == [_tile("SPOUT")], f"bar {b}"
+        assert _row(gb, bar_top_row(b), 17, 1) == [_tile("WALL")], "the upper wall row above the spout is plain wall"
+        assert _row(gb, bar_top_row(b), 18, 2) == [_tile("TAP"), _tile("TAP") + 1]
+    assert GAME["SPOUT_X"] == 17 * 8 and GAME["TAP_X"] == GAME["SPOUT_X"] - 16
+
+
+def test_walk_speed_is_one_and_a_half_px_per_frame(gb):
+    xs = [gb.mem("bartender_x")]
+    gb.hold("left")
+    for _ in range(20):
+        gb.run(1)
+        xs.append(gb.mem("bartender_x"))
+    gb.release("left")
+    steps = [a - b for a, b in zip(xs, xs[1:])]
+    assert sorted(set(steps)) == [1, 2] and sum(steps) == 30, steps
+    assert all(a != b for a, b in zip(steps, steps[1:])), "1 and 2 px alternate"
+    gb.hold("right")
+    gb.run(30)
+    gb.release("right")
+    assert gb.mem("bartender_x") == TAP_X, "the fill position is the right end of the walk"

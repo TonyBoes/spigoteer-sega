@@ -13,16 +13,18 @@
 uint8_t  mug_state[MAX_MUGS];   // MUG_FREE / MUG_FULL / MUG_EMPTY / MUG_BREAKING / MUG_HELD
 uint8_t  mug_bar[MAX_MUGS];
 uint8_t  mug_x[MAX_MUGS];       // pixel x of the mug's left edge
-uint8_t  mug_timer[MAX_MUGS];   // frames since breaking began
+uint8_t  mug_timer[MAX_MUGS];   // frames since breaking began; an empty's frames on the counter (it moves on even ones)
 uint8_t  mug_patron[MAX_MUGS];  // MUG_HELD: the patron holding it
 uint8_t  mugs_live;             // number of non-free slots
 uint8_t  oam_used = OAM_FILL + 1;   // OAM entries the mugs (and the fill glass) occupied last frame
 
 uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
+    // walks mug_state / mug_bar with pointers (indexed, SDCC computes two 16-bit addresses per slot)
+    const uint8_t *st = mug_state, *mb = mug_bar;
     uint8_t i, n = 0, slot = MAX_MUGS;
-    for (i = 0; i < MAX_MUGS; i++) {
-        if (mug_state[i] == MUG_FREE) { if (slot == MAX_MUGS) slot = i; }
-        else if (mug_bar[i] == b) n++;
+    for (i = 0; i != MAX_MUGS; i++, st++, mb++) {
+        if (*st == MUG_FREE) { if (slot == MAX_MUGS) slot = i; }
+        else if (*mb == b) n++;
     }
     if (n >= MUGS_PER_BAR || slot == MAX_MUGS) return 0;
     mug_state[slot] = state;
@@ -63,8 +65,8 @@ static uint8_t full_step(uint8_t i) {
 }
 
 static uint8_t empty_step(uint8_t i) {
-    uint8_t x = mug_x[i] + MUG_SPEED_EMPTY;
-    mug_x[i] = x;
+    uint8_t x = mug_x[i];
+    if (!(++mug_timer[i] & 1)) mug_x[i] = ++x;          // 0.5 px per frame: d px take exactly 2d frames
     if (x >= bartender_x && (uint8_t)(x - bartender_x) < 16 && mug_bar[i] == bar) {
         mug_state[i] = MUG_FREE;                        // caught
         add_score(EMPTY_SCORE);
@@ -116,8 +118,8 @@ void update_glass(void) {
     mugs_live = live;
 }
 
-// OAM 4: the glass the bartender holds under the tap while filling (hidden otherwise).
-// It sits where the launched mug will start (MUG_START_X, the counter-top row).
+// OAM 4: the glass the bartender holds under the spout while filling (hidden otherwise).
+// It sits where the launched mug will start (MUG_START_X = SPOUT_X, the counter-top row).
 void draw_fill(void) {
     OAM_item_t *o = shadow_OAM + OAM_FILL;
     if (!fill_timer) { o->y = 0; return; }

@@ -35,17 +35,12 @@
 ++#++++#
 ########
 
-; door, 16x24 (2x3 tiles, bar height)
+; door, 16x16 (2x2 tiles, the two wall rows): a dark doorway with saloon batwings; the counter runs in front
+; of it (the bar's counter row continues to column 0), so a patron coming in is always behind the counter
 @door
 ................
-................
-................
 ..############..
 ..#----------#..
-..############..
-..############..
-..############..
-..############..
 ..############..
 ..############..
 ..############..
@@ -59,10 +54,9 @@
 ..#++++--++++#..
 ..#----------#..
 ..#++++--++++#..
-..#++++--++++#..
-..############..
 
-; tap, 16x24
+; tap, 16x24: the keg (two wall rows, on a stand) over the counter row. The spout leaves the keg's left side
+; at the top of the lower wall row and reaches over column 17 (@spout), where the mug is held to fill.
 @tap
 ................
 ................
@@ -72,14 +66,14 @@
 .#-++++++++++-#.
 .##############.
 .#-++++++++++-#.
-.#-++++++++++-#.
-.##############.
-.#-++++++++++-#.
+###++++++++++-#.
+--#############.
+###++++++++++-#.
 .#-++++++++++-#.
 ..############..
-......####......
-......#--#......
-......#++#......
+...##......##...
+...#+#....#+#...
+...#+#....#+#...
 ----########----
 ----#++++++#----
 ++++########++++
@@ -88,6 +82,17 @@
 ++#++++#++#++++#
 ++#++++#++#++++#
 ################
+
+; spout, 8x8, column 17 of the lower wall row: the pipe from the keg bends down into a nozzle over the mug
+@spout
+...#####
+..#-----
+.#--####
+.#-#....
+.###....
+........
+........
+........
 
 ; floor, row 17
 @floor

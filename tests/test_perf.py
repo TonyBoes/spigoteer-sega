@@ -11,7 +11,7 @@ BASE = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h")
 
 pytestmark = pytest.mark.timeout(300)
 LEVEL8_FRAMES, WORST_FRAMES = 1200, 600
-END_LY_TARGET = 125
+END_LY_TARGET = 118   # M8a: was 125; the bar lists are no longer rebuilt every frame
 
 
 @pytest.fixture(params=["dmg", "cgb"])
@@ -74,7 +74,8 @@ def test_worst_case_pile(rom):
     assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
     # Not a target, a regression guard at the measured level: this pile needs more than one frame per frame
     # (measured: end LY ~190-200, ~200-230 of 600 frames late; before the rework: end ~540, missed ~185 with the
-    # music tick skipped on late frames).
+    # music tick skipped on late frames. M8a, lists kept incrementally: DMG end 176 / 48 late, CGB 227 / 67 late;
+    # the CGB end is one frame whose start lands badly against VBlank, the rest stay under ~180).
     assert r["missed"] <= 280, r
     assert r["end"] <= 230, r
 

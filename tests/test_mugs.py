@@ -1,6 +1,6 @@
 # M2: filling and sliding full mugs, breaking at the left end, lives, game over.
 import pytest
-from conftest import LAYOUT, bar_counter_row, bar_top_y, check_golden, mug_top_y
+from conftest import GAME, LAYOUT, bar_counter_row, bar_top_y, check_golden, mug_top_y
 
 pytestmark = pytest.mark.timeout(60)
 
@@ -73,14 +73,14 @@ def test_hold_then_release_launches_one_mug_that_slides_left(gb):
 
 def test_release_before_full_launches_nothing(gb):
     gb.hold("a")
-    gb.run(23)
+    gb.run(GAME["FILL_FRAMES"] - 1)
     gb.release("a")
     gb.run(3)
     assert gb.mem("mugs_live") == 0
 
 
 def test_a_away_from_tap_does_nothing(gb):
-    gb.press("left", 10)
+    gb.press("left", 30)                         # 45 px: outside the 32 px grace
     gb.hold("a")
     gb.run(40)
     gb.release("a")
@@ -91,9 +91,9 @@ def test_a_away_from_tap_does_nothing(gb):
 
 
 def test_a_held_while_walking_back_to_tap_does_not_fill(gb):
-    gb.press("left", 10)
+    gb.press("left", 30)
     gb.hold("a")
-    gb.press("right", 12)
+    gb.press("right", 32)
     assert gb.mem("at_tap") == 1
     gb.run(40)
     gb.release("a")
@@ -214,7 +214,7 @@ def test_mug_sliding_golden(gb):
 
 
 # ---- tap grace + snap, fill animation (owner feedback after playing) ------------------------
-TAP_X, TAP_GRACE = 144, 16
+TAP_X, TAP_GRACE, SPOUT_X = GAME["TAP_X"], GAME["TAP_GRACE"], GAME["SPOUT_X"]    # M8a: 120, 32, 136
 ART_H = (__import__("conftest").ROOT / "build" / "art.h").read_text()
 
 
@@ -225,7 +225,7 @@ def _define(name):
 OBJ_MUG = _define("BARTENDER_TILE_COUNT")
 OBJ_MUG_FILL = OBJ_MUG + _define("MUG_TILE_COUNT") + _define("GLASS_TILE_COUNT")
 FILL_OAM = 4
-FILL_FRAMES_N = 24
+FILL_FRAMES_N = GAME["FILL_FRAMES"]          # M8a: 16
 
 
 def fill_sprite(gb):
@@ -235,50 +235,53 @@ def fill_sprite(gb):
 
 
 def test_a_within_grace_snaps_to_the_tap_and_starts_filling(gb):
-    gb.press("left", 5)                          # 10 px left of the tap
-    assert gb.mem("bartender_x") == TAP_X - 10 and gb.mem("at_tap") == 0
+    gb.press("left", 20)                         # M8a: 30 px left of the fill position, inside the 32 px grace
+    assert gb.mem("bartender_x") == TAP_X - 30 and gb.mem("at_tap") == 0
     gb.press("a", 1)
     gb.run(1)
-    assert gb.mem("bartender_x") == TAP_X and gb.mem("at_tap") == 1 and gb.mem("facing") == 0
+    assert gb.mem("bartender_x") == TAP_X and gb.mem("at_tap") == 1 and gb.mem("facing") == 0, \
+        "a tap of A snaps him there; he faces the bar again when it is let go"
     gb.hold("a")
     gb.run(3)
-    assert gb.mem("fill_timer") > 0 and gb.mem("bartender_frame") == 3
+    assert gb.mem("fill_timer") > 0 and gb.mem("bartender_frame") == 3 and gb.mem("facing") == 1
+    gb.release("a")
 
 
-def test_grace_boundary_is_16_px(gb):
-    gb.press("left", 8)                          # exactly TAP_GRACE px away
-    assert gb.mem("bartender_x") == TAP_X - TAP_GRACE
+def test_grace_boundary_is_32_px(gb):
+    gb.write("bartender_x", TAP_X - TAP_GRACE)  # exactly TAP_GRACE px away (not reachable in 1.5 px strides)
+    gb.write("at_tap", 0)
     gb.hold("a")
     gb.run(2)
     assert gb.mem("bartender_x") == TAP_X and gb.mem("fill_timer") > 0
     gb.release("a")
     gb.run(3)
-    gb.press("left", 9)                          # 18 px: outside
+    gb.write("bartender_x", TAP_X - TAP_GRACE - 1)   # 33 px: outside
+    gb.run(1)
     gb.hold("a")
     gb.run(2)
-    assert gb.mem("bartender_x") == TAP_X - 18 and gb.mem("fill_timer") == 0
+    assert gb.mem("bartender_x") == TAP_X - TAP_GRACE - 1 and gb.mem("fill_timer") == 0
     gb.release("a")
 
 
-def test_a_30_px_away_does_nothing(gb):
-    gb.press("left", 15)
-    assert gb.mem("bartender_x") == TAP_X - 30
+def test_a_beyond_the_grace_does_nothing(gb):
+    gb.press("left", 30)
+    assert gb.mem("bartender_x") == TAP_X - 45
     gb.hold("a")
     gb.run(40)
     gb.release("a")
     gb.run(2)
-    assert gb.mem("bartender_x") == TAP_X - 30, "no snap"
+    assert gb.mem("bartender_x") == TAP_X - 45, "no snap"
     assert gb.mem("fill_timer") == 0 and gb.mem("mugs_live") == 0 and fill_sprite(gb) is None
 
 
 def test_a_held_into_the_grace_zone_does_not_snap(gb):
-    gb.press("left", 20)
+    gb.press("left", 30)
     gb.hold("a")
     gb.run(2)
-    gb.press("right", 14)                        # held A walks him to 12 px from the tap: a fresh press is needed
-    assert gb.mem("bartender_x") == TAP_X - 12 and gb.mem("fill_timer") == 0
+    gb.press("right", 14)                        # held A walks him to 24 px from the tap: a fresh press is needed
+    assert gb.mem("bartender_x") == TAP_X - 24 and gb.mem("fill_timer") == 0
     gb.run(10)
-    assert gb.mem("bartender_x") == TAP_X - 12 and gb.mem("fill_timer") == 0
+    assert gb.mem("bartender_x") == TAP_X - 24 and gb.mem("fill_timer") == 0
     gb.release("a")
 
 
@@ -306,14 +309,14 @@ def test_fill_sprite_shows_while_filling_and_steps_through_the_frames(gb):
     assert tiles[-1] == OBJ_MUG_FILL + 3 * 2 and tiles[0] == OBJ_MUG_FILL
     assert [t for i, t in enumerate(tiles) if i == 0 or t != tiles[i - 1]] == [OBJ_MUG_FILL + 2 * s for s in range(4)]
     e = fill_sprite(gb)
-    assert e["x"] - 8 == 136 and e["y"] - 16 == mug_top_y(0), "left of the bartender's hand, on the counter surface of bar 0"
+    assert e["x"] - 8 == SPOUT_X and e["y"] - 16 == mug_top_y(0), "under the spout, in his hand, on the counter surface of bar 0"
     # launch: the fill sprite goes, the sliding mug starts from the same spot
     gb.release("a")
     gb.run(2)
     assert fill_sprite(gb) is None or fill_sprite(gb)["tile"] == OBJ_MUG
     assert gb.mem("fill_stage") == 0 and gb.mem("fill_timer") == 0
     (_, _, x), = mugs(gb)
-    assert x == 136 - 2 * 2 or x == 136 - 2 * 3
+    assert x == SPOUT_X - 2 * 2 or x == SPOUT_X - 2 * 3
     assert len(gb.visible_sprites()) == 5
 
 
@@ -353,3 +356,92 @@ def test_filling_golden(gb):
             break
     assert gb.mem("fill_stage") == 2 and fill_sprite(gb) is not None
     check_golden(gb, "filling")
+
+
+# ---- M8a: fill pose at the spout, carrying a full mug, half-speed empties ------------------------------
+def bartender_flipped(gb):
+    """True when all 4 bartender entries are X-flipped (facing right)."""
+    return all(e["flags"] & 0x20 for e in gb.oam()[:4])
+
+
+def test_fill_frames_is_16(gb):
+    gb.hold("a")
+    gb.run(2)
+    t0 = gb.mem("fill_timer")
+    gb.run(FILL_FRAMES_N)
+    assert FILL_FRAMES_N == 16 and gb.mem("fill_timer") == FILL_FRAMES_N and gb.mem("fill_stage") == 3
+    assert t0 < FILL_FRAMES_N
+    gb.release("a")
+
+
+def test_he_faces_the_tap_while_filling_and_turns_left_to_slide_the_mug(gb):
+    assert gb.mem("facing") == 0
+    gb.hold("a")
+    gb.run(4)
+    assert gb.mem("facing") == 1 and gb.mem("bartender_frame") == 3, "facing right (the tap), fill pose"
+    gb.run(1)
+    assert bartender_flipped(gb), "the sprite is flipped toward the tap"
+    e = fill_sprite(gb)
+    assert e["x"] - 8 == SPOUT_X == gb.mem("bartender_x") + 16, "the mug is in his hand, under the spout"
+    gb.run(FILL_FRAMES_N)
+    gb.release("a")
+    gb.run(2)
+    assert gb.mem("facing") == 0 and gb.mem("bartender_frame") == 4, "turned left, slide pose"
+    gb.run(1)
+    assert not bartender_flipped(gb)
+    (state, b, x), = mugs(gb)
+    assert (state, b) == (FULL, 0) and x < SPOUT_X, "the mug slides left from under the spout"
+
+
+def test_spout_fill_golden(gb):
+    gb.hold("a")
+    for _ in range(40):
+        gb.run(1)
+        if gb.mem("fill_stage") == 2:
+            break
+    gb.run(1)
+    assert gb.mem("facing") == 1 and fill_sprite(gb) is not None
+    check_golden(gb, "spout_fill")
+    gb.release("a")
+
+
+def test_a_full_mug_is_carried_to_another_bar_and_launched_there(gb):
+    gb.hold("a")
+    gb.run(FILL_FRAMES_N + 4)
+    assert gb.mem("fill_timer") == FILL_FRAMES_N
+    gb.press("down", 2)                          # A still held: he takes the full mug along
+    assert gb.mem("bar") == 1 and gb.mem("bartender_x") == TAP_X
+    assert gb.mem("fill_timer") == FILL_FRAMES_N and gb.mem("facing") == 1 and gb.mem("bartender_frame") == 3
+    gb.press("down", 2)                          # and on to bar 2
+    gb.run(1)
+    assert gb.mem("bar") == 2 and gb.mem("fill_timer") == FILL_FRAMES_N
+    assert fill_sprite(gb)["y"] - 16 == mug_top_y(2), "the full mug moved with him"
+    assert gb.mem("mugs_live") == 0, "nothing launched yet"
+    gb.release("a")
+    gb.run(2)
+    (state, b, x), = mugs(gb)
+    assert (state, b) == (FULL, 2), "launched on the bar he carried it to"
+    assert gb.mem("facing") == 0
+
+
+def test_up_down_before_the_mug_is_full_still_cancels(gb):
+    gb.hold("a")
+    gb.run(FILL_FRAMES_N // 2)
+    gb.press("up", 2)
+    assert gb.mem("bar") == 3 and gb.mem("fill_timer") == 0
+    gb.run(20)
+    gb.release("a")
+    gb.run(2)
+    assert gb.mem("mugs_live") == 0
+
+
+def test_walking_left_with_a_full_mug_cancels_and_right_cannot_move_him(gb):
+    gb.hold("a")
+    gb.run(FILL_FRAMES_N + 4)
+    gb.press("right", 4)                         # the fill position is the right end of his walk: nothing moves
+    assert gb.mem("bartender_x") == TAP_X and gb.mem("fill_timer") == FILL_FRAMES_N
+    gb.press("left", 2)
+    assert gb.mem("fill_timer") == 0 and gb.mem("bartender_x") < TAP_X
+    gb.release("a")
+    gb.run(2)
+    assert gb.mem("mugs_live") == 0, "the cancelled mug is not launched"

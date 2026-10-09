@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import LAYOUT, ROOT, bar_top_row, check_golden
+from conftest import GAME, LAYOUT, ROOT, bar_top_row, check_golden
 
 pytestmark = pytest.mark.timeout(120)
 
@@ -10,11 +10,11 @@ TITLE, PLAYING, LIFE_LOST, LEVEL_CLEAR, GAME_OVER, PAUSED, BONUS = range(7)
 MAX_P, MAX_M = 16, 20
 BT_FAIL = 6
 
-# (group, start bar mask, start per bar, quota, spawn interval, step frames, pushback, serve score)
+# (group, start bar mask, start per bar, quota, spawn interval, step frames, pushback, serve score, empty gap)
 TABLE = [
-    (0, 0x5, 1, 8, 300, 64, 4, 50), (1, 0x7, 1, 10, 275, 60, 4, 75), (2, 0xF, 1, 12, 250, 56, 4, 75),
-    (3, 0xF, 1, 14, 230, 52, 4, 100), (4, 0xF, 1, 16, 210, 48, 3, 100), (5, 0xF, 2, 18, 190, 44, 3, 125),
-    (6, 0xF, 2, 20, 175, 40, 3, 125), (7, 0xF, 2, 21, 160, 37, 3, 150), (8, 0xF, 2, 22, 150, 34, 3, 150),
+    (0, 0x5, 1, 8, 300, 64, 4, 50, 120), (1, 0x7, 1, 10, 275, 60, 4, 75, 110), (2, 0xF, 1, 12, 250, 56, 4, 75, 100),
+    (3, 0xF, 1, 14, 230, 52, 4, 100, 90), (4, 0xF, 1, 16, 210, 48, 3, 100, 80), (5, 0xF, 2, 18, 190, 44, 3, 125, 70),
+    (6, 0xF, 2, 20, 175, 40, 3, 125, 60), (7, 0xF, 2, 21, 160, 37, 3, 150, 52), (8, 0xF, 2, 22, 150, 34, 3, 150, 45),
 ]
 ART_H = (ROOT / "build" / "art.h").read_text()
 PATRON_TILES = int(re.search(r"#define PATRON_TILES_PER_GROUP (\d+)", ART_H).group(1))
@@ -84,7 +84,7 @@ def inject_mug(gb, bar, x, st=1):
 def lose_a_life(gb):
     """A patron one step from the tap on the top bar."""
     gb.write("intro_timer", 0)
-    set_patron(gb, 0, 127, frac=255)       # takes its last pixel on the next frame
+    set_patron(gb, 0, GAME["PATRON_FAR_X"] - 1, frac=255)       # takes its last pixel on the next frame
     run_until(gb, lambda: state(gb) == LIFE_LOST, 20)
 
 
@@ -107,7 +107,7 @@ def test_start_begins_a_game(boot):
     run_until(boot, lambda: state(boot) == PLAYING, 30)
     assert boot.mem("lives") == 3 and score(boot) == 0 and boot.mem("level") == 1
     assert patrons(boot) == [(0, 0), (2, 0)]          # level 1 starts on bars 0 and 2
-    assert boot.mem("bar") == 0 and boot.mem("bartender_x") == 144
+    assert boot.mem("bar") == 0 and boot.mem("bartender_x") == GAME["TAP_X"]
     boot.run(20)
     assert tilemap_row(boot, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_1")]   # L01
 
@@ -159,7 +159,7 @@ def test_lost_life_freezes_then_restarts_the_bars(gb):
     assert gb.mem("lives") == 2
     assert mugs(gb) == [] and gb.mem("mugs_live") == 0
     assert patrons(gb) == [(0, 0), (2, 0)] and gb.mem("spawned") == 2
-    assert gb.mem("bar") == 0 and gb.mem("bartender_x") == 144 and gb.mem("bartender_frame") == 0
+    assert gb.mem("bar") == 0 and gb.mem("bartender_x") == GAME["TAP_X"] and gb.mem("bartender_frame") == 0
     assert gb.mem("intro_timer") >= 85
     gb.run(30)
     assert patrons(gb) == [(0, 0), (2, 0)], "intro delay holds"
@@ -281,6 +281,7 @@ def test_level_table_and_wrap(gb):
         assert (gb.mem("quota"), gb.mem16("spawn_interval"), gb.mem("step_frames"), gb.mem("pushback_cols"),
                 gb.mem("serve_score")) == (row[3], row[4], row[5], row[6], row[7]), lvl
         assert gb.mem("start_mask") == row[1]
+        assert gb.mem("empty_gap") == row[8], lvl                # M8a: fair empties, 120 frames at L1 down to 45
         assert len(patrons(gb)) == bin(row[1]).count("1") * row[2], lvl
         assert tilemap_row(gb, LAYOUT["HUD_ROW"], 18, 2) == [tile_id("GLYPH_0") + lvl // 10, tile_id("GLYPH_0") + lvl % 10]
         gb.write("level_clear", 1)
