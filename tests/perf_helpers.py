@@ -177,3 +177,127 @@ def worst_case_run(gb, frames):
         wc.tick()
         gb.run(1)
     return perf_read(gb)
+
+
+# ---- M13b: the level-9 overlap scenario ---------------------------------------------------------------------------
+def goto_level9(gb):
+    """The start of level 9 (row 9: the fastest walkers, hurried patrons), through the bonus round after level 8."""
+    gb.write("level", 8)
+    gb.write("game_state", 3)           # GS_LEVEL_CLEAR, one frame from the next level (level 8 is followed by a bonus)
+    gb.write("state_timer", 149)
+    for _ in range(400):
+        gb.run(1)
+        st = gb.mem("game_state")
+        if st == 6 and gb.mem("bonus_phase") != 4:   # GS_BONUS: jump to its last frame
+            gb.write("bonus_phase", 4)
+            gb.write("bonus_timer", 129)
+        if gb.mem("level") == 9 and st == PLAYING:
+            return
+    raise AssertionError("level 9 did not start")
+
+
+class OverlapCase:
+    """Level 9, every bar: a pair of walkers overlapping (they pass each other: one is lifted, or both stay on the BG
+    when the budgets say no), a third patron to their right who catches a full mug and, thirsty (his 3rd drink, 72 px),
+    slides back through the pair; 4 mugs per bar in flight (the push mug and empties sliding to the tap end). The
+    pusher is put back on his spot (walking) once he has drunk, the pair is put back when it reaches x 92, the empties
+    are topped up: a steady state of pushes through pairs on all four bars. Deterministic."""
+    PAIR_X, PAIR_DX, PUSHER_X = 44, 6, 100
+
+    def __init__(self, gb, mugs=4):
+        self.mugs = mugs                        # mugs per bar at most (all states)
+        self.gb = gb
+        self.slots = {}
+        self.frame = 0
+
+    def seed(self):
+        gb = self.gb
+        for p in range(MAX_P):
+            put(gb, "patron_state", p, 0)
+        for m in range(MAX_M):
+            put(gb, "mug_state", m, 0)
+        gb.write("mugs_live", 0)
+        for b in range(4):
+            a, c, d = 3 * b, 3 * b + 1, 3 * b + 2
+            self.slots[b] = (a, c, d)
+            self.put_patron(a, b, self.PAIR_X + 2 * b, hurry=0)
+            self.put_patron(c, b, self.PAIR_X + 2 * b + self.PAIR_DX, hurry=0)
+            put(gb, "patron_hurry", a, 1)                  # the one behind is hurried: he passes the other
+            self.put_patron(d, b, self.PUSHER_X - 4 * b, hurry=0)
+        gb.write("patrons_live", 12)
+
+    def put_patron(self, p, b, x, state=WALKING, hurry=0):
+        gb = self.gb
+        put(gb, "patron_state", p, state)
+        put(gb, "patron_bar", p, b)
+        put(gb, "patron_x", p, x)
+        put(gb, "patron_frac", p, 0)
+        put(gb, "patron_draw", p, 255)
+        put(gb, "patron_variant", p, p % 3)
+        put(gb, "patron_timer", p, 0)
+        put(gb, "patron_aux", p, 0)
+        put(gb, "patron_mug", p, 255)
+        put(gb, "patron_dist", p, 0)
+        put(gb, "patron_drinks", p, 2)
+        put(gb, "patron_hurry", p, hurry)
+        put(gb, "patron_catchx", p, x)
+
+    def free_mug(self, b, st, x):
+        gb = self.gb
+        mst = gb.read("mug_state", MAX_M)
+        if 0 not in mst:
+            return
+        m = list(mst).index(0)
+        put(gb, "mug_state", m, st)
+        put(gb, "mug_bar", m, b)
+        put(gb, "mug_x", m, x)
+        put(gb, "mug_timer", m, 0)
+        gb.write("mugs_live", sum(1 for s in gb.read("mug_state", MAX_M) if s))
+
+    def tick(self):
+        gb = self.gb
+        self.frame += 1
+        gb.write("lives", 3)
+        gb.write("quota", 250)
+        gb.write("spawned", 0)
+        put16(gb, "spawn_timer", 5000)
+        gb.write("level_clear", 0)
+        gb.write("game_state", PLAYING)
+        st, px = gb.read("patron_state", MAX_P), gb.read("patron_x", MAX_P)
+        mst, mbar, mx = gb.read("mug_state", MAX_M), gb.read("mug_bar", MAX_M), gb.read("mug_x", MAX_M)
+        for m in range(MAX_M):
+            if mst[m] == EMPTY and mx[m] >= 110:           # an empty before the bartender slides again from the door end
+                put(gb, "mug_x", m, 20)
+        for b, (a, c, d) in self.slots.items():
+            if not st[d] or (st[d] == WALKING and px[d] < self.PUSHER_X - 20):   # drunk (or served out): back on his spot
+                self.put_patron(d, b, self.PUSHER_X - 4 * b)
+            if not st[a] or not st[c] or max(px[a], px[c]) >= 92:
+                self.put_patron(a, b, self.PAIR_X + 2 * b, hurry=1)
+                self.put_patron(c, b, self.PAIR_X + 2 * b + self.PAIR_DX)
+            # 4 mugs on the bar at most, all states counted: the pusher's (full, then held, then his empty) and empties
+            on_bar = [mst[m] for m in range(MAX_M) if mst[m] and mbar[m] == b]
+            if (st[d] == WALKING and FULL not in on_bar and HELD not in on_bar and len(on_bar) < self.mugs
+                    and (self.frame + 7 * b) % 20 == 0):
+                self.free_mug(b, FULL, min(136, px[d] + 30))
+                on_bar.append(FULL)
+            if on_bar.count(EMPTY) < self.mugs - 2 and len(on_bar) < self.mugs:
+                self.free_mug(b, EMPTY, 20 + 10 * (self.frame % 5))
+            mst, mbar = gb.read("mug_state", MAX_M), gb.read("mug_bar", MAX_M)
+
+
+def overlap_run(gb, frames, check=None, mugs=4):
+    """The OverlapCase scenario for `frames` frames; check(gb, i) after each. Returns perf_read."""
+    start_game(gb)
+    goto_level9(gb)
+    gb.write("intro_timer", 0)
+    gb.write("tip_chance", 0)
+    oc = OverlapCase(gb, mugs)
+    oc.seed()
+    gb.run(2)
+    perf_reset(gb)
+    for i in range(frames):
+        oc.tick()
+        gb.run(1)
+        if check:
+            check(gb, i)
+    return perf_read(gb)

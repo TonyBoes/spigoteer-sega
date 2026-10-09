@@ -46,17 +46,27 @@ typedef struct {
 // bars 0+2 at L1, bars 0-2 at L2, all four from L3. The serve score column is unchanged. The empty gap
 // (fair empties, patrons.c) never drops below 80 frames now, above the old 45 floor, so a bar switch and a
 // short walk always fit.
+// M13b (overlapping patrons): from level 3 about 1 in 4 spawns is hurried, at 1.5x the level's walk speed (HURRY_*).
+// To keep the difficulty where it was, the step column of levels 3-9 is retuned so the AVERAGE door-to-tap time is
+// unchanged: with 3/4 at speed v and 1/4 at 1.5 v the mean crossing time is (3/4 + 1/4 / 1.5) = 11/12 of a v walker's,
+// so step_new = step_old x 12/11 (rounded):
+//   level      3    4    5    6    7    8    9
+//   step M13a  59   58   57   56   53   51   48
+//   step M13b  64   63   62   61   58   56   52
+// (hurried walkers then take 64/1.5 = 43 .. 52/1.5 = 35 frames per 8 px: about the old L7 .. beyond the old L9 for
+// that one patron). Levels 1-2 have no hurried patrons and keep their rows. Quota, spawn, push-back and the empty gap
+// are unchanged.
 //                 grp mask per quota spawn step push score gap
 static const level_cfg_t level_table[LEVEL_ROWS] = {
     { 0, 0x5, 1,  8, 300, 64, 4,  50, 120 },   // 1 cowboys: bars 0 and 2
     { 1, 0x7, 1, 10, 275, 60, 4,  75, 110 },   // 2 sports: bars 0-2
-    { 2, 0xF, 1, 10, 269, 59, 4,  75, 108 },   // 3 lumberjacks: all bars
-    { 3, 0xF, 1, 11, 263, 58, 4, 100, 105 },   // 4 chefs
-    { 4, 0xF, 1, 11, 256, 57, 4, 100, 102 },   // 5 divers
-    { 5, 0xF, 1, 12, 250, 56, 4, 125, 100 },   // 6 robots: plays like the old level 3
-    { 6, 0xF, 1, 13, 237, 53, 4, 125,  93 },   // 7 ninjas
-    { 7, 0xF, 1, 15, 223, 51, 3, 150,  87 },   // 8 aliens
-    { 8, 0xF, 1, 16, 210, 48, 3, 150,  80 },   // 9 zoo: plays like the old level 5; level 10 is row 1 again (loop 2)
+    { 2, 0xF, 1, 10, 269, 64, 4,  75, 108 },   // 3 lumberjacks: all bars; hurried patrons from here (M13b)
+    { 3, 0xF, 1, 11, 263, 63, 4, 100, 105 },   // 4 chefs
+    { 4, 0xF, 1, 11, 256, 62, 4, 100, 102 },   // 5 divers
+    { 5, 0xF, 1, 12, 250, 61, 4, 125, 100 },   // 6 robots: plays like the old level 3
+    { 6, 0xF, 1, 13, 237, 58, 4, 125,  93 },   // 7 ninjas
+    { 7, 0xF, 1, 15, 223, 56, 3, 150,  87 },   // 8 aliens
+    { 8, 0xF, 1, 16, 210, 52, 3, 150,  80 },   // 9 zoo: plays like the old level 5; level 10 is row 1 again (loop 2)
 };
 
 static void load_patron_group(uint8_t g) {
@@ -80,6 +90,7 @@ static void load_patron_group(uint8_t g) {
 #define LOOP_SPAWN_PCT   8
 #define LOOP_GAP_STEP    5
 #define EMPTY_GAP_FLOOR 80
+#define HURRY_FROM       3
 void start_level(void) BANKED {
     uint8_t idx = level - 1, k, g;
     const level_cfg_t *c;
@@ -96,6 +107,9 @@ void start_level(void) BANKED {
     // at the same door-to-tap time (within 2%; the speed has a 1/256 px resolution).
     patron_speed = (uint8_t)((((2048u / step_frames) * (PATRON_FAR_X - DOOR_X)) + PATRON_FAR_X / 2) / PATRON_FAR_X);
     patron_speed += (uint8_t)((uint16_t)(patron_speed * (uint8_t)(k * LOOP_SPEED_PCT)) / 100);
+    // M13b: hurried walkers (patrons.c try_spawn, about 1 in 4) from level HURRY_FROM on, loops included, at 1.5x the
+    // speed above (so the loop's +10 % steps apply to them too)
+    hurry_speed = level >= HURRY_FROM ? patron_speed + (patron_speed >> 1) : 0;
     g = c->empty_gap; k *= LOOP_GAP_STEP;
     empty_gap = g >= EMPTY_GAP_FLOOR + k ? g - k : EMPTY_GAP_FLOOR;
     serve_score = c->serve_score; start_per_bar = c->start_per_bar;

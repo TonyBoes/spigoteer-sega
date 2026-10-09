@@ -221,6 +221,7 @@ static void stamp(uint8_t s) {
     if (c + 3 <= cz_x0 || c >= cz_x1) return;             // all outside the span
     if (d & DRAW_BACK) { stamp_back(s, c); return; }
     stamp_look(s, d);
+    if (!(d & 7) && (patron_ovl[s] & (OVL_TWO | OVL_TOP))) { put_col(c, st_t); put_col(c + 1, st_t + 2); return; }   // (M13b)
     if (c >= cz_x0 && c + 3 <= cz_x1) { stamp3(c); return; }
     put_col(c, st_t); put_col(c + 1, st_t + 2); put_col(c + 2, st_t + 4);
 }
@@ -230,7 +231,7 @@ static void stamp(uint8_t s) {
 // patrons of the bar, so it never covers one of them.
 static void stamp_blank(uint8_t s) {
     uint8_t d = patron_draw[s], c;
-    if (d == 255) return;
+    if (d == 255 || (d & DRAW_BACK)) return;              // (a back view covers its own 2 columns; the 3rd stays wall)
     c = (d & ~DRAW_BACK) >> 3;
     if (c + 3 <= cz_x0 || c >= cz_x1) return;
     cz_pal = BGPAL_PATRON + (patron_variant[s] & 3);
@@ -248,15 +249,27 @@ static void restore_base(void) {                         // the wall over the sp
     cp_dst = (uint16_t)(cz_attr + x0); cp_src = (uint16_t)&base_attr[0][x0]; copy_2rows();
 }
 
+// BG patrons of the bar whose OVL_TOP flag is `top` (M13b: the would-be lifted one of a pair left on the BG goes last).
+static void stamp_pass(uint8_t b, uint8_t top) {
+    const uint8_t *q = bar_list[b];
+    uint8_t n, s;
+    for (n = bar_n[b]; n; n--) {
+        s = *q++;
+        if (patron_state[s] != PATRON_NONE && !LIFT_OFF_BG(patron_lift[s]) && (patron_ovl[s] & OVL_TOP) == top) stamp(s);
+    }
+}
+
 static void stamp_bar(uint8_t b) {
     const uint8_t *q = bar_list[b];
-    uint8_t n;
-    if (lift_n[b]) {                                      // lifted ones first: plain wall under their sprites
-        for (n = bar_n[b]; n; n--, q++)
-            if (patron_state[*q] != PATRON_NONE && LIFT_OFF_BG(patron_lift[*q])) stamp_blank(*q);
-        q = bar_list[b];
-        for (n = bar_n[b]; n; n--, q++)
-            if (patron_state[*q] != PATRON_NONE && !LIFT_OFF_BG(patron_lift[*q])) stamp(*q);
+    uint8_t n, two;
+    two = ovl_bars & bar_bit[b];
+    if (lift_n[b] | two) {
+        // Lifted ones first: plain wall under their sprites. M13b: then the BG patrons, the OVL_TOP ones (ovl_bars) last.
+        if (lift_n[b])
+            for (n = bar_n[b]; n; n--, q++)
+                if (patron_state[*q] != PATRON_NONE && LIFT_OFF_BG(patron_lift[*q])) stamp_blank(*q);
+        stamp_pass(b, 0);
+        if (two) stamp_pass(b, OVL_TOP);
         return;
     }
     for (n = bar_n[b]; n; n--, q++)
@@ -294,7 +307,7 @@ uint8_t bg_pending(uint8_t p) {
     return dirty_x0[b] < (uint8_t)(c + 3) && dirty_x1[b] > c;
 }
 
-// Columns c..c+2 of bar b are composed and queued at the head of this frame's list (outside the budget: at most two
+// Columns c-1..c+3 (M13b; M13a: c..c+2) of bar b are composed and queued at the head of this frame's list (before the budget: at most two
 // spans, 48 units, beside the HUD's 15), so they go out in the VBlank that also shows this frame's OAM. 0: not
 // possible this frame (last frame's list still waits, or two are queued already).
 uint8_t bg_urgent(uint8_t b, uint8_t c) {
@@ -538,6 +551,7 @@ static uint8_t queue_bar(uint8_t b) {
     w = dirty_x1[b] - x0;
     if (w > VQ_CHUNK) w = VQ_CHUNK;
     c = chunk_cost[w];
+    if (bar_n[b] > 2) c += (uint8_t)(bar_n[b] - 2) << 3;    // M13b: composing stamps every patron of the bar (crowded bars)
     if (qv_cost && (uint8_t)(qv_cost + c) > VQ_BUDGET) { vram_pending = 1; return 0; }
     qv_cost += c;
     qv_w = w; qv_bar = b; cz_x0 = x0; cz_x1 = x0 + w;
@@ -578,7 +592,11 @@ static void queue_quick(void) {
         d = patron_draw[p];
         if (patron_state[p] == PATRON_NONE || d == 255) continue;   // gone: remove_patron() marked his columns
         if (LIFT_OFF_BG(patron_lift[p])) continue;                  // lifted: his columns stay plain wall
-        if (d & DRAW_BACK) { d = (d & ~DRAW_BACK) >> 3; mark_dirty(patron_bar[p] & (NUM_BARS - 1), d, d + 3); continue; }
+        // (M13b: his footprint meets another BG patron's: OVL_SHARED, or he covers one and stands on shift 0, where a
+        // quick redraw would put his empty 3rd column over the other)
+        if ((d & DRAW_BACK) || (patron_ovl[p] & OVL_SHARED) || (!(d & 7) && (patron_ovl[p] & OVL_TOP))) {
+            d = (d & ~DRAW_BACK) >> 3; mark_dirty(patron_bar[p] & (NUM_BARS - 1), d, d + 3); continue;
+        }
         qv_cost += QUICK_COST;
         quick_entries(p, d);
     }
@@ -586,8 +604,9 @@ static void queue_quick(void) {
 
 // An urgent span (bg_urgent): composed and queued whatever the budget, tiles and (CGB) attributes.
 static void queue_urgent(uint8_t b, uint8_t c) {
-    uint8_t x1 = c + 3;
-    if (x1 > 20) x1 = 20;
+    uint8_t x1 = c + 4;                                   // M13b: c-1..c+3, so a patron lifted on the frame he moved
+    if (x1 > 20) x1 = 20;                                 // (a pixel either way) leaves no BG copy at his old place
+    if (c) c--;
     qv_bar = b; cz_x0 = c; cz_x1 = x1; qv_w = x1 - c;
     qv_cost += chunk_cost[qv_w];
     cz_attrs = is_cgb;

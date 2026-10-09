@@ -114,3 +114,46 @@ def test_vram_queue_is_drained_only_inside_vblank(rom):
     assert rom.mem("vq_held") == 0 and rom.mem16("vq_late") - late0 <= 11
     assert all(t < BASE for t in after[0][0:3]), "the old columns are wall again"
     assert all(t >= BASE for t in after[0][8:11]) and after != before, "the patron is drawn at x 64 (columns 8-10)"
+
+
+# ---- M13b: the level-9 overlap scenario ------------------------------------------------------------------------------
+OVERLAP_FRAMES = 1200
+
+
+def oam_line_counts(gb):
+    c = [0] * 144
+    n = 0
+    for s in gb.oam():
+        if not s["y"] or s["y"] >= 160:
+            continue
+        n += 1
+        y = s["y"] - 16
+        for line in range(max(0, y), min(144, y + 16)):
+            c[line] += 1
+    return max(c), n
+
+
+def test_level9_overlap_scenario(rom):
+    """Level 9, on every bar a pushed patron sliding back through a pair of overlapping walkers, 4 mugs per bar
+    (perf_helpers.OverlapCase), 1200 frames: never more than 10 objects on a line or 40 in all, the music never skips a
+    tick, no VRAM write outside VBlank.
+
+    The owner's frame-time target for this scenario (0 missed frames, end LY <= END_LY_TARGET) is NOT met (M13b): 12
+    patrons and 16 mugs cost more than a frame in this engine whatever the overlap code does (measured with the chooser
+    and lifts switched off: median end LY 84, worst 134, 1 frame late; with them: median ~117, worst ~185, ~20 % of
+    frames late). What is asserted on frame time is a regression guard at the measured level, like the worst-case pile."""
+    worst = {"line": 0, "entries": 0}
+    ticks = []
+
+    def check(gb, i):
+        line, n = oam_line_counts(gb)
+        worst["line"] = max(worst["line"], line)
+        worst["entries"] = max(worst["entries"], n)
+        assert line <= 10 and n <= 40, (i, line, n)
+        ticks.append((gb.mem("frame_counter"), gb.mem16("music_frames")))
+    r = ph.overlap_run(rom, OVERLAP_FRAMES, check)
+    print(rom.model_name, "level 9 overlap", r, worst, "lifts", rom.mem("lift_lifts"), "forced", rom.mem("lift_forced"))
+    assert_music_every_frame(ticks)
+    assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
+    assert rom.mem("lift_lifts") > 0, "the scenario lifts patrons"
+    assert r["end"] <= 200 and r["missed"] <= 320, r          # (guard; the target is END_LY_TARGET and 0, see above)

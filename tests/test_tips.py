@@ -328,24 +328,40 @@ def test_a_distracted_patron_snaps_to_a_multiple_of_8_and_shows_its_back(gb, x0,
         assert gb.read("patron_draw", MAX_P)[i] == x1 | DRAW_BACK
 
 
-def test_the_shuffle_never_crowds_the_patron_behind(gb):
-    """x 43 wants 40, but a walker stands 33 px behind: one step left would put him at 32 (allowed), the next at 31
-    (not). He stops at 42 and keeps facing the bar; the walker behind him is blocked as usual."""
-    i = watcher(gb, 1, 43, others=(10,))
+def other_watcher_first(gb, x, ox):
+    """A watcher at ox, turned round already, then one at x who starts his shuffle (bar 1, nobody walks)."""
+    i = watcher(gb, 1, x, others=(ox,))
+    put(gb, "patron_dist", i, 0)
+    put(gb, "patron_dist", i + 1, 1)
+    gb.write("intro_timer", 255)
+    gb.run(2)
+    assert facing(gb, i + 1) == 1 and gb.read("patron_x", MAX_P)[i] == x
+    put(gb, "patron_dist", i, 1)
+    return i
+
+
+def test_the_shuffle_passes_a_walker_but_never_lands_on_another_watcher(gb):
+    """M13b (was: the shuffle kept PATRON_SPACING from the patron behind). x 43 wants 40 (columns 5-6). A plain walker
+    behind him in those columns does not stop him (walkers can be lifted). Another watcher standing in his back view at
+    32 (columns 4-5) does: neither can be lifted, so they would cover each other; he keeps facing the bar at 43."""
+    i = watcher(gb, 1, 43, others=(30,))
     gb.write("intro_timer", 255)                   # the walker behind stays where he is
     gb.run(10)
+    assert gb.read("patron_x", MAX_P)[i] == 40 and facing(gb, i) == 1, "a walker does not block the shuffle"
+    i = other_watcher_first(gb, 43, 32)
+    gb.run(10)
+    assert facing(gb, i + 1) == 1 and gb.read("patron_x", MAX_P)[i + 1] == 32
     x = gb.read("patron_x", MAX_P)[i]
-    assert x == 42 and facing(gb, i) == 0 and gb.read("patron_draw", MAX_P)[i] == 42
-    assert x - gb.read("patron_x", MAX_P)[i + 1] >= 32
+    assert x == 43 and facing(gb, i) == 0 and gb.read("patron_draw", MAX_P)[i] == 43, "waits facing the bar"
 
 
-def test_four_px_off_with_someone_behind_goes_the_other_way(gb):
-    """x 44, a walker 33 px behind: the 4 px to the left are not free (he could take 1), so he goes right to 48."""
-    i = watcher(gb, 1, 44, others=(11,))
-    gb.write("intro_timer", 255)
+def test_four_px_off_with_a_watcher_on_the_left_place_goes_the_other_way(gb):
+    """M13b (was: a walker 33 px behind). x 44, another watcher in his back view at 32: the place at 40 shares his
+    column 5, so he goes right to 48 (columns 6-7) and turns round."""
+    i = other_watcher_first(gb, 44, 32)
     gb.run(6)
     assert gb.read("patron_x", MAX_P)[i] == 48 and facing(gb, i) == 1
-    assert gb.read("patron_x", MAX_P)[i + 1] == 11
+    assert gb.read("patron_x", MAX_P)[i + 1] == 32 and facing(gb, i + 1) == 1
 
 
 def test_the_shuffle_never_reaches_the_tap(gb):

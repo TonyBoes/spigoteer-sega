@@ -17,6 +17,7 @@ uint8_t  mug_timer[MAX_MUGS];   // frames since breaking began; an empty's frame
 uint8_t  mug_patron[MAX_MUGS];  // MUG_HELD: the patron holding it
 uint8_t  mugs_live;             // number of non-free slots
 uint8_t  oam_used = OAM_FILL + 1;   // OAM entries the mugs (and the fill glass) occupied last frame
+uint8_t  mug_events;            // M13b: counts new mugs and breaking glasses (lift.c recounts the mugs per bar when it moves)
 // Tile and attribute of the mug sprites (lift.c lift_level_init, M13a): CGB the venue's ids and palettes; DMG OBP0 with the
 // bit-plane-swapped copies (OBP1 belongs to the lifted patrons now; the glass shards show their light shades swapped).
 uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p, spr_glass_p;
@@ -35,6 +36,7 @@ uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
     mug_x[slot] = x;
     mug_timer[slot] = 0;
     mugs_live++;
+    mug_events++;
     return 1;
 }
 
@@ -55,6 +57,7 @@ void clear_mugs(void) {
 static void break_mug(uint8_t i) {
     mug_state[i] = MUG_BREAKING;
     mug_timer[i] = 0;
+    mug_events++;
     SFX(SFX_BREAK);
     lose_life();
 }
@@ -201,7 +204,11 @@ static void draw_held(uint8_t i) {
     uint8_t g = mug_patron[i], t, x;
     t = patron_state[g] == PATRON_DRINKING ? patron_timer[g] >> 2 : 255;
     if (t >= POSE_CARRY) t = POSE_CARRY;                     // being carried back: upright, full, at the hand
-    x = patron_draw[g] + pose_dx[t];
+    x = pose_dx[t];
+    // M13b, DMG: between sprites the lower X wins, so a lifted holder's own entries would cover the mug wherever it
+    // starts left of his right entry: dx 8 (level with it; the lower OAM index wins the tie), 16 for the last throw pose.
+    if (!is_cgb && patron_lift[g]) x = t == WINDUP_T0 / 4 + 7 ? 16 : 8;
+    x += patron_draw[g];
     mug_x[i] = x;
     g = pose_tile[t];
     // DMG: the held full mug uses OBP0 (beer light grey, foam white) like the fill glass so it shows on the

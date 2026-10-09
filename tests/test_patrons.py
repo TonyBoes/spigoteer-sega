@@ -73,11 +73,11 @@ def clear_patrons(gb):
     gb.write("patrons_live", 0)
 
 
-def set_patron(gb, bar, x, state=WALKING, timer=0, variant=0, aux=0, frac=0):
+def set_patron(gb, bar, x, state=WALKING, timer=0, variant=0, aux=0, frac=0, hurry=0):
     i = list(gb.read("patron_state", MAX_P)).index(0)
     for n, v in (("patron_state", state), ("patron_bar", bar), ("patron_x", x), ("patron_variant", variant),
                  ("patron_timer", timer), ("patron_aux", aux), ("patron_frac", frac), ("patron_draw", 255),
-                 ("patron_mug", 255), ("patron_drinks", 0)):
+                 ("patron_mug", 255), ("patron_drinks", 0), ("patron_hurry", hurry), ("patron_dist", 0)):
         put(gb, n, i, v)
     gb.write("patrons_live", gb.mem("patrons_live") + 1)
     return i
@@ -166,25 +166,46 @@ def test_intro_delay_holds_patrons(gb):
     assert all(p["x"] == DOOR_X for p in patrons(gb))
 
 
-def test_patron_waits_behind_another(gb):
+def test_a_walker_walks_up_to_and_past_a_drinker(gb):
+    """M13b (was: he waited PATRON_SPACING behind): a walker closes in on a drinker and walks on through him; the
+    drinker drinks on where he stands."""
     clear_patrons(gb)
     go(gb)
-    a = set_patron(gb, 0, 72, state=DRINKING, timer=60)   # drinks for 30 more frames, standing still
-    b = set_patron(gb, 0, 40)                             # exactly SPACING behind: may not step closer
+    a = set_patron(gb, 0, 72, state=DRINKING, timer=0)    # drinks (sways) on the spot for 90 frames
+    b = set_patron(gb, 0, 40)
     gb.run(25)
-    assert gb.read("patron_x", MAX_P)[b] == 40, "blocked"
-    gb.run(STEP)                                          # the drinker walks on; b follows at SPACING
-    xa, xb = gb.read("patron_x", MAX_P)[a], gb.read("patron_x", MAX_P)[b]
-    assert xa > 72 and xb > 40 and SPACING <= xa - xb <= SPACING + 1
+    assert gb.read("patron_x", MAX_P)[b] > 40, "not blocked 32 px behind him"
+    put(gb, "patron_frac", b, 0)
+    for _ in range(40):                                   # (a fast walk: 1 px a frame)
+        gb.write("patron_speed", 255)
+        gb.run(1)
+    xb = gb.read("patron_x", MAX_P)[b]
+    assert xb > 72, "walked past the drinker"
+    assert gb.read("patron_x", MAX_P)[a] == 72 and gb.read("patron_state", MAX_P)[a] == DRINKING
 
 
-def test_blocked_by_a_drinking_patron(gb):
+def test_walkers_pass_a_drinking_patron_one_column_at_a_time(gb):
+    """M13b (was: blocked by a drinker): two walkers behind one drinker; the first passes; the second, a step behind
+    the first, waits only while stepping would put three patrons in one tile column."""
     clear_patrons(gb)
     go(gb)
-    set_patron(gb, 1, 72, state=DRINKING)
-    b = set_patron(gb, 1, 40)
-    gb.run(60)
-    assert gb.read("patron_x", MAX_P)[b] == 40
+    d = set_patron(gb, 1, 74, state=DRINKING, timer=0)    # (x 74, swaying to 76: always columns 9-11)
+    w1 = set_patron(gb, 1, 60)
+    w2 = set_patron(gb, 1, 56)
+    cols = []
+    for _ in range(80):
+        gb.write("patron_speed", 128)
+        gb.run(1)
+        dr = gb.read("patron_draw", MAX_P)
+        cols.append(max(sum(1 for p in (d, w1, w2) if dr[p] != 255 and real_cols(dr[p]).__contains__(c)) for c in range(20)))
+    assert max(cols) <= 2, "never three patrons in a tile column"
+    assert gb.read("patron_x", MAX_P)[w1] > 74 + 8, "the first walker passed the drinker"
+
+
+def real_cols(d):
+    """The tile columns a patron drawn at d really covers (M13b: 2 at shift 0 and in a back view, else 3)."""
+    c = (d & 0x7F) >> 3
+    return range(c, c + (3 if d & 7 else 2))
 
 
 def test_served_near_the_door_is_removed_and_scores(gb):
@@ -274,16 +295,102 @@ def test_a_new_patron_starts_thirsty_again(gb):
     assert all(d == 0 for d in gb.read("patron_drinks", MAX_P)), "spawned patrons reset their drink count"
 
 
-def test_pushed_patron_stops_at_the_patron_behind(gb):
+def test_pushed_patron_slides_through_the_patron_behind(gb):
+    """M13b (was: he stopped at PATRON_SPACING from the patron behind and got no push-back): he slides back his full
+    push-back through the patron behind, who stays where he is; both are drawn (one of them lifted)."""
     clear_patrons(gb)
     freeze(gb)
-    behind = set_patron(gb, 3, 16)
+    behind = set_patron(gb, 3, 24)
     p = set_patron(gb, 3, 64)
     inject_mug(gb, 3, 80)
-    gb.run(40)
-    assert gb.read("patron_x", MAX_P)[behind] == 16
-    assert gb.read("patron_x", MAX_P)[p] == 16 + SPACING, "keeps the spacing"
+    gb.run(3 + PX + 6)
+    assert gb.read("patron_x", MAX_P)[behind] == 24 and gb.read("patron_state", MAX_P)[behind] == WALKING
+    assert gb.read("patron_x", MAX_P)[p] == 64 - PX, "full push-back, through him"
     assert gb.read("patron_state", MAX_P)[p] == DRINKING
+
+
+def clump(gb, bar, xs):
+    """Patrons at xs on `bar`, the first nearest the door."""
+    return [set_patron(gb, bar, x, variant=k % 3) for k, x in enumerate(xs)]
+
+
+def test_the_front_of_a_clump_is_pushed_back_through_it(gb):
+    """The owner's stall: a clump of walkers PATRON_SPACING apart; the front one caught a mug and (blocked by the one
+    behind) drank in place, every time, and the row never moved. M13b: he slides back his full push-back through the
+    others, nobody else moves (no shoving), and a drinker in his minimum drink drinks on."""
+    clear_patrons(gb)
+    freeze(gb)
+    back, mid, front = clump(gb, 1, [40, 40 + SPACING, 40 + 2 * SPACING])
+    put(gb, "patron_state", mid, DRINKING)            # a drinker in his minimum drink
+    put(gb, "patron_timer", mid, 10)
+    inject_mug(gb, 1, 40 + 2 * SPACING + 4)
+    gb.run(3 + PX + 4)
+    xs, st = gb.read("patron_x", MAX_P), gb.read("patron_state", MAX_P)
+    assert xs[front] == 40 + 2 * SPACING - PX, "the front patron gets his full push-back"
+    assert st[front] == DRINKING
+    assert xs[mid] == 40 + SPACING and st[mid] == DRINKING and gb.read("patron_aux", MAX_P)[mid] == DRINK_MIN
+    assert xs[back] == 40 and st[back] == WALKING, "nobody is shoved"
+    assert gb.mem("served") == 0
+
+
+def test_a_patron_pushed_while_overlapping_drinks_and_is_drawn_where_he_stands(gb):
+    clear_patrons(gb)
+    freeze(gb)
+    back, front = clump(gb, 2, [60, 60 + SPACING])
+    gb.run(2)
+    inject_mug(gb, 2, 60 + SPACING + 4)
+    gb.run(3 + PX + 4)
+    xs = gb.read("patron_x", MAX_P)
+    assert xs[front] == 60 + SPACING - PX == 60 and xs[back] == 60, "he ends on top of the one behind"
+    assert gb.read("patron_state", MAX_P)[back] == WALKING
+    lift = gb.read("patron_lift", MAX_P)
+    assert (lift[front] & 3) or (lift[back] & 3), "one of them is drawn as a sprite"
+    bg = back if lift[front] & 3 else front
+    d = gb.read("patron_draw", MAX_P)[bg]
+    col, ids = drawn_tiles(gb.read("patron_variant", MAX_P)[bg], d, 2)
+    assert map_ids(gb, 2, col) == ids, "the other one is on the BG where he stands"
+
+
+def test_a_clump_served_over_and_over_is_cleared(gb):
+    """Serve the front patron of a clump whenever he can catch (walking, or a finished drinker per M8d): the row must
+    clear (before M13b the front one caught every mug in place and the row never moved)."""
+    clear_patrons(gb)
+    go(gb)
+    gb.write("spawned", gb.mem("quota"))              # no new patrons
+    gb.write("tip_chance", 0)
+    lives = gb.mem("lives")
+    clump(gb, 1, [16, 16 + SPACING, 16 + 2 * SPACING, 16 + 3 * SPACING])
+    max_front, catches = 0, 0
+    for f in range(3000):
+        st, xs, aux = gb.read("patron_state", MAX_P), gb.read("patron_x", MAX_P), gb.read("patron_aux", MAX_P)
+        live = [i for i in range(MAX_P) if st[i] and gb.read("patron_bar", MAX_P)[i] == 1]
+        if not live:
+            break
+        front = max(live, key=lambda i: xs[i])
+        max_front = max(max_front, xs[front])
+        ms = gb.read("mug_state", MAX_M)
+        for i in range(MAX_M):                        # the bartender's side is not under test: drop the empties
+            if ms[i] == EMPTY:
+                put(gb, "mug_state", i, FREE)
+                gb.write("mugs_live", gb.mem("mugs_live") - 1)
+        if FULL not in ms and (st[front] == WALKING or (st[front] == DRINKING and aux[front] != DRINK_MIN)):
+            x0 = xs[front]
+            inject_mug(gb, 1, x0 + 4)
+            gb.run(3)
+            if gb.read("patron_state", MAX_P)[front] in (PUSHED, NONE):
+                catches += 1
+                for _ in range(PX + 2):                # every catch moves him back (or out through the door)
+                    gb.run(1)
+                    if gb.read("patron_state", MAX_P)[front] != PUSHED:
+                        break
+                st2, x2 = gb.read("patron_state", MAX_P)[front], gb.read("patron_x", MAX_P)[front]
+                assert st2 == NONE or x2 <= x0 - PX, (f, x0, x2, st2)
+            continue
+        gb.run(1)
+    else:
+        raise AssertionError(f"bar 1 never cleared; front patron at x {max_front}")
+    assert gb.mem("lives") == lives, "nobody reached the tap"
+    assert gb.mem("served") == 4 and catches >= 4
 
 
 def test_bartender_catches_an_empty_mug(gb):

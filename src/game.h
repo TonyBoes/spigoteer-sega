@@ -187,7 +187,7 @@ extern uint8_t  patron_timer[MAX_PATRONS], patron_aux[MAX_PATRONS], patron_mug[M
 extern uint8_t  patron_catchx[MAX_PATRONS], patron_drinks[MAX_PATRONS], patron_dist[MAX_PATRONS], patron_facing[MAX_PATRONS], patrons_live;
 extern uint8_t  mug_state[MAX_MUGS], mug_bar[MAX_MUGS], mug_x[MAX_MUGS], mug_timer[MAX_MUGS];
 extern uint8_t  mug_patron[MAX_MUGS], mugs_live;
-extern uint8_t  oam_used;
+extern uint8_t  oam_used, mug_events;
 // M13a lifted patrons (lift.c): patron_lift[p] LIFT_BG / LIFT_OBJ / LIFT_BEHIND, | LIFT_DROP while the BG copy is being put
 // back (the sprite stays until it is on screen); lift_n[b] patrons of bar b drawn as sprites, lift_total all of them.
 #define LIFT_BG          0
@@ -199,6 +199,19 @@ extern uint8_t  oam_used;
 #define LIFT_PER_BAR     2
 #define LINE_OBJ_MAX    10
 extern uint8_t  patron_lift[MAX_PATRONS], lift_n[NUM_BARS], lift_total, lift_oam_n;
+// M13b overlap rules (lift.c chooses who is lifted): patron_ovl[p] flags for BG patrons whose footprints meet: OVL_SHARED
+// no quick redraws (render.c composes his span: a quick redraw would draw him over someone who covers him, or his empty
+// 3rd column over someone's figure), OVL_TOP drawn after the other BG patrons (the budget-exhausted fallback: the one that
+// would have been lifted covers the other), OVL_TWO at shift 0 only his 2 real columns are stamped (his empty 3rd column
+// lies on another patron's figure). ovl_bars: bars with an OVL_TOP patron (render.c composes them in two passes).
+// ovl_dirty: bars the chooser must look at (ovl_touch: a patron who meets someone changed columns) or that wait for a lift.
+#define OVL_SHARED       1
+#define OVL_TOP          2
+#define OVL_TWO          4
+#define LIFT_CLEAR_FRAMES 8   // a lifted patron drops after this many frames clear of every BG patron (hysteresis)
+extern uint8_t  patron_ovl[MAX_PATRONS], ovl_bars, ovl_dirty;
+// M13b speeds: patron_hurry[p] = 1: a hurried walker (hurry_speed, about 1.5x patron_speed; 0 = no hurried patrons this level)
+extern uint8_t  patron_hurry[MAX_PATRONS], hurry_speed;
 extern uint8_t  lift_hook_op, lift_hook_p, lift_hook_res;
 extern uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p, spr_glass_p, spr_puff_t, spr_puff_p;
 
@@ -218,10 +231,15 @@ void remove_patron(uint8_t p);
 uint8_t catch_full(uint8_t i);                // mugs.c asks for every full mug
 void begin_catch_frame(void);
 extern uint8_t catch_lim[NUM_BARS];          // a full mug at x >= catch_lim[its bar] is caught by nobody (see patrons.c)
-void start_show(void);
-void end_show(void);
+void start_show(void) BANKED;                  // (show.c, bank 5)
+void end_show(void) BANKED;
+void redraw_at(uint8_t p, uint8_t nd);        // p is now drawn at nd (| DRAW_BACK): marks the columns that change
+void ovl_touch(uint8_t p) BANKED;             // (lift.c) p changed columns: wake the chooser if he meets anyone
+uint8_t watch_step(uint8_t p) BANKED;         // (show.c) a distracted walker shuffles to his place and turns round
+uint8_t col_scan(uint8_t b, uint8_t k, uint8_t p);   // M13b: patrons of bar b but p covering column k (cs_dist: a watcher among them)
+extern uint8_t cs_dist;
 void update_patrons(void);
-void place_start_patrons(void);
+void place_start_patrons(void) BANKED;
 void clear_patrons(void);
 
 // ---- mugs.c ------------------------------------------------------------------------------
@@ -240,6 +258,7 @@ extern uint8_t score_tiles[6], lives_tiles[3];
 void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 void put_row(uint8_t y);
 void mark_dirty(uint8_t b, uint8_t x0, uint8_t x1);         // tile ids of columns x0..x1-1 changed
+extern uint8_t frame_t0;                                    // (main.c) the low byte of sys_time when the frame began
 void mark_dirty_attrs(uint8_t b, uint8_t x0, uint8_t x1);   // ... and their CGB attributes too
 void mark_quick(uint8_t p);                                 // patron p moved within his own 3 columns (tile ids only)
 void clear_dirty(void);
@@ -257,7 +276,7 @@ void hide_all_sprites(void);
 void door_puff(uint8_t b);                    // a patron came in / left on bar b: start the dust puff at its door
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
 uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
-uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c..c+2 of bar b first thing this frame (0: not now)
+uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c-1..c+3 of bar b first thing this frame (0: not now)
 extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds: 1 the coin, 2 the show
 // ---- lift.c (banked, M13a lifted patrons) ------------------------------------------------------
 void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palettes / DMG copies and looks, no one lifted

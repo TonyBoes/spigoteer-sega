@@ -14,9 +14,11 @@ DOOR_X = GAME["DOOR_X"]
 
 # (group, start bar mask, start per bar, quota, spawn interval, step frames, pushback, serve score, empty gap)
 TABLE = [   # playtest 4: L6 = old L3, L9 = old L5, linear in between, plateau after
-    (0, 0x5, 1, 8, 300, 64, 4, 50, 120), (1, 0x7, 1, 10, 275, 60, 4, 75, 110), (2, 0xF, 1, 10, 269, 59, 4, 75, 108),
-    (3, 0xF, 1, 11, 263, 58, 4, 100, 105), (4, 0xF, 1, 11, 256, 57, 4, 100, 102), (5, 0xF, 1, 12, 250, 56, 4, 125, 100),
-    (6, 0xF, 1, 13, 237, 53, 4, 125, 93), (7, 0xF, 1, 15, 223, 51, 3, 150, 87), (8, 0xF, 1, 16, 210, 48, 3, 150, 80),
+    # M13b: from L3 about 1 in 4 patrons hurries (1.5x); the step column of L3-L9 is x 12/11 (src/level.c) so the
+    # average door-to-tap time stays where it was (old steps 59 58 57 56 53 51 48)
+    (0, 0x5, 1, 8, 300, 64, 4, 50, 120), (1, 0x7, 1, 10, 275, 60, 4, 75, 110), (2, 0xF, 1, 10, 269, 64, 4, 75, 108),
+    (3, 0xF, 1, 11, 263, 63, 4, 100, 105), (4, 0xF, 1, 11, 256, 62, 4, 100, 102), (5, 0xF, 1, 12, 250, 61, 4, 125, 100),
+    (6, 0xF, 1, 13, 237, 58, 4, 125, 93), (7, 0xF, 1, 15, 223, 56, 3, 150, 87), (8, 0xF, 1, 16, 210, 52, 3, 150, 80),
 ]
 ART_H = (ROOT / "build" / "art.h").read_text()
 PATRON_TILES = int(re.search(r"#define PATRON_GROUP_TILES (\d+)", ART_H).group(1))   # M8b: 144 shifted + 12 back views
@@ -73,7 +75,7 @@ def set_patron(gb, bar, x, pstate=1, frac=0):
     i = list(gb.read("patron_state", MAX_P)).index(0)
     for n, v in (("patron_state", pstate), ("patron_bar", bar), ("patron_x", x), ("patron_variant", 0),
                  ("patron_frac", frac), ("patron_timer", 0), ("patron_aux", 0), ("patron_draw", 255),
-                 ("patron_mug", 255)):
+                 ("patron_mug", 255), ("patron_hurry", 0)):
         put(gb, n, i, v)
     gb.write("patrons_live", gb.mem("patrons_live") + 1)
 

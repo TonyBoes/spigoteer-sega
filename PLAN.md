@@ -360,3 +360,61 @@ DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lif
 - start_level() and the level table moved from main.c to src/level.c (bank 5): ROM0 had no room for M13a.
 - Known for M13b: on DMG the lower X wins between sprites, so a lifted patron covers a mug / the bartender to his right
   where both are opaque; on CGB the coin (OAM 27) and puff (26) are behind lifted patrons.
+
+## M13b as built (the overlap rules)
+- Rules (src/patrons.c): `push_px` no longer stops behind anyone: every caught mug moves the catcher back his full
+  push-back (pushback_px x drinks) unless he goes out through the door (the owner's stalled clump). Walkers pass slower
+  walkers and drinkers: `walker_pixel` waits only when the step from a multiple of 8 would take him into a tile column
+  two other patrons already cover (`col_scan`). Real columns: c = draw >> 3, c + 1, and c + 2 unless at shift 0 or in a
+  back view. Spacing rules reviewed: blocked_ahead is gone; the spawn check keeps PATRON_SPACING clear of the door
+  (M13c changes it); the show shuffle (`watch_step`, now in src/show.c) may land next to or on walkers but never on
+  another watcher (neither can be lifted) nor make three in a column; `start_show` does not distract a walker who shares
+  a column with a watcher already.
+- Speeds: `patron_hurry[16]`, `hurry_speed` = patron_speed x 1.5 (after the arcade loop's +10 %/loop, so loops and
+  caps apply). From level 3 (loops included) `try_spawn` makes 1 in 4 spawns hurried (`next_rand() & 3`, drawn only
+  when hurry_speed != 0: levels 1-2 keep their random sequence). Start patrons never hurry.
+- Retune (src/level.c): the step column of levels 3-9 is x 12/11 so the average door-to-tap time is unchanged
+  (3/4 at v and 1/4 at 1.5 v average 11/12 of a v walker's time): 59 58 57 56 53 51 48 -> 64 63 62 61 58 56 52; a hurried
+  walker then walks like step 43 (L3) .. 35 (L9). Levels 1-2, quota, spawn, push-back and the empty gap are unchanged.
+  Not compensated (playtest): passing (a walker no longer queues behind a slow one) makes a crowded bar a little harder.
+- Chooser (src/lift.c, bank 5): runs for a bar when `ovl_touch` (a patron whose footprint meets another's changed
+  columns or grew from 2 to 3 real columns), a drop, the show or a waiting lift asks (ovl_dirty). Greedy left to
+  right over the BG patrons sorted by column; a pair sharing a real column lifts the higher priority one (pushed 4 >
+  hurried walker 3 > walker 2 > drinker 1; never a watcher, a back view or one being dropped; ties: the right one).
+  Lifted patrons stay up while they cover a BG patron and drop after LIFT_CLEAR_FRAMES (8) clear frames (and x >=
+  DOOR_X). A lift now also works on the frame the patron moved: the urgent span is c-1..c+3.
+- Fallback (budgets: LIFT_MAX 4, LIFT_PER_BAR 2, mugs + lifted entries <= 19, <= 10 objects on the bar's lines; or this
+  frame's copy list): the pair stays on the BG, the would-be lifted one has OVL_TOP (drawn last; the bar is composed in
+  two passes), the covered one OVL_SHARED (no quick redraw), a shift-0 patron whose empty 3rd column lies on another's
+  figure OVL_TWO (stamps 2 columns, no quick redraw); a TOP patron at shift 0 also stamps 2 columns. Retried next frame
+  (copy list) or 16 frames later (budgets). Flags that change make their columns composed again.
+- DMG held-mug clamp (src/mugs.c `draw_held`): a lifted holder's mug at dx 8 (16 in the last throw pose) on DMG.
+- Catching unchanged (rightmost catcher whose 16 px contain the mug); fair empties unchanged.
+- Cost: on the Game Boy one line is 114 machine cycles, and an SDCC loop over 16-20 slots costs 5-15 lines whatever it
+  does, so the per-frame loops are hand-written: `lifted_scan`, `est_mugs` (cached until mugs_live / mug_events move),
+  `draw_lifted_asm`, the chooser's `gather_asm` / `choose_asm`. The chooser looks at one bar only on a frame past line
+  48, at none past line 80 (at least every 4th frame), the rest next frame. `queue_bar` charges 8 more units per patron
+  beyond 2 on a bar (composing stamps them all). ROM: show.c (start/end_show, watch_step, place_start_patrons) moved out
+  of ROM0 (autobanked); ovl_touch is banked; ROM0 ends at 0x3E18 (488 B free by the map; romusage says 829), bank 5 ~80 B free.
+- GBDK vsync race (the M13a worst-case-pile spike, 182/187 -> 218/223): not M13a's code. GBDK's wait_vbl_done clears
+  its flag then halts; a VBlank interrupt between the two sets the flag before the halt and the CPU sleeps until the
+  next interrupt (the banner LYC at line 86). M13a's pile had one frame ending at line 143, which slept until line 87
+  and then ran ~130 lines of logic (end LY 217/223). main.c `frame_wait()` checks the flag with interrupts off and
+  halts with IME 0 (wakes on any pending interrupt, which is taken after the ei).
+- Perf (PyBoy, end LY / missed): level 8 script DMG 90 / 0, CGB 100 / 0 (M13a 94 / 95); worst-case pile DMG 208, CGB
+  206-209 (guard 230; M13a 218/223); level 9 script (2400 frames) DMG 100, CGB 108, 0 missed; NEW level-9 overlap
+  scenario (perf_helpers.OverlapCase: pushes through pairs on every bar, 4 mugs per bar): DMG 175 / 229 late of 1200,
+  CGB 180 / 264 late, <= 9 objects per line, <= 24 entries. The owner's target for it (0 missed, end LY <= 118) is NOT met:
+  with the chooser and lifts switched off the same load already runs median 84, worst 134 (12 patrons and 16 mugs:
+  update_patrons ~25 lines, draw_mugs ~25, update_mugs ~13); with them median ~117. test_perf asserts the object
+  budgets every frame and a regression guard (end <= 200, missed <= 320).
+- Tests: tests/test_overlap.py (slide-through and pass with a structural picture check every frame: BG ids per
+  column, empty columns, lifted sprites; drop after clear; hurried 1 in 4 from L3 at 1.5x; the three-in-a-column wait;
+  the budget fallback; three in a column by a push; priorities; catch order; empties from an overlapped drinker; DMG
+  dx); test_patrons (clump repro: served over and over, the row clears; slide through; rewritten waiting tests);
+  test_tips (shuffle rules); test_perf (overlap scenario); test_smooth's every-pixel test samples at vq_frame_end.
+  Screenshots: out/m13b/slide_through.*.png, pass.*.png.
+- Known compromises: DMG lower X wins between sprites, so a lifted patron covers mugs / the bartender / the held mug of
+  a BG patron to his right (only his own mug is clamped); CGB coin and puff are behind lifted patrons; in the fallback a
+  TOP patron at shift 0 leaves his 3rd column as venue wall (its specks show) instead of his own wall colour; on a
+  frame past line 80 the chooser waits (up to 4 frames) and a new overlap is drawn by the old flags meanwhile.

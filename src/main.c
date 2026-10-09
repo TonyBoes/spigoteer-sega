@@ -353,6 +353,7 @@ static void enter_level_screen(void) {
     hide_all_sprites();
     draw_bartender();
     game_over = 0;
+    music_play(TUNE_VENUE0 + cur_group);          // the venue's own tune (before the state: a test sampling mid-load sees it)
     if (cur_group == 0 && level > 1) {            // M10b: a new loop begins: "LOOP n" first, then the level's intro
         char s[8] = "LOOP ";
         if (arcade_loop >= 10) { s[5] = '0' + arcade_loop / 10; s[6] = '0' + arcade_loop % 10; }
@@ -361,7 +362,6 @@ static void enter_level_screen(void) {
         state_timer = 0;
         game_state = GS_LOOP;
     } else game_state = GS_PLAYING;               // (one write: a test sampling mid-load never sees PLAYING before LOOP)
-    music_play(TUNE_VENUE0 + cur_group);          // the venue's own tune
     DISPLAY_ON;
 }
 
@@ -649,7 +649,7 @@ static void update(void) {
     }
 
     SEC(SEC_REST);
-    if ((lift_total | lift_hook_op) && (game_state == GS_PLAYING || game_state == GS_LIFE_LOST)) lift_frame();   // M13a
+    if ((lift_total | lift_hook_op | ovl_dirty) && (game_state == GS_PLAYING || game_state == GS_LIFE_LOST)) lift_frame();   // M13a/b
     if (vram_pending || hud_dirty) queue_vram();
     SEC(SEC_QUEUE);
     if (game_state == GS_PLAYING || game_state == GS_LIFE_LOST) {
@@ -684,6 +684,7 @@ static void update(void) {
 // when the frame's work ended: 0..143 normally (a frame that finishes inside the VBlank it started in reads 0).
 // A frame that ran past the next VBlank reads 144 + the lines since that VBlank began (+154 per extra one).
 // During the frame only (sys_time, LY) snapshots are taken; the arithmetic happens after the music tick.
+uint8_t  frame_t0;          // (uint8_t)sys_time when this frame began (lift.c: has the frame run into the next one?)
 uint16_t perf_logic_max;    // highest end LY of update() so far
 uint16_t perf_end_max;      // ... of update() + music tick
 uint16_t perf_logic_last, perf_end_last;     // this frame's
@@ -702,13 +703,40 @@ static uint16_t perf_ly(uint8_t t0, uint8_t t, uint8_t ly) {
     return 144 + (uint16_t)(dt - 1) * 154 + (ly >= 144 ? ly - 144 : ly + 10);
 }
 
+// Wait for the next VBlank (GBDK's vsync() without its race). vsync() clears the "VBlank done" flag and then halts: a
+// VBlank interrupt that lands between the two sets the flag before the halt, and the CPU then sleeps until the next
+// interrupt, the banner's LYC at line 86 or a whole frame later (M13b: the worst-case pile's 218/223 end LY was a frame
+// that ended at line 143 and slept until line 87). Here the flag is checked with interrupts off, and the halt (IME 0)
+// wakes on any pending interrupt, which is then taken after the ei.
+static void frame_wait(void) __naked {
+__asm
+    ldh  a, (0x40)          ; LCD off: nothing to wait for (as vsync)
+    and  a, #0x80
+    ret  z
+    xor  a, a
+    ld   (__vbl_done), a
+1$:
+    di
+    ld   a, (__vbl_done)
+    or   a, a
+    jr   nz, 2$
+    halt
+    nop                     ; (if an interrupt was already pending, the halt bug only repeats this nop)
+    ei
+    jr   1$                 ; the pending interrupt is taken after this instruction
+2$:
+    ei
+    ret
+__endasm;
+}
+
 void main(void) {
     uint8_t t0, ly0, st0, lt, lly, d, ok;
     init();
     perf_last_t = (uint8_t)sys_time;
     while (1) {
-        vsync();
-        t0 = (uint8_t)sys_time; ly0 = LY_REG; st0 = game_state;
+        frame_wait();
+        frame_t0 = t0 = (uint8_t)sys_time; ly0 = LY_REG; st0 = game_state;
         SEC_BEGIN();
         update();
         vq_frame_end();      // the copy list is complete: the next VBlank interrupt executes it

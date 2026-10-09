@@ -1,16 +1,31 @@
-// M13a: lifted patrons, the plumbing (docs/overlap_design.md). A patron is a BG picture (render.c) until he is lifted:
-// then he is drawn as two 8x16 sprites from his own shift-0 BG tiles (the tiles are stored column by column, the
-// shift-0 poses at even ids >= 128, see tools/gen_art.py) and his BG footprint shows plain wall. No rule lifts anyone
-// yet (that is M13b); the test hook below does, and this file keeps the lifted set legal every frame:
-//   - lift: the sprite shows at once and the BG copy is erased in the same VBlank (bg_urgent); never while last
-//     frame's copy list still waits (vq_held) or his BG copy is not on screen yet (bg_pending).
+// M13a/b: lifted patrons (docs/overlap_design.md). A patron is a BG picture (render.c) until he is lifted: then he is
+// drawn as two 8x16 sprites from his own shift-0 BG tiles (the tiles are stored column by column, the shift-0 poses at
+// even ids >= 128, see tools/gen_art.py) and his BG footprint shows plain wall. M13b: the chooser (choose_bar) lifts
+// patrons so that the BG ones never share a tile column, and drops them again when clear; the test hook below can
+// lift one too (he stays lifted until the hook drops him). This file keeps the lifted set legal every frame:
+//   - lift: the sprite shows at once and the BG copy is erased in the same VBlank (bg_urgent: columns c-1..c+3, so a
+//     patron lifted on the frame he moved a pixel leaves nothing at his old place); never while last frame's copy
+//     list still waits (vq_held).
 //   - drop: the BG copy is put back first (queued at once when possible) and the sprite stays until that copy has gone
 //     out (one more frame at least), so no frame shows him missing or twice.
 //   - budget: at most LIFT_PER_BAR per bar and LIFT_MAX in all (OAM 18-25); a lift needs room for 2 more objects on
 //     the bar's patron lines (estimate below, at most LINE_OBJ_MAX) and in OAM next to the mugs (which never lose an
 //     entry); when either goes over, lifted patrons are dropped (forced drops go at once: BG copy and sprite swap in
 //     one VBlank).
-// Banked (bank 1 and 2 are full); lift_frame / draw_lifted are only called while someone is lifted or the hook is set.
+//   - M13b chooser, per bar whose patron columns changed (ovl_dirty): the BG patrons, left to right; when one shares a
+//     real column with the last one kept on the BG, the one with the higher priority is lifted (pushed > hurried walker
+//     > walker > drinker; never one watching the show or in his back view, never one being dropped). A lifted patron
+//     stays lifted while he shares a column with a BG patron, and drops after LIFT_CLEAR_FRAMES clear frames.
+//   - when a lift cannot be done (budgets, this frame's copy list), the pair stays on the BG: the one that would have
+//     been lifted is drawn last (OVL_TOP: the bar is composed in two passes), quick redraws are off for whoever they
+//     would draw wrongly (OVL_SHARED), a shift-0 patron whose empty 3rd column lies on another's figure stamps only his
+//     2 real columns (OVL_TWO); the lift is tried again next frame (the copy list) or RETRY_FRAMES later (budgets).
+//   - the chooser runs for a bar only when ovl_touch (a patron who meets someone changed columns), a drop, the show or
+//     a waiting lift asks; at most one bar on a frame that is already late (CHOOSER_LY_*), the rest next frame.
+// Cost (M13b, measured; one line = 114 machine cycles): the per-frame loops (lifted_scan, est_mugs, draw_lifted_asm)
+// and the chooser's (gather_asm, choose_asm) are hand-written; the same loops in C cost 5-15 lines each.
+// Banked (bank 1 and 2 are full); lift_frame / draw_lifted are only called while someone is lifted, the chooser has
+// work (ovl_dirty) or the hook is set.
 #pragma bank 5
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -27,8 +42,17 @@ uint8_t lift_load[NUM_BARS];        // the per-bar estimate of objects on the pa
 uint8_t lift_mug_oam;               // OAM entries the mugs need this frame
 uint8_t lift_forced;                // forced drops so far (tests read it)
 uint8_t spr_puff_t, spr_puff_p;     // the door puff's first tile and attribute (render.c draws it)
+uint8_t patron_ovl[MAX_PATRONS];    // M13b: OVL_SHARED / OVL_TOP / OVL_TWO (BG patrons whose footprints meet; render.c)
+uint8_t ovl_bars;                   // bars with an OVL_TOP patron: composed in two passes (render.c)
+uint8_t ovl_dirty;                  // bars the chooser must look at (columns changed, or a lift still waits)
+// (lift_busy and lift_pin in one array, so lifted_scan finds lift_pin[p] at lift_busy + 16)
+uint8_t lift_bp[2][MAX_PATRONS];
+#define lift_busy lift_bp[0]        // a lifted patron shares a column with a BG one (at the chooser's last look)
+#define lift_pin  lift_bp[1]        // lifted by the test hook: stays until the hook drops him
+uint8_t lift_clear[MAX_PATRONS];    // ... frames he has been clear of BG patrons (drops at LIFT_CLEAR_FRAMES)
+uint8_t lift_lifts;                 // lifts by the chooser so far (tests read it)
 // Test hook: lift_hook_p = slot, lift_hook_op = HOOK_*; lift_frame() does it as soon as it may (lift_hook_res = 1, op
-// cleared) or refuses it (res 2, op cleared). A lift waits while vq_held / his BG copy is pending.
+// cleared) or refuses it (res 2, op cleared). A lift waits while vq_held.
 uint8_t lift_hook_op, lift_hook_p, lift_hook_res;
 enum { HOOK_NONE, HOOK_LIFT, HOOK_BEHIND, HOOK_DROP };
 enum { RES_NONE, RES_DONE, RES_REFUSED };
@@ -39,6 +63,8 @@ enum { RES_NONE, RES_DONE, RES_REFUSED };
 
 static const uint8_t lift_pal[4] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_A };
 static const uint8_t lift_tile[4] = { PATRON_OBJ_BASE, PATRON_OBJ_BASE + 6, PATRON_OBJ_BASE + 12, PATRON_OBJ_BASE };
+static uint8_t lift_prop[4];          // OAM attributes of variant v (CGB its palette, DMG OBP1), set at level load
+static uint8_t mg_live;
 
 // n OBJ tiles src -> dst with the two bit planes swapped (colours 1 and 2 trade places). LCD off.
 static void swap_copy(uint8_t src, uint8_t dst, uint8_t n) {
@@ -52,7 +78,10 @@ static void swap_copy(uint8_t src, uint8_t dst, uint8_t n) {
 void lift_level_init(uint8_t g) BANKED {
     uint8_t v, i;
     palette_t p;
-    for (v = 0; v < MAX_PATRONS; v++) patron_lift[v] = LIFT_BG;
+    for (v = 0; v < MAX_PATRONS; v++) { patron_lift[v] = LIFT_BG; patron_ovl[v] = 0; lift_pin[v] = 0; }
+    ovl_bars = 0; ovl_dirty = 0;
+    mg_live = 255;
+    for (v = 0; v < 4; v++) lift_prop[v] = is_cgb ? lift_pal[v] : S_PALETTE;
     for (v = 0; v < NUM_BARS; v++) lift_n[v] = 0;
     lift_total = 0; lift_oam_n = 0; lift_hook_op = HOOK_NONE;
     pal5_cur = 2;                                 // load_venue put the show's palette in slot 5
@@ -82,41 +111,126 @@ void lift_level_init(uint8_t g) BANKED {
 
 static uint8_t col_of(uint8_t p) { return (patron_draw[p] & ~DRAW_BACK) >> 3; }
 
-static void recount(void) {
-    uint8_t p, b;
-    lift_n[0] = lift_n[1] = lift_n[2] = lift_n[3] = 0;
-    lift_total = 0;
-    for (p = 0; p < MAX_PATRONS; p++) {
-        if (!patron_lift[p]) continue;
-        if (patron_state[p] == PATRON_NONE || patron_draw[p] == 255) { patron_lift[p] = LIFT_BG; continue; }
-        b = patron_bar[p] & (NUM_BARS - 1);
-        lift_n[b]++;
-        lift_total++;
-    }
-}
 
 // Objects on bar b's patron lines (its top 16 lines), counted generously: the bartender's top pair on his bar and his
 // bottom pair on the bar below (it covers the heads), the fill glass, every mug (a breaking glass is 2 entries and
 // falls 3 lines into the bar below), the coin, the puff, and 2 per patron drawn as sprites.
 static uint8_t ld[NUM_BARS];
+
+// M13b: the per-frame loops are hand-written; an SDCC loop over 16-20 slots costs 5-15 lines whatever it does.
+// est_mugs: every mug into ld[] (1, or 2 on its bar and 2 on the next for a breaking glass) and lift_mug_oam.
+static void est_mugs(void) __naked {
+__asm
+    push bc
+    ld   hl, #_mug_state
+    ld   de, #_mug_bar
+    ld   b, #20             ; MAX_MUGS
+    ld   c, #0              ; OAM entries
+1$:
+    ld   a, (hl+)
+    or   a, a
+    jr   z, 5$
+    push hl
+    push af                 ; (its state)
+    ld   a, (de)
+    and  a, #3
+    add  a, #<(_ld)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_ld)
+    ld   h, a               ; &ld[its bar]
+    pop  af
+    cp   a, #3              ; MUG_BREAKING
+    jr   z, 3$
+    inc  (hl)
+    inc  c
+    jr   4$
+3$:
+    inc  (hl)
+    inc  (hl)
+    inc  c
+    inc  c
+    ld   a, (de)
+    and  a, #3
+    cp   a, #3
+    jr   z, 4$
+    inc  hl                 ; (it falls into the bar below)
+    inc  (hl)
+    inc  (hl)
+4$:
+    pop  hl
+5$:
+    inc  de
+    dec  b
+    jr   nz, 1$
+    ld   a, c
+    ld   (_lift_mug_oam), a
+    pop  bc
+    ret
+__endasm;
+}
+
+// scan_nz: the indices i < scan_len with scan_src[i] != 0, into scan_buf (scan_cnt of them).
+static const uint8_t *scan_src;
+static uint8_t scan_len, scan_cnt, scan_buf[MAX_PATRONS];
+static void scan_nz(void) __naked {
+__asm
+    push bc
+    ld   a, (_scan_src)
+    ld   l, a
+    ld   a, (_scan_src + 1)
+    ld   h, a
+    ld   de, #_scan_buf
+    ld   a, (_scan_len)
+    ld   b, a
+    ld   c, #0
+1$:
+    ld   a, (hl+)
+    or   a, a
+    jr   z, 2$
+    ld   a, c
+    ld   (de), a
+    inc  de
+2$:
+    inc  c
+    dec  b
+    jr   nz, 1$
+    ld   a, e
+    sub  a, #<(_scan_buf)
+    ld   (_scan_cnt), a
+    pop  bc
+    ret
+__endasm;
+}
+
+static void scan_lifted(void) { scan_src = patron_lift; scan_len = MAX_PATRONS; scan_nz(); }
+
+// The mugs' part is counted again only when the mugs changed: one more or fewer (mugs_live; a test's poke too), a new
+// one or a breaking glass (mug_events, which also catches one gone and one new in the same frame).
+static uint8_t mg_ld[NUM_BARS], mg_oam, mg_ev;
 static void estimate(void) {
-    uint8_t i, st, b, m = 0;
-    for (b = 0; b < NUM_BARS; b++) ld[b] = lift_n[b] << 1;
+    uint8_t b;
+    if (mugs_live != mg_live || mug_events != mg_ev) {
+        ld[0] = ld[1] = ld[2] = ld[3] = 0;
+        est_mugs();
+        mg_ld[0] = ld[0]; mg_ld[1] = ld[1]; mg_ld[2] = ld[2]; mg_ld[3] = ld[3];
+        mg_oam = lift_mug_oam; mg_live = mugs_live; mg_ev = mug_events;
+    }
+    lift_mug_oam = mg_oam;
+    ld[0] = mg_ld[0] + (lift_n[0] << 1); ld[1] = mg_ld[1] + (lift_n[1] << 1);
+    ld[2] = mg_ld[2] + (lift_n[2] << 1); ld[3] = mg_ld[3] + (lift_n[3] << 1);
     b = bar & (NUM_BARS - 1);
     ld[b] += fill_timer ? 3 : 2;
     if (b < NUM_BARS - 1) ld[b + 1] += 2;
-    for (i = 0; i < MAX_MUGS; i++) {
-        st = mug_state[i];
-        if (st == MUG_FREE) continue;
-        b = mug_bar[i] & (NUM_BARS - 1);
-        if (st == MUG_BREAKING) {
-            ld[b] += 2; m += 2;
-            if (b < NUM_BARS - 1) ld[b + 1] += 2;
-        } else { ld[b]++; m++; }
-    }
     if (tip_timer) ld[tip_bar & (NUM_BARS - 1)]++;
     if (puff_timer) ld[puff_bar & (NUM_BARS - 1)]++;
-    lift_mug_oam = m;
+}
+
+static uint8_t est_ok;                // the estimate is this frame's (lift_frame computes it only when someone needs it)
+static void need_estimate(void) {
+    if (est_ok) return;
+    estimate();
+    est_ok = 1;
 }
 
 // Drop p: his BG copy goes back first (at the head of this frame's list when possible); the sprite stays until it
@@ -124,6 +238,8 @@ static void estimate(void) {
 static void begin_drop(uint8_t p) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1), c = col_of(p);
     patron_lift[p] |= LIFT_DROP;
+    lift_pin[p] = 0;
+    ovl_dirty |= bar_bit[b];                              // (the chooser looks at the bar again: he is BG now)
     if (!bg_urgent(b, c)) mark_dirty(b, c, c + 3);
 }
 
@@ -134,19 +250,130 @@ static void force_drop(uint8_t p) {
     lift_forced++;
     if (!bg_urgent(b, col_of(p))) { begin_drop(p); return; }
     patron_lift[p] = LIFT_BG;
+    lift_pin[p] = 0;
+    ovl_dirty |= bar_bit[b];
     lift_n[b]--;
     lift_total--;
 }
 
-static void finish_drops(void) {
-    uint8_t p;
-    if (vq_held) return;                                  // last frame's list (maybe his copy) has not gone out
-    for (p = 0; p < MAX_PATRONS; p++) {
-        if (!(patron_lift[p] & LIFT_DROP) || bg_pending(p)) continue;
-        patron_lift[p] = LIFT_BG;                         // his BG copy is on screen: the sprite goes this frame
-        lift_n[patron_bar[p] & (NUM_BARS - 1)]--;
-        lift_total--;
+// One pass over the patrons drawn as sprites, every frame while there are any: lift_n / lift_total recounted; one who
+// has left is forgotten; a drop whose BG copy is on screen ends (the sprite goes this frame); one watching the show (or
+// turned to it) drops at once (he turns round on the BG); one clear of every BG patron for LIFT_CLEAR_FRAMES drops
+// (lift_busy is the chooser's last look; one lifted by the test hook stays).
+static void lifted_one(uint8_t p, uint8_t v) {
+    uint8_t b;
+    if (patron_state[p] == PATRON_NONE || patron_draw[p] == 255) { patron_lift[p] = LIFT_BG; return; }
+    b = patron_bar[p] & (NUM_BARS - 1);
+    if (v & LIFT_DROP) {
+        if (!vq_held && !bg_pending(p)) { patron_lift[p] = LIFT_BG; ovl_dirty |= bar_bit[b]; return; }
+    } else if ((patron_draw[p] & DRAW_BACK) || patron_dist[p]) begin_drop(p);
+    else if (!lift_busy[p] && !lift_pin[p]) {
+        if (lift_clear[p] < LIFT_CLEAR_FRAMES) lift_clear[p]++;
+        else if (patron_x[p] >= DOOR_X) begin_drop(p);
     }
+    lift_n[b]++;
+    lift_total++;
+}
+
+static uint8_t lo_p;
+static void lifted_slow(void) { lifted_one(lo_p, patron_lift[lo_p]); }
+
+// The pass itself (hand-written): the usual case, a lifted patron still over a BG one (or pinned by the test hook), is
+// only counted here; everything else goes to lifted_one.
+static void lifted_scan(void) __naked {
+__asm
+    push bc
+    ld   hl, #_patron_lift
+    ld   c, #0              ; p
+1$:
+    ld   a, (hl+)
+    or   a, a
+    jr   z, 8$
+    bit  7, a
+    jr   nz, 7$             ; (dropping)
+    push hl
+    ld   a, c
+    add  a, #<(_patron_state)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_state)
+    ld   h, a
+    ld   a, (hl)
+    or   a, a
+    jr   z, 6$              ; (gone)
+    ld   a, c
+    add  a, #<(_patron_draw)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_draw)
+    ld   h, a
+    ld   a, (hl)
+    cp   a, #0xFF
+    jr   z, 6$              ; (not drawn)
+    bit  7, a
+    jr   nz, 6$             ; (back view)
+    ld   a, c
+    add  a, #<(_patron_dist)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_dist)
+    ld   h, a
+    ld   a, (hl)
+    or   a, a
+    jr   nz, 6$             ; (watching the show)
+    ld   a, c
+    add  a, #<(_lift_bp)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_lift_bp)
+    ld   h, a
+    ld   a, (hl)
+    ld   de, #16            ; lift_pin follows lift_busy (+ 16)
+    add  hl, de
+    or   a, (hl)
+    jr   z, 6$              ; (clear: counting frames)
+    ld   a, c
+    add  a, #<(_patron_bar)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_bar)
+    ld   h, a
+    ld   a, (hl)
+    and  a, #3
+    add  a, #<(_lift_n)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_lift_n)
+    ld   h, a
+    inc  (hl)               ; lift_n[his bar]++
+    ld   hl, #_lift_total
+    inc  (hl)
+    pop  hl
+    jr   8$
+6$:
+    pop  hl
+7$:
+    push hl
+    push bc
+    ld   a, c
+    ld   (_lo_p), a
+    call _lifted_slow
+    pop  bc
+    pop  hl
+8$:
+    inc  c
+    ld   a, c
+    cp   a, #16             ; MAX_PATRONS
+    jr   nz, 1$
+    pop  bc
+    ret
+__endasm;
+}
+
+static void lifted_pass(void) {
+    lift_n[0] = lift_n[1] = lift_n[2] = lift_n[3] = 0;
+    lift_total = 0;
+    lifted_scan();
 }
 
 // A lifted (not dropping) patron of bar b (b = NUM_BARS: any bar), the last slot first; NO_SLOT if none.
@@ -175,10 +402,14 @@ static uint8_t try_lift(uint8_t p, uint8_t mode) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1), d = patron_draw[p];
     if (patron_state[p] == PATRON_NONE || patron_lift[p] || d == 255 || (d & DRAW_BACK) || patron_dist[p]) return 0;
     if (lift_total >= LIFT_MAX || lift_n[b] >= LIFT_PER_BAR) return 0;
+    if (mugs_live + ((lift_total + 1) << 1) > MUG_OAM_ALL - OAM_SPARE) return 0;   // (cheap first: mugs_live <= their entries)
+    need_estimate();
+    if (lift_total >= LIFT_MAX || lift_n[b] >= LIFT_PER_BAR) return 0;
     if (lift_mug_oam + ((lift_total + 1) << 1) > MUG_OAM_ALL - OAM_SPARE) return 0;
     if (ld[b] + 2 > LINE_OBJ_MAX) return 0;
-    if (vq_held || bg_pending(p) || !bg_urgent(b, d >> 3)) return 2;   // sprite now, BG erased in the same VBlank
+    if (vq_held || !bg_urgent(b, d >> 3)) return 2;   // sprite now, BG erased in the same VBlank (old place too)
     patron_lift[p] = mode;
+    lift_busy[p] = 1; lift_clear[p] = 0; lift_pin[p] = 0;
     lift_n[b]++;
     lift_total++;
     ld[b] += 2;
@@ -190,43 +421,668 @@ static void hook(void) {
     if (lift_hook_op == HOOK_DROP) {
         if (!LIFT_OFF_BG(patron_lift[p])) r = 0;
         else { begin_drop(p); r = 1; }
-    } else r = try_lift(p, lift_hook_op == HOOK_BEHIND ? LIFT_BEHIND : LIFT_OBJ);
+    } else {
+        r = try_lift(p, lift_hook_op == HOOK_BEHIND ? LIFT_BEHIND : LIFT_OBJ);
+        if (r == 1) lift_pin[p] = 1;
+    }
     if (r == 2) return;                                   // try again next frame
     lift_hook_res = r ? RES_DONE : RES_REFUSED;
     lift_hook_op = HOOK_NONE;
 }
 
-// Every frame while someone is lifted (or the hook is set), after the rules and before queue_vram().
+extern uint8_t bar_list[NUM_BARS][MAX_PATRONS], bar_n[NUM_BARS];
+void build_lists(void);
+
+// M13b: p changed columns (or between 2 and 3 real columns): the chooser (lift.c) looks at his bar if his footprint
+// (3 columns, 2 in a back view) meets another patron's, if he had overlap flags, or if someone on the bar is lifted
+// (whether that one still covers a BG patron may change). A lone patron costs the chooser nothing.
+void ovl_touch(uint8_t p) BANKED {
+    const uint8_t *q;
+    uint8_t b = patron_bar[p] & (NUM_BARS - 1), n, s, d, c, e;
+    if (patron_ovl[p] | lift_n[b]) goto dirty;
+    d = patron_draw[p];
+    c = (d & ~DRAW_BACK) >> 3;
+    e = c + ((d & DRAW_BACK) ? 2 : 3);
+    if (!lists_ok) build_lists();
+    q = bar_list[b];
+    for (n = bar_n[b]; n; n--) {
+        s = *q++;
+        if (s == p || (d = patron_draw[s]) == 255 || patron_state[s] == PATRON_NONE) continue;
+        if (((d & ~DRAW_BACK) >> 3) < e && c < ((d & ~DRAW_BACK) >> 3) + ((d & DRAW_BACK) ? 2 : 3)) goto dirty;
+    }
+    return;
+dirty:
+    ovl_dirty |= bar_bit[b];
+}
+
+// ---- M13b: the chooser ------------------------------------------------------------------------------------------------
+
+// The bar's drawn patrons as 4-byte records sorted by first column: [0] first column c, [1] end of his real columns
+// (c + 2 at shift 0 and in a back view, else c + 3), [2] end of his footprint (c + 3; c + 2 in a back view), [3] slot |
+// his patron_ovl flags (3 bits) before this pass << 4 | REC_OBJ when he is drawn as a sprite (lifted, not dropping). Walked with
+// pointers: SDCC indexes arrays slowly.
+#define REC_OBJ  0x80
+#define REC_SLOT 0x0F
+static uint8_t rec[MAX_PATRONS * 4];
+static uint8_t *rec_end;
+static uint8_t g_bar, g_c, g_d, g_o;  // gather_asm's bar, and the column / drawn x / old flags of the patron being filed
+
+// Hand-written (the C version cost ~5 DIV ticks a patron, and the chooser runs whenever a patron changes columns):
+// for each live slot s in bar_list[g_bar]: patron_ovl[s] = 0; if drawn, file his record into rec[] (insertion sort by
+// column; see above), rec_end after the last one. bar_list must be current (gather() rebuilds it first).
+static void gather_asm(void) __naked {
+__asm
+    push bc
+    ld   hl, #_rec_end
+    ld   a, #<(_rec)
+    ld   (hl+), a
+    ld   (hl), #>(_rec)
+    ld   a, (_g_bar)
+    ld   c, a
+    swap a                  ; b * 16 (b < 4): the bar list
+    add  a, #<(_bar_list)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_bar_list)
+    ld   h, a
+    push hl                 ; [sp]: q, the next list entry
+    ld   hl, #_bar_n
+    ld   a, l
+    add  a, c
+    ld   l, a
+    jr   nc, 1$
+    inc  h
+1$:
+    ld   b, (hl)            ; b: entries left
+2$:
+    ld   a, b
+    or   a, a
+    jp   z, 9$
+    dec  b
+    pop  hl
+    ld   a, (hl+)           ; s
+    push hl
+    ld   c, a               ; c: s
+    ld   hl, #_patron_state
+    add  a, l
+    ld   l, a
+    jr   nc, 3$
+    inc  h
+3$:
+    ld   a, (hl)
+    or   a, a
+    jr   z, 2$              ; (PATRON_NONE)
+    ld   hl, #_patron_ovl
+    ld   a, l
+    add  a, c
+    ld   l, a
+    jr   nc, 4$
+    inc  h
+4$:
+    ld   a, (hl)
+    and  a, #7
+    swap a
+    ld   (_g_o), a          ; his flags so far, for [3] bits 4-6
+    xor  a, a
+    ld   (hl), a            ; patron_ovl[s] = 0
+    ld   hl, #_patron_draw
+    ld   a, l
+    add  a, c
+    ld   l, a
+    jr   nc, 5$
+    inc  h
+5$:
+    ld   a, (hl)
+    cp   a, #0xFF
+    jr   z, 2$              ; (not drawn yet)
+    ld   (_g_d), a
+    rrca
+    rrca
+    rrca
+    and  a, #0x0F           ; his first column ((d & 0x7F) >> 3, < 16)
+    ld   (_g_c), a
+    ld   a, (_rec_end)
+    ld   l, a
+    ld   a, (_rec_end + 1)
+    ld   h, a               ; hl: where his record goes, moving down past bigger columns
+6$:
+    ld   a, l
+    cp   a, #<(_rec)
+    jr   nz, 7$
+    ld   a, h
+    cp   a, #>(_rec)
+    jr   z, 8$              ; (at the start)
+7$:
+    ld   d, h
+    ld   e, l               ; de: r
+    dec  hl
+    dec  hl
+    dec  hl
+    dec  hl                 ; hl: r - 4
+    ld   a, (_g_c)
+    cp   a, (hl)
+    jr   nc, 10$            ; r[-4] <= c: his place is r
+    push hl
+    ld   a, (hl+)           ; r[0..3] = r[-4..-1]
+    ld   (de), a
+    inc  de
+    ld   a, (hl+)
+    ld   (de), a
+    inc  de
+    ld   a, (hl+)
+    ld   (de), a
+    inc  de
+    ld   a, (hl)
+    ld   (de), a
+    pop  hl
+    jr   6$
+10$:
+    ld   h, d
+    ld   l, e
+8$:
+    ld   a, (_g_c)
+    ld   (hl+), a           ; [0] c
+    ld   e, a
+    ld   a, (_g_d)
+    and  a, #7
+    ld   a, e
+    jr   z, 11$
+    inc  a
+11$:
+    add  a, #2
+    ld   (hl+), a           ; [1] c + 2 (shift 0, back view) or c + 3
+    ld   a, (_g_d)
+    rlca
+    ld   a, e
+    jr   c, 12$
+    inc  a
+12$:
+    add  a, #2
+    ld   (hl+), a           ; [2] c + 2 (back view) or c + 3
+    push hl
+    ld   hl, #_patron_lift
+    ld   a, l
+    add  a, c
+    ld   l, a
+    jr   nc, 13$
+    inc  h
+13$:
+    ld   a, (hl)
+    pop  hl
+    dec  a
+    cp   a, #2              ; LIFT_OFF_BG: 1 or 2
+    ld   a, c
+    jr   nc, 14$
+    or   a, #0x80           ; REC_OBJ
+14$:
+    ld   e, a
+    ld   a, (_g_o)
+    or   a, e
+    ld   (hl), a            ; [3] s | old flags << 4 (| REC_OBJ)
+    ld   hl, #_rec_end
+    ld   a, (hl)
+    add  a, #4
+    ld   (hl+), a
+    jp   nc, 2$
+    inc  (hl)
+    jp   2$
+9$:
+    pop  hl
+    pop  bc
+    ret
+__endasm;
+}
+
+static void gather(uint8_t b) {
+    if (!lists_ok) build_lists();
+    g_bar = b;
+    gather_asm();
+}
+
+// Who goes up first when two BG patrons share a column: pushed 4, hurried walker 3, walker 2, drinker 1; 0: may not be
+// lifted (watching the show or turning to it, in his back view, or being dropped).
+static uint8_t prio(uint8_t s) {
+    uint8_t st;
+    if (patron_lift[s] || patron_dist[s] || (patron_draw[s] & DRAW_BACK)) return 0;
+    st = patron_state[s];
+    if (st == PATRON_PUSHED) return 4;
+    if (st == PATRON_WALKING) return 2 + patron_hurry[s];
+    return 1;
+}
+
+static uint8_t ch_retry;              // this bar's lift has to wait: 2 next frame, 1 later (budgets; see lift_frame)
+static uint8_t ch_bit;                // the bar's bit
+#define RETRY_FRAMES 16
+#define CHOOSER_LY_MAX 48     // a frame that has reached this line looks at one dirty bar only (the rest next frame) ...
+#define CHOOSER_LY_LATE 80    // ... and one that has reached this one at none (an overloaded frame: next frame) ...
+#define CHOOSER_LATE_MAX 4    // ... but not for more than this many frames in a row
+static uint8_t ch_late;       // frames in a row the chooser left everything for later
+static uint8_t retry_wait[NUM_BARS];  // frames until a budget-refused bar is looked at again
+
+// Records a (left) and r share a real column: lift the one with the higher priority (ties: r, the one further right).
+// Returns the record that stays on the BG and goes on as "the last one", or 0 when both stay (the fallback).
+static uint8_t *conflict(uint8_t *a, uint8_t *r) {
+    uint8_t pa = prio(a[3] & REC_SLOT), pr = prio(r[3] & REC_SLOT), *x, k;
+    x = pr >= pa ? r : a;
+    if (pa | pr) {
+        k = try_lift(x[3] & REC_SLOT, LIFT_OBJ);
+        if (k == 1) {
+            x[3] |= REC_OBJ;
+            lift_lifts++;
+            return x == a ? r : a;
+        }
+        if (k == 2) ch_retry = 2;                         // (not this frame: the copy list / his BG copy)
+        else if (!ch_retry) ch_retry = 1;                 // (the budgets: later)
+    }
+    patron_ovl[x[3] & REC_SLOT] |= OVL_TOP;               // both stay on the BG: the would-be lifted one covers the other
+    ovl_bars |= ch_bit;
+    return 0;
+}
+
+// The chooser's loops, hand-written (in C they cost ~30 DIV ticks a bar). C helpers for the rare steps, called with
+// their arguments in globals.
+static uint8_t *ch_l, *ch_r, *ch_x;   // conflict(): the last BG record, this one, the one that stays (0: both)
+static uint8_t ch_b, s_r, s_x, md_x0, md_x1;
+static void conflict_g(void) { ch_x = conflict(ch_l, ch_r); }
+static void shared_pair(void) {       // r and x share real columns (both on the BG): the covered one(s) lose quick redraws
+    uint8_t a = patron_ovl[s_r], c = patron_ovl[s_x];
+    if (!(a & OVL_TOP)) patron_ovl[s_r] = a | OVL_SHARED;
+    if (!(c & OVL_TOP) || (a & OVL_TOP)) patron_ovl[s_x] = c | OVL_SHARED;
+}
+static void md_g(void) { mark_dirty(ch_b, md_x0, md_x1); }
+
+// 1. Greedy, left to right: a BG record r sharing a real column with the last BG one l is a conflict (conflict()
+//    lifts one of them, or flags the pair). 2. BG footprints that meet (r left of x): the covered one of a pair loses
+//    quick redraws (shared_pair); when only r's empty 3rd column lies on x's figure, r gets OVL_SHARED | OVL_TWO.
+// 3. A record whose flags changed: his columns are composed again.
+static void choose_asm(void) __naked {
+__asm
+    push bc
+    ld   hl, #_rec          ; r
+    ld   de, #0             ; l (0: none yet)
+10$:                        ; ---- 1. greedy
+    ld   a, (_rec_end)
+    cp   a, l
+    jr   nz, 11$
+    ld   a, (_rec_end + 1)
+    cp   a, h
+    jr   z, 19$
+11$:
+    inc  hl
+    inc  hl
+    inc  hl
+    bit  7, (hl)            ; r[3] & REC_OBJ (lifted: not on the BG)
+    dec  hl
+    dec  hl
+    dec  hl
+    jr   nz, 18$
+    ld   a, d
+    or   a, e
+    jr   z, 17$             ; (the first BG one)
+    inc  de
+    ld   a, (de)            ; l[1]
+    dec  de
+    ld   c, a
+    ld   a, (hl)            ; r[0]
+    cp   a, c
+    jr   nc, 17$            ; r[0] >= l[1]: no real column shared
+    push hl
+    ld   a, e
+    ld   (_ch_l), a
+    ld   a, d
+    ld   (_ch_l + 1), a
+    ld   a, l
+    ld   (_ch_r), a
+    ld   a, h
+    ld   (_ch_r + 1), a
+    call _conflict_g
+    pop  hl
+    ld   a, (_ch_x)
+    ld   e, a
+    ld   a, (_ch_x + 1)
+    ld   d, a
+    or   a, e
+    jr   nz, 18$            ; l = the one that stays on the BG
+    ld   a, (_ch_l)         ; both stay: go on from the one reaching further right
+    ld   e, a
+    ld   a, (_ch_l + 1)
+    ld   d, a
+    inc  hl
+    ld   c, (hl)            ; r[1]
+    dec  hl
+    inc  de
+    ld   a, (de)            ; l[1]
+    dec  de
+    cp   a, c
+    jr   nc, 18$
+17$:
+    ld   d, h
+    ld   e, l               ; l = r
+18$:
+    ld   bc, #4
+    add  hl, bc
+    jr   10$
+19$:
+    ld   hl, #_rec          ; ---- 2. footprints that meet: r = hl, x = de
+20$:
+    ld   a, (_rec_end)
+    cp   a, l
+    jr   nz, 21$
+    ld   a, (_rec_end + 1)
+    cp   a, h
+    jp   z, 39$
+21$:
+    ld   a, l
+    add  a, #3
+    ld   e, a
+    ld   a, h
+    adc  a, #0
+    ld   d, a               ; de = r + 3
+    ld   a, (de)
+    bit  7, a
+    jp   nz, 29$            ; (r lifted)
+    and  a, #0x0F
+    ld   (_s_r), a
+    inc  de                 ; x = r + 4
+22$:
+    ld   a, (_rec_end)
+    cp   a, e
+    jr   nz, 23$
+    ld   a, (_rec_end + 1)
+    cp   a, d
+    jr   z, 29$
+23$:
+    ld   a, (de)            ; x[0]
+    ld   c, a
+    inc  hl
+    inc  hl
+    ld   a, (hl)            ; r[2]
+    dec  hl
+    dec  hl
+    cp   a, c
+    jr   c, 29$             ; x[0] >= r[2]: no later record meets r (sorted)
+    jr   z, 29$
+    inc  de
+    inc  de
+    inc  de
+    ld   a, (de)            ; x[3]
+    dec  de
+    dec  de
+    dec  de
+    bit  7, a
+    jr   nz, 28$            ; (x lifted)
+    and  a, #0x0F
+    ld   (_s_x), a
+    inc  hl
+    ld   a, (hl)            ; r[1]
+    dec  hl
+    cp   a, c
+    jr   c, 25$             ; r[1] <= x[0]: only r's empty column meets x
+    jr   z, 25$
+    push hl
+    push de
+    call _shared_pair
+    pop  de
+    pop  hl
+    jr   28$
+25$:
+    push hl
+    ld   a, (_s_r)
+    add  a, #<(_patron_ovl)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_ovl)
+    ld   h, a
+    ld   a, (hl)
+    or   a, #5              ; OVL_SHARED | OVL_TWO
+    ld   (hl), a
+    pop  hl
+28$:
+    ld   a, e
+    add  a, #4
+    ld   e, a
+    ld   a, d
+    adc  a, #0
+    ld   d, a
+    jr   22$
+29$:
+    ld   bc, #4
+    add  hl, bc
+    jp   20$
+39$:
+    ld   hl, #_rec          ; ---- 3. flags changed: compose his columns again
+40$:
+    ld   a, (_rec_end)
+    cp   a, l
+    jr   nz, 41$
+    ld   a, (_rec_end + 1)
+    cp   a, h
+    jr   z, 49$
+41$:
+    push hl
+    ld   a, (hl+)           ; r[0]
+    ld   (_md_x0), a
+    inc  hl
+    ld   a, (hl+)           ; r[2]
+    ld   (_md_x1), a
+    ld   a, (hl)            ; r[3]: slot, old flags in bits 4-6
+    ld   c, a
+    swap a
+    and  a, #7
+    ld   b, a
+    ld   a, c
+    and  a, #0x0F
+    add  a, #<(_patron_ovl)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_ovl)
+    ld   h, a
+    ld   a, (hl)
+    cp   a, b
+    jr   z, 42$
+    call _md_g
+42$:
+    pop  hl
+    ld   bc, #4
+    add  hl, bc
+    jr   40$
+49$:
+    pop  bc
+    ret
+__endasm;
+}
+
+// Bar b: lift so that the BG patrons are column-disjoint (greedy, left to right), flag the pairs that stay on the BG,
+// and note which lifted patrons still cover a BG one.
+static void choose_bar(uint8_t b) {
+    uint8_t *r, *x, s, busy;
+    gather(b);
+    ch_b = b;
+    ch_bit = bar_bit[b];
+    ovl_bars &= ~ch_bit;
+    ch_retry = 0;
+    if (rec_end == rec + 4) {                             // one patron: nothing to share
+        s = rec[3];
+        if (s & REC_OBJ) lift_busy[s & REC_SLOT] = 0;
+        if (s & 0x70) mark_dirty(b, rec[0], rec[2]);      // (his old flags are gone)
+        return;
+    }
+    choose_asm();
+    if (!lift_n[b]) return;
+    for (r = rec; r != rec_end; r += 4) {                 // lifted ones: still over a BG patron?
+        if (!(r[3] & REC_OBJ)) continue;
+        busy = 0;
+        for (x = rec; x != rec_end; x += 4)
+            if (!(x[3] & REC_OBJ) && x[0] < r[1] && r[0] < x[1]) { busy = 1; break; }
+        s = r[3] & REC_SLOT;
+        lift_busy[s] = busy;
+        if (busy) lift_clear[s] = 0;
+    }
+}
+
+// Every frame while someone is lifted, the chooser has work or the hook is set, after the rules and before queue_vram().
 void lift_frame(void) BANKED {
-    uint8_t p;
-    recount();
-    finish_drops();
-    for (p = 0; p < MAX_PATRONS; p++)                     // never lifted in a back view: he turns round on the BG
-        if (LIFT_OFF_BG(patron_lift[p]) && ((patron_draw[p] & DRAW_BACK) || patron_dist[p])) begin_drop(p);
-    estimate();
-    forced_drops();
+    uint8_t p, b, w, r = 0, done = 0, first = 0;
+    est_ok = 0;
+    if (lift_total) {                                     // (nobody lifted: only the chooser has work, keep it cheap)
+        lifted_pass();
+        need_estimate();
+        forced_drops();
+    }
     if (lift_hook_op) hook();
-    for (p = 0; p < NUM_BARS; p++) lift_load[p] = ld[p];   // (after this frame's drops and lifts)
+    // The chooser, on the bars whose columns changed (ovl_dirty bits 0-3). A lift refused by the budgets is tried again
+    // RETRY_FRAMES later (bits 4-7: waiting), one that only has to wait for this frame's copy list next frame.
+    // It looks at one bar at least, unless the frame has already run into the next one (an overloaded frame), and at
+    // more only while the frame is early (CHOOSER_LY_MAX); bars it leaves stay dirty for the next frame.
+    b = ovl_dirty;
+    ovl_dirty = 0;
+    for (p = 0; p < NUM_BARS; p++) {
+        w = bar_bit[p];
+        if (!(b & w)) {
+            if (!(b & (w << 4))) continue;
+            if (--retry_wait[p]) { r |= w << 4; continue; }
+        }
+        if (!done && !first) {                            // the first bar of this frame: is the frame late already?
+            first = 1;
+            if ((uint8_t)sys_time != frame_t0 || (LY_REG < 144 && LY_REG >= CHOOSER_LY_LATE)) {
+                if (++ch_late < CHOOSER_LATE_MAX) first = 2;   // (later; but at least every CHOOSER_LATE_MAX frames)
+                else ch_late = 0;
+            } else ch_late = 0;
+        }
+        if (first == 2 || (done && LY_REG < 144 && LY_REG >= CHOOSER_LY_MAX)) { r |= w; continue; }
+        done = 1;
+        choose_bar(p);
+        if (ch_retry == 2) r |= w;
+        else if (ch_retry) { retry_wait[p] = RETRY_FRAMES; r |= w << 4; }
+    }
+    ovl_dirty |= r;
+    if (est_ok) for (p = 0; p < NUM_BARS; p++) lift_load[p] = ld[p];   // (after this frame's drops and lifts)
 }
 
 // OAM 25 down: two 8x16 entries per patron drawn as a sprite (his shift-0 pose; OAM x gives every pixel position and
 // the sway). Entries used last frame but not now are hidden unless the mugs took them this frame.
+// (hand-written: the C loop cost ~10 lines a frame) dl_n patrons written, OAM 25 down, two entries each.
+static uint8_t dl_n, dl_v, dl_x, dl_y, dl_t, dl_p;
+static uint8_t *dl_o;
+static void draw_lifted_asm(void) __naked {
+__asm
+    push bc
+    ld   hl, #_dl_o
+    ld   a, #<(_shadow_OAM + 100)   ; OAM 25 (OAM_LIFT_TOP)
+    ld   (hl+), a
+    ld   (hl), #>(_shadow_OAM + 100)
+    ld   bc, #0             ; c: p, b: patrons written
+1$:
+    ld   a, c
+    add  a, #<(_patron_lift)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_lift)
+    ld   h, a
+    ld   a, (hl)
+    and  a, #3
+    jp   z, 9$
+    ld   (_dl_v), a
+    ld   a, c
+    add  a, #<(_patron_draw)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_draw)
+    ld   h, a
+    ld   a, (hl)
+    cp   a, #0xFF
+    jp   z, 9$
+    and  a, #0x7F
+    add  a, #8
+    ld   (_dl_x), a
+    ld   a, c
+    add  a, #<(_patron_bar)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_bar)
+    ld   h, a
+    ld   a, (hl)
+    and  a, #3
+    add  a, #<(_bar_oam_y)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_bar_oam_y)
+    ld   h, a
+    ld   a, (hl)
+    ld   (_dl_y), a
+    ld   a, c
+    add  a, #<(_patron_variant)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_patron_variant)
+    ld   h, a
+    ld   a, (hl)
+    and  a, #3
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_lift_tile
+    add  hl, de
+    ld   a, (hl)
+    ld   (_dl_t), a
+    ld   hl, #_lift_prop
+    add  hl, de
+    ld   a, (_dl_v)
+    cp   a, #2              ; LIFT_BEHIND: behind BG colours 1-3
+    ld   a, (hl)
+    jr   nz, 2$
+    or   a, #0x80
+2$:
+    ld   (_dl_p), a
+    ld   a, (_dl_o)
+    ld   l, a
+    ld   a, (_dl_o + 1)
+    ld   h, a
+    ld   a, (_dl_y)         ; his left half: y, x, t, attributes
+    ld   (hl+), a
+    ld   a, (_dl_x)
+    ld   (hl+), a
+    ld   a, (_dl_t)
+    ld   (hl+), a
+    ld   a, (_dl_p)
+    ld   (hl), a
+    ld   de, #-7
+    add  hl, de             ; the entry below
+    ld   a, (_dl_y)         ; his right half: y, x + 8, t + 2, attributes
+    ld   (hl+), a
+    ld   a, (_dl_x)
+    add  a, #8
+    ld   (hl+), a
+    ld   a, (_dl_t)
+    add  a, #2
+    ld   (hl+), a
+    ld   a, (_dl_p)
+    ld   (hl), a
+    add  hl, de             ; the next one down
+    ld   a, l
+    ld   (_dl_o), a
+    ld   a, h
+    ld   (_dl_o + 1), a
+    inc  b
+    ld   a, b
+    cp   a, #4              ; LIFT_MAX
+    jr   z, 10$
+9$:
+    inc  c
+    ld   a, c
+    cp   a, #16             ; MAX_PATRONS
+    jp   nz, 1$
+10$:
+    ld   a, b
+    ld   (_dl_n), a
+    pop  bc
+    ret
+__endasm;
+}
+
 void draw_lifted(void) BANKED {
-    uint8_t p, v, n = 0, d, x, y, t, pr, i;
-    OAM_item_t *o = shadow_OAM + OAM_LIFT_TOP;
-    for (p = 0; p < MAX_PATRONS && n < LIFT_MAX; p++) {
-        v = patron_lift[p] & 3;
-        if (!v || (d = patron_draw[p]) == 255) continue;
-        x = (d & ~DRAW_BACK) + 8;
-        y = bar_oam_y[patron_bar[p] & (NUM_BARS - 1)];
-        i = patron_variant[p] & 3;
-        t = lift_tile[i];
-        pr = is_cgb ? lift_pal[i] : S_PALETTE;
-        if (v == LIFT_BEHIND) pr |= S_PRIORITY;
-        o->y = y; o->x = x;     o->tile = t;     o->prop = pr; o--;
-        o->y = y; o->x = x + 8; o->tile = t + 2; o->prop = pr; o--;
-        n++;
-    }
+    uint8_t i, n;
+    draw_lifted_asm();
+    n = dl_n;
     for (i = OAM_LIFT_TOP + 1 - (lift_oam_n << 1); i < (uint8_t)(OAM_LIFT_TOP + 1 - (n << 1)); i++)
         if (i >= oam_used) shadow_OAM[i].y = 0;
     lift_oam_n = n;

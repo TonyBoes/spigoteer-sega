@@ -234,11 +234,16 @@ def test_drawn_x_follows_patron_x_every_pixel(gb):
     p = set_patron(gb, 2, DOOR_X + 3, variant=1)
     gb.run(2)
     xs, exact = [], 0
+    # (patron_x and patron_draw are compared where the game's frame ends, vq_frame_end: the emulator's frame boundary
+    # can fall in the middle of the game's update, between the two writes)
+    snap = []
+    a = gb.addr("vq_frame_end")
+    gb.pb.hook_register(a >> 16, a & 0xFFFF, lambda _: snap.append((gb.read("patron_x", MAX_P)[p], drawn(gb, p))), None)
     for _ in range(40):
         gb.write("patron_speed", 255)              # ~1 px per frame
         gb.run(1)
         x = gb.read("patron_x", MAX_P)[p]
-        assert drawn(gb, p) == x
+        assert snap and snap[-1][0] == snap[-1][1], snap[-3:]
         xs.append(x)
         now = drawn_tiles(1, x, 2)
         before = drawn_tiles(1, x - 1, 2)

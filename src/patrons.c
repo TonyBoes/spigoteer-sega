@@ -5,8 +5,8 @@
 // 16-bit address computation (and usually a stack spill) for every patron_xxx[p], so the rules are written to
 // touch few fields per patron per frame, and every question about "the other patrons on this bar" goes through
 // per-bar lists instead of a scan of all 16 slots:
-//   - bar_list[b] holds the live slots of bar b (in no particular order: patrons on a bar keep PATRON_SPACING px
-//     apart, so their footprints never overlap and no rule depends on the order). It is kept up to date
+//   - bar_list[b] holds the live slots of bar b (in no particular order: no rule depends on it; M13b patrons may
+//     overlap, and lift.c / render.c decide who is drawn over whom). It is kept up to date
 //     incrementally: add_patron() appends, remove_patron() takes the entry out (patrons never change bars). It is
 //     rebuilt from the pool (build_lists) only when lists_ok is clear: after clear_patrons(), or when a test has
 //     poked patron_state / patron_bar between frames and set lists_dirty (tests/conftest.py does that for every
@@ -34,6 +34,8 @@ uint8_t  patron_drinks[MAX_PATRONS];    // mugs caught since spawning: the push-
 uint8_t  patron_dist[MAX_PATRONS];     // 1: distracted by the show (shuffles to a multiple of 8 px, then stands still; ignores mugs)
 uint8_t  patron_facing[MAX_PATRONS];   // 1: drawn in its back view, turned to watch the stage (mirrors patron_draw & DRAW_BACK)
 uint8_t  patrons_live;
+uint8_t  patron_hurry[MAX_PATRONS];    // M13b: 1 = a hurried walker (hurry_speed instead of patron_speed)
+uint8_t  hurry_speed;                  // this level's hurried walking speed (1/256 px per frame); 0: nobody hurries
 
 // per-bar lists of live slots (slot order); see the top of the file
 uint8_t  bar_list[NUM_BARS][MAX_PATRONS];
@@ -81,17 +83,22 @@ static uint8_t drawn_x(uint8_t p) {
 // p is now drawn at nd (| DRAW_BACK: in its back view): mark the columns it leaves and the ones it covers.
 // (Only a change of columns changes the CGB attributes: moving within his columns, or turning round, he changes
 // tile ids only.)
-static void redraw_at(uint8_t p, uint8_t nd) {
+void redraw_at(uint8_t p, uint8_t nd) {
     uint8_t od = patron_draw[p], lo, hi;
     patron_draw[p] = nd;
     patron_facing[p] = nd >> 7;
-    if (od == 255) { nd &= ~DRAW_BACK; mark_dirty_attrs(patron_bar[p], nd >> 3, (nd >> 3) + 3); return; }
-    if (!((od | nd) & DRAW_BACK) && (od >> 3) == (nd >> 3)) { mark_quick(p); return; }   // a step within his columns
+    if (od == 255) { nd &= ~DRAW_BACK; mark_dirty_attrs(patron_bar[p], nd >> 3, (nd >> 3) + 3); ovl_touch(p); return; }
+    if (!((od | nd) & DRAW_BACK) && (od >> 3) == (nd >> 3)) {          // a step within his columns
+        if (!(od & 7)) ovl_touch(p);                  // (off shift 0: 2 -> 3 real columns; the other way can only end an overlap)
+        mark_quick(p);
+        return;
+    }
     nd &= ~DRAW_BACK; od &= ~DRAW_BACK;
     if (nd < od) { lo = nd; hi = od; } else { lo = od; hi = nd; }
     lo >>= 3; hi >>= 3;
     if (lo == hi) mark_dirty(patron_bar[p], lo, lo + 3);
     else mark_dirty_attrs(patron_bar[p], lo, hi + 3);
+    ovl_touch(p);
 }
 
 static void refresh_patron(uint8_t p) {
@@ -101,16 +108,18 @@ static void refresh_patron(uint8_t p) {
 
 // (Split in two so SDCC keeps the slot in a register while it fills the fields: add_patron runs on a spawn frame,
 // usually the busiest of all.)
-static uint8_t np_b, np_x, np_v;
+static uint8_t np_b, np_x, np_v, np_h;
 static void init_patron(uint8_t p) {
     patron_state[p] = PATRON_WALKING;
     patron_bar[p] = np_b; patron_x[p] = np_x; patron_frac[p] = 0; patron_variant[p] = np_v;
+    patron_hurry[p] = np_h; np_h = 0;
     patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
     patron_dist[p] = 0; patron_facing[p] = 0; patron_catchx[p] = np_x; patron_drinks[p] = 0;
     patron_draw[p] = np_x;                            // drawn where he stands, facing the bar: his 3 columns change
     np_x >>= 3;
     mark_dirty_attrs(np_b, np_x, np_x + 3);
     if (lists_ok) list_add(p);
+    ovl_touch(p);
 }
 
 uint8_t add_patron(uint8_t b, uint8_t x, uint8_t variant) {
@@ -147,6 +156,7 @@ static void list_remove(uint8_t p) {
 
 void remove_patron(uint8_t p) {
     uint8_t d = (patron_draw[p] & ~DRAW_BACK) >> 3;
+    if (patron_ovl[p] | lift_n[patron_bar[p] & (NUM_BARS - 1)]) ovl_dirty |= bar_bit[patron_bar[p] & (NUM_BARS - 1)];
     patron_state[p] = PATRON_NONE;
     patron_lift[p] = LIFT_BG;                         // (a lifted one's sprite goes with the next draw_lifted; lift.c recounts)
     if (lists_ok) list_remove(p);
@@ -158,7 +168,7 @@ void remove_patron(uint8_t p) {
 void clear_patrons(void) {
     uint8_t p;
     for (p = 0; p < MAX_PATRONS; p++) { patron_state[p] = PATRON_NONE; patron_lift[p] = LIFT_BG; }
-    lift_n[0] = lift_n[1] = lift_n[2] = lift_n[3] = 0; lift_total = 0;
+    lift_n[0] = lift_n[1] = lift_n[2] = lift_n[3] = 0; lift_total = 0; ovl_bars = 0;
     lists_ok = 0;
 }
 
@@ -171,53 +181,29 @@ static void maybe_tip(uint8_t p) {
     tip_x = patron_catchx[p];
 }
 
-extern uint8_t cur_group;
-
-void end_show(void) {
-    uint8_t p;
-    show_timer = 0;
-    music_play(TUNE_VENUE0 + cur_group);          // the venue's tune again, from its start
-    for (p = 0; p < MAX_PATRONS; p++) {
-        patron_dist[p] = 0;                      // (a drinker's timer is its drink / wind-up: left alone)
-        if (patron_state[p] != PATRON_NONE && (patron_draw[p] & DRAW_BACK) && patron_draw[p] != 255)
-            redraw_at(p, patron_x[p]);           // turns back to the bar (its front frame, at the same x)
-    }
-    if (spawn_timer > (spawn_interval / SHOW_SPAWN_DIV)) spawn_timer = spawn_interval / SHOW_SPAWN_DIV;   // new patrons come sooner, once
-}
-
-// The tip is picked up: each walking patron is distracted with probability 1/2 (at least one if any walk).
-// A distracted patron shuffles to the nearest multiple of 8 px and turns its back (watch_step).
-void start_show(void) {
-    uint8_t p, any = 0, first = NO_SLOT;
-    show_timer = SHOW_FRAMES;
-    music_play(TUNE_SHOW);                        // "Galop infernal" for as long as the show runs
-    dancer_frame = 0; dance_tick = 0;
-    for (p = 0; p < MAX_PATRONS; p++) {
-        patron_dist[p] = 0;
-        if (patron_state[p] != PATRON_WALKING) continue;
-        if (first == NO_SLOT) first = p;
-        if (next_rand() & 0x40) { patron_dist[p] = 1; patron_timer[p] = 0; any = 1; }
-    }
-    if (!any && first != NO_SLOT) { patron_dist[first] = 1; patron_timer[first] = 0; }
-}
-
-// Is another patron of bar b within PATRON_SPACING px ahead of x (to the right), so that a walker at x may not
-// step one px right? (The walker itself is never strictly ahead of its own x.)
-static uint8_t blocked_ahead(uint8_t b, uint8_t x) {
+// M13b: patrons overlap. A patron's real columns are c = draw >> 3 (without DRAW_BACK) and c + 1, and c + 2 unless he
+// stands on a multiple of 8 (shift 0, or his back view). col_scan(b, k, p): how many patrons of bar b other than p
+// cover column k; cs_dist is set when one of them is distracted by the show (he cannot be lifted, lift.c).
+uint8_t cs_dist;
+uint8_t col_scan(uint8_t b, uint8_t k, uint8_t p) {
     const uint8_t *q;
-    uint8_t n, s, qx;
+    uint8_t n, s, d, cnt = 0;
     if (!lists_ok) build_lists();
+    cs_dist = 0;
     q = bar_list[b];
     for (n = bar_n[b]; n; n--) {
         s = *q++;
-        if (patron_state[s] == PATRON_NONE) continue;
-        qx = patron_x[s];
-        if (qx > x && (uint8_t)(qx - x) <= PATRON_SPACING) return 1;
+        if (s == p || patron_state[s] == PATRON_NONE || (d = patron_draw[s]) == 255) continue;
+        d &= ~DRAW_BACK;
+        if (k < (d >> 3)) continue;
+        if ((uint8_t)(k - (d >> 3)) >= 2 && ((uint8_t)(k - (d >> 3)) != 2 || !(d & 7))) continue;
+        cnt++;
+        cs_dist |= patron_dist[s];
     }
-    return 0;
+    return cnt;
 }
 
-// ... or behind (to the left), so that a pushed patron at x may not slide one px left?
+// Is another patron of bar b within PATRON_SPACING px behind x (to the left)? (The spawn check at the door.)
 static uint8_t blocked_behind(uint8_t b, uint8_t x) {
     const uint8_t *q;
     uint8_t n, s, qx;
@@ -344,21 +330,11 @@ static uint8_t try_spawn(void) {
     v = (v >> 2) + (v & 3);
     v = (v >> 2) + (v & 3);
     if (v >= 3) v -= 3;
-    if (!add_patron(b, DOOR_X, v)) return 0;
+    if (hurry_speed && !(next_rand() & 3)) np_h = 1;   // M13b: about 1 in 4 hurries (from level 3; level.c)
+    if (!add_patron(b, DOOR_X, v)) { np_h = 0; return 0; }
     door_puff(b);
     spawned++;
     return 1;
-}
-
-// Put the level's start patrons on the bars (from DOOR_X; a 2nd group 32 px on where the level has two),
-// but never more than the quota still to serve.
-void place_start_patrons(void) {
-    uint8_t b, k, placed = 0, remaining = quota > served ? quota - served : 0;
-    for (k = 0; k < start_per_bar; k++)
-        for (b = 0; b < NUM_BARS; b++)
-            if ((start_mask & bar_bit[b]) && placed < remaining) { add_patron(b, DOOR_X + PATRON_SPACING * k, next_rand() % 3); placed++; }
-    spawned = served + placed;
-    patrons_live = placed;
 }
 
 // ---- the frame ----------------------------------------------------------------------------------------
@@ -370,7 +346,9 @@ static uint8_t go_now;                // the intro delay is over: walkers walk
 // A walker's whole pixel: blocked, one px on, or at the tap (a life). Returns 0 when he is gone.
 static uint8_t walker_pixel(uint8_t p, uint8_t f) {
     uint8_t x = patron_x[p];
-    if (blocked_ahead(patron_bar[p], x)) return 1;      // waits (the fraction stays where it was)
+    // M13b: he passes slower walkers and drinkers. He waits (the fraction stays where it was) only if this step would
+    // make three patrons share a tile column: from a multiple of 8 the step takes him into column (x >> 3) + 2.
+    if (!(x & 7) && col_scan(patron_bar[p], (x >> 3) + 2, p) >= 2) return 1;
     patron_frac[p] = f;
     patron_x[p] = ++x;
     if (x >= PATRON_FAR_X) {                              // reached the tap
@@ -381,39 +359,12 @@ static uint8_t walker_pixel(uint8_t p, uint8_t f) {
     return 1;
 }
 
-// Distracted by the show: shuffle 1 px a frame to the nearest multiple of 8 px (at most SHUFFLE_MAX px, never
-// into another patron's PATRON_SPACING, never onto the tap end), then turn round: the back view, which exists
-// only at shift 0. 4 px off: toward the door if the whole way is free, else toward the tap. A patron who cannot get there
-// (someone stands right behind / ahead) waits facing the bar and tries again next frame. It stays put either way.
-static uint8_t watch_step(uint8_t p) {
-    uint8_t x = patron_x[p], r = x & 7, b;
-    if (r) {
-        b = patron_bar[p];
-        if (r < SHUFFLE_MAX) {
-            if (!blocked_behind(b, x)) x--;
-        } else if (r == SHUFFLE_MAX && !blocked_behind(b, x - (SHUFFLE_MAX - 1))) {
-            x--;                                          // (the whole way to the left is free)
-        } else if ((uint8_t)(x - r + 8) < PATRON_FAR_X && !blocked_ahead(b, x)) {
-            x++;
-        }
-        if (x == patron_x[p]) {                           // waiting: drawn at his x, facing the bar
-            if (x != patron_draw[p]) redraw_at(p, x);
-            return 1;
-        }
-        patron_x[p] = x;
-        if (x & 7) { redraw_at(p, x); return 1; }
-    }
-    x |= DRAW_BACK;                                       // on a multiple of 8: watching the stage
-    if (x != patron_draw[p]) redraw_at(p, x);
-    return 1;
-}
-
 static uint8_t walking_step(uint8_t p) {
     uint8_t f, o;
     if (patron_dist[p]) return watch_step(p);           // distracted by the show: no walking
     if (go_now) {
         o = patron_frac[p];
-        f = o + patron_speed;
+        f = o + (patron_hurry[p] ? hurry_speed : patron_speed);
         if (f < o) {                                      // carried: one whole pixel
             if (!walker_pixel(p, f)) return 0;
         } else {
@@ -424,7 +375,10 @@ static uint8_t walking_step(uint8_t p) {
     f = patron_draw[p];                                   // the bar (a stale back view, bit 7, differs too)
     if (o == f) return 1;
     if ((uint8_t)(o ^ f) & 0xF8) redraw_at(p, o);
-    else { patron_draw[p] = o; mark_quick(p); }           // a 1 px step within his columns (redraw_at's quick case)
+    else {                                                // a 1 px step within his columns (redraw_at's quick case)
+        patron_draw[p] = o; mark_quick(p);
+        if (!(f & 7)) ovl_touch(p);                      // off a multiple of 8: 2 -> 3 real columns
+    }
     return 1;
 }
 
@@ -442,13 +396,9 @@ static void served_out(uint8_t p) {                       // pushed out through 
     maybe_tip(p);
 }
 
-// One px toward the door, unless someone stands right behind: then he stays put and drinks.
+// One px toward the door. M13b: he slides through anyone in his way (lift.c lifts him over them); the push ends only
+// when it is used up or he goes out through the door (pushed_step).
 static void push_px(uint8_t p) {
-    if (blocked_behind(patron_bar[p], patron_x[p])) {
-        patron_aux[p] = 0;
-        start_drinking(p);
-        return;
-    }
     patron_x[p] -= PUSH_SPEED;
     if ((patron_aux[p] -= PUSH_SPEED) == 0) start_drinking(p);
 }
