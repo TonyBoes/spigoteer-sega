@@ -226,4 +226,8 @@ extern uint8_t venue_id;
 void load_venue(uint8_t t) BANKED;                      // tiles, palettes, base_tile/base_attr of theme t
 void draw_venue(void) BANKED;                           // stage, counter rows, floor, HUD attributes
 void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // plain venue wall + counter + floor (title, bonus)
+// ---- title.c (banked, M10a title screen) -----------------------------------------------------
+void title_enter(void) BANKED;                          // LCD off: draws the title and turns the LCD on
+uint8_t title_update(uint8_t pressed) BANKED;           // one title frame; 1: ARCADE chosen
+void title_music_toggle(void) BANKED;                   // music on/off and the MUSIC line
 #endif

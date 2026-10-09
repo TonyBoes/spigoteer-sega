@@ -258,3 +258,21 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. |
 | M11c | Story art: portraits (Spigoteer, nine venue owners, villain if any), cut-scene pictures. Owner approves. |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere (in progress). |
+
+## M10a as built (title screen)
+
+- `src/title.c` (banked, own bank with its art from `build/title_art.h`); `main.c` only calls `title_enter()` /
+  `title_update()` / `title_music_toggle()`. ROM_0 went from 640 to ~1.3 KB free.
+- Layout: logo rows 2-3; menu ARCADE row 6, STORY row 8, MUSIC ON/OFF row 10, HI row 12; the bar scene on bar 3's
+  rows (14-15 wall, 16 counter). Rows 4-13 are the plain wall colour (no specks, no bands).
+- Text: `tools/gen_art.py title_art()` pre-renders each menu string from the HUD glyphs with a 1 px drop shadow; an
+  odd-length string is drawn 4 px right inside one more tile, so every line is centred to the pixel (STORY,
+  MUSIC OFF, COMING SOON included). The HI line is a small two-letter "HI" tile + space + 6 muted digits (8 tiles).
+  CGB: own text palette (cream on the saloon wall, dark shadow), the selected line gold; DMG: black text, grey shadow.
+- Logo: 5 fill states per letter (empty outline, 4 / 8 / 12 px of beer with a foam band and a frothy head, final
+  art); letters start 8 frames apart, 4 frames per state; drips under P, O and the second E; one sparkle sweep.
+- Scene: the bartender (sprites, bar 3) slides a saloon mug to a cowboy patron (BG tiles), who drinks, winds up and
+  sends the empty back; ~4 s loop. Bubbles rise past the logo every 1-2 s. At most 4 sprites on any line.
+- BG ids on the title: menu text over the venue stage slot (0-19) and after the fill states; lettering, fill states
+  and patron over the patron range (72-225). OBJ effects over the show performers' tiles. The level load restores all.
+- Story: "COMING SOON" over the STORY line for 60 frames (the story mode is M11).

@@ -170,3 +170,24 @@ def test_the_release_build_has_no_debug_menu():
     noi = (ROOT / "build" / "release.noi").read_text()
     assert "debug_menu_open" not in noi and "debug_level" not in noi
     assert "debug_menu_open" in (ROOT / "build" / "game.noi").read_text()
+
+
+def test_the_combo_works_from_any_menu_item_and_the_menu_survives(boot):
+    from test_flow import SEL_MUSIC, music_line, title_text_row
+    boot.press("up", 2)                                   # the cursor on MUSIC
+    assert boot.mem("title_sel") == SEL_MUSIC
+    s0 = boot.mem("sound_on")
+    boot.hold("select")
+    boot.run(2)
+    boot.hold("start")
+    boot.run(COMBO + 2)
+    assert boot.mem("debug_menu_open") == 1 and boot.mem("sound_on") == s0, "neither START nor SELECT toggled it"
+    release_combo(boot)
+    boot.press("b", 2)
+    boot.run(3)
+    assert boot.mem("game_state") == TITLE and boot.mem("title_sel") == SEL_MUSIC
+    assert music_line(boot) == title_text_row("music_on" if s0 else "music_off")
+    boot.press("down", 2)                                 # wraps to ARCADE
+    boot.press("a", 2)
+    boot.run(20)
+    assert boot.mem("game_state") == PLAYING and boot.mem("level") == 1

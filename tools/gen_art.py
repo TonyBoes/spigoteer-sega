@@ -265,6 +265,197 @@ def venues(outdir, prev):
     return h
 
 
+# ---- M10a title screen (src/title.c #includes build/title_art.h, so the data lives in that file's bank) ----
+TITLE_WORD = "SPIGOTEER"
+TITLE_LETTERS = "SPIGOTER"            # the order of the @title_* blocks in title.txt
+LOGO_FILL = [0, 4, 8, 12]             # px of beer in the fill states before the final art (5 steps per letter)
+MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "music_off": "MUSIC OFF",
+                "soon": "COMING SOON"}
+TITLE_TILE_LIMIT = 228                # BG ids up to the end of the patron range (the puff's OBJ tiles follow)
+
+
+def _px_tile_bytes(px):
+    out = []
+    for y in range(8):
+        lo = hi = 0
+        for x in range(8):
+            lo |= (px[y][x] & 1) << (7 - x)
+            hi |= (px[y][x] >> 1) << (7 - x)
+        out += [lo, hi]
+    return out
+
+
+def title_art(outdir, prev, base, ttiles, bg):
+    """Logo fill states, the menu text (pre-rendered and exactly centred: an odd-length string is drawn 4 px to the
+    right inside one more tile, so it centres to the pixel on the 20-column grid), the HI line glyphs and the
+    effect sprites -> build/title_art.h + build/title.json (tile ids for the tests) + previews."""
+    import json
+    letters = {}
+    for k, (name, rows) in enumerate(blocks(ROOT / "assets/tiles/title.txt", named=True)):
+        letters[name[len("title_"):].upper()] = (k, [[IDX[ch] for ch in r] for r in rows])
+    first = base + len(ttiles) // 16
+    pool, pool_px = {}, []
+    QUAD = ((0, 0), (0, 8), (8, 0), (8, 8))
+
+    def key(px):
+        return tuple(tuple(r) for r in px)
+    final = {}
+    for L, (k, rows) in letters.items():
+        for q, (ty, tx) in enumerate(QUAD):
+            final.setdefault(key([r[tx:tx + 8] for r in rows[ty:ty + 8]]), base + k * 4 + q)
+
+    low_px = []                            # text tiles go to the venue's stage slot first (ids 0..19: no stage on the title)
+
+    def tid(px, low=False):
+        kk = key(px)
+        if kk in final:                    # identical to a lettering tile: reuse it
+            return final[kk]
+        if kk not in pool:
+            if low and len(low_px) < STAGE_SLOT:
+                pool[kk] = len(low_px)
+                low_px.append(px)
+            else:
+                pool[kk] = first + len(pool_px)
+                pool_px.append(px)
+        return pool[kk]
+
+    # logo: per letter (title.txt order) and fill state, the 4 tile ids (top-left, top-right, bottom-left, bottom-right)
+    fill_map, previews = [], []
+    for L in TITLE_LETTERS:
+        k, rows = letters[L]
+        states = []
+        for si, f in enumerate(LOGO_FILL):
+            line = 16 - f                  # first liquid row
+            px = []
+            for y in range(16):
+                r = []
+                for x in range(16):
+                    v = rows[y][x]
+                    if v in (1, 2):        # inside the letter
+                        if f and line <= y < line + 2:
+                            v = 1                                          # foam
+                        elif f and y == line - 1:
+                            v = 1 if (x + si) % 3 else 0                   # frothy head
+                        elif f and y >= line + 2:
+                            v = 1 if (x * 5 + y * 3) % 17 == 0 else 2   # beer, a bubble here and there
+                        else:
+                            v = 0                                          # empty: the wall shows through
+                    r.append(v)
+                px.append(r)
+            states.append([tid([r[tx:tx + 8] for r in px[ty:ty + 8]]) for ty, tx in QUAD])
+            previews.append(px)
+        states.append([base + k * 4 + q for q in range(4)])
+        previews.append(rows)
+        fill_map.append(states)
+    n_fill = len(pool_px)
+
+    # menu text: the HUD glyphs of bar.txt ('.' = text) at rows 0-6, columns 1-5 of the cell, 1 px drop shadow (colour 1)
+    def glyph(ch):
+        g = bg["glyph_" + ch]
+        return [[1 if g[y][x] == "." else 0 for x in range(8)] for y in range(1, 8)]
+
+    def render(s, col=3, centre=True):
+        n = len(s)
+        odd = centre and n & 1             # (a single glyph for the HI digits is never shifted)
+        w = 8 * (n + odd)
+        x0 = 4 if odd else 0
+        px = [[0] * w for _ in range(8)]
+        for pas in (0, 1):                 # shadows first, then the text over them
+            for i, ch in enumerate(s):
+                if ch == " ":
+                    continue
+                g = glyph(ch)
+                for y in range(7):
+                    for x in range(8):
+                        if g[y][x]:
+                            X = x0 + 8 * i + x
+                            if pas == 0:
+                                px[y + 1][X + 1] = 1
+                            else:
+                                px[y][X] = col
+        return px, w // 8
+
+    blank = tid([[0] * 8 for _ in range(8)], True)
+    text, strip_prev = {}, []
+    for k2, s in MENU_STRINGS.items():
+        px, nt = render(s)
+        text[k2] = {"col": (20 - nt) // 2, "tiles": [tid([r[t * 8:t * 8 + 8] for r in px], True) for t in range(nt)],
+                    "x": (20 - nt) // 2 * 8 + (4 if len(s) & 1 else 0) + 1}   # screen x of the first text pixel
+        strip_prev.append(px)
+    digits = [tid(render(d, 2, False)[0], True) for d in "0123456789"]
+    # "HI" as one small tile (3x5 letters, muted): the HI line is HI + space + 6 digits = 8 tiles, centred
+    hi_px = [[0] * 8 for _ in range(8)]
+    for y, r in enumerate(["#.#.###", "#.#..#.", "###..#.", "#.#..#.", "#.#.###"]):
+        for x, ch in enumerate(r):
+            if ch == "#":
+                if hi_px[y + 3][x + 1] == 0:
+                    hi_px[y + 3][x + 1] = 1
+    for y, r in enumerate(["#.#.###", "#.#..#.", "###..#.", "#.#..#.", "#.#.###"]):
+        for x, ch in enumerate(r):
+            if ch == "#":
+                hi_px[y + 2][x] = 2
+    hi_tile = tid(hi_px, True)
+    strip_prev.append(hi_px)
+    n_total = len(pool_px)
+    patron_base = first + n_total            # 4 tiles of the scene's patron (copied from the cowboys group at run time)
+    if patron_base + 4 > TITLE_TILE_LIMIT:
+        sys.exit(f"gen_art: title tiles end at {patron_base + 4}, past {TITLE_TILE_LIMIT} (fill {n_fill}, all {n_total})")
+
+    # effect sprites: 8x8 frames in the top half of 8x16 entries
+    fx = [r for _, r in blocks(ROOT / "assets/art/title_fx.txt")]
+    assert len(fx) == 6 and all(len(f) == 8 and all(len(r) == 8 for r in f) for f in fx), "title_fx.txt: 6 frames 8x8"
+    fxt = []
+    for f in fx:
+        fxt += tile_bytes(f + ["." * 8] * 8, 0, 0) + tile_bytes(f + ["." * 8] * 8, 0, 8)
+
+    def carr(name, vals):
+        return f"static const uint8_t {name}[{len(vals)}] = {{ " + ", ".join(str(v) for v in vals) + " };"
+    ext, low = [], []
+    for px in pool_px:
+        ext += _px_tile_bytes(px)
+    for px in low_px:
+        low += _px_tile_bytes(px)
+    out = ["// generated by tools/gen_art.py (title_art) -- do not edit; #included by src/title.c (its bank)",
+           f"#define TT_EXTRA_BASE {first}", f"#define TT_EXTRA_COUNT {n_total}   // logo fill states + menu text tiles",
+           f"#define TT_LOW_COUNT {len(low_px)}   // menu text tiles at ids 0.. (the stage slot)",
+           f"#define TT_PATRON_BASE {patron_base}", f"#define TT_BLANK {blank}", f"#define TT_HI {hi_tile}",
+           f"#define TT_LOGO_STATES {len(LOGO_FILL) + 1}", f"#define TT_FX_TILES {len(fxt) // 16}", "",
+           fmt("title_tiles", ttiles).replace("const uint8_t", "static const uint8_t"),
+           fmt("tt_extra_tiles", ext).replace("const uint8_t", "static const uint8_t"),
+           fmt("tt_low_tiles", low).replace("const uint8_t", "static const uint8_t"),
+           fmt("tt_fx_tiles", fxt).replace("const uint8_t", "static const uint8_t"),
+           carr("tt_word", [TITLE_LETTERS.index(ch) for ch in TITLE_WORD]) + "   // SPIGOTEER -> tt_logo index",
+           f"static const uint8_t tt_logo[{len(TITLE_LETTERS)}][{len(LOGO_FILL) + 1}][4] = {{"]
+    for st in fill_map:
+        out.append("    { " + ", ".join("{ " + ", ".join(str(v) for v in q) + " }" for q in st) + " },")
+    out.append("};")
+    for k2, t in text.items():
+        out.append(carr(f"tt_{k2}", [t["col"], len(t["tiles"])] + t["tiles"]) + "   // column, count, tile ids")
+        out.append(f"#define TT_X_{k2.upper()} {t['x']}   // screen x of its first text pixel")
+    out += [carr("tt_digit", digits), ""]
+    (outdir / "title_art.h").write_text("\n".join(out))
+    (outdir / "title.json").write_text(json.dumps({
+        "extra_base": first, "blank": blank, "hi": hi_tile, "digits": digits, "text": text, "word": TITLE_WORD,
+        "logo": {L: fill_map[i] for i, L in enumerate(TITLE_LETTERS)}, "patron_base": patron_base, "fill_tiles": n_fill}))
+    # previews: each letter's fill states (columns: letters, rows: states), the menu strings
+    S = len(LOGO_FILL) + 1
+    im = Image.new("RGB", (len(TITLE_LETTERS) * 17, S * 17), (255, 0, 255))
+    for i, px in enumerate(previews):
+        L, s = divmod(i, S)
+        for y in range(16):
+            for x in range(16):
+                im.putpixel((L * 17 + x, s * 17 + y), GREY[px[y][x]])
+    im.resize((im.width * 8, im.height * 8), Image.NEAREST).save(prev / "title_logo_fill_x8.png")
+    w = max(len(p[0]) for p in strip_prev)
+    im = Image.new("RGB", (w, 9 * len(strip_prev)), (255, 0, 255))
+    for i, px in enumerate(strip_prev):
+        for y in range(8):
+            for x in range(len(px[0])):
+                im.putpixel((x, i * 9 + y), GREY[px[y][x]])
+    im.resize((im.width * 8, im.height * 8), Image.NEAREST).save(prev / "title_menu_x8.png")
+    png(fx, prev / "title_fx_x8.png", 8, transparent=True)
+
+
 def main():
     outdir, prev = Path(sys.argv[1]), Path(sys.argv[2])
     outdir.mkdir(parents=True, exist_ok=True); prev.mkdir(parents=True, exist_ok=True)
@@ -306,8 +497,8 @@ def main():
         for ty in range(2):
             for tx in range(2):
                 ttiles += tile_bytes(rows, tx * 8, ty * 8)
-    h += [f"#define TITLE_TILE_COUNT {len(ttiles) // 16}", "extern const uint8_t title_tiles[];", ""]
-    c.append(fmt("title_tiles", ttiles))
+    h += [f"#define TITLE_TILE_COUNT {len(ttiles) // 16}   // data in build/title_art.h (src/title.c's bank)", ""]
+    title_art(outdir, prev, n, ttiles, dict(bg))
     # preview: tiles in a grid of 16 per row
     cols = 16
     im = Image.new("RGB", (cols * 9, ((n_generic + cols - 1) // cols) * 9), (255, 0, 255))

@@ -11,7 +11,8 @@ from gbtools import Rom
 from pyboy import PyBoy
 from test_bonus import PH_SHAKE, enter_bonus, to_phase
 from test_flow import (BONUS, GAME_OVER, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, clear_level, hi_score,
-                       inject_mug, lose_a_life, put, run_until, score, set_patron, state, tile_id, tilemap_row)
+                       hi_shown, hi_tiles, inject_mug, lose_a_life, music_line, put, run_until, score, set_patron, state,
+                       tile_id, tilemap_row, title_text_row)
 
 pytestmark = pytest.mark.timeout(120)
 
@@ -491,25 +492,21 @@ def test_the_show_tune_waits_for_nothing_when_a_show_starts(sgb):
 
 # ---- MUSIC ON / OFF -------------------------------------------------------------------------
 def music_text(gb):
-    return tilemap_row(gb, 14, 5, 9)
-
-
-def glyphs(s):
-    return [tile_id("HUD_BLANK") if c == " " else tile_id("GLYPH_" + c) for c in s]
+    return music_line(gb)          # the title's MUSIC line (M10a: row 10, centred)
 
 
 def test_select_toggles_the_music(srom):
-    assert srom.mem("sound_on") == 1 and music_text(srom) == glyphs("MUSIC ON ")
+    assert srom.mem("sound_on") == 1 and music_text(srom) == title_text_row("music_on")
     srom.press("select", 2)
     srom.run(2)
-    assert srom.mem("sound_on") == 0 and music_text(srom) == glyphs("MUSIC OFF")
+    assert srom.mem("sound_on") == 0 and music_text(srom) == title_text_row("music_off")
     f = srom.mem16("music_frames")
     srom.run(30)
     assert srom.mem16("music_frames") == f, "the driver is not ticking while the music is off"
     assert silent(audio_frames(srom, 10)), "silent (the driver cuts the notes)"
     srom.press("select", 2)
     srom.run(2)
-    assert srom.mem("sound_on") == 1 and music_text(srom) == glyphs("MUSIC ON ")
+    assert srom.mem("sound_on") == 1 and music_text(srom) == title_text_row("music_on")
     srom.run(30)
     assert srom.mem(NR52) & 0x06, "the title tune is back"
 
@@ -557,7 +554,7 @@ def test_hi_score_survives_a_reset(model):
     with make_rom(model, ram, sound=False) as again:     # power cycle with the same battery RAM
         again.run(120)
         assert hi_score(again) == 50
-        assert tilemap_row(again, 12, 8, 6) == glyphs("000050"), "the title shows the saved HI"
+        assert hi_shown(again) == hi_tiles("000050"), "the title shows the saved HI"
         assert [d for d in again.read("hi_digits", 6)] == [0, 0, 0, 0, 5, 0]
 
 
@@ -609,7 +606,7 @@ def test_invalid_save_data_loads_as_zero(model):
         with make_rom(model, ram, sound=False) as again:
             again.run(120)
             assert hi_score(again) == 0, name
-            assert tilemap_row(again, 12, 8, 6) == glyphs("000000"), name
+            assert hi_shown(again) == hi_tiles("000000"), name
 
 
 # ---- frame discipline --------------------------------------------------------------------------
