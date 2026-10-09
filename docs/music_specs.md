@@ -24,6 +24,7 @@ Confidence and source are listed per tune; credit the SOURCE line.
 Key: F major
 Time: 6/8
 Tempo: dotted quarter = 92 (quarter ~ 138)
+Game tempo: dotted quarter = 112 (11 frames per eighth row, plays at 109). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 6)
 Length: 25 bars + pickup
 
@@ -68,6 +69,7 @@ Source: Melody from John Chambers' ABC transcription (trillian.mit.edu/~jc/music
 Key: G major
 Time: 3/4
 Tempo: quarter = 160
+Game tempo: quarter = 192 (9 frames per eighth row, plays at 200). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 6)
 Length: 32 bars
 
@@ -115,6 +117,7 @@ Source: Traditional Tune Archive (tunearch.org, 'Skater's Waltz'), transcription
 Key: G major
 Time: 3/4
 Tempo: quarter = 168
+Game tempo: quarter = 192 (9 frames per eighth row, plays at 200). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 6)
 Length: 32 bars
 
@@ -231,6 +234,7 @@ Source: Ryan's Mammoth Collection (1882), p. 264, via John Chambers' ABC mirror 
 Key: G major (Strauss wrote it in D; this source is transposed)
 Time: 3/4
 Tempo: quarter = 160
+Game tempo: quarter = 192 (9 frames per eighth row, plays at 200). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 6)
 Length: 32 bars
 
@@ -314,6 +318,7 @@ Source: NO TRANSCRIPTION SOURCE FOUND. Written from memory. Verify against Grieg
 Key: A minor (miyako-bushi scale: A B C E F)
 Time: 4/4
 Tempo: quarter = 72
+Game tempo: quarter = 120 (15 frames per eighth row, plays at 120). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 8)
 Length: 14 bars
 
@@ -343,6 +348,7 @@ Source: Melody: John Chambers' ABC 'Sakura (Cherry Blossom)' (trillian.mit.edu/~
 Key: C major
 Time: 2/4
 Tempo: quarter = 90 (Joplin: 'Not fast')
+Game tempo: quarter = 112 (8 frames per sixteenth row, plays at 112.5). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = SIXTEENTH note (bar = 8)
 Length: 16 bars + pickup
 

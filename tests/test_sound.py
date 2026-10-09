@@ -166,7 +166,7 @@ def test_sound_is_on_and_the_title_tune_plays(srom):
     # (on a row's first frame the tick can land just after the frame boundary PyBoy stops at: the count may lag by one)
     assert abs(srom.mem16("music_frames") - (frames0 + 120)) <= 1, "driver ticked once per frame"
     assert srom.mem("hUGE_row") != row0, "the song advances"
-    assert seen == 0x6, f"channels 2 and 3 play the title tune, 1 and 4 stay free (NR52 channel bits seen: {seen:#x})"
+    assert seen == 0xE, f"channels 2, 3 and 4 play the title tune, 1 stays free (NR52 channel bits seen: {seen:#x})"
 
 
 def test_music_is_audible_and_changes(srom):
@@ -358,7 +358,7 @@ def spec_bars_for_the_game(name, bars):
     return bars
 
 
-# the spec's tempo: beats per minute and song rows per beat
+# the spec's tempo (the game plays songs.GAME_BPM where that lists the tune): beats per minute and song rows per beat
 SPEC_BPM_ROWS = {"funicula": (92, 3), "skaters": (160, 2), "ballgame": (168, 2), "mountain": (160, 2), "weasel": (100, 3),
                  "danube": (160, 2), "hall": (120, 2), "sakura": (100, 2), "entertainer": (90, 4)}
 
@@ -375,8 +375,9 @@ def test_the_nine_tunes_are_the_specs_token_for_token():
             rows = gm.merge_ties(s[ch]).split()
             assert sum(int(t.split(":")[1].rstrip("!")) for t in rows) == per_bar * len(bars), f"{name} {ch} length"
         bpm, rows_per_beat = SPEC_BPM_ROWS[name]
+        bpm = songs.GAME_BPM.get(name, bpm)             # the owner-approved game tempo (the spec's where none is listed)
         ideal = 3600 / bpm / rows_per_beat
-        assert abs(s["tempo"] - ideal) / ideal < 0.05, f"{name} tempo {s['tempo']} vs {ideal:.1f} frames per row"
+        assert abs(s["tempo"] - ideal) / ideal < 0.05, f"{name} tempo {s['tempo']} vs {ideal:.1f} frames per row (game tempo {bpm} bpm)"
         if name in ("hall", "sakura"):
             continue                                    # root ostinato / drone, not chords
         bass = s["ch3"].replace("!", "").split()
@@ -641,8 +642,49 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
     import re
     from conftest import ROOT
     src = (ROOT / "build" / "music_data.c").read_text()
-    frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+\}", src)]
+    frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+, \w+\}", src)]
     assert len(frames) == TUNE_COUNT and all(60 <= f <= 2400 for f in frames), frames
     venue = frames[TUNE_VENUE0:]
     assert all(15 * 60 <= f <= 36 * 60 for f in venue), f"venue tunes loop for 15-36 s (the owner specs are up to 32 bars of a waltz): {venue}"
     assert 8 * 60 <= frames[TUNE_SHOW] <= 12 * 60, "the show tune loops for 8-12 s"
+
+
+def test_title_and_every_venue_tune_have_drums():
+    """Channel 4 is not silent in the title and the nine venue tunes: a pattern with percussion notes, or a groove
+    (src/music.c plays it) with a kick or snare, which divides the tune's length evenly and sits in the tune's own tempo."""
+    import re
+    src = (ROOT / "build" / "music_data.c").read_text()
+    tunes = {"entertainer": "title", **{v: f"venue{i}" for i, v in enumerate(songs.VENUES)}}
+    for name, tune in tunes.items():
+        t = songs.SONGS[name]
+        built = gm.build(name, t, False)
+        pattern_hits = sum(1 for chunk in built["per"][4] for note, inst, eff in chunk if note != gm.REST)
+        g = gm.groove_rows(name, t)
+        assert pattern_hits or (g and (1 in g or 2 in g)), f"{name}: no drums"
+        if g:
+            assert built["total"] % len(g) == 0, f"{name}: the groove must fit the song a whole number of times"
+            m = re.search(r"groove_%s\[\] = \{(\d+), (\d+)," % tune, src)
+            assert m and int(m.group(1)) == len(g) and int(m.group(2)) == t["tempo"], f"{name}: groove table in music_data.c"
+    assert len(gm.drum_kit()) == 3
+
+
+def sample_channel4(rom, frames):
+    on = 0
+    for _ in range(frames):
+        rom.run(1)
+        on += bool(rom.mem(NR52) & 8)
+    return on
+
+
+def test_the_title_tune_plays_drums(srom):
+    assert srom.mem("cur_tune") == TUNE_TITLE
+    assert sample_channel4(srom, 120) > 10, "the title's groove sounds on channel 4"
+
+
+@pytest.mark.parametrize("group", range(9))
+def test_every_venue_tune_sounds_on_channel_4(sgb, group):
+    if group:
+        goto_level(sgb, group + 1 if group % 2 else group + 10)
+    sgb.write("intro_timer", 255)
+    assert sgb.mem("cur_tune") == TUNE_VENUE0 + group
+    assert sample_channel4(sgb, 150) > 10, f"{songs.VENUES[group]}: channel 4 is silent"
