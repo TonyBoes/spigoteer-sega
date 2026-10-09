@@ -29,8 +29,13 @@ ids = []
 for g in groups:
     names = ["zoo_monkey", "zoo_panda", "zoo_lion"] if g == "zoo" else [f"{g}_{v}" for v in "abc"]
     ids.append([keys.index(n) for n in names])
+# M14a enhanced variants: <group>_x is the group's extra OBJ palette (CGB OBJ 4, the lifted column of its enhanced variant
+# that no patron palette shows; tools/gen_art.py validates the art against it). 255: the group has none.
+xids = [keys.index(f"{g}_x") if f"{g}_x" in keys else 255 for g in groups]
 h += ["", "// patron palettes per group (same order as the art): PAL_* ids of variants A, B, C",
-      f"#define PATRON_PAL_GROUPS {len(groups)}", "extern const uint8_t patron_pal_ids[PATRON_PAL_GROUPS][3];"]
+      f"#define PATRON_PAL_GROUPS {len(groups)}", "extern const uint8_t patron_pal_ids[PATRON_PAL_GROUPS][3];",
+      "// M14a: per group the PAL_* id of its extra OBJ palette <group>_x (255: none); an initializer for src/enhance.c's bank",
+      "#define PATRON_X_IDS { " + ", ".join(map(str, xids)) + " }"]
 c += []
 h += ["", f"#define PAL_COUNT {len(keys)}", "extern const palette_t palettes[PAL_COUNT];", "", "#endif", ""]
 c += ["};", "", "const uint8_t patron_pal_ids[PATRON_PAL_GROUPS][3] = {"]

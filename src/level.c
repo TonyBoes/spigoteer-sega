@@ -120,6 +120,7 @@ void start_level(void) BANKED {
     load_venue(cur_group);                      // M9: the venue of the level's theme (theme index = patron group)
     load_patron_group(cur_group);
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
+    enhance_load(cur_group);                    // M14a: row palettes, lifted columns' attributes, OBJ 4, bank-1 lift tiles
     place_start_patrons();
 }
 

@@ -23,5 +23,14 @@
    "#301408"
   ],
   "_note": "index 0 = wall colour behind patrons"
+ },
+ "bar_b": {
+  "hex": [
+   "#2c5060",
+   "#f0b890",
+   "#985830",
+   "#2c1808"
+  ],
+  "_note": "M14a: no keg uses it in the saloon (its bar attributes are all 0); it is the row palette S of the cowboys' enhanced variant (the cowgirl's top tile row: skin, brown hair, dark). Colour 0 = the wall."
  }
 }

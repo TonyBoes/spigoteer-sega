@@ -33,7 +33,7 @@ GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/m
 # in bank 3 (build/music_pat3.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
 HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
-BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h
+BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h
 ROM      := $(BUILD)/$(NAME).gb
 
 .PHONY: all test check preview clean assets release
@@ -51,7 +51,7 @@ $(BUILD) $(OUT)/preview:
 $(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tiles/title.txt assets/art/bartender.txt assets/art/glass.txt assets/art/coin.txt assets/art/can.txt assets/art/geyser.txt assets/art/droplets.txt assets/art/cursor.txt assets/art/title_fx.txt assets/art/pour.txt assets/art/tap.txt assets/art/pour_glass.txt assets/art/tips.txt $(wildcard assets/art/patrons/*.txt) $(wildcard assets/approved/venues/*) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
-$(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h: $(BUILD)/art.c
+$(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h: $(BUILD)/art.c
 	@test -f $@
 
 # CGB palettes: assets/palettes.json -> build/palettes.c/.h

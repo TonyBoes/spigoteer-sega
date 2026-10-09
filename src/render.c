@@ -153,7 +153,8 @@ void build_lists(void);
 // Compose columns cz_x0..cz_x1-1 of a bar: the wall restored over the span, then each patron of the bar stamped
 // over it in slot order. Split into small functions on purpose: SDCC keeps their few values in registers; one
 // big function spends most of its time moving spilled values to and from the stack.
-static uint8_t cz_x0, cz_x1, cz_pal;      // span of the bar being composed, palette of the patron being stamped
+static uint8_t cz_x0, cz_x1, cz_pal;      // span of the bar being composed, palette of the patron being stamped (top row)
+static uint8_t cz_palb;                   // ... and of his bottom tile row (M14a: an enhanced variant's differs; enhance.c)
 static uint8_t *cz_tile, *cz_attr;        // its first wall row in sh_tile / sh_attr (cz_attr 0 on DMG)
 
 // First tile of variant v pre-shifted by s px (M13a, column-major: column k is tiles + 2k (top) and + 2k + 1 (bottom);
@@ -166,9 +167,9 @@ static const uint8_t back_tile[4] = { SB(0), SB(1), SB(2), SB(0) };
 
 static uint8_t st_t;                      // first tile of the patron being stamped
 
-static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal for patron s drawn at x d (front view)
+static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal / cz_palb for patron s drawn at x d (front view)
     uint8_t v = patron_variant[s] & 3;
-    cz_pal = BGPAL_PATRON + v;
+    cz_pal = pat_row[v]; cz_palb = pat_row[4 + v];
     st_t = stamp_tile[(v << 3) | (d & 7)];
 }
 
@@ -180,7 +181,7 @@ static void stamp3(uint8_t c) {                          // the whole 3x2 footpr
     if (!cz_attr) return;
     r = cz_attr + c; t = cz_pal;
     r[0] = t; r[1] = t; r[2] = t;
-    r += 32;
+    r += 32; t = cz_palb;
     r[0] = t; r[1] = t; r[2] = t;
 }
 
@@ -191,7 +192,7 @@ static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if i
     r[0] = t; r[32] = t + 1;
     if (!cz_attr) return;
     r = cz_attr + c;
-    r[0] = cz_pal; r[32] = cz_pal;
+    r[0] = cz_pal; r[32] = cz_palb;
 }
 
 static void put_back_col(uint8_t c, uint8_t t) {         // one 1x2 column of a back view (2x2 tiles), if inside the span
@@ -201,14 +202,14 @@ static void put_back_col(uint8_t c, uint8_t t) {         // one 1x2 column of a 
     r[0] = t; r[32] = t + 2;
     if (!cz_attr) return;
     r = cz_attr + c;
-    r[0] = cz_pal; r[32] = cz_pal;
+    r[0] = cz_pal; r[32] = cz_palb;
 }
 
 // Patron s, watching the show, in its back view at column c (on a multiple of 8 px: 2 columns; the 3rd column of
 // its footprint stays wall).
 static void stamp_back(uint8_t s, uint8_t c) {
     uint8_t v = patron_variant[s] & 3;
-    cz_pal = BGPAL_PATRON + v;
+    cz_pal = back_row[v]; cz_palb = back_row[4 + v];
     v = back_tile[v];
     put_back_col(c, v); put_back_col(c + 1, v + 1);
 }
@@ -234,7 +235,7 @@ static void stamp_blank(uint8_t s) {
     if (d == 255 || (d & DRAW_BACK)) return;              // (a back view covers its own 2 columns; the 3rd stays wall)
     c = (d & ~DRAW_BACK) >> 3;
     if (c + 3 <= cz_x0 || c >= cz_x1) return;
-    cz_pal = BGPAL_PATRON + (patron_variant[s] & 3);
+    cz_pal = cz_palb = BGPAL_PATRON + (patron_variant[s] & 3);   // (colour 0 only: the wall in every patron palette)
     put_col(c, PATRON_BLANK); put_col(c + 1, PATRON_BLANK); put_col(c + 2, PATRON_BLANK);
 }
 

@@ -17,6 +17,8 @@
                         footprint (3x2 tiles, colour 0 background) = 144 tiles,
   patrons/<g>_back.txt  then 3 back views 16x16 (shift 0 only, 2x2 tiles) = 12 tiles.
                         build/patron_load.c (fixed bank) has load_patron_tiles(g, first).
+                        M14a: '; @rows <v> <top> <bottom>' header lines make variant v (a/b/c) an ENHANCED variant
+                        (see enhanced_group): build/patron_enh.h (src/enhance.c) + build/patron_enh.json (tests).
 Usage: gen_art.py outdir previewdir
 """
 import json
@@ -519,7 +521,221 @@ def bonus2_art(outdir, prev):
     png(tips_frames, prev / "tips_x8.png", 8, transparent=True)
 
 
+# ---- M14a enhanced patron variants (patron review, recommendation 7) ----
+# A patron's BG palette is chosen per 8x8 tile, and the rows of his 3x2 footprint never move (bar tops are multiples of
+# 8), so a variant may use one BG palette on its top tile row (figure rows 0-7) and another on the bottom row (8-15) at
+# every pre-shift. Lifted, he is two 8x16 entries (figure x 0-7 and x 8-15), one OBJ palette each. An enhanced variant
+# is lift-exact when every quadrant's colours are in its row palette AND its column's OBJ palette:
+#   rows: own = the variant's own palette (BG 2 + v), S = the venue's bar_b palette (BG 7, shared with the keg/spout:
+#         a venue without bar_b needs one, colour 0 = the wall; the saloon's keg does not use it);
+#   columns: any patron OBJ palette of the group (A/B/C = OBJ 3/6/7, their BG palettes' colours) or the group's extra
+#         <group>_x (OBJ 4, palettes.json). A column whose pixels keep their art index in that palette uses the normal
+#         tiles (bank 0); otherwise gen_art writes a re-indexed copy of the column's two tiles that src/enhance.c loads
+#         into CGB VRAM bank 1 at the same ids (OAM attribute bit 3). DMG draws the bank-0 tiles in greys by index (BG and
+#         OBP1 = E4), unchanged.
+# The art stays index art; the validator below refuses art that breaks the rule, with the reason.
+BGPAL_PATRON, BGPAL_S = 2, PAL_BAR_B
+OBJPAL_VARIANT, OBJPAL_X, OAM_BANK1 = [3, 6, 7], 4, 0x08
+VARIANT_PALS = {"zoo": ["zoo_monkey", "zoo_panda", "zoo_lion"]}
+
+
+class ArtError(Exception):
+    pass
+
+
+def r15(h):
+    r, g, b = (int(h[i:i + 2], 16) for i in (1, 3, 5))
+    return (r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10)
+
+
+def c_hex(c):
+    return "#%02x%02x%02x" % ((c & 31) << 3, ((c >> 5) & 31) << 3, ((c >> 10) & 31) << 3)
+
+
+def c_lum(c):
+    return 0.2126 * (c & 31) + 0.7152 * ((c >> 5) & 31) + 0.0722 * ((c >> 10) & 31)
+
+
+def row_specs(path):
+    """'; @rows <v> <top> <bottom>' header lines of an art file -> {variant index: (top, bottom)}, each 'own' or 'S'."""
+    out = {}
+    for line in path.read_text().splitlines():
+        if line.startswith("; @rows"):
+            w = line.split()
+            if len(w) != 5 or w[2] not in ("a", "b", "c") or not {w[3], w[4]} <= {"own", "S"}:
+                raise ArtError(f"{path.name}: '{line}': want '; @rows <a|b|c> <own|S> <own|S>'")
+            out["abc".index(w[2])] = (w[3], w[4])
+    return out
+
+
+def index0_holes(art):
+    """Index-0 pixels the figure encloses (not reachable from the 16x16 border through index 0)."""
+    todo = [(x, y) for y in range(16) for x in range(16) if (x in (0, 15) or y in (0, 15)) and art[y][x] == "."]
+    seen = set(todo)
+    while todo:
+        x, y = todo.pop()
+        for xx, yy in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= xx < 16 and 0 <= yy < 16 and (xx, yy) not in seen and art[yy][xx] == ".":
+                seen.add((xx, yy))
+                todo.append((xx, yy))
+    return [(x, y) for y in range(16) for x in range(16) if art[y][x] == "." and (x, y) not in seen]
+
+
+def check_rows(name, art, top, bot):
+    """An enhanced frame's row palettes (3 RGB15 each, art indices 1-3): a colour in both keeps its index (the DMG grey
+    and the art stay the same across row 8), each is ordered light to dark (DMG), and no index 0 lies inside the figure
+    (a lifted patron would be see-through there)."""
+    for i, c in enumerate(top):
+        if c in bot and bot.index(c) != i:
+            raise ArtError(f"{name}: colour {c_hex(c)} is index {i + 1} in the top-row palette but {bot.index(c) + 1} in "
+                           "the bottom-row one (a colour both rows use must keep its index)")
+    for pal, which in ((top, "top"), (bot, "bottom")):
+        if not c_lum(pal[0]) > c_lum(pal[1]) > c_lum(pal[2]):
+            raise ArtError(f"{name}: the {which}-row palette {[c_hex(c) for c in pal]} is not ordered light to dark (DMG)")
+    h = index0_holes(art)
+    if h:
+        raise ArtError(f"{name}: index 0 inside the figure at (x, y) {h[:6]}: a lifted patron would be see-through there")
+
+
+def lift_columns(name, art, top, bot, objpals, own):
+    """The two 8x16 columns of the shift-0 pose (x 0-7, x 8-15) as lifted: per column (OAM attribute, None or the 32 bytes
+    of its re-indexed tile pair for VRAM bank 1). objpals: {OBJ slot: [3 RGB15]}; own: the variant's own slot (tried
+    first). Raises ArtError when a column needs more than 3 colours or its colours are in no OBJ palette."""
+    out = []
+    for cx, side in ((0, "left"), (8, "right")):
+        px = [(x, y, IDX[art[y][x]]) for y in range(16) for x in range(cx, cx + 8) if IDX[art[y][x]]]
+
+        def colour(y, i):
+            return (top if y < 8 else bot)[i - 1]
+        cols = sorted({colour(y, i) for _, y, i in px})
+        quad = {q: sorted({c_hex(colour(y, i)) for x, y, i in px if (y >= 8) == q}) for q in (0, 1)}
+        if len(cols) > 3:
+            raise ArtError(f"{name}: the {side} column (x {cx}-{cx + 7}) has {len(cols)} colours (top quadrant "
+                           f"{quad[0]}, bottom {quad[1]}); a lifted 8x16 entry shows 3: each quadrant's colours must be in "
+                           "its row palette and in one OBJ palette for the whole column")
+        order = [own] + [k for k in objpals if k != own]
+        same = [k for k in order if all(objpals[k][i - 1] == colour(y, i) for _, y, i in px)]
+        if same:
+            out.append((same[0], None))
+            continue
+        fit = [k for k in order if set(cols) <= set(objpals[k])]
+        if not fit:
+            have = {k: [c_hex(c) for c in v] for k, v in objpals.items()}
+            raise ArtError(f"{name}: the {side} column (x {cx}-{cx + 7}) needs {[c_hex(c) for c in cols]} (top quadrant "
+                           f"{quad[0]}, bottom {quad[1]}), which no OBJ palette of the group holds ({have}); put them in "
+                           f"<group>_x (OBJ {OBJPAL_X}, assets/palettes.json)")
+        k = fit[0]
+        rows = ["".join(".-+#"[objpals[k].index(colour(y, IDX[art[y][x]])) + 1] if IDX[art[y][x]] else "."
+                        for x in range(cx, cx + 8)) for y in range(16)]
+        out.append((k | OAM_BANK1, tile_bytes(rows, 0, 0) + tile_bytes(rows, 0, 8)))
+    return out
+
+
+def enhanced_group(gi, g, fronts, backs, pj):
+    """Group g's row palettes / lift attributes per variant, validated. Returns (table of 24 bytes: front top[4], front
+    bottom[4], back top[4], back bottom[4], lifted left column attribute[4], right[4] (variant 3 = variant 0, never
+    used); bank-1 columns [(variant, column k 0/1, 32 bytes)]; per enhanced variant the palettes for the preview)."""
+    t = THEMES[gi]
+    vp = json.loads((ROOT / f"assets/approved/venues/{t}_pal.json").read_text())
+    wall = r15(vp["bar"]["hex"][0])
+    s_pal = [r15(h) for h in vp["bar_b"]["hex"][1:]] if "bar_b" in vp else None
+    own = [[r15(h) for h in pj[n]["hex"]] for n in VARIANT_PALS.get(g, [f"{g}_{v}" for v in "abc"])]
+    objpals = {OBJPAL_VARIANT[v]: own[v] for v in range(3)}
+    if f"{g}_x" in pj:
+        objpals[OBJPAL_X] = [r15(h) for h in pj[f"{g}_x"]["hex"]]
+    fs = row_specs(ROOT / f"assets/art/patrons/{g}.txt")
+    bs = row_specs(ROOT / f"assets/art/patrons/{g}_back.txt")
+    if gi == 0 and 0 in fs:
+        raise ArtError(f"{g}.txt: variant a is the title scene's patron (src/title.c: one BG palette); it cannot be enhanced")
+
+    def pal(v, which, fname):
+        if which == "own":
+            return BGPAL_PATRON + v, own[v]
+        if s_pal is None:
+            raise ArtError(f"{fname}: variant {'abc'[v]} uses S, the venue's bar_b palette (BG {BGPAL_S}), but "
+                           f"{t}_pal.json has no bar_b: add one (colour 0 = the wall {vp['bar']['hex'][0]})")
+        return BGPAL_S, s_pal
+    tab = [0] * 24
+    b1, looks = [], {}
+    for v in range(3):
+        (ft, fp), (fb, fq) = (pal(v, w, f"{g}.txt") for w in fs.get(v, ("own", "own")))
+        (bt, bp), (bb, bq) = (pal(v, w, f"{g}_back.txt") for w in bs.get(v, ("own", "own")))
+        name = f"{g}.txt variant {'abc'[v]}"
+        if v in fs:
+            check_rows(name, fronts[v], fp, fq)
+        if v in bs:
+            check_rows(f"{g}_back.txt variant {'abc'[v]}", backs[v], bp, bq)
+        cols = lift_columns(name, fronts[v], fp, fq, objpals, OBJPAL_VARIANT[v])
+        tab[v], tab[4 + v], tab[8 + v], tab[12 + v] = ft, fb, bt, bb
+        tab[16 + v], tab[20 + v] = cols[0][0], cols[1][0]
+        for k, (_, data) in enumerate(cols):
+            if data is not None:
+                b1.append((v, k, data))
+        if v in fs or v in bs:
+            looks[v] = {"front": (fp, fq), "back": (bp, bq), "lift": [objpals[a & 7] for a, _ in cols],
+                        "lift_rows": [d for _, d in cols], "wall": wall}
+    for k in range(6):
+        tab[k * 4 + 3] = tab[k * 4]
+    return tab, b1, looks
+
+
+def enhanced_preview(path, art, back, look):
+    """x8: the BG copy at shifts 0-7 (24x16 each, true CGB colours on the wall), the lifted pose, the back view, DMG."""
+    def rgb(c):
+        return ((c & 31) << 3, ((c >> 5) & 31) << 3, ((c >> 10) & 31) << 3)
+    wall = rgb(look["wall"])
+    frames = []
+    for s in range(PATRON_SHIFTS):
+        im = Image.new("RGB", (24, 16), wall)
+        for y in range(16):
+            for x in range(16):
+                i = IDX[art[y][x]]
+                if i:
+                    im.putpixel((s + x, y), rgb(look["front"][y >= 8][i - 1]))
+        frames.append(im)
+    im = Image.new("RGB", (16, 16), wall)                 # lifted: each column through its OBJ palette and tiles
+    for k in range(2):
+        data = look["lift_rows"][k]
+        for y in range(16):
+            for x in range(8):
+                if data is None:
+                    i = IDX[art[y][k * 8 + x]]
+                else:
+                    o = (y // 8) * 16 + (y % 8) * 2
+                    i = ((data[o] >> (7 - x)) & 1) | (((data[o + 1] >> (7 - x)) & 1) << 1)
+                if i:
+                    im.putpixel((k * 8 + x, y), rgb(look["lift"][k][i - 1]))
+    frames.append(im)
+    im = Image.new("RGB", (16, 16), wall)
+    for y in range(16):
+        for x in range(16):
+            i = IDX[back[y][x]]
+            if i:
+                im.putpixel((x, y), rgb(look["back"][y >= 8][i - 1]))
+    frames.append(im)
+    for a in (art, back):
+        im = Image.new("RGB", (16, 16))
+        for y in range(16):
+            for x in range(16):
+                im.putpixel((x, y), GREY[IDX[a[y][x]]])
+        frames.append(im)
+    W = sum(f.width + 2 for f in frames)
+    out = Image.new("RGB", (W, 16), (255, 0, 255))
+    x0 = 0
+    for f in frames:
+        out.paste(f, (x0, 0))
+        x0 += f.width + 2
+    out.resize((W * 8, 128), Image.NEAREST).save(path)
+
+
 def main():
+    try:
+        _main()
+    except ArtError as e:
+        sys.exit(f"gen_art: {e}")
+
+
+def _main():
     outdir, prev = Path(sys.argv[1]), Path(sys.argv[2])
     outdir.mkdir(parents=True, exist_ok=True); prev.mkdir(parents=True, exist_ok=True)
     c = ["// generated by tools/gen_art.py -- do not edit", "#include <gb/gb.h>", '#include "art.h"',
@@ -667,6 +883,8 @@ def main():
     assert patron_first + shift0_ofs >= 128 and (patron_first + shift0_ofs) % 2 == 0
     load = ["// generated by tools/gen_art.py -- do not edit", "#include <gb/gb.h>", '#include "art.h"', ""]
     cases = []
+    pj = json.loads((ROOT / "assets/palettes.json").read_text())
+    enh_tab, enh_b1, enh_json = [], [], {}
     for gi, g in enumerate(PATRON_GROUPS):
         vs = [r for _, r in blocks(ROOT / f"assets/art/patrons/{g}.txt")]
         assert len(vs) == 3 and all(len(v) == 16 and all(len(r) == 16 for r in v) for v in vs), g
@@ -695,12 +913,33 @@ def main():
         load += [f"BANKREF_EXTERN({sym})", f"extern const uint8_t {sym}[];"]
         cases.append(f"    case {gi}: SWITCH_ROM(BANK({sym})); set_bkg_data(first, PATRON_GROUP_TILES, {sym}); break;")
         png(vs + bs, prev / f"patrons_{g}_x8.png", 8)
+        tab, b1, looks = enhanced_group(gi, g, vs, bs, pj)        # (M14a) validates every variant's lifted columns
+        enh_tab.append(tab)
+        enh_b1.append([(patron_first + pose_ofs(v, 0) + 2 * k, data) for v, k, data in b1])
+        enh_json[g] = {"tab": tab, "bank1": {str(t): d for t, d in enh_b1[-1]}, "enhanced": sorted(looks)}
+        for v, look in looks.items():
+            enhanced_preview(prev / f"patrons_{g}_{'abc'[v]}_enhanced_x8.png", vs[v], bs[v], look)
         if g == PATRON_GROUPS[0]:
             png(shifted_rows[:PATRON_SHIFTS], prev / "patrons_shifted_x8.png", 8)
     load += ["", "// LCD off (or VBlank) only: the group's 156 BG tiles to ids first..first+155",
              "void load_patron_tiles(uint8_t g, uint8_t first) {", "    uint8_t saved = CURRENT_BANK;", "    switch (g) {"]
     load += cases + ["    }", "    SWITCH_ROM(saved);", "}", ""]
     (outdir / "patron_load.c").write_text("\n".join(load))
+    eh = ["// generated by tools/gen_art.py (enhanced_group) -- do not edit; #included by src/enhance.c (its bank)",
+          "// per group: BG palette slot of the front view's top tile row [v], bottom row [4 + v], the back view's top [8 + v],",
+          "// bottom [12 + v]; the lifted pose's OAM attributes (CGB) left column [16 + v], right column [20 + v] (bit 3: VRAM bank 1)",
+          f"static const uint8_t enh_tab[{len(PATRON_GROUPS)}][24] = {{"]
+    eh += ["    { " + ", ".join(map(str, t)) + " },   // " + g for t, g in zip(enh_tab, PATRON_GROUPS)]
+    eh += ["};", "// per group: re-indexed lifted columns for CGB VRAM bank 1: { first tile id, 2 tiles (32 bytes) } each"]
+    for g, cols in zip(PATRON_GROUPS, enh_b1):
+        if cols:
+            data = [b for t, d in cols for b in [t] + d]
+            eh.append(fmt(f"enh_b1_{g}", data).replace("const uint8_t", "static const uint8_t"))
+    eh.append(f"static const uint8_t enh_b1_n[{len(PATRON_GROUPS)}] = {{ " + ", ".join(str(len(c)) for c in enh_b1) + " };")
+    eh.append(f"static const uint8_t * const enh_b1[{len(PATRON_GROUPS)}] = {{ "
+              + ", ".join(f"enh_b1_{g}" if c else "0" for g, c in zip(PATRON_GROUPS, enh_b1)) + " };")
+    (outdir / "patron_enh.h").write_text("\n".join(eh) + "\n")
+    (outdir / "patron_enh.json").write_text(json.dumps(enh_json))
     h[-2:-2] = [f"#define PATRON_GROUPS {len(PATRON_GROUPS)}",
                 f"#define PATRON_SHIFTS {PATRON_SHIFTS}",
                 f"#define PATRON_FIRST_TILE {patron_first}   // BG id of a group's first patron tile (even: BAR_TILE_COUNT rounded up)",
@@ -717,4 +956,5 @@ def main():
     (outdir / "art.c").write_text("\n".join(c))
 
 
-main()
+if __name__ == "__main__":
+    main()

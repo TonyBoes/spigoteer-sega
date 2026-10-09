@@ -25,6 +25,8 @@ OAM_LIFT_TOP = GAME["OAM_MUG_END"] - 1       # 25: lifted patrons count down fro
 OAM_DANCERS = GAME["OAM_DANCERS"]
 LIFT_PAL = [3, 6, 7]                          # CGB OBJ palettes of variants A, B, C
 OUT = ROOT / "out" / "m13a"
+import json as _json
+ENH_TAB = [v["tab"] for v in _json.loads((ROOT / "build" / "patron_enh.json").read_text()).values()]   # (M14a, group order)
 
 
 # ---- helpers -----------------------------------------------------------------------------------
@@ -207,7 +209,12 @@ def test_lift_and_drop_change_no_pixel_and_put_the_bg_back(gb):
         assert all(s["y"] - 16 == bar_top_y(b) for s in spr)
         assert all(not s["flags"] & 0x80 for s in spr), "in front of the BG"
         if gb.model_name == "cgb":
-            assert all(s["flags"] & 7 == LIFT_PAL[v] for s in spr)
+            # M14a: each column its own attributes (palette, bit 3 VRAM bank 1); a plain variant: LIFT_PAL[v] for both
+            tab = ENH_TAB[gb.mem("cur_group")]
+            want = {OBJ_BASE + 6 * v: tab[16 + v], OBJ_BASE + 6 * v + 2: tab[20 + v]}
+            assert all(s["flags"] & 0x0F == want[s["tile"]] for s in spr)
+            if tab[16 + v] == tab[20 + v]:
+                assert all(s["flags"] & 0x0F == LIFT_PAL[v] for s in spr)
         else:
             assert all(s["flags"] & 0x10 for s in spr), "DMG: OBP1"
         assert all(t in (BLANK, BLANK + 1) for r in map_ids(gb, b, x >> 3) for t in r), "BG: plain wall under him"

@@ -126,13 +126,14 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 
 // CGB OBJ palette slots (M13a): the breaking glass uses the venue's empty-drink palette (2); the tip
 // coin shares slot 5 with the show (never on screen together: render.c rewrites it in VBlank when one appears);
-// lifted patrons use 3, 6, 7 (variants A, B, C; colours 1-3 of their BG palettes); 4 is spare.
+// lifted patrons use 3, 6, 7 (variants A, B, C; colours 1-3 of their BG palettes); M14a: 4 is the group's extra palette
+// <group>_x for one lifted column of its enhanced variant (src/enhance.c).
 #define OBJPAL_BARTENDER 0
 #define OBJPAL_MUG_FULL  1
 #define OBJPAL_MUG_EMPTY 2
 #define OBJPAL_GLASS     OBJPAL_MUG_EMPTY
 #define OBJPAL_PATRON_A  3
-#define OBJPAL_SPARE     4
+#define OBJPAL_ENH       4   // (M14a; was OBJPAL_SPARE)
 #define OBJPAL_COIN      5
 #define OBJPAL_DANCER    5
 #define OBJPAL_PATRON_B  6
@@ -148,7 +149,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define BGPAL_PATRON     2   // 2, 3, 4 = patron variants A, B, C
 #define BGPAL_STAGE      5   // the venue's stage palettes A and B (M9)
 #define BGPAL_STAGE_B    6
-#define BGPAL_BAR_B      7   // the venue's second bar palette (keg / spout)
+#define BGPAL_BAR_B      7   // the venue's second bar palette (keg / spout); M14a: also an enhanced variant's row palette S
 #if BGPAL_STAGE != VENUE_BGPAL_STAGE_A || BGPAL_STAGE_B != VENUE_BGPAL_STAGE_B || BGPAL_BAR != VENUE_BGPAL_BAR || BGPAL_BAR_B != VENUE_BGPAL_BAR_B
 #error "tools/gen_art.py PAL_* must match the BGPAL_* slots"
 #endif
@@ -277,6 +278,10 @@ void lift_frame(void) BANKED;                 // after the rules, before queue_v
 void draw_lifted(void) BANKED;                // OAM 25 down, after draw_mugs
 uint8_t lift_spawn(uint8_t p) BANKED;         // lift a new patron at the left edge now (1), or not (0: no room)
 uint8_t lift_leave(uint8_t p) BANKED;         // a served patron slides out as a sprite: 1 done, 2 done (wait for his BG copy to go), 0 no room
+// ---- enhance.c (banked, M14a enhanced patron variants) ------------------------------------------
+extern uint8_t pat_row[8], back_row[8];       // BG palette of variant v's top tile row [v] and bottom row [4 + v] (front / back view)
+extern uint8_t lift_prop[8];                  // (lift.c) OAM attributes of variant v's lifted left column [v] and right column [4 + v]
+void enhance_load(uint8_t g) BANKED;          // level load (LCD off), after lift_level_init: the tables, OBJ 4, the bank-1 lift tiles
 // ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
 extern uint8_t venue_id;
 void load_venue(uint8_t t) BANKED;                      // tiles, palettes, base_tile/base_attr of theme t

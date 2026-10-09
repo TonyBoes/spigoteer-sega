@@ -66,7 +66,8 @@ enum { RES_NONE, RES_DONE, RES_REFUSED };
 
 static const uint8_t lift_pal[4] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_A };
 static const uint8_t lift_tile[4] = { PATRON_OBJ_BASE, PATRON_OBJ_BASE + 6, PATRON_OBJ_BASE + 12, PATRON_OBJ_BASE };
-static uint8_t lift_prop[4];          // OAM attributes of variant v (CGB its palette, DMG OBP1), set at level load
+uint8_t lift_prop[8];                 // OAM attributes of variant v's left column [v] and right column [4 + v] (CGB its
+                                      // palettes and bit 3 VRAM bank 1, M14a; DMG OBP1), set at level load (enhance.c)
 static uint8_t mg_live;
 
 // n OBJ tiles src -> dst with the two bit planes swapped (colours 1 and 2 trade places). LCD off.
@@ -84,7 +85,6 @@ void lift_level_init(uint8_t g) BANKED {
     for (v = 0; v < MAX_PATRONS; v++) { patron_lift[v] = LIFT_BG; patron_ovl[v] = 0; lift_pin[v] = 0; }
     ovl_bars = 0; ovl_dirty = 0;
     mg_live = 255;
-    for (v = 0; v < 4; v++) lift_prop[v] = is_cgb ? lift_pal[v] : S_PALETTE;
     for (v = 0; v < NUM_BARS; v++) lift_n[v] = 0;
     lift_total = 0; lift_oam_n = 0; lift_hook_op = HOOK_NONE;
     pal5_cur = 2;                                 // load_venue put the show's palette in slot 5
@@ -1007,9 +1007,9 @@ void lift_frame(void) BANKED {
 // the sway). Entries used last frame but not now are hidden unless the mugs took them this frame.
 // (hand-written: the C loop cost ~10 lines a frame) dl_n patrons written, OAM 25 down, two entries each. In C, per lifted
 // patron p: x = (patron_draw[p] & 0x7F) + 8 - (patron_lift[p] == LIFT_EDGE ? patron_aux[p] : 0) (uint8_t: wraps past the
-// left edge); entries { bar_oam_y[bar], x, lift_tile[v], lift_prop[v] } and { .., x + 8, lift_tile[v] + 2, .. }; it stops
-// after lift_total patrons.
-static uint8_t dl_n, dl_v, dl_x, dl_y, dl_t, dl_p;
+// left edge); entries { bar_oam_y[bar], x, lift_tile[v], lift_prop[v] } and { .., x + 8, lift_tile[v] + 2, lift_prop[4 + v] }
+// (M14a: each column its own attributes); it stops after lift_total patrons.
+static uint8_t dl_n, dl_v, dl_x, dl_y, dl_t, dl_p, dl_q;
 static uint8_t *dl_o;
 static void draw_lifted_asm(void) __naked {
 __asm
@@ -1088,6 +1088,10 @@ __asm
     add  hl, de
     ld   a, (hl)
     ld   (_dl_p), a
+    ld   de, #4             ; (M14a) dl_q = lift_prop[4 + v]: the attributes of the right column
+    add  hl, de
+    ld   a, (hl)
+    ld   (_dl_q), a
     ld   a, (_dl_o)
     ld   l, a
     ld   a, (_dl_o + 1)
@@ -1110,7 +1114,7 @@ __asm
     ld   a, (_dl_t)
     add  a, #2
     ld   (hl+), a
-    ld   a, (_dl_p)
+    ld   a, (_dl_q)
     ld   (hl), a
     add  hl, de             ; the next one down
     ld   a, l

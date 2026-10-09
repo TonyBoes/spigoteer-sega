@@ -500,3 +500,44 @@ redraw; the third Eskimo gets a beard. Round 6 is proposals first; the owner app
 Still open: the enhanced-variant engine work (one 4-colour-plus patron per group) and keg recolours outside the saloon.
 Owner (later, same day): keg recolours outside the saloon are OK, to make room for enhanced patrons. All art is done by
 our own agents; the external artist hand-off package is no longer in use.
+
+## M14a as built (enhanced patron variants: engine + the cowgirl)
+- Rule (patron review rec. 7): an ENHANCED variant draws its top tile row with one BG palette and its bottom row with
+  another (holds at every pre-shift: rows never move), and lifted its left 8x16 column with one OBJ palette and its right
+  column with another; every quadrant's colours are in its row palette and its column palette, so lifted == BG pixel for
+  pixel. Columns whose colours sit at other indices in their OBJ palette draw re-indexed copies of their two tiles from
+  CGB VRAM bank 1 (same ids, OAM attribute bit 3). DMG: unchanged (bank-0 tiles, greys by index, BG / OBP1 E4).
+- Slots: row palette S = the venue's bar_b (BG 7: the keg / spout palette where a venue has one; a venue without one
+  gets one). Extra OBJ palette X = palettes.json <group>_x in OBJ 4 (OBJPAL_ENH, was the spare). Title, bonus rounds:
+  nothing uses BG 7 attributes in the saloon or OBJ 4 / VRAM bank-1 tile data; every level load sets them again (tests).
+  | venue | BG 7 | OBJ 4 |
+  |---|---|---|
+  | saloon | bar_b NEW = S of the cowgirl: wall / skin #f0b890 / hair #985830 / dark #2c1808 (no keg uses it: attrs all 0) | cowboys_x rose #d86098 / hair / dark |
+  | the 8 others | their bar_b (keg / spout), unchanged | unused (no enhanced variant yet) |
+  No keg colour changed in M14a (the saloon keg is on the bar palette; no other group is enhanced yet). Keg recolours
+  come with the other groups' picks (owner approved), each shown before / after.
+- Art: '; @rows <a|b|c> <own|S> <own|S>' in assets/art/patrons/<g>.txt and <g>_back.txt marks the enhanced variant and its
+  top / bottom row palettes. tools/gen_art.py enhanced_group validates every variant of every group (each lifted column
+  <= 3 colours, all in one OBJ palette of A / B / C / X; for enhanced frames: a colour in both rows keeps its index, rows
+  light to dark, no index 0 inside the figure; S needs a venue bar_b; cowboys A, the title's patron, cannot be enhanced),
+  refuses art that breaks it with the reason, and writes build/patron_enh.h (tables + bank-1 tiles, src/enhance.c's bank)
+  and build/patron_enh.json (tests); preview out/preview/patrons_<g>_<v>_enhanced_x8.png (shifts 0-7, lifted, back, DMG).
+  palettes2c: PATRON_X_IDS.
+- Engine: src/enhance.c (bank 6) enhance_load(g) at level load (LCD off, after lift_level_init): pat_row[8] / back_row[8]
+  (top [v], bottom [4 + v]), lift_prop[8] (left [v], right [4 + v]), OBJ 4, the bank-1 tiles. render.c stamp_look /
+  stamp_back set cz_pal (top) and cz_palb (bottom); stamp3 / put_col / put_back_col write them per row; stamp_blank uses
+  the own palette for both (colour 0 only). lift.c draw_lifted_asm reads the right entry's attributes from lift_prop[4 + v]
+  (4 instructions). level.c calls enhance_load.
+- Cowgirl (cowboys B) = review mock-up 4.1, re-indexed (skin 1, hair / rose 2, dark 3): cowboys_b is now skin #f0b890 /
+  rose #d86098 / dark #2c1808 (BG 3, bottom row; OBJ 6, right column, bank 0); top row S; left column X from bank 1.
+  Back view: the review's cowgirl_back (top S brown hair, bottom her own palette).
+- Tests: tests/test_enhanced.py (all 8 shifts lifted while swaying == BG, CGB + DMG; zero changed pixels through lift /
+  drop; row attributes front + back; OAM attributes / bank bit CGB, never on DMG; bank-1 tiles and OBJ 4 / BG 7 after the
+  title and after each of the three bonus rounds; validator accepts the cowgirl, rejects a bad quadrant, a column no OBJ
+  palette holds, a shared colour at another index and an index-0 hole). test_lift's per-group M13a equivalence runs for
+  every group (enhanced or not); its OAM check reads the per-column attributes. Note: four BG patrons swaying on one frame
+  make the copy list spill into the next VBlank in one game and not the other (a frame's lag, any variant), so the new
+  test staggers their sway timers.
+- Perf (PyBoy, end LY / missed): level 8 script DMG 107 / 0, CGB 111 / 0 (unchanged); realistic peak DMG 188 / 56, CGB
+  194 / 99 (was 187 / 59, 193 / 99); level 9 overlap DMG 172 / 279, CGB 188 / 294 (was 175 / 268, 179 / 299); pile DMG
+  278 / 244, CGB 279 / 245. ROM0 573 -> 526 free by romusage (render.c per-row attributes, X palette); enhance.c in bank 6.
