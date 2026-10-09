@@ -13,12 +13,16 @@ LCC      := lcc
 # variables by name), -Wm-yc CGB-compatible (runs on DMG and CGB),
 # -Wm-yn cartridge title (max 15 chars), -Wm-yt MBC type if you need banks.
 LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynTAPPER
-# MBC5 + GBDK autobanking (M4.7): the pre-shifted patron tiles (~10 KB) live in build/patrons.c
+# MBC5+RAM+BATTERY (0x1B, one 8 KB SRAM bank for the hi score, M7) + GBDK autobanking (M4.7): the pre-shifted patron tiles (~10 KB) live in build/patrons.c
 # under `#pragma bank 255`; bankpack places it in a switchable bank. -Wm-yoA sizes the ROM.
-LCCFLAGS += -Wm-yt0x19 -Wm-yoA -autobank
+LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 
 SRC      := $(wildcard src/*.c)
-GEN      := $(BUILD)/art.c $(BUILD)/patrons.c $(BUILD)/palettes.c
+GEN      := $(BUILD)/art.c $(BUILD)/patrons.c $(BUILD)/palettes.c $(BUILD)/music_data.c
+# hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
+# rgb2sdas.py, placed in fixed ROM bank 2 next to the song data and src/music.c (all `#pragma bank 2`).
+HUGE     := third_party/hugedriver
+HUGE_OBJ := $(BUILD)/hUGEDriver.o
 BONUS_H  := $(BUILD)/can_tiles.h
 ROM      := $(BUILD)/$(NAME).gb
 
@@ -44,8 +48,18 @@ $(BUILD)/patrons.c $(BUILD)/can_tiles.h: $(BUILD)/art.c
 $(BUILD)/palettes.c $(BUILD)/palettes.h: tools/palettes2c.py assets/palettes.json | $(BUILD)
 	python3 tools/palettes2c.py assets/palettes.json $(BUILD)
 
-$(ROM): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h
-	$(LCC) $(LCCFLAGS) -I$(BUILD) -o $@ $(SRC) $(GEN)
+# Music: tune sources in tools/gen_music.py -> build/music_data.c
+$(BUILD)/music_data.c: tools/gen_music.py src/music.h | $(BUILD)
+	python3 tools/gen_music.py $(BUILD)
+
+$(BUILD)/hUGEDriver.obj: $(HUGE)/hUGEDriver.asm $(wildcard $(HUGE)/include/*) | $(BUILD)
+	rgbasm -i $(HUGE)/ -DGBDK -o $@ $<
+
+$(HUGE_OBJ): $(BUILD)/hUGEDriver.obj $(HUGE)/tools/rgb2sdas.py
+	python3 $(HUGE)/tools/rgb2sdas.py -c _CODE_2 -o $@ $<
+
+$(ROM): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
+	$(LCC) $(LCCFLAGS) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ)
 	@romusage $(BUILD)/$(NAME).noi 2>/dev/null | head -12 || true
 
 test: $(ROM)

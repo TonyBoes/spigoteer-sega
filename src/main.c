@@ -18,6 +18,7 @@
 #include "palettes.h"
 #include "layout.h"
 #include "bonus.h"
+#include "music.h"
 
 BANKREF_EXTERN(patron_tiles)
 
@@ -174,7 +175,7 @@ uint8_t  game_state;        // GS_*
 uint8_t  state_timer;       // frames spent in LIFE_LOST / LEVEL_CLEAR
 uint8_t  life_lost;         // a life went this frame; the state machine reacts at the end of update()
 uint8_t  overlay_on;        // window banner shown
-uint32_t hi_score;          // WRAM only for now
+uint32_t hi_score;          // loaded from SRAM at boot (save.c), written back at game over when beaten
 uint8_t  hi_digits[6];
 uint8_t  served;            // patrons served (left through the door) this level
 uint8_t  start_mask, start_per_bar, cur_group;
@@ -349,15 +350,24 @@ static void draw_score(void) {
 
 // score as 32-bit total (for tests) plus decimal digits (no division in VBlank)
 void add_score(uint16_t n) {
-    uint8_t i, d, carry = 0;
+    // The HUD digits are kept in step with `score`. Digits come off n by repeated subtraction: SDCC's 16-bit
+    // divide costs ~600 cycles a call, and a patron serve (this, plus the tip roll, plus a redraw) is the
+    // heaviest frame of the game.
+    static const uint16_t place[5] = { 10000, 1000, 100, 10, 1 };
+    uint8_t nd[5], i, d, carry = 0;
     score += n;
-    for (i = 6; i != 0; i--) {
-        d = score_digits[i - 1] + (uint8_t)(n % 10) + carry;
-        n /= 10;
-        carry = d >= 10;
-        score_digits[i - 1] = carry ? d - 10 : d;
-        if (n == 0 && !carry) break;
+    for (i = 0; i < 5; i++) {
+        d = 0;
+        while (n >= place[i]) { n -= place[i]; d++; }
+        nd[i] = d;
     }
+    for (i = 5; i != 0; i--) {                       // score_digits[5] is the ones digit, [0] the 100000s
+        d = score_digits[i] + nd[i - 1] + carry;
+        carry = d >= 10;
+        score_digits[i] = carry ? d - 10 : d;
+    }
+    d = score_digits[0] + carry;
+    score_digits[0] = d >= 10 ? d - 10 : d;
     hud_dirty |= HUD_SCORE;
     prep_hud();
 }
@@ -679,6 +689,8 @@ static void init(void) {
         OBP0_REG = 0xD0;   // bartender: idx1 white, idx2 light grey, idx3 black
         OBP1_REG = 0xC4;   // mugs, glass: idx1 light grey, idx2 white, idx3 black (shows on the grey counter)
     }
+    music_init();
+    hi_load();
     SPRITES_8x16;
     set_sprite_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);
     set_sprite_data(OBJ_MUG, MUG_TILE_COUNT, mug_tiles);
@@ -722,6 +734,7 @@ static uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
 
 static void launch_mug(void) {
     spawn_mug(bar, MUG_START_X, MUG_FULL);
+    SFX(SFX_LAUNCH);
 }
 
 // Where patron p is drawn: its position at 2 px granularity, +2 px on alternate beats while drinking (sway).
@@ -856,6 +869,7 @@ static void update_mugs(void) {
             if (mug_x[i] < MUG_END_X) {          // fell off the left end
                 mug_state[i] = MUG_BREAKING;
                 mug_timer[i] = 0;
+                SFX(SFX_BREAK);
                 lose_life();
             }
         } else if (st == MUG_EMPTY) {
@@ -863,11 +877,13 @@ static void update_mugs(void) {
             if (mug_bar[i] == bar && mug_x[i] >= bartender_x && mug_x[i] < bartender_x + 16) {
                 mug_state[i] = MUG_FREE;         // caught
                 add_score(EMPTY_SCORE);
+                SFX(SFX_CATCH);
                 continue;
             }
             if (mug_x[i] > MUG_RIGHT_END) {      // fell off the right end
                 mug_state[i] = MUG_BREAKING;
                 mug_timer[i] = 0;
+                SFX(SFX_BREAK);
                 lose_life();
             }
         } else if (st == MUG_BREAKING) {
@@ -930,6 +946,7 @@ static void update_patrons(void) {
                 remove_patron(p);
                 served++;
                 add_score(serve_score);
+                SFX(SFX_SERVE);
                 maybe_tip(p);
                 continue;
             } else if (blocked_behind(p)) {               // no room: stay put and drink
@@ -1109,7 +1126,7 @@ uint8_t glyph_for(char c) {
     case 'P': return TILE_GLYPH_P; case 'R': return TILE_GLYPH_R; case 'S': return TILE_GLYPH_S;
     case 'B': return TILE_GLYPH_B; case 'D': return TILE_GLYPH_D; case 'K': return TILE_GLYPH_K;
     case 'N': return TILE_GLYPH_N; case 'W': return TILE_GLYPH_W; case 'Y': return TILE_GLYPH_Y;
-    case 'T': return TILE_GLYPH_T; case 'U': return TILE_GLYPH_U; case 'V': return TILE_GLYPH_V;
+    case 'F': return TILE_GLYPH_F; case 'T': return TILE_GLYPH_T; case 'U': return TILE_GLYPH_U; case 'V': return TILE_GLYPH_V;
     }
     return TILE_HUD_BLANK;
 }
@@ -1174,6 +1191,13 @@ static void show_overlay(const char *s) {
     hide_banner_sprites();
 }
 
+static uint8_t music_tiles[9];                   // "MUSIC ON " / "MUSIC OFF" on the title (BG row 14)
+static void build_music_text(void) {
+    const char *t = sound_on ? "MUSIC ON " : "MUSIC OFF";
+    uint8_t i;
+    for (i = 0; i < 9; i++) music_tiles[i] = glyph_for(t[i]);
+}
+
 static void enter_title(void) {
     uint8_t i, y;
     DISPLAY_OFF;
@@ -1194,18 +1218,20 @@ static void enter_title(void) {
     }
     fill_row(9, TILE_HUD_BLANK);  text_at(9, 4, "PRESS START");
     fill_row(12, TILE_HUD_BLANK); text_at(12, 5, "HI");
+    fill_row(14, TILE_HUD_BLANK); build_music_text(); vram_put(5, 14, music_tiles, 9);
     for (i = 0; i < 6; i++) row_buf[i] = digit_tile(hi_digits[i]);
     vram_put(8, 12, row_buf, 6);
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
         for (y = 0; y < 18; y++) {
-            for (i = 0; i < 20; i++) row_buf[i] = (y == 9 || y == 12) ? BGPAL_HUD : BGPAL_BAR;
+            for (i = 0; i < 20; i++) row_buf[i] = (y == 9 || y == 12 || y == 14) ? BGPAL_HUD : BGPAL_BAR;
             if (y == 4 || y == 5) for (i = 4; i < 16; i++) row_buf[i] = BGPAL_PATRON;
             put_row(y);
         }
         VBK_REG = VBK_BANK_0;
     }
     game_state = GS_TITLE;
+    music_play(TUNE_TITLE);
     DISPLAY_ON;
 }
 
@@ -1231,6 +1257,7 @@ static void enter_level_screen(void) {
     draw_bartender();
     game_over = 0;
     game_state = GS_PLAYING;
+    music_play(TUNE_GAME);
     DISPLAY_ON;
 }
 
@@ -1259,9 +1286,11 @@ static void enter_game_over(void) {
     if (score > hi_score) {
         hi_score = score;
         for (i = 0; i < 6; i++) hi_digits[i] = score_digits[i];
+        hi_save();
     }
-    game_state = GS_GAME_OVER;
     show_overlay("GAME OVER");
+    music_play(TUNE_OVER);
+    game_state = GS_GAME_OVER;
 }
 
 static void enter_level_clear(void) {
@@ -1271,8 +1300,9 @@ static void enter_level_clear(void) {
     dancers_vis = 0;
     add_score(LEVEL_BONUS);
     state_timer = 0;
-    game_state = GS_LEVEL_CLEAR;
     show_overlay("LEVEL CLEAR");
+    music_play(TUNE_CLEAR);
+    game_state = GS_LEVEL_CLEAR;                 // last: whoever sees the state sees the banner and the jingle
 }
 
 // glass pieces keep falling while the rest of the picture is frozen
@@ -1328,6 +1358,7 @@ static void play_frame(uint8_t pressed) {
                    : fill_timer >= FILL_FRAMES / 3 ? 1 : 0;
     } else if (at_tap && (pressed & J_A)) {
         fill_timer = 1; fill_stage = 0;
+        SFX(SFX_FILL);
     }
     if (!fill_timer) fill_stage = 0;
 
@@ -1350,6 +1381,7 @@ static void play_frame(uint8_t pressed) {
         if (tip_timer && bar == tip_bar && bartender_x < (uint8_t)(tip_x + 8) && (uint8_t)(bartender_x + 16) > tip_x) {
             tip_timer = 0;
             add_score(TIP_SCORE);
+            SFX(SFX_COIN);
             start_show();
         }
     }
@@ -1374,6 +1406,11 @@ static void update(void) {
 
     switch (game_state) {
     case GS_TITLE:
+        if (pressed & J_SELECT) {
+            music_set_on(!sound_on);
+            build_music_text();
+            vq_add(0, music_tiles, 5, 14, 9);
+        }
         if (pressed & J_START) start_new_game();
         frame_counter++;
         return;
@@ -1433,6 +1470,7 @@ static void update(void) {
             life_lost = 0;
             state_timer = 0;
             game_state = GS_LIFE_LOST;
+            SFX(SFX_LIFE);
         } else if (level_clear) {
             enter_level_clear();
         }
@@ -1442,9 +1480,15 @@ static void update(void) {
 }
 
 void main(void) {
+    uint8_t ly;
     init();
     while (1) {
         vsync();
-        update();
+        update();            // starts with the VBlank queue drain
+        // Music and effects, once per frame, after the drain and after the logic (so they cannot delay the
+        // game's input-to-state latency). A heavy frame can leave less than the ~7 lines the driver needs
+        // before the next VBlank; then it waits a frame rather than make the game skip one.
+        ly = LY_REG;
+        if (ly < MUSIC_LATEST_LY || ly >= 144) music_tick(); else music_late++;
     }
 }

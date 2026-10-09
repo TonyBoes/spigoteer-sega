@@ -13,6 +13,7 @@
 
 #include "art.h"
 #include "bonus.h"
+#include "music.h"
 #include "can_tiles.h"      // static const uint8_t bonus_tiles[]: this bank's own art data
 
 // ---- shared with main.c (bank 0) ----
@@ -145,6 +146,7 @@ void bonus_enter(void) BANKED {
     draw_scene();
 
     bonus_round++;
+    music_play(TUNE_BONUS);
     bonus_phase = PH_SHOW; bonus_won = 0; bonus_moving = 0; bonus_swaps_done = 0;
     bonus_swaps_total = 6 + bonus_round;
     bonus_swap_dur = bonus_round < 3 ? 30 : (bonus_round < 6 ? 34 - 4 * bonus_round : 14);   // rounds 1-2 slow, then 22, 18, 14
@@ -240,6 +242,7 @@ uint8_t bonus_update(uint8_t pressed) BANKED {
     case PH_SHAKE:
         c = order[oi];
         if (bonus_timer == 1) { can_shake[c] = 1; can_shaken[c] = 1; }
+        if (bonus_timer % 6 == 1 && bonus_timer < SHAKE_LEN) SFX(SFX_SHAKE);
         if (can_shake[c]) {
             can_frame[c] = ((bonus_timer / 3) & 1) ? CF_RIGHT : CF_LEFT;
             if (bonus_timer > SHAKE_LEN) { can_shake[c] = 0; can_frame[c] = CF_STILL; }
@@ -264,9 +267,11 @@ uint8_t bonus_update(uint8_t pressed) BANKED {
                 bonus_won = 1;
                 can_frame[bonus_picked] = CF_OPEN;
                 add_score(BONUS_SCORE);
+                SFX(SFX_COIN);
                 say("WINNER 3000");
             } else {
                 can_frame[bonus_picked] = CF_BURST;
+                SFX(SFX_BREAK);
                 say("OH NO");
             }
         }
