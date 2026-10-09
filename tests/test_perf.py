@@ -52,8 +52,9 @@ def test_level8_script_never_misses_a_frame(rom):
 
 
 def test_worst_case_pile(rom):
-    """16 patrons, 20 mugs (full/empty/breaking/held), tip, show, serves, at level 9 speeds: more than the game
-    can produce. It drops frames, but the music never skips a tick and no VRAM write happens outside VBlank."""
+    """STRESS TEST beyond reachable play (the realistic peak is test_realistic_peak): 16 patrons, 20 mugs
+    (full/empty/breaking/held), tip, show, serves, at level 9 speeds: more than the game can produce. It drops frames,
+    but the music never skips a tick and no VRAM write happens outside VBlank."""
     ph.start_game(rom)
     ph.goto_level(rom, 8)
     rom.write("level", 9)
@@ -82,8 +83,10 @@ def test_worst_case_pile(rom):
     # and their drawing ~+10 with the extra catches), and every column change in the bunched crowd wakes the lift
     # chooser (~25 ticks a frame; no lift is possible here: the 20 mugs leave no OAM). Switching the chooser off alone
     # gives 113 / 117 late. Guard at the M13b level with a short margin.
-    assert r["missed"] <= 230, r
-    assert r["end"] <= 220, r
+    # M13c: DMG 220 / 229 late, CGB 221 / 232 late: the pile's replacement walkers are put at x 0, in the doorway, where
+    # a BG patron is now clipped at the door (composed at every pixel, no quick redraws) and walks at EMERGE_SPEED.
+    assert r["missed"] <= 245, r
+    assert r["end"] <= 230, r
 
 
 def patron_cols(gb, bar):
@@ -140,7 +143,8 @@ def oam_line_counts(gb):
 
 
 def test_level9_overlap_scenario(rom):
-    """Level 9, on every bar a pushed patron sliding back through a pair of overlapping walkers, 4 mugs per bar
+    """STRESS TEST beyond reachable play (12 patrons, 16 mugs; the realistic peak is test_realistic_peak).
+    Level 9, on every bar a pushed patron sliding back through a pair of overlapping walkers, 4 mugs per bar
     (perf_helpers.OverlapCase), 1200 frames: never more than 10 objects on a line or 40 in all, the music never skips a
     tick, no VRAM write outside VBlank.
 
@@ -163,3 +167,70 @@ def test_level9_overlap_scenario(rom):
     assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
     assert rom.mem("lift_lifts") > 0, "the scenario lifts patrons"
     assert r["end"] <= 200 and r["missed"] <= 320, r          # (guard; the target is END_LY_TARGET and 0, see above)
+
+
+# ---- M13c: the realistic peak of play -------------------------------------------------------------------------------
+REALISTIC_FRAMES = 1200
+_realistic = {}
+
+
+def realistic(rom):
+    """Run the scenario once per model (both tests below read the result)."""
+    if rom.model_name not in _realistic:
+        worst = {"line": 0, "entries": 0}
+        ticks = []
+
+        def check(gb, i):
+            line, n = oam_line_counts(gb)
+            worst["line"] = max(worst["line"], line)
+            worst["entries"] = max(worst["entries"], n)
+            ticks.append((gb.mem("frame_counter"), gb.mem16("music_frames"), line, n, i))
+        r, s, lifts = ph.realistic_run(rom, REALISTIC_FRAMES, check)
+        n = len(s["patrons"])
+        summary = dict(patrons_mean=round(sum(s["patrons"]) / n, 2), patrons_max=max(s["patrons"]), mugs_max=max(s["mugs"]),
+                       full_max=max(s["full"]), empty_max=max(s["empty"]), held_max=max(s["held"]),
+                       mugs_mean=round(sum(s["mugs"]) / n, 2), behind_frames=s["behind"], hurried=len(s["hurried"]),
+                       tip=s["tip"], show=s["show"], both=s["both"], spawned=s["spawned"], lifts=lifts)
+        print(rom.model_name, "realistic peak", r, worst, summary)
+        _realistic[rom.model_name] = (r, worst, summary, ticks, rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly"))
+    return _realistic[rom.model_name]
+
+
+def test_realistic_peak(rom):
+    """Level 9 at the most real play produces, kept up as a steady state for REALISTIC_FRAMES frames: never more than 10
+    objects on a line or 40 in all, the music never skips a tick, no VRAM write outside VBlank.
+
+    Why this is the peak (the game's own limits, level 9: spawn interval 210 frames, quota 16, step 52 frames per 8 px,
+    empty gap 80 frames):
+      - patrons: one arrives every 210 frames and takes ~11 s from the door to the tap, pushes keep them in longer: about
+        8 on screen at once; hurried ones (1 in 4) among them, pushed ones sliding back through the others (lifts), new
+        ones stepping out from behind the door;
+      - full mugs: one bartender fills for 16 frames and a mug slides ~104 px at 2 px a frame (~52 frames): at most 3 in
+        flight;
+      - empties: fair empties keep their arrivals >= 80 frames apart and one slides ~200 frames: at most 3 at once;
+      - held mugs: one per drinker (~4 of the 8);
+      - a tip lies on the counter OR the show runs (picking a tip up starts the show), never both on screen.
+    perf_helpers.RealisticPeak keeps that up. The frame-time target (0 missed, end LY <= END_LY_TARGET) is NOT met: see
+    test_realistic_peak_frame_time_target (strict xfail) for the measured numbers. Here: a regression guard at the
+    measured level. The level-9 overlap scenario and the worst-case pile are stress tests beyond reachable play."""
+    r, worst, summary, ticks, drain_ok = realistic(rom)
+    # the scenario is what it says (empties: 3 at most before each frame; one more may be sent during it)
+    assert 7 <= summary["patrons_mean"] <= 9 and summary["patrons_max"] <= 10, summary
+    assert summary["full_max"] <= 3 and summary["empty_max"] <= 4 and 8 <= summary["mugs_max"] <= 11, summary
+    assert summary["behind_frames"] > 0 and summary["spawned"] >= 3 and summary["hurried"] >= 2, summary
+    assert summary["lifts"] > 0 and summary["tip"] > 0 and summary["show"] > 0 and summary["both"] == 0, summary
+    # the budgets, every frame
+    assert all(line <= 10 and n <= 40 for _, _, line, n, _ in ticks), [t for t in ticks if t[2] > 10 or t[3] > 40][:5]
+    assert_music_every_frame([(f, m) for f, m, _, _, _ in ticks])
+    assert drain_ok
+    # regression guard (measured M13c: DMG end 190-195 / 59-65 missed, CGB 208 / 88 missed of 1200)
+    assert r["end"] <= 230 and r["missed"] <= 140, r
+
+
+@pytest.mark.xfail(strict=True, reason="owner target NOT met at the realistic peak (M13c, PyBoy): DMG end LY ~190, "
+                   "~60 of 1200 frames missed; CGB end LY ~208, ~88 missed. Per frame (median, DIV ticks, ~1.8 a line): "
+                   "update_patrons ~35, draw_mugs + draw_lifted ~43, lift_frame ~29, update_mugs ~22, queue_vram ~15. "
+                   "Meeting it needs those paths cheaper, not tuning; this test turns XPASS (fails) once it is met.")
+def test_realistic_peak_frame_time_target(rom):
+    r = realistic(rom)[0]
+    assert r["missed"] == 0 and r["end"] <= END_LY_TARGET, r

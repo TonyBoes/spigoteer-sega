@@ -184,9 +184,9 @@ static void stamp3(uint8_t c) {                          // the whole 3x2 footpr
     r[0] = t; r[1] = t; r[2] = t;
 }
 
-static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if inside the span
+static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if inside the span (never on the door, M13c)
     uint8_t *r;
-    if (c < cz_x0 || c >= cz_x1) return;
+    if (c < cz_x0 || c >= cz_x1 || c < DOOR_COLS) return;
     r = cz_tile + c;
     r[0] = t; r[32] = t + 1;
     if (!cz_attr) return;
@@ -222,7 +222,7 @@ static void stamp(uint8_t s) {
     if (d & DRAW_BACK) { stamp_back(s, c); return; }
     stamp_look(s, d);
     if (!(d & 7) && (patron_ovl[s] & (OVL_TWO | OVL_TOP))) { put_col(c, st_t); put_col(c + 1, st_t + 2); return; }   // (M13b)
-    if (c >= cz_x0 && c + 3 <= cz_x1) { stamp3(c); return; }
+    if (c >= cz_x0 && c >= DOOR_COLS && c + 3 <= cz_x1) { stamp3(c); return; }   // (M13c: in the doorway, put_col clips)
     put_col(c, st_t); put_col(c + 1, st_t + 2); put_col(c + 2, st_t + 4);
 }
 
@@ -594,7 +594,8 @@ static void queue_quick(void) {
         if (LIFT_OFF_BG(patron_lift[p])) continue;                  // lifted: his columns stay plain wall
         // (M13b: his footprint meets another BG patron's: OVL_SHARED, or he covers one and stands on shift 0, where a
         // quick redraw would put his empty 3rd column over the other)
-        if ((d & DRAW_BACK) || (patron_ovl[p] & OVL_SHARED) || (!(d & 7) && (patron_ovl[p] & OVL_TOP))) {
+        // (M13c: in the doorway, d < DOOR_X, his first columns lie on the door: composed, which clips them)
+        if (d < DOOR_X || (d & DRAW_BACK) || (patron_ovl[p] & OVL_SHARED) || (!(d & 7) && (patron_ovl[p] & OVL_TOP))) {
             d = (d & ~DRAW_BACK) >> 3; mark_dirty(patron_bar[p] & (NUM_BARS - 1), d, d + 3); continue;
         }
         qv_cost += QUICK_COST;

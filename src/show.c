@@ -43,7 +43,7 @@ void start_show(void) BANKED {
     dancer_frame = 0; dance_tick = 0;
     for (p = 0; p < MAX_PATRONS; p++) {
         patron_dist[p] = 0;
-        if (patron_state[p] != PATRON_WALKING) continue;
+        if (patron_state[p] != PATRON_WALKING || patron_x[p] < DOOR_X) continue;   // (M13c: not while in the doorway)
         if (first == NO_SLOT) first = p;
         if (!(next_rand() & 0x40) || near_watcher(p)) continue;
         patron_dist[p] = 1; patron_timer[p] = 0; any = 1;

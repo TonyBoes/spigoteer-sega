@@ -35,12 +35,13 @@ def goto_group(gb, group):
     assert gb.mem("cur_group") == group and gb.mem("level") == level
 
 
-# bar: [(x, variant, distracted)]: fronts at shift 0 and at odd shifts, and the three back views on bar 3
+# bar: [(x, variant, distracted)]: fronts at shift 0 and at odd shifts, and the three back views on bar 3. (M13c: the
+# first column moved 16 px right, out of the doorway: a patron in the doorway is drawn behind the door.)
 LINEUP = {
-    0: [(0, 0, 0), (40, 1, 0), (80, 2, 0)],
-    1: [(13, 0, 0), (51, 1, 0), (93, 2, 0)],
-    2: [(4, 2, 0), (45, 0, 0), (86, 1, 0)],
-    3: [(8, 0, 1), (48, 1, 1), (88, 2, 1)],
+    0: [(16, 0, 0), (40, 1, 0), (80, 2, 0)],
+    1: [(29, 0, 0), (51, 1, 0), (93, 2, 0)],
+    2: [(20, 2, 0), (45, 0, 0), (86, 1, 0)],
+    3: [(24, 0, 1), (48, 1, 1), (88, 2, 1)],
 }
 
 

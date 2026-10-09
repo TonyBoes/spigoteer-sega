@@ -301,3 +301,173 @@ def overlap_run(gb, frames, check=None, mugs=4):
         if check:
             check(gb, i)
     return perf_read(gb)
+
+
+# ---- M13c: the realistic peak of play ---------------------------------------------------------------------------------
+class RealisticPeak:
+    """Level 9 at the most the game's own limits produce (see test_perf.test_realistic_peak for the arithmetic): about 8
+    patrons over the 4 bars at level-9 speeds (hurried ones among them), new ones stepping out from behind the door, at
+    most 3 full mugs and 3 empties sliding plus the mugs drinkers hold, a tip on the counter OR the show (never both).
+    The bartender plays the level-8 script (fills, launches, catches); everything else is the game's own rules: spawns
+    are real (try_spawn + emergence, made due at once while fewer than `target` patrons are in, at most every
+    SPAWN_GAP frames), catches push patrons back through the others (lifts), drinkers send real empties.
+    The test only (1) adds a full mug from the tap end, at most one every FULL_GAP frames and 3 in flight in all,
+    for the bar whose front walker is furthest in, as a second bartender would; (2) takes an empty off the counter
+    near the tap end on a bar the bartender is not on, as if he caught it; (3) puts a walker who got within reach of
+    the tap back a little (a lost life would reset the bars); (4) tops up lives / quota and alternates the tip and the
+    show every PHASE frames. Deterministic."""
+    FULL_GAP, SPAWN_GAP, PHASE, FULL_MIN_X = 18, 24, 400, 72
+
+    def __init__(self, gb, target=9):
+        self.gb = gb
+        self.target = target
+        self.frame = 0
+        self.last_full = -100
+        self.last_spawn = -100
+        self.stats = {"patrons": [], "mugs": [], "full": [], "empty": [], "held": [], "behind": 0, "hurried": set(),
+                      "tip": 0, "show": 0, "both": 0, "spawned": 0}
+
+    def seed(self):
+        """Two patrons per bar: a walker and a drinker holding his mug."""
+        gb = self.gb
+        for p in range(MAX_P):
+            put(gb, "patron_state", p, 0)
+        for m in range(MAX_M):
+            put(gb, "mug_state", m, 0)
+        slot, mslot = 0, 0
+        for b in range(4):
+            pair = ((40 + 6 * b, DRINKING), (76 - 4 * b, WALKING)) if b & 1 else ((36 + 4 * b, WALKING), (70 + 3 * b, DRINKING))
+            for x, st in pair:
+                p = slot
+                slot += 1
+                for n, v in (("patron_state", st), ("patron_bar", b), ("patron_x", x), ("patron_frac", 0),
+                             ("patron_draw", 255), ("patron_variant", p % 3), ("patron_timer", (p * 13) % 60),
+                             ("patron_aux", 0), ("patron_mug", 255), ("patron_dist", 0), ("patron_drinks", 1),
+                             ("patron_hurry", 1 if p in (1, 6) else 0), ("patron_catchx", x)):
+                    put(gb, n, p, v)
+                if st == DRINKING:
+                    for n, v in (("mug_state", HELD), ("mug_bar", b), ("mug_x", x + 9), ("mug_timer", 0),
+                                 ("mug_patron", p)):
+                        put(gb, n, mslot, v)
+                    put(gb, "patron_mug", p, mslot)
+                    mslot += 1
+        gb.write("mugs_live", mslot)
+        gb.write("patrons_live", slot)
+
+    def tick(self):
+        """Call once per frame, before gb.run(1)."""
+        gb, f = self.gb, self.frame
+        self.frame += 1
+        gb.write("lives", 3)
+        gb.write("quota", 250)
+        if gb.mem("spawned") > 200:
+            gb.write("spawned", 100)
+        gb.write("level_clear", 0)
+        if gb.mem("game_state") != PLAYING:
+            gb.write("game_state", PLAYING)
+        st, bar, xs = gb.read("patron_state", MAX_P), gb.read("patron_bar", MAX_P), gb.read("patron_x", MAX_P)
+        dist = gb.read("patron_dist", MAX_P)
+        mst, mbar, mx = gb.read("mug_state", MAX_M), gb.read("mug_bar", MAX_M), gb.read("mug_x", MAX_M)
+        live = [p for p in range(MAX_P) if st[p]]
+        # tip OR show, alternating
+        if (f // self.PHASE) & 1:                          # the show: a tip put under the bartender, picked up
+            if f % self.PHASE == 0:
+                put16(gb, "tip_timer", 0)
+            elif f % self.PHASE == 2:
+                put16(gb, "tip_timer", 400)
+                gb.write("tip_bar", gb.mem("bar"))
+                gb.write("tip_x", gb.mem("bartender_x"))
+        else:
+            if gb.mem16("show_timer") > 1:
+                put16(gb, "show_timer", 1)                    # (ends this frame: the walkers turn back)
+            elif f % self.PHASE > 4 and not gb.mem16("show_timer") and gb.mem16("tip_timer") < 100:
+                put16(gb, "tip_timer", 400)
+                gb.write("tip_bar", 2)
+                gb.write("tip_x", 52)
+        # spawns: real ones, made due while the bars are short of patrons
+        if len(live) < self.target and f - self.last_spawn >= self.SPAWN_GAP and gb.mem16("spawn_timer") > 1:
+            put16(gb, "spawn_timer", 0)
+            self.last_spawn = f
+        # a walker about to reach the tap gets his mug in time (a lost life would reset the bars)
+        for p in live:
+            if st[p] == WALKING and xs[p] >= 108:
+                put(gb, "patron_x", p, 96)
+        # one full mug at a time from the tap end, 3 in flight at most, for the bar whose front walker is furthest in
+        full = sum(1 for m in range(MAX_M) if mst[m] == FULL)
+        if full < 3 and f - self.last_full >= self.FULL_GAP:
+            best = None
+            for p in live:
+                if st[p] != WALKING or xs[p] < self.FULL_MIN_X or dist[p]:
+                    continue
+                b = bar[p]
+                if any(mst[m] == FULL and mbar[m] == b for m in range(MAX_M)):
+                    continue
+                if best is None or xs[p] > best[0]:
+                    best = (xs[p], b)
+            if best and 0 in mst:
+                m = list(mst).index(0)
+                for n, v in (("mug_state", FULL), ("mug_bar", best[1]), ("mug_x", 136), ("mug_timer", 0)):
+                    put(gb, n, m, v)
+                gb.write("mugs_live", gb.mem("mugs_live") + 1)
+                gb.write("mug_events", gb.mem("mug_events") + 1)
+                self.last_full = f
+        # empties near the tap end on another bar than the bartender's, or a 4th one sliding (fair empties keep 3 at most;
+        # a caught drinker's empty goes at once): caught
+        btb = gb.mem("bar")
+        empties = sorted((mx[m], m) for m in range(MAX_M) if mst[m] == EMPTY)
+        for k, (x, m) in enumerate(reversed(empties)):
+            if (x >= 112 and mbar[m] != btb) or k < len(empties) - 3:
+                put(gb, "mug_state", m, 0)
+                gb.write("mugs_live", max(0, gb.mem("mugs_live") - 1))
+
+    def observe(self):
+        """Call after each frame: what the frame held (the test checks the scenario is what it says)."""
+        gb, s = self.gb, self.stats
+        st, lift, hurry = gb.read("patron_state", MAX_P), gb.read("patron_lift", MAX_P), gb.read("patron_hurry", MAX_P)
+        mst = gb.read("mug_state", MAX_M)
+        s["patrons"].append(sum(1 for v in st if v))
+        s["mugs"].append(sum(1 for v in mst if v))
+        s["full"].append(sum(1 for v in mst if v == FULL))
+        s["empty"].append(sum(1 for v in mst if v == EMPTY))
+        s["held"].append(sum(1 for v in mst if v == HELD))
+        s["behind"] += sum(1 for p in range(MAX_P) if st[p] and lift[p] == 2)
+        s["hurried"] |= {p for p in range(MAX_P) if st[p] and hurry[p]}
+        oam = gb.oam()                                    # (what the screen shows: the coin, the dancers)
+        tip, show = bool(oam[27]["y"]), any(oam[28 + k]["y"] for k in range(12))
+        s["tip"] += tip
+        s["show"] += show
+        s["both"] += tip and show
+
+
+def realistic_run(gb, frames, check=None, target=9):
+    """The RealisticPeak scenario at level 9 for `frames` frames (the bartender on the level-8 script); check(gb, i)
+    after each. Returns (perf_read, the scenario's stats, lifts by the chooser in the run)."""
+    start_game(gb)
+    goto_level9(gb)
+    gb.write("intro_timer", 0)
+    gb.write("tip_chance", 0)
+    rp = RealisticPeak(gb, target)
+    rp.seed()
+    gb.run(2)
+    perf_reset(gb)
+    lifts0 = gb.mem("lift_lifts")
+    held = None
+    for i in range(frames):
+        want = SCRIPT[i % len(SCRIPT)]
+        if want != held:
+            if held:
+                gb.release(held)
+            if want:
+                gb.hold(want)
+            held = want
+        sp = gb.mem("spawned")
+        rp.tick()
+        gb.run(1)
+        if gb.mem("spawned") > sp:
+            rp.stats["spawned"] += gb.mem("spawned") - sp
+        rp.observe()
+        if check:
+            check(gb, i)
+    if held:
+        gb.release(held)
+    return perf_read(gb), rp.stats, (gb.mem("lift_lifts") - lifts0) & 255

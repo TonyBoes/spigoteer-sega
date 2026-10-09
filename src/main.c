@@ -653,6 +653,10 @@ static void update(void) {
     if (vram_pending || hud_dirty) queue_vram();
     SEC(SEC_QUEUE);
     if (game_state == GS_PLAYING || game_state == GS_LIFE_LOST) {
+        // M13c: no OAM DMA while the sprites are being redrawn. A frame whose logic runs past the start of VBlank would
+        // otherwise show a half-drawn OAM for a frame (the realistic-peak perf test caught 11 objects on a line: new mugs
+        // already written, a dropped patron's entries not yet taken away); it shows the last complete one instead.
+        DISABLE_OAM_DMA;
         draw_bartender();
         draw_fill();
         SEC(SEC_DRAW_BT);
@@ -660,6 +664,7 @@ static void update(void) {
         if (lift_total | lift_oam_n) draw_lifted();
         SEC(SEC_DRAW_MUGS);
         draw_stage_fx();
+        ENABLE_OAM_DMA;
         SEC(SEC_FX);
     }
     if (game_state == GS_PLAYING) {              // reactions to what this frame did

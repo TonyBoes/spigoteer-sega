@@ -244,11 +244,13 @@ static void begin_drop(uint8_t p) {
 }
 
 // A forced drop: BG copy queued at the head of this frame's list and the sprite gone with the same VBlank, so the
-// over-full lines are never drawn. If this frame's list cannot take it (vq_held), an ordinary drop.
+// over-full lines are never drawn. M13c: if this frame's list cannot take it (vq_held: a late frame), the sprite still
+// goes now and the BG copy follows with the next list (he is missing for a frame or two): an ordinary drop would keep
+// 11 objects on his lines for a frame, and the hardware would then leave out whichever came last in OAM.
 static void force_drop(uint8_t p) {
-    uint8_t b = patron_bar[p] & (NUM_BARS - 1);
+    uint8_t b = patron_bar[p] & (NUM_BARS - 1), c = col_of(p);
     lift_forced++;
-    if (!bg_urgent(b, col_of(p))) { begin_drop(p); return; }
+    if (!bg_urgent(b, c)) mark_dirty(b, c, c + 3);
     patron_lift[p] = LIFT_BG;
     lift_pin[p] = 0;
     ovl_dirty |= bar_bit[b];
@@ -391,10 +393,8 @@ static void forced_drops(void) {
     for (b = 0; b < NUM_BARS; b++)
         while (ld[b] > LINE_OBJ_MAX && (p = pick_lifted(b)) != NO_SLOT) { force_drop(p); ld[b] -= 2; }
     // OAM: the mugs keep every entry they need (and OAM_SPARE more for this frame's newcomers)
-    while (lift_mug_oam + (lift_total << 1) > MUG_OAM_ALL - OAM_SPARE && (p = pick_lifted(NUM_BARS)) != NO_SLOT) {
+    while (lift_mug_oam + (lift_total << 1) > MUG_OAM_ALL - OAM_SPARE && (p = pick_lifted(NUM_BARS)) != NO_SLOT)
         force_drop(p);
-        if (patron_lift[p]) break;                        // an ordinary drop: its sprite stays a frame; next frame again
-    }
 }
 
 // The hook's lift: 0 refused, 1 done, 2 not this frame.
@@ -408,11 +408,22 @@ static uint8_t try_lift(uint8_t p, uint8_t mode) {
     if (lift_mug_oam + ((lift_total + 1) << 1) > MUG_OAM_ALL - OAM_SPARE) return 0;
     if (ld[b] + 2 > LINE_OBJ_MAX) return 0;
     if (vq_held || !bg_urgent(b, d >> 3)) return 2;   // sprite now, BG erased in the same VBlank (old place too)
+    if (patron_x[p] < DOOR_X) mode = LIFT_BEHIND;     // M13c: still in the doorway, behind the door
     patron_lift[p] = mode;
     lift_busy[p] = 1; lift_clear[p] = 0; lift_pin[p] = 0;
     lift_n[b]++;
     lift_total++;
     ld[b] += 2;
+    return 1;
+}
+
+// M13c: a new patron (try_spawn, this frame) goes up behind the door at once, counted in the budgets like any lift. He
+// covers nobody yet (lift_busy 0): he drops at DOOR_X once clear, by the usual rules. 0: no room now (no spawn).
+uint8_t lift_spawn(uint8_t p) BANKED {
+    est_ok = 0;                                       // (this frame's estimate: lift_frame has not run yet)
+    if (try_lift(p, LIFT_BEHIND) != 1) return 0;
+    lift_busy[p] = 0;
+    ovl_dirty |= bar_bit[patron_bar[p] & (NUM_BARS - 1)];
     return 1;
 }
 
