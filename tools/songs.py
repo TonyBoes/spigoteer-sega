@@ -1,18 +1,20 @@
 """Song sources for the buffered tunes (title, show, nine venue tunes).  Imported by gen_music.py.
 
-All tunes are public domain compositions; the notes are entered from memory and the arrangement
-(accompaniment, rhythm, instruments) is ours.  Notation: see gen_music.py.  One song row is one
+All tunes are public domain compositions.  Oh! Susanna, Galop infernal and the nine tunes entered from
+docs/music_specs.md follow the owner's note lists; the arrangement (accompaniment, rhythm, instruments) is ours.  Notation: see gen_music.py.  One song row is one
 unit note (an eighth note unless the comment says sixteenth); `tempo` is frames per row (60 fps).
 The melody is channel 2 (pulse), the bass channel 3 (wave), the percussion channel 4 (noise);
 channel 1 belongs to the sound effects.  Upper-case K S H are the quiet drum kit (kick, snare,
 hat); lower-case k s h are the louder old kit the bonus tune uses.
 """
 
-# chord -> (root, fifth) played by the bass
+# chord -> (root, fifth) played by the bass (a seventh chord uses its triad's notes)
 CHORD = {
     "C": ("C3", "G3"), "F": ("F2", "C3"), "G": ("G2", "D3"), "D": ("D3", "A3"),
     "Am": ("A2", "E3"), "Dm": ("D3", "A3"), "Em": ("E3", "B3"), "E": ("E3", "B3"),
     "Bm": ("B2", "F#3"), "A": ("A2", "E3"), "Bb": ("A#2", "F3"), "Eb": ("D#3", "A#3"),
+    "F#": ("F#2", "C#3"), "C#7": ("C#3", "G#3"),
+    "C7": ("C3", "G3"), "A7": ("A2", "E3"), "D7": ("D3", "A3"), "E7": ("E3", "B3"), "G7": ("G2", "D3"),
 }
 
 
@@ -21,6 +23,10 @@ def oompah(chords, rows):
     8 = 4/4 or 2/4 with sixteenth rows, 'c6' = 6/8 (two dotted beats)."""
     out = []
     for c in chords:
+        if "/" in c:                       # two chords in one bar ("C/D7"): the root of each on its half
+            a, b = c.split("/")
+            out += [f"{CHORD[a][0]}:3!", f"{CHORD[b][0]}:3!"] if rows == "c6" else [f"{CHORD[a][0]}:4!", f"{CHORD[b][0]}:4!"]
+            continue
         r, f = CHORD[c]
         if rows == 4:
             out += [f"{r}:2!", f"{f}:2!"]
@@ -42,8 +48,9 @@ def rep(text, n):
 SONGS = {}
 
 
-def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True):
-    SONGS[name] = dict(tempo=tempo, buf=bufname, ch2=ch2, ch3=ch3, ch4=ch4, inst=inst, gap=gap)
+def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None):
+    """stac_all: (num, den) cuts every melody note after num/den of its length (staccato)."""
+    SONGS[name] = dict(tempo=tempo, buf=bufname, ch2=ch2, ch3=ch3, ch4=ch4, inst=inst, gap=gap, stac_all=stac_all)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -63,14 +70,36 @@ CHORUS_D = "K:1 H:1 S:1 H:1"
 SUS_DRUMS = "r:2 " + " ".join([VERSE_D] * 16 + [CHORUS_D] * 4 + [VERSE_D] * 3 + ["K:1 r:3"])
 song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS)
 
+
 # ---------------------------------------------------------------------------------------------
-# Title: "The Entertainer" (Scott Joplin, 1902), the opening A strain.  2/4, one row = a sixteenth
-# note, 9 frames per row (about 100 bpm).  Loop: pickup D D# | 8 bars.
-ENT_1 = "E5:1 C6:2 E5:1 C6:2 E5:1 C6:4 r:1 C6:1 D6:1 D#6:1 E6:1"     # bars 1-2 (the long C is tied over the barline)
-ENT_2 = "C6:1 D6:1 E6:2 B5:1 D6:2 C6:5 r:2 D5:1 D#5:1"                 # bars 3-4, ending on the pickup
-ENT_3 = "C6:1 D6:1 E6:2 B5:1 D6:2 C6:1  C6:2 G5:2 E5:2 C5:2"           # bars 7-8: the resolution
-song("entertainer", 9, "A", "D5:1 D#5:1  " + " ".join([ENT_1, ENT_2, ENT_1, ENT_3]),
-     "r:2 " + oompah(["C", "C", "G", "C", "C", "C", "G", "C"], 8))
+# The nine tunes below are the owner's melody specs (docs/music_specs.md), entered token for token: one
+# list entry per bar, "NOTE:ROWS", R = rest, ~ = tie (the previous note held on), the chord of each bar
+# in the *_CHORDS list.  The arrangement (bass style, drums, instruments) is ours.  tests/test_sound.py
+# parses the spec and compares these lists with it.
+#
+# Pickups: some specs end the last bar with the pickup of the next pass (Funiculi, Mountain, Entertainer)
+# and mark the pickup line "first time only".  The driver always loops from row 0, so the first-time pickup
+# is left out: the tune starts on bar 1 and every loop is seamless.
+#
+# Bass (channel 3, real pitch names; gen_music adds the wave channel's octave correction): waltz 3/4 =
+# root, fifth, fifth; 6/8 = root and fifth on the dotted beats; 4/4 and 2/4 = boom-chick.  A tune of three
+# 64-row patterns has no drums: the WRAM buffer holds six patterns.
+
+# ---------------------------------------------------------------------------------------------
+# Title: "The Entertainer" (Scott Joplin, 1902), A section.  2/4, one row = a sixteenth note; quarter = 90
+# is 10 frames per row.  16 bars (bars 4, 8 and 16 end with the D D# pickup).  Bars 12-16 are low confidence.
+ENT_BARS = [
+    "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:4 C6:1 D6:1 D#6:1 E6:1", "C6:1 D6:1 E6:2 B5:1 D6:2 C6:1",
+    "~:4 R:2 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:4 A5:1 G5:1 F#5:1 A5:1",
+    "C6:1 E6:2 D6:1 C6:1 A5:1 D6:2", "~:4 R:2 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1",
+    "~:4 C6:1 D6:1 D#6:1 E6:1", "C6:1 D6:1 E6:2 B5:1 D6:2 C6:1", "~:4 C6:1 D6:1 E6:1 C6:1",
+    "D6:1 E6:2 C6:1 D6:1 C6:1 E6:2", "C6:1 D6:1 E6:2 C6:1 D6:1 C6:2",
+    "E6:1 C6:1 D6:2 E6:1 B5:1 D6:2", "C6:4 R:2 D5:1 D#5:1",
+]
+ENT_CHORDS = [
+    "C", "C", "G7", "C", "C", "D7", "D7", "G7", "C", "C", "G7", "C", "C", "F", "G7", "C",
+]
+song("entertainer", 10, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8))
 
 # ---------------------------------------------------------------------------------------------
 # Show: "Galop infernal" (Jacques Offenbach, 1858, the can-can), 2/4, 12 frames per eighth row
@@ -85,123 +114,151 @@ song("galop", 12, "B", " ".join(GAL),
      oompah(["C", "C", "G", "G", "C", "G", "C", "G", "C", "C", "G", "C"], 4),
      rep("K:1 S:1 K:1 S:1", 12))
 
+
 # ---------------------------------------------------------------------------------------------
-# Sports bar: "Take Me Out to the Ball Game" (Albert Von Tilzer, 1908), chorus.  3/4, 17 frames per
-# eighth row.  Key C.
+# Sports bar: "Take Me Out to the Ball Game" (Albert Von Tilzer, 1908), chorus.  3/4, key G, quarter = 168
+# is 10.7 frames per eighth row: 11 (164 bpm).  32 bars, no drums.
 TMO_BARS = [
-    "C5:2 A4:2 G4:1 E4:1", "G4:2 D4:2 C4:2",          # Take me out to the ball game
-    "C5:2 A4:2 G4:1 E4:1", "G4:2 A4:3 r:1",           # Take me out with the crowd
-    "E5:2 E5:1 D5:1 C5:2", "D5:2 E5:2 G4:2",          # Buy me some peanuts and Cracker Jack
-    "E5:2 E5:1 D5:1 C5:2", "D5:2 C5:2 A4:2",          # I don't care if I never get back
-    "G4:2 G4:1 G4:1 G4:2", "A4:2 G4:2 E4:2",          # Let me root root root for the home team
-    "G4:2 G4:1 G4:1 A4:2", "G4:4 r:2",                # If they don't win it's a shame
-    "C5:2 C5:2 C5:2", "D5:2 E5:2 D5:2",               # For it's one, two, three strikes
-    "C5:2 A4:2 G4:1 E4:1", "G4:2 E4:2 C4:2",          # you're out at the old ball game
+    "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "A4:6", "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "~:6",
+    "E5:2 D#5:2 E5:2", "B4:2 C5:2 D5:2", "E5:4 C5:2", "A4:6", "E5:4 E5:2", "E5:2 F#5:2 G5:2",
+    "A5:2 F#5:2 E5:2", "D5:2 B4:2 A4:2", "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "A4:4 B4:2",
+    "G4:4 A4:2", "B4:2 C5:2 D5:2", "E5:6", "~:2 E5:2 F#5:2", "G5:2 R:4", "G5:2 R:4",
+    "G5:2 F#5:2 E5:2", "D5:2 C#5:2 D5:2", "E5:6", "F#5:6", "G5:6", "~:2 R:4",
 ]
-TMO_CH = ["C", "G", "C", "F", "C", "G", "C", "G", "C", "F", "C", "G", "C", "G", "C", "C"]
-song("ballgame", 17, "A", "C4:2 " + " ".join(TMO_BARS), "r:2 " + oompah(TMO_CH, 6),
-     "r:2 " + rep("K:1 r:1 H:1 r:1 H:1 r:1", 16))
+TMO_CHORDS = [
+    "G", "Em", "D7", "D7", "G", "Em", "D", "D", "E7", "E7", "Am", "Am", "A7", "A7", "D", "D", "G",
+    "Em", "D7", "D7", "G", "G7", "C", "C", "C", "A7", "D", "E7", "Am", "D7", "G", "G",
+]
+song("ballgame", 11, "A", " ".join(TMO_BARS), oompah(TMO_CHORDS, 6))
 
 # ---------------------------------------------------------------------------------------------
-# Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song, 19th century).  4/4,
-# 14 frames per eighth row.  Key C.
-MTN = [
-    "C5:2 C5:1 C5:1 C5:1 E5:1 E5:2", "D5:2 C5:2 D5:2 r:1 G4:1",
-    "C5:2 C5:1 C5:1 C5:1 E5:1 E5:2", "D5:2 C5:2 C5:2 r:2",
-    "A5:2 A5:1 A5:1 A5:2 F5:2", "G5:2 E5:2 E5:2 r:2",
-    "A5:2 A5:1 A5:1 A5:2 F5:2", "G5:2 D5:2 D5:2 r:1 G4:1",
-    "C5:2 C5:1 C5:1 C5:1 E5:1 E5:2", "D5:2 C5:2 D5:2 r:1 G4:1",
-    "C5:2 C5:1 C5:1 C5:1 E5:1 E5:2", "D5:2 B4:2 C5:4",
+# Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song).  4/4, key D, quarter = 160 is
+# 11.25 frames per eighth row: 11.  16 bars; bar 16 ends with the pickup of the next pass.
+MTN_BARS = [
+    "D5:2 D5:2 D5:2 D5:2", "B4:2 A4:2 F#4:2 A4:2", "D5:8", "~:4 D5:2 E5:2",
+    "F#5:2 F#5:2 F#5:2 F#5:2", "A5:2 F#5:2 E5:2 D5:2", "E5:8", "~:4 A5:2 G5:2",
+    "F#5:2 F#5:2 F#5:2 F#5:2", "E5:2 D5:2 D5:2 D5:2", "B4:2 B4:2 B4:2 B4:2", "E5:2 D5:2 C#5:2 B4:2",
+    "A4:2 A4:2 A4:2 A4:2", "F#5:2 E5:2 B4:2 C#5:2", "D5:8", "~:4 A4:2 B4:2",
 ]
-MTN_CH = ["C", "G", "C", "G", "F", "C", "F", "G", "C", "G", "C", "G"]
-song("mountain", 14, "A", "G4:1 " + " ".join(MTN), "r:1 " + oompah(MTN_CH, 8),
-     "r:1 " + rep("K:1 r:1 S:1 r:1 K:1 r:1 S:1 r:1", 12))
+MTN_CHORDS = [
+    "D", "A7", "D", "D", "D", "D", "A7", "A7", "D", "D7", "G", "A7", "D", "A7", "D", "D",
+]
+song("mountain", 11, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 8),
+     " ".join(["K:1 r:1 S:1 r:1 K:1 r:1 S:1 r:1"] * 16))
 
 # ---------------------------------------------------------------------------------------------
-# Bistro: "Funiculi, Funicula" (Luigi Denza, 1880), chorus.  6/8, one row per eighth, 10 frames per
-# row (dotted quarter about 120).  Key C.
-FUN = [
-    "G4:1 C5:1 E5:1 G5:3", "G5:1 F5:1 E5:1 D5:3",
-    "E5:1 D5:1 C5:1 E5:2 G5:1", "F5:1 E5:1 D5:1 C5:3",
-    "G4:1 C5:1 E5:1 G5:3", "A5:1 G5:1 F5:1 E5:3",
-    "D5:1 E5:1 F5:1 D5:2 B4:1", "C5:6",
-    "E5:1 E5:1 E5:1 E5:2 D5:1", "D5:1 D5:1 D5:1 D5:2 C5:1",
-    "C5:1 D5:1 E5:1 F5:2 E5:1", "D5:6",
-    "G4:1 C5:1 E5:1 G5:3", "A5:1 G5:1 F5:1 E5:3",
-    "D5:1 E5:1 F5:1 D5:1 B4:1 D5:1", "C5:6",
+# Bistro: "Funiculi, Funicula" (Luigi Denza, 1880), verse and chorus.  6/8, key F, dotted quarter = 92 is
+# 13 frames per eighth row.  25 bars; bars 9 and 25 end with the C5 pickup, so the loop is seamless; no drums.
+FUN_BARS = [
+    "F5:6", "~:2 F5:1 E5:2 E5:1", "C5:2 C5:1 D5:2 D5:1", "A4:3 A4:3", "~:2 A4:1 G4:2 F4:1", "F4:6",
+    "R:2 A4:1 G4:2 F4:1", "F4:6", "~:1 R:4 C5:1", "E5:3 D5:1 R:2", "E5:3 D5:1 R:2",
+    "F5:2 E5:1 D5:2 F5:1", "E5:3 R:3", "E5:3 D5:1 R:2", "E5:3 D5:1 R:2", "F5:2 E5:1 D5:2 F5:1",
+    "C5:2 A4:1 A4:2 A4:1", "A4:2 A4:1 A4:2 A4:1", "A4:2 A4:1 A4:2 A4:1", "A4:2 A4:1 A4:2 A4:1",
+    "F5:6", "G5:2 F5:1 D5:2 F5:1", "C5:2 A4:1 A4:2 Bb4:1", "C5:2 Bb4:1 A4:2 G4:1", "F4:3 R:2 C5:1",
 ]
-FUN_CH = ["C", "G", "C", "G", "C", "F", "G", "C", "C", "G", "C", "G", "C", "F", "G", "C"]
-song("funicula", 10, "A", " ".join(FUN), oompah(FUN_CH, "c6"),
-     rep("K:1 r:2 S:1 r:2", 16))
+FUN_CHORDS = [
+    "F", "F", "F", "F", "C7", "F", "C7", "F", "F", "C7", "C7", "C7", "C7", "C7", "C7", "C7", "F",
+    "A7", "Dm", "A7", "Dm", "Bb", "F", "C7", "F",
+]
+song("funicula", 13, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"))
 
 # ---------------------------------------------------------------------------------------------
-# Arctic: "The Skaters' Waltz" (Emile Waldteufel, 1882), main theme.  3/4, 14 frames per eighth row.
-# Key G.
-SKT = [
-    "D5:3 B4:1 G4:2", "A4:3 F#4:1 D4:2", "D5:3 B4:1 G4:2", "A4:6",
-    "B4:3 G4:1 D5:2", "C5:3 A4:1 E5:2", "D5:2 C5:2 B4:2", "G4:6",
-    "E5:3 C5:1 A4:2", "D5:3 B4:1 G4:2", "C5:3 A4:1 F#4:2", "B4:6",
-    "D5:3 B4:1 G4:2", "C5:3 A4:1 F#4:2", "B4:2 A4:2 F#4:2", "G4:6",
+# Arctic: "The Skaters' Waltz" (Emile Waldteufel, 1882), main theme, an octave above the source.  3/4, key G,
+# quarter = 160: 11 frames per eighth row (about 164).  32 bars, no drums.  The spec's short slide up into
+# bars 1, 5 and 9 is not done: hUGEDriver's portamento starts from a note already sounding, so it would
+# need an extra row before each of those notes.
+SKT_BARS = [
+    "B4:6", "D5:4 E5:2", "E5:6", "~:6", "C5:6", "E5:4 F#5:2", "F#5:6", "~:6", "A5:6", "G5:4 B4:2",
+    "D5:6", "C5:4 B4:2", "B4:6", "A4:6", "G4:2 E5:2 D5:2", "C5:2 B4:2 A4:2", "B4:6", "D5:4 E5:2",
+    "E5:6", "~:6", "C5:6", "E5:4 F#5:2", "F#5:6", "~:6", "A5:6", "G5:4 B4:2", "D5:6", "C5:4 B4:2",
+    "B4:6", "A4:6", "G4:6", "~:6",
 ]
-SKT_CH = ["G", "D", "G", "D", "G", "C", "D", "G", "Am", "G", "D", "G", "G", "D", "D", "G"]
-song("skaters", 14, "A", " ".join(SKT), oompah(SKT_CH, 6),
-     rep("K:1 r:5", 16), gap=True)
+SKT_CHORDS = [
+    "G", "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "D7", "G",
+    "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "G",
+]
+song("skaters", 11, "A", " ".join(SKT_BARS), oompah(SKT_CHORDS, 6))
 
 # ---------------------------------------------------------------------------------------------
-# Robot factory: "In the Hall of the Mountain King" (Edvard Grieg, 1875).  4/4, one row per eighth
-# note, speeds up in two steps (tempo 12 -> the song is written as three passes at one tempo, each
-# pass with more notes).  Key A minor.
-MK_A = "A3:1 B3:1 C4:1 D4:1 E4:1 C4:1 E4:2"
-MK_B = "D#4:1 B3:1 D#4:2 r:4"
-MK_C = "A3:1 B3:1 C4:1 D4:1 E4:1 C4:1 E4:2"
-MK_D = "E4:1 C4:1 E4:2 r:4"
-MK_HI = "A4:1 B4:1 C5:1 D5:1 E5:1 C5:1 E5:2"
-MK_HI2 = "D#5:1 B4:1 D#5:2 r:4"
-MK_END = "A4:1 B4:1 C5:1 D5:1 E5:1 C5:1 E5:2  A5:2 E5:2 C5:2 A4:2"
-MK_MEL = " ".join([MK_A, MK_B, MK_C, MK_D, MK_HI, MK_HI2, MK_HI, MK_HI2, MK_HI, MK_HI2, MK_END])
-MK_CH = ["Am", "Am", "Am", "Am", "Am", "E", "Am", "E", "Am", "E", "Am", "Am"]
-song("hall", 12, "A", MK_MEL,
-     " ".join(f"{CHORD[c][0]}:2! {CHORD[c][1]}:2! {CHORD[c][0]}:2! {CHORD[c][1]}:2!" for c in MK_CH),
-     rep("K:1 r:3 S:1 r:3", 12))
+# Robot factory: "In the Hall of the Mountain King" (Edvard Grieg, 1875).  4/4, key B minor, quarter = 120 =
+# 15 frames per eighth row.  16 bars, every melody note staccato (cut after half its length), bass = a root
+# ostinato in quarter notes: B in the A phrases, F# in the answer (bars 9-12).
+HALL_BARS = [
+    "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:2", "E#4:1 C#4:1 E#4:2 E4:1 C4:1 E4:2",
+    "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:1 B4:1", "A4:1 F#4:1 D4:1 F#4:1 A4:4",
+    "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:2", "E#4:1 C#4:1 E#4:2 E4:1 C4:1 E4:2",
+    "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:1 B4:1", "A4:1 F#4:1 D4:1 F#4:1 A4:4",
+    "F#4:1 G#4:1 A#4:1 B4:1 C#5:1 A#4:1 C#5:2", "D5:1 A#4:1 D5:2 C#5:1 A#4:1 C#5:2",
+    "F#4:1 G#4:1 A#4:1 B4:1 C#5:1 A#4:1 C#5:2", "D5:1 A#4:1 D5:2 C#5:4",
+    "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:2", "E#4:1 C#4:1 E#4:2 E4:1 C4:1 E4:2",
+    "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:1 B4:1", "A4:1 F#4:1 D4:1 F#4:1 A4:4",
+]
+HALL_CHORDS = [
+    "Bm", "C#7/C", "Bm", "D", "Bm", "C#7/C", "Bm", "D", "F#", "F#", "F#", "F#", "Bm", "C#7/C", "Bm",
+    "D",
+]
+HALL_BASS = " ".join(("F#2:2! " if 9 <= i <= 12 else "B2:2! ") * 4 for i in range(1, 17))
+song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS,
+     " ".join(["K:1 r:3 S:1 r:3"] * 16), stac_all=(1, 2))
 
 # ---------------------------------------------------------------------------------------------
-# Teahouse: "Sakura Sakura" (Japanese traditional).  4/4, slow: one row per eighth, 24 frames.  The
-# "In" scale on A: A B C E F.
-SAK = [
-    "A4:2 A4:2 B4:4", "A4:2 A4:2 B4:4", "A4:2 B4:2 C5:2 B4:2", "A4:2 B4:2 A4:2 F4:2",
-    "E4:6 r:2", "E4:2 F4:2 E4:2 E4:2", "C5:2 B4:2 A4:2 B4:2", "A4:2 F4:2 E4:4",
+# Teahouse: "Sakura Sakura" (Japanese traditional).  4/4, key A minor (A B C E F), quarter = 100: 18 frames
+# per eighth row (the spec's ~100 bpm).  14 bars, about 34 s.  Bass: a soft A / E drone, not chords.
+SAK_BARS = [
+    "A4:2 A4:2 B4:4", "A4:2 A4:2 B4:4", "A4:2 B4:2 C5:2 B4:2", "A4:2 B4:1 A4:1 F4:4",
+    "E4:2 C4:2 E4:2 F4:2", "E4:2 E4:1 C4:1 B3:4", "A4:2 B4:2 C5:2 B4:2", "A4:2 B4:1 A4:1 F4:4",
+    "E4:2 C4:2 E4:2 F4:2", "E4:2 E4:1 C4:1 B3:4", "A4:2 A4:2 B4:4", "A4:2 A4:2 B4:4",
+    "E4:2 F4:2 B4:1 A4:1 F4:2", "E4:4 R:4",
 ]
-SAK_BASS = " ".join(["A2:4 E3:4"] * 4 + ["E3:4 A2:4", "E3:4 E3:4", "A2:4 E3:4", "A2:4 E3:4"])
-song("sakura", 24, "A", " ".join(SAK), SAK_BASS, "", gap=True)
+SAK_CHORDS = [
+    "Am", "Am", "Am", "Dm", "Am", "E", "Am", "Dm", "Am", "E", "Am", "Am", "Dm", "Am",
+]
+song("sakura", 18, "A", " ".join(SAK_BARS), " ".join(["A2:4 E3:4"] * 14), "", gap=True)
 
 # ---------------------------------------------------------------------------------------------
-# Space lounge: "The Blue Danube" (Johann Strauss II, 1866), first waltz theme.  3/4, 15 frames per
-# eighth row.  Key C.
-DAN = [
-    "E4:2 G4:4", "G4:2 G4:4", "G4:2 E4:2 C4:2", "C4:6",
-    "E4:2 G4:4", "G4:2 A4:4", "A4:2 F4:2 D4:2", "D4:6",
-    "F4:2 A4:4", "A4:2 A4:4", "A4:2 F4:2 D4:2", "G4:6",
-    "E4:2 G4:4", "G4:2 B4:4", "B4:2 G4:2 D4:2", "C4:6",
+# Space lounge: "The Blue Danube" (Johann Strauss II, 1867), first waltz theme in the spec's G major.  3/4,
+# quarter = 160: 11 frames per eighth row.  32 bars, no drums.  As the spec suggests, the first note of
+# each 'X R Y' bar is held through the rest (X:2 R:2 Y:2 -> X:4 Y:2).  No transposition: the lowest note, G3,
+# stays above the bass (G2 root, D3 fifth).
+DAN_BARS = [
+    "G3:2 B3:2 D4:2", "D4:2 R:2 D5:2", "D5:2 R:2 B4:2", "B4:2 R:2 G3:2", "G3:2 B3:2 D4:2",
+    "D4:2 R:2 D5:2", "D5:2 R:2 C5:2", "C5:2 R:2 F#4:2", "F#4:2 A4:2 C5:2", "C5:2 R:2 E5:2",
+    "E5:2 R:2 C5:2", "C5:2 R:2 F#4:2", "F#4:2 A4:2 C5:2", "C5:2 R:2 E5:2", "E5:2 R:2 B4:2",
+    "B4:2 R:2 G3:2", "G3:2 B3:2 D4:2", "G4:2 R:2 G5:2", "G5:2 R:2 D5:2", "D5:2 R:2 G3:2",
+    "G3:2 B3:2 D4:2", "G4:2 R:2 G5:2", "G5:2 R:2 E5:2", "E5:2 R:2 A4:2", "A4:2 C5:2 E5:2", "E5:6",
+    "~:2 C#5:2 D5:2", "B5:6", "~:2 G5:2 B4:2", "B4:4 A4:2", "E5:4 D5:2", "G4:2 R:1 G4:1 G4:2",
 ]
-DAN_CH = ["C", "C", "C", "C", "C", "C", "G", "G", "F", "F", "F", "G", "C", "C", "G", "C"]
-song("danube", 15, "A", "C4:2 " + " ".join(DAN), "r:2 " + oompah(DAN_CH, 6),
-     "r:2 " + rep("K:1 r:5", 16))
+DAN_CHORDS = [
+    "G", "G", "G", "G", "G", "G", "D7", "D7", "D7", "D7", "D7", "D7", "D7", "D7", "G", "G", "G",
+    "G", "G", "G", "G", "G", "C", "Am", "Am", "A7", "A7", "G", "G", "D7", "D7", "G",
+]
+
+
+def hold_through_rest(bar):
+    t = bar.split()
+    if len(t) == 3 and t[1] == "R:2" and t[0].endswith(":2"):
+        return f"{t[0][:-2]}:4 {t[2]}"
+    return bar
+
+
+song("danube", 11, "A", " ".join(hold_through_rest(b) for b in DAN_BARS), oompah(DAN_CHORDS, 6))
 
 # ---------------------------------------------------------------------------------------------
-# Zoo: "Pop Goes the Weasel" (English folk tune, c. 1850).  6/8, 11 frames per eighth row.  Key C.
-WEA = [
-    "C5:2 C5:1 D5:2 D5:1", "E5:2 E5:1 C5:2 C5:1",
-    "D5:2 D5:1 E5:2 D5:1", "C5:2 B4:1 C5:3",
-    "C5:2 C5:1 D5:2 D5:1", "E5:2 E5:1 C5:2 C5:1",
-    "D5:2 D5:1 E5:2 F5:1", "E5:6",
-    "E5:2 E5:1 F5:2 F5:1", "G5:2 G5:1 E5:2 E5:1",
-    "F5:2 F5:1 G5:2 F5:1", "E5:2 D5:1 E5:3",
-    "C5:2 C5:1 D5:2 D5:1", "E5:2 G5:1 G5:3",     # ... Pop! goes the weasel
-    "G5:1 G5:1 G5:1 E5:1 D5:1 C5:1", "C5:6",
+# Zoo: "Pop Goes the Weasel" (English folk tune, c. 1850), verse and second strain.  6/8, key G, dotted
+# quarter = 100: 12 frames per eighth row.  16 bars.  The last rest of bar 16 becomes the D4 pickup (the
+# spec's note for looping).  Bar 15 is C for the first dotted beat and D7 for the second.
+WEA_BARS = [
+    "G4:2 G4:1 A4:2 A4:1", "B4:1 D5:1 B4:1 G4:2 R:1", "G4:2 G4:1 A4:2 C5:1", "B4:3 G4:2 R:1",
+    "G4:2 G4:1 A4:2 A4:1", "B4:1 D5:1 B4:1 G4:2 R:1", "E5:3 A4:2 C5:1", "B4:3 G4:2 R:1",
+    "G5:3 E5:2 G5:1", "F#5:1 A5:1 F#5:1 D5:3", "G5:2 G5:1 E5:2 G5:1", "F#5:3 D5:2 B4:1",
+    "C5:2 B4:1 C5:2 D5:1", "E5:2 F#5:1 G5:2 R:1", "E5:1 R:2 A4:2 C5:1", "B4:3 G4:2 R:1",
 ]
-WEA_CH = ["C", "C", "G", "C", "C", "C", "G", "C", "C", "C", "G", "C", "C", "C", "G", "C"]
-song("weasel", 11, "A", " ".join(WEA), oompah(WEA_CH, "c6"),
-     rep("K:1 r:2 S:1 r:2", 16))
+WEA_BARS[-1] = WEA_BARS[-1].replace("R:1", "D4:1")
+WEA_CHORDS = [
+    "G", "G", "D7", "G", "G", "G", "Am", "G", "G", "D", "G", "D", "C", "G", "C/D7", "G",
+]
+song("weasel", 12, "A", " ".join(WEA_BARS), oompah(WEA_CHORDS, "c6"),
+     " ".join(["K:1 r:2 S:1 r:2"] * 16))
 
 # which songs, in tune order after title/show
 VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sakura", "danube", "weasel"]

@@ -258,7 +258,7 @@ def melody_check(rom, source, frames=260, min_notes=6):
     of song `source` (tools/songs.py) with the pitch the song says.  Returns (checked, wrong) lists of (row, Hz wanted, Hz heard)."""
     t = songs.SONGS[source]
     tempo = t["tempo"]
-    rows = gm.rows_for(2, t["ch2"], 1, tempo, False, t.get("gap", True))
+    rows = gm.rows_for(2, t["ch2"], 1, tempo, False, t.get("gap", True), t.get("stac_all"))
     notes = []
     for i, (n, _, _) in enumerate(rows):
         if n != gm.REST:
@@ -317,6 +317,92 @@ def test_the_oh_susanna_song_data_is_the_owners_note_list():
     bass = songs.SONGS["susanna"]["ch3"].replace("!", "").split()
     assert bass[:5] == ["r:2", "C3:2", "G2:2", "C3:2", "G2:2"] and bass[-1] == "C3:4", "boom-chick, final bar a whole-bar root"
     assert songs.SONGS["susanna"]["ch4"].split()[-2:] == ["K:1", "r:3"], "final bar: kick then rests"
+
+
+# ---- the nine tunes entered from docs/music_specs.md ------------------------------------------------------
+SPEC_TUNES = {1: "funicula", 2: "skaters", 3: "ballgame", 4: "mountain", 5: "weasel", 6: "danube", 7: "hall",
+              8: "sakura", 9: "entertainer"}
+
+
+def parse_specs():
+    """docs/music_specs.md -> {song name: (bar token strings, chord per bar)}."""
+    import re
+    text = (ROOT / "docs" / "music_specs.md").read_text()
+    parts = re.split(r"\n-{60}\n(\d)\. ", text)
+    out = {}
+    for i in range(1, len(parts), 2):
+        bars, chords = [], []
+        for line in parts[i + 1].split("\n"):
+            m = re.match(r"\s*(\d+) \| (.*?)\s*\| (\S+)\s*$", line)
+            if m:
+                assert int(m.group(1)) == len(bars) + 1
+                bars.append(m.group(2).strip())
+                chords.append(m.group(3))
+        out[SPEC_TUNES[int(parts[i])]] = (bars, chords)
+    return out
+
+
+def spec_bars_for_the_game(name, bars):
+    """The spec bars with the two documented adaptations: Pop Goes the Weasel's last rest is the D4 pickup, the
+    Blue Danube holds the first note of an 'X R Y' bar through the rest.  (Pickup lines are not bars: they are the
+    first-time-only lead-ins, left out so that the loop is seamless.)"""
+    bars = list(bars)
+    if name == "weasel":
+        assert bars[-1].endswith("R:1")
+        bars[-1] = bars[-1][:-3] + "D4:1"
+    if name == "danube":
+        for i, b in enumerate(bars):
+            tk = b.split()
+            if len(tk) == 3 and tk[1] == "R:2" and tk[0].endswith(":2"):
+                bars[i] = tk[0][:-2] + ":4 " + tk[2]
+    return bars
+
+
+# the spec's tempo: beats per minute and song rows per beat
+SPEC_BPM_ROWS = {"funicula": (92, 3), "skaters": (160, 2), "ballgame": (168, 2), "mountain": (160, 2), "weasel": (100, 3),
+                 "danube": (160, 2), "hall": (120, 2), "sakura": (100, 2), "entertainer": (90, 4)}
+
+
+def test_the_nine_tunes_are_the_specs_token_for_token():
+    specs = parse_specs()
+    assert sorted(specs) == sorted(SPEC_TUNES.values())
+    for name, (bars, chords) in specs.items():
+        s = songs.SONGS[name]
+        want = " ".join(spec_bars_for_the_game(name, bars)).split()
+        assert s["ch2"].split() == want, f"{name}: melody differs from docs/music_specs.md"
+        per_bar = songs.BAR_ROWS[name]
+        for ch in ("ch2", "ch3"):                       # every bar adds up (ties included), melody and bass
+            rows = gm.merge_ties(s[ch]).split()
+            assert sum(int(t.split(":")[1].rstrip("!")) for t in rows) == per_bar * len(bars), f"{name} {ch} length"
+        bpm, rows_per_beat = SPEC_BPM_ROWS[name]
+        ideal = 3600 / bpm / rows_per_beat
+        assert abs(s["tempo"] - ideal) / ideal < 0.05, f"{name} tempo {s['tempo']} vs {ideal:.1f} frames per row"
+        if name in ("hall", "sakura"):
+            continue                                    # root ostinato / drone, not chords
+        bass = s["ch3"].replace("!", "").split()
+        i = 0
+        for chord in chords:                            # the bass plays the bar's chord: its root on the downbeat
+            assert bass[i].split(":")[0] == songs.CHORD[chord.split("/")[0]][0], f"{name}: chord {chord} vs bass {bass[i]}"
+            n = 0
+            while n < per_bar:
+                n += int(bass[i].split(":")[1])
+                i += 1
+            assert n == per_bar
+
+
+def test_hall_of_the_mountain_king_is_staccato_over_a_root_ostinato():
+    s = songs.SONGS["hall"]
+    assert s["stac_all"] == (1, 2)
+    bass = s["ch3"].replace("!", "").split()
+    assert set(bass[:32]) == {"B2:2"} and set(bass[32:48]) == {"F#2:2"} and set(bass[48:]) == {"B2:2"}
+    rows = gm.rows_for(2, s["ch2"], 1, s["tempo"], False, True, s["stac_all"])
+    cuts = [eff for _, _, eff in rows if (eff & 0xF00) == 0xE00]
+    assert len(cuts) > 80 and set(c & 0xFF for c in cuts) >= {7}, "a 1-row note is cut after 7 of its 15 ticks"
+
+
+def test_ties_fold_into_the_previous_note():
+    assert gm.merge_ties("C5:2 ~:3 D5:1 ~:1") == "C5:5 D5:2"
+    assert gm.merge_ties("R:2 C5:1! ~:2") == "r:2 C5:3!"
 
 
 def test_level_1_plays_oh_susanna(sgb):
@@ -556,7 +642,7 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
     from conftest import ROOT
     src = (ROOT / "build" / "music_data.c").read_text()
     frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+\}", src)]
-    assert len(frames) == TUNE_COUNT and all(60 <= f <= 1800 for f in frames), frames
+    assert len(frames) == TUNE_COUNT and all(60 <= f <= 2400 for f in frames), frames
     venue = frames[TUNE_VENUE0:]
-    assert all(15 * 60 <= f <= 30 * 60 for f in venue), f"venue tunes loop for 15-30 s: {venue}"
+    assert all(15 * 60 <= f <= 36 * 60 for f in venue), f"venue tunes loop for 15-36 s (the owner specs are up to 32 bars of a waltz): {venue}"
     assert 8 * 60 <= frames[TUNE_SHOW] <= 12 * 60, "the show tune loops for 8-12 s"
