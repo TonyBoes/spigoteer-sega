@@ -276,3 +276,10 @@ table with initials + loop banner/harder loops.
 - BG ids on the title: menu text over the venue stage slot (0-19) and after the fill states; lettering, fill states
   and patron over the patron range (72-225). OBJ effects over the show performers' tiles. The level load restores all.
 - Story: "COMING SOON" over the STORY line for 60 frames (the story mode is M11).
+
+## Story art decision (owner): hybrid
+
+FULL custom pictures only for the intro (KA-SPLOOSH), the finale (first pour) and the credits gag;
+every other scene uses the LIGHTER style (the venue's in-game stage + bar as the backdrop, the
+Spigoteer's normal sprite, a framed 32x32 speaker portrait above a full-width 3x18 text box).
+Portraits for every speaker (assets/approved/story/portrait_*.txt; Spigoteer and Sadie done).
