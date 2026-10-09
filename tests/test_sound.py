@@ -6,7 +6,7 @@ from io import BytesIO
 
 import numpy as np
 import pytest
-from conftest import ROM, ROOT
+from conftest import GAME, ROM, ROOT
 from gbtools import Rom
 from pyboy import PyBoy
 from test_bonus import PH_SHAKE, enter_bonus, to_phase
@@ -129,7 +129,7 @@ def test_patron_reaching_the_tap_costs_a_life_without_a_break_sound(gb):
 
 def test_patron_served_out_the_door(gb):
     gb.write("intro_timer", 255)
-    set_patron(gb, 0, 0, pstate=PATRON_PUSHED)
+    set_patron(gb, 0, GAME["DOOR_X"], pstate=PATRON_PUSHED)
     put(gb, "patron_aux", gb.read("patron_state", 16).index(PATRON_PUSHED), 4)
     gb.run(2)
     assert gb.mem("last_sfx") == SFX_SERVE and sfx_count(gb, SFX_SERVE) == 1
@@ -535,7 +535,7 @@ def test_select_does_nothing_outside_the_title(gb):
 def earn_fifty_and_lose(rom):
     start_game(rom)
     rom.write("intro_timer", 255)
-    inject_mug(rom, 0, 8)
+    inject_mug(rom, 0, GAME["DOOR_X"] + 8)
     rom.run(6)
     assert score(rom) == 50
     for n in range(3):

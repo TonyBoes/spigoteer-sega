@@ -44,7 +44,7 @@ $(BUILD) $(OUT)/preview:
 # Tile and sprite data: bar.txt (shared BG tiles), bartender.txt (8x16 OBJ tiles, padded so each bartender frame is
 # 4 OAM entries), the patrons, and the venues (assets/approved/venues: stage, bar, drink, show per theme)
 # -> build/art.c/.h, build/patrons_*.c, build/venue_*.c, build/venues.json. Also writes x8 previews to out/preview/.
-$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tiles/title.txt assets/art/bartender.txt assets/art/glass.txt assets/art/coin.txt assets/art/can.txt assets/art/foam.txt assets/art/cursor.txt $(wildcard assets/art/patrons/*.txt) $(wildcard assets/approved/venues/*) | $(BUILD) $(OUT)/preview
+$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tiles/title.txt assets/art/bartender.txt assets/art/glass.txt assets/art/coin.txt assets/art/puff.txt assets/art/can.txt assets/art/foam.txt assets/art/cursor.txt $(wildcard assets/art/patrons/*.txt) $(wildcard assets/approved/venues/*) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
 $(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h: $(BUILD)/art.c

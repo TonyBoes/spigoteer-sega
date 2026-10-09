@@ -15,6 +15,7 @@ PX = 8 * PUSHBACK
 FAR_X = GAME["PATRON_FAR_X"]          # M8a: 120, a walker here has reached the bartender's end
 HELD = 4
 SPACING = 32
+DOOR_X = GAME["DOOR_X"]                # patrons come in here and are served out when pushed past it (cols 0-1 are the door)
 START_BARS = [0, 2]                   # level 1 starts with patrons on these bars (start_mask 0x5)
 
 
@@ -138,24 +139,24 @@ def test_boot_has_one_patron_on_each_start_bar(gb):
     ps = patrons(gb)
     assert len(ps) == 2 and gb.mem("patrons_live") == 2 and gb.mem("spawned") == 2
     assert sorted(p["bar"] for p in ps) == START_BARS == [b for b in range(4) if gb.mem("start_mask") >> b & 1]
-    assert all(p["x"] == 0 and p["state"] == WALKING for p in ps)
+    assert all(p["x"] == DOOR_X and p["state"] == WALKING for p in ps)
     assert not gb.is_blank()
 
 
-def test_patron_walks_8_px_per_step_time(gb):
+def test_patron_walks_7_px_per_step_time(gb):
     go(gb)
     gb.run(1)
     x0 = [p["x"] for p in patrons(gb)]
     gb.run(STEP)
-    assert [p["x"] - a for p, a in zip(patrons(gb), x0)] == [8, 8]
+    assert [p["x"] - a for p, a in zip(patrons(gb), x0)] == [7, 7]     # door fix: speed x 13/15 (28/256 px per frame)
     gb.run(STEP)
-    assert [p["x"] - a for p, a in zip(patrons(gb), x0)] == [16, 16]
+    assert [p["x"] - a for p, a in zip(patrons(gb), x0)] == [14, 14]
 
 
 def test_intro_delay_holds_patrons(gb):
     assert gb.mem("intro_timer") > 0
     gb.run(10)
-    assert all(p["x"] == 0 for p in patrons(gb))
+    assert all(p["x"] == DOOR_X for p in patrons(gb))
 
 
 def test_patron_waits_behind_another(gb):
@@ -180,8 +181,8 @@ def test_blocked_by_a_drinking_patron(gb):
 
 
 def test_served_near_the_door_is_removed_and_scores(gb):
-    freeze(gb)                     # the boot patrons: one on bars 0 and 2 at x = 0, drawn
-    inject_mug(gb, 0, 18)          # reaches bar 0's patron (x 0-15) two frames later
+    freeze(gb)                     # the boot patrons: one on bars 0 and 2 at x = DOOR_X, drawn
+    inject_mug(gb, 0, DOOR_X + 18)          # reaches bar 0's patron (x 16-31) two frames later
     gb.run(12)
     ps = patrons(gb)
     assert sorted(p["bar"] for p in ps) == [2], "bar 0's patron left"
@@ -334,7 +335,7 @@ def test_full_mug_slides_past_a_drinking_patron(gb):
     clear_patrons(gb)
     freeze(gb)
     drinker = set_patron(gb, 2, 80, state=DRINKING)
-    walker = set_patron(gb, 2, 32)
+    walker = set_patron(gb, 2, 48)
     inject_mug(gb, 2, 136)
     gb.run(25)
     assert gb.read("patron_state", MAX_P)[drinker] == DRINKING
@@ -362,7 +363,7 @@ def test_level_clear(gb):
     freeze(gb)
     gb.write("quota", 2)                 # the two start patrons are the whole level
     for b in START_BARS:
-        inject_mug(gb, b, 16)
+        inject_mug(gb, b, DOOR_X + 8)
     gb.run(8)
     assert patrons(gb) == []
     assert score(gb) == 2 * SERVE + 1000          # M4: the screen-clear bonus
@@ -385,7 +386,7 @@ def test_spawning_stops_at_quota(gb):
     gb.run(30)
     assert gb.mem("spawned") == 3 and len(patrons(gb)) == 1
     p = patrons(gb)[0]
-    assert p["x"] <= 8 and p["state"] == WALKING
+    assert DOOR_X <= p["x"] <= DOOR_X + 8 and p["state"] == WALKING
     spawn_now(gb)
     gb.run(300)
     assert gb.mem("spawned") == 3
@@ -405,29 +406,29 @@ def test_spawn_waits_for_a_free_door(gb):
 def test_four_patrons_stepping_together_fit_in_vblank(gb):
     go(gb)
     for b in (1, 3):                     # level 1 starts on two bars; add the other two so four move together
-        set_patron(gb, b, 0)
-    for p in patrons(gb):                # all four at x = 7 and about to take the pixel that crosses into column 1
-        put(gb, "patron_x", p["i"], 7)
+        set_patron(gb, b, DOOR_X)
+    for p in patrons(gb):                # all four at x = 23 and about to take the pixel that crosses into column 3
+        put(gb, "patron_x", p["i"], DOOR_X + 7)
         put(gb, "patron_frac", p["i"], 255)
-        put(gb, "patron_draw", p["i"], 7)
+        put(gb, "patron_draw", p["i"], DOOR_X + 7)
     gb.write("hud_dirty", 3)             # HUD redraw in the same frame
     gb.run(8)
-    assert all(p["x"] == 8 for p in patrons(gb))
+    assert all(p["x"] == DOOR_X + 8 for p in patrons(gb))
     # The drain is budgeted: VBlank is 4560 cycles ~ 17.8 DIV ticks and the update starts
     # ~1000-1400 cycles in, so a drain longer than 12 ticks (3072 cycles) is a tear risk.
     ticks = gb.mem("drain_ticks_max")
     assert 0 < ticks <= 12, f"VRAM drain took {ticks} DIV ticks"
     assert gb.mem("hud_dirty") == 0
-    # every bar has its patron redrawn at x = 8 (column 1) within a few frames (the budget spreads them out)
+    # every bar has its patron redrawn at x = 24 (column 3) within a few frames (the budget spreads them out)
     for p in patrons(gb):
-        col, ids = drawn_tiles(p["variant"], 8, p["bar"])
-        assert col == 1 and map_ids(gb, p["bar"], 1) == ids, f"bar {p['bar']} patron drawn at columns 1-3"
+        col, ids = drawn_tiles(p["variant"], DOOR_X + 8, p["bar"])
+        assert col == 3 and map_ids(gb, p["bar"], 3) == ids, f"bar {p['bar']} patron drawn at columns 3-5"
 
 
 def test_patron_tiles_reach_vram(gb):
     for p in patrons(gb):
-        col, ids = drawn_tiles(p["variant"], 0, p["bar"])
-        assert map_ids(gb, p["bar"], col) == ids, "3x2 patron tiles at columns 0-2, shift 0"
+        col, ids = drawn_tiles(p["variant"], DOOR_X, p["bar"])
+        assert col == 2 and map_ids(gb, p["bar"], col) == ids, "3x2 patron tiles at columns 2-4, shift 0"
     # a known pixel position shows the matching pre-shifted tiles; the old columns are wall again
     go(gb)
     i = patrons(gb)[0]["i"]
@@ -439,7 +440,7 @@ def test_patron_tiles_reach_vram(gb):
     assert gb.read("patron_draw", MAX_P)[i] == 45
     assert map_ids(gb, p["bar"], col) == ids
     tm = gb.bg_tilemap()
-    assert all((t & 0xFF) < BASE for t in tm[bar_top_row(p["bar"])][0:5]), "nothing left behind at columns 0-4"
+    assert all((t & 0xFF) < BASE for t in tm[bar_top_row(p["bar"])][0:5]), "nothing left behind at columns 0-4 (the door is bare wall tiles)"
 
 
 def test_patrons_golden(gb):
@@ -450,11 +451,11 @@ def test_patrons_golden(gb):
 
 def test_level_1_starts_on_exactly_the_configured_bars(gb):
     assert gb.mem("level") == 1 and gb.mem("start_mask") == 0x5 and gb.mem("start_per_bar") == 1
-    assert sorted((p["bar"], p["x"]) for p in patrons(gb)) == [(0, 0), (2, 0)]
+    assert sorted((p["bar"], p["x"]) for p in patrons(gb)) == [(0, DOOR_X), (2, DOOR_X)]
     tm = gb.bg_tilemap()
     base = int(__import__("re").search(r"BAR_TILE_COUNT (\d+)", (__import__("conftest").ROOT / "build" / "art.h").read_text()).group(1))
     for b in range(4):                           # patron tiles (ids >= BAR_TILE_COUNT) drawn on bars 0 and 2 only
-        assert ((tm[bar_top_row(b)][0] & 0xFF) >= base) == (b in START_BARS), b
+        assert ((tm[bar_top_row(b)][DOOR_X >> 3] & 0xFF) >= base) == (b in START_BARS), b
 
 
 def test_level_1_patron_takes_at_least_15_s_to_reach_the_tap(gb):

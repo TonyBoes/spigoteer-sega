@@ -2,7 +2,8 @@
 import re
 
 import pytest
-from conftest import ROOT, check_golden, venue
+from conftest import GAME, ROOT, check_golden, venue
+DOOR_X = GAME["DOOR_X"]
 from test_flow import (BONUS, LEVEL_CLEAR, PLAYING, clear_level, patrons, run_until, score, state, tile_id,
                        tilemap_row)
 
@@ -254,7 +255,7 @@ def test_next_level_loads_and_the_bar_scene_is_intact(gb):
     run_until(gb, lambda: state(gb) == PLAYING, 300)
     gb.run(20)
     assert gb.mem("level") == 3 and gb.mem("cur_group") == 2 and gb.mem("overlay_on") == 0
-    assert patrons(gb) == [(0, 0), (1, 0), (2, 0), (3, 0)]
+    assert patrons(gb) == [(b, DOOR_X) for b in range(4)]
     assert tilemap_row(gb, 0, 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_3")]
     # bar rows are the level 3 venue's (the lodge): counter row of bar 0 = row 7, floor row 17 (M9)
     lodge = venue("lodge")

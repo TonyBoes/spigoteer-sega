@@ -586,6 +586,21 @@ static void draw_coin(void) {
     o->prop = is_cgb ? OBJPAL_COIN : 0;
 }
 
+// OAM 26: the door puff on the bar where a patron just came in or left (3 frames of PUFF_TOTAL / 3 game frames).
+uint8_t puff_bar, puff_timer;
+static uint8_t puff_shown;
+void door_puff(uint8_t b) { puff_bar = b; puff_timer = PUFF_TOTAL; }
+static void draw_puff(void) {
+    OAM_item_t *o = shadow_OAM + OAM_PUFF;
+    uint8_t t = puff_timer;
+    if (!t) { if (puff_shown) { o->y = 0; puff_shown = 0; } return; }
+    puff_shown = 1;
+    o->y = bar_oam_y[puff_bar];
+    o->x = PUFF_X + 8;
+    o->tile = OBJ_PUFF + (t > 8 ? 0 : t > 4 ? 2 : 4);
+    o->prop = S_PALETTE | OBJPAL_GLASS;
+}
+
 // What the dancer entries must show: 0x80 | dance frame << 3 | bit k: dancer k is on stage. They pop in one
 // after another at the start of the show and leave in the same order at the end.
 static uint8_t dancer_look(void) {
@@ -616,6 +631,7 @@ static void draw_dancers(uint8_t sig) {
 void draw_stage_fx(void) {
     uint8_t k, sig;
     draw_coin();
+    draw_puff();
     if (!show_timer) {
         if (dancers_vis) {
             OAM_item_t *o = shadow_OAM + OAM_DANCERS;
@@ -642,6 +658,7 @@ void hide_all_sprites(void) {
     uint8_t i;
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
     oam_used = OAM_FILL + 1;
+    puff_timer = 0; puff_shown = 0;
     dancers_vis = 0;
     oam_touched();
 }

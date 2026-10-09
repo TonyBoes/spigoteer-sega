@@ -313,6 +313,7 @@ static void init(void) {
     SPRITES_8x16;
     spr_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);
     spr_data(OBJ_GLASS, GLASS_TILE_COUNT, glass_tiles);
+    spr_data(OBJ_PUFF, PUFF_FRAMES * 2, puff_tiles);
     spr_data(OBJ_COIN, COIN_TILE_COUNT, coin_tiles);      // the drink and show tiles come with each venue (load_venue)
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 
@@ -338,7 +339,10 @@ static void start_level(void) {
     cur_group = idx % LEVEL_ROWS;               // art cycles, speeds stay at the last row
     quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
     pushback_cols = c->pushback_cols; pushback_px = pushback_cols << 3;
-    patron_speed = (uint8_t)(2048u / step_frames);          // 8 px per step_frames, in 1/256 px per frame
+    // 8 px per step_frames in 1/256 px per frame (the old speed over a 120 px walk), scaled by the walk's new length:
+    // the patrons now come in at DOOR_X, so (PATRON_FAR_X - DOOR_X) / PATRON_FAR_X of the distance (13/15 = 104/120)
+    // at the same door-to-tap time (within 2%; the speed has a 1/256 px resolution).
+    patron_speed = (uint8_t)((((2048u / step_frames) * (PATRON_FAR_X - DOOR_X)) + PATRON_FAR_X / 2) / PATRON_FAR_X);
     serve_score = c->serve_score; start_per_bar = c->start_per_bar; empty_gap = c->empty_gap;
     start_mask = c->start_mask;
     served = 0; spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES; level_clear = 0;

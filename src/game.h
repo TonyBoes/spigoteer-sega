@@ -26,6 +26,9 @@
 #define WALK_FRAC     128
 #define WALK_STEP_FRAMES 10 // frames per step of the walk cycle walk1, idle, walk2, idle
 #define NUM_BARS        4
+// The door: columns 0-1 (16 px) of every bar's two wall rows. Patrons come in at DOOR_X, just right of it, and
+// are served out (pushed back) when they would go left of it, so their 3-tile footprint never covers the door.
+#define DOOR_X         16
 
 // patrons: 16x16 px, drawn as a 3x2-tile BG footprint on the two back-wall rows of a bar.
 // Position is in pixels (patron_x, left edge of the 16 px figure) plus a fraction; the picture
@@ -100,9 +103,18 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #endif
 // OBJ tile ids stay below 128: ids 128+ share VRAM (0x8800 block) with the patron BG tiles
 #define OAM_FILL        4     // OAM entry of the filling mug; pooled mugs start at 5
-// OAM budget (40): bartender 0-3, fill 4, mugs 5..26 (20 mugs + 2 spare for a breaking glass's 2nd entry),
-// tip coin 27, three dancers x 4 entries 28..39
-#define OAM_MUG_END    27
+// Door puff: one 8x16 entry at the doorway of the bar where a patron just came in or was served out. Its 3 frames
+// of 8x16 live at OBJ ids after the patron BG tile range (OBJ ids 228+ overlap no BG tile id).
+#define PUFF_TOTAL     12     // frames the puff lasts (3 frames of 4)
+#define PUFF_X          4     // screen x of the puff (the door is 16 px wide)
+#define OBJ_PUFF       ((PATRON_TILE_BASE + PATRON_GROUP_TILES + 1) & ~1)
+#if OBJ_PUFF + PUFF_FRAMES * 2 > 256
+#error "OBJ tile budget: the puff tiles do not fit above the patron BG tiles"
+#endif
+// OAM budget (40): bartender 0-3, fill 4, mugs 5..25 (20 mugs + 1 spare for a breaking glass's 2nd entry),
+// door puff 26, tip coin 27, three dancers x 4 entries 28..39
+#define OAM_MUG_END    26
+#define OAM_PUFF       26
 #define OAM_COIN       27
 #define OAM_DANCERS    28
 
@@ -143,6 +155,7 @@ extern uint8_t  quota, spawned, served, serve_score, patron_speed, pushback_px, 
 extern uint8_t  start_mask, start_per_bar, empty_gap;
 extern uint16_t next_arrival;
 extern uint16_t spawn_interval, spawn_timer;
+extern uint8_t  puff_bar, puff_timer;   // door puff: its bar and frames left (0: none)
 extern uint8_t  tip_chance, tip_bar, tip_x, dancer_frame, dance_tick, dancers_vis, dancer_sig;
 extern uint16_t tip_timer, show_timer;
 
@@ -206,6 +219,7 @@ extern uint8_t base_tile[2][20], base_attr[2][20];   // the bar's two wall rows 
 void draw_bartender(void);
 void draw_stage_fx(void);
 void hide_all_sprites(void);
+void door_puff(uint8_t b);                    // a patron came in / left on bar b: start the dust puff at its door
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
 // ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
 extern uint8_t venue_id;

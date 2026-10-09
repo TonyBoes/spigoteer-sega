@@ -365,6 +365,17 @@ def main():
     c.append(fmt("coin_tiles", ct))
     png(coin_frames, prev / "coin_x8.png", 8, transparent=True)
 
+    # ---- door puff: 3 frames of 8x16 (one OAM entry), OBJ ids after the patron BG range (OBJ ids 228+ share no BG tile) ----
+    puff = [r for _, r in blocks(ROOT / "assets/art/puff.txt")]
+    assert len(puff) == 3 and all(len(f) == 16 and len(f[0]) == 8 for f in puff)
+    pt = []
+    for f in puff:
+        pt += tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)
+    h[-2:-2] = ["#define PUFF_FRAMES 3", f"#define PUFF_TILE_COUNT {len(pt) // 16}",
+                "extern const uint8_t puff_tiles[];", ""]
+    c.append(fmt("puff_tiles", pt))
+    png(puff, prev / "puff_x8.png", 8, transparent=True)
+
     # ---- show performers (M9): 4 frames 16x24 per venue (<t>_show.txt), laid out like the bartender ----
     h[-2:-2] = ["#define DANCER_FRAMES 4", "#define DANCER_TILES_PER_FRAME 8", "#define DANCER_TILE_COUNT 32", ""]
 

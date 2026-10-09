@@ -336,24 +336,25 @@ uint8_t catch_full(uint8_t i) {
 // New patron at the door of a random bar, if its first PATRON_SPACING px are free.
 static uint8_t try_spawn(void) {
     uint8_t b = (next_rand() >> 2) & 3, v;
-    if (blocked_behind(b, PATRON_SPACING)) return 0;   // someone within the door's first PATRON_SPACING px
+    if (blocked_behind(b, DOOR_X + PATRON_SPACING)) return 0;   // someone within PATRON_SPACING px of the door's edge
     v = next_rand();                              // v % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
     v = (v >> 4) + (v & 15);
     v = (v >> 2) + (v & 3);
     v = (v >> 2) + (v & 3);
     if (v >= 3) v -= 3;
-    if (!add_patron(b, 0, v)) return 0;
+    if (!add_patron(b, DOOR_X, v)) return 0;
+    door_puff(b);
     spawned++;
     return 1;
 }
 
-// Put the level's start patrons on the bars (2nd group 32 px on where the level has two),
+// Put the level's start patrons on the bars (from DOOR_X; a 2nd group 32 px on where the level has two),
 // but never more than the quota still to serve.
 void place_start_patrons(void) {
     uint8_t b, k, placed = 0, remaining = quota > served ? quota - served : 0;
     for (k = 0; k < start_per_bar; k++)
         for (b = 0; b < NUM_BARS; b++)
-            if ((start_mask & bar_bit[b]) && placed < remaining) { add_patron(b, PATRON_SPACING * k, next_rand() % 3); placed++; }
+            if ((start_mask & bar_bit[b]) && placed < remaining) { add_patron(b, DOOR_X + PATRON_SPACING * k, next_rand() % 3); placed++; }
     spawned = served + placed;
     patrons_live = placed;
 }
@@ -432,6 +433,7 @@ static void start_drinking(uint8_t p) {
 
 static void served_out(uint8_t p) {                       // pushed out through the door: served
     remove_patron(p);
+    door_puff(patron_bar[p]);
     served++;
     add_score(serve_score);
     SFX(SFX_SERVE);
@@ -452,7 +454,7 @@ static void push_px(uint8_t p) {
 // Pushed back by a caught mug: one px a frame toward the door, then he drinks.
 static uint8_t pushed_step(uint8_t p) {
     if (patron_aux[p] == 0) start_drinking(p);
-    else if (patron_x[p] == 0) { served_out(p); return 0; }
+    else if (patron_x[p] <= DOOR_X) { served_out(p); return 0; }
     else push_px(p);
     refresh_patron(p);
     return 1;
@@ -541,6 +543,7 @@ void update_patrons(void) {
     uint8_t p, st, live = 0;
 
     if (next_arrival) next_arrival--;
+    if (puff_timer) puff_timer--;
     go_now = (intro_timer == 0);
     if (!go_now) {
         if (intro_timer) intro_timer--;

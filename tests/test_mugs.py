@@ -136,6 +136,7 @@ def test_breaking_state_is_visible_then_frees(gb):
 
 
 def test_two_mugs_on_different_bars(gb):
+    no_patrons(gb)                    # (the first mug would reach a start patron at the door before the second is launched)
     fill_and_launch(gb)
     gb.press("down", 1); gb.press("down", 1)
     assert gb.mem("bar") == 2
