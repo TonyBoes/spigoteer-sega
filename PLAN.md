@@ -155,3 +155,9 @@ flamingo chorus line (zoo).
 Show music per theme (all public domain): teahouse "Sakura Sakura" (traditional), igloo "The Skaters'
 Waltz" (Waldteufel, 1882), sports bar "Take Me Out to the Ball Game" (Von Tilzer, 1908); every
 other theme plays the "Galop Infernal". Show tunes are short loops (~8-12 s) for the 6 s show.
+REVISED (owner chose venue theme songs): each venue has its own public-domain gameplay tune;
+every show plays the "Galop Infernal". Saloon "Oh! Susanna" (owner's spec); sports bar "Take Me Out
+to the Ball Game"; lumber lodge "She'll Be Coming 'Round the Mountain"; bistro "Funiculi,
+Funicula"; igloo "The Skaters' Waltz"; robot factory "In the Hall of the Mountain King"; teahouse
+"Sakura Sakura"; space lounge "The Blue Danube"; jungle zoo "Pop Goes the Weasel"; title "The
+Entertainer". (Proposed to the owner; non-owner picks may still change.)
