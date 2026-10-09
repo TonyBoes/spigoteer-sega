@@ -3,7 +3,7 @@
 import re
 
 import pytest
-from conftest import ROOT, bar_top_row, bar_top_y, check_golden
+from conftest import GAME, ROOT, bar_top_row, bar_top_y, check_golden
 
 import test_patrons as tp
 from test_patrons import (BACK_BASE, BASE, BG_TILES_TOTAL, DRINKING, EMPTY, FREE, FULL, HELD, MAX_M, MAX_P, PUSHED,
@@ -133,7 +133,7 @@ def test_drinking_mug_tilts_then_the_empty_slides_right(gb):
     ys = []
     while gb.read("patron_state", MAX_P)[p] != DRINKING:
         gb.run(1)
-    for t in range(95):
+    for t in range(95 + GAME["WINDUP_FRAMES"]):  # M8d: the empty is lowered in the wind-up, after the drink
         ss = drink_sprites(gb)
         if gb.read("patron_state", MAX_P)[p] == DRINKING:
             assert len(ss) == 1

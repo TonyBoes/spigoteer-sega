@@ -48,6 +48,53 @@ __asm
 __endasm;
 }
 
+// Two rows: cp_n bytes cp_src -> cp_dst, then cp_n bytes cp_src + 20 -> cp_dst + 32 (a bar's two wall rows from
+// base_tile / base_attr, 20 wide, into the 32-wide shadow rows). 1 <= cp_n <= 20.
+static void copy_2rows(void) {
+__asm
+    push bc
+    ld   a, (_cp_src)
+    ld   e, a
+    ld   a, (_cp_src + 1)
+    ld   d, a
+    ld   hl, #_cp_dst
+    ld   a, (hl+)
+    ld   h, (hl)
+    ld   l, a
+    ld   a, (_cp_n)
+    ld   c, a
+    ld   b, a
+1$:
+    ld   a, (de)
+    inc  de
+    ld   (hl+), a
+    dec  b
+    jr   nz, 1$
+    ld   a, #20             ; de += 20 - n
+    sub  a, c
+    add  a, e
+    ld   e, a
+    jr   nc, 2$
+    inc  d
+2$:
+    ld   a, #32             ; hl += 32 - n
+    sub  a, c
+    add  a, l
+    ld   l, a
+    jr   nc, 3$
+    inc  h
+3$:
+    ld   b, c
+4$:
+    ld   a, (de)
+    inc  de
+    ld   (hl+), a
+    dec  b
+    jr   nz, 4$
+    pop  bc
+__endasm;
+}
+
 void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n) {
     cp_dst = 0x9800 + ((uint16_t)y << 5) + x;
     cp_src = (uint16_t)src;
@@ -174,13 +221,12 @@ static void stamp(uint8_t s) {
 static uint8_t cz_attrs;                  // compose the attributes too (CGB, and they changed)
 
 static void restore_base(void) {                         // the wall over the span (cz_*), both rows
-    cp_n = cz_x1 - cz_x0;
-    cp_dst = (uint16_t)(cz_tile + cz_x0); cp_src = (uint16_t)&base_tile[0][cz_x0]; copy_n();
-    cp_dst += 32; cp_src += 20; copy_n();
+    uint8_t x0 = cz_x0;
+    cp_n = cz_x1 - x0;
+    cp_dst = (uint16_t)(cz_tile + x0); cp_src = (uint16_t)&base_tile[0][x0]; copy_2rows();
     if (!cz_attrs) { cz_attr = 0; return; }
     cz_attr = cz_tile + sizeof sh_tile;                   // sh_attr follows sh_tile
-    cp_dst = (uint16_t)(cz_attr + cz_x0); cp_src = (uint16_t)&base_attr[0][cz_x0]; copy_n();
-    cp_dst += 32; cp_src += 20; copy_n();
+    cp_dst = (uint16_t)(cz_attr + x0); cp_src = (uint16_t)&base_attr[0][x0]; copy_2rows();
 }
 
 static void stamp_bar(uint8_t b) {
@@ -461,25 +507,29 @@ static uint8_t queue_bar(uint8_t b) {
 #define QI48(n) QI6(n), QI6((n) + 6), QI6((n) + 12), QI6((n) + 18), QI6((n) + 24), QI6((n) + 30), QI6((n) + 36), QI6((n) + 42)
 static const uint8_t id_seq[PATRON_TILES_PER_GROUP] = { QI48(0), QI48(48), QI48(96) };
 #define QUICK_COST 16          // logic time like 2/3 of a 3-column span (measured); the drain is half a span's
+// The two entries of a quick redraw: patron p, front view, drawn at d. (Its own small function: SDCC keeps p and d
+// in registers here; inside the loop it spilled them.)
+static void quick_entries(uint8_t p, uint8_t d) {
+    qv_src = (uint16_t)(id_seq - PATRON_TILE_BASE) + stamp_tile[((patron_variant[p] & 3) << 3) | (d & 7)];
+    qv_dst = (uint16_t)bar_map[patron_bar[p] & (NUM_BARS - 1)] + (d >> 3);
+    qv_w = 3;
+    queue_entry(0);
+    qv_src += 3; qv_dst += 32;
+    queue_entry(0);
+    vq_count += 2;
+}
+
 static void queue_quick(void) {
-    uint8_t p, d, c, b;
+    uint8_t p, d;
     while (quick_n) {
         if ((uint8_t)(qv_cost + QUICK_COST) > VQ_BUDGET) { vram_pending = 1; return; }
         p = quick_list[--quick_n];
         quick_on[p] = 0;
         d = patron_draw[p];
         if (patron_state[p] == PATRON_NONE || d == 255) continue;   // gone: remove_patron() marked his columns
-        b = patron_bar[p] & (NUM_BARS - 1);
-        c = (d & ~DRAW_BACK) >> 3;
-        if (d & DRAW_BACK) { mark_dirty(b, c, c + 3); continue; }
+        if (d & DRAW_BACK) { d = (d & ~DRAW_BACK) >> 3; mark_dirty(patron_bar[p] & (NUM_BARS - 1), d, d + 3); continue; }
         qv_cost += QUICK_COST;
-        qv_src = (uint16_t)(id_seq - PATRON_TILE_BASE) + stamp_tile[((patron_variant[p] & 3) << 3) | (d & 7)];
-        qv_dst = (uint16_t)(bar_map[b] + c);
-        qv_w = 3;
-        queue_entry(0);
-        qv_src += 3; qv_dst += 32;
-        queue_entry(0);
-        vq_count += 2;
+        quick_entries(p, d);
     }
 }
 

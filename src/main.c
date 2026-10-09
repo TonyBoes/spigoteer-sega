@@ -114,6 +114,7 @@ uint8_t  bartender_x;       // pixel x of the bartender's left edge (screen coor
 uint8_t  bartender_frac;    // sub-pixel part of his walk (1/256 px); 0 whenever he stands
 uint8_t  facing;            // 0 left, 1 right
 uint8_t  bartender_frame;   // BT_*
+uint8_t  catch_pose;        // frames left of BT_CATCH (an empty caught, a glass taken; M8d)
 uint8_t  at_tap;            // 1 when bartender_x == TAP_X
 uint8_t  walk_timer;        // frames into the current step of the walk cycle (0..WALK_STEP_FRAMES-1)
 uint8_t  walk_phase;        // step of the walk cycle: 0 walk1, 1 idle, 2 walk2, 3 idle
@@ -455,7 +456,7 @@ static void enter_title(void) {
 static void reset_actors(void) {
     uint8_t i;
     bar = 0; bartender_x = TAP_X; bartender_frac = 0; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
-    walk_timer = 0; walk_phase = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0;
+    walk_timer = 0; walk_phase = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0; catch_pose = 0;
     clear_mugs();
     next_arrival = 0;
     tip_timer = 0; show_timer = 0; dancers_vis = 0; oam_touched();      // a bar reset ends the show and takes the tip away
@@ -584,10 +585,13 @@ static void play_frame(uint8_t pressed) {
     else facing = 1;                             // filling: faces the tap, the mug under the spout
 
     if (slide_timer) slide_timer--;
+    if (catch_pose) catch_pose--;
 
     if (fill_timer) {
         bartender_frame = BT_FILL;
         walk_timer = 0; walk_phase = 0;
+    } else if (catch_pose) {
+        bartender_frame = BT_CATCH;
     } else if (walked) {                         // walk1, idle, walk2, idle, WALK_STEP_FRAMES each
         bartender_frame = walk_cycle[walk_phase];
         if (++walk_timer >= WALK_STEP_FRAMES) { walk_timer = 0; walk_phase = (walk_phase + 1) & 3; }

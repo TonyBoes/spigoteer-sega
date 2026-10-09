@@ -38,6 +38,13 @@
 #define PUSH_SPEED        1   // px per frame while pushed back
 #define DRINK_FRAMES     90
 #define SWAY_FRAMES      12   // while drinking the drawn shift alternates by 2 px this often
+// M8d: a drinker who has finished (DRINK_FRAMES) but may not send its empty yet (fair empties) sips on: its timer
+// loops SIP_LOOP_T..DRINK_FRAMES-1. When the empty may go it winds up (lowers the mug and waggles it) for
+// WINDUP_FRAMES, timer WINDUP_T0.., then the empty slides. Sub-state in patron_aux while DRINKING (DRINK_*).
+// A finished drinker (waiting or winding up) catches a full mug, and the bartender standing on him takes the glass.
+#define SIP_LOOP_T       24
+#define WINDUP_FRAMES    30
+#define WINDUP_T0        96   // a multiple of 4 above DRINK_FRAMES: the mug poses 24..31 in mugs.c
 #define NO_SLOT         255
 #define INTRO_FRAMES     90   // nothing moves or spawns for this long after a level starts
 #define SPAWN_RETRY      20   // frames before trying again when the door is crowded
@@ -52,6 +59,7 @@
 #error "BG tile budget: scene + patron tiles exceed 256"
 #endif
 enum { PATRON_NONE, PATRON_WALKING, PATRON_PUSHED, PATRON_DRINKING };
+enum { DRINK_MIN, DRINK_WAIT, DRINK_WINDUP };   // patron_aux while PATRON_DRINKING
 
 // mugs
 #define MAX_MUGS          20   // pool size: the OAM budget (was 24 before the M5 dancers); the per-bar cap below is unchanged
@@ -62,6 +70,7 @@ enum { PATRON_NONE, PATRON_WALKING, PATRON_PUSHED, PATRON_DRINKING };
 #define EMPTY_STEP_FRAMES  2   // an empty slides 1 px every 2nd frame of its own (0.5 px per frame); fixed in mugs.c
 #define MUG_RIGHT_END    152   // an empty mug past this x has left the counter
 #define EMPTY_SCORE      100
+#define CATCH_POSE_FRAMES  8   // the bartender shows BT_CATCH this long after catching an empty / taking a glass
 #define FILL_FRAMES       16
 #define SLIDE_FRAMES       8
 #define GLASS_X            0   // screen x of the glass breaking at the door end
@@ -128,6 +137,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 
 // ---- state (globals => symbols the tests read) ----------------------------------
 extern uint8_t  bar, bartender_x, bartender_frac, facing, bartender_frame, fill_timer, fill_stage, is_cgb;
+extern uint8_t  catch_pose;   // frames left of the bartender's catch pose (an empty caught, a glass taken)
 extern uint8_t  lives, life_lost, game_state, hud_dirty, level_clear;
 extern uint8_t  quota, spawned, served, serve_score, patron_speed, pushback_px, intro_timer;
 extern uint8_t  start_mask, start_per_bar, empty_gap;

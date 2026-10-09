@@ -71,6 +71,7 @@ static uint8_t empty_step(uint8_t i) {
         mug_state[i] = MUG_FREE;                        // caught
         add_score(EMPTY_SCORE);
         SFX(SFX_CATCH);
+        catch_pose = CATCH_POSE_FRAMES;
         return 0;
     }
     if (x > MUG_RIGHT_END) break_mug(i);                // fell off the right end
@@ -127,22 +128,29 @@ void draw_fill(void) {
     o->tile = OBJ_MUG_FILL + fill_stage * 2; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;   // DMG: OBP0 (beer light grey) shows on the white wall; OBP1 would make it white
 }
 
-// Held-mug pose by drinking time (index = patron_timer / 4, 0..22): the mug rises from the hand to the
-// mouth, tilts and tips while he drinks, and is lowered empty. dx is the sprite's offset from the
-// drawn patron x, dy from the bar's top pixel row (art is in sprite rows 2-12, so dy 1 puts a tilted
-// mug at face height and dy 6 at the hand, always inside the bar's 24 lines). Pose 23: carried back
-// while he is pushed, upright and full at the hand.
-#define HELD_POSES 24
-static const uint8_t pose_dx[HELD_POSES]   = { 9,9,8, 8,8,8,8,8,8,8,8, 8,8,8,8,8,8,8,8, 8,9,9,9, 9 };
-static const uint8_t pose_dy[HELD_POSES]   = { 5,3,2, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 2,3,5,6, 6 };
+// Held-mug pose by drinking time (index = patron_timer / 4): 0..22 while he drinks (and, M8d, sips on while he
+// waits to send the empty: the timer loops over 6..22), the mug rising from the hand to the mouth, then tilted and
+// tipped; 24..31 the wind-up (timer WINDUP_T0..): the empty is lowered to the hand and waggled 1 px. dx is the
+// sprite's offset from the drawn patron x, dy from the bar's top pixel row (art is in sprite rows 2-12, so dy 1 puts
+// a tilted mug at face height and dy 6 at the hand, always inside the bar's 24 lines). Pose 32: carried back while
+// he is pushed, upright and full at the hand.
+#define HELD_POSES 33
+static const uint8_t pose_dx[HELD_POSES]   = { 9,9,8, 8,8,8,8,8,8,8,8, 8,8,8,8,8,8,8,8,8,8,8,8, 8,
+                                               8,9,9,9, 10,9,10,9, 9 };
+static const uint8_t pose_dy[HELD_POSES]   = { 5,3,2, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1, 1,
+                                               2,3,5,6, 6,6,6,6, 6 };
 static const uint8_t pose_tile[HELD_POSES] = {
 #define PT(f) (OBJ_MUG_DRINK + (f) * 2)
     PT(0),PT(0),PT(0), PT(1),PT(1),PT(1),PT(1),PT(1),PT(1),PT(1),PT(1),
-    PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2), PT(3),PT(3),PT(3),PT(3), PT(0)
+    PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2),PT(2), PT(2),
+    PT(3),PT(3),PT(3),PT(3), PT(3),PT(3),PT(3),PT(3), PT(0)
 #undef PT
 };
-#define POSE_CARRY 23
+#define POSE_CARRY 32
 #define TILE_DRINK_EMPTY (OBJ_MUG_DRINK + 3 * 2)
+#if WINDUP_T0 / 4 != 24 || (WINDUP_T0 + WINDUP_FRAMES - 1) / 4 > 31 || (DRINK_FRAMES - 1) / 4 > 23
+#error "mug pose table: drinking 0..23, wind-up 24..31"
+#endif
 
 // OAM 5.. : one entry per mug, two per breaking glass. Entries used last frame
 // but not this one are hidden (y = 0). The entries are written through oam_next by small writers (SDCC keeps

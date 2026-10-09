@@ -8,6 +8,8 @@ pytestmark = pytest.mark.timeout(60)
 MAX_P, MAX_M = 16, 20
 NONE, WALKING, PUSHED, DRINKING = 0, 1, 2, 3
 FREE, FULL, EMPTY, BREAKING = 0, 1, 2, 3
+WINDUP = GAME["WINDUP_FRAMES"]        # M8d: a finished drinker winds up this long before his empty slides
+DRINK_MIN, DRINK_WAIT, DRINK_WINDUP = 0, 1, 2   # patron_aux while DRINKING (M8d)
 STEP, PUSHBACK, SERVE = 64, 4, 50     # level 1 values (level_table in main.c): 8 px per STEP frames, PUSHBACK*8 px back
 PX = 8 * PUSHBACK
 FAR_X = GAME["PATRON_FAR_X"]          # M8a: 120, a walker here has reached the bartender's end
@@ -202,7 +204,7 @@ def test_served_further_in_is_pushed_back_then_drinks_and_returns_an_empty(gb):
     assert gb.read("patron_x", MAX_P)[p] == 64 - PX
     assert gb.read("patron_state", MAX_P)[p] == DRINKING
     assert [m["state"] for m in mugs(gb)] == [HELD]
-    gb.run(95)
+    gb.run(95 + WINDUP)                           # M8d: the wind-up comes before the empty slides
     ms = mugs(gb)
     assert len(ms) == 1 and ms[0]["state"] == EMPTY and ms[0]["bar"] == 1
     assert gb.read("patron_state", MAX_P)[p] == WALKING
@@ -535,10 +537,10 @@ def test_two_patrons_finishing_at_once_send_empties_that_arrive_empty_gap_apart(
     near = drinker_with_mug(gb, 0, 70, 89)        # both finish on the next frame
     far = drinker_with_mug(gb, 0, 20, 89)
     gb.run(2)
-    st = gb.read("patron_state", MAX_P)
-    assert st[near] == WALKING, "the one nearer the bartender sends his empty at once"
-    assert st[far] == DRINKING, "the other holds his: it would arrive too soon after the first"
-    t_near = 2 * (TAP_X - (70 + 16))
+    aux = gb.read("patron_aux", MAX_P)
+    assert aux[near] == DRINK_WINDUP, "the one nearer the bartender winds up to send his empty at once (M8d)"
+    assert aux[far] == DRINK_WAIT, "the other sips on: his empty would arrive too soon after the first"
+    t_near = WINDUP + 2 * (TAP_X - (70 + 16))     # M8d: the arrival counts the wind-up
     assert t_near - 2 <= gb.mem16("next_arrival") - gap <= t_near, "next_arrival = his arrival + empty_gap"
     caught = catch_frames(gb, 400)
     assert len(caught) == 2, caught
@@ -546,7 +548,9 @@ def test_two_patrons_finishing_at_once_send_empties_that_arrive_empty_gap_apart(
     assert caught[1] - caught[0] <= gap + 2, "and no later than needed"
 
 
-def test_a_patron_holding_his_empty_keeps_the_pose_and_does_not_walk_on(gb):
+def test_a_patron_waiting_to_send_his_empty_sips_on_and_does_not_walk_on(gb):
+    """M8d (was: holds the empty frozen in the last pose): he keeps drinking, the timer looping over the sipping
+    poses, stays put, then winds up and sends the empty when its arrival is fair."""
     clear_patrons(gb)
     gb.write("intro_timer", 0)                    # walkers walk now
     gb.write("spawn_timer", 255)
@@ -554,13 +558,17 @@ def test_a_patron_holding_his_empty_keeps_the_pose_and_does_not_walk_on(gb):
     gb.write(gb.addr("next_arrival") + 1, 0)
     p = drinker_with_mug(gb, 2, 40, 89)
     m = list(gb.read("patron_mug", MAX_P))[p]
-    for _ in range(60):
+    gb.run(2)                                     # (he finishes on the game's next frame)
+    for _ in range(58):
         gb.run(1)
         assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == 40
-        assert gb.read("patron_timer", MAX_P)[p] == 89, "the last drinking pose: the empty lowered to his hand"
+        assert gb.read("patron_aux", MAX_P)[p] == DRINK_WAIT
+        assert GAME["SIP_LOOP_T"] <= gb.read("patron_timer", MAX_P)[p] < GAME["DRINK_FRAMES"], "sipping on"
         assert gb.read("mug_state", MAX_M)[m] == HELD
-    t = 2 * (TAP_X - 56)
-    gb.run(250 - 60 - t + 4)
+    t = WINDUP + 2 * (TAP_X - 56)                 # his empty's arrival, wind-up included
+    gb.run(250 - 60 - t + 2)
+    assert gb.read("patron_aux", MAX_P)[p] == DRINK_WINDUP and gb.read("mug_state", MAX_M)[m] == HELD
+    gb.run(WINDUP + 2)
     assert gb.read("patron_state", MAX_P)[p] == WALKING and gb.read("mug_state", MAX_M)[m] == EMPTY
 
 
@@ -569,4 +577,6 @@ def test_a_lone_patron_is_never_held_back(gb):
     freeze(gb)
     p = drinker_with_mug(gb, 1, 30, 89)
     gb.run(2)
+    assert gb.read("patron_aux", MAX_P)[p] == DRINK_WINDUP, "winds up at once (M8d)"
+    gb.run(WINDUP)
     assert gb.read("patron_state", MAX_P)[p] == WALKING and [m["state"] for m in mugs(gb)] == [EMPTY]

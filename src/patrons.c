@@ -27,7 +27,7 @@ uint8_t  patron_frac[MAX_PATRONS];     // sub-pixel fraction, 1/256 px
 uint8_t  patron_draw[MAX_PATRONS];     // x it is drawn at (patron_x, +2 while swaying; | DRAW_BACK in its back view); 255 = not drawn yet
 uint8_t  patron_variant[MAX_PATRONS];  // 0..2
 uint8_t  patron_timer[MAX_PATRONS];
-uint8_t  patron_aux[MAX_PATRONS];      // px left to be pushed back
+uint8_t  patron_aux[MAX_PATRONS];      // PUSHED: px left to be pushed back; DRINKING: DRINK_MIN / DRINK_WAIT / DRINK_WINDUP (M8d)
 uint8_t  patron_mug[MAX_PATRONS];      // mug slot held while pushed/drinking, NO_SLOT otherwise
 uint8_t  patron_catchx[MAX_PATRONS];   // x of the last full mug it caught (where its tip would lie)
 uint8_t  patron_drinks[MAX_PATRONS];    // mugs caught since spawning: the push-back is pushback_px times this (thirst)
@@ -52,7 +52,7 @@ static uint8_t catch_ok;               // bit b: catch_p/catch_x of bar b are up
 
 // Sway phase by timer value: (t / SWAY_FRAMES) & 1 (drinking). A table: SDCC's 8-bit divide is a ~100-cycle
 // call, and this is asked for every drinker every frame.
-#define SWAY(t)   ((uint8_t)(((t) / SWAY_FRAMES) & 1))
+#define SWAY(t)   ((uint8_t)((t) < WINDUP_T0 && (((t) / SWAY_FRAMES) & 1)))   // (M8d: he stands still while he winds up)
 #define SWAY4(n)  SWAY(n), SWAY((n) + 1), SWAY((n) + 2), SWAY((n) + 3)
 #define SWAY16(n) SWAY4(n), SWAY4((n) + 4), SWAY4((n) + 8), SWAY4((n) + 12)
 #define SWAY64(n) SWAY16(n), SWAY16((n) + 16), SWAY16((n) + 32), SWAY16((n) + 48)
@@ -99,20 +99,30 @@ static void refresh_patron(uint8_t p) {
     if (nd != patron_draw[p]) redraw_at(p, nd);
 }
 
+// (Split in two so SDCC keeps the slot in a register while it fills the fields: add_patron runs on a spawn frame,
+// usually the busiest of all.)
+static uint8_t np_b, np_x, np_v;
+static void init_patron(uint8_t p) {
+    patron_state[p] = PATRON_WALKING;
+    patron_bar[p] = np_b; patron_x[p] = np_x; patron_frac[p] = 0; patron_variant[p] = np_v;
+    patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
+    patron_dist[p] = 0; patron_facing[p] = 0; patron_catchx[p] = np_x; patron_drinks[p] = 0;
+    patron_draw[p] = np_x;                            // drawn where he stands, facing the bar: his 3 columns change
+    np_x >>= 3;
+    mark_dirty_attrs(np_b, np_x, np_x + 3);
+    if (lists_ok) list_add(p);
+}
+
 uint8_t add_patron(uint8_t b, uint8_t x, uint8_t variant) {
-    uint8_t p;
-    for (p = 0; p < MAX_PATRONS; p++) {
-        if (patron_state[p] != PATRON_NONE) continue;
-        patron_state[p] = PATRON_WALKING;
-        patron_bar[p] = b; patron_x[p] = x; patron_frac[p] = 0; patron_variant[p] = variant;
-        patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
-        patron_dist[p] = 0; patron_facing[p] = 0; patron_catchx[p] = x; patron_drinks[p] = 0;
-        patron_draw[p] = 255;
-        refresh_patron(p);
-        if (lists_ok) list_add(p);
-        return 1;
+    const uint8_t *s = patron_state;
+    uint8_t p = 0;
+    while (*s != PATRON_NONE) {                       // the first free slot
+        s++;
+        if (++p == MAX_PATRONS) return 0;
     }
-    return 0;
+    np_b = b; np_x = x; np_v = variant;
+    init_patron(p);
+    return 1;
 }
 
 static void free_held_mug(uint8_t p) {
@@ -166,7 +176,7 @@ void end_show(void) {
     show_timer = 0;
     music_play(TUNE_VENUE0 + cur_group);          // the venue's tune again, from its start
     for (p = 0; p < MAX_PATRONS; p++) {
-        patron_dist[p] = 0; patron_timer[p] = 0;
+        patron_dist[p] = 0;                      // (a drinker's timer is its drink / wind-up: left alone)
         if (patron_state[p] != PATRON_NONE && (patron_draw[p] & DRAW_BACK) && patron_draw[p] != 255)
             redraw_at(p, patron_x[p]);           // turns back to the bar (its front frame, at the same x)
     }
@@ -235,9 +245,18 @@ void begin_catch_frame(void) {
 
 static uint8_t fc_best, fc_x;
 
-static void catcher_candidate(uint8_t s) {
-    uint8_t l;
-    if (patron_state[s] != PATRON_WALKING || patron_dist[s]) return;    // distracted: the mug slides past
+// Who catches a full mug: a walker not watching the show, or (M8d) a drinker who has finished and waits to send
+// its empty (DRINK_WAIT / DRINK_WINDUP). One still in his minimum drink lets it slide past.
+static uint8_t can_catch(uint8_t s) {
+    uint8_t st = patron_state[s];
+    if (st == PATRON_WALKING) return !patron_dist[s];   // distracted: the mug slides past
+    return st == PATRON_DRINKING && patron_aux[s] != DRINK_MIN;
+}
+
+static void catcher_candidate(uint8_t s) {          // (can_catch, inlined: asked for every patron of the bar)
+    uint8_t l = patron_state[s];
+    if (l == PATRON_WALKING) { if (patron_dist[s]) return; }
+    else if (l != PATRON_DRINKING || patron_aux[s] == DRINK_MIN) return;
     l = patron_x[s];
     if (fc_best == NO_SLOT || l > fc_x) { fc_best = s; fc_x = l; }
 }
@@ -261,15 +280,24 @@ static uint8_t scan_catcher(uint8_t b, uint8_t x) {
     uint8_t n, s, l, best = NO_SLOT, bx = 0;
     for (n = bar_n[b]; n; n--) {
         s = *q++;
-        if (patron_state[s] != PATRON_WALKING || patron_dist[s]) continue;
+        if (!can_catch(s)) continue;
         l = patron_x[s];
         if (x >= l && (uint8_t)(x - l) < PATRON_W && (best == NO_SLOT || l > bx)) { best = s; bx = l; }
     }
     return best;
 }
 
-// He catches mug i: it stays in his hand (MUG_HELD) and he is pushed back.
+static void send_empty(uint8_t p);
+static uint16_t empty_travel(uint8_t p);
+
+// He catches mug i: it stays in his hand (MUG_HELD) and he is pushed back. A finished drinker (M8d) first lets
+// his empty go at once (the player's mug made him: no fair-empties wait), and later empties keep their gap after it.
 static void caught(uint8_t i, uint8_t p) {
+    if (patron_state[p] == PATRON_DRINKING) {
+        uint16_t t = empty_travel(p) + empty_gap;
+        if (t > next_arrival) next_arrival = t;
+        send_empty(p);
+    }
     patron_state[p] = PATRON_PUSHED;
     patron_timer[p] = 0;
     {
@@ -307,15 +335,13 @@ uint8_t catch_full(uint8_t i) {
 // ---- spawning ------------------------------------------------------------------------------------
 // New patron at the door of a random bar, if its first PATRON_SPACING px are free.
 static uint8_t try_spawn(void) {
-    uint8_t b = (next_rand() >> 2) & 3, n, s, v;
-    const uint8_t *q;
-    if (!lists_ok) build_lists();
-    q = bar_list[b];
-    for (n = bar_n[b]; n; n--) {
-        s = *q++;
-        if (patron_state[s] != PATRON_NONE && patron_x[s] < PATRON_SPACING) return 0;
-    }
-    v = next_rand() % 3;
+    uint8_t b = (next_rand() >> 2) & 3, v;
+    if (blocked_behind(b, PATRON_SPACING)) return 0;   // someone within the door's first PATRON_SPACING px
+    v = next_rand();                              // v % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
+    v = (v >> 4) + (v & 15);
+    v = (v >> 2) + (v & 3);
+    v = (v >> 2) + (v & 3);
+    if (v >= 3) v -= 3;
     if (!add_patron(b, 0, v)) return 0;
     spawned++;
     return 1;
@@ -392,7 +418,10 @@ static uint8_t walking_step(uint8_t p) {
         }
     }
     o = patron_x[p];                                      // a walker who is not watching is drawn at his x, facing
-    if (o != patron_draw[p]) redraw_at(p, o);             // the bar (a stale back view, bit 7, differs too)
+    f = patron_draw[p];                                   // the bar (a stale back view, bit 7, differs too)
+    if (o == f) return 1;
+    if ((uint8_t)(o ^ f) & 0xF8) redraw_at(p, o);
+    else { patron_draw[p] = o; mark_quick(p); }           // a 1 px step within his columns (redraw_at's quick case)
     return 1;
 }
 
@@ -429,18 +458,24 @@ static uint8_t pushed_step(uint8_t p) {
     return 1;
 }
 
-// May patron p send his empty now? Its predicted arrival at the bartender's end (frames from now: the px from
-// where it starts to TAP_X, EMPTY_STEP_FRAMES each) must be no sooner than next_arrival; if so, it is scheduled.
-static uint8_t empty_may_go(uint8_t p) {
+// Frames an empty sent by p now takes to reach the bartender's end (the px from where it starts to TAP_X,
+// EMPTY_STEP_FRAMES each).
+static uint16_t empty_travel(uint8_t p) {
     uint8_t x = patron_x[p] + PATRON_W;                    // where the empty starts
-    uint16_t t = x >= TAP_X ? 0 : (uint16_t)(uint8_t)(TAP_X - x) * EMPTY_STEP_FRAMES;
+    return x >= TAP_X ? 0 : (uint16_t)(uint8_t)(TAP_X - x) * EMPTY_STEP_FRAMES;
+}
+
+// May patron p start his wind-up now? The empty's arrival (the wind-up, then the slide) must be no sooner than
+// next_arrival; if so, it is scheduled.
+static uint8_t empty_may_go(uint8_t p) {
+    uint16_t t = empty_travel(p) + WINDUP_FRAMES;
     if (t < next_arrival) return 0;
     next_arrival = t + empty_gap;
     return 1;
 }
 
-// Done drinking: the empty slides out to the right and he walks on.
-static void drink_done(uint8_t p) {
+// The held mug becomes an empty sliding out to the right.
+static void send_empty(uint8_t p) {
     uint8_t m = patron_mug[p];
     if (m != NO_SLOT && mug_state[m] == MUG_HELD) {
         mug_state[m] = MUG_EMPTY;
@@ -448,20 +483,56 @@ static void drink_done(uint8_t p) {
         mug_timer[m] = 0;                                 // (its half-px step phase, see mugs.c)
     }
     patron_mug[p] = NO_SLOT;
-    patron_state[p] = PATRON_WALKING;
-    patron_timer[p] = 0;
 }
 
-// Drinking; at the end he holds the empty (last pose, standing still) until it may go (fair empties).
-static uint8_t drinking_step(uint8_t p) {
-    uint8_t t = patron_timer[p] + 1, m;
-    if (t < DRINK_FRAMES) patron_timer[p] = t;
-    else {
-        m = patron_mug[p];
-        if (m != NO_SLOT && mug_state[m] == MUG_HELD && !empty_may_go(p))
-            return 1;                                     // holds the empty: the pose is frozen, nothing to redraw
-        drink_done(p);
+static void walk_on(uint8_t p) {
+    patron_state[p] = PATRON_WALKING;
+    patron_timer[p] = 0;
+    patron_aux[p] = 0;
+}
+
+// The bartender on p's bar (the caller checked) overlapping him (16 px each) takes his glass (M8d): scored like a
+// caught empty.
+static uint8_t glass_taken(uint8_t p) {
+    uint8_t x = patron_x[p];
+    if (bartender_x >= (uint8_t)(x + PATRON_W) || (uint8_t)(bartender_x + 16) <= x || patron_mug[p] == NO_SLOT) return 0;
+    free_held_mug(p);
+    walk_on(p);
+    add_score(EMPTY_SCORE);
+    SFX(SFX_CATCH);
+    catch_pose = CATCH_POSE_FRAMES;
+    return 1;
+}
+
+// A drinker who has finished (t: his timer + 1): the bartender may take the glass; winding up, he sends the empty
+// at the end; otherwise he sips on (the timer loops over the sipping poses) until the empty may go, then winds up.
+static void finished_step(uint8_t p, uint8_t t) {
+    uint8_t a;
+    if (patron_bar[p] == bar && glass_taken(p)) return;
+    a = patron_aux[p];
+    if (a == DRINK_WINDUP) {
+        if (t < WINDUP_T0 + WINDUP_FRAMES) patron_timer[p] = t;
+        else { send_empty(p); walk_on(p); }
+        return;
     }
+    if (patron_mug[p] == NO_SLOT) { walk_on(p); return; }  // nothing to send
+    if (t >= DRINK_FRAMES) t = SIP_LOOP_T;
+    if (empty_may_go(p)) { a = DRINK_WINDUP; t = WINDUP_T0; }
+    else a = DRINK_WAIT;
+    patron_aux[p] = a;
+    patron_timer[p] = t;
+}
+
+// Drinking: DRINK_FRAMES at least (DRINK_MIN), then finished_step (M8d). Redrawn only when the sway changes.
+static uint8_t drinking_step(uint8_t p) {
+    uint8_t t = patron_timer[p] + 1;
+    if (patron_aux[p] == DRINK_MIN && t < DRINK_FRAMES) patron_timer[p] = t;
+    else {
+        finished_step(p, t);
+        if (patron_state[p] != PATRON_DRINKING) { refresh_patron(p); return 1; }
+        t = patron_timer[p];
+    }
+    if (sway_tab[t] == sway_tab[(uint8_t)(t - 1)] && patron_draw[p] != 255) return 1;   // same sway: drawn as before
     refresh_patron(p);
     return 1;
 }
@@ -479,8 +550,7 @@ void update_patrons(void) {
     }
 
     for (p = 0; p != MAX_PATRONS; p++) {
-        st = patron_state[p];
-        if (st == PATRON_NONE) continue;
+        if ((st = patron_state[p]) == PATRON_NONE) continue;
         if (st == PATRON_WALKING) live += walking_step(p);
         else if (st == PATRON_PUSHED) live += pushed_step(p);
         else live += drinking_step(p);
