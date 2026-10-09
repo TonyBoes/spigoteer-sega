@@ -1,20 +1,29 @@
-// Music and sound effects (M7). Everything here lives in ROM bank 2 together with the hUGEDriver code
-// and the song data (the driver reads patterns through plain pointers, so they must share a bank).
+// Music and sound effects (M7). The hUGEDriver code, the order tables and the jingles live in ROM bank 2;
+// the pattern data of the title, show and venue tunes sits in ROM bank 3 and is copied into WRAM when a tune
+// starts (the driver reads patterns through plain pointers, so it cannot read another bank itself).
 #ifndef MUSIC_H
 #define MUSIC_H
 #include <gb/gb.h>
 #include <stdint.h>
 #include "hUGEDriver.h"
 
-enum { TUNE_TITLE, TUNE_GAME, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_COUNT, TUNE_NONE = 255 };
+// TUNE_VENUE0 + g is the gameplay tune of patron group g (cowboys, sports, lumberjacks, chefs, divers, robots, ninjas,
+// aliens, zoo); TUNE_SHOW plays while a show runs.
+enum { TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0, TUNE_COUNT = TUNE_VENUE0 + 9, TUNE_NONE = 255 };
 enum { SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_COUNT };
 
 typedef struct {
     const hUGESong_t *song;
     uint8_t  loop;          // 1: repeats forever, 0: jingle that stops after `frames`
     uint16_t frames;        // length of one pass
+    uint8_t  buf;           // 0: patterns are in bank 2; 1: copy them to mus_buf_a (title, venue tunes); 2: to mus_buf_b (show)
+    uint8_t  bank;          // ROM bank of the pattern blob
+    const uint8_t *blob;    // pattern blob (buffer != 0)
+    uint16_t bytes;         // its size
 } tune_t;
 extern const tune_t tunes[TUNE_COUNT];
+extern unsigned char mus_buf_a[], mus_buf_b[];     // WRAM pattern buffers (build/music_data.c)
+void mus_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n);   // unbanked (src/musicload.c)
 
 extern uint8_t sound_on;        // music enabled (SELECT on the title toggles it)
 extern uint8_t last_sfx;        // id of the SFX started last (SFX_*), for tests
@@ -23,7 +32,8 @@ extern uint8_t cur_tune;        // TUNE_* playing (TUNE_NONE: silence)
 extern uint16_t music_frames;   // frames the music engine has ticked since the last tune started
 
 void music_init(void) BANKED;               // sound hardware on, no tune
-void music_play(uint8_t tune) BANKED;       // start a tune (a looping tune already playing is left alone)
+void music_play(uint8_t tune) BANKED;       // start a tune (a looping tune already playing is left alone). A tune whose patterns
+                                            // are not in WRAM yet starts a few frames later (music_tick copies them first)
 void music_stop(void) BANKED;
 void music_set_on(uint8_t on) BANKED;       // sound_on, then start/stop the current tune accordingly
 void music_tick(void) BANKED;               // once per frame, after the VBlank queue drain

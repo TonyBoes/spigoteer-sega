@@ -528,7 +528,7 @@ static void enter_level_screen(void) {
     draw_bartender();
     game_over = 0;
     game_state = GS_PLAYING;
-    music_play(TUNE_GAME);
+    music_play(TUNE_VENUE0 + cur_group);          // the venue's own tune
     DISPLAY_ON;
 }
 
@@ -550,6 +550,7 @@ static void resume_after_life(void) {
     place_start_patrons();
     draw_bartender();
     game_state = GS_PLAYING;
+    music_play(TUNE_VENUE0 + cur_group);         // a show that was running ended with the life: back to the venue's tune
 }
 
 static void enter_game_over(void) {

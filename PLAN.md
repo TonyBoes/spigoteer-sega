@@ -161,3 +161,15 @@ to the Ball Game"; lumber lodge "She'll Be Coming 'Round the Mountain"; bistro "
 Funicula"; igloo "The Skaters' Waltz"; robot factory "In the Hall of the Mountain King"; teahouse
 "Sakura Sakura"; space lounge "The Blue Danube"; jungle zoo "Pop Goes the Weasel"; title "The
 Entertainer". (Proposed to the owner; non-owner picks may still change.)
+
+## Music as built (M7 revisit)
+
+Done: title "The Entertainer", "Galop infernal" for every show, nine venue tunes (table in CREDITS.md; tune
+index TUNE_VENUE0 + patron group), jingles unchanged. hUGEDriver only reads patterns through plain pointers in
+the bank it runs from, so song patterns live in ROM bank 3 and src/music.c copies a song into WRAM (buffer A:
+title or venue tune; buffer B: the show tune, copied once in the background) a slice per frame before it
+starts; bank 2 keeps the driver, order tables, instruments and jingles. Sources: tools/songs.py; pitch check:
+tools/check_music.py (routes one channel to the output and prints expected vs detected pitch).
+Caveat: the melodies were written from memory and nobody has listened to them; the owner's Oh! Susanna and the
+given Entertainer note list are exact, the rest (especially the Galop, Funiculi, the later phrases of the
+ball-game and mountain tunes, Skaters' Waltz, Blue Danube) are best-effort and need an ear check.

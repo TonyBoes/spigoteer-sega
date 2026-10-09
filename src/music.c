@@ -1,6 +1,9 @@
-// Music engine glue (hUGEDriver) and the sound-effect engine. Fixed bank 2: the driver code, the song data
-// (build/music_data.c) and this file all live there, so the driver can read patterns through plain pointers.
-// The music uses channels 2 and 3 (melody, bass) and 4 (percussion in the in-game and bonus tunes). Sound
+// Music engine glue (hUGEDriver) and the sound-effect engine. ROM bank 2: the driver code, the order tables and
+// instruments (build/music_data.c), the jingles' patterns and this file. hUGEDriver reads patterns through plain
+// pointers, so it only sees data in the bank it runs from, or in WRAM. The title, show and venue tunes are too big
+// for bank 2: their patterns sit in ROM bank 3 and music_tick copies them into WRAM (mus_buf_a: the title or the
+// level's venue tune; mus_buf_b: the show tune, copied once and kept), a slice per frame, before a tune starts.
+// The music uses channels 2 and 3 (melody, bass) and 4 (percussion in most tunes). Sound
 // effects own channels 1 and 4: while one plays, the driver is told to leave that channel alone
 // (hUGE_mute_channel) and the effect writes the registers itself, after the driver's tick.
 #pragma bank 2
@@ -17,6 +20,12 @@ uint8_t  sfx_req;
 uint16_t music_late;
 static uint8_t mus_active;       // the driver is running a tune
 static uint8_t muted;            // bit n: driver channel n muted (cache of the driver's mask)
+static uint8_t loaded[3] = { TUNE_NONE, TUNE_NONE, TUNE_NONE };   // [buffer]: the tune whose patterns are in it
+static uint8_t ld_tune = TUNE_NONE;   // tune whose patterns are being copied (TUNE_NONE: no copy running)
+static uint8_t ld_play;               // start it when the copy is done (else it is a preload)
+static uint16_t ld_pos;               // bytes copied so far
+#define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
+#define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
 
 typedef struct { uint16_t freq; uint8_t len; int8_t slide; } sfx_step_t;   // CH1: 11-bit period; CH4: NR43
 typedef struct { uint8_t ch; uint8_t duty; uint8_t env; uint8_t nsteps; const sfx_step_t *steps; } sfx_def_t;
@@ -65,7 +74,7 @@ static void mute_unless_sfx(uint8_t ch, uint8_t v) {
 }
 
 static void silence_music(void) {
-    mus_active = 0;
+    mus_active = 0; ld_tune = TUNE_NONE;
     set_mute(0, 1); set_mute(1, 1); set_mute(2, 1); set_mute(3, 1);
 }
 
@@ -74,18 +83,39 @@ void music_init(void) BANKED {
     NR51_REG = 0xFF;           // every channel to both sides
     NR50_REG = 0x77;           // full master volume
     sound_on = 1; cur_tune = TUNE_NONE; mus_active = 0; muted = 0;
+    loaded[1] = loaded[2] = ld_tune = TUNE_NONE;
 }
 
-void music_play(uint8_t tune) BANKED {
-    if (sound_on && mus_active && cur_tune == tune && tunes[tune].loop) return;
-    cur_tune = tune;
-    if (!sound_on) return;
+static void start_song(uint8_t tune) {
     hUGE_init(tunes[tune].song);    // clears the driver's channel mute mask
     muted = 0;
     mus_active = 1;
     music_frames = 0;
     mute_unless_sfx(0, 0);          // a sound effect that is still sounding keeps its channels
     mute_unless_sfx(3, 1);
+}
+
+static void begin_load(uint8_t tune, uint8_t play) {
+    ld_tune = tune; ld_pos = 0; ld_play = play;
+    loaded[tunes[tune].buf] = TUNE_NONE;
+}
+
+void music_play(uint8_t tune) BANKED {
+    uint8_t buf = tunes[tune].buf;
+    if (sound_on && cur_tune == tune && tunes[tune].loop && (mus_active || ld_tune == tune)) return;
+    cur_tune = tune;
+    if (!sound_on) return;
+    if (buf && loaded[buf] != tune) {
+        if (ld_tune == tune) {                      // its preload is running: keep the bytes copied so far
+            silence_music(); ld_tune = tune; ld_play = 1;
+            return;
+        }
+        silence_music();
+        begin_load(tune, 1);
+        return;
+    }
+    if (ld_tune != TUNE_NONE && ld_play) ld_tune = TUNE_NONE;       // a tune that was still loading is superseded
+    start_song(tune);
 }
 
 void music_stop(void) BANKED {
@@ -149,6 +179,21 @@ void music_tick(void) BANKED {
         for (id = 1; id < SFX_COUNT; id++)          // ascending: on one channel the highest id requested wins
             if (req & (1 << (id - 1))) sfx_start(id);
     }
+    if (ld_tune != TUNE_NONE) {
+        const tune_t *t = &tunes[ld_tune];
+        uint16_t n = t->bytes - ld_pos;
+        uint16_t cap = ld_play ? LOAD_PLAY_BYTES : LOAD_PRELOAD_BYTES;
+        if (n > cap) n = cap;
+        mus_copy(t->bank, t->blob + ld_pos, (t->buf == 1 ? mus_buf_a : mus_buf_b) + ld_pos, n);
+        ld_pos += n;
+        if (ld_pos >= t->bytes) {
+            uint8_t done = ld_tune;
+            loaded[t->buf] = done;
+            ld_tune = TUNE_NONE;
+            if (ld_play) { start_song(done); voice_tick(0); voice_tick(1); return; }
+        }
+    } else if (mus_active && loaded[2] != TUNE_SHOW && sound_on)
+        begin_load(TUNE_SHOW, 0);                                   // the show tune is copied once, while a level plays
     if (mus_active) {
         hUGE_dosound();
         music_frames++;
