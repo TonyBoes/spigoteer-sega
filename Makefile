@@ -15,7 +15,7 @@ LCC      := lcc
 LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynTAPPER
 
 SRC      := $(wildcard src/*.c)
-GEN      := $(BUILD)/tiles.c $(BUILD)/player.c $(BUILD)/level1.c
+GEN      := $(BUILD)/art.c $(BUILD)/palettes.c
 ROM      := $(BUILD)/$(NAME).gb
 
 .PHONY: all test check preview clean assets
@@ -27,25 +27,17 @@ assets: $(GEN)
 $(BUILD) $(OUT)/preview:
 	mkdir -p $@
 
-# Background tileset: ASCII -> indexed PNG -> tile data, in id order (map mode
-# keeps empty and duplicate tiles so ids match lvl2gb's legend).
-$(BUILD)/tiles.c: assets/tiles/tiles.txt | $(BUILD) $(OUT)/preview
-	gbsprite txt2png $< $(BUILD)/tiles.png --preview $(OUT)/preview/tiles_x8.png
-	gbsprite check $(BUILD)/tiles.png
-	png2asset $(BUILD)/tiles.png -o $@ -map -tiles_only -noflip -keep_duplicate_tiles -keep_palette_order
+# Tile and sprite data: bar.txt (BG tiles), bartender.txt and mug.txt (8x16 OBJ
+# tiles, padded so each bartender frame is 4 OAM entries) -> build/art.c/.h.
+# Also writes x8 previews to out/preview/.
+$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/art/bartender.txt assets/art/mug.txt | $(BUILD) $(OUT)/preview
+	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
-# Player: 8x16 frames side by side; index 0 is transparent.
-$(BUILD)/player.c: assets/sprites/player.txt | $(BUILD) $(OUT)/preview
-	gbsprite txt2png $< $(BUILD)/player.png --preview $(OUT)/preview/player_x8.png
-	gbsprite check $(BUILD)/player.png --sprite
-	png2asset $(BUILD)/player.png -o $@ -tiles_only -noflip -keep_duplicate_tiles -keep_palette_order -spr8x16 -sw 8 -sh 16 -sprite_no_optimize
+# CGB palettes: assets/palettes.json -> build/palettes.c/.h
+$(BUILD)/palettes.c $(BUILD)/palettes.h: tools/palettes2c.py assets/palettes.json | $(BUILD)
+	python3 tools/palettes2c.py assets/palettes.json $(BUILD)
 
-# Level: ASCII (or Tiled JSON) -> tilemap + collision + entities, plus a preview.
-$(BUILD)/level1.c: assets/levels/level1.txt $(BUILD)/tiles.c | $(BUILD) $(OUT)/preview
-	lvl2gb build $< --format c --out $(BUILD)/level1
-	lvl2gb preview $< --tileset $(BUILD)/tiles.png --out $(OUT)/preview/level1.png
-
-$(ROM): $(SRC) $(GEN)
+$(ROM): $(SRC) $(GEN) $(BUILD)/art.h $(BUILD)/palettes.h
 	$(LCC) $(LCCFLAGS) -I$(BUILD) -o $@ $(SRC) $(GEN)
 	@romusage $(BUILD)/$(NAME).noi 2>/dev/null | head -12 || true
 

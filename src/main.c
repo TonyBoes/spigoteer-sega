@@ -1,147 +1,239 @@
-// Skeleton game: one-screen platformer. Replace freely; keep the shape.
+// Tapper for Game Boy / Game Boy Color. Milestone M1: the bar scene and a
+// controllable bartender.
 //
 // Everything a test can assert on is a plain global in WRAM, so it shows up
-// in build/game.noi and tests/ can read it by name (player_x, player_y, ...).
+// in build/game.noi and tests/ can read it by name (bar, bartender_x, ...).
 //
 // Conventions:
-//   - positions in pixels, velocities in 8.8 fixed point (1 px = 256)
+//   - positions in pixels, screen coordinates (OAM's +8/+16 offset is added
+//     only when writing OAM)
 //   - the whole frame runs between vsync() calls; OAM is written through
-//     GBDK's shadow OAM (move_sprite) and DMA'd in the VBlank handler
-//   - DMG and CGB both work: lcc -Wm-yc marks the cart CGB-compatible and
-//     the CGB palettes come straight from png2asset
+//     GBDK's shadow OAM and DMA'd in the VBlank handler
+//   - sprites are 8x16; the bartender is 4 entries (2 columns x 2 rows)
 #include <gb/gb.h>
 #include <gb/cgb.h>
 #include <stdint.h>
 
-#include "tiles.h"
-#include "player.h"
-#include "level1.h"
+#include "art.h"
+#include "palettes.h"
 
-// ---- tunables (also readable from tests) ----------------------------------
-#define GRAVITY        48      // 8.8 per frame
-#define JUMP_VEL      (-900)   // 8.8, negative is up
-#define MAX_FALL       1024
-#define WALK_SPEED       1     // px per frame
-#define COYOTE_FRAMES    6     // may still jump this many frames after leaving ground
-#define JUMP_BUFFER      6     // a press this many frames before landing still jumps
+// ---- tunables --------------------------------------------------------------
+#define TAP_X         144   // bartender_x at the tap (columns 18-19)
+#define LEFT_LIMIT     16   // column 2, the end of the door
+#define WALK_SPEED      2   // px per frame
+#define WALK_ANIM_FRAMES 8  // walk1/walk2 swap period
+#define NUM_BARS        4
 
-// ---- state (globals => symbols) -----------------------------------------------
-uint8_t  player_x, player_y;      // top-left of the 8x16 sprite, in pixels
-int16_t  player_vy;               // 8.8
-uint8_t  on_ground;
-uint8_t  coyote, jump_buffer;
-uint8_t  facing;                  // 0 right, 1 left
-uint8_t  anim_frame;
+// bartender animation frames (order of assets/art/bartender.txt)
+enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
+
+// OBJ tile layout in VRAM
+#define OBJ_BARTENDER   0
+#define OBJ_MUG         (BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME)
+
+// CGB OBJ palette slots
+#define OBJPAL_BARTENDER 0
+#define OBJPAL_MUG_FULL  1
+#define OBJPAL_MUG_EMPTY 2
+// CGB BG palette slots (2..7 are free for patrons)
+#define BGPAL_BAR        0
+#define BGPAL_HUD        1
+
+// ---- state (globals => symbols) ----------------------------------------------
+uint8_t  bar;               // 0 top .. 3 bottom
+uint8_t  bartender_x;       // pixel x of the bartender's left edge (screen coords)
+uint8_t  facing;            // 0 left, 1 right
+uint8_t  bartender_frame;   // BT_*
+uint8_t  at_tap;            // 1 when bartender_x == TAP_X
+uint8_t  walk_timer;        // frames spent walking, drives the walk cycle
 uint8_t  frame_counter;
 uint8_t  joy, joy_prev;
-uint8_t  collected;               // collectibles taken (test hook)
-uint8_t  dead;                    // touched a hazard
-uint8_t  level_done;              // reached the exit
+uint32_t score;             // HUD shows 6 digits
+uint8_t  is_cgb;            // running on colour hardware
+uint8_t  lives = 3;
+uint8_t  level = 1;
 
-#define SPAWN_X 24
-#define SPAWN_Y 72
+// ---- palettes ----------------------------------------------------------------
+#define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
 
-// ---- collision --------------------------------------------------------------
-static uint8_t col_at(uint8_t px, uint8_t py) {
-    uint8_t tx = px >> 3, ty = py >> 3;
-    if (tx >= LEVEL1_WIDTH || ty >= LEVEL1_HEIGHT) return COL_SOLID;
-    return level1_collision[ty * LEVEL1_WIDTH + tx];
+static void load_cgb_palettes(void) {
+    palette_t p;
+    uint8_t i;
+
+    // BG 0: wall (colour 0) + counter ramp, shared by door, counter and tap
+    for (i = 1; i < 4; i++) p[i] = palettes[PAL_COUNTER][i];
+    p[0] = RGB15(12, 5, 8);                       // dusky wine wall
+    set_bkg_palette(BGPAL_BAR, 1, p);
+
+    // BG 1: HUD, light text on a dark band (art: '.' text, '#' band)
+    p[0] = RGB15(31, 29, 22);
+    p[1] = RGB15(24, 20, 10);
+    p[2] = RGB15(29, 20, 4);
+    p[3] = RGB15(3, 2, 8);
+    set_bkg_palette(BGPAL_HUD, 1, p);
+
+    set_sprite_palette(OBJPAL_BARTENDER, 1, palettes[PAL_BARTENDER]);
+    set_sprite_palette(OBJPAL_MUG_FULL, 1, palettes[PAL_MUG_FULL]);
+    set_sprite_palette(OBJPAL_MUG_EMPTY, 1, palettes[PAL_MUG_EMPTY]);
 }
 
-static uint8_t solid_at(uint8_t px, uint8_t py) {
-    return col_at(px, py) == COL_SOLID;
+// ---- scene -------------------------------------------------------------------
+static uint8_t row_buf[20];
+
+static void put_row(uint8_t y) {
+    set_bkg_tiles(0, y, 20, 1, row_buf);
 }
 
-// one-way platforms count only when falling onto them from above
-static uint8_t floor_at(uint8_t px, uint8_t py) {
-    uint8_t c = col_at(px, py);
-    return c == COL_SOLID || (c == COL_PLATFORM && (py & 7) == 0 && player_vy >= 0);
+static void glyph_row(uint8_t y, uint8_t x, const uint8_t *tiles, uint8_t n) {
+    set_bkg_tiles(x, y, n, 1, tiles);
 }
 
-// ---- game -----------------------------------------------------------------
-static void load_level(void) {
-    set_bkg_data(0, tiles_TILE_COUNT, tiles_tiles);
-    set_bkg_tiles(0, 0, LEVEL1_WIDTH, LEVEL1_HEIGHT, level1_tiles);
-    for (uint8_t i = 0; i < LEVEL1_ENTITY_COUNT; i++) {
-        if (level1_entities[i].type == ENT_SPAWN) {
-            player_x = level1_entities[i].x << 3;
-            player_y = (level1_entities[i].y << 3) - 8;   // 16 px tall, feet on the tile
+static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
+
+static void draw_hud(void) {
+    uint8_t buf[6], i;
+    uint32_t s = score;
+
+    for (i = 0; i < 20; i++) row_buf[i] = TILE_HUD_BLANK;
+    put_row(0); put_row(1);
+
+    // "SCORE" row 0 cols 1-5, six digits row 1 cols 1-6
+    buf[0] = TILE_GLYPH_S; buf[1] = TILE_GLYPH_C; buf[2] = TILE_GLYPH_O;
+    buf[3] = TILE_GLYPH_R; buf[4] = TILE_GLYPH_E;
+    glyph_row(0, 1, buf, 5);
+    for (i = 6; i != 0; i--) { buf[i - 1] = digit_tile(s % 10); s /= 10; }
+    glyph_row(1, 1, buf, 6);
+
+    // "LIVES" row 0 cols 9-13, one mug per life row 1 cols 10-12
+    buf[0] = TILE_GLYPH_L; buf[1] = TILE_GLYPH_I; buf[2] = TILE_GLYPH_V;
+    buf[3] = TILE_GLYPH_E; buf[4] = TILE_GLYPH_S;
+    glyph_row(0, 9, buf, 5);
+    for (i = 0; i < 3; i++) buf[i] = (i < lives) ? TILE_HUD_MUG : TILE_HUD_BLANK;
+    glyph_row(1, 10, buf, 3);
+
+    // "LV" row 0 cols 17-18, level as two digits row 1
+    buf[0] = TILE_GLYPH_L; buf[1] = TILE_GLYPH_V;
+    glyph_row(0, 17, buf, 2);
+    buf[0] = digit_tile(level / 10); buf[1] = digit_tile(level % 10);
+    glyph_row(1, 17, buf, 2);
+}
+
+static void draw_bars(void) {
+    uint8_t b, r, c, y;
+    for (b = 0; b < NUM_BARS; b++) {
+        for (r = 0; r < 4; r++) {
+            y = 2 + 4 * b + r;
+            for (c = 2; c < 18; c++) {
+                row_buf[c] = r == 2 ? TILE_COUNTER_TOP
+                           : r == 3 ? TILE_COUNTER_FRONT
+                           : (r == 1 && (c & 1)) ? TILE_WALL2 : TILE_WALL;
+            }
+            row_buf[0]  = TILE_DOOR + r * 2;
+            row_buf[1]  = TILE_DOOR + r * 2 + 1;
+            row_buf[18] = TILE_TAP + r * 2;
+            row_buf[19] = TILE_TAP + r * 2 + 1;
+            put_row(y);
         }
     }
 }
 
+static void init_scene(void) {
+    uint8_t y, i;
+    uint8_t attr[20];
+
+    set_bkg_data(0, BAR_TILE_COUNT, bar_tiles);
+    draw_bars();
+    draw_hud();
+
+    if (is_cgb) {                                // palette per row via VRAM bank 1
+        VBK_REG = VBK_BANK_1;
+        for (y = 0; y < 18; y++) {
+            for (i = 0; i < 20; i++) attr[i] = y < 2 ? BGPAL_HUD : BGPAL_BAR;
+            set_bkg_tiles(0, y, 20, 1, attr);
+        }
+        VBK_REG = VBK_BANK_0;
+    }
+}
+
+// ---- bartender sprite -----------------------------------------------------------
+// OAM 0..3: [col A top, col B top, col A bottom, col B bottom]. Screen layout
+// left to right is A,B when facing left (art faces left) and B,A flipped when
+// facing right.
+static void draw_bartender(void) {
+    uint8_t base = OBJ_BARTENDER + bartender_frame * BARTENDER_TILES_PER_FRAME;
+    uint8_t ytop = (3 + 4 * bar) * 8 + 16;        // feet on the bottom of the counter front
+    uint8_t xl = bartender_x + 8, xr = bartender_x + 16;
+    uint8_t flags = facing ? S_FLIPX : 0;
+    uint8_t i, left_col = facing ? 1 : 0;
+
+    for (i = 0; i < 4; i++) {
+        uint8_t col = i & 1;                       // which art column this entry holds
+        uint8_t x = (col == left_col) ? xl : xr;
+        move_sprite(i, x, ytop + (i & 2 ? 16 : 0));
+        set_sprite_tile(i, base + i * 2);
+        set_sprite_prop(i, flags | OBJPAL_BARTENDER);
+    }
+}
+
+// ---- game -----------------------------------------------------------------------
 static void init(void) {
+    uint8_t i;
+
     DISPLAY_OFF;
-    if (_cpu == CGB_TYPE) {
-        set_bkg_palette(0, 1, tiles_palettes);
-        set_sprite_palette(0, 1, player_palettes);
+    // _cpu alone is not enough: PyBoy's DMG mode still hands the cart A=0x11,
+    // but FF4F (VBK) only reads 0xFE|bank on real colour hardware.
+    VBK_REG = VBK_BANK_0;
+    is_cgb = (_cpu == CGB_TYPE) && ((VBK_REG & 0xFE) == 0xFE);
+    if (is_cgb) {
+        load_cgb_palettes();
     } else {
-        BGP_REG  = 0xE4;   // 11 10 01 00: index 3 darkest
-        OBP0_REG = 0xE4;
+        BGP_REG = OBP0_REG = OBP1_REG = 0xE4;      // 11 10 01 00: index 3 darkest
     }
     SPRITES_8x16;
-    set_sprite_data(0, player_TILE_COUNT, player_tiles);
-    set_sprite_tile(0, 0);
-    load_level();
-    player_vy = 0; on_ground = 0; coyote = 0; jump_buffer = 0;
-    facing = 0; anim_frame = 0; frame_counter = 0; collected = 0; dead = 0; level_done = 0;
+    set_sprite_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);
+    set_sprite_data(OBJ_MUG, MUG_TILE_COUNT, mug_tiles);   // unused until M2
+    for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
+
+    init_scene();
+
+    bar = 0; bartender_x = TAP_X; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
+    walk_timer = 0; frame_counter = 0; joy = joy_prev = 0;
+    draw_bartender();
     SHOW_BKG; SHOW_SPRITES;
     DISPLAY_ON;
 }
 
 static void update(void) {
+    uint8_t pressed, moving = 0;
+
     joy_prev = joy;
     joy = joypad();
-    uint8_t pressed = joy & ~joy_prev;
+    pressed = joy & ~joy_prev;
 
-    // horizontal
-    if (joy & J_LEFT)  { facing = 1; if (!solid_at(player_x - 1, player_y + 15) && !solid_at(player_x - 1, player_y)) player_x -= WALK_SPEED; }
-    if (joy & J_RIGHT) { facing = 0; if (!solid_at(player_x + 8, player_y + 15) && !solid_at(player_x + 8, player_y)) player_x += WALK_SPEED; }
+    // Up/Down: change bar (wrapping) and snap to that bar's tap, facing the bar
+    if (pressed & J_UP)        bar = bar == 0 ? NUM_BARS - 1 : bar - 1;
+    else if (pressed & J_DOWN) bar = bar == NUM_BARS - 1 ? 0 : bar + 1;
+    if (pressed & (J_UP | J_DOWN)) { bartender_x = TAP_X; facing = 0; }
 
-    // jump: buffered press + coyote time
-    if (pressed & J_A) jump_buffer = JUMP_BUFFER;
-    else if (jump_buffer) jump_buffer--;
-    if (jump_buffer && (on_ground || coyote)) {
-        player_vy = JUMP_VEL; on_ground = 0; coyote = 0; jump_buffer = 0;
+    // Left/Right: walk
+    if (joy & J_LEFT) {
+        facing = 0;
+        if (bartender_x > LEFT_LIMIT) { bartender_x -= WALK_SPEED; moving = 1; }
+    } else if (joy & J_RIGHT) {
+        facing = 1;
+        if (bartender_x < TAP_X) { bartender_x += WALK_SPEED; moving = 1; }
     }
-    if (!(joy & J_A) && player_vy < -300) player_vy = -300;   // variable height
+    at_tap = bartender_x == TAP_X;
 
-    // vertical, 8.8
-    player_vy += GRAVITY;
-    if (player_vy > MAX_FALL) player_vy = MAX_FALL;
-    int8_t dy = (int8_t)(player_vy >> 8);
-    uint8_t was_ground = on_ground;
-    on_ground = 0;
-    while (dy > 0) {   // falling: stop on floor under either foot
-        if (floor_at(player_x + 1, player_y + 16) || floor_at(player_x + 6, player_y + 16)) { player_vy = 0; on_ground = 1; break; }
-        player_y++; dy--;
-    }
-    while (dy < 0) {   // rising: stop on ceiling
-        if (solid_at(player_x + 1, player_y - 1) || solid_at(player_x + 6, player_y - 1)) { player_vy = 0; break; }
-        player_y--; dy++;
-    }
-    if (dy == 0 && player_vy >= 0 && (floor_at(player_x + 1, player_y + 16) || floor_at(player_x + 6, player_y + 16))) on_ground = 1;
-    if (on_ground) coyote = COYOTE_FRAMES;
-    else if (was_ground && coyote == 0) coyote = COYOTE_FRAMES;
-    else if (coyote) coyote--;
-
-    // hazards and entities (test hooks; a real game does more here)
-    if (col_at(player_x + 4, player_y + 15) == COL_HAZARD) dead = 1;
-    for (uint8_t i = 0; i < LEVEL1_ENTITY_COUNT; i++) {
-        uint8_t ex = level1_entities[i].x << 3, ey = level1_entities[i].y << 3;
-        uint8_t hit = player_x < ex + 8 && player_x + 8 > ex && player_y < ey + 8 && player_y + 16 > ey;
-        if (!hit) continue;
-        if (level1_entities[i].type == ENT_EXIT) level_done = 1;
-        if (level1_entities[i].type == ENT_COLLECTIBLE) collected = 1;
+    if (moving) {
+        bartender_frame = ((walk_timer / WALK_ANIM_FRAMES) & 1) ? BT_WALK2 : BT_WALK1;
+        walk_timer++;
+    } else {
+        bartender_frame = BT_IDLE;
+        walk_timer = 0;
     }
 
-    // draw
-    if (!on_ground) anim_frame = 0;
-    else if (joy & (J_LEFT | J_RIGHT)) { if ((frame_counter & 7) == 0) anim_frame ^= 1; }
-    else anim_frame = 0;
-    set_sprite_tile(0, anim_frame << 1);
-    set_sprite_prop(0, facing ? S_FLIPX : 0);
-    move_sprite(0, player_x + 8, player_y + 16);   // OAM origin is (8,16)
+    draw_bartender();
     frame_counter++;
 }
 
