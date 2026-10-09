@@ -98,3 +98,13 @@ Each level is a row in a const table with these fields:
 
 The ROM stays 32 KB with no MBC until it no longer fits. When it outgrows
 that, switch to MBC5 (`-Wm-yt0x19`, `-autobank`).
+
+## Owner playtest 2 (queued as M8, after M7)
+
+- Tap grace 16 -> 32 px.
+- Bartender always faces left (toward the bar) while filling.
+- Empties slide back slower: 1 -> 0.5 px/frame (full mugs stay 2).
+- Bartender walks slower (2 -> 1.5 px/frame) with a calmer cycle: walk1, idle, walk2, idle.
+- Counter runs all the way to the door (cols 0-1); the door shrinks to the wall rows, so patrons never show their missing legs.
+- Patrons pre-shifted at every pixel (8 shifts, 144 BG tiles per group) instead of 2 px steps.
+- Art (proposals for approval first): bartender mustache; patrons in 3/4 view facing right.
