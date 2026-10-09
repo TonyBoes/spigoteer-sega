@@ -19,6 +19,7 @@ LCCFLAGS += -Wm-yt0x19 -Wm-yoA -autobank
 
 SRC      := $(wildcard src/*.c)
 GEN      := $(BUILD)/art.c $(BUILD)/patrons.c $(BUILD)/palettes.c
+BONUS_H  := $(BUILD)/can_tiles.h
 ROM      := $(BUILD)/$(NAME).gb
 
 .PHONY: all test check preview clean assets
@@ -33,17 +34,17 @@ $(BUILD) $(OUT)/preview:
 # Tile and sprite data: bar.txt (BG tiles), bartender.txt and mug.txt (8x16 OBJ
 # tiles, padded so each bartender frame is 4 OAM entries) -> build/art.c/.h.
 # Also writes x8 previews to out/preview/.
-$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/art/bartender.txt assets/art/mug.txt assets/art/mug_fill.txt assets/art/mug_drink.txt assets/art/glass.txt assets/art/coin.txt assets/art/dancer.txt $(wildcard assets/art/patrons/*.txt) | $(BUILD) $(OUT)/preview
+$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/art/bartender.txt assets/art/mug.txt assets/art/mug_fill.txt assets/art/mug_drink.txt assets/art/glass.txt assets/art/coin.txt assets/art/dancer.txt assets/art/can.txt assets/art/foam.txt assets/art/cursor.txt $(wildcard assets/art/patrons/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
-$(BUILD)/patrons.c: $(BUILD)/art.c
+$(BUILD)/patrons.c $(BUILD)/can_tiles.h: $(BUILD)/art.c
 	@test -f $@
 
 # CGB palettes: assets/palettes.json -> build/palettes.c/.h
 $(BUILD)/palettes.c $(BUILD)/palettes.h: tools/palettes2c.py assets/palettes.json | $(BUILD)
 	python3 tools/palettes2c.py assets/palettes.json $(BUILD)
 
-$(ROM): $(SRC) $(GEN) $(BUILD)/art.h $(BUILD)/palettes.h
+$(ROM): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h
 	$(LCC) $(LCCFLAGS) -I$(BUILD) -o $@ $(SRC) $(GEN)
 	@romusage $(BUILD)/$(NAME).noi 2>/dev/null | head -12 || true
 

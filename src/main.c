@@ -17,6 +17,7 @@
 #include "art.h"
 #include "palettes.h"
 #include "layout.h"
+#include "bonus.h"
 
 BANKREF_EXTERN(patron_tiles)
 
@@ -86,7 +87,7 @@ static const level_cfg_t level_table[LEVEL_ROWS] = {
 };
 
 // game flow
-enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED };
+enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS };
 #define LIFE_FREEZE_FRAMES  120
 #define CLEAR_FRAMES        150
 #define LEVEL_BONUS        1000
@@ -310,7 +311,7 @@ __asm
 __endasm;
 }
 
-static void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n) {
+void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n) {
     vr_dst = 0x9800 + ((uint16_t)y << 5) + x;
     vr_src = (uint16_t)src;
     vr_n = n;
@@ -347,7 +348,7 @@ static void draw_score(void) {
 }
 
 // score as 32-bit total (for tests) plus decimal digits (no division in VBlank)
-static void add_score(uint16_t n) {
+void add_score(uint16_t n) {
     uint8_t i, d, carry = 0;
     score += n;
     for (i = 6; i != 0; i--) {
@@ -370,7 +371,7 @@ static void lose_life(void) {
     if (lives == 0) game_over = 1;
 }
 
-static void draw_hud(void) {
+void draw_hud(void) {
     uint8_t buf[2], i;
 
     prep_hud();
@@ -450,7 +451,7 @@ static uint8_t sh_tile[NUM_BARS * 2][32];
 static uint8_t sh_attr[NUM_BARS * 2][32];
 static uint8_t dirty_x0[NUM_BARS], dirty_x1[NUM_BARS];
 static uint8_t fresh;             // bars marked this frame (to be composed)
-static uint8_t vram_pending;      // anything for drain_vram to do (keeps idle frames cheap)
+uint8_t vram_pending;      // anything for drain_vram to do (keeps idle frames cheap)
 
 static const uint8_t bar_bit[4] = { 1, 2, 4, 8 };
 
@@ -505,7 +506,7 @@ static void compose_dirty(void) {
     fresh = 0;
 }
 
-static void clear_dirty(void) {
+void clear_dirty(void) {
     uint8_t b;
     vram_pending = 0; fresh = 0;
     for (b = 0; b < NUM_BARS; b++) { dirty_x0[b] = 255; dirty_x1[b] = 0; }
@@ -592,7 +593,7 @@ static void vq_flush(void) {
     vq_count = 0;
 }
 
-static void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n) {
+void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n) {
     vq_entry_t *e = &vq[vq_count++];
     e->n = n; e->bank = bank; e->src = src;
     e->dst = (uint8_t *)0x9800 + ((uint16_t)y << 5) + x;
@@ -697,7 +698,7 @@ static void init(void) {
 }
 
 // ---- mugs and patrons ---------------------------------------------------------------
-static uint8_t next_rand(void) {                    // 8-bit xorshift, fixed seed => reproducible runs
+uint8_t next_rand(void) {                    // 8-bit xorshift, fixed seed => reproducible runs
     rng_state ^= rng_state << 7;
     rng_state ^= rng_state >> 5;
     rng_state ^= rng_state << 3;
@@ -1099,13 +1100,15 @@ static void start_level(void) {
 }
 
 // ---- screens and state changes --------------------------------------------------------
-static uint8_t glyph_for(char c) {
+uint8_t glyph_for(char c) {
     if (c >= '0' && c <= '9') return TILE_GLYPH_0 + (c - '0');
     switch (c) {
     case 'A': return TILE_GLYPH_A; case 'C': return TILE_GLYPH_C; case 'E': return TILE_GLYPH_E;
     case 'G': return TILE_GLYPH_G; case 'H': return TILE_GLYPH_H; case 'I': return TILE_GLYPH_I;
     case 'L': return TILE_GLYPH_L; case 'M': return TILE_GLYPH_M; case 'O': return TILE_GLYPH_O;
     case 'P': return TILE_GLYPH_P; case 'R': return TILE_GLYPH_R; case 'S': return TILE_GLYPH_S;
+    case 'B': return TILE_GLYPH_B; case 'D': return TILE_GLYPH_D; case 'K': return TILE_GLYPH_K;
+    case 'N': return TILE_GLYPH_N; case 'W': return TILE_GLYPH_W; case 'Y': return TILE_GLYPH_Y;
     case 'T': return TILE_GLYPH_T; case 'U': return TILE_GLYPH_U; case 'V': return TILE_GLYPH_V;
     }
     return TILE_HUD_BLANK;
@@ -1219,6 +1222,7 @@ static void reset_actors(void) {
 // Draw the playfield for the current level/lives/score. Screen transition: LCD off.
 static void enter_level_screen(void) {
     DISPLAY_OFF;
+    set_sprite_data(OBJ_DANCER, DANCER_FRAMES * DANCER_TILES_PER_FRAME, dancer_tiles);   // the bonus round borrows these OBJ tiles
     overlay_on = 0; HIDE_WIN; vq_count = 0; hud_dirty = 0; life_lost = 0;
     start_level();
     init_scene();
@@ -1232,7 +1236,7 @@ static void enter_level_screen(void) {
 
 static void start_new_game(void) {
     uint8_t i;
-    lives = START_LIVES; level = 1; score = 0;
+    lives = START_LIVES; level = 1; score = 0; bonus_round = 0;
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     enter_level_screen();
 }
@@ -1391,6 +1395,18 @@ static void update(void) {
         break;
     case GS_LEVEL_CLEAR:
         if (++state_timer >= CLEAR_FRAMES) {
+            if (!(level & 1)) {                  // levels 2, 4, 6, ... are followed by the bonus round
+                bonus_enter();
+                game_state = GS_BONUS;
+                return;
+            }
+            if (level < 99) level++;
+            enter_level_screen();
+            return;
+        }
+        break;
+    case GS_BONUS:
+        if (bonus_update(pressed)) {
             if (level < 99) level++;
             enter_level_screen();
             return;

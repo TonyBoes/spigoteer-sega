@@ -6,7 +6,7 @@ from conftest import LAYOUT, ROOT, bar_top_row, check_golden
 
 pytestmark = pytest.mark.timeout(120)
 
-TITLE, PLAYING, LIFE_LOST, LEVEL_CLEAR, GAME_OVER, PAUSED = range(6)
+TITLE, PLAYING, LIFE_LOST, LEVEL_CLEAR, GAME_OVER, PAUSED, BONUS = range(7)
 MAX_P, MAX_M = 16, 20
 BT_FAIL = 6
 
@@ -285,5 +285,9 @@ def test_level_table_and_wrap(gb):
         assert tilemap_row(gb, LAYOUT["HUD_ROW"], 18, 2) == [tile_id("GLYPH_0") + lvl // 10, tile_id("GLYPH_0") + lvl % 10]
         gb.write("level_clear", 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 5)
-        run_until(gb, lambda: state(gb) == PLAYING, 200)
+        run_until(gb, lambda: state(gb) in (PLAYING, BONUS), 200)
+        if state(gb) == BONUS:                  # M6: even levels are followed by the bonus round; jump to its last frame
+            gb.write("bonus_phase", 4)
+            gb.write("bonus_timer", 129)
+            run_until(gb, lambda: state(gb) == PLAYING, 40)
         gb.run(2)

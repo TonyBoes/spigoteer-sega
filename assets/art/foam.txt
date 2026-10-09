@@ -1,0 +1,19 @@
+; foam: 2 frames 8x8 blobs for the bonus round's spray (palette OBJ 7: '-' cream foam, '+' shading, '#' outline)
+; drawn into the lower half of an 8x16 entry
+.--#....
+-+--#.#.
+--++-#..
+.-----#.
+#.-+--+.
+..-----.
+.#.--+#.
+....#...
+
+..#.....
+.--.-#..
+-+---+#.
+-----.-.
+.+-+--+.
+#-----..
+..-+-.#.
+.#..#...

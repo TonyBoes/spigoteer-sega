@@ -1,0 +1,9 @@
+; cursor: one 8x8 down arrow over the chosen can (palette OBJ 7: '+' gold, '#' outline)
+..####..
+..#++#..
+..#++#..
+########
+#++++++#
+.#++++#.
+..#++#..
+...##...
