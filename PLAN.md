@@ -130,3 +130,12 @@ that, switch to MBC5 (`-Wm-yt0x19`, `-autobank`).
 Distracted patrons turn toward the stage: on show start each distracted patron shuffles (<= 4 px)
 to the nearest 8 px column and switches to a back-view frame (only stationary, so only shift 0 is
 needed: 3 variants x 4 tiles = 12 BG tiles per group). Back-view art: <group>_back.txt.
+
+## Fair empties (M8, owner request)
+
+Never make it impossible to catch every returning empty. A patron who has finished drinking
+holds the empty until sending it keeps arrivals at the tap spaced apart: its predicted arrival
+time ((tap_x - x) / empty speed, in frames) must be >= last scheduled arrival + EMPTY_GAP.
+EMPTY_GAP comes from the level table, shrinking with level (about 120 frames at L1 to a floor of
+~45 frames), never below what an instant bar switch plus a short walk needs. Spacing by arrival,
+not by throw, because a patron near the tap throws later but arrives sooner.
