@@ -148,3 +148,7 @@ a drink replacing the mug (10 OBJ frames: full, empty, 4 fill, 4 drink poses, lo
 tile ids; own full/empty OBJ palettes). Saloon/beer, sports bar/soda, lumber lodge/coffee,
 bistro/wine, igloo/cocoa, robot factory/oil can, teahouse/green tea, space lounge/glowing
 beaker, jungle zoo/coconut.
+Themed shows: the dancers' 32 OBJ tiles are reloaded per theme (3 performers, 16x24, 4 frames):
+can-can (saloon), cheerleaders (sports), Sasquatch (lumber), plate-spinning waiters (bistro),
+penguins (igloo), breakdancing robots (factory), taiko drummers (teahouse), alien band (space),
+flamingo chorus line (zoo).
