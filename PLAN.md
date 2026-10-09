@@ -122,3 +122,11 @@ that, switch to MBC5 (`-Wm-yt0x19`, `-autobank`).
   pickup + A A' A A' + chorus + ending; boom-chick bass on ch3; kick/snare verses, hats in chorus).
   Melody on ch2 because ch1 carries SFX.
 - Title track: "The Entertainer" (Joplin, 1902, PD), opening A theme, ragtime bass.
+- Show music: "Galop Infernal" (Offenbach, 1858, PD, the can-can) plays during the dancers' show,
+  then the gameplay track resumes.
+
+## Dancers turn heads (M8)
+
+Distracted patrons turn toward the stage: on show start each distracted patron shuffles (<= 4 px)
+to the nearest 8 px column and switches to a back-view frame (only stationary, so only shift 0 is
+needed: 3 variants x 4 tiles = 12 BG tiles per group). Back-view art: <group>_back.txt.
