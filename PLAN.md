@@ -243,3 +243,18 @@ Patrons spawn at x = 16 (right of the 16 px door) and leave (served) when pushed
 so they never overlap the door tiles. Door swings: a short open/shut tile swap per venue if the
 bar tile slot has room, otherwise a small dust-puff sprite at the doorway on enter/leave. Walk
 speeds rescaled so crossing times are unchanged (level-1 crossing still >= 15 s).
+
+## Modes, title, story, bonus rounds (owner, 2026-10-09)
+
+Owner's picks: story premise "The Golden Spigot"; new bonus rounds Perfect Pour and Tip Shower;
+title animation = logo fills with foam, then a bar-scene loop below it; arcade extras = top-5
+table with initials + loop banner/harder loops.
+
+| # | milestone |
+|---|---|
+| M10a | Title menu: no stripe bands, all text centred; ARCADE / STORY / MUSIC ON-OFF with a mug cursor. Animation: logo fills with foam letter by letter (drips, bubbles), then a loop below it: bartender slides a mug to a patron who drinks and sends it back. |
+| M10b | Arcade mode: endless loop of the nine venues; "LOOP n" banner; each loop a bit harder up to a ceiling; top-5 high scores with 3-letter initials in SRAM (replaces the single hi score). |
+| M11a | Story script: "The Golden Spigot" - the legendary spigot that pours any drink shattered into 9 pieces; each venue owner gives one to a bartender who keeps their crowd happy. Written as docs/story.md for owner approval before any code. |
+| M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. |
+| M11c | Story art: portraits (Spigoteer, nine venue owners, villain if any), cut-scene pictures. Owner approves. |
+| M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere (in progress). |
