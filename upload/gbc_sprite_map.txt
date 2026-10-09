@@ -1,0 +1,90 @@
+GBC BAR GAME - SPRITE SHEET MAP
+===============================
+
+Coordinates are in pixels from the top-left corner of each native sheet (x, y, width, height).
+Every sprite uses 3 colors + transparent. Palette order: color 1 (dark/outline), color 2 (mid), color 3 (light).
+Colors are snapped to the GBC's 15-bit RGB range. Transparent pixels are alpha 0 in the PNG.
+
+SHEET 1: gbc_bar_sprites_native.png  (80 x 160)
+--------------------------------------------------
+Patrons: 16x16 busts. One group per row; three variants per row at x = 0, 16, 32.
+
+Deep-sea divers  (row 0, y = 0)
+  Variant A  x=0   y=0   w=16 h=16   palette: #182040 #C87830 #B8E8F8
+  Variant B  x=16  y=0   w=16 h=16   palette: #202018 #B85840 #C8F0D0
+  Variant C  x=32  y=0   w=16 h=16   palette: #101830 #8890A8 #F8F0C0
+
+Robots  (row 1, y = 16)
+  Variant A  x=0   y=16  w=16 h=16   palette: #101828 #7888A0 #58F0F8
+  Variant B  x=16  y=16  w=16 h=16   palette: #281810 #B88848 #F8D058
+  Variant C  x=32  y=16  w=16 h=16   palette: #102010 #58A068 #F87070
+
+Lumberjacks  (row 2, y = 32)
+  Variant A  x=0   y=32  w=16 h=16   palette: #382010 #D03028 #F8C090
+  Variant B  x=16  y=32  w=16 h=16   palette: #182038 #3060C8 #D89870
+  Variant C  x=32  y=32  w=16 h=16   palette: #102810 #389040 #A06848
+
+Chefs  (row 3, y = 48)
+  Variant A  x=0   y=48  w=16 h=16   palette: #302018 #F0B888 #F8F8F8
+  Variant B  x=16  y=48  w=16 h=16   palette: #281810 #A06840 #F8F8F8
+  Variant C  x=32  y=48  w=16 h=16   palette: #201010 #683820 #F8F0E0
+
+Cowboys  (row 4, y = 64)
+  Variant A  x=0   y=64  w=16 h=16   palette: #301808 #A06030 #F8C898
+  Variant B  x=16  y=64  w=16 h=16   palette: #281808 #C89850 #C08860
+  Variant C  x=32  y=64  w=16 h=16   palette: #382818 #E8E0C8 #885030
+
+Aliens  (row 5, y = 80)
+  Variant A  x=0   y=80  w=16 h=16   palette: #102010 #58C048 #F8F878
+  Variant B  x=16  y=80  w=16 h=16   palette: #200830 #9050C8 #F8F8F8
+  Variant C  x=32  y=80  w=16 h=16   palette: #301008 #E87830 #88F8F0
+
+Ninjas  (row 6, y = 96)
+  Variant A  x=0   y=96  w=16 h=16   palette: #080810 #283868 #F8C8A0
+  Variant B  x=16  y=96  w=16 h=16   palette: #180808 #A01818 #C89068
+  Variant C  x=32  y=96  w=16 h=16   palette: #101010 #787888 #906040
+
+Sports fans  (row 7, y = 112)
+  Variant A  x=0   y=112 w=16 h=16   palette: #200808 #E02828 #F8C8A0
+  Variant B  x=16  y=112 w=16 h=16   palette: #081028 #2858D8 #B07850
+  Variant C  x=32  y=112 w=16 h=16   palette: #082008 #28A038 #704828
+
+Zoo animals  (row 8, y = 128)
+  Monkey     x=0   y=128 w=16 h=16   palette: #281808 #885028 #E8C090
+  Panda      x=16  y=128 w=16 h=16   palette: #101010 #F8F8F0 #A0A0B0
+  Lion       x=32  y=128 w=16 h=16   palette: #301808 #C86018 #F8D060
+
+Props  (row 9, y = 144)
+  Mug (full)   x=0   y=144 w=16 h=16  palette: #382010 #E89820 #F8F0D0
+  Mug (empty)  x=16  y=144 w=16 h=16  palette: #283040 #A8C8E0 #F8F8F8
+  Tip coin     x=32  y=144 w=8  h=8   palette: #483010 #E0B020 #F8F0A0
+  Sparkle      x=48  y=144 w=8  h=8   palette: #000000 #F8F8F8 #F8E070
+  Counter      x=64  y=144 w=8  h=8   palette: #381808 #985020 #D89050
+
+  Note: 8x8 props sit in the top-left of their 16x16 cell.
+  The counter tile is meant for the background layer, tiled horizontally.
+
+SHEET 2: gbc_bartender_native.png  (112 x 40)
+--------------------------------------------------
+Bartender: 16x24 frames on row 0 (y = 0). Faces left; use the OBJ horizontal-flip attribute to face right.
+  palette: #202030 #F8F8F0 #F0B888
+
+  Idle     x=0   y=0   w=16 h=24
+  Walk 1   x=16  y=0   w=16 h=24
+  Walk 2   x=32  y=0   w=16 h=24
+  Fill     x=48  y=0   w=16 h=24
+  Slide    x=64  y=0   w=16 h=24
+  Catch    x=80  y=0   w=16 h=24
+  Fail     x=96  y=0   w=16 h=24
+
+Broken glass: 16x16 frames on row 1 (y = 24). Play in order: Tip > Fall > Shatter > Settle.
+  palette: #283040 #A8C8E0 #F8F8F8
+
+  Tip      x=0   y=24  w=16 h=16
+  Fall     x=16  y=24  w=16 h=16
+  Shatter  x=32  y=24  w=16 h=16
+  Settle   x=48  y=24  w=16 h=16
+
+Suggested animation pairs:
+  Walk: alternate Walk 1 / Walk 2 (Idle between them for a slower shuffle).
+  Serve: Fill > Slide > Idle.   Return: Catch > Idle.   Miss: Fail (hold) while the glass sequence plays.

@@ -1,0 +1,53 @@
+{{Header Nav|game=Tapper}}
+
+== Characters ==
+=== Bartender ===
+[[File:Tapper bartender.png|left]]
+This is you, the bartender. Your one and only goal, as a proud member of the service industry, is to serve every bar patron with a full cool mug of beer. And you've got the skills to back it up; You're quick on your feet, and your fast with the tap. No matter where you are in the bar, you can instantly transport yourself to the front of the tap at the bar above or below your current bar. If you push up at the highest bar, you will instantly whisk to the lowest bar. Likewise, if you push down at the lower bar, you will reappear at the top of the screen.
+
+{{-}}
+=== Patrons ===
+Patrons may differ in appearance from location to location, but they all behave exactly the same. They want one thing and one thing only: beer. And they want it now. Or at least before they make it all the way to the end of the bar without being served. Should that unfortunate event happen, they will grab the bartender and slide him down the bar in humiliation. Don't let this happen, and keep the beers flowing.
+{|
+! Cowboys || Sports fans
+|-
+| [[File:Tapper cowboys.png]] || [[File:Tapper athletes.png]]
+|-
+| [[File:Tapper punks.png]] || [[File:Tapper aliens.png]]
+|-
+! Punk rockers || Aliens
+|}
+
+=== Beer mugs ===
+[[File:Tapper mug full.png|left]]
+[[File:Tapper mug empty.png|right]]
+Maintaining the integrity of your mugs is vital to your job. After you hold the tap down long enough to fill a mug, you will send it sliding down the bar to a customer... hopefully. If you get over-zealous, you may fill one too many mugs and slide the extra down a bar where no more patrons happen to be waiting. If that happens, the mug will crash on the floor and you will lose a life, so keep careful tabs on how many beers are being ordered per bar. Once a patron receives a beer, they will be pushed back to some extent. They might be pushed back enough to leave the bar. If they're not, they will chug their beer and send the empty back down the bar for a refill. Once again, you must not allow a mug to hit the floor and break. No matter where you are in the serving process, make sure you stop and grab the empty mugs before they reach the end of the bar. You can even be proactive and run along the bar and collect the empties.
+
+{{-}}
+
+=== Money ===
+[[File:Tapper money.png|left]]
+After you serve an entire row of customers, it is not uncommon for one of them to leave a bit of a tip behind. They will deposit the money right where they stand, so you will have to run forward to collect it. Once you pick it up, a set of dancing showgirls will appear in the back of the bar. These dancing women will distract some of the customers, but not all. The ones who are distracted will not move down the bar until the show is over, giving you a bit of a breather. However, these customers will also not notice if you toss them a beer, and they will let the mug slide right on by, so make sure not to serve these patrons until you have their attention again.
+
+Choosing to pick up a tip will prolong the level, since you can't clear any of the distracted customers during the dance, and new customers will appear more quickly afterwards. If you wish to advance through the levels quickly, ignore any tips customers leave you. If however, you want to test your skills and aim for a higher score, take the tip. Some players choose to pick up the money in the early levels, when the higher score gained from a longer round is worth the increased difficulty.
+
+{{-}}
+== Gameplay ==
+=== Bartending ===
+[[File:Tapper screen.png|thumb|right|Don't let the patrons reach the end of the bar]]
+In order to clear any stage, you must clear every bar of customers. Each stage begins with a certain number of customers at each bar. Start out by immediately serving the right number of beers at the bar you start in front of, e.g. if that bar has three customers, send three beers down right away. Then move up or down to the next bar and repeat the process. Continue to move only up or only down, serving customers as you go, until all four bars have been attended to. It is possible to clear the screen in this manner through the first three stages, but it becomes nearly impossible after that. You will likely have customers who did not get pushed back far enough to leave the bar. Therefore, you will have to a) serve them another beer and b) collect the empty mug that they send back to you. Serve repeat patrons as quickly as possible, so that they are easier to push out of the bar. After a period of time, new patrons will begin to arrive. Soon, you will have to juggle the responsibilities of serving patrons and catching empty mugs. If you are on bar with both patrons and empty mugs, serve the patrons first, then run down the bar to collect the empties before moving on to another bar. However, don't do this if a mug or a patron is about to reach the end of another bar. 
+
+When switching to another bar, judge which bar needs the most immediate attention. It's important to remember that the screen wraps around from top to bottom:  If you're at the lowest bar, don't push up three times to reach the highest, push down once instead and you will appear there instantly. Another tip is that you don't need to run back to the tap before moving between bars. You can run all the way to the end of a bar to pick up a tip or empty mug, then push up or down to instantly appear at the tap.
+
+{{-}}
+===Bonus rounds===
+[[File:Tapper bonus round.png|thumb|right|Keep your eyes on the unshaken can]]
+After two cowboy bars, three sports bars, and four punk and alien bars, you will be treated to this bonus round. The mad shaker will shake up five out of six cans, leaving one alone. He will shake up the other five in a random order, so you need to remember whichever one that leaves alone. Once he is done, he retreats to the left of the bar, and pounds on the surface, which initiates the movement of the cans. The can will shift around, swapping the position of two cans at a time. When they finally come to rest it is your turn to select which one of the six is the undisturbed can. If you guess correctly, you will earn 3,000 bonus points. If not, you will at least be treated to a scene of the can exploding foam all over the poor bartenders face. Starting with the third bonus round, the cans move more quickly, making following the movement more challenging.
+
+===Scoring===
+* Serving a customer: 50 (cowboy) / 75 (sports) / 100 (punk) / 150 (alien)
+* Picking up an empty mug: 100
+* Collecting a tip: 1,500
+* Clearing a screen: 1,000
+* Winning a bonus round: 3,000
+
