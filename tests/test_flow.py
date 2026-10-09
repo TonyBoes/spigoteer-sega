@@ -95,16 +95,108 @@ def tilemap_row(gb, y, x0, n, window=False):
     return [t & 0xFF for t in gb.bg_tilemap(window)[y][x0:x0 + n]]   # PyBoy numbers the 0x8000 block from 256
 
 
-# ---- title ---------------------------------------------------------------------------
+# ---- title (M10a) -----------------------------------------------------------------------
+import json as _json
+
+TITLE_ART = _json.loads((ROOT / "build" / "title.json").read_text())   # tools/gen_art.py title_art(): tile ids
+LOGO_ROW, ROW_ARCADE, ROW_STORY, ROW_MUSIC, ROW_HI = 2, 6, 8, 10, 12
+MENU_ROWS = (ROW_ARCADE, ROW_STORY, ROW_MUSIC)
+MENU_KEYS = ("arcade", "story", "music_on")
+SEL_ARCADE, SEL_STORY, SEL_MUSIC = range(3)
+LOGO_STATES = 5
+OAM_TMUG, OAM_CURSOR = 4, 5
+SCENE_TOP, SCENE_BOTTOM = 14 * 8, 17 * 8          # the bar scene: wall rows 14-15, counter row 16
+
+
+def title_text_row(key):
+    """The 20 tile ids of a menu line as the title draws it: blank, the string centred."""
+    t = TITLE_ART["text"][key]
+    row = [TITLE_ART["blank"]] * 20
+    row[t["col"]:t["col"] + len(t["tiles"])] = t["tiles"]
+    return row
+
+
+def hi_tiles(digits):
+    return [TITLE_ART["digits"][int(c)] for c in digits]
+
+
+def hi_shown(gb):
+    return tilemap_row(gb, ROW_HI, 8, 6)
+
+
+def music_line(gb):
+    return tilemap_row(gb, ROW_MUSIC, 0, 20)
+
+
+def settle_title(gb):
+    """Run until the logo has filled and sparkled."""
+    run_until(gb, lambda: gb.mem("logo_done") == 1, 300)
+    gb.run(2)
+
+
+def most_per_scanline(gb):
+    """Most 8x16 sprites on any one visible scanline."""
+    count = [0] * 144
+    for s in gb.oam():
+        if s["y"] == 0 or s["y"] >= 160 or s["x"] == 0 or s["x"] >= 168:
+            continue
+        y = s["y"] - 16
+        for ly in range(max(0, y), min(144, y + 16)):
+            count[ly] += 1
+    return max(count)
+
+
 def test_boots_to_title(boot):
     assert state(boot) == TITLE
     assert not boot.is_blank()
-    assert all(s["y"] == 0 or s["y"] >= 160 for s in boot.oam()) or boot.visible_sprites() == []
-    # SPIGOTEER: 9 letters of 2x2 tiles at columns 1..18 (E twice)
+    settle_title(boot)
+    # SPIGOTEER: 9 letters of 2x2 tiles at columns 1..18 (E twice), the final art once the logo has filled
     ids = [tile_id("TITLE_" + c) for c in "SPIGOTEER"]
-    assert tilemap_row(boot, 4, 1, 18) == [i + k for i in ids for k in (0, 1)]
-    assert tilemap_row(boot, 5, 1, 18) == [i + k for i in ids for k in (2, 3)]
+    assert tilemap_row(boot, LOGO_ROW, 1, 18) == [i + k for i in ids for k in (0, 1)]
+    assert tilemap_row(boot, LOGO_ROW + 1, 1, 18) == [i + k for i in ids for k in (2, 3)]
     check_golden(boot, "title")
+
+
+def test_title_menu_is_centred_without_bands(boot):
+    blank = TITLE_ART["blank"]
+    assert tilemap_row(boot, ROW_ARCADE, 0, 20) == title_text_row("arcade")
+    assert tilemap_row(boot, ROW_STORY, 0, 20) == title_text_row("story")
+    assert music_line(boot) == title_text_row("music_on")
+    # the HI line: 8 tiles at columns 6..13 (a small "HI", a space, six digits)
+    assert tilemap_row(boot, ROW_HI, 0, 20) == [blank] * 6 + [TITLE_ART["hi"], blank] + hi_tiles("000000") + [blank] * 6
+    # every line centred to the pixel: as many px left of the text as right of it. An odd-length line is drawn
+    # 4 px right inside one more tile, so its tiles are an even count with as many blank columns either side.
+    for key, s in (("arcade", "ARCADE"), ("story", "STORY"), ("music_on", "MUSIC ON"), ("music_off", "MUSIC OFF"),
+                   ("soon", "COMING SOON")):
+        t = TITLE_ART["text"][key]
+        n = len(t["tiles"])
+        assert n % 2 == 0 and t["col"] == (20 - n) // 2, key
+        left = t["x"] - 1                       # the first glyph cell's left edge (its text starts 1 px in)
+        assert left == 160 - (left + 8 * len(s)), f"{key}: {left} px left, {160 - left - 8 * len(s)} px right"
+    # no bands: the menu block (rows 4-13) is the plain wall tile around the text, the old dark HUD band tile is gone
+    for y in range(LOGO_ROW + 2, 14):
+        row = tilemap_row(boot, y, 0, 20)
+        assert row[:4] == [blank] * 4 and row[16:] == [blank] * 4, y
+        if y not in MENU_ROWS + (ROW_HI,):
+            assert row == [blank] * 20, y
+    assert all(tile_id("HUD_BLANK") not in tilemap_row(boot, y, 0, 20) for y in range(18))
+
+
+def test_up_down_move_the_mug_cursor_and_wrap(boot):
+    boot.run(2)
+    assert boot.mem("title_sel") == SEL_ARCADE
+    seen = []
+    for b in ("down", "down", "down", "up", "up"):
+        boot.press(b, 2)
+        boot.run(1)
+        sel = boot.mem("title_sel")
+        seen.append(sel)
+        c = boot.oam()[OAM_CURSOR]
+        key = MENU_KEYS[sel]
+        assert c["y"] - 16 + 7 == MENU_ROWS[sel] * 8, "the mug stands on the selected line"
+        assert TITLE_ART["text"][key]["x"] - 14 <= c["x"] - 8 <= TITLE_ART["text"][key]["x"] - 12, "just left of it"
+    assert seen == [SEL_STORY, SEL_MUSIC, SEL_ARCADE, SEL_MUSIC, SEL_STORY]
+    assert state(boot) == TITLE
 
 
 def test_start_begins_a_game(boot):
@@ -117,11 +209,115 @@ def test_start_begins_a_game(boot):
     assert tilemap_row(boot, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_1")]   # L01
 
 
+def test_a_on_arcade_starts_level_1(boot):
+    settle_title(boot)
+    boot.press("down", 2)
+    boot.press("up", 2)
+    boot.press("a", 2)
+    run_until(boot, lambda: state(boot) == PLAYING, 30)
+    assert boot.mem("level") == 1 and boot.mem("cur_group") == 0 and boot.mem("lives") == 3
+    assert patrons(boot) == [(0, DOOR_X), (2, DOOR_X)]
+    boot.run(5)
+    assert len(boot.visible_sprites()) == 4, "only the bartender: the title's sprites are gone"
+
+
+def test_story_shows_coming_soon_then_returns(boot):
+    boot.press("down", 2)
+    boot.press("a", 2)
+    boot.run(2)
+    assert state(boot) == TITLE and boot.mem("title_msg") > 0
+    assert tilemap_row(boot, ROW_STORY, 0, 20) == title_text_row("soon")
+    assert boot.oam()[OAM_CURSOR]["y"] == 0, "no cursor while the message shows"
+    boot.press("down", 2)                     # ignored meanwhile
+    boot.press("start", 2)
+    assert state(boot) == TITLE and boot.mem("title_sel") == SEL_STORY
+    run_until(boot, lambda: boot.mem("title_msg") == 0, 70)
+    boot.run(2)
+    assert tilemap_row(boot, ROW_STORY, 0, 20) == title_text_row("story")
+    assert state(boot) == TITLE and boot.mem("title_sel") == SEL_STORY and boot.oam()[OAM_CURSOR]["y"] != 0
+    boot.press("up", 2)
+    boot.press("start", 2)
+    run_until(boot, lambda: state(boot) == PLAYING, 30)
+
+
+def test_music_toggles_from_the_menu(boot):
+    boot.press("up", 2)                       # wraps to MUSIC
+    assert boot.mem("title_sel") == SEL_MUSIC
+    boot.press("a", 2)
+    boot.run(2)
+    assert boot.mem("sound_on") == 0 and music_line(boot) == title_text_row("music_off")
+    boot.press("start", 2)
+    boot.run(2)
+    assert boot.mem("sound_on") == 1 and music_line(boot) == title_text_row("music_on")
+    assert state(boot) == TITLE
+
+
 def test_title_ignores_other_buttons(boot):
-    for b in ("a", "b", "up", "select"):
+    for b in ("b", "left", "right"):
         boot.press(b, 3)
     boot.run(10)
-    assert state(boot) == TITLE
+    assert state(boot) == TITLE and boot.mem("title_sel") == SEL_ARCADE
+
+
+def test_logo_fills_letter_by_letter_then_settles(boot):
+    seen = []
+    for _ in range(200):
+        seen.append(tuple(boot.read("logo_state", 9)))
+        if boot.mem("logo_done"):
+            break
+        boot.run(1)
+    assert boot.mem("logo_done") == 1
+    assert all(list(s) == sorted(s, reverse=True) for s in seen), "letter by letter, left to right"
+    assert all(a <= b for s0, s1 in zip(seen, seen[1:]) for a, b in zip(s0, s1)), "it only ever fills up"
+    assert len(set(seen)) >= 10, "in many small steps"
+    final = tilemap_row(boot, LOGO_ROW, 1, 18)
+    boot.run(120)
+    assert tilemap_row(boot, LOGO_ROW, 1, 18) == final, "settled"
+    assert tuple(boot.read("logo_state", 9)) == (LOGO_STATES - 1,) * 9
+
+
+def test_logo_starts_empty_and_fills_mid_animation(boot):
+    # a fresh boot, caught as the title appears and 40 frames later (the golden title_anim)
+    from gbtools import Rom
+    from conftest import ROM
+    with Rom(ROM, boot.model_name) as gb:
+        gb.model_name = boot.model_name
+        run_until(gb, lambda: gb.mem16("title_t") >= 1, 300)
+        empty = [TITLE_ART["logo"][c][0] for c in "SPIGOTEER"]
+        assert tilemap_row(gb, LOGO_ROW + 1, 1, 18) == [q[k] for q in empty for k in (2, 3)]
+        run_until(gb, lambda: gb.mem16("title_t") >= 40, 100)
+        gb.run(1)                             # (the frame's tilemap writes land in the next VBlank)
+        st = list(gb.read("logo_state", 9))
+        assert st[0] == LOGO_STATES - 1 and 0 < max(st[3:6]) < LOGO_STATES - 1 and st[-1] == 0, st
+        row = tilemap_row(gb, LOGO_ROW + 1, 1, 18)
+        assert row == [TITLE_ART["logo"][c][st[i]][2 + k] for i, c in enumerate("SPIGOTEER") for k in (0, 1)]
+        check_golden(gb, "title_anim")
+
+
+def test_bar_scene_slides_a_mug_and_loops(boot):
+    phases, xs, loops0 = [], [], boot.mem("tscene_loops")
+    for _ in range(700):
+        boot.run(1)
+        phases.append(boot.mem("tscene_phase"))
+        mug = boot.oam()[OAM_TMUG]
+        if 1 <= phases[-1] <= 4 and phases[-3:] == [phases[-1]] * 3:     # (OAM shows the frame before)
+            assert mug["y"] != 0, "the mug is on screen while it travels"
+            assert SCENE_TOP <= mug["y"] - 16 < SCENE_BOTTOM
+        if phases[-1] in (1, 4) and phases[-3:] == [phases[-1]] * 3:
+            xs.append((phases[-1], mug["x"] - 8))
+    out = [x for p, x in xs if p == 1]
+    back = [x for p, x in xs if p == 4]
+    assert out[0] > out[-1] and back[-1] > back[0], "slides to the patron, the empty comes back"
+    assert boot.mem("tscene_loops") >= loops0 + 2, "and again"
+    assert set(phases) == set(range(6))
+
+
+def test_title_sprites_stay_within_ten_per_line(boot):
+    worst = 0
+    for _ in range(400):
+        boot.run(1)
+        worst = max(worst, most_per_scanline(boot))
+    assert 3 <= worst <= 10, worst
 
 
 # ---- pause ---------------------------------------------------------------------------
@@ -261,8 +457,7 @@ def test_three_lost_lives_end_the_game_and_start_returns_to_title(gb):
     run_until(gb, lambda: state(gb) == TITLE, 30)       # the redraw runs with the LCD off and takes a few frames
     gb.run(3)
     assert hi_score(gb) == 50
-    digits = [tile_id("GLYPH_0")] * 4 + [tile_id("GLYPH_5"), tile_id("GLYPH_0")]
-    assert tilemap_row(gb, 12, 8, 6) == digits, "title shows the HI score"
+    assert hi_shown(gb) == hi_tiles("000050"), "title shows the HI score"
     gb.press("start", 2)
     run_until(gb, lambda: state(gb) == PLAYING, 30)
     assert gb.mem("lives") == 3 and score(gb) == 0 and hi_score(gb) == 50 and gb.mem("game_over") == 0

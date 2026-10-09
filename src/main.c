@@ -289,7 +289,6 @@ static void lcd_isr(void) {          // LYC: switch the banner window off below 
 
 // ---- game -----------------------------------------------------------------------
 static void win_init(void);
-static void enter_title(void);
 static void init(void) {
     uint8_t i;
 
@@ -323,7 +322,7 @@ static void init(void) {
     CRITICAL { add_VBL(vq_vbl); }  // the VBlank copy queue drains from the interrupt (render.c)
     win_init();
     SHOW_BKG; SHOW_SPRITES;
-    enter_title();                 // turns the LCD on
+    title_enter();                 // turns the LCD on (title.c)
 }
 
 uint8_t next_rand(void) {                    // 8-bit xorshift, fixed seed => reproducible runs
@@ -368,20 +367,6 @@ uint8_t glyph_for(char c) {
     return TILE_HUD_BLANK;
 }
 
-// text into row_buf at column x, then onto BG row y (LCD off only)
-static void text_at(uint8_t y, uint8_t x, const char *s) {
-    uint8_t n = 0;
-    while (s[n]) { row_buf[n] = glyph_for(s[n]); n++; }
-    vram_put(x, y, row_buf, n);
-}
-
-static void fill_row(uint8_t y, uint8_t tile) {
-    uint8_t i;
-    for (i = 0; i < 20; i++) row_buf[i] = tile;
-    put_row(y);
-}
-
-
 // Banner window (tile rows 0..2 of the 0x9C00 map): frame, a text row that
 // show_overlay() rewrites through the VBlank queue, frame. Attributes are HUD palette.
 static void win_init(void) {
@@ -420,51 +405,6 @@ static void show_overlay(const char *s) {
     vq_add(0, win_tiles, 0, 33, 20);
     overlay_on = 1;
     hide_banner_sprites();
-}
-
-static uint8_t music_tiles[9];                   // "MUSIC ON " / "MUSIC OFF" on the title (BG row 14)
-static void build_music_text(void) {
-    const char *t = sound_on ? "MUSIC ON " : "MUSIC OFF";
-    uint8_t i;
-    for (i = 0; i < 9; i++) music_tiles[i] = glyph_for(t[i]);
-}
-
-static void enter_title(void) {
-    uint8_t i, y;
-    DISPLAY_OFF;
-    overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0;
-    hide_all_sprites();
-    bkg_data(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles);
-    load_venue(0);                                    // the title stands in the saloon
-    bkg_data(BAR_TILE_COUNT, TITLE_TILE_COUNT, title_tiles);   // lettering over the patron ids; the level load puts them back
-    if (is_cgb) {
-        palette_t p;                                  // title lettering: pale gold, amber, dark brown
-        p[0] = WALL_RGB; p[1] = RGB15(31, 29, 16); p[2] = RGB15(29, 20, 4); p[3] = RGB15(10, 3, 2);
-        set_bkg_palette(BGPAL_PATRON, 1, p);
-    }
-    venue_backdrop(0, 16);                            // wall rows 0-15, counter row 16, floor 17 (tiles + attributes)
-    for (y = 0; y < 2; y++) {                         // SPIGOTEER, 9 letters of 2x2 tiles at columns 1..18, rows 4..5
-        static const uint8_t letters[9] = { TILE_TITLE_S, TILE_TITLE_P, TILE_TITLE_I, TILE_TITLE_G, TILE_TITLE_O,
-                                            TILE_TITLE_T, TILE_TITLE_E, TILE_TITLE_E, TILE_TITLE_R };
-        for (i = 0; i < 18; i++) row_buf[i] = letters[i >> 1] + y * 2 + (i & 1);
-        vram_put(1, 4 + y, row_buf, 18);
-    }
-    fill_row(9, TILE_HUD_BLANK);  text_at(9, 4, "PRESS START");
-    fill_row(12, TILE_HUD_BLANK); text_at(12, 5, "HI");
-    fill_row(14, TILE_HUD_BLANK); build_music_text(); vram_put(5, 14, music_tiles, 9);
-    for (i = 0; i < 6; i++) row_buf[i] = digit_tile(hi_digits[i]);
-    vram_put(8, 12, row_buf, 6);
-    if (is_cgb) {
-        VBK_REG = VBK_BANK_1;
-        for (i = 0; i < 20; i++) row_buf[i] = BGPAL_HUD;
-        put_row(9); put_row(12); put_row(14);
-        for (i = 1; i < 19; i++) row_buf[i] = BGPAL_PATRON;
-        vram_put(1, 4, row_buf + 1, 18); vram_put(1, 5, row_buf + 1, 18);
-        VBK_REG = VBK_BANK_0;
-    }
-    game_state = GS_TITLE;
-    music_play(TUNE_TITLE);
-    DISPLAY_ON;
 }
 
 static void reset_actors(void) {
@@ -521,7 +461,7 @@ static void debug_open(void) {
     debug_from_title = game_state == GS_TITLE;
     if (debug_from_title) {
         debug_level = 1;
-        if (debug_toggled) { music_set_on(!sound_on); build_music_text(); vq_add(0, music_tiles, 5, 14, 9); }
+        if (debug_toggled) title_music_toggle();     // the SELECT that began the combo toggled the music: undo
     } else debug_level = level < DEBUG_LEVELS ? level : DEBUG_LEVELS;
     debug_toggled = 0;
     game_state = GS_DEBUG;
@@ -708,15 +648,10 @@ static void update(void) {
 #ifdef DEBUG_MENU
         debug_toggled = (joy & J_SELECT) != 0;
 #endif
-        if (pressed & J_SELECT) {
-            music_set_on(!sound_on);
-            build_music_text();
-            vq_add(0, music_tiles, 5, 14, 9);
-        }
 #ifdef DEBUG_MENU
         if ((pressed & J_START) && (joy & J_SELECT)) pressed &= ~J_START;   // START + SELECT is the debug combo
 #endif
-        if (pressed & J_START) start_new_game(1);
+        if (title_update(pressed)) start_new_game(1);   // the menu (title.c): 1 = ARCADE
 #ifdef DEBUG_MENU
         debug_watch();
 #endif
@@ -763,7 +698,7 @@ static void update(void) {
         break;
 #endif
     case GS_GAME_OVER:
-        if (pressed & J_START) { enter_title(); return; }
+        if (pressed & J_START) { title_enter(); return; }
         break;
     case GS_PAUSED:
         if (pressed & J_START) { game_state = GS_PLAYING; overlay_on = 0; }
