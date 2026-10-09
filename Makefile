@@ -12,7 +12,7 @@ LCC      := lcc
 # -Wa-l listing, -Wl-m map, -Wl-j NoICE symbols (build/game.noi -> tests read
 # variables by name), -Wm-yc CGB-compatible (runs on DMG and CGB),
 # -Wm-yn cartridge title (max 15 chars), -Wm-yt MBC type if you need banks.
-LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynTAPPER
+LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynSPIGOTEER
 # MBC5+RAM+BATTERY (0x1B, one 8 KB SRAM bank for the hi score, M7) + GBDK autobanking (M4.7): the pre-shifted patron tiles (M8b: 9 x 2.5 KB) live in build/patrons_<group>.c, one file per group
 # under `#pragma bank 255` (all nine would not fit one bank); bankpack places each in a switchable bank. -Wm-yoA sizes the ROM.
 LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
@@ -41,7 +41,7 @@ $(BUILD) $(OUT)/preview:
 # Tile and sprite data: bar.txt (BG tiles), bartender.txt and mug.txt (8x16 OBJ
 # tiles, padded so each bartender frame is 4 OAM entries) -> build/art.c/.h.
 # Also writes x8 previews to out/preview/.
-$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/art/bartender.txt assets/art/mug.txt assets/art/mug_fill.txt assets/art/mug_drink.txt assets/art/glass.txt assets/art/coin.txt assets/art/dancer.txt assets/art/can.txt assets/art/foam.txt assets/art/cursor.txt $(wildcard assets/art/patrons/*.txt) | $(BUILD) $(OUT)/preview
+$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tiles/title.txt assets/art/bartender.txt assets/art/mug.txt assets/art/mug_fill.txt assets/art/mug_drink.txt assets/art/glass.txt assets/art/coin.txt assets/art/dancer.txt assets/art/can.txt assets/art/foam.txt assets/art/cursor.txt $(wildcard assets/art/patrons/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
 $(PATRON_C) $(BUILD)/can_tiles.h: $(BUILD)/art.c

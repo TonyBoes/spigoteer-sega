@@ -67,7 +67,7 @@ def set_patron(gb, bar, x, state=WALKING, timer=0, variant=0, aux=0, frac=0):
     i = list(gb.read("patron_state", MAX_P)).index(0)
     for n, v in (("patron_state", state), ("patron_bar", bar), ("patron_x", x), ("patron_variant", variant),
                  ("patron_timer", timer), ("patron_aux", aux), ("patron_frac", frac), ("patron_draw", 255),
-                 ("patron_mug", 255)):
+                 ("patron_mug", 255), ("patron_drinks", 0)):
         put(gb, n, i, v)
     gb.write("patrons_live", gb.mem("patrons_live") + 1)
     return i
@@ -210,6 +210,58 @@ def test_served_further_in_is_pushed_back_then_drinks_and_returns_an_empty(gb):
     assert x >= (64 - PX) + 16
     gb.run(10)
     assert mugs(gb)[0]["x"] == x + 5, "M8a: 0.5 px per frame to the right"
+
+
+def catch_once(gb, p, bar):
+    """Inject a full mug at the patron's left edge + 4 and run until the push is over and he drinks."""
+    inject_mug(gb, bar, gb.read("patron_x", MAX_P)[p] + 4)
+    gb.run(3)
+    assert gb.read("patron_state", MAX_P)[p] == PUSHED
+    for _ in range(400):
+        gb.run(1)
+        if gb.read("patron_state", MAX_P)[p] != PUSHED:
+            break
+
+
+def test_thirst_second_drink_pushes_twice_as_far(gb):
+    """M8c: pushback = pushback_px x drinks caught so far."""
+    clear_patrons(gb)
+    freeze(gb)
+    p = set_patron(gb, 1, 120)
+    catch_once(gb, p, 1)
+    assert gb.read("patron_drinks", MAX_P)[p] == 1
+    assert gb.read("patron_x", MAX_P)[p] == 120 - PX
+    put(gb, "patron_state", p, WALKING)                    # skip the drink: walk resumes (frozen, so he stays put)
+    gb.run(2)
+    for i in range(MAX_M):                                  # drop the returned empty
+        put(gb, "mug_state", i, FREE)
+    gb.write("mugs_live", 0)
+    catch_once(gb, p, 1)
+    assert gb.read("patron_drinks", MAX_P)[p] == 2
+    assert gb.read("patron_x", MAX_P)[p] == 120 - PX - 2 * PX
+
+
+def test_thirst_third_drink_takes_a_mid_bar_patron_out_the_door(gb):
+    clear_patrons(gb)
+    freeze(gb)
+    p = set_patron(gb, 1, 60)
+    put(gb, "patron_drinks", p, 2)                         # two already caught: this is the 3rd (3 x 32 = 96 px)
+    inject_mug(gb, 1, 64)
+    gb.run(3 + 64 + 4)
+    assert gb.read("patron_state", MAX_P)[p] == NONE, "pushed out the door"
+    assert score(gb) == SERVE
+
+
+def test_a_new_patron_starts_thirsty_again(gb):
+    clear_patrons(gb)
+    freeze(gb)
+    p = set_patron(gb, 1, 100)
+    put(gb, "patron_drinks", p, 3)
+    put(gb, "patron_state", p, NONE); gb.write("patrons_live", 0)
+    spawn_now(gb)
+    gb.write("intro_timer", 0)
+    gb.run(5)
+    assert all(d == 0 for d in gb.read("patron_drinks", MAX_P)), "spawned patrons reset their drink count"
 
 
 def test_pushed_patron_stops_at_the_patron_behind(gb):

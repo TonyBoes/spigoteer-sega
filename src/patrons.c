@@ -30,6 +30,7 @@ uint8_t  patron_timer[MAX_PATRONS];
 uint8_t  patron_aux[MAX_PATRONS];      // px left to be pushed back
 uint8_t  patron_mug[MAX_PATRONS];      // mug slot held while pushed/drinking, NO_SLOT otherwise
 uint8_t  patron_catchx[MAX_PATRONS];   // x of the last full mug it caught (where its tip would lie)
+uint8_t  patron_drinks[MAX_PATRONS];    // mugs caught since spawning: the push-back is pushback_px times this (thirst)
 uint8_t  patron_dist[MAX_PATRONS];     // 1: distracted by the show (shuffles to a multiple of 8 px, then stands still; ignores mugs)
 uint8_t  patron_facing[MAX_PATRONS];   // 1: drawn in its back view, turned to watch the stage (mirrors patron_draw & DRAW_BACK)
 uint8_t  patrons_live;
@@ -105,7 +106,7 @@ uint8_t add_patron(uint8_t b, uint8_t x, uint8_t variant) {
         patron_state[p] = PATRON_WALKING;
         patron_bar[p] = b; patron_x[p] = x; patron_frac[p] = 0; patron_variant[p] = variant;
         patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
-        patron_dist[p] = 0; patron_facing[p] = 0; patron_catchx[p] = x;
+        patron_dist[p] = 0; patron_facing[p] = 0; patron_catchx[p] = x; patron_drinks[p] = 0;
         patron_draw[p] = 255;
         refresh_patron(p);
         if (lists_ok) list_add(p);
@@ -271,7 +272,10 @@ static uint8_t scan_catcher(uint8_t b, uint8_t x) {
 static void caught(uint8_t i, uint8_t p) {
     patron_state[p] = PATRON_PUSHED;
     patron_timer[p] = 0;
-    patron_aux[p] = pushback_px;
+    {
+        uint16_t d = (uint16_t)pushback_px * ++patron_drinks[p];     // 1st drink: pushback_px, 2nd: twice, ...
+        patron_aux[p] = d > 255 ? 255 : d;
+    }
     patron_frac[p] = 0;
     patron_mug[p] = i;
     patron_catchx[p] = mug_x[i];

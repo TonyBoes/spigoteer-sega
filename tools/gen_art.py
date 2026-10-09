@@ -109,6 +109,16 @@ def main():
     assert n <= 256
     h += [f"#define BAR_TILE_COUNT {n}", "extern const uint8_t bar_tiles[];", ""]
     c.append(fmt("bar_tiles", tiles))
+    # title lettering (assets/tiles/title.txt): ids BAR_TILE_COUNT.. at title time only, over the patron tiles
+    ttiles = []
+    for name, rows in blocks(ROOT / "assets/tiles/title.txt", named=True):
+        assert len(rows) == 16 and all(len(r) == 16 for r in rows), f"{name}: not 16x16"
+        h.append(f"#define TILE_{name.upper()} {n + len(ttiles) // 16}")
+        for ty in range(2):
+            for tx in range(2):
+                ttiles += tile_bytes(rows, tx * 8, ty * 8)
+    h += [f"#define TITLE_TILE_COUNT {len(ttiles) // 16}", "extern const uint8_t title_tiles[];", ""]
+    c.append(fmt("title_tiles", ttiles))
     # preview: tiles in a grid of 16 per row
     cols = 16
     im = Image.new("RGB", (cols * 9, ((n + cols - 1) // cols) * 9), (255, 0, 255))

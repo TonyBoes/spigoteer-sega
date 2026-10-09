@@ -114,7 +114,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define TIP_BLINK         60   // ... and blinks for the last second
 #define TIP_SCORE       1500
 #define TIP_CHANCE_DEFAULT 64  // out of 256 per served patron (255 = always, 0 = never)
-#define SHOW_FRAMES      360
+#define SHOW_FRAMES      576
 #define DANCER_BEAT       12   // frames per dance step
 #define DANCER_STAGGER     8   // dancers pop in / out one after the other
 #define SHOW_SPAWN_DIV     4   // after a show the next patron comes after spawn_interval / this (once)
@@ -133,7 +133,7 @@ extern uint16_t tip_timer, show_timer;
 extern uint8_t  patron_state[MAX_PATRONS], patron_bar[MAX_PATRONS], patron_x[MAX_PATRONS];
 extern uint8_t  patron_frac[MAX_PATRONS], patron_draw[MAX_PATRONS], patron_variant[MAX_PATRONS];
 extern uint8_t  patron_timer[MAX_PATRONS], patron_aux[MAX_PATRONS], patron_mug[MAX_PATRONS];
-extern uint8_t  patron_catchx[MAX_PATRONS], patron_dist[MAX_PATRONS], patron_facing[MAX_PATRONS], patrons_live;
+extern uint8_t  patron_catchx[MAX_PATRONS], patron_drinks[MAX_PATRONS], patron_dist[MAX_PATRONS], patron_facing[MAX_PATRONS], patrons_live;
 extern uint8_t  mug_state[MAX_MUGS], mug_bar[MAX_MUGS], mug_x[MAX_MUGS], mug_timer[MAX_MUGS];
 extern uint8_t  mug_patron[MAX_MUGS], mugs_live;
 extern uint8_t  oam_used;

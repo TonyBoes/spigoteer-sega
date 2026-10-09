@@ -99,8 +99,10 @@ def test_boots_to_title(boot):
     assert state(boot) == TITLE
     assert not boot.is_blank()
     assert all(s["y"] == 0 or s["y"] >= 160 for s in boot.oam()) or boot.visible_sprites() == []
-    t = tile_id("TITLE_T")
-    assert tilemap_row(boot, 4, 4, 2) == [t, t + 1] and tilemap_row(boot, 5, 4, 2) == [t + 2, t + 3]
+    # SPIGOTEER: 9 letters of 2x2 tiles at columns 1..18 (E twice)
+    ids = [tile_id("TITLE_" + c) for c in "SPIGOTEER"]
+    assert tilemap_row(boot, 4, 1, 18) == [i + k for i in ids for k in (0, 1)]
+    assert tilemap_row(boot, 5, 1, 18) == [i + k for i in ids for k in (2, 3)]
     check_golden(boot, "title")
 
 

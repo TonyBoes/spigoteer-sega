@@ -1,4 +1,4 @@
-// Tapper for Game Boy / Game Boy Color: game flow, screens, HUD and score, input, and the frame loop.
+// Spigoteer for Game Boy / Game Boy Color: game flow, screens, HUD and score, input, and the frame loop.
 // The rules live in patrons.c and mugs.c, the BG composition and the VBlank queue in render.c (see game.h).
 //
 // Everything a test can assert on is a plain global in WRAM, so it shows up
@@ -479,17 +479,18 @@ static void enter_title(void) {
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0;
     hide_all_sprites();
     bkg_data(0, BAR_TILE_COUNT, bar_tiles);
+    bkg_data(BAR_TILE_COUNT, TITLE_TILE_COUNT, title_tiles);   // lettering over the patron ids; the level load puts them back
     if (is_cgb) {
         palette_t p;                                  // title lettering: pale gold, amber, dark brown
         p[0] = WALL_RGB; p[1] = RGB15(31, 29, 16); p[2] = RGB15(29, 20, 4); p[3] = RGB15(10, 3, 2);
         set_bkg_palette(BGPAL_PATRON, 1, p);
     }
     for (y = 0; y < 18; y++) fill_row(y, y == 16 ? TILE_COUNTER : y == 17 ? TILE_FLOOR : TILE_WALL);
-    for (y = 0; y < 2; y++) {                         // TAPPER, 6 letters of 2x2 tiles at columns 4..15
-        static const uint8_t letters[6] = { TILE_TITLE_T, TILE_TITLE_A, TILE_TITLE_P, TILE_TITLE_P,
-                                            TILE_TITLE_E, TILE_TITLE_R };
-        for (i = 0; i < 12; i++) row_buf[i] = letters[i >> 1] + y * 2 + (i & 1);
-        vram_put(4, 4 + y, row_buf, 12);
+    for (y = 0; y < 2; y++) {                         // SPIGOTEER, 9 letters of 2x2 tiles at columns 1..18, rows 4..5
+        static const uint8_t letters[9] = { TILE_TITLE_S, TILE_TITLE_P, TILE_TITLE_I, TILE_TITLE_G, TILE_TITLE_O,
+                                            TILE_TITLE_T, TILE_TITLE_E, TILE_TITLE_E, TILE_TITLE_R };
+        for (i = 0; i < 18; i++) row_buf[i] = letters[i >> 1] + y * 2 + (i & 1);
+        vram_put(1, 4 + y, row_buf, 18);
     }
     fill_row(9, TILE_HUD_BLANK);  text_at(9, 4, "PRESS START");
     fill_row(12, TILE_HUD_BLANK); text_at(12, 5, "HI");
@@ -500,7 +501,7 @@ static void enter_title(void) {
         VBK_REG = VBK_BANK_1;
         for (y = 0; y < 18; y++) {
             for (i = 0; i < 20; i++) row_buf[i] = (y == 9 || y == 12 || y == 14) ? BGPAL_HUD : BGPAL_BAR;
-            if (y == 4 || y == 5) for (i = 4; i < 16; i++) row_buf[i] = BGPAL_PATRON;
+            if (y == 4 || y == 5) for (i = 1; i < 19; i++) row_buf[i] = BGPAL_PATRON;
             put_row(y);
         }
         VBK_REG = VBK_BANK_0;

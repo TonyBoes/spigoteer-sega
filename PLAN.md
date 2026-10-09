@@ -165,7 +165,7 @@ Funicula"; igloo "The Skaters' Waltz"; robot factory "In the Hall of the Mountai
 "Sakura Sakura"; space lounge "The Blue Danube"; jungle zoo "Pop Goes the Weasel"; title "The
 Entertainer". (Proposed to the owner; non-owner picks may still change.)
 
-## Rename (queued after M8a)
+## Rename (done in M8c)
 
 Title screen logo "SPIGOTEER" (own lettering, wider than today's TAPPER: 9 letters), cartridge
 header title SPIGOTEER, credits/README text. The saloon's TAPS stage sign stays (it's the
@@ -200,3 +200,8 @@ patron_facing[]); a patron who cannot get there keeps facing the bar until the s
 - Show lasts one Galop loop (~576 frames, 9.6 s) instead of 360.
 - Thirst: each patron counts drinks; push-back distance = pushback_px x (drinks so far, starting at
   1), so the 2nd drink pushes twice as far and the 3rd three times; clumps break up.
+
+As built (M8c): SHOW_FRAMES 576; patron_drinks[] (reset in add_patron) scales the push-back (pushback_px x drinks,
+capped at 255 px). Title logo SPIGOTEER: assets/tiles/title.txt, 8 letters x 4 tiles generated from stroke shapes,
+loaded over the patron tile ids by enter_title (the level load's load_patron_tiles restores them); BAR_TILE_COUNT
+dropped by the 20 old title tiles, so BG ids in use are now 70 scene + 156 patron = 226 of 256. Header title SPIGOTEER.
