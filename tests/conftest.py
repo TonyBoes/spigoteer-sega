@@ -42,3 +42,27 @@ def check_golden(gb, name):
     """Compare the screen with tests/golden/<name>.<model>.png; diffs land in out/diff/."""
     ok = gb.golden(GOLDEN / f"{name}.{gb.model_name}.png", update=UPDATE, diff_dir=ROOT / "out" / "diff")
     assert ok, f"screen differs from golden {name}.{gb.model_name}.png (see out/diff/). Intentional? GB_UPDATE_GOLDEN=1 make test"
+
+
+# ---- screen layout: parsed from src/layout.h so a layout tweak needs no test edits ----
+import re as _re
+
+_LAYOUT_H = (ROOT / "src" / "layout.h").read_text()
+LAYOUT = {m.group(1): int(m.group(2)) for m in _re.finditer(r"#define (\w+)\s+(\d+)\b", _LAYOUT_H)}
+
+
+def bar_top_row(b):
+    return LAYOUT["BAR_FIRST_ROW"] + LAYOUT["BAR_ROW_STRIDE"] * b
+
+
+def bar_counter_row(b):
+    return bar_top_row(b) + LAYOUT["BAR_COUNTER_DROW"]
+
+
+def bar_top_y(b):
+    return bar_top_row(b) * 8
+
+
+def mug_top_y(b):
+    """Screen y of the top of a mug / fill / glass sprite on bar b."""
+    return bar_top_y(b) + LAYOUT["MUG_DY"]

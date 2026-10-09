@@ -1,6 +1,6 @@
 # M2: filling and sliding full mugs, breaking at the left end, lives, game over.
 import pytest
-from conftest import check_golden
+from conftest import LAYOUT, bar_counter_row, bar_top_y, check_golden, mug_top_y
 
 pytestmark = pytest.mark.timeout(60)
 
@@ -306,7 +306,7 @@ def test_fill_sprite_shows_while_filling_and_steps_through_the_frames(gb):
     assert tiles[-1] == OBJ_MUG_FILL + 3 * 2 and tiles[0] == OBJ_MUG_FILL
     assert [t for i, t in enumerate(tiles) if i == 0 or t != tiles[i - 1]] == [OBJ_MUG_FILL + 2 * s for s in range(4)]
     e = fill_sprite(gb)
-    assert e["x"] - 8 == 136 and e["y"] - 16 == 3 * 8, "left of the bartender's hand, on the counter-top rows of bar 0"
+    assert e["x"] - 8 == 136 and e["y"] - 16 == mug_top_y(0), "left of the bartender's hand, on the counter surface of bar 0"
     # launch: the fill sprite goes, the sliding mug starts from the same spot
     gb.release("a")
     gb.run(2)
@@ -322,7 +322,7 @@ def test_fill_sprite_follows_the_bar_and_goes_when_cancelled(gb):
     gb.hold("a")
     gb.run(8)
     e = fill_sprite(gb)
-    assert e["y"] - 16 == (3 + 4) * 8
+    assert e["y"] - 16 == mug_top_y(1)
     gb.press("left", 2)
     assert gb.mem("fill_timer") == 0 and fill_sprite(gb) is None
     gb.release("a")

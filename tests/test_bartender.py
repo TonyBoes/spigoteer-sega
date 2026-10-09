@@ -1,6 +1,6 @@
 # M1: bar scene + bartender movement. Every assertion reads a named variable
 # from build/game.noi; every test runs on DMG and CGB (see conftest.gb).
-from conftest import check_golden
+from conftest import LAYOUT, bar_top_y, check_golden
 
 pytestmark = __import__("pytest").mark.timeout(60)
 
@@ -92,8 +92,8 @@ def test_bartender_sprite_position(gb):
         spr = gb.visible_sprites()
         xs = sorted({s["x"] - 8 for s in spr})
         assert xs == [TAP_X, TAP_X + 8]
-        assert max(s["y"] - 16 for s in spr) == (3 + 4 * b) * 8 + 16, "bottom entry row"
-        assert min(s["y"] - 16 for s in spr) == (3 + 4 * b) * 8
+        assert max(s["y"] - 16 for s in spr) == bar_top_y(b) + 16, "bottom entry row"
+        assert min(s["y"] - 16 for s in spr) == bar_top_y(b), "top entry row: 24 px tall, feet on the counter row"
         gb.press("down", 2)
 
 
@@ -126,3 +126,69 @@ def test_walking_golden(gb):
     gb.press("left", 20)
     assert gb.mem("bar") == 2 and gb.mem("bartender_x") == TAP_X - 40
     check_golden(gb, "walking")
+
+
+# ---- M4.6 layout: HUD row, stage rows 1-4, three-row bars, floor ------------------------
+import re as _re
+from conftest import ROOT as _ROOT, bar_counter_row, bar_top_row, mug_top_y
+
+_ART_H = (_ROOT / "build" / "art.h").read_text()
+
+
+def _tile(name):
+    return int(_re.search(rf"#define TILE_{name} (\d+)", _ART_H).group(1))
+
+
+def _row(gb, y, x0=0, n=20):
+    return [t & 0xFF for t in gb.bg_tilemap()[y][x0:x0 + n]]
+
+
+def test_bars_have_their_counter_rows_at_the_layout_rows(gb):
+    assert [bar_counter_row(b) for b in range(4)] == [7, 10, 13, 16], "layout.h: bars at rows 5+3b..7+3b"
+    for b in range(4):
+        assert _row(gb, bar_counter_row(b), 2, 16) == [_tile("COUNTER")] * 16, f"bar {b} counter row"
+        assert _row(gb, bar_counter_row(b), 0, 2) == [_tile("DOOR") + 4, _tile("DOOR") + 5]
+        assert _row(gb, bar_counter_row(b), 18, 2) == [_tile("TAP") + 4, _tile("TAP") + 5]
+        assert _tile("COUNTER") not in _row(gb, bar_top_row(b), 2, 16) + _row(gb, bar_top_row(b) + 1, 2, 16)
+    assert _row(gb, LAYOUT["FLOOR_ROW"]) == [_tile("FLOOR")] * 20
+
+
+def test_stage_rows_hold_the_sign_and_the_platform_edge(gb):
+    first, last = LAYOUT["STAGE_FIRST_ROW"], LAYOUT["STAGE_LAST_ROW"]
+    assert (LAYOUT["HUD_ROW"], first, last, LAYOUT["BAR_FIRST_ROW"]) == (0, 1, 4, 5)
+    assert _row(gb, first, 7, 6) == [_tile("SIGN") + i for i in range(6)], "sign centred (cols 7-12)"
+    assert _row(gb, first + 1, 7, 6) == [_tile("SIGN") + 6 + i for i in range(6)]
+    assert _row(gb, last, 2, 16) == [_tile("STAGE_EDGE")] * 16, "platform edge"
+    assert _row(gb, first)[0] == _tile("CURTAIN_L0") and _row(gb, first)[19] == _tile("CURTAIN_R1")
+
+
+def test_no_sprites_on_the_stage_rows_during_play(gb):
+    stage_bottom = (LAYOUT["STAGE_LAST_ROW"] + 1) * 8        # first pixel row below the stage
+    hud_bottom = (LAYOUT["HUD_ROW"] + 1) * 8
+
+    def check(where):
+        for s in gb.visible_sprites():
+            top = s["y"] - 16
+            assert top >= stage_bottom, f"{where}: sprite at y {top} overlaps the HUD/stage"
+            assert top + 16 > hud_bottom
+
+    check("idle")
+    for b in range(4):
+        gb.press("down", 2)
+        gb.hold("a")
+        gb.run(10)
+        check(f"filling on bar {b}")
+        gb.run(20)
+        gb.release("a")
+        gb.run(2)
+        check(f"launched on bar {b}")
+    gb.run(150)                                              # mugs slide, break, patrons walk
+    check("later")
+    gb.press("up", 2)
+    check("walking up")
+    assert mug_top_y(0) >= stage_bottom
+
+
+def test_stage_golden(gb):
+    gb.run(30)
+    check_golden(gb, "stage")

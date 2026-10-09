@@ -1,7 +1,7 @@
 # M3: patrons (background tiles), full-mug catches, empty mugs, lives, level clear.
 # Situations are set up by poking state through symbol addresses, as in test_mugs.
 import pytest
-from conftest import check_golden
+from conftest import bar_top_row, bar_top_y, check_golden
 
 pytestmark = pytest.mark.timeout(60)
 
@@ -187,7 +187,7 @@ def test_bartender_on_another_bar_misses_the_empty(gb):
     assert gb.mem("lives") == 2, "missed empty costs a life"
     assert [m["state"] for m in mugs(gb)] == [BREAKING]
     spr = gb.visible_sprites()
-    assert any(s["x"] >= 144 + 8 and s["y"] - 16 < 56 for s in spr), "glass at the right end of bar 0"
+    assert any(s["x"] >= 144 + 8 and s["y"] - 16 < bar_top_y(1) for s in spr), "glass at the right end of bar 0"
     gb.run(40)
     assert mugs(gb) == []
 
@@ -308,14 +308,14 @@ def test_four_patrons_stepping_together_fit_in_vblank(gb):
     # every bar has its patron redrawn at column 1 within a few frames (the budget spreads them out)
     tm = gb.bg_tilemap()
     for b in range(4):
-        assert tm[2 + 4 * b][1] != tm[2 + 4 * b][3], f"bar {b} patron drawn at columns 1-2"
+        assert tm[bar_top_row(b)][1] != tm[bar_top_row(b)][3], f"bar {b} patron drawn at columns 1-2"
 
 
 def test_patron_tiles_reach_vram(gb):
     tm = gb.bg_tilemap()
     base = gb.mem("patron_variant")  # noqa: F841 (variant of slot 0 is not needed here)
     for b in range(4):
-        ids = {t & 0xFF for t in tm[2 + 4 * b][0:2] + tm[3 + 4 * b][0:2]}
+        ids = {t & 0xFF for t in tm[bar_top_row(b)][0:2] + tm[bar_top_row(b) + 1][0:2]}
         assert len(ids) == 4, "2x2 patron tiles at columns 0-1"
     # after a step the old column is wall/door again and the new position holds the patron
     go(gb)
@@ -324,7 +324,7 @@ def test_patron_tiles_reach_vram(gb):
     gb.run(5)
     tm = gb.bg_tilemap()
     for b in range(4):
-        assert tm[2 + 4 * b][1] != tm[2 + 4 * b][3], "patron now spans columns 1-2"
+        assert tm[bar_top_row(b)][1] != tm[bar_top_row(b)][3], "patron now spans columns 1-2"
 
 
 def test_patrons_golden(gb):
@@ -339,7 +339,7 @@ def test_level_1_starts_on_exactly_the_configured_bars(gb):
     tm = gb.bg_tilemap()
     base = int(__import__("re").search(r"BAR_TILE_COUNT (\d+)", (__import__("conftest").ROOT / "build" / "art.h").read_text()).group(1))
     for b in range(4):                           # patron tiles (ids >= BAR_TILE_COUNT) drawn on bars 0 and 2 only
-        assert ((tm[2 + 4 * b][0] & 0xFF) >= base) == (b in START_BARS), b
+        assert ((tm[bar_top_row(b)][0] & 0xFF) >= base) == (b in START_BARS), b
 
 
 def test_level_1_patron_takes_at_least_15_s_to_reach_the_tap(gb):

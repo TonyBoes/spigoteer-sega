@@ -16,6 +16,7 @@
 
 #include "art.h"
 #include "palettes.h"
+#include "layout.h"
 
 // ---- tunables --------------------------------------------------------------
 #define TAP_X         144   // bartender_x at the tap (columns 18-19)
@@ -83,8 +84,8 @@ enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUS
 #define CLEAR_FRAMES        150
 #define LEVEL_BONUS        1000
 #define START_LIVES           3
-#define BANNER_WY            64   // window overlay: 3 tile rows at y 64..87
-#define BANNER_LYC           86   // line where the LCD interrupt switches the window off again
+#define BANNER_WY  BAR_TOP_Y(1)       // window overlay: 3 tile rows over bar 1 (y 64..87), clear of the HUD and stage
+#define BANNER_LYC (BAR_TOP_Y(1) + 22)  // line where the LCD interrupt switches the window off again
 
 // bartender animation frames (order of assets/art/bartender.txt)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
@@ -118,6 +119,7 @@ enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING };
 #define BGPAL_BAR        0
 #define BGPAL_HUD        1
 #define BGPAL_PATRON     2   // 2, 3, 4 = patron variants A, B, C
+#define BGPAL_STAGE      5   // stage, curtains, sign (6, 7 free)
 #define WALL_RGB    ((uint16_t)(12 | (5 << 5) | (8 << 10)))   // dusky wine
 
 // ---- state (globals => symbols) ----------------------------------------------
@@ -193,6 +195,13 @@ static void load_cgb_palettes(void) {
     p[3] = RGB15(3, 2, 8);
     set_bkg_palette(BGPAL_HUD, 1, p);
 
+    // BG 5: stage. 0 cream (sign lettering), 1 mauve backdrop, 2 wine curtains, 3 near black
+    p[0] = RGB15(31, 28, 18);
+    p[1] = RGB15(19, 11, 17);
+    p[2] = RGB15(14, 5, 8);
+    p[3] = RGB15(3, 2, 6);
+    set_bkg_palette(BGPAL_STAGE, 1, p);
+
     set_sprite_palette(OBJPAL_BARTENDER, 1, palettes[PAL_BARTENDER]);
     set_sprite_palette(OBJPAL_MUG_FULL, 1, palettes[PAL_MUG_FULL]);
     set_sprite_palette(OBJPAL_MUG_EMPTY, 1, palettes[PAL_MUG_EMPTY]);
@@ -262,7 +271,7 @@ static void glyph_row(uint8_t y, uint8_t x, const uint8_t *tiles, uint8_t n) {
 
 static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
 
-// one mug per life (row 1 cols 10-12) and the score digits (row 1 cols 1-6):
+// one mug per life (HUD row, cols 9-11) and the score digits (cols 1-6):
 // the tile ids are prepared by prep_hud() in the logic phase so that the VBlank
 // part is nothing but a copy.
 static void prep_hud(void) {
@@ -272,12 +281,12 @@ static void prep_hud(void) {
 }
 
 static void draw_lives(void) {
-    glyph_row(1, 10, lives_tiles, 3);
+    glyph_row(HUD_ROW, 9, lives_tiles, 3);
     hud_dirty &= ~HUD_LIVES;
 }
 
 static void draw_score(void) {
-    glyph_row(1, 1, score_tiles, 6);
+    glyph_row(HUD_ROW, 1, score_tiles, 6);
     hud_dirty &= ~HUD_SCORE;
 }
 
@@ -306,40 +315,40 @@ static void lose_life(void) {
 }
 
 static void draw_hud(void) {
-    uint8_t buf[6], i;
+    uint8_t buf[2], i;
 
     prep_hud();
     for (i = 0; i < 20; i++) row_buf[i] = TILE_HUD_BLANK;
-    put_row(0); put_row(1);
-
-    // "SCORE" row 0 cols 1-5, six digits row 1 cols 1-6
-    buf[0] = TILE_GLYPH_S; buf[1] = TILE_GLYPH_C; buf[2] = TILE_GLYPH_O;
-    buf[3] = TILE_GLYPH_R; buf[4] = TILE_GLYPH_E;
-    glyph_row(0, 1, buf, 5);
-    draw_score();
-
-    // "LIVES" row 0 cols 9-13, one mug per life row 1 cols 10-12
-    buf[0] = TILE_GLYPH_L; buf[1] = TILE_GLYPH_I; buf[2] = TILE_GLYPH_V;
-    buf[3] = TILE_GLYPH_E; buf[4] = TILE_GLYPH_S;
-    glyph_row(0, 9, buf, 5);
-    prep_hud();
-    draw_lives();
-
-    // "LV" row 0 cols 17-18, level as two digits row 1
-    buf[0] = TILE_GLYPH_L; buf[1] = TILE_GLYPH_V;
-    glyph_row(0, 17, buf, 2);
+    put_row(HUD_ROW);
+    draw_score();                                   // six digits, cols 1-6
+    draw_lives();                                   // one mug per life, cols 9-11
+    buf[0] = TILE_GLYPH_L;                          // "L" col 17, level as two digits cols 18-19
+    glyph_row(HUD_ROW, 17, buf, 1);
     buf[0] = digit_tile(level / 10); buf[1] = digit_tile(level % 10);
-    glyph_row(1, 17, buf, 2);
+    glyph_row(HUD_ROW, 18, buf, 2);
+}
+
+static void draw_stage(void) {
+    uint8_t y, c;
+    for (y = STAGE_FIRST_ROW; y <= STAGE_LAST_ROW; y++) {
+        for (c = 2; c < 18; c++) row_buf[c] = (y == STAGE_LAST_ROW) ? TILE_STAGE_EDGE
+                                           : ((c + y) & 1) ? TILE_STAGE_WALL2 : TILE_STAGE_WALL;
+        row_buf[0] = TILE_CURTAIN_L0; row_buf[1] = TILE_CURTAIN_L1;
+        row_buf[18] = TILE_CURTAIN_R0; row_buf[19] = TILE_CURTAIN_R1;
+        if (y == STAGE_LAST_ROW) row_buf[0] = row_buf[1] = row_buf[18] = row_buf[19] = TILE_STAGE_EDGE;
+        if (y == 1 || y == 2) for (c = 0; c < 6; c++) row_buf[7 + c] = TILE_SIGN + (y - 1) * 6 + c;
+        put_row(y);
+    }
 }
 
 static void draw_bars(void) {
     uint8_t b, r, c, y;
+    draw_stage();
     for (b = 0; b < NUM_BARS; b++) {
-        for (r = 0; r < 4; r++) {
-            y = 2 + 4 * b + r;
+        for (r = 0; r < 3; r++) {
+            y = BAR_TOP_ROW(b) + r;
             for (c = 2; c < 18; c++) {
-                row_buf[c] = r == 2 ? TILE_COUNTER_TOP
-                           : r == 3 ? TILE_COUNTER_FRONT
+                row_buf[c] = r == 2 ? TILE_COUNTER
                            : (r == 1 && (c & 1)) ? TILE_WALL2 : TILE_WALL;
             }
             row_buf[0]  = TILE_DOOR + r * 2;
@@ -349,6 +358,8 @@ static void draw_bars(void) {
             put_row(y);
         }
     }
+    for (c = 0; c < 20; c++) row_buf[c] = TILE_FLOOR;
+    put_row(FLOOR_ROW);
 }
 
 static void write_all_bars(void);
@@ -364,7 +375,7 @@ static void init_scene(void) {
     if (is_cgb) {                                // palette per row via VRAM bank 1
         VBK_REG = VBK_BANK_1;
         for (y = 0; y < 18; y++) {
-            for (i = 0; i < 20; i++) attr[i] = y < 2 ? BGPAL_HUD : BGPAL_BAR;
+            for (i = 0; i < 20; i++) attr[i] = y == HUD_ROW ? BGPAL_HUD : y <= STAGE_LAST_ROW ? BGPAL_STAGE : BGPAL_BAR;
             set_bkg_tiles(0, y, 20, 1, attr);
         }
         VBK_REG = VBK_BANK_0;
@@ -444,7 +455,7 @@ static void clear_dirty(void) {
 static void write_span(uint8_t b, uint8_t x0, uint8_t x1) {
     uint8_t r, y, w = x1 - x0;
     for (r = 0; r < 2; r++) {
-        y = 2 + (b << 2) + r;
+        y = BAR_TOP_ROW(b) + r;
         vram_put(x0, y, &sh_tile[(b << 1) | r][x0], w);
         if (is_cgb) {
             VBK_REG = VBK_BANK_1;
@@ -531,8 +542,8 @@ static void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8
 // End of the logic phase: turn the HUD flags and dirty bar spans into queue entries.
 static void queue_vram(void) {
     uint8_t b, r, row, y, x0, w, cost = 0, c;
-    if (hud_dirty & HUD_LIVES) { vq_add(0, lives_tiles, 10, 1, 3); cost += 6; }
-    if (hud_dirty & HUD_SCORE) { vq_add(0, score_tiles, 1, 1, 6); cost += 9; }
+    if (hud_dirty & HUD_LIVES) { vq_add(0, lives_tiles, 9, HUD_ROW, 3); cost += 6; }
+    if (hud_dirty & HUD_SCORE) { vq_add(0, score_tiles, 1, HUD_ROW, 6); cost += 9; }
     hud_dirty = 0;
     vram_pending = 0;
     for (b = 0; b < NUM_BARS; b++) {
@@ -544,7 +555,7 @@ static void queue_vram(void) {
         if (cost && cost + c > VQ_BUDGET) { vram_pending = 1; break; }
         for (r = 0; r < 2; r++) {
             row = (b << 1) | r;
-            y = 2 + (b << 2) + r;
+            y = BAR_TOP_ROW(b) + r;
             vq_add(0, &sh_tile[row][x0], x0, y, w);
             if (is_cgb) vq_add(1, &sh_attr[row][x0], x0, y, w);
         }
@@ -569,7 +580,7 @@ static void write_all_bars(void) {          // LCD off only
 // facing right.
 static void draw_bartender(void) {
     uint8_t base = OBJ_BARTENDER + bartender_frame * BARTENDER_TILES_PER_FRAME;
-    uint8_t ytop = (3 + 4 * bar) * 8 + 16;        // feet on the bottom of the counter front
+    uint8_t ytop = BAR_TOP_Y(bar) + 16;           // 24 px tall: feet on the bottom of the counter row
     uint8_t ybot = ytop + 16;
     uint8_t flags = (facing ? S_FLIPX : 0) | OBJPAL_BARTENDER;
     uint8_t xa = facing ? bartender_x + 16 : bartender_x + 8;   // art column A (left half)
@@ -816,7 +827,7 @@ static void draw_fill(void) {
     OAM_item_t *o = shadow_OAM + OAM_FILL;
     uint8_t y;
     if (!fill_timer) { o->y = 0; return; }
-    y = (3 + 4 * bar) * 8 + 16;
+    y = BAR_TOP_Y(bar) + MUG_DY + 16;
     o->y = y; o->x = (uint8_t)(MUG_START_X + 8);
     o->tile = OBJ_MUG_FILL + fill_stage * 2; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;   // DMG: OBP0 (beer light grey) shows on the white wall; OBP1 would make it white
 }
@@ -831,7 +842,7 @@ static void draw_mugs(void) {
         for (i = 0; i < MAX_MUGS; i++) {
             st = mug_state[i];
             if (st == MUG_FREE) continue;
-            y = (3 + 4 * mug_bar[i]) * 8 + 16;               // mug sits on the counter-top row
+            y = BAR_TOP_Y(mug_bar[i]) + MUG_DY + 16;         // mug stands on the counter surface
             if (st == MUG_BREAKING) {
                 if (n > 38) continue;
                 gx = mug_x[i] > 80 ? GLASS_X_RIGHT : GLASS_X;   // left or right end
@@ -961,7 +972,7 @@ static void enter_title(void) {
         p[0] = WALL_RGB; p[1] = RGB15(31, 29, 16); p[2] = RGB15(29, 20, 4); p[3] = RGB15(10, 3, 2);
         set_bkg_palette(BGPAL_PATRON, 1, p);
     }
-    for (y = 0; y < 18; y++) fill_row(y, y == 16 ? TILE_COUNTER_TOP : y == 17 ? TILE_COUNTER_FRONT : TILE_WALL);
+    for (y = 0; y < 18; y++) fill_row(y, y == 16 ? TILE_COUNTER : y == 17 ? TILE_FLOOR : TILE_WALL);
     for (y = 0; y < 2; y++) {                         // TAPPER, 6 letters of 2x2 tiles at columns 4..15
         static const uint8_t letters[6] = { TILE_TITLE_T, TILE_TITLE_A, TILE_TITLE_P, TILE_TITLE_P,
                                             TILE_TITLE_E, TILE_TITLE_R };

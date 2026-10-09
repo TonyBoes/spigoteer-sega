@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import ROOT, check_golden
+from conftest import LAYOUT, ROOT, bar_top_row, check_golden
 
 pytestmark = pytest.mark.timeout(120)
 
@@ -100,7 +100,7 @@ def test_start_begins_a_game(boot):
     assert patrons(boot) == [(0, 0), (2, 0)]          # level 1 starts on bars 0 and 2
     assert boot.mem("bar") == 0 and boot.mem("bartender_x") == 144
     boot.run(20)
-    assert tilemap_row(boot, 1, 17, 2) == [tile_id("GLYPH_0"), tile_id("GLYPH_1")]   # LV 01
+    assert tilemap_row(boot, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_1")]   # L01
 
 
 def test_title_ignores_other_buttons(boot):
@@ -156,7 +156,7 @@ def test_lost_life_freezes_then_restarts_the_bars(gb):
     assert patrons(gb) == [(0, 0), (2, 0)], "intro delay holds"
     assert len([s for s in gb.visible_sprites()]) == 4, "only the bartender is on screen"
     # the tilemap shows exactly the re-placed patrons: no ghost of the one at the tap
-    assert tilemap_row(gb, 2, 14, 4)[:3] == tilemap_row(gb, 10, 14, 4)[:3]
+    assert tilemap_row(gb, bar_top_row(0), 14, 4)[:3] == tilemap_row(gb, bar_top_row(2), 14, 4)[:3]
 
 
 def test_lost_life_glass_animation_completes(gb):
@@ -209,7 +209,7 @@ def test_level_clear_scores_shows_banner_and_loads_level_2(gb):
     assert (gb.mem("quota"), gb.mem("step_frames"), gb.mem("serve_score")) == (10, 60, 75)
     assert patrons(gb) == [(0, 0), (1, 0), (2, 0)] and gb.mem("bar") == 0 and mugs(gb) == []
     gb.run(15)
-    assert tilemap_row(gb, 1, 17, 2) == [tile_id("GLYPH_0"), tile_id("GLYPH_2")]   # LV 02
+    assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_2")]   # L02
     base = int(re.search(r"BAR_TILE_COUNT (\d+)", ART_H).group(1))
     vram = bytes(gb.read(0x9000 + base * 16, 192))   # BG tiles 0..127 live at 0x9000 (LCDC bit 4 = 0)
     rom = bytes(gb.read(gb.addr("patron_tiles") + 192, 192))
@@ -273,7 +273,7 @@ def test_level_table_and_wrap(gb):
                 gb.mem("serve_score")) == (row[3], row[4], row[5], row[6], row[7]), lvl
         assert gb.mem("start_mask") == row[1]
         assert len(patrons(gb)) == bin(row[1]).count("1") * row[2], lvl
-        assert tilemap_row(gb, 1, 17, 2) == [tile_id("GLYPH_0") + lvl // 10, tile_id("GLYPH_0") + lvl % 10]
+        assert tilemap_row(gb, LAYOUT["HUD_ROW"], 18, 2) == [tile_id("GLYPH_0") + lvl // 10, tile_id("GLYPH_0") + lvl % 10]
         gb.write("level_clear", 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 5)
         run_until(gb, lambda: state(gb) == PLAYING, 200)
