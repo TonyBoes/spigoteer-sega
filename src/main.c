@@ -128,6 +128,7 @@ uint8_t  bartender_frame;   // BT_*
 uint8_t  catch_pose;        // frames left of BT_CATCH (an empty caught, a glass taken; M8d)
 uint8_t  at_tap;            // 1 when bartender_x == TAP_X
 uint8_t  walk_timer;        // frames into the current step of the walk cycle (0..WALK_STEP_FRAMES-1)
+uint8_t  bt_bob;           // 1 on the passing poses of the walk: his sprites are drawn 1 px higher
 uint8_t  walk_phase;        // step of the walk cycle: 0 walk1, 1 idle, 2 walk2, 3 idle
 uint8_t  frame_counter;
 uint8_t  joy, joy_prev;
@@ -432,7 +433,7 @@ static void show_overlay(const char *s) {
 static void reset_actors(void) {
     uint8_t i;
     bar = 0; bartender_x = TAP_X; bartender_frac = 0; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
-    walk_timer = 0; walk_phase = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0; catch_pose = 0;
+    bt_bob = 0; walk_timer = 0; walk_phase = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0; catch_pose = 0;
     clear_mugs();
     next_arrival = 0;
     tip_timer = 0; show_timer = 0; dancers_vis = 0; oam_touched();      // a bar reset ends the show and takes the tip away
@@ -624,6 +625,7 @@ static void play_frame(uint8_t pressed) {
     if (slide_timer) slide_timer--;
     if (catch_pose) catch_pose--;
 
+    bt_bob = 0;
     if (fill_timer) {
         bartender_frame = BT_FILL;
         walk_timer = 0; walk_phase = 0;
@@ -631,6 +633,7 @@ static void play_frame(uint8_t pressed) {
         bartender_frame = BT_CATCH;
     } else if (walked) {                         // walk1, idle, walk2, idle, WALK_STEP_FRAMES each
         bartender_frame = walk_cycle[walk_phase];
+        bt_bob = !switched & walk_phase;         // up on the passing (idle) pose, down on the contact poses
         if (++walk_timer >= WALK_STEP_FRAMES) { walk_timer = 0; walk_phase = (walk_phase + 1) & 3; }
     } else {
         bartender_frame = slide_timer ? BT_SLIDE : BT_IDLE;

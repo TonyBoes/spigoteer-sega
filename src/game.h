@@ -150,7 +150,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define NUM_DANCERS        3
 
 // ---- state (globals => symbols the tests read) ----------------------------------
-extern uint8_t  bar, bartender_x, bartender_frac, facing, bartender_frame, fill_timer, fill_stage, is_cgb;
+extern uint8_t  bar, bartender_x, bartender_frac, facing, bartender_frame, bt_bob, fill_timer, fill_stage, is_cgb;
 extern uint8_t  catch_pose;   // frames left of the bartender's catch pose (an empty caught, a glass taken)
 extern uint8_t  lives, life_lost, game_state, hud_dirty, level_clear;
 extern uint8_t  quota, spawned, served, serve_score, patron_speed, pushback_px, intro_timer;

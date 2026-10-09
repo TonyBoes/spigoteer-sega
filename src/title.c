@@ -198,7 +198,7 @@ void title_enter(void) BANKED {
     title_t = 0; logo_done = 0; title_idle = 0;
     tscene_phase = SC_IDLE; tscene_timer = 0; tscene_mug_x = 0; tscene_loops = 0;
     bubble_y[0] = bubble_y[1] = 0; bubble_timer = 90;
-    bar = SCENE_BAR; bartender_x = BT_X; facing = 0; bartender_frame = BT_IDLE;
+    bar = SCENE_BAR; bartender_x = BT_X; bt_bob = 0; facing = 0; bartender_frame = BT_IDLE;
     game_state = GS_TITLE;
     music_play(TUNE_TITLE);
     DISPLAY_ON;

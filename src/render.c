@@ -550,15 +550,15 @@ void queue_vram(void) {
 // OAM 0..3: [col A top, col B top, col A bottom, col B bottom]. Screen layout
 // left to right is A,B when facing left (art faces left) and B,A flipped when
 // facing right.
-uint8_t bt_drawn[4];         // bar, x, frame, facing the bartender's OAM entries show; bt_drawn[0] = 255: rewrite them
+uint8_t bt_drawn[5];         // bar, x, frame, facing the bartender's OAM entries show; bt_drawn[0] = 255: rewrite them
 
 void draw_bartender(void) {
     uint8_t base, ytop, ybot, flags, xa, xb;
     OAM_item_t *o = shadow_OAM;
-    if (bt_drawn[0] == bar && bt_drawn[1] == bartender_x && bt_drawn[2] == bartender_frame && bt_drawn[3] == facing) return;
-    bt_drawn[0] = bar; bt_drawn[1] = bartender_x; bt_drawn[2] = bartender_frame; bt_drawn[3] = facing;
+    if (bt_drawn[0] == bar && bt_drawn[1] == bartender_x && bt_drawn[2] == bartender_frame && bt_drawn[3] == facing && bt_drawn[4] == bt_bob) return;
+    bt_drawn[0] = bar; bt_drawn[1] = bartender_x; bt_drawn[2] = bartender_frame; bt_drawn[3] = facing; bt_drawn[4] = bt_bob;
     base = OBJ_BARTENDER + bartender_frame * BARTENDER_TILES_PER_FRAME;
-    ytop = bar_oam_y[bar];                        // 24 px tall: feet on the bottom of the counter row
+    ytop = bar_oam_y[bar] - bt_bob;                       // 24 px tall: feet on the bottom of the counter row
     ybot = ytop + 16;
     flags = (facing ? S_FLIPX : 0) | OBJPAL_BARTENDER;
     xa = facing ? bartender_x + 16 : bartender_x + 8;   // art column A (left half)
