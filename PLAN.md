@@ -115,3 +115,10 @@ that, switch to MBC5 (`-Wm-yt0x19`, `-autobank`).
 - A full mug (A still held) can be carried to another bar with Up/Down; releasing A there slides it.
 - Faster fill: 24 -> 16 frames.
 - Art round 3 (proposals in the session scratchpad, owner approves before import): balanced mustache; cowboy without far ear; sports fan redesigned (foam finger in jersey colour); slot B of every group except zoo is a woman; all patrons 3/4 view facing right.
+
+## Owner music notes (queued after the perf pass)
+
+- Gameplay track: "Oh! Susanna" (Foster, 1848, PD) per the owner's spec (key C, 2/4, ~120 bpm,
+  pickup + A A' A A' + chorus + ending; boom-chick bass on ch3; kick/snare verses, hats in chorus).
+  Melody on ch2 because ch1 carries SFX.
+- Title track: "The Entertainer" (Joplin, 1902, PD), opening A theme, ragtime bass.
