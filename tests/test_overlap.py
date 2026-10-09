@@ -217,7 +217,7 @@ def test_a_hurried_walker_passes_a_slower_one(gb):
 
 def test_hurried_patrons_from_level_3_at_one_and_a_half_times_the_speed(gb):
     """Levels 1-2: nobody hurries. From level 3 about 1 in 4 spawns is hurried, at 1.5x the level's speed."""
-    from test_door import goto_level
+    from test_edge import goto_level
     assert gb.mem("hurry_speed") == 0
     goto_level(gb, 3)
     speed = gb.mem("patron_speed")
@@ -244,7 +244,7 @@ def test_hurried_patrons_from_level_3_at_one_and_a_half_times_the_speed(gb):
 
 
 def test_a_walker_waits_rather_than_make_three_in_a_column(gb):
-    """Two drinkers share columns 6-7 (x 48 and 52); a walker from the door may pass through them only one column at
+    """Two drinkers share columns 6-7 (x 48 and 52); a walker from the left end may pass through them only one column at
     a time: from x 32 (columns 4-5) his next step would take him into column 6 with both of them: he waits there,
     and goes on when one of them has left. Never three patrons in a tile column."""
     clear_patrons(gb)

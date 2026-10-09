@@ -129,9 +129,9 @@ def test_patron_reaching_the_tap_costs_a_life_without_a_break_sound(gb):
     assert sfx_count(gb, SFX_LIFE) == 1 and sfx_count(gb, SFX_BREAK) == 0
 
 
-def test_patron_served_out_the_door(gb):
+def test_patron_served_at_the_left_end(gb):
     gb.write("intro_timer", 255)
-    set_patron(gb, 0, GAME["DOOR_X"], pstate=PATRON_PUSHED)
+    set_patron(gb, 0, GAME["ENTRY_X"], pstate=PATRON_PUSHED)
     put(gb, "patron_aux", gb.read("patron_state", 16).index(PATRON_PUSHED), 4)
     gb.run(2)
     assert gb.mem("last_sfx") == SFX_SERVE and sfx_count(gb, SFX_SERVE) == 1
@@ -294,7 +294,10 @@ def melody_check(rom, source, frames=260, min_notes=6):
         if mfs[0] >= k or mfs[-1] < k + ln * tempo + 2:
             continue                                    # not entirely inside what was recorded
         f0 = next(f for f in range(len(mfs)) if mfs[f] >= k) + 1
-        a, b = int((f0 + 0.2 * ln * tempo) * spf), int((f0 + 0.8 * ln * tempo) * spf)
+        # (a long note's volume envelope has faded to near silence well before its last rows: listen to its first 3 rows
+        # at most, or the pitch found is the noise floor's, which moves with the music tick's line in the frame)
+        hear = min(ln, 3) * tempo
+        a, b = int((f0 + 0.2 * hear) * spf), int((f0 + 0.8 * hear) * spf)
         want = note_hz(n)
         got = detect(flat[a:b], rate, want * 0.6, want * 1.7)
         checked.append((row, want, got))
@@ -540,7 +543,7 @@ V2_SUM = 34
 def earn_fifty_and_lose(rom):
     start_game(rom)
     rom.write("intro_timer", 255)
-    inject_mug(rom, 0, GAME["DOOR_X"] + 8)
+    inject_mug(rom, 0, GAME["ENTRY_X"] + 8)
     rom.run(6)
     assert score(rom) == 50
     for n in range(3):

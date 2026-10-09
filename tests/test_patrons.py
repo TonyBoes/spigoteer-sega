@@ -6,7 +6,7 @@ from conftest import GAME, bar_top_row, bar_top_y, check_golden
 pytestmark = pytest.mark.timeout(60)
 
 MAX_P, MAX_M = 16, 20
-NONE, WALKING, PUSHED, DRINKING = 0, 1, 2, 3
+NONE, WALKING, PUSHED, DRINKING, LEAVING = 0, 1, 2, 3, 4   # LEAVING: served, sliding out past the left edge
 FREE, FULL, EMPTY, BREAKING = 0, 1, 2, 3
 WINDUP = GAME["WINDUP_FRAMES"]        # M8d: a finished drinker winds up this long before his empty slides
 DRINK_MIN, DRINK_WAIT, DRINK_WINDUP = 0, 1, 2   # patron_aux while DRINKING (M8d)
@@ -15,7 +15,7 @@ PX = 8 * PUSHBACK
 FAR_X = GAME["PATRON_FAR_X"]          # M8a: 120, a walker here has reached the bartender's end
 HELD = 4
 SPACING = 32
-DOOR_X = GAME["DOOR_X"]                # patrons come in here and are served out when pushed past it (cols 0-1 are the door)
+ENTRY_X = GAME["ENTRY_X"]                # patrons walk on from here (left of it they enter / leave as sprites) and are served when pushed back to it
 START_BARS = [0, 2]                   # level 1 starts with patrons on these bars (start_mask 0x5)
 
 
@@ -146,7 +146,7 @@ def test_boot_has_one_patron_on_each_start_bar(gb):
     ps = patrons(gb)
     assert len(ps) == 2 and gb.mem("patrons_live") == 2 and gb.mem("spawned") == 2
     assert sorted(p["bar"] for p in ps) == START_BARS == [b for b in range(4) if gb.mem("start_mask") >> b & 1]
-    assert all(p["x"] == DOOR_X and p["state"] == WALKING for p in ps)
+    assert all(p["x"] == ENTRY_X and p["state"] == WALKING for p in ps)
     assert not gb.is_blank()
 
 
@@ -163,7 +163,7 @@ def test_patron_walks_7_px_per_step_time(gb):
 def test_intro_delay_holds_patrons(gb):
     assert gb.mem("intro_timer") > 0
     gb.run(10)
-    assert all(p["x"] == DOOR_X for p in patrons(gb))
+    assert all(p["x"] == ENTRY_X for p in patrons(gb))
 
 
 def test_a_walker_walks_up_to_and_past_a_drinker(gb):
@@ -208,15 +208,17 @@ def real_cols(d):
     return range(c, c + (3 if d & 7 else 2))
 
 
-def test_served_near_the_door_is_removed_and_scores(gb):
-    freeze(gb)                     # the boot patrons: one on bars 0 and 2 at x = DOOR_X, drawn
-    inject_mug(gb, 0, DOOR_X + 18)          # reaches bar 0's patron (x 16-31) two frames later
+def test_served_near_entry_x_scores_slides_out_and_is_removed(gb):
+    freeze(gb)                     # the boot patrons: one on bars 0 and 2 at x = ENTRY_X, drawn
+    inject_mug(gb, 0, ENTRY_X + 18)          # reaches bar 0's patron (x 16-31) two frames later
     gb.run(12)
-    ps = patrons(gb)
-    assert sorted(p["bar"] for p in ps) == [2], "bar 0's patron left"
+    assert [p["state"] for p in patrons(gb) if p["bar"] == 0] == [LEAVING], "served: sliding out past the left edge"
     assert score(gb) == SERVE
     assert list(gb.read("score_digits", 6)) == [0, 0, 0, 0, 5, 0]
-    assert mugs(gb) == [], "the held mug is freed when its patron leaves"
+    gb.run(30)
+    ps = patrons(gb)
+    assert sorted(p["bar"] for p in ps) == [2], "bar 0's patron left"
+    assert mugs(gb) == [], "the held mug is freed when its patron is gone"
     check_golden(gb, "served")
 
 
@@ -272,14 +274,17 @@ def test_thirst_second_drink_pushes_twice_as_far(gb):
     assert gb.read("patron_x", MAX_P)[p] == 120 - PX - 2 * PX
 
 
-def test_thirst_third_drink_takes_a_mid_bar_patron_out_the_door(gb):
+def test_thirst_third_drink_takes_a_mid_bar_patron_out(gb):
     clear_patrons(gb)
     freeze(gb)
     p = set_patron(gb, 1, 60)
     put(gb, "patron_drinks", p, 2)                         # two already caught: this is the 3rd (3 x 32 = 96 px)
     inject_mug(gb, 1, 64)
-    gb.run(3 + 64 + 4)
-    assert gb.read("patron_state", MAX_P)[p] == NONE, "pushed out the door"
+    gb.run(3 + 44 + 4)
+    assert gb.read("patron_state", MAX_P)[p] == LEAVING, "pushed back to ENTRY_X: served"
+    assert score(gb) == SERVE
+    gb.run(2 * ENTRY_X + 4)
+    assert gb.read("patron_state", MAX_P)[p] == NONE, "slid out past the left edge"
     assert score(gb) == SERVE
 
 
@@ -310,7 +315,7 @@ def test_pushed_patron_slides_through_the_patron_behind(gb):
 
 
 def clump(gb, bar, xs):
-    """Patrons at xs on `bar`, the first nearest the door."""
+    """Patrons at xs on `bar`, the first nearest the left end."""
     return [set_patron(gb, bar, x, variant=k % 3) for k, x in enumerate(xs)]
 
 
@@ -377,14 +382,14 @@ def test_a_clump_served_over_and_over_is_cleared(gb):
             x0 = xs[front]
             inject_mug(gb, 1, x0 + 4)
             gb.run(3)
-            if gb.read("patron_state", MAX_P)[front] in (PUSHED, NONE):
+            if gb.read("patron_state", MAX_P)[front] in (PUSHED, LEAVING, NONE):
                 catches += 1
-                for _ in range(PX + 2):                # every catch moves him back (or out through the door)
+                for _ in range(PX + 2):                # every catch moves him back (or out: served at ENTRY_X)
                     gb.run(1)
                     if gb.read("patron_state", MAX_P)[front] != PUSHED:
                         break
                 st2, x2 = gb.read("patron_state", MAX_P)[front], gb.read("patron_x", MAX_P)[front]
-                assert st2 == NONE or x2 <= x0 - PX, (f, x0, x2, st2)
+                assert st2 in (NONE, LEAVING) or x2 <= x0 - PX, (f, x0, x2, st2)
             continue
         gb.run(1)
     else:
@@ -477,8 +482,8 @@ def test_level_clear(gb):
     freeze(gb)
     gb.write("quota", 2)                 # the two start patrons are the whole level
     for b in START_BARS:
-        inject_mug(gb, b, DOOR_X + 8)
-    gb.run(8)
+        inject_mug(gb, b, ENTRY_X + 8)
+    gb.run(8 + 2 * ENTRY_X + 2)                    # (served at ENTRY_X, they slide out past the left edge)
     assert patrons(gb) == []
     assert score(gb) == 2 * SERVE + 1000          # M4: the screen-clear bonus
     assert gb.mem("level_clear") == 1
@@ -500,16 +505,16 @@ def test_spawning_stops_at_quota(gb):
     gb.run(30)
     assert gb.mem("spawned") == 3 and len(patrons(gb)) == 1
     p = patrons(gb)[0]
-    assert 0 <= p["x"] <= 8 and p["state"] == WALKING        # (M13c: stepping out from behind the door, x 0 -> 16)
+    assert 0 <= p["x"] <= 8 and p["state"] == WALKING        # (sliding in from the left edge, x 0 -> 16)
     spawn_now(gb)
     gb.run(300)
     assert gb.mem("spawned") == 3
 
 
-def test_spawn_waits_for_a_free_door(gb):
+def test_spawn_waits_for_a_free_left_end(gb):
     clear_patrons(gb)
     for b in range(4):
-        set_patron(gb, b, 24, state=DRINKING)    # 24 < 32: door crowded everywhere
+        set_patron(gb, b, 24, state=DRINKING)    # 24 < 32: the left end crowded everywhere
     gb.write("intro_timer", 0)
     spawn_now(gb)
     gb.write("spawned", 4)
@@ -520,14 +525,14 @@ def test_spawn_waits_for_a_free_door(gb):
 def test_four_patrons_stepping_together_fit_in_vblank(gb):
     go(gb)
     for b in (1, 3):                     # level 1 starts on two bars; add the other two so four move together
-        set_patron(gb, b, DOOR_X)
+        set_patron(gb, b, ENTRY_X)
     for p in patrons(gb):                # all four at x = 23 and about to take the pixel that crosses into column 3
-        put(gb, "patron_x", p["i"], DOOR_X + 7)
+        put(gb, "patron_x", p["i"], ENTRY_X + 7)
         put(gb, "patron_frac", p["i"], 255)
-        put(gb, "patron_draw", p["i"], DOOR_X + 7)
+        put(gb, "patron_draw", p["i"], ENTRY_X + 7)
     gb.write("hud_dirty", 3)             # HUD redraw in the same frame
     gb.run(8)
-    assert all(p["x"] == DOOR_X + 8 for p in patrons(gb))
+    assert all(p["x"] == ENTRY_X + 8 for p in patrons(gb))
     # The drain is budgeted: VBlank is 4560 cycles ~ 17.8 DIV ticks and the update starts
     # ~1000-1400 cycles in, so a drain longer than 12 ticks (3072 cycles) is a tear risk.
     ticks = gb.mem("drain_ticks_max")
@@ -535,13 +540,13 @@ def test_four_patrons_stepping_together_fit_in_vblank(gb):
     assert gb.mem("hud_dirty") == 0
     # every bar has its patron redrawn at x = 24 (column 3) within a few frames (the budget spreads them out)
     for p in patrons(gb):
-        col, ids = drawn_tiles(p["variant"], DOOR_X + 8, p["bar"])
+        col, ids = drawn_tiles(p["variant"], ENTRY_X + 8, p["bar"])
         assert col == 3 and map_ids(gb, p["bar"], 3) == ids, f"bar {p['bar']} patron drawn at columns 3-5"
 
 
 def test_patron_tiles_reach_vram(gb):
     for p in patrons(gb):
-        col, ids = drawn_tiles(p["variant"], DOOR_X, p["bar"])
+        col, ids = drawn_tiles(p["variant"], ENTRY_X, p["bar"])
         assert col == 2 and map_ids(gb, p["bar"], col) == ids, "3x2 patron tiles at columns 2-4, shift 0"
     # a known pixel position shows the matching pre-shifted tiles; the old columns are wall again
     go(gb)
@@ -554,7 +559,7 @@ def test_patron_tiles_reach_vram(gb):
     assert gb.read("patron_draw", MAX_P)[i] == 45
     assert map_ids(gb, p["bar"], col) == ids
     tm = gb.bg_tilemap()
-    assert all((t & 0xFF) < BASE for t in tm[bar_top_row(p["bar"])][0:5]), "nothing left behind at columns 0-4 (the door is bare wall tiles)"
+    assert all((t & 0xFF) < BASE for t in tm[bar_top_row(p["bar"])][0:5]), "nothing left behind at columns 0-4 (bare wall tiles)"
 
 
 def test_patrons_golden(gb):
@@ -565,15 +570,15 @@ def test_patrons_golden(gb):
 
 def test_level_1_starts_on_exactly_the_configured_bars(gb):
     assert gb.mem("level") == 1 and gb.mem("start_mask") == 0x5 and gb.mem("start_per_bar") == 1
-    assert sorted((p["bar"], p["x"]) for p in patrons(gb)) == [(0, DOOR_X), (2, DOOR_X)]
+    assert sorted((p["bar"], p["x"]) for p in patrons(gb)) == [(0, ENTRY_X), (2, ENTRY_X)]
     tm = gb.bg_tilemap()
     base = int(__import__("re").search(r"BAR_TILE_COUNT (\d+)", (__import__("conftest").ROOT / "build" / "art.h").read_text()).group(1))
     for b in range(4):                           # patron tiles (ids >= BAR_TILE_COUNT) drawn on bars 0 and 2 only
-        assert ((tm[bar_top_row(b)][DOOR_X >> 3] & 0xFF) >= base) == (b in START_BARS), b
+        assert ((tm[bar_top_row(b)][ENTRY_X >> 3] & 0xFF) >= base) == (b in START_BARS), b
 
 
 def test_level_1_patron_takes_at_least_15_s_to_reach_the_tap(gb):
-    """From the door to the tap with no service: the first life is lost no earlier than 15 s (900 frames)."""
+    """From ENTRY_X to the tap with no service: the first life is lost no earlier than 15 s (900 frames)."""
     gb.write("intro_timer", 0)                   # count from the first step, not from the intro (a conservative bound)
     for n in range(1, 1400):
         gb.run(1)

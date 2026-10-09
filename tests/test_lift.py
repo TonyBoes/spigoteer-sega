@@ -17,7 +17,7 @@ from test_patrons import (BASE, DRINKING, EMPTY, MAX_M, MAX_P, SHIFT0_OFS, WALKI
 
 pytestmark = pytest.mark.timeout(240)
 
-HOOK_LIFT, HOOK_BEHIND, HOOK_DROP = 1, 2, 3
+HOOK_LIFT, HOOK_DROP = 1, 3                  # (2, the M13c door's lift behind the BG, is gone)
 LIFT_DROP = 0x80
 OBJ_BASE = BASE + SHIFT0_OFS                 # shift-0 pose of variant v: OBJ_BASE + 6 v (tiles t, t + 2 as 8x16 entries)
 BLANK = OBJ_BASE + 4                         # its 3rd column: plain colour 0, what a lifted patron leaves on the BG
@@ -186,7 +186,7 @@ def test_lifted_patrons_look_exactly_like_bg_ones(pair, group):
 
 
 def test_lift_and_drop_change_no_pixel_and_put_the_bg_back(gb):
-    """One patron, alone: the picture never changes on any frame through a lift, a behind-BG lift and the drops;
+    """One patron, alone: the picture never changes on any frame through a lift and the drop;
     his BG copy goes while he is a sprite and comes back after. Before/after x4 screenshots land in out/m13a/."""
     freeze(gb)
     gb.run(4, render=True)
@@ -196,7 +196,7 @@ def test_lift_and_drop_change_no_pixel_and_put_the_bg_back(gb):
     b, x, v = gb.read("patron_bar", MAX_P)[p], gb.read("patron_x", MAX_P)[p], gb.read("patron_variant", MAX_P)[p]
     OUT.mkdir(parents=True, exist_ok=True)
     gb.screenshot(OUT / f"before_bg.{gb.model_name}.png", 4)
-    for op in (HOOK_LIFT, HOOK_BEHIND):
+    for op in (HOOK_LIFT,):
         hook(gb, p, op)
         for i in range(12):
             gb.run(1, render=True)
@@ -205,7 +205,7 @@ def test_lift_and_drop_change_no_pixel_and_put_the_bg_back(gb):
         spr = lifted_sprites(gb)
         assert sorted((s["x"] - 8, s["tile"]) for s in spr) == [(x, OBJ_BASE + 6 * v), (x + 8, OBJ_BASE + 6 * v + 2)]
         assert all(s["y"] - 16 == bar_top_y(b) for s in spr)
-        assert all((s["flags"] & 0x80) == (0x80 if op == HOOK_BEHIND else 0) for s in spr)
+        assert all(not s["flags"] & 0x80 for s in spr), "in front of the BG"
         if gb.model_name == "cgb":
             assert all(s["flags"] & 7 == LIFT_PAL[v] for s in spr)
         else:
@@ -273,8 +273,8 @@ def test_a_lifted_patron_who_leaves_takes_his_sprite_along(gb):
     hook(gb, p, HOOK_LIFT)
     gb.run(3)
     assert len(lifted_sprites(gb)) == 2
-    inject_mug(gb, b, gb.read("patron_x", MAX_P)[p] + 4)   # he catches it at the door: pushed out, served
-    for _ in range(20):
+    inject_mug(gb, b, gb.read("patron_x", MAX_P)[p] + 4)   # he catches it at ENTRY_X: served, slides out past the edge
+    for _ in range(60):
         gb.run(1)
         if not gb.read("patron_state", MAX_P)[p]:
             break

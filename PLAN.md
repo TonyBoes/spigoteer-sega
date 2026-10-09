@@ -18,8 +18,8 @@ and CGB, and the new behaviour has a test.
   the top bar to the bottom one. **Left/Right** walks along the bar.
 - **Hold A** at the tap to fill a mug. When it is full, it slides left.
 - When a full mug reaches a patron who is paying attention, the patron
-  catches it and is pushed back toward the left. A patron pushed past the
-  door leaves (served). A patron who stays drinks for a while, then sends the
+  catches it and is pushed back toward the left. A patron pushed back to the
+  left end leaves (served; no doors since 2026-10-09: he slides off the screen's left edge). A patron who stays drinks for a while, then sends the
   empty mug sliding right.
 - You lose a life when:
   - a full mug reaches the left end without anyone catching it,
@@ -47,7 +47,7 @@ Revised after the owner's first playtest (M4.5–M4.7):
 | 5+3b … 7+3b | bar `b` (0..3): 2 rows of back wall where patrons stand, 1 combined counter row (top + front) where mugs slide |
 | 17 | floor |
 
-- Columns 0–1 are the door, columns 2–17 the counter, and columns 18–19 the tap.
+- Columns 0–17 are the counter (0–1 were the door until 2026-10-09; the wall now runs to the left edge), and columns 18–19 the tap.
 - **Patrons are background tiles** (16x16 on a 3x2-tile footprint), pre-drawn
   shifted by 0..7 px (M8b; was 0/2/4/6) so they move in 1 px steps by swapping
   tilemap entries only. This keeps them out of the 10-sprites-per-line budget.
@@ -146,7 +146,7 @@ not by throw, because a patron near the tap throws later but arrives sooner.
 ## Themed venues (owner request; art in progress, wired in M9 after M8)
 
 Per level theme: a stage (20x4 tiles, <= 20 unique tiles loaded over the stage tile ids at level
-start, <= 2 CGB palettes), a bar palette (wall/counter/door; wall = colour 0 behind patrons), and
+start, <= 2 CGB palettes), a bar palette (wall/counter, no door: the wall's speck pattern runs to the left edge; wall = colour 0 behind patrons), and
 a drink replacing the mug (10 OBJ frames: full, empty, 4 fill, 4 drink poses, loaded over the mug
 tile ids; own full/empty OBJ palettes). Saloon/beer (original TAPS stage + curtains), stadium concession/soda, lumber lodge/coffee,
 bistro/wine, igloo/cocoa, robot factory/oil can, teahouse/green tea, space lounge/glowing
@@ -464,3 +464,29 @@ DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lif
   (guard 230 / 245: its replacement walkers at x 0 are now doorway patrons, composed at every pixel).
 - Known: on CGB (always) and DMG (x < 4) an emerging patron's sprite masks the serve-out puff of another patron on the same
   bar where his pixels are; an emerging patron overlapping a BG patron at columns 2-3 is behind him, then in front at x 16.
+
+## No doors (owner 2026-10-09) as built, and a taller saloon keg
+- Art: every venue's bar has no door; columns 0-1 of the wall rows continue the wall's 64 px speck pattern (tiles the wall
+  already used), the counter row was already full width. Bar + floor tiles per venue: 12 of 16 in every venue (saloon 14,
+  space 15, the rest 16 before). The igloo's M13c door redraw went with its door. gen_art checks the wall rows from column 0.
+  The door puff is gone (assets/art/puff.txt, OBJ 234-239, DMG copies 246-251, OAM 26 now unused, puff_bar / puff_timer).
+- Entering (src/patrons.c, src/lift.c): a new patron spawns at SPAWN_X 0 with patron_aux = 16 px of him beyond the left edge,
+  lifted at once as LIFT_EDGE (replaces LIFT_BEHIND: a sprite in front of the BG drawn patron_aux px left of patron_x, OAM X
+  wrapping below 8 so the screen edge clips him; no BG footprint at all, so columns 0-2 keep the venue's tiles; never
+  dropped while any of him is off screen). He walks EMERGE_SPEED 128/256 px a frame (32 px in 64 frames, the door's
+  emergence time) until ENTRY_X 16 (was DOOR_X), where he becomes LIFT_OBJ and drops to the BG by the M13b rules; the
+  level's speed and the level table are unchanged (entry-to-tap time as before, L1 >= 15 s). No catch while patron_aux > 0.
+  Spawn check, sprite budgets and SPAWN_RETRY as in M13c (the copy list no longer refuses an EDGE lift: he has no BG copy).
+- Leaving: pushed back to ENTRY_X he is served at once (score, tip, served count: PATRON_LEAVING), lifted as LIFT_EDGE (a BG
+  one waits in place until his BG copy is off screen, which the sprite covers exactly; an already lifted one keeps his
+  sprite), slides out at PUSH_SPEED with his mug in his hand past x 0 (patron_aux counts the px gone) and is removed 32
+  frames later. No sprite room: he goes at once (as before, without the puff). Level clear waits for him to be gone.
+- Forced drops pick an EDGE patron last; one partly off screen cannot drop: an entering one is taken back (spawned again
+  later), a leaving one goes. An entering one wholly on screen (x 0-15) drops like anyone (render.c no longer clips
+  columns 0-1). LCDC bit 0 / OAM priority are no longer used by the patrons.
+- Saloon keg: 20 px tall (rows 4-23 of the bar, was 8-23): rim moved up 4 px, 3 more stave rows; spout, pipe and nozzle
+  unchanged (nozzle over SPOUT_X, the fill glass). Previews out/doors/keg_{before,after}.png (CGB left, DMG right).
+- Cost: lift_leave runs the chooser only if he had overlap flags, lift_spawn never; draw_lifted_asm stops after lift_total
+  patrons. Perf (PyBoy, end LY / missed): level 8 script DMG 107 / 0, CGB 111 / 0 (M13c 91 / 101: a served patron is now a
+  sprite for 32 frames and the serve frame lifts him); level 9 overlap DMG 175 / 268, CGB 179 / 299; realistic peak DMG
+  187 / 59, CGB 193 / 99 (strict xfail stays); pile DMG 278 / 244, CGB 278 / 245 (same distribution as M13c, guard 290 / 260).

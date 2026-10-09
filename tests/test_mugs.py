@@ -136,7 +136,7 @@ def test_breaking_state_is_visible_then_frees(gb):
 
 
 def test_two_mugs_on_different_bars(gb):
-    no_patrons(gb)                    # (the first mug would reach a start patron at the door before the second is launched)
+    no_patrons(gb)                    # (the first mug would reach a start patron at ENTRY_X before the second is launched)
     fill_and_launch(gb)
     gb.press("down", 1); gb.press("down", 1)
     assert gb.mem("bar") == 2
@@ -199,7 +199,9 @@ def test_sprites_per_scanline_with_six_mugs(gb):
             counts[line] += 1
     assert max(counts) <= 10, max(counts)
     gb.press("left", 10)
-    assert len(gb.visible_sprites()) == 10
+    # (the start patron served by the first mug slides out past the left edge: his 2 entries; his mug was one of the 6)
+    leaving = list(gb.read("patron_state", 16)).count(4)
+    assert len(gb.visible_sprites()) == 10 + 2 * leaving
 
 
 def test_unused_oam_entries_hidden(gb):

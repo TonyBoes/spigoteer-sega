@@ -213,3 +213,40 @@ def test_venue_golden(gb, group):
     gb.run(20)
     assert [p for p in patrons(gb)], "patrons on screen"
     check_golden(gb, f"venue_{THEMES[group]}")
+
+
+# ---- the saloon keg, 4 px taller (owner 2026-10-09) --------------------------------------------------------------------
+def _saloon_bar_rows():
+    path = ROOT / "assets" / "approved" / "venues" / "saloon_bar.txt"
+    return [r for r in path.read_text().splitlines() if r and not r.startswith(";")]
+
+
+def test_the_saloon_keg_is_20_px_tall():
+    """Columns 18-19: the keg fills rows 4-23 of the 24-px bar (was 8-23), its top 4 px clear of the bar above's
+    falling glass (3 lines); bar + floor still within the 16-tile slot, the bar palette only."""
+    rows = _saloon_bar_rows()
+    keg = [y for y in range(24) if set(rows[y][144:160]) != {"."}]
+    assert keg == list(range(4, 24)), keg
+    v = venue("saloon")
+    assert v["bar_n"] <= VENUES["bar_slot"]
+    assert all(v["bar_attr"][r * 20 + c] == BGPAL_BAR for r in range(3) for c in (18, 19))
+
+
+def test_the_saloon_spout_still_lines_up_with_the_fill(gb):
+    """The spout is unchanged: the pipe (rows 10-12) runs from the keg into column 17 and the nozzle (rows 13-15) hangs
+    inside column 17, over the glass the bartender fills at SPOUT_X; the keg tiles are on screen on every bar."""
+    rows = _saloon_bar_rows()
+    nozzle = {x for y in (13, 14, 15) for x in range(128, 144) if rows[y][x] != "."}
+    assert nozzle and min(nozzle) >= GAME["SPOUT_X"] and max(nozzle) < GAME["SPOUT_X"] + 8, sorted(nozzle)
+    assert all(rows[y][136] != "." and rows[y][144] != "." for y in (10, 11, 12)), "the pipe joins the keg"
+    v = venue("saloon")
+    for b in range(4):
+        for r in range(2):
+            assert tilemap_row(gb, bar_top_row(b) + r, 17, 3) == v["bar_map"][r * 20 + 17:r * 20 + 20], (b, r)
+    gb.write("intro_timer", 255)
+    gb.hold("a")
+    gb.run(6)
+    fill = [s for s in gb.visible_sprites() if OBJ_MUG_FILL <= s["tile"] < OBJ_MUG_FILL + 8]
+    gb.release("a")
+    assert len(fill) == 1 and fill[0]["x"] - 8 == GAME["SPOUT_X"] and gb.mem("bartender_x") == GAME["TAP_X"]
+    assert min(nozzle) >= fill[0]["x"] - 8 and max(nozzle) < fill[0]["x"], "the nozzle is over the glass"

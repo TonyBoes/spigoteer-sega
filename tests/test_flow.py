@@ -10,12 +10,12 @@ TITLE, PLAYING, LIFE_LOST, LEVEL_CLEAR, GAME_OVER, PAUSED, BONUS = range(7)
 GS_LOOP, GS_INITIALS, GS_SCORES = 8, 9, 10      # M10b
 MAX_P, MAX_M = 16, 20
 BT_FAIL = 6
-DOOR_X = GAME["DOOR_X"]
+ENTRY_X = GAME["ENTRY_X"]
 
 # (group, start bar mask, start per bar, quota, spawn interval, step frames, pushback, serve score, empty gap)
 TABLE = [   # playtest 4: L6 = old L3, L9 = old L5, linear in between, plateau after
     # M13b: from L3 about 1 in 4 patrons hurries (1.5x); the step column of L3-L9 is x 12/11 (src/level.c) so the
-    # average door-to-tap time stays where it was (old steps 59 58 57 56 53 51 48)
+    # average entry-to-tap time stays where it was (old steps 59 58 57 56 53 51 48)
     (0, 0x5, 1, 8, 300, 64, 4, 50, 120), (1, 0x7, 1, 10, 275, 60, 4, 75, 110), (2, 0xF, 1, 10, 269, 64, 4, 75, 108),
     (3, 0xF, 1, 11, 263, 63, 4, 100, 105), (4, 0xF, 1, 11, 256, 62, 4, 100, 102), (5, 0xF, 1, 12, 250, 61, 4, 125, 100),
     (6, 0xF, 1, 13, 237, 58, 4, 125, 93), (7, 0xF, 1, 15, 223, 56, 3, 150, 87), (8, 0xF, 1, 16, 210, 52, 3, 150, 80),
@@ -206,7 +206,7 @@ def test_start_begins_a_game(boot):
     boot.press("start", 2)
     run_until(boot, lambda: state(boot) == PLAYING, 30)
     assert boot.mem("lives") == 3 and score(boot) == 0 and boot.mem("level") == 1
-    assert patrons(boot) == [(0, DOOR_X), (2, DOOR_X)]          # level 1 starts on bars 0 and 2
+    assert patrons(boot) == [(0, ENTRY_X), (2, ENTRY_X)]          # level 1 starts on bars 0 and 2
     assert boot.mem("bar") == 0 and boot.mem("bartender_x") == GAME["TAP_X"]
     boot.run(20)
     assert tilemap_row(boot, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_1")]   # L01
@@ -219,7 +219,7 @@ def test_a_on_arcade_starts_level_1(boot):
     boot.press("a", 2)
     run_until(boot, lambda: state(boot) == PLAYING, 30)
     assert boot.mem("level") == 1 and boot.mem("cur_group") == 0 and boot.mem("lives") == 3
-    assert patrons(boot) == [(0, DOOR_X), (2, DOOR_X)]
+    assert patrons(boot) == [(0, ENTRY_X), (2, ENTRY_X)]
     boot.run(5)
     assert len(boot.visible_sprites()) == 4, "only the bartender: the title's sprites are gone"
 
@@ -362,11 +362,11 @@ def test_lost_life_freezes_then_restarts_the_bars(gb):
     run_until(gb, lambda: state(gb) == PLAYING, 40)
     assert gb.mem("lives") == 2
     assert mugs(gb) == [] and gb.mem("mugs_live") == 0
-    assert patrons(gb) == [(0, DOOR_X), (2, DOOR_X)] and gb.mem("spawned") == 2
+    assert patrons(gb) == [(0, ENTRY_X), (2, ENTRY_X)] and gb.mem("spawned") == 2
     assert gb.mem("bar") == 0 and gb.mem("bartender_x") == GAME["TAP_X"] and gb.mem("bartender_frame") == 0
     assert gb.mem("intro_timer") >= 85
     gb.run(30)
-    assert patrons(gb) == [(0, DOOR_X), (2, DOOR_X)], "intro delay holds"
+    assert patrons(gb) == [(0, ENTRY_X), (2, ENTRY_X)], "intro delay holds"
     assert len([s for s in gb.visible_sprites()]) == 4, "only the bartender is on screen"
     # the tilemap shows exactly the re-placed patrons: no ghost of the one at the tap
     assert tilemap_row(gb, bar_top_row(0), 14, 4)[:3] == tilemap_row(gb, bar_top_row(2), 14, 4)[:3]
@@ -385,7 +385,7 @@ def test_lost_life_glass_animation_completes(gb):
 
 def test_served_count_persists_across_a_lost_life(gb):
     gb.write("intro_timer", 255)
-    inject_mug(gb, 0, DOOR_X + 8)                        # next to the patron at the door: served
+    inject_mug(gb, 0, ENTRY_X + 8)                        # next to the patron at ENTRY_X: served
     gb.run(6)
     assert gb.mem("served") == 1 and score(gb) == 50
     lose_a_life(gb)
@@ -404,8 +404,8 @@ def clear_level(gb):
     gb.write("intro_timer", 255)
     gb.write("quota", 2)                        # level 1 starts with two patrons: bars 0 and 2
     for b in (0, 2):
-        inject_mug(gb, b, DOOR_X + 8)
-    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 30)
+        inject_mug(gb, b, ENTRY_X + 8)
+    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 60)     # (the served patrons slide out past the left edge first)
 
 
 def test_level_clear_scores_shows_banner_and_loads_level_2(gb):
@@ -420,7 +420,7 @@ def test_level_clear_scores_shows_banner_and_loads_level_2(gb):
     assert gb.mem("level") == 2 and gb.mem("cur_group") == 1 and gb.mem("overlay_on") == 0
     assert gb.mem("lives") == 3 and score(gb) == 1100
     assert (gb.mem("quota"), gb.mem("step_frames"), gb.mem("serve_score")) == (10, 60, 75)
-    assert patrons(gb) == [(0, DOOR_X), (1, DOOR_X), (2, DOOR_X)] and gb.mem("bar") == 0 and mugs(gb) == []
+    assert patrons(gb) == [(0, ENTRY_X), (1, ENTRY_X), (2, ENTRY_X)] and gb.mem("bar") == 0 and mugs(gb) == []
     gb.run(15)
     assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_2")]   # L02
     base = int(re.search(r"PATRON_FIRST_TILE (\d+)", ART_H).group(1))
@@ -441,7 +441,7 @@ def test_level_clear_banner_is_the_window(gb):
 # ---- game over -----------------------------------------------------------------------
 def test_three_lost_lives_end_the_game_and_start_goes_on_to_the_title(gb):
     gb.write("intro_timer", 255)
-    inject_mug(gb, 0, DOOR_X + 8)
+    inject_mug(gb, 0, ENTRY_X + 8)
     gb.run(6)
     assert score(gb) == 50
     for n in range(3):

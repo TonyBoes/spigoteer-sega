@@ -56,7 +56,7 @@ def started(gb):
 
 
 def serve(gb, bar, catch_x, x=2):
-    """A pushed-back patron one step from the door: it is served in a few frames."""
+    """A pushed-back patron one step from ENTRY_X: it is served in a few frames."""
     i = set_patron(gb, bar, x, state=PUSHED, aux=40)
     put(gb, "patron_catchx", i, catch_x)
     s0 = gb.mem("served")
@@ -91,7 +91,7 @@ def test_a_catch_remembers_where_the_mug_was_caught(gb):
     assert gb.read("patron_state", MAX_P)[i] == PUSHED
     x = gb.read("patron_catchx", MAX_P)[i]
     assert 20 <= x < 36
-    gb.run(60)                                    # pushed out through the door: served
+    gb.run(60)                                    # pushed back to ENTRY_X: served
     assert gb.mem("tip_x") == x and gb.mem("tip_bar") == 1
 
 
@@ -401,7 +401,13 @@ def test_show_backs_golden(gb):
     """Mid-show: three watchers in their back views (A, B, C) on bars 0, 1 and 3, a front-facing walker on bar 2."""
     gb.write("intro_timer", 255)
     gb.write("quota", 200)
-    lineup(gb, {0: [(30, 0, 1)], 1: [(75, 1, 1)], 2: [(45, 1, 0)], 3: [(52, 2, 1)]})   # (the start patrons are moved)
+    slots = lineup(gb, {0: [(30, 0, 1)], 1: [(75, 1, 1)], 2: [(45, 1, 0)], 3: [(52, 2, 1)]})   # (the start patrons are moved)
+    # (PyBoy's frame boundary falls inside the game's update: a poke can land after the frame's list check, and a new
+    # patron composed that frame from stale bar lists misses his CGB attributes, which a turn (tiles only) never rewrites.
+    # One frame later, with the lists rebuilt, everyone placed is drawn afresh from column 0: tiles and attributes.)
+    gb.run(1)
+    for i, _, _ in slots.values():
+        put(gb, "patron_draw", i, 0)
     w16(gb, "show_timer", 200)
     gb.write("dancer_frame", 0)
     gb.write("dance_tick", 0)

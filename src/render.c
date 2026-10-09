@@ -126,7 +126,7 @@ static uint8_t dirty_x0[NUM_BARS], dirty_x1[NUM_BARS];
 static uint8_t attr_x0[NUM_BARS], attr_x1[NUM_BARS];   // CGB: the part of the dirty span whose attributes changed
 uint8_t vram_pending;             // dirty spans left to queue (keeps idle frames cheap)
 
-// The bar's two wall rows without patrons (door, wall, spout, keg), tile ids and CGB attributes by row and column:
+// The bar's two wall rows without patrons (wall, spout, keg), tile ids and CGB attributes by row and column:
 // what compose_dirty() restores under (and around) the patrons. Filled from the level's venue (load_venue, M9), the
 // same picture the level screen starts with. Row 1 follows row 0 directly (restore_base relies on it).
 uint8_t base_tile[2][20], base_attr[2][20];
@@ -184,9 +184,9 @@ static void stamp3(uint8_t c) {                          // the whole 3x2 footpr
     r[0] = t; r[1] = t; r[2] = t;
 }
 
-static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if inside the span (never on the door, M13c)
+static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if inside the span
     uint8_t *r;
-    if (c < cz_x0 || c >= cz_x1 || c < DOOR_COLS) return;
+    if (c < cz_x0 || c >= cz_x1) return;
     r = cz_tile + c;
     r[0] = t; r[32] = t + 1;
     if (!cz_attr) return;
@@ -222,7 +222,7 @@ static void stamp(uint8_t s) {
     if (d & DRAW_BACK) { stamp_back(s, c); return; }
     stamp_look(s, d);
     if (!(d & 7) && (patron_ovl[s] & (OVL_TWO | OVL_TOP))) { put_col(c, st_t); put_col(c + 1, st_t + 2); return; }   // (M13b)
-    if (c >= cz_x0 && c >= DOOR_COLS && c + 3 <= cz_x1) { stamp3(c); return; }   // (M13c: in the doorway, put_col clips)
+    if (c >= cz_x0 && c + 3 <= cz_x1) { stamp3(c); return; }
     put_col(c, st_t); put_col(c + 1, st_t + 2); put_col(c + 2, st_t + 4);
 }
 
@@ -264,10 +264,11 @@ static void stamp_bar(uint8_t b) {
     uint8_t n, two;
     two = ovl_bars & bar_bit[b];
     if (lift_n[b] | two) {
-        // Lifted ones first: plain wall under their sprites. M13b: then the BG patrons, the OVL_TOP ones (ovl_bars) last.
+        // Lifted ones first: plain wall under their sprites (not under one at the left end, LIFT_EDGE: he has no BG
+        // footprint, the venue's wall shows behind him). M13b: then the BG patrons, the OVL_TOP ones (ovl_bars) last.
         if (lift_n[b])
             for (n = bar_n[b]; n; n--, q++)
-                if (patron_state[*q] != PATRON_NONE && LIFT_OFF_BG(patron_lift[*q])) stamp_blank(*q);
+                if (patron_state[*q] != PATRON_NONE && patron_lift[*q] == LIFT_OBJ) stamp_blank(*q);
         stamp_pass(b, 0);
         if (two) stamp_pass(b, OVL_TOP);
         return;
@@ -594,8 +595,7 @@ static void queue_quick(void) {
         if (LIFT_OFF_BG(patron_lift[p])) continue;                  // lifted: his columns stay plain wall
         // (M13b: his footprint meets another BG patron's: OVL_SHARED, or he covers one and stands on shift 0, where a
         // quick redraw would put his empty 3rd column over the other)
-        // (M13c: in the doorway, d < DOOR_X, his first columns lie on the door: composed, which clips them)
-        if (d < DOOR_X || (d & DRAW_BACK) || (patron_ovl[p] & OVL_SHARED) || (!(d & 7) && (patron_ovl[p] & OVL_TOP))) {
+        if ((d & DRAW_BACK) || (patron_ovl[p] & OVL_SHARED) || (!(d & 7) && (patron_ovl[p] & OVL_TOP))) {
             d = (d & ~DRAW_BACK) >> 3; mark_dirty(patron_bar[p] & (NUM_BARS - 1), d, d + 3); continue;
         }
         qv_cost += QUICK_COST;
@@ -691,21 +691,6 @@ static void pal5_write(void) {
     pal5_req = 0;
 }
 
-// OAM 26: the door puff on the bar where a patron just came in or left (3 frames of PUFF_TOTAL / 3 game frames).
-uint8_t puff_bar, puff_timer;
-static uint8_t puff_shown;
-void door_puff(uint8_t b) { puff_bar = b; puff_timer = PUFF_TOTAL; }
-static void draw_puff(void) {
-    OAM_item_t *o = shadow_OAM + OAM_PUFF;
-    uint8_t t = puff_timer;
-    if (!t) { if (puff_shown) { o->y = 0; puff_shown = 0; } return; }
-    puff_shown = 1;
-    o->y = bar_oam_y[puff_bar];
-    o->x = PUFF_X + 8;
-    o->tile = spr_puff_t + (t > 8 ? 0 : t > 4 ? 2 : 4);
-    o->prop = spr_puff_p;
-}
-
 // What the dancer entries must show: 0x80 | dance frame << 3 | bit k: dancer k is on stage. They pop in one
 // after another at the start of the show and leave in the same order at the end.
 static uint8_t dancer_look(void) {
@@ -736,7 +721,6 @@ static void draw_dancers(uint8_t sig) {
 void draw_stage_fx(void) {
     uint8_t k, sig;
     draw_coin();
-    draw_puff();
     pal5_check();
     if (!show_timer) {
         if (dancers_vis) {
@@ -765,7 +749,6 @@ void hide_all_sprites(void) {
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
     oam_used = OAM_FILL + 1;
     lift_oam_n = 0;
-    puff_timer = 0; puff_shown = 0;
     dancers_vis = 0;
     oam_touched();
 }

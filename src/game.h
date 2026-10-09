@@ -26,14 +26,16 @@
 #define WALK_FRAC     128
 #define WALK_STEP_FRAMES 10 // frames per step of the walk cycle walk1, idle, walk2, idle
 #define NUM_BARS        4
-// The door: columns 0-1 (16 px) of every bar's two wall rows. Patrons are served out (pushed back) when they would go
-// left of DOOR_X. M13c: a new patron steps out from behind the door: he spawns at SPAWN_X lifted behind the BG
-// (LIFT_BEHIND: the door's colours 1-3 hide him, and no venue's door has colour 0), walks EMERGE_SPEED / 256 px a frame
-// until DOOR_X, then at the level's speed; the door's tiles never change (render.c never stamps a patron on columns 0-1).
-#define DOOR_X         16
-#define DOOR_COLS       2
+// The left end (no door, owner 2026-10-09): the wall and the counter run to the screen's left edge. Left of ENTRY_X
+// (columns 0-1) a patron is only ever a sprite (LIFT_EDGE, lift.c): a new one slides in from beyond x 0 (he spawns at
+// SPAWN_X with patron_aux = PATRON_W px of him still off the screen, drawn patron_aux px left of patron_x; OAM X < 8
+// clips him at the edge) and walks EMERGE_SPEED / 256 px a frame, 32 px in 64 frames, until ENTRY_X, then at the
+// level's speed (the walk from ENTRY_X to the tap takes what it always did); one pushed back to ENTRY_X is served
+// (PATRON_LEAVING) and slides out past the edge (PUSH_SPEED, patron_aux counting the px gone), then is removed.
+// Columns 0-1 never show a BG patron in play (unless a forced drop puts an entering one fully on screen there).
+#define ENTRY_X        16
 #define SPAWN_X         0
-#define EMERGE_SPEED   64
+#define EMERGE_SPEED  128
 
 // patrons: 16x16 px, drawn as a 3x2-tile BG footprint on the two back-wall rows of a bar.
 // Position is in pixels (patron_x, left edge of the 16 px figure) plus a fraction; the picture
@@ -55,7 +57,7 @@
 #define WINDUP_T0        96   // a multiple of 4 above DRINK_FRAMES: the mug poses 24..31 in mugs.c
 #define NO_SLOT         255
 #define INTRO_FRAMES     90   // nothing moves or spawns for this long after a level starts
-#define SPAWN_RETRY      20   // frames before trying again when the door is crowded
+#define SPAWN_RETRY      20   // frames before trying again when the bar's left end is crowded
 #define PATRON_TILE_BASE PATRON_FIRST_TILE   // M13a: BAR_TILE_COUNT rounded up to even (the shift-0 poses double as 8x16 OBJ tiles)
 #define PATRON_OBJ_BASE  (PATRON_TILE_BASE + PATRON_SHIFT0_OFS)   // shift-0 pose of variant v: + v * 6, column-major (OBJ tiles t, t + 2)
 #define PATRON_BLANK     (PATRON_OBJ_BASE + 4)   // its 3rd column: plain colour 0 (the wall), what a lifted patron leaves on the BG
@@ -71,7 +73,7 @@
 #if PATRON_TILE_BASE + PATRON_GROUP_TILES > 256
 #error "BG tile budget: scene + patron tiles exceed 256"
 #endif
-enum { PATRON_NONE, PATRON_WALKING, PATRON_PUSHED, PATRON_DRINKING };
+enum { PATRON_NONE, PATRON_WALKING, PATRON_PUSHED, PATRON_DRINKING, PATRON_LEAVING };   // LEAVING: served, sliding out
 enum { DRINK_MIN, DRINK_WAIT, DRINK_WINDUP };   // patron_aux while PATRON_DRINKING
 
 // mugs
@@ -86,7 +88,7 @@ enum { DRINK_MIN, DRINK_WAIT, DRINK_WINDUP };   // patron_aux while PATRON_DRINK
 #define CATCH_POSE_FRAMES  8   // the bartender shows BT_CATCH this long after catching an empty / taking a glass
 #define FILL_FRAMES       16
 #define SLIDE_FRAMES       8
-#define GLASS_X            0   // screen x of the glass breaking at the door end
+#define GLASS_X            0   // screen x of the glass breaking at the left end
 #define GLASS_X_RIGHT    144   // ... and at the tap end
 #define GLASS_FRAME_TIME   8   // frames per glass frame
 enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caught, in a patron's hand
@@ -115,23 +117,14 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #endif
 // OBJ tile ids stay below 128: ids 128+ share VRAM (0x8800 block) with the patron BG tiles
 #define OAM_FILL        4     // OAM entry of the filling mug; pooled mugs start at 5
-// Door puff: one 8x16 entry at the doorway of the bar where a patron just came in or was served out. Its 3 frames
-// of 8x16 live at OBJ ids after the patron BG tile range (OBJ ids 228+ overlap no BG tile id).
-#define PUFF_TOTAL     12     // frames the puff lasts (3 frames of 4)
-#define PUFF_X          4     // screen x of the puff (the door is 16 px wide)
-#define OBJ_PUFF       ((PATRON_TILE_BASE + PATRON_GROUP_TILES + 1) & ~1)
-#if OBJ_PUFF + PUFF_FRAMES * 2 > 256
-#error "OBJ tile budget: the puff tiles do not fit above the patron BG tiles"
-#endif
 // OAM budget (40): bartender 0-3, fill 4, mugs 5..25 (20 mugs + 1 spare for a breaking glass's 2nd entry),
-// door puff 26, tip coin 27, three dancers x 4 entries 28..39. M13a: lifted patrons (2 entries each) count down from 25,
+// 26 unused (was the door puff), tip coin 27, three dancers x 4 entries 28..39. M13a: lifted patrons (2 entries each) count down from 25,
 // and the mugs then end at OAM_MUG_END - 2 * lift_total.
 #define OAM_MUG_END    26
-#define OAM_PUFF       26
 #define OAM_COIN       27
 #define OAM_DANCERS    28
 
-// CGB OBJ palette slots (M13a): the breaking glass and the door puff use the venue's empty-drink palette (2); the tip
+// CGB OBJ palette slots (M13a): the breaking glass uses the venue's empty-drink palette (2); the tip
 // coin shares slot 5 with the show (never on screen together: render.c rewrites it in VBlank when one appears);
 // lifted patrons use 3, 6, 7 (variants A, B, C; colours 1-3 of their BG palettes); 4 is spare.
 #define OBJPAL_BARTENDER 0
@@ -148,10 +141,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // from copies of its tiles with the two bit planes swapped (colours 1 and 2 trade places), made at level load
 #define OBP1_PLAY        0xE4
 #define OBP1_MENU        0xC4   // the title / bonus OBP1 (mugs, sparkles)
-#define OBJ_DMG_COPY     240    // sliding full mug 240, sliding empty 242, held empty 244, door puff 246-251
-#if OBJ_PUFF + PUFF_FRAMES * 2 > OBJ_DMG_COPY
-#error "OBJ tiles: the puff runs into the DMG copies"
-#endif
+#define OBJ_DMG_COPY     240    // sliding full mug 240, sliding empty 242, held empty 244
 // CGB BG palette slots (2..7 are free for patrons)
 #define BGPAL_BAR        0
 #define BGPAL_HUD        1
@@ -182,7 +172,6 @@ extern uint8_t  quota, spawned, served, serve_score, patron_speed, pushback_px, 
 extern uint8_t  start_mask, start_per_bar, empty_gap;
 extern uint16_t next_arrival;
 extern uint16_t spawn_interval, spawn_timer;
-extern uint8_t  puff_bar, puff_timer;   // door puff: its bar and frames left (0: none)
 extern uint8_t  tip_chance, tip_bar, tip_x, dancer_frame, dance_tick, dancers_vis, dancer_sig;
 extern uint16_t tip_timer, show_timer;
 
@@ -193,11 +182,11 @@ extern uint8_t  patron_catchx[MAX_PATRONS], patron_drinks[MAX_PATRONS], patron_d
 extern uint8_t  mug_state[MAX_MUGS], mug_bar[MAX_MUGS], mug_x[MAX_MUGS], mug_timer[MAX_MUGS];
 extern uint8_t  mug_patron[MAX_MUGS], mugs_live;
 extern uint8_t  oam_used, mug_events;
-// M13a lifted patrons (lift.c): patron_lift[p] LIFT_BG / LIFT_OBJ / LIFT_BEHIND, | LIFT_DROP while the BG copy is being put
+// M13a lifted patrons (lift.c): patron_lift[p] LIFT_BG / LIFT_OBJ / LIFT_EDGE, | LIFT_DROP while the BG copy is being put
 // back (the sprite stays until it is on screen); lift_n[b] patrons of bar b drawn as sprites, lift_total all of them.
 #define LIFT_BG          0
 #define LIFT_OBJ         1
-#define LIFT_BEHIND      2    // OBJ behind BG colours 1-3 (M13c door)
+#define LIFT_EDGE        2    // OBJ at the left end (entering / leaving): no BG footprint, drawn patron_aux px left, never dropped off screen
 #define LIFT_DROP        0x80
 #define LIFT_OFF_BG(v)   ((uint8_t)((v) - 1) < 2)   // lifted, not dropping: the BG shows plain wall in his footprint
 #define LIFT_MAX         4
@@ -218,7 +207,7 @@ extern uint8_t  patron_ovl[MAX_PATRONS], ovl_bars, ovl_dirty;
 // M13b speeds: patron_hurry[p] = 1: a hurried walker (hurry_speed, about 1.5x patron_speed; 0 = no hurried patrons this level)
 extern uint8_t  patron_hurry[MAX_PATRONS], hurry_speed;
 extern uint8_t  lift_hook_op, lift_hook_p, lift_hook_res;
-extern uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p, spr_glass_p, spr_puff_t, spr_puff_p;
+extern uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p, spr_glass_p;
 
 extern const uint8_t bar_bit[NUM_BARS];
 extern const uint8_t bar_oam_y[NUM_BARS];     // OAM y (+16) of the bar's top pixel row
@@ -278,7 +267,6 @@ extern uint8_t base_tile[2][20], base_attr[2][20];   // the bar's two wall rows 
 void draw_bartender(void);
 void draw_stage_fx(void);
 void hide_all_sprites(void);
-void door_puff(uint8_t b);                    // a patron came in / left on bar b: start the dust puff at its door
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
 uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
 uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c-1..c+3 of bar b first thing this frame (0: not now)
@@ -287,7 +275,8 @@ extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds: 1 the 
 void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palettes / DMG copies and looks, no one lifted
 void lift_frame(void) BANKED;                 // after the rules, before queue_vram: drops, forced drops, the test hook
 void draw_lifted(void) BANKED;                // OAM 25 down, after draw_mugs
-uint8_t lift_spawn(uint8_t p) BANKED;         // M13c: lift a new patron behind the door now (1), or not (0: no room)
+uint8_t lift_spawn(uint8_t p) BANKED;         // lift a new patron at the left edge now (1), or not (0: no room)
+uint8_t lift_leave(uint8_t p) BANKED;         // a served patron slides out as a sprite: 1 done, 2 done (wait for his BG copy to go), 0 no room
 // ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
 extern uint8_t venue_id;
 void load_venue(uint8_t t) BANKED;                      // tiles, palettes, base_tile/base_attr of theme t

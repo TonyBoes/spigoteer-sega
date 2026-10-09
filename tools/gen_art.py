@@ -163,11 +163,12 @@ def venues(outdir, prev):
         assert len(sattr) == 4 and all(len(r) == 20 and set(r) <= {0, 1} for r in sattr), f"{t}_attr.txt: not 20x4 of 0/1"
         assert len(battr) == 3 and all(len(r) == 20 and set(r) <= {0, 1} for r in battr), f"{t}_bar_attr.txt: not 20x3 of 0/1"
         # the engine's layout: patrons stand on the wall rows (flat colour 0 + specks of 1, bar palette), the counter
-        # row is a full row, the spout is the lower wall row's column 17 (SPOUT_X 136), the keg columns 18-19
+        # row is a full row, the spout is the lower wall row's column 17 (SPOUT_X 136), the keg columns 18-19. No door
+        # (owner 2026-10-09): the wall runs to the left edge, columns 0-16
         for y in range(16):
-            assert set(bar[y][16:136]) <= {".", "-"}, f"{t}_bar.txt: wall row pixel row {y} has more than colour 0 + specks"
+            assert set(bar[y][0:136]) <= {".", "-"}, f"{t}_bar.txt: wall row pixel row {y} has more than colour 0 + specks"
         for r in range(2):
-            assert all(battr[r][c] == 0 for c in range(2, 17)), f"{t}_bar_attr.txt: wall columns 2-16 must use the bar palette"
+            assert all(battr[r][c] == 0 for c in range(0, 17)), f"{t}_bar_attr.txt: wall columns 0-16 must use the bar palette"
         pal = json.loads((vd / f"{t}_pal.json").read_text())
         dpal = json.loads((vd / f"{t}_drink_pal.json").read_text())
         spal = json.loads((vd / f"{t}_show_pal.json").read_text())
@@ -400,7 +401,7 @@ def title_art(outdir, prev, base, ttiles, bg):
     strip_prev.append(hi_px)
     n_total = len(pool_px)
     patron_base = first + n_total            # 4 tiles of the scene's patron (copied from the cowboys group at run time)
-    if patron_base + 4 > base + PATRON_RANGE:     # the end of the patron range (the puff's OBJ tiles follow)
+    if patron_base + 4 > base + PATRON_RANGE:     # the end of the patron range
         sys.exit(f"gen_art: title tiles end at {patron_base + 4}, past {base + PATRON_RANGE} (fill {n_fill}, all {n_total})")
 
     # effect sprites: 8x8 frames in the top half of 8x16 entries
@@ -531,7 +532,7 @@ def main():
     # ---- BG tileset: fixed venue slots (stage, bar) first, then the shared tiles of bar.txt ----
     h += [f"#define TILE_STAGE_BASE 0        // {STAGE_SLOT} ids: the level's venue stage tiles (load_venue)",
           f"#define STAGE_TILE_SLOT {STAGE_SLOT}",
-          f"#define TILE_BAR_BASE {STAGE_SLOT}       // {BAR_SLOT} ids: the venue's bar, door, keg, spout and floor tiles",
+          f"#define TILE_BAR_BASE {STAGE_SLOT}       // {BAR_SLOT} ids: the venue's bar, keg, spout and floor tiles",
           f"#define BAR_TILE_SLOT {BAR_SLOT}",
           f"#define TILE_GENERIC_BASE {STAGE_SLOT + BAR_SLOT}   // the shared tiles below (bar_tiles[])", ""]
     gbase = STAGE_SLOT + BAR_SLOT
@@ -617,17 +618,6 @@ def main():
                 "extern const uint8_t coin_tiles[];", ""]
     c.append(fmt("coin_tiles", ct))
     png(coin_frames, prev / "coin_x8.png", 8, transparent=True)
-
-    # ---- door puff: 3 frames of 8x16 (one OAM entry), OBJ ids after the patron BG range (OBJ ids 228+ share no BG tile) ----
-    puff = [r for _, r in blocks(ROOT / "assets/art/puff.txt")]
-    assert len(puff) == 3 and all(len(f) == 16 and len(f[0]) == 8 for f in puff)
-    pt = []
-    for f in puff:
-        pt += tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)
-    h[-2:-2] = ["#define PUFF_FRAMES 3", f"#define PUFF_TILE_COUNT {len(pt) // 16}",
-                "extern const uint8_t puff_tiles[];", ""]
-    c.append(fmt("puff_tiles", pt))
-    png(puff, prev / "puff_x8.png", 8, transparent=True)
 
     # ---- show performers (M9): 4 frames 16x24 per venue (<t>_show.txt), laid out like the bartender ----
     h[-2:-2] = ["#define DANCER_FRAMES 4", "#define DANCER_TILES_PER_FRAME 8", "#define DANCER_TILE_COUNT 32", ""]
