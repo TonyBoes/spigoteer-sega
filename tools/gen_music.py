@@ -67,18 +67,37 @@ def note_no(name):
 SLOT_BYTES = 192          # one pattern: 64 rows x 3 bytes
 
 
-def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True):
+def merge_ties(text):
+    """'~:n' holds the previous note n more rows: fold it into that note's length."""
+    toks = []
+    for tok in text.split():
+        if tok.startswith("R:"):
+            tok = "r" + tok[1:]            # the specs write rests as R
+        if tok.startswith("~:"):
+            m = re.fullmatch(r"([^:]+):(\d+)(.*)", toks[-1])
+            assert m and m.group(1) != "r", f"tie after {toks[-1]}"
+            toks[-1] = f"{m.group(1)}:{int(m.group(2)) + int(tok[2:])}{m.group(3)}"
+        else:
+            toks.append(tok)
+    return " ".join(toks)
+
+
+def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all=None):
     """Expand a token string into a list of (note, inst, effect) rows.
 
     legacy: the jingles' original staccato rule (kept so they sound as before).  Otherwise a note is
     cut with the Exx effect on the row where the cut falls (hUGEDriver counts ticks from the start
     of a row, so a cut can only act inside its own row): a staccato note ('!') is cut after 3/4 of
     its length, and a note that is followed by a rest or by the same pitch again is cut one frame
-    before its end (the 1-frame gap that makes repeated notes articulate and rests silent)."""
+    before its end (the 1-frame gap that makes repeated notes articulate and rests silent).
+    stac_all=(num, den): on channel 2 every note is cut after num/den of its length instead.  A '~:n' token
+    ties (see merge_ties)."""
+    text = merge_ties(text)
     out, notes = [], []          # notes: (first row, rows, pitch name or None for a rest, staccato)
     for tok in text.split():
         stac = tok.endswith("!")
         tok = tok.rstrip("!")
+        stac = stac or bool(stac_all and channel == 2 and not tok.startswith("r:"))
         inst = default_inst
         if "/" in tok:
             tok, i = tok.split("/")
@@ -111,7 +130,7 @@ def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True):
             nxt = notes[k + 1][2] if k + 1 < len(notes) else "wrap"
             ticks = n * tempo
             if stac:
-                cut = (ticks * 3) // 4
+                cut = (ticks * stac_all[0]) // stac_all[1] if stac_all and channel == 2 else (ticks * 3) // 4
             elif gap and (nxt is None or nxt == name):
                 cut = ticks - 1
             else:
@@ -197,7 +216,7 @@ def build(name, t, legacy):
     inst = t.get("inst", 1)
     gap = t.get("gap", True)
     chans = {
-        2: rows_for(2, t["ch2"], inst, tempo, legacy, gap),
+        2: rows_for(2, t["ch2"], inst, tempo, legacy, gap, t.get("stac_all")),
         3: rows_for(3, t["ch3"], 1, tempo, legacy, gap),
         4: rows_for(4, t["ch4"], 1, tempo, legacy) if t["ch4"] else [],
     }

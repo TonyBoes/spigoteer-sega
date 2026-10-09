@@ -83,6 +83,8 @@ def capture(model, source, solo, frames):
             rom.write("tip_x", rom.mem("bartender_x"))
             rom.write("tip_timer", 100)
         rom.pb.memory[NR51] = SOLO[solo]
+        if source not in ("entertainer", "galop"):
+            rom.write("intro_timer", 255)             # no patrons come: the level lasts as long as the tune is checked
         rom.run(1)
         rom.pb.memory[NR51] = SOLO[solo]
         if source == "galop" and rom.mem("show_timer") and rom.mem("show_timer") < 200:
@@ -113,7 +115,7 @@ def check(model, source, bars, solo):
     tempo = t["tempo"]
     legacy = False
     text = t["ch2"] if solo == 2 else t["ch3"]
-    rows = gm.rows_for(solo, text, 1, tempo, legacy, t.get("gap", True))
+    rows = gm.rows_for(solo, text, 1, tempo, legacy, t.get("gap", True), t.get("stac_all"))
     # note list: (row, rows long, hUGE note index)
     notes = []
     for i, (n, ins, eff) in enumerate(rows):
