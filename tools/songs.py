@@ -25,7 +25,8 @@ def oompah(chords, rows):
     for c in chords:
         if "/" in c:                       # two chords in one bar ("C/D7"): the root of each on its half
             a, b = c.split("/")
-            out += [f"{CHORD[a][0]}:3!", f"{CHORD[b][0]}:3!"] if rows == "c6" else [f"{CHORD[a][0]}:4!", f"{CHORD[b][0]}:4!"]
+            h = {"c6": 3, 4: 2}.get(rows, 4)           # half a bar
+            out += [f"{CHORD[a][0]}:{h}!", f"{CHORD[b][0]}:{h}!"]
             continue
         r, f = CHORD[c]
         if rows == 4:
@@ -48,9 +49,23 @@ def rep(text, n):
 SONGS = {}
 
 
-def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None):
-    """stac_all: (num, den) cuts every melody note after num/den of its length (staccato)."""
-    SONGS[name] = dict(tempo=tempo, buf=bufname, ch2=ch2, ch3=ch3, ch4=ch4, inst=inst, gap=gap, stac_all=stac_all)
+def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None, groove=""):
+    """stac_all: (num, den) cuts every melody note after num/den of its length (staccato).
+    groove: a short drum loop (tokens as ch4, one or two bars) that src/music.c plays on channel 4 by itself,
+    over and over, in step with the song's rows.  It costs no pattern in the WRAM buffer (a 64-row pattern is
+    not a whole number of 3/4 or 6/8 bars, so a shared hUGEDriver pattern could not keep the beat across orders).
+    The song's length must be a whole number of grooves (gen_music checks)."""
+    SONGS[name] = dict(tempo=tempo, buf=bufname, ch2=ch2, ch3=ch3, ch4=ch4, inst=inst, gap=gap, stac_all=stac_all,
+                       groove=groove)
+
+
+# GAME TEMPO.  The owner approved these tempos for the game (the melody notes stay exactly as the spec's; only the
+# speed changes), in beats per minute of the beat the spec names; the spec's own tempo is in docs/music_specs.md and
+# SPEC_BPM_ROWS in tests/test_sound.py.  tempo = frames per row is the nearest whole number (60 fps), so the tempo
+# the game really plays is 3600 / (tempo x rows per beat): entertainer 8 -> 112.5, sakura 15 -> 120,
+# funicula 11 -> 109.1 (dotted quarter), skaters / danube / ballgame 9 -> 200 (quarter).  Tunes not listed play
+# at the spec tempo.
+GAME_BPM = {"entertainer": 112, "sakura": 120, "funicula": 112, "skaters": 192, "danube": 192, "ballgame": 192}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -82,12 +97,13 @@ song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS)
 # is left out: the tune starts on bar 1 and every loop is seamless.
 #
 # Bass (channel 3, real pitch names; gen_music adds the wave channel's octave correction): waltz 3/4 =
-# root, fifth, fifth; 6/8 = root and fifth on the dotted beats; 4/4 and 2/4 = boom-chick.  A tune of three
-# 64-row patterns has no drums: the WRAM buffer holds six patterns.
+# root, fifth, fifth; 6/8 = root and fifth on the dotted beats; 4/4 and 2/4 = boom-chick.  Tunes whose
+# 64-row orders fill the six-pattern WRAM buffer have no room for drum patterns: their drums are a `groove`
+# that src/music.c plays by itself (see song()).
 
 # ---------------------------------------------------------------------------------------------
 # Title: "The Entertainer" (Scott Joplin, 1902), A section.  2/4, one row = a sixteenth note; quarter = 90
-# is 10 frames per row.  16 bars (bars 4, 8 and 16 end with the D D# pickup).  Bars 12-16 are low confidence.
+# is 10 frames per row (game tempo: 8 frames, 112 bpm, see GAME_BPM).  16 bars (bars 4, 8 and 16 end with the D D# pickup).  Bars 12-16 are low confidence.
 ENT_BARS = [
     "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:4 C6:1 D6:1 D#6:1 E6:1", "C6:1 D6:1 E6:2 B5:1 D6:2 C6:1",
     "~:4 R:2 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:4 A5:1 G5:1 F#5:1 A5:1",
@@ -99,25 +115,25 @@ ENT_BARS = [
 ENT_CHORDS = [
     "C", "C", "G7", "C", "C", "D7", "D7", "G7", "C", "C", "G7", "C", "C", "F", "G7", "C",
 ]
-song("entertainer", 10, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8))
+song("entertainer", 8, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8),
+     groove="K:1 r:1 H:1 r:1 S:1 r:1 H:1 r:1")
 
 # ---------------------------------------------------------------------------------------------
-# Show: "Galop infernal" (Jacques Offenbach, 1858, the can-can), 2/4, 12 frames per eighth row
-# (150 bpm).  12 bars, about 10 s; the show lasts 6 s so the main theme is what is heard.
-GAL = ["C5:4", "C5:1 D5:1 F5:1 E5:1",
-       "D5:2 G5:2", "G5:2 G5:1 A5:1",
-       "E5:1 F5:1 D5:2", "D5:2 D5:1 F5:1",
-       "E5:1 D5:1 C5:1 C6:1", "B5:1 A5:1 G5:1 F5:1",
-       "E5:1 D5:1 C5:2", "C5:1 D5:1 F5:1 E5:1",
-       "D5:2 G5:2", "E5:1 D5:1 C5:2"]
-song("galop", 12, "B", " ".join(GAL),
-     oompah(["C", "C", "G", "G", "C", "G", "C", "G", "C", "C", "G", "C"], 4),
-     rep("K:1 S:1 K:1 S:1", 12))
+# Show: "Galop infernal" (Jacques Offenbach, Orphee aux enfers, 1858, the can-can), the owner's spec (docs/music_specs.md
+# tune 10): key D, 2/4, quarter = 160 -> 11 frames per eighth row (163.6 bpm).  16 bars = 64 rows = one 64-row pattern per
+# channel (buffer B holds 2 patterns), a pass is 704 frames (11.7 s).  The quarter notes of bars 3, 5, 11 and 13 are
+# detached ('!').  Bass: oom-pah, root then fifth (bar 15 = D then A7).  Drums: a groove, kick / hat / snare / hat.
+GAL = ["D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
+       "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 D6:1 C#6:1 B5:1", "A5:1 G5:1 F#5:1 E5:1",
+       "D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
+       "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 A5:1 E5:1 F#5:1", "D5:2 R:2"]
+GAL_CHORDS = ["D", "A7", "D", "D", "A7", "A7", "D", "A7", "D", "A7", "D", "D", "A7", "A7", "D/A7", "D"]
+song("galop", 11, "B", " ".join(GAL), oompah(GAL_CHORDS, 4), groove="K:1 H:1 S:1 H:1")
 
 
 # ---------------------------------------------------------------------------------------------
 # Sports bar: "Take Me Out to the Ball Game" (Albert Von Tilzer, 1908), chorus.  3/4, key G, quarter = 168
-# is 10.7 frames per eighth row: 11 (164 bpm).  32 bars, no drums.
+# is 10.7 frames per eighth row: 11 (164 bpm; game tempo 9, see GAME_BPM).  32 bars.
 TMO_BARS = [
     "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "A4:6", "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "~:6",
     "E5:2 D#5:2 E5:2", "B4:2 C5:2 D5:2", "E5:4 C5:2", "A4:6", "E5:4 E5:2", "E5:2 F#5:2 G5:2",
@@ -129,7 +145,7 @@ TMO_CHORDS = [
     "G", "Em", "D7", "D7", "G", "Em", "D", "D", "E7", "E7", "Am", "Am", "A7", "A7", "D", "D", "G",
     "Em", "D7", "D7", "G", "G7", "C", "C", "C", "A7", "D", "E7", "Am", "D7", "G", "G",
 ]
-song("ballgame", 11, "A", " ".join(TMO_BARS), oompah(TMO_CHORDS, 6))
+song("ballgame", 9, "A", " ".join(TMO_BARS), oompah(TMO_CHORDS, 6), groove="K:1 r:1 S:1 r:1 S:1 r:1")
 
 # ---------------------------------------------------------------------------------------------
 # Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song).  4/4, key D, quarter = 160 is
@@ -148,7 +164,7 @@ song("mountain", 11, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 8),
 
 # ---------------------------------------------------------------------------------------------
 # Bistro: "Funiculi, Funicula" (Luigi Denza, 1880), verse and chorus.  6/8, key F, dotted quarter = 92 is
-# 13 frames per eighth row.  25 bars; bars 9 and 25 end with the C5 pickup, so the loop is seamless; no drums.
+# 13 frames per eighth row.  25 bars; bars 9 and 25 end with the C5 pickup, so the loop is seamless.
 FUN_BARS = [
     "F5:6", "~:2 F5:1 E5:2 E5:1", "C5:2 C5:1 D5:2 D5:1", "A4:3 A4:3", "~:2 A4:1 G4:2 F4:1", "F4:6",
     "R:2 A4:1 G4:2 F4:1", "F4:6", "~:1 R:4 C5:1", "E5:3 D5:1 R:2", "E5:3 D5:1 R:2",
@@ -160,7 +176,7 @@ FUN_CHORDS = [
     "F", "F", "F", "F", "C7", "F", "C7", "F", "F", "C7", "C7", "C7", "C7", "C7", "C7", "C7", "F",
     "A7", "Dm", "A7", "Dm", "Bb", "F", "C7", "F",
 ]
-song("funicula", 13, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"))
+song("funicula", 11, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"), groove="K:1 r:1 S:1 K:1 r:1 S:1")
 
 # ---------------------------------------------------------------------------------------------
 # Arctic: "The Skaters' Waltz" (Emile Waldteufel, 1882), main theme, an octave above the source.  3/4, key G,
@@ -177,7 +193,7 @@ SKT_CHORDS = [
     "G", "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "D7", "G",
     "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "G",
 ]
-song("skaters", 11, "A", " ".join(SKT_BARS), oompah(SKT_CHORDS, 6))
+song("skaters", 9, "A", " ".join(SKT_BARS), oompah(SKT_CHORDS, 6), groove="K:1 r:1 H:1 r:1 H:1 r:1")
 
 # ---------------------------------------------------------------------------------------------
 # Robot factory: "In the Hall of the Mountain King" (Edvard Grieg, 1875).  4/4, key B minor, quarter = 120 =
@@ -213,7 +229,8 @@ SAK_BARS = [
 SAK_CHORDS = [
     "Am", "Am", "Am", "Dm", "Am", "E", "Am", "Dm", "Am", "E", "Am", "Am", "Dm", "Am",
 ]
-song("sakura", 18, "A", " ".join(SAK_BARS), " ".join(["A2:4 E3:4"] * 14), "", gap=True)
+song("sakura", 15, "A", " ".join(SAK_BARS), " ".join(["A2:4 E3:4"] * 14), "", gap=True,
+     groove="K:1 r:1 H:1 r:1 K:1 r:1 H:1 r:1")
 
 # ---------------------------------------------------------------------------------------------
 # Space lounge: "The Blue Danube" (Johann Strauss II, 1867), first waltz theme in the spec's G major.  3/4,
@@ -241,7 +258,8 @@ def hold_through_rest(bar):
     return bar
 
 
-song("danube", 11, "A", " ".join(hold_through_rest(b) for b in DAN_BARS), oompah(DAN_CHORDS, 6))
+song("danube", 9, "A", " ".join(hold_through_rest(b) for b in DAN_BARS), oompah(DAN_CHORDS, 6),
+     groove="K:1 r:1 H:1 r:1 H:1 r:1")
 
 # ---------------------------------------------------------------------------------------------
 # Zoo: "Pop Goes the Weasel" (English folk tune, c. 1850), verse and second strain.  6/8, key G, dotted

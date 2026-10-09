@@ -20,8 +20,10 @@ typedef struct {
     uint8_t  bank;          // ROM bank of the pattern blob
     const uint8_t *blob;    // pattern blob (buffer != 0)
     uint16_t bytes;         // its size
+    const uint8_t *groove;  // NULL, or a drum loop src/music.c plays on channel 4: {rows, frames per row, one byte per row: 0 none, 1 kick, 2 snare, 3 hat}
 } tune_t;
 extern const tune_t tunes[TUNE_COUNT];
+extern const unsigned char drum_kit[3][4];         // NR41, NR42, NR43, NR44 of kick, snare, hat (build/music_data.c)
 extern unsigned char mus_buf_a[], mus_buf_b[];     // WRAM pattern buffers (build/music_data.c)
 void mus_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n);   // unbanked (src/musicload.c)
 

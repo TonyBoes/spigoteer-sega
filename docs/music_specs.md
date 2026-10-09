@@ -24,6 +24,7 @@ Confidence and source are listed per tune; credit the SOURCE line.
 Key: F major
 Time: 6/8
 Tempo: dotted quarter = 92 (quarter ~ 138)
+Game tempo: dotted quarter = 112 (11 frames per eighth row, plays at 109). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 6)
 Length: 25 bars + pickup
 
@@ -68,6 +69,7 @@ Source: Melody from John Chambers' ABC transcription (trillian.mit.edu/~jc/music
 Key: G major
 Time: 3/4
 Tempo: quarter = 160
+Game tempo: quarter = 192 (9 frames per eighth row, plays at 200). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 6)
 Length: 32 bars
 
@@ -115,6 +117,7 @@ Source: Traditional Tune Archive (tunearch.org, 'Skater's Waltz'), transcription
 Key: G major
 Time: 3/4
 Tempo: quarter = 168
+Game tempo: quarter = 192 (9 frames per eighth row, plays at 200). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 6)
 Length: 32 bars
 
@@ -231,6 +234,7 @@ Source: Ryan's Mammoth Collection (1882), p. 264, via John Chambers' ABC mirror 
 Key: G major (Strauss wrote it in D; this source is transposed)
 Time: 3/4
 Tempo: quarter = 160
+Game tempo: quarter = 192 (9 frames per eighth row, plays at 200). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 6)
 Length: 32 bars
 
@@ -314,6 +318,7 @@ Source: NO TRANSCRIPTION SOURCE FOUND. Written from memory. Verify against Grieg
 Key: A minor (miyako-bushi scale: A B C E F)
 Time: 4/4
 Tempo: quarter = 72
+Game tempo: quarter = 120 (15 frames per eighth row, plays at 120). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 8)
 Length: 14 bars
 
@@ -343,6 +348,7 @@ Source: Melody: John Chambers' ABC 'Sakura (Cherry Blossom)' (trillian.mit.edu/~
 Key: C major
 Time: 2/4
 Tempo: quarter = 90 (Joplin: 'Not fast')
+Game tempo: quarter = 112 (8 frames per sixteenth row, plays at 112.5). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = SIXTEENTH note (bar = 8)
 Length: 16 bars + pickup
 
@@ -369,4 +375,38 @@ Note: Bars 12-16 (closing phrase): LOW CONFIDENCE. The pitch order may be off. C
 Note: Bar 16 ends with the D-D# pickup, so it loops cleanly.
 Confidence: High for bars 1-11, low for bars 12-16.
 Source: Written from memory of the 1902 John Stark & Son edition (public domain; scans on IMSLP, imslp.org, 'The Entertainer (Joplin, Scott)'). Pitches for bars 1-11 checked against pianoletternotes.blogspot.com, which is an arrangement and should NOT be credited as the source. Underlying work: Scott Joplin, 1902 (public domain).
+
+------------------------------------------------------------
+10. GALOP INFERNAL ("CAN-CAN") (Offenbach, 1858) - main theme
+------------------------------------------------------------
+Orphee aux enfers, Act II, No. 15b
+Key: D major
+Time: 2/4
+Tempo: quarter = 160
+Game tempo: quarter = 160 (11 frames per eighth row, plays at 163.6).
+Unit: 1 = eighth note (bar = 4)
+Length: 16 bars, no pickup. Play twice for ~24 s.
+Octave: raised from the low register for a brighter pulse sound.
+
+ 1 | D5:4                    | D
+ 2 | E5:1 G5:1 F#5:1 E5:1    | A7
+ 3 | A5:2 A5:2               | D
+ 4 | A5:1 B5:1 F#5:1 G5:1    | D
+ 5 | E5:2 E5:2               | A7
+ 6 | E5:1 G5:1 F#5:1 E5:1    | A7
+ 7 | D5:1 D6:1 C#6:1 B5:1    | D
+ 8 | A5:1 G5:1 F#5:1 E5:1    | A7
+ 9 | D5:4                    | D
+10 | E5:1 G5:1 F#5:1 E5:1    | A7
+11 | A5:2 A5:2               | D
+12 | A5:1 B5:1 F#5:1 G5:1    | D
+13 | E5:2 E5:2               | A7
+14 | E5:1 G5:1 F#5:1 E5:1    | A7
+15 | D5:1 A5:1 E5:1 F#5:1    | D/A7
+16 | D5:2 R:2                | D
+
+Note: "D/A7" = D for the first half-bar, A7 for the second.
+Note: Bars 1-8 end on the dominant and 9-16 resolve, so the 16 bars loop cleanly. Play the quarter notes in bars 3, 5, 11 and 13 slightly detached for the galop bounce.
+Note: Bass works best as "oom-pah": root on beat 1, chord fifth on beat 2.
+Source: Owner-supplied; Offenbach, Orphée aux enfers (1858), Act II No. 15b, public domain
 ```

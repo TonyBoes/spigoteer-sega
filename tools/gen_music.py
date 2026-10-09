@@ -46,6 +46,30 @@ NOISE = [  # envelope (NR42), subpattern, highmask+length
     (0x41, 0xB6),         # 6 hat, quiet kit: high noise, 7-bit LFSR, volume 4, very short (length-limited)
 ]
 NOISE_NOTE = {"k": (12, 1), "s": (44, 2), "h": (60, 3), "K": (12, 4), "S": (44, 5), "H": (60, 6)}   # note number sets the pitch
+DRUM_ID = {"K": 1, "S": 2, "H": 3}     # groove byte -> row of the generator's kit (0 = no hit)
+
+
+def noise_poly(n):
+    """NR43 base value hUGEDriver's get_note_poly makes of a noise note number n (before the instrument's 7-bit step flag)."""
+    a = (~((n - 36 + 192) & 255)) & 255
+    if a < 7:
+        return a
+    return ((((a >> 2) - 1) << 4) | ((a & 3) + 4)) & 255
+
+
+def drum_kit():
+    """The quiet kit as register values (NR41, NR42, NR43, NR44) for src/music.c's groove player, derived from the
+    same instruments hUGEDriver plays so that a groove sounds like the pattern drums."""
+    out = []
+    for key in "KSH":
+        n, inst = NOISE_NOTE[key]
+        env, hm = NOISE[inst - 1]
+        nr43 = noise_poly(n) | (0x08 if hm & 0x80 else 0)
+        nr44 = 0x80 | (hm & 0x40)
+        out.append((hm & 0x3F, env, nr43, nr44))
+    return out
+
+
 WAVES = [
     # 0 triangle
     [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10],
@@ -236,6 +260,17 @@ def build(name, t, legacy):
     return dict(total=total, tempo=tempo, n_orders=n_orders, per=per)
 
 
+def groove_rows(name, t):
+    """The song's groove as one byte per row (0 none, 1 kick, 2 snare, 3 hat), or None."""
+    if not t.get("groove"):
+        return None
+    rows = []
+    for tok in t["groove"].split():
+        k, n = tok.split(":")
+        rows += [DRUM_ID.get(k, 0)] + [0] * (int(n) - 1)
+    return rows
+
+
 def row_text(key):
     out = []
     for i in range(0, 64, 4):
@@ -318,6 +353,21 @@ def main():
         f.write("};\n\n")
         emit_instruments(f)
         f.write("static const unsigned char empty_pat[] = {\n" + row_text(EMPTY) + "};\n\n")
+        f.write("// drum kit of the groove player (src/music.c): NR41, NR42, NR43, NR44 of kick, snare, hat\n")
+        f.write("const unsigned char drum_kit[3][4] = {" + ", ".join("{" + ",".join(f"0x{v:02X}" for v in d) + "}" for d in drum_kit()) + "};\n")
+        grooves = {}
+        for name in ORDER:
+            if name in JINGLES:
+                continue
+            t = songs.SONGS[SOURCE[name]]
+            g = groove_rows(name, t)
+            if g:
+                assert built[name]["total"] % len(g) == 0, f"{name}: {built[name]['total']} rows is not a whole number of {len(g)}-row grooves"
+                assert len(g) < 256 and t["tempo"] < 256
+                grooves[name] = g
+                f.write(f"static const unsigned char groove_{name}[] = {{{len(g)}, {t['tempo']}, "
+                        + ", ".join(str(x) for x in g) + "};\n")
+        f.write("\n")
         for name in slots:
             f.write(f"extern const unsigned char blob_{name}[];\n")
         f.write("\n")
@@ -328,6 +378,9 @@ def main():
                 orders = {1: [], 2: [], 3: [], 4: []}
                 for c in (1, 2, 3, 4):
                     for key in b["per"][c]:
+                        if key == EMPTY:
+                            orders[c].append("empty_pat")
+                            continue
                         if key not in pats:
                             pats[key] = f"{name}_p{len(pats)}"
                             f.write(f"static const unsigned char {pats[key]}[] = {{\n{row_text(key)}}};\n")
@@ -343,7 +396,7 @@ def main():
                     f"(const unsigned char **){name}_order1, (const unsigned char **){name}_order2, "
                     f"(const unsigned char **){name}_order3, (const unsigned char **){name}_order4, "
                     f"duty_inst, wave_inst, noise_inst, NULL, waves}};\n\n")
-        f.write("// song, loop, frames per pass, buffer (0 none, 1 A, 2 B), bank / source / bytes of the pattern blob\n")
+        f.write("// song, loop, frames per pass, buffer (0 none, 1 A, 2 B), bank / source / bytes of the pattern blob, groove (or NULL)\n")
         f.write("const tune_t tunes[TUNE_COUNT] = {\n")
         for name in ORDER:
             b = built[name]
@@ -354,6 +407,7 @@ def main():
             else:
                 tail = "{}, {}, blob_{}, {}".format(BUF_ID[songs.SONGS[SOURCE[name]]["buf"]], bank_of[name], name,
                                                     len(slots[name]) * SLOT_BYTES)
+            tail += ", " + (f"groove_{name}" if name in grooves else "NULL")
             f.write(f"    {{&song_{name}, {loop}, {frames}, {tail}}},   // {name}"
                     f"{' = ' + SOURCE[name] if name in SOURCE else ''}: {b['total']} rows\n")
         f.write("};\n")

@@ -23,6 +23,8 @@ static uint8_t muted;            // bit n: driver channel n muted (cache of the 
 static uint8_t loaded[3] = { TUNE_NONE, TUNE_NONE, TUNE_NONE };   // [buffer]: the tune whose patterns are in it
 static uint8_t ld_tune = TUNE_NONE;   // tune whose patterns are being copied (TUNE_NONE: no copy running)
 static uint8_t ld_play;               // start it when the copy is done (else it is a preload)
+static const uint8_t *groove;         // the running tune's drum loop (NULL: none)
+static uint8_t g_pos, g_cnt;          // groove row, frames until it advances
 static uint16_t ld_pos;               // bytes copied so far
 #define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
 #define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
@@ -91,6 +93,7 @@ static void start_song(uint8_t tune) {
     muted = 0;
     mus_active = 1;
     music_frames = 0;
+    groove = tunes[tune].groove; g_pos = 0; g_cnt = 1;      // the groove's first row falls on the song's first row
     mute_unless_sfx(0, 0);          // a sound effect that is still sounding keeps its channels
     mute_unless_sfx(3, 1);
 }
@@ -172,6 +175,20 @@ static void voice_tick(uint8_t i) {
     }
 }
 
+// A tune's groove is a drum loop played here instead of by hUGEDriver (which would need a pattern per order in WRAM):
+// one row every `tempo` frames, counted in step with the driver's own rows. A sound effect on channel 4 wins.
+static void groove_tick(void) {
+    uint8_t d;
+    if (!groove || --g_cnt) return;
+    g_cnt = groove[1];
+    d = groove[2 + g_pos];
+    if (++g_pos == groove[0]) g_pos = 0;
+    if (d && !voice[1].busy) {
+        const uint8_t *k = drum_kit[d - 1];
+        NR41_REG = k[0]; NR42_REG = k[1]; NR43_REG = k[2]; NR44_REG = k[3];
+    }
+}
+
 void music_tick(void) BANKED {
     uint8_t id, req = sfx_req;
     if (req) {
@@ -196,6 +213,7 @@ void music_tick(void) BANKED {
         begin_load(TUNE_SHOW, 0);                                   // the show tune is copied once, while a level plays
     if (mus_active) {
         hUGE_dosound();
+        groove_tick();
         music_frames++;
         if (!tunes[cur_tune].loop && music_frames >= tunes[cur_tune].frames) {
             cur_tune = TUNE_NONE;
