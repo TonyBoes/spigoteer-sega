@@ -191,6 +191,12 @@ from the quiet kit in gen_music.drum_kit); a sound effect on channel 4 wins. A s
 rows is not a whole number of 3/4 or 6/8 bars, so the beat would shift at each order, and the 32-bar tunes fill the
 6-pattern buffer A. WRAM cost 4 bytes; the jingles now share empty_pat (bank 2 gained ~130 bytes net free).
 
+Mix (owner: the melody drowned the bass and drums): bass wave NR32 0x40 -> 0x20 (100% output) with the triangle's samples
+scaled to half range (gen_music.BASS_AMP 0.5, 4..11) so it stays smooth; song lead 0xA5 -> 0x85, lead 0xA3 -> 0x83, soft lead
+0x93 -> 0x73, plink 0xC1 -> 0xA1; thin stays 0xC1 (was 0x91, raised so the bonus melody leads the louder bass); quiet drum kit
+6/5/4 -> 8/7/6 (the groove kit follows). Measured per channel with PyBoy (RMS, int8 scale): melody 4.3 -> 3.4, bass 2.5 -> 3.8,
+drums 0.9 -> 1.5. tests/test_sound.py pins the registers. Effects (channel 1 volume 8-12, noise 9-13) stay above the melody.
+
 ## M8b as built
 
 Approved art imported (assets/art is now the source of truth; tools/extract_art.py refuses to overwrite it

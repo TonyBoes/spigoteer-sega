@@ -27,23 +27,23 @@ REST = 90          # ___ in hUGEDriver.h
 
 # ---- instruments (indexes are 1-based in the pattern data) -------------------------------------
 DUTY = [  # sweep, len_duty (NR11), envelope (NR12), subpattern, highmask
-    (0x08, 0x80, 0xA3),   # 1 lead: 50% pulse, volume 10, slow decay
-    (0x08, 0x40, 0x93),   # 2 soft lead: 25% pulse, volume 9, slow decay
-    (0x08, 0x80, 0xC1),   # 3 plink: 50% pulse, volume 12, fast decay (short jingle notes)
-    (0x08, 0x00, 0x91),   # 4 thin: 12.5% pulse, fast decay (quick bonus-round notes)
-    (0x08, 0x80, 0xA5),   # 5 song lead: 50% pulse, volume 10, slow decay (long notes keep sounding)
+    (0x08, 0x80, 0x83),   # 1 lead: 50% pulse, volume 8, slow decay
+    (0x08, 0x40, 0x73),   # 2 soft lead: 25% pulse, volume 7, slow decay
+    (0x08, 0x80, 0xA1),   # 3 plink: 50% pulse, volume 10, fast decay (short jingle notes)
+    (0x08, 0x00, 0xC1),   # 4 thin: 12.5% pulse, volume 12, fast decay (quick bonus-round notes)
+    (0x08, 0x80, 0x85),   # 5 song lead: 50% pulse, volume 8, slow decay (long notes keep sounding)
 ]
 WAVE = [  # length, volume (NR32: 0x20 = 100%, 0x40 = 50%), waveform index, subpattern, highmask
-    (0, 0x40, 0),         # 1 bass: triangle at 50%
+    (0, 0x20, 0),         # 1 bass: triangle, NR32 100% (the waveform itself is scaled, BASS_AMP)
     (0, 0x20, 1),         # 2 hollow bass: pulse-ish wave at 100%
 ]
 NOISE = [  # envelope (NR42), subpattern, highmask+length
     (0x81, 0x00),         # 1 kick  (vol 8, fast decay)
     (0x61, 0x00),         # 2 snare (vol 6, fast decay)
     (0x31, 0x80),         # 3 hat   (vol 3, fast decay, 7-bit LFSR = metallic)
-    (0x61, 0x00),         # 4 kick, quiet kit: low noise, 15-bit LFSR, volume 6, fast decay
-    (0x53, 0x00),         # 5 snare, quiet kit: mid noise, 15-bit LFSR, volume 5, medium decay
-    (0x41, 0xB6),         # 6 hat, quiet kit: high noise, 7-bit LFSR, volume 4, very short (length-limited)
+    (0x81, 0x00),         # 4 kick, quiet kit: low noise, 15-bit LFSR, volume 8, fast decay
+    (0x73, 0x00),         # 5 snare, quiet kit: mid noise, 15-bit LFSR, volume 7, medium decay
+    (0x61, 0xB6),         # 6 hat, quiet kit: high noise, 7-bit LFSR, volume 6, very short (length-limited)
 ]
 NOISE_NOTE = {"k": (12, 1), "s": (44, 2), "h": (60, 3), "K": (12, 4), "S": (44, 5), "H": (60, 6)}   # note number sets the pitch
 DRUM_ID = {"K": 1, "S": 2, "H": 3}     # groove byte -> row of the generator's kit (0 = no hit)
@@ -70,9 +70,19 @@ def drum_kit():
     return out
 
 
+BASS_AMP = 0.5      # the bass wave runs at 100% output (NR32 0x20) but its samples span this fraction of the full 4-bit range
+
+
+def scaled_wave(w, amp):
+    """Pack 32 4-bit samples (16 bytes, high nibble first) scaled around the centre 7.5; the DAC stays centred."""
+    nib = [x for b in w for x in (b >> 4, b & 15)]
+    nib = [int(round(7.5 + (x - 7.5) * amp)) for x in nib]
+    return [(nib[i] << 4) | nib[i + 1] for i in range(0, 32, 2)]
+
+
 WAVES = [
-    # 0 triangle
-    [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10],
+    # 0 triangle (full range 0..15 scaled by BASS_AMP)
+    scaled_wave([0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10], BASS_AMP),
     # 1 hollow: 25% duty square, softened
     [0xFF, 0xFF, 0xFF, 0xFF, 0xCC, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
 ]

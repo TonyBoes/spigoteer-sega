@@ -176,9 +176,12 @@ def test_music_is_audible_and_changes(srom):
     b = audio_frames(srom, 60).astype(float)
     assert a.std() > 2 and b.std() > 2, "not silent"
     mono_a, mono_b = a.mean(axis=1), b.mean(axis=1)
-    fa = np.abs(np.fft.rfft(mono_a - mono_a.mean())).argmax()
-    fb = np.abs(np.fft.rfft(mono_b - mono_b.mean())).argmax()
-    assert fa != fb, "pitch moves from one second to the next (a melody, not a drone)"
+    # the two seconds have different spectra (a melody over a bass, not one held drone): the magnitude spectra up to 2 kHz
+    # correlate less than a repeating drone would (the louder bass can hold one note, the melody dominates the peaks)
+    sa = np.abs(np.fft.rfft(mono_a - mono_a.mean()))[:2000]
+    sb = np.abs(np.fft.rfft(mono_b - mono_b.mean()))[:2000]
+    corr = float(np.dot(sa, sb) / (np.linalg.norm(sa) * np.linalg.norm(sb)))
+    assert corr < 0.9, f"the music changes from one second to the next (spectra correlate {corr:.2f})"
 
 
 def test_sfx_drive_channel_1_and_4_and_end(sgb):
@@ -690,3 +693,29 @@ def test_every_venue_tune_sounds_on_channel_4(sgb, group):
     sgb.write("intro_timer", 255)
     assert sgb.mem("cur_tune") == TUNE_VENUE0 + group
     assert sample_channel4(sgb, 150) > 10, f"{songs.VENUES[group]}: channel 4 is silent"
+
+
+# ---- mix balance (owner: the melody drowned the bass and drums) -------------------------------------------
+def test_music_mix_balance_bass_and_drums_sit_under_a_quieter_melody():
+    """Measured with PyBoy (RMS per channel solo): melody ~3 vs bass ~3.9 vs drums ~1.5, before the rebalance 4.3 / 2.5 / 1.0.
+    This pins the instrument registers so a later change cannot silently put the melody back on top."""
+    import re
+    vol = lambda env: env >> 4
+    # melody: every pulse instrument at volume <= 8 (it was 10 / 9 / 12 / 9 / 10); the song lead and the lead are 8 or less
+    for n, (sweep, duty, env) in enumerate(gm.DUTY, 1):
+        assert vol(env) <= (12 if n in (3, 4) else 8), (n, hex(env))   # 3 plink and 4 thin are short jingle voices
+    assert vol(gm.DUTY[4][2]) == 8 and vol(gm.DUTY[0][2]) == 8, "song lead and lead: volume 8"
+    # bass: wave output 100% (NR32 0x20), triangle samples scaled to half range so it is not buzzy
+    assert gm.WAVE[0][1] == 0x20, "bass at 100% output"
+    nib = [x for b in gm.WAVES[0] for x in (b >> 4, b & 15)]
+    assert len(nib) == 32 and 3 <= min(nib) <= 5 and 10 <= max(nib) <= 12, nib
+    assert all(abs(a - b) <= 1 for a, b in zip(nib, nib[1:] + nib[:1])), "a smooth triangle, no jumps"
+    # drums: quiet kit (the groove kit) at volume 8 / 7 / 6, loud kit unchanged
+    assert [vol(gm.NOISE[i][0]) for i in (3, 4, 5)] == [8, 7, 6]
+    assert [vol(gm.NOISE[i][0]) for i in (0, 1, 2)] == [8, 6, 3]
+    # the generated tables (what the ROM really has) carry the same numbers
+    src = (ROOT / "build" / "music_data.c").read_text()
+    assert re.search(r"hUGEWaveInstr_t wave_inst\[\] = \{\s*\{0,32,0,", src)
+    duty = re.search(r"duty_inst\[\] = \{(.*?)\};", src, re.S).group(1)
+    assert "{8,128,131,0,128}" in duty and "{8,128,133,0,128}" in duty
+    # sound effects stay clearly louder than the melody: channel 1 effects are volume 8-12, the rattle/crash noise 9-13
