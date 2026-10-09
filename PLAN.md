@@ -145,7 +145,7 @@ not by throw, because a patron near the tap throws later but arrives sooner.
 Per level theme: a stage (20x4 tiles, <= 20 unique tiles loaded over the stage tile ids at level
 start, <= 2 CGB palettes), a bar palette (wall/counter/door; wall = colour 0 behind patrons), and
 a drink replacing the mug (10 OBJ frames: full, empty, 4 fill, 4 drink poses, loaded over the mug
-tile ids; own full/empty OBJ palettes). Saloon/beer, sports bar/soda, lumber lodge/coffee,
+tile ids; own full/empty OBJ palettes). Saloon/beer (original TAPS stage + curtains), stadium concession/soda, lumber lodge/coffee,
 bistro/wine, igloo/cocoa, robot factory/oil can, teahouse/green tea, space lounge/glowing
 beaker, jungle zoo/coconut.
 Themed shows: the dancers' 32 OBJ tiles are reloaded per theme (3 performers, 16x24, 4 frames):
