@@ -73,16 +73,16 @@ song("entertainer", 9, "A", "D5:1 D#5:1  " + " ".join([ENT_1, ENT_2, ENT_1, ENT_
      "r:2 " + oompah(["C", "C", "G", "C", "C", "C", "G", "C"], 8))
 
 # ---------------------------------------------------------------------------------------------
-# Show: "Galop infernal" (Jacques Offenbach, 1858, the can-can), 2/4, 13 frames per eighth row
-# (about 140 bpm).  12 bars, about 10 s; the show lasts 6 s so the main theme is what is heard.
-GAL = ["E5:1 E5:1 E5:1 E5:1", "E5:1 D5:1 C5:2",
-       "D5:1 D5:1 D5:1 D5:1", "D5:1 C5:1 B4:2",
-       "C5:1 C5:1 C5:1 C5:1", "C5:1 D5:1 E5:2",
-       "G5:1 F5:1 E5:1 D5:1", "C5:3 r:1",
-       "G5:1 G5:1 G5:1 G5:1", "G5:1 A5:1 G5:2",
-       "E5:1 D5:1 C5:1 B4:1", "C5:3 r:1"]
-song("galop", 13, "B", " ".join(GAL),
-     oompah(["C", "C", "G", "G", "C", "C", "G", "C", "C", "C", "G", "C"], 4),
+# Show: "Galop infernal" (Jacques Offenbach, 1858, the can-can), 2/4, 12 frames per eighth row
+# (150 bpm).  12 bars, about 10 s; the show lasts 6 s so the main theme is what is heard.
+GAL = ["C5:4", "C5:1 D5:1 F5:1 E5:1",
+       "D5:2 G5:2", "G5:2 G5:1 A5:1",
+       "E5:1 F5:1 D5:2", "D5:2 D5:1 F5:1",
+       "E5:1 D5:1 C5:1 C6:1", "B5:1 A5:1 G5:1 F5:1",
+       "E5:1 D5:1 C5:2", "C5:1 D5:1 F5:1 E5:1",
+       "D5:2 G5:2", "E5:1 D5:1 C5:2"]
+song("galop", 12, "B", " ".join(GAL),
+     oompah(["C", "C", "G", "G", "C", "G", "C", "G", "C", "C", "G", "C"], 4),
      rep("K:1 S:1 K:1 S:1", 12))
 
 # ---------------------------------------------------------------------------------------------
