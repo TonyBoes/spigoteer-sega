@@ -1,0 +1,36 @@
+{
+ "stage_a": {
+  "hex": [
+   "#f8f8f8",
+   "#6080c0",
+   "#283c78",
+   "#101428"
+  ]
+ },
+ "stage_b": {
+  "hex": [
+   "#fff0a0",
+   "#e04030",
+   "#283c78",
+   "#101428"
+  ]
+ },
+ "bar": {
+  "hex": [
+   "#384058",
+   "#f8f8f8",
+   "#e04030",
+   "#301018"
+  ],
+  "_note": "index 0 = wall colour behind patrons"
+ },
+ "bar_b": {
+  "hex": [
+   "#384058",
+   "#f8f8f8",
+   "#e04030",
+   "#202848"
+  ],
+  "_note": "palette for keg/spout tiles; index 0 = wall colour"
+ }
+}
