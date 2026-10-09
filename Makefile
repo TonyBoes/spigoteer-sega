@@ -18,9 +18,10 @@ LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynTAPPER
 LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 
 SRC      := $(wildcard src/*.c)
-GEN      := $(BUILD)/art.c $(BUILD)/patrons.c $(BUILD)/palettes.c $(BUILD)/music_data.c
+GEN      := $(BUILD)/art.c $(BUILD)/patrons.c $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat3.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
-# rgb2sdas.py, placed in fixed ROM bank 2 next to the song data and src/music.c (all `#pragma bank 2`).
+# rgb2sdas.py, placed in ROM bank 2 next to the order tables and src/music.c (all `#pragma bank 2`); the song patterns are
+# in bank 3 (build/music_pat3.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
 HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
 BONUS_H  := $(BUILD)/can_tiles.h
@@ -48,9 +49,13 @@ $(BUILD)/patrons.c $(BUILD)/can_tiles.h: $(BUILD)/art.c
 $(BUILD)/palettes.c $(BUILD)/palettes.h: tools/palettes2c.py assets/palettes.json | $(BUILD)
 	python3 tools/palettes2c.py assets/palettes.json $(BUILD)
 
-# Music: tune sources in tools/gen_music.py -> build/music_data.c
-$(BUILD)/music_data.c: tools/gen_music.py src/music.h | $(BUILD)
+# Music: tune sources in tools/gen_music.py + tools/songs.py -> build/music_data.c (bank 2: order tables, jingles) and
+# build/music_pat3.c (bank 3: the pattern blobs src/music.c copies into WRAM)
+$(BUILD)/music_data.c: tools/gen_music.py tools/songs.py src/music.h | $(BUILD)
 	python3 tools/gen_music.py $(BUILD)
+
+$(BUILD)/music_pat3.c: $(BUILD)/music_data.c
+	@true
 
 $(BUILD)/hUGEDriver.obj: $(HUGE)/hUGEDriver.asm $(wildcard $(HUGE)/include/*) | $(BUILD)
 	rgbasm -i $(HUGE)/ -DGBDK -o $@ $<

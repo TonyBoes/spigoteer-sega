@@ -1,11 +1,12 @@
 # M7: music (hUGEDriver), sound effects, the saved hi score and the MUSIC ON/OFF switch.
 # Register and audio checks need PyBoy's sound emulation, which the shared Rom wrapper leaves off
 # (its sound registers read 0), so `sound_rom` swaps in a PyBoy with sound_emulated=True.
+import sys
 from io import BytesIO
 
 import numpy as np
 import pytest
-from conftest import ROM
+from conftest import ROM, ROOT
 from gbtools import Rom
 from pyboy import PyBoy
 from test_bonus import PH_SHAKE, enter_bonus, to_phase
@@ -15,10 +16,19 @@ from test_flow import (BONUS, GAME_OVER, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE,
 pytestmark = pytest.mark.timeout(120)
 
 SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_COUNT = range(10)
-TUNE_TITLE, TUNE_GAME, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_COUNT = range(6)
+TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0 = range(6)
+TUNE_COUNT = TUNE_VENUE0 + 9
+TUNE_GAME = TUNE_VENUE0          # level 1: the cowboys' "Oh! Susanna"
 TUNE_NONE = 255
 MUG_EMPTY, PATRON_PUSHED = 2, 2
 NR50, NR51, NR52 = 0xFF24, 0xFF25, 0xFF26
+
+sys.path.insert(0, str(ROOT / "tools"))
+import gen_music as gm       # noqa: E402  (the song sources: what each tune should play)
+import songs                 # noqa: E402
+from check_music import detect, note_hz      # noqa: E402
+
+GS_LEVEL_CLEAR = 3
 
 
 def sfx_count(gb, i):
@@ -153,7 +163,8 @@ def test_sound_is_on_and_the_title_tune_plays(srom):
     for _ in range(120):
         srom.run(1)
         seen |= srom.mem(NR52) & 0x0F
-    assert srom.mem16("music_frames") == frames0 + 120, "driver ticked once per frame"
+    # (on a row's first frame the tick can land just after the frame boundary PyBoy stops at: the count may lag by one)
+    assert abs(srom.mem16("music_frames") - (frames0 + 120)) <= 1, "driver ticked once per frame"
     assert srom.mem("hUGE_row") != row0, "the song advances"
     assert seen == 0x6, f"channels 2 and 3 play the title tune, 1 and 4 stay free (NR52 channel bits seen: {seen:#x})"
 
@@ -202,14 +213,14 @@ def test_music_yields_channel_4_to_an_effect_then_takes_it_back(sgb):
 def test_tunes_follow_the_game_state(srom):
     assert srom.mem("cur_tune") == TUNE_TITLE
     start_game(srom)
-    assert srom.mem("cur_tune") == TUNE_GAME
+    assert srom.mem("cur_tune") == TUNE_VENUE0, "level 1 is the saloon: Oh! Susanna"
     row = srom.mem16("music_frames")
     srom.run(5)
-    assert srom.mem16("music_frames") == row + 5, "a looping tune keeps going"
+    assert abs(srom.mem16("music_frames") - (row + 5)) <= 1, "a looping tune keeps going"
     clear_level(srom)
     assert srom.mem("cur_tune") == TUNE_CLEAR
     run_until(srom, lambda: state(srom) == PLAYING, 400)
-    assert srom.mem("cur_tune") == TUNE_GAME
+    assert srom.mem("cur_tune") == TUNE_VENUE0 + 1, "level 2 is the sports bar: its own tune"
 
 
 def test_jingle_stops_by_itself(srom):
@@ -239,6 +250,156 @@ def test_bonus_round_has_its_own_tune(srom):
     start_game(srom)
     enter_bonus(srom)
     assert srom.mem("cur_tune") == TUNE_BONUS
+
+
+# ---- the right song plays: its melody is heard on channel 2 ------------------------------------------
+def melody_check(rom, source, frames=260, min_notes=6):
+    """Run `frames` frames with only channel 2 routed to the speakers and compare the pitch heard inside each melody note
+    of song `source` (tools/songs.py) with the pitch the song says.  Returns (checked, wrong) lists of (row, Hz wanted, Hz heard)."""
+    t = songs.SONGS[source]
+    tempo = t["tempo"]
+    rows = gm.rows_for(2, t["ch2"], 1, tempo, False, t.get("gap", True))
+    notes = []
+    for i, (n, _, _) in enumerate(rows):
+        if n != gm.REST:
+            j = i + 1
+            while j < len(rows) and rows[j][0] == gm.REST:
+                j += 1
+            notes.append((i, j - i, n))
+    chunks, mfs = [], []
+    for _ in range(frames):
+        rom.pb.memory[NR51] = 0x22
+        rom.run(1)
+        rom.pb.memory[NR51] = 0x22
+        chunks.append(rom.pb.sound.ndarray.copy())
+        mfs.append(rom.mem16("music_frames"))
+        if len(mfs) > 1 and mfs[-1] < mfs[-2]:        # the song looped (or another tune started): stop there
+            chunks.pop(); mfs.pop()
+            break
+    rom.pb.memory[NR51] = 0xFF
+    flat = np.concatenate(chunks).astype(float).mean(axis=1)
+    spf = len(flat) / len(chunks)
+    rate = rom.pb.sound.sample_rate
+    checked, wrong = [], []
+    for row, ln, n in notes:
+        k = row * tempo + 1
+        if mfs[0] >= k or mfs[-1] < k + ln * tempo + 2:
+            continue                                    # not entirely inside what was recorded
+        f0 = next(f for f in range(len(mfs)) if mfs[f] >= k) + 1
+        a, b = int((f0 + 0.2 * ln * tempo) * spf), int((f0 + 0.8 * ln * tempo) * spf)
+        want = note_hz(n)
+        got = detect(flat[a:b], rate, want * 0.6, want * 1.7)
+        checked.append((row, want, got))
+        if not got or abs(12 * np.log2(got / want)) > 0.6:
+            wrong.append((row, want, got))
+    assert len(checked) >= min_notes, f"only {len(checked)} notes of {source} were inside the recording"
+    return checked, wrong
+
+
+def test_the_title_plays_the_entertainer(srom):
+    assert srom.mem("cur_tune") == TUNE_TITLE
+    checked, wrong = melody_check(srom, "entertainer", 280)
+    assert not wrong, f"title melody differs from The Entertainer's note list: {wrong}"
+
+
+SUSANNA_SPEC = """C4:1 D4:1
+E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 C4:1 D4:2 C4:1 D4:1
+E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 D4:1 C4:2 C4:1 D4:1
+E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 C4:1 D4:2 C4:1 D4:1
+E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 D4:1 C4:4
+F4:2 F4:2 A4:2 A4:2 G4:1 G4:1 E4:1 C4:1 D4:2 C4:1 D4:1
+E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 D4:1 C4:4"""
+
+
+def test_the_oh_susanna_song_data_is_the_owners_note_list():
+    assert songs.SONGS["susanna"]["ch2"].split() == SUSANNA_SPEC.split()
+    assert songs.SONGS["susanna"]["tempo"] == 15, "120 bpm quarter = 15 frames per eighth-note row"
+    bass = songs.SONGS["susanna"]["ch3"].replace("!", "").split()
+    assert bass[:5] == ["r:2", "C3:2", "G2:2", "C3:2", "G2:2"] and bass[-1] == "C3:4", "boom-chick, final bar a whole-bar root"
+    assert songs.SONGS["susanna"]["ch4"].split()[-2:] == ["K:1", "r:3"], "final bar: kick then rests"
+
+
+def test_level_1_plays_oh_susanna(sgb):
+    assert sgb.mem("cur_tune") == TUNE_VENUE0 and sgb.mem("cur_group") == 0
+    sgb.write("intro_timer", 255)
+    checked, wrong = melody_check(sgb, "susanna", 240)
+    assert not wrong, f"gameplay melody differs from Oh! Susanna: {wrong}"
+
+
+def goto_level(rom, level):
+    """The level-clear state about to move on to `level` (which must be even, so no bonus round comes between)."""
+    assert level % 2 == 0
+    rom.write("level", level - 1)
+    rom.write("game_state", GS_LEVEL_CLEAR)
+    rom.write("state_timer", 149)
+    rom.run(1)
+    run_until(rom, lambda: state(rom) == PLAYING, 30)
+
+
+@pytest.mark.parametrize("group", range(9))
+def test_every_venue_plays_its_own_song(sgb, group):
+    """Level L shows patron group (L-1) % 9: each group has its own tune, played from its first note."""
+    level = group + 1 if group % 2 else group + 10
+    if group == 0:
+        pass                                            # level 1 is where the fixture already is
+    else:
+        goto_level(sgb, level)
+    sgb.write("intro_timer", 255)
+    assert sgb.mem("cur_group") == group and sgb.mem("cur_tune") == TUNE_VENUE0 + group
+    source = songs.VENUES[group]
+    sgb.run(30)
+    checked, wrong = melody_check(sgb, source, 330, min_notes=3)
+    assert not wrong, f"{source}: {wrong}"
+
+
+def w16(rom, name, v):
+    rom.write(name, v & 255)
+    rom.write(rom.addr(name) + 1, v >> 8)
+
+
+def start_a_show(rom):
+    rom.write("intro_timer", 255)
+    rom.write("tip_chance", 0)
+    rom.write("tip_bar", rom.mem("bar"))
+    rom.write("tip_x", rom.mem("bartender_x"))
+    rom.write("tip_timer", 100)
+    rom.run(2)
+
+
+def test_a_show_plays_the_galop_and_the_level_tune_resumes_from_its_start(sgb):
+    sgb.run(400)                                        # long enough for the show tune to have been copied in the background
+    assert sgb.mem("cur_tune") == TUNE_VENUE0
+    start_a_show(sgb)
+    assert sgb.mem16("show_timer") > 0 and sgb.mem("cur_tune") == TUNE_SHOW
+    w16(sgb, "show_timer", 2000)                       # keep the show going while the melody is checked
+    checked, wrong = melody_check(sgb, "galop", 200)
+    assert not wrong, f"show melody differs from the Galop infernal: {wrong}"
+    w16(sgb, "show_timer", 3)
+    run_until(sgb, lambda: sgb.mem("cur_tune") != TUNE_SHOW, 10)
+    sgb.run(1)                                          # (PyBoy's frame edge can fall inside the music_play call)
+    assert sgb.mem16("show_timer") == 0 and sgb.mem("cur_tune") == TUNE_VENUE0, "the show is over: the level's tune again"
+    assert sgb.mem16("music_frames") < 5, "...from its start"
+    checked, wrong = melody_check(sgb, "susanna", 150, min_notes=3)
+    assert not wrong, wrong
+
+
+def test_a_show_that_ends_with_a_lost_life_gives_the_level_tune_back(sgb):
+    sgb.run(400)
+    start_a_show(sgb)
+    assert sgb.mem("cur_tune") == TUNE_SHOW
+    lose_a_life(sgb)
+    run_until(sgb, lambda: state(sgb) == PLAYING, 200)
+    assert sgb.mem("cur_tune") == TUNE_VENUE0 and sgb.mem16("show_timer") == 0
+    sgb.run(30)
+    assert sgb.mem16("music_frames") > 0 and sgb.mem(NR52) & 0x06, "and it is audible"
+
+
+def test_the_show_tune_waits_for_nothing_when_a_show_starts(sgb):
+    """The show tune is copied to WRAM while the level plays, so a show starts it at once (no silent gap)."""
+    sgb.run(400)
+    start_a_show(sgb)
+    sgb.run(3)
+    assert sgb.mem("cur_tune") == TUNE_SHOW and sgb.mem16("music_frames") >= 2
 
 
 # ---- MUSIC ON / OFF -------------------------------------------------------------------------
@@ -390,9 +551,12 @@ def test_no_frame_is_skipped_with_music_and_effects_running(sgb):
 
 
 def test_all_tunes_have_a_tempo_that_fits_their_frames():
-    """build/music_data.c is generated: every tune's pass length is a whole number of rows."""
+    """build/music_data.c is generated: every tune's pass length is sane, venue tunes loop 15-30 s, the show tune 8-12 s."""
     import re
     from conftest import ROOT
     src = (ROOT / "build" / "music_data.c").read_text()
-    frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+)\}", src)]
+    frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+\}", src)]
     assert len(frames) == TUNE_COUNT and all(60 <= f <= 1800 for f in frames), frames
+    venue = frames[TUNE_VENUE0:]
+    assert all(15 * 60 <= f <= 30 * 60 for f in venue), f"venue tunes loop for 15-30 s: {venue}"
+    assert 8 * 60 <= frames[TUNE_SHOW] <= 12 * 60, "the show tune loops for 8-12 s"

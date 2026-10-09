@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
-"""Tune sources -> build/music_data.c (hUGEDriver song data, C format).
+"""Tune sources -> build/music_data.c, build/music_pat3.c, build/music_pat4.c (hUGEDriver song data, C).
 
-All tunes here are written for this project.  No tracker GUI is involved: each tune is a few
-lines of text per channel.  A token is NOTE:ROWS (rows are 16th/8th notes depending on the
-tune's tempo), 'r:ROWS' is a rest, a trailing '!' makes the note staccato (note cut), and
-'/N' picks instrument N for that note.  Channel 1 is never used by the music (sound
-effects own it); channel 4 is percussion (k = kick, s = snare, h = hat).
+No tracker GUI is involved: each tune is a few lines of text per channel.  A token is NOTE:ROWS
+(rows are 16th/8th notes depending on the tune's tempo), 'r:ROWS' is a rest, a trailing '!' makes
+the note staccato (note cut), and '/N' picks instrument N for that note.  Channel 1 is never used
+by the music (sound effects own it); channel 4 is percussion (k s h: the loud old kit, K S H: the
+quiet kit).
+
+Two kinds of tune:
+ * jingles (level clear, game over, bonus): small, their patterns sit in bank 2 beside the driver.
+ * "buffered" tunes (title, show, nine venue tunes, tools/songs.py): hUGEDriver reads patterns through
+   plain pointers into whatever ROM bank is mapped, and bank 2 is the only place the driver runs
+   from, so these songs cannot live elsewhere in ROM as they are.  Their patterns are packed into
+   blobs in ROM banks 3 and 4; at music_play() src/music.c copies the song's blob into a WRAM buffer
+   (A for the title/venue tune, B for the show tune), and the order tables that stay in bank 2 point
+   into that buffer.  Bank 2 then only holds the driver, the order tables and the instruments.
 
 Usage: gen_music.py OUTDIR
 """
@@ -22,6 +31,7 @@ DUTY = [  # sweep, len_duty (NR11), envelope (NR12), subpattern, highmask
     (0x08, 0x40, 0x93),   # 2 soft lead: 25% pulse, volume 9, slow decay
     (0x08, 0x80, 0xC1),   # 3 plink: 50% pulse, volume 12, fast decay (short jingle notes)
     (0x08, 0x00, 0x91),   # 4 thin: 12.5% pulse, fast decay (quick bonus-round notes)
+    (0x08, 0x80, 0xA5),   # 5 song lead: 50% pulse, volume 10, slow decay (long notes keep sounding)
 ]
 WAVE = [  # length, volume (NR32: 0x20 = 100%, 0x40 = 50%), waveform index, subpattern, highmask
     (0, 0x40, 0),         # 1 bass: triangle at 50%
@@ -31,8 +41,11 @@ NOISE = [  # envelope (NR42), subpattern, highmask+length
     (0x81, 0x00),         # 1 kick  (vol 8, fast decay)
     (0x61, 0x00),         # 2 snare (vol 6, fast decay)
     (0x31, 0x80),         # 3 hat   (vol 3, fast decay, 7-bit LFSR = metallic)
+    (0x61, 0x00),         # 4 kick, quiet kit: low noise, 15-bit LFSR, volume 6, fast decay
+    (0x53, 0x00),         # 5 snare, quiet kit: mid noise, 15-bit LFSR, volume 5, medium decay
+    (0x41, 0xB6),         # 6 hat, quiet kit: high noise, 7-bit LFSR, volume 4, very short (length-limited)
 ]
-NOISE_NOTE = {"k": (12, 1), "s": (44, 2), "h": (60, 3)}      # noise note number sets the pitch
+NOISE_NOTE = {"k": (12, 1), "s": (44, 2), "h": (60, 3), "K": (12, 4), "S": (44, 5), "H": (60, 6)}   # note number sets the pitch
 WAVES = [
     # 0 triangle
     [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10],
@@ -51,9 +64,18 @@ def note_no(name):
     return n
 
 
-def rows_for(channel, text, default_inst, tempo):
-    """Expand a token string into a list of (note, inst, effect) rows."""
-    out = []
+SLOT_BYTES = 192          # one pattern: 64 rows x 3 bytes
+
+
+def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True):
+    """Expand a token string into a list of (note, inst, effect) rows.
+
+    legacy: the jingles' original staccato rule (kept so they sound as before).  Otherwise a note is
+    cut with the Exx effect on the row where the cut falls (hUGEDriver counts ticks from the start
+    of a row, so a cut can only act inside its own row): a staccato note ('!') is cut after 3/4 of
+    its length, and a note that is followed by a rest or by the same pitch again is cut one frame
+    before its end (the 1-frame gap that makes repeated notes articulate and rests silent)."""
+    out, notes = [], []          # notes: (first row, rows, pitch name or None for a rest, staccato)
     for tok in text.split():
         stac = tok.endswith("!")
         tok = tok.rstrip("!")
@@ -64,22 +86,52 @@ def rows_for(channel, text, default_inst, tempo):
         name, n = tok.split(":")
         n = int(n)
         assert n >= 1, tok
+        notes.append((len(out), n, None if name == "r" else name, stac))
         if name == "r":
             out += [(REST, 0, 0)] * n
             continue
         if channel == 4:
             note, inst = NOISE_NOTE[name]
             eff = 0
-        else:
+        elif legacy:
             note = note_no(name)
             eff = 0xE00 | max(1, (n * tempo * 3) // 5) if stac else 0
+        else:
+            note = note_no(name)
+            if channel == 3:
+                note += 12      # the wave channel sounds an octave below a pulse channel for the same note index
+                assert note < 72, name
+            eff = 0
         out.append((note, inst, eff))
         out += [(REST, 0, 0)] * (n - 1)
+    if channel != 4 and not legacy:
+        for k, (row, n, name, stac) in enumerate(notes):
+            if name is None:
+                continue
+            nxt = notes[k + 1][2] if k + 1 < len(notes) else "wrap"
+            ticks = n * tempo
+            if stac:
+                cut = (ticks * 3) // 4
+            elif gap and (nxt is None or nxt == name):
+                cut = ticks - 1
+            else:
+                continue
+            cut = max(cut, 1)
+            r, t = row + cut // tempo, cut % tempo
+            if t == 0:
+                t = 1              # tick 0 is the trigger itself
+                if r == row:
+                    continue
+            note, inst, eff = out[r]
+            assert eff == 0, (name, r)
+            out[r] = (note, inst, 0xE00 | t)
     return out
 
 
-TUNES = {}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import songs  # noqa: E402
 
+TUNES = {}
 
 def tune(name, tempo, loop, ch2, ch3, ch4=""):
     TUNES[name] = dict(tempo=tempo, loop=loop, ch2=ch2, ch3=ch3, ch4=ch4)
@@ -95,29 +147,6 @@ def bass(bars, rows_per_bar=8):
             t += [f"{root}:3!", f"{fifth}:3!"]
     return " ".join(t)
 
-
-# TITLE: the verse of "Oh! Susanna" (Stephen Foster, 1848, public domain), entered from memory;
-# the arrangement (bass line, rhythm, instruments) is ours.  Tempo 7 frames per 16th row.
-tune("title", 7, 1,
-     ch2=" ".join([
-         "C5:2 D5:2 E5:2 G5:2", "G5:3 A5:1 G5:2 E5:2", "C5:2 D5:2 E5:2 E5:2", "D5:6 r:2",
-         "C5:2 D5:2 E5:2 G5:2", "G5:3 A5:1 G5:2 E5:2", "C5:2 D5:2 E5:2 D5:2", "C5:6 r:2"]),
-     ch3=bass([("C3", "G3"), ("C3", "G3"), ("G3", "D4"), ("G3", "D4"),
-               ("C3", "G3"), ("C3", "G3"), ("G3", "D4"), ("C3", "G3")]),
-     ch4="")
-
-# IN-GAME: original saloon-style 2/4 tune in C, A part (bars 1-8) and B part (bars 9-16).
-tune("game", 7, 1,
-     ch2=" ".join([
-         "E5:2 G5:2 C6:2 G5:2", "A5:2 G5:2 E5:4", "D5:2 F5:2 A5:2 F5:2", "G5:6 r:2",
-         "E5:2 G5:2 C6:2 E6:2", "D6:2 C6:2 A5:4", "G5:2 A5:2 G5:2 F5:2", "E5:4 C5:4",
-         "A5:2 A5:2 C6:2 A5:2", "G5:2 G5:2 B5:2 G5:2", "F5:2 F5:2 A5:2 F5:2", "E5:2 G5:2 E5:4",
-         "A5:2 C6:2 E6:2 C6:2", "B5:2 G5:2 D6:4", "C6:2 B5:2 A5:2 G5:2", "G5:4 r:4"]),
-     ch3=bass([("C3", "G3"), ("C3", "G3"), ("D3", "A3"), ("G3", "D4"),
-               ("C3", "G3"), ("F3", "C4"), ("G3", "D4"), ("C3", "G3"),
-               ("A3", "E4"), ("G3", "D4"), ("F3", "C4"), ("C3", "G3"),
-               ("A3", "E4"), ("G3", "D4"), ("F3", "C4"), ("G3", "D4")]),
-     ch4=" ".join(["k:1 r:1 h:2 s:1 r:1 h:2"] * 16))
 
 # LEVEL CLEAR: original rising C-major fanfare, about two seconds.  Tempo 4.
 tune("clear", 4, 0,
@@ -144,89 +173,178 @@ tune("bonus", 5, 1,
 # the bonus lead uses the thin pulse
 TUNES["bonus"]["ch2"] = " ".join(t + "/4" if ":" in t and not t.startswith("r:") else t
                                  for t in TUNES["bonus"]["ch2"].split())
-ORDER = ["title", "game", "clear", "over", "bonus"]
 
 
-def build(name, t):
+
+# ---- tune table: the order is music.h's TUNE_* enum ----------------------------------------------
+JINGLES = {"clear": TUNES["clear"], "over": TUNES["over"], "bonus": TUNES["bonus"]}
+ORDER = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in range(9)]
+SOURCE = {"title": "entertainer", "show": "galop"}
+SOURCE.update({f"venue{i}": n for i, n in enumerate(songs.VENUES)})
+BLOB_BANKS = (3,)
+BUF_ID = {"A": 1, "B": 2}
+
+
+def chunks_of(chan_rows, n_orders):
+    for o in range(n_orders):
+        chunk = chan_rows[o * 64:(o + 1) * 64]
+        yield tuple(chunk + [(REST, 0, 0)] * (64 - len(chunk)))
+
+
+def build(name, t, legacy):
+    """Rows -> orders.  Returns the song's channel chunks (4 channels x n_orders patterns)."""
     tempo = t["tempo"]
+    inst = t.get("inst", 1)
+    gap = t.get("gap", True)
     chans = {
-        2: rows_for(2, t["ch2"], 1, tempo),
-        3: rows_for(3, t["ch3"], 1, tempo),
-        4: rows_for(4, t["ch4"], 1, tempo) if t["ch4"] else [],
+        2: rows_for(2, t["ch2"], inst, tempo, legacy, gap),
+        3: rows_for(3, t["ch3"], 1, tempo, legacy, gap),
+        4: rows_for(4, t["ch4"], 1, tempo, legacy) if t["ch4"] else [],
     }
     total = max(len(v) for v in chans.values())
     chans = {c: v + [(REST, 0, 0)] * (total - len(v)) for c, v in chans.items()}
     chans[1] = [(REST, 0, 0)] * total
     n_orders = (total + 63) // 64
-    last = total - 64 * (n_orders - 1)
-    if last < 64:        # pattern break on the unused channel 1 ends the final pattern early
-        row = chans[1]
-        row[total - 1] = (REST, 0, 0xD00)
-    pats = {}
-    orders = {c: [] for c in (1, 2, 3, 4)}
-    cname = []
-    for c in (1, 2, 3, 4):
-        for o in range(n_orders):
-            chunk = chans[c][o * 64:(o + 1) * 64]
-            chunk = chunk + [(REST, 0, 0)] * (64 - len(chunk))
-            key = tuple(chunk)
-            if key not in pats:
-                pats[key] = f"{name}_p{len(pats)}"
-            orders[c].append(pats[key])
-    return dict(total=total, tempo=tempo, pats=pats, orders=orders, n_orders=n_orders)
+    if total % 64:      # a pattern break on the last row ends the final pattern early
+        for c in ((2, 3, 4, 1) if not legacy else (1,)):
+            note, ins, eff = chans[c][total - 1]
+            if eff == 0:
+                chans[c][total - 1] = (note, ins, 0xD00)
+                break
+        else:
+            raise SystemExit(f"{name}: no channel has a free effect column on its last row")
+    per = {c: list(chunks_of(chans[c], n_orders)) for c in (1, 2, 3, 4)}
+    return dict(total=total, tempo=tempo, n_orders=n_orders, per=per)
 
 
-def emit_song(f, name, t):
-    b = build(name, t)
-    for key, pname in b["pats"].items():
-        f.write(f"static const unsigned char {pname}[] = {{\n")
-        for i in range(0, 64, 4):
-            f.write("    " + " ".join(
-                "DN({},{},0x{:03X}),".format("___" if n == REST else n, ins, eff) for n, ins, eff in key[i:i + 4]) + "\n")
-        f.write("};\n")
-    f.write(f"static const unsigned char {name}_order_cnt = {b['n_orders'] * 2};\n")
-    for c in (1, 2, 3, 4):
-        f.write(f"static const unsigned char * const {name}_order{c}[] = {{{', '.join(b['orders'][c])}}};\n")
-    f.write(f"static const hUGEDutyInstr_t {name}_duty[] = {{\n")
+def row_text(key):
+    out = []
+    for i in range(0, 64, 4):
+        out.append("    " + " ".join(
+            "DN({},{},0x{:03X}),".format("___" if n == REST else n, ins, eff) for n, ins, eff in key[i:i + 4]) + "\n")
+    return "".join(out)
+
+
+EMPTY = tuple([(REST, 0, 0)] * 64)
+
+
+def emit_instruments(f):
+    f.write("static const hUGEDutyInstr_t duty_inst[] = {\n")
     for sw, ld, env in DUTY:
         f.write(f"    {{{sw},{ld},{env},0,128}},\n")
-    f.write("};\n")
-    f.write(f"static const hUGEWaveInstr_t {name}_wave[] = {{\n")
+    f.write("};\nstatic const hUGEWaveInstr_t wave_inst[] = {\n")
     for ln, vol, wv in WAVE:
         f.write(f"    {{{ln},{vol},{wv},0,128}},\n")
-    f.write("};\n")
-    f.write(f"static const hUGENoiseInstr_t {name}_noise[] = {{\n")
+    f.write("};\nstatic const hUGENoiseInstr_t noise_inst[] = {\n")
     for env, hm in NOISE:
         f.write(f"    {{{env},0,{hm},0,0}},\n")
-    f.write("};\n")
-    f.write(f"const hUGESong_t song_{name} = {{{b['tempo']}, &{name}_order_cnt, "
-            f"(const unsigned char **){name}_order1, (const unsigned char **){name}_order2, "
-            f"(const unsigned char **){name}_order3, (const unsigned char **){name}_order4, "
-            f"{name}_duty, {name}_wave, {name}_noise, NULL, waves}};\n\n")
-    return b
+    f.write("};\n\n")
 
 
 def main():
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
+    built = {}
+    for name in ORDER:
+        if name in JINGLES:
+            built[name] = build(name, JINGLES[name], True)
+        else:
+            built[name] = build(name, songs.SONGS[SOURCE[name]], False)
+
+    # buffered tunes: assign pattern slots (in first-use order, per song) and pack the blobs
+    slots = {}        # tune -> {key: slot}
+    for name in ORDER:
+        if name in JINGLES:
+            continue
+        sl = {}
+        for c in (1, 2, 3, 4):
+            for key in built[name]["per"][c]:
+                if key != EMPTY and key not in sl:
+                    sl[key] = len(sl)
+        slots[name] = sl
+    max_a = max(len(sl) for n, sl in slots.items() if songs.SONGS[SOURCE[n]]["buf"] == "A")
+    max_b = max(len(sl) for n, sl in slots.items() if songs.SONGS[SOURCE[n]]["buf"] == "B")
+
+    # blobs -> banks (first fit, in tune order)
+    bank_of, used = {}, {b: 0 for b in BLOB_BANKS}
+    for name in slots:
+        size = len(slots[name]) * SLOT_BYTES
+        for b in BLOB_BANKS:
+            if used[b] + size <= 15500:
+                bank_of[name] = b
+                used[b] += size
+                break
+        else:
+            raise SystemExit("blobs do not fit banks %s" % (BLOB_BANKS,))
+    for b in BLOB_BANKS:
+        with open(out / f"music_pat{b}.c", "w") as f:
+            f.write("// Generated by tools/gen_music.py from tools/songs.py. Do not edit.\n// Pattern blobs: copied into WRAM by src/music.c.\n")
+            f.write(f"#pragma bank {b}\n#include \"hUGEDriver.h\"\n\n")
+            for name in slots:
+                if bank_of[name] != b:
+                    continue
+                f.write(f"const unsigned char blob_{name}[] = {{   // {SOURCE[name]}: {len(slots[name])} patterns\n")
+                for key in slots[name]:
+                    f.write(row_text(key))
+                f.write("};\n\n")
+
     with open(out / "music_data.c", "w") as f:
-        f.write("// Generated by tools/gen_music.py from the tune sources there. Do not edit.\n")
+        f.write("// Generated by tools/gen_music.py from the tune sources there and in tools/songs.py. Do not edit.\n")
         f.write("#pragma bank 2\n#include <stddef.h>\n#include \"hUGEDriver.h\"\n#include \"music.h\"\n\n")
+        f.write(f"unsigned char mus_buf_a[{max_a * SLOT_BYTES}];    // WRAM: title / venue tune patterns ({max_a} patterns)\n")
+        f.write(f"unsigned char mus_buf_b[{max_b * SLOT_BYTES}];    // WRAM: show tune patterns ({max_b} patterns)\n\n")
         f.write("static const unsigned char waves[] = {\n")
         for w in WAVES:
             f.write("    " + ",".join(str(x) for x in w) + ",\n")
         f.write("};\n\n")
-        info = []
+        emit_instruments(f)
+        f.write("static const unsigned char empty_pat[] = {\n" + row_text(EMPTY) + "};\n\n")
+        for name in slots:
+            f.write(f"extern const unsigned char blob_{name}[];\n")
+        f.write("\n")
         for name in ORDER:
-            info.append(emit_song(f, name, TUNES[name]))
+            b = built[name]
+            if name in JINGLES:
+                pats = {}
+                orders = {1: [], 2: [], 3: [], 4: []}
+                for c in (1, 2, 3, 4):
+                    for key in b["per"][c]:
+                        if key not in pats:
+                            pats[key] = f"{name}_p{len(pats)}"
+                            f.write(f"static const unsigned char {pats[key]}[] = {{\n{row_text(key)}}};\n")
+                        orders[c].append(pats[key])
+            else:
+                buf = "mus_buf_" + songs.SONGS[SOURCE[name]]["buf"].lower()
+                orders = {c: [("empty_pat" if key == EMPTY else f"&{buf}[{slots[name][key] * SLOT_BYTES}]")
+                              for key in b["per"][c]] for c in (1, 2, 3, 4)}
+            f.write(f"static const unsigned char {name}_order_cnt = {b['n_orders'] * 2};\n")
+            for c in (1, 2, 3, 4):
+                f.write(f"static const unsigned char * const {name}_order{c}[] = {{{', '.join(orders[c])}}};\n")
+            f.write(f"static const hUGESong_t song_{name} = {{{b['tempo']}, &{name}_order_cnt, "
+                    f"(const unsigned char **){name}_order1, (const unsigned char **){name}_order2, "
+                    f"(const unsigned char **){name}_order3, (const unsigned char **){name}_order4, "
+                    f"duty_inst, wave_inst, noise_inst, NULL, waves}};\n\n")
+        f.write("// song, loop, frames per pass, buffer (0 none, 1 A, 2 B), bank / source / bytes of the pattern blob\n")
         f.write("const tune_t tunes[TUNE_COUNT] = {\n")
-        for name, b in zip(ORDER, info):
+        for name in ORDER:
+            b = built[name]
             frames = b["total"] * b["tempo"]
-            f.write(f"    {{&song_{name}, {TUNES[name]['loop']}, {frames}}},   // {name}: {b['total']} rows\n")
+            loop = JINGLES[name]["loop"] if name in JINGLES else 1
+            if name in JINGLES:
+                tail = "0, 0, NULL, 0"
+            else:
+                tail = "{}, {}, blob_{}, {}".format(BUF_ID[songs.SONGS[SOURCE[name]]["buf"]], bank_of[name], name,
+                                                    len(slots[name]) * SLOT_BYTES)
+            f.write(f"    {{&song_{name}, {loop}, {frames}, {tail}}},   // {name}"
+                    f"{' = ' + SOURCE[name] if name in SOURCE else ''}: {b['total']} rows\n")
         f.write("};\n")
-    for name, b in zip(ORDER, [build(n, TUNES[n]) for n in ORDER]):
-        print(f"gen_music: {name}: {b['total']} rows x {b['tempo']} frames = {b['total'] * b['tempo'] / 60:.1f}s, "
-              f"{b['n_orders']} orders, {len(b['pats'])} patterns")
+    for name in ORDER:
+        b = built[name]
+        extra = f", blob {len(slots[name])} patterns in bank {bank_of[name]}" if name in slots else ""
+        print(f"gen_music: {name}{'=' + SOURCE[name] if name in SOURCE else ''}: {b['total']} rows x {b['tempo']} frames "
+              f"= {b['total'] * b['tempo'] / 60:.1f}s, {b['n_orders']} orders{extra}")
+    print(f"gen_music: WRAM buffers: A {max_a} patterns ({max_a * SLOT_BYTES} B), B {max_b} ({max_b * SLOT_BYTES} B); "
+          f"blob bytes per bank {used}")
 
 
 if __name__ == "__main__":

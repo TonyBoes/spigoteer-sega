@@ -155,9 +155,12 @@ static void maybe_tip(uint8_t p) {
     tip_x = patron_catchx[p];
 }
 
+extern uint8_t cur_group;
+
 void end_show(void) {
     uint8_t p;
     show_timer = 0;
+    music_play(TUNE_VENUE0 + cur_group);          // the venue's tune again, from its start
     for (p = 0; p < MAX_PATRONS; p++) { patron_dist[p] = 0; patron_timer[p] = 0; }
     if (spawn_timer > (spawn_interval / SHOW_SPAWN_DIV)) spawn_timer = spawn_interval / SHOW_SPAWN_DIV;   // new patrons come sooner, once
 }
@@ -166,6 +169,7 @@ void end_show(void) {
 void start_show(void) {
     uint8_t p, any = 0, first = NO_SLOT;
     show_timer = SHOW_FRAMES;
+    music_play(TUNE_SHOW);                        // "Galop infernal" for as long as the show runs
     dancer_frame = 0; dance_tick = 0;
     for (p = 0; p < MAX_PATRONS; p++) {
         patron_dist[p] = 0;
