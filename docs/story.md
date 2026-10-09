@@ -1,6 +1,6 @@
-# Spigoteer: "The Golden Spigot" (story script, draft for owner approval)
+# Spigoteer: "The Golden Spigot" (story script, owner-approved)
 
-Milestone M11a. Nothing here is wired into the game yet; M11b builds the text engine and
+Milestone M11a, owner-approved 2026-10-09. Nothing here is wired into the game yet; M11b builds the text engine and
 chapter goals, M11c the art. Everything below is original writing.
 
 ## The pitch
@@ -30,7 +30,7 @@ Running gags:
 4. **The payoff.** The spigot can pour anything at all. After nine bars, the Spigoteer pours
    himself a nice cold glass of water.
 
-Family-friendly notes: the saloon's foamy drink is called **root beer** and the bistro pours
+Family-friendly notes: the saloon's foamy drink is called **sarsaparilla** and the bistro pours
 **sparkling grape juice**. The game's art doesn't change, only the words. Nobody gets drunk:
 drinks go to thirsty, sleepy, cold or hungry people. Teahouse and igloo: the owners are calm,
 warm professionals who speak plain English. Their one-note traits are love of quiet and
@@ -137,8 +137,8 @@ THIRSTY COWBOYS
 HAPPY, IT'S YOURS.
 
 SADIE
-THE ROOT BEER'S
-ON TAP. SLIDE 'EM
+SARSAPARILLA'S ON
+TAP. SLIDE 'EM
 DOWN THE BAR!
 ```
 
