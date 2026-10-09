@@ -7,6 +7,7 @@
                  8 tiles per frame: [c0 top, c0 top-low, c1 top, c1 top-low,
                  c0 bot, pad, c1 bot, pad].
   mug.txt        2 frames 8x16 = 2 tiles each.
+  mug_fill.txt   4 frames 8x16 (empty, 1/3, 2/3, full) = 2 tiles each.
 Usage: gen_art.py outdir previewdir
 """
 import sys
@@ -136,6 +137,17 @@ def main():
           "extern const uint8_t mug_tiles[];", "", "#endif", ""]
     c.append(fmt("mug_tiles", mt))
     png(mugs, prev / "mug_x8.png", 8, transparent=True)
+
+    # ---- mug_fill: 4 frames 8x16 (empty, 1/3, 2/3, full) = 2 tiles each ----
+    fills = [r for _, r in blocks(ROOT / "assets/art/mug_fill.txt")]
+    assert len(fills) == 4 and all(len(f) == 16 and len(f[0]) == 8 for f in fills)
+    ft = []
+    for f in fills:
+        ft += tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)
+    h[-2:-2] = ["#define MUG_FILL_FRAMES 4", f"#define MUG_FILL_TILE_COUNT {len(ft) // 16}",
+                "extern const uint8_t mug_fill_tiles[];", ""]
+    c.append(fmt("mug_fill_tiles", ft))
+    png(fills, prev / "mug_fill_x8.png", 8, transparent=True)
 
     # ---- glass (breaking mug): 4 frames 16x16 = 2 OAM entries of 8x16 each ----
     glass = [r for _, r in blocks(ROOT / "assets/art/glass.txt")]

@@ -10,11 +10,11 @@ TITLE, PLAYING, LIFE_LOST, LEVEL_CLEAR, GAME_OVER, PAUSED = range(6)
 MAX_P, MAX_M = 16, 24
 BT_FAIL = 6
 
-# (group, start per bar, quota, spawn interval, step frames, pushback, serve score)
+# (group, start bar mask, start per bar, quota, spawn interval, step frames, pushback, serve score)
 TABLE = [
-    (0, 1, 12, 180, 40, 4, 50), (1, 1, 14, 165, 37, 4, 75), (2, 1, 16, 150, 34, 4, 75),
-    (3, 2, 18, 135, 31, 4, 100), (4, 2, 20, 125, 29, 3, 100), (5, 2, 22, 115, 27, 3, 125),
-    (6, 2, 24, 105, 25, 3, 125), (7, 2, 26, 95, 23, 3, 150), (8, 2, 28, 90, 22, 3, 150),
+    (0, 0x5, 1, 8, 300, 64, 4, 50), (1, 0x7, 1, 10, 275, 60, 4, 75), (2, 0xF, 1, 12, 250, 56, 4, 75),
+    (3, 0xF, 1, 14, 230, 52, 4, 100), (4, 0xF, 1, 16, 210, 48, 3, 100), (5, 0xF, 2, 18, 190, 44, 3, 125),
+    (6, 0xF, 2, 20, 175, 40, 3, 125), (7, 0xF, 2, 21, 160, 37, 3, 150), (8, 0xF, 2, 22, 150, 34, 3, 150),
 ]
 ART_H = (ROOT / "build" / "art.h").read_text()
 
@@ -97,7 +97,7 @@ def test_start_begins_a_game(boot):
     boot.press("start", 2)
     run_until(boot, lambda: state(boot) == PLAYING, 30)
     assert boot.mem("lives") == 3 and score(boot) == 0 and boot.mem("level") == 1
-    assert patrons(boot) == [(b, 0) for b in range(4)]
+    assert patrons(boot) == [(0, 0), (2, 0)]          # level 1 starts on bars 0 and 2
     assert boot.mem("bar") == 0 and boot.mem("bartender_x") == 144
     boot.run(20)
     assert tilemap_row(boot, 1, 17, 2) == [tile_id("GLYPH_0"), tile_id("GLYPH_1")]   # LV 01
@@ -149,11 +149,11 @@ def test_lost_life_freezes_then_restarts_the_bars(gb):
     run_until(gb, lambda: state(gb) == PLAYING, 40)
     assert gb.mem("lives") == 2
     assert mugs(gb) == [] and gb.mem("mugs_live") == 0
-    assert patrons(gb) == [(b, 0) for b in range(4)] and gb.mem("spawned") == 4
+    assert patrons(gb) == [(0, 0), (2, 0)] and gb.mem("spawned") == 2
     assert gb.mem("bar") == 0 and gb.mem("bartender_x") == 144 and gb.mem("bartender_frame") == 0
     assert gb.mem("intro_timer") >= 85
     gb.run(30)
-    assert patrons(gb) == [(b, 0) for b in range(4)], "intro delay holds"
+    assert patrons(gb) == [(0, 0), (2, 0)], "intro delay holds"
     assert len([s for s in gb.visible_sprites()]) == 4, "only the bartender is on screen"
     # the tilemap shows exactly the re-placed patrons: no ghost of the one at the tap
     assert tilemap_row(gb, 2, 14, 4)[:3] == tilemap_row(gb, 10, 14, 4)[:3]
@@ -178,19 +178,19 @@ def test_served_count_persists_across_a_lost_life(gb):
     lose_a_life(gb)
     run_until(gb, lambda: state(gb) == PLAYING, 200)
     assert gb.mem("served") == 1 and gb.mem("lives") == 2
-    assert len(patrons(gb)) == 4 and gb.mem("spawned") == 5
+    assert len(patrons(gb)) == 2 and gb.mem("spawned") == 3
     # only quota - served may be placed again
-    gb.write("quota", 3)
+    gb.write("quota", 2)
     lose_a_life(gb)
     run_until(gb, lambda: state(gb) == PLAYING, 200)
-    assert len(patrons(gb)) == 2 and gb.mem("spawned") == 3 and gb.mem("served") == 1
+    assert len(patrons(gb)) == 1 and gb.mem("spawned") == 2 and gb.mem("served") == 1
 
 
 # ---- level clear ---------------------------------------------------------------------
 def clear_level(gb):
     gb.write("intro_timer", 255)
-    gb.write("quota", 4)
-    for b in range(4):
+    gb.write("quota", 2)                        # level 1 starts with two patrons: bars 0 and 2
+    for b in (0, 2):
         inject_mug(gb, b, 16)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 30)
 
@@ -198,16 +198,16 @@ def clear_level(gb):
 def test_level_clear_scores_shows_banner_and_loads_level_2(gb):
     gb.press("down", 2)
     clear_level(gb)
-    assert score(gb) == 4 * 50 + 1000 and gb.mem("overlay_on") == 1
+    assert score(gb) == 2 * 50 + 1000 and gb.mem("overlay_on") == 1
     gb.run(10)
     msg = tilemap_row(gb, 1, 0, 20, window=True)
     assert msg.count(tile_id("HUD_BLANK")) == 10 and msg[4] == tile_id("GLYPH_L")
     assert tilemap_row(gb, 0, 0, 20, window=True) == [tile_id("PANEL_TOP")] * 20
     run_until(gb, lambda: state(gb) == PLAYING, 200)
     assert gb.mem("level") == 2 and gb.mem("cur_group") == 1 and gb.mem("overlay_on") == 0
-    assert gb.mem("lives") == 3 and score(gb) == 1200
-    assert (gb.mem("quota"), gb.mem("step_frames"), gb.mem("serve_score")) == (14, 37, 75)
-    assert patrons(gb) == [(b, 0) for b in range(4)] and gb.mem("bar") == 0 and mugs(gb) == []
+    assert gb.mem("lives") == 3 and score(gb) == 1100
+    assert (gb.mem("quota"), gb.mem("step_frames"), gb.mem("serve_score")) == (10, 60, 75)
+    assert patrons(gb) == [(0, 0), (1, 0), (2, 0)] and gb.mem("bar") == 0 and mugs(gb) == []
     gb.run(15)
     assert tilemap_row(gb, 1, 17, 2) == [tile_id("GLYPH_0"), tile_id("GLYPH_2")]   # LV 02
     base = int(re.search(r"BAR_TILE_COUNT (\d+)", ART_H).group(1))
@@ -269,9 +269,10 @@ def test_level_table_and_wrap(gb):
         row = TABLE[min(lvl, 9) - 1]
         assert gb.mem("level") == lvl
         assert gb.mem("cur_group") == (lvl - 1) % 9
-        assert (gb.mem("quota"), gb.mem("spawn_interval"), gb.mem("step_frames"), gb.mem("pushback_cols"),
-                gb.mem("serve_score")) == (row[2], row[3], row[4], row[5], row[6]), lvl
-        assert len(patrons(gb)) == 4 * row[1], lvl
+        assert (gb.mem("quota"), gb.mem16("spawn_interval"), gb.mem("step_frames"), gb.mem("pushback_cols"),
+                gb.mem("serve_score")) == (row[3], row[4], row[5], row[6], row[7]), lvl
+        assert gb.mem("start_mask") == row[1]
+        assert len(patrons(gb)) == bin(row[1]).count("1") * row[2], lvl
         assert tilemap_row(gb, 1, 17, 2) == [tile_id("GLYPH_0") + lvl // 10, tile_id("GLYPH_0") + lvl % 10]
         gb.write("level_clear", 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 5)

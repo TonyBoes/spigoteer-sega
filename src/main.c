@@ -19,6 +19,7 @@
 
 // ---- tunables --------------------------------------------------------------
 #define TAP_X         144   // bartender_x at the tap (columns 18-19)
+#define TAP_GRACE      16   // A pressed within this many px left of the tap snaps to it and fills
 #define LEFT_LIMIT     16   // column 2, the end of the door
 #define WALK_SPEED      2   // px per frame
 #define WALK_ANIM_FRAMES 8  // walk1/walk2 swap period
@@ -45,25 +46,35 @@ enum { PATRON_NONE, PATRON_WALKING, PATRON_PUSHED, PATRON_DRINKING };
 // per-level knobs; start_level() copies one row into the globals below
 typedef struct {
     uint8_t group;          // patron art group (index into patron_tiles)
-    uint8_t start_per_bar;
+    uint8_t start_mask;     // bit b set: bar b starts with patrons
+    uint8_t start_per_bar;  // patrons per started bar (stacked 4 columns apart)
     uint8_t quota;          // patrons spawned in the level, including the start ones
-    uint8_t spawn_interval; // frames
+    uint16_t spawn_interval; // frames
     uint8_t step_frames;    // frames per column step
     uint8_t pushback_cols;
     uint8_t serve_score;
 } level_cfg_t;
 #define LEVEL_ROWS 9
-// one row per patron group, in the order of gen_art.py's PATRON_GROUPS
+// One row per patron group, in the order of gen_art.py's PATRON_GROUPS.
+// The curve is a gentle ramp: level 1 is meant for a first-time player. Patrons
+// start on only 2 bars and take ~17 s to cross a bar (16 steps x 64 frames), a
+// new one arrives every 5 s, and only 8 must be served. Each level then opens
+// one more bar (L2: 3 bars, L3: all 4), shortens the spawn interval
+// (300 -> 150 frames) and the step time (64 -> 34 frames per column), and raises
+// the quota (8 -> 22). From L6 a second patron per bar is waiting at the start.
+// Level 9 lands near what levels 4-5 used to be. Pushback is 4 columns up to
+// L4, 3 after. Levels past 9 keep the last row's speeds.
+//                 grp mask per quota spawn step push score
 static const level_cfg_t level_table[LEVEL_ROWS] = {
-    { 0, 1, 12, 180, 40, 4,  50 },   // 1 cowboys
-    { 1, 1, 14, 165, 37, 4,  75 },   // 2 sports
-    { 2, 1, 16, 150, 34, 4,  75 },   // 3 lumberjacks
-    { 3, 2, 18, 135, 31, 4, 100 },   // 4 chefs
-    { 4, 2, 20, 125, 29, 3, 100 },   // 5 divers
-    { 5, 2, 22, 115, 27, 3, 125 },   // 6 robots
-    { 6, 2, 24, 105, 25, 3, 125 },   // 7 ninjas
-    { 7, 2, 26,  95, 23, 3, 150 },   // 8 aliens
-    { 8, 2, 28,  90, 22, 3, 150 },   // 9 zoo; later levels reuse this row's speeds with cycling art
+    { 0, 0x5, 1,  8, 300, 64, 4,  50 },   // 1 cowboys: bars 0 and 2
+    { 1, 0x7, 1, 10, 275, 60, 4,  75 },   // 2 sports: bars 0-2
+    { 2, 0xF, 1, 12, 250, 56, 4,  75 },   // 3 lumberjacks: all bars
+    { 3, 0xF, 1, 14, 230, 52, 4, 100 },   // 4 chefs
+    { 4, 0xF, 1, 16, 210, 48, 3, 100 },   // 5 divers
+    { 5, 0xF, 2, 18, 190, 44, 3, 125 },   // 6 robots
+    { 6, 0xF, 2, 20, 175, 40, 3, 125 },   // 7 ninjas
+    { 7, 0xF, 2, 21, 160, 37, 3, 150 },   // 8 aliens
+    { 8, 0xF, 2, 22, 150, 34, 3, 150 },   // 9 zoo; later levels reuse this row's speeds with cycling art
 };
 
 // game flow
@@ -82,6 +93,8 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define OBJ_BARTENDER   0
 #define OBJ_MUG         (BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME)
 #define OBJ_GLASS       (OBJ_MUG + MUG_TILE_COUNT)
+#define OBJ_MUG_FILL    (OBJ_GLASS + GLASS_TILE_COUNT)
+#define OAM_FILL        4     // OAM entry of the filling mug; pooled mugs start at 5
 
 // mugs
 #define MAX_MUGS          24
@@ -121,6 +134,7 @@ uint8_t  is_cgb;            // running on colour hardware
 uint8_t  lives = START_LIVES;
 uint8_t  level = 1;
 uint8_t  fill_timer;        // frames A has been held at the tap (0 = not filling)
+uint8_t  fill_stage;        // 0..3 mug fill animation frame while filling (0 otherwise)
 uint8_t  slide_timer;       // frames left showing the "slide" pose
 uint8_t  game_over;         // set when lives reach 0; gameplay freezes
 uint8_t  game_state;        // GS_*
@@ -130,7 +144,7 @@ uint8_t  overlay_on;        // window banner shown
 uint32_t hi_score;          // WRAM only for now
 uint8_t  hi_digits[6];
 uint8_t  served;            // patrons served (left through the door) this level
-uint8_t  start_per_bar, cur_group;
+uint8_t  start_mask, start_per_bar, cur_group;
 uint8_t  hud_dirty;         // HUD_LIVES / HUD_SCORE bits: needs redrawing
 uint8_t  score_digits[6];   // the HUD digits, most significant first
 static uint8_t score_tiles[6];   // ... as BG tile ids, prepared outside VBlank
@@ -138,7 +152,8 @@ static uint8_t lives_tiles[3];
 uint8_t  level_clear;       // quota spawned, no patrons, no mugs
 
 // level state (loaded from level_table by start_level)
-uint8_t  quota, spawned, spawn_interval, spawn_timer, step_frames, pushback_cols, serve_score;
+uint8_t  quota, spawned, step_frames, pushback_cols, serve_score;
+uint16_t spawn_interval, spawn_timer;   // frames; 16-bit: level 1 spawns every 300
 uint8_t  intro_timer;
 uint8_t  rng_state;
 uint8_t  drain_ticks_max;   // longest VRAM drain so far in DIV ticks (256 cycles each); VBlank is ~17 ticks
@@ -282,6 +297,7 @@ static void add_score(uint16_t n) {
 }
 
 static void lose_life(void) {
+    if (life_lost) return;          // one incident costs one life, however many things go wrong in the same frame
     if (lives) lives--;
     hud_dirty |= HUD_LIVES;
     prep_hud();
@@ -596,6 +612,7 @@ static void init(void) {
     set_sprite_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);
     set_sprite_data(OBJ_MUG, MUG_TILE_COUNT, mug_tiles);
     set_sprite_data(OBJ_GLASS, GLASS_TILE_COUNT, glass_tiles);
+    set_sprite_data(OBJ_MUG_FILL, MUG_FILL_TILE_COUNT, mug_fill_tiles);
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 
     rng_state = 0xA7;
@@ -793,12 +810,23 @@ static void update_patrons(void) {
     if (spawned >= quota && patrons_live == 0 && mugs_live == 0) level_clear = 1;
 }
 
-// OAM 4.. : one entry per mug, two per breaking glass. Entries used last frame
+// OAM 4: the glass the bartender holds under the tap while filling (hidden otherwise).
+// It sits where the launched mug will start (MUG_START_X, the counter-top row).
+static void draw_fill(void) {
+    OAM_item_t *o = shadow_OAM + OAM_FILL;
+    uint8_t y;
+    if (!fill_timer) { o->y = 0; return; }
+    y = (3 + 4 * bar) * 8 + 16;
+    o->y = y; o->x = (uint8_t)(MUG_START_X + 8);
+    o->tile = OBJ_MUG_FILL + fill_stage * 2; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;   // DMG: OBP0 (beer light grey) shows on the white wall; OBP1 would make it white
+}
+
+// OAM 5.. : one entry per mug, two per breaking glass. Entries used last frame
 // but not this one are hidden (y = 0).
-static uint8_t oam_used = 4;
+static uint8_t oam_used = OAM_FILL + 1;
 static void draw_mugs(void) {
-    uint8_t i, n = 4, st, y, t, gx;
-    OAM_item_t *o = shadow_OAM + 4;
+    uint8_t i, n = OAM_FILL + 1, st, y, t, gx;
+    OAM_item_t *o = shadow_OAM + OAM_FILL + 1;
     if (mugs_live) {
         for (i = 0; i < MAX_MUGS; i++) {
             st = mug_state[i];
@@ -831,7 +859,7 @@ static void place_start_patrons(void) {
     uint8_t b, k, placed = 0, remaining = quota > served ? quota - served : 0;
     for (k = 0; k < start_per_bar; k++)
         for (b = 0; b < NUM_BARS; b++)
-            if (placed < remaining) { add_patron(b, 4 * k, next_rand() % 3); placed++; }
+            if ((start_mask & bar_bit[b]) && placed < remaining) { add_patron(b, 4 * k, next_rand() % 3); placed++; }
     spawned = served + placed;
     patrons_live = placed;
 }
@@ -842,6 +870,7 @@ static void start_level(void) {
     cur_group = idx % LEVEL_ROWS;               // art cycles, speeds stay at the last row
     quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
     pushback_cols = c->pushback_cols; serve_score = c->serve_score; start_per_bar = c->start_per_bar;
+    start_mask = c->start_mask;
     served = 0; spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES; level_clear = 0;
     for (b = 0; b < MAX_PATRONS; b++) patron_state[b] = PATRON_NONE;
     clear_dirty();
@@ -878,7 +907,7 @@ static void fill_row(uint8_t y, uint8_t tile) {
 static void hide_all_sprites(void) {
     uint8_t i;
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
-    oam_used = 4;
+    oam_used = OAM_FILL + 1;
 }
 
 // Banner window (tile rows 0..2 of the 0x9C00 map): frame, a text row that
@@ -959,7 +988,7 @@ static void enter_title(void) {
 static void reset_actors(void) {
     uint8_t i;
     bar = 0; bartender_x = TAP_X; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
-    walk_timer = 0; fill_timer = 0; slide_timer = 0;
+    walk_timer = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0;
     for (i = 0; i < MAX_MUGS; i++) mug_state[i] = MUG_FREE;
     mugs_live = 0;
 }
@@ -1045,6 +1074,10 @@ static void play_frame(uint8_t pressed) {
         facing = 1;
         if (bartender_x < TAP_X) bartender_x += WALK_SPEED;
     }
+    // A pressed close enough to the tap: snap to it, facing the bar (a fresh press only)
+    if ((pressed & J_A) && !fill_timer && bartender_x >= TAP_X - TAP_GRACE && bartender_x < TAP_X) {
+        bartender_x = TAP_X; facing = 0;
+    }
     at_tap = bartender_x == TAP_X;
     moved = (bartender_x != old_x) || (bar != old_bar) || (pressed & (J_UP | J_DOWN));
 
@@ -1060,9 +1093,12 @@ static void play_frame(uint8_t pressed) {
         } else if (fill_timer < FILL_FRAMES) {
             fill_timer++;
         }
+        fill_stage = fill_timer >= FILL_FRAMES ? 3 : fill_timer >= 2 * FILL_FRAMES / 3 ? 2
+                   : fill_timer >= FILL_FRAMES / 3 ? 1 : 0;
     } else if (at_tap && (pressed & J_A)) {
-        fill_timer = 1;
+        fill_timer = 1; fill_stage = 0;
     }
+    if (!fill_timer) fill_stage = 0;
 
     if (slide_timer) slide_timer--;
 
@@ -1106,7 +1142,7 @@ static void update(void) {
         break;
     case GS_LIFE_LOST:
         update_glass();
-        fill_timer = 0;
+        fill_timer = 0; fill_stage = 0;
         bartender_frame = BT_FAIL;
         if (++state_timer >= LIFE_FREEZE_FRAMES) {
             if (lives == 0) enter_game_over(); else resume_after_life();
@@ -1131,6 +1167,7 @@ static void update(void) {
     if (vram_pending || hud_dirty) queue_vram();
     if (game_state == GS_PLAYING || game_state == GS_LIFE_LOST) {
         draw_bartender();
+        draw_fill();
         draw_mugs();
     }
     if (game_state == GS_PLAYING) {              // reactions to what this frame did

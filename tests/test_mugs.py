@@ -211,3 +211,145 @@ def test_mug_sliding_golden(gb):
     gb.run(25)
     assert len(mugs(gb)) == 1
     check_golden(gb, "mug_sliding")
+
+
+# ---- tap grace + snap, fill animation (owner feedback after playing) ------------------------
+TAP_X, TAP_GRACE = 144, 16
+ART_H = (__import__("conftest").ROOT / "build" / "art.h").read_text()
+
+
+def _define(name):
+    return int(__import__("re").search(rf"#define {name} (\d+)", ART_H).group(1))
+
+
+OBJ_MUG = _define("BARTENDER_TILE_COUNT")
+OBJ_MUG_FILL = OBJ_MUG + _define("MUG_TILE_COUNT") + _define("GLASS_TILE_COUNT")
+FILL_OAM = 4
+FILL_FRAMES_N = 24
+
+
+def fill_sprite(gb):
+    """The fill sprite's OAM entry (index 4) if it is on screen, else None."""
+    e = gb.oam()[FILL_OAM]
+    return e if 0 < e["y"] < 160 else None
+
+
+def test_a_within_grace_snaps_to_the_tap_and_starts_filling(gb):
+    gb.press("left", 5)                          # 10 px left of the tap
+    assert gb.mem("bartender_x") == TAP_X - 10 and gb.mem("at_tap") == 0
+    gb.press("a", 1)
+    gb.run(1)
+    assert gb.mem("bartender_x") == TAP_X and gb.mem("at_tap") == 1 and gb.mem("facing") == 0
+    gb.hold("a")
+    gb.run(3)
+    assert gb.mem("fill_timer") > 0 and gb.mem("bartender_frame") == 3
+
+
+def test_grace_boundary_is_16_px(gb):
+    gb.press("left", 8)                          # exactly TAP_GRACE px away
+    assert gb.mem("bartender_x") == TAP_X - TAP_GRACE
+    gb.hold("a")
+    gb.run(2)
+    assert gb.mem("bartender_x") == TAP_X and gb.mem("fill_timer") > 0
+    gb.release("a")
+    gb.run(3)
+    gb.press("left", 9)                          # 18 px: outside
+    gb.hold("a")
+    gb.run(2)
+    assert gb.mem("bartender_x") == TAP_X - 18 and gb.mem("fill_timer") == 0
+    gb.release("a")
+
+
+def test_a_30_px_away_does_nothing(gb):
+    gb.press("left", 15)
+    assert gb.mem("bartender_x") == TAP_X - 30
+    gb.hold("a")
+    gb.run(40)
+    gb.release("a")
+    gb.run(2)
+    assert gb.mem("bartender_x") == TAP_X - 30, "no snap"
+    assert gb.mem("fill_timer") == 0 and gb.mem("mugs_live") == 0 and fill_sprite(gb) is None
+
+
+def test_a_held_into_the_grace_zone_does_not_snap(gb):
+    gb.press("left", 20)
+    gb.hold("a")
+    gb.run(2)
+    gb.press("right", 14)                        # held A walks him to 12 px from the tap: a fresh press is needed
+    assert gb.mem("bartender_x") == TAP_X - 12 and gb.mem("fill_timer") == 0
+    gb.run(10)
+    assert gb.mem("bartender_x") == TAP_X - 12 and gb.mem("fill_timer") == 0
+    gb.release("a")
+
+
+def test_snapped_fill_launches_a_mug(gb):
+    gb.press("left", 5)
+    gb.hold("a")
+    gb.run(30)
+    gb.release("a")
+    gb.run(2)
+    assert gb.mem("mugs_live") == 1 and gb.mem("bartender_x") == TAP_X
+
+
+def test_fill_sprite_shows_while_filling_and_steps_through_the_frames(gb):
+    assert fill_sprite(gb) is None
+    gb.hold("a")
+    gb.run(2)                                    # OAM DMA shows a frame late
+    seen, tiles = [], []
+    for _ in range(FILL_FRAMES_N + 4):
+        gb.run(1)
+        e = fill_sprite(gb)
+        assert e is not None, "visible for the whole fill"
+        seen.append(gb.mem("fill_stage"))
+        tiles.append(e["tile"])
+    assert seen == sorted(seen) and sorted(set(seen)) == [0, 1, 2, 3], seen
+    assert tiles[-1] == OBJ_MUG_FILL + 3 * 2 and tiles[0] == OBJ_MUG_FILL
+    assert [t for i, t in enumerate(tiles) if i == 0 or t != tiles[i - 1]] == [OBJ_MUG_FILL + 2 * s for s in range(4)]
+    e = fill_sprite(gb)
+    assert e["x"] - 8 == 136 and e["y"] - 16 == 3 * 8, "left of the bartender's hand, on the counter-top rows of bar 0"
+    # launch: the fill sprite goes, the sliding mug starts from the same spot
+    gb.release("a")
+    gb.run(2)
+    assert fill_sprite(gb) is None or fill_sprite(gb)["tile"] == OBJ_MUG
+    assert gb.mem("fill_stage") == 0 and gb.mem("fill_timer") == 0
+    (_, _, x), = mugs(gb)
+    assert x == 136 - 2 * 2 or x == 136 - 2 * 3
+    assert len(gb.visible_sprites()) == 5
+
+
+def test_fill_sprite_follows_the_bar_and_goes_when_cancelled(gb):
+    gb.press("down", 2)
+    gb.hold("a")
+    gb.run(8)
+    e = fill_sprite(gb)
+    assert e["y"] - 16 == (3 + 4) * 8
+    gb.press("left", 2)
+    assert gb.mem("fill_timer") == 0 and fill_sprite(gb) is None
+    gb.release("a")
+
+
+def test_sprites_per_scanline_with_six_mugs_and_the_fill_sprite(gb):
+    for k in range(6):
+        inject(gb, 0, 130 - 8 * k)
+    gb.hold("a")
+    gb.run(10)
+    assert fill_sprite(gb) is not None
+    spr = gb.visible_sprites()
+    assert len(spr) == 4 + 1 + 6
+    counts = [0] * 144
+    for s in spr:
+        top = s["y"] - 16
+        for line in range(max(top, 0), min(top + 16, 144)):
+            counts[line] += 1
+    assert max(counts) <= 10, max(counts)
+    gb.release("a")
+
+
+def test_filling_golden(gb):
+    gb.hold("a")
+    for _ in range(40):
+        gb.run(1)
+        if gb.mem("fill_stage") == 2:
+            break
+    assert gb.mem("fill_stage") == 2 and fill_sprite(gb) is not None
+    check_golden(gb, "filling")

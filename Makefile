@@ -30,7 +30,7 @@ $(BUILD) $(OUT)/preview:
 # Tile and sprite data: bar.txt (BG tiles), bartender.txt and mug.txt (8x16 OBJ
 # tiles, padded so each bartender frame is 4 OAM entries) -> build/art.c/.h.
 # Also writes x8 previews to out/preview/.
-$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/art/bartender.txt assets/art/mug.txt | $(BUILD) $(OUT)/preview
+$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/art/bartender.txt assets/art/mug.txt assets/art/mug_fill.txt | $(BUILD) $(OUT)/preview
 	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
 # CGB palettes: assets/palettes.json -> build/palettes.c/.h

@@ -35,16 +35,23 @@ and CGB, and the new behaviour has a test.
 
 ## Screen layout (160x144 = 20x18 tiles)
 
+Revised after the owner's first playtest (M4.5–M4.7):
+
 | rows | content |
 |---|---|
-| 0–1 | HUD: score, lives, level |
-| 2+4b … 5+4b | bar `b` (0..3): 2 rows of back wall where patrons stand, 1 row of counter top where mugs slide, 1 row of counter front |
+| 0 | HUD: score, lives, level (one row) |
+| 1–4 | stage: back wall with our own bar sign; dancers perform here (M5) |
+| 5+3b … 7+3b | bar `b` (0..3): 2 rows of back wall where patrons stand, 1 combined counter row (top + front) where mugs slide |
+| 17 | floor |
 
 - Columns 0–1 are the door, columns 2–17 the counter, and columns 18–19 the tap.
-- **Patrons are background tiles** (16x16 = 2x2 tiles) that move in 8 px
-  steps, like the jerky walk in the arcade game. This keeps them out of the
-  10-sprites-per-line budget entirely. Colour 0 of each patron BG palette is
-  the wall colour, so the tiles need no transparency.
+- **Patrons are background tiles** (16x16 on a 3x2-tile footprint), pre-drawn
+  shifted by 0/2/4/6 px so they move smoothly in 2 px steps by swapping
+  tilemap entries only. This keeps them out of the 10-sprites-per-line budget.
+  Colour 0 of each patron BG palette is the wall colour, so the tiles need no
+  transparency. Drinking is a mug sprite raised to the patron's face.
+- **Tap grace:** A within 16 px of the tap snaps the bartender to it and starts
+  a fill; the mug fills visibly in his hand.
 - **Sprites** use 8x16 OBJ mode:
   - bartender, 16x24: 4 entries
   - mugs: **1 entry each**. The 16 px mugs in the upload are redrawn 8 px
@@ -82,7 +89,10 @@ Each level is a row in a const table with these fields:
 | M2 ✅ | Mugs: hold A to fill, release when full to slide; break at the left end; lives decrement; glass animation | tests on `mug_*`, `lives` |
 | M3 ✅ | Patrons: spawn, walk, catch, push-back, leave, drink, return empty; bartender catches empties; patron at the end costs a life | tests per rule above |
 | M4 ✅ | Game flow: score + HUD digits, death pause and bar reset, level clear, title, game over, level table and themes | tests on `game_state`, `level`, `score` |
-| M5 | Tips and dancers | tests |
+| M4.5 | Owner feedback: easier start, tap grace + snap, fill animation | tests, golden `filling` |
+| M4.6 | Re-layout: 1-row HUD, stage, 3-row bars | all goldens replaced on purpose |
+| M4.7 | Smooth patrons (pre-shifted tiles), drinking animation | tests |
+| M5 | Tips and dancers on the stage | tests |
 | M6 | Bonus round (can shell game) | tests |
 | M7 | Sound effects + music (hUGEDriver, reuse/MIT, attributed), polish | `make check` |
 
