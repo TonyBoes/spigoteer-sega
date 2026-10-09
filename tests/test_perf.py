@@ -76,8 +76,14 @@ def test_worst_case_pile(rom):
     # (measured: end LY ~190-200, ~200-230 of 600 frames late; before the rework: end ~540, missed ~185 with the
     # music tick skipped on late frames. M8a, lists kept incrementally: DMG end 176 / 48 late, CGB 227 / 67 late;
     # the CGB end is one frame whose start lands badly against VBlank, the rest stay under ~180).
-    assert r["missed"] <= 280, r
-    assert r["end"] <= 230, r
+    # M13a (b0b67f5): DMG 218 / 44 late, CGB 223 / 50 late (median logic LY 109).
+    # M13b: DMG 208 / 205 late, CGB 206 / 212 late (median 130): the pile's walkers no longer queue behind each
+    # other but pass, so far more patrons move and are redrawn every frame (queue ~14 -> ~27 DIV ticks a frame, mugs
+    # and their drawing ~+10 with the extra catches), and every column change in the bunched crowd wakes the lift
+    # chooser (~25 ticks a frame; no lift is possible here: the 20 mugs leave no OAM). Switching the chooser off alone
+    # gives 113 / 117 late. Guard at the M13b level with a short margin.
+    assert r["missed"] <= 230, r
+    assert r["end"] <= 220, r
 
 
 def patron_cols(gb, bar):

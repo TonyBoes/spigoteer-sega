@@ -402,7 +402,8 @@ DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lif
   and then ran ~130 lines of logic (end LY 217/223). main.c `frame_wait()` checks the flag with interrupts off and
   halts with IME 0 (wakes on any pending interrupt, which is taken after the ei).
 - Perf (PyBoy, end LY / missed): level 8 script DMG 90 / 0, CGB 100 / 0 (M13a 94 / 95); worst-case pile DMG 208, CGB
-  206-209 (guard 230; M13a 218/223); level 9 script (2400 frames) DMG 100, CGB 108, 0 missed; NEW level-9 overlap
+  206 (M13a 218/223), but 205 / 212 of 600 frames late (M13a 44 / 50; guard now end <= 220, late <= 230, see the
+  review note below); level 9 script (2400 frames) DMG 100, CGB 108, 0 missed; NEW level-9 overlap
   scenario (perf_helpers.OverlapCase: pushes through pairs on every bar, 4 mugs per bar): DMG 175 / 229 late of 1200,
   CGB 180 / 264 late, <= 9 objects per line, <= 24 entries. The owner's target for it (0 missed, end LY <= 118) is NOT met:
   with the chooser and lifts switched off the same load already runs median 84, worst 134 (12 patrons and 16 mugs:
@@ -418,3 +419,14 @@ DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lif
   a BG patron to his right (only his own mug is clamped); CGB coin and puff are behind lifted patrons; in the fallback a
   TOP patron at shift 0 leaves his 3rd column as venue wall (its specks show) instead of his own wall colour; on a
   frame past line 80 the chooser waits (up to 4 frames) and a new overlap is drawn by the old flags meanwhile.
+- Review (worst-case pile, missed frames): M13a 44 / 50 late of 600, M13b 205 / 212, median logic LY 109 -> 130.
+  Where it goes (PERF_SECTIONS, DIV ticks a frame; ~1.8 ticks a line): mugs 45 -> 49, patrons 67 -> 64, lift_frame
+  0 -> 25 (chooser ~13: one bar every ~4 frames at ~50 ticks, gather + conflicts + loops; the call and bookkeeping ~7),
+  queue 14 -> 31, mug drawing 61 -> 68. Not frame_wait (vsync instead: 205 / 213). With the chooser off (no flags,
+  plain BG compose) the pile still runs 113 / 117 late: in M13a the pile's walkers stood blocked, in M13b they pass, so
+  far more patrons move and are redrawn (queue 14 -> 27 even without flags) and catch more mugs. Tried and measured
+  without effect: deferring the chooser on late frames down to line 40, skipping it while vq_held, skipping try_lift
+  when OAM is full, charging more queue budget to crowded / two-pass bars (all 190-213 late). Getting back to ~60
+  would need the per-patron and per-mug frame work itself cheaper (update_patrons, update_mugs / catch, draw_mugs,
+  the BG compose: a hand-written rewrite of those paths), not more overlap tuning. Real play is unaffected (level 8 / 9
+  scripts 0 late). The pile guard is tightened to the M13b level.
