@@ -321,14 +321,14 @@ def test_the_oh_susanna_song_data_is_the_owners_note_list():
 
 # ---- the nine tunes entered from docs/music_specs.md ------------------------------------------------------
 SPEC_TUNES = {1: "funicula", 2: "skaters", 3: "ballgame", 4: "mountain", 5: "weasel", 6: "danube", 7: "hall",
-              8: "sakura", 9: "entertainer"}
+              8: "sakura", 9: "entertainer", 10: "galop"}
 
 
 def parse_specs():
     """docs/music_specs.md -> {song name: (bar token strings, chord per bar)}."""
     import re
     text = (ROOT / "docs" / "music_specs.md").read_text()
-    parts = re.split(r"\n-{60}\n(\d)\. ", text)
+    parts = re.split(r"\n-{60}\n(\d+)\. ", text)
     out = {}
     for i in range(1, len(parts), 2):
         bars, chords = [], []
@@ -360,7 +360,7 @@ def spec_bars_for_the_game(name, bars):
 
 # the spec's tempo (the game plays songs.GAME_BPM where that lists the tune): beats per minute and song rows per beat
 SPEC_BPM_ROWS = {"funicula": (92, 3), "skaters": (160, 2), "ballgame": (168, 2), "mountain": (160, 2), "weasel": (100, 3),
-                 "danube": (160, 2), "hall": (120, 2), "sakura": (100, 2), "entertainer": (90, 4)}
+                 "danube": (160, 2), "hall": (120, 2), "sakura": (100, 2), "entertainer": (90, 4), "galop": (160, 2)}
 
 
 def test_the_nine_tunes_are_the_specs_token_for_token():
@@ -369,7 +369,7 @@ def test_the_nine_tunes_are_the_specs_token_for_token():
     for name, (bars, chords) in specs.items():
         s = songs.SONGS[name]
         want = " ".join(spec_bars_for_the_game(name, bars)).split()
-        assert s["ch2"].split() == want, f"{name}: melody differs from docs/music_specs.md"
+        assert [t.rstrip("!") for t in s["ch2"].split()] == want, f"{name}: melody differs from docs/music_specs.md"
         per_bar = songs.BAR_ROWS[name]
         for ch in ("ch2", "ch3"):                       # every bar adds up (ties included), melody and bass
             rows = gm.merge_ties(s[ch]).split()

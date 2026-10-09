@@ -25,7 +25,8 @@ def oompah(chords, rows):
     for c in chords:
         if "/" in c:                       # two chords in one bar ("C/D7"): the root of each on its half
             a, b = c.split("/")
-            out += [f"{CHORD[a][0]}:3!", f"{CHORD[b][0]}:3!"] if rows == "c6" else [f"{CHORD[a][0]}:4!", f"{CHORD[b][0]}:4!"]
+            h = {"c6": 3, 4: 2}.get(rows, 4)           # half a bar
+            out += [f"{CHORD[a][0]}:{h}!", f"{CHORD[b][0]}:{h}!"]
             continue
         r, f = CHORD[c]
         if rows == 4:
@@ -118,17 +119,16 @@ song("entertainer", 8, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8),
      groove="K:1 r:1 H:1 r:1 S:1 r:1 H:1 r:1")
 
 # ---------------------------------------------------------------------------------------------
-# Show: "Galop infernal" (Jacques Offenbach, 1858, the can-can), 2/4, 12 frames per eighth row
-# (150 bpm).  12 bars, about 10 s; the show lasts 6 s so the main theme is what is heard.
-GAL = ["C5:4", "C5:1 D5:1 F5:1 E5:1",
-       "D5:2 G5:2", "G5:2 G5:1 A5:1",
-       "E5:1 F5:1 D5:2", "D5:2 D5:1 F5:1",
-       "E5:1 D5:1 C5:1 C6:1", "B5:1 A5:1 G5:1 F5:1",
-       "E5:1 D5:1 C5:2", "C5:1 D5:1 F5:1 E5:1",
-       "D5:2 G5:2", "E5:1 D5:1 C5:2"]
-song("galop", 12, "B", " ".join(GAL),
-     oompah(["C", "C", "G", "G", "C", "G", "C", "G", "C", "C", "G", "C"], 4),
-     rep("K:1 S:1 K:1 S:1", 12))
+# Show: "Galop infernal" (Jacques Offenbach, Orphee aux enfers, 1858, the can-can), the owner's spec (docs/music_specs.md
+# tune 10): key D, 2/4, quarter = 160 -> 11 frames per eighth row (163.6 bpm).  16 bars = 64 rows = one 64-row pattern per
+# channel (buffer B holds 2 patterns), a pass is 704 frames (11.7 s).  The quarter notes of bars 3, 5, 11 and 13 are
+# detached ('!').  Bass: oom-pah, root then fifth (bar 15 = D then A7).  Drums: a groove, kick / hat / snare / hat.
+GAL = ["D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
+       "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 D6:1 C#6:1 B5:1", "A5:1 G5:1 F#5:1 E5:1",
+       "D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
+       "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 A5:1 E5:1 F#5:1", "D5:2 R:2"]
+GAL_CHORDS = ["D", "A7", "D", "D", "A7", "A7", "D", "A7", "D", "A7", "D", "D", "A7", "A7", "D/A7", "D"]
+song("galop", 11, "B", " ".join(GAL), oompah(GAL_CHORDS, 4), groove="K:1 H:1 S:1 H:1")
 
 
 # ---------------------------------------------------------------------------------------------
