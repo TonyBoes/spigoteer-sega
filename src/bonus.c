@@ -1,11 +1,12 @@
 // Bonus round: a shell game. Six cans stand on one long counter; five get shaken one at a
 // time in random order, the sixth is left calm. The cans then swap places in pairs, hopping
 // over each other, and the player picks the calm one. Right: it opens, +3000. Wrong: the
-// picked can bursts and sprays foam at the bartender.
+// picked can bursts: a soda geyser shoots straight up from it, peaks and holds, then droplets
+// rain down and spread over the whole screen (counter, floor and a few on the bartender).
 //
-// Own screen (LCD off to enter). Sprite budget: foam 0-2, cursor 3, bartender 4-7, cans 8-13.
-// Cans, foam and cursor are on different scanline bands except the foam crossing the can band
-// (6 cans + 3 foam = 9 <= 10 per line).
+// Own screen (LCD off to enter). Sprite budget: bartender-bound drops 0-2 (in front of him), cursor 3,
+// bartender 4-7, cans 8-13, counter/floor drops 14-22, geyser column 30-33. In the lose result draw() counts
+// sprites per scanline and hides a drop rather than let any line pass 10.
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -32,8 +33,17 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // venue.c
 // ---- layout (screen px unless noted) ----
 #define OBJ_BONUS        96     // first OBJ tile: the show performers' 32 tiles (96..127) are borrowed; the next level's
                                 // load_venue() reloads them
-#define OBJ_FOAM         (OBJ_BONUS + CAN_TILE_COUNT)
-#define OBJ_CURSOR       (OBJ_FOAM + FOAM_FRAMES * 2)
+#define OBJ_CURSOR       (OBJ_BONUS + CAN_TILE_COUNT)
+#define OBJ_GEYSER       (OBJ_CURSOR + 2)                 // left halves A, B, cap; right halves are +6
+#define OBJ_DROP         (OBJ_GEYSER + GEYSER_FRAMES * 2) // tall, round, splat
+#define GEY_BASE         (CAN_TOP + 6)      // screen y of the burst can's mouth
+#define GEY_MAX          56                 // geyser peak height, px
+#define GEY_OAM          30                 // 8 entries: 4 rows of left/right halves
+#define NUM_DROPS        12
+#define DROP_SY          (GEY_BASE - GEY_MAX)   // y of the head of the full column: where drops leave
+#define DROP_T0          20                 // first drop leaves the geyser head this many frames after the burst
+#define DROP_GAP          3
+#define SPLAT_LEN        20
 #define OBJPAL_CAN       6
 #define OBJPAL_FOAM      7      // foam and cursor
 #define CAN_X0           16
@@ -73,6 +83,18 @@ uint8_t  bonus_moving;         // 1 while a swap is in flight
 uint8_t  bonus_swaps_done, bonus_swaps_total;
 uint8_t  bonus_swap_dur;       // frames per swap this round
 uint8_t  slot_can[NUM_CANS];   // which can stands in each slot (logical, updated when a swap lands)
+
+// the rain, by launch order: where each drop lands (screen x, y of its centre), how long it flies, and its launch
+// speed up (-) in 1/256 px per frame; gravity is DROP_G. Landing at tt = T is exact: y = sy + vy0*T + G*T*(T-1)/2.
+// Bartender drops (y 122..133 on x 78..84) are the three that use OAM 0-2; the rest hit the counter (y 90) or the floor (y 140).
+#define DROP_G 48
+static const uint8_t drop_tx[NUM_DROPS]   = { 14, 110,  78,  40, 146, 124,  82,  22, 100,  58,  80, 140 };
+static const uint8_t drop_ty[NUM_DROPS]   = { 90, 140, 122, 140,  90, 140, 128, 140,  90, 140, 133, 140 };
+static const uint8_t drop_T[NUM_DROPS]    = { 38,  43,  43,  48,  36,  47,  43,  48,  39,  44,  45,  45 };
+static const int16_t drop_vy0[NUM_DROPS]  = {-430,-305,-413,-499,-356,-461,-377,-499,-466,-345,-425,-385 };
+static const uint8_t drop_oam[NUM_DROPS]  = { 14,  15,   0,  16,  17,  18,   1,  19,  20,  21,   2,  22 };
+static uint16_t drop_x[NUM_DROPS];                                   // 8.8 fixed point, screen x of the centre (wraps fine for signed vx)
+static int16_t  drop_y[NUM_DROPS], drop_vx[NUM_DROPS], drop_vy[NUM_DROPS];   // y relative to the geyser head, 8.8; vx 8.8
 
 static uint8_t can_dy[NUM_CANS];      // hop height now
 static uint8_t order[5], oi;          // shake order
@@ -165,8 +187,64 @@ static void spr(uint8_t i, uint8_t x, uint8_t y, uint8_t tile, uint8_t prop) {
     o->y = y; o->x = x; o->tile = tile; o->prop = prop;
 }
 
+
+static uint8_t geyser_h(uint8_t t) {      // column height: eases up, holds with a wobble, then collapses
+    if (t < 18) return GEY_MAX - (uint8_t)((GEY_MAX * (uint16_t)(17 - t + 1) * (17 - t + 1)) / 324u);
+    if (t < 50) return GEY_MAX - ((t >> 2) & 1) * 3;
+    if (t < 64) return (uint8_t)((GEY_MAX * (uint16_t)(64 - t)) / 14u);
+    return 0;
+}
+
+static void draw_geyser(void) {
+    uint8_t t = bonus_timer, h = geyser_h(t), n, j, i, f, T, a, e, o, cA, cB, cC, maxA, inA, inB, inC;
+    int16_t top, y, sx;
+    top = GEY_BASE - h;
+    if (h < 16) { top = GEY_BASE - 16; }                // never poke below the can mouth
+    n = h ? (h + 15) >> 4 : 0;
+    // The head (cap) sits at the top of the column; below it n-1 body pairs stack up from the can mouth. Only the head
+    // overlaps the pair under it, so at most two pairs (4 sprites) share a line.
+    for (j = 0; j < 4; j++) {
+        if (j < n) {
+            y = j == 0 ? top : GEY_BASE - 16 - 16 * (j - 1);
+            f = j == 0 ? 2 : (((t >> 1) + j) & 1);
+            spr(GEY_OAM + 2 * j,     can_pos[bonus_picked] + 4,  (uint8_t)(y + 16), OBJ_GEYSER + 2 * f,     OBJPAL_FOAM);
+            spr(GEY_OAM + 2 * j + 1, can_pos[bonus_picked] + 12, (uint8_t)(y + 16), OBJ_GEYSER + 6 + 2 * f, OBJPAL_FOAM);
+        } else { shadow_OAM[GEY_OAM + 2 * j].y = 0; shadow_OAM[GEY_OAM + 2 * j + 1].y = 0; }
+    }
+    // Scanline budget (10 per line), by zones. Zone A, the can band y 72..87: 6 cans + the geyser's bottom pair (2) leave room
+    // for 2 drops. Zone B, the bartender's rows y 112..143: his 2 leave 8. Zone C, everything else (the geyser alone puts at most
+    // 4 on a line there, because its pairs overlap pairwise at most): 6 drops. A drop is counted in every zone its 16 lines touch,
+    // and refused (hidden this frame) when a zone is full, so no line can pass 10 whatever the arcs do.
+    sx = can_pos[bonus_picked] + 4;                     // can centre
+    cA = cB = cC = 0;
+    maxA = n == 2 ? 0 : 2;                              // head over the bottom pair: 4 geyser sprites in the can band
+    for (i = 0; i < NUM_DROPS; i++) {
+        o = drop_oam[i];
+        T = drop_T[i];
+        a = t - (DROP_T0 + DROP_GAP * i);               // frames since this drop left the head (wraps when not yet launched)
+        if (t < DROP_T0 + DROP_GAP * i || a >= T + SPLAT_LEN) { shadow_OAM[o].y = 0; continue; }
+        if (!a) {                                       // leaves the head of the geyser
+            drop_x[i] = (uint16_t)sx << 8; drop_y[i] = 0; drop_vy[i] = drop_vy0[i];
+            drop_vx[i] = (((int16_t)drop_tx[i] - sx) * 32 / T) * 8;   // 1/256 precision without overflowing int16
+        } else if (a < T) {                             // gravity, with the sideways drift
+            drop_x[i] += drop_vx[i]; drop_y[i] += drop_vy[i]; drop_vy[i] += DROP_G;
+        } else { drop_x[i] = (uint16_t)drop_tx[i] << 8; drop_y[i] = (int16_t)((drop_ty[i] - DROP_SY) << 8); }
+        e = DROP_SY + 8 + ((int8_t *)&drop_y[i])[1];    // OAM y of an entry whose centre is the drop's
+        // Scanline budget (10 per line), by zones. Zone A, the can band y 72..87: 6 cans + the geyser's bottom pair (2) leave room
+        // for 2 drops. Zone B, the bartender's rows y 112..143: his 2 leave 8. Zone C, everything above y 128 but the can band
+        // (the geyser alone puts at most 4 on a line there, its pairs overlapping pairwise at most): 6 drops. A drop is counted in
+        // every zone its 16 lines touch and hidden this frame when a zone is full, so no line can pass 10 whatever the arcs do.
+        inA = e > CAN_TOP && e < CAN_TOP + 32;
+        inB = e > BT_TOP;
+        inC = e < BT_TOP + 16;
+        if ((inA && cA >= maxA) || (inB && cB >= 8) || (inC && cC >= 6)) { shadow_OAM[o].y = 0; continue; }
+        cA += inA; cB += inB; cC += inC;
+        spr(o, ((uint8_t *)&drop_x[i])[1] + 4, e, a >= T ? OBJ_DROP + 4 : OBJ_DROP + ((a >> 2) & 1) * 2, OBJPAL_FOAM);
+    }
+}
+
 static void draw(void) {
-    uint8_t i, f, base, k, bf = BT_IDLE_F, x, y;
+    uint8_t i, f, base, k, bf = BT_IDLE_F, x;
     for (i = 0; i < NUM_CANS; i++) {
         x = can_pos[i];
         f = can_frame[i];
@@ -174,23 +252,15 @@ static void draw(void) {
         spr(8 + i, x + 8, CAN_TOP + 16 - can_dy[i], OBJ_BONUS + 2 * f, OBJPAL_CAN);
     }
     // cursor: only while choosing / after the pick
-    if (bonus_phase >= PH_CHOOSE) spr(3, slot_x(bonus_cursor) + 8, CURSOR_Y + 16 + ((bonus_timer >> 3) & 1), OBJ_CURSOR, OBJPAL_FOAM);
+    if (bonus_phase >= PH_CHOOSE && !(bonus_phase == PH_RESULT && !bonus_won)) spr(3, slot_x(bonus_cursor) + 8, CURSOR_Y + 16 + ((bonus_timer >> 3) & 1), OBJ_CURSOR, OBJPAL_FOAM);
     else shadow_OAM[3].y = 0;
-    // foam spray at the bartender after a wrong pick
+    // wrong pick: soda geyser, then the rain
     if (bonus_phase == PH_RESULT && !bonus_won) {
         bf = BT_FAIL_F;
-        for (k = 0; k < 3; k++) {
-            int16_t t = (int16_t)bonus_timer - 8 * k - 6;           // travel 30 frames, staggered
-            int16_t sx = can_pos[bonus_picked] + 8, sy = CAN_TOP + 4;
-            int16_t tx = BT_X + 8 + 4 + (k - 1) * 5, ty = BT_TOP + 10 + k * 2;
-            if (t < 0) { shadow_OAM[k].y = 0; continue; }
-            if (t > 30) t = 30;
-            x = (uint8_t)(sx + (tx - sx) * t / 30);
-            y = (uint8_t)(sy + (ty - sy) * t / 30 - (t * (30 - t)) / 20);   // arc
-            spr(k, x, y, OBJ_FOAM + 2 * (k & 1), OBJPAL_FOAM);
-        }
+        draw_geyser();
     } else {
-        for (k = 0; k < 3; k++) shadow_OAM[k].y = 0;
+        for (k = 0; k < NUM_DROPS; k++) shadow_OAM[drop_oam[k]].y = 0;
+        for (k = 0; k < 8; k++) shadow_OAM[GEY_OAM + k].y = 0;
     }
     if (bonus_phase == PH_RESULT && bonus_won) bf = BT_CATCH_F;
     base = bf * BARTENDER_TILES_PER_FRAME;       // OBJ tiles 0.. hold the bartender frames

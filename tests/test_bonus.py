@@ -14,6 +14,10 @@ CF_STILL, CF_BURST, CF_OPEN = 0, 3, 4
 SLOTS = [16 + 24 * i for i in range(6)]
 ART_C = (ROOT / "build" / "art.c").read_text()
 ART_H = (ROOT / "build" / "art.h").read_text()
+OBJ_BONUS = 96
+OBJ_CURSOR = OBJ_BONUS + 10                          # after the 5 can frames
+GEYSER_TILES = range(OBJ_CURSOR + 2, OBJ_CURSOR + 14, 2)   # 3 left halves, 3 right halves
+DROP_TILES = range(OBJ_CURSOR + 14, OBJ_CURSOR + 20, 2)    # tall, round, splat
 
 
 def array(name):
@@ -182,7 +186,7 @@ def test_cursor_moves_with_left_and_right(gb):
     for _ in range(10):
         gb.press("left", 3)
     assert gb.mem("bonus_cursor") == 0
-    arrows = [s for s in gb.visible_sprites() if s["tile"] == 96 + 14]
+    arrows = [s for s in gb.visible_sprites() if s["tile"] == OBJ_CURSOR]
     assert len(arrows) == 1 and arrows[0]["x"] - 8 == SLOTS[0]
 
 
@@ -202,24 +206,105 @@ def test_picking_the_calm_can_wins_3000(gb):
     assert score(gb) == before + 3000
 
 
-def test_picking_another_can_bursts_and_sprays_foam(gb):
+def _lose_setup(gb):
     enter_bonus(gb)
     before = score(gb)
     to_phase(gb, PH_CHOOSE)
-    calm = gb.mem("bonus_calm")
-    pick(gb, (calm + 1) % 6)
+    pick(gb, (gb.mem("bonus_calm") + 1) % 6)
     assert gb.mem("bonus_won") == 0 and score(gb) == before
     picked = gb.mem("bonus_picked")
     assert picked != gb.mem("bonus_calm_can")
-    gb.run(45)
-    assert gb.read("can_frame", 6)[picked] == CF_BURST
-    foam = [s for s in gb.visible_sprites() if s["tile"] in (96 + 10, 96 + 12)]
-    assert len(foam) == 3
+    return before, picked
+
+
+def test_picking_another_can_shoots_a_geyser_then_rains_soda_over_the_screen(gb):
+    before, picked = _lose_setup(gb)
+    can_x = can_pos(gb)[picked]
+    can_top = GAME["CAN_TOP"] if "CAN_TOP" in GAME else 72
     bt_fail = 6 * art("BARTENDER_TILES_PER_FRAME")
-    assert any(s["tile"] == bt_fail for s in gb.visible_sprites()), "bartender shows the fail frame"
-    check_golden(gb, "bonus_lose")
+    geyser_top, peak_t = 999, 0
+    drops_seen, xs, ys, on_bartender = set(), set(), set(), 0
+    worst = 0
+    geyser_xs = set()
+    max_geyser_sprites = 0
+    drop_ys_by_frame = []
+    for t in range(1, 125):
+        gb.run(1)
+        sp = gb.visible_sprites()
+        worst = max(worst, max(lines(gb)))
+        geys = [s for s in sp if s["tile"] in GEYSER_TILES]
+        drops = [s for s in sp if s["tile"] in DROP_TILES]
+        if geys:
+            top = min(s["y"] for s in geys) - 16
+            if top < geyser_top:
+                geyser_top, peak_t = top, t
+            geyser_xs |= {s["x"] - 8 for s in geys}
+        for s in drops:
+            xs.add(s["x"] - 8 + 4); ys.add(s["y"] - 16 + 8)
+            if 70 <= s["x"] - 8 + 4 <= 90 and 112 <= s["y"] - 8 <= 140:
+                on_bartender += 1
+        if gb.mem("bonus_timer") == 40:
+            held = [s["y"] for s in geys]
+            assert len(geys) >= 8 and all(abs(s["x"] - 8 - can_x) <= 12 for s in geys), "full column right above the can"
+            assert not drops or min(s["y"] for s in drops) > 0
+        assert any(s["tile"] == bt_fail for s in sp), "bartender stays in the fail frame"
+        assert not [s for s in sp if s["tile"] == OBJ_CURSOR], "no arrow in the way of the geyser"
+    assert state(gb) == BONUS, "still in the ~2 s result"
+    # a column rises straight up from the can: well above the can top, and always over the can's own x
+    assert geyser_top <= can_top - 40, geyser_top
+    assert all(can_x - 8 <= x <= can_x + 8 for x in geyser_xs)
+    assert 14 <= peak_t <= 30, "it peaks within the first half second"
+    # then the rain: drops all over the screen width, from the top half down to the floor
+    assert min(xs) <= 30 and max(xs) >= 130, (min(xs), max(xs))
+    assert min(ys) < 60 and max(ys) >= 130
+    assert on_bartender >= 3, "a few drops land on the bartender"
+    assert worst <= 10
     run_until(gb, lambda: state(gb) == PLAYING, 300)
     assert score(gb) == before and gb.mem("lives") == 3
+
+
+def test_lose_result_golden(gb):
+    before, picked = _lose_setup(gb)
+    gb.run(47)
+    assert gb.read("can_frame", 6)[picked] == CF_BURST
+    assert gb.mem("bonus_timer") < 60
+    check_golden(gb, "bonus_lose")
+    # drops are in the air at the golden
+    assert [s for s in gb.visible_sprites() if s["tile"] in DROP_TILES]
+
+
+def test_drops_fall_with_gravity_and_drift_sideways(gb):
+    _lose_setup(gb)
+    gb.run(20)
+    # gravity: the first drop (OAM entry 14) leaves the geyser head, drifts sideways and falls faster and faster
+    ys, xs = [], []
+    for _ in range(40):
+        gb.run(1)
+        e = bytes(gb.read("shadow_OAM", 160))[14 * 4:14 * 4 + 4]
+        if e[0] and e[2] in DROP_TILES[:2]:
+            ys.append((gb.mem("bonus_timer"), e[0])); xs.append(e[1])
+    assert len(ys) >= 25, "the drop is in flight for a good while"
+    ys = [y for _, y in ys]
+    steps = [b - a for a, b in zip(ys, ys[1:])]
+    assert steps[0] <= 0 < steps[-1], steps    # up first, then down
+    assert all(b >= a - 1 for a, b in zip(steps, steps[1:])), f"never slows down (1 px of rounding) {steps}"
+    assert abs(xs[-1] - xs[0]) >= 20, "and drifts sideways"
+
+
+def test_lose_result_never_exceeds_ten_sprites_on_a_line_at_any_frame(gb):
+    for cursor_off in (1, 2, 3):
+        enter_bonus(gb)
+        to_phase(gb, PH_CHOOSE)
+        gb.write("bonus_cursor", (gb.mem("bonus_calm") + cursor_off) % 6)
+        gb.run(2)
+        gb.press("a", 2)
+        for _ in range(126):
+            gb.run(1)
+            assert max(lines(gb)) <= 10
+            assert len(gb.visible_sprites()) <= 40
+        gb.write("bonus_timer", 129)
+        run_until(gb, lambda: state(gb) == PLAYING, 40)
+        gb.run(2)
 
 
 def test_golden_mid_swap(gb):
