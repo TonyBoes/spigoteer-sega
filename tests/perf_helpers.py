@@ -102,7 +102,7 @@ class WorstCase:
         put(gb, "patron_bar", p, b)
         put(gb, "patron_x", p, x)
         put(gb, "patron_frac", p, (p * 37) & 255)
-        put(gb, "patron_draw", p, x & 0xFE)
+        put(gb, "patron_draw", p, x)
         put(gb, "patron_variant", p, p % 3)
         put(gb, "patron_timer", p, (p * 11) % 80)
         put(gb, "patron_aux", p, (8 + p) if state == PUSHED else 0)

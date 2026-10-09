@@ -126,18 +126,18 @@ void build_lists(void);
 static uint8_t cz_x0, cz_x1, cz_pal;      // span of the bar being composed, palette of the patron being stamped
 static uint8_t *cz_tile, *cz_attr;        // its first wall row in sh_tile / sh_attr (cz_attr 0 on DMG)
 
-#define ST(v, s) ((uint8_t)(PATRON_TILE_BASE + (v) * 24u + (s) * 6u))   // first tile of variant v pre-shifted by s * 2 px
-static const uint8_t stamp_tile[16] = {
-    ST(0, 0), ST(0, 1), ST(0, 2), ST(0, 3), ST(1, 0), ST(1, 1), ST(1, 2), ST(1, 3),
-    ST(2, 0), ST(2, 1), ST(2, 2), ST(2, 3), ST(3, 0), ST(3, 1), ST(3, 2), ST(3, 3),
-};
+#define ST(v, s) ((uint8_t)(PATRON_TILE_BASE + (v) * 48u + (s) * 6u))   // first tile of variant v pre-shifted by s px
+#define ST8(v) ST(v, 0), ST(v, 1), ST(v, 2), ST(v, 3), ST(v, 4), ST(v, 5), ST(v, 6), ST(v, 7)
+static const uint8_t stamp_tile[32] = { ST8(0), ST8(1), ST8(2), ST8(0) };   // (variant 3 does not occur)
+#define SB(v) ((uint8_t)(PATRON_BACK_BASE + (v) * 4u))                     // first back-view tile of variant v
+static const uint8_t back_tile[4] = { SB(0), SB(1), SB(2), SB(0) };
 
 static uint8_t st_t;                      // first tile of the patron being stamped
 
-static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal for patron s drawn at x d
+static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal for patron s drawn at x d (front view)
     uint8_t v = patron_variant[s] & 3;
     cz_pal = BGPAL_PATRON + v;
-    st_t = stamp_tile[(v << 2) | ((d >> 1) & 3)];
+    st_t = stamp_tile[(v << 3) | (d & 7)];
 }
 
 static void stamp3(uint8_t c) {                          // the whole 3x2 footprint at column c
@@ -162,12 +162,32 @@ static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if i
     r[0] = cz_pal; r[32] = cz_pal;
 }
 
+static void put_back_col(uint8_t c, uint8_t t) {         // one 1x2 column of a back view (2x2 tiles), if inside the span
+    uint8_t *r;
+    if (c < cz_x0 || c >= cz_x1) return;
+    r = cz_tile + c;
+    r[0] = t; r[32] = t + 2;
+    if (!cz_attr) return;
+    r = cz_attr + c;
+    r[0] = cz_pal; r[32] = cz_pal;
+}
+
+// Patron s, watching the show, in its back view at column c (on a multiple of 8 px: 2 columns; the 3rd column of
+// its footprint stays wall).
+static void stamp_back(uint8_t s, uint8_t c) {
+    uint8_t v = patron_variant[s] & 3;
+    cz_pal = BGPAL_PATRON + v;
+    v = back_tile[v];
+    put_back_col(c, v); put_back_col(c + 1, v + 1);
+}
+
 // Patron s over the bar being composed: the columns of its 3x2 footprint that lie inside the span.
 static void stamp(uint8_t s) {
     uint8_t d = patron_draw[s], c;
     if (d == 255) return;                                 // not drawn yet
-    c = d >> 3;
+    c = (d & ~DRAW_BACK) >> 3;
     if (c + 3 <= cz_x0 || c >= cz_x1) return;             // all outside the span
+    if (d & DRAW_BACK) { stamp_back(s, c); return; }
     stamp_look(s, d);
     if (c >= cz_x0 && c + 3 <= cz_x1) { stamp3(c); return; }
     put_col(c, st_t); put_col(c + 1, st_t + 1); put_col(c + 2, st_t + 2);
@@ -200,9 +220,25 @@ static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1
     stamp_bar(b);
 }
 
+// Quick redraws (M8b): a patron who moved within his own 3 columns (a 1 px step, front view before and after)
+// changes only the 6 tile ids of his footprint, and nobody else ever stands in those columns (PATRON_SPACING 32 >
+// the 24 px footprint). So instead of a dirty span (wall restored, every patron of the bar stamped) he goes on
+// this list, and queue_vram() writes his 6 ids straight into the shadow and queues them, tiles only: about a
+// third of a span's cost. Walking at 1 px steps makes this the common redraw.
+static uint8_t quick_list[MAX_PATRONS], quick_n;
+static uint8_t quick_on[MAX_PATRONS];        // p is on quick_list
+
+void mark_quick(uint8_t p) {
+    if (quick_on[p]) return;
+    quick_on[p] = 1;
+    quick_list[quick_n++] = p;
+    vram_pending = 1;
+}
+
 void clear_dirty(void) {
     uint8_t b;
     vram_pending = 0;
+    while (quick_n) quick_on[quick_list[--quick_n]] = 0;
     for (b = 0; b < NUM_BARS; b++) { dirty_x0[b] = 255; dirty_x1[b] = 0; attr_x0[b] = 255; attr_x1[b] = 0; }
 }
 
@@ -438,6 +474,38 @@ static uint8_t queue_bar(uint8_t b) {
     return 1;
 }
 
+// Quick redraws, as many as the budget allows; the rest wait for the next frame. The 6 tile ids of a front view
+// (variant v, shift s) are PATRON_TILE_BASE + v * 48 + s * 6 + 0..5, so both rows are copied straight out of
+// id_seq (ROM0: the drain reads it from the VBlank interrupt, whatever bank is mapped then); the shadow rows are not
+// touched (a later span recomposes its columns from the patrons anyway). A patron who has left, or turned to his
+// back view, since he was listed falls back to a dirty span.
+#define QI(n)   (uint8_t)(PATRON_TILE_BASE + (n))
+#define QI6(n)  QI(n), QI((n) + 1), QI((n) + 2), QI((n) + 3), QI((n) + 4), QI((n) + 5)
+#define QI48(n) QI6(n), QI6((n) + 6), QI6((n) + 12), QI6((n) + 18), QI6((n) + 24), QI6((n) + 30), QI6((n) + 36), QI6((n) + 42)
+static const uint8_t id_seq[PATRON_TILES_PER_GROUP] = { QI48(0), QI48(48), QI48(96) };
+#define QUICK_COST 16          // logic time like 2/3 of a 3-column span (measured); the drain is half a span's
+static void queue_quick(void) {
+    uint8_t p, d, c, b;
+    while (quick_n) {
+        if ((uint8_t)(qv_cost + QUICK_COST) > VQ_BUDGET) { vram_pending = 1; return; }
+        p = quick_list[--quick_n];
+        quick_on[p] = 0;
+        d = patron_draw[p];
+        if (patron_state[p] == PATRON_NONE || d == 255) continue;   // gone: remove_patron() marked his columns
+        b = patron_bar[p] & (NUM_BARS - 1);
+        c = (d & ~DRAW_BACK) >> 3;
+        if (d & DRAW_BACK) { mark_dirty(b, c, c + 3); continue; }
+        qv_cost += QUICK_COST;
+        qv_src = (uint16_t)(id_seq - PATRON_TILE_BASE) + stamp_tile[((patron_variant[p] & 3) << 3) | (d & 7)];
+        qv_dst = (uint16_t)(bar_map[b] + c);
+        qv_w = 3;
+        queue_entry(0);
+        qv_src += 3; qv_dst += 32;
+        queue_entry(0);
+        vq_count += 2;
+    }
+}
+
 void queue_vram(void) {
     if (vq_held) return;                         // last frame's list has not gone out yet: everything stays dirty
     qv_cost = 0;
@@ -447,6 +515,7 @@ void queue_vram(void) {
     if (!vram_pending) return;
     vram_pending = 0;
     qv_p = (uint8_t *)&vq[vq_count];
+    if (quick_n) queue_quick();
     if (queue_bar(0) && queue_bar(1) && queue_bar(2)) queue_bar(3);
 }
 

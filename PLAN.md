@@ -49,7 +49,7 @@ Revised after the owner's first playtest (M4.5–M4.7):
 
 - Columns 0–1 are the door, columns 2–17 the counter, and columns 18–19 the tap.
 - **Patrons are background tiles** (16x16 on a 3x2-tile footprint), pre-drawn
-  shifted by 0/2/4/6 px so they move smoothly in 2 px steps by swapping
+  shifted by 0..7 px (M8b; was 0/2/4/6) so they move in 1 px steps by swapping
   tilemap entries only. This keeps them out of the 10-sprites-per-line budget.
   Colour 0 of each patron BG palette is the wall colour, so the tiles need no
   transparency. Drinking is a mug sprite raised to the patron's face.
@@ -182,6 +182,18 @@ tools/check_music.py (routes one channel to the output and prints expected vs de
 Caveat: the melodies were written from memory and nobody has listened to them; the owner's Oh! Susanna and the
 given Entertainer note list are exact, the rest (especially the Galop, Funiculi, the later phrases of the
 ball-game and mountain tunes, Skaters' Waltz, Blue Danube) are best-effort and need an ear check.
+
+## M8b as built
+
+Approved art imported (assets/art is now the source of truth; tools/extract_art.py refuses to overwrite it
+without --force). Patrons: 8 shifts x 3 variants x 6 tiles = 144 BG tiles + 12 back-view tiles per group,
+one generated file per group (build/patrons_<g>.c, autobanked; build/patron_load.c switches banks). BG ids:
+scene 0-89, patrons 90-233, back views 234-245 (246 of 256; BG in the signed 0x8800 mode, OBJ ids < 128,
+both checked by #error in game.h). A 1 px step within a patron's own 3 columns is a "quick" redraw (6 tile
+ids copied from a ROM0 id table, no compose) — walking at every pixel would otherwise have cost ~6 lines
+of frame time. Distracted patrons shuffle (<= 4 px, 1 px/frame, never into PATRON_SPACING, never onto the
+tap end) to a multiple of 8 and show their back view (patron_draw bit 7 = DRAW_BACK, mirrored in
+patron_facing[]); a patron who cannot get there keeps facing the bar until the show ends.
 
 ## Owner playtest 3 (M8c, after M8b)
 

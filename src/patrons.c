@@ -24,13 +24,14 @@ uint8_t  patron_state[MAX_PATRONS];    // PATRON_*
 uint8_t  patron_bar[MAX_PATRONS];
 uint8_t  patron_x[MAX_PATRONS];        // pixel x of the figure's left edge, 0..127 (screen coords)
 uint8_t  patron_frac[MAX_PATRONS];     // sub-pixel fraction, 1/256 px
-uint8_t  patron_draw[MAX_PATRONS];     // x it is drawn at (patron_x & ~1, +2 while swaying); 255 = not drawn yet
+uint8_t  patron_draw[MAX_PATRONS];     // x it is drawn at (patron_x, +2 while swaying; | DRAW_BACK in its back view); 255 = not drawn yet
 uint8_t  patron_variant[MAX_PATRONS];  // 0..2
 uint8_t  patron_timer[MAX_PATRONS];
 uint8_t  patron_aux[MAX_PATRONS];      // px left to be pushed back
 uint8_t  patron_mug[MAX_PATRONS];      // mug slot held while pushed/drinking, NO_SLOT otherwise
 uint8_t  patron_catchx[MAX_PATRONS];   // x of the last full mug it caught (where its tip would lie)
-uint8_t  patron_dist[MAX_PATRONS];     // 1: watching the show (stands still, ignores mugs)
+uint8_t  patron_dist[MAX_PATRONS];     // 1: distracted by the show (shuffles to a multiple of 8 px, then stands still; ignores mugs)
+uint8_t  patron_facing[MAX_PATRONS];   // 1: drawn in its back view, turned to watch the stage (mirrors patron_draw & DRAW_BACK)
 uint8_t  patrons_live;
 
 // per-bar lists of live slots (slot order); see the top of the file
@@ -48,9 +49,9 @@ uint16_t next_arrival;
 static uint8_t catch_p[NUM_BARS], catch_x[NUM_BARS];
 static uint8_t catch_ok;               // bit b: catch_p/catch_x of bar b are up to date
 
-// Sway phases by timer value: bit 0 = (t / SWAY_FRAMES) & 1 (drinking), bit 1 = (t / DIST_BOB) & 1 (watching
-// the show). A table: SDCC's 8-bit divide is a ~100-cycle call, and this is asked for every drinker every frame.
-#define SWAY(t)   ((uint8_t)((((t) / SWAY_FRAMES) & 1) | ((((t) / DIST_BOB) & 1) << 1)))
+// Sway phase by timer value: (t / SWAY_FRAMES) & 1 (drinking). A table: SDCC's 8-bit divide is a ~100-cycle
+// call, and this is asked for every drinker every frame.
+#define SWAY(t)   ((uint8_t)(((t) / SWAY_FRAMES) & 1))
 #define SWAY4(n)  SWAY(n), SWAY((n) + 1), SWAY((n) + 2), SWAY((n) + 3)
 #define SWAY16(n) SWAY4(n), SWAY4((n) + 4), SWAY4((n) + 8), SWAY4((n) + 12)
 #define SWAY64(n) SWAY16(n), SWAY16((n) + 16), SWAY16((n) + 32), SWAY16((n) + 48)
@@ -69,21 +70,23 @@ void build_lists(void) {
     lists_ok = 1;
 }
 
-// Where patron p is drawn: its position at 2 px granularity, +2 px on alternate beats while drinking (sway)
-// or watching the show (bob).
+// Where patron p is drawn (pushed back or drinking): its position, +2 px on alternate beats while drinking (sway).
 static uint8_t drawn_x(uint8_t p) {
-    uint8_t x = patron_x[p] & 0xFE, w = sway_tab[patron_timer[p]];
-    if (patron_state[p] == PATRON_DRINKING && (w & 1)) x += 2;
-    else if (patron_dist[p] && (w & 2)) x += 2;
+    uint8_t x = patron_x[p];
+    if (patron_state[p] == PATRON_DRINKING && sway_tab[patron_timer[p]]) x += 2;
     return x;
 }
 
-// p is now drawn at nd: mark the columns it leaves and the ones it covers.
-// (Only a change of columns changes the CGB attributes: moving within his columns he changes tile ids only.)
+// p is now drawn at nd (| DRAW_BACK: in its back view): mark the columns it leaves and the ones it covers.
+// (Only a change of columns changes the CGB attributes: moving within his columns, or turning round, he changes
+// tile ids only.)
 static void redraw_at(uint8_t p, uint8_t nd) {
     uint8_t od = patron_draw[p], lo, hi;
     patron_draw[p] = nd;
-    if (od == 255) { mark_dirty_attrs(patron_bar[p], nd >> 3, (nd >> 3) + 3); return; }
+    patron_facing[p] = nd >> 7;
+    if (od == 255) { nd &= ~DRAW_BACK; mark_dirty_attrs(patron_bar[p], nd >> 3, (nd >> 3) + 3); return; }
+    if (!((od | nd) & DRAW_BACK) && (od >> 3) == (nd >> 3)) { mark_quick(p); return; }   // a step within his columns
+    nd &= ~DRAW_BACK; od &= ~DRAW_BACK;
     if (nd < od) { lo = nd; hi = od; } else { lo = od; hi = nd; }
     lo >>= 3; hi >>= 3;
     if (lo == hi) mark_dirty(patron_bar[p], lo, lo + 3);
@@ -102,7 +105,7 @@ uint8_t add_patron(uint8_t b, uint8_t x, uint8_t variant) {
         patron_state[p] = PATRON_WALKING;
         patron_bar[p] = b; patron_x[p] = x; patron_frac[p] = 0; patron_variant[p] = variant;
         patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
-        patron_dist[p] = 0; patron_catchx[p] = x;
+        patron_dist[p] = 0; patron_facing[p] = 0; patron_catchx[p] = x;
         patron_draw[p] = 255;
         refresh_patron(p);
         if (lists_ok) list_add(p);
@@ -132,7 +135,7 @@ static void list_remove(uint8_t p) {
 }
 
 void remove_patron(uint8_t p) {
-    uint8_t d = patron_draw[p] >> 3;
+    uint8_t d = (patron_draw[p] & ~DRAW_BACK) >> 3;
     patron_state[p] = PATRON_NONE;
     if (lists_ok) list_remove(p);
     free_held_mug(p);
@@ -161,11 +164,16 @@ void end_show(void) {
     uint8_t p;
     show_timer = 0;
     music_play(TUNE_VENUE0 + cur_group);          // the venue's tune again, from its start
-    for (p = 0; p < MAX_PATRONS; p++) { patron_dist[p] = 0; patron_timer[p] = 0; }
+    for (p = 0; p < MAX_PATRONS; p++) {
+        patron_dist[p] = 0; patron_timer[p] = 0;
+        if (patron_state[p] != PATRON_NONE && (patron_draw[p] & DRAW_BACK) && patron_draw[p] != 255)
+            redraw_at(p, patron_x[p]);           // turns back to the bar (its front frame, at the same x)
+    }
     if (spawn_timer > (spawn_interval / SHOW_SPAWN_DIV)) spawn_timer = spawn_interval / SHOW_SPAWN_DIV;   // new patrons come sooner, once
 }
 
 // The tip is picked up: each walking patron is distracted with probability 1/2 (at least one if any walk).
+// A distracted patron shuffles to the nearest multiple of 8 px and turns its back (watch_step).
 void start_show(void) {
     uint8_t p, any = 0, first = NO_SLOT;
     show_timer = SHOW_FRAMES;
@@ -340,13 +348,36 @@ static uint8_t walker_pixel(uint8_t p, uint8_t f) {
     return 1;
 }
 
+// Distracted by the show: shuffle 1 px a frame to the nearest multiple of 8 px (at most SHUFFLE_MAX px, never
+// into another patron's PATRON_SPACING, never onto the tap end), then turn round: the back view, which exists
+// only at shift 0. 4 px off: toward the door if the whole way is free, else toward the tap. A patron who cannot get there
+// (someone stands right behind / ahead) waits facing the bar and tries again next frame. It stays put either way.
+static uint8_t watch_step(uint8_t p) {
+    uint8_t x = patron_x[p], r = x & 7, b;
+    if (r) {
+        b = patron_bar[p];
+        if (r < SHUFFLE_MAX) {
+            if (!blocked_behind(b, x)) x--;
+        } else if (r == SHUFFLE_MAX && !blocked_behind(b, x - (SHUFFLE_MAX - 1))) {
+            x--;                                          // (the whole way to the left is free)
+        } else if ((uint8_t)(x - r + 8) < PATRON_FAR_X && !blocked_ahead(b, x)) {
+            x++;
+        }
+        if (x == patron_x[p]) {                           // waiting: drawn at his x, facing the bar
+            if (x != patron_draw[p]) redraw_at(p, x);
+            return 1;
+        }
+        patron_x[p] = x;
+        if (x & 7) { redraw_at(p, x); return 1; }
+    }
+    x |= DRAW_BACK;                                       // on a multiple of 8: watching the stage
+    if (x != patron_draw[p]) redraw_at(p, x);
+    return 1;
+}
+
 static uint8_t walking_step(uint8_t p) {
     uint8_t f, o;
-    if (patron_dist[p]) {                                 // watching the show: no walking, just the bob
-        patron_timer[p]++;
-        refresh_patron(p);
-        return 1;
-    }
+    if (patron_dist[p]) return watch_step(p);           // distracted by the show: no walking
     if (go_now) {
         o = patron_frac[p];
         f = o + patron_speed;
@@ -356,8 +387,8 @@ static uint8_t walking_step(uint8_t p) {
             patron_frac[p] = f;
         }
     }
-    o = patron_x[p] & 0xFE;                               // drawn_x() of a walker who is not watching the show
-    if (o != patron_draw[p]) redraw_at(p, o);
+    o = patron_x[p];                                      // a walker who is not watching is drawn at his x, facing
+    if (o != patron_draw[p]) redraw_at(p, o);             // the bar (a stale back view, bit 7, differs too)
     return 1;
 }
 

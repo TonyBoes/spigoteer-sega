@@ -20,7 +20,9 @@ import re as _re
 from conftest import ROOT as _ROOT
 _ART_H = (_ROOT / "build" / "art.h").read_text()
 BASE = int(_re.search(r"#define BAR_TILE_COUNT (\d+)", _ART_H).group(1))
-BG_TILES_TOTAL = BASE + int(_re.search(r"#define PATRON_TILES_PER_GROUP (\d+)", _ART_H).group(1))
+SHIFTED = int(_re.search(r"#define PATRON_TILES_PER_GROUP (\d+)", _ART_H).group(1))     # M8b: 3 x 8 shifts x 6 = 144
+BACK_BASE = BASE + SHIFTED                                                                # then 3 back views x 4 tiles
+BG_TILES_TOTAL = BASE + int(_re.search(r"#define PATRON_GROUP_TILES (\d+)", _ART_H).group(1))
 
 
 def put(gb, name, i, v):
@@ -35,9 +37,8 @@ def patrons(gb):
 
 
 def drawn_tiles(variant, x, bar):
-    """(column, [row0 ids, row1 ids]) the tilemap must show for a patron drawn at x (2 px granularity)."""
-    x &= 0xFE
-    first = BASE + variant * 24 + ((x >> 1) & 3) * 6
+    """(column, [row0 ids, row1 ids]) the tilemap must show for a patron drawn at x (M8b: 1 px, 8 shifts)."""
+    first = BASE + variant * 48 + (x & 7) * 6
     return x >> 3, [[first + r * 3 + k for k in range(3)] for r in range(2)]
 
 
@@ -70,6 +71,30 @@ def set_patron(gb, bar, x, state=WALKING, timer=0, variant=0, aux=0, frac=0):
         put(gb, n, i, v)
     gb.write("patrons_live", gb.mem("patrons_live") + 1)
     return i
+
+
+def lineup(gb, spec):
+    """M8b: {bar: [(x, variant, distracted)]}. Put patrons at those places. The level's own start patrons are moved there (not replaced: the game then
+    redraws the columns they leave, and no stale figure stays in the tilemap); the rest are added."""
+    pool = {}
+    for p in sorted((p for p in patrons(gb)), key=lambda p: p["i"]):
+        pool.setdefault(p["bar"], []).append(p["i"])
+    slots = {}
+    for b, row in spec.items():
+        for x, v, d in row:
+            if pool.get(b):
+                i = pool[b].pop(0)
+                draw = gb.read("patron_draw", MAX_P)[i]
+                put(gb, "patron_x", i, x)
+                put(gb, "patron_variant", i, v)
+                if draw >> 3 == x >> 3:          # same columns, maybe another variant: a redraw with the CGB palette
+                    put(gb, "patron_draw", i, 255)   # attributes too (a variant never changes in the game itself)
+            else:
+                i = set_patron(gb, b, x, variant=v)
+            put(gb, "patron_dist", i, d)
+            slots[(b, x)] = (i, v, d)
+    assert not any(pool.values()), "a start patron has no place in the lineup"
+    return slots
 
 
 def hold_mug(gb, patron, mug_bar_, state_timer=0):
@@ -330,7 +355,7 @@ def test_four_patrons_stepping_together_fit_in_vblank(gb):
     for p in patrons(gb):                # all four at x = 7 and about to take the pixel that crosses into column 1
         put(gb, "patron_x", p["i"], 7)
         put(gb, "patron_frac", p["i"], 255)
-        put(gb, "patron_draw", p["i"], 6)
+        put(gb, "patron_draw", p["i"], 7)
     gb.write("hud_dirty", 3)             # HUD redraw in the same frame
     gb.run(8)
     assert all(p["x"] == 8 for p in patrons(gb))
@@ -356,7 +381,8 @@ def test_patron_tiles_reach_vram(gb):
     gb.run(5)
     p = patrons(gb)[0]
     col, ids = drawn_tiles(p["variant"], p["x"], p["bar"])
-    assert (col, (p["x"] & 0xFE) >> 1 & 3) == (5, 2), "x 45 -> drawn at 44: column 5, shift 4 px"
+    assert (col, p["x"] & 7) == (5, 5), "x 45 -> drawn at 45: column 5, shift 5 px"
+    assert gb.read("patron_draw", MAX_P)[i] == 45
     assert map_ids(gb, p["bar"], col) == ids
     tm = gb.bg_tilemap()
     assert all((t & 0xFF) < BASE for t in tm[bar_top_row(p["bar"])][0:5]), "nothing left behind at columns 0-4"

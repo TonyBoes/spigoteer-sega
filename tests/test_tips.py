@@ -4,8 +4,8 @@ import re
 import pytest
 from conftest import GAME, LAYOUT, ROOT, bar_top_y, check_golden
 from test_flow import LEVEL_CLEAR, LIFE_LOST, PAUSED, PLAYING, clear_level, lose_a_life, run_until, state
-from test_patrons import (DRINKING, FULL, HELD, MAX_M, MAX_P, PUSHED, WALKING, clear_patrons, go, inject_mug,
-                          mugs, patrons, put, score, set_patron)
+from test_patrons import (BACK_BASE, BASE, DRINKING, FULL, HELD, MAX_M, MAX_P, PUSHED, WALKING, clear_patrons,
+                          drawn_tiles, go, inject_mug, lineup, map_ids, mugs, patrons, put, score, set_patron)
 
 pytestmark = pytest.mark.timeout(60)
 
@@ -232,6 +232,7 @@ def test_the_show_distracts_some_walking_patrons(gb):
     gb.write("tip_bar", gb.mem("bar"))
     gb.write("tip_x", GAME["TAP_X"] + 8)   # M8a: under the bartender at the fill position
     started(gb)
+    gb.run(4)                                      # M8b: the distracted ones shuffle (<= 4 px) onto a multiple of 8 first
     assert gb.mem16("show_timer") > 0
     d = dist(gb)
     n = sum(d[i] for i in ps)
@@ -274,20 +275,123 @@ def test_a_show_with_nobody_walking_distracts_nobody(gb):
     assert gb.mem16("show_timer") > 0 and sum(dist(gb)) == 0
 
 
-def test_distracted_patrons_bob_by_2_px_without_moving(gb):
+# ---- M8b: distracted patrons turn round to watch the stage ------------------------------------------
+DRAW_BACK = 0x80
+
+
+def facing(gb, i):
+    return gb.read("patron_facing", MAX_P)[i]
+
+
+def back_ids(variant, x):
+    """(column, [row0, row1]) of a back view at x (a multiple of 8): 2 columns of 2x2 tiles."""
+    t = BACK_BASE + variant * 4
+    return x >> 3, [[t, t + 1], [t + 2, t + 3]]
+
+
+def watcher(gb, bar, x, variant=0, others=()):
+    """One distracted walker at x (and plain walkers at `others`) with a show running."""
     clear_patrons(gb)
-    i = set_patron(gb, 1, 48)
     gb.write("intro_timer", 0)
     w16(gb, "spawn_timer", 0xFFFF)
     gb.write("quota", 200)
+    i = set_patron(gb, bar, x, variant=variant)
+    for ox in others:
+        set_patron(gb, bar, ox)
     w16(gb, "show_timer", 300)
     put(gb, "patron_dist", i, 1)
-    seen = set()
-    for _ in range(60):
+    return i
+
+
+@pytest.mark.parametrize("x0,x1", [(45, 48), (42, 40), (44, 40), (47, 48), (41, 40), (48, 48)])
+def test_a_distracted_patron_snaps_to_a_multiple_of_8_and_shows_its_back(gb, x0, x1):
+    i = watcher(gb, 2, x0, variant=1)
+    xs, turned = [], None
+    for f in range(6):
         gb.run(1)
-        seen.add(gb.read("patron_draw", MAX_P)[i])
-        assert gb.read("patron_x", MAX_P)[i] == 48
-    assert seen - {255} == {48, 50}
+        xs.append(gb.read("patron_x", MAX_P)[i])
+        if turned is None and facing(gb, i):
+            turned = f
+            assert xs[-1] == x1 and gb.read("patron_draw", MAX_P)[i] == x1 | DRAW_BACK, "turns on arrival"
+    moves = sum(a != b for a, b in zip([x0] + xs, xs))
+    assert xs[-1] == x1 and all(abs(b - a) <= 1 for a, b in zip([x0] + xs, xs)), xs
+    assert moves == abs(x1 - x0) <= 4, "1 px a frame, 4 frames at most"
+    assert turned is not None and turned <= moves + 1, (turned, xs)
+    assert facing(gb, i) == 1 and gb.read("patron_draw", MAX_P)[i] == x1 | DRAW_BACK
+    gb.run(2)                                      # the copy goes out in the next VBlank
+    col, ids = back_ids(1, x1)
+    assert [r[:2] for r in map_ids(gb, 2, col)] == ids, "back-view tile ids"
+    assert all(t < BASE for t in (r[2] for r in map_ids(gb, 2, col))), "the 3rd column of the footprint is wall"
+    for _ in range(60):                            # stays put, still turned round, no bob
+        gb.run(1)
+        assert gb.read("patron_x", MAX_P)[i] == x1 and facing(gb, i) == 1
+        assert gb.read("patron_draw", MAX_P)[i] == x1 | DRAW_BACK
+
+
+def test_the_shuffle_never_crowds_the_patron_behind(gb):
+    """x 43 wants 40, but a walker stands 33 px behind: one step left would put him at 32 (allowed), the next at 31
+    (not). He stops at 42 and keeps facing the bar; the walker behind him is blocked as usual."""
+    i = watcher(gb, 1, 43, others=(10,))
+    gb.write("intro_timer", 255)                   # the walker behind stays where he is
+    gb.run(10)
+    x = gb.read("patron_x", MAX_P)[i]
+    assert x == 42 and facing(gb, i) == 0 and gb.read("patron_draw", MAX_P)[i] == 42
+    assert x - gb.read("patron_x", MAX_P)[i + 1] >= 32
+
+
+def test_four_px_off_with_someone_behind_goes_the_other_way(gb):
+    """x 44, a walker 33 px behind: the 4 px to the left are not free (he could take 1), so he goes right to 48."""
+    i = watcher(gb, 1, 44, others=(11,))
+    gb.write("intro_timer", 255)
+    gb.run(6)
+    assert gb.read("patron_x", MAX_P)[i] == 48 and facing(gb, i) == 1
+    assert gb.read("patron_x", MAX_P)[i + 1] == 11
+
+
+def test_the_shuffle_never_reaches_the_tap(gb):
+    """x 117 would round to 120, which is the tap end (PATRON_FAR_X): he stays and costs no life."""
+    lives = gb.mem("lives")
+    i = watcher(gb, 0, 117)
+    gb.run(30)
+    assert gb.read("patron_x", MAX_P)[i] == 117 and facing(gb, i) == 0 and gb.mem("lives") == lives
+    assert gb.read("patron_state", MAX_P)[i] == WALKING
+
+
+def test_after_the_show_it_turns_back_and_walks_on(gb):
+    i = watcher(gb, 3, 61, variant=2)
+    gb.run(5)
+    assert gb.read("patron_x", MAX_P)[i] == 64 and facing(gb, i) == 1
+    w16(gb, "show_timer", 2)
+    gb.run(3)
+    assert gb.mem16("show_timer") == 0 and dist(gb)[i] == 0
+    assert facing(gb, i) == 0 and gb.read("patron_draw", MAX_P)[i] == gb.read("patron_x", MAX_P)[i]
+    gb.run(2)
+    x = gb.read("patron_x", MAX_P)[i]
+    col, ids = drawn_tiles(2, x, 3)
+    assert map_ids(gb, 3, col) == ids, "front view again"
+    gb.run(80)
+    assert gb.read("patron_x", MAX_P)[i] > 64, "walking again"
+
+
+def test_a_watcher_ignores_mugs(gb):
+    i = watcher(gb, 1, 40)
+    gb.run(5)
+    inject_mug(gb, 1, 50)
+    gb.run(3)
+    assert gb.read("patron_state", MAX_P)[i] == WALKING and facing(gb, i) == 1
+
+
+def test_show_backs_golden(gb):
+    """Mid-show: three watchers in their back views (A, B, C) on bars 0, 1 and 3, a front-facing walker on bar 2."""
+    gb.write("intro_timer", 255)
+    gb.write("quota", 200)
+    lineup(gb, {0: [(30, 0, 1)], 1: [(75, 1, 1)], 2: [(45, 1, 0)], 3: [(52, 2, 1)]})   # (the start patrons are moved)
+    w16(gb, "show_timer", 200)
+    gb.write("dancer_frame", 0)
+    gb.write("dance_tick", 0)
+    gb.run(15)
+    assert sorted(gb.read("patron_facing", MAX_P)[:4]) == [0, 1, 1, 1]
+    check_golden(gb, "show_backs")
 
 
 def show_with(gb, bar, specs):
@@ -309,7 +413,7 @@ def test_a_full_mug_slides_past_a_distracted_patron_to_the_next_one(gb):
     a, b = show_with(gb, 1, [(40, 0), (90, 1)])    # b is the distracted one, further right
     inject_mug(gb, 1, 136)
     run_until(gb, lambda: gb.read("patron_state", MAX_P)[a] == PUSHED, 120)
-    assert gb.read("patron_state", MAX_P)[b] == WALKING and gb.read("patron_x", MAX_P)[b] == 90
+    assert gb.read("patron_state", MAX_P)[b] == WALKING and gb.read("patron_x", MAX_P)[b] == 88   # M8b: shuffled to 88
     assert [m["state"] for m in mugs(gb)] == [HELD]
     assert gb.read("patron_mug", MAX_P)[a] != 255 and gb.read("patron_mug", MAX_P)[b] == 255
 

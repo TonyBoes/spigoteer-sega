@@ -19,7 +19,6 @@
 #include "bonus.h"
 #include "music.h"
 
-BANKREF_EXTERN(patron_tiles)
 BANKREF_EXTERN(art_tiles)
 
 // The tile data (build/art.c) is in a switchable bank; these copy it to VRAM (LCD off or VBlank only).
@@ -185,10 +184,7 @@ static void load_cgb_palettes(void) {
 static void load_patron_group(uint8_t g) {
     palette_t p;
     uint8_t v, i;
-    uint8_t saved = CURRENT_BANK;
-    SWITCH_ROM(BANK(patron_tiles));              // the tile data lives in a switchable bank (LCD is off here)
-    set_bkg_data(PATRON_TILE_BASE, PATRON_TILES_PER_GROUP, patron_tiles + (uint16_t)g * PATRON_GROUP_BYTES);
-    SWITCH_ROM(saved);
+    load_patron_tiles(g, PATRON_TILE_BASE);      // 144 pre-shifted + 12 back-view tiles, from the group's bank (LCD is off)
     if (!is_cgb) return;
     for (v = 0; v < 3; v++) {                    // colour 0 = the wall, so the art needs no transparency
         p[0] = WALL_RGB;

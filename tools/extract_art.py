@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Extract the owner's pixel art (upload/) into gbsprite ASCII + assets/palettes.json.
 
-Run:  python3 -I tools/extract_art.py [--verify]
+Run:  python3 -I tools/extract_art.py [--verify] [--force]
+
+assets/art/ (and assets/palettes.json) is now the SOURCE OF TRUTH: since M8b it holds hand-made, owner-approved
+art (3/4-view patrons, back views, the bartender's mustache, palette overrides) that upload/ does not have. This
+script was the one-off M0 import; it refuses to overwrite any existing assets/art file or assets/palettes.json
+unless given --force (which throws the hand-made art away; --verify then checks the round trip).
 Index scheme: 0 '.' transparent, 1 '-' lightest, 2 '+' middle, 3 '#' darkest,
 ordered per sprite by luminance (0.299R+0.587G+0.114B), not by map label.  palettes.json lists hex/rgb15 in INDEX order 1,2,3
 (light, mid, dark).
@@ -122,6 +127,14 @@ def main():
         palettes.setdefault(pal_key(s[0]), s[6])
     print(f"total mismatched pixels: {total_bad}")
     outdir = os.path.join(ROOT, "assets/art")
+    force = "--force" in sys.argv
+    targets = [os.path.join(outdir, f + ".txt") for f in GROUPS] + [os.path.join(ROOT, "assets/palettes.json")]
+    exist = [t for t in targets if os.path.exists(t)]
+    if exist and not force:
+        print("refusing to overwrite hand-made art (assets/art is the source of truth):")
+        for t in exist: print("  " + os.path.relpath(t, ROOT))
+        print("pass --force to replace them with the upload/ extraction")
+        sys.exit(2)
     for f, keys in GROUPS.items():
         path = os.path.join(outdir, f + ".txt")
         os.makedirs(os.path.dirname(path), exist_ok=True)

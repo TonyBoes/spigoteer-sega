@@ -1,12 +1,13 @@
 # M4.7: smooth patrons (pixel positions, pre-shifted BG tiles) and the drinking animation.
+# M8b: 8 shifts, so a patron is drawn at every pixel (was 2 px steps); the BG tile budget.
 import re
 
 import pytest
 from conftest import ROOT, bar_top_row, bar_top_y, check_golden
 
 import test_patrons as tp
-from test_patrons import (DRINKING, EMPTY, FREE, FULL, HELD, MAX_M, MAX_P, PUSHED, PX, WALKING, clear_patrons,
-                          drawn_tiles, freeze, go, hold_mug, inject_mug, map_ids, mugs, patrons, put, set_patron)
+from test_patrons import (BACK_BASE, BASE, BG_TILES_TOTAL, DRINKING, EMPTY, FREE, FULL, HELD, MAX_M, MAX_P, PUSHED,
+                          PX, WALKING, clear_patrons, drawn_tiles, freeze, go, hold_mug, inject_mug, map_ids, mugs, patrons, put, set_patron)
 
 pytestmark = pytest.mark.timeout(90)
 
@@ -30,7 +31,7 @@ def drink_sprites(gb):
     return [s for s in gb.visible_sprites() if s["tile"] in DRINK_TILES]
 
 
-def test_walking_drawn_x_advances_in_2_px_steps(gb):
+def test_walking_drawn_x_advances_in_1_px_steps(gb):
     go(gb)
     ps = patrons(gb)
     last = {p["i"]: drawn(gb, p["i"]) for p in ps}
@@ -39,11 +40,10 @@ def test_walking_drawn_x_advances_in_2_px_steps(gb):
         gb.run(1)
         for p in ps:
             d = drawn(gb, p["i"])
-            assert d % 2 == 0
-            assert 0 <= d - last[p["i"]] <= 2, f"drawn x jumped {last[p['i']]} -> {d}"
+            assert 0 <= d - last[p["i"]] <= 1, f"drawn x jumped {last[p['i']]} -> {d}"
             changes += d != last[p["i"]]
             last[p["i"]] = d
-    assert changes >= 2 * 10, "about 25 px in 200 frames = 12 steps each"
+    assert changes >= 2 * 20, "about 25 px in 200 frames = 25 steps each"
     # the screen follows the drawn position without lagging more than a few frames
     for p in patrons(gb):
         col, ids = drawn_tiles(p["variant"], drawn(gb, p["i"]), p["bar"])
@@ -164,7 +164,7 @@ def test_drinking_patron_sways_by_2_px(gb):
         seq[-1] = (d, seq[-1][1] + 1)
         gb.run(1)
     xs = [d for d, _ in seq]
-    base = gb.read("patron_x", MAX_P)[p] & 0xFE
+    base = gb.read("patron_x", MAX_P)[p]
     assert set(xs) == {base, base + 2}, xs
     assert len(xs) >= 6 and all(a != b for a, b in zip(xs, xs[1:]))
     assert all(n in (11, 12, 13) for _, n in seq[1:-1]), seq
@@ -220,3 +220,61 @@ def test_drinking_golden(gb):
         gb.run(1)
     assert [s["tile"] - OBJ_DRINK for s in drink_sprites(gb)] == [2]
     check_golden(gb, "drinking")
+
+
+# ---- M8b: every pixel ------------------------------------------------------------------------
+def test_drawn_x_follows_patron_x_every_pixel(gb):
+    """A lone walker at 1 px per frame: drawn at exactly patron_x on every frame, every x in turn, and the tilemap
+    shows the matching pre-shifted tiles (a frame behind at most: the copy goes out in the next VBlank)."""
+    clear_patrons(gb)
+    go(gb)
+    p = set_patron(gb, 2, 3, variant=1)
+    gb.run(2)
+    xs, exact = [], 0
+    for _ in range(40):
+        gb.write("patron_speed", 255)              # ~1 px per frame
+        gb.run(1)
+        x = gb.read("patron_x", MAX_P)[p]
+        assert drawn(gb, p) == x
+        xs.append(x)
+        now = drawn_tiles(1, x, 2)
+        before = drawn_tiles(1, x - 1, 2)
+        if map_ids(gb, 2, now[0]) == now[1]:
+            exact += 1
+        else:                                      # one frame behind at most
+            assert map_ids(gb, 2, before[0]) == before[1], (x, map_ids(gb, 2, now[0]))
+    assert len(set(xs)) >= 35 and all(0 <= b - a <= 1 for a, b in zip(xs, xs[1:])), xs
+    assert {x & 7 for x in xs} == set(range(8)), "every shift is used"
+    assert exact >= 1
+
+
+def test_tile_ids_for_an_odd_x(gb):
+    clear_patrons(gb)
+    freeze(gb)
+    p = set_patron(gb, 1, 37, variant=2)
+    gb.run(4)
+    assert drawn(gb, p) == 37
+    col, ids = drawn_tiles(2, 37, 1)
+    assert col == 4 and ids[0][0] == BASE + 2 * 48 + 5 * 6, "variant C, shift 5"
+    assert map_ids(gb, 1, col) == ids
+    tm = gb.bg_tilemap()
+    assert (tm[bar_top_row(1)][3] & 0xFF) < BASE and (tm[bar_top_row(1)][7] & 0xFF) < BASE, "wall either side"
+
+
+def test_bg_tile_budget(gb):
+    """Scene tiles + 144 shifted + 12 back-view patron tiles fit the 256 BG ids; the BG uses the signed 0x8800
+    mode, so BG ids 128+ share VRAM with OBJ ids 128+, which no sprite uses (OBJ ids stay below 128)."""
+    assert BG_TILES_TOTAL == BASE + 144 + 12 and BG_TILES_TOTAL <= 256, BG_TILES_TOTAL
+    assert BACK_BASE == BASE + 144
+    assert gb.regs()["LCDC"] & 0x10 == 0, "BG/window tile data at 0x8800 (signed ids)"
+    clear_patrons(gb)
+    freeze(gb)
+    for b in range(4):                            # all three variants, odd and even shifts, everywhere
+        set_patron(gb, b, 5 + 9 * b, variant=b % 3)
+        set_patron(gb, b, 50 + 11 * b, variant=(b + 1) % 3)
+        set_patron(gb, b, 95 + 3 * b, variant=(b + 2) % 3)
+    gb.run(10)
+    used = {t & 0xFF for row in gb.bg_tilemap()[:18] for t in row[:20]}
+    assert max(used) < BG_TILES_TOTAL, max(used)
+    assert all(s["tile"] < 128 for s in gb.visible_sprites()), "no OBJ tile in the shared 0x8800 block"
+    assert max(used) >= 128, "the patrons do reach into the shared block (so the OBJ rule matters)"

@@ -13,12 +13,14 @@ LCC      := lcc
 # variables by name), -Wm-yc CGB-compatible (runs on DMG and CGB),
 # -Wm-yn cartridge title (max 15 chars), -Wm-yt MBC type if you need banks.
 LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynTAPPER
-# MBC5+RAM+BATTERY (0x1B, one 8 KB SRAM bank for the hi score, M7) + GBDK autobanking (M4.7): the pre-shifted patron tiles (~10 KB) live in build/patrons.c
-# under `#pragma bank 255`; bankpack places it in a switchable bank. -Wm-yoA sizes the ROM.
+# MBC5+RAM+BATTERY (0x1B, one 8 KB SRAM bank for the hi score, M7) + GBDK autobanking (M4.7): the pre-shifted patron tiles (M8b: 9 x 2.5 KB) live in build/patrons_<group>.c, one file per group
+# under `#pragma bank 255` (all nine would not fit one bank); bankpack places each in a switchable bank. -Wm-yoA sizes the ROM.
 LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 
 SRC      := $(wildcard src/*.c)
-GEN      := $(BUILD)/art.c $(BUILD)/patrons.c $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat3.c
+PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots ninjas aliens zoo
+PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patron_load.c
+GEN      := $(BUILD)/art.c $(PATRON_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat3.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
 # rgb2sdas.py, placed in ROM bank 2 next to the order tables and src/music.c (all `#pragma bank 2`); the song patterns are
 # in bank 3 (build/music_pat3.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
@@ -42,7 +44,7 @@ $(BUILD) $(OUT)/preview:
 $(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/art/bartender.txt assets/art/mug.txt assets/art/mug_fill.txt assets/art/mug_drink.txt assets/art/glass.txt assets/art/coin.txt assets/art/dancer.txt assets/art/can.txt assets/art/foam.txt assets/art/cursor.txt $(wildcard assets/art/patrons/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
-$(BUILD)/patrons.c $(BUILD)/can_tiles.h: $(BUILD)/art.c
+$(PATRON_C) $(BUILD)/can_tiles.h: $(BUILD)/art.c
 	@test -f $@
 
 # CGB palettes: assets/palettes.json -> build/palettes.c/.h

@@ -17,14 +17,16 @@ TABLE = [
     (6, 0xF, 2, 20, 175, 40, 3, 125, 60), (7, 0xF, 2, 21, 160, 37, 3, 150, 52), (8, 0xF, 2, 22, 150, 34, 3, 150, 45),
 ]
 ART_H = (ROOT / "build" / "art.h").read_text()
-PATRON_TILES = int(re.search(r"#define PATRON_TILES_PER_GROUP (\d+)", ART_H).group(1))
+PATRON_TILES = int(re.search(r"#define PATRON_GROUP_TILES (\d+)", ART_H).group(1))   # M8b: 144 shifted + 12 back views
+PATRON_GROUP_NAMES = re.search(r"// group order: (.*)", ART_H).group(1).split(", ")
 
 
 def patron_group_tiles(g):
-    """Bytes of patron group g as generated (the ROM keeps them in a switchable bank, so read build/patrons.c)."""
-    src = (ROOT / "build" / "patrons.c").read_text()
+    """Bytes of patron group g as generated (the ROM keeps them in a switchable bank, so read build/patrons_<g>.c)."""
+    src = (ROOT / "build" / f"patrons_{PATRON_GROUP_NAMES[g]}.c").read_text()
     data = bytes(int(h, 16) for h in re.findall(r"0x([0-9A-F]{2})", src))
-    return data[g * PATRON_TILES * 16:(g + 1) * PATRON_TILES * 16]
+    assert len(data) == PATRON_TILES * 16
+    return data
 
 
 def tile_id(name):

@@ -29,7 +29,8 @@
 
 // patrons: 16x16 px, drawn as a 3x2-tile BG footprint on the two back-wall rows of a bar.
 // Position is in pixels (patron_x, left edge of the 16 px figure) plus a fraction; the picture
-// is pre-shifted by 0/2/4/6 px in the tile set, so it moves in 2 px steps by swapping map entries.
+// is pre-shifted by 0..7 px in the tile set (M8b), so it moves in 1 px steps by swapping map entries.
+// A patron watching the show stands on a multiple of 8 px and shows its back view (2x2 tiles, no shifts).
 #define MAX_PATRONS      16
 #define PATRON_SPACING   32   // min px between the left edges of two patrons on a bar (no shared tile column)
 #define PATRON_FAR_X    120   // a walker whose patron_x gets here has reached the bartender's end (right edge at the spout)
@@ -41,6 +42,14 @@
 #define INTRO_FRAMES     90   // nothing moves or spawns for this long after a level starts
 #define SPAWN_RETRY      20   // frames before trying again when the door is crowded
 #define PATRON_TILE_BASE BAR_TILE_COUNT
+#define PATRON_BACK_BASE (PATRON_TILE_BASE + PATRON_TILES_PER_GROUP)   // the 12 back-view tiles follow the 144 shifted ones
+#define DRAW_BACK        0x80 // patron_draw bit 7: drawn in its back view (x < 128, so the bit is free)
+#define SHUFFLE_MAX         4 // a patron turning to watch the show shuffles at most this far to a multiple of 8 px
+// BG tile budget (signed 0x8800 mode, LCDC bit 4 clear): ids 0..255. OBJ tiles stay below 128, so BG ids 128+
+// (VRAM 0x8800-0x8FFF, which OBJ would see as 128+) are free for the patrons: scene + 144 + 12 = 246 of 256.
+#if PATRON_TILE_BASE + PATRON_GROUP_TILES > 256
+#error "BG tile budget: scene + patron tiles exceed 256"
+#endif
 enum { PATRON_NONE, PATRON_WALKING, PATRON_PUSHED, PATRON_DRINKING };
 
 // mugs
@@ -76,6 +85,9 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define OBJ_MUG_DRINK   (OBJ_MUG_FILL + MUG_FILL_TILE_COUNT)
 #define OBJ_COIN        (OBJ_MUG_DRINK + MUG_DRINK_TILE_COUNT)
 #define OBJ_DANCER      (OBJ_COIN + COIN_TILE_COUNT)
+#if OBJ_DANCER + DANCER_FRAMES * DANCER_TILES_PER_FRAME > 128
+#error "OBJ tiles must stay below 128: ids 128+ share VRAM with the patron BG tiles"
+#endif
 // OBJ tile ids stay below 128: ids 128+ share VRAM (0x8800 block) with the patron BG tiles
 #define OAM_FILL        4     // OAM entry of the filling mug; pooled mugs start at 5
 // OAM budget (40): bartender 0-3, fill 4, mugs 5..26 (20 mugs + 2 spare for a breaking glass's 2nd entry),
@@ -105,7 +117,6 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define SHOW_FRAMES      360
 #define DANCER_BEAT       12   // frames per dance step
 #define DANCER_STAGGER     8   // dancers pop in / out one after the other
-#define DIST_BOB          10   // a distracted patron shifts by 2 px this often
 #define SHOW_SPAWN_DIV     4   // after a show the next patron comes after spawn_interval / this (once)
 #define NUM_DANCERS        3
 
@@ -122,7 +133,7 @@ extern uint16_t tip_timer, show_timer;
 extern uint8_t  patron_state[MAX_PATRONS], patron_bar[MAX_PATRONS], patron_x[MAX_PATRONS];
 extern uint8_t  patron_frac[MAX_PATRONS], patron_draw[MAX_PATRONS], patron_variant[MAX_PATRONS];
 extern uint8_t  patron_timer[MAX_PATRONS], patron_aux[MAX_PATRONS], patron_mug[MAX_PATRONS];
-extern uint8_t  patron_catchx[MAX_PATRONS], patron_dist[MAX_PATRONS], patrons_live;
+extern uint8_t  patron_catchx[MAX_PATRONS], patron_dist[MAX_PATRONS], patron_facing[MAX_PATRONS], patrons_live;
 extern uint8_t  mug_state[MAX_MUGS], mug_bar[MAX_MUGS], mug_x[MAX_MUGS], mug_timer[MAX_MUGS];
 extern uint8_t  mug_patron[MAX_MUGS], mugs_live;
 extern uint8_t  oam_used;
@@ -166,6 +177,7 @@ void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 void put_row(uint8_t y);
 void mark_dirty(uint8_t b, uint8_t x0, uint8_t x1);         // tile ids of columns x0..x1-1 changed
 void mark_dirty_attrs(uint8_t b, uint8_t x0, uint8_t x1);   // ... and their CGB attributes too
+void mark_quick(uint8_t p);                                 // patron p moved within his own 3 columns (tile ids only)
 void clear_dirty(void);
 void write_all_bars(void);
 void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n);
