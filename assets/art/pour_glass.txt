@@ -1,0 +1,55 @@
+; Perfect Pour (M12) glass: BG art 16x40 (2x5 tiles), CGB BG palette 2 while the round runs.
+; '.' colour 0 = the glass interior (the beer sprites show only there: they are drawn behind BG colours 1-3),
+; '-' highlight, '+' the fill line colour (red on CGB; the line is added by tools/gen_art.py), '#' outline.
+; Rows 0-31 are the interior (the rim is row 0), rows 32-39 the solid base: every base pixel is non-zero,
+; so beer sprites that reach up to 8 px below the interior stay hidden behind it.
+##............##
+#-............##
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+#-............-#
+################
+#--------------#
+#-------------##
+#--------------#
+#-------------##
+#--------------#
+#-#-#-#-#-#-#-##
+################
+
+; '!' glyph for the result lines (HUD text style: '.' letter, '#' band)
+########
+###.####
+###.####
+###.####
+###.####
+########
+###.####
+########

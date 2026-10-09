@@ -3,6 +3,8 @@
 // over each other, and the player picks the calm one. Right: it opens, +3000. Wrong: the
 // picked can bursts: a soda geyser shoots straight up from it, peaks and holds, then droplets
 // rain down and spread over the whole screen (counter, floor and a few on the bartender).
+// M12: the rounds rotate (bonus_kind): 1st shake-up, 2nd Perfect Pour, 3rd Tip Shower, then again; the other two are
+// in src/bonus2.c and this file only hands over to it. The shake-up's difficulty counts shake-ups, not rounds.
 //
 // Own screen (LCD off to enter). Sprite budget: bartender-bound drops 0-2 (in front of him), cursor 3,
 // bartender 4-7, cans 8-13, counter/floor drops 14-22, geyser column 30-33. In the lose result draw() counts
@@ -69,6 +71,7 @@ enum { PH_SHOW, PH_SHAKE, PH_SWAP, PH_CHOOSE, PH_RESULT };
 enum { CF_STILL, CF_LEFT, CF_RIGHT, CF_BURST, CF_OPEN };
 
 uint8_t  bonus_round;
+uint8_t  bonus_kind;           // 0 this file's shake-up, 1 / 2 the rounds in bonus2.c
 uint8_t  bonus_phase;          // PH_*
 uint8_t  bonus_calm;           // slot (0..5, left to right) where the calm can stands now (updated when a swap lands)
 uint8_t  bonus_calm_can;       // the calm can's identity (index into can_pos[])
@@ -155,20 +158,30 @@ static void shuffle_order(void) {
 }
 
 void bonus_enter(void) BANKED {
-    uint8_t i;
+    uint8_t i, n;
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0; vram_pending = 0;
     clear_dirty();
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
+    bonus_round++;
+    bonus_kind = (uint8_t)((uint8_t)(bonus_round - 1) % 3);      // M12: shake-up, Perfect Pour, Tip Shower, again
+    music_play(TUNE_BONUS);
+    bonus_phase = PH_SHOW; bonus_timer = 0;
+    if (bonus_kind) {                                           // the other two rounds: src/bonus2.c
+        draw_hud();
+        venue_backdrop(1, bonus_kind == 1 ? COUNTER_ROW : 18);   // Tip Shower: no counter, the coins fall from the ceiling
+        bonus2_enter();
+        DISPLAY_ON;
+        return;
+    }
     set_sprite_data(OBJ_BONUS, BONUS_TILE_COUNT, bonus_tiles);
     if (is_cgb) load_palettes();
     draw_scene();
 
-    bonus_round++;
-    music_play(TUNE_BONUS);
-    bonus_phase = PH_SHOW; bonus_won = 0; bonus_moving = 0; bonus_swaps_done = 0;
-    bonus_swaps_total = 6 + bonus_round;
-    bonus_swap_dur = bonus_round < 3 ? 30 : (bonus_round < 6 ? 34 - 4 * bonus_round : 14);   // rounds 1-2 slow, then 22, 18, 14
+    n = (uint8_t)((uint8_t)(bonus_round + 2) / 3);             // shake-ups so far, this one included (1 in round 1, 2 in round 4, ...)
+    bonus_won = 0; bonus_moving = 0; bonus_swaps_done = 0;
+    bonus_swaps_total = 6 + n;
+    bonus_swap_dur = n < 3 ? 30 : (n < 6 ? 34 - 4 * n : 14);   // shake-ups 1-2 slow, then 22, 18, 14
     bonus_calm_can = next_rand() % NUM_CANS;
     bonus_calm = bonus_calm_can;
     bonus_cursor = 2;
@@ -177,7 +190,7 @@ void bonus_enter(void) BANKED {
         can_shaken[i] = 0; can_dy[i] = 0;
     }
     shuffle_order();
-    oi = 0; bonus_timer = 0; swap_t = 0;
+    oi = 0; swap_t = 0;
     DISPLAY_ON;
 }
 
@@ -301,6 +314,7 @@ static void step_swap(void) {
 
 uint8_t bonus_update(uint8_t pressed) BANKED {
     uint8_t c;
+    if (bonus_kind) return bonus2_update();
     bonus_timer++;
     switch (bonus_phase) {
     case PH_SHOW:

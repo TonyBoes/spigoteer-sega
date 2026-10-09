@@ -166,8 +166,9 @@ def test_swaps_preserve_positions_and_track_the_calm_can(gb):
 
 def test_swaps_speed_up_from_the_third_round(gb):
     durs = []
-    for r in range(4):
+    for r in (0, 3, 6, 9):                           # M12: rounds 1, 4, 7, 10 are the shake-ups (the others pour and catch tips)
         enter_bonus(gb, 2, rounds_before=r)
+        assert gb.mem("bonus_kind") == 0
         durs.append(gb.mem("bonus_swap_dur"))
         gb.write("bonus_phase", PH_RESULT); gb.write("bonus_timer", 129)
         run_until(gb, lambda: state(gb) == PLAYING, 40)
