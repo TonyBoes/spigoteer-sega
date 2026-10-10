@@ -227,7 +227,7 @@ Art: assets/approved/venues/<theme>_* (owner-approved). tools/gen_art.py cuts ea
 tiles, 32 show OBJ tiles, 7 palettes), build/venue_load.c (venue_fetch: far_copy of the theme's venue_t into WRAM) and
 build/venues.json (the tests' reference); the build fails if a theme's stage needs more than 20 tiles or its bar +
 floor more than 16. Theme index = patron group (saloon 0 ... zoo 8). BG ids: venue stage slot 0-19, venue bar slot
-20-35, shared HUD tiles 36-71, patrons 72-215, back views 216-227 (228 of 256); title lettering still loads over the
+20-35 (since the graphics overhaul one pool 0-35, see "Graphics overhaul as built"), shared HUD tiles 36-71, patrons 72-215, back views 216-227 (228 of 256); title lettering still loads over the
 patron range on the title only. OBJ: the drink loads over the mug ids (56-59 full/empty, 76-83 fill, 84-91 drink),
 the performers over the dancer ids (96-127). CGB BG palettes: 0 bar, 1 HUD, 2-4 patrons (colour 0 = the venue's wall),
 5/6 stage A/B, 7 bar B (keg/spout). src/venue.c (banked): load_venue (tiles, palettes, base_tile/base_attr that
@@ -621,3 +621,44 @@ no enhanced Eskimo, referee, alien or panda (their kegs stay). Then the import. 
 swings over the stage lip, blink, ear flick; curtains become one repeated fold tile; stage_b colour 0 -> #f09848),
 imported with the graphics overhaul. Story mode and portraits on hold until the owner reviews
 docs/story.md. Music mix on hold. No speed milestone unless the owner sees slowdown.
+
+## Graphics overhaul as built (2026-10-10)
+Owner-approved import of the final patron set, the tile-pool change it needed and the saloon bar cat. Three commits:
+- Venue tile pool, option A (owner approved; its own commit, zero golden changes): BG ids 0-35 are one pool per venue.
+  The stage takes ids from 0 up (animated tiles last and contiguous, as before); the bar + floor pack at the top of the
+  pool, venue.bar_base = 36 - bar_n .. 35, so bar ids never fall in 0-19, which the title's menu text overwrites while it
+  shows the saloon's bar. gen_art fails a venue with stage_n + bar_n > 36 or bar_base < 20 (TITLE_TEXT_SLOT). Every bar
+  uses 12 tiles today, so a stage may use up to 24. tools/gen_art.py VENUE_POOL / TITLE_TEXT_SLOT replace STAGE_SLOT /
+  BAR_SLOT; venue_t gains bar_base; load_venue loads the bar at venue.bar_base; art.h VENUE_POOL, TITLE_TEXT_SLOT
+  (TILE_BAR_BASE, STAGE_TILE_SLOT, BAR_TILE_SLOT removed; TILE_GENERIC_BASE still 36); venues.json "pool",
+  "title_text_slot", per venue "bar_base". render.c's bar maps already held absolute ids. Tests: test_venues (pool
+  layout, bar ids at the top and >= 20: the title-safety assert), bar VRAM at bar_base (test_venues, test_bonus),
+  test_bartender, test_stage_anim reads the whole pool (0-35).
+- Patrons (scratchpad patron_round8/r8b/final/assets, the drop-in set): all nine groups' fronts and backs (round 6
+  redraws / outline pass, the round 7 owner picks), palettes.json, factory_pal.json. Diffed against the repo first: the
+  repo's assets had not changed since the proposal's base (94c39cd) and the other 8 venue palettes were identical, so
+  nothing newer was reverted and no hand merge was needed. Enhanced set: the cowgirl (unchanged) and robot A (hazard
+  stripes on the left arm, top row own / bottom row S, robots_x in OBJ 4, no bank-1 tiles). The factory keg is steel
+  (bar_b #f8d848 / #7888a0 / #101828; the old yellow / blue under _was); no other keg changed. Lumberjack A axe, chef C
+  towel, geisha pins and the headband fan's accessory were not done (the quadrant rule would change faces; r8b
+  CHANGES.md part 2). test_enhanced: "only the cowboys are enhanced" became test_the_enhanced_set_is_the_cowgirl_and_robot_a,
+  plus r8b's generalised lift tests for every enhanced variant other than the cowgirl (who keeps her own).
+- Saloon bar cat (owner pick B_ginger): saloon_anim.txt (tail swing over the stage lip, blink, ear flick; slots (14,1)
+  (13,3), 7 frames, 392-frame loop), saloon_attr.txt (the cat's 4 tiles on stage_b), saloon_pal.json (stage_b colour 0
+  -> #f09848, the ginger coat; 1-3 = stage_a's). With option A the curtains keep their ORIGINAL four tiles (cols 0, 1,
+  18, 19, rows 0-2), not B_ginger's single repeated fold: the saloon stage is 23 tiles (21 static + 2 animated), the bar
+  12 at 24-35. test_stage_anim: the saloon joined the animated set; test_the_saloon_does_not_animate became
+  test_the_saloon_bar_cat (slots, stage_b attributes, own colour 0, four different curtain tiles, <= 24 tiles, level 1
+  animates). New golden stage_anim_saloon.
+- Goldens replaced, every one viewed (old vs new sheets): patron commit (dmg + cgb, differences only in the bar rows
+  y 40-135, the factory also in the keg): patrons, patrons_<9 groups>, venue_<9>, stage_anim_<8 animated before>, show,
+  show_backs, title, title_anim, level2, gameover, loop_banner, bonus_after. Cat commit (dmg + cgb, differences only
+  at x 106-119, y 17-38, the cat and its tail): drinking, filling, gameover, loop_banner, mug_sliding, patrons,
+  patrons_cowboys, pause, scene, served, show, show_backs, spout_fill, stage, venue_saloon, walking; new
+  stage_anim_saloon. Option A commit: none.
+- ROM: real ROM0 free 1827 B (game.gb) / 1939 B (release.gb), unchanged. Banks after: 1 51, 2 93, 3 155, 4 236, 5 383
+  free (romusage; bank 5 was 45, autobank moved data), 6 11123 free. WRAM unchanged (SA_BUF still 400: the saloon's
+  frames are 224 B).
+- Perf (PyBoy, scratchpad perf.py; end LY / missed): level 8 script DMG 108 / 0, CGB 115 / 0; level 9 overlap DMG
+  182 / 284, CGB 189 / 293; realistic peak DMG 191 / 69, CGB 194 / 127; over 7 seeds mean missed DMG 70.1, CGB 95.4.
+  Identical to the ROM0 cleanup numbers.

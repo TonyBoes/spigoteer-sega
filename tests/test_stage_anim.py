@@ -59,7 +59,7 @@ def at_venue(gb, t):
 
 
 def record(gb, n):
-    """Run n frames with the animation on; the stage tiles (ids 0..19) after each."""
+    """Run n frames with the animation on; the venue pool (ids 0..35) after each."""
     gb.write("sa_hold", 0)
     seen = []
     for i in range(n):
@@ -72,8 +72,7 @@ def record(gb, n):
 
 # ---- what gen_art compiled ----------------------------------------------------------------------------------------
 def test_animated_ids_are_the_last_stage_ids_and_frame_0_is_the_stage():
-    assert "saloon" not in ANIMATED, "the saloon has no stage animation (owner: the neon S was rejected)"
-    assert set(ANIMATED) == {"sports", "lodge", "bistro", "igloo", "factory", "teahouse", "space", "zoo"}
+    assert set(ANIMATED) == {"saloon", "sports", "lodge", "bistro", "igloo", "factory", "teahouse", "space", "zoo"}
     for t in ANIMATED:
         v, a = venue(t), anim(t)
         first, k = a["first"], a["k"]
@@ -148,15 +147,23 @@ def test_sa_hold_freezes_the_animation(gb):
     assert any(s != snap for s in seen), "it runs again when released"
 
 
-def test_the_saloon_does_not_animate(gb):
+def test_the_saloon_bar_cat(gb):
+    """Graphics overhaul (owner pick B_ginger): the ginger tabby on the stage lip right of the sign, its 4 tiles on
+    stage_b (colour 0 the ginger coat, 1-3 = stage_a's); the tail and the head animate; the curtains keep their
+    original four tiles (option A's pool has room); level 1 animates from the start."""
+    v, a = venue("saloon"), anim("saloon")
+    assert {(c, r) for c, r in a["slots"]} == {(14, 1), (13, 3)}
+    cat = {(14, 1), (13, 2), (14, 2), (13, 3)}
+    assert all(v["stage_attr"][r * 20 + c] == (6 if (c, r) in cat else 5) for r in range(4) for c in range(20))
+    assert v["pal"][1][1:] == v["pal"][0][1:] and v["pal"][1][0] != v["pal"][0][0], "stage_b: own colour 0 only"
+    m = v["stage_map"]
+    curtains = [m[r * 20 + c] for r in range(3) for c in (0, 1, 18, 19)]
+    assert len(set(curtains)) == 4, "the original curtains: four different tiles"
+    assert v["stage_n"] <= 24 and v["stage_n"] + v["bar_n"] <= POOL
     assert gb.mem("venue_id") == 0
     gb.write("sa_hold", 0)
-    snap = stage_vram(gb)
-    for _ in range(14):
-        gb.run(50)
-        keep_playing(gb)
-        assert stage_vram(gb) == snap
-    assert gb.mem("sa_on") == 0
+    gb.run(2)
+    assert gb.mem("sa_on") == 1
 
 
 def test_pause_freezes_the_stage(gb):

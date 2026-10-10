@@ -9,11 +9,12 @@
  },
  "stage_b": {
   "hex": [
-   "#f8e090",
+   "#f09848",
    "#985888",
    "#702840",
    "#181030"
-  ]
+  ],
+  "_note": "saloon: only the bar cat's 4 tiles use stage_b (attr 1); colour 0 = the ginger coat (stage_a's cream elsewhere), colours 1-3 = stage_a's, so the wall, mortar and lip around the cat match exactly"
  },
  "bar": {
   "hex": [
