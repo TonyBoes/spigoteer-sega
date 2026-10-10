@@ -538,8 +538,8 @@ def test_select_does_nothing_outside_the_title(gb):
     assert gb.mem("sound_on") == 1
 
 
-# ---- saved hi score (M10b: the top-5 table; M11b SRAM version 3: "TPR3", 5 x (3 initials, 3-byte score), the story
-# progress at 34, a reserved byte, checksum at 36) ----
+# ---- saved hi score (M10b: the top-5 table; SRAM version 4 since the story shifts: "TPR4", 5 x (3 initials, 3-byte
+# score), the story progress at 34, the step reached at 35, checksum at 36) ----
 SAVE_SUM = 36
 def earn_fifty_and_lose(rom):
     start_game(rom)
@@ -562,7 +562,7 @@ def test_hi_score_survives_a_reset(model):
     assert hi_score(rom) == 0, "a fresh cartridge starts at 0"
     earn_fifty_and_lose(rom)
     ram = save_ram(rom)
-    assert ram[:4] == b"TPR3" and ram[4:7] == b"AAA" and int.from_bytes(ram[7:10], "little") == 50
+    assert ram[:4] == b"TPR4" and ram[4:7] == b"AAA" and int.from_bytes(ram[7:10], "little") == 50
     with make_rom(model, ram, sound=False) as again:     # power cycle with the same battery RAM
         again.run(120)
         assert hi_score(again) == 50

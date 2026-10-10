@@ -194,6 +194,7 @@ void enter_level_screen(void) BANKED {
 void start_new_game(uint8_t lv) BANKED {
     uint8_t i;
     lives = START_LIVES; level = lv; score = 0; bonus_round = 0; story_on = 0;
+    pat_len = 0;                                 // arcade: the normal random arrivals (a story shift sets a pattern)
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     enter_level_screen();
 }

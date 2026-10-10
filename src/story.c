@@ -1,10 +1,13 @@
 // Story mode (M11b): "The Golden Spigot" (docs/story.md). Cut-scenes, the chapter flow, the chapter goals.
 //
-// Flow: title STORY -> INTRO -> per chapter c (0..8): PRE scene -> the venue's level with the chapter goal (a banner
-// first, GS_GOAL) -> on success CHAPTER CLEAR, the progress saved (SRAM, save.c), the POST scene -> the next chapter;
-// after chapter 9's POST scene FINALE, CREDITS, then the title. CONTINUE on the title resumes at the PRE scene of the
-// first chapter not cleared. A failed goal shows TRY AGAIN and the chapter restarts at its goal banner, with fresh
-// lives (lives work as in arcade: losing all three fails the goal; the score carries on and never enters the top 5).
+// Flow: title STORY -> INTRO -> per chapter c (0..8): PRE scene -> the chapter's steps (build/story.h STORY_STEPS:
+// Opening shift, Happy hour, the mini-game slot, Last call, the boss slot; a step marked STEP_SKIP is not built yet
+// and passed over) -> the POST scene -> the next chapter; after chapter 9's POST scene FINALE, CREDITS, the title.
+// A shift is the venue's level with that shift's goal, speeds and arrival pattern (a banner first, GS_GOAL); on
+// success SHIFT CLEAR (CHAPTER CLEAR after the last step), the progress saved (SRAM, save.c: chapters cleared + the
+// step reached), the next step. CONTINUE on the title resumes at the first unfinished step (the PRE scene when the
+// chapter has none done). A failed goal shows TRY AGAIN and that shift restarts at its goal banner, with fresh lives
+// (lives work as in arcade: losing all three fails the goal; the score carries on and never enters the top 5).
 //
 // Cut-scene ("hybrid lighter" style): the venue's stage + bar rows as the backdrop (no patrons), the Spigoteer's
 // normal sprite at bar 1's tap, the scene title on the HUD row, a framed speaker portrait above a full-width text
@@ -61,7 +64,11 @@ uint8_t  story_catches, story_breaks, story_taps;   // this attempt: empties cau
 uint8_t  story_left;               // what is left of the goal's count (HUD)
 uint16_t story_timer;              // frames left of a timed goal (0: none / out)
 uint8_t  story_fails;              // goal failures so far (tests)
-uint8_t  story_twist;              // the chapter's twist id (0 none): the hook for a later milestone
+uint8_t  story_twist;              // the shift's twist id (0 none): the hook for a later milestone
+uint8_t  story_step;               // the step of the chapter's sequence being played (0..STORY_STEPS-1)
+uint8_t  story_shift;              // the shift being played: 0 opening, 1 happy hour, 2 last call
+uint8_t  pat_pos, pat_buf[STORY_PAT_MAX];   // the shift's arrival pattern (patrons.c pat_len / pat_bar): position, entries
+uint16_t pat_wait[4];              // frames per wait code: the interval, PAT_SHORT, twice, four times the interval
 scene_hdr_t story_hdr;
 goal_t   story_goal;
 
@@ -349,17 +356,48 @@ static void hud_goal(void) {                     // queue the goal counter (and 
     vq_add(0, hud_buf + 4, 16, HUD_ROW, 4);
 }
 
-static void chapter_start(void) {
+// The shift's speeds and arrivals on top of the level row (after the level load): walkers (hurried ones too) and the
+// spawn interval scaled by the shift's percentages, the arrival pattern (patrons.c) with its waits, a clear goal's quota.
+static void shift_pace(void) {
+    uint16_t v;
+    if (story_goal.type != G_CLEAR) quota = 255; // serve / catch goals: patrons keep coming until the goal is met
+    else if (story_goal.quota) quota = story_goal.quota;
+    patron_speed = (uint8_t)(((uint16_t)patron_speed * story_goal.walk) / 100);
+    if (hurry_speed) hurry_speed = patron_speed + (patron_speed >> 1);   // (level.c: 1.5x from level 3)
+    v = (uint16_t)(((uint16_t)spawn_interval * story_goal.spawn) / 100);
+    spawn_interval = v; spawn_timer = v;
+    pat_len = story_pattern_get(story_goal.pattern, pat_buf);
+    pat_pos = 0; pat_bar = pat_buf[0] & 3;
+    pat_wait[0] = v; pat_wait[1] = PAT_SHORT; pat_wait[2] = v << 1; pat_wait[3] = v << 2;
+}
+
+// After a patron spawned under an arrival pattern (patrons.c, only then): the frames to the next one (the entry's
+// wait code), the pattern's next bar.
+uint16_t pat_done(void) BANKED {
+    uint8_t e = pat_buf[pat_pos];
+    if (++pat_pos == pat_len) pat_pos = 0;
+    pat_bar = pat_buf[pat_pos] & 3;
+    return pat_wait[e >> 4];
+}
+
+static const char *const shift_name[STORY_SHIFTS] = STORY_SHIFT_NAMES;
+static const char chapter_word[] = "CHAPTER ";
+
+// One shift of the chapter: its goal banner over the venue's level (LCD off, then on), GS_GOAL.
+static void shift_start(void) {
     uint8_t i;
-    story_goal_get(story_chapter, (uint8_t *)&story_goal);
+    char s[21];
+    const char *n;
+    story_goal_get(story_chapter, story_shift, (uint8_t *)&story_goal);
     story_twist = story_goal.twist;
     DISPLAY_OFF;
-    // the goal banner in the window (map rows 32-36): panel, CHAPTER n, the two goal lines, panel
+    // the goal banner in the window (map rows 32-36): panel, CHAPTER n + the shift, the two goal lines, panel
     fill(win_rows[0], TILE_PANEL_TOP, 20);
-    fill(win_rows[1], TILE_HUD_BLANK, 20);
-    win_rows[1][5] = TILE_GLYPH_C; win_rows[1][6] = TILE_GLYPH_H; win_rows[1][7] = TILE_GLYPH_A; win_rows[1][8] = TILE_GLYPH_P;
-    win_rows[1][9] = TILE_GLYPH_T; win_rows[1][10] = TILE_GLYPH_E; win_rows[1][11] = TILE_GLYPH_R;
-    win_rows[1][13] = TILE_GLYPH_0 + story_chapter + 1;
+    for (i = 0; chapter_word[i]; i++) s[i] = chapter_word[i];
+    s[i++] = '1' + story_chapter; s[i++] = ' ';
+    for (n = shift_name[story_shift]; *n; n++) s[i++] = *n;
+    s[i] = 0;
+    centre(win_rows[1], s);
     centre(win_rows[2], story_goal.line1);
     centre(win_rows[3], story_goal.line2);
     fill(win_rows[4], TILE_PANEL_BOT, 20);
@@ -373,14 +411,14 @@ static void chapter_start(void) {
     level = story_chapter + 1;
     lives = START_LIVES;
     enter_level_screen();                        // the venue's level (row level - 1), LCD on again, PLAYING
-    if (story_goal.type != G_CLEAR) quota = 255; // serve / catch goals: patrons keep coming until the goal is met
+    shift_pace();
     story_catches = story_breaks = story_taps = 0;
     st_last_catch = sfx_count[SFX_CATCH]; st_last_break = sfx_count[SFX_BREAK];
     story_left = story_goal.count;
     st_secs = story_goal.secs;
     story_timer = (uint16_t)story_goal.secs * 60;
     hud_goal();
-    // the twists (a later milestone) hook in here: story_twist names the chapter's twist, 0 none
+    // the twists (a later milestone) hook in here, per shift: story_twist names the shift's twist, 0 none
     overlay_on = 1;
     LYC_REG = GOAL_LYC;
     story_phase = SP_GOAL; story_t = 0;
@@ -394,17 +432,41 @@ static void goal_banner_off(void) {
     overlay_on = 0;
 }
 
+// ---- the chapter's steps ----------------------------------------------------------------------------------------
+// the first step from s the engine can play (STORY_STEPS: none left in the chapter)
+static uint8_t next_step(uint8_t s) {
+    while (s < STORY_STEPS && (story_step_get(story_chapter, s) & STEP_SKIP)) s++;
+    return s;
+}
+
+// story_step (playable) begins. The mini-game and boss modes hook in here by kind (STEP_MINI / STEP_BOSS, with the
+// id in STEP_INDEX) once built; until then the data marks them STEP_SKIP and every playable step is a shift.
+static void step_start(void) {
+    story_shift = story_step_get(story_chapter, story_step) & STEP_INDEX;
+    shift_start();
+}
+
+static void chapter_done(void) {                 // every step done: saved as cleared, the POST scene
+    story_save(story_chapter + 1, 0);
+    scene_enter(SC_POST_SALOON + 2 * story_chapter);
+}
+
 // ---- entry points --------------------------------------------------------------------------------------------
-// From the title: a new story (cont 0) or CONTINUE (cont 1: the PRE scene of the first chapter not cleared)
+// From the title: a new story (cont 0) or CONTINUE (cont 1: the first unfinished step of the first chapter not
+// cleared; its PRE scene when none of its steps is done)
 void story_begin(uint8_t cont) BANKED {
     uint8_t i;
     story_on = 1; story_fails = 0;
     score = 0;
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     lives = START_LIVES; bonus_round = 0; game_over = 0;
-    if (cont && story_progress && story_progress < STORY_CHAPTERS) {
+    if (cont && (story_progress || story_reached) && story_progress < STORY_CHAPTERS) {
         story_chapter = story_progress;
-        scene_enter(SC_PRE_SALOON + 2 * story_chapter);
+        story_scene = SC_PRE_SALOON + 2 * story_chapter;
+        if (!story_reached) { scene_enter(story_scene); return; }
+        story_step = next_step(story_reached);
+        if (story_step >= STORY_STEPS) chapter_done();
+        else step_start();
     } else {
         story_chapter = 0;
         scene_enter(SC_INTRO);
@@ -416,20 +478,24 @@ static void scene_done(void) {
     if (s == SC_CREDITS) { story_on = 0; story_phase = SP_OFF; title_enter(); return; }
     if (s == SC_FINALE) { scene_enter(SC_CREDITS); return; }
     if (s == SC_INTRO) { scene_enter(SC_PRE_SALOON); return; }
-    if (!((s - SC_PRE_SALOON) & 1)) { chapter_start(); return; }   // a PRE scene: the chapter
+    if (!((s - SC_PRE_SALOON) & 1)) { story_step = next_step(0); step_start(); return; }   // a PRE scene: the chapter
     if (story_chapter + 1 < STORY_CHAPTERS) {                       // a POST scene: the next chapter's PRE
         story_chapter++;
         scene_enter(SC_PRE_SALOON + 2 * story_chapter);
     } else scene_enter(SC_FINALE);
 }
 
-// GS_LEVEL_CLEAR is over (main.c): the progress saved, the chapter's POST scene
+// GS_LEVEL_CLEAR is over (main.c): the progress saved (the next step reached, even one not built yet: a later save
+// then resumes there), the next playable step, or the chapter's POST scene
 void story_level_done(void) BANKED {
-    story_save(story_chapter + 1);
-    scene_enter(SC_POST_SALOON + 2 * story_chapter);
+    uint8_t n = story_step + 1, s = next_step(n);
+    if (s >= STORY_STEPS) { chapter_done(); return; }
+    story_save(story_chapter, n);
+    story_step = s;
+    step_start();
 }
 
-// the goal failed: TRY AGAIN over the frozen level, then the chapter again (from enter_game_over, or story_play)
+// the goal failed: TRY AGAIN over the frozen level, then that shift again (from enter_game_over, or story_play)
 void story_fail(void) BANKED {
     show_overlay("TRY AGAIN");
     music_play(TUNE_OVER);
@@ -440,7 +506,7 @@ void story_fail(void) BANKED {
 
 static void story_win(void) {
     enter_level_clear();                         // (its LEVEL CLEAR banner, the bonus, the jingle, GS_LEVEL_CLEAR)
-    show_overlay("CHAPTER CLEAR");
+    show_overlay(next_step(story_step + 1) >= STORY_STEPS ? "CHAPTER CLEAR" : "SHIFT CLEAR");
 }
 
 // Every GS_PLAYING frame in story mode, after the rules (main.c): the goal's counters, success and failure.
@@ -484,7 +550,7 @@ uint8_t story_update(uint8_t pressed) BANKED {
         }
         return 0;
     case SP_FAIL:
-        if ((pressed & (J_A | J_START)) || story_t >= FAIL_FRAMES) { chapter_start(); return 1; }
+        if ((pressed & (J_A | J_START)) || story_t >= FAIL_FRAMES) { shift_start(); return 1; }
         return 0;
     case SP_SCENE:
         break;

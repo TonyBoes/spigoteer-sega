@@ -329,8 +329,10 @@ uint8_t catch_full(uint8_t i) {
 // him still off the screen (patron_aux = PATRON_W), a sprite from the start (LIFT_EDGE, lift.c). No sprite room for him
 // on that bar now (lift.c's budgets, or this frame's copy list): he is taken back and the spawn is tried again
 // SPAWN_RETRY frames later.
+uint8_t  pat_len, pat_bar;             // story shifts: an arrival pattern, its next bar (game.h)
+
 static uint8_t try_spawn(void) {
-    uint8_t b = (next_rand() >> 2) & 3, v;
+    uint8_t b = pat_len ? pat_bar : (next_rand() >> 2) & 3, v;
     if (blocked_behind(b, SPAWN_X + PATRON_SPACING)) return 0;   // someone within PATRON_SPACING px of the spawn point
     v = next_rand();                              // v % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
     v = (v >> 4) + (v & 15);
@@ -532,7 +534,8 @@ void update_patrons(void) {
         if (intro_timer) intro_timer--;
     } else if (spawned < quota) {
         if (spawn_timer) spawn_timer--;
-        else spawn_timer = try_spawn() ? spawn_interval : SPAWN_RETRY;
+        else if (!try_spawn()) spawn_timer = SPAWN_RETRY;
+        else spawn_timer = pat_len ? pat_done() : spawn_interval;   // (a story shift's pattern: story.c)
     }
 
     for (p = 0; p != MAX_PATRONS; p++) {

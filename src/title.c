@@ -182,11 +182,11 @@ void title_enter(void) BANKED {
     for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++) set_bkg_tiles(0, r, 20, 1, row_buf);
     for (i = 0; i < 20; i++) { attr_txt[i] = BGPAL_TEXT; attr_sel[i] = BGPAL_TEXT_SEL; }
     title_sel = 0;
-    // M11b: CONTINUE when a story is saved part way (chapters cleared, not all nine); the menu then moves up a row
+    // M11b: CONTINUE when a story is saved part way (a shift or a chapter cleared, not all nine); the menu moves up a row
     title_n = 0;
     title_items[title_n++] = K_ARCADE;
     title_items[title_n++] = K_STORY;
-    if (story_progress && story_progress < STORY_CHAPTERS) title_items[title_n++] = K_CONTINUE;
+    if ((story_progress || story_reached) && story_progress < STORY_CHAPTERS) title_items[title_n++] = K_CONTINUE;
     title_items[title_n++] = K_MUSIC;
     r = title_n == 4 ? ROW_ARCADE - 1 : ROW_ARCADE;
     for (i = 0; i < title_n; i++) title_rows[i] = r + 2 * i;

@@ -54,6 +54,27 @@ optional. Each one changes one existing parameter or adds one small behaviour.
 | 8 | Space lounge | Zizz | Lever | "25 glowing beakers for 3 species" / serve 25 | **Low gravity**: full drinks float more slowly, so you have to lead your throws. |
 | 9 | Jungle zoo | Keeper Kiki | Crown | "Serve 30 animals" / serve 30 | **Cheeky monkeys**: now and then a monkey snatches a coconut mid-slide and it comes back as an empty straight away. |
 
+## Shifts
+
+Each chapter plays its venue several times in a row, as shifts: **Opening shift** (about half the
+goal, walkers 15 % slower, patrons 15 % further apart), **Happy hour** (the chapter goal above, at
+the venue's normal pace; the chapter's twist will apply here), a mini-game slot, **Last call**
+(faster walkers, patrons closer together, and the venue's own arrival pattern), then a boss slot.
+The mini-game and boss slots are skipped until they are built. Losing a shift retries just that
+shift. Every shift keeps the chapter's kind of goal. Bars are numbered 1 (top) to 4 (bottom).
+
+| # | Opening shift (in-world / engine) | Happy hour | Last call | Last call arrivals |
+|---|---|---|---|---|
+| 1 | "Serve 8 cowboys" / serve 8 | "Keep 15 cowboys happy" / serve 15 | "Serve 18 cowboys, one bar at a time" / serve 18 | Stairs down: one patron on each bar in turn, top to bottom. Walk +10 %, spawn -10 %. |
+| 2 | "Serve 10 fans, nobody rushes your tap" / serve 10, none at the tap | "Serve 20 fans, nobody rushes your tap" / serve 20 with no patron reaching the right end | "22 fans rush in, nobody at your tap" / serve 22, none at the tap | All bars at once: four fans a moment apart, one on each bar, then a long breather. Walk +5 %, spawn -5 %. |
+| 3 | "Wake up 9 sleepy lumberjacks" / serve 9 | "Wake up 18 sleepy lumberjacks" / serve 18 | "Wake up 20, one bar is packed" / serve 20 | Flood bar 2: every other patron comes to bar 2, the rest take turns on the others. Walk +15 %, spawn -15 %. |
+| 4 | "Serve 10 chefs before the rush" / serve 10 in 75 s | "Serve 20 chefs before the dinner rush" / serve 20 before the timer runs out | "Serve 22 chefs, tables for two" / serve 22 in 120 s | Pairs: two chefs at once (bars 1 and 3, then 2 and 4), then a longer gap. Walk +15 %, spawn -15 %. |
+| 5 | "Serve 10 cocoas before they cool" / serve 10 in 75 s | "20 cocoas before they cool" / serve 20 before the timer runs out | "22 cocoas before they freeze" / serve 22 in 120 s | Zigzag: bars 1, 3, 2, 4, 3, 1, 4, 2, always a jump away from the last. Walk +15 %, spawn -15 %. |
+| 6 | "Recycle 12 batteries" / catch 12 empties | "Recycle 25 batteries" / catch 25 empties | "Recycle 28, the batteries pile up" / catch 28 empties | Stairs up: one robot on each bar in turn, bottom to top. Walk +15 %, spawn -15 %. |
+| 7 | "Serve 7 guests, not one broken cup" / 7 guests, no broken glass | "Not one broken cup" / clear the venue with no broken glass | "Serve 15 guests, not one broken cup" / 15 guests, no broken glass | Flood bar 4: every other guest comes to bar 4. Walk +15 %, spawn -15 %. |
+| 8 | "Serve 12 glowing beakers" / serve 12 | "25 glowing beakers for 3 species" / serve 25 | "Serve 28 glowing beakers" / serve 28 | Inside out: two at once on the middle bars, then two on the outer bars. Walk +20 %, spawn -20 %. |
+| 9 | "Serve 15 animals" / serve 15 | "Serve 30 animals" / serve 30 | "Stampede! Serve 32 animals" / serve 32 | Stampede: all four bars at once top to bottom, a breather, then all four bottom to top. Walk +20 %, spawn -20 %. |
+
 ## Script format
 
 Text box: 18 characters per line, 3 lines per page. Allowed: `A-Z 0-9 . , ! ? ' - :` and space.

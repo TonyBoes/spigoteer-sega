@@ -13,7 +13,11 @@ pointer into its own bank to them.
 
 The script is validated and the build fails on: a line longer than 18 characters, more than 3 lines on a page, a
 character outside A-Z 0-9 . , ! ? ' - : and space, an unknown speaker, a scene title longer than 20, a chapter goal that
-disagrees with the chapters table, a portrait or scene that does not fit the cut-scene budget (see story.h).
+disagrees with the chapters table, a portrait or scene that does not fit the cut-scene budget (see story.h). Story shifts:
+also on a shift (SHIFTS, the shifts table of docs/story.md) whose engine goal or last-call pattern disagrees with the
+table, a banner line over 20 or outside the HUD glyphs, speeds outside the sane limits, an opening that is not about half
+the goal and slower, a last call that is not faster with its own pattern (nine different ones), a timed goal that too
+few patrons arrive for, or an arrival pattern that changes the arrival rate (check_shifts).
 Usage: gen_story.py outdir previewdir
 """
 import json
@@ -67,6 +71,141 @@ CHAPTERS = [
 ]
 PICTURE_SCENES = ["INTRO", "FINALE", "CREDITS"]
 
+# ---- story shifts (src/story.c): each chapter plays its venue several times in a row ------------------------------
+# The chapter's sequence: Opening shift, Happy hour (the CHAPTERS goal above), the mini-game slot, Last call, the boss
+# slot. A step byte is kind << 4 | index (the shift 0-2, or the mini-game / boss id); STEP_SKIP marks a kind the engine
+# cannot play yet (NOT_BUILT): it passes over that step. Adding the mini-games or bosses = their mode in the engine and
+# taking the kind out of NOT_BUILT (a data change).
+SHIFT_NAMES = ["OPENING", "HAPPY HOUR", "LAST CALL"]
+STEP_KINDS = {"SHIFT": 0, "MINI": 1, "BOSS": 2}
+STEP_SKIP = 0x80
+SEQUENCE = [("SHIFT", 0), ("SHIFT", 1), ("MINI", 0), ("SHIFT", 2), ("BOSS", 0)]
+NOT_BUILT = {"MINI", "BOSS"}
+# Arrival patterns (patrons.c try_spawn): a cycle of (bar, wait) entries; the wait after a spawn is n the shift's spawn
+# interval I, s PAT_SHORT frames, d 2 I, b 4 I (a breather). Every pattern keeps about one patron per I on average
+# (checked below), so a pattern changes WHERE and in what rhythm patrons come, not how many. "normal": today's random
+# bar every I (no table). Bars are numbered 0 (top) to 3 (bottom).
+PAT_SHORT = 12
+PAT_WAITS = {"n": 0, "s": 1, "d": 2, "b": 3}
+PAT_MAX = 8
+PATTERNS = {
+    "normal": [],
+    "stairs down": [(0, "n"), (1, "n"), (2, "n"), (3, "n")],
+    "all bars at once": [(0, "s"), (1, "s"), (2, "s"), (3, "b")],
+    "flood bar 2": [(1, "n"), (0, "n"), (1, "n"), (2, "n"), (1, "n"), (3, "n")],
+    "pairs": [(0, "s"), (2, "d"), (1, "s"), (3, "d")],
+    "zigzag": [(0, "n"), (2, "n"), (1, "n"), (3, "n"), (2, "n"), (0, "n"), (3, "n"), (1, "n")],
+    "stairs up": [(3, "n"), (2, "n"), (1, "n"), (0, "n")],
+    "flood bar 4": [(3, "n"), (0, "n"), (3, "n"), (1, "n"), (3, "n"), (2, "n")],
+    "inside out": [(1, "s"), (2, "d"), (0, "s"), (3, "d")],
+    "stampede": [(0, "s"), (1, "s"), (2, "s"), (3, "b"), (3, "s"), (2, "s"), (1, "s"), (0, "b")],
+}
+OPEN_WALK, OPEN_SPAWN = 85, 115      # the Opening shift: the row's walkers 15 % slower, patrons 15 % further apart
+WALK_RANGE, SPAWN_RANGE = (70, 130), (70, 150)   # sane limits (the arcade's loop ceiling is +30 % walk, -24 % spawn)
+# per chapter: the Opening shift and the Last call (the Happy hour is the chapter's CHAPTERS goal, row speeds, normal
+# arrivals). Opening: (goal, count, flags, secs, quota (G_CLEAR: patrons in the shift; 0 the row's), line1, line2,
+# engine text of the docs/story.md shifts table). Last call: the same + (pattern, walk %, spawn %).
+SHIFTS = [
+    ((G_SERVE, 8, 0, 0, 0, "SERVE 8 COWBOYS", "", "serve 8"),
+     (G_SERVE, 18, 0, 0, 0, "SERVE 18 COWBOYS", "ONE BAR AT A TIME", "serve 18", "stairs down", 110, 90)),
+    ((G_SERVE, 10, F_NO_TAP, 0, 0, "SERVE 10 FANS", "NOBODY AT YOUR TAP", "serve 10, none at the tap"),
+     (G_SERVE, 22, F_NO_TAP, 0, 0, "22 FANS RUSH IN", "NOBODY AT YOUR TAP", "serve 22, none at the tap",
+      "all bars at once", 105, 95)),
+    ((G_SERVE, 9, 0, 0, 0, "WAKE UP 9", "SLEEPY LUMBERJACKS", "serve 9"),
+     (G_SERVE, 20, 0, 0, 0, "WAKE UP 20", "ONE BAR IS PACKED", "serve 20", "flood bar 2", 115, 85)),
+    ((G_SERVE, 10, 0, 75, 0, "SERVE 10 CHEFS", "BEFORE THE RUSH", "serve 10 in 75 s"),
+     (G_SERVE, 22, 0, 120, 0, "SERVE 22 CHEFS", "TABLES FOR TWO", "serve 22 in 120 s", "pairs", 115, 85)),
+    ((G_SERVE, 10, 0, 75, 0, "SERVE 10 COCOAS", "BEFORE THEY COOL", "serve 10 in 75 s"),
+     (G_SERVE, 22, 0, 120, 0, "SERVE 22 COCOAS", "BEFORE THEY FREEZE", "serve 22 in 120 s", "zigzag", 115, 85)),
+    ((G_CATCH, 12, 0, 0, 0, "RECYCLE 12", "EMPTY BATTERIES", "catch 12 empties"),
+     (G_CATCH, 28, 0, 0, 0, "RECYCLE 28", "BATTERIES PILE UP", "catch 28 empties", "stairs up", 115, 85)),
+    ((G_CLEAR, 0, F_NO_BREAK, 0, 7, "SERVE 7 GUESTS", "NOT ONE BROKEN CUP", "7 guests, no broken glass"),
+     (G_CLEAR, 0, F_NO_BREAK, 0, 15, "SERVE 15 GUESTS", "NOT ONE BROKEN CUP", "15 guests, no broken glass",
+      "flood bar 4", 115, 85)),
+    ((G_SERVE, 12, 0, 0, 0, "SERVE 12 GLOWING", "BEAKERS", "serve 12"),
+     (G_SERVE, 28, 0, 0, 0, "SERVE 28 GLOWING", "BEAKERS", "serve 28", "inside out", 120, 80)),
+    ((G_SERVE, 15, 0, 0, 0, "SERVE 15 ANIMALS", "", "serve 15"),
+     (G_SERVE, 32, 0, 0, 0, "STAMPEDE", "SERVE 32 ANIMALS", "serve 32", "stampede", 120, 80)),
+]
+
+
+def level_rows(path):
+    """src/level.c's level table: [(start patrons, quota, spawn interval)] per row (for the checks below)."""
+    rows = re.findall(r"^\s*\{\s*\d+,\s*(0x[0-9A-Fa-f]+),\s*(\d+),\s*(\d+),\s*(\d+),", path.read_text(), re.M)
+    return [(bin(int(m, 16)).count("1") * int(n), int(q), int(sp)) for m, n, q, sp in rows]
+
+
+def shift_list():
+    """-> per chapter [opening, happy hour, last call] as dicts (the one view of the shift data the generator uses)."""
+    out = []
+    for c, (op, lc) in zip(CHAPTERS, SHIFTS):
+        happy = (c[2], c[3], c[4], c[5], 0, c[6], c[7], c[8], "normal", 100, 100)
+        row = []
+        for k, sh in enumerate((op + ("normal", OPEN_WALK, OPEN_SPAWN), happy, lc)):
+            t, n, f, secs, q, l1, l2, eng, pat, walk, spawn = sh
+            row.append({"name": SHIFT_NAMES[k], "type": t, "count": n, "flags": f, "secs": secs, "quota": q,
+                        "line1": l1, "line2": l2, "engine": eng, "pattern": pat, "walk": walk, "spawn": spawn})
+        out.append(row)
+    return out
+
+
+def pattern_mean(name):
+    """Mean frames between arrivals, in units of the interval I (PAT_SHORT taken at I = 250)."""
+    e = PATTERNS[name]
+    if not e:
+        return 1.0
+    w = {"n": 1.0, "s": PAT_SHORT / 250, "d": 2.0, "b": 4.0}
+    return sum(w[x] for _, x in e) / len(e)
+
+
+def check_shifts(rows):
+    """The shift data the engine trusts: limits, the shifts' order of difficulty, timed goals that arrivals can meet."""
+    for name, e in PATTERNS.items():
+        if len(e) > PAT_MAX or any(not 0 <= b <= 3 or x not in PAT_WAITS for b, x in e):
+            fail(f"pattern {name!r}: at most {PAT_MAX} entries (bar 0-3, wait n / s / d / b)")
+        if not 0.9 <= pattern_mean(name) <= 1.15:
+            fail(f"pattern {name!r}: one patron per {pattern_mean(name):.2f} intervals (0.9-1.15)")
+    lv = level_rows(ROOT / "src/level.c")
+    if len(lv) != len(CHAPTERS):
+        fail(f"src/level.c: {len(lv)} level rows, {len(CHAPTERS)} chapters")
+    lasts = []
+    for c, row in enumerate(rows):
+        start, row_quota, row_iv = lv[c]
+        for sh in row:
+            where = f"chapter {c + 1} {sh['name'].lower()}"
+            for l in (sh["line1"], sh["line2"]):
+                if len(l) > 20 or set(l) - HUD_CHARSET:
+                    fail(f"{where} banner {l!r}: max 20, A-Z 0-9 and space")
+            if len(f"CHAPTER {c + 1} {sh['name']}") > 20:
+                fail(f"{where}: the banner's chapter line is over 20")
+            if sh["type"] == G_CLEAR:
+                if sh["count"] or (sh["quota"] and not 2 <= sh["quota"] <= 40):
+                    fail(f"{where}: a clear goal has no count and a quota of 2-40 (0: the row's)")
+            elif not 1 <= sh["count"] <= 99 or sh["quota"]:
+                fail(f"{where}: count 1-99 (two HUD digits), no quota")
+            if not (WALK_RANGE[0] <= sh["walk"] <= WALK_RANGE[1] and SPAWN_RANGE[0] <= sh["spawn"] <= SPAWN_RANGE[1]):
+                fail(f"{where}: walk {sh['walk']} % / spawn {sh['spawn']} % outside {WALK_RANGE} / {SPAWN_RANGE}")
+            if sh["pattern"] not in PATTERNS:
+                fail(f"{where}: unknown pattern {sh['pattern']!r}")
+            if not 0 <= sh["secs"] <= 255:
+                fail(f"{where}: timer 0-255 s")
+            if sh["secs"]:                       # enough arrivals in time: start patrons + spawns >= 1.3 x the goal
+                iv = row_iv * sh["spawn"] / 100 * pattern_mean(sh["pattern"])
+                arrivals = start + (sh["secs"] * 60 - 90) / iv
+                if arrivals < 1.3 * sh["count"]:
+                    fail(f"{where}: only {arrivals:.0f} patrons arrive in {sh['secs']} s for a goal of {sh['count']}")
+        op, happy, last = row
+        size = (lambda s: s["count"] or s["quota"] or row_quota)
+        if not (op["walk"] < 100 < op["spawn"] and 0.4 <= size(op) / size(happy) <= 0.6):
+            fail(f"chapter {c + 1}: the opening is about half the goal (40-60 %) and slower")
+        if not (last["walk"] > 100 > last["spawn"] and size(last) >= size(happy) and last["pattern"] != "normal"):
+            fail(f"chapter {c + 1}: the last call is faster, no smaller, with its own arrival pattern")
+        if not (op["type"] == happy["type"] == last["type"] and op["flags"] == happy["flags"] == last["flags"]):
+            fail(f"chapter {c + 1}: all shifts keep the chapter's kind of goal")
+        lasts.append(last["pattern"])
+    if len(set(lasts)) != len(lasts):
+        fail(f"two last calls share a pattern: {lasts}")
+
 
 class StoryError(Exception):
     pass
@@ -118,6 +257,21 @@ def parse_script(path):
         for l in c[6:8]:
             if len(l) > 20 or set(l) - HUD_CHARSET:
                 fail(f"chapter {n} banner {l!r}: max 20, A-Z 0-9 and space")
+    # the shifts table: each shift's engine goal and the last call's arrival pattern must match shift_list()
+    sec = text.split("\n## Shifts", 1)
+    rows = re.findall(r'^\| (\d) \| "[^"]*" / ([^|]+)\| "[^"]*" / ([^|]+)\| "[^"]*" / ([^|]+)\| ([^|]+)\|',
+                      sec[1] if len(sec) > 1 else "", re.M)
+    if len(rows) != len(CHAPTERS):
+        fail(f"shifts table: {len(rows)} rows")
+    for (n, *cells), shifts in zip(rows, shift_list()):
+        for cell, sh in zip(cells, shifts):
+            if sh["engine"] not in cell:
+                fail(f"chapter {n} {sh['name'].lower()}: the shifts table says {cell.strip()!r}, gen_story has "
+                     f"{sh['engine']!r}")
+        if not cells[3].strip().lower().startswith(shifts[2]["pattern"]):
+            fail(f"chapter {n}: the shifts table's last call arrives {cells[3].strip()!r}, gen_story has "
+                 f"{shifts[2]['pattern']!r}")
+    check_shifts(shift_list())
     return scenes
 
 
@@ -374,11 +528,22 @@ def main():
         hdr += [s["venue"], s["pic"], len(s["pages"]), len(s["spk"])] + spk + [0]
         hdr += [ord(ch) for ch in s["title"].ljust(21, "\0")]
     SCENE_HDR = 4 + MAX_SPK + 1 + 21
+    shifts = shift_list()
+    pat_ids = {n: i for i, n in enumerate(PATTERNS)}
     goals = []
-    for i, c in enumerate(CHAPTERS):
-        goals += [c[2], c[3], c[4], c[5], 0, 0, 0, 0]        # type, count, flags, seconds, twist (hook), pad
-        goals += [ord(ch) for ch in c[6].ljust(21, "\0")] + [ord(ch) for ch in c[7].ljust(21, "\0")]
-    GOAL_LEN = 8 + 42
+    for row in shifts:
+        for sh in row:                     # type, count, flags, seconds, twist (hook), pattern, walk %, spawn %, quota, pad
+            goals += [sh["type"], sh["count"], sh["flags"], sh["secs"], 0, pat_ids[sh["pattern"]], sh["walk"],
+                      sh["spawn"], sh["quota"], 0]
+            goals += [ord(ch) for ch in sh["line1"].ljust(21, "\0")] + [ord(ch) for ch in sh["line2"].ljust(21, "\0")]
+    GOAL_LEN = 10 + 42
+    pats, pat_ofs = [], []
+    for e in PATTERNS.values():
+        pat_ofs.append(len(pats) | (len(e) << 8))
+        pats += [b | (PAT_WAITS[w] << 4) for b, w in e]
+    seq = []
+    for _ in CHAPTERS:
+        seq += [STEP_KINDS[k] << 4 | i | (STEP_SKIP if k in NOT_BUILT else 0) for k, i in SEQUENCE]
 
     d = ["// generated by tools/gen_story.py from docs/story.md -- do not edit",
          "#pragma bank 255", "#include <gb/gb.h>", "#include <gb/cgb.h>", "#include <stdint.h>", '#include "story.h"', "",
@@ -386,8 +551,13 @@ def main():
          carr("st_text", text), carr("st_scene_ofs", scene_ofs, "uint16_t"),
          "// per scene: venue (255: a picture), picture (255: none), pages, portrait speakers, their ids x3, 0, title",
          carr("st_scene_hdr", hdr), carr("st_names", names),
-         "// per chapter: goal type, count, flags, timer seconds, twist (0: none; the twists are a later milestone), pad,",
-         "// the two banner lines", carr("st_goals", goals), carr("st_font", font)]
+         "// per chapter, per shift (opening, happy hour, last call): goal type, count, flags, timer seconds, twist (0:",
+         "// none; the twists are a later milestone), arrival pattern, walk %, spawn %, quota (0: the row's), pad, the two",
+         "// banner lines", carr("st_goals", goals),
+         "// arrival patterns: entries (bar | wait code << 4) and per pattern its offset | length << 8",
+         carr("st_pats", pats or [0]), carr("st_pat_ofs", pat_ofs, "uint16_t"),
+         "// per chapter the sequence of steps: kind << 4 | index, STEP_SKIP: not built yet (the engine passes over it)",
+         carr("st_seq", seq), carr("st_font", font)]
     for i, p in enumerate(pics):
         d += [carr(f"st_pic{i}_map", p["map"]), carr(f"st_pic{i}_attr", p["attr"])]
     d += ["",
@@ -413,10 +583,21 @@ def main():
           "    uint8_t i;",
           "    for (i = 0; i < 12; i++) dst[i] = p[i];",
           "}", "",
-          "void story_goal_get(uint8_t ch, uint8_t *dst) BANKED {",
-          f"    const uint8_t *p = st_goals + (uint16_t)ch * {GOAL_LEN};",
+          "// the goal of chapter ch's shift sh",
+          "void story_goal_get(uint8_t ch, uint8_t sh, uint8_t *dst) BANKED {",
+          f"    const uint8_t *p = st_goals + (uint16_t)(ch * {len(SHIFT_NAMES)} + sh) * {GOAL_LEN};",
           "    uint8_t i;",
           f"    for (i = 0; i < {GOAL_LEN}; i++) dst[i] = p[i];",
+          "}", "",
+          "// arrival pattern id -> its entries in dst[STORY_PAT_MAX]; returns the length (0: normal, random bars)",
+          "uint8_t story_pattern_get(uint8_t id, uint8_t *dst) BANKED {",
+          "    uint16_t o = st_pat_ofs[id];",
+          "    uint8_t n = o >> 8, i;",
+          "    for (i = 0; i < n; i++) dst[i] = st_pats[(uint8_t)o + i];",
+          "    return n;",
+          "}", "",
+          "uint8_t story_step_get(uint8_t ch, uint8_t s) BANKED {   // chapter ch's step s (STEP_* | index)",
+          f"    return st_seq[ch * {len(SEQUENCE)} + s];",
           "}", "",
           "void story_font_load(void) BANKED {           // LCD off",
           f"    set_bkg_data(STORY_FONT_BASE, {len(font_names)}, st_font);",
@@ -496,6 +677,15 @@ def main():
           f"#define SPK_NARRATOR {NARRATOR}", f"#define STORY_SPEAKERS {len(SPEAKERS)}",
           f"#define G_SERVE {G_SERVE}", f"#define G_CATCH {G_CATCH}", f"#define G_CLEAR {G_CLEAR}",
           f"#define F_NO_TAP {F_NO_TAP}", f"#define F_NO_BREAK {F_NO_BREAK}", "",
+          "// story shifts: each chapter is a sequence of steps (shifts; mini-game and boss slots, skipped until built)",
+          f"#define STORY_SHIFTS {len(SHIFT_NAMES)}",
+          "#define STORY_SHIFT_NAMES { " + ", ".join(f'"{n}"' for n in SHIFT_NAMES) + " }   // the goal banner",
+          f"#define STORY_STEPS {len(SEQUENCE)}    // " + ", ".join(f"{k} {i}" for k, i in SEQUENCE),
+          f"#define STEP_SHIFT 0x{STEP_KINDS['SHIFT'] << 4:02X}", f"#define STEP_MINI 0x{STEP_KINDS['MINI'] << 4:02X}",
+          f"#define STEP_BOSS 0x{STEP_KINDS['BOSS'] << 4:02X}", f"#define STEP_SKIP 0x{STEP_SKIP:02X}",
+          "#define STEP_KIND 0x70", "#define STEP_INDEX 0x0F",
+          f"#define STORY_PAT_MAX {PAT_MAX}   // arrival pattern entries: bar (bits 0-1) | wait code << 4",
+          f"#define PAT_SHORT {PAT_SHORT}       // wait code 1 in frames (0: the interval, 2: twice it, 3: four times)", "",
           "// cut-scene BG tile budget: the story font at BAR_TILE_COUNT.. (the patron range is free: no patrons)",
           f"#define STORY_FONT_BASE BAR_TILE_COUNT", f"#define STORY_FONT_COUNT {len(font_names)}"]
     for n in font_names:
@@ -518,13 +708,15 @@ def main():
           "    char title[21];",
           "} scene_hdr_t;",
           "typedef struct {",
-          "    uint8_t type, count, flags, secs, twist, pad[3];",
+          "    uint8_t type, count, flags, secs, twist, pattern, walk, spawn, quota, pad;",
           "    char line1[21], line2[21];",
-          "} goal_t;",
+          "} goal_t;                         // one shift's goal",
           "void story_scene_get(uint8_t s, uint8_t *dst) BANKED;   // dst: scene_hdr_t",
           "void story_page_get(uint8_t s, uint8_t p, uint8_t *dst) BANKED;   // dst[55]: speaker, 3 x 18 characters",
           "void story_name_get(uint8_t spk, uint8_t *dst) BANKED;  // dst[12], 0-terminated",
-          "void story_goal_get(uint8_t ch, uint8_t *dst) BANKED;   // dst: goal_t",
+          "void story_goal_get(uint8_t ch, uint8_t sh, uint8_t *dst) BANKED;   // dst: goal_t",
+          "uint8_t story_pattern_get(uint8_t id, uint8_t *dst) BANKED;   // dst[STORY_PAT_MAX] (WRAM); the length",
+          "uint8_t story_step_get(uint8_t ch, uint8_t s) BANKED;",
           "void story_font_load(void) BANKED;",
           "void story_pic_draw(uint8_t pic, uint8_t cgb) BANKED;",
           "void portrait_get(uint8_t spk, portrait_t *dst) BANKED;",
@@ -541,6 +733,10 @@ def main():
           "glyphs": {ch: glyph(ch) for ch in sorted(CHARSET)},
           "chapters": [{"suffix": c[0], "venue": c[1], "type": c[2], "count": c[3], "flags": c[4], "secs": c[5],
                         "line1": c[6], "line2": c[7]} for c in CHAPTERS],
+          "shift_names": SHIFT_NAMES, "shifts": shifts,
+          "sequence": [{"kind": k, "index": i, "built": k not in NOT_BUILT} for k, i in SEQUENCE],
+          "patterns": [{"name": n, "bars": [b for b, _ in e], "waits": [w for _, w in e]} for n, e in PATTERNS.items()],
+          "pat_short": PAT_SHORT,
           "portraits": {sp["name"]: {"w": sp["w"], "h": sp["h"], "x": sp["x"], "y": sp["y"], "tiles": len(sp["tiles"]),
                                      "pals": len(sp["pals"]), "obj": len(sp["obj"]), "map": sp["map"]}
                         for sp in ports.values()},

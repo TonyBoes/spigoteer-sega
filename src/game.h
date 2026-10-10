@@ -174,6 +174,11 @@ extern uint8_t  quota, spawned, served, serve_score, patron_speed, pushback_px, 
 extern uint8_t  start_mask, start_per_bar, empty_gap;
 extern uint16_t next_arrival;
 extern uint16_t spawn_interval, spawn_timer;
+// Story shifts: an arrival pattern (patrons.c try_spawn). pat_len 0: the normal random bar every spawn_interval; else
+// the next patron goes to bar pat_bar, and after each spawn the banked pat_done() (story.c) moves the pattern on and
+// returns the frames to the next one. Set by story.c per shift, cleared by start_new_game (arcade).
+extern uint8_t  pat_len, pat_bar;
+uint16_t pat_done(void) BANKED;
 extern uint8_t  tip_chance, tip_bar, tip_x, dancer_frame, dance_tick, dancers_vis, dancer_sig;
 extern uint16_t tip_timer, show_timer;
 

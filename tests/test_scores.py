@@ -11,6 +11,7 @@ pytestmark = pytest.mark.timeout(120)
 TOP_N = 5
 V2_SUM = 34
 V3_SUM = 36          # M11b: version 3 = version 2's table + the story progress (34) + a reserved byte, checksum at 36
+V4_SUM = 36          # story shifts: version 4 = version 3 with the step reached at 35 (was reserved)
 
 
 # ---- SRAM images --------------------------------------------------------------------------------
@@ -47,11 +48,21 @@ def v3_image(entries, story=0, size=0x2000):
     return bytes(r)
 
 
+def v4_image(entries, story=0, step=0, size=0x2000):
+    """A version-4 save (story shifts): the version-3 bytes, 35 the step reached in chapter `story`."""
+    r = bytearray(v3_image(entries, story, size))
+    r[0:4] = b"TPR4"
+    r[V2_SUM + 1] = step
+    c = (0x5A + sum(r[:V4_SUM])) & 255
+    r[V4_SUM], r[V4_SUM + 1] = c, c ^ 0xFF
+    return bytes(r)
+
+
 def parse_save(ram):
-    """The table of a version-3 save (the game writes nothing else since M11b); checks the checksum."""
-    assert ram[:4] == b"TPR3"
-    c = (0x5A + sum(ram[:V3_SUM])) & 255
-    assert ram[V3_SUM] == c and ram[V3_SUM + 1] == c ^ 0xFF, "checksum"
+    """The table of a version-4 save (the game writes nothing else since the story shifts); checks the checksum."""
+    assert ram[:4] == b"TPR4"
+    c = (0x5A + sum(ram[:V4_SUM])) & 255
+    assert ram[V4_SUM] == c and ram[V4_SUM + 1] == c ^ 0xFF, "checksum"
     return [(ram[4 + i * 6:7 + i * 6].decode(), int.from_bytes(ram[7 + i * 6:10 + i * 6], "little")) for i in range(TOP_N)]
 
 
@@ -119,8 +130,8 @@ def test_ties_go_below_and_low_scores_stay_out(model):
                 assert hi_score(rom) == t[0][1]
             else:
                 assert t == [("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)]
-                want = v3_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
-                assert save_ram(rom)[:V3_SUM + 2] == want[:V3_SUM + 2], "SRAM untouched (since the boot's migration)"
+                want = v4_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
+                assert save_ram(rom)[:V4_SUM + 2] == want[:V4_SUM + 2], "SRAM untouched (since the boot's migration)"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -142,7 +153,7 @@ def test_an_old_save_migrates_to_entry_one_as_spg(model):
         assert table(rom) == [("SPG", 12340)] + [("   ", 0)] * 4
         assert hi_score(rom) == 12340 and hi_shown(rom) == hi_tiles("012340"), "the title's HI is the top score"
         ram = save_ram(rom)
-    assert parse_save(ram) == [("SPG", 12340)] + [("   ", 0)] * 4, "written back as version 3 at once"
+    assert parse_save(ram) == [("SPG", 12340)] + [("   ", 0)] * 4, "written back as version 4 at once"
     with booted(model, ram) as again:
         assert again.mem("save_migrated") == 0 and table(again)[0] == ("SPG", 12340)
 

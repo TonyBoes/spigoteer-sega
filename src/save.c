@@ -1,9 +1,16 @@
 // Saved high scores and the story progress: cartridge SRAM, MBC5+RAM+BATTERY.
-// M10b: a top-5 table with 3-letter initials; M11b: the story progress next to it. Layout at 0xA000 (version 3):
-//   0..3 magic "TPR3", then 5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little
-//   endian, <= 999999), best first; 34 story progress (chapters cleared, 0..9; 1..8 = CONTINUE on the title),
-//   35 reserved (0); 36 checksum (0x5A + bytes 0..35), 37 its complement.
-// Migration (written back as version 3 at once, save_migrated set):
+// M10b: a top-5 table with 3-letter initials; M11b: the story progress next to it; story shifts: the step reached.
+// Layout at 0xA000 (version 4):
+//   0..3 magic "TPR4", then 5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little
+//   endian, <= 999999), best first; 34 story progress (chapters cleared, 0..9); 35 the step reached in the next
+//   chapter (0..STORY_STEPS-1: its steps before it are done; 0 when the story is complete); 36 checksum (0x5A + bytes
+//   0..35), 37 its complement. CONTINUE on the title: progress 1..8, or progress 0 with a step reached.
+//   A step of chapter k is reached (a later practice mode may offer it) when k < progress, or k == progress and the
+//   step <= the step reached. Practice best scores, when they come, go in their own block from 0x40 with its own
+//   magic and checksum (no version change here: a bad block then loses only the bests).
+// Migration (written back as version 4 at once, save_migrated set):
+//   version 3 (M11b: "TPR3", the same bytes, 35 reserved 0): chapters cleared kept, step 0 = the PRE scene of the
+//   first chapter not cleared, as before (save_migrated = 3);
 //   version 2 (M10b: "TPR2", the same table, 34 checksum = 0x5A + bytes 0..33, 35 complement): the table kept, no
 //   story progress (save_migrated = 2);
 //   version 1 (M7: "TPR1", 4..7 hi score LE, 8 checksum = 0x5A + bytes 0..7, 9 complement): entry 1 with the
@@ -14,21 +21,24 @@
 #include <gb/gb.h>
 #include <stdint.h>
 #include "music.h"
+#include "story.h"
 
 extern uint32_t hi_score;
 extern uint8_t  hi_digits[6];
 
 uint8_t  top_names[TOP_N * 3];      // 3 initials per entry, ASCII
 uint32_t top_scores[TOP_N];         // best first
-uint8_t  save_migrated;             // the boot converted an old save: 1 from version 1, 2 from version 2 (tests)
+uint8_t  save_migrated;             // the boot converted an old save: 1 from version 1, 2 / 3 from version 2 / 3 (tests)
 uint8_t  story_progress;            // M11b: story chapters cleared (0..9)
+uint8_t  story_reached;             // story shifts: the step reached in chapter story_progress (0..STORY_STEPS-1)
 
 #define SRAM ((volatile uint8_t *)0xA000)
 #define HI_MAX 999999UL
 #define V2_LEN   (4 + TOP_N * 6)    // 34: bytes covered by the checksum (version 2)
-#define V3_STORY V2_LEN             // 34: the story progress
-#define V3_LEN   (V2_LEN + 2)       // 36: bytes covered by the checksum (version 3)
-#define STORY_MAX 9
+#define V3_STORY V2_LEN             // 34: the story progress (versions 3, 4)
+#define V4_STEP  (V2_LEN + 1)       // 35: the step reached (version 4; version 3: reserved 0)
+#define V3_LEN   (V2_LEN + 2)       // 36: bytes covered by the checksum (versions 3, 4)
+#define STORY_MAX STORY_CHAPTERS
 #define V1_LEN   8
 
 static uint8_t checksum(uint8_t n) {
@@ -64,13 +74,16 @@ static void clear_table(void) {
     for (i = 0; i < TOP_N; i++) top_scores[i] = 0;
 }
 
-// 1: SRAM holds a well-formed version-3 (or, v '2', version-2) table (copied into the working copy)
+// 1: SRAM holds a well-formed version-4 (or, v '3' / '2', version-3 / 2) table (copied into the working copy)
 static uint8_t load_table(uint8_t ver) {
     uint8_t i, k;
     volatile uint8_t *e;
     uint32_t v, prev = HI_MAX;
     if (!magic(ver)) return 0;
-    if (ver == '3') {
+    if (ver == '4') {
+        if (!sum_ok(V3_LEN) || SRAM[V3_STORY] > STORY_MAX || SRAM[V4_STEP] >= STORY_STEPS) return 0;
+        if (SRAM[V3_STORY] == STORY_MAX && SRAM[V4_STEP]) return 0;
+    } else if (ver == '3') {
         if (!sum_ok(V3_LEN) || SRAM[V3_STORY] > STORY_MAX) return 0;
     } else if (!sum_ok(V2_LEN)) return 0;
     for (i = 0; i < TOP_N; i++) {
@@ -104,8 +117,9 @@ void hi_load(void) BANKED {
     SWITCH_RAM(0);
     clear_table();
     save_migrated = 0;
-    story_progress = 0;
-    if (load_table('3')) story_progress = SRAM[V3_STORY];
+    story_progress = 0; story_reached = 0;
+    if (load_table('4')) { story_progress = SRAM[V3_STORY]; story_reached = SRAM[V4_STEP]; }
+    else if (load_table('3')) { story_progress = SRAM[V3_STORY]; save_migrated = 3; }   // (a failed load copies nothing)
     else {
         clear_table();
         if (load_table('2')) save_migrated = 2;
@@ -125,22 +139,22 @@ void hi_save(void) BANKED {
     uint32_t v;
     ENABLE_RAM;
     SWITCH_RAM(0);
-    SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '3';
+    SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '4';
     for (i = 0; i < TOP_N; i++) {
         e = SRAM + 4 + i * 6;
         for (k = 0; k < 3; k++) e[k] = top_names[i * 3 + k];
         v = top_scores[i];
         e[3] = (uint8_t)v; e[4] = (uint8_t)(v >> 8); e[5] = (uint8_t)(v >> 16);
     }
-    SRAM[V3_STORY] = story_progress; SRAM[V3_STORY + 1] = 0;
+    SRAM[V3_STORY] = story_progress; SRAM[V4_STEP] = story_reached;
     c = checksum(V3_LEN);
     SRAM[V3_LEN] = c; SRAM[V3_LEN + 1] = ~c;
     DISABLE_RAM;
 }
 
-// M11b: the story progress (chapters cleared), saved with the table
-void story_save(uint8_t chapters) BANKED {
-    story_progress = chapters;
+// M11b: the story progress (chapters cleared; story shifts: and the step reached in the next one), saved with the table
+void story_save(uint8_t chapters, uint8_t step) BANKED {
+    story_progress = chapters; story_reached = step;
     hi_save();
 }
 
