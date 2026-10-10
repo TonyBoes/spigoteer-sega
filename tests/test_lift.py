@@ -35,6 +35,7 @@ def boot_play(model):
     rom.__enter__()
     rom.model_name = model
     rom.run(120)
+    rom.write("sa_hold", 1)                   # stage animation frozen (conftest.hold_stage_anim), as in every fixture
     rom.press("start", 2)
     for _ in range(30):
         if rom.mem("game_state") == PLAYING:

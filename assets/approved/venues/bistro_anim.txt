@@ -1,0 +1,48 @@
+; bistro stage animation. '.-+#' = colour 0..3 of the tile's own stage palette.
+; Oven fire: the flame in the oven mouth breathes, stretches, leans and drops back.
+; today's stage ids of the slots: (12,2)->14, (13,2)->15
+; 2 tile(s), 32 B per update, 4 frames in WRAM = 128 B, loop 75 frames (1.26 s)
+; !slots: every animated map position (col,row); positions with the same tile today share one id and one
+;   frame column below (columns in order of first appearance). !script: frame:hold_frames, looped.
+!slots 12,2 13,2
+!script base:9 tall:7 lean:8 low:6 tall:8 base:7 lean:6 tall:9 low:7 base:8
+
+@base
+#--##### #####--#
+#--##### #####--#
+######## ########
+#--###-- --###--#
+#--##--. .--##--#
+#####-.. ..-#####
+#--#--.. ..--#--#
+#####-.. ..-#####
+
+@tall
+#--####- #####--#
+#--####- -####--#
+######-. --######
+#--##--. .-###--#
+#--##-.. .--##--#
+####-... ...-####
+#--#-... ...-#--#
+#####-.. ..-#####
+
+@lean
+#--##### #####--#
+#--##### #-###--#
+######## --######
+#--###-. --###--#
+#--##-.. .-###--#
+#####-.. ..-#####
+#--#--.. ..--#--#
+#####-.. ..-#####
+
+@low
+#--##### #####--#
+#--##### #####--#
+######## ########
+#--####- -####--#
+#--##-.- -.-##--#
+####-... ...-####
+#--#-... ...-#--#
+#####-.. ..-#####

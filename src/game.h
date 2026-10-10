@@ -286,6 +286,15 @@ void enhance_load(uint8_t g) BANKED;          // level load (LCD off), after lif
 extern uint8_t venue_id;
 void load_venue(uint8_t t) BANKED;                      // tiles, palettes, base_tile/base_attr of theme t
 void draw_venue(void) BANKED;                           // stage, counter rows, floor, HUD attributes
+// Stage animation (src/venue.c): a few stage tile ids get their pixels rewritten on a looped script, through the
+// VBlank copy queue (render.c queue_stage). sa_hold (tests) freezes it; vq_reset() stops it (sa_on = 0).
+#define SA_MAX_WAIT 3                                   // refused frames before the stage update goes first
+extern uint8_t sa_on, sa_hold, sa_timer;                // running (level screen); frozen; frames to the next step
+extern uint8_t sa_lo, sa_left, sa_wait;                 // pending update: animated tiles sa_lo.. (sa_left of them)
+extern uint8_t *sa_frame;                               // the step's frame (WRAM)
+extern uint16_t sa_vram;                                // VRAM address of the first animated tile
+void stage_anim_start(void) BANKED;                     // level screen, LCD off, after load_venue / draw_venue
+void stage_anim_step(void) BANKED;                      // sa_timer ran out: take the next script step
 void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // plain venue wall + counter + floor (title, bonus)
 // ---- title.c (banked, M10a title screen) -----------------------------------------------------
 void title_enter(void) BANKED;                          // LCD off: draws the title and turns the LCD on

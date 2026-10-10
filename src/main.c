@@ -221,6 +221,7 @@ static void init_scene(void) {
     draw_venue();
     draw_hud();
     write_all_bars();
+    stage_anim_start();
 }
 
 static void lcd_isr(void) {          // LYC: switch the banner window off below the banner
@@ -322,7 +323,7 @@ static void hide_banner_sprites(void) {      // 8x16 sprites that would overlap 
 }
 
 static uint8_t win_tiles[20];
-static void show_overlay(const char *s) {
+void show_overlay(const char *s) {
     uint8_t n = 0, i;
     for (i = 0; i < 20; i++) win_tiles[i] = TILE_HUD_BLANK;
     while (s[n]) n++;
@@ -364,7 +365,7 @@ static void enter_level_screen(void) {
     DISPLAY_ON;
 }
 
-static void start_new_game(uint8_t lv) {
+void start_new_game(uint8_t lv) {
     uint8_t i;
     lives = START_LIVES; level = lv; score = 0; bonus_round = 0;
     for (i = 0; i < 6; i++) score_digits[i] = 0;
@@ -378,28 +379,14 @@ static void start_new_game(uint8_t lv) {
 // from scratch (fresh lives and score), B closes the box (back to the title, or unpauses). game_state is GS_DEBUG
 // while it is open, so nothing moves.
 #define DEBUG_COMBO_FRAMES 30
-#define DEBUG_LEVELS       18
+// (DEBUG_LEVELS: src/debug.c)
+// debug_open / debug_step live in src/debug.c (a switchable bank: ROM0 is full); the per-frame combo watch stays here.
 uint8_t debug_menu_open;
 uint8_t debug_level;
-static uint8_t combo_timer, debug_from_title, debug_toggled;
-
-static void debug_show(void) {
-    char s[9] = "LEVEL 00";
-    s[6] = '0' + debug_level / 10; s[7] = '0' + debug_level % 10;
-    show_overlay(s);
-}
-
-static void debug_open(void) {
-    debug_from_title = game_state == GS_TITLE;
-    if (debug_from_title) {
-        debug_level = 1;
-        if (debug_toggled) title_music_toggle();     // the SELECT that began the combo toggled the music: undo
-    } else debug_level = level < DEBUG_LEVELS ? level : DEBUG_LEVELS;
-    debug_toggled = 0;
-    game_state = GS_DEBUG;
-    debug_menu_open = 1;
-    debug_show();
-}
+uint8_t debug_from_title, debug_toggled;
+static uint8_t combo_timer;
+void debug_open(void) BANKED;
+uint8_t debug_step(uint8_t pressed) BANKED;
 
 // before the state machine: counts the held combo
 static void debug_watch(void) {
@@ -411,19 +398,6 @@ static void debug_watch(void) {
     debug_open();
 }
 
-// 1: A started a level (the frame is over)
-static uint8_t debug_step(uint8_t pressed) {
-    uint8_t l = debug_level;
-    if (pressed & (J_RIGHT | J_UP)) l = l == DEBUG_LEVELS ? 1 : l + 1;
-    else if (pressed & (J_LEFT | J_DOWN)) l = l == 1 ? DEBUG_LEVELS : l - 1;
-    if (l != debug_level) { debug_level = l; debug_show(); }
-    if (pressed & J_A) { debug_menu_open = 0; start_new_game(l); return 1; }
-    if (pressed & J_B) {
-        debug_menu_open = 0; overlay_on = 0;
-        game_state = debug_from_title ? GS_TITLE : GS_PLAYING;
-    }
-    return 0;
-}
 #endif
 
 // after a lost life: same level, same served count, fresh bars
@@ -649,7 +623,9 @@ static void update(void) {
 
     SEC(SEC_REST);
     if ((lift_total | lift_hook_op | ovl_dirty) && (game_state == GS_PLAYING || game_state == GS_LIFE_LOST)) lift_frame();   // M13a/b
-    if (vram_pending || hud_dirty) queue_vram();
+    // stage animation: on the level screen (sa_on), not frozen by a test (sa_hold), not while paused
+    if (sa_on > sa_hold && game_state != GS_PAUSED && !--sa_timer) stage_anim_step();
+    if (vram_pending | hud_dirty | sa_left) queue_vram();
     SEC(SEC_QUEUE);
     if (game_state == GS_PLAYING || game_state == GS_LIFE_LOST) {
         // M13c: no OAM DMA while the sprites are being redrawn. A frame whose logic runs past the start of VBlank would

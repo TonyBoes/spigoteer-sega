@@ -60,7 +60,14 @@ def boot(request):
     with Rom(ROM, request.param) as rom:
         rom.run(120)
         rom.model_name = request.param
+        hold_stage_anim(rom)
         yield rom
+
+
+def hold_stage_anim(rom, hold=1):
+    """Freeze the stage animation (src/venue.c sa_hold): every level then keeps its stage's own tiles (frame 0), so
+    goldens and tile checks do not depend on the animation's timing. tests/test_stage_anim.py turns it back on."""
+    rom.write("sa_hold", hold)
 
 
 @pytest.fixture

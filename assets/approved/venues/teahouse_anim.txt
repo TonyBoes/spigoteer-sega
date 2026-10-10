@@ -1,0 +1,28 @@
+; teahouse stage animation. '.-+#' = colour 0..3 of the tile's own stage palette.
+; Lanterns: both paper lanterns sway in a draught (they share tiles, so they swing together).
+; today's stage ids of the slots: (1,1)->2, (1,2)->8, (17,1)->2, (17,2)->8
+; 2 tile(s), 32 B per update, 2 frames in WRAM = 64 B, loop 234 frames (3.92 s)
+; !slots: every animated map position (col,row); positions with the same tile today share one id and one
+;   frame column below (columns in order of first appearance). !script: frame:hold_frames, looped.
+!slots 1,1 1,2 17,1 17,2
+!script base:48 swing:30 base:36 swing:20 base:60 swing:40
+
+@base
++..##... +######.
++..##... +++++++.
++.####.. +######.
++.####.. +++++++.
+++++++++ ++++++++
+++-++++. +.####..
++#-####. +.####..
++++++++. +.......
+
+@swing
++..##... +.######
++..##... +.++++++
++.####.. +.######
++.####.. +.++++++
+++++++++ ++++++++
++.+-++++ +..####.
++.#-#### +..####.
++.++++++ +.......

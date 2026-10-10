@@ -541,3 +541,45 @@ our own agents; the external artist hand-off package is no longer in use.
 - Perf (PyBoy, end LY / missed): level 8 script DMG 107 / 0, CGB 111 / 0 (unchanged); realistic peak DMG 188 / 56, CGB
   194 / 99 (was 187 / 59, 193 / 99); level 9 overlap DMG 172 / 279, CGB 188 / 294 (was 175 / 268, 179 / 299); pile DMG
   278 / 244, CGB 279 / 245. ROM0 573 -> 526 free by romusage (render.c per-row attributes, X palette); enhance.c in bank 6.
+
+## Stage animation as built (owner decisions 2026-10-10)
+- Proposal: session scratchpad stage_anim/PROPOSAL.md. Owner: stadium keeps ONE scoreboard, option A1 (a cheering section,
+  four fans A/B/A/B, stage_b) replaces the second board; stadium animates BOTH the scoreboard bulbs (2-phase chase, then a
+  "goal" flash) and the crowd's cheer (the two fan tiles swap), on alternating cycles (bulbs 192 frames, cheer 96). Lodge
+  log fire (always moving), bistro oven flame, igloo aurora, factory gear, teahouse lanterns, space porthole, zoo
+  parrot as proposed. Saloon: no animation (neon S rejected); adding `saloon_anim.txt` later is a data-only change.
+- Source: assets/approved/venues/<t>_anim.txt (optional per venue): `!slots c,r ...` (every animated map position),
+  `!script name:hold ...` (looped, holds 6..255 frames), `@name` frames of 8 rows, one 8-px column per distinct slot
+  tile. tools/gen_art.py stage_anim() checks @base == the stage at the slots, no static position repeats an animated
+  tile, every frame used, <= 6 animated tiles, <= 4 tiles changed per step, the stage still <= 20 tiles; it gives the
+  animated tiles their own ids, LAST and contiguous (static 0..s-1, animated s..s+k-1), and compiles each step to
+  (frame * k, lo, hi, hold): the tile range that differs from the previous step's frame (step 0 also vs the stage).
+  Output: venue_t gains anim_frames / anim_script / sizes / anim_first / anim_k; art.h SA_BUF (400, sports: 5 frames x 5
+  tiles) and SA_SCRIPT (108); venues.json "anim"; preview out/preview/venue_<t>_anim_x3.gif.
+- Engine (src/venue.c, banked): stage_anim_start() from init_scene (LCD off, every level screen) far_copies the frames
+  and script into WRAM (sa_frames, the drain runs from the VBlank interrupt with any bank mapped) and starts at step 0;
+  vq_reset() (every screen change: title, bonus, scores, level load) clears sa_on, so the title's text tiles over stage
+  ids 0.. and the bonus rounds are never touched. main.c, once per frame unless PAUSED: `sa_on > sa_hold && !--sa_timer`
+  -> stage_anim_step() (banked): the new step's tile range is merged with a still-pending one (copied from the new
+  frame), so a late update is never lost or queued twice. render.c queue_stage (ROM0): one queue entry of <= 2 tiles
+  (32 B, cost n + 3 = 35 units) from sa_frames to 0x9000 + 16 * id; a 3-tile change goes out over 2 frames. Priority:
+  urgent spans first; with nothing else pending it always goes; else after the bars if qv_cost + 35 <= VQ_BUDGET, else
+  sa_wait++; after SA_MAX_WAIT (3) refusals it goes before the quick redraws and bars. Nothing in vq_vbl / vq_exec changed.
+- `sa_hold` (WRAM): tests freeze the stage on its current frame. conftest's boot fixture (and test_lift's boot_play) set
+  it, so every existing golden keeps the stage's frame 0; tests/test_stage_anim.py turns it off. test_perf runs with the
+  animation ON.
+- ROM0: the debug level select's box (debug_open / debug_step / debug_show) moved to src/debug.c (bank 255) to make room;
+  debug_watch stays in main.c. romusage ROM0 526 -> 503 "free" (romusage overstates ROM0 by ~380 B: the real margin is
+  ~120 B; a build at 341 by romusage overflowed into bank 1). Bank 6 1316 -> 3781 used (autobank moved files around).
+- Goldens replaced (stadium art: one scoreboard, crowd in the second one's place, owner request): venue_sports, level2,
+  patrons_sports (dmg + cgb); each differs only at x 88-119, y 16-31. New: stage_anim_<venue> (8 venues x 2 models).
+- Tests: tests/test_stage_anim.py: gen_art invariants; per venue 2 script periods (max 1100 frames) in play: only the
+  animated ids change, each tile always matches the script within SA_MAX_WAIT + 3 frames, every frame shows, tilemap and
+  attributes unchanged, no late drain; sa_hold freezes and releases; the saloon never animates (sa_on 0); pause freezes;
+  bonus round: sa_on 0 and stage ids unchanged, the next level starts on frame 0; title text untouched; one scoreboard.
+- Perf (PyBoy, test_perf, end LY / missed, before -> after): level 8 script DMG 107 / 0 -> 108 / 0, CGB 111 / 0 -> 115 / 0;
+  level 9 overlap DMG 172 / 279 -> 182 / 284, CGB 188 / 294 -> 189 / 293; realistic peak DMG 188 / 56 -> 191 / 69, CGB
+  194 / 99 -> 194 / 127. The realistic peak is chaotic (frame timing feeds back into lifts and redraws): over 6 RNG seeds
+  the mean missed frames are DMG 27.5 base / 30.0 new with sa_hold / 32.3 animating, CGB 40.2 / 43.5 / 46.8 (seed spread
+  CGB 22-81), so the animation costs a few late frames per 1200 at the peak and the fixed-seed jump is mostly noise.
+  Guards unchanged and passing.

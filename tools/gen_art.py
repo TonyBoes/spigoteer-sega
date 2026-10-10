@@ -125,6 +125,105 @@ def obj_tiles(frames, w):
     return out
 
 
+SA_MAX_K = 6          # animated tiles per stage (a step's update goes out 2 tiles per VBlank, src/render.c queue_stage)
+SA_MAX_RANGE = 4      # tiles one step may change (at most 2 VBlanks)
+SA_MIN_HOLD = 6       # frames a step is shown at least
+
+
+def parse_anim(path):
+    """assets/approved/venues/<t>_anim.txt (optional): '!slots c,r ...' (every animated map position), '!script
+    name:hold ...' (looped), then '@name' frames: 8 rows, one 8-px column per distinct slot tile (in order of first
+    appearance among the slots), columns separated by spaces. Returns (slots, script, frames{name: [tile, ...]})."""
+    slots, script, frames, cur = None, None, {}, None
+    for n, line in enumerate(path.read_text().splitlines(), 1):
+        line = line.rstrip()
+        if not line or line.startswith(";"):
+            continue
+        if line.startswith("!slots"):
+            slots = [tuple(int(v) for v in p.split(",")) for p in line.split()[1:]]
+        elif line.startswith("!script"):
+            script = [(p.split(":")[0], int(p.split(":")[1])) for p in line.split()[1:]]
+        elif line.startswith("@"):
+            cur = line[1:]
+            if cur in frames:
+                sys.exit(f"gen_art: {path.name}:{n}: frame @{cur} defined twice")
+            frames[cur] = []
+        elif cur is not None:
+            cols = line.split()
+            if not all(len(c) == 8 and set(c) <= set(".-+#") for c in cols):
+                sys.exit(f"gen_art: {path.name}:{n}: a frame row is 8-px columns of '.-+#' separated by spaces")
+            frames[cur].append(cols)
+        else:
+            sys.exit(f"gen_art: {path.name}:{n}: unexpected line before the first @frame")
+    if not slots or not script or "base" not in frames:
+        sys.exit(f"gen_art: {path.name}: needs !slots, !script and an @base frame")
+    out = {}
+    for name, rows in frames.items():
+        if len(rows) != 8 or len({len(r) for r in rows}) != 1:
+            sys.exit(f"gen_art: {path.name}: frame @{name} is not 8 rows of the same number of columns")
+        out[name] = [tuple(r[c] for r in rows) for c in range(len(rows[0]))]
+    return slots, script, out
+
+
+def stage_anim(t, path, sgrid):
+    """Validate theme t's stage animation against its stage tiles (sgrid, 4 x 20) and compile it.
+    Returns dict: slots, keys (the k distinct animated base tiles), frames (used frame names, base first),
+    data (frames x k x 16 bytes), steps [(frame * k, lo, hi, hold)]: tiles lo..hi-1 change on that step."""
+    slots, script, frames = parse_anim(path)
+    name = path.name
+    keys = []
+    for c, r in slots:
+        if not (0 <= c < 20 and 0 <= r < 4):
+            sys.exit(f"gen_art: {name}: slot {c},{r} is outside the 20x4 stage")
+        if sgrid[r][c] not in keys:
+            keys.append(sgrid[r][c])
+    k = len(keys)
+    if k > SA_MAX_K:
+        sys.exit(f"gen_art: {name}: {k} distinct animated tiles, at most {SA_MAX_K}")
+    for r in range(4):
+        for c in range(20):
+            if (c, r) not in slots and sgrid[r][c] in keys:
+                sys.exit(f"gen_art: {name}: position {c},{r} has the same tile as an animated slot but is not in "
+                         "!slots (it would stay still while its twins move): list it, or change its pixels")
+    for fn, cols in frames.items():
+        if len(cols) != k:
+            sys.exit(f"gen_art: {name}: frame @{fn} has {len(cols)} columns, the slots have {k} distinct tiles")
+    if frames["base"] != keys:
+        bad = [i for i in range(k) if frames["base"][i] != keys[i]]
+        sys.exit(f"gen_art: {name}: @base column(s) {bad} differ from the stage's tiles at the slots")
+    for fn, hold in script:
+        if fn not in frames:
+            sys.exit(f"gen_art: {name}: !script uses @{fn}, which is not defined")
+        if not SA_MIN_HOLD <= hold <= 255:
+            sys.exit(f"gen_art: {name}: !script {fn}:{hold}: holds are {SA_MIN_HOLD}..255 frames")
+    used = ["base"] + [fn for fn, _ in script if fn != "base"]
+    used = list(dict.fromkeys(used))
+    unused = set(frames) - set(used)
+    if unused:
+        sys.exit(f"gen_art: {name}: frames never used by !script: {sorted(unused)}")
+    data = []
+    for fn in used:
+        for tl in frames[fn]:
+            data += tile_bytes(list(tl), 0, 0)
+
+    def diff(a, b):
+        d = [i for i in range(k) if frames[a][i] != frames[b][i]]
+        return (d[0], d[-1] + 1) if d else None
+
+    steps = []
+    for i, (fn, hold) in enumerate(script):
+        rngs = [diff(script[i - 1][0], fn)]
+        if i == 0:
+            rngs.append(diff("base", fn))       # the first pass starts from the stage's own tiles (load_venue)
+        rngs = [x for x in rngs if x]
+        lo, hi = (min(x[0] for x in rngs), max(x[1] for x in rngs)) if rngs else (0, 0)
+        if hi - lo > SA_MAX_RANGE:
+            sys.exit(f"gen_art: {name}: step {i} ({fn}) changes tiles {lo}..{hi - 1}: at most {SA_MAX_RANGE} per step")
+        steps.append((used.index(fn) * k, lo, hi, hold))
+    return {"slots": slots, "keys": keys, "k": k, "frames": used, "data": data, "steps": steps,
+            "script": [(used.index(fn), hold) for fn, hold in script], "tiles": frames}
+
+
 def venues(outdir, prev):
     """assets/approved/venues/<t>_* -> build/venue_<t>.c (one banked file per theme: tiles, maps, palettes),
     build/venue_load.c (venue_fetch: copies theme t's venue_t into WRAM), build/venues.json (for the tests) and
@@ -145,6 +244,9 @@ def venues(outdir, prev):
          f"    uint8_t stage_map[{STAGE_ROWS * 20}], stage_attr[{STAGE_ROWS * 20}];   // screen rows 1-4: BG tile ids, CGB attributes",
          f"    uint8_t bar_map[{BAR_ROWS * 20}], bar_attr[{BAR_ROWS * 20}];       // one bar: 2 wall rows + counter row",
          f"    uint16_t pal[VENUE_PALS][4];                 // RGB15; VENUE_PAL_* order",
+         "    const uint8_t *anim_frames, *anim_script;    // stage animation (src/venue.c), in the venue's own bank",
+         "    uint16_t anim_frames_n;                      // bytes of anim_frames (0: the stage does not move)",
+         "    uint8_t anim_script_n, anim_first, anim_k;   // script bytes; first animated stage id, animated tiles",
          "} venue_t;",
          "extern venue_t venue;            // the current level's venue (WRAM copy, src/venue.c)",
          "extern uint8_t venue_bank;       // ROM bank of its tile data",
@@ -153,6 +255,7 @@ def venues(outdir, prev):
             "#pragma bank 255", "void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);   // src/main.c (ROM0)", ""]
     cases, info = [], {"stage_slot": STAGE_SLOT, "bar_slot": BAR_SLOT, "tile_stage_base": 0, "tile_bar_base": STAGE_SLOT,
                        "themes": THEMES, "venues": {}}
+    sa_buf, sa_scr = 16, 4
     for ti, t in enumerate(THEMES):
         stage = plain_rows(vd / f"{t}_stage.txt")
         bar = plain_rows(vd / f"{t}_bar.txt")
@@ -180,14 +283,24 @@ def venues(outdir, prev):
         assert all(len(x) == 3 for x in (dpal["full"]["hex"], dpal["empty"]["hex"], spal["obj"]["hex"]))
         pal15 = [rgb15(x) for x in pals] + [[0] + rgb15(dpal["full"]["hex"]), [0] + rgb15(dpal["empty"]["hex"]),
                                             [0] + rgb15(spal["obj"]["hex"])]
-        # stage: unique tiles -> ids TILE_STAGE_BASE..
+        # stage: unique tiles -> ids TILE_STAGE_BASE..; the animated tiles (<t>_anim.txt) get their own ids, last and
+        # contiguous (never merged with a static tile), so one copy entry rewrites them
         sgrid, suniq = cut(stage, 20, 4), []
+        apath = vd / f"{t}_anim.txt"
+        anim = stage_anim(t, apath, sgrid) if apath.exists() else None
+        akeys = anim["keys"] if anim else []
         smap = []
-        for row in sgrid:
-            for tile in row:
+        for r, row in enumerate(sgrid):
+            for c, tile in enumerate(row):
+                if tile in akeys:
+                    smap.append(-1 - akeys.index(tile))
+                    continue
                 if tile not in suniq:
                     suniq.append(tile)
                 smap.append(suniq.index(tile))
+        a_first = len(suniq)
+        smap = [a_first - 1 - i if i < 0 else i for i in smap]
+        suniq += akeys
         bgrid, buniq = cut(bar, 20, 3), []
         bmap = []
         for row in bgrid:
@@ -200,7 +313,8 @@ def venues(outdir, prev):
             buniq.append(ftile)
         fid = buniq.index(ftile)
         if len(suniq) > STAGE_SLOT:
-            sys.exit(f"gen_art: venue {t}: stage has {len(suniq)} unique tiles, the slot holds {STAGE_SLOT}")
+            sys.exit(f"gen_art: venue {t}: stage has {len(suniq)} unique tiles ({a_first} static + {len(akeys)} "
+                     f"animated), the slot holds {STAGE_SLOT}")
         if len(buniq) > BAR_SLOT:
             sys.exit(f"gen_art: venue {t}: bar + floor have {len(buniq)} unique tiles, the slot holds {BAR_SLOT}")
         stile = []
@@ -222,6 +336,10 @@ def venues(outdir, prev):
         abs_battr = [PAL_BAR_B if a else PAL_BAR for r in battr for a in r]
         sym = f"venue_{t}"
 
+        ascript = [b for st in anim["steps"] for b in st] + [0, 0, 0, 0] if anim else []
+        sa_buf = max(sa_buf, len(anim["data"]) if anim else 0)
+        sa_scr = max(sa_scr, len(ascript))
+
         def arr(vals):
             return "{ " + ", ".join(str(v) for v in vals) + " }"
         vc = ["// generated by tools/gen_art.py from assets/approved/venues/" + t + "_* -- do not edit",
@@ -230,17 +348,25 @@ def venues(outdir, prev):
               fmt(f"{sym}_bar", btile).replace("const uint8_t", "static const uint8_t"),
               fmt(f"{sym}_drink", dtile).replace("const uint8_t", "static const uint8_t"),
               fmt(f"{sym}_show", stiles).replace("const uint8_t", "static const uint8_t"),
+              ] + ([fmt(f"{sym}_anim_frames", anim["data"]).replace("const uint8_t", "static const uint8_t"),
+                    fmt(f"{sym}_anim_script", ascript).replace("const uint8_t", "static const uint8_t")] if anim else []) + [
               f"const venue_t {sym} = {{",
               f"    {sym}_stage, {sym}_bar, {sym}_drink, {sym}_show,",
               f"    {len(suniq)}, {len(buniq)}, {STAGE_SLOT + fid},",
               f"    {arr(abs_smap)},", f"    {arr(abs_sattr)},", f"    {arr(abs_bmap)},", f"    {arr(abs_battr)},",
-              "    { " + ", ".join(arr(x) for x in pal15) + " }", "};", ""]
+              "    { " + ", ".join(arr(x) for x in pal15) + " },",
+              (f"    {sym}_anim_frames, {sym}_anim_script, {len(anim['data'])}, {len(ascript)}, {a_first}, {anim['k']}"
+               if anim else "    0, 0, 0, 0, 0, 0"), "};", ""]
         (outdir / f"{sym}.c").write_text("\n".join(vc))
         load += [f"BANKREF_EXTERN({sym})", f"extern const venue_t {sym};"]
         cases.append(f"    case {ti}: far_copy(&venue, &{sym}, sizeof venue, BANK({sym})); venue_bank = BANK({sym}); break;")
         info["venues"][t] = {"stage_n": len(suniq), "bar_n": len(buniq), "floor_tile": STAGE_SLOT + fid,
                              "stage_map": abs_smap, "stage_attr": abs_sattr, "bar_map": abs_bmap, "bar_attr": abs_battr,
-                             "pal": pal15, "drink": dtile, "show": stiles, "stage_tiles": stile, "bar_tiles": btile}
+                             "pal": pal15, "drink": dtile, "show": stiles, "stage_tiles": stile, "bar_tiles": btile,
+                             "anim": {"first": a_first, "k": anim["k"], "slots": anim["slots"], "names": anim["frames"],
+                                      "frames": [anim["data"][i * anim["k"] * 16:(i + 1) * anim["k"] * 16]
+                                                 for i in range(len(anim["frames"]))],
+                                      "script": anim["script"], "steps": anim["steps"]} if anim else None}
         # preview: the venue as the game draws it (stage, 4 bars, floor; CGB colours), x3
         im = Image.new("RGB", (160, 144), (0, 0, 0))
         def put(tx, ty, tb, pal):
@@ -260,11 +386,24 @@ def venues(outdir, prev):
         for x in range(20):
             put(x, 17, btile[fid * 16:fid * 16 + 16], pal15[2])
         im.resize((480, 432), Image.NEAREST).save(prev / f"venue_{t}_x3.png")
+        if anim:      # the stage rows animating at real timing (CGB colours), x3
+            gif = []
+            for fi, hold in anim["script"]:
+                fr = anim["data"][fi * anim["k"] * 16:(fi + 1) * anim["k"] * 16]
+                for i, tid in enumerate(abs_smap):
+                    j = tid - a_first
+                    put(i % 20, 1 + i // 20, fr[j * 16:j * 16 + 16] if j >= 0 else stile[tid * 16:tid * 16 + 16],
+                        bgpal[abs_sattr[i]])
+                gif.append((im.crop((0, 8, 160, 40)).resize((480, 96), Image.NEAREST), round(hold * 1000 / 59.73)))
+            gif[0][0].save(prev / f"venue_{t}_anim_x3.gif", save_all=True, append_images=[g for g, _ in gif[1:]],
+                           duration=[d for _, d in gif], loop=0)
         png(drinks, prev / f"venue_{t}_drink_x8.png", 8, transparent=True)
         png(shows, prev / f"venue_{t}_show_x8.png", 8, transparent=True)
     load += ["", "venue_t venue;", "uint8_t venue_bank;", "",
              "// theme t (0..VENUES-1) -> venue (WRAM) and venue_bank; switches to the theme's bank only inside far_copy",
              "void venue_fetch(uint8_t t) BANKED {", "    switch (t) {"] + cases + ["    }", "}", ""]
+    h += [f"#define SA_BUF {sa_buf}       // bytes: the largest stage animation's frames (WRAM copy, src/venue.c)",
+          f"#define SA_SCRIPT {sa_scr}     // bytes: the longest stage animation script (4 per step + terminator)", ""]
     (outdir / "venue_load.c").write_text("\n".join(load))
     (outdir / "venues.json").write_text(json.dumps(info))
     return h

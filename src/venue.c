@@ -92,3 +92,49 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED {
         put_both(y, vrow, arow);
     }
 }
+
+// ---- stage animation ------------------------------------------------------------------------------------------
+// A venue with assets/approved/venues/<t>_anim.txt rewrites the pixels of its animated stage tiles (gen_art gives them
+// the last, contiguous stage ids anim_first..anim_first + anim_k - 1) on a looped script; tilemap, attributes and
+// palettes never change. The frames and the script are copied into WRAM at level load: the copy queue is drained from
+// the VBlank interrupt, whatever ROM bank is mapped then. A script step is 4 bytes: the frame's first tile in
+// sa_frames (frame * k), the tiles lo..hi-1 that differ from the previous step's frame (gen_art), and the hold in
+// frames; hold 0 ends the script. The update itself goes out through render.c queue_stage, 2 tiles per VBlank.
+uint8_t sa_frames[SA_BUF];
+static uint8_t sa_script[SA_SCRIPT];
+static uint8_t *sa_step;
+uint8_t sa_on, sa_hold, sa_timer, sa_lo, sa_left, sa_wait;
+uint8_t *sa_frame;
+uint16_t sa_vram;
+
+void stage_anim_start(void) BANKED {
+    sa_left = 0; sa_wait = 0; sa_on = 0;
+    if (!venue.anim_k) return;
+    far_copy(sa_frames, venue.anim_frames, venue.anim_frames_n, venue_bank);
+    far_copy(sa_script, venue.anim_script, venue.anim_script_n, venue_bank);
+    sa_vram = 0x9000 + ((uint16_t)venue.anim_first << 4);       // (BG ids 0..127 at 0x9000: LCDC bit 4 clear)
+    sa_frame = sa_frames;
+    sa_step = sa_script;
+    sa_timer = 1;                               // the first step on the first frame of play
+    sa_on = 1;
+}
+
+// A new step while the last update is still waiting: the pending range grows to cover both and is copied from the
+// new frame (the tiles outside both ranges are the same in the two frames), so nothing is lost or queued twice.
+void stage_anim_step(void) BANKED {
+    uint8_t *s = sa_step;
+    uint8_t lo, hi, ph;
+    if (!s[3]) s = sa_script;
+    sa_frame = sa_frames + ((uint16_t)s[0] << 4);
+    lo = s[1]; hi = s[2];
+    if (lo != hi) {
+        if (sa_left) {
+            ph = sa_lo + sa_left;
+            if (sa_lo < lo) lo = sa_lo;
+            if (ph > hi) hi = ph;
+        }
+        sa_lo = lo; sa_left = hi - lo;
+    }
+    sa_timer = s[3];
+    sa_step = s + 4;
+}

@@ -1,0 +1,58 @@
+; lodge stage animation. '.-+#' = colour 0..3 of the tile's own stage palette.
+; Fireplace: the glowing ball in the hearth flickers as a log fire, flames licking up, the odd spark.
+; today's stage ids of the slots: (6,1)->6, (6,2)->13
+; 2 tile(s), 32 B per update, 4 frames in WRAM = 128 B, loop 89 frames (1.49 s)
+; !slots: every animated map position (col,row); positions with the same tile today share one id and one
+;   frame column below (columns in order of first appearance). !script: frame:hold_frames, looped.
+!slots 6,1 6,2
+!script a:8 b:7 c:9 b:6 a:8 d:7 c:8 a:6 b:9 d:6 a:7 c:8
+
+@base
+-------- ########
+-------- #------#
+######## --------
+######## --....--
+######## -......-
+######## -......-
+######## -......-
+######## --....--
+
+@a
+-------- ##-.#--#
+-------- #--..--#
+######## --....--
+######## --....--
+######## -......-
+######## -......-
+###-#### -......-
+##--##-# --....--
+
+@b
+-------- #-.--.-#
+-------- #--..--#
+######## --....--
+######## --....--
+######## -......-
+#####-## -......-
+##-##-## -......-
+##--#--# --....--
+
+@c
+-------- #--.--##
+-------- #-...--#
+######## --....--
+######## --....--
+###.#### -......-
+######## -......-
+####-### -......-
+###--### --....--
+
+@d
+-------- ##-.-###
+-------- #-...-##
+######## --....--
+######## --....--
+######## -......-
+#.###### -......-
+######## -......-
+####-### --....--

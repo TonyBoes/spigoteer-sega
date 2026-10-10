@@ -475,6 +475,8 @@ void vq_reset(void) {
     vq_ready = 0;
     vq_count = 0;
     vq_held = 0;
+    sa_on = 0;                                   // the stage animation runs on the level screen only (stage_anim_start)
+    sa_left = 0;
 }
 
 void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n) {
@@ -620,18 +622,43 @@ static void queue_urgent(uint8_t b, uint8_t c) {
     queue_row();
 }
 
+// The stage animation's pending update (venue.c stage_anim_step): up to 2 of its tiles (32 bytes) as one entry; a
+// 3- or 4-tile change goes out over consecutive frames. Cost n + 3 units: 19 for one tile, 35 for two.
+#define SA_COST 35
+static void queue_stage(void) {
+    uint8_t n = sa_left > 2 ? 2 : sa_left;
+    uint8_t o = sa_lo << 4;
+    qv_w = n << 4;
+    qv_src = (uint16_t)sa_frame + o;
+    qv_dst = sa_vram + o;
+    queue_entry(0);
+    vq_count++;
+    qv_cost += qv_w + 3;
+    sa_lo += n; sa_left -= n;
+    sa_wait = 0;
+}
+
 void queue_vram(void) {
+    uint8_t sa;
     if (vq_held) return;                         // last frame's list has not gone out yet: everything stays dirty
     qv_cost = 0;
     if (hud_dirty & HUD_LIVES) { vq_add(0, lives_tiles, 9, HUD_ROW, 3); qv_cost += 6; }
     if (hud_dirty & HUD_SCORE) { vq_add(0, score_tiles, 1, HUD_ROW, 6); qv_cost += 9; }
     hud_dirty = 0;
-    if (!vram_pending) return;
+    sa = sa_left;
+    if (!vram_pending) {                         // nothing else this frame: the stage update always fits
+        if (sa) { qv_p = (uint8_t *)&vq[vq_count]; queue_stage(); }
+        return;
+    }
     vram_pending = 0;
     qv_p = (uint8_t *)&vq[vq_count];
     while (urg_n) { urg_n--; queue_urgent(urg_b[urg_n], urg_c[urg_n]); }
+    // Stage animation: patrons first. It goes after the bars if the budget has room, else waits; after SA_MAX_WAIT
+    // refused frames it goes before the quick redraws and bars (they get what is left, the rest stays dirty).
+    if (sa && sa_wait >= SA_MAX_WAIT) { queue_stage(); sa = 0; }
     if (quick_n) queue_quick();
     if (queue_bar(0) && queue_bar(1) && queue_bar(2)) queue_bar(3);
+    if (sa) { if ((uint8_t)(qv_cost + SA_COST) <= VQ_BUDGET) queue_stage(); else sa_wait++; }
 }
 
 // ---- sprites other than the mugs ------------------------------------------------------
