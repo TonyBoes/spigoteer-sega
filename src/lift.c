@@ -80,7 +80,7 @@ static void swap_copy(uint8_t src, uint8_t dst, uint8_t n) {
 // Level load, LCD off, after load_venue / the patron tiles: nobody lifted; CGB the patrons' OBJ palettes (colours 1-3 of
 // their BG palettes); DMG OBP1 for the patrons and OBP0 copies for what used OBP1. Sets the mug / glass looks.
 void lift_level_init(uint8_t g) BANKED {
-    uint8_t v, i;
+    uint8_t v;
     palette_t p;
     for (v = 0; v < MAX_PATRONS; v++) { patron_lift[v] = LIFT_BG; patron_ovl[v] = 0; lift_pin[v] = 0; }
     ovl_bars = 0; ovl_dirty = 0;
@@ -90,8 +90,8 @@ void lift_level_init(uint8_t g) BANKED {
     pal5_cur = 2;                                 // load_venue put the show's palette in slot 5
     if (is_cgb) {
         for (v = 0; v < 3; v++) {
+            patron_pal_get(g, v, p);
             p[0] = 0;
-            for (i = 1; i < 4; i++) p[i] = palettes[patron_pal_ids[g][v]][i];
             set_sprite_palette(lift_pal[v], 1, p);
         }
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;

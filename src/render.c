@@ -706,7 +706,7 @@ static void draw_coin(void) {
 static void pal5_check(void) {
     uint8_t want = show_timer ? 2 : tip_timer ? 1 : 0;
     if (!want || want == pal5_cur || !is_cgb) return;
-    pal5_src = want == 1 ? palettes[PAL_COIN] : venue.pal[VENUE_PAL_SHOW];
+    pal5_src = want == 1 ? coin_pal : venue.pal[VENUE_PAL_SHOW];
     pal5_cur = want;
     pal5_req = 1;
 }

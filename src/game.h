@@ -217,6 +217,26 @@ extern const uint8_t bar_oam_y[NUM_BARS];     // OAM y (+16) of the bar's top pi
 uint8_t next_rand(void);
 void add_score(uint16_t n);
 void lose_life(void);
+void prep_hud(void);                          // lives_tiles / score_tiles from lives and score_digits
+void show_overlay(const char *s);             // the banner's text (ROM0: callers pass strings from their own bank)
+void lcd_isr(void);                           // LYC handler: the banner window off below the banner
+// ROM0 helpers: copy out of another ROM bank and come back to the caller's
+void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
+void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
+void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
+#define START_LIVES           3
+#define BANNER_WY  BAR_TOP_Y(1)       // window overlay: 3 tile rows over bar 1 (y 64..87), clear of the HUD and stage
+#define BANNER_LYC (BAR_TOP_Y(1) + 22)  // line where the LCD interrupt switches the window off again
+void start_level(void) BANKED;                // src/level.c: the level table, the arcade loops' difficulty, the level load
+// ---- main_cold.c (banked: boot, screen changes; nothing per frame) ----------------------------
+void boot_init(void) BANKED;                  // hardware, palettes, sprites, the banner window, then the title
+void draw_hud(void) BANKED;                   // the whole HUD row (VRAM: LCD off)
+uint8_t glyph_for(char c) BANKED;             // HUD glyph tile of a character (blank if none)
+void enter_level_screen(void) BANKED;         // LCD off: the level's screen, then PLAYING (or LOOP)
+void start_new_game(uint8_t lv) BANKED;
+void resume_after_life(void) BANKED;
+void enter_game_over(void) BANKED;
+void enter_level_clear(void) BANKED;
 
 // ---- patrons.c --------------------------------------------------------------------------
 extern uint8_t lists_ok;                      // 0: bar lists must be rebuilt before use (see patrons.c)
@@ -272,6 +292,7 @@ void oam_touched(void);                       // OAM entries were changed behind
 uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
 uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c-1..c+3 of bar b first thing this frame (0: not now)
 extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds: 1 the coin, 2 the show
+extern uint16_t coin_pal[4];                  // (main.c) PAL_COIN, copied out of the banked palette table at boot
 // ---- lift.c (banked, M13a lifted patrons) ------------------------------------------------------
 void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palettes / DMG copies and looks, no one lifted
 void lift_frame(void) BANKED;                 // after the rules, before queue_vram: drops, forced drops, the test hook

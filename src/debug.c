@@ -10,8 +10,6 @@
 #define DEBUG_LEVELS       18
 extern uint8_t debug_menu_open, debug_level, debug_from_title, debug_toggled;
 extern uint8_t overlay_on, level;
-void show_overlay(const char *s);                // src/main.c (ROM0)
-void start_new_game(uint8_t lv);
 
 static void debug_show(void) {
     char s[9] = "LEVEL 00";

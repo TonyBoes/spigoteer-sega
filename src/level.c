@@ -71,12 +71,12 @@ static const level_cfg_t level_table[LEVEL_ROWS] = {
 
 static void load_patron_group(uint8_t g) {
     palette_t p;
-    uint8_t v, i;
+    uint8_t v;
     load_patron_tiles(g, PATRON_TILE_BASE);      // 144 pre-shifted + 12 back-view tiles, from the group's bank (LCD is off)
     if (!is_cgb) return;
     for (v = 0; v < 3; v++) {                    // colour 0 = the wall, so the art needs no transparency
+        patron_pal_get(g, v, p);
         p[0] = WALL_RGB;
-        for (i = 1; i < 4; i++) p[i] = palettes[patron_pal_ids[g][v]][i];
         set_bkg_palette(BGPAL_PATRON + v, 1, p);
     }
 }

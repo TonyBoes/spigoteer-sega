@@ -584,6 +584,32 @@ our own agents; the external artist hand-off package is no longer in use.
   CGB 22-81), so the animation costs a few late frames per 1200 at the peak and the fixed-seed jump is mostly noise.
   Guards unchanged and passing.
 
+## ROM0 cleanup as built (2026-10-10)
+- Measuring ROM0: do NOT trust romusage's ROM_0 "free" column; it overstates ROM0 by ~341 B here (its own accounting of
+  the 0x0000-0x01FF header area and areas differs from the linker). The real margin is 0x4000 minus the end of the last relocatable area the linker
+  places in ROM0 (_CODE from 0x0200, then _HOME, _INITIALIZER, _GSINIT, _GSFINAL) in build/game.map. `make` now prints it
+  (tools/rom0free.py) after romusage, for game.gb and release.gb. Cross-checked by padding: a ROM0 const array of exactly
+  the reported size links clean, one byte more gives the linker's "Possible overflow from Bank 0 into Bank 1". That is only
+  a WARNING (the ROM is built, bank 1 silently corrupted: the 44b9bed overflow); the Makefile now fails the build on it.
+- Real ROM0 free: 162 B before (romusage said 503), 1827 B after (romusage 2168); release.gb 1939 B.
+- Moved: build/palettes.c is `#pragma bank 255` (autobanked); its table and patron_pal_ids are static and read only
+  through the BANKED pal_get(id, dst) / patron_pal_get(g, v, dst) in the same file, which copy one palette into a WRAM
+  buffer (tools/palettes2c.py generates them). Callers (main_cold, level, lift, enhance, title, bonus2) use those; the
+  per-frame slot-5 switch in render.c reads `coin_pal` (WRAM, copied at boot) instead of the table. New palettes cost
+  ROM0 nothing. src/main_cold.c (bank 255): boot_init (was main.c init), load_cgb_palettes, win_init, draw_hud,
+  init_scene, glyph_for, reset_actors, enter_level_screen, start_new_game, resume_after_life, enter_game_over,
+  enter_level_clear. Declared BANKED in game.h. Stays in ROM0 (main.c): the far-copy helpers (they switch banks), lcd_isr
+  (LCD interrupt), show_overlay (callers pass strings from their own bank) + hide_banner_sprites (per frame with a
+  banner), prep_hud / add_score / lose_life (mid-frame), the frame loop. enter_game_over passes the "AAA" initials to
+  top_insert (another bank) from the stack, not as a literal. Banked code must never pass a pointer to its own ROM data
+  to a function in another switchable bank.
+- Not moved (hot or bank-switching): render.c, patrons.c, mugs.c, build/patron_load.c, musicload.c; write_all_bars shares
+  render.c's static compose code. Bank 6 holds main_cold (now 4456 used); banks 1, 4, 5 are near full after autobanking.
+- Perf (PyBoy, scratchpad perf.py = test_perf scenarios; end LY / missed, before = after, identical to the frame):
+  level 8 script DMG 108 / 0, CGB 115 / 0; level 9 overlap DMG 182 / 284, CGB 189 / 293; realistic peak DMG 191 / 69,
+  CGB 194 / 127; realistic peak over 7 RNG seeds, mean missed DMG 70.1 / 70.1, CGB 95.4 / 95.4.
+- Goldens: none changed.
+
 ## Patron round 7 decisions (owner, 2026-10-10)
 
 Proposals in scratchpad patron_round7 (round 6 is the base). Import waits until every patron is approved: one big

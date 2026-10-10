@@ -29,7 +29,7 @@ void enhance_load(uint8_t g) BANKED {
         lift_prop[i] = is_cgb ? s[16 + i] : S_PALETTE;
     }
     if (!is_cgb) return;
-    if (x_ids[g] != 255) set_sprite_palette(OBJPAL_ENH, 1, palettes[x_ids[g]]);
+    if (x_ids[g] != 255) { palette_t p; pal_get(x_ids[g], p); set_sprite_palette(OBJPAL_ENH, 1, p); }
     n = enh_b1_n[g];
     if (!n) return;
     d = enh_b1[g];

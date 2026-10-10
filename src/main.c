@@ -65,10 +65,6 @@ static uint8_t sec_t;
 // game flow
 #define LIFE_FREEZE_FRAMES  120
 #define CLEAR_FRAMES        150
-#define LEVEL_BONUS        1000
-#define START_LIVES           3
-#define BANNER_WY  BAR_TOP_Y(1)       // window overlay: 3 tile rows over bar 1 (y 64..87), clear of the HUD and stage
-#define BANNER_LYC (BAR_TOP_Y(1) + 22)  // line where the LCD interrupt switches the window off again
 
 
 // ---- state (globals => symbols) ----------------------------------------------
@@ -119,47 +115,18 @@ uint8_t  dancer_frame;      // 0 stand, 1 left kick, 2 arms up, 3 right kick
 uint8_t  dance_tick;        // frames in the current dance step
 
 // ---- palettes ----------------------------------------------------------------
-#define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
-
-static void load_cgb_palettes(void) {
-    palette_t p;
-
-    // BG 0, 5, 6, 7 (bar, stage, keg) and the drink / show OBJ palettes come with the venue (load_venue)
-    // BG 1: HUD, light text on a dark band (art: '.' text, '#' band)
-    p[0] = RGB15(31, 29, 22);
-    p[1] = RGB15(24, 20, 10);
-    p[2] = RGB15(29, 20, 4);
-    p[3] = RGB15(3, 2, 8);
-    set_bkg_palette(BGPAL_HUD, 1, p);
-
-    set_sprite_palette(OBJPAL_BARTENDER, 1, palettes[PAL_BARTENDER]);
-    // M13a: the glass shares the venue's empty-drink palette, the coin slot 5 (render.c), patrons 3/6/7 (lift.c)
-}
+palette_t coin_pal;                 // PAL_COIN, copied out of the banked palette table at boot (CGB; main_cold.c)
 
 // ---- scene -------------------------------------------------------------------
-static void glyph_row(uint8_t y, uint8_t x, const uint8_t *tiles, uint8_t n) {
-    vram_put(x, y, tiles, n);
-}
-
 static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
 
 // one mug per life (HUD row, cols 9-11) and the score digits (cols 1-6):
 // the tile ids are prepared by prep_hud() in the logic phase so that the VBlank
 // part is nothing but a copy.
-static void prep_hud(void) {
+void prep_hud(void) {
     uint8_t i;
     for (i = 0; i < 3; i++) lives_tiles[i] = (i < lives) ? TILE_HUD_MUG : TILE_HUD_BLANK;
     for (i = 0; i < 6; i++) score_tiles[i] = digit_tile(score_digits[i]);
-}
-
-static void draw_lives(void) {
-    glyph_row(HUD_ROW, 9, lives_tiles, 3);
-    hud_dirty &= ~HUD_LIVES;
-}
-
-static void draw_score(void) {
-    glyph_row(HUD_ROW, 1, score_tiles, 6);
-    hud_dirty &= ~HUD_SCORE;
 }
 
 // score as 32-bit total (for tests) plus decimal digits (no division in VBlank)
@@ -200,71 +167,13 @@ void lose_life(void) {
     if (lives == 0) game_over = 1;
 }
 
-void draw_hud(void) {
-    uint8_t buf[2], i;
-
-    prep_hud();
-    for (i = 0; i < 20; i++) row_buf[i] = TILE_HUD_BLANK;
-    put_row(HUD_ROW);
-    draw_score();                                   // six digits, cols 1-6
-    draw_lives();                                   // one mug per life, cols 9-11
-    buf[0] = TILE_GLYPH_L;                          // "L" col 17, level as two digits cols 18-19
-    glyph_row(HUD_ROW, 17, buf, 1);
-    buf[0] = digit_tile(level / 10); buf[1] = digit_tile(level % 10);
-    glyph_row(HUD_ROW, 18, buf, 2);
-}
-
-// The level screen (LCD off): shared tiles, the venue's stage / counters / floor, the HUD, then the bars' wall
-// rows with their patrons (render.c). load_venue() has run (start_level).
-static void init_scene(void) {
-    bkg_data(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles);
-    draw_venue();
-    draw_hud();
-    write_all_bars();
-    stage_anim_start();
-}
-
-static void lcd_isr(void) {          // LYC: switch the banner window off below the banner
+void lcd_isr(void) {          // LYC: switch the banner window off below the banner
     HIDE_WIN;
 }
 
 
 // ---- game -----------------------------------------------------------------------
-static void win_init(void);
-static void init(void) {
-    uint8_t i;
-
-    DISPLAY_OFF;
-    // _cpu alone is not enough under PyBoy: its DMG mode still hands the cart
-    // A=0x11. FF4F (VBK) reads 0xFE|bank on colour hardware, but plain 0x00 in
-    // PyBoy's DMG mode, so the VBK test rejects PyBoy-DMG. It cannot tell a real
-    // DMG apart (unmapped I/O reads 0xFF, which also passes), but a real DMG
-    // already fails the _cpu test, so the pair is right on all three.
-    VBK_REG = VBK_BANK_0;
-    is_cgb = (_cpu == CGB_TYPE) && ((VBK_REG & 0xFE) == 0xFE);
-    if (is_cgb) {
-        load_cgb_palettes();
-    } else {
-        BGP_REG  = 0xE4;   // 11 10 01 00: index 3 darkest
-        OBP0_REG = 0xD0;   // bartender: idx1 white, idx2 light grey, idx3 black
-        OBP1_REG = OBP1_MENU;   // title: mugs, sparkles: idx1 light grey, idx2 white, idx3 black; in play OBP1_PLAY (lift.c)
-    }
-    music_init();
-    hi_load();
-    SPRITES_8x16;
-    spr_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);
-    spr_data(OBJ_GLASS, GLASS_TILE_COUNT, glass_tiles);
-    spr_data(OBJ_COIN, COIN_TILE_COUNT, coin_tiles);      // the drink and show tiles come with each venue (load_venue)
-    for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
-
-    rng_state = 0xA7;
-    frame_counter = 0; joy = joy_prev = 0;
-    game_over = 0; game_state = GS_TITLE;
-    CRITICAL { add_VBL(vq_vbl); }  // the VBlank copy queue drains from the interrupt (render.c)
-    win_init();
-    SHOW_BKG; SHOW_SPRITES;
-    title_enter();                 // turns the LCD on (title.c)
-}
+// boot_init (src/main_cold.c, banked): hardware, palettes, sprites, the banner window, then the title
 
 uint8_t next_rand(void) {                    // 8-bit xorshift, fixed seed => reproducible runs
     rng_state ^= rng_state << 7;
@@ -276,45 +185,10 @@ uint8_t next_rand(void) {                    // 8-bit xorshift, fixed seed => re
 #define LOOP_FRAMES    120              // the "LOOP n" banner, before the level's intro
 #define GAMEOVER_FRAMES 240             // the GAME OVER banner goes on to the initials / table by itself after 4 s
 uint8_t arcade_loop = 1;                // pass through the nine venues: 1, 2, ...
-void start_level(void) BANKED;          // src/level.c: the level table, the arcade loops' difficulty, the level load
+// (start_level: src/level.c, declared in game.h)
 
 // ---- screens and state changes --------------------------------------------------------
-uint8_t glyph_for(char c) {
-    if (c >= '0' && c <= '9') return TILE_GLYPH_0 + (c - '0');
-    switch (c) {
-    case 'A': return TILE_GLYPH_A; case 'C': return TILE_GLYPH_C; case 'E': return TILE_GLYPH_E;
-    case 'G': return TILE_GLYPH_G; case 'H': return TILE_GLYPH_H; case 'I': return TILE_GLYPH_I;
-    case 'L': return TILE_GLYPH_L; case 'M': return TILE_GLYPH_M; case 'O': return TILE_GLYPH_O;
-    case 'P': return TILE_GLYPH_P; case 'R': return TILE_GLYPH_R; case 'S': return TILE_GLYPH_S;
-    case 'B': return TILE_GLYPH_B; case 'D': return TILE_GLYPH_D; case 'K': return TILE_GLYPH_K;
-    case 'N': return TILE_GLYPH_N; case 'W': return TILE_GLYPH_W; case 'Y': return TILE_GLYPH_Y;
-    case 'F': return TILE_GLYPH_F; case 'T': return TILE_GLYPH_T; case 'U': return TILE_GLYPH_U; case 'V': return TILE_GLYPH_V;
-    }
-    return TILE_HUD_BLANK;
-}
-
-// Banner window (tile rows 0..2 of the 0x9C00 map): frame, a text row that
-// show_overlay() rewrites through the VBlank queue, frame. Attributes are HUD palette.
-static void win_init(void) {
-    uint8_t i;
-    for (i = 0; i < 20; i++) row_buf[i] = TILE_PANEL_TOP;
-    vram_put(0, 32, row_buf, 20);
-    for (i = 0; i < 20; i++) row_buf[i] = TILE_HUD_BLANK;
-    vram_put(0, 33, row_buf, 20);
-    for (i = 0; i < 20; i++) row_buf[i] = TILE_PANEL_BOT;
-    vram_put(0, 34, row_buf, 20);
-    if (is_cgb) {
-        VBK_REG = VBK_BANK_1;
-        for (i = 0; i < 20; i++) row_buf[i] = BGPAL_HUD;
-        vram_put(0, 32, row_buf, 20); vram_put(0, 33, row_buf, 20); vram_put(0, 34, row_buf, 20);
-        VBK_REG = VBK_BANK_0;
-    }
-    LCDC_REG |= LCDCF_WIN9C00;
-    WX_REG = 7; WY_REG = BANNER_WY;
-    STAT_REG = STATF_LYC; LYC_REG = BANNER_LYC;
-    add_LCD(lcd_isr);
-    set_interrupts(VBL_IFLAG | LCD_IFLAG);
-}
+// glyph_for and the banner window's setup (win_init): src/main_cold.c
 
 static void hide_banner_sprites(void) {      // 8x16 sprites that would overlap the banner lines
     uint8_t i;
@@ -333,44 +207,7 @@ void show_overlay(const char *s) {
     hide_banner_sprites();
 }
 
-static void reset_actors(void) {
-    uint8_t i;
-    bar = 0; bartender_x = TAP_X; bartender_frac = 0; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
-    bt_bob = 0; walk_timer = 0; walk_phase = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0; catch_pose = 0;
-    clear_mugs();
-    next_arrival = 0;
-    tip_timer = 0; show_timer = 0; dancers_vis = 0; oam_touched();      // a bar reset ends the show and takes the tip away
-    for (i = 0; i < MAX_PATRONS; i++) patron_dist[i] = 0;
-}
-
-// Draw the playfield for the current level/lives/score. Screen transition: LCD off.
-static void enter_level_screen(void) {
-    DISPLAY_OFF;                                  // (start_level reloads the show tiles the bonus round borrowed)
-    overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0;
-    start_level();
-    init_scene();
-    reset_actors();
-    hide_all_sprites();
-    draw_bartender();
-    game_over = 0;
-    music_play(TUNE_VENUE0 + cur_group);          // the venue's own tune (before the state: a test sampling mid-load sees it)
-    if (cur_group == 0 && level > 1) {            // M10b: a new loop begins: "LOOP n" first, then the level's intro
-        char s[8] = "LOOP ";
-        if (arcade_loop >= 10) { s[5] = '0' + arcade_loop / 10; s[6] = '0' + arcade_loop % 10; }
-        else s[5] = '0' + arcade_loop;
-        show_overlay(s);
-        state_timer = 0;
-        game_state = GS_LOOP;
-    } else game_state = GS_PLAYING;               // (one write: a test sampling mid-load never sees PLAYING before LOOP)
-    DISPLAY_ON;
-}
-
-void start_new_game(uint8_t lv) {
-    uint8_t i;
-    lives = START_LIVES; level = lv; score = 0; bonus_round = 0;
-    for (i = 0; i < 6; i++) score_digits[i] = 0;
-    enter_level_screen();
-}
+// reset_actors, enter_level_screen, start_new_game: src/main_cold.c
 
 #ifdef DEBUG_MENU
 // Debug level select (build flag DEBUG_MENU; `make release` leaves it out). Hold START + SELECT for
@@ -400,41 +237,8 @@ static void debug_watch(void) {
 
 #endif
 
-// after a lost life: same level, same served count, fresh bars
-static void resume_after_life(void) {
-    uint8_t p;
-    for (p = 0; p < MAX_PATRONS; p++) if (patron_state[p]) remove_patron(p);
-    reset_actors();
-    hide_all_sprites();
-    life_lost = 0;
-    spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES;
-    place_start_patrons();
-    draw_bartender();
-    game_state = GS_PLAYING;
-    music_play(TUNE_VENUE0 + cur_group);         // a show that was running ended with the life: back to the venue's tune
-}
-
 uint8_t new_rank = TOP_N;   // M10b: the game's place in the top 5 (TOP_N: none)
-static void enter_game_over(void) {
-    new_rank = top_insert(score, (const uint8_t *)"AAA");   // in at once (initials follow), so a power-off keeps it
-    if (new_rank < TOP_N) hi_save();
-    show_overlay("GAME OVER");
-    state_timer = 0;
-    music_play(TUNE_OVER);
-    game_state = GS_GAME_OVER;
-}
-
-static void enter_level_clear(void) {
-    uint8_t i;
-    tip_timer = 0; show_timer = 0;               // a tip is simply forgotten when the level ends
-    for (i = OAM_COIN; i < 40; i++) shadow_OAM[i].y = 0;
-    dancers_vis = 0; oam_touched();
-    add_score(LEVEL_BONUS);
-    state_timer = 0;
-    show_overlay("LEVEL CLEAR");
-    music_play(TUNE_CLEAR);
-    game_state = GS_LEVEL_CLEAR;                 // last: whoever sees the state sees the banner and the jingle
-}
+// resume_after_life, enter_game_over, enter_level_clear: src/main_cold.c
 
 // One walking step: 1.5 px per frame as 1 px plus a 1/256 px fraction.
 static uint8_t walk_px(void) {
@@ -712,7 +516,7 @@ __endasm;
 
 void main(void) {
     uint8_t t0, ly0, st0, lt, lly, d, ok;
-    init();
+    boot_init();
     perf_last_t = (uint8_t)sys_time;
     while (1) {
         frame_wait();

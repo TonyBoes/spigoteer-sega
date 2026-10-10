@@ -25,10 +25,10 @@ extern void vq_reset(void);
 extern uint32_t score;
 extern uint8_t next_rand(void);
 extern void add_score(uint16_t n);
-extern void draw_hud(void);
+extern void draw_hud(void) BANKED;          // src/main_cold.c
+extern uint8_t glyph_for(char c) BANKED;
 extern void clear_dirty(void);
 extern void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
-extern uint8_t glyph_for(char c);
 extern void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n);
 void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // venue.c
 

@@ -73,17 +73,21 @@ $(HUGE_OBJ): $(BUILD)/hUGEDriver.obj $(HUGE)/tools/rgb2sdas.py
 	python3 $(HUGE)/tools/rgb2sdas.py -c _CODE_2 -o $@ $<
 
 $(ROM): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
-	$(LCC) $(LCCFLAGS) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ)
+	$(LCC) $(LCCFLAGS) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ) > $(BUILD)/link.log 2>&1; rc=$$?; cat $(BUILD)/link.log; test $$rc -eq 0 || { rm -f $@; false; }
+	@! grep -q "overflow from Bank 0" $(BUILD)/link.log || { rm -f $@; echo "ROM0 overflowed into bank 1 (see PLAN.md, ROM0 cleanup)"; false; }
 	@romusage $(BUILD)/$(NAME).noi 2>/dev/null | head -12 || true
+	@python3 tools/rom0free.py $(BUILD)/$(NAME).map
 
 # build/release.gb: the same flags without the debug menu (build/release.noi must not name its symbols)
 RELEASE  := $(BUILD)/release.gb
 release: $(RELEASE)
 
 $(RELEASE): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
-	$(LCC) $(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ)
+	$(LCC) $(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ) > $(BUILD)/release_link.log 2>&1; rc=$$?; cat $(BUILD)/release_link.log; test $$rc -eq 0 || { rm -f $@; false; }
+	@! grep -q "overflow from Bank 0" $(BUILD)/release_link.log || { rm -f $@; echo "ROM0 overflowed into bank 1 (see PLAN.md, ROM0 cleanup)"; false; }
 	@! grep -q debug_menu_open $(BUILD)/release.noi || { echo "release build still has the debug menu"; false; }
 	@romusage $(BUILD)/release.noi 2>/dev/null | head -12 || true
+	@python3 tools/rom0free.py $(BUILD)/release.map
 
 test: $(ROM)
 	python3 -m pytest -q tests

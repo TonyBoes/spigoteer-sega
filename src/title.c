@@ -153,7 +153,8 @@ void title_enter(void) BANKED {
         set_bkg_palette(BGPAL_TEXT, 1, p);
         p[3] = RGB15(31, 25, 6);                                                     // the selected item: gold
         set_bkg_palette(BGPAL_TEXT_SEL, 1, p);
-        for (i = 1; i < 4; i++) p[i] = palettes[patron_pal_ids[0][0]][i];
+        patron_pal_get(0, 0, p);
+        p[0] = WALL_RGB_T;
         set_bkg_palette(BGPAL_TPATRON, 1, p);
         p[1] = RGB15(31, 31, 27); p[2] = RGB15(30, 20, 4); p[3] = RGB15(12, 5, 2);  // effects: foam, beer, dark
         set_sprite_palette(OBJPAL_FX, 1, p);

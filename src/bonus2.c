@@ -26,8 +26,6 @@
 #include "bonus2_art.h"     // this bank's own art data
 
 extern uint8_t joy;
-extern void draw_hud(void);
-extern uint8_t glyph_for(char c);
 
 #define OBJ_B2          96      // the show performers' OBJ tiles (96..127) are borrowed, as in the shake-up
 #define B2_BG           BAR_TILE_COUNT      // BG ids over the patron tiles (no patrons here; the level load reloads them)
@@ -173,8 +171,8 @@ static void load_palettes(void) {
     p[2] = RGB8(224, 48, 48);
     p[3] = RGB8(40, 48, 64);
     set_bkg_palette(BPAL_GLASS, 1, p);
-    set_sprite_palette(OPAL_TAP, 1, palettes[PAL_GLASS]);     // M13a: the game's slots 3 and 5 hold a patron and the show
-    set_sprite_palette(OBJPAL_COIN, 1, palettes[PAL_COIN]);  // (the level load puts them back)
+    pal_get(PAL_GLASS, p); set_sprite_palette(OPAL_TAP, 1, p);  // M13a: the game's slots 3 and 5 hold a patron and the show
+    set_sprite_palette(OBJPAL_COIN, 1, coin_pal);           // (the level load puts them back)
     pal5_cur = 1;
 }
 
