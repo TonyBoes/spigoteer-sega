@@ -1,7 +1,8 @@
-# The perfect pour (story mode, src/pour.c; owner Q6, round 2): the drink is full at 16 and settles (plain full frame,
-# a release is ordinary); a release in the 6-frame sparkle window 24..29 launches a PERFECT drink, which scores 2 x the
-# venue's serve score when a patron catches it, with the "x2" cue beside the catch. From 30 the foam runs over
-# (ordinary); a drink carried to another bar is ordinary. Arcade is unchanged: no window, no sparkle, no bonus, no cue.
+# The perfect pour (story mode, src/pour.c; owner Q6, rounds 2-3): the drink is full at 16 and settles (plain full
+# frame, a release is ordinary); a release in the 5-frame sparkle window 32..36 launches a PERFECT drink, which scores
+# 2 x the venue's serve score when a patron catches it, with the PERFECT / x2 cue beside the catch. From 37 the foam
+# runs over (ordinary); a drink carried to another bar is ordinary. Arcade is unchanged: no window, no sparkle, no
+# bonus, no cue.
 import json
 
 import pytest
@@ -15,8 +16,10 @@ pytestmark = pytest.mark.timeout(240)
 POUR = json.loads((ROOT / "build" / "pour.json").read_text())
 THEMES = list(POUR["venues"])
 OBJ_POUR = POUR["obj_pour"]
-OBJ_CUE = OBJ_POUR + 4
+OBJ_CUE = POUR["obj_pour_cue"]
+OAM_DANCERS = GAME["OAM_DANCERS"]
 OAM_FILL, OAM_CUE = GAME["OAM_FILL"], GAME["OAM_CUE"]
+WORD = [OAM_CUE, OAM_DANCERS, OAM_DANCERS + 1, OAM_DANCERS + 2]   # the full cue's 4 entries, left to right
 FILL_FRAMES = GAME["FILL_FRAMES"]
 WIN0, WIN, HARD = GAME["POUR_WIN_START"], GAME["POUR_WIN_LEN"], GAME["POUR_WIN_HARD"]
 END = WIN0 + WIN                                  # the first overflow frame
@@ -59,6 +62,7 @@ def launched(gb):
 
 def hold_release(gb, n):
     """A held for n frames (a fresh press at the tap), then let go: the launched drink's quality (None: none)."""
+    gb.write("intro_timer", 255)                  # (long sweeps: nobody walks to the tap meanwhile)
     gb.hold("a")
     gb.run(n)
     gb.release("a")
@@ -105,6 +109,15 @@ def catch_delta(gb):
     raise AssertionError("never caught")
 
 
+def assert_full_cue(gb):
+    """PERFECT over x2: 4 entries in a row (26, 28, 29, 30), tiles OBJ_CUE + 0, 2, 4, 6, 8 px apart, one y."""
+    oam = gb.oam()
+    e = [oam[k] for k in WORD]
+    assert gb.mem("cue_mode") == 2
+    assert [x["tile"] for x in e] == [OBJ_CUE + 2 * k for k in range(4)], "the PERFECT / x2 cue beside the catch"
+    assert [x["x"] - e[0]["x"] for x in e] == [0, 8, 16, 24] and len({x["y"] for x in e}) == 1 and 0 < e[0]["y"] < 160
+
+
 def fill_entry(gb):
     gb.run(1)                                     # (OAM is the shadow of the frame before)
     return gb.oam()[OAM_FILL]
@@ -118,8 +131,7 @@ def test_a_release_in_the_window_is_perfect_and_scores_double(model, t):
         s = gb.mem("serve_score")
         assert catch_delta(gb) == 2 * s and gb.mem("perfect_n") == 1
         gb.run(1)
-        cue = gb.oam()[OAM_CUE]
-        assert cue["tile"] == OBJ_CUE and 0 < cue["y"] < 160, "the x2 cue beside the catch"
+        assert_full_cue(gb)
 
 
 def sweep(gb, k=16):
@@ -208,7 +220,7 @@ def test_a_carried_drink_is_never_perfect(model):
 def test_the_venue_s_frames_and_the_cue_are_loaded(model, c):
     with to_chapter(model, c) as gb:
         assert list(gb.read(0x8000 + OBJ_POUR * 16, 64)) == POUR["venues"][THEMES[c]]
-        assert list(gb.read(0x8000 + OBJ_CUE * 16, 32)) == POUR["cue"]
+        assert list(gb.read(0x8000 + OBJ_CUE * 16, 160)) == POUR["cue"]
 
 
 def test_arcade_has_no_window_no_bonus_and_no_cue(gb):
@@ -237,15 +249,44 @@ def test_the_cue_never_makes_an_11th_object_on_a_line(model):
         assert pour_at(gb, WIN0) == 1
         catch_delta(gb)
         gb.run(1)
-        assert gb.oam()[OAM_CUE]["y"] and max(oam_lines(gb)) <= 10
-        for k in range(6):
-            inject_mug(gb, 0, 70 + 8 * k, st=EMPTY)
-        shown = []
-        for _ in range(30):
+        assert_full_cue(gb)
+        assert max(oam_lines(gb)) <= 10
+        modes = []
+        for k in range(6):                        # empties one by one: the full cue, then the x2 alone, then none
+            inject_mug(gb, 0, 64 + 8 * k, st=EMPTY)
+            gb.run(1)
+            assert max(oam_lines(gb)) <= 10, k
+            modes.append(gb.mem("cue_mode"))
+        for _ in range(20):
             gb.run(1)
             assert max(oam_lines(gb)) <= 10
-            shown.append(gb.oam()[OAM_CUE]["y"] != 0)
-        assert not all(shown[:5]), "crowded: left out"
+            modes.append(gb.mem("cue_mode"))
+        assert 2 in modes and 1 in modes and 0 in modes, modes
+        oam = gb.oam()
+        if gb.mem("cue_mode") != 2:
+            assert all(oam[k]["y"] == 0 for k in WORD[1:]), "the borrowed show entries go back"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_show_s_entries_are_free_and_a_show_shortens_the_cue(model):
+    """OAM 28-30 (the show's) are empty in story play while no show runs; a show starting under the cue gets them
+    back at once (the cue drops to the x2 alone at 26), and no line passes 10."""
+    with story(model) as gb:
+        for _ in range(60):
+            gb.run(1)
+            assert all(gb.oam()[k]["y"] == 0 for k in range(OAM_DANCERS, 40))
+        assert pour_at(gb, WIN0) == 1
+        catch_delta(gb)
+        gb.run(1)
+        assert_full_cue(gb)
+        gb.write("show_timer", 200)
+        gb.write(gb.addr("show_timer") + 1, 0)
+        for _ in range(8):
+            gb.run(1)
+            assert max(oam_lines(gb)) <= 10
+        oam = gb.oam()
+        assert gb.mem("cue_mode") == 1 and oam[OAM_CUE]["tile"] == OBJ_CUE + 8
+        assert oam[OAM_CUE]["x"] == oam[OAM_CUE]["x"] and all(oam[k]["tile"] < OBJ_POUR for k in WORD[1:] if oam[k]["y"])
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
