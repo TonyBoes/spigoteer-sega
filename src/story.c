@@ -18,8 +18,9 @@
 //
 // The portrait slot is data-driven (build/story_portraits.c, from assets/story/portraits.json): size up to 7x7 tiles,
 // position, up to 3 CGB BG palettes (slots 2-4) and an optional OBJ overlay (OAM 4.., OBJ tiles OBJ_DANCER.., palettes
-// 3, 4, 6, 7). All the scene's portraits are loaded when it starts (LCD off); a speaker change rewrites only the tile
-// map: the old frame is wiped back to the backdrop (a WRAM copy of rows 0-12), then the palettes change (at the top
+// 3, 4, 6, 7; flag bit 5: a CGB-only accent, hidden on DMG). A picture whose bottom row is 12 stands on the text box
+// (the box's top panel is its frame's bottom edge: the approved 56x56 portraits). All the scene's portraits are
+// loaded when it starts (LCD off); a speaker change rewrites only the tile map: the old frame is wiped back to the backdrop (a WRAM copy of rows 0-12), then the palettes change (at the top
 // of a frame, in VBlank) and the new frame is drawn, 2 rows a frame through the VBlank queue.
 #pragma bank 255
 #include <gb/gb.h>
@@ -122,14 +123,16 @@ static uint8_t spk_index(uint8_t spk) {          // the speaker's place in the s
     return 255;
 }
 
-// pt (fetched) -> its framed rectangle in pt_map / pt_attr; new cx..ch
+// pt (fetched) -> its framed rectangle in pt_map / pt_attr; new cx..ch. A picture whose bottom is the row above the
+// text box stands on it: the box's top panel is the frame's bottom edge, so the frame has no bottom row.
 static void compose_portrait(uint8_t k) {
     uint8_t w = pt.w + 2, h = pt.h + 2, x, y, i = 0, t, a;
+    if (pt.y + pt.h == BOX_ROW) h--;
     for (y = 0; y < h; y++)
         for (x = 0; x < w; x++, i++) {
             a = BGPAL_HUD;
             if (y == 0)          t = x == 0 ? ST_FRAME_TL : x == w - 1 ? ST_FRAME_TR : ST_FRAME_T;
-            else if (y == h - 1) t = x == 0 ? ST_FRAME_BL : x == w - 1 ? ST_FRAME_BR : ST_FRAME_B;
+            else if (y == pt.h + 1) t = x == 0 ? ST_FRAME_BL : x == w - 1 ? ST_FRAME_BR : ST_FRAME_B;
             else if (x == 0)     t = ST_FRAME_L;
             else if (x == w - 1) t = ST_FRAME_R;
             else {
@@ -150,7 +153,8 @@ static void overlay_show(uint8_t k) {
     uint8_t i, *e = pt.obj, f;
     OAM_item_t *o = shadow_OAM + OAM_OVERLAY;
     for (i = 0; i < pt.nobj; i++, e += 4, o++) {
-        o->y = pt.y * 8 + e[0] + 16; o->x = pt.x * 8 + e[1] + 8;
+        o->y = (e[3] & 0x20) && !is_cgb ? 0 : pt.y * 8 + e[0] + 16;   // bit 5: a CGB-only accent (DMG shows the BG)
+        o->x = pt.x * 8 + e[1] + 8;
         o->tile = spk_obj[k] + e[2];
         f = e[3];
         o->prop = is_cgb ? ovl_pal[f & 3] : ((f & 0x10) ? S_PALETTE : 0);

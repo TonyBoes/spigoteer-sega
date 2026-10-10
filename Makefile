@@ -58,7 +58,7 @@ $(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2
 
 # Story mode (M11b): the script is validated here (line length, charset, speakers, the chapter goals, the cut-scene
 # tile budget); the build fails on any error. Also writes build/story.json (tests) and out/preview/story_*.png.
-$(STORY_C) $(BUILD)/story.h: tools/gen_story.py tools/gen_art.py docs/story.md assets/story/portraits.json assets/tiles/story.txt $(wildcard assets/approved/story/*) $(BUILD)/art.h | $(BUILD) $(OUT)/preview
+$(STORY_C) $(BUILD)/story.h: tools/gen_story.py tools/gen_art.py docs/story.md assets/story/portraits.json assets/tiles/story.txt $(wildcard assets/story/portraits/*.txt) $(BUILD)/art.h | $(BUILD) $(OUT)/preview
 	python3 tools/gen_story.py $(BUILD) $(OUT)/preview
 
 # CGB palettes: assets/palettes.json -> build/palettes.c/.h

@@ -15,6 +15,8 @@ from test_sound import save_ram
 pytestmark = pytest.mark.timeout(240)
 
 STORY = json.loads((ROOT / "build" / "story.json").read_text())
+PORTRAIT_CFG = json.loads((ROOT / "assets" / "story" / "portraits.json").read_text())
+APPROVED = ["SPIGOTEER", "SADIE", "DREGS", "MANAGER-BOT"]      # portrait-v2 art (assets/story/portraits/)
 SCENES = STORY["scenes"]
 SC = {s["id"]: i for i, s in enumerate(SCENES)}
 CHAPTERS = STORY["chapters"]
@@ -123,10 +125,90 @@ def test_the_cut_scene_budget():
         assert len(s["spk"]) <= 3, s["id"]
     for name, p in STORY["portraits"].items():
         assert p["w"] <= 7 and p["h"] <= 7 and 1 <= p["pals"] <= 3, name
-        assert p["y"] + p["h"] <= 12 and p["x"] >= 1, f"{name}: the frame stays above the text box"
+        assert p["y"] + p["h"] <= BOX_ROW and p["x"] >= 1, f"{name}: the frame stays above the text box (or on it)"
+    for name in APPROVED:                       # the approved 56x56 portraits (docs/story.md "Portraits")
+        p = STORY["portraits"][name]
+        assert (p["w"], p["h"], p["x"], p["y"]) == (7, 7, 2, 6), f"{name}: 56x56 standing on the text box"
+        assert p["tiles"] <= 44 and p["pals"] <= 3 and p["obj"] == (1 if name == "SADIE" else 0), name
+
+
+def test_the_portrait_v2_converter_is_exact_or_fails(tmp_path):
+    """Each approved source converts to tiles + a palette map that give back every source pixel's colour; a tile
+    with two colours on one DMG shade, or a fourth palette, fails the build."""
+    g = gen_story()
+    for name in APPROVED:
+        path = ROOT / PORTRAIT_CFG[name]["art"]
+        key, pix, _ = g.parse_v2(path)
+        px, attr, pals, cells, opals, lay = g.read_v2(path)
+        for y, row in enumerate(pix):
+            for x, c in enumerate(row):
+                k = key[c]
+                base = key[k["obj"]] if k["obj"] else k
+                assert px[y][x] == base["dmg"], (name, x, y)
+                assert pals[attr[(y // 8) * 7 + x // 8]][px[y][x]] == base["hex"], (name, x, y)
+                if k["obj"]:
+                    assert opals[0][lay[y][x]] == k["hex"], (name, x, y)
+        assert sum(sum(1 for v in r if v) for _, _, cell in cells for r in cell) == \
+            sum(1 for r in pix for c in r if key[c]["obj"]), f"{name}: the overlay covers every accent pixel"
+    f = tmp_path / "p.txt"
+    keys = "@key\na 0 #f8d0a8 skin\nb 0 #00ff00 green\nc 0 #0000f8 blue\nd 0 #f80000 red\n# 3 #000000 ink\n@pixels\n"
+    f.write_text("@size 8 8\n" + keys + "ab######\n" + "########\n" * 7)
+    with pytest.raises(g.StoryError, match="two colours on DMG shade 0"):
+        g.read_v2(f)
+    f.write_text("@size 32 8\n" + keys + ("aaaaaaaabbbbbbbbccccccccdddddddd\n" * 8))
+    with pytest.raises(g.StoryError, match=r"needs 4 CGB BG palettes \(max 3\)"):
+        g.read_v2(f)
+    f.write_text("@size 24 8\n@maxpal 2\n" + keys + ("aaaaaaaabbbbbbbbcccccccc\n" * 8))
+    with pytest.raises(g.StoryError, match=r"needs 3 CGB BG palettes \(max 2\)"):
+        g.read_v2(f)
 
 
 # ---- helpers ------------------------------------------------------------------------------------------------
+DMG_GREY = [(255, 255, 255), (153, 153, 153), (85, 85, 85), (0, 0, 0)]   # PyBoy's DMG shades
+
+
+def q15(h):
+    return tuple((int(h[i:i + 2], 16) >> 3) << 3 for i in (1, 3, 5))   # #rrggbb as the CGB shows it (RGB15)
+
+
+def assert_portrait_exact(gb, name):
+    """The 56x56 picture on screen is the approved source pixel for pixel: on DMG each key's shade, on CGB each key's
+    colour (the BG palettes through the per-tile map, the OBJ accent over them)."""
+    g = gen_story()
+    key, pix, _ = g.parse_v2(ROOT / PORTRAIT_CFG[name]["art"])
+    p = STORY["portraits"][name]
+    x0, y0 = p["x"] * 8, p["y"] * 8
+    im = gb.image()
+    bad = []
+    for y, row in enumerate(pix):
+        for x, c in enumerate(row):
+            k = key[c]
+            if gb.model_name == "cgb":
+                want = q15(k["hex"])
+            else:
+                want = DMG_GREY[(key[k["obj"]] if k["obj"] else k)["dmg"]]
+            if im.getpixel((x0 + x, y0 + y)) != want:
+                bad.append((x, y, c))
+    assert not bad, f"{name}: {len(bad)} pixels differ from the source, first {bad[:8]}"
+    assert SPEAKERS[gb.mem("story_cur")] == name
+
+
+def assert_on_the_box(gb, p):
+    """A 56x56 frame: top row, sides down to row 12, no bottom row (the text box's top panel is its bottom edge)."""
+    x, y, w, h = p["x"], p["y"], p["w"], p["h"]
+    assert tilemap_row(gb, y - 1, x - 1, w + 2) == [FONT["frame_tl"]] + [FONT["frame_t"]] * w + [FONT["frame_tr"]]
+    for r in range(h):
+        assert tilemap_row(gb, y + r, x - 1, 1) == [FONT["frame_l"]]
+        assert tilemap_row(gb, y + r, x + w, 1) == [FONT["frame_r"]]
+    assert y + h == BOX_ROW
+    frame = {FONT[n] for n in FONT if n.startswith("frame")}
+    assert not frame & set(tilemap_row(gb, BOX_ROW, 0, 20)), "the box's top panel is not overdrawn"
+
+
+def overlay_sprites(gb):
+    return len(gb.visible_sprites()) - 4                  # the Spigoteer's sprite takes 4
+
+
 def settle(gb):
     """A screen change (LCD off) takes several frames, and the game reads no keys meanwhile: wait for the LCD."""
     gb.run(1)
@@ -288,16 +370,28 @@ def test_a_venue_scene_has_the_backdrop_the_spigoteer_and_a_framed_portrait(mode
         x, y, w, h = sadie["x"], sadie["y"], sadie["w"], sadie["h"]
         for r in range(h):
             assert tilemap_row(gb, y + r, x, w) == [base + t for t in sadie["map"][r * w:(r + 1) * w]]
-        assert tilemap_row(gb, y - 1, x - 1, w + 2) == [FONT["frame_tl"]] + [FONT["frame_t"]] * w + [FONT["frame_tr"]]
-        assert tilemap_row(gb, y + h, x - 1, 1) == [FONT["frame_bl"]]
+        assert_on_the_box(gb, sadie)
+        assert_portrait_exact(gb, "SADIE")
         # the name on the panel, the title on the HUD row
         assert tilemap_row(gb, BOX_ROW, 2, 5) == [GLYPH[c] for c in "SADIE"]
         title = SCENES[SC["PRE_SALOON"]]["title"]
         assert tilemap_row(gb, 0, (20 - len(title)) // 2, len(title)) == [GLYPH[c] for c in title]
-        # the Spigoteer's sprite at bar 1's tap, nothing else
+        # the Spigoteer's sprite at bar 1's tap; on CGB Sadie's gold star (1 OBJ), on DMG the BG star shows instead
         assert gb.mem("bar") == 1 and gb.mem("bartender_x") == TAP_X
-        assert len(gb.visible_sprites()) == 4
+        assert overlay_sprites(gb) == (1 if model == "cgb" else 0)
         check_golden(gb, "story_portrait")
+        # SADIE -> SPIGOTEER (page 3): the same rectangle swapped, the star gone; then back to SADIE with her star
+        gb.press("a", 2)
+        page_ready(gb)
+        gb.press("a", 2)
+        page_ready(gb)
+        assert_portrait_exact(gb, "SPIGOTEER")
+        assert overlay_sprites(gb) == 0
+        gb.press("a", 2)
+        page_ready(gb)
+        assert_portrait_exact(gb, "SADIE")
+        assert_on_the_box(gb, sadie)
+        assert overlay_sprites(gb) == (1 if model == "cgb" else 0)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -314,14 +408,16 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
         page_ready(gb)
         assert gb.mem("story_page") == 2 and SPEAKERS[gb.mem("story_cur")] == "DREGS"
         dregs = STORY["portraits"]["DREGS"]
-        assert dregs["obj"] == 4, "the placeholder's name tag is the OBJ overlay layer"
-        assert len(gb.visible_sprites()) == 4 + 4, "the Spigoteer + the overlay"
+        assert dregs["obj"] == 0 and overlay_sprites(gb) == 0
+        assert_portrait_exact(gb, "DREGS")
+        assert_on_the_box(gb, dregs)
         check_golden(gb, "story_placeholder")
-        rect = [tilemap_row(gb, dregs["y"] - 1 + r, dregs["x"] - 1, dregs["w"] + 2) for r in range(dregs["h"] + 2)]
+        rows = range(dregs["y"] - 1, BOX_ROW)          # the frame's rows (its bottom edge is the box's panel)
+        rect = [tilemap_row(gb, r, dregs["x"] - 1, dregs["w"] + 2) for r in rows]
         gb.press("a", 2)                               # NARRATOR: the frame wipes back to the backdrop
         page_ready(gb)
         assert gb.mem("story_cur") == 255 and len(gb.visible_sprites()) == 4
-        after = [tilemap_row(gb, dregs["y"] - 1 + r, dregs["x"] - 1, dregs["w"] + 2) for r in range(dregs["h"] + 2)]
+        after = [tilemap_row(gb, r, dregs["x"] - 1, dregs["w"] + 2) for r in rows]
         story_ids = range(STORY["font_base"], 256)
         assert all(t not in story_ids for row in after for t in row), "no frame or portrait tile left"
         assert after != rect
@@ -330,6 +426,42 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
         assert SPEAKERS[gb.mem("story_cur")] == "SPIGOTEER"
         sp = STORY["portraits"]["SPIGOTEER"]
         assert tilemap_row(gb, sp["y"] - 1, sp["x"] - 1, 1) == [FONT["frame_tl"]]
+        assert_portrait_exact(gb, "SPIGOTEER")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_placeholder_and_a_56x56_portrait_swap_cleanly(model):
+    """PRE_STADIUM: COACH (a 32x32 placeholder with its name tag) -> SPIGOTEER (56x56, taller) -> COACH: the bigger
+    frame is wiped back to the backdrop before the smaller one is drawn."""
+    with start_story(model, v4_image([], story=1), cont=True) as gb:
+        assert gb.mem("story_scene") == SC["PRE_STADIUM"]
+        page_ready(gb)
+        coach, sp = STORY["portraits"]["COACH"], STORY["portraits"]["SPIGOTEER"]
+        bare = [tilemap_row(gb, r, 0, 20) for r in range(sp["y"] - 1, coach["y"] - 1)]   # rows only the 56x56 covers
+        assert SPEAKERS[gb.mem("story_cur")] == "COACH" and overlay_sprites(gb) == 4, "the placeholder's name tag"
+        for _ in range(2):
+            gb.press("a", 2)
+            page_ready(gb)
+        assert_portrait_exact(gb, "SPIGOTEER")
+        assert_on_the_box(gb, sp)
+        assert overlay_sprites(gb) == 0
+        check_golden(gb, "story_spigoteer")
+        gb.press("a", 2)
+        page_ready(gb)
+        assert SPEAKERS[gb.mem("story_cur")] == "COACH" and overlay_sprites(gb) == 4
+        assert [tilemap_row(gb, r, 0, 20) for r in range(sp["y"] - 1, coach["y"] - 1)] == bare
+        assert tilemap_row(gb, coach["y"] + coach["h"], coach["x"] - 1, 1) == [FONT["frame_bl"]]
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_manager_bot_s_portrait(model):
+    with start_story(model, v4_image([], story=5), cont=True) as gb:
+        assert gb.mem("story_scene") == SC["PRE_ROBOT"]
+        page_ready(gb)
+        assert_portrait_exact(gb, "MANAGER-BOT")
+        assert_on_the_box(gb, STORY["portraits"]["MANAGER-BOT"])
+        assert tilemap_row(gb, BOX_ROW, 2, 11) == [GLYPH[c] for c in "MANAGER-BOT"]
+        check_golden(gb, "story_managerbot")
 
 
 # ---- (c) chapters: shifts and goals ------------------------------------------------------------------------------

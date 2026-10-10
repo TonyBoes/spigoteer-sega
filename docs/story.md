@@ -78,7 +78,7 @@ shift. Every shift keeps the chapter's kind of goal. Bars are numbered 1 (top) t
 ## Script format
 
 Text box: 18 characters per line, 3 lines per page. Allowed: `A-Z 0-9 . , ! ? ' - :` and space.
-Each page below is one speaker line (it picks the 32x32 portrait; `NARRATOR` has no portrait)
+Each page below is one speaker line (it picks the speaker's portrait; `NARRATOR` has no portrait)
 followed by 1-3 text lines. Pages are separated by blank lines. The text is already wrapped,
 so the engine prints it as is. Scene ids are what the engine would call each scene.
 
@@ -840,7 +840,24 @@ LAST CALL!
 
 ## Art list
 
-### Portraits (32x32, one per speaker; DMG 4 shades, CGB at most 2 palettes)
+### Portraits (56x56 busts, one per speaker; DMG 4 shades, CGB up to 3 BG palettes, an optional 1-OBJ accent)
+
+The approved style (owner, 2026-10-10: style S3 of the portrait study). Each portrait is a 56x56 bust (7x7 tiles) in a
+framed panel on the left over the venue backdrop, standing on the text box (the frame's bottom edge is the box's top
+panel), facing right toward the Spigoteer at his taps; light from the upper right.
+
+* Source: `assets/story/portraits/<name>.txt` in the portrait-v2 colour-key format: `@size 56 56`, `@maxpal 3`, an
+  `@key` table (`<char> <DMG shade 0-3> <#rrggbb> <name> [obj=<base char>]`), then the pixels, one key per pixel. The DMG
+  shade of a key is its BG colour index, so one set of tiles serves both models; on CGB each 8x8 tile picks one of up to
+  3 palettes whose slot k is the colour of shade k. Two colours on one shade in a tile cannot be shown: the build fails.
+* An `obj=` key is a CGB-only accent drawn by one 8x16 OBJ over the BG (Sadie's gold star); DMG shows the base key's
+  shade underneath. At most one per portrait in this style (3 sprites on a line with the Spigoteer's 2).
+* Budget: at most 44 unique tiles a portrait (no flips), 3 CGB BG palettes (slots 2-4), the background shade 2 with a
+  per-character CGB colour, skin and whites shade 0, outline shade 3.
+
+Done (approved art imported pixel-exact): **SPIGOTEER, SADIE, DREGS, MANAGER-BOT**.
+Still to draw, in the same style (they show a generated 32x32 placeholder until then): **COACH, JUNE, COLBY, AURORA,
+HANA, ZIZZ, KIKI**, and the **SPIGOTEER (cozy)** variant with the pink knitted mustache cozy (DREGS sheepish optional).
 
 | Portrait | One line |
 |---|---|

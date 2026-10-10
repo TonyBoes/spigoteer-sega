@@ -336,8 +336,8 @@ table with initials + loop banner/harder loops.
 
 FULL custom pictures only for the intro (KA-SPLOOSH), the finale (first pour) and the credits gag;
 every other scene uses the LIGHTER style (the venue's in-game stage + bar as the backdrop, the
-Spigoteer's normal sprite, a framed 32x32 speaker portrait above a full-width 3x18 text box).
-Portraits for every speaker (assets/approved/story/portrait_*.txt; Spigoteer and Sadie done).
+Spigoteer's normal sprite, a framed speaker portrait above a full-width 3x18 text box; 56x56 since the portrait study,
+see "Story portraits as built"). Portraits for every speaker (assets/story/portraits/*.txt).
 
 ## Overlapping patrons (M13, owner 2026-10-09)
 Patrons must overlap and pass, as in arcade Tapper; one patron shoving another is rejected (the interim
@@ -877,3 +877,32 @@ Each chapter plays its venue several times in a row, as shifts with rising diffi
   starts over from the INTRO; v2 -> v4, v3 -> v4 (CONTINUE at the PRE scene), v4 loading and rejecting a bad step.
   test_scores / test_sound read version 4 (v4_image, parse_save). Golden changed on purpose: story_goal (dmg + cgb),
   the banner now says CHAPTER 1 OPENING and the opening's goal SERVE 8 COWBOYS (HUD S08).
+
+## Story portraits as built (approved style S3, 2026-10-10)
+The owner approved the portrait study's style S3: 56x56 busts (7x7 tiles), up to 3 CGB BG palettes, an optional 1-OBJ
+accent. Four are imported pixel-exact; the other speakers keep the generated 32x32 placeholders until drawn.
+- Sources: assets/story/portraits/{spigoteer,sadie,dregs,managerbot}.txt, the approved files byte for byte, in the
+  portrait-v2 colour-key format (docs/story.md "Portraits": `@size`, `@maxpal`, `@key` = char, DMG shade, #rrggbb, name,
+  optional `obj=<base>`; then the pixels). assets/story/portraits.json points the four speakers at them with x 2, y 6.
+  The old 32x32 Spigoteer / Sadie (assets/approved/story/) are retired: nothing else used them.
+- Converter (tools/gen_story.py parse_v2 / read_v2): the DMG shade of each key is its BG colour index (one tile set for
+  both models); per tile the shade -> colour map, packed into the fewest CGB palettes by an exact search (a palette slot
+  no tile uses is #000000); the obj= keys become a CGB-only overlay (colours 1-3 of one OBJ palette, greedy 8x16 cells),
+  with the base key in the BG underneath (what DMG shows). The build fails on two colours on one shade in a tile, more
+  palettes than @maxpal / 3, more than 3 overlay colours. A v2 entry takes no palettes / attr / overlay from the json.
+- Engine (src/story.c, banked; ROM0 untouched): a picture whose bottom row is 12 stands on the text box: the frame has
+  no bottom row (the box's top panel, with the name tag, is its bottom edge), so the frame is cols 1-9, rows 5-12 and the
+  wipe / swap covers those 8 rows. Overlay flag bit 5 = CGB only (overlay_show parks it at y 0 on DMG).
+- Budget (build/story.json): unique tiles (exact, no flips) Spigoteer 42, Sadie 44, Dregs 34, Manager-Bot 37 (<= 44);
+  3 CGB BG palettes each (slots 2-4); Sadie's star 1 OBJ (2 OBJ tiles, OBJ palette 3; 3 sprites on its lines with the
+  Spigoteer). Per scene at most 120 BG tiles (POST_SALOON and FINALE: Sadie + Dregs + Spigoteer) of the 163 free
+  (ids 93-255); OBJ at most 8 of 32. ROM data 772-963 B per portrait (tiles 544-704 B + the fixed 227 B record).
+- ROM: real ROM0 free 1671 -> 1671 B (game.gb), 1784 -> 1784 B (release.gb). Autobank moved the portraits to bank 2
+  and story.c to bank 3; banks free after (game.gb, romusage): 1 97, 2 195, 3 162, 4 54, 5 68, 6 187, 7 2245 B
+  (before: 1 97, 2 50, 3 45, 4 54, 5 47, 6 121, 7 4102).
+- Tests (tests/test_story.py): every source pixel of the four on screen, DMG (its shade) and CGB (its RGB15 colour,
+  the star over the BG) after a scene start and after swaps (Sadie -> Spigoteer -> Sadie with the star back; Dregs;
+  Spigoteer after the narrator's wipe; Coach placeholder -> Spigoteer -> Coach, the taller frame wiped); the frame on
+  the box (top, sides, no bottom row, the box panel intact); the converter round trip and its failures; the budget.
+  Goldens changed on purpose: story_portrait (Sadie, new art) and story_placeholder (POST_SALOON, Dregs is now the
+  approved portrait, no name-tag overlay). New goldens: story_spigoteer (PRE_STADIUM), story_managerbot (PRE_ROBOT).

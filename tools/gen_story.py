@@ -298,6 +298,139 @@ def read_art(path):
     return px
 
 
+# ---- portrait-v2: the approved colour-key sources (assets/story/portraits/*.txt) ----------------------------------
+# Format (from the portrait study, docs/story.md "Portraits"):
+#     ; comments
+#     @size W H                      whole 8x8 tiles, up to 56x56
+#     @maxpal N                      CGB BG palettes the picture may use (at most 3)
+#     @key
+#     <ch> <DMG shade 0-3> <#rrggbb> <name> [obj=<base ch>]
+#     @pixels
+#     H rows of W key characters
+# The DMG shade of a key is its BG colour index, so one set of tile data serves both models: on CGB each 8x8 tile picks
+# one of the picture's palettes, whose slot k is the colour of shade k in that tile. A key with obj=<base> is a CGB-only
+# accent drawn by the OBJ overlay (free-positioned 8x16 cells); the BG underneath holds <base>, which is what DMG shows.
+# The converter is exact or fails: two colours on one shade in a tile, more palettes than allowed, more than 3 overlay
+# colours.
+def is_v2(path):
+    return any(l.strip() == "@key" for l in path.read_text().splitlines())
+
+
+def parse_v2(path):
+    key, pix, meta, sec = {}, [], {"maxpal": MAX_BG_PALS}, None
+    for ln in path.read_text().splitlines():
+        if ln.startswith(";") or (not ln.strip() and sec != "pixels"):
+            continue
+        if ln.startswith("@size"):
+            meta["w"], meta["h"] = (int(v) for v in ln.split()[1:3])
+        elif ln.startswith("@maxpal"):
+            meta["maxpal"] = int(ln.split()[1])
+        elif ln.startswith("@key"):
+            sec = "key"
+        elif ln.startswith("@pixels"):
+            sec = "pixels"
+        elif sec == "key":
+            p = ln.split()
+            if len(p) < 3 or p[1] not in "0123" or not re.fullmatch(r"#[0-9a-fA-F]{6}", p[2]):
+                fail(f"{path}: bad key line {ln!r}")
+            obj = next((q[4:] for q in p[4:] if q.startswith("obj=")), None)
+            key[p[0]] = {"dmg": int(p[1]), "hex": p[2].lower(), "obj": obj}
+        elif sec == "pixels":
+            if not ln.strip():
+                break
+            pix.append(ln)
+    if "w" not in meta or len(pix) != meta["h"] or any(len(r) != meta["w"] for r in pix):
+        fail(f"{path}: the pixels are not @size")
+    if meta["w"] % 8 or meta["h"] % 8:
+        fail(f"{path}: not whole 8x8 tiles")
+    for c, k in key.items():
+        if k["obj"] and (k["obj"] not in key or key[k["obj"]]["obj"]):
+            fail(f"{path}: key {c!r}: obj= names no BG key")
+    for y, r in enumerate(pix):
+        for c in r:
+            if c not in key:
+                fail(f"{path}: row {y}: unknown key {c!r}")
+    return key, pix, meta
+
+
+def pack_palettes(tiles):
+    """tiles: per tile {shade: hex}. The fewest palettes ({shade: hex}) so every tile fits one (exact search);
+    returns (palettes, palette index per tile)."""
+    order = sorted(range(len(tiles)), key=lambda i: -len(tiles[i]))
+    best = [None]
+
+    def fits(p, t):
+        return all(p.get(s, c) == c for s, c in t.items())
+
+    def rec(i, pals, assign):
+        if best[0] is not None and len(pals) >= len(best[0][0]):
+            return
+        if i == len(order):
+            best[0] = ([dict(p) for p in pals], dict(assign))
+            return
+        t = tiles[order[i]]
+        for pi, p in enumerate(pals):
+            if fits(p, t):
+                old = dict(p)
+                p.update(t)
+                assign[order[i]] = pi
+                rec(i + 1, pals, assign)
+                p.clear()
+                p.update(old)
+                del assign[order[i]]
+        if len(pals) < 8:
+            pals.append(dict(t))
+            assign[order[i]] = len(pals) - 1
+            rec(i + 1, pals, assign)
+            pals.pop()
+            del assign[order[i]]
+
+    rec(0, [], {})
+    pals, assign = best[0]
+    return pals, [assign[i] for i in range(len(tiles))]
+
+
+def read_v2(path):
+    """-> px (DMG indices), attr (palette per tile), pals (#rrggbb x4), overlay cells [(dx, dy, 8x16 px)], overlay
+    palette (#rrggbb x4, colour 0 unused), overlay layer px (preview: 0 = transparent)."""
+    key, pix, meta = parse_v2(path)
+    w, h = meta["w"], meta["h"]
+    bg = [[key[c]["obj"] or c for c in r] for r in pix]
+    px = [[key[c]["dmg"] for c in r] for r in bg]
+    tiles = []
+    for ty in range(h // 8):
+        for tx in range(w // 8):
+            m = {}
+            for y in range(ty * 8, ty * 8 + 8):
+                for x in range(tx * 8, tx * 8 + 8):
+                    k = key[bg[y][x]]
+                    if m.get(k["dmg"], k["hex"]) != k["hex"]:
+                        fail(f"{path}: tile ({tx},{ty}): two colours on DMG shade {k['dmg']}")
+                    m[k["dmg"]] = k["hex"]
+            tiles.append(m)
+    pals, attr = pack_palettes(tiles)
+    if len(pals) > min(meta["maxpal"], MAX_BG_PALS):
+        fail(f"{path}: needs {len(pals)} CGB BG palettes (max {min(meta['maxpal'], MAX_BG_PALS)})")
+    pals = [[p.get(s, "#000000") for s in range(4)] for p in pals]     # a slot no tile uses: any colour
+    # the overlay: its colours in key order are OBJ colours 1-3; greedy 8x16 cover (top row first, then leftmost)
+    ocols = [k["hex"] for k in key.values() if k["obj"]]
+    ocols = list(dict.fromkeys(ocols))
+    if len(ocols) > 3:
+        fail(f"{path}: {len(ocols)} overlay colours (max 3)")
+    opal = ["#000000"] + ocols + ["#000000"] * (3 - len(ocols))
+    lay = [[ocols.index(key[c]["hex"]) + 1 if key[c]["obj"] else 0 for c in r] for r in pix]
+    left = {(y, x) for y in range(h) for x in range(w) if lay[y][x]}
+    cells = []
+    while left:
+        y0 = min(y for y, _ in left)
+        x0 = min(x for y, x in left if y < y0 + 16)
+        cell = [[lay[y][x] if (y, x) in left and y0 <= y < y0 + 16 and x0 <= x < x0 + 8 else 0
+                 for x in range(x0, x0 + 8)] for y in range(y0, y0 + 16)]
+        left -= {(y, x) for y, x in left if y0 <= y < y0 + 16 and x0 <= x < x0 + 8}
+        cells.append((x0, y0, cell))
+    return px, attr, pals, cells, [opal] if cells else [], lay if cells else None
+
+
 FONT3 = {   # 3x5 letters for the placeholder name labels
     "A": "010101111101101", "B": "110101110101110", "C": "011100100100011", "D": "110101101101110",
     "E": "111100110100111", "F": "111100110100100", "G": "011100101101011", "H": "101101111101101",
@@ -366,7 +499,13 @@ def portraits(cfg):
         if c is None:
             fail(f"assets/story/portraits.json: no entry for {name}")
         ovl = c.get("overlay")
-        if "art" in c:
+        cells, cgb_only, lay, attr = None, 0, None, None
+        if "art" in c and is_v2(ROOT / c["art"]):          # an approved portrait-v2 source: palettes from the art
+            if "palettes" in c or "attr" in c or ovl:
+                fail(f"{name}: a portrait-v2 source carries its own palettes, palette map and overlay")
+            px, attr, pals, cells, opals, lay = read_v2(ROOT / c["art"])
+            opx, ox, oy, obp, cgb_only = None, 0, 0, 0, 1
+        elif "art" in c:
             px = read_art(ROOT / c["art"])
             pals = c["palettes"]
             opx = read_art(ROOT / ovl["art"]) if ovl else None
@@ -383,11 +522,14 @@ def portraits(cfg):
             fail(f"{name}: portrait {w * 8}x{h * 8} (max {MAX_W * 8}x{MAX_H * 8})")
         x = c.get("x", 2)
         y = c.get("y", 12 - h)
-        if x < 1 or x + w > 19 or y < 1 or y + h > 12:
-            fail(f"{name}: the frame ({x - 1},{y - 1})..({x + w},{y + h}) leaves rows 0-12 / columns 0-19")
+        # the frame takes a tile around the picture; a picture whose bottom is row 12 stands on the text box, whose
+        # top panel (row 13) is then the frame's bottom edge
+        if x < 1 or x + w > 19 or y < 1 or y + h > 13:
+            fail(f"{name}: the frame ({x - 1},{y - 1})..({x + w},{min(y + h, 13)}) leaves rows 0-13 / columns 0-19")
         if not 1 <= len(pals) <= MAX_BG_PALS:
             fail(f"{name}: {len(pals)} BG palettes (1-{MAX_BG_PALS} free while a venue shows)")
-        attr = [0] * (w * h)
+        if attr is None:
+            attr = [0] * (w * h)
         if "attr" in c:
             a = c["attr"]
             if len(a) != h or any(len(r) != w for r in a):
@@ -401,11 +543,16 @@ def portraits(cfg):
                 uniq.append(t)
             tmap.append(uniq.index(t))
         obj, otiles = [], []
-        if opx is not None:
-            for dx, dy, pair in obj_cells(opx):
+        if cells is None and opx is not None:
+            cells = [(ox + dx, oy + dy, pair) for dx, dy, pair in obj_cells(opx)]
+        elif cells:
+            cells = [(dx, dy, tuple(tile_bytes(r, 0, 0)) + tuple(tile_bytes(r, 0, 8)))
+                     for dx, dy, cell in cells for r in [["".join(".-+#"[v] for v in row) for row in cell]]]
+        if cells:
+            for dx, dy, pair in cells:
                 if pair not in otiles:
                     otiles.append(pair)
-                obj.append((ox + dx, oy + dy, otiles.index(pair) * 2))
+                obj.append((dx, dy, otiles.index(pair) * 2))
             if len(obj) > MAX_OBJ:
                 fail(f"{name}: {len(obj)} overlay sprites (max {MAX_OBJ})")
             for line in range(-16, 80):
@@ -416,7 +563,8 @@ def portraits(cfg):
                 fail(f"{name}: {len(opals)} overlay palettes (1-{MAX_OBJ_PALS})")
         out[si] = {"name": name, "w": w, "h": h, "x": x, "y": y, "tiles": uniq, "map": tmap, "attr": attr,
                    "pals": pals, "obj": obj, "obj_tiles": otiles, "obj_pals": opals, "dmg_obp": obp,
-                   "px": px, "opx": opx, "ox": ox, "oy": oy}
+                   "cgb_only": cgb_only, "px": px, "opx": lay if lay is not None else opx,
+                   "ox": 0 if lay is not None else ox, "oy": 0 if lay is not None else oy}
     return out
 
 
@@ -627,7 +775,7 @@ def main():
         opal = [v for p in sp["obj_pals"] for v in rgb15(p)]
         obj = []
         for ox, oy, tile in sp["obj"]:
-            obj += [oy & 255, ox & 255, tile, sp["dmg_obp"] << 4]
+            obj += [oy & 255, ox & 255, tile, sp["dmg_obp"] << 4 | sp["cgb_only"] << 5]
         P += [f"// {sp['name']}: {sp['w'] * 8}x{sp['h'] * 8} at tile ({sp['x']},{sp['y']}), {len(sp['tiles'])} tiles, "
               f"{len(sp['pals'])} BG palette(s), {len(sp['obj'])} overlay sprite(s)",
               carr(f"pt{si}_tiles", t), carr(f"pt{si}_otiles", ot)]
@@ -701,7 +849,7 @@ def main():
           "    uint8_t attr[49];            // BG palette relative to its first slot",
           "    uint16_t pal[12];            // up to 3 BG palettes",
           "    uint16_t opal[16];           // up to 4 overlay OBJ palettes",
-          f"    uint8_t obj[{MAX_OBJ * 4}];            // overlay: dy, dx (px from the picture's top-left), tile (relative), flags (bit 4 DMG OBP1)",
+          f"    uint8_t obj[{MAX_OBJ * 4}];            // overlay: dy, dx (px from the picture's top-left), tile (relative), flags (bit 4 DMG OBP1, bit 5 CGB only)",
           "} portrait_t;",
           "typedef struct {",
           "    uint8_t venue, pic, pages, nspk, spk[3], pad;",
