@@ -887,7 +887,8 @@ accent. The final cast is imported pixel-exact: all 11 speakers and two variants
   Spigoteer, Sadie and Manager-Bot were already in the game and are unchanged (identical files). dregs.txt is now the
   "sheepish" drawing (owner's choice for his main portrait; it replaced the round 3b Dregs). Owner's final picks
   (re-imported): Aurora's snorkel parka + scarf, Colby's neckerchief, Dregs's slimmer shoulders, the sorry Dregs's arm
-  connected. Format: portrait-v2
+  connected; Coach, June, Hana and Kiki enlarged to the cast's scale with skin shading, Kiki's textured helmet and hair
+  edge. Format: portrait-v2
   (docs/story.md "Portraits": `@size`, `@maxpal`, `@key` = char, DMG shade, #rrggbb, name, optional `obj=<base>`; then
   the pixels). assets/story/portraits.json points every speaker at his art with x 2, y 6.
 - Variants (data, not scene checks): portraits.json `"variants": {NAME: {art, from, to}}` on a speaker; `from` / `to` are
@@ -912,14 +913,14 @@ accent. The final cast is imported pixel-exact: all 11 speakers and two variants
 - Engine (src/story.c, banked; ROM0 untouched): a picture whose bottom row is 12 stands on the text box: the frame has
   no bottom row, so it is cols 1-9, rows 5-12 and the wipe / swap covers those 8 rows. CGB BG palettes 2-4.
 - Budget (build/story.json; scene_budget fails the build on any overflow): unique tiles (exact, no flips) Spigoteer 42,
-  cozy 42, Sadie 44, Dregs 34, sorry 38, Coach 33, June 33, Colby 37, Aurora 42, Manager-Bot 37, Hana 36, Zizz 35, Kiki 32
+  cozy 42, Sadie 44, Dregs 34, sorry 38, Coach 38, June 38, Colby 37, Aurora 42, Manager-Bot 37, Hana 39, Zizz 35, Kiki 38
   (<= 44); 3 CGB BG palettes each (Zizz 2). Per scene (all its portraits loaded at its start, then swapped by tile map)
   at most 124 BG tiles of the 163 free (ids 93-255): FINALE (Sadie 44 + sorry Dregs 38 + cozy Spigoteer 42); next
-  POST_SALOON 120, POST_IGLOO 118; a PRE scene 74-86. OBJ: Sadie's star only (2 OBJ tiles). 27 different direct swaps in
+  POST_SALOON 120, POST_IGLOO 118, POST_TEAHOUSE 115; a PRE scene 77-86. OBJ: Sadie's star only (2 OBJ tiles). 27 different direct swaps in
   the script (no narrator between).
 - ROM: real ROM0 free 1641 -> 1641 B (game.gb), 1754 -> 1754 B (release.gb). The ROM grew from 128 KB to 256 KB
-  (-Wm-yoA: 9 banks used, bank 8 new); autobank repacked: banks free after (game.gb, romusage) 1 209, 2 116, 3 15,
-  4 159, 5 47, 6 40, 7 112, 8 14536 B (before: 1 93, 2 195, 3 116, 4 51, 5 68, 6 187, 7 2006). The portraits
+  (-Wm-yoA: 9 banks used, bank 8 new); autobank repacked: banks free after (game.gb, romusage) 1 137, 2 116, 3 15,
+  4 159, 5 47, 6 40, 7 112, 8 14304 B (before: 1 93, 2 195, 3 116, 4 51, 5 68, 6 187, 7 2006). The portraits
   (story_portraits.c) are in bank 1.
 - Tests (tests/test_story.py): test_every_page_shows_its_portrait walks every page of INTRO, all PRE / POST scenes and
   the FINALE on DMG and CGB (a POST scene: the Opening won as the chapter's last step): each page's portrait pixel for
