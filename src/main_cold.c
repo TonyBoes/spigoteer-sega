@@ -193,7 +193,7 @@ void enter_level_screen(void) BANKED {
 
 void start_new_game(uint8_t lv) BANKED {
     uint8_t i;
-    lives = START_LIVES; level = lv; score = 0; bonus_round = 0;
+    lives = START_LIVES; level = lv; score = 0; bonus_round = 0; story_on = 0;
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     enter_level_screen();
 }
@@ -213,6 +213,7 @@ void resume_after_life(void) BANKED {
 }
 
 void enter_game_over(void) BANKED {
+    if (story_on) { story_fail(); return; }      // M11b: in story mode the goal failed: TRY AGAIN
     // the initials from WRAM (the stack): top_insert runs in its own bank and cannot read a literal in this one
     uint8_t aaa[3];
     aaa[0] = aaa[1] = aaa[2] = 'A';

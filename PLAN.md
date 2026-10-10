@@ -261,7 +261,7 @@ table with initials + loop banner/harder loops.
 | M10a | Title menu: no stripe bands, all text centred; ARCADE / STORY / MUSIC ON-OFF with a mug cursor. Animation: logo fills with foam letter by letter (drips, bubbles), then a loop below it: bartender slides a mug to a patron who drinks and sends it back. |
 | M10b | Arcade mode: endless loop of the nine venues; "LOOP n" banner; each loop a bit harder up to a ceiling; top-5 high scores with 3-letter initials in SRAM (replaces the single hi score). Done (see M10b as built). |
 | M11a | Story script: "The Golden Spigot" - the legendary spigot that pours any drink shattered into 9 pieces; each venue owner gives one to a bartender who keeps their crowd happy. Written as docs/story.md for owner approval before any code. |
-| M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. |
+| M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, nine venue owners, villain if any), cut-scene pictures. Owner approves. |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
@@ -695,3 +695,98 @@ Owner-approved import of the final patron set, the tile-pool change it needed an
   now a battery).
 - ROM / perf: identical to the crash commit (ROM0 1757 B free, release 1869 B; drink data only changes in the factory
   bank).
+
+## M11b story engine as built (part 1, 2026-10-10)
+The story mode of docs/story.md: script pipeline, story font, cut-scenes, chapter goals, save / continue. The optional
+per-chapter twists are part 2 (hook below). Portraits and pictures are placeholders until the M11c art study.
+- Script pipeline: tools/gen_story.py parses docs/story.md (scene headings, the script blocks, the chapters table) into
+  build/story_data.c (script, scene table, names, goals, story font, picture slots) and build/story_portraits.c, both
+  `#pragma bank 255` with static data read only through BANKED accessors in the same file (copy into WRAM, or write VRAM
+  with the LCD off), plus build/story.h (SC_* scene ids, ST_* font ids, the budget, portrait_t / scene_hdr_t / goal_t)
+  and build/story.json (tests). The build fails on: a line over 18 characters, more than 3 lines a page, a character
+  outside A-Z 0-9 . , ! ? ' - : space, an unknown speaker, a scene title over 20, scene order, a chapter goal in
+  gen_story's CHAPTERS that disagrees with the table's engine column, a goal banner line outside the HUD glyphs, any
+  portrait / scene over the budget below. Size: 21 scenes, 123 pages, 5451 characters = 5943 B of script (length-
+  prefixed lines, speaker byte per page) + 609 B scene table / scene titles + 450 B goals; uncompressed (ROM is not
+  short: compression was not needed).
+- Font: the HUD glyphs are the font (A-Z 0-9, space = TILE_HUD_BLANK, light text on the dark band, BG palette 1). The 7
+  missing glyphs (. , ! ? ' - :) are assets/tiles/story.txt in the same style (1 px strokes, columns 1-5, rows 1-7), with
+  the portrait frame (8 tiles, a gold moulding) and the narrator's spigot icon: 16 tiles loaded at BAR_TILE_COUNT (77)
+  only while a cut-scene shows (ids the patrons use in play; every level load puts the patrons back).
+- Cut-scene ("hybrid lighter"): load_venue + draw_venue + write_all_bars with nobody on the bars, the scene title on the
+  HUD row, the Spigoteer's normal sprite (OAM 0-3, BT_IDLE, facing the bar) at bar 1's tap, the stage animation running;
+  a framed portrait (default: picture at column 2, frame bottom on row 12); the text box rows 13-17: the top panel
+  carries the speaker's name (the narrator: the spigot icon), 3 lines x 18 at columns 1-18 of rows 14-16, bottom panel.
+  INTRO / FINALE / CREDITS: a picture slot (rows 0-12, its own tiles at ids 0..35, palettes 0/5-7 free there; now a
+  generated placeholder card: frame, spigot, the scene title, its id, "PICTURE SLOT") instead of the venue, no sprite.
+  Buttons: the page types on, one character a frame (spaces free); A or B shows the rest of the page at once, then the
+  next page; START skips the rest of the scene. Music: the venue's tune (the title tune on picture scenes).
+- Portrait slot parameters (build time, assets/story/portraits.json -> portrait_t; nothing hard-coded in src/story.c):
+  size w x h tiles up to 7x7 (56x56), the picture's screen tile x, y (the frame takes one tile around it, all inside
+  rows 0-12), 1-3 CGB BG palettes (slots 2, 3, 4) with a per-tile palette map ('attr'), an optional OBJ overlay layer
+  (8x16 cells, '.' transparent, px offset from the picture, up to 16 entries, at most 8 on a line, CGB OBJ palettes
+  3, 4, 6, 7 = up to 4, DMG OBP0/OBP1). The two approved 32x32 portraits (Spigoteer, Sadie) use one palette each; the
+  other nine speakers get generated placeholders: a hatched 32x32 background with a silhouette and a rim light (one
+  tinted palette each) and the speaker's name as a 4-sprite OBJ overlay tag (so the overlay path is exercised;
+  MANAGER-BOT shows MGR-BOT). out/preview/story_portrait_*.png.
+- Cut-scene budget (a venue backdrop on screen):
+  BG tile ids: 0-35 the venue pool (stage + bar), 36-76 HUD glyphs / panels, 77-92 the story font, 93-255 free for the
+  scene's portraits = 163 tiles for all its portrait speakers together (at most 3 per scene: every scene's speakers are
+  loaded when it starts, LCD off). 3 x 49 (three 56x56) = 147 fits; today's scenes use at most 33. BG 128-255 share VRAM
+  with OBJ 128-255, but a cut-scene's OBJ ids all stay below 128. CGB VRAM bank 1 is untouched (another 384 tiles: room
+  for richer portraits / pictures).
+  OBJ tile ids: 0-55 the Spigoteer, 56-95 drinks / coin (unused on a cut-scene, not reclaimed), 96-127 = 32 tiles for the
+  scene's overlays (the show performers' slot; load_venue puts them back).
+  CGB BG palettes: 0 wall / counter, 1 HUD / text box / frame, 5-6 stage, 7 keg stay the venue's: 3 free (2, 3, 4), so a
+  portrait has at most 3 BG palettes; a 4th colour set has to come from the OBJ overlay. CGB OBJ palettes: 0 the
+  Spigoteer; 3, 4, 6, 7 free = up to 4 overlay palettes (1, 2 the drinks could be freed too; 5 stays the coin / show's,
+  render.c tracks it). Picture scenes have BG palettes 0, 5, 6, 7 free as well (4 for the picture).
+  OAM: 0-3 the Spigoteer, 4-19 the overlay; per line at most 8 overlay sprites + the Spigoteer's 2.
+  Speaker change (LCD on): the old frame is wiped back to the backdrop (a WRAM copy of rows 0-12 read with the LCD off),
+  2 rows a frame through the VBlank queue; then at the top of the next frame (VBlank) the new palettes, then the new
+  frame 2 rows a frame (a 56x56 framed portrait: 5 + 5 frames). The text types on meanwhile; the page can only be
+  turned once the swap is done.
+  WRAM: story.c ~1.3 KB (backdrop copy 520 B, portrait struct 227 B, composed frame 162 B, page / box / banner buffers).
+- Story flow (src/story.c, banked; GS_STORY = 11 cut-scene or TRY AGAIN, GS_GOAL = 12): title STORY -> INTRO -> per
+  chapter c: PRE scene -> the venue's level (level = c + 1: the arcade level row c, no loop difficulty, no bonus
+  rounds) with a goal banner first (window rows 0-4: panel, CHAPTER n, two goal lines, panel; LYC moved to BANNER_WY + 38
+  while it shows; 3 s or A / START) -> on success CHAPTER CLEAR (enter_level_clear + its 1000 bonus) -> progress saved ->
+  POST scene -> chapter c + 1. After chapter 9's POST: FINALE, CREDITS, the title.
+  Goals (gen_story CHAPTERS, checked against the chapters table): 1 serve 15; 2 serve 20 and no patron reaches the tap;
+  3 serve 18; 4 serve 20 within 120 s; 5 serve 20 within 120 s; 6 catch 25 empties (a glass taken from a patron counts,
+  it scores as a caught empty); 7 clear the level (the row's quota) with no broken glass; 8 serve 25; 9 serve 30.
+  Serve / catch chapters set quota 255, so patrons keep coming until the goal is met. Counters: `served` (the engine's);
+  catches and breaks are deltas of sfx_count[SFX_CATCH] / sfx_count[SFX_BREAK] (no change to the hot code); a life lost
+  with no glass broken that frame is a patron at the tap. The timer runs only in play, not during the level's intro
+  freeze. HUD in story: columns 12-14 the goal letter (S serve, C catch) and what is left, 16-19 'T' + seconds on timed
+  chapters (over L0n). Main loop hooks (ROM0): story_play() after play_frame when story_on, GS_LEVEL_CLEAR's end calls
+  story_level_done(), GS_STORY / GS_GOAL call story_update(); enter_game_over (banked) calls story_fail() in story mode.
+  Failure: lives work as in arcade (3 per attempt, lose_life as always); losing the last one, breaking the chapter's
+  rule (2: a patron at the tap, 7: a broken glass: lives forced to 0, the freeze plays out) or the timer running out shows
+  TRY AGAIN (2.5 s or A / START), then the chapter restarts at its goal banner (no PRE scene) with 3 lives. The score
+  carries on through the story and never enters the top 5.
+  Twists hook: goal_t.twist (0 for all nine now) is copied to story_twist at chapter start; part 2 applies it there and in
+  story_play.
+- Save (src/save.c): SRAM version 3 "TPR3" = version 2's table at 4..33, 34 story progress (chapters cleared 0..9), 35
+  reserved 0, checksum 0x5A + bytes 0..35 at 36, complement 37; progress > 9 is invalid. Migration at boot, written back
+  at once: version 2 keeps its table, progress 0 (save_migrated = 2); version 1 as before (SPG, save_migrated = 1). The
+  progress is saved when a chapter's clear is over (before its POST scene). Title: CONTINUE when 1 <= progress <= 8: the
+  menu becomes ARCADE / STORY / CONTINUE / MUSIC at rows 5 / 7 / 9 / 11, HI on row 13 (without a save the title is
+  unchanged: rows 6 / 8 / 10, HI 12). CONTINUE starts at the PRE scene of the first chapter not cleared; STORY always
+  starts over at the INTRO (the save then follows the new run). A finished story (progress 9) shows no CONTINUE.
+  "CONTINUE" took the place of "COMING SOON" in gen_art's MENU_STRINGS (the M10a message is gone).
+- Story text (owner change, factory battery): chapter 6 goal "Recycle 25 batteries" (twist: full batteries), PRE_ROBOT
+  picture / art list: a big lightning-bolt sign, page 4: MY WORKERS NEED / POWER. RECYCLE 25 / EMPTY BATTERIES.
+- ROM: 128 KB (banks 0-7; -Wm-yoA sizes it, no flag change). Autobank packs the story data + portraits into bank 1,
+  story.c next to title.c in bank 2, main_cold moved to bank 7. Free after (romusage): 1 132, 2 38, 3 15, 4 39, 5 47,
+  6 262, 7 5819 B. Real ROM0 free 1757 -> 1708 B (game.gb), 1869 -> 1821 B (release.gb): the main.c hooks.
+- Perf (scratchpad perf.py, arcade, unchanged): level 8 DMG 108 / 0, CGB 115 / 0; level 9 overlap DMG 182 / 284, CGB
+  189 / 293; realistic peak 7-seed mean missed DMG 70.1, CGB 95.0.
+- Tests: tests/test_story.py (script build: lengths, charset, speakers, the md table, failing builds; the budget; the
+  intro from the title; typing, A / B / START; the venue scene, portrait and frame; the speaker swap and the narrator's
+  wipe; the goal banner and HUD counter; every chapter's success and failure (and the restart); real catches; the
+  clock; finale / credits / title; save across a reset and CONTINUE; v2 -> v3 migration, v3 loading). test_flow:
+  the COMING SOON test became test_story_starts_the_story_mode; test_scores / test_sound read version 3.
+  New goldens (dmg + cgb): story_portrait (PRE_SALOON, Sadie), story_placeholder (POST_SALOON, Dregs with its
+  overlay tag), story_narrator (INTRO, the picture slot), story_goal (chapter 1's banner), title_continue. No existing
+  golden changed.

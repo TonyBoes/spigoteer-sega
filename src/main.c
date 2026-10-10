@@ -377,6 +377,7 @@ static void update(void) {
             break;
         }
         play_frame(pressed);
+        if (story_on) story_play();              // M11b: the chapter goal
         break;
     case GS_LIFE_LOST:
         update_glass();
@@ -388,6 +389,7 @@ static void update(void) {
         break;
     case GS_LEVEL_CLEAR:
         if (++state_timer >= CLEAR_FRAMES) {
+            if (story_on) { story_level_done(); return; }   // M11b: the chapter's POST scene, no bonus rounds
             if (!(level & 1)) {                  // levels 2, 4, 6, ... are followed by the bonus round
                 bonus_enter();
                 game_state = GS_BONUS;
@@ -419,6 +421,10 @@ static void update(void) {
         break;
     case GS_PAUSED:
         if (pressed & J_START) { game_state = GS_PLAYING; overlay_on = 0; }
+        break;
+    case GS_STORY:                               // M11b: a cut-scene / TRY AGAIN, the goal banner
+    case GS_GOAL:
+        if (story_update(pressed)) return;
         break;
     case GS_LOOP:
         if (++state_timer >= LOOP_FRAMES) { game_state = GS_PLAYING; overlay_on = 0; }

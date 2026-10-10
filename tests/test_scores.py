@@ -10,6 +10,7 @@ pytestmark = pytest.mark.timeout(120)
 
 TOP_N = 5
 V2_SUM = 34
+V3_SUM = 36          # M11b: version 3 = version 2's table + the story progress (34) + a reserved byte, checksum at 36
 
 
 # ---- SRAM images --------------------------------------------------------------------------------
@@ -36,10 +37,21 @@ def v1_image(score, size=0x2000):
     return bytes(r)
 
 
-def parse_v2(ram):
-    assert ram[:4] == b"TPR2"
-    c = (0x5A + sum(ram[:V2_SUM])) & 255
-    assert ram[V2_SUM] == c and ram[V2_SUM + 1] == c ^ 0xFF, "checksum"
+def v3_image(entries, story=0, size=0x2000):
+    """A version-3 save (M11b): the version-2 table, the story progress (chapters cleared), a reserved 0, checksum."""
+    r = bytearray(v2_image(entries, size))
+    r[0:4] = b"TPR3"
+    r[V2_SUM], r[V2_SUM + 1] = story, 0
+    c = (0x5A + sum(r[:V3_SUM])) & 255
+    r[V3_SUM], r[V3_SUM + 1] = c, c ^ 0xFF
+    return bytes(r)
+
+
+def parse_save(ram):
+    """The table of a version-3 save (the game writes nothing else since M11b); checks the checksum."""
+    assert ram[:4] == b"TPR3"
+    c = (0x5A + sum(ram[:V3_SUM])) & 255
+    assert ram[V3_SUM] == c and ram[V3_SUM + 1] == c ^ 0xFF, "checksum"
     return [(ram[4 + i * 6:7 + i * 6].decode(), int.from_bytes(ram[7 + i * 6:10 + i * 6], "little")) for i in range(TOP_N)]
 
 
@@ -91,7 +103,7 @@ def test_a_score_goes_in_at_its_rank_and_pushes_the_rest_down(model):
         assert rom.mem("new_rank") == 2
         want = [("ABC", 500), ("DEF", 400), ("AAA", 350), ("GHI", 300), ("JKL", 200)]
         assert table(rom) == want
-        assert parse_v2(save_ram(rom)) == want, "saved at game over, before the initials"
+        assert parse_save(save_ram(rom)) == want, "saved at game over, before the initials"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -107,7 +119,8 @@ def test_ties_go_below_and_low_scores_stay_out(model):
                 assert hi_score(rom) == t[0][1]
             else:
                 assert t == [("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)]
-                assert save_ram(rom)[:V2_SUM + 2] == ram[:V2_SUM + 2], "SRAM untouched"
+                want = v3_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
+                assert save_ram(rom)[:V3_SUM + 2] == want[:V3_SUM + 2], "SRAM untouched (since the boot's migration)"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -116,7 +129,7 @@ def test_the_table_survives_a_reset(model):
     with booted(model, ram) as rom:
         game_over_with(rom, 450)
         saved = save_ram(rom)
-    assert parse_v2(saved)[:3] == [("ABC", 500), ("AAA", 450), ("DEF", 400)]
+    assert parse_save(saved)[:3] == [("ABC", 500), ("AAA", 450), ("DEF", 400)]
     with booted(model, saved) as again:
         assert table(again)[:3] == [("ABC", 500), ("AAA", 450), ("DEF", 400)]
         assert hi_score(again) == 500 and hi_shown(again) == hi_tiles("000500")
@@ -129,7 +142,7 @@ def test_an_old_save_migrates_to_entry_one_as_spg(model):
         assert table(rom) == [("SPG", 12340)] + [("   ", 0)] * 4
         assert hi_score(rom) == 12340 and hi_shown(rom) == hi_tiles("012340"), "the title's HI is the top score"
         ram = save_ram(rom)
-    assert parse_v2(ram) == [("SPG", 12340)] + [("   ", 0)] * 4, "written back as version 2 at once"
+    assert parse_save(ram) == [("SPG", 12340)] + [("   ", 0)] * 4, "written back as version 3 at once"
     with booted(model, ram) as again:
         assert again.mem("save_migrated") == 0 and table(again)[0] == ("SPG", 12340)
 
@@ -144,7 +157,7 @@ def test_a_broken_save_loads_as_an_empty_table(model):
         "out of order": v2_image([("ABC", 400), ("DEF", 500)]),
         "out of range": v2_image([("ABC", 1_000_000)]),
         "bad checksum": good[:V2_SUM] + bytes([good[V2_SUM] ^ 1]) + good[V2_SUM + 1:],
-        "unknown version": b"TPR3" + good[4:],
+        "unknown version": b"TPR9" + good[4:],
     }
     for name, ram in cases.items():
         with booted(model, ram) as rom:
@@ -331,7 +344,7 @@ def test_entering_initials_then_the_table(model):
             "    5     000000    "]
         check_golden(gb, "scores")
         saved = save_ram(gb)
-    assert parse_v2(saved)[:2] == [("ABC", 500), ("JXQ", 450)], "the initials are saved"
+    assert parse_save(saved)[:2] == [("ABC", 500), ("JXQ", 450)], "the initials are saved"
     with booted(model, saved) as again:
         assert table(again)[1] == ("JXQ", 450)
 

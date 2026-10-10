@@ -99,7 +99,9 @@ enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caugh
 // game flow
 // GS_DEBUG: the debug level select (DEBUG_MENU builds). M10b: GS_LOOP the "LOOP n" banner before the first level of a
 // loop, GS_INITIALS the initials entry after a game over that made the top 5, GS_SCORES the top-5 table (scores.c)
-enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS, GS_DEBUG, GS_LOOP, GS_INITIALS, GS_SCORES };
+// M11b story mode: GS_STORY a cut-scene (or the TRY AGAIN banner), GS_GOAL the chapter's goal banner before play
+enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS, GS_DEBUG, GS_LOOP, GS_INITIALS, GS_SCORES,
+       GS_STORY, GS_GOAL };
 
 // bartender animation frames (order of assets/art/bartender.txt)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
@@ -324,4 +326,11 @@ void title_music_toggle(void) BANKED;                   // music on/off and the 
 void scores_table(void) BANKED;                         // LCD off: the table screen (GS_SCORES)
 void scores_after_game(void) BANKED;                    // after GAME OVER: initials (GS_INITIALS) or the table
 uint8_t scores_update(uint8_t pressed) BANKED;          // one frame of either; 1: back to the title
+// ---- story.c (banked, M11b story mode) -------------------------------------------------------------
+extern uint8_t story_on;                                // 1: story mode
+void story_begin(uint8_t cont) BANKED;                  // from the title: STORY (0) or CONTINUE (1); LCD off
+uint8_t story_update(uint8_t pressed) BANKED;           // a GS_STORY / GS_GOAL frame; 1: the screen changed
+void story_play(void) BANKED;                           // every GS_PLAYING frame in story mode: the chapter goal
+void story_level_done(void) BANKED;                     // GS_LEVEL_CLEAR is over: save, the POST scene
+void story_fail(void) BANKED;                           // the goal failed: TRY AGAIN, then the chapter again
 #endif

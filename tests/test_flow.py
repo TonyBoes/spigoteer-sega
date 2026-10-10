@@ -8,6 +8,7 @@ pytestmark = pytest.mark.timeout(120)
 
 TITLE, PLAYING, LIFE_LOST, LEVEL_CLEAR, GAME_OVER, PAUSED, BONUS = range(7)
 GS_LOOP, GS_INITIALS, GS_SCORES = 8, 9, 10      # M10b
+GS_STORY, GS_GOAL = 11, 12                     # M11b
 MAX_P, MAX_M = 16, 20
 BT_FAIL = 6
 ENTRY_X = GAME["ENTRY_X"]
@@ -170,7 +171,7 @@ def test_title_menu_is_centred_without_bands(boot):
     # every line centred to the pixel: as many px left of the text as right of it. An odd-length line is drawn
     # 4 px right inside one more tile, so its tiles are an even count with as many blank columns either side.
     for key, s in (("arcade", "ARCADE"), ("story", "STORY"), ("music_on", "MUSIC ON"), ("music_off", "MUSIC OFF"),
-                   ("soon", "COMING SOON")):
+                   ("continue", "CONTINUE")):
         t = TITLE_ART["text"][key]
         n = len(t["tiles"])
         assert n % 2 == 0 and t["col"] == (20 - n) // 2, key
@@ -224,23 +225,12 @@ def test_a_on_arcade_starts_level_1(boot):
     assert len(boot.visible_sprites()) == 4, "only the bartender: the title's sprites are gone"
 
 
-def test_story_shows_coming_soon_then_returns(boot):
+def test_story_starts_the_story_mode(boot):
+    """M11b (was M10a's COMING SOON): STORY opens the story's first cut-scene (tests/test_story.py has the rest)."""
     boot.press("down", 2)
     boot.press("a", 2)
-    boot.run(2)
-    assert state(boot) == TITLE and boot.mem("title_msg") > 0
-    assert tilemap_row(boot, ROW_STORY, 0, 20) == title_text_row("soon")
-    assert boot.oam()[OAM_CURSOR]["y"] == 0, "no cursor while the message shows"
-    boot.press("down", 2)                     # ignored meanwhile
-    boot.press("start", 2)
-    assert state(boot) == TITLE and boot.mem("title_sel") == SEL_STORY
-    run_until(boot, lambda: boot.mem("title_msg") == 0, 70)
-    boot.run(2)
-    assert tilemap_row(boot, ROW_STORY, 0, 20) == title_text_row("story")
-    assert state(boot) == TITLE and boot.mem("title_sel") == SEL_STORY and boot.oam()[OAM_CURSOR]["y"] != 0
-    boot.press("up", 2)
-    boot.press("start", 2)
-    run_until(boot, lambda: state(boot) == PLAYING, 30)
+    run_until(boot, lambda: state(boot) == GS_STORY, 30)
+    assert boot.mem("story_on") == 1 and boot.mem("story_scene") == 0, "INTRO"
 
 
 def test_music_toggles_from_the_menu(boot):

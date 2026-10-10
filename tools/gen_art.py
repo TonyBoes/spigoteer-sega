@@ -483,7 +483,7 @@ TITLE_WORD = "SPIGOTEER"
 TITLE_LETTERS = "SPIGOTER"            # the order of the @title_* blocks in title.txt
 LOGO_FILL = [0, 4, 8, 12]             # px of beer in the fill states before the final art (5 steps per letter)
 MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "music_off": "MUSIC OFF",
-                "soon": "COMING SOON"}
+                "continue": "CONTINUE"}       # M11b: CONTINUE (story save) replaced M10a's "COMING SOON"
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 
 

@@ -1,5 +1,6 @@
 // Title screen (M10a): the SPIGOTEER logo fills with beer letter by letter (bottom-up, a frothy head, drips),
-// then sparkles once; a menu ARCADE / STORY / MUSIC ON-OFF with a mug cursor and the HI score, every line
+// then sparkles once; a menu ARCADE / STORY / MUSIC ON-OFF with a mug cursor and the HI score (M11b: ARCADE / STORY /
+// CONTINUE / MUSIC when a story save exists, one row closer together), every line
 // centred to the pixel (tools/gen_art.py pre-renders the text: an odd-length line sits 4 px right inside one more
 // tile); below it a looping bar scene on the bottom counter: the bartender slides a mug to a patron, who drinks
 // and sends the empty back. Foam bubbles drift up past the logo now and then.
@@ -20,6 +21,7 @@
 #include "palettes.h"
 #include "music.h"
 #include "title_art.h"      // this bank's own art data (static const)
+#include "story.h"
 
 extern uint8_t overlay_on, hi_digits[6];
 extern const uint8_t bar_tiles[];
@@ -33,10 +35,11 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 
 // ---- layout ----
 #define LOGO_ROW        2       // the logo: rows 2-3, columns 1..18
-#define ROW_ARCADE      6
+#define ROW_ARCADE      6       // the menu rows without a story save (with one: 5, 7, 9, 11 and HI 13)
 #define ROW_STORY       8
 #define ROW_MUSIC      10
 #define ROW_HI         12
+enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE };   // menu items
 #define SCENE_BAR       3       // the scene stands on bar 3's rows (14-15 wall, 16 counter): draw_bartender() places him
 #define SCENE_TOP_Y   (BAR_TOP_Y(SCENE_BAR) + 16)   // OAM y of the scene's wall top
 #define PATRON_COL      3       // the patron: BG tiles at columns 3-4 of rows 14-15 (x 24..39)
@@ -69,7 +72,6 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define SPARKLE_EACH    6       // frames on each letter
 #define LOGO_DONE_T   (SPARKLE_T0 + LOGO_LETTERS * SPARKLE_EACH)
 #define DRIP_LEN       22
-#define MSG_FRAMES     60       // "COMING SOON"
 #define TITLE_IDLE_FRAMES 1200  // 20 s
 
 enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
@@ -81,8 +83,10 @@ enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
 
 // ---- state (globals => symbols the tests read) ----
 uint16_t title_t;               // frames since the title appeared
-uint8_t  title_sel;             // 0 ARCADE, 1 STORY, 2 MUSIC
-uint8_t  title_msg;             // frames left of "COMING SOON" (0: the menu)
+uint8_t  title_sel;             // the selected line: 0 ARCADE, 1 STORY, 2 MUSIC (with a story save: 2 CONTINUE, 3 MUSIC)
+uint8_t  title_items[4];        // K_* per menu line
+uint8_t  title_n;               // menu lines: 3, or 4 with CONTINUE
+uint8_t  title_rows[4];         // their screen rows
 uint16_t title_idle;            // M10b: frames without a key; at TITLE_IDLE_FRAMES the top-5 table shows (scores.c)
 uint8_t  logo_state[LOGO_LETTERS];   // fill state per letter: 0 empty .. TT_LOGO_STATES-1 the final art
 uint8_t  logo_done;             // filled and sparkled
@@ -93,6 +97,7 @@ static uint8_t t_rng = 0x5D;    // the title's own random numbers (the game's se
 
 static uint8_t logo_buf[LOGO_LETTERS][4];
 static uint8_t row_story[20], row_music[20], attr_txt[20], attr_sel[20];
+static uint8_t music_row;
 
 static uint8_t trand(void) {
     t_rng ^= t_rng << 7;
@@ -110,20 +115,23 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 
 static void build_music(void) { build_row(row_music, sound_on ? tt_music_on : tt_music_off); }
 
-static const uint8_t sel_row[3] = { ROW_ARCADE, ROW_STORY, ROW_MUSIC };
-
-static uint8_t text_left(uint8_t i) {           // screen x of the first text pixel of menu item i
-    return i == 0 ? TT_X_ARCADE : i == 1 ? TT_X_STORY : sound_on ? TT_X_MUSIC_ON : TT_X_MUSIC_OFF;
+static uint8_t text_left(uint8_t i) {           // screen x of the first text pixel of menu line i
+    switch (title_items[i]) {
+    case K_ARCADE: return TT_X_ARCADE;
+    case K_STORY: return TT_X_STORY;
+    case K_CONTINUE: return TT_X_CONTINUE;
+    }
+    return sound_on ? TT_X_MUSIC_ON : TT_X_MUSIC_OFF;
 }
 
 static void set_sel_attr(uint8_t sel, uint8_t on) {
-    if (is_cgb) vq_add(1, on ? attr_sel : attr_txt, 0, sel_row[sel], 20);
+    if (is_cgb) vq_add(1, on ? attr_sel : attr_txt, 0, title_rows[sel], 20);
 }
 
 void title_music_toggle(void) BANKED {
     music_set_on(!sound_on);
     build_music();
-    vq_add(0, row_music, 0, ROW_MUSIC, 20);
+    vq_add(0, row_music, 0, music_row, 20);
 }
 
 static void logo_put(uint8_t i) {               // letter i's current state into its buffer (LCD off: straight to VRAM)
@@ -173,14 +181,24 @@ void title_enter(void) BANKED {
     for (i = 0; i < 20; i++) row_buf[i] = TT_BLANK;
     for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++) set_bkg_tiles(0, r, 20, 1, row_buf);
     for (i = 0; i < 20; i++) { attr_txt[i] = BGPAL_TEXT; attr_sel[i] = BGPAL_TEXT_SEL; }
-    title_sel = 0; title_msg = 0;
-    build_row(row_story, tt_arcade); set_bkg_tiles(0, ROW_ARCADE, 20, 1, row_story);
-    build_row(row_story, tt_story);  set_bkg_tiles(0, ROW_STORY, 20, 1, row_story);
-    build_music();                   set_bkg_tiles(0, ROW_MUSIC, 20, 1, row_music);
+    title_sel = 0;
+    // M11b: CONTINUE when a story is saved part way (chapters cleared, not all nine); the menu then moves up a row
+    title_n = 0;
+    title_items[title_n++] = K_ARCADE;
+    title_items[title_n++] = K_STORY;
+    if (story_progress && story_progress < STORY_CHAPTERS) title_items[title_n++] = K_CONTINUE;
+    title_items[title_n++] = K_MUSIC;
+    r = title_n == 4 ? ROW_ARCADE - 1 : ROW_ARCADE;
+    for (i = 0; i < title_n; i++) title_rows[i] = r + 2 * i;
+    music_row = title_rows[title_n - 1];
+    build_row(row_story, tt_arcade);   set_bkg_tiles(0, title_rows[0], 20, 1, row_story);
+    build_row(row_story, tt_story);    set_bkg_tiles(0, title_rows[1], 20, 1, row_story);
+    if (title_n == 4) { build_row(row_story, tt_continue); set_bkg_tiles(0, title_rows[2], 20, 1, row_story); }
+    build_music();                     set_bkg_tiles(0, music_row, 20, 1, row_music);
     for (i = 0; i < 20; i++) row_buf[i] = TT_BLANK;
     row_buf[6] = TT_HI;
     for (i = 0; i < 6; i++) row_buf[8 + i] = tt_digit[hi_digits[i]];
-    set_bkg_tiles(0, ROW_HI, 20, 1, row_buf);
+    set_bkg_tiles(0, music_row + 2, 20, 1, row_buf);
     // the scene's patron
     row_buf[0] = TT_PATRON_BASE; row_buf[1] = TT_PATRON_BASE + 1; row_buf[2] = TT_PATRON_BASE + 2; row_buf[3] = TT_PATRON_BASE + 3;
     set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR), 2, 1, row_buf);
@@ -189,10 +207,9 @@ void title_enter(void) BANKED {
         VBK_REG = VBK_BANK_1;
         for (i = 0; i < 20; i++) row_buf[i] = BGPAL_LOGO;
         set_bkg_tiles(1, LOGO_ROW, 18, 1, row_buf); set_bkg_tiles(1, LOGO_ROW + 1, 18, 1, row_buf);
-        set_bkg_tiles(0, ROW_ARCADE, 20, 1, attr_sel);
-        set_bkg_tiles(0, ROW_STORY, 20, 1, attr_txt);
-        set_bkg_tiles(0, ROW_MUSIC, 20, 1, attr_txt);
-        set_bkg_tiles(0, ROW_HI, 20, 1, attr_txt);
+        set_bkg_tiles(0, title_rows[0], 20, 1, attr_sel);
+        for (i = 1; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, attr_txt);
+        set_bkg_tiles(0, music_row + 2, 20, 1, attr_txt);
         for (i = 0; i < 2; i++) row_buf[i] = BGPAL_TPATRON;
         set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR), 2, 1, row_buf);
         set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR) + 1, 2, 1, row_buf);
@@ -324,35 +341,28 @@ static void scene_frame(void) {
 // ---- the menu ---------------------------------------------------------------------------------
 static void cursor_frame(void) {
     OAM_item_t *o = shadow_OAM + OAM_CURSOR;
-    if (title_msg) { o->y = 0; return; }
-    o->y = sel_row[title_sel] * 8 - 7 + 16;
+    o->y = title_rows[title_sel] * 8 - 7 + 16;
     o->x = text_left(title_sel) - 13 - ((title_t >> 4) & 1) + 8;
     o->tile = OBJ_MUG; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;     // DMG: OBP0 like the held mug (shows on the white wall)
 }
 
 // One title frame. 1: ARCADE was chosen (main.c starts the game); 2: no key for TITLE_IDLE_FRAMES (the table).
+// STORY / CONTINUE start the story mode from here (src/story.c; the screen changes, 0 is returned).
 uint8_t title_update(uint8_t pressed) BANKED {
-    uint8_t old = title_sel;
+    uint8_t old = title_sel, last = title_n - 1;
     title_t++;
     if (pressed) title_idle = 0;
     else if (++title_idle >= TITLE_IDLE_FRAMES) return 2;
     if (pressed & J_SELECT) title_music_toggle();
-    if (title_msg) {
-        if (!--title_msg) {                         // "COMING SOON" is over: STORY again
-            build_row(row_story, tt_story);
-            vq_add(0, row_story, 0, ROW_STORY, 20);
-        }
-    } else {
-        if (pressed & J_UP) title_sel = title_sel ? title_sel - 1 : 2;
-        else if (pressed & J_DOWN) title_sel = title_sel == 2 ? 0 : title_sel + 1;
-        if (title_sel != old) { set_sel_attr(old, 0); set_sel_attr(title_sel, 1); }
-        else if (pressed & (J_A | J_START)) {
-            if (title_sel == 0) return 1;
-            if (title_sel == 1) {
-                title_msg = MSG_FRAMES;
-                build_row(row_story, tt_soon);
-                vq_add(0, row_story, 0, ROW_STORY, 20);
-            } else title_music_toggle();
+    if (pressed & J_UP) title_sel = title_sel ? title_sel - 1 : last;
+    else if (pressed & J_DOWN) title_sel = title_sel == last ? 0 : title_sel + 1;
+    if (title_sel != old) { set_sel_attr(old, 0); set_sel_attr(title_sel, 1); }
+    else if (pressed & (J_A | J_START)) {
+        switch (title_items[title_sel]) {
+        case K_ARCADE: return 1;
+        case K_STORY: story_begin(0); return 0;
+        case K_CONTINUE: story_begin(1); return 0;
+        default: title_music_toggle();
         }
     }
     logo_frame();

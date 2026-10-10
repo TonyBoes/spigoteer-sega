@@ -1,10 +1,14 @@
-// Saved high scores: cartridge SRAM, MBC5+RAM+BATTERY.
-// M10b: a top-5 table with 3-letter initials. Layout at 0xA000 (version 2):
-//   0..3 magic "TPR2", then 5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little
-//   endian, <= 999999), best first; 34 checksum (0x5A + bytes 0..33), 35 its complement.
-// Migration: a valid version-1 record (M7: "TPR1", 4..7 hi score LE, 8 checksum = 0x5A + bytes 0..7, 9 complement)
-// becomes entry 1 with the initials "SPG"; the table is written back as version 2 at once.
-// Anything that does not check out loads as an empty table (every score 0, blank initials).
+// Saved high scores and the story progress: cartridge SRAM, MBC5+RAM+BATTERY.
+// M10b: a top-5 table with 3-letter initials; M11b: the story progress next to it. Layout at 0xA000 (version 3):
+//   0..3 magic "TPR3", then 5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little
+//   endian, <= 999999), best first; 34 story progress (chapters cleared, 0..9; 1..8 = CONTINUE on the title),
+//   35 reserved (0); 36 checksum (0x5A + bytes 0..35), 37 its complement.
+// Migration (written back as version 3 at once, save_migrated set):
+//   version 2 (M10b: "TPR2", the same table, 34 checksum = 0x5A + bytes 0..33, 35 complement): the table kept, no
+//   story progress (save_migrated = 2);
+//   version 1 (M7: "TPR1", 4..7 hi score LE, 8 checksum = 0x5A + bytes 0..7, 9 complement): entry 1 with the
+//   initials "SPG" (save_migrated = 1).
+// Anything that does not check out loads as an empty table with no story progress.
 // The working copy (top_names / top_scores) is in WRAM; hi_score / hi_digits mirror entry 1 for the title.
 #pragma bank 255
 #include <gb/gb.h>
@@ -16,11 +20,15 @@ extern uint8_t  hi_digits[6];
 
 uint8_t  top_names[TOP_N * 3];      // 3 initials per entry, ASCII
 uint32_t top_scores[TOP_N];         // best first
-uint8_t  save_migrated;             // 1: the boot found a version-1 save and converted it (tests)
+uint8_t  save_migrated;             // the boot converted an old save: 1 from version 1, 2 from version 2 (tests)
+uint8_t  story_progress;            // M11b: story chapters cleared (0..9)
 
 #define SRAM ((volatile uint8_t *)0xA000)
 #define HI_MAX 999999UL
-#define V2_LEN   (4 + TOP_N * 6)    // 34: bytes covered by the checksum
+#define V2_LEN   (4 + TOP_N * 6)    // 34: bytes covered by the checksum (version 2)
+#define V3_STORY V2_LEN             // 34: the story progress
+#define V3_LEN   (V2_LEN + 2)       // 36: bytes covered by the checksum (version 3)
+#define STORY_MAX 9
 #define V1_LEN   8
 
 static uint8_t checksum(uint8_t n) {
@@ -56,12 +64,15 @@ static void clear_table(void) {
     for (i = 0; i < TOP_N; i++) top_scores[i] = 0;
 }
 
-// 1: SRAM holds a well-formed version-2 table (copied into the working copy)
-static uint8_t load_v2(void) {
+// 1: SRAM holds a well-formed version-3 (or, v '2', version-2) table (copied into the working copy)
+static uint8_t load_table(uint8_t ver) {
     uint8_t i, k;
     volatile uint8_t *e;
     uint32_t v, prev = HI_MAX;
-    if (!magic('2') || !sum_ok(V2_LEN)) return 0;
+    if (!magic(ver)) return 0;
+    if (ver == '3') {
+        if (!sum_ok(V3_LEN) || SRAM[V3_STORY] > STORY_MAX) return 0;
+    } else if (!sum_ok(V2_LEN)) return 0;
     for (i = 0; i < TOP_N; i++) {
         e = SRAM + 4 + i * 6;
         for (k = 0; k < 3; k++) if (!valid_char(e[k])) return 0;
@@ -93,9 +104,15 @@ void hi_load(void) BANKED {
     SWITCH_RAM(0);
     clear_table();
     save_migrated = 0;
-    if (!load_v2()) {
+    story_progress = 0;
+    if (load_table('3')) story_progress = SRAM[V3_STORY];
+    else {
         clear_table();
-        if (load_v1()) save_migrated = 1;
+        if (load_table('2')) save_migrated = 2;
+        else {
+            clear_table();
+            if (load_v1()) save_migrated = 1;
+        }
     }
     DISABLE_RAM;
     make_hi();
@@ -108,16 +125,23 @@ void hi_save(void) BANKED {
     uint32_t v;
     ENABLE_RAM;
     SWITCH_RAM(0);
-    SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '2';
+    SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '3';
     for (i = 0; i < TOP_N; i++) {
         e = SRAM + 4 + i * 6;
         for (k = 0; k < 3; k++) e[k] = top_names[i * 3 + k];
         v = top_scores[i];
         e[3] = (uint8_t)v; e[4] = (uint8_t)(v >> 8); e[5] = (uint8_t)(v >> 16);
     }
-    c = checksum(V2_LEN);
-    SRAM[V2_LEN] = c; SRAM[V2_LEN + 1] = ~c;
+    SRAM[V3_STORY] = story_progress; SRAM[V3_STORY + 1] = 0;
+    c = checksum(V3_LEN);
+    SRAM[V3_LEN] = c; SRAM[V3_LEN + 1] = ~c;
     DISABLE_RAM;
+}
+
+// M11b: the story progress (chapters cleared), saved with the table
+void story_save(uint8_t chapters) BANKED {
+    story_progress = chapters;
+    hi_save();
 }
 
 // Where a score would go in the table: 0..TOP_N-1, or TOP_N when it does not make it. A tie goes below the

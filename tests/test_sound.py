@@ -538,8 +538,9 @@ def test_select_does_nothing_outside_the_title(gb):
     assert gb.mem("sound_on") == 1
 
 
-# ---- saved hi score (M10b: the top-5 table, SRAM version 2: "TPR2", 5 x (3 initials, 3-byte score), checksum at 34) ----
-V2_SUM = 34
+# ---- saved hi score (M10b: the top-5 table; M11b SRAM version 3: "TPR3", 5 x (3 initials, 3-byte score), the story
+# progress at 34, a reserved byte, checksum at 36) ----
+SAVE_SUM = 36
 def earn_fifty_and_lose(rom):
     start_game(rom)
     rom.write("intro_timer", 255)
@@ -561,7 +562,7 @@ def test_hi_score_survives_a_reset(model):
     assert hi_score(rom) == 0, "a fresh cartridge starts at 0"
     earn_fifty_and_lose(rom)
     ram = save_ram(rom)
-    assert ram[:4] == b"TPR2" and ram[4:7] == b"AAA" and int.from_bytes(ram[7:10], "little") == 50
+    assert ram[:4] == b"TPR3" and ram[4:7] == b"AAA" and int.from_bytes(ram[7:10], "little") == 50
     with make_rom(model, ram, sound=False) as again:     # power cycle with the same battery RAM
         again.run(120)
         assert hi_score(again) == 50
@@ -584,7 +585,7 @@ def test_a_lower_score_does_not_overwrite_the_saved_hi(model):
                 run_until(again, lambda: state(again) == PLAYING, 200)
         run_until(again, lambda: state(again) == GAME_OVER, 200)
         assert hi_score(again) == 50
-        assert save_ram(again)[:V2_SUM + 2] == ram[:V2_SUM + 2], "SRAM unchanged when the score makes no entry"
+        assert save_ram(again)[:SAVE_SUM + 2] == ram[:SAVE_SUM + 2], "SRAM unchanged when the score makes no entry"
 
 
 def corrupt(ram, edit):
@@ -602,16 +603,16 @@ def test_invalid_save_data_loads_as_zero(model):
     cases = {
         "bad signature": corrupt(good, lambda r: r.__setitem__(0, ord("X"))),
         "flipped score bit": corrupt(good, lambda r: r.__setitem__(7, r[7] ^ 0x01)),
-        "bad checksum": corrupt(good, lambda r: r.__setitem__(V2_SUM, (r[V2_SUM] + 1) & 255)),
-        "bad complement": corrupt(good, lambda r: r.__setitem__(V2_SUM + 1, r[V2_SUM + 1] ^ 0xFF)),
+        "bad checksum": corrupt(good, lambda r: r.__setitem__(SAVE_SUM, (r[SAVE_SUM] + 1) & 255)),
+        "bad complement": corrupt(good, lambda r: r.__setitem__(SAVE_SUM + 1, r[SAVE_SUM + 1] ^ 0xFF)),
         "blank": bytes(len(good)),
         "garbage": bytes((i * 37 + 11) & 255 for i in range(len(good))),
     }
 
     def with_checksum(r):                       # a well-formed record whose score is absurd (>= 1,000,000)
         r[7:10] = (2_000_000).to_bytes(3, "little")
-        c = (0x5A + sum(r[:V2_SUM])) & 255
-        r[V2_SUM], r[V2_SUM + 1] = c, c ^ 0xFF
+        c = (0x5A + sum(r[:SAVE_SUM])) & 255
+        r[SAVE_SUM], r[SAVE_SUM + 1] = c, c ^ 0xFF
     cases["out of range"] = corrupt(good, with_checksum)
     for name, ram in cases.items():
         with make_rom(model, ram, sound=False) as again:

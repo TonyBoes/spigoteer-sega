@@ -55,4 +55,6 @@ void hi_load(void) BANKED;                  // SRAM -> the table (empty when inv
 void hi_save(void) BANKED;                  // the table -> SRAM
 uint8_t top_rank(uint32_t s) BANKED;        // where s would go (TOP_N: not in the table)
 uint8_t top_insert(uint32_t s, const uint8_t *n) BANKED;   // insert with initials n[0..2]; returns the rank
+extern uint8_t story_progress;              // M11b: story chapters cleared (0..9), saved next to the table
+void story_save(uint8_t chapters) BANKED;   // story_progress = chapters, then the whole save
 #endif
