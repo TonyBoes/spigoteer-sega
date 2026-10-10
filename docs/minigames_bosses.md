@@ -1460,7 +1460,12 @@ same change when the segment flow is built.
   broken cup) costs 2 lives instead of 1. CONTINUE after quitting mid-venue starts that venue over (lives are not
   saved); shifts reached stay unlocked for Practice. A boss keeps his damage after a lost life; a venue restart
   starts him over. Arcade is unchanged: 3 lives for the whole run.
-- Q6 (the Critic's pour window): explained (sparkle window, sloppy drinks sent back full, only in his fight); pending.
+- Q6 (owner): the perfect pour is part of pouring in **story mode everywhere** (every shift, mini-game excepted,
+  and every boss), not only the Critic's fight. Arcade pouring is unchanged. Releasing A during the sparkle window
+  serves a PERFECT drink worth extra points (proposal: the serve score doubled for that drink, with a small
+  "PERFECT" cue); held past it the foam runs over (no bonus); a carried drink is never perfect. Regulars accept any
+  drink; only the Food Critic sends a sloppy one back. Needs a sparkle and an overflow frame for each venue's drink
+  (art proposals first). Build it after the story lives change (both touch main.c).
 
 1. **Do mini-games gate the story?** Recommendation: no. Any result continues; medals give points and a gold medal
    gives one extra life in that chapter's boss fight. (The alternative, retry until bronze, makes a weak mini-game
