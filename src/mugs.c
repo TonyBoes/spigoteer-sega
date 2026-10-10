@@ -34,7 +34,7 @@ uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
     mug_state[slot] = state;
     mug_bar[slot] = b;
     mug_x[slot] = x;
-    mug_timer[slot] = 0;
+    mug_timer[slot] = pour_q;           // a full mug's quality: 1 a story perfect pour (src/pour.c), else 0
     mugs_live++;
     mug_events++;
     return 1;

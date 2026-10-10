@@ -299,6 +299,7 @@ static void caught(uint8_t i, uint8_t p) {
     patron_frac[p] = 0;
     patron_mug[p] = i;
     patron_catchx[p] = mug_x[i];
+    if (story_on) perfect_catch(i);              // story: was it a perfect pour? (src/pour.c)
     mug_state[i] = MUG_HELD;
     mug_patron[i] = p;
 }

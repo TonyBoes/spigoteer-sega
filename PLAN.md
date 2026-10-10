@@ -968,3 +968,47 @@ The owner's lives rule (docs/minigames_bosses.md section 8) replaces "retry only
   story_last_call (dmg + cgb): the banner is the same, but the test now reaches chapter 9's Last call by winning its
   Opening first (CONTINUE starts the venue over), so the HUD score shows the Opening's 1000 clear bonus and one patron
   sprite differs (the arrivals moved on).
+
+## Perfect pour as built (owner Q6, 2026-10-10; art is a PROPOSAL until the owner approves it)
+Part of pouring in every story shift (later every boss; the mini-games are excepted). Arcade is unchanged: none of the
+new code runs there (pour_frame / perfect_catch are called only when story_on, pour_q stays 0), its fill_timer, fill
+frames, scores and VRAM are as before, and no existing golden changed.
+- Window: fill_timer (main.c) still stops at FILL_FRAMES 16. src/pour.c pour_frame (banked, called from main.c's draw
+  block in story mode, after every other sprite) keeps pour_t: 16 on the frame the drink is full, +1 a frame while A is
+  held, up to PERFECT_END 28. A release launches with the last held frame's pour_t: 16..27 (12 frames, 200 ms) =
+  PERFECT, 28+ = ordinary. A full drink carried to another bar (A held through Up/Down) gets pour_t 28 at once:
+  ordinary, and it shows the overflow frame. The spec's "fill frames 16..27" are exactly pour_t's values.
+- Look: pour_t 16..27 the venue's SPARKLE frame in his hand, 28 its OVERFLOW frame (OAM 4 over draw_fill's full drink;
+  CGB the full-drink palette 1; DMG OBP1, so the drink also darkens in his hand when the window opens and the light
+  foam shows on the white wall).
+- Quality: pour_q (WRAM) -> spawn_mug writes it into the new full mug's mug_timer (0 before: mug_timer is unused while a
+  full mug slides; it becomes the empty's step phase / the glass timer later, both reset as before). No new array, 1 B
+  of WRAM for pour_q (+ pour_t, cue_t / x / y, perfect_n, pour_bar: 7 B in all).
+- Score: patrons.c caught() calls perfect_catch(i) in story mode; a mug_timer of 1 scores 2 x serve_score on the spot
+  (saloon 50 -> +100). The serve (the patron pushed out) still scores serve_score as always; regulars take any drink.
+  perfect_n counts perfect catches (tests; a later results screen).
+- Cue: assets/art/pour_cue.txt, one 8x16 OBJ: a twinkle over an "x2" badge (dark badge, light text: reads on the light
+  DMG wall and the dark CGB walls), OAM 26 (unused since the door puff), the full-drink palette (DMG OBP0), 16 px right
+  of the caught mug on its 16 lines, 48 frames, blinking the last 16. Sprites per line: pour_frame counts every other
+  OAM entry touching any of those 16 lines (an upper bound per line) and leaves the cue out on a frame where that is
+  10 or more, so it is never an 11th object (test: bartender 4 + held drink + 6 empties on the bar: the cue goes, no
+  line passes 10). The lift estimate (lift.c) is untouched: the cue gives way, never a patron.
+- Tiles: the drink's own OBJ slots (56-59, 60-75 crash, 76-83 fill, 84-91 drink) are full, so the 2 new frames + the
+  cue sit at OBJ 234-239 (sparkle 234-235, overflow 236-237, cue 238-239): OBJ ids >= 128 share VRAM with BG ids >= 128,
+  the patrons use BG 78-233 and the DMG copies OBJ 240-245; game.h fails the build on an overlap. A cut-scene's
+  portraits overwrite that range, so story.c shift_start loads them (pour_load(chapter), LCD off) at every shift start;
+  arcade never loads them.
+- Art (easy to swap): assets/art/pour/<venue>.txt, 2 frames 8x16 each (SPARKLE, OVERFLOW) in the venue's full-drink
+  colours, drawn over its full frame; tools/gen_pour.py -> build/pour_art.h (src/pour.c's bank), build/pour.json
+  (tests), out/preview/pour_<venue>_x8.png. Replacing the files and running make is the whole swap. Proposal sheet:
+  scratchpad perfect_pour/proposal.png (all 9: full / sparkle / overflow / cue at x8, CGB and DMG, plus in-game crops).
+- ROM: real ROM0 free 1641 -> 1605 B (game.gb), 1754 -> 1718 B (release.gb): 36 B for the three hooks (spawn_mug's
+  pour_q, caught's story test + call, the draw block's story test + call). pour.c + its 608 B of tiles autobank to
+  bank 7 (2006 -> 1051 B free). Perf: arcade runs the same code paths (one story_on test per frame and per catch);
+  story adds a banked call per frame (about 100 cycles) and the cue's 40-entry count while it shows.
+- Tests (tests/test_pour.py, DMG + CGB): the window is exactly 12 release frames (the first launching release and the
+  next 11 perfect, then ordinary); releases at pour_t 16 and 27 score 2 x serve_score at the catch with the cue; 28
+  runs over (overflow frame, stays there) and scores nothing extra, no cue; the sparkle frame shows for exactly 12
+  frames then the overflow, palette 1 / OBP1; carried -> ordinary; the venue's frames and the cue in VRAM (chapters 1,
+  6); arcade: no pour_t, the old full fill frame on OBP0, no bonus, no cue, no perfect release frame; the 10-per-line
+  limit with the cue. New goldens pour_sparkle, pour_cue (dmg + cgb). No existing golden changed.

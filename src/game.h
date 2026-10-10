@@ -87,6 +87,10 @@ enum { DRINK_MIN, DRINK_WAIT, DRINK_WINDUP };   // patron_aux while PATRON_DRINK
 #define EMPTY_SCORE      100
 #define CATCH_POSE_FRAMES  8   // the bartender shows BT_CATCH this long after catching an empty / taking a glass
 #define FILL_FRAMES       16
+// Perfect pour (story mode only, src/pour.c): pour_t counts the fill frames on past FILL_FRAMES (fill_timer itself
+// stops there, as in arcade). A release at pour_t FILL_FRAMES..PERFECT_END-1 (12 frames) launches a PERFECT drink
+// (pour_q -> mug_timer of the full mug, otherwise unused while it slides); from PERFECT_END the foam runs over.
+#define PERFECT_END       28
 #define SLIDE_FRAMES       8
 #define GLASS_X            0   // screen x of the glass breaking at the left end
 #define GLASS_X_RIGHT    144   // ... and at the tap end
@@ -123,6 +127,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // 26 unused (was the door puff), tip coin 27, three dancers x 4 entries 28..39. M13a: lifted patrons (2 entries each) count down from 25,
 // and the mugs then end at OAM_MUG_END - 2 * lift_total.
 #define OAM_MUG_END    26
+#define OAM_CUE        26     // story: the PERFECT cue at a catch (src/pour.c; was the door puff's, unused since)
 #define OAM_COIN       27
 #define OAM_DANCERS    28
 
@@ -144,6 +149,14 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define OBP1_PLAY        0xE4
 #define OBP1_MENU        0xC4   // the title / bonus OBP1 (mugs, sparkles)
 #define OBJ_DMG_COPY     240    // sliding full mug 240, sliding empty 242, held empty 244
+// Perfect pour (story): sparkle 234-235, overflow 236-237 (the venue's), the cue 238-239 (tools/gen_pour.py,
+// src/pour.c pour_load at a shift's start). OBJ ids >= 128 share VRAM with BG ids >= 128: these sit above the patron
+// tiles (PATRON_FIRST_TILE .. + PATRON_GROUP_TILES - 1) and below the DMG copies.
+#define OBJ_POUR         234
+#define OBJ_POUR_CUE     (OBJ_POUR + 4)
+#if PATRON_FIRST_TILE + PATRON_GROUP_TILES > OBJ_POUR || OBJ_POUR + 6 > OBJ_DMG_COPY
+#error "perfect pour OBJ tiles 234-239 overlap the patron tiles or the DMG copies"
+#endif
 // CGB BG palette slots (2..7 are free for patrons)
 #define BGPAL_BAR        0
 #define BGPAL_HUD        1
@@ -264,6 +277,12 @@ extern uint8_t cs_dist;
 void update_patrons(void);
 void place_start_patrons(void) BANKED;
 void clear_patrons(void);
+
+// ---- perfect pour (story; src/pour.c, banked; ROM0 hooks: spawn_mug, caught, the draw block) ----------
+extern uint8_t pour_q, pour_t, cue_t;
+void pour_load(uint8_t t) BANKED;             // LCD off: venue t's sparkle / overflow frames and the cue to OBJ_POUR..
+void perfect_catch(uint8_t i) BANKED;         // patrons.c caught(), story: full mug i caught (perfect if mug_timer 1)
+void pour_frame(void) BANKED;                 // story, every drawn play frame after the sprites: window, fill frame, cue
 
 // ---- mugs.c ------------------------------------------------------------------------------
 uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state);

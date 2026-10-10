@@ -1,0 +1,37 @@
+; lodge perfect pour (PROPOSAL, owner approval pending): 2 frames 8x16 drawn over the venue's full drink
+; (assets/approved/venues/lodge_drink.txt frame 6, the full drink in his hand): SPARKLE, OVERFLOW.
+; Colours are the full drink's (lodge_drink_full; # outline); DMG draws both frames with OBP1 (- light grey, + dark grey,
+; # black), so the drink darkens in his hand when the window opens. SPARKLE: twinkles over the steam, a shine. OVERFLOW: the coffee over the rim, a spill.
+.+...+..
++-+.+-+.
+.+...+..
+........
+.-..-...
+..-..-..
+.-..-...
+#----#..
+#-+++###
+#--++#.#
+#-+++#.#
+#-+++###
+#++++#..
+#++++#..
+######..
+........
+
+........
+.-..-...
+..-..-..
+.-..-...
+........
+..---...
+.-----..
+------..
+-++++###
+-+-++#.#
+#++++#.#
+-++++###
+#++++#..
+#++++#..
+######..
++++++++.

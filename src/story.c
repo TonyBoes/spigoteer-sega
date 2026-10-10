@@ -419,6 +419,7 @@ static void shift_start(void) {
         VBK_REG = VBK_BANK_0;
     }
     level = story_chapter + 1;                   // (lives: set by venue_start, carried from shift to shift)
+    pour_load(story_chapter);                    // the perfect pour's frames and cue (LCD off; the venue = the chapter)
     enter_level_screen();                        // the venue's level (row level - 1), LCD on again, PLAYING
     shift_pace();
     story_catches = story_breaks = story_taps = 0;

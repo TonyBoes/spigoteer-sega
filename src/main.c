@@ -450,6 +450,7 @@ static void update(void) {
         if (lift_total | lift_oam_n) draw_lifted();
         SEC(SEC_DRAW_MUGS);
         draw_stage_fx();
+        if (story_on) pour_frame();              // story: the perfect pour (src/pour.c; last: it counts OAM lines)
         ENABLE_OAM_DMA;
         SEC(SEC_FX);
     }
