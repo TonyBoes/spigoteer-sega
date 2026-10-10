@@ -163,7 +163,7 @@ static void reset_actors(void) {
     uint8_t i;
     bar = 0; bartender_x = TAP_X; bartender_frac = 0; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
     bt_bob = 0; walk_timer = 0; walk_phase = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0; catch_pose = 0;
-    cue_t = 0; cue_mode = 0;                     // (story's PERFECT cue; hide_all_sprites takes its entries)
+    cue_t = 0;                                   // (story's PERFECT cue; hide_all_sprites takes its entry)
     clear_mugs();
     next_arrival = 0;
     tip_timer = 0; show_timer = 0; dancers_vis = 0; oam_touched();      // a bar reset ends the show and takes the tip away
