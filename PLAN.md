@@ -583,3 +583,13 @@ our own agents; the external artist hand-off package is no longer in use.
   the mean missed frames are DMG 27.5 base / 30.0 new with sa_hold / 32.3 animating, CGB 40.2 / 43.5 / 46.8 (seed spread
   CGB 22-81), so the animation costs a few late frames per 1200 at the peak and the fixed-seed jump is mostly noise.
   Guards unchanged and passing.
+
+## Patron round 7 decisions (owner, 2026-10-10)
+
+Proposals in scratchpad patron_round7 (round 6 is the base). Import waits until every patron is approved: one big
+graphics overhaul. Picks: lion face L2 (broad muzzle); cowboy C thin-brim hat with face F2 (jaw beard + moustache);
+lumberjack C face G3 (default); Eskimo ruff dots tan; Eskimo A sky-blue parka; Eskimo C olive parka; headband fan
+ponytail option. Alien A and the darker-than-45% patrons stay as they are. Next: one enhanced variant per remaining
+group (Claude picks), then the import. Saloon stage: no neon; a bar cat swaying its tail is being proposed (needs a
+small saloon stage redraw: the stage is at 19/20 tiles). Story mode and portraits on hold until the owner reviews
+docs/story.md. Music mix on hold. No speed milestone unless the owner sees slowdown.
