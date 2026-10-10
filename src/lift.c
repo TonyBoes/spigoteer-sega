@@ -97,7 +97,6 @@ void lift_level_init(uint8_t g) BANKED {
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         spr_hempty_t = OBJ_MUG_DRINK + 6;    spr_hempty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
-        spr_glass_p = S_PALETTE | OBJPAL_GLASS;
         return;
     }
     OBP1_REG = OBP1_PLAY;
@@ -106,7 +105,7 @@ void lift_level_init(uint8_t g) BANKED {
     spr_full_t = OBJ_DMG_COPY;      spr_full_p = 0;
     spr_empty_t = OBJ_DMG_COPY + 2; spr_empty_p = 0;
     spr_hempty_t = OBJ_DMG_COPY + 4; spr_hempty_p = 0;
-    spr_glass_p = 0;                                     // the shards: original tiles on OBP0 (light / white swapped)
+    swap_copy(OBJ_GLASS, OBJ_GLASS, GLASS_TILE_COUNT);   // the crash in place (load_venue reloaded it): looks like the drink
 }
 
 static uint8_t col_of(uint8_t p) { return (patron_draw[p] & ~DRAW_BACK) >> 3; }

@@ -109,6 +109,11 @@ def test_each_level_loads_its_venue(gb, group):
     assert bg_vram(gb, 0, v["stage_n"]) == bytes(v["stage_tiles"])
     assert bg_vram(gb, v["bar_base"], v["bar_n"]) == bytes(v["bar_tiles"])
     assert obj_vram(gb, OBJ_MUG, 4) + obj_vram(gb, OBJ_MUG_FILL, 8) + obj_vram(gb, OBJ_MUG_DRINK, 8) == bytes(v["drink"])
+    # the crash generated from this drink (gen_art crash_frames); DMG keeps it plane-swapped like the sliding drinks
+    crash = bytes(v["crash"])
+    if gb.model_name != "cgb":
+        crash = bytes(crash[i ^ 1] for i in range(len(crash)))
+    assert obj_vram(gb, OBJ_MUG + art("MUG_TILE_COUNT"), art("GLASS_TILE_COUNT")) == crash, "the venue's crash"
     assert obj_vram(gb, OBJ_DANCER, 32) == bytes(v["show"])
     if gb.model_name == "cgb":
         for r in range(4):
@@ -252,3 +257,25 @@ def test_the_saloon_spout_still_lines_up_with_the_fill(gb):
     gb.release("a")
     assert len(fill) == 1 and fill[0]["x"] - 8 == GAME["SPOUT_X"] and gb.mem("bartender_x") == GAME["TAP_X"]
     assert min(nozzle) >= fill[0]["x"] - 8 and max(nozzle) < fill[0]["x"], "the nozzle is over the glass"
+
+
+# ---- the breaking drink, generated from the venue's own drink (crash fix option 1, owner 2026-10-10) ----------------
+@pytest.mark.parametrize("theme", ["saloon", "factory"])
+def test_crash_golden(gb, theme):
+    """The fall frame at both ends: a full drink off the left end (full palette), an empty off the right end (empty
+    palette, mirrored), both on their side at the sliding drink's scale; one breaking glass = 2 OAM entries."""
+    from test_patrons import clear_patrons, freeze, inject_mug
+    g = [GROUP_THEME[n] for n in GROUPS].index(theme)
+    at_theme(gb, g)
+    gb.run(30)
+    freeze(gb)
+    clear_patrons(gb)
+    gb.run(2)
+    inject_mug(gb, 1, GAME["GLASS_X"], 3)
+    inject_mug(gb, 2, GAME["GLASS_X_RIGHT"], 3)
+    gb.run(11)                                       # mug_timer 8..15: the fall frame
+    glass = OBJ_MUG + art("MUG_TILE_COUNT")
+    tiles = sorted(logical_tile(s["tile"]) - glass for s in gb.visible_sprites()
+                   if 0 <= logical_tile(s["tile"]) - glass < art("GLASS_TILE_COUNT"))
+    assert tiles == [art("GLASS_FALL_FULL"), art("GLASS_FALL_FULL") + 2, art("GLASS_FALL_EMPTY"), art("GLASS_FALL_EMPTY") + 2]
+    check_golden(gb, f"crash_{theme}")

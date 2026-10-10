@@ -131,7 +131,6 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define OBJPAL_BARTENDER 0
 #define OBJPAL_MUG_FULL  1
 #define OBJPAL_MUG_EMPTY 2
-#define OBJPAL_GLASS     OBJPAL_MUG_EMPTY
 #define OBJPAL_PATRON_A  3
 #define OBJPAL_ENH       4   // (M14a; was OBJPAL_SPARE)
 #define OBJPAL_COIN      5
@@ -208,7 +207,7 @@ extern uint8_t  patron_ovl[MAX_PATRONS], ovl_bars, ovl_dirty;
 // M13b speeds: patron_hurry[p] = 1: a hurried walker (hurry_speed, about 1.5x patron_speed; 0 = no hurried patrons this level)
 extern uint8_t  patron_hurry[MAX_PATRONS], hurry_speed;
 extern uint8_t  lift_hook_op, lift_hook_p, lift_hook_res;
-extern uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p, spr_glass_p;
+extern uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p;
 
 extern const uint8_t bar_bit[NUM_BARS];
 extern const uint8_t bar_oam_y[NUM_BARS];     // OAM y (+16) of the bar's top pixel row

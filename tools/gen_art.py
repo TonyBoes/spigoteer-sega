@@ -7,7 +7,7 @@
                  2 rows; the bottom row is 8 px of art + 8 px transparent pad),
                  8 tiles per frame: [c0 top, c0 top-low, c1 top, c1 top-low,
                  c0 bot, pad, c1 bot, pad].
-  glass.txt, coin.txt, can/foam/cursor.txt   the breaking glass, the tip, the bonus round.
+  glass_shards.txt, coin.txt, can/foam/cursor.txt   the crash shards (tip/fall come from each drink), the tip, the bonus round.
   pour.txt, tap.txt, pour_glass.txt, tips.txt   (M12) Perfect Pour and Tip Shower -> build/bonus2_art.h (src/bonus2.c).
   approved/venues/<t>_*  (M9) per theme: stage 160x32 + palette slots, bar 160x24 + floor 8x8 + palette slots, drink
                  (10 frames 8x16 = full, empty, fill x4, drink x4: replaces the old mug / mug_fill / mug_drink art),
@@ -128,6 +128,68 @@ def obj_tiles(frames, w):
     return out
 
 
+
+# ---- the breaking drink (crash), per venue: generated from the venue's own drink so it matches the sliding one ----
+# 16 OBJ tiles at OBJ_GLASS (8x16 entries, column-major as obj_tiles): tip 0-1 (the venue's tilted "drink" pose, frame 8
+# of <t>_drink.txt), fall full 2-5 and fall empty 6-9 (the full / empty frame turned 90 degrees, mouth left, 16x16), the
+# shared shards: shatter 10-11, settle 12-13 (assets/art/glass_shards.txt), 14-15 unused. src/mugs.c draw_glass mirrors
+# them at the right end; the base sits on the sliding drink's base row (CRASH_BASE).
+GLASS_TILES = 16
+CRASH_BASE = 14
+
+
+def _crop(f):
+    ys = [y for y, r in enumerate(f) if r.strip(".")]
+    xs = [x for x in range(len(f[0])) if any(r[x] != "." for r in f)]
+    return [r[min(xs):max(xs) + 1] for r in f[min(ys):max(ys) + 1]]
+
+
+def _paste(w, h, src, x0, y0, base=None):
+    d = [list(r) for r in (base or ["." * w] * h)]
+    for y, r in enumerate(src):
+        for x, ch in enumerate(r):
+            if ch != "." and 0 <= y0 + y < h and 0 <= x0 + x < w:
+                d[y0 + y][x0 + x] = ch
+    return ["".join(r) for r in d]
+
+
+def crash_frames(drinks, shards):
+    """[tip 8x16, fall full 16x16, fall empty 16x16, shatter 8x16, settle 8x16] for one venue's 10 drink frames."""
+    def tip(src):
+        c = _crop(src)
+        assert len(c[0]) <= 8 and len(c) <= CRASH_BASE + 1
+        return _paste(8, 16, c, (8 - len(c[0])) // 2, CRASH_BASE + 1 - len(c))
+
+    def fall(src, spill):
+        c = _crop(src)
+        c = ["".join(c[y][len(c[0]) - 1 - x] for y in range(len(c))) for x in range(len(c[0]))]   # 90 deg, mouth left
+        assert len(c[0]) <= 16 and len(c) <= CRASH_BASE + 1, "a drink taller than 16 px cannot lie in 16x16"
+        x0 = 16 - len(c[0]) - (1 if len(c[0]) < 15 else 0)
+        y0 = CRASH_BASE + 1 - len(c)
+        f = _paste(16, 16, c, x0, y0)
+        if spill:            # the drink leaving the mouth: four drops in the drink's own colours
+            my = y0 + len(c) // 2
+            for dx, dy, ch in ((-2, -1, "+"), (-3, 1, "+"), (-5, 0, "-"), (-4, 2, "-")):
+                f = _paste(16, 16, [ch], x0 + dx, my + dy, f)
+        return f
+    return [tip(drinks[7]), fall(drinks[0], True), fall(drinks[1], False)] + shards
+
+
+def crash_tiles(drinks, shards):
+    tip, ff, fe, sh, st = crash_frames(drinks, shards)
+    fe = [r[8:] + r[:8] for r in fe]          # columns swapped: draw_glass mirrors it at the right end with S_FLIPX
+    out = obj_tiles([tip], 8) + obj_tiles([ff], 16) + obj_tiles([fe], 16) + obj_tiles([sh], 8) + obj_tiles([st], 8)
+    out += [0] * (GLASS_TILES * 16 - len(out))
+    assert len(out) == GLASS_TILES * 16
+    return out
+
+
+def load_shards():
+    sh = [r for _, r in blocks(ROOT / "assets/art/glass_shards.txt")]
+    assert len(sh) == 2 and all(len(f) == 16 and all(len(r) == 8 for r in f) for f in sh), "glass_shards.txt: 2 frames 8x16"
+    return sh
+
+
 SA_MAX_K = 6          # animated tiles per stage (a step's update goes out 2 tiles per VBlank, src/render.c queue_stage)
 SA_MAX_RANGE = 4      # tiles one step may change (at most 2 VBlanks)
 SA_MIN_HOLD = 6       # frames a step is shown at least
@@ -233,6 +295,7 @@ def venues(outdir, prev):
     out/preview/venue_<t>_x3.png. Returns the art.h lines. Fails the build if a theme exceeds its tile slots."""
     import json
     vd = ROOT / "assets/approved/venues"
+    shards = load_shards()
     h = ["// ---- M9 themed venues (tools/gen_art.py venues()): theme index = patron group index ----",
          f"#define VENUES {len(THEMES)}", "// venue order: " + ", ".join(THEMES),
          "#define VENUE_PAL_STAGE_A 0", "#define VENUE_PAL_STAGE_B 1", "#define VENUE_PAL_BAR 2",
@@ -240,7 +303,7 @@ def venues(outdir, prev):
          "#define VENUE_PAL_SHOW 6", f"#define VENUE_PALS {len(VENUE_PALS)}",
          f"#define VENUE_BGPAL_STAGE_A {PAL_STAGE_A}", f"#define VENUE_BGPAL_STAGE_B {PAL_STAGE_B}",
          f"#define VENUE_BGPAL_BAR {PAL_BAR}", f"#define VENUE_BGPAL_BAR_B {PAL_BAR_B}",
-         "#define VENUE_DRINK_TILES 20   // full, empty (OBJ_MUG), fill x4 (OBJ_MUG_FILL), drink x4 (OBJ_MUG_DRINK)",
+         "#define VENUE_DRINK_TILES 20   // full, empty (OBJ_MUG), fill x4 (OBJ_MUG_FILL), drink x4 (OBJ_MUG_DRINK); the crash follows (OBJ_GLASS)",
          "typedef struct {",
          "    const uint8_t *stage_tiles, *bar_tiles, *drink_tiles, *show_tiles;   // in the venue's own bank",
          "    uint8_t stage_n, bar_n, bar_base, floor_tile;   // bar_base = VENUE_POOL - bar_n",
@@ -332,9 +395,9 @@ def venues(outdir, prev):
         assert len(drinks) == 10 and all(len(f) == 16 and all(len(r) == 8 for r in f) for f in drinks), f"{t}_drink.txt: 10 frames 8x16"
         shows = [r for _, r in blocks(vd / f"{t}_show.txt")]
         assert len(shows) == 4 and all(len(f) == 24 and all(len(r) == 16 for r in f) for f in shows), f"{t}_show.txt: 4 frames 16x24"
-        dtile = obj_tiles(drinks, 8)
+        dtile = obj_tiles(drinks, 8) + crash_tiles(drinks, shards)
         stiles = obj_tiles([list(f) + ["." * 16] * 8 for f in shows], 16)
-        assert len(dtile) == 20 * 16 and len(stiles) == 32 * 16
+        assert len(dtile) == (20 + GLASS_TILES) * 16 and len(stiles) == 32 * 16
         abs_smap = list(smap)
         abs_bmap = [bar_base + i for i in bmap]
         abs_sattr = [PAL_STAGE_B if a else PAL_STAGE_A for r in sattr for a in r]
@@ -367,7 +430,7 @@ def venues(outdir, prev):
         cases.append(f"    case {ti}: far_copy(&venue, &{sym}, sizeof venue, BANK({sym})); venue_bank = BANK({sym}); break;")
         info["venues"][t] = {"stage_n": len(suniq), "bar_n": len(buniq), "bar_base": bar_base, "floor_tile": bar_base + fid,
                              "stage_map": abs_smap, "stage_attr": abs_sattr, "bar_map": abs_bmap, "bar_attr": abs_battr,
-                             "pal": pal15, "drink": dtile, "show": stiles, "stage_tiles": stile, "bar_tiles": btile,
+                             "pal": pal15, "drink": dtile[:20 * 16], "crash": dtile[20 * 16:], "show": stiles, "stage_tiles": stile, "bar_tiles": btile,
                              "anim": {"first": a_first, "k": anim["k"], "slots": anim["slots"], "names": anim["frames"],
                                       "frames": [anim["data"][i * anim["k"] * 16:(i + 1) * anim["k"] * 16]
                                                  for i in range(len(anim["frames"]))],
@@ -403,6 +466,7 @@ def venues(outdir, prev):
             gif[0][0].save(prev / f"venue_{t}_anim_x3.gif", save_all=True, append_images=[g for g, _ in gif[1:]],
                            duration=[d for _, d in gif], loop=0)
         png(drinks, prev / f"venue_{t}_drink_x8.png", 8, transparent=True)
+        png(crash_frames(drinks, shards), prev / f"venue_{t}_crash_x8.png", 8, transparent=True)
         png(shows, prev / f"venue_{t}_show_x8.png", 8, transparent=True)
     load += ["", "venue_t venue;", "uint8_t venue_bank;", "",
              "// theme t (0..VENUES-1) -> venue (WRAM) and venue_bank; switches to the theme's bank only inside far_copy",
@@ -952,17 +1016,10 @@ def _main():
     # ---- drinks (M9): the mug / fill / drink OBJ tiles come from each venue's <t>_drink.txt (load_venue) ----
     h += [f"#define MUG_FRAMES 2", "#define MUG_TILE_COUNT 4", "", "#endif", ""]
     h[-2:-2] = ["#define MUG_FILL_FRAMES 4", "#define MUG_FILL_TILE_COUNT 8", ""]
-    # ---- glass (breaking mug): 4 frames 16x16 = 2 OAM entries of 8x16 each ----
-    glass = [r for _, r in blocks(ROOT / "assets/art/glass.txt")]
-    assert len(glass) == 4 and all(len(f) == 16 and len(f[0]) == 16 for f in glass)
-    gt = []
-    for f in glass:
-        for cx in (0, 8):
-            gt += tile_bytes(f, cx, 0) + tile_bytes(f, cx, 8)
-    h[-2:-2] = ["#define GLASS_FRAMES 4", "#define GLASS_TILES_PER_FRAME 4",
-                f"#define GLASS_TILE_COUNT {len(gt) // 16}", "extern const uint8_t glass_tiles[];", ""]
-    c.append(fmt("glass_tiles", gt))
-    png(glass, prev / "glass_x8.png", 8, transparent=True)
+    # ---- glass (breaking drink): generated per venue (crash_frames, loaded with the venue's drink); ids only here ----
+    h[-2:-2] = ["#define GLASS_FRAMES 4", f"#define GLASS_TILE_COUNT {GLASS_TILES}",
+                "#define GLASS_TIP 0", "#define GLASS_FALL_FULL 2", "#define GLASS_FALL_EMPTY 6",
+                "#define GLASS_SHATTER 10", "#define GLASS_SETTLE 12", ""]
 
     h[-2:-2] = ["#define MUG_DRINK_FRAMES 4", "#define MUG_DRINK_TILE_COUNT 8", ""]
     # ---- coin (tip): 8x8 art in the lower half of an 8x16 entry; frame 1 swaps the two body shades (glint) ----

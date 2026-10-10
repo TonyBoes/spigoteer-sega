@@ -109,7 +109,6 @@ void boot_init(void) BANKED {
     hi_load();
     SPRITES_8x16;
     spr_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);
-    spr_data(OBJ_GLASS, GLASS_TILE_COUNT, glass_tiles);
     spr_data(OBJ_COIN, COIN_TILE_COUNT, coin_tiles);      // the drink and show tiles come with each venue (load_venue)
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 

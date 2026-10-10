@@ -20,7 +20,7 @@ uint8_t  oam_used = OAM_FILL + 1;   // OAM entries the mugs (and the fill glass)
 uint8_t  mug_events;            // M13b: counts new mugs and breaking glasses (lift.c recounts the mugs per bar when it moves)
 // Tile and attribute of the mug sprites (lift.c lift_level_init, M13a): CGB the venue's ids and palettes; DMG OBP0 with the
 // bit-plane-swapped copies (OBP1 belongs to the lifted patrons now; the glass shards show their light shades swapped).
-uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p, spr_glass_p;
+uint8_t  spr_full_t, spr_full_p, spr_empty_t, spr_empty_p, spr_hempty_t, spr_hempty_p;
 
 uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
     // walks mug_state / mug_bar with pointers (indexed, SDCC computes two 16-bit addresses per slot)
@@ -191,13 +191,27 @@ static void draw_empty(uint8_t i) {
     oam_next = o;
 }
 
+// The breaking drink (gen_art crash_frames, loaded with the venue): its own tilted pose, on its side (two entries), the
+// shards. Left end: a full drink in its full palette; right end: an empty, mirrored (S_FLIPX; gen_art stores the empty
+// on its side with its two columns swapped for that), in its empty palette. DMG: OBP0, the tiles plane-swapped (lift.c).
+// The second entry stays hidden (y 0) on one-entry frames: draw_mugs counts two per breaking glass.
+static const uint8_t glass_tile[GLASS_FRAMES] = { GLASS_TIP, GLASS_FALL_FULL, GLASS_SHATTER, GLASS_SETTLE };
+static const uint8_t glass_dx[GLASS_FRAMES] = { 16, 8, 12, 12 };     // OAM x from the end's 16 px cell
+
 static void draw_glass(uint8_t i) {
-    uint8_t t = mug_timer[i], y, x;
+    uint8_t t = mug_timer[i], y, x, p, f;
     y = bar_oam_y[mug_bar[i]] + MUG_DY + (t >> 2);         // falls a little as it breaks
-    x = mug_x[i] > 80 ? GLASS_X_RIGHT + 8 : GLASS_X + 8;     // left or right end
-    t = OBJ_GLASS + ((t >> 1) & ~3);                         // + (timer / GLASS_FRAME_TIME) * GLASS_TILES_PER_FRAME
-    oam_put(y, x, t, spr_glass_p);
-    oam_put(y, x + 8, t + 2, spr_glass_p);
+    f = t >> 3;                                              // t / GLASS_FRAME_TIME
+    x = glass_dx[f];
+    t = OBJ_GLASS + glass_tile[f];
+    p = spr_full_p;
+    if (mug_x[i] > 80) {                                     // the tap end
+        x += GLASS_X_RIGHT;
+        p = spr_empty_p | S_FLIPX;
+        if (f == 1) t += GLASS_FALL_EMPTY - GLASS_FALL_FULL;
+    }
+    oam_put(y, x, t, p);
+    oam_put(f == 1 ? y : 0, x + 8, t + 2, p);
 }
 
 static void draw_held(uint8_t i) {
