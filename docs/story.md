@@ -49,7 +49,7 @@ optional. Each one changes one existing parameter or adds one small behaviour.
 | 3 | Lumber lodge | Big June | Valve | "Wake up 18 sleepy lumberjacks" / serve 18 | **Sasquatch sighting**: now and then the Sasquatch strolls past the back of one bar and its patrons stop to stare. That's a free single-bar distraction. |
 | 4 | Bistro | Chef Colby | Nozzle | "Serve 20 chefs before the dinner rush" / serve 20 before the timer runs out | **Fine dining**: patrons sip longer, so empties come back bunched together. Fair-empties spacing still applies. |
 | 5 | Igloo bar | Aurora | Knob | "20 cocoas before they cool" / serve 20 before the timer runs out | **Icy bars**: full and empty mugs slide faster. |
-| 6 | Robot factory | Manager-Bot 3000 | Gasket | "Recycle 25 oil cans" / catch 25 empties | **Conveyors**: empties come back faster than full cans go out. |
+| 6 | Robot factory | Manager-Bot 3000 | Gasket | "Recycle 25 batteries" / catch 25 empties | **Conveyors**: empties come back faster than full batteries go out. |
 | 7 | Teahouse | Hana | Pipe | "Not one broken cup" / clear the venue with no broken glass (a missed full or empty fails the goal; you retry) | **Taiko rhythm**: patrons step on the drum beat instead of walking smoothly, which makes them easy to read and hard to rush. |
 | 8 | Space lounge | Zizz | Lever | "25 glowing beakers for 3 species" / serve 25 | **Low gravity**: full drinks float more slowly, so you have to lead your throws. |
 | 9 | Jungle zoo | Keeper Kiki | Crown | "Serve 30 animals" / serve 30 | **Cheeky monkeys**: now and then a monkey snatches a coconut mid-slide and it comes back as an empty straight away. |
@@ -446,7 +446,7 @@ BEEN SO TOASTY.
 
 ### PRE_ROBOT: "Beep Boop, Barkeep"
 
-Picture: factory floor with conveyor belts and a neon OIL sign. Robots stand in line and Manager-Bot 3000 sits on a hover platform.
+Picture: factory floor with conveyor belts and a big lightning-bolt sign. Robots stand in line and Manager-Bot 3000 sits on a hover platform.
 
 ```
 MANAGER-BOT
@@ -466,8 +466,8 @@ THE GASKET.
 
 MANAGER-BOT
 MY WORKERS NEED
-OIL. RECYCLE 25
-EMPTY CANS.
+POWER. RECYCLE 25
+EMPTY BATTERIES.
 
 MANAGER-BOT
 CAUTION: THE BARS
@@ -852,7 +852,7 @@ LAST CALL!
 | POST_BISTRO | Silver dome lifted to reveal the nozzle; plate spinner behind. |
 | PRE_IGLOO | Glowing igloo under the northern lights, Aurora knitting at the entrance. |
 | POST_IGLOO | Spigoteer in the pink cozy with the knob; penguins waving. |
-| PRE_ROBOT | Conveyor belts, neon OIL sign, Manager-Bot on its platform. |
+| PRE_ROBOT | Conveyor belts, big lightning-bolt sign, Manager-Bot on its platform. |
 | POST_ROBOT | Breakdancing robot on its dome; Manager-Bot offers the gasket. |
 | PRE_TEAHOUSE | Teahouse by a pond, cherry blossoms, bamboo fountain missing a pipe. |
 | POST_TEAHOUSE | Hana pouring tea at a low table; taiko drummer bows. |
