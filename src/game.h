@@ -88,9 +88,13 @@ enum { DRINK_MIN, DRINK_WAIT, DRINK_WINDUP };   // patron_aux while PATRON_DRINK
 #define CATCH_POSE_FRAMES  8   // the bartender shows BT_CATCH this long after catching an empty / taking a glass
 #define FILL_FRAMES       16
 // Perfect pour (story mode only, src/pour.c): pour_t counts the fill frames on past FILL_FRAMES (fill_timer itself
-// stops there, as in arcade). A release at pour_t FILL_FRAMES..PERFECT_END-1 (12 frames) launches a PERFECT drink
-// (pour_q -> mug_timer of the full mug, otherwise unused while it slides); from PERFECT_END the foam runs over.
-#define PERFECT_END       28
+// stops there, as in arcade). FILL_FRAMES..POUR_WIN_START-1: full, settling (the plain full drink; a release is
+// ordinary). POUR_WIN_START..+pour_win-1: the sparkle window, a release launches a PERFECT drink (pour_q -> mug_timer
+// of the full mug, otherwise unused while it slides). After it the foam runs over (ordinary). pour_win is WRAM, set to
+// POUR_WIN_LEN at every shift start; Practice's HARD toggle sets POUR_WIN_HARD after that (the window's start stays).
+#define POUR_WIN_START    24
+#define POUR_WIN_LEN       6
+#define POUR_WIN_HARD      4
 #define SLIDE_FRAMES       8
 #define GLASS_X            0   // screen x of the glass breaking at the left end
 #define GLASS_X_RIGHT    144   // ... and at the tap end
@@ -279,7 +283,7 @@ void place_start_patrons(void) BANKED;
 void clear_patrons(void);
 
 // ---- perfect pour (story; src/pour.c, banked; ROM0 hooks: spawn_mug, caught, the draw block) ----------
-extern uint8_t pour_q, pour_t, cue_t;
+extern uint8_t pour_q, pour_t, pour_win, cue_t;
 void pour_load(uint8_t t) BANKED;             // LCD off: venue t's sparkle / overflow frames and the cue to OBJ_POUR..
 void perfect_catch(uint8_t i) BANKED;         // patrons.c caught(), story: full mug i caught (perfect if mug_timer 1)
 void pour_frame(void) BANKED;                 // story, every drawn play frame after the sprites: window, fill frame, cue

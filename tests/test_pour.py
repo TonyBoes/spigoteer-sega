@@ -1,7 +1,7 @@
-# The perfect pour (story mode, src/pour.c; owner Q6): a release in the 12-frame sparkle window after the drink is
-# full launches a PERFECT drink, which scores 2 x the venue's serve score when a patron catches it, with the "x2" cue
-# beside the catch. Held to 28 the foam runs over (ordinary); a drink carried to another bar is ordinary. Arcade is
-# unchanged: no window, no sparkle frame, no bonus, no cue.
+# The perfect pour (story mode, src/pour.c; owner Q6, round 2): the drink is full at 16 and settles (plain full frame,
+# a release is ordinary); a release in the 6-frame sparkle window 24..29 launches a PERFECT drink, which scores 2 x the
+# venue's serve score when a patron catches it, with the "x2" cue beside the catch. From 30 the foam runs over
+# (ordinary); a drink carried to another bar is ordinary. Arcade is unchanged: no window, no sparkle, no bonus, no cue.
 import json
 
 import pytest
@@ -17,7 +17,9 @@ THEMES = list(POUR["venues"])
 OBJ_POUR = POUR["obj_pour"]
 OBJ_CUE = OBJ_POUR + 4
 OAM_FILL, OAM_CUE = GAME["OAM_FILL"], GAME["OAM_CUE"]
-FILL_FRAMES, PERFECT_END = GAME["FILL_FRAMES"], GAME["PERFECT_END"]
+FILL_FRAMES = GAME["FILL_FRAMES"]
+WIN0, WIN, HARD = GAME["POUR_WIN_START"], GAME["POUR_WIN_LEN"], GAME["POUR_WIN_HARD"]
+END = WIN0 + WIN                                  # the first overflow frame
 OBJ_MUG_FILL_FULL = 56 + 4 + 16 + 3 * 2          # OBJ_MUG_FILL + fill_stage 3 * 2 (bartender 56, mug 4, glass 16)
 FULL, EMPTY, HELD = 1, 2, 4
 MAX_M = 20
@@ -109,7 +111,7 @@ def fill_entry(gb):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("t", [FILL_FRAMES, PERFECT_END - 1])
+@pytest.mark.parametrize("t", [WIN0, END - 1])
 def test_a_release_in_the_window_is_perfect_and_scores_double(model, t):
     with story(model) as gb:
         assert pour_at(gb, t) == 1
@@ -130,22 +132,34 @@ def sweep(gb, k=16):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_window_is_twelve_frames(model):
-    """Of the release frames that launch a drink, the first 12 (pour_t 16..27 on the last held frame) are perfect,
-    every later one ordinary."""
+def test_releasing_when_full_is_not_perfect_a_timed_release_is(model):
+    """The owner's "too easy" check, scripted over every release frame. Of the releases that launch a drink, the
+    first (A let go on the first full frame, pour_t 16) and the next 7 (settling, 16..23) are ordinary; the 6 of the
+    window (24..29) are perfect; every later one is ordinary (overflow)."""
     with story(model) as gb:
-        assert sweep(gb) == [1] * (PERFECT_END - FILL_FRAMES) + [0] * 4
+        q = sweep(gb, END - FILL_FRAMES + 4)
+        assert q[0] == 0, "releasing on the first full frame is not perfect"
+        assert q == [0] * (WIN0 - FILL_FRAMES) + [1] * WIN + [0] * 4
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_held_to_28_the_foam_runs_over_and_the_drink_is_ordinary(model):
+def test_the_hard_window_is_narrower(model):
+    """Practice's HARD toggle (later): pour_win = POUR_WIN_HARD after the shift start; same start, 4 frames."""
     with story(model) as gb:
-        fill_to(gb, PERFECT_END)
+        gb.write("pour_win", HARD)
+        q = sweep(gb, END - FILL_FRAMES + 4)
+        assert q == [0] * (WIN0 - FILL_FRAMES) + [1] * HARD + [0] * (WIN - HARD + 4)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_held_past_the_window_the_foam_runs_over_and_the_drink_is_ordinary(model):
+    with story(model) as gb:
+        fill_to(gb, END)
         assert gb.mem("pour_q") == 0
         e = fill_entry(gb)
         assert e["tile"] == OBJ_POUR + 2, "the overflow frame"
         gb.run(30)
-        assert gb.mem("pour_t") == PERFECT_END, "it stays at the overflow"
+        assert gb.mem("pour_t") == END, "it stays at the overflow"
         assert let_go(gb) == 0
         assert catch_delta(gb) == 0 and gb.mem("perfect_n") == 0
         gb.run(2)
@@ -159,15 +173,16 @@ def test_the_sparkle_frame_shows_through_the_window(model):
         e = fill_entry(gb)
         assert e["tile"] == OBJ_MUG_FILL_FULL - 2, "still filling: the ordinary fill frames"
         tiles = []
-        for _ in range(PERFECT_END - FILL_FRAMES + 8):
+        for _ in range(END - FILL_FRAMES + 8):
             gb.run(1)
             tiles.append(gb.oam()[OAM_FILL]["tile"])
-            if FILL_FRAMES <= gb.mem("pour_t") < PERFECT_END:
-                assert gb.mem("pour_q") == 1 and gb.mem("fill_timer") == FILL_FRAMES
-        # the full frame never shows: the fill frames, then 12 frames of sparkle, then the overflow for good
-        k = tiles.index(OBJ_POUR)
-        assert OBJ_MUG_FILL_FULL not in tiles and all(t < OBJ_POUR for t in tiles[:k])
-        assert tiles[k:] == [OBJ_POUR] * (PERFECT_END - FILL_FRAMES) + [OBJ_POUR + 2] * (len(tiles) - k - 12)
+            t = gb.mem("pour_t")
+            assert gb.mem("pour_q") == (WIN0 <= t < END)
+        # the fill frames, the plain full drink while it settles (8 frames), the sparkle (6), then the overflow for good
+        k = tiles.index(OBJ_MUG_FILL_FULL)
+        assert all(t < OBJ_MUG_FILL_FULL for t in tiles[:k])
+        assert tiles[k:] == ([OBJ_MUG_FILL_FULL] * (WIN0 - FILL_FRAMES) + [OBJ_POUR] * WIN
+                             + [OBJ_POUR + 2] * (len(tiles) - k - (END - FILL_FRAMES)))
         flags = gb.oam()[OAM_FILL]["flags"]
         if model == "cgb":
             assert flags & 7 == GAME["OBJPAL_MUG_FULL"]
@@ -181,7 +196,7 @@ def test_a_carried_drink_is_never_perfect(model):
         fill_to(gb, FILL_FRAMES + 2)
         gb.press("down", 1)                       # A still held: carried to bar 1
         assert gb.mem("bar") == 1 and gb.mem("fill_timer") == FILL_FRAMES
-        assert gb.mem("pour_t") == PERFECT_END and gb.mem("pour_q") == 0
+        assert gb.mem("pour_t") == END and gb.mem("pour_q") == 0
         gb.press("up", 1)                         # and back to bar 0, where the patron waits
         assert gb.mem("bar") == 0
         assert let_go(gb) == 0
@@ -219,7 +234,7 @@ def test_the_cue_never_makes_an_11th_object_on_a_line(model):
     """The cue shows beside the catch; with bar 0's lines crowded (the bartender's 4 entries, the held drink, empties
     sliding by) it is left out while a line would pass 10 objects, and comes back when there is room."""
     with story(model) as gb:
-        assert pour_at(gb, FILL_FRAMES) == 1
+        assert pour_at(gb, WIN0) == 1
         catch_delta(gb)
         gb.run(1)
         assert gb.oam()[OAM_CUE]["y"] and max(oam_lines(gb)) <= 10
@@ -236,7 +251,7 @@ def test_the_cue_never_makes_an_11th_object_on_a_line(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_sparkle_golden(model):
     with story(model) as gb:
-        fill_to(gb, FILL_FRAMES + 4)
+        fill_to(gb, WIN0 + 2)
         gb.run(1)
         check_golden(gb, "pour_sparkle")
 
@@ -244,7 +259,7 @@ def test_the_sparkle_golden(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_cue_golden(model):
     with story(model) as gb:
-        assert pour_at(gb, FILL_FRAMES + 4) == 1
+        assert pour_at(gb, WIN0 + 2) == 1
         catch_delta(gb)
         gb.run(1)
         check_golden(gb, "pour_cue")

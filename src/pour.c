@@ -1,13 +1,16 @@
 // Perfect pour (story mode, every shift; owner Q6, docs/minigames_bosses.md section 8). Arcade runs none of this:
 // pour_frame / perfect_catch are only called when story_on, and pour_q stays 0 (start_new_game clears it).
 //
-// The window: fill_timer (main.c, ROM0, unchanged) stops at FILL_FRAMES as in arcade; pour_frame (after the frame's
-// sprites) keeps pour_t = the fill frames counted on past it while A is held: FILL_FRAMES on the frame the drink is
-// full, +1 a frame up to PERFECT_END. pour_t FILL_FRAMES..PERFECT_END-1: the sparkle frame in his hand, pour_q 1;
-// PERFECT_END: the overflow frame, pour_q 0. The next frame's release launches the drink with that pour_q (spawn_mug
-// stores it in the full mug's mug_timer, unused while a full mug slides), so a release with pour_t 16..27 is
-// PERFECT and one at 28 is ordinary. A full drink carried to another bar (A held through Up/Down) gets pour_t =
-// PERFECT_END at once: ordinary, and shown running over.
+// The window (owner, round 2: "too easy" when it opened the moment the drink was full): fill_timer (main.c, ROM0,
+// unchanged) stops at FILL_FRAMES as in arcade; pour_frame (after the frame's sprites) keeps pour_t = the fill frames
+// counted on past it while A is held: FILL_FRAMES on the frame the drink is full, +1 a frame up to the window's end.
+//   16..23 (FILL_FRAMES..POUR_WIN_START-1)  full, settling: the plain full drink; a release is ordinary, no overflow
+//   24..29 (POUR_WIN_START, pour_win 6)      the sparkle frame in his hand; a release is PERFECT (pour_q 1)
+//   30..                                     the overflow frame; ordinary
+// The next frame's release launches the drink with that pour_q (spawn_mug stores it in the full mug's mug_timer,
+// unused while a full mug slides). A full drink carried to another bar (A held through Up/Down) jumps to the
+// overflow at once: ordinary. pour_win is set to POUR_WIN_LEN by pour_load (every shift start); Practice's HARD toggle
+// writes POUR_WIN_HARD after it (same start, a narrower window).
 // The catch: patrons.c caught() calls perfect_catch in story mode; a perfect drink scores PERFECT_MULT x the venue's
 // serve_score on the spot, counts in perfect_n, and the cue (OAM_CUE: a twinkle over an "x2" badge) shows to the
 // right of the caught mug for CUE_FRAMES, blinking for the last CUE_BLINK. The serve (the patron pushed out) still
@@ -28,6 +31,7 @@
 
 uint8_t pour_q;               // the drink launched next is perfect (spawn_mug -> mug_timer)
 uint8_t pour_t;               // story: the fill frames counted past FILL_FRAMES (0 while not full)
+uint8_t pour_win;             // the sparkle window's length (pour_load: POUR_WIN_LEN; Practice HARD: POUR_WIN_HARD)
 uint8_t cue_t;                // frames the cue has left (0: none)
 uint8_t cue_x, cue_y;         // its OAM x / y
 uint8_t perfect_n;            // perfect drinks caught (tests)
@@ -35,6 +39,7 @@ static uint8_t pour_bar;      // the bar of the last frame (a change while full 
 
 // LCD off (a story shift's start): venue t's sparkle + overflow to OBJ_POUR.., the cue to OBJ_POUR_CUE
 void pour_load(uint8_t t) BANKED {
+    pour_win = POUR_WIN_LEN;
     set_sprite_data(OBJ_POUR, 4, pour_venue_tiles[t]);
     set_sprite_data(OBJ_POUR_CUE, 2, pour_cue_tiles);
 }
@@ -65,16 +70,17 @@ static void draw_cue(void) {
 
 void pour_frame(void) BANKED {
     OAM_item_t *o;
+    uint8_t end = POUR_WIN_START + pour_win;                 // the first overflow frame
     if (fill_timer < FILL_FRAMES) pour_t = 0;
-    else if (bar != pour_bar) pour_t = PERFECT_END;           // carried to another bar: never perfect
+    else if (bar != pour_bar) pour_t = end;                  // carried to another bar: never perfect
     else if (!pour_t) pour_t = FILL_FRAMES;
-    else if (pour_t < PERFECT_END) pour_t++;
+    else if (pour_t < end) pour_t++;
     pour_bar = bar;
-    pour_q = pour_t && pour_t < PERFECT_END;
-    if (pour_t) {                                            // over draw_fill's full drink (OAM_FILL): sparkle / overflow
+    pour_q = pour_t >= POUR_WIN_START && pour_t < end;
+    if (pour_t >= POUR_WIN_START) {                          // over draw_fill's full drink (OAM_FILL): sparkle / overflow
         // DMG: OBP1 (the fill glass uses OBP0): the drink darkens in his hand, and the light shades show on the wall
         o = shadow_OAM + OAM_FILL;
-        o->tile = pour_t < PERFECT_END ? OBJ_POUR : OBJ_POUR + 2;
+        o->tile = pour_q ? OBJ_POUR : OBJ_POUR + 2;
         o->prop = is_cgb ? OBJPAL_MUG_FULL : S_PALETTE;
     }
     if (cue_t) draw_cue();

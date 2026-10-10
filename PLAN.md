@@ -973,22 +973,34 @@ The owner's lives rule (docs/minigames_bosses.md section 8) replaces "retry only
 Part of pouring in every story shift (later every boss; the mini-games are excepted). Arcade is unchanged: none of the
 new code runs there (pour_frame / perfect_catch are called only when story_on, pour_q stays 0), its fill_timer, fill
 frames, scores and VRAM are as before, and no existing golden changed.
-- Window: fill_timer (main.c) still stops at FILL_FRAMES 16. src/pour.c pour_frame (banked, called from main.c's draw
-  block in story mode, after every other sprite) keeps pour_t: 16 on the frame the drink is full, +1 a frame while A is
-  held, up to PERFECT_END 28. A release launches with the last held frame's pour_t: 16..27 (12 frames, 200 ms) =
-  PERFECT, 28+ = ordinary. A full drink carried to another bar (A held through Up/Down) gets pour_t 28 at once:
-  ordinary, and it shows the overflow frame. The spec's "fill frames 16..27" are exactly pour_t's values.
-- Look: pour_t 16..27 the venue's SPARKLE frame in his hand, 28 its OVERFLOW frame (OAM 4 over draw_fill's full drink;
-  CGB the full-drink palette 1; DMG OBP1, so the drink also darkens in his hand when the window opens and the light
-  foam shows on the white wall).
+- Window (round 2, owner: "too easy to get a perfect pour"; round 1 opened a 12-frame window the moment the drink was
+  full, so a natural "let go when full" landed in it): fill_timer (main.c) still stops at FILL_FRAMES 16. src/pour.c
+  pour_frame (banked, called from main.c's draw block in story mode, after every other sprite) keeps pour_t: 16 on the
+  frame the drink is full, +1 a frame while A is held, up to the window's end. A release launches with the last held
+  frame's pour_t:
+    16..23  full, settling (8 frames, 133 ms, the plain full drink): ordinary, no bonus, no overflow
+    24..29  the sparkle window, POUR_WIN_START 24, pour_win POUR_WIN_LEN 6 (100 ms): PERFECT
+    30..    the overflow: ordinary
+  So the press-to-release time for a perfect drink is 24-29 frames (400-483 ms): a held beat, learned by rhythm (hold
+  about half a second), not by releasing on "full". Releasing on the first full frame, or while it settles, is never
+  perfect (the scripted sweep checks every release frame). Why 24 / 6: the owner's example; 8 settling frames are long
+  enough to see the plain full mug before the sparkle, 6 frames is a rhythm game's "perfect" width (+-50 ms). Caveat
+  for playtest: a player who waits for "full" and then reacts (about 12-15 frames, 200-250 ms) lets go at 28-31, the
+  window's tail; if that makes it easy again, POUR_WIN_START 32 puts the window past reaction time (constants only).
+  Practice HARD hook: pour_win is WRAM, set to POUR_WIN_LEN by pour_load at every shift start; HARD writes
+  POUR_WIN_HARD 4 after it (same start, 24..27; tested). A full drink carried to another bar (A held through Up/Down)
+  jumps to the overflow at once: ordinary.
+- Look: pour_t 16..23 the plain full drink (draw_fill's, unchanged), 24..29 the venue's SPARKLE frame in his hand, 30+
+  its OVERFLOW frame (OAM 4 over draw_fill's full drink; CGB the full-drink palette 1; DMG OBP1, so the drink also
+  darkens in his hand when the window opens and the light foam shows on the white wall).
 - Quality: pour_q (WRAM) -> spawn_mug writes it into the new full mug's mug_timer (0 before: mug_timer is unused while a
   full mug slides; it becomes the empty's step phase / the glass timer later, both reset as before). No new array, 1 B
   of WRAM for pour_q (+ pour_t, cue_t / x / y, perfect_n, pour_bar: 7 B in all).
 - Score: patrons.c caught() calls perfect_catch(i) in story mode; a mug_timer of 1 scores 2 x serve_score on the spot
   (saloon 50 -> +100). The serve (the patron pushed out) still scores serve_score as always; regulars take any drink.
   perfect_n counts perfect catches (tests; a later results screen).
-- Cue: assets/art/pour_cue.txt, one 8x16 OBJ: a twinkle over an "x2" badge (dark badge, light text: reads on the light
-  DMG wall and the dark CGB walls), OAM 26 (unused since the door puff), the full-drink palette (DMG OBP0), 16 px right
+- Cue: assets/art/pour_cue.txt, one 8x16 OBJ: a star burst over "x2" (round 2: dark text on a light plate, x 3x3 and
+  2 3x5 a column apart, legible at 1x on both models; round 1's light-on-dark badge read as a scribble on DMG), OAM 26 (unused since the door puff), the full-drink palette (DMG OBP0), 16 px right
   of the caught mug on its 16 lines, 48 frames, blinking the last 16. Sprites per line: pour_frame counts every other
   OAM entry touching any of those 16 lines (an upper bound per line) and leaves the cue out on a frame where that is
   10 or more, so it is never an 11th object (test: bartender 4 + held drink + 6 empties on the bar: the cue goes, no
@@ -1000,15 +1012,18 @@ frames, scores and VRAM are as before, and no existing golden changed.
   arcade never loads them.
 - Art (easy to swap): assets/art/pour/<venue>.txt, 2 frames 8x16 each (SPARKLE, OVERFLOW) in the venue's full-drink
   colours, drawn over its full frame; tools/gen_pour.py -> build/pour_art.h (src/pour.c's bank), build/pour.json
-  (tests), out/preview/pour_<venue>_x8.png. Replacing the files and running make is the whole swap. Proposal sheet:
-  scratchpad perfect_pour/proposal.png (all 9: full / sparkle / overflow / cue at x8, CGB and DMG, plus in-game crops).
+  (tests), out/preview/pour_<venue>_x8.png. Replacing the files and running make is the whole swap. Proposal sheets:
+  scratchpad perfect_pour/proposal.png, round 2 proposal2.png (all 9: full / sparkle / overflow / cue at x8, CGB and
+  DMG, plus in-game crops). Round 2: the lumber lodge's twinkles are cream (the brown ones vanished on its brown wall).
 - ROM: real ROM0 free 1641 -> 1605 B (game.gb), 1754 -> 1718 B (release.gb): 36 B for the three hooks (spawn_mug's
   pour_q, caught's story test + call, the draw block's story test + call). pour.c + its 608 B of tiles autobank to
   bank 7 (2006 -> 1051 B free). Perf: arcade runs the same code paths (one story_on test per frame and per catch);
   story adds a banked call per frame (about 100 cycles) and the cue's 40-entry count while it shows.
-- Tests (tests/test_pour.py, DMG + CGB): the window is exactly 12 release frames (the first launching release and the
-  next 11 perfect, then ordinary); releases at pour_t 16 and 27 score 2 x serve_score at the catch with the cue; 28
-  runs over (overflow frame, stays there) and scores nothing extra, no cue; the sparkle frame shows for exactly 12
-  frames then the overflow, palette 1 / OBP1; carried -> ordinary; the venue's frames and the cue in VRAM (chapters 1,
+- Tests (tests/test_pour.py, DMG + CGB): every release frame swept: the first launching release (the first full
+  frame) and the 7 settling ones ordinary, the next 6 perfect, then ordinary; HARD (pour_win 4) 4 perfect at the same
+  start; releases at pour_t 24 and 29 score 2 x serve_score at the catch with the cue; past the window it runs over
+  (overflow frame, stays there) and scores nothing extra, no cue; the frames in his hand: fill, plain full x8, sparkle
+  x6, then the overflow, palette 1 / OBP1; carried -> ordinary; the venue's frames and the cue in VRAM (chapters 1,
   6); arcade: no pour_t, the old full fill frame on OBP0, no bonus, no cue, no perfect release frame; the 10-per-line
-  limit with the cue. New goldens pour_sparkle, pour_cue (dmg + cgb). No existing golden changed.
+  limit with the cue. New goldens pour_sparkle, pour_cue (dmg + cgb); round 2 changed pour_cue (the redrawn x2 cue).
+  No golden from before the perfect pour changed.
