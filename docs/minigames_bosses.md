@@ -1444,6 +1444,17 @@ same change when the segment flow is built.
 
 ## 8. Open questions for the owner
 
+**Owner's answers (2026-10-10):**
+- Q1: mini-games do not gate the story; the medal idea is approved.
+- Q2: undecided; the owner decides after playing them all.
+- Q4: with MUSIC OFF, Taiko Pour stays silent (no tune), but it needs a clear visual timing cue: the beat flash on
+  the lane borders, a drum that pulses on every beat and the 4-beat count-in shown on screen. Sync must not depend
+  on hearing the tune (run the driver muted so `song_pos` keeps counting, or an equivalent frame clock).
+- Q5: the Pour-Off is in the saloon (no new festival stage).
+- Q7: yes, Practice gets a HARD toggle.
+- Q10: regulars keep coming during boss fights, more slowly.
+- Q3, Q8, Q9: explained to the owner, answers pending. Q6 (the Critic's pour window): pending.
+
 1. **Do mini-games gate the story?** Recommendation: no. Any result continues; medals give points and a gold medal
    gives one extra life in that chapter's boss fight. (The alternative, retry until bronze, makes a weak mini-game
    a wall.)
