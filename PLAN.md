@@ -996,9 +996,10 @@ frames, scores and VRAM are as before, and no existing golden changed.
 - Score: patrons.c caught() calls perfect_catch(i) in story mode; a mug_timer of 1 scores 2 x serve_score on the spot
   (saloon 50 -> +100). The serve (the patron pushed out) still scores serve_score as always; regulars take any drink.
   perfect_n counts perfect catches (tests; a later results screen).
-- Cue (the owner's pick after three tries: round 1's, kept; a redrawn dark-on-light x2 and a 4-sprite PERFECT word
-  over x2 were tried and dropped): assets/art/pour_cue.txt, one 8x16 OBJ: a twinkle over an "x2" badge (dark badge,
-  light text), OAM 26 (unused since the door puff), the full-drink palette (DMG OBP0), 16 px right of the caught mug
+- Cue (the owner's pick after four tries: round 1's twinkle over x2, a redrawn dark-on-light x2, a 4-sprite PERFECT
+  word over x2, round 1's again; final: "the x2 by itself"): assets/art/pour_cue.txt, one 8x16 OBJ: the "x2" badge
+  alone (dark badge, light text) in its lower half, where it always was (rows 8-14: at the caught drink's height on
+  the counter, which reads better than the twinkle's spot at face height; the top half is blank), OAM 26 (unused since the door puff), the full-drink palette (DMG OBP0), 16 px right of the caught mug
   on its 16 lines, 48 frames, blinking the last 16. Sprites per line: pour_frame counts every other OAM entry
   touching any of those 16 lines (an upper bound per line) and leaves the cue out on a frame where that is 10 or
   more, so it is never an 11th object (test: bartender 4 + held drink + 6 empties on the bar: the cue goes, no line
@@ -1026,5 +1027,5 @@ frames, scores and VRAM are as before, and no existing golden changed.
   (overflow frame, stays there) and scores nothing extra, no cue; the frames in his hand: fill, plain full x11, sparkle
   x5, then the overflow, palette 1 / OBP1; carried -> ordinary; the venue's frames and the cue in VRAM (chapters 1,
   6); arcade: no pour_t, the old full fill frame on OBP0, no bonus, no cue, no perfect release frame; the 10-per-line
-  limit with the cue. Goldens pour_sparkle, pour_cue (dmg + cgb, new with this feature; pour_cue is round 1's again,
-  byte-identical to f27bb4e's). No golden from before the perfect pour changed.
+  limit with the cue. Goldens pour_sparkle, pour_cue (dmg + cgb, new with this feature; pour_cue shows the x2 alone,
+  the owner's final pick). No golden from before the perfect pour changed.

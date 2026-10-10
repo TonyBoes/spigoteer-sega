@@ -15,8 +15,8 @@
 // serve_score on the spot, counts in perfect_n, and the cue shows to the right of the caught mug for CUE_FRAMES,
 // blinking for the last CUE_BLINK. The serve (the patron pushed out) still scores serve_score as always; regulars
 // take any drink.
-// The cue (OAM_CUE 26, free since the door puff; one 8x16 entry: a twinkle over the "x2" badge, the owner's pick after
-// trying a redrawn badge and a PERFECT word) sits on the caught mug's 16 lines. Sprites per line: each frame draw_cue
+// The cue (OAM_CUE 26, free since the door puff; one 8x16 entry: the "x2" badge alone in its lower half, the owner's
+// pick after a twinkle over it, a redrawn badge and a PERFECT word) sits on the caught mug's 16 lines. Sprites per line: each frame draw_cue
 // counts every other OAM entry touching any of those lines (an upper bound for each line) and leaves the cue out on a
 // frame where that count is LINE_OBJ_MAX or more, so the cue is never an 11th object on a line.
 #pragma bank 255

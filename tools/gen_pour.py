@@ -5,7 +5,7 @@ x8 previews in out/preview/.
   assets/art/pour/<t>.txt   per venue (gen_art THEMES order): 2 frames 8x16, SPARKLE then OVERFLOW, drawn over the
                             venue's full drink in his hand (assets/approved/venues/<t>_drink.txt frame 6) in that
                             drink's full palette. Swapping the art = editing these files; nothing else changes.
-  assets/art/pour_cue.txt   the PERFECT cue at the catch: 1 frame 8x16 (a twinkle over the x2 badge).
+  assets/art/pour_cue.txt   the PERFECT cue at the catch: 1 frame 8x16 (the x2 badge in its lower half).
 
 VRAM: OBJ_POUR (234) .. +5 = sparkle (2 tiles), overflow (2), cue (2): above the patron BG tiles (78..233, OBJ ids >= 128
 share VRAM with them) and below the DMG copies (OBJ_DMG_COPY 240..245). src/pour.c pour_load() writes them at a story
