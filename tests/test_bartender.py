@@ -164,7 +164,8 @@ def test_stage_rows_hold_the_venue_stage(gb):
     stage = venue_rows("saloon", "stage_map")
     for i, y in enumerate(range(first, last + 1)):
         assert _row(gb, y) == stage[i], f"stage row {y}"
-    assert all(_tile("STAGE_BASE") <= t < _tile("STAGE_BASE") + 20 for r in stage for t in r)
+    assert all(_tile("STAGE_BASE") <= t < _tile("STAGE_BASE") + venue("saloon")["stage_n"] for r in stage for t in r)
+    assert venue("saloon")["stage_n"] <= venue("saloon")["bar_base"], "stage ids below the bar's"
 
 
 def test_no_sprites_on_the_stage_rows_during_play(gb):

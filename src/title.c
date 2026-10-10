@@ -5,10 +5,11 @@
 // and sends the empty back. Foam bubbles drift up past the logo now and then.
 //
 // LCD off to enter. Afterwards every tilemap change goes through the VBlank queue (vq_add) from WRAM buffers.
-// BG ids (title only; the level load restores them): menu text over the venue's stage slot (0..19: no stage on
-// the title) and after the logo fill states; the lettering, its fill states and the scene's patron over the
-// patron range (72..227). OBJ: the effects over the show performers' tiles (OBJ_DANCER, reloaded by load_venue);
-// the bartender (permanent) and the saloon's drink frames (load_venue(0)).
+// BG ids (title only; the level load restores them): menu text over the venue pool's stage ids (0..19: no stage on
+// the title; the saloon's bar ids sit at the top of the pool, above them) and after the logo fill states; the
+// lettering, its fill states and the scene's patron over the patron range (72..227). OBJ: the effects over the
+// show performers' tiles (OBJ_DANCER, reloaded by load_venue); the bartender (permanent) and the saloon's drink
+// frames (load_venue(0)).
 // OAM: bartender 0-3, scene mug 4, cursor 5, sparkle 6, drip 7, bubbles 8-9. Per scanline at most 4 (scene 3).
 #pragma bank 255
 #include <gb/gb.h>

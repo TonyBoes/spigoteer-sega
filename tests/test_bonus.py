@@ -352,7 +352,7 @@ def test_next_level_loads_and_the_bar_scene_is_intact(gb):
     bg = array("bar_tiles")
     vram = b"".join(bytes(gb.read(0x9000 + t * 16, 16)) for t in range(art("TILE_GENERIC_BASE"), art("BAR_TILE_COUNT")))
     assert vram == bg
-    vt = b"".join(bytes(gb.read(0x9000 + (art("TILE_BAR_BASE") + t) * 16, 16)) for t in range(lodge["bar_n"]))
+    vt = b"".join(bytes(gb.read(0x9000 + (lodge["bar_base"] + t) * 16, 16)) for t in range(lodge["bar_n"]))
     assert vt == bytes(lodge["bar_tiles"])
     obj = b"".join(bytes(gb.read(0x8000 + t * 16, 16)) for t in range(96, 96 + 32))
     assert obj == bytes(lodge["show"])

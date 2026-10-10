@@ -68,8 +68,8 @@
 #define DRAW_BACK        0x80 // patron_draw bit 7: drawn in its back view (x < 128, so the bit is free)
 #define SHUFFLE_MAX         4 // a patron turning to watch the show shuffles at most this far to a multiple of 8 px
 // BG tile budget (signed 0x8800 mode, LCDC bit 4 clear): ids 0..255. OBJ tiles stay below 128, so BG ids 128+
-// (VRAM 0x8800-0x8FFF, which OBJ would see as 128+) are free for the patrons. M9: scene = venue stage slot 0-19 + venue bar
-// slot 20-35 + shared HUD tiles 36-71 (72), patrons 72-215 + back views 216-227: 228 of 256.
+// (VRAM 0x8800-0x8FFF, which OBJ would see as 128+) are free for the patrons. M9: scene = venue pool 0-35 (stage from 0 up,
+// bar + floor packed at the top) + shared HUD tiles 36-71 (72), patrons 72-215 + back views 216-227: 228 of 256.
 #if PATRON_TILE_BASE + PATRON_GROUP_TILES > 256
 #error "BG tile budget: scene + patron tiles exceed 256"
 #endif

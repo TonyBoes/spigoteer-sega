@@ -3,8 +3,9 @@
 // venue_t (tile data pointers, tilemaps, CGB attributes, palettes) into WRAM, and the functions here put it on
 // screen. Screen transitions only: everything here writes VRAM / palettes with the LCD off.
 //
-// BG tile ids: the theme's stage tiles load over TILE_STAGE_BASE (20 ids), its bar/keg/spout/floor tiles over
-// TILE_BAR_BASE (16 ids); the shared HUD tiles follow at TILE_GENERIC_BASE. OBJ: the drink's 10 frames load over the
+// BG tile ids: one pool of VENUE_POOL (36) ids for the theme: its stage tiles from TILE_STAGE_BASE (0) up, its
+// bar/keg/spout/floor tiles packed at the top (venue.bar_base = VENUE_POOL - bar_n, never below the title's text ids
+// 0..19); the shared HUD tiles follow at TILE_GENERIC_BASE. OBJ: the drink's 10 frames load over the
 // mug ids (OBJ_MUG, OBJ_MUG_FILL, OBJ_MUG_DRINK) and the 3 show performers over OBJ_DANCER.
 #pragma bank 255
 #include <gb/gb.h>
@@ -26,7 +27,7 @@ void load_venue(uint8_t t) BANKED {
     venue_fetch(t);
     venue_id = t;
     bkg_data_far(TILE_STAGE_BASE, venue.stage_n, venue.stage_tiles, venue_bank);
-    bkg_data_far(TILE_BAR_BASE, venue.bar_n, venue.bar_tiles, venue_bank);
+    bkg_data_far(venue.bar_base, venue.bar_n, venue.bar_tiles, venue_bank);
     // drink frames: full, empty | fill x4 | drink x4 (2 tiles each)
     spr_data_far(OBJ_MUG, MUG_TILE_COUNT, venue.drink_tiles, venue_bank);
     spr_data_far(OBJ_MUG_FILL, MUG_FILL_TILE_COUNT, venue.drink_tiles + MUG_TILE_COUNT * 16, venue_bank);

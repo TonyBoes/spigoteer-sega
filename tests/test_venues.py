@@ -73,18 +73,20 @@ def test_theme_order_follows_the_patron_groups():
     assert THEMES[0] == "saloon", "the generic look is theme 0"
 
 
-def test_theme_tile_slots_hold_every_theme_and_the_bg_budget_holds():
-    stage_slot, bar_slot = VENUES["stage_slot"], VENUES["bar_slot"]
-    assert (stage_slot, bar_slot) == (art("STAGE_TILE_SLOT"), art("BAR_TILE_SLOT")) == (20, 16)
-    assert art("TILE_BAR_BASE") == art("TILE_STAGE_BASE") + stage_slot
-    assert art("TILE_GENERIC_BASE") == art("TILE_BAR_BASE") + bar_slot
+def test_theme_tile_pool_holds_every_theme_and_the_bg_budget_holds():
+    """Option A (owner 2026-10-10): BG ids 0..35 are one pool; the stage takes ids from 0 up, the bar + floor pack at
+    the top (36 - bar_n ..), never below 20: the title draws the saloon's bar while its menu text overwrites 0..19."""
+    pool, text = VENUES["pool"], VENUES["title_text_slot"]
+    assert (pool, text) == (art("VENUE_POOL"), art("TITLE_TEXT_SLOT")) == (36, 20)
+    assert art("TILE_STAGE_BASE") == 0 and art("TILE_GENERIC_BASE") == pool
     assert art("BAR_TILE_COUNT") == art("TILE_GENERIC_BASE") + art("GENERIC_TILE_COUNT")
     assert art("BAR_TILE_COUNT") + art("PATRON_GROUP_TILES") <= 256
     for t in THEMES:
         v = venue(t)
-        assert v["stage_n"] <= stage_slot and v["bar_n"] <= bar_slot, t
+        assert v["stage_n"] + v["bar_n"] <= pool, t
+        assert v["bar_base"] == pool - v["bar_n"] >= text, t
         assert all(0 <= i < v["stage_n"] for i in v["stage_map"]), t
-        assert all(stage_slot <= i < stage_slot + v["bar_n"] for i in v["bar_map"] + [v["floor_tile"]]), t
+        assert all(v["bar_base"] <= i < pool for i in v["bar_map"] + [v["floor_tile"]]), t
         assert set(v["stage_attr"]) <= {5, 6} and set(v["bar_attr"]) <= {0, 7}, t
         assert v["bar_attr"][2:17] == [0] * 15 and v["bar_attr"][22:37] == [0] * 15, f"{t}: wall columns on the bar palette"
 
@@ -105,7 +107,7 @@ def test_each_level_loads_its_venue(gb, group):
                 [v["bar_map"][r * 20 + c] for c in range(20) if c not in covered], f"bar {b} row {r}"
     assert tilemap_row(gb, LAYOUT["FLOOR_ROW"], 0, 20) == [v["floor_tile"]] * 20
     assert bg_vram(gb, 0, v["stage_n"]) == bytes(v["stage_tiles"])
-    assert bg_vram(gb, VENUES["stage_slot"], v["bar_n"]) == bytes(v["bar_tiles"])
+    assert bg_vram(gb, v["bar_base"], v["bar_n"]) == bytes(v["bar_tiles"])
     assert obj_vram(gb, OBJ_MUG, 4) + obj_vram(gb, OBJ_MUG_FILL, 8) + obj_vram(gb, OBJ_MUG_DRINK, 8) == bytes(v["drink"])
     assert obj_vram(gb, OBJ_DANCER, 32) == bytes(v["show"])
     if gb.model_name == "cgb":
@@ -223,12 +225,12 @@ def _saloon_bar_rows():
 
 def test_the_saloon_keg_is_20_px_tall():
     """Columns 18-19: the keg fills rows 4-23 of the 24-px bar (was 8-23), its top 4 px clear of the bar above's
-    falling glass (3 lines); bar + floor still within the 16-tile slot, the bar palette only."""
+    falling glass (3 lines); bar + floor still clear of the title's text ids, the bar palette only."""
     rows = _saloon_bar_rows()
     keg = [y for y in range(24) if set(rows[y][144:160]) != {"."}]
     assert keg == list(range(4, 24)), keg
     v = venue("saloon")
-    assert v["bar_n"] <= VENUES["bar_slot"]
+    assert v["bar_n"] <= VENUES["pool"] - VENUES["title_text_slot"]
     assert all(v["bar_attr"][r * 20 + c] == BGPAL_BAR for r in range(3) for c in (18, 19))
 
 

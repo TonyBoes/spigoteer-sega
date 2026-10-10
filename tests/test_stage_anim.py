@@ -12,7 +12,7 @@ from test_venues import attr_row, bg_vram
 pytestmark = pytest.mark.timeout(300)
 
 ANIMATED = [t for t in THEMES if venue(t)["anim"]]
-STAGE_SLOT = VENUES["stage_slot"]
+POOL = VENUES["pool"]                      # BG ids 0..35: stage from 0 up, bar + floor at the top
 SA_MAX_WAIT = GAME["SA_MAX_WAIT"]
 LAG = SA_MAX_WAIT + 3          # frames an update may land after its script time (a busy queue; a 4-tile frame's 2nd half)
 
@@ -42,8 +42,8 @@ def timeline(t, n):
 
 
 def stage_vram(gb):
-    d = bg_vram(gb, 0, STAGE_SLOT)
-    return [d[i * 16:i * 16 + 16] for i in range(STAGE_SLOT)]
+    d = bg_vram(gb, 0, POOL)
+    return [d[i * 16:i * 16 + 16] for i in range(POOL)]
 
 
 def keep_playing(gb):
@@ -77,7 +77,7 @@ def test_animated_ids_are_the_last_stage_ids_and_frame_0_is_the_stage():
     for t in ANIMATED:
         v, a = venue(t), anim(t)
         first, k = a["first"], a["k"]
-        assert first + k == v["stage_n"] <= STAGE_SLOT, t
+        assert first + k == v["stage_n"] <= POOL - v["bar_n"], t
         assert bytes(a["frames"][0]) == bytes(v["stage_tiles"][first * 16:(first + k) * 16]), f"{t}: frame 0 is the stage"
         slots = {(c, r) for c, r in a["slots"]}
         for i, tid in enumerate(v["stage_map"]):
