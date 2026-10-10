@@ -27,13 +27,15 @@ PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patro
 # M9 themed venues (theme index = patron group): stage, bar, floor, drink, show and palettes per theme, one banked file each
 VENUES   := saloon sports lodge bistro igloo factory teahouse space zoo
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
-GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat3.c
+# M11b story mode: the script (docs/story.md), the portraits and the story font -> two banked files (tools/gen_story.py)
+STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c
+GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat3.c $(STORY_C)
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
 # rgb2sdas.py, placed in ROM bank 2 next to the order tables and src/music.c (all `#pragma bank 2`); the song patterns are
 # in bank 3 (build/music_pat3.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
 HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
-BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h
+BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h
 ROM      := $(BUILD)/$(NAME).gb
 
 .PHONY: all test check preview clean assets release
@@ -53,6 +55,11 @@ $(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tile
 
 $(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h: $(BUILD)/art.c
 	@test -f $@
+
+# Story mode (M11b): the script is validated here (line length, charset, speakers, the chapter goals, the cut-scene
+# tile budget); the build fails on any error. Also writes build/story.json (tests) and out/preview/story_*.png.
+$(STORY_C) $(BUILD)/story.h: tools/gen_story.py tools/gen_art.py docs/story.md assets/story/portraits.json assets/tiles/story.txt $(wildcard assets/approved/story/*) $(BUILD)/art.h | $(BUILD) $(OUT)/preview
+	python3 tools/gen_story.py $(BUILD) $(OUT)/preview
 
 # CGB palettes: assets/palettes.json -> build/palettes.c/.h
 $(BUILD)/palettes.c $(BUILD)/palettes.h: tools/palettes2c.py assets/palettes.json | $(BUILD)

@@ -1,0 +1,16 @@
+{
+  "_note": "M11b portrait slot parameters (tools/gen_story.py). These are NOT final: the M11c art study picks the size and style. Per speaker: 'art' = a portrait .txt ('.-+#' = colours 0-3, whole tiles, up to 56x56) or none for a generated placeholder (a framed silhouette with the name, 'tint' its CGB palette, 'label' the name it shows); 'x', 'y' = screen tile of the picture's top-left (the frame takes one tile around it; default: column 2, the frame's bottom on row 12, right above the text box); 'palettes' = CGB BG palettes (#rrggbb x4, colour 0 first; at most 3 while a venue backdrop shows: BG slots 2-4); 'attr' = optional rows of digits, one per tile, the palette of each tile (default 0); 'overlay' = optional OBJ layer {art (8x16 cells, '.' transparent), x, y (px from the picture's top-left), palettes (CGB OBJ, up to 4: slots 3-6), dmg_obp 0/1}. NARRATOR has no portrait.",
+  "SPIGOTEER": {"art": "assets/approved/story/portrait_spigoteer.txt",
+                "palettes": [["#f8f8f0", "#f0b088", "#5880c0", "#382010"]]},
+  "SADIE":     {"art": "assets/approved/story/portrait_sadie.txt",
+                "palettes": [["#fff8e0", "#f0b088", "#b06030", "#281818"]]},
+  "DREGS":       {"tint": ["#e8e0f0", "#a890c0", "#584070", "#181020"]},
+  "COACH":       {"tint": ["#e8f0f8", "#80a8d8", "#284878", "#081020"]},
+  "JUNE":        {"tint": ["#f8e8e0", "#d88870", "#803020", "#200808"]},
+  "COLBY":       {"tint": ["#fff8e8", "#e8d088", "#987028", "#201808"]},
+  "AURORA":      {"tint": ["#f0f8ff", "#a0d0f0", "#4078a8", "#081828"]},
+  "MANAGER-BOT": {"tint": ["#f0f0f0", "#b0b8c0", "#586068", "#101418"], "label": "MGR-BOT"},
+  "HANA":        {"tint": ["#fff0f0", "#f0a8b8", "#904058", "#200810"]},
+  "ZIZZ":        {"tint": ["#f0fff0", "#a0f0a0", "#409040", "#082008"]},
+  "KIKI":        {"tint": ["#f8f8e0", "#d0c880", "#707030", "#181808"]}
+}
