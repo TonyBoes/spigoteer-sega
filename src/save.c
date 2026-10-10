@@ -2,9 +2,10 @@
 // M10b: a top-5 table with 3-letter initials; M11b: the story progress next to it; story shifts: the step reached.
 // Layout at 0xA000 (version 4):
 //   0..3 magic "TPR4", then 5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little
-//   endian, <= 999999), best first; 34 story progress (chapters cleared, 0..9); 35 the step reached in the next
-//   chapter (0..STORY_STEPS-1: its steps before it are done; 0 when the story is complete); 36 checksum (0x5A + bytes
-//   0..35), 37 its complement. CONTINUE on the title: progress 1..8, or progress 0 with a step reached.
+//   endian, <= 999999), best first; 34 story progress (chapters cleared, 0..9); 35 the furthest step reached in the
+//   next chapter (0..STORY_STEPS-1: its steps before it were done at least once; a venue restart never lowers it; 0
+//   when the story is complete); 36 checksum (0x5A + bytes 0..35), 37 its complement. CONTINUE on the title: progress
+//   1..8, or progress 0 with a step reached; it starts that chapter over (lives are not saved: story.c).
 //   A step of chapter k is reached (a later practice mode may offer it) when k < progress, or k == progress and the
 //   step <= the step reached. Practice best scores, when they come, go in their own block from 0x40 with its own
 //   magic and checksum (no version change here: a bad block then loses only the bests).
@@ -30,7 +31,7 @@ uint8_t  top_names[TOP_N * 3];      // 3 initials per entry, ASCII
 uint32_t top_scores[TOP_N];         // best first
 uint8_t  save_migrated;             // the boot converted an old save: 1 from version 1, 2 / 3 from version 2 / 3 (tests)
 uint8_t  story_progress;            // M11b: story chapters cleared (0..9)
-uint8_t  story_reached;             // story shifts: the step reached in chapter story_progress (0..STORY_STEPS-1)
+uint8_t  story_reached;             // story shifts: the furthest step reached in chapter story_progress (0..STORY_STEPS-1)
 
 #define SRAM ((volatile uint8_t *)0xA000)
 #define HI_MAX 999999UL

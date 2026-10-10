@@ -1,13 +1,15 @@
 # M11b story mode: the script build (tools/gen_story.py), the cut-scenes (src/story.c), the chapter goals, the story
 # progress in SRAM and the title's CONTINUE. Story shifts: each chapter's Opening / Happy hour / Last call (the
-# mini-game and boss slots skipped), their banners, goals, pace and arrival patterns, retrying one shift, SRAM
-# version 4 (the step reached) and the version 3 -> 4 migration.
+# mini-game and boss slots skipped), their banners, goals, pace and arrival patterns, SRAM version 4 (the step
+# reached) and the version 3 -> 4 migration. Story lives: 3 per venue carried through its shifts, a venue restart on
+# the last one, the strict rules' 2 lives and their cue, the gold medal's bonus life, CONTINUE at the venue's start.
 import importlib.util
 import json
+import re
 
 import pytest
 from conftest import GAME, ROOT, check_golden, hold_stage_anim
-from test_flow import (GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
+from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
                        settle_title, state, tilemap_row)
 from test_scores import V4_SUM, booted, parse_save, table, v1_image, v2_image, v3_image, v4_image
 from test_sound import save_ram
@@ -34,6 +36,9 @@ SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL = 1, 2, 3, 4
 BOX_ROW, TEXT_ROW = 13, 14
 TAP_X = GAME["TAP_X"]
 CHARSET = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?'-: ")
+GAME_ART = {m[0]: int(m[1]) for m in re.findall(r"#define (TILE_\w+) (\d+)", (ROOT / "build" / "art.h").read_text())}
+BANKS = {p[1]: int(p[2], 16) for p in (l.split() for l in (ROOT / "build" / "game.noi").read_text().splitlines())
+         if len(p) == 3 and p[1].startswith("b_")}
 
 
 def pre(c):
@@ -262,8 +267,9 @@ def to_goal(gb):
     return gb
 
 
-def to_chapter(model, c):
-    """A rom in chapter c's opening shift, just past the goal banner (a save with c chapters cleared: CONTINUE)."""
+def to_chapter(model, c, banner=False):
+    """A rom in chapter c's opening shift, just past the goal banner (banner=True: still on it; a save with c
+    chapters cleared: CONTINUE)."""
     if c:
         rom = start_story(model, v4_image([], story=c), cont=True)
     else:
@@ -271,22 +277,34 @@ def to_chapter(model, c):
         skip_scene(rom)                                   # INTRO
     assert rom.mem("story_scene") == pre(c) and rom.mem("story_chapter") == c
     skip_scene(rom)                                       # the PRE scene
+    if banner:
+        run_until(rom, lambda: state(rom) == GS_GOAL, 30)
+        rom.run(2)
+        return rom
     return to_goal(rom)
 
 
 def to_shift(model, c, k, banner=False):
-    """A rom in chapter c's shift k (CONTINUE from a save that reached its step: no PRE scene), past the banner
-    (banner=True: still on it)."""
+    """A rom in chapter c's shift k with 3 lives, past the banner (banner=True: still on it). CONTINUE from a save
+    that reached the shift's step opens the venue's Opening banner (no PRE scene); the Opening is then won with
+    story_step poked to the step before shift k, so the next playable step is k's (one SHIFT CLEAR)."""
     if k == 0:
-        return to_chapter(model, c)
+        return to_chapter(model, c, banner)
     rom = booted(model, v4_image([], story=c, step=SHIFT_STEP[k]))
     hold_stage_anim(rom)
     rom.press("down", 2)
     rom.press("down", 2)
-    rom.press("a", 2)                                     # CONTINUE
+    rom.press("a", 2)                                     # CONTINUE: the venue's Opening
     run_until(rom, lambda: state(rom) == GS_GOAL, 60)
+    assert rom.mem("story_chapter") == c and rom.mem("story_shift") == 0 and rom.mem("story_step") == 0
+    to_goal(rom)
+    rom.write("story_step", SHIFT_STEP[k] - 1)
+    win(rom, c, 0)
+    run_until(rom, lambda: state(rom) == LEVEL_CLEAR, 20)
+    run_until(rom, lambda: state(rom) == GS_GOAL, 300)
     rom.run(2)
     assert rom.mem("story_chapter") == c and rom.mem("story_shift") == k and rom.mem("story_step") == SHIFT_STEP[k]
+    assert rom.mem("lives") == 3
     return rom if banner else to_goal(rom)
 
 
@@ -619,59 +637,233 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
         assert (o_hur, l_hur) == (o_spd + o_spd // 2, l_spd + l_spd // 2), "hurried walkers keep 1.5x"
 
 
-def fail_goal(gb, sh):
-    """Break the shift's goal the way only it can (its flag or its timer), else lose all three lives."""
-    if sh["flags"] & F_NO_TAP:
-        lose_a_life(gb)                                 # one patron at the tap is enough
-        assert gb.mem("lives") == 0
-    elif sh["flags"] & F_NO_BREAK:
-        gb.write("intro_timer", 0)
-        inject_mug(gb, 3, 150, st=2)                    # an empty off the right end of bar 3 (he is on bar 0)
-        run_until(gb, lambda: state(gb) == LIFE_LOST, 30)
-        gb.run(1)
-        assert gb.mem("lives") == 0 and gb.mem("story_breaks") == 1
-    elif sh["secs"]:
-        assert gb.mem16("story_timer") == sh["secs"] * 60
-        gb.write("intro_timer", 0)
-        gb.write(gb.addr("story_timer"), 3)
-        gb.write(gb.addr("story_timer") + 1, 0)
-        run_until(gb, lambda: state(gb) == GS_STORY, 10)
-        return
-    else:
-        for n in range(3):
-            lose_a_life(gb)
-            if n < 2:
-                run_until(gb, lambda: state(gb) == PLAYING, 200)
-    run_until(gb, lambda: state(gb) == GS_STORY, 200)
+# ---- lives (owner's rule): 3 per venue, carried through its shifts; the last one lost restarts the venue ----------
+HUD_MUG = GAME_ART["TILE_HUD_MUG"]
+
+
+def hud_lives(gb):
+    """HUD columns 8-11 as a string: 'U' a mug, '.' none (column 8 is the 4th, bonus, life; 9-11 lives 1-3)."""
+    return "".join("U" if t == HUD_MUG else "." for t in tilemap_row(gb, 0, 8, 4))
+
+
+def lives_hud(n):
+    return ("U" if n > 3 else ".") + "".join("U" if i <= n else "." for i in range(1, 4))
+
+
+def call_banked(gb, name):
+    """Call one of the game's BANKED functions from a test: a stub in free stack space below SP (push the registers;
+    ld e, bank; ld hl, addr; call ___sdcc_bcall_ehl; pop; ret), entered with the interrupted PC as its return
+    address. It runs at once (or at the next interrupt when the CPU sits in HALT) and returns where the game was."""
+    f, bank, bc = gb.addr(name), BANKS["b_" + name], gb.addr("___sdcc_bcall_ehl")
+    rf = gb.pb.register_file
+    sp, pc = rf.SP, rf.PC
+    stub = sp - 200
+    code = [0xF5, 0xC5, 0xD5, 0xE5, 0x1E, bank, 0x21, f & 0xFF, (f >> 8) & 0xFF, 0xCD, bc & 0xFF, bc >> 8,
+            0xE1, 0xD1, 0xC1, 0xF1, 0xC9]
+    for i, b in enumerate(code):
+        gb.pb.memory[stub + i] = b
+    gb.pb.memory[sp - 2], gb.pb.memory[sp - 1] = pc & 0xFF, pc >> 8
+    rf.SP, rf.PC = sp - 2, stub
+    gb.run(2)
+
+
+def break_a_glass(gb):
+    """An empty off the right end of bar 3 (the bartender is on bar 0): a broken glass."""
+    gb.write("intro_timer", 0)
+    inject_mug(gb, 3, 150, st=2)
+    run_until(gb, lambda: state(gb) == LIFE_LOST, 30)
+
+
+def freeze_over(gb):
+    run_until(gb, lambda: state(gb) != LIFE_LOST, 200)
+
+
+def try_again(gb):
+    """TRY AGAIN is up: A, then the next goal banner."""
+    assert gb.mem("story_phase") == SP_FAIL and banner_text(gb, 1) == centred("TRY AGAIN")
+    gb.press("a", 2)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 30)
+    gb.run(3)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_lives_carry_from_shift_to_shift(model):
+    with to_chapter(model, 0) as gb:
+        assert gb.mem("lives") == 3 and hud_lives(gb) == lives_hud(3)
+        lose_a_life(gb)
+        freeze_over(gb)
+        assert gb.mem("lives") == 2 and state(gb) == PLAYING and gb.mem("story_shift") == 0
+        for k in range(2):
+            win(gb, 0, k)
+            run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+            gb.run(3)
+            assert gb.mem("story_shift") == k + 1 and gb.mem("lives") == 2, "not refilled between shifts"
+            assert hud_lives(gb) == lives_hud(2)
+            to_goal(gb)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("c", range(9))
-def test_a_failed_last_call_retries_only_that_shift(model, c):
+def test_losing_the_last_life_in_the_last_call_restarts_the_venue(model, c):
+    """Every chapter: the last life lost in the Last call -> TRY AGAIN -> the Opening's banner with 3 lives (no PRE
+    scene); the step reached stays recorded (and is not lowered by winning the Opening again), the score carries on."""
     with to_shift(model, c, 2) as gb:
         gb.write("served", 3)
-        fail_goal(gb, SHIFTS[c][2])
-        assert gb.mem("story_phase") == SP_FAIL and gb.mem("story_fails") == 1
-        assert banner_text(gb, 1) == centred("TRY AGAIN")
-        gb.press("a", 2)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 30)
-        gb.run(3)
+        gb.write("lives", 1)
+        score = int.from_bytes(gb.read("score", 4), "little")
+        lose_a_life(gb)                                 # a patron at the tap (chapter 2: the rule, 1 left to lose)
+        assert gb.mem("lives") == 0
+        run_until(gb, lambda: state(gb) == GS_STORY, 200)
+        assert gb.mem("story_fails") == 1
+        try_again(gb)
         assert gb.mem("story_chapter") == c and gb.mem("lives") == 3 and gb.mem("served") == 0
-        assert gb.mem("story_shift") == 2 and gb.mem("story_step") == 3, "the last call again, not the chapter"
-        assert banner_text(gb, 1) == centred(shift_title(c, 2))
-        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, 3), "nothing saved"
+        assert gb.mem("story_shift") == 0 and gb.mem("story_step") == 0, "the venue again, from its Opening"
+        assert gb.mem("story_restarts") == 1 and hud_lives(gb) == lives_hud(3)
+        assert banner_text(gb, 1) == centred(shift_title(c, 0))
+        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, 3), "the step reached is kept"
         assert gb.mem("story_scene") == pre(c), "no PRE scene: straight to the goal"
-        assert gb.mem("pat_len") == len(PATTERNS[SHIFTS[c][2]["pattern"]]["bars"])
+        assert int.from_bytes(gb.read("score", 4), "little") >= score, "the score carries on"
+        assert gb.mem("pat_len") == 0, "the Opening's normal arrivals"
+        to_goal(gb)
+        win(gb, c, 0)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, 3), "Practice unlocks never go back"
+        assert gb.mem("lives") == 3
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_failed_opening_retries_the_opening(model):
+def test_losing_all_three_in_the_opening_restarts_the_opening(model):
     with to_chapter(model, 0) as gb:
-        fail_goal(gb, SHIFTS[0][0])
-        gb.press("a", 2)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 30)
+        for n in range(3):
+            lose_a_life(gb)
+            if n < 2:
+                freeze_over(gb)
+        run_until(gb, lambda: state(gb) == GS_STORY, 200)
+        try_again(gb)
         assert gb.mem("story_shift") == 0 and gb.mem("story_step") == 0 and gb.mem("lives") == 3
         assert gb.mem("story_scene") == pre(0), "no PRE scene again"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_time_up_costs_a_life_and_retries_the_shift(model):
+    """Chapter 4's Last call (timed): the clock running out costs a life and the shift is played again with the
+    lives left; when that was the last one, the venue restarts."""
+    with to_shift(model, 3, 2) as gb:
+        for left, shift in ((2, 2), (1, 2), (0, 0)):
+            assert gb.mem16("story_timer") == SHIFTS[3][2]["secs"] * 60
+            gb.write("intro_timer", 0)
+            gb.write(gb.addr("story_timer"), 3)
+            gb.write(gb.addr("story_timer") + 1, 0)
+            run_until(gb, lambda: state(gb) == GS_STORY, 10)
+            assert gb.mem("lives") == left
+            gb.run(3)
+            assert hud_lives(gb) == lives_hud(left)
+            try_again(gb)
+            assert gb.mem("story_shift") == shift and gb.mem("lives") == (left or 3)
+            assert gb.mem16("story_timer") == SHIFTS[3][shift]["secs"] * 60
+            to_goal(gb)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("c, k", [(1, 0), (1, 1), (1, 2), (6, 0), (6, 1), (6, 2)])
+def test_a_strict_rule_costs_two_lives(model, c, k):
+    """Chapter 2 (a fan at the tap) and 7 (a broken cup), every shift: the banner says so, breaking the rule costs 2
+    lives, "2 LIVES LOST" shows over the freeze and the two lost mugs blink together; the shift goes on with the one
+    left, and the next break of the rule restarts the venue."""
+    with to_shift(model, c, k, banner=True) as gb:
+        sh = SHIFTS[c][k]
+        assert sh["flags"] == (F_NO_TAP if c == 1 else F_NO_BREAK)
+        line2 = "FAN AT TAP COSTS TWO" if c == 1 else "BROKEN CUP COSTS TWO"
+        assert sh["line2"] == line2 and banner_text(gb, 3) == centred(line2)
+        to_goal(gb)
+        gb.write("served", 2)
+        if c == 1:
+            lose_a_life(gb)
+        else:
+            break_a_glass(gb)
+        gb.run(2)
+        assert gb.mem("lives") == 1 and gb.mem("story_pen") == 2
+        assert banner_text(gb, 1) == centred("2 LIVES LOST")
+        seen = set()
+        while state(gb) == LIFE_LOST:
+            seen.add(hud_lives(gb))
+            gb.run(1)
+        assert seen == {".U..", ".UUU"}, f"the two lost mugs blink together: {seen}"
+        gb.run(3)
+        assert state(gb) == PLAYING and gb.mem("story_shift") == k and gb.mem("served") == 2
+        assert hud_lives(gb) == lives_hud(1) and gb.mem("story_pen") == 0
+        assert gb.mem("overlay_on") == 0, "the banner goes with the freeze"
+        if c == 1:
+            lose_a_life(gb)
+        else:
+            break_a_glass(gb)
+        assert gb.mem("lives") == 0
+        run_until(gb, lambda: state(gb) == GS_STORY, 200)
+        try_again(gb)
+        assert gb.mem("story_shift") == 0 and gb.mem("lives") == 3
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_strict_rule_cue(model):
+    """The moment the two lost mugs light up during the freeze (chapter 2's Happy hour, a fan at the tap)."""
+    with to_shift(model, 1, 1) as gb:
+        lose_a_life(gb)
+        run_until(gb, lambda: gb.mem("state_timer") >= 10, 20)
+        gb.run(1)
+        assert hud_lives(gb) == ".UUU" and gb.mem("lives") == 1
+        check_golden(gb, "story_two_lives")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_other_rules_cost_one_life(model):
+    with to_shift(model, 6, 1) as gb:                   # the teahouse: a patron at the tap is one life
+        lose_a_life(gb)
+        gb.run(2)
+        assert gb.mem("lives") == 2 and gb.mem("story_pen") == 0 and gb.mem("overlay_on") == 0
+    with to_shift(model, 1, 1) as gb:                   # the stadium: a broken glass is one life
+        break_a_glass(gb)
+        gb.run(2)
+        assert gb.mem("lives") == 2 and gb.mem("story_pen") == 0
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_gold_medal_bonus_life(model):
+    """story_bonus_life (the mini-game framework's call on a gold medal): 4 lives, the 4th mug at column 8, capped at
+    4; the lives carry into the next shift; the bonus mug is the first to go."""
+    with to_chapter(model, 0) as gb:
+        call_banked(gb, "story_bonus_life")
+        gb.run(2)
+        assert gb.mem("lives") == 4 and hud_lives(gb) == "UUUU" and state(gb) == PLAYING
+        check_golden(gb, "story_bonus_life")
+        call_banked(gb, "story_bonus_life")
+        gb.run(2)
+        assert gb.mem("lives") == 4 and hud_lives(gb) == "UUUU", "at most 4"
+        win(gb, 0, 0)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        gb.run(3)
+        assert gb.mem("lives") == 4 and hud_lives(gb) == "UUUU"
+        to_goal(gb)
+        lose_a_life(gb)
+        gb.run(2)
+        assert gb.mem("lives") == 3 and hud_lives(gb) == ".UUU"
+
+
+def test_arcade_keeps_three_lives_for_the_run(gb):
+    """Arcade is unchanged: 3 lives for the whole run (not refilled at a new level), column 8 always empty."""
+    assert gb.mem("story_on") == 0 and gb.mem("lives") == 3 and hud_lives(gb) == ".UUU"
+    lose_a_life(gb)
+    freeze_over(gb)
+    assert gb.mem("lives") == 2 and hud_lives(gb) == ".UU."
+    clear_bars(gb)
+    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
+    run_until(gb, lambda: state(gb) == PLAYING and gb.mem("level") == 2, 400)
+    gb.run(3)
+    assert gb.mem("lives") == 2 and hud_lives(gb) == ".UU."
+    lose_a_life(gb)
+    freeze_over(gb)
+    lose_a_life(gb)
+    freeze_over(gb)
+    assert gb.mem("lives") == 0 and state(gb) == GAME_OVER
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -727,10 +919,15 @@ def test_the_last_chapter_leads_to_the_finale_credits_and_the_title(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_cleared_shift_survives_a_reset_and_continue_resumes_at_the_next(model):
+def test_continue_mid_venue_starts_the_venue_over(model):
+    """A cleared shift is saved (the step reached), but lives are not: CONTINUE after a reset starts the venue over at
+    its Opening banner (no PRE scene: a step of it was reached) with 3 lives."""
     with to_chapter(model, 0) as gb:
+        lose_a_life(gb)
+        freeze_over(gb)
         win(gb, 0, 0)
         run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+        assert gb.mem("lives") == 2
         ram = save_ram(gb)
     assert ram[:4] == b"TPR4" and (ram[34], ram[35]) == (0, 1), "chapter 1, the happy hour reached"
     with booted(model, ram) as again:
@@ -742,21 +939,30 @@ def test_a_cleared_shift_survives_a_reset_and_continue_resumes_at_the_next(model
         again.press("a", 2)
         run_until(again, lambda: state(again) == GS_GOAL, 60)
         again.run(3)
-        assert again.mem("story_chapter") == 0 and again.mem("story_shift") == 1, "straight to the happy hour"
-        assert banner_text(again, 1) == centred("CHAPTER 1 HAPPY HOUR")
+        assert again.mem("story_chapter") == 0 and again.mem("story_shift") == 0 and again.mem("story_step") == 0
+        assert again.mem("lives") == 3 and hud_lives(again) == lives_hud(3)
+        assert banner_text(again, 1) == centred("CHAPTER 1 OPENING")
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_continue_from_the_mini_game_slot_goes_on_to_the_last_call(model):
-    """A save at a slot not built yet (the happy hour done) resumes at the next playable step."""
-    rom = booted(model, v4_image([], story=4, step=2))
-    with rom:
+@pytest.mark.parametrize("step", [2, 3])
+def test_continue_keeps_the_step_reached_for_practice(model, step):
+    """A save at the mini-game slot or the Last call: CONTINUE opens the venue's Opening; winning it again keeps the
+    furthest step reached (the record Practice unlocks from), the next shift is the Happy hour."""
+    with booted(model, v4_image([], story=4, step=step)) as rom:
+        hold_stage_anim(rom)
         assert rom.mem("title_n") == 4
         rom.press("down", 2)
         rom.press("down", 2)
         rom.press("a", 2)
         run_until(rom, lambda: state(rom) == GS_GOAL, 60)
-        assert (rom.mem("story_chapter"), rom.mem("story_step"), rom.mem("story_shift")) == (4, 3, 2)
+        assert (rom.mem("story_chapter"), rom.mem("story_step"), rom.mem("story_shift")) == (4, 0, 0)
+        to_goal(rom)
+        win(rom, 4, 0)
+        run_until(rom, lambda: state(rom) == GS_GOAL, 400)
+        assert rom.mem("story_shift") == 1
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (4, step)
+        assert save_ram(rom)[35] == step
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

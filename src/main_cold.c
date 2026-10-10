@@ -52,7 +52,7 @@ static void glyph_row(uint8_t y, uint8_t x, const uint8_t *tiles, uint8_t n) {
 static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
 
 static void draw_lives(void) {
-    glyph_row(HUD_ROW, 9, lives_tiles, 3);
+    glyph_row(HUD_ROW, 8, lives_tiles, 4);
     hud_dirty &= ~HUD_LIVES;
 }
 
@@ -68,7 +68,7 @@ void draw_hud(void) BANKED {
     for (i = 0; i < 20; i++) row_buf[i] = TILE_HUD_BLANK;
     put_row(HUD_ROW);
     draw_score();                                   // six digits, cols 1-6
-    draw_lives();                                   // one mug per life, cols 9-11
+    draw_lives();                                   // one mug per life, cols 9-11 (8: a story bonus life)
     buf[0] = TILE_GLYPH_L;                          // "L" col 17, level as two digits cols 18-19
     glyph_row(HUD_ROW, 17, buf, 1);
     buf[0] = digit_tile(level / 10); buf[1] = digit_tile(level % 10);
@@ -205,7 +205,7 @@ void resume_after_life(void) BANKED {
     for (p = 0; p < MAX_PATRONS; p++) if (patron_state[p]) remove_patron(p);
     reset_actors();
     hide_all_sprites();
-    life_lost = 0;
+    life_lost = 0; overlay_on = 0;               // (story: the "2 LIVES LOST" banner of the freeze goes)
     spawn_timer = spawn_interval; intro_timer = INTRO_FRAMES;
     place_start_patrons();
     draw_bartender();

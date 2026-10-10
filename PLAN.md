@@ -263,7 +263,7 @@ table with initials + loop banner/harder loops.
 | M11a | Story script: "The Golden Spigot" - the legendary spigot that pours any drink shattered into 9 pieces; each venue owner gives one to a bartender who keeps their crowd happy. Written as docs/story.md for owner approval before any code. |
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, nine venue owners, villain if any), cut-scene pictures. Owner approves. |
-| M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). |
+| M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
 | M11e (upcoming) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md (being written). |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
@@ -763,7 +763,7 @@ per-chapter twists are part 2 (hook below). Portraits and pictures are placehold
   freeze. HUD in story: columns 12-14 the goal letter (S serve, C catch) and what is left, 16-19 'T' + seconds on timed
   chapters (over L0n). Main loop hooks (ROM0): story_play() after play_frame when story_on, GS_LEVEL_CLEAR's end calls
   story_level_done(), GS_STORY / GS_GOAL call story_update(); enter_game_over (banked) calls story_fail() in story mode.
-  Failure: lives work as in arcade (3 per attempt, lose_life as always); losing the last one, breaking the chapter's
+  Failure (superseded by "Story lives as built"): lives work as in arcade (3 per attempt, lose_life as always); losing the last one, breaking the chapter's
   rule (2: a patron at the tap, 7: a broken glass: lives forced to 0, the freeze plays out) or the timer running out shows
   TRY AGAIN (2.5 s or A / START), then the chapter restarts at its goal banner (no PRE scene) with 3 lives. The score
   carries on through the story and never enters the top 5.
@@ -837,8 +837,9 @@ Each chapter plays its venue several times in a row, as shifts with rising diffi
 - Banner: the existing 5-row layout; row 1 is now "CHAPTER n " + the shift (OPENING / HAPPY HOUR / LAST CALL, from
   STORY_SHIFT_NAMES in build/story.h), centred; "CHAPTER 1 OPENING SHIFT" would be 23 characters, so the word SHIFT is
   left out. A won shift shows SHIFT CLEAR (CHAPTER CLEAR when no playable step is left), with the level bonus.
-- Retry: a failed goal shows TRY AGAIN, then the same shift's banner with 3 lives (no PRE scene, no earlier shift);
-  served / catches / timer start over; the score carries on. The twist hook is per shift now (goal_t.twist -> story_twist
+- Retry (superseded by "Story lives as built": lives per venue, a venue restart): a failed goal shows TRY AGAIN, then
+  the same shift's banner with 3 lives (no PRE scene, no earlier shift); served / catches / timer start over; the score
+  carries on. The twist hook is per shift now (goal_t.twist -> story_twist
   at every shift start; 0 everywhere).
 - Save (src/save.c), SRAM version 4 "TPR4": 0-3 magic, 4-33 the top 5 (as v2 / v3), 34 chapters cleared (0-9), 35 the
   step reached in the next chapter (0-4; must be 0 when 9 chapters are cleared), 36 checksum 0x5A + bytes 0-35, 37 its
@@ -906,3 +907,64 @@ accent. Four are imported pixel-exact; the other speakers keep the generated 32x
   the box (top, sides, no bottom row, the box panel intact); the converter round trip and its failures; the budget.
   Goldens changed on purpose: story_portrait (Sadie, new art) and story_placeholder (POST_SALOON, Dregs is now the
   approved portrait, no name-tag overlay). New goldens: story_spigoteer (PRE_STADIUM), story_managerbot (PRE_ROBOT).
+
+## Story lives as built (owner's rule, 2026-10-10)
+The owner's lives rule (docs/minigames_bosses.md section 8) replaces "retry only the failed shift". Arcade is unchanged.
+- Lives: 3 per venue (chapter). story.c venue_start sets them when the chapter's first playable step (Opening) starts;
+  shift_start no longer touches them, so they carry Opening -> Happy hour -> [mini-game] -> Last call -> [boss] and
+  are never refilled between shifts.
+- The last life lost (enter_game_over -> story_fail, as before) shows TRY AGAIN, then the venue restarts at the
+  Opening's goal banner with 3 lives (no PRE scene; story_restarts counts them for tests). The score carries on, as it
+  did on a retry: story scores never enter the top 5, so restoring the venue's start score would buy nothing, and a
+  score that never goes back is easier to read.
+- The clock (chapters 4, 5): the time running out costs a life (story.c's choice; the owner's rule does not cover it)
+  and that shift is played again from its banner with the lives left; when it was the last life, the venue restarts.
+  So a timed shift can no longer be retried for free.
+- Strict rules (chapter 2: a patron at the tap, F_NO_TAP; chapter 7: a broken glass, F_NO_BREAK) no longer fail the
+  shift. story_play sees the life lost that frame (life_lost, plus a break that frame or not) and takes a second one
+  (only one when one was left; 0 sets game_over and the venue restarts after the freeze). The cue: show_overlay("2 LIVES
+  LOST") in the banner window over the freeze (resume_after_life now clears overlay_on, so it goes with the freeze), and
+  the lost mugs (story_pen: 2, or 1) blink together, 8 frames on / 8 off, through the 120-frame freeze
+  (story_life_frame, banked, called from main.c's GS_LIFE_LOST case only in story mode; its last frame puts the HUD
+  back). The other way to lose a life in those chapters (a break in 2, a patron at the tap in 7) costs 1 as usual.
+  New golden story_two_lives (chapter 2's Happy hour, the frame the two lost mugs light up).
+- Banners (gen_story SHIFTS / CHAPTERS, docs/story.md tables, every shift of the two chapters): line 2 states the cost,
+  "FAN AT TAP COSTS TWO" (chapter 2) and "BROKEN CUP COSTS TWO" (chapter 7), line 1 keeps the goal (SERVE 10 FANS /
+  SERVE 20 FANS / 22 FANS RUSH IN; SERVE 7 GUESTS / SERVE EVERY GUEST / SERVE 15 GUESTS). The banner has no story font
+  (HUD glyphs only: no '-' or ':'), so "-2 LIVES" could not be written. The tables' engine cells now read "..., a fan
+  at the tap costs 2 lives" / "..., a broken glass costs 2 lives" (gen_story's md-table check follows). Owner-approved
+  script change: COACH's page in PRE_STADIUM is now LET ONE FAN REACH / YOUR TAP AND IT / COSTS TWO LIVES!, HANA's in
+  PRE_TEAHOUSE SERVE WITH CARE. / ONE BROKEN CUP / COSTS TWO LIVES. (POST_TEAHOUSE still says NOT ONE CUP BROKEN, which
+  is no longer always true: an owner text decision.)
+- Gold medal: story_bonus_life() (BANKED, story.c) adds a life up to MAX_LIVES 4 and redraws the HUD; the mini-game
+  framework calls it on a gold medal. Tests call it directly (test_story.call_banked: a stub below SP that calls
+  ___sdcc_bcall_ehl and returns to the interrupted PC).
+- HUD: lives_tiles is 4 tiles at columns 8-11 (render.c queues 4, main_cold draw_lives draws 4). Columns 9-11 are lives
+  1-3 exactly as before; column 8 (blank in every HUD so far, between the score and the mugs) holds the 4th, bonus,
+  mug, which is the first to go. Arcade never has more than 3, so its HUD and every golden are unchanged; the story
+  goal counter keeps columns 12-14. New golden story_bonus_life (4 mugs, chapter 1's Opening).
+- Save / CONTINUE: lives are not saved. Byte 35 keeps its version-4 meaning and values (a step of the chapter not yet
+  cleared, 0-4) but is now the furthest step reached there: story_level_done saves max(reached, the next step) while
+  the chapter is the saved one, so a venue restart and the shifts won again never lower it (Practice unlocks from it).
+  CONTINUE starts the first chapter not cleared over: its Opening banner with 3 lives when a step of it was reached
+  (byte 35 > 0; the PRE scene was seen), else its PRE scene. No SRAM version bump: the bytes, their ranges and the
+  checks are unchanged and a version-3 migration (step 0) still means "the PRE scene"; an old v4 save with a step
+  simply resumes at the venue's start, which is the new rule.
+- Boss engine (not built, for M11e): a boss keeps his damage after a lost life (the meter is not refilled by
+  resume_after_life); only a venue restart (lives 0) starts him over, with the venue. The boss fight uses the venue's
+  lives (no refill on entering it), the gold-medal life included.
+- ROM: real ROM0 free 1671 -> 1641 B (game.gb), 1784 -> 1754 B (release.gb), 30 B: prep_hud's 4th tile, the 4-tile
+  HUD queue and the story_life_frame call in GS_LIFE_LOST. Banks after (romusage, game.gb): 1 93, 2 195, 3 116, 4 51,
+  5 68, 6 187, 7 2006 B free.
+- Tests (tests/test_story.py): lives carry across shifts; the last life lost in every chapter's Last call restarts the
+  venue at its Opening with 3 lives, keeps the step reached (also after winning the Opening again) and the score; three
+  lives lost in the Opening; time up costs a life and retries the shift, the last one the venue; chapters 2 and 7, every
+  shift: the banner line, 2 lives, "2 LIVES LOST", the blink, the shift going on with 1, the next break restarting the
+  venue; the other cause costs 1; story_bonus_life gives 4 (HUD 4 mugs), capped at 4, carried into the next shift, the
+  bonus mug lost first; CONTINUE mid-venue starts at the Opening with 3 lives; CONTINUE from step 2 / 3 keeps the step
+  reached; arcade keeps 3 lives for the run (not refilled at level 2, column 8 empty). to_shift now reaches a shift
+  through CONTINUE (the Opening) and one SHIFT CLEAR. The retry-only-the-shift tests and the CONTINUE-at-a-shift tests
+  were replaced. New goldens story_two_lives and story_bonus_life (dmg + cgb). Golden changed on purpose:
+  story_last_call (dmg + cgb): the banner is the same, but the test now reaches chapter 9's Last call by winning its
+  Opening first (CONTINUE starts the venue over), so the HUD score shows the Opening's 1000 clear bonus and one patron
+  sprite differs (the arrivals moved on).

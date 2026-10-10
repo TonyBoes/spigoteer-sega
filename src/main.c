@@ -63,7 +63,6 @@ static uint8_t sec_t;
 #endif
 
 // game flow
-#define LIFE_FREEZE_FRAMES  120
 #define CLEAR_FRAMES        150
 
 
@@ -120,12 +119,13 @@ palette_t coin_pal;                 // PAL_COIN, copied out of the banked palett
 // ---- scene -------------------------------------------------------------------
 static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
 
-// one mug per life (HUD row, cols 9-11) and the score digits (cols 1-6):
-// the tile ids are prepared by prep_hud() in the logic phase so that the VBlank
-// part is nothing but a copy.
+// one mug per life (HUD row, cols 9-11; a story bonus life, the 4th, at col 8, the first to go) and the score
+// digits (cols 1-6): the tile ids are prepared by prep_hud() in the logic phase so that the VBlank part is nothing
+// but a copy.
 void prep_hud(void) {
     uint8_t i;
-    for (i = 0; i < 3; i++) lives_tiles[i] = (i < lives) ? TILE_HUD_MUG : TILE_HUD_BLANK;
+    lives_tiles[0] = lives > 3 ? TILE_HUD_MUG : TILE_HUD_BLANK;
+    for (i = 1; i < 4; i++) lives_tiles[i] = (i <= lives) ? TILE_HUD_MUG : TILE_HUD_BLANK;
     for (i = 0; i < 6; i++) score_tiles[i] = digit_tile(score_digits[i]);
 }
 
@@ -383,6 +383,7 @@ static void update(void) {
         update_glass();
         fill_timer = 0; fill_stage = 0;
         bartender_frame = BT_FAIL;
+        if (story_on) story_life_frame();       // story: a strict rule's 2 lives blink
         if (++state_timer >= LIFE_FREEZE_FRAMES) {
             if (lives == 0) enter_game_over(); else resume_after_life();
         }

@@ -5,9 +5,13 @@
 // and passed over) -> the POST scene -> the next chapter; after chapter 9's POST scene FINALE, CREDITS, the title.
 // A shift is the venue's level with that shift's goal, speeds and arrival pattern (a banner first, GS_GOAL); on
 // success SHIFT CLEAR (CHAPTER CLEAR after the last step), the progress saved (SRAM, save.c: chapters cleared + the
-// step reached), the next step. CONTINUE on the title resumes at the first unfinished step (the PRE scene when the
-// chapter has none done). A failed goal shows TRY AGAIN and that shift restarts at its goal banner, with fresh lives
-// (lives work as in arcade: losing all three fails the goal; the score carries on and never enters the top 5).
+// furthest step reached), the next step. Lives (owner's rule): 3 per venue, set when its Opening shift starts and
+// carried through its shifts (a gold medal in the venue's mini-game: +1, at most MAX_LIVES); losing the last one shows
+// TRY AGAIN and restarts the venue at its Opening shift's banner (no PRE scene) with 3 lives. A strict rule (chapter
+// 2: a patron at the tap, 7: a broken glass) costs 2 lives instead of 1 ("2 LIVES LOST", the two mugs blink during the
+// freeze). A timed goal's clock running out costs a life and retries that shift (the venue when it was the last).
+// CONTINUE on the title starts the chapter not cleared over: its Opening banner when one of its steps was reached,
+// else its PRE scene (lives are not saved). The score carries on through restarts and never enters the top 5.
 //
 // Cut-scene ("hybrid lighter" style): the venue's stage + bar rows as the backdrop (no patrons), the Spigoteer's
 // normal sprite at bar 1's tap, the scene title on the HUD row, a framed speaker portrait above a full-width text
@@ -68,6 +72,8 @@ uint8_t  story_fails;              // goal failures so far (tests)
 uint8_t  story_twist;              // the shift's twist id (0 none): the hook for a later milestone
 uint8_t  story_step;               // the step of the chapter's sequence being played (0..STORY_STEPS-1)
 uint8_t  story_shift;              // the shift being played: 0 opening, 1 happy hour, 2 last call
+uint8_t  story_pen;                // lives the strict rule just cost (2, or 1 from the last one): the freeze's blink
+uint8_t  story_restarts;           // venue restarts so far (tests)
 uint8_t  pat_pos, pat_buf[STORY_PAT_MAX];   // the shift's arrival pattern (patrons.c pat_len / pat_bar): position, entries
 uint16_t pat_wait[4];              // frames per wait code: the interval, PAT_SHORT, twice, four times the interval
 scene_hdr_t story_hdr;
@@ -412,8 +418,7 @@ static void shift_start(void) {
         for (i = 0; i < 5; i++) vram_put(0, 32 + i, row_buf, 20);
         VBK_REG = VBK_BANK_0;
     }
-    level = story_chapter + 1;
-    lives = START_LIVES;
+    level = story_chapter + 1;                   // (lives: set by venue_start, carried from shift to shift)
     enter_level_screen();                        // the venue's level (row level - 1), LCD on again, PLAYING
     shift_pace();
     story_catches = story_breaks = story_taps = 0;
@@ -450,14 +455,21 @@ static void step_start(void) {
     shift_start();
 }
 
+// the venue (chapter) from its first playable step, with 3 lives (a new chapter, a lost last life, CONTINUE)
+static void venue_start(void) {
+    lives = START_LIVES;
+    story_step = next_step(0);
+    step_start();
+}
+
 static void chapter_done(void) {                 // every step done: saved as cleared, the POST scene
     story_save(story_chapter + 1, 0);
     scene_enter(SC_POST_SALOON + 2 * story_chapter);
 }
 
 // ---- entry points --------------------------------------------------------------------------------------------
-// From the title: a new story (cont 0) or CONTINUE (cont 1: the first unfinished step of the first chapter not
-// cleared; its PRE scene when none of its steps is done)
+// From the title: a new story (cont 0) or CONTINUE (cont 1: the first chapter not cleared starts over, at its Opening
+// banner when a step of it was reached (story_reached > 0), else at its PRE scene)
 void story_begin(uint8_t cont) BANKED {
     uint8_t i;
     story_on = 1; story_fails = 0;
@@ -467,10 +479,8 @@ void story_begin(uint8_t cont) BANKED {
     if (cont && (story_progress || story_reached) && story_progress < STORY_CHAPTERS) {
         story_chapter = story_progress;
         story_scene = SC_PRE_SALOON + 2 * story_chapter;
-        if (!story_reached) { scene_enter(story_scene); return; }
-        story_step = next_step(story_reached);
-        if (story_step >= STORY_STEPS) chapter_done();
-        else step_start();
+        if (!story_reached) scene_enter(story_scene);
+        else venue_start();
     } else {
         story_chapter = 0;
         scene_enter(SC_INTRO);
@@ -482,24 +492,25 @@ static void scene_done(void) {
     if (s == SC_CREDITS) { story_on = 0; story_phase = SP_OFF; title_enter(); return; }
     if (s == SC_FINALE) { scene_enter(SC_CREDITS); return; }
     if (s == SC_INTRO) { scene_enter(SC_PRE_SALOON); return; }
-    if (!((s - SC_PRE_SALOON) & 1)) { story_step = next_step(0); step_start(); return; }   // a PRE scene: the chapter
+    if (!((s - SC_PRE_SALOON) & 1)) { venue_start(); return; }     // a PRE scene: the chapter
     if (story_chapter + 1 < STORY_CHAPTERS) {                       // a POST scene: the next chapter's PRE
         story_chapter++;
         scene_enter(SC_PRE_SALOON + 2 * story_chapter);
     } else scene_enter(SC_FINALE);
 }
 
-// GS_LEVEL_CLEAR is over (main.c): the progress saved (the next step reached, even one not built yet: a later save
-// then resumes there), the next playable step, or the chapter's POST scene
+// GS_LEVEL_CLEAR is over (main.c): the progress saved (the furthest step reached in the chapter, even one not built
+// yet, for Practice: a venue restart never lowers it), the next playable step, or the chapter's POST scene
 void story_level_done(void) BANKED {
     uint8_t n = story_step + 1, s = next_step(n);
     if (s >= STORY_STEPS) { chapter_done(); return; }
-    story_save(story_chapter, n);
+    story_save(story_chapter, story_progress == story_chapter && story_reached > n ? story_reached : n);
     story_step = s;
     step_start();
 }
 
-// the goal failed: TRY AGAIN over the frozen level, then that shift again (from enter_game_over, or story_play)
+// the goal failed: TRY AGAIN over the frozen level, then the venue again (no lives left: from enter_game_over, or
+// the clock's last life) or that shift (the clock ran out, lives left)
 void story_fail(void) BANKED {
     show_overlay("TRY AGAIN");
     music_play(TUNE_OVER);
@@ -518,15 +529,27 @@ void story_play(void) BANKED {
     uint8_t c, b, left;
     c = sfx_count[SFX_CATCH] - st_last_catch; st_last_catch += c; story_catches += c;
     b = sfx_count[SFX_BREAK] - st_last_break; st_last_break += b; story_breaks += b;
-    if (life_lost && !b) story_taps++;           // a life lost with no glass broken: a patron reached the tap
-    if (((story_goal.flags & F_NO_TAP) && story_taps) || ((story_goal.flags & F_NO_BREAK) && story_breaks)) {
-        if (life_lost) { lives = 0; game_over = 1; hud_dirty |= HUD_LIVES; prep_hud(); }   // the freeze plays out, then
-        // enter_game_over: story_fail
+    if (life_lost) {
+        if (!b) story_taps++;                    // a life lost with no glass broken: a patron reached the tap
+        // the strict rule (2: a patron at the tap, 7: a broken glass) costs a second life: "2 LIVES LOST", the two
+        // mugs blink during the freeze (story_life_frame); none left: the freeze plays out, then enter_game_over ->
+        // story_fail restarts the venue
+        if (((story_goal.flags & F_NO_TAP) && !b) || ((story_goal.flags & F_NO_BREAK) && b)) {
+            story_pen = 1;
+            if (lives) { lives--; story_pen = 2; }
+            if (!lives) game_over = 1;
+            hud_dirty |= HUD_LIVES; prep_hud();
+            show_overlay("2 LIVES LOST");
+        }
         return;
     }
-    if (life_lost) return;
     if (story_timer && !intro_timer) {
-        if (!--story_timer) { story_fail(); return; }
+        if (!--story_timer) {                    // time up: a life, and the shift again (the venue: it was the last)
+            if (lives) lives--;
+            hud_dirty |= HUD_LIVES; prep_hud();
+            story_fail();
+            return;
+        }
         c = (uint8_t)((story_timer + 59) / 60);
         if (c != st_secs) { st_secs = c; hud_goal(); }
     }
@@ -554,7 +577,11 @@ uint8_t story_update(uint8_t pressed) BANKED {
         }
         return 0;
     case SP_FAIL:
-        if ((pressed & (J_A | J_START)) || story_t >= FAIL_FRAMES) { shift_start(); return 1; }
+        if ((pressed & (J_A | J_START)) || story_t >= FAIL_FRAMES) {
+            if (lives) shift_start();
+            else { story_restarts++; venue_start(); }
+            return 1;
+        }
         return 0;
     case SP_SCENE:
         break;
@@ -573,4 +600,24 @@ uint8_t story_update(uint8_t pressed) BANKED {
         page_begin(0);
     }
     return 0;
+}
+
+// Every GS_LIFE_LOST frame in story mode (main.c, before the freeze's frame count): after a strict rule's penalty the
+// lost mugs blink together (8 frames on, 8 off) until the freeze's last frame puts the HUD back.
+void story_life_frame(void) BANKED {
+    uint8_t t, n;
+    if (!story_pen) return;
+    if (state_timer + 1 >= LIFE_FREEZE_FRAMES) { story_pen = 0; prep_hud(); hud_dirty |= HUD_LIVES; return; }
+    if (state_timer & 7) return;
+    t = (state_timer & 8) ? TILE_HUD_MUG : TILE_HUD_BLANK;
+    for (n = lives + 1; n <= lives + story_pen; n++) lives_tiles[n > 3 ? 0 : n] = t;
+    hud_dirty |= HUD_LIVES;
+}
+
+// The mini-game framework calls this on a gold medal (owner: +1 life, at most MAX_LIVES; the HUD's 4th mug sits at
+// column 8, left of the three, and is the first to go).
+void story_bonus_life(void) BANKED {
+    if (lives < MAX_LIVES) lives++;
+    prep_hud();
+    hud_dirty |= HUD_LIVES;
 }

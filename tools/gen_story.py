@@ -55,17 +55,19 @@ PIC_POOL = 36                    # its own tiles at BG ids 0.. (no venue on a pi
 
 # goal types / flags (src/story.c)
 G_SERVE, G_CATCH, G_CLEAR = 0, 1, 2
-F_NO_TAP, F_NO_BREAK = 1, 2
+F_NO_TAP, F_NO_BREAK = 1, 2      # strict rules (owner): breaking one costs 2 lives instead of 1 (src/story.c)
 # chapter: scene suffix, venue (theme index), goal, count, flags, timer seconds (0 none), banner lines (HUD glyphs only),
 # and the engine column of the chapters table it must agree with
 CHAPTERS = [
     ("SALOON", 0, G_SERVE, 15, 0, 0, "SERVE 15 COWBOYS", "", "serve 15"),
-    ("STADIUM", 1, G_SERVE, 20, F_NO_TAP, 0, "SERVE 20 FANS", "NOBODY AT YOUR TAP", "serve 20 with no patron reaching"),
+    ("STADIUM", 1, G_SERVE, 20, F_NO_TAP, 0, "SERVE 20 FANS", "FAN AT TAP COSTS TWO",
+     "serve 20, a patron at the tap costs 2 lives"),
     ("LUMBER", 2, G_SERVE, 18, 0, 0, "WAKE UP 18", "SLEEPY LUMBERJACKS", "serve 18"),
     ("BISTRO", 3, G_SERVE, 20, 0, 120, "SERVE 20 CHEFS", "BEFORE THE RUSH", "serve 20 before the timer"),
     ("IGLOO", 4, G_SERVE, 20, 0, 120, "SERVE 20 COCOAS", "BEFORE THEY COOL", "serve 20 before the timer"),
     ("ROBOT", 5, G_CATCH, 25, 0, 0, "RECYCLE 25", "EMPTY BATTERIES", "catch 25 empties"),
-    ("TEAHOUSE", 6, G_CLEAR, 0, F_NO_BREAK, 0, "SERVE EVERY GUEST", "NOT ONE BROKEN CUP", "with no broken glass"),
+    ("TEAHOUSE", 6, G_CLEAR, 0, F_NO_BREAK, 0, "SERVE EVERY GUEST", "BROKEN CUP COSTS TWO",
+     "clear the venue, a broken glass costs 2 lives"),
     ("SPACE", 7, G_SERVE, 25, 0, 0, "SERVE 25 GLOWING", "BEAKERS", "serve 25"),
     ("ZOO", 8, G_SERVE, 30, 0, 0, "SERVE 30 ANIMALS", "", "serve 30"),
 ]
@@ -108,8 +110,8 @@ WALK_RANGE, SPAWN_RANGE = (70, 130), (70, 150)   # sane limits (the arcade's loo
 SHIFTS = [
     ((G_SERVE, 8, 0, 0, 0, "SERVE 8 COWBOYS", "", "serve 8"),
      (G_SERVE, 18, 0, 0, 0, "SERVE 18 COWBOYS", "ONE BAR AT A TIME", "serve 18", "stairs down", 110, 90)),
-    ((G_SERVE, 10, F_NO_TAP, 0, 0, "SERVE 10 FANS", "NOBODY AT YOUR TAP", "serve 10, none at the tap"),
-     (G_SERVE, 22, F_NO_TAP, 0, 0, "22 FANS RUSH IN", "NOBODY AT YOUR TAP", "serve 22, none at the tap",
+    ((G_SERVE, 10, F_NO_TAP, 0, 0, "SERVE 10 FANS", "FAN AT TAP COSTS TWO", "serve 10, a fan at the tap costs 2 lives"),
+     (G_SERVE, 22, F_NO_TAP, 0, 0, "22 FANS RUSH IN", "FAN AT TAP COSTS TWO", "serve 22, a fan at the tap costs 2 lives",
       "all bars at once", 105, 95)),
     ((G_SERVE, 9, 0, 0, 0, "WAKE UP 9", "SLEEPY LUMBERJACKS", "serve 9"),
      (G_SERVE, 20, 0, 0, 0, "WAKE UP 20", "ONE BAR IS PACKED", "serve 20", "flood bar 2", 115, 85)),
@@ -119,8 +121,8 @@ SHIFTS = [
      (G_SERVE, 22, 0, 120, 0, "SERVE 22 COCOAS", "BEFORE THEY FREEZE", "serve 22 in 120 s", "zigzag", 115, 85)),
     ((G_CATCH, 12, 0, 0, 0, "RECYCLE 12", "EMPTY BATTERIES", "catch 12 empties"),
      (G_CATCH, 28, 0, 0, 0, "RECYCLE 28", "BATTERIES PILE UP", "catch 28 empties", "stairs up", 115, 85)),
-    ((G_CLEAR, 0, F_NO_BREAK, 0, 7, "SERVE 7 GUESTS", "NOT ONE BROKEN CUP", "7 guests, no broken glass"),
-     (G_CLEAR, 0, F_NO_BREAK, 0, 15, "SERVE 15 GUESTS", "NOT ONE BROKEN CUP", "15 guests, no broken glass",
+    ((G_CLEAR, 0, F_NO_BREAK, 0, 7, "SERVE 7 GUESTS", "BROKEN CUP COSTS TWO", "7 guests, a broken glass costs 2 lives"),
+     (G_CLEAR, 0, F_NO_BREAK, 0, 15, "SERVE 15 GUESTS", "BROKEN CUP COSTS TWO", "15 guests, a broken glass costs 2 lives",
       "flood bar 4", 115, 85)),
     ((G_SERVE, 12, 0, 0, 0, "SERVE 12 GLOWING", "BEAKERS", "serve 12"),
      (G_SERVE, 28, 0, 0, 0, "SERVE 28 GLOWING", "BEAKERS", "serve 28", "inside out", 120, 80)),

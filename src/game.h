@@ -231,6 +231,8 @@ void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
 void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define START_LIVES           3
+#define MAX_LIVES             4     // story: a gold medal's bonus life (the HUD shows 4 mugs at columns 8-11)
+#define LIFE_FREEZE_FRAMES  120     // the life-lost freeze (main.c)
 #define BANNER_WY  BAR_TOP_Y(1)       // window overlay: 3 tile rows over bar 1 (y 64..87), clear of the HUD and stage
 #define BANNER_LYC (BAR_TOP_Y(1) + 22)  // line where the LCD interrupt switches the window off again
 void start_level(void) BANKED;                // src/level.c: the level table, the arcade loops' difficulty, the level load
@@ -275,7 +277,7 @@ void clear_mugs(void);
 // ---- render.c ------------------------------------------------------------------------------
 extern uint8_t row_buf[20];
 extern uint8_t vram_pending, vq_count, drain_ticks_max, vq_held;
-extern uint8_t score_tiles[6], lives_tiles[3];
+extern uint8_t score_tiles[6], lives_tiles[4];   // lives_tiles: HUD columns 8-11 (8: the 4th life)
 void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 void put_row(uint8_t y);
 void mark_dirty(uint8_t b, uint8_t x0, uint8_t x1);         // tile ids of columns x0..x1-1 changed
@@ -337,5 +339,7 @@ void story_begin(uint8_t cont) BANKED;                  // from the title: STORY
 uint8_t story_update(uint8_t pressed) BANKED;           // a GS_STORY / GS_GOAL frame; 1: the screen changed
 void story_play(void) BANKED;                           // every GS_PLAYING frame in story mode: the chapter goal
 void story_level_done(void) BANKED;                     // GS_LEVEL_CLEAR is over: save, the POST scene
-void story_fail(void) BANKED;                           // the goal failed: TRY AGAIN, then the chapter again
+void story_fail(void) BANKED;                           // the goal failed: TRY AGAIN, then the shift / the venue again
+void story_life_frame(void) BANKED;                     // every GS_LIFE_LOST frame in story mode: the 2-lives cue
+void story_bonus_life(void) BANKED;                     // +1 life (max MAX_LIVES): a gold medal in the mini-game
 #endif

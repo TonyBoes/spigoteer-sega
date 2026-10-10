@@ -18,7 +18,7 @@ static volatile uint8_t pal5_req;
 static const uint16_t *pal5_src;
 static void pal5_write(void);
 uint8_t score_tiles[6];      // the HUD digits as BG tile ids, prepared outside VBlank
-uint8_t lives_tiles[3];
+uint8_t lives_tiles[4];
 
 const uint8_t bar_bit[NUM_BARS] = { 1, 2, 4, 8 };
 #define OAM_Y(b) ((uint8_t)(BAR_TOP_Y(b) + 16u))
@@ -642,7 +642,7 @@ void queue_vram(void) {
     uint8_t sa;
     if (vq_held) return;                         // last frame's list has not gone out yet: everything stays dirty
     qv_cost = 0;
-    if (hud_dirty & HUD_LIVES) { vq_add(0, lives_tiles, 9, HUD_ROW, 3); qv_cost += 6; }
+    if (hud_dirty & HUD_LIVES) { vq_add(0, lives_tiles, 8, HUD_ROW, 4); qv_cost += 7; }
     if (hud_dirty & HUD_SCORE) { vq_add(0, score_tiles, 1, HUD_ROW, 6); qv_cost += 9; }
     hud_dirty = 0;
     sa = sa_left;
