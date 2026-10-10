@@ -589,7 +589,9 @@ our own agents; the external artist hand-off package is no longer in use.
 Proposals in scratchpad patron_round7 (round 6 is the base). Import waits until every patron is approved: one big
 graphics overhaul. Picks: lion face L2 (broad muzzle); cowboy C thin-brim hat with face F2 (jaw beard + moustache);
 lumberjack C face G3 (default); Eskimo ruff dots tan; Eskimo A sky-blue parka; Eskimo C olive parka; headband fan
-ponytail option. Alien A and the darker-than-45% patrons stay as they are. Next: one enhanced variant per remaining
-group (Claude picks), then the import. Saloon stage: no neon; a bar cat swaying its tail is being proposed (needs a
-small saloon stage redraw: the stage is at 19/20 tiles). Story mode and portraits on hold until the owner reviews
+ponytail option. Alien A and the darker-than-45% patrons stay as they are. Enhanced (round 8b, owner 2026-10-10): robot A as
+drawn; lumberjack A axe, chef C towel, geisha pins as props only on the round-7 look; headband fan gets an accessory;
+no enhanced Eskimo, referee, alien or panda (their kegs stay). Then the import. Saloon stage: no neon; owner picked the ginger bar cat (scratchpad saloon_cat/B_ginger: tail
+swings over the stage lip, blink, ear flick; curtains become one repeated fold tile; stage_b colour 0 -> #f09848),
+imported with the graphics overhaul. Story mode and portraits on hold until the owner reviews
 docs/story.md. Music mix on hold. No speed milestone unless the owner sees slowdown.
