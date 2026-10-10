@@ -263,6 +263,8 @@ table with initials + loop banner/harder loops.
 | M11a | Story script: "The Golden Spigot" - the legendary spigot that pours any drink shattered into 9 pieces; each venue owner gives one to a bartender who keeps their crowd happy. Written as docs/story.md for owner approval before any code. |
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, nine venue owners, villain if any), cut-scene pictures. Owner approves. |
+| M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). |
+| M11e (upcoming) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md (being written). |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -790,3 +792,88 @@ per-chapter twists are part 2 (hook below). Portraits and pictures are placehold
   New goldens (dmg + cgb): story_portrait (PRE_SALOON, Sadie), story_placeholder (POST_SALOON, Dregs with its
   overlay tag), story_narrator (INTRO, the picture slot), story_goal (chapter 1's banner), title_continue. No existing
   golden changed.
+
+## Story shifts as built (M11d, owner-approved, 2026-10-10)
+Each chapter plays its venue several times in a row, as shifts with rising difficulty and their own arrival patterns.
+- Chapter flow: PRE scene -> Opening shift -> Happy hour -> [mini-game slot] -> Last call -> [boss slot] -> POST scene.
+  The sequence is data (tools/gen_story.py SEQUENCE -> build/story_data.c st_seq, 5 steps per chapter, one byte each:
+  kind << 4 | index, kinds SHIFT 0 / MINI 1 / BOSS 2; STEP_SKIP 0x80 = not built yet, from gen_story's NOT_BUILT). The
+  engine (src/story.c next_step) passes over a skipped step. Adding the mini-games / bosses = their mode in story.c
+  step_start (dispatch on the step's kind; today every playable step is a shift) + taking the kind out of NOT_BUILT.
+- Shift goals (gen_story SHIFTS: Opening and Last call per chapter; the Happy hour is the CHAPTERS row, unchanged):
+  goal_t (52 B, one per chapter x shift = 27, 1404 B) = type, count, flags, secs, twist, pattern, walk %, spawn %,
+  quota (G_CLEAR: patrons in the shift, 0 the row's), pad, two banner lines. Validated at build time (check_shifts):
+  banner lines <= 20 in the HUD glyphs, "CHAPTER n " + the shift's name <= 20, counts 1-99 (two HUD digits), walk
+  70-130 %, spawn 70-150 %, Opening slower (walk < 100 < spawn) at 40-60 % of the Happy hour's goal size, Last call
+  faster (walk > 100 > spawn) with a goal no smaller and its own pattern, the nine Last call patterns all different,
+  every shift the chapter's kind of goal (type + flags), a timed goal that enough patrons reach in time (the row's
+  start patrons + spawns in the timer >= 1.3 x the goal; the rows parsed from src/level.c), every pattern within
+  0.9-1.15 patrons per interval. docs/story.md has a "Shifts" table (in-world / engine per shift, the Last call's
+  arrivals); gen_story fails when an engine cell or a pattern disagrees with the data.
+
+  | # | Opening (walk 85 %, spawn 115 %) | Happy hour (row) | Last call | walk / spawn | arrivals |
+  |---|---|---|---|---|---|
+  | 1 | serve 8 | serve 15 | serve 18 | 110 / 90 | stairs down 1, 2, 3, 4 |
+  | 2 | serve 10, none at the tap | serve 20, none at the tap | serve 22, none at the tap | 105 / 95 | all bars at once (4 x 12 frames, then 4 I) |
+  | 3 | serve 9 | serve 18 | serve 20 | 115 / 85 | flood bar 2 (2, 1, 2, 3, 2, 4) |
+  | 4 | serve 10 in 75 s | serve 20 in 120 s | serve 22 in 120 s | 115 / 85 | pairs (1+3, 2 I, 2+4, 2 I) |
+  | 5 | serve 10 in 75 s | serve 20 in 120 s | serve 22 in 120 s | 115 / 85 | zigzag 1, 3, 2, 4, 3, 1, 4, 2 |
+  | 6 | catch 12 | catch 25 | catch 28 | 115 / 85 | stairs up 4, 3, 2, 1 |
+  | 7 | 7 guests, no break | the row's 13, no break | 15 guests, no break | 115 / 85 | flood bar 4 (4, 1, 4, 2, 4, 3) |
+  | 8 | serve 12 | serve 25 | serve 28 | 120 / 80 | inside out (2+3, 2 I, 1+4, 2 I) |
+  | 9 | serve 15 | serve 30 | serve 32 | 120 / 80 | stampede (1-4 at once, 4 I, 4-1 at once, 4 I) |
+
+  (Bars numbered 1 top .. 4 bottom here; 0-3 in the data.) The Happy hour keeps the row's speeds and normal arrivals.
+- Pace (story.c shift_pace, after enter_level_screen): patron_speed x walk / 100, hurry_speed re-derived (1.5x, from
+  level 3 as in level.c), spawn_interval x spawn / 100 (and spawn_timer), a clear goal's quota. resume_after_life keeps
+  them (it does not reload the row).
+- Arrival patterns (patrons.c try_spawn / update_patrons, ROM0): pat_len 0 = today's random bar every spawn_interval
+  (the arcade's RNG sequence is unchanged); else the next patron goes to pat_bar, and after each spawn the BANKED
+  pat_done() (story.c) moves the pattern on, sets the next pat_bar and returns the entry's wait (code n the interval
+  I, s PAT_SHORT = 12 frames, d 2 I, b 4 I; pat_wait[4] computed per shift). A blocked spawn (crowded left end, no
+  lift room) retries SPAWN_RETRY later with the same entry, so the order holds. Patterns are data (gen_story
+  PATTERNS: <= 8 entries of bar | wait << 4, read with story_pattern_get into story.c's pat_buf). start_new_game
+  clears pat_len (arcade, debug menu). Per-frame cost: none (only a spawn frame tests pat_len).
+- Banner: the existing 5-row layout; row 1 is now "CHAPTER n " + the shift (OPENING / HAPPY HOUR / LAST CALL, from
+  STORY_SHIFT_NAMES in build/story.h), centred; "CHAPTER 1 OPENING SHIFT" would be 23 characters, so the word SHIFT is
+  left out. A won shift shows SHIFT CLEAR (CHAPTER CLEAR when no playable step is left), with the level bonus.
+- Retry: a failed goal shows TRY AGAIN, then the same shift's banner with 3 lives (no PRE scene, no earlier shift);
+  served / catches / timer start over; the score carries on. The twist hook is per shift now (goal_t.twist -> story_twist
+  at every shift start; 0 everywhere).
+- Save (src/save.c), SRAM version 4 "TPR4": 0-3 magic, 4-33 the top 5 (as v2 / v3), 34 chapters cleared (0-9), 35 the
+  step reached in the next chapter (0-4; must be 0 when 9 chapters are cleared), 36 checksum 0x5A + bytes 0-35, 37 its
+  complement. The progress is saved when a shift's clear is over: (chapter, the next step in the raw sequence, even a
+  skipped slot: when the mini-games ship, such a save resumes at the mini-game), or (chapter + 1, 0) after the last.
+  CONTINUE (title) shows when chapters 1-8 are cleared or a step is reached in chapter 1; it resumes at the first
+  playable step from the one reached (straight to its goal banner), or at the PRE scene when the step is 0. Reached
+  (for a later Practice mode): step s of chapter k when k < chapters cleared, or k == chapters cleared and s <= the step
+  reached. Migration at boot, written back at once: version 3 keeps its table and chapters, step 0 (save_migrated = 3;
+  CONTINUE still opens the PRE scene of the first chapter not cleared); version 2 / 1 as before. Practice best scores
+  are not stored yet: they go in their own block from 0x40 with its own magic and checksum (no version bump, and a bad
+  block loses only the bests); 45 steps x 3 B = 135 B.
+- Tuning (scratchpad bot.py: a greedy bartender playing each shift through the real inputs, the game deterministic):
+  an instant server (serves walkers as they enter) wins the 24 serve / clear shifts without losing a life (on the
+  factory's catch goal it never gets an empty back: a patron served at the left end leaves); a late server (serves only
+  walkers past x 48, re-plans every 30 frames) wins all 27, loses a life only in chapter 9's Last call; the latest one
+  (x 56) loses no life in any Opening or Happy hour, but loses lives in 5 of the 9 Last calls and fails two (2 and 9).
+  Pressure for the late server, Happy hour -> Last call: busy 58 -> 64 % (ch 1) .. 80 -> 77 % (ch 9), the furthest
+  walker x 76 -> 76 (1), 117 -> 114 (3), 94 -> 119 (4), 98 -> 119 (5), 95 -> 119 (6), 97 -> 117 (7), 110 -> 119 (9).
+  Chapter 2's Last call was 110 / 90 at first: the x 48 server failed it in 24 s (a burst of four plus the no-tap rule),
+  so it plays at 105 / 95.
+- ROM: real ROM0 free 1708 -> 1671 B (game.gb), 1821 -> 1784 B (release.gb): 37 B for the pattern test in try_spawn and
+  the pat_done call (the first version kept the pattern in ROM0: 87 B). Banks after (romusage): 1 97, 2 50, 3 45, 4 54,
+  5 47, 6 121, 7 4102 B free.
+- Perf (scratchpad perf.py, PyBoy; end LY / missed): arcade unchanged to the frame, old = new: level 8 script DMG 108 / 0,
+  CGB 115 / 0; realistic peak (1200 frames) DMG 168 / 43, CGB 176 / 49. Story with the x 48 bot: chapter 9 Happy hour
+  DMG 170 / 3, CGB 177 / 3 (4000 frames); its Last call DMG 159 / 7, CGB 168 / 17 (1720 frames): no higher peak, a few
+  more missed frames from the burstier crowds (fewer per frame than the arcade's realistic peak).
+- Tests (tests/test_story.py): the shift data (half / as written / harder, nine patterns, the sequence with its skipped
+  slots); failing builds (a shifts-table mismatch, a last call not harder, shared patterns, a timer too short); the
+  opening banner and HUD (golden story_goal); a Last call banner (new golden story_last_call, chapter 9); every chapter
+  plays Opening -> Happy hour -> Last call -> POST with each banner, goal, quota, timer, interval, pattern and walking
+  speed, SHIFT CLEAR / CHAPTER CLEAR, the save after each shift; a failed Last call (every chapter) and a failed Opening
+  retry only that shift; every Last call's pattern spawns its bars in order with its waits; CONTINUE at a shift after a
+  reset, from the mini-game slot (to the Last call), after a cleared chapter (golden title_continue unchanged); STORY
+  starts over from the INTRO; v2 -> v4, v3 -> v4 (CONTINUE at the PRE scene), v4 loading and rejecting a bad step.
+  test_scores / test_sound read version 4 (v4_image, parse_save). Golden changed on purpose: story_goal (dmg + cgb),
+  the banner now says CHAPTER 1 OPENING and the opening's goal SERVE 8 COWBOYS (HUD S08).
