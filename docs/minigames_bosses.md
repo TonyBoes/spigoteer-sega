@@ -1453,7 +1453,14 @@ same change when the segment flow is built.
 - Q5: the Pour-Off is in the saloon (no new festival stage).
 - Q7: yes, Practice gets a HARD toggle.
 - Q10: regulars keep coming during boss fights, more slowly.
-- Q3, Q8, Q9: explained to the owner, answers pending. Q6 (the Critic's pour window): pending.
+- Lives (owner, supersedes Q3 / Q9 and "retry only the shift"): story mode gives **3 lives per venue**. They carry
+  through Opening, Happy hour, the mini-game, Last call and the boss; they are not refilled between shifts. A gold
+  medal in the venue's mini-game earns +1 life. Losing the last life restarts the venue from its Opening shift
+  (goal banner, 3 lives, no PRE scene). Breaking a venue's strict rule (stadium: a fan reaches the tap; teahouse: a
+  broken cup) costs 2 lives instead of 1. CONTINUE after quitting mid-venue starts that venue over (lives are not
+  saved); shifts reached stay unlocked for Practice. A boss keeps his damage after a lost life; a venue restart
+  starts him over. Arcade is unchanged: 3 lives for the whole run.
+- Q6 (the Critic's pour window): explained (sparkle window, sloppy drinks sent back full, only in his fight); pending.
 
 1. **Do mini-games gate the story?** Recommendation: no. Any result continues; medals give points and a gold medal
    gives one extra life in that chapter's boss fight. (The alternative, retry until bronze, makes a weak mini-game
