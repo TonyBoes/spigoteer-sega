@@ -999,8 +999,8 @@ frames, scores and VRAM are as before, and no existing golden changed.
 - Score: patrons.c caught() calls perfect_catch(i) in story mode; a mug_timer of 1 scores 2 x serve_score on the spot
   (saloon 50 -> +100). The serve (the patron pushed out) still scores serve_score as always; regulars take any drink.
   perfect_n counts perfect catches (tests; a later results screen).
-- Cue: assets/art/pour_cue.txt, one 8x16 OBJ: a star burst over "x2" (round 2: dark text on a light plate, x 3x3 and
-  2 3x5 a column apart, legible at 1x on both models; round 1's light-on-dark badge read as a scribble on DMG), OAM 26 (unused since the door puff), the full-drink palette (DMG OBP0), 16 px right
+- Cue: assets/art/pour_cue.txt, one 8x16 OBJ: a twinkle over an "x2" badge (dark badge, light text; round 2 tried
+  dark text on a light plate, the owner preferred this first one, restored), OAM 26 (unused since the door puff), the full-drink palette (DMG OBP0), 16 px right
   of the caught mug on its 16 lines, 48 frames, blinking the last 16. Sprites per line: pour_frame counts every other
   OAM entry touching any of those 16 lines (an upper bound per line) and leaves the cue out on a frame where that is
   10 or more, so it is never an 11th object (test: bartender 4 + held drink + 6 empties on the bar: the cue goes, no
@@ -1025,5 +1025,5 @@ frames, scores and VRAM are as before, and no existing golden changed.
   (overflow frame, stays there) and scores nothing extra, no cue; the frames in his hand: fill, plain full x8, sparkle
   x6, then the overflow, palette 1 / OBP1; carried -> ordinary; the venue's frames and the cue in VRAM (chapters 1,
   6); arcade: no pour_t, the old full fill frame on OBP0, no bonus, no cue, no perfect release frame; the 10-per-line
-  limit with the cue. New goldens pour_sparkle, pour_cue (dmg + cgb); round 2 changed pour_cue (the redrawn x2 cue).
-  No golden from before the perfect pour changed.
+  limit with the cue. New goldens pour_sparkle, pour_cue (dmg + cgb); pour_cue is the first version again (round 2's
+  redraw reverted, byte-identical to f27bb4e's). No golden from before the perfect pour changed.
