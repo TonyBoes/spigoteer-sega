@@ -679,3 +679,19 @@ Owner-approved import of the final patron set, the tile-pool change it needed an
   1 51, 2 105, 3 155, 4 14, 5 199, 6 9457.
 - Perf (scratchpad perf.py): level 8 DMG 108 / 0, CGB 115 / 0; level 9 DMG 182 / 284, CGB 189 / 293; realistic peak
   7-seed mean missed DMG 70.3, CGB 95.1 (was 70.1 / 95.4): unchanged within noise.
+
+## Factory battery as built (owner pick variant A, AA cell + charging station, 2026-10-10)
+- Drop-ins from scratchpad factory_battery/A_aa: factory_drink.txt (AA cell 6x15: charging lights 4 lime bars bottom
+  up; empty = dark body, one red bar; frames 7-8 sideways, nub at the robot's face), factory_drink_pal.json (full lime
+  #a0f860 / copper #e08828 / dark #181410; empty red #f85838 / grey #a0a8b0 / dark #201c20), factory_bar.txt +
+  factory_bar_attr.txt (the keg becomes a charging station at cols 18-19, BG 7 = bar_b only: bolt screen, lamps; a
+  plug on col 17 row 0; col 17 row 1 plain wall). factory_pal.json kept as main has it (the drop-in differed only in
+  its _note). Diffed against main first: the bar art had not changed since the proposal's base; with the option-A pool
+  the factory is stage 16 + bar 12 = 28 <= 36, bar_base 24.
+- With the generated crash the battery crashes as a battery (tip = the sideways cell, fall = the cell on its side).
+  The empty battery's crash at the right end is dark on the dark station (reads, but low contrast).
+- Goldens replaced (dmg + cgb, all differences in the bar rows y 40-127): venue_factory, stage_anim_factory,
+  patrons_robots (the station replaces the keg; venue_factory also the sliding battery), crash_factory (the crash is
+  now a battery).
+- ROM / perf: identical to the crash commit (ROM0 1757 B free, release 1869 B; drink data only changes in the factory
+  bank).
