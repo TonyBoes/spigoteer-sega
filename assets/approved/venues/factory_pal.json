@@ -28,9 +28,15 @@
   "hex": [
    "#503028",
    "#f8d848",
+   "#7888a0",
+   "#101828"
+  ],
+  "_note": "palette for keg/spout tiles; index 0 = wall colour. Round 8b (owner-approved, graphics overhaul 2026-10-10): also S, the top/bottom row palette of the enhanced robots A; 'was' = the keg colours before",
+  "_was": [
+   "#503028",
+   "#f8d848",
    "#4878a8",
    "#182028"
-  ],
-  "_note": "palette for keg/spout tiles; index 0 = wall colour"
+  ]
  }
 }

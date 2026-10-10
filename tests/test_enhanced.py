@@ -54,13 +54,86 @@ def start_drinking(gb, i, t0=0):
     put(gb, "patron_mug", i, 255)
 
 
-def test_the_cowboys_have_one_enhanced_variant_and_the_others_none():
-    assert ENH["cowboys"]["enhanced"] == [COWGIRL]
-    assert all(not ENH[g]["enhanced"] and not ENH[g]["bank1"] for g in ENH if g != "cowboys")
+# the enhanced set (graphics overhaul, owner round 8b): the cowgirl and robot A, nobody else
+EXPECTED = {"cowboys": [COWGIRL], "robots": [0]}
+
+
+def test_the_enhanced_set_is_the_cowgirl_and_robot_a():
+    for g in ENH:
+        assert ENH[g]["enhanced"] == EXPECTED.get(g, []), g
+        if g not in EXPECTED:
+            assert not ENH[g]["bank1"], g
     tab = ENH["cowboys"]["tab"]
     assert (tab[COWGIRL], tab[4 + COWGIRL], tab[8 + COWGIRL], tab[12 + COWGIRL]) == (7, 3, 7, 3), "rows: S / own"
     assert (tab[16 + COWGIRL], tab[20 + COWGIRL]) == (4 | BANK1, 6), "lifted: OBJ 4 from bank 1 | OBJ 6"
     assert tab[0] == tab[4] == 2 and tab[16] == 3, "variant A (the title's patron) is single-palette"
+    tab = ENH["robots"]["tab"]
+    assert tab[4 + 0] == 7 and tab[0] != 7, "robot A: top row his own palette, bottom row S (the factory's bar_b)"
+
+
+# every other group's enhanced variant (robot A) through the cowgirl's checks; she has her own tests below
+OTHERS = [(gi, g, ENH[g]["enhanced"][0]) for gi, g in enumerate(ENH) if ENH[g]["enhanced"] and g != "cowboys"]
+
+
+def place_variant(gb, gi, v):
+    goto_group(gb, gi)
+    freeze(gb)
+    slots = lineup(gb, {b: [(x, v, 0) for x, _ in row] for b, row in SHIFTS.items()})
+    return {k: s[0] for k, s in slots.items()}
+
+
+@pytest.mark.parametrize("gi,g,v", OTHERS, ids=[c[1] for c in OTHERS])
+def test_enhanced_variant_lifted_equals_bg_at_every_shift(pair, gi, g, v):
+    a, b = pair
+    slot = None
+    for gg in pair:
+        slot = place_variant(gg, gi, v)
+    step_same(pair, 20)
+    for bars in ((0, 1), (2, 3)):
+        keys = [(bb, x) for bb in bars for x, _ in SHIFTS[bb]]
+        run_hooks(pair, [(slot[k], HOOK_LIFT) for k in keys])
+        assert b.mem("lift_total") == 4
+        for gg in pair:
+            for j, k in enumerate(keys):
+                start_drinking(gg, slot[k], 3 * j)
+        step_same(pair, 40)
+        run_hooks(pair, [(slot[k], HOOK_DROP) for k in keys])
+        assert b.mem("lift_total") == 0
+        step_same(pair, 40)
+    assert a.bg_tilemap() == b.bg_tilemap()
+
+
+@pytest.mark.parametrize("gi,g,v", OTHERS, ids=[c[1] for c in OTHERS])
+def test_enhanced_variant_rows_attributes_lift_and_palettes(gb, gi, g, v):
+    slot = place_variant(gb, gi, v)
+    gb.run(30, render=True)
+    tab = ENH[g]["tab"]
+    if gb.model_name == "cgb":
+        for (bb, x) in slot:
+            assert attr_ids(gb, bb, x >> 3) == [[tab[v]] * 3, [tab[4 + v]] * 3], (bb, x)
+        assert cgb_obj_palette(gb, 4)[1:] == [rgb15(h) for h in PALS[f"{g}_x"]["hex"]]
+        for t, data in ENH[g]["bank1"].items():
+            assert bytes(gb.pb.memory[1, 0x8000 + int(t) * 16:0x8000 + int(t) * 16 + 32]) == bytes(data)
+    ref = screen(gb)
+    keys = [(0, 16), (0, 49), (1, 18), (1, 51)]
+    for k in keys:
+        hook(gb, slot[k], HOOK_LIFT)
+        for _ in range(4):
+            gb.run(1, render=True)
+            assert (screen(gb) == ref).all()
+    spr = lifted_sprites(gb)
+    assert len(spr) == 8
+    for sp in spr:
+        left = (sp["tile"] - OBJ_BASE) % 6 == 0
+        if gb.model_name == "cgb":
+            assert sp["flags"] & 0x0F == (tab[16 + v] if left else tab[20 + v]), sp
+        else:
+            assert sp["flags"] & 0x10 and not sp["flags"] & BANK1, sp
+    for k in keys:
+        hook(gb, slot[k], HOOK_DROP)
+        for _ in range(4):
+            gb.run(1, render=True)
+            assert (screen(gb) == ref).all()
 
 
 def test_the_lifted_cowgirl_looks_exactly_like_her_bg_copy_at_every_shift(pair):

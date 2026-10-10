@@ -2,38 +2,38 @@
  "_note": "hex/rgb15 in gbsprite index order 1,2,3 = light, mid, dark; index 0 transparent",
  "divers_a": {
   "hex": [
-   "#f0ece0",
-   "#c89060",
-   "#243c78"
+   "#e0a878",
+   "#58b8f8",
+   "#101828"
   ],
   "rgb15": [
-   29630,
-   12889,
-   15588
+   16060,
+   32491,
+   5218
   ]
  },
  "divers_b": {
   "hex": [
-   "#f4ece8",
-   "#d49a78",
-   "#1c4a40"
+   "#d09878",
+   "#308878",
+   "#102828"
   ],
   "rgb15": [
-   30654,
    15994,
-   8483
+   15910,
+   5282
   ]
  },
  "divers_c": {
   "hex": [
-   "#e8e0d0",
-   "#a86a40",
-   "#4a2c1c"
+   "#b07048",
+   "#607838",
+   "#101808"
   ],
   "rgb15": [
-   27549,
-   8629,
-   3241
+   9686,
+   7660,
+   1122
   ]
  },
  "robots_a": {
@@ -52,22 +52,22 @@
   "hex": [
    "#f8d058",
    "#b88848",
-   "#281810"
+   "#181828"
   ],
   "rgb15": [
    12127,
    9783,
-   2149
+   5219
   ]
  },
  "robots_c": {
   "hex": [
-   "#f87070",
+   "#c8f8c8",
    "#58a068",
    "#102010"
   ],
   "rgb15": [
-   14815,
+   26617,
    13963,
    2178
   ]
@@ -76,12 +76,12 @@
   "hex": [
    "#f8c090",
    "#d03028",
-   "#382010"
+   "#281820"
   ],
   "rgb15": [
    19231,
    5338,
-   2183
+   4197
   ]
  },
  "lumberjacks_b": {
@@ -98,12 +98,12 @@
  },
  "lumberjacks_c": {
   "hex": [
-   "#a06848",
+   "#b87850",
    "#389040",
    "#102810"
   ],
   "rgb15": [
-   9652,
+   10743,
    8775,
    2210
   ]
@@ -268,12 +268,12 @@
   "hex": [
    "#b07850",
    "#2858d8",
-   "#081028"
+   "#000000"
   ],
   "rgb15": [
    10742,
    28005,
-   5185
+   0
   ]
  },
  "sports_c": {
@@ -418,6 +418,18 @@
    19867,
    6515,
    1125
+  ]
+ },
+ "robots_x": {
+  "hex": [
+   "#f8d848",
+   "#7888a0",
+   "#101828"
+  ],
+  "rgb15": [
+   10111,
+   21039,
+   5218
   ]
  },
  "_note_enhanced": "M14a enhanced variants: <group>_x is the group's extra OBJ palette (CGB OBJ 4) for the lifted column of its enhanced variant that its own palette cannot show; the extra BG palette S is the venue's bar_b (BG 7). The index order of an _x palette is free (its lifted tiles are re-indexed copies in VRAM bank 1)."
