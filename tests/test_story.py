@@ -18,7 +18,8 @@ pytestmark = pytest.mark.timeout(240)
 
 STORY = json.loads((ROOT / "build" / "story.json").read_text())
 PORTRAIT_CFG = json.loads((ROOT / "assets" / "story" / "portraits.json").read_text())
-APPROVED = ["SPIGOTEER", "SADIE", "DREGS", "MANAGER-BOT"]      # portrait-v2 art (assets/story/portraits/)
+PORTRAITS = STORY["portraits"]               # every portrait (a speaker's own and his variants): approved portrait-v2 art
+APPROVED = list(PORTRAITS)
 SCENES = STORY["scenes"]
 SC = {s["id"]: i for i, s in enumerate(SCENES)}
 CHAPTERS = STORY["chapters"]
@@ -30,6 +31,7 @@ PATTERNS = {p["name"]: p for p in STORY["patterns"]}
 GLYPH = STORY["glyphs"]
 FONT = STORY["font"]
 SPEAKERS = STORY["speakers"]
+STORY_STEPS = len(SEQ)
 G_SERVE, G_CATCH, G_CLEAR = 0, 1, 2
 F_NO_TAP, F_NO_BREAK = 1, 2
 SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL = 1, 2, 3, 4
@@ -128,13 +130,25 @@ def test_the_cut_scene_budget():
     for s in SCENES:
         assert s["bg_tiles"] <= STORY["bg_budget"] and s["obj_tiles"] <= STORY["obj_budget"], s["id"]
         assert len(s["spk"]) <= 3, s["id"]
-    for name, p in STORY["portraits"].items():
-        assert p["w"] <= 7 and p["h"] <= 7 and 1 <= p["pals"] <= 3, name
-        assert p["y"] + p["h"] <= BOX_ROW and p["x"] >= 1, f"{name}: the frame stays above the text box (or on it)"
-    for name in APPROVED:                       # the approved 56x56 portraits (docs/story.md "Portraits")
-        p = STORY["portraits"][name]
+    # every speaker but the narrator has approved art (no placeholders left), the Spigoteer and Dregs a variant each
+    assert sorted(p["speaker"] for p in PORTRAITS.values() if not p["variant"]) == sorted(SPEAKERS[:-1])
+    assert {n: (p["speaker"], p["variant"]) for n, p in PORTRAITS.items() if p["variant"]} == \
+        {"SPIGOTEER COZY": ("SPIGOTEER", "COZY"), "DREGS SORRY": ("DREGS", "SORRY")}
+    for name, p in PORTRAITS.items():           # the approved 56x56 portraits (docs/story.md "Portraits")
         assert (p["w"], p["h"], p["x"], p["y"]) == (7, 7, 2, 6), f"{name}: 56x56 standing on the text box"
-        assert p["tiles"] <= 44 and p["pals"] <= 3 and p["obj"] == (1 if name == "SADIE" else 0), name
+        assert p["tiles"] <= 44 and 1 <= p["pals"] <= 3 and p["obj"] == (1 if name == "SADIE" else 0), name
+    # the busiest scenes: three portraits loaded together (FINALE: Sadie, the sorry Dregs, the cozy Spigoteer)
+    most = max(s["bg_tiles"] for s in SCENES)
+    assert most <= STORY["bg_budget"]
+    assert SCENES[SC["FINALE"]]["bg_tiles"] == most == sum(PORTRAITS[n]["tiles"] for n in
+                                                           ("SADIE", "DREGS SORRY", "SPIGOTEER COZY"))
+
+
+def portrait_cfg(name):
+    """portraits.json's entry of a portrait (a variant's: its own art, the speaker's place)."""
+    p = PORTRAITS[name]
+    c = PORTRAIT_CFG[p["speaker"]]
+    return c["variants"][p["variant"]] if p["variant"] else c
 
 
 def test_the_portrait_v2_converter_is_exact_or_fails(tmp_path):
@@ -142,7 +156,8 @@ def test_the_portrait_v2_converter_is_exact_or_fails(tmp_path):
     with two colours on one DMG shade, or a fourth palette, fails the build."""
     g = gen_story()
     for name in APPROVED:
-        path = ROOT / PORTRAIT_CFG[name]["art"]
+        path = ROOT / portrait_cfg(name)["art"]
+        assert PORTRAITS[name]["art"] == portrait_cfg(name)["art"]
         key, pix, _ = g.parse_v2(path)
         px, attr, pals, cells, opals, lay = g.read_v2(path)
         for y, row in enumerate(pix):
@@ -168,6 +183,72 @@ def test_the_portrait_v2_converter_is_exact_or_fails(tmp_path):
         g.read_v2(f)
 
 
+def test_the_portrait_variants_follow_the_script():
+    """The Spigoteer wears the cozy from the page after Aurora knits it (PRE_IGLOO page 3, his thank-you) to the end
+    of the game; Dregs's sorry portrait is his apology in the FINALE (his only page there). Data, not scene checks:
+    portraits.json 'variants', resolved per page by gen_story."""
+    knit = SCENES[SC["PRE_IGLOO"]]["pages"]
+    assert knit[1]["speaker"] == "AURORA" and knit[1]["lines"][-1] == "MUSTACHE COZY!"
+    assert knit[2]["speaker"] == "SPIGOTEER" and knit[2]["lines"][0] == "IT'S... VERY COZY."
+    seen = [(i, k, p["portrait"]) for i, s in enumerate(SCENES) for k, p in enumerate(s["pages"])
+            if p["speaker"] == "SPIGOTEER"]
+    first = (SC["PRE_IGLOO"], 2)
+    assert all(n == ("SPIGOTEER COZY" if (i, k) >= first else "SPIGOTEER") for i, k, n in seen)
+    assert any(i == SC["FINALE"] and n == "SPIGOTEER COZY" for i, _, n in seen), "the cozy is still on in the FINALE"
+    sorry = [(s["id"], k) for s in SCENES for k, p in enumerate(s["pages"]) if p["portrait"] == "DREGS SORRY"]
+    assert sorry == [("FINALE", 3)] and SCENES[SC["FINALE"]]["pages"][3]["lines"][0] == "SORRY I BROKE IT."
+    assert [p["portrait"] for s in SCENES for p in s["pages"] if p["speaker"] == "DREGS"].count("DREGS") == \
+        sum(1 for s in SCENES for p in s["pages"] if p["speaker"] == "DREGS") - 1
+    for s in SCENES:                             # every other speaker shows his own portrait, the narrator none
+        for p in s["pages"]:
+            if p["speaker"] == "NARRATOR":
+                assert p["portrait"] is None
+            elif p["speaker"] not in ("SPIGOTEER", "DREGS"):
+                assert p["portrait"] == p["speaker"]
+
+
+@pytest.mark.parametrize("change, why", [
+    (("SPIGOTEER", "COZY", "from", "PRE_IGLOO:2"), "page 2 of PRE_IGLOO is not SPIGOTEER's"),
+    (("SPIGOTEER", "COZY", "from", "PRE_GLOO:3"), "names no scene"),
+    (("SPIGOTEER", "COZY", "from", "PRE_IGLOO:9"), "has pages 1-5"),
+    (("SPIGOTEER", "COZY", "from", "CREDITS"), "no page of SPIGOTEER"),
+    (("DREGS", "SORRY", "to", "POST_ZOO"), "'to' comes before 'from'"),
+    (("DREGS", "SORRY", "art", "assets/story/portraits/nobody.txt"), "not a portrait-v2 source"),
+])
+def test_the_build_fails_on_a_bad_variant(change, why):
+    g = gen_story()
+    scenes = g.parse_script(ROOT / "docs" / "story.md")
+    cfg = json.loads(json.dumps(PORTRAIT_CFG))
+    spk, var, k, v = change
+    cfg[spk]["variants"][var][k] = v
+    with pytest.raises(g.StoryError, match=re.escape(why)):
+        g.assign_portraits(scenes, g.portraits(cfg))
+    # two variants of one speaker on the same page
+    cfg = json.loads(json.dumps(PORTRAIT_CFG))
+    cfg["DREGS"]["variants"]["AGAIN"] = dict(cfg["DREGS"]["variants"]["SORRY"])
+    with pytest.raises(g.StoryError, match="is already DREGS SORRY"):
+        g.assign_portraits(scenes, g.portraits(cfg))
+
+
+def test_every_speaker_needs_art_and_the_scene_budget_fails_the_build():
+    g = gen_story()
+    cfg = json.loads(json.dumps(PORTRAIT_CFG))
+    del cfg["KIKI"]["art"]                       # no placeholders any more
+    with pytest.raises(g.StoryError, match="no art for KIKI"):
+        g.portraits(cfg)
+    cfg = json.loads(json.dumps(PORTRAIT_CFG))
+    cfg["KIKI"]["tint"] = ["#ffffff"] * 4        # the placeholders' old key
+    with pytest.raises(g.StoryError, match="unknown portraits.json keys"):
+        g.portraits(cfg)
+    scenes = g.parse_script(ROOT / "docs" / "story.md")
+    ports = g.portraits(PORTRAIT_CFG)
+    g.assign_portraits(scenes, ports)
+    most = max(s["bg_tiles"] for s in SCENES)
+    g.scene_budget(scenes, ports, most)          # the real budget's tightest fit passes ...
+    with pytest.raises(g.StoryError, match=f"FINALE: its portraits need {most} BG tiles, {most - 1} are free"):
+        g.scene_budget(scenes, ports, most - 1)  # ... one tile less fails the build
+
+
 # ---- helpers ------------------------------------------------------------------------------------------------
 DMG_GREY = [(255, 255, 255), (153, 153, 153), (85, 85, 85), (0, 0, 0)]   # PyBoy's DMG shades
 
@@ -176,11 +257,21 @@ def q15(h):
     return tuple((int(h[i:i + 2], 16) >> 3) << 3 for i in (1, 3, 5))   # #rrggbb as the CGB shows it (RGB15)
 
 
+_SOURCES = {}
+
+
+def source(name):
+    """The portrait's approved source: (key, pixel rows)."""
+    if name not in _SOURCES:
+        key, pix, _ = gen_story().parse_v2(ROOT / PORTRAITS[name]["art"])
+        _SOURCES[name] = key, pix
+    return _SOURCES[name]
+
+
 def assert_portrait_exact(gb, name):
     """The 56x56 picture on screen is the approved source pixel for pixel: on DMG each key's shade, on CGB each key's
     colour (the BG palettes through the per-tile map, the OBJ accent over them)."""
-    g = gen_story()
-    key, pix, _ = g.parse_v2(ROOT / PORTRAIT_CFG[name]["art"])
+    key, pix = source(name)
     p = STORY["portraits"][name]
     x0, y0 = p["x"] * 8, p["y"] * 8
     im = gb.image()
@@ -195,7 +286,7 @@ def assert_portrait_exact(gb, name):
             if im.getpixel((x0 + x, y0 + y)) != want:
                 bad.append((x, y, c))
     assert not bad, f"{name}: {len(bad)} pixels differ from the source, first {bad[:8]}"
-    assert SPEAKERS[gb.mem("story_cur")] == name
+    assert gb.mem("story_cur") == PORTRAITS[name]["pid"], name
 
 
 def assert_on_the_box(gb, p):
@@ -429,7 +520,7 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
         assert dregs["obj"] == 0 and overlay_sprites(gb) == 0
         assert_portrait_exact(gb, "DREGS")
         assert_on_the_box(gb, dregs)
-        check_golden(gb, "story_placeholder")
+        check_golden(gb, "story_dregs")
         rows = range(dregs["y"] - 1, BOX_ROW)          # the frame's rows (its bottom edge is the box's panel)
         rect = [tilemap_row(gb, r, dregs["x"] - 1, dregs["w"] + 2) for r in rows]
         gb.press("a", 2)                               # NARRATOR: the frame wipes back to the backdrop
@@ -448,27 +539,131 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_placeholder_and_a_56x56_portrait_swap_cleanly(model):
-    """PRE_STADIUM: COACH (a 32x32 placeholder with its name tag) -> SPIGOTEER (56x56, taller) -> COACH: the bigger
-    frame is wiped back to the backdrop before the smaller one is drawn."""
+def test_coach_and_the_spigoteer_swap_cleanly(model):
+    """PRE_STADIUM: COACH -> SPIGOTEER -> COACH, each the approved art pixel for pixel in the same framed slot on the
+    box, no overlay sprite (only Sadie has one)."""
     with start_story(model, v4_image([], story=1), cont=True) as gb:
         assert gb.mem("story_scene") == SC["PRE_STADIUM"]
         page_ready(gb)
-        coach, sp = STORY["portraits"]["COACH"], STORY["portraits"]["SPIGOTEER"]
-        bare = [tilemap_row(gb, r, 0, 20) for r in range(sp["y"] - 1, coach["y"] - 1)]   # rows only the 56x56 covers
-        assert SPEAKERS[gb.mem("story_cur")] == "COACH" and overlay_sprites(gb) == 4, "the placeholder's name tag"
+        assert_portrait_exact(gb, "COACH")
+        assert overlay_sprites(gb) == 0
         for _ in range(2):
             gb.press("a", 2)
             page_ready(gb)
         assert_portrait_exact(gb, "SPIGOTEER")
-        assert_on_the_box(gb, sp)
+        assert_on_the_box(gb, PORTRAITS["SPIGOTEER"])
         assert overlay_sprites(gb) == 0
         check_golden(gb, "story_spigoteer")
         gb.press("a", 2)
         page_ready(gb)
-        assert SPEAKERS[gb.mem("story_cur")] == "COACH" and overlay_sprites(gb) == 4
-        assert [tilemap_row(gb, r, 0, 20) for r in range(sp["y"] - 1, coach["y"] - 1)] == bare
-        assert tilemap_row(gb, coach["y"] + coach["h"], coach["x"] - 1, 1) == [FONT["frame_bl"]]
+        assert_portrait_exact(gb, "COACH")
+        assert_on_the_box(gb, PORTRAITS["COACH"])
+        assert overlay_sprites(gb) == 0
+
+
+# every scene, page by page (test_every_page_shows_its_portrait): a few pages also keep a golden
+TOUR_GOLDENS = {("PRE_IGLOO", 0): "story_aurora", ("PRE_IGLOO", 2): "story_spigoteer_cozy",
+                ("PRE_SPACE", 2): "story_zizz", ("FINALE", 3): "story_dregs_sorry"}
+PID_NAME = {p["pid"]: n for n, p in PORTRAITS.items()}
+
+
+def portrait_pairs(sids=None):
+    """(portrait on screen, the next page's other portrait) for every direct swap in the scenes (default: the whole
+    script; no narrator page between them)."""
+    out = set()
+    for s in SCENES:
+        if sids is not None and s["id"] not in sids:
+            continue
+        cur = None
+        for p in s["pages"]:
+            if p["portrait"] and cur and p["portrait"] != cur:
+                out.add((cur, p["portrait"]))
+            cur = p["portrait"]
+    return out
+
+
+def tour_scene(gb, sid, seen):
+    """Every page of the scene on screen: the page's portrait (the speaker's own or his variant) pixel for pixel,
+    framed on the box, its tile map the scene's copy of its tiles (nothing of the previous one left), the name tag;
+    a narrator page: no portrait, the frame wiped. Records the swaps seen in `seen`."""
+    s = SCENES[SC[sid]]
+    assert gb.mem("story_scene") == SC[sid] and gb.mem("story_page") == 0
+    base, first = STORY["portrait_base"], {}
+    for pid in s["spk"]:                         # the scene's portraits, loaded one after the other at its start
+        first[pid] = base
+        base += PORTRAITS[PID_NAME[pid]]["tiles"]
+    rect = (1, 5, 9, 8)                          # the 56x56 frame: columns 1-9, rows 5-12 (its bottom is the box)
+    spigoteer = 4 if s["venue"] != 255 else 0    # his sprite at the tap (a venue scene; a picture scene has none)
+    cur = None
+    for k, page in enumerate(s["pages"]):
+        if k:
+            gb.press("a", 2)
+        page_ready(gb)
+        assert gb.mem("story_page") == k, (sid, k)
+        name = page["portrait"]
+        if name is None:
+            assert gb.mem("story_cur") == 255, (sid, k)
+            rows = [tilemap_row(gb, r, rect[0], rect[2]) for r in range(rect[1], rect[1] + rect[3])]
+            if s["venue"] != 255:                # the venue backdrop: no story tile
+                assert not any(t in range(STORY["font_base"], 256) for row in rows for t in row), \
+                    f"{sid} page {k + 1}: the frame is wiped"
+            else:                                # the picture slot back as it was drawn
+                pic = STORY["pictures"][s["pic"]]["map"]
+                assert rows == [pic[r * 20 + rect[0]:r * 20 + rect[0] + rect[2]]
+                                for r in range(rect[1], rect[1] + rect[3])], f"{sid} page {k + 1}: the frame is wiped"
+            assert len(gb.visible_sprites()) == spigoteer
+        else:
+            p = PORTRAITS[name]
+            assert_portrait_exact(gb, name)
+            assert_on_the_box(gb, p)
+            b = first[p["pid"]]
+            for r in range(p["h"]):
+                assert tilemap_row(gb, p["y"] + r, p["x"], p["w"]) == \
+                    [b + t for t in p["map"][r * p["w"]:(r + 1) * p["w"]]], f"{sid} page {k + 1} row {r}"
+            assert tilemap_row(gb, BOX_ROW, 2, len(page["speaker"])) == [GLYPH[c] for c in page["speaker"]]
+            assert len(gb.visible_sprites()) - spigoteer == (1 if name == "SADIE" and gb.model_name == "cgb" else 0)
+            if cur and cur != name:
+                seen.add((cur, name))
+        if (sid, k) in TOUR_GOLDENS:
+            check_golden(gb, TOUR_GOLDENS[(sid, k)])
+        cur = name
+
+
+@pytest.mark.parametrize("c", range(9))
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_every_page_shows_its_portrait(model, c):
+    """Chapter c's PRE and POST scenes (chapter 1 also the INTRO, chapter 9 the FINALE), every page in the real
+    cut-scene: all 13 portraits pixel-exact on DMG and CGB, every swap between two portraits the script makes."""
+    seen = set()
+    if c == 0:
+        gb = start_story(model)
+        tour_scene(gb, "INTRO", seen)
+        skip_scene(gb)
+    else:
+        gb = start_story(model, v4_image([], story=c), cont=True)
+    with gb:
+        tour_scene(gb, SCENES[pre(c)]["id"], seen)
+        skip_scene(gb)                           # the PRE scene -> the Opening; won as the chapter's last step
+        to_goal(gb)
+        gb.write("story_step", STORY_STEPS - 1)
+        win(gb, c, 0)
+        run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(c), 400)
+        settle(gb)
+        tour_scene(gb, SCENES[post(c)]["id"], seen)
+        if c == 8:
+            skip_scene(gb)
+            tour_scene(gb, "FINALE", seen)
+    sids = (["INTRO"] if c == 0 else []) + [SCENES[pre(c)]["id"], SCENES[post(c)]["id"]] + (["FINALE"] if c == 8 else [])
+    assert seen == portrait_pairs(sids)
+
+
+def test_the_tour_covers_every_portrait_and_swap():
+    """What test_every_page_shows_its_portrait walks: every scene with a portrait is in it (CREDITS has none), so it
+    shows all 13 portraits and all the swaps of the script."""
+    toured = {"INTRO", "FINALE"} | {SCENES[pre(c)]["id"] for c in range(9)} | {SCENES[post(c)]["id"] for c in range(9)}
+    assert {s["id"] for s in SCENES if s["spk"]} == toured
+    assert {p["portrait"] for s in SCENES for p in s["pages"] if p["portrait"]} == set(PORTRAITS)
+    assert len(portrait_pairs()) == 27
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

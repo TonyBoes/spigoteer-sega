@@ -881,32 +881,55 @@ Each chapter plays its venue several times in a row, as shifts with rising diffi
 
 ## Story portraits as built (approved style S3, 2026-10-10)
 The owner approved the portrait study's style S3: 56x56 busts (7x7 tiles), up to 3 CGB BG palettes, an optional 1-OBJ
-accent. Four are imported pixel-exact; the other speakers keep the generated 32x32 placeholders until drawn.
-- Sources: assets/story/portraits/{spigoteer,sadie,dregs,managerbot}.txt, the approved files byte for byte, in the
-  portrait-v2 colour-key format (docs/story.md "Portraits": `@size`, `@maxpal`, `@key` = char, DMG shade, #rrggbb, name,
-  optional `obj=<base>`; then the pixels). assets/story/portraits.json points the four speakers at them with x 2, y 6.
-  The old 32x32 Spigoteer / Sadie (assets/approved/story/) are retired: nothing else used them.
+accent. The final cast is imported pixel-exact: all 11 speakers and two variants (13 portraits); no placeholders left.
+- Sources: assets/story/portraits/<name>.txt, the approved final set (portraits/final/src/portrait_<name>.txt) byte for
+  byte: spigoteer, spigoteer_cozy, sadie, dregs, dregs_sorry, managerbot, coach, june, colby, aurora, hana, zizz, kiki.
+  Spigoteer, Sadie and Manager-Bot were already in the game and are unchanged (identical files). dregs.txt is now the
+  "sheepish" drawing (owner's choice for his main portrait; it replaced the round 3b Dregs). Format: portrait-v2
+  (docs/story.md "Portraits": `@size`, `@maxpal`, `@key` = char, DMG shade, #rrggbb, name, optional `obj=<base>`; then
+  the pixels). assets/story/portraits.json points every speaker at his art with x 2, y 6.
+- Variants (data, not scene checks): portraits.json `"variants": {NAME: {art, from, to}}` on a speaker; `from` / `to` are
+  'SCENE' or 'SCENE:page' (pages from 1, inclusive, script order; no `to`: the end of the game). gen_story
+  assign_portraits resolves each page's portrait id; the build fails on a range naming no scene / page, a given page
+  that is not the speaker's, two variants on one page, a variant no page uses. As built:
+  SPIGOTEER COZY from PRE_IGLOO:3 (his "IT'S... VERY COZY." right after Aurora knits it on page 2) to the end: every
+  Spigoteer page of PRE_IGLOO .. FINALE (he has no CREDITS page). DREGS SORRY FINALE:4 .. FINALE:4, his apology "SORRY I
+  BROKE IT." (his only FINALE page, so "the apology" and "all his FINALE pages" are the same page).
+- Portrait ids: a speaker's index = his main portrait; variants after the speakers (12 SPIGOTEER COZY, 13 DREGS SORRY;
+  11 NARRATOR has none). The script stores the portrait id per page (no extra byte); story_page_get returns the speaker
+  (st_pid_spk, for the name tag) in dst[0] and the portrait id in dst[55]. story.c: story_pid (the page's portrait),
+  story_cur = the portrait id on screen; a page whose portrait differs (another speaker or the same speaker's variant)
+  swaps. Scene headers list portrait ids (at most 3 a scene: a variant is one more).
+- Placeholders removed: gen_story's placeholder() / FONT3 / "tint" and the old repo-format art path (palettes / attr /
+  overlay in the json) are gone; a speaker without portrait-v2 art fails the build ("no art for X"), so do the old keys.
+  The INTRO / FINALE / CREDITS picture-slot placeholders are a different thing and stay.
 - Converter (tools/gen_story.py parse_v2 / read_v2): the DMG shade of each key is its BG colour index (one tile set for
-  both models); per tile the shade -> colour map, packed into the fewest CGB palettes by an exact search (a palette slot
-  no tile uses is #000000); the obj= keys become a CGB-only overlay (colours 1-3 of one OBJ palette, greedy 8x16 cells),
-  with the base key in the BG underneath (what DMG shows). The build fails on two colours on one shade in a tile, more
-  palettes than @maxpal / 3, more than 3 overlay colours. A v2 entry takes no palettes / attr / overlay from the json.
+  both models); per tile the shade -> colour map, packed into the fewest CGB palettes by an exact search; the obj= keys
+  become a CGB-only overlay (colours 1-3 of one OBJ palette, greedy 8x16 cells). The build fails on two colours on one
+  shade in a tile, more palettes than @maxpal / 3, more than 3 overlay colours, more than 44 unique tiles (new).
 - Engine (src/story.c, banked; ROM0 untouched): a picture whose bottom row is 12 stands on the text box: the frame has
-  no bottom row (the box's top panel, with the name tag, is its bottom edge), so the frame is cols 1-9, rows 5-12 and the
-  wipe / swap covers those 8 rows. Overlay flag bit 5 = CGB only (overlay_show parks it at y 0 on DMG).
-- Budget (build/story.json): unique tiles (exact, no flips) Spigoteer 42, Sadie 44, Dregs 34, Manager-Bot 37 (<= 44);
-  3 CGB BG palettes each (slots 2-4); Sadie's star 1 OBJ (2 OBJ tiles, OBJ palette 3; 3 sprites on its lines with the
-  Spigoteer). Per scene at most 120 BG tiles (POST_SALOON and FINALE: Sadie + Dregs + Spigoteer) of the 163 free
-  (ids 93-255); OBJ at most 8 of 32. ROM data 772-963 B per portrait (tiles 544-704 B + the fixed 227 B record).
-- ROM: real ROM0 free 1671 -> 1671 B (game.gb), 1784 -> 1784 B (release.gb). Autobank moved the portraits to bank 2
-  and story.c to bank 3; banks free after (game.gb, romusage): 1 97, 2 195, 3 162, 4 54, 5 68, 6 187, 7 2245 B
-  (before: 1 97, 2 50, 3 45, 4 54, 5 47, 6 121, 7 4102).
-- Tests (tests/test_story.py): every source pixel of the four on screen, DMG (its shade) and CGB (its RGB15 colour,
-  the star over the BG) after a scene start and after swaps (Sadie -> Spigoteer -> Sadie with the star back; Dregs;
-  Spigoteer after the narrator's wipe; Coach placeholder -> Spigoteer -> Coach, the taller frame wiped); the frame on
-  the box (top, sides, no bottom row, the box panel intact); the converter round trip and its failures; the budget.
-  Goldens changed on purpose: story_portrait (Sadie, new art) and story_placeholder (POST_SALOON, Dregs is now the
-  approved portrait, no name-tag overlay). New goldens: story_spigoteer (PRE_STADIUM), story_managerbot (PRE_ROBOT).
+  no bottom row, so it is cols 1-9, rows 5-12 and the wipe / swap covers those 8 rows. CGB BG palettes 2-4.
+- Budget (build/story.json; scene_budget fails the build on any overflow): unique tiles (exact, no flips) Spigoteer 42,
+  cozy 42, Sadie 44, Dregs 34, sorry 38, Coach 33, June 33, Colby 36, Aurora 42, Manager-Bot 37, Hana 36, Zizz 35, Kiki 32
+  (<= 44); 3 CGB BG palettes each (Zizz 2). Per scene (all its portraits loaded at its start, then swapped by tile map)
+  at most 124 BG tiles of the 163 free (ids 93-255): FINALE (Sadie 44 + sorry Dregs 38 + cozy Spigoteer 42); next
+  POST_SALOON 120, POST_IGLOO 118; a PRE scene 74-86. OBJ: Sadie's star only (2 OBJ tiles). 27 different direct swaps in
+  the script (no narrator between).
+- ROM: real ROM0 free 1641 -> 1641 B (game.gb), 1754 -> 1754 B (release.gb). The ROM grew from 128 KB to 256 KB
+  (-Wm-yoA: 9 banks used, bank 8 new); autobank repacked: banks free after (game.gb, romusage) 1 225, 2 116, 3 15,
+  4 159, 5 47, 6 40, 7 112, 8 14536 B (before: 1 93, 2 195, 3 116, 4 51, 5 68, 6 187, 7 2006). The portraits
+  (story_portraits.c) are in bank 1.
+- Tests (tests/test_story.py): test_every_page_shows_its_portrait walks every page of INTRO, all PRE / POST scenes and
+  the FINALE on DMG and CGB (a POST scene: the Opening won as the chapter's last step): each page's portrait pixel for
+  pixel from its source (DMG shade / CGB RGB15 colour, so the palettes in force), its frame on the box, its tile map the
+  scene's own copy (nothing of the previous portrait left), the name tag, the overlay count; a narrator page wipes the
+  frame back to the backdrop (the venue, or the picture slot); the swaps seen are every direct pair of those scenes (27
+  in all). Also: the variant rules from the script, bad variant ranges fail, no art fails, the scene budget fails at one
+  tile less than the busiest scene, the converter round trip for all 13.
+  Goldens: story_placeholder (POST_SALOON page 3, Dregs) is renamed story_dregs and changed: Dregs's portrait replaced
+  by the owner's choice (the sheepish drawing). New: story_aurora (PRE_IGLOO p1), story_spigoteer_cozy (PRE_IGLOO p3),
+  story_zizz (PRE_SPACE p3), story_dregs_sorry (FINALE p4). story_portrait, story_spigoteer, story_managerbot,
+  story_narrator unchanged.
 
 ## Story lives as built (owner's rule, 2026-10-10)
 The owner's lives rule (docs/minigames_bosses.md section 8) replaces "retry only the failed shift". Arcade is unchanged.

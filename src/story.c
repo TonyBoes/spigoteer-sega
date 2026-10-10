@@ -23,9 +23,11 @@
 // The portrait slot is data-driven (build/story_portraits.c, from assets/story/portraits.json): size up to 7x7 tiles,
 // position, up to 3 CGB BG palettes (slots 2-4) and an optional OBJ overlay (OAM 4.., OBJ tiles OBJ_DANCER.., palettes
 // 3, 4, 6, 7; flag bit 5: a CGB-only accent, hidden on DMG). A picture whose bottom row is 12 stands on the text box
-// (the box's top panel is its frame's bottom edge: the approved 56x56 portraits). All the scene's portraits are
-// loaded when it starts (LCD off); a speaker change rewrites only the tile map: the old frame is wiped back to the backdrop (a WRAM copy of rows 0-12), then the palettes change (at the top
-// of a frame, in VBlank) and the new frame is drawn, 2 rows a frame through the VBlank queue.
+// (the box's top panel is its frame's bottom edge: the approved 56x56 portraits). Each page names a portrait id: the
+// speaker's own, or one of his variants over a range of pages (portraits.json "variants": the Spigoteer's cozy, Dregs's
+// apology), resolved by tools/gen_story.py. All the scene's portraits are loaded when it starts (LCD off); a portrait
+// change rewrites only the tile map: the old frame is wiped back to the backdrop (a WRAM copy of rows 0-12), then the
+// palettes change (at the top of a frame, in VBlank) and the new frame is drawn, 2 rows a frame through the VBlank queue.
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -62,8 +64,9 @@ uint8_t  story_scene;              // SC_* (build/story.h)
 uint8_t  story_page;               // page of the scene on screen
 uint8_t  story_chapter;            // 0..8
 uint8_t  story_typed;              // characters of the page typed so far (54: the whole page)
-uint8_t  story_spk;                // speaker of the page
-uint8_t  story_cur;                // speaker whose portrait is on screen (255: none)
+uint8_t  story_spk;                // speaker of the page (the name tag)
+uint8_t  story_pid;                // portrait of the page: the speaker's id, or a variant (build/story.h, portraits.json)
+uint8_t  story_cur;                // portrait id on screen (255: none)
 uint8_t  story_swap;               // SW_*: a portrait change in progress
 uint8_t  story_catches, story_breaks, story_taps;   // this attempt: empties caught, glasses broken, patrons at the tap
 uint8_t  story_left;               // what is left of the goal's count (HUD)
@@ -79,7 +82,7 @@ uint16_t pat_wait[4];              // frames per wait code: the interval, PAT_SH
 scene_hdr_t story_hdr;
 goal_t   story_goal;
 
-static uint8_t page_buf[55];
+static uint8_t page_buf[56];      // speaker, 3 x 18 characters, portrait id
 static uint8_t box_tiles[3][18];
 static uint8_t tag_row[20];
 static uint8_t hud_buf[8];
@@ -234,24 +237,26 @@ static void tag_build(void) {                    // row 13: the panel with the s
     tag_row[2 + i] = TILE_HUD_BLANK;
 }
 
-// LCD on (lcd 0) or off (1): the page's box cleared, its name tag; a portrait change starts if the speaker's differs
+// LCD on (lcd 0) or off (1): the page's box cleared, its name tag; a portrait change starts if the page's portrait
+// differs (another speaker, or the same speaker's variant: the Spigoteer's cozy, Dregs's apology)
 static void page_begin(uint8_t lcd_off) {
     uint8_t r;
     story_page_get(story_scene, story_page, page_buf);
     story_spk = page_buf[0];
+    story_pid = page_buf[55];
     story_typed = 0;
     for (r = 0; r < 3; r++) fill(box_tiles[r], TILE_HUD_BLANK, 18);
     tag_build();
     if (lcd_off) {
         for (r = 0; r < 3; r++) set_bkg_tiles(1, BOX_TEXT_ROW + r, 18, 1, box_tiles[r]);
         set_bkg_tiles(0, BOX_ROW, 20, 1, tag_row);
-        portrait_now(story_spk);
+        portrait_now(story_pid);
         return;
     }
     for (r = 0; r < 3; r++) vq_add(0, box_tiles[r], 1, BOX_TEXT_ROW + r, 18);
     vq_add(0, tag_row, 0, BOX_ROW, 20);
-    if (story_spk == story_cur || (spk_index(story_spk) == 255 && story_cur == 255)) return;
-    sw_next = story_spk;
+    if (story_pid == story_cur || (spk_index(story_pid) == 255 && story_cur == 255)) return;
+    sw_next = story_pid;
     sw_row = 0;
     if (story_cur != 255) { story_swap = SW_OUT; overlay_hide(); }
     else story_swap = SW_PAL;

@@ -80,7 +80,8 @@ venue at its Opening shift. A strict rule (stadium: a fan at the tap; teahouse: 
 ## Script format
 
 Text box: 18 characters per line, 3 lines per page. Allowed: `A-Z 0-9 . , ! ? ' - :` and space.
-Each page below is one speaker line (it picks the speaker's portrait; `NARRATOR` has no portrait)
+Each page below is one speaker line (it picks the speaker's portrait, or his variant for that page: see
+"Portraits" in the art list; `NARRATOR` has no portrait)
 followed by 1-3 text lines. Pages are separated by blank lines. The text is already wrapped,
 so the engine prints it as is. Scene ids are what the engine would call each scene.
 
@@ -857,15 +858,24 @@ panel), facing right toward the Spigoteer at his taps; light from the upper righ
 * Budget: at most 44 unique tiles a portrait (no flips), 3 CGB BG palettes (slots 2-4), the background shade 2 with a
   per-character CGB colour, skin and whites shade 0, outline shade 3.
 
-Done (approved art imported pixel-exact): **SPIGOTEER, SADIE, DREGS, MANAGER-BOT**.
-Still to draw, in the same style (they show a generated 32x32 placeholder until then): **COACH, JUNE, COLBY, AURORA,
-HANA, ZIZZ, KIKI**, and the **SPIGOTEER (cozy)** variant with the pink knitted mustache cozy (DREGS sheepish optional).
+All done (approved art imported pixel-exact, 2026-10-10): **SPIGOTEER, SADIE, DREGS, COACH, JUNE, COLBY, AURORA,
+MANAGER-BOT, HANA, ZIZZ, KIKI**, and two variants. There are no placeholders left: a speaker without art fails the build.
+DREGS's main portrait is the sheepish drawing (owner's choice; it replaced the first approved Dregs).
+
+Variants (`assets/story/portraits.json` "variants": a range of pages in script order, resolved per page by
+`tools/gen_story.py`; the build fails on a range that names no scene or page, whose given page is not the speaker's, that
+overlaps another variant of his or that no page uses):
+
+| Variant | Source | Pages |
+|---|---|---|
+| SPIGOTEER COZY | `spigoteer_cozy.txt` | From PRE_IGLOO page 3 (his "IT'S... VERY COZY." right after Aurora knits it on page 2) to the end of the game: every Spigoteer page of PRE_IGLOO through FINALE (CREDITS has none). |
+| DREGS SORRY | `dregs_sorry.txt` | FINALE page 4, his apology "SORRY I BROKE IT." (his only FINALE page). |
 
 | Portrait | One line |
 |---|---|
 | SPIGOTEER | Big curled mustache, bartender's apron and bow tie, confident grin. |
-| SPIGOTEER (cozy) | The same with the pink knitted mustache cozy, used from POST_IGLOO onward. Optional; it can be a palette and tile swap. |
-| DREGS | Lanky rival with a scraggly little mustache, a crooked bow tie and a scheming smirk. Give him a sheepish variant for the finale if there's room. |
+| SPIGOTEER (cozy) | The same with the pink knitted mustache cozy, from PRE_IGLOO page 3 onward. |
+| DREGS | Lanky rival with a scraggly little mustache and a crooked bow tie, sheepish. His FINALE apology has its own variant (hand behind his head). |
 | SADIE | Small saloon owner, huge hat, sheriff-style star badge, big laugh. |
 | COACH | Coach Blitz: ball cap, whistle in his teeth, clipboard. |
 | JUNE | Big June: red plaid, knit beanie, axe over her shoulder, cheerful. |

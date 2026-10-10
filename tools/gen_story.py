@@ -5,7 +5,7 @@
   build/story_data.c       the script (pages, scene table, names), chapter goals, the story font tiles, the picture slots
   build/story_portraits.c  the portraits (BG tiles, map, attributes, palettes, optional OBJ overlay)
   build/story.json         the same for the tests
-  out/preview/story_*.png  the font, every portrait (with its frame) and the picture placeholders, x8 / x4
+  out/preview/story_*.png  the font and every portrait (its variants too), x8
 
 Both .c files are `#pragma bank 255` (autobanked). Their data is static and read only through the BANKED accessors in
 the same file, which copy into the caller's WRAM buffer or write VRAM themselves (LCD off): src/story.c never passes a
@@ -13,7 +13,10 @@ pointer into its own bank to them.
 
 The script is validated and the build fails on: a line longer than 18 characters, more than 3 lines on a page, a
 character outside A-Z 0-9 . , ! ? ' - : and space, an unknown speaker, a scene title longer than 20, a chapter goal that
-disagrees with the chapters table, a portrait or scene that does not fit the cut-scene budget (see story.h). Story shifts:
+disagrees with the chapters table, a portrait or scene that does not fit the cut-scene budget (see story.h). Portraits:
+also on a speaker without approved portrait-v2 art (there are no placeholders), a portrait over 56x56, 44 unique tiles
+or 3 CGB BG palettes, and a variant range (portraits.json "variants") that names no scene or page, whose given page is
+not the speaker's, that overlaps another variant of his or that no page uses (assign_portraits). Story shifts:
 also on a shift (SHIFTS, the shifts table of docs/story.md) whose engine goal or last-call pattern disagrees with the
 table, a banner line over 20 or outside the HUD glyphs, speeds outside the sane limits, an opening that is not about half
 the goal and slower, a last call that is not faster with its own pattern (nine different ones), a timed goal that too
@@ -44,6 +47,7 @@ PUNCT = {".": "period", ",": "comma", "!": "excl", "?": "quest", "'": "apos", "-
 # and everything above it are free (no patrons on a cut-scene): the story font, then the scene's portraits.
 BG_END = 256
 MAX_W = MAX_H = 7                # portrait size in tiles (56x56)
+MAX_TILES = 44                   # unique BG tiles per portrait (docs/story.md "Portraits": the approved style's budget)
 MAX_BG_PALS = 3                  # CGB BG palettes 2-4 (0 bar, 1 HUD / text box, 5-6 stage, 7 keg stay the venue's)
 MAX_OBJ_PALS = 4                 # CGB OBJ palettes 3-6 (0 the Spigoteer, 1-2 the drinks)
 OBJ_TILES = 32                   # OBJ ids of the show performers (OBJ_DANCER.. 127): the overlay tiles, all speakers
@@ -290,16 +294,6 @@ def tiles_of(px):
     return [tuple(tile_bytes(rows, tx * 8, ty * 8)) for ty in range(h) for tx in range(w)], w, h
 
 
-def read_art(path):
-    rows = [r for _, r in blocks(path)]
-    if len(rows) != 1:
-        fail(f"{path}: one picture expected")
-    px = [[IDX[c] for c in r] for r in rows[0]]
-    if len({len(r) for r in px}) != 1 or len(px[0]) % 8 or len(px) % 8:
-        fail(f"{path}: not whole 8x8 tiles")
-    return px
-
-
 # ---- portrait-v2: the approved colour-key sources (assets/story/portraits/*.txt) ----------------------------------
 # Format (from the portrait study, docs/story.md "Portraits"):
 #     ; comments
@@ -433,141 +427,125 @@ def read_v2(path):
     return px, attr, pals, cells, [opal] if cells else [], lay if cells else None
 
 
-FONT3 = {   # 3x5 letters for the placeholder name labels
-    "A": "010101111101101", "B": "110101110101110", "C": "011100100100011", "D": "110101101101110",
-    "E": "111100110100111", "F": "111100110100100", "G": "011100101101011", "H": "101101111101101",
-    "I": "111010010010111", "J": "001001001101010", "K": "101101110101101", "L": "100100100100111",
-    "M": "101111111101101", "N": "110101101101101", "O": "010101101101010", "P": "110101110100100",
-    "Q": "010101101110011", "R": "110101110101101", "S": "011100010001110", "T": "111010010010010",
-    "U": "101101101101111", "V": "101101101101010", "W": "101101111111101", "X": "101101010101101",
-    "Y": "101101010010010", "Z": "111001010100111", "-": "000000111000000", " ": "000000000000000",
-}
+def obj_pairs(cells):
+    """overlay cells [(dx, dy, 8x16 px)] -> [(dx, dy, tile pair)]."""
+    return [(dx, dy, tuple(tile_bytes(r, 0, 0)) + tuple(tile_bytes(r, 0, 8)))
+            for dx, dy, cell in cells for r in [["".join(".-+#"[v] for v in row) for row in cell]]]
 
 
-def placeholder(label):
-    """32x32 BG picture (a silhouette: head and shoulders) + its 32x16 name label overlay (OBJ, '.' transparent)."""
-    px = [[1] * 32 for _ in range(32)]
-    for y in range(32):
-        for x in range(32):
-            if (x + y) % 8 == 0:
-                px[y][x] = 0                                        # faint diagonal hatching
-            head = (x - 15.5) ** 2 + (y - 11.5) ** 2 <= 7.5 ** 2
-            body = y >= 20 and ((x - 15.5) / 13.5) ** 2 + ((y - 33) / 12.5) ** 2 <= 1
-            if head or body:
-                px[y][x] = 3
-    for y in range(32):                                             # a rim light on the silhouette's right edge
-        for x in range(31, 0, -1):
-            if px[y][x] == 3:
-                if x < 31 and px[y][x + 1] != 3:
-                    px[y][x] = 2
-                break
-    if len(label) * 4 - 1 > 32:
-        fail(f"placeholder label {label!r} is too long (8 characters)")
-    lab = [[0] * 32 for _ in range(16)]                             # OBJ colour 0 = transparent
-    w = len(label) * 4 - 1
-    for y in range(7):
-        for x in range(max(0, (32 - w) // 2 - 2), min(32, (32 + w) // 2 + 2)):
-            lab[y][x] = 3                                           # the dark tag
-    for i, ch in enumerate(label):
-        g = FONT3[ch]
-        for y in range(5):
-            for x in range(3):
-                if g[y * 3 + x] == "1":
-                    lab[1 + y][(32 - w) // 2 + i * 4 + x] = 1
-    return px, lab
-
-
-def obj_cells(px):
-    """overlay px (w x 16k, 0 = transparent) -> [(dx, dy, tile pair)] of the non-empty 8x16 cells."""
-    h, w = len(px), len(px[0])
-    if w % 8 or h % 16:
-        fail("overlay: not whole 8x16 cells")
-    rows = ["".join(".-+#"[v] for v in r) for r in px]
-    out = []
-    for cy in range(0, h, 16):
-        for cx in range(0, w, 8):
-            if any(px[cy + y][cx + x] for y in range(16) for x in range(8)):
-                out.append((cx, cy, tuple(tile_bytes(rows, cx, cy)) + tuple(tile_bytes(rows, cx, cy + 8))))
-    return out
+def portrait(name, art, x, y):
+    """One portrait-v2 source -> dict (w, h, x, y, tiles, map, attr, pals, obj, obj_tiles, obj_pals, px, ovl px)."""
+    path = ROOT / art
+    if not path.is_file() or not is_v2(path):
+        fail(f"{name}: {art} is not a portrait-v2 source (every speaker has approved art)")
+    px, attr, pals, cells, opals, lay = read_v2(path)
+    tl, w, h = tiles_of(px)
+    if w > MAX_W or h > MAX_H:
+        fail(f"{name}: portrait {w * 8}x{h * 8} (max {MAX_W * 8}x{MAX_H * 8})")
+    x = 2 if x is None else x
+    y = 12 - h if y is None else y
+    # the frame takes a tile around the picture; a picture whose bottom is row 12 stands on the text box, whose
+    # top panel (row 13) is then the frame's bottom edge
+    if x < 1 or x + w > 19 or y < 1 or y + h > 13:
+        fail(f"{name}: the frame ({x - 1},{y - 1})..({x + w},{min(y + h, 13)}) leaves rows 0-13 / columns 0-19")
+    uniq, tmap = [], []
+    for t in tl:
+        if t not in uniq:
+            uniq.append(t)
+        tmap.append(uniq.index(t))
+    if len(uniq) > MAX_TILES:
+        fail(f"{name}: {len(uniq)} unique tiles (max {MAX_TILES})")
+    obj, otiles = [], []
+    for dx, dy, pair in obj_pairs(cells):
+        if pair not in otiles:
+            otiles.append(pair)
+        obj.append((dx, dy, otiles.index(pair) * 2))
+    if len(obj) > MAX_OBJ:
+        fail(f"{name}: {len(obj)} overlay sprites (max {MAX_OBJ})")
+    for line in range(-16, 80):
+        n = sum(1 for o in obj if o[1] <= line < o[1] + 16)
+        if n > LINE_OBJ:
+            fail(f"{name}: {n} overlay sprites on one line (max {LINE_OBJ}: the Spigoteer takes 2 of 10)")
+    if len(opals) > MAX_OBJ_PALS:
+        fail(f"{name}: {len(opals)} overlay palettes (max {MAX_OBJ_PALS})")
+    return {"name": name, "art": art, "w": w, "h": h, "x": x, "y": y, "tiles": uniq, "map": tmap, "attr": attr,
+            "pals": pals, "obj": obj, "obj_tiles": otiles, "obj_pals": opals, "px": px, "opx": lay}
 
 
 def portraits(cfg):
-    """speaker -> dict (w, h, x, y, tiles, map, attr, pals, obj, obj_tiles, obj_pals, dmg_obp, px, ovl px)."""
+    """-> {portrait id: portrait}. Id = the speaker's index for his main portrait; his variants (cfg 'variants') get
+    the ids after the speakers (NARRATOR's id has no portrait), in the json's order. Each also gets 'speaker' and,
+    for a variant, 'variant' (its name) and 'frm' / 'to' (the range as written)."""
     out = {}
+    nxt = len(SPEAKERS)
     for si, name in enumerate(SPEAKERS):
         if si == NARRATOR:
             continue
         c = cfg.get(name)
-        if c is None:
-            fail(f"assets/story/portraits.json: no entry for {name}")
-        ovl = c.get("overlay")
-        cells, cgb_only, lay, attr = None, 0, None, None
-        if "art" in c and is_v2(ROOT / c["art"]):          # an approved portrait-v2 source: palettes from the art
-            if "palettes" in c or "attr" in c or ovl:
-                fail(f"{name}: a portrait-v2 source carries its own palettes, palette map and overlay")
-            px, attr, pals, cells, opals, lay = read_v2(ROOT / c["art"])
-            opx, ox, oy, obp, cgb_only = None, 0, 0, 0, 1
-        elif "art" in c:
-            px = read_art(ROOT / c["art"])
-            pals = c["palettes"]
-            opx = read_art(ROOT / ovl["art"]) if ovl else None
-            ox, oy = (ovl["x"], ovl["y"]) if ovl else (0, 0)
-            opals = ovl.get("palettes", []) if ovl else []
-            obp = ovl.get("dmg_obp", 0) if ovl else 0
-        else:
-            px, opx = placeholder(c.get("label", name))
-            pals = [c["tint"]]
-            ox, oy, obp = 0, 24, 0
-            opals = [["#000000", "#f8f0d8", "#e0a020", "#181008"]]   # the tag: cream on dark
-        tl, w, h = tiles_of(px)
-        if w > MAX_W or h > MAX_H:
-            fail(f"{name}: portrait {w * 8}x{h * 8} (max {MAX_W * 8}x{MAX_H * 8})")
-        x = c.get("x", 2)
-        y = c.get("y", 12 - h)
-        # the frame takes a tile around the picture; a picture whose bottom is row 12 stands on the text box, whose
-        # top panel (row 13) is then the frame's bottom edge
-        if x < 1 or x + w > 19 or y < 1 or y + h > 13:
-            fail(f"{name}: the frame ({x - 1},{y - 1})..({x + w},{min(y + h, 13)}) leaves rows 0-13 / columns 0-19")
-        if not 1 <= len(pals) <= MAX_BG_PALS:
-            fail(f"{name}: {len(pals)} BG palettes (1-{MAX_BG_PALS} free while a venue shows)")
-        if attr is None:
-            attr = [0] * (w * h)
-        if "attr" in c:
-            a = c["attr"]
-            if len(a) != h or any(len(r) != w for r in a):
-                fail(f"{name}: attr must be {h} rows of {w} digits")
-            attr = [int(ch) for r in a for ch in r]
-            if max(attr) >= len(pals):
-                fail(f"{name}: attr names palette {max(attr)} of {len(pals)}")
-        uniq, tmap = [], []
-        for t in tl:
-            if t not in uniq:
-                uniq.append(t)
-            tmap.append(uniq.index(t))
-        obj, otiles = [], []
-        if cells is None and opx is not None:
-            cells = [(ox + dx, oy + dy, pair) for dx, dy, pair in obj_cells(opx)]
-        elif cells:
-            cells = [(dx, dy, tuple(tile_bytes(r, 0, 0)) + tuple(tile_bytes(r, 0, 8)))
-                     for dx, dy, cell in cells for r in [["".join(".-+#"[v] for v in row) for row in cell]]]
-        if cells:
-            for dx, dy, pair in cells:
-                if pair not in otiles:
-                    otiles.append(pair)
-                obj.append((dx, dy, otiles.index(pair) * 2))
-            if len(obj) > MAX_OBJ:
-                fail(f"{name}: {len(obj)} overlay sprites (max {MAX_OBJ})")
-            for line in range(-16, 80):
-                n = sum(1 for o in obj if o[1] <= line < o[1] + 16)
-                if n > LINE_OBJ:
-                    fail(f"{name}: {n} overlay sprites on one line (max {LINE_OBJ}: the Spigoteer takes 2 of 10)")
-            if not 1 <= len(opals) <= MAX_OBJ_PALS:
-                fail(f"{name}: {len(opals)} overlay palettes (1-{MAX_OBJ_PALS})")
-        out[si] = {"name": name, "w": w, "h": h, "x": x, "y": y, "tiles": uniq, "map": tmap, "attr": attr,
-                   "pals": pals, "obj": obj, "obj_tiles": otiles, "obj_pals": opals, "dmg_obp": obp,
-                   "cgb_only": cgb_only, "px": px, "opx": lay if lay is not None else opx,
-                   "ox": 0 if lay is not None else ox, "oy": 0 if lay is not None else oy}
+        if c is None or "art" not in c:
+            fail(f"assets/story/portraits.json: no art for {name}")
+        extra = set(c) - {"art", "x", "y", "variants"}
+        if extra:
+            fail(f"{name}: unknown portraits.json keys {sorted(extra)} (palettes, map and overlay come from the art)")
+        out[si] = dict(portrait(name, c["art"], c.get("x"), c.get("y")), speaker=si, variant=None)
+        for vn, v in c.get("variants", {}).items():
+            if not re.fullmatch(r"[A-Z]+", vn) or set(v) - {"art", "from", "to"} or "art" not in v or "from" not in v:
+                fail(f"{name} variant {vn!r}: a name A-Z with 'art', 'from' and optionally 'to'")
+            p = portrait(f"{name} {vn}", v["art"], c.get("x"), c.get("y"))
+            out[nxt] = dict(p, speaker=si, variant=vn, frm=v["from"], to=v.get("to"))
+            nxt += 1
+    if nxt > 255:
+        fail("too many portraits")
     return out
+
+
+def page_ref(scenes, ref, last, who):
+    """'SCENE' or 'SCENE:page' (pages from 1) -> (scene index, page index, page given); a scene alone: its first page
+    (last: its last). Fails on a scene or page that does not exist."""
+    m = re.fullmatch(r"(\w+?)(?::(\d+))?", ref or "")
+    ids = [s["id"] for s in scenes]
+    if not m or m.group(1) not in ids:
+        fail(f"{who}: {ref!r} names no scene")
+    s = ids.index(m.group(1))
+    n = len(scenes[s]["pages"])
+    if m.group(2) is None:
+        return s, (n - 1 if last else 0), False
+    k = int(m.group(2)) - 1
+    if not 0 <= k < n:
+        fail(f"{who}: {ref!r}: {scenes[s]['id']} has pages 1-{n}")
+    return s, k, True
+
+
+def assign_portraits(scenes, ports):
+    """Each page's portrait id (s["pids"]): the speaker's main portrait, or the variant whose range holds the page.
+    Fails on a range end given by page number that is not the speaker's page, two variants on one page, a variant
+    no page uses."""
+    for s in scenes:
+        s["pids"] = [p for p, _ in s["pages"]]
+    for pid, pt in ports.items():
+        if pt["variant"] is None:
+            continue
+        who = f"{SPEAKERS[pt['speaker']]} variant {pt['variant']}"
+        a = page_ref(scenes, pt["frm"], False, who)
+        if pt["to"]:
+            b = page_ref(scenes, pt["to"], True, who)
+        else:
+            b = (len(scenes) - 1, len(scenes[-1]["pages"]) - 1, False)
+        for si, k, given in (a, b):
+            if given and scenes[si]["pages"][k][0] != pt["speaker"]:
+                fail(f"{who}: page {k + 1} of {scenes[si]['id']} is not {SPEAKERS[pt['speaker']]}'s")
+        if b[:2] < a[:2]:
+            fail(f"{who}: 'to' comes before 'from'")
+        used = 0
+        for si, s in enumerate(scenes):
+            for k, (spk, _) in enumerate(s["pages"]):
+                if spk == pt["speaker"] and a[:2] <= (si, k) <= b[:2]:
+                    if s["pids"][k] != spk:
+                        fail(f"{who}: {s['id']} page {k + 1} is already {ports[s['pids'][k]]['name']}")
+                    s["pids"][k] = pid
+                    used += 1
+        if not used:
+            fail(f"{who}: no page of {SPEAKERS[pt['speaker']]} in {pt['frm']}..{pt['to'] or 'the end'}")
 
 
 # ---- output -----------------------------------------------------------------------------------------------------
@@ -579,6 +557,31 @@ def carr(name, vals, typ="uint8_t"):
     return f"static const {typ} {name}[{max(1, len(vals))}] = {{\n" + ("\n".join(body) if vals else "    0") + "\n};"
 
 
+def scene_budget(scenes, ports, budget):
+    """Per scene its portraits (s["spk"]: portrait ids in order of appearance; a speaker's variant is one more), all
+    loaded when the scene starts: their BG tiles must fit the budget together (a scene with several speakers swaps
+    them, it does not reload), their overlay tiles the OBJ ids. The build fails on any overflow."""
+    for sp in ports.values():
+        if len(sp["tiles"]) > budget:
+            fail(f"{sp['name']}: {len(sp['tiles'])} tiles (budget {budget})")
+    for s in scenes:
+        spk = []
+        for p in s["pids"]:
+            if p != NARRATOR and p not in spk:
+                spk.append(p)
+        if len(spk) > MAX_SPK:
+            fail(f"{s['id']}: {len(spk)} portraits (max {MAX_SPK})")
+        n = sum(len(ports[p]["tiles"]) for p in spk)
+        if n > budget:
+            fail(f"{s['id']}: its portraits need {n} BG tiles, {budget} are free")
+        no = sum(len(ports[p]["obj_tiles"]) * 2 for p in spk)
+        if no > OBJ_TILES:
+            fail(f"{s['id']}: its overlays need {no} OBJ tiles, {OBJ_TILES} are free")
+        s["spk"] = spk
+        s["bg_tiles"] = n
+        s["obj_tiles"] = no
+
+
 def main():
     outdir, prev = Path(sys.argv[1]), Path(sys.argv[2])
     outdir.mkdir(parents=True, exist_ok=True)
@@ -587,6 +590,7 @@ def main():
     scenes = parse_script(ROOT / "docs/story.md")
     cfg = json.loads((ROOT / "assets/story/portraits.json").read_text())
     ports = portraits(cfg)
+    assign_portraits(scenes, ports)
 
     # the story font: punctuation, frame, icon (ids FONT_BASE..), A-Z 0-9 space are the HUD's own tiles
     font_blocks = blocks(ROOT / "assets/tiles/story.txt", named=True)
@@ -608,26 +612,8 @@ def main():
             return fid["glyph_" + PUNCT[ch]]
         return ids["TILE_GLYPH_" + ch]
 
-    for sp in ports.values():
-        if len(sp["tiles"]) > budget:
-            fail(f"{sp['name']}: {len(sp['tiles'])} tiles (budget {budget})")
-    # scenes: per scene the portrait speakers; their tiles must fit together
+    scene_budget(scenes, ports, budget)
     for s in scenes:
-        spk = []
-        for p, _ in s["pages"]:
-            if p != NARRATOR and p not in spk:
-                spk.append(p)
-        if len(spk) > MAX_SPK:
-            fail(f"{s['id']}: {len(spk)} speakers with portraits (max {MAX_SPK})")
-        n = sum(len(ports[p]["tiles"]) for p in spk)
-        if n > budget:
-            fail(f"{s['id']}: its portraits need {n} BG tiles, {budget} are free")
-        no = sum(len(ports[p]["obj_tiles"]) * 2 for p in spk)
-        if no > OBJ_TILES:
-            fail(f"{s['id']}: its overlays need {no} OBJ tiles, {OBJ_TILES} are free")
-        s["spk"] = spk
-        s["bg_tiles"] = n
-        s["obj_tiles"] = no
         s["venue"] = 255
         s["pic"] = 255
         if s["id"] in PICTURE_SCENES:
@@ -663,8 +649,8 @@ def main():
     scene_ofs = []
     for s in scenes:
         scene_ofs.append(len(text))
-        for p, lines in s["pages"]:
-            text.append(p)
+        for pid, (_, lines) in zip(s["pids"], s["pages"]):
+            text.append(pid)
             for i in range(PAGE_LINES):
                 l = lines[i] if i < len(lines) else ""
                 text.append(len(l))
@@ -672,6 +658,8 @@ def main():
     names = []
     for n in SPEAKERS:
         names += [ord(ch) for ch in n.ljust(12, "\0")[:12]]
+    npid = max(ports) + 1
+    pid_spk = [ports[i]["speaker"] if i in ports else NARRATOR for i in range(npid)]
     hdr = []
     for s in scenes:
         spk = s["spk"] + [255] * (MAX_SPK - len(s["spk"]))
@@ -697,9 +685,12 @@ def main():
 
     d = ["// generated by tools/gen_story.py from docs/story.md -- do not edit",
          "#pragma bank 255", "#include <gb/gb.h>", "#include <gb/cgb.h>", "#include <stdint.h>", '#include "story.h"', "",
-         "// the script: per page the speaker, then 3 lines of (length, characters)",
+         "// the script: per page the portrait id (the speaker's own, or a variant of his), then 3 lines of (length,",
+         "// characters)",
          carr("st_text", text), carr("st_scene_ofs", scene_ofs, "uint16_t"),
-         "// per scene: venue (255: a picture), picture (255: none), pages, portrait speakers, their ids x3, 0, title",
+         "// portrait id -> its speaker (the speaker's own id: his main portrait; NARRATOR: none)",
+         carr("st_pid_spk", pid_spk),
+         "// per scene: venue (255: a picture), picture (255: none), pages, portraits, their ids x3, 0, title",
          carr("st_scene_hdr", hdr), carr("st_names", names),
          "// per chapter, per shift (opening, happy hour, last call): goal type, count, flags, timer seconds, twist (0:",
          "// none; the twists are a later milestone), arrival pattern, walk %, spawn %, quota (0: the row's), pad, the two",
@@ -716,12 +707,12 @@ def main():
           "    uint8_t i;",
           f"    for (i = 0; i < {SCENE_HDR}; i++) dst[i] = p[i];",
           "}", "",
-          "// page p of scene s: dst[0] the speaker, dst[1..54] the three lines padded with spaces",
+          "// page p of scene s: dst[0] the speaker, dst[1..54] the three lines padded with spaces, dst[55] the portrait",
           "void story_page_get(uint8_t s, uint8_t p, uint8_t *dst) BANKED {",
           "    const uint8_t *q = st_text + st_scene_ofs[s];",
           "    uint8_t i, k, n;",
           "    while (p--) { q++; for (k = 0; k < 3; k++) q += 1 + *q; }",
-          "    *dst++ = *q++;",
+          "    k = *q++; dst[55] = k; *dst++ = st_pid_spk[k];",
           "    for (k = 0; k < 3; k++) {",
           "        n = *q++;",
           "        for (i = 0; i < 18; i++) *dst++ = i < n ? q[i] : ' ';",
@@ -777,19 +768,20 @@ def main():
         opal = [v for p in sp["obj_pals"] for v in rgb15(p)]
         obj = []
         for ox, oy, tile in sp["obj"]:
-            obj += [oy & 255, ox & 255, tile, sp["dmg_obp"] << 4 | sp["cgb_only"] << 5]
+            obj += [oy & 255, ox & 255, tile, 1 << 5]           # bit 5: a CGB-only accent (DMG shows the BG)
         P += [f"// {sp['name']}: {sp['w'] * 8}x{sp['h'] * 8} at tile ({sp['x']},{sp['y']}), {len(sp['tiles'])} tiles, "
               f"{len(sp['pals'])} BG palette(s), {len(sp['obj'])} overlay sprite(s)",
               carr(f"pt{si}_tiles", t), carr(f"pt{si}_otiles", ot)]
-        hdr = [sp["w"], sp["h"], sp["x"], sp["y"], len(sp["pals"]), len(sp["tiles"]), len(sp["obj"]), len(sp["obj_pals"]),
+        phdr = [sp["w"], sp["h"], sp["x"], sp["y"], len(sp["pals"]), len(sp["tiles"]), len(sp["obj"]), len(sp["obj_pals"]),
                len(sp["obj_tiles"]) * 2]
-        body = hdr + sp["map"] + [0] * (49 - len(sp["map"])) + sp["attr"] + [0] * (49 - len(sp["attr"]))
+        body = phdr + sp["map"] + [0] * (49 - len(sp["map"])) + sp["attr"] + [0] * (49 - len(sp["attr"]))
         P += [carr(f"pt{si}_hdr", body), carr(f"pt{si}_pal", pal + [0] * (12 - len(pal)), "uint16_t"),
               carr(f"pt{si}_opal", opal + [0] * (16 - len(opal)), "uint16_t"),
               carr(f"pt{si}_obj", obj + [0] * (MAX_OBJ * 4 - len(obj))), ""]
     sel = [f"    case {si}: h = pt{si}_hdr; p = pt{si}_pal; o = pt{si}_opal; e = pt{si}_obj; break;" for si in sorted(ports)]
     selt = [f"    case {si}: t = pt{si}_tiles; ot = pt{si}_otiles; break;" for si in sorted(ports)]
-    P += ["// the portrait of speaker spk into the WRAM struct (w 0: none)",
+    P += ["// portrait id spk (a speaker's id: his main portrait; STORY_SPEAKERS..: the variants) into the WRAM struct",
+          "// (w 0: none)",
           "void portrait_get(uint8_t spk, portrait_t *dst) BANKED {",
           "    const uint8_t *h, *e; const uint16_t *p, *o;",
           "    uint8_t i, *d = (uint8_t *)dst;",
@@ -810,9 +802,9 @@ def main():
           "    set_bkg_data(bg_first, pt_n[spk], t);",
           "    if (pt_on[spk]) set_sprite_data(obj_first, pt_on[spk], ot);",
           "}", ""]
-    nt = [len(ports[i]["tiles"]) if i in ports else 0 for i in range(len(SPEAKERS))]
-    no = [len(ports[i]["obj_tiles"]) * 2 if i in ports else 0 for i in range(len(SPEAKERS))]
-    P.insert(6, "// tiles per speaker: BG, OBJ (the overlay)")
+    nt = [len(ports[i]["tiles"]) if i in ports else 0 for i in range(npid)]
+    no = [len(ports[i]["obj_tiles"]) * 2 if i in ports else 0 for i in range(npid)]
+    P.insert(6, "// tiles per portrait id: BG, OBJ (the overlay)")
     P.insert(7, carr("pt_n", nt))
     P.insert(8, carr("pt_on", no))
     (outdir / "story_portraits.c").write_text("\n".join(P))
@@ -862,7 +854,7 @@ def main():
           "    char line1[21], line2[21];",
           "} goal_t;                         // one shift's goal",
           "void story_scene_get(uint8_t s, uint8_t *dst) BANKED;   // dst: scene_hdr_t",
-          "void story_page_get(uint8_t s, uint8_t p, uint8_t *dst) BANKED;   // dst[55]: speaker, 3 x 18 characters",
+          "void story_page_get(uint8_t s, uint8_t p, uint8_t *dst) BANKED;   // dst[56]: speaker, 3 x 18 characters, portrait",
           "void story_name_get(uint8_t spk, uint8_t *dst) BANKED;  // dst[12], 0-terminated",
           "void story_goal_get(uint8_t ch, uint8_t sh, uint8_t *dst) BANKED;   // dst: goal_t",
           "uint8_t story_pattern_get(uint8_t id, uint8_t *dst) BANKED;   // dst[STORY_PAT_MAX] (WRAM); the length",
@@ -876,7 +868,8 @@ def main():
 
     # ---- build/story.json (tests) ----
     js = {"scenes": [{"id": s["id"], "title": s["title"], "venue": s["venue"], "pic": s["pic"], "spk": s["spk"],
-                      "pages": [{"speaker": SPEAKERS[p], "lines": l} for p, l in s["pages"]],
+                      "pages": [{"speaker": SPEAKERS[p], "portrait": ports[q]["name"] if q in ports else None,
+                                 "lines": l} for (p, l), q in zip(s["pages"], s["pids"])],
                       "bg_tiles": s["bg_tiles"], "obj_tiles": s["obj_tiles"]} for s in scenes],
           "speakers": SPEAKERS, "font_base": font_base, "font": {n: fid[n] for n in font_names},
           "portrait_base": port_base, "bg_budget": budget, "obj_budget": OBJ_TILES,
@@ -887,9 +880,11 @@ def main():
           "sequence": [{"kind": k, "index": i, "built": k not in NOT_BUILT} for k, i in SEQUENCE],
           "patterns": [{"name": n, "bars": [b for b, _ in e], "waits": [w for _, w in e]} for n, e in PATTERNS.items()],
           "pat_short": PAT_SHORT,
-          "portraits": {sp["name"]: {"w": sp["w"], "h": sp["h"], "x": sp["x"], "y": sp["y"], "tiles": len(sp["tiles"]),
-                                     "pals": len(sp["pals"]), "obj": len(sp["obj"]), "map": sp["map"]}
-                        for sp in ports.values()},
+          "portraits": {sp["name"]: {"pid": pid, "speaker": SPEAKERS[sp["speaker"]], "variant": sp["variant"],
+                                     "art": sp["art"], "w": sp["w"], "h": sp["h"], "x": sp["x"], "y": sp["y"],
+                                     "tiles": len(sp["tiles"]), "pals": len(sp["pals"]), "obj": len(sp["obj"]),
+                                     "map": sp["map"], "attr": sp["attr"], "palettes": sp["pals"]}
+                        for pid, sp in sorted(ports.items())},
           "pictures": [{"id": p["id"], "map": p["map"]} for p in pics],
           "text_bytes": len(text), "chars": sum(len(l) for s in scenes for _, ls in s["pages"] for l in ls),
           "pages": sum(len(s["pages"]) for s in scenes)}
@@ -905,7 +900,6 @@ def main():
     for si, sp in ports.items():
         w, h = sp["w"] * 8, sp["h"] * 8
         pim = Image.new("RGB", (w + 16, h + 16), (40, 30, 20))
-        cols = [tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in sp["pals"][0]]
         for y in range(h):
             for x in range(w):
                 t = (y // 8) * sp["w"] + x // 8
@@ -915,13 +909,15 @@ def main():
             oc = [tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in sp["obj_pals"][0]]
             for y, r in enumerate(sp["opx"]):
                 for x, v in enumerate(r):
-                    X, Y = x + sp["ox"] + 8, y + sp["oy"] + 8
+                    X, Y = x + 8, y + 8
                     if v and 0 <= X < pim.width and 0 <= Y < pim.height:
                         pim.putpixel((X, Y), oc[v])
-        pim.resize((pim.width * 8, pim.height * 8), Image.NEAREST).save(prev / f"story_portrait_{sp['name'].lower()}_x8.png")
+        pim.resize((pim.width * 8, pim.height * 8), Image.NEAREST).save(prev / f"story_portrait_{sp['name'].lower().replace(' ', '_')}_x8.png")
     print(f"gen_story: {len(scenes)} scenes, {js['pages']} pages, {js['chars']} characters, script {len(text)} B "
           f"(+ scene table {len(hdr) + 2 * len(scene_ofs)} B, goals {len(goals)} B); portraits "
-          f"{sum(len(p['tiles']) for p in ports.values())} tiles; BG budget {budget} tiles from id {port_base}")
+          f"{len(ports)} portraits, {sum(len(p['tiles']) for p in ports.values())} tiles; BG budget {budget} tiles from id "
+          f"{port_base}, the busiest scene {max(s['bg_tiles'] for s in scenes)} "
+          f"({', '.join(s['id'] for s in scenes if s['bg_tiles'] == max(t['bg_tiles'] for t in scenes))})")
 
 
 if __name__ == "__main__":

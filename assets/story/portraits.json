@@ -1,14 +1,16 @@
 {
-  "_note": "Story portraits (tools/gen_story.py; docs/story.md 'Portraits'). Per speaker: 'art' = an approved portrait-v2 source (assets/story/portraits/<name>.txt: colour keys with their DMG shade, @size up to 56x56, @maxpal <= 3, an 'obj=' key = a CGB-only OBJ accent; the CGB BG palettes, the per-tile palette map and the overlay come from the art itself, converted exactly or the build fails), or none for a generated placeholder (a framed 32x32 silhouette with the name, 'tint' its CGB palette, 'label' the name it shows); 'x', 'y' = screen tile of the picture's top-left (the frame takes one tile around it; default: column 2, the frame's bottom on row 12; a picture whose bottom row is 12 stands on the text box, whose top panel is then the frame's bottom). The old repo format still works for 'art': '.-+#' = colours 0-3, with 'palettes' (CGB BG, #rrggbb x4, 1-3: slots 2-4), 'attr' (a palette digit per tile) and 'overlay' {art (8x16 cells), x, y (px from the picture), palettes (CGB OBJ slots 3, 4, 6, 7), dmg_obp 0/1}. NARRATOR has no portrait.",
-  "SPIGOTEER":   {"art": "assets/story/portraits/spigoteer.txt", "x": 2, "y": 6},
+  "_note": "Story portraits (tools/gen_story.py; docs/story.md 'Portraits'). Per speaker: 'art' = an approved portrait-v2 source (assets/story/portraits/<name>.txt: colour keys with their DMG shade, @size up to 56x56, @maxpal <= 3, an 'obj=' key = a CGB-only OBJ accent; the CGB BG palettes, the per-tile palette map and the overlay come from the art itself, converted exactly or the build fails); 'x', 'y' = screen tile of the picture's top-left (the frame takes one tile around it; default: column 2, the frame's bottom on row 12; a picture whose bottom row is 12 stands on the text box, whose top panel is then the frame's bottom). 'variants': name -> {art, from, to}: the speaker's pages from 'from' to 'to' (inclusive, in script order; 'SCENE' or 'SCENE:page', pages counted from 1; 'from' alone: to the end of the game; a scene alone: its first / last page) show that art instead (same x, y); a page given by number must be the speaker's, every variant must be used and two of a speaker's variants may not overlap. NARRATOR has no portrait.",
+  "SPIGOTEER":   {"art": "assets/story/portraits/spigoteer.txt", "x": 2, "y": 6,
+                  "variants": {"COZY": {"art": "assets/story/portraits/spigoteer_cozy.txt", "from": "PRE_IGLOO:3"}}},
   "SADIE":       {"art": "assets/story/portraits/sadie.txt", "x": 2, "y": 6},
-  "DREGS":       {"art": "assets/story/portraits/dregs.txt", "x": 2, "y": 6},
-  "COACH":       {"tint": ["#e8f0f8", "#80a8d8", "#284878", "#081020"]},
-  "JUNE":        {"tint": ["#f8e8e0", "#d88870", "#803020", "#200808"]},
-  "COLBY":       {"tint": ["#fff8e8", "#e8d088", "#987028", "#201808"]},
-  "AURORA":      {"tint": ["#f0f8ff", "#a0d0f0", "#4078a8", "#081828"]},
+  "DREGS":       {"art": "assets/story/portraits/dregs.txt", "x": 2, "y": 6,
+                  "variants": {"SORRY": {"art": "assets/story/portraits/dregs_sorry.txt", "from": "FINALE:4", "to": "FINALE:4"}}},
+  "COACH":       {"art": "assets/story/portraits/coach.txt", "x": 2, "y": 6},
+  "JUNE":        {"art": "assets/story/portraits/june.txt", "x": 2, "y": 6},
+  "COLBY":       {"art": "assets/story/portraits/colby.txt", "x": 2, "y": 6},
+  "AURORA":      {"art": "assets/story/portraits/aurora.txt", "x": 2, "y": 6},
   "MANAGER-BOT": {"art": "assets/story/portraits/managerbot.txt", "x": 2, "y": 6},
-  "HANA":        {"tint": ["#fff0f0", "#f0a8b8", "#904058", "#200810"]},
-  "ZIZZ":        {"tint": ["#f0fff0", "#a0f0a0", "#409040", "#082008"]},
-  "KIKI":        {"tint": ["#f8f8e0", "#d0c880", "#707030", "#181808"]}
+  "HANA":        {"art": "assets/story/portraits/hana.txt", "x": 2, "y": 6},
+  "ZIZZ":        {"art": "assets/story/portraits/zizz.txt", "x": 2, "y": 6},
+  "KIKI":        {"art": "assets/story/portraits/kiki.txt", "x": 2, "y": 6}
 }
