@@ -1,4 +1,4 @@
-; CHEF COLBY, cast round (56x56), variant A. Original art for Spigoteer.
+; CHEF COLBY, cast round (56x56), cast round 4 option A. Original art for Spigoteer.
 @size 56 56
 @maxpal 3
 @key
@@ -50,16 +50,16 @@ y 1 #f0c030 cheese
 ....................#kkkkk#SSSSSSSSSS#kkk#..............
 .....................#kkkkk##kkkkkk##kkk#...............
 ......................#kkkkkk######kkkk#................
-....................##WW###############W###.............
-..............######WWWWWWWWWWWWWWWWWWWWWWW#####........
-........######WWWWWWWWWWWWyyyyyyyyyyyWWWWWWWWWWW#####...
-......##gWWWWWWWWWWWWWWWWWWyyyyyyyyyWWWWWWWWWWWWWWWWW#..
-....##gWWWWWWWWWWWWWWWWWWWWyyyyyyyyyWWWWWWWWWWWWWWWWWW##
-..##gWWWWWWWWWWWWWWWWWWWWWWWyyyyyyyWWWWWWWWWWWWWWWWWWWWW
-##gWWWWWWWWWWWWWWWWWWWWWWWWWWWWyWWWWWWWWWWWWWWWWWWWWWWWW
-gggWWWWWWWWWWW##WWWWWWWWWWWWWWW#WWWWWWWWWWWWWWWWWWWWWWWW
-gggWWWWWWWWW##yy#WWWWWWWWWWWWWWW#WWWWWWWWWWWWWWWWWWWWWWW
-gggWWWWWWWW#yyyyy#WWWWWWWWWWWWWWW##WWWWWW#WWWWWWWWWWWWWW
+....................###################W###.............
+..............######W#WWWWWWW#####WWWWW#WWW#####........
+........######WWWWWWW########yyyyy######WWWWWWWW#####...
+......##gWWWWWWWWWWWWWWWWWW#y#yyy#y#WWWWWWWWWWWWWWWWW#..
+....##gWWWWWWWWWWWWWWWWWWWW#yy###yy#WWWWWWWWWWWWWWWWWW##
+..##gWWWWWWWWWWWWWWWWWWWWW#yyy#W#yyy#WWWWWWWWWWWWWWWWWWW
+##gWWWWWWWWWWWWWWWWWWWWWW#yyy#WWW#yyy#WWWWWWWWWWWWWWWWWW
+gggWWWWWWWWWWW##WWWWWWWW#yyy#WW#WW#yy#WWWWWWWWWWWWWWWWWW
+gggWWWWWWWWW##yy#WWWWWWW#yy#WWWW#WW##WWWWWWWWWWWWWWWWWWW
+gggWWWWWWWW#yyyyy#WWWWWW####WWWWW##WWWWWW#WWWWWWWWWWWWWW
 gggWWWWWWW#yy#yyyy#WWWWWWWWWWWWWW#WWWWWWWWWWWWWWWWWWWWWW
 gggWWWWWWW#########WWWWWWWWWWWWWWW#WWWWWWWWWWWWWWWWWWWWW
 gggWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW#WWWWWW#WWWWWWWWWWWWW
