@@ -243,9 +243,10 @@ def test_a_jingle_unlocks_when_first_heard_in_story(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_clearing_chapter_1_unlocks_every_jingle(model):
-    from test_story import to_shift, win
+    from test_story import beat_the_boss, to_shift, win
     with to_shift(model, 0, 2) as gb:
         win(gb, 0, 2)
+        beat_the_boss(gb, 0)                                         # (chapter 1 ends with Big Tex once he is built)
         run_until(gb, lambda: state(gb) == GS_STORY, 300)
         assert gb.mem("story_progress") == 1
         assert gb.mem16("tune_unlocked") & JINGLES == JINGLES, "BONUS and SHOW too, never heard in the story"

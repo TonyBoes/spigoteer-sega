@@ -1281,7 +1281,10 @@ unchanged; src/story.c gains one function at its end under `#ifdef DEBUG_MENU` (
   on that shift's goal banner with the story's rules (venue, 3 lives, score 0, goal type) and winning it leaves SRAM
   byte for byte as it was (progress and unlocks untouched); A on PRE / POST plays that scene; CONTINUE starts at the
   saved chapter; in story play it opens at the current chapter and step and B resumes the shift; on BONUS it is the
-  arcade box. New golden: debug_story (dmg + cgb: the title with "STORY 3 HAPPY").
+  arcade box; a built boss step (after the boss engine: chapter 1's Big Tex) is offered as "STORY 1 BOSS" and A starts
+  the fight through step_start / boss_set, its CHAPTER CLEAR and POST scene follow, SRAM untouched. The expected
+  positions come from build/story.json "steps" (built per chapter). New golden: debug_story (dmg + cgb: the title with
+  "STORY 3 HAPPY").
 - Cost: ROM0 none (all banked); WRAM +3 B (debug_story / debug_chapter / debug_pos, debug builds only) + save_lock.
 
 ## Bonus menu and soundtrack as built (owner request, 2026-10-10)

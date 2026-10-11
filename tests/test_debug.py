@@ -224,9 +224,11 @@ def open_on(boot, sel):
 
 
 def playable(c=0, unskip=0):
-    from test_story import SEQ
-    n = len(SEQ)
-    return [0] + [p for p in range(1, n + 1) if SEQ[p - 1]["built"] or (unskip >> (p - 1)) & 1] + [n + 1]
+    """Chapter c's positions the box offers, from the story data (build/story.json "steps": built per chapter)."""
+    from test_story import STORY
+    steps = STORY["steps"][c]
+    n = len(steps)
+    return [0] + [p for p in range(1, n + 1) if steps[p - 1]["built"] or (unskip >> (p - 1)) & 1] + [n + 1]
 
 
 def test_on_story_the_box_selects_story_positions(boot):
@@ -240,7 +242,7 @@ def test_on_story_the_box_selects_story_positions(boot):
     for _ in range(len(seq)):
         tap(boot, "down")
         seen.append(boot.mem("debug_pos"))
-    assert seen == seq[1:] + [0], "Down: the playable positions (the unbuilt mini-game and boss passed over), wrapping"
+    assert seen == seq[1:] + [0], "Down: the chapter's playable positions (unbuilt slots passed over), wrapping"
     tap(boot, "up")
     assert boot.mem("debug_pos") == seq[-1]
     boot.run(3)
@@ -253,7 +255,7 @@ def test_on_story_the_box_selects_story_positions(boot):
     tap(boot, "down")
     tap(boot, "down")
     boot.run(3)
-    assert (boot.mem("debug_chapter"), boot.mem("debug_pos")) == (1, seq[2])
+    assert (boot.mem("debug_chapter"), boot.mem("debug_pos")) == (1, playable(1)[2])
     assert banner_is(boot, "STORY 2 HAPPY")
 
 
@@ -363,3 +365,43 @@ def test_the_story_select_golden(model):
         rom.run(3)
         assert banner_is(rom, "STORY 3 HAPPY")
         check_golden(rom, "debug_story")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
+    """A chapter whose boss slot is built offers it ("BOSS"); A starts the fight through step_start (boss_set): its
+    banner, the fight; satisfied, CHAPTER CLEAR and the POST scene follow, and SRAM stays as it was."""
+    from test_flow import LEVEL_CLEAR, SEL_STORY, run_until
+    from test_scores import booted, v5_image
+    from test_sound import save_ram
+    from test_story import BOSS_BUILT, BOSS_STEP, SC, banner_text as goal_text, centred
+    assert BOSS_BUILT, "no boss is built yet"
+    c = min(BOSS_BUILT)
+    ram = v5_image([("ABC", 500)], tunes=1)
+    with booted(model, ram) as rom:
+        open_on(rom, SEL_STORY)
+        for _ in range(c):
+            tap(rom, "right")
+        assert BOSS_STEP + 1 in playable(c)
+        while rom.mem("debug_pos") != BOSS_STEP + 1:
+            tap(rom, "down")
+        rom.run(3)
+        assert banner_is(rom, f"STORY {c + 1} BOSS")
+        tap(rom, "a")
+        run_until(rom, lambda: rom.mem("game_state") == GS_GOAL, 60)
+        rom.run(3)
+        assert rom.mem("story_on") == 1 and rom.mem("boss_on") == 1 and rom.mem("boss_id") == c
+        assert (rom.mem("story_chapter"), rom.mem("story_step")) == (c, BOSS_STEP)
+        assert rom.mem("lives") == 3 and rom.mem("save_lock") == 1
+        assert goal_text(rom, 1) == centred(f"CHAPTER {c + 1} BOSS")
+        rom.write("tip_chance", 0)
+        rom.press("a", 2)
+        run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)
+        rom.write("boss_hook", 3)                       # satisfied at once (tests/test_boss.py plays the fight)
+        run_until(rom, lambda: rom.mem("game_state") == LEVEL_CLEAR, 200)
+        run_until(rom, lambda: rom.mem("game_state") == GS_STORY and rom.mem("story_scene") == SC["POST_SALOON"] + 2 * c,
+                  400)
+        assert rom.mem("boss_on") == 0
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (0, 0), "nothing saved"
+        after = save_ram(rom)
+    assert after[:40] == ram[:40], "SRAM not written"
