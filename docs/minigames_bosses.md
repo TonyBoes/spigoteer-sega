@@ -8,6 +8,12 @@ Note (planner, 2026-10-10): this spec was written while the story shifts (M11d) 
 SRAM v4 with the step reached already exists (PLAN.md "Story shifts as built"), and the mini-game / boss slots are in
 the chapter sequence. Where section 2.2 proposes its own segment index and SRAM v4 layout, follow the built version.
 
+Note (2026-10-10), PROPOSAL awaiting owner approval: a 10th venue, **The Chrome Cow** (a biker bar that serves only
+milk, owner Granny Throttle), becomes chapter 7, before the teahouse (teahouse 8, space 9, zoo 10). Its boss **Duke**
+is section 3.12, its mini-game **Milk Run** section 4.10 and its twist, the **mosh pit**, section 9. They are numbered
+last so the existing section references stay; the summary tables list them in chapter order. The engine checklist
+for a 10th venue is docs/venue10_impact.md.
+
 Structure the owner approved, per chapter:
 
     PRE scene -> Opening shift -> Happy hour (venue twist on) -> MINI-GAME -> Last call -> BOSS -> POST scene
@@ -15,7 +21,7 @@ Structure the owner approved, per chapter:
 Losing retries only that shift. Practice mode (title menu) unlocks each shift, mini-game and boss as story mode
 reaches them. The finale adds a Pour-Off against Dregs.
 
-This document covers the nine mini-games, the nine bosses, the Pour-Off and the shared code they need. Opening
+This document covers the ten mini-games, the ten bosses, the Pour-Off and the shared code they need. Opening
 shift, Happy hour and Last call are the existing bar engine (the twists are M11b part 2) and are only mentioned
 where a boss or mini-game touches them.
 
@@ -62,9 +68,10 @@ stays separate because it must survive a life lost.
 | 4 | Bistro | Order Up! | memory | D-pad, one direction per dish | ~45 s | dishes sit at their D-pad direction on screen; a strike replays the same order |
 | 5 | Igloo | Marshmallow Drop | timing, leading a moving target | A | 45 s | the claw moves at constant speed on a rail (not a pendulum); marshmallows fall straight down; 4th marshmallow overflows |
 | 6 | Robot | Battery Sort | categorise under pressure | Left / Right (Down from item 16) | 45 s | the front battery waits on a diverter for a shrinking window; a 3rd bin (scrap) arrives mid-game |
-| 7 | Teahouse | Taiko Pour | rhythm | A (top lane), B (bottom lane) | ~45 s | two lanes instead of one (readable on DMG, fits 10 per line) |
-| 8 | Space | Asteroid Delivery | inertia steering, route reading | D-pad thrust | 45 s | asteroids drift in horizontal lanes (Frogger-like); soft-delivery speed limit; no gravity, just drift |
-| 9 | Zoo | Monkey Business | reaction + positioning | Left/Right, A | 45 s | one row of 5 crates, the Spigoteer hops between them; lids rattle before a pop; a parrot decoy from 15 s |
+| 7 | Chrome Cow (PROPOSAL) | Milk Run (4.10) | lane dodging + delivery timing | Up/Down lane, A toss | 45 s | mostly BG: the street scrolls (SCX), obstacles and milk boxes are BG tiles; every gate leaves a lane free |
+| 8 | Teahouse | Taiko Pour | rhythm | A (top lane), B (bottom lane) | ~45 s | two lanes instead of one (readable on DMG, fits 10 per line) |
+| 9 | Space | Asteroid Delivery | inertia steering, route reading | D-pad thrust | 45 s | asteroids drift in horizontal lanes (Frogger-like); soft-delivery speed limit; no gravity, just drift |
+| 10 | Zoo | Monkey Business | reaction + positioning | Left/Right, A | 45 s | one row of 5 crates, the Spigoteer hops between them; lids rattle before a pop; a parrot decoy from 15 s |
 
 ### 1.2 Bosses
 
@@ -76,9 +83,10 @@ stays separate because it must survive a life lost.
 | 4 | Bistro | The Food Critic | 8 | only perfect pours count; sloppy ones come back full | perfect = released within 12 frames of full (new fill window, only shown in this fight); busy critic returns mugs instead of letting them break |
 | 5 | Igloo | The Yeti | 12 | icy breath: his bar goes icy for 3 s, every mug on it 2x | timed window with a visible tell; icy also speeds your mugs (risk / reward) |
 | 6 | Robot | The Prototype | 12 | green / yellow / red cycle; red reverses his conveyor; switches bars after red | reworked: "conveyor runs backwards" is the red phase, with a yellow tell |
-| 7 | Teahouse | Sumo Champion | 12 | single hits do not push him; chained hits (<= 80 frames apart) do; charge on a tell, cancelled by a hit | "barely moves" became the chain rule |
-| 8 | Space | The Mothership | 6 + 3 x 2 | teleports; at 0 it splits into 3 small aliens (2 drinks each) | splits once (not on every hit, which would flood the bars) |
-| 9 | Zoo | Leo the Lion (crowned) | 14 | roar: walkers jump back 16 px, drinkers send empties early | "empties fly" still obeys fair-empties spacing |
+| 7 | Chrome Cow (PROPOSAL) | Duke (3.12) | 12 | no stomp: idles, revs 50 frames, lurches 16 px; a glass resets his idle, a glass during the rev stalls him | "revs between serves" became a rule with a readable answer |
+| 8 | Teahouse | Sumo Champion | 12 | single hits do not push him; chained hits (<= 80 frames apart) do; charge on a tell, cancelled by a hit | "barely moves" became the chain rule |
+| 9 | Space | The Mothership | 6 + 3 x 2 | teleports; at 0 it splits into 3 small aliens (2 drinks each) | splits once (not on every hit, which would flood the bars) |
+| 10 | Zoo | Leo the Lion (crowned) | 14 | roar: walkers jump back 16 px, drinkers send empties early | "empties fly" still obeys fair-empties spacing |
 | F | Finale | Pour-Off vs Dregs | first to 20 | race to serve a shared crowd from opposite ends | own module, own simple patron/mug rules |
 
 Flagged as weakest after fixing: **Quick Draw** (thin by nature; fine as a 30 s breather), **Asteroid Delivery**
@@ -96,6 +104,7 @@ fussy). Highest technical risk: **Taiko Pour** (sync to hUGEDriver rows), **the 
 | Order Up! | 4 | 4 | ~100 (portrait incl.) | 0 (waiter reused) | 8 / 1 | 20 B |
 | Marshmallow Drop | 9 | 14 | ~20 | ~30 | 5 / 3 | 30 B |
 | Battery Sort | 8 | 12 | ~41 | ~4 (+ factory drink reuse) | 7 / 4 | 45 B |
+| Milk Run (PROPOSAL) | 6 | ~8 | ~38 | ~26 | 5 / 3 | 40 B |
 | Taiko Pour | 7 | 19 | ~30 | ~8 (+ teahouse show reuse) | 6 / 4 | 35 B |
 | Asteroid Delivery | 6 | 23 | ~35 | ~12 (+ space drink reuse) | 6 / 3 | 45 B |
 | Monkey Business | 8 | 13 | ~30 | ~30 | 6 / 4 | 25 B |
@@ -165,9 +174,10 @@ five segments: OPEN, HAPPY, MINI, LAST, BOSS. A segment index `story_seg` (0-4) 
   stake ("GOLD MEDAL / EXTRA LIFE FOR THE BOSS").
 - BOSS: the venue's level screen in boss mode (section 3). A failed boss attempt shows TRY AGAIN and restarts the
   boss segment only (meter full again), as chapter goals restart today.
-- Save: SRAM v4. Byte 34 stays "chapters cleared" (0..9, 10 = Pour-Off won); the reserved byte 35 becomes
+- Save: SRAM v4. Byte 34 stays "chapters cleared" (0..9, 10 = Pour-Off won; with The Chrome Cow, PROPOSAL: SRAM
+  v5, 0..10, 11 = Pour-Off won, migration in docs/venue10_impact.md); the reserved byte 35 becomes
   `story_seg` of the first chapter not cleared, so CONTINUE resumes at the shift the player reached (not at the
-  PRE scene) and Practice knows what is unlocked. Practice best scores: 10 x 5 segments x 3 B = 150 B after the
+  PRE scene) and Practice knows what is unlocked. Practice best scores: 10 x 5 segments x 3 B = 150 B (11 x 5 x 3 = 165 B with ten chapters) after the
   checksum area (new checksum range). Migration v3 -> v4: seg 0.
 
 ### 2.3 Practice mode
@@ -175,7 +185,7 @@ five segments: OPEN, HAPPY, MINI, LAST, BOSS. A segment index `story_seg` (0-4) 
 - Title menu gains PRACTICE once story mode has cleared its first segment (progress > 0 or seg > 0). Rows: ARCADE / STORY / CONTINUE / PRACTICE / MUSIC: the title's text rows move up one
   (rows 4/6/8/10/12, HI row 14): a title.c layout change, `MENU_STRINGS` gains "PRACTICE".
 - Practice screen (new, banked, HUD style like the scores table): rows 3-12 list the chapter's five segments, the
-  chapter number and venue name on row 2; Left/Right changes chapter (1-9, then FINALE), Up/Down the segment, A
+  chapter number and venue name on row 2; Left/Right changes chapter (1-9, then FINALE; 1-10 with The Chrome Cow), Up/Down the segment, A
   starts it. Locked segments show "- - -". The best score is on the right.
 - A practice run is one segment with 3 lives, score from 0, never enters the top 5. At the end: result window with
   "A RETRY  B MENU". Boss segments show the boss's meter progress when lost ("TEX 3 OF 8").
@@ -197,7 +207,7 @@ Boss state is **not** in the union (the TRY AGAIN banner is a story.c phase; kee
 
 ### 2.5 The boss engine (`src/boss.c`, banked; hooks in ROM0)
 
-One engine, nine parameter rows plus a per-boss "special" function. The bar game runs as usual (the regulars, the
+One engine, ten parameter rows (with Duke) plus a per-boss "special" function. The bar game runs as usual (the regulars, the
 bartender, mugs, fair empties, lives); the boss is one more actor on one bar.
 
 Rules common to every boss:
@@ -313,17 +323,19 @@ No regular stands on the boss's bar, so no lifted patron is ever on his lines.
 | Food Critic | 32 | 16 | 110 | 16 (perfect only) | 60 | 1 | 90 | 0.5 | 8 |
 | Yeti | 32 | 16 | 100 | 8 | 30 | 2 | 60 | 0.5 (1.0 on ice) | 12 |
 | Prototype | 32 | 16 | 100 | 8 | 20 | 2 | 45 | 0.5 | 12 |
+| Duke (PROPOSAL) | 40 | 16 | no stomp: idle 150 / 120 / 90, rev 50, lurch 16 px in 8 frames | 16 | 20 | 2 | 45 | 0.5 | 12 |
 | Sumo | 40 | 16 | 90 (on the drum beat) | 0 single / 8 chained | 0 | 2 | 90 | 0.5 | 12 |
 | Mothership | 32 | 16 | 100 | 8 | 20 | 2 | 45 | 0.5 | 6, then 3 minis x 2 |
 | Leo | 32 | 16 | 80 | 8 | 30 | 2 | 60 | 0.5 | 14 |
 
 Distance from the start (right edge 48 or 56) to the tap (136): 11 stomps for a 32 px boss, 10 for Tex and the
-Sumo. Unhit, Big Tex reaches the tap in 1200 frames (20 s), Leo in 880 (14.7 s). Every boss is pinned at the left
+Sumo. Unhit, Big Tex reaches the tap in 1200 frames (20 s), Leo in 880 (14.7 s), Duke (40 px, lurches only) in
+about 1040 (17.3 s). Every boss is pinned at the left
 by a player who lands one mug per (step / stomps per hit) frames: e.g. Leo needs one hit per 80 frames to hold his
 ground, Big Tex one per 240.
 
 Fight length (estimated, a competent player who also keeps the regulars served): Tex 40-50 s, Mascot 60 s,
-Sasquatch 50-60 s, Critic 50-70 s, Yeti 60 s, Prototype 70 s, Sumo 60 s, Mothership 75 s (two phases), Leo 75 s.
+Sasquatch 50-60 s, Critic 50-70 s, Yeti 60 s, Prototype 70 s, Duke 55-65 s, Sumo 60 s, Mothership 75 s (two phases), Leo 75 s.
 
 Fair-empties check for every boss: his empties enter the same `next_arrival` schedule as the regulars', computed with
 his empty speed, so two empties never arrive at the tap end closer than the level's `empty_gap` (80-120 frames),
@@ -651,6 +663,80 @@ breaks a fair-empties invariant over a scripted roar with 4 drinkers.
 
 Story fit: PRE_ZOO already puts the crown on Leo. PRE_ZOO page (KIKI): `LEO WANTS A` / `DRINK FIRST. HE` /
 `ROARS. STAY CALM.` POST_ZOO's "the lion approaches... and purrs" is his defeat outro (the purr pose).
+
+### 3.12 Duke (The Chrome Cow, chapter 7)
+
+PROPOSAL (2026-10-10), awaiting owner approval. Numbered last so the references to 3.1-3.11 stay; in chapter order he
+is the seventh boss.
+
+Play: Duke, the gang leader, rolls in on his motorcycle with his gang and orders "the biggest milkshake in town".
+Every full glass of milk that reaches him tops up his shake and pushes him back. Between serves he sits there
+revving, then the bike lurches forward, far faster than any patron walks. His helmet is the topper.
+
+Rules: the common rules with the 3.2 row; his movement replaces the steady stomp:
+1. **Idle**: after his last catch, his last lurch or his entry he idles I frames: I = 150 while his meter is 12-9,
+   120 at 8-5 and 90 at 4-1 (the shake is nearly full and he gets impatient). The idle pose shakes with the engine
+   (2 poses, 8 frames each).
+2. **Rev** (the tell, 50 frames): rev pose (leaning over the handlebars), exhaust puffs animating on the BG behind
+   the bike (2 tiles), the helmet topper shaking 1 px every 4 frames (its OAM y only), SFX rev on channel 4.
+3. **Lurch**: 16 px in 8 frames (two 8 px hops, one per 4 frames: 2 px/f, about 17 times a chapter-7 walker's
+   ~0.12 px/f), then idle again from 0.
+- A catch: meter -1, push 16 px (two hops, one per 4 frames, the common rule), gulp 20 frames, and the idle clock
+  starts again from 0. A catch **during the rev stalls him**: the lurch is off, a 20-frame stall pose with a puff of
+  black smoke (2 BG tiles), then idle from 0. A steady stream of glasses keeps him from ever lurching, and a rev has
+  one clear answer: land a glass now.
+- Hands 2, sip 45, his empty speed 0.5, meter 12. The HUD meter is his shake filling up (the shared pip tiles; the
+  boss icon is a shake glass).
+- The tap: as every boss, his right edge reaching 136 costs a life; after the pause he rolls in again at x 16, meter
+  kept. His entry: a 30-frame skid pose with a dust puff at x 16 (the puff tiles shared with the Mascot).
+- His gang: the regulars on the three free bars are the venue's punks, arriving in the venue's Last call "chord"
+  pattern (three bars at once, then a breather) at the boss fight's 1.5x interval; the chord's bars are the three
+  free ones. No mosh pit in the boss fight (section 9.4: bosses play by the same rules everywhere).
+
+Numbers: unhit, he first lurches at frame 200 (150 + 50), then every 208 frames (150 idle + 50 rev + 8 lurch); from
+his right edge at 56 to the tap at 136 is 80 px, 5 lurches: the fifth ends at frame 1040 (17.3 s; his 30-frame entry
+not counted), between Tex (20 s) and Leo (14.7 s). One glass every 200 frames or sooner pins him (no lurch at all) and pushes him 16 px each time, so the
+pressure in the fight comes from the gang's chords on the other bars, with Duke as the clock you must keep feeding.
+At meter 4-1 that window shrinks to 140 frames.
+
+Why fun and fair: the owner's "between serves he revs" becomes a rhythm rule with a readable answer. Keep the glasses
+coming and he never lurches; let him rev and you have 50 frames to land one: a glass from the spout reaches his
+right edge at x 56 in 40 frames ((136 - 56) / 2), so a throw on the rev's first frame always lands in time unless his
+hands are full. Readable on DMG by shape (the lean, exhaust puffs, the helmet shake), never only by sound. Spam: hands
+2, the third glass of a burst passes him and breaks, and with full hands a glass during the rev cannot stall him
+(it breaks behind him), so spamming early costs the counter-play later. Lurches are always 16 px and always after a
+50-frame rev: no lurch is ever a surprise. Changed from the pitch: "lurches forward faster than a normal patron" is
+the lurch's speed (2 px/f); his average advance stays in the range of the other bosses so the fight stays fair.
+
+Hardware: as Tex (3.3), with a 40x16 body (rider on his bike, 5 tiles wide; the counter hides the wheels).
+- BG ids: rider rows (upper) idle A, idle B, rev, gulp, hold-1, hold-2, stall, happy = 8 x 5 = 40; bike rows (lower)
+  still, rev (exhaust pipe glowing), lurch (speed lines) = 3 x 5 = 15; exhaust puff 2, black smoke 2, HUD shake icon
+  + meter tiles 4: 63 of 66.
+- OBJ: the helmet topper, OAM 26, 8x16 (upper 8 rows the helmet dome, lower 8 transparent), 2 frames (still, visor up
+  for the defeat outro) = 4 tiles in 96-127. The rev shake moves its OAM y; no extra frame. Puffs and smoke are BG,
+  so the worst line stays 10 (section 3.1, unchanged), and the topper hides on frames where the bar above holds 6
+  mug entries or more, as every topper.
+- CGB: BG 4 leather black, chrome grey, skin (colour 0 the wall); OBJ 7 the helmet (red with a white stripe). DMG:
+  leather dark, chrome light, the helmet light with a dark outline under OBP1 0xE4.
+- WRAM: the boss block plus `boss_idle` (frames, 16 bit) and `boss_rev` (frames into the rev, 0 none): 3 B. ROM ~1.2 KB
+  code + ~1.1 KB tiles (67 x 16 B).
+
+Art (proposals first): Duke on his bike 40x16: big beard, sleeveless leather vest with a cow patch on the back, a
+"MOM" heart on his arm (tough talk, sweet heart, like Granny); 8 rider poses, 3 bike poses as above; helmet 8x8 x 2;
+exhaust puff 8x8 x 2; black smoke 8x8 x 2; the shake-glass HUD icon. The defeat outro: visor up, a milk mustache, a
+polite thumbs up to Granny.
+
+Plugs into: the boss engine with `step` 0 meaning "no stomp" (one test in boss.c's walk) and `duke_special` for the
+idle / rev / lurch cycle; `boss_catch` restarts the idle and stalls a rev; the arrival pattern for the regulars
+(`pat_len` / `pat_bar`, as story shifts set it). Vars `boss_idle`, `boss_rev`. Tests (tests/test_boss.py
+`test_duke_*`): idle length per meter band (150 / 120 / 90); a 50-frame rev, then exactly 16 px in 8 frames; a catch
+during the rev stalls him (no movement for 20 frames, then idle from 0); a catch restarts the idle; glasses every
+190 frames never let him lurch; unhit he reaches the tap at frame 1040 +- 8, costs a life and restarts at x 16 with
+the meter kept; with full hands a glass during the rev passes him and breaks (no stall); the regulars arrive in
+chords on the three free bars; no mosh-pit shove in the fight (`mosh_on` 0); <= 10 objects on every line every
+frame (the test_perf helper).
+
+Story fit: suggested PRE_BIKER page (GRANNY): `DUKE'S GANG RIDES` / `IN TONIGHT. HE` / `WANTS A BIG SHAKE.`
 
 ## 4. Mini-games
 
@@ -1250,9 +1336,102 @@ sweep); whiff lockout; the parrot penalty; the 20-frame rattle before every pop.
 
 Story fit: PRE_ZOO already says WATCH THE MONKEYS. THEY LOVE TO STEAL A COCONUT; no change needed.
 
+### 4.10 Milk Run (The Chrome Cow, chapter 7)
+
+PROPOSAL (2026-10-10), awaiting owner approval. Numbered last so the references to 4.1-4.9 stay; in chapter order it
+is the seventh mini-game.
+
+Play: Granny lends the Spigoteer her motorcycle, its sidecar stacked with milk crates. Seen from above, he rides along
+a three-lane street that scrolls past, dodging potholes and traffic cones, and tosses a crate onto each milk box on
+the kerb as it goes by.
+
+Rules and numbers (8.8 fixed point):
+- The bike stays at screen x 24-47 (columns 3-5). Up / Down changes lane in 8 frames (16 px at 2 px/f); one press
+  during a change is queued. The street scrolls left at 1.5 px/f, +0.25 every 10 s, 2.5 px/f from 40 s.
+- Obstacles are BG tiles on the road: potholes (16x16) and traffic cones (8x16, set in pairs). They come in **gates**:
+  a gate blocks 1 or 2 of the 3 lanes, never all 3. The fairness rule: the next gate is at least v x (8 x L + 20 +
+  12) px ahead, where L is the number of lanes the bike must cross to get from a free lane of this gate to a free
+  lane of the next (0-2), 20 frames is reaction and 12 the bike's length at speed; e.g. L = 2 at 2.5 px/f is 120 px.
+  The generator (seeded RNG) only places a gate that passes the check.
+- Milk boxes stand on the kerbs: the top kerb beside lane 1, the bottom kerb beside lane 3. 12 boxes in the run, one
+  every ~3.5 s, sides at random but never two on one side closer than 64 px. A box is never placed beside a gate that
+  blocks its kerb lane, so a delivery never forces a crash.
+- A: toss a crate toward the kerb beside the bike's lane (lane 1 up, lane 3 down). In lane 2, A does nothing (he
+  shrugs; nothing lost). The crate arcs 16 frames. Landing within 8 px of a box's centre: PERFECT, 500; within 16 px:
+  delivered, 300; anywhere else the crate is lost on the pavement.
+- A crash (the bike's 16x12 hit box touches an obstacle tile): the bike wobbles 30 frames, one crate falls off (lost),
+  the speed drops one step (not below 1.5), then 60 frames of blinking invulnerability. Nothing else is lost.
+- 12 crates in the sidecar. At the end each crate left is +100. 45 s.
+- Medal by deliveries: GOLD 10, SILVER 7, BRONZE 4.
+
+Why fun and fair: lane dodging with a delivery-timing layer: read the gates and boxes ahead and plan the lane changes
+so you are in the kerb lane as a box comes by. 112 px of street are visible ahead of the bike: at 2.5 px/f that is 45
+frames, more than the worst case needs (a two-lane change, 16 frames, plus 20 of reaction). Every gate is passable and no box sits
+beside a blocked kerb lane: a clean run exists at every seed (a bot test checks it). Mashing A loses crates; holding
+Up or Down parks the bike in a kerb lane, where the gates catch it. Luck: the street is random, but the fairness rule
+bounds it.
+
+Hardware:
+
+```
+    01234567890123456789
+ 00 hhhhhhhhhhhhhhhhhhhh    h houses, fences, trees (BG; rows 0-16 scroll together with SCX)
+ 01 hhhhhhhhhhhhhhhhhhhh
+ 02 hhhhhhhhhhhhhhhhhhhh
+ 03 kkkkkkkkkkkkkkmmkkkk    k top kerb; m a milk box (BG 2x2)
+ 04 kkkkkkkkkkkkkkmmkkkk
+ 05 rrrrrrrrrrrrrrrrrrrr    lane 1 (r road; the dashed lane line is drawn in the lane tiles)
+ 06 rrrrrrrrrrrrrrrrrrrr
+ 07 rrrBBBrrrroorrrrrrrr    lane 2: B the Spigoteer on the bike with the sidecar (OBJ, 3 x 8x16); o a pothole (BG 2x2)
+ 08 rrrBBBrrrroorrrrrrrr
+ 09 rrrrrrrrrrrrrrrrrcrr    lane 3; c a traffic cone (BG 1x2)
+ 10 rrrrrrrrrrrrrrrrrcrr
+ 11 kkkkkkkkkmmkkkkkkkkk    bottom kerb, another milk box
+ 12 kkkkkkkkkmmkkkkkkkkk
+ 13 hhhhhhhhhhhhhhhhhhhh
+ 14 hhhhhhhhhhhhhhhhhhhh
+ 15 hhhhhhhhhhhhhhhhhhhh
+ 16 hhhhhhhhhhhhhhhhhhhh
+ 17 .999999..HHH....HHH.    the HUD in the window (WY 136): score, crates left, T + seconds; it never scrolls
+```
+
+- Worst line (a lane's 16 lines): bike 3 + a tossed crate 1 + crash stars 2 = 6. Obstacles and boxes are BG: zero
+  sprites. OAM ~8 (bike 3, crate 1, stars 2, a PERFECT pop 2).
+- Scrolling: SCX moves rows 0-16; the HUD lives in the window at row 17 (WY 136, WX 7), so there is no raster split.
+  Every 8 px of scroll the map column about to come in at the right ((SCX >> 3) + 21, mod 32) is written: 17 tiles
+  and, on CGB, 17 attributes, from a generated street column in WRAM. A map column is vertical (stride 32), not a
+  vq_add row, so mg.c gains `mg_put_column`, written in VBlank (34 bytes, ~350 cycles); at 2.5 px/f a column is due
+  every 3.2 frames, never two in one frame. The intro banner and the result window move the window as in every
+  mini-game; the street stops scrolling while they show.
+- Tiles: BG road 2 (plain, dashed), kerb 2, milk box empty 4 + with a crate 4, pothole 4, cone 2, houses / fences /
+  trees ~20: ~38. OBJ: the bike with rider and sidecar 3 frames (ride A / B, wobble) x 6 = 18, crate 2 arc frames x 2 =
+  4, crash stars 2, PERFECT pop 2: ~26 in 56-127.
+- CGB: BG 0 road and kerb, 1 HUD, 2 houses, 3 milk boxes and crates, 4 potholes and cones; OBJ 0 the Spigoteer, 1 the
+  bike's chrome and sidecar, 3 crate. DMG: cones light with a dark stripe, potholes dark, boxes outlined; the bike is
+  readable by silhouette.
+- WRAM ~40 B (scroll 16 bit, speed 8.8, lane / target / change timer, crates, delivered, 4 gates x (x, lane mask), 3
+  boxes x (x, side), the crate's x / y / t, wobble and invulnerable timers, generator state); the 34-byte column
+  buffer also in the `mg` union. ROM ~1.8 KB code + ~1 KB art.
+
+Art (proposals first): the Spigoteer on Granny's motorcycle with a sidecar of milk crates, from above at a slight
+angle, 24x16 (ride A, ride B, wobble); a milk crate 8x16 (2 arc frames); milk box (empty, with a crate); pothole;
+traffic cone; kerb and road tiles; houses, fences and trees for the verges; crash stars; PERFECT pop.
+
+Plugs into: the mg framework, plus two small additions any later scrolling game can reuse: `mg_put_column` and a
+window-HUD option (the HUD on window row 17 instead of BG row 0). Music: the venue's tune. Test hooks: `mr_lane`,
+`mr_scroll`, `mr_speed`, `mr_crates`, `mr_done`, `mr_gate_x[4]`, `mr_gate_m[4]`, `mr_box_x[3]`, `mr_box_side[3]`,
+`mr_inv`. Tests: a scripted bot (lanes planned from the gate and box queues) delivers all 12 without a crash at every
+seed of a sweep (the fairness rule); every gate leaves a lane free and keeps its spacing at every speed; no box beside
+a gate that blocks its kerb lane; a toss within 8 px is PERFECT, within 16 delivered, else the crate is lost, and in
+lane 2 nothing happens; a crash costs one crate and one speed step and gives 60 frames of invulnerability; the column
+coming in is in VRAM before SCX shows it (checked every frame); the window HUD never moves; <= 10 objects on every
+line every frame.
+
+Story fit: suggested PRE_BIKER page (GRANNY): `TAKE MY BIKE AND` / `RUN THE MILK. MIND` / `THE POTHOLES!`
+
 ## 5. The Pour-Off (finale, vs Dregs)
 
-Play: back in Fizzwater, the nine pieces click together, and Dregs asks for one last, friendly contest: who pours the
+Play: back in Fizzwater, the nine pieces (ten with The Chrome Cow) click together, and Dregs asks for one last, friendly contest: who pours the
 festival's first drink. Both bartenders work the same four bars from opposite ends, the Spigoteer on the right as
 always, Dregs on the left. Thirsty townsfolk sit along the middle of the bars. A drink that reaches a thirsty
 person first scores for whoever slid it. First to 20.
@@ -1381,6 +1560,7 @@ to the owner first; code can start on placeholder art (generated silhouettes, as
 | 8 | Taiko Pour | L | 3 KB + chart | sync to hUGEDriver rows (`song_pos`), chart tool, the music-off rule |
 | 9 | Pour-Off | L | 7 KB | second bartender and mirrored rules in a separate module; AI tuning; a mixed-group patron loader |
 | 10 | Practice menu (title row, chapter / segment list, best scores in SRAM) | M | 2 KB | title.c's bank is nearly full: the practice screen gets its own bank; the title menu's rows move (golden title / title_continue replaced on purpose) |
+| 11 | PROPOSAL: The Chrome Cow, after the 10-venue engine change (docs/venue10_impact.md): the mosh pit twist (S, section 9), Milk Run (M, 4.10: column streamer, window HUD), Duke (M, 3.12: idle / rev / lurch, chord regulars) | M | ~5 KB + ~90 B ROM0 | the mosh hook sits in patrons.c's push path (ROM0, hot): measure; Milk Run is the first scrolling mini-game |
 
 Order rationale: the framework and the boss engine carry everything else and hold the real risks (ROM0, VRAM,
 line budgets), so they go first with the simplest content (Big Tex, the BG-only mini-games). Physics and rhythm
@@ -1418,6 +1598,8 @@ page to the named scene; place it before the scene's last page unless noted.
 | PRE_IGLOO | AURORA | OUR YETI IS A / DEAR. BUT HIS / BREATH IS ICY. |
 | PRE_ROBOT | MANAGER-BOT | SORT CHARGED / LEFT. DEAD RIGHT. / DO NOT MIX. |
 | PRE_ROBOT | MANAGER-BOT | WARNING: THE / PROTOTYPE. GREEN: / FEED IT. RED: NO. |
+| PRE_BIKER (PROPOSAL) | GRANNY | TAKE MY BIKE AND / RUN THE MILK. MIND / THE POTHOLES! |
+| PRE_BIKER (PROPOSAL) | GRANNY | DUKE'S GANG RIDES / IN TONIGHT. HE / WANTS A BIG SHAKE. |
 | PRE_TEAHOUSE | HANA | THE DRUM SETS / THE POUR. A AND B / ON THE BEAT. |
 | PRE_TEAHOUSE | HANA | THE CHAMPION / IS THIRSTY. KEEP / THE TEA FLOWING. |
 | PRE_SPACE | ZIZZ | DELIVER BEAKERS / PAST THE ROCKS. / GENTLY! |
@@ -1435,6 +1617,7 @@ Boss intro banners (the goal banner's two lines, HUD glyphs only, <= 20 characte
 | Food Critic | THE CRITIC DINES | PERFECT POURS ONLY |
 | Yeti | THE YETI IS COLD | 12 COCOAS ON ICE |
 | Prototype | GREEN MEANS GO | RED MEANS STOP |
+| Duke (PROPOSAL) | DUKE AND HIS GANG | 12 GLASSES OF MILK |
 | Sumo | THE CHAMPION | KEEP THE TEA FLOWING |
 | Mothership | THE MOTHERSHIP | FILL IT THEN SPLIT |
 | Leo | LEO THE LION | 14 COCONUTS NO FEAR |
@@ -1472,10 +1655,10 @@ same change when the segment flow is built.
 1. **Do mini-games gate the story?** Recommendation: no. Any result continues; medals give points and a gold medal
    gives one extra life in that chapter's boss fight. (The alternative, retry until bronze, makes a weak mini-game
    a wall.)
-2. **New mini-games in arcade?** You said the three existing bonus rounds stay in arcade. Should the nine new ones
+2. **New mini-games in arcade?** You said the three existing bonus rounds stay in arcade. Should the nine (ten) new ones
    also join arcade's bonus rotation (after every even level), or stay story / practice only? Recommendation: story
    and practice only for now.
-3. **Teahouse rule in the boss fight**: chapter 7's goal is "not one broken cup". Should a broken cup also fail the
+3. **Teahouse rule in the boss fight**: chapter 7's goal (chapter 8's with The Chrome Cow) is "not one broken cup". Should a broken cup also fail the
    Sumo fight? Recommendation: no, lives only (bosses play by the same rule everywhere).
 4. **Taiko Pour with MUSIC OFF**: play the tune anyway during that game (recommended), or a click track?
 5. **Pour-Off setting and crowd**: a new Fizzwater festival stage (one more stage art job) or the saloon? Which
@@ -1489,3 +1672,135 @@ same change when the segment flow is built.
 9. **Boss lives**: 3 per attempt like the chapter goals (recommended), plus the gold-medal bonus life?
 10. **Regulars during bosses**: they keep coming (slower) on the other bars (recommended: the boss alone is too
     easy), or boss fights are one-on-one?
+
+PROPOSAL (2026-10-10), new questions for The Chrome Cow:
+
+11. **Mosh pit in Last call?** On in Happy hour as every twist; recommended on in Last call too (the venue's
+    identity; the shove then stops 48 px from the tap instead of 32). Or Happy hour only?
+12. **The Chrome Cow's tune**: a public-domain piece the house band plays loud and fast, e.g. "Ride of the
+    Valkyries" (Wagner, 1856) or "The Stars and Stripes Forever" (Sousa, 1896), entered as a melody spec in
+    docs/music_specs.md like the others. Last call plays it 15 % faster ("the band plays faster").
+13. **Saves past chapter 6** when the 10th venue ships: a save that had reached the teahouse or later goes back to
+    the start of The Chrome Cow (recommended: the story never skips the drip tray, and the finale's "ten pieces"
+    stays true), or keeps its count and skips the new chapter? Details in docs/venue10_impact.md.
+
+## 9. Venue twists: the mosh pit (The Chrome Cow, chapter 7)
+
+PROPOSAL (2026-10-10), awaiting owner approval. The venue twists are M11b part 2 (docs/story.md "Chapters": each
+changes one parameter or adds one small behaviour). This is the only one designed in this document, because it is
+the one deliberate exception to a rule the whole engine relies on: everywhere else patrons overlap and never shove
+(M13b).
+
+The owner's words: "a [patron] pushes back into another one [and that one] gets shoved forward. You have to clear
+the back one first while the front one drinks."
+
+### 9.1 How patrons move today (src/patrons.c)
+
+- A walker's `patron_x` (his left edge, 0-127) grows toward the tap at `patron_speed` (1/256 px a frame; hurried
+  walkers 1.5x). At `PATRON_FAR_X` 120 he has reached the tap: `walker_pixel` removes him and calls `lose_life()`.
+  Walkers pass each other and drinkers (they overlap); a step waits only if it would put three patrons on one tile
+  column (`col_scan`).
+- A full mug is caught by the bar's rightmost catcher (`catch_full`): a walker, or a drinker who has finished
+  (DRINK_WAIT / DRINK_WINDUP). A drinker still in DRINK_MIN (his first DRINK_FRAMES, 90) lets a mug slide past him
+  to whoever is behind.
+- `caught()` makes him PATRON_PUSHED with `patron_aux` = pushback_px x drinks (32 px for the first drink at
+  pushback_cols 4, 64 for the second): `push_px` moves him 1 px a frame toward the left end, through anyone in his
+  way (lift.c lifts one over the other). When the push is used up he drinks where he stands (`start_drinking`); if he
+  reaches ENTRY_X 16 first he is served out.
+- After DRINK_FRAMES he sends the empty when the fair-empties schedule allows, then walks on.
+
+### 9.2 The rule
+
+- **Bump**: a PUSHED patron P (moving left) bumps a walker Q of the same bar behind him when, after P's 1 px step,
+  0 <= P.x - Q.x <= MOSH_CONTACT = 12 px (their 16 px figures overlap by 4 px: visibly touching). Only a plain
+  walker can be bumped: Q walking, fully on the screen (`patron_aux` 0, x >= ENTRY_X), not watching the show
+  (`patron_dist` 0) and not being shoved already. Drinkers, pushed and leaving patrons are never bumped: a drinker is
+  planted, a pushed one is already moving.
+- **Shove**: Q goes forward, toward the tap, SHOVE_PX = 16 px (one figure's width) at 2 px a frame (8 frames, about
+  17 times a chapter-7 walker's ~0.12 px/f: unmistakable), then staggers on the spot for SHOVE_STAGGER = 30 frames before
+  walking on at his own speed. Net, a shove gains him about 16 - 30 x 0.12 = 12 px over not being shoved, roughly 100
+  frames of walking.
+- **One shove per bump**: P shoves at most one patron per push (the first he bumps): a DONE bit in `patron_mosh[P]`,
+  cleared when `caught()` starts a push and set by the shove (or by a jostle, below). Q cannot be bumped again while
+  his shove or stagger runs. A shove is not a push: Q moving forward bumps nobody, so there are no chains. P is not
+  slowed: he finishes his push and drinks as usual.
+- **Where a shove stops**: (a) Q's left edge never passes MOSH_LIMIT: x 88 in Happy hour, x 72 in Last call (32 / 48
+  px short of PATRON_FAR_X). A Q already at or past the limit is only jostled: the bump cue plays, he does not move,
+  and it still counts as P's one bump. (b) A shove step obeys `walker_pixel`'s column rule: a step that would put
+  three patrons on one tile column ends the shove there (the rest is dropped). (c) The stagger holds Q for 30 frames
+  after every shove.
+- **The fairness rule: a shove never costs a life by itself.** From the limit a shoved patron still has 32 px (48 in
+  Last call) to walk: at chapter 7's speeds (a level-7 row, ~0.12 px/f) about 270 frames in Happy hour (180 for a
+  hurried walker) and at least 240 in Last call (+15 % speed, 48 px, hurried), plus the 30-frame stagger. A full glass from the spout reaches a
+  patron at the limit in 16 frames ((136 - 104) / 2). Every shoved patron can be served with seconds to spare.
+- Untouched: the fair-empties schedule (a shove moves a walker, never a drinker, so no empty's timing changes), the
+  served count, the score and tips (a shove is not a serve), and the lives rule.
+
+The play it creates (the owner's "clear the back one first while the front one drinks"): serving the front patron F
+when Q walks close behind him (within F's push plus 12 px) shoves Q forward. So serve F early, before Q catches up,
+or, once F is drinking (his first 90 frames let your next glass slide past him), serve Q first: Q is pushed back,
+away from F, and when F walks on and takes his second glass (a 64 px push) nobody is left behind him to shove.
+
+### 9.3 How it reads
+
+Patrons are BG figures, and a new patron pose would cost 48 tiles a variant (8 pre-shifts x 6), more than the venue
+has, so the cue is motion, sound and one BG mark, with no sprite added on any line (lift.c's per-line estimate is
+unchanged):
+- the shove itself: 16 px in 8 frames, among walkers that move 1 px every ~8 frames;
+- a **milk splash on the counter** at the bump: the counter-row tile under the contact column swaps to a splash tile
+  for 30 frames (the counter-row writer the Yeti uses, 3.7; on DMG white drops on the counter, readable by shape);
+- a short thud plus a "hey!" noise blip on channel 4;
+- the venue sells it: mohawks and studs, and Granny names it in the PRE scene (AND MIND THE MOSH PIT. SERVE THE BACK
+  ONES FIRST.).
+
+### 9.4 Where it applies
+
+| shift | mosh pit |
+|---|---|
+| Opening shift | off: the venue is taught first |
+| Happy hour | **on**: the chapter's twist, as in every venue |
+| Last call | **on**, recommended (limit x 72); the owner decides (question 11) |
+| mini-game, boss | off: bosses play by the same rules everywhere (Duke's gang arrives in chords instead) |
+| arcade | off: arcade keeps the plain rules, as with every twist |
+
+Last call's chord pattern sends its three patrons to three different bars, so the pattern never stacks two arrivals
+on one bar: bunching on a bar comes only from how the player serves.
+
+### 9.5 Engine (for whoever builds it)
+
+- Twist id `TWIST_MOSH` in gen_story's per-shift twist byte (0 for every shift today) -> `story_twist`; story.c sets
+  a WRAM flag `mosh_on` and `mosh_limit` (88 / 72) at the shift start; every other shift, arcade and the boss fight
+  clear it.
+- patrons.c (ROM0): in `push_px(p)`, after the step, when `mosh_on` and P's DONE bit is clear, scan `bar_list[b]`
+  (short: 1-4 entries) for a bumpable walker with 0 <= P.x - Q.x <= 12 (~45 B). In `walking_step(p)`: while
+  `patron_shove[p]` > 0 move 2 px (with the col_scan check) instead of walking, then count `patron_stag[p]` down
+  (~40 B). `caught()` clears the DONE bit (~6 B). About 90 B of ROM0 in all; with `mosh_on` 0 the only cost is one
+  test in `push_px`.
+- WRAM: `patron_shove[16]`, `patron_stag[16]`, `patron_mosh[16]` (48 B; or packed into one array). Test hooks:
+  `mosh_on`, `mosh_limit`, `mosh_count` (shoves this shift), `patron_shove[]`, `patron_stag[]`.
+- The counter splash: one tile id in The Chrome Cow's bar set (its 36-id venue pool must leave one free), queued
+  with `vq_add` at the bump and put back after 30 frames.
+- Lifts: Q passes through P during the shove (P goes left, Q right). That is the crossing the M13b chooser already
+  handles for a pushed patron sliding through a walker; the column rule keeps the lift budget.
+- Perf: the scan only runs for pushed patrons while `mosh_on` (a few a frame at most); test_perf gains a mosh
+  scenario (bumps on all four bars at once).
+
+### 9.6 Tests (tests/test_twists.py, new)
+
+1. Bump and shove: bar 1, Q walking at x 40, P at x 60 catches a glass (push 32): when P.x - Q.x <= 12, Q.x grows
+   by exactly 16 in 8 frames, holds for 30 frames, then walks on; P finishes his push and drinks.
+2. One shove per bump: P and Q overlap for several frames; Q moves 16 px in total, once.
+3. One shove per push: two walkers behind P (x 44 and x 30): only the first bumped is shoved; P passes the second.
+4. No chains: Q's shove carries him over a walker R ahead of him; R does not move.
+5. The limit: Q at x 80 stops at 88; Q at x 90 does not move (jostle only, P's bump used up); in Last call the
+   limit is 72.
+6. The fairness sweep: for every P start x 32-104 and Q x 16..P.x in steps of 4 on one bar, after one serve of P
+   and one of Q, no life is lost in the next 300 frames, and Q never passes the limit.
+7. Never bumped: drinkers, pushed, leaving, entering (`patron_aux` > 0) and show-distracted patrons.
+8. Gating: off in the Opening shift, in arcade and in the boss fight; on in Happy hour and (once approved) Last
+   call.
+9. During every shove `col_scan` stays below 3, and every line keeps <= 10 objects every frame in a scripted mosh on
+   all four bars (the test_perf helper).
+10. The counter splash: the tile under the contact column is the splash for 30 frames, then the bar's own again.
+11. Fair empties: `next_arrival` is the same with and without a shove in the same scripted scene.
+12. Score, served and tips are the same with and without shoves.

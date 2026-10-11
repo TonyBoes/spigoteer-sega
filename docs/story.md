@@ -3,38 +3,52 @@
 Milestone M11a, owner-approved 2026-10-09. Nothing here is wired into the game yet; M11b builds the text engine and
 chapter goals, M11c the art. Everything below is original writing.
 
+**PROPOSAL (2026-10-10), awaiting owner approval: a 10th venue, The Chrome Cow.** It is the toughest-looking bar
+in Fizzwater, all mohawks, leather and studs, and everyone in it very politely orders an ice-cold glass of milk. It
+becomes chapter 7, before the teahouse, in story and arcade order: the teahouse becomes 8, space 9 and the zoo 10.
+Owner **Granny Throttle**, piece the **drip tray**, twist the **mosh pit** (docs/minigames_bosses.md section 9),
+mini-game **Milk Run** and boss **Duke** (sections 4.10 and 3.12 there), engine checklist in docs/venue10_impact.md.
+The prose of this file (pitch, cast, gags, pictures, art list) already counts ten venues. The parts the build
+reads stay as built until the engine change lands: tools/gen_story.py compiles every `### ID: "Title"` scene block
+and checks the chapters and shifts tables against the game. So the new scenes' headings carry `PROPOSAL` (the build
+skips them), proposed edits to built pages sit in separate `text` blocks under their scenes, and the new table rows
+are in their own tables below the built ones. The engine change folds them in and drops these markers.
+
 ## The pitch
 
 In the town of Fizzwater, the **Golden Spigot** (it can pour any drink anyone could ever want)
 sits on the fountain in the square. Every year the town's best bartender, the **Spigoteer**,
 pours its first drink of the festival. This year his rival **Dregs Dribbleton** barges in and
 orders "one of everything, all at once". The spigot overloads, goes KA-SPLOOSH and bursts into
-nine pieces that land in nine famous venues. Each owner will hand a piece only to a bartender who
+ten pieces that land in ten famous venues. Each owner will hand a piece only to a bartender who
 keeps their crowd happy. The Spigoteer goes on tour.
 
-Cast (kept small): the Spigoteer, Dregs (comic rival, never a real threat), nine one-note venue
+Cast (kept small): the Spigoteer, Dregs (comic rival, never a real threat), ten one-note venue
 owners, and a narrator (text box only, no portrait).
 
 Running gags:
 
 1. **Dregs is always one scene late.** He bursts into every after-venue scene to grab the piece
    and leaves the venue the way that venue would throw him out (swinging doors, crowd-surfed,
-   spun out by plates, carried off on a conveyor...). In the zoo he finally gets help, and in
-   the finale he says sorry.
+   spun out by plates, carried off on a conveyor, blown out by one loud chord...). In the zoo he finally
+   gets help, and in the finale he says sorry.
 2. **The mustache.** Sadie rates it four tumbleweeds. Aurora knits it a **pink mustache cozy**,
    which it wears for the rest of the game. Manager-Bot scans it, Zizz calls it a "face-broom",
    and the credits confirm it's still on.
 3. **Where the pieces ended up.** Each one was being used for something silly: the handle was
    stuck in a piano, the nozzle piped frosting, the knob was on an igloo that has no door, the
-   gasket was a robot's hat, the lever was a TV antenna, and the crown sat on a lion.
-4. **The payoff.** The spigot can pour anything at all. After nine bars, the Spigoteer pours
+   gasket was a robot's hat, the drip tray was the house band's cymbal, the lever was a TV antenna, and the crown
+   sat on a lion.
+4. **The payoff.** The spigot can pour anything at all. After ten bars, the Spigoteer pours
    himself a nice cold glass of water.
 
 Family-friendly notes: the saloon's foamy drink is called **sarsaparilla** and the bistro pours
 **sparkling grape juice**. The game's art doesn't change, only the words. Nobody gets drunk:
 drinks go to thirsty, sleepy, cold or hungry people. Teahouse and igloo: the owners are calm,
 warm professionals who speak plain English. Their one-note traits are love of quiet and
-knitting. There's no accent writing or put-on dialect anywhere.
+knitting. There's no accent writing or put-on dialect anywhere. The Chrome Cow's crowd looks tough and orders
+milk, please and thank you; its mosh pit is friendly shoving and nobody gets hurt. Granny Throttle talks tough and
+is sweet underneath (she bakes cookies, because milk needs cookies), in plain words, with no biker slang put on.
 
 ## Chapters: goals and twists
 
@@ -53,6 +67,16 @@ optional. Each one changes one existing parameter or adds one small behaviour.
 | 7 | Teahouse | Hana | Pipe | "Serve with care; a broken cup costs two lives" / clear the venue, a broken glass costs 2 lives (instead of 1) | **Taiko rhythm**: patrons step on the drum beat instead of walking smoothly, which makes them easy to read and hard to rush. |
 | 8 | Space lounge | Zizz | Lever | "25 glowing beakers for 3 species" / serve 25 | **Low gravity**: full drinks float more slowly, so you have to lead your throws. |
 | 9 | Jungle zoo | Keeper Kiki | Crown | "Serve 30 animals" / serve 30 | **Cheeky monkeys**: now and then a monkey snatches a coconut mid-slide and it comes back as an empty straight away. |
+
+**PROPOSAL (2026-10-10), awaiting owner approval.** With The Chrome Cow the chapters read as below from chapter 7
+(1-6 unchanged; "was" is the number in the built table above, which stays until the engine change).
+
+| # | Venue | Owner | Piece | Chapter goal (in-world / engine) | Optional twist |
+|---|---|---|---|---|---|
+| 7 (new) | Biker bar: The Chrome Cow | Granny Throttle | Drip tray | "Don't cry over spilt milk: serve 22 punks" / serve 22 | **Mosh pit**: a served patron sliding back bumps the walker behind him, who is shoved 16 px toward the tap (once per bump, never closer than 32 px to the tap). Serve the back one while the front one drinks. |
+| 8 (was 7) | Teahouse | Hana | Pipe | "Serve with care; a broken cup costs two lives" / clear the venue, a broken glass costs 2 lives (instead of 1) | **Taiko rhythm** (unchanged) |
+| 9 (was 8) | Space lounge | Zizz | Lever | "25 glowing beakers for 3 species" / serve 25 | **Low gravity** (unchanged) |
+| 10 (was 9) | Jungle zoo | Keeper Kiki | Crown | "Serve 30 animals" / serve 30 | **Cheeky monkeys** (unchanged) |
 
 ## Shifts
 
@@ -76,6 +100,17 @@ venue at its Opening shift. A strict rule (stadium: a fan at the tap; teahouse: 
 | 7 | "Serve 7 guests; a broken cup costs two lives" / 7 guests, a broken glass costs 2 lives | "Serve with care; a broken cup costs two lives" / clear the venue, a broken glass costs 2 lives | "Serve 15 guests; a broken cup costs two lives" / 15 guests, a broken glass costs 2 lives | Flood bar 4: every other guest comes to bar 4. Walk +15 %, spawn -15 %. |
 | 8 | "Serve 12 glowing beakers" / serve 12 | "25 glowing beakers for 3 species" / serve 25 | "Serve 28 glowing beakers" / serve 28 | Inside out: two at once on the middle bars, then two on the outer bars. Walk +20 %, spawn -20 %. |
 | 9 | "Serve 15 animals" / serve 15 | "Serve 30 animals" / serve 30 | "Stampede! Serve 32 animals" / serve 32 | Stampede: all four bars at once top to bottom, a breather, then all four bottom to top. Walk +20 %, spawn -20 %. |
+
+**PROPOSAL (2026-10-10), awaiting owner approval.** With The Chrome Cow the shifts read as below from chapter 7
+(1-6 unchanged; the built table above stays until the engine change). The Chrome Cow's mosh pit is on in its Happy
+hour, as every twist, and (recommended) in its Last call too; never in the Opening shift or the boss fight.
+
+| # | Opening shift (in-world / engine) | Happy hour | Last call | Last call arrivals |
+|---|---|---|---|---|
+| 7 (new) | "Serve 10 punks, ice-cold milk" / serve 10 | "Don't cry over spilt milk: serve 22 punks" / serve 22 | "The band plays faster: serve 24 punks" / serve 24 | Chord: three bars at once (1, 2, 3), a long breather, three more (4, 3, 2), a shorter breather. Walk +15 %, spawn -15 %, and the venue's tune plays 15 % faster. |
+| 8 (was 7) | "Serve 7 guests; a broken cup costs two lives" / 7 guests, a broken glass costs 2 lives | (unchanged) | (unchanged) | Flood bar 4 (unchanged). |
+| 9 (was 8) | "Serve 12 glowing beakers" / serve 12 | (unchanged) | (unchanged) | Inside out (unchanged). |
+| 10 (was 9) | "Serve 15 animals" / serve 15 | (unchanged) | (unchanged) | Stampede (unchanged). |
 
 ## Script format
 
@@ -101,7 +136,7 @@ text as its page, and two variants with the same condition on one page.
 
 ### INTRO: "The Big Pour"
 
-Picture: Fizzwater town square at night. The Golden Spigot on its fountain bursts apart and nine sparkling pieces fly off in every direction.
+Picture: Fizzwater town square at night. The Golden Spigot on its fountain bursts apart and ten sparkling pieces fly off in every direction.
 
 ```
 NARRATOR
@@ -142,6 +177,25 @@ A GREAT BARTENDER.
 SPIGOTEER
 THEN I'LL KEEP
 NINE CROWDS HAPPY!
+MUSTACHE: ONWARD!
+```
+
+PROPOSAL (2026-10-10), awaiting owner approval, with the 10th venue: pages 6-8 read
+
+```text
+NARRATOR
+THE SPIGOT BURST
+INTO TEN PIECES
+AND FLEW AWAY!
+
+NARRATOR
+TEN VENUES, TEN
+OWNERS. EACH WANTS
+A GREAT BARTENDER.
+
+SPIGOTEER
+THEN I'LL KEEP
+TEN CROWDS HAPPY!
 MUSTACHE: ONWARD!
 ```
 
@@ -205,6 +259,15 @@ THE SWINGING DOORS
 
 SPIGOTEER
 ONE DOWN, EIGHT
+TO GO. NEXT STOP:
+THE BIG GAME!
+```
+
+PROPOSAL (2026-10-10), awaiting owner approval, with the 10th venue: page 5 reads
+
+```text
+SPIGOTEER
+ONE DOWN, NINE
 TO GO. NEXT STOP:
 THE BIG GAME!
 ```
@@ -547,6 +610,112 @@ HA. HA. HA.
 
 ---
 
+### PROPOSAL PRE_BIKER: "Mohawks and Milk"
+
+PROPOSAL (2026-10-10), awaiting owner approval: chapter 7, The Chrome Cow. The heading drops `PROPOSAL` when the
+engine change adds the chapter (speaker `GRANNY`, a new portrait).
+
+Picture: a row of motorcycles outside a black, studded biker bar under a neon sign of a cow in sunglasses. Granny Throttle stands in the doorway in her patch-covered leather jacket with a tray of cookies; inside, the drummer bashes a golden drip tray.
+
+```
+NARRATOR
+THE TOUGHEST BAR
+IN FIZZWATER. ALL
+MOHAWKS AND STUDS.
+
+GRANNY
+WIPE YOUR BOOTS,
+MUSTACHE. I'M
+GRANNY THROTTLE.
+
+GRANNY
+WELCOME TO THE
+CHROME COW. WE
+ONLY SERVE MILK.
+
+SPIGOTEER
+MILK? IN A PLACE
+THIS TOUGH?
+
+GRANNY
+ICE-COLD MILK
+MAKES STRONG
+BONES, SWEETIE.
+
+NARRATOR
+A PUNK WITH A
+GREEN MOHAWK SAID
+PLEASE. TWICE.
+
+GRANNY
+YOUR DRIP TRAY?
+OUR DRUMMER USES
+IT AS A CYMBAL.
+
+GRANNY
+SERVE 22 OF MY
+BABIES. NO CRYING
+OVER SPILT MILK!
+
+GRANNY
+AND MIND THE MOSH
+PIT. SERVE THE
+BACK ONES FIRST.
+```
+
+### PROPOSAL POST_BIKER: "One Loud Chord"
+
+PROPOSAL (2026-10-10), awaiting owner approval. Pages 6-7 are the owner's line for Dregs's exit, split over two
+pages (it is 64 characters; a page holds 54).
+
+Picture: the punks raise their glasses, milk mustaches all round, while Granny hands the golden drip tray over on a plate of cookies. Behind her the drummer happily bangs a pot lid.
+
+```
+GRANNY
+22 HAPPY BABIES,
+22 MILK MUSTACHES.
+NOT BAD, MUSTACHE.
+
+GRANNY
+HERE'S YOUR DRIP
+TRAY. AND COOKIES.
+WARM ONES. EAT UP.
+
+SPIGOTEER
+WHAT WILL YOUR
+DRUMMER PLAY NOW?
+
+GRANNY
+A POT LID. HE'S
+HAPPY. LOOK AT
+THAT LITTLE FACE.
+
+DREGS
+MOVE IT, GRANDMA!
+THAT TRAY'S MINE!
+AND THE COOKIES!
+
+NARRATOR
+THE BAND PLAYED
+ONE LOUD CHORD.
+
+NARRATOR
+IT BLEW DREGS
+RIGHT OUT THE DOOR
+
+GRANNY
+COME BACK WHEN
+YOU LEARN TO SAY
+PLEASE, SWEETIE!
+
+SPIGOTEER
+SEVEN DOWN! NEXT,
+SOMEWHERE QUIET.
+MY EARS NEED IT.
+```
+
+---
+
 ### PRE_TEAHOUSE: "A Quiet Cup"
 
 Picture: a wooden teahouse beside a garden pond under cherry blossoms. Its bamboo fountain is missing a piece.
@@ -586,6 +755,16 @@ HANA
 AND FOLLOW THE
 DRUM. GOOD TEA
 HAS A RHYTHM.
+```
+
+PROPOSAL (2026-10-10), awaiting owner approval, with the 10th venue (the teahouse now follows the loudest bar in
+town): one new page between page 3 (Hana's "SHH.") and page 4 (his "SORRY. I MEAN:"), every line of Hana's kept
+
+```text
+SPIGOTEER
+WHAT? MY EARS ARE
+STILL RINGING FROM
+THE CHROME COW!
 ```
 
 ### POST_TEAHOUSE: "Harmony"
@@ -629,6 +808,15 @@ MORE TEA?
 
 SPIGOTEER
 SEVEN DOWN. NEXT
+STOP: OUTER SPACE!
+...QUIETLY.
+```
+
+PROPOSAL (2026-10-10), awaiting owner approval, with the 10th venue: the last page reads
+
+```text
+SPIGOTEER
+EIGHT DOWN. NEXT
 STOP: OUTER SPACE!
 ...QUIETLY.
 ```
@@ -787,11 +975,20 @@ LET'S GO HOME.
 I'LL POUR YOU ONE.
 ```
 
+PROPOSAL (2026-10-10), awaiting owner approval, with the 10th venue: page 3 reads
+
+```text
+SPIGOTEER
+ALL TEN PIECES!
+...WAIT. WHERE'S
+DREGS?
+```
+
 ---
 
 ### FINALE: "The First Pour"
 
-Picture: Fizzwater square by day. The restored Golden Spigot gleams on its fountain, and all nine owners plus a sheepish Dregs gather round as it pours a glass of water.
+Picture: Fizzwater square by day. The restored Golden Spigot gleams on its fountain, and all ten owners plus a sheepish Dregs gather round as it pours a glass of water.
 
 ```
 NARRATOR
@@ -833,6 +1030,20 @@ SPIGOTEER
 NOW, WHO'S
 THIRSTY? FIRST
 ROUND'S ON ME!
+```
+
+PROPOSAL (2026-10-10), awaiting owner approval, with the 10th venue: pages 1 and 7 read
+
+```text
+NARRATOR
+BACK IN FIZZWATER,
+THE TEN PIECES
+CLICKED TOGETHER.
+
+NARRATOR
+AFTER TEN BARS,
+IT WAS THE BEST
+DRINK EVER POURED.
 ```
 
 ### CREDITS: "Last Call"
@@ -882,6 +1093,8 @@ panel), facing right toward the Spigoteer at his taps; light from the upper righ
 
 All done (approved art imported pixel-exact, 2026-10-10): **SPIGOTEER, SADIE, DREGS, COACH, JUNE, COLBY, AURORA,
 MANAGER-BOT, HANA, ZIZZ, KIKI**, and two variants. There are no placeholders left: a speaker without art fails the build.
+PROPOSAL (2026-10-10), awaiting owner approval: **GRANNY** (Granny Throttle) is the one portrait still to draw, a
+proposal to the owner first, before the engine change adds her as a speaker.
 DREGS's main portrait is the sheepish drawing (owner's choice; it replaced the first approved Dregs).
 
 Variants (`assets/story/portraits.json` "variants": a range of pages in script order, resolved per page by
@@ -907,13 +1120,14 @@ overlaps another variant of his or that no page uses):
 | HANA | Tea master: calm expression, simple work kimono and apron, holding a tea whisk. Dignified, not a caricature. |
 | ZIZZ | Zizz: round jelly-like alien with three eyes and a bow tie, glowing. |
 | KIKI | Keeper Kiki: safari hat, binoculars, finger to her lips. |
+| GRANNY | PROPOSAL (2026-10-10): Granny Throttle: grey bun under a bandana, round glasses, patch-covered leather jacket, a cookie in one hand; a tough squint over a soft smile. |
 | NARRATOR | No portrait. The text box runs full width, or shows a small golden spigot icon. |
 
 ### Still pictures (one per scene, about 160x96 above the text box)
 
 | Scene | One line |
 |---|---|
-| INTRO | Night square, the Golden Spigot bursting and nine pieces flying off. |
+| INTRO | Night square, the Golden Spigot bursting and ten pieces flying off. |
 | PRE_SALOON | Saloon front with swinging doors, Sadie in the doorway. |
 | POST_SALOON | Cowboys tossing hats; Sadie hands over the handle. |
 | PRE_STADIUM | Concession stand under floodlights, scoreboard 0-0, Coach with whistle. |
@@ -926,15 +1140,17 @@ overlaps another variant of his or that no page uses):
 | POST_IGLOO | Spigoteer in the pink cozy with the knob; penguins waving. |
 | PRE_ROBOT | Conveyor belts, big lightning-bolt sign, Manager-Bot on its platform. |
 | POST_ROBOT | Breakdancing robot on its dome; Manager-Bot offers the gasket. |
+| PRE_BIKER | PROPOSAL (2026-10-10): motorcycles outside a black, studded bar under a neon cow in sunglasses; Granny in the doorway with cookies, the drummer bashing the drip tray inside. |
+| POST_BIKER | PROPOSAL (2026-10-10): punks with milk mustaches raising their glasses; Granny hands over the drip tray on a plate of cookies; the drummer bangs a pot lid. |
 | PRE_TEAHOUSE | Teahouse by a pond, cherry blossoms, bamboo fountain missing a pipe. |
 | POST_TEAHOUSE | Hana pouring tea at a low table; taiko drummer bows. |
 | PRE_SPACE | Neon lounge, ringed planet in the window, a city bus parked at the airlock. |
 | POST_SPACE | Alien musician with a many-armed keytar; Zizz floats with the lever. |
 | PRE_ZOO | Jungle bar under vines, Leo wearing the golden crown, Kiki in the ferns. |
 | POST_ZOO | Leo crowns the Spigoteer; flamingos high-kick behind. |
-| FINALE | Restored spigot gleaming by day, nine owners and Dregs around it, a glass of water. |
+| FINALE | Restored spigot gleaming by day, ten owners and Dregs around it, a glass of water. |
 | CREDITS | Spigot dripping over the credits, Dregs mopping in an apron. |
 
-Reuse: the nine golden pieces can share one small sprite sheet (handle, spout, valve, nozzle,
-knob, gasket, pipe, lever, crown). A between-chapter "spigot progress" screen that fills in one
+Reuse: the ten golden pieces can share one small sprite sheet (handle, spout, valve, nozzle,
+knob, gasket, drip tray, pipe, lever, crown). A between-chapter "spigot progress" screen that fills in one
 piece per chapter would reuse them for free.
