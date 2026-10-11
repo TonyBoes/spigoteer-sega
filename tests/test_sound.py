@@ -88,11 +88,13 @@ def silent(samples):
 
 
 def audio_frames(rom, n):
-    """Run n frames and return the stereo samples produced (int8, shape (samples, 2))."""
+    """Run n frames and return the stereo samples produced (int8, shape (samples, 2)). The last sample of each frame's
+    buffer is left out: PyBoy takes it at the frame boundary, and with the wave channel's DAC on (muted, volume code 0)
+    it can read a stray 16 there depending only on where the frame ends in the CPU's cycles, i.e. on the code layout."""
     chunks = []
     for _ in range(n):
         rom.run(1)
-        chunks.append(rom.pb.sound.ndarray.copy())
+        chunks.append(rom.pb.sound.ndarray[:-1].copy())
     return np.concatenate(chunks)
 
 

@@ -15,6 +15,18 @@ pytestmark = pytest.mark.timeout(120)
 ART_H = (ROOT / "build" / "art.h").read_text()
 
 
+def _gen_art():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("gen_art", ROOT / "tools" / "gen_art.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+gen_art_blocks = lambda path: _gen_art().blocks(path)
+gen_art_tile = lambda rows, x, y: _gen_art().tile_bytes(rows, x, y)
+
+
 def art(name):
     return int(re.search(rf"#define {name} (\d+)", ART_H).group(1))
 
@@ -71,6 +83,28 @@ def test_theme_order_follows_the_patron_groups():
     assert THEMES == [GROUP_THEME[g] for g in GROUPS]
     assert re.search(r"// venue order: (.*)", ART_H).group(1).split(", ") == THEMES
     assert THEMES[0] == "saloon", "the generic look is theme 0"
+
+
+def test_the_show_tables():
+    """Every venue's show table (tools/gen_art.py show_tiles): a dance (4 frames) row f is the frame laid out as the
+    bartender, [8f, 8f + 2, 8f + 4, 8f + 6]; a band (6 frames) row r is frame r's four 8x16 quarters, deduplicated into
+    the 32 tiles, and its tiles rebuild the frame exactly."""
+    for t in THEMES:
+        v = venue(t)
+        tab, band = v["show_table"], v["show_band"]
+        assert len(tab) == 6 and all(len(r) == 4 for r in tab), t
+        assert band == (v["show_frames"] == 6), t
+        assert all(0 <= x < 32 and x % 2 == 0 for r in tab for x in r), t
+        if not band:
+            assert tab[:4] == [[8 * f, 8 * f + 2, 8 * f + 4, 8 * f + 6] for f in range(4)], t
+            continue
+        shows = [r for _, r in gen_art_blocks(ROOT / "assets" / "approved" / "venues" / f"{t}_show.txt")]
+        tiles = bytes(v["show"])
+        for r, frame in zip(tab, shows):
+            for (y0, x0), off in zip(((0, 0), (0, 8), (16, 0), (16, 8)), r):
+                rows = (list(frame) + ["." * 16] * 8)[y0:y0 + 16]
+                want = bytes(gen_art_tile(rows, x0, 0) + gen_art_tile(rows, x0, 8))
+                assert tiles[off * 16:off * 16 + 32] == want, f"{t}: quarter at {(y0, x0)}"
 
 
 def test_theme_tile_pool_holds_every_theme_and_the_bg_budget_holds():
@@ -181,6 +215,31 @@ def test_the_show_uses_the_venue_performers(gb, group):
     ds = [s for s in gb.visible_sprites() if OBJ_DANCER <= s["tile"] < OBJ_DANCER + 32]
     assert len(ds) == 12, "three performers of 4 entries"
     assert obj_vram(gb, OBJ_DANCER, 32) == bytes(v["show"])
+    check_show_rows(gb, v)
+
+
+def show_rows_on_screen(gb):
+    """Per performer (left to right) the 4 OBJ tiles of OAM 28..39, TL TR BL BR, as offsets from OBJ_DANCER."""
+    oam = gb.read(0xFE00 + 28 * 4, 48)
+    return [[oam[(4 * k + i) * 4 + 2] - OBJ_DANCER for i in range(4)] for k in range(3)]
+
+
+def check_show_rows(gb, v, frames=60):
+    """The show table (gen_art show_tiles): a dance shows row dancer_frame on all three; a band shows performer k's
+    row 2k + (beat & 1). Checked on frames whose dance step did not just change (the entries follow a frame later)."""
+    table, band = v["show_table"], v["show_band"]
+    seen = set()
+    last = gb.mem("dancer_frame")
+    for _ in range(frames):
+        gb.run(1)
+        f = gb.mem("dancer_frame")
+        if f != last:
+            last = f
+            continue
+        want = [table[2 * k + (f & 1)] if band else table[f] for k in range(3)]
+        assert show_rows_on_screen(gb) == want, f"dance step {f}"
+        seen.add(f)
+    assert len(seen) >= 3, "the show moved through its steps"
 
 
 def test_a_bonus_round_between_levels_restores_the_performer_tiles(gb):

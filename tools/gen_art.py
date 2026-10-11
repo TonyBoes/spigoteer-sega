@@ -129,6 +129,39 @@ def obj_tiles(frames, w):
 
 
 
+# ---- the show performers, per venue (<t>_show.txt, frames 16x24; 32 OBJ tiles at OBJ_DANCER, 8x16 entries) ----
+# Two kinds of show, one engine (src/render.c draw_dancers): every venue gets a table of SHOW_ROWS rows x 4 tile offsets
+# (from OBJ_DANCER: the top-left, top-right, bottom-left, bottom-right 8x16 entries of a 16x24 figure, its bottom 8 px
+# a transparent pad) and a band flag.
+#  - a dance (DANCE_FRAMES = 4 frames): all three dancers dance the same frame, row = the dance frame (0-3); the tiles
+#    are the frames laid out as the bartender (8 a frame), so row f is [8f, 8f + 2, 8f + 4, 8f + 6]; rows 4-5 unused.
+#  - a band (BAND_FRAMES = 6 frames: performer k's pose A, then B, k = 0..2 left to right): performer k shows row
+#    2k + (beat & 1). The 6 frames are cut into 8x16 quarters and deduplicated (a pose changes only the quarters it must)
+#    into at most 16 quarters = the same 32 tiles; row = the frame's 4 quarters (TL TR BL BR), quarter q at tiles 2q, 2q+1.
+DANCE_FRAMES, BAND_FRAMES, SHOW_ROWS, SHOW_QUARTERS = 4, 6, 6, 16
+
+
+def show_tiles(t, shows):
+    """-> (32 OBJ tiles as bytes, band flag, SHOW_ROWS x 4 tile offsets). Fails on a band that needs over 16 quarters."""
+    if len(shows) == DANCE_FRAMES:
+        tab = [[8 * f, 8 * f + 2, 8 * f + 4, 8 * f + 6] for f in range(DANCE_FRAMES)]
+        return obj_tiles([list(f) + ["." * 16] * 8 for f in shows], 16), 0, tab + tab[:SHOW_ROWS - DANCE_FRAMES]
+    quarters, tab = [], []
+    for f in shows:
+        f = list(f) + ["." * 16] * 8
+        row = []
+        for y0, x0 in ((0, 0), (0, 8), (16, 0), (16, 8)):
+            q = tuple(r[x0:x0 + 8] for r in f[y0:y0 + 16])
+            if q not in quarters:
+                quarters.append(q)
+            row.append(2 * quarters.index(q))
+        tab.append(row)
+    if len(quarters) > SHOW_QUARTERS:
+        sys.exit(f"gen_art: venue {t}: the band needs {len(quarters)} 8x16 quarters, at most {SHOW_QUARTERS} (32 OBJ tiles)")
+    quarters += [tuple(["." * 8] * 16)] * (SHOW_QUARTERS - len(quarters))
+    return obj_tiles([list(q) for q in quarters], 8), 1, tab
+
+
 # ---- the breaking drink (crash), per venue: generated from the venue's own drink so it matches the sliding one ----
 # 16 OBJ tiles at OBJ_GLASS (8x16 entries, column-major as obj_tiles): tip 0-1 (the venue's tilted "drink" pose, frame 8
 # of <t>_drink.txt), fall full 2-5 and fall empty 6-9 (the full / empty frame turned 90 degrees, mouth left, 16x16), the
@@ -313,7 +346,10 @@ def venues(outdir, prev):
          "    const uint8_t *anim_frames, *anim_script;    // stage animation (src/venue.c), in the venue's own bank",
          "    uint16_t anim_frames_n;                      // bytes of anim_frames (0: the stage does not move)",
          "    uint8_t anim_script_n, anim_first, anim_k;   // script bytes; first animated stage id, animated tiles",
+         "    uint8_t show_band;                           // 0: one dance for all three (row = dance frame); 1: a band",
+         f"    uint8_t show_tile[{SHOW_ROWS}][4];             // per row: OBJ tile offsets from OBJ_DANCER, TL TR BL BR",
          "} venue_t;",
+         f"#define SHOW_ROWS {SHOW_ROWS}                 // a band's performer k shows row 2k + (beat & 1) (src/render.c)",
          "extern venue_t venue;            // the current level's venue (WRAM copy, src/venue.c)",
          "extern uint8_t venue_bank;       // ROM bank of its tile data",
          "void venue_fetch(uint8_t t) BANKED;   // build/venue_load.c: copy theme t into venue / venue_bank", ""]
@@ -394,9 +430,10 @@ def venues(outdir, prev):
         drinks = [r for _, r in blocks(vd / f"{t}_drink.txt")]
         assert len(drinks) == 10 and all(len(f) == 16 and all(len(r) == 8 for r in f) for f in drinks), f"{t}_drink.txt: 10 frames 8x16"
         shows = [r for _, r in blocks(vd / f"{t}_show.txt")]
-        assert len(shows) == 4 and all(len(f) == 24 and all(len(r) == 16 for r in f) for f in shows), f"{t}_show.txt: 4 frames 16x24"
+        assert len(shows) in (DANCE_FRAMES, BAND_FRAMES) and all(len(f) == 24 and all(len(r) == 16 for r in f) for f in shows), \
+            f"{t}_show.txt: {DANCE_FRAMES} frames 16x24 (one dancer, all three dance it) or {BAND_FRAMES} (a band of three)"
         dtile = obj_tiles(drinks, 8) + crash_tiles(drinks, shards)
-        stiles = obj_tiles([list(f) + ["." * 16] * 8 for f in shows], 16)
+        stiles, band, show_tab = show_tiles(t, shows)
         assert len(dtile) == (20 + GLASS_TILES) * 16 and len(stiles) == 32 * 16
         abs_smap = list(smap)
         abs_bmap = [bar_base + i for i in bmap]
@@ -423,14 +460,16 @@ def venues(outdir, prev):
               f"    {len(suniq)}, {len(buniq)}, {bar_base}, {bar_base + fid},",
               f"    {arr(abs_smap)},", f"    {arr(abs_sattr)},", f"    {arr(abs_bmap)},", f"    {arr(abs_battr)},",
               "    { " + ", ".join(arr(x) for x in pal15) + " },",
-              (f"    {sym}_anim_frames, {sym}_anim_script, {len(anim['data'])}, {len(ascript)}, {a_first}, {anim['k']}"
-               if anim else "    0, 0, 0, 0, 0, 0"), "};", ""]
+              (f"    {sym}_anim_frames, {sym}_anim_script, {len(anim['data'])}, {len(ascript)}, {a_first}, {anim['k']},"
+               if anim else "    0, 0, 0, 0, 0, 0,"),
+              f"    {band}, {{ " + ", ".join(arr(r) for r in show_tab) + " }", "};", ""]
         (outdir / f"{sym}.c").write_text("\n".join(vc))
         load += [f"BANKREF_EXTERN({sym})", f"extern const venue_t {sym};"]
         cases.append(f"    case {ti}: far_copy(&venue, &{sym}, sizeof venue, BANK({sym})); venue_bank = BANK({sym}); break;")
         info["venues"][t] = {"stage_n": len(suniq), "bar_n": len(buniq), "bar_base": bar_base, "floor_tile": bar_base + fid,
                              "stage_map": abs_smap, "stage_attr": abs_sattr, "bar_map": abs_bmap, "bar_attr": abs_battr,
-                             "pal": pal15, "drink": dtile[:20 * 16], "crash": dtile[20 * 16:], "show": stiles, "stage_tiles": stile, "bar_tiles": btile,
+                             "pal": pal15, "drink": dtile[:20 * 16], "crash": dtile[20 * 16:], "show": stiles,
+                             "show_band": band, "show_table": show_tab, "show_frames": len(shows), "stage_tiles": stile, "bar_tiles": btile,
                              "anim": {"first": a_first, "k": anim["k"], "slots": anim["slots"], "names": anim["frames"],
                                       "frames": [anim["data"][i * anim["k"] * 16:(i + 1) * anim["k"] * 16]
                                                  for i in range(len(anim["frames"]))],
@@ -1038,8 +1077,8 @@ def _main():
     c.append(fmt("coin_tiles", ct))
     png(coin_frames, prev / "coin_x8.png", 8, transparent=True)
 
-    # ---- show performers (M9): 4 frames 16x24 per venue (<t>_show.txt), laid out like the bartender ----
-    h[-2:-2] = ["#define DANCER_FRAMES 4", "#define DANCER_TILES_PER_FRAME 8", "#define DANCER_TILE_COUNT 32", ""]
+    # ---- show performers (M9): per venue a dance of 4 frames 16x24 or a band of 6 (<t>_show.txt, show_tiles) ----
+    h[-2:-2] = ["#define DANCER_FRAMES 4", "#define DANCER_TILE_COUNT 32", ""]
 
     h[-2:-2] = venues(outdir, prev)
 

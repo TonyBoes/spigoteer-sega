@@ -123,7 +123,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define OBJ_MUG_DRINK   (OBJ_MUG_FILL + MUG_FILL_TILE_COUNT)
 #define OBJ_COIN        (OBJ_MUG_DRINK + MUG_DRINK_TILE_COUNT)
 #define OBJ_DANCER      (OBJ_COIN + COIN_TILE_COUNT)
-#if OBJ_DANCER + DANCER_FRAMES * DANCER_TILES_PER_FRAME > 128
+#if OBJ_DANCER + DANCER_TILE_COUNT > 128
 #error "OBJ tiles must stay below 128: ids 128+ share VRAM with the patron BG tiles"
 #endif
 // OBJ tile ids stay below 128: ids 128+ share VRAM (0x8800 block) with the patron BG tiles
