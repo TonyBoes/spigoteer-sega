@@ -1,13 +1,13 @@
 // Saved high scores, the story progress and the soundtrack unlocks: cartridge SRAM, MBC5+RAM+BATTERY.
 // M10b: a top-5 table with 3-letter initials; M11b: the story progress next to it; story shifts: the step reached;
-// bonus menu: the soundtrack's unlocked tunes.
-// Layout at 0xA000 (version 5):
-//   0..3 magic "TPR5", then 5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little
-//   endian, <= 999999), best first; 34 story progress (chapters cleared, 0..9); 35 the furthest step reached in the
-//   next chapter (0..STORY_STEPS-1: its steps before it were done at least once; a venue restart never lowers it; 0
-//   when the story is complete); 36..37 the unlocked tunes (16-bit little endian, bit t = TUNE_t of music.h; bit 0,
-//   the title tune, always set; bits at TUNE_COUNT and above are kept as they are: room for a 10th venue tune);
-//   38 checksum (0x5A + bytes 0..37), 39 its complement. CONTINUE on the title: progress 1..8, or progress 0 with a
+// bonus menu: the soundtrack's unlocked tunes; the 10th venue: version 6 (the chapters and tunes in the new order).
+// Layout at 0xA000 (version 6):
+//   0..3 magic "TPR6", then 5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little
+//   endian, <= 999999), best first; 34 story progress (chapters cleared, 0..10; the design's "Pour-Off won" would be
+//   11); 35 the furthest step reached in the next chapter (0..STORY_STEPS-1: its steps before it were done at least
+//   once; a venue restart never lowers it; 0 when the story is complete); 36..37 the unlocked tunes (16-bit little
+//   endian, bit t = TUNE_t of music.h; bit 0, the title tune, always set; bit 15, above TUNE_COUNT, is kept as it is);
+//   38 checksum (0x5A + bytes 0..37), 39 its complement. CONTINUE on the title: progress 1..9, or progress 0 with a
 //   step reached; it starts that chapter over (lives are not saved: story.c).
 //   A step of chapter k is reached (a later practice mode may offer it) when k < progress, or k == progress and the
 //   step <= the step reached. Practice best scores, when they come, go in their own block from 0x40 with its own
@@ -17,17 +17,24 @@
 // tune when its PRE scene starts, a jingle when first heard: tune_heard, called by music_play); clearing chapter 1
 // also unlocks the four jingles (CLEAR, OVER, BONUS, SHOW: BONUS and SHOW may never play in a story). A story run
 // started from the debug select (save_lock) writes nothing: neither progress nor unlocks.
-// Migration (written back as version 5 at once, save_migrated set; the unlocks derived from the progress, below):
-//   version 4 (story shifts: "TPR4", bytes 0..35 as version 5, 36 checksum = 0x5A + bytes 0..35, 37 complement)
+// Migration (written back as version 6 at once, save_migrated set). Versions 3-5 counted 9 chapters in the old order
+// (... 6 factory, 7 teahouse, 8 space, 9 zoo); the old chapters 7-9 are 8, 10 and 9 in the new order, so no count
+// above 6 maps onto it: an old progress p <= 5 is kept with its step, p >= 6 becomes 6 with step 0 (the first chapter
+// not cleared is The Chrome Cow; an old step at p = 6 counted the teahouse's steps). A complete old story shows
+// CONTINUE again, at The Chrome Cow's PRE scene (old_progress).
+//   version 5 (bonus menu: "TPR5", bytes 0..37 as version 6, progress 0..9): the unlocks moved to the new tune order
+//   (the old venue tunes 6, 7, 8 = teahouse, space, zoo are 7, 9, 8 now; old bits 14-15 dropped) plus the unlocks
+//   the mapped progress implies (save_migrated = 5);
+//   version 4 (story shifts: "TPR4", bytes 0..35, 36 checksum = 0x5A + bytes 0..35, 37 complement)
 //   (save_migrated = 4);
-//   version 3 (M11b: "TPR3", the same bytes, 35 reserved 0): chapters cleared kept, step 0 = the PRE scene of the
-//   first chapter not cleared, as before (save_migrated = 3);
+//   version 3 (M11b: "TPR3", the same bytes, 35 reserved 0): step 0 = the PRE scene of the first chapter not cleared,
+//   as before (save_migrated = 3);
 //   version 2 (M10b: "TPR2", the same table, 34 checksum = 0x5A + bytes 0..33, 35 complement): the table kept, no
 //   story progress (save_migrated = 2);
 //   version 1 (M7: "TPR1", 4..7 hi score LE, 8 checksum = 0x5A + bytes 0..7, 9 complement): entry 1 with the
 //   initials "SPG" (save_migrated = 1).
-//   Unlocks of an old save (progress_unlocks): the venues of the chapters cleared, the next chapter's venue when one of
-//   its steps was reached, the jingles once chapter 1 is cleared; the title tune.
+//   Unlocks of a version 1-4 save (progress_unlocks): the venues of the chapters cleared, the next chapter's venue when
+//   one of its steps was reached, the jingles once chapter 1 is cleared; the title tune.
 // Anything that does not check out loads as an empty table with no story progress and only the title tune.
 // The working copy (top_names / top_scores) is in WRAM; hi_score / hi_digits mirror entry 1 for the title.
 #pragma bank 255
@@ -41,8 +48,8 @@ extern uint8_t  hi_digits[6];
 
 uint8_t  top_names[TOP_N * 3];      // 3 initials per entry, ASCII
 uint32_t top_scores[TOP_N];         // best first
-uint8_t  save_migrated;             // the boot converted an old save: 1 from version 1, 2 / 3 from version 2 / 3 (tests)
-uint8_t  story_progress;            // M11b: story chapters cleared (0..9)
+uint8_t  save_migrated;             // the boot converted an old save: its version 1..5 (tests)
+uint8_t  story_progress;            // M11b: story chapters cleared (0..10)
 uint8_t  story_reached;             // story shifts: the furthest step reached in chapter story_progress (0..STORY_STEPS-1)
 uint16_t tune_unlocked;             // bonus menu: bit t = tune t unlocked in the soundtrack player (saved, never cleared)
 uint8_t  save_lock;                 // 1: a debug-select story run: story_save / tune_heard write nothing (title_enter clears it)
@@ -50,13 +57,15 @@ uint8_t  save_lock;                 // 1: a debug-select story run: story_save /
 #define SRAM ((volatile uint8_t *)0xA000)
 #define HI_MAX 999999UL
 #define V2_LEN   (4 + TOP_N * 6)    // 34: bytes covered by the checksum (version 2)
-#define V3_STORY V2_LEN             // 34: the story progress (versions 3, 4)
+#define V3_STORY V2_LEN             // 34: the story progress (versions 3-6)
 #define V4_STEP  (V2_LEN + 1)       // 35: the step reached (version 4; version 3: reserved 0)
 #define V3_LEN   (V2_LEN + 2)       // 36: bytes covered by the checksum (versions 3, 4)
-#define V5_TUNES V3_LEN             // 36, 37: the unlocked tunes (version 5)
-#define V5_LEN   (V3_LEN + 2)       // 38: bytes covered by the checksum (version 5)
+#define V5_TUNES V3_LEN             // 36, 37: the unlocked tunes (versions 5, 6)
+#define V5_LEN   (V3_LEN + 2)       // 38: bytes covered by the checksum (versions 5, 6)
 #define JINGLES  ((1 << TUNE_CLEAR) | (1 << TUNE_OVER) | (1 << TUNE_BONUS) | (1 << TUNE_SHOW))
 #define STORY_MAX STORY_CHAPTERS
+#define OLD_STORY_MAX 9             // versions 3-5: nine chapters (the order before the 10th venue)
+#define OLD_KEPT 6                  // their progress p < 6 means the same chapters today; p >= 6 becomes 6, step 0
 #define V1_LEN   8
 
 static uint8_t checksum(uint8_t n) {
@@ -102,17 +111,18 @@ static uint16_t progress_unlocks(uint8_t p, uint8_t r) {
     return m;
 }
 
-// 1: SRAM holds a well-formed version-5 (or, v '4' / '3' / '2', version-4 / 3 / 2) table (copied into the working copy)
+// 1: SRAM holds a well-formed version-6 (or, v '5' / '4' / '3' / '2', version-5 / 4 / 3 / 2) table (copied into the
+// working copy). Versions 3-5 counted nine chapters.
 static uint8_t load_table(uint8_t ver) {
-    uint8_t i, k;
+    uint8_t i, k, max = ver == '6' ? STORY_MAX : OLD_STORY_MAX;
     volatile uint8_t *e;
     uint32_t v, prev = HI_MAX;
     if (!magic(ver)) return 0;
     if (ver >= '4') {
-        if (!sum_ok(ver == '5' ? V5_LEN : V3_LEN) || SRAM[V3_STORY] > STORY_MAX || SRAM[V4_STEP] >= STORY_STEPS) return 0;
-        if (SRAM[V3_STORY] == STORY_MAX && SRAM[V4_STEP]) return 0;
+        if (!sum_ok(ver >= '5' ? V5_LEN : V3_LEN) || SRAM[V3_STORY] > max || SRAM[V4_STEP] >= STORY_STEPS) return 0;
+        if (SRAM[V3_STORY] == max && SRAM[V4_STEP]) return 0;
     } else if (ver == '3') {
-        if (!sum_ok(V3_LEN) || SRAM[V3_STORY] > STORY_MAX) return 0;
+        if (!sum_ok(V3_LEN) || SRAM[V3_STORY] > max) return 0;
     } else if (!sum_ok(V2_LEN)) return 0;
     for (i = 0; i < TOP_N; i++) {
         e = SRAM + 4 + i * 6;
@@ -140,18 +150,38 @@ static uint8_t load_v1(void) {
     return 1;
 }
 
+// A version 3-5 save's progress (nine chapters, the old order) in today's chapters: see the top of the file.
+static void old_progress(uint8_t p, uint8_t r) {
+    if (p >= OLD_KEPT) { p = OLD_KEPT; r = 0; }
+    story_progress = p; story_reached = r;
+}
+
+// A version-5 save's unlocks (the old tune order: venues cowboys .. robots, ninjas, aliens, zoo) in today's order.
+#define OLD_BIT(g) ((uint16_t)1 << (TUNE_VENUE0 + (g)))
+static uint16_t old_tunes(uint16_t m) {
+    uint16_t t = m & (OLD_BIT(6) - 1);           // the title, the jingles, the show and venues 0-5 keep their bits
+    if (m & OLD_BIT(6)) t |= OLD_BIT(7);         // the teahouse's Sakura Sakura: venue 6 -> 7
+    if (m & OLD_BIT(7)) t |= OLD_BIT(9);         // the space lounge's Blue Danube: 7 -> 9
+    if (m & OLD_BIT(8)) t |= OLD_BIT(8);         // the zoo's Pop Goes the Weasel: 8 -> 8
+    return t;
+}
+
 void hi_load(void) BANKED {
+    uint16_t old = 0;
     ENABLE_RAM;
     SWITCH_RAM(0);
     clear_table();
     save_migrated = 0;
     tune_unlocked = 0;
     story_progress = 0; story_reached = 0;
-    if (load_table('5')) {
+    if (load_table('6')) {
         story_progress = SRAM[V3_STORY]; story_reached = SRAM[V4_STEP];
         tune_unlocked = SRAM[V5_TUNES] | ((uint16_t)SRAM[V5_TUNES + 1] << 8);
-    } else if (load_table('4')) { story_progress = SRAM[V3_STORY]; story_reached = SRAM[V4_STEP]; save_migrated = 4; }
-    else if (load_table('3')) { story_progress = SRAM[V3_STORY]; save_migrated = 3; }   // (a failed load copies nothing)
+    } else if (load_table('5')) {
+        old_progress(SRAM[V3_STORY], SRAM[V4_STEP]); save_migrated = 5;
+        old = old_tunes(SRAM[V5_TUNES] | ((uint16_t)SRAM[V5_TUNES + 1] << 8));
+    } else if (load_table('4')) { old_progress(SRAM[V3_STORY], SRAM[V4_STEP]); save_migrated = 4; }
+    else if (load_table('3')) { old_progress(SRAM[V3_STORY], 0); save_migrated = 3; }   // (a failed load copies nothing)
     else {
         clear_table();
         if (load_table('2')) save_migrated = 2;
@@ -162,7 +192,7 @@ void hi_load(void) BANKED {
     }
     DISABLE_RAM;
     make_hi();
-    if (save_migrated) tune_unlocked = progress_unlocks(story_progress, story_reached);
+    if (save_migrated) tune_unlocked = old | progress_unlocks(story_progress, story_reached);
     tune_unlocked |= 1 << TUNE_TITLE;
     if (save_migrated) hi_save();
 }
@@ -173,7 +203,7 @@ void hi_save(void) BANKED {
     uint32_t v;
     ENABLE_RAM;
     SWITCH_RAM(0);
-    SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '5';
+    SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '6';
     for (i = 0; i < TOP_N; i++) {
         e = SRAM + 4 + i * 6;
         for (k = 0; k < 3; k++) e[k] = top_names[i * 3 + k];

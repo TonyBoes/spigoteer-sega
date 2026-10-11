@@ -11,8 +11,8 @@ from conftest import (K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, MENU_SETTLE, RO
                       hold_stage_anim, menu_items, title_pick)
 from test_flow import (GS_GOAL, GS_STORY, TITLE, most_per_scanline, run_until, settle_title, state, tilemap_row,
                        title_text_row)
-from test_scores import (JINGLES, TUNE_COUNT, TUNE_VENUE0, V4_SUM, V5_SUM, booted, parse_save, progress_unlocks,
-                         saved_tunes, table, v4_image, v5_image)
+from test_scores import (JINGLES, TUNE_COUNT, TUNE_VENUE0, V4_SUM, V6_SUM, booted, old_progress, old_tunes, parse_save,
+                         progress_unlocks, saved_tunes, table, v4_image, v5_image, v6_image)
 from test_sound import save_ram
 
 pytestmark = pytest.mark.timeout(240)
@@ -81,7 +81,7 @@ def test_the_names_follow_music_h_and_songs_py():
 def test_bonus_is_always_on_the_menu(boot):
     assert menu_items(boot) == [K_PLAY, K_BONUS, K_SETTINGS], "PLAY, BONUS, SETTINGS"
     assert tilemap_row(boot, 9, 0, 20) == title_text_row("bonus")
-    with booted(boot.model_name, v5_image([], story=3, step=1, tunes=ALL)) as rom:
+    with booted(boot.model_name, v6_image([], story=3, step=1, tunes=ALL)) as rom:
         assert menu_items(rom) == [K_PLAY, K_BONUS, K_SETTINGS], "the same with a story save"
         title_pick(rom, K_BONUS)
         rom.run(MENU_SETTLE)
@@ -138,7 +138,7 @@ def test_a_fresh_cartridge_has_only_the_title_tune(boot):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_every_name_shows_once_unlocked_and_the_list_scrolls(model):
-    with booted(model, v5_image([], tunes=ALL)) as rom:
+    with booted(model, v6_image([], tunes=ALL)) as rom:
         to_jukebox(rom)
         settle_rows(rom)
         for k in range(VISIBLE):
@@ -155,7 +155,7 @@ def test_every_name_shows_once_unlocked_and_the_list_scrolls(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_plays_b_stops_then_b_goes_back(model):
-    with booted(model, v5_image([], tunes=ALL)) as rom:
+    with booted(model, v6_image([], tunes=ALL)) as rom:
         to_jukebox(rom)
         for t in (0, TUNE_VENUE0 + 3, 2):
             while rom.mem("jb_sel") != t:
@@ -222,7 +222,7 @@ def test_no_more_than_ten_sprites_a_line(boot):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_soundtrack_screen_golden(model):
     tunes = 1 | (1 << 1) | (1 << 2) | (1 << TUNE_VENUE0) | (1 << (TUNE_VENUE0 + 1))
-    with booted(model, v5_image([], story=1, step=1, tunes=tunes)) as rom:
+    with booted(model, v6_image([], story=1, step=1, tunes=tunes)) as rom:
         to_jukebox(rom)
         for _ in range(TUNE_VENUE0):
             tap(rom, "down")
@@ -276,7 +276,7 @@ def test_unlocks_survive_a_new_story(model):
     """The unlocks are never re-locked: a new story's first save resets the progress, not the soundtrack."""
     from test_story import skip_scene, start_story, to_goal, win
     tunes = progress_unlocks(5, 2)
-    with start_story(model, v5_image([("ABC", 500)], story=5, step=2, tunes=tunes)) as rom:
+    with start_story(model, v6_image([("ABC", 500)], story=5, step=2, tunes=tunes)) as rom:
         assert rom.mem("story_scene") == 0, "STORY: a new story from the INTRO"
         skip_scene(rom)
         skip_scene(rom)
@@ -299,20 +299,54 @@ def test_unlocks_survive_a_new_story(model):
         assert list_row(again, TUNE_VENUE0 + 6 - top) == row_text("? ? ?")[:19]
 
 
-# ---- SRAM version 5 and the migration from version 4 ----------------------------------------------------------------
+# ---- SRAM version 6 (the 10th venue) and the migrations from versions 4 and 5 -----------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("story,step", [(0, 0), (0, 2), (3, 0), (3, 1), (9, 0)])
-def test_a_version_4_save_migrates_to_version_5(model, story, step):
+@pytest.mark.parametrize("story,step", [(0, 0), (0, 2), (3, 0), (3, 1), (6, 2), (9, 0)])
+def test_a_version_4_save_migrates_to_version_6(model, story, step):
     entries = [("ABC", 500), ("DEF", 400)]
     with booted(model, v4_image(entries, story=story, step=step)) as rom:
         assert rom.mem("save_migrated") == 4 and table(rom)[:2] == entries
-        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (story, step)
-        want = progress_unlocks(story, step)
+        p, r = old_progress(story, step)
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (p, r)
+        want = progress_unlocks(p, r)
         assert rom.mem16("tune_unlocked") == want
         ram = save_ram(rom)
-    assert ram[:V5_SUM + 2] == v5_image(entries, story, step, want)[:V5_SUM + 2], "written back as version 5 at once"
+    assert ram[:V6_SUM + 2] == v6_image(entries, p, r, want)[:V6_SUM + 2], "written back as version 6 at once"
     with booted(model, ram) as again:
         assert again.mem("save_migrated") == 0 and again.mem16("tune_unlocked") == want
+
+
+V0 = TUNE_VENUE0
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("old, new", [
+    (1, 1),                                                    # the title only
+    (1 | 1 << V0 | 1 << (V0 + 5), 1 | 1 << V0 | 1 << (V0 + 5)),  # venues 0-5 keep their bits
+    (1 | 1 << (V0 + 6), 1 | 1 << (V0 + 7)),                    # the teahouse's Sakura Sakura: old venue 6 -> 7
+    (1 | 1 << (V0 + 7), 1 | 1 << (V0 + 9)),                    # the space lounge's Blue Danube: 7 -> 9
+    (1 | 1 << (V0 + 8), 1 | 1 << (V0 + 8)),                    # the zoo's Pop Goes the Weasel stays 8
+    (0x7FFF, 0x7FFF & ~(1 << (V0 + 6))),                       # everything the old game had; Drunken Sailor never heard
+    (0xFFFF, 0x7FFF & ~(1 << (V0 + 6))),                       # (old bits 14-15 meant nothing: dropped)
+])
+def test_a_version_5_save_s_unlocks_follow_the_new_tune_order(model, old, new):
+    assert old_tunes(old) == new
+    with booted(model, v5_image([("ABC", 500)], tunes=old)) as rom:
+        assert rom.mem("save_migrated") == 5 and rom.mem16("tune_unlocked") == new
+        ram = save_ram(rom)
+    assert saved_tunes(ram) == new and ram[:4] == b"TPR6"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_version_5_save_keeps_its_unlocks_and_gains_its_progress_s(model):
+    """A v5 save at the old chapter 8 (the space lounge) having heard its tunes: progress 6, step 0; the tunes heard
+    stay unlocked in their new places (the old space tune is venue 9's now), with the unlocks of progress 6 added."""
+    heard = progress_unlocks(7, 1)                              # old order: venues 0-7 (7 = the space lounge)
+    with booted(model, v5_image([], story=7, step=1, tunes=heard)) as rom:
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (6, 0)
+        want = old_tunes(heard) | progress_unlocks(6, 0)
+        assert rom.mem16("tune_unlocked") == want
+        assert want & 1 << (V0 + 9) and want & 1 << (V0 + 7) and not want & 1 << (V0 + 6) and not want & 1 << (V0 + 8)
 
 
 def test_progress_unlocks_rule():
@@ -323,16 +357,16 @@ def test_progress_unlocks_rule():
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_version_5_loads_its_unlocks_and_rejects_a_bad_one(model):
-    with booted(model, v5_image([("ABC", 500)], story=2, step=1, tunes=0x1234 | 1)) as rom:
+def test_version_6_loads_its_unlocks_and_rejects_a_bad_one(model):
+    with booted(model, v6_image([("ABC", 500)], story=2, step=1, tunes=0x1234 | 1)) as rom:
         assert rom.mem("save_migrated") == 0 and rom.mem16("tune_unlocked") == 0x1235, "kept as saved"
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (2, 1)
-    with booted(model, v5_image([("ABC", 500)], tunes=0x0100)) as rom:
+    with booted(model, v6_image([("ABC", 500)], tunes=0x0100)) as rom:
         assert rom.mem16("tune_unlocked") == 0x0101, "the title tune is always unlocked"
-    good = bytearray(v5_image([("ABC", 500)], tunes=0x00F1))
-    for name, edit in (("bad checksum", lambda r: r.__setitem__(V5_SUM, r[V5_SUM] ^ 1)),
+    good = bytearray(v6_image([("ABC", 500)], tunes=0x00F1))
+    for name, edit in (("bad checksum", lambda r: r.__setitem__(V6_SUM, r[V6_SUM] ^ 1)),
                        ("unlocks outside the checksum", lambda r: r.__setitem__(V4_SUM, r[V4_SUM] ^ 2)),
-                       ("bad progress", lambda r: r.__setitem__(34, 10))):
+                       ("bad progress", lambda r: r.__setitem__(34, 11))):
         r = bytearray(good)
         edit(r)
         with booted(model, bytes(r)) as rom:

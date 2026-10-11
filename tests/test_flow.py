@@ -257,8 +257,8 @@ def test_each_submenu_opens_in_place_and_b_comes_back_to_its_item(boot, top, men
 def test_submenu_redraws_stay_within_the_vblank_drain_budget(boot):
     """Switching menus queues its rows a few a frame: the drain stays as short as gameplay's (test_patrons: <= 12
     DIV ticks) and ends before line 0, even with a cursor move during the redraw."""
-    from test_scores import booted, v5_image
-    with booted(boot.model_name, v5_image([], story=3, step=1)) as rom:
+    from test_scores import booted, v6_image
+    with booted(boot.model_name, v6_image([], story=3, step=1)) as rom:
         rom.write("drain_ticks_max", 0)
         for top in (K_PLAY, K_BONUS, K_SETTINGS):
             title_pick(rom, top)
@@ -273,12 +273,12 @@ def test_submenu_redraws_stay_within_the_vblank_drain_budget(boot):
 
 
 def test_continue_shows_only_with_a_story_save(boot):
-    from test_scores import booted, v5_image
+    from test_scores import booted, v6_image
     title_pick(boot, K_PLAY)
     boot.run(MENU_SETTLE)
     assert menu_items(boot) == [K_STORY, K_ARCADE]
     expect_menu(boot, ("story", "arcade"))
-    with booted(boot.model_name, v5_image([], story=3, step=1)) as rom:
+    with booted(boot.model_name, v6_image([], story=3, step=1)) as rom:
         rom.model_name = boot.model_name
         settle_title(rom)
         assert menu_items(rom) == [K_PLAY, K_BONUS, K_SETTINGS], "the top level is the same with a save"
@@ -288,7 +288,7 @@ def test_continue_shows_only_with_a_story_save(boot):
         assert menu_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE], "CONTINUE first, then STORY, ARCADE"
         expect_menu(rom, ("continue", "story", "arcade"))
         cursor_on(rom, "continue", 7)                    # (the golden title_continue: tests/test_story.py)
-    with booted(boot.model_name, v5_image([], story=10)) as rom:    # the story finished: nothing to continue
+    with booted(boot.model_name, v6_image([], story=10)) as rom:    # the story finished: nothing to continue
         title_pick(rom, K_PLAY)
         assert menu_items(rom) == [K_STORY, K_ARCADE]
 

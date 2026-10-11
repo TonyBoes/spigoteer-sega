@@ -13,6 +13,7 @@ V2_SUM = 34
 V3_SUM = 36          # M11b: version 3 = version 2's table + the story progress (34) + a reserved byte, checksum at 36
 V4_SUM = 36          # story shifts: version 4 = version 3 with the step reached at 35 (was reserved)
 V5_SUM = 38          # bonus menu: version 5 = version 4's bytes + the unlocked tunes at 36-37 (LE), checksum at 38
+V6_SUM = 38          # the 10th venue: version 6 = version 5's bytes, the chapters (0..10) and tunes in the new order
 TUNE_COUNT = 15      # music.h (title, clear, over, bonus, show, ten venue tunes)
 TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0 = range(6)
 JINGLES = (1 << TUNE_CLEAR) | (1 << TUNE_OVER) | (1 << TUNE_BONUS) | (1 << TUNE_SHOW)
@@ -72,6 +73,31 @@ def v5_image(entries, story=0, step=0, tunes=1, size=0x2000):
     return bytes(r)
 
 
+def v6_image(entries, story=0, step=0, tunes=1, size=0x2000):
+    """A version-6 save (the 10th venue, today's): version 5's bytes with "TPR6", chapters 0..10 in the new order."""
+    r = bytearray(v5_image(entries, story, step, tunes, size))
+    r[0:4] = b"TPR6"
+    c = (0x5A + sum(r[:V6_SUM])) & 255
+    r[V6_SUM], r[V6_SUM + 1] = c, c ^ 0xFF
+    return bytes(r)
+
+
+def old_progress(story, step):
+    """save.c old_progress: a version 3-5 save's progress (nine chapters, the old order) today: p <= 5 kept with its
+    step, p >= 6 (the old 6 factory, 7 teahouse, 8 space, 9 zoo) is 6 with step 0 (The Chrome Cow not cleared)."""
+    return (story, step) if story < 6 else (6, 0)
+
+
+def old_tunes(m):
+    """save.c old_tunes: a version-5 save's unlocks in the new tune order (old venues 6 teahouse, 7 space, 8 zoo are
+    7, 9, 8 now; bits 14-15 dropped)."""
+    t = m & ((1 << (TUNE_VENUE0 + 6)) - 1)
+    for old, new in ((6, 7), (7, 9), (8, 8)):
+        if m & 1 << (TUNE_VENUE0 + old):
+            t |= 1 << (TUNE_VENUE0 + new)
+    return t
+
+
 def progress_unlocks(story, step):
     """save.c progress_unlocks: the tunes an old save's progress implies."""
     m = 1 << TUNE_TITLE
@@ -86,10 +112,10 @@ def saved_tunes(ram):
 
 
 def parse_save(ram):
-    """The table of a version-5 save (the game writes nothing else since the bonus menu); checks the checksum."""
-    assert ram[:4] == b"TPR5"
-    c = (0x5A + sum(ram[:V5_SUM])) & 255
-    assert ram[V5_SUM] == c and ram[V5_SUM + 1] == c ^ 0xFF, "checksum"
+    """The table of a version-6 save (the game writes nothing else since the 10th venue); checks the checksum."""
+    assert ram[:4] == b"TPR6"
+    c = (0x5A + sum(ram[:V6_SUM])) & 255
+    assert ram[V6_SUM] == c and ram[V6_SUM + 1] == c ^ 0xFF, "checksum"
     return [(ram[4 + i * 6:7 + i * 6].decode(), int.from_bytes(ram[7 + i * 6:10 + i * 6], "little")) for i in range(TOP_N)]
 
 
@@ -157,8 +183,8 @@ def test_ties_go_below_and_low_scores_stay_out(model):
                 assert hi_score(rom) == t[0][1]
             else:
                 assert t == [("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)]
-                want = v5_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
-                assert save_ram(rom)[:V5_SUM + 2] == want[:V5_SUM + 2], "SRAM untouched (since the boot's migration)"
+                want = v6_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
+                assert save_ram(rom)[:V6_SUM + 2] == want[:V6_SUM + 2], "SRAM untouched (since the boot's migration)"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

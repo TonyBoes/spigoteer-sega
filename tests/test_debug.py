@@ -284,10 +284,10 @@ def test_an_unskipped_step_is_offered(boot):
 @pytest.mark.parametrize("c,k", [(2, 1), (6, 2), (0, 0)])
 def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(model, c, k):
     from test_flow import run_until
-    from test_scores import booted, v5_image
+    from test_scores import booted, v6_image
     from test_sound import save_ram
     from test_story import SHIFT_STEP, SHIFTS, banner_text as goal_text, centred, shift_title, win
-    ram = v5_image([("ABC", 500)], story=1, step=1, tunes=0x21)
+    ram = v6_image([("ABC", 500)], story=1, step=1, tunes=0x21)
     with booted(model, ram) as rom:
         open_on(rom, K_STORY)
         for _ in range(c):
@@ -329,9 +329,9 @@ def test_a_on_a_scene_plays_it(boot, pos, scene):
 
 def test_on_continue_the_box_starts_at_the_saved_chapter():
     from test_flow import run_until
-    from test_scores import booted, v5_image
+    from test_scores import booted, v6_image
     for story, step, pos in ((4, 0, 0), (4, 3, 1)):
-        with booted("cgb", v5_image([], story=story, step=step)) as rom:
+        with booted("cgb", v6_image([], story=story, step=step)) as rom:
             open_on(rom, K_CONTINUE)
             assert rom.mem("debug_story") == 1 and (rom.mem("debug_chapter"), rom.mem("debug_pos")) == (story, pos)
 
@@ -410,12 +410,12 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
     """A chapter whose boss slot is built offers it ("BOSS"); A starts the fight through step_start (boss_set): its
     banner, the fight; satisfied, CHAPTER CLEAR and the POST scene follow, and SRAM stays as it was."""
     from test_flow import LEVEL_CLEAR, run_until
-    from test_scores import booted, v5_image
+    from test_scores import booted, v6_image
     from test_sound import save_ram
     from test_story import BOSS_BUILT, BOSS_STEP, SC, banner_text as goal_text, centred
     assert BOSS_BUILT, "no boss is built yet"
     c = min(BOSS_BUILT)
-    ram = v5_image([("ABC", 500)], tunes=1)
+    ram = v6_image([("ABC", 500)], tunes=1)
     with booted(model, ram) as rom:
         open_on(rom, K_STORY)
         for _ in range(c):
