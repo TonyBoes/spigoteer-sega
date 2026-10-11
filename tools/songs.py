@@ -278,12 +278,35 @@ WEA_CHORDS = [
 song("weasel", 12, "A", " ".join(WEA_BARS), oompah(WEA_CHORDS, "c6"),
      " ".join(["K:1 r:2 S:1 r:2"] * 16))
 
+# ---------------------------------------------------------------------------------------------
+# The Chrome Cow: "Drunken Sailor" (traditional sea shanty), the owner's pick, played fast and punky (docs/music_specs.md
+# tune 11).  4/4, D Dorian, quarter = 200: 9 frames per eighth row.  16 bars: the verse, then the chorus.  Punk
+# arrangement: every melody note cut short (3/4 of its length), the bass driving root eighth notes with the fifth on the
+# last two, a kick / hat / snare groove with a double kick.  In the Last call the band plays faster (src/music.c
+# music_fast: one frame less per row, 225 bpm).
+SAI_BARS = [
+    "A4:2 A4:1 A4:1 A4:2 A4:1 A4:1", "A4:2 D4:2 F4:2 A4:2", "G4:2 G4:1 G4:1 G4:2 G4:1 G4:1", "G4:2 C4:2 E4:2 G4:2",
+    "A4:2 A4:1 A4:1 A4:2 A4:1 A4:1", "A4:2 B4:2 C5:2 D5:2", "C5:2 A4:2 G4:2 E4:2", "D4:4 D4:4",
+    "A4:4 A4:4", "A4:2 D4:2 F4:2 A4:2", "G4:4 G4:4", "G4:2 C4:2 E4:2 G4:2",
+    "A4:4 A4:4", "A4:2 B4:2 C5:2 D5:2", "C5:2 A4:2 G4:2 E4:2", "D4:4 D4:4",
+]
+SAI_CHORDS = ["Dm", "Dm", "C", "C", "Dm", "Dm", "C", "Dm"] * 2
+
+
+def punk_bass(chords):
+    """Driving eighth notes: the root six times, the fifth twice, every one cut short."""
+    return " ".join(" ".join([f"{CHORD[c][0]}:1!"] * 6 + [f"{CHORD[c][1]}:1!"] * 2) for c in chords)
+
+
+song("sailor", 9, "A", " ".join(SAI_BARS), punk_bass(SAI_CHORDS), stac_all=(3, 4),
+     groove="K:1 H:1 S:1 H:1 K:1 K:1 S:1 H:1")
+
 # which songs, in tune order after title/show
 VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sakura", "danube", "weasel"]
 
 # rows per bar (for the pitch-check table in tools/check_music.py)
 BAR_ROWS = {"susanna": 4, "entertainer": 8, "galop": 4, "ballgame": 6, "mountain": 8, "funicula": 6,
-            "skaters": 6, "hall": 8, "sakura": 8, "danube": 6, "weasel": 6}
+            "skaters": 6, "hall": 8, "sakura": 8, "danube": 6, "weasel": 6, "sailor": 8}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -309,4 +332,5 @@ SOUNDTRACK = {
     "sakura": ("SAKURA SAKURA", "SAKURA SAKURA", "JAPANESE FOLK SONG", "THE TEAHOUSE"),
     "danube": ("THE BLUE DANUBE", "THE BLUE DANUBE", "JOHANN STRAUSS II", "THE SPACE LOUNGE"),
     "weasel": ("POP GOES THE...", "POP GOES THE WEASEL", "ENGLISH FOLK TUNE", "THE ZOO"),
+    "sailor": ("DRUNKEN SAILOR", "DRUNKEN SAILOR", "TRADITIONAL SHANTY", "THE CHROME COW"),
 }

@@ -334,7 +334,7 @@ def test_the_oh_susanna_song_data_is_the_owners_note_list():
 
 # ---- the nine tunes entered from docs/music_specs.md ------------------------------------------------------
 SPEC_TUNES = {1: "funicula", 2: "skaters", 3: "ballgame", 4: "mountain", 5: "weasel", 6: "danube", 7: "hall",
-              8: "sakura", 9: "entertainer", 10: "galop"}
+              8: "sakura", 9: "entertainer", 10: "galop", 11: "sailor"}
 
 
 def parse_specs():
@@ -373,7 +373,8 @@ def spec_bars_for_the_game(name, bars):
 
 # the spec's tempo (the game plays songs.GAME_BPM where that lists the tune): beats per minute and song rows per beat
 SPEC_BPM_ROWS = {"funicula": (92, 3), "skaters": (160, 2), "ballgame": (168, 2), "mountain": (160, 2), "weasel": (100, 3),
-                 "danube": (160, 2), "hall": (120, 2), "sakura": (100, 2), "entertainer": (90, 4), "galop": (160, 2)}
+                 "danube": (160, 2), "hall": (120, 2), "sakura": (100, 2), "entertainer": (90, 4), "galop": (160, 2),
+                 "sailor": (200, 2)}
 
 
 def test_the_nine_tunes_are_the_specs_token_for_token():

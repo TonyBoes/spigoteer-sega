@@ -4,7 +4,7 @@ Supplied by the owner (prepared with an internet-connected agent), 2026-10-09.
 These are the reference for tools/songs.py. Every tune is public domain; credit each SOURCE line in CREDITS.md.
 
 ```
-GAME BOY MELODY SPECS - 9 public-domain tunes
+GAME BOY MELODY SPECS - 11 public-domain tunes
 ==============================================
 Octave convention: C4 = middle C (261.6 Hz). "#" = sharp, "b" = flat.
 Format: NOTE+octave:length, separated by spaces, one bar per line.
@@ -409,4 +409,41 @@ Note: "D/A7" = D for the first half-bar, A7 for the second.
 Note: Bars 1-8 end on the dominant and 9-16 resolve, so the 16 bars loop cleanly. Play the quarter notes in bars 3, 5, 11 and 13 slightly detached for the galop bounce.
 Note: Bass works best as "oom-pah": root on beat 1, chord fifth on beat 2.
 Source: Owner-supplied; Offenbach, Orphée aux enfers (1858), Act II No. 15b, public domain
+
+------------------------------------------------------------
+11. DRUNKEN SAILOR (traditional sea shanty) - verse + chorus
+------------------------------------------------------------
+Added 2026-10-11 for The Chrome Cow (venue 7): the owner picked the tune ("Drunken Sailor", played fast and punky);
+the melody below is the engine agent's transcription of the traditional tune, not owner-supplied.
+Key: D Dorian (D minor with B natural)
+Time: 4/4
+Tempo: quarter = 200 (fast and punky)
+Game tempo: quarter = 200 (9 frames per eighth row). Last call in The Chrome Cow: 8 frames per row (225, "the band
+plays faster").
+Unit: 1 = eighth note (bar = 8)
+Length: 16 bars, no pickup.
+
+  [VERSE ("What shall we do with a drunken sailor", x3, "early in the morning")]
+ 1 | A4:2 A4:1 A4:1 A4:2 A4:1 A4:1   | Dm
+ 2 | A4:2 D4:2 F4:2 A4:2             | Dm
+ 3 | G4:2 G4:1 G4:1 G4:2 G4:1 G4:1   | C
+ 4 | G4:2 C4:2 E4:2 G4:2             | C
+ 5 | A4:2 A4:1 A4:1 A4:2 A4:1 A4:1   | Dm
+ 6 | A4:2 B4:2 C5:2 D5:2             | Dm
+ 7 | C5:2 A4:2 G4:2 E4:2             | C
+ 8 | D4:4 D4:4                       | Dm
+  [CHORUS ("Way hay and up she rises", x3, "early in the morning")]
+ 9 | A4:4 A4:4                       | Dm
+10 | A4:2 D4:2 F4:2 A4:2             | Dm
+11 | G4:4 G4:4                       | C
+12 | G4:2 C4:2 E4:2 G4:2             | C
+13 | A4:4 A4:4                       | Dm
+14 | A4:2 B4:2 C5:2 D5:2             | Dm
+15 | C5:2 A4:2 G4:2 E4:2             | C
+16 | D4:4 D4:4                       | Dm
+
+Note: Bars 1-8 and 9-16 end on D, so the 16 bars loop cleanly.
+Note: Bass works best as driving root eighth notes (punk), the fifth on the last two eighths of a bar.
+Confidence: High (the shanty's well-known melody: its first and third lines on A, the second a tone lower on G).
+Source: Traditional English sea shanty (19th century or earlier), public domain.
 ```
