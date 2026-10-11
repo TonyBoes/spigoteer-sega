@@ -212,6 +212,7 @@ void title_enter(void) BANKED {
     palette_t p;
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0;
+    music_fast = 0;                                   // (the jukebox plays every tune at its own pace)
     hide_all_sprites();
     if (!is_cgb) OBP1_REG = OBP1_MENU;               // (play used OBP1_PLAY)
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));

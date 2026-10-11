@@ -153,6 +153,15 @@ SHIFTS = [
 ]
 
 
+# Venue twists (docs/story.md "Chapters"; each changes one parameter or adds one small behaviour), per shift: bits of
+# goal_t.twist -> src/story.c story_twist. Only in story shifts (never the Opening shift unless listed, never arcade or a
+# boss fight: boss.c sets 0). TWIST_MOSH: the mosh pit (docs/minigames_bosses.md section 9; src/mosh.c), with
+# MOSH_LIMIT its x limit per shift; TWIST_FAST_TUNE: the venue's tune one frame a row faster (src/music.c music_fast).
+TWIST_MOSH, TWIST_FAST_TUNE = 0x01, 0x02
+TWISTS = {("BIKER", 1): TWIST_MOSH, ("BIKER", 2): TWIST_MOSH | TWIST_FAST_TUNE}   # (chapter suffix, shift): bits
+MOSH_LIMIT = {1: 88, 2: 72}       # Happy hour, Last call (owner 2026-10-11: on in Last call too, 48 px from the tap)
+
+
 def slot_skipped(kind, suffix):
     """A step of this kind in the chapter with this suffix is not built yet (STEP_SKIP)."""
     return kind in NOT_BUILT and suffix not in BUILT_SLOTS.get(kind, ())
@@ -172,8 +181,10 @@ def shift_list():
         row = []
         for k, sh in enumerate((op + ("normal", OPEN_WALK, OPEN_SPAWN), happy, lc)):
             t, n, f, secs, q, l1, l2, eng, pat, walk, spawn = sh
+            tw = TWISTS.get((c[0], k), 0)
             row.append({"name": SHIFT_NAMES[k], "type": t, "count": n, "flags": f, "secs": secs, "quota": q,
-                        "line1": l1, "line2": l2, "engine": eng, "pattern": pat, "walk": walk, "spawn": spawn})
+                        "line1": l1, "line2": l2, "engine": eng, "pattern": pat, "walk": walk, "spawn": spawn,
+                        "twist": tw, "mosh_limit": MOSH_LIMIT[k] if tw & TWIST_MOSH else 0})
         out.append(row)
     return out
 
@@ -728,9 +739,9 @@ def main():
     pat_ids = {n: i for i, n in enumerate(PATTERNS)}
     goals = []
     for row in shifts:
-        for sh in row:                     # type, count, flags, seconds, twist (hook), pattern, walk %, spawn %, quota, pad
-            goals += [sh["type"], sh["count"], sh["flags"], sh["secs"], 0, pat_ids[sh["pattern"]], sh["walk"],
-                      sh["spawn"], sh["quota"], 0]
+        for sh in row:                     # type, count, flags, seconds, twist bits, pattern, walk %, spawn %, quota,
+            goals += [sh["type"], sh["count"], sh["flags"], sh["secs"], sh["twist"], pat_ids[sh["pattern"]], sh["walk"],
+                      sh["spawn"], sh["quota"], sh["mosh_limit"]]   # the mosh pit's x limit (0: no mosh pit)
             goals += [ord(ch) for ch in sh["line1"].ljust(21, "\0")] + [ord(ch) for ch in sh["line2"].ljust(21, "\0")]
     GOAL_LEN = 10 + 42
     pats, pat_ofs = [], []
@@ -750,8 +761,8 @@ def main():
          carr("st_pid_spk", pid_spk),
          "// per scene: venue (255: a picture), picture (255: none), pages, portraits, their ids x3, 0, title",
          carr("st_scene_hdr", hdr), carr("st_names", names),
-         "// per chapter, per shift (opening, happy hour, last call): goal type, count, flags, timer seconds, twist (0:",
-         "// none; the twists are a later milestone), arrival pattern, walk %, spawn %, quota (0: the row's), pad, the two",
+         "// per chapter, per shift (opening, happy hour, last call): goal type, count, flags, timer seconds, twist bits",
+         "// (TWIST_*), arrival pattern, walk %, spawn %, quota (0: the row's), the mosh pit's x limit (0: none), the two",
          "// banner lines", carr("st_goals", goals),
          "// arrival patterns: entries (bar | wait code << 4) and per pattern its offset | length << 8",
          carr("st_pats", pats or [0]), carr("st_pat_ofs", pat_ofs, "uint16_t"),
@@ -888,6 +899,8 @@ def main():
           f"#define SPK_NARRATOR {NARRATOR}", f"#define STORY_SPEAKERS {len(SPEAKERS)}",
           f"#define G_SERVE {G_SERVE}", f"#define G_CATCH {G_CATCH}", f"#define G_CLEAR {G_CLEAR}",
           f"#define F_NO_TAP {F_NO_TAP}", f"#define F_NO_BREAK {F_NO_BREAK}",
+          f"#define TWIST_MOSH 0x{TWIST_MOSH:02X}       // goal_t.twist bits: the mosh pit (src/mosh.c), x limit in goal_t.pad",
+          f"#define TWIST_FAST_TUNE 0x{TWIST_FAST_TUNE:02X}  // the venue's tune one frame a row faster (src/music.c)",
           "// page text conditions: bits of story_conds (docs/story.md \"Script format\")"]
     H += [f"#define COND_{n} 0x{1 << (i - 1):02X}" for n, i in CONDITIONS.items()]
     H += ["",
@@ -922,7 +935,7 @@ def main():
           "    char title[21];",
           "} scene_hdr_t;",
           "typedef struct {",
-          "    uint8_t type, count, flags, secs, twist, pattern, walk, spawn, quota, pad;",
+          "    uint8_t type, count, flags, secs, twist, pattern, walk, spawn, quota, pad;   // pad: the mosh pit's limit",
           "    char line1[21], line2[21];",
           "} goal_t;                         // one shift's goal",
           "void story_scene_get(uint8_t s, uint8_t *dst) BANKED;   // dst: scene_hdr_t",

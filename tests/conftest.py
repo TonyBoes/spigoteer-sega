@@ -22,8 +22,35 @@ _rom_write = Rom.write
 
 
 def mark_lists_dirty(gb):
-    """Tell the game the patron lists must be rebuilt (after poking patron_state / patron_bar)."""
+    """Tell the game the patron lists must be rebuilt (after poking patron_state / patron_bar). PyBoy's frame ends a
+    few lines after the game's logic has begun (it starts in VBlank), so a poke can land in the middle of a frame's
+    logic, after main.c has looked at lists_dirty: lists_ok is cleared too, so the rest of that frame already
+    rebuilds them (every user checks lists_ok first). Otherwise a patron poked in then is composed from the old lists
+    (not drawn) on whichever frame the code layout puts it."""
     _rom_write(gb, "lists_dirty", 1)
+    _rom_write(gb, "lists_ok", 0)
+
+
+GS_PAUSED = 5
+
+
+class logic_paused:
+    """`with logic_paused(gb): ...` pokes made inside land between two whole game frames: the game runs one frame
+    paused first (update_patrons and the rest of the play logic skip it), so the pokes cannot fall halfway through a
+    frame's patron loop (PyBoy's frame ends a few lines after the game's logic has begun: see mark_lists_dirty); the
+    next frame plays them all. For a test whose patrons must all start on the same game frame."""
+    def __init__(self, gb):
+        self.gb = gb
+
+    def __enter__(self):
+        self.st = self.gb.mem("game_state")
+        self.gb.write("game_state", GS_PAUSED)
+        self.gb.run(1)
+        return self.gb
+
+    def __exit__(self, *exc):
+        self.gb.write("game_state", self.st)
+        return False
 
 
 def _list_ranges(gb):

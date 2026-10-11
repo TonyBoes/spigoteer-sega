@@ -25,6 +25,9 @@ static uint8_t ld_tune = TUNE_NONE;   // tune whose patterns are being copied (T
 static uint8_t ld_play;               // start it when the copy is done (else it is a preload)
 static const uint8_t *groove;         // the running tune's drum loop (NULL: none)
 static uint8_t g_pos, g_cnt;          // groove row, frames until it advances
+extern unsigned char hUGE_ticks_per_row;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
+uint8_t music_fast;                   // 1: a venue tune plays one frame a row faster (story: TWIST_FAST_TUNE)
+static uint8_t fast_now;              // the running tune plays fast
 static uint16_t ld_pos;               // bytes copied so far
 #define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
 #define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
@@ -90,6 +93,8 @@ void music_init(void) BANKED {
 
 static void start_song(uint8_t tune) {
     hUGE_init(tunes[tune].song);    // clears the driver's channel mute mask
+    fast_now = music_fast && tune >= TUNE_VENUE0;
+    hUGE_ticks_per_row -= fast_now;   // (the groove below follows: one frame less a row)
     muted = 0;
     mus_active = 1;
     music_frames = 0;
@@ -107,7 +112,8 @@ extern uint8_t story_on;
 void music_play(uint8_t tune) BANKED {
     uint8_t buf = tunes[tune].buf;
     if (story_on) tune_heard(tune);                 // the soundtrack player's unlocks (save.c), music on or off
-    if (sound_on && cur_tune == tune && tunes[tune].loop && (mus_active || ld_tune == tune)) return;
+    if (sound_on && cur_tune == tune && tunes[tune].loop && (mus_active || ld_tune == tune)
+        && fast_now == (music_fast && tune >= TUNE_VENUE0)) return;   // (a speed change restarts it)
     cur_tune = tune;
     if (!sound_on) return;
     if (buf && loaded[buf] != tune) {
@@ -182,7 +188,7 @@ static void voice_tick(uint8_t i) {
 static void groove_tick(void) {
     uint8_t d;
     if (!groove || --g_cnt) return;
-    g_cnt = groove[1];
+    g_cnt = groove[1] - fast_now;
     d = groove[2 + g_pos];
     if (++g_pos == groove[0]) g_pos = 0;
     if (d && !voice[1].busy) {

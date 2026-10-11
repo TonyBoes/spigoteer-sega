@@ -32,6 +32,8 @@ extern uint8_t last_sfx;        // id of the SFX started last (SFX_*), for tests
 extern uint8_t sfx_count[SFX_COUNT];   // how many times each SFX was started
 extern uint8_t cur_tune;        // TUNE_* playing (TUNE_NONE: silence)
 extern uint16_t music_frames;   // frames the music engine has ticked since the last tune started
+extern uint8_t music_fast;      // 1: venue tunes play one frame a row faster (a story shift's TWIST_FAST_TUNE: the band
+                                // speeds up in The Chrome Cow's Last call); set before the music_play that starts it
 
 void music_init(void) BANKED;               // sound hardware on, no tune
 void music_play(uint8_t tune) BANKED;       // start a tune (a looping tune already playing is left alone). A tune whose patterns

@@ -118,6 +118,7 @@ static void init_patron(uint8_t p) {
     patron_lift[p] = LIFT_BG;                         // (M13c: lift_spawn needs it; a test may have emptied a lifted slot)
     patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
     patron_dist[p] = 0; patron_facing[p] = 0; patron_catchx[p] = np_x; patron_drinks[p] = 0;
+    patron_shove[p] = patron_stag[p] = 0;             // (the mosh pit, src/mosh.c: a slot's old shove is not his)
     patron_draw[p] = np_x;                            // drawn where he stands, facing the bar: his 3 columns change
     np_x >>= 3;
     mark_dirty_attrs(np_b, np_x, np_x + 3);
@@ -292,6 +293,7 @@ static void caught(uint8_t i, uint8_t p) {
     }
     patron_state[p] = PATRON_PUSHED;
     patron_timer[p] = 0;
+    if (mosh_on) mosh_caught(p);                 // the mosh pit (src/mosh.c): a new push, a new bump
     {
         uint16_t d = (uint16_t)pushback_px * ++patron_drinks[p];     // 1st drink: pushback_px, 2nd: twice, ...
         patron_aux[p] = d > 255 ? 255 : d;
@@ -378,7 +380,8 @@ static uint8_t walker_pixel(uint8_t p, uint8_t f) {
 static uint8_t walking_step(uint8_t p) {
     uint8_t f, o;
     if (patron_dist[p]) return watch_step(p);           // distracted by the show: no walking
-    if (go_now) {
+    if (mosh_on && (patron_shove[p] | patron_stag[p])) mosh_step(p);   // shoved or staggering (src/mosh.c)
+    else if (go_now) {
         o = patron_frac[p];
         f = o + (patron_x[p] < ENTRY_X ? EMERGE_SPEED : patron_hurry[p] ? hurry_speed : patron_speed);   // (entering)
         if (f < o) {                                      // carried: one whole pixel
@@ -435,10 +438,11 @@ static uint8_t leaving_step(uint8_t p) {
 }
 
 // One px toward the left end. M13b: he slides through anyone in his way (lift.c lifts him over them); the push ends
-// only when it is used up or he reaches ENTRY_X (served, pushed_step).
+// only when it is used up or he reaches ENTRY_X (served, pushed_step). In the mosh pit he bumps the walker behind him.
 static void push_px(uint8_t p) {
     patron_x[p] -= PUSH_SPEED;
     if ((patron_aux[p] -= PUSH_SPEED) == 0) start_drinking(p);
+    if (mosh_on && !patron_mosh[p]) mosh_bump(p);        // the mosh pit (src/mosh.c): the walker behind him is shoved
 }
 
 // Pushed back by a caught mug: one px a frame toward the left end, then he drinks.
@@ -551,4 +555,5 @@ void update_patrons(void) {
     }
     patrons_live = live;
     if (spawned >= quota && patrons_live == 0 && mugs_live == 0) level_clear = 1;
+    if (mosh_on) mosh_frame();                    // the mosh pit's counter splash (src/mosh.c)
 }

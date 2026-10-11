@@ -74,7 +74,7 @@ uint8_t  story_catches, story_breaks, story_taps;   // this attempt: empties cau
 uint8_t  story_left;               // what is left of the goal's count (HUD)
 uint16_t story_timer;              // frames left of a timed goal (0: none / out)
 uint8_t  story_fails;              // goal failures so far (tests)
-uint8_t  story_twist;              // the shift's twist id (0 none): the hook for a later milestone
+uint8_t  story_twist;              // the shift's twist bits (TWIST_*, build/story.h; 0 none; a boss fight 0)
 uint8_t  story_step;               // the step of the chapter's sequence being played (0..STORY_STEPS-1)
 uint8_t  story_shift;              // the shift being played: 0 opening, 1 happy hour, 2 last call
 uint8_t  story_pen;                // lives the strict rule just cost (2, or 1 from the last one): the freeze's blink
@@ -355,6 +355,7 @@ static void scene_enter(uint8_t s) {
         bgn += pt.ntiles; objn += pt.nobjtiles;
     }
     page_begin(1);
+    music_fast = 0;                              // (a scene plays the venue's tune at its own pace)
     music_play(story_hdr.venue != 255 ? TUNE_VENUE0 + story_hdr.venue : TUNE_TITLE);
     game_state = GS_STORY;
     DISPLAY_ON;
@@ -432,7 +433,9 @@ static void shift_start(void) {
     }
     level = story_chapter + 1;                   // (lives: set by venue_start, carried from shift to shift)
     pour_load(story_chapter);                    // the perfect pour's frames and cue (LCD off; the venue = the chapter)
+    music_fast = (story_twist & TWIST_FAST_TUNE) != 0;   // the twist: the band plays faster (before the tune starts)
     enter_level_screen();                        // the venue's level (row level - 1), LCD on again, PLAYING
+    mosh_set(story_twist, story_goal.pad);       // the twist: the mosh pit (src/mosh.c), with this shift's limit; else off
     shift_pace();
     if (boss_on) boss_begin();                   // the regulars' bars (never his), no tips, his face and meter on the HUD
     story_catches = story_breaks = story_taps = 0;
@@ -441,7 +444,6 @@ static void shift_start(void) {
     st_secs = story_goal.secs;
     story_timer = (uint16_t)story_goal.secs * 60;
     hud_goal();
-    // the twists (a later milestone) hook in here, per shift: story_twist names the shift's twist, 0 none
     overlay_on = 1;
     LYC_REG = GOAL_LYC;
     story_phase = SP_GOAL; story_t = 0;

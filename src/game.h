@@ -400,4 +400,20 @@ void boss_begin(void) BANKED;           // story shift_start, after the pace: th
 uint8_t boss_frame(void) BANKED;        // story_play, every PLAYING frame of a fight; 1: he is satisfied (the outro)
 uint8_t boss_outro(uint8_t t) BANKED;   // story_update, frame t of the outro; 1: over (CHAPTER CLEAR)
 void boss_draw(void) BANKED;            // pour_frame (last of the frame's sprites): the topper, within 10 a line
+// ---- mosh.c (banked, the mosh pit: The Chrome Cow's twist, docs/minigames_bosses.md section 9; ROM0 hooks in patrons.c,
+// each behind a test of mosh_on). A served patron sliding back bumps the walker behind him (0 <= P.x - Q.x <=
+// MOSH_CONTACT), who is shoved MOSH_SHOVE_PX toward the tap at MOSH_SPEED px a frame (never past mosh_limit), then
+// staggers MOSH_STAGGER frames; one bump per push (patron_mosh[P]), a counter splash under the contact.
+#define MOSH_CONTACT    12
+#define MOSH_SHOVE_PX   16
+#define MOSH_SPEED       2
+#define MOSH_STAGGER    30
+#define MOSH_SPLASH     30      // frames the counter splash shows
+extern uint8_t mosh_on, mosh_limit, mosh_count;   // on (this shift), the x a shove never passes, shoves + jostles so far
+extern uint8_t patron_shove[MAX_PATRONS], patron_stag[MAX_PATRONS], patron_mosh[MAX_PATRONS];   // px left, frames, bumped
+void mosh_set(uint8_t twist, uint8_t limit) BANKED;   // story shift_start (twist bits, the shift's limit); 0: off
+void mosh_bump(uint8_t p) BANKED;       // patrons.c push_px: pushed p has stepped; mosh_on and his bump not used yet
+void mosh_step(uint8_t p) BANKED;       // patrons.c walking_step: walker p is being shoved or staggers (instead of a walk)
+void mosh_caught(uint8_t p) BANKED;     // patrons.c caught: p caught a glass (a new push: his bump is free again)
+void mosh_frame(void) BANKED;           // patrons.c update_patrons, every frame while on: the counter splash's timer
 #endif

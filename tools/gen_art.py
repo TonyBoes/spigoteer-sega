@@ -348,6 +348,7 @@ def venues(outdir, prev):
          "    uint8_t anim_script_n, anim_first, anim_k;   // script bytes; first animated stage id, animated tiles",
          "    uint8_t show_band;                           // 0: one dance for all three (row = dance frame); 1: a band",
          f"    uint8_t show_tile[{SHOW_ROWS}][4];             // per row: OBJ tile offsets from OBJ_DANCER, TL TR BL BR",
+         "    uint8_t splash_tile;                         // the counter splash's BG id (assets/art/splash; 0: none)",
          "} venue_t;",
          f"#define SHOW_ROWS {SHOW_ROWS}                 // a band's performer k shows row 2k + (beat & 1) (src/render.c)",
          "extern venue_t venue;            // the current level's venue (WRAM copy, src/venue.c)",
@@ -414,6 +415,16 @@ def venues(outdir, prev):
         if ftile not in buniq:
             buniq.append(ftile)
         fid = buniq.index(ftile)
+        # an optional counter splash (assets/art/splash/<t>.txt, 8x8, the bar palette): a venue twist's cue drawn over
+        # a counter-row tile (the mosh pit, src/mosh.c), loaded with the bar set; venue.splash_tile 0: none
+        spath = ROOT / "assets/art/splash" / f"{t}.txt"
+        sid = None
+        if spath.exists():
+            sp = tuple(plain_rows(spath))
+            assert len(sp) == 8 and all(len(r) == 8 for r in sp), f"{spath}: not 8x8"
+            if sp not in buniq:
+                buniq.append(sp)
+            sid = buniq.index(sp)
         if len(suniq) + len(buniq) > VENUE_POOL:
             sys.exit(f"gen_art: venue {t}: stage has {len(suniq)} unique tiles ({a_first} static + {len(akeys)} "
                      f"animated) and bar + floor {len(buniq)}: the pool holds {VENUE_POOL}")
@@ -462,11 +473,13 @@ def venues(outdir, prev):
               "    { " + ", ".join(arr(x) for x in pal15) + " },",
               (f"    {sym}_anim_frames, {sym}_anim_script, {len(anim['data'])}, {len(ascript)}, {a_first}, {anim['k']},"
                if anim else "    0, 0, 0, 0, 0, 0,"),
-              f"    {band}, {{ " + ", ".join(arr(r) for r in show_tab) + " }", "};", ""]
+              f"    {band}, {{ " + ", ".join(arr(r) for r in show_tab) + " },", f"    {bar_base + sid if sid is not None else 0}",
+              "};", ""]
         (outdir / f"{sym}.c").write_text("\n".join(vc))
         load += [f"BANKREF_EXTERN({sym})", f"extern const venue_t {sym};"]
         cases.append(f"    case {ti}: far_copy(&venue, &{sym}, sizeof venue, BANK({sym})); venue_bank = BANK({sym}); break;")
         info["venues"][t] = {"stage_n": len(suniq), "bar_n": len(buniq), "bar_base": bar_base, "floor_tile": bar_base + fid,
+                             "splash_tile": bar_base + sid if sid is not None else 0,
                              "stage_map": abs_smap, "stage_attr": abs_sattr, "bar_map": abs_bmap, "bar_attr": abs_battr,
                              "pal": pal15, "drink": dtile[:20 * 16], "crash": dtile[20 * 16:], "show": stiles,
                              "show_band": band, "show_table": show_tab, "show_frames": len(shows), "stage_tiles": stile, "bar_tiles": btile,

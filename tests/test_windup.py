@@ -1,7 +1,7 @@
 # M8d: a finished drinker sips on (no frozen hold), winds up (draws the empty back, swings it forward) before sending the empty, can catch a new full mug
 # while he waits (his empty goes at once), and the bartender standing on him takes the glass.
 import pytest
-from conftest import GAME, bar_top_y
+from conftest import GAME, bar_top_y, logic_paused
 from test_patrons import (DRINK_MIN, DRINK_WAIT, DRINK_WINDUP, DRINKING, EMPTY, FULL, HELD, MAX_M, MAX_P, PUSHED,
                           PX, TAP_X, WALKING, WINDUP, catch_frames, clear_patrons, drinker_with_mug, freeze,
                           inject_mug, mugs, put, score)
@@ -99,7 +99,8 @@ def test_empties_arrive_empty_gap_apart_counting_the_windup(gb):
     clear_patrons(gb)
     freeze(gb)
     gap = gb.mem("empty_gap")
-    ps = [drinker_with_mug(gb, 0, x, DRINK_FRAMES - 1) for x in (80, 40, 0)]
+    with logic_paused(gb):                       # (all three finish on the same game frame, whatever the code layout)
+        ps = [drinker_with_mug(gb, 0, x, DRINK_FRAMES - 1) for x in (80, 40, 0)]
     ms = [gb.read("patron_mug", MAX_P)[p] for p in ps]
     arrived, sent, prev = {}, {}, [HELD] * 3
     for f in range(500):

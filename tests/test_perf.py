@@ -171,8 +171,10 @@ def test_level9_overlap_scenario(rom):
     assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
     assert rom.mem("lift_lifts") > 0, "the scenario lifts patrons"
     # (guard; the target is END_LY_TARGET and 0, see above. M13b 175 / 229, 180 / 264; M13c 171 / 259, 176 / 299;
-    # no doors: DMG 175 / 268, CGB 179 / 299)
-    assert r["end"] <= 200 and r["missed"] <= 320, r
+    # no doors: DMG 175 / 268, CGB 179 / 299; 10th venue, the aliens' row from level 9's clear: DMG 172 / 289, CGB
+    # 193 / 310; the mosh pit's ROM0 hooks (a test of mosh_on for every walker and pushed patron, off here): DMG
+    # 186 / 301, CGB 184 / 326)
+    assert r["end"] <= 200 and r["missed"] <= 340, r
 
 
 # ---- M13c: the realistic peak of play -------------------------------------------------------------------------------

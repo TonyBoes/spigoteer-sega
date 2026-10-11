@@ -203,6 +203,7 @@ void start_new_game(uint8_t lv) BANKED {
     lives = START_LIVES; level = lv; score = 0; bonus_round = 0; story_on = 0;
     pour_q = 0;                                  // arcade: never a perfect pour (src/pour.c runs in story only)
     pat_len = 0;                                 // arcade: the normal random arrivals (a story shift sets a pattern)
+    music_fast = 0; mosh_set(0, 0);              // arcade: no venue twists (a story shift sets them)
     boss_set(BOSS_NONE);                         // (the debug menu may leave a story boss fight)
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     enter_level_screen();

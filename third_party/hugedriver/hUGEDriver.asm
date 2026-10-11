@@ -60,6 +60,8 @@ pattern3: dw
 pattern4: dw
 
 ;; How long a row lasts in ticks (1 = one row per call to `hUGE_dosound`, etc. 0 translates to 256)
+;; tapper-gb: exported under a C name so src/music.c can play a tune one tick a row faster (set right after hUGE_init)
+_hUGE_ticks_per_row::
 ticks_per_row: db
 
 _hUGE_current_wave::
