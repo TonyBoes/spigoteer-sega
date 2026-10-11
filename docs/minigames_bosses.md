@@ -14,7 +14,8 @@ same day). The order: saloon, stadium, lodge, bistro, igloo, factory, The Chrome
 in story and arcade. Its boss **Duke**
 is section 3.12, its mini-game **Milk Run** section 4.10 and its twist, the **mosh pit**, section 9. They are numbered
 last so the existing section references stay; the summary tables list them in chapter order. The engine checklist
-for a 10th venue is docs/venue10_impact.md.
+for a 10th venue is docs/venue10_impact.md. Owner (2026-10-11): the name **The Chrome Cow** is final; questions 11
+(mosh pit in Last call: on) and 12 (its tune: "Drunken Sailor", fast and punky) are answered in section 8.
 
 Structure the owner approved, per chapter:
 
@@ -187,6 +188,8 @@ five segments: OPEN, HAPPY, MINI, LAST, BOSS. A segment index `story_seg` (0-4) 
 - Title menu gains PRACTICE once story mode has cleared its first segment (progress > 0 or seg > 0). Rows: ARCADE / STORY / CONTINUE / PRACTICE / MUSIC: the title's text rows move up one
   (rows 4/6/8/10/12, HI row 14): a title.c layout change, `MENU_STRINGS` gains "PRACTICE".
   (Bonus menu, 2026-10-10: the title now also has BONUS and its HI line on row 0; PRACTICE's rows: PLAN.md "Bonus menu and soundtrack as built".)
+  (Owner, 2026-10-11: the title menu is PLAY / BONUS / SETTINGS with submenus; PRACTICE becomes BONUS's second item,
+  after SOUNDTRACK, so the top level and its rows do not change: PLAN.md "Title submenus as built".)
 - Practice screen (new, banked, HUD style like the scores table): rows 3-12 list the chapter's five segments, the
   chapter number and venue name on row 2; Left/Right changes chapter (1-9, then FINALE; 1-10 with The Chrome Cow), Up/Down the segment, A
   starts it. Locked segments show "- - -". The best score is on the right.
@@ -1680,11 +1683,21 @@ same change when the segment flow is built.
 
 PROPOSAL (2026-10-10), new questions for The Chrome Cow:
 
-11. **Mosh pit in Last call?** On in Happy hour as every twist; recommended on in Last call too (the venue's
-    identity; the shove then stops 48 px from the tap instead of 32). Or Happy hour only?
-12. **The Chrome Cow's tune**: a public-domain piece the house band plays loud and fast, e.g. "Ride of the
-    Valkyries" (Wagner, 1856) or "The Stars and Stripes Forever" (Sousa, 1896), entered as a melody spec in
-    docs/music_specs.md like the others. Last call plays it 15 % faster ("the band plays faster").
+**Owner's answers (2026-10-11):**
+- The name **The Chrome Cow** is final.
+- Q11: the mosh pit is on in Last call too ("sure, we'll try it"): Happy hour and Last call (limit x 72 there).
+- Q12: the owner wants "fast punky or shanty": the tune is **"Drunken Sailor"** (traditional sea shanty, public
+  domain), played fast and punky; a melody spec in docs/music_specs.md like the others when the venue is built.
+  Last call plays it 15 % faster ("the band plays faster").
+- Title menu (not a numbered question): PLAY / BONUS / SETTINGS, each a submenu. PLAY: [CONTINUE] / STORY / ARCADE;
+  BONUS: SOUNDTRACK (PRACTICE planned as its second item); SETTINGS: MUSIC ON-OFF. MUSIC stays a setting (it does
+  not move into BONUS) and BONUS opens a submenu, no longer the soundtrack directly (PLAN.md "Title submenus as
+  built").
+
+11. **Mosh pit in Last call?** Answered (owner, 2026-10-11): on in Last call too (the shove then stops 48 px from
+    the tap instead of 32).
+12. **The Chrome Cow's tune**: answered (owner, 2026-10-11): "Drunken Sailor" (traditional sea shanty, public
+    domain), fast and punky. Last call plays it 15 % faster ("the band plays faster").
 13. **Saves past chapter 6** when the 10th venue ships: a save that had reached the teahouse or later goes back to
     the start of The Chrome Cow (recommended: the story never skips the drip tray, and the finale's "ten pieces"
     stays true), or keeps its count and skips the new chapter? Details in docs/venue10_impact.md.
@@ -1768,7 +1781,7 @@ unchanged):
 |---|---|
 | Opening shift | off: the venue is taught first |
 | Happy hour | **on**: the chapter's twist, as in every venue |
-| Last call | **on**, recommended (limit x 72); the owner decides (question 11) |
+| Last call | **on** (limit x 72; owner, 2026-10-11, question 11) |
 | mini-game, boss | off: bosses play by the same rules everywhere (Duke's gang arrives in chords instead) |
 | arcade | off: arcade keeps the plain rules, as with every twist |
 

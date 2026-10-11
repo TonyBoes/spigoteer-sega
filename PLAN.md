@@ -1299,7 +1299,8 @@ unchanged; src/story.c gains one function at its end under `#ifdef DEBUG_MENU` (
   (TT_PATRON_BASE 224 of 233), enough for PRACTICE (its letters but P are already aligned tiles). K_* moved to game.h
   (debug.c reads the item under the cursor). Goldens replaced on purpose: title, title_anim, title_continue.
 - BONUS goes straight to the soundtrack (decision: a one-item submenu is a press for nothing; when a second extra
-  exists, BONUS becomes a list with SOUNDTRACK first). src/jukebox.c, its own autobanked file; GS_JUKEBOX (main.c: one
+  exists, BONUS becomes a list with SOUNDTRACK first). Superseded 2026-10-11 by the owner's submenus: BONUS opens a
+  submenu, SOUNDTRACK its first item (see "Title submenus as built" below). src/jukebox.c, its own autobanked file; GS_JUKEBOX (main.c: one
   case line).
 - The screen, scores-table style (light HUD glyphs + the story font's punctuation on the dark band, HUD palette): row 0
   SOUNDTRACK, row 1 a panel line; rows 2-11 the list, 10 lines visible, scrolling to keep the selection on screen
@@ -1348,3 +1349,40 @@ unchanged; src/story.c gains one function at its end under `#ifdef DEBUG_MENU` (
   it / bad progress. tests/test_scores.py has v5_image / progress_unlocks / saved_tunes; the older SRAM tests now
   expect version 5 written back. New golden: jukebox (dmg + cgb: OH! SUSANNA playing, some tunes locked).
 
+
+## Title submenus as built (owner, 2026-10-11)
+
+Owner: "use a sub menu scheme. Top level - play, bonus, settings". This answers where MUSIC goes (a setting, not
+into BONUS) and what BONUS opens (a submenu, not the soundtrack directly).
+- Top level PLAY / BONUS / SETTINGS (rows 7 / 9 / 11). A or START opens the item's submenu in the same place (the
+  logo, the HI line, the bar scene and the bubbles go on untouched); B in a submenu goes back to the top level with
+  the cursor on the item it came from; B on the top level does nothing. Up / Down wrap in every menu.
+- PLAY: [CONTINUE] / STORY / ARCADE. Decision: CONTINUE first when a story save exists (the likeliest choice for a
+  returning player, so A, A resumes), then STORY, ARCADE last; without a save STORY / ARCADE (rows 8 / 10), with it
+  rows 7 / 9 / 11. BONUS: SOUNDTRACK (row 9); PRACTICE goes in as its second item when it is built, so the top
+  level never changes. SETTINGS: MUSIC ON-OFF (row 9), the same toggle and session behaviour as before (not saved
+  to SRAM, as before); SELECT still toggles the music on any menu level.
+- The soundtrack player's B comes back to the BONUS submenu (title_back = TM_BONUS, used once by title_enter); every
+  other way to the title (game over, the top-5 table, the story's credits, a mini-game's B) opens the top level.
+- Debug select (src/debug.c unchanged in code): it reads the item under the cursor, so PLAY's STORY / CONTINUE open
+  the story box; PLAY's ARCADE, the top level (PLAY included: no mode is chosen yet, and the arcade box is what
+  every non-story item gave before) and the BONUS / SETTINGS submenus open the arcade box. B leaves the menu as it
+  was.
+- src/title.c (banked): title_menu (TM_*), title_back, title_dirty (rows to redraw) beside title_sel / title_items /
+  title_n / title_rows; K_* gained K_PLAY / K_SETTINGS / K_SOUNDTRACK and TM_* is new (game.h). menu_open() builds a
+  menu and marks the old and new rows; menu_frame() queues them within the VBlank drain's budget, at most two 20-byte
+  copies a frame (a CGB text row is tiles + attributes; a blank row needs no attributes), none on a frame whose cursor
+  move already queued two: a switch takes 2-5 frames. (Three rows a frame broke the drain budget tests: 14-20 DIV
+  ticks against 12.) New text PLAY, SETTINGS, SOUNDTRACK (tools/gen_art.py MENU_STRINGS): TT_PATRON_BASE 224 -> 229 of
+  233, 4 ids left.
+- Cost: ROM0 none (1429 B free in game.gb, 1542 B in release.gb, before and after). WRAM +37 B (_DATA 6314 ->
+  6351; release 6306 -> 6343): menu line buffers 3 x 20 + a blank row, title_menu / title_back / title_dirty, minus
+  the old row_story / row_music / music_row and title_items / title_rows 6 -> 3.
+- Tests: conftest.py has the menu helpers (title_pick, title_arcade, menu_to, menu_tap, K_* / TM_*); every test that
+  started a game with START on the title now goes PLAY > ARCADE. tests/test_flow.py: the top level centred, Up / Down
+  wrap, each submenu opens in place and B returns with the cursor on its item, CONTINUE only with a save (first,
+  rows 7-11), START works as A, the MUSIC toggle in SETTINGS and SELECT on any level, the redraw within the drain
+  budget; test_jukebox.py: BONUS > SOUNDTRACK opens the player and B comes back to BONUS; test_debug.py: the box
+  follows PLAY's cursor (STORY / ARCADE / the top level). New goldens title_play, title_bonus, title_settings.
+  Replaced on purpose (the menu's text only): title, title_anim, title_continue (now the PLAY submenu with a save),
+  debug_story (the PLAY submenu behind the box).

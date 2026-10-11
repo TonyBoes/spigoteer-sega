@@ -7,7 +7,9 @@ chapter goals, M11c the art. Everything below is original writing.
 in Fizzwater, all mohawks, leather and studs, and everyone in it very politely orders an ice-cold glass of milk. It
 becomes chapter 7, before the teahouse, in story and arcade order. Owner's second decision (same day): the space
 lounge moves to the end. The new order: 1 saloon, 2 stadium, 3 lumber lodge, 4 bistro, 5 igloo, 6 robot factory,
-7 The Chrome Cow, 8 teahouse, 9 jungle zoo, 10 space lounge. Difficulty stays tied to the position, not the venue:
+7 The Chrome Cow, 8 teahouse, 9 jungle zoo, 10 space lounge. Owner's decisions (2026-10-11): the name **The Chrome
+Cow** is final; the mosh pit is on in its Last call too ("sure, we'll try it"); its tune is "Drunken Sailor"
+(traditional sea shanty, public domain), played fast and punky. Difficulty stays tied to the position, not the venue:
 the zoo takes the goals and pace chapter 9 had, space those of the last chapter, and space now leads into the finale
 (the "last piece", "all ten pieces" and Dregs's rescue beats move from the zoo to space).
 Owner **Granny Throttle**, piece the **drip tray**, twist the **mosh pit** (docs/minigames_bosses.md section 9),
@@ -113,7 +115,7 @@ position: chapters 7 and 8 keep the +15 % / -15 % Last call of the middle chapte
 space lounge's old numbers (12 / 25 / 28, +20 % / -20 %), and chapter 10 (the space lounge) takes the zoo's old goals
 (15 / 30 / 32) with a Last call one step harder than any other (+25 % / -25 %), so the last chapter is the hardest.
 Each venue keeps its own arrival pattern, twist and wording. The Chrome Cow's mosh pit is on in its Happy
-hour, as every twist, and (recommended) in its Last call too; never in the Opening shift or the boss fight.
+hour, as every twist, and in its Last call too (owner, 2026-10-11); never in the Opening shift or the boss fight.
 
 | # | Opening shift (in-world / engine) | Happy hour | Last call | Last call arrivals |
 |---|---|---|---|---|
