@@ -166,15 +166,15 @@ def snapshot(gb):
 # ---- the data ------------------------------------------------------------------------------------------------------
 def test_the_table_has_a_row_per_venue_and_only_the_saloon_is_built():
     """BOSS_COUNT rows (a 10th venue adds a row, not a constant), Big Tex's as in spec 3.2 / 3.3; the saloon's boss slot
-    is the only one built in the story data; the art is a placeholder of the right size."""
+    is the only one built in the story data; Big Tex's art is approved, the meter a placeholder; the right size."""
     assert re.search(r"#define BOSS_COUNT\s+10\b", (ROOT / "src" / "game.h").read_text())
     assert "rows[BOSS_COUNT]" in BOSS_C
     assert ROW == dict(width=40, x=16, bar=1, step=120, push=16, gulp=40, hands=3, sip=60, meter=8, hat=16)
     assert (LINE1, LINE2) == ("BIG TEX RIDES IN", "QUENCH HIM 8 MUGS")
     assert BOSS_BUILT == {0} and BOSS_STEP == 4
     assert len(TEX["pairs"]) <= ART["pairs_max"] == 30 and TEX["cols"] == 5 and len(TEX["pose"]) == 5
-    for f in ("big_tex.txt", "meter.txt"):
-        assert "PLACEHOLDER: art proposal pending owner approval" in (ROOT / "assets/art/boss" / f).read_text()
+    assert "PLACEHOLDER: art proposal pending owner approval" in (ROOT / "assets/art/boss/meter.txt").read_text()
+    assert "; Art: approved design" in (ROOT / "assets/art/boss/big_tex.txt").read_text()
 
 
 # ---- the fight -----------------------------------------------------------------------------------------------------
