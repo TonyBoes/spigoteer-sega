@@ -20,7 +20,9 @@ not the speaker's, that overlaps another variant of his or that no page uses (as
 also on a shift (SHIFTS, the shifts table of docs/story.md) whose engine goal or last-call pattern disagrees with the
 table, a banner line over 20 or outside the HUD glyphs, speeds outside the sane limits, an opening that is not about half
 the goal and slower, a last call that is not faster with its own pattern (nine different ones), a timed goal that too
-few patrons arrive for, or an arrival pattern that changes the arrival rate (check_shifts).
+few patrons arrive for, or an arrival pattern that changes the arrival rate (check_shifts). Page text variants
+("SPEAKER IF COND" blocks, CONDITIONS): also on an unknown condition, a variant with no page above it, of another
+speaker, with the same text as its page, or a second variant with the same condition on one page.
 Usage: gen_story.py outdir previewdir
 """
 import json
@@ -76,6 +78,15 @@ CHAPTERS = [
     ("ZOO", 8, G_SERVE, 30, 0, 0, "SERVE 30 ANIMALS", "", "serve 30"),
 ]
 PICTURE_SCENES = ["INTRO", "FINALE", "CREDITS"]
+# Page text variants (docs/story.md "Script format"): a page may carry variants "SPEAKER IF COND" whose lines replace
+# its own when the condition holds (the first that holds, in script order). Condition ids 1-8: bit id - 1 of src/story.c
+# story_conds, set and cleared by the engine; the data stores the id (one byte per variant page). The page's portrait
+# and speaker stay the page's.
+CONDITIONS = {
+    "GLASS_BROKEN": 1,           # a glass broken (the life it cost: the strict rule's event in chapter 7) in the venue
+                                 # attempt just played: set in story_play, cleared by venue_start (a chapter's first
+                                 # entry from its PRE scene, a restart after the last life, CONTINUE)
+}
 
 # ---- story shifts (src/story.c): each chapter plays its venue several times in a row ------------------------------
 # The chapter's sequence: Opening shift, Happy hour (the CHAPTERS goal above), the mini-game slot, Last call, the boss
@@ -217,13 +228,19 @@ class StoryError(Exception):
     pass
 
 
+COND_NAME = {i: n for n, i in CONDITIONS.items()}
+assert all(1 <= i <= 8 for i in CONDITIONS.values()) and len(COND_NAME) == len(CONDITIONS)
+
+
 def fail(msg):
     raise StoryError(msg)
 
 
 # ---- the script --------------------------------------------------------------------------------------------------
 def parse_script(path):
-    """-> [{"id", "title", "pages": [(speaker, [lines])]}] in the order of docs/story.md."""
+    """-> [{"id", "title", "pages": [(speaker, [lines])], "alts": per page [(condition id, [lines])]}] in the order of
+    docs/story.md. A block whose speaker line reads "SPEAKER IF COND" is a text variant of the page right above it
+    (same speaker, a CONDITIONS name, other text): the engine shows its lines instead when the condition holds."""
     text = path.read_text()
     scenes = []
     for m in re.finditer(r'^### (\w+): "([^"]*)"\n(.*?)(?=^### |^## |\Z)', text, re.S | re.M):
@@ -231,11 +248,17 @@ def parse_script(path):
         code = re.search(r"^```\n(.*?)^```", body, re.S | re.M)
         if not code:
             fail(f"{sid}: no script block")
-        pages = []
+        pages, alts = [], []
         for blk in re.split(r"\n\s*\n", code.group(1).strip("\n")):
             lines = [l.rstrip() for l in blk.split("\n")]
             spk, body_lines = lines[0], lines[1:]
-            where = f"{sid} page {len(pages) + 1}"
+            cond = None
+            m2 = re.fullmatch(r"(\S+) IF (\S+)", spk)
+            if m2:                              # a text variant of the page above (CONDITIONS)
+                spk, cond = m2.groups()
+                where = f"{sid} page {len(pages)} variant IF {cond}"
+            else:
+                where = f"{sid} page {len(pages) + 1}"
             if spk not in SPEAKERS:
                 fail(f"{where}: unknown speaker {spk!r}")
             if not 1 <= len(body_lines) <= PAGE_LINES:
@@ -246,10 +269,24 @@ def parse_script(path):
                 bad = set(l) - CHARSET
                 if bad:
                     fail(f"{where}: {l!r} has characters outside the font: {''.join(sorted(bad))!r}")
+            if cond is not None:
+                if cond not in CONDITIONS:
+                    fail(f"{where}: unknown condition {cond!r} (known: {', '.join(CONDITIONS)})")
+                if not pages:
+                    fail(f"{where}: a variant needs the page it replaces right above it")
+                if SPEAKERS.index(spk) != pages[-1][0]:
+                    fail(f"{where}: the variant's speaker must be the page's ({SPEAKERS[pages[-1][0]]})")
+                if any(c == CONDITIONS[cond] for c, _ in alts[-1]):
+                    fail(f"{where}: a second variant IF {cond} of one page")
+                if body_lines == pages[-1][1]:
+                    fail(f"{where}: the same text as the page it replaces")
+                alts[-1].append((CONDITIONS[cond], body_lines))
+                continue
             pages.append((SPEAKERS.index(spk), body_lines))
+            alts.append([])
         if len(title) > 20 or set(title) - CHARSET:
             fail(f"{sid}: title {title!r} (max 20, the story charset)")
-        scenes.append({"id": sid, "title": title, "pages": pages})
+        scenes.append({"id": sid, "title": title, "pages": pages, "alts": alts})
     want = ["INTRO"] + [f"{k}_{c[0]}" for c in CHAPTERS for k in ("PRE", "POST")] + ["FINALE", "CREDITS"]
     if [s["id"] for s in scenes] != want:
         fail(f"scene order {[s['id'] for s in scenes]} != {want}")
@@ -649,7 +686,16 @@ def main():
     scene_ofs = []
     for s in scenes:
         scene_ofs.append(len(text))
-        for pid, (_, lines) in zip(s["pids"], s["pages"]):
+        for pid, (_, lines), alts in zip(s["pids"], s["pages"], s["alts"]):
+            if pid >= 0x80:
+                fail(f"portrait id {pid}: bit 7 of the page byte marks a variant")
+            # a page's variants first (portrait id | 0x80, the condition id, the lines), then the page itself
+            for cond, vl in alts:
+                text += [pid | 0x80, cond]
+                for i in range(PAGE_LINES):
+                    l = vl[i] if i < len(vl) else ""
+                    text.append(len(l))
+                    text += [ord(ch) for ch in l]
             text.append(pid)
             for i in range(PAGE_LINES):
                 l = lines[i] if i < len(lines) else ""
@@ -686,7 +732,7 @@ def main():
     d = ["// generated by tools/gen_story.py from docs/story.md -- do not edit",
          "#pragma bank 255", "#include <gb/gb.h>", "#include <gb/cgb.h>", "#include <stdint.h>", '#include "story.h"', "",
          "// the script: per page the portrait id (the speaker's own, or a variant of his), then 3 lines of (length,",
-         "// characters)",
+         "// characters); before a page its text variants: the portrait id | 0x80, the condition id, 3 lines",
          carr("st_text", text), carr("st_scene_ofs", scene_ofs, "uint16_t"),
          "// portrait id -> its speaker (the speaker's own id: his main portrait; NARRATOR: none)",
          carr("st_pid_spk", pid_spk),
@@ -707,12 +753,23 @@ def main():
           "    uint8_t i;",
           f"    for (i = 0; i < {SCENE_HDR}; i++) dst[i] = p[i];",
           "}", "",
-          "// page p of scene s: dst[0] the speaker, dst[1..54] the three lines padded with spaces, dst[55] the portrait",
-          "void story_page_get(uint8_t s, uint8_t p, uint8_t *dst) BANKED {",
+          "// page p of scene s: dst[0] the speaker, dst[1..54] the three lines padded with spaces, dst[55] the portrait;",
+          "// the text is its first variant whose condition is set in conds (bit id - 1), else the page's own",
+          "void story_page_get(uint8_t s, uint8_t p, uint8_t conds, uint8_t *dst) BANKED {",
           "    const uint8_t *q = st_text + st_scene_ofs[s];",
           "    uint8_t i, k, n;",
-          "    while (p--) { q++; for (k = 0; k < 3; k++) q += 1 + *q; }",
-          "    k = *q++; dst[55] = k; *dst++ = st_pid_spk[k];",
+          "    for (;;) {",
+          "        k = *q;",
+          "        if (k & 0x80) {                       // a variant (they come before their page)",
+          "            if (!p && ((conds >> (q[1] - 1)) & 1)) break;",
+          "            q++;",
+          "        } else if (!p) break;",
+          "        else p--;",
+          "        q++; for (k = 0; k < 3; k++) q += 1 + *q;",
+          "    }",
+          "    k = *q++;",
+          "    if (k & 0x80) { k &= 0x7F; q++; }",
+          "    dst[55] = k; *dst++ = st_pid_spk[k];",
           "    for (k = 0; k < 3; k++) {",
           "        n = *q++;",
           "        for (i = 0; i < 18; i++) *dst++ = i < n ? q[i] : ' ';",
@@ -818,7 +875,10 @@ def main():
     H += [f"#define STORY_CHAPTERS {len(CHAPTERS)}   // chapter c: SC_PRE = 1 + 2c, SC_POST = 2 + 2c",
           f"#define SPK_NARRATOR {NARRATOR}", f"#define STORY_SPEAKERS {len(SPEAKERS)}",
           f"#define G_SERVE {G_SERVE}", f"#define G_CATCH {G_CATCH}", f"#define G_CLEAR {G_CLEAR}",
-          f"#define F_NO_TAP {F_NO_TAP}", f"#define F_NO_BREAK {F_NO_BREAK}", "",
+          f"#define F_NO_TAP {F_NO_TAP}", f"#define F_NO_BREAK {F_NO_BREAK}",
+          "// page text conditions: bits of story_conds (docs/story.md \"Script format\")"]
+    H += [f"#define COND_{n} 0x{1 << (i - 1):02X}" for n, i in CONDITIONS.items()]
+    H += ["",
           "// story shifts: each chapter is a sequence of steps (shifts; mini-game and boss slots, skipped until built)",
           f"#define STORY_SHIFTS {len(SHIFT_NAMES)}",
           "#define STORY_SHIFT_NAMES { " + ", ".join(f'"{n}"' for n in SHIFT_NAMES) + " }   // the goal banner",
@@ -854,7 +914,7 @@ def main():
           "    char line1[21], line2[21];",
           "} goal_t;                         // one shift's goal",
           "void story_scene_get(uint8_t s, uint8_t *dst) BANKED;   // dst: scene_hdr_t",
-          "void story_page_get(uint8_t s, uint8_t p, uint8_t *dst) BANKED;   // dst[56]: speaker, 3 x 18 characters, portrait",
+          "void story_page_get(uint8_t s, uint8_t p, uint8_t conds, uint8_t *dst) BANKED;   // dst[56]: speaker, 3 x 18, portrait",
           "void story_name_get(uint8_t spk, uint8_t *dst) BANKED;  // dst[12], 0-terminated",
           "void story_goal_get(uint8_t ch, uint8_t sh, uint8_t *dst) BANKED;   // dst: goal_t",
           "uint8_t story_pattern_get(uint8_t id, uint8_t *dst) BANKED;   // dst[STORY_PAT_MAX] (WRAM); the length",
@@ -869,7 +929,8 @@ def main():
     # ---- build/story.json (tests) ----
     js = {"scenes": [{"id": s["id"], "title": s["title"], "venue": s["venue"], "pic": s["pic"], "spk": s["spk"],
                       "pages": [{"speaker": SPEAKERS[p], "portrait": ports[q]["name"] if q in ports else None,
-                                 "lines": l} for (p, l), q in zip(s["pages"], s["pids"])],
+                                 "lines": l, "variants": [{"cond": COND_NAME[c], "lines": vl} for c, vl in a]}
+                                for (p, l), q, a in zip(s["pages"], s["pids"], s["alts"])],
                       "bg_tiles": s["bg_tiles"], "obj_tiles": s["obj_tiles"]} for s in scenes],
           "speakers": SPEAKERS, "font_base": font_base, "font": {n: fid[n] for n in font_names},
           "portrait_base": port_base, "bg_budget": budget, "obj_budget": OBJ_TILES,
@@ -879,7 +940,7 @@ def main():
           "shift_names": SHIFT_NAMES, "shifts": shifts,
           "sequence": [{"kind": k, "index": i, "built": k not in NOT_BUILT} for k, i in SEQUENCE],
           "patterns": [{"name": n, "bars": [b for b, _ in e], "waits": [w for _, w in e]} for n, e in PATTERNS.items()],
-          "pat_short": PAT_SHORT,
+          "pat_short": PAT_SHORT, "conditions": CONDITIONS,
           "portraits": {sp["name"]: {"pid": pid, "speaker": SPEAKERS[sp["speaker"]], "variant": sp["variant"],
                                      "art": sp["art"], "w": sp["w"], "h": sp["h"], "x": sp["x"], "y": sp["y"],
                                      "tiles": len(sp["tiles"]), "pals": len(sp["pals"]), "obj": len(sp["obj"]),

@@ -960,8 +960,8 @@ The owner's lives rule (docs/minigames_bosses.md section 8) replaces "retry only
   (HUD glyphs only: no '-' or ':'), so "-2 LIVES" could not be written. The tables' engine cells now read "..., a fan
   at the tap costs 2 lives" / "..., a broken glass costs 2 lives" (gen_story's md-table check follows). Owner-approved
   script change: COACH's page in PRE_STADIUM is now LET ONE FAN REACH / YOUR TAP AND IT / COSTS TWO LIVES!, HANA's in
-  PRE_TEAHOUSE SERVE WITH CARE. / ONE BROKEN CUP / COSTS TWO LIVES. (POST_TEAHOUSE still says NOT ONE CUP BROKEN, which
-  is no longer always true: an owner text decision.)
+  PRE_TEAHOUSE SERVE WITH CARE. / ONE BROKEN CUP / COSTS TWO LIVES. (POST_TEAHOUSE said NOT ONE CUP BROKEN, which was
+  no longer always true: decided, see "Story page text variants as built".)
 - Gold medal: story_bonus_life() (BANKED, story.c) adds a life up to MAX_LIVES 4 and redraws the HUD; the mini-game
   framework calls it on a gold medal. Tests call it directly (test_story.call_banked: a stub below SP that calls
   ___sdcc_bcall_ehl and returns to the interrupted PC).
@@ -994,6 +994,27 @@ The owner's lives rule (docs/minigames_bosses.md section 8) replaces "retry only
   story_last_call (dmg + cgb): the banner is the same, but the test now reaches chapter 9's Last call by winning its
   Opening first (CONTINUE starts the venue over), so the HUD score shows the Opening's 1000 clear bonus and one patron
   sprite differs (the arrivals moved on).
+
+## Story page text variants as built (owner's decision, 2026-10-10)
+Hana's POST_TEAHOUSE page 1 depends on the teahouse run: NOT ONE CUP / BROKEN. THAT IS / RARE. THANK YOU. when no cup
+broke, SO FEW CUPS / BROKEN. THAT IS / RARE. THANK YOU. otherwise (both fit: no rewrap).
+- Data, not a strcmp: docs/story.md writes a variant as a block "SPEAKER IF CONDITION" right after the page it replaces
+  ("Script format" there). gen_story CONDITIONS names the conditions (ids 1-8; only GLASS_BROKEN = 1 so far); the
+  script stores a variant before its page as portrait id | 0x80, the condition id (one byte), its 3 lines. The page's
+  speaker and portrait stay the page's. Fails the build: an unknown condition, a variant with no page above it or of
+  another speaker, the same text as its page, two variants with one condition on a page (and the usual line checks).
+  build/story.h has COND_GLASS_BROKEN 0x01; build/story.json gives each page its "variants" and the "conditions".
+- Engine (src/story.c, banked): story_conds (1 byte WRAM) holds a bit per condition; story_page_get(s, p, conds, dst)
+  returns the first variant whose bit is set, else the page. GLASS_BROKEN is set in story_play on exactly the strict
+  rule's event (a life lost with a glass broken that frame: the code path that charges chapter 7's two lives; in any
+  shift of any venue) and cleared by venue_start, i.e. the start of every venue attempt: the first entry from its PRE
+  scene, the restart after the last life, CONTINUE. So POST_TEAHOUSE sees the attempt that ended in it.
+- ROM: real ROM0 free 1605 -> 1605 B (game.gb), 1718 -> 1718 B (release.gb). Bank 4 (story.c, story_data.c) 144 -> 24 B
+  free: the script 5947 -> 5994 B (the variant page, 47 B), the rest the variant walk in story_page_get and the flag.
+- Tests (tests/test_story.py): the variant data and docs/story.md agree; six bad variants fail the build; chapter 7
+  cleanly (Opening won, then the venue) -> NOT ONE (new goldens story_hana_not_one, dmg + cgb); a cup broken in the
+  Opening, kept through the Happy hour -> SO FEW (new goldens story_hana_so_few); cups broken in an attempt that lost
+  its last life are forgotten by the restart -> NOT ONE.
 
 ## Perfect pour as built (owner Q6, 2026-10-10; art is a PROPOSAL until the owner approves it)
 Part of pouring in every story shift (later every boss; the mini-games are excepted). Arcade is unchanged: none of the

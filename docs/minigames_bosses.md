@@ -1452,6 +1452,8 @@ same change when the segment flow is built.
   on hearing the tune (run the driver muted so `song_pos` keeps counting, or an equivalent frame clock).
 - Q5: the Pour-Off is in the saloon (no new festival stage).
 - Q7: yes, Practice gets a HARD toggle.
+- Q8: the stranger in Quick Draw is the Sarsaparilla Kid (the new character; Dregs keeps his "always one scene
+  late" gag).
 - Q10: regulars keep coming during boss fights, more slowly.
 - Lives (owner, supersedes Q3 / Q9 and "retry only the shift"): story mode gives **3 lives per venue**. They carry
   through Opening, Happy hour, the mini-game, Last call and the boss; they are not refilled between shifts. A gold

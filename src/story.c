@@ -18,7 +18,8 @@
 // box (rows 13-17: panel, 3 lines of 18 characters at columns 1-18, panel). The NARRATOR has no portrait: the box shows
 // the small golden spigot where a name would be. INTRO, FINALE and CREDITS show a picture slot instead of a venue
 // (tools/gen_story.py: placeholders for now). The text types on, one character a frame. Buttons: A or B shows the
-// rest of the page at once, then the next page; START skips the rest of the scene.
+// rest of the page at once, then the next page; START skips the rest of the scene. A page may have text variants
+// (docs/story.md "SPEAKER IF CONDITION"): story_page_get shows the first whose condition bit is set in story_conds.
 //
 // The portrait slot is data-driven (build/story_portraits.c, from assets/story/portraits.json): size up to 7x7 tiles,
 // position, up to 3 CGB BG palettes (slots 2-4) and an optional OBJ overlay (OAM 4.., OBJ tiles OBJ_DANCER.., palettes
@@ -77,6 +78,7 @@ uint8_t  story_step;               // the step of the chapter's sequence being p
 uint8_t  story_shift;              // the shift being played: 0 opening, 1 happy hour, 2 last call
 uint8_t  story_pen;                // lives the strict rule just cost (2, or 1 from the last one): the freeze's blink
 uint8_t  story_restarts;           // venue restarts so far (tests)
+uint8_t  story_conds;              // page text conditions (COND_*, build/story.h): which pages' variants show
 uint8_t  pat_pos, pat_buf[STORY_PAT_MAX];   // the shift's arrival pattern (patrons.c pat_len / pat_bar): position, entries
 uint16_t pat_wait[4];              // frames per wait code: the interval, PAT_SHORT, twice, four times the interval
 scene_hdr_t story_hdr;
@@ -241,7 +243,7 @@ static void tag_build(void) {                    // row 13: the panel with the s
 // differs (another speaker, or the same speaker's variant: the Spigoteer's cozy, Dregs's apology)
 static void page_begin(uint8_t lcd_off) {
     uint8_t r;
-    story_page_get(story_scene, story_page, page_buf);
+    story_page_get(story_scene, story_page, story_conds, page_buf);   // its text: a variant when its condition holds
     story_spk = page_buf[0];
     story_pid = page_buf[55];
     story_typed = 0;
@@ -461,9 +463,11 @@ static void step_start(void) {
     shift_start();
 }
 
-// the venue (chapter) from its first playable step, with 3 lives (a new chapter, a lost last life, CONTINUE)
+// the venue (chapter) from its first playable step, with 3 lives (a new chapter, a lost last life, CONTINUE): a new
+// venue attempt, so its page text conditions start over
 static void venue_start(void) {
     lives = START_LIVES;
+    story_conds &= ~COND_GLASS_BROKEN;           // a new attempt at the venue: no glass broken in it yet
     story_step = next_step(0);
     step_start();
 }
@@ -537,6 +541,7 @@ void story_play(void) BANKED {
     b = sfx_count[SFX_BREAK] - st_last_break; st_last_break += b; story_breaks += b;
     if (life_lost) {
         if (!b) story_taps++;                    // a life lost with no glass broken: a patron reached the tap
+        else story_conds |= COND_GLASS_BROKEN;   // a broken glass (chapter 7's strict rule): POST_TEAHOUSE's text
         // the strict rule (2: a patron at the tap, 7: a broken glass) costs a second life: "2 LIVES LOST", the two
         // mugs blink during the freeze (story_life_frame); none left: the freeze plays out, then enter_game_over ->
         // story_fail restarts the venue

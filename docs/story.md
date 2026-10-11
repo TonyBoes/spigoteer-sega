@@ -85,6 +85,18 @@ Each page below is one speaker line (it picks the speaker's portrait, or his var
 followed by 1-3 text lines. Pages are separated by blank lines. The text is already wrapped,
 so the engine prints it as is. Scene ids are what the engine would call each scene.
 
+Text variants: a block whose speaker line reads `SPEAKER IF CONDITION`, right after a page of the same speaker, is
+another text for that page. The engine shows it instead of the page's own text when the condition holds (the first
+variant whose condition holds); the portrait and the name tag stay the page's. Conditions (`tools/gen_story.py`
+CONDITIONS, set by the engine):
+
+| Condition | Holds when |
+|---|---|
+| `GLASS_BROKEN` | a glass broke (a life lost to it) in the venue attempt that just ended: since the venue last started from its PRE scene, a restart after the last life, or CONTINUE |
+
+The build fails on an unknown condition, a variant with no page above it or of another speaker, a variant with the same
+text as its page, and two variants with the same condition on one page.
+
 ---
 
 ### INTRO: "The Big Pour"
@@ -580,9 +592,19 @@ HAS A RHYTHM.
 
 Picture: Hana pours tea for the Spigoteer at a low table while the taiko drummer bows.
 
+Page 1 has a text variant (owner's decision, 2026-10-10): "NOT ONE CUP" when the teahouse run that ended in this scene
+broke no cup, "SO FEW CUPS" (`HANA IF GLASS_BROKEN`) when a cup broke in any of its shifts. The run is the whole venue
+attempt since it last started (from PRE_TEAHOUSE, after losing the last life, or by CONTINUE); a broken cup is the event
+the chapter's strict rule charges two lives for.
+
 ```
 HANA
 NOT ONE CUP
+BROKEN. THAT IS
+RARE. THANK YOU.
+
+HANA IF GLASS_BROKEN
+SO FEW CUPS
 BROKEN. THAT IS
 RARE. THANK YOU.
 

@@ -230,6 +230,43 @@ def test_the_build_fails_on_a_bad_variant(change, why):
         g.assign_portraits(scenes, g.portraits(cfg))
 
 
+# ---- page text variants (owner, 2026-10-10: Hana's POST_TEAHOUSE thanks depend on the teahouse run) ----------------
+NOT_ONE = ["NOT ONE CUP", "BROKEN. THAT IS", "RARE. THANK YOU."]
+SO_FEW = ["SO FEW CUPS", "BROKEN. THAT IS", "RARE. THANK YOU."]
+
+
+def test_the_page_text_variants_follow_the_script():
+    """docs/story.md "HANA IF GLASS_BROKEN": the only text variant so far, on POST_TEAHOUSE page 1; data, one condition
+    id per variant page (GLASS_BROKEN = 1, bit 0 of story_conds)."""
+    assert STORY["conditions"] == {"GLASS_BROKEN": 1}
+    hana = SCENES[SC["POST_TEAHOUSE"]]["pages"][0]
+    assert hana["speaker"] == "HANA" and hana["lines"] == NOT_ONE
+    assert hana["variants"] == [{"cond": "GLASS_BROKEN", "lines": SO_FEW}]
+    assert [(s["id"], k) for s in SCENES for k, p in enumerate(s["pages"]) if p["variants"]] == [("POST_TEAHOUSE", 0)]
+    md = (ROOT / "docs" / "story.md").read_text()
+    assert "\n".join(["HANA"] + NOT_ONE + ["", "HANA IF GLASS_BROKEN"] + SO_FEW) in md
+
+
+@pytest.mark.parametrize("old, new, why", [
+    ("HANA IF GLASS_BROKEN\nSO FEW", "HANA IF CUP_SMASHED\nSO FEW", "unknown condition 'CUP_SMASHED'"),
+    ("HANA IF GLASS_BROKEN\nSO FEW", "DREGS IF GLASS_BROKEN\nSO FEW", "the variant's speaker must be the page's (HANA)"),
+    ("HANA IF GLASS_BROKEN\nSO FEW CUPS", "HANA IF GLASS_BROKEN\nNOT ONE CUP", "the same text as the page"),
+    ("HANA IF GLASS_BROKEN\nSO FEW CUPS", "HANA IF GLASS_BROKEN\nSO FEW CUPS AND SAUCERS", "characters (max 18)"),
+    ("HANA\nNOT ONE CUP\nBROKEN. THAT IS\nRARE. THANK YOU.\n\n", "", "needs the page it replaces right above it"),
+    ("THANK YOU.\n\nHANA IF GLASS_BROKEN\nSO FEW CUPS\nBROKEN. THAT IS\nRARE. THANK YOU.\n",
+     "THANK YOU.\n\nHANA IF GLASS_BROKEN\nSO FEW CUPS\nBROKEN. THAT IS\nRARE. THANK YOU.\n\n"
+     "HANA IF GLASS_BROKEN\nA FEW CUPS\nBROKEN.\n", "a second variant IF GLASS_BROKEN"),
+], ids=["condition", "speaker", "same-text", "long-line", "first-page", "twice"])
+def test_the_build_fails_on_a_bad_text_variant(tmp_path, old, new, why):
+    g = gen_story()
+    md = (ROOT / "docs" / "story.md").read_text()
+    assert old in md
+    f = tmp_path / "story.md"
+    f.write_text(md.replace(old, new, 1))
+    with pytest.raises(g.StoryError, match=re.escape(why)):
+        g.parse_script(f)
+
+
 def test_every_speaker_needs_art_and_the_scene_budget_fails_the_build():
     g = gen_story()
     cfg = json.loads(json.dumps(PORTRAIT_CFG))
@@ -1007,6 +1044,70 @@ def test_the_strict_rule_cue(model):
         gb.run(1)
         assert hud_lives(gb) == ".UUU" and gb.mem("lives") == 1
         check_golden(gb, "story_two_lives")
+
+
+def teahouse_post(gb):
+    """Chapter 7 played on from where gb is (any shift, past its banner): won as the chapter's last step, so its POST
+    scene opens; Hana's first page shown whole."""
+    to_goal(gb)
+    gb.write("story_step", STORY_STEPS - 1)
+    win(gb, 6, gb.mem("story_shift"))
+    run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(6), 400)
+    settle(gb)
+    page_ready(gb)
+    assert gb.mem("story_page") == 0 and gb.mem("story_cur") == PORTRAITS["HANA"]["pid"]
+    return text_rows(gb)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_hana_thanks_a_clean_teahouse_with_not_one_cup(model):
+    """No cup broken in the teahouse run (Opening won, then the venue): NOT ONE CUP BROKEN."""
+    with to_chapter(model, 6) as gb:
+        assert gb.mem("story_conds") == 0
+        win(gb, 6, 0)                                    # the Opening, cleanly: SHIFT CLEAR, the Happy hour
+        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        gb.run(2)
+        assert gb.mem("story_shift") == 1 and gb.mem("story_conds") == 0
+        assert teahouse_post(gb) == glyph_rows(NOT_ONE)
+        check_golden(gb, "story_hana_not_one")
+        gb.screenshot(ROOT / "out" / f"hana_not_one.{gb.model_name}.png", 4)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_hana_after_a_broken_cup_says_so_few(model):
+    """A cup broken in the Opening (2 lives, the run goes on) is still remembered after the Happy hour is won:
+    SO FEW CUPS BROKEN."""
+    with to_chapter(model, 6) as gb:
+        break_a_glass(gb)
+        gb.run(2)
+        assert gb.mem("lives") == 1 and gb.mem("story_conds") == 1, "the strict rule's event sets GLASS_BROKEN"
+        freeze_over(gb)
+        win(gb, 6, 0)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        gb.run(2)
+        assert gb.mem("story_shift") == 1 and gb.mem("story_conds") == 1, "kept from shift to shift"
+        assert teahouse_post(gb) == glyph_rows(SO_FEW)
+        check_golden(gb, "story_hana_so_few")
+        gb.screenshot(ROOT / "out" / f"hana_so_few.{gb.model_name}.png", 4)
+        gb.press("a", 2)                                 # the next page is the same for both runs
+        page_ready(gb)
+        assert text_rows(gb) == glyph_rows(SCENES[SC["POST_TEAHOUSE"]]["pages"][1]["lines"])
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_broken_cup_before_a_venue_restart_is_forgotten(model):
+    """Cups broken in an attempt that lost its last life do not count: the restarted venue is a new run, and a clean
+    one gets NOT ONE CUP."""
+    with to_chapter(model, 6) as gb:
+        break_a_glass(gb)                                # 3 -> 1
+        freeze_over(gb)
+        break_a_glass(gb)                                # the last one: TRY AGAIN, the venue again
+        assert gb.mem("lives") == 0 and gb.mem("story_conds") == 1
+        run_until(gb, lambda: state(gb) == GS_STORY, 200)
+        try_again(gb)
+        assert gb.mem("story_restarts") == 1 and gb.mem("story_shift") == 0 and gb.mem("lives") == 3
+        assert gb.mem("story_conds") == 0, "a new venue attempt"
+        assert teahouse_post(gb) == glyph_rows(NOT_ONE)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
