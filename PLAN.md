@@ -264,7 +264,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, nine venue owners, villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the slots stay NOT_BUILT until real games exist. Next: step 2, the boss engine + Big Tex. |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Next: step 3, Quick Draw, Order Up!, Battery Sort. |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -976,7 +976,7 @@ The owner's lives rule (docs/minigames_bosses.md section 8) replaces "retry only
   (byte 35 > 0; the PRE scene was seen), else its PRE scene. No SRAM version bump: the bytes, their ranges and the
   checks are unchanged and a version-3 migration (step 0) still means "the PRE scene"; an old v4 save with a step
   simply resumes at the venue's start, which is the new rule.
-- Boss engine (not built, for M11e): a boss keeps his damage after a lost life (the meter is not refilled by
+- Boss engine (built: "Boss engine as built"): a boss keeps his damage after a lost life (the meter is not refilled by
   resume_after_life); only a venue restart (lives 0) starts him over, with the venue. The boss fight uses the venue's
   lives (no refill on entering it), the gold-medal life included.
 - ROM: real ROM0 free 1671 -> 1641 B (game.gb), 1784 -> 1754 B (release.gb), 30 B: prep_hud's 4th tile, the 4-tile
@@ -1155,3 +1155,96 @@ NOT_BUILT (gen_story) until real games exist; the story side is ready for them.
   New goldens (dmg + cgb): mg_intro (the banner), mg_result (practice, gold), mg_story_gold (story, gold, 4 mugs). No
   existing golden changed. Screens of each phase: out/mg/{intro,count,play,result,result_gold,story_intro,
   story_result}.{dmg,cgb}.png.
+
+## Boss engine as built (M11e step 2, docs/minigames_bosses.md 2.5 / 3.1-3.3, 2026-10-10; Big Tex's art is a PLACEHOLDER)
+One engine with a parameter row per boss and a per-boss special hook; Big Tex (the saloon) is the only row so far, and the
+saloon's boss slot is played in the story (gen_story BUILT_SLOTS = {"BOSS": {"SALOON"}}; the other eight boss slots stay
+STEP_SKIP until their bosses exist). Chapter 1 is now Opening -> Happy hour -> Last call (SHIFT CLEAR) -> the fight
+(CHAPTER CLEAR) -> POST_SALOON.
+- src/boss.c (bank 255; autobank put it in bank 2, 3.6 KB with its art): rows[BOSS_COUNT] (BOSS_COUNT 10 in game.h, one
+  row per venue: the 10th venue adds a row, not a constant; a row with width 0 is not built and plays row 0's, which is
+  what the story_unskip test hook gets for another venue's slot): width, start x, bar, step (frames per 8 px stomp), push
+  (px per catch), gulp, hands, sip, meter, the topper's x, the art, the banner's two goal lines. Tex: 40, 16, bar 1, 120,
+  16, 40, 3, 60, 8 (spec 3.2), "BIG TEX RIDES IN" / "QUENCH HIM 8 MUGS" (spec 7). boss_special() is the per-boss hook (a
+  switch on boss_id later; empty for Tex).
+- Story (story.c, banked; nothing in ROM0): step_start calls boss_set(chapter) for a STEP_BOSS step and boss_set(BOSS_NONE)
+  for any other (story_level_done and start_new_game turn it off too); the fight then runs through shift_start like a
+  shift: boss_goal fills story_goal (type G_BOSS 3, walk 100 %, spawn BOSS_SPAWN_PCT 150 %, the two lines), the banner's
+  first line is "CHAPTER n BOSS", boss_begin after shift_pace. story_play calls boss_frame every PLAYING frame (not the
+  frame a life went); when it reports the meter empty: story_phase SP_OUTRO (5), GS_STORY, boss_outro for 120 frames (the
+  HAPPY pose, the mugs and the fill gone, the regulars frozen, the hat bobbing), then story_win: CHAPTER CLEAR with the
+  level bonus, the POST scene, the chapter saved as cleared. hud_goal draws nothing for G_BOSS.
+- Lives (owner's rule): the venue's lives carry into the fight (a gold medal's 4th included; no refill). A lost life: the
+  freeze, then reset_actors -> boss_reset: he starts again at x 16 on his bar with empty hands, his meter kept. The last
+  life: TRY AGAIN, the venue restarts at its Opening (venue_start -> step_start -> boss off); the next fight starts with a
+  full meter. The strict rules (chapters 2 and 7) are not wired into fights yet: boss_goal's flags are 0 (the stadium and
+  teahouse rows will need F_NO_TAP / F_NO_BREAK).
+- Rules (spec 2.5): he stomps 8 px every `step` frames (the STOMP pose for 8 frames, SFX_SHAKE as the thud; nothing moves
+  during the level's 90-frame intro); his right edge at SPOUT_X (136) costs a life. A full mug on his bar at mug_x <=
+  boss_x + W - 4 is caught (boss_lim = boss_x + W - 3, 0 while his hands are full): the mug is freed, serve_score (and a
+  perfect pour's bonus and cue: perfect_catch, the story's rule in every fight), meter -1, push-back 16 px in 8 px hops
+  every 4 frames (WINCE) down to his start x at most, GULP until 40 frames are over (no stomp), one more empty held. With
+  full hands (3) the mug slides past him (over the BG figure) and breaks at the left end. Each held empty goes `sip` (60)
+  frames after the catch or the last one sent, and only when the fair-empties schedule allows (its travel from his right
+  edge at 0.5 px a frame >= next_arrival; then next_arrival = travel + empty_gap: the patrons' rule), spawn_mug at his
+  right edge. His hand column shows the empties he holds (0-3; WALK / STOMP / WINCE). Unhit, Tex reaches the tap in 1200
+  frames.
+- Regulars (owner Q10): the level row's speeds on the other bars; boss_begin draws an 8-entry arrival pattern (the story's
+  pat_buf / pat_len, wait code 0) over the three other bars with next_rand(), pat_wait[0] = the spawn interval x 1.5 (the
+  saloon: 450 frames; its Happy hour 300); patrons.c try_spawn (ROM0) turns variant C into A or B while boss_on
+  (rng_state & 1), show.c place_start_patrons skips his bar and does the same; tip_chance 0 (no tip, so no show), back
+  to TIP_CHANCE_DEFAULT when the fight is over.
+- Picture: his body is BG on his bar's two wall rows (render.c compose_bar stamps boss_cols over the bar after its
+  patrons: one compare per composed bar; stamp_boss = put_col per column, top tile t, bottom t + 1, BG palette boss_pal);
+  boss.c marks only what changes (a pose: tile ids of his columns; a move: the span between the old and new columns,
+  attributes too). The topper (the hat's crown, one 8x16 OBJ, its upper half above his bar): OAM 28 (the dancers' first
+  entry: no show in a fight; spec 2.5 said OAM 26, which the perfect pour's cue took since), OBJ tiles 96-99, CGB OBJ
+  palette 7 (his colours 1-3), DMG OBP1 0xE4. Drawn by boss_draw from pour_frame (story, after every other sprite of the
+  frame): every other OAM entry is counted on the four 4-line bands of the topper's 16 lines it touches (an upper bound
+  per line; spec 3.1's bands); a band already at 10 leaves the topper out that frame.
+- VRAM / palettes at the level load (main_cold.c enter_level_screen: boss_load after start_level, LCD off): his body's
+  column pairs over variant C's shifted tiles (BG 162-203, 21 pairs), then its shift-0 pose + the back views (216-233, 9
+  pairs), the HUD face + the meter's EMPTY / HALF / FULL at 252-255, the topper at OBJ 96-99; CGB BG palette 4 = the
+  venue's wall + his colours 1-3, OBJ palette 7 his colours 1-3. The pour frames at OBJ 234-239 stay (a fight has the
+  perfect pour). The next level load (any venue's) puts back all of it: load_patron_group (every variant, the back
+  views, BG palettes 2-4), load_venue (the show's OBJ tiles), lift_level_init (OBJ palettes 3 / 6 / 7, OBP1 0xE4),
+  draw_hud (the HUD row), start_mask from the level row (boss.c never writes it).
+- HUD: score 1-6 and lives 8-11 as always, column 12 his face, 13-19 the meter (2 pips a tile; Tex's 8 = 4 tiles, the
+  rest blank), redrawn on every catch through the VBlank queue (boss_hud); no goal counter, no level number.
+- Art (assets/art/boss/, tools/gen_boss.py -> build/boss_art.h, build/boss.json, out/preview/boss_*_x8.png): big_tex.txt
+  (WALK, STOMP, GULP, WINCE, HAPPY 40x16; HAND1-3 8x16; HAT_STILL / HAT_BOB 8x16; ICON 8x8) and meter.txt (EMPTY, HALF,
+  FULL), each headed "PLACEHOLDER: art proposal pending owner approval": a generated silhouette (hat, moustache, red
+  shirt, belt, steins) in the right palettes; the real art goes to the owner separately. The body is stored as column
+  pairs, identical columns shared (Tex 25 of BOSS_PAIRS_MAX 30; the build fails on more). Colours (gen_boss BOSSES): skin
+  #F0B888, shirt #C83020, hat #583018; DMG greys by index (skin light, shirt dark, hat and outline black). Replacing the
+  files and running make is the swap.
+- Test hooks (spec 2.5): boss_on, boss_id, boss_bar, boss_x, boss_hp, boss_hold, boss_state (0 walk, 1 gulp, 5 outro),
+  boss_t, boss_special_t, boss_hook (2 = meter to 1, 3 = satisfied now; 1, the special's tell, has nothing to do yet),
+  boss_lim, boss_pose, boss_push, boss_hits, boss_step / boss_hands, boss_hard (Practice's HARD toggle, owner Q7: a
+  quarter shorter step, one hand fewer; set before the fight's step starts; the practice menu is step 10).
+- ROM0 (real, tools/rom0free.py): 1548 -> 1447 B free (game.gb), 1661 -> 1560 B (release.gb): 101 B (the spec estimated
+  ~205): catch_full's test + banked call and try_spawn's variant mask (patrons.c, 53 B), compose_bar's compare + stamp_boss
+  (render.c, 48 B). Every other hook is banked: reset_actors / enter_level_screen / start_new_game / boot_init
+  (main_cold.c), story.c, pour_frame (pour.c), place_start_patrons (show.c). Banks after (romusage, game.gb): 1 205, 2
+  211, 3 232, 4 179, 5 47, 6 64, 7 934, 8 4884 B free.
+- WRAM: +42 B (_DATA 6255 -> 6297): the boss state (spec ~40 B) and his HUD row.
+- Perf: arcade gains one compare per composed bar (render.c), one per catch_full call and one per spawn. The CGB
+  realistic-peak scenario (test_perf, a timing-sensitive script) then showed a 4th full mug in flight on one frame (the
+  scripted bartender's own launch on top of the scenario's 3; frame timing decides which frame it lands on): its sanity
+  check is full_max <= 4 now; frame time unchanged within that noise (CGB end LY 194 -> 195, missed 96 -> 104 of 1200;
+  DMG identical to the frame, 192 / 69). A fight (scratchpad perf.py: real pours, the regulars walking, 1500 frames): DMG
+  end LY 138, 0 missed; CGB end LY 161, 9 missed. The spec's test_perf plan has a boss scenario only for the moving
+  bosses (Mascot, Prototype, Mothership phase 2); none for Tex.
+- Tests (tests/test_boss.py, DMG + CGB; every frame of every fight checked at <= 10 sprites a line): the table (10 rows,
+  Tex's row, only the saloon built, the placeholder headers); the fight after the Last call (banner, lives carried, no
+  tips, the arrival pattern, the spawn interval, VRAM tiles / palettes / OBP1, the HUD, the topper); a win by real pours
+  (the hands rule, his empties' arrivals >= empty_gap apart and caught, the outro, CHAPTER CLEAR, POST_SALOON, the save,
+  then the stadium's Opening with everything back); the meter after each catch (and a perfect pour's bonus on him);
+  stomps every 120 frames (the STOMP pose, the hat's bob), push-back hops and the gulp, pinned at his start; full hands
+  let a mug pass and break (the meter kept, the reset after the freeze); the tap costs a life and he starts over with his
+  damage kept and nothing of him left near the tap; the last life: TRY AGAIN, the Opening, and VRAM / palettes / OBP1 /
+  HUD / his bar's wall exactly as a fresh Opening's; regulars every 450 frames on the other bars only, variants A / B, no
+  tips; the topper left out at the 10th sprite and back at 9; HARD; another venue's slot (story_unskip) plays row 0.
+  tests/test_story.py: chapter 1's sequence now has the fight (beat_the_boss: its banner, boss_hook 3); its Last call
+  says SHIFT CLEAR, the boss step is saved as reached. New goldens boss_fight (dmg + cgb: Tex mid-fight, the meter at 5
+  of 8). No existing golden changed. Screens: out/boss/{start,mid,meter,win,lose}.{dmg,cgb}.png.
