@@ -59,13 +59,14 @@ def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None
                        groove=groove)
 
 
-# GAME TEMPO.  The owner approved these tempos for the game (the melody notes stay exactly as the spec's; only the
+# GAME TEMPO.  The owner approved these tempos for the game (sakura 150, the lively arrangement, is proposed and awaits
+# the owner's approval; it was 120) (the melody notes stay exactly as the spec's; only the
 # speed changes), in beats per minute of the beat the spec names; the spec's own tempo is in docs/music_specs.md and
 # SPEC_BPM_ROWS in tests/test_sound.py.  tempo = frames per row is the nearest whole number (60 fps), so the tempo
-# the game really plays is 3600 / (tempo x rows per beat): entertainer 8 -> 112.5, sakura 15 -> 120,
+# the game really plays is 3600 / (tempo x rows per beat): entertainer 8 -> 112.5, sakura 12 -> 150,
 # funicula 11 -> 109.1 (dotted quarter), skaters / danube / ballgame 9 -> 200 (quarter).  Tunes not listed play
 # at the spec tempo.
-GAME_BPM = {"entertainer": 112, "sakura": 120, "funicula": 112, "skaters": 192, "danube": 192, "ballgame": 192}
+GAME_BPM = {"entertainer": 112, "sakura": 150, "funicula": 112, "skaters": 192, "danube": 192, "ballgame": 192}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -237,10 +238,14 @@ song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS,
      " ".join(["K:1 r:3 S:1 r:3"] * 16), stac_all=(1, 2))
 
 # ---------------------------------------------------------------------------------------------
-# Teahouse: "Sakura Sakura" (Japanese traditional).  4/4, key A minor (A B C E F), quarter = 100: 18 frames
-# per eighth row (the spec's ~100 bpm).  14 bars, about 34 s.  Bass: a soft A / E drone, not chords.  Seamless
-# loop (the only change to the notes): the last bar's rest (E4:4 R:4) is E4 C4 E4 (bar 5's figure), lifting into
-# bar 1's A4.
+# Teahouse: "Sakura Sakura" (Japanese traditional).  4/4, key A minor (A B C E F), the spec's quarter = 72-100.
+# Lively arrangement (owner: keep Sakura, make it livelier; the melody's notes are unchanged): game tempo 12 frames per
+# eighth row = 150 bpm (was 15 = 120; GAME_BPM, the owner's approval pending), 14 bars = 22.4 s.  Every melody note
+# is played detached (cut after 3/4 of its length) so the tune bounces; the bass is a syncopated pentatonic figure on
+# each bar's chord (root, fifth and octave: A minor, D minor, and E without its G#, which is not in the scale) instead
+# of the A / E drone; the drums are a two-bar taiko-like groove: "don . ka don don . ka ka" (kick and rim = the hat),
+# the second bar ending with two snare hits.  Seamless loop (the only change to the notes): the last bar's rest
+# (E4:4 R:4) is E4 C4 E4 (bar 5's figure), lifting into bar 1's A4.
 SAK_BARS = [
     "A4:2 A4:2 B4:4", "A4:2 A4:2 B4:4", "A4:2 B4:2 C5:2 B4:2", "A4:2 B4:1 A4:1 F4:4",
     "E4:2 C4:2 E4:2 F4:2", "E4:2 E4:1 C4:1 B3:4", "A4:2 B4:2 C5:2 B4:2", "A4:2 B4:1 A4:1 F4:4",
@@ -250,8 +255,20 @@ SAK_BARS = [
 SAK_CHORDS = [
     "Am", "Am", "Am", "Dm", "Am", "E", "Am", "Dm", "Am", "E", "Am", "Am", "Dm", "Am",
 ]
-song("sakura", 15, "A", " ".join(SAK_BARS), " ".join(["A2:4 E3:4"] * 14), "", gap=True,
-     groove="K:1 r:1 H:1 r:1 K:1 r:1 H:1 r:1")
+SAK_BASS_NOTES = {"Am": ("A2", "E3", "A3"), "Dm": ("D2", "A2", "D3"), "E": ("E2", "B2", "E3")}
+
+
+def sakura_bass(chords):
+    """One bar of eighth rows per chord: root (quarter), fifth, octave, a rest, the root on the off-beat, the fifth."""
+    out = []
+    for c in chords:
+        r, f, o = SAK_BASS_NOTES[c]
+        out.append(f"{r}:2! {f}:1! {o}:1! r:1 {r}:1! {f}:2!")
+    return " ".join(out)
+
+
+song("sakura", 12, "A", " ".join(SAK_BARS), sakura_bass(SAK_CHORDS), "", gap=True, stac_all=(3, 4),
+     groove="K:1 r:1 H:1 K:1 K:1 r:1 H:1 H:1 K:1 r:1 H:1 K:1 K:1 r:1 S:1 S:1")
 
 # ---------------------------------------------------------------------------------------------
 # Space lounge: "The Blue Danube" (Johann Strauss II, 1867, Op. 314), first waltz theme.  3/4, quarter = 160: 11

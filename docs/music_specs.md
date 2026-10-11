@@ -328,7 +328,7 @@ Source: NO TRANSCRIPTION SOURCE FOUND. Written from memory. Verify against Grieg
 Key: A minor (miyako-bushi scale: A B C E F)
 Time: 4/4
 Tempo: quarter = 72
-Game tempo: quarter = 120 (15 frames per eighth row, plays at 120). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
+Game tempo: quarter = 150 (12 frames per eighth row, plays at 150), PROPOSED with the lively arrangement (was 120 = 15 frames, owner-approved); owner approval pending. Melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 8)
 Length: 14 bars
 

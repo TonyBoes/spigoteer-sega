@@ -188,7 +188,7 @@ looping tune flows back into bar 1 (last bars of Susanna, Galop, Ball Game, Skat
 bonus loop changed); tests/test_music_loops.py keeps the melody silence at the loop point <= 0.25 s.
 
 Drums and game tempos (after M9): owner-approved game tempos (tools/songs.py GAME_BPM; spec tempo stays in docs/music_specs.md):
-entertainer 8 frames/row = 112.5 bpm, sakura 15 = 120, funicula 11 = 109 (dotted quarter), skaters/danube/ballgame 9 = 200.
+entertainer 8 frames/row = 112.5 bpm, sakura 12 = 150 (lively arrangement, owner approval pending; was 15 = 120), funicula 11 = 109 (dotted quarter), skaters/danube/ballgame 9 = 200.
 Drums for the title, ballgame, funicula, skaters, sakura and danube are a `groove` (songs.py song(..., groove=)): a 6-8
 row loop in bank 2 that src/music.c's groove_tick plays on channel 4 in step with the driver's rows (kit registers derived
 from the quiet kit in gen_music.drum_kit); a sound effect on channel 4 wins. A shared hUGEDriver pattern would not do: 64

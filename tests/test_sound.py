@@ -390,7 +390,7 @@ def test_the_tunes_are_the_specs_token_for_token():
         ideal = 3600 / bpm / rows_per_beat
         assert abs(s["tempo"] - ideal) / ideal < 0.05, f"{name} tempo {s['tempo']} vs {ideal:.1f} frames per row (game tempo {bpm} bpm)"
         if name in ("hall", "sakura"):
-            continue                                    # root ostinato / drone, not chords
+            continue                                    # root ostinato / Sakura's own bass figure (its test below)
         bass = s["ch3"].replace("!", "").split()
         i = 0
         for chord in chords:                            # the bass plays the bar's chord: its root on the downbeat
@@ -410,6 +410,19 @@ def test_hall_of_the_mountain_king_is_staccato_over_a_root_ostinato():
     rows = gm.rows_for(2, s["ch2"], 1, s["tempo"], False, True, s["stac_all"])
     cuts = [eff for _, _, eff in rows if (eff & 0xF00) == 0xE00]
     assert len(cuts) > 80 and set(c & 0xFF for c in cuts) >= {7}, "a 1-row note is cut after 7 of its 15 ticks"
+
+
+def test_sakura_is_lively_a_bouncing_bass_on_the_chords_under_a_detached_melody():
+    """The owner kept Sakura and asked for a livelier arrangement: 150 bpm (proposed), every melody note detached, a
+    syncopated bass on each bar's chord (not a drone), a taiko-like two-bar groove of kicks, rim (hat) and snare."""
+    s = songs.SONGS["sakura"]
+    assert s["tempo"] == 12 and s["stac_all"] == (3, 4)
+    bass = s["ch3"].split()
+    assert len(bass) == 6 * 14 and len({t.split(":")[0] for t in bass}) >= 6, "a moving bass, not two drone notes"
+    for bar, chord in enumerate(songs.SAK_CHORDS):
+        assert bass[6 * bar].split(":")[0] == songs.SAK_BASS_NOTES[chord][0], f"bar {bar + 1}: the root on the downbeat"
+    g = gm.groove_rows("sakura", s)
+    assert len(g) == 16 and g.count(1) >= 6 and 2 in g and 3 in g
 
 
 def test_ties_fold_into_the_previous_note():
