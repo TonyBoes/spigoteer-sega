@@ -7,9 +7,9 @@
 #include <stdint.h>
 #include "hUGEDriver.h"
 
-// TUNE_VENUE0 + g is the gameplay tune of patron group g (cowboys, sports, lumberjacks, chefs, divers, robots, ninjas,
-// aliens, zoo); TUNE_SHOW plays while a show runs.
-enum { TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0, TUNE_COUNT = TUNE_VENUE0 + 9, TUNE_NONE = 255 };
+// TUNE_VENUE0 + g is the gameplay tune of patron group g (cowboys, sports, lumberjacks, chefs, divers, robots, punks,
+// ninjas, zoo, aliens: tools/songs.py VENUES); TUNE_SHOW plays while a show runs.
+enum { TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0, TUNE_COUNT = TUNE_VENUE0 + 10, TUNE_NONE = 255 };
 enum { SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_COUNT };
 
 typedef struct {
@@ -55,7 +55,7 @@ void hi_load(void) BANKED;                  // SRAM -> the table (empty when inv
 void hi_save(void) BANKED;                  // the table -> SRAM
 uint8_t top_rank(uint32_t s) BANKED;        // where s would go (TOP_N: not in the table)
 uint8_t top_insert(uint32_t s, const uint8_t *n) BANKED;   // insert with initials n[0..2]; returns the rank
-extern uint8_t story_progress;              // M11b: story chapters cleared (0..9), saved next to the table
+extern uint8_t story_progress;              // M11b: story chapters cleared (0..10), saved next to the table
 extern uint8_t story_reached;               // story shifts: the step reached in chapter story_progress (save.c)
 void story_save(uint8_t chapters, uint8_t step) BANKED;   // story_progress / story_reached, then the whole save
 extern uint16_t tune_unlocked;              // bonus menu: bit t = tune t playable in the soundtrack player (SRAM v5)

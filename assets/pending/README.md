@@ -5,4 +5,6 @@ The import moves it to its real place (and deletes it here).
 
 | file | goes to | approved | waiting for |
 |---|---|---|---|
-| portraits/granny.txt | assets/story/portraits/granny.txt + portraits.json | 2026-10-10 (Granny Throttle, option A, heart tattoo on the left of the neck) | the 10th venue (punk/biker bar) in story |
+
+Nothing is waiting. Last import (2026-10-11, with the 10th venue, The Chrome Cow): portraits/granny.txt ->
+assets/story/portraits/granny.txt + assets/story/portraits.json (speaker GRANNY).

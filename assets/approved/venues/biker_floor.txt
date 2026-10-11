@@ -1,0 +1,10 @@
+; The Chrome Cow (theme biker, patron group punks): owner-approved 2026-10-11 (art round 5); imported from the punk_* proposal files
+; floor row tile 8x8: black-and-white checkerboard
+----####
+----####
+----####
+----####
+####----
+####----
+####----
+####----

@@ -1,0 +1,18 @@
+{
+ "full": {
+  "hex": [
+   "#a8d8f8",
+   "#f8f8f0",
+   "#202c48"
+  ],
+  "_note": "owner-approved (round 5): - ice-blue glass (frosted rim, shine, beads), + the milk, # outline. Index 1 is darker than index 2 on CGB on purpose: on DMG (OBP0) the milk must be the light grey, not the white of the wall"
+ },
+ "empty": {
+  "hex": [
+   "#f8f8f8",
+   "#a8c8e0",
+   "#283040"
+  ],
+  "_note": "owner-approved (round 5): the house empty-glass palette (saloon's): - the milk film, + the glass edge and beads, # outline; the inside is index 0 (clear glass)"
+ }
+}

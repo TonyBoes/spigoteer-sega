@@ -19,7 +19,7 @@ or 3 CGB BG palettes, and a variant range (portraits.json "variants") that names
 not the speaker's, that overlaps another variant of his or that no page uses (assign_portraits). Story shifts:
 also on a shift (SHIFTS, the shifts table of docs/story.md) whose engine goal or last-call pattern disagrees with the
 table, a banner line over 20 or outside the HUD glyphs, speeds outside the sane limits, an opening that is not about half
-the goal and slower, a last call that is not faster with its own pattern (nine different ones), a timed goal that too
+the goal and slower, a last call that is not faster with its own pattern (ten different ones), a timed goal that too
 few patrons arrive for, or an arrival pattern that changes the arrival rate (check_shifts). Page text variants
 ("SPEAKER IF COND" blocks, CONDITIONS): also on an unknown condition, a variant with no page above it, of another
 speaker, with the same text as its page, or a second variant with the same condition on one page.
@@ -40,7 +40,7 @@ LINE_W, PAGE_LINES = 18, 3
 CHARSET = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?'-: ")
 HUD_CHARSET = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")     # the play screen's banner has no story font loaded
 SPEAKERS = ["SPIGOTEER", "DREGS", "SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "HANA", "ZIZZ", "KIKI",
-            "NARRATOR"]
+            "GRANNY", "NARRATOR"]
 NARRATOR = SPEAKERS.index("NARRATOR")
 PUNCT = {".": "period", ",": "comma", "!": "excl", "?": "quest", "'": "apos", "-": "hyphen", ":": "colon"}
 
@@ -72,10 +72,11 @@ CHAPTERS = [
     ("BISTRO", 3, G_SERVE, 20, 0, 120, "SERVE 20 CHEFS", "BEFORE THE RUSH", "serve 20 before the timer"),
     ("IGLOO", 4, G_SERVE, 20, 0, 120, "SERVE 20 COCOAS", "BEFORE THEY COOL", "serve 20 before the timer"),
     ("ROBOT", 5, G_CATCH, 25, 0, 0, "RECYCLE 25", "EMPTY BATTERIES", "catch 25 empties"),
-    ("TEAHOUSE", 6, G_CLEAR, 0, F_NO_BREAK, 0, "SERVE EVERY GUEST", "BROKEN CUP COSTS TWO",
+    ("BIKER", 6, G_SERVE, 22, 0, 0, "SERVE 22 PUNKS", "NO CRYING OVER MILK", "serve 22"),
+    ("TEAHOUSE", 7, G_CLEAR, 0, F_NO_BREAK, 0, "SERVE EVERY GUEST", "BROKEN CUP COSTS TWO",
      "clear the venue, a broken glass costs 2 lives"),
-    ("SPACE", 7, G_SERVE, 25, 0, 0, "SERVE 25 GLOWING", "BEAKERS", "serve 25"),
-    ("ZOO", 8, G_SERVE, 30, 0, 0, "SERVE 30 ANIMALS", "", "serve 30"),
+    ("ZOO", 8, G_SERVE, 25, 0, 0, "SERVE 25 ANIMALS", "", "serve 25"),
+    ("SPACE", 9, G_SERVE, 30, 0, 0, "SERVE 30 GLOWING", "BEAKERS", "serve 30"),
 ]
 PICTURE_SCENES = ["INTRO", "FINALE", "CREDITS"]
 # Page text variants (docs/story.md "Script format"): a page may carry variants "SPEAKER IF COND" whose lines replace
@@ -83,7 +84,7 @@ PICTURE_SCENES = ["INTRO", "FINALE", "CREDITS"]
 # story_conds, set and cleared by the engine; the data stores the id (one byte per variant page). The page's portrait
 # and speaker stay the page's.
 CONDITIONS = {
-    "GLASS_BROKEN": 1,           # a glass broken (the life it cost: the strict rule's event in chapter 7) in the venue
+    "GLASS_BROKEN": 1,           # a glass broken (the life it cost: the strict rule's event in chapter 8) in the venue
                                  # attempt just played: set in story_play, cleared by venue_start (a chapter's first
                                  # entry from its PRE scene, a restart after the last life, CONTINUE)
 }
@@ -119,6 +120,7 @@ PATTERNS = {
     "flood bar 4": [(3, "n"), (0, "n"), (3, "n"), (1, "n"), (3, "n"), (2, "n")],
     "inside out": [(1, "s"), (2, "d"), (0, "s"), (3, "d")],
     "stampede": [(0, "s"), (1, "s"), (2, "s"), (3, "b"), (3, "s"), (2, "s"), (1, "s"), (0, "b")],
+    "chord": [(0, "s"), (1, "s"), (2, "b"), (3, "s"), (2, "s"), (1, "d")],   # three bars at once, a long breather, three more
 }
 OPEN_WALK, OPEN_SPAWN = 85, 115      # the Opening shift: the row's walkers 15 % slower, patrons 15 % further apart
 WALK_RANGE, SPAWN_RANGE = (70, 130), (70, 150)   # sane limits (the arcade's loop ceiling is +30 % walk, -24 % spawn)
@@ -139,13 +141,15 @@ SHIFTS = [
      (G_SERVE, 22, 0, 120, 0, "SERVE 22 COCOAS", "BEFORE THEY FREEZE", "serve 22 in 120 s", "zigzag", 115, 85)),
     ((G_CATCH, 12, 0, 0, 0, "RECYCLE 12", "EMPTY BATTERIES", "catch 12 empties"),
      (G_CATCH, 28, 0, 0, 0, "RECYCLE 28", "BATTERIES PILE UP", "catch 28 empties", "stairs up", 115, 85)),
+    ((G_SERVE, 10, 0, 0, 0, "SERVE 10 PUNKS", "ICE COLD MILK", "serve 10"),
+     (G_SERVE, 24, 0, 0, 0, "SERVE 24 PUNKS", "THE BAND SPEEDS UP", "serve 24", "chord", 115, 85)),
     ((G_CLEAR, 0, F_NO_BREAK, 0, 7, "SERVE 7 GUESTS", "BROKEN CUP COSTS TWO", "7 guests, a broken glass costs 2 lives"),
      (G_CLEAR, 0, F_NO_BREAK, 0, 15, "SERVE 15 GUESTS", "BROKEN CUP COSTS TWO", "15 guests, a broken glass costs 2 lives",
       "flood bar 4", 115, 85)),
-    ((G_SERVE, 12, 0, 0, 0, "SERVE 12 GLOWING", "BEAKERS", "serve 12"),
-     (G_SERVE, 28, 0, 0, 0, "SERVE 28 GLOWING", "BEAKERS", "serve 28", "inside out", 120, 80)),
-    ((G_SERVE, 15, 0, 0, 0, "SERVE 15 ANIMALS", "", "serve 15"),
-     (G_SERVE, 32, 0, 0, 0, "STAMPEDE", "SERVE 32 ANIMALS", "serve 32", "stampede", 120, 80)),
+    ((G_SERVE, 12, 0, 0, 0, "SERVE 12 ANIMALS", "", "serve 12"),
+     (G_SERVE, 28, 0, 0, 0, "STAMPEDE", "SERVE 28 ANIMALS", "serve 28", "stampede", 120, 80)),
+    ((G_SERVE, 15, 0, 0, 0, "SERVE 15 GLOWING", "BEAKERS", "serve 15"),
+     (G_SERVE, 32, 0, 0, 0, "SERVE 32 GLOWING", "BEAKERS", "serve 32", "inside out", 125, 75)),
 ]
 
 
@@ -299,7 +303,7 @@ def parse_script(path):
     if [s["id"] for s in scenes] != want:
         fail(f"scene order {[s['id'] for s in scenes]} != {want}")
     # the chapters table: each chapter's engine goal must match CHAPTERS
-    rows = re.findall(r"^\| (\d) \| [^|]+\| [^|]+\| [^|]+\| \"[^\"]*\" / ([^|]+)\|", text, re.M)
+    rows = re.findall(r"^\| (\d+) \| [^|]+\| [^|]+\| [^|]+\| \"[^\"]*\" / ([^|]+)\|", text, re.M)
     if len(rows) != len(CHAPTERS):
         fail(f"chapters table: {len(rows)} rows")
     for (n, eng), c in zip(rows, CHAPTERS):
@@ -310,7 +314,7 @@ def parse_script(path):
                 fail(f"chapter {n} banner {l!r}: max 20, A-Z 0-9 and space")
     # the shifts table: each shift's engine goal and the last call's arrival pattern must match shift_list()
     sec = text.split("\n## Shifts", 1)
-    rows = re.findall(r'^\| (\d) \| "[^"]*" / ([^|]+)\| "[^"]*" / ([^|]+)\| "[^"]*" / ([^|]+)\| ([^|]+)\|',
+    rows = re.findall(r'^\| (\d+) \| "[^"]*" / ([^|]+)\| "[^"]*" / ([^|]+)\| "[^"]*" / ([^|]+)\| ([^|]+)\|',
                       sec[1] if len(sec) > 1 else "", re.M)
     if len(rows) != len(CHAPTERS):
         fail(f"shifts table: {len(rows)} rows")

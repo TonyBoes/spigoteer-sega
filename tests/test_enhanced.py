@@ -234,14 +234,14 @@ def test_bank1_tiles_and_extra_palettes_after_the_title(boot):
 
 @pytest.mark.parametrize("rounds_before", [0, 1, 2], ids=["shake_up", "pour", "tips"])
 def test_bank1_tiles_and_extra_palettes_are_back_after_each_bonus_round(gb, rounds_before):
-    enter_bonus(gb, 18, rounds_before)               # level 18 (zoo) -> bonus -> level 19 (cowboys, loop 3)
+    enter_bonus(gb, 20, rounds_before)               # level 20 (space) -> bonus -> level 21 (cowboys, loop 3)
     assert gb.mem("bonus_kind") == rounds_before
     gb.run(30)
     gb.write("bonus_phase", PH_END)                 # (as test_bonus2.finish, then the "LOOP 3" banner)
     gb.write("bonus_timer", 129)
     run_until(gb, lambda: state(gb) == PLAYING, 600)
     gb.run(2)
-    assert gb.mem("cur_group") == 0 and gb.mem("level") == 19
+    assert gb.mem("cur_group") == 0 and gb.mem("level") == 21
     if gb.model_name == "dmg":
         assert list(gb.read("lift_prop", 8)) == [0x10] * 8
         return

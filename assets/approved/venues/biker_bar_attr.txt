@@ -1,0 +1,5 @@
+; The Chrome Cow (theme biker, patron group punks): owner-approved 2026-10-11 (art round 5); imported from the punk_* proposal files
+; palette per bar tile, 20x3: 0 = bar, 1 = bar_b (keg/spout)
+00000000000000000011
+00000000000000000111
+00000000000000000011

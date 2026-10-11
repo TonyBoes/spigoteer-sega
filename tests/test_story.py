@@ -64,7 +64,7 @@ def gen_story():
 
 # ---- (a) the script build ------------------------------------------------------------------------------------
 def test_the_script_fits_the_text_box_and_the_font():
-    assert len(SCENES) == 21 and SCENES[0]["id"] == "INTRO" and SCENES[-1]["id"] == "CREDITS"
+    assert len(SCENES) == 23 and SCENES[0]["id"] == "INTRO" and SCENES[-1]["id"] == "CREDITS"
     for s in SCENES:
         assert s["pages"], s["id"]
         assert len(s["title"]) <= 20 and set(s["title"]) <= CHARSET, s["id"]
@@ -79,7 +79,7 @@ def test_the_script_fits_the_text_box_and_the_font():
     assert all(FONT["glyph_" + n] == GLYPH[c] for c, n in (
         (".", "period"), (",", "comma"), ("!", "excl"), ("?", "quest"), ("'", "apos"), ("-", "hyphen"), (":", "colon")))
     # the size the report quotes: the whole script is a few KB, kept uncompressed
-    assert STORY["text_bytes"] < 7000 and STORY["pages"] == sum(len(s["pages"]) for s in SCENES)
+    assert STORY["text_bytes"] < 8000 and STORY["pages"] == sum(len(s["pages"]) for s in SCENES)
 
 
 def test_the_script_matches_docs_story_md():
@@ -122,10 +122,12 @@ def test_the_build_fails_on_an_unknown_speaker_or_a_fourth_line(tmp_path):
 
 def test_the_chapter_goals_follow_the_chapters_table():
     want = [(G_SERVE, 15, 0, 0), (G_SERVE, 20, F_NO_TAP, 0), (G_SERVE, 18, 0, 0), (G_SERVE, 20, 0, 120),
-            (G_SERVE, 20, 0, 120), (G_CATCH, 25, 0, 0), (G_CLEAR, 0, F_NO_BREAK, 0), (G_SERVE, 25, 0, 0),
-            (G_SERVE, 30, 0, 0)]
+            (G_SERVE, 20, 0, 120), (G_CATCH, 25, 0, 0), (G_SERVE, 22, 0, 0), (G_CLEAR, 0, F_NO_BREAK, 0),
+            (G_SERVE, 25, 0, 0), (G_SERVE, 30, 0, 0)]
     assert [(c["type"], c["count"], c["flags"], c["secs"]) for c in CHAPTERS] == want
-    assert [c["venue"] for c in CHAPTERS] == list(range(9))
+    assert [c["venue"] for c in CHAPTERS] == list(range(10)), "chapter = venue = patron group = arcade level row"
+    assert [c["suffix"] for c in CHAPTERS] == ["SALOON", "STADIUM", "LUMBER", "BISTRO", "IGLOO", "ROBOT", "BIKER",
+                                               "TEAHOUSE", "ZOO", "SPACE"], "the new order (owner 2026-10-10)"
 
 
 def test_the_cut_scene_budget():
@@ -625,7 +627,7 @@ def test_coach_and_the_spigoteer_swap_cleanly(model):
 
 # every scene, page by page (test_every_page_shows_its_portrait): a few pages also keep a golden
 TOUR_GOLDENS = {("PRE_IGLOO", 0): "story_aurora", ("PRE_IGLOO", 2): "story_spigoteer_cozy",
-                ("PRE_SPACE", 2): "story_zizz", ("FINALE", 3): "story_dregs_sorry"}
+                ("PRE_SPACE", 2): "story_zizz", ("FINALE", 3): "story_dregs_sorry", ("PRE_BIKER", 1): "story_granny"}
 PID_NAME = {p["pid"]: n for n, p in PORTRAITS.items()}
 
 
@@ -691,11 +693,11 @@ def tour_scene(gb, sid, seen):
         cur = name
 
 
-@pytest.mark.parametrize("c", range(9))
+@pytest.mark.parametrize("c", range(10))
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_every_page_shows_its_portrait(model, c):
-    """Chapter c's PRE and POST scenes (chapter 1 also the INTRO, chapter 9 the FINALE), every page in the real
-    cut-scene: all 13 portraits pixel-exact on DMG and CGB, every swap between two portraits the script makes."""
+    """Chapter c's PRE and POST scenes (chapter 1 also the INTRO, chapter 10 the FINALE), every page in the real
+    cut-scene: all 14 portraits pixel-exact on DMG and CGB, every swap between two portraits the script makes."""
     seen = set()
     if c == 0:
         gb = start_story(model)
@@ -712,20 +714,20 @@ def test_every_page_shows_its_portrait(model, c):
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(c), 400)
         settle(gb)
         tour_scene(gb, SCENES[post(c)]["id"], seen)
-        if c == 8:
+        if c == 9:
             skip_scene(gb)
             tour_scene(gb, "FINALE", seen)
-    sids = (["INTRO"] if c == 0 else []) + [SCENES[pre(c)]["id"], SCENES[post(c)]["id"]] + (["FINALE"] if c == 8 else [])
+    sids = (["INTRO"] if c == 0 else []) + [SCENES[pre(c)]["id"], SCENES[post(c)]["id"]] + (["FINALE"] if c == 9 else [])
     assert seen == portrait_pairs(sids)
 
 
 def test_the_tour_covers_every_portrait_and_swap():
     """What test_every_page_shows_its_portrait walks: every scene with a portrait is in it (CREDITS has none), so it
-    shows all 13 portraits and all the swaps of the script."""
-    toured = {"INTRO", "FINALE"} | {SCENES[pre(c)]["id"] for c in range(9)} | {SCENES[post(c)]["id"] for c in range(9)}
+    shows all 14 portraits and all the swaps of the script."""
+    toured = {"INTRO", "FINALE"} | {SCENES[pre(c)]["id"] for c in range(10)} | {SCENES[post(c)]["id"] for c in range(10)}
     assert {s["id"] for s in SCENES if s["spk"]} == toured
     assert {p["portrait"] for s in SCENES for p in s["pages"] if p["portrait"]} == set(PORTRAITS)
-    assert len(portrait_pairs()) == 27
+    assert len(portrait_pairs()) == 29
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -757,7 +759,7 @@ def shift_title(c, k):
 
 def test_the_shift_data():
     """Opening about half the goal and slower, Happy hour the chapter goal as written, Last call faster with its own
-    arrival pattern (nine different ones); the mini-game and boss slots are in the sequence, skipped until built."""
+    arrival pattern (ten different ones); the mini-game and boss slots are in the sequence, skipped until built."""
     assert SHIFT_NAMES == ["OPENING SHIFT", "HAPPY HOUR", "LAST CALL"]
     assert [(s["kind"], s["index"], s["built"]) for s in SEQ] == [
         ("SHIFT", 0, True), ("SHIFT", 1, True), ("MINI", 0, False), ("SHIFT", 2, True), ("BOSS", 0, False)]
@@ -771,13 +773,14 @@ def test_the_shift_data():
         size = [s["count"] or s["quota"] or rows[c][1] for s in (op, happy, last)]
         assert 0.4 <= size[0] / size[1] <= 0.6 and size[2] >= size[1], c
         assert (op["walk"], op["spawn"]) == (85, 115) and op["pattern"] == "normal"
-        assert 105 <= last["walk"] <= 120 and 80 <= last["spawn"] <= 95 and last["pattern"] != "normal"
+        assert 105 <= last["walk"] <= 125 and 75 <= last["spawn"] <= 95 and last["pattern"] != "normal"
         assert op["type"] == happy["type"] == last["type"] and op["flags"] == happy["flags"] == last["flags"]
         for k, s in enumerate((op, happy, last)):
             assert len(shift_title(c, k)) <= 20
             for l in (s["line1"], s["line2"]):
                 assert len(l) <= 20 and set(l) <= set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "), (c, k, l)
-    assert len({s[2]["pattern"] for s in SHIFTS}) == 9, "every venue's last call has its own arrival pattern"
+    assert len({s[2]["pattern"] for s in SHIFTS}) == 10, "every venue's last call has its own arrival pattern"
+    assert max(range(10), key=lambda c: (SHIFTS[c][2]["walk"], -SHIFTS[c][2]["spawn"])) == 9, "the last is the hardest"
 
 
 def test_the_build_fails_on_a_shifts_table_mismatch(tmp_path):
@@ -832,9 +835,9 @@ def test_the_goal_banner_names_the_shift_and_the_hud_counts(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_last_call_banner(model):
-    with to_shift(model, 8, 2, banner=True) as gb:
+    with to_shift(model, 9, 2, banner=True) as gb:      # the last chapter: the space lounge
         gb.run(5)
-        last = SHIFTS[8][2]
+        last = SHIFTS[9][2]
         assert banner_text(gb, 1) == centred("LAST CALL")
         assert banner_text(gb, 2) == centred(last["line1"]) and banner_text(gb, 3) == centred(last["line2"])
         assert tilemap_row(gb, 0, 12, 3) == [GLYPH["S"], GLYPH["3"], GLYPH["2"]]
@@ -846,7 +849,7 @@ def pace(gb):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("c", range(9))
+@pytest.mark.parametrize("c", range(10))
 def test_each_chapter_plays_its_shifts_in_order(model, c):
     """Opening -> SHIFT CLEAR -> Happy hour -> SHIFT CLEAR -> (the mini-game slot, skipped) Last call -> CHAPTER CLEAR
     -> (the boss slot, skipped) the POST scene; each shift's banner, goal and pace; the progress saved after each. A
@@ -972,7 +975,7 @@ def test_lives_carry_from_shift_to_shift(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("c", range(9))
+@pytest.mark.parametrize("c", range(10))
 def test_losing_the_last_life_in_the_last_call_restarts_the_venue(model, c):
     """Every chapter: the last life lost in the Last call -> TRY AGAIN -> the Opening's banner with 3 lives (no PRE
     scene); the step reached stays recorded (and is not lowered by winning the Opening again), the score carries on."""
@@ -1034,9 +1037,9 @@ def test_time_up_costs_a_life_and_retries_the_shift(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("c, k", [(1, 0), (1, 1), (1, 2), (6, 0), (6, 1), (6, 2)])
+@pytest.mark.parametrize("c, k", [(1, 0), (1, 1), (1, 2), (7, 0), (7, 1), (7, 2)])
 def test_a_strict_rule_costs_two_lives(model, c, k):
-    """Chapter 2 (a fan at the tap) and 7 (a broken cup), every shift: the banner says so, breaking the rule costs 2
+    """Chapter 2 (a fan at the tap) and 8 (a broken cup), every shift: the banner says so, breaking the rule costs 2
     lives, "2 LIVES LOST" shows over the freeze and the two lost mugs blink together; the shift goes on with the one
     left, and the next break of the rule restarts the venue."""
     with to_shift(model, c, k, banner=True) as gb:
@@ -1083,13 +1086,16 @@ def test_the_strict_rule_cue(model):
         check_golden(gb, "story_two_lives")
 
 
+TEA = 7                                                  # the teahouse's chapter index (chapter 8)
+
+
 def teahouse_post(gb):
-    """Chapter 7 played on from where gb is (any shift, past its banner): won as the chapter's last step, so its POST
+    """Chapter 8 (the teahouse) played on from where gb is (any shift, past its banner): won as the chapter's last step, so its POST
     scene opens; Hana's first page shown whole."""
     to_goal(gb)
     gb.write("story_step", STORY_STEPS - 1)
-    win(gb, 6, gb.mem("story_shift"))
-    run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(6), 400)
+    win(gb, TEA, gb.mem("story_shift"))
+    run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(TEA), 400)
     settle(gb)
     page_ready(gb)
     assert gb.mem("story_page") == 0 and gb.mem("story_cur") == PORTRAITS["HANA"]["pid"]
@@ -1099,9 +1105,9 @@ def teahouse_post(gb):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_hana_thanks_a_clean_teahouse_with_not_one_cup(model):
     """No cup broken in the teahouse run (Opening won, then the venue): NOT ONE CUP BROKEN."""
-    with to_chapter(model, 6) as gb:
+    with to_chapter(model, TEA) as gb:
         assert gb.mem("story_conds") == 0
-        win(gb, 6, 0)                                    # the Opening, cleanly: SHIFT CLEAR, the Happy hour
+        win(gb, TEA, 0)                                    # the Opening, cleanly: SHIFT CLEAR, the Happy hour
         run_until(gb, lambda: state(gb) == GS_GOAL, 400)
         gb.run(2)
         assert gb.mem("story_shift") == 1 and gb.mem("story_conds") == 0
@@ -1114,12 +1120,12 @@ def test_hana_thanks_a_clean_teahouse_with_not_one_cup(model):
 def test_hana_after_a_broken_cup_says_so_few(model):
     """A cup broken in the Opening (2 lives, the run goes on) is still remembered after the Happy hour is won:
     SO FEW CUPS BROKEN."""
-    with to_chapter(model, 6) as gb:
+    with to_chapter(model, TEA) as gb:
         break_a_glass(gb)
         gb.run(2)
         assert gb.mem("lives") == 1 and gb.mem("story_conds") == 1, "the strict rule's event sets GLASS_BROKEN"
         freeze_over(gb)
-        win(gb, 6, 0)
+        win(gb, TEA, 0)
         run_until(gb, lambda: state(gb) == GS_GOAL, 400)
         gb.run(2)
         assert gb.mem("story_shift") == 1 and gb.mem("story_conds") == 1, "kept from shift to shift"
@@ -1135,7 +1141,7 @@ def test_hana_after_a_broken_cup_says_so_few(model):
 def test_a_broken_cup_before_a_venue_restart_is_forgotten(model):
     """Cups broken in an attempt that lost its last life do not count: the restarted venue is a new run, and a clean
     one gets NOT ONE CUP."""
-    with to_chapter(model, 6) as gb:
+    with to_chapter(model, TEA) as gb:
         break_a_glass(gb)                                # 3 -> 1
         freeze_over(gb)
         break_a_glass(gb)                                # the last one: TRY AGAIN, the venue again
@@ -1149,7 +1155,7 @@ def test_a_broken_cup_before_a_venue_restart_is_forgotten(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_other_rules_cost_one_life(model):
-    with to_shift(model, 6, 1) as gb:                   # the teahouse: a patron at the tap is one life
+    with to_shift(model, TEA, 1) as gb:                 # the teahouse: a patron at the tap is one life
         lose_a_life(gb)
         gb.run(2)
         assert gb.mem("lives") == 2 and gb.mem("story_pen") == 0 and gb.mem("overlay_on") == 0
@@ -1200,7 +1206,7 @@ def test_arcade_keeps_three_lives_for_the_run(gb):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("c", range(9))
+@pytest.mark.parametrize("c", range(10))
 def test_each_last_call_pattern_sends_its_arrival_order(model, c):
     """The spawns follow the pattern's bars in order (deterministic, the RNG has no say), each followed by its wait."""
     pat = PATTERNS[SHIFTS[c][2]["pattern"]]
@@ -1236,10 +1242,10 @@ def test_each_last_call_pattern_sends_its_arrival_order(model, c):
 # ---- (d) the whole run's end, save and continue -------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_last_chapter_leads_to_the_finale_credits_and_the_title(model):
-    with to_shift(model, 8, 2) as gb:
-        win(gb, 8, 2)
+    with to_shift(model, 9, 2) as gb:                   # chapter 10, the space lounge
+        win(gb, 9, 2)
         run_until(gb, lambda: state(gb) == GS_STORY, 300)
-        assert gb.mem("story_scene") == post(8) and gb.mem("story_progress") == 9
+        assert gb.mem("story_scene") == post(9) and gb.mem("story_progress") == 10
         skip_scene(gb)
         assert gb.mem("story_scene") == SC["FINALE"]
         page_ready(gb)
@@ -1360,10 +1366,10 @@ def test_version_4_loads_its_progress_and_rejects_a_bad_one(model):
     with booted(model, v4_image([("ABC", 500)], story=7, step=3)) as rom:
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (7, 3)
         assert table(rom)[0] == ("ABC", 500) and rom.mem("save_migrated") == 4, "(migrated to version 5)"
-    for story, step in ((10, 0), (2, 5), (9, 1)):      # (well-formed checksums over a progress that cannot be)
+    for story, step in ((11, 0), (2, 5), (10, 1)):     # (well-formed checksums over a progress that cannot be)
         with booted(model, v4_image([("ABC", 500)], story=story, step=step)) as rom:
             assert rom.mem("story_progress") == 0 and table(rom)[0] == ("   ", 0), (story, step)
-    with booted(model, v3_image([("ABC", 500)], story=10)) as rom:
+    with booted(model, v3_image([("ABC", 500)], story=11)) as rom:
         assert rom.mem("story_progress") == 0 and table(rom)[0] == ("   ", 0)
     with booted(model, v1_image(777)) as rom:
         assert rom.mem("save_migrated") == 1 and table(rom)[0] == ("SPG", 777) and rom.mem("story_progress") == 0

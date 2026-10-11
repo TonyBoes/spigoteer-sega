@@ -319,7 +319,7 @@ def test_progress_unlocks_rule():
     assert progress_unlocks(0, 0) == 1, "nothing played: the title tune"
     assert progress_unlocks(0, 1) == 1 | 1 << TUNE_VENUE0, "a step of chapter 1 reached: the saloon"
     assert progress_unlocks(1, 0) == 1 | 1 << TUNE_VENUE0 | JINGLES
-    assert progress_unlocks(9, 0) == ALL, "the story complete: everything"
+    assert progress_unlocks(10, 0) == ALL, "the story complete: everything"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

@@ -1,7 +1,7 @@
-"""Song sources for the buffered tunes (title, show, nine venue tunes).  Imported by gen_music.py.
+"""Song sources for the buffered tunes (title, show, ten venue tunes).  Imported by gen_music.py.
 
-All tunes are public domain compositions.  Oh! Susanna, Galop infernal and the nine tunes entered from
-docs/music_specs.md follow the owner's note lists; the arrangement (accompaniment, rhythm, instruments) is ours.  Notation: see gen_music.py.  One song row is one
+All tunes are public domain compositions.  Oh! Susanna, Galop infernal and the tunes entered from
+docs/music_specs.md follow the owner's note lists (Drunken Sailor: our transcription of the owner's pick); the arrangement (accompaniment, rhythm, instruments) is ours.  Notation: see gen_music.py.  One song row is one
 unit note (an eighth note unless the comment says sixteenth); `tempo` is frames per row (60 fps).
 The melody is channel 2 (pulse), the bass channel 3 (wave), the percussion channel 4 (noise);
 channel 1 belongs to the sound effects.  Upper-case K S H are the quiet drum kit (kick, snare,
@@ -87,7 +87,7 @@ song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS)
 
 
 # ---------------------------------------------------------------------------------------------
-# The nine tunes below are the owner's melody specs (docs/music_specs.md), entered token for token: one
+# The tunes below are the melody specs (docs/music_specs.md), entered token for token: one
 # list entry per bar, "NOTE:ROWS", R = rest, ~ = tie (the previous note held on), the chord of each bar
 # in the *_CHORDS list.  The arrangement (bass style, drums, instruments) is ours.  tests/test_sound.py
 # parses the spec and compares these lists with it.
@@ -302,7 +302,7 @@ song("sailor", 9, "A", " ".join(SAI_BARS), punk_bass(SAI_CHORDS), stac_all=(3, 4
      groove="K:1 H:1 S:1 H:1 K:1 K:1 S:1 H:1")
 
 # which songs, in tune order after title/show
-VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sakura", "danube", "weasel"]
+VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sailor", "sakura", "weasel", "danube"]
 
 # rows per bar (for the pitch-check table in tools/check_music.py)
 BAR_ROWS = {"susanna": 4, "entertainer": 8, "galop": 4, "ballgame": 6, "mountain": 8, "funicula": 6,

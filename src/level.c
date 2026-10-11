@@ -24,12 +24,12 @@ typedef struct {
     uint8_t serve_score;
     uint8_t empty_gap;      // frames kept between two empties' arrivals at the bartender's end (fair empties)
 } level_cfg_t;
-#define LEVEL_ROWS 9
-// One row per patron group, in the order of gen_art.py's PATRON_GROUPS.
+#define LEVEL_ROWS 10
+// One row per patron group, in the order of gen_art.py's PATRON_GROUPS (= the story's chapters).
 // Playtest 4 flattened the curve: the old one was impossible by level 6. Level 1 is meant for a first-time
 // player (2 bars started, ~17 s to cross a bar, a patron every 5 s, 8 to serve); L2 is unchanged. From L2
 // every column is interpolated in a straight line to the NEW L6 = the OLD L3 row, and on to the NEW L9 = the
-// OLD L5 row (rounded). M10b: past level 9 the rows come round again, a little harder per loop (start_level).
+// OLD L5 row (rounded). M10b: past level 10 the rows come round again, a little harder per loop (start_level).
 // Old -> new, per level:
 //   level      1    2    3    4    5    6    7    8    9
 //   quota old  8   10   12   14   16   18   20   21   22
@@ -56,6 +56,10 @@ typedef struct {
 // (hurried walkers then take 64/1.5 = 43 .. 52/1.5 = 35 frames per 8 px: about the old L7 .. beyond the old L9 for
 // that one patron). Levels 1-2 have no hurried patrons and keep their rows. Quota, spawn, push-back and the empty gap
 // are unchanged.
+// The 10th venue (2026-10-11, docs/venue10_impact.md): The Chrome Cow (punks) is level 7 and the space lounge moves to
+// the end: the rows stay with the POSITION (the difficulty ramp), not the venue. Level 7 is a new row midway between
+// the old levels 6 and 7; levels 8-10 are the old rows 7-9 (the teahouse keeps the old level 7's numbers, the zoo takes
+// the old level 8's, the space lounge, now last, the old level 9's: the hardest row).
 //                 grp mask per quota spawn step push score gap
 static const level_cfg_t level_table[LEVEL_ROWS] = {
     { 0, 0x5, 1,  8, 300, 64, 4,  50, 120 },   // 1 cowboys: bars 0 and 2
@@ -64,9 +68,10 @@ static const level_cfg_t level_table[LEVEL_ROWS] = {
     { 3, 0xF, 1, 11, 263, 63, 4, 100, 105 },   // 4 chefs
     { 4, 0xF, 1, 11, 256, 62, 4, 100, 102 },   // 5 divers
     { 5, 0xF, 1, 12, 250, 61, 4, 125, 100 },   // 6 robots: plays like the old level 3
-    { 6, 0xF, 1, 13, 237, 58, 4, 125,  93 },   // 7 ninjas
-    { 7, 0xF, 1, 15, 223, 56, 3, 150,  87 },   // 8 aliens
-    { 8, 0xF, 1, 16, 210, 52, 3, 150,  80 },   // 9 zoo: plays like the old level 5; level 10 is row 1 again (loop 2)
+    { 6, 0xF, 1, 12, 244, 60, 4, 125,  97 },   // 7 punks (The Chrome Cow): midway between rows 6 and 8
+    { 7, 0xF, 1, 13, 237, 58, 4, 125,  93 },   // 8 ninjas
+    { 8, 0xF, 1, 15, 223, 56, 3, 150,  87 },   // 9 zoo
+    { 9, 0xF, 1, 16, 210, 52, 3, 150,  80 },   // 10 aliens: plays like the old level 5; level 11 is row 1 again (loop 2)
 };
 
 static void load_patron_group(uint8_t g) {
@@ -81,7 +86,7 @@ static void load_patron_group(uint8_t g) {
     }
 }
 
-// M10b arcade loops: after level 9 the venues come round again (level 10 = venue 0 = loop 2, level 19 = loop 3, ...),
+// M10b arcade loops: after level 10 the venues come round again (level 11 = venue 0 = loop 2, level 21 = loop 3, ...),
 // each loop a little harder than the table row, up to LOOP_STEPS_MAX loops' worth: walk speed +LOOP_SPEED_PCT % per
 // loop (cap +30 %), spawn interval -LOOP_SPAWN_PCT % per loop (cap -24 %), empty gap -LOOP_GAP_STEP frames per loop,
 // never below EMPTY_GAP_FLOOR. Quota, start patrons, push-back and the serve score stay the row's.

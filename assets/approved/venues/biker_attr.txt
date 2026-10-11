@@ -1,0 +1,6 @@
+; The Chrome Cow (theme biker, patron group punks): owner-approved 2026-10-11 (art round 5); imported from the punk_* proposal files
+; palette per stage tile, 20x4: 0 = stage_a, 1 = stage_b
+00000000111101000000
+00000000111101000000
+00000000000001000000
+00000000000000000000

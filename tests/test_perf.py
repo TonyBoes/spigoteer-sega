@@ -53,11 +53,10 @@ def test_level8_script_never_misses_a_frame(rom):
 
 def test_worst_case_pile(rom):
     """STRESS TEST beyond reachable play (the realistic peak is test_realistic_peak): 16 patrons, 20 mugs
-    (full/empty/breaking/held), tip, show, serves, at level 9 speeds: more than the game can produce. It drops frames,
+    (full/empty/breaking/held), tip, show, serves, at level 10 speeds (the fastest row): more than the game can produce. It drops frames,
     but the music never skips a tick and no VRAM write happens outside VBlank."""
     ph.start_game(rom)
-    ph.goto_level(rom, 8)
-    rom.write("level", 9)
+    ph.goto_level(rom, 10)                       # the last row, the fastest (the space lounge since the 10th venue)
     rom.write("intro_timer", 0)
     rom.write("tip_chance", 255)
     wc = ph.WorstCase(rom)
@@ -130,7 +129,7 @@ def test_vram_queue_is_drained_only_inside_vblank(rom):
     assert all(t >= BASE for t in after[0][8:11]) and after != before, "the patron is drawn at x 64 (columns 8-10)"
 
 
-# ---- M13b: the level-9 overlap scenario ------------------------------------------------------------------------------
+# ---- M13b: the overlap scenario on the fastest row (level 10) ------------------------------------------------------------------------------
 OVERLAP_FRAMES = 1200
 
 
@@ -149,7 +148,7 @@ def oam_line_counts(gb):
 
 def test_level9_overlap_scenario(rom):
     """STRESS TEST beyond reachable play (12 patrons, 16 mugs; the realistic peak is test_realistic_peak).
-    Level 9, on every bar a pushed patron sliding back through a pair of overlapping walkers, 4 mugs per bar
+    Level 10 (the fastest row; level 9 before the 10th venue), on every bar a pushed patron sliding back through a pair of overlapping walkers, 4 mugs per bar
     (perf_helpers.OverlapCase), 1200 frames: never more than 10 objects on a line or 40 in all, the music never skips a
     tick, no VRAM write outside VBlank.
 
@@ -167,7 +166,7 @@ def test_level9_overlap_scenario(rom):
         assert line <= 10 and n <= 40, (i, line, n)
         ticks.append((gb.mem("frame_counter"), gb.mem16("music_frames")))
     r = ph.overlap_run(rom, OVERLAP_FRAMES, check)
-    print(rom.model_name, "level 9 overlap", r, worst, "lifts", rom.mem("lift_lifts"), "forced", rom.mem("lift_forced"))
+    print(rom.model_name, "level 10 overlap", r, worst, "lifts", rom.mem("lift_lifts"), "forced", rom.mem("lift_forced"))
     assert_music_every_frame(ticks)
     assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
     assert rom.mem("lift_lifts") > 0, "the scenario lifts patrons"
@@ -205,11 +204,11 @@ def realistic(rom):
 
 
 def test_realistic_peak(rom):
-    """Level 9 at the most real play produces, kept up as a steady state for REALISTIC_FRAMES frames: never more than 10
-    objects on a line or 40 in all, the music never skips a tick, no VRAM write outside VBlank.
+    """Level 10 (the fastest row) at the most real play produces, kept up as a steady state for REALISTIC_FRAMES
+    frames: never more than 10 objects on a line or 40 in all, the music never skips a tick, no VRAM write outside VBlank.
 
-    Why this is the peak (the game's own limits, level 9: spawn interval 210 frames, quota 16, step 52 frames per 8 px,
-    empty gap 80 frames):
+    Why this is the peak (the game's own limits on the fastest row, level 10, the space lounge since the 10th venue (it
+    was level 9, the zoo): spawn interval 210 frames, quota 16, step 52 frames per 8 px, empty gap 80 frames):
       - patrons: one arrives every 210 frames and takes ~11 s from the left end to the tap, pushes keep them in longer:
         about 8 on screen at once; hurried ones (1 in 4) among them, pushed ones sliding back through the others (lifts),
         new ones sliding in from the left edge and served ones sliding out past it (sprites);
@@ -220,7 +219,7 @@ def test_realistic_peak(rom):
       - a tip lies on the counter OR the show runs (picking a tip up starts the show), never both on screen.
     perf_helpers.RealisticPeak keeps that up. The frame-time target (0 missed, end LY <= END_LY_TARGET) is NOT met: see
     test_realistic_peak_frame_time_target (strict xfail) for the measured numbers. Here: a regression guard at the
-    measured level. The level-9 overlap scenario and the worst-case pile are stress tests beyond reachable play."""
+    measured level. The level-10 overlap scenario and the worst-case pile are stress tests beyond reachable play."""
     r, worst, summary, ticks, drain_ok = realistic(rom)
     # the scenario is what it says (empties: 3 at most before each frame; one more may be sent during it; full mugs:
     # the scenario keeps 3 in flight at most before each frame, and the scripted bartender's own launch may make a 4th:
@@ -235,7 +234,9 @@ def test_realistic_peak(rom):
     assert_music_every_frame([(f, m) for f, m, _, _, _ in ticks])
     assert drain_ok
     # regression guard (measured M13c: DMG end 190-195 / 59-65 missed, CGB 208 / 88 missed of 1200; no doors, served
-    # patrons sliding out as sprites: DMG 187 / 59, CGB 193 / 99)
+    # patrons sliding out as sprites: DMG 187 / 59, CGB 193 / 99. 10th venue: the row is reached straight from level 9's
+    # clear (no bonus round), the aliens' art, and the scenario keeps up to 10 patrons (it ran at 9: from this start its
+    # mean fell to 6.4-6.8, under the ~8 the arithmetic above gives): DMG 198 / 95, CGB 208 / 126)
     assert r["end"] <= 230 and r["missed"] <= 140, r
 
 

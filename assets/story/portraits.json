@@ -12,5 +12,6 @@
   "MANAGER-BOT": {"art": "assets/story/portraits/managerbot.txt", "x": 2, "y": 6},
   "HANA":        {"art": "assets/story/portraits/hana.txt", "x": 2, "y": 6},
   "ZIZZ":        {"art": "assets/story/portraits/zizz.txt", "x": 2, "y": 6},
-  "KIKI":        {"art": "assets/story/portraits/kiki.txt", "x": 2, "y": 6}
+  "KIKI":        {"art": "assets/story/portraits/kiki.txt", "x": 2, "y": 6},
+  "GRANNY":      {"art": "assets/story/portraits/granny.txt", "x": 2, "y": 6}
 }

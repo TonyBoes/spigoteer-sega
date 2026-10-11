@@ -75,9 +75,9 @@ def test_left_right_change_the_level_and_wrap(boot):
     for b in ("right", "right", "left", "left", "left"):
         boot.press(b, 2)
         n.append(boot.mem("debug_level"))
-    assert n == [2, 3, 2, 1, 18], "wraps below 1"
+    assert n == [2, 3, 2, 1, 20], "wraps below 1"
     boot.press("right", 2)
-    assert boot.mem("debug_level") == 1, "and above 18"
+    assert boot.mem("debug_level") == 1, "and above 20"
     boot.press("up", 2)
     boot.press("down", 2)
     assert boot.mem("debug_level") == 1
@@ -105,7 +105,7 @@ def test_a_starts_that_level_from_scratch(boot, lvl):
     boot.press("a", 2)
     boot.run(15)       # the level load takes a few frames (LCD off)
     assert boot.mem("debug_menu_open") == 0 and boot.mem("game_state") == PLAYING
-    assert boot.mem("level") == lvl and boot.mem("cur_group") == (lvl - 1) % 9, "its venue"
+    assert boot.mem("level") == lvl and boot.mem("cur_group") == (lvl - 1) % 10, "its venue"
     assert boot.mem("lives") == 3 and boot.mem("score") == 0 and boot.mem("overlay_on") == 0
     boot.run(30)
     assert boot.mem("game_state") == PLAYING
@@ -257,7 +257,8 @@ def test_on_story_the_box_selects_story_positions(boot):
     boot.run(3)
     assert banner_is(boot, "STORY 1 POST")
     tap(boot, "left")
-    assert boot.mem("debug_chapter") == 8 and boot.mem("debug_pos") == seq[-1], "chapters wrap, the position kept"
+    assert boot.mem("debug_chapter") == 9 and boot.mem("debug_pos") == seq[-1], "chapters wrap, the position kept"
+    assert banner_is(boot, "STORY 10 POST"), "chapter 10: two digits"
     tap(boot, "right")
     tap(boot, "right")
     tap(boot, "down")

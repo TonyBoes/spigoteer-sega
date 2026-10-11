@@ -184,7 +184,7 @@ uint8_t next_rand(void) {                    // 8-bit xorshift, fixed seed => re
 
 #define LOOP_FRAMES    120              // the "LOOP n" banner, before the level's intro
 #define GAMEOVER_FRAMES 240             // the GAME OVER banner goes on to the initials / table by itself after 4 s
-uint8_t arcade_loop = 1;                // pass through the nine venues: 1, 2, ...
+uint8_t arcade_loop = 1;                // pass through the ten venues: 1, 2, ...
 // (start_level: src/level.c, declared in game.h)
 
 // ---- screens and state changes --------------------------------------------------------

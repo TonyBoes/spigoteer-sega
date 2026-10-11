@@ -1,4 +1,4 @@
-# M10b arcade mode: the top-5 table with initials in SRAM (save.c), endless loops of the nine venues with a
+# M10b arcade mode: the top-5 table with initials in SRAM (save.c), endless loops of the ten venues with a
 # "LOOP n" banner and harder loops (main.c), the initials entry and the table screen (scores.c).
 import pytest
 from conftest import GAME, ROM, check_golden, title_arcade
@@ -13,7 +13,7 @@ V2_SUM = 34
 V3_SUM = 36          # M11b: version 3 = version 2's table + the story progress (34) + a reserved byte, checksum at 36
 V4_SUM = 36          # story shifts: version 4 = version 3 with the step reached at 35 (was reserved)
 V5_SUM = 38          # bonus menu: version 5 = version 4's bytes + the unlocked tunes at 36-37 (LE), checksum at 38
-TUNE_COUNT = 14      # music.h (title, clear, over, bonus, show, nine venue tunes)
+TUNE_COUNT = 15      # music.h (title, clear, over, bonus, show, ten venue tunes)
 TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0 = range(6)
 JINGLES = (1 << TUNE_CLEAR) | (1 << TUNE_OVER) | (1 << TUNE_BONUS) | (1 << TUNE_SHOW)
 
@@ -75,7 +75,7 @@ def v5_image(entries, story=0, step=0, tunes=1, size=0x2000):
 def progress_unlocks(story, step):
     """save.c progress_unlocks: the tunes an old save's progress implies."""
     m = 1 << TUNE_TITLE
-    n = story + 1 if step and story < 9 else story
+    n = story + 1 if step and story < 10 else story
     for c in range(n):
         m |= 1 << (TUNE_VENUE0 + c)
     return m | (JINGLES if story else 0)
@@ -229,16 +229,16 @@ def window_text(gb):
     return "".join(names.get(t & 0xFF, "?") for t in gb.bg_tilemap(True)[1][:20]).strip()
 
 
-def test_after_level_9_the_venues_come_round_again_with_a_loop_banner(gb):
+def test_after_level_10_the_venues_come_round_again_with_a_loop_banner(gb):
     from test_flow import LAYOUT, patrons, tile_id, tilemap_row
     assert gb.mem("arcade_loop") == 1
-    to_level(gb, 10)
+    to_level(gb, 11)
     assert state(gb) == GS_LOOP and gb.mem("overlay_on") == 1
     assert gb.mem("cur_group") == 0 and gb.mem("venue_id") == 0 and gb.mem("arcade_loop") == 2
     gb.run(3)
     assert window_text(gb) == "LOOP 2"
     assert gb.regs()["WY"] == 64
-    assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_1"), tile_id("GLYPH_0")], "L10"
+    assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_1"), tile_id("GLYPH_1")], "L11"
     check_golden(gb, "loop_banner")
     # nothing moves under the banner; the level's own intro follows it
     start = patrons(gb)
@@ -252,12 +252,12 @@ def test_after_level_9_the_venues_come_round_again_with_a_loop_banner(gb):
 
 
 def test_levels_inside_a_loop_have_no_banner(gb):
-    to_level(gb, 11)
+    to_level(gb, 12)
     assert state(gb) == PLAYING and gb.mem("overlay_on") == 0 and gb.mem("cur_group") == 1 and gb.mem("arcade_loop") == 2
 
 
-def test_loop_3_starts_at_level_19(gb):
-    to_level(gb, 19)
+def test_loop_3_starts_at_level_21(gb):
+    to_level(gb, 21)
     assert state(gb) == GS_LOOP and gb.mem("arcade_loop") == 3 and gb.mem("cur_group") == 0
     gb.run(3)
     assert window_text(gb) == "LOOP 3"
@@ -275,20 +275,20 @@ def test_each_loop_is_harder_up_to_a_ceiling(model):
         gb.run(120)
         start_game(gb)
         seen = {}
-        for lvl in (1, 9, 10, 18, 19, 27, 28, 36, 37, 45, 46, 54):
+        for lvl in (1, 10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60):
             if lvl > 1:
                 to_level(gb, lvl)
-            row, k = TABLE[(lvl - 1) % 9], min((lvl - 1) // 9, 3)
+            row, k = TABLE[(lvl - 1) % 10], min((lvl - 1) // 10, 3)
             speed, spawn, gap = gb.mem("patron_speed"), gb.mem16("spawn_interval"), gb.mem("empty_gap")
             b = base_speed(row[5])
             assert speed == b + b * 10 * k // 100, lvl                 # +10 % per loop, capped at +30 %
             assert spawn == row[4] - row[4] * 8 * k // 100, lvl          # -8 % per loop, capped at -24 %
             assert gap == max(80, row[8] - 5 * k) and gap >= 80, lvl     # -5 frames per loop, floor 80
             seen[lvl] = (speed, spawn, gap)
-        assert seen[10][0] > base_speed(TABLE[0][5]) and seen[19][0] > seen[10][0] and seen[28][0] > seen[19][0]
-        assert seen[37] == seen[28] and seen[46] == seen[28], "the ceiling: loop 4 on plays like loop 4"
-        assert seen[36] == seen[45] == seen[54] and seen[54][2] == 80
-        assert seen[28][0] <= base_speed(TABLE[0][5]) * 13 // 10
+        assert seen[11][0] > base_speed(TABLE[0][5]) and seen[21][0] > seen[11][0] and seen[31][0] > seen[21][0]
+        assert seen[41] == seen[31] and seen[51] == seen[31], "the ceiling: loop 4 on plays like loop 4"
+        assert seen[40] == seen[50] == seen[60] and seen[60][2] == 80
+        assert seen[31][0] <= base_speed(TABLE[0][5]) * 13 // 10
 
 
 # ---- (c) the initials entry and the table screen ----------------------------------------------------------

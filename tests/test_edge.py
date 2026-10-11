@@ -246,7 +246,7 @@ def test_one_who_meets_someone_at_entry_x_stays_lifted(gb):
     assert left_tiles(gb, b) == venue_left(0)
 
 
-@pytest.mark.parametrize("level", [1, 9])
+@pytest.mark.parametrize("level", [1, 10])
 def test_entry_to_tap_time_is_unchanged(gb, level):
     """He takes 64 frames from the spawn to ENTRY_X (as the door's emergence did), and from ENTRY_X to the tap the
     level's time as before (the old 120 px at 8 px per step_frames, within 2 %); level 1 stays at 15 s or more."""
@@ -270,7 +270,7 @@ def test_entry_to_tap_time_is_unchanged(gb, level):
         assert cross >= 15 * 60
 
 
-@pytest.mark.parametrize("level", range(1, 10))
+@pytest.mark.parametrize("level", range(1, 11))
 def test_crossing_time_is_unchanged_per_level(gb, level):
     """ENTRY_X to the tap takes what it did when the walk started at x = 0 (120 px at 8 px per step_frames,
     floor(2048 / step) / 256 px per frame), within 2%; level 1 stays at 15 s or more."""

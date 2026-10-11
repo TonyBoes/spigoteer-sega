@@ -19,10 +19,14 @@ ENTRY_X = GAME["ENTRY_X"]
 TABLE = [   # playtest 4: L6 = old L3, L9 = old L5, linear in between, plateau after
     # M13b: from L3 about 1 in 4 patrons hurries (1.5x); the step column of L3-L9 is x 12/11 (src/level.c) so the
     # average entry-to-tap time stays where it was (old steps 59 58 57 56 53 51 48)
+    # 10th venue (2026-10-11): The Chrome Cow is level 7, a new row midway between levels 6 and 8; levels 8-10 are the
+    # old rows 7-9 (the rows stay with the position: teahouse, zoo, then the space lounge, the hardest)
     (0, 0x5, 1, 8, 300, 64, 4, 50, 120), (1, 0x7, 1, 10, 275, 60, 4, 75, 110), (2, 0xF, 1, 10, 269, 64, 4, 75, 108),
     (3, 0xF, 1, 11, 263, 63, 4, 100, 105), (4, 0xF, 1, 11, 256, 62, 4, 100, 102), (5, 0xF, 1, 12, 250, 61, 4, 125, 100),
-    (6, 0xF, 1, 13, 237, 58, 4, 125, 93), (7, 0xF, 1, 15, 223, 56, 3, 150, 87), (8, 0xF, 1, 16, 210, 52, 3, 150, 80),
+    (6, 0xF, 1, 12, 244, 60, 4, 125, 97),
+    (7, 0xF, 1, 13, 237, 58, 4, 125, 93), (8, 0xF, 1, 15, 223, 56, 3, 150, 87), (9, 0xF, 1, 16, 210, 52, 3, 150, 80),
 ]
+ROWS = len(TABLE)                                   # one arcade loop
 ART_H = (ROOT / "build" / "art.h").read_text()
 PATRON_TILES = int(re.search(r"#define PATRON_GROUP_TILES (\d+)", ART_H).group(1))   # M8b: 144 shifted + 12 back views
 PATRON_GROUP_NAMES = re.search(r"// group order: (.*)", ART_H).group(1).split(", ")
@@ -284,7 +288,7 @@ def test_continue_shows_only_with_a_story_save(boot):
         assert menu_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE], "CONTINUE first, then STORY, ARCADE"
         expect_menu(rom, ("continue", "story", "arcade"))
         cursor_on(rom, "continue", 7)                    # (the golden title_continue: tests/test_story.py)
-    with booted(boot.model_name, v5_image([], story=9)) as rom:     # the story finished: nothing to continue
+    with booted(boot.model_name, v5_image([], story=10)) as rom:    # the story finished: nothing to continue
         title_pick(rom, K_PLAY)
         assert menu_items(rom) == [K_STORY, K_ARCADE]
 
@@ -584,18 +588,18 @@ def test_lower_score_keeps_the_hi_score(gb):
 # ---- level table ---------------------------------------------------------------------
 def loop_row(lvl):
     """M10b: the level table row of level lvl with its arcade loop's difficulty (see src/level.c start_level)."""
-    row = list(TABLE[(lvl - 1) % 9])
-    k = min((lvl - 1) // 9, 3)
+    row = list(TABLE[(lvl - 1) % ROWS])
+    k = min((lvl - 1) // ROWS, 3)
     row[4] -= row[4] * (8 * k) // 100                      # spawn interval -8 % per loop, cap -24 %
     row[8] = max(80, row[8] - 5 * k)                       # empty gap -5 frames per loop, never below 80
     return row
 
 
 def test_level_table_and_wrap(gb):
-    for lvl in range(1, 12):
-        row = loop_row(lvl)                     # M10b: level 10 is venue 0 again (loop 2), a little harder
+    for lvl in range(1, 13):
+        row = loop_row(lvl)                     # M10b: level 11 is venue 0 again (loop 2), a little harder
         assert gb.mem("level") == lvl
-        assert gb.mem("cur_group") == (lvl - 1) % 9
+        assert gb.mem("cur_group") == (lvl - 1) % ROWS
         assert (gb.mem("quota"), gb.mem16("spawn_interval"), gb.mem("step_frames"), gb.mem("pushback_cols"),
                 gb.mem("serve_score")) == (row[3], row[4], row[5], row[6], row[7]), lvl
         assert gb.mem("start_mask") == row[1]
@@ -604,9 +608,9 @@ def test_level_table_and_wrap(gb):
         assert tilemap_row(gb, LAYOUT["HUD_ROW"], 18, 2) == [tile_id("GLYPH_0") + lvl // 10, tile_id("GLYPH_0") + lvl % 10]
         gb.write("level_clear", 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 5)
-        run_until(gb, lambda: state(gb) in (PLAYING, BONUS), 400)     # (the LOOP 2 banner before level 10)
+        run_until(gb, lambda: state(gb) in (PLAYING, BONUS), 400)     # (the LOOP 2 banner before level 11)
         if state(gb) == BONUS:                  # M6: even levels are followed by the bonus round; jump to its last frame
             gb.write("bonus_phase", 4)
             gb.write("bonus_timer", 129)
-            run_until(gb, lambda: state(gb) == PLAYING, 40)
+            run_until(gb, lambda: state(gb) == PLAYING, 200)          # (after level 10: the LOOP 2 banner)
         gb.run(2)

@@ -1,0 +1,58 @@
+; The Chrome Cow (theme biker, patron group punks): owner-approved 2026-10-11 (art round 5); imported from the punk_* proposal files
+; PROPOSAL (punk bar, venue 10): 3/4 view facing right; slot B is a woman (house rule)
+; frames: punks_a, punks_b, punks_c
+; palette key(s): punks_a, punks_b, punks_c (see palettes_snippet.json)
+; index roles: - skin / studs / chrome, + the CGB accent (A pink mohawk, B green bandana, C blue quiff), # leather, outline
+; round 3 (owner): variant c's hair redrawn as a tall quiff, so it no longer reads as A's mohawk on DMG; A, B unchanged
+; round 4 (owner): c keeps the quiff (c1); the stray hair pixel (5,6) and the black pixel (6,7) left of his eyes read as a
+; third eye and are skin now
+......+....+....
+.....++...++..+.
+.....+++.+++.++.
+....++++++++++#.
+...#----------#.
+..#-#---#--#--#.
+..#-#----------#
+..#+#---------#.
+...#----####-#..
+....#--------#..
+.....##----##...
+..####-#--#####.
+.#-#-##++##-#-##
+#######++#######
+#-######+######-
+################
+
+................
+......+++++.....
+.....++++++++#..
+....++-+++-+++#.
+..+#+++++++++++#
+..+###---------.
+...##-#######-#.
+..###-##-###--#.
+..###---------#.
+..###-----##-#..
+..###-------#...
+..####-----#....
+.#-##+#---#++#..
+#--##++###+++##.
+#-###++++++-#-#.
+################
+
+......+++++.....
+....++++++++#...
+...+++++++++++#.
+...++++++++++++#
+...+#++++++++#+.
+...#+--------#..
+..#-#----#--#-#.
+..#-#----------#
+..#-#---------#.
+...#---###--#...
+....#------#....
+...+#######+....
+.#+#-#----#-#+#.
+#++#--#--#--#++#
+#++##-#--#-##++#
+################

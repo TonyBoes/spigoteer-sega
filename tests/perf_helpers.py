@@ -164,10 +164,9 @@ class WorstCase:
 
 
 def worst_case_run(gb, frames):
-    """Level 9 speeds, the WorstCase pile; returns perf_read over `frames` frames."""
+    """Level 10 speeds (the last row, the fastest), the WorstCase pile; returns perf_read over `frames` frames."""
     start_game(gb)
-    goto_level(gb, 8)
-    gb.write("level", 9)
+    goto_level(gb, 10)
     gb.write("intro_timer", 0)
     gb.write("tip_chance", 255)
     wc = WorstCase(gb)
@@ -180,25 +179,15 @@ def worst_case_run(gb, frames):
     return perf_read(gb)
 
 
-# ---- M13b: the level-9 overlap scenario ---------------------------------------------------------------------------
-def goto_level9(gb):
-    """The start of level 9 (row 9: the fastest walkers, hurried patrons), through the bonus round after level 8."""
-    gb.write("level", 8)
-    gb.write("game_state", 3)           # GS_LEVEL_CLEAR, one frame from the next level (level 8 is followed by a bonus)
-    gb.write("state_timer", 149)
-    for _ in range(400):
-        gb.run(1)
-        st = gb.mem("game_state")
-        if st == 6 and gb.mem("bonus_phase") != 4:   # GS_BONUS: jump to its last frame
-            gb.write("bonus_phase", 4)
-            gb.write("bonus_timer", 129)
-        if gb.mem("level") == 9 and st == PLAYING:
-            return
-    raise AssertionError("level 9 did not start")
+# ---- M13b: the overlap scenario on the fastest row ---------------------------------------------------------------
+def goto_fastest(gb):
+    """The start of the last level of the first loop (level 10 since the 10th venue, the space lounge: the fastest
+    walkers, hurried patrons; it was level 9, the zoo), from the level clear of level 9 (odd: no bonus round between)."""
+    goto_level(gb, 10)
 
 
 class OverlapCase:
-    """Level 9, every bar: a pair of walkers overlapping (they pass each other: one is lifted, or both stay on the BG
+    """Level 10 (the fastest row), every bar: a pair of walkers overlapping (they pass each other: one is lifted, or both stay on the BG
     when the budgets say no), a third patron to their right who catches a full mug and, thirsty (his 3rd drink, 72 px),
     slides back through the pair; 4 mugs per bar in flight (the push mug and empties sliding to the tap end). The
     pusher is put back on his spot (walking) once he has drunk, the pair is put back when it reaches x 92, the empties
@@ -289,7 +278,7 @@ class OverlapCase:
 def overlap_run(gb, frames, check=None, mugs=4):
     """The OverlapCase scenario for `frames` frames; check(gb, i) after each. Returns perf_read."""
     start_game(gb)
-    goto_level9(gb)
+    goto_fastest(gb)
     gb.write("intro_timer", 0)
     gb.write("tip_chance", 0)
     oc = OverlapCase(gb, mugs)
@@ -306,8 +295,8 @@ def overlap_run(gb, frames, check=None, mugs=4):
 
 # ---- M13c: the realistic peak of play ---------------------------------------------------------------------------------
 class RealisticPeak:
-    """Level 9 at the most the game's own limits produce (see test_perf.test_realistic_peak for the arithmetic): about 8
-    patrons over the 4 bars at level-9 speeds (hurried ones among them), new ones sliding in from the left edge, at
+    """Level 10 (the fastest row) at the most the game's own limits produce (see test_perf.test_realistic_peak for the arithmetic): about 8
+    patrons over the 4 bars at the fastest row's speeds (hurried ones among them), new ones sliding in from the left edge, at
     most 3 full mugs and 3 empties sliding plus the mugs drinkers hold, a tip on the counter OR the show (never both).
     The bartender plays the level-8 script (fills, launches, catches); everything else is the game's own rules: spawns
     are real (try_spawn + the entry from the left edge, made due at once while fewer than `target` patrons are in, at most every
@@ -319,7 +308,7 @@ class RealisticPeak:
     show every PHASE frames. Deterministic."""
     FULL_GAP, SPAWN_GAP, PHASE, FULL_MIN_X = 18, 24, 400, 72
 
-    def __init__(self, gb, target=9):
+    def __init__(self, gb, target=10):
         self.gb = gb
         self.target = target
         self.frame = 0
@@ -441,11 +430,11 @@ class RealisticPeak:
         s["both"] += tip and show
 
 
-def realistic_run(gb, frames, check=None, target=9):
-    """The RealisticPeak scenario at level 9 for `frames` frames (the bartender on the level-8 script); check(gb, i)
+def realistic_run(gb, frames, check=None, target=10):
+    """The RealisticPeak scenario at level 10 (the fastest row) for `frames` frames (the bartender on the level-8 script); check(gb, i)
     after each. Returns (perf_read, the scenario's stats, lifts by the chooser in the run)."""
     start_game(gb)
-    goto_level9(gb)
+    goto_fastest(gb)
     gb.write("intro_timer", 0)
     gb.write("tip_chance", 0)
     rp = RealisticPeak(gb, target)

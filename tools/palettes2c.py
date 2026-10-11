@@ -28,7 +28,7 @@ for i, k in enumerate(keys):
     h.append(f"#define PAL_{k.upper()} {i}")
     r = data[k]["rgb15"]
     c.append(f"    {{0, {r[0]}, {r[1]}, {r[2]}}},  // {k} {' '.join(data[k]['hex'])}")
-groups = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "ninjas", "aliens", "zoo"]  # = gen_art.PATRON_GROUPS
+groups = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]  # = gen_art.PATRON_GROUPS
 ids = []
 for g in groups:
     names = ["zoo_monkey", "zoo_panda", "zoo_lion"] if g == "zoo" else [f"{g}_{v}" for v in "abc"]

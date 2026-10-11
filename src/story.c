@@ -1,14 +1,14 @@
 // Story mode (M11b): "The Golden Spigot" (docs/story.md). Cut-scenes, the chapter flow, the chapter goals.
 //
-// Flow: title STORY -> INTRO -> per chapter c (0..8): PRE scene -> the chapter's steps (build/story.h STORY_STEPS:
+// Flow: title STORY -> INTRO -> per chapter c (0..9): PRE scene -> the chapter's steps (build/story.h STORY_STEPS:
 // Opening shift, Happy hour, the mini-game slot, Last call, the boss slot; a step marked STEP_SKIP is not built yet
-// and passed over) -> the POST scene -> the next chapter; after chapter 9's POST scene FINALE, CREDITS, the title.
+// and passed over) -> the POST scene -> the next chapter; after chapter 10's POST scene FINALE, CREDITS, the title.
 // A shift is the venue's level with that shift's goal, speeds and arrival pattern (a banner first, GS_GOAL); on
 // success SHIFT CLEAR (CHAPTER CLEAR after the last step), the progress saved (SRAM, save.c: chapters cleared + the
 // furthest step reached), the next step. Lives (owner's rule): 3 per venue, set when its Opening shift starts and
 // carried through its shifts (a gold medal in the venue's mini-game: +1, at most MAX_LIVES); losing the last one shows
 // TRY AGAIN and restarts the venue at its Opening shift's banner (no PRE scene) with 3 lives. A strict rule (chapter
-// 2: a patron at the tap, 7: a broken glass) costs 2 lives instead of 1 ("2 LIVES LOST", the two mugs blink during the
+// 2: a patron at the tap, 8: a broken glass) costs 2 lives instead of 1 ("2 LIVES LOST", the two mugs blink during the
 // freeze). A timed goal's clock running out costs a life and retries that shift (the venue when it was the last).
 // CONTINUE on the title starts the chapter not cleared over: its Opening banner when one of its steps was reached,
 // else its PRE scene (lives are not saved). The score carries on through restarts and never enters the top 5.
@@ -64,7 +64,7 @@ uint8_t  story_on;                 // 1: story mode (main.c, main_cold.c)
 uint8_t  story_phase;              // SP_*
 uint8_t  story_scene;              // SC_* (build/story.h)
 uint8_t  story_page;               // page of the scene on screen
-uint8_t  story_chapter;            // 0..8
+uint8_t  story_chapter;            // 0..9
 uint8_t  story_typed;              // characters of the page typed so far (54: the whole page)
 uint8_t  story_spk;                // speaker of the page (the name tag)
 uint8_t  story_pid;                // portrait of the page: the speaker's id, or a variant (build/story.h, portraits.json)
@@ -553,7 +553,7 @@ void story_play(void) BANKED {
     b = sfx_count[SFX_BREAK] - st_last_break; st_last_break += b; story_breaks += b;
     if (life_lost) {
         if (!b) story_taps++;                    // a life lost with no glass broken: a patron reached the tap
-        else story_conds |= COND_GLASS_BROKEN;   // a broken glass (chapter 7's strict rule): POST_TEAHOUSE's text
+        else story_conds |= COND_GLASS_BROKEN;   // a broken glass (chapter 8's strict rule): POST_TEAHOUSE's text
         // the strict rule (2: a patron at the tap, 7: a broken glass) costs a second life: "2 LIVES LOST", the two
         // mugs blink during the freeze (story_life_frame); none left: the freeze plays out, then enter_game_over ->
         // story_fail restarts the venue

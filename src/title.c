@@ -158,7 +158,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_BONUS;
         title_items[title_n++] = K_SETTINGS;
         break;
-    case TM_PLAY:     // M11b: CONTINUE when a story is saved part way (a shift or a chapter cleared, not all nine)
+    case TM_PLAY:     // M11b: CONTINUE when a story is saved part way (a shift or a chapter cleared, not all ten)
         if ((story_progress || story_reached) && story_progress < STORY_CHAPTERS) title_items[title_n++] = K_CONTINUE;
         title_items[title_n++] = K_STORY;
         title_items[title_n++] = K_ARCADE;

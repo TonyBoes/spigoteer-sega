@@ -1,5 +1,5 @@
 ; GRANNY THROTTLE, option A: polka-dot bandana, silver perm, round glasses (56x56). Original art for Spigoteer. Round 3b: neck widened 2 px on the viewer's left, heart tattoo against that side, shadow on the right.
-; owner-approved 2026-10-10 (option A + heart tattoo, "side"); waiting for the 10th-venue import into assets/story/portraits/
+; owner-approved 2026-10-10 (option A + heart tattoo, "side"); imported with the 10th venue (The Chrome Cow, chapter 7), speaker GRANNY
 @size 56 56
 @maxpal 3
 @key

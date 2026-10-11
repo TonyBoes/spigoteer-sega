@@ -59,7 +59,7 @@ def sfx(gb, i):
 def finish(gb):
     gb.write("bonus_phase", PH_END)
     gb.write("bonus_timer", 129)
-    run_until(gb, lambda: state(gb) == PLAYING, 40)
+    run_until(gb, lambda: state(gb) == PLAYING, 200)   # (level 11 opens with the LOOP 2 banner)
     gb.run(2)
 
 

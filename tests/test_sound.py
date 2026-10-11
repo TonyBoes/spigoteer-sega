@@ -9,6 +9,7 @@ import pytest
 from conftest import GAME, K_SETTINGS, MENU_SETTLE, ROM, ROOT, title_arcade, title_pick
 from gbtools import Rom
 from pyboy import PyBoy
+from test_art import goto_group
 from test_bonus import PH_SHAKE, enter_bonus, to_phase
 from test_flow import (BONUS, GAME_OVER, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, clear_level, hi_score,
                        hi_shown, hi_tiles, inject_mug, lose_a_life, music_line, put, run_until, score, set_patron, state,
@@ -18,7 +19,7 @@ pytestmark = pytest.mark.timeout(120)
 
 SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_COUNT = range(10)
 TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0 = range(6)
-TUNE_COUNT = TUNE_VENUE0 + 9
+TUNE_COUNT = TUNE_VENUE0 + 10
 TUNE_GAME = TUNE_VENUE0          # level 1: the cowboys' "Oh! Susanna"
 TUNE_NONE = 255
 MUG_EMPTY, PATRON_PUSHED = 2, 2
@@ -332,7 +333,7 @@ def test_the_oh_susanna_song_data_is_the_owners_note_list():
     assert songs.SONGS["susanna"]["ch4"].split()[-2:] == ["K:1", "r:3"], "final bar: kick then rests"
 
 
-# ---- the nine tunes entered from docs/music_specs.md ------------------------------------------------------
+# ---- the tunes entered from docs/music_specs.md ------------------------------------------------------
 SPEC_TUNES = {1: "funicula", 2: "skaters", 3: "ballgame", 4: "mountain", 5: "weasel", 6: "danube", 7: "hall",
               8: "sakura", 9: "entertainer", 10: "galop", 11: "sailor"}
 
@@ -377,7 +378,7 @@ SPEC_BPM_ROWS = {"funicula": (92, 3), "skaters": (160, 2), "ballgame": (168, 2),
                  "sailor": (200, 2)}
 
 
-def test_the_nine_tunes_are_the_specs_token_for_token():
+def test_the_tunes_are_the_specs_token_for_token():
     specs = parse_specs()
     assert sorted(specs) == sorted(SPEC_TUNES.values())
     for name, (bars, chords) in specs.items():
@@ -437,14 +438,12 @@ def goto_level(rom, level):
     run_until(rom, lambda: state(rom) == PLAYING, 30)
 
 
-@pytest.mark.parametrize("group", range(9))
+@pytest.mark.parametrize("group", range(10))
 def test_every_venue_plays_its_own_song(sgb, group):
-    """Level L shows patron group (L-1) % 9: each group has its own tune, played from its first note."""
-    level = group + 1 if group % 2 else group + 10
-    if group == 0:
-        pass                                            # level 1 is where the fixture already is
-    else:
-        goto_level(sgb, level)
+    """Level L shows patron group (L-1) % 10: each group has its own tune (songs.VENUES[group]), played from its first
+    note."""
+    if group:                                           # (level 1 is where the fixture already is)
+        goto_group(sgb, group)
     sgb.write("intro_timer", 255)
     assert sgb.mem("cur_group") == group and sgb.mem("cur_tune") == TUNE_VENUE0 + group
     source = songs.VENUES[group]
@@ -664,7 +663,7 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
 
 
 def test_title_and_every_venue_tune_have_drums():
-    """Channel 4 is not silent in the title and the nine venue tunes: a pattern with percussion notes, or a groove
+    """Channel 4 is not silent in the title and the ten venue tunes: a pattern with percussion notes, or a groove
     (src/music.c plays it) with a kick or snare, which divides the tune's length evenly and sits in the tune's own tempo."""
     import re
     src = (ROOT / "build" / "music_data.c").read_text()
@@ -695,10 +694,10 @@ def test_the_title_tune_plays_drums(srom):
     assert sample_channel4(srom, 120) > 10, "the title's groove sounds on channel 4"
 
 
-@pytest.mark.parametrize("group", range(9))
+@pytest.mark.parametrize("group", range(10))
 def test_every_venue_tune_sounds_on_channel_4(sgb, group):
     if group:
-        goto_level(sgb, group + 1 if group % 2 else group + 10)
+        goto_group(sgb, group)
     sgb.write("intro_timer", 255)
     assert sgb.mem("cur_tune") == TUNE_VENUE0 + group
     assert sample_channel4(sgb, 150) > 10, f"{songs.VENUES[group]}: channel 4 is silent"

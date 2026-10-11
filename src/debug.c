@@ -8,7 +8,7 @@
 //   - Story ("STORY c STEP"): opened in story play (story_on), or on the title with PLAY's cursor on STORY (chapter 1,
 //     its PRE scene) or CONTINUE (the saved chapter: its first step when one was reached, else its PRE scene). The
 //     positions of a chapter are its PRE scene, the steps of the story's sequence the engine can play (story_step_get:
-//     a STEP_SKIP step only when story_unskip names it), its POST scene. Left/Right change the chapter (1..9, wrapping;
+//     a STEP_SKIP step only when story_unskip names it), its POST scene. Left/Right change the chapter (1..10, wrapping;
 //     the position kept, or the next playable one), Up/Down the position (wrapping). A starts it with the story's
 //     rules (story_debug_start, src/story.c: a fresh score, the venue's 3 lives, its goals and perfect pour; a POST
 //     scene goes on to the next chapter as usual). Such a run writes nothing to SRAM (save.c save_lock, cleared by
@@ -23,7 +23,7 @@
 #include "story.h"
 
 #ifdef DEBUG_MENU
-#define DEBUG_LEVELS       18
+#define DEBUG_LEVELS       20
 #define POS_POST          (STORY_STEPS + 1)    // positions: 0 PRE, 1..STORY_STEPS the steps, POS_POST
 extern uint8_t debug_menu_open, debug_level, debug_from_title, debug_toggled;
 extern uint8_t overlay_on, level, story_chapter, story_step;
@@ -58,7 +58,9 @@ static void debug_show(void) {
         return;
     }
     for (n = "STORY "; *n; n++) s[i++] = *n;
-    s[i++] = '1' + debug_chapter; s[i++] = ' ';
+    if (debug_chapter >= 9) { s[i++] = '1'; s[i++] = '0' + debug_chapter - 9; }   // chapter 10
+    else s[i++] = '1' + debug_chapter;
+    s[i++] = ' ';
     if (debug_pos == 0) n = "PRE";
     else if (debug_pos == POS_POST) n = "POST";
     else {

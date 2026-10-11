@@ -13,8 +13,8 @@ LCC      := lcc
 # variables by name), -Wm-yc CGB-compatible (runs on DMG and CGB),
 # -Wm-yn cartridge title (max 15 chars), -Wm-yt MBC type if you need banks.
 LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynSPIGOTEER
-# MBC5+RAM+BATTERY (0x1B, one 8 KB SRAM bank for the hi score, M7) + GBDK autobanking (M4.7): the pre-shifted patron tiles (M8b: 9 x 2.5 KB) live in build/patrons_<group>.c, one file per group
-# under `#pragma bank 255` (all nine would not fit one bank); bankpack places each in a switchable bank. -Wm-yoA sizes the ROM.
+# MBC5+RAM+BATTERY (0x1B, one 8 KB SRAM bank for the hi score, M7) + GBDK autobanking (M4.7): the pre-shifted patron tiles (M8b: 10 x 2.5 KB) live in build/patrons_<group>.c, one file per group
+# under `#pragma bank 255` (all ten would not fit one bank); bankpack places each in a switchable bank. -Wm-yoA sizes the ROM.
 LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 
 # DEBUG_MENU: the START+SELECT debug level select (src/main.c). On in the normal build; `make release` leaves it out.
@@ -22,10 +22,10 @@ DEBUGFLAGS := -DDEBUG_MENU
 LCCFLAGS += $(DEBUGFLAGS)
 
 SRC      := $(wildcard src/*.c)
-PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots ninjas aliens zoo
+PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patron_load.c
 # M9 themed venues (theme index = patron group): stage, bar, floor, drink, show and palettes per theme, one banked file each
-VENUES   := saloon sports lodge bistro igloo factory teahouse space zoo
+VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
 # M11b story mode: the script (docs/story.md), the portraits and the story font -> two banked files (tools/gen_story.py)
 STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c

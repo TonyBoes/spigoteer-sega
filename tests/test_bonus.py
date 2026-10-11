@@ -95,7 +95,7 @@ def test_round_numbers_after_nine(gb):
         if expect:
             gb.write("bonus_phase", PH_RESULT)
             gb.write("bonus_timer", 129)
-            run_until(gb, lambda: state(gb) == PLAYING, 40)
+            run_until(gb, lambda: state(gb) == PLAYING, 200)   # (level 11: the LOOP 2 banner first)
         gb.run(5)
 
 

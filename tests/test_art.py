@@ -6,7 +6,7 @@ from test_patrons import BACK_BASE, MAX_P, drawn_tiles, lineup, map_ids
 
 pytestmark = pytest.mark.timeout(60)
 
-GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "ninjas", "aliens", "zoo"]
+GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]
 GS_LEVEL_CLEAR = 3
 GS_BONUS = 6
 
@@ -17,7 +17,7 @@ def w16(gb, name, v):
 
 
 def goto_group(gb, group):
-    """Level group + 1, the first loop's level of patron group `group` ((level - 1) % 9). An odd level before it is
+    """Level group + 1, the first loop's level of patron group `group` ((level - 1) % 10). An odd level before it is
     left from its last level-clear frame; an even one (followed by a bonus round) from the bonus round's last frame.
     (Before M10b an even level was reached as group + 10, which had the same speeds then; it is loop 2 now.)"""
     level = group + 1

@@ -72,7 +72,7 @@ def record(gb, n):
 
 # ---- what gen_art compiled ----------------------------------------------------------------------------------------
 def test_animated_ids_are_the_last_stage_ids_and_frame_0_is_the_stage():
-    assert set(ANIMATED) == {"saloon", "sports", "lodge", "bistro", "igloo", "factory", "teahouse", "space", "zoo"}
+    assert set(ANIMATED) == {"saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "teahouse", "zoo", "space"}
     for t in ANIMATED:
         v, a = venue(t), anim(t)
         first, k = a["first"], a["k"]

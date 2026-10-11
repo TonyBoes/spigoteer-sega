@@ -9,7 +9,7 @@ quiet kit).
 
 Two kinds of tune:
  * jingles (level clear, game over, bonus): small, their patterns sit in bank 2 beside the driver.
- * "buffered" tunes (title, show, nine venue tunes, tools/songs.py): hUGEDriver reads patterns through
+ * "buffered" tunes (title, show, ten venue tunes, tools/songs.py): hUGEDriver reads patterns through
    plain pointers into whatever ROM bank is mapped, and bank 2 is the only place the driver runs
    from, so these songs cannot live elsewhere in ROM as they are.  Their patterns are packed into
    blobs in ROM banks 3 and 4; at music_play() src/music.c copies the song's blob into a WRAM buffer
@@ -231,7 +231,7 @@ TUNES["bonus"]["ch2"] = " ".join(t + "/4" if ":" in t and not t.startswith("r:")
 
 # ---- tune table: the order is music.h's TUNE_* enum ----------------------------------------------
 JINGLES = {"clear": TUNES["clear"], "over": TUNES["over"], "bonus": TUNES["bonus"]}
-ORDER = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in range(9)]
+ORDER = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in range(len(songs.VENUES))]
 SOURCE = {"title": "entertainer", "show": "galop"}
 SOURCE.update({f"venue{i}": n for i, n in enumerate(songs.VENUES)})
 BLOB_BANKS = (3,)

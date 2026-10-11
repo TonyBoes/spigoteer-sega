@@ -40,7 +40,7 @@ BGPAL_PATRON, BGPAL_BAR = 2, 0
 OBJPAL_MUG_FULL, OBJPAL_MUG_EMPTY, OBJPAL_DANCER = 1, 2, 5
 # theme of each patron group, as the owner assigned them
 GROUP_THEME = {"cowboys": "saloon", "sports": "sports", "lumberjacks": "lodge", "chefs": "bistro", "divers": "igloo",
-               "robots": "factory", "ninjas": "teahouse", "aliens": "space", "zoo": "zoo"}
+               "robots": "factory", "punks": "biker", "ninjas": "teahouse", "zoo": "zoo", "aliens": "space"}
 
 
 def w16(gb, name, v):
@@ -77,6 +77,36 @@ def at_theme(gb, g):
     gb.write("tip_chance", 0)
     assert gb.mem("venue_id") == g
     return venue(g)
+
+
+NEW_ORDER = ["saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "teahouse", "zoo", "space"]
+
+
+def test_one_order_for_every_list():
+    """The 10th venue (owner 2026-10-10): The Chrome Cow is 7th, the space lounge last, in story AND arcade. One index
+    means one venue everywhere: theme = patron group = arcade level row - 1 = story chapter = venue tune = pour art."""
+    import sys
+    sys.path.insert(0, str(ROOT / "tools"))
+    import songs
+    assert THEMES == NEW_ORDER
+    assert GROUPS == ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]
+    assert songs.VENUES == ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sailor", "sakura",
+                            "weasel", "danube"]
+    story = __import__("json").loads((ROOT / "build" / "story.json").read_text())
+    assert [c["venue"] for c in story["chapters"]] == list(range(10))
+    assert [c["suffix"] for c in story["chapters"]] == ["SALOON", "STADIUM", "LUMBER", "BISTRO", "IGLOO", "ROBOT",
+                                                       "BIKER", "TEAHOUSE", "ZOO", "SPACE"]
+    pour = __import__("json").loads((ROOT / "build" / "pour.json").read_text())
+    assert list(pour["venues"]) == THEMES, "pour_load(chapter): the perfect pour's frames in the same order"
+
+
+@pytest.mark.parametrize("group", [6, 7, 8, 9], ids=NEW_ORDER[6:])
+def test_arcade_levels_7_to_10_are_the_new_order(gb, group):
+    """Arcade: level 7 is The Chrome Cow (its venue, punks and Drunken Sailor), then the teahouse, the zoo, the space
+    lounge; level 11 is the saloon again (test_scores, test_flow)."""
+    at_theme(gb, group)
+    assert gb.mem("level") == group + 1 and gb.mem("cur_group") == group
+    assert gb.mem("cur_tune") == 5 + group, "TUNE_VENUE0 + the group"
 
 
 def test_theme_order_follows_the_patron_groups():
@@ -125,7 +155,7 @@ def test_theme_tile_pool_holds_every_theme_and_the_bg_budget_holds():
         assert v["bar_attr"][2:17] == [0] * 15 and v["bar_attr"][22:37] == [0] * 15, f"{t}: wall columns on the bar palette"
 
 
-@pytest.mark.parametrize("group", range(9), ids=[GROUP_THEME[g] for g in GROUPS])
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
 def test_each_level_loads_its_venue(gb, group):
     v = at_theme(gb, group)
     gb.run(2)
@@ -164,7 +194,7 @@ def test_each_level_loads_its_venue(gb, group):
         assert gb.read(0xFF47, 1)[0] == 0xE4, "DMG: the fixed grey ramp (the venue art is luminance-ordered)"
 
 
-@pytest.mark.parametrize("group", range(9), ids=[GROUP_THEME[g] for g in GROUPS])
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
 def test_patron_palettes_take_the_venue_wall_colour(gb, group):
     v = at_theme(gb, group)
     if gb.model_name != "cgb":
@@ -175,7 +205,7 @@ def test_patron_palettes_take_the_venue_wall_colour(gb, group):
         assert cgb_palette(gb, BGPAL_PATRON + k)[0] == wall, f"patron palette {k}: colour 0 is the wall"
 
 
-@pytest.mark.parametrize("group", [0, 1, 4, 7], ids=["saloon", "sports", "igloo", "space"])
+@pytest.mark.parametrize("group", [0, 1, 4, 6, 9], ids=["saloon", "sports", "igloo", "biker", "space"])
 def test_the_drink_frames_in_oam_are_the_venue_drink(gb, group):
     v = at_theme(gb, group)
     gb.write("intro_timer", 255)
@@ -207,7 +237,7 @@ def test_the_drink_frames_in_oam_are_the_venue_drink(gb, group):
     assert obj_vram(gb, held[0]["tile"], 2) == frame(6 + k)
 
 
-@pytest.mark.parametrize("group", range(9), ids=[GROUP_THEME[g] for g in GROUPS])
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
 def test_the_show_uses_the_venue_performers(gb, group):
     v = at_theme(gb, group)
     w16(gb, "show_timer", SHOW_FRAMES)
@@ -268,7 +298,7 @@ def test_the_bonus_round_stands_in_the_venue_just_played(gb):
     assert set(tilemap_row(gb, 6, 0, 20)) <= walls
 
 
-@pytest.mark.parametrize("group", range(9), ids=[GROUP_THEME[g] for g in GROUPS])
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
 def test_venue_golden(gb, group):
     """A few seconds into each level: patrons walking in, a drink sliding, the bartender at the tap."""
     at_theme(gb, group)

@@ -25,7 +25,7 @@ from pyboy import PyBoy  # noqa: E402
 NR51 = 0xFF25
 SOLO = {2: 0x22, 3: 0x44, 4: 0x88}
 STATE_LEVEL_CLEAR = 3
-TUNE_SHOW = 4           # music.h: TUNE_TITLE, CLEAR, OVER, BONUS, SHOW, VENUE0..8
+TUNE_SHOW = 4           # music.h: TUNE_TITLE, CLEAR, OVER, BONUS, SHOW, VENUE0..9
 TUNE_VENUE0 = 5
 
 

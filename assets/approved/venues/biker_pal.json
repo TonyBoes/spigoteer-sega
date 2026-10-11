@@ -1,0 +1,38 @@
+{
+ "stage_a": {
+  "hex": [
+   "#2a1e34",
+   "#e8e0d0",
+   "#58d040",
+   "#0c0810"
+  ],
+  "_note": "owner-approved (round 5): wall (colour 0), white chrome / amp rings / the checker lip, the sprayed ROCK and amp LEDs (acid green), black"
+ },
+ "stage_b": {
+  "hex": [
+   "#2a1e34",
+   "#fff0f8",
+   "#f03898",
+   "#0c0810"
+  ],
+  "_note": "owner-approved (round 5): the MILK neon, the smoke column (white smoke, pink ember); colour 0 = stage_a's wall"
+ },
+ "bar": {
+  "hex": [
+   "#3a2a48",
+   "#e8e0f0",
+   "#a03070",
+   "#140c18"
+  ],
+  "_note": "index 0 = wall colour behind patrons; - chrome rim, studs and the white checks of the floor, + oxblood counter top and stickers, # black leather front and checks"
+ },
+ "bar_b": {
+  "hex": [
+   "#3a2a48",
+   "#f8f8f8",
+   "#a8b0c0",
+   "#202430"
+  ],
+  "_note": "palette for keg/spout tiles (the milk churn: white shine, steel, dark); index 0 = wall colour"
+ }
+}
