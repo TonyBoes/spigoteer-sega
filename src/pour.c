@@ -85,4 +85,5 @@ void pour_frame(void) BANKED {
         o->prop = is_cgb ? OBJPAL_MUG_FULL : S_PALETTE;
     }
     if (cue_t) draw_cue();
+    if (boss_on) boss_draw();                                // a boss fight: his topper (last: it counts the lines)
 }

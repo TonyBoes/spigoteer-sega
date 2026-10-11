@@ -308,6 +308,7 @@ static void caught(uint8_t i, uint8_t p) {
 uint8_t catch_full(uint8_t i) {
     uint8_t b = mug_bar[i], x, p;
     if (b >= NUM_BARS) return 0;
+    if (b == boss_bar) return mug_x[i] < boss_lim ? boss_catch(i) : 0;   // a boss fight: his bar is his (src/boss.c)
     if (!(catch_ok & bar_bit[b])) {
         find_catcher(b);
         if (mug_x[i] >= catch_lim[b]) return 0;
@@ -331,6 +332,7 @@ uint8_t catch_full(uint8_t i) {
 // on that bar now (lift.c's budgets, or this frame's copy list): he is taken back and the spawn is tried again
 // SPAWN_RETRY frames later.
 uint8_t  pat_len, pat_bar;             // story shifts: an arrival pattern, its next bar (game.h)
+extern uint8_t rng_state;
 
 static uint8_t try_spawn(void) {
     uint8_t b = pat_len ? pat_bar : (next_rand() >> 2) & 3, v;
@@ -340,6 +342,7 @@ static uint8_t try_spawn(void) {
     v = (v >> 2) + (v & 3);
     v = (v >> 2) + (v & 3);
     if (v >= 3) v -= 3;
+    if (v == 2 && boss_on) v = rng_state & 1;     // a boss fight: variant C's tiles are the boss's (src/boss.c)
     if (hurry_speed && !(next_rand() & 3)) np_h = 1;   // M13b: about 1 in 4 hurries (from level 3; level.c)
     if (!add_patron(b, SPAWN_X, v)) { np_h = 0; return 0; }
     patron_aux[np_p] = PATRON_W;

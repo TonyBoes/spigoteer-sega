@@ -113,6 +113,7 @@ void boot_init(void) BANKED {
     for (i = 0; i < 40; i++) move_sprite(i, 0, 0);          // hide everything
 
     rng_state = 0xA7;
+    boss_bar = BOSS_NONE;          // no boss fight (render.c / patrons.c compare against it)
     frame_counter = 0; joy = joy_prev = 0;
     game_over = 0; game_state = GS_TITLE;
     CRITICAL { add_VBL(vq_vbl); }  // the VBlank copy queue drains from the interrupt (render.c)
@@ -171,6 +172,7 @@ static void reset_actors(void) {
     next_arrival = 0;
     tip_timer = 0; show_timer = 0; dancers_vis = 0; oam_touched();      // a bar reset ends the show and takes the tip away
     for (i = 0; i < MAX_PATRONS; i++) patron_dist[i] = 0;
+    if (boss_on) boss_reset();                   // a boss fight: he starts over at his start x (his meter kept)
 }
 
 // Draw the playfield for the current level/lives/score. Screen transition: LCD off.
@@ -178,6 +180,7 @@ void enter_level_screen(void) BANKED {
     DISPLAY_OFF;                                  // (start_level reloads the show tiles the bonus round borrowed)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0;
     start_level();
+    if (boss_on) boss_load();                    // a boss fight (story): his tiles over variant C's, his palettes
     init_scene();
     reset_actors();
     hide_all_sprites();
@@ -200,6 +203,7 @@ void start_new_game(uint8_t lv) BANKED {
     lives = START_LIVES; level = lv; score = 0; bonus_round = 0; story_on = 0;
     pour_q = 0;                                  // arcade: never a perfect pour (src/pour.c runs in story only)
     pat_len = 0;                                 // arcade: the normal random arrivals (a story shift sets a pattern)
+    boss_set(BOSS_NONE);                         // (the debug menu may leave a story boss fight)
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     enter_level_screen();
 }

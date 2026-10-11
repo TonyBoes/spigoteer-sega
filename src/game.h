@@ -373,4 +373,21 @@ extern uint8_t story_scratch[STORY_SCRATCH];
 extern uint8_t story_unskip;                            // test hook: bit s = step s of the sequence counts as built
 // ---- mg.c (banked, the mini-game framework; the games include src/mg.h) ------------------------------------
 uint8_t mg_update(uint8_t pressed) BANKED;              // a GS_MINI frame; 1: it left (the next screen is up)
+// ---- boss.c (banked, the boss engine, docs/minigames_bosses.md 2.5; ROM0 hooks: patrons.c catch_full / try_spawn,
+// render.c compose_bar). A fight is the venue's level with the boss as a BG figure on his own bar (boss_bar,
+// BOSS_NONE when no fight is on: the ROM0 hooks compare against it); boss_cols[k] is the first tile id (top; bottom =
+// +1) of his body's column k at boss_col + k (0: no column), in BG palette boss_pal.
+#define BOSS_COUNT      10      // rows of the boss table (one per venue; a later venue adds its row, not a constant)
+#define BOSS_W_MAX       5      // body columns at most (40 px)
+#define BOSS_NONE      255
+extern uint8_t boss_on, boss_id, boss_bar, boss_lim, boss_col, boss_pal, boss_cols[BOSS_W_MAX];
+uint8_t boss_catch(uint8_t i) BANKED;   // patrons.c catch_full: full mug i reached him with a hand free (mug_x < boss_lim)
+void boss_set(uint8_t id) BANKED;       // story step_start: venue id's boss fight is the next step (BOSS_NONE: none)
+void boss_load(void) BANKED;            // enter_level_screen, LCD off, after start_level: his tiles and palettes
+void boss_reset(void) BANKED;           // reset_actors: the level's start and after a life (the meter is kept)
+void boss_goal(uint8_t *dst) BANKED;    // story shift_start: the fight's banner lines and pace (dst: a goal_t)
+void boss_begin(void) BANKED;           // story shift_start, after the pace: the regulars' arrivals, no tips, the HUD
+uint8_t boss_frame(void) BANKED;        // story_play, every PLAYING frame of a fight; 1: he is satisfied (the outro)
+uint8_t boss_outro(uint8_t t) BANKED;   // story_update, frame t of the outro; 1: over (CHAPTER CLEAR)
+void boss_draw(void) BANKED;            // pour_frame (last of the frame's sprites): the topper, within 10 a line
 #endif

@@ -27,6 +27,8 @@ SHIFTS = STORY["shifts"]                    # per chapter: opening, happy hour, 
 SHIFT_NAMES = STORY["shift_names"]
 SEQ = STORY["sequence"]
 SHIFT_STEP = [next(i for i, s in enumerate(SEQ) if s["kind"] == "SHIFT" and s["index"] == k) for k in range(3)]
+BOSS_STEP = next(i for i, s in enumerate(SEQ) if s["kind"] == "BOSS")
+BOSS_BUILT = {c for c, steps in enumerate(STORY["steps"]) if steps[BOSS_STEP]["built"]}   # chapters whose boss is in
 PATTERNS = {p["name"]: p for p in STORY["patterns"]}
 GLYPH = STORY["glyphs"]
 FONT = STORY["font"]
@@ -447,6 +449,17 @@ def clear_bars(gb):
     gb.write("mugs_live", 0)
 
 
+def beat_the_boss(gb, c):
+    """After chapter c's Last call was won: its boss fight, when it is built (tests/test_boss.py plays them for
+    real), its banner passed and the boss satisfied at once (boss_hook 3), up to its CHAPTER CLEAR."""
+    if c not in BOSS_BUILT:
+        return
+    run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+    to_goal(gb)
+    gb.write("boss_hook", 3)
+    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 200)
+
+
 def win(gb, c, k=0):
     sh = SHIFTS[c][k]
     if sh["type"] == G_SERVE:
@@ -545,6 +558,7 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
     with to_shift(model, 0, 2) as gb:
         # chapter 1's last call -> win -> POST_SALOON: SADIE, SADIE, DREGS, NARRATOR, SPIGOTEER
         win(gb, 0, 2)
+        beat_the_boss(gb, 0)
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(0), 400)
         pages = SCENES[post(0)]["pages"]
         assert [p["speaker"] for p in pages] == ["SADIE", "SADIE", "DREGS", "NARRATOR", "SPIGOTEER"]
@@ -824,7 +838,9 @@ def pace(gb):
 @pytest.mark.parametrize("c", range(9))
 def test_each_chapter_plays_its_shifts_in_order(model, c):
     """Opening -> SHIFT CLEAR -> Happy hour -> SHIFT CLEAR -> (the mini-game slot, skipped) Last call -> CHAPTER CLEAR
-    -> (the boss slot, skipped) the POST scene; each shift's banner, goal and pace; the progress saved after each."""
+    -> (the boss slot, skipped) the POST scene; each shift's banner, goal and pace; the progress saved after each. A
+    chapter whose boss is built (the saloon): the Last call says SHIFT CLEAR, then the fight's banner (CHAPTER 1 BOSS),
+    the boss step saved as reached, CHAPTER CLEAR after the fight (tests/test_boss.py plays it)."""
     rows = gen_story().level_rows(ROOT / "src" / "level.c")
     paces = []
     with to_chapter(model, c) as gb:
@@ -847,7 +863,7 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
             win(gb, c, k)
             run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
             gb.run(3)
-            assert banner_text(gb, 1) == centred("CHAPTER CLEAR" if k == 2 else "SHIFT CLEAR")
+            assert banner_text(gb, 1) == centred("CHAPTER CLEAR" if k == 2 and c not in BOSS_BUILT else "SHIFT CLEAR")
             if k < 2:
                 run_until(gb, lambda: state(gb) == GS_GOAL, 300)
                 gb.run(3)
@@ -856,6 +872,16 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
                 # saved: the next step reached (after the happy hour that is the mini-game slot, not built yet)
                 assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, SHIFT_STEP[k] + 1)
                 to_goal(gb)
+        if c in BOSS_BUILT:
+            run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+            gb.run(3)
+            assert banner_text(gb, 1) == centred(f"CHAPTER {c + 1} BOSS") and gb.mem("story_step") == BOSS_STEP
+            assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, BOSS_STEP)
+            to_goal(gb)
+            gb.write("boss_hook", 3)
+            run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 200)
+            gb.run(3)
+            assert banner_text(gb, 1) == centred("CHAPTER CLEAR")
         run_until(gb, lambda: state(gb) == GS_STORY, 300)
         assert gb.mem("story_scene") == post(c)
         assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c + 1, 0)
@@ -1265,6 +1291,7 @@ def test_continue_keeps_the_step_reached_for_practice(model, step):
 def test_the_progress_survives_a_reset_and_continue_resumes(model):
     with to_shift(model, 0, 2) as gb:
         win(gb, 0, 2)
+        beat_the_boss(gb, 0)
         run_until(gb, lambda: state(gb) == GS_STORY, 300)
         ram = save_ram(gb)
     with booted(model, ram) as again:

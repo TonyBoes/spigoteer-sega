@@ -278,11 +278,20 @@ static void stamp_bar(uint8_t b) {
         if (patron_state[*q] != PATRON_NONE) stamp(*q);
 }
 
+// A boss fight (src/boss.c): his BG figure over his bar, after its patrons (there are none: the bar is his), one column
+// pair (top t, bottom t + 1) per boss_cols entry, in BG palette boss_pal.
+static void stamp_boss(void) {
+    uint8_t k, t;
+    cz_pal = cz_palb = boss_pal;
+    for (k = 0; k != BOSS_W_MAX; k++) if ((t = boss_cols[k])) put_col(boss_col + k, t);
+}
+
 static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1-1 of bar b
     if (!lists_ok) build_lists();
     cz_tile = sh_tile[b << 1];
     restore_base();
     stamp_bar(b);
+    if (b == boss_bar) stamp_boss();
 }
 
 // Quick redraws (M8b): a patron who moved within his own 3 columns (a 1 px step, front view before and after)

@@ -58,7 +58,12 @@ void place_start_patrons(void) BANKED {
     uint8_t b, k, placed = 0, remaining = quota > served ? quota - served : 0;
     for (k = 0; k < start_per_bar; k++)
         for (b = 0; b < NUM_BARS; b++)
-            if ((start_mask & bar_bit[b]) && placed < remaining) { add_patron(b, ENTRY_X + PATRON_SPACING * k, next_rand() % 3); placed++; }
+            if ((start_mask & bar_bit[b]) && placed < remaining && b != boss_bar) {
+                uint8_t v = next_rand() % 3;
+                if (v == 2 && boss_on) v = next_rand() & 1;   // a boss fight: variant C's tiles are the boss's (boss.c)
+                add_patron(b, ENTRY_X + PATRON_SPACING * k, v);
+                placed++;
+            }
     spawned = served + placed;
     patrons_live = placed;
 }

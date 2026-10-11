@@ -56,7 +56,7 @@ extern uint32_t score;
 #define GOAL_LYC       (BANNER_WY + 38)
 #define HUD_GOAL_COL    12         // story HUD: goal letter + 2 digits (what is left) at 12-14, timer 'T' + 3 digits at 16-19
 
-enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL };
+enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO };   // SP_OUTRO: a boss satisfied (boss.c)
 enum { SW_IDLE, SW_OUT, SW_PAL, SW_IN };
 
 // ---- state (globals => symbols the tests read) ----
@@ -369,7 +369,7 @@ static void two_digits(uint8_t *d, uint8_t v) {
 
 static void hud_goal(void) {                     // queue the goal counter (and the timer) on the HUD row
     uint8_t s, h = 0;
-    if (story_goal.type == G_CLEAR) return;
+    if (story_goal.type >= G_CLEAR) return;     // (a clear goal has no counter; a boss fight shows his meter: boss.c)
     hud_buf[0] = story_goal.type == G_CATCH ? TILE_GLYPH_C : TILE_GLYPH_S;
     two_digits(hud_buf + 1, story_left);
     vq_add(0, hud_buf, HUD_GOAL_COL, HUD_ROW, 3);
@@ -408,20 +408,22 @@ uint16_t pat_done(void) BANKED {
 
 static const char *const shift_name[STORY_SHIFTS] = STORY_SHIFT_NAMES;
 static const char chapter_word[] = "CHAPTER ";
+static const char boss_word[] = "BOSS";
 
 // One shift of the chapter: its goal banner over the venue's level (LCD off, then on), GS_GOAL.
 static void shift_start(void) {
     uint8_t i;
     char s[21];
     const char *n;
-    story_goal_get(story_chapter, story_shift, (uint8_t *)&story_goal);
+    if (boss_on) boss_goal((uint8_t *)&story_goal);   // a boss fight: his banner lines, the regulars' pace (boss.c)
+    else story_goal_get(story_chapter, story_shift, (uint8_t *)&story_goal);
     story_twist = story_goal.twist;
     DISPLAY_OFF;
     // the goal banner in the window (map rows 32-36): panel, CHAPTER n + the shift, the two goal lines, panel
     fill(win_rows[0], TILE_PANEL_TOP, 20);
     for (i = 0; chapter_word[i]; i++) s[i] = chapter_word[i];
     s[i++] = '1' + story_chapter; s[i++] = ' ';
-    for (n = shift_name[story_shift]; *n; n++) s[i++] = *n;
+    for (n = boss_on ? boss_word : shift_name[story_shift]; *n; n++) s[i++] = *n;
     s[i] = 0;
     centre(win_rows[1], s);
     centre(win_rows[2], story_goal.line1);
@@ -438,6 +440,7 @@ static void shift_start(void) {
     pour_load(story_chapter);                    // the perfect pour's frames and cue (LCD off; the venue = the chapter)
     enter_level_screen();                        // the venue's level (row level - 1), LCD on again, PLAYING
     shift_pace();
+    if (boss_on) boss_begin();                   // the regulars' bars (never his), no tips, his face and meter on the HUD
     story_catches = story_breaks = story_taps = 0;
     st_last_catch = sfx_count[SFX_CATCH]; st_last_break = sfx_count[SFX_BREAK];
     story_left = story_goal.count;
@@ -466,10 +469,12 @@ static uint8_t next_step(uint8_t s) {
 }
 
 // story_step (playable) begins, by kind: the chapter's mini-game (src/mg.c; its result goes on with story_level_done,
-// whatever the medal: mini-games never block the story), or a shift. The boss mode hooks in here once built; until
-// then the data marks the boss STEP_SKIP (and the mini-games too, until real ones exist: gen_story NOT_BUILT).
+// whatever the medal: mini-games never block the story), the venue's boss fight (src/boss.c: boss_set here, then the
+// level as a shift with his banner and pace; a lost fight restarts the venue as a shift does), or a shift. A slot not
+// built yet is STEP_SKIP in the data (gen_story NOT_BUILT / BOSSES_BUILT) and never reaches here.
 static void step_start(void) {
     uint8_t s = story_step_get(story_chapter, story_step);
+    boss_set((s & STEP_KIND) == STEP_BOSS ? story_chapter : BOSS_NONE);   // the venue's boss fight (src/boss.c), or none
     if ((s & STEP_KIND) == STEP_MINI) { mg_enter(story_chapter, MG_STORY); return; }
     story_shift = s & STEP_INDEX;
     shift_start();
@@ -525,6 +530,7 @@ static void scene_done(void) {
 // yet, for Practice: a venue restart never lowers it), the next playable step, or the chapter's POST scene
 void story_level_done(void) BANKED {
     uint8_t n = story_step + 1, s = next_step(n);
+    boss_set(BOSS_NONE);                         // (a won boss fight is over: the POST scene has no boss)
     if (s >= STORY_STEPS) { chapter_done(); return; }
     story_save(story_chapter, story_progress == story_chapter && story_reached > n ? story_reached : n);
     story_step = s;
@@ -566,6 +572,10 @@ void story_play(void) BANKED {
         }
         return;
     }
+    if (boss_on) {                               // a boss fight: no counter, no clock; his meter empty -> the outro
+        if (boss_frame()) { story_phase = SP_OUTRO; story_t = 0; game_state = GS_STORY; }
+        return;
+    }
     if (story_timer && !intro_timer) {
         if (!--story_timer) {                    // time up: a life, and the shift again (the venue: it was the last)
             if (lives) lives--;
@@ -605,6 +615,9 @@ uint8_t story_update(uint8_t pressed) BANKED {
             else { story_restarts++; venue_start(); }
             return 1;
         }
+        return 0;
+    case SP_OUTRO:                               // a boss satisfied: his outro, then CHAPTER CLEAR as a shift's
+        if (boss_outro(story_t)) story_win();
         return 0;
     case SP_SCENE:
         break;

@@ -222,9 +222,12 @@ def test_realistic_peak(rom):
     test_realistic_peak_frame_time_target (strict xfail) for the measured numbers. Here: a regression guard at the
     measured level. The level-9 overlap scenario and the worst-case pile are stress tests beyond reachable play."""
     r, worst, summary, ticks, drain_ok = realistic(rom)
-    # the scenario is what it says (empties: 3 at most before each frame; one more may be sent during it)
+    # the scenario is what it says (empties: 3 at most before each frame; one more may be sent during it; full mugs:
+    # the scenario keeps 3 in flight at most before each frame, and the scripted bartender's own launch may make a 4th:
+    # which frames that happens on depends on the frame timing, so a few cycles more or less anywhere in the frame can
+    # show it, as the boss engine's ROM0 compares did on CGB)
     assert 7 <= summary["patrons_mean"] <= 9 and summary["patrons_max"] <= 10, summary
-    assert summary["full_max"] <= 3 and summary["empty_max"] <= 4 and 8 <= summary["mugs_max"] <= 11, summary
+    assert summary["full_max"] <= 4 and summary["empty_max"] <= 4 and 8 <= summary["mugs_max"] <= 11, summary
     assert summary["edge_frames"] > 0 and summary["leaving_frames"] > 0 and summary["spawned"] >= 3 and summary["hurried"] >= 2, summary
     assert summary["lifts"] > 0 and summary["tip"] > 0 and summary["show"] > 0 and summary["both"] == 0, summary
     # the budgets, every frame

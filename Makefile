@@ -35,7 +35,7 @@ GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/m
 # in bank 3 (build/music_pat3.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
 HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
-BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h
+BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/boss_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
 .PHONY: all test check preview clean assets release
@@ -70,6 +70,11 @@ $(BUILD)/pour_art.h: tools/gen_pour.py tools/gen_art.py $(wildcard assets/art/po
 # -> build/mg_art.h, build/mg_stub_art.h, build/mg.json (tests), out/preview/mg_*_x8.png
 $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h: tools/gen_mg.py tools/gen_art.py assets/art/mg_medal.txt assets/art/mg_lamp.txt | $(BUILD) $(OUT)/preview
 	python3 tools/gen_mg.py $(BUILD) $(OUT)/preview
+
+# The boss engine (src/boss.c): each boss's body poses, held empties, topper and HUD face, and the HUD meter, all
+# placeholders until the owner approves the art -> build/boss_art.h, build/boss.json (tests), out/preview/boss_*_x8.png
+$(BUILD)/boss_art.h: tools/gen_boss.py tools/gen_art.py $(wildcard assets/art/boss/*.txt) | $(BUILD) $(OUT)/preview
+	python3 tools/gen_boss.py $(BUILD) $(OUT)/preview
 
 # CGB palettes: assets/palettes.json -> build/palettes.c/.h
 $(BUILD)/palettes.c $(BUILD)/palettes.h: tools/palettes2c.py assets/palettes.json | $(BUILD)
@@ -112,7 +117,7 @@ test: $(ROM)
 check: $(ROM)
 	gbcheck $(ROM) --length 10 --out $(OUT)/check
 
-preview: $(GEN) $(BUILD)/pour_art.h $(BUILD)/mg_art.h
+preview: $(GEN) $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/boss_art.h
 	@ls -1 $(OUT)/preview/
 
 clean:

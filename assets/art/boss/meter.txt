@@ -1,0 +1,33 @@
+; The boss meter on the HUD (columns 13-19, 2 pips a tile; shared by every boss, src/boss.c).
+; PLACEHOLDER: art proposal pending owner approval.
+; 3 tiles of 8x8 in the HUD band's colours ('#' the band, '-' tan, '+' gold, '.' the light text): EMPTY (two pips
+; gone), HALF (the left pip left), FULL (two pips).
+@EMPTY
+########
+#---#---
+#-#-#-#-
+#-#-#-#-
+#---#---
+########
+########
+########
+
+@HALF
+########
+#.++#---
+#+++#-#-
+#+++#-#-
+#+++#---
+########
+########
+########
+
+@FULL
+########
+#.++#.++
+#+++#+++
+#+++#+++
+#+++#+++
+########
+########
+########
