@@ -752,13 +752,13 @@ def centred(s):
 
 
 def shift_title(c, k):
-    return f"CHAPTER {c + 1} {SHIFT_NAMES[k]}"
+    return SHIFT_NAMES[k]                         # (owner 2026-10-11: the banner names the shift, no chapter number)
 
 
 def test_the_shift_data():
     """Opening about half the goal and slower, Happy hour the chapter goal as written, Last call faster with its own
     arrival pattern (nine different ones); the mini-game and boss slots are in the sequence, skipped until built."""
-    assert SHIFT_NAMES == ["OPENING", "HAPPY HOUR", "LAST CALL"]
+    assert SHIFT_NAMES == ["OPENING SHIFT", "HAPPY HOUR", "LAST CALL"]
     assert [(s["kind"], s["index"], s["built"]) for s in SEQ] == [
         ("SHIFT", 0, True), ("SHIFT", 1, True), ("MINI", 0, False), ("SHIFT", 2, True), ("BOSS", 0, False)]
     assert SHIFT_STEP == [0, 1, 3]
@@ -816,7 +816,7 @@ def test_the_goal_banner_names_the_shift_and_the_hud_counts(model):
         run_until(gb, lambda: state(gb) == GS_GOAL, 30)
         gb.run(5)
         op = SHIFTS[0][0]
-        assert banner_text(gb, 1) == centred("CHAPTER 1 OPENING")
+        assert banner_text(gb, 1) == centred("OPENING SHIFT")
         assert banner_text(gb, 2) == centred(op["line1"]) and banner_text(gb, 3) == centred(op["line2"])
         assert gb.mem("level") == 1 and gb.mem("cur_group") == 0 and gb.mem("quota") == 255
         assert gb.mem("story_step") == 0 and gb.mem("story_shift") == 0
@@ -835,7 +835,7 @@ def test_a_last_call_banner(model):
     with to_shift(model, 8, 2, banner=True) as gb:
         gb.run(5)
         last = SHIFTS[8][2]
-        assert banner_text(gb, 1) == centred("CHAPTER 9 LAST CALL")
+        assert banner_text(gb, 1) == centred("LAST CALL")
         assert banner_text(gb, 2) == centred(last["line1"]) and banner_text(gb, 3) == centred(last["line2"])
         assert tilemap_row(gb, 0, 12, 3) == [GLYPH["S"], GLYPH["3"], GLYPH["2"]]
         check_golden(gb, "story_last_call")
@@ -850,7 +850,7 @@ def pace(gb):
 def test_each_chapter_plays_its_shifts_in_order(model, c):
     """Opening -> SHIFT CLEAR -> Happy hour -> SHIFT CLEAR -> (the mini-game slot, skipped) Last call -> CHAPTER CLEAR
     -> (the boss slot, skipped) the POST scene; each shift's banner, goal and pace; the progress saved after each. A
-    chapter whose boss is built (the saloon): the Last call says SHIFT CLEAR, then the fight's banner (CHAPTER 1 BOSS),
+    chapter whose boss is built (the saloon): the Last call says SHIFT CLEAR, then the fight's banner (BOSS),
     the boss step saved as reached, CHAPTER CLEAR after the fight (tests/test_boss.py plays it)."""
     rows = gen_story().level_rows(ROOT / "src" / "level.c")
     paces = []
@@ -886,7 +886,7 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
         if c in BOSS_BUILT:
             run_until(gb, lambda: state(gb) == GS_GOAL, 300)
             gb.run(3)
-            assert banner_text(gb, 1) == centred(f"CHAPTER {c + 1} BOSS") and gb.mem("story_step") == BOSS_STEP
+            assert banner_text(gb, 1) == centred("BOSS") and gb.mem("story_step") == BOSS_STEP
             assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, BOSS_STEP)
             to_goal(gb)
             gb.write("boss_hook", 3)
@@ -1272,7 +1272,7 @@ def test_continue_mid_venue_starts_the_venue_over(model):
         again.run(3)
         assert again.mem("story_chapter") == 0 and again.mem("story_shift") == 0 and again.mem("story_step") == 0
         assert again.mem("lives") == 3 and hud_lives(again) == lives_hud(3)
-        assert banner_text(again, 1) == centred("CHAPTER 1 OPENING")
+        assert banner_text(again, 1) == centred("OPENING SHIFT")
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

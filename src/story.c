@@ -407,25 +407,19 @@ uint16_t pat_done(void) BANKED {
 }
 
 static const char *const shift_name[STORY_SHIFTS] = STORY_SHIFT_NAMES;
-static const char chapter_word[] = "CHAPTER ";
 static const char boss_word[] = "BOSS";
 
 // One shift of the chapter: its goal banner over the venue's level (LCD off, then on), GS_GOAL.
 static void shift_start(void) {
     uint8_t i;
-    char s[21];
-    const char *n;
     if (boss_on) boss_goal((uint8_t *)&story_goal);   // a boss fight: his banner lines, the regulars' pace (boss.c)
     else story_goal_get(story_chapter, story_shift, (uint8_t *)&story_goal);
     story_twist = story_goal.twist;
     DISPLAY_OFF;
-    // the goal banner in the window (map rows 32-36): panel, CHAPTER n + the shift, the two goal lines, panel
+    // the goal banner in the window (map rows 32-36): panel, the shift's name alone (OPENING SHIFT, HAPPY HOUR, LAST
+    // CALL, or BOSS; owner 2026-10-11: no chapter number), the two goal lines, panel
     fill(win_rows[0], TILE_PANEL_TOP, 20);
-    for (i = 0; chapter_word[i]; i++) s[i] = chapter_word[i];
-    s[i++] = '1' + story_chapter; s[i++] = ' ';
-    for (n = boss_on ? boss_word : shift_name[story_shift]; *n; n++) s[i++] = *n;
-    s[i] = 0;
-    centre(win_rows[1], s);
+    centre(win_rows[1], boss_on ? boss_word : shift_name[story_shift]);
     centre(win_rows[2], story_goal.line1);
     centre(win_rows[3], story_goal.line2);
     fill(win_rows[4], TILE_PANEL_BOT, 20);

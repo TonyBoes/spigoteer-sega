@@ -430,7 +430,7 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
         assert rom.mem("story_on") == 1 and rom.mem("boss_on") == 1 and rom.mem("boss_id") == c
         assert (rom.mem("story_chapter"), rom.mem("story_step")) == (c, BOSS_STEP)
         assert rom.mem("lives") == 3 and rom.mem("save_lock") == 1
-        assert goal_text(rom, 1) == centred(f"CHAPTER {c + 1} BOSS")
+        assert goal_text(rom, 1) == centred("BOSS")
         rom.write("tip_chance", 0)
         rom.press("a", 2)
         run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)

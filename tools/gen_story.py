@@ -93,7 +93,7 @@ CONDITIONS = {
 # slot. A step byte is kind << 4 | index (the shift 0-2, or the mini-game / boss id); STEP_SKIP marks a kind the engine
 # cannot play yet (NOT_BUILT): it passes over that step. Adding the mini-games or bosses = their mode in the engine and
 # taking the kind out of NOT_BUILT, or one venue at a time into BUILT_SLOTS (a data change).
-SHIFT_NAMES = ["OPENING", "HAPPY HOUR", "LAST CALL"]
+SHIFT_NAMES = ["OPENING SHIFT", "HAPPY HOUR", "LAST CALL"]   # the goal banner's first line (no chapter number)
 STEP_KINDS = {"SHIFT": 0, "MINI": 1, "BOSS": 2}
 STEP_SKIP = 0x80
 SEQUENCE = [("SHIFT", 0), ("SHIFT", 1), ("MINI", 0), ("SHIFT", 2), ("BOSS", 0)]
@@ -201,8 +201,8 @@ def check_shifts(rows):
             for l in (sh["line1"], sh["line2"]):
                 if len(l) > 20 or set(l) - HUD_CHARSET:
                     fail(f"{where} banner {l!r}: max 20, A-Z 0-9 and space")
-            if len(f"CHAPTER {c + 1} {sh['name']}") > 20:
-                fail(f"{where}: the banner's chapter line is over 20")
+            if len(sh["name"]) > 20 or set(sh["name"]) - HUD_CHARSET:
+                fail(f"{where}: the banner's first line (the shift's name) is over 20 or outside the HUD glyphs")
             if sh["type"] == G_CLEAR:
                 if sh["count"] or (sh["quota"] and not 2 <= sh["quota"] <= 40):
                     fail(f"{where}: a clear goal has no count and a quota of 2-40 (0: the row's)")

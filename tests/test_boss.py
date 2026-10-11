@@ -180,11 +180,11 @@ def test_the_table_has_a_row_per_venue_and_only_the_saloon_is_built():
 # ---- the fight -----------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_fight_follows_the_last_call(model):
-    """After the Last call: the fight's banner (CHAPTER 1 BOSS and Tex's two lines), the lives carried, no tips, the
+    """After the Last call: the fight's banner (BOSS and Tex's two lines), the lives carried, no tips, the
     regulars' arrivals never on his bar; then Big Tex on bar 1 at x 16 (his WALK pose from VRAM ids 162.. / 216..,
     his tiles and palettes loaded), the topper over his head, the HUD's face and a full meter of 8."""
     with to_fight(model, banner=True) as gb:
-        assert banner_text(gb, 1) == centred("CHAPTER 1 BOSS")
+        assert banner_text(gb, 1) == centred("BOSS")
         assert banner_text(gb, 2) == centred(LINE1) and banner_text(gb, 3) == centred(LINE2)
         assert gb.mem("story_step") == BOSS_STEP and gb.mem("story_reached") == BOSS_STEP
         assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_bar"), gb.mem("boss_hp")) == (1, 0, 1, 8)
@@ -427,7 +427,7 @@ def test_losing_the_fight_restarts_the_venue_and_puts_everything_back(model):
         assert (gb.mem("story_step"), gb.mem("story_shift"), gb.mem("lives"), gb.mem("story_restarts")) == (0, 0, 3, 1)
         assert (gb.mem("boss_on"), gb.mem("boss_bar")) == (0, 255)
         assert gb.mem("tip_chance") == GAME["TIP_CHANCE_DEFAULT"]
-        assert banner_text(gb, 1) == centred("CHAPTER 1 OPENING")
+        assert banner_text(gb, 1) == centred("OPENING SHIFT")
         to_goal(gb)
         gb.run(2)
         got = snapshot(gb)
@@ -546,4 +546,4 @@ def test_a_boss_slot_not_built_yet_plays_the_first_row(model):
         run_until(gb, lambda: state(gb) == GS_GOAL, 400)
         gb.run(3)
         assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_hp")) == (1, 1, 8)
-        assert banner_text(gb, 1) == centred("CHAPTER 2 BOSS")
+        assert banner_text(gb, 1) == centred("BOSS")
