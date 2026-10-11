@@ -62,14 +62,14 @@ def capture(model, source, solo, frames):
         rom = open_rom(model)           # from the very start of the ROM: the title tune starts at boot
     elif source == "galop":
         target = TUNE_SHOW
-        rom.press("start", 2)
+        start_arcade(rom)
         rom.run(60)
         rom.write("intro_timer", 255)
         rom.write("tip_chance", 0)
     else:
         g = songs.VENUES.index(source)
         target = TUNE_VENUE0 + g
-        rom.press("start", 2)
+        start_arcade(rom)
         if g != 0:
             rom.run(30)
             L = g + 1 if (g + 1) % 2 == 0 else g + 10      # level L is the one after a clear of an odd level
@@ -150,6 +150,13 @@ def check(model, source, bars, solo):
 
 def gm_name(n):
     return note_name(note_hz(n))
+
+
+def start_arcade(rom):
+    """From the title: PLAY > ARCADE (a fresh ROM has no story save, so PLAY's items are STORY, ARCADE)."""
+    for b in ("a", "down", "a"):
+        rom.press(b, 2)
+        rom.run(8)                      # the release is seen and the submenu's lines reach the screen (src/title.c)
 
 
 def start_frames(frames, source):
