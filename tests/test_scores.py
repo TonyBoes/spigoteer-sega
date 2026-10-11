@@ -1,7 +1,7 @@
 # M10b arcade mode: the top-5 table with initials in SRAM (save.c), endless loops of the nine venues with a
 # "LOOP n" banner and harder loops (main.c), the initials entry and the table screen (scores.c).
 import pytest
-from conftest import GAME, ROM, check_golden
+from conftest import GAME, ROM, check_golden, title_arcade
 from gbtools import Rom
 from test_flow import GAME_OVER, LIFE_LOST, PLAYING, TITLE, hi_score, hi_shown, hi_tiles, lose_a_life, run_until, state
 from test_sound import make_rom, save_ram, start_game
@@ -428,8 +428,8 @@ def test_an_idle_title_shows_the_table_and_comes_back(boot):
     assert len(boot.visible_sprites()) == 0, "no title sprites on the table"
     run_until(boot, lambda: state(boot) == TITLE, 320)
     boot.run(5)
-    assert boot.mem("title_sel") == 0
-    boot.press("start", 2)
+    assert boot.mem("title_sel") == 0 and boot.mem("title_menu") == 0, "the top level, on PLAY"
+    title_arcade(boot)
     run_until(boot, lambda: state(boot) == PLAYING, 30)
 
 

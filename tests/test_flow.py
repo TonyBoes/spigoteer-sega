@@ -2,7 +2,9 @@
 import re
 
 import pytest
-from conftest import GAME, LAYOUT, ROOT, bar_top_row, check_golden
+from conftest import (GAME, K_ARCADE, K_BONUS, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
+                      ROOT, TM_BONUS, TM_PLAY, TM_SETTINGS, TM_TOP, bar_top_row, check_golden, menu_items, menu_tap,
+                      title_arcade, title_pick)
 
 pytestmark = pytest.mark.timeout(120)
 
@@ -103,12 +105,17 @@ def tilemap_row(gb, y, x0, n, window=False):
 import json as _json
 
 TITLE_ART = _json.loads((ROOT / "build" / "title.json").read_text())   # tools/gen_art.py title_art(): tile ids
-# the bonus menu: ARCADE / STORY / BONUS / MUSIC on rows 6-12 (with a story save CONTINUE after STORY: rows 5-13), the HI
-# line on row 0 (the in-game HUD's row)
-LOGO_ROW, ROW_ARCADE, ROW_STORY, ROW_BONUS, ROW_MUSIC, ROW_HI = 2, 6, 8, 10, 12, 0
-MENU_ROWS = (ROW_ARCADE, ROW_STORY, ROW_BONUS, ROW_MUSIC)
-MENU_KEYS = ("arcade", "story", "bonus", "music_on")
-SEL_ARCADE, SEL_STORY, SEL_BONUS, SEL_MUSIC = range(4)
+# the menu (owner 2026-10-11: submenus): the top level PLAY / BONUS / SETTINGS on rows 7, 9, 11; a submenu in the same
+# place, its lines centred on row 9 (1 line: row 9; 2: rows 8, 10; 3: rows 7, 9, 11). PLAY: [CONTINUE] / STORY /
+# ARCADE, BONUS: SOUNDTRACK, SETTINGS: MUSIC ON-OFF (row 9). The HI line on row 0 (the in-game HUD's row).
+LOGO_ROW, ROW_MUSIC, ROW_HI = 2, 9, 0
+TOP_ROWS = (7, 9, 11)
+TOP_KEYS = ("play", "bonus", "settings")
+SEL_PLAY, SEL_BONUS, SEL_SETTINGS = range(3)
+
+
+def menu_rows(n):
+    return tuple(10 - n + 2 * i for i in range(n))
 LOGO_STATES = 5
 OAM_TMUG, OAM_CURSOR = 4, 5
 SCENE_TOP, SCENE_BOTTOM = 14 * 8, 17 * 8          # the bar scene: wall rows 14-15, counter row 16
@@ -131,6 +138,7 @@ def hi_shown(gb):
 
 
 def music_line(gb):
+    """The MUSIC line (SETTINGS' only line, row 9)."""
     return tilemap_row(gb, ROW_MUSIC, 0, 20)
 
 
@@ -163,50 +171,130 @@ def test_boots_to_title(boot):
     check_golden(boot, "title")
 
 
+def menu_block_rows(gb):
+    return [tilemap_row(gb, y, 0, 20) for y in range(LOGO_ROW + 2, 14)]
+
+
+def expect_menu(gb, keys):
+    """The menu block (rows 4-13) shows exactly these lines, centred on row 9, and the plain wall around them."""
+    blank = TITLE_ART["blank"]
+    rows = dict(zip(menu_rows(len(keys)), keys))
+    want = [title_text_row(rows[y]) if y in rows else [blank] * 20 for y in range(LOGO_ROW + 2, 14)]
+    assert menu_block_rows(gb) == want, keys
+
+
+def cursor_on(gb, key, row):
+    c = gb.oam()[OAM_CURSOR]
+    assert c["y"] - 16 + 7 == row * 8, "the mug stands on the selected line"
+    assert TITLE_ART["text"][key]["x"] - 14 <= c["x"] - 8 <= TITLE_ART["text"][key]["x"] - 12, "just left of it"
+
+
 def test_title_menu_is_centred_without_bands(boot):
     blank = TITLE_ART["blank"]
-    assert tilemap_row(boot, ROW_ARCADE, 0, 20) == title_text_row("arcade")
-    assert tilemap_row(boot, ROW_STORY, 0, 20) == title_text_row("story")
-    assert tilemap_row(boot, ROW_BONUS, 0, 20) == title_text_row("bonus")
-    assert music_line(boot) == title_text_row("music_on")
+    assert boot.mem("title_menu") == TM_TOP and menu_items(boot) == [K_PLAY, K_BONUS, K_SETTINGS]
+    expect_menu(boot, TOP_KEYS)
     # the HI line on row 0: 8 tiles at columns 6..13 (a small "HI", a space, six digits)
     assert tilemap_row(boot, ROW_HI, 0, 20) == [blank] * 6 + [TITLE_ART["hi"], blank] + hi_tiles("000000") + [blank] * 6
     # every line centred to the pixel: as many px left of the text as right of it. An odd-length line is drawn
     # 4 px right inside one more tile, so its tiles are an even count with as many blank columns either side.
     for key, s in (("arcade", "ARCADE"), ("story", "STORY"), ("music_on", "MUSIC ON"), ("music_off", "MUSIC OFF"),
-                   ("continue", "CONTINUE"), ("bonus", "BONUS")):
+                   ("continue", "CONTINUE"), ("bonus", "BONUS"), ("play", "PLAY"), ("settings", "SETTINGS"),
+                   ("soundtrack", "SOUNDTRACK")):
         t = TITLE_ART["text"][key]
         n = len(t["tiles"])
         assert n % 2 == 0 and t["col"] == (20 - n) // 2, key
         left = t["x"] - 1                       # the first glyph cell's left edge (its text starts 1 px in)
         assert left == 160 - (left + 8 * len(s)), f"{key}: {left} px left, {160 - left - 8 * len(s)} px right"
-    # no bands: the menu block (rows 4-13) is the plain wall tile around the text, the old dark HUD band tile is gone
-    for y in range(LOGO_ROW + 2, 14):
-        row = tilemap_row(boot, y, 0, 20)
-        assert row[:4] == [blank] * 4 and row[16:] == [blank] * 4, y
-        if y not in MENU_ROWS + (ROW_HI,):
-            assert row == [blank] * 20, y
-    assert all(tile_id("HUD_BLANK") not in tilemap_row(boot, y, 0, 20) for y in range(18))
+    assert all(tile_id("HUD_BLANK") not in tilemap_row(boot, y, 0, 20) for y in range(18)), "no bands"
 
 
 def test_up_down_move_the_mug_cursor_and_wrap(boot):
     boot.run(2)
-    assert boot.mem("title_sel") == SEL_ARCADE
+    assert boot.mem("title_sel") == SEL_PLAY
     seen = []
     for b in ("down", "down", "down", "up", "up"):
         boot.press(b, 2)
         boot.run(1)
         sel = boot.mem("title_sel")
         seen.append(sel)
-        c = boot.oam()[OAM_CURSOR]
-        key = MENU_KEYS[sel]
-        assert c["y"] - 16 + 7 == MENU_ROWS[sel] * 8, "the mug stands on the selected line"
-        assert TITLE_ART["text"][key]["x"] - 14 <= c["x"] - 8 <= TITLE_ART["text"][key]["x"] - 12, "just left of it"
-    assert seen == [SEL_STORY, SEL_BONUS, SEL_MUSIC, SEL_BONUS, SEL_STORY]
-    assert state(boot) == TITLE
+        cursor_on(boot, TOP_KEYS[sel], TOP_ROWS[sel])
+    assert seen == [SEL_BONUS, SEL_SETTINGS, SEL_PLAY, SEL_SETTINGS, SEL_BONUS]
+    assert state(boot) == TITLE and boot.mem("title_menu") == TM_TOP
 
 
-def test_start_begins_a_game(boot):
+# (top item, its submenu, the submenu's lines without a story save)
+SUBMENUS = [(K_PLAY, TM_PLAY, ("story", "arcade")), (K_BONUS, TM_BONUS, ("soundtrack",)),
+            (K_SETTINGS, TM_SETTINGS, ("music_on",))]
+
+
+@pytest.mark.parametrize("top,menu,keys", SUBMENUS, ids=["play", "bonus", "settings"])
+def test_each_submenu_opens_in_place_and_b_comes_back_to_its_item(boot, top, menu, keys):
+    settle_title(boot)
+    title_pick(boot, top)
+    boot.run(MENU_SETTLE)
+    assert state(boot) == TITLE and boot.mem("title_menu") == menu and boot.mem("title_sel") == 0
+    expect_menu(boot, keys)
+    cursor_on(boot, keys[0], menu_rows(len(keys))[0])
+    if len(keys) > 1:                           # Up / Down move and wrap in a submenu too
+        menu_tap(boot, "up")
+        assert boot.mem("title_sel") == len(keys) - 1
+        cursor_on(boot, keys[-1], menu_rows(len(keys))[-1])
+    check_golden(boot, "title_" + TOP_KEYS[menu - 1])
+    menu_tap(boot, "b")
+    boot.run(MENU_SETTLE)
+    assert state(boot) == TITLE and boot.mem("title_menu") == TM_TOP
+    assert boot.mem("title_sel") == menu - 1, "the cursor back on the item the submenu came from"
+    expect_menu(boot, TOP_KEYS)
+    cursor_on(boot, TOP_KEYS[menu - 1], TOP_ROWS[menu - 1])
+    menu_tap(boot, "b")                         # B on the top level does nothing
+    assert boot.mem("title_menu") == TM_TOP and boot.mem("title_sel") == menu - 1
+
+
+def test_submenu_redraws_stay_within_the_vblank_drain_budget(boot):
+    """Switching menus queues its rows a few a frame: the drain stays as short as gameplay's (test_patrons: <= 12
+    DIV ticks) and ends before line 0, even with a cursor move during the redraw."""
+    from test_scores import booted, v5_image
+    with booted(boot.model_name, v5_image([], story=3, step=1)) as rom:
+        rom.write("drain_ticks_max", 0)
+        for top in (K_PLAY, K_BONUS, K_SETTINGS):
+            title_pick(rom, top)
+            rom.press("down", 1)                      # straight into the redraw
+            rom.run(MENU_SETTLE)
+            menu_tap(rom, "b")
+            rom.press("up", 1)
+            rom.run(MENU_SETTLE)
+            menu_tap(rom, "down")
+        assert 0 < rom.mem("drain_ticks_max") <= 12, rom.mem("drain_ticks_max")
+        assert rom.mem16("vq_late") == 0 and rom.mem("vq_end_ly_max") <= 153
+
+
+def test_continue_shows_only_with_a_story_save(boot):
+    from test_scores import booted, v5_image
+    title_pick(boot, K_PLAY)
+    boot.run(MENU_SETTLE)
+    assert menu_items(boot) == [K_STORY, K_ARCADE]
+    expect_menu(boot, ("story", "arcade"))
+    with booted(boot.model_name, v5_image([], story=3, step=1)) as rom:
+        rom.model_name = boot.model_name
+        settle_title(rom)
+        assert menu_items(rom) == [K_PLAY, K_BONUS, K_SETTINGS], "the top level is the same with a save"
+        expect_menu(rom, TOP_KEYS)
+        title_pick(rom, K_PLAY)
+        rom.run(MENU_SETTLE)
+        assert menu_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE], "CONTINUE first, then STORY, ARCADE"
+        expect_menu(rom, ("continue", "story", "arcade"))
+        cursor_on(rom, "continue", 7)                    # (the golden title_continue: tests/test_story.py)
+    with booted(boot.model_name, v5_image([], story=9)) as rom:     # the story finished: nothing to continue
+        title_pick(rom, K_PLAY)
+        assert menu_items(rom) == [K_STORY, K_ARCADE]
+
+
+def test_start_works_as_a_too(boot):
+    boot.press("start", 2)                    # PLAY
+    boot.run(1)
+    assert boot.mem("title_menu") == TM_PLAY
+    boot.press("down", 2)                     # ARCADE
+    boot.run(1)
     boot.press("start", 2)
     run_until(boot, lambda: state(boot) == PLAYING, 30)
     assert boot.mem("lives") == 3 and score(boot) == 0 and boot.mem("level") == 1
@@ -216,11 +304,9 @@ def test_start_begins_a_game(boot):
     assert tilemap_row(boot, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_1")]   # L01
 
 
-def test_a_on_arcade_starts_level_1(boot):
+def test_play_arcade_starts_level_1(boot):
     settle_title(boot)
-    boot.press("down", 2)
-    boot.press("up", 2)
-    boot.press("a", 2)
+    title_arcade(boot)
     run_until(boot, lambda: state(boot) == PLAYING, 30)
     assert boot.mem("level") == 1 and boot.mem("cur_group") == 0 and boot.mem("lives") == 3
     assert patrons(boot) == [(0, ENTRY_X), (2, ENTRY_X)]
@@ -229,30 +315,52 @@ def test_a_on_arcade_starts_level_1(boot):
 
 
 def test_story_starts_the_story_mode(boot):
-    """M11b (was M10a's COMING SOON): STORY opens the story's first cut-scene (tests/test_story.py has the rest)."""
-    boot.press("down", 2)
-    boot.press("a", 2)
+    """M11b (was M10a's COMING SOON): PLAY > STORY opens the story's first cut-scene (tests/test_story.py has the rest)."""
+    title_pick(boot, K_PLAY, K_STORY)
     run_until(boot, lambda: state(boot) == GS_STORY, 30)
     assert boot.mem("story_on") == 1 and boot.mem("story_scene") == 0, "INTRO"
 
 
-def test_music_toggles_from_the_menu(boot):
-    boot.press("up", 2)                       # wraps to MUSIC
-    assert boot.mem("title_sel") == SEL_MUSIC
-    boot.press("a", 2)
+def test_music_toggles_from_the_settings(boot):
+    title_pick(boot, K_SETTINGS)
+    boot.run(MENU_SETTLE)
+    assert menu_items(boot) == [K_MUSIC] and music_line(boot) == title_text_row("music_on")
+    menu_tap(boot, "a")
     boot.run(2)
     assert boot.mem("sound_on") == 0 and music_line(boot) == title_text_row("music_off")
+    cursor_on(boot, "music_off", ROW_MUSIC)
     boot.press("start", 2)
     boot.run(2)
     assert boot.mem("sound_on") == 1 and music_line(boot) == title_text_row("music_on")
-    assert state(boot) == TITLE
+    assert state(boot) == TITLE and boot.mem("title_menu") == TM_SETTINGS
+
+
+def test_music_off_from_the_settings_holds_into_a_game(boot):
+    """The setting behaves as the old MUSIC line did: it holds for the session (not in SRAM, as before)."""
+    title_pick(boot, K_SETTINGS, K_MUSIC)
+    assert boot.mem("sound_on") == 0
+    menu_tap(boot, "b")
+    title_arcade(boot)
+    run_until(boot, lambda: state(boot) == PLAYING, 30)
+    assert boot.mem("sound_on") == 0, "the game starts with the music off"
+
+
+def test_select_toggles_the_music_on_any_menu_level(boot):
+    menu_tap(boot, "select")
+    assert boot.mem("sound_on") == 0, "the top level (no MUSIC line shown)"
+    title_pick(boot, K_SETTINGS)
+    boot.run(MENU_SETTLE)
+    assert music_line(boot) == title_text_row("music_off"), "SETTINGS opens on the current setting"
+    menu_tap(boot, "select")
+    boot.run(2)
+    assert boot.mem("sound_on") == 1 and music_line(boot) == title_text_row("music_on")
 
 
 def test_title_ignores_other_buttons(boot):
     for b in ("b", "left", "right"):
         boot.press(b, 3)
     boot.run(10)
-    assert state(boot) == TITLE and boot.mem("title_sel") == SEL_ARCADE
+    assert state(boot) == TITLE and boot.mem("title_sel") == SEL_PLAY and boot.mem("title_menu") == TM_TOP
 
 
 def test_logo_fills_letter_by_letter_then_settles(boot):
@@ -458,7 +566,8 @@ def test_three_lost_lives_end_the_game_and_start_goes_on_to_the_title(gb):
     gb.run(3)
     assert hi_score(gb) == 50
     assert hi_shown(gb) == hi_tiles("000050"), "title shows the HI score"
-    gb.press("start", 2)
+    assert gb.mem("title_menu") == TM_TOP, "the top level"
+    title_arcade(gb)
     run_until(gb, lambda: state(gb) == PLAYING, 30)
     assert gb.mem("lives") == 3 and score(gb) == 0 and hi_score(gb) == 50 and gb.mem("game_over") == 0
 

@@ -8,7 +8,8 @@ import json
 import re
 
 import pytest
-from conftest import GAME, ROOT, check_golden, hold_stage_anim
+from conftest import (GAME, K_ARCADE, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROOT, check_golden, hold_stage_anim,
+                      menu_items, menu_tap, title_pick)
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
                        settle_title, state, tilemap_row)
 from test_scores import (V5_SUM, booted, parse_save, progress_unlocks, saved_tunes, table, v1_image, v2_image, v3_image,
@@ -369,14 +370,25 @@ def glyph_rows(lines):
     return [[GLYPH[c] for c in l.ljust(18)] for l in lines]
 
 
+def play_items(rom):
+    """The title's PLAY submenu (opened from the top level, left open)."""
+    title_pick(rom, K_PLAY)
+    return menu_items(rom)
+
+
+def to_continue(rom):
+    """From the title's top level: PLAY > CONTINUE (first in PLAY when there is a story save)."""
+    assert play_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE], "CONTINUE, STORY, ARCADE"
+    menu_tap(rom, "a")
+
+
 def start_story(model, ram=None, cont=False):
     rom = booted(model, ram)
     hold_stage_anim(rom)
-    rom.press("down", 2)
     if cont:
-        assert rom.mem("title_n") == 5           # ARCADE, STORY, CONTINUE, BONUS, MUSIC
-        rom.press("down", 2)
-    rom.press("a", 2)
+        to_continue(rom)
+    else:
+        title_pick(rom, K_PLAY, K_STORY)
     run_until(rom, lambda: state(rom) == GS_STORY and rom.mem("story_phase") == SP_SCENE, 30)
     settle(rom)
     return rom
@@ -423,9 +435,7 @@ def to_shift(model, c, k, banner=False):
         return to_chapter(model, c, banner)
     rom = booted(model, v4_image([], story=c, step=SHIFT_STEP[k]))
     hold_stage_anim(rom)
-    rom.press("down", 2)
-    rom.press("down", 2)
-    rom.press("a", 2)                                     # CONTINUE: the venue's Opening
+    to_continue(rom)                                      # CONTINUE: the venue's Opening
     run_until(rom, lambda: state(rom) == GS_GOAL, 60)
     assert rom.mem("story_chapter") == c and rom.mem("story_shift") == 0 and rom.mem("story_step") == 0
     to_goal(rom)
@@ -1238,7 +1248,8 @@ def test_the_last_chapter_leads_to_the_finale_credits_and_the_title(model):
         assert gb.mem("story_scene") == SC["CREDITS"]
         skip_scene(gb)
         run_until(gb, lambda: state(gb) == TITLE, 30)
-        assert gb.mem("story_on") == 0 and gb.mem("title_n") == 4, "the story is complete: no CONTINUE"
+        assert gb.mem("story_on") == 0
+        assert play_items(gb) == [K_STORY, K_ARCADE], "the story is complete: no CONTINUE"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -1256,10 +1267,7 @@ def test_continue_mid_venue_starts_the_venue_over(model):
     with booted(model, ram) as again:
         hold_stage_anim(again)
         assert (again.mem("story_progress"), again.mem("story_reached")) == (0, 1)
-        assert again.mem("title_n") == 5, "CONTINUE with no chapter cleared, a shift done"
-        again.press("down", 2)
-        again.press("down", 2)
-        again.press("a", 2)
+        to_continue(again)                                # CONTINUE with no chapter cleared, a shift done
         run_until(again, lambda: state(again) == GS_GOAL, 60)
         again.run(3)
         assert again.mem("story_chapter") == 0 and again.mem("story_shift") == 0 and again.mem("story_step") == 0
@@ -1274,10 +1282,7 @@ def test_continue_keeps_the_step_reached_for_practice(model, step):
     furthest step reached (the record Practice unlocks from), the next shift is the Happy hour."""
     with booted(model, v4_image([], story=4, step=step)) as rom:
         hold_stage_anim(rom)
-        assert rom.mem("title_n") == 5
-        rom.press("down", 2)
-        rom.press("down", 2)
-        rom.press("a", 2)
+        to_continue(rom)
         run_until(rom, lambda: state(rom) == GS_GOAL, 60)
         assert (rom.mem("story_chapter"), rom.mem("story_step"), rom.mem("story_shift")) == (4, 0, 0)
         to_goal(rom)
@@ -1297,14 +1302,13 @@ def test_the_progress_survives_a_reset_and_continue_resumes(model):
         ram = save_ram(gb)
     with booted(model, ram) as again:
         hold_stage_anim(again)
-        assert again.mem("story_progress") == 1 and again.mem("title_n") == 5
-        assert list(again.read("title_items", 5)) == [0, 1, 3, 4, 2], "ARCADE, STORY, CONTINUE, BONUS, MUSIC"
-        assert list(again.read("title_rows", 5)) == [5, 7, 9, 11, 13]
+        assert again.mem("story_progress") == 1
         settle_title(again)
-        check_golden(again, "title_continue")
-        again.press("down", 2)
-        again.press("down", 2)
-        again.press("a", 2)
+        assert play_items(again) == [K_CONTINUE, K_STORY, K_ARCADE], "PLAY: CONTINUE, STORY, ARCADE"
+        assert list(again.read("title_rows", 3)) == [7, 9, 11]
+        again.run(MENU_SETTLE)
+        check_golden(again, "title_continue")                 # the PLAY submenu with a story save
+        menu_tap(again, "a")
         run_until(again, lambda: state(again) == GS_STORY, 30)
         assert again.mem("story_scene") == SC["PRE_STADIUM"] and again.mem("story_chapter") == 1
 
@@ -1325,7 +1329,7 @@ def test_a_version_2_save_keeps_its_hi_scores_and_gains_story_progress(model):
     entries = [("ABC", 500), ("DEF", 400), ("GHI", 300)]
     with booted(model, v2_image(entries)) as rom:
         assert rom.mem("save_migrated") == 2 and rom.mem("story_progress") == 0 and rom.mem("story_reached") == 0
-        assert table(rom)[:3] == entries and rom.mem("title_n") == 4
+        assert table(rom)[:3] == entries and play_items(rom) == [K_STORY, K_ARCADE], "no CONTINUE"
         ram = save_ram(rom)
     assert parse_save(ram)[:3] == entries and ram[34] == 0 and ram[35] == 0, "written back as version 5 at once"
     assert ram[:V5_SUM + 2] == v5_image(entries)[:V5_SUM + 2]
@@ -1340,9 +1344,7 @@ def test_a_version_3_save_migrates_to_version_4_at_the_chapter_start(model):
         hold_stage_anim(rom)
         assert rom.mem("save_migrated") == 3 and table(rom)[:2] == entries
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (4, 0), "4 chapters cleared, chapter 5 not begun"
-        rom.press("down", 2)
-        rom.press("down", 2)
-        rom.press("a", 2)                               # CONTINUE: chapter 5's PRE scene, as with version 3
+        to_continue(rom)                                # CONTINUE: chapter 5's PRE scene, as with version 3
         run_until(rom, lambda: state(rom) == GS_STORY, 30)
         assert rom.mem("story_scene") == pre(4) and rom.mem("story_chapter") == 4
         ram = save_ram(rom)

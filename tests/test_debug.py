@@ -3,7 +3,8 @@
 import subprocess
 
 import pytest
-from conftest import ROOT
+from conftest import (K_ARCADE, K_BONUS, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE,
+                      ROOT, TM_PLAY, TM_SETTINGS, TM_TOP, menu_items, menu_tap, menu_to, title_arcade, title_pick)
 
 pytestmark = pytest.mark.timeout(120)
 
@@ -42,7 +43,8 @@ def test_a_short_start_still_starts_the_game_and_select_still_toggles_music(boot
     boot.run(5)
     assert boot.mem("sound_on") == 1 - s0 and boot.mem("debug_menu_open") == 0
     boot.press("select", 3)
-    boot.press("start", 2)
+    boot.run(1)
+    title_arcade(boot)
     boot.run(20)
     assert boot.mem("game_state") == PLAYING and boot.mem("debug_menu_open") == 0
 
@@ -143,7 +145,7 @@ def test_b_returns_to_the_title(boot):
     boot.press("b", 2)
     boot.run(5)
     assert boot.mem("debug_menu_open") == 0 and boot.mem("game_state") == TITLE and boot.mem("overlay_on") == 0
-    boot.press("start", 2)
+    title_arcade(boot)
     boot.run(20)
     assert boot.mem("game_state") == PLAYING, "the title still works"
 
@@ -173,9 +175,9 @@ def test_the_release_build_has_no_debug_menu():
 
 
 def test_the_combo_works_from_any_menu_item_and_the_menu_survives(boot):
-    from test_flow import SEL_MUSIC, music_line, title_text_row
-    boot.press("up", 2)                                   # the cursor on MUSIC
-    assert boot.mem("title_sel") == SEL_MUSIC
+    from test_flow import music_line, title_text_row
+    title_pick(boot, K_SETTINGS)                          # the cursor on MUSIC
+    assert menu_items(boot) == [K_MUSIC] and boot.mem("title_sel") == 0
     s0 = boot.mem("sound_on")
     boot.hold("select")
     boot.run(2)
@@ -185,15 +187,16 @@ def test_the_combo_works_from_any_menu_item_and_the_menu_survives(boot):
     release_combo(boot)
     boot.press("b", 2)
     boot.run(3)
-    assert boot.mem("game_state") == TITLE and boot.mem("title_sel") == SEL_MUSIC
+    boot.run(MENU_SETTLE)
+    assert boot.mem("game_state") == TITLE and boot.mem("title_menu") == TM_SETTINGS and boot.mem("title_sel") == 0
     assert music_line(boot) == title_text_row("music_on" if s0 else "music_off")
-    boot.press("down", 2)                                 # wraps to ARCADE
-    boot.press("a", 2)
+    menu_tap(boot, "b")                                   # the top level
+    title_arcade(boot)
     boot.run(20)
     assert boot.mem("game_state") == PLAYING and boot.mem("level") == 1
 
 
-# ---- mode-aware (owner 2026-10-10): story positions when opened in story play or on STORY / CONTINUE ----------------
+# ---- mode-aware (owner 2026-10-10): story positions when opened in story play or on PLAY's STORY / CONTINUE -----------
 # Positions of a chapter: 0 its PRE scene, 1..STORY_STEPS its steps (only those the engine plays: STEP_SKIP ones only
 # with story_unskip), STORY_STEPS + 1 its POST scene. Left/Right the chapter, Up/Down the position. A story run started
 # here writes nothing to SRAM (save.c save_lock).
@@ -214,9 +217,16 @@ def tap(gb, b):
     gb.run(1)
 
 
-def open_on(boot, sel):
-    while boot.mem("title_sel") != sel:
-        tap(boot, "down")
+# where each title item is: the top level's own, or the submenu of a top item
+WHERE = {K_STORY: K_PLAY, K_CONTINUE: K_PLAY, K_ARCADE: K_PLAY, K_SOUNDTRACK: K_BONUS, K_MUSIC: K_SETTINGS}
+
+
+def open_on(boot, k):
+    """The title's cursor on item k (K_*: opening its submenu first), then the combo."""
+    if k in WHERE:
+        title_pick(boot, WHERE[k], k, press=False)
+    else:
+        menu_to(boot, k)
     combo(boot)
     release_combo(boot)
     boot.run(3)
@@ -232,8 +242,7 @@ def playable(c=0, unskip=0):
 
 
 def test_on_story_the_box_selects_story_positions(boot):
-    from test_flow import SEL_STORY
-    open_on(boot, SEL_STORY)
+    open_on(boot, K_STORY)
     assert boot.mem("debug_menu_open") == 1 and boot.mem("debug_story") == 1
     assert (boot.mem("debug_chapter"), boot.mem("debug_pos")) == (0, 0)
     assert banner_is(boot, "STORY 1 PRE")
@@ -260,11 +269,10 @@ def test_on_story_the_box_selects_story_positions(boot):
 
 
 def test_an_unskipped_step_is_offered(boot):
-    from test_flow import SEL_STORY
     from test_story import SEQ
     mini = next(i for i, s in enumerate(SEQ) if s["kind"] == "MINI")
     boot.write("story_unskip", 1 << mini)
-    open_on(boot, SEL_STORY)
+    open_on(boot, K_STORY)
     while boot.mem("debug_pos") != mini + 1:
         tap(boot, "down")
     boot.run(3)
@@ -274,13 +282,13 @@ def test_an_unskipped_step_is_offered(boot):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("c,k", [(2, 1), (6, 2), (0, 0)])
 def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(model, c, k):
-    from test_flow import SEL_STORY, run_until
+    from test_flow import run_until
     from test_scores import booted, v5_image
     from test_sound import save_ram
     from test_story import SHIFT_STEP, SHIFTS, banner_text as goal_text, centred, shift_title, win
     ram = v5_image([("ABC", 500)], story=1, step=1, tunes=0x21)
     with booted(model, ram) as rom:
-        open_on(rom, SEL_STORY)
+        open_on(rom, K_STORY)
         for _ in range(c):
             tap(rom, "right")
         while rom.mem("debug_pos") != SHIFT_STEP[k] + 1:
@@ -306,9 +314,9 @@ def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(mod
 
 @pytest.mark.parametrize("pos,scene", [("pre", "PRE_BISTRO"), ("post", "POST_BISTRO")])
 def test_a_on_a_scene_plays_it(boot, pos, scene):
-    from test_flow import SEL_STORY, run_until
+    from test_flow import run_until
     from test_story import SC
-    open_on(boot, SEL_STORY)
+    open_on(boot, K_STORY)
     for _ in range(3):
         tap(boot, "right")
     if pos == "post":
@@ -323,7 +331,7 @@ def test_on_continue_the_box_starts_at_the_saved_chapter():
     from test_scores import booted, v5_image
     for story, step, pos in ((4, 0, 0), (4, 3, 1)):
         with booted("cgb", v5_image([], story=story, step=step)) as rom:
-            open_on(rom, 2)                               # CONTINUE
+            open_on(rom, K_CONTINUE)
             assert rom.mem("debug_story") == 1 and (rom.mem("debug_chapter"), rom.mem("debug_pos")) == (story, pos)
 
 
@@ -341,23 +349,52 @@ def test_in_story_play_the_box_opens_where_the_story_is(model):
         assert gb.mem("game_state") == PLAYING and gb.mem("story_on") == 1, "B: the shift goes on"
 
 
-def test_on_other_items_and_in_arcade_play_it_stays_the_level_select(boot):
-    from test_flow import SEL_BONUS
-    open_on(boot, SEL_BONUS)
+@pytest.mark.parametrize("k", [K_PLAY, K_BONUS, K_SETTINGS, K_SOUNDTRACK, K_MUSIC, K_ARCADE])
+def test_on_other_items_and_in_arcade_play_it_stays_the_level_select(boot, k):
+    """The top level (PLAY too: no mode chosen yet), BONUS / SETTINGS and PLAY's ARCADE: the arcade level select."""
+    open_on(boot, k)
+    assert boot.mem("debug_menu_open") == 1
     assert boot.mem("debug_story") == 0 and boot.mem("debug_level") == 1
     assert banner_is(boot, "LEVEL 01")
+
+
+def test_the_box_follows_play_s_cursor_and_b_leaves_the_submenu_as_it_was(boot):
+    open_on(boot, K_STORY)
+    assert boot.mem("debug_story") == 1 and banner_is(boot, "STORY 1 PRE")
+    tap(boot, "b")
+    boot.run(MENU_SETTLE)
+    assert boot.mem("game_state") == TITLE and boot.mem("title_menu") == TM_PLAY
+    assert menu_items(boot)[boot.mem("title_sel")] == K_STORY, "the PLAY submenu, the cursor on STORY"
+    tap(boot, "down")                                      # ARCADE
+    combo(boot)
+    release_combo(boot)
+    boot.run(3)
+    assert boot.mem("debug_story") == 0 and banner_is(boot, "LEVEL 01")
+    tap(boot, "b")
+    tap(boot, "up")                                        # STORY again
+    combo(boot)
+    release_combo(boot)
+    boot.run(3)
+    assert boot.mem("debug_story") == 1
+    tap(boot, "b")
+    tap(boot, "b")                                         # the top level, on PLAY: arcade
+    assert boot.mem("title_menu") == TM_TOP and boot.mem("title_sel") == 0
+    combo(boot)
+    release_combo(boot)
+    boot.run(3)
+    assert boot.mem("debug_story") == 0 and banner_is(boot, "LEVEL 01")
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_story_select_golden(model):
     from conftest import ROM, check_golden
     from gbtools import Rom
-    from test_flow import SEL_STORY, settle_title
+    from test_flow import settle_title
     with Rom(ROM, model) as rom:
         rom.model_name = model
         rom.run(120)
         settle_title(rom)
-        open_on(rom, SEL_STORY)
+        open_on(rom, K_STORY)
         tap(rom, "right")
         tap(rom, "right")
         tap(rom, "down")
@@ -371,7 +408,7 @@ def test_the_story_select_golden(model):
 def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
     """A chapter whose boss slot is built offers it ("BOSS"); A starts the fight through step_start (boss_set): its
     banner, the fight; satisfied, CHAPTER CLEAR and the POST scene follow, and SRAM stays as it was."""
-    from test_flow import LEVEL_CLEAR, SEL_STORY, run_until
+    from test_flow import LEVEL_CLEAR, run_until
     from test_scores import booted, v5_image
     from test_sound import save_ram
     from test_story import BOSS_BUILT, BOSS_STEP, SC, banner_text as goal_text, centred
@@ -379,7 +416,7 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
     c = min(BOSS_BUILT)
     ram = v5_image([("ABC", 500)], tunes=1)
     with booted(model, ram) as rom:
-        open_on(rom, SEL_STORY)
+        open_on(rom, K_STORY)
         for _ in range(c):
             tap(rom, "right")
         assert BOSS_STEP + 1 in playable(c)

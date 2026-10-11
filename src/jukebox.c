@@ -1,5 +1,5 @@
-// The title's BONUS: the soundtrack player. BONUS goes straight here while the soundtrack is the only extra (a one-line
-// submenu would be one press for nothing); a second extra turns BONUS into a list with SOUNDTRACK first.
+// The title's BONUS > SOUNDTRACK: the soundtrack player (the title's submenus: src/title.c; PRACTICE is planned as
+// BONUS's second item).
 //
 // Screen (the scores table's style: light HUD glyphs and the story font's punctuation on the dark band, HUD palette):
 //   row 0 "SOUNDTRACK", row 1 a panel line; rows 2-11 the tunes in music.h order (JB_VISIBLE at a time, scrolling),
@@ -7,7 +7,7 @@
 //   blinks); row 12 a panel line, rows 13-16 the selected tune: its full title (2 lines), the credit, where the game
 //   plays it; row 17 a panel line. A locked tune shows "? ? ?" and does not play.
 // Up / Down select (wrapping), A or START plays (from the top), B stops the tune, or with none playing goes back to
-// the title. The names come from tools/songs.py SOUNDTRACK (build/jukebox_names.h), sized by TUNE_COUNT.
+// the title's BONUS submenu (title_back). The names come from tools/songs.py SOUNDTRACK (build/jukebox_names.h), sized by TUNE_COUNT.
 // MUSIC OFF: a tune chosen here plays all the same (the player turns the music on); leaving puts it off again.
 // The unlocks are save.c's (tune_unlocked, SRAM v5): the title tune always, the rest as the story is played.
 // LCD off to enter; afterwards the rows go through the VBlank queue, JB_ROWS_PER_FRAME a frame, from WRAM buffers

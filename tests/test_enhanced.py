@@ -8,7 +8,7 @@ import json
 import numpy as np
 import pytest
 
-from conftest import ROOT, bar_top_row, venue
+from conftest import ROOT, bar_top_row, title_arcade, venue
 from test_art import goto_group
 from test_bonus import enter_bonus
 from test_bonus2 import PH_END
@@ -221,7 +221,7 @@ def test_bank1_tiles_and_extra_palettes_after_the_title(boot):
     """From the title (which loads the saloon and its own palettes) to level 1, the saloon."""
     from test_flow import PLAYING, run_until, state
     gb = boot
-    gb.press("start", 2)
+    title_arcade(gb)
     run_until(gb, lambda: state(gb) == PLAYING, 60)
     assert gb.mem("cur_group") == 0
     if gb.model_name == "dmg":

@@ -70,10 +70,51 @@ def hold_stage_anim(rom, hold=1):
     rom.write("sa_hold", hold)
 
 
+# ---- the title menu (src/title.c): the top level PLAY / BONUS / SETTINGS, each opening a submenu in the same place:
+# PLAY [CONTINUE] / STORY / ARCADE, BONUS SOUNDTRACK, SETTINGS MUSIC. K_* / TM_*: src/game.h.
+K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK = range(8)
+TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS = range(4)
+MENU_SETTLE = 6          # frames for a submenu's lines to reach the screen (2-5: src/title.c menu_frame)
+
+
+def menu_items(rom):
+    return list(rom.read("title_items", rom.mem("title_n")))
+
+
+def menu_tap(rom, b):
+    rom.press(b, 2)
+    rom.run(1)                                # (the release must be seen before the next press)
+
+
+def menu_to(rom, k):
+    """Move the title's cursor down to item k of the menu shown."""
+    items = menu_items(rom)
+    assert k in items, (k, items)
+    while items[rom.mem("title_sel")] != k:
+        menu_tap(rom, "down")
+
+
+def title_pick(rom, top, item=None, press=True):
+    """From the title's top level: open top item `top` (K_PLAY / K_BONUS / K_SETTINGS); then with `item`, move to it
+    and (press) choose it with A."""
+    assert rom.mem("title_menu") == TM_TOP
+    menu_to(rom, top)
+    menu_tap(rom, "a")
+    if item is not None:
+        menu_to(rom, item)
+        if press:
+            menu_tap(rom, "a")
+
+
+def title_arcade(rom):
+    """From the title's top level: PLAY > ARCADE (the game starts on the next frames)."""
+    title_pick(rom, K_PLAY, K_ARCADE)
+
+
 @pytest.fixture
 def gb(boot):
-    """Gameplay: boot, press START, then run until the intro delay is where the M1-M3 tests expect it."""
-    boot.press("start", 2)
+    """Gameplay: boot, PLAY > ARCADE, then run until the intro delay is where the M1-M3 tests expect it."""
+    title_arcade(boot)
     for _ in range(30):
         if boot.mem("game_state") == PLAYING:
             break

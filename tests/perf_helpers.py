@@ -17,7 +17,8 @@ def put16(gb, name, v):
 
 
 def start_game(gb):
-    gb.press("start", 2)
+    from conftest import title_arcade
+    title_arcade(gb)
     for _ in range(30):
         if gb.mem("game_state") == PLAYING:
             break

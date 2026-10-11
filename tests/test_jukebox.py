@@ -1,5 +1,5 @@
-# The title's BONUS: the soundtrack player (src/jukebox.c) and its unlocks (src/save.c, SRAM version 5).
-# BONUS is always on the menu; it opens the soundtrack list straight away. Every tune of music.h in order, by its real
+# The title's BONUS > SOUNDTRACK: the soundtrack player (src/jukebox.c) and its unlocks (src/save.c, SRAM version 5).
+# BONUS is always on the top level; its submenu's SOUNDTRACK opens the soundtrack list, B there comes back to it. Every tune of music.h in order, by its real
 # name (tools/songs.py SOUNDTRACK -> build/jukebox_names.h); a locked tune shows "? ? ?" and does not play. Unlocks:
 # the title tune always, any tune once it plays in story mode, the jingles also with chapter 1 cleared; they are saved
 # at once and a new story never clears them. A debug-select story run saves nothing (test_debug.py).
@@ -7,7 +7,8 @@ import json
 import re
 
 import pytest
-from conftest import ROOT, check_golden, hold_stage_anim
+from conftest import (K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP, check_golden,
+                      hold_stage_anim, menu_items, title_pick)
 from test_flow import (GS_GOAL, GS_STORY, TITLE, most_per_scanline, run_until, settle_title, state, tilemap_row,
                        title_text_row)
 from test_scores import (JINGLES, TUNE_COUNT, TUNE_VENUE0, V4_SUM, V5_SUM, booted, parse_save, progress_unlocks,
@@ -26,7 +27,6 @@ _H = (ROOT / "build" / "jukebox_names.h").read_text()
 NAMES = re.findall(r'^    "([^"]*)",   //', _H, re.M)
 INFO = [re.findall(r'"([^"]*)"', l) for l in re.findall(r"^    \{ (.*) \},$", _H, re.M)]
 ROW_LIST, VISIBLE, ROW_INFO, COL_PLAY = 2, 10, 13, 19
-K_BONUS = 4
 
 
 def row_text(s, x=1):
@@ -49,10 +49,7 @@ def tap(rom, b):
 
 
 def to_jukebox(rom):
-    items = list(rom.read("title_items", rom.mem("title_n")))
-    for _ in range(items.index(K_BONUS)):
-        tap(rom, "down")
-    tap(rom, "a")
+    title_pick(rom, K_BONUS, K_SOUNDTRACK)
     run_until(rom, lambda: state(rom) == GS_JUKEBOX, 30)
     rom.run(2)
     return rom
@@ -82,10 +79,27 @@ def test_the_names_follow_music_h_and_songs_py():
 
 # ---- the menu --------------------------------------------------------------------------------------------------
 def test_bonus_is_always_on_the_menu(boot):
-    assert list(boot.read("title_items", 4)) == [0, 1, K_BONUS, 2], "ARCADE, STORY, BONUS, MUSIC"
-    assert tilemap_row(boot, 10, 0, 20) == title_text_row("bonus")
+    assert menu_items(boot) == [K_PLAY, K_BONUS, K_SETTINGS], "PLAY, BONUS, SETTINGS"
+    assert tilemap_row(boot, 9, 0, 20) == title_text_row("bonus")
     with booted(boot.model_name, v5_image([], story=3, step=1, tunes=ALL)) as rom:
-        assert list(rom.read("title_items", 5)) == [0, 1, 3, K_BONUS, 2], "ARCADE, STORY, CONTINUE, BONUS, MUSIC"
+        assert menu_items(rom) == [K_PLAY, K_BONUS, K_SETTINGS], "the same with a story save"
+        title_pick(rom, K_BONUS)
+        rom.run(MENU_SETTLE)
+        assert menu_items(rom) == [K_SOUNDTRACK] and tilemap_row(rom, 9, 0, 20) == title_text_row("soundtrack")
+
+
+def test_soundtrack_opens_the_player_and_b_comes_back_to_bonus(boot):
+    to_jukebox(boot)
+    assert state(boot) == GS_JUKEBOX
+    tap(boot, "b")                                            # (nothing playing: back to the title)
+    run_until(boot, lambda: state(boot) == TITLE, 30)
+    boot.run(MENU_SETTLE)
+    assert boot.mem("title_menu") == TM_BONUS and menu_items(boot) == [K_SOUNDTRACK] and boot.mem("title_sel") == 0
+    assert tilemap_row(boot, 9, 0, 20) == title_text_row("soundtrack"), "the BONUS submenu, where it was opened"
+    tap(boot, "b")
+    boot.run(MENU_SETTLE)
+    assert boot.mem("title_menu") == TM_TOP and boot.mem("title_sel") == 1, "then the top level, on BONUS"
+    assert boot.mem("title_back") == TM_TOP, "used once: the next title (a game over, the table) is the top level"
 
 
 def test_up_down_select_and_wrap(boot):
@@ -189,7 +203,10 @@ def test_music_off_still_plays_here_and_stays_off_after(boot):
     run_until(boot, lambda: state(boot) == TITLE, 30)
     boot.run(3)
     assert boot.mem("sound_on") == 0
-    assert tilemap_row(boot, 12, 0, 20) == title_text_row("music_off")
+    tap(boot, "b")                                            # BONUS -> the top level
+    title_pick(boot, K_SETTINGS)
+    boot.run(MENU_SETTLE)
+    assert tilemap_row(boot, 9, 0, 20) == title_text_row("music_off")
 
 
 def test_no_more_than_ten_sprites_a_line(boot):

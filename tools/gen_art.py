@@ -484,7 +484,9 @@ TITLE_LETTERS = "SPIGOTER"            # the order of the @title_* blocks in titl
 LOGO_FILL = [0, 4, 8, 12]             # px of beer in the fill states before the final art (5 steps per letter)
 MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "music_off": "MUSIC OFF",
                 "continue": "CONTINUE",       # M11b: CONTINUE (story save) replaced M10a's "COMING SOON"
-                "bonus": "BONUS"}             # the soundtrack player (src/jukebox.c)
+                "bonus": "BONUS",             # the top level's BONUS submenu
+                "play": "PLAY", "settings": "SETTINGS",   # the top level: PLAY / BONUS / SETTINGS (owner 2026-10-11)
+                "soundtrack": "SOUNDTRACK"}   # BONUS's soundtrack player (src/jukebox.c)
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 
 

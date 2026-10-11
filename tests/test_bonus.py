@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import GAME, ROOT, check_golden, venue
+from conftest import GAME, ROOT, check_golden, title_arcade, venue
 ENTRY_X = GAME["ENTRY_X"]
 from test_flow import (BONUS, LEVEL_CLEAR, PLAYING, clear_level, patrons, run_until, score, state, tile_id,
                        tilemap_row)
@@ -361,6 +361,6 @@ def test_next_level_loads_and_the_bar_scene_is_intact(gb):
 
 def test_new_game_resets_the_round_count(boot):
     boot.write("bonus_round", 5)
-    boot.press("start", 2)
+    title_arcade(boot)
     run_until(boot, lambda: state(boot) == PLAYING, 30)
     assert boot.mem("bonus_round") == 0

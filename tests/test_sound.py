@@ -6,7 +6,7 @@ from io import BytesIO
 
 import numpy as np
 import pytest
-from conftest import GAME, ROM, ROOT
+from conftest import GAME, K_SETTINGS, MENU_SETTLE, ROM, ROOT, title_arcade, title_pick
 from gbtools import Rom
 from pyboy import PyBoy
 from test_bonus import PH_SHAKE, enter_bonus, to_phase
@@ -61,7 +61,7 @@ def save_ram(rom):
 
 
 def start_game(rom):
-    rom.press("start", 2)
+    title_arcade(rom)
     run_until(rom, lambda: state(rom) == PLAYING, 30)
     rom.write("tip_chance", 0)
     while rom.mem("intro_timer") > 44:
@@ -502,10 +502,12 @@ def test_the_show_tune_waits_for_nothing_when_a_show_starts(sgb):
 
 # ---- MUSIC ON / OFF -------------------------------------------------------------------------
 def music_text(gb):
-    return music_line(gb)          # the title's MUSIC line (centred; the bonus menu: row 12 without a story save)
+    return music_line(gb)          # the title's MUSIC line (SETTINGS' only line, row 9)
 
 
 def test_select_toggles_the_music(srom):
+    title_pick(srom, K_SETTINGS)   # (SELECT works on any menu level; SETTINGS shows the line)
+    srom.run(MENU_SETTLE)
     assert srom.mem("sound_on") == 1 and music_text(srom) == title_text_row("music_on")
     srom.press("select", 2)
     srom.run(2)

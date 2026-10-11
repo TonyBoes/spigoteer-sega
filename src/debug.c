@@ -2,10 +2,11 @@
 // and stepping it. src/main.c keeps the per-frame START + SELECT combo watch (debug_watch) and the state.
 //
 // Mode-aware (owner 2026-10-10): the box selects in the mode it was opened in.
-//   - Arcade ("LEVEL nn"): opened in arcade play, or on the title with the cursor on any item but STORY / CONTINUE.
+//   - Arcade ("LEVEL nn"): opened in arcade play, or on the title with the cursor on any item but STORY / CONTINUE
+//     (PLAY's submenu: ARCADE; the top level and the BONUS / SETTINGS submenus open the arcade box as before).
 //     Left/Down and Right/Up change the level (1..DEBUG_LEVELS, wrapping); A starts it from scratch (start_new_game).
-//   - Story ("STORY c STEP"): opened in story play (story_on), or on the title with the cursor on STORY (chapter 1, its
-//     PRE scene) or CONTINUE (the saved chapter: its first step when one was reached, else its PRE scene). The
+//   - Story ("STORY c STEP"): opened in story play (story_on), or on the title with PLAY's cursor on STORY (chapter 1,
+//     its PRE scene) or CONTINUE (the saved chapter: its first step when one was reached, else its PRE scene). The
 //     positions of a chapter are its PRE scene, the steps of the story's sequence the engine can play (story_step_get:
 //     a STEP_SKIP step only when story_unskip names it), its POST scene. Left/Right change the chapter (1..9, wrapping;
 //     the position kept, or the next playable one), Up/Down the position (wrapping). A starts it with the story's

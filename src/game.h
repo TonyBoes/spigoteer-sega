@@ -356,8 +356,12 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // plain venue
 void title_enter(void) BANKED;                          // LCD off: draws the title and turns the LCD on
 uint8_t title_update(uint8_t pressed) BANKED;           // one title frame; 1: ARCADE chosen, 2: idle, show the table
 void title_music_toggle(void) BANKED;                   // music on/off and the MUSIC line
-enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS };   // title menu items (title_items[], debug.c reads them)
-extern uint8_t title_items[], title_sel;                // the menu's items in screen order, the selected line
+// title menu items (title_items[], debug.c reads them): the top level PLAY / BONUS / SETTINGS, PLAY's submenu
+// [CONTINUE] / STORY / ARCADE, BONUS's SOUNDTRACK, SETTINGS's MUSIC ON-OFF
+enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK };
+enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS };        // title_menu: the top level or the submenu of top item n-1
+extern uint8_t title_items[], title_sel;                // the shown menu's items in screen order, the selected line
+extern uint8_t title_back;                              // the menu title_enter opens (TM_*; it resets it to TM_TOP)
 // ---- jukebox.c (banked: the title's BONUS, the soundtrack player) ---------------------------------
 void jukebox_enter(void) BANKED;                        // LCD off: the soundtrack list (GS_JUKEBOX)
 uint8_t jukebox_update(uint8_t pressed) BANKED;         // one frame; 1: back on the title (the screen changed)
