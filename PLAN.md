@@ -264,7 +264,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, nine venue owners, villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (upcoming) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md (being written). |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the slots stay NOT_BUILT until real games exist. Next: step 2, the boss engine + Big Tex. |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -1076,3 +1076,82 @@ frames, scores and VRAM are as before, and no existing golden changed.
   6); arcade: no pour_t, the old full fill frame on OBP0, no bonus, no cue, no perfect release frame; the 10-per-line
   limit with the cue. Goldens pour_sparkle, pour_cue (dmg + cgb, new with this feature; pour_cue shows the x2 alone,
   the owner's final pick). No golden from before the perfect pour changed.
+
+## Mini-game framework as built (M11e step 1, docs/minigames_bosses.md 2.1, 2026-10-10)
+The framework every story mini-game will run in, with one stub game that proves it. The story's mini slots stay
+NOT_BUILT (gen_story) until real games exist; the story side is ready for them.
+- Already there (M11d / story lives): the segment flow PRE -> Opening -> Happy hour -> [mini] -> Last call -> [boss] ->
+  POST (story.c step_start / next_step), SRAM v4 with byte 35 the furthest step reached. Not redone.
+- GS_MINI (13): main.c's switch calls the banked mg_update(pressed); 1 = it left (the next screen is up), as GS_STORY.
+- src/mg.c (bank 255; autobank put it in bank 6 with the stub): mg_enter(id, mode) with the LCD off: everything hidden,
+  patrons / mugs / tip / show cleared, the venue loaded (id = the venue / chapter; MG_STUB 9 uses the saloon), the HUD
+  glyphs, the medal icon at BG MG_BG 77..88, the HUD (score; columns 16-19 the timer or blank, no level number), the
+  venue's plain backdrop (counter row 11), the CGB attributes of the HUD row, the banner rows 2-3 and the result window,
+  the game's enter (its BG from MG_GAME_BG 89), the banner (name, instruction), the venue's tune, GS_MINI.
+  Phases (mg_phase): MG_INTRO 90 frames (the banner) -> MG_COUNT 60 (READY, GO at 30; A skips it in practice only) ->
+  MG_PLAY (the game's update; the timer counts mg_timer down, the HUD 'T' + 3 digits on each new second, story.c
+  hud_goal's format; at 0 "TIME UP" and MG_END) -> MG_END 60 frames (the game's update still runs: its outro) ->
+  MG_RESULT: the window rows 32-37 (panel, name, SCORE n, the medal word + its points with the 2x2 icon at columns 2-3,
+  the prompt, panel), queued 2 rows a frame (40 B, the bonus rounds' per-frame size), then shown (overlay_on, LYC at
+  BANNER_WY + 46 for its 48 px). Story: "A CONTINUE", A taken once it has shown 60 frames (mg_t >= 63), then
+  story_level_done: the next step (Last call), the save, whatever the medal (owner: mini-games never block the story).
+  Practice: "A RETRY  B MENU", A = mg_enter again (score from 0), B = the title for now (the practice menu is step 10).
+  Leaving puts back the window's rows 32-34 (panel, blank, panel) and their attributes, and LYC = BANNER_LYC; nothing
+  else: the next level load restores the rest, as after a bonus round.
+- Modes: MG_STORY 0, MG_PRACTICE 1, | MG_HARD 2 (owner Q7's HARD toggle: the flag the games read; the stub's HARD has
+  shorter waits and steeper points). Practice starts the score from 0; the story's carries on.
+- Medals: per game three thresholds on mg_score (medal_at[game]; the stub 1500 / 3000 / 4000). The result adds the
+  medal's points to the score (bronze 500, silver 1500, gold 3000, spec 2.2) and, in the story, a gold medal calls
+  story_bonus_life() (owner: +1 life for the venue, at most 4; no boss-only life). The icon: assets/art/mg_medal.txt,
+  3 looks of 16x16 (a ribbon and a disc numbered 1 / 2 / 3; PLACEHOLDER, a proposal for the owner) on the HUD band; CGB
+  BG palette 4 = the medal's metal (gold, silver, bronze; the HUD's own colours for no medal), written at the top of
+  the result's first frame; DMG: the BG greys. tools/gen_mg.py -> build/mg_art.h, out/preview/mg_medal_x8.png.
+- Helpers for the games (BANKED, mg.c): mg_points(n) (mg_score + add_score: the HUD stays live), mg_finish() (-> END),
+  mg_rand() (16-bit xorshift on mg_seed; the bar's RNG untouched), mg_spigoteer(x, y, frame, left) (OAM 0-3),
+  mg_number(dst, n). RNG: mg_seed = mg_seed_force when non-zero (tests), else two next_rand() bytes at entry. Each game
+  is xx_enter() / xx_update(pressed) in its own file, dispatched by a switch on mg_game (no banked function pointers);
+  until a venue's own game is built its id plays the stub. Per-game tables in mg.c: name, instruction, medal_at.
+- mg_say(row, s) (ROM0, main.c, ~150 B): a string centred in HUD glyphs into one of 4 WRAM row buffers (round robin:
+  at most 4 lines a frame), queued, or written at once while the LCD is off; it returns the buffer (the result patches
+  the icon in). ROM0 because the strings stay in each caller's own bank (the rule: no pointer to banked ROM data into
+  another switchable bank; a ROM0 callee keeps the caller's bank mapped): it holds. show_overlay is now mg_say(33, s) +
+  its flags. bonus.c (make_text / say) and bonus2.c (text / sayA / sayB / banner's text) use it; their buffers are gone
+  (WRAM: show_overlay's 20, bonus2's 40, bonus.c's 20). bonus2's '!' comes from say_bang (main_cold.c glyph_for, set
+  by bonus2_enter to its own tile, 0 = blank); glyph_for also maps J Q X Z now. Bonus-round goldens unchanged.
+- WRAM union (src/mg.h): story.c's bd_map + bd_attr are now one exported story_scratch[STORY_SCRATCH] (520 B, game.h;
+  story.c checks STORY_PIC_ROWS * 40 == STORY_SCRATCH); union mg_ram { struct stub_state stub; } over it through
+  MG = (union mg_ram *)story_scratch, with a static size assert (a negative array size on overflow). Safe: no cut-scene
+  runs during a mini-game, and every scene_enter rewrites the buffer.
+- Story side (story.c): step_start dispatches on the step's kind: STEP_MINI -> mg_enter(story_chapter, MG_STORY), else
+  a shift. next_step also plays a STEP_SKIP step whose bit is set in story_unskip (1 B WRAM, a test hook; 0 in play),
+  which is how the test marks the mini slot built. Nothing else changes until gen_story takes MINI out of NOT_BUILT.
+- The stub game, GREEN LIGHT (src/mg_stub.c, bank 6): a lamp (BG 2x2 at columns 9-10, rows 6-7, CGB BG palette 2;
+  assets/art/mg_lamp.txt, placeholder) shows red 45-108 frames (HARD 30-93), then green; A on green scores
+  1000 - 20 x the reaction frames (HARD 30), at least 100 ("920 POINTS"); A on red TOO SOON, none within 60 frames TOO
+  SLOW (0 each). 5 rounds, a 30 s timer. The Spigoteer stands at x 72 (catch pose on a hit, fail pose on a miss).
+  State: struct stub_state, 20 B of the union (tests read story_scratch + 0..4: state, round, t, wait, react).
+- Test hooks: mg_id, mg_mode, mg_phase, mg_t, mg_timer, mg_score, mg_medal, mg_seed, mg_seed_force, story_unskip;
+  poking mg_phase = MG_RESULT ends any game (the bonus rounds' phase-4 convention).
+- ROM: real ROM0 free 1605 -> 1548 B (game.gb), 1718 -> 1661 B (release.gb): 57 B = mg_say over the old show_overlay
+  (~40 B net) and the GS_MINI case. mg.c + mg_stub.c (+ the 2 art headers) ~3.1 KB in bank 6; autobank repacked:
+  banks free after (game.gb, romusage) 1 205, 2 116, 3 232, 4 298, 5 47, 6 11, 7 195, 8 9480 B.
+- WRAM: +72 B (_DATA 6183 -> 6255): mg_say's 4 x 20 + its index, say_bang, the mg_* hooks (14), the result's buffers
+  (55: score / medal text, a panel row, the timer row), story_unskip; minus the 80 B of text buffers it replaced. The
+  games' own state costs nothing (the union).
+- Perf: arcade untouched (one more case label in the state switch; show_overlay does what it did); a mini-game frame is
+  light (the stub: a few compares, at most 2 text rows + a lamp row queued).
+- Tests (tests/test_mg.py, DMG + CGB; every frame checked at <= 10 sprites a line with test_bonus.lines): the whole flow
+  in practice (banner, READY / GO, five rounds, the points rule, the timer counting, WELL DONE, the result window's rows,
+  gold, score + 3000, no life in practice); RETRY (score from 0) and MENU (the title); A skips the count in practice,
+  not in story; TOO SOON / TOO SLOW; HARD; mg_seed_force repeats a game; the timer ends the play (TIME UP, T000); the
+  medal thresholds at 0 / 1499 / 1500 / 2999 / 3000 / 3999 / 4000 / 5000 (word, points, icon tiles in VRAM, CGB
+  palette 4 and its attributes, the HUD colours with no medal); mg_say in ROM0 and the bonus rounds on it; the union
+  over story_scratch; MENU then arcade with everything back (venue rows, show OBJ tiles, patron tiles, window rows, LYC,
+  OBP1 0xE4, the saloon's bank-1 tiles and extra palettes); the mini slots still NOT_BUILT; a built mini slot (story_unskip)
+  plays after the Happy hour (mg_enter(0, MG_STORY)), A CONTINUE only after 60 frames, gold = 4 lives (and none = 3: the
+  story goes on either way), then the Last call's banner with the lives carried, step 3 saved as reached, and the
+  restore checks after the Last call's level load. tests call mg_enter through a PyBoy hook on vq_frame_end that diverts
+  the CPU once into a stub (the two byte arguments on the stack, ___sdcc_bcall_ehl) between two frames.
+  New goldens (dmg + cgb): mg_intro (the banner), mg_result (practice, gold), mg_story_gold (story, gold, 4 mugs). No
+  existing golden changed. Screens of each phase: out/mg/{intro,count,play,result,result_gold,story_intro,
+  story_result}.{dmg,cgb}.png.
