@@ -1251,6 +1251,39 @@ STEP_SKIP until their bosses exist). Chapter 1 is now Opening -> Happy hour -> L
   says SHIFT CLEAR, the boss step is saved as reached. New goldens boss_fight (dmg + cgb: Tex mid-fight, the meter at 5
   of 8). No existing golden changed. Screens: out/boss/{start,mid,meter,win,lose}.{dmg,cgb}.png.
 
+## Mode-aware debug select as built (owner request, 2026-10-10)
+
+The START + SELECT debug select (DEBUG_MENU builds only; `make release` still has none: build/release.noi names no
+debug symbol) now selects in the mode it was opened in. src/debug.c (banked) does it all; main.c's combo watch is
+unchanged; src/story.c gains one function at its end under `#ifdef DEBUG_MENU` (story_debug_start).
+- Which mode: in story play (story_on) -> story; on the title the item under the cursor decides: STORY or CONTINUE ->
+  story, any other item (ARCADE, BONUS, MUSIC) -> arcade; in arcade play -> arcade, as before ("LEVEL nn", 1..18,
+  Left/Down and Right/Up, A = start_new_game).
+- Story positions: a chapter's PRE scene, then the steps of the story's sequence the engine can play (story_step_get;
+  a STEP_SKIP step only when story_unskip has its bit, so the mini-game slot appears once mini-games are built or the
+  test hook names it, and the boss slot likewise), then its POST scene. Banner "STORY c LABEL" in HUD glyphs: PRE, OPEN,
+  HAPPY, MINI, LAST, BOSS, POST (e.g. "STORY 3 HAPPY"). Left/Right change the chapter (1-9, wrapping; the position
+  kept, or the next playable one), Up/Down the position (wrapping). Starting points: STORY -> chapter 1 PRE; CONTINUE ->
+  the saved chapter at its first playable step when a step was reached, else its PRE scene (as CONTINUE itself); in
+  story play -> the chapter and step being played.
+- A starts it with the story's rules (story_debug_start): story_on, a fresh score, story_conds cleared, the venue's 3
+  lives (from any step: as venue_start), the step itself through step_start (a shift: its goal banner, speeds,
+  patterns, perfect pour; a mini-game slot: mg_enter), or the PRE / POST scene through scene_enter; afterwards the
+  story runs on as usual (a lost venue restarts at its Opening, a POST scene leads to the next chapter's PRE).
+- Decision: a story run started from the debug select writes NOTHING to SRAM. save.c's save_lock (set by debug.c on
+  A, cleared by title_enter) makes story_save and tune_heard return at once: no chapters cleared or step reached, no
+  soundtrack unlocks. The owner's real progress (CONTINUE) survives a playtest jump, and the jukebox never unlocks
+  a song that was not earned. (An arcade start from the box is unaffected: the top 5 saves as always.)
+- B closes the box as before. GS_DEBUG is opened from GS_TITLE / GS_PLAYING / GS_PAUSED only (a cut-scene's START
+  skips it, so the combo cannot start there).
+- Tests (tests/test_debug.py, the old arcade tests unchanged): positions and wrapping from STORY (the unbuilt slots
+  passed over), an unskipped MINI offered, A on chapter 3 Happy hour / chapter 7 Last call / chapter 1 Opening lands
+  on that shift's goal banner with the story's rules (venue, 3 lives, score 0, goal type) and winning it leaves SRAM
+  byte for byte as it was (progress and unlocks untouched); A on PRE / POST plays that scene; CONTINUE starts at the
+  saved chapter; in story play it opens at the current chapter and step and B resumes the shift; on BONUS it is the
+  arcade box. New golden: debug_story (dmg + cgb: the title with "STORY 3 HAPPY").
+- Cost: ROM0 none (all banked); WRAM +3 B (debug_story / debug_chapter / debug_pos, debug builds only) + save_lock.
+
 ## Bonus menu and soundtrack as built (owner request, 2026-10-10)
 
 - Title menu: ARCADE / STORY / [CONTINUE] / BONUS / MUSIC ON-OFF. BONUS always shows (owner's recommendation taken):

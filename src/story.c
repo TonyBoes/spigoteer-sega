@@ -657,3 +657,20 @@ void story_bonus_life(void) BANKED {
     prep_hud();
     hud_dirty |= HUD_LIVES;
 }
+
+#ifdef DEBUG_MENU
+// The debug select in story mode (src/debug.c): chapter ch at position pos (0 its PRE scene, 1..STORY_STEPS the step
+// pos - 1, STORY_STEPS + 1 its POST scene) with the story's rules: a fresh score, the venue's lives as venue_start sets
+// them (from any step), its goals. debug.c has set save.c's save_lock: nothing of the run is saved.
+void story_debug_start(uint8_t ch, uint8_t pos) BANKED {
+    uint8_t i;
+    story_on = 1; story_fails = 0; story_conds = 0;
+    score = 0;
+    for (i = 0; i < 6; i++) score_digits[i] = 0;
+    lives = START_LIVES; bonus_round = 0; game_over = 0;
+    story_chapter = ch;
+    if (pos == 0) scene_enter(SC_PRE_SALOON + 2 * ch);
+    else if (pos > STORY_STEPS) scene_enter(SC_POST_SALOON + 2 * ch);
+    else { story_step = pos - 1; step_start(); }
+}
+#endif

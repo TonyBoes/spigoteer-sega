@@ -191,3 +191,175 @@ def test_the_combo_works_from_any_menu_item_and_the_menu_survives(boot):
     boot.press("a", 2)
     boot.run(20)
     assert boot.mem("game_state") == PLAYING and boot.mem("level") == 1
+
+
+# ---- mode-aware (owner 2026-10-10): story positions when opened in story play or on STORY / CONTINUE ----------------
+# Positions of a chapter: 0 its PRE scene, 1..STORY_STEPS its steps (only those the engine plays: STEP_SKIP ones only
+# with story_unskip), STORY_STEPS + 1 its POST scene. Left/Right the chapter, Up/Down the position. A story run started
+# here writes nothing to SRAM (save.c save_lock).
+GS_STORY, GS_GOAL = 11, 12
+
+
+def banner_is(gb, s):
+    from test_flow import tile_id
+    want = [tile_id("HUD_BLANK")] * 20
+    x = (20 - len(s)) // 2
+    for i, ch in enumerate(s):
+        want[x + i] = tile_id("HUD_BLANK") if ch == " " else tile_id("GLYPH_" + ch)
+    return banner_text(gb) == want
+
+
+def tap(gb, b):
+    gb.press(b, 2)
+    gb.run(1)
+
+
+def open_on(boot, sel):
+    while boot.mem("title_sel") != sel:
+        tap(boot, "down")
+    combo(boot)
+    release_combo(boot)
+    boot.run(3)
+    return boot
+
+
+def playable(c=0, unskip=0):
+    from test_story import SEQ
+    n = len(SEQ)
+    return [0] + [p for p in range(1, n + 1) if SEQ[p - 1]["built"] or (unskip >> (p - 1)) & 1] + [n + 1]
+
+
+def test_on_story_the_box_selects_story_positions(boot):
+    from test_flow import SEL_STORY
+    open_on(boot, SEL_STORY)
+    assert boot.mem("debug_menu_open") == 1 and boot.mem("debug_story") == 1
+    assert (boot.mem("debug_chapter"), boot.mem("debug_pos")) == (0, 0)
+    assert banner_is(boot, "STORY 1 PRE")
+    seq = playable()
+    seen = []
+    for _ in range(len(seq)):
+        tap(boot, "down")
+        seen.append(boot.mem("debug_pos"))
+    assert seen == seq[1:] + [0], "Down: the playable positions (the unbuilt mini-game and boss passed over), wrapping"
+    tap(boot, "up")
+    assert boot.mem("debug_pos") == seq[-1]
+    boot.run(3)
+    assert banner_is(boot, "STORY 1 POST")
+    tap(boot, "left")
+    assert boot.mem("debug_chapter") == 8 and boot.mem("debug_pos") == seq[-1], "chapters wrap, the position kept"
+    tap(boot, "right")
+    tap(boot, "right")
+    tap(boot, "down")
+    tap(boot, "down")
+    tap(boot, "down")
+    boot.run(3)
+    assert (boot.mem("debug_chapter"), boot.mem("debug_pos")) == (1, seq[2])
+    assert banner_is(boot, "STORY 2 HAPPY")
+
+
+def test_an_unskipped_step_is_offered(boot):
+    from test_flow import SEL_STORY
+    from test_story import SEQ
+    mini = next(i for i, s in enumerate(SEQ) if s["kind"] == "MINI")
+    boot.write("story_unskip", 1 << mini)
+    open_on(boot, SEL_STORY)
+    while boot.mem("debug_pos") != mini + 1:
+        tap(boot, "down")
+    boot.run(3)
+    assert banner_is(boot, "STORY 1 MINI")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("c,k", [(2, 1), (6, 2), (0, 0)])
+def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(model, c, k):
+    from test_flow import SEL_STORY, run_until
+    from test_scores import booted, v5_image
+    from test_sound import save_ram
+    from test_story import SHIFT_STEP, SHIFTS, banner_text as goal_text, centred, shift_title, win
+    ram = v5_image([("ABC", 500)], story=1, step=1, tunes=0x21)
+    with booted(model, ram) as rom:
+        open_on(rom, SEL_STORY)
+        for _ in range(c):
+            tap(rom, "right")
+        while rom.mem("debug_pos") != SHIFT_STEP[k] + 1:
+            tap(rom, "down")
+        tap(rom, "a")
+        run_until(rom, lambda: rom.mem("game_state") == GS_GOAL, 60)
+        rom.run(3)
+        assert rom.mem("story_on") == 1 and rom.mem("debug_menu_open") == 0 and rom.mem("save_lock") == 1
+        assert (rom.mem("story_chapter"), rom.mem("story_step"), rom.mem("story_shift")) == (c, SHIFT_STEP[k], k)
+        assert rom.mem("level") == c + 1 and rom.mem("cur_group") == c, "the chapter's venue"
+        assert rom.mem("lives") == 3 and rom.mem("score") == 0, "the venue's lives, a fresh score"
+        assert goal_text(rom, 1) == centred(shift_title(c, k)) and goal_text(rom, 2) == centred(SHIFTS[c][k]["line1"])
+        assert rom.mem("story_goal") == SHIFTS[c][k]["type"], "the shift's goal"
+        rom.press("a", 2)
+        run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)
+        win(rom, c, k)
+        run_until(rom, lambda: rom.mem("game_state") in (GS_GOAL, GS_STORY), 400)
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (1, 1), "the real progress untouched"
+        assert rom.mem16("tune_unlocked") == 0x21, "no unlocks from a debug run"
+        after = save_ram(rom)
+    assert after[:40] == ram[:40], "SRAM not written"
+
+
+@pytest.mark.parametrize("pos,scene", [("pre", "PRE_BISTRO"), ("post", "POST_BISTRO")])
+def test_a_on_a_scene_plays_it(boot, pos, scene):
+    from test_flow import SEL_STORY, run_until
+    from test_story import SC
+    open_on(boot, SEL_STORY)
+    for _ in range(3):
+        tap(boot, "right")
+    if pos == "post":
+        tap(boot, "up")
+    tap(boot, "a")
+    run_until(boot, lambda: boot.mem("game_state") == GS_STORY and boot.mem("story_scene") == SC[scene], 60)
+    assert boot.mem("story_on") == 1 and boot.mem("story_chapter") == 3
+
+
+def test_on_continue_the_box_starts_at_the_saved_chapter():
+    from test_flow import run_until
+    from test_scores import booted, v5_image
+    for story, step, pos in ((4, 0, 0), (4, 3, 1)):
+        with booted("cgb", v5_image([], story=story, step=step)) as rom:
+            open_on(rom, 2)                               # CONTINUE
+            assert rom.mem("debug_story") == 1 and (rom.mem("debug_chapter"), rom.mem("debug_pos")) == (story, pos)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_in_story_play_the_box_opens_where_the_story_is(model):
+    from test_story import SHIFT_STEP, to_shift
+    with to_shift(model, 3, 1) as gb:
+        combo(gb)
+        release_combo(gb)
+        gb.run(3)
+        assert gb.mem("debug_story") == 1
+        assert (gb.mem("debug_chapter"), gb.mem("debug_pos")) == (3, SHIFT_STEP[1] + 1)
+        assert banner_is(gb, "STORY 4 HAPPY")
+        tap(gb, "b")
+        assert gb.mem("game_state") == PLAYING and gb.mem("story_on") == 1, "B: the shift goes on"
+
+
+def test_on_other_items_and_in_arcade_play_it_stays_the_level_select(boot):
+    from test_flow import SEL_BONUS
+    open_on(boot, SEL_BONUS)
+    assert boot.mem("debug_story") == 0 and boot.mem("debug_level") == 1
+    assert banner_is(boot, "LEVEL 01")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_story_select_golden(model):
+    from conftest import ROM, check_golden
+    from gbtools import Rom
+    from test_flow import SEL_STORY, settle_title
+    with Rom(ROM, model) as rom:
+        rom.model_name = model
+        rom.run(120)
+        settle_title(rom)
+        open_on(rom, SEL_STORY)
+        tap(rom, "right")
+        tap(rom, "right")
+        tap(rom, "down")
+        tap(rom, "down")
+        rom.run(3)
+        assert banner_is(rom, "STORY 3 HAPPY")
+        check_golden(rom, "debug_story")
