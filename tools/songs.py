@@ -70,19 +70,22 @@ GAME_BPM = {"entertainer": 112, "sakura": 120, "funicula": 112, "skaters": 192, 
 
 # ---------------------------------------------------------------------------------------------
 # "Oh! Susanna" (Stephen Foster, 1848), the cowboys' tune: the owner's spec.  Key C, 2/4, 15 frames
-# per eighth note (120 bpm quarter).  Melody C4 = middle C.
+# per eighth note (120 bpm quarter).  Melody C4 = middle C.  Seamless loop: the owner's list opens with the C4 D4
+# pickup and ends on a whole-bar C4 that faded out before the pickup came back.  The tune now starts on bar 1 and
+# its last bar is the song's own turnaround (C4:2 C4:1 D4:1, as at the end of the second verse line), so the
+# pickup leads every pass into bar 1 and the loop is 24 whole bars (no first-time pickup, as in the other tunes).
 A1 = "E4:1 G4:1 G4:1 A4:1  G4:1 E4:1 C4:1 D4:1  E4:1 E4:1 D4:1 C4:1  D4:2 C4:1 D4:1"
 A2 = "E4:1 G4:1 G4:1 A4:1  G4:1 E4:1 C4:1 D4:1  E4:1 E4:1 D4:1 D4:1  C4:2 C4:1 D4:1"
 A2_LAST = "E4:1 G4:1 G4:1 A4:1  G4:1 E4:1 C4:1 D4:1  E4:1 E4:1 D4:1 D4:1  C4:4"
 CHORUS = "F4:2 F4:2  A4:2 A4:2  G4:1 G4:1 E4:1 C4:1  D4:2 C4:1 D4:1"
-ENDING = A2_LAST
-SUS_MEL = "C4:1 D4:1  " + "  ".join([A1, A2, A1, A2_LAST, CHORUS, ENDING])
+ENDING = A2                      # (it ends with the C4 D4 pickup into bar 1)
+SUS_MEL = "  ".join([A1, A2, A1, A2_LAST, CHORUS, ENDING])
 SUS_CH = (["C", "C", "C", "G"] + ["C", "C", "G", "C"]) * 2 + ["F", "C", "C", "G"] + ["C", "C", "G", "C"]
 SUS_BASS_BAR = {"C": "C3:2! G2:2!", "G": "G2:2! D3:2!", "F": "F2:2! C3:2!"}
-SUS_BASS = "r:2 " + " ".join(SUS_BASS_BAR[c] for c in SUS_CH[:-1]) + " C3:4"
+SUS_BASS = " ".join(SUS_BASS_BAR[c] for c in SUS_CH)
 VERSE_D = "K:1 r:1 S:1 r:1"
 CHORUS_D = "K:1 H:1 S:1 H:1"
-SUS_DRUMS = "r:2 " + " ".join([VERSE_D] * 16 + [CHORUS_D] * 4 + [VERSE_D] * 3 + ["K:1 r:3"])
+SUS_DRUMS = " ".join([VERSE_D] * 16 + [CHORUS_D] * 4 + [VERSE_D] * 4)
 song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS)
 
 
@@ -103,17 +106,25 @@ song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS)
 
 # ---------------------------------------------------------------------------------------------
 # Title: "The Entertainer" (Scott Joplin, 1902), A section.  2/4, one row = a sixteenth note; quarter = 90
-# is 10 frames per row (game tempo: 8 frames, 112 bpm, see GAME_BPM).  16 bars (bars 4, 8 and 16 end with the D D# pickup).  Bars 12-16 are low confidence.
+# is 10 frames per row (game tempo: 8 frames, 112 bpm, see GAME_BPM).  16 bars (bars 4, 8 and 16 end with the D D# pickup).
+# Checked note by note against the score: Mutopia Project "The Entertainer" (ftp/JoplinS/entertainer/entertainer.ly,
+# Mutopia-2016/11/25-263, typeset by Chris Sawer, overhauled by Simon Albrecht; source "Reproduction of original
+# edition (1902)"; licence: Public Domain), the A section's first ending (score bars 5-20).  The melody is the lower
+# note of the right hand's octaves.  Fixed 2026-10-11: from bar 2 on the old list ran one sixteenth early (the held C
+# is 6 sixteenths, the run C D D# starts on the 6th sixteenth of bar 2 and E lands on bar 3's downbeat), bars 6-7 are
+# A G | F# A C E-E D C A (not A G F# A | C E D C A D), and bars 12-16 (the low-confidence end) are the score's
+# C | E C D E-E C D C (twice) | E C D E-E B D | C.  Chords from the score's left hand: bars 2, 6 and 10 are F then C/E
+# (F/C here; bar 6 was D7).
 ENT_BARS = [
-    "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:4 C6:1 D6:1 D#6:1 E6:1", "C6:1 D6:1 E6:2 B5:1 D6:2 C6:1",
-    "~:4 R:2 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:4 A5:1 G5:1 F#5:1 A5:1",
-    "C6:1 E6:2 D6:1 C6:1 A5:1 D6:2", "~:4 R:2 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1",
-    "~:4 C6:1 D6:1 D#6:1 E6:1", "C6:1 D6:1 E6:2 B5:1 D6:2 C6:1", "~:4 C6:1 D6:1 E6:1 C6:1",
-    "D6:1 E6:2 C6:1 D6:1 C6:1 E6:2", "C6:1 D6:1 E6:2 C6:1 D6:1 C6:2",
-    "E6:1 C6:1 D6:2 E6:1 B5:1 D6:2", "C6:4 R:2 D5:1 D#5:1",
+    "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:5 C6:1 D6:1 D#6:1", "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2",
+    "C6:6 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:6 A5:1 G5:1",
+    "F#5:1 A5:1 C6:1 E6:2 D6:1 C6:1 A5:1", "D6:6 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1",
+    "~:5 C6:1 D6:1 D#6:1", "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2", "C6:6 C6:1 D6:1",
+    "E6:1 C6:1 D6:1 E6:2 C6:1 D6:1 C6:1", "E6:1 C6:1 D6:1 E6:2 C6:1 D6:1 C6:1",
+    "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2", "C6:6 D5:1 D#5:1",
 ]
 ENT_CHORDS = [
-    "C", "C", "G7", "C", "C", "D7", "D7", "G7", "C", "C", "G7", "C", "C", "F", "G7", "C",
+    "C", "F/C", "G7", "C", "C", "F/C", "D7", "G7", "C", "F/C", "G7", "C", "C", "F", "G7", "C",
 ]
 song("entertainer", 8, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8),
      groove="K:1 r:1 H:1 r:1 S:1 r:1 H:1 r:1")
@@ -123,23 +134,27 @@ song("entertainer", 8, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8),
 # tune 10): key D, 2/4, quarter = 160 -> 11 frames per eighth row (163.6 bpm).  16 bars = 64 rows = one 64-row pattern per
 # channel (buffer B holds 2 patterns), a pass is 704 frames (11.7 s).  The quarter notes of bars 3, 5, 11 and 13 are
 # detached ('!').  Bass: oom-pah, root then fifth (bar 15 = D then A7).  Drums: a groove, kick / hat / snare / hat.
+# No score found (the Mutopia Project has no Offenbach): the notes stay the owner's.  Seamless loop: the spec's last
+# bar D5:2 R:2 left a hole before bar 1's D5; its rest is an A4 pickup (the dominant leading back to D).
 GAL = ["D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
        "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 D6:1 C#6:1 B5:1", "A5:1 G5:1 F#5:1 E5:1",
        "D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
-       "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 A5:1 E5:1 F#5:1", "D5:2 R:2"]
+       "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 A5:1 E5:1 F#5:1", "D5:2 A4:2"]
 GAL_CHORDS = ["D", "A7", "D", "D", "A7", "A7", "D", "A7", "D", "A7", "D", "D", "A7", "A7", "D/A7", "D"]
 song("galop", 11, "B", " ".join(GAL), oompah(GAL_CHORDS, 4), groove="K:1 H:1 S:1 H:1")
 
 
 # ---------------------------------------------------------------------------------------------
 # Sports bar: "Take Me Out to the Ball Game" (Albert Von Tilzer, 1908), chorus.  3/4, key G, quarter = 168
-# is 10.7 frames per eighth row: 11 (164 bpm; game tempo 9, see GAME_BPM).  32 bars.
+# is 10.7 frames per eighth row: 11 (164 bpm; game tempo 9, see GAME_BPM).  32 bars.  No score found (not in the
+# Mutopia Project).  Seamless loop: the spec's last bar (~:2 R:4) let the final G5 fade into a second of silence;
+# it now walks down the G chord (D5 B4) into bar 1's G4.
 TMO_BARS = [
     "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "A4:6", "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "~:6",
     "E5:2 D#5:2 E5:2", "B4:2 C5:2 D5:2", "E5:4 C5:2", "A4:6", "E5:4 E5:2", "E5:2 F#5:2 G5:2",
     "A5:2 F#5:2 E5:2", "D5:2 B4:2 A4:2", "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "A4:4 B4:2",
     "G4:4 A4:2", "B4:2 C5:2 D5:2", "E5:6", "~:2 E5:2 F#5:2", "G5:2 R:4", "G5:2 R:4",
-    "G5:2 F#5:2 E5:2", "D5:2 C#5:2 D5:2", "E5:6", "F#5:6", "G5:6", "~:2 R:4",
+    "G5:2 F#5:2 E5:2", "D5:2 C#5:2 D5:2", "E5:6", "F#5:6", "G5:6", "~:2 D5:2 B4:2",
 ]
 TMO_CHORDS = [
     "G", "Em", "D7", "D7", "G", "Em", "D", "D", "E7", "E7", "Am", "Am", "A7", "A7", "D", "D", "G",
@@ -182,12 +197,14 @@ song("funicula", 11, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"), groove="
 # Arctic: "The Skaters' Waltz" (Emile Waldteufel, 1882), main theme, an octave above the source.  3/4, key G,
 # quarter = 160: 11 frames per eighth row (about 164).  32 bars, no drums.  The spec's short slide up into
 # bars 1, 5 and 9 is not done: hUGEDriver's portamento starts from a note already sounding, so it would
-# need an extra row before each of those notes.
+# need an extra row before each of those notes.  No score found (the Mutopia Project has no Waldteufel).  Seamless
+# loop: the spec's last two bars held G4 for six beats, which faded out long before bar 1; the last bar now climbs
+# A4 A#4 into bar 1's B4 (the chromatic approach stands in for the skater's slide).
 SKT_BARS = [
     "B4:6", "D5:4 E5:2", "E5:6", "~:6", "C5:6", "E5:4 F#5:2", "F#5:6", "~:6", "A5:6", "G5:4 B4:2",
     "D5:6", "C5:4 B4:2", "B4:6", "A4:6", "G4:2 E5:2 D5:2", "C5:2 B4:2 A4:2", "B4:6", "D5:4 E5:2",
     "E5:6", "~:6", "C5:6", "E5:4 F#5:2", "F#5:6", "~:6", "A5:6", "G5:4 B4:2", "D5:6", "C5:4 B4:2",
-    "B4:6", "A4:6", "G4:6", "~:6",
+    "B4:6", "A4:6", "G4:6", "~:2 A4:2 A#4:2",
 ]
 SKT_CHORDS = [
     "G", "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "D7", "G",
@@ -198,7 +215,9 @@ song("skaters", 9, "A", " ".join(SKT_BARS), oompah(SKT_CHORDS, 6), groove="K:1 r
 # ---------------------------------------------------------------------------------------------
 # Robot factory: "In the Hall of the Mountain King" (Edvard Grieg, 1875).  4/4, key B minor, quarter = 120 =
 # 15 frames per eighth row.  16 bars, every melody note staccato (cut after half its length), bass = a root
-# ostinato in quarter notes: B in the A phrases, F# in the answer (bars 9-12).
+# ostinato in quarter notes: B in the A phrases, F# in the answer (bars 9-12).  No score found (the Mutopia Project's
+# Grieg has no Peer Gynt "Hall of the Mountain King").  Seamless loop: the last bar's staccato half note A4 left half
+# a bar of silence; its second half is F#4 A#3, the leading tone rising into bar 1's B3.
 HALL_BARS = [
     "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:2", "E#4:1 C#4:1 E#4:2 E4:1 C4:1 E4:2",
     "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:1 B4:1", "A4:1 F#4:1 D4:1 F#4:1 A4:4",
@@ -207,7 +226,7 @@ HALL_BARS = [
     "F#4:1 G#4:1 A#4:1 B4:1 C#5:1 A#4:1 C#5:2", "D5:1 A#4:1 D5:2 C#5:1 A#4:1 C#5:2",
     "F#4:1 G#4:1 A#4:1 B4:1 C#5:1 A#4:1 C#5:2", "D5:1 A#4:1 D5:2 C#5:4",
     "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:2", "E#4:1 C#4:1 E#4:2 E4:1 C4:1 E4:2",
-    "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:1 B4:1", "A4:1 F#4:1 D4:1 F#4:1 A4:4",
+    "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:1 B4:1", "A4:1 F#4:1 D4:1 F#4:1 A4:2 F#4:1 A#3:1",
 ]
 HALL_CHORDS = [
     "Bm", "C#7/C", "Bm", "D", "Bm", "C#7/C", "Bm", "D", "F#", "F#", "F#", "F#", "Bm", "C#7/C", "Bm",
@@ -219,12 +238,14 @@ song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS,
 
 # ---------------------------------------------------------------------------------------------
 # Teahouse: "Sakura Sakura" (Japanese traditional).  4/4, key A minor (A B C E F), quarter = 100: 18 frames
-# per eighth row (the spec's ~100 bpm).  14 bars, about 34 s.  Bass: a soft A / E drone, not chords.
+# per eighth row (the spec's ~100 bpm).  14 bars, about 34 s.  Bass: a soft A / E drone, not chords.  Seamless
+# loop (the only change to the notes): the last bar's rest (E4:4 R:4) is E4 C4 E4 (bar 5's figure), lifting into
+# bar 1's A4.
 SAK_BARS = [
     "A4:2 A4:2 B4:4", "A4:2 A4:2 B4:4", "A4:2 B4:2 C5:2 B4:2", "A4:2 B4:1 A4:1 F4:4",
     "E4:2 C4:2 E4:2 F4:2", "E4:2 E4:1 C4:1 B3:4", "A4:2 B4:2 C5:2 B4:2", "A4:2 B4:1 A4:1 F4:4",
     "E4:2 C4:2 E4:2 F4:2", "E4:2 E4:1 C4:1 B3:4", "A4:2 A4:2 B4:4", "A4:2 A4:2 B4:4",
-    "E4:2 F4:2 B4:1 A4:1 F4:2", "E4:4 R:4",
+    "E4:2 F4:2 B4:1 A4:1 F4:2", "E4:4 C4:2 E4:2",
 ]
 SAK_CHORDS = [
     "Am", "Am", "Am", "Dm", "Am", "E", "Am", "Dm", "Am", "E", "Am", "Am", "Dm", "Am",
@@ -233,32 +254,29 @@ song("sakura", 15, "A", " ".join(SAK_BARS), " ".join(["A2:4 E3:4"] * 14), "", ga
      groove="K:1 r:1 H:1 r:1 K:1 r:1 H:1 r:1")
 
 # ---------------------------------------------------------------------------------------------
-# Space lounge: "The Blue Danube" (Johann Strauss II, 1867), first waltz theme in the spec's G major.  3/4,
-# quarter = 160: 11 frames per eighth row.  32 bars, no drums.  As the spec suggests, the first note of
-# each 'X R Y' bar is held through the rest (X:2 R:2 Y:2 -> X:4 Y:2).  No transposition: the lowest note, G3,
-# stays above the bass (G2 root, D3 fifth).
+# Space lounge: "The Blue Danube" (Johann Strauss II, 1867, Op. 314), first waltz theme.  3/4, quarter = 160: 11
+# frames per eighth row (game tempo 9, see GAME_BPM).  32 bars, no drums.  Checked note by note against the score:
+# Mutopia Project "The Blue Danube Waltz (main theme)" (ftp/StraussJJ/O314/blue_danube/blue_danube.ly,
+# Mutopia-2014/03/24-519, typeset by Nikos Kouremenos from Christian Mondrup's four-hand piano reduction (Werner Icking
+# Music Archive); licence: Creative Commons Attribution-ShareAlike 4.0 for the typesetting, the music is public
+# domain).  The melody is the top note of the right hand, in the score's key, C major (the spec's G-major list put
+# bars 9-14 and 25-32 in the wrong octave and had C instead of E in bars 9-14: B D A | A . a, not F# A C | C . E in
+# G); our bar 1 is the score's bar 2 (its pickup C4 comes back as the end of bars 4, 16 and 20), bar 32 is its closing
+# bar 33 (C4 . C5 C5), which flows straight into bar 1.  Chords from the score's left hand: bars 22-25 Dm,
+# 26-27 G7, 30 F, 31 G.
 DAN_BARS = [
-    "G3:2 B3:2 D4:2", "D4:2 R:2 D5:2", "D5:2 R:2 B4:2", "B4:2 R:2 G3:2", "G3:2 B3:2 D4:2",
-    "D4:2 R:2 D5:2", "D5:2 R:2 C5:2", "C5:2 R:2 F#4:2", "F#4:2 A4:2 C5:2", "C5:2 R:2 E5:2",
-    "E5:2 R:2 C5:2", "C5:2 R:2 F#4:2", "F#4:2 A4:2 C5:2", "C5:2 R:2 E5:2", "E5:2 R:2 B4:2",
-    "B4:2 R:2 G3:2", "G3:2 B3:2 D4:2", "G4:2 R:2 G5:2", "G5:2 R:2 D5:2", "D5:2 R:2 G3:2",
-    "G3:2 B3:2 D4:2", "G4:2 R:2 G5:2", "G5:2 R:2 E5:2", "E5:2 R:2 A4:2", "A4:2 C5:2 E5:2", "E5:6",
-    "~:2 C#5:2 D5:2", "B5:6", "~:2 G5:2 B4:2", "B4:4 A4:2", "E5:4 D5:2", "G4:2 R:1 G4:1 G4:2",
+    "C4:2 E4:2 G4:2", "G4:4 G5:2", "G5:4 E5:2", "E5:4 C4:2", "C4:2 E4:2 G4:2",
+    "G4:4 G5:2", "G5:4 F5:2", "F5:4 B3:2", "B3:2 D4:2 A4:2", "A4:4 A5:2",
+    "A5:4 F5:2", "F5:4 B3:2", "B3:2 D4:2 A4:2", "A4:4 A5:2", "A5:4 E5:2",
+    "E5:4 C4:2", "C4:2 E4:2 G4:2", "C5:4 C6:2", "C6:4 G5:2", "G5:4 C4:2",
+    "C4:2 E4:2 G4:2", "C5:4 C6:2", "C6:4 A5:2", "A5:4 D4:2", "D4:2 F4:2 A4:2", "A4:6",
+    "~:2 F#4:2 G4:2", "E5:6", "~:2 C5:2 E4:2", "E4:4 D4:2", "A4:4 G4:2", "C4:3 C5:1 C5:2",
 ]
 DAN_CHORDS = [
-    "G", "G", "G", "G", "G", "G", "D7", "D7", "D7", "D7", "D7", "D7", "D7", "D7", "G", "G", "G",
-    "G", "G", "G", "G", "G", "C", "Am", "Am", "A7", "A7", "G", "G", "D7", "D7", "G",
+    "C", "C", "C", "C", "C", "C", "G7", "G7", "G7", "G7", "G7", "G7", "G7", "G7", "C", "C", "C",
+    "C", "C", "C", "C", "Dm", "Dm", "Dm", "Dm", "G7", "G7", "C", "C", "F", "G", "C",
 ]
-
-
-def hold_through_rest(bar):
-    t = bar.split()
-    if len(t) == 3 and t[1] == "R:2" and t[0].endswith(":2"):
-        return f"{t[0][:-2]}:4 {t[2]}"
-    return bar
-
-
-song("danube", 9, "A", " ".join(hold_through_rest(b) for b in DAN_BARS), oompah(DAN_CHORDS, 6),
+song("danube", 9, "A", " ".join(DAN_BARS), oompah(DAN_CHORDS, 6),
      groove="K:1 r:1 H:1 r:1 H:1 r:1")
 
 # ---------------------------------------------------------------------------------------------

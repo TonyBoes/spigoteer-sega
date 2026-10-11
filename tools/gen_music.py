@@ -213,13 +213,14 @@ tune("over", 6, 0,
      ch3="A3:6 F3:6 D3:6 E3:6 A3:12 r:6",
      ch4="")
 
-# BONUS: original tarantella-flavoured 6/8 loop in A minor, one row per eighth note.  Tempo 5.
+# BONUS: original tarantella-flavoured 6/8 loop in A minor, one row per eighth note.  Tempo 5.  It loops seamlessly:
+# the last bar ends with a B4 C5 D5 run into bar 1 (it was a rest, tests/test_music_loops.py).
 tune("bonus", 5, 1,
      ch2=" ".join([
          "E5:1 A5:1 C6:1 B5:1 A5:1 E5:1", "F5:1 A5:1 D6:1 C6:1 A5:1 F5:1",
          "E5:1 G5:1 C6:1 B5:1 G5:1 E5:1", "A5:3 E5:3",
          "C6:1 E6:1 A6:1 G6:1 E6:1 C6:1", "D6:1 F6:1 A6:1 G6:1 F6:1 D6:1",
-         "E6:1 D6:1 C6:1 B5:1 A5:1 G5:1", "A5:3 r:3"]),
+         "E6:1 D6:1 C6:1 B5:1 A5:1 G5:1", "A5:3 B4:1 C5:1 D5:1"]),   # the last bar climbs back into bar 1's E5
      ch3=bass([("A3", "E4"), ("D3", "A3"), ("C3", "G3"), ("A3", "E4"),
                ("A3", "E4"), ("D3", "A3"), ("E3", "B3"), ("A3", "E4")], 6),
      ch4=" ".join(["k:1 h:1 h:1 k:1 h:1 h:1"] * 8))

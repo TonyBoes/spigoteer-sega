@@ -46,17 +46,19 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
 | "Drunken Sailor" (verse and chorus, fast and punky) | The Chrome Cow (biker bar) | traditional English sea shanty (19th century or earlier) | public domain, traditional |
 | "Sakura Sakura" | teahouse | Japanese traditional (Edo period) | public domain, traditional |
 | "Pop Goes the Weasel" | jungle zoo | English folk tune, c. 1850 | public domain, traditional |
-| "The Blue Danube" (first waltz theme, in G) | space lounge | Johann Strauss II, 1867 | public domain |
+| "The Blue Danube" (first waltz theme, in C) | space lounge | Johann Strauss II, 1867 | public domain |
 | Level clear jingle | level clear | original, written for this project | ours |
 | Game over jingle | game over | original | ours |
 | Bonus round loop | bonus round | original | ours |
 
 ### Sources of the melody specs (from `docs/music_specs.md`)
 
-- "The Entertainer" (Joplin, 1902; A section, 16 bars): written from memory of the 1902 John Stark & Son
-  edition (public domain; scans on IMSLP, "The Entertainer (Joplin, Scott)"). Pitches of bars 1-11 were checked
-  against pianoletternotes.blogspot.com (an arrangement, not the source and not credited as one).
-  **Bars 12-16 are low confidence: the pitch order may be off; check them against the 1902 score.**
+- "The Entertainer" (Joplin, 1902; A section, 16 bars): checked note by note (2026-10-11) against the Mutopia
+  Project's score, "The Entertainer" (`ftp/JoplinS/entertainer/entertainer.ly` in github.com/MutopiaProject/MutopiaProject,
+  Mutopia-2016/11/25-263), typeset by Chris Sawer (overhauled by Simon Albrecht, 2015) from a reproduction of the
+  original 1902 edition; the typesetting is placed in the **public domain**. We transcribed the melody (the lower
+  note of the right hand's octaves, score bars 5-20) and the harmony of the A section into our own format; the
+  earlier list (written from memory, bars 2-16 a sixteenth early and bars 12-16 wrong) was corrected.
 - "Funiculi, Funicula" (Denza, Ricordi 1880): melody from John Chambers' ABC transcription
   (trillian.mit.edu/~jc/music/abc/Italy/FuniculiFunicula.abc, via folktunefinder.com). Verse and chorus; the
   verse's modulating second half is omitted.
@@ -70,9 +72,14 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
   D Dorian (docs/music_specs.md tune 11), arranged fast and punky (driving root-eighths bass, every note cut short).
 - "Pop Goes the Weasel": Ryan's Mammoth Collection (1882), p. 264, via John Chambers' ABC mirror on
   abcnotation.com. The chords are our harmonization.
-- "The Blue Danube" (Strauss II, 1867, Op. 314): James Kerr, "Merry Melodies" vol. 4 (Glasgow, c. 1870s-80s),
-  p. 42 #387, transcribed to ABC by John Chambers (abcnotation.com), in the transposed key G. The chords are our
-  harmonization.
+- "The Blue Danube" (Strauss II, 1867, Op. 314): checked note by note (2026-10-11) against the Mutopia Project's
+  "The Blue Danube Waltz (main theme)" (`ftp/StraussJJ/O314/blue_danube/blue_danube.ly` in
+  github.com/MutopiaProject/MutopiaProject, Mutopia-2014/03/24-519), typeset by **Nikos Kouremenos** from Christian
+  Mondrup's four-hand piano reduction (Werner Icking Music Archive), (c) The Mutopia Project and Nikos Kouremenos,
+  licensed **Creative Commons Attribution-ShareAlike 4.0** (https://creativecommons.org/licenses/by-sa/4.0/). The
+  composition is public domain; we transcribed its melody (the top note of the right hand) and harmony, in the
+  score's key C, into our own note format and arrangement. The earlier list (James Kerr, "Merry Melodies" vol. 4,
+  via John Chambers' ABC, in G) had wrong pitches in bars 9-14 and the wrong octave in bars 25-32.
 - "In the Hall of the Mountain King" (Grieg, 1875): **no transcription source; written from memory. Verify
   against the Peer Gynt Suite No. 1 score on IMSLP (the 1888 C.F. Peters edition is public domain) before
   crediting a source.** Bars 1-8 high confidence, bars 9-12 moderate, bars 13-16 are a return chosen for
@@ -80,6 +87,11 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
 - "Sakura Sakura": melody from John Chambers' ABC "Sakura (Cherry Blossom)"
   (trillian.mit.edu/~jc/music/abc/Japan/Sakura_Am.utf8.abc); chords (not used, the bass is a drone) adapted from
   Frank Nordberg's Musica Viva transcription in the same collection.
+
+No score was found (the Mutopia Project has no Offenbach, Waldteufel, Denza, Von Tilzer, Peer Gynt "Hall of the
+Mountain King" or "Oh! Susanna") for the other tunes; their notes are the specs'. Seamless loops (2026-10-11): the
+last bar of "Oh! Susanna", the Galop, the Ball Game, the Skaters' Waltz, the Mountain King, Sakura and the bonus
+loop was changed so the tune flows back into bar 1 (ours; `docs/music_specs.md` "Game loop" notes).
 
 The old original in-game loop and the old title tune (a verse of "Oh! Susanna") were removed.
 

@@ -182,6 +182,10 @@ tools/check_music.py (routes one channel to the output and prints expected vs de
 Caveat: the melodies were written from memory and nobody has listened to them; the owner's Oh! Susanna and the
 given Entertainer note list are exact, the rest (especially the Galop, Funiculi, the later phrases of the
 ball-game and mountain tunes, Skaters' Waltz, Blue Danube) are best-effort and need an ear check.
+Music step 1 (2026-10-11): The Entertainer and the Blue Danube checked note by note against Mutopia Project scores
+and corrected (the Danube now in the score's C major); no score found for the others (notes unchanged). Every
+looping tune flows back into bar 1 (last bars of Susanna, Galop, Ball Game, Skaters, Mountain King, Sakura and the
+bonus loop changed); tests/test_music_loops.py keeps the melody silence at the loop point <= 0.25 s.
 
 Drums and game tempos (after M9): owner-approved game tempos (tools/songs.py GAME_BPM; spec tempo stays in docs/music_specs.md):
 entertainer 8 frames/row = 112.5 bpm, sakura 15 = 120, funicula 11 = 109 (dotted quarter), skaters/danube/ballgame 9 = 200.

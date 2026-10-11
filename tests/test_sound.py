@@ -316,21 +316,23 @@ def test_the_title_plays_the_entertainer(srom):
     assert not wrong, f"title melody differs from The Entertainer's note list: {wrong}"
 
 
-SUSANNA_SPEC = """C4:1 D4:1
-E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 C4:1 D4:2 C4:1 D4:1
+SUSANNA_SPEC = """E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 C4:1 D4:2 C4:1 D4:1
 E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 D4:1 C4:2 C4:1 D4:1
 E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 C4:1 D4:2 C4:1 D4:1
 E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 D4:1 C4:4
 F4:2 F4:2 A4:2 A4:2 G4:1 G4:1 E4:1 C4:1 D4:2 C4:1 D4:1
-E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 D4:1 C4:4"""
+E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 D4:1 C4:2 C4:1 D4:1"""
 
 
 def test_the_oh_susanna_song_data_is_the_owners_note_list():
+    """The owner's list, looped: it starts on bar 1 and the last bar is the C4 C4 D4 turnaround of the second verse
+    line instead of the opening C4 D4 pickup and a final whole-bar C4 (tests/test_music_loops.py)."""
     assert songs.SONGS["susanna"]["ch2"].split() == SUSANNA_SPEC.split()
     assert songs.SONGS["susanna"]["tempo"] == 15, "120 bpm quarter = 15 frames per eighth-note row"
     bass = songs.SONGS["susanna"]["ch3"].replace("!", "").split()
-    assert bass[:5] == ["r:2", "C3:2", "G2:2", "C3:2", "G2:2"] and bass[-1] == "C3:4", "boom-chick, final bar a whole-bar root"
-    assert songs.SONGS["susanna"]["ch4"].split()[-2:] == ["K:1", "r:3"], "final bar: kick then rests"
+    assert bass[:4] == ["C3:2", "G2:2", "C3:2", "G2:2"] and bass[-2:] == ["C3:2", "G2:2"], "boom-chick to the last bar"
+    assert len(bass) == 48 and songs.SONGS["susanna"]["ch4"].split()[-4:] == ["K:1", "r:1", "S:1", "r:1"], \
+        "the beat carries on through the last bar into bar 1"
 
 
 # ---- the tunes entered from docs/music_specs.md ------------------------------------------------------
@@ -357,18 +359,12 @@ def parse_specs():
 
 
 def spec_bars_for_the_game(name, bars):
-    """The spec bars with the two documented adaptations: Pop Goes the Weasel's last rest is the D4 pickup, the
-    Blue Danube holds the first note of an 'X R Y' bar through the rest.  (Pickup lines are not bars: they are the
-    first-time-only lead-ins, left out so that the loop is seamless.)"""
+    """The spec bars with the documented adaptation: Pop Goes the Weasel's last rest is the D4 pickup.  (Pickup lines
+    are not bars: they are the first-time-only lead-ins, left out so that the loop is seamless.)"""
     bars = list(bars)
     if name == "weasel":
         assert bars[-1].endswith("R:1")
         bars[-1] = bars[-1][:-3] + "D4:1"
-    if name == "danube":
-        for i, b in enumerate(bars):
-            tk = b.split()
-            if len(tk) == 3 and tk[1] == "R:2" and tk[0].endswith(":2"):
-                bars[i] = tk[0][:-2] + ":4 " + tk[2]
     return bars
 
 
