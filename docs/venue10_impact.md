@@ -1,7 +1,8 @@
 # Spigoteer: the 10th venue and the new order, engine checklist (The Chrome Cow, space last)
 
-Status: PROPOSAL (2026-10-10), awaiting owner approval. A checklist for the engine agent; nothing in src/, tools/,
-tests/ or assets/ is changed by this document. Line numbers are as of commit 310b931. The design is in
+Status: BUILT (2026-10-11; owner-approved design and art). It was the engine agent's checklist; its line numbers are as
+of commit 310b931 and are left as they were. What the build did differently is listed under "As built" right below;
+the summary is PLAN.md "10th venue as built". The design is in
 docs/story.md (chapter 7, PRE_BIKER / POST_BIKER, the proposal tables, the space / zoo text) and
 docs/minigames_bosses.md (Duke 3.12, Milk Run 4.10, the mosh pit section 9).
 
@@ -11,6 +12,37 @@ Three owner decisions (2026-10-10) are covered here:
    4 bistro, 5 igloo, 6 robot factory, 7 The Chrome Cow, 8 teahouse, 9 jungle zoo, 10 space lounge.
 3. The shift-start goal banner drops the chapter number: its first line is the shift name alone (OPENING SHIFT /
    HAPPY HOUR / LAST CALL), then the goal lines.
+
+## As built (2026-10-11): where the build differs from the items below
+
+- Banner (item 32): as specified; a boss fight's first line is BOSS. Goldens story_goal and story_last_call replaced.
+- Save (section 3): the bonus menu had already made SRAM version 5 (the soundtrack's unlocks), so the 10th venue is
+  version 6 "TPR6" (same layout, chapters 0..10). Versions 3-5 migrate with the mapping of item 46 (p <= 5 kept with
+  its step, p >= 6 -> 6 with step 0); a version-5 save's unlocks are moved to the new tune order (the old venue tunes
+  6, 7, 8 -> 7, 9, 8; Drunken Sailor not unlocked). Bad v6: progress 11, or a step at 10; versions 3-5 keep 9 as max.
+- Item 17: no second tune; music_fast (src/music.c) plays a venue tune one tick a row faster through hUGEDriver's
+  exported ticks_per_row (one alias added, CREDITS.md): Drunken Sailor 9 -> 8 frames a row, 200 -> 225 bpm (+12.5 %,
+  the nearest whole tick to the design's 15 %). The shift's TWIST_FAST_TUNE bit sets it (item 29's twist byte is a
+  bit field: TWIST_MOSH, TWIST_FAST_TUNE; the mosh limit is in goal_t.pad).
+- Items 30-31 (the mosh pit): src/mosh.c (banked) + five ROM0 hooks in src/patrons.c, ~120 B ROM0 (the estimate was
+  ~90). The counter splash (item 55) is assets/art/splash/biker.txt (a placeholder drawn by the engine agent, owner
+  review pending), loaded with the bar set by gen_art (34 of the 36 pool ids). The bump's sound is the existing
+  SFX_SHAKE (sfx_req is 8 bits, all used).
+- Items 22, 55, band: the show of The Chrome Cow is a band of three different performers; gen_art reduces any 6-frame
+  show to 16 8x16 quarters and a per-frame table, render.c draw_dancers reads every venue's table (the 4-frame venues
+  keep one dance for all three).
+- Item 8 (extract_art.py): not run for the punks (their art was drawn in ASCII, not extracted): no entry. Item 23: no
+  punks_x (no enhanced variant). Item 50: the bonus-round rule is unchanged (every even level; with ten venues a loop
+  it always follows the same venues): owner's call, not asked.
+- ROM0 (item 57): the per-group patron-tile switch (build/patron_load.c, fixed bank) moved to a banked file, which
+  more than paid for the band and the mosh pit: 1429 -> 1531 B free (game.gb), 1644 in release.gb.
+- Tests: item 74's `target=9 -> 10` is RealisticPeak's patron count (from level 9's clear its mean fell below 7 at
+  9); test_perf's overlap guard is 340 (the mosh hooks' tests). Item 76: tests/test_twists.py (51); no Duke / Milk
+  Run tests (not built: their slots stay skipped, the boss table already has BOSS_COUNT 10 rows).
+- Goldens (section 7): replaced as expected story_goal, story_last_call, loop_banner; also, because the HUD shows the
+  level and the rows follow the position: patrons_ninjas, patrons_aliens, venue_teahouse, stage_anim_teahouse (level
+  digit only), venue_space, stage_anim_space (L10 and the last row's pace), venue_zoo, stage_anim_zoo (the old row 8's
+  pace). New: venue_biker, patrons_punks, stage_anim_biker, story_granny.
 
 ## 0. The decision that shapes the rest: one order for every list
 

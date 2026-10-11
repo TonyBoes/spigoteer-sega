@@ -173,7 +173,7 @@ bar's name, not the game's). Idea: bartender pouring from a spigot under the log
 
 ## Music as built (M7 revisit)
 
-Done: title "The Entertainer", "Galop infernal" for every show, nine venue tunes (table in CREDITS.md; tune
+Done: title "The Entertainer", "Galop infernal" for every show, ten venue tunes since the 10th venue (table in CREDITS.md; tune
 index TUNE_VENUE0 + patron group), jingles unchanged. hUGEDriver only reads patterns through plain pointers in
 the bank it runs from, so song patterns live in ROM bank 3 and src/music.c copies a song into WRAM (buffer A:
 title or venue tune; buffer B: the show tune, copied once in the background) a slice per frame before it
@@ -259,10 +259,10 @@ table with initials + loop banner/harder loops.
 | # | milestone |
 |---|---|
 | M10a | Title menu: no stripe bands, all text centred; ARCADE / STORY / MUSIC ON-OFF with a mug cursor. Animation: logo fills with foam letter by letter (drips, bubbles), then a loop below it: bartender slides a mug to a patron who drinks and sends it back. |
-| M10b | Arcade mode: endless loop of the nine venues; "LOOP n" banner; each loop a bit harder up to a ceiling; top-5 high scores with 3-letter initials in SRAM (replaces the single hi score). Done (see M10b as built). |
+| M10b | Arcade mode: endless loop of the venues (ten since The Chrome Cow); "LOOP n" banner; each loop a bit harder up to a ceiling; top-5 high scores with 3-letter initials in SRAM (replaces the single hi score). Done (see M10b as built). |
 | M11a | Story script: "The Golden Spigot" - the legendary spigot that pours any drink shattered into 9 pieces; each venue owner gives one to a bartender who keeps their crowd happy. Written as docs/story.md for owner approval before any code. |
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
-| M11c | Story art: portraits (Spigoteer, nine venue owners, villain if any), cut-scene pictures. Owner approves. |
+| M11c | Story art: portraits (Spigoteer, the venue owners (ten with Granny Throttle), villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
 | M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Next: step 3, Quick Draw, Order Up!, Battery Sort. |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
@@ -753,7 +753,7 @@ per-chapter twists are part 2 (hook below). Portraits and pictures are placehold
   chapter c: PRE scene -> the venue's level (level = c + 1: the arcade level row c, no loop difficulty, no bonus
   rounds) with a goal banner first (window rows 0-4: panel, CHAPTER n, two goal lines, panel; LYC moved to BANNER_WY + 38
   while it shows; 3 s or A / START) -> on success CHAPTER CLEAR (enter_level_clear + its 1000 bonus) -> progress saved ->
-  POST scene -> chapter c + 1. After chapter 9's POST: FINALE, CREDITS, the title.
+  POST scene -> chapter c + 1. After chapter 9's POST: FINALE, CREDITS, the title. [10th venue, 2026-10-11: chapter 10's.]
   Goals (gen_story CHAPTERS, checked against the chapters table): 1 serve 15; 2 serve 20 and no patron reaches the tap;
   3 serve 18; 4 serve 20 within 120 s; 5 serve 20 within 120 s; 6 catch 25 empties (a glass taken from a patron counts,
   it scores as a caught empty); 7 clear the level (the row's quota) with no broken glass; 8 serve 25; 9 serve 30.
@@ -767,7 +767,7 @@ per-chapter twists are part 2 (hook below). Portraits and pictures are placehold
   rule (2: a patron at the tap, 7: a broken glass: lives forced to 0, the freeze plays out) or the timer running out shows
   TRY AGAIN (2.5 s or A / START), then the chapter restarts at its goal banner (no PRE scene) with 3 lives. The score
   carries on through the story and never enters the top 5.
-  Twists hook: goal_t.twist (0 for all nine now) is copied to story_twist at chapter start; part 2 applies it there and in
+  Twists hook: goal_t.twist (0 for all nine then; built for The Chrome Cow: see 10th venue as built) is copied to story_twist at chapter start; part 2 applies it there and in
   story_play.
 - Save (src/save.c): SRAM version 3 "TPR3" = version 2's table at 4..33, 34 story progress (chapters cleared 0..9), 35
   reserved 0, checksum 0x5A + bytes 0..35 at 36, complement 37; progress > 9 is invalid. Migration at boot, written back
@@ -805,7 +805,7 @@ Each chapter plays its venue several times in a row, as shifts with rising diffi
   quota (G_CLEAR: patrons in the shift, 0 the row's), pad, two banner lines. Validated at build time (check_shifts):
   banner lines <= 20 in the HUD glyphs, "CHAPTER n " + the shift's name <= 20, counts 1-99 (two HUD digits), walk
   70-130 %, spawn 70-150 %, Opening slower (walk < 100 < spawn) at 40-60 % of the Happy hour's goal size, Last call
-  faster (walk > 100 > spawn) with a goal no smaller and its own pattern, the nine Last call patterns all different,
+  faster (walk > 100 > spawn) with a goal no smaller and its own pattern, the Last call patterns all different (ten now),
   every shift the chapter's kind of goal (type + flags), a timed goal that enough patrons reach in time (the row's
   start patrons + spawns in the timer >= 1.3 x the goal; the rows parsed from src/level.c), every pattern within
   0.9-1.15 patrons per interval. docs/story.md has a "Shifts" table (in-world / engine per shift, the Last call's
@@ -836,13 +836,14 @@ Each chapter plays its venue several times in a row, as shifts with rising diffi
   clears pat_len (arcade, debug menu). Per-frame cost: none (only a spawn frame tests pat_len).
 - Banner: the existing 5-row layout; row 1 is now "CHAPTER n " + the shift (OPENING / HAPPY HOUR / LAST CALL, from
   STORY_SHIFT_NAMES in build/story.h), centred; "CHAPTER 1 OPENING SHIFT" would be 23 characters, so the word SHIFT is
-  left out. A won shift shows SHIFT CLEAR (CHAPTER CLEAR when no playable step is left), with the level bonus.
+  left out [owner 2026-10-11: row 1 is the shift's name alone, OPENING SHIFT / HAPPY HOUR / LAST CALL / BOSS, no
+  chapter number: see 10th venue as built]. A won shift shows SHIFT CLEAR (CHAPTER CLEAR when no playable step is left), with the level bonus.
 - Retry (superseded by "Story lives as built": lives per venue, a venue restart): a failed goal shows TRY AGAIN, then
   the same shift's banner with 3 lives (no PRE scene, no earlier shift); served / catches / timer start over; the score
   carries on. The twist hook is per shift now (goal_t.twist -> story_twist
   at every shift start; 0 everywhere).
 - Save (src/save.c), SRAM version 4 "TPR4": 0-3 magic, 4-33 the top 5 (as v2 / v3), 34 chapters cleared (0-9), 35 the
-  step reached in the next chapter (0-4; must be 0 when 9 chapters are cleared), 36 checksum 0x5A + bytes 0-35, 37 its
+  step reached in the next chapter (0-4; must be 0 when 9 chapters are cleared [10th venue, 2026-10-11: 10, SRAM v6]), 36 checksum 0x5A + bytes 0-35, 37 its
   complement. The progress is saved when a shift's clear is over: (chapter, the next step in the raw sequence, even a
   skipped slot: when the mini-games ship, such a save resumes at the mini-game), or (chapter + 1, 0) after the last.
   CONTINUE (title) shows when chapters 1-8 are cleared or a step is reached in chapter 1; it resumes at the first
@@ -857,7 +858,7 @@ Each chapter plays its venue several times in a row, as shifts with rising diffi
 - Tuning (scratchpad bot.py: a greedy bartender playing each shift through the real inputs, the game deterministic):
   an instant server (serves walkers as they enter) wins the 24 serve / clear shifts without losing a life (on the
   factory's catch goal it never gets an empty back: a patron served at the left end leaves); a late server (serves only
-  walkers past x 48, re-plans every 30 frames) wins all 27, loses a life only in chapter 9's Last call; the latest one
+  walkers past x 48, re-plans every 30 frames) wins all 27, loses a life only in chapter 9's Last call (the zoo then); the latest one
   (x 56) loses no life in any Opening or Happy hour, but loses lives in 5 of the 9 Last calls and fails two (2 and 9).
   Pressure for the late server, Happy hour -> Last call: busy 58 -> 64 % (ch 1) .. 80 -> 77 % (ch 9), the furthest
   walker x 76 -> 76 (1), 117 -> 114 (3), 94 -> 119 (4), 98 -> 119 (5), 95 -> 119 (6), 97 -> 117 (7), 110 -> 119 (9).
@@ -872,14 +873,14 @@ Each chapter plays its venue several times in a row, as shifts with rising diffi
   more missed frames from the burstier crowds (fewer per frame than the arcade's realistic peak).
 - Tests (tests/test_story.py): the shift data (half / as written / harder, nine patterns, the sequence with its skipped
   slots); failing builds (a shifts-table mismatch, a last call not harder, shared patterns, a timer too short); the
-  opening banner and HUD (golden story_goal); a Last call banner (new golden story_last_call, chapter 9); every chapter
+  opening banner and HUD (golden story_goal); a Last call banner (new golden story_last_call, chapter 9; chapter 10 since the 10th venue); every chapter
   plays Opening -> Happy hour -> Last call -> POST with each banner, goal, quota, timer, interval, pattern and walking
   speed, SHIFT CLEAR / CHAPTER CLEAR, the save after each shift; a failed Last call (every chapter) and a failed Opening
   retry only that shift; every Last call's pattern spawns its bars in order with its waits; CONTINUE at a shift after a
   reset, from the mini-game slot (to the Last call), after a cleared chapter (golden title_continue unchanged); STORY
   starts over from the INTRO; v2 -> v4, v3 -> v4 (CONTINUE at the PRE scene), v4 loading and rejecting a bad step.
   test_scores / test_sound read version 4 (v4_image, parse_save). Golden changed on purpose: story_goal (dmg + cgb),
-  the banner now says CHAPTER 1 OPENING and the opening's goal SERVE 8 COWBOYS (HUD S08).
+  the banner now says CHAPTER 1 OPENING and the opening's goal SERVE 8 COWBOYS (HUD S08) [10th venue, 2026-10-11: OPENING SHIFT].
 
 ## Story portraits as built (approved style S3, 2026-10-10)
 The owner approved the portrait study's style S3: 56x56 busts (7x7 tiles), up to 3 CGB BG palettes, an optional 1-OBJ
@@ -948,7 +949,7 @@ The owner's lives rule (docs/minigames_bosses.md section 8) replaces "retry only
 - The clock (chapters 4, 5): the time running out costs a life (story.c's choice; the owner's rule does not cover it)
   and that shift is played again from its banner with the lives left; when it was the last life, the venue restarts.
   So a timed shift can no longer be retried for free.
-- Strict rules (chapter 2: a patron at the tap, F_NO_TAP; chapter 7: a broken glass, F_NO_BREAK) no longer fail the
+- Strict rules (chapter 2: a patron at the tap, F_NO_TAP; chapter 7, the teahouse (chapter 8 since the 10th venue): a broken glass, F_NO_BREAK) no longer fail the
   shift. story_play sees the life lost that frame (life_lost, plus a break that frame or not) and takes a second one
   (only one when one was left; 0 sets game_over and the venue restarts after the freeze). The cue: show_overlay("2 LIVES
   LOST") in the banner window over the freeze (resume_after_life now clears overlay_on, so it goes with the freeze), and
@@ -1172,7 +1173,7 @@ STEP_SKIP until their bosses exist). Chapter 1 is now Opening -> Happy hour -> L
 - Story (story.c, banked; nothing in ROM0): step_start calls boss_set(chapter) for a STEP_BOSS step and boss_set(BOSS_NONE)
   for any other (story_level_done and start_new_game turn it off too); the fight then runs through shift_start like a
   shift: boss_goal fills story_goal (type G_BOSS 3, walk 100 %, spawn BOSS_SPAWN_PCT 150 %, the two lines), the banner's
-  first line is "CHAPTER n BOSS", boss_begin after shift_pace. story_play calls boss_frame every PLAYING frame (not the
+  first line is "CHAPTER n BOSS" ("BOSS" since 2026-10-11), boss_begin after shift_pace. story_play calls boss_frame every PLAYING frame (not the
   frame a life went); when it reports the meter empty: story_phase SP_OUTRO (5), GS_STORY, boss_outro for 120 frames (the
   HAPPY pose, the mugs and the fill gone, the regulars frozen, the hat bobbing), then story_win: CHAPTER CLEAR with the
   level bonus, the POST scene, the chapter saved as cleared. hud_goal draws nothing for G_BOSS.
@@ -1326,7 +1327,7 @@ unchanged; src/story.c gains one function at its end under `#ifdef DEBUG_MENU` (
   progress implies (progress_unlocks: the cleared chapters' venues, the next one's when a step was reached, the
   jingles from chapter 1). A new unlock is saved at once. Unlocks are permanent: a new story resets bytes 34-35 at its
   first save, never 36-37. Debug-select story runs unlock nothing (save_lock).
-- SRAM version 5 "TPR5" (src/save.c): 0-3 magic, 4-33 the top 5 (as v2-v4), 34 chapters cleared (0-9), 35 the step
+- SRAM version 5 "TPR5" (src/save.c; superseded by version 6 with the 10th venue): 0-3 magic, 4-33 the top 5 (as v2-v4), 34 chapters cleared (0-9), 35 the step
   reached in the next chapter (0-4; 0 when 9 are cleared), 36-37 the unlocked tunes (16-bit LE, bit t = TUNE_t; bit 0
   forced on at load; bits above TUNE_COUNT kept: room for the 10th venue tune), 38 checksum 0x5A + bytes 0-37, 39 its
   complement. Migration at boot, written back at once: version 4 keeps everything and gets progress_unlocks(progress,
@@ -1386,3 +1387,39 @@ into BONUS) and what BONUS opens (a submenu, not the soundtrack directly).
   follows PLAY's cursor (STORY / ARCADE / the top level). New goldens title_play, title_bonus, title_settings.
   Replaced on purpose (the menu's text only): title, title_anim, title_continue (now the PLAY submenu with a save),
   debug_story (the PLAY submenu behind the box).
+
+## 10th venue as built (The Chrome Cow and the new order, owner decisions 2026-10-10 / 11)
+
+The checklist was docs/venue10_impact.md (81 items); what differs from it is listed there under "As built".
+- The order, story and arcade: 1 saloon, 2 stadium, 3 lumber lodge, 4 bistro, 5 igloo, 6 robot factory, 7 The Chrome
+  Cow (theme biker, patron group punks, owner Granny Throttle, piece the drip tray, tune "Drunken Sailor"), 8 teahouse,
+  9 jungle zoo, 10 space lounge. One index still means one venue everywhere (group = theme = level row - 1 = chapter
+  = tune = pour art); every list follows it. The level rows stay with the position: row 7 is new (midway between 6
+  and 8), the zoo plays the old row 8's numbers, the space lounge the last (hardest) row. Arcade loop 2 starts at
+  level 11 (LOOP 2 banner), loop 3 at 21; DEBUG_LEVELS 20; the debug box prints STORY 10.
+- Story: 10 chapters, 23 scenes, 146 pages (script 7082 B); docs/story.md folded the proposal in (PRE/POST_BIKER, the
+  new pages of INTRO / POST_SALOON / PRE_TEAHOUSE / POST_TEAHOUSE / PRE_ZOO / POST_ZOO / PRE_SPACE / POST_SPACE /
+  FINALE, the space lounge's scenes after the zoo's). Chapter 7: 10 / 22 / 24 punks, its Last call the new "chord"
+  pattern; the zoo 12 / 25 / 28; the space lounge 15 / 30 / 32 with +25 % / -25 %. The goal banner's first line is
+  the shift's name alone (OPENING SHIFT, HAPPY HOUR, LAST CALL, BOSS).
+- The band (show engine): every venue has a show table (gen_art show_tiles, venue.show_tile, +25 B WRAM); a 6-frame
+  show is a band of three different performers deduplicated into 16 8x16 quarters (32 OBJ tiles), performer k shows
+  row 2k + (beat & 1); a 4-frame show stays one dance for all three.
+- Twists (goal_t.twist bits, gen_story TWISTS): the mosh pit (src/mosh.c, docs/minigames_bosses.md section 9) in
+  chapter 7's Happy hour (limit x 88) and Last call (x 72); TWIST_FAST_TUNE in the Last call: Drunken Sailor 9 -> 8
+  frames a row (music_fast, hUGEDriver's exported ticks_per_row). Off in the Opening, boss fights and arcade.
+- Save: SRAM version 6 "TPR6" (layout as v5, chapters 0..10). Versions 3-5 counted nine chapters in the old order:
+  progress p <= 5 kept with its step, p >= 6 -> 6 with step 0 (a complete old story continues at The Chrome Cow);
+  a v5's unlocks move to the new tune order (old venue tunes 6, 7, 8 -> 7, 9, 8). save_migrated = the old version.
+- ROM: ROM0 free 1429 -> 1531 B (game.gb; release.gb 1644): +47 B the show table in draw_dancers, -315 B
+  build/patron_load.c's per-group switch moved to a banked file (bkg_data_far maps the group's bank), +~120 B the
+  mosh pit's hooks. ROM grows to 16 banks (bank 9 half free); bank 2 (music) 299 B free.
+- Perf (PyBoy): the fastest row is level 10 now, reached from level 9's clear (no bonus round): realistic peak DMG
+  199 / 99, CGB 215 / 130 missed of 1200 (the scenario keeps up to 10 patrons from that start); overlap stress DMG
+  186 / 301, CGB 184 / 326 (guard 340: the mosh hooks' tests of mosh_on cost a little for every walker); worst pile
+  unchanged (~287 / 250). A mosh on two bars at once keeps every frame on time; on four at once some frames run late.
+- Tests: 1369 passing (test_twists.py new, 51); the new order in both modes, the band table, the save migrations,
+  the banner. tests/conftest.py: the patron-list poke hook clears lists_ok as well (a poke can land mid-frame), and
+  logic_paused() for set-ups that must start on one game frame.
+- Not built (as the checklist allows): Duke (3.12) and Milk Run (4.10): their slots are skipped like every unbuilt
+  boss and mini-game (the boss table has room: BOSS_COUNT 10). The counter splash tile is a placeholder.

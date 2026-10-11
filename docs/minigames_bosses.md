@@ -8,9 +8,10 @@ Note (planner, 2026-10-10): this spec was written while the story shifts (M11d) 
 SRAM v4 with the step reached already exists (PLAN.md "Story shifts as built"), and the mini-game / boss slots are in
 the chapter sequence. Where section 2.2 proposes its own segment index and SRAM v4 layout, follow the built version.
 
-Note (2026-10-10), PROPOSAL awaiting owner approval: a 10th venue, **The Chrome Cow** (a biker bar that serves only
-milk, owner Granny Throttle), becomes chapter 7, before the teahouse; and the space lounge moves to the end (owner,
-same day). The order: saloon, stadium, lodge, bistro, igloo, factory, The Chrome Cow, teahouse 8, zoo 9, space 10,
+Note (2026-10-10, owner-approved; built 2026-10-11): a 10th venue, **The Chrome Cow** (a biker bar that serves only
+milk, owner Granny Throttle), is chapter 7, before the teahouse; and the space lounge moves to the end (owner,
+same day). Built: the venue, its story chapter, the new order, the save migration (SRAM version 6) and the mosh pit
+(section 9); Duke (3.12) and Milk Run (4.10) are not built yet (their slots are skipped like the other unbuilt ones). The order: saloon, stadium, lodge, bistro, igloo, factory, The Chrome Cow, teahouse 8, zoo 9, space 10,
 in story and arcade. Its boss **Duke**
 is section 3.12, its mini-game **Milk Run** section 4.10 and its twist, the **mosh pit**, section 9. They are numbered
 last so the existing section references stay; the summary tables list them in chapter order. The engine checklist
@@ -177,8 +178,8 @@ five segments: OPEN, HAPPY, MINI, LAST, BOSS. A segment index `story_seg` (0-4) 
   stake ("GOLD MEDAL / EXTRA LIFE FOR THE BOSS").
 - BOSS: the venue's level screen in boss mode (section 3). A failed boss attempt shows TRY AGAIN and restarts the
   boss segment only (meter full again), as chapter goals restart today.
-- Save: SRAM v4. Byte 34 stays "chapters cleared" (0..9, 10 = Pour-Off won; with The Chrome Cow, PROPOSAL: SRAM
-  v5, 0..10, 11 = Pour-Off won, migration in docs/venue10_impact.md); the reserved byte 35 becomes
+- Save: SRAM v4. Byte 34 stays "chapters cleared" (0..9, 10 = Pour-Off won; with The Chrome Cow, as built: SRAM
+  v6, 0..10, 11 = Pour-Off won, migrations from v1-v5 in src/save.c); the reserved byte 35 becomes
   `story_seg` of the first chapter not cleared, so CONTINUE resumes at the shift the player reached (not at the
   PRE scene) and Practice knows what is unlocked. Practice best scores: 10 x 5 segments x 3 B = 150 B (11 x 5 x 3 = 165 B with ten chapters) after the
   checksum area (new checksum range). Migration v3 -> v4: seg 0.
@@ -1568,17 +1569,17 @@ to the owner first; code can start on placeholder art (generated silhouettes, as
 | 8 | Taiko Pour | L | 3 KB + chart | sync to hUGEDriver rows (`song_pos`), chart tool, the music-off rule |
 | 9 | Pour-Off | L | 7 KB | second bartender and mirrored rules in a separate module; AI tuning; a mixed-group patron loader |
 | 10 | Practice menu (title row, chapter / segment list, best scores in SRAM) | M | 2 KB | title.c's bank is nearly full: the practice screen gets its own bank; the title menu's rows move (golden title / title_continue replaced on purpose) |
-| 11 | PROPOSAL: The Chrome Cow, after the 10-venue engine change (docs/venue10_impact.md): the mosh pit twist (S, section 9), Milk Run (M, 4.10: column streamer, window HUD), Duke (M, 3.12: idle / rev / lurch, chord regulars) | M | ~5 KB + ~90 B ROM0 | the mosh hook sits in patrons.c's push path (ROM0, hot): measure; Milk Run is the first scrolling mini-game |
+| 11 | The Chrome Cow (the 10-venue engine change and the mosh pit twist are built, 2026-10-11: ~120 B ROM0 for the hooks, measured): Milk Run (M, 4.10: column streamer, window HUD), Duke (M, 3.12: idle / rev / lurch, chord regulars) | M | ~5 KB | Milk Run is the first scrolling mini-game |
 
 Order rationale: the framework and the boss engine carry everything else and hold the real risks (ROM0, VRAM,
 line budgets), so they go first with the simplest content (Big Tex, the BG-only mini-games). Physics and rhythm
 games go late because they need owner playtests to tune.
 
-Totals: ~60 KB of new code and data (ROM 128 KB -> 256 KB, automatic), ~205 B + ~80 B of ROM0 (of 1708 B), WRAM:
+Totals (nine venues; The Chrome Cow's Duke and Milk Run add ~5 KB): ~60 KB of new code and data (ROM 128 KB -> 256 KB, automatic), ~205 B + ~80 B of ROM0 (of 1708 B), WRAM:
 boss ~40 B new, everything else in the existing 520 B buffer.
 
 Project-wide risks:
-- **Art volume**: 9 bosses (~45 tiles each) + 9 mini-game sets + Dregs + the festival stage. Proposals first, so
+- **Art volume**: 10 bosses (~45 tiles each) + 10 mini-game sets + Dregs + the festival stage. Proposals first, so
   art is on the critical path. Placeholder art (silhouettes in the right palettes) lets code and tests proceed.
 - **Goldens**: new goldens per mini-game and boss (add freely). The title menu change replaces `title` /
   `title_continue` goldens on purpose (say so in that commit).
@@ -1708,8 +1709,9 @@ PROPOSAL (2026-10-10), new questions for The Chrome Cow:
 
 ## 9. Venue twists: the mosh pit (The Chrome Cow, chapter 7)
 
-PROPOSAL (2026-10-10), awaiting owner approval. The venue twists are M11b part 2 (docs/story.md "Chapters": each
-changes one parameter or adds one small behaviour). This is the only one designed in this document, because it is
+Owner-approved; BUILT 2026-10-11 (src/mosh.c, the hooks in src/patrons.c, tests/test_twists.py; on in chapter 7's
+Happy hour and Last call). The venue twists are M11b part 2 (docs/story.md "Chapters": each changes one parameter or
+adds one small behaviour). This is the only one designed in this document, because it is
 the one deliberate exception to a rule the whole engine relies on: everywhere else patrons overlap and never shove
 (M13b).
 
@@ -1788,7 +1790,7 @@ unchanged):
 Last call's chord pattern sends its three patrons to three different bars, so the pattern never stacks two arrivals
 on one bar: bunching on a bar comes only from how the player serves.
 
-### 9.5 Engine (for whoever builds it)
+### 9.5 Engine (as designed; as built: see the end of this section)
 
 - Twist id `TWIST_MOSH` in gen_story's per-shift twist byte (0 for every shift today) -> `story_twist`; story.c sets
   a WRAM flag `mosh_on` and `mosh_limit` (88 / 72) at the shift start; every other shift, arcade and the boss fight
@@ -1807,7 +1809,17 @@ on one bar: bunching on a bar comes only from how the player serves.
 - Perf: the scan only runs for pushed patrons while `mosh_on` (a few a frame at most); test_perf gains a mosh
   scenario (bumps on all four bars at once).
 
-### 9.6 Tests (tests/test_twists.py, new)
+As built (2026-10-11): as above, with these choices. The twist is a bit field in goal_t.twist (TWIST_MOSH; also
+TWIST_FAST_TUNE, the band playing faster in the Last call) with the shift's limit in goal_t.pad, both from gen_story's
+TWISTS / MOSH_LIMIT; story.c calls mosh_set at every shift start (0 in the Opening, a boss fight and arcade). Of
+several walkers in reach, the nearest (highest x) is bumped. The shove runs in walking_step (also during the intro
+delay); ROM0 hooks: walking_step, push_px, caught, init_patron and update_patrons (the splash timer), about 120 B in
+all, each behind one test of mosh_on. The cue: the splash tile is assets/art/splash/biker.txt (a PLACEHOLDER by the
+engine agent, owner review pending), gen_art adds it to the venue's bar set (venue.splash_tile, 34 of the 36 pool
+ids); the sound is the existing channel-4 rattle (SFX_SHAKE: sfx_req has no ninth bit). Perf: two moshes at once keep
+every frame on time; four bars at once (more than one bartender can serve) run some frames late (test_twists).
+
+### 9.6 Tests (tests/test_twists.py, as built)
 
 1. Bump and shove: bar 1, Q walking at x 40, P at x 60 catches a glass (push 32): when P.x - Q.x <= 12, Q.x grows
    by exactly 16 in 8 frames, holds for 30 frames, then walks on; P finishes his push and drinks.

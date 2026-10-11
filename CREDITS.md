@@ -27,24 +27,26 @@
 The compositions below are in the public domain (composers died more than 70 years ago, or the tune is a
 traditional/folk melody whose authors are unknown and whose first publication is long out of copyright);
 nothing is taken from the arcade game's soundtrack or any recording. The note lists of "Oh! Susanna" and the
-"Galop infernal" are the owner's; the other nine tunes are the owner's melody specs in `docs/music_specs.md`
-(supplied 2026-10-09), entered token for token into `tools/songs.py` and checked against the spec by
-`tests/test_sound.py`; the sources of those specs are listed below. The arrangement of every tune (bass line,
+"Galop infernal" are the owner's; the other ten tunes are melody specs in `docs/music_specs.md` (nine supplied by
+the owner 2026-10-09; "Drunken Sailor", the owner's pick for The Chrome Cow, transcribed by us 2026-10-11), entered
+token for token into `tools/songs.py` and checked against the spec by `tests/test_sound.py`; the sources of those
+specs are listed below. The arrangement of every tune (bass line,
 rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patterns by `tools/gen_music.py`.
 
 | Tune | Where it plays | Composer, year | Status |
 |---|---|---|---|
 | "The Entertainer" (A section) | title screen | Scott Joplin, 1902 | public domain |
 | "Galop infernal" (the can-can) | every show (dancers' stage show) | Jacques Offenbach, 1858 (from "Orphee aux enfers") | public domain |
-| "Oh! Susanna" | level 1, 10, ... (cowboys / saloon) | Stephen Foster, 1848 | public domain |
+| "Oh! Susanna" | level 1, 11, ... (cowboys / saloon) | Stephen Foster, 1848 | public domain |
 | "Take Me Out to the Ball Game" (chorus) | sports bar | Albert Von Tilzer (music), Jack Norworth (words), 1908 | public domain (US, published before 1929) |
 | "She'll Be Coming 'Round the Mountain" | lumber lodge | American folk song, 19th century (from the spiritual "When the Chariot Comes") | public domain, traditional |
 | "Funiculi, Funicula" (verse and chorus) | bistro | Luigi Denza, 1880 | public domain |
 | "The Skaters' Waltz" (main theme) | igloo / Arctic | Emile Waldteufel, 1882 | public domain |
 | "In the Hall of the Mountain King" (16 bars) | robot factory | Edvard Grieg, 1875 (from "Peer Gynt") | public domain |
+| "Drunken Sailor" (verse and chorus, fast and punky) | The Chrome Cow (biker bar) | traditional English sea shanty (19th century or earlier) | public domain, traditional |
 | "Sakura Sakura" | teahouse | Japanese traditional (Edo period) | public domain, traditional |
-| "The Blue Danube" (first waltz theme, in G) | space lounge | Johann Strauss II, 1867 | public domain |
 | "Pop Goes the Weasel" | jungle zoo | English folk tune, c. 1850 | public domain, traditional |
+| "The Blue Danube" (first waltz theme, in G) | space lounge | Johann Strauss II, 1867 | public domain |
 | Level clear jingle | level clear | original, written for this project | ours |
 | Game over jingle | game over | original | ours |
 | Bonus round loop | bonus round | original | ours |
@@ -64,6 +66,8 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
   (trillian.mit.edu/~jc/music/session/waltz/Take_Me_Out_to_the_Ball_Game.abc).
 - "She'll Be Coming 'Round the Mountain": John Chambers' ABC collection (mirror of David Kidd's dulcimer
   transcription, originally everythingdulcimer.com); in print in Carl Sandburg's "The American Songbag" (1927).
+- "Drunken Sailor" (traditional): no transcription source; the shanty's well-known melody written down by us in
+  D Dorian (docs/music_specs.md tune 11), arranged fast and punky (driving root-eighths bass, every note cut short).
 - "Pop Goes the Weasel": Ryan's Mammoth Collection (1882), p. 264, via John Chambers' ABC mirror on
   abcnotation.com. The chords are our harmonization.
 - "The Blue Danube" (Strauss II, 1867, Op. 314): James Kerr, "Merry Melodies" vol. 4 (Glasgow, c. 1870s-80s),
