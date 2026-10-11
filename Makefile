@@ -66,7 +66,7 @@ $(STORY_C) $(BUILD)/story.h: tools/gen_story.py tools/gen_art.py docs/story.md a
 $(BUILD)/pour_art.h: tools/gen_pour.py tools/gen_art.py $(wildcard assets/art/pour/*.txt) assets/art/pour_cue.txt $(wildcard assets/approved/venues/*_drink.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_pour.py $(BUILD) $(OUT)/preview
 
-# Mini-game framework (src/mg.c) and its stub game (src/mg_stub.c): the medal icon and the lamp, both placeholders
+# Mini-game framework (src/mg.c) and its stub game (src/mg_stub.c): the medal icon (approved) and the lamp (a placeholder)
 # -> build/mg_art.h, build/mg_stub_art.h, build/mg.json (tests), out/preview/mg_*_x8.png
 $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h: tools/gen_mg.py tools/gen_art.py assets/art/mg_medal.txt assets/art/mg_lamp.txt | $(BUILD) $(OUT)/preview
 	python3 tools/gen_mg.py $(BUILD) $(OUT)/preview

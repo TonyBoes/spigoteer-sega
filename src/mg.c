@@ -6,10 +6,10 @@
 //   MG_COUNT   60 frames: READY, then GO (A skips it in practice only)
 //   MG_PLAY    the game's update; the HUD timer counts down when the game has one (time up: MG_END)
 //   MG_END     60 frames: the game's outro (its update still runs)
-//   MG_RESULT  the result window (window rows 32-37: panel, name, score, medal word with its icon, prompt, panel),
-//              drawn 2 rows a frame, then shown; the medal's points go to the score, a gold medal in the story is a life
-//              (story_bonus_life). Story: "A CONTINUE" (only after 60 frames shown) -> story_level_done, the next step,
-//              whatever the medal (mini-games never block the story). Practice: "A RETRY  B MENU" (B: the title until
+//   MG_RESULT  the result window (window rows 32-37: panel, name, score, medal word, prompt, panel; the text centred in
+//              columns 4-19, the medal's 4x4 icon at columns 0-3 of rows 1-4), drawn 2 rows a frame, then shown; the
+//              medal's points go to the score, a gold medal in the story is a life (story_bonus_life). Story: "A CONTINUE" (only after 60 frames shown) -> story_level_done, the next step,
+//              whatever the medal (mini-games never block the story). Practice: "A RETRY B MENU" (B: the title until
 //              the practice menu exists).
 // Poking mg_phase = MG_RESULT ends any game (as the bonus rounds' phase 4). Nothing borrowed is restored here: the next
 // level load puts back the patron tiles, the show's OBJ tiles, the palettes and OBP1 (as after a bonus round). Only the
@@ -23,6 +23,7 @@
 #include "music.h"
 #include "mg.h"
 #include "mg_art.h"         // this bank's own art: the medal icon (assets/art/mg_medal.txt)
+typedef char mg_icon_tiles_match[(MG_ICON_TILES == 3 * MG_ICON_N * MG_ICON_N) ? 1 : -1];   // static assert (mg.h)
 
 BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
@@ -37,7 +38,9 @@ extern uint32_t score;
 #define RES_ROW         32      // the window's map rows 32..37
 #define RES_ROWS         6
 #define RES_LYC         (BANNER_WY + 46)   // the window is 48 px tall (as GOAL_LYC for the goal banner's 40)
-#define ICON_COL         2      // the medal icon: 2x2 tiles at columns 2-3 of window rows 2-3
+#define ICON_COL         0      // the medal icon: MG_ICON_N x MG_ICON_N tiles at columns 0-3 of window rows 1-4
+#define TEXT_SHIFT      (MG_ICON_N / 2)   // the text: mg_say centres it in columns 0-19, this moves it to the centre
+                                // of columns 4-19 (so a line in the window has at most 16 characters)
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
 #define TIMER_COL       16      // HUD: 'T' + 3 digits (story.c hud_goal's format)
 #define MG_GAMES         1      // games built: 0 the stub
@@ -159,10 +162,9 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
         attr_rows(HUD_ROW, 1);
         attr_rows(MG_TEXT_A, 2);
         attr_rows(RES_ROW, RES_ROWS);            // the result window; its icon's cells in the medal palette
-        fill(row_buf, MG_ICON_PAL, 2);
+        fill(row_buf, MG_ICON_PAL, MG_ICON_N);
         VBK_REG = VBK_BANK_1;
-        vram_put(ICON_COL, RES_ROW + 2, row_buf, 2);
-        vram_put(ICON_COL, RES_ROW + 3, row_buf, 2);
+        for (i = 1; i <= MG_ICON_N; i++) vram_put(ICON_COL, RES_ROW + i, row_buf, MG_ICON_N);
         VBK_REG = VBK_BANK_0;
     }
     switch (mg_game) {                           // the game's own screen (it may set mg_timer)
@@ -210,19 +212,23 @@ static void result_begin(void) {
 }
 
 static void result_row(uint8_t r) {             // queue window row r (0..5)
-    uint8_t *b, t;
+    uint8_t *b, t, k;
+    const char *s;
     switch (r) {
     case 0: case 5:
         fill(res_buf, r ? TILE_PANEL_BOT : TILE_PANEL_TOP, 20);
         vq_add(0, res_buf, 0, RES_ROW + r, 20);
         return;
-    case 1: mg_say(RES_ROW + 1, mg_name[mg_game]); return;
-    case 4: mg_say(RES_ROW + 4, mg_mode == MG_STORY ? "A CONTINUE" : "A RETRY  B MENU"); return;
+    case 1: s = mg_name[mg_game]; break;
+    case 4: s = mg_mode == MG_STORY ? "A CONTINUE" : "A RETRY B MENU"; break;
+    default: s = res_txt[r - 2]; break;          // rows 2, 3: the score, the medal
     }
-    b = mg_say(RES_ROW + r, res_txt[r - 2]);     // rows 2, 3: the score, the medal; the icon at their left
-    if (!mg_medal) return;
-    t = MG_BG + (MEDAL_GOLD - mg_medal) * 4 + (r - 2) * 2;
-    b[ICON_COL] = t; b[ICON_COL + 1] = t + 1;
+    b = mg_say(RES_ROW + r, s);                  // queued: the row is copied at VBlank, so it may still change here
+    for (k = 19; k >= TEXT_SHIFT; k--) b[k] = b[k - TEXT_SHIFT];
+    fill(b, TILE_HUD_BLANK, TEXT_SHIFT);
+    if (!mg_medal) return;                       // the icon's row of tiles at its left
+    t = MG_BG + (MEDAL_GOLD - mg_medal) * (MG_ICON_N * MG_ICON_N) + (r - 1) * MG_ICON_N;
+    for (k = 0; k < MG_ICON_N; k++) b[ICON_COL + k] = t + k;
 }
 
 // the window's rows as win_init left them, the banner's LYC; LCD off (the next screen turns it on)

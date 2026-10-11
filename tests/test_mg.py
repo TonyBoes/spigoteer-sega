@@ -34,7 +34,10 @@ INTRO_LEN, COUNT_LEN, GO_AT, END_LEN, RESULT_MIN = (define(n, MG_C) for n in
 ROUNDS, RED_MIN, RED_MIN_HARD, GREEN_MAX = (define(n, STUB_C) for n in ("STUB_ROUNDS", "RED_MIN", "RED_MIN_HARD", "GREEN_MAX"))
 STEP_PTS, STEP_PTS_HARD, LAMP_COL, LAMP_ROW = (define(n, STUB_C) for n in ("STEP_PTS", "STEP_PTS_HARD", "LAMP_COL", "LAMP_ROW"))
 MG_BG, MG_ICON_PAL = define("MG_BG", MG_H), define("MG_ICON_PAL", MG_C)
-MG_GAME_BG = MG_BG + 12
+ICON_N = define("MG_ICON_N", MG_H)                 # the medal icon: ICON_N x ICON_N tiles (32x32) a medal
+ICON_TILES = 3 * ICON_N * ICON_N                    # GOLD, SILVER, BRONZE
+MG_GAME_BG = MG_BG + ICON_TILES
+TEXT_COL = ICON_N                                   # the window's text: centred in columns TEXT_COL..19
 MEDAL_AT = [int(v) for v in re.search(r"medal_at\[MG_GAMES\]\[3\] = \{ \{ (\d+), (\d+), (\d+) \}", MG_C).groups()]
 MEDAL_PTS = [0, 500, 1500, 3000]
 ART = json.loads((ROOT / "build" / "mg.json").read_text())
@@ -220,7 +223,7 @@ def test_the_whole_flow_in_practice(model):
         assert gb.mem("mg_medal") == m and m == MEDAL_GOLD, "a quick player gets gold"
         assert score(gb) == total + MEDAL_PTS[m]
         assert text(gb, 1, True) == "GREEN LIGHT" and text(gb, 2, True, x0=4) == f"SCORE {total}"
-        assert text(gb, 3, True, x0=4) == "GOLD 3000" and text(gb, 4, True) == "A RETRY  B MENU"
+        assert text(gb, 3, True, x0=4) == "GOLD 3000" and text(gb, 4, True, x0=4) == "A RETRY B MENU"
         assert tilemap_row(gb, 0, 0, 20, True) == [PANEL_TOP] * 20 and tilemap_row(gb, 5, 0, 20, True) == [PANEL_BOT] * 20
         assert gb.mem("lives") == 3, "no life in practice"
         shot(gb, "result")
@@ -331,24 +334,48 @@ def test_medals_points_icon_and_palette(model, points):
         assert text(gb, 2, True, x0=4) == f"SCORE {points}"
         word = ["NO MEDAL", "BRONZE 500", "SILVER 1500", "GOLD 3000"][m]
         assert text(gb, 3, True, x0=4) == word
-        icon = [tilemap_row(gb, r, 2, 2, True) for r in (2, 3)]
+        icon = [tilemap_row(gb, r, 0, ICON_N, True) for r in range(1, 1 + ICON_N)]
         if m:
-            t = MG_BG + (MEDAL_GOLD - m) * 4
-            assert icon == [[t, t + 1], [t + 2, t + 3]]
-            vram = b"".join(bytes(gb.read(0x9000 + (k - 128 if k >= 128 else k) * 16, 16)) for k in range(MG_BG, MG_BG + 12))
+            t = MG_BG + (MEDAL_GOLD - m) * ICON_N * ICON_N
+            assert icon == [[t + r * ICON_N + c for c in range(ICON_N)] for r in range(ICON_N)], "4x4, row-major"
+            vram = b"".join(bytes(gb.read(0x9000 + k * 16, 16)) for k in range(MG_BG, MG_BG + ICON_TILES))
             assert vram == bytes(ART["medal"]), "the icon tiles at MG_BG"
         else:
-            assert icon == [[BLANK, BLANK], [BLANK, BLANK]]
+            assert icon == [[BLANK] * ICON_N] * ICON_N
         if gb.model_name == "cgb":
             from test_lift import cgb_bg_palette
-            attrs = [gb.pb.memory[1, 0x9C00 + r * 32 + 2] & 7 for r in (2, 3)]
-            assert attrs == [MG_ICON_PAL] * 2
+            attrs = [gb.pb.memory[1, 0x9C00 + r * 32 + c] & 7 for r in range(6) for c in range(20)]
+            icon_cells = [r * 20 + c for r in range(1, 1 + ICON_N) for c in range(ICON_N)]
+            assert [attrs[i] for i in icon_cells] == [MG_ICON_PAL] * len(icon_cells), "the icon's cells: its palette"
+            assert all(a == 1 for i, a in enumerate(attrs) if i not in icon_cells), "the rest: the HUD's"
             hud = cgb_bg_palette(gb, 1)
             assert cgb_bg_palette(gb, MG_ICON_PAL)[3] == hud[3], "the icon's band is the HUD's"
             if not m:
                 assert cgb_bg_palette(gb, MG_ICON_PAL) == hud, "no medal: the blank cells look like the HUD"
         if m == MEDAL_GOLD:
             shot(gb, "result_gold")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("points", [4000, 2000, 0], ids=["gold", "bronze", "none"])
+def test_the_result_window_layout(model, points):
+    """The approved 32x32 medal: its 4x4 tiles at columns 0-3 of window rows 1-4 (blank without a medal); every text
+    line centred in columns 4-19, none reaching into columns 0-3; the panels full width."""
+    with practice(model) as gb:
+        to_play(gb)
+        to_result(gb, points)
+        m = medal_of(points)
+        rows = [tilemap_row(gb, r, 0, 20, True) for r in range(6)]
+        assert rows[0] == [PANEL_TOP] * 20 and rows[5] == [PANEL_BOT] * 20
+        t = MG_BG + (MEDAL_GOLD - m) * ICON_N * ICON_N
+        for r in range(1, 5):
+            icon = rows[r][:TEXT_COL]
+            assert icon == ([t + (r - 1) * ICON_N + c for c in range(ICON_N)] if m else [BLANK] * ICON_N), r
+            line = text(gb, r, True, x0=TEXT_COL)
+            assert line and len(line) <= 20 - TEXT_COL
+            first = next(c for c in range(TEXT_COL, 20) if rows[r][c] != BLANK)
+            assert first == TEXT_COL + (20 - TEXT_COL - len(line)) // 2, (r, line, first)
+        assert text(gb, 1, True, x0=TEXT_COL) == "GREEN LIGHT" and text(gb, 4, True, x0=TEXT_COL) == "A RETRY B MENU"
 
 
 # ---- mg_say (ROM0) and the bonus rounds on it: their tests and goldens (test_bonus*.py) are unchanged -----------------
@@ -380,15 +407,16 @@ def restored(gb, theme):
     obj = b"".join(bytes(gb.read(0x8000 + t * 16, 16)) for t in range(96, 128))
     assert obj == bytes(v["show"]), "the performer tiles are back"
     g = gb.mem("cur_group")
-    bg = b"".join(bytes(gb.read(0x9000 + t * 16, 16)) for t in range(78, 78 + 24))
-    assert bg == patron_group_tiles(g)[:24 * 16], "the patron tiles are back over the medal icon and the lamp"
+    n = MG_GAME_BG + len(ART["lamp"]) // 16 - 78       # patron ids 78.. up to the stub's lamp (MG_BG = 77 is no patron's)
+    bg = b"".join(bytes(gb.read((0x9000 if t < 128 else 0x8000) + t * 16, 16)) for t in range(78, 78 + n))
+    assert bg == patron_group_tiles(g)[:n * 16], "the patron tiles are back over the medal icon and the lamp"
     assert tilemap_row(gb, 0, 0, 20, True) == [PANEL_TOP] * 20, "the window's rows as win_init left them"
     assert tilemap_row(gb, 2, 0, 20, True) == [PANEL_BOT] * 20
     assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22, "LYC is the banner's (BANNER_LYC) again"
     if gb.model_name == "dmg":
         assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's (0xE4 in play)"
         return
-    assert [gb.pb.memory[1, 0x9C00 + r * 32 + c] & 7 for r in range(6) for c in (2, 3)] == [1] * 12
+    assert [gb.pb.memory[1, 0x9C00 + r * 32 + c] & 7 for r in range(6) for c in range(20)] == [1] * 120
     if theme == "saloon":
         bank1_ok(gb)
         palettes_ok(gb)

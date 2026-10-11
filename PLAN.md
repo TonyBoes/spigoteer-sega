@@ -1088,17 +1088,18 @@ NOT_BUILT (gen_story) until real games exist; the story side is ready for them.
 - GS_MINI (13): main.c's switch calls the banked mg_update(pressed); 1 = it left (the next screen is up), as GS_STORY.
 - src/mg.c (bank 255; autobank put it in bank 6 with the stub): mg_enter(id, mode) with the LCD off: everything hidden,
   patrons / mugs / tip / show cleared, the venue loaded (id = the venue / chapter; MG_STUB 9 uses the saloon), the HUD
-  glyphs, the medal icon at BG MG_BG 77..88, the HUD (score; columns 16-19 the timer or blank, no level number), the
+  glyphs, the medal icon at BG MG_BG 77..124, the HUD (score; columns 16-19 the timer or blank, no level number), the
   venue's plain backdrop (counter row 11), the CGB attributes of the HUD row, the banner rows 2-3 and the result window,
-  the game's enter (its BG from MG_GAME_BG 89), the banner (name, instruction), the venue's tune, GS_MINI.
+  the game's enter (its BG from MG_GAME_BG 125), the banner (name, instruction), the venue's tune, GS_MINI.
   Phases (mg_phase): MG_INTRO 90 frames (the banner) -> MG_COUNT 60 (READY, GO at 30; A skips it in practice only) ->
   MG_PLAY (the game's update; the timer counts mg_timer down, the HUD 'T' + 3 digits on each new second, story.c
   hud_goal's format; at 0 "TIME UP" and MG_END) -> MG_END 60 frames (the game's update still runs: its outro) ->
-  MG_RESULT: the window rows 32-37 (panel, name, SCORE n, the medal word + its points with the 2x2 icon at columns 2-3,
-  the prompt, panel), queued 2 rows a frame (40 B, the bonus rounds' per-frame size), then shown (overlay_on, LYC at
+  MG_RESULT: the window rows 32-37 (panel, name, SCORE n, the medal word + its points, the prompt, panel; the text
+  centred in columns 4-19, mg_say's row shifted 2 columns before the VBlank copies it; the 4x4 icon at columns 0-3 of
+  rows 1-4), queued 2 rows a frame (40 B, the bonus rounds' per-frame size), then shown (overlay_on, LYC at
   BANNER_WY + 46 for its 48 px). Story: "A CONTINUE", A taken once it has shown 60 frames (mg_t >= 63), then
   story_level_done: the next step (Last call), the save, whatever the medal (owner: mini-games never block the story).
-  Practice: "A RETRY  B MENU", A = mg_enter again (score from 0), B = the title for now (the practice menu is step 10).
+  Practice: "A RETRY B MENU", A = mg_enter again (score from 0), B = the title for now (the practice menu is step 10).
   Leaving puts back the window's rows 32-34 (panel, blank, panel) and their attributes, and LYC = BANNER_LYC; nothing
   else: the next level load restores the rest, as after a bonus round.
 - Modes: MG_STORY 0, MG_PRACTICE 1, | MG_HARD 2 (owner Q7's HARD toggle: the flag the games read; the stub's HARD has
@@ -1106,7 +1107,8 @@ NOT_BUILT (gen_story) until real games exist; the story side is ready for them.
 - Medals: per game three thresholds on mg_score (medal_at[game]; the stub 1500 / 3000 / 4000). The result adds the
   medal's points to the score (bronze 500, silver 1500, gold 3000, spec 2.2) and, in the story, a gold medal calls
   story_bonus_life() (owner: +1 life for the venue, at most 4; no boss-only life). The icon: assets/art/mg_medal.txt,
-  3 looks of 16x16 (a ribbon and a disc numbered 1 / 2 / 3; PLACEHOLDER, a proposal for the owner) on the HUD band; CGB
+  3 looks of 32x32 (a round medal numbered 1 / 2 / 3, no ribbon; approved by the owner 2026-10-11, option A; 48 tiles,
+  MG_ICON_N = 4 in mg.h) on the HUD band; CGB
   BG palette 4 = the medal's metal (gold, silver, bronze; the HUD's own colours for no medal), written at the top of
   the result's first frame; DMG: the BG greys. tools/gen_mg.py -> build/mg_art.h, out/preview/mg_medal_x8.png.
 - Helpers for the games (BANKED, mg.c): mg_points(n) (mg_score + add_score: the HUD stays live), mg_finish() (-> END),

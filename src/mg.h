@@ -33,7 +33,8 @@ enum { MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD };
 #define MG_TEXT_B       3
 #define MG_COUNTER_ROW 11       // the venue backdrop's counter row
 #define MG_BG          77       // BAR_TILE_COUNT: BG ids from here are free (the patrons' tiles; the level load puts them back)
-#define MG_GAME_BG     (MG_BG + 12)   // after the medal icon's 12 tiles: the game's own BG tiles
+#define MG_ICON_N       4       // the medal icon: MG_ICON_N x MG_ICON_N tiles a medal (32x32; GOLD, SILVER, BRONZE)
+#define MG_GAME_BG     (MG_BG + 3 * MG_ICON_N * MG_ICON_N)   // after the icon's 48 tiles (77-124): the game's own BG tiles
 
 // ---- the framework's state (test hooks: mg_id, mg_phase, mg_timer, mg_score, mg_medal, mg_seed_force) ----
 extern uint8_t  mg_id, mg_mode, mg_phase, mg_medal, mg_t;

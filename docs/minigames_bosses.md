@@ -130,7 +130,7 @@ Flow, in every mode:
       MG_PLAY    the game's update function runs; the HUD timer counts down if the game has one
       MG_END     <= 60 frames: the game's own outro (the stranger falls over, the Sasquatch splashes...)
       MG_RESULT  window overlay, 5 rows like the chapter goal banner: name / score / medal / prompt
-                 story: "A CONTINUE" (>= 60 frames shown first); practice: "A RETRY  B MENU"
+                 story: "A CONTINUE" (>= 60 frames shown first); practice: "A RETRY B MENU"
     mg_update() returns 1 when the player leaves the result
 
 - `GS_MINI` (13) is a new game state; main.c's switch calls `mg_update(pressed)` (banked) for it: ~20 B ROM0.
@@ -142,7 +142,7 @@ Flow, in every mode:
   caller's bank stays mapped). bonus2.c's `text()` / `banner()` move here; bonus2 then calls it too.
 - Timer: HUD columns 16-19, 'T' + seconds, the story HUD's format (story.c `hud_goal`).
 - Medals: each game has three score thresholds (bronze / silver / gold, tables below). The result shows the medal
-  word (GOLD / SILVER / BRONZE / NO MEDAL) from HUD glyphs and a medal icon (2x2 BG tiles, 3 looks).
+  word (GOLD / SILVER / BRONZE / NO MEDAL) from HUD glyphs and a medal icon (4x4 BG tiles, 32x32, 3 looks; as built).
 - Score: points go through `add_score()` as they are earned (as the bonus rounds do), so the HUD stays live.
 - RNG: `mg_seed` (16 bit) is set at entry from `next_rand()`; tests poke `mg_seed_force` (non-zero: use it) before
   entry. Each game runs its own small LFSR from it, so the bar game's RNG sequence is not disturbed.
