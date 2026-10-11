@@ -114,19 +114,12 @@ uint8_t  tips_spawn;        // frames to the next item
 uint8_t  ts_type[TS_ITEMS], ts_x[TS_ITEMS], ts_v[TS_ITEMS];   // ts_v: 1/16 px per frame (a splat: frames left)
 uint16_t ts_y[TS_ITEMS];    // screen y of the art's top, 1/16 px
 
-static uint8_t textA[20], textB[20];
 static uint8_t glass_buf[2], line_buf[2];
 static uint8_t last_secs;
 
-static void text(uint8_t *buf, const char *s) {
-    uint8_t n = 0, i;
-    for (i = 0; i < 20; i++) buf[i] = TILE_HUD_BLANK;
-    while (s[n]) n++;
-    for (i = 0; i < n; i++) buf[((20 - n) >> 1) + i] = s[i] == '!' ? B2_BG + B2_BANG : glyph_for(s[i]);
-}
-
-static void sayA(const char *s) { text(textA, s); vq_add(0, textA, 0, TEXT_ROW_A, 20); }
-static void sayB(const char *s) { text(textB, s); vq_add(0, textB, 0, TEXT_ROW_B, 20); }
+// the text rows: main.c's mg_say (ROM0, so the strings stay in this bank); '!' is this round's own tile (say_bang)
+#define sayA(s) mg_say(TEXT_ROW_A, s)
+#define sayB(s) mg_say(TEXT_ROW_B, s)
 
 // "<word> <n>" with n written in place of the '#' run at the end of s (its length = the digits shown)
 static void say_num(uint8_t row, const char *s, uint16_t n) {
@@ -135,7 +128,7 @@ static void say_num(uint8_t row, const char *s, uint16_t n) {
     while (s[i]) { tmp[i] = s[i]; i++; }
     tmp[i] = 0;
     for (j = i; j && tmp[j - 1] == '#'; j--) { tmp[j - 1] = '0' + n % 10; n /= 10; }
-    if (row == TEXT_ROW_A) sayA(tmp); else sayB(tmp);
+    mg_say(row, tmp);
 }
 
 static void spr(uint8_t i, uint8_t x, uint8_t y, uint8_t tile, uint8_t prop) {
@@ -178,13 +171,13 @@ static void load_palettes(void) {
 
 static void banner(const char *a, const char *b) {   // LCD off: the two text rows in the HUD colours
     uint8_t i;
-    text(textA, a); vram_put(0, TEXT_ROW_A, textA, 20);
-    text(textB, b); vram_put(0, TEXT_ROW_B, textB, 20);
+    sayA(a);                                          // (LCD off: mg_say writes them at once)
+    sayB(b);
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
-        for (i = 0; i < 20; i++) textA[i] = BGPAL_HUD;
-        vram_put(0, TEXT_ROW_A, textA, 20);
-        vram_put(0, TEXT_ROW_B, textA, 20);
+        for (i = 0; i < 20; i++) row_buf[i] = BGPAL_HUD;
+        vram_put(0, TEXT_ROW_A, row_buf, 20);
+        vram_put(0, TEXT_ROW_B, row_buf, 20);
         VBK_REG = VBK_BANK_0;
     }
 }
@@ -479,6 +472,7 @@ static uint8_t tips_update(void) {
 void bonus2_enter(void) BANKED {
     load_palettes();
     set_bkg_data(B2_BG, B2_BG_TILES, b2_bg_tiles);
+    say_bang = B2_BG + B2_BANG;                   // mg_say draws '!' with this round's tile
     bonus2_total = 0;
     if (bonus_kind == 1) pour_enter(); else tips_enter();
     if (bonus_kind == 1) draw_pour(); else draw_tips();
@@ -489,6 +483,7 @@ uint8_t bonus2_update(void) BANKED {
     if (bonus_phase == PH_END) {
         if (bonus_timer >= BONUS_END_LEN) {
             if (!is_cgb) OBP1_REG = OBP1_MENU;  // OBP1 as before the round (the level load sets OBP1_PLAY)
+            say_bang = 0;                       // its tile goes with the level load
             return 1;
         }
         if (bonus_kind == 1) draw_pour(); else draw_tips();

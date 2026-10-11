@@ -26,7 +26,7 @@ extern uint32_t score;
 extern uint8_t next_rand(void);
 extern void add_score(uint16_t n);
 extern void draw_hud(void) BANKED;          // src/main_cold.c
-extern uint8_t glyph_for(char c) BANKED;
+extern uint8_t *mg_say(uint8_t row, const char *s);   // main.c (ROM0)
 extern void clear_dirty(void);
 extern void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 extern void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n);
@@ -103,20 +103,9 @@ static uint8_t can_dy[NUM_CANS];      // hop height now
 static uint8_t order[5], oi;          // shake order
 uint8_t  bonus_timer;               // frames in the current step
 static uint8_t swap_a, swap_b, swap_t;
-static uint8_t txt[20];
 static uint8_t rowbuf[20];
 
-static void make_text(const char *s) {
-    uint8_t n = 0, i;
-    for (i = 0; i < 20; i++) txt[i] = TILE_HUD_BLANK;
-    while (s[n]) n++;
-    for (i = 0; i < n; i++) txt[((20 - n) >> 1) + i] = glyph_for(s[i]);
-}
-
-static void say(const char *s) {      // during play: through the VBlank queue
-    make_text(s);
-    vq_add(0, txt, 0, TEXT_ROW, 20);
-}
+#define say(s) mg_say(TEXT_ROW, s)    // (main.c, ROM0: the string stays in this bank) queued, or written with the LCD off
 
 static uint8_t slot_x(uint8_t slot) { return CAN_X0 + CAN_DX * slot; }
 
@@ -139,7 +128,7 @@ static void draw_scene(void) {
     uint8_t i;
     draw_hud();
     venue_backdrop(1, COUNTER_ROW);
-    make_text("BONUS ROUND"); vram_put(0, TEXT_ROW, txt, 20);
+    say("BONUS ROUND");
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
         for (i = 0; i < 20; i++) rowbuf[i] = 1;      // BG palette 1 = HUD

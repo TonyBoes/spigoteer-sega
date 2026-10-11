@@ -109,7 +109,7 @@ enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caugh
 // loop, GS_INITIALS the initials entry after a game over that made the top 5, GS_SCORES the top-5 table (scores.c)
 // M11b story mode: GS_STORY a cut-scene (or the TRY AGAIN banner), GS_GOAL the chapter's goal banner before play
 enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS, GS_DEBUG, GS_LOOP, GS_INITIALS, GS_SCORES,
-       GS_STORY, GS_GOAL };
+       GS_STORY, GS_GOAL, GS_MINI };
 
 // bartender animation frames (order of assets/art/bartender.txt)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
@@ -243,6 +243,8 @@ void add_score(uint16_t n);
 void lose_life(void);
 void prep_hud(void);                          // lives_tiles / score_tiles from lives and score_digits
 void show_overlay(const char *s);             // the banner's text (ROM0: callers pass strings from their own bank)
+uint8_t *mg_say(uint8_t row, const char *s);  // a centred line of HUD glyphs on map row `row` (queued; LCD off: written)
+extern uint8_t say_bang;                      // (main_cold.c glyph_for) the tile drawn for '!' (bonus2's own, else blank)
 void lcd_isr(void);                           // LYC handler: the banner window off below the banner
 // ROM0 helpers: copy out of another ROM bank and come back to the caller's
 void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
@@ -366,4 +368,9 @@ void story_level_done(void) BANKED;                     // GS_LEVEL_CLEAR is ove
 void story_fail(void) BANKED;                           // the goal failed: TRY AGAIN, then the shift / the venue again
 void story_life_frame(void) BANKED;                     // every GS_LIFE_LOST frame in story mode: the 2-lives cue
 void story_bonus_life(void) BANKED;                     // +1 life (max MAX_LIVES): a gold medal in the mini-game
+#define STORY_SCRATCH 520                               // story.c's cut-scene backdrop buffer (the mini-games' union)
+extern uint8_t story_scratch[STORY_SCRATCH];
+extern uint8_t story_unskip;                            // test hook: bit s = step s of the sequence counts as built
+// ---- mg.c (banked, the mini-game framework; the games include src/mg.h) ------------------------------------
+uint8_t mg_update(uint8_t pressed) BANKED;              // a GS_MINI frame; 1: it left (the next screen is up)
 #endif

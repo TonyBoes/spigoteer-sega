@@ -38,6 +38,7 @@
 #include "music.h"
 #include "bonus.h"
 #include "story.h"
+#include "mg.h"
 
 BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
@@ -89,7 +90,15 @@ static uint8_t box_tiles[3][18];
 static uint8_t tag_row[20];
 static uint8_t hud_buf[8];
 static uint8_t win_rows[5][20];
-static uint8_t bd_map[STORY_PIC_ROWS * 20], bd_attr[STORY_PIC_ROWS * 20];   // the backdrop of rows 0-12
+// the backdrop of rows 0-12 (map, then attributes): used only while a cut-scene shows, and rewritten from scratch by
+// every scene_enter, so the mini-games lay their state over it (src/mg.h union mg_ram)
+#if STORY_PIC_ROWS * 40 != STORY_SCRATCH
+#error "story_scratch: STORY_SCRATCH (game.h) must be the backdrop buffer's size"
+#endif
+uint8_t story_scratch[STORY_SCRATCH];
+#define bd_map  story_scratch
+#define bd_attr (story_scratch + STORY_PIC_ROWS * 20)
+uint8_t story_unskip;              // test hook: bit s set = step s of every chapter is played even if marked STEP_SKIP
 static portrait_t pt;              // the portrait being drawn / on screen
 static uint8_t pt_map[9 * 9], pt_attr[9 * 9];   // its framed rectangle, composed
 static uint8_t spk_bg[STORY_MAX_SPK], spk_obj[STORY_MAX_SPK];   // where each scene speaker's tiles were loaded
@@ -452,14 +461,17 @@ static void goal_banner_off(void) {
 // ---- the chapter's steps ----------------------------------------------------------------------------------------
 // the first step from s the engine can play (STORY_STEPS: none left in the chapter)
 static uint8_t next_step(uint8_t s) {
-    while (s < STORY_STEPS && (story_step_get(story_chapter, s) & STEP_SKIP)) s++;
+    while (s < STORY_STEPS && (story_step_get(story_chapter, s) & STEP_SKIP) && !((story_unskip >> s) & 1)) s++;
     return s;
 }
 
-// story_step (playable) begins. The mini-game and boss modes hook in here by kind (STEP_MINI / STEP_BOSS, with the
-// id in STEP_INDEX) once built; until then the data marks them STEP_SKIP and every playable step is a shift.
+// story_step (playable) begins, by kind: the chapter's mini-game (src/mg.c; its result goes on with story_level_done,
+// whatever the medal: mini-games never block the story), or a shift. The boss mode hooks in here once built; until
+// then the data marks the boss STEP_SKIP (and the mini-games too, until real ones exist: gen_story NOT_BUILT).
 static void step_start(void) {
-    story_shift = story_step_get(story_chapter, story_step) & STEP_INDEX;
+    uint8_t s = story_step_get(story_chapter, story_step);
+    if ((s & STEP_KIND) == STEP_MINI) { mg_enter(story_chapter, MG_STORY); return; }
+    story_shift = s & STEP_INDEX;
     shift_start();
 }
 

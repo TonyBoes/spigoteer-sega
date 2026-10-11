@@ -122,6 +122,7 @@ void boot_init(void) BANKED {
 }
 
 // ---- screens and state changes --------------------------------------------------------
+uint8_t say_bang;           // '!' has no HUD glyph: a screen with its own '!' tile points this at it (0: blank)
 uint8_t glyph_for(char c) BANKED {
     if (c >= '0' && c <= '9') return TILE_GLYPH_0 + (c - '0');
     switch (c) {
@@ -132,6 +133,8 @@ uint8_t glyph_for(char c) BANKED {
     case 'B': return TILE_GLYPH_B; case 'D': return TILE_GLYPH_D; case 'K': return TILE_GLYPH_K;
     case 'N': return TILE_GLYPH_N; case 'W': return TILE_GLYPH_W; case 'Y': return TILE_GLYPH_Y;
     case 'F': return TILE_GLYPH_F; case 'T': return TILE_GLYPH_T; case 'U': return TILE_GLYPH_U; case 'V': return TILE_GLYPH_V;
+    case 'J': return TILE_GLYPH_J; case 'Q': return TILE_GLYPH_Q; case 'X': return TILE_GLYPH_X; case 'Z': return TILE_GLYPH_Z;
+    case '!': if (say_bang) return say_bang;
     }
     return TILE_HUD_BLANK;
 }

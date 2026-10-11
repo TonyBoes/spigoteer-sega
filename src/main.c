@@ -196,13 +196,26 @@ static void hide_banner_sprites(void) {      // 8x16 sprites that would overlap 
         if (shadow_OAM[i].y > BANNER_WY && shadow_OAM[i].y < BANNER_WY + 40) { shadow_OAM[i].y = 0; oam_touched(); }
 }
 
-static uint8_t win_tiles[20];
+// A line of text centred in HUD glyphs on map row `row` (32.. = the window's): through the VBlank queue, or straight to
+// VRAM while the LCD is off. In ROM0 because the strings live in the callers' own banks (bonus.c, bonus2.c, the
+// mini-games): a ROM0 callee keeps the caller's bank mapped. Each call takes the next of SAY_BUFS row buffers, so at most
+// SAY_BUFS lines a frame; it returns the row's tiles (the caller may patch them before the VBlank: an icon).
+#define SAY_BUFS 4
+static uint8_t say_buf[SAY_BUFS * 20], say_k;
+uint8_t *mg_say(uint8_t row, const char *s) {
+    uint8_t *b = say_buf + say_k, *p = b, n = 20;
+    const char *e = s;
+    say_k += 20; if (say_k == SAY_BUFS * 20) say_k = 0;
+    do *p++ = TILE_HUD_BLANK; while (--n);
+    while (*e) e++;
+    p = b + ((uint8_t)(20 - (uint8_t)(e - s)) >> 1);
+    while (*s) *p++ = glyph_for(*s++);
+    if (LCDC_REG & LCDCF_ON) vq_add(0, b, 0, row, 20); else vram_put(0, row, b, 20);
+    return b;
+}
+
 void show_overlay(const char *s) {
-    uint8_t n = 0, i;
-    for (i = 0; i < 20; i++) win_tiles[i] = TILE_HUD_BLANK;
-    while (s[n]) n++;
-    for (i = 0; i < n; i++) win_tiles[((20 - n) >> 1) + i] = glyph_for(s[i]);
-    vq_add(0, win_tiles, 0, 33, 20);
+    mg_say(33, s);
     overlay_on = 1;
     hide_banner_sprites();
 }
@@ -426,6 +439,9 @@ static void update(void) {
     case GS_STORY:                               // M11b: a cut-scene / TRY AGAIN, the goal banner
     case GS_GOAL:
         if (story_update(pressed)) return;
+        break;
+    case GS_MINI:                                // a mini-game (src/mg.c); 1: it left, the next screen is up
+        if (mg_update(pressed)) return;
         break;
     case GS_LOOP:
         if (++state_timer >= LOOP_FRAMES) { game_state = GS_PLAYING; overlay_on = 0; }
