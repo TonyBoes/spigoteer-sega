@@ -12,6 +12,10 @@ TOP_N = 5
 V2_SUM = 34
 V3_SUM = 36          # M11b: version 3 = version 2's table + the story progress (34) + a reserved byte, checksum at 36
 V4_SUM = 36          # story shifts: version 4 = version 3 with the step reached at 35 (was reserved)
+V5_SUM = 38          # bonus menu: version 5 = version 4's bytes + the unlocked tunes at 36-37 (LE), checksum at 38
+TUNE_COUNT = 14      # music.h (title, clear, over, bonus, show, nine venue tunes)
+TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0 = range(6)
+JINGLES = (1 << TUNE_CLEAR) | (1 << TUNE_OVER) | (1 << TUNE_BONUS) | (1 << TUNE_SHOW)
 
 
 # ---- SRAM images --------------------------------------------------------------------------------
@@ -58,11 +62,34 @@ def v4_image(entries, story=0, step=0, size=0x2000):
     return bytes(r)
 
 
+def v5_image(entries, story=0, step=0, tunes=1, size=0x2000):
+    """A version-5 save (bonus menu): the version-4 bytes, 36-37 the unlocked tunes (bit t = tune t), checksum at 38."""
+    r = bytearray(v4_image(entries, story, step, size))
+    r[0:4] = b"TPR5"
+    r[V4_SUM:V4_SUM + 2] = tunes.to_bytes(2, "little")
+    c = (0x5A + sum(r[:V5_SUM])) & 255
+    r[V5_SUM], r[V5_SUM + 1] = c, c ^ 0xFF
+    return bytes(r)
+
+
+def progress_unlocks(story, step):
+    """save.c progress_unlocks: the tunes an old save's progress implies."""
+    m = 1 << TUNE_TITLE
+    n = story + 1 if step and story < 9 else story
+    for c in range(n):
+        m |= 1 << (TUNE_VENUE0 + c)
+    return m | (JINGLES if story else 0)
+
+
+def saved_tunes(ram):
+    return int.from_bytes(ram[V4_SUM:V4_SUM + 2], "little")
+
+
 def parse_save(ram):
-    """The table of a version-4 save (the game writes nothing else since the story shifts); checks the checksum."""
-    assert ram[:4] == b"TPR4"
-    c = (0x5A + sum(ram[:V4_SUM])) & 255
-    assert ram[V4_SUM] == c and ram[V4_SUM + 1] == c ^ 0xFF, "checksum"
+    """The table of a version-5 save (the game writes nothing else since the bonus menu); checks the checksum."""
+    assert ram[:4] == b"TPR5"
+    c = (0x5A + sum(ram[:V5_SUM])) & 255
+    assert ram[V5_SUM] == c and ram[V5_SUM + 1] == c ^ 0xFF, "checksum"
     return [(ram[4 + i * 6:7 + i * 6].decode(), int.from_bytes(ram[7 + i * 6:10 + i * 6], "little")) for i in range(TOP_N)]
 
 
@@ -130,8 +157,8 @@ def test_ties_go_below_and_low_scores_stay_out(model):
                 assert hi_score(rom) == t[0][1]
             else:
                 assert t == [("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)]
-                want = v4_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
-                assert save_ram(rom)[:V4_SUM + 2] == want[:V4_SUM + 2], "SRAM untouched (since the boot's migration)"
+                want = v5_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
+                assert save_ram(rom)[:V5_SUM + 2] == want[:V5_SUM + 2], "SRAM untouched (since the boot's migration)"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -153,7 +180,7 @@ def test_an_old_save_migrates_to_entry_one_as_spg(model):
         assert table(rom) == [("SPG", 12340)] + [("   ", 0)] * 4
         assert hi_score(rom) == 12340 and hi_shown(rom) == hi_tiles("012340"), "the title's HI is the top score"
         ram = save_ram(rom)
-    assert parse_save(ram) == [("SPG", 12340)] + [("   ", 0)] * 4, "written back as version 4 at once"
+    assert parse_save(ram) == [("SPG", 12340)] + [("   ", 0)] * 4, "written back as version 5 at once"
     with booted(model, ram) as again:
         assert again.mem("save_migrated") == 0 and table(again)[0] == ("SPG", 12340)
 

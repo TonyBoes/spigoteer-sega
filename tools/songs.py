@@ -284,3 +284,29 @@ VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sak
 # rows per bar (for the pitch-check table in tools/check_music.py)
 BAR_ROWS = {"susanna": 4, "entertainer": 8, "galop": 4, "ballgame": 6, "mountain": 8, "funicula": 6,
             "skaters": 6, "hall": 8, "sakura": 8, "danube": 6, "weasel": 6}
+
+
+# ---------------------------------------------------------------------------------------------
+# The soundtrack player (title menu BONUS, src/jukebox.c): what each tune is called on screen.  gen_music.py writes
+# build/jukebox_names.h from this in music.h's tune order (title, the jingles, the show, then VENUES), so adding a
+# venue tune here and to VENUES is all the player needs.  Keyed by the song (or jingle) name, not the tune slot, so a
+# venue inserted in the middle cannot shift the names.  Per tune: the list line (<= 18 characters), the full title
+# (word-wrapped by gen_music to at most two lines of 18), the credit line and where the game plays it (<= 18 each).
+# Characters: A-Z 0-9 space and . , ! ? ' - : (the HUD glyphs and the story font).  The pieces are the public-domain
+# compositions named above; the three jingles are our own.
+SOUNDTRACK = {
+    "entertainer": ("THE ENTERTAINER", "THE ENTERTAINER", "SCOTT JOPLIN, 1902", "THE TITLE SCREEN"),
+    "clear": ("LEVEL CLEAR", "LEVEL CLEAR", "ORIGINAL JINGLE", "A SHIFT WELL DONE"),
+    "over": ("GAME OVER", "GAME OVER", "ORIGINAL JINGLE", "THE LAST LIFE LOST"),
+    "bonus": ("BONUS ROUND", "BONUS ROUND", "ORIGINAL JINGLE", "THE BONUS ROUNDS"),
+    "galop": ("GALOP INFERNAL", "GALOP INFERNAL", "J. OFFENBACH, 1858", "THE CAN-CAN SHOW"),
+    "susanna": ("OH! SUSANNA", "OH! SUSANNA", "S. FOSTER, 1848", "THE SALOON"),
+    "ballgame": ("TAKE ME OUT...", "TAKE ME OUT TO THE BALL GAME", "VON TILZER, 1908", "THE SPORTS BAR"),
+    "mountain": ("ROUND THE MOUNTAIN", "SHE'LL BE COMING ROUND THE MOUNTAIN", "AMERICAN FOLK SONG", "THE LUMBER LODGE"),
+    "funicula": ("FUNICULI, FUNICULA", "FUNICULI, FUNICULA", "LUIGI DENZA, 1880", "THE BISTRO"),
+    "skaters": ("THE SKATERS' WALTZ", "THE SKATERS' WALTZ", "WALDTEUFEL, 1882", "THE IGLOO"),
+    "hall": ("IN THE HALL OF...", "IN THE HALL OF THE MOUNTAIN KING", "EDVARD GRIEG, 1875", "THE ROBOT FACTORY"),
+    "sakura": ("SAKURA SAKURA", "SAKURA SAKURA", "JAPANESE FOLK SONG", "THE TEAHOUSE"),
+    "danube": ("THE BLUE DANUBE", "THE BLUE DANUBE", "JOHANN STRAUSS II", "THE SPACE LOUNGE"),
+    "weasel": ("POP GOES THE...", "POP GOES THE WEASEL", "ENGLISH FOLK TUNE", "THE ZOO"),
+}

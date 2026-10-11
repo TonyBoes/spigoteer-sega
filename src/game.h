@@ -109,7 +109,8 @@ enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caugh
 // loop, GS_INITIALS the initials entry after a game over that made the top 5, GS_SCORES the top-5 table (scores.c)
 // M11b story mode: GS_STORY a cut-scene (or the TRY AGAIN banner), GS_GOAL the chapter's goal banner before play
 enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS, GS_DEBUG, GS_LOOP, GS_INITIALS, GS_SCORES,
-       GS_STORY, GS_GOAL, GS_MINI };
+       GS_STORY, GS_GOAL, GS_MINI,
+       GS_JUKEBOX };                                    // the title's BONUS: the soundtrack player (src/jukebox.c)
 
 // bartender animation frames (order of assets/art/bartender.txt)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
@@ -355,6 +356,11 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // plain venue
 void title_enter(void) BANKED;                          // LCD off: draws the title and turns the LCD on
 uint8_t title_update(uint8_t pressed) BANKED;           // one title frame; 1: ARCADE chosen, 2: idle, show the table
 void title_music_toggle(void) BANKED;                   // music on/off and the MUSIC line
+enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS };   // title menu items (title_items[], debug.c reads them)
+extern uint8_t title_items[], title_sel;                // the menu's items in screen order, the selected line
+// ---- jukebox.c (banked: the title's BONUS, the soundtrack player) ---------------------------------
+void jukebox_enter(void) BANKED;                        // LCD off: the soundtrack list (GS_JUKEBOX)
+uint8_t jukebox_update(uint8_t pressed) BANKED;         // one frame; 1: back on the title (the screen changed)
 // ---- scores.c (banked, M10b initials entry and top-5 table) --------------------------------------
 void scores_table(void) BANKED;                         // LCD off: the table screen (GS_SCORES)
 void scores_after_game(void) BANKED;                    // after GAME OVER: initials (GS_INITIALS) or the table

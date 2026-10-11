@@ -11,7 +11,8 @@ import pytest
 from conftest import GAME, ROOT, check_golden, hold_stage_anim
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
                        settle_title, state, tilemap_row)
-from test_scores import V4_SUM, booted, parse_save, table, v1_image, v2_image, v3_image, v4_image
+from test_scores import (V5_SUM, booted, parse_save, progress_unlocks, saved_tunes, table, v1_image, v2_image, v3_image,
+                         v4_image, v5_image)
 from test_sound import save_ram
 
 pytestmark = pytest.mark.timeout(240)
@@ -373,7 +374,7 @@ def start_story(model, ram=None, cont=False):
     hold_stage_anim(rom)
     rom.press("down", 2)
     if cont:
-        assert rom.mem("title_n") == 4
+        assert rom.mem("title_n") == 5           # ARCADE, STORY, CONTINUE, BONUS, MUSIC
         rom.press("down", 2)
     rom.press("a", 2)
     run_until(rom, lambda: state(rom) == GS_STORY and rom.mem("story_phase") == SP_SCENE, 30)
@@ -887,7 +888,7 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
         assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c + 1, 0)
         assert gb.mem("story_fails") == 0
         ram = save_ram(gb)
-    assert ram[:4] == b"TPR4" and ram[34] == c + 1 and ram[35] == 0, "the progress is in SRAM"
+    assert ram[:4] == b"TPR5" and ram[34] == c + 1 and ram[35] == 0, "the progress is in SRAM"
     (o_spd, o_hur, _, _), (h_spd, h_hur, _, _), (l_spd, l_hur, _, _) = paces
     assert o_spd == h_spd * 85 // 100 and l_spd == h_spd * SHIFTS[c][2]["walk"] // 100
     assert o_spd < h_spd < l_spd
@@ -1237,7 +1238,7 @@ def test_the_last_chapter_leads_to_the_finale_credits_and_the_title(model):
         assert gb.mem("story_scene") == SC["CREDITS"]
         skip_scene(gb)
         run_until(gb, lambda: state(gb) == TITLE, 30)
-        assert gb.mem("story_on") == 0 and gb.mem("title_n") == 3, "the story is complete: no CONTINUE"
+        assert gb.mem("story_on") == 0 and gb.mem("title_n") == 4, "the story is complete: no CONTINUE"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -1251,11 +1252,11 @@ def test_continue_mid_venue_starts_the_venue_over(model):
         run_until(gb, lambda: state(gb) == GS_GOAL, 300)
         assert gb.mem("lives") == 2
         ram = save_ram(gb)
-    assert ram[:4] == b"TPR4" and (ram[34], ram[35]) == (0, 1), "chapter 1, the happy hour reached"
+    assert ram[:4] == b"TPR5" and (ram[34], ram[35]) == (0, 1), "chapter 1, the happy hour reached"
     with booted(model, ram) as again:
         hold_stage_anim(again)
         assert (again.mem("story_progress"), again.mem("story_reached")) == (0, 1)
-        assert again.mem("title_n") == 4, "CONTINUE with no chapter cleared, a shift done"
+        assert again.mem("title_n") == 5, "CONTINUE with no chapter cleared, a shift done"
         again.press("down", 2)
         again.press("down", 2)
         again.press("a", 2)
@@ -1273,7 +1274,7 @@ def test_continue_keeps_the_step_reached_for_practice(model, step):
     furthest step reached (the record Practice unlocks from), the next shift is the Happy hour."""
     with booted(model, v4_image([], story=4, step=step)) as rom:
         hold_stage_anim(rom)
-        assert rom.mem("title_n") == 4
+        assert rom.mem("title_n") == 5
         rom.press("down", 2)
         rom.press("down", 2)
         rom.press("a", 2)
@@ -1296,9 +1297,9 @@ def test_the_progress_survives_a_reset_and_continue_resumes(model):
         ram = save_ram(gb)
     with booted(model, ram) as again:
         hold_stage_anim(again)
-        assert again.mem("story_progress") == 1 and again.mem("title_n") == 4
-        assert list(again.read("title_items", 4)) == [0, 1, 3, 2], "ARCADE, STORY, CONTINUE, MUSIC"
-        assert list(again.read("title_rows", 4)) == [5, 7, 9, 11]
+        assert again.mem("story_progress") == 1 and again.mem("title_n") == 5
+        assert list(again.read("title_items", 5)) == [0, 1, 3, 4, 2], "ARCADE, STORY, CONTINUE, BONUS, MUSIC"
+        assert list(again.read("title_rows", 5)) == [5, 7, 9, 11, 13]
         settle_title(again)
         check_golden(again, "title_continue")
         again.press("down", 2)
@@ -1318,16 +1319,16 @@ def test_story_starts_over_from_the_intro_even_with_a_save(model):
         assert gb.mem("story_shift") == 0
 
 
-# ---- (e) the save: version 4 and the migrations -------------------------------------------------------------------
+# ---- (e) the save: version 4 (now 5: tests/test_jukebox.py) and the migrations -------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_version_2_save_keeps_its_hi_scores_and_gains_story_progress(model):
     entries = [("ABC", 500), ("DEF", 400), ("GHI", 300)]
     with booted(model, v2_image(entries)) as rom:
         assert rom.mem("save_migrated") == 2 and rom.mem("story_progress") == 0 and rom.mem("story_reached") == 0
-        assert table(rom)[:3] == entries and rom.mem("title_n") == 3
+        assert table(rom)[:3] == entries and rom.mem("title_n") == 4
         ram = save_ram(rom)
-    assert parse_save(ram)[:3] == entries and ram[34] == 0 and ram[35] == 0, "written back as version 4 at once"
-    assert ram[:V4_SUM + 2] == v4_image(entries)[:V4_SUM + 2]
+    assert parse_save(ram)[:3] == entries and ram[34] == 0 and ram[35] == 0, "written back as version 5 at once"
+    assert ram[:V5_SUM + 2] == v5_image(entries)[:V5_SUM + 2]
     with booted(model, ram) as again:
         assert again.mem("save_migrated") == 0 and table(again)[:3] == entries
 
@@ -1345,7 +1346,9 @@ def test_a_version_3_save_migrates_to_version_4_at_the_chapter_start(model):
         run_until(rom, lambda: state(rom) == GS_STORY, 30)
         assert rom.mem("story_scene") == pre(4) and rom.mem("story_chapter") == 4
         ram = save_ram(rom)
-    assert ram[:V4_SUM + 2] == v4_image(entries, story=4)[:V4_SUM + 2], "written back as version 4 at once"
+    # written back as version 5 at once, with the unlocks its progress implies; the PRE scene's venue tune then played
+    want = v5_image(entries, story=4, tunes=progress_unlocks(4, 0) | 1 << (5 + 4))
+    assert ram[:V5_SUM + 2] == want[:V5_SUM + 2]
     with booted(model, ram) as again:
         assert again.mem("save_migrated") == 0 and again.mem("story_progress") == 4
 
@@ -1354,7 +1357,7 @@ def test_a_version_3_save_migrates_to_version_4_at_the_chapter_start(model):
 def test_version_4_loads_its_progress_and_rejects_a_bad_one(model):
     with booted(model, v4_image([("ABC", 500)], story=7, step=3)) as rom:
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (7, 3)
-        assert table(rom)[0] == ("ABC", 500) and rom.mem("save_migrated") == 0
+        assert table(rom)[0] == ("ABC", 500) and rom.mem("save_migrated") == 4, "(migrated to version 5)"
     for story, step in ((10, 0), (2, 5), (9, 1)):      # (well-formed checksums over a progress that cannot be)
         with booted(model, v4_image([("ABC", 500)], story=story, step=step)) as rom:
             assert rom.mem("story_progress") == 0 and table(rom)[0] == ("   ", 0), (story, step)

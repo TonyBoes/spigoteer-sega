@@ -502,7 +502,7 @@ def test_the_show_tune_waits_for_nothing_when_a_show_starts(sgb):
 
 # ---- MUSIC ON / OFF -------------------------------------------------------------------------
 def music_text(gb):
-    return music_line(gb)          # the title's MUSIC line (M10a: row 10, centred)
+    return music_line(gb)          # the title's MUSIC line (centred; the bonus menu: row 12 without a story save)
 
 
 def test_select_toggles_the_music(srom):
@@ -538,9 +538,9 @@ def test_select_does_nothing_outside_the_title(gb):
     assert gb.mem("sound_on") == 1
 
 
-# ---- saved hi score (M10b: the top-5 table; SRAM version 4 since the story shifts: "TPR4", 5 x (3 initials, 3-byte
-# score), the story progress at 34, the step reached at 35, checksum at 36) ----
-SAVE_SUM = 36
+# ---- saved hi score (M10b: the top-5 table; SRAM version 5 since the bonus menu: "TPR5", 5 x (3 initials, 3-byte
+# score), the story progress at 34, the step reached at 35, the unlocked tunes at 36-37, checksum at 38) ----
+SAVE_SUM = 38
 def earn_fifty_and_lose(rom):
     start_game(rom)
     rom.write("intro_timer", 255)
@@ -562,7 +562,7 @@ def test_hi_score_survives_a_reset(model):
     assert hi_score(rom) == 0, "a fresh cartridge starts at 0"
     earn_fifty_and_lose(rom)
     ram = save_ram(rom)
-    assert ram[:4] == b"TPR4" and ram[4:7] == b"AAA" and int.from_bytes(ram[7:10], "little") == 50
+    assert ram[:4] == b"TPR5" and ram[4:7] == b"AAA" and int.from_bytes(ram[7:10], "little") == 50
     with make_rom(model, ram, sound=False) as again:     # power cycle with the same battery RAM
         again.run(120)
         assert hi_score(again) == 50

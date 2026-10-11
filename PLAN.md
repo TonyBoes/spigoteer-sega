@@ -852,6 +852,8 @@ Each chapter plays its venue several times in a row, as shifts with rising diffi
   CONTINUE still opens the PRE scene of the first chapter not cleared); version 2 / 1 as before. Practice best scores
   are not stored yet: they go in their own block from 0x40 with its own magic and checksum (no version bump, and a bad
   block loses only the bests); 45 steps x 3 B = 135 B.
+  Superseded by SRAM version 5 "TPR5" (the soundtrack's unlocks at 36-37, checksum at 38): see "Bonus menu and
+  soundtrack as built".
 - Tuning (scratchpad bot.py: a greedy bartender playing each shift through the real inputs, the game deterministic):
   an instant server (serves walkers as they enter) wins the 24 serve / clear shifts without losing a life (on the
   factory's catch goal it never gets an empty back: a patron served at the left end leaves); a late server (serves only
@@ -1248,3 +1250,65 @@ STEP_SKIP until their bosses exist). Chapter 1 is now Opening -> Happy hour -> L
   tests/test_story.py: chapter 1's sequence now has the fight (beat_the_boss: its banner, boss_hook 3); its Last call
   says SHIFT CLEAR, the boss step is saved as reached. New goldens boss_fight (dmg + cgb: Tex mid-fight, the meter at 5
   of 8). No existing golden changed. Screens: out/boss/{start,mid,meter,win,lose}.{dmg,cgb}.png.
+
+## Bonus menu and soundtrack as built (owner request, 2026-10-10)
+
+- Title menu: ARCADE / STORY / [CONTINUE] / BONUS / MUSIC ON-OFF. BONUS always shows (owner's recommendation taken):
+  every song but the title tune is locked at first. The HI line moved to row 0 (where the game's own score sits in
+  play): a column of five items needs rows 5-13. Rows: 4 items 6/8/10/12, 5 items (with CONTINUE) 5/7/9/11/13
+  (title.c MENU_ROW: centred on row 9, every other row). Room for one more: PRACTICE as a 6th item starts the column
+  at row 4 (right under the logo) and ends it on row 14, above the counter between the scene's patron and the
+  bartender (the same rows docs/minigames_bosses.md 2.3 planned); with CONTINUE absent it is a 5th item and fits rows
+  5-13. The menu's text tiles: BONUS costs 5 tiles of the title's pool; 5 ids are left below the scene patron
+  (TT_PATRON_BASE 224 of 233), enough for PRACTICE (its letters but P are already aligned tiles). K_* moved to game.h
+  (debug.c reads the item under the cursor). Goldens replaced on purpose: title, title_anim, title_continue.
+- BONUS goes straight to the soundtrack (decision: a one-item submenu is a press for nothing; when a second extra
+  exists, BONUS becomes a list with SOUNDTRACK first). src/jukebox.c, its own autobanked file; GS_JUKEBOX (main.c: one
+  case line).
+- The screen, scores-table style (light HUD glyphs + the story font's punctuation on the dark band, HUD palette): row 0
+  SOUNDTRACK, row 1 a panel line; rows 2-11 the list, 10 lines visible, scrolling to keep the selection on screen
+  (14 tunes today); the name at columns 1-18, the mug cursor (OAM 0, as the title's) left of it, the playing tune's mug
+  icon at column 19, blinking (16 frames on, 16 off); rows 12 / 17 panel lines around the selected tune's details,
+  rows 13-16: its full title (word-wrapped to two lines), the credit (composer, year), where the game plays it. A
+  locked tune lists as "? ? ?" and its details read "? ? ?", LOCKED, PLAY STORY MODE. Rows are rebuilt into
+  story_scratch (no cut-scene runs here) and queued 4 a frame.
+- Names: tools/songs.py SOUNDTRACK, keyed by song (entertainer, galop, susanna, ...) and the three jingles, so the 10th
+  venue tune inserted before the teahouse needs one entry there and in VENUES: gen_music.py writes
+  build/jukebox_names.h in its ORDER (music.h's tune order), checks 18-character lines and the charset, and the header
+  fails the compile unless its count equals TUNE_COUNT. The list is sized by TUNE_COUNT everywhere.
+- Keys: Up/Down select (wrapping), A or START plays the selected tune from its start (a locked one: nothing), B stops
+  the playing tune, or with nothing playing goes back to the title (title_enter: the title tune again). Entering the
+  screen stops the title tune, so the first B leaves. cur_tune is the tune playing (a jingle clears it when it ends,
+  and its icon goes).
+- MUSIC OFF (decision): a tune chosen in the player plays anyway (the player sets sound_on and remembers it,
+  jb_forced); leaving puts the music off again (music_set_on(0)), so the title stays silent and still reads MUSIC OFF.
+- Unlock rule as built (save.c): the title tune always; any tune once it plays in story mode (music_play calls
+  tune_heard when story_on: a venue tune at its PRE scene, or on CONTINUE straight into the venue; LEVEL CLEAR at the
+  first shift won; GAME OVER at the first TRY AGAIN); clearing chapter 1 also unlocks all four jingles (BONUS and the
+  SHOW galop never play in a story: no bonus rounds, and a show only after a tip); story_save also ORs in what the
+  progress implies (progress_unlocks: the cleared chapters' venues, the next one's when a step was reached, the
+  jingles from chapter 1). A new unlock is saved at once. Unlocks are permanent: a new story resets bytes 34-35 at its
+  first save, never 36-37. Debug-select story runs unlock nothing (save_lock).
+- SRAM version 5 "TPR5" (src/save.c): 0-3 magic, 4-33 the top 5 (as v2-v4), 34 chapters cleared (0-9), 35 the step
+  reached in the next chapter (0-4; 0 when 9 are cleared), 36-37 the unlocked tunes (16-bit LE, bit t = TUNE_t; bit 0
+  forced on at load; bits above TUNE_COUNT kept: room for the 10th venue tune), 38 checksum 0x5A + bytes 0-37, 39 its
+  complement. Migration at boot, written back at once: version 4 keeps everything and gets progress_unlocks(progress,
+  step reached) (save_migrated = 4); version 3 / 2 / 1 as before (save_migrated 3 / 2 / 1) with the unlocks their
+  progress implies (none but the title for 2 and 1). Anything that does not check out (magic, checksum over 0-37,
+  progress range, the table) is an empty save with only the title tune.
+- Hooks: music.c music_play (bank 2) gained one line (`if (story_on) tune_heard(tune);`, before the MUSIC OFF check so
+  a muted story unlocks too); title.c's title_enter clears save_lock.
+- Cost: ROM0 -18 B (the GS_JUKEBOX case): 1548 -> 1530 B free (game.gb), 1661 -> 1643 B (release.gb). WRAM +17 B
+  (_DATA 6255 -> 6272; release 6250 -> 6264): tune_unlocked 2, save_lock 1, the jukebox's 7 (jb_sel, jb_top,
+  jb_forced, jb_shown, jb_t, jb_dirty), title_items / title_rows 4 -> 6 each (+4), debug.c's 3 (debug builds). SRAM +2 B
+  (40 B used). jukebox.c + the names header ~2.1 KB banked (autobank).
+- Tests (tests/test_jukebox.py, DMG + CGB): the names follow music.h / songs.py; BONUS on the menu with and without a
+  save; Up/Down select, wrap and scroll (cursor on the line); a fresh cartridge lists only THE ENTERTAINER, the rest
+  "? ? ?" and a locked tune does not play; every name once unlocked, the details of the last; A plays (cur_tune), the
+  icon blinks, B stops, B returns to the title; a jingle stops by itself and its icon goes; MUSIC OFF plays here and is
+  off again after; <= 10 sprites a line; a venue unlocks at its PRE scene and is saved at once; LEVEL CLEAR unlocks at
+  the first win; clearing chapter 1 unlocks the jingles; unlocks survive a new story's first save and a reset; v4 ->
+  v5 migration at five progress points; the progress rule; v5 loads its mask and rejects a bad checksum / mask outside
+  it / bad progress. tests/test_scores.py has v5_image / progress_unlocks / saved_tunes; the older SRAM tests now
+  expect version 5 written back. New golden: jukebox (dmg + cgb: OH! SUSANNA playing, some tunes locked).
+

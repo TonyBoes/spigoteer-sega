@@ -58,4 +58,7 @@ uint8_t top_insert(uint32_t s, const uint8_t *n) BANKED;   // insert with initia
 extern uint8_t story_progress;              // M11b: story chapters cleared (0..9), saved next to the table
 extern uint8_t story_reached;               // story shifts: the step reached in chapter story_progress (save.c)
 void story_save(uint8_t chapters, uint8_t step) BANKED;   // story_progress / story_reached, then the whole save
+extern uint16_t tune_unlocked;              // bonus menu: bit t = tune t playable in the soundtrack player (SRAM v5)
+extern uint8_t  save_lock;                  // 1: a debug-select story run writes nothing to SRAM (title_enter clears it)
+void tune_heard(uint8_t t) BANKED;          // music_play in story mode: unlock tune t (saved at once when new)
 #endif

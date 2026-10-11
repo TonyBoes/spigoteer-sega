@@ -103,10 +103,12 @@ def tilemap_row(gb, y, x0, n, window=False):
 import json as _json
 
 TITLE_ART = _json.loads((ROOT / "build" / "title.json").read_text())   # tools/gen_art.py title_art(): tile ids
-LOGO_ROW, ROW_ARCADE, ROW_STORY, ROW_MUSIC, ROW_HI = 2, 6, 8, 10, 12
-MENU_ROWS = (ROW_ARCADE, ROW_STORY, ROW_MUSIC)
-MENU_KEYS = ("arcade", "story", "music_on")
-SEL_ARCADE, SEL_STORY, SEL_MUSIC = range(3)
+# the bonus menu: ARCADE / STORY / BONUS / MUSIC on rows 6-12 (with a story save CONTINUE after STORY: rows 5-13), the HI
+# line on row 0 (the in-game HUD's row)
+LOGO_ROW, ROW_ARCADE, ROW_STORY, ROW_BONUS, ROW_MUSIC, ROW_HI = 2, 6, 8, 10, 12, 0
+MENU_ROWS = (ROW_ARCADE, ROW_STORY, ROW_BONUS, ROW_MUSIC)
+MENU_KEYS = ("arcade", "story", "bonus", "music_on")
+SEL_ARCADE, SEL_STORY, SEL_BONUS, SEL_MUSIC = range(4)
 LOGO_STATES = 5
 OAM_TMUG, OAM_CURSOR = 4, 5
 SCENE_TOP, SCENE_BOTTOM = 14 * 8, 17 * 8          # the bar scene: wall rows 14-15, counter row 16
@@ -165,13 +167,14 @@ def test_title_menu_is_centred_without_bands(boot):
     blank = TITLE_ART["blank"]
     assert tilemap_row(boot, ROW_ARCADE, 0, 20) == title_text_row("arcade")
     assert tilemap_row(boot, ROW_STORY, 0, 20) == title_text_row("story")
+    assert tilemap_row(boot, ROW_BONUS, 0, 20) == title_text_row("bonus")
     assert music_line(boot) == title_text_row("music_on")
-    # the HI line: 8 tiles at columns 6..13 (a small "HI", a space, six digits)
+    # the HI line on row 0: 8 tiles at columns 6..13 (a small "HI", a space, six digits)
     assert tilemap_row(boot, ROW_HI, 0, 20) == [blank] * 6 + [TITLE_ART["hi"], blank] + hi_tiles("000000") + [blank] * 6
     # every line centred to the pixel: as many px left of the text as right of it. An odd-length line is drawn
     # 4 px right inside one more tile, so its tiles are an even count with as many blank columns either side.
     for key, s in (("arcade", "ARCADE"), ("story", "STORY"), ("music_on", "MUSIC ON"), ("music_off", "MUSIC OFF"),
-                   ("continue", "CONTINUE")):
+                   ("continue", "CONTINUE"), ("bonus", "BONUS")):
         t = TITLE_ART["text"][key]
         n = len(t["tiles"])
         assert n % 2 == 0 and t["col"] == (20 - n) // 2, key
@@ -199,7 +202,7 @@ def test_up_down_move_the_mug_cursor_and_wrap(boot):
         key = MENU_KEYS[sel]
         assert c["y"] - 16 + 7 == MENU_ROWS[sel] * 8, "the mug stands on the selected line"
         assert TITLE_ART["text"][key]["x"] - 14 <= c["x"] - 8 <= TITLE_ART["text"][key]["x"] - 12, "just left of it"
-    assert seen == [SEL_STORY, SEL_MUSIC, SEL_ARCADE, SEL_MUSIC, SEL_STORY]
+    assert seen == [SEL_STORY, SEL_BONUS, SEL_MUSIC, SEL_BONUS, SEL_STORY]
     assert state(boot) == TITLE
 
 

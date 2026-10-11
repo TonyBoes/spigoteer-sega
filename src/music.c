@@ -103,8 +103,10 @@ static void begin_load(uint8_t tune, uint8_t play) {
     loaded[tunes[tune].buf] = TUNE_NONE;
 }
 
+extern uint8_t story_on;
 void music_play(uint8_t tune) BANKED {
     uint8_t buf = tunes[tune].buf;
+    if (story_on) tune_heard(tune);                 // the soundtrack player's unlocks (save.c), music on or off
     if (sound_on && cur_tune == tune && tunes[tune].loop && (mus_active || ld_tune == tune)) return;
     cur_tune = tune;
     if (!sound_on) return;

@@ -35,7 +35,7 @@ GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/m
 # in bank 3 (build/music_pat3.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
 HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
-BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/boss_art.h
+BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/boss_art.h $(BUILD)/jukebox_names.h
 ROM      := $(BUILD)/$(NAME).gb
 
 .PHONY: all test check preview clean assets release
@@ -87,6 +87,10 @@ $(BUILD)/music_data.c: tools/gen_music.py tools/songs.py src/music.h | $(BUILD)
 
 $(BUILD)/music_pat3.c: $(BUILD)/music_data.c
 	@true
+
+# the soundtrack player's names (tools/songs.py SOUNDTRACK, in music.h's tune order) -> build/jukebox_names.h (src/jukebox.c)
+$(BUILD)/jukebox_names.h: $(BUILD)/music_data.c
+	@test -f $@
 
 $(BUILD)/hUGEDriver.obj: $(HUGE)/hUGEDriver.asm $(wildcard $(HUGE)/include/*) | $(BUILD)
 	rgbasm -i $(HUGE)/ -DGBDK -o $@ $<

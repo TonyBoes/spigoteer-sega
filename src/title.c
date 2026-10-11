@@ -1,6 +1,7 @@
 // Title screen (M10a): the SPIGOTEER logo fills with beer letter by letter (bottom-up, a frothy head, drips),
-// then sparkles once; a menu ARCADE / STORY / MUSIC ON-OFF with a mug cursor and the HI score (M11b: ARCADE / STORY /
-// CONTINUE / MUSIC when a story save exists, one row closer together), every line
+// then sparkles once; a menu ARCADE / STORY / [CONTINUE] / BONUS / MUSIC ON-OFF with a mug cursor (CONTINUE when a
+// story save exists: M11b; BONUS the soundtrack player, src/jukebox.c) and the HI score on row 0 (the in-game HUD's
+// row: the menu column needs rows 5-13 for its five items), every line
 // centred to the pixel (tools/gen_art.py pre-renders the text: an odd-length line sits 4 px right inside one more
 // tile); below it a looping bar scene on the bottom counter: the bartender slides a mug to a patron, who drinks
 // and sends the empty back. Foam bubbles drift up past the logo now and then.
@@ -35,11 +36,12 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 
 // ---- layout ----
 #define LOGO_ROW        2       // the logo: rows 2-3, columns 1..18
-#define ROW_ARCADE      6       // the menu rows without a story save (with one: 5, 7, 9, 11 and HI 13)
-#define ROW_STORY       8
-#define ROW_MUSIC      10
-#define ROW_HI         12
-enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE };   // menu items
+#define ROW_HI          0       // the HI line (the HUD's row in play)
+// The menu column, one item every other row, centred on row 9: 4 items rows 6-12, 5 items rows 5-13. A 6th item (the
+// planned PRACTICE) starts the column at row 4, right under the logo, and ends it on row 14, between the scene's
+// patron and the bartender (docs/minigames_bosses.md 2.3 already planned rows 4..14). K_*: game.h.
+#define MENU_MAX        6
+#define MENU_ROW(n)   ((n) > 5 ? 4 : 10 - (n))
 #define SCENE_BAR       3       // the scene stands on bar 3's rows (14-15 wall, 16 counter): draw_bartender() places him
 #define SCENE_TOP_Y   (BAR_TOP_Y(SCENE_BAR) + 16)   // OAM y of the scene's wall top
 #define PATRON_COL      3       // the patron: BG tiles at columns 3-4 of rows 14-15 (x 24..39)
@@ -83,10 +85,11 @@ enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
 
 // ---- state (globals => symbols the tests read) ----
 uint16_t title_t;               // frames since the title appeared
-uint8_t  title_sel;             // the selected line: 0 ARCADE, 1 STORY, 2 MUSIC (with a story save: 2 CONTINUE, 3 MUSIC)
-uint8_t  title_items[4];        // K_* per menu line
-uint8_t  title_n;               // menu lines: 3, or 4 with CONTINUE
-uint8_t  title_rows[4];         // their screen rows
+uint8_t  title_sel;             // the selected line: 0 ARCADE, 1 STORY, 2 BONUS, 3 MUSIC (with a story save: 2 CONTINUE,
+                                // 3 BONUS, 4 MUSIC)
+uint8_t  title_items[MENU_MAX]; // K_* per menu line (game.h)
+uint8_t  title_n;               // menu lines: 4, or 5 with CONTINUE
+uint8_t  title_rows[MENU_MAX];  // their screen rows
 uint16_t title_idle;            // M10b: frames without a key; at TITLE_IDLE_FRAMES the top-5 table shows (scores.c)
 uint8_t  logo_state[LOGO_LETTERS];   // fill state per letter: 0 empty .. TT_LOGO_STATES-1 the final art
 uint8_t  logo_done;             // filled and sparkled
@@ -120,6 +123,7 @@ static uint8_t text_left(uint8_t i) {           // screen x of the first text pi
     case K_ARCADE: return TT_X_ARCADE;
     case K_STORY: return TT_X_STORY;
     case K_CONTINUE: return TT_X_CONTINUE;
+    case K_BONUS: return TT_X_BONUS;
     }
     return sound_on ? TT_X_MUSIC_ON : TT_X_MUSIC_OFF;
 }
@@ -182,23 +186,33 @@ void title_enter(void) BANKED {
     for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++) set_bkg_tiles(0, r, 20, 1, row_buf);
     for (i = 0; i < 20; i++) { attr_txt[i] = BGPAL_TEXT; attr_sel[i] = BGPAL_TEXT_SEL; }
     title_sel = 0;
-    // M11b: CONTINUE when a story is saved part way (a shift or a chapter cleared, not all nine); the menu moves up a row
+    // M11b: CONTINUE when a story is saved part way (a shift or a chapter cleared, not all nine); BONUS always (its
+    // songs unlock as the story is played: save.c); the column is centred on row 9 (MENU_ROW)
+    save_lock = 0;                     // (a debug-select story run ends here: save.c)
     title_n = 0;
     title_items[title_n++] = K_ARCADE;
     title_items[title_n++] = K_STORY;
     if ((story_progress || story_reached) && story_progress < STORY_CHAPTERS) title_items[title_n++] = K_CONTINUE;
+    title_items[title_n++] = K_BONUS;
     title_items[title_n++] = K_MUSIC;
-    r = title_n == 4 ? ROW_ARCADE - 1 : ROW_ARCADE;
-    for (i = 0; i < title_n; i++) title_rows[i] = r + 2 * i;
+    r = MENU_ROW(title_n);
+    for (i = 0; i < title_n; i++) {
+        title_rows[i] = r + 2 * i;
+        switch (title_items[i]) {
+        case K_ARCADE: build_row(row_story, tt_arcade); break;
+        case K_STORY: build_row(row_story, tt_story); break;
+        case K_CONTINUE: build_row(row_story, tt_continue); break;
+        case K_BONUS: build_row(row_story, tt_bonus); break;
+        default: continue;             // MUSIC: below
+        }
+        set_bkg_tiles(0, title_rows[i], 20, 1, row_story);
+    }
     music_row = title_rows[title_n - 1];
-    build_row(row_story, tt_arcade);   set_bkg_tiles(0, title_rows[0], 20, 1, row_story);
-    build_row(row_story, tt_story);    set_bkg_tiles(0, title_rows[1], 20, 1, row_story);
-    if (title_n == 4) { build_row(row_story, tt_continue); set_bkg_tiles(0, title_rows[2], 20, 1, row_story); }
     build_music();                     set_bkg_tiles(0, music_row, 20, 1, row_music);
     for (i = 0; i < 20; i++) row_buf[i] = TT_BLANK;
     row_buf[6] = TT_HI;
     for (i = 0; i < 6; i++) row_buf[8 + i] = tt_digit[hi_digits[i]];
-    set_bkg_tiles(0, music_row + 2, 20, 1, row_buf);
+    set_bkg_tiles(0, ROW_HI, 20, 1, row_buf);
     // the scene's patron
     row_buf[0] = TT_PATRON_BASE; row_buf[1] = TT_PATRON_BASE + 1; row_buf[2] = TT_PATRON_BASE + 2; row_buf[3] = TT_PATRON_BASE + 3;
     set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR), 2, 1, row_buf);
@@ -209,7 +223,7 @@ void title_enter(void) BANKED {
         set_bkg_tiles(1, LOGO_ROW, 18, 1, row_buf); set_bkg_tiles(1, LOGO_ROW + 1, 18, 1, row_buf);
         set_bkg_tiles(0, title_rows[0], 20, 1, attr_sel);
         for (i = 1; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, attr_txt);
-        set_bkg_tiles(0, music_row + 2, 20, 1, attr_txt);
+        set_bkg_tiles(0, ROW_HI, 20, 1, attr_txt);
         for (i = 0; i < 2; i++) row_buf[i] = BGPAL_TPATRON;
         set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR), 2, 1, row_buf);
         set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR) + 1, 2, 1, row_buf);
@@ -347,7 +361,8 @@ static void cursor_frame(void) {
 }
 
 // One title frame. 1: ARCADE was chosen (main.c starts the game); 2: no key for TITLE_IDLE_FRAMES (the table).
-// STORY / CONTINUE start the story mode from here (src/story.c; the screen changes, 0 is returned).
+// STORY / CONTINUE start the story mode from here (src/story.c), BONUS the soundtrack player (src/jukebox.c): the
+// screen changes, 0 is returned.
 uint8_t title_update(uint8_t pressed) BANKED {
     uint8_t old = title_sel, last = title_n - 1;
     title_t++;
@@ -362,6 +377,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_ARCADE: return 1;
         case K_STORY: story_begin(0); return 0;
         case K_CONTINUE: story_begin(1); return 0;
+        case K_BONUS: jukebox_enter(); return 0;
         default: title_music_toggle();
         }
     }

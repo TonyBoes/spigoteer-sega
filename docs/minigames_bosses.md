@@ -186,6 +186,7 @@ five segments: OPEN, HAPPY, MINI, LAST, BOSS. A segment index `story_seg` (0-4) 
 
 - Title menu gains PRACTICE once story mode has cleared its first segment (progress > 0 or seg > 0). Rows: ARCADE / STORY / CONTINUE / PRACTICE / MUSIC: the title's text rows move up one
   (rows 4/6/8/10/12, HI row 14): a title.c layout change, `MENU_STRINGS` gains "PRACTICE".
+  (Bonus menu, 2026-10-10: the title now also has BONUS and its HI line on row 0; PRACTICE's rows: PLAN.md "Bonus menu and soundtrack as built".)
 - Practice screen (new, banked, HUD style like the scores table): rows 3-12 list the chapter's five segments, the
   chapter number and venue name on row 2; Left/Right changes chapter (1-9, then FINALE; 1-10 with The Chrome Cow), Up/Down the segment, A
   starts it. Locked segments show "- - -". The best score is on the right.
