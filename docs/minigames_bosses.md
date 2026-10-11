@@ -9,7 +9,9 @@ SRAM v4 with the step reached already exists (PLAN.md "Story shifts as built"), 
 the chapter sequence. Where section 2.2 proposes its own segment index and SRAM v4 layout, follow the built version.
 
 Note (2026-10-10), PROPOSAL awaiting owner approval: a 10th venue, **The Chrome Cow** (a biker bar that serves only
-milk, owner Granny Throttle), becomes chapter 7, before the teahouse (teahouse 8, space 9, zoo 10). Its boss **Duke**
+milk, owner Granny Throttle), becomes chapter 7, before the teahouse; and the space lounge moves to the end (owner,
+same day). The order: saloon, stadium, lodge, bistro, igloo, factory, The Chrome Cow, teahouse 8, zoo 9, space 10,
+in story and arcade. Its boss **Duke**
 is section 3.12, its mini-game **Milk Run** section 4.10 and its twist, the **mosh pit**, section 9. They are numbered
 last so the existing section references stay; the summary tables list them in chapter order. The engine checklist
 for a 10th venue is docs/venue10_impact.md.
@@ -70,8 +72,8 @@ stays separate because it must survive a life lost.
 | 6 | Robot | Battery Sort | categorise under pressure | Left / Right (Down from item 16) | 45 s | the front battery waits on a diverter for a shrinking window; a 3rd bin (scrap) arrives mid-game |
 | 7 | Chrome Cow (PROPOSAL) | Milk Run (4.10) | lane dodging + delivery timing | Up/Down lane, A toss | 45 s | mostly BG: the street scrolls (SCX), obstacles and milk boxes are BG tiles; every gate leaves a lane free |
 | 8 | Teahouse | Taiko Pour | rhythm | A (top lane), B (bottom lane) | ~45 s | two lanes instead of one (readable on DMG, fits 10 per line) |
-| 9 | Space | Asteroid Delivery | inertia steering, route reading | D-pad thrust | 45 s | asteroids drift in horizontal lanes (Frogger-like); soft-delivery speed limit; no gravity, just drift |
-| 10 | Zoo | Monkey Business | reaction + positioning | Left/Right, A | 45 s | one row of 5 crates, the Spigoteer hops between them; lids rattle before a pop; a parrot decoy from 15 s |
+| 9 | Zoo | Monkey Business | reaction + positioning | Left/Right, A | 45 s | one row of 5 crates, the Spigoteer hops between them; lids rattle before a pop; a parrot decoy from 15 s |
+| 10 | Space | Asteroid Delivery | inertia steering, route reading | D-pad thrust | 45 s | asteroids drift in horizontal lanes (Frogger-like); soft-delivery speed limit; no gravity, just drift |
 
 ### 1.2 Bosses
 
@@ -85,8 +87,8 @@ stays separate because it must survive a life lost.
 | 6 | Robot | The Prototype | 12 | green / yellow / red cycle; red reverses his conveyor; switches bars after red | reworked: "conveyor runs backwards" is the red phase, with a yellow tell |
 | 7 | Chrome Cow (PROPOSAL) | Duke (3.12) | 12 | no stomp: idles, revs 50 frames, lurches 16 px; a glass resets his idle, a glass during the rev stalls him | "revs between serves" became a rule with a readable answer |
 | 8 | Teahouse | Sumo Champion | 12 | single hits do not push him; chained hits (<= 80 frames apart) do; charge on a tell, cancelled by a hit | "barely moves" became the chain rule |
-| 9 | Space | The Mothership | 6 + 3 x 2 | teleports; at 0 it splits into 3 small aliens (2 drinks each) | splits once (not on every hit, which would flood the bars) |
-| 10 | Zoo | Leo the Lion (crowned) | 14 | roar: walkers jump back 16 px, drinkers send empties early | "empties fly" still obeys fair-empties spacing |
+| 9 | Zoo | Leo the Lion (crowned) | 14 (PROPOSAL, zoo 9th: 12) | roar: walkers jump back 16 px, drinkers send empties early | "empties fly" still obeys fair-empties spacing |
+| 10 | Space | The Mothership | 6 + 3 x 2 (PROPOSAL, space last: 8 + 3 x 2) | teleports; at 0 it splits into 3 small aliens (2 drinks each) | splits once (not on every hit, which would flood the bars) |
 | F | Finale | Pour-Off vs Dregs | first to 20 | race to serve a shared crowd from opposite ends | own module, own simple patron/mug rules |
 
 Flagged as weakest after fixing: **Quick Draw** (thin by nature; fine as a 30 s breather), **Asteroid Delivery**
@@ -610,7 +612,8 @@ served: win. A mini reaching the tap costs a life like any patron; after the res
 in at x 16.
 
 Why fun and fair: two different phases in one fight; phase 2 is classic Tapper with three fast patrons, a good
-penultimate test. Changed from the pitch: it splits once at the end of phase 1, not on every hit (splitting every
+penultimate test (PROPOSAL, space last: it is now the last boss and the final test of the tour, with phase 1's meter
+raised from 6 to 8 so its 14 drinks are the most of any boss; Leo, now 9th, drops from 14 to 12). Changed from the pitch: it splits once at the end of phase 1, not on every hit (splitting every
 hit would put up to 18 extra patrons on screen and blow the lift and line budgets). Regulars keep coming in phase 2
 at half the rate.
 
@@ -695,7 +698,8 @@ Rules: the common rules with the 3.2 row; his movement replaces the steady stomp
 
 Numbers: unhit, he first lurches at frame 200 (150 + 50), then every 208 frames (150 idle + 50 rev + 8 lurch); from
 his right edge at 56 to the tap at 136 is 80 px, 5 lurches: the fifth ends at frame 1040 (17.3 s; his 30-frame entry
-not counted), between Tex (20 s) and Leo (14.7 s). One glass every 200 frames or sooner pins him (no lurch at all) and pushes him 16 px each time, so the
+not counted), between Tex (20 s) and Leo (14.7 s). One glass every 200 frames or sooner pins him (no lurch at
+all) and pushes him 16 px each time, so the
 pressure in the fight comes from the gang's chords on the other bars, with Duke as the clock you must keep feeding.
 At meter 4-1 that window shrinks to 140 frames.
 
@@ -1683,6 +1687,10 @@ PROPOSAL (2026-10-10), new questions for The Chrome Cow:
 13. **Saves past chapter 6** when the 10th venue ships: a save that had reached the teahouse or later goes back to
     the start of The Chrome Cow (recommended: the story never skips the drip tray, and the finale's "ten pieces"
     stays true), or keeps its count and skips the new chapter? Details in docs/venue10_impact.md.
+14. **Boss ramp with the space lounge last**: the Mothership becomes the last boss and Leo the 9th. Recommended:
+    the Mothership's phase 1 meter 6 -> 8 (8 + 3 x 2 = 14 drinks, the most) and Leo's 14 -> 12, so the last fight
+    stays the biggest; or keep both as designed? Asteroid Delivery becomes the last mini-game (its medal thresholds
+    stay; it is already the hardest to steer).
 
 ## 9. Venue twists: the mosh pit (The Chrome Cow, chapter 7)
 

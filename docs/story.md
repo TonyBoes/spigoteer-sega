@@ -5,7 +5,11 @@ chapter goals, M11c the art. Everything below is original writing.
 
 **PROPOSAL (2026-10-10), awaiting owner approval: a 10th venue, The Chrome Cow.** It is the toughest-looking bar
 in Fizzwater, all mohawks, leather and studs, and everyone in it very politely orders an ice-cold glass of milk. It
-becomes chapter 7, before the teahouse, in story and arcade order: the teahouse becomes 8, space 9 and the zoo 10.
+becomes chapter 7, before the teahouse, in story and arcade order. Owner's second decision (same day): the space
+lounge moves to the end. The new order: 1 saloon, 2 stadium, 3 lumber lodge, 4 bistro, 5 igloo, 6 robot factory,
+7 The Chrome Cow, 8 teahouse, 9 jungle zoo, 10 space lounge. Difficulty stays tied to the position, not the venue:
+the zoo takes the goals and pace chapter 9 had, space those of the last chapter, and space now leads into the finale
+(the "last piece", "all ten pieces" and Dregs's rescue beats move from the zoo to space).
 Owner **Granny Throttle**, piece the **drip tray**, twist the **mosh pit** (docs/minigames_bosses.md section 9),
 mini-game **Milk Run** and boss **Duke** (sections 4.10 and 3.12 there), engine checklist in docs/venue10_impact.md.
 The prose of this file (pitch, cast, gags, pictures, art list) already counts ten venues. The parts the build
@@ -30,15 +34,15 @@ Running gags:
 
 1. **Dregs is always one scene late.** He bursts into every after-venue scene to grab the piece
    and leaves the venue the way that venue would throw him out (swinging doors, crowd-surfed,
-   spun out by plates, carried off on a conveyor, blown out by one loud chord...). In the zoo he finally
-   gets help, and in the finale he says sorry.
+   spun out by plates, carried off on a conveyor, blown out by one loud chord...). In space he finally
+   gets help (the Spigoteer asks Zizz to beam him back down), and in the finale he says sorry.
 2. **The mustache.** Sadie rates it four tumbleweeds. Aurora knits it a **pink mustache cozy**,
    which it wears for the rest of the game. Manager-Bot scans it, Zizz calls it a "face-broom",
    and the credits confirm it's still on.
 3. **Where the pieces ended up.** Each one was being used for something silly: the handle was
    stuck in a piano, the nozzle piped frosting, the knob was on an igloo that has no door, the
-   gasket was a robot's hat, the drip tray was the house band's cymbal, the lever was a TV antenna, and the crown
-   sat on a lion.
+   gasket was a robot's hat, the drip tray was the house band's cymbal, the crown sat on a lion, and the
+   lever was a TV antenna.
 4. **The payoff.** The spigot can pour anything at all. After ten bars, the Spigoteer pours
    himself a nice cold glass of water.
 
@@ -68,15 +72,17 @@ optional. Each one changes one existing parameter or adds one small behaviour.
 | 8 | Space lounge | Zizz | Lever | "25 glowing beakers for 3 species" / serve 25 | **Low gravity**: full drinks float more slowly, so you have to lead your throws. |
 | 9 | Jungle zoo | Keeper Kiki | Crown | "Serve 30 animals" / serve 30 | **Cheeky monkeys**: now and then a monkey snatches a coconut mid-slide and it comes back as an empty straight away. |
 
-**PROPOSAL (2026-10-10), awaiting owner approval.** With The Chrome Cow the chapters read as below from chapter 7
-(1-6 unchanged; "was" is the number in the built table above, which stays until the engine change).
+**PROPOSAL (2026-10-10), awaiting owner approval.** With The Chrome Cow and the space lounge last, the chapters read
+as below from chapter 7 (1-6 unchanged; "was" is the number in the built table above, which stays until the engine
+change). The goal sizes follow the position, not the venue: the zoo, now 9th, takes the 25 that chapter 9 had (it was
+the space lounge's), and the space lounge, now last, takes the 30 of the last chapter (it was the zoo's).
 
 | # | Venue | Owner | Piece | Chapter goal (in-world / engine) | Optional twist |
 |---|---|---|---|---|---|
 | 7 (new) | Biker bar: The Chrome Cow | Granny Throttle | Drip tray | "Don't cry over spilt milk: serve 22 punks" / serve 22 | **Mosh pit**: a served patron sliding back bumps the walker behind him, who is shoved 16 px toward the tap (once per bump, never closer than 32 px to the tap). Serve the back one while the front one drinks. |
 | 8 (was 7) | Teahouse | Hana | Pipe | "Serve with care; a broken cup costs two lives" / clear the venue, a broken glass costs 2 lives (instead of 1) | **Taiko rhythm** (unchanged) |
-| 9 (was 8) | Space lounge | Zizz | Lever | "25 glowing beakers for 3 species" / serve 25 | **Low gravity** (unchanged) |
-| 10 (was 9) | Jungle zoo | Keeper Kiki | Crown | "Serve 30 animals" / serve 30 | **Cheeky monkeys** (unchanged) |
+| 9 (was 9) | Jungle zoo | Keeper Kiki | Crown | "Serve 25 animals" / serve 25 | **Cheeky monkeys** (unchanged) |
+| 10 (was 8) | Space lounge | Zizz | Lever | "30 glowing beakers for 3 species" / serve 30 | **Low gravity** (unchanged) |
 
 ## Shifts
 
@@ -101,16 +107,20 @@ venue at its Opening shift. A strict rule (stadium: a fan at the tap; teahouse: 
 | 8 | "Serve 12 glowing beakers" / serve 12 | "25 glowing beakers for 3 species" / serve 25 | "Serve 28 glowing beakers" / serve 28 | Inside out: two at once on the middle bars, then two on the outer bars. Walk +20 %, spawn -20 %. |
 | 9 | "Serve 15 animals" / serve 15 | "Serve 30 animals" / serve 30 | "Stampede! Serve 32 animals" / serve 32 | Stampede: all four bars at once top to bottom, a breather, then all four bottom to top. Walk +20 %, spawn -20 %. |
 
-**PROPOSAL (2026-10-10), awaiting owner approval.** With The Chrome Cow the shifts read as below from chapter 7
-(1-6 unchanged; the built table above stays until the engine change). The Chrome Cow's mosh pit is on in its Happy
+**PROPOSAL (2026-10-10), awaiting owner approval.** With The Chrome Cow and the space lounge last, the shifts read
+as below from chapter 7 (1-6 unchanged; the built table above stays until the engine change). The ramp follows the
+position: chapters 7 and 8 keep the +15 % / -15 % Last call of the middle chapters, chapter 9 (the zoo) takes the
+space lounge's old numbers (12 / 25 / 28, +20 % / -20 %), and chapter 10 (the space lounge) takes the zoo's old goals
+(15 / 30 / 32) with a Last call one step harder than any other (+25 % / -25 %), so the last chapter is the hardest.
+Each venue keeps its own arrival pattern, twist and wording. The Chrome Cow's mosh pit is on in its Happy
 hour, as every twist, and (recommended) in its Last call too; never in the Opening shift or the boss fight.
 
 | # | Opening shift (in-world / engine) | Happy hour | Last call | Last call arrivals |
 |---|---|---|---|---|
 | 7 (new) | "Serve 10 punks, ice-cold milk" / serve 10 | "Don't cry over spilt milk: serve 22 punks" / serve 22 | "The band plays faster: serve 24 punks" / serve 24 | Chord: three bars at once (1, 2, 3), a long breather, three more (4, 3, 2), a shorter breather. Walk +15 %, spawn -15 %, and the venue's tune plays 15 % faster. |
 | 8 (was 7) | "Serve 7 guests; a broken cup costs two lives" / 7 guests, a broken glass costs 2 lives | (unchanged) | (unchanged) | Flood bar 4 (unchanged). |
-| 9 (was 8) | "Serve 12 glowing beakers" / serve 12 | (unchanged) | (unchanged) | Inside out (unchanged). |
-| 10 (was 9) | "Serve 15 animals" / serve 15 | (unchanged) | (unchanged) | Stampede (unchanged). |
+| 9 (was 9) | "Serve 12 animals" / serve 12 | "Serve 25 animals" / serve 25 | "Stampede! Serve 28 animals" / serve 28 | Stampede (pattern unchanged). Walk +20 %, spawn -20 %. |
+| 10 (was 8) | "Serve 15 glowing beakers" / serve 15 | "30 glowing beakers for 3 species" / serve 30 | "Serve 32 glowing beakers" / serve 32 | Inside out (pattern unchanged). Walk +25 %, spawn -25 %: the hardest Last call. |
 
 ## Script format
 
@@ -812,12 +822,12 @@ STOP: OUTER SPACE!
 ...QUIETLY.
 ```
 
-PROPOSAL (2026-10-10), awaiting owner approval, with the 10th venue: the last page reads
+PROPOSAL (2026-10-10), awaiting owner approval, with the 10th venue and the zoo next: the last page reads
 
 ```text
 SPIGOTEER
 EIGHT DOWN. NEXT
-STOP: OUTER SPACE!
+STOP: THE JUNGLE!
 ...QUIETLY.
 ```
 
@@ -862,9 +872,26 @@ DRINKS FLOAT SLOW.
 HOLD YOUR SPOONS!
 ```
 
+PROPOSAL (2026-10-10), awaiting owner approval: the space lounge is chapter 10, the last venue (its PRE and POST
+scenes move after the zoo's when the engine change folds this in). Pages 1-5 and 7 stay; a new page after page 5
+says this is the last piece, and the goal page reads 30
+
+```text
+ZIZZ
+THE LAST PIECE?
+IT IS ON OUR ROOF.
+WE ARE USING IT.
+
+ZIZZ
+SERVE 30 GLOWING
+BEAKERS TO MY
+GUESTS. ALL THREE!
+```
+
 ### POST_SPACE: "Out of This World"
 
-Picture: the alien musician plays a many-armed keytar while Zizz floats up holding the golden lever.
+Picture: the alien musician plays a many-armed keytar while Zizz floats up holding the golden lever. (PROPOSAL, space
+last: above them a little saucer beams Dregs back down, in a sparkly souvenir T-shirt.)
 
 ```
 ZIZZ
@@ -900,6 +927,66 @@ SPIGOTEER
 ONE PIECE LEFT!
 IT'S A JUNGLE OUT
 THERE. LITERALLY.
+```
+
+PROPOSAL (2026-10-10), awaiting owner approval: with the space lounge last, POST_SPACE leads into the finale. It takes
+the zoo's "all the pieces" and "let's go home" beats, and Dregs finally gets help (Zizz's cousin beams him up for a
+closer look; the Spigoteer asks for him back). The whole scene reads
+
+```text
+ZIZZ
+YOU ARE THE CAT'S
+PAJAMAS! THE BEE'S
+ELBOWS!
+
+ZIZZ
+TAKE THE LEVER.
+WE USED IT AS A
+TV ANTENNA.
+
+SPIGOTEER
+WHAT DID YOU
+WATCH?
+
+ZIZZ
+A SHOW ABOUT A
+MUSTACHED MAN WHO
+SLIDES DRINKS.
+
+SPIGOTEER
+ALL TEN PIECES!
+...WAIT. WHERE'S
+DREGS?
+
+DREGS
+FINALLY, I'M ON
+TIME! GIVE ME THE-
+WHY AM I FLOATING?
+
+NARRATOR
+A FRIENDLY SAUCER
+BEAMED DREGS UP
+FOR A CLOSER LOOK.
+
+ZIZZ
+OOPS. MY COUSIN
+COLLECTS EARTH
+SOUVENIRS.
+
+SPIGOTEER
+ZIZZ, COULD YOU
+PLEASE BEAM HIM
+BACK DOWN?
+
+NARRATOR
+DREGS CAME DOWN
+IN A SPARKLY
+SOUVENIR T-SHIRT.
+
+SPIGOTEER
+COME ON, DREGS.
+LET'S GO HOME.
+I'LL POUR YOU ONE.
 ```
 
 ---
@@ -939,6 +1026,20 @@ THEY LOVE TO STEAL
 A COCONUT.
 ```
 
+PROPOSAL (2026-10-10), awaiting owner approval: the zoo is chapter 9, no longer the last venue. Pages 4 and 5 read
+
+```text
+KIKI
+YOUR NEXT PIECE,
+THE CROWN, IS ON
+LEO THE LION.
+
+KIKI
+SERVE 25 THIRSTY
+ANIMALS AND HE MAY
+JUST HAND IT OVER.
+```
+
 ### POST_ZOO: "King of the Tap"
 
 Picture: Leo places the golden crown on the Spigoteer's head while the flamingos high-kick behind them.
@@ -975,13 +1076,35 @@ LET'S GO HOME.
 I'LL POUR YOU ONE.
 ```
 
-PROPOSAL (2026-10-10), awaiting owner approval, with the 10th venue: page 3 reads
+PROPOSAL (2026-10-10), awaiting owner approval: with the space lounge last, the zoo is no longer the end of the tour.
+Dregs still leaves the zoo the zoo's way (the monkeys), and the "all the pieces" and "let's go home" beats move to
+POST_SPACE. The whole scene reads
 
 ```text
+KIKI
+REMARKABLE. THE
+LION APPROACHES...
+...AND PURRS.
+
+NARRATOR
+LEO PLACED THE
+CROWN ON THE
+SPIGOTEER'S HEAD.
+
+DREGS
+RIGHT HERE! THAT
+CROWN IS MINE! I-
+OH NO. MONKEYS.
+
+NARRATOR
+THE MONKEYS STOLE
+HIS SHOES, HIS HAT
+AND HIS DIGNITY.
+
 SPIGOTEER
-ALL TEN PIECES!
-...WAIT. WHERE'S
-DREGS?
+NINE DOWN! ONE
+PIECE LEFT. NEXT:
+OUTER SPACE. BUS?
 ```
 
 ---
@@ -1145,7 +1268,7 @@ overlaps another variant of his or that no page uses):
 | PRE_TEAHOUSE | Teahouse by a pond, cherry blossoms, bamboo fountain missing a pipe. |
 | POST_TEAHOUSE | Hana pouring tea at a low table; taiko drummer bows. |
 | PRE_SPACE | Neon lounge, ringed planet in the window, a city bus parked at the airlock. |
-| POST_SPACE | Alien musician with a many-armed keytar; Zizz floats with the lever. |
+| POST_SPACE | Alien musician with a many-armed keytar; Zizz floats with the lever. PROPOSAL (space last): a little saucer beams Dregs back down in a souvenir T-shirt. |
 | PRE_ZOO | Jungle bar under vines, Leo wearing the golden crown, Kiki in the ferns. |
 | POST_ZOO | Leo crowns the Spigoteer; flamingos high-kick behind. |
 | FINALE | Restored spigot gleaming by day, ten owners and Dregs around it, a glass of water. |
