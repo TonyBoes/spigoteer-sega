@@ -1,6 +1,7 @@
 ; Art: approved design (owner 2026-10-12)
 ; Order Up!: CHEF COLBY behind the counter, waist up, 16x24, faces right (towards the dishes). 4 frames:
-; CALL (hand at his mouth, calling out), WATCH (listening, arms down), PLEASED (eyes shut, grin, thumb up),
+; CALL (pointing at the bubble: index finger level, the rest curled in a fist), WATCH (listening, arms down), PLEASED (eyes shut, grin; no hand),
+; (Redrawn 2026-10-12: the old CALL finger and PLEASED thumb, a lone raised digit over a fist, read as a rude gesture. Keep every digit level.)
 ; CROSS (brows down, shouting; steam.txt puffs over his toque). Rows 0-15: CGB OBJ palette 3 (white, skin, dark brown); rows 16-23:
 ; OBJ palette 4 (white, cheese-yellow neckerchief, dark brown). DMG: OBP0 0xD0 (the Spigoteer's). The toque and
 ; rows 16-23 are shared where they match; his jacket ends on the counter's top edge (row 23 = screen y 87).
@@ -16,10 +17,10 @@
 .###+++#+++#+#..
 .#+#+++#+++#+#..
 .#+#++++++++++#.
-.###+#######+#++
-.####+#####+#++#
-..####+###+#++#.
-...########+#...
+.###+#######+###
+.####+#####+#+++
+..####+###+#++##
+...########+##..
 ..#--+++++--#...
 .#---#+++#---#..
 .#----#+#----#..
@@ -62,14 +63,14 @@
 ..##########....
 ..#--------#....
 ..###########...
-.#####+++++++#.#
-.###+++#+++#+#+#
-.#+#++#+#+#+##+#
-.#+#+++++++++#+#
-.###+######+#+++
-.####+#---#+#+++
-..####+###+##+++
-...#########.###
+.#####+++++++#..
+.###+++#+++#+#..
+.#+#++#+#+#+##..
+.#+#+++++++++#..
+.###+######+#...
+.####+#---#+#...
+..####+###+##...
+...#########....
 ..#--+++++--#...
 .#---#+++#---#..
 .#----#+#----#..
