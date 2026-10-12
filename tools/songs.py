@@ -307,6 +307,11 @@ SKT_CHORDS = [
     "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "G",
 ]
 song("skaters", 9, "A", " ".join(SKT_BARS), oompah(SKT_CHORDS, 6), groove="K:1 r:1 H:1 r:1 H:1 r:1")
+# Harmony (music step 5): the first strain holds one chord tone a bar on the pad (the waltz's sustained middle voice:
+# B, then C, the seventh of D7, back to B), the repeat a voice in thirds and sixths under the melody, one note a beat.
+_t = H.Tune(" ".join(SKT_BARS), SKT_CHORDS, 6, 2, "G")
+harmony("skaters", _t, " ".join([H.guide(_t, (1, 16), "D4", "D5", per_bar=True),
+                                 H.follow(_t, (17, 32), "D4", "E5", grid=2, inst="/2")]), ("pad", "harm"))
 
 # ---------------------------------------------------------------------------------------------
 # Robot factory: "In the Hall of the Mountain King" (Edvard Grieg, 1875).  4/4, key B minor, quarter = 120 =
