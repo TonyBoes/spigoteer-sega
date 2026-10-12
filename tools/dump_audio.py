@@ -26,7 +26,9 @@ def capture(rom, frames, presses, skip, model="dmg"):
         pb.button_release(name)
     for _ in range(frames):
         pb.tick(1, False, True)
-        chunks.append(pb.sound.ndarray.copy())
+        # PyBoy's ndarray slices by raw_buffer_head, a byte count (2 per stereo row), so it returns one stale
+        # row per frame (801 for 800): an audible ~60 Hz crackle in every recording.  Keep only the real rows.
+        chunks.append(pb.sound.ndarray[:pb.sound.raw_buffer_head // 2].copy())
     rate = pb.sound.sample_rate
     pb.stop(save=False)
     return np.concatenate(chunks), rate
