@@ -87,7 +87,7 @@ uint8_t watch_step(uint8_t p) BANKED {
         t = x - r;                                        // the multiple of 8 to the left
         if (r > SHUFFLE_MAX || (r == SHUFFLE_MAX && !watch_free(b, t >> 3, p))) {
             t += 8;                                       // ... or to the right
-            if (t >= PATRON_FAR_X || !watch_free(b, t >> 3, p)) t = x;
+            if (t >= bar_tap[b & (NUM_BARS - 1)] || !watch_free(b, t >> 3, p)) t = x;
         } else if (!watch_free(b, t >> 3, p)) t = x;
         if (t == x) {                                     // waiting: drawn at his x, facing the bar
             if (x != patron_draw[p]) redraw_at(p, x);

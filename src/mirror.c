@@ -26,7 +26,9 @@
 uint8_t level_dirs;                 // the LEVEL harness's directions for its next level load (test hook, debug box)
 uint8_t draw_mask;                  // patron_draw = x & draw_mask (0xFE: a DMG mixed level)
 uint8_t mir_short;                  // DMG: bar-row tiles left unflipped this level (no free id left)
-uint8_t ctr_rtile[20], ctr_rattr[20];   // an R bar's counter row, screen order (venue.c draw_venue)
+uint8_t ctr_all[4][BASE_W];         // the counter row: tiles, attributes (load_venue), an R bar's in screen order (venue.c draw_venue)
+uint8_t bar_tap[NUM_BARS] = { TAP_X, TAP_X, TAP_X, TAP_X };   // P6: bar b's fill position (game.h)
+uint8_t bar_bofs[NUM_BARS];         // P6: bar b's window into base_all / ctr_all
 uint8_t bar_sfp[2 * NUM_BARS];      // OAM attribute toggle of bar b's mugs, glass, fill and coin [b], lifted patrons [4 + b]
 static uint8_t mo_tm[16], mo_tp[16];   // mirror_oam: the toggle by (OAM Y - 52) >> 3: bartender, fill, mugs, coin / lifted
 
@@ -83,20 +85,29 @@ static uint8_t flip_id(uint8_t t) {
     return d;
 }
 
-// An R bar's rows in screen order: tiles reversed (DMG: flipped copies), attributes reversed with the X flip toggled
+// An R bar's rows in screen order (BASE_W wide, P6): tiles reversed (DMG: flipped copies), attributes reversed with the X
+// flip toggled
 static void mirror_row(uint8_t *dt, uint8_t *da, const uint8_t *st, const uint8_t *sa) {
     uint8_t c, t;
-    for (c = 0; c < 20; c++) {
+    for (c = 0; c < BASE_W; c++) {
         t = st[c];
         if (!is_cgb) t = flip_id(t);
-        dt[19 - c] = t;
-        da[19 - c] = sa[c] ^ S_FLIPX;
+        dt[BASE_W - 1 - c] = t;
+        da[BASE_W - 1 - c] = sa[c] ^ S_FLIPX;
     }
 }
 
+// dirs: bit b = bar b is R; bits 4-5 (P6) the taper: bar b's tap end (3 - b) * taper columns in (0: straight bars)
 void mirror_load(uint8_t dirs) BANKED {
-    uint8_t b, v, s, mixed, se, l;
+    uint8_t b, v, s, mixed, se, l, k;
+    k = (dirs >> 4) & 3;
+    if (k > TAPER_MAX) k = TAPER_MAX;
     dirs &= 0x0F;
+    for (b = 0; b < NUM_BARS; b++) {              // (P6) bar b's tap and its window into the base rows
+        s = (uint8_t)(k * (3 - b));
+        bar_tap[b] = TAP_X - (uint8_t)(s << 3);
+        bar_bofs[b] = (dirs & bar_bit[b]) ? 2 * 2 * BASE_W + 3 * TAPER_MAX - s : s;
+    }
     mixed = dirs && dirs != 0x0F;
     bar_dirs = dirs;
     for (b = 0; b < NUM_BARS; b++) {
@@ -129,7 +140,7 @@ void mirror_load(uint8_t dirs) BANKED {
     }
     mirror_row(base_rtile[0], base_rattr[0], base_tile[0], base_attr[0]);
     mirror_row(base_rtile[1], base_rattr[1], base_tile[1], base_attr[1]);
-    mirror_row(ctr_rtile, ctr_rattr, venue.bar_map + 40, venue.bar_attr + 40);
+    mirror_row(ctr_all[2], ctr_all[3], ctr_all[0], ctr_all[1]);
 }
 
 // Every drawn play frame on a level with an R bar (main.c, OAM DMA off, after the sprites): the bartender, fill glass,

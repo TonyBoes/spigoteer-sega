@@ -45,7 +45,7 @@ def dirs_mask(s):
 NOI = {m.group(1): int(m.group(2), 16)
        for m in re.finditer(r"DEF (\w+) 0x([0-9A-F]+)", ROM.with_suffix(".noi").read_text())}
 ROM_BYTES = ROM.read_bytes()
-ROW_SIZE = 9                                           # classic_row_t: set dirs caps quota spawn(16) step push gap
+ROW_SIZE = 10                                          # classic_row_t: set dirs caps quota spawn(16) step push gap taper
 
 
 def rom_data(sym, n):
@@ -61,7 +61,7 @@ def built_rows():
     for i in range(26):
         r = raw[i * ROW_SIZE:(i + 1) * ROW_SIZE]
         rows.append(dict(set=r[0], dirs=r[1], caps=[((r[2] >> (2 * b)) & 3) + 1 for b in range(4)], quota=r[3],
-                         spawn=r[4] | r[5] << 8, step=r[6], push=r[7], gap=r[8]))
+                         spawn=r[4] | r[5] << 8, step=r[6], push=r[7], gap=r[8], taper=r[9]))
     return rows
 
 

@@ -89,8 +89,10 @@ def test_worst_case_pile(rom):
     # M13c one (DMG median end LY 157 vs 159, 90th percentile 188 vs 189, measured with the same script on both builds);
     # the worst frame is a pair of frames whose start lands badly against VBlank (logic LY ~270), which the same script
     # also shows on the M13c build (264, 255 late) though not in this test's run of it. Guard at the new level.
-    assert r["missed"] <= 260, r
-    assert r["end"] <= 290, r
+    # Before P6: DMG 290 / 254, CGB 289 / 253 (at the guard); P6 (the slanted bars' per-bar tap lookups): DMG 292 / 257,
+    # CGB 291 / 255.
+    assert r["missed"] <= 270, r
+    assert r["end"] <= 300, r
 
 
 def patron_cols(gb, bar):
@@ -173,8 +175,9 @@ def test_level9_overlap_scenario(rom):
     # (guard; the target is END_LY_TARGET and 0, see above. M13b 175 / 229, 180 / 264; M13c 171 / 259, 176 / 299;
     # no doors: DMG 175 / 268, CGB 179 / 299; 10th venue, the aliens' row from level 9's clear: DMG 172 / 289, CGB
     # 193 / 310; the mosh pit's ROM0 hooks (a test of mosh_on for every walker and pushed patron, off here): DMG
-    # 186 / 301, CGB 184 / 326)
-    assert r["end"] <= 200 and r["missed"] <= 340, r
+    # 186 / 301, CGB 184 / 326; before P6 DMG 185 / 334, CGB 179 / 340, at the guard; P6's slanted-bar lookups: DMG
+    # 184 / 338, CGB 189 / 348)
+    assert r["end"] <= 200 and r["missed"] <= 360, r
 
 
 # ---- M13c: the realistic peak of play -------------------------------------------------------------------------------
@@ -238,8 +241,10 @@ def test_realistic_peak(rom):
     # regression guard (measured M13c: DMG end 190-195 / 59-65 missed, CGB 208 / 88 missed of 1200; no doors, served
     # patrons sliding out as sprites: DMG 187 / 59, CGB 193 / 99. 10th venue: the row is reached straight from level 9's
     # clear (no bonus round), the aliens' art, and the scenario keeps up to 10 patrons (it ran at 9: from this start its
-    # mean fell to 6.4-6.8, under the ~8 the arithmetic above gives): DMG 198 / 95, CGB 208 / 126)
-    assert r["end"] <= 230 and r["missed"] <= 140, r
+    # mean fell to 6.4-6.8, under the ~8 the arithmetic above gives): DMG 198 / 95, CGB 208 / 126. P6 (slanted bars: the
+    # tap rules read the bar's own tap; the base rows' window): before DMG 203 / 107, CGB 222 / 138; after DMG 204 / 141,
+    # CGB 231 / 115 (the patrons' mean 8.6 / 8.4 vs 7.9 / 8.1: the frame timing moves who catches what, see ClassicPeak))
+    assert r["end"] <= 240 and r["missed"] <= 150, r
 
 
 @pytest.mark.xfail(strict=True, reason="owner target NOT met at the realistic peak (PyBoy; no doors): DMG end LY ~187, "

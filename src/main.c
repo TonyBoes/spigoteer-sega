@@ -73,7 +73,8 @@ uint8_t  bartender_frac;    // sub-pixel part of his walk (1/256 px); 0 whenever
 uint8_t  facing;            // 0 left, 1 right
 uint8_t  bartender_frame;   // BT_*
 uint8_t  catch_pose;        // frames left of BT_CATCH (an empty caught, a glass taken; M8d)
-uint8_t  at_tap;            // 1 when bartender_x == TAP_X
+uint8_t  at_tap;            // 1 when bartender_x == bar_tap[bar] (TAP_X on a straight bar)
+uint8_t  tap_now;           // bar_tap[bar], set at the start of every play frame (mugs.c: the catch at the tap, the spout)
 uint8_t  walk_timer;        // frames into the current step of the walk cycle (0..WALK_STEP_FRAMES-1)
 uint8_t  bt_bob;           // 1 on the passing poses of the walk: his sprites are drawn 1 px higher
 uint8_t  walk_phase;        // step of the walk cycle: 0 walk1, 1 idle, 2 walk2, 3 idle
@@ -265,7 +266,7 @@ static uint8_t walk_px(void) {
 static const uint8_t walk_cycle[4] = { BT_WALK1, BT_IDLE, BT_WALK2, BT_IDLE };
 
 static void play_frame(uint8_t pressed) {
-    uint8_t walked = 0, switched, carry, x, d;
+    uint8_t walked = 0, switched, carry, x, d, t;
 
     // A full mug still held (A down) is carried along to another bar instead of being cancelled.
     carry = fill_timer >= FILL_FRAMES && (joy & J_A);
@@ -273,7 +274,8 @@ static void play_frame(uint8_t pressed) {
     switched = pressed & (J_UP | J_DOWN);
     if (pressed & J_UP)        bar = bar == 0 ? NUM_BARS - 1 : bar - 1;
     else if (pressed & J_DOWN) bar = bar == NUM_BARS - 1 ? 0 : bar + 1;
-    if (switched) { bartender_x = TAP_X; facing = 0; }
+    tap_now = t = bar_tap[bar];                  // the bar's fill position (P6: a slanted bar's is further in)
+    if (switched) { bartender_x = t; facing = 0; }
 
     // Left/Right: walk (1.5 px per frame). On an R bar (CLASSIC, render.c bar_dirs) they swap: the tap is on the left.
     x = bartender_x;
@@ -284,15 +286,15 @@ static void play_frame(uint8_t pressed) {
         if (x > LEFT_LIMIT) { d = walk_px(); x = x - d < LEFT_LIMIT ? LEFT_LIMIT : x - d; }
     } else if (d & J_RIGHT) {
         facing = 1;
-        if (x < TAP_X) { d = walk_px(); x = x + d > TAP_X ? TAP_X : x + d; }
+        if (x < t) { d = walk_px(); x = x + d > t ? t : x + d; }
     }
     if (x != bartender_x) { bartender_x = x; walked = 1; }
     else bartender_frac = 0;                     // standing (or against a wall): the next walk starts afresh
     // A pressed close enough to the fill position: snap to it (a fresh press only)
-    if ((pressed & J_A) && !fill_timer && bartender_x >= TAP_X - TAP_GRACE && bartender_x < TAP_X) {
-        bartender_x = TAP_X; bartender_frac = 0;
+    if ((pressed & J_A) && !fill_timer && bartender_x >= (uint8_t)(t - TAP_GRACE) && bartender_x < t) {
+        bartender_x = t; bartender_frac = 0;
     }
-    at_tap = bartender_x == TAP_X;
+    at_tap = bartender_x == t;
 
     // Filling: A pressed at the fill position starts it; walking, a bar change (unless carrying a full mug)
     // or letting go ends it, and letting go after FILL_FRAMES launches a mug on the bar he is at.

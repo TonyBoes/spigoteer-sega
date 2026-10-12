@@ -24,7 +24,7 @@ uint8_t venue_id;               // theme loaded now (= patron group of the level
 
 // Theme t's tiles, palettes and the bars' base picture (render.c restores it under the patrons). LCD off.
 void load_venue(uint8_t t) BANKED {
-    uint8_t r, c;
+    uint8_t r, c, k;
     venue_fetch(t);
     venue_id = t;
     bkg_data_far(TILE_STAGE_BASE, venue.stage_n, venue.stage_tiles, venue_bank);
@@ -38,10 +38,13 @@ void load_venue(uint8_t t) BANKED {
     spr_data_far(OBJ_GLASS, GLASS_TILE_COUNT, venue.drink_tiles + VENUE_DRINK_TILES * 16, venue_bank);   // its crash
     spr_data_far(OBJ_DANCER, DANCER_TILE_COUNT, venue.show_tiles, venue_bank);
     music_pump();
-    for (r = 0; r < 2; r++)
-        for (c = 0; c < 20; c++) {
-            base_tile[r][c] = venue.bar_map[r * 20 + c];
-            base_attr[r][c] = venue.bar_attr[r * 20 + c];
+    // (P6: BASE_W wide; columns 20.. plain wall, the wall rows' columns 2.., for a slanted bar's window; the counter row's
+    // too, from the upper wall row)
+    for (r = 0; r < 3; r++)
+        for (c = 0; c < BASE_W; c++) {
+            k = c < 20 ? r * 20 + c : (r == 2 ? 0 : r * 20) + c - 18;
+            if (r < 2) { base_tile[r][c] = venue.bar_map[k]; base_attr[r][c] = venue.bar_attr[k]; }
+            else { ctr_all[0][c] = venue.bar_map[k]; ctr_all[1][c] = venue.bar_attr[k]; }
         }
     if (!is_cgb) return;                        // DMG: the fixed grey ramps (the art is luminance-ordered)
     set_bkg_palette(BGPAL_STAGE, 1, venue.pal[VENUE_PAL_STAGE_A]);
@@ -66,12 +69,14 @@ static void put_both(uint8_t y, const uint8_t *tiles, const uint8_t *attrs) {
 // The level screen except the patrons' wall rows (render.c's write_all_bars): HUD row attributes, the stage (rows
 // 1-4), each bar's counter row and the floor. LCD off.
 void draw_venue(void) BANKED {
-    uint8_t b, i;
+    uint8_t b, i, o;
     for (i = 0; i < STAGE_LAST_ROW - STAGE_FIRST_ROW + 1; i++)
         put_both(STAGE_FIRST_ROW + i, venue.stage_map + i * 20, venue.stage_attr + i * 20);
-    for (b = 0; b < NUM_BARS; b++)
-        if (bar_dirs & bar_bit[b]) put_both(BAR_COUNTER_ROW(b), ctr_rtile, ctr_rattr);   // an R bar (mirror.c)
-        else put_both(BAR_COUNTER_ROW(b), venue.bar_map + 2 * 20, venue.bar_attr + 2 * 20);
+    for (b = 0; b < NUM_BARS; b++) {             // (the bar's window, as its wall rows: P6 slanted bars; an R bar's: mirror.c)
+        o = bar_bofs[b];                         // (an R bar's window lies 2 * BASE_W further in base_all than in ctr_all)
+        if (bar_dirs & bar_bit[b]) o -= 2 * BASE_W;
+        put_both(BAR_COUNTER_ROW(b), &ctr_all[0][0] + o, &ctr_all[0][0] + o + BASE_W);
+    }
     for (i = 0; i < 20; i++) vrow[i] = venue.floor_tile;
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;

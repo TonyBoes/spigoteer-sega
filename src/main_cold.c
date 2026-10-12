@@ -165,7 +165,7 @@ static void win_init(void) {
 
 static void reset_actors(void) {
     uint8_t i;
-    bar = 0; bartender_x = TAP_X; bartender_frac = 0; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
+    bar = 0; bartender_x = bar_tap[0]; bartender_frac = 0; facing = 0; bartender_frame = BT_IDLE; at_tap = 1;
     bt_bob = 0; walk_timer = 0; walk_phase = 0; fill_timer = 0; fill_stage = 0; slide_timer = 0; catch_pose = 0;
     cue_t = 0;                                   // (story's PERFECT cue; hide_all_sprites takes its entry)
     clear_mugs();

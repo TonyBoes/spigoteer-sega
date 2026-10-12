@@ -13,6 +13,10 @@
 //     spawn interval -RAMP_SPAWN_PCT % and the walk +RAMP_WALK_PCT % of the level's own values, RAMP_STEPS at most; a
 //     lost life puts the level's values back and starts the count again.
 //   - Bonus rounds: the can shake-up only (bonus.c), after levels 2, 5, 9, 13, 15, 18, 22, 26, then every 13 levels.
+//   - Slanted bars (P6, the guide: "the bars become trapezoidal in later levels, each lower bar slightly longer"): the
+//     taper column; 1 on levels 10-13 and all of wave 2 (the owner's choice; 0 turns a level's bars straight). The tap
+//     end moves in (top bar 3 columns, then 2, 1, the bottom bar at the edge), the patrons still come in at the screen
+//     edge; every tap rule reads bar_tap[b] (mirror.c sets it, game.h).
 //   - Tips: the first one of a level lies where the patron who sends the level's 2nd empty stands (no other tip before
 //     it); later ones as in the other modes.
 #pragma bank 255
@@ -33,6 +37,7 @@ typedef struct {
     uint8_t step;           // frames per 8 px of walking
     uint8_t push;           // push-back, tile columns
     uint8_t gap;            // fair empties' gap, frames
+    uint8_t taper;          // P6 slanted bars: bar b's tap end (3 - b) * taper columns in (0 straight; at most TAPER_MAX)
 } classic_row_t;
 
 #define CAPS(a, b, c, d)  ((uint8_t)(((a) - 1) | (((b) - 1) << 2) | (((c) - 1) << 4) | (((d) - 1) << 6)))
@@ -40,36 +45,36 @@ typedef struct {
 #define R 1
 #define DIRS(a, b, c, d)  ((uint8_t)((a) | ((b) << 1) | ((c) << 2) | ((d) << 3)))
 
-//                                     set  dirs top -> bottom   caps top -> bottom  quota spawn step push gap
+//                                     set  dirs top -> bottom   caps top -> bottom  quota spawn step push gap taper
 const classic_row_t classic_table[CLASSIC_ROWS] = {
     // wave 1
-    { 0, DIRS(L, L, L, L), CAPS(1, 1, 1, 1), 10, 300, 64, 4, 120 },   //  1 saloon
-    { 0, DIRS(L, L, L, L), CAPS(2, 2, 2, 2), 14, 270, 60, 4, 110 },   //  2 saloon            bonus 1
-    { 1, DIRS(R, R, R, R), CAPS(2, 3, 3, 3), 16, 260, 62, 4, 108 },   //  3 sports: the whole screen flips
-    { 1, DIRS(R, R, R, R), CAPS(2, 3, 3, 4), 18, 250, 61, 4, 105 },   //  4 sports
-    { 1, DIRS(R, R, R, R), CAPS(3, 3, 4, 4), 20, 240, 60, 4, 102 },   //  5 sports            bonus 2
-    { 2, DIRS(R, R, L, L), CAPS(2, 3, 3, 4), 20, 230, 59, 4, 100 },   //  6 punk: split halves
-    { 2, DIRS(L, L, R, R), CAPS(3, 3, 4, 4), 22, 220, 58, 4,  97 },   //  7 punk
-    { 2, DIRS(R, R, L, L), CAPS(3, 4, 4, 4), 24, 210, 57, 3,  93 },   //  8 punk
-    { 2, DIRS(L, L, R, R), CAPS(4, 4, 4, 4), 26, 200, 56, 3,  90 },   //  9 punk              bonus 3
-    { 3, DIRS(R, L, L, R), CAPS(4, 4, 4, 4), 28, 190, 55, 3,  87 },   // 10 space: outer / inner pairs
-    { 3, DIRS(L, R, R, L), CAPS(4, 4, 4, 4), 28, 180, 54, 3,  84 },   // 11 space
-    { 3, DIRS(R, L, R, L), CAPS(4, 4, 4, 4), 30, 170, 53, 3,  82 },   // 12 space: fully alternating
-    { 3, DIRS(L, R, L, R), CAPS(4, 4, 4, 4), 30, 160, 52, 3,  80 },   // 13 space             bonus 4
+    { 0, DIRS(L, L, L, L), CAPS(1, 1, 1, 1), 10, 300, 64, 4, 120, 0 },   //  1 saloon
+    { 0, DIRS(L, L, L, L), CAPS(2, 2, 2, 2), 14, 270, 60, 4, 110, 0 },   //  2 saloon            bonus 1
+    { 1, DIRS(R, R, R, R), CAPS(2, 3, 3, 3), 16, 260, 62, 4, 108, 0 },   //  3 sports: the whole screen flips
+    { 1, DIRS(R, R, R, R), CAPS(2, 3, 3, 4), 18, 250, 61, 4, 105, 0 },   //  4 sports
+    { 1, DIRS(R, R, R, R), CAPS(3, 3, 4, 4), 20, 240, 60, 4, 102, 0 },   //  5 sports            bonus 2
+    { 2, DIRS(R, R, L, L), CAPS(2, 3, 3, 4), 20, 230, 59, 4, 100, 0 },   //  6 punk: split halves
+    { 2, DIRS(L, L, R, R), CAPS(3, 3, 4, 4), 22, 220, 58, 4,  97, 0 },   //  7 punk
+    { 2, DIRS(R, R, L, L), CAPS(3, 4, 4, 4), 24, 210, 57, 3,  93, 0 },   //  8 punk
+    { 2, DIRS(L, L, R, R), CAPS(4, 4, 4, 4), 26, 200, 56, 3,  90, 0 },   //  9 punk              bonus 3
+    { 3, DIRS(R, L, L, R), CAPS(4, 4, 4, 4), 28, 190, 55, 3,  87, 1 },   // 10 space: outer / inner pairs
+    { 3, DIRS(L, R, R, L), CAPS(4, 4, 4, 4), 28, 180, 54, 3,  84, 1 },   // 11 space
+    { 3, DIRS(R, L, R, L), CAPS(4, 4, 4, 4), 30, 170, 53, 3,  82, 1 },   // 12 space: fully alternating
+    { 3, DIRS(L, R, L, R), CAPS(4, 4, 4, 4), 30, 160, 52, 3,  80, 1 },   // 13 space             bonus 4
     // wave 2 (every bar 4; from level 27 these 13 rows repeat)
-    { 0, DIRS(R, L, R, L), CAPS(4, 4, 4, 4), 30, 160, 50, 3,  80 },   // 14 saloon
-    { 0, DIRS(L, R, L, R), CAPS(4, 4, 4, 4), 30, 156, 50, 3,  80 },   // 15 saloon            bonus 5
-    { 1, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 32, 152, 49, 3,  80 },   // 16 sports
-    { 1, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 32, 148, 49, 3,  80 },   // 17 sports
-    { 1, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 32, 145, 48, 3,  80 },   // 18 sports            bonus 6
-    { 2, DIRS(R, R, L, L), CAPS(4, 4, 4, 4), 34, 142, 47, 3,  80 },   // 19 punk
-    { 2, DIRS(L, L, R, R), CAPS(4, 4, 4, 4), 34, 140, 47, 3,  80 },   // 20 punk
-    { 2, DIRS(R, R, L, L), CAPS(4, 4, 4, 4), 34, 138, 46, 3,  80 },   // 21 punk
-    { 2, DIRS(L, L, R, R), CAPS(4, 4, 4, 4), 34, 136, 46, 3,  80 },   // 22 punk              bonus 7
-    { 3, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 36, 134, 45, 3,  80 },   // 23 space
-    { 3, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 36, 132, 45, 3,  80 },   // 24 space
-    { 3, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 36, 131, 44, 3,  80 },   // 25 space
-    { 3, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 36, 130, 44, 3,  80 },   // 26 space             bonus 8
+    { 0, DIRS(R, L, R, L), CAPS(4, 4, 4, 4), 30, 160, 50, 3,  80, 1 },   // 14 saloon
+    { 0, DIRS(L, R, L, R), CAPS(4, 4, 4, 4), 30, 156, 50, 3,  80, 1 },   // 15 saloon            bonus 5
+    { 1, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 32, 152, 49, 3,  80, 1 },   // 16 sports
+    { 1, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 32, 148, 49, 3,  80, 1 },   // 17 sports
+    { 1, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 32, 145, 48, 3,  80, 1 },   // 18 sports            bonus 6
+    { 2, DIRS(R, R, L, L), CAPS(4, 4, 4, 4), 34, 142, 47, 3,  80, 1 },   // 19 punk
+    { 2, DIRS(L, L, R, R), CAPS(4, 4, 4, 4), 34, 140, 47, 3,  80, 1 },   // 20 punk
+    { 2, DIRS(R, R, L, L), CAPS(4, 4, 4, 4), 34, 138, 46, 3,  80, 1 },   // 21 punk
+    { 2, DIRS(L, L, R, R), CAPS(4, 4, 4, 4), 34, 136, 46, 3,  80, 1 },   // 22 punk              bonus 7
+    { 3, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 36, 134, 45, 3,  80, 1 },   // 23 space
+    { 3, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 36, 132, 45, 3,  80, 1 },   // 24 space
+    { 3, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 36, 131, 44, 3,  80, 1 },   // 25 space
+    { 3, DIRS(R, R, R, R), CAPS(4, 4, 4, 4), 36, 130, 44, 3,  80, 1 },   // 26 space             bonus 8
 };
 // the settings' venues (patron groups) and serve scores
 const uint8_t classic_venue[4] = { 0, 1, 6, 9 };
@@ -117,7 +122,7 @@ uint8_t classic_row(level_cfg_t *c) BANKED {
     c->pushback_cols = r->push; c->serve_score = classic_score[r->set]; c->empty_gap = r->gap;
     caps = r->caps;
     for (b = 0; b < NUM_BARS; b++) { bar_cap[b] = (caps & 3) + 1; caps >>= 2; }
-    classic_dirs = r->dirs;
+    classic_dirs = r->dirs | (r->taper << 4);       // (mirror_load: the taper in bits 4-5, P6 slanted bars)
     tip_first = 2;
     ramp_t = RAMP_FRAMES; ramp_k = 0;
     return k;

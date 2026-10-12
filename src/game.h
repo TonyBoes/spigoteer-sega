@@ -323,7 +323,21 @@ void vq_frame_begin(void);
 void vq_frame_end(void);
 void vq_reset(void);
 void queue_vram(void);
-extern uint8_t base_all[4][2][20];             // the bar's two wall rows without patrons (current venue): tiles, CGB
+// P6 slanted bars (CLASSIC, the trapezoid levels): bar b's tap end lies (3 - b) * taper tile columns in from the screen
+// edge (taper 0: straight; mirror.c mirror_load takes it in bits 4-5 of its dirs, at most TAPER_MAX); the patrons' end
+// stays at the screen edge, the wall beyond the keg is plain wall. Every rule that used TAP_X / SPOUT_X / MUG_RIGHT_END /
+// GLASS_X_RIGHT / PATRON_FAR_X uses the bar's own bar_tap[b] (bar-local x as ever; an R bar is still only drawn mirrored).
+// The base rows are BASE_W wide: the venue's 20 columns + 3 * TAPER_MAX of plain wall; a bar shows the 20-column window
+// from bar_bofs[b] (an L bar shifted k columns: from k; an R bar: its mirrored rows from 3 * TAPER_MAX - k).
+#define TAPER_MAX 1
+#define BASE_W    (20 + 3 * TAPER_MAX)
+extern uint8_t bar_tap[NUM_BARS];              // (mirror.c) bartender_x at bar b's fill position (TAP_X on a straight bar)
+extern uint8_t tap_now;                        // (main.c) bar_tap[bar], set at the start of every play frame
+extern uint8_t bar_bofs[NUM_BARS];             // (mirror.c) bar b's window into base_all (and ctr_all, see venue.c)
+#define BAR_SPOUT(b)    ((uint8_t)(bar_tap[b] + (SPOUT_X - TAP_X)))          // its spout: the fill glass, a launched mug
+#define BAR_MUG_END(b)  ((uint8_t)(bar_tap[b] + (MUG_RIGHT_END - TAP_X)))    // an empty past it has left the counter
+#define BAR_GLASS_X(b)  ((uint8_t)(bar_tap[b] + (GLASS_X_RIGHT - TAP_X)))    // the glass breaking at the tap end
+extern uint8_t base_all[4][2][BASE_W];         // the bar's two wall rows without patrons (current venue): tiles, CGB
 #define base_tile  (base_all[0])               // attributes, then an R bar's (P3, screen order; restore_base relies on
 #define base_attr  (base_all[1])               // this layout)
 #define base_rtile (base_all[2])
@@ -339,7 +353,8 @@ uint8_t quick_mirror(uint8_t p, uint8_t d) BANKED;   // (mirror.c) R bar: patron
 extern uint8_t bar_dirs, level_dirs, draw_mask, mir_attr, mir_bswap, mir_short;
 extern uint8_t bar_sfp[2 * NUM_BARS];          // (mirror.c) OAM attribute toggle of bar b: [b] mugs, glass, fill, coin; [4 + b] lifted patrons
 void mirror_oam(void) BANKED;                 // (mirror.c) every drawn play frame with an R bar: OAM 4-27 to their mirrored place
-extern uint8_t st_tab[64], ctr_rtile[20], ctr_rattr[20];
+extern uint8_t st_tab[64];
+extern uint8_t ctr_all[4][BASE_W];            // the counter row (BASE_W wide as base_all): tiles, attributes; an R bar's (mirror.c)
 void mirror_load(uint8_t dirs) BANKED;        // LCD off: after load_venue and the patron tiles (start_level); 0 = all L (title)
 void draw_bartender(void);
 void draw_stage_fx(void);

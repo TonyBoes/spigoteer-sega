@@ -41,7 +41,7 @@ uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
 }
 
 void launch_mug(void) {
-    spawn_mug(bar, MUG_START_X, MUG_FULL);
+    spawn_mug(bar, tap_now + (SPOUT_X - TAP_X), MUG_FULL);   // (under his bar's spout: P6 slanted bars, game.h)
     SFX(SFX_LAUNCH);
 }
 
@@ -73,15 +73,16 @@ static uint8_t full_step(uint8_t i) {
 static uint8_t empty_step(uint8_t i) {
     uint8_t x = mug_x[i];
     if (!(++mug_timer[i] & 1)) mug_x[i] = ++x;          // 0.5 px per frame: d px take exactly 2d frames
-    // His span reaches the bar end when he stands at TAP_X (his furthest position): an empty at x >= TAP_X is his.
-    if (x >= bartender_x && ((uint8_t)(x - bartender_x) < 16 || bartender_x == TAP_X) && mug_bar[i] == bar) {
+    // His span reaches the bar end when he stands at the tap (his furthest position, bar_tap: P6): an empty past it is his.
+    if (x >= bartender_x && ((uint8_t)(x - bartender_x) < 16 || bartender_x == tap_now) && mug_bar[i] == bar) {
         mug_state[i] = MUG_FREE;                        // caught
         add_score(EMPTY_SCORE);
         SFX(SFX_CATCH);
         catch_pose = CATCH_POSE_FRAMES;
         return 0;
     }
-    if (x > MUG_RIGHT_END) break_mug(i);                // fell off the right end
+    if (x > MUG_RIGHT_END - 8 * 3 * TAPER_MAX && x > BAR_MUG_END(mug_bar[i] & (NUM_BARS - 1))) break_mug(i);   // off the tap end
+                                                        // (the first test spares most empties the bar's lookup)
     return 1;
 }
 
@@ -127,11 +128,11 @@ void update_glass(void) {
 }
 
 // OAM 4: the glass the bartender holds under the spout while filling (hidden otherwise).
-// It sits where the launched mug will start (MUG_START_X = SPOUT_X, the counter-top row).
+// It sits where the launched mug will start (under the bar's spout, BAR_SPOUT, the counter-top row).
 void draw_fill(void) {
     OAM_item_t *o = shadow_OAM + OAM_FILL;
     if (!fill_timer) { o->y = 0; return; }
-    o->y = bar_oam_y[bar] + MUG_DY; o->x = (uint8_t)(MUG_START_X + 8);
+    o->y = bar_oam_y[bar] + MUG_DY; o->x = (uint8_t)(tap_now + (SPOUT_X - TAP_X + 8));
     o->tile = OBJ_MUG_FILL + fill_stage * 2; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;   // DMG: OBP0 (beer light grey) shows on the white wall; OBP1 would make it white
 }
 
@@ -206,7 +207,7 @@ static void draw_glass(uint8_t i) {
     t = OBJ_GLASS + glass_tile[f];
     p = spr_full_p;
     if (mug_x[i] > 80) {                                     // the tap end
-        x += GLASS_X_RIGHT;
+        x += BAR_GLASS_X(mug_bar[i] & (NUM_BARS - 1));
         p = spr_empty_p | S_FLIPX;
         if (f == 1) t += GLASS_FALL_EMPTY - GLASS_FALL_FULL;
     }

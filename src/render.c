@@ -53,8 +53,11 @@ __asm
 __endasm;
 }
 
-// Two rows: cp_n bytes cp_src -> cp_dst, then cp_n bytes cp_src + 20 -> cp_dst + 32 (a bar's two wall rows from
-// base_tile / base_attr, 20 wide, into the 32-wide shadow rows). 1 <= cp_n <= 20.
+// Two rows: cp_n bytes cp_src -> cp_dst, then cp_n bytes cp_src + BASE_W -> cp_dst + 32 (a bar's two wall rows from
+// base_tile / base_attr, BASE_W wide, into the 32-wide shadow rows). 1 <= cp_n <= 20.
+#if BASE_W != 23
+#error "copy_2rows: the base rows' stride (BASE_W) is written into the asm"
+#endif
 static void copy_2rows(void) {
 __asm
     push bc
@@ -75,7 +78,7 @@ __asm
     ld   (hl+), a
     dec  b
     jr   nz, 1$
-    ld   a, #20             ; de += 20 - n
+    ld   a, #23             ; de += BASE_W - n
     sub  a, c
     add  a, e
     ld   e, a
@@ -129,7 +132,7 @@ uint8_t vram_pending;             // dirty spans left to queue (keeps idle frame
 // The bar's two wall rows without patrons (wall, spout, keg), tile ids and CGB attributes by row and column:
 // what compose_dirty() restores under (and around) the patrons. Filled from the level's venue (load_venue, M9), the
 // same picture the level screen starts with. Row 1 follows row 0 directly (restore_base relies on it).
-uint8_t base_all[4][2][20];   // base_tile, base_attr, then (P3, mirror.c) an R bar's base_rtile, base_rattr in screen order
+uint8_t base_all[4][2][BASE_W];   // base_tile, base_attr, then (P3, mirror.c) an R bar's base_rtile, base_rattr in screen order
 
 void mark_dirty(uint8_t b, uint8_t x0, uint8_t x1) {
     if (x1 > 20) x1 = 20;
@@ -156,6 +159,7 @@ void build_lists(void);
 static uint8_t cz_x0, cz_x1, cz_pal;      // span of the bar being composed, palette of the patron being stamped (top row)
 static uint8_t cz_palb;                   // ... and of his bottom tile row (M14a: an enhanced variant's differs; enhance.c)
 static uint8_t *cz_tile, *cz_attr;        // its first wall row in sh_tile / sh_attr (cz_attr 0 on DMG)
+static const uint8_t *cz_base;            // its window into base_all (P6: bar_bofs)
 
 // ---- P3/P4 mirrored bars (CLASSIC: patrons from the right). Every rule works in bar-local x (0 = the patrons' end, TAP_X
 // the tap); a bar marked R in bar_dirs is only DRAWN mirrored. Its shadow rows hold the SCREEN picture (local column c at
@@ -255,14 +259,14 @@ static uint8_t cz_attrs;                  // compose the attributes too (CGB, an
 
 static void restore_base(void) {                         // the wall over the span (cz_*), both rows
     uint8_t x0 = cz_x0;
-    const uint8_t *t = &base_all[0][0][0];
+    const uint8_t *t = cz_base;                           // (R bar: in base_rtile, screen order)
     cp_n = cz_x1 - x0;
-    if (cz_dir) { x0 = 20 - cz_x1; t += 80; }            // (R bar: base_rtile, screen order)
+    if (cz_dir) x0 = 20 - cz_x1;
     t += x0;
     cp_dst = (uint16_t)(cz_tile + x0); cp_src = (uint16_t)t; copy_2rows();
     if (!cz_attrs) { cz_attr = 0; return; }
     cz_attr = cz_tile + sizeof sh_tile;                   // sh_attr follows sh_tile
-    cp_dst = (uint16_t)(cz_attr + x0); cp_src = (uint16_t)(t + 40); copy_2rows();
+    cp_dst = (uint16_t)(cz_attr + x0); cp_src = (uint16_t)(t + 2 * BASE_W); copy_2rows();
 }
 
 // BG patrons of the bar whose OVL_TOP flag is `top` (M13b: the would-be lifted one of a pair left on the BG goes last).
@@ -304,6 +308,7 @@ static void stamp_boss(void) {
 static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1-1 of bar b
     if (!lists_ok) build_lists();
     cz_tile = sh_tile[b << 1];
+    cz_base = &base_all[0][0][0] + bar_bofs[b];
     cz_dir = cz_sto = cz_flip = cz_bswap = 0;
     if (bar_dirs & bar_bit[b]) { cz_dir = 1; cz_sto = 32; cz_flip = mir_attr; cz_bswap = mir_bswap; }
     restore_base();

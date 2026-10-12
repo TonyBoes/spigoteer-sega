@@ -375,7 +375,7 @@ static uint8_t walker_pixel(uint8_t p, uint8_t f) {
     patron_frac[p] = f;
     patron_x[p] = ++x;
     if (x == ENTRY_X && patron_lift[p] == LIFT_EDGE) patron_lift[p] = LIFT_OBJ;   // in: an ordinary lifted patron (drops when clear)
-    if (x >= PATRON_FAR_X) {                              // reached the tap
+    if (x >= PATRON_FAR_X - 8 * 3 * TAPER_MAX && x >= bar_tap[patron_bar[p] & (NUM_BARS - 1)]) {   // reached the tap (P6)
         remove_patron(p);
         lose_life();
         return 0;
@@ -460,11 +460,11 @@ static uint8_t pushed_step(uint8_t p) {
     return 1;
 }
 
-// Frames an empty sent by p now takes to reach the bartender's end (the px from where it starts to TAP_X,
+// Frames an empty sent by p now takes to reach the bartender's end (the px from where it starts to his bar's tap,
 // EMPTY_STEP_FRAMES each).
 static uint16_t empty_travel(uint8_t p) {
-    uint8_t x = patron_x[p] + PATRON_W;                    // where the empty starts
-    return x >= TAP_X ? 0 : (uint16_t)(uint8_t)(TAP_X - x) * EMPTY_STEP_FRAMES;
+    uint8_t x = patron_x[p] + PATRON_W, t = bar_tap[patron_bar[p] & (NUM_BARS - 1)];   // where the empty starts
+    return x >= t ? 0 : (uint16_t)(uint8_t)(t - x) * EMPTY_STEP_FRAMES;
 }
 
 // May patron p start his wind-up now? The empty's arrival (the wind-up, then the slide) must be no sooner than

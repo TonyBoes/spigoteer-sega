@@ -1642,6 +1642,45 @@ as the LEVEL harness, MODE_LEVEL). Slanted bars and the end-of-level antics are 
   patron counts against his bar's cap until he is off the screen; no "WAVE 2" banner; space bar 150 (the guide's
   figure).
 
+## Three modes P6 as built: slanted bars (owner decisions 2026-10-12; plan: the modes proposal C11)
+
+- **Rule** (the guide: "the bars become trapezoidal in later levels, each lower bar slightly longer"): a `taper` column in
+  `classic_table` (now 10 B a row): 1 on levels 10-13 and all of wave 2 (and so every repeat), 0 elsewhere (0 turns a
+  level's bars straight; TAPER_MAX 1). Bar b's tap end moves (3 - b) * taper columns in: the top bar's keg 3 columns in,
+  then 2, 1, the bottom bar's at the edge. The patrons still come in at the screen edge; the wall beyond the keg (wall
+  rows and the counter row) is plain wall. On an R bar it is mirrored with the rest.
+- **Engine**: `bar_tap[b]` (mirror.c, WRAM) is bartender_x at bar b's fill position (TAP_X - 8 k); `mirror_load` takes the
+  taper in bits 4-5 of its dirs (classic_row passes `dirs | taper << 4`; the LEVEL harness's `level_dirs` takes it too, a
+  test hook; the title's mirror_load(0) puts every bar straight). Every tap rule reads the bar's own tap: the walker who
+  reaches it costs a life (walker_pixel), the empty's schedule (empty_travel), the show's shuffle limit (show.c), the
+  bartender's snap / walk limit / TAP_GRACE / at_tap (main.c), "at the tap he catches any empty" and the spout's fill
+  glass and launch (mugs.c, through `tap_now` = bar_tap[bar], set at the start of every play frame), an empty off the
+  tap end (BAR_MUG_END) and its breaking glass (BAR_GLASS_X); reset_actors starts him at bar_tap[0]. The boss fight and
+  the story's scene keep TAP_X (straight bars outside CLASSIC). Cheap pre-tests (x > MUG_RIGHT_END - 24, x >= FAR_X - 24)
+  spare the hot loops the lookup in the common case.
+- **BG**: the base rows (`base_all`) and the counter row (`ctr_all`, WRAM, new) are BASE_W = 23 wide: the venue's 20
+  columns + 3 of plain wall (the wall rows' columns 2-4). An L bar shifted k columns shows the window from column k (the
+  wall from column k, the spout and keg at 17 - k .. 19 - k, plain wall after); an R bar the mirrored row from 3 - k.
+  `bar_bofs[b]` is the window; restore_base (render.c) and draw_venue use it, copy_2rows' source stride is 23. No new
+  tile ids (the DMG's flipped copies are the same tiles: `mir_short` 0).
+- **Tests** (tests/test_taper.py, 69 on both models): the table's taper column (10-26); each level's taps (1, 9, 10, 12,
+  13, 14, 23, 26, 27); taper 0 = every tap TAP_X, every window 0; the title puts the bars straight; the wall rows, keg and
+  counter at each bar's columns (L, RLRL, RRRR: CGB ids and attributes, DMG flipped tile data); the slanted R picture is
+  the slanted L picture mirrored (RRRR and RLRL scenes, 30 frames, both models); at each bar's tap on L, RRRR and RLRL
+  levels: the snap, the walk limit, the fill glass and the launch under the bar's spout; a walker costs a life at his
+  bar's tap; the bartender at the tap catches an empty past him; an empty off the top bar's near end breaks at
+  tap + 33 with its glass at the bar's end (mirrored on R); a full mug off the far end unchanged; fair empties count the
+  bar's own distance. Changed: test_classic (base_all's new layout; two catches read one frame later: PyBoy's frame can
+  end between the mug's state and its life / score), test_classic_mode (ROW_SIZE 10). New goldens (dmg + cgb):
+  classic_taper (CLASSIC level 13, L R L R), classic_taper_r (level 23, R R R R). No existing golden changed.
+- **Perf guards** (not tuned): the per-bar lookups moved the chaotic scenarios a little; three guards were at their
+  measured value before and are re-based with the numbers in tests/test_perf.py: worst-case pile end 290 -> 300 and
+  missed 260 -> 270 (now DMG 292 / 257, CGB 291 / 255), the level-10 overlap missed 340 -> 360 (DMG 184 / 338, CGB
+  189 / 348), the realistic peak 230 / 140 -> 240 / 150 (DMG 204 / 141, CGB 231 / 115).
+- **ROM**: ROM0 real free 1006 -> 835 B (game.gb), 1119 -> 948 B (release.gb): the per-bar lookups in mugs.c, patrons.c,
+  main.c and render.c (~170 B; on hot paths, so not banked). Banked: mirror.c / venue.c / classic.c +~150 B. WRAM +~85 B
+  (base_all 160 -> 184, ctr_all 92 for the old 40, bar_tap, bar_bofs, tap_now).
+
 ## Quick Draw and BONUS > MINI GAMES as built (M11e step 3, docs/minigames_bosses.md 4.1 / 2.3, 2026-10-11)
 
 The saloon's mini-game on the framework, playing in STORY and ARCADE, and the planned Practice feature as the title's

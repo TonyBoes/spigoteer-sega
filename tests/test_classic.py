@@ -23,6 +23,7 @@ MUG_START_X, MUG_RIGHT_END = GAME["SPOUT_X"], GAME["MUG_RIGHT_END"]
 PLAYING, LIFE_LOST = 1, 2
 OBJ_BASE = BASE + SHIFT0_OFS
 ALL_R, SPLIT, ALT = 0xF, 0x3, 0x5          # RRRR (the whole screen), RRLL (top half R), RLRL (alternating)
+BASE_W = 23                                # src/game.h: 20 + 3 * TAPER_MAX (P6)
 FREE_IDS = [246, 247, 248, 249, 250, 251, 77, 252, 253, 254, 255, 234, 235, 236, 237, 238, 239]   # src/mirror.c
 
 
@@ -377,7 +378,8 @@ def test_dmg_every_venue_gets_flipped_keg_and_counter_tiles(boot, theme):
         for c in range(20):
             src = m[r][c]
             if r < 2:
-                got = gb.read("base_all", 160)[80 + r * 20 + 19 - c]       # base_rtile (screen order)
+                got = gb.read("base_all", 4 * 2 * BASE_W)[2 * 2 * BASE_W + r * BASE_W + 3 + 19 - c]   # base_rtile (screen order;
+                #                                    P6: BASE_W wide, a straight bar's window from column 3 of an R row)
             else:
                 got = row[19 - c]
             if tile_data(gb, src) == flipped(tile_data(gb, src)):
@@ -561,8 +563,9 @@ def test_an_empty_off_the_tap_end_breaks_at_the_left_keg(boot):
         gb.run(1)
         if gb.read("mug_state", MAX_M)[m] == 3:
             break
+    gb.run(1)                                     # (PyBoy's frame can end between the mug's state and the life)
     assert gb.read("mug_state", MAX_M)[m] == 3 and gb.mem("lives") == lives - 1
-    gb.run(2)
+    gb.run(1)
     xs = [o["x"] for o in gb.oam()[5:26] if o["y"]]
     assert xs and max(xs) <= 40, ("the glass breaks at the left (keg) end", xs)
 
@@ -583,6 +586,7 @@ def test_an_empty_is_caught_at_the_left_keg(boot):
         seen += [e["x"] for e in o]
         if gb.read("mug_state", MAX_M)[m] == 0:
             break
+    gb.run(1)                                     # (PyBoy's frame can end between the catch and its score)
     assert gb.read("mug_state", MAX_M)[m] == 0 and score(gb) - s0 == 100 and gb.mem("lives") == 3
     assert seen and min(seen) < 60 and max(seen) <= 160 - 100, "it slid left on screen, to the keg"
 
