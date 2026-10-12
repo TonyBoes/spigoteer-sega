@@ -572,7 +572,7 @@ void arcade_next(void) BANKED {
 // MAX_LIVES, what the HUD shows; past it only the next threshold moves on). add_score's prep_hud draws it.
 void extra_life(void) BANKED {
     extra_at += EXTRA_EVERY;
-    if (lives < MAX_LIVES) { lives++; hud_dirty |= HUD_LIVES; }
+    if (lives < MAX_LIVES) { lives++; hud_dirty |= HUD_LIVES; SFX(SFX_EXTRA); }   // its cue: music.c s_extra
 }
 
 static void scene_done(void) {

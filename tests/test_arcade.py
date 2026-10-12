@@ -8,7 +8,7 @@ from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLA
                        state)
 from test_scores import (EMPTY, GS_INITIALS, GS_SCORES, MODE_ARCADE, MODE_STORY, booted, main_block, parse_save,
                          screen_text, set_score, table, v7_image)
-from test_sound import save_ram
+from test_sound import make_rom, save_ram
 from test_story import (CHAPTERS, SHIFTS, banner_text, centred, hud_lives, lives_hud, shift_title, to_goal, win)
 
 pytestmark = pytest.mark.timeout(240)
@@ -146,6 +146,49 @@ def test_extra_lives_at_20000_and_every_40000_at_most_four(model):
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 30)
         assert gb.mem("lives") == 4, "at most four"
         assert int.from_bytes(gb.read("extra_at", 4), "little") == 100_000
+
+
+SFX_EXTRA, SFX_COUNT = 9, 10
+NR11, NR12, NR52 = 0xFF11, 0xFF12, 0xFF26
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_an_extra_life_plays_its_cue_over_the_music(model):
+    """Owner: a sound when an extra life is awarded.  SFX_EXTRA (the ninth effect: sfx_req is 16 bits now) is a 0.55 s
+    C-major fanfare on channel 1 (25% pulse, NR12 0xD2), the effects' channel: the music (channels 2-4) plays on, and
+    no other channel-1 effect cuts it short.  No cue when the lives are already at four."""
+    gb = make_rom(model, sound=True)                # (sound emulated: NR52's channel-on bits)
+    gb.run(120)
+    hold_stage_anim(gb)
+    title_arcade(gb)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 60)
+    gb.run(3)
+    with gb:
+        to_goal(gb)
+        set_score(gb, 19_999)
+        for i in range(6):
+            gb.write(gb.addr("score_digits") + i, [0, 1, 9, 9, 9, 9][i])
+        assert gb.read("sfx_count", SFX_COUNT)[SFX_EXTRA] == 0
+        win(gb, 0, 0)                               # LEVEL CLEAR's 1000: past 20,000
+        run_until(gb, lambda: gb.read("sfx_count", SFX_COUNT)[SFX_EXTRA] == 1, 30)
+        assert gb.mem("lives") == 4
+        on, mf, regs = [], [], set()
+        for _ in range(40):
+            gb.run(1)
+            on.append(gb.mem(NR52) & 1)
+            mf.append(gb.mem16("music_frames"))
+            regs.add((gb.mem(NR11) & 0xC0, gb.mem(NR12)))
+            assert gb.mem("cur_tune") != 255, "the music plays on"
+        assert sum(on[:30]) >= 28 and not any(on[36:]), f"the cue sounds ~33 frames on channel 1: {on}"
+        assert (0x40, 0xD2) in regs, "its 25% pulse and envelope"
+        assert all(b > a for a, b in zip(mf, mf[1:])), "the tune keeps ticking under the cue"
+        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        to_goal(gb)
+        set_score(gb, 59_999)
+        win(gb, 0, 1)
+        run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 30)
+        gb.run(5)
+        assert gb.mem("lives") == 4 and gb.read("sfx_count", SFX_COUNT)[SFX_EXTRA] == 1, "no life, no cue"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

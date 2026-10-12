@@ -1816,7 +1816,8 @@ several walkers in reach, the nearest (highest x) is bumped. The shove runs in w
 delay); ROM0 hooks: walking_step, push_px, caught, init_patron and update_patrons (the splash timer), about 120 B in
 all, each behind one test of mosh_on. The cue: the splash tile is assets/art/splash/biker.txt (the owner-approved
 option B, 2026-10-11), gen_art adds it to the venue's bar set (venue.splash_tile, 34 of the 36 pool
-ids); the sound is the existing channel-4 rattle (SFX_SHAKE: sfx_req has no ninth bit). Perf: two moshes at once keep
+ids); the sound is the existing channel-4 rattle (SFX_SHAKE: sfx_req had no ninth bit then; it is 16 bits since the extra-life cue, SFX_EXTRA, so the mosh pit could
+get its own effect). Perf: two moshes at once keep
 every frame on time; four bars at once (more than one bartender can serve) run some frames late (test_twists).
 
 ### 9.6 Tests (tests/test_twists.py, as built)

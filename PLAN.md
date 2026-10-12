@@ -212,6 +212,10 @@ Music step 2 (2026-10-11, the owner's listening notes):
   Hz, polled, no interrupt; music_tick zeroes TIMA) says a frame (69 counts) has passed. Now the tune never stands
   still more than 2 frames (test_sound). hi_pick keeps its division (a faster one shifts the debug_story golden by
   a lag frame). The mini-game retry's reload is a frame longer on CGB (10) with the music ticking through it.
+- Extra-life cue (owner request): SFX_EXTRA, the ninth effect (sfx_req widened to 16 bits; sfx_count +1 byte), played
+  by story.c extra_life when a life is really added (not at four lives): C6 E6 G6 C7, G6 C7, G6 C7 held, 33 frames on
+  channel 1 (25% pulse, NR12 0xD2), the effects' channel, so the music plays on; while it sounds no other channel-1
+  effect cuts it (sfx_start). Test: tests/test_arcade.py (DMG + CGB). Bank 2: 30 B free.
 - tools/check_music.py: the LEVEL harness starts at level g + 1 for venue g (the old level-clear trick reached the
   wrong venue for even groups since the 10th venue); a staccato note is measured over the part that sounds.
 

@@ -10,7 +10,7 @@
 // TUNE_VENUE0 + g is the gameplay tune of patron group g (cowboys, sports, lumberjacks, chefs, divers, robots, punks,
 // ninjas, zoo, aliens: tools/songs.py VENUES); TUNE_SHOW plays while a show runs.
 enum { TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0, TUNE_COUNT = TUNE_VENUE0 + 10, TUNE_NONE = 255 };
-enum { SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_COUNT };
+enum { SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_EXTRA, SFX_COUNT };
 
 typedef struct {
     const hUGESong_t *song;
@@ -46,8 +46,8 @@ void music_pump(void) BANKED;               // inside a long LCD-off load: music
 
 // Starting an effect from game code costs a few cycles: the request is only noted here and the registers are
 // written by music_tick() after the frame's logic (the worst frames have no spare time). `id` must be a constant.
-#define SFX(id) do { last_sfx = (id); sfx_count[(id)]++; sfx_req |= (uint8_t)(1 << ((id) - 1)); } while (0)
-extern uint8_t sfx_req;         // bit (id-1): effect id requested since the last music_tick
+#define SFX(id) do { last_sfx = (id); sfx_count[(id)]++; sfx_req |= (uint16_t)1 << ((id) - 1); } while (0)
+extern uint16_t sfx_req;        // bit (id-1): effect id requested since the last music_tick (16 bits: up to 16 effects)
 extern uint16_t music_late;      // frames whose music tick was postponed because the frame was nearly full
 #define MUSIC_LATEST_LY 124     // one tick takes up to ~16 lines (a row start with all channels busy): not started when the frame's logic ended on line 124..143
 

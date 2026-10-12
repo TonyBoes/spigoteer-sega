@@ -16,7 +16,7 @@ uint8_t  last_sfx;
 uint8_t  sfx_count[SFX_COUNT];
 uint8_t  cur_tune = TUNE_NONE;
 uint16_t music_frames;
-uint8_t  sfx_req;
+uint16_t sfx_req;
 uint16_t music_late;
 static uint8_t mus_active;       // the driver is running a tune
 static uint8_t muted;            // bit n: driver channel n muted (cache of the driver's mask)
@@ -45,6 +45,10 @@ static const sfx_step_t s_serve[]  = { {1798, 3, 0}, {1849, 3, 0}, {1881, 3, 0},
 static const sfx_step_t s_coin[]   = { {1915, 3, 0}, {1949, 10, 0} };     // B5 then E6
 static const sfx_step_t s_life[]   = { {1714, 8, 0}, {1650, 8, 0}, {1547, 16, -6} };   // G4 E4 C4, sagging
 static const sfx_step_t s_shake[]  = { {0x2B, 2, 0}, {0x3B, 2, 0}, {0x2B, 2, 0}, {0x3B, 2, 0} };   // noise rattle
+// extra life (owner request): a bright C-major fanfare above the serve's arpeggio, ending in a G6 / C7 shimmer that
+// rings out: C6 E6 G6 C7, G6 C7, G6 C7 (held); 33 frames (0.55 s) on a 25% pulse
+static const sfx_step_t s_extra[]  = { {1923, 3, 0}, {1949, 3, 0}, {1964, 3, 0}, {1985, 5, 0},
+                                       {1964, 3, 0}, {1985, 3, 0}, {1964, 3, 0}, {1985, 10, 0} };
 
 #define N(a) (sizeof(a) / sizeof((a)[0]))
 static const sfx_def_t sfx_defs[SFX_COUNT] = {
@@ -57,6 +61,7 @@ static const sfx_def_t sfx_defs[SFX_COUNT] = {
     { 0, 0x80, 0xC1, N(s_coin),   s_coin },
     { 0, 0x40, 0xA3, N(s_life),   s_life },
     { 3, 0x00, 0x91, N(s_shake),  s_shake },
+    { 0, 0x40, 0xD2, N(s_extra),  s_extra },
 };
 
 typedef struct {
@@ -162,6 +167,7 @@ static void step_begin(voice_t *v) {
 
 static void sfx_start(uint8_t id) {
     voice_t *v = &voice[sfx_defs[id].ch ? 1 : 0];
+    if (v->busy && v->def == &sfx_defs[SFX_EXTRA] && id != SFX_EXTRA) return;   // the extra life is not cut short
     v->def = &sfx_defs[id];
     v->step = 0;
     v->busy = 1;
@@ -201,11 +207,12 @@ static void groove_tick(void) {
 }
 
 static void tick(void) {
-    uint8_t id, req = sfx_req;
+    uint8_t id;
+    uint16_t req = sfx_req;
     if (req) {
         sfx_req = 0;
         for (id = 1; id < SFX_COUNT; id++)          // ascending: on one channel the highest id requested wins
-            if (req & (1 << (id - 1))) sfx_start(id);
+            if (req & ((uint16_t)1 << (id - 1))) sfx_start(id);
     }
     if (ld_tune != TUNE_NONE) {
         const tune_t *t = &tunes[ld_tune];
