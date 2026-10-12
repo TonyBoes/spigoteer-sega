@@ -1,0 +1,39 @@
+; Art: approved design (owner 2026-10-11)
+; Quick Draw: the sarsaparilla bottle, 2 frames 8x16, ROUND 2. POP: the cork flies up clear of the neck, foam bubbles
+; out of the neck and runs down the side; the bottle keeps its shoulders and a cream label (no wide burst, so it no
+; longer reads as an arrow). FUMBLE: the bottle tumbles tilted on its side,
+; neck down, a drop of foam falling from it (tilted, so it reads neither as an arrow nor as a '!'). One OAM entry beside the hand,
+; X-flipped for the Kid. CGB OBJ palette 1 (the saloon's full-drink colours), DMG OBP0.
+...###..
+...#+#..
+...###..
+........
+..####..
+..#--#..
+..#--##.
+..#++#-#
+..#++#-#
+.##++###
+.#++++#.
+.#----#.
+.#----#.
+.#++++#.
+.#++++#.
+.######.
+
+........
+........
+....###.
+...#+++#
+..#+--+#
+.#+--++#
+#++-++#.
+#++++#..
+.###+#..
+..#+#...
+..##....
+.#--#...
+.#--#...
+..##....
+........
+........
