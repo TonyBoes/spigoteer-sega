@@ -370,6 +370,59 @@ struct mm_state {               // tests read these at story_scratch + offset (t
     uint8_t wattr[2][20];       // +151
 };
 
+void mk_enter(void) BANKED;                      // src/mk.c: MONKEY BUSINESS (the jungle zoo)
+void mk_update(uint8_t pressed) BANKED;
+
+#define MK_CRATES       5
+struct mk_crate {               // one crate on the counter
+    uint8_t st;                 // +0 MC_* (src/mk.c): 0 idle, 1 the lid rattles, 2 up (a peek, then up), 3 open after a theft, 4 the parrot flies
+    uint8_t kind;               // +1 0 monkey, 1 parrot
+    uint8_t t;                  // +2 frames in this state
+    uint8_t u;                  // +3 frames the occupant stays up before it grabs / flies off (a peek of 6 + U)
+};
+struct mk_state {               // tests read these at story_scratch + offset (tests/test_mg_monkey.py)
+    uint8_t st;                 // +0 0 playing, 1 the outro
+    uint8_t pos;                // +1 the crate the Spigoteer stands at (the target while he hops)
+    uint8_t from;               // +2 the crate he hopped from
+    uint8_t act;                // +3 0 none, 1 hop (6 frames), 2 shoo (8 frames; the hit on frame 4)
+    uint8_t act_t;              // +4 frames into it
+    uint8_t lock;               // +5 whiff lockout frames left (counts down while he is idle)
+    uint8_t pend;               // +6 a command pressed during an action: 0 none, 1 left, 2 right, 3 shoo
+    uint8_t rep;                // +7 frames since the last hop began (a held direction repeats at 10)
+    uint8_t fail_t;             // +8 frames of the fail pose left
+    uint8_t coco;               // +9 coconuts left (8 at the start)
+    uint8_t started;            // +10 the first play frame has put the awning's rows back
+    uint8_t secs;               // +11 the HUD timer's seconds
+    uint8_t anim;               // +12 frames counted
+    uint8_t next;               // +13 frames to the next pop
+    uint8_t unow;               // +14 U now: frames a monkey stays up after its peek (90 -> 45 at 30 s)
+    uint8_t ucnt;               // +15 frames toward the next step of U
+    uint8_t gap;                // +16 the pop interval now (60 -> 24 at 45 s)
+    uint8_t gcnt;               // +17 frames toward the next step of it
+    uint8_t shooed;             // +18 monkeys shooed
+    uint8_t stolen;             // +19 coconuts taken
+    uint8_t parrots;            // +20 parrots shooed
+    uint8_t whiffs;             // +21
+    uint8_t last;               // +22 the last event: 1 shooed, 2 shooed quick (+100), 3 parrot, 4 whiff, 5 theft
+    uint8_t pops;               // +23 pops so far
+    uint8_t run_on;             // +24 1: a monkey runs off with a coconut (at most one)
+    uint8_t run_k;              // +25 the crate it left
+    uint8_t run_t;              // +26 frames it has run
+    uint8_t puff_t;             // +27 frames of the shoo puff left
+    uint8_t puff_x;             // +28 its x
+    uint8_t pile_shown;         // +29 the pile's state on screen (0..5; 255: not drawn yet)
+    uint16_t time;              // +30 frames left
+    struct mk_crate c[MK_CRATES];   // +32
+    uint8_t cshown[MK_CRATES];  // +52 the frame each crate shows (0 closed, 1 / 2 rattle, 3 open; 255 not drawn)
+    uint8_t cbuf[MK_CRATES][4]; // +57 each crate's tiles as queued (VBlank queue source)
+    uint8_t pbuf[3][4];         // +77 the pile's rows as queued
+    uint8_t pips[8];            // +89 the HUD pips as queued
+    uint8_t tbuf[4];            // +97 the HUD timer
+    uint8_t band[2][20];        // +101 the awning's rows 2-3 (the banner rows' place)
+    uint8_t pal[20];            // +141 their CGB attributes (palette 5)
+    uint8_t hattr[20];          // +161 the HUD colours (the end banner)
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
@@ -381,6 +434,7 @@ union mg_ram {
     struct ad_state ad;
     struct tk_state tk;
     struct mm_state mm;
+    struct mk_state mk;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert

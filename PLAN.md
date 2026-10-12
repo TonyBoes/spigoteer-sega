@@ -2436,11 +2436,64 @@ from the proposal's mock-up scene (assets/art/marshmallow/*.txt; tools/gen_mm.py
   whole game and a mash (<= 10 a line); medal edges; practice retry / menu; STORY chapter 5 and its Last call restored; ARCADE; the list; the release
   list; goldens. New goldens (dmg+cgb): mm_intro, mm_play, mm_perfect, mm_splash, mm_result. Replaced on purpose, reason "the list gains
   MARSHMALLOWS after TAIKO POUR": mg_list.{dmg,cgb}, mg_list_locked.{dmg,cgb}.
+## Monkey Business as built (M11e, docs/minigames_bosses.md 4.9, 2026-10-12)
+
+The jungle zoo's mini-game on the framework (src/mk.c), in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains ZOO: chapter 9's slot after the
+Happy hour) and in BONUS > MINI GAMES (after TAIKO POUR, before the debug build's GREEN LIGHT; THE JUNGLE ZOO; the unlock rule as the others: SRAM
+bit 8). The list line reads "MONKEY BIZ" (the name column ends at 13, "MONKEY BUSINESS" is 15); the details line and the banner have the whole name.
+Art: the owner-approved **reading 1 with G1** ("looks good, green boxes", proposal 2 of 2026-10-12) imported pixel-exact in assets/art/monkey/ (the
+proposal's files with the header "; Art: approved design"): A's wood counter and floor below (rows 14-16 over the framework's floor row 17), B's
+awning band, pips HUD and barrel pile above, the crates and the awning in leafy green by their palettes only, the monkey bust of A. tools/gen_mk.py
+-> build/mk_art.h, build/mk.json, out/preview/mk_*_x8.png. DMG: the same pictures as B's (grey stripes, light-grey crate faces); the recolour is CGB.
+- **Rules** (the spec's numbers, src/mk.c's header has them in full): five crates 32 px apart, the Spigoteer at x = 4 + 32 k; Left / Right hops one
+  in 6 frames (held: repeats 10 frames after the last hop began), A shoos for 8 frames and the hit is on the 4th (the swing: the mock-up's); a command
+  pressed during a hop or a shoo is kept and runs when it ends (one; none during a lockout). A pop: the lid rattles 20 frames (the crate's tile swap
+  every 2 frames), the monkey peeks 6 and stays up U frames after the peek (u = 6 + U), then grabs and runs. U 90 -> 45 at 30 s (-1 every 40 frames),
+  the interval 60 -> 24 at 45 s (-1 every 75), the first pop at frame 30, at most 2 occupied crates (rattling, up, a parrot still flying) before 20 s,
+  3 after; the parrot (1 pop in 6, from 15 s) is not part of the reachability rule. Shooed 100, +100 when the lid had opened <= 20 frames before the hit
+  (a peek counts); nothing there (a rattling or empty crate): a whiff, a 12-frame lockout that starts when the swing is done (no input, none kept) and the
+  fail pose; the parrot -200 (never below what the game earned, like Taiko Pour's spill; it flies off, no lockout, the fail pose for 12 frames); a parrot
+  left alone flies off after the same time. 8 coconuts, 45 s own timer (like Asteroid Delivery: mg_timer stays 0, the HUD's T000 is the game's), +200 a
+  coconut left, ends at 0 coconuts too ("ALL GONE"; TIME UP otherwise), the banner on row 9 in the HUD colours.
+- **Reachability** (the fairness fix, reach_ok): a monkey's pop is made only if the greedy path (nearest deadline first; 6 frames a hop, the shoo
+  starting >= 4 frames before the lid opens, 8 frames of it, its hit on the 4th) reaches every monkey that will be up with >= 8 frames to spare, counting
+  the Spigoteer's current hop / shoo / lockout; a monkey already past its time (waiting for the runner) is left out. If not, the other crates are
+  tried, else the pop waits and is tried again every frame. tests: a perfect bot (nearest deadline first, shoots as the lid opens) clears 45 s with no
+  theft, no whiff and >= 40 monkeys shooed at 6 seeds x DMG / CGB (score 11600-13000: GOLD).
+- **Engine rule from the notes: at most one runner on screen.** A theft makes the monkey a runner (4 px a frame away from the middle, crate 2 and
+  below to the left, 3 and 4 right: 4 to 22 frames to leave); a monkey whose time is up while one runs stays up (shoo-able) until it has gone. OAM:
+  0 the puff, 1-2 the duster, 3-6 the Spigoteer, 7-8 the runner, 9-18 a crate's occupant each. The worst line is 9 (3 occupied crates x 2 + the
+  runner 2 + the puff 1, line 84; the pop cap counts a flying parrot as occupying its crate so a fourth never overlaps it): tested over whole bot
+  runs and a forced worst case.
+- **Medals** (src/mg.c's table, by score; the spec's 4000 / 2500 / 1200 were a first guess, "tune"): GOLD 8000, SILVER 5000, BRONZE 2500. Scripted
+  players on the same seeds: reacting at once 11600-13000 (all monkeys quick, 200 each), 8 frames late 8800-9900, 20 frames late 4600-6300 (a few
+  thefts), 30 late 3600-5500, 45 late 1800-2700 (the pile goes before 45 s). One setting (the spec has no HARD).
+- **Screen**: HUD row 0 (score, 8 coconut pips at columns 8-15, the timer at 16-19); the awning rows 1-4 (BG palette 5, colour 0 the zoo wall's;
+  rows 2-3 hold the framework's banner text until the first play frame, with the HUD's attributes, then the awning's come back through the queue as in
+  Asteroid Delivery); the pile columns 16-19 rows 5-7 (palette 3, 6 states by coconuts: 8, 7-6, 5-4, 3-2, 1, 0) and Kiki's helmet columns 14-15
+  row 7; the crates columns 1 + 4 k rows 12-13 (palette 2); the wall again on row 11 (the framework's counter row: copied from row 9); the counter rows
+  14-16 (palette 6). CGB OBJ: 0 the Spigoteer, 3 monkey, 6 parrot, 1 duster, 5 puff (**not 4**, OBJ palette 4 is the enhanced patrons': the level load
+  does not put it back; the proposal had the duster on 4). DMG: the Spigoteer on OBP0, the rest on OBP1 = 0xE4 (set at entry). Tiles: BG 125-169
+  (45), OBJ 56-91 + 96-105 (23 8x16 entries; 92-95 the coin). Zoo patrons: none are drawn (the spec has no patron cameo; the monkey, the parrot and
+  Kiki's pile are this game's own approved art); the game plays on the zoo venue's backdrop.
+- **State**: struct mk_state (181 B) + struct mk_crate in the mg union; no new WRAM globals. `joy` (main.c) is read for the held repeat.
+- **Numbers**: ROM0 free 577 B unchanged (no ROM0 code); WRAM_LO 3936 / WRAM_HI_0 3455, heap start 0xDD7F: all unchanged; mk.c + art ~6 KB banked
+  (autobank repack: banks 1-15 now, bank 15 has 682 B free, bank 14 0 B; the ROM stays 256 KB = 16 banks, so the next banked game may need
+  `-yoA` to pick 512 KB).
+- **Tests** (tests/test_mg_monkey.py, 95, and tests/mk_helpers.py: the state offsets parsed from mg.h, the bot): the screen and its art byte for byte,
+  the colours, the hop (6 frames, the x table, the walk frames), the held repeat and the edges, a kept command, the shoo (8 frames, the hit on the 4th, the
+  duster's swing), the points (200 / 100 / the boundary), the whiff and its lockout, mashing, the parrot (-200 clamped, its flight 3 px up and 1 across),
+  the theft (pips, pile, runner 4 px a frame), one runner, the empty pile, the pop (20 + 6, u), U and the interval over the time, the caps and the parrot's
+  start, an unreachable pop waits, the bots, the forced worst case, TIME UP and the leftover bonus, the medals' edges, the HUD timer, the awning's return,
+  Practice retry / menu, STORY (chapter 9, the Last call's VRAM and palettes as without it), ARCADE, the list, the release list, what the next level has back.
+  New goldens (dmg + cgb): mk_intro, mk_play, mk_theft, mk_parrot, mk_result. Replaced on purpose, "the list gains MONKEY BIZ": mg_list, mg_list_locked.
+- Spec gaps: the list name; the end banner on row 9 (the awning covers the framework's banner rows); the 20-frame quick-shoo window is counted at the
+  hit (the 4th frame of the shoo); no new SFX (shoo COIN, quick shoo SERVE, theft LIFE, parrot BREAK, whiff SHAKE); Practice has no HARD toggle.
 
 ## SDCC pitfalls found so far (keep adding)
 - **`x++; if (global)`**: with `S.anim++;` (a field reached through a pointer, so `inc (hl)`) directly before `if (sound_on)`, SDCC 4.5 emitted
   `ld a, (_sound_on)` / `or a, (hl)`: the branch tested the counter's value ORed in, not `sound_on`. Found in src/tk.c (Taiko Pour's clock ran the
-  wrong way); fixed by reading the global first. Look at the asm (`lcc -S`) when a branch right after an increment misbehaves.
+  wrong way); fixed by reading the global first. Look at the asm (`lcc -S`) when a branch right after an increment misbehaves. Hit again in src/mk.c (`S.anim++; if (!S.st)`: the update's whole body ran only when the counter was 0); it increments last there.
 - A loop that kept its counter in L and loaded HL for another use was miscompiled (see the note near line 1752, the mosh pit's RRLL loop).
 - Constants over 127 passed to a `uint8_t` parameter warn 158 ("overflow in implicit constant conversion"); the bits are right, the warning is noise
   here (BG tile ids 125-255).

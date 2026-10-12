@@ -38,7 +38,7 @@ HUGE_OBJ := $(BUILD)/hUGEDriver.o
 # each boss's own art header (tools/gen_boss.py: build/boss_<name>_art.h, #included by src/boss_<name>.c only)
 BOSS_H   := $(foreach b,$(filter-out meter,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
 BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h
-BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h
+BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
 .PHONY: all test check preview clean assets release
@@ -106,7 +106,12 @@ $(BUILD)/tk_art.h: tools/gen_tk.py tools/taiko_chart.py tools/gen_art.py $(wildc
 $(BUILD)/mm_art.h: tools/gen_mm.py tools/gen_art.py $(wildcard assets/art/marshmallow/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_mm.py $(BUILD) $(OUT)/preview
 
-preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h
+# Monkey Business (src/mk.c; docs/minigames_bosses.md 4.9): its approved art -> build/mk_art.h, build/mk.json (tests),
+# out/preview/mk_*_x8.png
+$(BUILD)/mk_art.h: tools/gen_mk.py tools/gen_art.py $(wildcard assets/art/monkey/*.txt) | $(BUILD) $(OUT)/preview
+	python3 tools/gen_mk.py $(BUILD) $(OUT)/preview
+
+preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h
 
 # The boss engine (src/boss.c): each boss's body poses (and extra poses), held empties, topper and HUD face, and the HUD
 # meter -> build/boss_art.h (the meter), build/boss_<name>_art.h (each boss's own, in his src/boss_<name>.c's bank),

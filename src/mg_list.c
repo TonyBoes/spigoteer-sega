@@ -33,11 +33,11 @@ extern uint8_t overlay_on;
 #define ML_COL_MEDAL   14       // (BATTERY SORT is 12 letters: columns 1-12)
 #define ML_ROWS_PER_FRAME 4     // 20-byte rows queued a frame (as mg_say)
 #ifdef DEBUG_MENU
-#define ML_N            9
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_STUB };
+#define ML_N            10
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_MONKEY, MG_STUB };
 #else
-#define ML_N            8
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW };
+#define ML_N            9
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_MONKEY };
 #endif
 typedef char ml_fits[(ML_N <= ML_ROW_BOX - ML_ROW_LIST) ? 1 : -1];   // (no scrolling yet: 10 lines)
 #define ML_INFO_BITS  ((1 << ML_INFO_LINES) - 1)
@@ -60,6 +60,7 @@ static const char *game_name(uint8_t g) {
     if (g == MG_ASTEROID) return "ASTEROIDS";
     if (g == MG_TAIKO) return "TAIKO POUR";
     if (g == MG_MARSHMALLOW) return "MARSHMALLOWS";
+    if (g == MG_MONKEY) return "MONKEY BIZ";      // (the list's name column ends at 13: the details line has the whole name)
 #ifdef DEBUG_MENU
     return "GREEN LIGHT";
 #else
@@ -76,6 +77,7 @@ static const char *game_where(uint8_t g) {
     if (g == MG_ASTEROID) return "THE SPACE LOUNGE";
     if (g == MG_TAIKO) return "THE TEAHOUSE";
     if (g == MG_MARSHMALLOW) return "THE IGLOO";
+    if (g == MG_MONKEY) return "THE JUNGLE ZOO";
 #ifdef DEBUG_MENU
     return "THE TEST STUB";
 #else
@@ -124,7 +126,7 @@ static void build(uint8_t k) {
         g = ml_game[ml_sel];
         if (!unlocked(g)) { put(r, 255, locked_info[k]); return; }
         switch (k) {
-        case 0: put(r, 255, game_name(g)); break;
+        case 0: put(r, 255, g == MG_MONKEY ? "MONKEY BUSINESS" : game_name(g)); break;
         case 1: put(r, 255, game_where(g)); break;
         case 2:                                 // "BEST GOLD" centred, or NO MEDAL YET
             if (!best(g)) { put(r, 255, "NO MEDAL YET"); break; }

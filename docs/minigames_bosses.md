@@ -1305,6 +1305,8 @@ Story fit: PRE_SPACE page (ZIZZ): `DELIVER BEAKERS` / `PAST THE ROCKS.` / `GENTL
 
 ### 4.9 Monkey Business (Jungle zoo)
 
+Built (2026-10-12; PLAN.md "Monkey Business as built"): reading 1 with G1 (green crates and awning), at most one runner on screen, medals GOLD 8000 / SILVER 5000 / BRONZE 2500, the parrot's -200 never below 0, the list name MONKEY BIZ. The text below is the design as proposed.
+
 Play: five supply crates on the counter. Monkeys pop out of them to grab coconuts from Kiki's pile. Hop to the crate
 and shoo the monkey (gently, with a feather duster) before it grabs one. Don't shoo the parrot.
 
