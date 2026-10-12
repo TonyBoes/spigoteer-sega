@@ -71,4 +71,5 @@ uint8_t boss_width(void) BANKED;          // his row's width (px)
 uint8_t boss_big_tex(uint8_t ev, uint8_t arg) BANKED;     // src/boss_big_tex.c: Big Tex, the saloon (3.3)
 uint8_t boss_sasquatch(uint8_t ev, uint8_t arg) BANKED;   // src/boss_sasquatch.c: the Sasquatch, the lumber lodge (3.5)
 uint8_t boss_critic(uint8_t ev, uint8_t arg) BANKED;      // src/boss_critic.c: the Food Critic, the bistro (3.6)
+uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED;        // src/boss_yeti.c: the Yeti, the igloo (3.7)
 #endif

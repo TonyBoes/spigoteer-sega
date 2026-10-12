@@ -180,6 +180,18 @@ def to_bar(gb, b):
     assert gb.mem("bar") == b
 
 
+class Clock:
+    """Game frames (frame_counter, wrapping at 256) since it was made; now() must be called at least every 255."""
+    def __init__(self, gb):
+        self.gb, self.t, self.last = gb, 0, gb.mem("frame_counter")
+
+    def now(self):
+        c = self.gb.mem("frame_counter")
+        self.t += (c - self.last) & 255
+        self.last = c
+        return self.t
+
+
 def arrivals_ok(arr, gap, own_gap=None):
     """arr: [(arrival frame, his own?)] sorted; every two >= gap apart (two of his own: own_gap), 2 frames' slack."""
     for (a, o1), (b, o2) in zip(arr, arr[1:]):

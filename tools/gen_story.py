@@ -100,9 +100,10 @@ STEP_SKIP = 0x80
 SEQUENCE = [("SHIFT", 0), ("SHIFT", 1), ("MINI", 0), ("SHIFT", 2), ("BOSS", 0)]
 NOT_BUILT = {"MINI", "BOSS"}
 # Slots of a NOT_BUILT kind that are built in some venues already (by chapter suffix): the boss engine (src/boss.c) has
-# Big Tex (the saloon), the Sasquatch (the lumber lodge) and the Food Critic (the bistro) so far, and the mini-game
-# framework (src/mg.c) Quick Draw (src/qd.c), the saloon's mini-game; the other venues' slots are still skipped.
-BUILT_SLOTS = {"BOSS": {"SALOON", "LUMBER", "BISTRO"}, "MINI": {"SALOON"}}
+# Big Tex (the saloon), the Sasquatch (the lumber lodge), the Food Critic (the bistro) and the Yeti (the igloo) so far,
+# and the mini-game framework (src/mg.c) Quick Draw (src/qd.c), the saloon's mini-game; the other venues' slots are
+# still skipped.
+BUILT_SLOTS = {"BOSS": {"SALOON", "LUMBER", "BISTRO", "IGLOO"}, "MINI": {"SALOON"}}
 # Arrival patterns (patrons.c try_spawn): a cycle of (bar, wait) entries; the wait after a spawn is n the shift's spawn
 # interval I, s PAT_SHORT frames, d 2 I, b 4 I (a breather). Every pattern keeps about one patron per I on average
 # (checked below), so a pattern changes WHERE and in what rhythm patrons come, not how many. "normal": today's random

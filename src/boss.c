@@ -79,6 +79,7 @@ static const boss_row_t rows[BOSS_COUNT] = {
     [0] = {  40,  16,  1, 120,  16,  40,   3,  60,  8,   16,  0, "BIG TEX RIDES IN", "QUENCH HIM 8 MUGS" },   // Saloon: Big Tex (3.3)
     [2] = {  32,  16,  2,  90,   8,   8,   2,   0, 12,   12,  0, "NO SUCH THING", "12 COFFEES FAST" },      // Lumber lodge: Sasquatch (3.5)
     [3] = {  32,  16,  1, 110,  16,  60,   1,  90,  8,    9,  0, "THE CRITIC DINES", "PERFECT POURS ONLY" }, // Bistro: the Food Critic (3.6)
+    [4] = {  32,  16,  2, 100,   8,  30,   2,  60, 12,    9,  0, "THE YETI IS COLD", "12 COCOAS ON ICE" },   // Igloo: the Yeti (3.7)
 };
 
 // ---- state (test hooks: spec 2.5's names) ----
@@ -118,6 +119,7 @@ static uint8_t boss_call(uint8_t ev, uint8_t arg) {
     case 0: return boss_big_tex(ev, arg);        // Saloon: src/boss_big_tex.c
     case 2: return boss_sasquatch(ev, arg);      // Lumber lodge: src/boss_sasquatch.c
     case 3: return boss_critic(ev, arg);         // Bistro: src/boss_critic.c
+    case 4: return boss_yeti(ev, arg);           // Igloo: src/boss_yeti.c
     }
     return 0;
 }

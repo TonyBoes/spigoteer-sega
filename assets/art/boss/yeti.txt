@@ -1,7 +1,7 @@
-; APPROVED by the owner on 2026-10-11 (the Yeti, look 1 round 2, arms fixed). Not built yet: moves to its real place when its feature is built.
-; The Yeti, the igloo's boss (PROPOSAL look1, round 2: arms; same format as big_tex.txt). Body 32x16 BG (4 columns x 2 rows), facing the tap.
+; Art: approved design (the owner, 2026-10-11: the Yeti, look 1 round 2, arms fixed). Built: src/boss_yeti.c.
+; The Yeti, the igloo's boss (look 1, round 2: arms; src/boss_yeti.c; same format as big_tex.txt). Body 32x16 BG (4 columns x 2 rows), facing the tap.
 ; '.' wall (colour 0), '-' white fur / mugs, '+' ice blue (face, horns, paws), '#' outline. gen_boss row: width 32, pal and the
-; topper offset below (boss.c row hat_dx). INHALE / BLOW are extra blocks for the spec's tell + blow (gen_boss ignores them today).
+; topper offset below (boss.c row hat_dx). INHALE / BLOW: extra poses 5 and 6 (gen_boss BOSSES yeti extra), the tell and the blow.
 ; HAND3 = HAND2 (hands 2; shares its column pair).
 ; pal: #F8F8F8 #80B0E8 #182040
 ; hat_dx: 9

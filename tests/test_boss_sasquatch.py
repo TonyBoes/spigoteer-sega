@@ -4,7 +4,7 @@
 # schedule (the level's gap from a regular's empty, his own 80 between his own), a win by real pours and the tap.
 # Every frame of every fight here is checked at <= 10 sprites a line (boss_common.frames).
 import pytest
-from boss_common import (BP_GULP, BP_HAPPY, BP_WALK, BP_WINCE, BS_GULP, BS_OUTRO, EMPTY, FULL, SP_OUTRO, SPOUT_X,
+from boss_common import (BP_GULP, Clock, BP_HAPPY, BP_WALK, BP_WINCE, BS_GULP, BS_OUTRO, EMPTY, FULL, SP_OUTRO, SPOUT_X,
                          TAP_X, art, assert_body, block_empties, check_start, fight, frames, hud, meter_tiles, mugs,
                          play, pour, row, still_regulars, throw, to_bar, until, arrivals_ok)
 from conftest import check_golden
@@ -134,18 +134,6 @@ def test_the_fair_schedule_with_a_regulars_empty_due(model):
         throw(gb, B, 70)
         second = sent(gb, clock)
         assert OWN_GAP - 2 <= second - first <= OWN_GAP + 3 < gap, (first, second, gap)
-
-
-class Clock:
-    """Game frames (frame_counter, wrapping at 256) since it was made; now() must be called at least every 255."""
-    def __init__(self, gb):
-        self.gb, self.t, self.last = gb, 0, gb.mem("frame_counter")
-
-    def now(self):
-        c = self.gb.mem("frame_counter")
-        self.t += (c - self.last) & 255
-        self.last = c
-        return self.t
 
 
 def sent(gb, clock, limit=400):

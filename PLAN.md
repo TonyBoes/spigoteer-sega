@@ -320,7 +320,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, the venue owners (ten with Granny Throttle), villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Next: Order Up!, Battery Sort. |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Next: Order Up!, Battery Sort. |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -1391,6 +1391,41 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   drinks win (outro, CHAPTER CLEAR, POST_BISTRO). New goldens boss_critic (savouring) and boss_critic_taste (the
   TASTE tell), dmg + cgb. tests/boss_common.py throw() now pokes between two game frames (logic_paused): a mid-frame
   poke could see update_mugs recount mugs_live to 0 and the mug never moved.
+
+## The Yeti as built (igloo boss, docs/minigames_bosses.md 3.7, 2026-10-12)
+- src/boss_yeti.c, rows[4]: 32 px, start 16, bar 2, step 100, push 8, gulp 30, hands 2, sip 60, meter 12, topper at
+  9 (his horns); "THE YETI IS COLD" / "12 COCOAS ON ICE". Art: the owner's approved look 1 round 2
+  (assets/art/boss/yeti.txt, moved from assets/art/approved/; 26 column pairs with INHALE and BLOW, extra poses 5, 6).
+- Icy breath every YETI_EVERY 360 frames of walking (boss_special_t): the tell, 50 frames: INHALE, he stands
+  (BS_TELL), the frost creeps along his bar's counter from the left end, 4 columns every 12 frames (the VBlank queue),
+  all 18 counter columns icy when it ends; the ice, 180 frames (boss_icy): BLOW for 30 frames, then his standing
+  pose (BS_SPECIAL, no stomp), full mugs on his bar 3 px a frame and empties 1 px a frame (boss_fast_full /
+  boss_fast_empty, boss.c boss_mugs; only his bar); a held empty may go at once; the thaw: the counter back in 2
+  frames (9 columns a frame); then he walks and counts 360 again. A catch in the tell or on the ice shows GULP /
+  WINCE as usual; the tell's or the ice's state comes back after the gulp. boss_hook 1 starts the tell.
+- Fair empties across the speed change: an empty goes only if it reaches the tap end before the ice starts or ends
+  (boss_window: walking, special_t + the tell; in the tell and the thaw 0; on the ice, its frames left), so every trip
+  is at one speed and arrives when the schedule booked it.
+- The icy counter: tools/gen_boss.py `ice: "igloo"` makes icy copies of the igloo's two counter tiles (white streaks
+  on the light counter top, glints on its front: readable on DMG by pattern) at BG 246-247 (free in the story; the
+  ids the mirror engine borrows only in CLASSIC). It is a PLACEHOLDER pattern pending the owner's look
+  (out/preview/boss_yeti_ice_x8.png). A lost life, the outro and the next level load put the counter back.
+- Story and ARCADE: BUILT_SLOTS["BOSS"] gains IGLOO (chapter 5 ends with the fight, then POST_IGLOO). No existing
+  golden changed.
+- Tests (tests/test_boss_yeti.py, DMG + CGB, every frame <= 10 sprites a line): row, art, the icy tiles; the fight's
+  start (VRAM 246-247, the counter as drawn); the breath's timing (tell after 360, 50 frames, the frost at 4 / 8 / 12
+  / 16 columns 12 frames apart, all 18 at the ice, BLOW 30 frames, ice 180, he stands, thaw in 2 frames, walking
+  again); the speeds on his bar only and only on the ice (full 2 -> 3, empty 0.5 -> 1, bars 0 and 3 unchanged); a
+  held empty kept back 60 frames before the tell, sent at the ice's start and home before the thaw; a life lost on
+  the ice thaws the counter; a win by real pours through the ice (arrivals >= empty_gap, the outro thaws, CHAPTER
+  CLEAR, POST_IGLOO). New goldens boss_yeti, boss_yeti_inhale (the tell), boss_yeti_blow (the blow), dmg + cgb.
+
+## Boss wave 1 ROM (2026-10-12, game.gb)
+- ROM0 unchanged by the whole wave: 1006 B free (tools/rom0free.py). Every boss byte is banked: boss.c (the engine)
+  in bank 5, boss_big_tex.c and boss_critic.c in bank 8, boss_sasquatch.c and boss_yeti.c in bank 9 (autobank; the
+  next bosses go wherever bankpack finds room, banks 10+). romusage free after the wave: 1 2, 2 21, 3 148, 4 31,
+  5 506, 6 99, 7 6, 8 6, 9 221, 10 3328 B.
+- WRAM: the engine's knobs and pose table (~57 B), the Critic 3 B, the Yeti 22 B.
 
 ## Mode-aware debug select as built (owner request, 2026-10-10)
 
