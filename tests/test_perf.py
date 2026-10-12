@@ -27,8 +27,8 @@ def assert_music_every_frame(ticks):
     stays within the one tick a mid-frame sample can see."""
     f0, m0 = ticks[0]
     for f, m in ticks[1:]:
-        if m < m0:
-            f0, m0 = f, m                            # a tune restarted
+        if m < m0 or (m == m0 == 0 and f != f0):
+            f0, m0 = f, m                            # a tune restarted (or is still loading: 0 again, a frame later)
             continue
         assert abs((m - m0) - ((f - f0) & 255)) <= 1 or (f - f0) & 255 > 200, (f0, f, m0, m)
         if (f - f0) & 255 > 200:
