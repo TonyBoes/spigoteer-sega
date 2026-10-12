@@ -82,16 +82,46 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
   composition is public domain; we transcribed its melody (the top note of the right hand) and harmony, in the
   score's key C, into our own note format and arrangement. The earlier list (James Kerr, "Merry Melodies" vol. 4,
   via John Chambers' ABC, in G) had wrong pitches in bars 9-14 and the wrong octave in bars 25-32.
-- "In the Hall of the Mountain King" (Grieg, 1875): **no transcription source; written from memory. Verify
-  against the Peer Gynt Suite No. 1 score on IMSLP (the 1888 C.F. Peters edition is public domain) before
-  crediting a source.** Bars 1-8 high confidence, bars 9-12 moderate, bars 13-16 are a return chosen for
-  looping (Grieg's continuation differs).
+- "In the Hall of the Mountain King" (Grieg, 1875): written from memory in the spec; bars 1-12 confirmed note for note
+  and in rhythm (2026-10-11, music step 3) by the Mutopia Project's "In the Hall of the Mountain King"
+  (`ftp/GriegE/O46/Dans_l_antre_du_roi_de_la_montagne/Dans_l_antre_du_roi_de_la_montagne.ly` in
+  github.com/MutopiaProject/MutopiaProject, Mutopia-2013/12/07-1888), typeset by **Coyau** from The University Society's
+  1918 piano edition and placed in the **public domain** by the typesetter. Bars 13-16 are a return chosen for looping
+  (Grieg's continuation differs).
 - "Sakura Sakura": melody from John Chambers' ABC "Sakura (Cherry Blossom)"
   (trillian.mit.edu/~jc/music/abc/Japan/Sakura_Am.utf8.abc); chords (not used, the bass is a drone) adapted from
   Frank Nordberg's Musica Viva transcription in the same collection.
 
-No score was found (the Mutopia Project has no Offenbach, Waldteufel, Denza, Von Tilzer, Peer Gynt "Hall of the
-Mountain King" or "Oh! Susanna") for the other tunes; their notes are the specs'. Seamless loops (2026-10-11): the
+### Rhythm audit (music step 3, 2026-10-11)
+
+The owner heard "Su-san-na" and "com-in' round the moun-tain" in even notes where the songs are sung in uneven ones.
+Every melody's rhythm was compared with a public-domain score found on GitHub where one exists (fetched as data;
+our notes are our own transcription, no file was copied):
+
+- "Oh! Susanna" (Foster, 1848): Craig Sapp's Humdrum (**kern) encoding, `kern/fostr20.krn` in
+  **github.com/humdrum-tools/foster-songs** (from the "Stephen Foster Song Book", Dover Publications, pp. 89-91, a
+  reprint of the 19th-century editions; the repository has no licence file, the song is public domain and only its
+  rhythm was read, transposed from G to C). Cross-checked: the Wikifonia lead sheet in OpenEWLD (below) and Bloomfield's
+  "Songs from the Public Domain" LilyPond source (github.com/bbloomf/lilypond-songs, `Civil War/Oh! Susanna.ly`,
+  dedicated to the public domain). The owner's pitches are kept; the rhythm is now the score's at sixteenth rows.
+- "Drunken Sailor": the Wikifonia lead sheet "What Shall We Do with a Drunken Sailor?" in **OpenEWLD**
+  (github.com/00sapo/OpenEWLD, Federico Simonetta's dataset of the public-domain lead sheets of the Wikifonia archive;
+  its MusicXML files are public-domain content, the rest MIT). The chorus bars 9, 11 and 13 were fixed from it.
+- "Funiculi, Funicula": the OpenEWLD lead sheet "Funiculi funicula" (as above) confirms the rhythm (one echo bar
+  differs between the two sources; the spec's is kept).
+- "Pop Goes the Weasel": the spec's own source, Ryan's Mammoth Collection, as encoded in the **music21** corpus
+  (github.com/cuthbertLab/music21, `corpus/ryansMammoth/PopGoesTheWeasel.abc`, encoder John B. Walsh): all bars match.
+- "In the Hall of the Mountain King", "The Blue Danube", "The Entertainer": the Mutopia scores listed above confirm them.
+- "She'll Be Coming 'Round the Mountain": **no score found on GitHub** (searched the Mutopia Project, the music21 corpus,
+  OpenEWLD, humdrum-tools, KernScores mirrors and public-domain LilyPond songbooks). Its new rhythm (sixteenth rows) is
+  the owner's listening description, not a transcription.
+- No score found on GitHub either: "The Skaters' Waltz", "Take Me Out to the Ball Game", "Sakura Sakura" (the Mutopia
+  "Sakura-Miyotote" is a different piece), "Galop infernal"; their rhythms are the specs'.
+- Not used: The Session's data dump (github.com/adactio/TheSession-data) is licensed ODbL **with an added prohibition on
+  processing the material with large language models**, so it is not a source for this project's AI-assisted work.
+
+No score was found (the Mutopia Project has no Offenbach, Waldteufel, Denza or Von Tilzer) for the other tunes; their
+notes are the specs'. Seamless loops (2026-10-11): the
 last bar of "Oh! Susanna", the Galop, the Ball Game, the Skaters' Waltz, the Mountain King, Sakura and the bonus
 loop was changed so the tune flows back into bar 1 (ours; `docs/music_specs.md` "Game loop" notes).
 

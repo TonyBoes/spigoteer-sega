@@ -219,6 +219,26 @@ Music step 2 (2026-10-11, the owner's listening notes):
 - tools/check_music.py: the LEVEL harness starts at level g + 1 for venue g (the old level-clear trick reached the
   wrong venue for even groups since the 10th venue); a staccato note is measured over the part that sounds.
 
+Music step 3 (2026-10-11, rhythm; owner: "comin'" and "the mountain" are bunched when sung, "Oh Sue-zan-uh" is not four
+even notes): the specs were written in even eighths/quarters without a score, and the grids were too coarse for a dotted
+eighth. Every melody's rhythm was compared with a public-domain score on GitHub where one exists (sources in CREDITS.md
+"Rhythm audit"; The Session's data dump is not used: its licence forbids processing with LLMs).
+- Oh! Susanna: Foster's rhythm (humdrum-tools/foster-songs fostr20.krn, Dover's Foster Song Book): sixteenth rows (8 a
+  bar of 2/4), 8 frames/row = quarter 112.5 (was 15/eighth = 120; the score says MM 114); 96 -> 192 rows = 3 whole orders
+  (no pattern break), blob 6 -> 7 patterns. Sixteenth pickups, dotted "with my ban-jo" / "Lou'-si-an-a", the chorus
+  "Oh! Su-san-na, oh" = q q | e q e (the owner's list lacked the third A), bar 16 a quarter and a quarter rest.
+- Round the Mountain: no score found anywhere on GitHub; sixteenth rows (16 a bar), 6 frames/row = quarter 150
+  (GAME_BPM; spec 160 = 5.6 frames; was 11/eighth = 163.6), 128 -> 256 rows = 4 orders, blob 5 -> 8 patterns (buffer A
+  stays 8). Rhythm from the owner's description: "com-in' round the" X:2 X:6 X:6 X:2, "moun-tain when she" X:3 Y:5 Z:4
+  W:4; stressed syllables stay on beats 1 and 3. Needs the owner's ear.
+- Drunken Sailor: chorus "Hur-ray and up she ri-ses" = q, dotted e, s (bars 9, 11, 13; OpenEWLD lead sheet).
+- Confirmed by a score: Entertainer, Blue Danube, Mountain King (bars 1-12, Mutopia), Weasel (Ryan's, music21 corpus),
+  Funiculi (OpenEWLD; one echo bar differs between sources, kept). No score found: Skaters, Ball Game, Sakura, Galop.
+  Jingles are ours. Legato switch unchanged (sung tunes, 3-frame break before a repeated pitch); loops seamless.
+- Bank 10 blobs 12288 -> 13056 B (3328 free); bank 2 30 -> 6 B free (two more orders); WRAM unchanged.
+- tests/test_perf.py assert_music_every_frame: a tune that restarts at 0 while the previous sample was 0 too (the
+  bigger Susanna blob moves the level-1 load by a frame) counts as a restart.
+
 Drums and game tempos (after M9): owner-approved game tempos (tools/songs.py GAME_BPM; spec tempo stays in docs/music_specs.md):
 entertainer 8 frames/row = 112.5 bpm, sakura 12 = 150 (lively arrangement, owner-approved 2026-10-11; was 15 = 120), funicula 11 = 109 (dotted quarter), skaters/danube/ballgame 9 = 200.
 Drums for the title, ballgame, funicula, skaters, sakura and danube are a `groove` (songs.py song(..., groove=)): a 6-8

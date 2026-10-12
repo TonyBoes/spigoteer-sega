@@ -107,19 +107,39 @@ def test_a_tune_ending_inside_a_pattern_breaks_to_row_0_of_the_next_order():
         breaks = [(c, i, j) for c in (1, 2, 3, 4) for i, chunk in enumerate(b["per"][c]) for j, row in enumerate(chunk)
                   if (row[2] & 0xF00) == 0xD00]
         assert len(breaks) <= 1, f"{name}: {breaks}"
-    assert short >= 4, "susanna, funicula, sakura, weasel (and the jingles) end inside a pattern"
+    assert short >= 4, "funicula, sakura, weasel and the jingles end inside a pattern"
 
 
-def test_oh_susanna_wraps_to_bar_1_without_the_empty_rows(gb):
-    """In the ROM: the saloon tune (96 rows = 1.5 orders) plays order 1 (hUGE_current_order 2) for 32 rows only, then
-    order 0 from row 0 again."""
-    assert gb.mem("cur_tune") == 5, "the saloon's tune (TUNE_VENUE0)"
+def test_pop_goes_the_weasel_wraps_to_bar_1_without_the_empty_rows(gb):
+    """In the ROM: the zoo tune (96 rows = 1.5 orders) plays order 1 (hUGE_current_order 2) for 32 rows only, then
+    order 0 from row 0 again.  (This watched Oh! Susanna until music step 3: at sixteenth rows it is 192 rows, three
+    whole orders, and no longer ends inside a pattern.)"""
+    from test_art import goto_group
+    goto_group(gb, 8)
+    assert gb.mem("cur_tune") == 5 + 8 and songs.VENUES[8] == "weasel", "the zoo's tune (TUNE_VENUE0 + 8)"
+    t = songs.SONGS["weasel"]["tempo"]
     seen = []
-    for _ in range(96 * 15 + 3 * 15):
+    for _ in range(96 * t + 3 * t):
         gb.write("intro_timer", 255)                  # no patrons: the level lasts as long as the tune is watched
         gb.run(1)
         seen.append((gb.mem("hUGE_current_order"), gb.mem("hUGE_row")))
     in_last = [r for o, r in seen if o == 2]
     assert in_last and max(in_last) == 31, f"order 1 ran to row {max(in_last) if in_last else None}"
     i = max(k for k, (o, r) in enumerate(seen) if o == 2)
+    assert seen[i + 1] == (0, 0), f"after the last row: {seen[i + 1]}"
+
+
+def test_oh_susanna_plays_its_three_orders_and_wraps_to_bar_1(gb):
+    """In the ROM: the saloon tune (192 sixteenth rows = three whole orders) runs order 2 (hUGE_current_order 4) to row
+    63, then order 0 from row 0 again."""
+    assert gb.mem("cur_tune") == 5, "the saloon's tune (TUNE_VENUE0)"
+    t = songs.SONGS["susanna"]["tempo"]
+    seen = []
+    for _ in range(192 * t + 3 * t):
+        gb.write("intro_timer", 255)
+        gb.run(1)
+        seen.append((gb.mem("hUGE_current_order"), gb.mem("hUGE_row")))
+    in_last = [r for o, r in seen if o == 4]
+    assert in_last and max(in_last) == 63, f"order 2 ran to row {max(in_last) if in_last else None}"
+    i = max(k for k, (o, r) in enumerate(seen) if o == 4)
     assert seen[i + 1] == (0, 0), f"after the last row: {seen[i + 1]}"

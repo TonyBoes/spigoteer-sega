@@ -1,7 +1,8 @@
 """Song sources for the buffered tunes (title, show, ten venue tunes).  Imported by gen_music.py.
 
-All tunes are public domain compositions.  Oh! Susanna, Galop infernal and the tunes entered from
-docs/music_specs.md follow the owner's note lists (Drunken Sailor: our transcription of the owner's pick); the arrangement (accompaniment, rhythm, instruments) is ours.  Notation: see gen_music.py.  One song row is one
+All tunes are public domain compositions.  Galop infernal and the tunes entered from docs/music_specs.md follow the
+owner's note lists (Drunken Sailor: our transcription of the owner's pick; rhythms checked against scores where one was
+found, music step 3); Oh! Susanna's notes are the owner's list in the rhythm of Foster's score; the arrangement (accompaniment, rhythm, instruments) is ours.  Notation: see gen_music.py.  One song row is one
 unit note (an eighth note unless the comment says sixteenth); `tempo` is frames per row (60 fps).
 The melody is channel 2 (pulse), the bass channel 3 (wave), the percussion channel 4 (noise);
 channel 1 belongs to the sound effects.  Upper-case K S H are the quiet drum kit (kick, snare,
@@ -20,12 +21,12 @@ CHORD = {
 
 def oompah(chords, rows):
     """root / fifth bass, staccato.  rows per bar: 4 = 2/4 boom-chick, 6 = 3/4 oom-pah-pah,
-    8 = 4/4 or 2/4 with sixteenth rows, 'c6' = 6/8 (two dotted beats)."""
+    8 = 4/4 or 2/4 with sixteenth rows, 16 = 4/4 with sixteenth rows, 'c6' = 6/8 (two dotted beats)."""
     out = []
     for c in chords:
         if "/" in c:                       # two chords in one bar ("C/D7"): the root of each on its half
             a, b = c.split("/")
-            h = {"c6": 3, 4: 2}.get(rows, 4)           # half a bar
+            h = {"c6": 3, 4: 2, 16: 8}.get(rows, 4)           # half a bar
             out += [f"{CHORD[a][0]}:{h}!", f"{CHORD[b][0]}:{h}!"]
             continue
         r, f = CHORD[c]
@@ -33,8 +34,9 @@ def oompah(chords, rows):
             out += [f"{r}:2!", f"{f}:2!"]
         elif rows == 6:
             out += [f"{r}:2!", f"{f}:2!", f"{f}:2!"]
-        elif rows == 8:
-            out += [f"{r}:2!", f"{f}:2!", f"{r}:2!", f"{f}:2!"]
+        elif rows in (8, 16):
+            q = rows // 4
+            out += [f"{r}:{q}!", f"{f}:{q}!", f"{r}:{q}!", f"{f}:{q}!"]
         elif rows == "c6":
             out += [f"{r}:3!", f"{f}:3!"]
         else:
@@ -72,29 +74,39 @@ def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None
 # SPEC_BPM_ROWS in tests/test_sound.py.  tempo = frames per row is the nearest whole number (60 fps), so the tempo
 # the game really plays is 3600 / (tempo x rows per beat): entertainer 8 -> 112.5, sakura 12 -> 150,
 # funicula 11 -> 109.1 (dotted quarter), skaters / danube / ballgame 9 -> 200 (quarter).  Tunes not listed play
-# at the spec tempo.
-GAME_BPM = {"entertainer": 112, "sakura": 150, "funicula": 112, "skaters": 192, "danube": 192, "ballgame": 192}
+# at the spec tempo.  mountain 6 -> 150 (music step 3: sixteenth rows for its real rhythm; the spec's 160 would be
+# 5.6 frames per row, 5 would be 180; it played 163.6 at 11 frames per eighth).
+GAME_BPM = {"entertainer": 112, "sakura": 150, "funicula": 112, "skaters": 192, "danube": 192, "ballgame": 192,
+            "mountain": 150}
 
 
 # ---------------------------------------------------------------------------------------------
-# "Oh! Susanna" (Stephen Foster, 1848), the cowboys' tune: the owner's spec.  Key C, 2/4, 15 frames
-# per eighth note (120 bpm quarter).  Melody C4 = middle C.  Seamless loop: the owner's list opens with the C4 D4
-# pickup and ends on a whole-bar C4 that faded out before the pickup came back.  The tune now starts on bar 1 and
-# its last bar is the song's own turnaround (C4:2 C4:1 D4:1, as at the end of the second verse line), so the
-# pickup leads every pass into bar 1 and the loop is 24 whole bars (no first-time pickup, as in the other tunes).
-A1 = "E4:1 G4:1 G4:1 A4:1  G4:1 E4:1 C4:1 D4:1  E4:1 E4:1 D4:1 C4:1  D4:2 C4:1 D4:1"
-A2 = "E4:1 G4:1 G4:1 A4:1  G4:1 E4:1 C4:1 D4:1  E4:1 E4:1 D4:1 D4:1  C4:2 C4:1 D4:1"
-A2_LAST = "E4:1 G4:1 G4:1 A4:1  G4:1 E4:1 C4:1 D4:1  E4:1 E4:1 D4:1 D4:1  C4:4"
-CHORUS = "F4:2 F4:2  A4:2 A4:2  G4:1 G4:1 E4:1 C4:1  D4:2 C4:1 D4:1"
-ENDING = A2                      # (it ends with the C4 D4 pickup into bar 1)
+# "Oh! Susanna" (Stephen Foster, 1848), the cowboys' tune.  Key C, 2/4, one row = a sixteenth note (8 rows a bar),
+# 8 frames per row = quarter 112.5 (the score's MM 114; the owner's list played 15 frames per eighth = 120).  Melody
+# C4 = middle C.  Rhythm checked bar by bar (music step 3, 2026-10-11) against Craig Sapp's Humdrum encoding of the
+# song (github.com/humdrum-tools/foster-songs, kern/fostr20.krn, from the "Stephen Foster Song Book", Dover, pp. 89-91;
+# in G there, transposed to C here; the Wikifonia lead sheet in github.com/00sapo/OpenEWLD agrees on the chorus and the
+# pickups; the encoding's repository has no licence file, the song itself is public domain and only its rhythm was
+# read).  The owner's list had every note an even eighth; the song has sixteenth pickups ("I come", "I'm gwine"),
+# a dotted eighth and a sixteenth in bars 2, 6, 10, 14 and 22 (C. D, "with my ban-jo") and 5 and 13 (G. A,
+# "Lou'-si-an-a"), and the chorus "Oh! Su-san-na, oh" is two quarters, then eighth, quarter, eighth
+# ("san-na, oh" bunched together, the owner's note; the third A, "oh", was missing from the owner's list).  Bar 16 ends the verse as the score does, a quarter and a quarter
+# rest before "Oh!" (it was a held half note).  Seamless loop: the tune starts on bar 1 and its last bar (the score's
+# C4 and a rest) is the C, C D turnaround of bar 8, whose sixteenth pickup leads every pass into bar 1 (no first-time
+# pickup, as in the other tunes).  24 bars = 192 rows = three whole 64-row orders.
+A1 = "E4:2 G4:2 G4:2 A4:2  G4:2 E4:2 C4:3 D4:1  E4:2 E4:2 D4:2 C4:2  D4:6 C4:1 D4:1"
+A2 = "E4:2 G4:2 G4:3 A4:1  G4:2 E4:2 C4:3 D4:1  E4:2 E4:2 D4:2 D4:2  C4:6 C4:1 D4:1"
+A2_LAST = "E4:2 G4:2 G4:3 A4:1  G4:2 E4:2 C4:3 D4:1  E4:2 E4:2 D4:2 D4:2  C4:4 r:4"
+CHORUS = "F4:4 F4:4  A4:2 A4:4 A4:2  G4:2 G4:2 E4:2 C4:2  D4:6 C4:1 D4:1"
+ENDING = "E4:2 G4:2 G4:2 A4:2  G4:2 E4:2 C4:3 D4:1  E4:2 E4:2 D4:2 D4:2  C4:6 C4:1 D4:1"   # (score: C4:4 r:4)
 SUS_MEL = "  ".join([A1, A2, A1, A2_LAST, CHORUS, ENDING])
 SUS_CH = (["C", "C", "C", "G"] + ["C", "C", "G", "C"]) * 2 + ["F", "C", "C", "G"] + ["C", "C", "G", "C"]
-SUS_BASS_BAR = {"C": "C3:2! G2:2!", "G": "G2:2! D3:2!", "F": "F2:2! C3:2!"}
+SUS_BASS_BAR = {"C": "C3:4! G2:4!", "G": "G2:4! D3:4!", "F": "F2:4! C3:4!"}
 SUS_BASS = " ".join(SUS_BASS_BAR[c] for c in SUS_CH)
-VERSE_D = "K:1 r:1 S:1 r:1"
-CHORUS_D = "K:1 H:1 S:1 H:1"
+VERSE_D = "K:2 r:2 S:2 r:2"
+CHORUS_D = "K:2 H:2 S:2 H:2"
 SUS_DRUMS = " ".join([VERSE_D] * 16 + [CHORUS_D] * 4 + [VERSE_D] * 4)
-song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS, legato=SUNG_ARTIC)
+song("susanna", 8, "A", SUS_MEL, SUS_BASS, SUS_DRUMS, legato=SUNG_ARTIC)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -185,23 +197,35 @@ TMO_CHORDS = [
 song("ballgame", 9, "A", " ".join(TMO_BARS), oompah(TMO_CHORDS, 6), groove="K:1 r:1 S:1 r:1 S:1 r:1")
 
 # ---------------------------------------------------------------------------------------------
-# Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song).  4/4, key D, quarter = 160 is
-# 11.25 frames per eighth row: 11.  16 bars; bar 16 ends with the pickup of the next pass.
+# Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song).  4/4, key D, one row = a sixteenth
+# note (16 rows a bar), 6 frames per row = quarter 150 (the spec's 160 needs 5.6; it played 11 frames per eighth =
+# 163.6; GAME_BPM).  16 bars = 256 rows = four whole orders; bar 16 ends with the "she'll be" pickup of the next pass.
+# Rhythm (music step 3, 2026-10-11): the spec had every syllable an even quarter ("com-in' round the | moun-tain when
+# she").  No score of the song was found on GitHub (see docs/music_specs.md), so the rhythm follows the owner's
+# listening note: "com-in'" two notes closer together (in' an eighth after com, then held), "the moun-tain" three notes
+# closer together with the last slightly delayed (the an eighth before the bar line, moun a dotted eighth, tain on the
+# next sixteenth); the stressed syllables (com, round, moun, when) stay on beats 1 and 3, so the bass and drums keep
+# their places.  Every "com-in' round the" bar is X:2 X:6 X:6 X:2, every "moun-tain when she" / "moun-tain, she'll be"
+# bar is X:3 Y:5 Z:4 W:4.  The pitches are the spec's.
 MTN_BARS = [
-    "D5:2 D5:2 D5:2 D5:2", "B4:2 A4:2 F#4:2 A4:2", "D5:8", "~:4 D5:2 E5:2",
-    "F#5:2 F#5:2 F#5:2 F#5:2", "A5:2 F#5:2 E5:2 D5:2", "E5:8", "~:4 A5:2 G5:2",
-    "F#5:2 F#5:2 F#5:2 F#5:2", "E5:2 D5:2 D5:2 D5:2", "B4:2 B4:2 B4:2 B4:2", "E5:2 D5:2 C#5:2 B4:2",
-    "A4:2 A4:2 A4:2 A4:2", "F#5:2 E5:2 B4:2 C#5:2", "D5:8", "~:4 A4:2 B4:2",
+    "D5:2 D5:6 D5:6 D5:2", "B4:3 A4:5 F#4:4 A4:4", "D5:16", "~:8 D5:4 E5:4",
+    "F#5:2 F#5:6 F#5:6 F#5:2", "A5:3 F#5:5 E5:4 D5:4", "E5:16", "~:8 A5:4 G5:4",
+    "F#5:2 F#5:6 F#5:6 F#5:2", "E5:3 D5:5 D5:4 D5:4", "B4:2 B4:6 B4:6 B4:2", "E5:3 D5:5 C#5:4 B4:4",
+    "A4:2 A4:6 A4:6 A4:2", "F#5:3 E5:5 B4:4 C#5:4", "D5:16", "~:8 A4:4 B4:4",
 ]
 MTN_CHORDS = [
     "D", "A7", "D", "D", "D", "D", "A7", "A7", "D", "D7", "G", "A7", "D", "A7", "D", "D",
 ]
-song("mountain", 11, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 8),
-     " ".join(["K:1 r:1 S:1 r:1 K:1 r:1 S:1 r:1"] * 16), legato=SUNG_ARTIC)
+song("mountain", 6, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 16),
+     " ".join(["K:2 r:2 S:2 r:2 K:2 r:2 S:2 r:2"] * 16), legato=SUNG_ARTIC)
 
 # ---------------------------------------------------------------------------------------------
 # Bistro: "Funiculi, Funicula" (Luigi Denza, 1880), verse and chorus.  6/8, key F, dotted quarter = 92 is
-# 13 frames per eighth row.  25 bars; bars 9 and 25 end with the C5 pickup, so the loop is seamless.
+# 13 frames per eighth row.  25 bars; bars 9 and 25 end with the C5 pickup, so the loop is seamless.  Rhythm checked
+# (music step 3, 2026-10-11) against the Wikifonia lead sheet "Funiculi funicula" in OpenEWLD (github.com/00sapo/OpenEWLD,
+# public-domain scores): every bar has the same note onsets (the lead sheet writes some chorus notes as an eighth and a
+# rest where ours hold, and has a bar's rest after bar 21), except the echo "and so do I" of bar 7, three even eighths
+# there and eighth-quarter-eighth here (the spec's ABC source); kept.
 FUN_BARS = [
     "F5:6", "~:2 F5:1 E5:2 E5:1", "C5:2 C5:1 D5:2 D5:1", "A4:3 A4:3", "~:2 A4:1 G4:2 F4:1", "F4:6",
     "R:2 A4:1 G4:2 F4:1", "F4:6", "~:1 R:4 C5:1", "E5:3 D5:1 R:2", "E5:3 D5:1 R:2",
@@ -237,8 +261,11 @@ song("skaters", 9, "A", " ".join(SKT_BARS), oompah(SKT_CHORDS, 6), groove="K:1 r
 # ---------------------------------------------------------------------------------------------
 # Robot factory: "In the Hall of the Mountain King" (Edvard Grieg, 1875).  4/4, key B minor, quarter = 120 =
 # 15 frames per eighth row.  16 bars, every melody note staccato (cut after half its length), bass = a root
-# ostinato in quarter notes: B in the A phrases, F# in the answer (bars 9-12).  No score found (the Mutopia Project's
-# Grieg has no Peer Gynt "Hall of the Mountain King").  Seamless loop: the last bar's staccato half note A4 left half
+# ostinato in quarter notes: B in the A phrases, F# in the answer (bars 9-12).  Checked (music step 3, 2026-10-11)
+# against the Mutopia Project's "In the Hall of the Mountain King" (ftp/GriegE/O46/Dans_l_antre_du_roi_de_la_montagne,
+# Mutopia-2013/12/07-1888, typeset by Coyau from The University Society 1918 edition; public domain): bars 1-12 are
+# the score's bars 2-13 note for note and in rhythm (staccato eighths, the quarter on beat 4, the half notes of bars 4,
+# 8 and 12); bars 13-16 repeat the motif for the loop (Grieg's piece goes on with the answer an octave up).  Seamless loop: the last bar's staccato half note A4 left half
 # a bar of silence; its second half is F#4 A#3, the leading tone rising into bar 1's B3.
 HALL_BARS = [
     "B3:1 C#4:1 D4:1 E4:1 F#4:1 D4:1 F#4:2", "E#4:1 C#4:1 E#4:2 E4:1 C4:1 E4:2",
@@ -320,7 +347,9 @@ song("danube", 9, "A", " ".join(DAN_BARS), oompah(DAN_CHORDS, 6),
 # ---------------------------------------------------------------------------------------------
 # Zoo: "Pop Goes the Weasel" (English folk tune, c. 1850), verse and second strain.  6/8, key G, dotted
 # quarter = 100: 12 frames per eighth row.  16 bars.  The last rest of bar 16 becomes the D4 pickup (the
-# spec's note for looping).  Bar 15 is C for the first dotted beat and D7 for the second.
+# spec's note for looping).  Bar 15 is C for the first dotted beat and D7 for the second.  Rhythm checked (music step
+# 3, 2026-10-11) against the spec's source itself, Ryan's Mammoth Collection's "Pop Goes the Weasel" as encoded in the
+# music21 corpus (github.com/cuthbertLab/music21, corpus/ryansMammoth/PopGoesTheWeasel.abc): all 16 bars match.
 WEA_BARS = [
     "G4:2 G4:1 A4:2 A4:1", "B4:1 D5:1 B4:1 G4:2 R:1", "G4:2 G4:1 A4:2 C5:1", "B4:3 G4:2 R:1",
     "G4:2 G4:1 A4:2 A4:1", "B4:1 D5:1 B4:1 G4:2 R:1", "E5:3 A4:2 C5:1", "B4:3 G4:2 R:1",
@@ -339,12 +368,15 @@ song("weasel", 12, "A", " ".join(WEA_BARS), oompah(WEA_CHORDS, "c6"),
 # tune 11).  4/4, D Dorian, quarter = 200: 9 frames per eighth row.  16 bars: the verse, then the chorus.  Punk
 # arrangement: every melody note cut short (3/4 of its length), the bass driving root eighth notes with the fifth on the
 # last two, a kick / hat / snare groove with a double kick.  In the Last call the band plays faster (src/music.c
-# music_fast: one frame less per row, 225 bpm).
+# music_fast: one frame less per row, 225 bpm).  Rhythm checked (music step 3, 2026-10-11) against the Wikifonia lead
+# sheet "What Shall We Do with a Drunken Sailor?" in OpenEWLD (github.com/00sapo/OpenEWLD, public-domain scores): the
+# verse was right; the chorus's "Hur-ray and up she ri-ses" is a quarter, a dotted eighth and a sixteenth ("-ray and"),
+# not two even quarters (bars 9, 11 and 13; the "and" was missing).
 SAI_BARS = [
     "A4:2 A4:1 A4:1 A4:2 A4:1 A4:1", "A4:2 D4:2 F4:2 A4:2", "G4:2 G4:1 G4:1 G4:2 G4:1 G4:1", "G4:2 C4:2 E4:2 G4:2",
     "A4:2 A4:1 A4:1 A4:2 A4:1 A4:1", "A4:2 B4:2 C5:2 D5:2", "C5:2 A4:2 G4:2 E4:2", "D4:4 D4:4",
-    "A4:4 A4:4", "A4:2 D4:2 F4:2 A4:2", "G4:4 G4:4", "G4:2 C4:2 E4:2 G4:2",
-    "A4:4 A4:4", "A4:2 B4:2 C5:2 D5:2", "C5:2 A4:2 G4:2 E4:2", "D4:4 D4:4",
+    "A4:4 A4:3 A4:1", "A4:2 D4:2 F4:2 A4:2", "G4:4 G4:3 G4:1", "G4:2 C4:2 E4:2 G4:2",
+    "A4:4 A4:3 A4:1", "A4:2 B4:2 C5:2 D5:2", "C5:2 A4:2 G4:2 E4:2", "D4:4 D4:4",
 ]
 SAI_CHORDS = ["Dm", "Dm", "C", "C", "Dm", "Dm", "C", "Dm"] * 2
 
@@ -361,7 +393,7 @@ song("sailor", 9, "A", " ".join(SAI_BARS), punk_bass(SAI_CHORDS), stac_all=(3, 4
 VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sailor", "sakura", "weasel", "danube"]
 
 # rows per bar (for the pitch-check table in tools/check_music.py)
-BAR_ROWS = {"susanna": 4, "entertainer": 8, "galop": 4, "ballgame": 6, "mountain": 8, "funicula": 6,
+BAR_ROWS = {"susanna": 8, "entertainer": 8, "galop": 4, "ballgame": 6, "mountain": 16, "funicula": 6,
             "skaters": 6, "hall": 8, "sakura": 8, "danube": 6, "weasel": 6, "sailor": 8}
 
 

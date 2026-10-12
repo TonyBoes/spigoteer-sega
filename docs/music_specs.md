@@ -9,6 +9,15 @@ the score's C major). The last bar of the Skaters' Waltz, Take Me Out to the Bal
 Mountain King, Sakura Sakura and the Galop infernal was changed so the tune flows back into bar 1 when it loops
 (each tune's "Game loop" note gives the old bar). No score was found for the other tunes; their notes are unchanged.
 
+Revised 2026-10-11 (music step 3, rhythm audit; the owner heard "comin'" and "Su-san-na" sung in even notes): every
+melody's rhythm was compared with a public-domain score found on GitHub where one exists. Oh! Susanna (not in this
+file; tools/songs.py) now has Foster's rhythm. She'll Be Coming 'Round the Mountain (tune 4) moved to sixteenth units
+and the owner's described rhythm (no score found). Drunken Sailor (tune 11): the chorus bars 9, 11 and 13 were
+flattened, fixed from a lead sheet. Confirmed by a score, unchanged: Funiculi (1, one echo bar differs between
+sources), Pop Goes the Weasel (5), Blue Danube (6), In the Hall of the Mountain King (7, bars 1-12), The Entertainer (9).
+No score found on GitHub: Skaters' Waltz (2), Take Me Out to the Ball Game (3), Sakura (8; the Mutopia
+"Sakura-Miyotote" is another piece), Galop infernal (10). Each tune's "Rhythm" note says what was compared.
+
 ```
 GAME BOY MELODY SPECS - 11 public-domain tunes
 ==============================================
@@ -67,6 +76,7 @@ PICKUP: C5:1
 Note: Bar 9 holds F4; its final C5 is the source's repeat pickup, used here as a lead-in to the chorus. Bar 25 ends with the same C5 pickup, so on looping go straight to bar 1 (play the PICKUP line only the first time).
 Note: Chorus melody is the top voice of the source's two-note chords.
 Confidence: High (from transcription).
+Rhythm checked 2026-10-11 (music step 3) against the Wikifonia lead sheet "Funiculi funicula" in OpenEWLD (github.com/00sapo/OpenEWLD, public-domain scores): the same note onsets in every bar (the lead sheet writes some chorus notes as an eighth and a rest, and has a bar's rest after bar 21), except the echo "and so do I" in bar 7, three even eighths there (A4:1 G4:1 F4:1 after a held F4 and a rest); the spec's rhythm is kept.
 Source: Melody from John Chambers' ABC transcription (trillian.mit.edu/~jc/music/abc/Italy/FuniculiFunicula.abc, via folktunefinder.com). Underlying work: Luigi Denza, Ricordi 1880 (public domain). The full verse modulates through A minor and C major after bar 9; that part is omitted here.
 
 ------------------------------------------------------------
@@ -176,29 +186,31 @@ Source: John Chambers' ABC (trillian.mit.edu/~jc/music/session/waltz/Take_Me_Out
 Key: D major
 Time: 4/4
 Tempo: quarter = 160
-Unit: 1 = eighth note (bar = 8)
+Game tempo: quarter = 150 (6 frames per sixteenth row; 160 would need 5.6). Music step 3, see GAME_BPM in tools/songs.py.
+Unit: 1 = SIXTEENTH note (bar = 16) since music step 3 (2026-10-11); it was an eighth (bar = 8)
 Length: 16 bars + pickup
 
-PICKUP: A4:2 B4:2
- 1 | D5:2 D5:2 D5:2 D5:2                          | D
- 2 | B4:2 A4:2 F#4:2 A4:2                         | A7
- 3 | D5:8                                         | D
- 4 | ~:4 D5:2 E5:2                                | D
- 5 | F#5:2 F#5:2 F#5:2 F#5:2                      | D
- 6 | A5:2 F#5:2 E5:2 D5:2                         | D
- 7 | E5:8                                         | A7
- 8 | ~:4 A5:2 G5:2                                | A7
- 9 | F#5:2 F#5:2 F#5:2 F#5:2                      | D
-10 | E5:2 D5:2 D5:2 D5:2                          | D7
-11 | B4:2 B4:2 B4:2 B4:2                          | G
-12 | E5:2 D5:2 C#5:2 B4:2                         | A7
-13 | A4:2 A4:2 A4:2 A4:2                          | D
-14 | F#5:2 E5:2 B4:2 C#5:2                        | A7
-15 | D5:8                                         | D
-16 | ~:4 A4:2 B4:2                                | D
+PICKUP: A4:4 B4:4
+ 1 | D5:2 D5:6 D5:6 D5:2                          | D
+ 2 | B4:3 A4:5 F#4:4 A4:4                         | A7
+ 3 | D5:16                                        | D
+ 4 | ~:8 D5:4 E5:4                                | D
+ 5 | F#5:2 F#5:6 F#5:6 F#5:2                      | D
+ 6 | A5:3 F#5:5 E5:4 D5:4                         | D
+ 7 | E5:16                                        | A7
+ 8 | ~:8 A5:4 G5:4                                | A7
+ 9 | F#5:2 F#5:6 F#5:6 F#5:2                      | D
+10 | E5:3 D5:5 D5:4 D5:4                          | D7
+11 | B4:2 B4:6 B4:6 B4:2                          | G
+12 | E5:3 D5:5 C#5:4 B4:4                         | A7
+13 | A4:2 A4:6 A4:6 A4:2                          | D
+14 | F#5:3 E5:5 B4:4 C#5:4                        | A7
+15 | D5:16                                        | D
+16 | ~:8 A4:4 B4:4                                | D
 
 Note: Bar 16 ends with the pickup for the next loop.
 Note: Bar 12: the source chord is Ddim; A7 is a simpler substitute that fits the C#.
+Rhythm changed 2026-10-11 (music step 3, owner's listening note: "'comin'' is two beats closer together and 'the mountain' is three beats closer together with the last slightly delayed"): the list had every syllable an even quarter (old bar 1 'D5:2 D5:2 D5:2 D5:2', bar 2 'B4:2 A4:2 F#4:2 A4:2' in eighths). Now every "com-in' round the" bar is X:2 X:6 X:6 X:2 (in' an eighth after com; the an eighth before the bar line) and every "moun-tain when she" / "moun-tain, she'll be" bar is X:3 Y:5 Z:4 W:4 (tain a dotted eighth after moun); com, round, moun and when stay on beats 1 and 3. No score of this song was found on GitHub (searched: the Mutopia Project, the music21 corpus, OpenEWLD, humdrum-tools, KernScores mirrors, public-domain LilyPond songbooks), so this rhythm is the owner's description, not a transcription: ear-check it.
 Confidence: High for melody (cross-checked against an independent letter-note chart).
 Source: John Chambers' ABC collection (mirror of David Kidd's dulcimer transcription, originally everythingdulcimer.com). Tune is traditional; in print by Carl Sandburg's 'The American Songbag' (1927), public domain.
 
@@ -234,6 +246,7 @@ Note: Bars 1-8 are the sung verse. Bars 9-16 are the original dance tune's secon
 Note: Bar 15 'C/D7' = C for the first half-bar, D7 for the second.
 Note: Many versions add a D4 pickup before bar 1 ("Half a..."): D4:1 replacing the R:1 at the end of bar 16 works for looping.
 Confidence: High for melody; chords are standard but not from the source.
+Rhythm checked 2026-10-11 (music step 3) against the same Ryan's Mammoth tune as encoded in the music21 corpus (github.com/cuthbertLab/music21, corpus/ryansMammoth/PopGoesTheWeasel.abc): all 16 bars match.
 Source: Ryan's Mammoth Collection (1882), p. 264, via John Chambers' ABC mirror on abcnotation.com. Public domain. Chords are my harmonization (the source gives none).
 
 ------------------------------------------------------------
@@ -320,7 +333,8 @@ Note: For a Grieg-like bass, skip the chords and repeat the root as an ostinato:
 Note: 'C#7/C' = C#7 for the first half-bar, C major for the second (the chromatic slide F#, E#, E).
 Game loop: bar 16 was 'A4:1 F#4:1 D4:1 F#4:1 A4:4' (half a bar of silence after the staccato A4); F#4 A#3 lead into bar 1's B3.
 Confidence: High for bars 1-8. Moderate for bars 9-12 (the answer phrase). Bars 13-16 are a return I chose for looping; Grieg's own continuation differs.
-Source: NO TRANSCRIPTION SOURCE FOUND. Written from memory. Verify against Grieg's Peer Gynt Suite No. 1 score on IMSLP (imslp.org; the 1888 C.F. Peters edition is public domain) before crediting. Underlying work: Edvard Grieg, 1875 (public domain).
+Checked 2026-10-11 (music step 3): bars 1-12 are note for note and in rhythm the score's bars 2-13 (after the opening fermata) in the Mutopia Project's "In the Hall of the Mountain King" (ftp/GriegE/O46/Dans_l_antre_du_roi_de_la_montagne/Dans_l_antre_du_roi_de_la_montagne.ly in github.com/MutopiaProject/MutopiaProject, Mutopia-2013/12/07-1888, typeset by Coyau from The University Society's 1918 piano edition; placed in the public domain by the typesetter). Bars 13-16 stay the return chosen for looping.
+Source: written from memory (owner's spec), confirmed for bars 1-12 by the Mutopia score above. Underlying work: Edvard Grieg, 1875 (public domain).
 
 ------------------------------------------------------------
 8. SAKURA SAKURA (traditional Japanese, Edo period) - full melody
@@ -463,11 +477,11 @@ Length: 16 bars, no pickup.
  7 | C5:2 A4:2 G4:2 E4:2             | C
  8 | D4:4 D4:4                       | Dm
   [CHORUS ("Way hay and up she rises", x3, "early in the morning")]
- 9 | A4:4 A4:4                       | Dm
+ 9 | A4:4 A4:3 A4:1                  | Dm
 10 | A4:2 D4:2 F4:2 A4:2             | Dm
-11 | G4:4 G4:4                       | C
+11 | G4:4 G4:3 G4:1                  | C
 12 | G4:2 C4:2 E4:2 G4:2             | C
-13 | A4:4 A4:4                       | Dm
+13 | A4:4 A4:3 A4:1                  | Dm
 14 | A4:2 B4:2 C5:2 D5:2             | Dm
 15 | C5:2 A4:2 G4:2 E4:2             | C
 16 | D4:4 D4:4                       | Dm
@@ -475,5 +489,6 @@ Length: 16 bars, no pickup.
 Note: Bars 1-8 and 9-16 end on D, so the 16 bars loop cleanly.
 Note: Bass works best as driving root eighth notes (punk), the fifth on the last two eighths of a bar.
 Confidence: High (the shanty's well-known melody: its first and third lines on A, the second a tone lower on G).
+Rhythm checked 2026-10-11 (music step 3) against the Wikifonia lead sheet "What Shall We Do with a Drunken Sailor?" in OpenEWLD (github.com/00sapo/OpenEWLD, a dataset of public-domain scores): the verse matches; the chorus was flattened: "Way hay (and) up she rises" is a quarter, a dotted eighth and a sixteenth (A4:4 A4:3 A4:1), not two quarters (old bars 9, 11 and 13: 'A4:4 A4:4', 'G4:4 G4:4', 'A4:4 A4:4', which left out "and").
 Source: Traditional English sea shanty (19th century or earlier), public domain.
 ```

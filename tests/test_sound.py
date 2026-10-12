@@ -352,15 +352,40 @@ F4:2 F4:2 A4:2 A4:2 G4:1 G4:1 E4:1 C4:1 D4:2 C4:1 D4:1
 E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 D4:1 C4:2 C4:1 D4:1"""
 
 
-def test_the_oh_susanna_song_data_is_the_owners_note_list():
-    """The owner's list, looped: it starts on bar 1 and the last bar is the C4 C4 D4 turnaround of the second verse
-    line instead of the opening C4 D4 pickup and a final whole-bar C4 (tests/test_music_loops.py)."""
-    assert songs.SONGS["susanna"]["ch2"].split() == SUSANNA_SPEC.split()
-    assert songs.SONGS["susanna"]["tempo"] == 15, "120 bpm quarter = 15 frames per eighth-note row"
-    bass = songs.SONGS["susanna"]["ch3"].replace("!", "").split()
-    assert bass[:4] == ["C3:2", "G2:2", "C3:2", "G2:2"] and bass[-2:] == ["C3:2", "G2:2"], "boom-chick to the last bar"
-    assert len(bass) == 48 and songs.SONGS["susanna"]["ch4"].split()[-4:] == ["K:1", "r:1", "S:1", "r:1"], \
+# Foster's rhythm (music step 3): the score (humdrum-tools/foster-songs fostr20.krn, in G there) bar by bar in C, one
+# row a sixteenth.  Bar 16 is the score's quarter and quarter rest; bar 24 (the score's too) is bar 8's turnaround so
+# the loop's pickup leads into bar 1.
+SUSANNA_FOSTER = [
+    "E4:2 G4:2 G4:2 A4:2", "G4:2 E4:2 C4:3 D4:1", "E4:2 E4:2 D4:2 C4:2", "D4:6 C4:1 D4:1",
+    "E4:2 G4:2 G4:3 A4:1", "G4:2 E4:2 C4:3 D4:1", "E4:2 E4:2 D4:2 D4:2", "C4:6 C4:1 D4:1",
+    "E4:2 G4:2 G4:2 A4:2", "G4:2 E4:2 C4:3 D4:1", "E4:2 E4:2 D4:2 C4:2", "D4:6 C4:1 D4:1",
+    "E4:2 G4:2 G4:3 A4:1", "G4:2 E4:2 C4:3 D4:1", "E4:2 E4:2 D4:2 D4:2", "C4:4 r:4",
+    "F4:4 F4:4", "A4:2 A4:4 A4:2", "G4:2 G4:2 E4:2 C4:2", "D4:6 C4:1 D4:1",
+    "E4:2 G4:2 G4:2 A4:2", "G4:2 E4:2 C4:3 D4:1", "E4:2 E4:2 D4:2 D4:2", "C4:6 C4:1 D4:1",
+]
+
+
+def test_oh_susanna_is_the_owners_notes_in_fosters_rhythm():
+    """The owner's notes (every pitch as listed, plus the score's third A of "san-na, oh"; it starts on bar 1 and the last bar is the C4 C4 D4 turnaround of the
+    second verse line, tests/test_music_loops.py) in the rhythm of Foster's score at sixteenth rows: the sixteenth
+    pickups, the dotted "with my ban-jo", the chorus "Oh! Su-san-na, oh" as quarter quarter | eighth quarter eighth
+    (the owner: "zan-uh grouped closer together"), and the quarter rest before the chorus."""
+    s = songs.SONGS["susanna"]
+    assert s["ch2"].split() == " ".join(SUSANNA_FOSTER).split()
+    pitches = lambda text: [t.split(":")[0] for t in text.split() if not t.startswith("r:")]
+    owner = pitches(SUSANNA_SPEC)
+    k = len(pitches(" ".join(SUSANNA_FOSTER[:17]))) + 2       # bar 18's third A: "san-na, OH don't you cry"
+    assert pitches(s["ch2"]) == owner[:k] + ["A4"] + owner[k:], "the owner's pitches, plus the score's 'oh'"
+    assert songs.BAR_ROWS["susanna"] == 8 and all(
+        sum(int(t.split(":")[1]) for t in bar.split()) == 8 for bar in SUSANNA_FOSTER), "2/4 in sixteenth rows"
+    assert SUSANNA_FOSTER[17] == "A4:2 A4:4 A4:2" and SUSANNA_FOSTER[16] == "F4:4 F4:4"
+    assert s["tempo"] == 8, "8 frames per sixteenth row = quarter 112.5 (the score's MM 114; the eighth rows were 120)"
+    bass = s["ch3"].replace("!", "").split()
+    assert bass[:4] == ["C3:4", "G2:4", "C3:4", "G2:4"] and bass[-2:] == ["C3:4", "G2:4"], "boom-chick to the last bar"
+    assert len(bass) == 48 and s["ch4"].split()[-4:] == ["K:2", "r:2", "S:2", "r:2"], \
         "the beat carries on through the last bar into bar 1"
+    b = gm.build("venue0", s, False)
+    assert b["total"] == 192 and b["n_orders"] == 3
 
 
 def test_the_entertainer_plays_its_b_section_before_it_loops():
@@ -460,7 +485,7 @@ def spec_bars_for_the_game(name, bars):
 
 
 # the spec's tempo (the game plays songs.GAME_BPM where that lists the tune): beats per minute and song rows per beat
-SPEC_BPM_ROWS = {"funicula": (92, 3), "skaters": (160, 2), "ballgame": (168, 2), "mountain": (160, 2), "weasel": (100, 3),
+SPEC_BPM_ROWS = {"funicula": (92, 3), "skaters": (160, 2), "ballgame": (168, 2), "mountain": (160, 4), "weasel": (100, 3),
                  "danube": (160, 2), "hall": (120, 2), "sakura": (100, 2), "entertainer": (90, 4), "galop": (160, 2),
                  "sailor": (200, 2)}
 
