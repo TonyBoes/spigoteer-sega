@@ -532,3 +532,4 @@ def test_the_level_after_quick_draw_has_everything_back(model):
         gb.run(2)
         restored(gb, "saloon")
         assert level_vram(gb) == fresh
+        assert gb.mem("bar_dirs") == 0, "the mirror engine's bars all L again (mirror.c mirror_load at the level load)"

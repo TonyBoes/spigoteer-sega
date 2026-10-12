@@ -190,7 +190,8 @@ static void menu_open(uint8_t m, uint8_t sel) {
 // the redraw: dirty rows, each the line that is on it now (or blank), at most MENU_COPIES_PER_FRAME 20-byte copies a
 // frame (the VBlank drain's budget: as much as a cursor move's two attribute rows). CGB: a line's row also gets its
 // attributes; a blank row does not need them (the blank tile is colour 0, the wall, in either text palette).
-static void menu_frame(void) {
+// Returns the copies queued.
+static uint8_t menu_frame(void) {
     uint8_t r, i, n = 0, need, k;
     for (r = MENU_FIRST_ROW; r < MENU_LAST_ROW + 1 && title_dirty; r++) {
         if (!(title_dirty & ((uint16_t)1 << r))) continue;
@@ -203,6 +204,7 @@ static void menu_frame(void) {
         vq_add(0, k == 255 ? row_blank : menu_buf[k], 0, r, 20);
         if (need == 2) vq_add(1, k == title_sel ? attr_sel : attr_txt, 0, r, 20);
     }
+    return n;
 }
 
 // the HI line's table: in PLAY the one of the mode under the cursor (CONTINUE: STORY), elsewhere ARCADE's
@@ -326,12 +328,14 @@ void title_enter(void) BANKED {
 }
 
 // ---- the logo -------------------------------------------------------------------------------
-static void logo_frame(void) {
+// letters 0: a frame whose drain is already full (a cursor move's two rows, or two menu copies): the letters' new
+// fill states wait a frame (they follow title_t, so they catch up on the next one)
+static void logo_frame(uint8_t letters) {
     uint8_t i, s;
     int16_t d;
     OAM_item_t *o;
     if (logo_done) return;
-    for (i = 0; i < LOGO_LETTERS; i++) {
+    for (i = 0; letters && i < LOGO_LETTERS; i++) {
         d = (int16_t)title_t - LOGO_T0 - i * LOGO_STAGGER;
         if (d < 0) break;
         s = d >= (TT_LOGO_STATES - 1) * LOGO_STEP ? TT_LOGO_STATES - 1 : (uint8_t)d / LOGO_STEP;
@@ -451,7 +455,7 @@ static void cursor_frame(void) {
 // ARCADE (and the test hook title_go) start a game, STORY / CONTINUE the story mode from here (src/story.c), SOUNDTRACK the soundtrack player (src/jukebox.c): the
 // screen changes, 0 is returned. A top-level item opens its submenu; B in a submenu goes back to the top level.
 uint8_t title_update(uint8_t pressed) BANKED {
-    uint8_t old = title_sel, last = title_n - 1;
+    uint8_t old = title_sel, last = title_n - 1, full = 1;
     if (title_go) { old = title_go; title_go = 0; play_mode = MODE_LEVEL; start_new_game(old); return 0; }
     title_t++;
     if (pressed) title_idle = 0;
@@ -479,13 +483,13 @@ uint8_t title_update(uint8_t pressed) BANKED {
         }
     } else if ((pressed & J_B) && title_menu != TM_TOP) menu_open(TM_TOP, title_menu - 1);
     if (title_sel == old) {                        // (a cursor move already queued its two attribute rows)
-        menu_frame();
+        full = menu_frame() == MENU_COPIES_PER_FRAME;
         if (!title_dirty && hi_want() != title_hi) {   // a quiet frame: the HI line follows the cursor's mode
             title_hi = hi_want(); hi_build();
             vq_add(0, hi_buf, 8, ROW_HI, 6);
         }
     }
-    logo_frame();
+    logo_frame(!full);
     bubbles_frame();
     scene_frame();
     cursor_frame();
