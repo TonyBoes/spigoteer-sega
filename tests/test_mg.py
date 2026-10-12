@@ -503,17 +503,28 @@ def test_a_built_mini_slot_plays_the_mini_game_and_the_story_goes_on(model, poin
         restored(gb, "saloon")
 
 
+def unbuilt_game():
+    """A planned game (id = its venue) that mg.c has no game for yet, or None: it plays the stub."""
+    built = set(re.findall(r"if \(id == (MG_\w+)\) mg_game", MG_C)) | {"MG_QUICKDRAW"}
+    for name, gid in re.findall(r"#define (MG_[A-Z]+)\s+(\d+)\s+// the ", MG_H):
+        if name not in built and int(gid) < 10:
+            return int(gid)
+    return None
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_an_unbuilt_venue_s_slot_plays_the_stub_in_its_own_venue(model):
-    """The id is the game, not the venue (the old id 9 was both the stub and the space lounge): the stadium's slot,
-    marked built by story_unskip, is mg_enter(MG_TSHIRT) in the stadium (its tune, its backdrop), playing the stub
-    until T-Shirt Cannon exists; the stub itself (MG_STUB) and the space lounge's id stay apart."""
-    with to_shift(model, 1, 1) as gb:
-        gb.write("story_unskip", 1 << 2)
-        win(gb, 1, 1)
-        run_until(gb, lambda: state(gb) == GS_MINI, 300)
-        run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
-        assert gb.mem("mg_id") == MG_TSHIRT and gb.mem("venue_id") == 1 and text(gb, 2) == "GREEN LIGHT"
+    """The id is the game, not the venue (the old id 9 was both the stub and the space lounge): the slot of a venue whose game is not built,
+    marked built by story_unskip, is mg_enter(its id) in that venue (its tune, its backdrop), playing the stub; the stub itself (MG_STUB)
+    and the space lounge's id stay apart. (Skipped once every planned game exists.)"""
+    gid0 = unbuilt_game()
+    if gid0 is not None:
+        with to_shift(model, gid0, 1) as gb:
+            gb.write("story_unskip", 1 << 2)
+            win(gb, gid0, 1)
+            run_until(gb, lambda: state(gb) == GS_MINI, 300)
+            run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
+            assert gb.mem("mg_id") == gid0 and gb.mem("venue_id") == gid0 and text(gb, 2) == "GREEN LIGHT"
     for gid, venue in ((9, 9), (MG_STUB, 0), (MG_QUICKDRAW, 0)):
         with practice(model) as gb:
             mg_enter(gb, gid, MG_PRACTICE)

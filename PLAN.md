@@ -359,7 +359,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, the venue owners (ten with Granny Throttle), villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort, Milk Run, Log Roll, Asteroid Delivery, Taiko Pour and Marshmallow Drop are built (see their sections). |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort, Milk Run, Log Roll, Asteroid Delivery, Taiko Pour, Marshmallow Drop, Monkey Business and T-Shirt Cannon are built (see their sections). |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -2489,6 +2489,42 @@ awning band, pips HUD and barrel pile above, the crates and the awning in leafy 
   New goldens (dmg + cgb): mk_intro, mk_play, mk_theft, mk_parrot, mk_result. Replaced on purpose, "the list gains MONKEY BIZ": mg_list, mg_list_locked.
 - Spec gaps: the list name; the end banner on row 9 (the awning covers the framework's banner rows); the 20-frame quick-shoo window is counted at the
   hit (the 4th frame of the shoo); no new SFX (shoo COIN, quick shoo SERVE, theft LIFE, parrot BREAK, whiff SHAKE); Practice has no HARD toggle.
+## T-Shirt Cannon as built (M11e, docs/minigames_bosses.md 4.2, 2026-10-12)
+
+The stadium's mini-game on the framework (src/ts.c, MG_TSHIRT = 1, G_TS), in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains STADIUM: chapter 2's
+slot after the Happy hour) and in BONUS > MINI GAMES (after TAIKO POUR; the list and banner name is SHIRT CANNON, the glyph set has no hyphen; THE
+STADIUM; SRAM bit 1). Art: the owner-approved look A "the night game" plus **A1** (8 pennant flags in a swag between the floodlight masts, red pal 0 /
+blue pal 3 alternating), assets/art/tshirt/*.txt (header "; Art: approved design"), tools/gen_ts.py -> build/ts_art.h, build/ts.json, out/preview/ts_*_x8.png.
+The stage is a precomposed map (rows 1-17 tiles + CGB palettes in ts_art.h); only the fans, the windsock and the HUD change at run time.
+- **Rules** (the spec's numbers, 8.8 fixed point): 12 shirts, 40 frames of reload after one lands (the new wind shows when it ends), 11 angles 10..60 degrees
+  (Up / Down: a step a press, repeating every 8 frames held; aiming also works in the reload), a 3-dot preview of frames 6 / 12 / 18 without wind (only while a
+  shot can be fired). Flight: speed 3.0, gravity 1/16, wind k/256 (shots 1-3 calm, 4-8 -1..1, 9-12 -2..2); a catch is the shirt's centre entering a fan box
+  (columns 9-19, the top row 11 - (c - 9) / 2, 8x16); lost past x 168 or at y 124 (the grass). Wave: 3 fans standing (S.wave = centre 1..9), a column every
+  20 / 16 / 12 frames (shots 1-4 / 5-8 / 9-12), ping-pong; a catch in it 300, next to it (the column each side of the three) 100, else 0 (the fan still cheers
+  30 frames; the Spigoteer cheers on points, else the fail pose). 45 s on the framework's timer (T + seconds at 16-19). Medals on the score (mg.c medal_at):
+  GOLD >= 3000, SILVER >= 2000, BRONZE >= 1000. No HARD. SFX: LAUNCH, CATCH, COIN in the wave.
+- **Spec conflict, the muzzle (the proposal's note)**: the approved look stands the cannon on the grass, so the barrel tips are lower than the spec's (40, 100).
+  Four muzzles, one per barrel look (15 / 30 / 45 / 60 degrees; angles <= 20, <= 35, <= 50, else): (46,112) (46,109) (44,107) (43,105), measured on the hand-finished
+  barrels (tools/cannon_table.py MUZZLE). The landing table is rebuilt for them. **The spec's "every fan column reachable within 4 px for every wind" cannot hold, with
+  its own numbers either**: a shot entering a column's box from the left is caught there, so the flat angles (20-35 degrees) all land on column 9, 10 / 15 degrees
+  fall on the grass, and the 5 degree steps skip columns (calm: columns 9, 11, 15, 17 only; the table is in build/ts.json and printed by `python3 tools/cannon_table.py`).
+  The rule built instead (checked in the build, tools/cannon_table.py `problems`): for every wind the schedule can show, at least 7 of the wave's 9 positions can be hit for
+  300 and every position for 300 or 100. Speed and gravity cannot fix it (searched); raising the cannon 6 px with a BG pad would, but the look was approved with the feet on
+  the grass. Played with the model, a bot that reads the wind and the wave lands 12 of 12 (3600) in about 15 s; mashing A at 45 degrees scored 1800 (6 of 12, the
+  wave's beat is locked to the shot cycle); a human's gold (10 of 12) is the owner's call.
+- **Barrels**: the proposal's rasterised barrels were redrawn with a clean outline, a highlight line and a silver collar at the muzzle, then finished by hand (a stray pixel,
+  the 60 degree tip); the tripod is the proposal's.
+- **HUD**: score, the shirt icon + shirts left (2 digits) at columns 8-11 (the framework's lives are not shown), the wind chevron (> >> < <<, a dash for calm) +
+  strength at **13-14** (the mock-up had 14-15; the framework's timer takes 16-19). The banner rows 2-3 cover the stage in the intro and the count (HUD colours); their tiles and
+  attributes are put back on the first play frame.
+- **Budget**: BG ids MG_GAME_BG (125) .. 180 (56 tiles, no CGB flip folding; 131 ids are free up to 255, 240-255 kept clear like the others), OBJ 56-85 (15 entries). OAM: Spigoteer 0-3,
+  cannon 4-5, puff 6, shirt 7, dots 8-10; the aim never shows shirt and dots together: at most 8 on a line in a forced worst case (the mock-up's 9), 6 over bot games.
+  CGB BG palettes 0 (sky, red flags), 2 / 3 (fans, blue flags), 5, 6, 7 (the backdrop's, rewritten), 4 left for the medal; OBJ 1 puff and dots, 2 shirt, 3 cannon. DMG: OBP0 the
+  boot's (Spigoteer, shirt, puff, dots), OBP1 0xE4 (cannon).
+- **Numbers**: no new WRAM global (struct ts_state, 90 B, in the mg union: WRAM_LO / WRAM_HI_0 unchanged), ROM0 real free 577 B before and after (nothing added to ROM0), ts.c + art in
+  a switchable bank by autobank (about 3.3 KB). Tests: tests/test_mg_tshirt.py (74), tests/ts_helpers.py (a Python model of the physics and the wave). Goldens (new, DMG+CGB): ts_intro,
+  ts_aim, ts_flight, ts_cheer, ts_result. Changed on purpose: mg_list, mg_list_locked (the list gains SHIRT CANNON after TAIKO POUR). test_mg.py's unbuilt-slot test now finds an unbuilt
+  game itself; test_arcade.py allows chapter 1's mini-game.
 
 ## SDCC pitfalls found so far (keep adding)
 - **`x++; if (global)`**: with `S.anim++;` (a field reached through a pointer, so `inc (hl)`) directly before `if (sound_on)`, SDCC 4.5 emitted

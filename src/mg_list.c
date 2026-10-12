@@ -10,7 +10,7 @@
 // "A RETRY B MENU", and B comes back here: src/mg.c); a locked one does nothing. B goes back to the title's BONUS
 // submenu with the cursor on MINI GAMES.
 // The list: every built game. The DEBUG_MENU build (`make`) lists them all unlocked, the stub GREEN LIGHT included, so
-// the owner can test; `make release` lists Quick Draw, Order Up!, Battery Sort, Milk Run, Log Roll, Asteroids and Taiko Pour (the stub is not in it) and applies
+// the owner can test; `make release` lists Quick Draw, Order Up!, Battery Sort, Milk Run, Log Roll, Asteroids, Taiko Pour and Shirt Cannon (the stub is not in it) and applies
 // the unlock rule.
 // LCD off to enter; afterwards the rows go through the VBlank queue from WRAM buffers (story_scratch: no cut-scene and
 // no mini-game runs while this screen shows; mg_enter rewrites it).
@@ -27,19 +27,22 @@ extern uint8_t overlay_on;
 
 #define ML_ROW_HEAD     0
 #define ML_ROW_LIST     2
-#define ML_ROW_BOX     12       // panel; the info lines 13-16; panel 17
-#define ML_INFO_LINES   4
 #define ML_COL_NAME     1
 #define ML_COL_MEDAL   14       // (BATTERY SORT is 12 letters: columns 1-12)
 #define ML_ROWS_PER_FRAME 4     // 20-byte rows queued a frame (as mg_say)
 #ifdef DEBUG_MENU
-#define ML_N            10
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_MONKEY, MG_STUB };
+#define ML_N            11
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_MONKEY, MG_TSHIRT, MG_STUB };
 #else
-#define ML_N            9
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_MONKEY };
+#define ML_N            10
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_MONKEY, MG_TSHIRT };
 #endif
-typedef char ml_fits[(ML_N <= ML_ROW_BOX - ML_ROW_LIST) ? 1 : -1];   // (no scrolling yet: 10 lines)
+// The panel sits one blank row under the last line (the Boss Rush list's fix, cfc9b38): list rows 2..ML_N+1, a blank row, the
+// separator, the info lines up to row 16, the panel's bottom on 17. The cursor's line shows the game's name, so the info lines
+// are the venue, the best medal and (when the screen has the room: 10 lines, not the debug build's 11) the keys.
+#define ML_ROW_BOX     (ML_ROW_LIST + ML_N + 1)
+#define ML_INFO_LINES  (16 - ML_ROW_BOX)
+typedef char ml_fits[(ML_INFO_LINES >= 2) ? 1 : -1];   // (no scrolling yet: up to 11 lines)
 #define ML_INFO_BITS  ((1 << ML_INFO_LINES) - 1)
 #define ML_ROW(k)     (story_scratch + (uint8_t)(k) * 20)   // row buffer k: list line k < ML_N, else info line k - ML_N
 
@@ -48,7 +51,7 @@ uint8_t ml_n;                   // lines listed (tests)
 static uint8_t ml_dirty;        // bit k: the info line k (row buffer ML_N + k) to redraw (the list's own lines never change)
 
 static const char locked_name[] = "? ? ?";
-static const char *const locked_info[ML_INFO_LINES] = { locked_name, "LOCKED", "REACH IT IN STORY", "OR ARCADE" };
+static const char *const locked_info[3] = { "LOCKED", "REACH IT IN STORY", "OR ARCADE" };
 static const char *const medal_name[4] = { "", "BRONZE", "SILVER", "GOLD" };
 
 static const char *game_name(uint8_t g) {
@@ -61,6 +64,7 @@ static const char *game_name(uint8_t g) {
     if (g == MG_TAIKO) return "TAIKO POUR";
     if (g == MG_MARSHMALLOW) return "MARSHMALLOWS";
     if (g == MG_MONKEY) return "MONKEY BIZ";      // (the list's name column ends at 13: the details line has the whole name)
+    if (g == MG_TSHIRT) return "SHIRT CANNON";
 #ifdef DEBUG_MENU
     return "GREEN LIGHT";
 #else
@@ -78,6 +82,7 @@ static const char *game_where(uint8_t g) {
     if (g == MG_TAIKO) return "THE TEAHOUSE";
     if (g == MG_MARSHMALLOW) return "THE IGLOO";
     if (g == MG_MONKEY) return "THE JUNGLE ZOO";
+    if (g == MG_TSHIRT) return "THE STADIUM";
 #ifdef DEBUG_MENU
     return "THE TEST STUB";
 #else
@@ -126,9 +131,8 @@ static void build(uint8_t k) {
         g = ml_game[ml_sel];
         if (!unlocked(g)) { put(r, 255, locked_info[k]); return; }
         switch (k) {
-        case 0: put(r, 255, g == MG_MONKEY ? "MONKEY BUSINESS" : game_name(g)); break;
-        case 1: put(r, 255, game_where(g)); break;
-        case 2:                                 // "BEST GOLD" centred, or NO MEDAL YET
+        case 0: put(r, 255, game_where(g)); break;
+        case 1:                                 // "BEST GOLD" centred, or NO MEDAL YET
             if (!best(g)) { put(r, 255, "NO MEDAL YET"); break; }
             w = medal_name[best(g)];
             for (n = 5; w[n - 5]; n++) ;

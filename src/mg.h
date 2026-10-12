@@ -423,6 +423,38 @@ struct mk_state {               // tests read these at story_scratch + offset (t
     uint8_t hattr[20];          // +161 the HUD colours (the end banner)
 };
 
+void ts_enter(void) BANKED;                      // src/ts.c: T-SHIRT CANNON (the stadium)
+void ts_update(uint8_t pressed) BANKED;
+
+struct ts_state {               // tests read these at story_scratch + offset (tests/test_mg_tshirt.py)
+    uint8_t st;                 // +0 TSS_*: 0 aim, 1 the shirt flies, 2 reload, 3 the last shirt landed (the cheer), 4 the outro
+    uint8_t angle;              // +1 0..10 (10 + 5 x angle degrees)
+    int8_t  wind;               // +2 k, -2..2 (k / 256 px a frame^2)
+    uint8_t shots;              // +3 shirts fired
+    uint8_t num;                // +4 the number of the shot aimed or flying, 1..12 (the wave's speed, the wind's schedule)
+    uint8_t reload;             // +5 frames of reload left
+    uint8_t rep;                // +6 frames until a held Up / Down steps again
+    uint8_t wave;               // +7 the wave's centre fan column, 1..9 (columns centre - 1 .. centre + 1 stand)
+    int8_t  wdir;               // +8 its direction
+    uint8_t wt;                 // +9 frames until it moves
+    uint8_t last;               // +10 the last shot's fan column 0..10 (map column - 9), 255: lost
+    uint8_t lastpts;            // +11 its points / 100 (3 wave, 1 next to it, 0)
+    uint8_t pose, pose_t;       // +12 the Spigoteer's pose (idle, fire, cheer, miss), +13 frames left of it
+    uint8_t puff;               // +14 frames of the muzzle puff left
+    uint8_t anim;               // +15 frames counted
+    uint8_t started;            // +16 the first play frame has put the banner rows back
+    uint8_t t;                  // +17 frames of the flight
+    uint16_t shown;             // +18 the fans drawn standing (bit 0..10)
+    uint8_t cheer[11];          // +20 frames left of each fan's cheer
+    uint16_t x, y;              // +31 / +33 the shirt's centre, 8.8 px
+    int16_t vx, vy;             // +35 / +37 8.8 px a frame
+    uint8_t dots[6];            // +39 the preview's three dots, x y x y x y (screen px)
+    uint8_t hbuf[4], wbuf[2];   // +45 HUD shirts (icon, 2 digits, a blank), +49 HUD wind (chevron, strength): VBlank queue sources
+    uint8_t qb[8], qn;          // +51 one-tile queue sources of a frame, +59 how many
+    uint8_t sock[6];            // +60 the windsock's tiles
+    uint8_t wall[2][20], wattr[2][20];   // +66 map rows 2-3 as the stage has them (the banner rows' place), their CGB attributes
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
@@ -435,6 +467,7 @@ union mg_ram {
     struct tk_state tk;
     struct mm_state mm;
     struct mk_state mk;
+    struct ts_state ts;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert
