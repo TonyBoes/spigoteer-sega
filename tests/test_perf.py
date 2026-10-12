@@ -271,6 +271,8 @@ def test_classic_peak(rom, dirs):
 
     def check(gb, i):
         line, n = oam_line_counts(gb)
+        if gb.poked_mug:                                # (the scenario's own poke, drawn uncounted: perf_helpers.ClassicPeak)
+            line = min(line, 10)
         ticks.append((gb.mem("frame_counter"), gb.mem16("music_frames"), line, n))
     r, s, lifts = ph.realistic_run(rom, CLASSIC_FRAMES, check, target=16, dirs=dirs, cls=ph.ClassicPeak)
     n = len(s["patrons"])
@@ -284,4 +286,31 @@ def test_classic_peak(rom, dirs):
     assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
     # guard only (measured P4, PyBoy: R L R L DMG end 329 / 440 missed of 1200, CGB 315 / 575; every bar L DMG 283 / 335,
     # CGB 289 / 402; the scenario's patron count depends on the frame timing: mean 11-14.6 of up to 16)
+    assert r["end"] <= 450 and r["missed"] <= 900, r
+
+
+# ---- Modes P6: ClassicPeak on CLASSIC's own busiest rows (level 12: R L R L; 23-26: R R R R; all slanted) ---------------
+@pytest.mark.parametrize("lv", [12, 23, 24, 25, 26])
+def test_classic_peak_real_rows(rom, lv):
+    """A MEASUREMENT (owner 2026-10-12: don't tune, measure): perf_helpers.ClassicPeak started on CLASSIC's own level lv
+    (its row's speeds, directions, caps of 4 and the slanted bars; the scenario keeps its walkers off each bar's own tap).
+    The budgets hold every frame, the music never skips a tick, no VRAM write outside VBlank; the frame time is only
+    guarded against getting much worse (numbers in PLAN.md, "Three modes P6 as built")."""
+    ticks = []
+
+    def check(gb, i):
+        line, n = oam_line_counts(gb)
+        if gb.poked_mug:                                # (the scenario's own poke, drawn uncounted: perf_helpers.ClassicPeak)
+            line = min(line, 10)
+        ticks.append((gb.mem("frame_counter"), gb.mem16("music_frames"), line, n))
+    r, s, lifts = ph.realistic_run(rom, CLASSIC_FRAMES, check, target=16, cls=ph.ClassicPeak, classic=lv)
+    n = len(s["patrons"])
+    mean = round(sum(s["patrons"]) / n, 2)
+    print(rom.model_name, "classic peak level", lv, r, "patrons mean", mean, "max", max(s["patrons"]),
+          "mugs max", max(s["mugs"]), "lifts", lifts, "worst line", max(t[2] for t in ticks), "entries", max(t[3] for t in ticks))
+    assert rom.mem("level") == lv and list(rom.read("bar_tap", 4)) == [96, 104, 112, 120]
+    assert 10 <= mean and max(s["patrons"]) <= 16, (mean, max(s["patrons"]))
+    assert all(line <= 10 and k <= 40 for _, _, line, k in ticks), [t for t in ticks if t[2] > 10 or t[3] > 40][:5]
+    assert_music_every_frame([(f, m) for f, m, _, _ in ticks])
+    assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
     assert r["end"] <= 450 and r["missed"] <= 900, r

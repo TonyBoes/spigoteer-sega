@@ -437,6 +437,10 @@ uint8_t classic_bonus_due(void) BANKED;       // the level just cleared is follo
 void classic_ramp(void) BANKED;               // ramp_t ran out: the ramp's next step
 void classic_ramp_reset(void) BANKED;         // a lost life: the level's own pace again
 void classic_tip(uint8_t p) BANKED;           // patron p sent the level's 2nd empty: the first tip, where he stands
+// ---- antics.c (banked, CLASSIC's end-of-level antics; P6) ---------------------------------------------------------------
+extern uint8_t antics_force, antics_rng, antics_end;   // test hook (1..6: ending n - 1), the endings' own random byte, the ending
+void antics_start(void) BANKED;               // enter_level_clear in CLASSIC: pick the ending, where he stands
+uint8_t antics_frame(void) BANKED;            // every GS_LEVEL_CLEAR frame in CLASSIC; 1: the clear is over
 void story_begin(uint8_t cont) BANKED;                  // from the title: STORY (0) or CONTINUE (1); LCD off
 uint8_t story_update(uint8_t pressed) BANKED;           // a GS_STORY / GS_GOAL frame; 1: the screen changed
 void story_play(void) BANKED;                           // every GS_PLAYING frame in story mode: the chapter goal

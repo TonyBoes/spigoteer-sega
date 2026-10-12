@@ -404,8 +404,8 @@ static void update(void) {
             if (lives == 0) enter_game_over(); else resume_after_life();
         }
         break;
-    case GS_LEVEL_CLEAR:
-        if (++state_timer >= CLEAR_FRAMES) {
+    case GS_LEVEL_CLEAR:                         // (CLASSIC: the antics, src/antics.c, and their own length)
+        if (play_mode == MODE_CLASSIC ? antics_frame() : ++state_timer >= CLEAR_FRAMES) {
             if (story_on) { story_level_done(); return; }   // M11b / ARCADE: the next step (story.c)
             if (play_mode == MODE_CLASSIC ? classic_bonus_due() : !(level & 1)) {   // the harness: after even levels
                 bonus_enter();

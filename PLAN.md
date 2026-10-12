@@ -1681,6 +1681,59 @@ as the LEVEL harness, MODE_LEVEL). Slanted bars and the end-of-level antics are 
   main.c and render.c (~170 B; on hot paths, so not banked). Banked: mirror.c / venue.c / classic.c +~150 B. WRAM +~85 B
   (base_all 160 -> 184, ctr_all 92 for the old 40, bar_tap, bar_bofs, tap_now).
 
+## Three modes P6 as built: the end-of-level antics (owner decisions 2026-10-12; plan: the modes proposal C10)
+
+- **What**: after LEVEL CLEAR in CLASSIC only, the bartender, where he stands, tosses a glass; one of six endings at
+  random: 0 backheel and smash; 1 backheel and hurt foot (four hops); 2 the glass hits a dove, which falls on his head;
+  3 the glass lands upside down on his head; 4 it crashes on his head (dazed, the stars twinkle, he sways); 5 he drinks
+  two beers instead. Storyboards and timings as approved (the shared toss 52 frames: toss pose 12, rise ~32 px easing
+  out with the glass tumbling 30, apex 10; each ending within 210 frames). Art: assets/art/antics/antics.txt (kick, hop,
+  dazed, drinking) and antics_fx.txt (the dove, the stars), moved out of assets/art/approved/ ("; Art: approved design
+  (owner 2026-10-11)"); tools/gen_antics.py -> build/antics_art.h (32 OBJ tiles; DAZED's and DRINK's bottom halves are
+  checked to be bartender_idle's / bartender_fail's, whose entries are reused). The glass, the shards, the full mug and
+  its drinking frames are the venue's own.
+- **Flow** (src/antics.c, banked; ROM0: main.c's GS_LEVEL_CLEAR asks `antics_frame()` in CLASSIC instead of counting
+  CLEAR_FRAMES; main_cold.c's enter_level_clear calls `antics_start()`): 60 frames of the LEVEL CLEAR banner and jingle
+  (the banner covers bar 1's rows and hides sprites there), then the banner goes and the ending plays (210), then 30
+  frames on its last picture: 300 frames in CLASSIC (other modes keep 150). Then the bonus round or the next level as
+  before. The 32 tiles go over the show's (OBJ_DANCER) during the banner, 8 a frame through GBDK's set_sprite_data
+  (it waits for STAT mode 0/1 per byte: safe with the LCD on); the next level load (or the bonus round) puts the
+  show's back. OAM: 0-3 him, 5 the glass / shards, 6 the dove, 7-8 the stars or the two beers; at most 6 on a line.
+  Drawn at bar-local x and mirrored on an R bar (168 - X, S_FLIPX), so slanted and mirrored bars need nothing more.
+- **Random**: `antics_rng`, the antics' own xorshift byte, stepped once a clear: the game's next_rand sequence is not
+  touched, so the bonus round after a clear plays exactly as it did (classic_bonus golden unchanged). Test hook
+  `antics_force` 1..6 plays ending n - 1; `antics_end` is the ending.
+- **Tests** (tests/test_antics.py, 42 on both models): each ending (forced) plays, moves him, takes the banner away,
+  ends with the clear (300 frames + the next level's load), never more than 10 sprites a line, the antics' tiles in VRAM
+  during the clear and the show's tiles back on the next level; after a bonus round the next level's tiles equal a fresh
+  load's; the ending varies over clears and next_rand is untouched; on an R bar (level 3, bottom bar) every entry is
+  mirrored and flipped; level 13 (slanted, L R L R) on every bar within 10 a line. New goldens (dmg + cgb): antics_bird,
+  antics_beer, antics_dazed. No existing golden changed.
+- **ROM**: ROM0 real free 835 -> 811 B (game.gb), 948 -> 924 B (release.gb): the two hooks. antics.c + its tiles
+  ~2.3 KB banked (autobank put it in bank 1). WRAM +8 B.
+
+### P6 perf: ClassicPeak on CLASSIC's own busiest rows (measured, not tuned)
+
+tests/test_perf.py test_classic_peak_real_rows: perf_helpers.ClassicPeak started on CLASSIC's own level (its row's
+speeds, directions, caps 4 and the slanted bars; the scenario is now taper-aware: walkers are put back 24 px short of
+their bar's own tap, the second bartender's mugs start at the bar's spout) for 1200 frames, PyBoy, end LY / missed
+frames, patrons mean:
+
+| level (layout) | DMG | CGB |
+|---|---|---|
+| 12 (R L R L, slanted) | 322 / 368 (10.95) | 364 / 471 (12.96) |
+| 23, 24 (R R R R, slanted; step 45) | 294 / 568 (13.6) | 293 / 576 (13.52) |
+| 25, 26 (R R R R, slanted; step 44) | 296 / 579 (13.65) | 309 / 584 (13.64) |
+| harness ClassicPeak R L R L (P4's scenario) | 266 / 573 (15.06) | 320 / 579 (15.17) |
+| harness ClassicPeak every bar L | 267 / 479 (12.65) | 250 / 514 (13.97) |
+
+(23 = 24 and 25 = 26: the rows differ only in the spawn interval, which the scenario overrides.) The busiest rows run
+late on 30-50 % of their frames on both models, as P4 measured for the harness row; the budgets hold (<= 10 objects a
+line, <= 40 entries, the music never skips a tick, no VRAM write outside VBlank). Guards only: end <= 450, missed <= 900.
+The scenario's second bartender now serves only the bars the player is not on, and the line checks leave out the two
+frames after it pokes a mug in: PyBoy can land that poke inside the next frame's logic after lift.c's line estimate,
+which then draws it uncounted (an 11th object on level 12's lines in two runs; a real launch is counted first).
+
 ## Quick Draw and BONUS > MINI GAMES as built (M11e step 3, docs/minigames_bosses.md 4.1 / 2.3, 2026-10-11)
 
 The saloon's mini-game on the framework, playing in STORY and ARCADE, and the planned Practice feature as the title's

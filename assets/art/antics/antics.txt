@@ -1,4 +1,4 @@
-; APPROVED by the owner on 2026-10-11 (Classic end-of-level antics, bartender poses). Not built yet: moves to its real place when its feature is built.
+; Art: approved design (owner 2026-10-11): CLASSIC end-of-level antics, bartender poses (tools/gen_antics.py -> src/antics.c)
 ; CLASSIC end-of-level antics: new bartender poses, 16x24 each, drawn as the full figure (same layout as
 ; assets/art/bartender.txt). Palette key: bartender (OBJ 0; '-' shirt/apron white, '+' skin, '#' outline/hair).
 ; Only the quadrants marked NEW are new tiles; the others are pixel-identical to an existing bartender frame and

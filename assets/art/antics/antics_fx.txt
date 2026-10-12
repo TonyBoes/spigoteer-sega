@@ -1,4 +1,4 @@
-; APPROVED by the owner on 2026-10-11 (Classic antics bird (dove A) and stars). Not built yet: moves to its real place when its feature is built.
+; Art: approved design (owner 2026-10-11): CLASSIC end-of-level antics, the dove and the stars (tools/gen_antics.py -> src/antics.c)
 ; CLASSIC antics effects, 8x16 frames (one 8x16 OAM entry each; art in the top tile, bottom tile blank).
 ; Palette key: bartender (OBJ 0) for all of them: bird '-' white, '+' beak/feet, '#' outline; stars '+' fill, '-' glint.
 ; frames: bird_fly_up, bird_fly_down, bird_stunned, stars

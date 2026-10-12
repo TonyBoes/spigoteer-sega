@@ -307,6 +307,7 @@ class RealisticPeak:
     the tap back a little (a lost life would reset the bars); (4) tops up lives / quota and alternates the tip and the
     show every PHASE frames. Deterministic."""
     FULL_GAP, SPAWN_GAP, PHASE, FULL_MIN_X = 18, 24, 400, 72
+    NOT_HIS_BAR = False                                   # (ClassicPeak: the second bartender keeps off the player's bar)
 
     def __init__(self, gb, target=10):
         self.gb = gb
@@ -314,6 +315,7 @@ class RealisticPeak:
         self.frame = 0
         self.last_full = -100
         self.last_spawn = -100
+        self.taps = None                                  # each bar's tap (P6 slanted bars: bar_tap; read at the 1st tick)
         self.stats = {"patrons": [], "mugs": [], "full": [], "empty": [], "held": [], "edge": 0, "hurried": set(),
                       "tip": 0, "show": 0, "both": 0, "spawned": 0, "leaving": 0}
 
@@ -359,6 +361,9 @@ class RealisticPeak:
         dist = gb.read("patron_dist", MAX_P)
         mst, mbar, mx = gb.read("mug_state", MAX_M), gb.read("mug_bar", MAX_M), gb.read("mug_x", MAX_M)
         live = [p for p in range(MAX_P) if st[p]]
+        if self.taps is None:
+            self.taps = list(gb.read("bar_tap", 4))
+        taps = self.taps
         # tip OR show, alternating
         if (f // self.PHASE) & 1:                          # the show: a tip put under the bartender, picked up
             if f % self.PHASE == 0:
@@ -380,33 +385,36 @@ class RealisticPeak:
             self.last_spawn = f
         # a walker about to reach the tap gets his mug in time (a lost life would reset the bars)
         for p in live:
-            if st[p] == WALKING and xs[p] >= 108:
-                put(gb, "patron_x", p, 96)
+            if st[p] == WALKING and xs[p] >= taps[bar[p] & 3] - 12:
+                put(gb, "patron_x", p, taps[bar[p] & 3] - 24)
         # one full mug at a time from the tap end, 3 in flight at most, for the bar whose front walker is furthest in
         full = sum(1 for m in range(MAX_M) if mst[m] == FULL)
         if full < 3 and f - self.last_full >= self.FULL_GAP:
             best = None
             for p in live:
-                if st[p] != WALKING or xs[p] < self.FULL_MIN_X or dist[p]:
+                if st[p] != WALKING or xs[p] < self.FULL_MIN_X - (120 - taps[bar[p] & 3]) or dist[p]:
                     continue
                 b = bar[p]
+                if self.NOT_HIS_BAR and b == gb.mem("bar"):
+                    continue
                 if any(mst[m] == FULL and mbar[m] == b for m in range(MAX_M)):
                     continue
                 if best is None or xs[p] > best[0]:
                     best = (xs[p], b)
             if best and 0 in mst:
                 m = list(mst).index(0)
-                for n, v in (("mug_state", FULL), ("mug_bar", best[1]), ("mug_x", 136), ("mug_timer", 0)):
+                for n, v in (("mug_state", FULL), ("mug_bar", best[1]), ("mug_x", taps[best[1]] + 16), ("mug_timer", 0)):
                     put(gb, n, m, v)
                 gb.write("mugs_live", gb.mem("mugs_live") + 1)
                 gb.write("mug_events", gb.mem("mug_events") + 1)
                 self.last_full = f
+        gb.poked_mug = f - self.last_full <= 1           # (see ClassicPeak: the next two pictures may show it uncounted)
         # empties near the tap end on another bar than the bartender's, or a 4th one sliding (fair empties keep 3 at most;
         # a caught drinker's empty goes at once): caught
         btb = gb.mem("bar")
         empties = sorted((mx[m], m) for m in range(MAX_M) if mst[m] == EMPTY)
         for k, (x, m) in enumerate(reversed(empties)):
-            if (x >= 112 and mbar[m] != btb) or k < len(empties) - 3:
+            if (x >= taps[mbar[m] & 3] - 8 and mbar[m] != btb) or k < len(empties) - 3:
                 put(gb, "mug_state", m, 0)
                 gb.write("mugs_live", max(0, gb.mem("mugs_live") - 1))
 
@@ -436,6 +444,12 @@ class ClassicPeak(RealisticPeak):
     three patrons a bar to begin with, new ones made due as fast as the patrons' end lets them (SPAWN_GAP) up to 16, and
     the second bartender's full mugs half as often (fewer serves), so the bars stay near their cap of 4."""
     FULL_GAP, SPAWN_GAP = 36, 6
+    # P6: the second bartender's mug is poked in between frames, which PyBoy can land inside the next frame's logic after
+    # lift.c's line estimate: drawn uncounted, it can make an 11th object on a line until the next frame's forced drop
+    # shows (a scenario artifact: a real mug is launched before the estimate). gb.poked_mug marks those two frames (the
+    # line checks leave them out); the
+    # second bartender keeps off the player's own bar (his fill glass is there).
+    NOT_HIS_BAR = True
 
     def seed(self):
         """RealisticPeak's two a bar, and a walker on each bar further in."""
@@ -451,14 +465,18 @@ class ClassicPeak(RealisticPeak):
         gb.write("patrons_live", 12)
 
 
-def realistic_run(gb, frames, check=None, target=10, dirs=0, cls=None):
+def realistic_run(gb, frames, check=None, target=10, dirs=0, cls=None, classic=0):
     """The RealisticPeak scenario at level 10 (the fastest row) for `frames` frames (the bartender on the level-8 script); check(gb, i)
     after each; dirs: the bars' directions (P4 ClassicPeak; 0 every bar L). Returns (perf_read, the scenario's stats,
     lifts by the chooser in the run)."""
-    if dirs:
-        gb.write("level_dirs", dirs)
-    start_game(gb)
-    goto_fastest(gb)
+    if classic:                                          # (P6: CLASSIC's own level: its row, directions, caps, taper)
+        from test_classic_mode import classic_at
+        classic_at(gb, classic)
+    else:
+        if dirs:
+            gb.write("level_dirs", dirs)
+        start_game(gb)
+        goto_fastest(gb)
     gb.write("intro_timer", 0)
     gb.write("tip_chance", 0)
     rp = (cls or RealisticPeak)(gb, target)

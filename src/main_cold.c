@@ -253,5 +253,6 @@ void enter_level_clear(void) BANKED {
     state_timer = 0;
     show_overlay("LEVEL CLEAR");
     music_play(TUNE_CLEAR);
+    if (play_mode == MODE_CLASSIC) antics_start();   // P6: the end-of-level antics (src/antics.c)
     game_state = GS_LEVEL_CLEAR;                 // last: whoever sees the state sees the banner and the jingle
 }
