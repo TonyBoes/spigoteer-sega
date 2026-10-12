@@ -9,7 +9,7 @@ import subprocess
 from io import BytesIO
 
 import pytest
-from conftest import (K_BONUS, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP, check_golden,
+from conftest import (K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP, check_golden,
                       hold_stage_anim, menu_items, menu_tap, menu_to, title_pick)
 from gbtools import Rom
 from pyboy import PyBoy
@@ -49,11 +49,14 @@ def with_block(ram, block):
     return bytes(r)
 
 
+PR2_LEN = PR_LEN + 28        # the block as the game writes it, "MGP2": the boss rush's 28 bytes follow (tests/test_rush.py)
+
+
 def parse_block(ram):
-    b = ram[PR_AT:PR_AT + PR_LEN + 2]
-    assert b[:4] == b"MGP1", b[:4]
-    c = (0x5A + sum(b[:PR_LEN])) & 255
-    assert b[PR_LEN] == c and b[PR_LEN + 1] == c ^ 0xFF, "the block's checksum"
+    b = ram[PR_AT:PR_AT + PR2_LEN + 2]
+    assert b[:4] == b"MGP2", b[:4]
+    c = (0x5A + sum(b[:PR2_LEN])) & 255
+    assert b[PR2_LEN] == c and b[PR2_LEN + 1] == c ^ 0xFF, "the block's checksum"
     return int.from_bytes(b[4:6], "little"), list(b[PR_MEDAL:PR_LEN])
 
 
@@ -105,7 +108,7 @@ def test_bonus_offers_soundtrack_and_mini_games(model):
     with booted(model) as rom:
         title_pick(rom, K_BONUS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_SOUNDTRACK, K_MINIGAMES]
+        assert menu_items(rom) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH]
         menu_to(rom, K_MINIGAMES)
         menu_tap(rom, "a")
         run_until(rom, lambda: state(rom) == GS_MGLIST, 30)
@@ -167,7 +170,7 @@ def test_quick_draw_from_the_list_retry_and_back(model):
         tap(gb, "b")
         run_until(gb, lambda: state(gb) == TITLE and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(MENU_SETTLE)
-        assert gb.mem("title_menu") == TM_BONUS and menu_items(gb) == [K_SOUNDTRACK, K_MINIGAMES]
+        assert gb.mem("title_menu") == TM_BONUS and menu_items(gb) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH]
         assert gb.mem("title_sel") == 1, "the cursor on MINI GAMES"
         tap(gb, "b")
         gb.run(MENU_SETTLE)

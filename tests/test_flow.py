@@ -227,7 +227,7 @@ def test_up_down_move_the_mug_cursor_and_wrap(boot):
 
 
 # (top item, its submenu, the submenu's lines without a story save)
-SUBMENUS = [(K_PLAY, TM_PLAY, ("story", "arcade", "classic")), (K_BONUS, TM_BONUS, ("soundtrack", "minigames")),
+SUBMENUS = [(K_PLAY, TM_PLAY, ("story", "arcade", "classic")), (K_BONUS, TM_BONUS, ("soundtrack", "minigames", "bossrush")),
             (K_SETTINGS, TM_SETTINGS, ("music_on",))]
 
 

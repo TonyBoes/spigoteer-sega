@@ -141,7 +141,7 @@ def test_theme_tile_pool_holds_every_theme_and_the_bg_budget_holds():
     """Option A (owner 2026-10-10): BG ids 0..35 are one pool; the stage takes ids from 0 up, the bar + floor pack at
     the top (36 - bar_n ..), never below 20: the title draws the saloon's bar while its menu text overwrites 0..19."""
     pool, text = VENUES["pool"], VENUES["title_text_slot"]
-    assert (pool, text) == (art("VENUE_POOL"), art("TITLE_TEXT_SLOT")) == (36, 20)
+    assert (pool, text) == (art("VENUE_POOL"), art("TITLE_TEXT_SLOT")) == (36, 22)
     assert art("TILE_STAGE_BASE") == 0 and art("TILE_GENERIC_BASE") == pool
     assert art("BAR_TILE_COUNT") == art("TILE_GENERIC_BASE") + art("GENERIC_TILE_COUNT")
     assert art("BAR_TILE_COUNT") + art("PATRON_GROUP_TILES") <= 256

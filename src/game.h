@@ -393,8 +393,9 @@ void title_enter(void) BANKED;                          // LCD off: draws the ti
 uint8_t title_update(uint8_t pressed) BANKED;           // one title frame (it starts the games); 2: idle, show the table
 void title_music_toggle(void) BANKED;                   // music on/off and the MUSIC line
 // title menu items (title_items[], debug.c reads them): the top level PLAY / BONUS / SETTINGS, PLAY's submenu
-// [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES, SETTINGS's MUSIC ON-OFF
-enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES };
+// [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS's MUSIC ON-OFF
+enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES,
+       K_BOSSRUSH };
 enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS };        // title_menu: the top level or the submenu of top item n-1
 extern uint8_t title_items[], title_sel;                // the shown menu's items in screen order, the selected line
 extern uint8_t title_back;                              // the menu title_enter opens (TM_*; it resets it to TM_TOP)
@@ -410,8 +411,9 @@ uint8_t scores_update(uint8_t pressed) BANKED;          // one frame of either; 
 extern uint8_t story_on;                                // 1: story mode
 // The mode being played (src/story.c play_mode): ARCADE, STORY, CLASSIC, and LEVEL, the old 10-level rotation kept as the
 // test harness (title_go, tests/conftest.py title_level) and the debug select's "LEVEL nn" box. The order is the high
-// score tables' (save.c): the harness counts as ARCADE there.
-enum { MODE_ARCADE, MODE_STORY, MODE_CLASSIC, MODE_LEVEL };
+// score tables' (save.c): the harness counts as ARCADE there. MODE_RUSH: BONUS > BOSS RUSH (src/rush.c), boss fights on
+// the story's engine with nothing saved but the rush's own bests (no top 5, no story progress, no tune unlocks).
+enum { MODE_ARCADE, MODE_STORY, MODE_CLASSIC, MODE_LEVEL, MODE_RUSH };
 extern uint8_t play_mode;
 // A level's knobs (level.c's table rows; CLASSIC's rows are turned into one: classic.c). start_level copies them into the
 // globals.
@@ -464,6 +466,18 @@ extern uint16_t mg_unlocked;                            // bit g = mini-game g (
 extern uint8_t  mg_best[];                              // the best medal (MEDAL_*) per mini-game
 void mg_record(uint8_t g, uint8_t medal) BANKED;        // game g reached / played to `medal`: saved when it changes
 #define SAVE_LOCK_DEBUG 2                               // save_lock: a debug-select run (not even the Practice block)
+// save.c: the Boss Rush part of the Practice block (src/rush.c): RUSH_SAVE_N bytes, see save.c's layout
+#define RUSH_SAVE_N     28
+void rush_load(uint8_t *dst) BANKED;                    // the rush part (zeros when the block does not check out)
+void rush_store(const uint8_t *src) BANKED;             // write it (with the mini-games' part from WRAM)
+void boss_beaten(uint8_t v) BANKED;                     // venue v's boss beaten in STORY / ARCADE: unlocked for BOSS RUSH
+// ---- rush.c (banked, BONUS > BOSS RUSH; its screens run as GS_STORY, story_phase STORY_PHASE_RUSH) ----------------
+#define STORY_PHASE_RUSH 7                              // story.c's SP_RUSH: story_update hands the frame to rush_update
+void rush_enter(void) BANKED;                           // LCD off: the BOSS RUSH menu (ALL / CHOOSE)
+uint8_t rush_update(uint8_t pressed) BANKED;            // a frame of a rush screen; 1: the screen changed
+void rush_won(void) BANKED;                             // story_level_done in MODE_RUSH: the fight was won
+void rush_lost(void) BANKED;                            // story SP_FAIL in MODE_RUSH: out of lives
+void rush_fight(uint8_t venue) BANKED;                  // story.c: venue's boss fight alone (the story's step, rules)
 // ---- boss.c (banked, the boss engine, docs/minigames_bosses.md 2.5; ROM0 hooks: patrons.c catch_full / try_spawn,
 // render.c compose_bar). A fight is the venue's level with the boss as a BG figure on his own bar (boss_bar,
 // BOSS_NONE when no fight is on: the ROM0 hooks compare against it); boss_cols[k] is the first tile id (top; bottom =

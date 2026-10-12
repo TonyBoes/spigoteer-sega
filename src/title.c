@@ -8,7 +8,7 @@
 // SETTINGS; A (or START) opens the item's submenu in the same place: PLAY [CONTINUE] / STORY / ARCADE / CLASSIC
 // (CONTINUE when a story save exists: M11b; the three modes, owner 2026-10-11: CLASSIC starts the 1983 table's level 1,
 // src/classic.c, with its own top 5), BONUS SOUNDTRACK (the soundtrack player, src/jukebox.c) / MINI GAMES (Practice: the
-// mini-games reached, src/mg_list.c), SETTINGS MUSIC ON-OFF. B in a submenu goes back to the top level, the cursor on the item it came from. SELECT
+// mini-games reached, src/mg_list.c) / BOSS RUSH (src/rush.c), SETTINGS MUSIC ON-OFF. B in a submenu goes back to the top level, the cursor on the item it came from. SELECT
 // toggles the music anywhere on the title (as before). A submenu's lines replace the menu's text over a few frames
 // (menu_frame: within the VBlank drain's budget, 2-5 frames).
 //
@@ -136,9 +136,9 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
-                                         tt_soundtrack, tt_classic, tt_minigames };
+                                         tt_soundtrack, tt_classic, tt_minigames, tt_bossrush };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
-                                  TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES };
+                                  TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH };
 
 static void build_item(uint8_t i) {
     uint8_t k = title_items[i];
@@ -173,9 +173,10 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_ARCADE;
         title_items[title_n++] = K_CLASSIC;
         break;
-    case TM_BONUS:    // the soundtrack (its songs unlock as the story is played: save.c); the mini-games (Practice)
-        title_items[title_n++] = K_SOUNDTRACK;
+    case TM_BONUS:    // the soundtrack (its songs unlock as the story is played: save.c); the mini-games (Practice);
+        title_items[title_n++] = K_SOUNDTRACK;   // the boss rush (src/rush.c)
         title_items[title_n++] = K_MINIGAMES;
+        title_items[title_n++] = K_BOSSRUSH;
         break;
     default:
         title_items[title_n++] = K_MUSIC;
@@ -482,6 +483,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_CONTINUE: story_begin(1); return 0;
         case K_SOUNDTRACK: title_back = TM_BONUS; jukebox_enter(); return 0;   // (B there comes back to BONUS)
         case K_MINIGAMES: mg_list_enter(); return 0;                           // (its B: BONUS, on MINI GAMES)
+        case K_BOSSRUSH: rush_enter(); return 0;                               // (its B: BONUS, on BOSS RUSH)
         case K_PLAY: menu_open(TM_PLAY, 0); break;
         case K_BONUS: menu_open(TM_BONUS, 0); break;
         case K_SETTINGS: menu_open(TM_SETTINGS, 0); break;

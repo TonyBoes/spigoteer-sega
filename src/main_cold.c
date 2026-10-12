@@ -232,7 +232,8 @@ void resume_after_life(void) BANKED {
 void enter_game_over(void) BANKED {
     // the initials from WRAM (the stack): top_insert runs in its own bank and cannot read a literal in this one
     uint8_t aaa[3];
-    if (play_mode == MODE_STORY) { story_fail(); return; }   // M11b: in story mode the goal failed: TRY AGAIN
+    if (play_mode == MODE_STORY || play_mode == MODE_RUSH) { story_fail(); return; }   // M11b: in story mode the goal
+                                                 // failed: TRY AGAIN (BOSS RUSH: GAME OVER, then the rush's result)
     story_on = 0; story_arc = 0;                 // (ARCADE runs on the story's engine: the run ends here)
     score_tbl = play_mode == MODE_LEVEL ? MODE_ARCADE : play_mode;   // the mode's top 5 (the harness counts as ARCADE)
     aaa[0] = aaa[1] = aaa[2] = 'A';

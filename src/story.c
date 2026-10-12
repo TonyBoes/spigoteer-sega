@@ -53,6 +53,7 @@
 #include "bonus.h"
 #include "story.h"
 #include "mg.h"
+#include "rush.h"
 
 BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
@@ -71,8 +72,10 @@ extern uint32_t score;
 #define GOAL_LYC       (BANNER_WY + 38)
 #define HUD_GOAL_COL    12         // story HUD: goal letter + 2 digits (what is left) at 12-14, timer 'T' + 3 digits at 16-19
 
-enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO, SP_LOOP };   // SP_OUTRO: a boss satisfied (boss.c);
-                                                                          // SP_LOOP: ARCADE's "LOOP n" before a goal banner
+enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO, SP_LOOP, SP_RUSH };   // SP_OUTRO: a boss satisfied
+                                                     // (boss.c); SP_LOOP: ARCADE's "LOOP n" before a goal banner;
+                                                     // SP_RUSH: a BOSS RUSH screen (src/rush.c rush_update)
+typedef char sp_rush_is_game_h[(SP_RUSH == STORY_PHASE_RUSH) ? 1 : -1];
 enum { SW_IDLE, SW_OUT, SW_PAL, SW_IN };
 
 // ---- state (globals => symbols the tests read) ----
@@ -602,6 +605,7 @@ static void scene_done(void) {
 void story_level_done(void) BANKED {
     uint8_t n = story_step + 1, s = next_step(n);
     boss_set(BOSS_NONE);                         // (a won boss fight is over: the POST scene has no boss)
+    if (play_mode == MODE_RUSH) { rush_won(); return; }   // BOSS RUSH: no progress, the rush's next screen
     if (s >= STORY_STEPS) { chapter_done(); return; }
     story_save(story_chapter, story_progress == story_chapter && story_reached > n ? story_reached : n);
     story_step = s;
@@ -611,7 +615,7 @@ void story_level_done(void) BANKED {
 // the goal failed: TRY AGAIN over the frozen level, then the venue again (no lives left: from enter_game_over, or
 // the clock's last life) or that shift (the clock ran out, lives left)
 void story_fail(void) BANKED {
-    show_overlay("TRY AGAIN");
+    show_overlay(play_mode == MODE_RUSH ? "GAME OVER" : "TRY AGAIN");   // (BOSS RUSH: the run is over)
     music_play(TUNE_OVER);
     story_fails++;
     story_phase = SP_FAIL; story_t = 0;
@@ -620,12 +624,14 @@ void story_fail(void) BANKED {
 
 static void story_win(void) {
     enter_level_clear();                         // (its LEVEL CLEAR banner, the bonus, the jingle, GS_LEVEL_CLEAR)
-    show_overlay(next_step(story_step + 1) >= STORY_STEPS ? (story_arc ? "VENUE CLEAR" : "CHAPTER CLEAR") : "SHIFT CLEAR");
+    show_overlay(play_mode == MODE_RUSH ? "BOSS BEATEN"
+                 : next_step(story_step + 1) >= STORY_STEPS ? (story_arc ? "VENUE CLEAR" : "CHAPTER CLEAR") : "SHIFT CLEAR");
 }
 
 // Every GS_PLAYING frame in story mode, after the rules (main.c): the goal's counters, success and failure.
 void story_play(void) BANKED {
     uint8_t c, b, left;
+    if (play_mode == MODE_RUSH && RUSH->fight_t != 0xFFFF) RUSH->fight_t++;   // BOSS RUSH: the fight's time
     c = sfx_count[SFX_CATCH] - st_last_catch; st_last_catch += c; story_catches += c;
     b = sfx_count[SFX_BREAK] - st_last_break; st_last_break += b; story_breaks += b;
     if (life_lost) {
@@ -683,6 +689,7 @@ uint8_t story_update(uint8_t pressed) BANKED {
         return 0;
     case SP_FAIL:
         if ((pressed & (J_A | J_START)) || story_t >= FAIL_FRAMES) {
+            if (play_mode == MODE_RUSH) { rush_lost(); return 1; }   // BOSS RUSH: out of lives, the result
             if (lives) shift_start();
             else {                               // out of lives: the venue again, the score from 0 (owner 2026-10-11)
                 story_restarts++;
@@ -702,8 +709,13 @@ uint8_t story_update(uint8_t pressed) BANKED {
         }
         return 0;
     case SP_OUTRO:                               // a boss satisfied: his outro, then CHAPTER CLEAR as a shift's
-        if (boss_outro(story_t)) story_win();
+        if (boss_outro(story_t)) {
+            if (play_mode != MODE_RUSH) boss_beaten(story_chapter);   // STORY / ARCADE: BOSS RUSH lists him (save.c)
+            story_win();
+        }
         return 0;
+    case SP_RUSH:                                // a BOSS RUSH screen (src/rush.c)
+        return rush_update(pressed);
     case SP_SCENE:
         break;
     default:
@@ -741,6 +753,20 @@ void story_bonus_life(void) BANKED {
     if (lives < MAX_LIVES) lives++;
     prep_hud();
     hud_dirty |= HUD_LIVES;
+}
+
+// BOSS RUSH (src/rush.c, which has set the lives and the score): venue v's boss step alone, as the story plays it (his
+// banner, the regulars, the perfect pour, the HUD meter), in MODE_RUSH: nothing saved but the rush's own bests
+// (save_lock 1: no progress, no tune unlocks; title_enter clears it), no top 5, no extra lives by score. A win ends at
+// story_level_done -> rush_won, the last life at SP_FAIL -> rush_lost.
+void rush_fight(uint8_t v) BANKED {
+    uint8_t s;
+    story_on = 1; story_arc = 0; play_mode = MODE_RUSH; save_lock = 1;
+    extra_at = 0; bonus_round = 0; game_over = 0; story_conds = 0; story_pen = 0;
+    story_chapter = v;
+    for (s = 0; s < STORY_STEPS && (story_step_get(v, s) & STEP_KIND) != STEP_BOSS; s++) ;
+    story_step = s;
+    step_start();
 }
 
 #ifdef DEBUG_MENU

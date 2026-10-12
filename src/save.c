@@ -9,11 +9,17 @@
 //   title tune, always set; bit 15, above TUNE_COUNT, is kept as it is); 8 checksum (0x5A + bytes 0..7), 9 its
 //   complement. CONTINUE on the title: progress 1..9, or progress 0 with a step reached; it starts that chapter over
 //   (lives are not saved: story.c).
-//   0x40 Practice (BONUS > MINI GAMES): 0..3 magic "MGP1"; 4..5 the mini-games reached (16-bit little endian, bit g =
-//   mini-game g, MG_* of src/mg.h; only bits below MG_PLANNED are ever set); 6..6+MG_PLANNED-1 the best medal of each
-//   (MEDAL_*, 0..3); then the checksum (0x5A + the bytes before it) and its complement. A block that does not check out
-//   (magic, checksum, a medal above GOLD, a bit at or above MG_PLANNED) loads as nothing reached and no medals; the
-//   other blocks are unaffected, and it is only written when it changes (mg_record), so a bad one stays until then.
+//   0x40 Practice (BONUS > MINI GAMES and BOSS RUSH): 0..3 magic "MGP2"; 4..5 the mini-games reached (16-bit little
+//   endian, bit g = mini-game g, MG_* of src/mg.h; only bits below MG_PLANNED are ever set); 6..6+MG_PLANNED-1 the best
+//   medal of each (MEDAL_*, 0..3); 16..43 the boss rush's part (RUSH_SAVE_N bytes, src/rush.h RSV_*): 16..17 the bosses
+//   beaten in STORY or ARCADE (LE, bit v = venue v's boss; only bits below BOSS_COUNT), 18..37 each boss's fastest rush
+//   win in frames (LE, 0 none), 38..40 ALL's best score (LE, <= 999999), 41..42 that run's frames, 43 its bosses beaten
+//   (<= BOSS_COUNT); 44 the checksum (0x5A + bytes 0..43), 45 its complement. A block that does not check out (magic,
+//   checksum, a medal above GOLD, a bit at or above MG_PLANNED or BOSS_COUNT, a score or count out of range) loads as
+//   nothing reached, no medals and an empty rush part; the other blocks are unaffected, and it is only written when it
+//   changes (mg_record, boss_beaten, rush_store), so a bad one stays until then. Version 1 ("MGP1": bytes 0..15 as
+//   now, 16 its checksum over 0..15, 17 the complement; 2026-10-11 to 12) is migrated at boot: its mini-games kept,
+//   the rush part empty, written back as "MGP2" at once.
 //   A mini-game is reached when STORY or ARCADE starts it (mg_enter in MG_STORY mode); its best medal is any mode's
 //   (Practice too). A debug-select run (save_lock == SAVE_LOCK_DEBUG) records nothing; ARCADE's save_lock (1) does not
 //   stop it (the owner's rule: reached in STORY or ARCADE).
@@ -94,7 +100,15 @@ uint16_t mg_unlocked;               // Practice: bit g = mini-game g reached in 
 uint8_t  mg_best[MG_PLANNED];       // Practice: the best medal per mini-game
 #define PR_AT    0x40
 #define PR_MEDAL 6
-#define PR_LEN   (PR_MEDAL + MG_PLANNED)   // bytes covered by the Practice block's checksum
+#define PR1_LEN  (PR_MEDAL + MG_PLANNED)   // bytes covered by an "MGP1" block's checksum (the mini-games' part)
+#define PR_RUSH  PR1_LEN                   // the boss rush's part (src/rush.h RSV_*)
+#define PR_LEN   (PR_RUSH + RUSH_SAVE_N)   // bytes covered by the Practice block's checksum ("MGP2")
+#define RSV_BITS      0                    // (src/rush.h: the rush part's layout)
+#define RSV_ALL_SCORE (2 + 2 * BOSS_COUNT)
+#define RSV_ALL_N     (RSV_ALL_SCORE + 5)
+#if RSV_ALL_N + 1 != RUSH_SAVE_N || PR_AT + PR_LEN + 2 > 0x80
+#error "the Practice block: the rush part's layout (src/rush.h) or its room before the tables at 0x80"
+#endif
 
 static uint8_t checksum(volatile uint8_t *b, uint8_t n) {
     uint8_t i, s = 0x5A;
@@ -199,34 +213,92 @@ static uint16_t old_tunes(uint16_t m) {
     return t;
 }
 
-// Practice's block, if it checks out, into mg_unlocked / mg_best (RAM enabled; they start empty)
+// Practice's block (RAM enabled): its version ('1' or '2') if it checks out, else 0
+static uint8_t pr_version(void) {
+    volatile uint8_t *b = SRAM + PR_AT, *r = b + PR_RUSH;
+    uint8_t g, v;
+    if (b[0] != 'M' || b[1] != 'G' || b[2] != 'P') return 0;
+    v = b[3];
+    if (v == '1') { if (!sum_ok(b, PR1_LEN)) return 0; }
+    else if (v != '2' || !sum_ok(b, PR_LEN)) return 0;
+    if ((b[4] | ((uint16_t)b[5] << 8)) >> MG_PLANNED) return 0;
+    for (g = 0; g < MG_PLANNED; g++) if (b[PR_MEDAL + g] > MEDAL_GOLD) return 0;
+    if (v == '1') return v;
+    if ((r[RSV_BITS] | ((uint16_t)r[RSV_BITS + 1] << 8)) >> BOSS_COUNT || r[RSV_ALL_N] > BOSS_COUNT
+        || (r[RSV_ALL_SCORE] | ((uint32_t)r[RSV_ALL_SCORE + 1] << 8) | ((uint32_t)r[RSV_ALL_SCORE + 2] << 16)) > HI_MAX)
+        return 0;
+    return v;
+}
+
+// The block written (RAM enabled): "MGP2", the mini-games' part from WRAM, the rush part from src (0: as it is in a
+// good "MGP2" block, else empty), the checksum.
+static void pr_write(const uint8_t *src) {
+    volatile uint8_t *b = SRAM + PR_AT;
+    uint8_t g, keep = pr_version() == '2';
+    for (g = 0; g < RUSH_SAVE_N; g++) b[PR_RUSH + g] = src ? src[g] : keep ? b[PR_RUSH + g] : 0;
+    b[0] = 'M'; b[1] = 'G'; b[2] = 'P'; b[3] = '2';
+    b[4] = (uint8_t)mg_unlocked; b[5] = (uint8_t)(mg_unlocked >> 8);
+    for (g = 0; g < MG_PLANNED; g++) b[PR_MEDAL + g] = mg_best[g];
+    sum_put(b, PR_LEN);
+}
+
+// Practice's block, if it checks out, into mg_unlocked / mg_best (RAM enabled; they start empty); an "MGP1" block is
+// written back as "MGP2" with an empty rush part (its mini-games kept)
 static void load_pr(void) {
     volatile uint8_t *b = SRAM + PR_AT;
-    uint16_t m;
-    uint8_t g;
-    if (b[0] != 'M' || b[1] != 'G' || b[2] != 'P' || b[3] != '1' || !sum_ok(b, PR_LEN)) return;
-    m = b[4] | ((uint16_t)b[5] << 8);
-    if (m >> MG_PLANNED) return;
-    for (g = 0; g < MG_PLANNED; g++) if (b[PR_MEDAL + g] > MEDAL_GOLD) return;
-    mg_unlocked = m;
+    uint8_t g, v = pr_version();
+    if (!v) return;
+    mg_unlocked = b[4] | ((uint16_t)b[5] << 8);
     for (g = 0; g < MG_PLANNED; g++) mg_best[g] = b[PR_MEDAL + g];
+    if (v == '1') pr_write(0);
 }
 
 // Mini-game g was reached (medal 0) or played to `medal`: the unlock bit, the best medal; the block is written only
-// when one of them changes. Nothing in a debug-select run, nothing for the stub (g >= MG_PLANNED).
+// when one of them changes (the rush part kept). Nothing in a debug-select run, nothing for the stub (g >= MG_PLANNED).
 void mg_record(uint8_t g, uint8_t medal) BANKED {
-    volatile uint8_t *b = SRAM + PR_AT;
     uint16_t m = (uint16_t)1 << g;
     if (save_lock == SAVE_LOCK_DEBUG || g >= MG_PLANNED) return;
     if (medal ? medal <= mg_best[g] : (mg_unlocked & m) != 0) return;
     if (medal) mg_best[g] = medal; else mg_unlocked |= m;
     ENABLE_RAM;
     SWITCH_RAM(0);
-    b[0] = 'M'; b[1] = 'G'; b[2] = 'P'; b[3] = '1';
-    b[4] = (uint8_t)mg_unlocked; b[5] = (uint8_t)(mg_unlocked >> 8);
-    for (g = 0; g < MG_PLANNED; g++) b[PR_MEDAL + g] = mg_best[g];
-    sum_put(b, PR_LEN);
+    pr_write(0);
     DISABLE_RAM;
+}
+
+// BOSS RUSH (src/rush.c): the rush part of the block into dst[RUSH_SAVE_N] (all 0 when the block does not check out
+// or is not "MGP2"). Kept out of WRAM: the rush reads it when its menu opens.
+void rush_load(uint8_t *dst) BANKED {
+    volatile uint8_t *b = SRAM + PR_AT + PR_RUSH;
+    uint8_t i, ok;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    ok = pr_version() == '2';
+    for (i = 0; i < RUSH_SAVE_N; i++) dst[i] = ok ? b[i] : 0;
+    DISABLE_RAM;
+}
+
+// ... and written (with the mini-games' part from WRAM, as a good block has them)
+void rush_store(const uint8_t *src) BANKED {
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    pr_write(src);
+    DISABLE_RAM;
+}
+
+// The story's SP_OUTRO in STORY or ARCADE: venue v's boss was beaten; BOSS RUSH lists him from now on. Written only
+// when the bit is new; nothing in a debug-select run (ARCADE's save_lock 1 does not stop it: "beaten in STORY or
+// ARCADE").
+void boss_beaten(uint8_t v) BANKED {
+    uint8_t r[RUSH_SAVE_N];
+    uint16_t m;
+    if (save_lock == SAVE_LOCK_DEBUG || v >= BOSS_COUNT) return;
+    rush_load(r);
+    m = r[RSV_BITS] | ((uint16_t)r[RSV_BITS + 1] << 8);
+    if ((m >> v) & 1) return;
+    m |= (uint16_t)1 << v;
+    r[RSV_BITS] = (uint8_t)m; r[RSV_BITS + 1] = (uint8_t)(m >> 8);
+    rush_store(r);
 }
 
 void hi_load(void) BANKED {

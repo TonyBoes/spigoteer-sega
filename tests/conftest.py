@@ -98,8 +98,8 @@ def hold_stage_anim(rom, hold=1):
 
 
 # ---- the title menu (src/title.c): the top level PLAY / BONUS / SETTINGS, each opening a submenu in the same place:
-# PLAY [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS SOUNDTRACK / MINI GAMES, SETTINGS MUSIC. K_* / TM_*: src/game.h.
-K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES = range(10)
+# PLAY [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS MUSIC. K_* / TM_*: src/game.h.
+K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES, K_BOSSRUSH = range(11)
 TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS = range(4)
 MENU_SETTLE = 6          # frames for a submenu's lines to reach the screen (2-5: src/title.c menu_frame)
 

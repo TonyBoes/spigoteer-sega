@@ -2183,3 +2183,47 @@ Both new dispatchers autobank into bank 12 (about 4.4 KB for the two with their 
   banks 9 / 10 / 11 / 3 / 4 repacked by the linker: free now 9: 30, 3: 72, 4: 64, 6: 47, 10: 102, 11: 29 (was 9: 10,
   4: 20, 6: 20). Tests: test_boss_mascot.py, test_boss_prototype.py; test_boss.py BUILT gains venues 1 and 5 and its
   "slot not built yet" test now uses the biker bar (venue 6); test_boss_critic's empties dedupe is by slot and state.
+
+## Boss Rush as built (owner request 2026-10-12: "a boss rush mode in the bonus section, that can be unlockable, but will also help us in play testing the bosses. Options can be played all or choose a boss")
+
+BONUS is now SOUNDTRACK / MINI GAMES / BOSS RUSH (title rows 7 / 9 / 11; "BOSS RUSH" is one new title string, so the
+title's menu-text tiles reserve 22 ids, VENUE_POOL 36 / TITLE_TEXT_SLOT 22 in gen_art.py: no venue's bar + floor uses
+more than 12 tiles and the title shows no stage). Code: src/rush.c (banked; autobank put it in story.c's bank, the save code in bank 7),
+src/rush.h, and small hooks in story.c / main_cold.c / title.c / save.c. First written in an interrupted session (WIP
+8bb6e98 on the old base, before five bosses); brought over and finished here.
+- **Screens** (the MINI GAMES list's look: HUD glyphs on the dark band, one mug cursor sprite; all run as GS_STORY with
+  story_phase 7 = STORY_PHASE_RUSH, so main.c has no new case): MENU ALL / CHOOSE (rows 4 / 6; ALL says LOCKED until two
+  bosses are unlocked); LIST (CHOOSE: every built boss in story order, one a line from row 2, his best rush time at column 15;
+  an unbeaten-in-story boss is "? ? ?" and A does nothing); NEXT (ALL: FIGHT n OF m, NEXT: <boss>, his venue, lives, score
+  and time so far; A or 3 s); RESULT (YOU WIN / YOU LOSE or ALL CLEAR / GAME OVER, time, score, NEW BEST; A retries, B
+  goes back: ALL to the menu, CHOOSE to the list on that boss). B on the menu returns to BONUS on BOSS RUSH.
+  A screen change takes ~4 frames to build (LCD off), and input in those frames is lost (tests wait 10).
+- **Fights**: story.c rush_fight(venue) plays that venue's boss step exactly as the story does (banner, regulars, perfect
+  pour, meter) in MODE_RUSH (new, 4): save_lock 1 (no story progress, no tune unlocks), no top 5, no extra lives from
+  score; boss_set(NONE) on exit. Won: story_level_done -> rush_won. Out of lives: enter_game_over -> story_fail shows
+  "GAME OVER" (not TRY AGAIN), then SP_FAIL -> rush_lost. CHOOSE: 3 lives, score from 0. ALL: 3 lives at the start,
+  carried from fight to fight, a won fight gives one back (never above 3), the score totalled. The time is the fights'
+  PLAYING frames (story_play counts them).
+- **Which bosses**: the built ones, read from the story's step table (story_step_get, a boss step not STEP_SKIP) once at
+  entry into a bitmask: the eight now (Big Tex, the Mascot, the Sasquatch, the Critic, the Yeti, the Prototype, the Sumo,
+  Leo; Duke and the Mothership are absent) and a boss added to gen_story BUILT_SLOTS appears with no edit here.
+- **Unlock**: a boss is beaten in STORY or ARCADE (story.c SP_OUTRO -> save.c boss_beaten; a debug-select run records
+  nothing, like Practice); BOSS RUSH lists him from then on. ALL needs two. The DEBUG_MENU build (`make`) lists every
+  built boss unlocked; `make release` the real rule.
+- **SRAM** (no new block; v7's other blocks are untouched): the Practice block at 0x40 grew from "MGP1" (18 bytes) to
+  "MGP2" (46 bytes, ends at 0x6D, before 0x80): 0-3 magic, 4-5 mini-games reached, 6-15 medals (as before), 16-17 bosses
+  beaten in STORY / ARCADE (bit = venue), 18-37 each boss's fastest rush win in frames (10 x LE16), 38-40 ALL's best score
+  (LE24), 41-42 that run's frames, 43 its bosses beaten, 44 checksum (0x5A + bytes 0..43), 45 its complement. An "MGP1" block is
+  migrated at boot (mini-games kept, rush part empty, rewritten as "MGP2"); a bad block loads as nothing and leaves the
+  others alone. Written only by a boss bit, a best, or a mini-game record (which keeps the rush part).
+- **WRAM / ROM**: no WRAM globals. The state is struct rush_state (rush.h, 46 B) at story_scratch + 400, below the boss
+  buffers (the last 68 bytes) and above the list's row buffers; a rush never runs a cut-scene or mini-game. WRAM_LO 3936 /
+  WRAM_HI_0 3454 before and after. ROM0 745 B free before and after (no ROM0 change: the hooks are all in banked code).
+  Banked code grew by ~7 KB (rush.c, the save code, tests apart); autobank reshuffled the files and bank 12, the emptiest, went from 5491 to 12404 B used (still 13 banks, 256 KB ROM). Stack: a whole ALL run
+  with the free stack filled with 0xAA never goes below 0xDF40 (under 192 B deep; 654 B free).
+- **Tests** (tests/test_rush.py, 25): the menu and its path; the debug list; the release list locked, then unlocked by a
+  block with bosses beaten; a boss win in STORY and in ARCADE writes the bit and survives a reset, a debug-select run
+  writes nothing; MGP1 migration and bad blocks; CHOOSE (one fight, retry, back; out of lives); ALL (every built boss in
+  order, lives and score carried, the NEXT card, ALL CLEAR, game over). Fights run through boss_common.until, so every
+  frame is checked at <= 10 sprites a line. Goldens (new): rush_menu, rush_list, rush_list_locked, rush_next_card (DMG
+  + CGB); replaced on purpose: title_bonus (the BONUS menu has a third item).
