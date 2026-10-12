@@ -11,7 +11,7 @@ from gbtools import Rom
 from PIL import Image, ImageChops, ImageOps
 
 from conftest import (GAME, LAYOUT, ROM, bar_counter_row, bar_top_row, bar_top_y, check_golden, hold_stage_anim, logic_paused,
-                      title_level, venue_rows)
+                      title_level, venue, venue_rows)
 from test_patrons import (BASE, BACK_BASE, DRINKING, EMPTY, FULL, HELD, MAX_M, MAX_P, PUSHED, SHIFT0_OFS, WALKING,
                           clear_patrons, freeze, hold_mug, inject_mug, pose_first, put, score, set_patron)
 
@@ -372,6 +372,7 @@ def test_dmg_every_venue_gets_flipped_keg_and_counter_tiles(boot, theme):
     gb = start(boot, ALL_R, theme + 1)
     assert gb.mem("cur_group") == theme and gb.mem("mir_short") == 0
     m = venue_rows(theme, "bar_map")
+    twins = dict(zip(venue(theme)["bar_alt"], venue(theme)["bar_alt_tiles"]))
     tm = gb.bg_tilemap()
     for r in range(3):
         row = [t & 0xFF for t in tm[bar_top_row(3) + r][:20]] if r == 2 else None
@@ -382,7 +383,9 @@ def test_dmg_every_venue_gets_flipped_keg_and_counter_tiles(boot, theme):
                 #                                    P6: BASE_W wide, a straight bar's window from column 3 of an R row)
             else:
                 got = row[19 - c]
-            if tile_data(gb, src) == flipped(tile_data(gb, src)):
+            if src in twins:                            # the tap's lettering: the pre-mirrored twin, flipped (gen_art.py LETTER_BOX)
+                assert got in FREE_IDS and tile_data(gb, got) == flipped(bytes(twins[src])), (r, c, src, got)
+            elif tile_data(gb, src) == flipped(tile_data(gb, src)):
                 assert got == src
             else:
                 assert got in FREE_IDS and tile_data(gb, got) == flipped(tile_data(gb, src)), (r, c, src, got)
@@ -658,3 +661,33 @@ def test_the_level_box_select_steps_the_directions_and_a_starts_with_them(boot):
         if boot.mem("game_state") == PLAYING:
             break
     assert boot.mem("game_state") == PLAYING and boot.mem("bar_dirs") == 0x3 and boot.mem("play_mode") == 3
+
+
+# ---- lettering on the taps reads the right way round on an R bar (owner 2026-10-12: POP, MOO) ------------------------
+# The R bar is the L picture mirrored, except the lettering: its pixels there are the L ones translated to the mirrored place,
+# not mirrored (tools/gen_art.py LETTER_BOX, twin tiles loaded by mirror_load into free BG ids).
+LETTER_BOX = {1: (147, 18, 157, 22), 6: (145, 14, 158, 18)}       # theme: pixel box in the L bar (sports POP, biker MOO)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("theme", sorted(LETTER_BOX))
+@pytest.mark.parametrize("dirs", [ALL_R, SPLIT, ALT])
+def test_lettering_on_an_r_bar_matches_the_l_text(model, theme, dirs):
+    x0, y0, x1, y1 = LETTER_BOX[theme]
+    a, b = pair(model, dirs, theme + 1)
+    try:
+        run_both(a, b, 4)
+        assert b.mem("mir_short") == 0
+        n = 0
+        for k in range(1, 4):                       # (bar 0 holds the bartender at the left tap)
+            if not is_r(dirs, k):
+                continue
+            n += 1
+            la = bar_crop(a, k).crop((x0, y0, x1 + 1, y1 + 1))
+            rb = bar_crop(b, k).crop((159 - x1, y0, 160 - x0, y1 + 1))       # the box mirrored in the screen
+            assert ImageChops.difference(la.convert("RGB"), rb.convert("RGB")).getbbox() is None, (k, "the text reads backwards")
+            plain = ImageOps.mirror(la)
+            assert ImageChops.difference(plain.convert("RGB"), rb.convert("RGB")).getbbox() is not None, "(a text that is its own mirror image proves nothing)"
+        assert n
+    finally:
+        close(a, b)

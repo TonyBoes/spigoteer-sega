@@ -87,11 +87,16 @@ static uint8_t flip_id(uint8_t t) {
 
 // An R bar's rows in screen order (BASE_W wide, P6): tiles reversed (DMG: flipped copies), attributes reversed with the X
 // flip toggled
-static void mirror_row(uint8_t *dt, uint8_t *da, const uint8_t *st, const uint8_t *sa) {
-    uint8_t c, t;
+// alt: the lettering swap (gen_art.py LETTER_BOX): n, then n pairs (L tile, the free id holding its pre-mirrored twin; on the
+// DMG the twin is already flipped). The tap's lettering (POP, MOO) is drawn mirrored in the twins, so the flip shows it the
+// right way round.
+static void mirror_row(uint8_t *dt, uint8_t *da, const uint8_t *st, const uint8_t *sa, const uint8_t *alt) {
+    uint8_t c, t, k, found;
     for (c = 0; c < BASE_W; c++) {
         t = st[c];
-        if (!is_cgb) t = flip_id(t);
+        found = 0;
+        for (k = 0; k < alt[0]; k++) if (t == alt[1 + 2 * k]) { t = alt[2 + 2 * k]; found = 1; break; }
+        if (!is_cgb && !found) t = flip_id(t);
         dt[BASE_W - 1 - c] = t;
         da[BASE_W - 1 - c] = sa[c] ^ S_FLIPX;
     }
@@ -99,7 +104,7 @@ static void mirror_row(uint8_t *dt, uint8_t *da, const uint8_t *st, const uint8_
 
 // dirs: bit b = bar b is R; bits 4-5 (P6) the taper: bar b's tap end (3 - b) * taper columns in (0: straight bars)
 void mirror_load(uint8_t dirs) BANKED {
-    uint8_t b, v, s, mixed, se, l, k;
+    uint8_t b, v, s, mixed, se, l, k, alt[9], hdr[5];
     k = (dirs >> 4) & 3;
     if (k > TAPER_MAX) k = TAPER_MAX;
     dirs &= 0x0F;
@@ -138,9 +143,18 @@ void mirror_load(uint8_t dirs) BANKED {
         else for (s = 0; s < PATRON_GROUP_TILES; s++) flip_copy(PATRON_TILE_BASE + s, PATRON_TILE_BASE + s);
         fm_n = fm_used = 0;
     }
-    mirror_row(base_rtile[0], base_rattr[0], base_tile[0], base_attr[0]);
-    mirror_row(base_rtile[1], base_rattr[1], base_tile[1], base_attr[1]);
-    mirror_row(ctr_all[2], ctr_all[3], ctr_all[0], ctr_all[1]);
+    if (is_cgb) fm_n = fm_used = 0;
+    far_copy(hdr, venue.bar_tiles + (uint16_t)venue.bar_n * 16, 5, venue_bank);   // the lettering twins (gen_art.py)
+    alt[0] = hdr[0];
+    for (k = 0; k < hdr[0]; k++) {
+        l = free_ids[fm_used++];
+        far_copy(tile_at(l), venue.bar_tiles + (uint16_t)venue.bar_n * 16 + 5 + k * 16, 16, venue_bank);
+        if (!is_cgb) flip_copy(l, l);
+        alt[1 + 2 * k] = hdr[1 + k]; alt[2 + 2 * k] = l;
+    }
+    mirror_row(base_rtile[0], base_rattr[0], base_tile[0], base_attr[0], alt);
+    mirror_row(base_rtile[1], base_rattr[1], base_tile[1], base_attr[1], alt);
+    mirror_row(ctr_all[2], ctr_all[3], ctr_all[0], ctr_all[1], alt);
 }
 
 // Every drawn play frame on a level with an R bar (main.c, OAM DMA off, after the sprites): the bartender, fill glass,
