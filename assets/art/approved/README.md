@@ -14,4 +14,5 @@ built, its files move to their real place (for example a boss to `assets/art/bos
 | boss_sasquatch.txt | the Sasquatch (lumber lodge boss): look A, round 2 (arms) | 2026-10-11 |
 | boss_yeti.txt | the Yeti (igloo boss): look 1, round 2 (arms) | 2026-10-11 |
 | boss_sumo.txt | the Sumo (teahouse boss): look 2, round 2 (look 1's curved belt, arms) | 2026-10-11 |
+| boss_critic.txt | the Food Critic (bistro boss): look 2 the gourmand, round 5 beret 4 (two-tone), monocle chain | 2026-10-11 |
 | antics.txt, antics_fx.txt | CLASSIC end-of-level antics: bartender poses; the dove and stars | 2026-10-11 |
