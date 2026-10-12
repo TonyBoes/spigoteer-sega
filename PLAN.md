@@ -2033,5 +2033,9 @@ ORDER UP! (approved option).
   list's new line, release unlock for Order Up!), test_story (the mini slot's id is the venue's). New goldens (dmg +
   cgb): ou_intro, ou_call, ou_turn, ou_sent_back, ou_orderup, ou_result. Replaced on purpose: mg_list and
   mg_list_locked (the list gains ORDER UP / a second "? ? ?" line).
+- **ROM / WRAM** (rebased on the boss wave): ROM0 unchanged (811 B real free); ou.c + its art (~4.4 KB) went to bank 4
+  with autobank repacking (banks free after, romusage: 1 78, 2 21, 3 148, 4 18, 5 61, 6 23, 7 52, 8 42, 9 443, 10 204,
+  11 10178 B). WRAM: +0 B (the game's state is in the mg union; no new globals): the variables still end at 0xDD72,
+  654 B of stack room.
 - Test-harness note: a 1-frame D-pad tap can fall between two joypad reads right after a frame with a long VBlank copy
   (the logic moves against PyBoy's frame cut); test_ou holds presses 2 frames.
