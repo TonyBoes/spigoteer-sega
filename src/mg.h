@@ -96,6 +96,7 @@ struct qd_state {               // tests read these at story_scratch + offset (t
     uint8_t feint_t;            // +14 frames into it (QD_FEINT_LEN: over)
     uint8_t fx;                 // +15 the feint's x (screen px + 8, as OAM)
     uint8_t sign[2][14];        // the sign's two letter rows (VBlank queue source; the frame rows at entry)
+    uint8_t attr[2];            // the badge's CGB palette for its two columns (bank 1 VBlank queue source)
     uint8_t pips[6];            // row 12: the pips, the Kid's 3 and the player's 3 (VBlank queue source)
     char    txt[14];            // a text line being built
     uint8_t anim;               // frames counted by qd_update (the shake's and the drips' beat)

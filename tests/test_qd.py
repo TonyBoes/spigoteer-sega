@@ -23,7 +23,7 @@ MG_QUICKDRAW = 0
 QS_NEXT, QS_READY, QS_WAIT, QS_DRAW, QS_SHOW, QS_OVER = range(6)
 QR_NONE, QR_YOU, QR_SLOW, QR_FOUL, QR_WRONG = range(5)
 QF_NONE, QF_TUMBLE, QF_CROW = range(3)
-KID_STAND, KID_DRAW, KID_FUMBLE, KID_CHEER = range(4)
+KID_STAND, KID_DRAW, KID_CHEER = range(3)
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
 SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_LIFE, SFX_SHAKE = 2, 3, 4, 5, 7, 8
 KID_R = [int(v) for v in re.search(r"kid_r\[QD_ROUNDS\] = \{ ([\d, ]+) \}", QD_C).group(1).split(", ")]
@@ -149,7 +149,7 @@ def kid_tile(f):
     return QD_KID + f * 8
 
 
-def spig_tile(f):                               # mg_spigoteer frames: 7 stand, 8 draw, 9 fumble (OBJ 56, 64, 72); 6 fail
+def spig_tile(f):                               # mg_spigoteer frames: 7 stand, 8 draw (OBJ 56, 64); 6 fail
     return f * 8
 
 
@@ -189,7 +189,7 @@ def sign_rows(gb):
     return [tilemap_row(gb, SIGN_ROW + 1, LET_COL, 12), tilemap_row(gb, SIGN_ROW + 2, LET_COL, 12)]
 
 
-def face_rows(badge):
+def face_rows(badge, model="cgb"):
     a, b = [], []
     for k in range(4):
         c = QD_BG + QH["QDB_LETTERS"] + 4 * k
@@ -197,11 +197,20 @@ def face_rows(badge):
         b += [c + 2, c + 3]
     a += [QD_BG + QH["QDB_BANG"], QD_BG + QH["QDB_FACE"]]
     b += [QD_BG + QH["QDB_BANG"] + 1, QD_BG + QH["QDB_FACE"]]
-    c = QD_BG + QH["QDB_BADGE"] + 4 * badge
+    c = QD_BG + (QH["QDB_BADGE"] + 4 if badge and model == "cgb" else QH["QDB_BADGE_DMG"] if badge else QH["QDB_BADGE"])
     return [a + [c, c + 1], b + [c + 2, c + 3]]
 
 
 BACK_ROWS = [[QD_BG + QH["QDB_BACK"]] * 12] * 2
+
+
+def badge_attrs(gb):                            # CGB: the badge's four cells' BG palette numbers
+    return [gb.pb.memory[1, 0x9800 + r * 32 + LET_COL + 10 + c] & 7 for r in (SIGN_ROW + 1, SIGN_ROW + 2) for c in (0, 1)]
+
+
+def bg_tile_px(gb, t):                          # the 64 pixels (colour 0-3) of BG tile id t (bank 0)
+    raw = bytes(gb.read(0x8000 + t * 16, 16)) if t < 128 else bytes(gb.read(0x8800 + (t - 128) * 16, 16))
+    return [((raw[2 * y + 1] >> (7 - x)) & 1) << 1 | (raw[2 * y] >> (7 - x)) & 1 for y in range(8) for x in range(8)]
 
 
 def pips(gb):
@@ -252,7 +261,7 @@ def test_the_screen(model):
         assert bytes(gb.read(0x8000 + QD_OBJ * 16, n_a * 16)) == bytes(obj[:n_a * 16])
         assert bytes(gb.read(0x8000 + QD_KID * 16, n_k * 16)) == bytes(obj[n_a * 16:(n_a + n_k) * 16])
         assert bytes(gb.read(0x8000 + QD_CROW * 16, QH["QDO_RUN_C"] * 16)) == bytes(obj[(n_a + n_k) * 16:])
-        assert len(obj) == (n_a + n_k + QH["QDO_RUN_C"]) * 16
+        assert len(obj) == (n_a + n_k + QH["QDO_RUN_C"]) * 16 and n_k == 24 and n_a == 24, "no FUMBLE poses"
         if model == "cgb":
             from test_lift import cgb_bg_palette, cgb_obj_palette
             attr = lambda r, c: gb.pb.memory[1, 0x9800 + r * 32 + c] & 7
@@ -290,7 +299,9 @@ def test_a_round_ready_steady_draw_and_won(model):
         bells = gb.read("sfx_count", 9)[SFX_CATCH]
         to_draw(gb)
         frames(gb, 2)
-        assert sign_rows(gb) == face_rows(0) and text(gb, 3) == "" and gb.read("sfx_count", 9)[SFX_CATCH] == bells + 1
+        assert sign_rows(gb) == face_rows(0, model) and text(gb, 3) == "" and gb.read("sfx_count", 9)[SFX_CATCH] == bells + 1
+        if model == "cgb":
+            assert badge_attrs(gb) == [2] * 4, "badge A stays in the sign's palette 2"
         shot(gb, "draw")
         check_golden(gb, "qd_draw")
         before = score(gb)
@@ -382,12 +393,52 @@ def test_the_wrong_badge_is_a_foul_and_the_right_one_wins(model):
             poke_wait(gb, 1)
             to_state(gb, QS_DRAW, 5)
             frames(gb, 2)
-            assert sign_rows(gb) == face_rows(1)
+            assert sign_rows(gb) == face_rows(1, model)
             press_on(gb, 6, press)
             assert qd(gb)["res"] == res, press
             frames(gb, 2)
             if res == QR_WRONG:
                 assert text(gb, 3) == "FOUL" and gb.mem16("mg_score") == 0 and pips(gb) == (1, 0)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_b_badge_looks_different_from_the_a_badge(model):
+    """CGB: B's cells use BG palette 3 (a blue disc) while A's stay in palette 2 and the planks put it back; DMG: B is the
+    inverted tiles (a light disc, dark outline and letter) against A's dark disc. Same tiles as the art generator made."""
+    shots = {}
+    for badge in (0, 1):
+        with quickdraw(model) as gb:
+            to_state(gb, QS_WAIT)
+            gb.write(gb.addr("story_scratch") + 6, badge)
+            poke_wait(gb, 1)
+            to_state(gb, QS_DRAW, 5)
+            frames(gb, 2)
+            assert sign_rows(gb) == face_rows(badge, model)
+            c = sign_rows(gb)[0][10]            # the badge's top-left tile: the disc's rim; the centre cell is TL's corner
+            tiles = [bg_tile_px(gb, t) for t in sign_rows(gb)[0][10:] + sign_rows(gb)[1][10:]]
+            assert len(tiles[0]) == 64
+            if model == "cgb":
+                from test_lift import cgb_bg_palette
+                assert badge_attrs(gb) == [2 + badge] * 4
+                pa, pb = cgb_bg_palette(gb, 2), cgb_bg_palette(gb, 3)
+                shots[badge] = pb[3] if badge else pa[3]
+                if badge:
+                    assert pb[3] != pa[3] and pb[2] != pa[2], "B's disc is another colour"
+                    b = pb[3]
+                    assert (b >> 10 & 31) > 2 * (b & 31) and (b >> 10 & 31) > (b >> 5 & 31), "blue (BGR555)"
+                    check_golden(gb, "qd_draw_b")
+                    press_on(gb, 6, "b")
+                    frames(gb, 62)
+                    until(gb, lambda: sign_rows(gb) == BACK_ROWS, 200)
+                    assert badge_attrs(gb) == [2] * 4, "the planks are back in palette 2"
+            else:
+                shots[badge] = [sum(1 for px in t if px == 3) for t in tiles]
+                if badge:
+                    check_golden(gb, "qd_draw_b")
+    if model == "dmg":
+        assert sum(shots[0]) > sum(shots[1]) + 40, "A: a dark disc; B: mostly light with a dark rim and letter"
+    else:
+        assert shots[0] != shots[1]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

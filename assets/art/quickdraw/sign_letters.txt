@@ -1,6 +1,7 @@
 ; Art: approved design (owner 2026-10-11)
 ; Quick Draw cue: the DRAW! sign's face, 16x16 frames as 2x2 BG tiles (gen_mg order TL, TR, BL, BR): D, R, A, W,
-; "!" (left half; the right half is the plain face), badge A, badge B. CGB BG palette 2 (0 cream face, 1 tan wood,
+; "!" (left half; the right half is the plain face), badge A, badge B, badge B for DMG (inverted: a light disc, dark
+; outline and letter; the CGB keeps frame 6 in its own blue BG palette 3). CGB BG palette 2 (0 cream face, 1 tan wood,
 ; 2 red letters, 3 dark); DMG BGP 0xE4 (white face, dark grey letters with black outlines, black badge).
 ................
 .###########....
@@ -119,4 +120,21 @@
 .####-----#####.
 ..############..
 ...##########...
+.....######.....
+
+................
+.....######.....
+...##......##...
+..#..#####...#..
+.#...######...#.
+.#...##..##...#.
+#....##..##....#
+#....#####.....#
+#....######....#
+#....##..##....#
+#....##..##....#
+.#...######...#.
+.#...#####....#.
+..#..........#..
+...##......##...
 .....######.....

@@ -27,7 +27,7 @@
 // - Sounds: the DRAW! bell SFX_CATCH, a round won SFX_SERVE, a foul SFX_BREAK, too slow SFX_LIFE.
 //
 // Screen (the approved mock-up): the framework's saloon backdrop (counter row 11); the sign's frame at columns 3-16,
-// rows 6-9 (CGB BG palette 2), its letter rows 7-8 the planks while waiting, "DRAW!" + the badge on the sign; the pips
+// rows 6-9 (CGB BG palette 2; badge B's cells palette 3, a blue disc; DMG: B is the inverted, light-disc tiles), its letter rows 7-8 the planks while waiting, "DRAW!" + the badge on the sign; the pips
 // on row 12 (the Kid's columns 2-4, the player's 15-17, BG palette 0: the saloon bar's); the Kid (16x24, OBJ palettes 3
 // top, 4 body; DMG OBP1) at x 20 and the Spigoteer (his duel poses, OBJ palette 0) at x 124, both y 112; the bottles,
 // the wet overlay and the foam (OBJ palette 1, the saloon's full drink; DMG OBP0), the feints (OBJ palette 6; DMG
@@ -35,8 +35,8 @@
 // OAM in draw priority (OAM_*): 0-1 the wet overlay, 2 the foam, 3-4 the bottles in hand, 5-6 the aimed bottle, 7-10
 // the Spigoteer (mg_spigoteer from slot 7), 11-14 the Kid, 15-16 tumbleweed, 17 crow. Worst line 9 (the spray's row:
 // 2 a man, 2 the aimed bottle, 1 the loser's bottle, 2 the wet overlay); 8 during a tumbleweed.
-// Tiles: BG QD_BG.. (MG_GAME_BG: 39, ids 125-163), OBJ 56-87 (the Spigoteer's 3 poses as bartender frames 7-9, the
-// tumbleweed), 96-127 (the Kid), 164-206 (the crow, the soda duel: 34 OBJ tiles and the stream's 5 BG tiles): 107.
+// Tiles: BG QD_BG.. (MG_GAME_BG: 43, ids 125-167), OBJ 56-79 (the Spigoteer's 2 poses as bartender frames 7-8, the
+// tumbleweed), 96-119 (the Kid's 3 frames), 168-210 (the crow, the soda duel: 34 OBJ tiles and the stream's 5 BG tiles): 111.
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -54,9 +54,9 @@
 #define QD_OBJ          OBJ_MUG             // 56..87: the Spigoteer's duel poses (bartender frames 7-9), tumbleweed
 #define QD_KID          OBJ_DANCER          // 96..127: the Kid
 #define QD_CROW        (QD_BG + QD_BG_TILES)   // 164..167: the crow (OBJ = BG ids 128+: past the sign's BG tiles)
-#define QD_SODA        (QD_CROW + QDO_CROW_N)  // 168..206: the soda duel; its stream tiles are BG ids (QDS_STREAM..)
+#define QD_SODA        (QD_CROW + QDO_CROW_N)  // 168..210: the soda duel; its stream tiles are BG ids (QDS_STREAM..)
 typedef char qd_obj_fits[(QD_OBJ + QDO_RUN_A <= OBJ_COIN && QD_OBJ == 7 * BARTENDER_TILES_PER_FRAME
-                          && QDO_KID_N == DANCER_TILE_COUNT && QD_CROW + QDO_RUN_C <= OBJ_POUR) ? 1 : -1];
+                          && QDO_KID_N <= DANCER_TILE_COUNT && QD_CROW + QDO_RUN_C <= OBJ_POUR) ? 1 : -1];
 #define QD_ROUNDS       5
 #define QD_TO_WIN       3
 #define QD_READY_LEN    60
@@ -74,6 +74,7 @@ typedef char qd_obj_fits[(QD_OBJ + QDO_RUN_A <= OBJ_COIN && QD_OBJ == 7 * BARTEN
 #define SIGN_W         14
 #define LET_COL         4
 #define SIGN_PAL        BGPAL_PATRON        // CGB BG palette 2 (a game's own)
+#define BADGE_B_PAL     (BGPAL_PATRON + 1)  // CGB BG palette 3 (also a game's own): badge B's blue disc
 #define PIP_ROW        12
 #define PIP_KID_COL     2
 #define PIP_YOU_COL    15
@@ -113,8 +114,8 @@ typedef char qd_obj_fits[(QD_OBJ + QDO_RUN_A <= OBJ_COIN && QD_OBJ == 7 * BARTEN
 enum { QS_NEXT, QS_READY, QS_WAIT, QS_DRAW, QS_SHOW, QS_OVER };
 enum { QR_NONE, QR_YOU, QR_SLOW, QR_FOUL, QR_WRONG };
 enum { QF_NONE, QF_TUMBLE, QF_CROW };
-enum { KID_STAND, KID_DRAW, KID_FUMBLE, KID_CHEER };
-#define SPIG_STAND      7                   // mg_spigoteer frames: the duel poses at OBJ 56, 64, 72
+enum { KID_STAND, KID_DRAW, KID_CHEER };
+#define SPIG_STAND      7                   // mg_spigoteer frames: the duel poses at OBJ 56, 64
 #define SPIG_DRAW       8
 enum { B_STILL, B_UP, B_DOWN, B_FIZZ, B_FOAM };   // the bottle in a fist (shake_bottle.txt)
 enum { W_SPLASH, W_DRIP_A, W_DRIP_B };            // the wet overlay (wet.txt)
@@ -132,6 +133,15 @@ static void qd_put(uint8_t col, uint8_t row, uint8_t *t, uint8_t n) {
     if (LCDC_REG & LCDCF_ON) vq_add(0, t, col, row, n); else vram_put(col, row, t, n);
 }
 
+// CGB: the badge's four cells take palette 2 (A, the planks) or 3 (B: a blue disc), in bank 1 beside the tiles. B's go
+// in the frame after the sign's (the DRAW! frame's VBlank list is already as long as it can be)
+static void badge_pal(uint8_t b) {
+    if (!is_cgb || !(LCDC_REG & LCDCF_ON)) return;       // (at entry the LCD is off and fill_attr has set palette 2)
+    S.attr[0] = S.attr[1] = b ? BADGE_B_PAL : SIGN_PAL;   // (WRAM: the queue is read in VBlank)
+    vq_add(1, S.attr, LET_COL + 10, SIGN_ROW + 1, 2);
+    vq_add(1, S.attr, LET_COL + 10, SIGN_ROW + 2, 2);
+}
+
 // the sign's letter rows: the planks (waiting), or DRAW! with the badge
 static void sign(uint8_t face) {
     uint8_t c, k, *a = S.sign[0], *b = S.sign[1];
@@ -143,7 +153,7 @@ static void sign(uint8_t face) {
         }
         a[8] = QD_BG + QDB_BANG; b[8] = QD_BG + QDB_BANG + 1;
         a[9] = b[9] = QD_BG + QDB_FACE;
-        c = QD_BG + QDB_BADGE + 4 * S.badge;
+        c = QD_BG + (S.badge ? (is_cgb ? QDB_BADGE + 4 : QDB_BADGE_DMG) : QDB_BADGE);   // B: blue (CGB) / light (DMG)
         a[10] = c; a[11] = c + 1; b[10] = c + 2; b[11] = c + 3;
     }
     qd_put(LET_COL, SIGN_ROW + 1, a, 12);
@@ -179,6 +189,8 @@ void qd_enter(void) BANKED {
     if (is_cgb) {
         p[0] = RGB8(248, 240, 208); p[1] = RGB8(216, 168, 96); p[2] = RGB8(216, 40, 24); p[3] = RGB8(48, 16, 8);
         set_bkg_palette(SIGN_PAL, 1, p);         // the sign: cream face, tan wood, red letters, dark
+        p[1] = p[0]; p[2] = RGB8(72, 128, 248); p[3] = RGB8(24, 56, 176);
+        set_bkg_palette(BADGE_B_PAL, 1, p);      // badge B: a blue disc (tile colour 3, dark blue) with a cream letter (colour 1)
         p[0] = 0;
         p[1] = RGB8(248, 200, 152); p[2] = RGB8(248, 160, 32); p[3] = RGB8(24, 16, 32);
         set_sprite_palette(PAL_KID_TOP, 1, p);   // the Kid's hat and face: skin, orange, dark
@@ -409,7 +421,7 @@ void qd_update(uint8_t pressed) BANKED {
             }
             break;
         case QS_DRAW:
-            S.t++;
+            if (S.t++ == 0 && S.badge) badge_pal(1);   // (the frame after the sign's: B's blue disc)
             right = S.badge ? J_B : J_A;
             if (pressed & (J_A | J_B) & ~right) end_round(QR_WRONG);
             else if (S.t > S.r) end_round(QR_SLOW);              // the Kid drew on frame R: R + 1 is too late
@@ -418,6 +430,7 @@ void qd_update(uint8_t pressed) BANKED {
         case QS_SHOW:
             if (++S.t < QD_SHOW_LEN) break;
             sign(0);
+            if (S.badge) badge_pal(0);               // the planks back in palette 2
             if (S.wins[0] < QD_TO_WIN && S.wins[1] < QD_TO_WIN) { S.st = QS_NEXT; break; }
             S.st = QS_OVER;
             if (S.wins[0] >= QD_TO_WIN) {
