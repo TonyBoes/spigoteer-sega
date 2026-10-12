@@ -11,8 +11,10 @@
 // 2: a patron at the tap, 8: a broken glass) costs 2 lives instead of 1 ("2 LIVES LOST", the two mugs blink during the
 // freeze). A timed goal's clock running out costs a life and retries that shift (the venue when it was the last).
 // CONTINUE on the title starts the chapter not cleared over: its Opening banner when one of its steps was reached,
-// else its PRE scene (lives are not saved). The score carries on through restarts; when the credits end it goes into
-// the STORY top 5 (initials, the table; not from a debug-select run).
+// else its PRE scene (lives are not saved). The score carries on through a lost life and a timed goal's retry, but
+// starts from 0 again when the lives run out (TRY AGAIN, the venue again: owner 2026-10-11), so a story score is one
+// run with no game over; when the credits end it goes into the STORY top 5 (initials, the table; not from a
+// debug-select run).
 //
 // ARCADE (the three modes, owner 2026-10-11: PLAY > ARCADE, story_arc = 1, play_mode MODE_ARCADE) runs this same
 // engine with arcade rules: no scene, no portrait, no story text, nothing saved or unlocked (save_lock); the venues in
@@ -682,7 +684,12 @@ uint8_t story_update(uint8_t pressed) BANKED {
     case SP_FAIL:
         if ((pressed & (J_A | J_START)) || story_t >= FAIL_FRAMES) {
             if (lives) shift_start();
-            else { story_restarts++; venue_start(); }
+            else {                               // out of lives: the venue again, the score from 0 (owner 2026-10-11)
+                story_restarts++;
+                score = 0;
+                for (story_t = 0; story_t < 6; story_t++) score_digits[story_t] = 0;
+                venue_start();
+            }
             return 1;
         }
         return 0;

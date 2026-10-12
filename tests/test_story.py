@@ -979,7 +979,8 @@ def test_lives_carry_from_shift_to_shift(model):
 @pytest.mark.parametrize("c", range(10))
 def test_losing_the_last_life_in_the_last_call_restarts_the_venue(model, c):
     """Every chapter: the last life lost in the Last call -> TRY AGAIN -> the Opening's banner with 3 lives (no PRE
-    scene); the step reached stays recorded (and is not lowered by winning the Opening again), the score carries on."""
+    scene); the step reached stays recorded (and is not lowered by winning the Opening again); the score starts from 0
+    again (owner 2026-10-11: a story score is a run with no game over)."""
     with to_shift(model, c, 2) as gb:
         gb.write("served", 3)
         gb.write("lives", 1)
@@ -995,7 +996,7 @@ def test_losing_the_last_life_in_the_last_call_restarts_the_venue(model, c):
         assert banner_text(gb, 1) == centred(shift_title(c, 0))
         assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, 3), "the step reached is kept"
         assert gb.mem("story_scene") == pre(c), "no PRE scene: straight to the goal"
-        assert int.from_bytes(gb.read("score", 4), "little") >= score, "the score carries on"
+        assert score > 0 and int.from_bytes(gb.read("score", 4), "little") == 0, "out of lives: the score from 0"
         assert gb.mem("pat_len") == 0, "the Opening's normal arrivals"
         to_goal(gb)
         win(gb, c, 0)

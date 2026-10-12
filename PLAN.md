@@ -1425,3 +1425,34 @@ The checklist was docs/venue10_impact.md (81 items); what differs from it is lis
   logic_paused() for set-ups that must start on one game frame.
 - Not built (as the checklist allows): Duke (3.12) and Milk Run (4.10): their slots are skipped like every unbuilt
   boss and mini-game (the boss table has room: BOSS_COUNT 10). The counter splash tile is a placeholder.
+
+## Three modes P1-P2 as built (owner decisions 2026-10-11; plan: the modes proposal, sections 1, 3, 4, 5)
+
+- **P1**: `play_mode` (src/story.c; game.h MODE_ARCADE / MODE_STORY / MODE_CLASSIC / MODE_LEVEL). MODE_LEVEL is the old
+  10-level rotation (loops, LOOP banner, a bonus round after even levels), kept only as the test harness and the debug
+  select's "LEVEL nn" box. The title's test hook `title_go` (a level number) starts it on the next title frame;
+  tests/conftest.py `title_level(rom, lv)` presses exactly the keys PLAY > ARCADE took, so every gameplay test and
+  golden starts on the same frame as before (the suite was unchanged golden for golden at the P1 commit).
+- **PLAY menu**: [CONTINUE] / STORY / ARCADE / CLASSIC (4 lines: rows 6-12; 3 without a save: 7-11). "CLASSIC" needed 4
+  more title tiles: the title may now use BG ids up to 239 (the perfect pour's OBJ ids 234-239 are loaded at a story
+  shift's start and never used on the title; tools/gen_art.py TITLE_TILE_END). CLASSIC starts the old rotation as a
+  stand-in until CLASSIC is built (P5), with extra lives and its own top 5; the debug box on it is the LEVEL box.
+- **ARCADE** (Q1 option A, Q2 the story's rules): the story's engine with `story_arc = 1`. PLAY > ARCADE: the saloon's
+  Opening shift banner (no scene, no portrait, no text); each venue's playable steps in story order (shifts, a mini-game
+  or a boss fight once built; STEP_SKIP passed over); after its last step VENUE CLEAR, a bonus round (rotating as
+  before), the next venue. 3 lives for the whole run (venue_start leaves them), a gold medal +1 as in the story, extra
+  lives at 20,000 and every 40,000 after (main.c add_score -> story.c extra_life; at most 4; ARCADE and CLASSIC only).
+  A timed goal's clock costs a life and retries the shift (TRY AGAIN) while lives are left; the last life is the normal
+  GAME OVER -> initials -> the ARCADE top 5. After the space lounge: the saloon again with "LOOP n" before its first
+  banner (SP_LOOP, 120 frames or A), level = (loop - 1) * 10 + chapter + 1 so start_level's loop maths (and the HUD's
+  L nn) apply; the difficulty stops growing after loop 4. Nothing is saved or unlocked (save_lock). Debug: PLAY's
+  ARCADE (or ARCADE play) opens "ARCADE c STEP" (the steps only).
+- **Story score** (owner 2026-10-11): it resets to 0 when the lives run out (TRY AGAIN, the venue again); a lost life
+  or a timed retry keeps it. When the credits end it goes into the STORY top 5 (initials, the table); not from a
+  debug-select run.
+- **SRAM version 7** (src/save.c): main block at 0 ("TPR7", progress, step, tunes, checksum); 0x40 still reserved for
+  Practice; one top 5 per mode at 0x80 ARCADE ("HSA1"), 0xC0 STORY ("HSS1"), 0x100 CLASSIC ("HSC1"), each with its own
+  checksum, so a bad block empties only that table. Versions 3-6 migrate their story progress and unlocks; every old
+  top 5 is dropped (Q4); versions 1-2 load as a fresh cartridge. The title's HI line shows the table of the mode under
+  PLAY's cursor (CONTINUE / STORY: STORY's), ARCADE's elsewhere; the idle attract cycles ARCADE, STORY, CLASSIC; the
+  table screen's header names the mode ("ARCADE HIGH SCORES", 19 characters at most).
