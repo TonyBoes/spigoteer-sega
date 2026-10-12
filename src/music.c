@@ -132,7 +132,11 @@ static void start_song(uint8_t tune) {
     groove = tunes[tune].groove; g_pos = 0; g_cnt = 1;      // the groove's first row falls on the song's first row
     harm_off();
     harm = harm_tab[tune]; h_rows = 0; h_cnt = 1;           // so does the harmony's first event
-    if (harm) { mus_copy(HARM_BANK, harm, h_inst, 4); h_ptr = harm + 4; }
+    if (harm) {
+        uint8_t skip = tunes[tune].start;                   // a pickup: skip the events before the start row
+        mus_copy(HARM_BANK, harm, h_inst, 4); h_ptr = harm + 4;
+        while (skip) { skip -= harm_peek(h_ptr) >> 8; h_ptr += 2; }   // (gen_music: the row is an event boundary)
+    }
     mute_unless_sfx(3, 1);          // a sound effect that is still sounding keeps channel 4
 }
 

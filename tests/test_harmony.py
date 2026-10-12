@@ -164,3 +164,57 @@ def test_the_harmony_is_audible_and_quieter_than_the_melody(sgb):
     rms = [float(np.sqrt(((x - x.mean()) ** 2).mean())) for x in (a[:, 1], a[:, 0])]   # channel 1, channel 2
     assert rms[0] > 0.5, f"channel 1 plays the harmony (RMS ch1 {rms[0]:.2f}, ch2 {rms[1]:.2f})"
     assert rms[0] < rms[1], f"the harmony sits under the melody (RMS ch1 {rms[0]:.2f}, ch2 {rms[1]:.2f})"
+
+
+def test_mountains_harmony_starts_in_step_with_the_melody_at_the_pickup(srom):
+    """Mountain's first play begins on song row 248 (the "She'll be" pickup, songs.py start=).  The harmony must begin on
+    the same row of its own line: every frame, channel 1 holds what the line has at the driver's row (the pad's envelope
+    and the event's pitch, or the silent 0x08 for a rest), through the pickup, the wrap to row 0 and into bar 1."""
+    from test_jukebox import hold_stage_anim, tap, to_jukebox
+    t = songs.SONGS["mountain"]
+    assert t["ch1"] and t["start"] == 248
+    ev = gm.harm_events("mountain", t, total_rows("mountain"))
+    line = []                                            # the event covering each song row
+    for n, note, _ in ev:
+        line += [note] * n
+    env = gm.HARM_INST[t["ch1_inst"][0]][1]
+    tune = TUNE_VENUE0 + songs.VENUES.index("mountain")
+    hold_stage_anim(srom)
+    srom.write("tune_unlocked", 0xFF)
+    srom.write(srom.addr("tune_unlocked") + 1, 0xFF)
+    to_jukebox(srom)
+    while srom.mem("jb_sel") != tune:
+        tap(srom, "down")
+    srom.press("a", 2)
+    assert srom.mem("cur_tune") == tune
+    srom.write("music_frames", 0)
+    srom.write(srom.addr("music_frames") + 1, 0)
+    started, checked, rows_seen, pickup = False, 0, [], []
+    for _ in range(80 + 40 * t["tempo"]):
+        srom.pb.memory[NR51] = 0x11                      # channel 1 only: the harmony
+        srom.run(1)
+        srom.pb.memory[NR51] = 0x11
+        if not started:
+            if srom.mem16("music_frames") == 0:
+                continue
+            started = True
+        row = srom.mem("hUGE_current_order") // 2 * 64 + srom.mem("hUGE_row")
+        if srom.mem("hUGE_tick") == 0:                   # (the driver steps its row counter on a row's last tick)
+            row = rows_seen[-1] if rows_seen else row
+        rows_seen.append(row)
+        note = line[row]
+        if note is None:
+            assert srom.mem(NR12) == 0x08, (row, hex(srom.mem(NR12)))
+        else:
+            assert srom.mem(NR12) == env, (row, hex(srom.mem(NR12)))
+            if row == 248 and len(pickup) < 8 * t["tempo"]:
+                pickup.append(srom.pb.sound.ndarray.copy())
+        checked += 1
+    srom.pb.memory[NR51] = 0xFF
+    from check_music import detect
+    want = 440 * 2 ** ((line[248] + 36 - 69) / 12)
+    flat = np.concatenate(pickup).astype(float).mean(axis=1)
+    heard = detect(flat, srom.pb.sound.sample_rate, 100, 1500)
+    assert abs(heard - want) / want < 0.04, f"the harmony's first note is {heard:.0f} Hz, the line's row 248 is {want:.0f}"
+    assert rows_seen[0] == 248 and 0 in rows_seen and rows_seen[-1] >= 24, rows_seen[:3] + rows_seen[-3:]
+    assert checked >= 30 * t["tempo"]

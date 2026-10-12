@@ -87,10 +87,10 @@ def harmony(name, tune, ch1, inst=("harm", "harm")):
 # SPEC_BPM_ROWS in tests/test_sound.py.  tempo = frames per row is the nearest whole number (60 fps), so the tempo
 # the game really plays is 3600 / (tempo x rows per beat): entertainer 8 -> 112.5, sakura 12 -> 150,
 # funicula 11 -> 109.1 (dotted quarter), skaters / danube / ballgame 9 -> 200 (quarter).  Tunes not listed play
-# at the spec tempo.  mountain 6 -> 150 (music step 3: sixteenth rows for its real rhythm; the spec's 160 would be
-# 5.6 frames per row, 5 would be 180; it played 163.6 at 11 frames per eighth).
+# at the spec tempo.  mountain 4 -> 225 spec-quarters (music step 6: 3.88 frames per row is the MIDI's 116 MIDI-quarters of 8 rows;
+# 4 plays 112.5 of them, 5 would play 90, 6 played 75 and was too slow, the owner said; MTN_TEMPO).
 GAME_BPM = {"entertainer": 112, "sakura": 150, "funicula": 112, "skaters": 192, "danube": 192, "ballgame": 192,
-            "mountain": 150}
+            "mountain": 225}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -237,8 +237,8 @@ harmony("ballgame", _t, " ".join([H.guide(_t, (1, 16), "D4", "C5"), H.follow(_t,
 
 # ---------------------------------------------------------------------------------------------
 # Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song).  4/4, key D, one row = a sixteenth
-# note (16 rows a bar), 6 frames per row = quarter 150 (the spec's 160 needs 5.6; it played 11 frames per eighth =
-# 163.6; GAME_BPM).  16 bars = 256 rows = four whole orders; bar 16 ends with the "she'll be" pickup of the next pass.
+# note (16 rows a bar), MTN_TEMPO frames per row (music step 6: 4 = 112.5 MIDI-quarters of 8 rows, the source MIDI is
+# 116; 5 = 90 is the slower variant, 6 = 75 was too slow; one-line change; GAME_BPM).  16 bars = 256 rows = four whole orders; bar 16 ends with the "she'll be" pickup of the next pass.
 # Rhythm and pitches (music step 4, 2026-10-12): the first verse of the Harmonica track of Simon Horn's MIDI
 # (2021, CC0, Wikimedia Commons), supplied by the owner 2026-10-12, in G there, transposed up a fifth to D here, one
 # MIDI quarter note = 8 rows (the rows keep the grid and tempo of music step 3).  Every "com-ing round the" bar is
@@ -257,8 +257,14 @@ MTN_CHORDS = [
 # The "She'll be" pickup is the last 8 rows of bar 16 (row 248): the FIRST play starts there (start=), the loop wraps to
 # bar 1 as always.  (Rotating the tune instead cost a 9th WRAM pattern: the bass bars stop repeating.)
 MTN_PICKUP_ROW = 248
-song("mountain", 6, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 16),
+MTN_TEMPO = 4
+song("mountain", MTN_TEMPO, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 16),
      " ".join(["K:2 r:2 S:2 r:2 K:2 r:2 S:2 r:2"] * 16), legato=SUNG_ARTIC, start=MTN_PICKUP_ROW)
+# Harmony (music step 6): the Susanna approach, a second voice in thirds and sixths under the whole verse in the melody's
+# own rhythm (it moves where the melody does, the 2/6 snap included; grid 2 = an eighth or finer), on the held 12.5% pad.
+# The pickup row is a note boundary of the line (gen_music asserts it), so the first play can start the line there.
+_t = H.Tune(" ".join(MTN_BARS), MTN_CHORDS, 16, 4, "D")
+harmony("mountain", _t, H.follow(_t, (1, 16), "A3", "F#5", grid=2), ("pad", "pad"))
 
 # ---------------------------------------------------------------------------------------------
 # Bistro: "Funiculi, Funicula" (Luigi Denza, 1880), verse and chorus.  6/8, key F, dotted quarter = 92 is

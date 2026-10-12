@@ -189,7 +189,7 @@ Source: transcribed from York Music Co., New York, 1908, pp. 4-5, via the Librar
 Key: D major
 Time: 4/4
 Tempo: quarter = 160
-Game tempo: quarter = 150 (6 frames per sixteenth row; 160 would need 5.6). Music step 3, see GAME_BPM in tools/songs.py.
+Game tempo: quarter = 225 in this spec's 4-row beat (4 frames per sixteenth row = 112.5 of the source MIDI's 8-row quarters, which is marked 116; was 6 = 150). Music step 6 (owner: too slow), MTN_TEMPO and GAME_BPM in tools/songs.py.
 Unit: 1 = SIXTEENTH note (bar = 16) since music step 3 (2026-10-11); it was an eighth (bar = 8)
 Length: 16 bars + pickup
 

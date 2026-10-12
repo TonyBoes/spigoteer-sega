@@ -279,6 +279,15 @@ def harm_events(name, t, total):
     return ev
 
 
+def harm_starts(ev):
+    """The rows at which a harmony event begins (a start row must be one: start_song skips whole events)."""
+    out, r = set(), 0
+    for n, _, _ in ev:
+        out.add(r)
+        r += n
+    return out
+
+
 def harm_bytes(t, ev):
     a, b = (HARM_INST[k] for k in t["ch1_inst"])
     out = [a[0], a[1], b[0], b[1]]
@@ -491,7 +500,9 @@ def main():
                                                     len(slots[name]) * SLOT_BYTES)
             tail += ", " + (f"groove_{name}" if name in grooves else "NULL")
             start = 0 if name in JINGLES else songs.SONGS[SOURCE[name]].get("start", 0)
-            assert not start or (start < b["total"] and name not in grooves and name not in harms), f"{name}: bad start row {start}"
+            assert not start or (start < b["total"] and name not in grooves), f"{name}: bad start row {start}"
+            assert not start or name not in harms or start in harm_starts(harm_events(name, songs.SONGS[SOURCE[name]], b["total"])), \
+                f"{name}: the harmony has no note boundary on the start row {start} (src/music.c start_song walks the events to it)"
             tail += f", {start}"
             f.write(f"    {{&song_{name}, {loop}, {frames}, {tail}}},   // {name}"
                     f"{' = ' + SOURCE[name] if name in SOURCE else ''}: {b['total']} rows\n")
