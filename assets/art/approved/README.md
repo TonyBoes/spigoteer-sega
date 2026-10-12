@@ -7,8 +7,6 @@ built, its files move to their real place (for example a boss to `assets/art/bos
 
 | file | what | approved |
 |---|---|---|
-| boss_leo.txt | Leo the Lion (jungle zoo boss): the patron lion scaled up, gold crown; extra INHALE / ROAR / BANG blocks | 2026-10-11 |
 | boss_mascot.txt | the Mascot (stadium boss): red foam bull "Stampede"; extra CROUCH block | 2026-10-11 |
 | boss_prototype.txt | the Prototype (robot factory boss): look B "the hauler" | 2026-10-11 |
 | boss_mothership.txt | the Mothership (space lounge boss): look A "silver saucer" | 2026-10-11 |
-| boss_sumo.txt | the Sumo (teahouse boss): look 2, round 2 (look 1's curved belt, arms) | 2026-10-11 |

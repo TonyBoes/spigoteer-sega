@@ -1,4 +1,4 @@
-; APPROVED by the owner on 2026-10-11 (the Sumo, look 2 round 2, curved belt, arms fixed). Not built yet: moves to its real place when its feature is built.
+; Art: approved design (the owner, 2026-10-11: the Sumo, look 2 round 2, curved belt, arms fixed). Built: src/boss_sumo.c.
 ; Sumo Champion, the teahouse's boss (docs/minigames_bosses.md 3.9). ROUND 2 of look 2 (chosen): "Yokozuna" - the grand
 ; Round 2: look 1's curved belt line (the rope dips under the belly), arms redrawn: 4-px arms in every pose,
 ; raised arms come straight up from the shoulder, the gulp cup sits in a hand, no wall-colour holes.
@@ -8,7 +8,8 @@
 ; the hand column (x 32-39) holding 1-3 empty cups. '.' the wall (colour 0), '-' skin and the cups, '+' the rope,
 ; the shide and the topknot's cord, '#' the outline, hair and mawashi.
 ; CGB colours 1-3: #F0A878 skin, #F0F0E0 rope white, #282048 indigo. DMG: skin light grey, rope dark grey, belt black.
-; SHIKO (the charge's stamp tell) and HMPH (charge cancelled) are extra poses the engine has no slot for yet.
+; SHIKO (the charge's stamp tell) and HMPH (charge cancelled): extra poses 5 and 6 (gen_boss BOSSES sumo extra).
+; gen_boss row: width 40, topper (the topknot) at hat_dx 16 (boss.c rows[7]).
 
 @WALK
 ..............############..............

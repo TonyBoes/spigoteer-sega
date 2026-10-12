@@ -80,6 +80,8 @@ static const boss_row_t rows[BOSS_COUNT] = {
     [2] = {  32,  16,  2,  90,   8,   8,   2,   0, 12,   12,  0, "NO SUCH THING", "12 COFFEES FAST" },      // Lumber lodge: Sasquatch (3.5)
     [3] = {  32,  16,  1, 110,  16,  60,   1,  90,  8,    9,  0, "THE CRITIC DINES", "PERFECT POURS ONLY" }, // Bistro: the Food Critic (3.6)
     [4] = {  32,  16,  2, 100,   8,  30,   2,  60, 12,    9,  0, "THE YETI IS COLD", "12 COCOAS ON ICE" },   // Igloo: the Yeti (3.7)
+    [7] = {  40,  16,  1,  96,   0,   0,   2,  90,  8,   16,  0, "THE CHAMPION", "KEEP THE TEA FLOWING" }, // Teahouse: the Sumo (3.9)
+    [8] = {  32,  16,  2,  80,   8,  30,   2,  60, 14,    6,  0, "LEO THE LION", "14 COCONUTS NO FEAR" },  // Jungle zoo: Leo (3.11)
 };
 
 // ---- state (test hooks: spec 2.5's names) ----
@@ -119,6 +121,8 @@ static uint8_t boss_call(uint8_t ev, uint8_t arg) {
     case 2: return boss_sasquatch(ev, arg);      // Lumber lodge: src/boss_sasquatch.c
     case 3: return boss_critic(ev, arg);         // Bistro: src/boss_critic.c
     case 4: return boss_yeti(ev, arg);           // Igloo: src/boss_yeti.c
+    case 7: return boss_sumo(ev, arg);           // Teahouse: src/boss_sumo.c
+    case 8: return boss_leo(ev, arg);            // Jungle zoo: src/boss_leo.c
     }
     return 0;
 }
@@ -157,8 +161,7 @@ static void boss_look(void) {
     boss_pose = key;
     m = boss_map + p * BOSS_W_MAX;
     for (k = 0; k < w; k++) boss_cols[k] = pair_id(m[k]);
-    if (h) boss_cols[w - 1] = pair_id(boss_hand[h]);
-    for (; k < BOSS_W_MAX; k++) boss_cols[k] = 0;
+    if (h) boss_cols[w - 1] = pair_id(boss_hand[h]);   // (columns w.. are his special's: boss_set clears them)
     mark_dirty(boss_bar, boss_col, boss_col + w);
 }
 
@@ -193,6 +196,7 @@ void boss_set(uint8_t id) BANKED {
     boss_step = s;
     boss_state = BS_WALK; boss_hold = 0; boss_push = 0; boss_stomp = 0;
     boss_x = br->start_x; boss_col = boss_x >> 3; boss_pose = 255;
+    for (s = 0; s != BOSS_W_MAX; s++) boss_cols[s] = 0;
     boss_xpose = 0; boss_queue = 0; boss_cap = boss_hands; boss_own_gap = 0; boss_window = 0xFFFF;
     boss_fast_full = boss_fast_empty = boss_returns = 0;
     boss_call(BEV_SET, 0);                       // his art's pose table, his own settings
@@ -272,6 +276,14 @@ static void boss_take_hook(void) {
     else if (boss_hook == HOOK_TELL) boss_call(BEV_TELL, 0);   // (a boss without a special ignores it)
     boss_hook = HOOK_NONE;
     boss_hud();
+}
+
+// One 8 px stomp toward the tap now (the STOMP pose, the thud), for a special that moves him itself (boss_step 0 turns
+// the engine's own stomp timer off: the Sumo on the beat, and his charge). From BEV_FRAME: the tap check follows it.
+void boss_advance(void) BANKED {
+    boss_move(boss_x + 8);
+    boss_stomp = STOMP_FRAMES;
+    SFX(SFX_SHAKE);
 }
 
 uint8_t boss_width(void) BANKED {
@@ -355,7 +367,8 @@ uint8_t boss_frame(void) BANKED {
             }
         } else if (boss_state == BS_GULP) {
             if (boss_t >= br->gulp) { boss_state = BS_WALK; boss_t = 0; }
-        } else if (boss_state == BS_WALK && ++boss_step_t >= boss_step) {   // (a tell or special: he stands)
+        } else if (boss_state == BS_WALK && boss_step && ++boss_step_t >= boss_step) {   // (a tell or special: he
+            // stands; boss_step 0: no stomp of the engine's, his special moves him with boss_advance)
             boss_step_t = 0;
             x += 8;
             boss_stomp = STOMP_FRAMES;

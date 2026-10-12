@@ -88,7 +88,7 @@ stays separate because it must survive a life lost.
 | 5 | Igloo | The Yeti | 12 | icy breath: his bar goes icy for 3 s, every mug on it 2x | timed window with a visible tell; icy also speeds your mugs (risk / reward) |
 | 6 | Robot | The Prototype | 12 | green / yellow / red cycle; red reverses his conveyor; switches bars after red | reworked: "conveyor runs backwards" is the red phase, with a yellow tell |
 | 7 | Chrome Cow (PROPOSAL) | Duke (3.12) | 12 | no stomp: idles, revs 50 frames, lurches 16 px; a glass resets his idle, a glass during the rev stalls him | "revs between serves" became a rule with a readable answer |
-| 8 | Teahouse | Sumo Champion | 12 | single hits do not push him; chained hits (<= 80 frames apart) do; charge on a tell, cancelled by a hit | "barely moves" became the chain rule |
+| 8 | Teahouse | Sumo Champion | 8 (was 12: owner decision 2026-10-12, the bot lands ~1 cup per 100 frames) | single hits do not push him; chained hits (<= 80 frames apart) do; charge on a tell, cancelled by a hit | "barely moves" became the chain rule |
 | 9 | Zoo | Leo the Lion (crowned) | 14 (PROPOSAL, zoo 9th: 12) | roar: walkers jump back 16 px, drinkers send empties early | "empties fly" still obeys fair-empties spacing |
 | 10 | Space | The Mothership | 6 + 3 x 2 (PROPOSAL, space last: 8 + 3 x 2) | teleports; at 0 it splits into 3 small aliens (2 drinks each) | splits once (not on every hit, which would flood the bars) |
 | F | Finale | Pour-Off vs Dregs | first to 20 | race to serve a shared crowd from opposite ends | own module, own simple patron/mug rules |

@@ -74,10 +74,16 @@ extern uint8_t  boss_returns;     // 1: MUG_RETURN mugs may be on his bar (the C
 uint8_t boss_send(uint8_t kind) BANKED;   // send one MUG_EMPTY / MUG_RETURN from his right edge if the fair-empties
                                           // schedule (and boss_window) allows: 1 = sent (next_arrival updated)
 uint8_t boss_width(void) BANKED;          // his row's width (px)
+void boss_advance(void) BANKED;           // one 8 px stomp toward the tap now (the STOMP pose, the thud), for a special
+                                          // that moves him itself; boss_step 0 turns the engine's own stomp timer off
+// boss_cols[w..] (a 32 px boss's 5th column, at boss_col + 4) belong to his special (Leo's "!!"): render.c stamps them
+// like his body, in his palette; boss_set clears them, boss_look leaves them alone, the special marks them dirty.
 
 // ---- the hook table's rows (boss.c boss_call): one dispatcher per built boss, in his own file ----
 uint8_t boss_big_tex(uint8_t ev, uint8_t arg) BANKED;     // src/boss_big_tex.c: Big Tex, the saloon (3.3)
 uint8_t boss_sasquatch(uint8_t ev, uint8_t arg) BANKED;   // src/boss_sasquatch.c: the Sasquatch, the lumber lodge (3.5)
 uint8_t boss_critic(uint8_t ev, uint8_t arg) BANKED;      // src/boss_critic.c: the Food Critic, the bistro (3.6)
 uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED;        // src/boss_yeti.c: the Yeti, the igloo (3.7)
+uint8_t boss_sumo(uint8_t ev, uint8_t arg) BANKED;        // src/boss_sumo.c: the Sumo, the teahouse (3.9)
+uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED;         // src/boss_leo.c: Leo the Lion, the jungle zoo (3.11)
 #endif

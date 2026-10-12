@@ -1,4 +1,4 @@
-; APPROVED by the owner on 2026-10-11 (Leo round 2, the patron lion scaled up with a crown). Not built yet: moves to its real place when its feature is built.
+; Art: approved design (the owner, 2026-10-11: Leo round 2, the patron lion scaled up with a crown). Built: src/boss_leo.c.
 ; Leo the Lion, the Jungle zoo's boss (docs/minigames_bosses.md 3.11). PROPOSAL round 2, "the patron lion, larger,
 ; crowned": the owner-approved zoo_lion patron (assets/art/patrons/zoo.txt frame 3, round 7 face L2 "broad muzzle")
 ; redrawn at boss size, same 3/4 view facing the tap, same ears, eyes, dark nose wedge, cat mouth and mane ring.
@@ -7,8 +7,9 @@
 ; spec's purr: eyes shut, smile, paw raised in a wave). HAND1..3: the paw column (x 24-31) holding 1, 2 empties
 ; (HAND3 = HAND2, Leo has hands 2), swapped into WALK / STOMP / WINCE. The topper (HAT_STILL / HAT_BOB, one 8x16 OBJ,
 ; hat_dx 6): the golden crown; its band sits on the mane's top row (topper row 8 = body row 0), so it reads as worn.
-; Extra blocks gen_boss ignores today: INHALE (the roar's tell: mane puffed out in tufts, eyes wide), ROAR (puffed
-; mane, jaws open, angry eyes) and BANG (8x16, the "!!" marker beside his head during tell + roar).
+; Extra poses (gen_boss BOSSES leo extra, the engine's poses 5 and 6): INHALE (the roar's tell: mane puffed out in
+; tufts, eyes wide), ROAR (puffed mane, jaws open, angry eyes); and BANG (gen_boss leo tiles: 8x16 at BG 246-247, the
+; "!!" marker in the column right of him during tell + roar).
 ; Colours: the patron's own zoo_lion palette (assets/palettes.json): '-' #F8D060 gold (face, paws, crown, steins),
 ; '+' #C86018 orange (mane, jewels, the beer), '#' #301808 outline. CGB: BG palette 4 + OBJ palette 7 (same 1-3);
 ; DMG: BG greys / OBP1 0xE4 (crown light grey with a black outline over the dark-grey mane).

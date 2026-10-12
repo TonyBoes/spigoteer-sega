@@ -7,8 +7,9 @@ own art, #included by its own src/boss_<name>.c and nowhere else, so it lands in
                                on his bar's two wall rows), then the boss's own extra poses in his `extra` list (the
                                tells: Yeti INHALE / BLOW, the Critic's TASTE; the engine's pose numbers 5, 6, ... in
                                that order), the hand column with 1-3 held empties (HAND1..3, 8x16), the topper
-                               (HAT_STILL, HAT_BOB: 8x16 OBJ) and the HUD face (ICON, 8x8). Other blocks in the file
-                               are not read.
+                               (HAT_STILL, HAT_BOB: 8x16 OBJ) and the HUD face (ICON, 8x8), and his `tiles` (8x16 BG
+                               blocks of his special's own, e.g. Leo's "!!": boss_art_tiles, loaded at BG 246..).
+                               Other blocks in the file are not read.
   assets/art/boss/meter.txt    the HUD meter's 3 tiles (EMPTY, HALF, FULL; 2 pips a tile), shared by every boss
 
 The body is stored as column pairs (a column's top tile, then its bottom tile, at consecutive ids: render.c's put_col
@@ -45,7 +46,11 @@ BOSSES = [
     {"name": "critic", "width": 32, "pal": ["#F8D0A8", "#A03070", "#201018"], "extra": ["TASTE"]},
     {"name": "yeti", "width": 32, "pal": ["#F8F8F8", "#80B0E8", "#182040"], "extra": ["INHALE", "BLOW"],
      "ice": "igloo"},
+    {"name": "sumo", "width": 40, "pal": ["#F0A878", "#F0F0E0", "#282048"], "extra": ["SHIKO", "HMPH"]},
+    {"name": "leo", "width": 32, "pal": ["#F8D060", "#C86018", "#301808"], "extra": ["INHALE", "ROAR"],
+     "tiles": ["BANG"]},
 ]
+BOSS_TILES_MAX = 3           # "tiles": a boss's own 8x16 BG blocks (Leo's "!!"), at BG 246.. like the ice (6 ids)
 
 
 def fail(msg):
@@ -142,6 +147,12 @@ def boss_art(b, prev):
          "pal": rgb15(["#000000"] + b["pal"]), "art": {n: p for n, p in zip(names, poses)}}
     if "ice" in b:
         a["ice_src"], a["ice"] = ice_tiles(b["ice"], prev, b["name"])
+    if b.get("tiles"):
+        if len(b["tiles"]) > BOSS_TILES_MAX or "ice" in b:
+            fail(f"{b['name']}: room for {BOSS_TILES_MAX} blocks of his own at BG 246.. (and none with ice)")
+        own = [frame(named, n, 8, 16, path) for n in b["tiles"]]
+        a["tiles"] = [x for f in own for x in tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)]
+        png(own, prev / f"boss_{b['name']}_tiles_x8.png", 8)
     return a
 
 
@@ -164,6 +175,9 @@ def header(a):
         h += [f"#define BOSS_ART_ICE {len(a['ice_src'])}",
               carr("boss_ice_src", a["ice_src"]) + "   // the venue's counter tile ids",
               carr("boss_ice_tiles", a["ice"]) + "   // their icy copies (PLACEHOLDER)"]
+    if "tiles" in a:
+        h += [f"#define BOSS_ART_TILES {len(a['tiles']) // 32}   // his own 8x16 BG blocks (top, bottom) for BG 246..",
+              carr("boss_art_tiles", a["tiles"])]
     return "\n".join(h) + "\n"
 
 

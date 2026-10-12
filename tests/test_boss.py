@@ -164,7 +164,7 @@ def snapshot(gb):
 
 
 # ---- the data ------------------------------------------------------------------------------------------------------
-BUILT = {0: "big_tex", 2: "sasquatch", 3: "critic", 4: "yeti"}   # the venues whose boss is built (wave 1: the bosses without movement)
+BUILT = {0: "big_tex", 2: "sasquatch", 3: "critic", 4: "yeti", 7: "sumo", 8: "leo"}   # the venues whose boss is built (wave 1: the bosses without movement)
 
 
 def test_the_table_has_a_row_per_venue_and_the_built_bosses():

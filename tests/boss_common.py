@@ -223,3 +223,32 @@ def check_start(gb, c, a, model):
     assert (o["y"], o["x"], o["tile"]) == (top_y + 16 - 8, r["x"] + r["hat"] + 8, OBJ_TOPPER)
     pb = gb.read("patron_bar", 16)
     assert all(pb[p] != r["bar"] for p, s in enumerate(gb.read("patron_state", 16)) if s), "no regular on his bar"
+
+
+# ---- a boss file's own state (src/boss_<name>.c: a struct in BOSS_OWN over story_scratch, no WRAM of its own) ------
+class Own:
+    """Fields of the struct `<name>_t` in src/boss_<name>.c, which lives at BOSS_OWN (src/boss.h: the end of
+    story_scratch, after the pose table and the hand column): own.get(gb, field), own.put(gb, field, v)."""
+    def __init__(self, name):
+        src = (ROOT / "src" / f"boss_{name}.c").read_text()
+        body = re.search(r"typedef struct \{(.*?)\} " + name + r"_t;", src, re.S).group(1)
+        self.fields, off = {}, 0
+        for t, n in re.findall(r"(uint8_t|uint16_t)\s+(\w+);", body):
+            self.fields[n] = (off, 2 if t == "uint16_t" else 1)
+            off += 2 if t == "uint16_t" else 1
+        poses = define("BOSS_POSES_MAX", (ROOT / "build" / "boss_art.h").read_text())
+        self.base = GAME["STORY_SCRATCH"] - define("BOSS_SCRATCH_N") + poses * GAME["BOSS_W_MAX"] + 4
+        assert off <= define("BOSS_SCRATCH_N") - poses * GAME["BOSS_W_MAX"] - 4
+
+    def addr(self, gb, field):
+        return gb.addr("story_scratch") + self.base + self.fields[field][0]
+
+    def get(self, gb, field):
+        a, n = self.addr(gb, field), self.fields[field][1]
+        return gb.mem(a) if n == 1 else gb.mem(a) | gb.mem(a + 1) << 8
+
+    def put(self, gb, field, v):
+        a, n = self.addr(gb, field), self.fields[field][1]
+        gb.write(a, v & 255)
+        if n == 2:
+            gb.write(a + 1, v >> 8)

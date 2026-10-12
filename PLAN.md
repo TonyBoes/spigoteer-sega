@@ -2071,3 +2071,28 @@ ORDER UP! (approved option).
   Sort on the third line; mg_list / mg_list_locked replaced again (the ORDER UP line).
 - Test-harness note: a 1-frame D-pad tap can fall between two joypad reads right after a frame with a long VBlank copy
   (the logic moves against PyBoy's frame cut); test_ou holds presses 2 frames.
+
+## Leo and Sumo as built (docs/minigames_bosses.md 3.11 / 3.9, 2026-10-12)
+Both follow "Boss hooks as built": a dispatcher `uint8_t boss_<name>(uint8_t ev, uint8_t arg) BANKED` in its own
+`src/boss_<name>.c` (case 7 Teahouse = the Sumo, case 8 Jungle zoo = Leo in boss.c), state in a struct in the 20 B
+BOSS_OWN buffer, so **no new WRAM global** (WRAM_LO / WRAM_HI_0 unchanged: 3936 / 3454 B used). Their slots are built
+in gen_story BUILT_SLOTS (BOSS: TEAHOUSE, ZOO). Art: `assets/art/boss/{sumo,leo}.txt` (moved out of `approved/`);
+gen_boss BOSSES gained both, plus a `tiles` key (a boss's own 8x16 BG blocks at BG 246.., max 3; Leo's "!!"). Engine
+additions in boss.c: `boss_advance()` (one 8 px stomp for a boss that moves himself; `boss_step` 0 turns the engine's
+stomp timer off) and the boss column stamp clears columns past his width (a special's column).
+- **Sumo** (40 px, bar 1, step 96, push 0, gulp 0, hands 2, sip 90, **meter 8**): steps on the teahouse tune's beat (96
+  frames = one bar of "sakura"; his own clock with the music off), 14 B state (sumo_t). A single hit never pushes him; a
+  chained hit (within 80 frames of the last) pushes 8 px; his HUD face blinks while a chain is live. Every 480 walking
+  frames the SHIKO stamp tells for 60 frames (a hit cancels it: the HMPH pose), else he charges 24 px in 12 frames. The
+  spec's counter-dust tiles are skipped (no approved art; SHIKO is the tell).
+  **Difficulty (owner decision 2026-10-12): the meter is 8, not the spec's 12.** The test bot lands about 1 cup per 100
+  frames and, unhit, he reaches the tap after 10 steps (960 frames); at 12 cups he got to about 11 of 12 and was likely
+  unbeatable. `test_win_the_fight_by_pouring` plays the real 8-cup fight (no hp poke): the bot wins it, no life lost,
+  at least one chained hit. Goldens: boss_sumo, boss_sumo_shiko (new, DMG+CGB).
+- **Leo** (32 px, step 80, push 8, gulp 30, hands 2, sip 60, meter 14), 8 B state (leo_t). Every 420 walking frames: a
+  60 frame INHALE tell with "!!" in his 5th column, then a 30 frame ROAR that pushes every regular walker back 16 px (no
+  score, no thirst) and makes drinkers in their minimum drink finish now; empties still obey the fair-empties spacing
+  (next_arrival / empty_gap). Goldens: boss_leo, boss_leo_roar (new, DMG+CGB).
+- ROM (romusage, main b575841 -> now): bank 11 12505 -> 16235 B used, new bank 12 520 B; banks 1 / 6 / 8 / 10 repacked
+  by the linker (16306 -> 16251, 16297 -> 16364, 16378 -> 16227, 16114 -> 16172); the rest unchanged. Tightest free:
+  bank 9 10 B, bank 4 20, bank 6 20.
