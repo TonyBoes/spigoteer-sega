@@ -478,7 +478,7 @@ def main():
                     f"(const unsigned char **){name}_order1, (const unsigned char **){name}_order2, "
                     f"(const unsigned char **){name}_order3, (const unsigned char **){name}_order4, "
                     f"duty_inst, wave_inst, noise_inst, NULL, waves}};\n\n")
-        f.write("// song, loop, frames per pass, buffer (0 none, 1 A, 2 B), bank / source / bytes of the pattern blob, groove (or NULL)\n")
+        f.write("// song, loop, frames per pass, buffer (0 none, 1 A, 2 B), bank / source / bytes of the pattern blob, groove (or NULL), first row\n")
         f.write("const tune_t tunes[TUNE_COUNT] = {\n")
         for name in ORDER:
             b = built[name]
@@ -490,6 +490,9 @@ def main():
                 tail = "{}, {}, blob_{}, {}".format(BUF_ID[songs.SONGS[SOURCE[name]]["buf"]], bank_of[name], name,
                                                     len(slots[name]) * SLOT_BYTES)
             tail += ", " + (f"groove_{name}" if name in grooves else "NULL")
+            start = 0 if name in JINGLES else songs.SONGS[SOURCE[name]].get("start", 0)
+            assert not start or (start < b["total"] and name not in grooves and name not in harms), f"{name}: bad start row {start}"
+            tail += f", {start}"
             f.write(f"    {{&song_{name}, {loop}, {frames}, {tail}}},   // {name}"
                     f"{' = ' + SOURCE[name] if name in SOURCE else ''}: {b['total']} rows\n")
         f.write("};\n")

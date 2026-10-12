@@ -80,7 +80,9 @@ mute_channels: db
 counter: db
 _hUGE_tick::
 tick: db
+_hUGE_row_break::
 row_break: db
+_hUGE_next_order::
 next_order: db
 ;; tapper-gb: exported under C names so tests can watch the playback position (the only change to this file)
 _hUGE_row::

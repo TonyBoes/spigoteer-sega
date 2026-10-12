@@ -16,7 +16,8 @@
     the driver's own variables, so tests can watch the playback position, and a fourth, `_hUGE_ticks_per_row`, so
     `src/music.c` can play a tune one tick a row faster (The Chrome Cow's Last call: "the band plays faster"), and a
     fifth, `_hUGE_note_table` (the driver's period table), so `src/music.c`'s channel-1 harmony voice (music step 5)
-    plays the same pitches as the driver.
+    plays the same pitches as the driver, and two more, `_hUGE_row_break` and `_hUGE_next_order` (the pending position
+    jump), so `src/music.c` can start a tune partway in (`tune_t.start`: Mountain's "She'll be" pickup).
   - `tools/rgb2sdas.py` (the driver's RGBDS-object to GBDK-object converter): accepts RGBDS 1.0.x object
     files (revision 13: section records gained a node id and line number and a flag byte; `LOW()` and
     `HIGH()` became RPN operators).

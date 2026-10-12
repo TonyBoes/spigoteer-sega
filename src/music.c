@@ -27,7 +27,7 @@ static uint8_t ld_tune = TUNE_NONE;   // tune whose patterns are being copied (T
 static uint8_t ld_play;               // start it when the copy is done (else it is a preload)
 static const uint8_t *groove;         // the running tune's drum loop (NULL: none)
 static uint8_t g_pos, g_cnt;          // groove row, frames until it advances
-extern unsigned char hUGE_ticks_per_row;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
+extern unsigned char hUGE_ticks_per_row, hUGE_tick, hUGE_row_break, hUGE_next_order;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
 uint8_t music_fast;                   // 1: a venue tune plays one frame a row faster (story: TWIST_FAST_TUNE)
 static uint8_t fast_now;              // the running tune plays fast
 static uint16_t ld_pos;               // bytes copied so far
@@ -120,6 +120,13 @@ static void start_song(uint8_t tune) {
     hUGE_ticks_per_row -= fast_now;   // (the groove below follows: one frame less a row)
     hUGE_mute_mask = muted = 1;     // channel 1 is harm_tick's: the driver leaves it alone (set directly: no note cut,
                                     // so an effect still sounding there plays on)
+    if (tunes[tune].start) {        // a pickup: the first pass begins mid-song.  Make the driver believe it is on the last
+                                    // tick of a row that ends in a jump to the start (order + 1, row + 1: how it stores them)
+        hUGE_tick = hUGE_ticks_per_row - 1;
+        hUGE_next_order = (tunes[tune].start >> 6) + 1;
+        hUGE_row_break = (tunes[tune].start & 63) + 1;
+        hUGE_dosound();             // that tick: the jump happens now, so the pump's first tick is the start row's tick 0
+    }
     mus_active = 1;
     music_frames = 0;
     groove = tunes[tune].groove; g_pos = 0; g_cnt = 1;      // the groove's first row falls on the song's first row

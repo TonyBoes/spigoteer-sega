@@ -125,12 +125,13 @@ def check(model, source, bars, solo):
             notes.append((i, j - i, n))
     per_bar = songs.BAR_ROWS[source]
     last_row = bars * per_bar
-    notes = [x for x in notes if x[0] < last_row]
-    frames = (last_row * tempo) + 150
+    first_row = t.get("start", 0)   # the first pass begins on this row (a pickup): row r sounds (r - start) rows in
+    notes = [x for x in notes if x[0] < last_row or x[0] >= first_row > 0]
+    frames = ((last_row + first_row) * tempo) + 150 if first_row else (last_row * tempo) + 150
     chunks, mfs, start, rate = capture(model, source, solo, start_frames(frames, source))
     # frame index where row r begins sounding: the tick that starts row r is call r*tempo+1; its sound is heard from the next frame
     def first_frame(row):
-        k = row * tempo + 1
+        k = ((row - first_row) % len(rows)) * tempo + 1
         return next(f for f in range(start, len(mfs)) if mfs[f] >= k)
     flat = np.concatenate(chunks).astype(float).mean(axis=1)
     spf = len(np.concatenate(chunks)) / len(chunks)       # samples per frame

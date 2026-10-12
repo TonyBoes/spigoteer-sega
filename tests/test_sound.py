@@ -325,7 +325,7 @@ def melody_check(rom, source, frames=260, min_notes=6):
     rate = rom.pb.sound.sample_rate
     checked, wrong = [], []
     for row, ln, n in notes:
-        k = row * tempo + 1
+        k = ((row - t.get("start", 0)) % (len(rows))) * tempo + 1      # (a tune with a start row begins there)
         if mfs[0] >= k or mfs[-1] < k + ln * tempo + 2:
             continue                                    # not entirely inside what was recorded
         f0 = next(f for f in range(len(mfs)) if mfs[f] >= k) + 1
@@ -786,7 +786,7 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
     import re
     from conftest import ROOT
     src = (ROOT / "build" / "music_data.c").read_text()
-    frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+, \w+\}", src)]
+    frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+, \w+, \d+\}", src)]
     assert len(frames) == TUNE_COUNT and all(60 <= f <= 2400 for f in frames), frames
     venue = frames[TUNE_VENUE0:]
     assert all(15 * 60 <= f <= 36 * 60 for f in venue), f"venue tunes loop for 15-36 s (the owner specs are up to 32 bars of a waltz): {venue}"

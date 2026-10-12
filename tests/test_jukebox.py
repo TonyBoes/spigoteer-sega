@@ -14,7 +14,7 @@ from test_flow import (GS_GOAL, GS_STORY, TITLE, most_per_scanline, run_until, s
 from test_scores import (JINGLES, TUNE_COUNT, TUNE_VENUE0, V4_SUM, V6_SUM, booted, old_progress, old_tunes, parse_save,
                          progress_unlocks, saved_tunes, table, v4_image, v5_image, v7_image, EMPTY, V7_SUM,
                          main_block, saved_story)
-from test_sound import save_ram
+from test_sound import save_ram, srom  # noqa: F401  (srom: the sound-on fixture)
 
 pytestmark = pytest.mark.timeout(240)
 
@@ -375,3 +375,48 @@ def test_version_7_loads_its_unlocks_and_rejects_a_bad_one(model):
         with booted(model, bytes(r)) as rom:      # (a bad main block: no story, no unlocks; the tables are kept)
             assert table(rom)[0] == ("ABC", 500) and rom.mem16("tune_unlocked") == 1, name
             assert rom.mem("story_progress") == 0, name
+
+
+def test_mountain_starts_on_its_pickup_and_the_loop_is_unchanged(srom):
+    """"She'll be coming": the first play of Mountain starts on the pickup (the last 8 rows of its 256: order 3, row 56,
+    tools/songs.py start=), the first note heard is that pickup's A4, the driver wraps to order 0 row 0 (bar 1's "com-")
+    8 rows later, and from there the loop is the tune's 256 rows (the same cycle as before the start row existed)."""
+    import numpy as np
+    import songs
+    from check_music import detect
+    from test_sound import NR51
+    t = songs.SONGS["mountain"]
+    tempo, tune = t["tempo"], TUNE_VENUE0 + songs.VENUES.index("mountain")
+    hold_stage_anim(srom)
+    srom.write("tune_unlocked", 0xFF)
+    srom.write(srom.addr("tune_unlocked") + 1, 0xFF)
+    to_jukebox(srom)
+    while srom.mem("jb_sel") != tune:
+        tap(srom, "down")
+    srom.press("a", 2)
+    assert srom.mem("cur_tune") == tune
+    srom.write("music_frames", 0)
+    srom.write(srom.addr("music_frames") + 1, 0)                    # (no driver tick runs while the patterns copy in)
+    chunks, seen, mfs = [], [], []
+    for _ in range(80 + 12 * tempo):
+        if len(chunks) == 12 * tempo:
+            break
+        srom.pb.memory[NR51] = 0x22                                  # channel 2 (the melody) only
+        srom.run(1)
+        srom.pb.memory[NR51] = 0x22
+        if not chunks and srom.mem16("music_frames") == 0:           # still copying the patterns: not started
+            continue
+        chunks.append(srom.pb.sound.ndarray.copy())
+        seen.append((srom.mem("hUGE_current_order"), srom.mem("hUGE_row")))
+        mfs.append(srom.mem16("music_frames"))
+    srom.pb.memory[NR51] = 0xFF
+    assert t["start"] == 248 and seen[0] == (6, 56), seen[:2]        # order 3 (a word index), row 56
+    assert mfs[seen.index((0, 0))] == 8 * tempo, "the loop wraps to row 0 of order 0 after the pickup's 8 rows"
+    flat = np.concatenate(chunks).astype(float).mean(axis=1)
+    spf = len(flat) / len(chunks)
+    heard = detect(flat[int(4 * spf):int(3 * tempo * spf)], srom.pb.sound.sample_rate, 300, 800)
+    assert abs(heard - 440) < 15, f"the first note heard is {heard:.0f} Hz, not the pickup's A4 (440)"
+    srom.run(264 * tempo - mfs[-1])                                  # 256 rows after the wrap: row 0 of order 0 again
+    assert (srom.mem("hUGE_current_order"), srom.mem("hUGE_row")) == (0, 0)
+    srom.run(tempo * 255)                                            # ...and 255 rows on, the last row of the loop
+    assert (srom.mem("hUGE_current_order"), srom.mem("hUGE_row")) == (6, 63)

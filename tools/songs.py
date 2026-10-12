@@ -55,7 +55,7 @@ LEGATO_LEAD = 6      # gen_music.DUTY: the legato lead
 SUNG_ARTIC = 3       # frames of silence between two sung notes of the same pitch (legato=)
 
 
-def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None, groove="", legato=None):
+def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None, groove="", legato=None, start=0):
     """stac_all: (num, den) cuts every melody note after num/den of its length (staccato).
     legato: n frames.  A sung tune: the melody plays on the legato lead (gen_music instrument 6, a held volume
     instead of the song lead's decay, which made every note a plucked syllable), each note runs into the next, and a
@@ -63,11 +63,14 @@ def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None
     groove: a short drum loop (tokens as ch4, one or two bars) that src/music.c plays on channel 4 by itself,
     over and over, in step with the song's rows.  It costs no pattern in the WRAM buffer (a 64-row pattern is
     not a whole number of 3/4 or 6/8 bars, so a shared hUGEDriver pattern could not keep the beat across orders).
-    The song's length must be a whole number of grooves (gen_music checks)."""
+    The song's length must be a whole number of grooves (gen_music checks).
+    start: the row the FIRST play begins on (a pickup: the song's loop still wraps to row 0, so every later pass
+    starts at bar 1).  src/music.c jumps the driver there before its first tick; tunes with a start have no groove
+    or harmony (gen_music checks)."""
     if legato:
         inst = LEGATO_LEAD
     SONGS[name] = dict(tempo=tempo, buf=bufname, ch2=ch2, ch3=ch3, ch4=ch4, inst=inst, gap=gap, stac_all=stac_all,
-                       groove=groove, legato=legato, ch1="", ch1_inst=None)
+                       groove=groove, legato=legato, start=start, ch1="", ch1_inst=None)
 
 
 def harmony(name, tune, ch1, inst=("harm", "harm")):
@@ -251,8 +254,11 @@ MTN_BARS = [
 MTN_CHORDS = [
     "D", "A7", "D", "D", "D", "D", "A7", "A7", "D", "D7", "G", "A7", "D", "A7", "D", "D",
 ]
+# The "She'll be" pickup is the last 8 rows of bar 16 (row 248): the FIRST play starts there (start=), the loop wraps to
+# bar 1 as always.  (Rotating the tune instead cost a 9th WRAM pattern: the bass bars stop repeating.)
+MTN_PICKUP_ROW = 248
 song("mountain", 6, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 16),
-     " ".join(["K:2 r:2 S:2 r:2 K:2 r:2 S:2 r:2"] * 16), legato=SUNG_ARTIC)
+     " ".join(["K:2 r:2 S:2 r:2 K:2 r:2 S:2 r:2"] * 16), legato=SUNG_ARTIC, start=MTN_PICKUP_ROW)
 
 # ---------------------------------------------------------------------------------------------
 # Bistro: "Funiculi, Funicula" (Luigi Denza, 1880), verse and chorus.  6/8, key F, dotted quarter = 92 is
