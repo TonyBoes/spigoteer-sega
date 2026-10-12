@@ -249,3 +249,34 @@ def test_realistic_peak(rom):
 def test_realistic_peak_frame_time_target(rom):
     r = realistic(rom)[0]
     assert r["missed"] == 0 and r["end"] <= END_LY_TARGET, r
+
+
+# ---- Modes P4: CLASSIC's busiest layout (level 12: R L R L, every bar's cap 4) --------------------------------------------
+CLASSIC_FRAMES = 1200
+
+
+@pytest.mark.parametrize("dirs", [0x5, 0x0])
+def test_classic_peak(rom, dirs):
+    """A MEASUREMENT, not a target (owner 2026-10-11: fit as many patrons as possible, tune nothing yet): CLASSIC level
+    12's layout (R L R L, up to 4 patrons a bar) at the fastest row's speeds, perf_helpers.ClassicPeak; dirs 0 is the
+    same scenario with every bar L, for comparison. The budgets hold every frame (<= 10 objects a line, <= 40 in all),
+    the music never skips a tick, no VRAM write outside VBlank. The frame time is only guarded against getting much worse
+    (numbers in PLAN.md, "Three modes P3-P4 as built"; it runs late on a third or more of its frames on both models)."""
+    ticks = []
+
+    def check(gb, i):
+        line, n = oam_line_counts(gb)
+        ticks.append((gb.mem("frame_counter"), gb.mem16("music_frames"), line, n))
+    r, s, lifts = ph.realistic_run(rom, CLASSIC_FRAMES, check, target=16, dirs=dirs, cls=ph.ClassicPeak)
+    n = len(s["patrons"])
+    mean = round(sum(s["patrons"]) / n, 2)
+    print(rom.model_name, "classic peak", hex(dirs), r, "patrons mean", mean, "max", max(s["patrons"]),
+          "mugs max", max(s["mugs"]), "lifts", lifts, "worst line", max(t[2] for t in ticks), "entries", max(t[3] for t in ticks))
+    assert rom.mem("bar_dirs") == dirs
+    assert 10 <= mean and max(s["patrons"]) <= 16, (mean, max(s["patrons"]))
+    assert all(line <= 10 and k <= 40 for _, _, line, k in ticks), [t for t in ticks if t[2] > 10 or t[3] > 40][:5]
+    assert_music_every_frame([(f, m) for f, m, _, _ in ticks])
+    assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
+    # guard only (measured P4, PyBoy: R L R L DMG end 329 / 440 missed of 1200, CGB 315 / 575; every bar L DMG 283 / 335,
+    # CGB 289 / 402; the scenario's patron count depends on the frame timing: mean 11-14.6 of up to 16)
+    assert r["end"] <= 450 and r["missed"] <= 900, r

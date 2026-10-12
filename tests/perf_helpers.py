@@ -430,14 +430,38 @@ class RealisticPeak:
         s["both"] += tip and show
 
 
-def realistic_run(gb, frames, check=None, target=10):
+class ClassicPeak(RealisticPeak):
+    """Modes P4: CLASSIC's busiest layout, level 12 (R L R L, every bar's crowd cap 4: up to 16 patrons), measured on the
+    harness's fastest row (level 10, the space lounge: CLASSIC's space bar) with level_dirs = RLRL. As RealisticPeak, but
+    three patrons a bar to begin with, new ones made due as fast as the patrons' end lets them (SPAWN_GAP) up to 16, and
+    the second bartender's full mugs half as often (fewer serves), so the bars stay near their cap of 4."""
+    FULL_GAP, SPAWN_GAP = 36, 6
+
+    def seed(self):
+        """RealisticPeak's two a bar, and a walker on each bar further in."""
+        super().seed()
+        gb = self.gb
+        for b in range(4):
+            p, x = 8 + b, 92 - 6 * b
+            for n, v in (("patron_state", WALKING), ("patron_bar", b), ("patron_x", x), ("patron_frac", 0),
+                         ("patron_draw", 255), ("patron_variant", b % 3), ("patron_timer", 0), ("patron_aux", 0),
+                         ("patron_mug", 255), ("patron_dist", 0), ("patron_drinks", 0), ("patron_hurry", b & 1),
+                         ("patron_catchx", x)):
+                put(gb, n, p, v)
+        gb.write("patrons_live", 12)
+
+
+def realistic_run(gb, frames, check=None, target=10, dirs=0, cls=None):
     """The RealisticPeak scenario at level 10 (the fastest row) for `frames` frames (the bartender on the level-8 script); check(gb, i)
-    after each. Returns (perf_read, the scenario's stats, lifts by the chooser in the run)."""
+    after each; dirs: the bars' directions (P4 ClassicPeak; 0 every bar L). Returns (perf_read, the scenario's stats,
+    lifts by the chooser in the run)."""
+    if dirs:
+        gb.write("level_dirs", dirs)
     start_game(gb)
     goto_fastest(gb)
     gb.write("intro_timer", 0)
     gb.write("tip_chance", 0)
-    rp = RealisticPeak(gb, target)
+    rp = (cls or RealisticPeak)(gb, target)
     rp.seed()
     gb.run(2)
     perf_reset(gb)

@@ -1456,3 +1456,79 @@ The checklist was docs/venue10_impact.md (81 items); what differs from it is lis
   top 5 is dropped (Q4); versions 1-2 load as a fresh cartridge. The title's HI line shows the table of the mode under
   PLAY's cursor (CONTINUE / STORY: STORY's), ARCADE's elsewhere; the idle attract cycles ARCADE, STORY, CLASSIC; the
   table screen's header names the mode ("ARCADE HIGH SCORES", 19 characters at most).
+
+## Three modes P3-P4 as built (the mirror engine; owner decisions 2026-10-11; plan: the modes proposal 2.3-2.5, C1-C4, C12)
+
+Still debug-only: nothing outside the LEVEL harness (test hook `level_dirs`) and the debug select uses it; CLASSIC's
+table, caps, scoring and title entry are P5.
+- **Rule**: a bar marked R in `bar_dirs` (bit b = bar b, top 0) has its patrons coming from the right and its keg on the
+  left. Every rule stays in bar-local x (patron_x, mug_x, bartender_x, TAP_X ... unchanged; tests read local values);
+  an R bar is only **drawn** mirrored. With every bar L the picture is what it was (no golden changed).
+- **BG** (render.c): an R bar's shadow rows hold the screen picture: local column c at screen column 19 - c, every tile
+  flipped. restore_base copies the R bar's base rows (`base_rtile` / `base_rattr` in `base_all`, screen order, made at
+  load), put_col / put_back_col write at 19 - c, queue_chunk / queue_urgent queue screen columns [20 - x1, 20 - x0); dirty
+  spans stay local, so bg_pending, the budgets and the drain are unchanged. Quick redraws on an R bar: `quick_mirror`
+  (banked) writes the 6 ids mirrored into the shadow and they are queued from there. The counter row: venue.c draws
+  `ctr_rtile` / `ctr_rattr`. Stage and HUD are never mirrored.
+- **Sprites**: everything is still drawn at bar-local X; `mirror_oam` (mirror.c, hand-written, called after the frame's
+  drawing with OAM DMA off) moves each entry of an R bar to 168 - X and toggles its attributes (S_FLIPX; a lifted
+  patron's toggle is 0 on a DMG level with every bar R, whose tiles are flipped already). An entry's bar comes from its Y
+  ((Y - 52) / 24: everything lies from 1 line above to 16 lines below its bar's OAM Y); only the entries in use are
+  looked at (0..oam_used-1, the lifted ones, the coin; the bartender's 0-3 only when draw_bartender rewrote them,
+  render.c `bt_new`).
+- **Input** (main.c): Left / Right swap on an R bar (Left walks to the tap); `facing` stays local.
+- **Tiles** (mirror.c `mirror_load`, every level load after the venue and patron tiles; the title calls it with 0):
+  - CGB: the X-flip attribute (BG bit 5, OAM S_FLIPX) does all of it, patrons, back views, keg and counter.
+  - DMG, every bar R (C12, the whole screen flips): the group's 156 patron tiles are bit-reversed in place.
+  - DMG, mixed (owner option (a)): patrons are drawn at even x only (`draw_mask` 0xFE on patron_draw: 2 px steps, all
+    three looks both ways); the R set (the even shifts flipped) is put in the odd shifts' slots (R shift s at the slot of
+    L shift s + 1), `st_tab` (WRAM, was the ROM0 stamp_tile) maps (direction, variant, shift) to the first tile; back
+    views are shared and drawn unmirrored on an R bar (`mir_bswap`); a lifted patron on an R bar is the L shift-0 pose
+    with the OAM flip. Option (b) (1 px steps, the looks split 2 / 1) would change only mirror.c's dmg_mixed and st_tab's
+    R half (which pose goes to which slot) and the spawn's choice of variant per direction.
+  - DMG, any R bar: each wall / counter tile of the bar rows that is not its own mirror image gets a flipped copy in a
+    free id (77, 246-255, then 234-239; 252-255 and 234-239 are the story's boss HUD and perfect pour). Every venue fits
+    (`mir_short` 0, tested per venue).
+- **Harness and debug**: `level_dirs` (test hook; the title resets it) gives the LEVEL harness its directions for every
+  level of the run; the debug select's LEVEL box steps CLASSIC's eight layouts with SELECT and shows them ("LEVEL 07
+  RRLL"). Found on the way: SDCC 4.5 miscompiled the first version of that loop (kept the counter in L and loaded HL
+  with an address inside the loop); debug.c has the workaround.
+- **Tests**: tests/test_classic.py: the R picture pixel-identical to the all-L picture mirrored (every bar R and six mixed
+  layouts, both models, walkers at odd shifts, drinkers, a back view, a lifted patron, a pushed one, mugs, coin,
+  bartender), BG ids by column with CGB bit 5, the DMG tile schemes and each venue's flipped keg tiles, mugs / bartender
+  / lifted entries at 168 - X and flipped, Left walks to the tap, the life-loss rules and the glass at the right ends,
+  empties caught at the left keg, a served patron leaving past the right edge, the debug box. New goldens:
+  classic_flip (sports, RRRR), classic_split (The Chrome Cow, RRLL), classic_alt (space lounge, RLRL), dmg + cgb.
+  tests/test_overlap.py (two set-ups) and test_windup.py (arrivals in game frames) no longer depend on where the
+  emulator's frame boundary falls inside the game's logic (the new code moved it by a few cycles).
+- **ClassicPeak** (tests/test_perf.py test_classic_peak, perf_helpers.ClassicPeak: CLASSIC level 12's layout R L R L at
+  the fastest row's speeds, three patrons a bar to begin with, new ones as fast as the patrons' end lets them, up to 16;
+  a measurement and a loose guard, nothing tuned). PyBoy, 1200 frames, end LY / missed frames:
+
+  | scenario | DMG | CGB |
+  |---|---|---|
+  | RealisticPeak before P3 (12e8d45) | 199 / 99 | 215 / 130 |
+  | RealisticPeak now (every bar L) | 202 / 107 | 217 / 133 |
+  | ClassicPeak, every bar L | 283 / 335 (patrons mean 11.0, max 14) | 289 / 402 (11.8, max 14) |
+  | ClassicPeak, R L R L | 329 / 440 (11.5, max 14) | 315 / 575 (14.6, max 16) |
+
+  Never more than 10 objects on a line, at most 36 entries, the music never skips a tick, no VRAM write outside VBlank.
+  The patron count depends on the frame timing (late frames change who catches what), so the two rows are not the same
+  load. Per frame (a -DPERF_SECTIONS build, median DIV ticks, ~1.8 a line; ~14.5-15.5 patrons): every bar L logic ~287
+  (DMG) / ~301 (CGB), R L R L ~329 / ~318; of the difference mirror_oam is ~21 ticks (~12 lines) and the mirrored
+  compose ~3. The DMG runs at ~30 fps in these moments, as the plan expected; the cheap next step for the mirror's own
+  cost is mirror_oam (writing mirrored X in the mug and lifted-patron writers costs ~260 B of ROM0 instead). CGB double
+  speed is not in this phase.
+- **Known compromises**: DMG sprites overlapping sprites: the lower X wins (then the lower OAM index), and mirroring
+  turns X round, so where two sprites overlap on an R bar the other one can be on top (the tests leave those pixels
+  out); DMG mixed levels: 2 px steps and unmirrored back views on R bars; an R level costs ~6-15 % more logic a frame
+  at the peak, so a heavy frame can run late there and not on an all-L level.
+- **ROM**: ROM0 1498 -> 1151 B free (game.gb; release.gb 1264): render.c ~+260 B (the mirrored compose, quick-redraw
+  hook), main.c ~+45 B (input, the mirror_oam call), patrons.c ~+17 B (draw_mask); mirror.c, the debug box and the
+  venue / title / level hooks are banked (bank 9: 5170 -> 3386 B free). WRAM +290 B (st_tab, the R base and counter
+  rows, mirror_oam's tables).
+- **For P5**: start_level calls `mirror_load(play_mode == MODE_LEVEL ? level_dirs : 0)`: CLASSIC passes its row's dirs
+  (after load_venue, load_patron_group, lift_level_init, enhance_load; before place_start_patrons). Caps (C5) go in
+  try_spawn; everything else of CLASSIC is local-x rules and needs nothing from the mirror. A per-bar tap position (P6,
+  slanted bars) only needs per-bar base rows (base_all is shared by the four bars today; +160 B WRAM per-bar), the
+  mirror itself is per column and per OAM X.
