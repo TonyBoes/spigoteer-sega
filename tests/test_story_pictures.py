@@ -543,9 +543,10 @@ def test_the_credits_flags_match_the_finales_and_the_stand_and_legs_read():
         assert ckey[ch]["hex"] == fkey[ch]["hex"], ch
         assert _find(f, shape) and _find(c, shape), ch
     assert len(_find(c, PENNANTS["r"])) >= 2 and len(_find(c, PENNANTS["b"])) >= 1 and len(_find(c, PENNANTS["y"])) >= 2
-    # Dregs stands on the cobbles in his apron: trousers and shoes below the apron's hem (y 89)
-    assert all(c[y][35] == "B" and c[y][36] == "B" and c[y][42] == "B" for y in (90, 91, 92))
-    assert "".join(c[93][33:38]) == "#####"
+    # Dregs stands on the cobbles in his apron: outlined trousers (rows 88-91, ink round a B fill, a seam between the legs)
+    # and ink shoes (rows 92-93, toes to the right) below the apron's hem (y 87)
+    assert all("".join(c[y][34:43]) == "#BBB#BBB#" for y in (88, 89, 90, 91))
+    assert all("".join(c[y][33:39]) == "######" and "".join(c[y][40:46]) == "######" for y in (92, 93))
     # the Sasquatch's coffee stand (24 x 32 in the HUD palette cells, a cup sign on its roof, a pale steaming cup
     # in the window and his furry arm)
     stand = _region(c, 136, 56, 160, 88)
