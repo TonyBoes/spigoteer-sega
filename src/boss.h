@@ -104,4 +104,6 @@ uint8_t boss_mascot(uint8_t ev, uint8_t arg) BANKED;     // src/boss_mascot.c: t
 uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED;  // src/boss_prototype.c: the Prototype, the robot factory (3.8)
 uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED;        // src/boss_duke.c: Duke, the biker bar (3.12)
 uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED;         // src/boss_leo.c: Leo the Lion, the jungle zoo (3.11)
+uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED;  // src/boss_mothership.c: the Mothership, the space lounge (3.10)
+void boss_hud_now(void) BANKED;           // the HUD's face and meter from boss_hp now (a special that changes boss_hp itself)
 #endif

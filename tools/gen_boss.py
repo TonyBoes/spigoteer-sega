@@ -28,7 +28,8 @@ For the bosses that move (boss wave 2; PLAN.md "Boss hooks as built"):
     either side plain wall (colour 0): a pose like any other, stamped where he stands;
   - `fx`: [(block, boss)]: a 16x8 block (the landing MARKER) read from that boss's art file (his own, or another's:
     the Prototype's marker is the Mascot's), on a bar's lower wall row under 8 rows of plain wall: 2 column pairs
-    (boss_art_fx, BOSS_ART_FX tiles), which src/boss_load.h loads at BOSS_MARK_BG (248-251);
+    (boss_art_fx, BOSS_ART_FX tiles), which src/boss_load.h loads at BOSS_MARK_BG (248-251). An 8x16 block (the
+    Mothership's BEAM) covers both wall rows and is doubled side by side: the same two column pairs;
   - `hats`: extra 8x16 topper frames after HAT_STILL / HAT_BOB (the Prototype's lamp: LAMP_RING, LAMP_X), loaded with
     them from OBJ_TOPPER (BOSS_ART_HAT_TILES tiles in all);
   - `conveyor`: a venue whose counter gets the art file's CONV_A / CONV_B (8x8, 2 animation frames: boss_conv_tiles,
@@ -69,6 +70,7 @@ BOSSES = [
     {"name": "prototype", "width": 32, "pal": ["#E8F0F8", "#F87818", "#182030"], "extra": ["RED"],
      "hats": ["LAMP_RING", "LAMP_X"], "fx": [("MARKER", "mascot")], "conveyor": "factory"},
     {"name": "duke", "width": 40, "pal": ["#F8E0C8", "#D06030", "#201018"], "extra": ["TELL1", "TELL2"]},
+    {"name": "mothership", "width": 40, "pal": ["#E8F0F8", "#E040B0", "#200828"], "extra": [], "fx": [("BEAM", "mothership")]},
 ]
 BOSS_TILES_MAX = 3           # "tiles": a boss's own 8x16 BG blocks (Leo's "!!"), at BG 246.. like the ice (6 ids)
 
@@ -190,7 +192,11 @@ def boss_art(b, prev):
         fx, frames = [], []
         for block, owner in b["fx"]:
             fpath = ROOT / "assets/art/boss" / f"{owner}.txt"
-            f = ["." * 16] * 8 + frame(dict(blocks(fpath, named=True)), block, 16, 8, fpath)   # (the lower wall row)
+            fnamed = dict(blocks(fpath, named=True))
+            if len(fnamed.get(block, [])) == 16:     # an 8x16 block (the Mothership's BEAM): both wall rows, two columns wide
+                f = [r + r for r in frame(fnamed, block, 8, 16, fpath)]
+            else:
+                f = ["." * 16] * 8 + frame(fnamed, block, 16, 8, fpath)   # (the lower wall row)
             frames.append(f)
             fx += list(column(f, 0) + column(f, 8))
         if len(fx) // 16 > BOSS_FX_MAX:

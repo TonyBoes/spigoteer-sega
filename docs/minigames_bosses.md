@@ -607,6 +607,8 @@ Story fit: the teahouse's guest of honour. PRE_TEAHOUSE page (HANA): `THE CHAMPI
 
 ### 3.10 The Mothership (Space lounge)
 
+*Built 2026-10-12 (src/boss_mothership.c; changes for the engine in PLAN.md "Mothership as built": the split reloads variant C's tiles with the LCD off for a frame, the minis come in at x 24 and the saucer stays hidden on the bar without a mini).*
+
 Play: a thirsty flying saucer hovers at a bar, beaming beakers aboard. It teleports between bars. Fill it and it
 splits into three small aliens who run for the tap; each wants two beakers.
 

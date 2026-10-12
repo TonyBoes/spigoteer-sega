@@ -13,7 +13,7 @@ from conftest import GAME, ROOT, check_golden, venue
 from test_bonus import lines
 from test_flow import (GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, patron_group_tiles, run_until,
                        state, tilemap_row)
-from test_story import (BOSS_BUILT, BOSS_STEP, SC, SHIFTS, banner_text, centred, post, pre, settle, skip_scene,
+from test_story import (BOSS_BUILT, BOSS_STEP, SC, SHIFTS, STORY, banner_text, centred, post, pre, settle, skip_scene,
                         to_chapter, to_goal, to_shift, try_again, win)
 from test_venues import cgb_palette
 
@@ -164,7 +164,7 @@ def snapshot(gb):
 
 
 # ---- the data ------------------------------------------------------------------------------------------------------
-BUILT = {0: "big_tex", 1: "mascot", 2: "sasquatch", 3: "critic", 4: "yeti", 5: "prototype", 6: "duke", 7: "sumo", 8: "leo"}   # the venues whose boss is built (wave 1: the bosses without movement)
+BUILT = {0: "big_tex", 1: "mascot", 2: "sasquatch", 3: "critic", 4: "yeti", 5: "prototype", 6: "duke", 7: "sumo", 8: "leo", 9: "mothership"}   # the venues whose boss is built (all ten)
 
 
 def test_the_table_has_a_row_per_venue_and_the_built_bosses():
@@ -576,14 +576,12 @@ def test_hard_stomps_faster_with_a_hand_fewer(model):
         assert (gb.mem("boss_step"), gb.mem("boss_hands")) == (90, 2)
 
 
-@pytest.mark.parametrize("model", ["cgb"])
-def test_a_boss_slot_not_built_yet_plays_the_first_row(model):
-    """The space station's boss slot is still skipped in the story; marked built by the story_unskip test hook it starts
-    a fight with boss_id 9, which has no row yet: Big Tex's row plays (nothing is indexed past the table)."""
-    with to_shift(model, 9, 2) as gb:
-        gb.write("story_unskip", 1 << BOSS_STEP)
-        win(gb, 9, 2)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
-        gb.run(3)
-        assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_hp")) == (1, 9, 8)
-        assert banner_text(gb, 1) == centred("BOSS")
+def test_every_boss_slot_is_built_so_no_row_falls_back():
+    """The Mothership was the last boss slot: all ten venues' boss steps are built (no STEP_SKIP on any) and every row of rows[]
+    has a width, so boss_set's "a venue without a row plays row 0" fallback can no longer be reached from the story data (the
+    old test that marked the space station's slot built with the story_unskip hook is gone with it: there is no unbuilt boss slot
+    left to mark; the NOT_BUILT mechanism itself stays covered by the mini-game slots, test_mg.py test_the_mini_slots_stay_not_built)."""
+    rows, hooks = boss_rows()
+    assert BOSS_BUILT == set(range(10)) and all(rows) and set(hooks) == set(range(10))
+    assert all(STORY["steps"][c][BOSS_STEP]["built"] for c in range(10))
+    assert "BOSS" in STORY["built_slots"] and len(STORY["built_slots"]["BOSS"]) == 10

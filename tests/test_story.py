@@ -1290,6 +1290,7 @@ def test_each_last_call_pattern_sends_its_arrival_order(model, c):
 def test_the_last_chapter_leads_to_the_finale_credits_and_the_title(model):
     with to_shift(model, 9, 2) as gb:                   # chapter 10, the space lounge
         win(gb, 9, 2)
+        beat_the_boss(gb, 9)                            # (the Mothership's fight, satisfied at once: test_boss_mothership plays it)
         run_until(gb, lambda: state(gb) == GS_STORY, 300)
         assert gb.mem("story_scene") == post(9) and gb.mem("story_progress") == 10
         skip_scene(gb)

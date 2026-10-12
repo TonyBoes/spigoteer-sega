@@ -87,6 +87,7 @@ static const boss_row_t rows[BOSS_COUNT] = {
     [6] = {  40,  16,  1,   0,  16,  20,   2,  45, 12,   16,  0, "THE BIGGEST SHAKE", "12 MILKS FOR DUKE" },   // Biker bar: Duke (3.12; step 0: he never stomps)
     [7] = {  40,  16,  1,  96,   0,   0,   2,  90,  8,   16,  0, "THE CHAMPION", "KEEP THE TEA FLOWING" }, // Teahouse: the Sumo (3.9)
     [8] = {  32,  16,  2,  80,   8,  30,   2,  60, 14,    6,  0, "LEO THE LION", "14 COCONUTS NO FEAR" },  // Jungle zoo: Leo (3.11)
+    [9] = {  40,  16,  1, 100,   8,  24,   2,  45, 14,   12,  0, "THE MOTHERSHIP", "IT SPLITS WHEN FULL" },  // Space lounge: the Mothership (3.10; meter 8 + 6)
 };
 
 // ---- state (test hooks: spec 2.5's names) ----
@@ -131,6 +132,7 @@ static uint8_t boss_call(uint8_t ev, uint8_t arg) {
     case 6: return boss_duke(ev, arg);           // Biker bar: src/boss_duke.c
     case 7: return boss_sumo(ev, arg);           // Teahouse: src/boss_sumo.c
     case 8: return boss_leo(ev, arg);            // Jungle zoo: src/boss_leo.c
+    case 9: return boss_mothership(ev, arg);     // Space lounge: src/boss_mothership.c
     }
     return 0;
 }
@@ -158,7 +160,7 @@ static void boss_hud(void) {
 static void boss_look(void) {
     uint8_t p = BP_WALK, h, key, k, w = br->width >> 3;
     const uint8_t *m;
-    if (boss_state == BS_OUTRO) p = BP_HAPPY;
+    if (boss_state == BS_OUTRO) p = boss_xpose == BP_HIDE ? BP_HIDE : BP_HAPPY;   // (the Mothership's minis: no saucer left to be happy)
     else if (boss_push) p = BP_WINCE;
     else if (boss_xpose) p = boss_xpose;
     else if (boss_state == BS_GULP) p = BP_GULP;
@@ -178,6 +180,10 @@ static void boss_look(void) {
     for (k = 0; k < w; k++) boss_cols[k] = pair_id(m[k]);
     if (h) boss_cols[w - 1] = pair_id(boss_hand[h]);   // (columns w.. are his special's: boss_set clears them)
     mark_dirty(boss_bar, boss_col, boss_col + w);
+}
+
+void boss_hud_now(void) BANKED {
+    boss_hud();
 }
 
 static void boss_move(uint8_t x) {
@@ -472,7 +478,7 @@ void boss_draw(void) BANKED {
     OAM_item_t *o = shadow_OAM;
     uint8_t k, top = bar_oam_y[boss_bar] - 8, n0 = 0, n1 = 0, n2 = 0, n3 = 0;
     int8_t r;
-    if (boss_state == BS_JUMP) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (away: no hat in the air)
+    if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (away: no hat in the air)
     for (k = 0; k != 40; k++, o++) {
         if (k == OAM_TOPPER || !o->y) continue;
         r = (int8_t)(uint8_t)(o->y - top);

@@ -7,4 +7,3 @@ built, its files move to their real place (for example a boss to `assets/art/bos
 
 | file | what | approved |
 |---|---|---|
-| boss_mothership.txt | the Mothership (space lounge boss): look A "silver saucer" | 2026-10-11 |

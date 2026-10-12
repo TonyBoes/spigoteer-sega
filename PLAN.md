@@ -2241,6 +2241,64 @@ gulp 20, hands 2, sip 45, meter 12; banner "THE BIGGEST SHAKE" / "12 MILKS FOR D
 - ROM (romusage, before -> after): ROM0 real free 745 -> 745 B; bank 13 (story pictures') 5307 -> 7365 B used (+2058 B: his file
   and art); the linker repacked others (bank 8 free 25 -> 109, bank 12 273 -> 178, bank 6 145, bank 9 248).
 
+## Mothership as built (the space lounge boss, docs/minigames_bosses.md 3.10, 2026-10-12; the last boss slot)
+Follows "Boss hooks as built": src/boss_mothership.c (dispatcher `boss_mothership`, state struct mothership_t in BOSS_OWN: phase, t,
+target, land, jumps, wm, minis, dead = 8 B, **no new WRAM global**: WRAM_LO / WRAM_HI_0 3936 / 3455 B before and after), boss.c
+rows[9] + hook case 9, boss.h, gen_boss BOSSES (width 40, no extra poses, `fx` BEAM), gen_story BUILT_SLOTS BOSS gains SPACE (all ten
+boss slots are built now). Art: the owner-approved look A "silver saucer", moved from assets/art/approved/ to
+assets/art/boss/mothership.txt (25 column pairs of 30; the approved/ README table is empty again). Row: 40 px (saucer 32 + the grab
+arm), start 16, bar 1, step 100, push 8, gulp 24, hands 2, sip 45, **meter 14** (the doc's proposal: phase 1's 8 drinks + phase 2's 6
+= 14, the most of any boss), hat_dx 12; banner "THE MOTHERSHIP" / "IT SPLITS WHEN FULL".
+- **Phase 1, the saucer** (every 300 frames of walking, as the Mascot's leap): TELL 60 frames (the antenna blinks HAT_BOB every 4 frames,
+  he stands, the BEAM on a random other bar), WAIT for the glasses that were on his bar when the tell began (the Mascot's watermark,
+  at most 60 more frames), GONE 10 frames (BS_JUMP, BP_HIDE), then `boss_to_bar(target, 16 / 32 / 48)` (its regulars scared off, meter
+  and hands along). The doc's "beam column" is gen_boss `fx` with an 8x16 block: the new `fx` form doubles BEAM side by side (16 px
+  wide, both wall rows, BOSS_MARK_BG 248-251) and boss_mark draws it over the target bar's patrons at columns land / 8 + 2, + 3
+  (under the saucer's middle). A glass thrown in the tell goes past where he was and breaks (the Mascot's rule; the test bot pours only
+  while the next tell is 70+ frames away).
+- **Phase 2**: at meter 6 (the eighth drink) the FLASH, 40 frames (the HAPPY pose blinking with the hover; a glass thrown in it is
+  still drunk), then the split. Minis = patron variant C (the aliens' orange octopus), `patron_hurry` 1 (1.5x), three on three
+  different bars, the saucer's bar first, each wanting two drinks. The first drink pushes 16 px (pushback_px set to 16) and a mini
+  pushed to the left end by it is held at x 17 (the engine would serve him there: minis_frame zeroes patron_aux for a PUSHED mini
+  at x <= 17); the second makes him PATRON_LEAVING wherever he stands (score and SFX as a serve; patron_hurry 2 = "served and counted").
+  Served-out minis counted = `minis` (3..0); the HUD meter is 2 x minis less the drinks the live minis have had (boss_hp,
+  `boss_hud_now()`, a new banked export of boss.c); minis 0 = boss_hp 0 = the outro. A mini at the tap costs a life like any patron;
+  after the freeze `BEV_RESET` brings back the minis still to be served (one to a bar that is not his hidden one). Regulars keep
+  coming at half the rate (spawn_interval doubled at the split), variants A / B only.
+- **Changes from the doc, made for the engine**:
+  - The doc kept variant C loaded for the minis and fitted the body in 23 ids; the approved art needs 25 column pairs (50 tiles),
+    so variant C's tiles are the saucer's as for every boss and **the split reloads the group's whole patron tile set
+    (`load_patron_tiles(cur_group, PATRON_TILE_BASE)`, 156 tiles) and variant C's BG 4 / OBJ 7 palettes with the LCD off for
+    one frame** (display_off waits for VBlank, then LCD on again). Every regular on screen is removed in that blank frame (the minis
+    must not stand on a regular at x 24); the gb run's frame counter shows the split frame as ~4 frames long (PyBoy: LCD off).
+  - Minis come in at x 24, not 16: a mini at ENTRY_X (16) hit by a glass the moment he appears would be served by the engine's
+    left-end rule after one drink (the engine's pushed_step runs before a boss hook can zero the push).
+  - The engine needs a boss bar: the saucer stays in the engine as a hidden boss (BS_JUMP, BP_HIDE, no topper: boss_draw now also hides
+    the topper when boss_xpose is BP_HIDE, and boss_look shows BP_HIDE instead of HAPPY in an outro that started hidden: two compares
+    in boss.c) on the one bar without a mini, `dead`. That bar gets no regular and no mini; a glass thrown there is never caught
+    ("his bar is his") and breaks, the player's mistake. The outro of phase 2 shows no saucer (the minis served, nothing to be happy).
+  - A mini is not made by `try_spawn`; `start_per_bar` is set to 0 at the split so `place_start_patrons` after a lost life adds no regular
+    where the minis come in.
+  - The doc's per-hit splitting was already dropped by the doc (splits once). Leo's meter still reads 14 in boss.c / test_boss_leo
+    (the doc's note that he drops to 12 was not applied: Leo is not part of this change).
+- Numbers (tests): the bot (tests/test_boss_mothership.py test_win_the_fight_by_pouring) wins both models with no hp poke and no life
+  lost: **1387 frames**, 8 saucer drinks, 2 teleports (the regulars stand still, none spawn), then 3 minis x 2 drinks with every empty
+  caught. A teleport every 300 frames of walking is the Mascot's pace: with push 8 and step 100 an unhit saucer needs ~1000 frames
+  from x 16 (the teleports bring him back to 16 / 32 / 48 on a new bar).
+- Tests: tests/test_boss_mothership.py (20 cases, DMG + CGB, every frame <= 10 sprites a line): row and art; the start and
+  golden; the 300-frame rhythm; the tell, the beam, the blinking antenna, the teleport and the hands going along; the glass already on
+  its way; a catch; a life lost after a teleport; the flash and the split (poses, tile set and palettes equal an ordinary space shift's,
+  minis on three bars, hidden bar, the meter, pushback, spawn interval); a mini served by its second drink and not its first; a mini at
+  the tap and the others back; hurried walking and live regulars; the bot win. test_boss.py BUILT gains venue 9 and its "slot not
+  built yet" test became `test_every_boss_slot_is_built_so_no_row_falls_back` (there is no unbuilt boss slot left to mark with the
+  story_unskip hook; the NOT_BUILT mechanism stays covered by the mini slots in test_mg.py). test_story.py's last-chapter test beats the
+  boss (beat_the_boss) before the finale.
+- Goldens: new boss_mothership, boss_mothership_tell (DMG + CGB). Replaced on purpose because Boss Rush lists every built boss
+  automatically and now has a tenth row: rush_list (a MOTHERSHIP row; the list is full to the separator line, row 11), rush_list_locked (a tenth "? ? ?"),
+  rush_next_card ("FIGHT 1 OF 10", ALL's card, the Mothership last).
+- ROM (romusage, before -> after): ROM0 real free 745 -> 745 B (no ROM0 change); bank 13 used 7365 -> 10016 B (+2651: his file, art and the
+  beam), the linker repacked the others (free: bank 1 49 -> 21, 6 145 -> 76, 7 100 -> 84, 8 109 -> 22, 9 248 -> 136, 11 70 -> 149, 12 178 -> 139).
+
 ## Boss Rush as built (owner request 2026-10-12: "a boss rush mode in the bonus section, that can be unlockable, but will also help us in play testing the bosses. Options can be played all or choose a boss")
 
 BONUS is now SOUNDTRACK / MINI GAMES / BOSS RUSH (title rows 7 / 9 / 11; "BOSS RUSH" is one new title string, so the
@@ -2262,7 +2320,7 @@ src/rush.h, and small hooks in story.c / main_cold.c / title.c / save.c. First w
   carried from fight to fight, a won fight gives one back (never above 3), the score totalled. The time is the fights'
   PLAYING frames (story_play counts them).
 - **Which bosses**: the built ones, read from the story's step table (story_step_get, a boss step not STEP_SKIP) once at
-  entry into a bitmask: the eight now (Big Tex, the Mascot, the Sasquatch, the Critic, the Yeti, the Prototype, the Sumo,
+  entry into a bitmask: the eight at the time (Big Tex, the Mascot, the Sasquatch, the Critic, the Yeti, the Prototype, the Sumo,
   Leo; Duke and the Mothership are absent) and a boss added to gen_story BUILT_SLOTS appears with no edit here.
 - **Unlock**: a boss is beaten in STORY or ARCADE (story.c SP_OUTRO -> save.c boss_beaten; a debug-select run records
   nothing, like Practice); BOSS RUSH lists him from then on. ALL needs two. The DEBUG_MENU build (`make`) lists every

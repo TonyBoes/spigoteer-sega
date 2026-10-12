@@ -1,4 +1,4 @@
-; APPROVED by the owner on 2026-10-11 (the Mothership, option 1 / A). Not built yet: moves to its real place when its feature is built.
+; Art: approved design (the owner, 2026-10-11: the Mothership, look A "silver saucer"). Built: src/boss_mothership.c.
 ; The Mothership, the space lounge's (final) boss (src/boss.c, tools/gen_boss.py). PROPOSAL, look 1: "Silver saucer".
 ; Art: a classic flying saucer: a glass dome with two angry eyes, a silver upper hull, a dark rim band of lights, a
 ; magenta lower hull, and a grab-arm tray on the right for the held beakers. Same format as big_tex.txt.
@@ -8,10 +8,10 @@
 ; glow magenta, the hatch open, a burp bubble). The eyes are the same in every pose. HAND1..HAND3: the arm column (x
 ; 32-39) holding 1, 2, 3 empty beakers on its tray, swapped into WALK / STOMP / WINCE. '.' the wall (colour 0), '-'
 ; silver (dome glass, hull, lit lights, beakers), '+' magenta, '#' the outline, eyes and rim band.
-; gen_boss.py BOSSES: {"name": "mothership", "c": "ms", "width": 40, "pal": ["#E8F0F8", "#E040B0", "#200828"]};
+; gen_boss.py BOSSES: {"name": "mothership", "width": 40, "pal": ["#E8F0F8", "#E040B0", "#200828"], "fx": BEAM};
 ; boss.c row: hat_dx 12. 25 body column pairs (of 30). The antenna and the dome's cap are the topper (HAT_STILL /
-; HAT_BOB: the bob frame is one row lower, its light magenta). BEAM: the teleport tell's column (spec 3.10), an extra
-; block today's gen_boss.py does not read.
+; HAT_BOB: the bob frame is one row lower, its light magenta). BEAM: the teleport tell's column (spec 3.10), an 8x16
+; block gen_boss reads as an `fx` (two columns of it side by side, 16 px wide, at BG 248-251, on the target bar's wall).
 
 @WALK
 ...........##------##...................
