@@ -82,3 +82,44 @@ def test_the_silence_measure_sees_a_held_last_note_and_a_trailing_rest():
     tight = dict(lead, ch2="C5:2 D5:2 E5:14 G4:2")
     assert loop_silence("t", tight, False) < MAX_LOOP_SILENCE
     assert gm.JINGLES["bonus"]["loop"] and not gm.JINGLES["clear"]["loop"], "only the bonus jingle loops"
+
+
+# ---- the pattern break that ends a tune whose length is not a whole number of 64-row patterns ----------------------
+# hUGEDriver keeps the break row plus one (row_break 0 = no break), so the generator writes D01 for "next order, row 0".
+# With D00 nothing happened: Oh! Susanna (96 rows) ran 32 empty rows (8 s of dead air) before its loop, and Funiculi,
+# Sakura, Pop Goes the Weasel and the bonus jingle had their own silent tails.
+def built_tunes():
+    out = [(n, gm.build(n, songs.SONGS[n], False)) for n in songs.SONGS]
+    out += [(n, gm.build(n, t, True)) for n, t in gm.JINGLES.items()]
+    return out
+
+
+def test_a_tune_ending_inside_a_pattern_breaks_to_row_0_of_the_next_order():
+    short = 0
+    for name, b in built_tunes():
+        last = b["total"] - 1
+        o, r = divmod(last, 64)
+        effs = [b["per"][c][o][r][2] for c in (1, 2, 3, 4)]
+        if b["total"] % 64:
+            short += 1
+            assert gm.BREAK_TO_ROW0 in effs, f"{name}: no pattern break on its last row"
+        assert 0xD00 not in effs, f"{name}: D00 does not break in hUGEDriver"
+        breaks = [(c, i, j) for c in (1, 2, 3, 4) for i, chunk in enumerate(b["per"][c]) for j, row in enumerate(chunk)
+                  if (row[2] & 0xF00) == 0xD00]
+        assert len(breaks) <= 1, f"{name}: {breaks}"
+    assert short >= 4, "susanna, funicula, sakura, weasel (and the jingles) end inside a pattern"
+
+
+def test_oh_susanna_wraps_to_bar_1_without_the_empty_rows(gb):
+    """In the ROM: the saloon tune (96 rows = 1.5 orders) plays order 1 (hUGE_current_order 2) for 32 rows only, then
+    order 0 from row 0 again."""
+    assert gb.mem("cur_tune") == 5, "the saloon's tune (TUNE_VENUE0)"
+    seen = []
+    for _ in range(96 * 15 + 3 * 15):
+        gb.write("intro_timer", 255)                  # no patrons: the level lasts as long as the tune is watched
+        gb.run(1)
+        seen.append((gb.mem("hUGE_current_order"), gb.mem("hUGE_row")))
+    in_last = [r for o, r in seen if o == 2]
+    assert in_last and max(in_last) == 31, f"order 1 ran to row {max(in_last) if in_last else None}"
+    i = max(k for k, (o, r) in enumerate(seen) if o == 2)
+    assert seen[i + 1] == (0, 0), f"after the last row: {seen[i + 1]}"

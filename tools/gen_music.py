@@ -99,6 +99,7 @@ def note_no(name):
 
 
 SLOT_BYTES = 192          # one pattern: 64 rows x 3 bytes
+BREAK_TO_ROW0 = 0xD01     # Dxx pattern break to the next order's row 0 (see build())
 
 
 def merge_ties(text):
@@ -260,10 +261,13 @@ def build(name, t, legacy):
     chans[1] = [(REST, 0, 0)] * total
     n_orders = (total + 63) // 64
     if total % 64:      # a pattern break on the last row ends the final pattern early
+        # hUGEDriver keeps the break row plus one (row_break 0 means no break; fx_pattern_break stores the
+        # parameter as it is), so D01 starts the next order (wrapping to order 0) on row 0.  D00 did nothing:
+        # the last pattern ran on through its empty rows, a dead gap of 64 - (total % 64) rows before the loop.
         for c in ((2, 3, 4, 1) if not legacy else (1,)):
             note, ins, eff = chans[c][total - 1]
             if eff == 0:
-                chans[c][total - 1] = (note, ins, 0xD00)
+                chans[c][total - 1] = (note, ins, BREAK_TO_ROW0)
                 break
         else:
             raise SystemExit(f"{name}: no channel has a free effect column on its last row")

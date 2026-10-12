@@ -24,7 +24,6 @@ from pyboy import PyBoy  # noqa: E402
 
 NR51 = 0xFF25
 SOLO = {2: 0x22, 3: 0x44, 4: 0x88}
-STATE_LEVEL_CLEAR = 3
 TUNE_SHOW = 4           # music.h: TUNE_TITLE, CLEAR, OVER, BONUS, SHOW, VENUE0..9
 TUNE_VENUE0 = 5
 
@@ -69,13 +68,7 @@ def capture(model, source, solo, frames):
     else:
         g = songs.VENUES.index(source)
         target = TUNE_VENUE0 + g
-        start_arcade(rom)
-        if g != 0:
-            rom.run(30)
-            L = g + 1 if (g + 1) % 2 == 0 else g + 10      # level L is the one after a clear of an odd level
-            rom.write("level", L - 1)
-            rom.write("game_state", STATE_LEVEL_CLEAR)
-            rom.write("state_timer", 149)
+        start_arcade(rom, g + 1)            # level g + 1 is venue g (the old rotation: cur_group = (level - 1) % 10)
     chunks, mfs, tunes_seen = [], [], []
     for f in range(frames):
         if source == "galop" and f == 30:             # the tip lies where the bartender stands: picked up, the show starts
@@ -138,8 +131,13 @@ def check(model, source, bars, solo):
     out, bad = [], 0
     for row, ln, n in notes:
         f0 = first_frame(row) + 1
-        a = int((f0 + 0.2 * ln * tempo) * spf)
-        b = int((f0 + 0.8 * ln * tempo) * spf)
+        cut = next(((rr - row) * tempo + (rows[rr][2] & 0xFF) for rr in range(row, row + ln)
+                    if (rows[rr][2] & 0xF00) == 0xE00), None)
+        if cut is not None and cut < 0.8 * ln * tempo:     # a short (staccato) note: listen to all of what sounds
+            a, b = int((f0 + 0.05 * cut) * spf), int((f0 + 0.95 * cut) * spf)
+        else:
+            a = int((f0 + 0.2 * ln * tempo) * spf)
+            b = int((f0 + 0.8 * ln * tempo) * spf)
         exp = note_hz(n) / (2 if solo == 3 else 1)      # the wave channel sounds an octave below the pulse one
         got = detect(flat[a:b], rate, exp * 0.6, exp * 1.7)
         ok = got > 0 and abs(12 * np.log2(got / exp)) < 0.6          # within a half semitone
@@ -152,10 +150,10 @@ def gm_name(n):
     return note_name(note_hz(n))
 
 
-def start_arcade(rom):
-    """From the title: the old 10-level rotation (the LEVEL harness, MODE_LEVEL) at level 1, through the title's test
+def start_arcade(rom, lv=1):
+    """From the title: the old 10-level rotation (the LEVEL harness, MODE_LEVEL) at level lv, through the title's test
     hook title_go (src/title.c; PLAY > ARCADE plays the story's sequence since the three modes)."""
-    rom.write("title_go", 1)
+    rom.write("title_go", lv)
     rom.run(8)
 
 
