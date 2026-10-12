@@ -207,8 +207,11 @@ def check_start(gb, c, a, model):
         wall = cgb_palette(gb, 2)[0]
         assert cgb_palette(gb, 4) == [wall] + a["pal"][1:], "BG 4: his colours over the venue's wall"
         lamp = a["name"] == "prototype"       # (the Prototype's lamp: colour 2 is green in OBJ 7 at the start)
+        want = a["pal"][1:]
+        if a["name"] == "duke":               # (his helmet has its own colours: red shell, white stripe, outline)
+            want = [29 | 7 << 5 | 7 << 10, 31 | 31 << 5 | 31 << 10, 3 | 2 << 5 | 4 << 10]
         assert [c for k, c in enumerate(cgb_palette(gb, 7, True)[1:]) if not (lamp and k == 1)] == [
-            c for k, c in enumerate(a["pal"][1:]) if not (lamp and k == 1)], "OBJ 7: the topper in the same colours"
+            c for k, c in enumerate(want) if not (lamp and k == 1)], "OBJ 7: the topper in the same colours"
     else:
         assert gb.mem(0xFF49) == 0xE4, "DMG: the topper under OBP1 0xE4, the BG's shades"
     for p, data in enumerate(a["pairs"]):

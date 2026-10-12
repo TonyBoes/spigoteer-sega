@@ -2184,6 +2184,47 @@ Both new dispatchers autobank into bank 12 (about 4.4 KB for the two with their 
   4: 20, 6: 20). Tests: test_boss_mascot.py, test_boss_prototype.py; test_boss.py BUILT gains venues 1 and 5 and its
   "slot not built yet" test now uses the biker bar (venue 6); test_boss_critic's empties dedupe is by slot and state.
 
+## Duke as built (the biker bar boss, docs/minigames_bosses.md 3.12, 2026-10-12)
+Follows "Boss hooks as built": src/boss_duke.c (dispatcher `boss_duke`, state struct duke_t in BOSS_OWN: phase, t, revs,
+lurches, stalls = 5 B, **no new WRAM global**: WRAM_LO / WRAM_HI_0 3936 / 3455 B by romusage before and after; earlier notes say 3454), boss.c rows[6] + hook case 6,
+boss.h, gen_boss BOSSES (width 40, extra TELL1 / TELL2), gen_story BUILT_SLOTS BOSS gains BIKER. Art: the owner-approved
+round 6 combination, assets/art/boss/duke.txt: **H2's body** (smooth leather back, one thick cream piping line) with **H1's
+beard** (forked into two braids, cream bead ends); the solid fist with the thumb far right in HAPPY, TELL1 / TELL2, D1's red
+helmet with the white stripe (OBJ 7 set in his BEV_LOAD from RGB(29,7,7) / white / RGB(3,2,4)), the eyes, the palette. The
+combination fit unchanged (22 column pairs of 30, only the four intentional motion-arc pixels are strays; at 1x on DMG and CGB
+the piping and the fork do not clash; the fork's notch shows the dark leather behind it, so it reads as two bead-tipped
+braids). Preview: scratchpad boss_duke/final/duke_final.png. Row: 40 px, start 16, bar 1, **step 0** (no engine stomp), push 16,
+gulp 20, hands 2, sip 45, meter 12; banner "THE BIGGEST SHAKE" / "12 MILKS FOR DUKE".
+- **Owner change: he stands behind the bar like Big Tex, NO bike in the fight.** The entrance bike (and the doc's 30-frame
+  skid with a dust puff) is **not built**; he simply starts at x 16. The doc's bike behaviours became standing ones:
+  - IDLE 150 / 120 / 90 frames by meter (12-9 / 8-5 / 4-1), measured from the entry, his last catch or last lurch; the idle pose
+    alternates WALK / STOMP every 8 frames (boss_xpose = BP_STOMP, the topper bobs with it).
+  - REV (the tell) 50 frames: the throttle twist, TELL1 / TELL2 every 8 frames, SFX_SHAKE at its start, he stands (BS_TELL),
+    the helmet jumps 1 px every 4 frames (BOSS_TOPPER_T = HAT_BOB, 1 px lower, then STILL; a tile swap, so no OAM write).
+  - LURCH 16 px in 8 frames (two boss_advance hops 4 frames apart, the TELL2 pose, BS_SPECIAL), then IDLE from 0. The doc's
+    exhaust puffs and black smoke (BG tiles on the bike) are not built.
+  - A catch: the common one (meter -1, push 16, gulp 20) and the idle clock from 0. A catch during the rev stalls him (no
+    lurch): WINCE while pushed, then GULP, 20 frames in all (the doc's stall pose + smoke became those), then IDLE from 0.
+    With full hands a glass passes him and breaks (boss_lim 0): no stall.
+  - boss_hook 1 starts the rev now. A lost life (the tap) puts him back at x 16 idling, meter kept.
+  - His gang: BEV_BEGIN overwrites the random arrival order with the venue's "chord" on the three free bars (a, b at once, c
+    after a breather, c, b at once, a after a breather: wait codes 1 1 3 1 1 3, pat_len 6) at the fight's 1.5x spawn interval. No
+    mosh pit (a fight's twist is 0).
+- Numbers (tests): unhit the first lurch at frame ~200, the fifth ends at ~1040 and costs a life; a glass in every rev (about
+  every 190-210 frames) keeps him from ever lurching. HARD (Practice) is not applied (step 0 has nothing to quicken; his hands go
+  down by one as for every boss).
+- **Bot win, no hp poke**: tests/test_boss_duke.py test_win_the_fight_by_pouring: 1044 frames, 12 hits, 2 revs both stalled by
+  a glass, 0 lurches, 3 lives, the outro, CHAPTER CLEAR, POST_BIKER, saved (the regulars stand still in that test; with live
+  regulars the bot cannot tend three other bars).
+- Tests: tests/test_boss_duke.py (32 cases, DMG + CGB, every frame <= 10 sprites a line): row and art; the start; the idle by
+  meter band (6 cases); the rev, its poses, the helmet, the lurch; a catch restarts the idle; the stall; a glass in every rev; the
+  tap and a life; a life lost in the rev; full hands; the bot win; the chord's bars. test_boss.py BUILT gains 6 and its "slot not
+  built yet" test moved to the space station (venue 9). boss_common.check_start knows Duke's helmet colours.
+- Goldens: new boss_duke, boss_duke_tell (DMG + CGB). Replaced because the Boss Rush list gained a built boss: rush_list,
+  rush_list_locked (a ninth row, DUKE), rush_next_card ("FIGHT 1 OF 9").
+- ROM (romusage, before -> after): ROM0 real free 745 -> 745 B; bank 13 (story pictures') 5307 -> 7365 B used (+2058 B: his file
+  and art); the linker repacked others (bank 8 free 25 -> 109, bank 12 273 -> 178, bank 6 145, bank 9 248).
+
 ## Boss Rush as built (owner request 2026-10-12: "a boss rush mode in the bonus section, that can be unlockable, but will also help us in play testing the bosses. Options can be played all or choose a boss")
 
 BONUS is now SOUNDTRACK / MINI GAMES / BOSS RUSH (title rows 7 / 9 / 11; "BOSS RUSH" is one new title string, so the

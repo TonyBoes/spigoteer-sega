@@ -102,5 +102,6 @@ uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED;        // src/boss_yeti.c: th
 uint8_t boss_sumo(uint8_t ev, uint8_t arg) BANKED;        // src/boss_sumo.c: the Sumo, the teahouse (3.9)
 uint8_t boss_mascot(uint8_t ev, uint8_t arg) BANKED;     // src/boss_mascot.c: the Mascot, the stadium (3.4)
 uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED;  // src/boss_prototype.c: the Prototype, the robot factory (3.8)
+uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED;        // src/boss_duke.c: Duke, the biker bar (3.12)
 uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED;         // src/boss_leo.c: Leo the Lion, the jungle zoo (3.11)
 #endif

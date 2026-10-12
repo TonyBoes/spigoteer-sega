@@ -677,7 +677,9 @@ Story fit: PRE_ZOO already puts the crown on Leo. PRE_ZOO page (KIKI): `LEO WANT
 
 ### 3.12 Duke (The Chrome Cow, chapter 7)
 
-PROPOSAL (2026-10-10), awaiting owner approval. Numbered last so the references to 3.1-3.11 stay; in chapter order he
+APPROVED and BUILT 2026-10-12 with one owner change: he stands behind the bar like Big Tex, with NO bike in the fight (the
+bike is for his entrance, not built); the bike behaviours became a throttle-twist tell (REV) and a standing lurch (see PLAN.md
+"Duke as built"). The text below is the original proposal. Numbered last so the references to 3.1-3.11 stay; in chapter order he
 is the seventh boss.
 
 Play: Duke, the gang leader, rolls in on his motorcycle with his gang and orders "the biggest milkshake in town".

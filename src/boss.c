@@ -84,6 +84,7 @@ static const boss_row_t rows[BOSS_COUNT] = {
     [1] = {  32,  16,  1, 100,   8,  24,   2,  45, 10,    8,  0, "THE MASCOT JUMPS", "FOLLOW HIM 10 MUGS" },   // Stadium: the Mascot (3.4)
     [4] = {  32,  16,  2, 100,   8,  30,   2,  60, 12,    9,  0, "THE YETI IS COLD", "12 COCOAS ON ICE" },   // Igloo: the Yeti (3.7)
     [5] = {  32,  16,  2, 100,   8,  20,   2,  45, 12,    8,  0, "GREEN MEANS GO", "RED MEANS STOP" },   // Robot factory: the Prototype (3.8)
+    [6] = {  40,  16,  1,   0,  16,  20,   2,  45, 12,   16,  0, "THE BIGGEST SHAKE", "12 MILKS FOR DUKE" },   // Biker bar: Duke (3.12; step 0: he never stomps)
     [7] = {  40,  16,  1,  96,   0,   0,   2,  90,  8,   16,  0, "THE CHAMPION", "KEEP THE TEA FLOWING" }, // Teahouse: the Sumo (3.9)
     [8] = {  32,  16,  2,  80,   8,  30,   2,  60, 14,    6,  0, "LEO THE LION", "14 COCONUTS NO FEAR" },  // Jungle zoo: Leo (3.11)
 };
@@ -127,6 +128,7 @@ static uint8_t boss_call(uint8_t ev, uint8_t arg) {
     case 3: return boss_critic(ev, arg);         // Bistro: src/boss_critic.c
     case 4: return boss_yeti(ev, arg);           // Igloo: src/boss_yeti.c
     case 5: return boss_prototype(ev, arg);      // Robot factory: src/boss_prototype.c
+    case 6: return boss_duke(ev, arg);           // Biker bar: src/boss_duke.c
     case 7: return boss_sumo(ev, arg);           // Teahouse: src/boss_sumo.c
     case 8: return boss_leo(ev, arg);            // Jungle zoo: src/boss_leo.c
     }
