@@ -1,39 +1,39 @@
 ; Art: approved design (owner 2026-10-12)
 ; Battery Sort, OPTION A "gauge": charged and dead are the factory drink's own full and empty frames, unchanged
 ; (assets/approved/venues/factory_drink.txt frames 1 and 2; already in VRAM at OBJ 56-59, 0 new tiles).
-; Charged: 4 light bars in a dark case (CGB OBJ 1, lime bars). Dead: a dark case with 1 light bar at the bottom
-; (CGB OBJ 2, one red bar). DMG OBP0 0xD0: '-' white, '+' light grey, '#' black.
+; Charged: 3 wide light cells in a dark D-cell case (CGB OBJ 1, lime cells). Dead: the same case with 1 light cell at the bottom
+; (CGB OBJ 2, one red cell). DMG OBP0 0xD0: '-' white, '+' light grey, '#' black.
 ; frames: charged, dead (8x16 each)
-...##...
+........
+........
+........
+..####..
 ..#++#..
-.######.
-.#----#.
-.#----#.
-.######.
-.#----#.
-.#----#.
-.######.
-.#----#.
-.#----#.
-.######.
-.#----#.
-.#----#.
-.######.
+########
+#------#
+#------#
+########
+#------#
+#------#
+########
+#------#
+#------#
+########
 ........
 
-...##...
+........
+........
+........
+..####..
 ..#++#..
-.######.
-.######.
-.######.
-.######.
-.######.
-.######.
-.######.
-.######.
-.######.
-.######.
-.#----#.
-.#----#.
-.######.
+########
+########
+########
+########
+########
+########
+########
+#------#
+#------#
+########
 ........
