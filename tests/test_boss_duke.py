@@ -124,7 +124,7 @@ def test_the_rev_tell_and_the_lurch(model):
         quiet(gb)
         idle_from_zero(gb, hp=12)
         clock = Clock(gb)
-        shakes = gb.read("sfx_count", 9)[8]
+        revs = gb.read("sfx_count", 13)[12]       # SFX_REV (12)
         until(gb, lambda: clock.now() and phase(gb) == DP_REV, IDLE_HI + 10)
         t0 = clock.now()
         assert IDLE_HI - 2 <= t0 <= IDLE_HI + 2
@@ -141,7 +141,7 @@ def test_the_rev_tell_and_the_lurch(model):
         assert golden and set(poses) == {BP_TELL1, BP_TELL2} and set(tiles) == {HAT_STILL, HAT_BOB}
         runs = [len(m.group(0)) for m in re.finditer(r"(.)\1*", "".join(chr(65 + p) for p in poses))]
         assert max(runs) <= 8 and min(runs[1:-1]) >= 7, runs      # (8-frame poses)
-        assert gb.read("sfx_count", 9)[8] >= shakes + 1, "the rev's sound"
+        assert gb.read("sfx_count", 13)[12] == revs + 1 and gb.read("sfx_count", 13)[8] == 0, "the rev's sound (SFX_REV, not the shake)"
         until(gb, lambda: phase(gb) == DP_LURCH, 6)
         t1 = clock.now()
         assert REV - 2 <= t1 - t0 <= REV + 2, t1 - t0

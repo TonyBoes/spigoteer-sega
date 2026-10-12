@@ -8,7 +8,7 @@
 //          4-1 (the shake is nearly full and he gets impatient). The idle pose "shakes with the engine": WALK / STOMP
 //          every 8 frames (the topper bobs with STOMP).
 //   REV    the tell, DUKE_REV 50 frames: he winds an invisible throttle (TELL1 / TELL2 every 8 frames: his fist at
-//          shoulder height twisting, motion arcs, a roaring mouth), SFX_SHAKE, the helmet jumping 1 px every 4 frames
+//          shoulder height twisting, motion arcs, a roaring mouth), SFX_REV (the engine's growl, 50 frames on channel 4), the helmet jumping 1 px every 4 frames
 //          (the topper's HAT_BOB frame is the 1 px lower one); he stands (BS_TELL).
 //   LURCH  16 px in 8 frames (two boss_advance hops 4 frames apart), the TELL2 pose, then IDLE again from 0. The doc's
 //          exhaust puffs, black smoke and entry skid belong to the bike and are not built.
@@ -72,7 +72,7 @@ static void to_rev(void) {
     duke.phase = DP_REV; duke.t = 0;
     duke.revs++;
     boss_xpose = BP_TELL1;
-    SFX(SFX_SHAKE);
+    SFX(SFX_REV);
 }
 
 // The regulars: the chord on the three free bars (a, b, c): a and b at once, c after a breather, c and b and then a once

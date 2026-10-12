@@ -216,6 +216,11 @@ Music step 2 (2026-10-11, the owner's listening notes):
   by story.c extra_life when a life is really added (not at four lives): C6 E6 G6 C7, G6 C7, G6 C7 held, 33 frames on
   channel 1 (25% pulse, NR12 0xD2), the effects' channel, so the music plays on; while it sounds no other channel-1
   effect cuts it (sfx_start). Test: tests/test_arcade.py (DMG + CGB). Bank 2: 30 B free.
+- Three more effects, all channel 4 (sfx_req uses 12 of its 16 bits; no widening, four ids left; sfx_count +3 B, 51 B of
+  data in bank 2, 27 B left there after the request loop was shortened to walk only the set bits, none in ROM0): SFX_DON (Taiko Pour's lane A hit: a knock then a falling rumble, 7
+  frames), SFX_KA (lane B: a noise tick then a ~1 kHz tonal tok, 4 frames) replace COIN / CATCH on hits (perfect and good
+  sound alike; SERVE and BREAK stay); SFX_REV (Duke's rev tell: a 7-bit-LFSR growl climbing in five steps, 49 frames)
+  replaces SFX_SHAKE there. Tests: tests/test_sfx_taiko_duke.py (the register writes), test_mg_taiko / test_boss_duke.
 - tools/check_music.py: the LEVEL harness starts at level g + 1 for venue g (the old level-clear trick reached the
   wrong venue for even groups since the 10th venue); a staccato note is measured over the part that sounds.
 

@@ -30,6 +30,7 @@ COUNT_AT, END_WAIT, POUR_LEN, SPILL_LEN, SERVE_LEN, OWN_START = (tk_define(n) fo
 OAM_SPIG, OAM_POT, OAM_STREAM, OAM_STEAM, OAM_FLASH, OAM_DRUM, OAM_NOTES = (tk_define(n) for n in (
     "OAM_SPIG", "OAM_POT", "OAM_STREAM", "OAM_STEAM", "OAM_FLASH", "OAM_DRUM", "OAM_NOTES"))
 SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN = 3, 4, 5, 6
+SFX_DON, SFX_KA = 10, 11
 OFF = ART["off"]
 OBJ = ART["obj_at"]
 S_PALETTE = 0x10
@@ -457,8 +458,8 @@ def test_eight_good_hits_serve_a_bowl_for_500(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_hit_pours_flashes_and_sounds(model):
-    """A PERFECT: the blossom at the mark of its lane, the pot tilts, pours (the stream), tilts back, SFX_COIN; a GOOD: the
-    ring, SFX_CATCH; the B lane's flash is at the lower mark."""
+    """A PERFECT: the blossom at the mark of its lane, the pot tilts, pours (the stream), tilts back, SFX_DON (lane A); a GOOD on
+    lane B: the ring, SFX_KA; the B lane's flash is at the lower mark."""
     with taiko(model) as gb:
         to_play(gb)
         t = CHART[0][0]
@@ -468,7 +469,7 @@ def test_a_hit_pours_flashes_and_sounds(model):
         f = oam(gb, OAM_FLASH)
         assert (f["x"], f["y"], f["tile"]) == (16 + 8, 48 + 16, TK_OBJ + OBJ["flash_p"])
         assert oam(gb, OAM_FLASH + 1)["tile"] == TK_OBJ + OBJ["flash_p"] + 2 and oam(gb, OAM_FLASH + 2)["y"] == 0
-        assert gb.mem("last_sfx") == SFX_COIN
+        assert gb.mem("last_sfx") == SFX_DON
         pots, streams = [], []
         for _ in range(POUR_LEN + 2):                 # the pot: tilts, pours (the stream), tilts back, level again
             s = snap(gb)
@@ -485,7 +486,7 @@ def test_a_hit_pours_flashes_and_sounds(model):
         assert any(streams) and (pots.index(pour) == streams.index(True)) and not streams[-1] and not streams[0]
         tb = next(t for t, ln in CHART if ln == 1)
         s = press_at(gb, "b", tb + 5)
-        assert s["last"] == 2 and s["flash_k"][1] == 1 and gb.mem("last_sfx") == SFX_CATCH
+        assert s["last"] == 2 and s["flash_k"][1] == 1 and gb.mem("last_sfx") == SFX_KA
         f = oam(gb, OAM_FLASH + 2)
         assert (f["x"], f["y"], f["tile"]) == (16 + 8, 72 + 16, TK_OBJ + OBJ["flash_g"])
 

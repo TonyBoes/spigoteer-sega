@@ -59,6 +59,14 @@ static const sfx_step_t s_shake[]  = { {0x2B, 2, 0}, {0x3B, 2, 0}, {0x2B, 2, 0},
 // rings out: C6 E6 G6 C7, G6 C7, G6 C7 (held); 33 frames (0.55 s) on a 25% pulse
 static const sfx_step_t s_extra[]  = { {1923, 3, 0}, {1949, 3, 0}, {1964, 3, 0}, {1985, 5, 0},
                                        {1964, 3, 0}, {1985, 3, 0}, {1964, 3, 0}, {1985, 10, 0} };
+// Taiko Pour's drum (channel 4, NR43 values; envelope 0xB1: starts at 11, falls one step per 1/64 s). DON, the centre
+// of the drum: a 2-frame noise knock (15-bit LFSR, clock 2048 Hz) then a low rumble, clock 512 Hz sliding down to ~290 Hz
+// over 6 frames. KA, the rim: a bright noise tick then a tonal "tok" (7-bit LFSR, ~1 kHz), 4 frames (67 ms) counting the start frame.
+static const sfx_step_t s_don[]    = { {0x62, 2, 0}, {0x74, 6, 1} };
+static const sfx_step_t s_ka[]     = { {0x20, 2, 0}, {0x19, 2, 0} };
+// Duke's engine (channel 4, envelope 0xD0: loud, no decay, ends 50 frames later like the throttle-twist tell): a
+// tonal 7-bit-LFSR growl whose pitch climbs in five steps of 10 frames, 43 / 64 / 86 / 129 / 258 Hz.
+static const sfx_step_t s_rev[]    = { {0x4B, 10, 0}, {0x4A, 10, 0}, {0x3B, 10, 0}, {0x3A, 10, 0}, {0x39, 10, 0} };
 
 #define N(a) (sizeof(a) / sizeof((a)[0]))
 static const sfx_def_t sfx_defs[SFX_COUNT] = {
@@ -72,6 +80,9 @@ static const sfx_def_t sfx_defs[SFX_COUNT] = {
     { 0, 0x40, 0xA3, N(s_life),   s_life },
     { 3, 0x00, 0x91, N(s_shake),  s_shake },
     { 0, 0x40, 0xD2, N(s_extra),  s_extra },
+    { 3, 0x00, 0xB1, N(s_don),    s_don },
+    { 3, 0x00, 0xB1, N(s_ka),     s_ka },
+    { 3, 0x00, 0xD0, N(s_rev),    s_rev },
 };
 
 typedef struct {
@@ -278,8 +289,8 @@ static void tick(void) {
     uint16_t req = sfx_req;
     if (req) {
         sfx_req = 0;
-        for (id = 1; id < SFX_COUNT; id++)          // ascending: on one channel the highest id requested wins
-            if (req & ((uint16_t)1 << (id - 1))) sfx_start(id);
+        for (id = 1; req; id++, req >>= 1)          // ascending: on one channel the highest id requested wins
+            if (req & 1) sfx_start(id);
     }
     if (ld_tune != TUNE_NONE) {
         const tune_t *t = &tunes[ld_tune];

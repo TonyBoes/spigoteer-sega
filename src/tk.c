@@ -18,7 +18,7 @@
 //   counts its own frames from the same start (the framework's intro + count are about 150 frames).
 // - The count-in: the banner rows show 1 2 3 4 on the beats before the first note (bar 4), then the shoji window comes back.
 //   Visual metronome: the stone banks flash on each beat (their tile data is swapped), the drummer dances on it.
-// - Sounds (no new SFX; the spec's don / ka effects are a gap): PERFECT COIN, GOOD CATCH, SPILL BREAK, a bowl served SERVE.
+// - Sounds: a hit on lane A SFX_DON, on lane B SFX_KA (perfect or good alike; the flash colour tells them), SPILL BREAK, a bowl served SERVE.
 //
 // Screen (the approved mock-up): HUD row 0 (score; combo icon + X + 2 digits at columns 8-11; cups icon + X + 2 digits at 16-19 (a perfect game serves 14 bowls));
 // the shoji window rows 1-4 (CGB BG palette 3; the lantern flickers; the banner rows 2-3 hold the framework's text until the
@@ -355,7 +355,7 @@ static void hit(uint8_t lane, uint8_t slot, uint8_t perfect) {
     S.last = perfect ? 1 : 2;
     S.flash_t[lane] = TK_FLASH_LEN; S.flash_k[lane] = !perfect;
     S.pour_t = TK_POUR_LEN;
-    if (perfect) SFX(SFX_COIN); else SFX(SFX_CATCH);
+    if (lane) SFX(SFX_KA); else SFX(SFX_DON);              // A: the drum's centre, B: the rim (perfect or good)
     hud_combo();
     if (++S.hits >= TK_CUP_HITS) {                         // a bowl served
         S.hits = 0; S.cups++;
