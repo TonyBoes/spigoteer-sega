@@ -1,6 +1,7 @@
 // QUICK DRAW, the saloon's mini-game (docs/minigames_bosses.md 4.1; art approved by the owner 2026-10-11, look B of
-// the Sarsaparilla Kid). The Kid challenges the Spigoteer; both stand with a bottle in the holster. A DRAW! sign flips
-// up with a bell: press the button its badge shows before the Kid draws. First to three rounds.
+// the Sarsaparilla Kid; the soda duel approved 2026-10-11). The Kid challenges the Spigoteer; both shake a bottle of
+// soda while they wait. A DRAW! sign flips up with a bell: press the button its badge shows before the Kid draws, and
+// the winner sprays the loser. First to three rounds.
 //
 // Rules (the spec's numbers):
 // - A round: "ROUND n" / "WAIT FOR THE SIGN" for QD_READY_LEN frames and on through the wait (nothing reads as a countdown), a wait W = 90 + 0..210 frames, then DRAW!.
@@ -12,8 +13,15 @@
 //   pause between rounds.)
 // - Feints from round 3: once during the wait, never in its last QD_FEINT_GAP frames, a tumbleweed rolls across the
 //   floor (SFX_SHAKE) or a crow lands on the sign and caws (SFX_LAUNCH); QD_FEINT_LEN frames each.
-// - After a round, QD_SHOW_LEN frames: both poses (the winner pops the cork, the loser fumbles), the pips, and
-//   "YOU 0.32" (the reaction in seconds, '.' the story font's) / "FOUL" / "TOO SLOW".
+// - The soda duel (poses()): through the banner (READY and the wait) both shake their bottles, out of step (the Kid
+//   every 4 frames, the Spigoteer every 5); at DRAW! both freeze. After a round, QD_SHOW_LEN frames: the winner (the
+//   Kid on TOO SLOW) takes his DRAW pose with a level, uncorked bottle and sprays a stream of BG tiles along the wall's
+//   row STREAM_ROW (3 columns a frame from frame 1, flowing, cut off from his end from frame STREAM_CUT, the wall put
+//   back from the copy taken at entry by frame 40); the loser holds his bottle as ever, SPLASH over his head from
+//   frame WET_AT, then drips. A FOUL fizzes over the player's own bottle (FIZZ, the FOAM column, SPLASH, drips) while
+//   the Kid stands. The pips, and "YOU 0.32" (the reaction in seconds, '.' the story font's) / "FOUL" / "TOO SLOW".
+//   The match's end: YOU WIN, the Spigoteer aiming (no stream), the Kid dripping; THE KID WINS, the Kid's cheer, the
+//   Spigoteer dripping.
 // - Score: 500 a round won + (R - t) x 20; the match won +2000. Medal (qd_medal, not a score threshold): GOLD 3-0,
 //   SILVER won 3-1 / 3-2, BRONZE lost with a round won, else none. One setting for story and practice (no HARD).
 // - Sounds: the DRAW! bell SFX_CATCH, a round won SFX_SERVE, a foul SFX_BREAK, too slow SFX_LIFE.
@@ -21,12 +29,14 @@
 // Screen (the approved mock-up): the framework's saloon backdrop (counter row 11); the sign's frame at columns 3-16,
 // rows 6-9 (CGB BG palette 2), its letter rows 7-8 the planks while waiting, "DRAW!" + the badge on the sign; the pips
 // on row 12 (the Kid's columns 2-4, the player's 15-17, BG palette 0: the saloon bar's); the Kid (16x24, OBJ palettes 3
-// top, 4 body; DMG OBP1) at x 20 and the Spigoteer (his duel poses, OBJ palette 0) at x 124, both y 112; the bottle
-// beside the hand (OBJ palette 1, the saloon's full drink), the feints (OBJ palette 6; DMG OBP1).
-// OAM: 0-3 the Spigoteer (mg_spigoteer), 4-7 the Kid, 8 his bottle, 9 the Kid's, 10-11 tumbleweed, 12 crow. Worst
-// line: 2 + 2 + 2 bottles + 2 tumbleweed = 8.
-// Tiles: BG QD_BG.. (MG_GAME_BG: 39, ids 125-163), OBJ 56-91 (the Spigoteer's 3 poses as bartender frames 7-9, the
-// bottle, the tumbleweed), 96-127 (the Kid), 164-167 (the crow): 72.
+// top, 4 body; DMG OBP1) at x 20 and the Spigoteer (his duel poses, OBJ palette 0) at x 124, both y 112; the bottles,
+// the wet overlay and the foam (OBJ palette 1, the saloon's full drink; DMG OBP0), the feints (OBJ palette 6; DMG
+// OBP1); the stream in the wall's own BG palette.
+// OAM in draw priority (OAM_*): 0-1 the wet overlay, 2 the foam, 3-4 the bottles in hand, 5-6 the aimed bottle, 7-10
+// the Spigoteer (mg_spigoteer from slot 7), 11-14 the Kid, 15-16 tumbleweed, 17 crow. Worst line 9 (the spray's row:
+// 2 a man, 2 the aimed bottle, 1 the loser's bottle, 2 the wet overlay); 8 during a tumbleweed.
+// Tiles: BG QD_BG.. (MG_GAME_BG: 39, ids 125-163), OBJ 56-87 (the Spigoteer's 3 poses as bartender frames 7-9, the
+// tumbleweed), 96-127 (the Kid), 164-206 (the crow, the soda duel: 34 OBJ tiles and the stream's 5 BG tiles): 107.
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -41,11 +51,12 @@
 #define QD_BG           MG_GAME_BG
 // OBJ tiles in three runs, all where the next level load puts the game's own back (load_venue: the drink frames
 // and the show; the patron ids 78..): the coin (OBJ_COIN 92-95) is loaded once at boot, so it is left alone.
-#define QD_OBJ          OBJ_MUG             // 56..91: the Spigoteer's duel poses (bartender frames 7-9), bottle, tumbleweed
+#define QD_OBJ          OBJ_MUG             // 56..87: the Spigoteer's duel poses (bartender frames 7-9), tumbleweed
 #define QD_KID          OBJ_DANCER          // 96..127: the Kid
 #define QD_CROW        (QD_BG + QD_BG_TILES)   // 164..167: the crow (OBJ = BG ids 128+: past the sign's BG tiles)
+#define QD_SODA        (QD_CROW + QDO_CROW_N)  // 168..206: the soda duel; its stream tiles are BG ids (QDS_STREAM..)
 typedef char qd_obj_fits[(QD_OBJ + QDO_RUN_A <= OBJ_COIN && QD_OBJ == 7 * BARTENDER_TILES_PER_FRAME
-                          && QDO_KID_N == DANCER_TILE_COUNT && QD_CROW + QDO_CROW_N <= OBJ_POUR) ? 1 : -1];
+                          && QDO_KID_N == DANCER_TILE_COUNT && QD_CROW + QDO_RUN_C <= OBJ_POUR) ? 1 : -1];
 #define QD_ROUNDS       5
 #define QD_TO_WIN       3
 #define QD_READY_LEN    60
@@ -76,19 +87,39 @@ typedef char qd_obj_fits[(QD_OBJ + QDO_RUN_A <= OBJ_COIN && QD_OBJ == 7 * BARTEN
 #define PAL_KID_BODY    4
 #define PAL_BOTTLE      OBJPAL_MUG_FULL     // 1
 #define PAL_FEINT       6
-#define OAM_KID         4
-#define OAM_POP_YOU     8
-#define OAM_POP_KID     9
-#define OAM_TW         10
-#define OAM_CROW       12
+// OAM in draw priority (CGB: the lower slot wins; DMG: the smaller x, then the lower slot, and the overlays share x
+// with the bodies): the wet overlay and the foam over everything, the bottles in hand and the aimed bottle over the
+// bodies, then the duelists, then the feints
+#define OAM_WET         0                   // 0-1: the wet overlay (16x16)
+#define OAM_FOAM        2                   // the foul's foam column
+#define OAM_HAND_YOU    3                   // the bottle in the Spigoteer's fist
+#define OAM_HAND_KID    4                   // the bottle in the Kid's fist
+#define OAM_AIM         5                   // 5-6: the winner's aimed bottle (16x16)
+#define OAM_SPIG        7                   // 7-10: the Spigoteer (mg_spigoteer)
+#define OAM_KID        11                   // 11-14: the Kid
+#define OAM_TW         15                   // 15-16: the tumbleweed
+#define OAM_CROW       17
+#define OAM_N          18
+#define STREAM_ROW     15                   // the wall's tile row (y 120-127) the stream is written into
+#define STREAM_N       10                   // its columns: 6..15 from the Kid, 13..4 from the Spigoteer
+#define STREAM_STEP     3                   // columns a frame, growing and cut off
+#define STREAM_CUT     36                   // the round-end frame its cut-off starts on (restored by frame 40)
+#define WET_AT          4                   // the round-end frame the stream reaches the loser: SPLASH
+#define DRIP_AT        38                   // DRIP A / B from here, alternating every 8 frames
+#define FOUL_FIZZ      24                   // the foul: FIZZ frames 0-23, FOAM 2-17, SPLASH 6-23, then DRIP
+#define FOUL_FOAM_AT    2
+#define FOUL_FOAM_END  18
+#define FOUL_WET_AT     6
 enum { QS_NEXT, QS_READY, QS_WAIT, QS_DRAW, QS_SHOW, QS_OVER };
 enum { QR_NONE, QR_YOU, QR_SLOW, QR_FOUL, QR_WRONG };
 enum { QF_NONE, QF_TUMBLE, QF_CROW };
 enum { KID_STAND, KID_DRAW, KID_FUMBLE, KID_CHEER };
 #define SPIG_STAND      7                   // mg_spigoteer frames: the duel poses at OBJ 56, 64, 72
 #define SPIG_DRAW       8
-#define SPIG_FUMBLE     9
-enum { POP_POP, POP_FUMBLE, POP_NONE };
+enum { B_STILL, B_UP, B_DOWN, B_FIZZ, B_FOAM };   // the bottle in a fist (shake_bottle.txt)
+enum { W_SPLASH, W_DRIP_A, W_DRIP_B };            // the wet overlay (wet.txt)
+enum { WHO_KID, WHO_YOU };
+enum { ST_MID_A, ST_MID_B, ST_HEAD_R, ST_HEAD_L, ST_RISE_R };   // the stream's BG tiles (stream.txt)
 
 static const uint8_t kid_r[QD_ROUNDS] = { 34, 30, 30, 28, 26 };
 
@@ -144,7 +175,7 @@ void qd_enter(void) BANKED {
     set_bkg_data(QD_BG, QD_BG_TILES, qd_bg_tiles);
     set_sprite_data(QD_OBJ, QDO_RUN_A, qd_obj_tiles);
     set_sprite_data(QD_KID, QDO_KID_N, qd_obj_tiles + QDO_KID * 16);
-    set_sprite_data(QD_CROW, QDO_CROW_N, qd_obj_tiles + QDO_CROW * 16);
+    set_sprite_data(QD_CROW, QDO_RUN_C, qd_obj_tiles + QDO_CROW * 16);   // the crow, the soda duel (and its stream)
     if (is_cgb) {
         p[0] = RGB8(248, 240, 208); p[1] = RGB8(216, 168, 96); p[2] = RGB8(216, 40, 24); p[3] = RGB8(48, 16, 8);
         set_bkg_palette(SIGN_PAL, 1, p);         // the sign: cream face, tan wood, red letters, dark
@@ -170,6 +201,9 @@ void qd_enter(void) BANKED {
     vram_put(SIGN_COL, SIGN_ROW + 2, S.sign[0], 1); vram_put(SIGN_COL + SIGN_W - 1, SIGN_ROW + 2, S.sign[0] + 1, 1);
     S.st = QS_NEXT; S.round = 0; S.wins[0] = S.wins[1] = 0; S.wait = 0; S.badge = 0; S.r = 0; S.t = 0;
     S.res = QR_NONE; S.react = 0; S.feint = QF_NONE; S.feint_at = 0; S.feint_t = 0; S.fx = 0;
+    S.anim = 0;
+    for (k = 0; k < 20; k++)                     // the wall under the stream, put back after each spray (LCD off)
+        S.wall[k] = S.row[k] = ((uint8_t *)0x9800)[STREAM_ROW * 32 + k];
     sign(0);
     pips();
     qd_update(0);                                // the duelists (the update draws them; no play before MG_PLAY)
@@ -207,21 +241,14 @@ static void end_round(uint8_t res) {
     pips();
 }
 
-static void kid_obj(uint8_t f) {
+static void kid_obj(uint8_t f) {             // (KID_STAND: the shake body, his bottle in his fist)
     OAM_item_t *o = shadow_OAM + OAM_KID;
     uint8_t t = QD_KID + f * 8, y = DUEL_Y + 16, x = KID_X + 8, pt, pb;
     pt = is_cgb ? PAL_KID_TOP : S_PALETTE; pb = is_cgb ? PAL_KID_BODY : S_PALETTE;
     o->y = y;      o->x = x;     o->tile = t;     o->prop = pt; o++;
     o->y = y;      o->x = x + 8; o->tile = t + 2; o->prop = pt; o++;
     o->y = y + 16; o->x = x;     o->tile = t + 4; o->prop = pb; o++;
-    o->y = y + 16; o->x = x + 8; o->tile = t + 6; o->prop = pb;
-}
-
-static void bottle(uint8_t oam, uint8_t f, uint8_t x, uint8_t y, uint8_t flip) {
-    OAM_item_t *o = shadow_OAM + oam;
-    if (f == POP_NONE) { o->y = 0; return; }
-    o->y = y + 16; o->x = x + 8; o->tile = QD_OBJ + QDO_POP + 2 * f;
-    o->prop = (is_cgb ? PAL_BOTTLE : 0) | flip;
+    o->y = y + 16; o->x = x + 8; o->tile = f == KID_STAND ? QD_SODA + QDS_KID_BR : t + 6; o->prop = pb;
 }
 
 static void feint_obj(void) {
@@ -247,8 +274,102 @@ static void feint_obj(void) {
     }
 }
 
+// ---- the soda duel (approved 2026-10-11): both shake their bottles through the banner, freeze at DRAW!, the round's
+// winner sprays the loser across the wall, the loser drips; a foul fizzes over the player's own bottle ----
+// A piece drawn for the Kid (facing right; the Spigoteer's is X-flipped): 8x16, or 16x16 (wide: this slot and the next).
+static void piece(uint8_t oam, uint8_t t, uint8_t x, uint8_t y, uint8_t who, uint8_t wide) {
+    OAM_item_t *o = shadow_OAM + oam;
+    uint8_t prop = (is_cgb ? PAL_BOTTLE : 0) | (who == WHO_YOU ? S_FLIPX : 0);
+    x += 8; y += 16;
+    o->y = y; o->tile = t; o->prop = prop; o->x = x;
+    if (!wide) return;
+    o[1].y = y; o[1].tile = t + 2; o[1].prop = prop; o[1].x = x + 8;
+    if (who == WHO_YOU) { o->x = x + 8; o[1].x = x; }
+}
+
+static void hand(uint8_t who, uint8_t f, int8_t dy) {   // the bottle in his fist, frame f, dy px of shake
+    if (who == WHO_YOU) piece(OAM_HAND_YOU, QD_SODA + QDS_BOT + 2 * f, SPIG_X - 4, DUEL_Y + 6 + dy, who, 0);
+    else piece(OAM_HAND_KID, QD_SODA + QDS_BOT + 2 * f, KID_X + 12, DUEL_Y + 6 + dy, who, 0);
+}
+
+static void shake_body(uint8_t who) {            // STAND with the holstered bottle out (it is in his fist)
+    if (who == WHO_KID) { kid_obj(KID_STAND); return; }
+    mg_spigoteer(SPIG_X, DUEL_Y, SPIG_STAND, 0, OAM_SPIG);
+    shadow_OAM[OAM_SPIG + 2].tile = QD_SODA + QDS_SPIG_BL;
+}
+
+static void wet(uint8_t who, uint8_t f) {        // the wet overlay on his head: W_SPLASH, W_DRIP_A, W_DRIP_B
+    if (who == WHO_YOU) piece(OAM_WET, QD_SODA + QDS_WET + 4 * f, SPIG_X, DUEL_Y - 4, who, 1);
+    else piece(OAM_WET, QD_SODA + QDS_WET + 4 * f, KID_X, DUEL_Y - 2, who, 1);
+}
+
+static uint8_t drip(void) { return W_DRIP_A + ((S.anim >> 3) & 1); }
+
+static void aim(uint8_t who, uint8_t f) {        // the winner's DRAW pose, his bottle aimed level (f: the spurt's flicker)
+    if (who == WHO_YOU) {
+        mg_spigoteer(SPIG_X, DUEL_Y, SPIG_DRAW, 0, OAM_SPIG);
+        piece(OAM_AIM, QD_SODA + QDS_AIM + 4 * f, SPIG_X - 14, DUEL_Y + 6, who, 1);
+    } else {
+        kid_obj(KID_DRAW);
+        piece(OAM_AIM, QD_SODA + QDS_AIM + 4 * f, KID_X + 14, DUEL_Y + 9, who, 1);
+    }
+}
+
+// The stream on the wall's row: `who` sprays, columns cut..len-1 out from his bottle (the Kid's from column 6 to the
+// right, the Spigoteer's from column 13 to the left) over the wall saved at entry; queued only when the row changes.
+static void stream(uint8_t who, uint8_t len, uint8_t cut) {
+    uint8_t c, k, v, dirty = 0, flow = QD_SODA + QDS_STREAM + ((S.anim >> 2) & 1);
+    if (len > STREAM_N) len = STREAM_N;
+    for (c = 0; c < 20; c++) {
+        k = who == WHO_YOU ? (uint8_t)(13 - c) : (uint8_t)(c - 6);   // (off the stream: wraps past STREAM_N)
+        v = S.wall[c];
+        if (k >= cut && k < len) {
+            if (k == len - 1 && len < STREAM_N) v = QD_SODA + QDS_STREAM + (who == WHO_YOU ? ST_HEAD_L : ST_HEAD_R);
+            else if (k == 0 && who == WHO_KID) v = QD_SODA + QDS_STREAM + ST_RISE_R;   // up from his lower hand
+            else v = flow;
+        }
+        if (S.row[c] != v) { S.row[c] = v; dirty = 1; }
+    }
+    if (dirty) qd_put(0, STREAM_ROW, S.row, 20);
+}
+
+static void poses(void) {
+    uint8_t s = S.st, t = S.t, f, win = WHO_KID, len = 0, cut = 0;
+    S.anim++;
+    for (f = 0; f < OAM_SPIG; f++) shadow_OAM[f].y = 0;   // the overlays and bottles: off unless placed below
+    if (s == QS_SHOW && (S.res == QR_FOUL || S.res == QR_WRONG)) {   // his own bottle fizzes over onto him
+        shake_body(WHO_KID); hand(WHO_KID, B_STILL, 0);
+        shake_body(WHO_YOU);
+        if (t < FOUL_FIZZ) {
+            hand(WHO_YOU, B_FIZZ, 0);
+            if (t >= FOUL_FOAM_AT && t < FOUL_FOAM_END)
+                piece(OAM_FOAM, QD_SODA + QDS_BOT + 2 * B_FOAM, SPIG_X - 4, DUEL_Y - 7 + ((t >> 1) & 1), WHO_YOU, 0);
+        } else hand(WHO_YOU, B_STILL, 0);
+        if (t >= FOUL_WET_AT) wet(WHO_YOU, t < FOUL_FIZZ ? W_SPLASH : drip());
+    } else if (s == QS_SHOW) {                   // the winner sprays (the Kid on TOO SLOW), the loser gets wet
+        win = S.res == QR_YOU ? WHO_YOU : WHO_KID;
+        aim(win, (t >> 1) & 1);
+        shake_body(1 - win); hand(1 - win, B_STILL, 0);
+        if (t) {                                 // (frame 0 queues the result's text and pips: the stream starts on 1)
+            len = t < STREAM_N ? STREAM_STEP * t : STREAM_N;
+            if (t >= STREAM_CUT) cut = STREAM_STEP * (t - STREAM_CUT + 1);
+        }
+        if (t >= WET_AT) wet(1 - win, t < DRIP_AT ? W_SPLASH : drip());
+    } else if (s == QS_OVER) {                   // the winner's last pose, the loser still dripping
+        if (S.wins[0] >= QD_TO_WIN) { aim(WHO_YOU, 0); shake_body(WHO_KID); hand(WHO_KID, B_STILL, 0); wet(WHO_KID, drip()); }
+        else { kid_obj(KID_CHEER); shake_body(WHO_YOU); hand(WHO_YOU, B_STILL, 0); wet(WHO_YOU, drip()); }
+    } else {                                     // the banner: both shake, out of step; DRAW! (and the intro): still
+        shake_body(WHO_KID); shake_body(WHO_YOU);
+        if (s != QS_DRAW && mg_phase == MG_PLAY) {
+            f = (S.anim >> 2) & 1; hand(WHO_KID, f ? B_UP : B_DOWN, f ? -2 : 1);
+            f = S.anim % 10 < 5;   hand(WHO_YOU, f ? B_UP : B_DOWN, f ? -2 : 1);
+        } else { hand(WHO_KID, B_STILL, 0); hand(WHO_YOU, B_STILL, 0); }
+    }
+    stream(win, len, cut);
+}
+
 void qd_update(uint8_t pressed) BANKED {
-    uint8_t kid = KID_STAND, you = SPIG_STAND, pk = POP_NONE, py = POP_NONE, right, k;
+    uint8_t right;
     uint16_t w;
     if (mg_phase == MG_PLAY) {
         switch (S.st) {
@@ -312,18 +433,6 @@ void qd_update(uint8_t pressed) BANKED {
             break;
         }
     }
-    // the poses
-    k = S.st;
-    if (k == QS_SHOW) {
-        if (S.res == QR_YOU) { you = SPIG_DRAW; py = POP_POP; kid = KID_FUMBLE; pk = POP_FUMBLE; }
-        else { kid = KID_DRAW; pk = POP_POP; you = SPIG_FUMBLE; py = POP_FUMBLE; }
-    } else if (k == QS_OVER) {
-        if (S.wins[0] >= QD_TO_WIN) { you = SPIG_DRAW; py = POP_POP; kid = KID_FUMBLE; pk = POP_FUMBLE; }
-        else { kid = KID_CHEER; you = BT_FAIL; }
-    }
-    mg_spigoteer(SPIG_X, DUEL_Y, you, 0);
-    kid_obj(kid);
-    bottle(OAM_POP_YOU, py, SPIG_X - 8, py == POP_POP ? DUEL_Y + 1 : DUEL_Y - 4, 0);
-    bottle(OAM_POP_KID, pk, KID_X + 16, pk == POP_POP ? DUEL_Y + 5 : DUEL_Y - 4, S_FLIPX);
+    poses();
     feint_obj();
 }

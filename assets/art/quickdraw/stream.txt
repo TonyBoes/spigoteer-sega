@@ -1,0 +1,50 @@
+; Art: approved design (owner 2026-10-11)
+; Quick Draw soda duel: the soda stream, BG tiles 8x8 written into the wall's tile row 15
+; (y 120-127) between the two men, so it costs no sprites. Drawn in the wall's own BG palette 0 (CGB: teal, gold,
+; brown, dark; DMG BGP 0xE4): '.' is the wall, '-' gold soda, '+' brown edge. 5 tiles: MID A, MID B (alternate
+; every 4 frames: the flow), HEAD R, HEAD L (the leading splash), RISE R (the Kid's first column: his DRAW hand holds
+; the bottle 4 px lower than the stream; the Spigoteer's is level with it).
+........
+..-...-.
+++.+++.+
+--------
+--------
++.+++.++
+.....-..
+........
+
+........
+-...-...
++++.+++.
+--------
+--------
+.+++.+++
+...-...-
+........
+
+...-....
+.-..+.-.
++++..+..
+-----+-.
+------+-
++.++.+..
+.-..+.-.
+...-....
+
+....-...
+.-.+..-.
+..+..+++
+.-+-----
+-+------
+..+.++.+
+.-.+..-.
+....-...
+
+........
+......-.
+.....+.+
+..++----
++.------
+---+.++.
+----+...
+.-......

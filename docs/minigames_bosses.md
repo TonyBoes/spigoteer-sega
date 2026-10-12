@@ -763,6 +763,10 @@ on the owner-approved art (assets/art/quickdraw/). Where the build follows the a
 section: the pips sit on row 12 (the Kid's left, the player's right), not on the HUD row; the badge is a light letter
 in a dark disc. A press during the first 60 frames (QS_READY) is ignored (the foul rule starts with the wait). Sounds reuse existing SFX (bell
 SFX_CATCH, pop SFX_SERVE, foul SFX_BREAK, too slow SFX_LIFE, tumbleweed SFX_SHAKE, caw SFX_LAUNCH).
+The soda duel (owner-approved 2026-10-11) replaces the cork pop and the fumble: both shake their bottles through the
+banner and freeze at DRAW!; the winner sprays a stream of soda (BG tiles on the wall's row) across the gap and the
+loser gets soaked (splash, then drips) without dropping anything; a foul fizzes over the player's own bottle. PLAN.md
+has the details.
 
 Play: the Sarsaparilla Kid challenges the new bartender. Both stand with a bottle in the holster. A big DRAW! sign
 flips up with a bell; whoever pops the cork first wins the round. First to three.

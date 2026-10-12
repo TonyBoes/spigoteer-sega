@@ -1,7 +1,9 @@
 # docs/minigames_bosses.md 4.1: QUICK DRAW (src/qd.c), the saloon's mini-game, on the framework (src/mg.c): the screen
 # (the approved art), the rules (READY, the random wait, DRAW! with its badge, the Kid's draw at R, ties to the player,
 # fouls, held buttons, feints from round 3 never in the last 30 frames), the points, best of five stopping at three, the
-# medals by rounds, the poses, seeded repeats and everything put back afterwards. Sprites per line <= 10 on every frame.
+# medals by rounds, the soda duel (the shake, the spray across the wall, the wet loser, the foul's fizz), seeded repeats
+# and everything put back afterwards. Sprites per line <= 10 on every frame.
+import itertools
 import json
 import re
 
@@ -24,7 +26,6 @@ QF_NONE, QF_TUMBLE, QF_CROW = range(3)
 KID_STAND, KID_DRAW, KID_FUMBLE, KID_CHEER = range(4)
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
 SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_LIFE, SFX_SHAKE = 2, 3, 4, 5, 7, 8
-BT_FAIL = 6
 KID_R = [int(v) for v in re.search(r"kid_r\[QD_ROUNDS\] = \{ ([\d, ]+) \}", QD_C).group(1).split(", ")]
 (READY_LEN, WAIT_MIN, WAIT_SPAN, SHOW_LEN, FEINT_FROM, FEINT_LEN, FEINT_GAP, ROUND_PTS, SPEED_PTS, MATCH_PTS, SIGN_COL,
  SIGN_ROW, SIGN_W, LET_COL, PIP_ROW, PIP_KID_COL, PIP_YOU_COL, KID_X, SPIG_X, DUEL_Y, TW_Y, CROW_X, CROW_Y) = (
@@ -36,7 +37,15 @@ QH = {m[0]: int(m[1]) for m in re.findall(r"#define (Q\w+) (\d+)", QD_H)}
 MG_GAME_BG = 77 + 48
 QD_BG = MG_GAME_BG
 QD_OBJ, QD_KID, QD_CROW = 56, 96, QD_BG + QH["QD_BG_TILES"]
-OAM_KID, OAM_POP_YOU, OAM_POP_KID, OAM_TW, OAM_CROW = 4, 8, 9, 10, 12
+QD_SODA = QD_CROW + QH["QDO_CROW_N"]
+(OAM_WET, OAM_FOAM, OAM_HAND_YOU, OAM_HAND_KID, OAM_AIM, OAM_SPIG, OAM_KID, OAM_TW, OAM_CROW, OAM_N, STREAM_ROW, STREAM_N,
+ STREAM_STEP, STREAM_CUT, WET_AT, DRIP_AT, FOUL_FIZZ, FOUL_FOAM_AT, FOUL_FOAM_END, FOUL_WET_AT) = (
+    define(n, QD_C) for n in ("OAM_WET", "OAM_FOAM", "OAM_HAND_YOU", "OAM_HAND_KID", "OAM_AIM", "OAM_SPIG", "OAM_KID",
+                              "OAM_TW", "OAM_CROW", "OAM_N", "STREAM_ROW", "STREAM_N", "STREAM_STEP", "STREAM_CUT",
+                              "WET_AT", "DRIP_AT", "FOUL_FIZZ", "FOUL_FOAM_AT", "FOUL_FOAM_END", "FOUL_WET_AT"))
+B_STILL, B_UP, B_DOWN, B_FIZZ, B_FOAM = range(5)
+W_SPLASH, W_DRIP_A, W_DRIP_B = range(3)
+ST_MID_A, ST_MID_B, ST_HEAD_R, ST_HEAD_L, ST_RISE_R = range(5)
 SEED = 0x5A17
 OUT = ROOT / "out" / "qd"
 
@@ -124,10 +133,16 @@ def bg_vram(gb, t):
     return bytes(gb.read((0x9000 if t < 128 else 0x8000) + t * 16, 16))
 
 
+def shown(gb, i):
+    o = oam(gb, i)
+    return o["tile"] if o["y"] else None
+
+
 def poses(gb):
-    """(the Spigoteer's first tile, the Kid's first tile, his bottle's tile or None, the Kid's bottle's tile or None)."""
-    pop = [oam(gb, i) for i in (OAM_POP_YOU, OAM_POP_KID)]
-    return (oam(gb, 0)["tile"], oam(gb, OAM_KID)["tile"]) + tuple(p["tile"] if p["y"] else None for p in pop)
+    """(the Spigoteer's first tile, the Kid's first tile, the bottle in the Spigoteer's fist, in the Kid's, the aimed
+    bottle, the wet overlay, the foul's foam): tiles, None when not shown."""
+    return (oam(gb, OAM_SPIG)["tile"], oam(gb, OAM_KID)["tile"]) + tuple(
+        shown(gb, i) for i in (OAM_HAND_YOU, OAM_HAND_KID, OAM_AIM, OAM_WET, OAM_FOAM))
 
 
 def kid_tile(f):
@@ -138,7 +153,36 @@ def spig_tile(f):                               # mg_spigoteer frames: 7 stand, 
     return f * 8
 
 
-POP, FUMBLE = QD_OBJ + QH["QDO_POP"], QD_OBJ + QH["QDO_POP"] + 2
+def bottle(f):                                  # the bottle in a fist (shake_bottle.txt): B_*
+    return QD_SODA + QH["QDS_BOT"] + 2 * f
+
+
+def aim(f):                                     # the aimed bottle, f the spurt's flicker (left entry)
+    return QD_SODA + QH["QDS_AIM"] + 4 * f
+
+
+def wet(f):                                     # the wet overlay: W_* (left entry)
+    return QD_SODA + QH["QDS_WET"] + 4 * f
+
+
+def stream_tile(k):
+    return QD_SODA + QH["QDS_STREAM"] + k
+
+
+STILL, AIMS, DRIPS = bottle(B_STILL), (aim(0), aim(1)), (wet(W_DRIP_A), wet(W_DRIP_B))
+SHAKE_KID_BR, SHAKE_SPIG_BL = QD_SODA + QH["QDS_KID_BR"], QD_SODA + QH["QDS_SPIG_BL"]
+
+
+def shake_bodies(gb, kid=True, you=True):
+    """The STAND bodies with the holstered bottle out (it is in the fist): the Kid's BR entry, the Spigoteer's BL."""
+    if kid:
+        assert oam(gb, OAM_KID)["tile"] == kid_tile(KID_STAND) and oam(gb, OAM_KID + 3)["tile"] == SHAKE_KID_BR
+    if you:
+        assert oam(gb, OAM_SPIG)["tile"] == spig_tile(7) and oam(gb, OAM_SPIG + 2)["tile"] == SHAKE_SPIG_BL
+
+
+def wall_row(gb):
+    return tilemap_row(gb, STREAM_ROW, 0, 20)
 
 
 def sign_rows(gb):
@@ -193,17 +237,22 @@ def test_the_screen(model):
             assert row[0] == fr + 3 and row[-1] == fr + 4
         assert sign_rows(gb) == BACK_ROWS
         assert pips(gb) == (0, 0)
-        assert (oam(gb, 0)["x"], oam(gb, 0)["y"], oam(gb, 0)["tile"]) == (SPIG_X + 8, DUEL_Y + 16, spig_tile(7))
+        sp = oam(gb, OAM_SPIG)
+        assert (sp["x"], sp["y"], sp["tile"]) == (SPIG_X + 8, DUEL_Y + 16, spig_tile(7))
         k = oam(gb, OAM_KID)
         assert (k["x"], k["y"], k["tile"]) == (KID_X + 8, DUEL_Y + 16, kid_tile(KID_STAND))
-        assert all(oam(gb, i)["y"] == 0 for i in (OAM_POP_YOU, OAM_POP_KID, OAM_TW, OAM_TW + 1, OAM_CROW))
+        shake_bodies(gb)
+        assert poses(gb) == (spig_tile(7), kid_tile(KID_STAND), STILL, STILL, None, None, None), "the intro: held still"
+        assert all(oam(gb, i)["y"] == 0 for i in (OAM_WET + 1, OAM_AIM + 1, OAM_TW, OAM_TW + 1, OAM_CROW))
+        assert all(oam(gb, i)["y"] == 0 for i in range(OAM_N, 40))
         bg = b"".join(bg_vram(gb, t) for t in range(QD_BG, QD_BG + QH["QD_BG_TILES"]))
         assert bg == bytes(ART["qd_bg"])
         obj = ART["qd_obj"]
         n_a, n_k = QH["QDO_RUN_A"], QH["QDO_KID_N"]
         assert bytes(gb.read(0x8000 + QD_OBJ * 16, n_a * 16)) == bytes(obj[:n_a * 16])
         assert bytes(gb.read(0x8000 + QD_KID * 16, n_k * 16)) == bytes(obj[n_a * 16:(n_a + n_k) * 16])
-        assert bytes(gb.read(0x8000 + QD_CROW * 16, 64)) == bytes(obj[(n_a + n_k) * 16:])
+        assert bytes(gb.read(0x8000 + QD_CROW * 16, QH["QDO_RUN_C"] * 16)) == bytes(obj[(n_a + n_k) * 16:])
+        assert len(obj) == (n_a + n_k + QH["QDO_RUN_C"]) * 16
         if model == "cgb":
             from test_lift import cgb_bg_palette, cgb_obj_palette
             attr = lambda r, c: gb.pb.memory[1, 0x9800 + r * 32 + c] & 7
@@ -211,11 +260,13 @@ def test_the_screen(model):
             assert all(attr(PIP_ROW, c) == 0 for c in list(range(PIP_KID_COL, PIP_KID_COL + 3))
                        + list(range(PIP_YOU_COL, PIP_YOU_COL + 3)))
             assert k["prop"] & 7 == 3 and oam(gb, OAM_KID + 2)["prop"] & 7 == 4, "the Kid: palettes 3 (top) and 4"
+            assert oam(gb, OAM_HAND_YOU)["prop"] & 7 == 1 and oam(gb, OAM_HAND_KID)["prop"] & 7 == 1, "the bottles: 1"
             assert cgb_bg_palette(gb, 2)[2] != cgb_bg_palette(gb, 2)[0], "the sign's own palette"
             assert cgb_obj_palette(gb, 3)[2] != cgb_obj_palette(gb, 4)[2], "orange serape top, green below"
         else:
             assert gb.mem(0xFF49) == 0xE4 and k["prop"] & 0x10, "the Kid on OBP1 (0xE4)"
-            assert oam(gb, 0)["prop"] & 0x10 == 0, "the Spigoteer on OBP0"
+            assert oam(gb, OAM_SPIG)["prop"] & 0x10 == 0, "the Spigoteer on OBP0"
+            assert oam(gb, OAM_HAND_KID)["prop"] & 0x10 == 0, "the bottles on OBP0"
         shot(gb, "intro")
         check_golden(gb, "qd_intro")
 
@@ -224,8 +275,8 @@ def test_the_screen(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_round_ready_steady_draw_and_won(model):
     """ROUND 1 / WAIT FOR THE SIGN for 60 frames and through the wait, DRAW! with the A badge and the bell, the player's A on
-    frame t: 500 + (R - t) x 20 points, "YOU 0.08" with the story font's '.', the poses (he pops the cork, the Kid
-    fumbles), his pip, then the planks again and round 2."""
+    frame t: 500 + (R - t) x 20 points, "YOU 0.08" with the story font's '.', the poses (he aims his uncorked bottle,
+    the Kid holds his), his pip, then the planks again and round 2 (both shaking again)."""
     with quickdraw(model) as gb:
         until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 200)
         frames(gb, 2)
@@ -252,14 +303,19 @@ def test_a_round_ready_steady_draw_and_won(model):
         assert text(gb, 3) == reaction_text(5)
         assert tilemap_row(gb, 3, 11, 1) == [QD_BG + QH["QDB_PERIOD"]], "the '.'"
         assert pips(gb) == (0, 1)
-        assert poses(gb) == (spig_tile(8), kid_tile(KID_FUMBLE), POP, FUMBLE)
-        assert oam(gb, OAM_POP_KID)["prop"] & 0x20, "the Kid's bottle flipped"
+        p = poses(gb)
+        assert p[:4] == (spig_tile(8), kid_tile(KID_STAND), None, STILL) and p[4] in AIMS and p[5:] == (None, None)
+        shake_bodies(gb, you=False)
+        assert oam(gb, OAM_AIM)["prop"] & 0x20, "his aimed bottle: the Kid's art X-flipped"
+        assert not oam(gb, OAM_HAND_KID)["prop"] & 0x60, "the Kid's bottle: held as ever, not flipped"
         shot(gb, "you_win")
         check_golden(gb, "qd_you_win")
         after_show(gb)
         frames(gb, 2)
         assert qd(gb)["round"] == 2 and sign_rows(gb) == BACK_ROWS and text(gb, 2) == "ROUND 2"
-        assert poses(gb) == (spig_tile(7), kid_tile(KID_STAND), None, None)
+        shake_bodies(gb)
+        p = poses(gb)
+        assert p[2] in (bottle(B_UP), bottle(B_DOWN)) and p[3] in (bottle(B_UP), bottle(B_DOWN)) and p[4:] == (None,) * 3
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -285,7 +341,10 @@ def test_no_press_is_too_slow_and_the_kid_draws(model):
         assert s["res"] == QR_SLOW and s["t"] == 0 and (s["you"], s["kid"]) == (0, 1)
         frames(gb, 2)
         assert text(gb, 3) == "TOO SLOW" and pips(gb) == (1, 0) and gb.read("sfx_count", 9)[SFX_LIFE] == slow + 1
-        assert poses(gb) == (spig_tile(9), kid_tile(KID_DRAW), FUMBLE, POP)
+        p = poses(gb)
+        assert p[:4] == (spig_tile(7), kid_tile(KID_DRAW), STILL, None) and p[4] in AIMS and p[5:] == (None, None)
+        shake_bodies(gb, kid=False)
+        assert not oam(gb, OAM_AIM)["prop"] & 0x20, "the Kid's aimed bottle: not flipped"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -306,7 +365,8 @@ def test_an_early_press_is_a_foul(model, button):
         assert gb.mem16("mg_score") == 0 and gb.read("sfx_count", 9)[SFX_BREAK] == crash + 1
         frames(gb, 2)
         assert text(gb, 3) == "FOUL" and sign_rows(gb) == BACK_ROWS and pips(gb) == (1, 0)
-        assert poses(gb) == (spig_tile(9), kid_tile(KID_DRAW), FUMBLE, POP)
+        assert poses(gb) == (spig_tile(7), kid_tile(KID_STAND), bottle(B_FIZZ), STILL, None, None, bottle(B_FOAM))
+        shake_bodies(gb)
         if button == "a":
             shot(gb, "foul")
             check_golden(gb, "qd_foul")
@@ -366,9 +426,11 @@ def play(gb, seq):
                                        ("WLLWL", MEDAL_BRONZE), ("LLWL", MEDAL_BRONZE), ("LLL", MEDAL_NONE)])
 def test_best_of_five_stops_at_three_and_the_medal_is_the_rounds(model, seq, medal):
     """First to three ends the match on its round (never a 6th); YOU WIN / THE KID WINS and the score line; the
-    match won +2000; the outro poses; the medal: GOLD 3-0, SILVER 3-1 / 3-2, BRONZE lost with a round, else none."""
+    match won +2000; the outro poses (YOU WIN: the Spigoteer aims, no stream, the Kid drips holding his bottle; THE KID
+    WINS: the Kid cheers, the Spigoteer drips holding his); the medal: GOLD 3-0, SILVER 3-1 / 3-2, BRONZE lost with a
+    round, else none."""
     with quickdraw(model) as gb:
-        start = score(gb)
+        start, wall0 = score(gb), wall_row(gb)
         pts = play(gb, seq)
         you, kid = seq.count("W"), seq.count("L")
         s = qd(gb)
@@ -379,13 +441,21 @@ def test_best_of_five_stops_at_three_and_the_medal_is_the_rounds(model, seq, med
         assert text(gb, 2) == ("YOU WIN" if won else "THE KID WINS")
         assert text(gb, 3) == (f"3 TO {kid}" if won else f"3 TO {you}")
         assert gb.mem16("mg_score") == pts + (MATCH_PTS if won else 0)
+        p = poses(gb)
         if won:
-            assert poses(gb) == (spig_tile(8), kid_tile(KID_FUMBLE), POP, FUMBLE)
+            assert p[:4] == (spig_tile(8), kid_tile(KID_STAND), None, STILL) and p[4] == aim(0) and p[5] in DRIPS
+            assert p[6] is None
+            shake_bodies(gb, you=False)
         else:
-            assert poses(gb) == (spig_tile(BT_FAIL), kid_tile(KID_CHEER), None, None)
+            assert p[:5] == (spig_tile(7), kid_tile(KID_CHEER), STILL, None, None) and p[5] in DRIPS and p[6] is None
+            shake_bodies(gb, kid=False)
+        assert wall_row(gb) == wall0, "no stream on the end screen"
         if seq == "LLL":
             shot(gb, "kid_cheer")
             check_golden(gb, "qd_kid_cheer")
+        if seq == "WWW":
+            shot(gb, "match_won")
+            check_golden(gb, "qd_match_won")
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, END_LEN + 2)
         until(gb, lambda: gb.mem("overlay_on") == 1, 10)
         frames(gb, 2)
@@ -494,6 +564,188 @@ def test_a_feint_on_screen(model):
         shot(gb, "feint")
         check_golden(gb, "qd_feint")
 
+
+# ---- the soda duel (owner-approved 2026-10-11) -----------------------------------------------------------------------
+def hand_y(dy=0):
+    return DUEL_Y + 6 + dy + 16
+
+
+# (Tests look at the screen: the tilemap and OAM after the VBlank that follows the game's frame t - 1. The frame a
+# round ends on runs long, so the frames of the round-end hold are keyed by the game's t, not counted.)
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_shake_runs_through_the_banner_and_stops_at_draw(model):
+    """The intro holds still; from ROUND 1 / WAIT FOR THE SIGN to DRAW! both shake their bottles, UP (2 px up) and
+    DOWN (1 px down), out of step (the Kid every 4 frames, the Spigoteer every 5), in the STAND bodies without the
+    holstered bottle; at DRAW! both freeze holding the bottle STILL until the round ends."""
+    up, down = bottle(B_UP), bottle(B_DOWN)
+    with quickdraw(model) as gb:
+        frames(gb, 30)
+        assert poses(gb)[2:] == (STILL, STILL, None, None, None)
+        to_state(gb, QS_READY, 300)
+        frames(gb, 2)
+        kid, you = [], []
+        while len(kid) < 120:
+            frames(gb, 1)
+            assert qd(gb)["st"] in (QS_READY, QS_WAIT)
+            shake_bodies(gb)
+            p = poses(gb)
+            assert p[4:] == (None, None, None)
+            ky, yy = oam(gb, OAM_HAND_KID)["y"], oam(gb, OAM_HAND_YOU)["y"]
+            assert (p[3], ky) in ((up, hand_y(-2)), (down, hand_y(1))) and (p[2], yy) in ((up, hand_y(-2)), (down, hand_y(1)))
+            assert oam(gb, OAM_HAND_KID)["x"] == KID_X + 12 + 8 and oam(gb, OAM_HAND_YOU)["x"] == SPIG_X - 4 + 8
+            kid.append(p[3])
+            you.append(p[2])
+        runs = lambda seq: [len(list(g)) for _, g in itertools.groupby(seq)][1:-1]
+        assert set(runs(kid)) == {4} and set(runs(you)) == {5}, (runs(kid), runs(you))
+        poke_wait(gb, 1)
+        to_state(gb, QS_DRAW, 5)
+        frames(gb, 2)
+        for _ in range(KID_R[0] - 4):
+            frames(gb, 1)
+            assert qd(gb)["st"] == QS_DRAW
+            shake_bodies(gb)
+            assert poses(gb)[2:] == (STILL, STILL, None, None, None)
+            assert oam(gb, OAM_HAND_KID)["y"] == oam(gb, OAM_HAND_YOU)["y"] == hand_y()
+
+
+def spray_row(wall, who, t):
+    """The stream row the game's round-end frame t asks for (the two flow tiles as one: 'mid')."""
+    row = list(wall)
+    if t < 1:
+        return row
+    n = min(STREAM_STEP * t, STREAM_N)
+    cut = STREAM_STEP * (t - STREAM_CUT + 1) if t >= STREAM_CUT else 0
+    for k in range(cut, n):
+        c = 13 - k if who == "you" else 6 + k
+        if k == n - 1 and n < STREAM_N:
+            row[c] = stream_tile(ST_HEAD_L if who == "you" else ST_HEAD_R)
+        elif k == 0 and who == "kid":
+            row[c] = stream_tile(ST_RISE_R)
+        else:
+            row[c] = "mid"
+    return row
+
+
+def round_end(gb, check=None, shots=()):
+    """The round-end hold frame by frame: {the game's t: (the stream row as shown, poses)}, the screen of t keyed by
+    t (it shows frame t - 1's update). check(gb) on every frame; shots: {t: golden name}."""
+    seen = {}
+    while qd(gb)["st"] == QS_SHOW:
+        frames(gb, 1)
+        t = qd(gb)["t"]
+        if qd(gb)["st"] != QS_SHOW:
+            break
+        if check:
+            check(gb)
+        seen[t] = (wall_row(gb), poses(gb))
+        if t in shots and shots[t]:
+            shot(gb, shots[t])
+            check_golden(gb, shots[t])
+            shots = {**shots, t: None}
+    return seen
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("who", ["you", "kid"])
+def test_the_winner_sprays_and_the_loser_gets_wet(model, who):
+    """The round's winner (the player on a right press; the Kid on TOO SLOW) takes his DRAW pose with the aimed bottle
+    (the spurt flickering) and sprays: the stream crosses the wall's row 3 columns a frame (10 in 4 frames, a splash
+    leading; the Kid's starts with the RISE tile), flows (MID A / MID B), is cut off from the shooter's end from frame
+    36 and the wall is back, tile for tile, by frame 40. The loser holds his bottle STILL throughout; SPLASH on his head
+    from frame 4 to 37, then DRIP A / B. The wall is the same before and after the round."""
+    mid = (stream_tile(ST_MID_A), stream_tile(ST_MID_B))
+
+    def loser_holds(gb):
+        h = OAM_HAND_KID if who == "you" else OAM_HAND_YOU
+        assert oam(gb, h)["tile"] == STILL and oam(gb, h)["y"] == hand_y()
+        assert not oam(gb, h)["prop"] & 0x60 if who == "you" else oam(gb, h)["prop"] & 0x60 == 0x20
+
+    with quickdraw(model) as gb:
+        to_state(gb, QS_WAIT)
+        frames(gb, 2)
+        wall = wall_row(gb)
+        to_draw(gb)
+        if who == "you":
+            press_on(gb, 5)
+        else:
+            until(gb, lambda: qd(gb)["st"] == QS_SHOW, KID_R[0] + 3)
+        seen = round_end(gb, loser_holds, {20: "qd_spray" if who == "you" else "qd_kid_spray"})
+        assert len(seen) >= SHOW_LEN - 3
+        flows = set()
+        for t, (row, p) in seen.items():
+            if t < 2:
+                continue
+            flows |= {v for v in row if v in mid}
+            assert len({v for v in row if v in mid}) <= 1, ("one flow tile at a time", t, row)
+            assert ["mid" if v in mid else v for v in row] == spray_row(wall, who, t - 1), t
+            if who == "you":
+                assert p[0] == spig_tile(8) and p[2] is None and p[3] == STILL
+            else:
+                assert p[1] == kid_tile(KID_DRAW) and p[3] is None and p[2] == STILL
+            assert p[4] in AIMS and p[6] is None
+            w = t - 1
+            assert p[5] == (None if w < WET_AT else wet(W_SPLASH) if w < DRIP_AT else p[5]), t
+            if w >= DRIP_AT:
+                assert p[5] in DRIPS
+        assert flows == set(mid), "the stream flows"
+        assert {p[4] for _, p in seen.values()} == set(AIMS), "the spurt flickers"
+        assert {p[5] for _, p in seen.values()} >= set(DRIPS)
+        assert seen[STREAM_CUT + 4][0] == wall, "the wall restored by frame 40"
+        after_show(gb)
+        frames(gb, 2)
+        assert wall_row(gb) == wall, "the wall tiles before and after the round"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_foul_fizzes_over_the_player(model):
+    """A foul: the Spigoteer's own bottle fizzes (FIZZ frames 0-23) with the foam column above it (2-17), the SPLASH on
+    his head (6-23), then the drips and the bottle STILL again; the Kid stands holding his bottle; no stream."""
+    with quickdraw(model) as gb:
+        to_state(gb, QS_WAIT)
+        frames(gb, 3)
+        wall = wall_row(gb)
+        tap(gb, "a")
+        assert qd(gb)["res"] == QR_FOUL
+        seen = round_end(gb, shots={10: "qd_foul_fizz"})
+        assert len(seen) >= SHOW_LEN - 4
+        for t, (row, p) in seen.items():
+            if t < 3:
+                continue
+            w = t - 1
+            assert row == wall
+            assert p[:2] == (spig_tile(7), kid_tile(KID_STAND)) and p[3] == STILL and p[4] is None, t
+            assert p[2] == (bottle(B_FIZZ) if w < FOUL_FIZZ else STILL), t
+            assert p[6] == (bottle(B_FOAM) if FOUL_FOAM_AT <= w < FOUL_FOAM_END else None), t
+            if w < FOUL_WET_AT:
+                assert p[5] is None, t
+            elif w < FOUL_FIZZ:
+                assert p[5] == wet(W_SPLASH), t
+            else:
+                assert p[5] in DRIPS, t
+        assert {p[5] for _, p in seen.values()} >= set(DRIPS)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_whole_match_keeps_to_10_sprites_a_line(model):
+    """A full match (seed 0x1234: the player wins, too slow, a foul, then wins with the feints of rounds 3-5) played
+    frame by frame from the intro to the result: never more than 10 sprites on a line (the soda duel's worst is 9:
+    the spray's row, 2 a man, 2 the aimed bottle, 1 the loser's bottle, 2 the wet overlay)."""
+    plan = "WSLWW"
+    with quickdraw(model, seed=0x1234) as gb:
+        worst, fouled = [0], set()
+        while gb.mem("mg_phase") != MG_RESULT:
+            s = qd(gb)
+            c = plan[max(s["round"] - 1, 0)]
+            if gb.mem("mg_phase") == MG_PLAY and s["st"] == QS_WAIT and c == "L" and s["round"] not in fouled:
+                fouled.add(s["round"])
+                tap(gb, "a")
+            elif gb.mem("mg_phase") == MG_PLAY and s["st"] == QS_DRAW and c == "W" and s["t"] == 3:
+                tap(gb, right_button(gb))
+            else:
+                frames(gb, 1, worst)
+        s = qd(gb)
+        assert (s["you"], s["kid"], s["round"]) == (3, 2, 5)
+        assert worst[0] <= 9, worst
 
 # ---- after Quick Draw: everything it borrowed is back --------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

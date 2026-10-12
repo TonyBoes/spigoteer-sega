@@ -7,7 +7,7 @@
 //
 // Resources a game may use (no patrons, mugs or show while it runs; the next level load puts everything back):
 //   BG tile ids MG_GAME_BG..255 (MG_BG..MG_GAME_BG-1 hold the medal icon); OBJ tile ids 56-91 and 96-127 (and 128+ not
-//   used as BG; not 92-95, the coin: it is loaded once at boot, not by the level load); OAM 4-39 (0-3: the Spigoteer, mg_spigoteer); CGB BG palettes 2-3 (4 is the medal's in the result window; 0 and
+//   used as BG; not 92-95, the coin: it is loaded once at boot, not by the level load); OAM 0-39 (mg_spigoteer draws the Spigoteer in the 4 slots from the one it is given); CGB BG palettes 2-3 (4 is the medal's in the result window; 0 and
 //   5-7 the venue backdrop; 1 the HUD), CGB OBJ palettes 1-7; DMG OBP1. Text: mg_say (game.h, ROM0) on rows
 //   MG_TEXT_A / MG_TEXT_B (the banner rows), at most 4 lines a frame.
 #ifndef MG_H
@@ -60,7 +60,7 @@ uint8_t mg_of_venue(uint8_t venue) BANKED;       // the venue's (the chapter's) 
 void mg_points(uint16_t n) BANKED;               // n points to mg_score and the HUD score
 void mg_finish(void) BANKED;                     // the play is over: MG_END (the game's outro, then the result)
 uint8_t mg_rand(void) BANKED;                    // the game's own 16-bit xorshift on mg_seed (the bar's RNG untouched)
-void mg_spigoteer(uint8_t x, uint8_t y, uint8_t frame, uint8_t left) BANKED;   // OAM 0-3, screen px of his top-left
+void mg_spigoteer(uint8_t x, uint8_t y, uint8_t frame, uint8_t left, uint8_t oam) BANKED;   // OAM oam..oam+3, px of his top-left
 void mg_number(char *dst, uint16_t n) BANKED;    // n in decimal, no leading zeros, 0-terminated (dst: WRAM, >= 6)
 
 // ---- the games -------------------------------------------------------------------------------------------------
@@ -98,6 +98,9 @@ struct qd_state {               // tests read these at story_scratch + offset (t
     uint8_t sign[2][14];        // the sign's two letter rows (VBlank queue source; the frame rows at entry)
     uint8_t pips[6];            // row 12: the pips, the Kid's 3 and the player's 3 (VBlank queue source)
     char    txt[14];            // a text line being built
+    uint8_t anim;               // frames counted by qd_update (the shake's and the drips' beat)
+    uint8_t wall[20];           // the wall's tile row under the stream, saved at entry
+    uint8_t row[20];            // the stream row being shown (VBlank queue source)
 };
 
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).

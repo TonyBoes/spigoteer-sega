@@ -1662,7 +1662,7 @@ DRAW! sign and the pips, in assets/art/quickdraw/ ("; Art: approved design (owne
   held from the first 60 frames through DRAW! is no press); A or B during the wait, or the other button after DRAW!: FOUL. Feints
   from round 3, one a round, 48 frames, ending >= 30 frames before DRAW!: a tumbleweed rolling along the floor
   (SFX_SHAKE) or a crow dropping onto the sign, cawing (SFX_LAUNCH) and leaving. After a round 60 frames: the poses
-  (the winner's cork pops, the loser fumbles the bottle), the pips, "YOU 0.32" (hundredths, the story font's '.' tile
+  (the soda duel below; first built as the winner's cork popping and the loser fumbling), the pips, "YOU 0.32" (hundredths, the story font's '.' tile
   patched into mg_say's queued row) / FOUL / TOO SLOW (SFX_SERVE / SFX_BREAK / SFX_LIFE). First to three: YOU WIN /
   THE KID WINS and "3 TO n" through MG_END (the Kid cheers and the Spigoteer slumps when the Kid wins), then the result.
   Points: 500 a round + (R - t) x 20, the match +2000. Medal (qd_medal, not mg_score thresholds; mg.c asks the game):
@@ -1709,6 +1709,23 @@ DRAW! sign and the pips, in assets/art/quickdraw/ ("; Art: approved design (owne
   qd_foul, qd_feint, qd_kid_cheer, qd_result, mg_list, mg_list_locked. Replaced on purpose: title_bonus (BONUS gains
   MINI GAMES), mg_story_gold (the saloon's story slot is Quick Draw now, not the stub), mg_result (the stub's practice
   run: the frames its rounds 3-5 see the test's A on moved with the code layout; only the score digits differ).
+- **The soda duel** (owner-approved 2026-10-11, replacing the cork pop and the fumble; art in assets/art/quickdraw/
+  shake_bodies, shake_bottle, aim_bottle, stream, wet; pop.txt and its 4 tiles removed): through the banner both
+  shake a bottle in the fist (the STAND bodies without the holstered bottle; the Kid every 4 frames, the Spigoteer
+  every 5); at DRAW! both freeze. The round's winner (the Kid on TOO SLOW) takes his DRAW pose with a level, uncorked
+  bottle and sprays a stream drawn as BG tiles on the wall's row 15 between them (3 columns a frame, flowing, cut off
+  from his end from frame 36, the wall back from its copy by frame 40); the loser holds his bottle as ever, foam
+  SPLASH over his head from frame 4, then DRIP A / B. A FOUL fizzes over the player's own bottle (FIZZ, a foam column,
+  SPLASH, drips); the Kid stands. YOU WIN: the Spigoteer aiming, no stream, the Kid dripping; THE KID WINS: the Kid's
+  cheer, the Spigoteer dripping. mg_spigoteer takes a starting OAM slot, so qd gives the slots in draw order (wet 0-1,
+  foam 2, bottles 3-4, aimed bottle 5-6, the Spigoteer 7-10, the Kid 11-14, tumbleweed 15-16, crow 17): no re-sort.
+  Worst line 9. OBJ tiles: 56-87 (his poses, tumbleweed), 96-127 (the Kid), 164-206 (crow, the duel's 34 OBJ tiles and
+  the stream's 5 BG tiles, the same VRAM); 92-95 (the coin) untouched. State: anim and the 40 stream-row bytes (the
+  wall's copy, the row shown) in struct qd_state. Tests (test_qd.py, 54): the shake and its freeze, the stream crossing
+  and clearing with the wall tile for tile the same before and after (the player's and the Kid's spray), the wet
+  loser, the foul's fizz, the end poses, a whole match frame by frame at <= 9 sprites a line. Goldens replaced:
+  qd_intro, qd_draw, qd_you_win, qd_foul, qd_feint, qd_kid_cheer, qd_result, mg_story_gold; new: qd_spray,
+  qd_kid_spray, qd_foul_fizz, qd_match_won.
 - Spec gaps: the badge art is a letter in a dark disc, not "black on white" as 4.1's text says (the approved art
   decides); the pips are on row 12 (the approved mock-up), not the HUD row the spec's sketch shows; with no new SFX
   allowed the bell, pop, caw and rustle reuse SFX_CATCH / SFX_SERVE / SFX_LAUNCH / SFX_SHAKE; Practice's 2.3 chapter

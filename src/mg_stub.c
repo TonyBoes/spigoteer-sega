@@ -61,7 +61,7 @@ void stub_enter(void) BANKED {
     lamp(0, 1);
     S.st = GL_NEXT; S.round = 0; S.t = 0; S.wait = 0; S.react = 0;
     mg_timer = STUB_TIME;
-    mg_spigoteer(BT_X, BT_Y, BT_IDLE, 0);
+    mg_spigoteer(BT_X, BT_Y, BT_IDLE, 0, 0);
 }
 
 static void show(uint8_t react) {
@@ -111,5 +111,5 @@ void stub_update(uint8_t pressed) BANKED {
         }
     }
     if (S.st == GL_SHOW) f = S.react ? BT_CATCH : BT_FAIL;
-    mg_spigoteer(BT_X, BT_Y, f, 0);
+    mg_spigoteer(BT_X, BT_Y, f, 0, 0);
 }

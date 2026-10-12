@@ -97,9 +97,9 @@ uint8_t mg_rand(void) BANKED {
     return (uint8_t)s;
 }
 
-void mg_spigoteer(uint8_t x, uint8_t y, uint8_t frame, uint8_t left) BANKED {
+void mg_spigoteer(uint8_t x, uint8_t y, uint8_t frame, uint8_t left, uint8_t oam) BANKED {
     uint8_t base = frame * BARTENDER_TILES_PER_FRAME, xa = x + 8, xb = x + 16, fl = 0;
-    OAM_item_t *o = shadow_OAM;
+    OAM_item_t *o = shadow_OAM + oam;
     if (left) { xa = x + 16; xb = x + 8; fl = S_FLIPX; }
     y += 16;
     o->y = y;      o->x = xa; o->tile = base;     o->prop = fl; o++;
