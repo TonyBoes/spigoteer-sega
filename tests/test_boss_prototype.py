@@ -205,6 +205,26 @@ def test_the_cycle_green_yellow_red_ride(model):
         assert gb.mem("lives") == 3
 
 
+@pytest.mark.parametrize("model", ["cgb"])
+def test_the_belts_tiles_and_palette_change_in_the_same_frame(model):
+    """RED's start: the 18 counter attributes become palette 7 in the very frame the counter tiles become the belt, never
+    a frame earlier (the old blip: the plain counter tiles in the keg's palette for one frame) or later. Every frame from
+    just before T_RED to a few frames in: palette 7 on the counter if and only if the counter tiles are the belt's."""
+    with fight(model, C) as gb:
+        quiet(gb)
+        to_t(gb, T_RED - 6)
+        seen = []
+        for _ in range(20):
+            frames(gb, 1)
+            tiles = counter(gb, B)[:18]
+            attrs = attr_row(gb, 5 + 3 * B + 2)[:18]
+            belt = any(t in (CONV, CONV + 1) for t in tiles)
+            sevens = attrs == [KEG] * 18
+            assert belt == sevens, (t_of(gb), tiles, attrs)
+            seen.append(belt)
+        assert not seen[0] and seen[-1] and seen.index(True) > 0, "the belt starts inside the window"
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_battery_launched_at_the_start_of_yellow_is_caught(model):
     """A battery on its way at yellow's first frame (launched at the spout) still reaches him in the yellow (the 60 frames

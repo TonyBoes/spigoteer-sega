@@ -5,7 +5,7 @@
 //   GREEN  0-239    the lamp on his antenna is solid, he takes batteries as ever.
 //   YELLOW 240-299  the tell: the lamp is a ring (HAT frame LAMP_RING), he stands but still takes a battery.
 //   RED    300-449  the lamp is an X, the RED pose (screen X, arm up), his bar's conveyor runs right (the approved K5 stripes + K6 arrows: tiles
-//                   BOSS_ICE_BG, 2 frames, the counter's attributes the keg's palette 7, the counter row rewritten every 6 frames through the VBlank queue):
+//                   BOSS_ICE_BG, 2 frames, the counter's attributes the keg's palette 7, the counter row rewritten every 6 frames through the VBlank queue, the first write together with the attributes):
 //                   every full battery on his bar turns round at once (MUG_RETURN, 1 px a frame to the right), and one
 //                   that reaches him bounces the same way; the bartender catches a returned battery as an empty at the
 //                   tap (it breaks past the tap end: a life). The fair-empties schedule (next_arrival) is pushed past
@@ -57,15 +57,17 @@ static uint8_t counter_y(void) {
 
 // The 18 counter attributes: BG palette 7 (BGPAL_BAR_B, the keg's yellow / steel / dark: the conveyor's colours) while the belt
 // runs, the venue's own after. CGB only. The VBlank queue (bank 1) with the LCD on, VRAM with it off. The source must be in WRAM
-// (the queue is drained in VBlank, when another ROM bank is mapped): the belt's 7s are proto.row, filled here, so the next
-// write into proto.row (counter_put) is at least a frame later (the first belt frame is one frame after the RED start).
+// (the queue is drained in VBlank, when another ROM bank is mapped): the belt's 7s are BELT_ATTR, 18 bytes of story_scratch
+// (free in a fight, no WRAM of their own), so they can wait in the queue beside proto.row's tiles: the belt's first tiles and
+// its palette go out in the same VBlank (to_red), never one frame apart.
+#define BELT_ATTR  (story_scratch + 200)
 static void counter_attr(uint8_t belt) {
     const uint8_t *src = venue.bar_attr + BAR_COUNTER_DROW * 20;
     uint8_t k;
     if (!is_cgb) return;
     if (belt) {
-        for (k = 0; k != CONV_COLS; k++) proto.row[k] = BGPAL_BAR_B;
-        src = proto.row;
+        for (k = 0; k != CONV_COLS; k++) BELT_ATTR[k] = BGPAL_BAR_B;
+        src = BELT_ATTR;
     }
     if (LCDC_REG & LCDCF_ON) vq_add(1, src, 0, counter_y(), CONV_COLS);
     else {
@@ -122,7 +124,8 @@ static void to_red(void) {
     for (i = 0; i != MAX_MUGS; i++)
         if (mug_state[i] == MUG_FULL && mug_bar[i] == boss_bar) turn_round(i);
     boss_state = BS_SPECIAL;
-    counter_attr(1);                     // (the belt's tiles follow in this frame's BEV_FRAME: counter_put)
+    counter_put(0);                      // the belt's first tiles and its palette: the same VBlank (tiles queued first)
+    counter_attr(1);
 }
 
 static void stand(void) {                // YELLOW, RED: he stands (a gulp is over)
@@ -191,7 +194,7 @@ uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED {
             break;
         }
         if (proto.t >= T_YELLOW && proto.t < T_RIDE) stand();
-        if (on_belt() && (uint8_t)(proto.t - T_RED - 1) % CONV_EVERY == 0) counter_put(((uint8_t)(proto.t - T_RED - 1) / CONV_EVERY) & 1);   // (from T_RED + 1: the attributes' frame is T_RED)
+        if (on_belt() && proto.t != T_RED && (uint8_t)(proto.t - T_RED) % CONV_EVERY == 0) counter_put(((uint8_t)(proto.t - T_RED) / CONV_EVERY) & 1);   // (T_RED's frame 0: to_red)
         break;
     }
     return 0;

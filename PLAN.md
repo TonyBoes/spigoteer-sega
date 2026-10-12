@@ -2173,10 +2173,14 @@ Both new dispatchers autobank into bank 12 (about 4.4 KB for the two with their 
     `conveyor` now reads the two 8x8 tiles CONV_A / CONV_B from assets/art/boss/prototype.txt (BG 246-247, still two ids that
     alternate over the factory's two counter tile ids; the generated chevrons() is gone). Palette: the keg's BG palette 7
     (BGPAL_BAR_B: yellow #F8D848, steel #7888A0, dark #101828), no palette added: at RED start the 18 counter attributes become 7
-    (one vq_add bank 1 from proto.row, filled with 7s; the queue is drained in VBlank with another ROM bank mapped, so its source
-    has to be WRAM: a static const array read garbage), restored from venue.bar_attr with counter_put(2) at the ride, on a lost
-    life and at the outro; the next level load restores it anyway. The tile writes start one frame after the attribute write
-    (RED + 1, then every 6 frames) because both use proto.row (the state buffer is full at 20 B: no new WRAM). DMG shades 153 / 85 /
+    (one vq_add bank 1; the queue is drained in VBlank with another ROM bank mapped, so its source has to be WRAM: a static
+    const array read garbage), restored from venue.bar_attr with counter_put(2) at the ride, on a lost life and at the outro;
+    the next level load restores it anyway. **Same VBlank (fixed 2026-10-12)**: the first belt tiles (proto.row, belt frame 0)
+    and the 7s are queued in the same frame, tiles first (to_red), then every 6 frames from RED + 6. The first version wrote
+    the attributes at RED and the tiles at RED + 1 because both sources were proto.row (the state buffer is full at 20 B), which
+    showed the plain counter tiles in palette 7 for one frame. The 7s now sit in BELT_ATTR, 18 bytes of story_scratch at offset
+    200 (free in a fight; no new WRAM), so both entries can wait in the queue. Test: the attributes are 7 if and only if the
+    counter tiles are the belt, on every frame around T_RED. DMG shades 153 / 85 /
     0 (the same tile data). Contrast checked at 1x on both models with full and empty batteries standing on the K6 top (injected
     in RED): the lime bars and the dark case stay readable, so the top was NOT darkened. Test: the tile bytes equal K5 + K6, the
     keg palette's colours, the attributes 7 in RED and restored after the ride and after a lost life. Golden boss_prototype_red
