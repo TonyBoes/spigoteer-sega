@@ -121,7 +121,9 @@ text as its page, and two variants with the same condition on one page.
 
 ### INTRO: "The Big Pour"
 
-Picture: Fizzwater town square at night. The Golden Spigot on its fountain bursts apart and ten sparkling pieces fly off in every direction.
+Picture (pages 1-4): Fizzwater town square at night. The whole Golden Spigot gleams on its fountain, lanterns are strung across the square and a few townsfolk wait at the basin. The Spigoteer walks in from the right. (`assets/story/pictures/intro_before.txt`)
+
+Picture (page 5): the same square a moment later, after a white flash. The Golden Spigot has burst apart in a white starburst, and its ten pieces fly off in every direction with sparkle streaks. Dregs stands on the cobbles and the Spigoteer shrugs. Pages 6-8 stay on it. (`assets/story/pictures/intro_a.txt`)
 
 ```
 NARRATOR
@@ -939,7 +941,7 @@ I'LL POUR YOU ONE.
 
 ### FINALE: "The First Pour"
 
-Picture: Fizzwater square by day. The restored Golden Spigot gleams on its fountain, and all ten owners plus a sheepish Dregs gather round as it pours a glass of water.
+Picture: Fizzwater square by day under festival bunting. The restored Golden Spigot gleams on its fountain and pours a glass of water for the Spigoteer (in his cozy), a sheepish Dregs stands by, and the ten owners are lined up along the bottom. (`assets/story/pictures/finale_a.txt`)
 
 ```
 NARRATOR
@@ -985,7 +987,7 @@ ROUND'S ON ME!
 
 ### CREDITS: "Last Call"
 
-Picture: the Golden Spigot drips over the scrolling credits while Dregs, in an apron, mops the floor in the corner.
+Picture: the morning after, Fizzwater square at dawn. The restored Golden Spigot drips on its fountain, Dregs in an apron mops the cobbles, last night's bunting has come loose, and the Sasquatch's coffee stand opens at the right. (`assets/story/pictures/credits_b.txt`)
 
 ```
 NARRATOR

@@ -146,6 +146,14 @@ The old original in-game loop and the old title tune (a verse of "Oh! Susanna") 
 
 Original: simple register-level effects defined in `src/music.c`.
 
+## Art
+
+All pixel art is original, drawn for this project as ASCII sources under `assets/` (nothing is taken from any other
+game). That includes the story portraits (`assets/story/portraits/*.txt`) and the four full-screen story pictures
+(`assets/story/pictures/*.txt`): the INTRO's square at night before and after the burst (`intro_before`, `intro_a`),
+the FINALE's line-up (`finale_a`) and the CREDITS' morning after (`credits_b`). Their Golden Spigot (design F1, and its
+ten story pieces), the small Dregs (J2) and the ten owners' heads were drawn for them.
+
 ## Tools used, not shipped
 
 RGBDS and GBDK-2020 (build toolchain), PyBoy and SameBoy (testing), Pan Docs (hardware reference).
