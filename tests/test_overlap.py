@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import GAME, ROOT, bar_top_row, bar_top_y, venue_rows
+from conftest import GAME, ROOT, bar_top_row, bar_top_y, logic_paused, venue_rows
 from test_patrons import (BASE, DRINKING, EMPTY, FULL, HELD, MAX_M, MAX_P, PUSHED, SHIFT0_OFS, WALKING, clear_patrons,
                           freeze, go, hold_mug, inject_mug, lineup, mugs, pose_first, put, set_patron)
 
@@ -247,11 +247,12 @@ def test_a_walker_waits_rather_than_make_three_in_a_column(gb):
     """Two drinkers share columns 6-7 (x 48 and 52); a walker from the left end may pass through them only one column at
     a time: from x 32 (columns 4-5) his next step would take him into column 6 with both of them: he waits there,
     and goes on when one of them has left. Never three patrons in a tile column."""
-    clear_patrons(gb)
-    go(gb)
-    d1 = set_patron(gb, 3, 48, state=DRINKING, timer=0)
-    d2 = set_patron(gb, 3, 52, state=DRINKING, timer=40)   # (52: columns 6-8, the sway keeps him there)
-    w = set_patron(gb, 3, 24)
+    with logic_paused(gb):                       # (the pokes land between two game frames, whatever the code layout)
+        clear_patrons(gb)
+        go(gb)
+        d1 = set_patron(gb, 3, 48, state=DRINKING, timer=0)
+        d2 = set_patron(gb, 3, 52, state=DRINKING, timer=40)   # (52: columns 6-8, the sway keeps him there)
+        w = set_patron(gb, 3, 24)
     gb.run(2)
     frames = Frames(gb)
     xs_w = []
@@ -377,11 +378,12 @@ def test_catch_order_with_overlapping_patrons(gb):
 def test_an_overlapped_drinker_sends_his_empty_and_the_bartender_catches_it(gb):
     """A drinker standing over a walker (one of them lifted) finishes, winds up and sends his empty from his right
     edge; it slides to the bartender, who catches it (100 points). Fair empties as before."""
-    clear_patrons(gb)
-    freeze(gb)
-    w = set_patron(gb, 0, 70)
-    d = set_patron(gb, 0, 74, state=DRINKING, timer=85, variant=1)
-    hold_mug(gb, d, 0)
+    with logic_paused(gb):                       # (the pokes land between two game frames, whatever the code layout)
+        clear_patrons(gb)
+        freeze(gb)
+        w = set_patron(gb, 0, 70)
+        d = set_patron(gb, 0, 74, state=DRINKING, timer=85, variant=1)
+        hold_mug(gb, d, 0)
     gb.run(4)
     assert (lift(gb, w) | lift(gb, d)) & 3
     score0 = int.from_bytes(gb.read("score", 4), "little")

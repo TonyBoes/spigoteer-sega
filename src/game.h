@@ -322,7 +322,24 @@ void vq_frame_begin(void);
 void vq_frame_end(void);
 void vq_reset(void);
 void queue_vram(void);
-extern uint8_t base_tile[2][20], base_attr[2][20];   // the bar's two wall rows without patrons (current venue)
+extern uint8_t base_all[4][2][20];             // the bar's two wall rows without patrons (current venue): tiles, CGB
+#define base_tile  (base_all[0])               // attributes, then an R bar's (P3, screen order; restore_base relies on
+#define base_attr  (base_all[1])               // this layout)
+#define base_rtile (base_all[2])
+#define base_rattr (base_all[3])
+extern uint8_t sh_rows[2][NUM_BARS * 2][32];   // (render.c) the bars' wall rows as on screen: tile ids, CGB attributes
+uint8_t quick_mirror(uint8_t p, uint8_t d) BANKED;   // (mirror.c) R bar: patron p's quick redraw at d into sh_rows; his screen column
+// P3/P4 (CLASSIC): bars whose patrons come from the right. bar_dirs bit b: bar b is R. Every rule stays in bar-local x
+// (0 = the patrons' end, TAP_X = the tap); an R bar is only drawn mirrored (render.c: BG columns 19 - c with every
+// tile flipped, OAM X 168 - X with S_FLIPX toggled; Left / Right swap in main.c). src/mirror.c sets the tables at level
+// load: CGB flips by attribute; DMG flips its patron tiles in place when every bar is R, and on a mixed level holds both
+// directions at even shifts (draw_mask 0xFE: patrons drawn at even x, owner option (a)); the keg, spout and counter get
+// flipped copies in free ids. level_dirs: the LEVEL harness's directions (a test hook and the debug box), 0 = all L.
+extern uint8_t bar_dirs, level_dirs, draw_mask, mir_attr, mir_bswap, mir_short;
+extern uint8_t bar_sfp[2 * NUM_BARS];          // (mirror.c) OAM attribute toggle of bar b: [b] mugs, glass, fill, coin; [4 + b] lifted patrons
+void mirror_oam(void) BANKED;                 // (mirror.c) every drawn play frame with an R bar: OAM 4-27 to their mirrored place
+extern uint8_t st_tab[64], ctr_rtile[20], ctr_rattr[20];
+void mirror_load(uint8_t dirs) BANKED;        // LCD off: after load_venue and the patron tiles (start_level); 0 = all L (title)
 void draw_bartender(void);
 void draw_stage_fx(void);
 void hide_all_sprites(void);

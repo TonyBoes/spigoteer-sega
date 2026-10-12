@@ -119,7 +119,7 @@ void put_row(uint8_t y) {
 // when their turn comes. A patron redraw touches 3-4 columns x 2 rows x (tile + attribute) = 16-24 bytes, so
 // even 4 simultaneous redraws stay inside VBlank (vram_ly_min proves it in the tests).
 // rows indexed (bar << 1) | r, 32 wide: power-of-two strides keep SDCC from calling its slow multiply
-static uint8_t sh_rows[2][NUM_BARS * 2][32];   // [0]: tile ids, [1]: CGB attributes, right behind
+uint8_t sh_rows[2][NUM_BARS * 2][32];          // [0]: tile ids, [1]: CGB attributes, right behind (mirror.c: quick_mirror)
 #define sh_tile sh_rows[0]
 #define sh_attr sh_rows[1]
 static uint8_t dirty_x0[NUM_BARS], dirty_x1[NUM_BARS];
@@ -129,7 +129,7 @@ uint8_t vram_pending;             // dirty spans left to queue (keeps idle frame
 // The bar's two wall rows without patrons (wall, spout, keg), tile ids and CGB attributes by row and column:
 // what compose_dirty() restores under (and around) the patrons. Filled from the level's venue (load_venue, M9), the
 // same picture the level screen starts with. Row 1 follows row 0 directly (restore_base relies on it).
-uint8_t base_tile[2][20], base_attr[2][20];
+uint8_t base_all[4][2][20];   // base_tile, base_attr, then (P3, mirror.c) an R bar's base_rtile, base_rattr in screen order
 
 void mark_dirty(uint8_t b, uint8_t x0, uint8_t x1) {
     if (x1 > 20) x1 = 20;
@@ -157,23 +157,32 @@ static uint8_t cz_x0, cz_x1, cz_pal;      // span of the bar being composed, pal
 static uint8_t cz_palb;                   // ... and of his bottom tile row (M14a: an enhanced variant's differs; enhance.c)
 static uint8_t *cz_tile, *cz_attr;        // its first wall row in sh_tile / sh_attr (cz_attr 0 on DMG)
 
-// First tile of variant v pre-shifted by s px (M13a, column-major: column k is tiles + 2k (top) and + 2k + 1 (bottom);
-// shifts 1..7 first, the shift-0 poses last, so they double as 8x16 OBJ tiles for a lifted patron)
-#define ST(v, s) ((uint8_t)((s) ? PATRON_TILE_BASE + (v) * 42u + ((s) ? (s) - 1u : 0u) * 6u : PATRON_OBJ_BASE + (v) * 6u))
-#define ST8(v) ST(v, 0), ST(v, 1), ST(v, 2), ST(v, 3), ST(v, 4), ST(v, 5), ST(v, 6), ST(v, 7)
-static const uint8_t stamp_tile[32] = { ST8(0), ST8(1), ST8(2), ST8(0) };   // (variant 3 does not occur)
+// ---- P3/P4 mirrored bars (CLASSIC: patrons from the right). Every rule works in bar-local x (0 = the patrons' end, TAP_X
+// the tap); a bar marked R in bar_dirs is only DRAWN mirrored. Its shadow rows hold the SCREEN picture (local column c at
+// screen column 19 - c, every tile flipped: CGB attribute bit 5, DMG flipped tile data), so the copy list, the drain and
+// write_all_bars are unchanged; the dirty spans stay local (a span [x0, x1) is screen columns [20 - x1, 20 - x0)).
+// Sprites: an 8 px entry at OAM X goes to 168 - X with S_FLIPX toggled: the bartender, fill glass, mugs, lifted patrons and
+// coin are drawn at bar-local X and moved afterwards (mirror.c mirror_oam). Tables set at level load (mirror.c).
+uint8_t bar_dirs;                         // bit b: bar b is R
+uint8_t mir_attr;                         // CGB: the BG attribute bit of an R bar (S_FLIPX); DMG 0
+uint8_t mir_bswap;                        // DMG mixed level: back views are not mirrored (drawn as they are on an R bar)
+// First tile of variant v pre-shifted by s px, [dir << 5 | v << 3 | s] (dir 1: an R bar). M13a layout (column-major:
+// column k is tiles + 2k (top) and + 2k + 1 (bottom); shifts 1..7 first, the shift-0 poses last, so they double as 8x16
+// OBJ tiles for a lifted patron). Filled by mirror.c: L and R the same unless the DMG holds two tile sets (a mixed level).
+uint8_t st_tab[64];
 #define SB(v) ((uint8_t)(PATRON_BACK_BASE + (v) * 4u))                     // first back-view tile of variant v
 static const uint8_t back_tile[4] = { SB(0), SB(1), SB(2), SB(0) };
 
 static uint8_t st_t;                      // first tile of the patron being stamped
+static uint8_t cz_dir, cz_sto, cz_flip, cz_bswap;   // the bar being composed is R; its st_tab offset, attribute bit, back-view swap
 
 static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal / cz_palb for patron s drawn at x d (front view)
     uint8_t v = patron_variant[s] & 3;
-    cz_pal = pat_row[v]; cz_palb = pat_row[4 + v];
-    st_t = stamp_tile[(v << 3) | (d & 7)];
+    cz_pal = pat_row[v] | cz_flip; cz_palb = pat_row[4 + v] | cz_flip;
+    st_t = st_tab[cz_sto | (v << 3) | (d & 7)];
 }
 
-static void stamp3(uint8_t c) {                          // the whole 3x2 footprint at column c
+static void stamp3(uint8_t c) {                          // the whole 3x2 footprint at column c (not on an R bar)
     uint8_t *r = cz_tile + c, t = st_t;
     r[0] = t; r[1] = t + 2; r[2] = t + 4;
     r += 32;
@@ -188,6 +197,7 @@ static void stamp3(uint8_t c) {                          // the whole 3x2 footpr
 static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if inside the span
     uint8_t *r;
     if (c < cz_x0 || c >= cz_x1) return;
+    if (cz_dir) c = 19 - c;                              // (R bar: the screen column)
     r = cz_tile + c;
     r[0] = t; r[32] = t + 1;
     if (!cz_attr) return;
@@ -198,6 +208,7 @@ static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if i
 static void put_back_col(uint8_t c, uint8_t t) {         // one 1x2 column of a back view (2x2 tiles), if inside the span
     uint8_t *r;
     if (c < cz_x0 || c >= cz_x1) return;
+    if (cz_dir) c = 19 - c;
     r = cz_tile + c;
     r[0] = t; r[32] = t + 2;
     if (!cz_attr) return;
@@ -209,8 +220,9 @@ static void put_back_col(uint8_t c, uint8_t t) {         // one 1x2 column of a 
 // its footprint stays wall).
 static void stamp_back(uint8_t s, uint8_t c) {
     uint8_t v = patron_variant[s] & 3;
-    cz_pal = back_row[v]; cz_palb = back_row[4 + v];
+    cz_pal = back_row[v] | cz_flip; cz_palb = back_row[4 + v] | cz_flip;
     v = back_tile[v];
+    if (cz_bswap) { put_back_col(c, v + 1); put_back_col(c + 1, v); return; }   // (DMG mixed: drawn unmirrored on an R bar)
     put_back_col(c, v); put_back_col(c + 1, v + 1);
 }
 
@@ -223,7 +235,7 @@ static void stamp(uint8_t s) {
     if (d & DRAW_BACK) { stamp_back(s, c); return; }
     stamp_look(s, d);
     if (!(d & 7) && (patron_ovl[s] & (OVL_TWO | OVL_TOP))) { put_col(c, st_t); put_col(c + 1, st_t + 2); return; }   // (M13b)
-    if (c >= cz_x0 && c + 3 <= cz_x1) { stamp3(c); return; }
+    if (c >= cz_x0 && c + 3 <= cz_x1 && !cz_dir) { stamp3(c); return; }   // (an R bar: put_col mirrors)
     put_col(c, st_t); put_col(c + 1, st_t + 2); put_col(c + 2, st_t + 4);
 }
 
@@ -243,11 +255,14 @@ static uint8_t cz_attrs;                  // compose the attributes too (CGB, an
 
 static void restore_base(void) {                         // the wall over the span (cz_*), both rows
     uint8_t x0 = cz_x0;
+    const uint8_t *t = &base_all[0][0][0];
     cp_n = cz_x1 - x0;
-    cp_dst = (uint16_t)(cz_tile + x0); cp_src = (uint16_t)&base_tile[0][x0]; copy_2rows();
+    if (cz_dir) { x0 = 20 - cz_x1; t += 80; }            // (R bar: base_rtile, screen order)
+    t += x0;
+    cp_dst = (uint16_t)(cz_tile + x0); cp_src = (uint16_t)t; copy_2rows();
     if (!cz_attrs) { cz_attr = 0; return; }
     cz_attr = cz_tile + sizeof sh_tile;                   // sh_attr follows sh_tile
-    cp_dst = (uint16_t)(cz_attr + x0); cp_src = (uint16_t)&base_attr[0][x0]; copy_2rows();
+    cp_dst = (uint16_t)(cz_attr + x0); cp_src = (uint16_t)(t + 40); copy_2rows();
 }
 
 // BG patrons of the bar whose OVL_TOP flag is `top` (M13b: the would-be lifted one of a pair left on the BG goes last).
@@ -289,6 +304,8 @@ static void stamp_boss(void) {
 static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1-1 of bar b
     if (!lists_ok) build_lists();
     cz_tile = sh_tile[b << 1];
+    cz_dir = cz_sto = cz_flip = cz_bswap = 0;
+    if (bar_dirs & bar_bit[b]) { cz_dir = 1; cz_sto = 32; cz_flip = mir_attr; cz_bswap = mir_bswap; }
     restore_base();
     stamp_bar(b);
     if (b == boss_bar) stamp_boss();
@@ -543,8 +560,9 @@ static void queue_chunk(void) {
     uint8_t b = qv_bar;
     cz_attrs = is_cgb && take_attrs();
     compose_bar(b);
-    qv_src = (uint16_t)(cz_tile + cz_x0);         // (compose_bar left cz_tile at the bar's first row)
-    qv_dst = (uint16_t)(bar_map[qv_bar] + cz_x0);
+    b = cz_dir ? 20 - cz_x1 : cz_x0;              // (the screen columns)
+    qv_src = (uint16_t)(cz_tile + b);             // (compose_bar left cz_tile at the bar's first row)
+    qv_dst = (uint16_t)(bar_map[qv_bar] + b);
     queue_row();
     qv_src += 32; qv_dst += 32;
     queue_row();
@@ -587,11 +605,19 @@ static const uint8_t id_seq[PATRON_TILES_PER_GROUP] = { QI48(0), QI48(48), QI48(
 // The two entries of a quick redraw: patron p, front view, drawn at d. (Its own small function: SDCC keeps p and d
 // in registers here; inside the loop it spilled them.)
 static void quick_entries(uint8_t p, uint8_t d) {
-    qv_src = (uint16_t)(id_seq - PATRON_TILE_BASE) + stamp_tile[((patron_variant[p] & 3) << 3) | (d & 7)];
-    qv_dst = (uint16_t)bar_map[patron_bar[p] & (NUM_BARS - 1)] + (d >> 3);
+    uint8_t b = patron_bar[p] & (NUM_BARS - 1), k = 3;          // (k: from the top row's ids to the bottom row's)
+    if (bar_dirs & bar_bit[b]) {          // R bar: his 6 ids mirrored into the shadow rows (the screen picture), queued from there
+        d = quick_mirror(p, d);
+        qv_src = (uint16_t)&sh_tile[b << 1][d];
+        qv_dst = (uint16_t)bar_map[b] + d;
+        k = 32;
+    } else {
+        qv_src = (uint16_t)(id_seq - PATRON_TILE_BASE) + st_tab[((patron_variant[p] & 3) << 3) | (d & 7)];
+        qv_dst = (uint16_t)bar_map[b] + (d >> 3);
+    }
     qv_w = 3;
     queue_entry(0);
-    qv_src += 3; qv_dst += 32;
+    qv_src += k; qv_dst += 32;
     queue_entry(0);
     vq_count += 2;
 }
@@ -624,6 +650,7 @@ static void queue_urgent(uint8_t b, uint8_t c) {
     qv_cost += chunk_cost[qv_w];
     cz_attrs = is_cgb;
     compose_bar(b);
+    if (cz_dir) c = 20 - x1;                              // (R bar: the screen columns)
     qv_src = (uint16_t)(cz_tile + c);
     qv_dst = (uint16_t)(bar_map[b] + c);
     queue_row();
@@ -675,12 +702,14 @@ void queue_vram(void) {
 // left to right is A,B when facing left (art faces left) and B,A flipped when
 // facing right.
 uint8_t bt_drawn[5];         // bar, x, frame, facing the bartender's OAM entries show; bt_drawn[0] = 255: rewrite them
+uint8_t bt_new;              // P3: they were rewritten (at bar-local X; mirror.c mirror_oam moves them on an R bar)
 
 void draw_bartender(void) {
     uint8_t base, ytop, ybot, flags, xa, xb;
     OAM_item_t *o = shadow_OAM;
     if (bt_drawn[0] == bar && bt_drawn[1] == bartender_x && bt_drawn[2] == bartender_frame && bt_drawn[3] == facing && bt_drawn[4] == bt_bob) return;
     bt_drawn[0] = bar; bt_drawn[1] = bartender_x; bt_drawn[2] = bartender_frame; bt_drawn[3] = facing; bt_drawn[4] = bt_bob;
+    bt_new = 1;
     base = OBJ_BARTENDER + bartender_frame * BARTENDER_TILES_PER_FRAME;
     ytop = bar_oam_y[bar] - bt_bob;                       // 24 px tall: feet on the bottom of the counter row
     ybot = ytop + 16;

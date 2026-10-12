@@ -75,8 +75,9 @@ void build_lists(void) {
 }
 
 // Where patron p is drawn (pushed back or drinking): its position, +2 px on alternate beats while drinking (sway).
+// (draw_mask, P4: 0xFE on a DMG mixed level, where the patrons are drawn at even x only: mirror.c)
 static uint8_t drawn_x(uint8_t p) {
-    uint8_t x = patron_x[p];
+    uint8_t x = patron_x[p] & draw_mask;
     if (patron_state[p] == PATRON_DRINKING && sway_tab[patron_timer[p]]) x += 2;
     return x;
 }
@@ -119,7 +120,7 @@ static void init_patron(uint8_t p) {
     patron_timer[p] = 0; patron_aux[p] = 0; patron_mug[p] = NO_SLOT;
     patron_dist[p] = 0; patron_facing[p] = 0; patron_catchx[p] = np_x; patron_drinks[p] = 0;
     patron_shove[p] = patron_stag[p] = 0;             // (the mosh pit, src/mosh.c: a slot's old shove is not his)
-    patron_draw[p] = np_x;                            // drawn where he stands, facing the bar: his 3 columns change
+    patron_draw[p] = np_x & draw_mask;                // drawn where he stands, facing the bar: his 3 columns change
     np_x >>= 3;
     mark_dirty_attrs(np_b, np_x, np_x + 3);
     if (lists_ok) list_add(p);
@@ -390,7 +391,7 @@ static uint8_t walking_step(uint8_t p) {
             patron_frac[p] = f;
         }
     }
-    o = patron_x[p];                                      // a walker who is not watching is drawn at his x, facing
+    o = patron_x[p] & draw_mask;                          // a walker who is not watching is drawn at his x, facing
     f = patron_draw[p];                                   // the bar (a stale back view, bit 7, differs too)
     if (o == f) return 1;
     if (patron_lift[p] == LIFT_EDGE) { patron_draw[p] = o; return 1; }   // entering: a sprite only, nothing on the BG
@@ -431,7 +432,7 @@ static uint8_t leaving_step(uint8_t p) {
         if (vq_held || bg_pending(p)) return 1;
         patron_timer[p] = 0;
     }
-    if ((x = patron_x[p])) { patron_x[p] = patron_draw[p] = x - PUSH_SPEED; return 1; }
+    if ((x = patron_x[p])) { x -= PUSH_SPEED; patron_x[p] = x; patron_draw[p] = x & draw_mask; return 1; }
     if ((patron_aux[p] += PUSH_SPEED) < PATRON_W) return 1;
     remove_patron(p);
     return 0;

@@ -185,6 +185,7 @@ void enter_level_screen(void) BANKED {
     reset_actors();
     hide_all_sprites();
     draw_bartender();
+    if (bar_dirs) mirror_oam();                  // P3: on an R bar from the first frame shown
     game_over = 0;
     music_play(TUNE_VENUE0 + cur_group);          // the venue's own tune (before the state: a test sampling mid-load sees it)
     if (!story_on && cur_group == 0 && level > 1) {   // M10b: a new loop begins: "LOOP n" first, then the level's intro

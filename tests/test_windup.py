@@ -102,10 +102,16 @@ def test_empties_arrive_empty_gap_apart_counting_the_windup(gb):
     with logic_paused(gb):                       # (all three finish on the same game frame, whatever the code layout)
         ps = [drinker_with_mug(gb, 0, x, DRINK_FRAMES - 1) for x in (80, 40, 0)]
     ms = [gb.read("patron_mug", MAX_P)[p] for p in ps]
+    # (counted in game frames: the mug states where each game frame ends (vq_frame_end), not where the emulator's frame
+    # does, which falls a few lines into the game's logic and so moves with the code layout)
+    snaps = []
+    a = gb.addr("vq_frame_end")
+    gb.pb.hook_register(a >> 16, a & 0xFFFF, lambda _: snaps.append(list(gb.read("mug_state", MAX_M))), None)
+    gb.run(500)
+    gb.pb.hook_deregister(a >> 16, a & 0xFFFF)
     arrived, sent, prev = {}, {}, [HELD] * 3
-    for f in range(500):
-        gb.run(1)
-        st = [gb.read("mug_state", MAX_M)[m] for m in ms]
+    for f, snap in enumerate(snaps):
+        st = [snap[m] for m in ms]
         for k in range(3):
             if prev[k] == HELD and st[k] == EMPTY:
                 sent[k] = f

@@ -66,7 +66,8 @@ void draw_venue(void) BANKED {
     for (i = 0; i < STAGE_LAST_ROW - STAGE_FIRST_ROW + 1; i++)
         put_both(STAGE_FIRST_ROW + i, venue.stage_map + i * 20, venue.stage_attr + i * 20);
     for (b = 0; b < NUM_BARS; b++)
-        put_both(BAR_COUNTER_ROW(b), venue.bar_map + 2 * 20, venue.bar_attr + 2 * 20);
+        if (bar_dirs & bar_bit[b]) put_both(BAR_COUNTER_ROW(b), ctr_rtile, ctr_rattr);   // an R bar (mirror.c)
+        else put_both(BAR_COUNTER_ROW(b), venue.bar_map + 2 * 20, venue.bar_attr + 2 * 20);
     for (i = 0; i < 20; i++) vrow[i] = venue.floor_tile;
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;

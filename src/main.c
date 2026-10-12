@@ -275,12 +275,14 @@ static void play_frame(uint8_t pressed) {
     else if (pressed & J_DOWN) bar = bar == NUM_BARS - 1 ? 0 : bar + 1;
     if (switched) { bartender_x = TAP_X; facing = 0; }
 
-    // Left/Right: walk (1.5 px per frame)
+    // Left/Right: walk (1.5 px per frame). On an R bar (CLASSIC, render.c bar_dirs) they swap: the tap is on the left.
     x = bartender_x;
-    if (joy & J_LEFT) {
+    d = joy;
+    if ((bar_dirs & bar_bit[bar]) && ((uint8_t)((d & (J_LEFT | J_RIGHT)) + 1) & 2)) d ^= J_LEFT | J_RIGHT;
+    if (d & J_LEFT) {
         facing = 0;
         if (x > LEFT_LIMIT) { d = walk_px(); x = x - d < LEFT_LIMIT ? LEFT_LIMIT : x - d; }
-    } else if (joy & J_RIGHT) {
+    } else if (d & J_RIGHT) {
         facing = 1;
         if (x < TAP_X) { d = walk_px(); x = x + d > TAP_X ? TAP_X : x + d; }
     }
@@ -469,7 +471,8 @@ static void update(void) {
         if (lift_total | lift_oam_n) draw_lifted();
         SEC(SEC_DRAW_MUGS);
         draw_stage_fx();
-        if (story_on) pour_frame();              // story: the perfect pour (src/pour.c; last: it counts OAM lines)
+        if (bar_dirs) mirror_oam();              // P3: bars from the right: their entries to the mirrored place (mirror.c)
+        if (story_on) pour_frame();             // story: the perfect pour (src/pour.c; last: it counts OAM lines)
         ENABLE_OAM_DMA;
         SEC(SEC_FX);
     }

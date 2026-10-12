@@ -5,7 +5,9 @@
 //   - LEVEL ("LEVEL nn", the old 10-level rotation: the test harness, MODE_LEVEL): opened in its play (or CLASSIC's
 //     stand-in), or on the title with the cursor on any item but STORY / CONTINUE / ARCADE (the top level, PLAY's
 //     CLASSIC, the BONUS / SETTINGS submenus). Left/Down and Right/Up change the level (1..DEBUG_LEVELS, wrapping); A
-//     starts it from scratch (start_new_game, MODE_LEVEL).
+//     starts it from scratch (start_new_game, MODE_LEVEL). P3: SELECT steps the bars' directions through CLASSIC's
+//     eight layouts (level_dirs: LLLL, RRRR, RRLL, LLRR, RLLR, LRRL, RLRL, LRLR, top bar first; the box then reads
+//     "LEVEL nn RRLL"), kept for every later level of that run (until the title).
 //   - ARCADE ("ARCADE c STEP", the three modes): opened in ARCADE play, or on the title with PLAY's cursor on ARCADE
 //     (chapter 1, its first step). As the story box without the PRE / POST positions; A starts an ARCADE run there
 //     (story_debug_start with arc 1: 3 lives, a fresh score, loop 1, nothing saved).
@@ -51,6 +53,10 @@ static uint8_t pos_next(uint8_t ch, uint8_t p, int8_t d) {
     return p;
 }
 
+// P3: the bars' directions the LEVEL box steps through with SELECT (bit b: bar b, the top one 0, is R)
+#define DIR_LAYOUTS 8
+static const uint8_t dir_layout[DIR_LAYOUTS] = { 0x0, 0xF, 0x3, 0xC, 0x9, 0x6, 0x5, 0xA };
+
 static void debug_show(void) {
     char s[21];
     const char *n;
@@ -58,6 +64,11 @@ static void debug_show(void) {
     if (!debug_story) {
         s[0] = 'L'; s[1] = 'E'; s[2] = 'V'; s[3] = 'E'; s[4] = 'L'; s[5] = ' ';
         s[6] = '0' + debug_level / 10; s[7] = '0' + debug_level % 10; s[8] = 0;
+        if (level_dirs) {                            // "LEVEL nn RRLL" (P3: bars from the right)
+            s[8] = ' ';
+            for (k = 0; k < NUM_BARS; k++) s[9 + k] = (level_dirs >> k) & 1 ? 'R' : 'L';
+            s[13] = 0;
+        }
         show_overlay(s);
         return;
     }
@@ -121,6 +132,13 @@ uint8_t debug_step(uint8_t pressed) BANKED {
     else {
         if (pressed & (J_RIGHT | J_UP)) l = l == DEBUG_LEVELS ? 1 : l + 1;
         else if (pressed & (J_LEFT | J_DOWN)) l = l == 1 ? DEBUG_LEVELS : l - 1;
+        if (pressed & J_SELECT) {                    // P3: the next layout of the bars' directions
+            uint8_t k, d = level_dirs, n = dir_layout[0];   // (d in a local: SDCC 4.5 kept k in L and loaded HL
+            for (k = 0; k < DIR_LAYOUTS - 1; k++)            // with &level_dirs inside the loop)
+                if (dir_layout[k] == d) { n = dir_layout[k + 1]; break; }
+            level_dirs = n;
+            debug_show();
+        }
         if (l != debug_level) { debug_level = l; debug_show(); }
     }
     if (pressed & J_A) {

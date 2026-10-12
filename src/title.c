@@ -236,6 +236,7 @@ void title_enter(void) BANKED {
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0;
     music_fast = 0;                                   // (the jukebox plays every tune at its own pace)
     hide_all_sprites();
+    mirror_load(0); level_dirs = 0;                   // every bar L (the scene's bartender; P3: CLASSIC may mirror bars)
     if (!is_cgb) OBP1_REG = OBP1_MENU;               // (play used OBP1_PLAY)
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
     load_venue(0);                                    // the title stands in the saloon (and its drink frames)
