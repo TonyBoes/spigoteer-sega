@@ -472,6 +472,15 @@ void mg_record(uint8_t g, uint8_t medal) BANKED;        // game g reached / play
 #define BOSS_W_MAX       5      // body columns at most (40 px)
 #define BOSS_NONE      255
 extern uint8_t boss_on, boss_id, boss_bar, boss_lim, boss_col, boss_pal, boss_cols[BOSS_W_MAX];
+// The engine's fight-time bytes at the very end of story_scratch (no WRAM of their own: src/boss.h BOSS_SCRATCH; boss_set
+// fills them, so they are read only while boss_on): a moving boss's landing marker (boss.c boss_mark), two column
+// pairs (BOSS_MARK_BG.. : top t, bottom t + 1) on bar BOSS_MARK_BAR at columns BOSS_MARK_COL, + 1 (render.c compose_bar
+// stamps it over that bar's patrons; BOSS_NONE: none), and the topper's look (boss.h).
+#define BOSS_FX_N        4
+#define BOSS_FX          (story_scratch + STORY_SCRATCH - BOSS_FX_N)
+#define BOSS_MARK_BAR    (BOSS_FX[0])
+#define BOSS_MARK_COL    (BOSS_FX[1])
+#define BOSS_MARK_BG     248
 uint8_t boss_catch(uint8_t i) BANKED;   // patrons.c catch_full: full mug i reached him with a hand free (mug_x < boss_lim)
 void boss_set(uint8_t id) BANKED;       // story step_start: venue id's boss fight is the next step (BOSS_NONE: none)
 void boss_load(void) BANKED;            // enter_level_screen, LCD off, after start_level: his tiles and palettes

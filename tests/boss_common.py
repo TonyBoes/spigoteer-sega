@@ -206,7 +206,9 @@ def check_start(gb, c, a, model):
     if model == "cgb":
         wall = cgb_palette(gb, 2)[0]
         assert cgb_palette(gb, 4) == [wall] + a["pal"][1:], "BG 4: his colours over the venue's wall"
-        assert cgb_palette(gb, 7, True)[1:] == a["pal"][1:], "OBJ 7: the topper in the same colours"
+        lamp = a["name"] == "prototype"       # (the Prototype's lamp: colour 2 is green in OBJ 7 at the start)
+        assert [c for k, c in enumerate(cgb_palette(gb, 7, True)[1:]) if not (lamp and k == 1)] == [
+            c for k, c in enumerate(a["pal"][1:]) if not (lamp and k == 1)], "OBJ 7: the topper in the same colours"
     else:
         assert gb.mem(0xFF49) == 0xE4, "DMG: the topper under OBP1 0xE4, the BG's shades"
     for p, data in enumerate(a["pairs"]):
@@ -214,7 +216,7 @@ def check_start(gb, c, a, model):
         assert bytes(gb.read((0x9000 if t < 128 else 0x8000) + t * 16, 32)) == bytes(data), f"body column {p} at {t}"
     assert bytes(gb.read(0x8000 + HUD_BG * 16, 16)) == bytes(a["icon"])
     assert bytes(gb.read(0x8000 + (HUD_BG + 1) * 16, 48)) == bytes(ART["meter"])
-    assert bytes(gb.read(0x8000 + OBJ_TOPPER * 16, 64)) == bytes(a["hat"])
+    assert bytes(gb.read(0x8000 + OBJ_TOPPER * 16, len(a["hat"]))) == bytes(a["hat"])   # (STILL, BOB and his `hats`)
     assert gb.mem("boss_x") == r["x"] and gb.mem("boss_bar") == r["bar"] and gb.mem("boss_hp") == r["meter"]
     assert_body(gb, c, a, r["x"], BP_WALK)
     assert hud(gb) == meter_tiles(r["meter"], r["meter"])

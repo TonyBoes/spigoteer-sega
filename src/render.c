@@ -305,6 +305,16 @@ static void stamp_boss(void) {
     for (k = 0; k != BOSS_W_MAX; k++) if ((t = boss_cols[k])) put_col(boss_col + k, t);
 }
 
+// A moving boss's landing marker (boss.c boss_mark) on another bar: two column pairs from BOSS_MARK_BG at columns
+// BOSS_MARK_COL, + 1, over the bar's patrons (the tell is never hidden), in his BG palette.
+static void stamp_fight(uint8_t b) {
+    if (b == boss_bar) { stamp_boss(); return; }
+    if (b != BOSS_MARK_BAR) return;
+    cz_pal = cz_palb = boss_pal;
+    put_col(BOSS_MARK_COL, BOSS_MARK_BG);
+    put_col(BOSS_MARK_COL + 1, BOSS_MARK_BG + 2);
+}
+
 static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1-1 of bar b
     if (!lists_ok) build_lists();
     cz_tile = sh_tile[b << 1];
@@ -313,7 +323,7 @@ static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1
     if (bar_dirs & bar_bit[b]) { cz_dir = 1; cz_sto = 32; cz_flip = mir_attr; cz_bswap = mir_bswap; }
     restore_base();
     stamp_bar(b);
-    if (b == boss_bar) stamp_boss();
+    if (boss_on) stamp_fight(b);
 }
 
 // Quick redraws (M8b): a patron who moved within his own 3 columns (a 1 px step, front view before and after)

@@ -164,7 +164,7 @@ def snapshot(gb):
 
 
 # ---- the data ------------------------------------------------------------------------------------------------------
-BUILT = {0: "big_tex", 2: "sasquatch", 3: "critic", 4: "yeti", 7: "sumo", 8: "leo"}   # the venues whose boss is built (wave 1: the bosses without movement)
+BUILT = {0: "big_tex", 1: "mascot", 2: "sasquatch", 3: "critic", 4: "yeti", 5: "prototype", 7: "sumo", 8: "leo"}   # the venues whose boss is built (wave 1: the bosses without movement)
 
 
 def test_the_table_has_a_row_per_venue_and_the_built_bosses():
@@ -578,12 +578,12 @@ def test_hard_stomps_faster_with_a_hand_fewer(model):
 
 @pytest.mark.parametrize("model", ["cgb"])
 def test_a_boss_slot_not_built_yet_plays_the_first_row(model):
-    """The stadium's boss slot is still skipped in the story; marked built by the story_unskip test hook it starts a
-    fight with boss_id 1, which has no row yet: Big Tex's row plays (nothing is indexed past the table)."""
-    with to_shift(model, 1, 2) as gb:
+    """The biker bar's boss slot is still skipped in the story; marked built by the story_unskip test hook it starts a
+    fight with boss_id 6, which has no row yet: Big Tex's row plays (nothing is indexed past the table)."""
+    with to_shift(model, 6, 2) as gb:
         gb.write("story_unskip", 1 << BOSS_STEP)
-        win(gb, 1, 2)
+        win(gb, 6, 2)
         run_until(gb, lambda: state(gb) == GS_GOAL, 400)
         gb.run(3)
-        assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_hp")) == (1, 1, 8)
+        assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_hp")) == (1, 6, 8)
         assert banner_text(gb, 1) == centred("BOSS")

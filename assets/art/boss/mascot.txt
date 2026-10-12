@@ -1,4 +1,4 @@
-; APPROVED by the owner on 2026-10-11 (the Mascot, red bull Stampede). Not built yet: moves to its real place when its feature is built.
+; Art: approved design (the owner, 2026-10-11: the Mascot, red bull Stampede). Built: src/boss_mascot.c.
 ; The Mascot, the stadium's boss (PROPOSAL round 2, BULL A "Stampede"): a red foam bull head seen from the front,
 ; cream horns curling up off the brow, flap ears, a broad cream muzzle with two nostrils and a cream nose ring hanging
 ; over a dark team jersey with red sleeves. Same format as big_tex.txt: 32x16 BG body (4 columns x 2 rows) facing the
@@ -8,6 +8,8 @@
 ; '.' the wall (colour 0), '-' cream (horns, muzzle, ring, gloves, steins), '+' team red, '#' the outline, eyes,
 ; nostrils and jersey. CGB: BG palette 4 (colour 0 = the venue's wall); DMG: the BG greys (red dark grey, cream light).
 ; The topper is the forelock tuft on the crown of the foam head (HAT_STILL / HAT_BOB).
+; gen_boss BOSSES mascot: width 32, extra CROUCH (the leap's tell), PUFF1 / PUFF2 (the 16x16 dust puffs shown where he stood
+; while away), fx MARKER (the landing marker, 16x8 on the target bar's wall; the Prototype borrows it); topper hat_dx 8.
 
 @WALK
 .##...##++++++++##...##.........
@@ -206,8 +208,8 @@
 ###..###
 
 
-; PROPOSED, not read by tools/gen_boss.py today (the format has 5 poses): the leap's tell (CROUCH, 32x16, with
-; HAT_BOB), the landing marker (MARKER, 16x8 BG on the target bar's wall) and the dust puff (PUFF1, PUFF2: 16x16 BG).
+; Extra blocks (approved with the rest): the leap's tell (CROUCH, 32x16, shown with HAT_BOB), the landing marker (MARKER,
+; 16x8 BG on the target bar's wall) and the dust puff (PUFF1, PUFF2: 16x16 BG, centred where he stood while he is away).
 
 @CROUCH
 ........#++++++#................

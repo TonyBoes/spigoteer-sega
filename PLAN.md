@@ -1376,6 +1376,37 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   common ones (BP_EXTRA = 5, 6, ...). Big Tex moved to src/boss_big_tex.c (his art only; no special); nothing of
   him changed (golden boss_fight and every test_boss test unchanged).
 - ROM: ROM0 unchanged. Every boss file autobanks (see "Boss wave 1 ROM" below).
+- Bosses that move (wave 2, 2026-10-12: the Mascot's leap, the Prototype's ride; later the Mothership): a small,
+  general addition, nothing of it used by a boss that stays (Big Tex and wave 1 unchanged, their tests and goldens too):
+  - `boss_to_bar(b, x)` (boss.c): he arrives on bar b at x. His old bar is recomposed without him, b with him; b's
+    regulars are scared off (spec 2.5: each becomes PATRON_LEAVING with aux / timer 0, so patrons.c leaving_step lifts
+    him and slides him out to the left: no score, not served, a mug in his hand goes with him; empties already sliding
+    keep sliding); the arrivals avoid b (boss_pattern). Hands, meter, timers go with him (a held empty goes from b by
+    boss_send as usual); full mugs left on his old bar have no catcher there and slide on to its left end and break.
+  - `boss_pattern(also)`: the story's arrival pattern (pat_buf) redrawn where it names his bar or bar `also` (a bar he
+    is about to land on: the spec's "the target bar stops spawning"), pat_bar too. BOSS_NONE: his bar only.
+  - `boss_mark(b, c)`: the landing marker, 2 column pairs (BOSS_MARK_BG 248-251: gen_boss `fx` makes them from a 16x8
+    MARKER block on the lower wall row under plain wall) on bar b at columns c, c + 1; BOSS_NONE takes it away. It is
+    drawn by render.c compose_bar over that bar's patrons (so the tell is never hidden): the old `if (b == boss_bar)
+    stamp_boss();` is now `if (boss_on) stamp_fight(b);` (stamp_fight: his body on his bar, else the marker's two put_col
+    calls on BOSS_MARK_BAR). This is the one ROM0 change of the boss work: 40 B (785 -> 745 real free). With no fight it
+    costs what the old compare did (the realistic-peak perf scenario is unchanged to the line: 227 / 223; a first form,
+    `else if (b == BOSS_MARK_BAR && boss_on)` after the old compare, sent the DMG scenario to 243 > 240: it is
+    chaotic in any ROM0 change, so this form was kept).
+  - BS_JUMP (boss_state 4, the spec's name): away from his bar. boss_limit catches nothing (`boss_state < BS_JUMP`),
+    boss_empties sends nothing, boss_draw hides the topper; no stomp (as every state but BS_WALK). The special shows
+    what it likes over his old spot meanwhile (boss_xpose: an extra pose such as a dust puff, or BP_HIDE 14 = no body at
+    all, his columns the bar's own wall and attributes again) and ends it with boss_to_bar.
+  - The topper's look: BOSS_TOPPER_T (a tile offset from OBJ_TOPPER: 0 = STILL / BOB on a stomp as before, else that
+    frame and no bob; gen_boss `hats` adds 8x16 frames after HAT_BOB, OBJ 96-103 at most) and BOSS_TOPPER_PAL (a CGB OBJ
+    palette, 0 = 7). Put them back at BEV_OUTRO.
+  - boss_mugs moves MUG_RETURN mugs on every bar (a boss may leave his returns behind), his bar's fast mugs as before.
+  - No WRAM: the marker's bar / column and the topper's two bytes are BOSS_FX, the last 4 bytes of story_scratch
+    (game.h; BOSS_SCRATCH_N 64 -> 68, boss_set sets them, render.c reads them only while boss_on). BOSS_OWN is still
+    20 B. A boss's own state and test hooks live in BOSS_OWN (tests: story_scratch + 520 - 24 + k; boss_common.own).
+  - gen_boss: an `extra` pose narrower than his width is centred with plain wall columns either side (the 16x16
+    PUFF1 / PUFF2); `fx` (the marker, from his own art file or another boss's), `hats` (extra topper frames),
+    `conveyor` (a venue's counter with right-pointing chevrons, 2 frames, a PLACEHOLDER pattern like the Yeti's ice).
 
 ## The Sasquatch as built (lumber lodge boss, docs/minigames_bosses.md 3.5, 2026-10-12)
 - src/boss_sasquatch.c, rows[2]: 32 px, start 16, bar 2, step 90, push 8, gulp 8, hands 2, sip 0, meter 12, topper
@@ -2096,3 +2127,44 @@ stomp timer off) and the boss column stamp clears columns past his width (a spec
 - ROM (romusage, main b575841 -> now): bank 11 12505 -> 16235 B used, new bank 12 520 B; banks 1 / 6 / 8 / 10 repacked
   by the linker (16306 -> 16251, 16297 -> 16364, 16378 -> 16227, 16114 -> 16172); the rest unchanged. Tightest free:
   bank 9 10 B, bank 4 20, bank 6 20.
+
+## Mascot and Prototype as built (docs/minigames_bosses.md 3.4 / 3.8, 2026-10-12; the bosses that move)
+Both follow "Boss hooks as built" (and its "Bosses that move" notes: boss_to_bar, boss_mark, boss_pattern, BS_JUMP, BP_HIDE,
+the topper's look), each in its own banked file with its state in BOSS_OWN (20 B), so **no new WRAM global**: WRAM_LO /
+WRAM_HI_0 unchanged at 3936 / 3454 B used. Slots built in gen_story BUILT_SLOTS (BOSS: STADIUM, ROBOT); art moved from
+`approved/` to `assets/art/boss/{mascot,prototype}.txt`; gen_boss BOSSES gained both (the Mascot: extra CROUCH, PUFF1, PUFF2
+and `fx` MARKER; the Prototype: extra RED, `hats` LAMP_RING / LAMP_X, `fx` the Mascot's MARKER, `conveyor` factory).
+Both new dispatchers autobank into bank 12 (about 4.4 KB for the two with their art).
+- **Mascot** (rows[1], bar 1, 32 px, step 100, push 8, gulp 24, hands 2, sip 45, **meter 10**), 6 B state (mascot_t:
+  phase, t, target, land, leaps, wm). Every 300 walking frames: TELL 60 frames (CROUCH, the crown on HAT_BOB's row, marker
+  on a random other bar at 16 / 32 / 48, that bar stops spawning, he stands); WAIT for every full mug that was on his bar
+  when the tell began (a watermark x that falls 2 px a frame as the mugs do: mugs launched later are always right of it;
+  at most 60 more frames); AIR 20 frames (BS_JUMP: the PUFF1 / PUFF2 poses where he stood, no topper, nothing caught);
+  landing with the thud: boss_to_bar (regulars scared off through PATRON_LEAVING, meter and hands along). A life lost
+  brings him back to bar 1 at x 16. Goldens: boss_mascot, boss_mascot_crouch (new, DMG+CGB). Note for play: his own
+  empties already sliding on the bar he leaves keep sliding and break unless the bartender goes back for them (the spec
+  waits only for full mugs); the test bot goes back for them first.
+- **Prototype** (rows[5], bar 2, 32 px, step 100, push 8, gulp 20, hands 2, sip 45, **meter 12**), state: a u16 cycle
+  counter and the 18 B conveyor row (boss_prototype.c; `boss_light` is the counter's phase). Cycle 460 frames: GREEN 0-239
+  (solid lamp), YELLOW 240-299 (ring lamp; he stands, still takes a battery), RED 300-449 (X lamp, the RED pose, chevrons
+  on his bar's counter row stepping every 6 frames; every full battery on his bar turns into a MUG_RETURN, one reaching
+  him bounces (boss_cap 255 so he always "catches"; no hit, no push); next_arrival is pushed past each returned battery's
+  arrival + empty_gap; last 60 frames: the marker on a random other bar at his columns), RIDE 450-459 (BS_JUMP, BP_HIDE),
+  at 460 boss_to_bar(marked bar, same x), GREEN. A life lost: counter row restored, home bar, GREEN, meter kept.
+  Goldens: boss_prototype, boss_prototype_red (new, DMG+CGB).
+  - The conveyor chevron tiles (gen_boss conveyor: BG 246-247, made from the factory's counter tile) are a PLACEHOLDER like
+    the Yeti's ice, pending the owner's look; the rows are rewritten through the VBlank queue from the 18 B buffer.
+  - Lamp colours (CGB): the engine logic runs in the picture (LY ~25), not in VBlank, so palettes cannot be written
+    during the fight. Green is OBJ 7, yellow OBJ 5 (free in a fight: no coins, no show), red OBJ 4 (the factory group's
+    enhanced-patron palette; a fight only spawns variants A / B), all set with the LCD off at BEV_LOAD and chosen per phase
+    through BOSS_TOPPER_PAL. DMG reads by the lamp's shape (solid, ring, X).
+- Moving-boss engine additions (from the interrupted WIP a99c105, re-applied by cherry-pick onto main with the conflicts
+  resolved by hand in boss.h and gen_boss.py): boss.c boss_to_bar / boss_mark / boss_pattern, BS_JUMP, BP_HIDE, the
+  topper's tile / palette (BOSS_FX, the last 4 B of story_scratch, BOSS_SCRATCH_N 64 -> 68, BOSS_OWN_N still 20),
+  boss_mugs moves MUG_RETURN on every bar; gen_boss `fx`, `hats`, `conveyor` and narrow centred extra poses.
+- Difficulty: the test bot wins both real fights with no hp poke and no life lost (Mascot 986 frames, 2 leaps, 10 mugs;
+  Prototype 1578 frames, 12 batteries, pouring only early in the cycle so each battery arrives before RED); no tuning.
+- ROM (romusage, main 9eac62a -> now): ROM0 real free 785 -> 745 B (render.c stamp_fight); bank 12 520 -> 4895 B used;
+  banks 9 / 10 / 11 / 3 / 4 repacked by the linker: free now 9: 30, 3: 72, 4: 64, 6: 47, 10: 102, 11: 29 (was 9: 10,
+  4: 20, 6: 20). Tests: test_boss_mascot.py, test_boss_prototype.py; test_boss.py BUILT gains venues 1 and 5 and its
+  "slot not built yet" test now uses the biker bar (venue 6); test_boss_critic's empties dedupe is by slot and state.

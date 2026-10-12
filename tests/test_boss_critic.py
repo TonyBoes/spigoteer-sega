@@ -142,10 +142,10 @@ def test_busy_he_waves_drinks_back_on_the_fair_schedule(model):
             frames(gb, 1)
             f += 1
             for i, s, b, x in mugs(gb, B):
-                if s in (EMPTY, RETURN) and i not in seen:
-                    seen.add(i)
+                if s in (EMPTY, RETURN) and (i, s) not in seen:      # (a slot freed by a caught return and used by his
+                    seen.add((i, s))                                  # empty in the same frame is a new mug: slot AND state)
                     arrivals.append((f + (TAP_X - x) * (1 if s == RETURN else 2), s))
-            seen &= {i for i, s, _, _ in mugs(gb, B) if s in (EMPTY, RETURN)}
+            seen &= {(i, s) for i, s, _, _ in mugs(gb, B) if s in (EMPTY, RETURN)}
             if f == 40:
                 assert gb.mem("crit_waved") == 2 and gb.mem("crit_sloppy") == 0, "both waved back, none tasted"
         assert sorted(s for _, s in arrivals) == [EMPTY, RETURN, RETURN], arrivals

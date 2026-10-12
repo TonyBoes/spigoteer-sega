@@ -23,6 +23,17 @@ src/boss_load.h's loaders read them. A boss with "ice" also gets icy copies of t
 (boss_ice_src: the venue's counter tile ids, boss_ice_tiles: their icy copies, a light streak pattern generated here:
 a PLACEHOLDER until the owner approves it).
 
+For the bosses that move (boss wave 2; PLAN.md "Boss hooks as built"):
+  - an `extra` pose narrower than his width (the Mascot's 16x16 dust puffs PUFF1 / PUFF2) is centred in it, the columns
+    either side plain wall (colour 0): a pose like any other, stamped where he stands;
+  - `fx`: [(block, boss)]: a 16x8 block (the landing MARKER) read from that boss's art file (his own, or another's:
+    the Prototype's marker is the Mascot's), on a bar's lower wall row under 8 rows of plain wall: 2 column pairs
+    (boss_art_fx, BOSS_ART_FX tiles), which src/boss_load.h loads at BOSS_MARK_BG (248-251);
+  - `hats`: extra 8x16 topper frames after HAT_STILL / HAT_BOB (the Prototype's lamp: LAMP_RING, LAMP_X), loaded with
+    them from OBJ_TOPPER (BOSS_ART_HAT_TILES tiles in all);
+  - `conveyor`: a venue whose counter gets a conveyor's chevrons pointing right, 2 animation frames (boss_conv_tiles,
+    BOSS_ART_CONV; a PLACEHOLDER pattern generated here from the venue's counter tile, pending the owner's look).
+
 Adding a boss: one BOSSES entry (and its art file). Usage: gen_boss.py outdir previewdir
 """
 import json
@@ -37,6 +48,8 @@ POSES = ["WALK", "STOMP", "GULP", "WINCE", "HAPPY"]   # every boss's, the engine
 BOSS_POSES_MAX = 8           # src/boss.h: the 5 common poses + up to 3 extra (tells) per boss
 BOSS_PAIRS_MAX = 30          # src/boss.h: 21 pairs at 162-203 + 9 at 216-233
 BOSS_ICE_MAX = 2             # src/boss.h: icy counter tiles at BG 246.. (free in the story)
+BOSS_FX_MAX = 4              # src/boss.h: the landing marker's 2 column pairs at BG 248-251 (BOSS_MARK_BG)
+BOSS_HATS_MAX = 4            # topper frames (8x16) at OBJ 96..103
 # per boss (the order of the hook table's ids does not matter): its art file, the C file it belongs to
 # (src/boss_<name>.c), its body width (px), colours 1-3 (CGB), its extra poses (tells), and "ice": a venue whose
 # counter tiles get icy copies.
@@ -49,6 +62,10 @@ BOSSES = [
     {"name": "sumo", "width": 40, "pal": ["#F0A878", "#F0F0E0", "#282048"], "extra": ["SHIKO", "HMPH"]},
     {"name": "leo", "width": 32, "pal": ["#F8D060", "#C86018", "#301808"], "extra": ["INHALE", "ROAR"],
      "tiles": ["BANG"]},
+    {"name": "mascot", "width": 32, "pal": ["#F8E8C8", "#D02828", "#201018"], "extra": ["CROUCH", "PUFF1", "PUFF2"],
+     "fx": [("MARKER", "mascot")]},
+    {"name": "prototype", "width": 32, "pal": ["#E8F0F8", "#F87818", "#182030"], "extra": ["RED"],
+     "hats": ["LAMP_RING", "LAMP_X"], "fx": [("MARKER", "mascot")], "conveyor": "factory"},
 ]
 BOSS_TILES_MAX = 3           # "tiles": a boss's own 8x16 BG blocks (Leo's "!!"), at BG 246.. like the ice (6 ids)
 
@@ -64,6 +81,37 @@ def frame(named, name, w, h, path):
     if len(f) != h or not all(len(r) == w and set(r) <= set(".-+#") for r in f):
         fail(f"{path.relative_to(ROOT)}: @{name} must be {w}x{h} in . - + #")
     return f
+
+
+def padded(f, w):
+    """A pose narrower than his width, centred: plain wall (colour 0) columns either side."""
+    fw = len(f[0])
+    left = ((w - fw) // 2) // 8 * 8
+    return ["." * left + r + "." * (w - fw - left) for r in f]
+
+
+def chevrons(rows, phase):
+    """A conveyor copy of a counter tile (PLACEHOLDER): its belt band (the rows between its two dark lines) plain, with
+    light chevrons pointing right every 4 px (the middle row 1 px further right), shifted by `phase` px."""
+    dark = [y for y, r in enumerate(rows) if set(r) == {"#"}]
+    if len(dark) < 2 or dark[1] - dark[0] != 4:
+        fail("conveyor: the counter tile has no 3-row belt band between two dark lines")
+    out = [list(r) for r in rows]
+    for k, y in enumerate(range(dark[0] + 1, dark[1])):
+        for x in range(8):
+            out[y][x] = "-" if (x - phase - (k == 1)) % 4 == 0 else "+"
+    return ["".join(r) for r in out]
+
+
+def conveyor_tiles(theme, prev, name):
+    """The venue's counter tile ids (columns 0-17) and 2 conveyor frames (phase 0 and 2 px) made from the first."""
+    v = json.loads((ROOT / "build" / "venues.json").read_text())["venues"][theme]
+    src = sorted(set(v["bar_map"][40:58]))
+    o = (src[0] - v["bar_base"]) * 16
+    base = rows_of(v["bar_tiles"][o:o + 16])
+    frames = [chevrons(base, 0), chevrons(base, 2)]
+    png(frames, prev / f"boss_{name}_conveyor_x8.png", 8)
+    return src, [x for f in frames for x in tile_bytes(f, 0, 0)]
 
 
 def column(f, x):
@@ -120,9 +168,19 @@ def boss_art(b, prev):
     names = POSES + b["extra"]
     if len(names) > BOSS_POSES_MAX:
         fail(f"{b['name']}: {len(names)} poses, the engine has room for {BOSS_POSES_MAX}")
-    poses = [frame(named, n, w, 16, path) for n in names]
+    poses = []
+    for n in names:
+        fw = len(named[n][0]) if n in named else w
+        if fw == w:
+            poses.append(frame(named, n, w, 16, path))
+        elif n in POSES or fw % 8 or fw > w:
+            fail(f"{path.relative_to(ROOT)}: @{n} must be {w} px wide (an extra pose: or a narrower multiple of 8)")
+        else:
+            poses.append(padded(frame(named, n, fw, 16, path), w))
     hands = [frame(named, f"HAND{k}", 8, 16, path) for k in (1, 2, 3)]
-    hat = [frame(named, n, 8, 16, path) for n in ("HAT_STILL", "HAT_BOB")]
+    hat = [frame(named, n, 8, 16, path) for n in ["HAT_STILL", "HAT_BOB"] + b.get("hats", [])]
+    if len(hat) > BOSS_HATS_MAX:
+        fail(f"{b['name']}: {len(hat)} topper frames, room for {BOSS_HATS_MAX}")
     icon = frame(named, "ICON", 8, 8, path)
     pairs, index = [], {}
 
@@ -153,6 +211,19 @@ def boss_art(b, prev):
         own = [frame(named, n, 8, 16, path) for n in b["tiles"]]
         a["tiles"] = [x for f in own for x in tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)]
         png(own, prev / f"boss_{b['name']}_tiles_x8.png", 8)
+    if "fx" in b:
+        fx, frames = [], []
+        for block, owner in b["fx"]:
+            fpath = ROOT / "assets/art/boss" / f"{owner}.txt"
+            f = ["." * 16] * 8 + frame(dict(blocks(fpath, named=True)), block, 16, 8, fpath)   # (the lower wall row)
+            frames.append(f)
+            fx += list(column(f, 0) + column(f, 8))
+        if len(fx) // 16 > BOSS_FX_MAX:
+            fail(f"{b['name']}: {len(fx) // 16} fx tiles, room for {BOSS_FX_MAX}")
+        png(frames, prev / f"boss_{b['name']}_fx_x8.png", 8)
+        a["fx"] = fx
+    if "conveyor" in b:
+        a["conv_src"], a["conv"] = conveyor_tiles(b["conveyor"], prev, b["name"])
     return a
 
 
@@ -168,7 +239,8 @@ def header(a):
          f"static const uint8_t boss_art_pose[BOSS_ART_POSES][BOSS_ART_COLS] = {{ "
          + ", ".join("{ " + ", ".join(str(v) for v in row) + " }" for row in a["pose"]) + " };",
          carr("boss_art_hand", a["hand"]) + "   // the hand column holding 0..3 empties",
-         carr("boss_art_hat", a["hat"]) + "   // STILL top, bottom, BOB top, bottom",
+         f"#define BOSS_ART_HAT_TILES {len(a['hat']) // 16}",
+         carr("boss_art_hat", a["hat"]) + "   // STILL top, bottom, BOB top, bottom (then his `hats`)",
          carr("boss_art_icon", a["icon"]),
          carr("boss_art_pal", a["pal"], "uint16_t") + "   // colour 0: the venue's wall, set at the load"]
     if "ice" in a:
@@ -178,6 +250,12 @@ def header(a):
     if "tiles" in a:
         h += [f"#define BOSS_ART_TILES {len(a['tiles']) // 32}   // his own 8x16 BG blocks (top, bottom) for BG 246..",
               carr("boss_art_tiles", a["tiles"])]
+    if "fx" in a:
+        h += [f"#define BOSS_ART_FX {len(a['fx']) // 16}", carr("boss_art_fx", a["fx"]) + "   // the landing marker"]
+    if "conv" in a:
+        h += [f"#define BOSS_ART_CONV {len(a['conv']) // 16}", f"#define BOSS_ART_CONV_SRC {len(a['conv_src'])}",
+              carr("boss_conv_tiles", a["conv"]) + "   // the conveyor's 2 frames (PLACEHOLDER)",
+              carr("boss_conv_src", a["conv_src"]) + "   // the venue's counter tile ids they replace"]
     return "\n".join(h) + "\n"
 
 
@@ -200,6 +278,8 @@ def main():
          f"#define BOSS_POSES_MAX {BOSS_POSES_MAX}   // " + ", ".join(POSES) + ", then each boss's extra poses",
          f"#define BOSS_PAIRS_MAX {BOSS_PAIRS_MAX}",
          f"#define BOSS_ICE_MAX {BOSS_ICE_MAX}",
+         f"#define BOSS_FX_MAX {BOSS_FX_MAX}",
+         f"#define BOSS_HATS_MAX {BOSS_HATS_MAX}",
          carr("boss_meter_tiles", meter_bytes) + "   // EMPTY, HALF, FULL"]
     (outdir / "boss_art.h").write_text("\n".join(h) + "\n")
     for a in arts:

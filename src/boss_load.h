@@ -5,7 +5,8 @@
 #include <gb/cgb.h>
 #include "palettes.h"
 
-#if BOSS_ART_POSES > BOSS_POSES_MAX || BOSS_ART_COLS > BOSS_W_MAX || BOSS_ART_PAIRS > BOSS_PAIRS_MAX
+#if BOSS_ART_POSES > BOSS_POSES_MAX || BOSS_ART_COLS > BOSS_W_MAX || BOSS_ART_PAIRS > BOSS_PAIRS_MAX \
+    || BOSS_ART_HAT_TILES > 2 * BOSS_HATS_MAX
 #error "boss art: too many poses, columns or column pairs for the engine"
 #endif
 
@@ -27,7 +28,10 @@ static void boss_art_load(void) {
     set_bkg_data(BOSS_BG_B, (BOSS_ART_PAIRS - BOSS_PAIRS_A) << 1, boss_art_body + BOSS_PAIRS_A * 32);
 #endif
     set_bkg_data(BOSS_HUD_BG, 1, boss_art_icon);
-    set_sprite_data(OBJ_TOPPER, 4, boss_art_hat);
+    set_sprite_data(OBJ_TOPPER, BOSS_ART_HAT_TILES, boss_art_hat);   // HAT_STILL, HAT_BOB (and his `hats`)
+#ifdef BOSS_ART_FX
+    set_bkg_data(BOSS_MARK_BG, BOSS_ART_FX, boss_art_fx);           // the landing marker (gen_boss `fx`)
+#endif
     if (!is_cgb) return;
     p[0] = venue.pal[VENUE_PAL_BAR][0];
     p[1] = boss_art_pal[1]; p[2] = boss_art_pal[2]; p[3] = boss_art_pal[3];
