@@ -66,7 +66,9 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
   transcription, 2026-10-11); melody otherwise from John Chambers' ABC transcription
   (trillian.mit.edu/~jc/music/abc/Italy/FuniculiFunicula.abc, via folktunefinder.com). Verse and chorus; the
   verse's modulating second half is omitted.
-- "The Skaters' Waltz" (Waldteufel, 1882, Op. 183): Traditional Tune Archive (tunearch.org, "Skater's Waltz"),
+- "The Skaters' Waltz" (Waldteufel, 1882, Op. 183): bars 1-14 confirmed against a transcription from Luck's Music
+  Library full score, plate K. & E. 5154 (IMSLP #102459, public domain) (owner-supplied transcription, 2026-10-11);
+  bars 15-16 and the loop are ours. Melody list: Traditional Tune Archive (tunearch.org, "Skater's Waltz"),
   transcription by Carl Allison from Joe Buchanan's Scottish Tome; an octave above the source.
 - "Take Me Out to the Ball Game" (Von Tilzer / Norworth, 1908): transcribed from York Music Co., New York, 1908,
   pp. 4-5, via the Library of Congress (public domain) (owner-supplied transcription, 2026-10-11): bars 8, 20, 25

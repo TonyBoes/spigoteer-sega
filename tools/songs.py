@@ -254,7 +254,12 @@ song("funicula", 11, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"), groove="
 # Arctic: "The Skaters' Waltz" (Emile Waldteufel, 1882), main theme, an octave above the source.  3/4, key G,
 # quarter = 160: 11 frames per eighth row (about 164).  32 bars, no drums.  The spec's short slide up into
 # bars 1, 5 and 9 is not done: hUGEDriver's portamento starts from a note already sounding, so it would
-# need an extra row before each of those notes.  No score found (the Mutopia Project has no Waldteufel).  Seamless
+# need an extra row before each of those notes.  Checked (music step 4, 2026-10-12) against the owner-supplied
+# transcription of Luck's Music Library full score (IMSLP #102459, violin 1 at letter A; A major there, here a tone
+# down and an octave up): bars 1-14 (and 17-30) match.  The strain ends A3 dotted half | A3 quarter, then rests (bars
+# 15-16 in G: G4:6 | G4:2 R:4); kept as ours: bars 15-16 run quarters into the repeat (the spec's ABC) and bars 31-32
+# hold G4 and climb back, because the score's ending leaves two beats of silence after a held, decaying G4 (0.62 s,
+# more than the 0.25 s tests/test_music_loops.py allows at the loop).  Seamless
 # loop: the spec's last two bars held G4 for six beats, which faded out long before bar 1; the last bar now climbs
 # A4 A#4 into bar 1's B4 (the chromatic approach stands in for the skater's slide).
 SKT_BARS = [

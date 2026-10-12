@@ -126,8 +126,9 @@ Length: 32 bars
 Note: Transposed up one octave from the source for a brighter pulse sound.
 Note: The long notes are the famous sliding 'skater' notes; a short pitch slide up into bars 1, 5 and 9 sounds idiomatic.
 Game loop: bar 32 was '~:6' (G4 held six beats, faded out long before bar 1); A4 A#4 climb into bar 1's B4.
-Confidence: High for melody. Chords as given in the source.
-Source: Traditional Tune Archive (tunearch.org, 'Skater's Waltz'), transcription by Carl Allison from Joe Buchanan's Scottish Tome. Underlying work: Emile Waldteufel, 1882 (public domain).
+Checked 2026-10-12 (music step 4) against the owner-supplied transcription of the full score (see Source; violin 1 "sul G" at letter A, A major, A3-B4; here transposed down a tone to G and up an octave): bars 1-14 (and 17-30) match exactly. Bars 15-16 differ: the score ends the strain A3 dotted half | A3 quarter, then rests ("Fine", repeat from bar 1), which would be 'G4:6 | G4:2 R:4' here; the ABC's running quarters (bars 15-16 'G4:2 E5:2 D5:2 | C5:2 B4:2 A4:2') are kept into the repeat, and bars 31-32 keep the game loop's held G4 and A4 A#4 climb. Reason: the score's ending does not loop cleanly; two beats of rest after a held G4 on the decaying song lead leave 0.62 s of melody silence before bar 1 (measured; tests/test_music_loops.py allows 0.25 s). Option for the owner: bar 32 could restrike G4 (the score's A3 quarter) before the climb, 'G4:2 A4:2 A#4:2'.
+Confidence: High for melody (bars 1-14 confirmed by the score). Chords as given in the source.
+Source: Traditional Tune Archive (tunearch.org, 'Skater's Waltz'), transcription by Carl Allison from Joe Buchanan's Scottish Tome; bars 1-14 confirmed against a transcription from Luck's Music Library full score, Detroit, n.d., plate K. & E. 5154 (IMSLP #102459, public domain) (owner-supplied transcription, 2026-10-11). Underlying work: Emile Waldteufel, 1882 (public domain).
 
 ------------------------------------------------------------
 3. TAKE ME OUT TO THE BALL GAME (Von Tilzer, 1908) - chorus
