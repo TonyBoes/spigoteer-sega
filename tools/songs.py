@@ -209,6 +209,10 @@ GAL = ["D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
        "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 A5:1 E5:1 F#5:1", "D5:2 A4:2"]
 GAL_CHORDS = ["D", "A7", "D", "D", "A7", "A7", "D", "A7", "D", "A7", "D", "D", "A7", "A7", "D/A7", "D"]
 song("galop", 11, "B", " ".join(GAL), oompah(GAL_CHORDS, 4), groove="K:1 H:1 S:1 H:1")
+# Harmony (music step 5): light off-beat stabs, the can-can's "pah" between the bass's beats: a chord tone (D or A7)
+# under the melody on every second eighth, short and dry (the 25% "stab").
+_t = H.Tune(" ".join(GAL), GAL_CHORDS, 4, 2, "D")
+harmony("galop", _t, H.stabs(_t, (1, 16), "F#4", "D5", [(1, False), (1, True)] * 2), ("stab", "stab"))
 
 
 # ---------------------------------------------------------------------------------------------

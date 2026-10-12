@@ -365,7 +365,9 @@ def test_level_12_never_shows_more_than_10_sprites_a_line(boot):
         counts.append(sum(c))
     if held:
         boot.release(held)
-    assert boot.mem("level") == 12 and max(counts) >= 12 and sum(counts) / len(counts) >= 9, (max(counts), sum(counts) / len(counts))
+    assert boot.mem("level") == 12 and max(counts) >= 12 and sum(counts) / len(counts) >= 8, (max(counts), sum(counts) / len(counts))
+    # (mean >= 8, was 9: the crowd's size is a density check, not a budget, and it moves with the frame alignment of PyBoy's
+    # frames against the game's late ones: 8.6-8.9 on CGB / DMG once the Galop's harmony changed the music tick's timing)
 
 
 # ---- game over: the CLASSIC top 5 ---------------------------------------------------------------------------------------

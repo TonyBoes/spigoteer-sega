@@ -51,6 +51,20 @@ def test_the_harmony_does_not_double_the_melody(name):
     assert same <= total_rows(name) // 10, f"{name}: {same} rows in unison with the melody"
 
 
+def test_galops_harmony_is_a_dry_pah_on_every_off_beat_between_the_bass_notes():
+    """Galop infernal (the shows): a one-row chord stab (the 25% "stab") on each second eighth of every bar, i.e. the rows
+    between the oom-pah bass notes (bass on rows 0, 2 of a bar's 4; the stab on 1, 3), D or A7 chord tones under the melody, the
+    whole 16 bars (64 rows)."""
+    assert "galop" in WITH_HARMONY, "the Galop has its harmony"
+    t = songs.SONGS["galop"]
+    assert t["ch1_inst"] == ("stab", "stab") and total_rows("galop") == 64
+    tl = [(s, n, p) for s, n, p in H.timeline(t["ch1"]) if p is not None]
+    assert len(tl) == 32, len(tl)
+    for s, n, p in tl:
+        assert n == 1 and s % 2 == 1, (s, n)
+        assert p % 12 in t["harm_tune"].pcs(s), (s, H.name_of(p))
+
+
 def test_harmony_instruments_sit_under_the_melody_and_the_effects():
     """The harmony's volume is 4-5 (song lead and lead 8, legato lead 6), its duty 12.5%, 25% or (harm50, the Entertainer's thirds) 50%, always
     quieter than the melody's volume; the channel-1 effects are volume 8-12, so an effect is always louder than the line it interrupts."""
