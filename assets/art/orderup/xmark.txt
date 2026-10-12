@@ -1,0 +1,19 @@
+; Art: approved design (owner 2026-10-12)
+; Order Up!: SENT BACK, a big X laid over the dish pressed wrongly (shown lit underneath) (or over the cloche on a timeout). 16x16 OBJ
+; (2 entries 8x16), CGB OBJ palette 6 (1 white, 2 red, 3 dark), DMG OBP1 0xC4 (a white X, black outline: it lies on the lit dish, black on DMG).
+.##..........##.
+#++#........#++#
+#+++#......#+++#
+.#+++#....#+++#.
+..#+++#..#+++#..
+...#+++##+++#...
+....#++++++#....
+.....#++++#.....
+.....#++++#.....
+....#++++++#....
+...#+++##+++#...
+..#+++#..#+++#..
+.#+++#....#+++#.
+#+++#......#+++#
+#++#........#++#
+.##..........##.

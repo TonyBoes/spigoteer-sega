@@ -138,11 +138,50 @@ struct bs_state {               // tests read these at story_scratch + offset (t
     uint8_t wall[2][20], wattr[2][20];   // the banner rows as wall (tiles, CGB attributes), saved at entry
 };
 
+void ou_enter(void) BANKED;                      // src/ou.c: ORDER UP! (the bistro)
+void ou_update(uint8_t pressed) BANKED;
+uint8_t ou_medal(void) BANKED;                   // the medal its rounds earned (not a score threshold)
+
+#define OU_LEN_MAX      9       // round 7's order
+struct ou_state {               // tests read these at story_scratch + offset (tests/test_ou.py)
+    uint8_t st;                 // +0 OS_* (src/ou.c)
+    uint8_t round;              // +1 the round (1..OU_ROUNDS)
+    uint8_t len;                // +2 this round's order length (round + 2)
+    uint8_t idx;                // +3 dishes called (calling) / served (your turn) so far
+    uint8_t strikes;            // +4 0..3
+    uint8_t t;                  // +5 frames in this state (or this dish's call)
+    uint8_t wait;               // +6 frames left for the next press (your turn)
+    uint8_t cleared;            // +7 rounds cleared (the medal)
+    uint8_t seq[OU_LEN_MAX];    // +8 the order: 0 UP, 1 RIGHT, 2 DOWN, 3 LEFT (one sequence, grown each round)
+    uint8_t x_on;               // +17 the X's cell: a dish, OU_CLOCHE (4), or OU_NONE (255)
+    uint8_t want, shown;        // +18 the lit dish wanted, +19 the one on screen (OU_NONE: none)
+    uint8_t pal_dish, pal_want; // +20 the dish CGB BG palette 7 holds, +21 the one to write at the next frame's top
+    uint8_t light_t;            // +22 frames left of a served dish's light
+    uint8_t serve_t;            // +23 frames left of the Spigoteer's serve pose
+    uint8_t bubble;             // +24 Colby's bubble: OU_NONE hidden, OU_EMPTY (5), or the dish in it
+    uint8_t colby;              // +25 his pose (src/ou.c C_*)
+    uint8_t again;              // +26 1: the round is called again after a strike (the order is not grown)
+    uint8_t anim;               // +27 frames counted by ou_update (the steam's and the waiter's beat)
+    uint8_t cloche;             // +28 0 down, 1 lifted
+    uint8_t dish[4][4];         // each cross cell's tiles (TL TR BL BR; VBlank queue source)
+    uint8_t dattr[4][4];        // and its CGB palettes (bank 1 queue source)
+    uint8_t cl[4];              // the cloche's tiles
+    uint8_t bub[5][4];          // the bubble's rows 4-8, columns 3-6 as queued (VBlank queue source)
+    uint8_t battr[2][2];        // its inside's CGB palettes (rows 5-6, columns 4-5)
+    uint8_t wall[5][4];         // the wall under the bubble, saved at entry
+    uint8_t wattr[5][4];        // and its CGB attributes
+    uint8_t pips[9];            // row 12, columns 8-16 (VBlank queue source)
+    uint8_t pwall[9];           // the wall there, saved at entry
+    uint8_t hud[3];             // the strikes, HUD columns 16-18
+    char    txt[14];            // a text line being built
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
     struct qd_state qd;
     struct bs_state bs;
+    struct ou_state ou;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert

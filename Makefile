@@ -37,7 +37,7 @@ HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
 # each boss's own art header (tools/gen_boss.py: build/boss_<name>_art.h, #included by src/boss_<name>.c only)
 BOSS_H   := $(foreach b,$(filter-out meter,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
-BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h
+BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h
 BONUS_H  += $(BUILD)/bs_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
@@ -70,9 +70,9 @@ $(BUILD)/pour_art.h: tools/gen_pour.py tools/gen_art.py $(wildcard assets/art/po
 	python3 tools/gen_pour.py $(BUILD) $(OUT)/preview
 
 # Mini-game framework (src/mg.c), its stub game (src/mg_stub.c) and Quick Draw (src/qd.c): the medal icon (approved), the
-# lamp (a placeholder), Quick Draw's art (approved) -> build/qd_art.h too
+# lamp (a placeholder), Quick Draw's art (approved) -> build/qd_art.h too, Order Up!'s (approved) -> build/ou_art.h
 # -> build/mg_art.h, build/mg_stub_art.h, build/mg.json (tests), out/preview/mg_*_x8.png
-$(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h: tools/gen_mg.py tools/gen_art.py assets/art/mg_medal.txt assets/art/mg_lamp.txt $(wildcard assets/art/quickdraw/*.txt) assets/tiles/story.txt | $(BUILD) $(OUT)/preview
+$(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h: tools/gen_mg.py tools/gen_art.py assets/art/mg_medal.txt assets/art/mg_lamp.txt $(wildcard assets/art/quickdraw/*.txt) $(wildcard assets/art/orderup/*.txt) assets/tiles/story.txt | $(BUILD) $(OUT)/preview
 	python3 tools/gen_mg.py $(BUILD) $(OUT)/preview
 
 # Battery Sort (src/bs.c; docs/minigames_bosses.md 4.6): its approved art -> build/bs_art.h, build/bs.json (tests),

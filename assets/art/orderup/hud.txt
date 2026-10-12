@@ -1,0 +1,30 @@
+; Art: approved design (owner 2026-10-12)
+; Order Up!: HUD tiles (row 0, CGB BG palette 1: 0 cream, 1 tan, 2 orange, 3 navy; DMG: white on black, as the
+; HUD glyphs): STRIKE OFF (a dim ring: a strike not taken), STRIKE ON (a cream X), at columns 16-18 (the timer's
+; place: this game has no timer); BANG ('!' for "ORDER UP!", mg_say's say_bang tile, drawn as the HUD glyphs).
+########
+########
+##----##
+#-####-#
+#-####-#
+##----##
+########
+########
+
+########
+#..##..#
+##....##
+###..###
+##....##
+#..##..#
+########
+########
+
+########
+###.####
+###.####
+###.####
+###.####
+########
+###.####
+########

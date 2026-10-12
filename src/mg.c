@@ -43,8 +43,9 @@ extern uint32_t score;
                                 // of columns 4-19 (so a line in the window has at most 16 characters)
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
 #define TIMER_COL       16      // HUD: 'T' + 3 digits (story.c hud_goal's format)
-#define MG_GAMES         3      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort
-enum { G_STUB, G_QD, G_BS };
+#define MG_GAMES         4      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
+                                // G_OU Order Up!
+enum { G_STUB, G_QD, G_BS, G_OU };
 
 // ---- state (globals => symbols the tests read) ----
 uint8_t  mg_id;                 // the id mg_enter was given (MG_*, mg.h)
@@ -59,10 +60,11 @@ static uint8_t tbuf[4], res_buf[20];
 static char res_txt[2][14];
 
 // per game: the banner, the medal thresholds on mg_score (bronze, silver, gold)
-static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BATTERY SORT" };
-static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "LEFT FULL RIGHT DEAD" };
+static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BATTERY SORT", "ORDER UP!" };
+static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "LEFT FULL RIGHT DEAD",
+                                                "REPEAT THE ORDER" };
 static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },   // (Quick Draw: qd_medal)
-                                                { 2000, 4000, 6000 } };
+                                                { 2000, 4000, 6000 }, { 0, 0, 0 } }; // (Order Up!: ou_medal)
 // each planned game's venue (the id is not the venue: the two lists need not keep one order), and the reverse
 static const uint8_t mg_venue[MG_PLANNED] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 static const uint8_t venue_mg[MG_PLANNED] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY,
@@ -154,6 +156,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     mg_id = id; mg_mode = mode;
     mg_game = id == MG_QUICKDRAW ? G_QD : G_STUB;   // a planned game not built yet plays the stub
     if (id == MG_BATTERY) mg_game = G_BS;
+    if (id == MG_ORDERUP) mg_game = G_OU;
     if (mode == MG_STORY) mg_record(id, MEDAL_NONE);   // STORY or ARCADE reached it: Practice lists it (save.c)
     else {                                       // practice: the score starts from 0 (story: it carries on)
         extra_at = 0;                            // (no extra lives by score here)
@@ -180,13 +183,14 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
         for (i = 1; i <= MG_ICON_N; i++) vram_put(ICON_COL, RES_ROW + i, row_buf, MG_ICON_N);
         VBK_REG = VBK_BANK_0;
     }
+    fill(tbuf, TILE_HUD_BLANK, 4);
+    vram_put(TIMER_COL, HUD_ROW, tbuf, 4);       // no level number on a mini-game's HUD (a game may draw there)
     switch (mg_game) {                           // the game's own screen (it may set mg_timer)
     case G_QD: qd_enter(); break;
     case G_BS: bs_enter(); break;
+    case G_OU: ou_enter(); break;
     default: stub_enter(); break;
     }
-    fill(tbuf, TILE_HUD_BLANK, 4);
-    vram_put(TIMER_COL, HUD_ROW, tbuf, 4);       // no level number on a mini-game's HUD
     if (mg_timer) { last_secs = secs_left(); hud_timer(); }
     mg_say(MG_TEXT_A, mg_name[mg_game]);         // (LCD off: written at once)
     mg_say(MG_TEXT_B, mg_instr[mg_game]);
@@ -199,6 +203,7 @@ static void game_update(uint8_t pressed) {
     switch (mg_game) {
     case G_QD: qd_update(pressed); break;
     case G_BS: bs_update(pressed); break;
+    case G_OU: ou_update(pressed); break;
     default: stub_update(pressed); break;
     }
 }
@@ -210,6 +215,7 @@ static void result_begin(void) {
     char *d;
     const char *w;
     if (mg_game == G_QD) m = qd_medal();
+    else if (mg_game == G_OU) m = ou_medal();
     else while (m < 3 && mg_score >= at[m]) m++;
     mg_medal = m;
     mg_record(mg_id, m);                         // the best medal (Practice's list; any mode)
@@ -256,6 +262,7 @@ static void mg_leave(void) {
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     vq_reset();
     hide_all_sprites();
+    say_bang = 0;                                // (a game's own '!' tile goes with the level load)
     fill(row_buf, TILE_PANEL_TOP, 20); vram_put(0, RES_ROW, row_buf, 20);
     fill(row_buf, TILE_HUD_BLANK, 20); vram_put(0, RES_ROW + 1, row_buf, 20);
     fill(row_buf, TILE_PANEL_BOT, 20); vram_put(0, RES_ROW + 2, row_buf, 20);

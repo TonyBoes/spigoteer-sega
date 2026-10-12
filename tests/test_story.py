@@ -902,7 +902,7 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
             assert banner_text(gb, 1) == centred("CHAPTER CLEAR" if k == 2 and c not in BOSS_BUILT else "SHIFT CLEAR")
             if k < 2:
                 mini = k == 1 and c in MINI_BUILT
-                if mini:                                  # the saloon: Quick Draw, the factory: Battery Sort (test_qd / test_bs)
+                if mini:                                  # Quick Draw, Order Up!, Battery Sort (test_qd / test_ou / test_bs)
                     run_until(gb, lambda: state(gb) == GS_MINI, 300)
                     assert gb.mem("mg_id") == CHAPTERS[c]["venue"] and gb.mem("story_step") == MINI_STEP
                     assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, MINI_STEP)

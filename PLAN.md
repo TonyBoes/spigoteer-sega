@@ -1989,3 +1989,49 @@ against the drink and the cross's mirror symmetry; the bin's and lid's tiles ded
   bs_result; replaced: mg_list, mg_list_locked (the list gains BATTERY SORT).
 - Spec gaps: the counter row and the band are wall in play (the mock-ups); the instruction reads LEFT FULL RIGHT DEAD
   (20 letters, the mock-up); the 16th battery is always broken (the chute's banner always has its reason).
+
+## Order Up! as built (M11e, docs/minigames_bosses.md 4.4, 2026-10-12)
+
+The bistro's mini-game on the framework, in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains BISTRO: chapter 4's slot
+after the Happy hour) and in BONUS > MINI GAMES (second line, THE BISTRO; the unlock rule as Quick Draw's: reached in
+STORY / ARCADE, SRAM bit 3; the debug build lists all). Art: the owner-approved proposal (2026-10-12) in
+assets/art/orderup/ ("; Art: approved design (owner 2026-10-12)"): dish look B "big food", Chef Colby (a 16x24 sprite,
+4 poses), the cloche, the bubble, the pips, the strikes and '!', the steam, the X; the bistro show's waiter dances on
+ORDER UP! (approved option).
+- **Rules** (src/ou.c, the spec's numbers): four dishes at their D-pad directions round the cloche (UP cheese, RIGHT
+  baguette, DOWN soup, LEFT grapes). Round r = 1..7 calls an order of r + 2 dishes: one seeded sequence (mg_rand) grown
+  by one dish a round. ROUND r / LISTEN; the empty bubble 20 frames; each dish lit on the cross and big in Colby's
+  bubble (Colby calling) L frames, then G dark: 24 / 8 (rounds 1-3), 20 / 6 (4-5), 16 / 6 (6-7). YOUR TURN: 150
+  frames a press (again after each right one). Right: 50, its pip, the dish lit and the Spigoteer serving 14 frames.
+  Wrong, or the time out: a strike (HUD), SENT BACK 64 frames (the X over the wrong dish, lit, or over the cloche on a
+  timeout; Colby cross with 2 steam puffs, the Spigoteer's shrug), then the same order called again (not grown). The
+  order served: ORDER UP! / "200r POINTS" 72 frames (the cloche lifted / set down every 12, Colby pleased, the cheer,
+  the waiter). 3 strikes: THREE STRIKES / ORDERS SERVED n; round 7 served: ALL ORDERS SERVED (+1000 and NO STRIKES 1000
+  with no strike at all). Medal by rounds served (ou_medal; mg.c asks it as qd_medal): GOLD 7, SILVER 5, BRONZE 3. No
+  timer, one setting. A perfect game: 42 x 50 + 200 x 28 + 1000 = 8700.
+- **Screen**: the framework's bistro backdrop (it uses BG palette 0 only on rows 1-17: the spec's open check, tested);
+  the cross at columns 10-15, rows 5-10; the bubble at columns 3-6, rows 4-7, its tail 3-4 of row 8 (the wall under it
+  saved at entry and put back); the pips on row 12 centred at column 13; the strikes at HUD columns 16-18 (mg.c now
+  blanks the timer's place before the game's enter, so a game may draw there). CGB BG palettes 2 3 5 6 the dishes
+  (colour 0 the wall's), 7 the lit dish (rewritten per light-up at the top of a frame while still in VBlank, LY
+  144-151, with no tile using it: the old dish goes dark first, the new one lights a frame later), 4 left to the medal.
+  OBJ: Colby palettes 3 / 4, the X 6, the waiter the show's 5; DMG OBP0 0xD0, OBP1 0xC4 (the X, the waiter; the level
+  load puts 0xE4 back). OAM 0-1 X, 2-3 steam, 4-7 Colby, 8-11 the Spigoteer, 12-15 the waiter: worst line 4. Tiles:
+  BG 125-181 (57: the spec's 56 + one blank for the empty bubble), OBJ 56-87 (Colby's 4 tops share one bottom); the
+  coin's 92-95 untouched. say_bang = the '!' tile; mg_leave now clears say_bang. State: struct ou_state in the mg union
+  (tests read story_scratch + 0..28).
+- **Sounds**: no new SFX (as Quick Draw): the dish tones are UP SFX_COIN, RIGHT SFX_CATCH, DOWN SFX_LAUNCH, LEFT
+  SFX_SHAKE; the bell SFX_SERVE; SENT BACK SFX_BREAK. Spec gap: 4.4's four pitched tones (C6 G5 E5 C5) need SFX
+  entries in music.c (bank 2, 21 B free); position and picture still tell the dishes apart.
+- **Tests** (tests/test_ou.py, 38): the screen and its art, palettes and attributes; a round called dish by dish; the
+  timings of all seven rounds frame by frame and the growth keeping the prefix; right presses, ORDER UP! with the
+  waiter; SENT BACK and the same order called again; the 150-frame press time and the timeout's X on the cloche;
+  presses ignored while calling; a perfect game (8700, GOLD, <= 4 sprites a line); three strikes after 0-6 rounds with
+  each medal; no +1000 after a strike; seeded orders; the list; STORY reaching it in the bistro, then the Last call's
+  VRAM (both banks), BG palettes and DMG registers as a fresh Last call's (BG tile 77 aside: no level's; OBJ palette 4
+  aside: the chefs have no extra palette, so no bistro sprite uses it); ARCADE reaching it. Changed: test_mg_list (the
+  list's new line, release unlock for Order Up!), test_story (the mini slot's id is the venue's). New goldens (dmg +
+  cgb): ou_intro, ou_call, ou_turn, ou_sent_back, ou_orderup, ou_result. Replaced on purpose: mg_list and
+  mg_list_locked (the list gains ORDER UP / a second "? ? ?" line).
+- Test-harness note: a 1-frame D-pad tap can fall between two joypad reads right after a frame with a long VBlank copy
+  (the logic moves against PyBoy's frame cut); test_ou holds presses 2 frames.
