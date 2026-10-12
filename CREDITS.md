@@ -61,7 +61,9 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
   earlier list (written from memory, bars 2-16 a sixteenth early and bars 12-16 wrong) was corrected. The B section
   (score bars 22-36 with the second endings of both sections, bars 21 and 38; its melody the top note of the right
   hand as written) and its harmony were transcribed the same way from the same score (2026-10-11).
-- "Funiculi, Funicula" (Denza, Ricordi 1880): melody from John Chambers' ABC transcription
+- "Funiculi, Funicula" (Denza, Ricordi 1880): the verse checked bar by bar and the echo "Tu sa-ie ad-do" (bar 7)
+  transcribed from Ricordi, Milan 1880, first edition, plate 47127 (IMSLP #148203, public domain) (owner-supplied
+  transcription, 2026-10-11); melody otherwise from John Chambers' ABC transcription
   (trillian.mit.edu/~jc/music/abc/Italy/FuniculiFunicula.abc, via folktunefinder.com). Verse and chorus; the
   verse's modulating second half is omitted.
 - "The Skaters' Waltz" (Waldteufel, 1882, Op. 183): Traditional Tune Archive (tunearch.org, "Skater's Waltz"),

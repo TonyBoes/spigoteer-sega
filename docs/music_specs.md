@@ -51,7 +51,7 @@ PICKUP: C5:1
  4 | A4:3 A4:3                                    | F
  5 | ~:2 A4:1 G4:2 F4:1                           | C7
  6 | F4:6                                         | F
- 7 | R:2 A4:1 G4:2 F4:1                           | C7
+ 7 | ~:1 R:1 A4:1 G4:2 F4:1                       | C7
  8 | F4:6                                         | F
  9 | ~:1 R:4 C5:1                                 | F
   [CHORUS ("Jammo, jammo...")]
@@ -75,9 +75,10 @@ PICKUP: C5:1
 
 Note: Bar 9 holds F4; its final C5 is the source's repeat pickup, used here as a lead-in to the chorus. Bar 25 ends with the same C5 pickup, so on looping go straight to bar 1 (play the PICKUP line only the first time).
 Note: Chorus melody is the top voice of the source's two-note chords.
-Confidence: High (from transcription).
-Rhythm checked 2026-10-11 (music step 3) against the Wikifonia lead sheet "Funiculi funicula" in OpenEWLD (github.com/00sapo/OpenEWLD, public-domain scores): the same note onsets in every bar (the lead sheet writes some chorus notes as an eighth and a rest, and has a bar's rest after bar 21), except the echo "and so do I" in bar 7, three even eighths there (A4:1 G4:1 F4:1 after a held F4 and a rest); the spec's rhythm is kept.
-Source: Melody from John Chambers' ABC transcription (trillian.mit.edu/~jc/music/abc/Italy/FuniculiFunicula.abc, via folktunefinder.com). Underlying work: Luigi Denza, Ricordi 1880 (public domain). The full verse modulates through A minor and C major after bar 9; that part is omitted here.
+Confidence: High (from transcription; bars 1-9 checked against the 1880 Ricordi edition).
+Rhythm checked 2026-10-11 (music step 3) against the Wikifonia lead sheet "Funiculi funicula" in OpenEWLD (github.com/00sapo/OpenEWLD, public-domain scores): the same note onsets in every bar (the lead sheet writes some chorus notes as an eighth and a rest, and has a bar's rest after bar 21), except the echo "and so do I" in bar 7, three even eighths there (A4:1 G4:1 F4:1 after a held F4 and a rest); the spec's rhythm was kept.
+Corrected 2026-10-12 (music step 4) from the owner-supplied transcription of Ricordi's first edition (see Source; E-flat major there, transposed up a tone to F): the echo "Tu sa-ie ad-do" is the long-short form every time, never three even eighths: the held "-do" goes on for a tied eighth, an eighth rest, then A4 eighth, G4 quarter, F4 eighth (bar 7 was 'R:2 A4:1 G4:2 F4:1', a quarter rest). The later echoes ("Farme non po", "Te lassa sta", ...) repeat the pattern but lie in the omitted second half of the verse, so bar 7 is the only echo here. Bars 1-6 and 8 match the transcription; one difference left as it was: the transcription restrikes "-ra" (E-flat5 quarter, bar 2) where bar 2 ties F5 on from bar 1 (~:2).
+Source: Melody from John Chambers' ABC transcription (trillian.mit.edu/~jc/music/abc/Italy/FuniculiFunicula.abc, via folktunefinder.com); the echo bar transcribed from Ricordi, Milan 1880, first edition, plate 47127 (IMSLP #148203, public domain) (owner-supplied transcription, 2026-10-11). Underlying work: Luigi Denza, Ricordi 1880 (public domain). The full verse modulates through A minor and C major after bar 9; that part is omitted here.
 
 ------------------------------------------------------------
 2. THE SKATERS' WALTZ (Waldteufel, 1882, Op. 183) - main waltz theme

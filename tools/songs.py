@@ -225,10 +225,13 @@ song("mountain", 6, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 16),
 # (music step 3, 2026-10-11) against the Wikifonia lead sheet "Funiculi funicula" in OpenEWLD (github.com/00sapo/OpenEWLD,
 # public-domain scores): every bar has the same note onsets (the lead sheet writes some chorus notes as an eighth and a
 # rest where ours hold, and has a bar's rest after bar 21), except the echo "and so do I" of bar 7, three even eighths
-# there and eighth-quarter-eighth here (the spec's ABC source); kept.
+# there.  Settled (music step 4, 2026-10-12) by the owner-supplied transcription of Ricordi's first edition (Milan 1880,
+# plate 47127, IMSLP #148203; in E-flat there, a tone up here): the echo is the long-short form every time, the "-do"
+# held on by a tied eighth, an eighth rest, then "Tu sa-ie ad-" as eighth, quarter, eighth (bar 7 was a quarter rest
+# and the same three notes).  Our 25 bars hold only this one echo (the later ones are in the omitted part of the verse).
 FUN_BARS = [
     "F5:6", "~:2 F5:1 E5:2 E5:1", "C5:2 C5:1 D5:2 D5:1", "A4:3 A4:3", "~:2 A4:1 G4:2 F4:1", "F4:6",
-    "R:2 A4:1 G4:2 F4:1", "F4:6", "~:1 R:4 C5:1", "E5:3 D5:1 R:2", "E5:3 D5:1 R:2",
+    "~:1 R:1 A4:1 G4:2 F4:1", "F4:6", "~:1 R:4 C5:1", "E5:3 D5:1 R:2", "E5:3 D5:1 R:2",
     "F5:2 E5:1 D5:2 F5:1", "E5:3 R:3", "E5:3 D5:1 R:2", "E5:3 D5:1 R:2", "F5:2 E5:1 D5:2 F5:1",
     "C5:2 A4:1 A4:2 A4:1", "A4:2 A4:1 A4:2 A4:1", "A4:2 A4:1 A4:2 A4:1", "A4:2 A4:1 A4:2 A4:1",
     "F5:6", "G5:2 F5:1 D5:2 F5:1", "C5:2 A4:1 A4:2 Bb4:1", "C5:2 Bb4:1 A4:2 G4:1", "F4:3 R:2 C5:1",
