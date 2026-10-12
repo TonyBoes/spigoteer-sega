@@ -1,0 +1,21 @@
+; Art: approved design (owner 2026-10-12): Milk Run, the R7a bike and rider (round 7), the DMG look V1 (round 8), the V1 verge. Pixel-exact from the proposal.
+; Milk Run verge V1 (3/4 facades, matches bike option A). Houses: CGB BG palette 2 (cream wall, red roof)
+; or 6 (white wall, slate roof), chosen per house; '.' wall, '-' lawn, '+' roof, '#' dark. Greenery: palette 5,
+; '.' white picket, '-' lawn, '+' leaf, '#' dark. DMG BGP 0xE4.
+; The tree, 16x16 (BG 2x2), palette 5.
+-----######-----
+---##++++++##---
+--#++++++++++#--
+-#++++++++++++#-
+-#+++++++++++#--
+-#++++++++++++#-
+--#++++++++++#--
+--#+++++++++#---
+---##++++++##---
+-----######-----
+------#++#------
+------#++#------
+------#++#------
+-----##++##-----
+----------------
+----------------

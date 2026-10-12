@@ -19,6 +19,7 @@
 #include "palettes.h"
 #include "bonus.h"
 #include "music.h"
+#include "mg.h"
 
 BANKREF_EXTERN(art_tiles)
 
@@ -172,6 +173,82 @@ void lose_life(void) {
 
 void lcd_isr(void) {          // LYC: switch the banner window off below the banner
     HIDE_WIN;
+}
+
+// Milk Run (src/mr.c) splits the frame: its street scrolls under a HUD row that does not. mr_enter swaps this handler in
+// for lcd_isr (mg.c's lcd_normal puts lcd_isr back, so no other screen pays a cycle for it). LYC walks MR_SPLIT_LY (SCX =
+// the street's, below the HUD) -> the window's end when one shows -> line 144 (SCX = 0 for the next frame's HUD) ->
+// MR_SPLIT_LY; mg.c does not set LYC for Milk Run.
+void mr_lcd_isr(void) {
+    uint8_t ly;
+    HIDE_WIN;                                    // (as lcd_isr: the banner window's end)
+    if (game_state == GS_MINI && mg_id == MG_MILKRUN) {
+        ly = LYC_REG;
+        if (ly == 144) { SCX_REG = 0; ly = MR_SPLIT_LY; }
+        else if (ly == MR_SPLIT_LY) {
+            SCX_REG = MG->mr.scx;
+            if (overlay_on) {
+                SHOW_WIN;                        // (the banner window is wanted from its top line)
+                ly = mg_phase == MG_RESULT ? BANNER_WY + 46 : BANNER_LYC;
+            } else ly = 144;
+        } else ly = 144;                         // the window's end: hidden above
+        LYC_REG = ly;
+    }
+}
+
+// Milk Run's VBlank handler (added by mr_enter): the next street column, 17 tiles down the map from `dst` and then, on
+// CGB, its 17 attributes (they follow the tiles: one loop, twice), from the start of the mini-game state (struct
+// mr_state: dst +0, tiles +2, attributes +19). Only early in VBlank (the copy is ~620 cycles).
+static void mr_col_copy(void) {
+__asm
+    push bc
+    ldh  a, (0x4F)
+    and  a, #1
+    ld   c, a               ; the interrupted code's VRAM bank
+    xor  a, a
+    ldh  (0x4F), a
+    ld   de, #_story_scratch + 2
+0$:
+    ld   a, (_story_scratch)
+    ld   l, a
+    ld   a, (_story_scratch + 1)
+    ld   h, a
+    ld   b, #17
+1$:
+    ld   a, (de)
+    inc  de
+    ld   (hl), a
+    ld   a, l
+    add  a, #32
+    ld   l, a
+    jr   nc, 2$
+    inc  h
+2$:
+    dec  b
+    jr   nz, 1$
+    ldh  a, (0x4F)          ; bank bit 0 on CGB: the attributes next (a DMG reads 0xFF and ends; so does bank 1)
+    and  a, #1
+    jr   nz, 9$
+    ld   a, (_is_cgb)
+    or   a, a
+    jr   z, 9$
+    ld   a, #1
+    ldh  (0x4F), a
+    jr   0$
+9$:
+    ld   a, c
+    ldh  (0x4F), a
+    pop  bc
+__endasm;
+}
+
+void mr_vbl(void) {
+    uint8_t ly;
+    if (game_state != GS_MINI || mg_id != MG_MILKRUN || !MG->mr.colq) return;
+    ly = LY_REG;
+    if (ly < 144 || ly > 147) return;            // too late in VBlank: the column waits for the next
+    mr_col_copy();
+    MG->mr.colq = 0;
 }
 
 

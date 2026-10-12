@@ -1,0 +1,20 @@
+; Art: approved design (owner 2026-10-12): Milk Run, the R7a bike and rider (round 7), the DMG look V1 (round 8), the V1 verge. Pixel-exact from the proposal.
+; Milk Run: traffic cone, 8x16 (BG 1x2), set in pairs. CGB BG palette 4: '.' white band,
+; '-' asphalt (= road), '+' orange #f07828, '#' dark. DMG: a dark-grey cone, white bands, black
+; outline on the light-grey road.
+--------
+--------
+---##---
+--#++#--
+--#++#--
+--#..#--
+-#....#-
+-#++++#-
+-#++++#-
+#......#
+#......#
+########
+#++++++#
+#++++++#
+-######-
+--------

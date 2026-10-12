@@ -1,0 +1,19 @@
+; Art: approved design (owner 2026-10-12): Milk Run, the R7a bike and rider (round 7), the DMG look V1 (round 8), the V1 verge. Pixel-exact from the proposal.
+; Milk Run: pothole, 16x16 (BG 2x2) in a lane. CGB BG palette 0 (road): the broken rim and the
+; far inner wall in kerb steel, the hole dark. DMG: a black hole in a dark-grey rim.
+----------------
+----------------
+----+++++++-----
+--++#######++---
+-+#++++++++++#+-
+-+############+-
++##############+
++##############+
+-+############+-
+--+##########+--
+---++######++---
+-----++++++-----
+----------------
+----------------
+----------------
+----------------

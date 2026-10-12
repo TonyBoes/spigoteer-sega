@@ -1366,7 +1366,7 @@ Story fit: PRE_ZOO already says WATCH THE MONKEYS. THEY LOVE TO STEAL A COCONUT;
 
 ### 4.10 Milk Run (The Chrome Cow, chapter 7)
 
-PROPOSAL (2026-10-10), awaiting owner approval. Numbered last so the references to 4.1-4.9 stay; in chapter order it
+Approved by the owner and built (2026-10-12; PLAN.md "Milk Run as built": the HUD stays on row 0 with a raster split instead of a bottom window). Numbered last so the references to 4.1-4.9 stay; in chapter order it
 is the seventh mini-game.
 
 Play: Granny lends the Spigoteer her motorcycle, its sidecar stacked with milk crates. Seen from above, he rides along

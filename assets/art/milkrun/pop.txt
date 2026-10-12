@@ -1,0 +1,20 @@
+; Art: approved design (owner 2026-10-12): Milk Run, the R7a bike and rider (round 7), the DMG look V1 (round 8), the V1 verge. Pixel-exact from the proposal.
+; Milk Run: the PERFECT pop, 16x16 (two 8x16 OAM entries), a yellow-rimmed dark badge with
+; PER / FECT in a 3x5 hand font; rises 4 px over the box and goes after 50 frames.
+; CGB OBJ palette 2, DMG OBP1 0xE0.
+.++++++++++++++.
++##############+
++#--##---#--###+
++#-#-#-###-#-##+
++#--##--##--###+
++#-###-###-#-##+
++#-###---#-#-##+
++---#---##-#---+
++-###-###-###-#+
++--##--##-###-#+
++-###-###-###-#+
++-###---##-##-#+
++##############+
+.++++++++++++++.
+................
+................

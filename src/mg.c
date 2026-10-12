@@ -43,9 +43,10 @@ extern uint32_t score;
                                 // of columns 4-19 (so a line in the window has at most 16 characters)
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
 #define TIMER_COL       16      // HUD: 'T' + 3 digits (story.c hud_goal's format)
-#define MG_GAMES         4      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
-                                // G_OU Order Up!
-enum { G_STUB, G_QD, G_BS, G_OU };
+#define MG_GAMES         5      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
+                                // G_OU Order Up!, G_MR Milk Run
+enum { G_STUB, G_QD, G_BS, G_OU, G_MR };
+#define OBP0_BOOT     0xD0      // OBP0 as main_cold.c sets it once at boot (Milk Run's DMG look changes it)
 
 // ---- state (globals => symbols the tests read) ----
 uint8_t  mg_id;                 // the id mg_enter was given (MG_*, mg.h)
@@ -60,11 +61,13 @@ static uint8_t tbuf[4], res_buf[20];
 static char res_txt[2][14];
 
 // per game: the banner, the medal thresholds on mg_score (bronze, silver, gold)
-static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BATTERY SORT", "ORDER UP!" };
+static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BATTERY SORT", "ORDER UP!",
+                                                "MILK RUN" };
 static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "LEFT FULL RIGHT DEAD",
-                                                "REPEAT THE ORDER" };
+                                                "REPEAT THE ORDER", "UP DOWN LANE A TOSS" };
 static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },   // (Quick Draw: qd_medal)
-                                                { 2000, 4000, 6000 }, { 0, 0, 0 } }; // (Order Up!: ou_medal)
+                                                { 2000, 4000, 6000 }, { 0, 0, 0 },   // (Order Up!: ou_medal)
+                                                { 0, 0, 0 } };                         // (Milk Run: mr_medal)
 // each planned game's venue (the id is not the venue: the two lists need not keep one order), and the reverse
 static const uint8_t mg_venue[MG_PLANNED] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 static const uint8_t venue_mg[MG_PLANNED] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY,
@@ -123,6 +126,16 @@ uint8_t mg_of_venue(uint8_t venue) BANKED {
     return venue < MG_PLANNED ? venue_mg[venue] : MG_STUB;
 }
 
+// Milk Run swaps its own LYC handler in for lcd_isr and adds a VBlank one (mr_enter); every other screen has lcd_isr only
+static void lcd_normal(void) {
+    CRITICAL {
+        remove_LCD(mr_lcd_isr);
+        remove_LCD(lcd_isr);
+        add_LCD(lcd_isr);
+        remove_VBL(mr_vbl);
+    }
+}
+
 // ---- the framework -------------------------------------------------------------------------------------------
 static void fill(uint8_t *d, uint8_t v, uint8_t n) { while (n--) *d++ = v; }
 
@@ -147,7 +160,7 @@ static void attr_rows(uint8_t y, uint8_t n) {    // LCD off, CGB: rows y.. in th
 void mg_enter(uint8_t id, uint8_t mode) BANKED {
     uint8_t v = id < MG_PLANNED ? mg_venue[id] : 0, i;   // (the stub: the saloon)
     DISPLAY_OFF;
-    overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
+    overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC; SCX_REG = 0;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();
     clear_patrons(); clear_mugs();
@@ -157,6 +170,9 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     mg_game = id == MG_QUICKDRAW ? G_QD : G_STUB;   // a planned game not built yet plays the stub
     if (id == MG_BATTERY) mg_game = G_BS;
     if (id == MG_ORDERUP) mg_game = G_OU;
+    if (id == MG_MILKRUN) mg_game = G_MR;
+    if (!is_cgb) OBP0_REG = OBP0_BOOT;           // (Milk Run changes it: a game that is not it starts from the boot's)
+    lcd_normal();                                // (and has the LYC / VBlank handlers it left)
     if (mode == MG_STORY) mg_record(id, MEDAL_NONE);   // STORY or ARCADE reached it: Practice lists it (save.c)
     else {                                       // practice: the score starts from 0 (story: it carries on)
         extra_at = 0;                            // (no extra lives by score here)
@@ -189,6 +205,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     case G_QD: qd_enter(); break;
     case G_BS: bs_enter(); break;
     case G_OU: ou_enter(); break;
+    case G_MR: mr_enter(); break;
     default: stub_enter(); break;
     }
     if (mg_timer) { last_secs = secs_left(); hud_timer(); }
@@ -204,6 +221,7 @@ static void game_update(uint8_t pressed) {
     case G_QD: qd_update(pressed); break;
     case G_BS: bs_update(pressed); break;
     case G_OU: ou_update(pressed); break;
+    case G_MR: mr_update(pressed); break;
     default: stub_update(pressed); break;
     }
 }
@@ -216,6 +234,7 @@ static void result_begin(void) {
     const char *w;
     if (mg_game == G_QD) m = qd_medal();
     else if (mg_game == G_OU) m = ou_medal();
+    else if (mg_game == G_MR) m = mr_medal();
     else while (m < 3 && mg_score >= at[m]) m++;
     mg_medal = m;
     mg_record(mg_id, m);                         // the best medal (Practice's list; any mode)
@@ -260,6 +279,9 @@ static void result_row(uint8_t r) {             // queue window row r (0..5)
 static void mg_leave(void) {
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
+    SCX_REG = 0;                                 // (Milk Run's street)
+    if (!is_cgb) OBP0_REG = OBP0_BOOT;           // (Milk Run's rider)
+    lcd_normal();
     vq_reset();
     hide_all_sprites();
     say_bang = 0;                                // (a game's own '!' tile goes with the level load)
@@ -274,7 +296,10 @@ static uint8_t result_frame(uint8_t pressed) {
     if (res_row < RES_ROWS) {
         result_row(res_row++);
         result_row(res_row++);
-        if (res_row == RES_ROWS) { overlay_on = 1; LYC_REG = RES_LYC; }
+        if (res_row == RES_ROWS) {
+            overlay_on = 1;
+            if (mg_game != G_MR) LYC_REG = RES_LYC;      // (Milk Run's lcd_isr walks LYC itself and picks RES_LYC)
+        }
         return 0;
     }
     if (mg_mode == MG_STORY) {

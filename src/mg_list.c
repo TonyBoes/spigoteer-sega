@@ -10,7 +10,7 @@
 // "A RETRY B MENU", and B comes back here: src/mg.c); a locked one does nothing. B goes back to the title's BONUS
 // submenu with the cursor on MINI GAMES.
 // The list: every built game. The DEBUG_MENU build (`make`) lists them all unlocked, the stub GREEN LIGHT included, so
-// the owner can test; `make release` lists Quick Draw, Order Up! and Battery Sort (the stub is not in it) and applies
+// the owner can test; `make release` lists Quick Draw, Order Up!, Battery Sort and Milk Run (the stub is not in it) and applies
 // the unlock rule.
 // LCD off to enter; afterwards the rows go through the VBlank queue from WRAM buffers (story_scratch: no cut-scene and
 // no mini-game runs while this screen shows; mg_enter rewrites it).
@@ -33,19 +33,19 @@ extern uint8_t overlay_on;
 #define ML_COL_MEDAL   14       // (BATTERY SORT is 12 letters: columns 1-12)
 #define ML_ROWS_PER_FRAME 4     // 20-byte rows queued a frame (as mg_say)
 #ifdef DEBUG_MENU
-#define ML_N            4
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_STUB };
+#define ML_N            5
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_STUB };
 #else
-#define ML_N            3
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY };
+#define ML_N            4
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN };
 #endif
 typedef char ml_fits[(ML_N <= ML_ROW_BOX - ML_ROW_LIST) ? 1 : -1];   // (no scrolling yet: 10 lines)
-#define ML_INFO_BITS  (((1 << ML_INFO_LINES) - 1) << ML_N)
+#define ML_INFO_BITS  ((1 << ML_INFO_LINES) - 1)
 #define ML_ROW(k)     (story_scratch + (uint8_t)(k) * 20)   // row buffer k: list line k < ML_N, else info line k - ML_N
 
 uint8_t ml_sel;                 // the selected line
 uint8_t ml_n;                   // lines listed (tests)
-static uint8_t ml_dirty;        // bit k: row buffer k to redraw
+static uint8_t ml_dirty;        // bit k: the info line k (row buffer ML_N + k) to redraw (the list's own lines never change)
 
 static const char locked_name[] = "? ? ?";
 static const char *const locked_info[ML_INFO_LINES] = { locked_name, "LOCKED", "REACH IT IN STORY", "OR ARCADE" };
@@ -55,6 +55,7 @@ static const char *game_name(uint8_t g) {
     if (g == MG_QUICKDRAW) return "QUICK DRAW";
     if (g == MG_ORDERUP) return "ORDER UP";      // (no '!': the list has no tile for it)
     if (g == MG_BATTERY) return "BATTERY SORT";
+    if (g == MG_MILKRUN) return "MILK RUN";
 #ifdef DEBUG_MENU
     return "GREEN LIGHT";
 #else
@@ -66,6 +67,7 @@ static const char *game_where(uint8_t g) {
     if (g == MG_QUICKDRAW) return "THE SALOON";
     if (g == MG_ORDERUP) return "THE BISTRO";
     if (g == MG_BATTERY) return "THE ROBOT FACTORY";
+    if (g == MG_MILKRUN) return "THE CHROME COW";
 #ifdef DEBUG_MENU
     return "THE TEST STUB";
 #else
@@ -192,9 +194,9 @@ uint8_t mg_list_update(uint8_t pressed) BANKED {
         title_enter();
         return 1;
     }
-    for (k = 0, n = 0; k < ML_N + ML_INFO_LINES && n < ML_ROWS_PER_FRAME; k++) {
-        if (!(ml_dirty & (1 << k))) continue;
-        ml_dirty &= ~(1 << k);
+    for (k = ML_N, n = 0; k < ML_N + ML_INFO_LINES && n < ML_ROWS_PER_FRAME; k++) {
+        if (!(ml_dirty & (1 << (k - ML_N)))) continue;
+        ml_dirty &= ~(1 << (k - ML_N));
         build(k);
         vq_add(0, ML_ROW(k), 0, screen_row(k), 20);
         n++;

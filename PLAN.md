@@ -354,7 +354,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, the venue owners (ten with Granny Throttle), villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Next: Order Up!, Battery Sort. |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort and Milk Run are built (see their sections). |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -2143,6 +2143,54 @@ ORDER UP! (approved option).
   Sort on the third line; mg_list / mg_list_locked replaced again (the ORDER UP line).
 - Test-harness note: a 1-frame D-pad tap can fall between two joypad reads right after a frame with a long VBlank copy
   (the logic moves against PyBoy's frame cut); test_ou holds presses 2 frames.
+
+## Milk Run as built (M11e, docs/minigames_bosses.md 4.10, 2026-10-12)
+
+The Chrome Cow's mini-game on the framework (src/mr.c), in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains BIKER:
+chapter 7's slot after the Happy hour) and in BONUS > MINI GAMES (fourth line after QUICK DRAW, ORDER UP, BATTERY SORT;
+THE CHROME COW; the unlock rule as the others). Art: the owner-approved set in assets/art/milkrun/ imported pixel-exact
+(R7a bike and rider, V1 verge, road, box, cone, crate, pothole, stars, pop, HUD crate), tools/gen_mr.py -> build/mr_art.h,
+build/mr.json, out/preview/mr_*_x8.png. One deliberate export detail: the HUD crate's band is drawn with '+' (index 2) in
+the approved file; the real HUD palette has orange at index 2 (navy at 3), so gen_mr exports the band as index 3 (cream
+crate on navy as in the mock-up; the file itself is untouched).
+- **Rules** (the spec's numbers): 3 lanes, Up / Down 8 frames (2 px a frame), one press queued; the street 1.5 px a frame,
+  +0.25 every 600 frames to 2.5; A tosses to the kerb beside lane 1 / 3 (lane 2: nothing lost), 16 frames in the air, at
+  most 2 crates in the air, none in a wobble; landing within 8 px of a box's centre PERFECT 500 (the pop 50 frames), within
+  16 delivered 300, else lost; crash (hit box 16x12): 30 frames wobble with stars, one crate lost (it lies behind), the speed
+  one step down (not under 1.5), 60 frames blinking; 12 crates, 45 s, each crate left +100 at the end; medal by deliveries
+  4 / 7 / 10 (mr_medal). **HARD** (Practice, mg_mode & MG_HARD; the spec has none, the list has no toggle yet): starts at
+  2.0 px a frame and a crash never slows below it. SFX: toss LAUNCH, delivered COIN, PERFECT SERVE, crash BREAK.
+- **Street**: seeded (mg_rand): gates (1-2 lanes of potholes / cones, never 3) at least v x (8L + 32) px apart at 2.5 px
+  (L = lanes to cross), 12 boxes 34-65 columns apart on random kerbs. A box keeps its kerb lane free of gates from 9 columns
+  before to 4 after (the spec's "beside" widened: the bike must be able to sit in the lane for a toss); whichever of the pair
+  was made later gives way. tests/mr_helpers.py has a Python model of it and a bot that rides every tested seed with no
+  crash and delivers 9-12 PERFECT (4 seeds in the suite, 6 tried).
+- **Scrolling** (the spec put the HUD in the window at row 17; the framework's HUD is row 0, which add_score writes, so it
+  is a raster split instead): `mr_lcd_isr` (src/main.c, ROM0) is swapped in for lcd_isr by mr_enter (mg.c lcd_normal puts
+  lcd_isr back on every other mg_enter / mg_leave, so nothing else pays a cycle): LYC walks line 7 (SCX = the street's, HUD
+  row 0 above it, its last pixel line is solid band) -> the banner / result window's end when one shows -> 144 (SCX 0).
+  `mr_vbl` (ROM0, a second VBL handler) writes the next map column (17 tiles + 17 CGB attributes, 36 bytes at the start of
+  the state, ~620 cycles, only in LY 144-147; else next frame) one column per ~3 frames, 21 columns ahead. Map rows 1-3 top
+  verge, 4-5 top kerb (box 2x2), 6-11 lanes (bike tops y 48 / 64 / 80), 12-13 bottom kerb, 14-17 bottom verge; the verges are
+  23- and 40-column strips (gen_mr). The framework's banner rows 2-3 overwrite street rows: saved at entry, put back on the
+  first play frame; TIME UP is a window banner (own 45 s timer, mg_timer 0, so the framework's BG-row TIME UP never scrolls).
+- **Palettes**: CGB BG 0 road / kerb / pothole, 2 and 6 houses, 3 boxes, 5 greenery, 7 cones (not 4: the result's medal);
+  OBJ 0 rider, 1 bike + crates, 2 stars + pop. DMG (round 8's V1): the rider on OBP0 = 0xC0, everything else OBP1 = 0xE0 via the
+  OAM palette bit. **OBP0 is restored to 0xD0** by mg.c in mg_leave (win / lose / Practice back / the story's A CONTINUE) and
+  at every mg_enter. There is no START / quit path in the framework to cover. SCX and LYC are put back there too.
+- **OAM**: 0-2 bike, 3 rider, 4-5 stars, 6-7 crates, 8 the lost crate, 9-10 pop; worst line 9 (bike 4 + stars 2 + crates 2 +
+  lost 1; the pop sits above / below the lanes). Tiles BG 125-171, OBJ 56-89. State: struct mr_state (190 B) in the mg union.
+- **Numbers**: ROM0 free 745 -> 577 B (mr_lcd_isr, mr_vbl and its asm copy: 168 B; lcd_isr itself unchanged, its golden-pinned
+  timing too); WRAM_LO 3936 / WRAM_HI_0 3455 unchanged, heap start 0xDD7F unchanged (no new global); mr.c + art ~7.5 KB in
+  autobank (banks 1-13; 13 now 1549 B free). make check (SameBoy) passes; a throwaway ROM that boots into Milk Run was also
+  run in SameBoy (seam, scroll and columns right on DMG and CGB).
+- **Tests**: tests/test_mg_milkrun.py (96) and tests/mr_helpers.py (state offsets parsed from mg.h, generator model, bot).
+  New goldens (dmg + cgb): mr_riding, mr_toss, mr_perfect, mr_crash, mr_result. Changed on purpose: mg_list and mg_list_locked
+  (the list gains the MILK RUN line / a fourth "? ? ?"), test_mg_list (counts and lines), mg_list.c's dirty bits (one per info
+  line: the list's ninth buffer no longer fits an 8-bit mask). Spec gaps: HUD at row 0, the widened box zone, HARD, TIME UP
+  as a window banner; Practice has no HARD toggle yet.
+- Test-harness note: reads of the game's state at PyBoy's frame end can catch a 16-bit field half updated; the tests read
+  in a paused frame (snap) and count game frames with S.anim.
 
 ## Leo and Sumo as built (docs/minigames_bosses.md 3.11 / 3.9, 2026-10-12)
 Both follow "Boss hooks as built": a dispatcher `uint8_t boss_<name>(uint8_t ev, uint8_t arg) BANKED` in its own

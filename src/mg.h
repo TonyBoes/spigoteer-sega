@@ -176,12 +176,66 @@ struct ou_state {               // tests read these at story_scratch + offset (t
     char    txt[14];            // a text line being built
 };
 
+void mr_enter(void) BANKED;                      // src/mr.c: MILK RUN (The Chrome Cow)
+void mr_update(uint8_t pressed) BANKED;
+uint8_t mr_medal(void) BANKED;                   // the medal its deliveries earned (not a score threshold)
+void mr_vbl(void);                               // src/main.c (ROM0): its VBlank handler, the street's next map column
+void mr_lcd_isr(void);                           // src/main.c (ROM0): its LYC handler (the raster split), swapped in for lcd_isr
+#define MR_FT           6       // street features alive at once: gates and boxes
+#define MR_COL_ROWS    17       // the street's map rows 1-17
+#define MR_SPLIT_LY     7       // the LYC line where the street starts to scroll (below the HUD row)
+// A map column is written by mr_vbl from the first 36 bytes (main.c's asm reads them at these offsets); lcd_isr reads scx
+struct mr_toss { uint8_t t, side, y0; };         // a crate in the air: frames since the toss (0: none), kerb, bike y
+struct mr_state {               // tests read these at story_scratch + offset (tests/test_mg_milkrun.py)
+    uint16_t dst;               // +0 the column's first map address (row 1), for mr_vbl
+    uint8_t ctile[MR_COL_ROWS]; // +2 the column's tiles
+    uint8_t cattr[MR_COL_ROWS]; // +19 and its CGB palettes
+    uint8_t colq;               // +36 1: a column waits for the next VBlank
+    uint8_t scx;                // +37 the street's SCX (lcd_isr sets it below the HUD)
+    uint8_t st;                 // +38 0 riding, 1 the outro (time up)
+    uint8_t steps;              // +39 speed steps: 1/16 px a frame = 24 + 4 x steps (1.5 .. 2.5 px)
+    uint8_t frac;               // +40 the scroll's 1/16 px
+    uint8_t lane;               // +41 the bike's lane (the target): 0 top, 1 middle, 2 bottom
+    uint8_t y;                  // +42 the bike's top, screen px
+    int8_t  queued;             // +43 a lane change pressed during one: -1 up, 1 down, 0 none
+    uint8_t inv;                // +44 crash timer: 90 .. 61 wobbling, 60 .. 1 blinking
+    uint8_t crates;             // +45 crates left
+    uint8_t delivered;          // +46 crates that landed on a box (the medal)
+    uint8_t perfect;            // +47 of them PERFECT
+    uint8_t anim;               // +48 frames counted (the ride's two frames)
+    uint8_t boxes_made;         // +49 boxes generated so far (12)
+    uint8_t ti, bi;             // +50 the verges' column counters
+    uint8_t started;            // +52 the first play frame has put the banner rows back
+    uint8_t secs;               // +53 the HUD timer's seconds
+    uint8_t pop_t;              // +54 frames left of the PERFECT pop
+    uint8_t pop_y;              // +55 its y (the kerb's), before it rises
+    uint8_t lost_t;             // +56 frames since a crate fell off (0: none)
+    uint8_t lost_y;             // +57 its y
+    uint16_t px;                // +58 the scroll, px
+    uint16_t next_col;          // +60 the next world column to stream
+    uint16_t time;              // +62 frames left
+    uint16_t clk;               // +64 frames toward the next speed step
+    uint16_t pop_x;             // +66 world x of the pop's left
+    uint16_t lost_x;            // +68 world x of the lost crate
+    uint16_t fcol[MR_FT];       // +70 the live features' world columns
+    uint8_t fkind[MR_FT];       // +82 0 none; gate: 0x80 | potholes << 3 | blocked lanes; box: 0x40 | full << 1 | bottom
+    uint16_t gcol;              // +88 the next gate (generated, not streamed yet)
+    uint8_t gkind;              // +90 its kind byte (0: none)
+    uint16_t bcol;              // +91 the next box (0xFFFF: none left)
+    uint8_t bside;              // +93 its kerb: 0 top, 1 bottom
+    struct mr_toss toss[2];     // +94 crates in the air
+    uint8_t tbuf[4], cbuf[4];   // +100 HUD timer and crates (VBlank queue sources)
+    uint8_t boxbuf[2];          // +108 a landed box's new top tiles
+    uint8_t wall[2][20], wattr[2][20];   // +110 map rows 2-3 as the street has them (the banner rows' place)
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
     struct qd_state qd;
     struct bs_state bs;
     struct ou_state ou;
+    struct mr_state mr;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert

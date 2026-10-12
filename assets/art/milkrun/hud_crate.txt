@@ -1,0 +1,11 @@
+; Art: approved design (owner 2026-10-12): Milk Run, the R7a bike and rider (round 7), the DMG look V1 (round 8), the V1 verge. Pixel-exact from the proposal.
+; Milk Run: the HUD's crates-left icon, 8x8 in the HUD font's two colours (CGB BG palette 1,
+; DMG black band / white glyph): '.' glyph, '+' band.
+++++++++
++.+.+.++
++......+
++......+
++.+..+.+
++......+
+++++++++
+++++++++
