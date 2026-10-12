@@ -27,6 +27,9 @@ EVERY, TELL, ICY, BLOW, CREEP, CREEP_COLS, ICE_COLS = (int(re.search(rf"#define 
 YP_WALK, YP_TELL, YP_ICY, YP_THAW = range(4)
 COUNTER_ROW = 5 + 3 * B + 2
 ICE_BG = 246
+SPARK_BG, SPARK_N = 248, 2          # the sparkle frames' tiles (SPARK1-4), at most SPARK_N glinting columns at once
+I2 = ["--------", "--------", "++++++++", "########", "--------", "--------"]     # the approved icicles' rows 0-5
+I2_A_LOW, I2_B_LOW = [".+-+..+.", "..+....."], [".+--+.+.", "..++...."]       # (rows 6-7 of tile A, of tile B)
 VENUE_COUNTER = venue("igloo")["bar_map"][40:60]
 ICY_COUNTER = [ICE_BG + A["ice_src"].index(t) if t in A["ice_src"] else t for t in VENUE_COUNTER[:ICE_COLS]]
 
@@ -35,9 +38,19 @@ def counter(gb):
     return tilemap_row(gb, COUNTER_ROW, 0, 20)
 
 
+def tile_rows(data):
+    return ["".join(".-+#"[((data[2 * r] >> (7 - c)) & 1) | (((data[2 * r + 1] >> (7 - c)) & 1) << 1)] for c in range(8))
+            for r in range(8)]
+
+
+def sparkles(gb):
+    """{column: glint frame 0-3} of the counter columns showing a sparkle tile."""
+    return {n: t - SPARK_BG for n, t in enumerate(counter(gb)) if SPARK_BG <= t < SPARK_BG + 4}
+
+
 def icy_cols(gb):
-    """How many counter columns from the left are icy (and the rest as the venue draws them)."""
-    c = counter(gb)
+    """How many counter columns from the left are icy (and the rest as the venue draws them); a sparkle counts as icy."""
+    c = [ICE_BG if SPARK_BG <= t < SPARK_BG + 4 else t for t in counter(gb)]
     n = 0
     while n < ICE_COLS and c[n] == ICY_COUNTER[n]:
         n += 1
@@ -47,13 +60,18 @@ def icy_cols(gb):
 
 def test_his_row_and_art():
     """Spec 3.2 / 3.7's numbers and timings, the banner lines of spec 7, his approved art with INHALE and BLOW (extra
-    poses 5 and 6), the icy copies of the igloo's two counter tiles (a placeholder pattern)."""
+    poses 5 and 6), the icy copies of the igloo's two counter tiles (the owner-approved I2 icicles) and the 4 sparkle frames."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
         width=32, x=16, bar=2, step=100, push=8, gulp=30, hands=2, sip=60, meter=12, hat=9)
     assert (R["line1"], R["line2"]) == ("THE YETI IS COLD", "12 COCOAS ON ICE")
     assert A["poses"] == ["WALK", "STOMP", "GULP", "WINCE", "HAPPY", "INHALE", "BLOW"]
     assert (EVERY, TELL, ICY, CREEP, CREEP_COLS, ICE_COLS) == (360, 50, 180, 12, 4, 18) and TELL >= 45
     assert len(A["ice_src"]) == 2 and set(VENUE_COUNTER[:ICE_COLS]) == set(A["ice_src"]) and len(A["ice"]) == 32
+    assert tile_rows(A["ice"][:16]) == I2 + I2_A_LOW and tile_rows(A["ice"][16:]) == I2 + I2_B_LOW, "the I2 icicles"
+    assert len(A["spark"]) == 64
+    for k in range(4):                      # a glint changes rows 0-5 of tile A only: the icicles stay, white on the band
+        r = tile_rows(A["spark"][16 * k:16 * k + 16])
+        assert r[6:] == I2_A_LOW and r[:6] != I2 and "." not in "".join(r[:6]), k
     assert all(a != b for a, b in zip(ICY_COUNTER, VENUE_COUNTER))
     assert "; Art: approved design" in (ROOT / "assets/art/boss/yeti.txt").read_text()
     assert not (ROOT / "assets/art/approved/boss_yeti.txt").exists()
@@ -67,7 +85,7 @@ def quiet(gb):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_fight_follows_the_last_call(model):
     """After the igloo's Last call: BOSS and his lines; the Yeti on bar 2 at x 16 (his tiles, palettes, the icy
-    counter tiles at BG 246-247), the meter of 12, his horns as the topper, the counter as the igloo draws it. Golden
+    counter tiles at BG 246-247, the sparkle frames 248-251), the meter of 12, his horns as the topper, the counter as the igloo draws it. Golden
     boss_yeti: walking, a cocoa on its way."""
     with fight(model, C, banner=True) as gb:
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
@@ -75,6 +93,7 @@ def test_the_fight_follows_the_last_call(model):
         gb.run(2)
         check_start(gb, C, A, model)
         assert bytes(gb.read(0x8000 + ICE_BG * 16, 32)) == bytes(A["ice"])
+        assert bytes(gb.read(0x8000 + SPARK_BG * 16, 64)) == bytes(A["spark"])
         assert counter(gb) == VENUE_COUNTER
         assert (gb.mem("yeti_phase"), gb.mem16("boss_special_t")) == (YP_WALK, EVERY)
         quiet(gb)
@@ -133,6 +152,46 @@ def test_the_breath_tell_ice_and_thaw(model):
         assert (gb.mem("boss_fast_full"), gb.mem("boss_fast_empty"), gb.mem("boss_icy")) == (0, 0, 0)
         assert gb.mem("boss_state") == 0 and EVERY - 4 <= gb.mem16("boss_special_t") <= EVERY
         until(gb, lambda: gb.mem("boss_x") != x, R["step"] + 2)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_sparkles_twinkle_only_on_the_ice(model):
+    """None before or in the tell; on the ice at most 2 columns glint at once, all on even columns, each running its
+    frames 0-3 in order, columns varying; (the game's RNG is not used); none after the thaw (counter as the venue draws it).
+    A lost life mid-sparkle clears them too."""
+    with fight(model, C) as gb:
+        quiet(gb)
+        frames(gb, 120)
+        assert not sparkles(gb)
+        gb.write("boss_hook", 1)
+        while gb.mem("yeti_phase") != YP_ICY:
+            frames(gb, 1)
+            assert not sparkles(gb), "none in the tell"
+        cols, most, last = set(), 0, {}
+        while gb.mem("yeti_phase") == YP_ICY:
+            frames(gb, 1)
+            sp = sparkles(gb)
+            cols |= set(sp)
+            most = max(most, len(sp))
+            assert len(sp) <= SPARK_N and all(c % 2 == 0 and c < ICE_COLS for c in sp), sp
+            for c, f in sp.items():
+                assert f in (last.get(c, f), last.get(c, f) + 1), (c, f, last)
+            last = sp
+        assert most == SPARK_N and len(cols) >= 5, (most, sorted(cols))
+        until(gb, lambda: gb.mem("yeti_phase") == YP_WALK, 4)
+        frames(gb, 2)
+        assert not sparkles(gb) and counter(gb) == VENUE_COUNTER
+        frames(gb, 20)
+        assert not sparkles(gb) and counter(gb) == VENUE_COUNTER
+        # the next breath, a life lost while a sparkle glints: counter and sparkles all back
+        gb.write("boss_hook", 1)
+        until(gb, lambda: gb.mem("yeti_phase") == YP_ICY, TELL + 4)
+        until(gb, lambda: len(sparkles(gb)) > 0, 60)
+        gb.write("boss_x", SPOUT_X - R["width"])
+        until(gb, lambda: state(gb) == LIFE_LOST, 4)
+        until(gb, lambda: state(gb) == PLAYING, 200)
+        frames(gb, 3)
+        assert not sparkles(gb) and counter(gb) == VENUE_COUNTER
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

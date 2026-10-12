@@ -1406,7 +1406,7 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
     20 B. A boss's own state and test hooks live in BOSS_OWN (tests: story_scratch + 520 - 24 + k; boss_common.own).
   - gen_boss: an `extra` pose narrower than his width is centred with plain wall columns either side (the 16x16
     PUFF1 / PUFF2); `fx` (the marker, from his own art file or another boss's), `hats` (extra topper frames),
-    `conveyor` (a venue's counter with right-pointing chevrons, 2 frames, a PLACEHOLDER pattern like the Yeti's ice).
+    `conveyor` (a venue's counter with right-pointing chevrons, 2 frames, a PLACEHOLDER pattern; the Yeti's ice is approved art now).
 
 ## The Sasquatch as built (lumber lodge boss, docs/minigames_bosses.md 3.5, 2026-10-12)
 - src/boss_sasquatch.c, rows[2]: 32 px, start 16, bar 2, step 90, push 8, gulp 8, hands 2, sip 0, meter 12, topper
@@ -1466,10 +1466,25 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
 - Fair empties across the speed change: an empty goes only if it reaches the tap end before the ice starts or ends
   (boss_window: walking, special_t + the tell; in the tell and the thaw 0; on the ice, its frames left), so every trip
   is at one speed and arrives when the schedule booked it.
-- The icy counter: tools/gen_boss.py `ice: "igloo"` makes icy copies of the igloo's two counter tiles (white streaks
-  on the light counter top, glints on its front: readable on DMG by pattern) at BG 246-247 (free in the story; the
-  ids the mirror engine borrows only in CLASSIC). It is a PLACEHOLDER pattern pending the owner's look
-  (out/preview/boss_yeti_ice_x8.png). A lost life, the outro and the next level load put the counter back.
+- The icy counter: tools/gen_boss.py `ice: "igloo"` puts the art file's @ICE_A / @ICE_B (assets/art/boss/yeti.txt) at BG
+  246-247 over the igloo's two counter tiles (even columns A, odd B; the bar palette is unchanged). The owner rejected the
+  first placeholder ("gravel") and APPROVED option I2 "icicles" (2026-10-12): a white plate with the bottom two rows
+  as blue-tipped hanging icicles, colour 0 only the gaps between them; it reads by shape on DMG. A lost life, the outro and
+  the next level load put the counter back.
+- Sparkles (owner request, same day): while the ice is on (YP_ICY, not the tell) little glints twinkle on the frozen
+  counter, a BG-tile effect (no sprites, so no line gets near 10). @SPARK1-4 are ICE_A with a glint (a dot, a small cross,
+  a big cross, a dot; white on the blue/navy band, blue arms on the white plate), BG 248-251 (the Mascot's landing-marker
+  ids; the Yeti has no marker and gen_boss refuses `ice` with `fx`). The glints leave rows 6-7 (the icicles) alone, so
+  they go on even columns only (ICE_A's); odd ones would need 4 more ids. Every SPARK_EVERY 8 frames of the ice, one chance
+  in two, a free slot (SPARK_N 2 at once) takes a column from a hash of yeti_t (yeti_t * 37 + 11; the game's next_rand is
+  NOT used, so patrons and timing are untouched; a fight's ice looks the same every time); each glint frame lasts
+  SPARK_STEP 4 frames, then the icy tile returns. Each change is one 1-tile vq_add whose source is the column's byte in
+  the icy-row buffer (so the pointer stays valid until VBlank); 1-2 per frame at most. State: 2 bytes of BOSS_OWN after the
+  18-byte icy row (column / 2 + 16 * frame; 255 free): the buffer's 20 bytes are full, no new WRAM. The thaw, a reset
+  (lost life), the outro and the level load clear them (the icy row's entries go back to BG 246).
+  Cost: +96 B of tile data (2 ice + 4 spark tiles; the placeholder had the 2 ice tiles) and about 330 B of code and
+  tables in the Yeti's bank: romusage used before / after (bankpack reshuffles): 9 16354 / 16334, 10 16282 / 16105,
+  11 16355 / 16374, 12 4895 / 5491 B (net +418 B; bank 11 has 10 B free).
 - Story and ARCADE: BUILT_SLOTS["BOSS"] gains IGLOO (chapter 5 ends with the fight, then POST_IGLOO). No existing
   golden changed.
 - Tests (tests/test_boss_yeti.py, DMG + CGB, every frame <= 10 sprites a line): row, art, the icy tiles; the fight's

@@ -9,6 +9,11 @@
 //   2. ICY, YETI_ICY frames (boss_icy counts them): the BLOW pose for YETI_BLOW frames, then he stands (BS_SPECIAL, no
 //      stomp); on his bar full mugs slide 3 px a frame and empties 1 px a frame (boss_fast_full / boss_fast_empty: your
 //      drinks reach him sooner, his empties come back sooner). A held empty may go at once (its sip wait is over).
+//      While it is icy, little sparkles twinkle on the counter (the owner's request): at most SPARK_N (2) at a time, on
+//      random even columns (the glint is drawn on the counter tile for even columns, gen_boss SPARK1-4 at BG 248-251; the
+//      Yeti has no landing marker). A sparkle swaps its column's tile through the VBlank queue: 4 frames of glint (dot, cross,
+//      big cross, dot), SPARK_STEP frames each, then the icy tile again; a new one may start every SPARK_EVERY frames,
+//      one in two does (a hash of yeti_t: yeti_t * 37 + 11, no next_rand). Their state is 2 bytes of BOSS_OWN after the icy row: column / 2 + 16 * frame, 255 free.
 //   3. THAW: the counter tiles swap back, half of them a frame (2 frames); then he walks again.
 // Fair empties across the speed change: an empty must arrive at the tap end before the ice starts or ends, so its
 // whole trip is at one speed and its arrival is the one the schedule booked. boss_window says so: walking, the frames
@@ -28,6 +33,9 @@
 #define YETI_CREEP        12             // frames per frost step
 #define YETI_CREEP_COLS    4             // columns per frost step
 #define ICE_COLS          18             // the counter's columns 0-17 (18-19: the keg)
+#define SPARK_N            2             // sparkles at once
+#define SPARK_EVERY        8             // frames between two chances for a new sparkle
+#define SPARK_STEP         4             // frames per glint frame
 #if BOSS_ART_ICE > BOSS_ICE_MAX
 #error "the Yeti's icy counter tiles"
 #endif
@@ -39,7 +47,9 @@ uint8_t boss_icy;              // frames of ice left (spec 3.7's test hook)
 uint8_t yeti_cols;             // counter columns frosted (from column 0)
 static uint8_t yeti_t;         // frames in the phase
 #define ice_row BOSS_OWN       // [ICE_COLS] the icy counter row (the venue's counter tiles mapped to their icy copies)
-#if ICE_COLS > BOSS_OWN_N
+#define spark ((uint8_t *)BOSS_OWN + ICE_COLS)   // [SPARK_N] column / 2 + 16 * glint frame; SPARK_FREE: none
+#define SPARK_FREE 255
+#if ICE_COLS + SPARK_N > BOSS_OWN_N
 #error "the Yeti's icy row: BOSS_OWN_N"
 #endif
 
@@ -59,9 +69,46 @@ static void frost_to(uint8_t cols) {             // the frost reaches `cols` col
     if (cols > yeti_cols) { counter_put(yeti_cols, cols - yeti_cols, 1); yeti_cols = cols; }
 }
 
+static void spark_clear(void) {                  // no sparkles: their columns' entries in ice_row are icy again (the
+    uint8_t k;                                   // caller puts the venue's tiles back, or the thaw does)
+    for (k = 0; k != SPARK_N; k++) {
+        if (spark[k] != SPARK_FREE) ice_row[(spark[k] & 15) << 1] = BOSS_ICE_BG;
+        spark[k] = SPARK_FREE;
+    }
+}
+
 static void thaw_all(void) {                     // every icy column back at once (a reset, the outro)
     counter_put(0, yeti_cols, 0);
     yeti_cols = 0;
+    spark_clear();
+}
+
+// A sparkle's column shows glint frame f (or the icy tile again: f 4): ice_row's entry is the queue's source.
+static void spark_show(uint8_t c, uint8_t f) {
+    ice_row[c] = f < BOSS_ART_SPARK ? BOSS_MARK_BG + f : BOSS_ICE_BG;
+    if (LCDC_REG & LCDCF_ON) vq_add(0, ice_row + c, c, counter_y(), 1); else vram_put(c, counter_y(), ice_row + c, 1);
+}
+
+static void spark_frame(void) {                  // the ice's sparkles, one frame (yeti_t: frames since the ice began)
+    uint8_t k, v, c;
+    for (k = 0; k != SPARK_N; k++) {
+        v = spark[k];
+        if (v == SPARK_FREE || yeti_t % SPARK_STEP) continue;
+        v += 16;                                 // the next glint frame, or (4) the icy tile again
+        c = (v & 15) << 1;
+        spark_show(c, v >> 4);
+        spark[k] = (v >> 4) < BOSS_ART_SPARK ? v : SPARK_FREE;
+    }
+    if (yeti_t % SPARK_EVERY) return;
+    v = yeti_t * 37 + 11;                        // a tiny hash of the ice's frame count (not next_rand: the game's random
+    if (v & 16) return;                          // sequence stays as it was): one chance in two, and the column
+    for (k = 0; k != SPARK_N; k++) if (spark[k] == SPARK_FREE) {
+        c = (((uint8_t)(v * 5) >> 3) % (ICE_COLS / 2)) << 1;     // (a column already glinting is not icy-plain: skipped)
+        if (ice_row[c] != BOSS_ICE_BG) return;
+        spark[k] = c >> 1;
+        spark_show(c, 0);
+        return;
+    }
 }
 
 static void walk_window(void) {
@@ -103,6 +150,7 @@ uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED {
     case BEV_SET:
         boss_art_set();
         yeti_cols = 0;
+        spark[0] = spark[1] = SPARK_FREE;
         /* fall through */
     case BEV_RESET:
         if (yeti_cols) thaw_all();
@@ -111,12 +159,14 @@ uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED {
     case BEV_LOAD:
         boss_art_load();
         set_bkg_data(BOSS_ICE_BG, BOSS_ART_ICE, boss_ice_tiles);
+        set_bkg_data(BOSS_MARK_BG, BOSS_ART_SPARK, boss_spark_tiles);
         for (k = 0; k != ICE_COLS; k++) {
             uint8_t t = venue.bar_map[BAR_COUNTER_DROW * 20 + k], j;
             ice_row[k] = t;
             for (j = 0; j != BOSS_ART_ICE; j++) if (boss_ice_src[j] == t) ice_row[k] = BOSS_ICE_BG + j;
         }
         yeti_cols = 0;                           // (the level load drew the venue's counter)
+        spark[0] = spark[1] = SPARK_FREE;
         break;
     case BEV_TELL:
         if (yeti_phase == YP_WALK) to_tell();
@@ -140,7 +190,9 @@ uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED {
         case YP_ICY:
             if (yeti_t == YETI_BLOW) boss_xpose = 0;
             boss_window = --boss_icy;
-            if (!boss_icy) {                     // the thaw: half the counter now, half next frame
+            if (boss_icy) spark_frame();
+            else {                               // the thaw: half the counter now, half next frame
+                spark_clear();
                 yeti_phase = YP_THAW; yeti_t = 0;
                 boss_fast_full = boss_fast_empty = 0;
                 boss_window = 0;

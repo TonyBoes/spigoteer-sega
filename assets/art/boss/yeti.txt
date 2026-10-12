@@ -5,6 +5,11 @@
 ; HAND3 = HAND2 (hands 2; shares its column pair).
 ; pal: #F8F8F8 #80B0E8 #182040
 ; hat_dx: 9
+; ICE_A, ICE_B, SPARK1-4 (8x8, BG 246-247 and 248-251): the frozen counter (owner-approved option I2 "icicles", 2026-10-12) and
+; its sparkle frames. ICE_A is the igloo's counter tile for even columns, ICE_B for odd ones; on the igloo's bar palette
+; colour 0 is only the gap between the icicles (the stage behind it), 1 white, 2 ice blue, 3 navy. SPARKn: ICE_A with a
+; glint (white on the blue/navy band, blue arms on the white plate), rows 6-7 (the icicles) untouched, so a sparkle goes on
+; even columns only; a glint twinkles dot, cross, big cross, dot (gen_boss, src/boss_yeti.c).
 
 @WALK
 ........#--------#..............
@@ -231,3 +236,63 @@
 .------.
 .-####-.
 ..----..
+
+@ICE_A
+--------
+--------
+++++++++
+########
+--------
+--------
+.+-+..+.
+..+.....
+
+@ICE_B
+--------
+--------
+++++++++
+########
+--------
+--------
+.+--+.+.
+..++....
+
+@SPARK1
+--------
+--------
+++++++++
+###--###
+--------
+--------
+.+-+..+.
+..+.....
+
+@SPARK2
+--------
+---++---
++------+
+#------#
+---++---
+--------
+.+-+..+.
+..+.....
+
+@SPARK3
+---++---
+---++---
++------+
+#------#
+---++---
+---++---
+.+-+..+.
+..+.....
+
+@SPARK4
+--------
+--------
++++--+++
+########
+--------
+--------
+.+-+..+.
+..+.....

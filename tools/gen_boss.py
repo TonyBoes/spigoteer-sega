@@ -20,8 +20,8 @@ venue's wall (set at the load), then the art's colours 1-3 (CGB BG palette 4; th
 
 A boss's own header (build/boss_<name>_art.h) uses the same names in every boss (boss_art_body, boss_art_pose, ...):
 src/boss_load.h's loaders read them. A boss with "ice" also gets icy copies of that venue's counter tiles
-(boss_ice_src: the venue's counter tile ids, boss_ice_tiles: their icy copies, a light streak pattern generated here:
-a PLACEHOLDER until the owner approves it).
+(boss_ice_src: the venue's counter tile ids, boss_ice_tiles: their icy copies, the art file's ICE_A / ICE_B: the
+owner-approved "icicles"; boss_spark_tiles: its SPARK1-4 sparkle frames).
 
 For the bosses that move (boss wave 2; PLAN.md "Boss hooks as built"):
   - an `extra` pose narrower than his width (the Mascot's 16x16 dust puffs PUFF1 / PUFF2) is centred in it, the columns
@@ -47,6 +47,7 @@ ROOT = Path(__file__).resolve().parent.parent
 POSES = ["WALK", "STOMP", "GULP", "WINCE", "HAPPY"]   # every boss's, the engine's pose numbers 0-4 (src/boss.h BP_*)
 BOSS_POSES_MAX = 8           # src/boss.h: the 5 common poses + up to 3 extra (tells) per boss
 BOSS_PAIRS_MAX = 30          # src/boss.h: 21 pairs at 162-203 + 9 at 216-233
+BOSS_SPARK_N = 4             # the sparkle frames (BG 248-251: the Yeti has no landing marker)
 BOSS_ICE_MAX = 2             # src/boss.h: icy counter tiles at BG 246.. (free in the story)
 BOSS_FX_MAX = 4              # src/boss.h: the landing marker's 2 column pairs at BG 248-251 (BOSS_MARK_BG)
 BOSS_HATS_MAX = 4            # topper frames (8x16) at OBJ 96..103
@@ -131,34 +132,19 @@ def rows_of(data):
     return out
 
 
-def icy(rows, k):
-    """The icy copy of a counter tile (PLACEHOLDER): white (colour 0) streaks on the light counter top (colour 1) and
-    glints on its front, so it reads on DMG by pattern, not only colour; k: the tile's column phase."""
-    out = []
-    for y, r in enumerate(rows):
-        s = list(r)
-        for x, c in enumerate(s):
-            p = (x + 8 * k + 2 * y) % 8
-            if c == "-" and ((y < 2 and p in (0, 1, 4)) or (y >= 2 and p == 0)):
-                s[x] = "."
-        out.append("".join(s))
-    return out
-
-
-def ice_tiles(theme, prev, name):
-    """The venue's counter tile ids (columns 0-17 of its bar map's counter row) and their icy copies."""
+def ice_tiles(theme, prev, name, named, path):
+    """The venue's counter tile ids (columns 0-17 of its bar map's counter row), their icy tiles (the art file's ICE_A for
+    the lower id, which the even columns hold, and ICE_B) and the sparkle frames SPARK1-4 (ICE_A with a glint)."""
     v = json.loads((ROOT / "build" / "venues.json").read_text())["venues"][theme]
     src = sorted(set(v["bar_map"][40:58]))
     if len(src) > BOSS_ICE_MAX:
         fail(f"{name}: {theme}'s counter has {len(src)} different tiles, room for {BOSS_ICE_MAX} icy ones")
-    out, frames = [], []
-    for k, t in enumerate(src):
-        o = (t - v["bar_base"]) * 16
-        f = icy(rows_of(v["bar_tiles"][o:o + 16]), k)
-        frames.append(f)
-        out += tile_bytes(f, 0, 0)
-    png(frames, prev / f"boss_{name}_ice_x8.png", 8)
-    return src, out
+    if len(src) != 2 or v["bar_map"][40:58] != [src[0], src[1]] * 9:
+        fail(f"{name}: {theme}'s counter must alternate two tiles (even columns the lower id): ICE_A / ICE_B, the sparkles")
+    ice = [frame(named, n, 8, 8, path) for n in ("ICE_A", "ICE_B")]
+    spark = [frame(named, f"SPARK{k}", 8, 8, path) for k in range(1, BOSS_SPARK_N + 1)]
+    png(ice + spark, prev / f"boss_{name}_ice_x8.png", 8)
+    return src, [x for f in ice for x in tile_bytes(f, 0, 0)], [x for f in spark for x in tile_bytes(f, 0, 0)]
 
 
 def boss_art(b, prev):
@@ -204,7 +190,9 @@ def boss_art(b, prev):
          "pose": pose_map, "hand": hand_map, "hat": hat_tiles, "icon": tile_bytes(icon, 0, 0),
          "pal": rgb15(["#000000"] + b["pal"]), "art": {n: p for n, p in zip(names, poses)}}
     if "ice" in b:
-        a["ice_src"], a["ice"] = ice_tiles(b["ice"], prev, b["name"])
+        if "fx" in b:
+            fail(f"{b['name']}: the sparkles use BG 248-251, the landing marker's ids")
+        a["ice_src"], a["ice"], a["spark"] = ice_tiles(b["ice"], prev, b["name"], named, path)
     if b.get("tiles"):
         if len(b["tiles"]) > BOSS_TILES_MAX or "ice" in b:
             fail(f"{b['name']}: room for {BOSS_TILES_MAX} blocks of his own at BG 246.. (and none with ice)")
@@ -246,7 +234,9 @@ def header(a):
     if "ice" in a:
         h += [f"#define BOSS_ART_ICE {len(a['ice_src'])}",
               carr("boss_ice_src", a["ice_src"]) + "   // the venue's counter tile ids",
-              carr("boss_ice_tiles", a["ice"]) + "   // their icy copies (PLACEHOLDER)"]
+              carr("boss_ice_tiles", a["ice"]) + "   // their icy copies (ICE_A, ICE_B)",
+              f"#define BOSS_ART_SPARK {BOSS_SPARK_N}",
+              carr("boss_spark_tiles", a["spark"]) + "   // the sparkle frames (SPARK1-4)"]
     if "tiles" in a:
         h += [f"#define BOSS_ART_TILES {len(a['tiles']) // 32}   // his own 8x16 BG blocks (top, bottom) for BG 246..",
               carr("boss_art_tiles", a["tiles"])]
