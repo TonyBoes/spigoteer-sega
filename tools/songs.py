@@ -310,6 +310,9 @@ song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS,
 # of the A / E drone; the drums are a two-bar taiko-like groove: "don . ka don don . ka ka" (kick and rim = the hat),
 # the second bar ending with two snare hits.  Seamless loop (the only change to the notes): the last bar's rest
 # (E4:4 R:4) is E4 C4 E4 (bar 5's figure), lifting into bar 1's A4.
+# Bars 1-12 match the 1888 Ministry of Education koto collection (NDL pid 857651; owner-supplied transcription,
+# music step 4); its bars 13-14 differ (rest, E4 F4 held | B4 A4 F4 E4 held), recorded in docs/music_specs.md as an
+# option; the owner-approved arrangement is kept.
 SAK_BARS = [
     "A4:2 A4:2 B4:4", "A4:2 A4:2 B4:4", "A4:2 B4:2 C5:2 B4:2", "A4:2 B4:1 A4:1 F4:4",
     "E4:2 C4:2 E4:2 F4:2", "E4:2 E4:1 C4:1 B3:4", "A4:2 B4:2 C5:2 B4:2", "A4:2 B4:1 A4:1 F4:4",

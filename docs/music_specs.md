@@ -367,8 +367,9 @@ Length: 14 bars
 Note: 14 bars total; about 47 s at 72 bpm, so it's already a full loop. At ~100 bpm it lands near 34 s.
 Note: Traditionally unharmonized. A soft A/E drone on the wave channel sounds more authentic than chords. If you use the E chord, try it without the G# (E+B only), since G# isn't in the scale.
 Game loop: bar 14 was 'E4:4 R:4'; E4 C4 E4 (bar 5's figure) lift into bar 1's A4.
-Confidence: High (two independent transcriptions agree, except for minor variants in the last two bars).
-Source: Melody: John Chambers' ABC 'Sakura (Cherry Blossom)' (trillian.mit.edu/~jc/music/abc/Japan/Sakura_Am.utf8.abc). Chords adapted from Frank Nordberg's Musica Viva transcription (same collection). Traditional; public domain.
+Checked 2026-10-12 (music step 4) against the owner-supplied transcription of the 1888 koto collection (see Source; voice part, no key signature, same key and register as here): bars 1-12 are identical. Bars 13-14 differ and are NOT changed (the owner approved the current arrangement): the 1888 version starts bar 13 with a rest and holds "ni", then "yu-ka-n": 'R:2 E4:2 F4:4 | B4:1 A4:1 F4:2 E4:4' in this file's units (rest, E4 q, F4 h | B4 e A4 e F4 q E4 h), where ours is 'E4:2 F4:2 B4:1 A4:1 F4:2 | E4:4 C4:2 E4:2'. An option for the owner; with it, bar 14's last half note would again need a lift into bar 1 for the loop (as the current E4 C4 E4 does).
+Confidence: High (two independent transcriptions agree, except for minor variants in the last two bars; bars 1-12 confirmed by the 1888 source).
+Source: Melody: John Chambers' ABC 'Sakura (Cherry Blossom)' (trillian.mit.edu/~jc/music/abc/Japan/Sakura_Am.utf8.abc). Chords adapted from Frank Nordberg's Musica Viva transcription (same collection). Traditional; public domain. Bars 1-12 confirmed against a transcription from Sokyokushu (Collection of Japanese Koto Music), Ministry of Education Music Investigation Committee, October 1888, No. 2 "Sakura", NDL pid 857651, public domain (owner-supplied transcription, 2026-10-11).
 
 ------------------------------------------------------------
 9. THE ENTERTAINER (Joplin, 1902) - A and B sections, 32 bars

@@ -94,7 +94,9 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
   github.com/MutopiaProject/MutopiaProject, Mutopia-2013/12/07-1888), typeset by **Coyau** from The University Society's
   1918 piano edition and placed in the **public domain** by the typesetter. Bars 13-16 are a return chosen for looping
   (Grieg's continuation differs).
-- "Sakura Sakura": melody from John Chambers' ABC "Sakura (Cherry Blossom)"
+- "Sakura Sakura": bars 1-12 confirmed against a transcription from Sokyokushu (Collection of Japanese Koto Music),
+  Ministry of Education Music Investigation Committee, 1888, NDL pid 857651, public domain (owner-supplied
+  transcription, 2026-10-11); its bars 13-14 differ, ours are kept. Melody from John Chambers' ABC "Sakura (Cherry Blossom)"
   (trillian.mit.edu/~jc/music/abc/Japan/Sakura_Am.utf8.abc); chords (not used, the bass is a drone) adapted from
   Frank Nordberg's Musica Viva transcription in the same collection.
 - "Galop infernal" (Offenbach, 1858): the owner's note list, confirmed note for note and in rhythm by a transcription
