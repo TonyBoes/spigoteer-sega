@@ -30,8 +30,9 @@
 // Cut-scene ("hybrid lighter" style): the venue's stage + bar rows as the backdrop (no patrons), the Spigoteer's
 // normal sprite at bar 1's tap, the scene title on the HUD row, a framed speaker portrait above a full-width text
 // box (rows 13-17: panel, 3 lines of 18 characters at columns 1-18, panel). The NARRATOR has no portrait: the box shows
-// the small golden spigot where a name would be. INTRO, FINALE and CREDITS show a picture slot instead of a venue
-// (tools/gen_story.py: placeholders for now). The text types on, one character a frame. Buttons: A or B shows the
+// the small golden spigot where a name would be. INTRO, FINALE and CREDITS show a full-screen picture instead of a venue
+// (assets/story/pictures, build/story_pictures.c: its tiles at BG ids 0-35 and above the scene's one portrait slot; a
+// speaker's tiles are streamed into that slot when he comes on; INTRO page 5 switches pictures behind a white flash). The text types on, one character a frame. Buttons: A or B shows the
 // rest of the page at once, then the next page; START skips the rest of the scene. A page may have text variants
 // (docs/story.md "SPEAKER IF CONDITION"): story_page_get shows the first whose condition bit is set in story_conds.
 //
@@ -76,7 +77,11 @@ enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO, SP_LOOP, SP_RUSH }
                                                      // (boss.c); SP_LOOP: ARCADE's "LOOP n" before a goal banner;
                                                      // SP_RUSH: a BOSS RUSH screen (src/rush.c rush_update)
 typedef char sp_rush_is_game_h[(SP_RUSH == STORY_PHASE_RUSH) ? 1 : -1];
-enum { SW_IDLE, SW_OUT, SW_PAL, SW_IN };
+enum { SW_IDLE, SW_OUT, SW_PAL, SW_IN, SW_TILES };   // SW_TILES: picture scenes only (the portrait slot's tiles stream in)
+
+// vq_entry_t of src/render.c (the VBlank copy list): tile data goes to a raw VRAM address, which vq_add cannot express
+typedef struct { uint8_t n, bank; const uint8_t *src; uint8_t *dst; uint8_t pad[2]; } vq_entry_t;
+extern vq_entry_t vq[];
 
 // ---- state (globals => symbols the tests read) ----
 uint8_t  story_on;                 // 1: story mode (main.c, main_cold.c)
@@ -121,6 +126,16 @@ static uint8_t win_rows[5][20];
 uint8_t story_scratch[STORY_SCRATCH];
 #define bd_map  story_scratch
 #define bd_attr (story_scratch + STORY_PIC_ROWS * 20)
+// A picture scene (INTRO, FINALE, CREDITS: story_hdr.venue == 255) keeps no backdrop copy: the picture is in ROM
+// (story_pic_row), so story_scratch is free there and holds, no new WRAM global:
+#define PS_FX    (story_scratch[0])                  // the picture switch's step (0: none); read only when swpage != 0
+#define PS_ROWS  (story_scratch + 2)                 // a wipe's two rows: per row w tiles then w attributes (<= 18)
+#define PS_TILES (story_scratch + 40)                // a swap's streamed tiles: PS_BURST x 16 bytes
+#define PS_BURST 3                                   // tiles per frame (48 bytes through the VBlank list: 10 of its 17 DIV ticks)
+#define PS_PALS  ((uint16_t *)(story_scratch + 40 + PS_BURST * 16))   // the fade: 4 picture palettes + the HUD's (20 words)
+#define PS_OUT   ((uint16_t *)(story_scratch + 40 + PS_BURST * 16 + 40))   // the fade step to write next (20 words)
+#define PS_W     (story_scratch[1])                  // its w: 3 white .. 0 as drawn (also what DMG's BGP is set from)
+#define PIC_SCENE (story_hdr.venue == 255)
 uint8_t story_unskip;              // test hook: bit s set = step s of every chapter is played even if marked STEP_SKIP
 static portrait_t pt;              // the portrait being drawn / on screen
 static uint8_t pt_map[9 * 9], pt_attr[9 * 9];   // its framed rectangle, composed
@@ -216,6 +231,7 @@ static void portrait_now(uint8_t spk) {
     uint8_t k = spk_index(spk), y;
     story_cur = 255; cw = 0;
     if (k == 255) return;
+    if (PIC_SCENE) portrait_tiles_load(spk, STORY_PORTRAIT_BASE, spk_obj[k]);   // the one slot holds this speaker's
     portrait_get(spk, &pt);
     compose_portrait(k);
     write_palettes();
@@ -229,15 +245,44 @@ static void portrait_now(uint8_t spk) {
 
 // one frame of a portrait change (LCD on)
 static void swap_frame(void) {
-    uint8_t n, k;
+    uint8_t n, k, id;
+    uint16_t a;
+    uint8_t *src;
     switch (story_swap) {
     case SW_OUT:                                 // wipe the old frame back to the backdrop
+        if (PIC_SCENE && vq_held) break;         // (the staging rows are still waiting in last frame's list)
         for (n = 0; n < SWAP_ROWS && sw_row < ch; n++, sw_row++) {
+            if (PIC_SCENE) {                     // the picture's own rows, from ROM through the staging buffer
+                src = PS_ROWS + n * 18;
+                story_pic_row(story_hdr.pic, cy + sw_row, cx, cw, src);
+                vq_add(0, src, cx, cy + sw_row, cw);
+                if (is_cgb) vq_add(1, src + cw, cx, cy + sw_row, cw);
+                continue;
+            }
             k = (cy + sw_row) * 20 + cx;
             vq_add(0, bd_map + k, cx, cy + sw_row, cw);
             if (is_cgb) vq_add(1, bd_attr + k, cx, cy + sw_row, cw);
         }
-        if (sw_row >= ch) { cw = 0; story_cur = 255; story_swap = spk_index(sw_next) == 255 ? SW_IDLE : SW_PAL; }
+        if (sw_row >= ch) {
+            cw = 0; story_cur = 255;
+            story_swap = spk_index(sw_next) == 255 ? SW_IDLE : PIC_SCENE ? SW_TILES : SW_PAL;
+            sw_row = 0;
+        }
+        break;
+    case SW_TILES:                               // the incoming speaker's tiles into the one slot, PS_BURST a frame
+        if (vq_held || vq_count > 12) break;     // (the wipe has hidden the slot: nothing of it is on screen)
+        if (!sw_row) portrait_get(sw_next, &pt); // (its tile count)
+        n = pt.ntiles - sw_row;
+        if (n > PS_BURST) n = PS_BURST;
+        portrait_tile_copy(sw_next, sw_row, n, PS_TILES);
+        for (k = 0; k < n; k++) {                // BG ids 0-127 are at 0x9000, 128-255 at 0x8800 (LCDC bit 4 clear)
+            id = STORY_PORTRAIT_BASE + sw_row + k;
+            a = id < 128 ? 0x9000 + (uint16_t)id * 16 : 0x8800 + (uint16_t)(id - 128) * 16;
+            vq_add(0, PS_TILES + k * 16, 0, 0, 16);
+            vq[vq_count - 1].dst = (uint8_t *)a;
+        }
+        sw_row += n;
+        if (sw_row >= pt.ntiles) story_swap = SW_PAL;
         break;
     case SW_PAL:                                 // (the top of the frame after the wipe went out: VBlank)
         k = spk_index(sw_next);
@@ -293,7 +338,7 @@ static void page_begin(uint8_t lcd_off) {
     sw_next = story_pid;
     sw_row = 0;
     if (story_cur != 255) { story_swap = SW_OUT; overlay_hide(); }
-    else story_swap = SW_PAL;
+    else story_swap = PIC_SCENE ? SW_TILES : SW_PAL;
 }
 
 static void type_frame(void) {                   // one character a frame (spaces are free)
@@ -354,6 +399,7 @@ static void scene_enter(uint8_t s) {
         stage_anim_start();
     } else {
         story_pic_draw(story_hdr.pic, is_cgb);
+        PS_FX = 0;
     }
     // the text box
     fill(row_buf, TILE_PANEL_TOP, 20); set_bkg_tiles(0, BOX_ROW, 20, 1, row_buf);
@@ -367,15 +413,20 @@ static void scene_enter(uint8_t s) {
         VBK_REG = VBK_BANK_0;
     }
     // the backdrop under the portrait slot (rows 0-12), to wipe a portrait away
-    read_rows(bd_map);
-    if (is_cgb) { VBK_REG = VBK_BANK_1; read_rows(bd_attr); VBK_REG = VBK_BANK_0; }
-    // every portrait of the scene, one after the other
+    if (!PIC_SCENE) {                            // (a picture scene's backdrop is its picture, in ROM)
+        read_rows(bd_map);
+        if (is_cgb) { VBK_REG = VBK_BANK_1; read_rows(bd_attr); VBK_REG = VBK_BANK_0; }
+    }
+    // every portrait of the scene, one after the other; a picture scene has one slot for them (the picture's tiles
+    // sit above it): each speaker's tiles stream into it when he comes on (SW_TILES), the first one is loaded by
+    // portrait_now. Overlay tiles are all loaded now either way.
     bgn = STORY_PORTRAIT_BASE; objn = OBJ_DANCER;
     for (i = 0; i < story_hdr.nspk; i++) {
         portrait_get(story_hdr.spk[i], &pt);
         portrait_tiles_load(story_hdr.spk[i], bgn, objn);
         spk_bg[i] = bgn; spk_obj[i] = objn;
-        bgn += pt.ntiles; objn += pt.nobjtiles;
+        if (!PIC_SCENE) bgn += pt.ntiles;
+        objn += pt.nobjtiles;
     }
     page_begin(1);
     music_fast = 0;                              // (a scene plays the venue's tune at its own pace)
@@ -676,6 +727,82 @@ void story_play(void) BANKED {
     if (!left) story_win();
 }
 
+// ---- the picture switch (INTRO page 5: the explosion replaces the "before" picture behind a white flash) ----------
+// The screen goes white (DMG BGP 0, CGB all BG palettes white), the LCD goes off for the reload (the new picture's
+// tiles, map, attributes and palettes: ~2.5 KB, about 2 frames), then the picture fades in from white in three steps
+// of two frames (DMG BGP 0x40, 0x90, 0xE4; CGB the palettes 2/3, 1/3 of the way to white, then true). The page's text
+// starts after the fade. The portrait frame is gone with the reload (the switch page is the narrator's).
+#define FX_HOLD      2                               // frames of white before the reload (step 1 is the first)
+#define FX_RELOAD    (FX_HOLD + 1)
+#define FX_END       (FX_RELOAD + 5)                 // the last fade step: the real palettes
+
+static const uint8_t pic_slot[5] = { 0, 5, 6, 7, BGPAL_HUD };   // PS_PALS order: the picture's four, then the HUD's
+
+// The fade is two phases so the palette writes stay inside VBlank (the blend itself is far too slow for it): pic_calc
+// works out the palettes w/3 of the way to white (w 3: white, 0: as they are) into PS_OUT a frame early, pic_put (the
+// top of a frame) only copies them to palette RAM, or sets DMG's BGP to match.
+static const uint8_t fade3[2][32] = {            // floor(d / 3), floor(2 d / 3) for d = 31 - component: no multiply, no divide
+    { 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10 },
+    { 0, 0, 1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 8, 8, 9, 10, 10, 11, 12, 12, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19, 20, 20 },
+};
+
+static void pic_calc(uint8_t w) {
+    uint8_t k, r, g, b;
+    uint16_t v;
+    PS_W = w;
+    if (!is_cgb) return;
+    for (k = 0; k < 20; k++) {
+        if (w == 3) { PS_OUT[k] = 0x7FFF; continue; }
+        v = PS_PALS[k];
+        r = v & 31; g = (v >> 5) & 31; b = (v >> 10) & 31;
+        if (w) { r += fade3[w - 1][31 - r]; g += fade3[w - 1][31 - g]; b += fade3[w - 1][31 - b]; }
+        PS_OUT[k] = r | ((uint16_t)g << 5) | ((uint16_t)b << 10);
+    }
+}
+
+static void pic_put(void) {
+    uint8_t k;
+    if (!is_cgb) { BGP_REG = PS_W == 3 ? 0x00 : PS_W == 2 ? 0x40 : PS_W == 1 ? 0x90 : 0xE4; return; }
+    for (k = 0; k < 5; k++) set_bkg_palette(pic_slot[k], 1, PS_OUT + k * 4);
+}
+
+// One step of the switch (PS_FX = the step, 1 on the page turn). 1: the LCD was off for it.
+static uint8_t pic_fx(void) {
+    uint8_t f = PS_FX++, k;
+    if (f == 1) {                                // white (all eight BG palettes: the frame's are white too)
+        story_pic_pals(story_hdr.pic, PS_PALS);  // (the HUD's palette is kept to fade back to: a skip needs it too)
+        pic_calc(3);
+        if (!is_cgb) pic_put();
+        else {                                   // (eight palette writes do not fit VBlank: LCD off, white at once)
+            DISPLAY_OFF;
+            for (k = 0; k < 8; k++) set_bkg_palette(k, 1, PS_OUT);
+            DISPLAY_ON;
+            return 1;
+        }
+    } else if (f == FX_RELOAD) {                 // LCD off: the new picture, the page's box, its palettes still white
+        DISPLAY_OFF;
+        vq_reset();
+        overlay_hide();
+        story_swap = SW_IDLE;
+        story_hdr.pic++;                         // (the wipes of pages 6-8 restore this one: story_pic_row)
+        story_pic_draw(story_hdr.pic, is_cgb);
+        story_pic_pals(story_hdr.pic, PS_PALS);
+        page_begin(1);                           // the narrator's page: its box and tag, no portrait (story_cur 255)
+        pic_calc(3);
+        pic_put();
+        pic_calc(2);
+        DISPLAY_ON;
+        return 1;
+    } else if (f > FX_RELOAD) {                  // the fade: w 2, 1, 0 two frames apart, each worked out a frame ahead
+        k = (FX_END - f) >> 1;
+        if (!((FX_END - f) & 1)) {
+            pic_put();
+            if (!k) PS_FX = 0;
+        } else pic_calc(k);
+    }
+    return 0;
+}
+
 // One frame of GS_STORY (a cut-scene, or TRY AGAIN) or GS_GOAL. 1: the screen was redrawn (LCD off): skip the rest.
 uint8_t story_update(uint8_t pressed) BANKED {
     story_t++;
@@ -721,7 +848,12 @@ uint8_t story_update(uint8_t pressed) BANKED {
     default:
         return 0;
     }
-    if (pressed & J_START) { scene_done(); return 1; }
+    if (pressed & J_START) {
+        if (story_hdr.swpage && PS_FX) { pic_calc(0); pic_put(); }   // (skipped mid-flash: the HUD's palette and BGP back)
+        scene_done();
+        return 1;
+    }
+    if (story_hdr.swpage && PS_FX) return pic_fx();   // the picture switch: nothing else moves
     if (story_swap) swap_frame();
     if (story_typed < 54) {
         if (pressed & (J_A | J_B)) type_all();
@@ -730,6 +862,7 @@ uint8_t story_update(uint8_t pressed) BANKED {
     }
     if ((pressed & (J_A | J_B)) && !story_swap) {
         if (++story_page >= story_hdr.pages) { scene_done(); return 1; }
+        if (story_page + 1 == story_hdr.swpage) { PS_FX = 1; return pic_fx(); }   // the next picture, behind a flash
         page_begin(0);
     }
     return 0;

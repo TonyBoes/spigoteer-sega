@@ -147,11 +147,16 @@ def test_the_cut_scene_budget():
     for name, p in PORTRAITS.items():           # the approved 56x56 portraits (docs/story.md "Portraits")
         assert (p["w"], p["h"], p["x"], p["y"]) == (7, 7, 2, 6), f"{name}: 56x56 standing on the text box"
         assert p["tiles"] <= 44 and 1 <= p["pals"] <= 3 and p["obj"] == (1 if name == "SADIE" else 0), name
-    # the busiest scenes: three portraits loaded together (FINALE: Sadie, the sorry Dregs, the cozy Spigoteer)
-    most = max(s["bg_tiles"] for s in SCENES)
+    # a venue scene loads all its portraits together: the busiest is the saloon's POST scene (Sadie, Coach, ...)
+    most = max(s["bg_tiles"] for s in SCENES if s["venue"] != 255)
     assert most <= STORY["bg_budget"]
-    assert SCENES[SC["FINALE"]]["bg_tiles"] == most == sum(PORTRAITS[n]["tiles"] for n in
-                                                           ("SADIE", "DREGS SORRY", "SPIGOTEER COZY"))
+    assert SCENES[SC["POST_SALOON"]]["bg_tiles"] == most
+    # a picture scene keeps ONE portrait slot (its biggest portrait: FINALE's Sadie, 44 tiles) and streams each
+    # speaker's tiles into it; its picture's tiles are ids 0-35 and everything above the slot
+    for s in SCENES:
+        if s["venue"] == 255:
+            assert s["bg_tiles"] == max([PORTRAITS[PID_NAME[p]]["tiles"] for p in s["spk"]] or [0]), s["id"]
+    assert [SCENES[SC[i]]["bg_tiles"] for i in ("INTRO", "FINALE", "CREDITS")] == [42, 44, 0]
 
 
 def portrait_cfg(name):
@@ -290,9 +295,10 @@ def test_every_speaker_needs_art_and_the_scene_budget_fails_the_build():
     scenes = g.parse_script(ROOT / "docs" / "story.md")
     ports = g.portraits(PORTRAIT_CFG)
     g.assign_portraits(scenes, ports)
-    most = max(s["bg_tiles"] for s in SCENES)
+    most = max(s["bg_tiles"] for s in SCENES if s["venue"] != 255)
+    first = next(s["id"] for s in SCENES if s["venue"] != 255 and s["bg_tiles"] == most)
     g.scene_budget(scenes, ports, most)          # the real budget's tightest fit passes ...
-    with pytest.raises(g.StoryError, match=f"FINALE: its portraits need {most} BG tiles, {most - 1} are free"):
+    with pytest.raises(g.StoryError, match=f"{first}: its portraits need {most} BG tiles, {most - 1} are free"):
         g.scene_budget(scenes, ports, most - 1)  # ... one tile less fails the build
 
 
@@ -359,8 +365,15 @@ def settle(gb):
     gb.run(2)
 
 
+def picture_switching(gb):
+    """The INTRO's picture switch is running (src/story.c pic_fx: PS_FX = story_scratch[0], read only in a scene whose
+    header has a switch page, scene_hdr_t.swpage = story_hdr + 7)."""
+    return bool(gb.mem(gb.addr("story_hdr") + 7) and gb.mem("story_scratch"))
+
+
 def page_ready(gb):
-    """Show the whole page (A while it types), then let the queue drain."""
+    """Show the whole page (A while it types), then let the queue drain (a picture switch first: white, reload, fade)."""
+    run_until(gb, lambda: not picture_switching(gb), 40)
     if gb.mem("story_typed") < 54:
         gb.press("a", 2)
     run_until(gb, lambda: gb.mem("story_swap") == 0, 30)
@@ -518,9 +531,9 @@ def test_story_from_the_title_opens_the_intro(model):
         # the narrator: no portrait, the golden spigot on the box's top panel
         assert gb.mem("story_cur") == 255
         assert tilemap_row(gb, BOX_ROW, 2, 1) == [FONT["spigot_icon"]]
-        # the picture slot (a placeholder): the scene's title on row 5
-        title = SCENES[0]["title"]
-        assert tilemap_row(gb, 5, (20 - len(title)) // 2, len(title)) == [GLYPH[c] for c in title]
+        # the picture slot: INTRO opens on the "before" picture (tests/test_story_pictures.py checks it pixel for pixel)
+        pic = STORY["pictures"][SCENES[0]["pic"]]
+        assert pic["name"] == "intro_before" and tilemap_row(gb, 5, 0, 20) == pic["map"][100:120]
         check_golden(gb, "story_narrator")
 
 
@@ -676,8 +689,9 @@ def tour_scene(gb, sid, seen):
     assert gb.mem("story_scene") == SC[sid] and gb.mem("story_page") == 0
     base, first = STORY["portrait_base"], {}
     for pid in s["spk"]:                         # the scene's portraits, loaded one after the other at its start
-        first[pid] = base
-        base += PORTRAITS[PID_NAME[pid]]["tiles"]
+        first[pid] = base                        # (a picture scene: one slot, each streamed in when he comes on)
+        if s["venue"] != 255:
+            base += PORTRAITS[PID_NAME[pid]]["tiles"]
     rect = (1, 5, 9, 8)                          # the 56x56 frame: columns 1-9, rows 5-12 (its bottom is the box)
     spigoteer = 4 if s["venue"] != 255 else 0    # his sprite at the tap (a venue scene; a picture scene has none)
     cur = None
@@ -694,7 +708,7 @@ def tour_scene(gb, sid, seen):
                 assert not any(t in range(STORY["font_base"], 256) for row in rows for t in row), \
                     f"{sid} page {k + 1}: the frame is wiped"
             else:                                # the picture slot back as it was drawn
-                pic = STORY["pictures"][s["pic"]]["map"]
+                pic = STORY["pictures"][s["pic"] + (1 if s["swpage"] and k + 1 >= s["swpage"] else 0)]["map"]
                 assert rows == [pic[r * 20 + rect[0]:r * 20 + rect[0] + rect[2]]
                                 for r in range(rect[1], rect[1] + rect[3])], f"{sid} page {k + 1}: the frame is wiped"
             assert len(gb.visible_sprites()) == spigoteer

@@ -2248,3 +2248,57 @@ src/rush.h, and small hooks in story.c / main_cold.c / title.c / save.c. First w
   The CLASSIC / realistic-peak perf tests are sensitive to a few cycles in the music tick (see the Music step 5 note in
   test_perf.py): the first version of the swing check (`groove[1] > 15` read every frame) tipped four of them over; the cached
   `swing` byte tested first is cheaper and all pass unchanged (no guard moved).
+
+## Story pictures as built (owner decisions 2026-10-12: INTRO before / INTRO A, FINALE A, CREDITS B; Golden Spigot F1; small Dregs J2)
+
+The picture scenes (INTRO, FINALE, CREDITS) show real full-screen pictures in rows 0-12 instead of the placeholder card.
+- **Art** (assets/story/pictures/*.txt, portrait-v2 at 160x104, original art, credited in CREDITS.md): intro_before (the
+  square at night, whole F1 spigot, lanterns, townsfolk, no Dregs; 116 tiles), intro_a (the burst, F1's ten pieces flying
+  with streaks, Dregs J2, the Spigoteer's shrug; 147), finale_a (the line-up by day, F1, the cozy Spigoteer, Dregs J2, the ten
+  owners' heads; 107), credits_b (dawn, F1 small, Dregs J2 mopping, the Sasquatch's coffee stand; 96, 12 cells in the HUD
+  palette). All 4 CGB palettes. Composed from the round 5 scenes; the four sources were generated once, only the txt is kept.
+- **gen_story** (tools/gen_story.py): SCENE_PICS = per scene its pictures with the 1-based page each appears on (INTRO:
+  intro_before from page 1, intro_a from page 5); check_pictures (second picture on a narrator page, "Picture (page N):" in
+  docs/story.md, at most two); read_pic (exact or fails: two colours on one DMG shade, more than 4 palettes, wrong size;
+  a cell whose colours equal the HUD palette BG 1 exactly, read from src/main_cold.c, uses it); the art's palettes go to BG
+  slots 0 5 6 7. Output: build/story_pictures.c (its own bank: tiles, map, attributes, palettes; story_pic_draw,
+  story_pic_row, story_pic_pals), story.h STORY_PICS, json "pictures". scene_hdr_t.pad became swpage (page the next
+  picture appears on, 0 never). Previews out/preview/story_picture_<name>_{cgb,dmg}_x3.png.
+- **Level 1 and 2 together**: a picture scene keeps ONE portrait slot (BG 93.. its biggest portrait: INTRO 42, FINALE 44,
+  CREDITS 0) and the picture's tiles are ids 0-35 then everything above the slot (INTRO 157, FINALE 155, CREDITS 199). A
+  picture scene no longer loads all its portraits: scene_enter loads only the overlay tiles, portrait_now loads the first
+  speaker's BG tiles and a swap streams the next one: wipe (SW_OUT) -> SW_TILES -> palettes (SW_PAL) -> frame (SW_IN). SW_TILES
+  copies PS_BURST = 3 tiles a frame from ROM (portrait_tile_copy) into a WRAM stage and queues them with vq_add plus a raw
+  VRAM destination (the entry's dst patched: ids 0-127 at 0x9000, 128-255 at 0x8800), skipping a frame while the list is
+  held (vq_held). 3 tiles, not 6: drain_ticks_max 13 at 4 tiles; at 3 the worst frame is 10 ticks (A mashed over a burst
+  14; VBlank is 17); a 44-tile portrait takes 15 frames, so a swap on a picture scene is ~10 frames longer than a venue's.
+  Venue scenes are untouched (their code paths, buffers and goldens are as before).
+- **No backdrop copy on picture scenes**: the picture is in ROM, so a wipe stages the picture's own rows (story_pic_row) in
+  story_scratch; story_scratch is therefore free there. Layout (no new WRAM global): +0 the switch step PS_FX, +1 PS_W, +2
+  the wipe's two rows (36 B), +40 the tile stage (48 B), +88.. 20 palette words (the fade source), +128.. 20 words
+  (the step to write); the last 68 bytes (boss scratch) are not touched.
+- **The INTRO's switch** (story.c pic_fx, from the page turn onto page 5; swpage = 5): step 1 white (DMG BGP 0; CGB LCD off,
+  the 8 BG palettes white, LCD on: 8 palette writes do not fit VBlank), step 3 the reload with the LCD off (the new picture's
+  tiles, map, attributes and palettes, the page's box; the portrait frame goes with the map), then the fade in three steps
+  two frames apart (DMG BGP 0x40, 0x90, 0xE4; CGB palettes 2/3, 1/3 of the way to white, then true). The blend is worked out
+  a frame ahead (pic_calc, table based) and only copied to palette RAM at the top of the frame (pic_put): done inside it,
+  the screen tore. The text starts typing after the fade; START at any point skips the scene (the HUD's palette and BGP
+  are restored first). About 7-8 frames on DMG, 11-13 on CGB (two LCD toggles), the white about 5. Pages 6-8 wipe back to
+  intro_a (story_hdr.pic is incremented), page 8's swap streams the Spigoteer in.
+- **Not done**: the FINALE gleam twinkles (optional item 4, skipped to keep this change focused on the required engine work), the INTRO's flying-pieces animation (the static pieces are in intro_a), Dregs's red bow
+  accent. The streamed-tiles variant of the INTRO switch (notes.md) was not needed.
+- **WRAM / ROM**: no WRAM globals; WRAM_LO 3936 / WRAM_HI_0 3454 before and after. ROM0 745 B free before and after (all the
+  new code is banked). Banks: 13 -> 14 (still 256 KB): story_pictures.c is ~7.4 KB of tiles + 4 x 552 B of map / attributes /
+  palettes in the new bank 13 (4782 B used, 11602 free); the linker repacked the others (bank 12 3980 -> 87 free, 1: 133 -> 49,
+  5: 136 -> 83, 6: 262 -> 126, 7: 339 -> 131, 3: 72 -> 205, 8: 52 -> 25, 11: 546 -> 73). Stack: INTRO and FINALE walked
+  page by page with the free stack filled with 0xAA never touch a byte below 0xDF80 (under 128 B deep).
+- **Tests** (tests/test_story_pictures.py, 12 cases): the pictures' budget, tile ids and palettes; exact conversion of every
+  source; a bad picture fails the build (size, shade clash, 5 palettes, @maxpal 5); the switch's narrator-page and docs
+  checks; INTRO before -> flash (white frames, 6-14 frames) -> intro_a pixel exact on both models and every page's picture
+  and map (frames skipped), pages 6-8; START on page 1, in the white and in the fade ends the scene with the same next
+  screen; FINALE every page (picture intact, speaker exact in the slot ids, swap states 1 / 4 / 2 seen, drain <= 14 ticks,
+  vq_late 0); CREDITS picture and START skipping FINALE and CREDITS. test_story.py: page_ready waits out a switch, the
+  tour's picture scenes use the slot / the second picture, the budget test follows the new rule (venue scenes sum, picture
+  scenes the biggest portrait). Goldens: new story_pic_intro_before, story_pic_intro_a, story_pic_finale_a,
+  story_pic_credits_b (DMG + CGB); replaced on purpose: story_narrator (INTRO page 1: the placeholder card became
+  intro_before) and story_dregs_sorry (FINALE page 4: the placeholder card behind the portrait became finale_a).

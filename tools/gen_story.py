@@ -4,6 +4,7 @@
   build/story.h            scene / speaker / chapter ids, the cut-scene tile budget, the BANKED accessors
   build/story_data.c       the script (pages, scene table, names), chapter goals, the story font tiles, the picture slots
   build/story_portraits.c  the portraits (BG tiles, map, attributes, palettes, optional OBJ overlay)
+  build/story_pictures.c   the full-screen pictures of INTRO / FINALE / CREDITS (assets/story/pictures/*.txt)
   build/story.json         the same for the tests
   out/preview/story_*.png  the font and every portrait (its variants too), x8
 
@@ -79,6 +80,17 @@ CHAPTERS = [
     ("SPACE", 9, G_SERVE, 30, 0, 0, "SERVE 30 GLOWING", "BEAKERS", "serve 30"),
 ]
 PICTURE_SCENES = ["INTRO", "FINALE", "CREDITS"]
+# The full-screen pictures of the picture scenes (rows 0-12 instead of a venue): assets/story/pictures/<name>.txt, each
+# portrait-v2 at 160x104 (@size 160 104, @maxpal 4, an exact-HUD palette allowed: see read_pic). Per scene its pictures
+# in the order shown, with the 1-based page each one appears on (the first: 1). A later picture replaces the earlier
+# one at the start of its page behind a white flash (src/story.c pic_switch); that page must be the narrator's (no
+# portrait frame up) and docs/story.md's scene must say "Picture (page N):". A picture's id is its place in this list
+# (scene header byte 1 = the scene's first picture; the next one of the scene is +1).
+SCENE_PICS = {"INTRO": [(1, "intro_before"), (5, "intro_a")], "FINALE": [(1, "finale_a")], "CREDITS": [(1, "credits_b")]}
+PIC_DIR = ROOT / "assets/story/pictures"
+PIC_W, PIC_H = 160, 104
+PIC_SLOTS = (0, 5, 6, 7)         # CGB BG palette slots of a picture's palettes, in order (BG 1, the HUD, is also usable)
+PIC_MAX_PALS = len(PIC_SLOTS)
 # Page text variants (docs/story.md "Script format"): a page may carry variants "SPEAKER IF COND" whose lines replace
 # its own when the condition holds (the first that holds, in script order). Condition ids 1-8: bit id - 1 of src/story.c
 # story_conds, set and cleared by the engine; the data stores the id (one byte per variant page). The page's portrait
@@ -489,6 +501,74 @@ def read_v2(path):
     return px, attr, pals, cells, [opal] if cells else [], lay if cells else None
 
 
+def hud_palette():
+    """CGB BG palette 1 (the HUD and text box colours, always loaded) as RGB15 triples, read from src/main_cold.c: a
+    picture tile whose colours are exactly these can use palette 1 instead of one of the picture's own."""
+    t = (ROOT / "src/main_cold.c").read_text()
+    m = re.search(r"BG 1: HUD.*?" + r"\s*".join(rf"p\[{i}\] = RGB15\((\d+), (\d+), (\d+)\);" for i in range(4)), t, re.S)
+    if not m:
+        fail("src/main_cold.c: the HUD palette (BG 1) is not where gen_story looks for it")
+    v = [int(x) for x in m.groups()]
+    return [tuple(v[i * 3:i * 3 + 3]) for i in range(4)]
+
+
+def q5(hexc):
+    return tuple(int(hexc[i:i + 2], 16) >> 3 for i in (1, 3, 5))
+
+
+def read_pic(name):
+    """One full-screen picture source (assets/story/pictures/<name>.txt, portrait-v2 at 160x104) -> dict: px (DMG
+    shade rows), tiles (unique 8x8 tiles by pixels, in order of first use), tmap (index per map cell, row-major,
+    20 x 13), attr (per cell: 'H' the HUD palette, else the index of its palette in pals), pals (<= 4 x four #rrggbb),
+    key, pix. Exact or fails: two colours on one DMG shade in a tile, more than four palettes. A cell whose colours
+    are exactly the HUD palette's (and that no picture palette covers) uses BG palette 1."""
+    path = PIC_DIR / f"{name}.txt"
+    if not path.is_file() or not is_v2(path):
+        fail(f"{name}: {path} is not a portrait-v2 source")
+    key, pix, meta = parse_v2(path)
+    if (meta["w"], meta["h"]) != (PIC_W, PIC_H):
+        fail(f"{name}: {meta['w']}x{meta['h']} (a picture is {PIC_W}x{PIC_H}: rows 0-{PIC_ROWS - 1})")
+    if meta["maxpal"] > PIC_MAX_PALS:
+        fail(f"{name}: @maxpal {meta['maxpal']} (CGB BG palettes 0, 5, 6, 7 are free: max {PIC_MAX_PALS})")
+    if any(k["obj"] for k in key.values()):
+        fail(f"{name}: a picture has no OBJ accents")
+    px = [[key[c]["dmg"] for c in r] for r in pix]
+    hud = hud_palette()
+    maps = []
+    for ty in range(PIC_ROWS):
+        for tx in range(20):
+            m = {}
+            for y in range(ty * 8, ty * 8 + 8):
+                for x in range(tx * 8, tx * 8 + 8):
+                    k = key[pix[y][x]]
+                    if m.setdefault(k["dmg"], k["hex"]) != k["hex"]:
+                        fail(f"{name}: tile ({tx},{ty}): two colours on DMG shade {k['dmg']}")
+            maps.append(m)
+    fits_hud = lambda m: all(hud[s] == q5(c) for s, c in m.items())
+    umaps = []
+    for m in maps:
+        if not fits_hud(m) and tuple(sorted(m.items())) not in umaps:
+            umaps.append(tuple(sorted(m.items())))
+    big = list(dict.fromkeys(m for m in umaps if not any(set(m) < set(o) for o in umaps)))
+    pals = pack_palettes([dict(m) for m in big])[0] if big else []
+    if len(pals) > min(meta["maxpal"], PIC_MAX_PALS):
+        fail(f"{name}: needs {len(pals)} CGB BG palettes (max {min(meta['maxpal'], PIC_MAX_PALS)})")
+    attr = []
+    for m in maps:
+        own = next((i for i, p in enumerate(pals) if all(p.get(s, c) == c for s, c in m.items())), None)
+        attr.append(own if own is not None else "H")
+    pals = [[p.get(s, "#000000") for s in range(4)] for p in pals]
+    tiles, tmap = [], []
+    srows = ["".join(".-+#"[v] for v in r) for r in px]
+    for ty in range(PIC_ROWS):
+        for tx in range(20):
+            t = tuple(tile_bytes(srows, tx * 8, ty * 8))
+            if t not in tiles:
+                tiles.append(t)
+            tmap.append(tiles.index(t))
+    return {"name": name, "px": px, "tiles": tiles, "tmap": tmap, "attr": attr, "pals": pals, "key": key, "pix": pix}
+
+
 def obj_pairs(cells):
     """overlay cells [(dx, dy, 8x16 px)] -> [(dx, dy, tile pair)]."""
     return [(dx, dy, tuple(tile_bytes(r, 0, 0)) + tuple(tile_bytes(r, 0, 8)))
@@ -610,6 +690,28 @@ def assign_portraits(scenes, ports):
             fail(f"{who}: no page of {SPEAKERS[pt['speaker']]} in {pt['frm']}..{pt['to'] or 'the end'}")
 
 
+def check_pictures(scenes):
+    """SCENE_PICS against the script: every picture scene has pictures, the first from page 1, at most two (the engine
+    switches once), a later one on a page of the scene that is the narrator's, and docs/story.md says so."""
+    text = (ROOT / "docs/story.md").read_text()
+    if set(SCENE_PICS) != set(PICTURE_SCENES):
+        fail(f"SCENE_PICS names {sorted(SCENE_PICS)}, the picture scenes are {PICTURE_SCENES}")
+    for s in scenes:
+        if s["id"] not in SCENE_PICS:
+            continue
+        pl = SCENE_PICS[s["id"]]
+        if not 1 <= len(pl) <= 2 or pl[0][0] != 1 or any(b[0] <= a[0] for a, b in zip(pl, pl[1:])):
+            fail(f"{s['id']}: one picture from page 1, or two with the second on a later page")
+        for page, name in pl[1:]:
+            if page > len(s["pages"]):
+                fail(f"{s['id']}: {name} appears on page {page}, the scene has {len(s['pages'])}")
+            if s["pages"][page - 1][0] != NARRATOR:
+                fail(f"{s['id']}: {name} appears on page {page}, which is not the narrator's (no portrait frame may "
+                     f"be up when the picture changes)")
+            if f"Picture (page {page}):" not in text:
+                fail(f"docs/story.md: {s['id']} has no 'Picture (page {page}):' line for {name}")
+
+
 # ---- output -----------------------------------------------------------------------------------------------------
 def carr(name, vals, typ="uint8_t"):
     vals = list(vals)
@@ -634,6 +736,8 @@ def scene_budget(scenes, ports, budget):
         if len(spk) > MAX_SPK:
             fail(f"{s['id']}: {len(spk)} portraits (max {MAX_SPK})")
         n = sum(len(ports[p]["tiles"]) for p in spk)
+        if s["id"] in PICTURE_SCENES:            # a picture scene keeps one portrait slot (the biggest) and streams
+            n = max([len(ports[p]["tiles"]) for p in spk] or [0])       # each speaker's tiles into it (src/story.c)
         if n > budget:
             fail(f"{s['id']}: its portraits need {n} BG tiles, {budget} are free")
         no = sum(len(ports[p]["obj_tiles"]) * 2 for p in spk)
@@ -678,33 +782,32 @@ def main():
     for s in scenes:
         s["venue"] = 255
         s["pic"] = 255
-        if s["id"] in PICTURE_SCENES:
-            s["pic"] = PICTURE_SCENES.index(s["id"])
-        else:
+        s["swpage"] = 0
+        if s["id"] not in PICTURE_SCENES:
             suffix = s["id"].split("_", 1)[1]
             s["venue"] = next(c[1] for c in CHAPTERS if c[0] == suffix)
 
-    # picture placeholders: the slot for INTRO / FINALE / CREDITS (20 x PIC_ROWS map + attributes; own tiles none yet)
+    # the pictures of the picture scenes (rows 0-12): their tiles at BG ids 0-35 (the venue pool, free here) and then
+    # above the scene's one portrait slot (STORY_PORTRAIT_BASE + its biggest portrait) up to 255; map, attributes
+    # (CGB palette slots 0 5 6 7, or 1 = the HUD's) and palettes. A scene's second picture loads over its first.
+    check_pictures(scenes)
     pics = []
     for sid in PICTURE_SCENES:
-        title = next(s["title"] for s in scenes if s["id"] == sid)
-        m = [[ids["TILE_HUD_BLANK"]] * 20 for _ in range(PIC_ROWS)]
-        m[1][1], m[1][18], m[11][1], m[11][18] = fid["frame_tl"], fid["frame_tr"], fid["frame_bl"], fid["frame_br"]
-        for x in range(2, 18):
-            m[1][x], m[11][x] = fid["frame_t"], fid["frame_b"]
-        for y in range(2, 11):
-            m[y][1], m[y][18] = fid["frame_l"], fid["frame_r"]
-        m[3][9] = m[3][10] = fid["spigot_icon"]
-
-        def put(y, s):
-            x0 = (20 - len(s)) // 2
-            for i, ch in enumerate(s):
-                m[y][x0 + i] = glyph(ch)
-        put(5, title)
-        put(7, sid)
-        put(9, "PICTURE SLOT")
-        pics.append({"id": sid, "tiles": [], "map": [v for r in m for v in r], "attr": [1] * (20 * PIC_ROWS),
-                     "pals": []})
+        sc = next(s for s in scenes if s["id"] == sid)
+        pbase = port_base + sc["bg_tiles"]
+        sc["pic"] = len(pics)
+        for page, name in SCENE_PICS[sid]:
+            p = read_pic(name)
+            n = len(p["tiles"])
+            room = PIC_POOL + BG_END - pbase
+            if n > room:
+                fail(f"{name}: {n} unique tiles, {sid} has room for {room} (ids 0-{PIC_POOL - 1} and {pbase}-{BG_END - 1})")
+            pid = [i if i < PIC_POOL else pbase + i - PIC_POOL for i in range(n)]
+            p.update(scene=sid, page=page, base=pbase, ids=pid, map=[pid[t] for t in p["tmap"]],
+                     cattr=[1 if a == "H" else PIC_SLOTS[a] for a in p["attr"]])
+            pics.append(p)
+            if page > 1:
+                sc["swpage"] = page
 
     # ---- build/story_data.c ----
     text = []
@@ -734,7 +837,7 @@ def main():
     hdr = []
     for s in scenes:
         spk = s["spk"] + [255] * (MAX_SPK - len(s["spk"]))
-        hdr += [s["venue"], s["pic"], len(s["pages"]), len(s["spk"])] + spk + [0]
+        hdr += [s["venue"], s["pic"], len(s["pages"]), len(s["spk"])] + spk + [s["swpage"]]
         hdr += [ord(ch) for ch in s["title"].ljust(21, "\0")]
     SCENE_HDR = 4 + MAX_SPK + 1 + 21
     shifts = shift_list()
@@ -761,7 +864,8 @@ def main():
          carr("st_text", text), carr("st_scene_ofs", scene_ofs, "uint16_t"),
          "// portrait id -> its speaker (the speaker's own id: his main portrait; NARRATOR: none)",
          carr("st_pid_spk", pid_spk),
-         "// per scene: venue (255: a picture), picture (255: none), pages, portraits, their ids x3, 0, title",
+         "// per scene: venue (255: a picture), picture (255: none), pages, portraits, their ids x3, the page the next picture",
+         "// appears on (1-based; 0: never), title",
          carr("st_scene_hdr", hdr), carr("st_names", names),
          "// per chapter, per shift (opening, happy hour, last call): goal type, count, flags, timer seconds, twist bits",
          "// (TWIST_*), arrival pattern, walk %, spawn %, quota (0: the row's), the mosh pit's x limit (0: none), the two",
@@ -770,8 +874,6 @@ def main():
          carr("st_pats", pats or [0]), carr("st_pat_ofs", pat_ofs, "uint16_t"),
          "// per chapter the sequence of steps: kind << 4 | index, STEP_SKIP: not built yet (the engine passes over it)",
          carr("st_seq", seq), carr("st_font", font)]
-    for i, p in enumerate(pics):
-        d += [carr(f"st_pic{i}_map", p["map"]), carr(f"st_pic{i}_attr", p["attr"])]
     d += ["",
           "void story_scene_get(uint8_t s, uint8_t *dst) BANKED {",
           f"    const uint8_t *p = st_scene_hdr + (uint16_t)s * {SCENE_HDR};",
@@ -824,21 +926,56 @@ def main():
           "}", "",
           "void story_font_load(void) BANKED {           // LCD off",
           f"    set_bkg_data(STORY_FONT_BASE, {len(font_names)}, st_font);",
-          "}", "",
-          "// the picture slot (LCD off): rows 0..STORY_PIC_ROWS-1; its own tiles (none in the placeholders) at ids 0..",
-          "void story_pic_draw(uint8_t pic, uint8_t cgb) BANKED {",
-          "    const uint8_t *m, *a;"]
-    for i in range(len(pics)):
-        d.append(f"    {'if' if i == 0 else 'else if'} (pic == {i}) {{ m = st_pic{i}_map; a = st_pic{i}_attr; }}")
-    d += ["    else return;",
-          f"    set_bkg_tiles(0, 0, 20, {PIC_ROWS}, m);",
-          "    if (cgb) {",
-          "        VBK_REG = VBK_BANK_1;",
-          f"        set_bkg_tiles(0, 0, 20, {PIC_ROWS}, a);",
-          "        VBK_REG = VBK_BANK_0;",
-          "    }",
           "}", ""]
     (outdir / "story_data.c").write_text("\n".join(d))
+
+    # ---- build/story_pictures.c (its own bank: the pictures' tiles are ~7 KB) ----
+    PC = ["// generated by tools/gen_story.py from assets/story/pictures/*.txt -- do not edit",
+          "#pragma bank 255", "#include <gb/gb.h>", "#include <gb/cgb.h>", "#include <stdint.h>", '#include "story.h"', ""]
+    hud = hud_palette()
+    for i, p in enumerate(pics):
+        pals = [v for pal in p["pals"] for v in rgb15(pal)]
+        PC += [f"// picture {i} {p['name']} ({p['scene']} from page {p['page']}): {len(p['tiles'])} tiles, "
+               f"{len(p['pals'])} palette(s), {p['attr'].count('H')} HUD-palette cell(s); tiles 0-{PIC_POOL - 1} then "
+               f"{p['base']}..",
+               carr(f"stp{i}_tiles", [b for t in p["tiles"] for b in t]), carr(f"stp{i}_map", p["map"]),
+               carr(f"stp{i}_attr", p["cattr"]), carr(f"stp{i}_pal", pals + [0] * (16 - len(pals)), "uint16_t")]
+    n = len(pics)
+    PC += ["", f"static const uint8_t *const stp_tiles[{n}] = {{ " + ", ".join(f"stp{i}_tiles" for i in range(n)) + " };",
+           f"static const uint8_t *const stp_map[{n}] = {{ " + ", ".join(f"stp{i}_map" for i in range(n)) + " };",
+           f"static const uint8_t *const stp_attr[{n}] = {{ " + ", ".join(f"stp{i}_attr" for i in range(n)) + " };",
+           f"static const uint16_t *const stp_pal[{n}] = {{ " + ", ".join(f"stp{i}_pal" for i in range(n)) + " };",
+           carr("stp_n", [len(p["tiles"]) for p in pics]), carr("stp_base", [p["base"] for p in pics]),
+           carr("stp_npal", [len(p["pals"]) for p in pics]),
+           carr("stp_slot", PIC_SLOTS),
+           carr("stp_hud", [v for c in hud for v in [c[0] | (c[1] << 5) | (c[2] << 10)]], "uint16_t"), "",
+           "// LCD off: picture pic's tiles (ids 0-35, then the scene's free ids), its map and attributes over rows",
+           "// 0..STORY_PIC_ROWS-1, and on CGB its palettes in BG slots 0, 5, 6, 7",
+           "void story_pic_draw(uint8_t pic, uint8_t cgb) BANKED {",
+           "    uint8_t n = stp_n[pic], k;",
+           "    const uint8_t *t = stp_tiles[pic];",
+           f"    set_bkg_data(0, n < {PIC_POOL} ? n : {PIC_POOL}, t);",
+           f"    if (n > {PIC_POOL}) set_bkg_data(stp_base[pic], n - {PIC_POOL}, t + {PIC_POOL * 16});",
+           f"    set_bkg_tiles(0, 0, 20, {PIC_ROWS}, stp_map[pic]);",
+           "    if (!cgb) return;",
+           "    VBK_REG = VBK_BANK_1;",
+           f"    set_bkg_tiles(0, 0, 20, {PIC_ROWS}, stp_attr[pic]);",
+           "    VBK_REG = VBK_BANK_0;",
+           "    for (k = 0; k < stp_npal[pic]; k++) set_bkg_palette(stp_slot[k], 1, stp_pal[pic] + k * 4);",
+           "}", "",
+           "// the w tiles of map row y from column x, then their w attributes, into dst[2 * w] (a portrait wipe)",
+           "void story_pic_row(uint8_t pic, uint8_t y, uint8_t x, uint8_t w, uint8_t *dst) BANKED {",
+           f"    const uint8_t *m = stp_map[pic] + (uint16_t)y * 20 + x, *a = stp_attr[pic] + (uint16_t)y * 20 + x;",
+           "    uint8_t i;",
+           "    for (i = 0; i < w; i++) { dst[i] = m[i]; dst[w + i] = a[i]; }",
+           "}", "",
+           "// the picture's palettes (slots 0, 5, 6, 7 order) then the HUD's (BG 1): dst[5 * 4] RGB15 words, for the fade",
+           "void story_pic_pals(uint8_t pic, uint16_t *dst) BANKED {",
+           "    uint8_t i;",
+           "    for (i = 0; i < 16; i++) dst[i] = stp_pal[pic][i];",
+           "    for (i = 0; i < 4; i++) dst[16 + i] = stp_hud[i];",
+           "}", ""]
+    (outdir / "story_pictures.c").write_text("\n".join(PC))
 
     # ---- build/story_portraits.c ----
     P = ["// generated by tools/gen_story.py from assets/story/portraits.json -- do not edit",
@@ -883,6 +1020,16 @@ def main():
           "    }",
           "    set_bkg_data(bg_first, pt_n[spk], t);",
           "    if (pt_on[spk]) set_sprite_data(obj_first, pt_on[spk], ot);",
+          "}", "",
+          "// BG tiles first..first+n-1 of portrait spk into dst[16 * n] (WRAM): a picture scene streams them to VRAM",
+          "void portrait_tile_copy(uint8_t spk, uint8_t first, uint8_t n, uint8_t *dst) BANKED {",
+          "    const uint8_t *t, *ot;",
+          "    uint16_t i;",
+          "    switch (spk) {"] + selt + [
+          "    default: return;",
+          "    }",
+          "    t += (uint16_t)first * 16;",
+          "    for (i = 0; i < (uint16_t)n * 16; i++) dst[i] = t[i];",
           "}", ""]
     nt = [len(ports[i]["tiles"]) if i in ports else 0 for i in range(npid)]
     no = [len(ports[i]["obj_tiles"]) * 2 if i in ports else 0 for i in range(npid)]
@@ -922,7 +1069,9 @@ def main():
     H += [f"#define STORY_PORTRAIT_BASE (STORY_FONT_BASE + STORY_FONT_COUNT)   // the scene's portraits, one after the other",
           f"#define STORY_BG_END {BG_END}", f"#if STORY_PORTRAIT_BASE != {port_base}", "#error story.h out of date", "#endif",
           f"#define STORY_OBJ_TILES {OBJ_TILES}   // overlay tiles: OBJ_DANCER .. +31", f"#define STORY_MAX_OBJ {MAX_OBJ}",
-          f"#define STORY_MAX_SPK {MAX_SPK}", f"#define STORY_PIC_ROWS {PIC_ROWS}", "",
+          f"#define STORY_MAX_SPK {MAX_SPK}", f"#define STORY_PIC_ROWS {PIC_ROWS}",
+          f"#define STORY_PICS {len(pics)}         // the full-screen pictures (assets/story/pictures), see SCENE_PICS",
+          f"#define STORY_PIC_POOL {PIC_POOL}      // a picture's first 36 tiles at BG ids 0.., the rest above the scene's portrait slot", "",
           "typedef struct {",
           "    uint8_t w, h, x, y;          // tiles (w 0: no portrait); x, y the picture's top-left screen tile",
           "    uint8_t npal, ntiles, nobj, nobjpal, nobjtiles;",
@@ -933,7 +1082,7 @@ def main():
           f"    uint8_t obj[{MAX_OBJ * 4}];            // overlay: dy, dx (px from the picture's top-left), tile (relative), flags (bit 4 DMG OBP1, bit 5 CGB only)",
           "} portrait_t;",
           "typedef struct {",
-          "    uint8_t venue, pic, pages, nspk, spk[3], pad;",
+          "    uint8_t venue, pic, pages, nspk, spk[3], swpage;   // swpage: the page (1-based) the next picture (pic + 1) appears on, 0 never",
           "    char title[21];",
           "} scene_hdr_t;",
           "typedef struct {",
@@ -947,14 +1096,17 @@ def main():
           "uint8_t story_pattern_get(uint8_t id, uint8_t *dst) BANKED;   // dst[STORY_PAT_MAX] (WRAM); the length",
           "uint8_t story_step_get(uint8_t ch, uint8_t s) BANKED;",
           "void story_font_load(void) BANKED;",
-          "void story_pic_draw(uint8_t pic, uint8_t cgb) BANKED;",
+          "void story_pic_draw(uint8_t pic, uint8_t cgb) BANKED;   // LCD off: tiles, map, attributes, CGB palettes",
+          "void story_pic_row(uint8_t pic, uint8_t y, uint8_t x, uint8_t w, uint8_t *dst) BANKED;   // dst[2 w]: tiles, attributes",
+          "void story_pic_pals(uint8_t pic, uint16_t *dst) BANKED;    // dst[20]: its 4 palettes (slots 0 5 6 7), then the HUD's",
+          "void portrait_tile_copy(uint8_t spk, uint8_t first, uint8_t n, uint8_t *dst) BANKED;   // BG tiles into WRAM",
           "void portrait_get(uint8_t spk, portrait_t *dst) BANKED;",
           "void portrait_tiles_load(uint8_t spk, uint8_t bg_first, uint8_t obj_first) BANKED;",
           "#endif", ""]
     (outdir / "story.h").write_text("\n".join(H))
 
     # ---- build/story.json (tests) ----
-    js = {"scenes": [{"id": s["id"], "title": s["title"], "venue": s["venue"], "pic": s["pic"], "spk": s["spk"],
+    js = {"scenes": [{"id": s["id"], "title": s["title"], "venue": s["venue"], "pic": s["pic"], "swpage": s["swpage"], "spk": s["spk"],
                       "pages": [{"speaker": SPEAKERS[p], "portrait": ports[q]["name"] if q in ports else None,
                                  "lines": l, "variants": [{"cond": COND_NAME[c], "lines": vl} for c, vl in a]}
                                 for (p, l), q, a in zip(s["pages"], s["pids"], s["alts"])],
@@ -975,7 +1127,11 @@ def main():
                                      "tiles": len(sp["tiles"]), "pals": len(sp["pals"]), "obj": len(sp["obj"]),
                                      "map": sp["map"], "attr": sp["attr"], "palettes": sp["pals"]}
                         for pid, sp in sorted(ports.items())},
-          "pictures": [{"id": p["id"], "map": p["map"]} for p in pics],
+          "pictures": [{"id": p["name"], "name": p["name"], "scene": p["scene"], "page": p["page"], "map": p["map"],
+                        "attr": p["cattr"], "tiles": len(p["tiles"]), "base": p["base"], "ids": p["ids"],
+                        "pals": p["pals"], "hud_cells": p["attr"].count("H"),
+                        "art": f"assets/story/pictures/{p['name']}.txt"} for p in pics],
+          "pic_slots": list(PIC_SLOTS), "pic_pool": PIC_POOL,
           "text_bytes": len(text), "chars": sum(len(l) for s in scenes for _, ls in s["pages"] for l in ls),
           "pages": sum(len(s["pages"]) for s in scenes)}
     (outdir / "story.json").write_text(json.dumps(js, indent=1))
@@ -987,6 +1143,14 @@ def main():
             for x in range(8):
                 im.putpixel((i * 9 + x, y), GREY[IDX[rows[y][x]]])
     im.resize((im.width * 8, im.height * 8), Image.NEAREST).save(prev / "story_font_x8.png")
+    for p in pics:                               # every picture as the CGB and the DMG show it, x3
+        rgb = lambda hx: tuple(int(hx[i:i + 2], 16) & 0xF8 for i in (1, 3, 5))
+        for model in ("cgb", "dmg"):
+            pim = Image.new("RGB", (PIC_W, PIC_H))
+            for y in range(PIC_H):
+                for x in range(PIC_W):
+                    pim.putpixel((x, y), rgb(p["key"][p["pix"][y][x]]["hex"]) if model == "cgb" else GREY[p["px"][y][x]])
+            pim.resize((PIC_W * 3, PIC_H * 3), Image.NEAREST).save(prev / f"story_picture_{p['name']}_{model}_x3.png")
     for si, sp in ports.items():
         w, h = sp["w"] * 8, sp["h"] * 8
         pim = Image.new("RGB", (w + 16, h + 16), (40, 30, 20))
