@@ -913,6 +913,8 @@ Story fit: PRE_STADIUM page (COACH): `AT HALFTIME,` / `FIRE SHIRTS INTO` / `THE 
 
 ### 4.3 Log Roll (Lumber lodge)
 
+Approved by the owner and built (2026-10-12; look A, the daytime river; PLAN.md "Log Roll as built": the 24x24 poses, the reused lodge Sasquatch, the streamed bark tiles, a 180-frame fall, the flip told 30 frames early by a delayed push).
+
 Play: lunchtime log rolling on the river. The Spigoteer and a big hairy partner (no such thing) stand on a spinning
 log. The log's spin pushes him off balance; tap Left/Right to lean against it. Stay up for 40 seconds.
 

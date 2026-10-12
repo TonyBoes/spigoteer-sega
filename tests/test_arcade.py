@@ -52,8 +52,8 @@ def finish_venue(gb):
         finish_step(gb)
         cleared = banner_text(gb, 1)
         run_until(gb, lambda: state(gb) in (GS_GOAL, BONUS, GS_MINI), 400)
-        if state(gb) == GS_MINI:                          # a built mini-game (the saloon's Quick Draw): ended at once
-            assert gb.mem("mg_mode") == 0 and gb.mem("mg_id") == gb.mem("story_chapter") == 0
+        if state(gb) == GS_MINI:                          # a built mini-game (the saloon's Quick Draw, the lodge's Log Roll): ended at once
+            assert gb.mem("mg_mode") == 0 and gb.mem("mg_id") == gb.mem("story_chapter") in (0, 2)
             seen.append("MINI")
             finish_mini(gb)
             run_until(gb, lambda: state(gb) in (GS_GOAL, BONUS), 400)

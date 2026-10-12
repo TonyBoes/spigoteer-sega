@@ -229,6 +229,42 @@ struct mr_state {               // tests read these at story_scratch + offset (t
     uint8_t wall[2][20], wattr[2][20];   // +110 map rows 2-3 as the street has them (the banner rows' place)
 };
 
+void lr_enter(void) BANKED;                      // src/lr.c: LOG ROLL (the lumber lodge)
+void lr_update(uint8_t pressed) BANKED;
+uint8_t lr_medal(void) BANKED;                   // the medal its seconds on the log earned (not a score threshold)
+
+struct lr_state {               // tests read these at story_scratch + offset (tests/test_mg_logroll.py)
+    int32_t lean;               // +0 the balance marker's offset, 1/65536 px (fall beyond +-64 px)
+    int32_t vel;                // +4 1/65536 px a frame
+    int16_t drift;              // +8 the log's push now, 1/65536 px a frame squared
+    uint16_t on;                // +10 frames on the log (the medal: seconds)
+    uint16_t elapsed;           // +12 play frames (the drift's ramp)
+    uint16_t flip_in;           // +14 frames to the next flip's telling
+    uint16_t roll;              // +16 the bark's phase, 4 frames in 65536
+    uint8_t st;                 // +18 LS_* (src/lr.c)
+    uint8_t falls;              // +19
+    uint8_t fall_t;             // +20 frames since the fall (in the water)
+    int8_t  tsgn;               // +21 the push's direction after the last telling: -1 left, 1 right
+    int8_t  tell;               // +22 the bark's ramp -30..30 (it turns first)
+    int8_t  dsr;                // +23 the push's ramp -30..30 (the same ramp 30 frames later)
+    uint8_t fdelay;             // +24 frames until the push starts to turn
+    uint8_t s60;                // +25 frames toward the next 100 points
+    uint8_t roll_f, roll_vis;   // +26 the bark frame wanted, and the one queued into VRAM
+    uint8_t rip_f, rip_vis;     // +28 the same for the ripples
+    uint8_t anim;               // +30 frames counted by lr_update
+    uint8_t started;            // +31 the first play frame has put the banner rows back
+    uint8_t ended;              // +32 the outro's first frame has come
+    uint8_t top_t;              // +33 frames of the partner's topple (0: none)
+    uint8_t drop_t;             // +34 frames of the droplets' burst (0: none)
+    uint8_t drop_x;             // +35 its origin x
+    uint8_t band[2];            // +36 a banner row's pending change
+    uint8_t digit;              // +38 the HUD falls digit (VBlank queue source)
+    uint8_t hud_attr[20];       // +39 the HUD colours of a banner row (CGB attribute source)
+    uint8_t brow[20], battr[20];   // +59 a banner row's forest tiles and attributes (queue source)
+    uint8_t roll_buf[64];       // +99 the log's body tiles of the frame queued (VBlank queue source)
+    uint8_t rip_buf[32];        // +163 the ripple tiles
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
@@ -236,6 +272,7 @@ union mg_ram {
     struct bs_state bs;
     struct ou_state ou;
     struct mr_state mr;
+    struct lr_state lr;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert

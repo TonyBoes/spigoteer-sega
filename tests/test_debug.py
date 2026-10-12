@@ -284,7 +284,7 @@ def test_an_unskipped_step_is_offered(boot):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("c,k", [(2, 1), (6, 2), (0, 0)])
+@pytest.mark.parametrize("c,k", [(2, 0), (6, 2), (0, 0)])   # (a Happy hour of a chapter with a built mini-game goes on to it)
 def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(model, c, k):
     from test_flow import run_until
     from test_scores import booted, v7_image

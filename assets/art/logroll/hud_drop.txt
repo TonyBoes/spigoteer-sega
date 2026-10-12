@@ -1,0 +1,10 @@
+; Art: approved design (owner 2026-10-12, look A: the daytime river scene)
+; Look A: HUD falls icon (col 9), HUD palette 1: 3 is the band, 0 the ink.
+########
+###.####
+##...###
+#.....##
+#..-..##
+#..-..##
+##...###
+########

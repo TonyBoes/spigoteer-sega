@@ -354,7 +354,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, the venue owners (ten with Granny Throttle), villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort and Milk Run are built (see their sections). |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort, Milk Run and Log Roll are built (see their sections). |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -2191,6 +2191,82 @@ crate on navy as in the mock-up; the file itself is untouched).
   as a window banner; Practice has no HARD toggle yet.
 - Test-harness note: reads of the game's state at PyBoy's frame end can catch a 16-bit field half updated; the tests read
   in a paused frame (snap) and count game frames with S.anim.
+
+## Log Roll as built (M11e, docs/minigames_bosses.md 4.3, 2026-10-12)
+
+The lumber lodge's mini-game on the framework (src/lr.c), in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains LUMBER:
+chapter 3's slot after the Happy hour) and in BONUS > MINI GAMES (after MILK RUN, before the debug build's GREEN LIGHT: the
+games' build order, not the chapters'; THE LUMBER LODGE; the unlock rule as the others). Art: the owner-approved **look A, the
+daytime river** (proposal 2026-10-12: "I like the daytime log scene") imported pixel-exact in assets/art/logroll/ ("; Art:
+approved design (owner 2026-10-12, look A ...)"): pines and hedge, far bank, river with two ripple tiles, the bark log, the
+cream meter plank with hatched danger ends, the falls icon, the droplets, the red / white bobber marker and the Spigoteer's
+six 24x24 poses; tools/gen_lr.py -> build/lr_art.h, build/lr.json, out/preview/lr_*_x8.png (it rebuilds the proposal's scene
+from the part files: all 53 unique tiles of the proposal's bg_tiles_a.txt are there, plus the HUD icon). Look B's slide-stripe
+log and arrow marker are not used. The Sasquatch partner is the lodge show's performer as is (OBJ 96-127 from the level
+load, CGB OBJ palette 5; frame 0 on the log, frame 3 startled or tumbling), no new art.
+- **Rules** (the spec's numbers, lean in 1/65536 px): each frame a press (an edge: a hold adds nothing; Left + Right in one
+  frame cancel) is vel -= / += 1.0 px, then vel += drift, vel -= vel / 16, lean += vel; one tap settles 15 px away (tested
+  14.5-15.5), two quick taps over-correct. |lean| beyond 64 px falls (px truncated toward 0, the same reach both ways). The push
+  grows from 0.025 to 0.045 px a frame squared over the 40 s (16-bit arithmetic: the 32-bit library routines would cost 486 B
+  of ROM0; the ramp is x 35 / 64 per frame, 2936-2950 at the end); its sign flips every 120 + mg_rand() % 121 frames. **A flip
+  is told 30 frames early**: at the flip the bark's ramp (-30..30 over 60 frames) starts to turn, the creak (SFX_SHAKE) plays,
+  and the push follows the same ramp 30 frames later (a delay, not a second schedule), so the bark slows, stops and rolls back
+  before the force changes. The fall: splash (SFX_BREAK), 4 droplets for 44 frames, the HUD falls digit, then 180 frames in the
+  water (SPLASH 90, CLIMB 90, the last 12 rising onto the log, SFX_LAUNCH), lean 0, the timer running; only frames on the log
+  count (lr_on). Score: 100 each full second on the log, 1000 with no fall at all (given on the outro's first frame, banner
+  "NO FALLS 1000" in row 3 next to TIME UP). Medal by seconds on the log (lr_medal): GOLD 40, SILVER 34, BRONZE 25 (so gold
+  means no fall: a 40 s game is exactly 2400 frames). Up at time up the partner topples into the river over 16 frames
+  (X-flipped frame 3, a droplet burst); in the water at time up nobody topples and the climb goes on. One setting: no HARD
+  (the spec has none). A perfect game: 4000 + 1000 + 3000 (the gold medal) = 8000 (5000 on the result's SCORE line).
+- **Screen**: the map rows 1-17 as the mock-up (pines 1-4, bank 5-6, river 7-17, log rows 12-13 columns 3-16, meter row 16
+  columns 2-17: marker x = 76 + lean, y 120); the HUD: score, the falls icon + digit at columns 9-10 (the lives' place, as
+  Battery Sort's lamps), T + seconds. CGB BG palettes 2 forest, 3 river, 5 log, 6 meter, 7 bank (4 stays the medal's); OBJ 0 the
+  Spigoteer (the bartender's), 5 the Sasquatch (the show's), 1 droplets, 2 marker; DMG: BGP and OBP0 as the level's (every
+  sprite on OBP0 = 0xD0, as the mock-up; OBP1 untouched). The banner rows 2-3 are over the pines: restored a row a frame at the
+  first play frame (tiles and CGB attributes from the map), the HUD band for TIME UP / NO FALLS (mg_timer == 1 / the outro's
+  first frame), the pines again at MG_END frame 40 (a row a frame, as Battery Sort's wall).
+- **Streamed tiles**: the log's four body tiles (X top / bottom, Y top / bottom) of the roll frame the bark phase says (64 B)
+  and the ripples' two (32 B, every 20 frames) are copied into fixed VRAM slots by their own entries on the VBlank queue
+  (render.c's `vq[]`, written directly because vq_add only names map addresses; the source is WRAM: the ISR copies it after
+  the bank is gone). The slots sit at BG ids 128+ (one run of 0x8800 addresses; ids below 128 are at 0x9000). Bark phase: a
+  16-bit accumulator moved by the bark's ramp (1 frame of 4 per 16384; at most 0.18 steps a frame, 2 px a step); a step is one
+  64 B copy, never more than one a frame. A frame that finds the queue full queues it the next (roll_vis / rip_vis track what
+  VRAM will hold).
+- **Sprites**: OAM 0 marker, 1-4 droplets, 5-10 the Spigoteer (3 columns x 2 rows of 8x16: the proposal's 24x24 poses; a
+  right lean is the same tiles X-flipped with mirrored columns), 11-14 the Sasquatch (the show's 4 entries, x 44, y 72, feet on
+  the log's top). Worst line 9 on lines 100-103 (splash 3 + partner 2 + droplets 4; whole-game test: 9, bot: 5-6; a forced
+  scene with the partner in the river and every droplet age stays at 10 or less). OBJ tiles: the proposal's 82 slots dedupe
+  to 36 8x16 entries (72 tiles): the first 18 in ids 56-91 (the mugs' and crash frames; the level load puts them back), the
+  rest from the first even id above the BG tiles (166-201; below OBJ_POUR). BG tiles 125-164 (40: from MG_GAME_BG; the
+  resident ones, the 4 roll slots at 128, the 2 ripple slots). The result window hides the sprites that start inside its
+  span (mg.c); the lower rows of a figure standing in the water would stay showing under its edge, so lr.c clears the ones at
+  OAM y >= 128 from MG_END frame 57.
+- **Numbers**: ROM0 unchanged (577 B real free; the build first grew it by 486 B with 32-bit multiply / divide library
+  routines, so the push, ramps and droplets are 16-bit); WRAM_LO 3936 / WRAM_HI_0 3455 unchanged, heap start 0xDD7F unchanged
+  (no new global: struct lr_state, 195 B, in the mg union). lr.c + art ~5 KB in autobank (banks 1-14; 14 now 5530 B free).
+  Perf: a play frame is light (two 16-bit divides by constant, a few compares, at most 96 B copied by the VBlank queue).
+- **Tests** tests/test_mg_logroll.py (68): the screen, tiles, map, attributes, palettes and sprites; one tap 15 px, a hold adds
+  nothing, two taps over-correct, both keys cancel; a Python model of the whole physics (seed, ramps, flips, falls) exact at
+  eleven points over 1500 frames; the push's size at 0 / 1200 / 2400 frames; a flip's creak and the 30-frame lead of the bark
+  (phase through zero); the end push falls in under 3 s, the start push not at once; mashing falls, a tap every 70 frames
+  holds; the fall (digit, SPLASH, droplets, 180 frames, CLIMB, the hop, back); poses by lean and the X-flip, the marker's x;
+  100 a second, none in the water; the medal at 24/25, 33/34, 39/40 seconds; the banner rows (pines, TIME UP and NO FALLS in
+  the band, pines again); the outro (1000, the topple, none after a fall, a climb going on); the streamed bark and ripples
+  frame by frame (both directions seen); a bot that balances a whole game for gold (2 seeds, every frame <= 10 a line) and a
+  whole game of no input (falls, <= 9 a line); the forced worst scene; Practice retry / menu; the level after (VRAM, palettes);
+  STORY in chapter 3 (the Last call's VRAM and palettes as reached without it), ARCADE, the debug list and the release list.
+  Changed tests: test_mg_list (the list gains a line before GREEN LIGHT: counts and rows), test_arcade (the venue loop meets
+  Log Roll in chapter 3), test_debug (the chapter-3 shift case is the Opening: the Happy hour now goes on to the mini-game).
+  New goldens (dmg + cgb): lr_intro, lr_play, lr_lean, lr_fall, lr_climb, lr_topple, lr_result. Replaced on purpose: mg_list and
+  mg_list_locked (the list gains the LOG ROLL line / a fifth "? ? ?"), nothing else in them changed.
+- Notes for the owner: the balance is the spec's and easier than its "1.5-2.7 taps a second": that rate holds the centre; a
+  player who lets the marker roam +-28 px needs 0.5-1 taps a second (the test bot, tapping at 28 px, makes 26-38 taps in 40 s
+  and never falls), so gold is a matter of attention more than speed; the knobs are LR_DRIFT0 / the ramp and the tap's 1.0.
+  Look A's bark scroll (vertical, period 8 px) still reads weakly for direction at 1x, as the proposal said; the speed change
+  and the stop before a flip read, the direction does not: look B's sliding stripe was the recommendation and could be
+  swapped in (same slots and palettes).
+- Spec gaps: the partner has no topple frame of its own (frame 3, flipped); fall length 180 frames (the mock-up's GIF ran 96);
+  the falls icon and digit replace the lives; the "creak" is SFX_SHAKE (no new SFX); the list order is the build order.
 
 ## Leo and Sumo as built (docs/minigames_bosses.md 3.11 / 3.9, 2026-10-12)
 Both follow "Boss hooks as built": a dispatcher `uint8_t boss_<name>(uint8_t ev, uint8_t arg) BANKED` in its own
