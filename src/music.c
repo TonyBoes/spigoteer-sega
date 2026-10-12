@@ -26,8 +26,9 @@ static uint8_t loaded[3] = { TUNE_NONE, TUNE_NONE, TUNE_NONE };   // [buffer]: t
 static uint8_t ld_tune = TUNE_NONE;   // tune whose patterns are being copied (TUNE_NONE: no copy running)
 static uint8_t ld_play;               // start it when the copy is done (else it is a preload)
 static const uint8_t *groove;         // the running tune's drum loop (NULL: none)
+static uint8_t swing;                 // the running tune's swing mask (0 none): src/music.h tune_t.groove
 static uint8_t g_pos, g_cnt;          // groove row, frames until it advances
-extern unsigned char hUGE_ticks_per_row, hUGE_tick, hUGE_row_break, hUGE_next_order;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
+extern unsigned char hUGE_ticks_per_row, hUGE_tick, hUGE_row, hUGE_row_break, hUGE_next_order;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
 uint8_t music_fast;                   // 1: a venue tune plays one frame a row faster (story: TWIST_FAST_TUNE)
 static uint8_t fast_now;              // the running tune plays fast
 static uint16_t ld_pos;               // bytes copied so far
@@ -130,6 +131,7 @@ static void start_song(uint8_t tune) {
     mus_active = 1;
     music_frames = 0;
     groove = tunes[tune].groove; g_pos = 0; g_cnt = 1;      // the groove's first row falls on the song's first row
+    swing = groove && groove[1] > 15 ? groove[1] : 0;       // (a groove's second byte: a tempo is at most 15, over that it is a swing mask)
     harm_off();
     harm = harm_tab[tune]; h_rows = 0; h_cnt = 1;           // so does the harmony's first event
     if (harm) {
@@ -227,7 +229,7 @@ static void voice_tick(uint8_t i) {
 static void groove_tick(void) {
     uint8_t d;
     if (!groove || --g_cnt) return;
-    g_cnt = groove[1] - fast_now;
+    g_cnt = hUGE_ticks_per_row;      // this row's length, as the driver has just set it
     d = groove[2 + g_pos];
     if (++g_pos == groove[0]) g_pos = 0;
     if (d && !voice[1].busy) {
@@ -295,6 +297,8 @@ static void tick(void) {
     } else if (mus_active && loaded[2] != TUNE_SHOW && sound_on)
         begin_load(TUNE_SHOW, 0);                                   // the show tune is copied once, while a level plays
     if (mus_active) {
+        if (swing && !hUGE_tick)        // a swung tune: this row's length (bit n of the mask: the rows n mod 8 are a frame shorter)
+            hUGE_ticks_per_row = tunes[cur_tune].song->tempo - fast_now - ((swing >> (hUGE_row & 7)) & 1);
         hUGE_dosound();
         groove_tick();
         if (harm) harm_tick();

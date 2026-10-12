@@ -54,6 +54,7 @@ HARM_INST = {
     "harm": (0x40, 0x57),     # 25% pulse, volume 5, slow decay (0.55 s to silence): thirds and sixths under a melody
     "pad": (0x00, 0x50),      # 12.5% pulse, volume 5 held: sustained chord tones (waltzes, the sung tunes)
     "stab": (0x40, 0x52),     # 25% pulse, volume 5, quick decay (0.16 s): off-beat stabs
+    "harm50": (0x80, 0x57),   # "harm" at 50% duty (the Entertainer's thirds: rounder, less nasal)
     "pluck": (0x00, 0x55),    # 12.5% pulse, volume 5, medium decay (0.39 s): plucked, koto-like
 }
 HARM_REST = 0x7F
@@ -130,7 +131,16 @@ def merge_ties(text):
     return " ".join(toks)
 
 
-def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all=None, legato=None):
+def row_starts(tempo, swing, n):
+    """[frame at which row r starts for r in 0..n]: the rows of a swung tune are (swing >> (r % 8)) & 1 frames shorter than
+    `tempo` (src/music.c tick; swing 0 = none)."""
+    start = [0]
+    for r in range(n):
+        start.append(start[-1] + tempo - ((swing >> (r % 8)) & 1))
+    return start
+
+
+def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all=None, legato=None, swing=0):
     """Expand a token string into a list of (note, inst, effect) rows.
 
     legacy: the jingles' original staccato rule (kept so they sound as before).  Otherwise a note is
@@ -175,11 +185,13 @@ def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all
         out.append((note, inst, eff))
         out += [(REST, 0, 0)] * (n - 1)
     if channel != 4 and not legacy:
+        # frame at which each row starts: the rows of a swung tune are (swing >> (row % 8)) & 1 frames shorter than `tempo`
+        start = row_starts(tempo, swing, len(out) + 64)
         for k, (row, n, name, stac) in enumerate(notes):
             if name is None:
                 continue
             nxt = notes[k + 1][2] if k + 1 < len(notes) else "wrap"
-            ticks = n * tempo
+            ticks = start[row + n] - start[row]
             if stac:
                 cut = (ticks * stac_all[0]) // stac_all[1] if stac_all and channel == 2 else (ticks * 3) // 4
             elif legato and channel == 2 and nxt == name:
@@ -189,7 +201,10 @@ def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all
             else:
                 continue
             cut = max(cut, 1)
-            r, t = row + cut // tempo, cut % tempo
+            r = row
+            while start[r + 1] <= start[row] + cut:
+                r += 1
+            t = start[row] + cut - start[r]
             if t == 0:
                 t = 1              # tick 0 is the trigger itself
                 if r == row:
@@ -308,8 +323,8 @@ def build(name, t, legacy):
     inst = t.get("inst", 1)
     gap = t.get("gap", True)
     chans = {
-        2: rows_for(2, t["ch2"], inst, tempo, legacy, gap, t.get("stac_all"), t.get("legato")),
-        3: rows_for(3, t["ch3"], 1, tempo, legacy, gap),
+        2: rows_for(2, t["ch2"], inst, tempo, legacy, gap, t.get("stac_all"), t.get("legato"), t.get("swing", 0)),
+        3: rows_for(3, t["ch3"], 1, tempo, legacy, gap, swing=t.get("swing", 0)),
         4: rows_for(4, t["ch4"], 1, tempo, legacy) if t["ch4"] else [],
     }
     total = max(len(v) for v in chans.values())
@@ -453,7 +468,7 @@ def main():
                 assert built[name]["total"] % len(g) == 0, f"{name}: {built[name]['total']} rows is not a whole number of {len(g)}-row grooves"
                 assert len(g) < 256 and t["tempo"] < 256
                 grooves[name] = g
-                f.write(f"static const unsigned char groove_{name}[] = {{{len(g)}, {t['tempo']}, "
+                f.write(f"static const unsigned char groove_{name}[] = {{{len(g)}, {t.get('swing', 0) or t['tempo']}, "
                         + ", ".join(str(x) for x in g) + "};\n")
         f.write("\n")
         for name in slots:
@@ -491,7 +506,8 @@ def main():
         f.write("const tune_t tunes[TUNE_COUNT] = {\n")
         for name in ORDER:
             b = built[name]
-            frames = b["total"] * b["tempo"]
+            sw = songs.SONGS[SOURCE[name]].get("swing", 0) if name in SOURCE else 0
+            frames = b["total"] * b["tempo"] - sum((sw >> (r % 8)) & 1 for r in range(b["total"]))   # a swung row is a frame short
             loop = JINGLES[name]["loop"] if name in JINGLES else 1
             if name in JINGLES:
                 tail = "0, 0, NULL, 0"

@@ -20,7 +20,7 @@ typedef struct {
     uint8_t  bank;          // ROM bank of the pattern blob
     const uint8_t *blob;    // pattern blob (buffer != 0)
     uint16_t bytes;         // its size
-    const uint8_t *groove;  // NULL, or a drum loop src/music.c plays on channel 4: {rows, frames per row, one byte per row: 0 none, 1 kick, 2 snare, 3 hat}
+    const uint8_t *groove;  // NULL, or a drum loop src/music.c plays on channel 4: {rows, frames per row (over 15: a swing mask, bit n = the rows n mod 8 are a frame shorter than the song's tempo), one byte per row: 0 none, 1 kick, 2 snare, 3 hat}
     uint8_t  start;         // row of the song (0-255) the first play begins on (tools/songs.py song(start=)); the loop wraps to row 0
 } tune_t;
 extern const tune_t tunes[TUNE_COUNT];

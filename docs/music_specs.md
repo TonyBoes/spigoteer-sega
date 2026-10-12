@@ -377,7 +377,7 @@ Source: Melody: John Chambers' ABC 'Sakura (Cherry Blossom)' (trillian.mit.edu/~
 Key: C major
 Time: 2/4
 Tempo: quarter = 90 (Joplin: 'Not fast')
-Game tempo: quarter = 112 (8 frames per sixteenth row, plays at 112.5). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
+Game tempo: quarter = 106 (rows of 9 and 8 frames alternating, a slight swing, plays at 105.9; the owner chose "1b at 106 bpm" 2026-10-12, it was 8 frames = 112.5). Owner-approved; the melody's pitches are the spec's, played an octave lower in the game (ENT_BARS), with a second voice in thirds under it. See GAME_BPM in tools/songs.py.
 Unit: 1 = SIXTEENTH note (bar = 8)
 Length: 32 bars + pickup (A section 1-16, B section 17-32)
 

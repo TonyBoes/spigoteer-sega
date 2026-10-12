@@ -13,7 +13,7 @@
   (the copy of gbdev's hardware.inc that ships with the driver).
 - Changes made in this repository:
   - `hUGEDriver.asm`: three C-visible aliases (`_hUGE_row`, `_hUGE_tick`, `_hUGE_current_order`) beside
-    the driver's own variables, so tests can watch the playback position, and a fourth, `_hUGE_ticks_per_row`, so
+    the driver's own variables, so tests can watch the playback position (and `src/music.c` reads `_hUGE_row` to swing the Entertainer's row lengths), and a fourth, `_hUGE_ticks_per_row`, so
     `src/music.c` can play a tune one tick a row faster (The Chrome Cow's Last call: "the band plays faster"), and a
     fifth, `_hUGE_note_table` (the driver's period table), so `src/music.c`'s channel-1 harmony voice (music step 5)
     plays the same pitches as the driver, and two more, `_hUGE_row_break` and `_hUGE_next_order` (the pending position

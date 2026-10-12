@@ -55,7 +55,7 @@ LEGATO_LEAD = 6      # gen_music.DUTY: the legato lead
 SUNG_ARTIC = 3       # frames of silence between two sung notes of the same pitch (legato=)
 
 
-def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None, groove="", legato=None, start=0):
+def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None, groove="", legato=None, start=0, swing=0):
     """stac_all: (num, den) cuts every melody note after num/den of its length (staccato).
     legato: n frames.  A sung tune: the melody plays on the legato lead (gen_music instrument 6, a held volume
     instead of the song lead's decay, which made every note a plucked syllable), each note runs into the next, and a
@@ -66,11 +66,14 @@ def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None
     The song's length must be a whole number of grooves (gen_music checks).
     start: the row the FIRST play begins on (a pickup: the song's loop still wraps to row 0, so every later pass
     starts at bar 1).  src/music.c jumps the driver there before its first tick; tunes with a start have no groove
-    or harmony (gen_music checks)."""
+    or harmony (gen_music checks).
+    swing: bit n set = the rows with (row mod 8) == n are one frame shorter than `tempo` (a groove tune only: the mask
+    takes the place of the tempo byte in the groove's header, which src/music.c reads; 0 = none, a mask is over 15).
+    0xAA: rows of 9, 8, 9, 8 frames = 105.9 bpm at tempo 9 for the Entertainer."""
     if legato:
         inst = LEGATO_LEAD
     SONGS[name] = dict(tempo=tempo, buf=bufname, ch2=ch2, ch3=ch3, ch4=ch4, inst=inst, gap=gap, stac_all=stac_all,
-                       groove=groove, legato=legato, start=start, ch1="", ch1_inst=None)
+                       groove=groove, legato=legato, start=start, swing=swing, ch1="", ch1_inst=None)
 
 
 def harmony(name, tune, ch1, inst=("harm", "harm")):
@@ -85,11 +88,11 @@ def harmony(name, tune, ch1, inst=("harm", "harm")):
 # 2026-10-11; it was 120) (the melody notes stay exactly as the spec's; only the
 # speed changes), in beats per minute of the beat the spec names; the spec's own tempo is in docs/music_specs.md and
 # SPEC_BPM_ROWS in tests/test_sound.py.  tempo = frames per row is the nearest whole number (60 fps), so the tempo
-# the game really plays is 3600 / (tempo x rows per beat): entertainer 8 -> 112.5, sakura 12 -> 150,
+# the game really plays is 3600 / (tempo x rows per beat): entertainer 9 and 8 alternating (swing 0xAA) -> 105.9, sakura 12 -> 150,
 # funicula 11 -> 109.1 (dotted quarter), skaters / danube / ballgame 9 -> 200 (quarter).  Tunes not listed play
 # at the spec tempo.  mountain 4 -> 225 spec-quarters (music step 6: 3.88 frames per row is the MIDI's 116 MIDI-quarters of 8 rows;
 # 4 plays 112.5 of them, 5 would play 90, 6 played 75 and was too slow, the owner said; MTN_TEMPO).
-GAME_BPM = {"entertainer": 112, "sakura": 150, "funicula": 112, "skaters": 192, "danube": 192, "ballgame": 192,
+GAME_BPM = {"entertainer": 106, "sakura": 150, "funicula": 112, "skaters": 192, "danube": 192, "ballgame": 192,
             "mountain": 225}
 
 
@@ -145,10 +148,12 @@ harmony("susanna", _t, " ".join([H.follow(_t, (1, 16), "G3", "A4", grid=2), H.gu
 
 # ---------------------------------------------------------------------------------------------
 # Title: "The Entertainer" (Scott Joplin, 1902), A and B sections.  2/4, one row = a sixteenth note; quarter = 90
-# is 10 frames per row (game tempo: 8 frames, 112 bpm, see GAME_BPM).  32 bars: the A section (bars 1-16, bars 4 and 8
+# is 10 frames per row (game tempo: rows of 9 and 8 frames alternating, 106 bpm, see GAME_BPM; the owner chose "1b at
+# 106 bpm" on 2026-10-12: thirds harmony, harmony at 50% duty, the melody an octave lower, a slight swing).  32 bars: the A section (bars 1-16, bars 4 and 8
 # end with the D D# pickup) with its second ending (bar 16: C, then E F F# up into the B section), the B section
 # (bars 17-32, owner request 2026-10-11: "the next section before it loops back") with its second ending (bar 32: the
 # held C, then the D D# pickup back into bar 1).
+# (ENT_BARS is written one octave below the score and the spec: C5 here is the spec's C6; the owner's choice.)
 # Checked note by note against the score: Mutopia Project "The Entertainer" (ftp/JoplinS/entertainer/entertainer.ly,
 # Mutopia-2016/11/25-263, typeset by Chris Sawer, overhauled by Simon Albrecht; source "Reproduction of original
 # edition (1902)"; licence: Public Domain), the A section's first ending (score bars 5-20).  The melody is the lower
@@ -161,33 +166,31 @@ harmony("susanna", _t, " ".join([H.follow(_t, (1, 16), "G3", "A4", grid=2), H.gu
 # the left hand (bar 19 F then F minor: F; bars 20 and 28 have E in the bass: C; bar 23 G over D then D7: D7; bar 29 F
 # then F#dim7).
 ENT_BARS = [
-    "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:5 C6:1 D6:1 D#6:1", "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2",
-    "C6:6 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:6 A5:1 G5:1",
-    "F#5:1 A5:1 C6:1 E6:2 D6:1 C6:1 A5:1", "D6:6 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1",
-    "~:5 C6:1 D6:1 D#6:1", "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2", "C6:6 C6:1 D6:1",
-    "E6:1 C6:1 D6:1 E6:2 C6:1 D6:1 C6:1", "E6:1 C6:1 D6:1 E6:2 C6:1 D6:1 C6:1",
-    "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2", "C6:5 E5:1 F5:1 F#5:1",
+    "E4:1 C5:2 E4:1 C5:2 E4:1 C5:1", "~:5 C5:1 D5:1 D#5:1", "E5:1 C5:1 D5:1 E5:2 B4:1 D5:2",
+    "C5:6 D4:1 D#4:1", "E4:1 C5:2 E4:1 C5:2 E4:1 C5:1", "~:6 A4:1 G4:1",
+    "F#4:1 A4:1 C5:1 E5:2 D5:1 C5:1 A4:1", "D5:6 D4:1 D#4:1", "E4:1 C5:2 E4:1 C5:2 E4:1 C5:1",
+    "~:5 C5:1 D5:1 D#5:1", "E5:1 C5:1 D5:1 E5:2 B4:1 D5:2", "C5:6 C5:1 D5:1",
+    "E5:1 C5:1 D5:1 E5:2 C5:1 D5:1 C5:1", "E5:1 C5:1 D5:1 E5:2 C5:1 D5:1 C5:1",
+    "E5:1 C5:1 D5:1 E5:2 B4:1 D5:2", "C5:5 E4:1 F4:1 F#4:1",
     # B section
-    "G5:2 A5:1 G5:2 E5:1 F5:1 F#5:1", "G5:2 A5:1 G5:2 E5:1 C5:1 G4:1", "A4:1 B4:1 C5:1 D5:1 E5:1 D5:1 C5:1 D5:1",
-    "G4:1 E5:1 F5:1 G5:1 A5:1 G5:1 E5:1 F5:1", "G5:2 A5:1 G5:2 E5:1 F5:1 F#5:1", "G5:2 A5:1 G5:2 G5:1 A5:1 A#5:1",
-    "B5:1 B5:2 B5:2 A5:1 F#5:1 D5:1", "G5:5 E5:1 F5:1 F#5:1",
-    "G5:2 A5:1 G5:2 E5:1 F5:1 F#5:1", "G5:2 A5:1 G5:2 E5:1 C5:1 G4:1", "A4:1 B4:1 C5:1 D5:1 E5:1 D5:1 C5:1 D5:1",
-    "C5:5 G4:1 F#4:1 G4:1", "C5:2 A4:1 C5:2 A4:1 C5:1 A4:1", "G4:1 C5:1 E5:1 G5:2 E5:1 C5:1 G4:1",
-    "A4:2 C5:2 E5:1 D5:2 C5:1", "~:6 D5:1 D#5:1",
+    "G4:2 A4:1 G4:2 E4:1 F4:1 F#4:1", "G4:2 A4:1 G4:2 E4:1 C4:1 G3:1", "A3:1 B3:1 C4:1 D4:1 E4:1 D4:1 C4:1 D4:1",
+    "G3:1 E4:1 F4:1 G4:1 A4:1 G4:1 E4:1 F4:1", "G4:2 A4:1 G4:2 E4:1 F4:1 F#4:1", "G4:2 A4:1 G4:2 G4:1 A4:1 A#4:1",
+    "B4:1 B4:2 B4:2 A4:1 F#4:1 D4:1", "G4:5 E4:1 F4:1 F#4:1",
+    "G4:2 A4:1 G4:2 E4:1 F4:1 F#4:1", "G4:2 A4:1 G4:2 E4:1 C4:1 G3:1", "A3:1 B3:1 C4:1 D4:1 E4:1 D4:1 C4:1 D4:1",
+    "C4:5 G3:1 F#3:1 G3:1", "C4:2 A3:1 C4:2 A3:1 C4:1 A3:1", "G3:1 C4:1 E4:1 G4:2 E4:1 C4:1 G3:1",
+    "A3:2 C4:2 E4:1 D4:2 C4:1", "~:6 D4:1 D#4:1",
 ]
 ENT_CHORDS = [
     "C", "F/C", "G7", "C", "C", "F/C", "D7", "G7", "C", "F/C", "G7", "C", "C", "F", "G7", "C",
     "C", "C", "F", "C", "C", "C", "D7", "G7", "C", "C", "F", "C", "F/F#dim7", "C", "D7/G7", "C",
 ]
-song("entertainer", 8, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8),
+song("entertainer", 9, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8), swing=0xAA,
      groove="K:1 r:1 H:1 r:1 S:1 r:1 H:1 r:1")
-# Harmony (music step 5): the A section gets a voice a third or sixth under the melody's octave figures, one note a beat
-# (the 25% "harm" pulse, decaying like a piano's second hand); the B section, where the melody comes down into the
-# harmony's register and runs in sixteenths, a slow counter-line instead: one held chord tone a chord, the third or
-# seventh first, each moving to the nearest (the 12.5% pad).
+# Harmony (the owner's "1b", 2026-10-12): a second voice in thirds and sixths under the whole tune, in the melody's own
+# rhythm (grid 1: it moves on any sixteenth, the off-beat ragtime notes included; merge=False re-strikes a repeated note
+# as the melody does), on the 50% "harm50" pulse (decaying like a piano's second hand).  C3-B4 keeps it under the melody.
 _t = H.Tune(" ".join(ENT_BARS), ENT_CHORDS, 8, 4, "C")
-harmony("entertainer", _t, " ".join([H.follow(_t, (1, 16), "G4", "B5", grid=4, merge=False),
-                                     H.guide(_t, (17, 32), "C4", "C5", inst="/2")]), ("harm", "pad"))
+harmony("entertainer", _t, H.follow(_t, (1, 32), "C3", "B4", grid=1, merge=False), ("harm50", "harm50"))
 
 # ---------------------------------------------------------------------------------------------
 # Show: "Galop infernal" (Jacques Offenbach, Orphee aux enfers, 1858, the can-can), the owner's spec (docs/music_specs.md

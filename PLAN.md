@@ -240,7 +240,7 @@ eighth. Every melody's rhythm was compared with a public-domain score on GitHub 
   bigger Susanna blob moves the level-1 load by a frame) counts as a restart.
 
 Drums and game tempos (after M9): owner-approved game tempos (tools/songs.py GAME_BPM; spec tempo stays in docs/music_specs.md):
-entertainer 8 frames/row = 112.5 bpm, sakura 12 = 150 (lively arrangement, owner-approved 2026-10-11; was 15 = 120), funicula 11 = 109 (dotted quarter), skaters/danube/ballgame 9 = 200.
+entertainer 9/8 frames alternating = 105.9 bpm (music step 7, below), sakura 12 = 150 (lively arrangement, owner-approved 2026-10-11; was 15 = 120), funicula 11 = 109 (dotted quarter), skaters/danube/ballgame 9 = 200.
 Drums for the title, ballgame, funicula, skaters, sakura and danube are a `groove` (songs.py song(..., groove=)): a 6-8
 row loop in bank 2 that src/music.c's groove_tick plays on channel 4 in step with the driver's rows (kit registers derived
 from the quiet kit in gen_music.drum_kit); a sound effect on channel 4 wins. A shared hUGEDriver pattern would not do: 64
@@ -2227,3 +2227,24 @@ src/rush.h, and small hooks in story.c / main_cold.c / title.c / save.c. First w
   order, lives and score carried, the NEXT card, ALL CLEAR, game over). Fights run through boss_common.until, so every
   frame is checked at <= 10 sprites a line. Goldens (new): rush_menu, rush_list, rush_list_locked, rush_next_card (DMG
   + CGB); replaced on purpose: title_bonus (the BONUS menu has a third item).
+
+## The Entertainer, "1b at 106 bpm" as built (owner choice, 2026-10-12)
+- The title tune: a second voice in thirds under the whole tune (H.follow over bars 1-32, grid 1, merge=False, C3-B4) on a NEW
+  50% duty harmony instrument "harm50" (gen_music HARM_INST; "harm" / "stab" are shared with Susanna, Mountain and others and
+  are unchanged); the melody an octave lower, written into ENT_BARS itself (the spec in docs/music_specs.md is an octave up:
+  tests/test_sound.py lowers the spec before comparing); tempo 9 with a swing.
+- Swing: `song(..., swing=0xAA)`: bit n set = the rows with (row mod 8) == n are a frame shorter: 9, 8, 9, 8 frames = 8.5 average =
+  105.9 bpm, 2176 frames a pass. The mask is the second byte of the tune's groove header (a tempo there is at most 15, a mask is
+  over 15, so every other tune's groove table is byte-identical). start_song caches the mask in a static byte (`swing`), so the other tunes pay one byte test a frame. src/music.c tick(), on tick 0 of a row, sets hUGE_ticks_per_row
+  from the mask and hUGE_row; groove_tick reloads from hUGE_ticks_per_row, harm_tick already did, so drums, harmony and driver stay
+  locked. gen_music places the Exx note cuts by absolute frame inside the swung rows (gen_music.row_starts; swing 0 = the old
+  arithmetic). Zero WRAM, no new patterns.
+- ROM (bank free bytes before -> after): bank 2 25 -> 64 (autobank also moved things; the music.c code itself is about +40 B), bank 10 (pattern blobs and the harmony track) 262 -> 31 (the thirds
+  line is 180 events, was 40), ROM0 unchanged (745 free). Only the title's blob, harmony track, groove and tune row changed in
+  build/music_data.c and music_pat10.c; the other tunes' generated data is identical.
+- Tests: swing-aware melody_check / melody_cuts (frame of a row = gm.row_starts), the spec test lowers the Entertainer, the tempo
+  test compares the average row length, the groove header test accepts the mask, harmony duty allows 50%, and a new
+  test_the_swung_title_plays_rows_of_alternating_length. No goldens changed.
+  The CLASSIC / realistic-peak perf tests are sensitive to a few cycles in the music tick (see the Music step 5 note in
+  test_perf.py): the first version of the swing check (`groove[1] > 15` read every frame) tipped four of them over; the cached
+  `swing` byte tested first is cheaper and all pass unchanged (no guard moved).

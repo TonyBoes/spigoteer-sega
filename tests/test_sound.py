@@ -1,6 +1,7 @@
 # M7: music (hUGEDriver), sound effects, the saved hi score and the MUSIC ON/OFF switch.
 # Register and audio checks need PyBoy's sound emulation, which the shared Rom wrapper leaves off
 # (its sound registers read 0), so `sound_rom` swaps in a PyBoy with sound_emulated=True.
+import re
 import sys
 from io import BytesIO
 
@@ -301,7 +302,9 @@ def melody_check(rom, source, frames=260, min_notes=6):
     of song `source` (tools/songs.py) with the pitch the song says.  Returns (checked, wrong) lists of (row, Hz wanted, Hz heard)."""
     t = songs.SONGS[source]
     tempo = t["tempo"]
-    rows = gm.rows_for(2, t["ch2"], 1, tempo, False, t.get("gap", True), t.get("stac_all"), t.get("legato"))
+    swing = t.get("swing", 0)
+    rows = gm.rows_for(2, t["ch2"], 1, tempo, False, t.get("gap", True), t.get("stac_all"), t.get("legato"), swing)
+    at = gm.row_starts(tempo, swing, 2 * len(rows))         # the frame at which each row starts (a swung row is a frame short)
     notes = []
     for i, (n, _, _) in enumerate(rows):
         if n != gm.REST:
@@ -325,13 +328,14 @@ def melody_check(rom, source, frames=260, min_notes=6):
     rate = rom.pb.sound.sample_rate
     checked, wrong = [], []
     for row, ln, n in notes:
-        k = ((row - t.get("start", 0)) % (len(rows))) * tempo + 1      # (a tune with a start row begins there)
-        if mfs[0] >= k or mfs[-1] < k + ln * tempo + 2:
+        r0 = (row - t.get("start", 0)) % len(rows)                     # (a tune with a start row begins there)
+        k = at[r0] + 1
+        if mfs[0] >= k or mfs[-1] < k + (at[r0 + ln] - at[r0]) + 2:
             continue                                    # not entirely inside what was recorded
         f0 = next(f for f in range(len(mfs)) if mfs[f] >= k) + 1
         # (a long note's volume envelope has faded to near silence well before its last rows: listen to its first 3 rows
         # at most, or the pitch found is the noise floor's, which moves with the music tick's line in the frame)
-        hear = min(ln, 3) * tempo
+        hear = at[r0 + min(ln, 3)] - at[r0]
         a, b = int((f0 + 0.2 * hear) * spf), int((f0 + 0.8 * hear) * spf)
         want = note_hz(n)
         got = detect(flat[a:b], rate, want * 0.6, want * 1.7)
@@ -346,6 +350,36 @@ def test_the_title_plays_the_entertainer(srom):
     assert srom.mem("cur_tune") == TUNE_TITLE
     checked, wrong = melody_check(srom, "entertainer", 280)
     assert not wrong, f"title melody differs from The Entertainer's note list: {wrong}"
+
+
+def row_lengths(rom, frames):
+    """Frames each driver row lasted, from hUGE_row, over `frames` frames of whatever tune is playing (whole rows only)."""
+    rows = []
+    for _ in range(frames):
+        rom.run(1)
+        rows.append(rom.mem("hUGE_row"))
+    marks = [i for i in range(1, len(rows)) if rows[i] != rows[i - 1]]
+    return [b - a for a, b in zip(marks, marks[1:])], [rows[m] for m in marks]
+
+
+def test_the_swung_title_plays_rows_of_alternating_length(srom):
+    """The Entertainer is swung (songs 'swing' 0xAA, src/music.c tick): rows of 9, 8, 9, 8 ... frames, the mask's bit
+    (row mod 8) = a frame short; a tune without a swing (the venue tunes) keeps its tempo on every row."""
+    assert srom.mem("cur_tune") == TUNE_TITLE
+    s = songs.SONGS["entertainer"]
+    assert s["swing"] == 0xAA and s["tempo"] == 9
+    srom.run(60)
+    lens, rows = row_lengths(srom, 200)
+    assert len(lens) >= 16
+    want = [s["tempo"] - ((s["swing"] >> (r % 8)) & 1) for r in rows[:-1]]
+    assert lens == want, (lens, rows)
+    assert set(lens) == {8, 9} and abs(sum(lens) / len(lens) - 8.5) < 0.1
+    # the drums header carries the mask and the pass length counts the short rows
+    src = (ROOT / "build" / "music_data.c").read_text()
+    assert "groove_title[] = {8, 170," in src
+    assert re.search(r"\{&song_title, 1, 2176, ", src), "256 rows: 128 of 9 frames and 128 of 8"
+    assert gm.row_starts(9, 0xAA, 256)[-1] == 2176
+    assert gm.row_starts(8, 0, 256)[-1] == 2048, "no swing: tempo x rows"
 
 
 SUSANNA_SPEC = """E4:1 G4:1 G4:1 A4:1 G4:1 E4:1 C4:1 D4:1 E4:1 E4:1 D4:1 C4:1 D4:2 C4:1 D4:1
@@ -398,8 +432,9 @@ def test_the_entertainer_plays_its_b_section_before_it_loops():
     pickup leads back to bar 1; the pattern blobs moved to bank 10 to make room (bank 3 had 39 bytes free)."""
     s = songs.SONGS["entertainer"]
     assert len(songs.ENT_BARS) == 32 == len(songs.ENT_CHORDS)
-    assert songs.ENT_BARS[15].endswith("E5:1 F5:1 F#5:1") and songs.ENT_BARS[16].startswith("G5:2 A5:1 G5:2")
-    assert songs.ENT_BARS[31].endswith("D5:1 D#5:1") and songs.ENT_BARS[0].startswith("E5:1")
+    # (the melody is written an octave below the spec: the owner's "1b", 2026-10-12)
+    assert songs.ENT_BARS[15].endswith("E4:1 F4:1 F#4:1") and songs.ENT_BARS[16].startswith("G4:2 A4:1 G4:2")
+    assert songs.ENT_BARS[31].endswith("D4:1 D#4:1") and songs.ENT_BARS[0].startswith("E4:1")
     b = gm.build("title", s, False)
     assert b["total"] == 32 * 8 and b["n_orders"] == 4
     assert gm.BLOB_BANKS == (10,)
@@ -412,8 +447,9 @@ def test_the_entertainer_plays_its_b_section_before_it_loops():
 # ---- sung tunes are legato (owner: "every syllable is being enunciated robotically") -------------------------------
 def melody_cuts(s):
     """[(pitch, rows, next pitch or None for a rest, frame of its note cut within the note or None)] of a song's melody."""
-    tempo = s["tempo"]
-    rows = gm.rows_for(2, s["ch2"], s["inst"], tempo, False, s["gap"], s["stac_all"], s["legato"])
+    tempo, swing = s["tempo"], s.get("swing", 0)
+    rows = gm.rows_for(2, s["ch2"], s["inst"], tempo, False, s["gap"], s["stac_all"], s["legato"], swing)
+    at = gm.row_starts(tempo, swing, len(rows) + 1)
     toks = gm.merge_ties(s["ch2"]).split()
     out, row = [], 0
     for k, tok in enumerate(toks):
@@ -421,7 +457,7 @@ def melody_cuts(s):
         n = int(n)
         if name != "r":
             nxt = toks[k + 1].split(":")[0] if k + 1 < len(toks) else toks[0].split(":")[0]
-            cut = next(((rr - row) * tempo + (rows[rr][2] & 0xFF) for rr in range(row, row + n)
+            cut = next((at[rr] - at[row] + (rows[rr][2] & 0xFF) for rr in range(row, row + n)
                         if (rows[rr][2] & 0xF00) == 0xE00), None)
             out.append((name, n, None if nxt == "r" else nxt, cut))
         row += n
@@ -441,7 +477,7 @@ def test_sung_tunes_hold_their_notes_and_only_articulate_a_repeated_syllable():
         assert s["legato"] == songs.SUNG_ARTIC and s["inst"] == songs.LEGATO_LEAD and not s["stac_all"]
         kinds = set()
         for pitch, n, nxt, cut in melody_cuts(s):
-            ticks = n * s["tempo"]
+            ticks = n * s["tempo"]                  # (the sung tunes are not swung)
             if nxt == pitch:
                 assert cut == ticks - songs.SUNG_ARTIC, (name, pitch, n, cut)
                 kinds.add("repeat")
@@ -482,6 +518,8 @@ def spec_bars_for_the_game(name, bars):
     """The spec bars with the documented adaptation: Pop Goes the Weasel's last rest is the D4 pickup.  (Pickup lines
     are not bars: they are the first-time-only lead-ins, left out so that the loop is seamless.)"""
     bars = list(bars)
+    if name == "entertainer":          # the owner's "1b": the melody an octave lower than the spec (songs.ENT_BARS)
+        bars = [re.sub(r"([A-G]#?)(\d)", lambda m: m.group(1) + str(int(m.group(2)) - 1), b) for b in bars]
     if name == "weasel":
         assert bars[-1].endswith("R:1")
         bars[-1] = bars[-1][:-3] + "D4:1"
@@ -508,7 +546,8 @@ def test_the_tunes_are_the_specs_token_for_token():
         bpm, rows_per_beat = SPEC_BPM_ROWS[name]
         bpm = songs.GAME_BPM.get(name, bpm)             # the owner-approved game tempo (the spec's where none is listed)
         ideal = 3600 / bpm / rows_per_beat
-        assert abs(s["tempo"] - ideal) / ideal < 0.05, f"{name} tempo {s['tempo']} vs {ideal:.1f} frames per row (game tempo {bpm} bpm)"
+        avg = s["tempo"] - bin(s.get("swing", 0)).count("1") / 8      # a swung tune's average row (the mask is per 8 rows)
+        assert abs(avg - ideal) / ideal < 0.05, f"{name} tempo {avg} vs {ideal:.1f} frames per row (game tempo {bpm} bpm)"
         if name in ("hall", "sakura"):
             continue                                    # root ostinato / Sakura's own bass figure (its test below)
         bass = s["ch3"].replace("!", "").split()
@@ -808,7 +847,8 @@ def test_title_and_every_venue_tune_have_drums():
         if g:
             assert built["total"] % len(g) == 0, f"{name}: the groove must fit the song a whole number of times"
             m = re.search(r"groove_%s\[\] = \{(\d+), (\d+)," % tune, src)
-            assert m and int(m.group(1)) == len(g) and int(m.group(2)) == t["tempo"], f"{name}: groove table in music_data.c"
+            assert m and int(m.group(1)) == len(g) and int(m.group(2)) == (t.get("swing", 0) or t["tempo"]), \
+                f"{name}: groove table in music_data.c (its second byte: the tempo, or a swing mask over 15)"
     assert len(gm.drum_kit()) == 3
 
 
