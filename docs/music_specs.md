@@ -195,27 +195,27 @@ Length: 16 bars + pickup
 
 PICKUP: A4:4 B4:4
  1 | D5:2 D5:6 D5:6 D5:2                          | D
- 2 | B4:3 A4:5 F#4:4 A4:4                         | A7
+ 2 | B4:4 A4:4 F#4:4 A4:4                         | A7
  3 | D5:16                                        | D
- 4 | ~:8 D5:4 E5:4                                | D
+ 4 | R:8 D5:4 E5:4                                | D
  5 | F#5:2 F#5:6 F#5:6 F#5:2                      | D
- 6 | A5:3 F#5:5 E5:4 D5:4                         | D
+ 6 | A5:4 F#5:4 E5:4 D5:4                         | D
  7 | E5:16                                        | A7
- 8 | ~:8 A5:4 G5:4                                | A7
+ 8 | R:8 A5:4 G5:4                                | A7
  9 | F#5:2 F#5:6 F#5:6 F#5:2                      | D
-10 | E5:3 D5:5 D5:4 D5:4                          | D7
+10 | E5:4 D5:4 D5:4 D5:4                          | D7
 11 | B4:2 B4:6 B4:6 B4:2                          | G
-12 | E5:3 D5:5 C#5:4 B4:4                         | A7
+12 | E5:4 D5:4 C#5:4 B4:4                         | A7
 13 | A4:2 A4:6 A4:6 A4:2                          | D
-14 | F#5:3 E5:5 B4:4 C#5:4                        | A7
+14 | F#5:4 E5:4 B4:4 C#5:4                        | A7
 15 | D5:16                                        | D
-16 | ~:8 A4:4 B4:4                                | D
+16 | R:8 A4:4 B4:4                                | D
 
 Note: Bar 16 ends with the pickup for the next loop.
 Note: Bar 12: the source chord is Ddim; A7 is a simpler substitute that fits the C#.
-Rhythm changed 2026-10-11 (music step 3, owner's listening note: "'comin'' is two beats closer together and 'the mountain' is three beats closer together with the last slightly delayed"): the list had every syllable an even quarter (old bar 1 'D5:2 D5:2 D5:2 D5:2', bar 2 'B4:2 A4:2 F#4:2 A4:2' in eighths). Now every "com-in' round the" bar is X:2 X:6 X:6 X:2 (in' an eighth after com; the an eighth before the bar line) and every "moun-tain when she" / "moun-tain, she'll be" bar is X:3 Y:5 Z:4 W:4 (tain a dotted eighth after moun); com, round, moun and when stay on beats 1 and 3. No score of this song was found on GitHub (searched: the Mutopia Project, the music21 corpus, OpenEWLD, humdrum-tools, KernScores mirrors, public-domain LilyPond songbooks), so this rhythm is the owner's description, not a transcription: ear-check it.
+Rhythm and pitches changed 2026-10-12 (music step 4): melody rhythm and pitches from Simon Horn's MIDI (2021, CC0, Wikimedia Commons), supplied by the owner 2026-10-12 (Harmonica track, first verse, in G there, transposed to D here; one MIDI quarter = 8 rows). Every "com-ing round the" bar is X:2 X:6 X:6 X:2; every "moun-tain when she" / "moun-tain, she'll be" bar is four even eighths (X:4 Y:4 Z:4 W:4); "comes" is a half note (16 rows) then a rest (R:8) before the next pickup (bars 4, 8, 16). Music step 3 (2026-10-11) had the owner's listening description (X:3 Y:5 Z:4 W:4 and the held "comes" tied on for 8 more rows); the pitches did not change.
 Confidence: High for melody (cross-checked against an independent letter-note chart).
-Source: John Chambers' ABC collection (mirror of David Kidd's dulcimer transcription, originally everythingdulcimer.com). Tune is traditional; in print by Carl Sandburg's 'The American Songbag' (1927), public domain.
+Source (rhythm and pitches, 2026-10-12): Simon Horn's MIDI, 2021, CC0 (Wikimedia Commons), supplied by the owner 2026-10-12. Earlier source (pitches, still agree): John Chambers' ABC collection (mirror of David Kidd's dulcimer transcription, originally everythingdulcimer.com). Tune is traditional; in print by Carl Sandburg's 'The American Songbag' (1927), public domain.
 
 ------------------------------------------------------------
 5. POP GOES THE WEASEL (traditional) - verse + second strain

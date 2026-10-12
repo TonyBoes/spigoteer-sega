@@ -236,18 +236,17 @@ harmony("ballgame", _t, " ".join([H.guide(_t, (1, 16), "D4", "C5"), H.follow(_t,
 # Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song).  4/4, key D, one row = a sixteenth
 # note (16 rows a bar), 6 frames per row = quarter 150 (the spec's 160 needs 5.6; it played 11 frames per eighth =
 # 163.6; GAME_BPM).  16 bars = 256 rows = four whole orders; bar 16 ends with the "she'll be" pickup of the next pass.
-# Rhythm (music step 3, 2026-10-11): the spec had every syllable an even quarter ("com-in' round the | moun-tain when
-# she").  No score of the song was found on GitHub (see docs/music_specs.md), so the rhythm follows the owner's
-# listening note: "com-in'" two notes closer together (in' an eighth after com, then held), "the moun-tain" three notes
-# closer together with the last slightly delayed (the an eighth before the bar line, moun a dotted eighth, tain on the
-# next sixteenth); the stressed syllables (com, round, moun, when) stay on beats 1 and 3, so the bass and drums keep
-# their places.  Every "com-in' round the" bar is X:2 X:6 X:6 X:2, every "moun-tain when she" / "moun-tain, she'll be"
-# bar is X:3 Y:5 Z:4 W:4.  The pitches are the spec's.
+# Rhythm and pitches (music step 4, 2026-10-12): the first verse of the Harmonica track of Simon Horn's MIDI
+# (2021, CC0, Wikimedia Commons), supplied by the owner 2026-10-12, in G there, transposed up a fifth to D here, one
+# MIDI quarter note = 8 rows (the rows keep the grid and tempo of music step 3).  Every "com-ing round the" bar is
+# X:2 X:6 X:6 X:2 (the snap), every "moun-tain when she" / "moun-tain, she'll be" bar is four even eighths
+# (X:4 Y:4 Z:4 W:4), "comes" is a half note (D5:16 / E5:16) and then a rest (R:8) before the pickup.  This replaced the
+# owner's listening-note rhythm (X:3 Y:5 Z:4 W:4 and a tied "comes"); the pitches are the same as before.
 MTN_BARS = [
-    "D5:2 D5:6 D5:6 D5:2", "B4:3 A4:5 F#4:4 A4:4", "D5:16", "~:8 D5:4 E5:4",
-    "F#5:2 F#5:6 F#5:6 F#5:2", "A5:3 F#5:5 E5:4 D5:4", "E5:16", "~:8 A5:4 G5:4",
-    "F#5:2 F#5:6 F#5:6 F#5:2", "E5:3 D5:5 D5:4 D5:4", "B4:2 B4:6 B4:6 B4:2", "E5:3 D5:5 C#5:4 B4:4",
-    "A4:2 A4:6 A4:6 A4:2", "F#5:3 E5:5 B4:4 C#5:4", "D5:16", "~:8 A4:4 B4:4",
+    "D5:2 D5:6 D5:6 D5:2", "B4:4 A4:4 F#4:4 A4:4", "D5:16", "R:8 D5:4 E5:4",
+    "F#5:2 F#5:6 F#5:6 F#5:2", "A5:4 F#5:4 E5:4 D5:4", "E5:16", "R:8 A5:4 G5:4",
+    "F#5:2 F#5:6 F#5:6 F#5:2", "E5:4 D5:4 D5:4 D5:4", "B4:2 B4:6 B4:6 B4:2", "E5:4 D5:4 C#5:4 B4:4",
+    "A4:2 A4:6 A4:6 A4:2", "F#5:4 E5:4 B4:4 C#5:4", "D5:16", "R:8 A4:4 B4:4",
 ]
 MTN_CHORDS = [
     "D", "A7", "D", "D", "D", "D", "A7", "A7", "D", "D7", "G", "A7", "D", "A7", "D", "D",

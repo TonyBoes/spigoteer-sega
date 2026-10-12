@@ -78,6 +78,7 @@ channel-1 harmony line, rhythm, drums, instruments) is ours. Song data is conver
   (trillian.mit.edu/~jc/music/session/waltz/Take_Me_Out_to_the_Ball_Game.abc).
 - "She'll Be Coming 'Round the Mountain": John Chambers' ABC collection (mirror of David Kidd's dulcimer
   transcription, originally everythingdulcimer.com); in print in Carl Sandburg's "The American Songbag" (1927).
+  Melody rhythm and pitches from Simon Horn's MIDI (2021, CC0, Wikimedia Commons), supplied by the owner 2026-10-12.
 - "Drunken Sailor" (traditional): no transcription source; the shanty's well-known melody written down by us in
   D Dorian (docs/music_specs.md tune 11), arranged fast and punky (driving root-eighths bass, every note cut short).
 - "Pop Goes the Weasel": Ryan's Mammoth Collection (1882), p. 264, via John Chambers' ABC mirror on
@@ -125,9 +126,9 @@ our notes are our own transcription, no file was copied):
 - "Pop Goes the Weasel": the spec's own source, Ryan's Mammoth Collection, as encoded in the **music21** corpus
   (github.com/cuthbertLab/music21, `corpus/ryansMammoth/PopGoesTheWeasel.abc`, encoder John B. Walsh): all bars match.
 - "In the Hall of the Mountain King", "The Blue Danube", "The Entertainer": the Mutopia scores listed above confirm them.
-- "She'll Be Coming 'Round the Mountain": **no score found on GitHub** (searched the Mutopia Project, the music21 corpus,
-  OpenEWLD, humdrum-tools, KernScores mirrors and public-domain LilyPond songbooks). Its new rhythm (sixteenth rows) is
-  the owner's listening description, not a transcription.
+- "She'll Be Coming 'Round the Mountain": no score found on GitHub (searched the Mutopia Project, the music21 corpus,
+  OpenEWLD, humdrum-tools, KernScores mirrors and public-domain LilyPond songbooks). Its rhythm and pitches are now
+  Simon Horn's MIDI (2021, CC0, Wikimedia Commons), supplied by the owner 2026-10-12 (first verse, Harmonica track).
 - No score found on GitHub either: "The Skaters' Waltz", "Take Me Out to the Ball Game", "Sakura Sakura" (the Mutopia
   "Sakura-Miyotote" is a different piece), "Galop infernal"; their rhythms are the specs'.
 - Not used: The Session's data dump (github.com/adactio/TheSession-data) is licensed ODbL **with an added prohibition on
