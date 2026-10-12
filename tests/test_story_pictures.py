@@ -69,10 +69,48 @@ def test_the_pictures_are_built_to_the_budget():
         assert all(a in (0, 5, 6, 7, 1) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
         assert p["tiles"] <= 36 + 256 - p["base"], name
     # the numbers of the report (the picture tiles, the HUD palette cells of CREDITS)
-    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 116, "intro_a": 147, "finale_a": 107, "credits_b": 96}
+    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 141, "finale_a": 134, "credits_b": 119}
     assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "credits_b": 12}
     # the portrait slot sits below the picture's tiles in every scene
     assert all(max(i for i in PICS[n]["map"] if i >= 36) < 256 for n in PICS)
+
+
+def _pix(name):
+    key, pix, _ = gen_story().parse_v2(ROOT / PICS[name]["art"])
+    return key, pix
+
+
+def _region(pix, x0, y0, x1, y1):
+    return ["".join(r[x0:x1]) for r in pix[y0:y1]]
+
+
+def test_the_four_pictures_are_one_square_one_fountain_one_spigot():
+    """The continuity pass: the sources share one master layout (the same characters in the same places), the
+    same large gold F1 spigot and the same gold in every key, three times of day."""
+    pics = {n: _pix(n) for n in PICS}
+    for n, (key, _) in pics.items():                               # one gold, the INTRO's
+        assert key["Y"]["hex"] == "#f8f0a0" and key["y"]["hex"] == "#e8a828", n
+    # the spigot, the bowl and the pedestal (x 88-118, y 6-72): identical in the three pictures that
+    # show it whole (the credits' drips and the finale's glass aside)
+    ref = _region(pics["intro_before"][1], 88, 6, 119, 72)
+    for n in ("finale_a", "credits_b"):
+        got = _region(pics[n][1], 88, 6, 119, 72)
+        diff = {(x + 88, y + 6) for y, (a, b) in enumerate(zip(ref, got)) for x, (c, d) in enumerate(zip(a, b)) if c != d}
+        assert all(109 <= x < 116 and 37 <= y < 43 for x, y in diff), (n, sorted(diff)[:5])   # the drips of the credits
+    assert _region(pics["intro_before"][1], 72, 72, 120, 81) == _region(pics["finale_a"][1], 72, 72, 120, 81)  # the wall (the crowd aside)
+    # the clock tower and the houses at the left (x 0-30, y 29-87): the same everywhere (the dawn sun sits behind them)
+    ref = _region(pics["intro_before"][1], 0, 29, 31, 88)
+    for n in ("intro_a", "finale_a", "credits_b"):
+        got = [r.replace("y", ".") for r in _region(pics[n][1], 0, 29, 31, 88)] if n == "credits_b" else _region(pics[n][1], 0, 29, 31, 88)
+        assert got == ref, n
+    # the string lights hang in the three pictures that show them taut; the finale adds pennants among them
+    for n in ("intro_before", "intro_a", "finale_a"):
+        assert any("#" in r for r in _region(pics[n][1], 33, 41, 72, 50)), n
+    assert "r" in "".join(_region(pics["finale_a"][1], 33, 41, 160, 55)) and "r" not in "".join(_region(pics["intro_before"][1], 33, 41, 160, 55))
+    # the finale: the Spigoteer's glass is in the jet (water in the glass, the jet above it down to its rim)
+    f = pics["finale_a"][1]
+    assert all(f[y][122] == "b" or f[y][123] == "b" for y in range(51, 58))
+    assert "".join(_region(f, 121, 60, 125, 63)).count("b") >= 6
 
 
 def test_the_picture_sources_convert_exactly():

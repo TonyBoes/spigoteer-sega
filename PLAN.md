@@ -2355,3 +2355,37 @@ The picture scenes (INTRO, FINALE, CREDITS) show real full-screen pictures in ro
   scenes the biggest portrait). Goldens: new story_pic_intro_before, story_pic_intro_a, story_pic_finale_a,
   story_pic_credits_b (DMG + CGB); replaced on purpose: story_narrator (INTRO page 1: the placeholder card became
   intro_before) and story_dregs_sorry (FINALE page 4: the placeholder card behind the portrait became finale_a).
+
+### Story pictures: the continuity pass (owner-approved 2026-10-12: one square, one fountain, one spigot, three times of day)
+
+The four pictures disagreed (the fountain changed shape and vanished in the finale, the spigot was pale or half size, the
+square had a clock tower, then grey blocks, then a spire, the intro's townsfolk vanished in the explosion, the finale's
+pour was nowhere near the Spigoteer's glass). They are now ONE master layout recoloured, same camera, same pixels where
+the scene is the same:
+- **Master square** (assets/story/pictures/*.txt use the same key characters in all four: the tests compare them
+  character by character): the clock tower and houses at the left (x 0-47), the fountain right of centre (bowl x 88-119,
+  pedestal x 97-110, basin wall x 72-135 at y 72-87, jets at x 80-85 and x 120-125), the large gold F1 spigot on it
+  (x 88-119, y 6-47, the INTRO before art, gold_light #f8f0a0 / gold #e8a828 in every key), string lights from the
+  chimney to the spigot and from the spigot to the right edge, the cobbles at y 88-103.
+- **Three times of day = three keys over the same characters**: night (sky shade 2, town silhouette ink, lit windows),
+  day (sky shade 0, stone town, outlines), dawn (sky shade 0, mauve town in shadow, the sun behind the tower). The
+  shades are chosen per picture so no tile has two colours on one shade and 4 CGB palettes are enough (a small search
+  over shade assignments: DMG order is kept wherever a tile allows it). Day: water highlights and the glass are the sky
+  colour, Zizz and the mint hats are water blue, brown hair is rose or stone (so the heads fit the four day palettes
+  gold / stone+skin / water+skin / rose+skin). Dawn: apron, suds, windows and Dregs's face share one warm light colour.
+- **Per picture**: intro_before (night; F1 whole, the townsfolk as five clean hatted silhouettes, the Spigoteer walks in
+  from the right, 119 tiles); intro_a (the burst and stub, Dregs, the Spigoteer's shrug, the townsfolk ducking and
+  pointing at the burst, no pieces in the picture, 141 tiles); finale_a (day; pennants among the string lights in the
+  tiles that hold no bulb, except gold ones; the Spigoteer in his cozy as a bust behind the owners' strip at x 126-139
+  with his glass raised into the right jet; Dregs sheepish beside him; the ten heads on a pale strip, 134 tiles);
+  credits_b (dawn; sun behind the tower, last night's strings hanging loose from the chimney and the right edge with
+  unlit bulbs, the spigot dripping, Dregs in an apron with a mop, suds on the cobbles, the coffee stand in the HUD
+  palette, 119 tiles, 12 HUD cells). Credits has 199 tiles of room (limit 199), INTRO 157, FINALE 155.
+- **Speaker pages**: the portrait frame (x 8-79, y 40-103) only hides the clock tower, the left houses, Dregs-at-the-mop
+  (credits has no speakers) and the left owners' heads; everything that tells the story sits at x >= 80 or y < 40.
+- **Tests** (tests/test_story_pictures.py): the budget numbers follow the new art; test_the_four_pictures_are_one_square_
+  one_fountain_one_spigot compares the spigot / bowl / pedestal (x 88-118, y 6-72), the wall, the tower and houses and the
+  gold keys across pictures, the string lights and the finale's pennants and glass-in-the-jet.
+- **Goldens replaced on purpose** (reason for each: continuity pass, one square, fountain and spigot across all pictures):
+  story_pic_intro_before, story_pic_intro_a, story_pic_finale_a, story_pic_credits_b, story_narrator (INTRO page 1 shows
+  intro_before) and story_dregs_sorry (FINALE page 4 shows finale_a behind the portrait).
