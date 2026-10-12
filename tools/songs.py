@@ -437,6 +437,11 @@ WEA_CHORDS = [
 ]
 song("weasel", 12, "A", " ".join(WEA_BARS), oompah(WEA_CHORDS, "c6"),
      " ".join(["K:1 r:2 S:1 r:2"] * 16))
+# Harmony (music step 5): the verse in thirds and sixths under the melody, one note a dotted beat; the second strain a
+# slow line of held chord tones (B, A for D, ...) under the high melody, so "pop! goes the weasel" stands out.
+_t = H.Tune(" ".join(WEA_BARS), WEA_CHORDS, 6, 3, "G")
+harmony("weasel", _t, " ".join([H.follow(_t, (1, 8), "D4", "D5", grid=3), H.guide(_t, (9, 16), "D4", "D5", inst="/2")]),
+        ("harm", "pad"))
 
 # ---------------------------------------------------------------------------------------------
 # The Chrome Cow: "Drunken Sailor" (traditional sea shanty), the owner's pick, played fast and punky (docs/music_specs.md
