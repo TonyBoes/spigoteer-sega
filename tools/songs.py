@@ -117,6 +117,12 @@ VERSE_D = "K:2 r:2 S:2 r:2"
 CHORUS_D = "K:2 H:2 S:2 H:2"
 SUS_DRUMS = " ".join([VERSE_D] * 16 + [CHORUS_D] * 4 + [VERSE_D] * 4)
 song("susanna", 8, "A", SUS_MEL, SUS_BASS, SUS_DRUMS, legato=SUNG_ARTIC)
+# Harmony (music step 5): a second voice in thirds and sixths under the verses (one note an eighth at most, held where it
+# repeats), a slow counter-line of chord tones under the chorus ("Oh! Su-san-na"), on the held 12.5% pad like a second
+# singer.
+_t = H.Tune(SUS_MEL, SUS_CH, 8, 4, "C")
+harmony("susanna", _t, " ".join([H.follow(_t, (1, 16), "G3", "A4", grid=2), H.guide(_t, (17, 20), "G3", "E4"),
+                                 H.follow(_t, (21, 24), "G3", "A4", grid=2)]), ("pad", "pad"))
 
 
 # ---------------------------------------------------------------------------------------------
