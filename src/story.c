@@ -32,9 +32,9 @@
 // box (rows 13-17: panel, 3 lines of 18 characters at columns 1-18, panel). The NARRATOR has no portrait: the box shows
 // the small golden spigot where a name would be. INTRO, FINALE and CREDITS show a full-screen picture instead of a venue
 // (assets/story/pictures, build/story_pictures.c: its tiles at BG ids 0-35 and above the scene's one portrait slot; a
-// speaker's tiles are streamed into that slot when he comes on; INTRO page 5 switches pictures behind a white flash, and
-// when it has faded the ten pieces of the spigot fly out of the burst as OBJ sprites and stay where they land: PB_T,
-// story_burst_step). The text types on, one character a frame. Buttons: A or B shows the
+// speaker's tiles are streamed into that slot when he comes on; INTRO page 5 switches pictures behind a white flash: the
+// picture then shows the spigot gone and the fountain stopped, and the ten pieces, as OBJ sprites where the spigot was,
+// fly off the screen while a trail of dots fades in the sky behind each (PB_T, story_burst_step). The text types on, one character a frame. Buttons: A or B shows the
 // rest of the page at once, then the next page; START skips the rest of the scene. A page may have text variants
 // (docs/story.md "SPEAKER IF CONDITION"): story_page_get shows the first whose condition bit is set in story_conds.
 //
@@ -137,7 +137,8 @@ uint8_t story_scratch[STORY_SCRATCH];
 #define PS_PALS  ((uint16_t *)(story_scratch + 40 + PS_BURST * 16))   // the fade: 4 picture palettes + the HUD's (20 words)
 #define PS_OUT   ((uint16_t *)(story_scratch + 40 + PS_BURST * 16 + 40))   // the fade step to write next (20 words)
 #define PS_W     (story_scratch[1])                  // its w: 3 white .. 0 as drawn (also what DMG's BGP is set from)
-#define PB_T     (story_scratch[168])                // the INTRO's burst: frames since the flash faded (255: none running)
+#define PB_T     (story_scratch[168])                // the INTRO's explosion: frames since the flash (255: none running)
+                                                     // (+170: the trail's cursor and stage, build/story_pictures.c)
 #define PIC_SCENE (story_hdr.venue == 255)
 uint8_t story_unskip;              // test hook: bit s set = step s of every chapter is played even if marked STEP_SKIP
 static portrait_t pt;              // the portrait being drawn / on screen
@@ -791,25 +792,45 @@ static uint8_t pic_fx(void) {
         story_hdr.pic++;                         // (the wipes of pages 6-8 restore this one: story_pic_row)
         story_pic_draw(story_hdr.pic, is_cgb);
         story_pic_pals(story_hdr.pic, PS_PALS);
-        story_burst_load(is_cgb);                // (the explosion's ten pieces: OBJ tiles and palette, flown in by story_update)
+        story_burst_load(is_cgb);                // (the explosion's ten pieces: OBJ tiles and palette, flown by story_update)
         page_begin(1);                           // the narrator's page: its box and tag, no portrait (story_cur 255)
         pic_calc(3);
         pic_put();
         pic_calc(2);
+        PB_T = 1;                                // the pieces sit where the spigot was (frame 0), flying from the next frame on
+        story_burst_step(0, 0);
         DISPLAY_ON;
         return 1;
     } else if (f > FX_RELOAD) {                  // the fade: w 2, 1, 0 two frames apart, each worked out a frame ahead
         k = (FX_END - f) >> 1;
         if (!((FX_END - f) & 1)) {
             pic_put();
-            if (!k) { PS_FX = 0; PB_T = 0; }       // (faded in: the pieces leave the burst)
+            if (!k) PS_FX = 0;                     // (faded in: the trail's map writes may go out from now on)
         } else pic_calc(k);
+    }
+    return 0;
+}
+
+// One frame of a cut-scene (SP_SCENE) after START was looked at. 1: the screen was redrawn (LCD off) or the scene is over.
+static uint8_t scene_frame(uint8_t pressed) {
+    if (story_hdr.swpage && PS_FX) return pic_fx();   // the picture switch: nothing else moves
+    if (story_swap) swap_frame();
+    if (story_typed < 54) {
+        if (pressed & (J_A | J_B)) type_all();
+        else type_frame();
+        return 0;
+    }
+    if ((pressed & (J_A | J_B)) && !story_swap) {
+        if (++story_page >= story_hdr.pages) { scene_done(); return 1; }
+        if (story_page + 1 == story_hdr.swpage) { PS_FX = 1; return pic_fx(); }   // the next picture, behind a flash
+        page_begin(0);
     }
     return 0;
 }
 
 // One frame of GS_STORY (a cut-scene, or TRY AGAIN) or GS_GOAL. 1: the screen was redrawn (LCD off): skip the rest.
 uint8_t story_update(uint8_t pressed) BANKED {
+    uint8_t btn;
     story_t++;
     switch (story_phase) {
     case SP_GOAL:
@@ -858,20 +879,10 @@ uint8_t story_update(uint8_t pressed) BANKED {
         scene_done();
         return 1;
     }
-    if (story_hdr.swpage && PS_FX) return pic_fx();   // the picture switch: nothing else moves
-    if (PIC_SCENE && PB_T != 255) PB_T = story_burst_step(PB_T) ? 255 : PB_T + 1;   // the pieces fly (they stay where they land)
-    if (story_swap) swap_frame();
-    if (story_typed < 54) {
-        if (pressed & (J_A | J_B)) type_all();
-        else type_frame();
-        return 0;
-    }
-    if ((pressed & (J_A | J_B)) && !story_swap) {
-        if (++story_page >= story_hdr.pages) { scene_done(); return 1; }
-        if (story_page + 1 == story_hdr.swpage) { PS_FX = 1; return pic_fx(); }   // the next picture, behind a flash
-        page_begin(0);
-    }
-    return 0;
+    btn = scene_frame(pressed);
+    if (!btn && PIC_SCENE && PB_T != 255)        // the INTRO's explosion, last: its trail goes into whatever room the frame's list has
+        PB_T = story_burst_step(PB_T, (story_hdr.swpage && PS_FX) || (pressed & (J_A | J_B)) ? 0 : story_swap ? 1 : STORY_BURST_PER) ? 255 : PB_T + 1;
+    return btn;
 }
 
 // Every GS_LIFE_LOST frame in story mode (main.c, before the freeze's frame count): after a strict rule's penalty the

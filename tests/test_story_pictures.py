@@ -20,39 +20,30 @@ FRAME = (8, 40, 80, 104)               # a speaker page's portrait frame: column
 _EXPECT = {}
 
 
-def expected(name, model, pieces=False):
-    """The picture as the screen must show it: 160x104 RGB; pieces: with the INTRO's ten pieces where they land."""
-    if (name, model, pieces) not in _EXPECT:
+def expected(name, model):
+    """The picture as the screen must show it: 160x104 RGB (INTRO A: the explosion is over, nothing flies, no trail)."""
+    if (name, model) not in _EXPECT:
         key, pix, _ = gen_story().parse_v2(ROOT / PICS[name]["art"])
         im = Image.new("RGB", (160, 104))
         for y, row in enumerate(pix):
             for x, c in enumerate(row):
                 im.putpixel((x, y), q15(key[c]["hex"]) if model == "cgb" else DMG_GREY[key[c]["dmg"]])
-        if pieces:
-            shade = {"Y": 0, "y": 1, "#": 3}                          # OBP0 0xD0: OBJ colours 1, 2, 3 are shades 0, 1, 3
-            for pc in BURST["pieces"]:
-                for dy, row in enumerate(pc["rows"]):
-                    for dx, c in enumerate(row):
-                        if c != ".":
-                            im.putpixel((pc["x"] + dx, pc["y"] + dy),
-                                        q15(BURST["key"][c]) if model == "cgb" else DMG_GREY[shade[c]])
-        _EXPECT[name, model, pieces] = np.array(im)
-    return _EXPECT[name, model, pieces]
+        _EXPECT[name, model] = np.array(im)
+    return _EXPECT[name, model]
 
 
-def picture_diff(gb, name, skip=None, landed=True):
-    """Pixels of the picture area (rows 0-12) that differ from the source (with INTRO A's pieces where they land);
-    `skip` = a rectangle to leave out."""
+def picture_diff(gb, name, skip=None):
+    """Pixels of the picture area (rows 0-12) that differ from the source; `skip` = a rectangle to leave out."""
     got = np.array(gb.image())[:104, :160]
-    bad = np.any(got != expected(name, gb.model_name, landed and name == "intro_a"), axis=2)
+    bad = np.any(got != expected(name, gb.model_name), axis=2)
     if skip:
         x0, y0, x1, y1 = skip
         bad[y0:y1, x0:x1] = False
     return int(bad.sum())
 
 
-def assert_picture(gb, name, skip=None, landed=True):
-    n = picture_diff(gb, name, skip, landed)
+def assert_picture(gb, name, skip=None):
+    n = picture_diff(gb, name, skip)
     assert n == 0, f"{n} pixels of the screen differ from {name}"
     p = PICS[name]
     for r in range(13):                                           # the tile map is the picture's too
@@ -76,10 +67,11 @@ def test_the_pictures_are_built_to_the_budget():
         assert len(p["pals"]) <= 4 and len(p["map"]) == len(p["attr"]) == 260
         ids = set(p["map"])
         assert len(ids) == p["tiles"] and ids <= set(range(36)) | set(range(p["base"], 256)), f"{name}: tile ids"
+        assert p["extra"] == (BURST["extra_tiles"] if name == "intro_a" else 0)          # the trail dots' tiles, unused by the map
         assert all(a in (0, 5, 6, 7, 1) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
-        assert p["tiles"] <= 36 + 256 - p["base"], name
+        assert p["tiles"] + p["extra"] <= 36 + 256 - p["base"], name
     # the numbers of the report (the picture tiles, the HUD palette cells of CREDITS)
-    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 141, "finale_a": 135, "credits_b": 131}
+    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 115, "finale_a": 135, "credits_b": 131}
     assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "credits_b": 12}
     # the portrait slot sits below the picture's tiles in every scene
     assert all(max(i for i in PICS[n]["map"] if i >= 36) < 256 for n in PICS)
@@ -210,7 +202,7 @@ def test_intro_before_then_flash_then_the_explosion(model):
     with start_story(model) as gb:
         assert gb.mem("story_scene") == SC["INTRO"]
         page_ready(gb)
-        assert_picture(gb, "intro_before")                       # page 1: no Dregs, the whole spigot
+        assert_picture(gb, "intro_before")                       # page 1: no Dregs, the whole spigot, the fountain running
         check_golden(gb, "story_pic_intro_before")
         for k in (1, 2):                                          # pages 2-3: the picture stays (3: the Spigoteer's frame)
             gb.press("a", 2)
@@ -231,14 +223,15 @@ def test_intro_before_then_flash_then_the_explosion(model):
             lcd_off += not gb.pb.memory[0xFF40] & 0x80
             assert frames < 40
         assert gb.mem("story_page") == 4
-        assert 6 <= frames <= 14, f"the flash takes {frames} frames"
+        assert 6 <= frames <= 16, f"the flash takes {frames} frames"
         assert whites >= 3, "the screen is white for a few frames"
         gb.run(2)
         assert gb.pb.memory[0xFF40] & 0x80
         page_ready(gb)
         assert gb.mem("story_cur") == 255
-        run_until(gb, lambda: burst_t(gb) == 255, 60)             # (the ten pieces fly out of the burst, then stay)
-        assert_picture(gb, "intro_a")                             # page 5: the explosion, the frame gone with it
+        run_until(gb, lambda: burst_t(gb) == 255, 80)             # (the ten pieces fly off the screen, trails behind them)
+        assert_picture(gb, "intro_a")                             # page 5: the spigot gone, the fountain stopped, no frame
+        assert not any(e["y"] for e in burst_oam(gb)), "every piece has left the screen"
         assert gb.mem("story_swap") == 0
         check_golden(gb, "story_pic_intro_a")
         for k in (5, 6):                                          # pages 6-7: narrator, still the explosion
@@ -260,19 +253,19 @@ def test_start_skips_the_intro_before_and_during_the_flash(model):
     """START on page 1 and START in the middle of the white flash both end the scene cleanly: the same screen of the
     next scene (its palettes and BGP back to normal after a skipped fade)."""
     shots = []
-    for when in ("page1", "flash", "fade", "burst", "landed"):
+    for when in ("page1", "flash", "fade", "burst", "done"):
         with start_story(model) as gb:
             if when != "page1":
                 for _ in range(4):
                     page_ready(gb)
                     gb.press("a", 2)
-                if when in ("burst", "landed"):                   # the pieces are flying (frame 12), or have landed
+                if when in ("burst", "done"):                     # the pieces are flying (frame 14), or the explosion is over
                     run_until(gb, lambda: burst_t(gb) not in (255, 0) and not picture_switching(gb), 60)
-                    run_until(gb, lambda: burst_t(gb) >= 12 or burst_t(gb) == 255, 60)
+                    run_until(gb, lambda: burst_t(gb) >= 14 or burst_t(gb) == 255, 60)
                     if when == "burst":
                         assert burst_t(gb) not in (255, 0) and any(e["y"] for e in gb.oam()[BURST["oam"]:]), "START comes mid-flight"
                     else:
-                        run_until(gb, lambda: burst_t(gb) == 255, 60)
+                        run_until(gb, lambda: burst_t(gb) == 255, 80)
                 else:
                     # the switch is under way (PS_FX = story_scratch[0]): in the white (steps 2-3), or in the fade (6+)
                     lo = 2 if when == "flash" else 6
@@ -364,70 +357,147 @@ def to_page5(gb):
     run_until(gb, lambda: picture_switching(gb), 40)
 
 
+def test_the_pieces_are_the_intact_spigot_and_intro_a_is_the_empty_fountain():
+    """The ten pieces sit exactly where the spigot of intro_before is (their pixels are the picture's own), and the
+    picture after the explosion (intro_a) has that spigot gone: a broken stub on the rim, no jets, a puddle."""
+    _, before = _pix("intro_before")
+    _, after = _pix("intro_a")
+    spigot = set()
+    for pc in BURST["pieces"]:
+        n = m = 0
+        for dy, row in enumerate(pc["rows"]):
+            for dx, c in enumerate(row):
+                if c != ".":
+                    n += 1
+                    m += before[pc["y"] + dy][pc["x"] + dx] == c
+                    if before[pc["y"] + dy][pc["x"] + dx] == c:
+                        spigot.add((pc["x"] + dx, pc["y"] + dy))
+        assert m >= 0.85 * n, (pc["name"], m, n)                  # (a cut piece adds its own outline pixels)
+    assert len(spigot) > 300
+    stub = (97, 41, 109, 48)                                      # the broken pipe on the rim
+    for (x, y) in spigot:
+        if not (stub[0] <= x < stub[2] and stub[1] <= y < stub[3]):
+            assert after[y][x] == ".", (x, y)                     # the rest of the spigot is gone
+    assert sum(after[y][x] in "Yy" for x in range(stub[0], stub[2]) for y in range(stub[1], stub[3])) >= 40
+    assert after[47][100] == "y" and after[40][100] == "."        # the stub is short, the rim ink is below it
+    # the fountain has stopped: no water (b) where the jets ran, a little puddle (W) on the wall
+    for x0, x1 in ((79, 89), (119, 129)):
+        assert not any("b" in after[y][x0:x1] for y in range(50, 72))
+    assert any("W" in after[71][x0:x1] for x0, x1 in ((79, 89), (119, 129)))
+    # the jets run in intro_before
+    assert any("b" in before[y][79:89] for y in range(50, 72))
+    # the explosion's picture is the same square: the tower and houses, the rim and the wall
+    assert _region(before, 0, 29, 31, 88) == _region(after, 0, 29, 31, 88)
+    assert _region(before, 72, 72, 120, 81) == _region(after, 72, 72, 120, 81)
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_ten_pieces_fly_out_of_the_burst_and_land(model):
-    """After the white flash the pieces (OBJ sprites) leave the burst one after another on an ease-out arc and stop at
-    the places of intro_pieces.txt: 30-45 frames, never more than 10 sprites on a line, the frame never late, and
-    the picture afterwards is the explosion plus the landed pieces, pixel exact."""
+def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
+    """After the white flash lets go the ten pieces (OBJ sprites) sit where the spigot was, then leave one after another
+    in their own direction, faster and faster, off the screen; behind each a trail of dots (BG map writes) turns on,
+    fades and goes: every frame's OAM is the generator's table, never more than 10 sprites on a line, the frame never
+    late, the copy list inside VBlank, and at the end nothing flies and the picture is intro_a."""
     ents, pieces = BURST["entries"], BURST["pieces"]
+    ne, end = len(ents), BURST["end"]
+    row = lambda t: BURST["pos"][min(t, end) * ne * 2:][:ne * 2]
+    clean = PICS["intro_a"]["map"]
     with start_story(model) as gb:
         to_page5(gb)
-        seen, lag = [], 0
-        gb.write("vq_late", 0)
-        gb.write("vq_late", 0)
-        while picture_switching(gb):                              # the white, the reload, the fade: no piece yet
-            assert not any(e["y"] for e in burst_oam(gb)), "no piece before the flash is over"
-            assert line_max(gb) <= 10
-            gb.run(1)
-        run_until(gb, lambda: burst_t(gb) != 255, 4)
-        n, logic_end = 0, []
-        while burst_t(gb) != 255:                                 # the flight, frame by frame
+        n = 0
+        while burst_t(gb) == 255:                                         # the white and the LCD off for the reload
+            assert not any(e["y"] for e in burst_oam(gb)), "no piece before the flash lets go"
             gb.run(1)
             n += 1
-            assert n < 80
-            logic_end.append(gb.mem16("perf_end_last"))           # the line this frame's logic and music tick ended on
-            seen.append(burst_oam(gb))
-            assert line_max(gb) <= 10, f"frame {n}: {line_max(gb)} sprites on a line"
+            assert n < 40
+        assert burst_t(gb) == 1 and row(0) == row(1), "they sit in the spigot's place at the start"
+        prev = [tilemap_row(gb, r, 0, 20) for r in range(13)]
+        assert [v for r in prev for v in r] == clean, "the dots are off at the start"
+        changes, tops, logic_end, last, n, fading = {}, [], [], 1, 0, True
+        while last != 255:                                                # the explosion, frame by frame
+            gb.run(1)
+            n += 1
+            assert n < 100
+            t = burst_t(gb)
+            if t == last:                                                 # (the frames of the reload run no step)
+                continue
+            step = end if t == 255 else t - 1                             # the step this frame ran
+            last = t
+            if fading and not picture_switching(gb):                      # the fade is over (its palette writes and blends are the
+                fading = False                                            # switch's own, measured by the INTRO tests): from here on
+                for v in ("drain_ticks_max", "vq_end_ly_max", "vq_late"):  # the explosion's trail alone
+                    gb.write(v, 0)
+            if not fading:
+                logic_end.append(gb.mem16("perf_end_last"))
+            oam = burst_oam(gb)
+            assert [v for e in oam for v in (e["y"], e["x"])] == row(step), f"frame {step}: OAM is the table"
+            for e, ent in zip(oam, ents):
+                if e["y"]:
+                    assert (e["tile"], e["flags"] & 0x7F) == (ent["tile"], (ent["flip"] << 5) | BURST["pal"])
+            assert line_max(gb) <= 10, f"frame {step}: {line_max(gb)} sprites on a line"
+            if step == 1:
+                assert line_max(gb) == 10, "the intact spigot's busiest line: ten (the limit)"
+            tops.append([(e["x"] - 8 - ent["dx"], e["y"] - 16) if e["y"] else None for e, ent in zip(oam, ents)])
+            now = [tilemap_row(gb, r, 0, 20) for r in range(13)]
+            for r in range(13):
+                for c in range(20):
+                    if now[r][c] != prev[r][c]:
+                        changes.setdefault((c, r), []).append((step, now[r][c]))
+            prev = now
         gb.run(6)
-        seen.append(burst_oam(gb))
-        assert line_max(gb) <= 10
-        assert 30 <= BURST["end"] + 1 <= 45 and abs(n - (BURST["end"] + 1)) <= 1, (n, BURST["end"])
+        assert not any(e["y"] for e in burst_oam(gb)), "every piece has left the screen"
         assert max(logic_end) < 100, f"the frame's logic ends on line {max(logic_end)}: inside the frame (VBlank is 144)"
-        assert gb.mem16("vq_late") == 0
-        # the first pieces show at once (the next frame or two), the rest one after another, all of them at the end
-        vis = [sum(1 for e in fr if e["y"]) for fr in seen]
-        assert max(vis[:3]) >= 1 and vis[-1] == len(ents) and vis == sorted(vis), vis
-        # landed: each cell exactly where intro_pieces.txt says (OAM y = screen y + 16, x = screen x + 8)
-        for e, ent in zip(seen[-1], ents):
-            pc = pieces[ent["piece"]]
-            assert (e["y"], e["x"], e["tile"], e["flags"] & 0x7F) == (pc["y"] + 16, pc["x"] + ent["dx"] + 8, ent["tile"],
-                                                                      (ent["flip"] << 5) | BURST["pal"]), pc["name"]
-        # each piece leaves the burst, moves on toward its place and ends there (its x never turns back)
+        assert gb.mem16("vq_late") == 0 and gb.mem("vq_end_ly_max") <= 153
+        assert 0 < gb.mem("drain_ticks_max") <= 14, gb.mem("drain_ticks_max")
+        assert 30 <= end <= 60, end
+        # each piece leaves in its direction and goes on, never nearer its start, until it is off the screen
+        import math
         for i, pc in enumerate(pieces):
             cells = [k for k, ent in enumerate(ents) if ent["piece"] == i]
-            xs = [fr[cells[0]]["x"] - 8 - ents[cells[0]]["dx"] for fr in seen if fr[cells[0]]["y"]]
-            assert abs(xs[0] - pc["ox"]) <= 40 and xs[-1] == pc["x"], (pc["name"], xs)
-            d = [abs(x - pc["x"]) for x in xs]
-            assert all(a >= b for a, b in zip(d, d[1:])), (pc["name"], xs)
+            path = [(f, fr[cells[0]]) for f, fr in enumerate(tops) if fr[cells[0]]]
+            d = [math.hypot(p[0] - pc["x"], p[1] - pc["y"]) for _, p in path]
+            assert all(a <= b + 1 for a, b in zip(d, d[1:])) and d[-1] >= 20, (pc["name"], d)
+            for (f, p), dd in zip(path, d):
+                if dd >= 12:                                              # (before that the rounding is too coarse)
+                    ang = math.degrees(math.atan2(pc["y"] - p[1], p[0] - pc["x"])) % 360
+                    assert min(abs(ang - pc["dir"]), 360 - abs(ang - pc["dir"])) <= 8, (pc["name"], f, ang)
+            hidden = next(f for f, fr in enumerate(tops) if all(not fr[k] for k in cells)) + 1   # (tops[0] is step 1)
+            assert abs(hidden - BURST["leave"][i]) <= 1, (pc["name"], hidden, BURST["leave"][i])
+        # the trail: exactly the event cells change, each one bright -> faint -> plain sky, in time with its piece
+        ev = {}
+        for (t, x, y, tile) in BURST["events"]:
+            ev.setdefault((x, y), []).append((t, PICS["intro_a"]["ids"][tile]))
+        assert set(changes) == set(ev)
+        for cell, seq in ev.items():
+            assert [tile for _, tile in changes[cell]] == [tile for _, tile in seq], cell
+            for (step, _), (te, _) in zip(changes[cell], seq):
+                assert te <= step <= te + 8, (cell, step, te)
+        assert [v for r in prev for v in r] == clean, "the sky is plain again"
+        assert len({tile for seq in ev.values() for _, tile in seq[:2]}) == BURST["extra_tiles"] and PICS["intro_a"]["extra"] == BURST["extra_tiles"]
         assert_picture(gb, "intro_a")
-        # the pieces stay while the pages go on, over a speaker's frame too
+        # nothing flies while the pages go on, over a speaker's frame too
         gb.press("a", 2)
         page_ready(gb)
         assert_picture(gb, "intro_a")
+        assert not any(e["y"] for e in burst_oam(gb))
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_mashing_a_through_the_burst_keeps_the_line_limit(model):
-    """A pressed every other frame from the flash on: pages 5-8 come while the pieces still fly (and the Spigoteer's
-    frame and its overlay swap in): still at most 10 sprites on a line, and the picture at the end is intact."""
+    """A pressed every other frame from the flash on: pages 5-8 come while the pieces still fly and the trail fades (and
+    the Spigoteer's frame and its overlay swap in): still at most 10 sprites on a line, the copy list inside VBlank,
+    and the picture at the end is intact."""
     with start_story(model) as gb:
         to_page5(gb)
-        worst = 0
+        worst, fading = 0, True
         for f in range(300):
             if f % 4 == 0 and not picture_switching(gb) and gb.mem("story_page") < 7:
                 gb.press("a", 1)
             else:
                 gb.run(1)
+            if fading and burst_t(gb) != 255 and not picture_switching(gb):   # (the switch's own fade is measured elsewhere)
+                fading = False
+                for v in ("drain_ticks_max", "vq_end_ly_max", "vq_late"):
+                    gb.write(v, 0)
             worst = max(worst, line_max(gb))
             if gb.mem("story_scene") != SC["INTRO"]:
                 break
@@ -436,6 +506,7 @@ def test_mashing_a_through_the_burst_keeps_the_line_limit(model):
         assert worst <= 10
         assert gb.mem("story_scene") == SC["INTRO"] and gb.mem("story_page") == 7
         assert_picture(gb, "intro_a", skip=FRAME)
+        assert gb.mem("drain_ticks_max") <= 14 and gb.mem("vq_end_ly_max") <= 153 and gb.mem16("vq_late") == 0
 
 
 # ---- the owner review of the finale and the credits ------------------------------------------------------------

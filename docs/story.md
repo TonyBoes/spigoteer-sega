@@ -123,7 +123,7 @@ text as its page, and two variants with the same condition on one page.
 
 Picture (pages 1-4): Fizzwater town square at night: the clock tower and houses at the left, the fountain right of centre. The whole Golden Spigot gleams on it, string lights hang across the square and a few townsfolk in hats wait in the foreground. The Spigoteer walks in from the right. (`assets/story/pictures/intro_before.txt`)
 
-Picture (page 5): the same square a moment later, after a white flash. The Golden Spigot has burst apart in a white starburst, and its ten pieces fly out of the burst one after another (a short animation, OBJ sprites) and stay in the sky where they land. Dregs stands on the cobbles, the Spigoteer shrugs, and the townsfolk duck or point. Pages 6-8 stay on it. (`assets/story/pictures/intro_a.txt`, the pieces `assets/story/pictures/intro_pieces.txt`)
+Picture (page 5): the same square a moment later, after a white flash. The intact Golden Spigot bursts into its ten pieces, which fly outward and off the screen (a short animation, OBJ sprites), each leaving a trail of faded dots in the sky that fades away. What is left: an empty rim with a broken stub and a last drip, and the fountain stopped (no jets). Dregs stands on the cobbles, the Spigoteer shrugs, and the townsfolk duck or point. Pages 6-8 stay on it. (`assets/story/pictures/intro_a.txt`, the pieces `assets/story/pictures/intro_pieces.txt`)
 
 ```
 NARRATOR

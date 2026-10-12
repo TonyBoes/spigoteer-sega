@@ -700,9 +700,8 @@ def tour_scene(gb, sid, seen):
             gb.press("a", 2)
         page_ready(gb)
         assert gb.mem("story_page") == k, (sid, k)
-        if sid == "INTRO" and k + 1 >= s["swpage"]:   # the explosion's ten pieces (OBJ sprites) fly in, then stay
-            run_until(gb, lambda: gb.mem(gb.addr("story_scratch") + 168) == 255, 60)
-            spigoteer = len(STORY["burst"]["entries"])
+        if sid == "INTRO" and k + 1 >= s["swpage"]:   # the explosion's ten pieces (OBJ sprites) fly off the screen: none stay
+            run_until(gb, lambda: gb.mem(gb.addr("story_scratch") + 168) == 255, 80)
         name = page["portrait"]
         if name is None:
             assert gb.mem("story_cur") == 255, (sid, k)

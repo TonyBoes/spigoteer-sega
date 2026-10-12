@@ -1,14 +1,16 @@
-; INTRO page 5 on: the ten pieces of the Golden Spigot (design F1, round 5 art) as OBJ sprites. After the white flash they fly out of
-; the burst and stop where this file puts them (x y = the piece's top-left corner on the screen, delay = the frame it leaves
-; the burst, arc = the height of its arc in pixels); tools/gen_story.py cuts them into 8x16 sprites (the cells share tiles,
-; mirrored ones too), checks every frame of the flight for at most 10 sprites on a line, and writes build/story_pictures.c.
-; The colours are intro_a's gold_light, gold and ink. Original art.
+; INTRO page 5: the explosion. The ten pieces of the Golden Spigot (design F1, round 5 art) as OBJ sprites. Each starts where it
+; sits in the intact spigot of intro_before (x y = its top-left corner there; the pixels are the picture's own), leaves on frame
+; `start` (0 = the first frame after the white flash) in direction `dir` (degrees: 0 right, 90 up, 180 left) and flies off the
+; screen, speed px a frame at first and faster and faster (tools/gen_story.py BURST_ACC). Behind each piece the generator draws
+; a trail of dots (BG tiles, bright then faint then gone) in the sky cells its path crosses. tools/gen_story.py cuts the pieces
+; into 8x16 sprites (the cells share tiles, mirrored ones too), checks every frame for at most 10 sprites on a line, and writes
+; build/story_pictures.c. The colours are intro_a's gold_light, gold and ink. Original art.
 @key
 Y 1 #f8f0a0 gold_light
 y 2 #e8a828 gold
 # 3 #140c24 ink
 
-@piece valve 30 19 delay=0 arc=13
+@piece valve 98 18 start=3 dir=166 speed=2.4
 ....###....
 ...#YYy#...
 ...#Yyy#...
@@ -24,7 +26,7 @@ y 2 #e8a828 gold
 .#yyyyyyy#.
 ..#######..
 
-@piece spout 46 23 delay=0 arc=2
+@piece spout 107 22 start=4 dir=20 speed=2.4
 .####...
 #YYYY#..
 #Yyyyy#.
@@ -39,7 +41,7 @@ y 2 #e8a828 gold
 ...#Yyy#
 ....###.
 
-@piece knob 70 20 delay=3 arc=3
+@piece knob 92 24 start=3 dir=181 speed=2.4
 ..###...
 .#YYY#..
 #YYyyy#.
@@ -48,26 +50,26 @@ y 2 #e8a828 gold
 .#yyy##.
 ..###...
 
-@piece crown 66 5 delay=4 arc=16
+@piece crown 98 9 start=2 dir=100 speed=2
 .#...#...#.
 #Y###Y###Y#
 #YYYYYYYYy#
 #yyyyyyyyy#
 .#########.
 
-@piece tray 130 2 delay=7 arc=16
+@piece tray 92 44 start=6 dir=334 speed=2.4
 .#####################.
 #YYYYYYYYYYYYYYYYYYYYy#
 #yyyyyyyyyyyyyyyyyyyyy#
 .#####################.
 
-@piece gasket 50 3 delay=9 arc=14
+@piece gasket 98 31 start=4 dir=52 speed=2
 .#########.
 #YYYYYYYYy#
 #yyyyyyyyy#
 .#########.
 
-@piece handle 28 2 delay=12 arc=16
+@piece handle 95 13 start=2 dir=148 speed=2.4
 .##....###....##.
 #YY####YYY####Yy#
 #YyYYYYYyyYYYYYy#
@@ -75,7 +77,7 @@ y 2 #e8a828 gold
 #yy####yyy####yy#
 .##....###....##.
 
-@piece nozzle 58 19 delay=12 arc=6
+@piece nozzle 109 33 start=5 dir=5 speed=2.4
 .#####.
 #Yyyyy#
 #yyyyy#
@@ -84,7 +86,7 @@ y 2 #e8a828 gold
 ..YYY..
 ...Y...
 
-@piece lever 144 25 delay=15 arc=6
+@piece lever 92 34 start=5 dir=192 speed=2.4
 .....###.
 ....#YYY#
 ...#Yyy#.
@@ -93,7 +95,7 @@ y 2 #e8a828 gold
 #Yyy#....
 .###.....
 
-@piece pipe 128 34 delay=16 arc=15
+@piece pipe 96 34 start=6 dir=352 speed=2.4
 ....#######....
 ...#YYyyyyy#...
 ...#YYyyyyy#...

@@ -2602,7 +2602,7 @@ the scene is the same:
   story_pic_intro_before, story_pic_intro_a, story_pic_finale_a, story_pic_credits_b, story_narrator (INTRO page 1 shows
   intro_before) and story_dregs_sorry (FINALE page 4 shows finale_a behind the portrait).
 
-#### The explosion animation (owner request 2026-10-12: the ten pieces fly out of the burst)
+#### The explosion animation (owner request 2026-10-12: the ten pieces fly out of the burst) -- SUPERSEDED, see "The explosion as the owner pictured it" below
 
 After the white flash of INTRO page 5 has faded in, the ten pieces of the F1 spigot fly out of the burst as OBJ sprites
 and stay where they land (pages 5-8). The picture no longer holds them (intro_a is 141 tiles, was 147 with the pieces).
@@ -2668,3 +2668,53 @@ and stay where they land (pages 5-8). The picture no longer holds them (intro_a 
 - **Goldens replaced on purpose** (reason for each: owner review: Dregs distinct in FINALE / matching flags, coffee stand,
   Dregs' legs in CREDITS): story_pic_finale_a, story_pic_credits_b, story_dregs_sorry (FINALE page 4 shows finale_a behind
   the portrait).
+
+#### The explosion as the owner pictured it (owner review 2, 2026-10-12; replaces "The explosion animation" above)
+
+"I pictured the intact spigot exploding, with the pieces flying off screen (trailing faded dotted lines), with the final frame
+showing an empty spot and a stopped fountain." The pieces no longer land in the sky; the old landing-place model (ease-out arc,
+ox/oy, delay, arc) is gone.
+- **The sequence**: page 4 shows the intact spigot and the running fountain (intro_before). A on page 4: the white flash (as
+  before, DMG BGP 0 / CGB LCD off), the reload of intro_a behind it, and the ten pieces as OBJ sprites **in the place they have
+  in the intact spigot** (frame 0, a few frames of the fade-in show it whole: the busiest line has exactly 10 sprites), then each
+  leaves on its own frame (start 2-6) in a straight line outward, faster and faster (s = speed t + 0.09 t^2), and flies off the
+  screen edges (all gone by frame 11-30; the whole thing ends on frame 46). intro_pieces.txt gives per piece the assembled
+  top-left, start, dir (degrees), speed; the pieces' pixels are intro_before's spigot pixels (tested, >= 85% each: a cut piece adds
+  its own outline).
+- **The end state = intro_a (clean)**: the spigot is gone; what is left of it is a short broken pipe stub on the rim (gold,
+  jagged top) with a trickle of gold down its side; **no water jets**, a small puddle on the wall top; the burst's starburst is
+  gone; Dregs, the Spigoteer's shrug and the ducking townsfolk are as before. 115 tiles (was 141). The jets still run on
+  pages 1-4.
+- **The trails** are BG tiles, not sprites (OAM has no room: 19 cells + the portrait overlay): in every sky cell a piece's path
+  crosses (a cell of nothing but sky and ink, not the speaker frame, dash pixels on sky) the generator makes 2 + 2 px dashes
+  (even rows/columns: few distinct tiles), as three versions of the cell: plain sky (intro_a's own tile), a **bright** dash
+  (cream, DMG shade 0) and a **faint** one (mauve, shade 1). The dash cells use the picture palette that holds both colours (the
+  one with cream / mauve / sky / ink: the generator sets those cells' attributes, any palette has the sky in slot 2). The
+  dots turn on as the piece passes (bright 6 frames, faint 8, then plain sky again), so **the trails fade out and the final picture
+  is exactly intro_a**; the sparser first dashes (every second cell for the first 24 px) are the "further back is sparser". Chosen
+  over leaving them: it needs no special final picture, the wipes of pages 6-8 and every picture test stay the same, and the empty
+  fountain reads cleanly. 36 trail cells, 108 map writes, 20 extra BG tiles appended to the picture (115 + 20 = 135 of 157).
+- **How it runs**: story_burst_step(t, ev) (build/story_pictures.c, bank 14) copies row t of the OAM table (19 cells x y, x) and
+  queues up to ev map bytes from a time-ordered list (frame, x, y, tile id; the generator schedules at most 3 a frame so the
+  runtime never lags) with vq_add from a cursor and a stage in story_scratch +170 (cursor, 2 bytes) / +172 (stage): **no new
+  WRAM global**. PB_T = story_scratch[168] counts frames from the reload (set to 1 there, with frame 0's OAM). story_update calls
+  it LAST (scene_frame, the old body, first), so the trail only takes the room the frame's list has: ev 0 in the picture
+  switch (its palette writes already fill the VBlank), 0 on a frame with A / B (a page turn queues the text box), 1 while a
+  portrait swap runs, else 5, and a write goes only while `vq_count * 2 + n < 10`. START at any moment: unchanged (hide_all_sprites
+  clears the pieces; the next scene redraws everything: tested at page 1, in the white, in the fade, mid-flight, after it).
+- **Numbers**: WRAM_LO 3936 / WRAM_HI_0 3455 before and after; ROM0 577 B free (linker map) before and after; the new code and
+  tables are banked (pictures bank 14 4879 -> 5734 B used; the linker repacked: bank 1 35 free, 3: 21, 5: 2, 6: 246, 9: 109, 11:
+  248, 12: 157, 13: 486, still 15 banks). VBlank: the trail adds up to ~3 DIV ticks (normal run: drain_ticks_max 5, vq_end_ly 148;
+  A mashed through pages 5-8 while it runs: 13 of 17, vq_end_ly 153, vq_late 0); the frame's logic ends on line 67 at worst
+  (a trail frame; the fade's own frames end later, as before). Stack: the free stack filled with 0xAA, INTRO walked page by page,
+  mashed and START-skipped on DMG and CGB: nothing below 0xDF80 touched.
+- **Tests** (tests/test_story_pictures.py): test_the_pieces_are_the_intact_spigot_and_intro_a_is_the_empty_fountain (pieces =
+  the spigot, the rest of it erased in intro_a but the stub, no jets, a puddle, jets run in intro_before); the explosion test (no piece
+  before the flash lets go; frame 0 in the spigot's place; every frame's OAM = the generator's table; <= 10 sprites on a line on every
+  frame, 10 at the start; each piece keeps its direction (+-8 degrees), never comes back and is off the screen when the table says;
+  exactly the event cells change in the BG map, each bright -> faint -> plain sky in time with its piece, the sky plain at the end,
+  the picture = intro_a, nothing left in OAM; logic < line 100, vq_late 0, drain <= 14); A mashed through pages 5-8 (<= 10 sprites
+  per line, drain <= 14, vq_end_ly <= 153); START at page 1 / white / fade / mid-flight / after = the same next screen with no
+  piece left. test_story's tour: no sprite remains on pages 5-8.
+- **Golden replaced on purpose**: story_pic_intro_a (owner review: the explosion as the owner pictured it: the empty fountain
+  with a stub, no jets, no burst star, no landed pieces).
