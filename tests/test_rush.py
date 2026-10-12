@@ -212,17 +212,40 @@ def test_the_debug_list_has_every_built_boss_unlocked(model):
         assert BUILT[0] == 0 and {0, 2, 3, 4} <= set(BUILT) == set(BOSS_BUILT), "Big Tex first; the first four built at least"
         n = len(BUILT)
         assert lines(gb, range(2, 2 + n)) == [NAMES[v] for v in BUILT] and line(gb, 2 + n) == ""
-        assert lines(gb, range(13, 17)) == ["BIG TEX", "THE SALOON", "NOT BEATEN YET", "A PLAY  B BACK"]
+        assert lines(gb, range(14, 17)) == ["THE SALOON", "NOT BEATEN YET", "A PLAY  B BACK"]
         assert list(gb.read(0xFE00, 2)) == [2 * 8 - 7 + 16, 8]
         check_golden(gb, "rush_list")
         for k in range(1, n):
             tap(gb, "down")
-            assert R(gb, LIST_SEL) == k and lines(gb, (13, 14)) == [NAMES[BUILT[k]], VENUES[BUILT[k]]]
+            assert R(gb, LIST_SEL) == k and lines(gb, (14,))[0] == VENUES[BUILT[k]]
         tap(gb, "down")
         assert R(gb, LIST_SEL) == 0, "wraps"
         tap(gb, "b")
         run_until(gb, lambda: on_rush(gb, RS_MENU), 30)
         assert R(gb, SEL) == 1, "the menu, on CHOOSE"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_no_list_row_touches_the_separator_for_any_number_of_bosses(model):
+    """CHOOSE with 1..10 built bosses (the mask rewritten in RAM, the list reopened): every name sits on its own line
+    from row 2, a blank row stays above the separator (row 13), and the details (14-16) are intact."""
+    BUILT_AT = 44                                         # struct rush_state.built
+    with to_list(booted(model)) as gb:
+        for n in range(1, BOSS_COUNT + 1):
+            tap(gb, "b")
+            run_until(gb, lambda: on_rush(gb, RS_MENU), 30)
+            gb.run(3)
+            a = gb.addr("story_scratch") + RUSH_AT + BUILT_AT
+            gb.write(a, ((1 << n) - 1) & 255)
+            gb.write(a + 1, (1 << n) - 1 >> 8)
+            tap(gb, "a")                                  # (the menu is on CHOOSE after B)
+            run_until(gb, lambda: on_rush(gb, RS_LIST), 30)
+            gb.run(8)
+            assert lines(gb, range(2, 2 + n)) == [NAMES[v] for v in range(n)], n
+            sep, blank = tilemap_row(gb, 13, 0, 20), tilemap_row(gb, 12, 0, 20)
+            assert len(set(sep)) == 1 and len(set(blank)) == 1 and sep[0] != blank[0], n
+            assert 2 + n <= 12 and all(tilemap_row(gb, r, 0, 20) == blank for r in range(2 + n, 13)), n
+            assert lines(gb, (14, 16)) == [VENUES[0], "A PLAY  B BACK"], n
 
 
 def test_the_list_follows_the_story_data():
@@ -251,7 +274,7 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
         gb.run(3)
         n = len(BUILT)
         assert lines(gb, range(2, 2 + n)) == ["? ? ?"] * n
-        assert lines(gb, range(13, 17)) == ["? ? ?", "LOCKED", "BEAT HIM IN STORY", "OR ARCADE"]
+        assert lines(gb, range(14, 17)) == ["LOCKED", "BEAT HIM IN STORY", "OR ARCADE"]
         check_golden(gb, "rush_list_locked")
         tap(gb, "a")
         gb.run(5)
@@ -268,7 +291,7 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
         assert lines(gb, range(2, 2 + len(BUILT))).count("? ? ?") == len(BUILT) - 1 and line(gb, 2 + i) == " SASQUATCH     1:01"
         for _ in range(i):
             tap(gb, "down")
-        assert lines(gb, range(13, 17)) == ["SASQUATCH", "THE LUMBER LODGE", "BEST 1:01", "A PLAY  B BACK"]
+        assert lines(gb, range(14, 17)) == ["THE LUMBER LODGE", "BEST 1:01", "A PLAY  B BACK"]
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_GOAL, 60)
         assert gb.mem("boss_id") == 2 and gb.mem("play_mode") == MODE_RUSH

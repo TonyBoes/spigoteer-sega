@@ -46,6 +46,8 @@ extern uint32_t score;
 #define ROW_LIST        2
 #define ROW_BOX        12       // panel; the info lines 13-16; panel 17
 #define INFO_LINES      4
+#define ROW_BOX_LIST   13       // the list (ten lines 2-11 and a blank row 12): panel 13, the info lines 14-16 (venue, best, keys), panel 17
+#define INFO_LIST       3
 #define MENU_ROW0       4       // the menu's lines: rows 4 and 6, the text at column 7
 #define MENU_COL        7
 #define COL_NAME        1
@@ -187,8 +189,12 @@ static void line_at(uint8_t y, uint8_t x, const char *s) {  // LCD off: a text r
 }
 
 // ---- the screen's frame -------------------------------------------------------------------------------------------
+static uint8_t box_row(void) { return RUSH->scr == RS_LIST ? ROW_BOX_LIST : ROW_BOX; }
+static uint8_t info_n(void) { return RUSH->scr == RS_LIST ? INFO_LIST : INFO_LINES; }
+
 static void frame_begin(uint8_t scr) {           // LCD off: a blank band with the title, its panels, HUD attributes
     DISPLAY_OFF;
+    RUSH->scr = scr;
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();
@@ -200,14 +206,14 @@ static void frame_begin(uint8_t scr) {           // LCD off: a blank band with t
     rows_fill(0, 18, TILE_HUD_BLANK);
     line_at(ROW_HEAD, 255, "BOSS RUSH");
     rows_fill(ROW_HEAD + 1, 1, TILE_PANEL_TOP);
-    rows_fill(ROW_BOX, 1, TILE_PANEL_TOP);
-    rows_fill(ROW_BOX + INFO_LINES + 1, 1, TILE_PANEL_BOT);
+    rows_fill(box_row(), 1, TILE_PANEL_TOP);
+    rows_fill(box_row() + info_n() + 1, 1, TILE_PANEL_BOT);
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
         rows_fill(0, 18, BGPAL_HUD);
         VBK_REG = VBK_BANK_0;
     }
-    RUSH->scr = scr; RUSH->t = 0; RUSH->dirty = 0;
+    RUSH->t = 0; RUSH->dirty = 0;
     story_phase = STORY_PHASE_RUSH;
     game_state = GS_STORY;
 }
@@ -270,9 +276,9 @@ static void build_list(uint8_t k, uint8_t *r) {
         return;
     }
     k -= n;
+    k++;                                         // (the list has no name line: the cursor's line is his name)
     if (!unlocked(v)) { put(r, 255, locked_info[k]); return; }
     switch (k) {
-    case 0: put(r, 255, boss_name[v]); break;
     case 1: put(r, 255, venue_name[v]); break;
     case 2:
         if (!f) { put(r, 255, "NOT BEATEN YET"); break; }
@@ -289,7 +295,7 @@ static void build(uint8_t k) {
 
 static uint8_t screen_row(uint8_t k) {
     uint8_t n = n_lines();
-    if (k >= n) return ROW_BOX + 1 + k - n;
+    if (k >= n) return box_row() + 1 + k - n;
     return RUSH->scr == RS_MENU ? MENU_ROW0 + 2 * k : ROW_LIST + k;
 }
 
@@ -304,7 +310,7 @@ static void lines_open(uint8_t scr) {            // LCD off: the menu or the lis
     uint8_t k, n;
     frame_begin(scr);
     music_play(TUNE_TITLE);                      // (left alone when it already plays)
-    n = n_lines() + INFO_LINES;
+    n = n_lines() + info_n();
     for (k = 0; k < n; k++) {
         build(k);
         set_bkg_tiles(0, screen_row(k), 20, 1, ROW(k));
@@ -463,7 +469,7 @@ static uint8_t lines_frame(uint8_t pressed) {
     else if (pressed & J_DOWN) s = s == n - 1 ? 0 : s + 1;
     if (s != old) {
         if (RUSH->scr == RS_MENU) RUSH->sel = s; else RUSH->list_sel = s;
-        RUSH->dirty |= ((1 << INFO_LINES) - 1) << n;
+        RUSH->dirty |= ((1 << info_n()) - 1) << n;
     } else if (pressed & (J_A | J_START)) {
         if (RUSH->scr == RS_LIST) {
             if (unlocked(nth_built(s))) { run_start(RM_CHOOSE); return 1; }
@@ -475,7 +481,7 @@ static uint8_t lines_frame(uint8_t pressed) {
         title_enter();
         return 1;
     }
-    for (k = 0, q = 0; k < n + INFO_LINES && q < ROWS_PER_FRAME; k++) {
+    for (k = 0, q = 0; k < n + info_n() && q < ROWS_PER_FRAME; k++) {
         if (!(RUSH->dirty & (1 << k))) continue;
         RUSH->dirty &= ~(1 << k);
         build(k);
