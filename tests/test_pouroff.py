@@ -154,10 +154,9 @@ def test_the_start(intro):
     shot(gb, "intro")
     check_golden(gb, "po_intro")
     to_play(gb)
-    frames(gb, 3)
-    assert text(gb, 2) == "" and text(gb, 3) == ""
+    frames(gb, 6)
     st = SALOON["stage_map"]
-    for r in (1, 2):                                  # the banner rows are the stage again
+    for r in (0, 1, 2):                               # the banner's rows 1-3 (row 1 is blank under it) are the stage again, a row a frame
         assert tilemap_row(gb, 1 + r, 0, 20) == st[r * 20:(r + 1) * 20], r
     assert gb.mem("overlay_on") == 0 and gb.mem16("mg_timer") == 0
 
@@ -334,6 +333,7 @@ def test_the_pick_is_the_shortest_slide_not_claimed_by_a_drink_in_flight_with_a_
 def test_travel_times_are_mirrored_every_seat_is_as_far_from_his_spout_as_its_mirror_is_from_yours(pour):
     gb = pour
     calm(gb)
+    frames(gb, 6)                                         # (the banner's rows are back first: a row a frame)
     times = {}
     for own in (1, 0):
         for k in range(3):

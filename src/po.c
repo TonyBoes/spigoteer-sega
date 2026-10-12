@@ -111,12 +111,21 @@ static uint8_t rev8(uint8_t b) {
     return r;
 }
 
-static uint8_t flip_tile(uint8_t t, uint8_t *src, uint8_t *dst, uint8_t *n) {   // the id of tile t mirrored: a copy in PO_FLIP..
-    uint8_t k, same = 1, *s, *d;
+// The id that shows tile t mirrored: a copy in PO_FLIP... A tap's lettering (gen_art.py LETTER_BOX: none on the saloon's keg, the
+// star is its own kind of symmetric) has a pre-mirrored twin in a trailer after the venue's bar tiles (n, 4 L ids, the twins), as
+// mirror.c uses for Classic's R bars: its twin is what gets flipped, so the left end's text reads the right way round.
+static uint8_t flip_tile(uint8_t t, uint8_t *src, uint8_t *dst, uint8_t *n, const uint8_t *alt) {
+    uint8_t k, same = 1, *s, *d, buf[16];
     for (k = 0; k < *n; k++) if (src[k] == t) return dst[k];
     s = tile_at(t);
+    for (k = 0; k < alt[0]; k++)
+        if (alt[1 + k] == t) {
+            far_copy(buf, venue.bar_tiles + (uint16_t)venue.bar_n * 16 + 5 + k * 16, 16, venue_bank);
+            s = buf;
+            break;
+        }
     d = tile_at(PO_FLIP + *n);
-    for (k = 0; k < 16; k++) { d[k] = rev8(s[k]); if (d[k] != s[k]) same = 0; }
+    for (k = 0; k < 16; k++) { d[k] = rev8(s[k]); if (d[k] != tile_at(t)[k]) same = 0; }
     src[*n] = t; dst[*n] = PO_FLIP + *n;
     if (same) dst[*n] = t;                       // (its own mirror image: it keeps its id)
     return dst[(*n)++];
@@ -164,7 +173,7 @@ static void put_hud(void) {                      // "Y12 D10" into S.hud (HUD co
 void po_enter(void) BANKED {
     uint8_t *z = (uint8_t *)&S, r, b, c, k, n = 0, fs[12], fd[12];
     uint16_t zi;
-    uint8_t t[3][20], a[3][20];
+    uint8_t t[3][20], a[3][20], alt[5];
     for (zi = 0; zi < sizeof S; zi++) z[zi] = 0;
     for (k = 0; k < 8; k++) S.tune[k] = po_tune[k];
     lives = PO_LIVES;
@@ -175,8 +184,10 @@ void po_enter(void) BANKED {
     S.spawn_t = 20;
     // the screen: the stage (rows 1-4), the bars (rows 5-16) with a mirrored keg and spout at the left end
     for (k = 0; k < 20; k++) S.hattr[k] = BGPAL_HUD;
-    for (r = 0; r < 4; r++)                      // (rows 2-3: the banner's: the HUD's colours until the first play frame)
-        put_rows(STAGE_FIRST_ROW + r, venue.stage_map + r * 20, r == 1 || r == 2 ? S.hattr : venue.stage_attr + r * 20);
+    for (r = 0; r < 4; r++)                      // (rows 1-3: the banner's, over the sign: the HUD's colours until the first play frame)
+        put_rows(STAGE_FIRST_ROW + r, venue.stage_map + r * 20, r < 3 ? S.hattr : venue.stage_attr + r * 20);
+    mg_say(1, "");                               // (row 1 is blank under the banner: the TAPS sign's top does not poke out above it)
+    far_copy(alt, venue.bar_tiles + (uint16_t)venue.bar_n * 16, 5, venue_bank);   // the lettering twins
     for (b = 0; b < NUM_BARS; b++) {
         for (c = 0; c < 20; c++) {
             t[0][c] = base_tile[0][c]; a[0][c] = base_attr[0][c];
@@ -185,15 +196,13 @@ void po_enter(void) BANKED {
         }
         for (r = 0; r < 3; r++)
             for (c = 0; c < 3; c++) {
-                t[r][c] = flip_tile(t[r][19 - c], fs, fd, &n);   // (a bar's columns 19, 18, 17: the keg and the spout)
+                t[r][c] = flip_tile(t[r][19 - c], fs, fd, &n, alt);   // (a bar's columns 19, 18, 17: the keg and the spout)
                 a[r][c] = a[r][19 - c];
             }
         for (r = 0; r < 3; r++) put_rows(BAR_TOP_ROW(b) + r, t[r], a[r]);
     }
-    for (k = 0; k < 20; k++) {                   // the banner rows 2-3: what they are
-        S.wall[0][k] = venue.stage_map[20 + k]; S.wall[1][k] = venue.stage_map[40 + k];
-        S.wattr[0][k] = venue.stage_attr[20 + k]; S.wattr[1][k] = venue.stage_attr[40 + k];
-    }
+    for (k = 0; k < 20; k++)                     // stage rows 1-3: what they are
+        for (r = 0; r < 3; r++) { S.wall[r][k] = venue.stage_map[r * 20 + k]; S.wattr[r][k] = venue.stage_attr[r * 20 + k]; }
     for (k = 0; k < 3; k++) load_crowd(k);
     // sprites: Dregs, the drink, the pour (sparkle, overflow, cue)
     set_sprite_data(PO_DREGS, PO_DREGS_TILES, po_dregs_tiles);
@@ -230,15 +239,21 @@ static uint8_t po_spawn(uint8_t bar, uint8_t x, uint8_t own, uint8_t st, uint8_t
     return 0;
 }
 
-static void note(const char *s) {                // a line on the banner row 2 for a while
-    mg_say(MG_TEXT_A, s);
-    if (is_cgb) vq_add(1, S.hattr, 0, MG_TEXT_A, 20);
+static const char *const band_txt[6] = { "", "THANKS", "OOPS", "YOU WIN", "DREGS WINS", "OUT OF LIVES" };
+static void band(uint8_t k) {                    // a line on row 2 with row 1 blank above it: the sign behind is covered (the blank
+    mg_say(1, "");                               // row now, the text the next frame: the VBlank copy stays short)
+    if (is_cgb) vq_add(1, S.hattr, 0, 1, 20);
+    S.pend = k;
+}
+
+static void note(uint8_t k) {                    // ... for a while
+    band(k);
     S.note_t = PO_NOTE_FRAMES;
 }
 
-static void note_off(void) {
-    vq_add(0, S.wall[0], 0, MG_TEXT_A, 20);
-    if (is_cgb) vq_add(1, S.wattr[0], 0, MG_TEXT_A, 20);
+static void note_off(uint8_t r) {                // stage row r (1 or 2) again: one row a frame keeps the VBlank copy short
+    vq_add(0, S.wall[r - 1], 0, r, 20);
+    if (is_cgb) vq_add(1, S.wattr[r - 1], 0, r, 20);
 }
 
 static void seat_draw(uint8_t i) {               // its footprint (3 x 2 tiles) into the queue buffers, and queued
@@ -466,7 +481,7 @@ static void full_step(struct po_mug *m) {
     }
     if ((!m->own && m->x <= PO_SPOUT_D) || (m->own && m->x >= SPOUT_X)) {   // the far end: the other bartender takes it
         m->st = PM_FREE;
-        note("THANKS");
+        note(1);
     }
 }
 
@@ -494,7 +509,7 @@ static void empty_step(struct po_mug *m) {
             if (D.score) D.score--;
             S.hudq = 1;
             D.slip = S.tune[PT_SLIP]; D.st = PD_IDLE; D.t = 0;
-            note("OOPS");
+            note(2);
         }
     }
 }
@@ -649,10 +664,9 @@ static void finish(uint8_t res) {
     uint8_t i;
     struct po_mug *m = S.mug;
     S.res = res;
-    note_off(); S.note_t = 0;
+    S.note_t = 0;
     mg_finish();
-    mg_say(MG_TEXT_A, res == PR_WIN ? "YOU WIN" : res == PR_DREGS ? "DREGS WINS" : "OUT OF LIVES");
-    if (is_cgb) vq_add(1, S.hattr, 0, MG_TEXT_A, 20);
+    band(res == PR_WIN ? 3 : res == PR_DREGS ? 4 : 5);
     for (i = PO_MUGS; i; i--, m++) if (m->st == PM_BREAK) m->st = PM_FREE;
     SFX(res == PR_WIN ? SFX_SERVE : SFX_LIFE);
 }
@@ -660,15 +674,20 @@ static void finish(uint8_t res) {
 void po_update(uint8_t pressed) BANKED {
     uint8_t i, n = 0;
     struct po_seat *s;
-    if (!S.started) {                            // the first frame: the banner rows (the framework's text) are the stage again
-        S.started = 1;
-        vq_add(0, S.wall[0], 0, 2, 20); vq_add(0, S.wall[1], 0, 3, 20);
-        if (is_cgb) { vq_add(1, S.wattr[0], 0, 2, 20); vq_add(1, S.wattr[1], 0, 3, 20); }
+    if (S.started < 3) {                         // the first frames: stage rows 1-3 (the framework's banner) come back, a row a frame
+        vq_add(0, S.wall[S.started], 0, 1 + S.started, 20);
+        if (is_cgb) vq_add(1, S.wattr[S.started], 0, 1 + S.started, 20);
+        S.started++;
     }
     if (S.hudq) { S.hudq = 0; put_hud(); vq_add(0, S.hud, 13, HUD_ROW, 7); }          // (first: what a catch changed is drawn the frame after it)
     s = S.seat;
     for (i = 0; i < PO_SEATS && !n; i++, s++)            // (one seat a frame: the sways are on different beats)
         if (s->dirty) { seat_draw(i); n++; }
+    if (S.pend) {                                // the band's text (its blank row 1 went last frame)
+        mg_say(MG_TEXT_A, band_txt[S.pend]);
+        if (is_cgb) vq_add(1, S.hattr, 0, MG_TEXT_A, 20);
+        S.pend = 0;
+    }
     S.anim++;
     if (S.res == PR_PLAY && mg_phase == MG_END) S.res = PR_LIVES;     // (a test ended the game early)
     if (S.res == PR_PLAY) {
@@ -679,7 +698,10 @@ void po_update(uint8_t pressed) BANKED {
         if (Y.score >= PO_WIN) finish(PR_WIN);
         else if (D.score >= PO_WIN) finish(PR_DREGS);
         else if (S.res == PR_LIVES) finish(PR_LIVES);
-        if (S.note_t && !--S.note_t) note_off();
+        if (S.note_t) {                          // (the note goes: row 1, then row 2 a frame later)
+            if (--S.note_t == 1) note_off(1);
+            else if (!S.note_t) note_off(2);
+        }
     } else {                                     // the outro: the end pose, the drinks as they were
         struct po_mug *m = S.mug;
         Y.frame = S.res == PR_WIN ? BT_CATCH : BT_FAIL;

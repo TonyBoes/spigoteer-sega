@@ -3070,3 +3070,11 @@ The two new FINALE_A pages and the first FINALE_B page are **proposed dialogue, 
   SQUARE. SORRY I / BROKE IT."). story_pic_finale_a is unchanged (FINALE_A shows the same first page; its title is still THE FIRST POUR).
   tests/test_story.py / test_story_pictures.py follow the split (24 scenes, FINALE_A / FINALE_B slots 44 / 42, the portrait pairs, the tour
   through the Pour-Off, START through it).
+- **Ported onto main 2e16bc4** (the ten mini-games, the owner's per-venue taps): the Pour-Off is game id 11 (G_PO 11 of MG_GAMES 12; ids 0-9
+  are the ten games, MG_PLANNED 10 stays: it is never saved or listed). The left end's tap is the right end's mirrored bit by bit, as
+  Classic's R bars do: a tap's lettering (gen_art LETTER_BOX trailer) is flipped from its pre-mirrored twin so it reads the right way
+  round (the saloon's N keg has none: its star). Banners: they covered the TAPS sign's lower half and its top poked out above the text.
+  Now row 1 is blank above the text row (the sign's two rows are both under the dark band) for the intro, THANKS / OOPS and the end
+  lines; the stage comes back a row a frame (the VBlank copy stays <= 14 ticks). tests/test_mg.py mg_enter waits 60 frames, not 20, for
+  the Pour-Off's longer enter. New goldens regenerated (all six po_*): the taps and the banner changed them.
+

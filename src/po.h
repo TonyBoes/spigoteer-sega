@@ -61,7 +61,9 @@ struct po_state {               // tests/po_helpers.py: offsets by order (po_sta
     uint8_t sbuf[PO_SEATS][6];  // a seat's two rows of 3 tiles (VBlank queue source)
     uint8_t sattr[PO_SEATS][6]; // and its CGB attributes (per row)
     uint8_t hud[7];             // "Y12 D10" (VBlank queue source)
-    uint8_t wall[2][20], wattr[2][20], hattr[20];   // the stage rows the banner covers, as they are; the HUD's colours
+    uint8_t wall[3][20], wattr[3][20], hattr[20];
+    uint8_t pend;               // the band's text (BAND_*) whose row 2 is queued the frame after its blank row 1
+    // ^ wall / wattr / hattr: stage rows 1-3 (the sign's two rows and the banner's second), as they are; the HUD's colours
 };
 
 #endif

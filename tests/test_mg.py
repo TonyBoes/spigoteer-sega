@@ -80,7 +80,7 @@ def mg_enter(gb, gid, mode, seed=SEED):
 
     gb.pb.hook_register(0, hook, divert, None)
     try:
-        for _ in range(20):
+        for _ in range(60):
             gb.run(1)
             if hits[0] >= 2:
                 break
