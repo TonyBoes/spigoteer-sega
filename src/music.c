@@ -31,6 +31,7 @@ static uint8_t fast_now;              // the running tune plays fast
 static uint16_t ld_pos;               // bytes copied so far
 #define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
 #define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
+#define FRAME_TIMA          69     // one frame (1/59.73 s) in 4096 Hz timer counts (68.6)
 
 typedef struct { uint16_t freq; uint8_t len; int8_t slide; } sfx_step_t;   // CH1: 11-bit period; CH4: NR43
 typedef struct { uint8_t ch; uint8_t duty; uint8_t env; uint8_t nsteps; const sfx_step_t *steps; } sfx_def_t;
@@ -84,6 +85,8 @@ static void silence_music(void) {
 }
 
 void music_init(void) BANKED {
+    TMA_REG = 0; TIMA_REG = 0;
+    TAC_REG = TACF_START | TACF_4KHZ;   // the frame timer music_pump polls (no interrupt: IE leaves it out)
     NR52_REG = 0x80;           // sound on
     NR51_REG = 0xFF;           // every channel to both sides
     NR50_REG = 0x77;           // full master volume
@@ -197,7 +200,7 @@ static void groove_tick(void) {
     }
 }
 
-void music_tick(void) BANKED {
+static void tick(void) {
     uint8_t id, req = sfx_req;
     if (req) {
         sfx_req = 0;
@@ -230,4 +233,21 @@ void music_tick(void) BANKED {
     }
     voice_tick(0);
     voice_tick(1);
+}
+
+// The game's frame tick (main.c, once per main loop). It restarts the frame timer music_pump watches.
+void music_tick(void) BANKED {
+    tick();
+    TIMA_REG = 0;
+}
+
+// A long LCD-off load (the title's, the top-5 table's) is one main-loop pass of several frames, and the music only
+// ticks once per pass: the tune stalled for those frames (owner: the title tune hitched at every attract switch).
+// Such loads call this between their steps: when a frame's time (the timer, FRAME_TIMA counts at 4096 Hz since the
+// last tick) has passed, the music ticks once and the remainder carries over. Polled, no timer interrupt.
+void music_pump(void) BANKED {
+    uint8_t t = TIMA_REG;
+    if (t < FRAME_TIMA) return;
+    tick();
+    TIMA_REG = t - FRAME_TIMA;
 }

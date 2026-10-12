@@ -63,7 +63,8 @@ static void text_at(uint8_t y, uint8_t x, const char *s) {
 
 static void six_digits(char *d, uint32_t v) {
     uint8_t i;
-    for (i = 6; i != 0; i--) { d[i - 1] = '0' + (uint8_t)(v % 10); v /= 10; }
+    split6((uint8_t *)d, v);                         // (save.c: no 32-bit division, ~1 frame per score before)
+    for (i = 0; i < 6; i++) d[i] += '0';
 }
 
 // LCD off: the dark band everywhere, a panel line at rows 1 and 16, the HUD palette
@@ -73,6 +74,7 @@ static void screen_begin(void) {
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();
     hide_all_sprites();
+    music_pump();
     blank_row(row_buf);
     for (y = 0; y < 18; y++) set_bkg_tiles(0, y, 20, 1, row_buf);
     for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_TOP;
@@ -85,6 +87,7 @@ static void screen_begin(void) {
         for (y = 0; y < 18; y++) set_bkg_tiles(0, y, 20, 1, row_buf);
         VBK_REG = VBK_BANK_0;
     }
+    music_pump();
 }
 
 // ---- the table --------------------------------------------------------------------------------
@@ -103,9 +106,11 @@ void scores_table(void) BANKED {
         for (k = 0; k < 3; k++) s[2 + k] = nm[i * 3 + k];
         six_digits(s + 6, sc[i]);
         text_at(ROW_FIRST + 2 * i, TABLE_COL, s);
+        music_pump();
     }
     scores_timer = 0;
     game_state = GS_SCORES;
+    music_pump();                       // (the title tune plays on through the switch: music.c)
     DISPLAY_ON;
 }
 

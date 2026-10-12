@@ -41,6 +41,8 @@ void music_play(uint8_t tune) BANKED;       // start a tune (a looping tune alre
 void music_stop(void) BANKED;
 void music_set_on(uint8_t on) BANKED;       // sound_on, then start/stop the current tune accordingly
 void music_tick(void) BANKED;               // once per frame, after the VBlank queue drain
+void music_pump(void) BANKED;               // inside a long LCD-off load: music_tick when a frame's time has passed
+                                            // since the last tick (the timer, polled), so the tune does not stall
 
 // Starting an effect from game code costs a few cycles: the request is only noted here and the registers are
 // written by music_tick() after the frame's logic (the worst frames have no spare time). `id` must be a constant.
@@ -60,6 +62,7 @@ extern uint8_t  score_tbl;                  // the table top_rank / top_insert a
 void hi_load(void) BANKED;                  // SRAM -> the tables and the story (a bad block: that part empty; v3-v6 migrate)
 void hi_save(void) BANKED;                  // everything -> SRAM (the main block and the three tables)
 void hi_pick(uint8_t t) BANKED;             // hi_score / hi_digits = table t's best
+void split6(uint8_t *d, uint32_t v) BANKED; // d[0..5] = v's six low decimal digits, 0-9 (no 32-bit division: fast)
 uint8_t top_rank(uint32_t s) BANKED;        // where s would go in table score_tbl (TOP_N: not in the table)
 uint8_t top_insert(uint32_t s, const uint8_t *n) BANKED;   // insert into table score_tbl with initials n[0..2]; the rank
 extern uint8_t story_progress;              // M11b: story chapters cleared (0..10), saved next to the table

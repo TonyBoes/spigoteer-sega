@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "music.h"
 
 // ROM0 helpers (main.c): copy out of another ROM bank and come back to this one
 void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
@@ -27,13 +28,16 @@ void load_venue(uint8_t t) BANKED {
     venue_fetch(t);
     venue_id = t;
     bkg_data_far(TILE_STAGE_BASE, venue.stage_n, venue.stage_tiles, venue_bank);
+    music_pump();                               // (LCD off, several frames: the music ticks on, music.c)
     bkg_data_far(venue.bar_base, venue.bar_n, venue.bar_tiles, venue_bank);
+    music_pump();
     // drink frames: full, empty | fill x4 | drink x4 (2 tiles each)
     spr_data_far(OBJ_MUG, MUG_TILE_COUNT, venue.drink_tiles, venue_bank);
     spr_data_far(OBJ_MUG_FILL, MUG_FILL_TILE_COUNT, venue.drink_tiles + MUG_TILE_COUNT * 16, venue_bank);
     spr_data_far(OBJ_MUG_DRINK, MUG_DRINK_TILE_COUNT, venue.drink_tiles + (MUG_TILE_COUNT + MUG_FILL_TILE_COUNT) * 16, venue_bank);
     spr_data_far(OBJ_GLASS, GLASS_TILE_COUNT, venue.drink_tiles + VENUE_DRINK_TILES * 16, venue_bank);   // its crash
     spr_data_far(OBJ_DANCER, DANCER_TILE_COUNT, venue.show_tiles, venue_bank);
+    music_pump();
     for (r = 0; r < 2; r++)
         for (c = 0; c < 20; c++) {
             base_tile[r][c] = venue.bar_map[r * 20 + c];
@@ -93,6 +97,8 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED {
             arow[i] = venue.bar_attr[k];
         }
         put_both(y, vrow, arow);
+        if (y & 3) continue;
+        music_pump();                           // (a few frames in all: the title tune plays on, music.c)
     }
 }
 

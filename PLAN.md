@@ -204,6 +204,14 @@ Music step 2 (2026-10-11, the owner's listening notes):
   bar 38, D D# back to bar 1), 32 bars = 34 s, from the same Mutopia score. Buffer A 6 -> 8 patterns (WRAM +384 B,
   ~1 KB left above the stack's measured use). The pattern blobs moved from bank 3 (39 B free) to bank 10
   (gen_music.BLOB_BANKS, build/music_pat10.c: 12288 B, 4 KB free); the autobanker refilled bank 3 with banked code.
+- Title tune hitch at the attract switches (title -> top-5 table -> title): each switch is an LCD-off load inside
+  one main-loop pass and the music ticks once a pass, so the tune stood still ~9 frames into the table (six_digits:
+  12 SDCC 32-bit divisions per score, ~1 frame each score) and ~12-15 back to the title (tiles, venue, backdrop).
+  save.c split6 (powers of ten, no division) for the table; music_pump() (music.c) between the load steps of
+  title_enter, scores_table / screen_begin, load_venue and venue_backdrop ticks the music when the timer (TAC 4096
+  Hz, polled, no interrupt; music_tick zeroes TIMA) says a frame (69 counts) has passed. Now the tune never stands
+  still more than 2 frames (test_sound). hi_pick keeps its division (a faster one shifts the debug_story golden by
+  a lag frame). The mini-game retry's reload is a frame longer on CGB (10) with the music ticking through it.
 - tools/check_music.py: the LEVEL harness starts at level g + 1 for venue g (the old level-clear trick reached the
   wrong venue for even groups since the 10th venue); a staccato note is measured over the part that sounds.
 

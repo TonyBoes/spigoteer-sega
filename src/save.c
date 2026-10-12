@@ -103,11 +103,26 @@ static uint8_t valid_char(uint8_t c) {
     return c == ' ' || (c >= 'A' && c <= 'Z');
 }
 
+// d[0..5] = the six low decimal digits of v (values 0-9), by subtracting powers of ten. The % 10 and / 10 loop it
+// replaces called SDCC's 32-bit division twelve times, about one frame of CPU per score: the top-5 table took ~9
+// frames with the LCD off and the title tune stalled across the attract switch (music ticks once per main loop).
+static const uint32_t pow10[6] = { 100000UL, 10000UL, 1000UL, 100UL, 10UL, 1UL };
+void split6(uint8_t *d, uint32_t v) BANKED {
+    uint8_t i, n;
+    while (v > HI_MAX) v -= HI_MAX + 1;
+    for (i = 0; i < 6; i++) {
+        for (n = 0; v >= pow10[i]; n++) v -= pow10[i];
+        d[i] = n;
+    }
+}
+
 // hi_score / hi_digits = table t's entry 1
 void hi_pick(uint8_t t) BANKED {
     uint32_t v = top_scores[t * TOP_N];
     uint8_t i;
     hi_score = v;
+    // (still the 32-bit division: split6 here would be ~1 frame faster when the PLAY cursor changes the HI line, and
+    // that lag frame is in the debug_story golden's timing; left as it is)
     for (i = 6; i != 0; i--) { hi_digits[i - 1] = (uint8_t)(v % 10); v /= 10; }
 }
 

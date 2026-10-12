@@ -231,6 +231,34 @@ def test_tunes_follow_the_game_state(srom):
     assert srom.mem("cur_tune") == TUNE_VENUE0 + 1, "level 2 is the sports bar: its own tune"
 
 
+def test_the_title_tune_plays_on_smoothly_across_the_attract_tables(srom):
+    """Owner: the title tune hitched when the idle title switched to a top-5 table and back.  The switches are LCD-off
+    loads of several frames inside one main-loop pass, and the music ticks once a pass: the top-5 table took ~9
+    frames (six_digits' 32-bit divisions), the title ~12 (tiles, venue, backdrop).  Now split6 has no division and
+    the loads call music_pump between their steps (the timer, polled): over title -> table -> title the tune never
+    restarts, never stands still for more than 2 frames, and loses at most a few frames in all."""
+    assert srom.mem("cur_tune") == TUNE_TITLE
+    a = srom.addr("title_idle")
+    for cycle in range(2):                                  # ARCADE's table, then STORY's
+        srom.write(a, 1195 & 255)
+        srom.write(a + 1, 1195 >> 8)
+        mf, states = [], []
+        for _ in range(330):
+            srom.run(1)
+            mf.append(srom.mem16("music_frames"))
+            states.append(state(srom))
+            assert srom.mem("cur_tune") == TUNE_TITLE
+        assert GS_SCORES in states and states[-1] == TITLE, "the table showed and the title came back"
+        steps = [b - a_ for a_, b in zip(mf, mf[1:])]
+        assert min(steps) >= 0, "the tune restarted"
+        still = longest = 0
+        for d in steps:
+            still = still + 1 if d == 0 else 0
+            longest = max(longest, still)
+        assert longest <= 2, f"the tune stood still for {longest} frames"
+        assert mf[-1] - mf[0] >= len(mf) - 1 - 6, f"{len(mf) - 1} frames, the tune moved {mf[-1] - mf[0]}"
+
+
 def test_jingle_stops_by_itself(srom):
     start_game(srom)
     srom.write("level", 1)

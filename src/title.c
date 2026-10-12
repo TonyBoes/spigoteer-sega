@@ -238,15 +238,24 @@ void title_enter(void) BANKED {
     hide_all_sprites();
     mirror_load(0); level_dirs = 0;                   // every bar L (the scene's bartender; P3: CLASSIC may mirror bars)
     if (!is_cgb) OBP1_REG = OBP1_MENU;               // (play used OBP1_PLAY)
+    // (music_pump between the steps: this load takes several frames and the title tune plays on through it)
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
+    music_pump();
     load_venue(0);                                    // the title stands in the saloon (and its drink frames)
+    music_pump();
     set_bkg_data(BAR_TILE_COUNT, TITLE_TILE_COUNT, title_tiles);   // lettering over the patron ids; the level load puts them back
-    set_bkg_data(TT_EXTRA_BASE, TT_EXTRA_COUNT, tt_extra_tiles);
+    music_pump();
+    for (i = 0; i < TT_EXTRA_COUNT; i += 16) {        // (2 KB: in slices, the music ticking between them)
+        set_bkg_data(TT_EXTRA_BASE + i, TT_EXTRA_COUNT - i < 16 ? TT_EXTRA_COUNT - i : 16, tt_extra_tiles + i * 16);
+        music_pump();
+    }
     set_bkg_data(0, TT_LOW_COUNT, tt_low_tiles);
+    music_pump();
     for (r = 0; r < 2; r++)                           // the patron: cowboys variant 0, unshifted, 2x2 of its 3x2 tiles
         for (i = 0; i < 2; i++)                       // (M13a: stored column by column, the shift-0 poses at PATRON_SHIFT0_OFS)
             bkg_data_far(TT_PATRON_BASE + r * 2 + i, 1, patron_tiles_cowboys + (PATRON_SHIFT0_OFS + i * 2 + r) * 16, BANK(patron_tiles_cowboys));
     set_sprite_data(OBJ_FX, TT_FX_TILES, tt_fx_tiles);
+    music_pump();
     if (is_cgb) {
         p[0] = WALL_RGB_T; p[1] = RGB15(31, 30, 24); p[2] = RGB15(29, 19, 4); p[3] = RGB15(10, 3, 2);   // logo: foam, beer, outline
         set_bkg_palette(BGPAL_LOGO, 1, p);
@@ -261,6 +270,7 @@ void title_enter(void) BANKED {
         set_sprite_palette(OBJPAL_FX, 1, p);
     }
     venue_backdrop(0, 16);                            // wall rows 0-15, counter row 16, floor 17 (tiles + attributes)
+    music_pump();
 
     // logo: every letter empty
     for (i = 0; i < LOGO_LETTERS; i++) {
@@ -272,17 +282,21 @@ void title_enter(void) BANKED {
     // the menu block, rows 4-13: plain wall (the text's blank tile is colour 0, the wall colour; no specks), text centred
     for (i = 0; i < 20; i++) { row_blank[i] = TT_BLANK; attr_txt[i] = BGPAL_TEXT; attr_sel[i] = BGPAL_TEXT_SEL; }
     for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++) set_bkg_tiles(0, r, 20, 1, row_blank);
+    music_pump();
     save_lock = 0;                     // (a debug-select story run ends here: save.c)
     title_n = 0;
     menu_open(title_back, 0);          // the top level (or the submenu the soundtrack player was opened from)
+    music_pump();
     title_back = TM_TOP;
     title_dirty = 0;                   // drawn here, with the LCD off
     for (i = 0; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, menu_buf[i]);
+    music_pump();
     for (i = 0; i < 20; i++) row_buf[i] = TT_BLANK;
     row_buf[6] = TT_HI;
     title_hi = hi_want(); hi_build();
     for (i = 0; i < 6; i++) row_buf[8 + i] = hi_buf[i];
     set_bkg_tiles(0, ROW_HI, 20, 1, row_buf);
+    music_pump();
     // the scene's patron
     row_buf[0] = TT_PATRON_BASE; row_buf[1] = TT_PATRON_BASE + 1; row_buf[2] = TT_PATRON_BASE + 2; row_buf[3] = TT_PATRON_BASE + 3;
     set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR), 2, 1, row_buf);
@@ -304,6 +318,7 @@ void title_enter(void) BANKED {
     bubble_y[0] = bubble_y[1] = 0; bubble_timer = 90;
     bar = SCENE_BAR; bartender_x = BT_X; bt_bob = 0; facing = 0; bartender_frame = BT_IDLE;
     game_state = GS_TITLE;
+    music_pump();
     music_play(TUNE_TITLE);
     DISPLAY_ON;
 }

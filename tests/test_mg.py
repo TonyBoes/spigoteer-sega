@@ -238,7 +238,8 @@ def test_a_retries_and_b_goes_back_to_the_menu(model):
         to_result(gb)
         assert score(gb) > 0
         press_a(gb)
-        run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
+        # (12: the reload's LCD-off frames now let the venue tune tick on, music_pump; CGB took 9 frames, now 10)
+        run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 12)
         assert state(gb) == GS_MINI and gb.mem("mg_phase") == MG_INTRO and gb.mem("mg_id") == MG_STUB
         assert score(gb) == 0 and gb.mem16("mg_score") == 0, "practice: a retry starts from 0"
         assert gb.mem("overlay_on") == 0 and text(gb, 2) == "GREEN LIGHT"
