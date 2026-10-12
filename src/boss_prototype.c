@@ -4,8 +4,8 @@
 // One cycle (own.t counts its frames; he walks and drinks like any boss in GREEN, stands through the rest):
 //   GREEN  0-239    the lamp on his antenna is solid, he takes batteries as ever.
 //   YELLOW 240-299  the tell: the lamp is a ring (HAT frame LAMP_RING), he stands but still takes a battery.
-//   RED    300-449  the lamp is an X, the RED pose (screen X, arm up), his bar's conveyor runs right (chevron tiles
-//                   BOSS_ICE_BG, 2 frames, the counter row rewritten every 6 frames through the VBlank queue):
+//   RED    300-449  the lamp is an X, the RED pose (screen X, arm up), his bar's conveyor runs right (the approved K5 stripes + K6 arrows: tiles
+//                   BOSS_ICE_BG, 2 frames, the counter's attributes the keg's palette 7, the counter row rewritten every 6 frames through the VBlank queue):
 //                   every full battery on his bar turns round at once (MUG_RETURN, 1 px a frame to the right), and one
 //                   that reaches him bounces the same way; the bartender catches a returned battery as an empty at the
 //                   tap (it breaks past the tap end: a life). The fair-empties schedule (next_arrival) is pushed past
@@ -37,7 +37,7 @@
 #define T_RIDE        450
 #define T_LAND        460
 #define CONV_COLS      18                // the counter's columns 0-17 (18-19: the keg)
-#define CONV_EVERY      6                // frames per chevron step
+#define CONV_EVERY      6                // frames per arrow step
 #if BOSS_ART_CONV != 2 || BOSS_ART_CONV_SRC > 2
 #error "the Prototype's conveyor: 2 frames, at most 2 counter tile ids"
 #endif
@@ -55,7 +55,27 @@ static uint8_t counter_y(void) {
     return BAR_COUNTER_ROW(boss_bar);
 }
 
-// The counter row of his bar: the conveyor's chevrons at frame f (f 0 or 1: the venue's counter tiles replaced), or (f 2)
+// The 18 counter attributes: BG palette 7 (BGPAL_BAR_B, the keg's yellow / steel / dark: the conveyor's colours) while the belt
+// runs, the venue's own after. CGB only. The VBlank queue (bank 1) with the LCD on, VRAM with it off. The source must be in WRAM
+// (the queue is drained in VBlank, when another ROM bank is mapped): the belt's 7s are proto.row, filled here, so the next
+// write into proto.row (counter_put) is at least a frame later (the first belt frame is one frame after the RED start).
+static void counter_attr(uint8_t belt) {
+    const uint8_t *src = venue.bar_attr + BAR_COUNTER_DROW * 20;
+    uint8_t k;
+    if (!is_cgb) return;
+    if (belt) {
+        for (k = 0; k != CONV_COLS; k++) proto.row[k] = BGPAL_BAR_B;
+        src = proto.row;
+    }
+    if (LCDC_REG & LCDCF_ON) vq_add(1, src, 0, counter_y(), CONV_COLS);
+    else {
+        VBK_REG = VBK_BANK_1;
+        vram_put(0, counter_y(), src, CONV_COLS);
+        VBK_REG = VBK_BANK_0;
+    }
+}
+
+// The counter row of his bar: the conveyor's tiles at frame f (f 0 or 1: the venue's counter tiles replaced), or (f 2)
 // the venue's own row. The VBlank queue with the LCD on, VRAM with it off.
 static void counter_put(uint8_t f) {
     const uint8_t *src = venue.bar_map + BAR_COUNTER_DROW * 20;
@@ -68,6 +88,7 @@ static void counter_put(uint8_t f) {
         src = proto.row;
     }
     if (LCDC_REG & LCDCF_ON) vq_add(0, src, 0, counter_y(), CONV_COLS); else vram_put(0, counter_y(), src, CONV_COLS);
+    if (f == 2) counter_attr(0);         // (the belt's end: the venue's own palette back)
 }
 
 static uint8_t on_belt(void) {           // the conveyor is drawn on his bar
@@ -101,6 +122,7 @@ static void to_red(void) {
     for (i = 0; i != MAX_MUGS; i++)
         if (mug_state[i] == MUG_FULL && mug_bar[i] == boss_bar) turn_round(i);
     boss_state = BS_SPECIAL;
+    counter_attr(1);                     // (the belt's tiles follow in this frame's BEV_FRAME: counter_put)
 }
 
 static void stand(void) {                // YELLOW, RED: he stands (a gulp is over)
@@ -169,7 +191,7 @@ uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED {
             break;
         }
         if (proto.t >= T_YELLOW && proto.t < T_RIDE) stand();
-        if (on_belt() && (uint8_t)(proto.t - T_RED) % CONV_EVERY == 0) counter_put(((uint8_t)(proto.t - T_RED) / CONV_EVERY) & 1);
+        if (on_belt() && (uint8_t)(proto.t - T_RED - 1) % CONV_EVERY == 0) counter_put(((uint8_t)(proto.t - T_RED - 1) / CONV_EVERY) & 1);   // (from T_RED + 1: the attributes' frame is T_RED)
         break;
     }
     return 0;

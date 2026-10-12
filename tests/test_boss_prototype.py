@@ -15,7 +15,7 @@ from conftest import ROOT, check_golden, logic_paused, venue
 from test_boss_mascot import marker_at, rows_of
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, set_patron, score, state, tilemap_row
 from test_story import banner_text, centred, post, settle, to_goal
-from test_venues import cgb_palette
+from test_venues import attr_row, cgb_palette
 
 pytestmark = pytest.mark.timeout(300)
 
@@ -81,7 +81,7 @@ def start_red(gb):
 def test_his_row_and_art(model):
     """Spec 3.2 / 3.8's numbers and the cycle's timings, the banner lines of spec 7, his approved art (look B, the hauler)
     with the RED pose (extra pose 5), the lamp's 3 shapes (HAT frames 0-3, the ring and X), the Mascot's marker, the
-    conveyor's 2 chevron tiles; no WRAM of his own."""
+    conveyor's 2 tiles (K5 stripes + K6 arrows, below); no WRAM of his own."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
         width=32, x=16, bar=2, step=100, push=8, gulp=20, hands=2, sip=45, meter=12, hat=8)
     assert (R["line1"], R["line2"]) == ("GREEN MEANS GO", "RED MEANS STOP")
@@ -92,6 +92,37 @@ def test_his_row_and_art(model):
     assert not (ROOT / "assets/art/approved/boss_prototype.txt").exists()
     assert "boss_prototype" not in (ROOT / "assets/art/approved/README.md").read_text()
     assert not re.search(r"^(?:static\s+)?u?int(?:8|16)_t\s+\w+\s*(?:[;,=]|\[)", SRC, re.M), "no WRAM of his own"
+
+
+def tile_bytes(rows):
+    """8 rows of . - + # (colours 0-3) as the 16 bytes of a 2bpp tile."""
+    out = []
+    for r in rows:
+        v = [".-+#".index(c) for c in r]
+        out += [sum((x & 1) << (7 - i) for i, x in enumerate(v)), sum((x >> 1) << (7 - i) for i, x in enumerate(v))]
+    return out
+
+
+# The owner-approved conveyor (2026-10-12): the front (rows 4-7) K5's yellow / black "/" hazard stripes, the top (rows 0-2) K6's
+# steel with small yellow arrowheads that shift between the two frames, row 3 the dark edge. '-' yellow, '+' steel, '#' dark.
+CONV_A = ["-+++-+++", "--++--++", "-+++-+++", "########", "----####", "---####-", "--####--", "########"]
+CONV_B = ["++-+++-+", "++--++--", "++-+++-+", "########", "----####", "---####-", "--####--", "########"]
+KEG = 7                                 # BGPAL_BAR_B: the keg's yellow / steel / dark, the belt's palette
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_conveyor_is_the_approved_k5_stripes_and_k6_arrows(model):
+    """The 2 conveyor tiles (BG 246-247) are exactly K5's front + K6's top; the front is the same in both frames and the
+    arrows move; CGB: palette 7 (the keg's) holds yellow, steel and dark, the same colours the tiles were drawn in.
+    DMG: the shades 153 / 85 / 0 are the bar's own greys under the same indices."""
+    assert A["conv"] == tile_bytes(CONV_A) + tile_bytes(CONV_B)
+    assert CONV_A[4:] == CONV_B[4:] and CONV_A[:3] != CONV_B[:3]
+    with fight(model, C) as gb:
+        quiet(gb)
+        assert bytes(gb.read(0x8000 + CONV * 16, 32)) == bytes(A["conv"])
+        if model == "cgb":
+            pal = cgb_palette(gb, KEG)
+            assert pal[1:] == [RGB(31, 27, 9), RGB(15, 17, 20), RGB(2, 3, 5)], pal
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -139,6 +170,8 @@ def test_the_cycle_green_yellow_red_ride(model):
         assert gb.mem("boss_state") == BS_SPECIAL and lamp(gb)[0] == HAT_X
         assert_body(gb, C, A, x, BP_RED)
         until(gb, lambda: counter(gb, B) == belt_row(0) or counter(gb, B) == belt_row(1), 8)
+        if model == "cgb":
+            assert attr_row(gb, 5 + 3 * B + 2) == [KEG] * 20, "the belt in the keg's palette (the keg's own columns are 7 too)"
         seen = [counter(gb, B)]
         for _ in range(3):
             f0 = counter(gb, B)
@@ -155,6 +188,9 @@ def test_the_cycle_green_yellow_red_ride(model):
         until(gb, lambda: gb.mem("boss_state") == BS_JUMP, 4)
         frames(gb, 3)
         until(gb, lambda: counter(gb, B) == FACTORY[40:60], 8)
+        frames(gb, 2)
+        if model == "cgb":
+            assert attr_row(gb, 5 + 3 * B + 2) == venue("factory")["bar_attr"][40:60], "the counter's palette back"
         top, bottom = rows_of(gb, B)
         assert gb.oam()[OAM_TOPPER]["y"] == 0
         assert top[x // 8:x // 8 + 4] != pose_cols(A, BP_WALK), "his body is gone"
@@ -257,6 +293,8 @@ def test_a_life_lost_in_red_restores_the_counter_and_brings_him_home(model):
         assert (gb.mem("boss_bar"), gb.mem("boss_x"), gb.mem("boss_state"), gb.mem("lives"), gb.mem("boss_hp")) == (
             B, R["x"], BS_WALK, 2, 12)
         assert t_of(gb) < 20 and counter(gb, B) == FACTORY[40:60] and lamp(gb)[0] in (0, 2)
+        if model == "cgb":
+            assert attr_row(gb, 5 + 3 * B + 2) == venue("factory")["bar_attr"][40:60], "the counter's palette back"
         assert all(marker_at(gb, b) is None for b in range(4))
 
 

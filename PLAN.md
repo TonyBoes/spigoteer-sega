@@ -1406,7 +1406,7 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
     20 B. A boss's own state and test hooks live in BOSS_OWN (tests: story_scratch + 520 - 24 + k; boss_common.own).
   - gen_boss: an `extra` pose narrower than his width is centred with plain wall columns either side (the 16x16
     PUFF1 / PUFF2); `fx` (the marker, from his own art file or another boss's), `hats` (extra topper frames),
-    `conveyor` (a venue's counter with right-pointing chevrons, 2 frames, a PLACEHOLDER pattern; the Yeti's ice is approved art now).
+    `conveyor` (a venue's counter replaced by the art file's 2-frame CONV_A / CONV_B: the Prototype's approved K5 + K6 look).
 
 ## The Sasquatch as built (lumber lodge boss, docs/minigames_bosses.md 3.5, 2026-10-12)
 - src/boss_sasquatch.c, rows[2]: 32 px, start 16, bar 2, step 90, push 8, gulp 8, hands 2, sip 0, meter 12, topper
@@ -2167,8 +2167,20 @@ Both new dispatchers autobank into bank 12 (about 4.4 KB for the two with their 
   arrival + empty_gap; last 60 frames: the marker on a random other bar at his columns), RIDE 450-459 (BS_JUMP, BP_HIDE),
   at 460 boss_to_bar(marked bar, same x), GREEN. A life lost: counter row restored, home bar, GREEN, meter kept.
   Goldens: boss_prototype, boss_prototype_red (new, DMG+CGB).
-  - The conveyor chevron tiles (gen_boss conveyor: BG 246-247, made from the factory's counter tile) are a PLACEHOLDER like
-    the Yeti's ice, pending the owner's look; the rows are rewritten through the VBlank queue from the 18 B buffer.
+  - **The conveyor (owner-approved 2026-10-12, replaces the placeholder chevrons)**: a combination of the round 2 proposals
+    (scratchpad boss_proto/conveyor2): the FRONT (tile rows 4-7) is K5's bold yellow / black "/" hazard stripes (static), the TOP
+    (rows 0-2) is K6's steel with small yellow arrowheads that shift 4 px between the two frames, row 3 the dark edge. gen_boss
+    `conveyor` now reads the two 8x8 tiles CONV_A / CONV_B from assets/art/boss/prototype.txt (BG 246-247, still two ids that
+    alternate over the factory's two counter tile ids; the generated chevrons() is gone). Palette: the keg's BG palette 7
+    (BGPAL_BAR_B: yellow #F8D848, steel #7888A0, dark #101828), no palette added: at RED start the 18 counter attributes become 7
+    (one vq_add bank 1 from proto.row, filled with 7s; the queue is drained in VBlank with another ROM bank mapped, so its source
+    has to be WRAM: a static const array read garbage), restored from venue.bar_attr with counter_put(2) at the ride, on a lost
+    life and at the outro; the next level load restores it anyway. The tile writes start one frame after the attribute write
+    (RED + 1, then every 6 frames) because both use proto.row (the state buffer is full at 20 B: no new WRAM). DMG shades 153 / 85 /
+    0 (the same tile data). Contrast checked at 1x on both models with full and empty batteries standing on the K6 top (injected
+    in RED): the lime bars and the dark case stay readable, so the top was NOT darkened. Test: the tile bytes equal K5 + K6, the
+    keg palette's colours, the attributes 7 in RED and restored after the ride and after a lost life. Golden boss_prototype_red
+    replaced (owner-approved conveyor (K5 stripes + K6 arrows) replaces the placeholder).
   - Lamp colours (CGB): the engine logic runs in the picture (LY ~25), not in VBlank, so palettes cannot be written
     during the fight. Green is OBJ 7, yellow OBJ 5 (free in a fight: no coins, no show), red OBJ 4 (the factory group's
     enhanced-patron palette; a fight only spawns variants A / B), all set with the LCD off at BEV_LOAD and chosen per phase

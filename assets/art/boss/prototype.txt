@@ -260,3 +260,29 @@
 #......#
 +#.##.#+
 +#....#+
+
+; The conveyor (gen_boss BOSSES prototype conveyor "factory": 2 frames, one 8x8 tile that replaces the factory's counter
+; tiles on his bar in RED; BG 246-247). Owner-approved 2026-10-12 as a combination of the round 2 proposals: the FRONT
+; (rows 4-7) is K5's bold yellow / black "/" hazard stripes (static), the TOP (rows 0-2) is K6's steel with small yellow
+; arrowheads that shift 4 px between the frames as the belt moves; row 3 is the dark edge. The colours are the keg's BG
+; palette 7 (the counter's attributes are 7 in RED: src/boss_prototype.c): '-' yellow #F8D848, '+' steel #7888A0,
+; '#' dark #101828. DMG shades 153 / 85 / 0.
+@CONV_A
+-+++-+++
+--++--++
+-+++-+++
+########
+----####
+---####-
+--####--
+########
+
+@CONV_B
+++-+++-+
+++--++--
+++-+++-+
+########
+----####
+---####-
+--####--
+########

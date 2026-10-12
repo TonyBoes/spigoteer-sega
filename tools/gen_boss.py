@@ -31,8 +31,9 @@ For the bosses that move (boss wave 2; PLAN.md "Boss hooks as built"):
     (boss_art_fx, BOSS_ART_FX tiles), which src/boss_load.h loads at BOSS_MARK_BG (248-251);
   - `hats`: extra 8x16 topper frames after HAT_STILL / HAT_BOB (the Prototype's lamp: LAMP_RING, LAMP_X), loaded with
     them from OBJ_TOPPER (BOSS_ART_HAT_TILES tiles in all);
-  - `conveyor`: a venue whose counter gets a conveyor's chevrons pointing right, 2 animation frames (boss_conv_tiles,
-    BOSS_ART_CONV; a PLACEHOLDER pattern generated here from the venue's counter tile, pending the owner's look).
+  - `conveyor`: a venue whose counter gets the art file's CONV_A / CONV_B (8x8, 2 animation frames: boss_conv_tiles,
+    BOSS_ART_CONV; the owner-approved K5 stripes on the front + K6 arrows on the top; colours 1-3 are BG palette 7's, see
+    src/boss_prototype.c) over the venue's counter tiles (boss_conv_src).
 
 Adding a boss: one BOSSES entry (and its art file). Usage: gen_boss.py outdir previewdir
 """
@@ -92,26 +93,11 @@ def padded(f, w):
     return ["." * left + r + "." * (w - fw - left) for r in f]
 
 
-def chevrons(rows, phase):
-    """A conveyor copy of a counter tile (PLACEHOLDER): its belt band (the rows between its two dark lines) plain, with
-    light chevrons pointing right every 4 px (the middle row 1 px further right), shifted by `phase` px."""
-    dark = [y for y, r in enumerate(rows) if set(r) == {"#"}]
-    if len(dark) < 2 or dark[1] - dark[0] != 4:
-        fail("conveyor: the counter tile has no 3-row belt band between two dark lines")
-    out = [list(r) for r in rows]
-    for k, y in enumerate(range(dark[0] + 1, dark[1])):
-        for x in range(8):
-            out[y][x] = "-" if (x - phase - (k == 1)) % 4 == 0 else "+"
-    return ["".join(r) for r in out]
-
-
-def conveyor_tiles(theme, prev, name):
-    """The venue's counter tile ids (columns 0-17) and 2 conveyor frames (phase 0 and 2 px) made from the first."""
+def conveyor_tiles(theme, prev, name, named, path):
+    """The venue's counter tile ids (columns 0-17) and the 2 conveyor frames, the art file's CONV_A / CONV_B (8x8)."""
     v = json.loads((ROOT / "build" / "venues.json").read_text())["venues"][theme]
     src = sorted(set(v["bar_map"][40:58]))
-    o = (src[0] - v["bar_base"]) * 16
-    base = rows_of(v["bar_tiles"][o:o + 16])
-    frames = [chevrons(base, 0), chevrons(base, 2)]
+    frames = [frame(named, n, 8, 8, path) for n in ("CONV_A", "CONV_B")]
     png(frames, prev / f"boss_{name}_conveyor_x8.png", 8)
     return src, [x for f in frames for x in tile_bytes(f, 0, 0)]
 
@@ -212,7 +198,7 @@ def boss_art(b, prev):
         png(frames, prev / f"boss_{b['name']}_fx_x8.png", 8)
         a["fx"] = fx
     if "conveyor" in b:
-        a["conv_src"], a["conv"] = conveyor_tiles(b["conveyor"], prev, b["name"])
+        a["conv_src"], a["conv"] = conveyor_tiles(b["conveyor"], prev, b["name"], named, path)
     return a
 
 
@@ -245,7 +231,7 @@ def header(a):
         h += [f"#define BOSS_ART_FX {len(a['fx']) // 16}", carr("boss_art_fx", a["fx"]) + "   // the landing marker"]
     if "conv" in a:
         h += [f"#define BOSS_ART_CONV {len(a['conv']) // 16}", f"#define BOSS_ART_CONV_SRC {len(a['conv_src'])}",
-              carr("boss_conv_tiles", a["conv"]) + "   // the conveyor's 2 frames (PLACEHOLDER)",
+              carr("boss_conv_tiles", a["conv"]) + "   // the conveyor's 2 frames (CONV_A, CONV_B)",
               carr("boss_conv_src", a["conv_src"]) + "   // the venue's counter tile ids they replace"]
     return "\n".join(h) + "\n"
 
