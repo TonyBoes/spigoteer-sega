@@ -10,7 +10,7 @@
 // "A RETRY B MENU", and B comes back here: src/mg.c); a locked one does nothing. B goes back to the title's BONUS
 // submenu with the cursor on MINI GAMES.
 // The list: every built game. The DEBUG_MENU build (`make`) lists them all unlocked, the stub GREEN LIGHT included, so
-// the owner can test; `make release` lists Quick Draw, Order Up!, Battery Sort, Milk Run and Log Roll (the stub is not in it) and applies
+// the owner can test; `make release` lists Quick Draw, Order Up!, Battery Sort, Milk Run, Log Roll, Asteroids and Taiko Pour (the stub is not in it) and applies
 // the unlock rule.
 // LCD off to enter; afterwards the rows go through the VBlank queue from WRAM buffers (story_scratch: no cut-scene and
 // no mini-game runs while this screen shows; mg_enter rewrites it).
@@ -33,11 +33,11 @@ extern uint8_t overlay_on;
 #define ML_COL_MEDAL   14       // (BATTERY SORT is 12 letters: columns 1-12)
 #define ML_ROWS_PER_FRAME 4     // 20-byte rows queued a frame (as mg_say)
 #ifdef DEBUG_MENU
-#define ML_N            7
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_STUB };
+#define ML_N            8
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_STUB };
 #else
-#define ML_N            6
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID };
+#define ML_N            7
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO };
 #endif
 typedef char ml_fits[(ML_N <= ML_ROW_BOX - ML_ROW_LIST) ? 1 : -1];   // (no scrolling yet: 10 lines)
 #define ML_INFO_BITS  ((1 << ML_INFO_LINES) - 1)
@@ -58,6 +58,7 @@ static const char *game_name(uint8_t g) {
     if (g == MG_MILKRUN) return "MILK RUN";
     if (g == MG_LOGROLL) return "LOG ROLL";
     if (g == MG_ASTEROID) return "ASTEROIDS";
+    if (g == MG_TAIKO) return "TAIKO POUR";
 #ifdef DEBUG_MENU
     return "GREEN LIGHT";
 #else
@@ -72,6 +73,7 @@ static const char *game_where(uint8_t g) {
     if (g == MG_MILKRUN) return "THE CHROME COW";
     if (g == MG_LOGROLL) return "THE LUMBER LODGE";
     if (g == MG_ASTEROID) return "THE SPACE LOUNGE";
+    if (g == MG_TAIKO) return "THE TEAHOUSE";
 #ifdef DEBUG_MENU
     return "THE TEST STUB";
 #else

@@ -1167,6 +1167,8 @@ already about recycling batteries.)
 
 ### 4.7 Taiko Pour (Teahouse)
 
+Built (2026-10-12; PLAN.md "Taiko Pour as built"): look B, the tune plays at 12 frames a row (not 15), 112 notes from frame 288, a missed note is dropped at x < 6, the HUD cups counter has two digits, OBJ palette 7 for the pot. The text below is the design as proposed.
+
 Play: the taiko drummer sets the beat of "Sakura Sakura". Notes slide along two lanes to the hit marks: A for the
 top lane (the drum's face, "don"), B for the bottom lane (the rim, "ka"). Good hits pour tea; eight fill a cup for
 a guest.

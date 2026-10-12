@@ -38,7 +38,7 @@ HUGE_OBJ := $(BUILD)/hUGEDriver.o
 # each boss's own art header (tools/gen_boss.py: build/boss_<name>_art.h, #included by src/boss_<name>.c only)
 BOSS_H   := $(foreach b,$(filter-out meter,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
 BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h
-BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h
+BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
 .PHONY: all test check preview clean assets release
@@ -95,7 +95,13 @@ $(BUILD)/lr_art.h: tools/gen_lr.py tools/gen_art.py $(wildcard assets/art/logrol
 $(BUILD)/ad_art.h: tools/gen_ad.py tools/gen_art.py $(wildcard assets/art/asteroid/*.txt) assets/palettes.json assets/approved/venues/space_pal.json | $(BUILD) $(OUT)/preview
 	python3 tools/gen_ad.py $(BUILD) $(OUT)/preview
 
-preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h
+
+# Taiko Pour (src/tk.c; docs/minigames_bosses.md 4.7): its approved art (look B) and chart (tools/taiko_chart.py) ->
+# build/tk_art.h, build/tk.json (tests), out/preview/tk_*_x8.png
+$(BUILD)/tk_art.h: tools/gen_tk.py tools/taiko_chart.py tools/gen_art.py $(wildcard assets/art/taiko/*.txt) | $(BUILD) $(OUT)/preview
+	python3 tools/gen_tk.py $(BUILD) $(OUT)/preview
+
+preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/tk_art.h
 
 # The boss engine (src/boss.c): each boss's body poses (and extra poses), held empties, topper and HUD face, and the HUD
 # meter -> build/boss_art.h (the meter), build/boss_<name>_art.h (each boss's own, in his src/boss_<name>.c's bank),

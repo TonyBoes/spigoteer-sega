@@ -296,6 +296,46 @@ struct ad_state {               // tests read these at story_scratch + offset (t
     uint8_t wall[2][20], wattr[2][20];   // +132 map rows 2-3 as the portholes have them (the banner rows' place)
 };
 
+void tk_enter(void) BANKED;                      // src/tk.c: TAIKO POUR (the teahouse)
+void tk_update(uint8_t pressed) BANKED;
+uint8_t tk_medal(void) BANKED;                   // the medal its accuracy earned (not a score threshold)
+
+#define TK_LIVE        12       // notes on screen at once (the chart keeps at most 5 a lane in 105 frames)
+struct tk_state {               // tests read these at story_scratch + offset (tests/test_mg_taiko.py)
+    uint16_t clk;               // +0 the game clock: music_frames, or tk_update's own count with MUSIC OFF
+    uint16_t own;               // +2 that own count
+    uint8_t next;               // +4 notes spawned (the chart index of the next one)
+    uint8_t judged;             // +5 notes resolved (hit, missed or passed)
+    uint8_t combo;              // +6
+    uint8_t best;               // +7 the best combo
+    uint8_t hits;               // +8 GOOD-or-better notes toward the cup being poured (0..7)
+    uint8_t cups;               // +9 cups served
+    uint8_t perfect;            // +10
+    uint8_t good;               // +11
+    uint8_t miss;               // +12
+    uint8_t spills;             // +13
+    uint8_t cnt;                // +14 count-in digits shown (0..4)
+    uint8_t band_on;            // +15 the shoji window is back on the banner rows: 0 no, 1 yes
+    uint8_t end_t;              // +16 frames since the last note was resolved
+    uint8_t anim;               // +17 frames counted
+    uint8_t pour_t;             // +18 frames left of the pour (teapot tilted, the stream)
+    uint8_t spill_t;            // +19 frames left of the spill (the Spigoteer's fail pose, the puddle)
+    uint8_t serve_t;            // +20 frames left of a served bowl (full, steaming)
+    uint8_t flash_t[2];         // +21 frames left of each lane's hit flash
+    uint8_t flash_k[2];         // +23 its kind: 0 PERFECT, 1 GOOD
+    uint8_t rail_on;            // +25 1: the banks are lit (the beat flash)
+    uint8_t lant_on;            // +26 1: the lantern's second frame shows
+    uint8_t cup_shown;          // +27 the bowl's state on screen (0..4; 255: not drawn yet)
+    uint8_t live[TK_LIVE];      // +28 the notes on screen: chart index, | 0x80 judged a miss and sliding off; 255 empty
+    uint8_t hud[4];             // +40 combo tens, ones, cups tens, ones (VBlank queue sources)
+    uint8_t cup[2][2];          // +44 the bowl's tiles as queued
+    uint8_t rail[2][16];        // +48 the banks' tile data: dim, lit
+    uint8_t band[2][20];        // +80 the shoji window's rows 2-3
+    uint8_t pal[20];            // +120 CGB attributes (the shoji palette) for them
+    uint8_t lant[2][2];         // +140 the lantern's tiles as queued
+    uint8_t last;               // +144 the last press: 0 none, 1 PERFECT, 2 GOOD, 3 MISS, 4 SPILL
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
@@ -305,6 +345,7 @@ union mg_ram {
     struct mr_state mr;
     struct lr_state lr;
     struct ad_state ad;
+    struct tk_state tk;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert

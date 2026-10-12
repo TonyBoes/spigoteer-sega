@@ -354,7 +354,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, the venue owners (ten with Granny Throttle), villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort, Milk Run, Log Roll and Asteroid Delivery are built (see their sections). |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort, Milk Run, Log Roll, Asteroid Delivery and Taiko Pour are built (see their sections). |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -2329,6 +2329,79 @@ proposal's other suggestions (B's square hatches and lane chevrons) were NOT tak
   mg_list_locked (the list gains the ASTEROIDS line / a fifth "? ? ?"); test_mg_list (counts and lines).
 - Framework edits (minimal): mg.c G_AD (names, instruction "STEER AND LAND SOFT", medal call, the result window shows
   "ASTEROIDS": its 16-letter limit), mg_list.c one line, gen_story BUILT_SLOTS, Makefile gen_ad rule.
+
+## Taiko Pour as built (M11e, docs/minigames_bosses.md 4.7, 2026-10-12)
+
+The teahouse's mini-game on the framework (src/tk.c), in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains TEAHOUSE: chapter 8's slot
+after the Happy hour) and in BONUS > MINI GAMES (fifth line after QUICK DRAW, ORDER UP, BATTERY SORT, MILK RUN; THE TEAHOUSE; the unlock rule
+as the others: SRAM bit 7). Art: the owner-approved look B "sakura stream" (2026-10-12) in assets/art/taiko/ imported pixel-exact (the proposal's
+files with the header "; Art: approved design"; look A is not imported), tools/gen_tk.py -> build/tk_art.h, build/tk.json, out/preview/tk_*_x8.png;
+the chart is tools/taiko_chart.py (a text grid, 2 strings of 8 rows a bar) -> tk_chart in the same header.
+- **Rules** (the spec's numbers): notes move left at 1.5 px a frame from x 160 to the hit mark (centre x 24): spawned 93 frames ahead (x 163, the
+  last that keeps the sprite's left edge on screen: no note waits off-screen on a scanline), 91 frames of look-ahead. A (top lane, the don) and B
+  (bottom lane, the ka) judge the earliest note of their lane not judged yet within 10 frames: PERFECT within 3, GOOD within 6, else MISS (the note
+  is spent, the combo ends). No such note: a SPILL (-50, never below what this game earned; the HUD score is lowered too via split6, no ROM0 code).
+  A note not pressed by T + 10 is a MISS and slides on; **the proposal's engine rule: a missed note is dropped at x < 6** (T + 13), so a lane holds
+  at most 5 notes plus the one sliding off. PERFECT 300, GOOD 100, + 10 per note of the combo counting this one (at most 100); each 8 GOOD-or-better
+  notes serve a bowl (+500); the combo and bowls are on the HUD. Medal by accuracy (PERFECT 1, GOOD 0.5, of all 112 notes: tk_medal): GOLD >= 90%,
+  SILVER >= 75%, BRONZE >= 50%. One setting (no HARD). A perfect game: 51350 points, 14 bowls. No timer: the game ends 45 frames after the last note
+  resolves (about 43 s after the count).
+- **Spec changes**: (1) the tune "Sakura Sakura" plays at 12 frames a row (150 bpm, owner-approved 2026-10-11), not the spec's 15: the chart is on
+  12-frame rows, a quarter note is 24 frames = 36 px, the eighth pairs of the last round 12 frames = 18 px (never two notes of a lane closer). (2) The
+  chart: 112 notes, the first at frame 288 (bar 4: the framework's intro + count are about 150 frames, then the banner rows count 1 2 3 4 on the beats at
+  192 / 216 / 240 / 264); bars 1-8 quarter notes, A only (32 notes); 9-16 both lanes (32); 17-24 eighth-note pairs (48); the last note at 2580. No
+  two notes on one row (one press each); at most 5 notes a lane in the 105 frames a note lives. (3) The HUD: score, combo icon + X + 2 digits at
+  columns 8-11, cups icon + X + **2 digits** at 16-19 (the mock-up has one digit: a perfect game serves 14 bowls). (4) No new SFX (the spec's don / ka
+  effects are a gap): PERFECT COIN, GOOD CATCH, SPILL BREAK, a bowl SERVE.
+- **Sync**: the clock is src/music.c's music_frames (0 at the tune's first row; `music_stop()` in tk_enter makes music_play restart a tune already
+  playing; music_fast is cleared), so a late frame never drifts the chart: a note's x is computed from the clock (x = 24 + 1.5 (T - clock)), never
+  stepped. The driver starts a row on the tick that makes music_frames a multiple of 12, so a note's hit time is the first frame its row sounds
+  (tested; one loop, 1344 frames, later the driver is on the same row). **MUSIC OFF** (owner Q4: silent but playable): the game counts its own
+  frames from 150 and plays on the same chart; the visual cues work without sound: the stone banks flash on every beat (their tile data is swapped
+  for 8 of 24 frames: one 16-byte VBlank copy, not three rows of map), the drummer dances on the first half of each beat, the count-in digits.
+- **Screen**: HUD row 0; the shoji window rows 1-4 (BG palette 3; its lantern flickers: a 2x2 tile swap every ~48 frames; the banner rows 2-3 keep the
+  framework's text, then 1 2 3 4, and at frame 276 the window's rows and their attributes come back in one frame); banks on rows 5, 8, 11; lanes rows
+  6-7 and 9-10 (palette 2) with the hit marks A / B at columns 2-3; the bamboo blind rows 12-13 (palette 5); the framework's teahouse wall and floor;
+  the matcha bowl at columns 13-14, rows 15-16 (palette 6, colour 0 the wall's; 4 fill states by 2 hits, full + steam while served, 70 frames). OAM
+  0-3 the Spigoteer (the fill pose mirrored, holding the pot; the fail pose for 36 frames after a spill), 4-5 the pot (level / tilt / pour: tilts for
+  the first and last frames of a 16-frame pour, the stream and the bowl in between), 6 the stream, 7 the steam or the spill puddle, 8-11 a hit flash
+  per lane (PERFECT the blossom, GOOD the ring, 8 frames), 12-15 the drummer (the show's tiles and palette 5), 16-27 the notes. **CGB palettes**: BG
+  3 shoji, 2 lanes + banks + marks, 5 blind, 6 bowl (4 is the medal's); OBJ 0 the Spigoteer, 1 don, 2 ka, 3 flashes, 5 drummer, 6 stream / steam /
+  spill, **7 the pot** (the proposal had 4; OBJ palette 4 is the enhanced patrons' and the level load does not put it back: tested). The colours are
+  the mock-up's, sampled from the proposal's CGB screen (gen: the HEX values in src/tk.c). Tiles: BG 125-185 (61), OBJ 56-91 (36, 18 entries).
+- **DMG**: the Spigoteer on OBP0 (0xD0, the framework's), everything else on OBP1 = 0xE4 (set at entry: the level load puts back 0xE4 anyway). The
+  proposal's note: "B's DMG screen is very bright, the notes small dark shapes on white". Checked at 1x (a 160x144 screenshot, and the same through
+  a greenish DMG palette): the DON is 58% dark pixels of its 8x16 cell, the KA (hollow) 50%, both black-outlined on a white lane whose dots are the
+  lightest grey; read apart by fill and by lane. **No DMG palette change was needed**; BGP / OBP stay as they were.
+- **Test-harness notes**: PyBoy's frame ends a few lines after the game's logic has begun, so a read at a frame's end sometimes has the frame's update
+  in it and sometimes not (the clock reads 0, 2, 0, 2 on the frames that start late), a key held then is read by the update after the one in progress,
+  and OAM lags the state by one update. tests/test_mg_taiko.py reads in a paused frame (`snap`), sets the game's own clock before the update that is to
+  read a key (`press_at`, MUSIC OFF) and lets the bots (tests/tk_helpers.py run_bot: at most a frame early, PERFECT is +-3) play whole games.
+  **SDCC**: `S.anim++;` directly before `if (sound_on)` compiled to `inc (hl)` / `or a, (hl)` (the flag came from the counter, not from sound_on);
+  tk_update reads sound_on first. Worth remembering for any `x++; if (global)` in this codebase.
+- **State** in the mg union: struct tk_state (145 B; tests read story_scratch + offsets parsed from mg.h). No new WRAM globals.
+- **Numbers**: ROM0 real free 577 B unchanged (nothing added in ROM0: no ROM0 code); WRAM_LO 3936 / WRAM_HI_0 3455 unchanged; tk.c + its art and
+  chart ~6.5 KB banked (autobank repack: bank 14 free 12282 -> 5759 B; banks 1-14 otherwise within a few hundred bytes of before). make check
+  (SameBoy, DMG + CGB) passes; a throwaway ROM that boots straight into Taiko Pour was also run in SameBoy for 12 s with no key and 14 s with Start /
+  A pushed (hits, spills): no alarm, both pictures right.
+- **Tests** (tests/test_mg_taiko.py, 54): the screen and its art byte for byte (tiles, every map row, attributes, palettes, OAM, DMG registers), the
+  approved colours on screen; the chart's rules; a note's x each frame (3 px per 2 frames, 163 at spawn, 24 at T, 6 at T + 12, gone at T + 13); the
+  windows (a note a case: +-3 PERFECT, +-4..6 GOOD, +-7..10 MISS, +11 / -11 SPILL, scores); the earliest-note rule and lane separation; spills (0
+  stays 0, -50 after points, the HUD, the fail pose, the puddle); a perfect game (51350, 14 bowls, GOLD, <= 9 sprites a line), a game with nothing
+  pressed (112 misses, ends, NO MEDAL), mashing both keys through the densest bars (<= 10 a line), the medal edges (201 / 202 / 168 / 167 / 112 / 111
+  half notes); the bowl (a step per 2 hits, +500, the digit, steam); the pour; the count-in and the window's return; the banks' flash; the drummer;
+  the clock is the tune's and the chart loops with it; a forced 3-frame lag; a bot on the music's clock; practice retry / menu; the story in chapter 8
+  (and the Last call's VRAM and palettes as without it); ARCADE; the list and the release unlock; what the level after it has back. Changed: test_mg_list
+  (the list's new line, counts). New goldens (dmg + cgb): tk_intro, tk_cup, tk_play, tk_spill, tk_result. Replaced on purpose: mg_list and
+  mg_list_locked (the list gains the TAIKO POUR line / a fifth "? ? ?").
+
+## SDCC pitfalls found so far (keep adding)
+- **`x++; if (global)`**: with `S.anim++;` (a field reached through a pointer, so `inc (hl)`) directly before `if (sound_on)`, SDCC 4.5 emitted
+  `ld a, (_sound_on)` / `or a, (hl)`: the branch tested the counter's value ORed in, not `sound_on`. Found in src/tk.c (Taiko Pour's clock ran the
+  wrong way); fixed by reading the global first. Look at the asm (`lcc -S`) when a branch right after an increment misbehaves.
+- A loop that kept its counter in L and loaded HL for another use was miscompiled (see the note near line 1752, the mosh pit's RRLL loop).
+- Constants over 127 passed to a `uint8_t` parameter warn 158 ("overflow in implicit constant conversion"); the bits are right, the warning is noise
+  here (BG tile ids 125-255).
 
 ## Leo and Sumo as built (docs/minigames_bosses.md 3.11 / 3.9, 2026-10-12)
 Both follow "Boss hooks as built": a dispatcher `uint8_t boss_<name>(uint8_t ev, uint8_t arg) BANKED` in its own

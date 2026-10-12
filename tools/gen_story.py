@@ -116,8 +116,8 @@ NOT_BUILT = {"MINI", "BOSS"}
 # Slots of a NOT_BUILT kind that are built in some venues already (by chapter suffix): the boss engine (src/boss.c) has
 # Big Tex (the saloon), the Sasquatch (the lumber lodge), the Food Critic (the bistro) and the Yeti (the igloo) so far,
 # and the mini-game framework (src/mg.c) Quick Draw (src/qd.c), the saloon's mini-game, Order Up! (src/ou.c), the
-# bistro's, Battery Sort (src/bs.c), the robot factory's, Milk Run (src/mr.c), The Chrome Cow's, Log Roll (src/lr.c), the lumber lodge's, and Asteroid Delivery (src/ad.c), the space lounge's; the other venues' slots are still skipped.
-BUILT_SLOTS = {"BOSS": {"SALOON", "LUMBER", "BISTRO", "IGLOO", "TEAHOUSE", "ZOO", "STADIUM", "ROBOT", "BIKER", "SPACE"},"MINI": {"SALOON", "LUMBER", "BISTRO", "ROBOT", "BIKER", "SPACE"}}
+# bistro's, Battery Sort (src/bs.c), the robot factory's, Milk Run (src/mr.c), The Chrome Cow's, Log Roll (src/lr.c), the lumber lodge's, and Asteroid Delivery (src/ad.c), the space lounge's, and Taiko Pour (src/tk.c), the teahouse's; the other venues' slots are still skipped.
+BUILT_SLOTS = {"BOSS": {"SALOON", "LUMBER", "BISTRO", "IGLOO", "TEAHOUSE", "ZOO", "STADIUM", "ROBOT", "BIKER", "SPACE"},"MINI": {"SALOON", "LUMBER", "BISTRO", "ROBOT", "BIKER", "SPACE", "TEAHOUSE"}}
 # Arrival patterns (patrons.c try_spawn): a cycle of (bar, wait) entries; the wait after a spawn is n the shift's spawn
 # interval I, s PAT_SHORT frames, d 2 I, b 4 I (a breather). Every pattern keeps about one patron per I on average
 # (checked below), so a pattern changes WHERE and in what rhythm patrons come, not how many. "normal": today's random
