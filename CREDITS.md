@@ -68,7 +68,9 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
   verse's modulating second half is omitted.
 - "The Skaters' Waltz" (Waldteufel, 1882, Op. 183): Traditional Tune Archive (tunearch.org, "Skater's Waltz"),
   transcription by Carl Allison from Joe Buchanan's Scottish Tome; an octave above the source.
-- "Take Me Out to the Ball Game" (Von Tilzer / Norworth, 1908): John Chambers' ABC
+- "Take Me Out to the Ball Game" (Von Tilzer / Norworth, 1908): transcribed from York Music Co., New York, 1908,
+  pp. 4-5, via the Library of Congress (public domain) (owner-supplied transcription, 2026-10-11): bars 8, 20, 25
+  and 26 corrected from it, the rest confirmed. Earlier list: John Chambers' ABC
   (trillian.mit.edu/~jc/music/session/waltz/Take_Me_Out_to_the_Ball_Game.abc).
 - "She'll Be Coming 'Round the Mountain": John Chambers' ABC collection (mirror of David Kidd's dulcimer
   transcription, originally everythingdulcimer.com); in print in Carl Sandburg's "The American Songbag" (1927).

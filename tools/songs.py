@@ -180,14 +180,18 @@ song("galop", 11, "B", " ".join(GAL), oompah(GAL_CHORDS, 4), groove="K:1 H:1 S:1
 
 # ---------------------------------------------------------------------------------------------
 # Sports bar: "Take Me Out to the Ball Game" (Albert Von Tilzer, 1908), chorus.  3/4, key G, quarter = 168
-# is 10.7 frames per eighth row: 11 (164 bpm; game tempo 9, see GAME_BPM).  32 bars.  No score found (not in the
-# Mutopia Project).  Seamless loop: the spec's last bar (~:2 R:4) let the final G5 fade into a second of silence;
-# it now walks down the G chord (D5 B4) into bar 1's G4.
+# is 10.7 frames per eighth row: 11 (164 bpm; game tempo 9, see GAME_BPM).  32 bars.  Checked bar by bar (music step 4,
+# 2026-10-12) against the owner-supplied transcription of the York Music Co. first edition (New York 1908, via the
+# Library of Congress; in D there, a fourth up here in G): bars 1, 5 and 17 open with a half note (as here); bar 8 ends
+# with a quarter rest (was held); bar 20 is A4 half + A4 quarter, "team, If" on one pitch (was A4 B4); bars 25-26,
+# "one, two", are held dotted halves (were a quarter and a half-bar rest each).  Every other bar matched.
+# Seamless loop: the score's last bar (G5, then rests) let the final G5 fade into a second of silence;
+# it walks down the G chord (D5 B4) into bar 1's G4.
 TMO_BARS = [
-    "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "A4:6", "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "~:6",
+    "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "A4:6", "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "~:4 R:2",
     "E5:2 D#5:2 E5:2", "B4:2 C5:2 D5:2", "E5:4 C5:2", "A4:6", "E5:4 E5:2", "E5:2 F#5:2 G5:2",
-    "A5:2 F#5:2 E5:2", "D5:2 B4:2 A4:2", "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "A4:4 B4:2",
-    "G4:4 A4:2", "B4:2 C5:2 D5:2", "E5:6", "~:2 E5:2 F#5:2", "G5:2 R:4", "G5:2 R:4",
+    "A5:2 F#5:2 E5:2", "D5:2 B4:2 A4:2", "G4:4 G5:2", "E5:2 D5:2 B4:2", "D5:6", "A4:4 A4:2",
+    "G4:4 A4:2", "B4:2 C5:2 D5:2", "E5:6", "~:2 E5:2 F#5:2", "G5:6", "G5:6",
     "G5:2 F#5:2 E5:2", "D5:2 C#5:2 D5:2", "E5:6", "F#5:6", "G5:6", "~:2 D5:2 B4:2",
 ]
 TMO_CHORDS = [

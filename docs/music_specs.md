@@ -147,7 +147,7 @@ Length: 32 bars
  5 | G4:4 G5:2                                    | G
  6 | E5:2 D5:2 B4:2                               | Em
  7 | D5:6                                         | D
- 8 | ~:6                                          | D
+ 8 | ~:4 R:2                                      | D
   ["Buy me some peanuts..."]
  9 | E5:2 D#5:2 E5:2                              | E7
 10 | B4:2 C5:2 D5:2                               | E7
@@ -161,14 +161,14 @@ Length: 32 bars
 17 | G4:4 G5:2                                    | G
 18 | E5:2 D5:2 B4:2                               | Em
 19 | D5:6                                         | D7
-20 | A4:4 B4:2                                    | D7
+20 | A4:4 A4:2                                    | D7
 21 | G4:4 A4:2                                    | G
 22 | B4:2 C5:2 D5:2                               | G7
 23 | E5:6                                         | C
 24 | ~:2 E5:2 F#5:2                               | C
   ["For it's one, two, three strikes..."]
-25 | G5:2 R:4                                     | C
-26 | G5:2 R:4                                     | A7
+25 | G5:6                                         | C
+26 | G5:6                                         | A7
 27 | G5:2 F#5:2 E5:2                              | D
 28 | D5:2 C#5:2 D5:2                              | E7
 29 | E5:6                                         | Am
@@ -176,10 +176,11 @@ Length: 32 bars
 31 | G5:6                                         | G
 32 | ~:2 D5:2 B4:2                                | G
 
-Note: Bars 1, 5 and 17: the source writes the first note short followed by a rest (G4 z G5). I've held it instead, the way it's usually sung. Use G4:2 R:2 for a choppier ballpark-organ feel.
+Note: Bars 1, 5 and 17: the ABC source wrote the first note short followed by a rest (G4 z G5); the 1908 edition has a half note, as here.
+Corrected 2026-10-12 (music step 4) bar by bar against the owner-supplied transcription of the 1908 York Music Co. edition (see Source; D major there, transposed up a fourth to G): bar 8 ends with a quarter rest (was '~:6'); bar 20 is the same pitch twice, "team, If" (was 'A4:4 B4:2'); bars 25-26, "one, two", are held dotted halves (were 'G5:2 R:4' each). Every other bar matches the edition. Bar 32 keeps the loop's walk-down (the edition: D5 quarter, then rests).
 Game loop: bar 32 was '~:2 R:4' (the final G5 faded into a second of silence); D5 B4 walk down into bar 1's G4.
-Confidence: High.
-Source: John Chambers' ABC (trillian.mit.edu/~jc/music/session/waltz/Take_Me_Out_to_the_Ball_Game.abc). Underlying work: Albert Von Tilzer / Jack Norworth, 1908 (public domain).
+Confidence: High: checked bar by bar against the 1908 edition.
+Source: transcribed from York Music Co., New York, 1908, pp. 4-5, via the Library of Congress (public domain) (owner-supplied transcription, 2026-10-11). Earlier list: John Chambers' ABC (trillian.mit.edu/~jc/music/session/waltz/Take_Me_Out_to_the_Ball_Game.abc). Underlying work: Albert Von Tilzer / Jack Norworth, 1908 (public domain).
 
 ------------------------------------------------------------
 4. SHE'LL BE COMING 'ROUND THE MOUNTAIN (traditional) - one verse
