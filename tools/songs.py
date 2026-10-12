@@ -47,20 +47,27 @@ def rep(text, n):
 
 
 SONGS = {}
+LEGATO_LEAD = 6      # gen_music.DUTY: the legato lead
+SUNG_ARTIC = 3       # frames of silence between two sung notes of the same pitch (legato=)
 
 
-def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None, groove=""):
+def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None, groove="", legato=None):
     """stac_all: (num, den) cuts every melody note after num/den of its length (staccato).
+    legato: n frames.  A sung tune: the melody plays on the legato lead (gen_music instrument 6, a held volume
+    instead of the song lead's decay, which made every note a plucked syllable), each note runs into the next, and a
+    repeated pitch is cut n frames early so the new syllable is still heard.  Rests stay rests.
     groove: a short drum loop (tokens as ch4, one or two bars) that src/music.c plays on channel 4 by itself,
     over and over, in step with the song's rows.  It costs no pattern in the WRAM buffer (a 64-row pattern is
     not a whole number of 3/4 or 6/8 bars, so a shared hUGEDriver pattern could not keep the beat across orders).
     The song's length must be a whole number of grooves (gen_music checks)."""
+    if legato:
+        inst = LEGATO_LEAD
     SONGS[name] = dict(tempo=tempo, buf=bufname, ch2=ch2, ch3=ch3, ch4=ch4, inst=inst, gap=gap, stac_all=stac_all,
-                       groove=groove)
+                       groove=groove, legato=legato)
 
 
-# GAME TEMPO.  The owner approved these tempos for the game (sakura 150, the lively arrangement, is proposed and awaits
-# the owner's approval; it was 120) (the melody notes stay exactly as the spec's; only the
+# GAME TEMPO.  The owner approved these tempos for the game (sakura 150 with the lively arrangement, approved
+# 2026-10-11; it was 120) (the melody notes stay exactly as the spec's; only the
 # speed changes), in beats per minute of the beat the spec names; the spec's own tempo is in docs/music_specs.md and
 # SPEC_BPM_ROWS in tests/test_sound.py.  tempo = frames per row is the nearest whole number (60 fps), so the tempo
 # the game really plays is 3600 / (tempo x rows per beat): entertainer 8 -> 112.5, sakura 12 -> 150,
@@ -87,7 +94,7 @@ SUS_BASS = " ".join(SUS_BASS_BAR[c] for c in SUS_CH)
 VERSE_D = "K:1 r:1 S:1 r:1"
 CHORUS_D = "K:1 H:1 S:1 H:1"
 SUS_DRUMS = " ".join([VERSE_D] * 16 + [CHORUS_D] * 4 + [VERSE_D] * 4)
-song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS)
+song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS, legato=SUNG_ARTIC)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -176,7 +183,7 @@ MTN_CHORDS = [
     "D", "A7", "D", "D", "D", "D", "A7", "A7", "D", "D7", "G", "A7", "D", "A7", "D", "D",
 ]
 song("mountain", 11, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 8),
-     " ".join(["K:1 r:1 S:1 r:1 K:1 r:1 S:1 r:1"] * 16))
+     " ".join(["K:1 r:1 S:1 r:1 K:1 r:1 S:1 r:1"] * 16), legato=SUNG_ARTIC)
 
 # ---------------------------------------------------------------------------------------------
 # Bistro: "Funiculi, Funicula" (Luigi Denza, 1880), verse and chorus.  6/8, key F, dotted quarter = 92 is
@@ -240,7 +247,7 @@ song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS,
 # ---------------------------------------------------------------------------------------------
 # Teahouse: "Sakura Sakura" (Japanese traditional).  4/4, key A minor (A B C E F), the spec's quarter = 72-100.
 # Lively arrangement (owner: keep Sakura, make it livelier; the melody's notes are unchanged): game tempo 12 frames per
-# eighth row = 150 bpm (was 15 = 120; GAME_BPM, the owner's approval pending), 14 bars = 22.4 s.  Every melody note
+# eighth row = 150 bpm (was 15 = 120; GAME_BPM, owner-approved 2026-10-11), 14 bars = 22.4 s.  Every melody note
 # is played detached (cut after 3/4 of its length) so the tune bounces; the bass is a syncopated pentatonic figure on
 # each bar's chord (root, fifth and octave: A minor, D minor, and E without its G#, which is not in the scale) instead
 # of the A / E drone; the drums are a two-bar taiko-like groove: "don . ka don don . ka ka" (kick and rim = the hat),

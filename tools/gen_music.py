@@ -26,12 +26,14 @@ SEMI = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 REST = 90          # ___ in hUGEDriver.h
 
 # ---- instruments (indexes are 1-based in the pattern data) -------------------------------------
+LEGATO_ENV = 0x60   # NR12 of the legato lead: volume 6, envelope off (period 0): a sung note holds its level
 DUTY = [  # sweep, len_duty (NR11), envelope (NR12), subpattern, highmask
     (0x08, 0x80, 0x83),   # 1 lead: 50% pulse, volume 8, slow decay
     (0x08, 0x40, 0x73),   # 2 soft lead: 25% pulse, volume 7, slow decay
     (0x08, 0x80, 0xA1),   # 3 plink: 50% pulse, volume 10, fast decay (short jingle notes)
     (0x08, 0x00, 0xC1),   # 4 thin: 12.5% pulse, volume 12, fast decay (quick bonus-round notes)
     (0x08, 0x80, 0x85),   # 5 song lead: 50% pulse, volume 8, slow decay (long notes keep sounding)
+    (0x08, 0x80, LEGATO_ENV),   # 6 legato lead (sung tunes, songs.song(legato=)): 50% pulse, held volume, no decay
 ]
 WAVE = [  # length, volume (NR32: 0x20 = 100%, 0x40 = 50%), waveform index, subpattern, highmask
     (0, 0x20, 0),         # 1 bass: triangle, NR32 100% (the waveform itself is scaled, BASS_AMP)
@@ -117,7 +119,7 @@ def merge_ties(text):
     return " ".join(toks)
 
 
-def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all=None):
+def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all=None, legato=None):
     """Expand a token string into a list of (note, inst, effect) rows.
 
     legacy: the jingles' original staccato rule (kept so they sound as before).  Otherwise a note is
@@ -126,7 +128,10 @@ def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all
     its length, and a note that is followed by a rest or by the same pitch again is cut one frame
     before its end (the 1-frame gap that makes repeated notes articulate and rests silent).
     stac_all=(num, den): on channel 2 every note is cut after num/den of its length instead.  A '~:n' token
-    ties (see merge_ties)."""
+    ties (see merge_ties).
+    legato=n (sung tunes, channel 2): a note followed by the same pitch is cut n frames before its end instead of 1,
+    so a repeated syllable is still heard as a new one against the legato lead's held volume; a note before a
+    rest is cut one frame early as before, and a note followed by another pitch runs straight into it."""
     text = merge_ties(text)
     out, notes = [], []          # notes: (first row, rows, pitch name or None for a rest, staccato)
     for tok in text.split():
@@ -166,6 +171,8 @@ def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all
             ticks = n * tempo
             if stac:
                 cut = (ticks * stac_all[0]) // stac_all[1] if stac_all and channel == 2 else (ticks * 3) // 4
+            elif legato and channel == 2 and nxt == name:
+                cut = ticks - legato
             elif gap and (nxt is None or nxt == name):
                 cut = ticks - 1
             else:
@@ -252,7 +259,7 @@ def build(name, t, legacy):
     inst = t.get("inst", 1)
     gap = t.get("gap", True)
     chans = {
-        2: rows_for(2, t["ch2"], inst, tempo, legacy, gap, t.get("stac_all")),
+        2: rows_for(2, t["ch2"], inst, tempo, legacy, gap, t.get("stac_all"), t.get("legato")),
         3: rows_for(3, t["ch3"], 1, tempo, legacy, gap),
         4: rows_for(4, t["ch4"], 1, tempo, legacy) if t["ch4"] else [],
     }

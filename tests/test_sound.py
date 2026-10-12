@@ -269,7 +269,7 @@ def melody_check(rom, source, frames=260, min_notes=6):
     of song `source` (tools/songs.py) with the pitch the song says.  Returns (checked, wrong) lists of (row, Hz wanted, Hz heard)."""
     t = songs.SONGS[source]
     tempo = t["tempo"]
-    rows = gm.rows_for(2, t["ch2"], 1, tempo, False, t.get("gap", True), t.get("stac_all"))
+    rows = gm.rows_for(2, t["ch2"], 1, tempo, False, t.get("gap", True), t.get("stac_all"), t.get("legato"))
     notes = []
     for i, (n, _, _) in enumerate(rows):
         if n != gm.REST:
@@ -333,6 +333,52 @@ def test_the_oh_susanna_song_data_is_the_owners_note_list():
     assert bass[:4] == ["C3:2", "G2:2", "C3:2", "G2:2"] and bass[-2:] == ["C3:2", "G2:2"], "boom-chick to the last bar"
     assert len(bass) == 48 and songs.SONGS["susanna"]["ch4"].split()[-4:] == ["K:1", "r:1", "S:1", "r:1"], \
         "the beat carries on through the last bar into bar 1"
+
+
+# ---- sung tunes are legato (owner: "every syllable is being enunciated robotically") -------------------------------
+def melody_cuts(s):
+    """[(pitch, rows, next pitch or None for a rest, frame of its note cut within the note or None)] of a song's melody."""
+    tempo = s["tempo"]
+    rows = gm.rows_for(2, s["ch2"], s["inst"], tempo, False, s["gap"], s["stac_all"], s["legato"])
+    toks = gm.merge_ties(s["ch2"]).split()
+    out, row = [], 0
+    for k, tok in enumerate(toks):
+        name, n = tok.rstrip("!").split("/")[0].split(":")
+        n = int(n)
+        if name != "r":
+            nxt = toks[k + 1].split(":")[0] if k + 1 < len(toks) else toks[0].split(":")[0]
+            cut = next(((rr - row) * tempo + (rows[rr][2] & 0xFF) for rr in range(row, row + n)
+                        if (rows[rr][2] & 0xF00) == 0xE00), None)
+            out.append((name, n, None if nxt == "r" else nxt, cut))
+        row += n
+    return out
+
+
+def test_sung_tunes_hold_their_notes_and_only_articulate_a_repeated_syllable():
+    """Oh! Susanna and She'll Be Coming 'Round the Mountain: the song lead's decay (NR12 0x85, half volume after 0.39 s)
+    made every note a plucked syllable, loudest where a pitch repeats ("Su-san-na", "She'll be com-ing").  They now play
+    on the legato lead (a held volume, no envelope) and each note runs into the next; a repeated pitch is cut
+    songs.SUNG_ARTIC frames early so the new syllable is heard, a note before a rest one frame early (rests stay)."""
+    lead = gm.DUTY[songs.LEGATO_LEAD - 1]
+    assert lead[2] & 7 == 0 and 5 <= lead[2] >> 4 <= 8, "a held volume, no louder than the song lead"
+    assert lead[1] == gm.DUTY[4][1], "the same 50% pulse as the song lead"
+    for name in ("susanna", "mountain"):
+        s = songs.SONGS[name]
+        assert s["legato"] == songs.SUNG_ARTIC and s["inst"] == songs.LEGATO_LEAD and not s["stac_all"]
+        kinds = set()
+        for pitch, n, nxt, cut in melody_cuts(s):
+            ticks = n * s["tempo"]
+            if nxt == pitch:
+                assert cut == ticks - songs.SUNG_ARTIC, (name, pitch, n, cut)
+                kinds.add("repeat")
+            elif nxt is None:
+                assert cut == ticks - 1, (name, pitch, n, cut)
+            else:
+                assert cut is None, f"{name}: {pitch} -> {nxt} must run into the next note (cut at {cut})"
+                kinds.add("legato")
+        assert kinds == {"repeat", "legato"}
+    # every other tune keeps its own articulation
+    assert [n for n, s in songs.SONGS.items() if s["legato"]] == ["susanna", "mountain"]
 
 
 # ---- the tunes entered from docs/music_specs.md ------------------------------------------------------
@@ -413,7 +459,7 @@ def test_hall_of_the_mountain_king_is_staccato_over_a_root_ostinato():
 
 
 def test_sakura_is_lively_a_bouncing_bass_on_the_chords_under_a_detached_melody():
-    """The owner kept Sakura and asked for a livelier arrangement: 150 bpm (proposed), every melody note detached, a
+    """The owner kept Sakura and asked for a livelier arrangement: 150 bpm (approved), every melody note detached, a
     syncopated bass on each bar's chord (not a drone), a taiko-like two-bar groove of kicks, rim (hat) and snare."""
     s = songs.SONGS["sakura"]
     assert s["tempo"] == 12 and s["stac_all"] == (3, 4)

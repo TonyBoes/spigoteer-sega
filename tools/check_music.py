@@ -108,7 +108,7 @@ def check(model, source, bars, solo):
     tempo = t["tempo"]
     legacy = False
     text = t["ch2"] if solo == 2 else t["ch3"]
-    rows = gm.rows_for(solo, text, 1, tempo, legacy, t.get("gap", True), t.get("stac_all"))
+    rows = gm.rows_for(solo, text, 1, tempo, legacy, t.get("gap", True), t.get("stac_all"), t.get("legato"))
     # note list: (row, rows long, hUGE note index)
     notes = []
     for i, (n, ins, eff) in enumerate(rows):
