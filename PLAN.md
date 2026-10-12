@@ -2639,3 +2639,32 @@ and stay where they land (pages 5-8). The picture no longer holds them (intro_a 
   test_story.py's tour counts the ten pieces' 19 cells as sprites on INTRO pages 5-8.
 - **Golden replaced again on purpose**: story_pic_intro_a (the pieces are sprites now, they land in the sky above the
   town: the continuity commit's golden had no pieces).
+
+### Story pictures: owner review 2 (2026-10-12): Dregs in the FINALE, the CREDITS' flags, stand and Dregs's legs
+
+- **FINALE: Dregs is Dregs.** The figure beside the Spigoteer was a second bartender (dark hair, white shirt, apron). It is now
+  his approved small art (J2, assets in the round 4 notes), mirrored so he faces the Spigoteer: cap with a pale band, long
+  nose, closed eyes (sheepish), the grey V-collar jacket, rows 0-26 (the owners' strip hides his legs), x 142-159, y 62-88.
+  The grey jacket is the picture's own stone palette, so no palette moved (4 pictures palettes as before); the Spigoteer
+  keeps the rose cozy and the apron, Dregs has the cap and the grey jacket. finale_a 135 tiles (was 134).
+- **CREDITS: the bunting is the finale's.** The strings hang loose from the tower and from the right edge (curved, the far
+  ends dropping), with the finale's pennants stamped exactly (5 x 3 triangle `#rrr#` / `.#r#.` / `..#..`, rose #d84860, gold
+  #e8a828, water #78b0f0) and unlit bulbs (ink outline, clear glass: a gold or mauve bulb shares a tile with a coloured pennant
+  and breaks the "one colour per DMG shade" rule). New key `r` (rose, DMG shade 2) in credits_b; the palettes now are
+  gold / gold+mauve / stone+mauve (the trousers) / water+rose. No pennant sits on the dawn sun's tiles (x < 48).
+- **CREDITS: the Sasquatch's coffee stand** (docs/story.md: "the Sasquatch's coffee stand opens at the right"), redrawn so it
+  reads as a coffee cart: a striped gold and cream awning with scalloped edge, a **big coffee-cup sign** on its roof (gold
+  light cup with a gold band and handle, two wisps of steam, picture palette 0), a dark window with the Sasquatch behind (a
+  furry gold face with two pale eyes) and his **furry arm out of the window, the open hand holding a steaming cup** (cream with a
+  tan band, cream steam on the dark), a planked counter. The 24 x 32 body stays exactly 12 HUD palette cells (cream, tan,
+  gold, navy: no picture palette); the sign is in the picture's palettes. 1x on DMG: the awning stripes, cup sign and the cup in
+  the window read; the Sasquatch's face is a grey blob with two eyes.
+- **CREDITS: Dregs has legs.** J2 was cut off at the cobbles' first line (y 89). He now stands on the cobbles in his apron,
+  mopping: dark mauve trousers (the jacket's colour) y 90-92 and shoes y 93, above the next mortar line. credits_b 131 tiles
+  (was 119, limit 199).
+- **Tests**: tile counts (finale 135, credits 131); test_the_finale_shows_dregs_not_a_second_bartender (J2 pixel for pixel, no
+  white, the jacket grey, not the Spigoteer's rose); test_the_credits_flags_match_the_finales_and_the_stand_and_legs_read (the
+  pennant shapes and colours found in both pictures, trousers and shoes, the stand's awning, sign, window colours).
+- **Goldens replaced on purpose** (reason for each: owner review: Dregs distinct in FINALE / matching flags, coffee stand,
+  Dregs' legs in CREDITS): story_pic_finale_a, story_pic_credits_b, story_dregs_sorry (FINALE page 4 shows finale_a behind
+  the portrait).

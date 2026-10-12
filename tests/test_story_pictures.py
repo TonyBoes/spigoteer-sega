@@ -79,7 +79,7 @@ def test_the_pictures_are_built_to_the_budget():
         assert all(a in (0, 5, 6, 7, 1) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
         assert p["tiles"] <= 36 + 256 - p["base"], name
     # the numbers of the report (the picture tiles, the HUD palette cells of CREDITS)
-    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 141, "finale_a": 134, "credits_b": 119}
+    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 141, "finale_a": 135, "credits_b": 131}
     assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "credits_b": 12}
     # the portrait slot sits below the picture's tiles in every scene
     assert all(max(i for i in PICS[n]["map"] if i >= 36) < 256 for n in PICS)
@@ -436,3 +436,51 @@ def test_mashing_a_through_the_burst_keeps_the_line_limit(model):
         assert worst <= 10
         assert gb.mem("story_scene") == SC["INTRO"] and gb.mem("story_page") == 7
         assert_picture(gb, "intro_a", skip=FRAME)
+
+
+# ---- the owner review of the finale and the credits ------------------------------------------------------------
+DREGS_J2 = ['..................', '........#####.....', '......#########...', '.....###########..', '....######mmm#####', '....##############',
+            '....######DDD##...', '....####DDDDDD#...', '....#D##DDDDDD#...', '....#DD#DDD###D#..', '....#DD#DDDDDDDD#.', '....#DDDDDDDDDDDD#',
+            '.....#DDDDDDDD####', '.....#DDDDD###D#..', '.....#DDDDDDDDD#..', '......##DDDDDD#...', '........#DDDD#....', '........#DDD#.....',
+            '.....###D#D#D###..', '....#mmD#####Dmm#.', '...#mmmD#D#D#Dmmm#', '...#mmmmD#D#Dmmmm#', '...#m#mmmD#Dmmm#m#', '...#m#mmmmDmmmm#m#',
+            '...#m#mmmmmmmmm#m#', '...#D#mmmmmmmmm#D#', '....#.#########.#.']      # his approved small art (J2), rows 0-26
+PENNANTS = {"r": ["#rrr#", ".#r#.", "..#.."], "y": ["#yyy#", ".#y#.", "..#.."], "b": ["#bbb#", ".#b#.", "..#.."]}
+
+
+def _find(pix, shape):
+    h, w = len(shape), len(shape[0])
+    return [(x, y) for y in range(len(pix) - h) for x in range(len(pix[0]) - w)
+            if all(pix[y + j][x + i] == shape[j][i] for j in range(h) for i in range(w) if shape[j][i] != ".")]
+
+
+def test_the_finale_shows_dregs_not_a_second_bartender():
+    """Dregs is his approved small art (J2, mirrored so he faces the Spigoteer): cap, long nose, grey jacket, no white
+    shirt or apron, and his colours are not the Spigoteer's."""
+    key, pix = _pix("finale_a")
+    want = [r[::-1].replace("D", "S") for r in DREGS_J2]
+    got = _region(pix, 142, 62, 160, 89)
+    assert all(g[i] == w[i] for g, w in zip(got, want) for i in range(18) if w[i] != "."), "Dregs is J2"
+    assert "W" not in "".join(_region(pix, 139, 60, 160, 89)), "no white shirt or apron on Dregs"
+    assert "r" in "".join(_region(pix, 126, 66, 139, 89)) and "r" not in "".join(got)       # the Spigoteer's rose cozy is not Dregs's
+    assert key["m"]["hex"] == "#b0a0b8" and "".join(got).count("m") > 50                  # Dregs wears the grey jacket
+
+
+def test_the_credits_flags_match_the_finales_and_the_stand_and_legs_read():
+    fkey, f = _pix("finale_a")
+    ckey, c = _pix("credits_b")
+    for ch, shape in PENNANTS.items():                      # the same pennant shape in the same colour in both pictures
+        assert ckey[ch]["hex"] == fkey[ch]["hex"], ch
+        assert _find(f, shape) and _find(c, shape), ch
+    assert len(_find(c, PENNANTS["r"])) >= 2 and len(_find(c, PENNANTS["b"])) >= 1 and len(_find(c, PENNANTS["y"])) >= 2
+    # Dregs stands on the cobbles in his apron: trousers and shoes below the apron's hem (y 89)
+    assert all(c[y][35] == "B" and c[y][36] == "B" and c[y][42] == "B" for y in (90, 91, 92))
+    assert "".join(c[93][33:38]) == "#####"
+    # the Sasquatch's coffee stand (24 x 32 in the HUD palette cells, a cup sign on its roof, a pale steaming cup
+    # in the window and his furry arm)
+    stand = _region(c, 136, 56, 160, 88)
+    assert set("".join(stand)) <= set("CTGZ")
+    assert stand[1] == "ZGGGCCCCGGGGCCCCGGGGCCCZ"            # the striped awning
+    sign = "".join(_region(c, 139, 43, 157, 56))
+    assert sign.count("Y") >= 60 and sign.count("y") >= 20
+    window = "".join(stand[8:23])
+    assert window.count("C") >= 30 and window.count("T") >= 30 and window.count("G") >= 60       # cup and steam, hand, fur
