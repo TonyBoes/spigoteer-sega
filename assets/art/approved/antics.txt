@@ -1,0 +1,111 @@
+; APPROVED by the owner on 2026-10-11 (Classic end-of-level antics, bartender poses). Not built yet: moves to its real place when its feature is built.
+; CLASSIC end-of-level antics: new bartender poses, 16x24 each, drawn as the full figure (same layout as
+; assets/art/bartender.txt). Palette key: bartender (OBJ 0; '-' shirt/apron white, '+' skin, '#' outline/hair).
+; Only the quadrants marked NEW are new tiles; the others are pixel-identical to an existing bartender frame and
+; reuse its OAM entries (8x16 mode: top entries = rows 0-15, bottom entries = rows 16-23 + 8 px pad).
+; frames: antic_kick, antic_hop, antic_dazed, antic_drink
+;   antic_kick   top NEW (bartender_fail's arms out for balance + the heel at waist height), bottom NEW     8 tiles
+;                (the heel is kept above the counter line, rows 15-17: lower, it vanishes on the dark counter)
+;   antic_hop    top NEW (grimace, left arm flung up, right hand on the foot), bottom NEW                 8 tiles
+;   (new tiles in total with antics_fx.txt: 8 + 8 + 4 + 4 + 6 + 2 = 32)
+;   antic_dazed  top NEW (X eyes, wobbly mouth), bottom = bartender_idle                                 4 tiles
+;   antic_drink  top NEW (eyes shut, left hand at the mouth, right arm up), bottom = bartender_fail      4 tiles
+.....#######....
+...###########..
+..#############.
+..##++++#######.
+..#++++++++####.
+..#+#+++#+++###.
+..#+#+++#+++#+#.
+.#++++++++++#+#.
+..#+#####+++##..
+..#+##+##++###..
+...##++++++##...
++...#--##--#...+
+#+.##-#--#-##.+#
+.#-####--####-#.
+..#####--#####..
+...##########.##
+...##------#####
+....#------#.##.
+....#------#.##.
+....########.##.
+....###..###.##.
+....###...####..
+....###....##...
+...####.........
+
+.....#######....
+...###########..
+..#############.
+..##++++#######.
+..#++++++++####.
+..#+++++++++###.
+..#+##++##++#+#.
+.#++++++++++#+#.
+..#+#####+++##..
+..#+#---#++###..
+...##++++++##...
++...#--##--#....
+#+.##-#--#-##...
+.#-####--###-#..
+..#####--###-#..
+...#########-#..
+...##------#+##.
+....#------#+###
+....#------#.###
+....########.##.
+....###..###.##.
+....###...####..
+....###....##...
+...####.........
+
+.....#######....
+...###########..
+..#############.
+..##++++#######.
+..#++++++++####.
+..#+#-++--++###.
+..#+--++-#++#+#.
+.#++++++++++#+#.
+..#+#####+++##..
+..#+#+#+#++###..
+...##++++++##...
+....#--##--#....
+...##-#--#-##...
+..#-###--###-#..
+..#-###--###-#..
+..#+########+#..
+..#+#------#+#..
+..###------###..
+....#------#....
+....########....
+....###..###....
+....###..###....
+....###..###....
+...####..####...
+
+.....#######....
+...###########..
+..#############.
+..##++++#######.
+..#++++++++####.
+..#+++++++++###.
+..#+##++##++#+#.
+.#++++++++++#+#.
+.##+#####+++##..
+#+#+##+##++###..
+#+.##++++++##...
+#-#.#--##--#...+
+#-###-#--#-##.+#
+.#-####--####-#.
+..#####--#####..
+...##########...
+...##------##...
+....#------#....
+....#------#....
+....########....
+....###..###....
+....###..###....
+....###..###....
+...####..####...

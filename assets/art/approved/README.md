@@ -1,0 +1,14 @@
+# Approved art waiting for its feature
+
+The owner approved these drawings before the code that uses them exists. They are kept here so they live in the
+repository rather than in a session's scratch space. Nothing in the build reads this folder. When a feature is
+built, its files move to their real place (for example a boss to `assets/art/boss/<name>.txt`, read by
+`tools/gen_boss.py`) and their entry leaves this list.
+
+| file | what | approved |
+|---|---|---|
+| boss_leo.txt | Leo the Lion (jungle zoo boss): the patron lion scaled up, gold crown; extra INHALE / ROAR / BANG blocks | 2026-10-11 |
+| boss_mascot.txt | the Mascot (stadium boss): red foam bull "Stampede"; extra CROUCH block | 2026-10-11 |
+| boss_prototype.txt | the Prototype (robot factory boss): look B "the hauler" | 2026-10-11 |
+| boss_mothership.txt | the Mothership (space lounge boss): look A "silver saucer" | 2026-10-11 |
+| antics.txt, antics_fx.txt | CLASSIC end-of-level antics: bartender poses; the dove and stars | 2026-10-11 |
