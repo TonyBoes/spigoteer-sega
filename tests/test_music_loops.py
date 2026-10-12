@@ -18,11 +18,6 @@ MAX_LOOP_SILENCE = 0.25      # seconds of melody silence allowed where the tune 
 FPS = 59.7275                # DMG/CGB frame rate (the driver ticks once a frame)
 
 
-# Rests the tune itself writes at the end of its last bar (rows): Mountain starts on its "She'll be" pickup, so the
-# source's one-quarter rest after the held "comes" now sits before the wrap (Simon Horn's MIDI; same length as before).
-WRITTEN_WRAP_REST = {"mountain": 8}
-
-
 def audible_frames(env):
     """Frames until a pulse note with envelope register `env` (NR12) falls below half its starting volume
     (None: it never does: a rising or constant envelope)."""
@@ -74,7 +69,7 @@ def looping_tunes():
 
 @pytest.mark.parametrize("name,t,legacy", looping_tunes(), ids=[n for n, _, _ in looping_tunes()])
 def test_every_looping_tune_flows_back_into_bar_1(name, t, legacy):
-    s = loop_silence(name, t, legacy) - WRITTEN_WRAP_REST.get(name, 0) * t["tempo"] / FPS
+    s = loop_silence(name, t, legacy)
     assert s <= MAX_LOOP_SILENCE, f"{name}: {s:.2f} s of melody silence before the loop returns to bar 1"
 
 

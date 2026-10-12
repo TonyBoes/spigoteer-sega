@@ -124,7 +124,6 @@ def check(model, source, bars, solo):
                 j += 1
             notes.append((i, j - i, n))
     per_bar = songs.BAR_ROWS[source]
-    bar1 = songs.MTN_PICKUP if source == "mountain" else 0     # the row where bar 1 begins (mountain starts on its pickup)
     last_row = bars * per_bar
     notes = [x for x in notes if x[0] < last_row]
     frames = (last_row * tempo) + 150
@@ -151,7 +150,7 @@ def check(model, source, bars, solo):
         got = detect(flat[a:b], rate, exp * 0.6, exp * 1.7)
         ok = got > 0 and abs(12 * np.log2(got / exp)) < 0.6          # within a half semitone
         bad += not ok
-        out.append(((row - bar1) // per_bar + 1, (row - bar1) % per_bar, ln, note_name(exp), exp, got, ok))
+        out.append((row // per_bar + 1, row % per_bar, ln, note_name(exp), exp, got, ok))
     return out, bad
 
 
