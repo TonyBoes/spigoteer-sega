@@ -43,7 +43,7 @@ extern uint32_t score;
                                 // of columns 4-19 (so a line in the window has at most 16 characters)
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
 #define TIMER_COL       16      // HUD: 'T' + 3 digits (story.c hud_goal's format)
-#define MG_GAMES         9      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
+#define MG_GAMES        11      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
                                 // G_OU Order Up!, G_MR Milk Run, G_LR Log Roll, G_AD Asteroid Delivery, G_TK Taiko Pour, G_MM Marshmallow Drop, G_MK Monkey Business, G_TS T-Shirt Cannon
 enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS };
 #define OBP0_BOOT     0xD0      // OBP0 as main_cold.c sets it once at boot (Milk Run's DMG look changes it)

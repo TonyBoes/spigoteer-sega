@@ -740,18 +740,16 @@ def test_arcade_plays_it_in_the_factory(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_bonus_mini_games_lists_and_plays_it(model):
-    """BONUS > MINI GAMES (the debug build: all unlocked): BATTERY SORT on the third line (the chapters' order: after
-    QUICK DRAW and ORDER UP), its details THE ROBOT FACTORY; A plays it in practice (score from 0); its result's B
+    """BONUS > MINI GAMES (the debug build: all unlocked): BATTERY SORT on the sixth line (the chapters' order), its details THE ROBOT FACTORY; A plays it in practice (score from 0); its result's B
     comes back to the list on it."""
     from test_mg_list import line, tap as list_tap, to_list
     from test_scores import booted
     with to_list(booted(model)) as gb:
-        assert line(gb, 4).strip() == "BATTERY SORT"
-        list_tap(gb, "down")
-        list_tap(gb, "down")
-        assert gb.mem("ml_sel") == 2
-        assert [line(gb, r).strip() for r in range(13, 17)] == ["BATTERY SORT", "THE ROBOT FACTORY", "NO MEDAL YET",
-                                                                "A PLAY  B BACK"]
+        assert line(gb, 7).strip() == "BATTERY SORT"
+        for _ in range(5):
+            list_tap(gb, "down")
+        assert gb.mem("ml_sel") == 5
+        assert [line(gb, r).strip() for r in range(15, 17)] == ["THE ROBOT FACTORY", "NO MEDAL YET"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_BATTERY and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -762,7 +760,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(3)
-        assert gb.mem("ml_sel") == 2 and line(gb, 4).strip() == "BATTERY SORT"
+        assert gb.mem("ml_sel") == 5 and line(gb, 7).strip() == "BATTERY SORT"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -776,10 +774,10 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
     ram = with_block(v7_image(), pr_block(1 << MG_BATTERY, best))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert line(gb, 2).strip() == "? ? ?" and line(gb, 3).strip() == "? ? ?" and line(gb, 4) == " BATTERY SORT GOLD"
-        list_tap(gb, "down")
-        list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(13, 16)] == ["BATTERY SORT", "THE ROBOT FACTORY", "BEST GOLD"]
+        assert [line(gb, r).strip() for r in range(2, 7)] == ["? ? ?"] * 5 and line(gb, 7) == " BATTERY SORT GOLD"
+        for _ in range(5):
+            list_tap(gb, "down")
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE ROBOT FACTORY", "BEST GOLD"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_BATTERY and gb.mem("mg_mode") == MG_PRACTICE

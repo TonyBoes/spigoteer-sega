@@ -30,12 +30,13 @@ extern uint8_t overlay_on;
 #define ML_COL_NAME     1
 #define ML_COL_MEDAL   14       // (BATTERY SORT is 12 letters: columns 1-12)
 #define ML_ROWS_PER_FRAME 4     // 20-byte rows queued a frame (as mg_say)
+// chapter order (docs/story.md: saloon, stadium, lodge, bistro, igloo, robot factory, Chrome Cow, teahouse, zoo, space lounge)
 #ifdef DEBUG_MENU
 #define ML_N            11
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_MONKEY, MG_TSHIRT, MG_STUB };
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY, MG_MILKRUN, MG_TAIKO, MG_MONKEY, MG_ASTEROID, MG_STUB };
 #else
 #define ML_N            10
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_MONKEY, MG_TSHIRT };
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY, MG_MILKRUN, MG_TAIKO, MG_MONKEY, MG_ASTEROID };
 #endif
 // The panel sits one blank row under the last line (the Boss Rush list's fix, cfc9b38): list rows 2..ML_N+1, a blank row, the
 // separator, the info lines up to row 16, the panel's bottom on 17. The cursor's line shows the game's name, so the info lines

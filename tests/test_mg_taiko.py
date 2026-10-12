@@ -716,16 +716,16 @@ def test_arcade_plays_it_in_chapter_8(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_bonus_mini_games_lists_and_plays_it(model):
-    """BONUS > MINI GAMES (the debug build: all unlocked): TAIKO POUR on the seventh line (after ASTEROIDS), its details THE TEAHOUSE; A plays it in
+    """BONUS > MINI GAMES (the debug build: all unlocked): TAIKO POUR on the eighth line (chapter order), its details THE TEAHOUSE; A plays it in
     practice (score from 0); its result's B comes back to the list on it."""
     from test_mg_list import line, tap as list_tap, to_list
     from test_scores import booted
     with to_list(booted(model)) as gb:
-        assert line(gb, 8).strip() == "TAIKO POUR"
-        for _ in range(6):
+        assert line(gb, 9).strip() == "TAIKO POUR"
+        for _ in range(7):
             list_tap(gb, "down")
-        assert gb.mem("ml_sel") == 6
-        assert [line(gb, r).strip() for r in range(13, 17)] == ["TAIKO POUR", "THE TEAHOUSE", "NO MEDAL YET", "A PLAY  B BACK"]
+        assert gb.mem("ml_sel") == 7
+        assert [line(gb, r).strip() for r in range(15, 17)] == ["THE TEAHOUSE", "NO MEDAL YET"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_TAIKO and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -736,7 +736,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(3)
-        assert gb.mem("ml_sel") == 6 and line(gb, 8).strip() == "TAIKO POUR"
+        assert gb.mem("ml_sel") == 7 and line(gb, 9).strip() == "TAIKO POUR"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -748,10 +748,10 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
     ram = with_block(v7_image(), pr_block(1 << MG_TAIKO, best))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert [line(gb, r).strip() for r in (2, 3, 4, 5, 6, 7)] == ["? ? ?"] * 6 and line(gb, 8) == " TAIKO POUR   SILVER"
-        for _ in range(6):
+        assert [line(gb, r).strip() for r in range(2, 9)] == ["? ? ?"] * 7 and line(gb, 9) == " TAIKO POUR   SILVER"
+        for _ in range(7):
             list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(13, 16)] == ["TAIKO POUR", "THE TEAHOUSE", "BEST SILVER"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE TEAHOUSE", "BEST SILVER"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_TAIKO and gb.mem("mg_mode") == MG_PRACTICE

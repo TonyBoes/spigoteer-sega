@@ -516,7 +516,8 @@ def unbuilt_game():
 def test_an_unbuilt_venue_s_slot_plays_the_stub_in_its_own_venue(model):
     """The id is the game, not the venue (the old id 9 was both the stub and the space lounge): the slot of a venue whose game is not built,
     marked built by story_unskip, is mg_enter(its id) in that venue (its tune, its backdrop), playing the stub; the stub itself (MG_STUB)
-    and the space lounge's id stay apart. (Skipped once every planned game exists.)"""
+    and the space lounge's id stay apart. With every planned game built (all ten) no venue is left to try, so the first part is skipped and the stub
+    mechanism is tested with ids that name no game (10..15: mg.c's default, G_STUB, in the saloon's venue)."""
     gid0 = unbuilt_game()
     if gid0 is not None:
         with to_shift(model, gid0, 1) as gb:
@@ -525,7 +526,10 @@ def test_an_unbuilt_venue_s_slot_plays_the_stub_in_its_own_venue(model):
             run_until(gb, lambda: state(gb) == GS_MINI, 300)
             run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
             assert gb.mem("mg_id") == gid0 and gb.mem("venue_id") == gid0 and text(gb, 2) == "GREEN LIGHT"
-    for gid, venue in ((9, 9), (MG_STUB, 0), (MG_QUICKDRAW, 0)):
+    for gid, venue in ((9, 9), (MG_STUB, 0), (MG_QUICKDRAW, 0), (10, 0), (13, 0), (15, 0)):
         with practice(model) as gb:
             mg_enter(gb, gid, MG_PRACTICE)
             assert gb.mem("mg_id") == gid and gb.mem("venue_id") == venue, (gid, venue)
+            if gid >= 10:                       # no game of that id: the stub plays (mg.c's default)
+                run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
+                assert text(gb, 2) == "GREEN LIGHT", gid

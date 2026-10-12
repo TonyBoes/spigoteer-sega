@@ -808,16 +808,16 @@ def test_arcade_plays_it_in_chapter_2(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_bonus_mini_games_lists_and_plays_it(model):
-    """BONUS > MINI GAMES (the debug build: all unlocked): SHIRT CANNON on the eighth line (after TAIKO POUR), its details THE STADIUM; A plays it in
+    """BONUS > MINI GAMES (the debug build: all unlocked): SHIRT CANNON on the second line (chapter order), its details THE STADIUM; A plays it in
     practice (score from 0); its result's B comes back to the list on it."""
     from test_mg_list import line, tap as list_tap, to_list
     from test_scores import booted
     with to_list(booted(model)) as gb:
-        assert line(gb, 9).strip() == "SHIRT CANNON"
-        for _ in range(7):
+        assert line(gb, 3).strip() == "SHIRT CANNON"
+        for _ in range(1):
             list_tap(gb, "down")
-        assert gb.mem("ml_sel") == 7
-        assert [line(gb, r).strip() for r in range(13, 17)] == ["SHIRT CANNON", "THE STADIUM", "NO MEDAL YET", "A PLAY  B BACK"]
+        assert gb.mem("ml_sel") == 1
+        assert [line(gb, r).strip() for r in range(15, 17)] == ["THE STADIUM", "NO MEDAL YET"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_TSHIRT and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -828,7 +828,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(3)
-        assert gb.mem("ml_sel") == 7 and line(gb, 9).strip() == "SHIRT CANNON"
+        assert gb.mem("ml_sel") == 1 and line(gb, 3).strip() == "SHIRT CANNON"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -840,11 +840,11 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
     ram = with_block(v7_image(), pr_block(1 << MG_TSHIRT, best))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert line(gb, 9) == " SHIRT CANNON SILVER" or line(gb, 9).startswith(" SHIRT CANNON")
-        assert [line(gb, r).strip() for r in (2, 3, 4, 5, 6, 7, 8)] == ["? ? ?"] * 7
-        for _ in range(7):
+        assert line(gb, 3) == " SHIRT CANNON SILVER" or line(gb, 3).startswith(" SHIRT CANNON")
+        assert [line(gb, r).strip() for r in range(2, 3)] == ["? ? ?"] * 1
+        for _ in range(1):
             list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(13, 16)] == ["SHIRT CANNON", "THE STADIUM", "BEST SILVER"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE STADIUM", "BEST SILVER"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_TSHIRT and gb.mem("mg_mode") == MG_PRACTICE

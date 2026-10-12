@@ -532,12 +532,13 @@ def test_the_order_follows_the_seed(model):
 # ---- the list, the story, arcade ------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_from_the_mini_games_list(model):
-    """BONUS > MINI GAMES lists ORDER UP (second, THE BISTRO); A plays it in practice from 0."""
+    """BONUS > MINI GAMES lists ORDER UP (fourth, in chapter order; THE BISTRO); A plays it in practice from 0."""
     from test_mg_list import line, tap as list_tap, to_list
     from test_scores import booted
     with to_list(booted(model)) as gb:
-        list_tap(gb, "down")
-        assert line(gb, 3).strip() == "ORDER UP" and line(gb, 14).strip() == "THE BISTRO"
+        for _ in range(3):
+            list_tap(gb, "down")
+        assert line(gb, 5).strip() == "ORDER UP" and line(gb, 15).strip() == "THE BISTRO"
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_ORDERUP and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
