@@ -253,6 +253,35 @@ scaled to half range (gen_music.BASS_AMP 0.5, 4..11) so it stays smooth; song le
 6/5/4 -> 8/7/6 (the groove kit follows). Measured per channel with PyBoy (RMS, int8 scale): melody 4.3 -> 3.4, bass 2.5 -> 3.8,
 drums 0.9 -> 1.5. tests/test_sound.py pins the registers. Effects (channel 1 volume 8-12, noise 9-13) stay above the melody.
 
+Music step 5 (2026-10-12, owner: "use the silent channel 1 for music: a harmony line / counter-melody on every tune that steps
+aside whenever a sound effect needs channel 1 and comes back cleanly afterwards; effects stay louder and are never cut"):
+- Engine: hUGEDriver does NOT play channel 1. Each order would need a fourth WRAM pattern (192 B): buffer A (8 patterns)
+  would grow to 12 (+768 B of the ~930 B of WRAM left), the show buffer by one. Instead a tune's harmony is a compact
+  event list, 2 bytes an event (note | 0x80 for instrument B, rows), with a 4-byte header (duty and envelope of two
+  instruments) and a 0 0 end, in bank 10 next to the pattern blobs (gen_music.harm_bytes, harm_<tune>; harm_tab[] in
+  bank 2), played by src/music.c harm_tick after the driver's tick, in step with its rows like the groove (it follows
+  hUGE_ticks_per_row, so music_fast too). The driver's channel-1 mute bit stays set while a tune plays (set directly at
+  start_song: no note cut), so only harm_tick and the effects write channel 1. An event is read through harm_peek
+  (src/musicload.c, ROM0: two bytes from bank 10); periods come from the driver's own note table (exported as
+  hUGE_note_table, CREDITS.md). 1036 B of harmony for the 12 tunes; bank 10 13056 -> 14092 B (2292 free); WRAM +11 B.
+- Yielding: while an effect owns channel 1 (voice[0].busy) harm_tick writes nothing, so an effect is never cut. A
+  channel-1 effect now ends with NR12 0x08 + trigger (volume 0, DAC on) instead of NR12 0 (DAC off), and a harmony
+  rest does the same, so channel 1's DAC never switches (no click; NR52 bit 0 stays set). When the effect ends, a
+  harmony note with more than a row to go is struck again on the next frame, otherwise the next event brings the voice
+  back. Cost: up to 2 lines more on a row's first frame (PyBoy, LY at music_tick's entry and exit: title 11 -> 13).
+  The realistic peak's DMG missed-frames guard went 150 -> 165 (158 measured; P6 plus 12 dummy register reads in the music
+  tick gives the same 158: the scenario's timing spread).
+- Instruments (gen_music.HARM_INST), all volume 5 against the melody's 8 (legato 6) and the effects' 8-12: "harm" 25%
+  0x57 (slow decay), "pad" 12.5% 0x50 (held), "stab" 25% 0x52 (quick decay), "pluck" 12.5% 0x55.
+- Arrangement: tools/harmony.py (follow: a voice a third / sixth below the melody, at most one note a grid step;
+  guide: one held chord tone a chord or bar, third or seventh first, nearest to the last; stabs: off-beat chord tones),
+  from each tune's own chords (*_CHORDS in songs.py, the score sources there), in key, no second / seventh / tritone
+  against a melody note on a beat (a dominant seventh's own tritone allowed), little unison. Per tune in songs.py.
+- Mix (PyBoy RMS, one loop per tune, int8 scale): harmony 1.0-1.65 against the melody 2.7-3.5, bass 3.6-4.0, drums
+  1.3-2.0 (melody, bass and drums unchanged). Tests: tests/test_harmony.py (the lines against their tunes, the format,
+  the instruments' volumes; in the ROM: the harmony on channel 1, an effect's registers held for its whole length, the
+  harmony back after it, NR12 never 0, channel 1 under channel 2); tools/check_music.py --channels 1 checks its pitches.
+
 ## M8b as built
 
 Approved art imported (assets/art is now the source of truth; tools/extract_art.py refuses to overwrite it

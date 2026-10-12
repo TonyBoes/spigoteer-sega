@@ -5,9 +5,11 @@ owner's note lists (Drunken Sailor: our transcription of the owner's pick; rhyth
 found, music step 3); Oh! Susanna's notes are the owner's list in the rhythm of Foster's score; the arrangement (accompaniment, rhythm, instruments) is ours.  Notation: see gen_music.py.  One song row is one
 unit note (an eighth note unless the comment says sixteenth); `tempo` is frames per row (60 fps).
 The melody is channel 2 (pulse), the bass channel 3 (wave), the percussion channel 4 (noise);
-channel 1 belongs to the sound effects.  Upper-case K S H are the quiet drum kit (kick, snare,
+channel 1 is shared: a quieter harmony line (harmony(), music step 5) that steps aside whenever a sound effect needs it.  Upper-case K S H are the quiet drum kit (kick, snare,
 hat); lower-case k s h are the louder old kit the bonus tune uses.
 """
+
+import harmony as H   # noqa: E402  (tools/harmony.py: the channel-1 harmony lines' helpers)
 
 # chord -> (root, fifth) played by the bass (a seventh chord uses its triad's notes)
 CHORD = {
@@ -65,7 +67,15 @@ def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None
     if legato:
         inst = LEGATO_LEAD
     SONGS[name] = dict(tempo=tempo, buf=bufname, ch2=ch2, ch3=ch3, ch4=ch4, inst=inst, gap=gap, stac_all=stac_all,
-                       groove=groove, legato=legato)
+                       groove=groove, legato=legato, ch1="", ch1_inst=None)
+
+
+def harmony(name, tune, ch1, inst=("harm", "harm")):
+    """Music step 5: the tune's channel-1 harmony line (tokens as the melody: NOTE:ROWS, r:ROWS, ~:ROWS ties, '/2' picks
+    the second instrument), as long as the tune.  tune: its harmony.Tune (melody, chords, key: tests/test_harmony.py
+    checks the line against it).  inst: two names from gen_music.HARM_INST (instrument A, B).  src/music.c plays the
+    line itself (harm_tick), not hUGEDriver, and gives the channel to a sound effect whenever one needs it."""
+    SONGS[name].update(ch1=ch1, ch1_inst=tuple(inst), harm_tune=tune)
 
 
 # GAME TEMPO.  The owner approved these tempos for the game (sakura 150 with the lively arrangement, approved
@@ -362,6 +372,13 @@ DAN_CHORDS = [
 ]
 song("danube", 9, "A", " ".join(DAN_BARS), oompah(DAN_CHORDS, 6),
      groove="K:1 r:1 H:1 r:1 H:1 r:1")
+# Harmony (music step 5): the opening strain holds one chord tone a bar on the pad, above the rising C E G figure where
+# it lies low (the strings' sustained answer), the high strain (bars 17-24) a voice in thirds and sixths under the
+# melody, the closing bars held chord tones again.
+_t = H.Tune(" ".join(DAN_BARS), DAN_CHORDS, 6, 2, "C")
+harmony("danube", _t, " ".join([H.guide(_t, (1, 16), "E4", "E5", per_bar=True, below=False),
+                                H.follow(_t, (17, 24), "E4", "A5", grid=2, inst="/2"),
+                                H.guide(_t, (25, 32), "E4", "E5", per_bar=True, below=False)]), ("pad", "harm"))
 
 # ---------------------------------------------------------------------------------------------
 # Zoo: "Pop Goes the Weasel" (English folk tune, c. 1850), verse and second strain.  6/8, key G, dotted

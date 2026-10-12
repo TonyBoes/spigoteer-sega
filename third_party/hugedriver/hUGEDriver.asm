@@ -1880,5 +1880,7 @@ IF DEF(PREVIEW_MODE)
 ENDC
     ret
 
+;; tapper-gb: exported under a C name so src/music.c's channel-1 harmony voice plays the same pitches as the driver
+_hUGE_note_table::
 note_table:
 include "include/hUGE_note_table.inc"

@@ -14,7 +14,9 @@
 - Changes made in this repository:
   - `hUGEDriver.asm`: three C-visible aliases (`_hUGE_row`, `_hUGE_tick`, `_hUGE_current_order`) beside
     the driver's own variables, so tests can watch the playback position, and a fourth, `_hUGE_ticks_per_row`, so
-    `src/music.c` can play a tune one tick a row faster (The Chrome Cow's Last call: "the band plays faster").
+    `src/music.c` can play a tune one tick a row faster (The Chrome Cow's Last call: "the band plays faster"), and a
+    fifth, `_hUGE_note_table` (the driver's period table), so `src/music.c`'s channel-1 harmony voice (music step 5)
+    plays the same pitches as the driver.
   - `tools/rgb2sdas.py` (the driver's RGBDS-object to GBDK-object converter): accepts RGBDS 1.0.x object
     files (revision 13: section records gained a node id and line number and a flag byte; `LOW()` and
     `HIGH()` became RPN operators).
@@ -31,7 +33,7 @@ nothing is taken from the arcade game's soundtrack or any recording. The note li
 the owner 2026-10-09; "Drunken Sailor", the owner's pick for The Chrome Cow, transcribed by us 2026-10-11), entered
 token for token into `tools/songs.py` and checked against the spec by `tests/test_sound.py`; the sources of those
 specs are listed below. The arrangement of every tune (bass line,
-rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patterns by `tools/gen_music.py`.
+channel-1 harmony line, rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patterns by `tools/gen_music.py`.
 
 | Tune | Where it plays | Composer, year | Status |
 |---|---|---|---|

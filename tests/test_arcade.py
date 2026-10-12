@@ -180,7 +180,9 @@ def test_an_extra_life_plays_its_cue_over_the_music(model):
         on, mf, regs = [], [], set()
         for _ in range(40):
             gb.run(1)
-            on.append(gb.mem(NR52) & 1)
+            # the cue's registers on channel 1 (music step 5: after it the channel is not off, NR52 bit 0 stays set:
+            # the effect leaves volume 0 with the DAC on and the tune's harmony takes the channel back)
+            on.append(int(gb.mem(NR52) & 1 and (gb.mem(NR11) & 0xC0, gb.mem(NR12)) == (0x40, 0xD2)))
             mf.append(gb.mem16("music_frames"))
             regs.add((gb.mem(NR11) & 0xC0, gb.mem(NR12)))
             assert gb.mem("cur_tune") != 255, "the music plays on"

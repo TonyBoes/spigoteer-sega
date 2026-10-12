@@ -171,7 +171,8 @@ def test_sound_is_on_and_the_title_tune_plays(srom):
     # (on a row's first frame the tick can land just after the frame boundary PyBoy stops at: the count may lag by one)
     assert abs(srom.mem16("music_frames") - (frames0 + 120)) <= 1, "driver ticked once per frame"
     assert srom.mem("hUGE_row") != row0, "the song advances"
-    assert seen == 0xE, f"channels 2, 3 and 4 play the title tune, 1 stays free (NR52 channel bits seen: {seen:#x})"
+    want = 0xF if songs.SONGS["entertainer"]["ch1"] else 0xE      # music step 5: channel 1 plays the harmony
+    assert seen == want, f"channels 1 (harmony), 2, 3 and 4 play the title tune (NR52 channel bits seen: {seen:#x})"
 
 
 def test_music_is_audible_and_changes(srom):
@@ -194,7 +195,10 @@ def test_sfx_drive_channel_1_and_4_and_end(sgb):
     assert sgb.mem(NR52) & 1, "fill sound on channel 1"
     sgb.release("a")
     sgb.run(60)
-    assert not sgb.mem(NR52) & 1, "channel 1 is silent again once the effect ends (music does not use it)"
+    # music step 5: the effect's end leaves channel 1 at volume 0 with its DAC on (NR12 0x08, no click), and the level
+    # tune's harmony takes the channel back (tests/test_harmony.py); before, the music did not use it and NR52 bit 0 cleared
+    harm = {gm.HARM_INST[k][1] for k in songs.SONGS["susanna"]["ch1_inst"] or ()}
+    assert sgb.mem(0xFF12) in {0x08} | harm, f"the effect let go of channel 1 (NR12 {sgb.mem(0xFF12):#x})"
     inject_mug(sgb, 1, 17)
     run_until(sgb, lambda: sfx_count(sgb, SFX_BREAK) == 1, 6)
     sgb.run(1)

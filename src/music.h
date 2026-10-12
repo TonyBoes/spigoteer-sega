@@ -23,9 +23,17 @@ typedef struct {
     const uint8_t *groove;  // NULL, or a drum loop src/music.c plays on channel 4: {rows, frames per row, one byte per row: 0 none, 1 kick, 2 snare, 3 hat}
 } tune_t;
 extern const tune_t tunes[TUNE_COUNT];
+// Channel 1 harmony voice (music step 5): played by src/music.c itself, not by hUGEDriver (a fourth pattern per order
+// would not fit WRAM). harm_tab[tune]: NULL or the tune's track in ROM bank HARM_BANK: duty A, envelope A, duty B,
+// envelope B (NR11, NR12), then events of two bytes, note (bits 0-6: hUGE note index or HARM_REST; bit 7: instrument
+// B) and rows (1..255); rows 0 ends the track (it starts again, in step with the driver's loop). tools/gen_music.py.
+#define HARM_BANK 10
+#define HARM_REST 0x7F
+extern const unsigned char * const harm_tab[TUNE_COUNT];
 extern const unsigned char drum_kit[3][4];         // NR41, NR42, NR43, NR44 of kick, snare, hat (build/music_data.c)
 extern unsigned char mus_buf_a[], mus_buf_b[];     // WRAM pattern buffers (build/music_data.c)
 void mus_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n);   // unbanked (src/musicload.c)
+uint16_t harm_peek(const uint8_t *p);       // unbanked (src/musicload.c): p[0] | p[1] << 8 from bank HARM_BANK
 
 extern uint8_t sound_on;        // music enabled (SELECT on the title toggles it)
 extern uint8_t last_sfx;        // id of the SFX started last (SFX_*), for tests

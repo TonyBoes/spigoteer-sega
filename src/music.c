@@ -3,9 +3,11 @@
 // pointers, so it only sees data in the bank it runs from, or in WRAM. The title, show and venue tunes are too big
 // for bank 2: their patterns sit in ROM bank 10 and music_tick copies them into WRAM (mus_buf_a: the title or the
 // level's venue tune; mus_buf_b: the show tune, copied once and kept), a slice per frame, before a tune starts.
-// The music uses channels 2 and 3 (melody, bass) and 4 (percussion in most tunes). Sound
-// effects own channels 1 and 4: while one plays, the driver is told to leave that channel alone
-// (hUGE_mute_channel) and the effect writes the registers itself, after the driver's tick.
+// The music uses channels 2 and 3 (melody, bass) and 4 (percussion in most tunes) through the driver, and channel 1 for
+// a quieter harmony line that harm_tick plays itself (music step 5). Sound effects own channels 1 and 4: while one
+// plays, the driver is told to leave channel 4 alone (hUGE_mute_channel) and harm_tick writes nothing to channel 1;
+// the effect writes the registers itself, after the music's tick. The driver never touches channel 1 (its mute bit
+// stays set while a tune plays; its channel-1 patterns are empty anyway).
 #pragma bank 2
 #include <gb/gb.h>
 #include <stdint.h>
@@ -29,6 +31,13 @@ extern unsigned char hUGE_ticks_per_row;   // the driver's tempo, as hUGE_init s
 uint8_t music_fast;                   // 1: a venue tune plays one frame a row faster (story: TWIST_FAST_TUNE)
 static uint8_t fast_now;              // the running tune plays fast
 static uint16_t ld_pos;               // bytes copied so far
+extern const uint16_t hUGE_note_table[];   // the driver's 72 periods (exported for this: CREDITS.md)
+static const uint8_t *harm;           // the running tune's channel-1 harmony track (bank HARM_BANK), NULL: none
+static const uint8_t *h_ptr;          // its next event
+static uint8_t h_inst[4];             // duty A, envelope A, duty B, envelope B (the track's header)
+static uint8_t h_note;                // the current event's note byte (HARM_REST: a rest)
+static uint8_t h_rows, h_cnt;         // rows left in the event, frames left in the row
+static uint8_t h_sound;               // 1: the current harmony note sounds on channel 1 (0: rest, or an effect took it)
 #define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
 #define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
 #define FRAME_TIMA          69     // one frame (1/59.73 s) in 4096 Hz timer counts (68.6)
@@ -84,7 +93,13 @@ static void mute_unless_sfx(uint8_t ch, uint8_t v) {
     set_mute(ch, !mus_active || voice[v].busy);
 }
 
+static void harm_off(void) {          // the harmony lets go of channel 1 (volume 0, DAC kept on: no click)
+    if (h_sound && !voice[0].busy) { NR12_REG = 0x08; NR14_REG = 0x80; }
+    h_sound = 0;
+}
+
 static void silence_music(void) {
+    harm_off(); harm = 0;
     mus_active = 0; ld_tune = TUNE_NONE;
     set_mute(0, 1); set_mute(1, 1); set_mute(2, 1); set_mute(3, 1);
 }
@@ -103,12 +118,15 @@ static void start_song(uint8_t tune) {
     hUGE_init(tunes[tune].song);    // clears the driver's channel mute mask
     fast_now = music_fast && tune >= TUNE_VENUE0;
     hUGE_ticks_per_row -= fast_now;   // (the groove below follows: one frame less a row)
-    muted = 0;
+    hUGE_mute_mask = muted = 1;     // channel 1 is harm_tick's: the driver leaves it alone (set directly: no note cut,
+                                    // so an effect still sounding there plays on)
     mus_active = 1;
     music_frames = 0;
     groove = tunes[tune].groove; g_pos = 0; g_cnt = 1;      // the groove's first row falls on the song's first row
-    mute_unless_sfx(0, 0);          // a sound effect that is still sounding keeps its channels
-    mute_unless_sfx(3, 1);
+    harm_off();
+    harm = harm_tab[tune]; h_rows = 0; h_cnt = 1;           // so does the harmony's first event
+    if (harm) { mus_copy(HARM_BANK, harm, h_inst, 4); h_ptr = harm + 4; }
+    mute_unless_sfx(3, 1);          // a sound effect that is still sounding keeps channel 4
 }
 
 static void begin_load(uint8_t tune, uint8_t play) {
@@ -180,9 +198,10 @@ static void voice_tick(uint8_t i) {
     if (!v->busy) return;
     if (--v->left == 0) {
         if (++v->step < v->def->nsteps) { step_begin(v); return; }
-        if (i == 0) NR12_REG = 0; else NR42_REG = 0;     // DAC off: silent
+        if (i == 0) { NR12_REG = 0x08; NR14_REG = 0x80; }   // channel 1: volume 0, the DAC stays on (the harmony comes
+        else NR42_REG = 0;                                  // back on it without the click of a DAC switching); 4: DAC off
         v->busy = 0;
-        mute_unless_sfx(i ? 3 : 0, i);
+        if (i) mute_unless_sfx(3, 1);    // (channel 1: harm_tick picks the harmony up again by itself)
         return;
     }
     if (v->slide) {
@@ -204,6 +223,41 @@ static void groove_tick(void) {
         const uint8_t *k = drum_kit[d - 1];
         NR41_REG = k[0]; NR42_REG = k[1]; NR43_REG = k[2]; NR44_REG = k[3];
     }
+}
+
+static void harm_note(void) {
+    uint16_t p = hUGE_note_table[h_note & 0x7F];
+    const uint8_t *in = &h_inst[(h_note & 0x80) ? 2 : 0];
+    NR10_REG = 0;
+    NR11_REG = in[0];
+    NR12_REG = in[1];
+    NR13_REG = (uint8_t)p;
+    NR14_REG = 0x80 | (uint8_t)(p >> 8);
+    h_sound = 1;
+}
+
+// The channel-1 harmony (music step 5): one event (a note or a rest of n rows) after another, counted in step with the
+// driver's rows like the groove, looping with the tune. While a sound effect has channel 1 nothing is written; when it
+// ends, a harmony note with more than a row still to go is struck again, otherwise the next event brings the voice back.
+static void harm_tick(void) {
+    uint16_t ev;
+    if (voice[0].busy) h_sound = 0;                      // the effect has the channel (it overwrote the note)
+    if (--h_cnt == 0) {
+        h_cnt = hUGE_ticks_per_row;
+        if (h_rows == 0 || --h_rows == 0) {
+            ev = harm_peek(h_ptr);
+            if (!(ev >> 8)) {                            // the end of the track: from the top, as the driver loops
+                h_ptr = harm + 4;
+                ev = harm_peek(h_ptr);
+            }
+            h_ptr += 2;
+            h_note = (uint8_t)ev; h_rows = ev >> 8;
+            if ((h_note & 0x7F) == HARM_REST) harm_off();
+            else if (!voice[0].busy) harm_note();
+            return;
+        }
+    }
+    if (!h_sound && h_rows > 1 && (h_note & 0x7F) != HARM_REST && !voice[0].busy) harm_note();   // back after an effect
 }
 
 static void tick(void) {
@@ -232,6 +286,7 @@ static void tick(void) {
     if (mus_active) {
         hUGE_dosound();
         groove_tick();
+        if (harm) harm_tick();
         music_frames++;
         if (!tunes[cur_tune].loop && music_frames >= tunes[cur_tune].frames) {
             cur_tune = TUNE_NONE;

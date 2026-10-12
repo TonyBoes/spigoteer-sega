@@ -4,6 +4,7 @@ output (NR51), find the dominant pitch inside each melody note, and print it bes
 song source says should sound.  A sanity check of the song data and the driver, not a listening test.
 
     check_music.py                     # all tunes, first 8 bars, melody (ch2) and bass (ch3)
+    check_music.py --channels 1        # the channel-1 harmony (music step 5)
     check_music.py ballgame --bars 4   # one tune
     check_music.py --model cgb
 
@@ -23,7 +24,7 @@ from gbtools import Rom  # noqa: E402
 from pyboy import PyBoy  # noqa: E402
 
 NR51 = 0xFF25
-SOLO = {2: 0x22, 3: 0x44, 4: 0x88}
+SOLO = {1: 0x11, 2: 0x22, 3: 0x44, 4: 0x88}
 TUNE_SHOW = 4           # music.h: TUNE_TITLE, CLEAR, OVER, BONUS, SHOW, VENUE0..9
 TUNE_VENUE0 = 5
 
@@ -107,8 +108,13 @@ def check(model, source, bars, solo):
     t = songs.SONGS[source]
     tempo = t["tempo"]
     legacy = False
-    text = t["ch2"] if solo == 2 else t["ch3"]
-    rows = gm.rows_for(solo, text, 1, tempo, legacy, t.get("gap", True), t.get("stac_all"), t.get("legato"))
+    if solo == 1:              # the harmony (songs.harmony): its events as rows, no note cuts
+        rows = []
+        for n, note, inst in gm.harm_events(source, t, gm.build(source, t, False)["total"]):
+            rows += [(gm.REST if note is None else note, inst + 1, 0)] + [(gm.REST, 0, 0)] * (n - 1)
+    else:
+        text = t["ch2"] if solo == 2 else t["ch3"]
+        rows = gm.rows_for(solo, text, 1, tempo, legacy, t.get("gap", True), t.get("stac_all"), t.get("legato"))
     # note list: (row, rows long, hUGE note index)
     notes = []
     for i, (n, ins, eff) in enumerate(rows):
@@ -133,7 +139,9 @@ def check(model, source, bars, solo):
         f0 = first_frame(row) + 1
         cut = next(((rr - row) * tempo + (rows[rr][2] & 0xFF) for rr in range(row, row + ln)
                     if (rows[rr][2] & 0xF00) == 0xE00), None)
-        if cut is not None and cut < 0.8 * ln * tempo:     # a short (staccato) note: listen to all of what sounds
+        if solo == 1:                                       # a harmony note: its attack (some instruments decay fast)
+            a, b = int((f0 + 1) * spf), int((f0 + min(0.8 * ln * tempo, 10)) * spf)
+        elif cut is not None and cut < 0.8 * ln * tempo:     # a short (staccato) note: listen to all of what sounds
             a, b = int((f0 + 0.05 * cut) * spf), int((f0 + 0.95 * cut) * spf)
         else:
             a = int((f0 + 0.2 * ln * tempo) * spf)
@@ -174,7 +182,7 @@ def main():
         for solo in [int(c) for c in a.channels.split(",")]:
             res, bad = check(a.model, source, a.bars, solo)
             total_bad += bad
-            label = {2: "melody ch2", 3: "bass ch3"}[solo]
+            label = {1: "harmony ch1", 2: "melody ch2", 3: "bass ch3"}[solo]
             print(f"== {source}: {label}, first {a.bars} bars, {len(res)} notes, {bad} off ==")
             if a.v or bad:
                 print("  bar row len  expected(Hz)  detected(Hz)  note")
