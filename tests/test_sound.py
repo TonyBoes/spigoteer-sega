@@ -542,9 +542,10 @@ def test_select_does_nothing_outside_the_title(gb):
     assert gb.mem("sound_on") == 1
 
 
-# ---- saved hi score (M10b: the top-5 table; SRAM version 6 since the 10th venue: "TPR6", 5 x (3 initials, 3-byte
-# score), the story progress at 34, the step reached at 35, the unlocked tunes at 36-37, checksum at 38) ----
-SAVE_SUM = 38
+# ---- saved hi score (M10b: the top-5 table; SRAM version 7 since the three modes: the ARCADE table's block at 0x80,
+# "HSA1", 5 x (3 initials, 3-byte score), checksum at +34; the LEVEL harness's game overs go into it) ----
+TBL = 0x80
+SAVE_SUM = TBL + 34
 def earn_fifty_and_lose(rom):
     start_game(rom)
     rom.write("intro_timer", 255)
@@ -566,7 +567,8 @@ def test_hi_score_survives_a_reset(model):
     assert hi_score(rom) == 0, "a fresh cartridge starts at 0"
     earn_fifty_and_lose(rom)
     ram = save_ram(rom)
-    assert ram[:4] == b"TPR6" and ram[4:7] == b"AAA" and int.from_bytes(ram[7:10], "little") == 50
+    assert ram[:4] == b"TPR7" and ram[TBL:TBL + 4] == b"HSA1"
+    assert ram[TBL + 4:TBL + 7] == b"AAA" and int.from_bytes(ram[TBL + 7:TBL + 10], "little") == 50
     with make_rom(model, ram, sound=False) as again:     # power cycle with the same battery RAM
         again.run(120)
         assert hi_score(again) == 50
@@ -605,8 +607,8 @@ def test_invalid_save_data_loads_as_zero(model):
     earn_fifty_and_lose(rom)
     good = save_ram(rom)
     cases = {
-        "bad signature": corrupt(good, lambda r: r.__setitem__(0, ord("X"))),
-        "flipped score bit": corrupt(good, lambda r: r.__setitem__(7, r[7] ^ 0x01)),
+        "bad signature": corrupt(good, lambda r: r.__setitem__(TBL, ord("X"))),
+        "flipped score bit": corrupt(good, lambda r: r.__setitem__(TBL + 7, r[TBL + 7] ^ 0x01)),
         "bad checksum": corrupt(good, lambda r: r.__setitem__(SAVE_SUM, (r[SAVE_SUM] + 1) & 255)),
         "bad complement": corrupt(good, lambda r: r.__setitem__(SAVE_SUM + 1, r[SAVE_SUM + 1] ^ 0xFF)),
         "blank": bytes(len(good)),
@@ -614,8 +616,8 @@ def test_invalid_save_data_loads_as_zero(model):
     }
 
     def with_checksum(r):                       # a well-formed record whose score is absurd (>= 1,000,000)
-        r[7:10] = (2_000_000).to_bytes(3, "little")
-        c = (0x5A + sum(r[:SAVE_SUM])) & 255
+        r[TBL + 7:TBL + 10] = (2_000_000).to_bytes(3, "little")
+        c = (0x5A + sum(r[TBL:SAVE_SUM])) & 255
         r[SAVE_SUM], r[SAVE_SUM + 1] = c, c ^ 0xFF
     cases["out of range"] = corrupt(good, with_checksum)
     for name, ram in cases.items():

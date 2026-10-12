@@ -1,6 +1,8 @@
 // M10b arcade screens: the initials entry after a game over that made the top 5, and the top-5 table (after every
-// game over, and from the title after TITLE_IDLE_FRAMES without a key: title.c). The table itself and its SRAM copy
-// are save.c's. Both screens are the HUD's style: light HUD glyphs on the dark band (BG palette 1 on CGB, BGP on
+// game over, after the story's credits, and from the title after TITLE_IDLE_FRAMES without a key: title.c, which
+// cycles the three tables). The three modes: one table per mode, save.c score_tbl says which; its header names the
+// mode ("ARCADE HIGH SCORES", "STORY HIGH SCORES", "CLASSIC HIGH SCORES"). The tables and their SRAM copies are
+// save.c's. Both screens are the HUD's style: light HUD glyphs on the dark band (BG palette 1 on CGB, BGP on
 // DMG), a panel line above and below, every line centred on the 20 columns.
 // LCD off to enter; afterwards every tilemap change goes through the VBlank queue (vq_add) from WRAM buffers.
 // Initials: Up / Down change the letter (A..Z, then a space), Left / Right move between the three, A (or START)
@@ -86,16 +88,20 @@ static void screen_begin(void) {
 }
 
 // ---- the table --------------------------------------------------------------------------------
+static const char *const tbl_head[TOP_TABLES] = { "ARCADE HIGH SCORES", "STORY HIGH SCORES", "CLASSIC HIGH SCORES" };
+
+// table score_tbl (MODE_*), its header naming the mode
 void scores_table(void) BANKED {
-    uint8_t i, k;
+    uint8_t i, k, *nm = top_names + score_tbl * (TOP_N * 3);
+    uint32_t *sc = top_scores + score_tbl * TOP_N;
     char s[13];
     screen_begin();
-    text_at(ROW_HEAD, 255, "HIGH SCORES");
+    text_at(ROW_HEAD, 255, tbl_head[score_tbl]);
     s[1] = ' '; s[5] = ' '; s[12] = 0;
     for (i = 0; i < TOP_N; i++) {
         s[0] = '1' + i;
-        for (k = 0; k < 3; k++) s[2 + k] = top_names[i * 3 + k];
-        six_digits(s + 6, top_scores[i]);
+        for (k = 0; k < 3; k++) s[2 + k] = nm[i * 3 + k];
+        six_digits(s + 6, sc[i]);
         text_at(ROW_FIRST + 2 * i, TABLE_COL, s);
     }
     scores_timer = 0;
@@ -145,7 +151,7 @@ uint8_t scores_update(uint8_t pressed) BANKED {
         return 0;
     }
     if (pressed & (J_A | J_START)) {                    // save the initials, then the table
-        c = top_names + new_rank * 3;
+        c = top_names + score_tbl * (TOP_N * 3) + new_rank * 3;
         c[0] = ini_name[0]; c[1] = ini_name[1]; c[2] = ini_name[2];
         hi_save();
         scores_table();

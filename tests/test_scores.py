@@ -107,22 +107,71 @@ def progress_unlocks(story, step):
     return m | (JINGLES if story else 0)
 
 
+# ---- version 7 (the three modes): the main block at 0 ("TPR7", progress, step, tunes, checksum, complement) and one
+# top 5 per mode in its own block (src/save.c)
+MODE_ARCADE, MODE_STORY, MODE_CLASSIC = range(3)
+V7_SUM = 8
+TBL_AT = (0x80, 0xC0, 0x100)
+TBL_MAGIC = (b"HSA1", b"HSS1", b"HSC1")
+TBL_SUM = 4 + TOP_N * 6
+
+
+def tbl_block(entries, t):
+    """Table t's SRAM block (36 bytes): magic, 5 entries best first (padded), checksum, complement."""
+    r = bytearray(TBL_SUM + 2)
+    r[0:4] = TBL_MAGIC[t]
+    entries = list(entries) + [("   ", 0)] * (TOP_N - len(entries))
+    for i, (n, sc) in enumerate(entries):
+        r[4 + i * 6:7 + i * 6] = n.encode()
+        r[7 + i * 6:10 + i * 6] = sc.to_bytes(3, "little")
+    c = (0x5A + sum(r[:TBL_SUM])) & 255
+    r[TBL_SUM], r[TBL_SUM + 1] = c, c ^ 0xFF
+    return bytes(r)
+
+
+def v7_image(arcade=(), story=0, step=0, tunes=1, story_tbl=(), classic=(), size=0x2000):
+    """A version-7 save (today's): the main block and the three tables."""
+    r = bytearray(size)
+    r[0:4] = b"TPR7"
+    r[4], r[5] = story, step
+    r[6:8] = tunes.to_bytes(2, "little")
+    c = (0x5A + sum(r[:V7_SUM])) & 255
+    r[V7_SUM], r[V7_SUM + 1] = c, c ^ 0xFF
+    for t, e in enumerate((arcade, story_tbl, classic)):
+        r[TBL_AT[t]:TBL_AT[t] + TBL_SUM + 2] = tbl_block(e, t)
+    return bytes(r)
+
+
+def main_block(ram):
+    """A version-7 save's main block, checked: (progress, step, tunes)."""
+    assert ram[:4] == b"TPR7"
+    c = (0x5A + sum(ram[:V7_SUM])) & 255
+    assert ram[V7_SUM] == c and ram[V7_SUM + 1] == c ^ 0xFF, "checksum"
+    return ram[4], ram[5], int.from_bytes(ram[6:8], "little")
+
+
 def saved_tunes(ram):
-    return int.from_bytes(ram[V4_SUM:V4_SUM + 2], "little")
+    return main_block(ram)[2]
 
 
-def parse_save(ram):
-    """The table of a version-6 save (the game writes nothing else since the 10th venue); checks the checksum."""
-    assert ram[:4] == b"TPR6"
-    c = (0x5A + sum(ram[:V6_SUM])) & 255
-    assert ram[V6_SUM] == c and ram[V6_SUM + 1] == c ^ 0xFF, "checksum"
-    return [(ram[4 + i * 6:7 + i * 6].decode(), int.from_bytes(ram[7 + i * 6:10 + i * 6], "little")) for i in range(TOP_N)]
+def saved_story(ram):
+    return main_block(ram)[:2]
 
 
-def table(rom):
-    """The WRAM working copy: [(initials, score)]."""
-    names = bytes(rom.read("top_names", TOP_N * 3)).decode()
-    raw = rom.read("top_scores", TOP_N * 4)
+def parse_save(ram, t=MODE_ARCADE):
+    """Table t of a version-7 save (the main block and the table's block checked)."""
+    main_block(ram)
+    b = ram[TBL_AT[t]:TBL_AT[t] + TBL_SUM + 2]
+    assert b[:4] == TBL_MAGIC[t]
+    c = (0x5A + sum(b[:TBL_SUM])) & 255
+    assert b[TBL_SUM] == c and b[TBL_SUM + 1] == c ^ 0xFF, "table checksum"
+    return [(b[4 + i * 6:7 + i * 6].decode(), int.from_bytes(b[7 + i * 6:10 + i * 6], "little")) for i in range(TOP_N)]
+
+
+def table(rom, t=MODE_ARCADE):
+    """The WRAM working copy of table t: [(initials, score)]."""
+    names = bytes(rom.read("top_names", 3 * TOP_N * 3)).decode()[t * TOP_N * 3:]
+    raw = rom.read("top_scores", 3 * TOP_N * 4)[t * TOP_N * 4:]
     return [(names[i * 3:i * 3 + 3], int.from_bytes(raw[i * 4:i * 4 + 4], "little")) for i in range(TOP_N)]
 
 
@@ -158,21 +207,26 @@ def test_a_fresh_cartridge_has_an_empty_table(model):
         assert hi_score(rom) == 0 and rom.mem("save_migrated") == 0
 
 
+FIVE = [("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)]
+EMPTY = [("   ", 0)] * TOP_N
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_score_goes_in_at_its_rank_and_pushes_the_rest_down(model):
-    ram = v2_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
+    ram = v7_image(FIVE)
     with booted(model, ram) as rom:
         assert table(rom)[0] == ("ABC", 500) and hi_score(rom) == 500
         game_over_with(rom, 350)
-        assert rom.mem("new_rank") == 2
+        assert rom.mem("new_rank") == 2 and rom.mem("score_tbl") == MODE_ARCADE
         want = [("ABC", 500), ("DEF", 400), ("AAA", 350), ("GHI", 300), ("JKL", 200)]
         assert table(rom) == want
+        assert table(rom, MODE_STORY) == EMPTY and table(rom, MODE_CLASSIC) == EMPTY, "the other tables untouched"
         assert parse_save(save_ram(rom)) == want, "saved at game over, before the initials"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_ties_go_below_and_low_scores_stay_out(model):
-    ram = v2_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
+    ram = v7_image(FIVE)
     for v, rank in ((300, 3), (100, 5), (50, 5), (900, 0)):
         with booted(model, ram) as rom:
             game_over_with(rom, v)
@@ -182,51 +236,77 @@ def test_ties_go_below_and_low_scores_stay_out(model):
                 assert t[rank] == ("AAA", v) and [s for _, s in t] == sorted([s for _, s in t], reverse=True)
                 assert hi_score(rom) == t[0][1]
             else:
-                assert t == [("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)]
-                want = v6_image([("ABC", 500), ("DEF", 400), ("GHI", 300), ("JKL", 200), ("MNO", 100)])
-                assert save_ram(rom)[:V6_SUM + 2] == want[:V6_SUM + 2], "SRAM untouched (since the boot's migration)"
+                assert t == FIVE
+                assert save_ram(rom)[:0x140] == ram[:0x140], "SRAM untouched"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_table_survives_a_reset(model):
-    ram = v2_image([("ABC", 500), ("DEF", 400)])
+    ram = v7_image([("ABC", 500), ("DEF", 400)], story_tbl=[("STO", 9000)], classic=[("CLA", 70)])
     with booted(model, ram) as rom:
         game_over_with(rom, 450)
         saved = save_ram(rom)
     assert parse_save(saved)[:3] == [("ABC", 500), ("AAA", 450), ("DEF", 400)]
+    assert parse_save(saved, MODE_STORY)[0] == ("STO", 9000) and parse_save(saved, MODE_CLASSIC)[0] == ("CLA", 70)
     with booted(model, saved) as again:
         assert table(again)[:3] == [("ABC", 500), ("AAA", 450), ("DEF", 400)]
+        assert table(again, MODE_STORY)[0] == ("STO", 9000) and table(again, MODE_CLASSIC)[0] == ("CLA", 70)
         assert hi_score(again) == 500 and hi_shown(again) == hi_tiles("000500")
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_an_old_save_migrates_to_entry_one_as_spg(model):
-    with booted(model, v1_image(12340)) as rom:
-        assert rom.mem("save_migrated") == 1
-        assert table(rom) == [("SPG", 12340)] + [("   ", 0)] * 4
-        assert hi_score(rom) == 12340 and hi_shown(rom) == hi_tiles("012340"), "the title's HI is the top score"
+def test_a_version_6_save_keeps_its_story_and_starts_the_tables_fresh(model):
+    """Q4 (owner 2026-10-11): the old arcade's top 5 is dropped; the story progress and the unlocks are kept, written
+    back as version 7 at once (the main block and three empty tables)."""
+    tunes = 1 | 1 << 5 | 1 << 6 | 0x1E
+    want = tunes | progress_unlocks(3, 2)                # (plus what the progress implies, as every migration)
+    with booted(model, v6_image(FIVE, story=3, step=2, tunes=tunes)) as rom:
+        assert rom.mem("save_migrated") == 6
+        assert table(rom) == EMPTY and table(rom, MODE_STORY) == EMPTY and table(rom, MODE_CLASSIC) == EMPTY
+        assert hi_score(rom) == 0 and hi_shown(rom) == hi_tiles("000000")
+        assert (rom.mem("story_progress"), rom.mem("story_reached"), rom.mem16("tune_unlocked")) == (3, 2, want)
         ram = save_ram(rom)
-    assert parse_save(ram) == [("SPG", 12340)] + [("   ", 0)] * 4, "written back as version 5 at once"
+    assert main_block(ram) == (3, 2, want)
+    assert all(parse_save(ram, t) == EMPTY for t in range(3)), "three empty tables, each with its own checksum"
     with booted(model, ram) as again:
-        assert again.mem("save_migrated") == 0 and table(again)[0] == ("SPG", 12340)
+        assert again.mem("save_migrated") == 0 and again.mem("story_progress") == 3
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_broken_save_loads_as_an_empty_table(model):
-    good = v2_image([("ABC", 500), ("DEF", 400)])
-    cases = {
-        "bad v1 checksum": bytes(bytearray(v1_image(100))[:8]) + b"\0\0" + bytes(0x2000 - 10),
-        "v1 out of range": v1_image(1_000_000),
-        "bad letter": v2_image([("A1C", 500)]),
-        "out of order": v2_image([("ABC", 400), ("DEF", 500)]),
-        "out of range": v2_image([("ABC", 1_000_000)]),
-        "bad checksum": good[:V2_SUM] + bytes([good[V2_SUM] ^ 1]) + good[V2_SUM + 1:],
-        "unknown version": b"TPR9" + good[4:],
-    }
-    for name, ram in cases.items():
+def test_a_version_1_or_2_save_is_a_fresh_cartridge(model):
+    for ram in (v1_image(12340), v2_image(FIVE)):
         with booted(model, ram) as rom:
-            assert table(rom) == [("   ", 0)] * TOP_N, name
-            assert hi_score(rom) == 0 and rom.mem("save_migrated") == 0, name
+            assert rom.mem("save_migrated") == 0 and table(rom) == EMPTY and hi_score(rom) == 0
+            assert rom.mem("story_progress") == 0
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_bad_block_empties_only_its_own_table(model):
+    good = v7_image(FIVE, story=4, step=1, story_tbl=[("STO", 900)], classic=[("CLA", 80)])
+
+    def edit(t, k, v):
+        r = bytearray(good)
+        r[TBL_AT[t] + k] = v
+        return bytes(r)
+    cases = {
+        "bad letter": (edit(MODE_ARCADE, 5, ord("1")), MODE_ARCADE),
+        "out of order": (bytes(good[:TBL_AT[0]]) + tbl_block([("ABC", 400), ("DEF", 500)], 0) + good[TBL_AT[0] + 36:], MODE_ARCADE),
+        "out of range": (bytes(good[:TBL_AT[1]]) + tbl_block([("ABC", 1_000_000)], 1) + good[TBL_AT[1] + 36:], MODE_STORY),
+        "bad checksum": (edit(MODE_CLASSIC, TBL_SUM, good[TBL_AT[2] + TBL_SUM] ^ 1), MODE_CLASSIC),
+        "wrong magic": (edit(MODE_STORY, 2, ord("A")), MODE_STORY),
+    }
+    full = {MODE_ARCADE: FIVE, MODE_STORY: [("STO", 900)] + EMPTY[1:], MODE_CLASSIC: [("CLA", 80)] + EMPTY[1:]}
+    for name, (ram, bad) in cases.items():
+        with booted(model, ram) as rom:
+            for t in range(3):
+                assert table(rom, t) == (EMPTY if t == bad else full[t]), (name, t)
+            assert rom.mem("story_progress") == 4 and rom.mem("save_migrated") == 0, name
+    r = bytearray(good)
+    r[V7_SUM] ^= 1                                      # a bad main block: no story, the tables kept
+    with booted(model, bytes(r)) as rom:
+        assert rom.mem("story_progress") == 0 and table(rom) == FIVE and table(rom, MODE_STORY)[0] == ("STO", 900)
+    with booted(model, b"TPR9" + good[4:]) as rom:     # an unknown version: nothing
+        assert table(rom) == EMPTY and hi_score(rom) == 0 and rom.mem("save_migrated") == 0
 
 
 # ---- (b) endless loops ------------------------------------------------------------------------------------
@@ -366,7 +446,7 @@ def test_the_new_letters_are_in_the_hud_style():
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_entering_initials_then_the_table(model):
-    with booted(model, v2_image([("ABC", 500), ("DEF", 400), ("GHI", 300)])) as gb:
+    with booted(model, v7_image([("ABC", 500), ("DEF", 400), ("GHI", 300)])) as gb:
         to_initials(gb, 450)
         assert screen_text(gb, ROW_HEAD).strip() == "NEW HIGH SCORE"
         assert screen_text(gb, ROW_SCORE).strip() == "000450"
@@ -402,7 +482,7 @@ def test_entering_initials_then_the_table(model):
         run_until(gb, lambda: state(gb) == GS_SCORES, 30)
         gb.run(2)
         assert table(gb)[:4] == [("ABC", 500), ("JXQ", 450), ("DEF", 400), ("GHI", 300)]
-        assert screen_text(gb, ROW_HEAD).strip() == "HIGH SCORES"
+        assert screen_text(gb, ROW_HEAD).strip() == "ARCADE HIGH SCORES"
         assert [screen_text(gb, ROW_FIRST + 2 * i) for i in range(5)] == [
             "    1 ABC 000500    ", "    2 JXQ 000450    ", "    3 DEF 000400    ", "    4 GHI 000300    ",
             "    5     000000    "]
@@ -428,7 +508,7 @@ def test_no_entry_shows_the_table_briefly_then_the_title(boot):
     run_until(boot, lambda: state(boot) == GS_SCORES, 260)      # by itself after the GAME OVER banner
     assert table(boot) == before
     boot.run(2)
-    assert screen_text(boot, ROW_HEAD).strip() == "HIGH SCORES"
+    assert screen_text(boot, ROW_HEAD).strip() == "ARCADE HIGH SCORES"
     run_until(boot, lambda: state(boot) == TITLE, 320)          # and the title after 5 s
 
 
@@ -449,7 +529,7 @@ def test_an_idle_title_shows_the_table_and_comes_back(boot):
     assert state(boot) == TITLE
     run_until(boot, lambda: state(boot) == GS_SCORES, 120)
     boot.run(3)
-    assert screen_text(boot, ROW_HEAD).strip() == "HIGH SCORES"
+    assert screen_text(boot, ROW_HEAD).strip() == "ARCADE HIGH SCORES"
     assert screen_text(boot, ROW_FIRST) == "    1     000000    "
     assert len(boot.visible_sprites()) == 0, "no title sprites on the table"
     run_until(boot, lambda: state(boot) == TITLE, 320)
@@ -460,8 +540,43 @@ def test_an_idle_title_shows_the_table_and_comes_back(boot):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_idle_title_cycles_the_three_tables(model):
+    ram = v7_image([("ARC", 300)], story_tbl=[("STO", 200)], classic=[("CLA", 100)])
+    with booted(model, ram) as gb:
+        for head, first in (("ARCADE HIGH SCORES", "    1 ARC 000300    "), ("STORY HIGH SCORES", "    1 STO 000200    "),
+                            ("CLASSIC HIGH SCORES", "    1 CLA 000100    "), ("ARCADE HIGH SCORES", "    1 ARC 000300    ")):
+            idle_title(gb)
+            run_until(gb, lambda: state(gb) == GS_SCORES, 30)
+            gb.run(2)
+            assert screen_text(gb, ROW_HEAD).strip() == head and screen_text(gb, ROW_FIRST) == first
+            tap(gb, "b")
+            run_until(gb, lambda: state(gb) == TITLE, 30)
+            gb.run(3)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_hi_line_shows_the_table_of_the_mode_under_play_s_cursor(model):
+    from conftest import K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, menu_items, menu_tap, title_pick
+    ram = v7_image([("ARC", 300)], story=2, story_tbl=[("STO", 2000)], classic=[("CLA", 10)])
+    with booted(model, ram) as gb:
+        gb.run(5)
+        assert hi_shown(gb) == hi_tiles("000300"), "the top level: ARCADE's"
+        title_pick(gb, K_PLAY)
+        want = {K_CONTINUE: "002000", K_STORY: "002000", K_ARCADE: "000300", K_CLASSIC: "000010"}
+        assert menu_items(gb) == [K_CONTINUE, K_STORY, K_ARCADE, K_CLASSIC]
+        for k in menu_items(gb):
+            gb.run(8)
+            assert hi_shown(gb) == hi_tiles(want[k]), k
+            menu_tap(gb, "down")
+        menu_tap(gb, "up")                                # (on CLASSIC) B: the top level again, ARCADE's
+        menu_tap(gb, "b")
+        gb.run(8)
+        assert hi_shown(gb) == hi_tiles("000300")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_title_hi_line_is_the_top_score_and_the_table_shows_the_save(model):
-    with booted(model, v2_image([("ZED", 98765), ("QUA", 4321)])) as gb:
+    with booted(model, v7_image([("ZED", 98765), ("QUA", 4321)])) as gb:
         assert hi_shown(gb) == hi_tiles("098765")
         idle_title(gb)
         run_until(gb, lambda: state(gb) == GS_SCORES, 30)
