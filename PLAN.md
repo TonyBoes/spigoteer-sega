@@ -354,7 +354,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, the venue owners (ten with Granny Throttle), villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort, Milk Run and Log Roll are built (see their sections). |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort, Milk Run, Log Roll and Asteroid Delivery are built (see their sections). |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -2267,6 +2267,68 @@ load, CGB OBJ palette 5; frame 0 on the log, frame 3 startled or tumbling), no n
   swapped in (same slots and palettes).
 - Spec gaps: the partner has no topple frame of its own (frame 3, flipped); fall length 180 frames (the mock-up's GIF ran 96);
   the falls icon and digit replace the lives; the "creak" is SFX_SHAKE (no new SFX); the list order is the build order.
+## Asteroid Delivery as built (M11e, docs/minigames_bosses.md 4.8, 2026-10-12)
+
+The space lounge's mini-game on the framework (src/ad.c, MG_ASTEROID), in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains
+SPACE: chapter 10's slot after the Happy hour) and in BONUS > MINI GAMES (the last line before the debug stub, "ASTEROIDS",
+details THE SPACE LOUNGE; the unlock rule as the others). Look: the owner's combination "A's stage with B's asteroids": look A's
+starfield, dotted lane lines, brass-ring portholes, steel counter and HUD beaker icon, with look B's blue faceted rocks; the
+proposal's other suggestions (B's square hatches and lane chevrons) were NOT taken. The art is assets/art/asteroid/*.txt
+(proposal files re-headed, pixels untouched), tools/gen_ad.py -> build/ad_art.h, build/ad.json, out/preview/ad_*_x8.png.
+- **Rules** (src/ad.c, the spec's numbers, 8.8 fixed point): D-pad thrust 1/32 px a frame^2 on each held axis (opposite keys
+  cancel), drag v -= v / 32 (a speed under 1/8 px loses 1 a frame instead, so it really stops; without that the integer drag stalls
+  at 31/256 and the beaker never stops), cap 1.25 px a frame (the thrust itself tops out at 248/256 = 0.97). Walls: x 4..156, the
+  bar at y 120, the flask's top row 28 (a closed dock is a wall; over the lit dock the way is open to y 24). 5 lanes (tops y 32 +
+  16 k), 2 rocks a lane over a 176 px loop, 56..120 px apart (seeded, mg_rand), speeds 0.25 / 0.375 / 0.5 / 0.375 / 0.25 px a frame,
+  directions alternating (lane 1 right), x1.5 from the 3rd delivery, x2 from the 6th. Hit boxes: the beaker's body x +- 3,
+  y + 3..15, a rock's core 12x12 inside its 16x16. A hit: 30 frames of tumble (the three turns, falling), BREAK, a new beaker 60
+  frames after the hit. Delivery: the beaker touching the lit dock (flask top above y 28, x within the porthole's 16 px dock +
+  its half width) with |vx| and |vy| <= 0.75 px a frame: +500 + (600 - frames since that porthole lit) / 10 (the 10 s par; the
+  clock runs through spills), SERVE + COIN, the next porthole lit at random (never the same twice), a new beaker 30 frames later.
+  Too fast: WHOA (row 14 banner, 40 frames), v = -v / 2, the beaker put at y 28, nothing lost. 45 s (its own clock like Milk Run's,
+  mg_timer 0), TIME UP on row 14, medal by deliveries ad_medal: GOLD 7, SILVER 5, BRONZE 3. No HARD (the spec has none).
+  SFX: BREAK, SERVE + COIN, SHAKE (no new ones). Spec gap, flagged: "about 1 s to half speed" and "v -= v / 32" disagree (the
+  formula gives half speed in 22 frames); the formula is built, the drag and the cap are the playtest knobs. The test bot (a
+  search over a Python copy of the rules, replanning every 12 frames, 1 px of margin round every rock) flies a whole game with no
+  hit and 13 deliveries on DMG and CGB, so GOLD 7 leaves a human a wide margin; the thresholds may want raising after a playtest.
+- **Screen**: map rows 1-3 the three 24x24 portholes (columns 1, 8, 15; unlit black ring, lit bright ring + dock, an arrow bobbing
+  under the lit one), rows 4-14 the starfield with a dotted lane line on the top edge of the even rows (the mock-up's star hash,
+  kept as a running sum: a division loop made the enter slower than tests' 20-frame mg_enter), rows 15-16 the lounge's wall
+  with the Spigoteer's bust (his idle frame's two top entries) and row 17 the counter. HUD (row 0): the score, the beaker icon,
+  X and the deliveries at columns 8-11, T + seconds at 16-19. The framework's banner rows 2-3 cover the portholes during the
+  intro and count: tiles and attributes saved at entry (the venue wall's attributes put back first: attr_rows had made them HUD
+  colours), put back on the first play frame (CGB takes a few frames more: the VBlank queue). Row 14 carries WHOA / TIME UP in the
+  HUD colours and gets its sky back from a saved copy.
+- **Palettes**: CGB BG 2 the sky, 3 the counter, 5 / 6 / 7 the three aliens' patron palettes with colour 0 the lounge's wall
+  (nothing of the venue wall in the rows left uses 5-7); 4 left to the result's medal. OBJ 0 the Spigoteer, 1 the beaker and its
+  tumble (the venue's drink palette), 3 B's rocks, 6 puff + halo, **7 the arrow (the proposal had 4)**: the level load only
+  rewrites OBJ 4 for an enhanced group, so a game that sets it leaves it in the next level (the test that compares palettes found
+  it). B's rocks needed nothing A's layout lacked: one OBJ palette (3), the slot A's rocks had. DMG: OBP0 the Spigoteer (boot's
+  0xD0), **OBP1 = 0xC4 for everything else** (idx1 light grey, idx2 white, idx3 black: OBP1_MENU's value, so nothing needs
+  restoring: the next screens set their own). Reading at 1x: with 0xE4 (the mock-up's) B's rocks are black bodies with a thin
+  light rim on a black sky and the beaker dark grey; 0xC4 makes the rocks white moons with black craters and the beaker a white
+  flask with a black outline, readable on the black sky and on the white wall; 0x90 (white rim, light grey body) is the soft
+  alternative (one byte: AD_OBP1); the candidates are in the preview folder.
+- **Beaker on DMG**: the halo (a 2-entry checker ring) is KEPT: the line budget allows it. Worst line 9 (lane 1: 2 rocks x 2 +
+  the arrow + the beaker + halo 2 + the thrust puff), limit 10; without the halo it would be 7. The 0xC4 palette also lifts the
+  beaker, so the halo is not the only thing making it pop.
+- **OAM / tiles**: 0-1 beaker (tumble's halves), 2 puff, 3-4 halo, 5 arrow, 6-7 bust, 8-27 ten rocks (two halves each). BG tiles
+  MG_GAME_BG.. (56 of 131), OBJ 58-91 and 96-97 (36: the beaker is the venue's drink frame 0 at 56-57; the coin 92-95 stays).
+  State: struct ad_state (172 B) in the mg union, no new global.
+- **Numbers**: ROM0 free 577 B unchanged (mg.c and mg_list.c are banked; the one framework line, the result window's shortened
+  name, is bank-switched code); WRAM_LO 3936 / WRAM_HI_0 3455 unchanged; ad.c + its art about 4.6 KB in bank 6 by autobank
+  (banks free after: romusage). make check (SameBoy) passes.
+- **Tests**: tests/test_mg_asteroid.py (56) and tests/ad_helpers.py (state offsets parsed from mg.h; the model of the rules; the
+  planner bot). The ROM is compared frame by frame with the model (positions, speeds, walls, the thrust the game used), the
+  screen and its art (tiles, tilemap incl. the mock-up's star hash, palettes, sprites, OBP1), the banner rows coming back, rocks
+  (lanes, speeds, steps, spacing, wrap), delivery and the bonus formula, WHOA and its banner, 40 deliveries (never the same
+  porthole twice), a rock hit and the tumble, time up, medals 0 / 2 / 3 / 4 / 5 / 6 / 7 / 11, the HUD, the worst-case scene (9 a
+  line) and a whole bot game (<= 10 a line on every frame), the level after it (VRAM and palettes byte for byte a fresh level's),
+  STORY / ARCADE in chapter 10 (and the Last call's VRAM and palettes), BONUS > MINI GAMES (debug and release lists).
+  New goldens (dmg + cgb): ad_flying, ad_whoa, ad_delivered, ad_tumble, ad_result. Changed on purpose: mg_list and
+  mg_list_locked (the list gains the ASTEROIDS line / a fifth "? ? ?"); test_mg_list (counts and lines).
+- Framework edits (minimal): mg.c G_AD (names, instruction "STEER AND LAND SOFT", medal call, the result window shows
+  "ASTEROIDS": its 16-letter limit), mg_list.c one line, gen_story BUILT_SLOTS, Makefile gen_ad rule.
 
 ## Leo and Sumo as built (docs/minigames_bosses.md 3.11 / 3.9, 2026-10-12)
 Both follow "Boss hooks as built": a dispatcher `uint8_t boss_<name>(uint8_t ev, uint8_t arg) BANKED` in its own

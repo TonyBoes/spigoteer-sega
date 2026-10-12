@@ -1,0 +1,9 @@
+; Art: approved design (owner 2026-10-12): Asteroid Delivery, look A: the HUD's deliveries icon (beaker), BG 8x8, HUD palette 1.
+########
+##.###.#
+###.#.##
+##.....#
+#......#
+#.....##
+##...###
+########

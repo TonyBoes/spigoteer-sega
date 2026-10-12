@@ -1,0 +1,18 @@
+; Art: approved design (owner 2026-10-12): Asteroid Delivery, look A: the counter, map row 17, BG 8x8 palette 3: two tiles alternating by column pair.
+########
+........
+--------
+--------
+++++++++
+++++++++
+########
+########
+
+########
+........
+--------
+--.--.--
+++++++++
+++++++++
+########
+########

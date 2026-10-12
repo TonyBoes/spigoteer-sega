@@ -44,8 +44,9 @@ extern uint32_t score;
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
 #define TIMER_COL       16      // HUD: 'T' + 3 digits (story.c hud_goal's format)
 #define MG_GAMES         6      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
-                                // G_OU Order Up!, G_MR Milk Run, G_LR Log Roll
-enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR };
+#define MG_GAMES         7      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
+                                // G_OU Order Up!, G_MR Milk Run, G_LR Log Roll, G_AD Asteroid Delivery
+enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD };
 #define OBP0_BOOT     0xD0      // OBP0 as main_cold.c sets it once at boot (Milk Run's DMG look changes it)
 
 // ---- state (globals => symbols the tests read) ----
@@ -62,13 +63,13 @@ static char res_txt[2][14];
 
 // per game: the banner, the medal thresholds on mg_score (bronze, silver, gold)
 static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BATTERY SORT", "ORDER UP!",
-                                                "MILK RUN", "LOG ROLL" };
+                                                "MILK RUN", "LOG ROLL", "ASTEROID DELIVERY" };
 static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "LEFT FULL RIGHT DEAD",
                                                 "REPEAT THE ORDER", "UP DOWN LANE A TOSS",
-                                                "TAP AGAINST THE ROLL" };
+                                                "TAP AGAINST THE ROLL", "STEER AND LAND SOFT" };
 static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },   // (Quick Draw: qd_medal)
                                                 { 2000, 4000, 6000 }, { 0, 0, 0 },   // (Order Up!: ou_medal)
-                                                { 0, 0, 0 }, { 0, 0, 0 } };            // (Milk Run: mr_medal, Log Roll: lr_medal)
+                                                { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };   // (Milk Run: mr_medal, Log Roll: lr_medal, Asteroid Delivery: ad_medal)
 // each planned game's venue (the id is not the venue: the two lists need not keep one order), and the reverse
 static const uint8_t mg_venue[MG_PLANNED] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 static const uint8_t venue_mg[MG_PLANNED] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY,
@@ -173,6 +174,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     if (id == MG_ORDERUP) mg_game = G_OU;
     if (id == MG_MILKRUN) mg_game = G_MR;
     if (id == MG_LOGROLL) mg_game = G_LR;
+    if (id == MG_ASTEROID) mg_game = G_AD;
     if (!is_cgb) OBP0_REG = OBP0_BOOT;           // (Milk Run changes it: a game that is not it starts from the boot's)
     lcd_normal();                                // (and has the LYC / VBlank handlers it left)
     if (mode == MG_STORY) mg_record(id, MEDAL_NONE);   // STORY or ARCADE reached it: Practice lists it (save.c)
@@ -209,6 +211,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     case G_OU: ou_enter(); break;
     case G_MR: mr_enter(); break;
     case G_LR: lr_enter(); break;
+    case G_AD: ad_enter(); break;
     default: stub_enter(); break;
     }
     if (mg_timer) { last_secs = secs_left(); hud_timer(); }
@@ -226,6 +229,7 @@ static void game_update(uint8_t pressed) {
     case G_OU: ou_update(pressed); break;
     case G_MR: mr_update(pressed); break;
     case G_LR: lr_update(pressed); break;
+    case G_AD: ad_update(pressed); break;
     default: stub_update(pressed); break;
     }
 }
@@ -240,6 +244,7 @@ static void result_begin(void) {
     else if (mg_game == G_OU) m = ou_medal();
     else if (mg_game == G_MR) m = mr_medal();
     else if (mg_game == G_LR) m = lr_medal();
+    else if (mg_game == G_AD) m = ad_medal();
     else while (m < 3 && mg_score >= at[m]) m++;
     mg_medal = m;
     mg_record(mg_id, m);                         // the best medal (Practice's list; any mode)
@@ -268,7 +273,7 @@ static void result_row(uint8_t r) {             // queue window row r (0..5)
         fill(res_buf, r ? TILE_PANEL_BOT : TILE_PANEL_TOP, 20);
         vq_add(0, res_buf, 0, RES_ROW + r, 20);
         return;
-    case 1: s = mg_name[mg_game]; break;
+    case 1: s = mg_game == G_AD ? "ASTEROIDS" : mg_name[mg_game]; break;   // (the window holds 16 letters: "ASTEROID DELIVERY" is 17)
     case 4: s = mg_mode == MG_STORY ? "A CONTINUE" : "A RETRY B MENU"; break;
     default: s = res_txt[r - 2]; break;          // rows 2, 3: the score, the medal
     }

@@ -265,6 +265,37 @@ struct lr_state {               // tests read these at story_scratch + offset (t
     uint8_t rip_buf[32];        // +163 the ripple tiles
 };
 
+void ad_enter(void) BANKED;                      // src/ad.c: ASTEROID DELIVERY (the space lounge)
+void ad_update(uint8_t pressed) BANKED;
+uint8_t ad_medal(void) BANKED;                   // the medal its deliveries earned (not a score threshold)
+
+#define AD_ROCKS       10       // 5 lanes x 2
+struct ad_state {               // tests read these at story_scratch + offset (tests/test_mg_asteroid.py)
+    uint8_t st;                 // +0 AS_*: 0 the beaker flies, 1 it tumbles, 2 no beaker (a new one is coming), 3 the outro
+    uint8_t lit;                // +1 the lit porthole 0..2
+    uint8_t delivered;          // +2
+    uint8_t t;                  // +3 frames in this state
+    uint8_t whoa;               // +4 frames left of the WHOA banner (row 14)
+    uint8_t secs;               // +5 the HUD timer's seconds
+    uint8_t anim;               // +6 frames counted
+    uint8_t started;            // +7 the first play frame has put the banner rows back
+    uint8_t spd;                // +8 rock speed step: 0 x1, 1 x1.5 (3 delivered), 2 x2 (6)
+    uint8_t spawn;              // +9 frames left before a new beaker (state 2)
+    int8_t  tx, ty;             // +10 / +11 the thrust this frame (-1, 0, 1)
+    uint8_t bounced;            // +12 WHOA bounces so far
+    uint8_t spills;             // +13 rock hits so far
+    uint16_t x, y;              // +14 / +16 the beaker: centre x, top y, 8.8 px
+    int16_t vx, vy;             // +18 / +20 8.8 px a frame
+    uint16_t time;              // +22 frames left
+    uint16_t clk;               // +24 frames since the lit porthole lit (the time bonus)
+    uint16_t rx[AD_ROCKS];      // +26 the rocks' x, 8.8 px over a 176 px loop (lane k: rocks 2k and 2k + 1)
+    uint8_t tbuf[4], dbuf[4];   // +46 HUD timer, +50 HUD deliveries (VBlank queue sources)
+    uint8_t pbuf[2][9];         // +54 the portholes being redrawn (VBlank queue sources)
+    uint8_t r14[20], r14a[20];  // +72 / +92 map row 14 (the launch gap's sky) and its CGB attributes
+    uint8_t hattr[20];          // +112 the HUD colours (the banner on row 14)
+    uint8_t wall[2][20], wattr[2][20];   // +132 map rows 2-3 as the portholes have them (the banner rows' place)
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
@@ -273,6 +304,7 @@ union mg_ram {
     struct ou_state ou;
     struct mr_state mr;
     struct lr_state lr;
+    struct ad_state ad;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert
