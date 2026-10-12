@@ -1814,8 +1814,8 @@ TWIST_FAST_TUNE, the band playing faster in the Last call) with the shift's limi
 TWISTS / MOSH_LIMIT; story.c calls mosh_set at every shift start (0 in the Opening, a boss fight and arcade). Of
 several walkers in reach, the nearest (highest x) is bumped. The shove runs in walking_step (also during the intro
 delay); ROM0 hooks: walking_step, push_px, caught, init_patron and update_patrons (the splash timer), about 120 B in
-all, each behind one test of mosh_on. The cue: the splash tile is assets/art/splash/biker.txt (a PLACEHOLDER by the
-engine agent, owner review pending), gen_art adds it to the venue's bar set (venue.splash_tile, 34 of the 36 pool
+all, each behind one test of mosh_on. The cue: the splash tile is assets/art/splash/biker.txt (the owner-approved
+option B, 2026-10-11), gen_art adds it to the venue's bar set (venue.splash_tile, 34 of the 36 pool
 ids); the sound is the existing channel-4 rattle (SFX_SHAKE: sfx_req has no ninth bit). Perf: two moshes at once keep
 every frame on time; four bars at once (more than one bartender can serve) run some frames late (test_twists).
 
