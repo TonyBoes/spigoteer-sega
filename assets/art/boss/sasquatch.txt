@@ -1,5 +1,5 @@
-; APPROVED by the owner on 2026-10-11 (the Sasquatch, look A round 2, arms fixed). Not built yet: moves to its real place when its feature is built.
-; Sasquatch, the lumber lodge's boss (src/boss.c, tools/gen_boss.py). PROPOSAL look A: "the cone-head", front view.
+; Art: approved design (the owner, 2026-10-11: the Sasquatch, look A round 2, arms fixed). Built: src/boss_sasquatch.c.
+; Sasquatch, the lumber lodge's boss (src/boss_sasquatch.c, tools/gen_boss.py). Look A: "the cone-head", front view.
 ; Round 2 (owner: "raised arms look weird"): WINCE / HAPPY arm drawn as hand, forearm, elbow, upper arm into the
 ; shoulder, outlined 3 px fur like the hanging arms, and the torso under it loses the old second arm line. HAND1-3: the
 ; arm hangs as in WALK behind the mugs, the fist (tan) grips the bottom mug, mugs stacked on it.

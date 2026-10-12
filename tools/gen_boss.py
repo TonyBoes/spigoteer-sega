@@ -41,6 +41,7 @@ BOSS_ICE_MAX = 2             # src/boss.h: icy counter tiles at BG 246.. (free i
 # counter tiles get icy copies.
 BOSSES = [
     {"name": "big_tex", "width": 40, "pal": ["#F0B888", "#C83020", "#583018"], "extra": []},
+    {"name": "sasquatch", "width": 32, "pal": ["#E8B878", "#5C2C14", "#140804"], "extra": []},
 ]
 
 

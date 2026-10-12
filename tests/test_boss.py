@@ -164,14 +164,18 @@ def snapshot(gb):
 
 
 # ---- the data ------------------------------------------------------------------------------------------------------
-def test_the_table_has_a_row_per_venue_and_only_the_saloon_is_built():
-    """BOSS_COUNT rows (a 10th venue adds a row, not a constant), Big Tex's as in spec 3.2 / 3.3; the saloon's boss slot
-    is the only one built in the story data; Big Tex's art and the meter are approved; the right size."""
+BUILT = {0: "big_tex", 2: "sasquatch"}   # the venues whose boss is built (wave 1: the bosses without movement)
+
+
+def test_the_table_has_a_row_per_venue_and_the_built_bosses():
+    """BOSS_COUNT rows (a 10th venue adds a row, not a constant), Big Tex's as in spec 3.2 / 3.3; the built bosses'
+    slots are the ones built in the story data; Big Tex's art and the meter are approved; the right size."""
     assert re.search(r"#define BOSS_COUNT\s+10\b", (ROOT / "src" / "game.h").read_text())
     assert "rows[BOSS_COUNT]" in BOSS_C
     assert ROW == dict(width=40, x=16, bar=1, step=120, push=16, gulp=40, hands=3, sip=60, meter=8, hat=16)
     assert (LINE1, LINE2) == ("BIG TEX RIDES IN", "QUENCH HIM 8 MUGS")
-    assert BOSS_BUILT == {0} and BOSS_STEP == 4
+    assert BOSS_BUILT == set(BUILT) and BOSS_STEP == 4
+    assert {r: f[len("boss_"):] for r, f in boss_rows()[1].items()} == BUILT
     assert len(TEX["pairs"]) <= ART["pairs_max"] == 30 and TEX["cols"] == 5 and len(TEX["pose"]) == 5
     assert "; Art: approved design" in (ROOT / "assets/art/boss/meter.txt").read_text()
     assert "; Art: approved design" in (ROOT / "assets/art/boss/big_tex.txt").read_text()
@@ -180,7 +184,9 @@ def test_the_table_has_a_row_per_venue_and_only_the_saloon_is_built():
 def boss_rows():
     """src/boss.c rows[]: (row index, width) of every row, and the hook table's rows (row index -> dispatcher)."""
     body = re.search(r"rows\[BOSS_COUNT\] = \{(.*?)\n\};", BOSS_C, re.S).group(1)
-    rows = [int(m) for m in re.findall(r"^\s*\{\s*(\d+),", body, re.M)]
+    rows = [0] * 10
+    for r, w in re.findall(r"^\s*\[(\d+)\] = \{\s*(\d+),", body, re.M):
+        rows[int(r)] = int(w)
     hooks = {int(r): f for r, f in re.findall(r"case (\d+): return (boss_\w+)\(ev, arg\);", BOSS_C)}
     return rows, hooks
 

@@ -76,7 +76,8 @@ typedef struct {
 // One row per venue (boss id = the venue / chapter index). width 0: not built yet, the fight plays row 0's.
 static const boss_row_t rows[BOSS_COUNT] = {
     // width x  bar step push gulp hands sip meter hat art
-    {  40,  16,  1, 120,  16,  40,   3,  60,  8,   16,  0, "BIG TEX RIDES IN", "QUENCH HIM 8 MUGS" },   // Saloon: Big Tex (3.3)
+    [0] = {  40,  16,  1, 120,  16,  40,   3,  60,  8,   16,  0, "BIG TEX RIDES IN", "QUENCH HIM 8 MUGS" },   // Saloon: Big Tex (3.3)
+    [2] = {  32,  16,  2,  90,   8,   8,   2,   0, 12,   12,  0, "NO SUCH THING", "12 COFFEES FAST" },      // Lumber lodge: Sasquatch (3.5)
 };
 
 // ---- state (test hooks: spec 2.5's names) ----
@@ -114,6 +115,7 @@ static const boss_row_t *br;
 static uint8_t boss_call(uint8_t ev, uint8_t arg) {
     switch (boss_row) {
     case 0: return boss_big_tex(ev, arg);        // Saloon: src/boss_big_tex.c
+    case 2: return boss_sasquatch(ev, arg);      // Lumber lodge: src/boss_sasquatch.c
     }
     return 0;
 }
@@ -336,9 +338,9 @@ uint8_t boss_frame(void) BANKED {
     uint8_t x = boss_x;
     if (boss_hook) boss_take_hook();
     if (!boss_hp) { boss_state = BS_OUTRO; boss_lim = 0; boss_look(); return 1; }
+    if (boss_own_na) boss_own_na--;              // (counts down with next_arrival: patrons.c update_patrons)
     boss_mugs();
     if (!intro_timer) {                          // nothing moves before the level's intro is over
-        if (boss_own_na) boss_own_na--;          // (counts down with next_arrival: patrons.c)
         if (boss_t != 255) boss_t++;
         if (boss_stomp) boss_stomp--;
         if (boss_push) {

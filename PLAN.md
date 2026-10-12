@@ -1348,6 +1348,24 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   him changed (golden boss_fight and every test_boss test unchanged).
 - ROM: ROM0 unchanged (1006 B free). The engine (boss.c) autobanks to bank 5, Big Tex's file to bank 8.
 
+## The Sasquatch as built (lumber lodge boss, docs/minigames_bosses.md 3.5, 2026-10-12)
+- src/boss_sasquatch.c, rows[2]: 32 px, start 16, bar 2, step 90, push 8, gulp 8, hands 2, sip 0, meter 12, topper
+  at 12 (his crest); "NO SUCH THING" / "12 COFFEES FAST". Art: the owner's approved look A round 2
+  (assets/art/boss/sasquatch.txt, moved from assets/art/approved/; 22 column pairs; colours face #E8B878, fur
+  #5C2C14, outline #140804).
+- His empties slide back at 1 px a frame on his bar only (boss_fast_empty), each one as soon as the schedule allows
+  (sip 0); between two of his own the gap is SASQ_GAP 80 (boss_own_gap), the regulars' empties keep the level's gap
+  (the lodge's 108) from his and his from theirs. Holding two, the third coffee passes him and breaks. No special.
+- Story and ARCADE: gen_story BUILT_SLOTS["BOSS"] gains LUMBER; chapter 3 is Opening -> Happy hour -> Last call
+  (SHIFT CLEAR) -> the fight (CHAPTER CLEAR) -> POST_LUMBER. No existing golden changed (no test plays the lodge
+  past its Last call).
+- Tests (tests/test_boss_sasquatch.py, DMG + CGB, every frame <= 10 sprites a line; helpers in tests/boss_common.py):
+  his row and art; the fight's start (banner, VRAM, palettes, HUD meter 12, topper); his empties 1 px a frame on his
+  bar while another bar's go 0.5, caught at the tap; two in his hands and the third breaks (a life, he restarts with
+  his meter); a regular's empty due: his waits for the level's gap and goes on the first frame it may, his next own
+  one 80 after; a win by real pours (every empty caught, his arrivals >= 80 apart, the outro, CHAPTER CLEAR,
+  POST_LUMBER, saved); stomps every 90, push-back, the tap. New goldens boss_sasquatch (dmg + cgb).
+
 ## Mode-aware debug select as built (owner request, 2026-10-10)
 
 The START + SELECT debug select (DEBUG_MENU builds only; `make release` still has none: build/release.noi names no
