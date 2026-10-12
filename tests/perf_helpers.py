@@ -2,6 +2,7 @@
 # (perf_logic_max: logic only, perf_end_max: logic + music tick; > 143 = ran past the next VBlank)
 # and missed_frames (a frame that began outside VBlank or was skipped). Scenarios are set up by poking state.
 PLAYING = 1
+LINE_OBJ_MAX = 10
 MAX_P, MAX_M = 16, 20
 WALKING, PUSHED, DRINKING = 1, 2, 3
 FULL, EMPTY, BREAKING, HELD = 1, 2, 3, 4
@@ -346,6 +347,21 @@ class RealisticPeak:
         gb.write("mugs_live", mslot)
         gb.write("patrons_live", slot)
 
+    def put_tip(self, bar, x):
+        """A tip (400 frames) on bar `bar` at x, poked in while that bar's line estimate (lift_load, lift.c) leaves room for
+        it.  PyBoy's frame can end anywhere in a late frame's logic, so the poke can land after lift.c's estimate and before
+        draw_coin: the coin is then drawn uncounted, an 11th object on a line for one frame if the bar was at 10 (CLASSIC
+        rows 23 / 24 on CGB, frame 198, line 94, once the music's timing moved the alignment).  The game's own tips
+        (maybe_tip, classic_tip: update_patrons) are set before the estimate and always counted: a tip on a full line forces
+        a drop that frame (tests/test_lift.py).  Returns whether the tip went in."""
+        gb = self.gb
+        if gb.read("lift_load", 4)[bar & 3] > LINE_OBJ_MAX - 2:
+            return False
+        put16(gb, "tip_timer", 400)
+        gb.write("tip_bar", bar)
+        gb.write("tip_x", x)
+        return True
+
     def tick(self):
         """Call once per frame, before gb.run(1)."""
         gb, f = self.gb, self.frame
@@ -364,21 +380,18 @@ class RealisticPeak:
         if self.taps is None:
             self.taps = list(gb.read("bar_tap", 4))
         taps = self.taps
-        # tip OR show, alternating
+        # tip OR show, alternating (put_tip: a tip goes in only where the line estimate has room for the coin)
         if (f // self.PHASE) & 1:                          # the show: a tip put under the bartender, picked up
             if f % self.PHASE == 0:
                 put16(gb, "tip_timer", 0)
-            elif f % self.PHASE == 2:
-                put16(gb, "tip_timer", 400)
-                gb.write("tip_bar", gb.mem("bar"))
-                gb.write("tip_x", gb.mem("bartender_x"))
+                self.tip_due = True
+            elif f % self.PHASE >= 2 and getattr(self, "tip_due", False):
+                self.tip_due = not self.put_tip(gb.mem("bar"), gb.mem("bartender_x"))
         else:
             if gb.mem16("show_timer") > 1:
                 put16(gb, "show_timer", 1)                    # (ends this frame: the walkers turn back)
             elif f % self.PHASE > 4 and not gb.mem16("show_timer") and gb.mem16("tip_timer") < 100:
-                put16(gb, "tip_timer", 400)
-                gb.write("tip_bar", 2)
-                gb.write("tip_x", 52)
+                self.put_tip(2, 52)
         # spawns: real ones, made due while the bars are short of patrons
         if len(live) < self.target and f - self.last_spawn >= self.SPAWN_GAP and gb.mem16("spawn_timer") > 1:
             put16(gb, "spawn_timer", 0)

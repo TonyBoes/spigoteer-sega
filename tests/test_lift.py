@@ -12,7 +12,7 @@ from conftest import GAME, ROM, ROOT, title_level, bar_top_row, bar_top_y, logic
 from test_art import GROUPS, goto_group
 from test_flow import PLAYING, run_until, state
 from test_venues import cgb_palette
-from test_patrons import (BASE, DRINKING, EMPTY, MAX_M, MAX_P, SHIFT0_OFS, WALKING, drawn_tiles, inject_mug, lineup,
+from test_patrons import (BASE, DRINKING, PUSHED, EMPTY, MAX_M, MAX_P, SHIFT0_OFS, WALKING, drawn_tiles, inject_mug, lineup,
                           map_ids, put)
 
 pytestmark = pytest.mark.timeout(240)
@@ -353,6 +353,75 @@ def test_a_line_that_would_pass_10_objects_forces_a_drop(pair):
         g.release("a")
     assert b.mem("lift_forced") - forced0 == 2 and b.mem("lift_total") == 0, seen
     assert all(load <= 10 for load, _ in seen), seen
+
+
+def test_a_patron_whose_drop_is_still_pending_goes_when_his_line_is_over_budget(pair):
+    """Bar 1 at exactly 10 objects: the bartender (2), one lifted patron (2), six empties (6). The patron's drop has
+    begun (LIFT_DROP) but his BG copy stays pending (a pushed patron who keeps sliding has his columns dirty every
+    frame, so such a drop can last for many frames: CLASSIC level 13 on CGB showed 11 objects on a line for 15 frames).
+    The bartender starts filling (the fill glass, 1 more): the line is over budget and the dropping patron's sprite is
+    the only one on the bar, so it has to go at once (before: only a patron not yet dropping could be forced out, and
+    the 11th object stayed). He is back on the BG, not taken out of the game."""
+    a, b = pair
+    slot = four_lifted(pair, {0: [(30, 0, 0)], 1: [(24, 0, 0)], 2: [(30, 2, 0)]})
+    for g in pair:
+        g.press("down", 2)                            # the bartender to bar 1
+    step_same(pair, 4)
+    run_hooks(pair, [(slot[(1, 24)], HOOK_LIFT)])
+    p = slot[(1, 24)]
+    assert b.mem("lift_total") == 1 and b.mem("bar") == 1
+    for k in range(6):
+        inject_mug(b, 1, 56 + 9 * k, EMPTY)
+    forced0 = b.mem("lift_forced")
+
+    def keep_pending():
+        b.write(b.addr("patron_lift") + p, 0x80 | 1)      # LIFT_DROP | LIFT_OBJ, his BG copy still not out
+        b.write("vq_held", 1)                              # (last frame's copy list still waits: no drop can end)
+    for _ in range(3):
+        keep_pending()
+        b.run(1)
+        assert max(oam_lines(b)) <= 10
+    assert b.read("lift_load", 4)[1] == 10 and b.mem("lift_total") == 1 and b.mem("lift_forced") == forced0
+    b.hold("a")
+    for _ in range(12):
+        keep_pending()
+        b.run(1)
+        assert max(oam_lines(b)) <= 10, max(oam_lines(b))
+    b.release("a")
+    assert b.mem("lift_forced") - forced0 == 1 and b.mem("lift_total") == 0
+    assert b.read("patron_state", 16)[p] == WALKING, "still in the game"
+
+
+def test_a_tip_that_appears_on_a_full_line_forces_a_drop_in_the_same_frame(pair):
+    """Bar 1 at exactly 10 objects: the bartender (2), two lifted patrons (4), four empties (4). A tip's coin (1 more,
+    drawn by the same frame: tip_timer is set before lift_frame's estimate, like maybe_tip / classic_tip in the rules)
+    makes 11: a patron is dropped at once, so no frame ever shows more than 10 on a line. (The perf scenarios' own tip
+    pokes land between whole game frames for the same reason: logic_paused. A poke that lands after the estimate
+    shows an 11th object for one frame, a scenario artifact the real rules cannot make: the CLASSIC rows 23 / 24 on CGB
+    did, once the music changed the frame alignment.)"""
+    from conftest import logic_paused
+    a, b = pair
+    slot = four_lifted(pair, {0: [(30, 0, 0)], 1: [(24, 0, 0), (64, 1, 0)], 2: [(30, 2, 0)]})
+    for g in pair:
+        g.press("down", 2)                            # the bartender to bar 1
+    step_same(pair, 4)
+    run_hooks(pair, [(slot[(1, 24)], HOOK_LIFT), (slot[(1, 64)], HOOK_LIFT)])
+    assert b.mem("lift_total") == 2 and b.mem("bar") == 1
+    for k in range(4):
+        inject_mug(b, 1, 100 + 2 * k, EMPTY)
+    b.run(2)
+    assert b.read("lift_load", 4)[1] == 10 and max(oam_lines(b)) == 10
+    forced0 = b.mem("lift_forced")
+    with logic_paused(b):
+        b.write("tip_timer", 400 & 255)
+        b.write(b.addr("tip_timer") + 1, 400 >> 8)
+        b.write("tip_bar", 1)
+        b.write("tip_x", 60)
+    for _ in range(6):
+        b.run(1)
+        assert max(oam_lines(b)) <= 10, max(oam_lines(b))
+    assert b.mem("lift_forced") - forced0 == 1 and b.mem("lift_total") == 1
+    assert b.oam()[27]["y"], "the coin is on screen"
 
 
 def test_forty_entries_with_the_show_running(pair):

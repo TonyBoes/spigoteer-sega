@@ -1932,6 +1932,27 @@ The scenario's second bartender now serves only the bars the player is not on, a
 frames after it pokes a mug in: PyBoy can land that poke inside the next frame's logic after lift.c's line estimate,
 which then draws it uncounted (an 11th object on level 12's lines in two runs; a real launch is counted first).
 
+### 11 objects on a line in CLASSIC (fixed after P6; found while landing the Galop's harmony)
+
+Changing the music's timing moved PyBoy's frames against the game's late ones and exposed two different causes, both on a
+line of bar 2 around y 94:
+- **A real one** (src/lift.c): a lifted patron whose drop has begun (LIFT_DROP) stays a sprite until his BG copy is out; a
+  pushed patron who keeps sliding has his columns dirty every frame, so that can take many frames. His sprite is counted on the
+  bar's line like any other (lift_n), but `pick_lifted` only offered patrons that were not dropping, so when the bartender
+  began to fill (+1: the fill glass) on a line already at 10, nothing could be forced out and the 11th object stayed (CLASSIC
+  level 13 on CGB, 15+ frames). `pick_lifted` now falls back to a dropping patron (`force_out` only takes his sprite away: he
+  goes to the BG, he is not removed). tests/test_lift.py (pending drop on a full line) and
+  test_classic_peak_real_rows_at_other_frame_alignments (levels 12, 13, 23 at 7 starting offsets, both models).
+- **A scenario artifact** (tests/perf_helpers.py RealisticPeak): the scenario poked a tip (400 frames) into tip_timer between
+  frames; PyBoy's frame can end between lift.c's line estimate and draw_coin, so the coin was drawn uncounted (an 11th object
+  for one frame: CLASSIC rows 23 / 24 on CGB, frame 198, line 94). The game's own tips are set in update_patrons, before the
+  estimate, and always counted (tests/test_lift.py: a tip on a full line forces a drop the same frame). The scenario now pokes
+  a tip only where the bar's lift_load leaves room for the coin.
+- **Not changed** (it moves the realistic-peak guard, so it is the owner's call): `force_out` was written for the left end's
+  entering and leaving patrons but is applied to any lifted patron it is asked to drop, so a lifted PUSHED or DRINKING patron
+  that is forced out (not yet dropping) is removed from the game (`remove_patron`) instead of going back to the BG. Fixing it
+  keeps those patrons alive: the realistic peak's DMG missed frames go 158 -> 193 (guard 165) and the crowd mean 8.6 -> 9.0.
+
 ## Quick Draw and BONUS > MINI GAMES as built (M11e step 3, docs/minigames_bosses.md 4.1 / 2.3, 2026-10-11)
 
 The saloon's mini-game on the framework, playing in STORY and ARCADE, and the planned Practice feature as the title's

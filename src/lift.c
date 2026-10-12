@@ -378,23 +378,28 @@ static void lifted_pass(void) {
     lifted_scan();
 }
 
-// A lifted (not dropping) patron of bar b (b = NUM_BARS: any bar), the last slot first; NO_SLOT if none. One at the left
-// end (LIFT_EDGE) only when there is no other.
+// A lifted patron of bar b (b = NUM_BARS: any bar), the last slot first; NO_SLOT if none. A lifted one that is not
+// dropping first (LIFT_OBJ before one at the left end, LIFT_EDGE, which goes only when there is no other); when every
+// sprite of the bar is on its way to the BG already, one of those (a pushed patron who keeps sliding can stay in that
+// state for many frames: his BG columns are dirty every frame, so the drop never ends). The sprite of a dropping patron
+// is counted on the line like any other, so it has to be able to go when the line is over budget.
 static uint8_t pick_lifted(uint8_t b) {
-    uint8_t p = MAX_PATRONS, e = NO_SLOT, v;
+    uint8_t p = MAX_PATRONS, e = NO_SLOT, d = NO_SLOT, v;
     while (p--) {
         v = patron_lift[p];
-        if (!LIFT_OFF_BG(v) || (b != NUM_BARS && (patron_bar[p] & (NUM_BARS - 1)) != b)) continue;
+        if (!v || (b != NUM_BARS && (patron_bar[p] & (NUM_BARS - 1)) != b)) continue;
+        if (!LIFT_OFF_BG(v)) { if (d == NO_SLOT) d = p; continue; }
         if (v == LIFT_OBJ) return p;
         e = p;
     }
-    return e;
+    return e != NO_SLOT ? e : d;
 }
 
 // A forced drop of one at the left end: an entering one wholly on the screen goes to the BG like anyone; one with a part
 // still off the screen cannot, so he is taken back (spawned again later) and a leaving one (served already) is gone.
+// One already dropping (a pushed patron, a drinker: his BG copy is on its way) only has his sprite taken away.
 static void force_out(uint8_t p) {
-    if (patron_state[p] == PATRON_WALKING && !patron_aux[p]) { force_drop(p); return; }
+    if ((patron_lift[p] & LIFT_DROP) || (patron_state[p] == PATRON_WALKING && !patron_aux[p])) { force_drop(p); return; }
     if (patron_state[p] == PATRON_WALKING) spawned--;
     lift_forced++;
     remove_patron(p);

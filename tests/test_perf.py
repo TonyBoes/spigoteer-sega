@@ -317,3 +317,27 @@ def test_classic_peak_real_rows(rom, lv):
     assert_music_every_frame([(f, m) for f, m, _, _ in ticks])
     assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
     assert r["end"] <= 450 and r["missed"] <= 900, r
+
+
+@pytest.mark.parametrize("skew", [1, 2, 3, 4, 5, 6, 7])
+@pytest.mark.parametrize("lv", [12, 13, 23])
+def test_classic_peak_real_rows_at_other_frame_alignments(rom, lv, skew):
+    """The same scenario started `skew` frames later: a different alignment of PyBoy's frames against the game's late frames
+    (what a change in the music's timing does).  Never more than 10 objects on a line, never more than 40 in all.  (Level 13
+    on CGB at skew 2 and 3, with the Galop's harmony in the ROM, showed 11 for 15 frames: a pushed patron whose drop never ended could not be forced out of
+    an over-budget line, src/lift.c pick_lifted.)"""
+    class Skewed(ph.ClassicPeak):
+        def seed(self):
+            super().seed()
+            self.gb.run(skew)
+    bad = []
+
+    def check(gb, i):
+        line, n = oam_line_counts(gb)
+        if gb.poked_mug:
+            line = min(line, 10)
+        if line > 10 or n > 40:
+            bad.append((i, gb.mem("frame_counter"), line, n))
+    ph.realistic_run(rom, CLASSIC_FRAMES, check, target=16, cls=Skewed, classic=lv)
+    assert rom.mem("level") == lv and not bad, bad[:5]
+
