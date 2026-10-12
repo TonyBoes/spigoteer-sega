@@ -804,7 +804,7 @@ def bonus2_art(outdir, prev):
 # The art stays index art; the validator below refuses art that breaks the rule, with the reason.
 BGPAL_PATRON, BGPAL_S = 2, PAL_BAR_B
 OBJPAL_VARIANT, OBJPAL_X, OAM_BANK1 = [3, 6, 7], 4, 0x08
-VARIANT_PALS = {"zoo": ["zoo_monkey", "zoo_panda", "zoo_lion"]}
+VARIANT_PALS = {"zoo": ["zoo_monkey", "zoo_panda", "zoo_hippo"]}
 
 
 class ArtError(Exception):

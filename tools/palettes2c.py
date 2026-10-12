@@ -31,7 +31,7 @@ for i, k in enumerate(keys):
 groups = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]  # = gen_art.PATRON_GROUPS
 ids = []
 for g in groups:
-    names = ["zoo_monkey", "zoo_panda", "zoo_lion"] if g == "zoo" else [f"{g}_{v}" for v in "abc"]
+    names = ["zoo_monkey", "zoo_panda", "zoo_hippo"] if g == "zoo" else [f"{g}_{v}" for v in "abc"]
     ids.append([keys.index(n) for n in names])
 # M14a enhanced variants: <group>_x is the group's extra OBJ palette (CGB OBJ 4, the lifted column of its enhanced variant
 # that no patron palette shows; tools/gen_art.py validates the art against it). 255: the group has none.
