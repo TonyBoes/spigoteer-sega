@@ -459,6 +459,12 @@ def punk_bass(chords):
 
 song("sailor", 9, "A", " ".join(SAI_BARS), punk_bass(SAI_CHORDS), stac_all=(3, 4),
      groove="K:1 H:1 S:1 H:1 K:1 K:1 S:1 H:1")
+# Harmony (music step 5): the verse gets punk off-beat upstrokes (a short chord tone on every second eighth: D or F for D
+# minor, C or E for C), the chorus ("Hur-ray and up she ri-ses") a voice in thirds under the melody, struck on each
+# eighth like a second shouting voice.
+_t = H.Tune(" ".join(SAI_BARS), SAI_CHORDS, 8, 2, "Ddor")
+harmony("sailor", _t, " ".join([H.stabs(_t, (1, 8), "C4", "A4", [(1, False), (1, True)] * 4),
+                                H.follow(_t, (9, 16), "A3", "A4", grid=2, merge=False, inst="/2")]), ("stab", "harm"))
 
 # which songs, in tune order after title/show
 VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sailor", "sakura", "weasel", "danube"]
