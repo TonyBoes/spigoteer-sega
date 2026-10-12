@@ -1366,6 +1366,32 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   one 80 after; a win by real pours (every empty caught, his arrivals >= 80 apart, the outro, CHAPTER CLEAR,
   POST_LUMBER, saved); stomps every 90, push-back, the tap. New goldens boss_sasquatch (dmg + cgb).
 
+## The Food Critic as built (bistro boss, docs/minigames_bosses.md 3.6, 2026-10-12)
+- src/boss_critic.c, rows[3]: 32 px, start 16, bar 1, step 110, push 16, gulp 60, hands 1, sip 90, meter 8, topper at
+  9 (the beret's stalk); "THE CRITIC DINES" / "PERFECT POURS ONLY". Art: the owner's approved look 2 "the gourmand",
+  round 5 (assets/art/boss/critic.txt, moved from assets/art/approved/; 17 column pairs with TASTE, extra pose 5).
+- Perfect = the story's perfect pour (src/pour.c, mug_timer 1), not the spec's older 16..27 window (written before the
+  perfect pour existed): the owner tuned that window's start to 27 in four rounds, so the start stays; its length in
+  his fight is CRIT_WIN 12 frames (the spec's 12; boss BEV_BEGIN writes pour_win after pour_load), so releases at
+  pour_t 27..38 are perfect, the sparkle frame showing all of it. Every shift keeps the owner's 5.
+- A perfect drink while he is free: the common catch (the perfect bonus and cue included). A sloppy one while free:
+  no meter, no score; he TASTEs it for 30 frames (the TASTE pose; BS_SPECIAL, he stands), then sends it back as a
+  MUG_RETURN (the full drink, 1 px a frame) which the bartender catches like an empty (EMPTY_SCORE); past the right
+  end it breaks (a life). While busy (his glass held, tasting, or a return waiting) every drink, perfect or not, is
+  waved back (a return, no tasting; boss_queue, at most CRIT_QUEUE 3 waiting: the TASTE pose shows while any wait);
+  past that (his glass + 3) a drink slides past him and breaks. Returns and his glass go by boss_send: the fair
+  schedule holds for both. Test hooks crit_taste, crit_sloppy, crit_waved.
+- Story and ARCADE: BUILT_SLOTS["BOSS"] gains BISTRO (chapter 4 ends with the fight, then POST_BISTRO). No existing
+  golden changed.
+- Tests (tests/test_boss_critic.py, DMG + CGB, every frame <= 10 sprites a line): row and art; the fight's start
+  (pour_win 12); the window by real pours (pour_t 26 ordinary, 27 and 38 perfect, 39 ordinary); a sloppy drink
+  tasted for 30 frames (he stands), sent back from his right edge at 1 px a frame, drawn as the full drink, caught
+  for EMPTY_SCORE; busy, two drinks (one perfect) waved back, his glass and both returns >= empty_gap apart, nothing
+  breaks; a full queue lets the next drink pass and break, a missed return breaks at the right end; eight perfect
+  drinks win (outro, CHAPTER CLEAR, POST_BISTRO). New goldens boss_critic (savouring) and boss_critic_taste (the
+  TASTE tell), dmg + cgb. tests/boss_common.py throw() now pokes between two game frames (logic_paused): a mid-frame
+  poke could see update_mugs recount mugs_live to 0 and the mug never moved.
+
 ## Mode-aware debug select as built (owner request, 2026-10-10)
 
 The START + SELECT debug select (DEBUG_MENU builds only; `make release` still has none: build/release.noi names no

@@ -1,4 +1,4 @@
-; APPROVED by the owner on 2026-10-11 (the Food Critic, look 2 the gourmand, round 5 beret 4 two-tone, monocle chain). Not built yet: moves to its real place when its feature is built.
+; Art: approved design (the owner, 2026-10-11: the Food Critic, look 2 the gourmand, round 5 beret 4 two-tone, monocle chain). Built: src/boss_critic.c.
 ; ROUND 5, BERET 4 'two-tone': a soft dome tipped slightly forward with a small front tip; colour 1 (skin/light
 ;   grey) as a sheen on the crown's back to show the felt's roundness. Topper: 3-px crown top + stalk.
 ; Everything but the beret is round 4 (critic_look2.txt): face, monocle chain, hands, palette, poses. The beret is the
@@ -6,15 +6,15 @@
 ; (HAT_STILL / HAT_BOB) carries only what pokes above his bar: the stalk, in the same 2 rows above the body as round 4
 ; and at most round 4's 4 pixels there, so the bar-rail cover does not grow. hat_dx stays 9. Body columns 15 of 30
 ; (17 with TASTE). The band sits on row 3 (round 4's forehead row), so the hat rides a row lower on the brow.
-; The Food Critic, the bistro's boss (docs/minigames_bosses.md 3.6). PROPOSAL, look 2 "the gourmand": round and
+; The Food Critic, the bistro's boss (docs/minigames_bosses.md 3.6; src/boss_critic.c). Look 2 "the gourmand": round and
 ; portly, a big plum beret tipped to the right, a round face, a bold monocle ring on his left eye, a
 ; plum cravat on a black jacket, a notebook (cream pages, plum spine) in his left hand.
 ; Same format as big_tex.txt: body 32x16 BG (4 columns x 2 rows), facing the tap. Poses in the engine's order: WALK,
 ; STOMP (one row lower), GULP (the savour: the full glass raised), WINCE (the push-back: the notebook jerks up, the
 ; mouth drops open below), HAPPY (won: a smile, a toast and the notebook shown with a star). HAND1..3: the hand column
 ; (x 24-31) holding his one empty wine glass (hands 1: HAND2 and HAND3 repeat HAND1, shared columns, no cost).
-; TASTE (extra, not read by tools/gen_boss.py): the sloppy-drink pose, a frown and a flat hand sending it back; it
-; needs a 6th pose slot in the engine.
+; TASTE (extra pose 5, gen_boss BOSSES critic extra): the sloppy-drink pose, a frown and a flat hand sending it back;
+; shown while he tastes a sloppy drink or has one to send back (src/boss_critic.c).
 ; '.' the wall (colour 0), '-' skin, pages, glass, '+' the plum beret, cravat, spine and wine, '#' outline and
 ; the black jacket. CGB colours 1-3: #F8D0A8 #A03070 #201018 (BG palette 4, colour 0 the venue's wall); DMG: BG greys.
 ; Engine row: width 32, hat_dx 9. Body columns: 15 of 30 (18 with TASTE).

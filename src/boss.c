@@ -78,6 +78,7 @@ static const boss_row_t rows[BOSS_COUNT] = {
     // width x  bar step push gulp hands sip meter hat art
     [0] = {  40,  16,  1, 120,  16,  40,   3,  60,  8,   16,  0, "BIG TEX RIDES IN", "QUENCH HIM 8 MUGS" },   // Saloon: Big Tex (3.3)
     [2] = {  32,  16,  2,  90,   8,   8,   2,   0, 12,   12,  0, "NO SUCH THING", "12 COFFEES FAST" },      // Lumber lodge: Sasquatch (3.5)
+    [3] = {  32,  16,  1, 110,  16,  60,   1,  90,  8,    9,  0, "THE CRITIC DINES", "PERFECT POURS ONLY" }, // Bistro: the Food Critic (3.6)
 };
 
 // ---- state (test hooks: spec 2.5's names) ----
@@ -116,6 +117,7 @@ static uint8_t boss_call(uint8_t ev, uint8_t arg) {
     switch (boss_row) {
     case 0: return boss_big_tex(ev, arg);        // Saloon: src/boss_big_tex.c
     case 2: return boss_sasquatch(ev, arg);      // Lumber lodge: src/boss_sasquatch.c
+    case 3: return boss_critic(ev, arg);         // Bistro: src/boss_critic.c
     }
     return 0;
 }

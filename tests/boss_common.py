@@ -5,7 +5,7 @@
 import json
 import re
 
-from conftest import GAME, ROOT, venue
+from conftest import GAME, ROOT, logic_paused, venue
 from test_bonus import lines
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, inject_mug, run_until, state, tilemap_row
 from test_story import banner_text, centred, to_goal, to_shift, win
@@ -139,11 +139,14 @@ def mugs(gb, b=None, st=None):
 
 
 def throw(gb, b, x=72, perfect=False):
-    """A full mug on bar b at x (as if just launched and slid there); perfect: a story perfect pour (mug_timer 1)."""
-    inject_mug(gb, b, x)
-    if perfect:
-        m = max(i for i, s, _, _ in mugs(gb, b, FULL))
-        gb.write(gb.addr("mug_timer") + m, 1)
+    """A full mug on bar b at x (as if just launched and slid there); perfect: a story perfect pour (mug_timer 1). The
+    pokes land between two game frames (logic_paused: a poke mid-frame could see update_mugs recount mugs_live to 0
+    after it, and the mug would never move)."""
+    with logic_paused(gb):
+        inject_mug(gb, b, x)
+        if perfect:
+            m = [i for i, s, mb, mx in mugs(gb, b, FULL) if mx == x][-1]
+            gb.write(gb.addr("mug_timer") + m, 1)
 
 
 def block_empties(gb):
