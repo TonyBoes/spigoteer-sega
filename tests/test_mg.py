@@ -15,9 +15,11 @@ from test_story import BANKS, SEQ, hud_lives, lives_hud, to_goal, to_shift, win
 pytestmark = pytest.mark.timeout(300)
 
 GS_MINI = 13
+GS_MGLIST = 15                                      # BONUS > MINI GAMES (src/mg_list.c): practice's B comes back here
+MG_QUICKDRAW, MG_TSHIRT = 0, 1                      # mg.h: game ids (each with its own venue)
 MG_INTRO, MG_COUNT, MG_PLAY, MG_END, MG_RESULT = range(5)
 MG_STORY, MG_PRACTICE, MG_HARD = 0, 1, 2
-MG_STUB = 9
+MG_STUB = 16                                       # (mg.h: ids are games, not venues; the stub is not saved)
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
 GL_NEXT, GL_RED, GL_GREEN, GL_SHOW = range(4)
 MG_C = (ROOT / "src" / "mg.c").read_text()
@@ -245,8 +247,8 @@ def test_a_retries_and_b_goes_back_to_the_menu(model):
         assert gb.mem("overlay_on") == 0 and text(gb, 2) == "GREEN LIGHT"
         to_result(gb)
         gb.press("b", 2)
-        run_until(gb, lambda: state(gb) == TITLE and gb.pb.memory[0xFF40] & 0x80, 30)
-        assert gb.mem("overlay_on") == 0
+        run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
+        assert gb.mem("overlay_on") == 0, "B: the practice list (BONUS > MINI GAMES)"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -408,7 +410,8 @@ def restored(gb, theme):
     obj = b"".join(bytes(gb.read(0x8000 + t * 16, 16)) for t in range(96, 128))
     assert obj == bytes(v["show"]), "the performer tiles are back"
     g = gb.mem("cur_group")
-    n = MG_GAME_BG + len(ART["lamp"]) // 16 - 78       # patron ids 78.. up to the stub's lamp (MG_BG = 77 is no patron's)
+    n = MG_GAME_BG + max(len(ART["lamp"]), len(ART["qd_bg"])) // 16 - 78   # patron ids 78.. up to the games' own tiles
+    # (MG_BG = 77 is no patron's)
     bg = b"".join(bytes(gb.read((0x9000 if t < 128 else 0x8000) + t * 16, 16)) for t in range(78, 78 + n))
     assert bg == patron_group_tiles(g)[:n * 16], "the patron tiles are back over the medal icon and the lamp"
     assert tilemap_row(gb, 0, 0, 20, True) == [PANEL_TOP] * 20, "the window's rows as win_init left them"
@@ -429,8 +432,13 @@ def test_menu_then_arcade_has_everything_back(model):
         to_play(gb)
         play_round(gb)
         to_result(gb)
-        gb.press("b", 2)
+        gb.press("b", 2)                                # the practice list
+        run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
+        gb.run(3)
+        gb.press("b", 2)                                # the title's BONUS submenu
         run_until(gb, lambda: state(gb) == TITLE and gb.pb.memory[0xFF40] & 0x80, 30)
+        gb.run(10)
+        gb.press("b", 2)                                # its top level
         gb.run(10)
         title_level(gb)
         run_until(gb, lambda: state(gb) == PLAYING, 60)
@@ -446,18 +454,18 @@ def test_the_mini_slots_stay_not_built():
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("points", [4000, 0], ids=["gold", "none"])
 def test_a_built_mini_slot_plays_the_mini_game_and_the_story_goes_on(model, points):
-    """story_unskip marks step 2 (the mini slot) built: after the Happy hour the chapter's mini-game (mg_enter(chapter,
-    MG_STORY); the stub until the saloon's own exists) plays; its result says A CONTINUE, takes A only after 60 frames,
-    gives gold its life; then the Last call's banner, the lives carried, the step reached saved; the level load put
-    back everything the mini-game borrowed. Any medal (none too) goes on."""
+    """The saloon's mini slot is built (Quick Draw, tests/test_qd.py): after the Happy hour mg_enter(MG_QUICKDRAW,
+    MG_STORY) plays; its result says A CONTINUE, takes A only after 60 frames, gives gold its life; then the Last
+    call's banner, the lives carried, the step reached saved; the level load put back everything the mini-game
+    borrowed. Any medal (none too) goes on. (The medal is poked through the result: Quick Draw's own rule is
+    tests/test_qd.py's; here mg_score stands in and the medal comes from its rounds: none were played.)"""
     with to_shift(model, 0, 1) as gb:
-        gb.write("story_unskip", 1 << 2)
         win(gb, 0, 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
         run_until(gb, lambda: state(gb) == GS_MINI, 200)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
-        assert gb.mem("mg_id") == 0 and gb.mem("mg_mode") == MG_STORY and gb.mem("story_step") == 2
-        assert text(gb, 2) == "GREEN LIGHT" and gb.mem("lives") == 3
+        assert gb.mem("mg_id") == MG_QUICKDRAW and gb.mem("mg_mode") == MG_STORY and gb.mem("story_step") == 2
+        assert text(gb, 2) == "QUICK DRAW" and gb.mem("lives") == 3
         before = score(gb)
         assert before > 0, "the story's score carries into the mini-game"
         frames(gb, 30)
@@ -468,6 +476,8 @@ def test_a_built_mini_slot_plays_the_mini_game_and_the_story_goes_on(model, poin
         gb.press("a", 1)
         assert gb.mem("mg_phase") == MG_COUNT, "the count cannot be skipped in the story"
         to_play(gb)
+        if points:                                      # Quick Draw's medal is its rounds: 3-0 is gold
+            gb.write(gb.addr("story_scratch") + 2, 3)
         to_result(gb, points)
         m = medal_of(points)
         assert gb.mem("mg_medal") == m and score(gb) == before + MEDAL_PTS[m]
@@ -491,3 +501,20 @@ def test_a_built_mini_slot_plays_the_mini_game_and_the_story_goes_on(model, poin
         gb.run(2)
         assert hud_lives(gb) == lives_hud(gb.mem("lives"))
         restored(gb, "saloon")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_an_unbuilt_venue_s_slot_plays_the_stub_in_its_own_venue(model):
+    """The id is the game, not the venue (the old id 9 was both the stub and the space lounge): the stadium's slot,
+    marked built by story_unskip, is mg_enter(MG_TSHIRT) in the stadium (its tune, its backdrop), playing the stub
+    until T-Shirt Cannon exists; the stub itself (MG_STUB) and the space lounge's id stay apart."""
+    with to_shift(model, 1, 1) as gb:
+        gb.write("story_unskip", 1 << 2)
+        win(gb, 1, 1)
+        run_until(gb, lambda: state(gb) == GS_MINI, 300)
+        run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
+        assert gb.mem("mg_id") == MG_TSHIRT and gb.mem("venue_id") == 1 and text(gb, 2) == "GREEN LIGHT"
+    for gid, venue in ((9, 9), (MG_STUB, 0), (MG_QUICKDRAW, 0)):
+        with practice(model) as gb:
+            mg_enter(gb, gid, MG_PRACTICE)
+            assert gb.mem("mg_id") == gid and gb.mem("venue_id") == venue, (gid, venue)

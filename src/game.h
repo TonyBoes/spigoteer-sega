@@ -110,7 +110,8 @@ enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caugh
 // M11b story mode: GS_STORY a cut-scene (or the TRY AGAIN banner), GS_GOAL the chapter's goal banner before play
 enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS, GS_DEBUG, GS_LOOP, GS_INITIALS, GS_SCORES,
        GS_STORY, GS_GOAL, GS_MINI,
-       GS_JUKEBOX };                                    // the title's BONUS: the soundtrack player (src/jukebox.c)
+       GS_JUKEBOX,                                      // the title's BONUS: the soundtrack player (src/jukebox.c)
+       GS_MGLIST };                                     // BONUS > MINI GAMES: the list (src/mg_list.c)
 
 // bartender animation frames (order of assets/art/bartender.txt)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
@@ -377,11 +378,12 @@ void title_enter(void) BANKED;                          // LCD off: draws the ti
 uint8_t title_update(uint8_t pressed) BANKED;           // one title frame (it starts the games); 2: idle, show the table
 void title_music_toggle(void) BANKED;                   // music on/off and the MUSIC line
 // title menu items (title_items[], debug.c reads them): the top level PLAY / BONUS / SETTINGS, PLAY's submenu
-// [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK, SETTINGS's MUSIC ON-OFF
-enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC };
+// [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES, SETTINGS's MUSIC ON-OFF
+enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES };
 enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS };        // title_menu: the top level or the submenu of top item n-1
 extern uint8_t title_items[], title_sel;                // the shown menu's items in screen order, the selected line
 extern uint8_t title_back;                              // the menu title_enter opens (TM_*; it resets it to TM_TOP)
+extern uint8_t title_back_sel;                          // the line its cursor starts on (then 0)
 // ---- jukebox.c (banked: the title's BONUS, the soundtrack player) ---------------------------------
 void jukebox_enter(void) BANKED;                        // LCD off: the soundtrack list (GS_JUKEBOX)
 uint8_t jukebox_update(uint8_t pressed) BANKED;         // one frame; 1: back on the title (the screen changed)
@@ -412,6 +414,13 @@ extern uint8_t story_scratch[STORY_SCRATCH];
 extern uint8_t story_unskip;                            // test hook: bit s = step s of the sequence counts as built
 // ---- mg.c (banked, the mini-game framework; the games include src/mg.h) ------------------------------------
 uint8_t mg_update(uint8_t pressed) BANKED;              // a GS_MINI frame; 1: it left (the next screen is up)
+uint8_t mg_list_update(uint8_t pressed) BANKED;         // a GS_MGLIST frame (src/mg_list.c); 1: the screen changed
+void mg_list_enter(void) BANKED;                        // LCD off: BONUS > MINI GAMES, the list (GS_MGLIST)
+// save.c: Practice's block at SRAM 0x40 (the mini-games reached in STORY / ARCADE and the best medal of each)
+extern uint16_t mg_unlocked;                            // bit g = mini-game g (MG_* of src/mg.h) reached
+extern uint8_t  mg_best[];                              // the best medal (MEDAL_*) per mini-game
+void mg_record(uint8_t g, uint8_t medal) BANKED;        // game g reached / played to `medal`: saved when it changes
+#define SAVE_LOCK_DEBUG 2                               // save_lock: a debug-select run (not even the Practice block)
 // ---- boss.c (banked, the boss engine, docs/minigames_bosses.md 2.5; ROM0 hooks: patrons.c catch_full / try_spawn,
 // render.c compose_bar). A fight is the venue's level with the boss as a BG figure on his own bar (boss_bar,
 // BOSS_NONE when no fight is on: the ROM0 hooks compare against it); boss_cols[k] is the first tile id (top; bottom =

@@ -539,7 +539,8 @@ MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "m
                 "bonus": "BONUS",             # the top level's BONUS submenu
                 "play": "PLAY", "settings": "SETTINGS",   # the top level: PLAY / BONUS / SETTINGS (owner 2026-10-11)
                 "soundtrack": "SOUNDTRACK",   # BONUS's soundtrack player (src/jukebox.c)
-                "classic": "CLASSIC"}         # PLAY's fourth mode (the three modes, owner 2026-10-11)
+                "classic": "CLASSIC",         # PLAY's fourth mode (the three modes, owner 2026-10-11)
+                "minigames": "MINI GAMES"}    # BONUS's second item, the Practice list (src/mg_list.c)
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 # ... and past it the perfect pour's OBJ ids 234-239 (loaded at a story shift's start, never shown on the title: its
 # sprites are the bartender, the mug, the drink frames and the effects, all below 128); the DMG copies start at 240

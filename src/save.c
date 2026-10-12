@@ -9,7 +9,14 @@
 //   title tune, always set; bit 15, above TUNE_COUNT, is kept as it is); 8 checksum (0x5A + bytes 0..7), 9 its
 //   complement. CONTINUE on the title: progress 1..9, or progress 0 with a step reached; it starts that chapter over
 //   (lives are not saved: story.c).
-//   0x40 reserved for Practice's best scores (its own magic and checksum, when it comes).
+//   0x40 Practice (BONUS > MINI GAMES): 0..3 magic "MGP1"; 4..5 the mini-games reached (16-bit little endian, bit g =
+//   mini-game g, MG_* of src/mg.h; only bits below MG_PLANNED are ever set); 6..6+MG_PLANNED-1 the best medal of each
+//   (MEDAL_*, 0..3); then the checksum (0x5A + the bytes before it) and its complement. A block that does not check out
+//   (magic, checksum, a medal above GOLD, a bit at or above MG_PLANNED) loads as nothing reached and no medals; the
+//   other blocks are unaffected, and it is only written when it changes (mg_record), so a bad one stays until then.
+//   A mini-game is reached when STORY or ARCADE starts it (mg_enter in MG_STORY mode); its best medal is any mode's
+//   (Practice too). A debug-select run (save_lock == SAVE_LOCK_DEBUG) records nothing; ARCADE's save_lock (1) does not
+//   stop it (the owner's rule: reached in STORY or ARCADE).
 //   0x80 ARCADE, 0xC0 STORY, 0x100 CLASSIC: a top 5 each (TBL_AT(t), t = MODE_*): 0..3 magic "HSA1" / "HSS1" / "HSC1",
 //   5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little endian, <= 999999), best first;
 //   34 checksum (0x5A + bytes 0..33), 35 its complement. A block that does not check out (magic, checksum, letters,
@@ -46,6 +53,7 @@
 #include "game.h"
 #include "music.h"
 #include "story.h"
+#include "mg.h"
 
 extern uint32_t hi_score;
 extern uint8_t  hi_digits[6];
@@ -78,6 +86,12 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define OLD_KEPT 6                  // their progress p < 6 means the same chapters today; p >= 6 becomes 6, step 0
 
 static const uint8_t tbl_letter[TOP_TABLES] = { 'A', 'S', 'C' };   // the table blocks' magic "HS?1" (MODE_* order)
+
+uint16_t mg_unlocked;               // Practice: bit g = mini-game g reached in STORY or ARCADE
+uint8_t  mg_best[MG_PLANNED];       // Practice: the best medal per mini-game
+#define PR_AT    0x40
+#define PR_MEDAL 6
+#define PR_LEN   (PR_MEDAL + MG_PLANNED)   // bytes covered by the Practice block's checksum
 
 static uint8_t checksum(volatile uint8_t *b, uint8_t n) {
     uint8_t i, s = 0x5A;
@@ -182,11 +196,44 @@ static uint16_t old_tunes(uint16_t m) {
     return t;
 }
 
+// Practice's block, if it checks out, into mg_unlocked / mg_best (RAM enabled; they start empty)
+static void load_pr(void) {
+    volatile uint8_t *b = SRAM + PR_AT;
+    uint16_t m;
+    uint8_t g;
+    if (b[0] != 'M' || b[1] != 'G' || b[2] != 'P' || b[3] != '1' || !sum_ok(b, PR_LEN)) return;
+    m = b[4] | ((uint16_t)b[5] << 8);
+    if (m >> MG_PLANNED) return;
+    for (g = 0; g < MG_PLANNED; g++) if (b[PR_MEDAL + g] > MEDAL_GOLD) return;
+    mg_unlocked = m;
+    for (g = 0; g < MG_PLANNED; g++) mg_best[g] = b[PR_MEDAL + g];
+}
+
+// Mini-game g was reached (medal 0) or played to `medal`: the unlock bit, the best medal; the block is written only
+// when one of them changes. Nothing in a debug-select run, nothing for the stub (g >= MG_PLANNED).
+void mg_record(uint8_t g, uint8_t medal) BANKED {
+    volatile uint8_t *b = SRAM + PR_AT;
+    uint16_t m = (uint16_t)1 << g;
+    if (save_lock == SAVE_LOCK_DEBUG || g >= MG_PLANNED) return;
+    if (medal ? medal <= mg_best[g] : (mg_unlocked & m) != 0) return;
+    if (medal) mg_best[g] = medal; else mg_unlocked |= m;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    b[0] = 'M'; b[1] = 'G'; b[2] = 'P'; b[3] = '1';
+    b[4] = (uint8_t)mg_unlocked; b[5] = (uint8_t)(mg_unlocked >> 8);
+    for (g = 0; g < MG_PLANNED; g++) b[PR_MEDAL + g] = mg_best[g];
+    sum_put(b, PR_LEN);
+    DISABLE_RAM;
+}
+
 void hi_load(void) BANKED {
     uint16_t old = 0;
     uint8_t t;
     ENABLE_RAM;
     SWITCH_RAM(0);
+    mg_unlocked = 0;
+    for (t = 0; t < MG_PLANNED; t++) mg_best[t] = MEDAL_NONE;
+    load_pr();
     for (t = 0; t < TOP_TABLES * TOP_N * 3; t++) top_names[t] = ' ';
     for (t = 0; t < TOP_TABLES * TOP_N; t++) top_scores[t] = 0;
     save_migrated = 0;

@@ -191,6 +191,9 @@ five segments: OPEN, HAPPY, MINI, LAST, BOSS. A segment index `story_seg` (0-4) 
   (Bonus menu, 2026-10-10: the title now also has BONUS and its HI line on row 0; PRACTICE's rows: PLAN.md "Bonus menu and soundtrack as built".)
   (Owner, 2026-10-11: the title menu is PLAY / BONUS / SETTINGS with submenus; PRACTICE becomes BONUS's second item,
   after SOUNDTRACK, so the top level and its rows do not change: PLAN.md "Title submenus as built".)
+  (As built 2026-10-11: BONUS's second item is MINI GAMES, the mini-games reached in STORY or ARCADE with their best
+  medals, saved in the block at SRAM 0x40; the chapter / segment screen below, for shifts and bosses, is not built:
+  PLAN.md "Quick Draw and BONUS > MINI GAMES as built".)
 - Practice screen (new, banked, HUD style like the scores table): rows 3-12 list the chapter's five segments, the
   chapter number and venue name on row 2; Left/Right changes chapter (1-9, then FINALE; 1-10 with The Chrome Cow), Up/Down the segment, A
   starts it. Locked segments show "- - -". The best score is on the right.
@@ -754,6 +757,12 @@ Sketch legend used below: `9` score digits, `H` other HUD glyphs, `s` venue stag
 Lower-case letters are BG, upper-case are sprites unless the note says otherwise. Every screen is 20x18 tiles.
 
 ### 4.1 Quick Draw (Saloon)
+
+As built (2026-10-11, src/qd.c; PLAN.md "Quick Draw and BONUS > MINI GAMES as built"): the rules and numbers below,
+on the owner-approved art (assets/art/quickdraw/). Where the build follows the approved mock-up instead of this
+section: the pips sit on row 12 (the Kid's left, the player's right), not on the HUD row; the badge is a light letter
+in a dark disc. A press during READY is ignored (the foul rule starts with the wait). Sounds reuse existing SFX (bell
+SFX_CATCH, pop SFX_SERVE, foul SFX_BREAK, too slow SFX_LIFE, tumbleweed SFX_SHAKE, caw SFX_LAUNCH).
 
 Play: the Sarsaparilla Kid challenges the new bartender. Both stand with a bottle in the holster. A big DRAW! sign
 flips up with a bell; whoever pops the cork first wins the round. First to three.
@@ -1561,7 +1570,7 @@ to the owner first; code can start on placeholder art (generated silhouettes, as
 |---|---|---|---|---|
 | 1 ✅ | Segment flow in story.c (OPEN / HAPPY / MINI / LAST / BOSS), SRAM v4 (seg byte, migration), GS_MINI, mg.c framework (intro banner, count-in, timer, result window, medals), `mg_say` in ROM0, the `mg` union over story's backdrop buffer; one stub game | M | 3 KB + ~80 B ROM0 | **Built** (PLAN.md "Mini-game framework as built"; the segment flow and SRAM v4 came with the story shifts): ~3.1 KB in bank 6, 57 B ROM0, +72 B WRAM; stub game GREEN LIGHT; the story's mini slots stay NOT_BUILT until real games exist |
 | 2 ✅ | Boss engine + Big Tex (placeholder art): ROM0 hooks (catch, spawn mask, stamp, GS hooks), boss tiles / palettes at load, HUD meter, topper with the line-count guard, reset after a life, TRY AGAIN, tests | L | 4 KB + ~205 B ROM0 | **Built** (PLAN.md "Boss engine as built"): 3.6 KB (boss.c + art), 101 B ROM0, +42 B WRAM; the saloon's boss slot is on in the story, the others stay NOT_BUILT; the topper is OAM 28 (OAM 26 became the perfect pour's cue), the game-state hooks are banked (story.c, pour.c), Tex's art is a placeholder |
-| 3 | Quick Draw, Order Up!, Battery Sort (simple, mostly BG) | S each | 3 KB each | Order Up!'s portrait loader from another bank (LCD off, banked accessor: fine) |
+| 3 | Quick Draw ✅, Order Up!, Battery Sort (simple, mostly BG) | S each | 3 KB each | Order Up!'s portrait loader from another bank (LCD off, banked accessor: fine). **Quick Draw built** 2026-10-11 with the BONUS > MINI GAMES list (PLAN.md "Quick Draw and BONUS > MINI GAMES as built") |
 | 4 | Bosses without movement: Sasquatch (S, `empty_fast`), Critic (M, fill window + `MUG_RETURN`), Yeti (M, `mug_fast` + counter writer), Leo (M, roar walks the patron list), Sumo (M, beat from music.c) | S-M each | 1-1.5 KB each | the Critic changes main.c's fill timer (ROM0, hot input path): measure; Leo's roar must keep fair empties (test with 4 drinkers) |
 | 5 | Monkey Business (M, scheduler), Marshmallow Drop (M) | M | 3 KB each | the reachability scheduler needs a seed sweep test |
 | 6 | Bosses that move between bars: Mascot (M), Prototype (M-L, cycle + returns + conveyor tiles), Mothership (L, phase 2 with patrons, 23-tile budget) | M-L | 1.5-2 KB each | landing must scare regulars through the existing leave path without score; the Mothership's tile budget is exact |

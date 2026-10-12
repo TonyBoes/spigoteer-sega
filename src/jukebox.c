@@ -1,5 +1,5 @@
-// The title's BONUS > SOUNDTRACK: the soundtrack player (the title's submenus: src/title.c; PRACTICE is planned as
-// BONUS's second item).
+// The title's BONUS > SOUNDTRACK: the soundtrack player (the title's submenus: src/title.c; BONUS's second item, MINI
+// GAMES, is src/mg_list.c).
 //
 // Screen (the scores table's style: light HUD glyphs and the story font's punctuation on the dark band, HUD palette):
 //   row 0 "SOUNDTRACK", row 1 a panel line; rows 2-11 the tunes in music.h order (JB_VISIBLE at a time, scrolling),

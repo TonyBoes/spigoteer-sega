@@ -203,7 +203,7 @@ def test_title_menu_is_centred_without_bands(boot):
     # 4 px right inside one more tile, so its tiles are an even count with as many blank columns either side.
     for key, s in (("arcade", "ARCADE"), ("story", "STORY"), ("music_on", "MUSIC ON"), ("music_off", "MUSIC OFF"),
                    ("continue", "CONTINUE"), ("bonus", "BONUS"), ("play", "PLAY"), ("settings", "SETTINGS"),
-                   ("soundtrack", "SOUNDTRACK")):
+                   ("soundtrack", "SOUNDTRACK"), ("minigames", "MINI GAMES")):
         t = TITLE_ART["text"][key]
         n = len(t["tiles"])
         assert n % 2 == 0 and t["col"] == (20 - n) // 2, key
@@ -227,7 +227,7 @@ def test_up_down_move_the_mug_cursor_and_wrap(boot):
 
 
 # (top item, its submenu, the submenu's lines without a story save)
-SUBMENUS = [(K_PLAY, TM_PLAY, ("story", "arcade", "classic")), (K_BONUS, TM_BONUS, ("soundtrack",)),
+SUBMENUS = [(K_PLAY, TM_PLAY, ("story", "arcade", "classic")), (K_BONUS, TM_BONUS, ("soundtrack", "minigames")),
             (K_SETTINGS, TM_SETTINGS, ("music_on",))]
 
 

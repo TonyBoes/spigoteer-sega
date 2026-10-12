@@ -502,7 +502,7 @@ static uint8_t next_step(uint8_t s) {
 static void step_start(void) {
     uint8_t s = story_step_get(story_chapter, story_step);
     boss_set((s & STEP_KIND) == STEP_BOSS ? story_chapter : BOSS_NONE);   // the venue's boss fight (src/boss.c), or none
-    if ((s & STEP_KIND) == STEP_MINI) { mg_enter(story_chapter, MG_STORY); return; }
+    if ((s & STEP_KIND) == STEP_MINI) { mg_enter(mg_of_venue(story_chapter), MG_STORY); return; }   // (the game id, not the venue)
     story_shift = s & STEP_INDEX;
     shift_start();
 }

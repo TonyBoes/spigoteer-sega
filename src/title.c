@@ -7,8 +7,8 @@
 // The menu (owner 2026-10-11: "a sub menu scheme. Top level - play, bonus, settings"): the top level PLAY / BONUS /
 // SETTINGS; A (or START) opens the item's submenu in the same place: PLAY [CONTINUE] / STORY / ARCADE / CLASSIC
 // (CONTINUE when a story save exists: M11b; the three modes, owner 2026-10-11: CLASSIC starts the old 10-level
-// rotation as a stand-in until CLASSIC is built, with its own top 5), BONUS SOUNDTRACK (the soundtrack player, src/jukebox.c; PRACTICE is planned as a second
-// item), SETTINGS MUSIC ON-OFF. B in a submenu goes back to the top level, the cursor on the item it came from. SELECT
+// rotation as a stand-in until CLASSIC is built, with its own top 5), BONUS SOUNDTRACK (the soundtrack player, src/jukebox.c) / MINI GAMES (Practice: the
+// mini-games reached, src/mg_list.c), SETTINGS MUSIC ON-OFF. B in a submenu goes back to the top level, the cursor on the item it came from. SELECT
 // toggles the music anywhere on the title (as before). A submenu's lines replace the menu's text over a few frames
 // (menu_frame: within the VBlank drain's budget, 2-5 frames).
 //
@@ -95,6 +95,7 @@ enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
 uint16_t title_t;               // frames since the title appeared
 uint8_t  title_menu;            // TM_* (game.h): the top level, or the submenu of top item title_menu - 1
 uint8_t  title_back;            // the menu title_enter opens (the soundtrack player goes back to BONUS); then TM_TOP
+uint8_t  title_back_sel;        // ... and the line its cursor starts on (then 0)
 uint8_t  title_sel;             // the selected line of the shown menu (top: 0 PLAY, 1 BONUS, 2 SETTINGS; PLAY: [CONTINUE],
                                 // STORY, ARCADE, CLASSIC; BONUS: SOUNDTRACK; SETTINGS: MUSIC)
 uint8_t  title_hi;              // the top 5 the HI line shows (MODE_*): the one under PLAY's cursor, else ARCADE's
@@ -134,9 +135,9 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
-                                         tt_soundtrack, tt_classic };
+                                         tt_soundtrack, tt_classic, tt_minigames };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
-                                  TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC };
+                                  TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES };
 
 static void build_item(uint8_t i) {
     uint8_t k = title_items[i];
@@ -171,8 +172,9 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_ARCADE;
         title_items[title_n++] = K_CLASSIC;
         break;
-    case TM_BONUS:    // the soundtrack (its songs unlock as the story is played: save.c); PRACTICE planned after it
+    case TM_BONUS:    // the soundtrack (its songs unlock as the story is played: save.c); the mini-games (Practice)
         title_items[title_n++] = K_SOUNDTRACK;
+        title_items[title_n++] = K_MINIGAMES;
         break;
     default:
         title_items[title_n++] = K_MUSIC;
@@ -285,9 +287,9 @@ void title_enter(void) BANKED {
     music_pump();
     save_lock = 0;                     // (a debug-select story run ends here: save.c)
     title_n = 0;
-    menu_open(title_back, 0);          // the top level (or the submenu the soundtrack player was opened from)
+    menu_open(title_back, title_back_sel);   // the top level (or the submenu the soundtrack / the list was opened from)
     music_pump();
-    title_back = TM_TOP;
+    title_back = TM_TOP; title_back_sel = 0;
     title_dirty = 0;                   // drawn here, with the LCD off
     for (i = 0; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, menu_buf[i]);
     music_pump();
@@ -469,6 +471,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_STORY: story_begin(0); return 0;
         case K_CONTINUE: story_begin(1); return 0;
         case K_SOUNDTRACK: title_back = TM_BONUS; jukebox_enter(); return 0;   // (B there comes back to BONUS)
+        case K_MINIGAMES: mg_list_enter(); return 0;                           // (its B: BONUS, on MINI GAMES)
         case K_PLAY: menu_open(TM_PLAY, 0); break;
         case K_BONUS: menu_open(TM_BONUS, 0); break;
         case K_SETTINGS: menu_open(TM_SETTINGS, 0); break;

@@ -32,6 +32,9 @@ SEQ = STORY["sequence"]
 SHIFT_STEP = [next(i for i, s in enumerate(SEQ) if s["kind"] == "SHIFT" and s["index"] == k) for k in range(3)]
 BOSS_STEP = next(i for i, s in enumerate(SEQ) if s["kind"] == "BOSS")
 BOSS_BUILT = {c for c, steps in enumerate(STORY["steps"]) if steps[BOSS_STEP]["built"]}   # chapters whose boss is in
+MINI_STEP = next(i for i, s in enumerate(SEQ) if s["kind"] == "MINI")
+MINI_BUILT = {c for c, steps in enumerate(STORY["steps"]) if steps[MINI_STEP]["built"]}   # chapters whose mini-game is in
+GS_MINI, MG_RESULT, MG_RESULT_MIN = 13, 4, 63
 PATTERNS = {p["name"]: p for p in STORY["patterns"]}
 GLYPH = STORY["glyphs"]
 FONT = STORY["font"]
@@ -463,6 +466,24 @@ def clear_bars(gb):
     gb.write("mugs_live", 0)
 
 
+def finish_mini(gb):
+    """A mini-game (GS_MINI) ended at once (mg_phase = MG_RESULT, no medal: the story goes on whatever the medal) and
+    left with A once the result may be taken (src/mg.c MG_RESULT_MIN)."""
+    run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
+    gb.write("mg_phase", MG_RESULT)
+    run_until(gb, lambda: gb.mem("overlay_on") == 1 and gb.mem("mg_t") >= MG_RESULT_MIN, 120)
+    gb.press("a", 2)
+    run_until(gb, lambda: state(gb) != GS_MINI, 30)
+
+
+def past_mini(gb, limit=400):
+    """After a shift's LEVEL_CLEAR: up to the next goal banner, through the venue's mini-game when it is built."""
+    run_until(gb, lambda: state(gb) in (GS_GOAL, GS_MINI), limit)
+    if state(gb) == GS_MINI:
+        finish_mini(gb)
+        run_until(gb, lambda: state(gb) == GS_GOAL, limit)
+
+
 def beat_the_boss(gb, c):
     """After chapter c's Last call was won: its boss fight, when it is built (tests/test_boss.py plays them for
     real), its banner passed and the boss satisfied at once (boss_hook 3), up to its CHAPTER CLEAR."""
@@ -852,7 +873,7 @@ def pace(gb):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("c", range(10))
 def test_each_chapter_plays_its_shifts_in_order(model, c):
-    """Opening -> SHIFT CLEAR -> Happy hour -> SHIFT CLEAR -> (the mini-game slot, skipped) Last call -> CHAPTER CLEAR
+    """Opening -> SHIFT CLEAR -> Happy hour -> SHIFT CLEAR -> (the mini-game slot: skipped, the saloon's Quick Draw) Last call -> CHAPTER CLEAR
     -> (the boss slot, skipped) the POST scene; each shift's banner, goal and pace; the progress saved after each. A
     chapter whose boss is built (the saloon): the Last call says SHIFT CLEAR, then the fight's banner (BOSS),
     the boss step saved as reached, CHAPTER CLEAR after the fight (tests/test_boss.py plays it)."""
@@ -880,12 +901,18 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
             gb.run(3)
             assert banner_text(gb, 1) == centred("CHAPTER CLEAR" if k == 2 and c not in BOSS_BUILT else "SHIFT CLEAR")
             if k < 2:
+                mini = k == 1 and c in MINI_BUILT
+                if mini:                                  # the saloon: Quick Draw (tests/test_qd.py plays it)
+                    run_until(gb, lambda: state(gb) == GS_MINI, 300)
+                    assert gb.mem("mg_id") == 0 and gb.mem("story_step") == MINI_STEP
+                    assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, MINI_STEP)
+                    finish_mini(gb)
                 run_until(gb, lambda: state(gb) == GS_GOAL, 300)
                 gb.run(3)
                 assert banner_text(gb, 1) == centred(shift_title(c, k + 1))
                 assert banner_text(gb, 2) == centred(SHIFTS[c][k + 1]["line1"])
-                # saved: the next step reached (after the happy hour that is the mini-game slot, not built yet)
-                assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, SHIFT_STEP[k] + 1)
+                # saved: the next step reached (after the happy hour the mini-game slot, built or skipped)
+                assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, (MINI_STEP if mini else SHIFT_STEP[k]) + 1)
                 to_goal(gb)
         if c in BOSS_BUILT:
             run_until(gb, lambda: state(gb) == GS_GOAL, 300)
@@ -968,7 +995,7 @@ def test_lives_carry_from_shift_to_shift(model):
         assert gb.mem("lives") == 2 and state(gb) == PLAYING and gb.mem("story_shift") == 0
         for k in range(2):
             win(gb, 0, k)
-            run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+            past_mini(gb)                                 # (after the Happy hour: Quick Draw, no medal)
             gb.run(3)
             assert gb.mem("story_shift") == k + 1 and gb.mem("lives") == 2, "not refilled between shifts"
             assert hud_lives(gb) == lives_hud(2)

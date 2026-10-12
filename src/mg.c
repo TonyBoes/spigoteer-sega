@@ -9,8 +9,8 @@
 //   MG_RESULT  the result window (window rows 32-37: panel, name, score, medal word, prompt, panel; the text centred in
 //              columns 4-19, the medal's 4x4 icon at columns 0-3 of rows 1-4), drawn 2 rows a frame, then shown; the
 //              medal's points go to the score, a gold medal in the story is a life (story_bonus_life). Story: "A CONTINUE" (only after 60 frames shown) -> story_level_done, the next step,
-//              whatever the medal (mini-games never block the story). Practice: "A RETRY B MENU" (B: the title until
-//              the practice menu exists).
+//              whatever the medal (mini-games never block the story). Practice: "A RETRY B MENU" (B: the list,
+//              BONUS > MINI GAMES, src/mg_list.c). The medal is recorded for Practice's list (save.c mg_record).
 // Poking mg_phase = MG_RESULT ends any game (as the bonus rounds' phase 4). Nothing borrowed is restored here: the next
 // level load puts back the patron tiles, the show's OBJ tiles, the palettes and OBP1 (as after a bonus round). Only the
 // window's rows (32-34 as win_init left them) and its LYC are put back when the mini-game is left.
@@ -43,10 +43,11 @@ extern uint32_t score;
                                 // of columns 4-19 (so a line in the window has at most 16 characters)
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
 #define TIMER_COL       16      // HUD: 'T' + 3 digits (story.c hud_goal's format)
-#define MG_GAMES         1      // games built: 0 the stub
+#define MG_GAMES         2      // games built (mg_game): G_STUB the stub, G_QD Quick Draw
+enum { G_STUB, G_QD };
 
 // ---- state (globals => symbols the tests read) ----
-uint8_t  mg_id;                 // the id mg_enter was given (the venue; MG_STUB)
+uint8_t  mg_id;                 // the id mg_enter was given (MG_*, mg.h)
 uint8_t  mg_mode;               // MG_STORY, MG_PRACTICE (| MG_HARD)
 uint8_t  mg_phase;              // MG_*
 uint8_t  mg_medal;              // MEDAL_* (set when the result shows)
@@ -58,9 +59,13 @@ static uint8_t tbuf[4], res_buf[20];
 static char res_txt[2][14];
 
 // per game: the banner, the medal thresholds on mg_score (bronze, silver, gold)
-static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT" };
-static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN" };
-static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 } };
+static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW" };
+static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW" };
+static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 } };   // (Quick Draw: qd_medal)
+// each planned game's venue (the id is not the venue: the two lists need not keep one order), and the reverse
+static const uint8_t mg_venue[MG_PLANNED] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+static const uint8_t venue_mg[MG_PLANNED] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY,
+                                              MG_MILKRUN, MG_TAIKO, MG_MONKEY, MG_ASTEROID };
 static const uint16_t medal_pts[4] = { 0, 500, 1500, 3000 };
 static const char *const medal_word[4] = { "NO MEDAL", "BRONZE ", "SILVER ", "GOLD " };
 // CGB: the icon's metal (colours 0-2: highlight, disc, ribbon / numeral) on the HUD band (colour 3, main_cold.c)
@@ -111,6 +116,10 @@ void mg_number(char *dst, uint16_t n) BANKED {
     *dst = 0;
 }
 
+uint8_t mg_of_venue(uint8_t venue) BANKED {
+    return venue < MG_PLANNED ? venue_mg[venue] : MG_STUB;
+}
+
 // ---- the framework -------------------------------------------------------------------------------------------
 static void fill(uint8_t *d, uint8_t v, uint8_t n) { while (n--) *d++ = v; }
 
@@ -133,7 +142,7 @@ static void attr_rows(uint8_t y, uint8_t n) {    // LCD off, CGB: rows y.. in th
 }
 
 void mg_enter(uint8_t id, uint8_t mode) BANKED {
-    uint8_t v = id < MG_VENUES ? id : 0, i;
+    uint8_t v = id < MG_PLANNED ? mg_venue[id] : 0, i;   // (the stub: the saloon)
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
@@ -142,8 +151,10 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     tip_timer = 0; show_timer = 0;
     hide_all_sprites();
     mg_id = id; mg_mode = mode;
-    mg_game = 0;                                 // every id plays the stub until its own game is built
-    if (mode != MG_STORY) {                      // practice: the score starts from 0 (story: it carries on)
+    mg_game = id == MG_QUICKDRAW ? G_QD : G_STUB;   // a planned game not built yet plays the stub
+    if (mode == MG_STORY) mg_record(id, MEDAL_NONE);   // STORY or ARCADE reached it: Practice lists it (save.c)
+    else {                                       // practice: the score starts from 0 (story: it carries on)
+        extra_at = 0;                            // (no extra lives by score here)
         score = 0;
         for (i = 0; i < 6; i++) score_digits[i] = 0;
     }
@@ -168,6 +179,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     switch (mg_game) {                           // the game's own screen (it may set mg_timer)
+    case G_QD: qd_enter(); break;
     default: stub_enter(); break;
     }
     fill(tbuf, TILE_HUD_BLANK, 4);
@@ -182,6 +194,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
 
 static void game_update(uint8_t pressed) {
     switch (mg_game) {
+    case G_QD: qd_update(pressed); break;
     default: stub_update(pressed); break;
     }
 }
@@ -192,8 +205,10 @@ static void result_begin(void) {
     const uint16_t *at = medal_at[mg_game];
     char *d;
     const char *w;
-    while (m < 3 && mg_score >= at[m]) m++;
+    if (mg_game == G_QD) m = qd_medal();
+    else while (m < 3 && mg_score >= at[m]) m++;
     mg_medal = m;
+    mg_record(mg_id, m);                         // the best medal (Practice's list; any mode)
     if (is_cgb) set_bkg_palette(MG_ICON_PAL, 1, medal_pal[MEDAL_GOLD - m]);   // (the top of the frame: VBlank)
     if (m) {
         add_score(medal_pts[m]);
@@ -258,7 +273,7 @@ static uint8_t result_frame(uint8_t pressed) {
         return 1;
     }
     if (pressed & J_A) { mg_enter(mg_id, mg_mode); return 1; }
-    if (pressed & J_B) { mg_leave(); title_enter(); return 1; }   // (the practice menu is a later step)
+    if (pressed & J_B) { mg_leave(); mg_list_enter(); return 1; }   // back to BONUS > MINI GAMES
     return 0;
 }
 

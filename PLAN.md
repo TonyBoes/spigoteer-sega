@@ -300,7 +300,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, the venue owners (ten with Granny Throttle), villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Next: step 3, Quick Draw, Order Up!, Battery Sort. |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Next: Order Up!, Battery Sort. |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -1568,3 +1568,75 @@ table, caps, scoring and title entry are P5.
   try_spawn; everything else of CLASSIC is local-x rules and needs nothing from the mirror. A per-bar tap position (P6,
   slanted bars) only needs per-bar base rows (base_all is shared by the four bars today; +160 B WRAM per-bar), the
   mirror itself is per column and per OAM X.
+
+## Quick Draw and BONUS > MINI GAMES as built (M11e step 3, docs/minigames_bosses.md 4.1 / 2.3, 2026-10-11)
+
+The saloon's mini-game on the framework, playing in STORY and ARCADE, and the planned Practice feature as the title's
+BONUS > MINI GAMES. The art is the owner-approved proposal (2026-10-11): the Sarsaparilla Kid look B with round 3's
+stray-pixel fix, the Spigoteer's duel poses, the bottle (round 2's: cork up, tilted fumble), tumbleweed, crow, the
+DRAW! sign and the pips, in assets/art/quickdraw/ ("; Art: approved design (owner 2026-10-11)").
+- **Ids** (src/mg.h): a mini-game id is a game, not a venue: MG_QUICKDRAW 0, MG_TSHIRT 1 ... MG_ASTEROID 9 (one per
+  planned game, MG_PLANNED 10, the Practice block's bit / medal index), MG_STUB 16. mg.c has each game's venue
+  (mg_venue[]) and the reverse (venue_mg[], mg_of_venue(), which story.c's step_start now calls). The old MG_STUB 9 was
+  also venue 9 (the space lounge since the 10th venue) and ids >= 9 loaded the saloon: fixed (a test enters id 9 and
+  gets the space lounge, MG_STUB the saloon). A planned id not built yet still plays the stub, in its own venue.
+- **Story / arcade**: gen_story BUILT_SLOTS gains MINI: SALOON, so chapter 1's mini slot (after the Happy hour) plays
+  Quick Draw in MG_STORY mode (the score carries on, A CONTINUE, a gold medal +1 life), in STORY and in ARCADE.
+- **Rules** (src/qd.c, the spec's numbers): per round "ROUND n" / READY 60 frames (a press then is ignored: the pause
+  between rounds), STEADY and a wait W = 90 + 0..210 frames, then DRAW! (the sign flips to its face with the badge,
+  SFX_CATCH as the bell). Badge A in rounds 1-2, A or B in 3-5. R = 34 30 30 28 26. The badge's button on frame t <= R
+  after DRAW! wins (a tie at R is the player's; R + 1 is TOO SLOW: the Kid drew); only a fresh press counts (a button
+  held from READY through DRAW! is no press); A or B during the wait, or the other button after DRAW!: FOUL. Feints
+  from round 3, one a round, 48 frames, ending >= 30 frames before DRAW!: a tumbleweed rolling along the floor
+  (SFX_SHAKE) or a crow dropping onto the sign, cawing (SFX_LAUNCH) and leaving. After a round 60 frames: the poses
+  (the winner's cork pops, the loser fumbles the bottle), the pips, "YOU 0.32" (hundredths, the story font's '.' tile
+  patched into mg_say's queued row) / FOUL / TOO SLOW (SFX_SERVE / SFX_BREAK / SFX_LIFE). First to three: YOU WIN /
+  THE KID WINS and "3 TO n" through MG_END (the Kid cheers and the Spigoteer slumps when the Kid wins), then the result.
+  Points: 500 a round + (R - t) x 20, the match +2000. Medal (qd_medal, not mg_score thresholds; mg.c asks the game):
+  GOLD 3-0, SILVER 3-1 / 3-2, BRONZE lost with a round, else none. No timer. No HARD setting (the spec gives Quick
+  Draw one setting for story and practice; MG_HARD stays for games that define one).
+- **Screen**: the framework's saloon backdrop; the sign at columns 3-16, rows 6-9 (CGB BG palette 2: cream, tan, red,
+  dark; DMG black on white); the pips on row 12 (the Kid's columns 2-4, the player's 15-17, BG palette 0); the Kid at
+  x 20 (OBJ palettes 3 / 4, DMG OBP1 0xE4, set at entry since the title leaves 0xC4) and the Spigoteer at x 124 (his
+  duel poses as bartender frames 7-9 through mg_spigoteer), y 112; the bottle beside the hand (OBJ palette 1). OAM 0-3
+  him, 4-7 the Kid, 8-9 the bottles, 10-11 tumbleweed, 12 crow; worst line 8. Tiles: BG 125-163 (39), OBJ 56-91 (his
+  poses, bottle, tumbleweed), 96-127 (the Kid), 164-167 (the crow): all reloaded by the next level load. Not OBJ 92-95:
+  the coin is loaded once at boot (mg.h's resource note said 56-127; corrected). State: struct qd_state in the mg union
+  (tests read story_scratch + 0..15: st, round, wins x2, wait (16-bit), badge, r, t, res, react, feint, feint_at
+  (16-bit), feint_t, fx).
+- **BONUS > MINI GAMES** (src/mg_list.c, GS_MGLIST): BONUS is SOUNDTRACK / MINI GAMES (rows 8 / 10; "MINI GAMES" needs
+  no new title tiles). The list in the soundtrack player's style: row 0 MINI GAMES, the games from row 2 (the name at
+  column 1, the best medal's word at 13), the details on rows 13-16 (the name, the venue, BEST GOLD / NO MEDAL YET,
+  A PLAY  B BACK). Up / Down wrap; A or START plays the game in MG_PRACTICE (score from 0, "A RETRY B MENU": A retries,
+  B now comes back to the list); B goes back to the BONUS submenu with the cursor on MINI GAMES (title_back_sel). A
+  game not reached lists as "? ? ?" (as the soundtrack's locked tunes) with ? ? ? / LOCKED / REACH IT IN STORY / OR
+  ARCADE, and A does nothing. The DEBUG_MENU build (`make`) lists QUICK DRAW and the stub GREEN LIGHT, both unlocked;
+  `make release` lists Quick Draw alone with the real rule.
+- **SRAM** (src/save.c, still version 7; the block at 0x40 that was reserved): "MGP1", 4-5 the mini-games reached (LE,
+  bit g = MG_*), 6-15 the best medal per planned game, 16 checksum (0x5A + bytes 0-15), 17 its complement. A game is
+  reached when STORY or ARCADE starts it (mg_enter in MG_STORY mode: ARCADE's save_lock 1 does not stop it, the owner's
+  rule); its best medal is any mode's. A debug-select run records nothing: debug.c's save_lock is now SAVE_LOCK_DEBUG
+  (2), and only the Practice block tells 1 from 2. The stub is never saved. Written only when a bit or a medal changes
+  (mg_record); a bad block (magic, checksum, a medal above GOLD, a bit at or above MG_PLANNED) loads as nothing reached
+  and leaves the other blocks alone.
+- **ROM / WRAM**: ROM0 real free 1498 -> 1481 B (game.gb), 1611 -> 1594 B (release.gb): the GS_MGLIST case. Banked
+  ~6.4 KB (qd.c + its art, mg_list.c, the save code, the id tables); autobank opened bank 10 (11 banks, still a 256 KB
+  ROM). WRAM +16 B (mg_unlocked, mg_best[10], title_back_sel, the list's 3); Quick Draw's state is in the union.
+- **Tests** (1403 -> 1468 passing): tests/test_qd.py (44: the screen and its art in VRAM, palettes and attributes; a
+  round, its points and the '.'; R wins and R + 1 loses; TOO SLOW; early A or B is a foul, READY ignores presses; the
+  wrong badge; a held button; best of five to three with the six medal cases, the score lines and the outro poses;
+  seeded rounds (waits, R, badges, feints only from round 3, both kinds); feints frame by frame never with fewer than
+  30 frames left, their sounds; after Quick Draw a level's VRAM is byte for byte a fresh boot's); tests/test_mg_list.py
+  (19: BONUS's items, the debug list, A plays / RETRY / B back / B to BONUS, the release list locked and unlocked, the
+  stub not in the release list, story reaching it unlocks and saves it with its medal, a worse medal never lowers the
+  best, ARCADE unlocks too while a debug-select run does not, practice and the stub unlock nothing, five bad blocks).
+  Changed: test_mg (ids; B goes to the list; the story slot is Quick Draw; the stadium's unskipped slot plays the stub
+  in the stadium), test_story / test_arcade (finish_mini / past_mini through the saloon's mini-game), test_flow /
+  test_jukebox (BONUS's two items), test_debug (save_lock 2). New goldens (dmg + cgb): qd_intro, qd_draw, qd_you_win,
+  qd_foul, qd_feint, qd_kid_cheer, qd_result, mg_list, mg_list_locked. Replaced on purpose: title_bonus (BONUS gains
+  MINI GAMES), mg_story_gold (the saloon's story slot is Quick Draw now, not the stub), mg_result (the stub's practice
+  run: the frames its rounds 3-5 see the test's A on moved with the code layout; only the score digits differ).
+- Spec gaps: the badge art is a letter in a dark disc, not "black on white" as 4.1's text says (the approved art
+  decides); the pips are on row 12 (the approved mock-up), not the HUD row the spec's sketch shows; with no new SFX
+  allowed the bell, pop, caw and rustle reuse SFX_CATCH / SFX_SERVE / SFX_LAUNCH / SFX_SHAKE; Practice's 2.3 chapter
+  / segment screen (shifts and bosses) is not built: MINI GAMES lists the mini-games only.

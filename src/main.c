@@ -448,6 +448,9 @@ static void update(void) {
     case GS_JUKEBOX:                             // the title's BONUS: the soundtrack player (src/jukebox.c)
         if (jukebox_update(pressed)) return;
         break;
+    case GS_MGLIST:                              // BONUS > MINI GAMES: the list (src/mg_list.c)
+        if (mg_list_update(pressed)) return;
+        break;
     case GS_LOOP:
         if (++state_timer >= LOOP_FRAMES) { game_state = GS_PLAYING; overlay_on = 0; }
         break;

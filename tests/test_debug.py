@@ -11,6 +11,7 @@ pytestmark = pytest.mark.timeout(120)
 TITLE, PLAYING, PAUSED = 0, 1, 5
 MODE_ARCADE, MODE_STORY, MODE_CLASSIC, MODE_LEVEL = range(4)   # src/game.h play_mode
 COMBO = 30
+SAVE_LOCK_DEBUG = 2     # save.c save_lock: a debug-select run (ARCADE alone is 1: it still records the mini-games reached)
 
 
 def combo(gb, frames=COMBO + 2):
@@ -299,7 +300,7 @@ def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(mod
         tap(rom, "a")
         run_until(rom, lambda: rom.mem("game_state") == GS_GOAL, 60)
         rom.run(3)
-        assert rom.mem("story_on") == 1 and rom.mem("debug_menu_open") == 0 and rom.mem("save_lock") == 1
+        assert rom.mem("story_on") == 1 and rom.mem("debug_menu_open") == 0 and rom.mem("save_lock") == SAVE_LOCK_DEBUG
         assert (rom.mem("story_chapter"), rom.mem("story_step"), rom.mem("story_shift")) == (c, SHIFT_STEP[k], k)
         assert rom.mem("level") == c + 1 and rom.mem("cur_group") == c, "the chapter's venue"
         assert rom.mem("lives") == 3 and rom.mem("score") == 0, "the venue's lives, a fresh score"
@@ -440,7 +441,7 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
         rom.run(3)
         assert rom.mem("story_on") == 1 and rom.mem("boss_on") == 1 and rom.mem("boss_id") == c
         assert (rom.mem("story_chapter"), rom.mem("story_step")) == (c, BOSS_STEP)
-        assert rom.mem("lives") == 3 and rom.mem("save_lock") == 1
+        assert rom.mem("lives") == 3 and rom.mem("save_lock") == SAVE_LOCK_DEBUG
         assert goal_text(rom, 1) == centred("BOSS")
         rom.write("tip_chance", 0)
         rom.press("a", 2)
@@ -475,7 +476,7 @@ def test_the_arcade_box_offers_the_steps_only_and_a_starts_an_arcade_run(boot):
     assert banner_is(boot, "ARCADE 2 HAPPY")
     tap(boot, "a")
     run_until(boot, lambda: boot.mem("game_state") == GS_GOAL, 60)
-    assert boot.mem("story_arc") == 1 and boot.mem("play_mode") == MODE_ARCADE and boot.mem("save_lock") == 1
+    assert boot.mem("story_arc") == 1 and boot.mem("play_mode") == MODE_ARCADE and boot.mem("save_lock") == SAVE_LOCK_DEBUG
     assert boot.mem("story_chapter") == 1 and boot.mem("story_shift") == 1 and boot.mem("lives") == 3
     boot.press("a", 2)
     run_until(boot, lambda: boot.mem("game_state") == PLAYING, 20)

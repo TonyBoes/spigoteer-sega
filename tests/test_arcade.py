@@ -9,7 +9,8 @@ from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLA
 from test_scores import (EMPTY, GS_INITIALS, GS_SCORES, MODE_ARCADE, MODE_STORY, booted, main_block, parse_save,
                          screen_text, set_score, table, v7_image)
 from test_sound import make_rom, save_ram
-from test_story import (CHAPTERS, SHIFTS, banner_text, centred, hud_lives, lives_hud, shift_title, to_goal, win)
+from test_story import (CHAPTERS, SHIFTS, banner_text, centred, finish_mini, hud_lives, lives_hud, shift_title, to_goal,
+                        win)
 
 pytestmark = pytest.mark.timeout(240)
 
@@ -51,7 +52,11 @@ def finish_venue(gb):
         finish_step(gb)
         cleared = banner_text(gb, 1)
         run_until(gb, lambda: state(gb) in (GS_GOAL, BONUS, GS_MINI), 400)
-        assert state(gb) != GS_MINI, "no mini-game is built yet"
+        if state(gb) == GS_MINI:                          # a built mini-game (the saloon's Quick Draw): ended at once
+            assert gb.mem("mg_mode") == 0 and gb.mem("mg_id") == gb.mem("story_chapter") == 0
+            seen.append("MINI")
+            finish_mini(gb)
+            run_until(gb, lambda: state(gb) in (GS_GOAL, BONUS), 400)
         gb.run(3)
         if state(gb) == BONUS:
             return seen, cleared

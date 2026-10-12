@@ -7,7 +7,7 @@ import json
 import re
 
 import pytest
-from conftest import (K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP, check_golden,
+from conftest import (K_BONUS, K_MINIGAMES, K_PLAY, K_SETTINGS, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP, check_golden,
                       hold_stage_anim, menu_items, title_pick)
 from test_flow import (GS_GOAL, GS_STORY, TITLE, most_per_scanline, run_until, settle_title, state, tilemap_row,
                        title_text_row)
@@ -86,7 +86,8 @@ def test_bonus_is_always_on_the_menu(boot):
         assert menu_items(rom) == [K_PLAY, K_BONUS, K_SETTINGS], "the same with a story save"
         title_pick(rom, K_BONUS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_SOUNDTRACK] and tilemap_row(rom, 9, 0, 20) == title_text_row("soundtrack")
+        assert menu_items(rom) == [K_SOUNDTRACK, K_MINIGAMES] and tilemap_row(rom, 8, 0, 20) == title_text_row("soundtrack")
+        assert tilemap_row(rom, 10, 0, 20) == title_text_row("minigames"), "MINI GAMES second (tests/test_mg_list.py)"
 
 
 def test_soundtrack_opens_the_player_and_b_comes_back_to_bonus(boot):
@@ -95,8 +96,9 @@ def test_soundtrack_opens_the_player_and_b_comes_back_to_bonus(boot):
     tap(boot, "b")                                            # (nothing playing: back to the title)
     run_until(boot, lambda: state(boot) == TITLE, 30)
     boot.run(MENU_SETTLE)
-    assert boot.mem("title_menu") == TM_BONUS and menu_items(boot) == [K_SOUNDTRACK] and boot.mem("title_sel") == 0
-    assert tilemap_row(boot, 9, 0, 20) == title_text_row("soundtrack"), "the BONUS submenu, where it was opened"
+    assert boot.mem("title_menu") == TM_BONUS and menu_items(boot) == [K_SOUNDTRACK, K_MINIGAMES]
+    assert boot.mem("title_sel") == 0
+    assert tilemap_row(boot, 8, 0, 20) == title_text_row("soundtrack"), "the BONUS submenu, where it was opened"
     tap(boot, "b")
     boot.run(MENU_SETTLE)
     assert boot.mem("title_menu") == TM_TOP and boot.mem("title_sel") == 1, "then the top level, on BONUS"

@@ -6,8 +6,8 @@
 // union below, over story.c's cut-scene backdrop buffer (no cut-scene runs while a mini-game does).
 //
 // Resources a game may use (no patrons, mugs or show while it runs; the next level load puts everything back):
-//   BG tile ids MG_GAME_BG..255 (MG_BG..MG_GAME_BG-1 hold the medal icon); OBJ tile ids 56-127 (and 128+ not used as
-//   BG); OAM 4-39 (0-3: the Spigoteer, mg_spigoteer); CGB BG palettes 2-3 (4 is the medal's in the result window; 0 and
+//   BG tile ids MG_GAME_BG..255 (MG_BG..MG_GAME_BG-1 hold the medal icon); OBJ tile ids 56-91 and 96-127 (and 128+ not
+//   used as BG; not 92-95, the coin: it is loaded once at boot, not by the level load); OAM 4-39 (0-3: the Spigoteer, mg_spigoteer); CGB BG palettes 2-3 (4 is the medal's in the result window; 0 and
 //   5-7 the venue backdrop; 1 the HUD), CGB OBJ palettes 1-7; DMG OBP1. Text: mg_say (game.h, ROM0) on rows
 //   MG_TEXT_A / MG_TEXT_B (the banner rows), at most 4 lines a frame.
 #ifndef MG_H
@@ -21,10 +21,22 @@
 #define MG_PRACTICE     1
 #define MG_HARD         2       // | MG_PRACTICE: the game plays its HARD setting (the game reads mg_mode)
 
-// mini-game ids = the venue (chapter) whose mini-game it is; MG_STUB the framework's stub game. Until a venue's game is
-// built, its id plays the stub (only reachable when a test marks the story's mini slot built).
-#define MG_VENUES       9
-#define MG_STUB         9
+// Mini-game ids (mg_enter's id; Practice's SRAM bit and medal index): one per planned game, named, independent of the
+// venue order (each game's venue is mg.c's mg_venue[]; the story finds a chapter's game with mg_of_venue[]). An id that
+// is planned but not built yet plays the stub in its own venue (only reachable when a test marks the story's mini slot
+// built). MG_STUB is the framework's stub game itself (the saloon's backdrop; never saved, never in the release list).
+#define MG_QUICKDRAW    0       // the saloon (docs/minigames_bosses.md 4.1)
+#define MG_TSHIRT       1       // the stadium (4.2)
+#define MG_LOGROLL      2       // the lumber lodge (4.3)
+#define MG_ORDERUP      3       // the bistro (4.4)
+#define MG_MARSHMALLOW  4       // the igloo (4.5)
+#define MG_BATTERY      5       // the robot factory (4.6)
+#define MG_MILKRUN      6       // The Chrome Cow (4.10)
+#define MG_TAIKO        7       // the teahouse (4.7)
+#define MG_MONKEY       8       // the jungle zoo (4.9)
+#define MG_ASTEROID     9       // the space lounge (4.8)
+#define MG_PLANNED     10       // ids below this are saved (save.c: Practice's block)
+#define MG_STUB        16       // GREEN LIGHT, the framework's stub
 
 enum { MG_INTRO, MG_COUNT, MG_PLAY, MG_END, MG_RESULT };
 enum { MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD };
@@ -42,7 +54,8 @@ extern uint16_t mg_timer;       // frames left (0: no timer / out); set by the g
 extern uint16_t mg_score;       // the game's points (also added to the HUD score as they are earned)
 extern uint16_t mg_seed, mg_seed_force;   // the game's RNG seed: next_rand() at entry, or mg_seed_force when non-zero
 
-void mg_enter(uint8_t id, uint8_t mode) BANKED;  // LCD off: the screen, the intro banner, GS_MINI
+void mg_enter(uint8_t id, uint8_t mode) BANKED;  // LCD off: game `id` (MG_*), the intro banner, GS_MINI
+uint8_t mg_of_venue(uint8_t venue) BANKED;       // the venue's (the chapter's) mini-game id
 // helpers for the games
 void mg_points(uint16_t n) BANKED;               // n points to mg_score and the HUD score
 void mg_finish(void) BANKED;                     // the play is over: MG_END (the game's outro, then the result)
@@ -64,9 +77,33 @@ struct stub_state {             // tests read these at story_scratch + offset (t
     char    txt[12];            // a text line being built
 };
 
+void qd_enter(void) BANKED;                      // src/qd.c: QUICK DRAW (the saloon)
+void qd_update(uint8_t pressed) BANKED;
+uint8_t qd_medal(void) BANKED;                   // the medal its rounds earned (not a score threshold)
+
+struct qd_state {               // tests read these at story_scratch + offset (tests/test_qd.py)
+    uint8_t st;                 // +0 QS_* (src/qd.c)
+    uint8_t round;              // +1 the round (1..QD_ROUNDS)
+    uint8_t wins[2];            // +2 the player's rounds, +3 the Kid's
+    uint16_t wait;              // +4 frames left before DRAW! (poke 1 to skip the wait)
+    uint8_t badge;              // +6 0: A, 1: B
+    uint8_t r;                  // +7 the frame the Kid draws on (frames after DRAW!)
+    uint8_t t;                  // +8 frames since DRAW! (or in this state)
+    uint8_t res;                // +9 the round's end: QR_* (src/qd.c)
+    uint8_t react;              // +10 the player's winning frame (frames after DRAW!)
+    uint8_t feint;              // +11 this round's feint: QF_* (0 none)
+    uint16_t feint_at;          // +12 the wait value its first frame starts on
+    uint8_t feint_t;            // +14 frames into it (QD_FEINT_LEN: over)
+    uint8_t fx;                 // +15 the feint's x (screen px + 8, as OAM)
+    uint8_t sign[2][14];        // the sign's two letter rows (VBlank queue source; the frame rows at entry)
+    uint8_t pips[6];            // row 12: the pips, the Kid's 3 and the player's 3 (VBlank queue source)
+    char    txt[14];            // a text line being built
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
+    struct qd_state qd;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert
