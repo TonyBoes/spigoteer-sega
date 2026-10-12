@@ -1,0 +1,21 @@
+; Art: approved design (owner 2026-10-12)
+; Battery Sort: the broken battery (arrives from battery 16), 8x16, CGB OBJ 3 (new: '-' acid yellow, '+' grey case,
+; '#' dark), DMG OBP1 0xE4 ('-' light grey, '+' dark grey, '#' black). Bent in the middle (the top leans right),
+; split open at the kink with acid leaking out; no bars. A silhouette nothing else on the belt has.
+; frames: broken
+.....##.
+....#++#
+...#####
+...#+++#
+...#+#+#
+..#+##+#
+..#+++##
+.#-#+##.
+.#--##..
+.#-++#..
+.#+++#..
+.#+#+#..
+.#++++#.
+.#+++#-#
+.######-
+........

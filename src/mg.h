@@ -104,10 +104,45 @@ struct qd_state {               // tests read these at story_scratch + offset (t
     uint8_t row[20];            // the stream row being shown (VBlank queue source)
 };
 
+void bs_enter(void) BANKED;                      // src/bs.c: BATTERY SORT (the robot factory)
+void bs_update(uint8_t pressed) BANKED;
+
+struct bs_fly { uint8_t type, dir, t; };         // a battery in the air (dir 0: none)
+struct bs_state {               // tests read these at story_scratch + offset (tests/test_bs.py)
+    uint8_t st;                 // +0 BS_* (src/bs.c)
+    uint8_t n;                  // +1 batteries on the belt (bs_queue / bs_qx)
+    uint8_t wait;               // +2 frames left for the front battery on the flap (0: none waiting)
+    uint8_t window;             // +3 D, the wait a battery gets
+    uint8_t speed;              // +4 the belt, 1/8 px a frame
+    uint8_t strikes;            // +5
+    uint8_t sorted;             // +6 correct sorts
+    uint8_t streak;             // +7
+    uint8_t made;               // +8 batteries made so far (the 16th is the first broken one)
+    uint8_t chute;              // +9 1: the SCRAP chute is open
+    uint8_t banner;             // +10 frames left of the chute's banner
+    uint8_t last;               // +11 the last outcome: BR_* (src/bs.c)
+    uint8_t screen_t;           // +12 frames left of the diverter's arrow
+    uint8_t pose, pose_t, flip; // +13 the Spigoteer's frame, its frames left, X-flipped
+    uint8_t anim;               // +16
+    uint8_t started;            // +17
+    uint8_t queue[8];           // +18 the batteries on the belt, front first: BT_*
+    int16_t qx[8];              // +26 their x in 1/8 px
+    uint8_t belt, belt_f;       // +42 the belt's position (1/8 px), its tile frame
+    struct bs_fly fly[3];       // +44
+    uint8_t spark_t, spark_x;   // +53 a right bin's sparks
+    uint8_t cross_t, cross_x, cross_y;   // +55 the WRONG cross
+    uint8_t spit_t, spit_type, spit_dir; // +58 the spat battery
+    uint8_t band[2];            // +61 the banner rows' pending change
+    uint8_t lamps[3], scr[2], lid[4], belt_row[9];   // VBlank queue sources
+    uint8_t hud_attr[20];
+    uint8_t wall[2][20], wattr[2][20];   // the banner rows as wall (tiles, CGB attributes), saved at entry
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
     struct qd_state qd;
+    struct bs_state bs;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert

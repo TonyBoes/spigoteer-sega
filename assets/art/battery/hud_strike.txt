@@ -1,0 +1,22 @@
+; Art: approved design (owner 2026-10-12)
+; Battery Sort: the strike lamps, HUD row 0 columns 9-11 (where the lives mugs stand in play; the level load puts
+; them back), CGB BG palette 1 (the HUD's: '.' cream, '-' gold, '#' navy), DMG BGP (navy black, cream white).
+; EMPTY a dim ring; STRUCK a bold cream X. Different shapes, so DMG reads them too. 2 BG tiles.
+; frames: empty, struck (8x8 each)
+########
+########
+##---###
+#-###-##
+#-###-##
+#-###-##
+##---###
+########
+
+########
+..###..#
+#..#..##
+##...###
+##...###
+#..#..##
+..###..#
+########

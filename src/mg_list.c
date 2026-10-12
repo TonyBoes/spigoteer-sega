@@ -2,15 +2,15 @@
 // mini-games that are built, each playable once STORY or ARCADE has reached it (save.c's Practice block at SRAM 0x40).
 //
 // Screen (the soundtrack player's style: light HUD glyphs and the story font's punctuation on the dark band, HUD
-// palette): row 0 "MINI GAMES", row 1 a panel line; rows 2.. the games, one a line: the name at columns 1-11, the best
-// medal's word at columns 13-18; the mug cursor (OAM 0) left of the name; row 12 a panel line, rows 13-16 the selected
+// palette): row 0 "MINI GAMES", row 1 a panel line; rows 2.. the games, one a line: the name at columns 1-12, the best
+// medal's word at columns 14-19; the mug cursor (OAM 0) left of the name; row 12 a panel line, rows 13-16 the selected
 // game: its name, its venue, its best medal, the keys; row 17 a panel line. A game not reached yet lists as "? ? ?"
 // (as SOUNDTRACK's locked tunes) and its details read "? ? ?", LOCKED, REACH IT IN STORY, OR ARCADE.
 // Up / Down select (wrapping); A or START plays the selected game in MG_PRACTICE (score from 0; its result offers
 // "A RETRY B MENU", and B comes back here: src/mg.c); a locked one does nothing. B goes back to the title's BONUS
 // submenu with the cursor on MINI GAMES.
 // The list: every built game. The DEBUG_MENU build (`make`) lists them all unlocked, the stub GREEN LIGHT included, so
-// the owner can test; `make release` lists Quick Draw (the stub is not in it) and applies the unlock rule.
+// the owner can test; `make release` lists Quick Draw and Battery Sort (the stub is not in it) and applies the unlock rule.
 // LCD off to enter; afterwards the rows go through the VBlank queue from WRAM buffers (story_scratch: no cut-scene and
 // no mini-game runs while this screen shows; mg_enter rewrites it).
 #pragma bank 255
@@ -29,14 +29,14 @@ extern uint8_t overlay_on;
 #define ML_ROW_BOX     12       // panel; the info lines 13-16; panel 17
 #define ML_INFO_LINES   4
 #define ML_COL_NAME     1
-#define ML_COL_MEDAL   13
+#define ML_COL_MEDAL   14       // (BATTERY SORT is 12 letters: columns 1-12)
 #define ML_ROWS_PER_FRAME 4     // 20-byte rows queued a frame (as mg_say)
 #ifdef DEBUG_MENU
-#define ML_N            2
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_STUB };
+#define ML_N            3
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_BATTERY, MG_STUB };
 #else
-#define ML_N            1
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW };
+#define ML_N            2
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_BATTERY };
 #endif
 typedef char ml_fits[(ML_N <= ML_ROW_BOX - ML_ROW_LIST) ? 1 : -1];   // (no scrolling yet: 10 lines)
 #define ML_INFO_BITS  (((1 << ML_INFO_LINES) - 1) << ML_N)
@@ -50,18 +50,25 @@ static const char locked_name[] = "? ? ?";
 static const char *const locked_info[ML_INFO_LINES] = { locked_name, "LOCKED", "REACH IT IN STORY", "OR ARCADE" };
 static const char *const medal_name[4] = { "", "BRONZE", "SILVER", "GOLD" };
 
-#ifdef DEBUG_MENU
 static const char *game_name(uint8_t g) {
-    return g == MG_QUICKDRAW ? "QUICK DRAW" : "GREEN LIGHT";
+    if (g == MG_QUICKDRAW) return "QUICK DRAW";
+    if (g == MG_BATTERY) return "BATTERY SORT";
+#ifdef DEBUG_MENU
+    return "GREEN LIGHT";
+#else
+    return "";
+#endif
 }
 
 static const char *game_where(uint8_t g) {
-    return g == MG_QUICKDRAW ? "THE SALOON" : "THE TEST STUB";
-}
+    if (g == MG_QUICKDRAW) return "THE SALOON";
+    if (g == MG_BATTERY) return "THE ROBOT FACTORY";
+#ifdef DEBUG_MENU
+    return "THE TEST STUB";
 #else
-#define game_name(g)  "QUICK DRAW"
-#define game_where(g) "THE SALOON"
+    return "";
 #endif
+}
 
 static uint8_t ml_glyph(char c) {
     switch (c) {

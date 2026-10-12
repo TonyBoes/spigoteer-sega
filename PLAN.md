@@ -1945,3 +1945,47 @@ DRAW! sign and the pips, in assets/art/quickdraw/ ("; Art: approved design (owne
   decides); the pips are on row 12 (the approved mock-up), not the HUD row the spec's sketch shows; with no new SFX
   allowed the bell, pop, caw and rustle reuse SFX_CATCH / SFX_SERVE / SFX_LAUNCH / SFX_SHAKE; Practice's 2.3 chapter
   / segment screen (shifts and bosses) is not built: MINI GAMES lists the mini-games only.
+
+## Battery Sort as built (M11e, docs/minigames_bosses.md 4.6, 2026-10-12)
+
+The robot factory's mini-game on the framework (src/bs.c), in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains
+ROBOT) and in BONUS > MINI GAMES. The art is the owner-approved proposal (2026-10-12): the gauge cells (option A: the
+factory drink's own full / empty frames, OBJ 56-59, no tiles of their own), the light steel bins, belt, diverter,
+signs, chute lid, strike lamps, broken battery, spark, WRONG cross, in assets/art/battery/ ("; Art: approved design
+(owner 2026-10-12)"); tools/gen_bs.py -> build/bs_art.h, build/bs.json, out/preview/bs_*_x8.png (it checks cells.txt
+against the drink and the cross's mirror symmetry; the bin's and lid's tiles deduplicated: 44 BG tiles).
+- **Rules** (the spec's numbers): the front battery waits on the diverter's flap D frames (120, -8 every 4 right sorts,
+  never under 40); Left CHARGE (charged), Right RECYCLE (dead), Down SCRAP (broken; nothing while the chute is closed).
+  The belt 0.75 px a frame + 0.125 every 6 right sorts, at most 2.0 (1/8 px units); batteries enter 24 px apart from
+  x -8, queue 16 px apart from x 76. A right sort counts when it is made (the next D, the speed); its points come when
+  it lands (24 frames: 4 into the diverter behind its tiles, 16 arcing out of the port or falling through the mouth,
+  4 sinking behind the bin's rim): 100 + 10 x the streak (bonus at most 200), sparks over the bin, the catch pose. A
+  wrong bin: a strike on landing (the cross blinks over the bin 40 frames, the battery spat onto the floor as the
+  drink's lying frame); D running out: a strike, the cross over the diverter, the battery drops in. 3 strikes (THREE
+  STRIKES) or 45 s (TIME UP) end it; up to 3 batteries in the air. Types: 50/50 from mg_rand; the 16th always broken,
+  from the 17th 20%. When the first broken one reaches the flap the lid slides away and SCRAP CHUTE OPEN / BROKEN ONES
+  DOWN shows 60 frames with the belt, the wait and the timer stopped. Medals on mg_score: 2000 / 4000 / 6000. One
+  setting (no HARD). SFX: sort LAUNCH, right CATCH, strike BREAK, chute SHAKE, third strike LIFE.
+- **Screen**: the framework's factory backdrop, its counter row 11 made wall (row 9's tiles); the banner rows 2-3 are
+  wall while no banner shows (a row a frame through the queue, tiles and CGB attributes; the HUD band only for the
+  chute's banner, THREE STRIKES and TIME UP; the wall back at MG_END frame 40). Belt row 8 columns 0-8 (one tile id,
+  4 frames); diverter columns 9-10 rows 8-10; bins rows 12-16 at columns 1 / 8 / 15; strike lamps HUD 9-11 (8 blank);
+  the Spigoteer at x 100, y 112 in bartender frames (IDLE, FILL, FILL flipped, SLIDE, CATCH, FAIL; the outro FAIL or
+  CATCH: the antics are not loaded). CGB BG 2 diverter + chute, 3 CHARGE, **5 RECYCLE** (not the proposal's 4: the
+  result window rewrites palette 4 with the medal while the bins' lower rows still show); OBJ 3 broken, 4 spark,
+  5 cross; DMG OBP1 0xE4. OAM 0-3 him, 4-5 cross, 6-7 sparks, 8 spat, 9-11 in the air, 12 the belt spark (front-most
+  broken only), 13-20 the queue (x <= -8 parked at y 0). Worst line 8 (the whole-game test). Tiles: BG 125-168, OBJ
+  60-67 (over the crash frames; the level load puts them back).
+- **List**: BATTERY SORT / THE ROBOT FACTORY, between QUICK DRAW and the stub; the medal column moved to 14 (the name is
+  12 letters). Release lists Quick Draw and Battery Sort with the unlock rule.
+- **ROM / WRAM**: bs.c + art ~4 KB, autobank (banks 1-10 nearly full, 11 has room); no new WRAM (state in the mg union, struct bs_state,
+  tests read story_scratch + offsets); after the boss wave the stack has 654 B (s__HEAP 0xDD72 to 0xE000).
+- **Tests** tests/test_bs.py (40): screen and art, the belt and the banner rows, each type to its bin with its path,
+  a wrong bin, a timeout, the window and speed table, the chute at 16 and the pause, the seeded types (a Python model
+  of mg_rand), three strikes, time up, points and medals, a whole game at <= 8 sprites a line, the level after with
+  VRAM and palettes as a fresh boot's, the story's factory slot with the Last call as one reached without it, ARCADE,
+  the list (debug and release). Changed: test_mg_list (the list's lines, column 14), test_story (the chapter loop's
+  mini slot is the chapter's venue's game). Goldens new: bs_intro, bs_play, bs_correct, bs_wrong, bs_scrap_open,
+  bs_result; replaced: mg_list, mg_list_locked (the list gains BATTERY SORT).
+- Spec gaps: the counter row and the band are wall in play (the mock-ups); the instruction reads LEFT FULL RIGHT DEAD
+  (20 letters, the mock-up); the 16th battery is always broken (the chute's banner always has its reason).

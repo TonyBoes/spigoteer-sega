@@ -1,0 +1,41 @@
+; Art: approved design (owner 2026-10-12)
+; Battery Sort: the belt, BG, row 8 (columns 0-8), CGB BG palette 0 (the factory's own steel: '.' the wall,
+; '-' light steel, '+' mid steel, '#' dark), DMG BGP. 4 frames, 8x8: the tread marks and the rollers move one pixel
+; right a frame (period 4, so every column of the row uses the same tile); the game steps the frame with the belt's
+; sub-pixel position (0.75-2 px/f). 4 BG tiles. Batteries stand on row 0.
+; frames: belt 0, belt 1, belt 2, belt 3
+########
+#---#---
+++++++++
+########
+#++##++#
+#++##++#
+########
+........
+
+########
+-#---#--
+++++++++
+########
+##++##++
+##++##++
+########
+........
+
+########
+--#---#-
+++++++++
+########
++##++##+
++##++##+
+########
+........
+
+########
+---#---#
+++++++++
+########
+++##++##
+++##++##
+########
+........

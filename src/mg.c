@@ -43,8 +43,8 @@ extern uint32_t score;
                                 // of columns 4-19 (so a line in the window has at most 16 characters)
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
 #define TIMER_COL       16      // HUD: 'T' + 3 digits (story.c hud_goal's format)
-#define MG_GAMES         2      // games built (mg_game): G_STUB the stub, G_QD Quick Draw
-enum { G_STUB, G_QD };
+#define MG_GAMES         3      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort
+enum { G_STUB, G_QD, G_BS };
 
 // ---- state (globals => symbols the tests read) ----
 uint8_t  mg_id;                 // the id mg_enter was given (MG_*, mg.h)
@@ -59,9 +59,10 @@ static uint8_t tbuf[4], res_buf[20];
 static char res_txt[2][14];
 
 // per game: the banner, the medal thresholds on mg_score (bronze, silver, gold)
-static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW" };
-static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW" };
-static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 } };   // (Quick Draw: qd_medal)
+static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BATTERY SORT" };
+static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "LEFT FULL RIGHT DEAD" };
+static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },   // (Quick Draw: qd_medal)
+                                                { 2000, 4000, 6000 } };
 // each planned game's venue (the id is not the venue: the two lists need not keep one order), and the reverse
 static const uint8_t mg_venue[MG_PLANNED] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 static const uint8_t venue_mg[MG_PLANNED] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY,
@@ -152,6 +153,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     hide_all_sprites();
     mg_id = id; mg_mode = mode;
     mg_game = id == MG_QUICKDRAW ? G_QD : G_STUB;   // a planned game not built yet plays the stub
+    if (id == MG_BATTERY) mg_game = G_BS;
     if (mode == MG_STORY) mg_record(id, MEDAL_NONE);   // STORY or ARCADE reached it: Practice lists it (save.c)
     else {                                       // practice: the score starts from 0 (story: it carries on)
         extra_at = 0;                            // (no extra lives by score here)
@@ -180,6 +182,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     }
     switch (mg_game) {                           // the game's own screen (it may set mg_timer)
     case G_QD: qd_enter(); break;
+    case G_BS: bs_enter(); break;
     default: stub_enter(); break;
     }
     fill(tbuf, TILE_HUD_BLANK, 4);
@@ -195,6 +198,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
 static void game_update(uint8_t pressed) {
     switch (mg_game) {
     case G_QD: qd_update(pressed); break;
+    case G_BS: bs_update(pressed); break;
     default: stub_update(pressed); break;
     }
 }

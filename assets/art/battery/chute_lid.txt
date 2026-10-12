@@ -1,0 +1,13 @@
+; Art: approved design (owner 2026-10-12)
+; Battery Sort: the SCRAP chute's lid (closed until battery 16), the chute's top row, 32x8 (3 unique tiles: the
+; middle two repeat). Hazard stripes ('+' yellow, '#' dark), CGB BG palette 2, DMG BGP. OPEN is the plain bin rim
+; (bin.txt row 0): the lid slides away and the dark mouth shows. 3 BG tiles.
+; frames: lid closed
+.##############################.
+#++##++##++##++##++##++##++##++#
+##++##++##++##++##++##++##++##+#
+###++##++##++##++##++##++##++###
+####++##++##++##++##++##++##++##
+################################
+#------------------------------#
+#-#--------------------------#-#

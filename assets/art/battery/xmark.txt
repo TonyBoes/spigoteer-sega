@@ -1,0 +1,39 @@
+; Art: approved design (owner 2026-10-12)
+; Battery Sort: WRONG, a 16x16 cross (2 OBJ entries) blinking over the bin that spat the battery out, or over the
+; diverter when the wait runs out. CGB OBJ 5 (new: '-' white rim, '+' red), DMG OBP1 0xE4 (light grey rim, dark grey
+; core: it shows on the dark sign plate, the light bin and the white DMG wall alike).
+; frames: cross left half, cross right half (8x16 each; the right half is the left half mirrored, so on hardware it
+; is ONE pair of tiles drawn twice, the second with X flip: 2 tiles)
+.--.....
+-++-....
+-+++-...
+.-+++-..
+..-+++-.
+...-+++-
+....-+++
+.....-++
+.....-++
+....-+++
+...-+++-
+..-+++-.
+.-+++-..
+-+++-...
+-++-....
+.--.....
+
+.....--.
+....-++-
+...-+++-
+..-+++-.
+.-+++-..
+-+++-...
++++-....
+++-.....
+++-.....
++++-....
+-+++-...
+.-+++-..
+..-+++-.
+...-+++-
+....-++-
+.....--.

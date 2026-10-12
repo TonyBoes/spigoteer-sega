@@ -113,23 +113,26 @@ def test_bonus_offers_soundtrack_and_mini_games(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_debug_list_has_every_built_game_unlocked(model):
-    """The DEBUG_MENU build (`make`): QUICK DRAW and the stub GREEN LIGHT, both playable on a fresh cartridge; the
-    selected game's details below; Up / Down move and wrap; <= 10 sprites a line (the mug cursor)."""
+    """The DEBUG_MENU build (`make`): QUICK DRAW, BATTERY SORT and the stub GREEN LIGHT, all playable on a fresh
+    cartridge; the selected game's details below; Up / Down move and wrap; <= 10 sprites a line (the mug cursor)."""
     with to_list(booted(model)) as gb:
         hold_stage_anim(gb)
-        assert gb.mem("ml_n") == 2 and gb.mem("ml_sel") == 0 and gb.mem16("mg_unlocked") == 0
+        assert gb.mem("ml_n") == 3 and gb.mem("ml_sel") == 0 and gb.mem16("mg_unlocked") == 0
         assert line(gb, 0).strip() == "MINI GAMES"
-        assert line(gb, 2).strip() == "QUICK DRAW" and line(gb, 3).strip() == "GREEN LIGHT"
+        assert line(gb, 2).strip() == "QUICK DRAW" and line(gb, 3).strip() == "BATTERY SORT"
+        assert line(gb, 4).strip() == "GREEN LIGHT"
         assert [line(gb, r).strip() for r in range(13, 17)] == ["QUICK DRAW", "THE SALOON", "NO MEDAL YET", "A PLAY  B BACK"]
         o = gb.read(0xFE00, 4)
         assert o[0] == 2 * 8 - 7 + 16 and o[1] == 8, "the mug cursor on line 0"
         check_golden(gb, "mg_list")
         tap(gb, "down")
-        assert gb.mem("ml_sel") == 1 and line(gb, 13).strip() == "GREEN LIGHT"
+        assert gb.mem("ml_sel") == 1 and line(gb, 13).strip() == "BATTERY SORT"
+        tap(gb, "down")
+        assert gb.mem("ml_sel") == 2 and line(gb, 13).strip() == "GREEN LIGHT"
         tap(gb, "down")
         assert gb.mem("ml_sel") == 0, "wraps"
         tap(gb, "up")
-        assert gb.mem("ml_sel") == 1
+        assert gb.mem("ml_sel") == 2
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_STUB and gb.mem("mg_mode") == MG_PRACTICE and text(gb, 2) == "GREEN LIGHT"
@@ -172,13 +175,13 @@ def test_quick_draw_from_the_list_retry_and_back(model):
 # ---- the release build: the unlock rule, no stub ------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_release_list_is_locked_until_reached(model, release_built):
-    """`make release`: Quick Draw alone (the stub is not listed); on a fresh cartridge it is "? ? ?" with LOCKED details
-    and A does nothing; with Practice's block saying it was reached (silver its best) it lists by name with SILVER
-    and plays."""
+    """`make release`: Quick Draw and Battery Sort (the stub is not listed); on a fresh cartridge both are "? ? ?" with
+    LOCKED details and A does nothing; with Practice's block saying Quick Draw was reached (silver its best) it lists
+    by name with SILVER and plays (Battery Sort still locked)."""
     with release_rom(model) as gb:
         to_list(gb)
-        assert gb.mem("ml_n") == 1
-        assert line(gb, 2).strip() == "? ? ?" and line(gb, 3).strip() == ""
+        assert gb.mem("ml_n") == 2
+        assert line(gb, 2).strip() == "? ? ?" and line(gb, 3).strip() == "? ? ?" and line(gb, 4).strip() == ""
         assert [line(gb, r).strip() for r in range(13, 17)] == ["? ? ?", "LOCKED", "REACH IT IN STORY", "OR ARCADE"]
         check_golden(gb, "mg_list_locked")
         tap(gb, "a")
@@ -187,7 +190,7 @@ def test_the_release_list_is_locked_until_reached(model, release_built):
     ram = with_block(v7_image(), pr_block(1, [MEDAL_SILVER]))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert line(gb, 2) == " QUICK DRAW  SILVER"
+        assert line(gb, 2) == " QUICK DRAW   SILVER" and line(gb, 3).strip() == "? ? ?"
         assert line(gb, 15).strip() == "BEST SILVER"
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)

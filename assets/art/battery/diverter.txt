@@ -1,0 +1,62 @@
+; Art: approved design (owner 2026-10-12)
+; Battery Sort: the diverter at the belt's end, BG columns 9-10, rows 8-10 (16x24), CGB BG palette 2 (new, shared
+; with the SCRAP chute: '.' the wall, '-' light steel, '+' hazard yellow, '#' dark), DMG BGP.
+; Row 8 FLAP (static, 2 tiles): the striped plate the front battery stands on, the screen's top edge.
+; Row 9 SCREEN (2 tiles a state, 4 states): IDLE a dim standby line, then LEFT, RIGHT, DOWN, a light arrow on the
+; dark screen (light grey on black on DMG).
+; Row 10 BASE (static, 2 tiles): the housing, a port each side and a mouth underneath (the battery drops into the
+; box and comes out of the port its arrow shows). 12 BG tiles.
+; frames (16x8, 2 tiles each): flap, screen idle, screen left, screen right, screen down, base
+################
+#++##++##++##++#
+#+##++##++##++##
+###++##++##++###
+################
+#--------------#
+#-############-#
+#-############-#
+
+#-############-#
+#-############-#
+#-############-#
+#-####++++####-#
+#-############-#
+#-############-#
+#-############-#
+#--------------#
+
+#-####-#######-#
+#-###--#######-#
+#-##---------#-#
+#-#----------#-#
+#-##---------#-#
+#-###--#######-#
+#-####-#######-#
+#--------------#
+
+#-#######-####-#
+#-#######--###-#
+#-#---------##-#
+#-#----------#-#
+#-#---------##-#
+#-#######--###-#
+#-#######-####-#
+#--------------#
+
+#-####----####-#
+#-####----####-#
+#-####----####-#
+#-#----------#-#
+#-##--------##-#
+#-####----####-#
+#-#####--#####-#
+#--------------#
+
+################
+###----------###
+###----------###
+###----------###
+.##----------##.
+..#---####---#..
+..#---####---#..
+..####....####..
