@@ -2338,8 +2338,8 @@ The picture scenes (INTRO, FINALE, CREDITS) show real full-screen pictures in ro
   the screen tore. The text starts typing after the fade; START at any point skips the scene (the HUD's palette and BGP
   are restored first). About 7-8 frames on DMG, 11-13 on CGB (two LCD toggles), the white about 5. Pages 6-8 wipe back to
   intro_a (story_hdr.pic is incremented), page 8's swap streams the Spigoteer in.
-- **Not done**: the FINALE gleam twinkles (optional item 4, skipped to keep this change focused on the required engine work), the INTRO's flying-pieces animation (the static pieces are in intro_a), Dregs's red bow
-  accent. The streamed-tiles variant of the INTRO switch (notes.md) was not needed.
+- **Not done**: the FINALE gleam twinkles (optional item 4, skipped to keep this change focused on the required engine work), Dregs's red bow
+  accent. (The INTRO's flying-pieces animation was done in the continuity pass below.) The streamed-tiles variant of the INTRO switch (notes.md) was not needed.
 - **WRAM / ROM**: no WRAM globals; WRAM_LO 3936 / WRAM_HI_0 3454 before and after. ROM0 745 B free before and after (all the
   new code is banked). Banks: 13 -> 14 (still 256 KB): story_pictures.c is ~7.4 KB of tiles + 4 x 552 B of map / attributes /
   palettes in the new bank 13 (4782 B used, 11602 free); the linker repacked the others (bank 12 3980 -> 87 free, 1: 133 -> 49,
@@ -2389,3 +2389,41 @@ the scene is the same:
 - **Goldens replaced on purpose** (reason for each: continuity pass, one square, fountain and spigot across all pictures):
   story_pic_intro_before, story_pic_intro_a, story_pic_finale_a, story_pic_credits_b, story_narrator (INTRO page 1 shows
   intro_before) and story_dregs_sorry (FINALE page 4 shows finale_a behind the portrait).
+
+#### The explosion animation (owner request 2026-10-12: the ten pieces fly out of the burst)
+
+After the white flash of INTRO page 5 has faded in, the ten pieces of the F1 spigot fly out of the burst as OBJ sprites
+and stay where they land (pages 5-8). The picture no longer holds them (intro_a is 141 tiles, was 147 with the pieces).
+- **Art and data**: assets/story/pictures/intro_pieces.txt (the round 5 pieces, 3 colours: gold_light, gold, ink = intro_a's
+  keys, checked), per piece its landing place (top-left), launch delay and arc height. tools/gen_story.py cuts them into
+  8x16 cells (19 cells, 18 distinct tile pairs, mirrored cells share), puts the tiles at OBJ ids 56-91 (OBJ_MUG ..
+  OBJ_COIN - 1: the drink frames' ids, which the next level load puts back, as ou.c and qd.c already do), uses OAM 20..38
+  (the portrait overlay has 4..19) and CGB OBJ palette 4 (OBJPAL_ENH, unused on a cut-scene); DMG draws with OBP0 0xD0 (OBJ
+  colours 1, 2, 3 = shades 0, 1, 3 = the BG's gold_light / gold / ink). The build fails on a piece over the speaker pages'
+  portrait frame, tiles that do not fit, or any frame of the flight with more than 10 sprites on a scanline.
+- **The flight is a table**: ease-out (1 - (1 - u)^2 over 18 frames) plus an arc, worked out per frame and per cell
+  in the generator (OAM y, x); story_burst_step(t) copies row t into shadow_OAM. (A first version did the arithmetic in C:
+  SDCC's 16-bit multiplies made the frame's logic end on line 160, past VBlank, and frames dropped. The table is 1.1 KB
+  of bank 13 and the logic ends on line ~45, idle ~14.) 35 frames (delays 0-16, flight 18), the most sprites on a line
+  at any frame is 10 (the build checks it; the test reads the real OAM every frame).
+- **State** (no new WRAM global): story_scratch[168] = PB_T, the frame counter (255: none running), set to 255 at
+  scene_enter of a picture scene, to 0 when the fade of the switch ends (pic_fx), advanced in story_update while a picture scene
+  runs; the pieces stay in OAM after the last frame (nothing else writes OAM 20+ on that scene). story_burst_load (LCD off,
+  in the switch's reload step) puts tiles and palette in. START at any time ends the scene as before: scene_enter's
+  hide_all_sprites clears the pieces, and the next screen is the same as after a skip from page 1 (tested, five moments).
+- **Chosen over handing over to BG tiles**: sprites stay (cheaper: no BG tile rewrite, no map change, no VBlank queue
+  traffic, and the pieces sit at y < 40 or x >= 128 so no speaker frame covers them).
+- **Numbers** (romusage, before = e22fcec built clean, after = this branch): ROM0 745 B free before and after (all new code
+  and data banked: bank 13 5307 -> 7905 B used, 8479 free: the four redrawn pictures' tiles, the pieces' 18 tile pairs and the 1.2 KB flight table; the linker repacked the others, bank 12 is now 5 B free, 3: 61, 5: 17, 7: 40; still 14 banks); WRAM_LO 3936 / WRAM_HI_0 3455 before
+  and after (the brief said 3454; the clean e22fcec build says 3455). Stack: the free stack filled with 0xAA, the INTRO
+  walked page by page through the burst and START, and the FINALE: nothing below 0xDF80 touched. VBlank: the burst adds
+  at most 2 drain ticks (the copy list is not used); the switch's own palette writes were already 17-18 ticks before this change;
+  pages 6-8 after the burst drain at most 12 ticks.
+- **Tests** (tests/test_story_pictures.py): the pieces fly (nothing before the flash is over, 30-45 frames, the line limit
+  every frame, the logic ends inside the frame, one after another, each cell lands exactly on its place, x never turns
+  back, the screen afterwards is intro_a plus the landed pieces pixel exact on DMG and CGB, they stay on page 6);
+  mashing A through the burst (pages 5-8 while the pieces fly, the Spigoteer's frame swapping in): at most 10 sprites on
+  a line; START in the white, the fade, mid-flight and after landing give the same next screen with no piece left in OAM.
+  test_story.py's tour counts the ten pieces' 19 cells as sprites on INTRO pages 5-8.
+- **Golden replaced again on purpose**: story_pic_intro_a (the pieces are sprites now, they land in the sky above the
+  town: the continuity commit's golden had no pieces).

@@ -1,0 +1,107 @@
+; INTRO page 5 on: the ten pieces of the Golden Spigot (design F1, round 5 art) as OBJ sprites. After the white flash they fly out of
+; the burst and stop where this file puts them (x y = the piece's top-left corner on the screen, delay = the frame it leaves
+; the burst, arc = the height of its arc in pixels); tools/gen_story.py cuts them into 8x16 sprites (the cells share tiles,
+; mirrored ones too), checks every frame of the flight for at most 10 sprites on a line, and writes build/story_pictures.c.
+; The colours are intro_a's gold_light, gold and ink. Original art.
+@key
+Y 1 #f8f0a0 gold_light
+y 2 #e8a828 gold
+# 3 #140c24 ink
+
+@piece valve 30 19 delay=0 arc=13
+....###....
+...#YYy#...
+...#Yyy#...
+...#Yyy#...
+..#YYyyy#..
+.#YYyyyyy#.
+#YYyyyyyyY#
+#Yyyyyyyyy#
+#Yyyyyyyyy#
+#yyyyyyyyy#
+.#Yyyyyyy#.
+.#Yyyyyyy#.
+.#yyyyyyy#.
+..#######..
+
+@piece spout 46 23 delay=0 arc=2
+.####...
+#YYYY#..
+#Yyyyy#.
+#yyyyyy#
+.###Yyy#
+...#Yyy#
+...#Yyy#
+...#Yyy#
+...#Yyy#
+...#Yyy#
+...#Yyy#
+...#Yyy#
+....###.
+
+@piece knob 70 20 delay=3 arc=3
+..###...
+.#YYY#..
+#YYyyy#.
+#YyyyyY#
+#Yyyyyy#
+.#yyy##.
+..###...
+
+@piece crown 66 5 delay=4 arc=16
+.#...#...#.
+#Y###Y###Y#
+#YYYYYYYYy#
+#yyyyyyyyy#
+.#########.
+
+@piece tray 130 2 delay=7 arc=16
+.#####################.
+#YYYYYYYYYYYYYYYYYYYYy#
+#yyyyyyyyyyyyyyyyyyyyy#
+.#####################.
+
+@piece gasket 50 3 delay=9 arc=14
+.#########.
+#YYYYYYYYy#
+#yyyyyyyyy#
+.#########.
+
+@piece handle 28 2 delay=12 arc=16
+.##....###....##.
+#YY####YYY####Yy#
+#YyYYYYYyyYYYYYy#
+#Yyyyyyyyyyyyyyy#
+#yy####yyy####yy#
+.##....###....##.
+
+@piece nozzle 58 19 delay=12 arc=6
+.#####.
+#Yyyyy#
+#yyyyy#
+.#####.
+...Y...
+..YYY..
+...Y...
+
+@piece lever 144 25 delay=15 arc=6
+.....###.
+....#YYY#
+...#Yyy#.
+..#Yyy#..
+.#Yyy#...
+#Yyy#....
+.###.....
+
+@piece pipe 128 34 delay=16 arc=15
+....#######....
+...#YYyyyyy#...
+...#YYyyyyy#...
+...#YYyyyyy#...
+...#YYyyyyy#...
+...#YYyyyyy#...
+...#YYyyyyy#...
+.#############.
+#YYYYYYYYYYYYy#
+#yyyyyyyyyyyyy#
+.#############.

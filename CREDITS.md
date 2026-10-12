@@ -152,7 +152,7 @@ All pixel art is original, drawn for this project as ASCII sources under `assets
 game). That includes the story portraits (`assets/story/portraits/*.txt`) and the four full-screen story pictures
 (`assets/story/pictures/*.txt`): the INTRO's square at night before and after the burst (`intro_before`, `intro_a`),
 the FINALE's line-up (`finale_a`) and the CREDITS' morning after (`credits_b`). Their Golden Spigot (design F1, and its
-ten story pieces), the small Dregs (J2) and the ten owners' heads were drawn for them.
+ten story pieces, the flying sprites of `intro_pieces.txt`), the small Dregs (J2) and the ten owners' heads were drawn for them.
 
 ## Tools used, not shipped
 

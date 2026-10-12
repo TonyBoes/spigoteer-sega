@@ -32,7 +32,9 @@
 // box (rows 13-17: panel, 3 lines of 18 characters at columns 1-18, panel). The NARRATOR has no portrait: the box shows
 // the small golden spigot where a name would be. INTRO, FINALE and CREDITS show a full-screen picture instead of a venue
 // (assets/story/pictures, build/story_pictures.c: its tiles at BG ids 0-35 and above the scene's one portrait slot; a
-// speaker's tiles are streamed into that slot when he comes on; INTRO page 5 switches pictures behind a white flash). The text types on, one character a frame. Buttons: A or B shows the
+// speaker's tiles are streamed into that slot when he comes on; INTRO page 5 switches pictures behind a white flash, and
+// when it has faded the ten pieces of the spigot fly out of the burst as OBJ sprites and stay where they land: PB_T,
+// story_burst_step). The text types on, one character a frame. Buttons: A or B shows the
 // rest of the page at once, then the next page; START skips the rest of the scene. A page may have text variants
 // (docs/story.md "SPEAKER IF CONDITION"): story_page_get shows the first whose condition bit is set in story_conds.
 //
@@ -135,6 +137,7 @@ uint8_t story_scratch[STORY_SCRATCH];
 #define PS_PALS  ((uint16_t *)(story_scratch + 40 + PS_BURST * 16))   // the fade: 4 picture palettes + the HUD's (20 words)
 #define PS_OUT   ((uint16_t *)(story_scratch + 40 + PS_BURST * 16 + 40))   // the fade step to write next (20 words)
 #define PS_W     (story_scratch[1])                  // its w: 3 white .. 0 as drawn (also what DMG's BGP is set from)
+#define PB_T     (story_scratch[168])                // the INTRO's burst: frames since the flash faded (255: none running)
 #define PIC_SCENE (story_hdr.venue == 255)
 uint8_t story_unskip;              // test hook: bit s set = step s of every chapter is played even if marked STEP_SKIP
 static portrait_t pt;              // the portrait being drawn / on screen
@@ -400,6 +403,7 @@ static void scene_enter(uint8_t s) {
     } else {
         story_pic_draw(story_hdr.pic, is_cgb);
         PS_FX = 0;
+        PB_T = 255;
     }
     // the text box
     fill(row_buf, TILE_PANEL_TOP, 20); set_bkg_tiles(0, BOX_ROW, 20, 1, row_buf);
@@ -787,6 +791,7 @@ static uint8_t pic_fx(void) {
         story_hdr.pic++;                         // (the wipes of pages 6-8 restore this one: story_pic_row)
         story_pic_draw(story_hdr.pic, is_cgb);
         story_pic_pals(story_hdr.pic, PS_PALS);
+        story_burst_load(is_cgb);                // (the explosion's ten pieces: OBJ tiles and palette, flown in by story_update)
         page_begin(1);                           // the narrator's page: its box and tag, no portrait (story_cur 255)
         pic_calc(3);
         pic_put();
@@ -797,7 +802,7 @@ static uint8_t pic_fx(void) {
         k = (FX_END - f) >> 1;
         if (!((FX_END - f) & 1)) {
             pic_put();
-            if (!k) PS_FX = 0;
+            if (!k) { PS_FX = 0; PB_T = 0; }       // (faded in: the pieces leave the burst)
         } else pic_calc(k);
     }
     return 0;
@@ -854,6 +859,7 @@ uint8_t story_update(uint8_t pressed) BANKED {
         return 1;
     }
     if (story_hdr.swpage && PS_FX) return pic_fx();   // the picture switch: nothing else moves
+    if (PIC_SCENE && PB_T != 255) PB_T = story_burst_step(PB_T) ? 255 : PB_T + 1;   // the pieces fly (they stay where they land)
     if (story_swap) swap_frame();
     if (story_typed < 54) {
         if (pressed & (J_A | J_B)) type_all();

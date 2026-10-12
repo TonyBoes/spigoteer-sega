@@ -4,7 +4,8 @@
   build/story.h            scene / speaker / chapter ids, the cut-scene tile budget, the BANKED accessors
   build/story_data.c       the script (pages, scene table, names), chapter goals, the story font tiles, the picture slots
   build/story_portraits.c  the portraits (BG tiles, map, attributes, palettes, optional OBJ overlay)
-  build/story_pictures.c   the full-screen pictures of INTRO / FINALE / CREDITS (assets/story/pictures/*.txt)
+  build/story_pictures.c   the full-screen pictures of INTRO / FINALE / CREDITS (assets/story/pictures/*.txt) and the INTRO
+                           explosion's ten flying pieces as OBJ sprites (assets/story/pictures/intro_pieces.txt)
   build/story.json         the same for the tests
   out/preview/story_*.png  the font and every portrait (its variants too), x8
 
@@ -569,6 +570,167 @@ def read_pic(name):
     return {"name": name, "px": px, "tiles": tiles, "tmap": tmap, "attr": attr, "pals": pals, "key": key, "pix": pix}
 
 
+# ---- the INTRO's flying pieces: assets/story/pictures/intro_pieces.txt -------------------------------------------------
+# After the white flash of INTRO page 5 the ten pieces of the Golden Spigot fly out of the burst as OBJ sprites and stay
+# where they land (src/story.c, story_burst_step in build/story_pictures.c). Format: ";" comments; "@key" then
+# "<char> <OBJ colour 1-3> <#rrggbb> [name]" for Y y # (they must be intro_a's gold_light, gold and ink); then per piece
+# "@piece <name> <x> <y> delay=<frame> arc=<px>" (x y = its top-left corner when it has landed, delay = the frame it
+# leaves the burst, arc = how high its path bends up) and its rows of ". Y y #" (. transparent), up to 16 rows, ended by
+# a blank line. A piece is cut into 8x16 cells from its own left edge; cells that repeat (or mirror) share their tiles.
+# The build fails on a piece over the speaker pages' portrait frame, more than 20 cells, tiles that do not fit OBJ ids
+# 56-91 (the drink frames' tiles, which the next level load puts back) or any frame of the flight with more than 10
+# sprites on a scanline.
+BURST_FILE = "intro_pieces.txt"
+BURST_OBJ = 56                  # OBJ_MUG: tiles 56..91 (36, the ids before OBJ_COIN) hold the pieces
+BURST_OBJ_N = 36
+BURST_OAM = 20                  # OAM 20..: the portrait overlay of a speaker page has 4..19
+BURST_PAL = 4                   # CGB OBJ palette 4 (OBJPAL_ENH: unused on a cut-scene)
+BURST_DUR = 18                  # frames of one piece's flight
+BURST_ORIGIN = (104, 20)        # the burst's centre (a piece starts with its own centre here)
+BURST_LINE_MAX = 10
+BURST_FRAME = (8, 40, 80, 104)  # a speaker page's portrait frame (x0, y0, x1, y1)
+
+
+def read_pieces(burst_key=None):
+    path = PIC_DIR / BURST_FILE
+    if not path.is_file():
+        fail(f"{path} is missing")
+    key, pieces, cur = {}, [], None
+    for ln in path.read_text().splitlines():
+        if ln.startswith(";"):
+            continue
+        if ln.startswith("@key"):
+            continue
+        if ln.startswith("@piece"):
+            p = ln.split()
+            kv = dict(q.split("=") for q in p[4:])
+            if len(p) < 5 or set(kv) != {"delay", "arc"}:
+                fail(f"{BURST_FILE}: bad piece line {ln!r}")
+            cur = {"name": p[1], "x": int(p[2]), "y": int(p[3]), "delay": int(kv["delay"]), "arc": int(kv["arc"]), "rows": []}
+            pieces.append(cur)
+        elif not ln.strip():
+            cur = None
+        elif cur is None:
+            p = ln.split()
+            if len(p) < 3 or p[0] not in "Yy#" or p[1] != "123"["Yy#".index(p[0])] or not re.fullmatch(r"#[0-9a-fA-F]{6}", p[2]):
+                fail(f"{BURST_FILE}: bad key line {ln!r}")
+            key[p[0]] = p[2].lower()
+        else:
+            cur["rows"].append(ln)
+    if set(key) != set("Yy#"):
+        fail(f"{BURST_FILE}: the key must define Y, y and #")
+    if burst_key:
+        for c in "Yy#":
+            if burst_key[c]["hex"] != key[c]:
+                fail(f"{BURST_FILE}: {c} is {key[c]}, intro_a's is {burst_key[c]['hex']}")
+    return key, pieces
+
+
+def burst_build(key, pieces):
+    """-> dict: the tiles (list of 32-byte pairs), entries, per piece the start / end / delay / arc, the tables, the frame
+    count and the largest sprite count on a line over the whole flight (the build fails above BURST_LINE_MAX)."""
+    if not pieces:
+        fail(f"{BURST_FILE}: no pieces")
+    ease = [round(255 * (1 - (1 - te / BURST_DUR) ** 2)) for te in range(BURST_DUR + 1)]
+    arc = [round(255 * 4 * (te / BURST_DUR) * (1 - te / BURST_DUR)) for te in range(BURST_DUR + 1)]
+    ease[BURST_DUR] = 255
+    pairs, entries = [], []
+    for i, p in enumerate(pieces):
+        rows = p["rows"]
+        if not rows or len({len(r) for r in rows}) != 1 or set("".join(rows)) - set(".Yy#") or len(rows) > 16:
+            fail(f"{BURST_FILE}: piece {p['name']}: rows of '. Y y #', all as wide, at most 16 high")
+        w, h = len(rows[0]), len(rows)
+        p["w"], p["h"] = w, h
+        p["ox"], p["oy"] = BURST_ORIGIN[0] - w // 2, BURST_ORIGIN[1] - h // 2
+        if not (0 <= p["x"] and p["x"] + 8 * ((w + 7) // 8) <= 160 and 0 <= p["y"] and p["y"] + 16 <= 144):
+            fail(f"{BURST_FILE}: piece {p['name']} is not on the screen")
+        if abs(p["x"] - p["ox"]) > 127 or abs(p["y"] - p["oy"]) > 127:
+            fail(f"{BURST_FILE}: piece {p['name']} lands more than 127 px from the burst")
+        x0, y0, x1, y1 = BURST_FRAME
+        if p["x"] < x1 and p["x"] + 8 * ((w + 7) // 8) > x0 and p["y"] < y1 and p["y"] + 16 > y0:
+            fail(f"{BURST_FILE}: piece {p['name']} lands over a speaker page's portrait frame")
+        grid = [r.translate(str.maketrans("Yy#", "-+#")) + "." * (8 * ((w + 7) // 8) - w) for r in rows]
+        grid += ["." * len(grid[0])] * (16 - h)
+        for c in range((w + 7) // 8):
+            cell = [r[c * 8:c * 8 + 8] for r in grid]
+            mirror = [r[::-1] for r in cell]
+            canon, flip = (cell, 0) if cell <= mirror else (mirror, 1)
+            if canon not in pairs:
+                pairs.append(canon)
+            entries.append((i, c * 8, pairs.index(canon), flip))
+    if len(entries) > 40 - BURST_OAM:
+        fail(f"{BURST_FILE}: {len(entries)} cells (OAM {BURST_OAM}..39 holds {40 - BURST_OAM})")
+    if len(pairs) * 2 > BURST_OBJ_N:
+        fail(f"{BURST_FILE}: {len(pairs)} tile pairs, OBJ ids {BURST_OBJ}..{BURST_OBJ + BURST_OBJ_N - 1} hold {BURST_OBJ_N // 2}")
+    tiles = [[b for half in (pair[:8], pair[8:]) for b in tile_bytes(half, 0, 0)] for pair in pairs]
+    end = max(p["delay"] for p in pieces) + BURST_DUR
+
+    def pos(p, t):
+        if t < p["delay"]:
+            return None
+        te = t - p["delay"]
+        if te >= BURST_DUR:
+            return p["x"], p["y"]
+        v = ease[te]
+        return (p["ox"] + (((p["x"] - p["ox"]) * v) >> 8),
+                p["oy"] + (((p["y"] - p["oy"]) * v) >> 8) - ((arc[te] * p["arc"]) >> 8))
+
+    posn = []                                   # per frame, per cell: OAM y, x (0, 0: not on the screen yet)
+    for t in range(end + 1):
+        for (i, dx, _, _) in entries:
+            q = pos(pieces[i], t)
+            if q is None or q[1] + 16 < 1 or q[1] + 16 > 160 or q[0] + dx + 8 < 1 or q[0] + dx + 8 > 167:
+                posn += [0, 0]
+            else:
+                posn += [q[1] + 16, q[0] + dx + 8]
+    worst, worst_t = 0, 0
+    for t in range(end + 4):
+        lines = [0] * 144
+        for (i, dx, _, _) in entries:
+            q = pos(pieces[i], t)
+            if q is None:
+                continue
+            for y in range(max(0, q[1]), min(144, q[1] + 16)):
+                lines[y] += 1
+        if max(lines) > worst:
+            worst, worst_t = max(lines), t
+    if worst > BURST_LINE_MAX:
+        fail(f"{BURST_FILE}: {worst} sprites on one scanline at frame {worst_t} (at most {BURST_LINE_MAX})")
+    return {"tiles": tiles, "entries": entries, "ease": ease, "arc": arc, "end": end, "worst": worst, "worst_t": worst_t,
+            "dur": BURST_DUR, "pos": posn}
+
+
+def burst_c(key, pieces, b):
+    """the C of the burst for build/story_pictures.c. The flight is a table worked out here, frame by frame (OAM y, x per
+    cell): the step is a copy, not arithmetic (SDCC's 16-bit multiplies made the frame's logic run past VBlank)."""
+    n, e = len(pieces), len(b["entries"])
+    pal = rgb15(["#000000", key["Y"], key["y"], key["#"]])
+    pc = [f"// the INTRO's ten pieces (assets/story/pictures/{BURST_FILE}): {e} cells of 8x16, {len(b['tiles'])} tile pairs "
+          f"at OBJ ids {BURST_OBJ}.., flight {BURST_DUR} frames, the last piece lands at frame {b['end']}",
+          f"#define STB_E {e}", f"#define STB_END {b['end']}",
+          carr("stb_tiles", [v for t in b["tiles"] for v in t]),
+          carr("stb_ent", [v for (i, dx, k, fl) in b["entries"] for v in (BURST_OBJ + 2 * k, (fl << 5) | BURST_PAL)]),
+          carr("stb_pos", b["pos"]), carr("stb_pal", pal, "uint16_t"), "",
+          "// LCD off: the pieces' tiles into the OBJ ids and (CGB) their palette",
+          "void story_burst_load(uint8_t cgb) BANKED {",
+          f"    set_sprite_data({BURST_OBJ}, {len(b['tiles']) * 2}, stb_tiles);",
+          f"    if (cgb) set_sprite_palette({BURST_PAL}, 1, stb_pal);",
+          "}", "",
+          "// frame t of the burst (0 = the first after the flash): the pieces' OAM entries; 1 once they have all landed",
+          "uint8_t story_burst_step(uint8_t t) BANKED {",
+          "    uint8_t i;",
+          "    const uint8_t *p, *q = stb_ent;",
+          f"    OAM_item_t *o = shadow_OAM + {BURST_OAM};",
+          "    if (t > STB_END) t = STB_END;",
+          "    p = stb_pos + (uint16_t)t * (STB_E * 2);",
+          "    for (i = 0; i < STB_E; i++, o++, q += 2) {",
+          "        o->y = *p++; o->x = *p++; o->tile = q[0]; o->prop = q[1];",
+          "    }",
+          "    return t >= STB_END;",
+          "}", ""]
+    return pc
+
+
 def obj_pairs(cells):
     """overlay cells [(dx, dy, 8x16 px)] -> [(dx, dy, tile pair)]."""
     return [(dx, dy, tuple(tile_bytes(r, 0, 0)) + tuple(tile_bytes(r, 0, 8)))
@@ -808,6 +970,8 @@ def main():
             pics.append(p)
             if page > 1:
                 sc["swpage"] = page
+    bkey, bpieces = read_pieces(next(p for p in pics if p["name"] == "intro_a")["key"])
+    burst = burst_build(bkey, bpieces)
 
     # ---- build/story_data.c ----
     text = []
@@ -975,6 +1139,7 @@ def main():
            "    for (i = 0; i < 16; i++) dst[i] = stp_pal[pic][i];",
            "    for (i = 0; i < 4; i++) dst[16 + i] = stp_hud[i];",
            "}", ""]
+    PC += burst_c(bkey, bpieces, burst)
     (outdir / "story_pictures.c").write_text("\n".join(PC))
 
     # ---- build/story_portraits.c ----
@@ -1071,7 +1236,10 @@ def main():
           f"#define STORY_OBJ_TILES {OBJ_TILES}   // overlay tiles: OBJ_DANCER .. +31", f"#define STORY_MAX_OBJ {MAX_OBJ}",
           f"#define STORY_MAX_SPK {MAX_SPK}", f"#define STORY_PIC_ROWS {PIC_ROWS}",
           f"#define STORY_PICS {len(pics)}         // the full-screen pictures (assets/story/pictures), see SCENE_PICS",
-          f"#define STORY_PIC_POOL {PIC_POOL}      // a picture's first 36 tiles at BG ids 0.., the rest above the scene's portrait slot", "",
+          f"#define STORY_PIC_POOL {PIC_POOL}      // a picture's first 36 tiles at BG ids 0.., the rest above the scene's portrait slot",
+          f"#define STORY_BURST_OAM {BURST_OAM}      // the INTRO's flying pieces: OAM entries from here ...",
+          f"#define STORY_BURST_CELLS {len(burst['entries'])}      // ... this many",
+          f"#define STORY_BURST_END {burst['end']}      // the frame (after the flash) the last piece lands on", "",
           "typedef struct {",
           "    uint8_t w, h, x, y;          // tiles (w 0: no portrait); x, y the picture's top-left screen tile",
           "    uint8_t npal, ntiles, nobj, nobjpal, nobjtiles;",
@@ -1099,6 +1267,8 @@ def main():
           "void story_pic_draw(uint8_t pic, uint8_t cgb) BANKED;   // LCD off: tiles, map, attributes, CGB palettes",
           "void story_pic_row(uint8_t pic, uint8_t y, uint8_t x, uint8_t w, uint8_t *dst) BANKED;   // dst[2 w]: tiles, attributes",
           "void story_pic_pals(uint8_t pic, uint16_t *dst) BANKED;    // dst[20]: its 4 palettes (slots 0 5 6 7), then the HUD's",
+          "void story_burst_load(uint8_t cgb) BANKED;   // LCD off: the INTRO's pieces' OBJ tiles and (CGB) palette 4",
+          "uint8_t story_burst_step(uint8_t t) BANKED;  // frame t of their flight into shadow_OAM; 1 once they have landed",
           "void portrait_tile_copy(uint8_t spk, uint8_t first, uint8_t n, uint8_t *dst) BANKED;   // BG tiles into WRAM",
           "void portrait_get(uint8_t spk, portrait_t *dst) BANKED;",
           "void portrait_tiles_load(uint8_t spk, uint8_t bg_first, uint8_t obj_first) BANKED;",
@@ -1132,6 +1302,13 @@ def main():
                         "pals": p["pals"], "hud_cells": p["attr"].count("H"),
                         "art": f"assets/story/pictures/{p['name']}.txt"} for p in pics],
           "pic_slots": list(PIC_SLOTS), "pic_pool": PIC_POOL,
+          "burst": {"file": f"assets/story/pictures/{BURST_FILE}", "oam": BURST_OAM, "obj": BURST_OBJ, "pal": BURST_PAL,
+                    "dur": BURST_DUR, "end": burst["end"], "worst_line": burst["worst"], "worst_frame": burst["worst_t"],
+                    "key": bkey, "frame": list(BURST_FRAME), "origin": list(BURST_ORIGIN),
+                    "tiles": len(burst["tiles"]) * 2, "ease": burst["ease"], "arc": burst["arc"],
+                    "entries": [{"piece": i, "dx": dx, "tile": BURST_OBJ + 2 * k, "flip": fl} for (i, dx, k, fl) in burst["entries"]],
+                    "pieces": [{"name": q["name"], "x": q["x"], "y": q["y"], "ox": q["ox"], "oy": q["oy"], "delay": q["delay"],
+                                "arc": q["arc"], "rows": q["rows"]} for q in bpieces]},
           "text_bytes": len(text), "chars": sum(len(l) for s in scenes for _, ls in s["pages"] for l in ls),
           "pages": sum(len(s["pages"]) for s in scenes)}
     (outdir / "story.json").write_text(json.dumps(js, indent=1))

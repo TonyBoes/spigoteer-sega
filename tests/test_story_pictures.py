@@ -8,41 +8,51 @@ import pytest
 from PIL import Image
 from conftest import ROOT, check_golden
 from test_flow import GS_STORY, run_until, state, tilemap_row
-from test_story import (DMG_GREY, PORTRAITS, SC, SCENES, STORY, STORY_STEPS, gen_story, page_ready, post, q15, settle,
+from test_story import (DMG_GREY, PORTRAITS, SC, SCENES, STORY, STORY_STEPS, gen_story, page_ready, picture_switching, post, q15, settle,
                         skip_scene, start_story, to_goal, v7_image, win)
 
 pytestmark = pytest.mark.timeout(240)
 
 PICS = {p["name"]: p for p in STORY["pictures"]}
+BURST = STORY["burst"]                 # the INTRO's ten pieces (OBJ sprites): the places they land on, their art
 SLOT_BASE = STORY["portrait_base"]
 FRAME = (8, 40, 80, 104)               # a speaker page's portrait frame: columns 1-9, rows 5-12 (x0, y0, x1, y1)
 _EXPECT = {}
 
 
-def expected(name, model):
-    """The picture as the screen must show it: 160x104 RGB."""
-    if (name, model) not in _EXPECT:
+def expected(name, model, pieces=False):
+    """The picture as the screen must show it: 160x104 RGB; pieces: with the INTRO's ten pieces where they land."""
+    if (name, model, pieces) not in _EXPECT:
         key, pix, _ = gen_story().parse_v2(ROOT / PICS[name]["art"])
         im = Image.new("RGB", (160, 104))
         for y, row in enumerate(pix):
             for x, c in enumerate(row):
                 im.putpixel((x, y), q15(key[c]["hex"]) if model == "cgb" else DMG_GREY[key[c]["dmg"]])
-        _EXPECT[name, model] = np.array(im)
-    return _EXPECT[name, model]
+        if pieces:
+            shade = {"Y": 0, "y": 1, "#": 3}                          # OBP0 0xD0: OBJ colours 1, 2, 3 are shades 0, 1, 3
+            for pc in BURST["pieces"]:
+                for dy, row in enumerate(pc["rows"]):
+                    for dx, c in enumerate(row):
+                        if c != ".":
+                            im.putpixel((pc["x"] + dx, pc["y"] + dy),
+                                        q15(BURST["key"][c]) if model == "cgb" else DMG_GREY[shade[c]])
+        _EXPECT[name, model, pieces] = np.array(im)
+    return _EXPECT[name, model, pieces]
 
 
-def picture_diff(gb, name, skip=None):
-    """Pixels of the picture area (rows 0-12) that differ from the source; `skip` = a rectangle to leave out."""
+def picture_diff(gb, name, skip=None, landed=True):
+    """Pixels of the picture area (rows 0-12) that differ from the source (with INTRO A's pieces where they land);
+    `skip` = a rectangle to leave out."""
     got = np.array(gb.image())[:104, :160]
-    bad = np.any(got != expected(name, gb.model_name), axis=2)
+    bad = np.any(got != expected(name, gb.model_name, landed and name == "intro_a"), axis=2)
     if skip:
         x0, y0, x1, y1 = skip
         bad[y0:y1, x0:x1] = False
     return int(bad.sum())
 
 
-def assert_picture(gb, name, skip=None):
-    n = picture_diff(gb, name, skip)
+def assert_picture(gb, name, skip=None, landed=True):
+    n = picture_diff(gb, name, skip, landed)
     assert n == 0, f"{n} pixels of the screen differ from {name}"
     p = PICS[name]
     for r in range(13):                                           # the tile map is the picture's too
@@ -171,6 +181,26 @@ def test_a_picture_switch_needs_the_narrators_page_and_the_docs_line(monkeypatch
 
 
 # ---- the INTRO: before, a white flash, the explosion ------------------------------------------------------------
+def burst_t(gb):
+    """The burst's frame counter (src/story.c PB_T = story_scratch[168]; 255: none running)."""
+    return gb.mem(gb.addr("story_scratch") + 168)
+
+
+def burst_oam(gb):
+    return gb.oam()[BURST["oam"]:BURST["oam"] + len(BURST["entries"])]
+
+
+def line_max(gb):
+    """The most sprites on one scanline (every OAM entry, 8x16 mode)."""
+    assert gb.pb.memory[0xFF40] & 4, "8x16 sprites"
+    lines = [0] * 144
+    for e in gb.oam():
+        if 0 < e["y"] < 160:
+            for y in range(max(0, e["y"] - 16), min(144, e["y"])):
+                lines[y] += 1
+    return max(lines)
+
+
 def white_frame(gb):
     return bool((np.array(gb.image())[:104] > 247).all())
 
@@ -207,6 +237,7 @@ def test_intro_before_then_flash_then_the_explosion(model):
         assert gb.pb.memory[0xFF40] & 0x80
         page_ready(gb)
         assert gb.mem("story_cur") == 255
+        run_until(gb, lambda: burst_t(gb) == 255, 60)             # (the ten pieces fly out of the burst, then stay)
         assert_picture(gb, "intro_a")                             # page 5: the explosion, the frame gone with it
         assert gb.mem("story_swap") == 0
         check_golden(gb, "story_pic_intro_a")
@@ -229,23 +260,32 @@ def test_start_skips_the_intro_before_and_during_the_flash(model):
     """START on page 1 and START in the middle of the white flash both end the scene cleanly: the same screen of the
     next scene (its palettes and BGP back to normal after a skipped fade)."""
     shots = []
-    for when in ("page1", "flash", "fade"):
+    for when in ("page1", "flash", "fade", "burst", "landed"):
         with start_story(model) as gb:
             if when != "page1":
                 for _ in range(4):
                     page_ready(gb)
                     gb.press("a", 2)
-                # the switch is under way (PS_FX = story_scratch[0]): in the white (steps 2-3), or in the fade (6+)
-                lo = 2 if when == "flash" else 6
-                run_until(gb, lambda: gb.mem("story_scratch") >= lo and gb.pb.memory[0xFF40] & 0x80, 40)
-                assert gb.mem("story_scratch") != 0, "START comes mid-switch"
+                if when in ("burst", "landed"):                   # the pieces are flying (frame 12), or have landed
+                    run_until(gb, lambda: burst_t(gb) not in (255, 0) and not picture_switching(gb), 60)
+                    run_until(gb, lambda: burst_t(gb) >= 12 or burst_t(gb) == 255, 60)
+                    if when == "burst":
+                        assert burst_t(gb) not in (255, 0) and any(e["y"] for e in gb.oam()[BURST["oam"]:]), "START comes mid-flight"
+                    else:
+                        run_until(gb, lambda: burst_t(gb) == 255, 60)
+                else:
+                    # the switch is under way (PS_FX = story_scratch[0]): in the white (steps 2-3), or in the fade (6+)
+                    lo = 2 if when == "flash" else 6
+                    run_until(gb, lambda: gb.mem("story_scratch") >= lo and gb.pb.memory[0xFF40] & 0x80, 40)
+                    assert gb.mem("story_scratch") != 0, "START comes mid-switch"
             gb.press("start", 10)                                 # (the game reads no keys while the LCD is off: hold it)
             run_until(gb, lambda: gb.mem("story_scene") != SC["INTRO"], 30)
             settle(gb)
             page_ready(gb)
             assert gb.mem("story_scene") == SC["PRE_SALOON"]
+            assert not any(e["y"] for e in gb.oam()[BURST["oam"]:BURST["oam"] + len(BURST["entries"])]), when
             shots.append(np.array(gb.image()))
-    assert (shots[0] == shots[1]).all() and (shots[0] == shots[2]).all()
+    assert all((shots[0] == sh).all() for sh in shots[1:])
 
 
 # ---- FINALE and CREDITS: pictures, the one portrait slot --------------------------------------------------------
@@ -313,3 +353,86 @@ def test_credits_picture_and_start_skips_the_finale(model):
         check_golden(gb, "story_pic_credits_b")
         gb.press("start", 2)                                      # ... and the CREDITS: on to the title
         run_until(gb, lambda: gb.mem("story_scene") != SC["CREDITS"] or state(gb) != GS_STORY, 60)
+
+
+# ---- the burst: the ten pieces fly out of the explosion ---------------------------------------------------------
+def to_page5(gb):
+    """Pages 1-4 (A each), then the turn onto page 5: returns when the switch has begun."""
+    for _ in range(4):
+        page_ready(gb)
+        gb.press("a", 2)
+    run_until(gb, lambda: picture_switching(gb), 40)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_ten_pieces_fly_out_of_the_burst_and_land(model):
+    """After the white flash the pieces (OBJ sprites) leave the burst one after another on an ease-out arc and stop at
+    the places of intro_pieces.txt: 30-45 frames, never more than 10 sprites on a line, the frame never late, and
+    the picture afterwards is the explosion plus the landed pieces, pixel exact."""
+    ents, pieces = BURST["entries"], BURST["pieces"]
+    with start_story(model) as gb:
+        to_page5(gb)
+        seen, lag = [], 0
+        gb.write("vq_late", 0)
+        gb.write("vq_late", 0)
+        while picture_switching(gb):                              # the white, the reload, the fade: no piece yet
+            assert not any(e["y"] for e in burst_oam(gb)), "no piece before the flash is over"
+            assert line_max(gb) <= 10
+            gb.run(1)
+        run_until(gb, lambda: burst_t(gb) != 255, 4)
+        n, logic_end = 0, []
+        while burst_t(gb) != 255:                                 # the flight, frame by frame
+            gb.run(1)
+            n += 1
+            assert n < 80
+            logic_end.append(gb.mem16("perf_end_last"))           # the line this frame's logic and music tick ended on
+            seen.append(burst_oam(gb))
+            assert line_max(gb) <= 10, f"frame {n}: {line_max(gb)} sprites on a line"
+        gb.run(6)
+        seen.append(burst_oam(gb))
+        assert line_max(gb) <= 10
+        assert 30 <= BURST["end"] + 1 <= 45 and abs(n - (BURST["end"] + 1)) <= 1, (n, BURST["end"])
+        assert max(logic_end) < 100, f"the frame's logic ends on line {max(logic_end)}: inside the frame (VBlank is 144)"
+        assert gb.mem16("vq_late") == 0
+        # the first pieces show at once (the next frame or two), the rest one after another, all of them at the end
+        vis = [sum(1 for e in fr if e["y"]) for fr in seen]
+        assert max(vis[:3]) >= 1 and vis[-1] == len(ents) and vis == sorted(vis), vis
+        # landed: each cell exactly where intro_pieces.txt says (OAM y = screen y + 16, x = screen x + 8)
+        for e, ent in zip(seen[-1], ents):
+            pc = pieces[ent["piece"]]
+            assert (e["y"], e["x"], e["tile"], e["flags"] & 0x7F) == (pc["y"] + 16, pc["x"] + ent["dx"] + 8, ent["tile"],
+                                                                      (ent["flip"] << 5) | BURST["pal"]), pc["name"]
+        # each piece leaves the burst, moves on toward its place and ends there (its x never turns back)
+        for i, pc in enumerate(pieces):
+            cells = [k for k, ent in enumerate(ents) if ent["piece"] == i]
+            xs = [fr[cells[0]]["x"] - 8 - ents[cells[0]]["dx"] for fr in seen if fr[cells[0]]["y"]]
+            assert abs(xs[0] - pc["ox"]) <= 40 and xs[-1] == pc["x"], (pc["name"], xs)
+            d = [abs(x - pc["x"]) for x in xs]
+            assert all(a >= b for a, b in zip(d, d[1:])), (pc["name"], xs)
+        assert_picture(gb, "intro_a")
+        # the pieces stay while the pages go on, over a speaker's frame too
+        gb.press("a", 2)
+        page_ready(gb)
+        assert_picture(gb, "intro_a")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_mashing_a_through_the_burst_keeps_the_line_limit(model):
+    """A pressed every other frame from the flash on: pages 5-8 come while the pieces still fly (and the Spigoteer's
+    frame and its overlay swap in): still at most 10 sprites on a line, and the picture at the end is intact."""
+    with start_story(model) as gb:
+        to_page5(gb)
+        worst = 0
+        for f in range(300):
+            if f % 4 == 0 and not picture_switching(gb) and gb.mem("story_page") < 7:
+                gb.press("a", 1)
+            else:
+                gb.run(1)
+            worst = max(worst, line_max(gb))
+            if gb.mem("story_scene") != SC["INTRO"]:
+                break
+            if gb.mem("story_page") == 7 and burst_t(gb) == 255 and gb.mem("story_swap") == 0 and gb.mem("story_typed") == 54:
+                break
+        assert worst <= 10
+        assert gb.mem("story_scene") == SC["INTRO"] and gb.mem("story_page") == 7
+        assert_picture(gb, "intro_a", skip=FRAME)
