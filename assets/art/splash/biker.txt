@@ -1,12 +1,12 @@
 ; The Chrome Cow's counter splash (the mosh pit's bump cue, docs/minigames_bosses.md 9.3): the counter-row tile of
-; biker_bar.txt (chrome rim, oxblood top, studded black leather) with spilt milk on the top and drips down the front.
-; 8x8, the bar palette ('-' = the chrome / milk white). PLACEHOLDER drawn by the engine agent with the mosh pit:
-; owner review pending (it replaces no approved art). tools/gen_art.py adds it to the venue's bar set (venue.splash_tile).
+; biker_bar.txt (chrome rim, oxblood top, studded black leather) with a tipped puddle of milk running over the counter
+; and two drips down the front. 8x8, the bar palette ('-' = the chrome / milk white).
+; Art: approved design (owner 2026-10-11), option B. tools/gen_art.py adds it to the venue's bar set (venue.splash_tile).
 --------
-+-----++
++-------
 -------+
-#--#-###
-#-#-#-#-
-##-#####
-##+-####
+#--##--#
+#--##--#
+#--#####
+#--#####
 ########
