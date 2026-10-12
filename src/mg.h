@@ -336,6 +336,40 @@ struct tk_state {               // tests read these at story_scratch + offset (t
     uint8_t last;               // +144 the last press: 0 none, 1 PERFECT, 2 GOOD, 3 MISS, 4 SPILL
 };
 
+void mm_enter(void) BANKED;                      // src/mm.c: MARSHMALLOW DROP (the igloo)
+void mm_update(uint8_t pressed) BANKED;
+
+#define MM_MUGS         5       // cup slots (at most 4 share the screen: spacing >= 48 px)
+struct mm_state {               // tests read these at story_scratch + offset (tests/test_mg_marshmallow.py)
+    int16_t dx;                 // +0 the pail's x, 1/8 px (128..1088)
+    int16_t ax;                 // +2 the falling marshmallow's x, px (its left edge)
+    int16_t cx[MM_MUGS];        // +4 each cup's x, 1/8 px
+    uint8_t on[MM_MUGS];        // +14 the slot is a cup on the belt
+    uint8_t n[MM_MUGS];         // +19 marshmallows in it (0..3)
+    uint8_t spl[MM_MUGS];       // +24 frames since it splashed + 1 (0: not splashed)
+    uint8_t pop[MM_MUGS];       // +29 frames left of its perfect pop
+    int8_t dir;                 // +34 the pail's direction (1 right, -1 left)
+    uint8_t air;                // +35 a marshmallow is falling
+    uint8_t t;                  // +36 frames it has fallen (22: it lands)
+    uint8_t load;               // +37 frames until the next one is loaded (0: loaded)
+    uint8_t anim;               // +38 frames counted
+    uint8_t started;            // +39 the banner rows are the scene again
+    uint8_t wstep;              // +40 the aurora frame shown (0..2)
+    uint8_t bph;                // +41 the belt's phase
+    uint8_t lead;               // +42 the last cup spawned (the next comes when it is gapn px in)
+    uint8_t gapn;               // +43 the spacing to the next cup, px (48..72)
+    uint8_t perfect;            // +44 perfect cocoas
+    uint8_t drops;              // +45
+    uint8_t hits;               // +46 marshmallows that landed in a cup
+    uint8_t splashes;           // +47
+    uint8_t gone;               // +48 cups that left at the right
+    uint8_t hud[2];             // +49 the tally's digits (VBlank queue source)
+    uint8_t win[4][6];          // +51 the aurora window's map rows (queue source)
+    uint8_t belt[2][18];        // +75 the belt row's two phases
+    uint8_t wall[2][20];        // +111 map rows 2-3 as the scene has them (the banner rows' place)
+    uint8_t wattr[2][20];       // +151
+};
+
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
     struct stub_state stub;
@@ -346,6 +380,7 @@ union mg_ram {
     struct lr_state lr;
     struct ad_state ad;
     struct tk_state tk;
+    struct mm_state mm;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert

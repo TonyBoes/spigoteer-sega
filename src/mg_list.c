@@ -33,11 +33,11 @@ extern uint8_t overlay_on;
 #define ML_COL_MEDAL   14       // (BATTERY SORT is 12 letters: columns 1-12)
 #define ML_ROWS_PER_FRAME 4     // 20-byte rows queued a frame (as mg_say)
 #ifdef DEBUG_MENU
-#define ML_N            8
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_STUB };
+#define ML_N            9
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW, MG_STUB };
 #else
-#define ML_N            7
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO };
+#define ML_N            8
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_ORDERUP, MG_BATTERY, MG_MILKRUN, MG_LOGROLL, MG_ASTEROID, MG_TAIKO, MG_MARSHMALLOW };
 #endif
 typedef char ml_fits[(ML_N <= ML_ROW_BOX - ML_ROW_LIST) ? 1 : -1];   // (no scrolling yet: 10 lines)
 #define ML_INFO_BITS  ((1 << ML_INFO_LINES) - 1)
@@ -59,6 +59,7 @@ static const char *game_name(uint8_t g) {
     if (g == MG_LOGROLL) return "LOG ROLL";
     if (g == MG_ASTEROID) return "ASTEROIDS";
     if (g == MG_TAIKO) return "TAIKO POUR";
+    if (g == MG_MARSHMALLOW) return "MARSHMALLOWS";
 #ifdef DEBUG_MENU
     return "GREEN LIGHT";
 #else
@@ -74,6 +75,7 @@ static const char *game_where(uint8_t g) {
     if (g == MG_LOGROLL) return "THE LUMBER LODGE";
     if (g == MG_ASTEROID) return "THE SPACE LOUNGE";
     if (g == MG_TAIKO) return "THE TEAHOUSE";
+    if (g == MG_MARSHMALLOW) return "THE IGLOO";
 #ifdef DEBUG_MENU
     return "THE TEST STUB";
 #else

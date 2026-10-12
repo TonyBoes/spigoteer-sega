@@ -1040,6 +1040,8 @@ Story fit: PRE_BISTRO page (COLBY): `ORDER UP! REPEAT` / `MY ORDERS. NO` / `CHEE
 
 ### 4.5 Marshmallow Drop (Igloo)
 
+Built (2026-10-12; PLAN.md "Marshmallow Drop as built"): the hybrid look with aurora window W1 and its tile shimmer; the reload counts 24 frames after a landing, points are banked as marshmallows land. The text below is the design as proposed.
+
 Play: cocoa mugs ride a conveyor under a marshmallow dispenser that slides along a rail. Press A to drop. Three
 marshmallows make a perfect cocoa; a fourth splashes.
 

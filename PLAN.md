@@ -359,7 +359,7 @@ table with initials + loop banner/harder loops.
 | M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
 | M11c | Story art: portraits (Spigoteer, the venue owners (ten with Granny Throttle), villain if any), cut-scene pictures. Owner approves. |
 | M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
-| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort, Milk Run, Log Roll, Asteroid Delivery and Taiko Pour are built (see their sections). |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the mini slots stay NOT_BUILT until real games exist. Step 2, the boss engine + Big Tex on placeholder art, is done (see Boss engine as built); the saloon's boss slot is on in the story, the other venues' stay NOT_BUILT. Step 4 has begun: the Sasquatch, the Food Critic and the Yeti are built (see Boss hooks as built and the three bosses after it), each boss in its own banked file. Step 3 has begun: Quick Draw (the saloon) is built and plays in STORY and ARCADE, and the title's BONUS > MINI GAMES is the Practice list for the built mini-games (see Quick Draw and BONUS > MINI GAMES as built). Order Up!, Battery Sort, Milk Run, Log Roll, Asteroid Delivery, Taiko Pour and Marshmallow Drop are built (see their sections). |
 | M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
 
 ## M12 as built (bonus rounds)
@@ -2399,6 +2399,43 @@ the chart is tools/taiko_chart.py (a text grid, 2 strings of 8 rows a bar) -> tk
   (and the Last call's VRAM and palettes as without it); ARCADE; the list and the release unlock; what the level after it has back. Changed: test_mg_list
   (the list's new line, counts). New goldens (dmg + cgb): tk_intro, tk_cup, tk_play, tk_spill, tk_result. Replaced on purpose: mg_list and
   mg_list_locked (the list gains the TAIKO POUR line / a fifth "? ? ?").
+
+## Marshmallow Drop as built (M11e, docs/minigames_bosses.md 4.5, 2026-10-12)
+The igloo's mini-game (STORY chapter 5's mini slot, ARCADE, BONUS > MINI GAMES "MARSHMALLOWS", THE IGLOO). Look: the owner-approved hybrid
+(proposal2: B's tin cups, hoist-pail dropper and Aurora in the serving hatch on A's ice bricks, window, COCOA BAR sign, tally icon and
+conveyor), aurora window **W1** (three pleated curtains, green with magenta tips; DMG light curtains on a black sky), art imported pixel-exact
+from the proposal's mock-up scene (assets/art/marshmallow/*.txt; tools/gen_mm.py -> build/mm_art.h, build/mm.json, out/preview/mm_*).
+- **Shimmer: built as the tile shimmer** (not the CGB palette pulse). The real budget allows it: the framework's free BG ids are 125-255 (131) and
+  the whole screen with the window's 3 frames and both belt phases is **95 tiles** (125-219); the 3 frames' tiles are all resident, so a step is
+  just 4 queued map rows of 6 bytes (the window's 24 cells), every 10 frames, sequence 0 1 2 1, on even frames; the belt row (18 cells) swaps
+  its 2 tile phases every 8 frames on odd ones, so the two never share a frame. CGB and DMG both shimmer.
+- Code: src/mm.c (bank 255 by autobank), struct mm_state (191 B) in the mg union (G_MM = 8, MG_GAMES 9), medal_at {2000, 4000, 6000} (the
+  generic path), no HARD (the spec has none).
+- Rules as 4.5, with these decisions: the pail slides x 16..136 at 1.0 / 1.25 / 1.5 px a frame (0-15 / 15-30 / 30-45 s); a marshmallow falls 22
+  frames at 2 px (from y 51 at the pail's x + 4); a hit is -1 <= marshmallow x - cup x <= 11 (centre in the 12 px opening); cups 0.5 / 0.75 /
+  1.0 px a frame, 48-72 px apart (seeded with mg_rand), at most 4 visible (8 entries) + the falling marshmallow = **9 sprites a line**. +100 each
+  landing, +300 for the third (PERFECT COCOA: a pop, the HUD tally +1), a fourth splashes for -100 (never below this game's earnings) and that cup
+  takes nothing more. **Spec conflicts, decided:** (1) the reload counts 24 frames **after the marshmallow lands** (a drop every 46 frames at best,
+  the spec's "at most ~58 drops"); counted from the drop (the spec's literal sentence and the mock-up) it would be 112 drops and a mash of A scored a
+  silver. (2) Points are banked as marshmallows land (as in the mock-up), not when a cup leaves at the right: the totals are the same for cups that
+  leave, and every drop pays at once. Mash of A (every 3 frames, whole game): 2300 (bronze); the test pilot: ~3800 (2 perfects, 32 hits). Gold 6000
+  looks reachable only by very good play: tune the medals in playtest.
+- Screen: HUD tally = A's icon + X + 2 digits at columns 9-12 (the proposal had one digit); window columns 1-6 rows 1-4 (BG 6 green / 7 magenta),
+  sign columns 8-19 rows 1-4 (HUD glyphs, `COCOA BAR` / `3 PERFECT` on rows 2-3: the framework's banner covers them and the window's middle rows
+  until the first play frame, when mm_update queues them back; the attributes of rows 2-3 stay the HUD's until then), beam row 5, hatch columns
+  17-19 rows 8-10, belt row 14, panels row 15, floor rows 16-17. BG palettes 2 brick, 3 wood, 5 belt + hatch, 6, 7 (1 HUD, 4 the medal's). OAM: 0-3 pops,
+  4 falling marshmallow, 5 loaded one, 6-7 pail, 8-17 cups. OBJ: 22 entries (44 tiles) in two blocks, 56-91 (18 entries) and 96-103 (OBJ_DANCER..,
+  the show's tiles: no show runs; the level load restores them: a test compares the level after it with a fresh boot's); CGB OBJ palettes 1 cups,
+  2 pail, 3 marshmallows and pops; DMG cups and pail on OBP1 = 0xE0, marshmallows and pops on OBP0 (boot's 0xD0).
+- Numbers: ROM0 real free 577 B unchanged (no ROM0 code; mg.c gained one case each in 3 switches in its own bank); WRAM_LO 3936 / WRAM_HI_0 3455
+  unchanged (no new global). Shared files touched: mg.c / mg.h (G_MM + struct), mg_list.c, gen_story.py (BUILT_SLOTS MINI += IGLOO), Makefile
+  (mm_art.h), tests/test_mg_list.py.
+- Tests (tests/test_mg_marshmallow.py, 28 x DMG/CGB): the screen and its art byte for byte, the attributes, the colours; pail speeds and ends; cup
+  speeds, spacing 48-72 over a whole game, <= 4 visible; the 22-frame fall, one in the air, the reload; the opening edges (-2 miss, -1 / 11 hit, 12
+  miss); 100 / 100 / 400, the tally and pop; the splash and the dead cup; shimmer 0 1 2 1 and the belt; the forced worst scene (9 a line); a pilot's
+  whole game and a mash (<= 10 a line); medal edges; practice retry / menu; STORY chapter 5 and its Last call restored; ARCADE; the list; the release
+  list; goldens. New goldens (dmg+cgb): mm_intro, mm_play, mm_perfect, mm_splash, mm_result. Replaced on purpose, reason "the list gains
+  MARSHMALLOWS after TAIKO POUR": mg_list.{dmg,cgb}, mg_list_locked.{dmg,cgb}.
 
 ## SDCC pitfalls found so far (keep adding)
 - **`x++; if (global)`**: with `S.anim++;` (a field reached through a pointer, so `inc (hl)`) directly before `if (sound_on)`, SDCC 4.5 emitted
