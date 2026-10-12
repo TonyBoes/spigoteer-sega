@@ -217,6 +217,8 @@ void ad_enter(void) BANKED {
         VBK_REG = VBK_BANK_1;
         for (k = 0; k < 20; k++) { S.wattr[0][k] = v[2 * 32 + k]; S.wattr[1][k] = v[3 * 32 + k]; }
         VBK_REG = VBK_BANK_0;
+        ad_put(1, S.hattr, 0, 2, 20);            // the intro text rows (the name, the instructions) in the HUD colours, as the other
+        ad_put(1, S.hattr, 0, 3, 20);            // mini-games' banners (the portholes' palettes made them unreadable)
     }
     hud_deliveries(); hud_time();
     vram_put(8, HUD_ROW, S.dbuf, 4);
