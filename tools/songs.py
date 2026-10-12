@@ -339,6 +339,12 @@ HALL_CHORDS = [
 HALL_BASS = " ".join(("F#2:2! " if 9 <= i <= 12 else "B2:2! ") * 4 for i in range(1, 17))
 song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS,
      " ".join(["K:1 r:3 S:1 r:3"] * 16), stac_all=(1, 2))
+# Harmony (music step 5): the motif creeps low, so the line sits above it: one held chord tone a chord on the pad (D, the
+# B of C#7, G for the C chord, F# for D), a dark organ; the answer (bars 9-12, F#) a plucked voice under the melody.
+_t = H.Tune(" ".join(HALL_BARS), HALL_CHORDS, 8, 2, "Bm")
+harmony("hall", _t, " ".join([H.guide(_t, (1, 8), "F#4", "F#5", below=False),
+                              H.follow(_t, (9, 12), "C#4", "A#4", grid=2, merge=False, inst="/2"),
+                              H.guide(_t, (13, 16), "F#4", "F#5", below=False)]), ("pad", "pluck"))
 
 # ---------------------------------------------------------------------------------------------
 # Teahouse: "Sakura Sakura" (Japanese traditional).  4/4, key A minor (A B C E F), the spec's quarter = 72-100.
