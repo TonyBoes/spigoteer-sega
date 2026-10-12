@@ -19,7 +19,7 @@ from test_venues import cgb_palette
 
 pytestmark = pytest.mark.timeout(300)
 
-BOSS_C = (ROOT / "src" / "boss.c").read_text()
+BOSS_C = (ROOT / "src" / "boss.c").read_text() + (ROOT / "src" / "boss.h").read_text()   # (the engine and its inside)
 ART = json.loads((ROOT / "build" / "boss.json").read_text())
 TEX = ART["bosses"][0]
 ART_H = (ROOT / "build" / "art.h").read_text()
@@ -175,6 +175,40 @@ def test_the_table_has_a_row_per_venue_and_only_the_saloon_is_built():
     assert len(TEX["pairs"]) <= ART["pairs_max"] == 30 and TEX["cols"] == 5 and len(TEX["pose"]) == 5
     assert "; Art: approved design" in (ROOT / "assets/art/boss/meter.txt").read_text()
     assert "; Art: approved design" in (ROOT / "assets/art/boss/big_tex.txt").read_text()
+
+
+def boss_rows():
+    """src/boss.c rows[]: (row index, width) of every row, and the hook table's rows (row index -> dispatcher)."""
+    body = re.search(r"rows\[BOSS_COUNT\] = \{(.*?)\n\};", BOSS_C, re.S).group(1)
+    rows = [int(m) for m in re.findall(r"^\s*\{\s*(\d+),", body, re.M)]
+    hooks = {int(r): f for r, f in re.findall(r"case (\d+): return (boss_\w+)\(ev, arg\);", BOSS_C)}
+    return rows, hooks
+
+
+def test_every_built_boss_has_its_row_its_hook_its_file_and_its_art():
+    """The structure for parallel boss work (PLAN.md "Boss hooks as built"): every row of rows[] with a width has a row
+    in the hook table (boss_call), its dispatcher is declared in src/boss.h and defined BANKED in its own banked file
+    src/boss_<name>.c, which #includes its own art header (build/boss_<name>_art.h, gen_boss BOSSES) and the loaders;
+    every gen_boss boss has a file; every boss slot built in the story data has a row of its own (no built slot falls
+    back to Big Tex's); the extra poses fit the engine."""
+    rows, hooks = boss_rows()
+    header = (ROOT / "src" / "boss.h").read_text()
+    names = {b["name"] for b in ART["bosses"]}
+    assert set(hooks) == {r for r, w in enumerate(rows) if w}, "a row of rows[] without its hook row (or the reverse)"
+    for r, fn in hooks.items():
+        name = fn[len("boss_"):]
+        assert name in names, f"{fn}: no art in gen_boss BOSSES"
+        src = (ROOT / "src" / f"boss_{name}.c").read_text()
+        assert src.startswith("//") and "#pragma bank 255" in src
+        assert f'#include "boss_{name}_art.h"' in src and '#include "boss_load.h"' in src
+        assert re.search(rf"uint8_t {fn}\(uint8_t ev, uint8_t arg\) BANKED \{{", src)
+        assert re.search(rf"uint8_t {fn}\(uint8_t ev, uint8_t arg\) BANKED;", header)
+        assert "boss_art_set()" in src and "boss_art_load()" in src
+    for b in ART["bosses"]:
+        assert (ROOT / "src" / f"boss_{b['name']}.c").exists()
+        assert len(b["poses"]) <= ART["poses_max"] and b["poses"][:5] == ART["poses"]
+        assert len(b["pairs"]) <= ART["pairs_max"]
+    assert all(c < len(rows) and rows[c] for c in BOSS_BUILT), "a built boss slot plays another boss's row"
 
 
 # ---- the fight -----------------------------------------------------------------------------------------------------

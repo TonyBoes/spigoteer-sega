@@ -1310,6 +1310,44 @@ STEP_SKIP until their bosses exist). Chapter 1 is now Opening -> Happy hour -> L
   says SHIFT CLEAR, the boss step is saved as reached. New goldens boss_fight (dmg + cgb: Tex mid-fight, the meter at 5
   of 8). No existing golden changed. Screens: out/boss/{start,mid,meter,win,lose}.{dmg,cgb}.png.
 
+## Boss hooks as built (wave 1 structure, 2026-10-12; docs/minigames_bosses.md 2.5, section 6 step 4)
+Each boss lives in his own banked file, so bosses can be built in parallel. What a new boss touches:
+1. `src/boss_<name>.c` (`#pragma bank 255`): `#include "boss.h"`, his generated art `"boss_<name>_art.h"`, then
+   `"boss_load.h"`; one dispatcher `uint8_t boss_<name>(uint8_t ev, uint8_t arg) BANKED` that answers BEV_SET with
+   `boss_art_set()` and BEV_LOAD with `boss_art_load()` (his pose table into WRAM, his tiles and palettes), and does his
+   special on the other events. His own state stays in his file (test hooks: plain globals).
+2. `src/boss.c`: his row of `rows[]` (spec 3.2's numbers and the banner lines) and his row of the hook table
+   (`boss_call`: `case <row>: return boss_<name>(ev, arg);`); `src/boss.h`: his dispatcher's prototype.
+3. `tools/gen_boss.py` BOSSES: one entry (name, width, CGB colours 1-3, `extra` poses in his art file's order of
+   use; `ice`: a venue whose counter tiles get icy copies) and his art at `assets/art/boss/<name>.txt` (the build fails
+   when the folder and the list differ).
+4. `tools/gen_story.py` BUILT_SLOTS["BOSS"]: his venue's suffix (STORY and ARCADE both play the slot then).
+- Events (src/boss.h): BEV_SET (boss_set), BEV_LOAD (LCD off, the level loaded), BEV_RESET (the level's start and
+  after a life), BEV_BEGIN (the banner up), BEV_FRAME (every PLAYING frame after the intro, after the engine's walk /
+  push / empties, before his pose and catch limit), BEV_CATCH (arg = the mug; 1 = he took it himself), BEV_TELL
+  (boss_hook 1), BEV_OUTRO (the outro's first frame). 0 from any = the common rules.
+- Knobs a special may turn (WRAM, boss.c; reset by boss_set): boss_xpose (an extra pose, BP_EXTRA.., shown over WALK /
+  STOMP / GULP; only WINCE and HAPPY show over it), boss_queue / boss_cap (he catches while boss_hold + boss_queue <
+  boss_cap; boss_cap = boss_hands), boss_own_gap (his empties' gap after his own last one), boss_window (an empty or a
+  return goes only if it arrives within that many frames), boss_fast_full / boss_fast_empty (his bar's full mugs 3 px
+  a frame, empties 1 px a frame) and boss_returns (MUG_RETURN mugs on his bar). The engine's state (boss_state,
+  boss_t, boss_hold, boss_sip_t, boss_special_t, ...) is global for the boss files. A boss state other than BS_WALK /
+  BS_GULP (BS_TELL, BS_SPECIAL) means he stands: no stomp, his step timer kept.
+- Helpers: `boss_send(kind)` (one MUG_EMPTY / MUG_RETURN from his right edge when the fair-empties schedule,
+  boss_own_gap and boss_window allow; its travel at its own speed), `boss_width()`.
+- His bar's extra mug rules are in boss.c `boss_mugs` (banked, run from boss_frame after update_mugs moved the mugs):
+  a fast full mug 1 px more, a fast empty 1 px on the frames its own step did not move it, a MUG_RETURN (mug_state 5:
+  mugs.c draws it as a full mug and counts it, but does not step it) 1 px a frame right, caught by the bartender as an
+  empty, breaking past the right end. No ROM0 code: a first try with per-bar speed tests in mugs.c's full_step /
+  empty_step cost 30 B of ROM0 and pushed test_perf's worst pile, overlap and realistic-peak scenarios over their
+  guards (one compare per mug per frame everywhere), so it went.
+- Art: tools/gen_boss.py writes build/boss_art.h (the meter, BOSS_POSES_MAX 8, BOSS_PAIRS_MAX 30, BOSS_ICE_MAX 2) and
+  per boss build/boss_<name>_art.h under common names (boss_art_body / pose / hand / hat / icon / pal, BOSS_ART_*),
+  #included only by his own file: his art sits in his file's bank. Extra poses (gen_boss `extra`) follow the five
+  common ones (BP_EXTRA = 5, 6, ...). Big Tex moved to src/boss_big_tex.c (his art only; no special); nothing of
+  him changed (golden boss_fight and every test_boss test unchanged).
+- ROM: ROM0 unchanged (1006 B free). The engine (boss.c) autobanks to bank 5, Big Tex's file to bank 8.
+
 ## Mode-aware debug select as built (owner request, 2026-10-10)
 
 The START + SELECT debug select (DEBUG_MENU builds only; `make release` still has none: build/release.noi names no

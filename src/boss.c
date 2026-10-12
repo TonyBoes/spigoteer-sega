@@ -24,9 +24,15 @@
 //     are his: patrons.c try_spawn, show.c place_start_patrons), no tips and so no show (tip_chance 0).
 // Resources borrowed (the next level load puts every one back, as after a mini-game): BG ids 162-203 and 216-233
 // (variant C's shifted tiles, its shift-0 pose and the back views: no variant C, no show) for his body, 252-255 for
-// the HUD's face and meter; OBJ 96-99 (the show performers') for the topper at OAM 28 (the dancers' first entry); CGB
-// BG palette 4 (variant C's; colour 0 = the venue's wall) and OBJ palette 7 (lifted variant C's: the same colours 1-3);
-// DMG: the BG greys and OBP1 0xE4 as the lifted patrons. The HUD: column 12 his face, 13-19 the meter (2 pips a tile).
+// the HUD's face and meter, 246-251 for a special's extra tiles; OBJ 96-99 (the show performers') for the topper at
+// OAM 28 (the dancers' first entry); CGB BG palette 4 (variant C's; colour 0 = the venue's wall) and OBJ palette 7
+// (lifted variant C's: the same colours 1-3); DMG: the BG greys and OBP1 0xE4 as the lifted patrons. The HUD: column 12
+// his face, 13-19 the meter (2 pips a tile).
+//
+// Each boss is a row of rows[] (his numbers) and a row of the hook table (boss_call: his dispatcher in his own banked
+// file src/boss_<name>.c, with his art and his special; src/boss.h lists the events). The engine works the same for
+// all of them; a special changes it only through the hooks and the few WRAM knobs in boss.h (boss_xpose, boss_queue /
+// boss_cap, boss_own_gap, boss_window, boss_fast_full / boss_fast_empty / boss_returns for his bar's mugs).
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -36,7 +42,7 @@
 #include "music.h"
 #include "palettes.h"
 #include "story.h"
-#include "boss_art.h"        // this bank's own art (tools/gen_boss.py)
+#include "boss.h"            // the engine's inside, shared with the boss files (src/boss_<name>.c)
 
 extern uint8_t pat_pos, pat_buf[STORY_PAT_MAX];   // (story.c) the arrival pattern patrons.c follows while pat_len
 extern uint16_t pat_wait[4];
@@ -49,19 +55,7 @@ extern uint16_t pat_wait[4];
 #define STOMP_FRAMES      8       // the STOMP pose after each stomp
 #define OUTRO_FRAMES    120
 #define OAM_TOPPER      OAM_DANCERS   // (no show in a fight; OAM 26 is the perfect pour's cue)
-#define OBJ_TOPPER      OBJ_DANCER    // 4 tiles: STILL, BOB (8x16 each)
-#define BOSS_BG_A       (PATRON_TILE_BASE + 84)   // variant C's 42 shifted tiles: 21 column pairs
-#define BOSS_BG_B       (PATRON_OBJ_BASE + 12)    // variant C's shift-0 pose + the 12 back views: 9 pairs
-#define BOSS_PAIRS_A    21
-#define BOSS_HUD_BG     252                       // the face, then the meter's EMPTY, HALF, FULL
-#define BOSS_PAL        (BGPAL_PATRON + 2)
-#if BOSS_BG_A + 2 * BOSS_PAIRS_A != PATRON_OBJ_BASE || BOSS_BG_B + 18 != PATRON_BACK_BASE + 12 \
-    || BOSS_PAIRS_A + 9 != BOSS_PAIRS_MAX || PATRON_BACK_BASE + 12 > OBJ_POUR || BOSS_HUD_BG < OBJ_DMG_COPY + 6
-#error "boss tiles: variant C's 162-203, its shift-0 pose and the back views 216-233, the HUD 252-255"
-#endif
 
-enum { BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO };   // boss_state (spec 2.5's test hook names)
-enum { BP_WALK, BP_STOMP, BP_GULP, BP_WINCE, BP_HAPPY };            // poses: the art's order (gen_boss POSES)
 enum { HOOK_NONE, HOOK_TELL, HOOK_METER_1, HOOK_DEFEAT };            // boss_hook (tests)
 
 typedef struct {
@@ -75,7 +69,7 @@ typedef struct {
     uint8_t sip;          // frames before each held empty may go
     uint8_t meter;        // drinks to satisfy him (<= 14: 7 HUD tiles)
     uint8_t hat_dx;       // the topper's x from his left edge
-    uint8_t art;          // index in arts[]
+    uint8_t art;          // (0: his art is in his own file, src/boss_<name>.c)
     const char *line1, *line2;   // the banner's goal lines (HUD glyphs, <= 20)
 } boss_row_t;
 
@@ -83,17 +77,6 @@ typedef struct {
 static const boss_row_t rows[BOSS_COUNT] = {
     // width x  bar step push gulp hands sip meter hat art
     {  40,  16,  1, 120,  16,  40,   3,  60,  8,   16,  0, "BIG TEX RIDES IN", "QUENCH HIM 8 MUGS" },   // Saloon: Big Tex (3.3)
-};
-
-typedef struct {
-    const uint8_t *body; uint8_t pairs;
-    const uint8_t *pose;  // [BOSS_POSES][width / 8] column pair indices
-    const uint8_t *hand;  // [4] the hand column's pair holding 0..3 empties
-    const uint8_t *hat, *icon;
-    const uint16_t *pal;
-} boss_art_t;
-static const boss_art_t arts[BOSS_ARTS] = {
-    { tex_body, TEX_PAIRS, &tex_pose[0][0], tex_hand, tex_hat, tex_icon, tex_pal },
 };
 
 // ---- state (test hooks: spec 2.5's names) ----
@@ -114,10 +97,26 @@ uint8_t  boss_push;               // px of push-back still to hop
 uint8_t  boss_hits;               // drinks caught this fight (tests)
 uint8_t  boss_hard;               // Practice's HARD toggle (owner Q7): stomps a quarter faster, one hand fewer
 uint8_t  boss_step, boss_hands;   // this fight's step and hands (the row's, or HARD's)
-static uint8_t boss_hop, boss_step_t, boss_sip_t, boss_stomp, boss_hat;
+uint8_t  boss_xpose;              // a special's extra pose (BP_EXTRA..; 0 none: src/boss.h)
+uint8_t  boss_queue, boss_cap;    // held besides his empties (the Critic's returns); he catches while hold + queue < cap
+uint8_t  boss_sip_t;              // frames since his last empty went
+uint8_t  boss_own_gap;            // his own empties' gap after his own (0: empty_gap)
+uint16_t boss_window;             // his empties / returns must arrive within this many frames (0xFFFF: no limit)
+uint8_t  boss_fast_full, boss_fast_empty, boss_returns;   // his bar's fast mugs, MUG_RETURNs (boss_mugs)
+uint8_t  boss_map[BOSS_POSES_MAX][BOSS_W_MAX], boss_hand[4], boss_npose;   // his poses' column pairs (his file's art)
+static uint8_t boss_hop, boss_step_t, boss_stomp, boss_hat, boss_row;
+static uint16_t boss_own_na;      // next_arrival as his last empty left it (still equal: nobody scheduled one since)
 static uint8_t hud_row[8];
 static const boss_row_t *br;
-static const boss_art_t *ba;
+
+// The hook table: one row per built boss (the row index = his rows[] index), his dispatcher in his own file
+// (src/boss_<name>.c, banked; the events: src/boss.h). A row of rows[] needs its row here too (his art is there).
+static uint8_t boss_call(uint8_t ev, uint8_t arg) {
+    switch (boss_row) {
+    case 0: return boss_big_tex(ev, arg);        // Saloon: src/boss_big_tex.c
+    }
+    return 0;
+}
 
 static uint8_t pair_id(uint8_t p) {
     return p < BOSS_PAIRS_A ? BOSS_BG_A + (p << 1) : BOSS_BG_B + ((uint8_t)(p - BOSS_PAIRS_A) << 1);
@@ -144,15 +143,16 @@ static void boss_look(void) {
     const uint8_t *m;
     if (boss_state == BS_OUTRO) p = BP_HAPPY;
     else if (boss_push) p = BP_WINCE;
+    else if (boss_xpose) p = boss_xpose;
     else if (boss_state == BS_GULP) p = BP_GULP;
     else if (boss_stomp) p = BP_STOMP;
     h = (p == BP_WALK || p == BP_STOMP || p == BP_WINCE) ? (boss_hold > 3 ? 3 : boss_hold) : 0;
     key = p | (h << 4);
     if (key == boss_pose) return;
     boss_pose = key;
-    m = ba->pose + p * w;
+    m = boss_map[p];
     for (k = 0; k < w; k++) boss_cols[k] = pair_id(m[k]);
-    if (h) boss_cols[w - 1] = pair_id(ba->hand[h]);
+    if (h) boss_cols[w - 1] = pair_id(boss_hand[h]);
     for (; k < BOSS_W_MAX; k++) boss_cols[k] = 0;
     mark_dirty(boss_bar, boss_col, boss_col + w);
 }
@@ -165,7 +165,8 @@ static void boss_move(uint8_t x) {
 }
 
 static void boss_limit(void) {
-    boss_lim = boss_hp && boss_state != BS_OUTRO && boss_hold < boss_hands ? boss_x + br->width - (CATCH_DX - 1) : 0;
+    boss_lim = boss_hp && boss_state != BS_OUTRO && boss_hold + boss_queue < boss_cap
+             ? boss_x + br->width - (CATCH_DX - 1) : 0;
 }
 
 // Story step_start: the step about to begin is venue id's boss fight (a full meter), or (BOSS_NONE) no fight: the
@@ -178,8 +179,8 @@ void boss_set(uint8_t id) BANKED {
         return;
     }
     boss_id = id;
-    br = &rows[id < BOSS_COUNT && rows[id].width ? id : 0];
-    ba = &arts[br->art];
+    boss_row = id < BOSS_COUNT && rows[id].width ? id : 0;
+    br = &rows[boss_row];
     boss_on = 1; boss_bar = br->bar;
     boss_hp = br->meter; boss_hits = 0; boss_special_t = 0; boss_hook = HOOK_NONE;
     s = br->step; boss_hands = br->hands;
@@ -187,26 +188,18 @@ void boss_set(uint8_t id) BANKED {
     boss_step = s;
     boss_state = BS_WALK; boss_hold = 0; boss_push = 0; boss_stomp = 0;
     boss_x = br->start_x; boss_col = boss_x >> 3; boss_pose = 255;
+    boss_xpose = 0; boss_queue = 0; boss_cap = boss_hands; boss_own_gap = 0; boss_window = 0xFFFF;
+    boss_fast_full = boss_fast_empty = boss_returns = 0;
+    boss_call(BEV_SET, 0);                       // his art's pose table, his own settings
     boss_look();
 }
 
 // enter_level_screen, LCD off, after start_level (which loaded every patron variant): his body over variant C's tiles
 // and the back views, the HUD's face and meter, the topper's frames; CGB his palettes (colour 0 the venue's wall).
 void boss_load(void) BANKED {
-    palette_t p;
-    uint8_t n = ba->pairs;
-    set_bkg_data(BOSS_BG_A, (n > BOSS_PAIRS_A ? BOSS_PAIRS_A : n) << 1, ba->body);
-    if (n > BOSS_PAIRS_A) set_bkg_data(BOSS_BG_B, (n - BOSS_PAIRS_A) << 1, ba->body + BOSS_PAIRS_A * 32);
-    set_bkg_data(BOSS_HUD_BG, 1, ba->icon);
+    boss_call(BEV_LOAD, 0);                      // his body, face, topper and palettes (src/boss_load.h), his extras
     set_bkg_data(BOSS_HUD_BG + 1, 3, boss_meter_tiles);
-    set_sprite_data(OBJ_TOPPER, 4, ba->hat);
     boss_pal = BOSS_PAL;
-    if (!is_cgb) return;                         // (DMG: OBP1 is lift_level_init's 0xE4, the BG's shades)
-    p[0] = venue.pal[VENUE_PAL_BAR][0];
-    p[1] = ba->pal[1]; p[2] = ba->pal[2]; p[3] = ba->pal[3];
-    set_bkg_palette(BOSS_PAL, 1, p);
-    p[0] = 0;
-    set_sprite_palette(OBJPAL_PATRON_C, 1, p);
 }
 
 // reset_actors (the level's start, and after a lost life): at his start x on his bar, nothing in his hands, his meter
@@ -215,7 +208,8 @@ void boss_reset(void) BANKED {
     boss_x = br->start_x; boss_col = boss_x >> 3;
     if (boss_state != BS_OUTRO) boss_state = BS_WALK;
     boss_t = 0; boss_push = 0; boss_hop = 0; boss_hold = 0; boss_step_t = 0; boss_sip_t = 0; boss_stomp = 0; boss_hat = 0;
-    boss_pose = 255;
+    boss_pose = 255; boss_queue = 0; boss_own_na = 0;
+    boss_call(BEV_RESET, 0);
     boss_look();
     mark_dirty_attrs(boss_bar, 0, 20);
     boss_limit();
@@ -247,10 +241,12 @@ void boss_begin(void) BANKED {
     pat_len = STORY_PAT_MAX; pat_pos = 0; pat_bar = pat_buf[0];
     pat_wait[0] = spawn_interval;
     boss_hud();
+    boss_call(BEV_BEGIN, 0);
 }
 
 // patrons.c catch_full: full mug i reached him (on his bar, mug_x < boss_lim: a hand free). He drinks it.
 uint8_t boss_catch(uint8_t i) BANKED {
+    if (boss_call(BEV_CATCH, i)) { boss_limit(); return 1; }   // his special took it
     perfect_catch(i);                            // (a fight is story mode: a perfect pour scores its bonus and cue)
     mug_state[i] = MUG_FREE;
     add_score(serve_score);
@@ -265,29 +261,74 @@ uint8_t boss_catch(uint8_t i) BANKED {
     return 1;
 }
 
-// The per-boss special (spec section 3): Big Tex has none. Later bosses add a case on boss_id here.
-static void boss_special(void) {
-}
-
 static void boss_take_hook(void) {
     if (boss_hook == HOOK_METER_1) boss_hp = 1;
     else if (boss_hook == HOOK_DEFEAT) boss_hp = 0;
-    boss_hook = HOOK_NONE;                       // (HOOK_TELL: no special to tell yet)
+    else if (boss_hook == HOOK_TELL) boss_call(BEV_TELL, 0);   // (a boss without a special ignores it)
+    boss_hook = HOOK_NONE;
     boss_hud();
 }
 
-// Held empties: the first one `sip` frames after it was caught (or after the last went), and only when the fair-empties
-// schedule lets it arrive at the tap end no sooner than empty_gap after the last one scheduled.
-static void boss_empties(void) {
-    uint8_t ex;
-    uint16_t t;
-    if (boss_sip_t < br->sip) { boss_sip_t++; return; }
+uint8_t boss_width(void) BANKED {
+    return br->width;
+}
+
+// One empty (or a Critic's return) from his right edge, when the fair-empties schedule lets it arrive at the tap end
+// no sooner than empty_gap after the last one scheduled (after his own last one: boss_own_gap, when he has one), and
+// within boss_window. Its travel at its speed: an empty 0.5 px a frame, 1 while boss_fast_empty (boss_mugs);
+// a return always 1. 1 = sent.
+uint8_t boss_send(uint8_t kind) BANKED {
+    uint8_t ex, tap = bar_tap[boss_bar];
+    uint16_t t, need = next_arrival;
     ex = boss_x + br->width;
-    t = ex >= TAP_X ? 0 : (uint16_t)(uint8_t)(TAP_X - ex) * EMPTY_STEP_FRAMES;
-    if (t < next_arrival || !spawn_mug(boss_bar, ex, MUG_EMPTY)) return;
+    t = ex >= tap ? 0 : (uint16_t)(uint8_t)(tap - ex) * EMPTY_STEP_FRAMES;
+    if (kind != MUG_EMPTY || boss_fast_empty) t >>= 1;
+    if (boss_own_gap && need && need == boss_own_na)     // his own was the last one scheduled: his own gap after it
+        need = need > (uint8_t)(empty_gap - boss_own_gap) ? need - (uint8_t)(empty_gap - boss_own_gap) : 0;
+    if (t < need || t > boss_window || !spawn_mug(boss_bar, ex, kind)) return 0;
     next_arrival = t + empty_gap;
+    boss_own_na = next_arrival;
+    return 1;
+}
+
+// Held empties: the first one `sip` frames after it was caught (or after the last went), when boss_send lets it go.
+static void boss_empties(void) {
+    if (boss_sip_t < br->sip) { boss_sip_t++; return; }
+    if (!boss_send(MUG_EMPTY)) return;
     boss_hold--;
     boss_sip_t = 0;
+}
+
+// His bar's mugs beyond the common rules, after update_mugs moved them this frame (so nothing outside a fight pays for
+// it, and no ROM0): a fast full mug 1 px more (3 px a frame; its catch or fall is seen by the next frame's full_step),
+// a fast empty 1 px on the frames its own step did not move it (1 px a frame), and every MUG_RETURN (a full drink sent
+// back: 1 px a frame to the right, the bartender catches it as an empty, past the right end it breaks: a life).
+static void boss_mugs(void) {
+    uint8_t i, x, st;
+    if (!(boss_fast_full | boss_fast_empty | boss_returns)) return;
+    for (i = 0; i != MAX_MUGS; i++) {
+        if (mug_bar[i] != boss_bar) continue;
+        st = mug_state[i]; x = mug_x[i];
+        if (st == MUG_FULL) {
+            if (boss_fast_full && x >= MUG_END_X) mug_x[i] = x - 1;
+        } else if (st == MUG_EMPTY) {
+            if (boss_fast_empty && (mug_timer[i] & 1)) mug_x[i] = x + 1;
+        } else if (st == MUG_RETURN) {
+            mug_x[i] = ++x;
+            if (x >= bartender_x && ((uint8_t)(x - bartender_x) < 16 || bartender_x == tap_now) && boss_bar == bar) {
+                mug_state[i] = MUG_FREE;         // caught (mugs.c empty_step's rule)
+                add_score(EMPTY_SCORE);
+                SFX(SFX_CATCH);
+                catch_pose = CATCH_POSE_FRAMES;
+            } else if (x > BAR_MUG_END(boss_bar)) {   // off the tap end: it breaks (mugs.c break_mug)
+                mug_state[i] = MUG_BREAKING;
+                mug_timer[i] = 0;
+                mug_events++;
+                SFX(SFX_BREAK);
+                lose_life();
+            }
+        }
+    }
 }
 
 // story_play, every PLAYING frame of a fight (not the frame a life went): 1 = the meter is empty, the outro begins.
@@ -295,7 +336,9 @@ uint8_t boss_frame(void) BANKED {
     uint8_t x = boss_x;
     if (boss_hook) boss_take_hook();
     if (!boss_hp) { boss_state = BS_OUTRO; boss_lim = 0; boss_look(); return 1; }
+    boss_mugs();
     if (!intro_timer) {                          // nothing moves before the level's intro is over
+        if (boss_own_na) boss_own_na--;          // (counts down with next_arrival: patrons.c)
         if (boss_t != 255) boss_t++;
         if (boss_stomp) boss_stomp--;
         if (boss_push) {
@@ -307,7 +350,7 @@ uint8_t boss_frame(void) BANKED {
             }
         } else if (boss_state == BS_GULP) {
             if (boss_t >= br->gulp) { boss_state = BS_WALK; boss_t = 0; }
-        } else if (++boss_step_t >= boss_step) {
+        } else if (boss_state == BS_WALK && ++boss_step_t >= boss_step) {   // (a tell or special: he stands)
             boss_step_t = 0;
             x += 8;
             boss_stomp = STOMP_FRAMES;
@@ -315,10 +358,10 @@ uint8_t boss_frame(void) BANKED {
         }
         if (boss_hold) boss_empties();
         if (x != boss_x) boss_move(x);
+        boss_call(BEV_FRAME, 0);                 // his special
     }
     boss_look();
     boss_limit();
-    boss_special();
     if ((uint8_t)(boss_x + br->width) >= BOSS_TAP_X) lose_life();   // at the tap: a life (boss_reset after the freeze)
     return 0;
 }
@@ -328,6 +371,7 @@ uint8_t boss_frame(void) BANKED {
 uint8_t boss_outro(uint8_t t) BANKED {
     uint8_t i, n;
     if (t == 1) {
+        boss_call(BEV_OUTRO, 0);
         clear_mugs();
         fill_timer = 0; cue_t = 0;
         n = OAM_MUG_END - 2 * lift_total;

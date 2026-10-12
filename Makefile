@@ -35,7 +35,9 @@ GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/m
 # in bank 10 (build/music_pat10.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
 HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
-BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/boss_art.h $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h
+# each boss's own art header (tools/gen_boss.py: build/boss_<name>_art.h, #included by src/boss_<name>.c only)
+BOSS_H   := $(foreach b,$(filter-out meter,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
+BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
 .PHONY: all test check preview clean assets release
@@ -72,9 +74,10 @@ $(BUILD)/pour_art.h: tools/gen_pour.py tools/gen_art.py $(wildcard assets/art/po
 $(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h: tools/gen_mg.py tools/gen_art.py assets/art/mg_medal.txt assets/art/mg_lamp.txt $(wildcard assets/art/quickdraw/*.txt) assets/tiles/story.txt | $(BUILD) $(OUT)/preview
 	python3 tools/gen_mg.py $(BUILD) $(OUT)/preview
 
-# The boss engine (src/boss.c): each boss's body poses, held empties, topper and HUD face, and the HUD meter, all
-# placeholders until the owner approves the art -> build/boss_art.h, build/boss.json (tests), out/preview/boss_*_x8.png
-$(BUILD)/boss_art.h: tools/gen_boss.py tools/gen_art.py $(wildcard assets/art/boss/*.txt) | $(BUILD) $(OUT)/preview
+# The boss engine (src/boss.c): each boss's body poses (and extra poses), held empties, topper and HUD face, and the HUD
+# meter -> build/boss_art.h (the meter), build/boss_<name>_art.h (each boss's own, in his src/boss_<name>.c's bank),
+# build/boss.json (tests), out/preview/boss_*_x8.png (build/venues.json: the Yeti's icy counter is made from the igloo's)
+$(BUILD)/boss_art.h $(BOSS_H): tools/gen_boss.py tools/gen_art.py $(wildcard assets/art/boss/*.txt) $(BUILD)/art.h | $(BUILD) $(OUT)/preview
 	python3 tools/gen_boss.py $(BUILD) $(OUT)/preview
 
 # CLASSIC's end-of-level antics (src/antics.c): the bartender's four poses, the dove and the stars (approved 2026-10-11)
