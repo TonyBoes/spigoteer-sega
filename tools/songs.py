@@ -226,6 +226,11 @@ TMO_CHORDS = [
     "Em", "D7", "D7", "G", "G7", "C", "C", "C", "A7", "D", "E7", "Am", "D7", "G", "G",
 ]
 song("ballgame", 9, "A", " ".join(TMO_BARS), oompah(TMO_CHORDS, 6), groove="K:1 r:1 S:1 r:1 S:1 r:1")
+# Harmony (music step 5): the first sixteen bars hold one chord tone a chord (the organ's sustained chord: the third or
+# seventh first, G#4 in the E7 bars), the second sixteen a voice in thirds and sixths under "let me root, root, root".
+_t = H.Tune(" ".join(TMO_BARS), TMO_CHORDS, 6, 2, "G")
+harmony("ballgame", _t, " ".join([H.guide(_t, (1, 16), "D4", "C5"), H.follow(_t, (17, 32), "D4", "D5", grid=2, inst="/2")]),
+        ("pad", "harm"))
 
 # ---------------------------------------------------------------------------------------------
 # Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song).  4/4, key D, one row = a sixteenth
