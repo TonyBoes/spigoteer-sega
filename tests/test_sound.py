@@ -335,6 +335,23 @@ def test_the_oh_susanna_song_data_is_the_owners_note_list():
         "the beat carries on through the last bar into bar 1"
 
 
+def test_the_entertainer_plays_its_b_section_before_it_loops():
+    """Owner: "I kind of wish the next section of The Entertainer was there before it looped back".  32 bars: the A
+    section with its second ending (E F F# up into the B section's G), then the B section, whose second ending's D D#
+    pickup leads back to bar 1; the pattern blobs moved to bank 10 to make room (bank 3 had 39 bytes free)."""
+    s = songs.SONGS["entertainer"]
+    assert len(songs.ENT_BARS) == 32 == len(songs.ENT_CHORDS)
+    assert songs.ENT_BARS[15].endswith("E5:1 F5:1 F#5:1") and songs.ENT_BARS[16].startswith("G5:2 A5:1 G5:2")
+    assert songs.ENT_BARS[31].endswith("D5:1 D#5:1") and songs.ENT_BARS[0].startswith("E5:1")
+    b = gm.build("title", s, False)
+    assert b["total"] == 32 * 8 and b["n_orders"] == 4
+    assert gm.BLOB_BANKS == (10,)
+    pat = (ROOT / "build" / "music_pat10.c").read_text()
+    assert "#pragma bank 10" in pat and "blob_title[]" in pat
+    data = (ROOT / "build" / "music_data.c").read_text()
+    assert "unsigned char mus_buf_a[1536];" in data, "buffer A holds the title's 8 patterns"
+
+
 # ---- sung tunes are legato (owner: "every syllable is being enunciated robotically") -------------------------------
 def melody_cuts(s):
     """[(pitch, rows, next pitch or None for a rest, frame of its note cut within the note or None)] of a song's melody."""

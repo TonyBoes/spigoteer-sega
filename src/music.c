@@ -1,7 +1,7 @@
 // Music engine glue (hUGEDriver) and the sound-effect engine. ROM bank 2: the driver code, the order tables and
 // instruments (build/music_data.c), the jingles' patterns and this file. hUGEDriver reads patterns through plain
 // pointers, so it only sees data in the bank it runs from, or in WRAM. The title, show and venue tunes are too big
-// for bank 2: their patterns sit in ROM bank 3 and music_tick copies them into WRAM (mus_buf_a: the title or the
+// for bank 2: their patterns sit in ROM bank 10 and music_tick copies them into WRAM (mus_buf_a: the title or the
 // level's venue tune; mus_buf_b: the show tune, copied once and kept), a slice per frame, before a tune starts.
 // The music uses channels 2 and 3 (melody, bass) and 4 (percussion in most tunes). Sound
 // effects own channels 1 and 4: while one plays, the driver is told to leave that channel alone

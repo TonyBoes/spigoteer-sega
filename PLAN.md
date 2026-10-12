@@ -175,7 +175,7 @@ bar's name, not the game's). Idea: bartender pouring from a spigot under the log
 
 Done: title "The Entertainer", "Galop infernal" for every show, ten venue tunes since the 10th venue (table in CREDITS.md; tune
 index TUNE_VENUE0 + patron group), jingles unchanged. hUGEDriver only reads patterns through plain pointers in
-the bank it runs from, so song patterns live in ROM bank 3 and src/music.c copies a song into WRAM (buffer A:
+the bank it runs from, so song patterns live in ROM bank 10 (bank 3 until music step 2) and src/music.c copies a song into WRAM (buffer A:
 title or venue tune; buffer B: the show tune, copied once in the background) a slice per frame before it
 starts; bank 2 keeps the driver, order tables, instruments and jingles. Sources: tools/songs.py; pitch check:
 tools/check_music.py (routes one channel to the output and prints expected vs detected pitch).
@@ -186,9 +186,29 @@ Music step 1 (2026-10-11): The Entertainer and the Blue Danube checked note by n
 and corrected (the Danube now in the score's C major); no score found for the others (notes unchanged). Every
 looping tune flows back into bar 1 (last bars of Susanna, Galop, Ball Game, Skaters, Mountain King, Sakura and the
 bonus loop changed); tests/test_music_loops.py keeps the melody silence at the loop point <= 0.25 s.
+Owner verdict on step 1: the Entertainer and Blue Danube fixes sound right; Sakura (lively, 150 bpm) approved as is.
+Music step 2 (2026-10-11, the owner's listening notes):
+- Dead air at the loop (Oh! Susanna "cuts off and goes dead"): gen_music wrote D00 as the pattern break on the last row
+  of a tune that ends inside a 64-row pattern, but hUGEDriver stores the break row plus one (row_break 0 = no break),
+  so D00 did nothing and the last pattern ran on through its empty rows: Susanna 32 rows (8 s) of silence, Funiculi
+  42 rows, Weasel 32, Sakura 16, the bonus loop 16, before the loop. Now D01 (gen_music.BREAK_TO_ROW0); the notes
+  are unchanged, and the ending (C on "knee", then the C D pickup) leads straight into bar 1. Tests: every short
+  tune has D01 on its last row; in the ROM Susanna's last order stops at row 31 and order 0 row 0 follows.
+- Halting sung phrases ("Su-san-na", "She'll be com-ing"): the song lead's envelope (NR12 0x85, half volume after
+  0.39 s) made every note a plucked syllable that died away before the next, loudest where a pitch repeats, plus a
+  1-frame cut before each repeat. songs.song(legato=n): the melody plays on the legato lead (instrument 6, NR12 0x60:
+  volume 6 held, no envelope; melody RMS 3.0 vs 3.35 / 3.09 before), notes of different pitch run into each other,
+  a repeated pitch is cut n = SUNG_ARTIC = 3 frames early (heard as a new syllable), a note before a rest still
+  stops at the rest. On for Susanna and Mountain only; the other tunes' patterns are byte-identical except the D01.
+- The Entertainer: A section (second ending: C, E F F# up) + B section (score bars 22-36 and the second ending
+  bar 38, D D# back to bar 1), 32 bars = 34 s, from the same Mutopia score. Buffer A 6 -> 8 patterns (WRAM +384 B,
+  ~1 KB left above the stack's measured use). The pattern blobs moved from bank 3 (39 B free) to bank 10
+  (gen_music.BLOB_BANKS, build/music_pat10.c: 12288 B, 4 KB free); the autobanker refilled bank 3 with banked code.
+- tools/check_music.py: the LEVEL harness starts at level g + 1 for venue g (the old level-clear trick reached the
+  wrong venue for even groups since the 10th venue); a staccato note is measured over the part that sounds.
 
 Drums and game tempos (after M9): owner-approved game tempos (tools/songs.py GAME_BPM; spec tempo stays in docs/music_specs.md):
-entertainer 8 frames/row = 112.5 bpm, sakura 12 = 150 (lively arrangement, owner approval pending; was 15 = 120), funicula 11 = 109 (dotted quarter), skaters/danube/ballgame 9 = 200.
+entertainer 8 frames/row = 112.5 bpm, sakura 12 = 150 (lively arrangement, owner-approved 2026-10-11; was 15 = 120), funicula 11 = 109 (dotted quarter), skaters/danube/ballgame 9 = 200.
 Drums for the title, ballgame, funicula, skaters, sakura and danube are a `groove` (songs.py song(..., groove=)): a 6-8
 row loop in bank 2 that src/music.c's groove_tick plays on channel 4 in step with the driver's rows (kit registers derived
 from the quiet kit in gen_music.drum_kit); a sound effect on channel 4 wins. A shared hUGEDriver pattern would not do: 64

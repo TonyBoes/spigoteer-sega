@@ -13,7 +13,7 @@ CHORD = {
     "C": ("C3", "G3"), "F": ("F2", "C3"), "G": ("G2", "D3"), "D": ("D3", "A3"),
     "Am": ("A2", "E3"), "Dm": ("D3", "A3"), "Em": ("E3", "B3"), "E": ("E3", "B3"),
     "Bm": ("B2", "F#3"), "A": ("A2", "E3"), "Bb": ("A#2", "F3"), "Eb": ("D#3", "A#3"),
-    "F#": ("F#2", "C#3"), "C#7": ("C#3", "G#3"),
+    "F#": ("F#2", "C#3"), "C#7": ("C#3", "G#3"), "F#dim7": ("F#2", "C3"),
     "C7": ("C3", "G3"), "A7": ("A2", "E3"), "D7": ("D3", "A3"), "E7": ("E3", "B3"), "G7": ("G2", "D3"),
 }
 
@@ -113,8 +113,11 @@ song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS, legato=SUNG_ARTIC)
 # that src/music.c plays by itself (see song()).
 
 # ---------------------------------------------------------------------------------------------
-# Title: "The Entertainer" (Scott Joplin, 1902), A section.  2/4, one row = a sixteenth note; quarter = 90
-# is 10 frames per row (game tempo: 8 frames, 112 bpm, see GAME_BPM).  16 bars (bars 4, 8 and 16 end with the D D# pickup).
+# Title: "The Entertainer" (Scott Joplin, 1902), A and B sections.  2/4, one row = a sixteenth note; quarter = 90
+# is 10 frames per row (game tempo: 8 frames, 112 bpm, see GAME_BPM).  32 bars: the A section (bars 1-16, bars 4 and 8
+# end with the D D# pickup) with its second ending (bar 16: C, then E F F# up into the B section), the B section
+# (bars 17-32, owner request 2026-10-11: "the next section before it loops back") with its second ending (bar 32: the
+# held C, then the D D# pickup back into bar 1).
 # Checked note by note against the score: Mutopia Project "The Entertainer" (ftp/JoplinS/entertainer/entertainer.ly,
 # Mutopia-2016/11/25-263, typeset by Chris Sawer, overhauled by Simon Albrecht; source "Reproduction of original
 # edition (1902)"; licence: Public Domain), the A section's first ending (score bars 5-20).  The melody is the lower
@@ -122,17 +125,28 @@ song("susanna", 15, "A", SUS_MEL, SUS_BASS, SUS_DRUMS, legato=SUNG_ARTIC)
 # is 6 sixteenths, the run C D D# starts on the 6th sixteenth of bar 2 and E lands on bar 3's downbeat), bars 6-7 are
 # A G | F# A C E-E D C A (not A G F# A | C E D C A D), and bars 12-16 (the low-confidence end) are the score's
 # C | E C D E-E C D C (twice) | E C D E-E B D | C.  Chords from the score's left hand: bars 2, 6 and 10 are F then C/E
-# (F/C here; bar 6 was D7).
+# (F/C here; bar 6 was D7).  The B section (score bars 22-36 and the second ending, bar 38) is the top note of the right
+# hand as written (its single notes continue the octaves' top line: G A G, E C G | A B C D E D C D); chords from
+# the left hand (bar 19 F then F minor: F; bars 20 and 28 have E in the bass: C; bar 23 G over D then D7: D7; bar 29 F
+# then F#dim7).
 ENT_BARS = [
     "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:5 C6:1 D6:1 D#6:1", "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2",
     "C6:6 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1", "~:6 A5:1 G5:1",
     "F#5:1 A5:1 C6:1 E6:2 D6:1 C6:1 A5:1", "D6:6 D5:1 D#5:1", "E5:1 C6:2 E5:1 C6:2 E5:1 C6:1",
     "~:5 C6:1 D6:1 D#6:1", "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2", "C6:6 C6:1 D6:1",
     "E6:1 C6:1 D6:1 E6:2 C6:1 D6:1 C6:1", "E6:1 C6:1 D6:1 E6:2 C6:1 D6:1 C6:1",
-    "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2", "C6:6 D5:1 D#5:1",
+    "E6:1 C6:1 D6:1 E6:2 B5:1 D6:2", "C6:5 E5:1 F5:1 F#5:1",
+    # B section
+    "G5:2 A5:1 G5:2 E5:1 F5:1 F#5:1", "G5:2 A5:1 G5:2 E5:1 C5:1 G4:1", "A4:1 B4:1 C5:1 D5:1 E5:1 D5:1 C5:1 D5:1",
+    "G4:1 E5:1 F5:1 G5:1 A5:1 G5:1 E5:1 F5:1", "G5:2 A5:1 G5:2 E5:1 F5:1 F#5:1", "G5:2 A5:1 G5:2 G5:1 A5:1 A#5:1",
+    "B5:1 B5:2 B5:2 A5:1 F#5:1 D5:1", "G5:5 E5:1 F5:1 F#5:1",
+    "G5:2 A5:1 G5:2 E5:1 F5:1 F#5:1", "G5:2 A5:1 G5:2 E5:1 C5:1 G4:1", "A4:1 B4:1 C5:1 D5:1 E5:1 D5:1 C5:1 D5:1",
+    "C5:5 G4:1 F#4:1 G4:1", "C5:2 A4:1 C5:2 A4:1 C5:1 A4:1", "G4:1 C5:1 E5:1 G5:2 E5:1 C5:1 G4:1",
+    "A4:2 C5:2 E5:1 D5:2 C5:1", "~:6 D5:1 D#5:1",
 ]
 ENT_CHORDS = [
     "C", "F/C", "G7", "C", "C", "F/C", "D7", "G7", "C", "F/C", "G7", "C", "C", "F", "G7", "C",
+    "C", "C", "F", "C", "C", "C", "D7", "G7", "C", "C", "F", "C", "F/F#dim7", "C", "D7/G7", "C",
 ]
 song("entertainer", 8, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8),
      groove="K:1 r:1 H:1 r:1 S:1 r:1 H:1 r:1")

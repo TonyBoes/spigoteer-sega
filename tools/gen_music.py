@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tune sources -> build/music_data.c, build/music_pat3.c, build/music_pat4.c (hUGEDriver song data, C).
+"""Tune sources -> build/music_data.c, build/music_pat10.c (hUGEDriver song data, C).
 
 No tracker GUI is involved: each tune is a few lines of text per channel.  A token is NOTE:ROWS
 (rows are 16th/8th notes depending on the tune's tempo), 'r:ROWS' is a rest, a trailing '!' makes
@@ -12,7 +12,7 @@ Two kinds of tune:
  * "buffered" tunes (title, show, ten venue tunes, tools/songs.py): hUGEDriver reads patterns through
    plain pointers into whatever ROM bank is mapped, and bank 2 is the only place the driver runs
    from, so these songs cannot live elsewhere in ROM as they are.  Their patterns are packed into
-   blobs in ROM banks 3 and 4; at music_play() src/music.c copies the song's blob into a WRAM buffer
+   blobs in ROM bank 10 (BLOB_BANKS; bank 3 until the longer Entertainer outgrew it); at music_play() src/music.c copies the song's blob into a WRAM buffer
    (A for the title/venue tune, B for the show tune), and the order tables that stay in bank 2 point
    into that buffer.  Bank 2 then only holds the driver, the order tables and the instruments.
 
@@ -243,7 +243,7 @@ JINGLES = {"clear": TUNES["clear"], "over": TUNES["over"], "bonus": TUNES["bonus
 ORDER = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in range(len(songs.VENUES))]
 SOURCE = {"title": "entertainer", "show": "galop"}
 SOURCE.update({f"venue{i}": n for i, n in enumerate(songs.VENUES)})
-BLOB_BANKS = (3,)
+BLOB_BANKS = (10,)      # a bank of their own (the autobanker only places `#pragma bank 255` files)
 BUF_ID = {"A": 1, "B": 2}
 
 

@@ -328,7 +328,7 @@ Source: NO TRANSCRIPTION SOURCE FOUND. Written from memory. Verify against Grieg
 Key: A minor (miyako-bushi scale: A B C E F)
 Time: 4/4
 Tempo: quarter = 72
-Game tempo: quarter = 150 (12 frames per eighth row, plays at 150), PROPOSED with the lively arrangement (was 120 = 15 frames, owner-approved); owner approval pending. Melody notes unchanged. See GAME_BPM in tools/songs.py.
+Game tempo: quarter = 150 (12 frames per eighth row, plays at 150), with the lively arrangement, owner-approved 2026-10-11 (was 120 = 15 frames). Melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = eighth note (bar = 8)
 Length: 14 bars
 
@@ -354,14 +354,14 @@ Confidence: High (two independent transcriptions agree, except for minor variant
 Source: Melody: John Chambers' ABC 'Sakura (Cherry Blossom)' (trillian.mit.edu/~jc/music/abc/Japan/Sakura_Am.utf8.abc). Chords adapted from Frank Nordberg's Musica Viva transcription (same collection). Traditional; public domain.
 
 ------------------------------------------------------------
-9. THE ENTERTAINER (Joplin, 1902) - A section, 16 bars
+9. THE ENTERTAINER (Joplin, 1902) - A and B sections, 32 bars
 ------------------------------------------------------------
 Key: C major
 Time: 2/4
 Tempo: quarter = 90 (Joplin: 'Not fast')
 Game tempo: quarter = 112 (8 frames per sixteenth row, plays at 112.5). Owner-approved; melody notes unchanged. See GAME_BPM in tools/songs.py.
 Unit: 1 = SIXTEENTH note (bar = 8)
-Length: 16 bars + pickup
+Length: 32 bars + pickup (A section 1-16, B section 17-32)
 
 PICKUP: D5:1 D#5:1
  1 | E5:1 C6:2 E5:1 C6:2 E5:1 C6:1                | C
@@ -379,14 +379,31 @@ PICKUP: D5:1 D#5:1
 13 | E6:1 C6:1 D6:1 E6:2 C6:1 D6:1 C6:1           | C
 14 | E6:1 C6:1 D6:1 E6:2 C6:1 D6:1 C6:1           | F
 15 | E6:1 C6:1 D6:1 E6:2 B5:1 D6:2                | G7
-16 | C6:6 D5:1 D#5:1                              | C
+16 | C6:5 E5:1 F5:1 F#5:1                         | C
+17 | G5:2 A5:1 G5:2 E5:1 F5:1 F#5:1               | C
+18 | G5:2 A5:1 G5:2 E5:1 C5:1 G4:1                | C
+19 | A4:1 B4:1 C5:1 D5:1 E5:1 D5:1 C5:1 D5:1      | F
+20 | G4:1 E5:1 F5:1 G5:1 A5:1 G5:1 E5:1 F5:1      | C
+21 | G5:2 A5:1 G5:2 E5:1 F5:1 F#5:1               | C
+22 | G5:2 A5:1 G5:2 G5:1 A5:1 A#5:1               | C
+23 | B5:1 B5:2 B5:2 A5:1 F#5:1 D5:1               | D7
+24 | G5:5 E5:1 F5:1 F#5:1                         | G7
+25 | G5:2 A5:1 G5:2 E5:1 F5:1 F#5:1               | C
+26 | G5:2 A5:1 G5:2 E5:1 C5:1 G4:1                | C
+27 | A4:1 B4:1 C5:1 D5:1 E5:1 D5:1 C5:1 D5:1      | F
+28 | C5:5 G4:1 F#4:1 G4:1                         | C
+29 | C5:2 A4:1 C5:2 A4:1 C5:1 A4:1                | F/F#dim7
+30 | G4:1 C5:1 E5:1 G5:2 E5:1 C5:1 G4:1           | C
+31 | A4:2 C5:2 E5:1 D5:2 C5:1                     | D7/G7
+32 | ~:6 D5:1 D#5:1                               | C
 
 Note: Bars 1-11: pitches cross-checked against a published letter-note chart; rhythms are the standard syncopated pattern (16th-8th-16th).
 Note: Bars 12-16 (closing phrase): were low confidence; corrected against the score (below).
-Note: Bar 16 ends with the D-D# pickup, so it loops cleanly.
+Note: Bar 32 ends with the D-D# pickup, so it loops cleanly.
+Added 2026-10-11 (owner: "I kind of wish the next section of The Entertainer was there before it looped back"): the A section now takes its second ending (bar 16 = score bar 21: C, then E F F# into the B section) and the B section follows (bars 17-31 = score bars 22-36, bar 32 = the B section's second ending, score bar 38, whose D D# pickup leads back to bar 1). The B section's melody is the top note of the right hand as written (its single notes continue the octaves' top line), so it sits below the A section, as in the score. Chords from the left hand: bar 19 F then F minor (F); bars 20 and 28 have E in the bass under C (C); bar 23 G over D then D7 (D7); bar 29 F then F#dim7.
 Corrected 2026-10-11 against the Mutopia score (see Source): from bar 2 on, the old list ran one sixteenth early (the held C is 6 sixteenths and the run C D D# starts on bar 2's sixth sixteenth, E on bar 3's downbeat); bars 6-7 were '~:4 A5:1 G5:1 F#5:1 A5:1 | C6:1 E6:2 D6:1 C6:1 A5:1 D6:2'; bars 12-16 (the low-confidence end) are now the score's. The melody is the lower note of the right hand's octaves. Chords from the score's left hand: bars 2, 6 and 10 are F then C/E (F/C; bar 6 was D7).
 Confidence: High: checked note by note against the Mutopia score.
-Source: Mutopia Project, 'The Entertainer' (ftp/JoplinS/entertainer/entertainer.ly, Mutopia-2016/11/25-263; typeset by Chris Sawer, overhauled by Simon Albrecht 2015; source: reproduction of the original 1902 edition; licence: Public Domain), the A section's first ending (score bars 5-20). Earlier list: written from memory of the 1902 John Stark & Son edition. Underlying work: Scott Joplin, 1902 (public domain).
+Source: Mutopia Project, 'The Entertainer' (ftp/JoplinS/entertainer/entertainer.ly, Mutopia-2016/11/25-263; typeset by Chris Sawer, overhauled by Simon Albrecht 2015; source: reproduction of the original 1902 edition; licence: Public Domain), the A section (score bars 5-19, second ending bar 21) and the B section (score bars 22-36, second ending bar 38). Earlier list: written from memory of the 1902 John Stark & Son edition. Underlying work: Scott Joplin, 1902 (public domain).
 
 ------------------------------------------------------------
 10. GALOP INFERNAL ("CAN-CAN") (Offenbach, 1858) - main theme

@@ -1,5 +1,5 @@
 // Music and sound effects (M7). The hUGEDriver code, the order tables and the jingles live in ROM bank 2;
-// the pattern data of the title, show and venue tunes sits in ROM bank 3 and is copied into WRAM when a tune
+// the pattern data of the title, show and venue tunes sits in ROM bank 10 and is copied into WRAM when a tune
 // starts (the driver reads patterns through plain pointers, so it cannot read another bank itself).
 #ifndef MUSIC_H
 #define MUSIC_H

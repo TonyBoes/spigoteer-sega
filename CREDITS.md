@@ -19,7 +19,7 @@
     files (revision 13: section records gained a node id and line number and a flag byte; `LOW()` and
     `HIGH()` became RPN operators).
 - Built by the `Makefile`: `rgbasm -DGBDK` -> `rgb2sdas.py` -> linked into ROM bank 2 with the order tables
-  and `src/music.c`. The song patterns sit in ROM bank 3 and are copied into WRAM when a tune starts (the driver
+  and `src/music.c`. The song patterns sit in ROM bank 10 and are copied into WRAM when a tune starts (the driver
   reads patterns through plain pointers and only runs from bank 2).
 
 ## Music
@@ -35,7 +35,7 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
 
 | Tune | Where it plays | Composer, year | Status |
 |---|---|---|---|
-| "The Entertainer" (A section) | title screen | Scott Joplin, 1902 | public domain |
+| "The Entertainer" (A and B sections) | title screen | Scott Joplin, 1902 | public domain |
 | "Galop infernal" (the can-can) | every show (dancers' stage show) | Jacques Offenbach, 1858 (from "Orphee aux enfers") | public domain |
 | "Oh! Susanna" | level 1, 11, ... (cowboys / saloon) | Stephen Foster, 1848 | public domain |
 | "Take Me Out to the Ball Game" (chorus) | sports bar | Albert Von Tilzer (music), Jack Norworth (words), 1908 | public domain (US, published before 1929) |
@@ -53,12 +53,14 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
 
 ### Sources of the melody specs (from `docs/music_specs.md`)
 
-- "The Entertainer" (Joplin, 1902; A section, 16 bars): checked note by note (2026-10-11) against the Mutopia
+- "The Entertainer" (Joplin, 1902; A and B sections, 32 bars): checked note by note (2026-10-11) against the Mutopia
   Project's score, "The Entertainer" (`ftp/JoplinS/entertainer/entertainer.ly` in github.com/MutopiaProject/MutopiaProject,
   Mutopia-2016/11/25-263), typeset by Chris Sawer (overhauled by Simon Albrecht, 2015) from a reproduction of the
   original 1902 edition; the typesetting is placed in the **public domain**. We transcribed the melody (the lower
   note of the right hand's octaves, score bars 5-20) and the harmony of the A section into our own format; the
-  earlier list (written from memory, bars 2-16 a sixteenth early and bars 12-16 wrong) was corrected.
+  earlier list (written from memory, bars 2-16 a sixteenth early and bars 12-16 wrong) was corrected. The B section
+  (score bars 22-36 with the second endings of both sections, bars 21 and 38; its melody the top note of the right
+  hand as written) and its harmony were transcribed the same way from the same score (2026-10-11).
 - "Funiculi, Funicula" (Denza, Ricordi 1880): melody from John Chambers' ABC transcription
   (trillian.mit.edu/~jc/music/abc/Italy/FuniculiFunicula.abc, via folktunefinder.com). Verse and chorus; the
   verse's modulating second half is omitted.
