@@ -11,7 +11,19 @@
 // 2: a patron at the tap, 8: a broken glass) costs 2 lives instead of 1 ("2 LIVES LOST", the two mugs blink during the
 // freeze). A timed goal's clock running out costs a life and retries that shift (the venue when it was the last).
 // CONTINUE on the title starts the chapter not cleared over: its Opening banner when one of its steps was reached,
-// else its PRE scene (lives are not saved). The score carries on through restarts and never enters the top 5.
+// else its PRE scene (lives are not saved). The score carries on through restarts; when the credits end it goes into
+// the STORY top 5 (initials, the table; not from a debug-select run).
+//
+// ARCADE (the three modes, owner 2026-10-11: PLAY > ARCADE, story_arc = 1, play_mode MODE_ARCADE) runs this same
+// engine with arcade rules: no scene, no portrait, no story text, nothing saved or unlocked (save_lock); the venues in
+// story order, each its playable steps (shifts, the mini-game, the boss fight as they are built; STEP_SKIP passed over)
+// with the story's rules (goals, perfect pour, strict rules, the mosh pit, the fast band). Lives: 3 for the whole run
+// (venue_start leaves them), extra lives by score (main.c add_score: 20,000, then every 40,000; at most MAX_LIVES), a
+// gold medal +1 as in the story. Losing the last one is the normal GAME OVER -> initials -> the ARCADE top 5 (a timed
+// goal's clock costs a life and retries the shift while lives are left). After a venue's last step, VENUE CLEAR, then a
+// bonus round (rotating as before: bonus.c) and the next venue (arcade_next); after the space lounge the saloon again,
+// harder (level.c's loop rule: level = (loop - 1) * 10 + chapter + 1, so start_level's loop maths and the HUD's L nn
+// follow; the loops' difficulty stops growing after loop 4), its first banner "LOOP n" for LOOP_FRAMES (SP_LOOP).
 //
 // Cut-scene ("hybrid lighter" style): the venue's stage + bar rows as the backdrop (no patrons), the Spigoteer's
 // normal sprite at bar 1's tap, the scene title on the HUD row, a framed speaker portrait above a full-width text
@@ -42,7 +54,7 @@
 
 BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
-extern uint8_t overlay_on, level, game_over, state_timer, score_digits[6];
+extern uint8_t overlay_on, level, game_over, state_timer, score_digits[6], new_rank;
 extern uint32_t score;
 
 #define SCENE_BAR        1         // the Spigoteer stands at this bar's tap during a cut-scene
@@ -51,17 +63,22 @@ extern uint32_t score;
 #define SWAP_ROWS        2         // portrait rows queued per frame (map + attributes: <= 36 bytes)
 #define OAM_OVERLAY      4         // the portrait's OBJ overlay: OAM 4..
 #define GOAL_FRAMES    180         // the goal banner stays 3 s (or until A / START)
+#define ARC_LOOP_FRAMES 120        // ARCADE: "LOOP n" before a new loop's first goal banner (as the old arcade's LOOP_FRAMES)
 #define FAIL_FRAMES    150         // TRY AGAIN
 #define GOAL_WY        BANNER_WY   // the goal banner: window rows 0-4 (map rows 32-36): panel, 3 lines, panel
 #define GOAL_LYC       (BANNER_WY + 38)
 #define HUD_GOAL_COL    12         // story HUD: goal letter + 2 digits (what is left) at 12-14, timer 'T' + 3 digits at 16-19
 
-enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO };   // SP_OUTRO: a boss satisfied (boss.c)
+enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO, SP_LOOP };   // SP_OUTRO: a boss satisfied (boss.c);
+                                                                          // SP_LOOP: ARCADE's "LOOP n" before a goal banner
 enum { SW_IDLE, SW_OUT, SW_PAL, SW_IN };
 
 // ---- state (globals => symbols the tests read) ----
 uint8_t  story_on;                 // 1: story mode (main.c, main_cold.c)
 uint8_t  play_mode;                // MODE_* (game.h): set by whatever starts a game
+uint8_t  story_arc;                // 1: ARCADE on this engine (see the top of the file)
+uint8_t  arc_loop;                 // ARCADE: the pass through the ten venues (1, 2, ...)
+uint8_t  arc_banner;               // ARCADE: the next shift_start shows "LOOP n" first (a new loop's first shift)
 uint8_t  story_phase;              // SP_*
 uint8_t  story_scene;              // SC_* (build/story.h)
 uint8_t  story_page;               // page of the scene on screen
@@ -426,6 +443,15 @@ static void shift_start(void) {
     centre(win_rows[3], story_goal.line2);
     fill(win_rows[4], TILE_PANEL_BOT, 20);
     for (i = 0; i < 5; i++) vram_put(0, 32 + i, win_rows[i], 20);   // (map rows 32.. = the window's 0x9C00 map)
+    if (arc_banner) {                            // ARCADE, a new loop: "LOOP n" alone first; SP_LOOP puts the goal back
+        char t[8] = "LOOP ";
+        i = arc_loop > 99 ? 99 : arc_loop;
+        if (i >= 10) { t[5] = '0' + i / 10; t[6] = '0' + i % 10; } else t[5] = '0' + i;
+        fill(row_buf, TILE_HUD_BLANK, 20);
+        vram_put(0, 33, row_buf, 20); vram_put(0, 35, row_buf, 20);
+        centre(row_buf, t);
+        vram_put(0, 34, row_buf, 20);
+    }
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
         fill(row_buf, BGPAL_HUD, 20);
@@ -433,6 +459,7 @@ static void shift_start(void) {
         VBK_REG = VBK_BANK_0;
     }
     level = story_chapter + 1;                   // (lives: set by venue_start, carried from shift to shift)
+    if (story_arc) level += (arc_loop > 9 ? 8 : arc_loop - 1) * 10;   // ARCADE: the loop's row (start_level's loop maths)
     pour_load(story_chapter);                    // the perfect pour's frames and cue (LCD off; the venue = the chapter)
     music_fast = (story_twist & TWIST_FAST_TUNE) != 0;   // the twist: the band plays faster (before the tune starts)
     enter_level_screen();                        // the venue's level (row level - 1), LCD on again, PLAYING
@@ -447,7 +474,8 @@ static void shift_start(void) {
     hud_goal();
     overlay_on = 1;
     LYC_REG = GOAL_LYC;
-    story_phase = SP_GOAL; story_t = 0;
+    story_phase = arc_banner ? SP_LOOP : SP_GOAL; story_t = 0;
+    arc_banner = 0;
     game_state = GS_GOAL;
 }
 
@@ -480,13 +508,14 @@ static void step_start(void) {
 // the venue (chapter) from its first playable step, with 3 lives (a new chapter, a lost last life, CONTINUE): a new
 // venue attempt, so its page text conditions start over
 static void venue_start(void) {
-    lives = START_LIVES;
+    if (!story_arc) lives = START_LIVES;         // (ARCADE: the run's lives carry on)
     story_conds &= ~COND_GLASS_BROKEN;           // a new attempt at the venue: no glass broken in it yet
     story_step = next_step(0);
     step_start();
 }
 
 static void chapter_done(void) {                 // every step done: saved as cleared, the POST scene
+    if (story_arc) { bonus_enter(); game_state = GS_BONUS; return; }   // ARCADE: the bonus round (then arcade_next)
     story_save(story_chapter + 1, 0);
     scene_enter(SC_POST_SALOON + 2 * story_chapter);
 }
@@ -494,12 +523,19 @@ static void chapter_done(void) {                 // every step done: saved as cl
 // ---- entry points --------------------------------------------------------------------------------------------
 // From the title: a new story (cont 0) or CONTINUE (cont 1: the first chapter not cleared starts over, at its Opening
 // banner when a step of it was reached (story_reached > 0), else at its PRE scene)
-void story_begin(uint8_t cont) BANKED {
+// a new run on this engine: arc 0 the story, 1 ARCADE
+static void run_begin(uint8_t arc) {
     uint8_t i;
-    story_on = 1; story_fails = 0; play_mode = MODE_STORY;
+    story_on = 1; story_fails = 0; story_arc = arc; play_mode = arc ? MODE_ARCADE : MODE_STORY;
+    extra_at = arc ? EXTRA_FIRST : 0;            // extra lives by score: ARCADE only
     score = 0;
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     lives = START_LIVES; bonus_round = 0; game_over = 0;
+    arc_loop = 1; arc_banner = 0;
+}
+
+void story_begin(uint8_t cont) BANKED {
+    run_begin(0);
     if (cont && (story_progress || story_reached) && story_progress < STORY_CHAPTERS) {
         story_chapter = story_progress;
         story_scene = SC_PRE_SALOON + 2 * story_chapter;
@@ -511,9 +547,45 @@ void story_begin(uint8_t cont) BANKED {
     }
 }
 
+// PLAY > ARCADE: the saloon's first playable step, 3 lives, nothing saved (save_lock; title_enter clears it)
+void arcade_begin(void) BANKED {
+    run_begin(1);
+    save_lock = 1;
+    story_conds = 0;
+    story_chapter = 0;
+    venue_start();
+}
+
+// ARCADE: GS_BONUS is over (main.c): the next venue, or after the last one the saloon again, a loop harder
+void arcade_next(void) BANKED {
+    if (++story_chapter >= STORY_CHAPTERS) {
+        story_chapter = 0;
+        if (arc_loop < 255) arc_loop++;
+        arc_banner = 1;
+    }
+    venue_start();
+}
+
+// main.c add_score: the score reached extra_at (ARCADE, CLASSIC): a life (owner: 20,000, then every 40,000; at most
+// MAX_LIVES, what the HUD shows; past it only the next threshold moves on). add_score's prep_hud draws it.
+void extra_life(void) BANKED {
+    extra_at += EXTRA_EVERY;
+    if (lives < MAX_LIVES) { lives++; hud_dirty |= HUD_LIVES; }
+}
+
 static void scene_done(void) {
     uint8_t s = story_scene;
-    if (s == SC_CREDITS) { story_on = 0; story_phase = SP_OFF; title_enter(); return; }
+    uint8_t aaa[3];
+    if (s == SC_CREDITS) {                       // the end: the story's score into the STORY top 5 (initials, the table)
+        story_on = 0; story_phase = SP_OFF;
+        if (save_lock) { title_enter(); return; }   // (a debug-select run: nothing saved)
+        score_tbl = MODE_STORY;
+        aaa[0] = aaa[1] = aaa[2] = 'A';
+        new_rank = top_insert(score, aaa);
+        if (new_rank < TOP_N) hi_save();
+        scores_after_game();
+        return;
+    }
     if (s == SC_FINALE) { scene_enter(SC_CREDITS); return; }
     if (s == SC_INTRO) { scene_enter(SC_PRE_SALOON); return; }
     if (!((s - SC_PRE_SALOON) & 1)) { venue_start(); return; }     // a PRE scene: the chapter
@@ -546,7 +618,7 @@ void story_fail(void) BANKED {
 
 static void story_win(void) {
     enter_level_clear();                         // (its LEVEL CLEAR banner, the bonus, the jingle, GS_LEVEL_CLEAR)
-    show_overlay(next_step(story_step + 1) >= STORY_STEPS ? "CHAPTER CLEAR" : "SHIFT CLEAR");
+    show_overlay(next_step(story_step + 1) >= STORY_STEPS ? (story_arc ? "VENUE CLEAR" : "CHAPTER CLEAR") : "SHIFT CLEAR");
 }
 
 // Every GS_PLAYING frame in story mode, after the rules (main.c): the goal's counters, success and failure.
@@ -577,6 +649,7 @@ void story_play(void) BANKED {
         if (!--story_timer) {                    // time up: a life, and the shift again (the venue: it was the last)
             if (lives) lives--;
             hud_dirty |= HUD_LIVES; prep_hud();
+            if (story_arc && !lives) { game_over = 1; enter_game_over(); return; }   // ARCADE: that was the last
             story_fail();
             return;
         }
@@ -611,6 +684,14 @@ uint8_t story_update(uint8_t pressed) BANKED {
             if (lives) shift_start();
             else { story_restarts++; venue_start(); }
             return 1;
+        }
+        return 0;
+    case SP_LOOP:                                // ARCADE: "LOOP n", then the goal's lines back, one row a frame
+        if ((pressed & (J_A | J_START)) && story_t < ARC_LOOP_FRAMES) story_t = ARC_LOOP_FRAMES;
+        if (story_t >= ARC_LOOP_FRAMES) {
+            pressed = story_t - ARC_LOOP_FRAMES;     // (0..2: the row)
+            vq_add(0, win_rows[1 + pressed], 0, 33 + pressed, 20);
+            if (pressed == 2) { story_phase = SP_GOAL; story_t = 0; }
         }
         return 0;
     case SP_OUTRO:                               // a boss satisfied: his outro, then CHAPTER CLEAR as a shift's
@@ -658,13 +739,11 @@ void story_bonus_life(void) BANKED {
 #ifdef DEBUG_MENU
 // The debug select in story mode (src/debug.c): chapter ch at position pos (0 its PRE scene, 1..STORY_STEPS the step
 // pos - 1, STORY_STEPS + 1 its POST scene) with the story's rules: a fresh score, the venue's lives as venue_start sets
-// them (from any step), its goals. debug.c has set save.c's save_lock: nothing of the run is saved.
-void story_debug_start(uint8_t ch, uint8_t pos) BANKED {
-    uint8_t i;
-    story_on = 1; story_fails = 0; story_conds = 0; play_mode = MODE_STORY;
-    score = 0;
-    for (i = 0; i < 6; i++) score_digits[i] = 0;
-    lives = START_LIVES; bonus_round = 0; game_over = 0;
+// them (from any step), its goals. arc 1 (the ARCADE box: a step only): the same as an ARCADE run from there (loop 1).
+// debug.c has set save.c's save_lock: nothing of the run is saved.
+void story_debug_start(uint8_t ch, uint8_t pos, uint8_t arc) BANKED {
+    run_begin(arc);                              // (arc: the ARCADE box, its run as ARCADE plays it from that step)
+    story_conds = 0;
     story_chapter = ch;
     if (pos == 0) scene_enter(SC_PRE_SALOON + 2 * ch);
     else if (pos > STORY_STEPS) scene_enter(SC_POST_SALOON + 2 * ch);

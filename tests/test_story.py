@@ -8,13 +8,14 @@ import json
 import re
 
 import pytest
-from conftest import (GAME, K_ARCADE, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROOT, check_golden, hold_stage_anim,
+from conftest import (GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROOT, check_golden, hold_stage_anim,
                       menu_items, menu_tap, title_pick)
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
                        settle_title, state, tilemap_row)
-from test_scores import (V6_SUM, booted, old_progress, parse_save, progress_unlocks, saved_tunes, table, v1_image,
+from test_scores import (V6_SUM, EMPTY, MODE_STORY, booted, main_block, saved_story, v7_image, old_progress, parse_save, progress_unlocks, saved_tunes, table, v1_image,
                          v2_image, v3_image, v4_image, v5_image, v6_image)
 from test_sound import save_ram
+from test_scores import GS_INITIALS, GS_SCORES, screen_text
 
 pytestmark = pytest.mark.timeout(240)
 
@@ -380,7 +381,7 @@ def play_items(rom):
 
 def to_continue(rom):
     """From the title's top level: PLAY > CONTINUE (first in PLAY when there is a story save)."""
-    assert play_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE], "CONTINUE, STORY, ARCADE"
+    assert play_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE, K_CLASSIC], "CONTINUE, STORY, ARCADE, CLASSIC"
     menu_tap(rom, "a")
 
 
@@ -416,7 +417,7 @@ def to_chapter(model, c, banner=False):
     """A rom in chapter c's opening shift, just past the goal banner (banner=True: still on it; a save with c
     chapters cleared: CONTINUE)."""
     if c:
-        rom = start_story(model, v6_image([], story=c), cont=True)
+        rom = start_story(model, v7_image([], story=c), cont=True)
     else:
         rom = start_story(model)
         skip_scene(rom)                                   # INTRO
@@ -435,7 +436,7 @@ def to_shift(model, c, k, banner=False):
     story_step poked to the step before shift k, so the next playable step is k's (one SHIFT CLEAR)."""
     if k == 0:
         return to_chapter(model, c, banner)
-    rom = booted(model, v6_image([], story=c, step=SHIFT_STEP[k]))
+    rom = booted(model, v7_image([], story=c, step=SHIFT_STEP[k]))
     hold_stage_anim(rom)
     to_continue(rom)                                      # CONTINUE: the venue's Opening
     run_until(rom, lambda: state(rom) == GS_GOAL, 60)
@@ -606,7 +607,7 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
 def test_coach_and_the_spigoteer_swap_cleanly(model):
     """PRE_STADIUM: COACH -> SPIGOTEER -> COACH, each the approved art pixel for pixel in the same framed slot on the
     box, no overlay sprite (only Sadie has one)."""
-    with start_story(model, v6_image([], story=1), cont=True) as gb:
+    with start_story(model, v7_image([], story=1), cont=True) as gb:
         assert gb.mem("story_scene") == SC["PRE_STADIUM"]
         page_ready(gb)
         assert_portrait_exact(gb, "COACH")
@@ -704,7 +705,7 @@ def test_every_page_shows_its_portrait(model, c):
         tour_scene(gb, "INTRO", seen)
         skip_scene(gb)
     else:
-        gb = start_story(model, v6_image([], story=c), cont=True)
+        gb = start_story(model, v7_image([], story=c), cont=True)
     with gb:
         tour_scene(gb, SCENES[pre(c)]["id"], seen)
         skip_scene(gb)                           # the PRE scene -> the Opening; won as the chapter's last step
@@ -732,7 +733,7 @@ def test_the_tour_covers_every_portrait_and_swap():
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_manager_bot_s_portrait(model):
-    with start_story(model, v6_image([], story=5), cont=True) as gb:
+    with start_story(model, v7_image([], story=5), cont=True) as gb:
         assert gb.mem("story_scene") == SC["PRE_ROBOT"]
         page_ready(gb)
         assert_portrait_exact(gb, "MANAGER-BOT")
@@ -901,7 +902,7 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
         assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c + 1, 0)
         assert gb.mem("story_fails") == 0
         ram = save_ram(gb)
-    assert ram[:4] == b"TPR6" and ram[34] == c + 1 and ram[35] == 0, "the progress is in SRAM"
+    assert saved_story(ram) == (c + 1, 0), "the progress is in SRAM"
     (o_spd, o_hur, _, _), (h_spd, h_hur, _, _), (l_spd, l_hur, _, _) = paces
     assert o_spd == h_spd * 85 // 100 and l_spd == h_spd * SHIFTS[c][2]["walk"] // 100
     assert o_spd < h_spd < l_spd
@@ -1252,10 +1253,25 @@ def test_the_last_chapter_leads_to_the_finale_credits_and_the_title(model):
         assert text_rows(gb) == glyph_rows(SCENES[SC["FINALE"]]["pages"][0]["lines"])
         skip_scene(gb)
         assert gb.mem("story_scene") == SC["CREDITS"]
-        skip_scene(gb)
-        run_until(gb, lambda: state(gb) == TITLE, 30)
-        assert gb.mem("story_on") == 0
-        assert play_items(gb) == [K_STORY, K_ARCADE], "the story is complete: no CONTINUE"
+        score = int.from_bytes(gb.read("score", 4), "little")
+        assert score > 0
+        # the credits end: the story's score into the STORY top 5 (owner 2026-10-11), its initials, the table, the title
+        gb.press("start", 2)
+        run_until(gb, lambda: state(gb) == GS_INITIALS, 30)
+        assert gb.mem("story_on") == 0 and gb.mem("score_tbl") == MODE_STORY and gb.mem("new_rank") == 0
+        assert table(gb, MODE_STORY)[0] == ("AAA", score) and table(gb) == EMPTY, "the STORY table, not ARCADE's"
+        gb.press("up", 2)
+        gb.run(2)
+        gb.press("a", 2)
+        run_until(gb, lambda: state(gb) == GS_SCORES, 30)
+        gb.run(2)
+        assert screen_text(gb, 3).strip() == "STORY HIGH SCORES"
+        assert screen_text(gb, 6).strip() == "1 BAA %06d" % score
+        ram = save_ram(gb)
+    assert parse_save(ram, MODE_STORY)[0] == ("BAA", score) and parse_save(ram) == EMPTY and saved_story(ram) == (10, 0)
+    with booted(model, ram) as gb:
+        assert table(gb, MODE_STORY)[0] == ("BAA", score)
+        assert play_items(gb) == [K_STORY, K_ARCADE, K_CLASSIC], "the story is complete: no CONTINUE"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -1269,7 +1285,7 @@ def test_continue_mid_venue_starts_the_venue_over(model):
         run_until(gb, lambda: state(gb) == GS_GOAL, 300)
         assert gb.mem("lives") == 2
         ram = save_ram(gb)
-    assert ram[:4] == b"TPR6" and (ram[34], ram[35]) == (0, 1), "chapter 1, the happy hour reached"
+    assert saved_story(ram) == (0, 1), "chapter 1, the happy hour reached"
     with booted(model, ram) as again:
         hold_stage_anim(again)
         assert (again.mem("story_progress"), again.mem("story_reached")) == (0, 1)
@@ -1286,7 +1302,7 @@ def test_continue_mid_venue_starts_the_venue_over(model):
 def test_continue_keeps_the_step_reached_for_practice(model, step):
     """A save at the mini-game slot or the Last call: CONTINUE opens the venue's Opening; winning it again keeps the
     furthest step reached (the record Practice unlocks from), the next shift is the Happy hour."""
-    with booted(model, v6_image([], story=4, step=step)) as rom:
+    with booted(model, v7_image([], story=4, step=step)) as rom:
         hold_stage_anim(rom)
         to_continue(rom)
         run_until(rom, lambda: state(rom) == GS_GOAL, 60)
@@ -1296,7 +1312,7 @@ def test_continue_keeps_the_step_reached_for_practice(model, step):
         run_until(rom, lambda: state(rom) == GS_GOAL, 400)
         assert rom.mem("story_shift") == 1
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (4, step)
-        assert save_ram(rom)[35] == step
+        assert saved_story(save_ram(rom))[1] == step
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -1310,8 +1326,8 @@ def test_the_progress_survives_a_reset_and_continue_resumes(model):
         hold_stage_anim(again)
         assert again.mem("story_progress") == 1
         settle_title(again)
-        assert play_items(again) == [K_CONTINUE, K_STORY, K_ARCADE], "PLAY: CONTINUE, STORY, ARCADE"
-        assert list(again.read("title_rows", 3)) == [7, 9, 11]
+        assert play_items(again) == [K_CONTINUE, K_STORY, K_ARCADE, K_CLASSIC], "PLAY: CONTINUE, STORY, ARCADE, CLASSIC"
+        assert list(again.read("title_rows", 4)) == [6, 8, 10, 12]
         again.run(MENU_SETTLE)
         check_golden(again, "title_continue")                 # the PLAY submenu with a story save
         menu_tap(again, "a")
@@ -1321,7 +1337,7 @@ def test_the_progress_survives_a_reset_and_continue_resumes(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_story_starts_over_from_the_intro_even_with_a_save(model):
-    with start_story(model, v6_image([], story=4, step=3)) as gb:
+    with start_story(model, v7_image([], story=4, step=3)) as gb:
         assert gb.mem("story_scene") == SC["INTRO"] and gb.mem("story_chapter") == 0
         skip_scene(gb)
         skip_scene(gb)
@@ -1329,34 +1345,22 @@ def test_story_starts_over_from_the_intro_even_with_a_save(model):
         assert gb.mem("story_shift") == 0
 
 
-# ---- (e) the save: version 6 since the 10th venue (unlocks: tests/test_jukebox.py) and the migrations ---------------
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_version_2_save_keeps_its_hi_scores_and_gains_story_progress(model):
-    entries = [("ABC", 500), ("DEF", 400), ("GHI", 300)]
-    with booted(model, v2_image(entries)) as rom:
-        assert rom.mem("save_migrated") == 2 and rom.mem("story_progress") == 0 and rom.mem("story_reached") == 0
-        assert table(rom)[:3] == entries and play_items(rom) == [K_STORY, K_ARCADE], "no CONTINUE"
-        ram = save_ram(rom)
-    assert parse_save(ram)[:3] == entries and ram[34] == 0 and ram[35] == 0, "written back as version 6 at once"
-    assert ram[:V6_SUM + 2] == v6_image(entries)[:V6_SUM + 2]
-    with booted(model, ram) as again:
-        assert again.mem("save_migrated") == 0 and table(again)[:3] == entries
-
-
+# ---- (e) the save: version 7 since the three modes (unlocks: tests/test_jukebox.py; the tables: tests/test_scores.py)
+# and the migrations: every old version's top 5 is dropped (owner Q4), its story progress and unlocks kept
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_version_3_save_migrates_at_the_chapter_start(model):
     entries = [("ABC", 500), ("DEF", 400)]
     with booted(model, v3_image(entries, story=4)) as rom:
         hold_stage_anim(rom)
-        assert rom.mem("save_migrated") == 3 and table(rom)[:2] == entries
+        assert rom.mem("save_migrated") == 3 and table(rom) == EMPTY, "the old table is dropped"
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (4, 0), "4 chapters cleared, chapter 5 not begun"
         to_continue(rom)                                # CONTINUE: chapter 5's PRE scene, as with version 3
         run_until(rom, lambda: state(rom) == GS_STORY, 30)
         assert rom.mem("story_scene") == pre(4) and rom.mem("story_chapter") == 4
         ram = save_ram(rom)
-    # written back as version 6 at once, with the unlocks its progress implies; the PRE scene's venue tune then played
-    want = v6_image(entries, story=4, tunes=progress_unlocks(4, 0) | 1 << (5 + 4))
-    assert ram[:V6_SUM + 2] == want[:V6_SUM + 2]
+    # written back as version 7 at once, with the unlocks its progress implies; the PRE scene's venue tune then played
+    assert main_block(ram) == (4, 0, progress_unlocks(4, 0) | 1 << (5 + 4))
+    assert all(parse_save(ram, t) == EMPTY for t in range(3))
     with booted(model, ram) as again:
         assert again.mem("save_migrated") == 0 and again.mem("story_progress") == 4
 
@@ -1380,11 +1384,11 @@ def test_an_old_save_s_progress_maps_onto_the_new_chapters(model, version):
             ram = v5_image(entries, story=story, step=step, tunes=1)
         want = old_progress(story, step)
         with booted(model, ram) as rom:
-            assert rom.mem("save_migrated") == version and table(rom)[0] == ("ABC", 500), (story, step)
+            assert rom.mem("save_migrated") == version and table(rom) == EMPTY, (story, step)
             assert (rom.mem("story_progress"), rom.mem("story_reached")) == want, (story, step)
             assert rom.mem16("tune_unlocked") == progress_unlocks(*want), (story, step)
             ram = save_ram(rom)
-        assert ram[:V6_SUM + 2] == v6_image(entries, *want, progress_unlocks(*want))[:V6_SUM + 2], "written back at once"
+        assert main_block(ram) == (*want, progress_unlocks(*want)), "written back at once"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -1399,21 +1403,24 @@ def test_a_complete_old_story_continues_at_the_chrome_cow(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_version_6_loads_its_progress_and_old_versions_reject_a_bad_one(model):
-    with booted(model, v6_image([("ABC", 500)], story=7, step=3)) as rom:
-        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (7, 3), "version 6: as saved"
+def test_version_7_loads_its_progress_and_old_versions_reject_a_bad_one(model):
+    with booted(model, v7_image([("ABC", 500)], story=7, step=3)) as rom:
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (7, 3), "version 7: as saved"
         assert table(rom)[0] == ("ABC", 500) and rom.mem("save_migrated") == 0
-    with booted(model, v6_image([("ABC", 500)], story=10)) as rom:
-        assert rom.mem("story_progress") == 10, "the new story complete: 10 chapters"
+    with booted(model, v6_image([("ABC", 500)], story=7, step=3)) as rom:
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (7, 3), "version 6: kept"
+        assert table(rom) == EMPTY and rom.mem("save_migrated") == 6
+    with booted(model, v7_image(story=10)) as rom:
+        assert rom.mem("story_progress") == 10, "the story complete: 10 chapters"
     for story, step in ((11, 0), (2, 5), (10, 1)):     # (well-formed checksums over a progress that cannot be)
+        with booted(model, v7_image([("ABC", 500)], story=story, step=step)) as rom:
+            assert rom.mem("story_progress") == 0 and table(rom)[0] == ("ABC", 500), (story, step)
         with booted(model, v6_image([("ABC", 500)], story=story, step=step)) as rom:
-            assert rom.mem("story_progress") == 0 and table(rom)[0] == ("   ", 0), (story, step)
+            assert rom.mem("story_progress") == 0 and rom.mem("save_migrated") == 0, (story, step)
     for story, step in ((10, 0), (2, 5), (9, 1)):      # version 4 knew nine chapters
         with booted(model, v4_image([("ABC", 500)], story=story, step=step)) as rom:
-            assert rom.mem("story_progress") == 0 and table(rom)[0] == ("   ", 0), (story, step)
+            assert rom.mem("story_progress") == 0 and rom.mem("save_migrated") == 0, (story, step)
     with booted(model, v5_image([("ABC", 500)], story=10)) as rom:
-        assert rom.mem("story_progress") == 0 and table(rom)[0] == ("   ", 0), "version 5 knew nine chapters"
+        assert rom.mem("story_progress") == 0 and rom.mem("save_migrated") == 0, "version 5 knew nine chapters"
     with booted(model, v3_image([("ABC", 500)], story=10)) as rom:
-        assert rom.mem("story_progress") == 0 and table(rom)[0] == ("   ", 0)
-    with booted(model, v1_image(777)) as rom:
-        assert rom.mem("save_migrated") == 1 and table(rom)[0] == ("SPG", 777) and rom.mem("story_progress") == 0
+        assert rom.mem("story_progress") == 0 and rom.mem("save_migrated") == 0

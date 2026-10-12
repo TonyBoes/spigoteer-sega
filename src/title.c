@@ -5,8 +5,9 @@
 // and sends the empty back. Foam bubbles drift up past the logo now and then.
 //
 // The menu (owner 2026-10-11: "a sub menu scheme. Top level - play, bonus, settings"): the top level PLAY / BONUS /
-// SETTINGS; A (or START) opens the item's submenu in the same place: PLAY [CONTINUE] / STORY / ARCADE (CONTINUE when a
-// story save exists: M11b), BONUS SOUNDTRACK (the soundtrack player, src/jukebox.c; PRACTICE is planned as a second
+// SETTINGS; A (or START) opens the item's submenu in the same place: PLAY [CONTINUE] / STORY / ARCADE / CLASSIC
+// (CONTINUE when a story save exists: M11b; the three modes, owner 2026-10-11: CLASSIC starts the old 10-level
+// rotation as a stand-in until CLASSIC is built, with its own top 5), BONUS SOUNDTRACK (the soundtrack player, src/jukebox.c; PRACTICE is planned as a second
 // item), SETTINGS MUSIC ON-OFF. B in a submenu goes back to the top level, the cursor on the item it came from. SELECT
 // toggles the music anywhere on the title (as before). A submenu's lines replace the menu's text over a few frames
 // (menu_frame: within the VBlank drain's budget, 2-5 frames).
@@ -42,12 +43,12 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 // ---- layout ----
 #define LOGO_ROW        2       // the logo: rows 2-3, columns 1..18
 #define ROW_HI          0       // the HI line (the HUD's row in play)
-// The menu column, one item every other row, centred on row 9: 1 item row 9, 2 rows 8-10, 3 rows 7-11. K_*, TM_*:
-// game.h.
-#define MENU_MAX        3
+// The menu column, one item every other row, centred on row 9: 1 item row 9, 2 rows 8-10, 3 rows 7-11, 4 rows 6-12.
+// K_*, TM_*: game.h.
+#define MENU_MAX        4
 #define MENU_ROW(n)   (10 - (n))
-#define MENU_FIRST_ROW  7       // the rows a menu can use: 7..11
-#define MENU_LAST_ROW  11
+#define MENU_FIRST_ROW  6       // the rows a menu can use: 6..12
+#define MENU_LAST_ROW  12
 #define MENU_COPIES_PER_FRAME 2 // a submenu's redraw: 20-byte rows (tiles or CGB attributes) queued per frame
 #define SCENE_BAR       3       // the scene stands on bar 3's rows (14-15 wall, 16 counter): draw_bartender() places him
 #define SCENE_TOP_Y   (BAR_TOP_Y(SCENE_BAR) + 16)   // OAM y of the scene's wall top
@@ -95,7 +96,9 @@ uint16_t title_t;               // frames since the title appeared
 uint8_t  title_menu;            // TM_* (game.h): the top level, or the submenu of top item title_menu - 1
 uint8_t  title_back;            // the menu title_enter opens (the soundtrack player goes back to BONUS); then TM_TOP
 uint8_t  title_sel;             // the selected line of the shown menu (top: 0 PLAY, 1 BONUS, 2 SETTINGS; PLAY: [CONTINUE],
-                                // STORY, ARCADE; BONUS: SOUNDTRACK; SETTINGS: MUSIC)
+                                // STORY, ARCADE, CLASSIC; BONUS: SOUNDTRACK; SETTINGS: MUSIC)
+uint8_t  title_hi;              // the top 5 the HI line shows (MODE_*): the one under PLAY's cursor, else ARCADE's
+uint8_t  attract_n;             // the idle title's next table (attract_tbl index)
 uint8_t  title_items[MENU_MAX]; // K_* per menu line (game.h)
 uint8_t  title_n;               // menu lines
 uint8_t  title_rows[MENU_MAX];  // their screen rows
@@ -111,6 +114,8 @@ static uint8_t bubble_half;
 static uint8_t t_rng = 0x5D;    // the title's own random numbers (the game's sequence must not depend on the title)
 
 static uint8_t logo_buf[LOGO_LETTERS][4];
+static uint8_t hi_buf[6];
+static const uint8_t attract_tbl[TOP_TABLES] = { MODE_ARCADE, MODE_STORY, MODE_CLASSIC };   // the idle title cycles them
 static uint8_t menu_buf[MENU_MAX][20], row_blank[20], attr_txt[20], attr_sel[20];
 
 static uint8_t trand(void) {
@@ -129,9 +134,9 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
-                                         tt_soundtrack };
+                                         tt_soundtrack, tt_classic };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
-                                  TT_X_SETTINGS, TT_X_SOUNDTRACK };
+                                  TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC };
 
 static void build_item(uint8_t i) {
     uint8_t k = title_items[i];
@@ -164,6 +169,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
         if ((story_progress || story_reached) && story_progress < STORY_CHAPTERS) title_items[title_n++] = K_CONTINUE;
         title_items[title_n++] = K_STORY;
         title_items[title_n++] = K_ARCADE;
+        title_items[title_n++] = K_CLASSIC;
         break;
     case TM_BONUS:    // the soundtrack (its songs unlock as the story is played: save.c); PRACTICE planned after it
         title_items[title_n++] = K_SOUNDTRACK;
@@ -195,6 +201,20 @@ static void menu_frame(void) {
         vq_add(0, k == 255 ? row_blank : menu_buf[k], 0, r, 20);
         if (need == 2) vq_add(1, k == title_sel ? attr_sel : attr_txt, 0, r, 20);
     }
+}
+
+// the HI line's table: in PLAY the one of the mode under the cursor (CONTINUE: STORY), elsewhere ARCADE's
+static uint8_t hi_want(void) {
+    uint8_t k = title_items[title_sel];
+    if (title_menu != TM_PLAY) return MODE_ARCADE;
+    return k == K_ARCADE ? MODE_ARCADE : k == K_CLASSIC ? MODE_CLASSIC : MODE_STORY;
+}
+
+// the HI line's digits for table title_hi (hi_buf; hi_score / hi_digits: save.c hi_pick)
+static void hi_build(void) {
+    uint8_t i;
+    hi_pick(title_hi);
+    for (i = 0; i < 6; i++) hi_buf[i] = tt_digit[hi_digits[i]];
 }
 
 void title_music_toggle(void) BANKED {
@@ -259,7 +279,8 @@ void title_enter(void) BANKED {
     for (i = 0; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, menu_buf[i]);
     for (i = 0; i < 20; i++) row_buf[i] = TT_BLANK;
     row_buf[6] = TT_HI;
-    for (i = 0; i < 6; i++) row_buf[8 + i] = tt_digit[hi_digits[i]];
+    title_hi = hi_want(); hi_build();
+    for (i = 0; i < 6; i++) row_buf[8 + i] = hi_buf[i];
     set_bkg_tiles(0, ROW_HI, 20, 1, row_buf);
     // the scene's patron
     row_buf[0] = TT_PATRON_BASE; row_buf[1] = TT_PATRON_BASE + 1; row_buf[2] = TT_PATRON_BASE + 2; row_buf[3] = TT_PATRON_BASE + 3;
@@ -416,14 +437,19 @@ uint8_t title_update(uint8_t pressed) BANKED {
     if (title_go) { old = title_go; title_go = 0; play_mode = MODE_LEVEL; start_new_game(old); return 0; }
     title_t++;
     if (pressed) title_idle = 0;
-    else if (++title_idle >= TITLE_IDLE_FRAMES) return 2;
+    else if (++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables
+        score_tbl = attract_tbl[attract_n];
+        if (++attract_n == TOP_TABLES) attract_n = 0;
+        return 2;
+    }
     if (pressed & J_SELECT) title_music_toggle();
     if (pressed & J_UP) title_sel = title_sel ? title_sel - 1 : last;
     else if (pressed & J_DOWN) title_sel = title_sel == last ? 0 : title_sel + 1;
     if (title_sel != old) { set_sel_attr(old, 0); set_sel_attr(title_sel, 1); }
     else if (pressed & (J_A | J_START)) {
         switch (title_items[title_sel]) {
-        case K_ARCADE: play_mode = MODE_ARCADE; start_new_game(1); return 0;
+        case K_ARCADE: arcade_begin(); return 0;
+        case K_CLASSIC: play_mode = MODE_CLASSIC; start_new_game(1); return 0;   // (a stand-in: the old rotation)
         case K_STORY: story_begin(0); return 0;
         case K_CONTINUE: story_begin(1); return 0;
         case K_SOUNDTRACK: title_back = TM_BONUS; jukebox_enter(); return 0;   // (B there comes back to BONUS)
@@ -433,7 +459,13 @@ uint8_t title_update(uint8_t pressed) BANKED {
         default: title_music_toggle();
         }
     } else if ((pressed & J_B) && title_menu != TM_TOP) menu_open(TM_TOP, title_menu - 1);
-    if (title_sel == old) menu_frame();            // (a cursor move already queued its two attribute rows)
+    if (title_sel == old) {                        // (a cursor move already queued its two attribute rows)
+        menu_frame();
+        if (!title_dirty && hi_want() != title_hi) {   // a quiet frame: the HI line follows the cursor's mode
+            title_hi = hi_want(); hi_build();
+            vq_add(0, hi_buf, 8, ROW_HI, 6);
+        }
+    }
     logo_frame();
     bubbles_frame();
     scene_frame();

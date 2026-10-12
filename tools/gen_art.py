@@ -538,8 +538,12 @@ MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "m
                 "continue": "CONTINUE",       # M11b: CONTINUE (story save) replaced M10a's "COMING SOON"
                 "bonus": "BONUS",             # the top level's BONUS submenu
                 "play": "PLAY", "settings": "SETTINGS",   # the top level: PLAY / BONUS / SETTINGS (owner 2026-10-11)
-                "soundtrack": "SOUNDTRACK"}   # BONUS's soundtrack player (src/jukebox.c)
+                "soundtrack": "SOUNDTRACK",   # BONUS's soundtrack player (src/jukebox.c)
+                "classic": "CLASSIC"}         # PLAY's fourth mode (the three modes, owner 2026-10-11)
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
+# ... and past it the perfect pour's OBJ ids 234-239 (loaded at a story shift's start, never shown on the title: its
+# sprites are the bartender, the mug, the drink frames and the effects, all below 128); the DMG copies start at 240
+TITLE_TILE_END = 240
 
 
 def _px_tile_bytes(px):
@@ -666,8 +670,8 @@ def title_art(outdir, prev, base, ttiles, bg):
     strip_prev.append(hi_px)
     n_total = len(pool_px)
     patron_base = first + n_total            # 4 tiles of the scene's patron (copied from the cowboys group at run time)
-    if patron_base + 4 > base + PATRON_RANGE:     # the end of the patron range
-        sys.exit(f"gen_art: title tiles end at {patron_base + 4}, past {base + PATRON_RANGE} (fill {n_fill}, all {n_total})")
+    if patron_base + 4 > TITLE_TILE_END:         # the end of the patron range and the perfect pour's ids
+        sys.exit(f"gen_art: title tiles end at {patron_base + 4}, past {TITLE_TILE_END} (fill {n_fill}, all {n_total})")
 
     # effect sprites: 8x8 frames in the top half of 8x16 entries
     fx = [r for _, r in blocks(ROOT / "assets/art/title_fx.txt")]

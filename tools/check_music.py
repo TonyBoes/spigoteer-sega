@@ -153,10 +153,10 @@ def gm_name(n):
 
 
 def start_arcade(rom):
-    """From the title: PLAY > ARCADE (a fresh ROM has no story save, so PLAY's items are STORY, ARCADE)."""
-    for b in ("a", "down", "a"):
-        rom.press(b, 2)
-        rom.run(8)                      # the release is seen and the submenu's lines reach the screen (src/title.c)
+    """From the title: the old 10-level rotation (the LEVEL harness, MODE_LEVEL) at level 1, through the title's test
+    hook title_go (src/title.c; PLAY > ARCADE plays the story's sequence since the three modes)."""
+    rom.write("title_go", 1)
+    rom.run(8)
 
 
 def start_frames(frames, source):

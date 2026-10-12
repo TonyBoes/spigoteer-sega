@@ -187,7 +187,8 @@ void enter_level_screen(void) BANKED {
     draw_bartender();
     game_over = 0;
     music_play(TUNE_VENUE0 + cur_group);          // the venue's own tune (before the state: a test sampling mid-load sees it)
-    if (cur_group == 0 && level > 1) {            // M10b: a new loop begins: "LOOP n" first, then the level's intro
+    if (!story_on && cur_group == 0 && level > 1) {   // M10b: a new loop begins: "LOOP n" first, then the level's intro
+                                                  // (the LEVEL harness, CLASSIC's stand-in; ARCADE shows its own: story.c)
         char s[8] = "LOOP ";
         if (arcade_loop >= 10) { s[5] = '0' + arcade_loop / 10; s[6] = '0' + arcade_loop % 10; }
         else s[5] = '0' + arcade_loop;
@@ -198,9 +199,12 @@ void enter_level_screen(void) BANKED {
     DISPLAY_ON;
 }
 
+// The old 10-level rotation from level lv (play_mode set by the caller: MODE_LEVEL, the test harness and the debug
+// select's LEVEL box; MODE_CLASSIC, CLASSIC's stand-in until CLASSIC is built)
 void start_new_game(uint8_t lv) BANKED {
     uint8_t i;
-    lives = START_LIVES; level = lv; score = 0; bonus_round = 0; story_on = 0;
+    lives = START_LIVES; level = lv; score = 0; bonus_round = 0; story_on = 0; story_arc = 0;
+    extra_at = play_mode == MODE_CLASSIC ? EXTRA_FIRST : 0;   // extra lives: CLASSIC (its stand-in), not the harness
     pour_q = 0;                                  // arcade: never a perfect pour (src/pour.c runs in story only)
     pat_len = 0;                                 // arcade: the normal random arrivals (a story shift sets a pattern)
     music_fast = 0; mosh_set(0, 0);              // arcade: no venue twists (a story shift sets them)
@@ -224,9 +228,11 @@ void resume_after_life(void) BANKED {
 }
 
 void enter_game_over(void) BANKED {
-    if (story_on) { story_fail(); return; }      // M11b: in story mode the goal failed: TRY AGAIN
     // the initials from WRAM (the stack): top_insert runs in its own bank and cannot read a literal in this one
     uint8_t aaa[3];
+    if (play_mode == MODE_STORY) { story_fail(); return; }   // M11b: in story mode the goal failed: TRY AGAIN
+    story_on = 0; story_arc = 0;                 // (ARCADE runs on the story's engine: the run ends here)
+    score_tbl = play_mode == MODE_LEVEL ? MODE_ARCADE : play_mode;   // the mode's top 5 (the harness counts as ARCADE)
     aaa[0] = aaa[1] = aaa[2] = 'A';
     new_rank = top_insert(score, aaa);           // in at once (initials follow), so a power-off keeps it
     if (new_rank < TOP_N) hi_save();

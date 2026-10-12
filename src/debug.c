@@ -2,9 +2,13 @@
 // and stepping it. src/main.c keeps the per-frame START + SELECT combo watch (debug_watch) and the state.
 //
 // Mode-aware (owner 2026-10-10): the box selects in the mode it was opened in.
-//   - Arcade ("LEVEL nn"): opened in arcade play, or on the title with the cursor on any item but STORY / CONTINUE
-//     (PLAY's submenu: ARCADE; the top level and the BONUS / SETTINGS submenus open the arcade box as before).
-//     Left/Down and Right/Up change the level (1..DEBUG_LEVELS, wrapping); A starts it from scratch (start_new_game).
+//   - LEVEL ("LEVEL nn", the old 10-level rotation: the test harness, MODE_LEVEL): opened in its play (or CLASSIC's
+//     stand-in), or on the title with the cursor on any item but STORY / CONTINUE / ARCADE (the top level, PLAY's
+//     CLASSIC, the BONUS / SETTINGS submenus). Left/Down and Right/Up change the level (1..DEBUG_LEVELS, wrapping); A
+//     starts it from scratch (start_new_game, MODE_LEVEL).
+//   - ARCADE ("ARCADE c STEP", the three modes): opened in ARCADE play, or on the title with PLAY's cursor on ARCADE
+//     (chapter 1, its first step). As the story box without the PRE / POST positions; A starts an ARCADE run there
+//     (story_debug_start with arc 1: 3 lives, a fresh score, loop 1, nothing saved).
 //   - Story ("STORY c STEP"): opened in story play (story_on), or on the title with PLAY's cursor on STORY (chapter 1,
 //     its PRE scene) or CONTINUE (the saved chapter: its first step when one was reached, else its PRE scene). The
 //     positions of a chapter are its PRE scene, the steps of the story's sequence the engine can play (story_step_get:
@@ -27,16 +31,16 @@
 #define POS_POST          (STORY_STEPS + 1)    // positions: 0 PRE, 1..STORY_STEPS the steps, POS_POST
 extern uint8_t debug_menu_open, debug_level, debug_from_title, debug_toggled;
 extern uint8_t overlay_on, level, story_chapter, story_step;
-uint8_t debug_story;               // 1: the box selects a story position
+uint8_t debug_story;               // 1: the box selects a story position, 2: an ARCADE one (0: a level)
 uint8_t debug_chapter;             // its chapter (0..STORY_CHAPTERS-1)
 uint8_t debug_pos;                 // its position (0 PRE, 1..STORY_STEPS step pos-1, POS_POST)
-void story_debug_start(uint8_t ch, uint8_t pos) BANKED;   // src/story.c
+void story_debug_start(uint8_t ch, uint8_t pos, uint8_t arc) BANKED;   // src/story.c
 
 static const char *const step_label[4] = { "OPEN", "HAPPY", "LAST", "" };   // a shift's index (STEP_INDEX)
 
 // 1: position p of chapter ch can be started
 static uint8_t pos_ok(uint8_t ch, uint8_t p) {
-    if (p == 0 || p == POS_POST) return 1;
+    if (p == 0 || p == POS_POST) return debug_story == 1;   // (ARCADE has no scenes)
     return !(story_step_get(ch, p - 1) & STEP_SKIP) || ((story_unskip >> (p - 1)) & 1);
 }
 
@@ -57,7 +61,7 @@ static void debug_show(void) {
         show_overlay(s);
         return;
     }
-    for (n = "STORY "; *n; n++) s[i++] = *n;
+    for (n = debug_story == 2 ? "ARCADE " : "STORY "; *n; n++) s[i++] = *n;
     if (debug_chapter >= 9) { s[i++] = '1'; s[i++] = '0' + debug_chapter - 9; }   // chapter 10
     else s[i++] = '1' + debug_chapter;
     s[i++] = ' ';
@@ -81,13 +85,14 @@ void debug_open(void) BANKED {
         if (debug_toggled) title_music_toggle();     // the SELECT that began the combo toggled the music: undo
         k = title_items[title_sel];
         if (k == K_STORY) { debug_story = 1; debug_chapter = 0; debug_pos = 0; }
+        else if (k == K_ARCADE) { debug_story = 2; debug_chapter = 0; debug_pos = pos_next(0, 0, 1); }
         else if (k == K_CONTINUE) {                  // as CONTINUE starts it (story.c story_begin)
             debug_story = 1;
             debug_chapter = story_progress < STORY_CHAPTERS ? story_progress : STORY_CHAPTERS - 1;
             debug_pos = story_reached ? pos_next(debug_chapter, 0, 1) : 0;
         }
-    } else if (story_on) {                           // in story play: where the story is
-        debug_story = 1;
+    } else if (story_on) {                           // in story (ARCADE) play: where the story (the run) is
+        debug_story = story_arc ? 2 : 1;
         debug_chapter = story_chapter;
         debug_pos = story_step + 1;
         if (!pos_ok(debug_chapter, debug_pos)) debug_pos = pos_next(debug_chapter, debug_pos, 1);
@@ -120,7 +125,7 @@ uint8_t debug_step(uint8_t pressed) BANKED {
     }
     if (pressed & J_A) {
         debug_menu_open = 0;
-        if (debug_story) { overlay_on = 0; save_lock = 1; story_debug_start(debug_chapter, debug_pos); }
+        if (debug_story) { overlay_on = 0; save_lock = 1; story_debug_start(debug_chapter, debug_pos, debug_story == 2); }
         else { play_mode = MODE_LEVEL; start_new_game(l); }
         return 1;
     }

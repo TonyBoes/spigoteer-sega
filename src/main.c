@@ -82,6 +82,7 @@ uint8_t  joy, joy_prev;
 uint32_t score;             // HUD shows 6 digits
 uint8_t  is_cgb;            // running on colour hardware
 uint8_t  lives = START_LIVES;
+uint32_t extra_at;          // the score that gives the next extra life (ARCADE, CLASSIC; 0: none in this mode)
 uint8_t  level = 1;
 uint8_t  fill_timer;        // frames A has been held at the tap (0 = not filling)
 uint8_t  fill_stage;        // 0..3 mug fill animation frame while filling (0 otherwise)
@@ -136,6 +137,7 @@ void add_score(uint16_t n) {
     // the heaviest frames of the game.
     uint8_t d4 = 0, d3 = 0, d2 = 0, d1 = 0, d, carry;
     score += n;
+    if (extra_at && score >= extra_at) extra_life();   // ARCADE / CLASSIC (story.c)
     while (n >= 10000) { n -= 10000; d4++; }
     while (n >= 1000)  { n -= 1000;  d3++; }
     while (n >= 100)   { n -= 100;   d2++; }
@@ -400,7 +402,7 @@ static void update(void) {
         break;
     case GS_LEVEL_CLEAR:
         if (++state_timer >= CLEAR_FRAMES) {
-            if (story_on) { story_level_done(); return; }   // M11b: the chapter's POST scene, no bonus rounds
+            if (story_on) { story_level_done(); return; }   // M11b / ARCADE: the next step (story.c)
             if (!(level & 1)) {                  // levels 2, 4, 6, ... are followed by the bonus round
                 bonus_enter();
                 game_state = GS_BONUS;
@@ -413,6 +415,7 @@ static void update(void) {
         break;
     case GS_BONUS:
         if (bonus_update(pressed)) {
+            if (story_on) { arcade_next(); return; }  // ARCADE: the bonus round after a venue, then the next venue
             if (level < 99) level++;
             enter_level_screen();
             return;

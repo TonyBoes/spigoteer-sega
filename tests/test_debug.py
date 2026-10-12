@@ -3,7 +3,7 @@
 import subprocess
 
 import pytest
-from conftest import (K_ARCADE, K_BONUS, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE,
+from conftest import (K_ARCADE, K_BONUS, K_CLASSIC, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE,
                       ROOT, TM_PLAY, TM_SETTINGS, TM_TOP, menu_items, menu_tap, menu_to, title_arcade, title_level, title_pick)
 
 pytestmark = pytest.mark.timeout(120)
@@ -220,7 +220,7 @@ def tap(gb, b):
 
 
 # where each title item is: the top level's own, or the submenu of a top item
-WHERE = {K_STORY: K_PLAY, K_CONTINUE: K_PLAY, K_ARCADE: K_PLAY, K_SOUNDTRACK: K_BONUS, K_MUSIC: K_SETTINGS}
+WHERE = {K_STORY: K_PLAY, K_CONTINUE: K_PLAY, K_ARCADE: K_PLAY, K_CLASSIC: K_PLAY, K_SOUNDTRACK: K_BONUS, K_MUSIC: K_SETTINGS}
 
 
 def open_on(boot, k):
@@ -286,10 +286,10 @@ def test_an_unskipped_step_is_offered(boot):
 @pytest.mark.parametrize("c,k", [(2, 1), (6, 2), (0, 0)])
 def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(model, c, k):
     from test_flow import run_until
-    from test_scores import booted, v6_image
+    from test_scores import booted, v7_image
     from test_sound import save_ram
     from test_story import SHIFT_STEP, SHIFTS, banner_text as goal_text, centred, shift_title, win
-    ram = v6_image([("ABC", 500)], story=1, step=1, tunes=0x21)
+    ram = v7_image([("ABC", 500)], story=1, step=1, tunes=0x21)
     with booted(model, ram) as rom:
         open_on(rom, K_STORY)
         for _ in range(c):
@@ -331,9 +331,9 @@ def test_a_on_a_scene_plays_it(boot, pos, scene):
 
 def test_on_continue_the_box_starts_at_the_saved_chapter():
     from test_flow import run_until
-    from test_scores import booted, v6_image
+    from test_scores import booted, v7_image
     for story, step, pos in ((4, 0, 0), (4, 3, 1)):
-        with booted("cgb", v6_image([], story=story, step=step)) as rom:
+        with booted("cgb", v7_image([], story=story, step=step)) as rom:
             open_on(rom, K_CONTINUE)
             assert rom.mem("debug_story") == 1 and (rom.mem("debug_chapter"), rom.mem("debug_pos")) == (story, pos)
 
@@ -352,9 +352,10 @@ def test_in_story_play_the_box_opens_where_the_story_is(model):
         assert gb.mem("game_state") == PLAYING and gb.mem("story_on") == 1, "B: the shift goes on"
 
 
-@pytest.mark.parametrize("k", [K_PLAY, K_BONUS, K_SETTINGS, K_SOUNDTRACK, K_MUSIC, K_ARCADE])
+@pytest.mark.parametrize("k", [K_PLAY, K_BONUS, K_SETTINGS, K_SOUNDTRACK, K_MUSIC, K_CLASSIC])
 def test_on_other_items_and_in_arcade_play_it_stays_the_level_select(boot, k):
-    """The top level (PLAY too: no mode chosen yet), BONUS / SETTINGS and PLAY's ARCADE: the arcade level select."""
+    """The top level (PLAY too: no mode chosen yet), BONUS / SETTINGS and PLAY's CLASSIC (its stand-in is the old
+    rotation): the LEVEL select (the harness)."""
     open_on(boot, k)
     assert boot.mem("debug_menu_open") == 1
     assert boot.mem("debug_story") == 0 and boot.mem("debug_level") == 1
@@ -372,8 +373,15 @@ def test_the_box_follows_play_s_cursor_and_b_leaves_the_submenu_as_it_was(boot):
     combo(boot)
     release_combo(boot)
     boot.run(3)
+    assert boot.mem("debug_story") == 2 and banner_is(boot, "ARCADE 1 OPEN")
+    tap(boot, "b")
+    tap(boot, "down")                                      # CLASSIC
+    combo(boot)
+    release_combo(boot)
+    boot.run(3)
     assert boot.mem("debug_story") == 0 and banner_is(boot, "LEVEL 01")
     tap(boot, "b")
+    tap(boot, "up")
     tap(boot, "up")                                        # STORY again
     combo(boot)
     release_combo(boot)
@@ -412,12 +420,12 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
     """A chapter whose boss slot is built offers it ("BOSS"); A starts the fight through step_start (boss_set): its
     banner, the fight; satisfied, CHAPTER CLEAR and the POST scene follow, and SRAM stays as it was."""
     from test_flow import LEVEL_CLEAR, run_until
-    from test_scores import booted, v6_image
+    from test_scores import booted, v7_image
     from test_sound import save_ram
     from test_story import BOSS_BUILT, BOSS_STEP, SC, banner_text as goal_text, centred
     assert BOSS_BUILT, "no boss is built yet"
     c = min(BOSS_BUILT)
-    ram = v6_image([("ABC", 500)], tunes=1)
+    ram = v7_image([("ABC", 500)], tunes=1)
     with booted(model, ram) as rom:
         open_on(rom, K_STORY)
         for _ in range(c):
@@ -445,3 +453,32 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (0, 0), "nothing saved"
         after = save_ram(rom)
     assert after[:40] == ram[:40], "SRAM not written"
+
+
+# ---- the ARCADE box (the three modes): PLAY's ARCADE or ARCADE play; its steps only (no scenes) ----------------------
+def test_the_arcade_box_offers_the_steps_only_and_a_starts_an_arcade_run(boot):
+    from test_flow import GS_GOAL, run_until
+    from test_story import STORY_STEPS, BOSS_BUILT, BOSS_STEP
+    open_on(boot, K_ARCADE)
+    release_combo(boot)
+    assert boot.mem("debug_story") == 2 and boot.mem("debug_chapter") == 0 and boot.mem("debug_pos") == 1
+    assert banner_is(boot, "ARCADE 1 OPEN")
+    seen = []
+    for _ in range(STORY_STEPS + 1):
+        seen.append(boot.mem("debug_pos"))
+        tap(boot, "down")
+    assert 0 not in seen and STORY_STEPS + 1 not in seen, "no PRE / POST scene in ARCADE"
+    assert (BOSS_STEP + 1 in seen) == (0 in BOSS_BUILT)
+    while boot.mem("debug_pos") != 2:
+        tap(boot, "down")                                  # the Happy hour
+    tap(boot, "right")                                     # chapter 2
+    assert banner_is(boot, "ARCADE 2 HAPPY")
+    tap(boot, "a")
+    run_until(boot, lambda: boot.mem("game_state") == GS_GOAL, 60)
+    assert boot.mem("story_arc") == 1 and boot.mem("play_mode") == MODE_ARCADE and boot.mem("save_lock") == 1
+    assert boot.mem("story_chapter") == 1 and boot.mem("story_shift") == 1 and boot.mem("lives") == 3
+    boot.press("a", 2)
+    run_until(boot, lambda: boot.mem("game_state") == PLAYING, 20)
+    combo(boot)                                            # in ARCADE play: the ARCADE box where the run is
+    release_combo(boot)
+    assert boot.mem("debug_story") == 2 and banner_is(boot, "ARCADE 2 HAPPY")

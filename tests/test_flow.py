@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import (GAME, K_ARCADE, K_BONUS, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
+from conftest import (GAME, K_ARCADE, K_BONUS, K_CLASSIC, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
                       ROOT, TM_BONUS, TM_PLAY, TM_SETTINGS, TM_TOP, bar_top_row, check_golden, menu_items, menu_tap,
                       title_arcade, title_level, title_pick)
 
@@ -227,7 +227,7 @@ def test_up_down_move_the_mug_cursor_and_wrap(boot):
 
 
 # (top item, its submenu, the submenu's lines without a story save)
-SUBMENUS = [(K_PLAY, TM_PLAY, ("story", "arcade")), (K_BONUS, TM_BONUS, ("soundtrack",)),
+SUBMENUS = [(K_PLAY, TM_PLAY, ("story", "arcade", "classic")), (K_BONUS, TM_BONUS, ("soundtrack",)),
             (K_SETTINGS, TM_SETTINGS, ("music_on",))]
 
 
@@ -257,8 +257,8 @@ def test_each_submenu_opens_in_place_and_b_comes_back_to_its_item(boot, top, men
 def test_submenu_redraws_stay_within_the_vblank_drain_budget(boot):
     """Switching menus queues its rows a few a frame: the drain stays as short as gameplay's (test_patrons: <= 12
     DIV ticks) and ends before line 0, even with a cursor move during the redraw."""
-    from test_scores import booted, v6_image
-    with booted(boot.model_name, v6_image([], story=3, step=1)) as rom:
+    from test_scores import booted, v7_image
+    with booted(boot.model_name, v7_image([], story=3, step=1)) as rom:
         rom.write("drain_ticks_max", 0)
         for top in (K_PLAY, K_BONUS, K_SETTINGS):
             title_pick(rom, top)
@@ -273,24 +273,24 @@ def test_submenu_redraws_stay_within_the_vblank_drain_budget(boot):
 
 
 def test_continue_shows_only_with_a_story_save(boot):
-    from test_scores import booted, v6_image
+    from test_scores import booted, v7_image
     title_pick(boot, K_PLAY)
     boot.run(MENU_SETTLE)
-    assert menu_items(boot) == [K_STORY, K_ARCADE]
-    expect_menu(boot, ("story", "arcade"))
-    with booted(boot.model_name, v6_image([], story=3, step=1)) as rom:
+    assert menu_items(boot) == [K_STORY, K_ARCADE, K_CLASSIC]
+    expect_menu(boot, ("story", "arcade", "classic"))
+    with booted(boot.model_name, v7_image([], story=3, step=1)) as rom:
         rom.model_name = boot.model_name
         settle_title(rom)
         assert menu_items(rom) == [K_PLAY, K_BONUS, K_SETTINGS], "the top level is the same with a save"
         expect_menu(rom, TOP_KEYS)
         title_pick(rom, K_PLAY)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE], "CONTINUE first, then STORY, ARCADE"
-        expect_menu(rom, ("continue", "story", "arcade"))
-        cursor_on(rom, "continue", 7)                    # (the golden title_continue: tests/test_story.py)
-    with booted(boot.model_name, v6_image([], story=10)) as rom:    # the story finished: nothing to continue
+        assert menu_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE, K_CLASSIC], "CONTINUE first, then STORY, ARCADE"
+        expect_menu(rom, ("continue", "story", "arcade", "classic"))
+        cursor_on(rom, "continue", 6)                    # (the golden title_continue: tests/test_story.py)
+    with booted(boot.model_name, v7_image([], story=10)) as rom:    # the story finished: nothing to continue
         title_pick(rom, K_PLAY)
-        assert menu_items(rom) == [K_STORY, K_ARCADE]
+        assert menu_items(rom) == [K_STORY, K_ARCADE, K_CLASSIC]
 
 
 def test_start_works_as_a_too(boot):
@@ -300,22 +300,30 @@ def test_start_works_as_a_too(boot):
     boot.press("down", 2)                     # ARCADE
     boot.run(1)
     boot.press("start", 2)
-    run_until(boot, lambda: state(boot) == PLAYING, 30)
-    assert boot.mem("lives") == 3 and score(boot) == 0 and boot.mem("level") == 1
-    assert patrons(boot) == [(0, ENTRY_X), (2, ENTRY_X)]          # level 1 starts on bars 0 and 2
-    assert boot.mem("bar") == 0 and boot.mem("bartender_x") == GAME["TAP_X"]
-    boot.run(20)
-    assert tilemap_row(boot, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_1")]   # L01
+    run_until(boot, lambda: state(boot) == GS_GOAL, 30)
+    assert boot.mem("play_mode") == 0 and boot.mem("story_arc") == 1 and boot.mem("lives") == 3 and score(boot) == 0
 
 
-def test_play_arcade_starts_level_1(boot):
+def test_play_arcade_starts_the_saloon_s_opening_shift_with_no_scene(boot):
+    """The three modes: ARCADE is the story's playable sequence, arcade style (tests/test_arcade.py has the rest)."""
     settle_title(boot)
     title_arcade(boot)
-    run_until(boot, lambda: state(boot) == PLAYING, 30)
-    assert boot.mem("level") == 1 and boot.mem("cur_group") == 0 and boot.mem("lives") == 3
-    assert patrons(boot) == [(0, ENTRY_X), (2, ENTRY_X)]
+    run_until(boot, lambda: state(boot) == GS_GOAL, 30)
+    assert boot.mem("play_mode") == 0 and boot.mem("story_on") == 1 and boot.mem("story_arc") == 1
+    assert boot.mem("story_chapter") == 0 and boot.mem("story_shift") == 0 and boot.mem("level") == 1
+    assert boot.mem("cur_group") == 0 and boot.mem("lives") == 3
     boot.run(5)
-    assert len(boot.visible_sprites()) == 4, "only the bartender: the title's sprites are gone"
+    spr = boot.visible_sprites()                  # (under the goal banner his lower half is hidden)
+    assert spr and all(o["tile"] < 56 for o in spr), "only the bartender: the title's sprites are gone"
+
+
+def test_play_classic_starts_the_old_rotation_as_a_stand_in(boot):
+    """Until CLASSIC is built (P5), PLAY > CLASSIC plays the old 10-level rotation, with extra lives and its own top 5."""
+    title_pick(boot, K_PLAY, K_CLASSIC)
+    run_until(boot, lambda: state(boot) == PLAYING, 30)
+    assert boot.mem("play_mode") == 2 and boot.mem("story_on") == 0 and boot.mem("level") == 1
+    assert int.from_bytes(boot.read("extra_at", 4), "little") == 20000
+    assert patrons(boot) == [(0, ENTRY_X), (2, ENTRY_X)]
 
 
 @pytest.mark.parametrize("lvl", [1, 7, 23])

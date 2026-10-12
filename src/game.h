@@ -252,7 +252,10 @@ void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
 void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define START_LIVES           3
-#define MAX_LIVES             4     // story: a gold medal's bonus life (the HUD shows 4 mugs at columns 8-11)
+#define MAX_LIVES             4     // a gold medal's bonus life, an extra life (the HUD shows 4 mugs at columns 8-11)
+#define EXTRA_FIRST       20000UL   // ARCADE / CLASSIC: the first extra life at this score (add_score) ...
+#define EXTRA_EVERY       40000UL   // ... then one every this many points
+extern uint32_t extra_at;           // (main.c) the next extra life's score; 0: none in this mode (story, the harness)
 #define LIFE_FREEZE_FRAMES  120     // the life-lost freeze (main.c)
 #define BANNER_WY  BAR_TOP_Y(1)       // window overlay: 3 tile rows over bar 1 (y 64..87), clear of the HUD and stage
 #define BANNER_LYC (BAR_TOP_Y(1) + 22)  // line where the LCD interrupt switches the window off again
@@ -357,8 +360,8 @@ void title_enter(void) BANKED;                          // LCD off: draws the ti
 uint8_t title_update(uint8_t pressed) BANKED;           // one title frame (it starts the games); 2: idle, show the table
 void title_music_toggle(void) BANKED;                   // music on/off and the MUSIC line
 // title menu items (title_items[], debug.c reads them): the top level PLAY / BONUS / SETTINGS, PLAY's submenu
-// [CONTINUE] / STORY / ARCADE, BONUS's SOUNDTRACK, SETTINGS's MUSIC ON-OFF
-enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK };
+// [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK, SETTINGS's MUSIC ON-OFF
+enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC };
 enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS };        // title_menu: the top level or the submenu of top item n-1
 extern uint8_t title_items[], title_sel;                // the shown menu's items in screen order, the selected line
 extern uint8_t title_back;                              // the menu title_enter opens (TM_*; it resets it to TM_TOP)
@@ -383,6 +386,10 @@ void story_level_done(void) BANKED;                     // GS_LEVEL_CLEAR is ove
 void story_fail(void) BANKED;                           // the goal failed: TRY AGAIN, then the shift / the venue again
 void story_life_frame(void) BANKED;                     // every GS_LIFE_LOST frame in story mode: the 2-lives cue
 void story_bonus_life(void) BANKED;                     // +1 life (max MAX_LIVES): a gold medal in the mini-game
+extern uint8_t story_arc;                               // 1: ARCADE (the story's engine, arcade rules: story.c)
+void arcade_begin(void) BANKED;                         // PLAY > ARCADE: the saloon's Opening shift, a new run (LCD off)
+void arcade_next(void) BANKED;                          // ARCADE: a venue's bonus round is over, the next venue
+void extra_life(void) BANKED;                           // add_score passed extra_at: a life (at most MAX_LIVES), the next
 #define STORY_SCRATCH 520                               // story.c's cut-scene backdrop buffer (the mini-games' union)
 extern uint8_t story_scratch[STORY_SCRATCH];
 extern uint8_t story_unskip;                            // test hook: bit s = step s of the sequence counts as built
