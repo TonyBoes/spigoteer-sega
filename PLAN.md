@@ -1314,7 +1314,7 @@ STEP_SKIP until their bosses exist). Chapter 1 is now Opening -> Happy hour -> L
 Each boss lives in his own banked file, so bosses can be built in parallel. What a new boss touches:
 1. `src/boss_<name>.c` (`#pragma bank 255`): `#include "boss.h"`, his generated art `"boss_<name>_art.h"`, then
    `"boss_load.h"`; one dispatcher `uint8_t boss_<name>(uint8_t ev, uint8_t arg) BANKED` that answers BEV_SET with
-   `boss_art_set()` and BEV_LOAD with `boss_art_load()` (his pose table into WRAM, his tiles and palettes), and does his
+   `boss_art_set()` and BEV_LOAD with `boss_art_load()` (his pose table into boss_map, his tiles and palettes), and does his
    special on the other events. His own state stays in his file (test hooks: plain globals).
 2. `src/boss.c`: his row of `rows[]` (spec 3.2's numbers and the banner lines) and his row of the hook table
    (`boss_call`: `case <row>: return boss_<name>(ev, arg);`); `src/boss.h`: his dispatcher's prototype.
@@ -1346,7 +1346,7 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   #included only by his own file: his art sits in his file's bank. Extra poses (gen_boss `extra`) follow the five
   common ones (BP_EXTRA = 5, 6, ...). Big Tex moved to src/boss_big_tex.c (his art only; no special); nothing of
   him changed (golden boss_fight and every test_boss test unchanged).
-- ROM: ROM0 unchanged (1006 B free). The engine (boss.c) autobanks to bank 5, Big Tex's file to bank 8.
+- ROM: ROM0 unchanged. Every boss file autobanks (see "Boss wave 1 ROM" below).
 
 ## The Sasquatch as built (lumber lodge boss, docs/minigames_bosses.md 3.5, 2026-10-12)
 - src/boss_sasquatch.c, rows[2]: 32 px, start 16, bar 2, step 90, push 8, gulp 8, hands 2, sip 0, meter 12, topper
@@ -1420,12 +1420,18 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   the ice thaws the counter; a win by real pours through the ice (arrivals >= empty_gap, the outro thaws, CHAPTER
   CLEAR, POST_IGLOO). New goldens boss_yeti, boss_yeti_inhale (the tell), boss_yeti_blow (the blow), dmg + cgb.
 
-## Boss wave 1 ROM (2026-10-12, game.gb)
-- ROM0 unchanged by the whole wave: 1006 B free (tools/rom0free.py). Every boss byte is banked: boss.c (the engine)
-  in bank 5, boss_big_tex.c and boss_critic.c in bank 8, boss_sasquatch.c and boss_yeti.c in bank 9 (autobank; the
-  next bosses go wherever bankpack finds room, banks 10+). romusage free after the wave: 1 2, 2 21, 3 148, 4 31,
-  5 506, 6 99, 7 6, 8 6, 9 221, 10 3328 B.
-- WRAM: the engine's knobs and pose table (~57 B), the Critic 3 B, the Yeti 22 B.
+## Boss wave 1 ROM and WRAM (2026-10-12, game.gb, on top of Modes P6)
+- ROM0 unchanged by the whole wave: 811 B free after P6 (tools/rom0free.py). Every boss byte is banked (autobank:
+  the engine and the boss files land wherever bankpack finds room; banks 1-10 are full now, bank 11 has 15.8 KB
+  free, so the next bosses go there). romusage free: 1 78, 2 21, 3 148, 4 31, 5 166, 6 282, 7 52, 8 1, 9 15,
+  10 452, 11 15864 B.
+- WRAM: +20 B (the engine's knobs 13, the Critic 3, the Yeti 4). The pose table (boss_map, boss_hand, 44 B) and a
+  boss file's own buffer (BOSS_OWN, 20 B: the Yeti's icy counter row) lie over the end of story_scratch (the cut-scene
+  backdrop buffer; no cut-scene, mini-game or title list runs during a fight; each fight fills them again). They were
+  WRAM of their own at first: 62 B more pushed the game's variables into the stack's way (the stack starts right above
+  them): the GBDK library's __map_tile_offset, the last variable, was overwritten in Quick Draw's practice entry
+  (set_bkg_tiles then drew every tile 15 ids lower; test_qd / test_mg failed). Stack room above the variables is now
+  654 B (P6 alone: 671; with the 62 B: 591, too little). Watch it: every new WRAM byte comes out of the stack.
 
 ## Mode-aware debug select as built (owner request, 2026-10-10)
 

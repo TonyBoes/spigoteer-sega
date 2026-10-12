@@ -13,9 +13,8 @@
 static void boss_art_set(void) {
     uint8_t p, k;
     for (p = 0; p != BOSS_ART_POSES; p++)
-        for (k = 0; k != BOSS_ART_COLS; k++) boss_map[p][k] = boss_art_pose[p][k];
+        for (k = 0; k != BOSS_ART_COLS; k++) boss_map[p * BOSS_W_MAX + k] = boss_art_pose[p][k];
     for (k = 0; k != 4; k++) boss_hand[k] = boss_art_hand[k];
-    boss_npose = BOSS_ART_POSES;
 }
 
 // BEV_LOAD (LCD off, after start_level loaded every patron variant): his body's column pairs over variant C's tiles

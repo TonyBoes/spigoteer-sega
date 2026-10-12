@@ -106,7 +106,6 @@ uint8_t  boss_sip_t;              // frames since his last empty went
 uint8_t  boss_own_gap;            // his own empties' gap after his own (0: empty_gap)
 uint16_t boss_window;             // his empties / returns must arrive within this many frames (0xFFFF: no limit)
 uint8_t  boss_fast_full, boss_fast_empty, boss_returns;   // his bar's fast mugs, MUG_RETURNs (boss_mugs)
-uint8_t  boss_map[BOSS_POSES_MAX][BOSS_W_MAX], boss_hand[4], boss_npose;   // his poses' column pairs (his file's art)
 static uint8_t boss_hop, boss_step_t, boss_stomp, boss_hat, boss_row;
 static uint16_t boss_own_na;      // next_arrival as his last empty left it (still equal: nobody scheduled one since)
 static uint8_t hud_row[8];
@@ -156,7 +155,7 @@ static void boss_look(void) {
     key = p | (h << 4);
     if (key == boss_pose) return;
     boss_pose = key;
-    m = boss_map[p];
+    m = boss_map + p * BOSS_W_MAX;
     for (k = 0; k < w; k++) boss_cols[k] = pair_id(m[k]);
     if (h) boss_cols[w - 1] = pair_id(boss_hand[h]);
     for (; k < BOSS_W_MAX; k++) boss_cols[k] = 0;

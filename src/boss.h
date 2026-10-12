@@ -59,9 +59,17 @@ extern uint8_t  boss_fast_empty;  // 1: empties on his bar slide 1 px a frame (t
 extern uint8_t  boss_returns;     // 1: MUG_RETURN mugs may be on his bar (the Critic): boss_mugs moves them
 #define MUG_RETURN  5             // mug_state: a full drink sent back to the bartender (boss.c boss_mugs moves it; mugs.c
                                   // draws it as a full mug and counts it live but does not step it: game.h's enum + 1)
-extern uint8_t  boss_map[BOSS_POSES_MAX][BOSS_W_MAX];   // his poses: the column pair of each column (boss_art_set)
-extern uint8_t  boss_hand[4];                           // the hand column's pair holding 0..3 empties
-extern uint8_t  boss_npose;                             // poses in boss_map
+// Buffers a fight fills at its start, over the end of story.c's cut-scene backdrop buffer (story_scratch: no
+// cut-scene, mini-game or title list runs during a fight; BEV_SET / BEV_LOAD fill them again for every fight). Not
+// in WRAM of their own: the stack sits right above the game's variables, and 62 more bytes there cost it the
+// headroom it needs (the GBDK library's __map_tile_offset, the last variable, was overwritten).
+#define BOSS_SCRATCH_N  64
+#define BOSS_SCRATCH    (story_scratch + STORY_SCRATCH - BOSS_SCRATCH_N)
+#define boss_map        BOSS_SCRATCH       // [BOSS_POSES_MAX * BOSS_W_MAX]: his poses, pose p's column k's pair at
+                                           // p * BOSS_W_MAX + k
+#define boss_hand       (BOSS_SCRATCH + BOSS_POSES_MAX * BOSS_W_MAX)       // [4]: the hand column holding 0..3 empties
+#define BOSS_OWN        (boss_hand + 4)                                     // a boss file's own buffer (BOSS_OWN_N bytes)
+#define BOSS_OWN_N      (BOSS_SCRATCH_N - BOSS_POSES_MAX * BOSS_W_MAX - 4)
 
 uint8_t boss_send(uint8_t kind) BANKED;   // send one MUG_EMPTY / MUG_RETURN from his right edge if the fair-empties
                                           // schedule (and boss_window) allows: 1 = sent (next_arrival updated)

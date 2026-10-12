@@ -38,7 +38,10 @@ uint8_t yeti_phase;            // YP_* (tests)
 uint8_t boss_icy;              // frames of ice left (spec 3.7's test hook)
 uint8_t yeti_cols;             // counter columns frosted (from column 0)
 static uint8_t yeti_t;         // frames in the phase
-static uint8_t ice_row[ICE_COLS];   // the icy counter row (the venue's counter tiles mapped to their icy copies)
+#define ice_row BOSS_OWN       // [ICE_COLS] the icy counter row (the venue's counter tiles mapped to their icy copies)
+#if ICE_COLS > BOSS_OWN_N
+#error "the Yeti's icy row: BOSS_OWN_N"
+#endif
 
 static uint8_t counter_y(void) {
     return BAR_COUNTER_ROW(boss_bar);
