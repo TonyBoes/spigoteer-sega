@@ -3,12 +3,12 @@
 // up with a bell: press the button its badge shows before the Kid draws. First to three rounds.
 //
 // Rules (the spec's numbers):
-// - A round: "ROUND n" / "READY" for QD_READY_LEN frames, then "STEADY" and a wait W = 90 + 0..210 frames, then DRAW!.
+// - A round: "ROUND n" / "WAIT FOR THE SIGN" for QD_READY_LEN frames and on through the wait (nothing reads as a countdown), a wait W = 90 + 0..210 frames, then DRAW!.
 // - The badge: rounds 1-2 always A, rounds 3-5 A or B at random. Only a fresh press counts (`pressed`: a button held
 //   through the sign is not one).
 // - The Kid draws R frames after DRAW! (rounds 1-5: 34 30 30 28 26). The player's right button on frame t <= R after
 //   DRAW! wins the round (a tie at t == R is his); no press by R: the Kid's ("TOO SLOW"). A or B during the wait, or the
-//   wrong button after DRAW!: FOUL, the Kid's round. (A press during READY, before the wait, is ignored: it is the
+//   wrong button after DRAW!: FOUL, the Kid's round. (A press during the first QD_READY_LEN frames, before the wait, is ignored: it is the
 //   pause between rounds.)
 // - Feints from round 3: once during the wait, never in its last QD_FEINT_GAP frames, a tumbleweed rolls across the
 //   floor (SFX_SHAKE) or a crow lands on the sign and caws (SFX_LAUNCH); QD_FEINT_LEN frames each.
@@ -268,10 +268,10 @@ void qd_update(uint8_t pressed) BANKED {
             S.txt[0] = 'R'; S.txt[1] = 'O'; S.txt[2] = 'U'; S.txt[3] = 'N'; S.txt[4] = 'D'; S.txt[5] = ' ';
             S.txt[6] = '0' + S.round; S.txt[7] = 0;
             mg_say(MG_TEXT_A, S.txt);
-            mg_say(MG_TEXT_B, "READY");
+            mg_say(MG_TEXT_B, "WAIT FOR THE SIGN");
             break;
         case QS_READY:
-            if (++S.t >= QD_READY_LEN) { S.st = QS_WAIT; S.t = 0; mg_say(MG_TEXT_B, "STEADY"); }
+            if (++S.t >= QD_READY_LEN) { S.st = QS_WAIT; S.t = 0; }   // the banner stays
             break;
         case QS_WAIT:
             if (pressed & (J_A | J_B)) { end_round(QR_FOUL); break; }

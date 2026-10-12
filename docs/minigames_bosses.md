@@ -761,14 +761,14 @@ Lower-case letters are BG, upper-case are sprites unless the note says otherwise
 As built (2026-10-11, src/qd.c; PLAN.md "Quick Draw and BONUS > MINI GAMES as built"): the rules and numbers below,
 on the owner-approved art (assets/art/quickdraw/). Where the build follows the approved mock-up instead of this
 section: the pips sit on row 12 (the Kid's left, the player's right), not on the HUD row; the badge is a light letter
-in a dark disc. A press during READY is ignored (the foul rule starts with the wait). Sounds reuse existing SFX (bell
+in a dark disc. A press during the first 60 frames (QS_READY) is ignored (the foul rule starts with the wait). Sounds reuse existing SFX (bell
 SFX_CATCH, pop SFX_SERVE, foul SFX_BREAK, too slow SFX_LIFE, tumbleweed SFX_SHAKE, caw SFX_LAUNCH).
 
 Play: the Sarsaparilla Kid challenges the new bartender. Both stand with a bottle in the holster. A big DRAW! sign
 flips up with a bell; whoever pops the cork first wins the round. First to three.
 
 Rules and numbers:
-- Round: "READY" for 60 frames, then a wait W = 90 + rand(0..210) frames (1.5-5 s), then DRAW!.
+- Round: the banner "ROUND n" / "WAIT FOR THE SIGN" (nothing reads as a countdown, so nobody presses early) for 60 frames and on through a wait W = 90 + rand(0..210) frames (1.5-5 s), then DRAW!.
 - The DRAW! sign carries a button badge. Rounds 1-2: always A. Rounds 3-5: A or B (random). The player must press
   the shown button (a fresh press; A held through the sign does not count).
 - The Kid draws R frames after DRAW!: rounds 1-5 R = 34, 30, 30, 28, 26 (566 ms down to 433 ms; rounds 3-5 are a
@@ -801,7 +801,7 @@ Hardware:
  05 wwwwwwwwwwwwwwwwwwww
  06 wwwwddrraawwiiwbbwww    d r a w i = DRAW! 2x2 tiles per letter (BG), b = A/B badge (BG, 2x2)
  07 wwwwddrraawwiiwbbwww
- 08 wwwwwwwHHHHHHwwwwwww    READY / FOUL / YOU 0.32 (HUD glyphs)
+ 08 wwwwwwwHHHHHHwwwwwww    WAIT FOR THE SIGN / FOUL / YOU 0.32 (HUD glyphs)
  09 wwwwwwwwwwwwwwwwwwww
  10 cccccccccccccccccccc    the saloon counter (venue_backdrop, counter row 10)
  11 ffffffffffffffffffff

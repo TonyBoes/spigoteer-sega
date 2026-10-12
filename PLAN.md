@@ -1582,11 +1582,11 @@ DRAW! sign and the pips, in assets/art/quickdraw/ ("; Art: approved design (owne
   gets the space lounge, MG_STUB the saloon). A planned id not built yet still plays the stub, in its own venue.
 - **Story / arcade**: gen_story BUILT_SLOTS gains MINI: SALOON, so chapter 1's mini slot (after the Happy hour) plays
   Quick Draw in MG_STORY mode (the score carries on, A CONTINUE, a gold medal +1 life), in STORY and in ARCADE.
-- **Rules** (src/qd.c, the spec's numbers): per round "ROUND n" / READY 60 frames (a press then is ignored: the pause
-  between rounds), STEADY and a wait W = 90 + 0..210 frames, then DRAW! (the sign flips to its face with the badge,
+- **Rules** (src/qd.c, the spec's numbers): per round "ROUND n" / WAIT FOR THE SIGN 60 frames (a press then is ignored: the pause
+  between rounds), the same banner through a wait W = 90 + 0..210 frames, then DRAW! (the sign flips to its face with the badge,
   SFX_CATCH as the bell). Badge A in rounds 1-2, A or B in 3-5. R = 34 30 30 28 26. The badge's button on frame t <= R
   after DRAW! wins (a tie at R is the player's; R + 1 is TOO SLOW: the Kid drew); only a fresh press counts (a button
-  held from READY through DRAW! is no press); A or B during the wait, or the other button after DRAW!: FOUL. Feints
+  held from the first 60 frames through DRAW! is no press); A or B during the wait, or the other button after DRAW!: FOUL. Feints
   from round 3, one a round, 48 frames, ending >= 30 frames before DRAW!: a tumbleweed rolling along the floor
   (SFX_SHAKE) or a crow dropping onto the sign, cawing (SFX_LAUNCH) and leaving. After a round 60 frames: the poses
   (the winner's cork pops, the loser fumbles the bottle), the pips, "YOU 0.32" (hundredths, the story font's '.' tile

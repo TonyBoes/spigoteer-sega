@@ -223,7 +223,7 @@ def test_the_screen(model):
 # ---- a round ---------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_round_ready_steady_draw_and_won(model):
-    """ROUND 1 / READY for 60 frames, STEADY through the wait, DRAW! with the A badge and the bell, the player's A on
+    """ROUND 1 / WAIT FOR THE SIGN for 60 frames and through the wait, DRAW! with the A badge and the bell, the player's A on
     frame t: 500 + (R - t) x 20 points, "YOU 0.08" with the story font's '.', the poses (he pops the cork, the Kid
     fumbles), his pip, then the planks again and round 2."""
     with quickdraw(model) as gb:
@@ -231,11 +231,11 @@ def test_a_round_ready_steady_draw_and_won(model):
         frames(gb, 2)
         s = qd(gb)
         assert s["st"] == QS_READY and s["round"] == 1 and s["r"] == KID_R[0] and s["badge"] == 0
-        assert text(gb, 2) == "ROUND 1" and text(gb, 3) == "READY"
+        assert text(gb, 2) == "ROUND 1" and text(gb, 3) == "WAIT FOR THE SIGN"
         assert WAIT_MIN <= s["wait"] < WAIT_MIN + WAIT_SPAN and s["feint"] == QF_NONE
         until(gb, lambda: qd(gb)["st"] == QS_WAIT, READY_LEN + 2)
         frames(gb, 2)
-        assert text(gb, 3) == "STEADY" and sign_rows(gb) == BACK_ROWS
+        assert text(gb, 3) == "WAIT FOR THE SIGN" and sign_rows(gb) == BACK_ROWS
         bells = gb.read("sfx_count", 9)[SFX_CATCH]
         to_draw(gb)
         frames(gb, 2)
@@ -490,7 +490,7 @@ def test_a_feint_on_screen(model):
         assert s["feint"] != QF_NONE
         until(gb, lambda: qd(gb)["wait"] <= qd(gb)["feint_at"] and qd(gb)["feint_t"] == 30, 400)
         frames(gb, 1)
-        assert text(gb, 2) == "ROUND 3" and text(gb, 3) == "STEADY"
+        assert text(gb, 2) == "ROUND 3" and text(gb, 3) == "WAIT FOR THE SIGN"
         shot(gb, "feint")
         check_golden(gb, "qd_feint")
 
