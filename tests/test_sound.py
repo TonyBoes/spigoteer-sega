@@ -500,7 +500,11 @@ def test_the_tunes_are_the_specs_token_for_token():
     for name, (bars, chords) in specs.items():
         s = songs.SONGS[name]
         want = " ".join(spec_bars_for_the_game(name, bars)).split()
-        assert [t.rstrip("!") for t in s["ch2"].split()] == want, f"{name}: melody differs from docs/music_specs.md"
+        ch2, ch3 = s["ch2"], s["ch3"]
+        if name == "mountain":                          # the song starts with the pickup: put it back after bar 16
+            tot = songs.BAR_ROWS[name] * len(bars)
+            ch2, ch3 = (songs.rotate_rows(x, tot - songs.MTN_PICKUP) for x in (ch2, ch3))
+        assert [t.rstrip("!") for t in ch2.split()] == want, f"{name}: melody differs from docs/music_specs.md"
         per_bar = songs.BAR_ROWS[name]
         for ch in ("ch2", "ch3"):                       # every bar adds up (ties included), melody and bass
             rows = gm.merge_ties(s[ch]).split()
@@ -511,7 +515,7 @@ def test_the_tunes_are_the_specs_token_for_token():
         assert abs(s["tempo"] - ideal) / ideal < 0.05, f"{name} tempo {s['tempo']} vs {ideal:.1f} frames per row (game tempo {bpm} bpm)"
         if name in ("hall", "sakura"):
             continue                                    # root ostinato / Sakura's own bass figure (its test below)
-        bass = s["ch3"].replace("!", "").split()
+        bass = ch3.replace("!", "").split()
         i = 0
         for chord in chords:                            # the bass plays the bar's chord: its root on the downbeat
             assert bass[i].split(":")[0] == songs.CHORD[chord.split("/")[0]][0], f"{name}: chord {chord} vs bass {bass[i]}"

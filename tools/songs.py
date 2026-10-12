@@ -46,6 +46,18 @@ def oompah(chords, rows):
     return " ".join(out)
 
 
+def rotate_rows(text, n):
+    """Move the last n rows of a row-token string to the front (tokens must split at that row)."""
+    toks = text.split()
+    got = 0
+    i = len(toks)
+    while got < n:
+        i -= 1
+        got += int(toks[i].split(":")[1].rstrip("!"))
+    assert got == n, f"no token boundary {n} rows from the end"
+    return " ".join(toks[i:] + toks[:i])
+
+
 def rep(text, n):
     return " ".join([text] * n)
 
@@ -251,7 +263,11 @@ MTN_BARS = [
 MTN_CHORDS = [
     "D", "A7", "D", "D", "D", "D", "A7", "A7", "D", "D7", "G", "A7", "D", "A7", "D", "D",
 ]
-song("mountain", 6, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 16),
+# The tune STARTS with the "She'll be" pickup (the last 8 rows of bar 16 moved to the front, music step 4); melody and
+# bass are rotated together, so every note keeps its place against the bass; the drum loop has the same two halves.
+# Bars 1-16 above stay the bar numbering of the spec (bar 1 begins MTN_PICKUP rows into the song).
+MTN_PICKUP = 8
+song("mountain", 6, "A", rotate_rows(" ".join(MTN_BARS), MTN_PICKUP), rotate_rows(oompah(MTN_CHORDS, 16), MTN_PICKUP),
      " ".join(["K:2 r:2 S:2 r:2 K:2 r:2 S:2 r:2"] * 16), legato=SUNG_ARTIC)
 
 # ---------------------------------------------------------------------------------------------
