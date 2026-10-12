@@ -178,6 +178,13 @@ ENT_CHORDS = [
 ]
 song("entertainer", 8, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8),
      groove="K:1 r:1 H:1 r:1 S:1 r:1 H:1 r:1")
+# Harmony (music step 5): the A section gets a voice a third or sixth under the melody's octave figures, one note a beat
+# (the 25% "harm" pulse, decaying like a piano's second hand); the B section, where the melody comes down into the
+# harmony's register and runs in sixteenths, a slow counter-line instead: one held chord tone a chord, the third or
+# seventh first, each moving to the nearest (the 12.5% pad).
+_t = H.Tune(" ".join(ENT_BARS), ENT_CHORDS, 8, 4, "C")
+harmony("entertainer", _t, " ".join([H.follow(_t, (1, 16), "G4", "B5", grid=4, merge=False),
+                                     H.guide(_t, (17, 32), "C4", "C5", inst="/2")]), ("harm", "pad"))
 
 # ---------------------------------------------------------------------------------------------
 # Show: "Galop infernal" (Jacques Offenbach, Orphee aux enfers, 1858, the can-can), the owner's spec (docs/music_specs.md
