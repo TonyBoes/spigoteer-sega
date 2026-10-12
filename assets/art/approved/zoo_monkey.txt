@@ -1,0 +1,20 @@
+; APPROVED by the owner on 2026-10-11 (zoo_monkey, round 4 B: the 3/4 head with nose, eyes and mouth shifted together). Replaces the frame in assets/art/patrons/zoo.txt when the new zoo patron (hippo) is imported.
+; frames: zoo_monkey (round 4 head pass)
+; palette key: zoo_monkey (owner-approved colours)
+; option B, true 3/4 facing right: approved head outline (muzzle bulge right) kept; eyes x=7/11, widow's peak x=9, nose x=10, mouth x=9-12 all moved right together; body and back unchanged
+....######......
+...#++++++##....
+..#+++++++++#...
+..#++----+--+#..
+.##++---------#.
+#-#+---#---#--#.
+#-++-----------#
+.#++------#----#
+..#+-----------#
+..#++----####-#.
+...#++-------#..
+....#++######...
+..##++++++++##..
+.#+++++----+++#.
+#++++++----++++#
+################
