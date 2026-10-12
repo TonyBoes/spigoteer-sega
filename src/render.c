@@ -792,7 +792,7 @@ static void draw_dancers(uint8_t sig) {
     flags = is_cgb ? OBJPAL_DANCER : 0;
     for (k = 0; k < NUM_DANCERS; k++, o += 4) {
         if (!(sig & (1 << k))) { o[0].y = o[1].y = o[2].y = o[3].y = 0; continue; }
-        t = venue.show_tile[venue.show_band ? (k << 1) | (dancer_frame & 1) : dancer_frame];
+        t = venue.show_tile[(venue.show_band & 1) ? (k << 1) | (dancer_frame & 1) : dancer_frame];
         x = dancer_x[k] + 8;
         o[0].y = DANCER_OAM_Y;      o[0].x = x;     o[0].tile = OBJ_DANCER + t[0]; o[0].prop = flags;
         o[1].y = DANCER_OAM_Y;      o[1].x = x + 8; o[1].tile = OBJ_DANCER + t[1]; o[1].prop = flags;

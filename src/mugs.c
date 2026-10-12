@@ -129,10 +129,12 @@ void update_glass(void) {
 
 // OAM 4: the glass the bartender holds under the spout while filling (hidden otherwise).
 // It sits where the launched mug will start (under the bar's spout, BAR_SPOUT, the counter-top row).
+// Per venue the glass held under the spout hangs a few px (0-3) lower than a sliding mug, its tap's spout tip ends that far
+// lower (owner's per-venue cup heights): tools/gen_art.py FILL_DY, packed into venue.show_band bits 1-2 (no ROM0 table, no WRAM).
 void draw_fill(void) {
     OAM_item_t *o = shadow_OAM + OAM_FILL;
     if (!fill_timer) { o->y = 0; return; }
-    o->y = bar_oam_y[bar] + MUG_DY; o->x = (uint8_t)(tap_now + (SPOUT_X - TAP_X + 8));
+    o->y = bar_oam_y[bar] + MUG_DY + (venue.show_band >> 1); o->x = (uint8_t)(tap_now + (SPOUT_X - TAP_X + 8));
     o->tile = OBJ_MUG_FILL + fill_stage * 2; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;   // DMG: OBP0 (beer light grey) shows on the white wall; OBP1 would make it white
 }
 

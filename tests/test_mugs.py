@@ -1,6 +1,6 @@
 # M2: filling and sliding full mugs, breaking at the left end, lives, game over.
 import pytest
-from conftest import GAME, LAYOUT, bar_counter_row, bar_top_y, check_golden, mug_top_y
+from conftest import GAME, LAYOUT, bar_counter_row, bar_top_y, check_golden, fill_top_y, mug_top_y
 
 pytestmark = pytest.mark.timeout(60)
 
@@ -312,7 +312,7 @@ def test_fill_sprite_shows_while_filling_and_steps_through_the_frames(gb):
     assert tiles[-1] == OBJ_MUG_FILL + 3 * 2 and tiles[0] == OBJ_MUG_FILL
     assert [t for i, t in enumerate(tiles) if i == 0 or t != tiles[i - 1]] == [OBJ_MUG_FILL + 2 * s for s in range(4)]
     e = fill_sprite(gb)
-    assert e["x"] - 8 == SPOUT_X and e["y"] - 16 == mug_top_y(0), "under the spout, in his hand, on the counter surface of bar 0"
+    assert e["x"] - 8 == SPOUT_X and e["y"] - 16 == fill_top_y(0), "under the spout, in his hand (FILL_DY[venue] below a sliding mug) on bar 0"
     # launch: the fill sprite goes, the sliding mug starts from the same spot
     gb.release("a")
     gb.run(2)
@@ -328,7 +328,7 @@ def test_fill_sprite_follows_the_bar_and_goes_when_cancelled(gb):
     gb.hold("a")
     gb.run(8)
     e = fill_sprite(gb)
-    assert e["y"] - 16 == mug_top_y(1)
+    assert e["y"] - 16 == fill_top_y(1)
     gb.press("left", 2)
     assert gb.mem("fill_timer") == 0 and fill_sprite(gb) is None
     gb.release("a")
@@ -418,7 +418,7 @@ def test_a_full_mug_is_carried_to_another_bar_and_launched_there(gb):
     gb.press("down", 2)                          # and on to bar 2
     gb.run(1)
     assert gb.mem("bar") == 2 and gb.mem("fill_timer") == FILL_FRAMES_N
-    assert fill_sprite(gb)["y"] - 16 == mug_top_y(2), "the full mug moved with him"
+    assert fill_sprite(gb)["y"] - 16 == fill_top_y(2), "the full mug moved with him"
     assert gb.mem("mugs_live") == 0, "nothing launched yet"
     gb.release("a")
     gb.run(2)

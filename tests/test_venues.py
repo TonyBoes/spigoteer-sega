@@ -311,30 +311,77 @@ def test_venue_golden(gb, group):
     check_golden(gb, f"venue_{THEMES[group]}")
 
 
-# ---- the saloon keg, 4 px taller (owner 2026-10-09) --------------------------------------------------------------------
-def _saloon_bar_rows():
-    path = ROOT / "assets" / "approved" / "venues" / "saloon_bar.txt"
+# ---- the saloon keg, taller (owner 2026-10-09, again with the per-venue taps 2026-10-12) --------------------------------
+def _bar_rows(theme):
+    path = ROOT / "assets" / "approved" / "venues" / f"{theme}_bar.txt"
     return [r for r in path.read_text().splitlines() if r and not r.startswith(";")]
 
 
-def test_the_saloon_keg_is_20_px_tall():
-    """Columns 18-19: the keg fills rows 4-23 of the 24-px bar (was 8-23), its top 4 px clear of the bar above's
-    falling glass (3 lines); bar + floor still clear of the title's text ids, the bar palette only."""
+def _saloon_bar_rows():
+    return _bar_rows("saloon")
+
+
+def _spout_tip(theme):
+    """Bar row of the lowest art pixel over the glass columns (x 136-143) above the counter (rows 0-15)."""
+    rows = _bar_rows(theme)
+    return max((y for y in range(16) for x in range(136, 144) if rows[y][x] != "."), default=-1)
+
+
+def test_the_saloon_keg_is_23_px_tall():
+    """Columns 18-19: the keg fills rows 1-23 of the 24-px bar (was 4-23, owner's per-venue pick: as tall as the strip
+    allows, one clear row above); bar + floor still clear of the title's text ids, the bar palette only."""
     rows = _saloon_bar_rows()
     keg = [y for y in range(24) if set(rows[y][144:160]) != {"."}]
-    assert keg == list(range(4, 24)), keg
+    assert keg == list(range(1, 24)), keg
     v = venue("saloon")
     assert v["bar_n"] <= VENUES["pool"] - VENUES["title_text_slot"]
     assert all(v["bar_attr"][r * 20 + c] == BGPAL_BAR for r in range(3) for c in (18, 19))
 
 
-def test_the_saloon_spout_still_lines_up_with_the_fill(gb):
-    """The spout is unchanged: the pipe (rows 10-12) runs from the keg into column 17 and the nozzle (rows 13-15) hangs
-    inside column 17, over the glass the bartender fills at SPOUT_X; the keg tiles are on screen on every bar."""
+def test_the_saloon_has_a_sheriff_star():
     rows = _saloon_bar_rows()
-    nozzle = {x for y in (13, 14, 15) for x in range(128, 144) if rows[y][x] != "."}
-    assert nozzle and min(nozzle) >= GAME["SPOUT_X"] and max(nozzle) < GAME["SPOUT_X"] + 8, sorted(nozzle)
-    assert all(rows[y][136] != "." and rows[y][144] != "." for y in (10, 11, 12)), "the pipe joins the keg"
+    star = {(x, y) for y in range(13, 19) for x in range(148, 155) if rows[y][x] == "-"}
+    assert len(star) >= 8, "the star's light pixels on the barrel body"
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_the_spout_tip_ends_above_the_empty_glass(theme):
+    """Per venue (src/mugs.c fill_dy): the glass held under the spout hangs FILL_DY below a sliding mug; its rim is
+    sprite row 5 and its foam head (full frame) row 4, so the lowest spout pixel over the glass must be above bar row
+    MUG_DY + FILL_DY + 4. A step of at most 3 px when the filled mug launches (4 px is borderline)."""
+    from conftest import FILL_DY
+    dy = FILL_DY[THEMES.index(theme)]
+    assert 0 <= dy <= 3, "the launch handoff stays a 3 px step at most"
+    tip = _spout_tip(theme)
+    assert 0 <= tip < LAYOUT["MUG_DY"] + dy + 4, (theme, tip, dy)
+    # the cup is as high as the art allows: one row lower of drop would put the foam head on the tip
+    assert dy == 0 or tip >= LAYOUT["MUG_DY"] + (dy - 1) + 4, (theme, tip, dy, "cup could be raised")
+
+
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
+def test_the_fill_glass_hangs_the_venues_drop_below_a_mug(gb, group):
+    """In the game, per venue: the glass the bartender holds is FILL_DY[venue] below where the launched mug starts, and
+    the launched mug starts at MUG_DY (a step of at most 3 px at launch)."""
+    from conftest import FILL_DY, fill_top_y, mug_top_y
+    at_theme(gb, group)
+    gb.run(30)
+    gb.hold("a")
+    gb.run(8)
+    fill = [s for s in gb.visible_sprites() if OBJ_MUG_FILL <= s["tile"] < OBJ_MUG_FILL + 8]
+    assert len(fill) == 1 and fill[0]["y"] - 16 == fill_top_y(0, group) == mug_top_y(0) + FILL_DY[group]
+    gb.run(14)
+    gb.release("a")
+    gb.run(2)
+    mug = [gb.oam()[5]]
+    assert mug and mug[0]["y"] - 16 == mug_top_y(0), "the launched mug starts at the sliding height"
+
+
+def test_the_saloon_spout_still_lines_up_with_the_fill(gb):
+    """The spout hangs over the glass the bartender fills at SPOUT_X, its tip clear of the glass (see the per-venue
+    test above); the keg tiles are on screen on every bar."""
+    rows = _saloon_bar_rows()
+    spout = {x for y in range(16) for x in range(128, 144) if rows[y][x] != "."}
+    assert spout and min(x for x in spout if x >= GAME["SPOUT_X"]) >= GAME["SPOUT_X"]
     v = venue("saloon")
     for b in range(4):
         for r in range(2):
@@ -345,7 +392,6 @@ def test_the_saloon_spout_still_lines_up_with_the_fill(gb):
     fill = [s for s in gb.visible_sprites() if OBJ_MUG_FILL <= s["tile"] < OBJ_MUG_FILL + 8]
     gb.release("a")
     assert len(fill) == 1 and fill[0]["x"] - 8 == GAME["SPOUT_X"] and gb.mem("bartender_x") == GAME["TAP_X"]
-    assert min(nozzle) >= fill[0]["x"] - 8 and max(nozzle) < fill[0]["x"], "the nozzle is over the glass"
 
 
 # ---- the breaking drink, generated from the venue's own drink (crash fix option 1, owner 2026-10-10) ----------------

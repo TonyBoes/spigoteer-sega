@@ -22,6 +22,7 @@
 Usage: gen_art.py outdir previewdir
 """
 import json
+import re
 import sys
 from pathlib import Path
 from PIL import Image
@@ -36,6 +37,12 @@ THEMES = ["saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "t
 # pool. The title's menu text overwrites ids 0..TITLE_TEXT_SLOT-1 while it shows the saloon's bar: bar ids stay above.
 # (22 since BOSS RUSH, 2026-10-12: its 5 new text tiles did not fit under TITLE_TILE_END; every venue's bar + floor has
 # at most 12 tiles, so ids 20-21 were stage ids only, and the title shows no stage.)
+# The glass held under the spout hangs FILL_DY px lower than a sliding mug, per venue (owner's per-venue tap picks, 2026-10-12).
+# Packed into venue.show_band bits 1-2 (WRAM-free: the venue struct is WRAM already; src/mugs.c draw_fill reads it). The
+# check below keeps every venue's spout tip above the glass in every fill frame: the glass's rim is sprite row 5 and the full
+# drink's foam head row 4, the sprite top MUG_DY + FILL_DY below the bar's top row, so the lowest art pixel over the glass
+# (x 136-143, rows 0-15) must be above row MUG_DY + FILL_DY + 4. At most 3 (the launch handoff is a step of that many px).
+FILL_DY = {"saloon": 3, "sports": 2, "lodge": 0, "bistro": 0, "igloo": 2, "factory": 0, "biker": 3, "teahouse": 2, "zoo": 2, "space": 3}
 VENUE_POOL, TITLE_TEXT_SLOT = 36, 22
 STAGE_ROWS, BAR_ROWS = 4, 3              # screen rows 1-4; per bar 2 wall rows + the counter row
 # CGB BG palette slots (= src/game.h BGPAL_*): stage_a, stage_b, bar, bar_b
@@ -348,7 +355,7 @@ def venues(outdir, prev):
          "    const uint8_t *anim_frames, *anim_script;    // stage animation (src/venue.c), in the venue's own bank",
          "    uint16_t anim_frames_n;                      // bytes of anim_frames (0: the stage does not move)",
          "    uint8_t anim_script_n, anim_first, anim_k;   // script bytes; first animated stage id, animated tiles",
-         "    uint8_t show_band;                           // 0: one dance for all three (row = dance frame); 1: a band",
+         "    uint8_t show_band;                           // bit 0: 0 one dance for all three (row = dance frame), 1 a band; bits 1-2: FILL_DY (src/mugs.c)",
          f"    uint8_t show_tile[{SHOW_ROWS}][4];             // per row: OBJ tile offsets from OBJ_DANCER, TL TR BL BR",
          "    uint8_t splash_tile;                         // the counter splash's BG id (assets/art/splash; 0: none)",
          "} venue_t;",
@@ -406,6 +413,12 @@ def venues(outdir, prev):
         a_first = len(suniq)
         smap = [a_first - 1 - i if i < 0 else i for i in smap]
         suniq += akeys
+        fdy = FILL_DY[t]
+        mug_dy = int(re.search(r"#define MUG_DY\s+(\d+)", (ROOT / "src" / "layout.h").read_text()).group(1))
+        tip = max((y for y in range(16) for x in range(136, 144) if bar[y][x] != "."), default=-1)
+        if not 0 <= fdy <= 3 or not 0 <= tip < mug_dy + fdy + 4:
+            sys.exit(f"gen_art: venue {t}: the spout tip is on bar row {tip} but the fill glass (FILL_DY {fdy}) starts its foam head "
+                     f"on row {mug_dy + fdy + 4}: shorten the spout or raise FILL_DY (at most 3)")
         bgrid, buniq = cut(bar, 20, 3), []
         bmap = []
         for row in bgrid:
@@ -475,7 +488,7 @@ def venues(outdir, prev):
               "    { " + ", ".join(arr(x) for x in pal15) + " },",
               (f"    {sym}_anim_frames, {sym}_anim_script, {len(anim['data'])}, {len(ascript)}, {a_first}, {anim['k']},"
                if anim else "    0, 0, 0, 0, 0, 0,"),
-              f"    {band}, {{ " + ", ".join(arr(r) for r in show_tab) + " },", f"    {bar_base + sid if sid is not None else 0}",
+              f"    {band | fdy << 1}, {{ " + ", ".join(arr(r) for r in show_tab) + " },", f"    {bar_base + sid if sid is not None else 0}",
               "};", ""]
         (outdir / f"{sym}.c").write_text("\n".join(vc))
         load += [f"BANKREF_EXTERN({sym})", f"extern const venue_t {sym};"]
@@ -484,7 +497,7 @@ def venues(outdir, prev):
                              "splash_tile": bar_base + sid if sid is not None else 0,
                              "stage_map": abs_smap, "stage_attr": abs_sattr, "bar_map": abs_bmap, "bar_attr": abs_battr,
                              "pal": pal15, "drink": dtile[:20 * 16], "crash": dtile[20 * 16:], "show": stiles,
-                             "show_band": band, "show_table": show_tab, "show_frames": len(shows), "stage_tiles": stile, "bar_tiles": btile,
+                             "show_band": band, "fill_dy": fdy, "show_table": show_tab, "show_frames": len(shows), "stage_tiles": stile, "bar_tiles": btile,
                              "anim": {"first": a_first, "k": anim["k"], "slots": anim["slots"], "names": anim["frames"],
                                       "frames": [anim["data"][i * anim["k"] * 16:(i + 1) * anim["k"] * 16]
                                                  for i in range(len(anim["frames"]))],

@@ -192,6 +192,23 @@ def mug_top_y(b):
     return bar_top_y(b) + LAYOUT["MUG_DY"]
 
 
+# per-venue drop of the glass held under the spout (tools/gen_art.py FILL_DY, packed into venue.show_band bits 1-2 and read by
+# src/mugs.c draw_fill; build/venues.json "fill_dy"), px below a sliding mug. Index = theme (saloon sports lodge bistro igloo
+# factory biker teahouse zoo space).
+def _fill_dy_table():
+    import json
+    v = json.loads((ROOT / "build" / "venues.json").read_text())
+    return [v["venues"][t]["fill_dy"] for t in v["themes"]]
+
+
+FILL_DY = _fill_dy_table()
+
+
+def fill_top_y(b, venue_id=0):
+    """Screen y of the top of the fill glass held under the spout on bar b (FILL_DY[venue] below a sliding mug)."""
+    return mug_top_y(b) + FILL_DY[venue_id]
+
+
 # ---- game tunables: parsed from src/game.h (plain numeric defines only) ----
 GAME = {m.group(1): int(m.group(2)) for m in _re.finditer(r"#define (\w+)\s+(\d+)\b", (ROOT / "src" / "game.h").read_text())}
 
