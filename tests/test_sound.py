@@ -6,7 +6,7 @@ from io import BytesIO
 
 import numpy as np
 import pytest
-from conftest import GAME, K_SETTINGS, MENU_SETTLE, ROM, ROOT, title_arcade, title_pick
+from conftest import GAME, K_SETTINGS, MENU_SETTLE, ROM, ROOT, title_level, title_pick
 from gbtools import Rom
 from pyboy import PyBoy
 from test_art import goto_group
@@ -62,7 +62,7 @@ def save_ram(rom):
 
 
 def start_game(rom):
-    title_arcade(rom)
+    title_level(rom)
     run_until(rom, lambda: state(rom) == PLAYING, 30)
     rom.write("tip_chance", 0)
     while rom.mem("intro_timer") > 44:

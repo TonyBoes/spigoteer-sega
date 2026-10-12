@@ -7,7 +7,7 @@ import json
 import re
 
 import pytest
-from conftest import ROOT, check_golden, hold_stage_anim, title_arcade, venue
+from conftest import ROOT, check_golden, hold_stage_anim, title_level, venue
 from test_bonus import lines
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, patron_group_tiles, run_until, state, tilemap_row
 from test_story import BANKS, SEQ, hud_lives, lives_hud, to_goal, to_shift, win
@@ -431,7 +431,7 @@ def test_menu_then_arcade_has_everything_back(model):
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == TITLE and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(10)
-        title_arcade(gb)
+        title_level(gb)
         run_until(gb, lambda: state(gb) == PLAYING, 60)
         gb.run(2)
         restored(gb, "saloon")

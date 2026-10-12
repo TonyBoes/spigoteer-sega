@@ -4,7 +4,7 @@ import re
 import pytest
 from conftest import (GAME, K_ARCADE, K_BONUS, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
                       ROOT, TM_BONUS, TM_PLAY, TM_SETTINGS, TM_TOP, bar_top_row, check_golden, menu_items, menu_tap,
-                      title_arcade, title_pick)
+                      title_arcade, title_level, title_pick)
 
 pytestmark = pytest.mark.timeout(120)
 
@@ -318,6 +318,18 @@ def test_play_arcade_starts_level_1(boot):
     assert len(boot.visible_sprites()) == 4, "only the bartender: the title's sprites are gone"
 
 
+@pytest.mark.parametrize("lvl", [1, 7, 23])
+def test_the_level_harness_starts_any_level_on_the_same_frame_as_the_menu_did(boot, lvl):
+    """tests/conftest.py title_level: the title's test hook title_go starts the old 10-level rotation (MODE_LEVEL) at lvl,
+    on the frame A is pressed on PLAY's ARCADE line (the hook is taken before the menu sees the key)."""
+    title_level(boot, lvl)
+    assert boot.mem("title_go") == 0, "taken"
+    run_until(boot, lambda: state(boot) == PLAYING or state(boot) == GS_LOOP, 30)
+    assert boot.mem("play_mode") == 3 and boot.mem("story_on") == 0
+    assert boot.mem("level") == lvl and boot.mem("cur_group") == (lvl - 1) % ROWS and boot.mem("lives") == 3
+    assert boot.mem("arcade_loop") == (lvl - 1) // ROWS + 1
+
+
 def test_story_starts_the_story_mode(boot):
     """M11b (was M10a's COMING SOON): PLAY > STORY opens the story's first cut-scene (tests/test_story.py has the rest)."""
     title_pick(boot, K_PLAY, K_STORY)
@@ -571,7 +583,7 @@ def test_three_lost_lives_end_the_game_and_start_goes_on_to_the_title(gb):
     assert hi_score(gb) == 50
     assert hi_shown(gb) == hi_tiles("000050"), "title shows the HI score"
     assert gb.mem("title_menu") == TM_TOP, "the top level"
-    title_arcade(gb)
+    title_level(gb)
     run_until(gb, lambda: state(gb) == PLAYING, 30)
     assert gb.mem("lives") == 3 and score(gb) == 0 and hi_score(gb) == 50 and gb.mem("game_over") == 0
 

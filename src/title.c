@@ -100,6 +100,8 @@ uint8_t  title_items[MENU_MAX]; // K_* per menu line (game.h)
 uint8_t  title_n;               // menu lines
 uint8_t  title_rows[MENU_MAX];  // their screen rows
 uint16_t title_dirty;           // menu rows (bit = screen row) still to be redrawn through the VBlank queue
+uint8_t  title_go;              // test hook: a level number (1..99) written here starts the LEVEL harness (MODE_LEVEL, the
+                                // old 10-level rotation) from that level on the next title frame (tests/conftest.py)
 uint16_t title_idle;            // M10b: frames without a key; at TITLE_IDLE_FRAMES the top-5 table shows (scores.c)
 uint8_t  logo_state[LOGO_LETTERS];   // fill state per letter: 0 empty .. TT_LOGO_STATES-1 the final art
 uint8_t  logo_done;             // filled and sparkled
@@ -406,11 +408,12 @@ static void cursor_frame(void) {
     o->tile = OBJ_MUG; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;     // DMG: OBP0 like the held mug (shows on the white wall)
 }
 
-// One title frame. 1: ARCADE was chosen (main.c starts the game); 2: no key for TITLE_IDLE_FRAMES (the table).
-// STORY / CONTINUE start the story mode from here (src/story.c), SOUNDTRACK the soundtrack player (src/jukebox.c): the
+// One title frame. 2: no key for TITLE_IDLE_FRAMES (the table).
+// ARCADE (and the test hook title_go) start a game, STORY / CONTINUE the story mode from here (src/story.c), SOUNDTRACK the soundtrack player (src/jukebox.c): the
 // screen changes, 0 is returned. A top-level item opens its submenu; B in a submenu goes back to the top level.
 uint8_t title_update(uint8_t pressed) BANKED {
     uint8_t old = title_sel, last = title_n - 1;
+    if (title_go) { old = title_go; title_go = 0; play_mode = MODE_LEVEL; start_new_game(old); return 0; }
     title_t++;
     if (pressed) title_idle = 0;
     else if (++title_idle >= TITLE_IDLE_FRAMES) return 2;
@@ -420,7 +423,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
     if (title_sel != old) { set_sel_attr(old, 0); set_sel_attr(title_sel, 1); }
     else if (pressed & (J_A | J_START)) {
         switch (title_items[title_sel]) {
-        case K_ARCADE: return 1;
+        case K_ARCADE: play_mode = MODE_ARCADE; start_new_game(1); return 0;
         case K_STORY: story_begin(0); return 0;
         case K_CONTINUE: story_begin(1); return 0;
         case K_SOUNDTRACK: title_back = TM_BONUS; jukebox_enter(); return 0;   // (B there comes back to BONUS)

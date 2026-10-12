@@ -138,10 +138,19 @@ def title_arcade(rom):
     title_pick(rom, K_PLAY, K_ARCADE)
 
 
+def title_level(rom, lv=1):
+    """From the title's top level: the LEVEL harness (MODE_LEVEL: the old 10-level rotation, its loops and bonus rounds
+    after even levels) from level lv. The title's test hook `title_go` starts it; the keys and frames are exactly those
+    PLAY > ARCADE took when it started this rotation, so every gameplay test and golden starts on the same frame."""
+    title_pick(rom, K_PLAY, K_ARCADE, press=False)
+    rom.write("title_go", lv)
+    menu_tap(rom, "a")                        # (the hook is taken first: A on the menu line does nothing)
+
+
 @pytest.fixture
 def gb(boot):
-    """Gameplay: boot, PLAY > ARCADE, then run until the intro delay is where the M1-M3 tests expect it."""
-    title_arcade(boot)
+    """Gameplay: boot, the LEVEL harness at level 1, then run until the intro delay is where the M1-M3 tests expect it."""
+    title_level(boot)
     for _ in range(30):
         if boot.mem("game_state") == PLAYING:
             break

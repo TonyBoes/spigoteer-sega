@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from gbtools import Rom
 
-from conftest import GAME, ROM, ROOT, title_arcade, bar_top_row, bar_top_y, logical_tile, OBJ_DMG_COPY, DMG_COPIES, OBJ_MUG_ID
+from conftest import GAME, ROM, ROOT, title_level, bar_top_row, bar_top_y, logical_tile, OBJ_DMG_COPY, DMG_COPIES, OBJ_MUG_ID
 from test_art import GROUPS, goto_group
 from test_flow import PLAYING, run_until, state
 from test_venues import cgb_palette
@@ -36,7 +36,7 @@ def boot_play(model):
     rom.model_name = model
     rom.run(120)
     rom.write("sa_hold", 1)                   # stage animation frozen (conftest.hold_stage_anim), as in every fixture
-    title_arcade(rom)
+    title_level(rom)
     for _ in range(30):
         if rom.mem("game_state") == PLAYING:
             break

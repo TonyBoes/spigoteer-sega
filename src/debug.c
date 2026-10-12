@@ -121,7 +121,7 @@ uint8_t debug_step(uint8_t pressed) BANKED {
     if (pressed & J_A) {
         debug_menu_open = 0;
         if (debug_story) { overlay_on = 0; save_lock = 1; story_debug_start(debug_chapter, debug_pos); }
-        else start_new_game(l);
+        else { play_mode = MODE_LEVEL; start_new_game(l); }
         return 1;
     }
     if (pressed & J_B) {

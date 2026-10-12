@@ -374,10 +374,7 @@ static void update(void) {
 #ifdef DEBUG_MENU
         if ((pressed & J_START) && (joy & J_SELECT)) pressed &= ~J_START;   // START + SELECT is the debug combo
 #endif
-        switch (title_update(pressed)) {               // the menu (title.c): 1 = ARCADE, 2 = idle: the top-5 table
-        case 1: start_new_game(1); break;
-        case 2: scores_table(); break;
-        }
+        if (title_update(pressed) == 2) scores_table();   // the menu (title.c; it starts the games); 2: idle, the top 5
 #ifdef DEBUG_MENU
         debug_watch();
 #endif

@@ -354,7 +354,7 @@ void stage_anim_step(void) BANKED;                      // sa_timer ran out: tak
 void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // plain venue wall + counter + floor (title, bonus)
 // ---- title.c (banked, M10a title screen) -----------------------------------------------------
 void title_enter(void) BANKED;                          // LCD off: draws the title and turns the LCD on
-uint8_t title_update(uint8_t pressed) BANKED;           // one title frame; 1: ARCADE chosen, 2: idle, show the table
+uint8_t title_update(uint8_t pressed) BANKED;           // one title frame (it starts the games); 2: idle, show the table
 void title_music_toggle(void) BANKED;                   // music on/off and the MUSIC line
 // title menu items (title_items[], debug.c reads them): the top level PLAY / BONUS / SETTINGS, PLAY's submenu
 // [CONTINUE] / STORY / ARCADE, BONUS's SOUNDTRACK, SETTINGS's MUSIC ON-OFF
@@ -371,6 +371,11 @@ void scores_after_game(void) BANKED;                    // after GAME OVER: init
 uint8_t scores_update(uint8_t pressed) BANKED;          // one frame of either; 1: back to the title
 // ---- story.c (banked, M11b story mode) -------------------------------------------------------------
 extern uint8_t story_on;                                // 1: story mode
+// The mode being played (src/story.c play_mode): ARCADE, STORY, CLASSIC, and LEVEL, the old 10-level rotation kept as the
+// test harness (title_go, tests/conftest.py title_level) and the debug select's "LEVEL nn" box. The order is the high
+// score tables' (save.c): the harness counts as ARCADE there.
+enum { MODE_ARCADE, MODE_STORY, MODE_CLASSIC, MODE_LEVEL };
+extern uint8_t play_mode;
 void story_begin(uint8_t cont) BANKED;                  // from the title: STORY (0) or CONTINUE (1); LCD off
 uint8_t story_update(uint8_t pressed) BANKED;           // a GS_STORY / GS_GOAL frame; 1: the screen changed
 void story_play(void) BANKED;                           // every GS_PLAYING frame in story mode: the chapter goal

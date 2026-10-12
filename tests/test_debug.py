@@ -4,11 +4,12 @@ import subprocess
 
 import pytest
 from conftest import (K_ARCADE, K_BONUS, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE,
-                      ROOT, TM_PLAY, TM_SETTINGS, TM_TOP, menu_items, menu_tap, menu_to, title_arcade, title_pick)
+                      ROOT, TM_PLAY, TM_SETTINGS, TM_TOP, menu_items, menu_tap, menu_to, title_arcade, title_level, title_pick)
 
 pytestmark = pytest.mark.timeout(120)
 
 TITLE, PLAYING, PAUSED = 0, 1, 5
+MODE_ARCADE, MODE_STORY, MODE_CLASSIC, MODE_LEVEL = range(4)   # src/game.h play_mode
 COMBO = 30
 
 
@@ -44,7 +45,7 @@ def test_a_short_start_still_starts_the_game_and_select_still_toggles_music(boot
     assert boot.mem("sound_on") == 1 - s0 and boot.mem("debug_menu_open") == 0
     boot.press("select", 3)
     boot.run(1)
-    title_arcade(boot)
+    title_level(boot)
     boot.run(20)
     assert boot.mem("game_state") == PLAYING and boot.mem("debug_menu_open") == 0
 
@@ -107,6 +108,7 @@ def test_a_starts_that_level_from_scratch(boot, lvl):
     assert boot.mem("debug_menu_open") == 0 and boot.mem("game_state") == PLAYING
     assert boot.mem("level") == lvl and boot.mem("cur_group") == (lvl - 1) % 10, "its venue"
     assert boot.mem("lives") == 3 and boot.mem("score") == 0 and boot.mem("overlay_on") == 0
+    assert boot.mem("play_mode") == MODE_LEVEL and boot.mem("story_on") == 0, "the LEVEL harness (the old rotation)"
     boot.run(30)
     assert boot.mem("game_state") == PLAYING
 
@@ -145,7 +147,7 @@ def test_b_returns_to_the_title(boot):
     boot.press("b", 2)
     boot.run(5)
     assert boot.mem("debug_menu_open") == 0 and boot.mem("game_state") == TITLE and boot.mem("overlay_on") == 0
-    title_arcade(boot)
+    title_level(boot)
     boot.run(20)
     assert boot.mem("game_state") == PLAYING, "the title still works"
 
@@ -191,7 +193,7 @@ def test_the_combo_works_from_any_menu_item_and_the_menu_survives(boot):
     assert boot.mem("game_state") == TITLE and boot.mem("title_menu") == TM_SETTINGS and boot.mem("title_sel") == 0
     assert music_line(boot) == title_text_row("music_on" if s0 else "music_off")
     menu_tap(boot, "b")                                   # the top level
-    title_arcade(boot)
+    title_level(boot)
     boot.run(20)
     assert boot.mem("game_state") == PLAYING and boot.mem("level") == 1
 

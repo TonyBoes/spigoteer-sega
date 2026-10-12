@@ -61,6 +61,7 @@ enum { SW_IDLE, SW_OUT, SW_PAL, SW_IN };
 
 // ---- state (globals => symbols the tests read) ----
 uint8_t  story_on;                 // 1: story mode (main.c, main_cold.c)
+uint8_t  play_mode;                // MODE_* (game.h): set by whatever starts a game
 uint8_t  story_phase;              // SP_*
 uint8_t  story_scene;              // SC_* (build/story.h)
 uint8_t  story_page;               // page of the scene on screen
@@ -495,7 +496,7 @@ static void chapter_done(void) {                 // every step done: saved as cl
 // banner when a step of it was reached (story_reached > 0), else at its PRE scene)
 void story_begin(uint8_t cont) BANKED {
     uint8_t i;
-    story_on = 1; story_fails = 0;
+    story_on = 1; story_fails = 0; play_mode = MODE_STORY;
     score = 0;
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     lives = START_LIVES; bonus_round = 0; game_over = 0;
@@ -660,7 +661,7 @@ void story_bonus_life(void) BANKED {
 // them (from any step), its goals. debug.c has set save.c's save_lock: nothing of the run is saved.
 void story_debug_start(uint8_t ch, uint8_t pos) BANKED {
     uint8_t i;
-    story_on = 1; story_fails = 0; story_conds = 0;
+    story_on = 1; story_fails = 0; story_conds = 0; play_mode = MODE_STORY;
     score = 0;
     for (i = 0; i < 6; i++) score_digits[i] = 0;
     lives = START_LIVES; bonus_round = 0; game_over = 0;

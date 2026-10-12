@@ -2,7 +2,7 @@
 # (docs/minigames_bosses.md section 9; src/mosh.c with its ROM0 hooks in src/patrons.c), and the band that plays faster
 # in its Last call (src/music.c music_fast). Section 9.6 lists the tests; numbers in the docstrings refer to it.
 import pytest
-from conftest import GAME, LAYOUT, ROOT, VENUES, bar_counter_row, title_arcade
+from conftest import GAME, LAYOUT, ROOT, VENUES, bar_counter_row, title_level
 from test_flow import LIFE_LOST, PLAYING, most_per_scanline, run_until, state, tilemap_row
 from test_patrons import (DRINK_MIN, DRINKING, FULL, LEAVING, MAX_P, PUSHED, WALKING, clear_patrons, inject_mug, put,
                           set_patron)
@@ -85,7 +85,7 @@ def test_the_mosh_pit_is_on_in_happy_hour_and_last_call_only(model, k):
 def test_off_in_arcade_and_in_other_chapters(model):
     from test_scores import booted
     with booted(model) as gb:
-        title_arcade(gb)
+        title_level(gb)
         run_until(gb, lambda: state(gb) == PLAYING, 60)
         from test_art import goto_group
         goto_group(gb, BIKER)                    # arcade level 7: The Chrome Cow, plain rules
