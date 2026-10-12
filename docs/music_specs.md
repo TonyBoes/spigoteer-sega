@@ -454,7 +454,8 @@ Note: "D/A7" = D for the first half-bar, A7 for the second.
 Note: Bars 1-8 end on the dominant and 9-16 resolve, so the 16 bars loop cleanly. Play the quarter notes in bars 3, 5, 11 and 13 slightly detached for the galop bounce.
 Note: Bass works best as "oom-pah": root on beat 1, chord fifth on beat 2.
 Game loop: bar 16 was 'D5:2 R:2'; the A4 pickup leads back to bar 1's D5.
-Source: Owner-supplied; Offenbach, Orphée aux enfers (1858), Act II No. 15b, public domain
+Confirmed 2026-10-12 (music step 4) by the owner-supplied transcription of the chorus ("Alle") statement in the vocal score (see Source; G major there, transposed up a fifth to D): all 16 bars, notes and rhythm. The score has a quarter-note pickup (D4 after a quarter rest = A4 here); bar 16's game-loop A4 is exactly the score's first ending (G4 quarter, D4 quarter pickup into the repeat), so every pass after the first already has it. The first-time pickup is not added: the driver loops from row 0, so a pickup bar before bar 1 would replay on every pass right after bar 16's A4.
+Source: Owner-supplied; Offenbach, Orphée aux enfers (1858), Act II No. 15b, public domain. Transcribed from the German vocal score "Orpheus in der Unterwelt", IMSLP #26815, pp. 123-124, plate 10779 (probably Bote & Bock), public domain (owner-supplied transcription, 2026-10-11).
 
 ------------------------------------------------------------
 11. DRUNKEN SAILOR (traditional sea shanty) - verse + chorus

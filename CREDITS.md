@@ -95,6 +95,9 @@ rhythm, drums, instruments) is ours. Song data is converted to hUGEDriver patter
 - "Sakura Sakura": melody from John Chambers' ABC "Sakura (Cherry Blossom)"
   (trillian.mit.edu/~jc/music/abc/Japan/Sakura_Am.utf8.abc); chords (not used, the bass is a drone) adapted from
   Frank Nordberg's Musica Viva transcription in the same collection.
+- "Galop infernal" (Offenbach, 1858): the owner's note list, confirmed note for note and in rhythm by a transcription
+  from the German vocal score "Orpheus in der Unterwelt", IMSLP #26815, plate 10779 (the chorus statement, in G;
+  ours is a fifth up, in D), public domain (owner-supplied transcription, 2026-10-11).
 
 ### Rhythm audit (music step 3, 2026-10-11)
 

@@ -168,8 +168,12 @@ song("entertainer", 8, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8),
 # tune 10): key D, 2/4, quarter = 160 -> 11 frames per eighth row (163.6 bpm).  16 bars = 64 rows = one 64-row pattern per
 # channel (buffer B holds 2 patterns), a pass is 704 frames (11.7 s).  The quarter notes of bars 3, 5, 11 and 13 are
 # detached ('!').  Bass: oom-pah, root then fifth (bar 15 = D then A7).  Drums: a groove, kick / hat / snare / hat.
-# No score found (the Mutopia Project has no Offenbach): the notes stay the owner's.  Seamless loop: the spec's last
-# bar D5:2 R:2 left a hole before bar 1's D5; its rest is an A4 pickup (the dominant leading back to D).
+# Confirmed (music step 4, 2026-10-12) by the owner-supplied transcription of the chorus statement in the vocal score
+# "Orpheus in der Unterwelt" (IMSLP #26815, plate 10779; G major there, a fifth up here): every note and rhythm.  Seamless
+# loop: the spec's last bar D5:2 R:2 left a hole before bar 1's D5; its rest is an A4 pickup, which is exactly the score's
+# first ending (G4 quarter, then the D4 quarter pickup into the repeat).  The score's first-time pickup (a quarter rest
+# and that D4) is not added: the driver loops from row 0, so a pickup before bar 1 would also play on every pass after
+# bar 16's, two A4 pickups in a row.
 GAL = ["D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
        "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 D6:1 C#6:1 B5:1", "A5:1 G5:1 F#5:1 E5:1",
        "D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
