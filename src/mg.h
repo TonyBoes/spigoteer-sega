@@ -15,6 +15,7 @@
 #include <gb/gb.h>
 #include <stdint.h>
 #include "game.h"
+#include "po.h"
 
 // mg_enter's mode: the story's mini-game slot, or Practice (a later step: its menu), optionally HARD (owner Q7)
 #define MG_STORY        0
@@ -36,6 +37,7 @@
 #define MG_MONKEY       8       // the jungle zoo (4.9)
 #define MG_ASTEROID     9       // the space lounge (4.8)
 #define MG_PLANNED     10       // ids below this are saved (save.c: Practice's block)
+#define MG_POUROFF     11       // the story's finale race against Dregs (src/po.c; not in Practice, never saved)
 #define MG_STUB        16       // GREEN LIGHT, the framework's stub
 
 enum { MG_INTRO, MG_COUNT, MG_PLAY, MG_END, MG_RESULT };
@@ -454,6 +456,9 @@ struct ts_state {               // tests read these at story_scratch + offset (t
     uint8_t sock[6];            // +60 the windsock's tiles
     uint8_t wall[2][20], wattr[2][20];   // +66 map rows 2-3 as the stage has them (the banner rows' place), their CGB attributes
 };
+void po_enter(void) BANKED;                      // src/po.c: THE POUR-OFF (the finale, in the saloon)
+void po_update(uint8_t pressed) BANKED;
+void story_pouroff_done(void) BANKED;            // src/story.c: the Pour-Off is won: FINALE_B
 
 // All mini-game state, over story.c's backdrop buffer (story_scratch, STORY_SCRATCH bytes; game.h).
 union mg_ram {
@@ -468,6 +473,7 @@ union mg_ram {
     struct mm_state mm;
     struct mk_state mk;
     struct ts_state ts;
+    struct po_state po;
 };
 #define MG ((union mg_ram *)story_scratch)
 typedef char mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH) ? 1 : -1];   // static size assert

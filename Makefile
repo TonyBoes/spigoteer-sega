@@ -116,6 +116,12 @@ $(BUILD)/mk_art.h: tools/gen_mk.py tools/gen_art.py $(wildcard assets/art/monkey
 $(BUILD)/ts_art.h: tools/gen_ts.py tools/cannon_table.py tools/gen_art.py $(wildcard assets/art/tshirt/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_ts.py $(BUILD) $(OUT)/preview
 
+BONUS_H  += $(BUILD)/po_art.h
+# The Pour-Off (src/po.c; docs/minigames_bosses.md section 5): Dregs's bartender frames (a PROPOSAL, pending owner approval)
+# -> build/po_art.h, build/po.json (tests), out/preview/po_dregs_x8.png
+$(BUILD)/po_art.h: tools/gen_po.py tools/gen_art.py $(wildcard assets/art/dregs/*.txt) | $(BUILD) $(OUT)/preview
+	python3 tools/gen_po.py $(BUILD) $(OUT)/preview
+
 preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 
 # The boss engine (src/boss.c): each boss's body poses (and extra poses), held empties, topper and HUD face, and the HUD

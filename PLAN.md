@@ -2984,3 +2984,89 @@ ox/oy, delay, arc) is gone.
   piece left. test_story's tour: no sprite remains on pages 5-8.
 - **Golden replaced on purpose**: story_pic_intro_a (owner review: the explosion as the owner pictured it: the empty fountain
   with a stub, no jets, no burst star, no landed pieces).
+
+## Pour-Off as built (the story finale, docs/minigames_bosses.md section 5; owner answers section 8: Q5 the SALOON, the story's lives rules, the perfect pour everywhere in story mode; 2026-10-12)
+The finale race against Dregs: STORY only (ARCADE never plays it), between the two halves of the finale. **Dregs's bartender art is NEW and
+UNAPPROVED: pending owner approval** (proposal sheet: assets/art/dregs/dregs.txt is the source, its first line says so and gen_po checks it).
+The two new FINALE_A pages and the first FINALE_B page are **proposed dialogue, pending owner approval** (docs/story.md marks them).
+- **Story flow** (story.c scene_done / story_pouroff_done, tools/gen_story.py, docs/story.md): FINALE is now **FINALE_A** (the pieces click,
+  Sadie's tumbleweeds, then DREGS "HOLD IT! WHO / POURS FIRST? I / SAY: A POUR-OFF!" and SPIGOTEER "FIRST TO 20 / SERVES. YOU'RE ON, /
+  DREGS." from the spec's section 7) -> the Pour-Off -> **FINALE_B** (DREGS "I LOST FAIR AND / SQUARE. SORRY I / BROKE IT." on the sorry
+  portrait, then the approved "YOU POUR FIRST. / YOU EARNED IT." (its old first line "SORRY I BROKE IT." is now the page before), the cozy
+  Spigoteer's glass of water and the toast unchanged) -> CREDITS. 24 scenes (was 23). Both halves keep the title "THE FIRST POUR" and show
+  the owner-approved FINALE picture (assets/story/pictures/finale_a.txt): FINALE_B shares FINALE_A's one copy in ROM (gen_story PIC_SHARE:
+  its tiles sit above FINALE_A's 44-tile portrait slot, FINALE_B's biggest portrait is 42; without the sharing story_pictures.c passed the
+  16 KB bank). The Dregs SORRY portrait variant is now FINALE_B pages 1-2 (portraits.json). A loss restarts only the Pour-Off (below).
+- **Where it runs**: the mini-game framework (src/mg.c) as game id **MG_POUROFF 11** (>= MG_PLANNED: never saved, not in BONUS > MINI GAMES,
+  no Practice): the saloon's venue, banner "THE POUR OFF / FIRST TO 20 SERVES", READY / GO, MG_PLAY; no timer, no medal, no result window:
+  result_frame (mg.c, the one hook) leaves a won race for FINALE_B (mg_leave + story_pouroff_done) and restarts a lost one with mg_enter
+  (same banner, 3 lives, 0 : 0). Four lines in mg.c (game table, enter / update switches, the result branch), 3 in mg.h, 3 in story.c.
+- **State** (src/po.h, struct po_state in the mg union over story_scratch): 473 of 520 B, no WRAM global (WRAM_LO 3936 / WRAM_HI_0 3455 before
+  and after). Tests read it at story_scratch + offset (tests/po_helpers.py parses the header). The knobs are `tune[8]` in the state (copied from
+  a const table at entry: tests poke them): think 27 / 16 frames, +8 / -6 band, reaction 10, lookahead 40, comic 1 in 8, slip 60.
+- **Rules as built** (the spec's, mirrored; src/po.c has them in its header): 12 seats (x 40, 72, 104 on each of the four bars), at most 2 patrons
+  a bar, a new one every 50 frames falling to 35 with the leader's score (50 - 3/4 of the score), patience 480 frames (sway in the last 120,
+  each seat on its own beat), full drinks 2 px a frame (his to the right, from x 16; yours to the left, from x 136), the first THIRSTY patron
+  whose 16 px it meets takes it (a mirrored seat is as far from his spout as its mirror is from yours: tested), 60 frames' drinking with the held
+  mug, the empty back to its bartender at 1 px a frame; a drink nobody takes reaches the far end and is taken with a "THANKS" note (banner row 2);
+  your empties are caught like in play (on your bar, overlapping), past x 144 one breaks and costs a life (3 lives, the HUD mugs; 0 = you lose);
+  his empties are caught at x <= 32 on his bar, past x <= 8 (the mirror of 144) one breaks: him -1 (never below 0) and a slip of 60 frames
+  ("OOPS", his fail frame, no catching or pouring); at most 4 mugs a bar (sliding, held, breaking), a drink that does not fit waits under the
+  spout (the glass sprite stays; yours and his) until there is room. A serve is one race point for whoever slid it; first to 20 wins; Dregs's 20
+  or your last life loses ("YOU WIN" / "DREGS WINS" / "OUT OF LIVES" on the banner row for 60 frames, then FINALE_B or the same Pour-Off again).
+  The story score is live: 100 a serve, 100 an empty caught, and the **perfect pour applies** (story mode everywhere): a drink released in the
+  sparkle window (27-31 frames of the fill, pour.c's numbers, the same sparkle / foam glass and cue tiles) is PERFECT: that serve scores 200
+  and an "x2" cue shows left of the caught mug; it never changes the race (still one point). The Spigoteer's controls are play_frame's (move,
+  snap to the tap, hold A, release to slide, carry a full glass to another bar), copied onto the state; his walk stops at x 44 (Dregs stands at
+  24-40).
+- **Dregs**, one decision at a time from mg_rand (spec): (1) an empty of his reaching his end within 40 frames (mugs_step finds the nearest as a
+  by-product of its pass): switch to its bar after a 10-frame reaction (a bar change is instant, as yours) and wait there; (2) else the thirsty
+  patron with the shortest slide that none of his drinks in flight is heading for (each of his drinks on a bar takes the next thirsty seat ahead
+  of it), ties at random, one pick in 8 a contested (middle) seat or a patron about to leave (comic waste: the drink may meet a nearer patron);
+  (3) think 27 frames at 0 points falling to 16 at 15 (+8 leading by 4, -6 trailing by 4), fill 16, slide 8. **Tuning** (the spec's targets: a
+  steady player wins by 3-6, an idle one loses; tests/po_helpers.py Bot, a Python player that reads the state, aims for the nearest seat his
+  drinks do not claim and Dregs's will not reach first, goes to an empty's bar 12 frames before it arrives, sees a new patron after 30 frames
+  and rests 10 frames after each throw): the spec's 30 / 18 think delays gave a mean margin of 7.4 over 8 seeds, 24 / 14 lost 3 of 8; **27 / 16**
+  gives +5.1 over 12 seeds (11 wins; margins 1 to 12), a lazy bot (60 / 30) wins 2 of 8, an idle player loses 20 : 0 and a bot that ignores
+  empties loses its lives. The game is ~1700 frames (28 s of play; the spec's "40-60 s" disagrees with its own "40 patrons, one every ~45
+  frames" = 30 s). Dregs's natural slips are rare (his empties have a 24-frame window and a 10-frame reaction: it takes four at once on four
+  bars; the test forces it); the comic waste picks and his think delays are what show his character.
+- **Crowd** (po.c po_crowd, a table: patron group, variant; per look the shift-0 pose and a 2 px sway pose, 12 BG tiles from the group's own bank,
+  CGB BG palettes 2-4 over the wall colour): the saloon's **cowboy and cowgirl** and one **chef from the bistro**: saloon patrons with one guest
+  from the tour (a "mixed finale crowd": the loader is per variant, so any three of the ten groups are a data change). The spec's "one from each
+  of three groups" was a recommendation and the owner chose the saloon (Q5); a chef was the one visible mix that does not break the saloon.
+- **Screen**: the saloon's stage and four bars (rows 5-16) built from the venue's own rows (base_tile / ctr_all), the keg and spout of the right end
+  mirrored bit by bit into BG ids 77.. for the left end (DMG cannot flip BG tiles: one path for both models), the patron footprints on the wall
+  rows (a seat redraw is 2 tile rows + 2 attribute rows through the VBlank queue, one seat a frame, a catch's redraw and HUD the frame after it),
+  the HUD: score, lives (4 mugs wide as ever), "Y12 D10" at columns 13-19. OBJ: 0-55 the Spigoteer, 128-183 Dregs (7 frames x 8 tiles in the
+  Spigoteer's layout: idle, walk 1, walk 2, pour, throw, catch, slip), 184-189 the DMG mug copies, the drink and pour tiles as in play; CGB OBJ
+  palette 3 Dregs (J2's skin, grey jacket, ink), DMG OBP1 0xE4 (his grey jacket reads darker than the Spigoteer's white apron). OAM: 0-3 you,
+  4-7 Dregs, 8-9 the glasses, 10-25 the mugs, 26 the cue.
+- **Dregs's art (PROPOSAL, pending owner approval)**: assets/art/dregs/dregs.txt, 7 frames 16x24 in the Spigoteer's order, based on J2 (the
+  small Dregs of the story pictures: cap with a pale band, long nose, closed eyes, the grey V-collar jacket, no apron, ink trousers), his art
+  faces left like the Spigoteer's and po.c flips it (so he pours facing his keg and throws to the right). Proposal sheet with all frames x8, CGB
+  and DMG, and in game x3: $S/pouroff/dregs_sprite.png. tools/gen_po.py -> build/po_art.h, build/po.json, out/preview/po_dregs_x8.png.
+- **Sprites per line**: the worst line is the spec's 10 (both bartenders 4 + both glasses 2 + 4 mugs on one bar); the cue is counted every 4th frame
+  against the other entries touching its lines and left out when 10 are there. Bot games on both models reach 7; the forced worst case reaches
+  exactly 10 and drops the cue.
+- **Perf** (mini-game frames are outside test_perf's guards, which are untouched): the frame's logic ends on line 132-134 at worst in a bot
+  game (typically 60-80; a frame with a PERFECT catch and a THANKS note at once reached 149), VBlank drain 14 of 17 ticks, vq_late 0. The first
+  version ended past line 150 on every busy frame: the loops walk pointers now, one pass over the 16 mugs counts the bars' mugs, his drinks in
+  flight and his nearest empty for the next frame, and a catch's HUD and seat redraw wait for the next frame.
+- **Numbers**: ROM0 577 B free before and after (everything is banked); WRAM_LO 3936 / WRAM_HI_0 3455 before and after; one new ROM bank
+  (romusage: 16 -> 17 banks; po.c + Dregs's art ~10 KB, so the ROM file doubles from 256 KB to 512 KB: bank 15 had 8 KB free, the three other
+  mini-games in flight will cross it anyway). Banks 1-15 repacked by the linker.
+- **Tests** (tests/test_pouroff.py, 63 on both models; tests/po_helpers.py): the start (banner, HUD, 3 lives, the mirrored keg and spout bit for
+  bit, Dregs's tiles / palette / flip and that no frame of his is the Spigoteer's, the crowd's tiles and palettes, the union size, no WRAM
+  symbol); Dregs's pick, think, fill and slide frame by frame, the delays and the rubber band, claims and comic picks, empties caught or slipped,
+  four at once; equal mirrored travel times, a contested seat to the first arrival (2 px head start either way), pass-through with THANKS, two
+  drinks passing, the 4-mug cap (yours and his); your empties (caught, break, lives, the walk limit); the perfect pour (window edges 20 / 27 / 31
+  / 32: +200 / +100, the cue, the sparkle glass); the race to 20 both ways, three lives; the story flow FINALE_A (all 5 pages) -> Pour-Off ->
+  FINALE_B -> CREDITS, a loss (Dregs's 20 and the lives) restarting only the Pour-Off, ARCADE going on to LOOP 2; sprites per line; the bots
+  (steady, lazy, idle, ignoring empties, both models identical, ~28 s, perf). Reading the state: po() runs a paused frame first (PyBoy's frame
+  ends a few lines into the game's logic, so a plain read can see a half-made mug).
+- **Goldens**: new (dmg + cgb) po_intro, po_perfect, po_slip, po_win, po_dregs_wins, po_lose_lives. **Replaced on purpose**: story_dregs_sorry
+  (DMG + CGB): the screen is FINALE_B's first page, not FINALE's page 4: the same sorry portrait and picture but the new text ("I LOST FAIR AND /
+  SQUARE. SORRY I / BROKE IT."). story_pic_finale_a is unchanged (FINALE_A shows the same first page; its title is still THE FIRST POUR).
+  tests/test_story.py / test_story_pictures.py follow the split (24 scenes, FINALE_A / FINALE_B slots 44 / 42, the portrait pairs, the tour
+  through the Pour-Off, START through it).

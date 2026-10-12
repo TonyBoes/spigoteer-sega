@@ -4,7 +4,7 @@
   build/story.h            scene / speaker / chapter ids, the cut-scene tile budget, the BANKED accessors
   build/story_data.c       the script (pages, scene table, names), chapter goals, the story font tiles, the picture slots
   build/story_portraits.c  the portraits (BG tiles, map, attributes, palettes, optional OBJ overlay)
-  build/story_pictures.c   the full-screen pictures of INTRO / FINALE / CREDITS (assets/story/pictures/*.txt) and the INTRO
+  build/story_pictures.c   the full-screen pictures of INTRO / FINALE_A / FINALE_B / CREDITS (assets/story/pictures/*.txt) and the INTRO
                            explosion's ten flying pieces as OBJ sprites (assets/story/pictures/intro_pieces.txt)
   build/story.json         the same for the tests
   out/preview/story_*.png  the font and every portrait (its variants too), x8
@@ -81,14 +81,17 @@ CHAPTERS = [
     ("ZOO", 8, G_SERVE, 25, 0, 0, "SERVE 25 ANIMALS", "", "serve 25"),
     ("SPACE", 9, G_SERVE, 30, 0, 0, "SERVE 30 GLOWING", "BEAKERS", "serve 30"),
 ]
-PICTURE_SCENES = ["INTRO", "FINALE", "CREDITS"]
+PICTURE_SCENES = ["INTRO", "FINALE_A", "FINALE_B", "CREDITS"]
 # The full-screen pictures of the picture scenes (rows 0-12 instead of a venue): assets/story/pictures/<name>.txt, each
 # portrait-v2 at 160x104 (@size 160 104, @maxpal 4, an exact-HUD palette allowed: see read_pic). Per scene its pictures
 # in the order shown, with the 1-based page each one appears on (the first: 1). A later picture replaces the earlier
 # one at the start of its page behind a white flash (src/story.c pic_switch); that page must be the narrator's (no
 # portrait frame up) and docs/story.md's scene must say "Picture (page N):". A picture's id is its place in this list
 # (scene header byte 1 = the scene's first picture; the next one of the scene is +1).
-SCENE_PICS = {"INTRO": [(1, "intro_before"), (5, "intro_a")], "FINALE": [(1, "finale_a")], "CREDITS": [(1, "credits_b")]}
+SCENE_PICS = {"INTRO": [(1, "intro_before"), (5, "intro_a")], "FINALE_A": [(1, "finale_a")], "FINALE_B": [(1, "finale_a")], "CREDITS": [(1, "credits_b")]}
+# A picture scene that shows another scene's picture (FINALE_B: the Pour-Off was played between the two halves) shares its one
+# copy in ROM: the picture's tiles sit above the first scene's portrait slot, so the sharer's biggest portrait must fit it.
+PIC_SHARE = {"FINALE_B": "FINALE_A"}
 PIC_DIR = ROOT / "assets/story/pictures"
 PIC_W, PIC_H = 160, 104
 PIC_SLOTS = (0, 5, 6, 7)         # CGB BG palette slots of a picture's palettes, in order (BG 1, the HUD, is also usable)
@@ -326,7 +329,7 @@ def parse_script(path):
         if len(title) > 20 or set(title) - CHARSET:
             fail(f"{sid}: title {title!r} (max 20, the story charset)")
         scenes.append({"id": sid, "title": title, "pages": pages, "alts": alts})
-    want = ["INTRO"] + [f"{k}_{c[0]}" for c in CHAPTERS for k in ("PRE", "POST")] + ["FINALE", "CREDITS"]
+    want = ["INTRO"] + [f"{k}_{c[0]}" for c in CHAPTERS for k in ("PRE", "POST")] + ["FINALE_A", "FINALE_B", "CREDITS"]
     if [s["id"] for s in scenes] != want:
         fail(f"scene order {[s['id'] for s in scenes]} != {want}")
     # the chapters table: each chapter's engine goal must match CHAPTERS
@@ -1064,6 +1067,14 @@ def main():
     pics = []
     for sid in PICTURE_SCENES:
         sc = next(s for s in scenes if s["id"] == sid)
+        if sid in PIC_SHARE:
+            first = next(s for s in scenes if s["id"] == PIC_SHARE[sid])
+            if sc["bg_tiles"] > first["bg_tiles"]:
+                fail(f"{sid}: its portraits need {sc['bg_tiles']} tiles, the shared picture of {first['id']} sits above {first['bg_tiles']}")
+            if SCENE_PICS[sid] != SCENE_PICS[first["id"]]:
+                fail(f"{sid}: SCENE_PICS must list {first['id']}'s pictures")
+            sc["pic"] = first["pic"]
+            continue
         pbase = port_base + sc["bg_tiles"]
         sc["pic"] = len(pics)
         for page, name in SCENE_PICS[sid]:

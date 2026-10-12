@@ -8,6 +8,7 @@ import json
 import re
 
 import pytest
+from po_helpers import po_win
 from conftest import (GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROOT, check_golden, hold_stage_anim,
                       menu_items, menu_tap, title_pick)
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
@@ -68,7 +69,7 @@ def gen_story():
 
 # ---- (a) the script build ------------------------------------------------------------------------------------
 def test_the_script_fits_the_text_box_and_the_font():
-    assert len(SCENES) == 23 and SCENES[0]["id"] == "INTRO" and SCENES[-1]["id"] == "CREDITS"
+    assert len(SCENES) == 24 and SCENES[0]["id"] == "INTRO" and SCENES[-1]["id"] == "CREDITS"
     for s in SCENES:
         assert s["pages"], s["id"]
         assert len(s["title"]) <= 20 and set(s["title"]) <= CHARSET, s["id"]
@@ -151,12 +152,12 @@ def test_the_cut_scene_budget():
     most = max(s["bg_tiles"] for s in SCENES if s["venue"] != 255)
     assert most <= STORY["bg_budget"]
     assert SCENES[SC["POST_SALOON"]]["bg_tiles"] == most
-    # a picture scene keeps ONE portrait slot (its biggest portrait: FINALE's Sadie, 44 tiles) and streams each
+    # a picture scene keeps ONE portrait slot (its biggest portrait: FINALE_A's Sadie, 44 tiles) and streams each
     # speaker's tiles into it; its picture's tiles are ids 0-35 and everything above the slot
     for s in SCENES:
         if s["venue"] == 255:
             assert s["bg_tiles"] == max([PORTRAITS[PID_NAME[p]]["tiles"] for p in s["spk"]] or [0]), s["id"]
-    assert [SCENES[SC[i]]["bg_tiles"] for i in ("INTRO", "FINALE", "CREDITS")] == [42, 44, 0]
+    assert [SCENES[SC[i]]["bg_tiles"] for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [42, 44, 42, 0]
 
 
 def portrait_cfg(name):
@@ -200,7 +201,8 @@ def test_the_portrait_v2_converter_is_exact_or_fails(tmp_path):
 
 def test_the_portrait_variants_follow_the_script():
     """The Spigoteer wears the cozy from the page after Aurora knits it (PRE_IGLOO page 3, his thank-you) to the end
-    of the game; Dregs's sorry portrait is his apology in the FINALE (his only page there). Data, not scene checks:
+    of the game; Dregs's sorry portrait is his apology in FINALE_B (his only pages there: the Pour-Off was played between the
+    halves, FINALE_A's challenge has his main portrait). Data, not scene checks:
     portraits.json 'variants', resolved per page by gen_story."""
     knit = SCENES[SC["PRE_IGLOO"]]["pages"]
     assert knit[1]["speaker"] == "AURORA" and knit[1]["lines"][-1] == "MUSTACHE COZY!"
@@ -209,11 +211,13 @@ def test_the_portrait_variants_follow_the_script():
             if p["speaker"] == "SPIGOTEER"]
     first = (SC["PRE_IGLOO"], 2)
     assert all(n == ("SPIGOTEER COZY" if (i, k) >= first else "SPIGOTEER") for i, k, n in seen)
-    assert any(i == SC["FINALE"] and n == "SPIGOTEER COZY" for i, _, n in seen), "the cozy is still on in the FINALE"
+    assert any(i == SC["FINALE_B"] and n == "SPIGOTEER COZY" for i, _, n in seen), "the cozy is still on in the FINALE"
     sorry = [(s["id"], k) for s in SCENES for k, p in enumerate(s["pages"]) if p["portrait"] == "DREGS SORRY"]
-    assert sorry == [("FINALE", 3)] and SCENES[SC["FINALE"]]["pages"][3]["lines"][0] == "SORRY I BROKE IT."
+    b = SCENES[SC["FINALE_B"]]["pages"]
+    assert sorry == [("FINALE_B", 0), ("FINALE_B", 1)]
+    assert b[0]["lines"] == ["I LOST FAIR AND", "SQUARE. SORRY I", "BROKE IT."] and b[1]["lines"] == ["YOU POUR FIRST.", "YOU EARNED IT."]
     assert [p["portrait"] for s in SCENES for p in s["pages"] if p["speaker"] == "DREGS"].count("DREGS") == \
-        sum(1 for s in SCENES for p in s["pages"] if p["speaker"] == "DREGS") - 1
+        sum(1 for s in SCENES for p in s["pages"] if p["speaker"] == "DREGS") - 2
     for s in SCENES:                             # every other speaker shows his own portrait, the narrator none
         for p in s["pages"]:
             if p["speaker"] == "NARRATOR":
@@ -417,6 +421,18 @@ def skip_scene(gb):
     s = gb.mem("story_scene")
     gb.press("start", 2)
     run_until(gb, lambda: gb.mem("story_scene") != s or state(gb) in (GS_GOAL, TITLE), 30)
+    settle(gb)
+
+
+def through_the_pouroff(gb):
+    """FINALE_A is on screen (any page): START skips what is left of it, the Pour-Off starts (the mini-game framework, game 11), the
+    race is won at once (what a won race leaves, as tests/test_pouroff.py plays it) and FINALE_B is up."""
+    gb.press("start", 2)
+    run_until(gb, lambda: state(gb) == 13, 30)                  # GS_MINI
+    assert gb.mem("mg_id") == 11
+    gb.run(2)
+    po_win(gb)
+    run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == SC["FINALE_B"], 30)
     settle(gb)
 
 
@@ -662,7 +678,7 @@ def test_coach_and_the_spigoteer_swap_cleanly(model):
 
 # every scene, page by page (test_every_page_shows_its_portrait): a few pages also keep a golden
 TOUR_GOLDENS = {("PRE_IGLOO", 0): "story_aurora", ("PRE_IGLOO", 2): "story_spigoteer_cozy",
-                ("PRE_SPACE", 2): "story_zizz", ("FINALE", 3): "story_dregs_sorry", ("PRE_BIKER", 1): "story_granny"}
+                ("PRE_SPACE", 2): "story_zizz", ("FINALE_B", 0): "story_dregs_sorry", ("PRE_BIKER", 1): "story_granny"}
 PID_NAME = {p["pid"]: n for n, p in PORTRAITS.items()}
 
 
@@ -754,15 +770,17 @@ def test_every_page_shows_its_portrait(model, c):
         tour_scene(gb, SCENES[post(c)]["id"], seen)
         if c == 9:
             skip_scene(gb)
-            tour_scene(gb, "FINALE", seen)
-    sids = (["INTRO"] if c == 0 else []) + [SCENES[pre(c)]["id"], SCENES[post(c)]["id"]] + (["FINALE"] if c == 9 else [])
+            tour_scene(gb, "FINALE_A", seen)
+            through_the_pouroff(gb)
+            tour_scene(gb, "FINALE_B", seen)
+    sids = (["INTRO"] if c == 0 else []) + [SCENES[pre(c)]["id"], SCENES[post(c)]["id"]] + (["FINALE_A", "FINALE_B"] if c == 9 else [])
     assert seen == portrait_pairs(sids)
 
 
 def test_the_tour_covers_every_portrait_and_swap():
     """What test_every_page_shows_its_portrait walks: every scene with a portrait is in it (CREDITS has none), so it
     shows all 14 portraits and all the swaps of the script."""
-    toured = {"INTRO", "FINALE"} | {SCENES[pre(c)]["id"] for c in range(10)} | {SCENES[post(c)]["id"] for c in range(10)}
+    toured = {"INTRO", "FINALE_A", "FINALE_B"} | {SCENES[pre(c)]["id"] for c in range(10)} | {SCENES[post(c)]["id"] for c in range(10)}
     assert {s["id"] for s in SCENES if s["spk"]} == toured
     assert {p["portrait"] for s in SCENES for p in s["pages"] if p["portrait"]} == set(PORTRAITS)
     assert len(portrait_pairs()) == 29
@@ -1293,9 +1311,13 @@ def test_the_last_chapter_leads_to_the_finale_credits_and_the_title(model):
         run_until(gb, lambda: state(gb) == GS_STORY, 300)
         assert gb.mem("story_scene") == post(9) and gb.mem("story_progress") == 10
         skip_scene(gb)
-        assert gb.mem("story_scene") == SC["FINALE"]
+        assert gb.mem("story_scene") == SC["FINALE_A"]
         page_ready(gb)
-        assert text_rows(gb) == glyph_rows(SCENES[SC["FINALE"]]["pages"][0]["lines"])
+        assert text_rows(gb) == glyph_rows(SCENES[SC["FINALE_A"]]["pages"][0]["lines"])
+        through_the_pouroff(gb)                         # (START skips FINALE_A, the Pour-Off is won: tests/test_pouroff.py plays it)
+        assert gb.mem("story_scene") == SC["FINALE_B"]
+        page_ready(gb)
+        assert text_rows(gb) == glyph_rows(SCENES[SC["FINALE_B"]]["pages"][0]["lines"])
         skip_scene(gb)
         assert gb.mem("story_scene") == SC["CREDITS"]
         score = int.from_bytes(gb.read("score", 4), "little")

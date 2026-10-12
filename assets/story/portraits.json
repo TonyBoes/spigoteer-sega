@@ -4,7 +4,7 @@
                   "variants": {"COZY": {"art": "assets/story/portraits/spigoteer_cozy.txt", "from": "PRE_IGLOO:3"}}},
   "SADIE":       {"art": "assets/story/portraits/sadie.txt", "x": 2, "y": 6},
   "DREGS":       {"art": "assets/story/portraits/dregs.txt", "x": 2, "y": 6,
-                  "variants": {"SORRY": {"art": "assets/story/portraits/dregs_sorry.txt", "from": "FINALE:4", "to": "FINALE:4"}}},
+                  "variants": {"SORRY": {"art": "assets/story/portraits/dregs_sorry.txt", "from": "FINALE_B:1", "to": "FINALE_B:2"}}},
   "COACH":       {"art": "assets/story/portraits/coach.txt", "x": 2, "y": 6},
   "JUNE":        {"art": "assets/story/portraits/june.txt", "x": 2, "y": 6},
   "COLBY":       {"art": "assets/story/portraits/colby.txt", "x": 2, "y": 6},

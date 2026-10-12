@@ -43,9 +43,9 @@ extern uint32_t score;
                                 // of columns 4-19 (so a line in the window has at most 16 characters)
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
 #define TIMER_COL       16      // HUD: 'T' + 3 digits (story.c hud_goal's format)
-#define MG_GAMES        11      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
-                                // G_OU Order Up!, G_MR Milk Run, G_LR Log Roll, G_AD Asteroid Delivery, G_TK Taiko Pour, G_MM Marshmallow Drop, G_MK Monkey Business, G_TS T-Shirt Cannon
-enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS };
+#define MG_GAMES        12      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
+                                // G_OU Order Up!, G_MR Milk Run, G_LR Log Roll, G_AD Asteroid Delivery, G_TK Taiko Pour, G_MM Marshmallow Drop, G_MK Monkey Business, G_TS T-Shirt Cannon, G_PO the Pour-Off
+enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO };
 #define OBP0_BOOT     0xD0      // OBP0 as main_cold.c sets it once at boot (Milk Run's DMG look changes it)
 
 // ---- state (globals => symbols the tests read) ----
@@ -62,17 +62,18 @@ static char res_txt[2][14];
 
 // per game: the banner, the medal thresholds on mg_score (bronze, silver, gold)
 static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BATTERY SORT", "ORDER UP!",
-                                                "MILK RUN", "LOG ROLL", "ASTEROID DELIVERY", "TAIKO POUR", "MARSHMALLOW DROP", "MONKEY BUSINESS", "SHIRT CANNON" };
+                                                "MILK RUN", "LOG ROLL", "ASTEROID DELIVERY", "TAIKO POUR", "MARSHMALLOW DROP", "MONKEY BUSINESS", "SHIRT CANNON", "THE POUR OFF" };
 static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "LEFT FULL RIGHT DEAD",
                                                 "REPEAT THE ORDER", "UP DOWN LANE A TOSS",
                                                 "TAP AGAINST THE ROLL", "STEER AND LAND SOFT", "A TOP LANE B BOTTOM",
-                                                "A DROPS MARSHMALLOWS", "A SHOO NOT PARROTS", "UP DOWN AIM A FIRE" };
+                                                "A DROPS MARSHMALLOWS", "A SHOO NOT PARROTS", "UP DOWN AIM A FIRE", "FIRST TO 20 SERVES" };
 static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },   // (Quick Draw: qd_medal)
                                                 { 2000, 4000, 6000 }, { 0, 0, 0 },   // (Order Up!: ou_medal)
                                                 { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },   // (Milk Run: mr_medal, Log Roll: lr_medal, Asteroid Delivery: ad_medal, Taiko Pour: tk_medal)
                                                 { 2000, 4000, 6000 },   // Marshmallow Drop (the generic path)
                                                 { 2500, 5000, 8000 },   // Monkey Business: the score (the spec said 1200 / 2500 / 4000, "tune": PLAN.md)
-                                                { 1000, 2000, 3000 } };   // T-Shirt Cannon: the score
+                                                { 1000, 2000, 3000 },   // T-Shirt Cannon: the score
+                                                { 0, 0, 0 } };   // the Pour-Off: no medal
 // each planned game's venue (the id is not the venue: the two lists need not keep one order), and the reverse
 static const uint8_t mg_venue[MG_PLANNED] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 static const uint8_t venue_mg[MG_PLANNED] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY,
@@ -182,6 +183,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     if (id == MG_MARSHMALLOW) mg_game = G_MM;
     if (id == MG_MONKEY) mg_game = G_MK;
     if (id == MG_TSHIRT) mg_game = G_TS;
+    if (id == MG_POUROFF) mg_game = G_PO;         // (the finale: the saloon's venue, no medal, no result window)
     if (!is_cgb) OBP0_REG = OBP0_BOOT;           // (Milk Run changes it: a game that is not it starts from the boot's)
     lcd_normal();                                // (and has the LYC / VBlank handlers it left)
     if (mode == MG_STORY) mg_record(id, MEDAL_NONE);   // STORY or ARCADE reached it: Practice lists it (save.c)
@@ -223,6 +225,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     case G_MM: mm_enter(); break;
     case G_MK: mk_enter(); break;
     case G_TS: ts_enter(); break;
+    case G_PO: po_enter(); break;
     default: stub_enter(); break;
     }
     if (mg_timer) { last_secs = secs_left(); hud_timer(); }
@@ -245,6 +248,7 @@ static void game_update(uint8_t pressed) {
     case G_MM: mm_update(pressed); break;
     case G_MK: mk_update(pressed); break;
     case G_TS: ts_update(pressed); break;
+    case G_PO: po_update(pressed); break;
     default: stub_update(pressed); break;
     }
 }
@@ -318,6 +322,11 @@ static void mg_leave(void) {
 }
 
 static uint8_t result_frame(uint8_t pressed) {
+    if (mg_game == G_PO) {                       // the Pour-Off has no result window: won -> FINALE_B, lost -> the Pour-Off again
+        if (MG->po.res == PR_WIN) { mg_leave(); story_pouroff_done(); }
+        else mg_enter(mg_id, mg_mode);
+        return 1;
+    }
     if (!res_on) result_begin();
     if (res_row < RES_ROWS) {
         result_row(res_row++);

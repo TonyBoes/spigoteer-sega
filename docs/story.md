@@ -939,9 +939,11 @@ I'LL POUR YOU ONE.
 
 ---
 
-### FINALE: "The First Pour"
+### FINALE_A: "The First Pour"
 
-Picture: the same Fizzwater square by day, pennants among the string lights. The restored Golden Spigot gleams on its fountain, its water runs into the glass the Spigoteer (in his cozy) holds up to the jet, a sheepish Dregs stands by, and the ten owners are lined up along the bottom. (`assets/story/pictures/finale_a.txt`)
+Picture: the same Fizzwater square by day, pennants among the string lights. The restored Golden Spigot gleams on its fountain, its water runs into the glass the Spigoteer (in his cozy) holds up to the jet, a sheepish Dregs stands by, and the ten owners are lined up along the bottom. (`assets/story/pictures/finale_a.txt`; FINALE_B shows it too.)
+
+The FINALE is split in two (the Pour-Off, docs/minigames_bosses.md section 5, plays between the halves: a SALOON race against Dregs, first to 20 serves, built into the story after this scene). The two new pages (DREGS, SPIGOTEER) are **proposed, pending owner approval** (docs/minigames_bosses.md section 7's suggested text); the other pages are the owner-approved script, moved unchanged.
 
 ```
 NARRATOR
@@ -960,7 +962,27 @@ I DIDN'T KNOW I
 HAD SIX!
 
 DREGS
-SORRY I BROKE IT.
+HOLD IT! WHO
+POURS FIRST? I
+SAY: A POUR-OFF!
+
+SPIGOTEER
+FIRST TO 20
+SERVES. YOU'RE ON,
+DREGS.
+```
+
+### FINALE_B: "The First Pour"
+
+Picture: the same as FINALE_A (the Pour-Off was played in between, in the saloon). The first page (DREGS, the sorry portrait) is **proposed, pending owner approval**; its second page is the owner-approved "YOU POUR FIRST. YOU EARNED IT." with its first line (the old "SORRY I BROKE IT.", now said on the first page) dropped; the rest is unchanged. (`assets/story/pictures/finale_a.txt`)
+
+```
+DREGS
+I LOST FAIR AND
+SQUARE. SORRY I
+BROKE IT.
+
+DREGS
 YOU POUR FIRST.
 YOU EARNED IT.
 
@@ -1040,14 +1062,14 @@ overlaps another variant of his or that no page uses):
 
 | Variant | Source | Pages |
 |---|---|---|
-| SPIGOTEER COZY | `spigoteer_cozy.txt` | From PRE_IGLOO page 3 (his "IT'S... VERY COZY." right after Aurora knits it on page 2) to the end of the game: every Spigoteer page of PRE_IGLOO through FINALE (CREDITS has none). |
-| DREGS SORRY | `dregs_sorry.txt` | FINALE page 4, his apology "SORRY I BROKE IT." (his only FINALE page). |
+| SPIGOTEER COZY | `spigoteer_cozy.txt` | From PRE_IGLOO page 3 (his "IT'S... VERY COZY." right after Aurora knits it on page 2) to the end of the game: every Spigoteer page of PRE_IGLOO through FINALE_B (CREDITS has none). |
+| DREGS SORRY | `dregs_sorry.txt` | FINALE_B pages 1-2, his apology "SORRY I BROKE IT." and "YOU POUR FIRST." (his only FINALE_B pages; his FINALE_A challenge has the main portrait). |
 
 | Portrait | One line |
 |---|---|
 | SPIGOTEER | Big curled mustache, bartender's apron and bow tie, confident grin. |
 | SPIGOTEER (cozy) | The same with the pink knitted mustache cozy, from PRE_IGLOO page 3 onward. |
-| DREGS | Lanky rival with a scraggly little mustache and a crooked bow tie, sheepish. His FINALE apology has its own variant (hand behind his head). |
+| DREGS | Lanky rival with a scraggly little mustache and a crooked bow tie, sheepish. His FINALE_B apology has its own variant (hand behind his head). |
 | SADIE | Small saloon owner, huge hat, sheriff-style star badge, big laugh. |
 | COACH | Coach Blitz: ball cap, whistle in his teeth, clipboard. |
 | JUNE | Big June: red plaid, knit beanie, axe over her shoulder, cheerful. |
@@ -1085,7 +1107,7 @@ overlaps another variant of his or that no page uses):
 | POST_ZOO | Leo crowns the Spigoteer; flamingos high-kick behind. |
 | PRE_SPACE | Neon lounge, ringed planet in the window, a city bus parked at the airlock. |
 | POST_SPACE | Alien musician with a many-armed keytar; Zizz floats with the lever; a little saucer beams Dregs back down in a souvenir T-shirt. |
-| FINALE | Restored spigot gleaming by day, ten owners and Dregs around it, a glass of water. |
+| FINALE_A, FINALE_B | Restored spigot gleaming by day, ten owners and Dregs around it, a glass of water. |
 | CREDITS | Spigot dripping over the credits, Dregs mopping in an apron. |
 
 Reuse: the ten golden pieces can share one small sprite sheet (handle, spout, valve, nozzle,

@@ -1579,6 +1579,10 @@ and FINALE_B opens with:
 followed by the existing YOU POUR FIRST. YOU EARNED IT. (its first line SORRY I BROKE IT. then repeats and should
 be dropped from that page).
 
+**Built** 2026-10-12: in the saloon (owner Q5, no festival stage), FINALE_A / the Pour-Off / FINALE_B as above (docs/story.md, "proposed, pending owner
+approval" for the three new pages), Dregs's sprite set a PROPOSAL pending owner approval; the crowd is the saloon's cowboy and cowgirl plus a chef
+from the bistro. See PLAN.md "Pour-Off as built" for the numbers that differ from this section (think delays 27 / 16, the 28 s game).
+
 ## 6. Build order, sizes and risks
 
 Sizes: S = up to a day of agent work with tests, M = a few days, L = a week or more. Art proposals for each item go
@@ -1594,7 +1598,7 @@ to the owner first; code can start on placeholder art (generated silhouettes, as
 | 6 | Bosses that move between bars: Mascot (M), Prototype (M-L, cycle + returns + conveyor tiles), Mothership (L, phase 2 with patrons, 23-tile budget) | M-L | 1.5-2 KB each | landing must scare regulars through the existing leave path without score; the Mothership's tile budget is exact |
 | 7 | Log Roll (M), T-Shirt Cannon (M-L, landing table tool), Asteroid Delivery (M-L, feel) | M-L | 3-4 KB each | physics feel needs owner playtests; the cannon's reachability table must pass for every wind |
 | 8 | Taiko Pour | L | 3 KB + chart | sync to hUGEDriver rows (`song_pos`), chart tool, the music-off rule |
-| 9 | Pour-Off | L | 7 KB | second bartender and mirrored rules in a separate module; AI tuning; a mixed-group patron loader |
+| 9 ✅ | Pour-Off | L | 7 KB | second bartender and mirrored rules in a separate module; AI tuning; a mixed-group patron loader. **Built** 2026-10-12 in the saloon (owner Q5), ~10 KB in one new bank (PLAN.md "Pour-Off as built") |
 | 10 | Practice menu (title row, chapter / segment list, best scores in SRAM) | M | 2 KB | title.c's bank is nearly full: the practice screen gets its own bank; the title menu's rows move (golden title / title_continue replaced on purpose) |
 | 11 | The Chrome Cow (the 10-venue engine change and the mosh pit twist are built, 2026-10-11: ~120 B ROM0 for the hooks, measured): Milk Run (M, 4.10: column streamer, window HUD), Duke (M, 3.12: idle / rev / lurch, chord regulars) | M | ~5 KB | Milk Run is the first scrolling mini-game |
 

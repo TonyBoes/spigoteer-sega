@@ -2,7 +2,7 @@
 //
 // Flow: title STORY -> INTRO -> per chapter c (0..9): PRE scene -> the chapter's steps (build/story.h STORY_STEPS:
 // Opening shift, Happy hour, the mini-game slot, Last call, the boss slot; a step marked STEP_SKIP is not built yet
-// and passed over) -> the POST scene -> the next chapter; after chapter 10's POST scene FINALE, CREDITS, the title.
+// and passed over) -> the POST scene -> the next chapter; after chapter 10's POST scene FINALE_A, the Pour-Off (src/po.c, a mini-game on the framework, won to go on), FINALE_B, CREDITS, the title.
 // A shift is the venue's level with that shift's goal, speeds and arrival pattern (a banner first, GS_GOAL); on
 // success SHIFT CLEAR (CHAPTER CLEAR after the last step), the progress saved (SRAM, save.c: chapters cleared + the
 // furthest step reached), the next step. Lives (owner's rule): 3 per venue, set when its Opening shift starts and
@@ -30,7 +30,7 @@
 // Cut-scene ("hybrid lighter" style): the venue's stage + bar rows as the backdrop (no patrons), the Spigoteer's
 // normal sprite at bar 1's tap, the scene title on the HUD row, a framed speaker portrait above a full-width text
 // box (rows 13-17: panel, 3 lines of 18 characters at columns 1-18, panel). The NARRATOR has no portrait: the box shows
-// the small golden spigot where a name would be. INTRO, FINALE and CREDITS show a full-screen picture instead of a venue
+// the small golden spigot where a name would be. INTRO, FINALE_A, FINALE_B and CREDITS show a full-screen picture instead of a venue
 // (assets/story/pictures, build/story_pictures.c: its tiles at BG ids 0-35 and above the scene's one portrait slot; a
 // speaker's tiles are streamed into that slot when he comes on; INTRO page 5 switches pictures behind a white flash: the
 // picture then shows the spigot gone and the fountain stopped, and the ten pieces, as OBJ sprites where the spigot was,
@@ -128,7 +128,7 @@ static uint8_t win_rows[5][20];
 uint8_t story_scratch[STORY_SCRATCH];
 #define bd_map  story_scratch
 #define bd_attr (story_scratch + STORY_PIC_ROWS * 20)
-// A picture scene (INTRO, FINALE, CREDITS: story_hdr.venue == 255) keeps no backdrop copy: the picture is in ROM
+// A picture scene (INTRO, FINALE_A, FINALE_B, CREDITS: story_hdr.venue == 255) keeps no backdrop copy: the picture is in ROM
 // (story_pic_row), so story_scratch is free there and holds, no new WRAM global:
 #define PS_FX    (story_scratch[0])                  // the picture switch's step (0: none); read only when swpage != 0
 #define PS_ROWS  (story_scratch + 2)                 // a wipe's two rows: per row w tiles then w attributes (<= 18)
@@ -647,13 +647,19 @@ static void scene_done(void) {
         scores_after_game();
         return;
     }
-    if (s == SC_FINALE) { scene_enter(SC_CREDITS); return; }
+    if (s == SC_FINALE_A) { mg_enter(MG_POUROFF, MG_STORY); return; }   // Dregs challenges: the Pour-Off (src/po.c), then FINALE_B
+    if (s == SC_FINALE_B) { scene_enter(SC_CREDITS); return; }
     if (s == SC_INTRO) { scene_enter(SC_PRE_SALOON); return; }
     if (!((s - SC_PRE_SALOON) & 1)) { venue_start(); return; }     // a PRE scene: the chapter
     if (story_chapter + 1 < STORY_CHAPTERS) {                       // a POST scene: the next chapter's PRE
         story_chapter++;
         scene_enter(SC_PRE_SALOON + 2 * story_chapter);
-    } else scene_enter(SC_FINALE);
+    } else scene_enter(SC_FINALE_A);
+}
+
+// The Pour-Off is won (src/mg.c, its screen already left): the finale's second half
+void story_pouroff_done(void) BANKED {
+    scene_enter(SC_FINALE_B);
 }
 
 // GS_LEVEL_CLEAR is over (main.c): the progress saved (the furthest step reached in the chapter, even one not built

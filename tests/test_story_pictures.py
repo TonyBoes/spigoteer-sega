@@ -1,4 +1,4 @@
-# Story pictures (INTRO before / INTRO explosion, FINALE, CREDITS): the full-screen pictures of the picture scenes
+# Story pictures (INTRO before / INTRO explosion, FINALE_A / FINALE_B, CREDITS): the full-screen pictures of the picture scenes
 # (assets/story/pictures/*.txt -> build/story_pictures.c by tools/gen_story.py), the INTRO's picture switch behind a white
 # flash (src/story.c pic_fx), and the picture scenes' one portrait slot that each speaker's tiles stream into
 # (SW_TILES). Pixel checks compare the screen with the approved source, exact on DMG (each key's shade) and on CGB (each
@@ -9,7 +9,7 @@ from PIL import Image
 from conftest import ROOT, check_golden
 from test_flow import GS_STORY, run_until, state, tilemap_row
 from test_story import (DMG_GREY, PORTRAITS, SC, SCENES, STORY, STORY_STEPS, gen_story, page_ready, picture_switching, post, q15, settle,
-                        skip_scene, start_story, to_goal, v7_image, win)
+                        skip_scene, start_story, through_the_pouroff, to_goal, v7_image, win)
 
 pytestmark = pytest.mark.timeout(240)
 
@@ -59,7 +59,7 @@ def assert_picture(gb, name, skip=None):
 def test_the_pictures_are_built_to_the_budget():
     assert list(PICS) == ["intro_before", "intro_a", "finale_a", "credits_b"]
     by_scene = {s["id"]: s for s in SCENES}
-    assert [(by_scene[i]["pic"], by_scene[i]["swpage"]) for i in ("INTRO", "FINALE", "CREDITS")] == [(0, 5), (2, 0), (3, 0)]
+    assert [(by_scene[i]["pic"], by_scene[i]["swpage"]) for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [(0, 5), (2, 0), (2, 0), (3, 0)]
     for name, p in PICS.items():
         sc = by_scene[p["scene"]]
         slot = sc["bg_tiles"]
@@ -291,21 +291,26 @@ def to_finale(model):
     run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(9), 400)
     settle(gb)
     skip_scene(gb)                                                # POST_SPACE -> FINALE
-    assert gb.mem("story_scene") == SC["FINALE"]
+    assert gb.mem("story_scene") == SC["FINALE_A"]
     return gb
 
 
+@pytest.mark.parametrize("scene", ["FINALE_A", "FINALE_B"])
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_finale_streams_each_speakers_portrait_into_the_one_slot(model):
+def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
     """Every page: the picture is intact (the slot is below its tiles), the speaker's portrait is exact in the slot's
-    ids, a swap goes wipe -> tiles -> frame (story_swap 1, 4, 2/3) and the copy list drains inside VBlank."""
+    ids, a swap goes wipe -> tiles -> frame (story_swap 1, 4, 2/3) and the copy list drains inside VBlank. FINALE_B (after the
+    Pour-Off) shows the same picture, from the one copy FINALE_A's slot (44 tiles) leaves room for (its own portraits: 42)."""
     with to_finale(model) as gb:
-        s = SCENES[SC["FINALE"]]
+        if scene == "FINALE_B":
+            through_the_pouroff(gb)
+        s = SCENES[SC[scene]]
         slot = list(range(SLOT_BASE, SLOT_BASE + s["bg_tiles"]))
-        assert max(slot) < PICS["finale_a"]["base"] and s["bg_tiles"] == 44
+        assert max(slot) < PICS["finale_a"]["base"] and s["bg_tiles"] == (44 if scene == "FINALE_A" else 42)
         page_ready(gb)
-        assert_picture(gb, "finale_a")
-        check_golden(gb, "story_pic_finale_a")
+        assert_picture(gb, "finale_a", skip=None if s["pages"][0]["portrait"] is None else FRAME)
+        if scene == "FINALE_A":
+            check_golden(gb, "story_pic_finale_a")
         seen_states = set()
         gb.write("drain_ticks_max", 0)
         for k, page in enumerate(s["pages"]):
@@ -338,6 +343,7 @@ def test_finale_streams_each_speakers_portrait_into_the_one_slot(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_credits_picture_and_start_skips_the_finale(model):
     with to_finale(model) as gb:
+        through_the_pouroff(gb)                                   # (START skips FINALE_A, the Pour-Off is won: FINALE_B)
         gb.press("start", 2)                                      # START skips the rest of the FINALE
         run_until(gb, lambda: gb.mem("story_scene") == SC["CREDITS"], 30)
         settle(gb)
