@@ -381,6 +381,10 @@ def sakura_bass(chords):
 
 song("sakura", 12, "A", " ".join(SAK_BARS), sakura_bass(SAK_CHORDS), "", gap=True, stac_all=(3, 4),
      groove="K:1 r:1 H:1 K:1 K:1 r:1 H:1 H:1 K:1 r:1 H:1 K:1 K:1 r:1 S:1 S:1")
+# Harmony (music step 5): a koto's second string, a fourth or fifth under the melody (E under A, E under B), one plucked
+# note per melody note on the beat, only the scale's notes (A B C E F: the E chord's G# is left out).
+_t = H.Tune(" ".join(SAK_BARS), SAK_CHORDS, 8, 2, "Asak", strict=True)
+harmony("sakura", _t, H.follow(_t, (1, 14), "E3", "A4", prefer=(5, 7, 3, 4, 8, 9), grid=2, merge=False), ("pluck", "pluck"))
 
 # ---------------------------------------------------------------------------------------------
 # Space lounge: "The Blue Danube" (Johann Strauss II, 1867, Op. 314), first waltz theme.  3/4, quarter = 160: 11
