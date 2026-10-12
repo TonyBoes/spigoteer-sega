@@ -973,3 +973,33 @@ def test_goldens(model):
         frames(gb, 3)
         shot(gb, "result")
         check_golden(gb, "mr_result")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_hard_medal_is_saved_apart_from_the_normal_one(model):
+    """mg_record keeps bits 0-1 for the normal best and 2-3 for HARD (the Practice list's toggle, owner Q7): a HARD silver
+    leaves the normal bronze alone, a worse HARD medal later changes nothing, and the byte survives in the saved block."""
+    from test_mg_list import MG_PLANNED, best, pr_block, with_block, parse_block
+    from test_scores import booted, v7_image
+    from test_sound import save_ram
+    ram = with_block(v7_image(), pr_block(1 << MG_MILKRUN, [0] * MG_MILKRUN + [MEDAL_BRONZE]))
+    with booted(model, ram) as gb:
+        mg_enter(gb, MG_MILKRUN, MG_PRACTICE | MG_HARD)
+        to_riding(gb)
+        deliveries(gb, 7)
+        frames(gb, 2)
+        to_result(gb)
+        assert gb.mem("mg_medal") == MEDAL_SILVER and best(gb)[MG_MILKRUN] == MEDAL_BRONZE | MEDAL_SILVER << 2
+        mg_enter(gb, MG_MILKRUN, MG_PRACTICE | MG_HARD)
+        to_riding(gb)
+        deliveries(gb, 4)
+        frames(gb, 2)
+        to_result(gb)
+        assert gb.mem("mg_medal") == MEDAL_BRONZE and best(gb)[MG_MILKRUN] == MEDAL_BRONZE | MEDAL_SILVER << 2
+        mg_enter(gb, MG_MILKRUN, MG_PRACTICE)
+        to_riding(gb)
+        deliveries(gb, 10)
+        frames(gb, 2)
+        to_result(gb)
+        assert best(gb)[MG_MILKRUN] == MEDAL_GOLD | MEDAL_SILVER << 2, "a normal gold leaves the HARD silver"
+        assert parse_block(save_ram(gb))[1][MG_MILKRUN] == MEDAL_GOLD | MEDAL_SILVER << 2, "saved in the block"

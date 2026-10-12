@@ -2163,7 +2163,7 @@ crate on navy as in the mock-up; the file itself is untouched).
   most 2 crates in the air, none in a wobble; landing within 8 px of a box's centre PERFECT 500 (the pop 50 frames), within
   16 delivered 300, else lost; crash (hit box 16x12): 30 frames wobble with stars, one crate lost (it lies behind), the speed
   one step down (not under 1.5), 60 frames blinking; 12 crates, 45 s, each crate left +100 at the end; medal by deliveries
-  4 / 7 / 10 (mr_medal). **HARD** (Practice, mg_mode & MG_HARD; the spec has none, the list has no toggle yet): starts at
+  4 / 7 / 10 (mr_medal). **HARD** (Practice, mg_mode & MG_HARD; the spec has none; the list's SELECT toggle reaches it): starts at
   2.0 px a frame and a crash never slows below it. SFX: toss LAUNCH, delivered COIN, PERFECT SERVE, crash BREAK.
 - **Street**: seeded (mg_rand): gates (1-2 lanes of potholes / cones, never 3) at least v x (8L + 32) px apart at 2.5 px
   (L = lanes to cross), 12 boxes 34-65 columns apart on random kerbs. A box keeps its kerb lane free of gates from 9 columns
@@ -2193,7 +2193,7 @@ crate on navy as in the mock-up; the file itself is untouched).
   New goldens (dmg + cgb): mr_riding, mr_toss, mr_perfect, mr_crash, mr_result. Changed on purpose: mg_list and mg_list_locked
   (the list gains the MILK RUN line / a fourth "? ? ?"), test_mg_list (counts and lines), mg_list.c's dirty bits (one per info
   line: the list's ninth buffer no longer fits an 8-bit mask). Spec gaps: HUD at row 0, the widened box zone, HARD, TIME UP
-  as a window banner; Practice has no HARD toggle yet.
+  as a window banner; Practice's HARD toggle does nothing here (no MG_HARD read).
 - Test-harness note: reads of the game's state at PyBoy's frame end can catch a 16-bit field half updated; the tests read
   in a paused frame (snap) and count game frames with S.anim.
 
@@ -2488,7 +2488,7 @@ awning band, pips HUD and barrel pile above, the crates and the awning in leafy 
   Practice retry / menu, STORY (chapter 9, the Last call's VRAM and palettes as without it), ARCADE, the list, the release list, what the next level has back.
   New goldens (dmg + cgb): mk_intro, mk_play, mk_theft, mk_parrot, mk_result. Replaced on purpose, "the list gains MONKEY BIZ": mg_list, mg_list_locked.
 - Spec gaps: the list name; the end banner on row 9 (the awning covers the framework's banner rows); the 20-frame quick-shoo window is counted at the
-  hit (the 4th frame of the shoo); no new SFX (shoo COIN, quick shoo SERVE, theft LIFE, parrot BREAK, whiff SHAKE); Practice has no HARD toggle.
+  hit (the 4th frame of the shoo); no new SFX (shoo COIN, quick shoo SERVE, theft LIFE, parrot BREAK, whiff SHAKE); Practice's HARD toggle does nothing here (no MG_HARD read).
 ## T-Shirt Cannon as built (M11e, docs/minigames_bosses.md 4.2, 2026-10-12)
 
 The stadium's mini-game on the framework (src/ts.c, MG_TSHIRT = 1, G_TS), in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains STADIUM: chapter 2's
@@ -3078,3 +3078,22 @@ The two new FINALE_A pages and the first FINALE_B page are **proposed dialogue, 
   lines; the stage comes back a row a frame (the VBlank copy stays <= 14 ticks). tests/test_mg.py mg_enter waits 60 frames, not 20, for
   the Pour-Off's longer enter. New goldens regenerated (all six po_*): the taps and the banner changed them.
 
+## Practice HARD toggle (owner Q7), as built
+- **BONUS > MINI GAMES** (src/mg_list.c): SELECT (or LEFT / RIGHT) flips NORMAL / HARD. The header's right side (row 0, column
+  13) shows the mode in force for the selected game; the list's medal column and the "BEST" line show that mode's best; A / START
+  plays with `MG_PRACTICE | MG_HARD` when HARD is in force. The flag is bit 7 of the static `ml_dirty` (no new WRAM), so it
+  survives a game and a return to the list. The layout is as before (ten games, a blank row, the separator); the header is a
+  buffer after the info lines (row buffer ML_N + ML_INFO_LINES, same dirty-bit queue).
+- **Which games read MG_HARD** (checked by grep over src/, and each game's "as built" section): **Milk Run** (`mr.c`: starts at
+  2.0 px, a crash never slows below it) and the debug **GREEN LIGHT stub** (`mg_stub.c`). Every other game reads none: Quick
+  Draw, Order Up, Battery Sort, Log Roll, Asteroids, Taiko Pour, Marshmallows, Monkey Business, Shirt Cannon. On those the toggle
+  is inert (SELECT does nothing, the header says NORMAL), the last info line says "NORMAL ONLY  B BACK", and the game starts with
+  MG_PRACTICE alone. `hard_game()` in mg_list.c is the list; add a game there when it grows a HARD. (The Pour-Off is not a list
+  game; the Bartender bonus's `pour_win` HARD and the bosses' `boss_hard` are not reached by this list.)
+- **Best medals**: kept per mode, in the same byte (no format change, still "MGP2", 46 B): bits 0-1 the normal best, bits 2-3
+  the HARD best (an older save has bits 2-3 clear, so nothing migrates). `mg_record` picks the field from `mg_mode & MG_HARD`;
+  the load check allows 0..15. Only HARD-capable games ever get bits 2-3.
+- **Boss Rush CHOOSE**: has no HARD toggle (`boss_hard` in boss.c exists, nothing sets it: only tests/test_boss.py pokes it).
+  Not added: it is not cheap. `boss_hard` would have to be set at a rush fight's start and cleared for every story / arcade
+  fight (nobody clears it today), the list's three info lines are full, and the rush's fastest-time record is per boss with no
+  room to keep a HARD time apart without a new SRAM field. Left for the owner's call.

@@ -222,7 +222,7 @@ static uint8_t pr_version(void) {
     if (v == '1') { if (!sum_ok(b, PR1_LEN)) return 0; }
     else if (v != '2' || !sum_ok(b, PR_LEN)) return 0;
     if ((b[4] | ((uint16_t)b[5] << 8)) >> MG_PLANNED) return 0;
-    for (g = 0; g < MG_PLANNED; g++) if (b[PR_MEDAL + g] > MEDAL_GOLD) return 0;
+    for (g = 0; g < MG_PLANNED; g++) if (b[PR_MEDAL + g] > 15) return 0;   // (bits 0-1 normal, 2-3 HARD)
     if (v == '1') return v;
     if ((r[RSV_BITS] | ((uint16_t)r[RSV_BITS + 1] << 8)) >> BOSS_COUNT || r[RSV_ALL_N] > BOSS_COUNT
         || (r[RSV_ALL_SCORE] | ((uint32_t)r[RSV_ALL_SCORE + 1] << 8) | ((uint32_t)r[RSV_ALL_SCORE + 2] << 16)) > HI_MAX)
@@ -257,9 +257,10 @@ static void load_pr(void) {
 // when one of them changes (the rush part kept). Nothing in a debug-select run, nothing for the stub (g >= MG_PLANNED).
 void mg_record(uint8_t g, uint8_t medal) BANKED {
     uint16_t m = (uint16_t)1 << g;
+    uint8_t sh = (mg_mode & MG_HARD) ? 2 : 0;    // a HARD medal is kept apart (bits 2-3 of the game's byte)
     if (save_lock == SAVE_LOCK_DEBUG || g >= MG_PLANNED) return;
-    if (medal ? medal <= mg_best[g] : (mg_unlocked & m) != 0) return;
-    if (medal) mg_best[g] = medal; else mg_unlocked |= m;
+    if (medal ? medal <= ((mg_best[g] >> sh) & 3) : (mg_unlocked & m) != 0) return;
+    if (medal) mg_best[g] = (mg_best[g] & ~(3 << sh)) | (medal << sh); else mg_unlocked |= m;
     ENABLE_RAM;
     SWITCH_RAM(0);
     pr_write(0);
