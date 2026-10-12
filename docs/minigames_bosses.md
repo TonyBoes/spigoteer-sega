@@ -767,6 +767,8 @@ The soda duel (owner-approved 2026-10-11) replaces the cork pop and the fumble: 
 banner and freeze at DRAW!; the winner sprays a stream of soda (BG tiles on the wall's row) across the gap and the
 loser gets soaked (splash, then drips) without dropping anything; a foul fizzes over the player's own bottle. PLAN.md
 has the details.
+The badge (owner 2026-10-11): A is a light letter in a dark disc; B is a cream letter in a blue disc on CGB (BG
+palette 3) and a dark letter in a light disc on DMG, so the two never look alike. The fumble poses are gone.
 
 Play: the Sarsaparilla Kid challenges the new bartender. Both stand with a bottle in the holster. A big DRAW! sign
 flips up with a bell; whoever pops the cork first wins the round. First to three.
