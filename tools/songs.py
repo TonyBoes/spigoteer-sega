@@ -277,6 +277,12 @@ FUN_CHORDS = [
     "A7", "Dm", "A7", "Dm", "Bb", "F", "C7", "F",
 ]
 song("funicula", 11, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"), groove="K:1 r:1 S:1 K:1 r:1 S:1")
+# Harmony (music step 5): the verse in thirds and sixths under the melody, one note a dotted beat (the echoes "and so
+# do I" answered in thirds, B-flat and C under D and E); the chorus ("Funiculi, funicula") a slow line of held chord
+# tones under the repeated A, through the A7 / D minor turn (C#4 / D4).
+_t = H.Tune(" ".join(FUN_BARS), FUN_CHORDS, 6, 3, "F")
+harmony("funicula", _t, " ".join([H.follow(_t, (1, 16), "C4", "C5", grid=3), H.guide(_t, (17, 25), "C4", "G4", inst="/2")]),
+        ("harm", "pad"))
 
 # ---------------------------------------------------------------------------------------------
 # Arctic: "The Skaters' Waltz" (Emile Waldteufel, 1882), main theme, an octave above the source.  3/4, key G,
