@@ -179,7 +179,7 @@ void clear_patrons(void) {
 
 // A served patron may leave a tip where it last caught a mug: not while a tip lies there or a show runs.
 static void maybe_tip(uint8_t p) {
-    if (tip_timer || show_timer) return;
+    if (tip_timer || show_timer || tip_first) return;   // (CLASSIC: not before the level's first tip, send_empty)
     if (!tip_chance || (tip_chance != 255 && next_rand() >= tip_chance)) return;   // 0 never (and draws no random number)
     tip_timer = TIP_FRAMES;
     tip_bar = patron_bar[p];
@@ -338,7 +338,12 @@ uint8_t  pat_len, pat_bar;             // story shifts: an arrival pattern, its 
 extern uint8_t rng_state;
 
 static uint8_t try_spawn(void) {
-    uint8_t b = pat_len ? pat_bar : (next_rand() >> 2) & 3, v;
+    uint8_t b = pat_len ? pat_bar : (next_rand() >> 2) & 3, v = NUM_BARS;
+    if (!lists_ok) build_lists();
+    while (bar_n[b] >= bar_cap[b]) {              // CLASSIC: the bar is at its cap: the next one that is not
+        b = (b + 1) & (NUM_BARS - 1);
+        if (!--v) return 0;
+    }
     if (blocked_behind(b, SPAWN_X + PATRON_SPACING)) return 0;   // someone within PATRON_SPACING px of the spawn point
     v = next_rand();                              // v % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
     v = (v >> 4) + (v & 15);
@@ -478,6 +483,7 @@ static void send_empty(uint8_t p) {
         mug_state[m] = MUG_EMPTY;
         mug_x[m] = patron_x[p] + PATRON_W;
         mug_timer[m] = 0;                                 // (its half-px step phase, see mugs.c)
+        if (tip_first && !--tip_first) classic_tip(p);   // CLASSIC: the level's 2nd empty: the first tip (classic.c)
     }
     patron_mug[p] = NO_SLOT;
 }
@@ -541,10 +547,13 @@ void update_patrons(void) {
     go_now = (intro_timer == 0);
     if (!go_now) {
         if (intro_timer) intro_timer--;
-    } else if (spawned < quota) {
-        if (spawn_timer) spawn_timer--;
-        else if (!try_spawn()) spawn_timer = SPAWN_RETRY;
-        else spawn_timer = pat_len ? pat_done() : spawn_interval;   // (a story shift's pattern: story.c)
+    } else {
+        if (ramp_t && !--ramp_t) classic_ramp();  // CLASSIC: the in-level ramp's next step (classic.c)
+        if (spawned < quota) {
+            if (spawn_timer) spawn_timer--;
+            else if (!try_spawn()) spawn_timer = SPAWN_RETRY;
+            else spawn_timer = pat_len ? pat_done() : spawn_interval;   // (a story shift's pattern: story.c)
+        }
     }
 
     for (p = 0; p != MAX_PATRONS; p++) {

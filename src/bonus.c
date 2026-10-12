@@ -21,6 +21,8 @@
 
 // ---- shared with main.c (bank 0) ----
 extern uint8_t is_cgb, level, overlay_on, hud_dirty, life_lost, vram_pending;
+extern uint8_t play_mode;                   // src/story.c (game.h MODE_*)
+#define MODE_CLASSIC 2
 extern void vq_reset(void);
 extern uint32_t score;
 extern uint8_t next_rand(void);
@@ -153,7 +155,8 @@ void bonus_enter(void) BANKED {
     clear_dirty();
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
     bonus_round++;
-    bonus_kind = (uint8_t)((uint8_t)(bonus_round - 1) % 3);      // M12: shake-up, Perfect Pour, Tip Shower, again
+    bonus_kind = play_mode == MODE_CLASSIC ? 0 : (uint8_t)((uint8_t)(bonus_round - 1) % 3);   // M12: shake-up, Perfect
+                                                                // Pour, Tip Shower, again (CLASSIC: the shake-up only)
     music_play(TUNE_BONUS);
     bonus_phase = PH_SHOW; bonus_timer = 0;
     if (bonus_kind) {                                           // the other two rounds: src/bonus2.c
@@ -167,10 +170,15 @@ void bonus_enter(void) BANKED {
     if (is_cgb) load_palettes();
     draw_scene();
 
-    n = (uint8_t)((uint8_t)(bonus_round + 2) / 3);             // shake-ups so far, this one included (1 in round 1, 2 in round 4, ...)
     bonus_won = 0; bonus_moving = 0; bonus_swaps_done = 0;
+    if (play_mode == MODE_CLASSIC) {                            // P5: faster every round: 30, 28, ... 14 frames a swap,
+        n = bonus_round < 9 ? bonus_round : 9;                  // a swap more each time (7 .. 15)
+        bonus_swap_dur = 32 - 2 * n;
+    } else {
+        n = (uint8_t)((uint8_t)(bonus_round + 2) / 3);         // shake-ups so far, this one included (1 in round 1, 2 in round 4, ...)
+        bonus_swap_dur = n < 3 ? 30 : (n < 6 ? 34 - 4 * n : 14);   // shake-ups 1-2 slow, then 22, 18, 14
+    }
     bonus_swaps_total = 6 + n;
-    bonus_swap_dur = n < 3 ? 30 : (n < 6 ? 34 - 4 * n : 14);   // shake-ups 1-2 slow, then 22, 18, 14
     bonus_calm_can = next_rand() % NUM_CANS;
     bonus_calm = bonus_calm_can;
     bonus_cursor = 2;

@@ -112,7 +112,7 @@ def progress_unlocks(story, step):
 MODE_ARCADE, MODE_STORY, MODE_CLASSIC = range(3)
 V7_SUM = 8
 TBL_AT = (0x80, 0xC0, 0x100)
-TBL_MAGIC = (b"HSA1", b"HSS1", b"HSC1")
+TBL_MAGIC = (b"HSA1", b"HSS1", b"HSC2")   # P5: CLASSIC's block is version 2 (test_classic_mode.py)
 TBL_SUM = 4 + TOP_N * 6
 
 

@@ -405,7 +405,7 @@ static void update(void) {
     case GS_LEVEL_CLEAR:
         if (++state_timer >= CLEAR_FRAMES) {
             if (story_on) { story_level_done(); return; }   // M11b / ARCADE: the next step (story.c)
-            if (!(level & 1)) {                  // levels 2, 4, 6, ... are followed by the bonus round
+            if (play_mode == MODE_CLASSIC ? classic_bonus_due() : !(level & 1)) {   // the harness: after even levels
                 bonus_enter();
                 game_state = GS_BONUS;
                 return;

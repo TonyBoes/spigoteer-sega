@@ -17,7 +17,8 @@
 //   A mini-game is reached when STORY or ARCADE starts it (mg_enter in MG_STORY mode); its best medal is any mode's
 //   (Practice too). A debug-select run (save_lock == SAVE_LOCK_DEBUG) records nothing; ARCADE's save_lock (1) does not
 //   stop it (the owner's rule: reached in STORY or ARCADE).
-//   0x80 ARCADE, 0xC0 STORY, 0x100 CLASSIC: a top 5 each (TBL_AT(t), t = MODE_*): 0..3 magic "HSA1" / "HSS1" / "HSC1",
+//   0x80 ARCADE, 0xC0 STORY, 0x100 CLASSIC: a top 5 each (TBL_AT(t), t = MODE_*): 0..3 magic "HSA1" / "HSS1" / "HSC2" (P5: CLASSIC's
+//   "HSC1" held the stand-in's scores and now loads as an empty table),
 //   5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little endian, <= 999999), best first;
 //   34 checksum (0x5A + bytes 0..33), 35 its complement. A block that does not check out (magic, checksum, letters,
 //   range, order) loads as an empty table; the others and the main block are unaffected. ARCADE: the ARCADE game overs
@@ -85,7 +86,9 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define OLD_STORY_MAX 9             // versions 3-5: nine chapters (the order before the 10th venue)
 #define OLD_KEPT 6                  // their progress p < 6 means the same chapters today; p >= 6 becomes 6, step 0
 
-static const uint8_t tbl_letter[TOP_TABLES] = { 'A', 'S', 'C' };   // the table blocks' magic "HS?1" (MODE_* order)
+static const uint8_t tbl_letter[TOP_TABLES] = { 'A', 'S', 'C' };   // the table blocks' magic "HS??" (MODE_* order)
+// ... and its version: CLASSIC's is 2 since P5 (its version-1 block held the stand-in's scores: a mismatch loads empty)
+static const uint8_t tbl_ver[TOP_TABLES] = { '1', '1', '2' };
 
 uint16_t mg_unlocked;               // Practice: bit g = mini-game g reached in STORY or ARCADE
 uint8_t  mg_best[MG_PLANNED];       // Practice: the best medal per mini-game
@@ -155,7 +158,7 @@ static void load_tbl(uint8_t t) {
     volatile uint8_t *b = SRAM + TBL_AT(t), *e;
     uint8_t i, k, *nm = top_names + t * (TOP_N * 3);
     uint32_t v, prev = HI_MAX, *sc = top_scores + t * TOP_N;
-    if (b[0] != 'H' || b[1] != 'S' || b[2] != tbl_letter[t] || b[3] != '1' || !sum_ok(b, TBL_LEN)) return;
+    if (b[0] != 'H' || b[1] != 'S' || b[2] != tbl_letter[t] || b[3] != tbl_ver[t] || !sum_ok(b, TBL_LEN)) return;
     for (i = 0, e = b + 4; i < TOP_N; i++, e += 6) {
         for (k = 0; k < 3; k++) if (!valid_char(e[k])) return;
         v = (uint32_t)e[3] | ((uint32_t)e[4] << 8) | ((uint32_t)e[5] << 16);
@@ -274,7 +277,7 @@ void hi_save(void) BANKED {
     for (t = 0; t < TOP_TABLES; t++) {
         b = SRAM + TBL_AT(t);
         nm = top_names + t * (TOP_N * 3); sc = top_scores + t * TOP_N;
-        b[0] = 'H'; b[1] = 'S'; b[2] = tbl_letter[t]; b[3] = '1';
+        b[0] = 'H'; b[1] = 'S'; b[2] = tbl_letter[t]; b[3] = tbl_ver[t];
         for (i = 0, e = b + 4; i < TOP_N; i++, e += 6) {
             for (k = 0; k < 3; k++) e[k] = nm[i * 3 + k];
             v = sc[i];

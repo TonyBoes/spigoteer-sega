@@ -398,6 +398,30 @@ extern uint8_t story_on;                                // 1: story mode
 // score tables' (save.c): the harness counts as ARCADE there.
 enum { MODE_ARCADE, MODE_STORY, MODE_CLASSIC, MODE_LEVEL };
 extern uint8_t play_mode;
+// A level's knobs (level.c's table rows; CLASSIC's rows are turned into one: classic.c). start_level copies them into the
+// globals.
+typedef struct {
+    uint8_t group;          // patron art group (index into patron_tiles)
+    uint8_t start_mask;     // bit b set: bar b starts with patrons
+    uint8_t start_per_bar;  // patrons per started bar (stacked 32 px apart)
+    uint8_t quota;          // patrons spawned in the level, including the start ones
+    uint16_t spawn_interval; // frames
+    uint8_t step_frames;    // frames per 8 px of walking (patron_speed = 8 px / step_frames)
+    uint8_t pushback_cols;
+    uint8_t serve_score;
+    uint8_t empty_gap;      // frames kept between two empties' arrivals at the bartender's end (fair empties)
+} level_cfg_t;
+// ---- classic.c (banked, CLASSIC: the 1983 layouts; P5) ----------------------------------------------------------------
+#define CLASSIC_ROWS 26
+extern uint8_t  bar_cap[NUM_BARS];  // patrons bar b may hold at once (try_spawn); 255 outside CLASSIC
+extern uint8_t  tip_first;          // CLASSIC: empties to come before the level's first tip (send_empty); 0 off
+extern uint16_t ramp_t;             // CLASSIC: frames of play to the in-level ramp's next step (update_patrons); 0 off
+extern uint8_t  ramp_k, classic_dirs;
+uint8_t classic_row(level_cfg_t *c) BANKED;   // start_level: CLASSIC's row (and its rules); 255 in the other modes
+uint8_t classic_bonus_due(void) BANKED;       // the level just cleared is followed by a bonus round
+void classic_ramp(void) BANKED;               // ramp_t ran out: the ramp's next step
+void classic_ramp_reset(void) BANKED;         // a lost life: the level's own pace again
+void classic_tip(uint8_t p) BANKED;           // patron p sent the level's 2nd empty: the first tip, where he stands
 void story_begin(uint8_t cont) BANKED;                  // from the title: STORY (0) or CONTINUE (1); LCD off
 uint8_t story_update(uint8_t pressed) BANKED;           // a GS_STORY / GS_GOAL frame; 1: the screen changed
 void story_play(void) BANKED;                           // every GS_PLAYING frame in story mode: the chapter goal

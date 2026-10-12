@@ -12,18 +12,7 @@
 extern uint8_t level, cur_group, arcade_loop, served, step_frames, pushback_cols;
 #define WALL_RGB    (venue.pal[VENUE_PAL_BAR][0])   // the venue's wall: colour 0 of the bar and of the patron palettes
 
-// per-level knobs; start_level() copies one row into the globals below
-typedef struct {
-    uint8_t group;          // patron art group (index into patron_tiles)
-    uint8_t start_mask;     // bit b set: bar b starts with patrons
-    uint8_t start_per_bar;  // patrons per started bar (stacked 32 px apart)
-    uint8_t quota;          // patrons spawned in the level, including the start ones
-    uint16_t spawn_interval; // frames
-    uint8_t step_frames;    // frames per 8 px of walking (patron_speed = 8 px / step_frames)
-    uint8_t pushback_cols;
-    uint8_t serve_score;
-    uint8_t empty_gap;      // frames kept between two empties' arrivals at the bartender's end (fair empties)
-} level_cfg_t;
+// per-level knobs (level_cfg_t, game.h); start_level() copies one row into the globals
 #define LEVEL_ROWS 10
 // One row per patron group, in the order of gen_art.py's PATRON_GROUPS (= the story's chapters).
 // Playtest 4 flattened the curve: the old one was impossible by level 6. Level 1 is meant for a first-time
@@ -99,11 +88,15 @@ static void load_patron_group(uint8_t g) {
 void start_level(void) BANKED {
     uint8_t idx = level - 1, k, g;
     const level_cfg_t *c;
-    cur_group = idx % LEVEL_ROWS;
-    c = &level_table[cur_group];
-    arcade_loop = idx / LEVEL_ROWS + 1;
-    k = arcade_loop - 1;
-    if (k > LOOP_STEPS_MAX) k = LOOP_STEPS_MAX;
+    level_cfg_t row;
+    if ((k = classic_row(&row)) != 255) c = &row;   // P5: CLASSIC's table (classic.c), its repeats as the loops
+    else {
+        cur_group = idx % LEVEL_ROWS;
+        c = &level_table[cur_group];
+        arcade_loop = idx / LEVEL_ROWS + 1;
+        k = arcade_loop - 1;
+        if (k > LOOP_STEPS_MAX) k = LOOP_STEPS_MAX;
+    }
     quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
     spawn_interval -= (uint16_t)(spawn_interval * (uint8_t)(k * LOOP_SPAWN_PCT)) / 100;
     pushback_cols = c->pushback_cols; pushback_px = pushback_cols << 3;
@@ -126,7 +119,7 @@ void start_level(void) BANKED {
     load_patron_group(cur_group);
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
     enhance_load(cur_group);                    // M14a: row palettes, lifted columns' attributes, OBJ 4, bank-1 lift tiles
-    mirror_load(play_mode == MODE_LEVEL ? level_dirs : 0);   // P3: bars from the right (only the LEVEL harness so far)
+    mirror_load(play_mode == MODE_LEVEL ? level_dirs : classic_dirs);   // P3: bars from the right (the harness, CLASSIC)
     place_start_patrons();
 }
 

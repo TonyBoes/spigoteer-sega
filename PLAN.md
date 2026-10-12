@@ -1495,8 +1495,7 @@ The checklist was docs/venue10_impact.md (81 items); what differs from it is lis
 
 ## Three modes P3-P4 as built (the mirror engine; owner decisions 2026-10-11; plan: the modes proposal 2.3-2.5, C1-C4, C12)
 
-Still debug-only: nothing outside the LEVEL harness (test hook `level_dirs`) and the debug select uses it; CLASSIC's
-table, caps, scoring and title entry are P5.
+Debug-only when built; P5 (below) is CLASSIC on the title.
 - **Rule**: a bar marked R in `bar_dirs` (bit b = bar b, top 0) has its patrons coming from the right and its keg on the
   left. Every rule stays in bar-local x (patron_x, mug_x, bartender_x, TAP_X ... unchanged; tests read local values);
   an R bar is only **drawn** mirrored. With every bar L the picture is what it was (no golden changed).
@@ -1568,6 +1567,60 @@ table, caps, scoring and title entry are P5.
   try_spawn; everything else of CLASSIC is local-x rules and needs nothing from the mirror. A per-bar tap position (P6,
   slanted bars) only needs per-bar base rows (base_all is shared by the four bars today; +160 B WRAM per-bar), the
   mirror itself is per column and per OAM X.
+
+## Three modes P5 as built (CLASSIC playable; owner decisions 2026-10-11; plan: the modes proposal 2.1, 2.2, C5-C9, C13, T3-T7)
+
+PLAY > CLASSIC now plays CLASSIC's own table (src/classic.c, banked), no longer the old 10-level rotation (that stays only
+as the LEVEL harness, MODE_LEVEL). Slanted bars and the end-of-level antics are P6.
+- **Table** (`classic_table[26]`, 9 B a row): setting (saloon 0 / stadium 1 / The Chrome Cow 6 / space lounge 9, serve
+  50 / 75 / 100 / 150), the guide's directions and per-bar caps, and our quota / spawn / step / push-back / empty gap
+  (the plan's 2.2 numbers, to tune in playtest). `start_level` (level.c) asks `classic_row()` first: in CLASSIC it fills a
+  level_cfg_t (now in game.h) from the row, and the rest of the load is the harness's code (speeds, hurried walkers from
+  level 3, the loop maths); `mirror_load` gets the row's directions. Level 27 = row 14 again, every 13 levels; each repeat
+  uses the loop rule as a loop (walk +10 %, spawn -8 %, gap -5, 3 repeats at most). Every bar starts with one patron.
+  No LOOP banner in CLASSIC (enter_level_screen shows it for MODE_LEVEL only); the HUD's L nn counts on to 99.
+- **Caps** (C5, patrons.c try_spawn, ROM0): the random bar, or the next one round with room (`bar_n[b] < bar_cap[b]`;
+  bar_cap 255 in the other modes, so their random sequence is untouched); every bar full: retried in SPAWN_RETRY frames.
+  A served patron sliding out still counts until he is off the screen.
+- **Bonus rounds** (C8): main.c asks `classic_bonus_due()` (levels 2, 5, 9, 13, 15, 18, 22, 26, then those of 14..26
+  every 13 levels: 28, 31, 35, 39, 41 ...). Always the can shake-up (bonus_kind 0); round n swaps 6 + n times at 32 - 2n
+  frames a swap (30, 28, ... 14 at round 9, then it stays there); WINNER 3000 every time.
+- **Tips** (C9): `tip_first` = 2 at a CLASSIC level's load; send_empty counts the level's empties down and the 2nd one
+  calls `classic_tip(p)`: the coin centred under the sender (tip_x = his x + 4) on his bar. maybe_tip leaves no tip
+  before that one; later tips as before (tip_chance at a serve).
+- **In-level ramp** (the guide; owner: now, not P6): `ramp_t` counts 600 frames of play (update_patrons, not during the
+  intro); each step spawn -6 % and walk +5 % (hurried walkers too) of the level's own values, 3 steps at most; the
+  pending spawn timer is cut to the new interval. A lost life (resume_after_life) puts the level's values back and starts
+  the count again.
+- **Lives / scores** (C7, T7): extra lives at 20,000 then every 40,000, at most 4 (start_new_game sets extra_at for
+  MODE_CLASSIC, as the stand-in did). GAME OVER -> initials -> "CLASSIC HIGH SCORES". The CLASSIC block's magic is now
+  "HSC2" (save.c tbl_ver): the stand-in's "HSC1" block loads as an empty table; ARCADE / STORY keep "HSA1" / "HSS1".
+- **Debug**: PLAY's cursor on CLASSIC (or CLASSIC play) opens "CLASSIC nn" (1..26, wrapping; in play a repeat shows its
+  row's number); A starts a CLASSIC game there (3 lives, score 0). A CLASSIC game over from it goes into the CLASSIC table
+  as an ARCADE debug run does into ARCADE's. The LEVEL box (SELECT steps the layouts) is unchanged. Test hook: title_go
+  = 0x80 | level starts CLASSIC at that level.
+- **Tests** (1560 -> 1629 passing, 25 skipped, 2 xfailed, both models): tests/test_classic_mode.py (71): the table read
+  out of build/game.gb equals the guide (settings, directions, caps, bonus levels, venues, serve scores); PLAY > CLASSIC
+  starts level 1; 13 levels load their rows; level 27 / 40 / 53 / 66 = row 14, faster each repeat up to 3; caps never
+  exceeded under a flood (levels 1, 4, 6) and reached; serves score 50 / 75 / 100 / 150 (wave 2 too); the extra life at
+  20,000 and the cap of 4; bonus after exactly the listed levels (1-42), always the shake-up, quicker and longer each
+  round (9 rounds); the first tip at the 2nd empty under its sender, no tip before it; the ramp's three steps and its
+  reset at a lost life; level 12 crowded for 3000 frames (ClassicPeak's second bartender on the real level): <= 10
+  objects a line, <= 40 in all, <= 4 a bar; game over -> initials -> the CLASSIC table, saved as "HSC2"; an "HSC1" block
+  loads empty; the CLASSIC box. Changed on purpose: test_flow (PLAY > CLASSIC starts CLASSIC's level 1: a patron on
+  every bar), test_debug (PLAY's CLASSIC opens the CLASSIC box), test_scores (TBL_MAGIC "HSC2"). New goldens (dmg + cgb):
+  classic_start, classic_level3 (the whole screen flipped, in play), classic_bonus, scores_classic. No existing golden
+  changed.
+- **Perf**: not tuned. ClassicPeak (test_perf) runs on the harness's level 10 row with RLRL and caps off, so its numbers
+  in "Three modes P3-P4 as built" stand; the real table's level 12 (spawn 170, step 53) is slower than that row (210 /
+  52 with the scenario's own forced spawns), and levels 23-26 (130 / 44) are the fastest rows, not measured yet.
+- **ROM**: ROM0 real free 1134 -> 1006 B (game.gb), 1247 -> 1119 B (release.gb): try_spawn's caps, send_empty's hook,
+  update_patrons' ramp tick, maybe_tip's test, main.c's bonus choice. Banked: classic.c (~1.0 KB, bank 9: 7973 -> 6929 B
+  free), level.c +102 B (bank 5: 254 -> 152 free), the rest in their own banks. WRAM +~15 B.
+- **Deviations from the guide**: patrons come to a quota per level (our engine), not "until the level is cleared";
+  speeds, quotas and spawn rates are ours; the bonus round's speed-up stops at round 9 (14 frames a swap); a leaving
+  patron counts against his bar's cap until he is off the screen; no "WAVE 2" banner; space bar 150 (the guide's
+  figure).
 
 ## Quick Draw and BONUS > MINI GAMES as built (M11e step 3, docs/minigames_bosses.md 4.1 / 2.3, 2026-10-11)
 

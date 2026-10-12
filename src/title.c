@@ -6,8 +6,8 @@
 //
 // The menu (owner 2026-10-11: "a sub menu scheme. Top level - play, bonus, settings"): the top level PLAY / BONUS /
 // SETTINGS; A (or START) opens the item's submenu in the same place: PLAY [CONTINUE] / STORY / ARCADE / CLASSIC
-// (CONTINUE when a story save exists: M11b; the three modes, owner 2026-10-11: CLASSIC starts the old 10-level
-// rotation as a stand-in until CLASSIC is built, with its own top 5), BONUS SOUNDTRACK (the soundtrack player, src/jukebox.c) / MINI GAMES (Practice: the
+// (CONTINUE when a story save exists: M11b; the three modes, owner 2026-10-11: CLASSIC starts the 1983 table's level 1,
+// src/classic.c, with its own top 5), BONUS SOUNDTRACK (the soundtrack player, src/jukebox.c) / MINI GAMES (Practice: the
 // mini-games reached, src/mg_list.c), SETTINGS MUSIC ON-OFF. B in a submenu goes back to the top level, the cursor on the item it came from. SELECT
 // toggles the music anywhere on the title (as before). A submenu's lines replace the menu's text over a few frames
 // (menu_frame: within the VBlank drain's budget, 2-5 frames).
@@ -105,7 +105,8 @@ uint8_t  title_n;               // menu lines
 uint8_t  title_rows[MENU_MAX];  // their screen rows
 uint16_t title_dirty;           // menu rows (bit = screen row) still to be redrawn through the VBlank queue
 uint8_t  title_go;              // test hook: a level number (1..99) written here starts the LEVEL harness (MODE_LEVEL, the
-                                // old 10-level rotation) from that level on the next title frame (tests/conftest.py)
+                                // old 10-level rotation) from that level on the next title frame (tests/conftest.py);
+                                // with bit 7 set (0x80 | level), CLASSIC from that level (MODE_CLASSIC)
 uint16_t title_idle;            // M10b: frames without a key; at TITLE_IDLE_FRAMES the top-5 table shows (scores.c)
 uint8_t  logo_state[LOGO_LETTERS];   // fill state per letter: 0 empty .. TT_LOGO_STATES-1 the final art
 uint8_t  logo_done;             // filled and sparkled
@@ -456,7 +457,12 @@ static void cursor_frame(void) {
 // screen changes, 0 is returned. A top-level item opens its submenu; B in a submenu goes back to the top level.
 uint8_t title_update(uint8_t pressed) BANKED {
     uint8_t old = title_sel, last = title_n - 1, full = 1;
-    if (title_go) { old = title_go; title_go = 0; play_mode = MODE_LEVEL; start_new_game(old); return 0; }
+    if (title_go) {
+        old = title_go; title_go = 0;
+        play_mode = old & 0x80 ? MODE_CLASSIC : MODE_LEVEL;
+        start_new_game(old & 0x7F);
+        return 0;
+    }
     title_t++;
     if (pressed) title_idle = 0;
     else if (++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables
@@ -471,7 +477,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
     else if (pressed & (J_A | J_START)) {
         switch (title_items[title_sel]) {
         case K_ARCADE: arcade_begin(); return 0;
-        case K_CLASSIC: play_mode = MODE_CLASSIC; start_new_game(1); return 0;   // (a stand-in: the old rotation)
+        case K_CLASSIC: play_mode = MODE_CLASSIC; start_new_game(1); return 0;   // CLASSIC's level 1 (classic.c)
         case K_STORY: story_begin(0); return 0;
         case K_CONTINUE: story_begin(1); return 0;
         case K_SOUNDTRACK: title_back = TM_BONUS; jukebox_enter(); return 0;   // (B there comes back to BONUS)

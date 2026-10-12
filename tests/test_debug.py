@@ -353,10 +353,10 @@ def test_in_story_play_the_box_opens_where_the_story_is(model):
         assert gb.mem("game_state") == PLAYING and gb.mem("story_on") == 1, "B: the shift goes on"
 
 
-@pytest.mark.parametrize("k", [K_PLAY, K_BONUS, K_SETTINGS, K_SOUNDTRACK, K_MUSIC, K_CLASSIC])
+@pytest.mark.parametrize("k", [K_PLAY, K_BONUS, K_SETTINGS, K_SOUNDTRACK, K_MUSIC])
 def test_on_other_items_and_in_arcade_play_it_stays_the_level_select(boot, k):
-    """The top level (PLAY too: no mode chosen yet), BONUS / SETTINGS and PLAY's CLASSIC (its stand-in is the old
-    rotation): the LEVEL select (the harness)."""
+    """The top level (PLAY too: no mode chosen yet) and BONUS / SETTINGS: the LEVEL select (the harness). (P5: PLAY's
+    CLASSIC opens the CLASSIC box: tests/test_classic_mode.py.)"""
     open_on(boot, k)
     assert boot.mem("debug_menu_open") == 1
     assert boot.mem("debug_story") == 0 and boot.mem("debug_level") == 1
@@ -376,11 +376,11 @@ def test_the_box_follows_play_s_cursor_and_b_leaves_the_submenu_as_it_was(boot):
     boot.run(3)
     assert boot.mem("debug_story") == 2 and banner_is(boot, "ARCADE 1 OPEN")
     tap(boot, "b")
-    tap(boot, "down")                                      # CLASSIC
+    tap(boot, "down")                                      # CLASSIC (P5: its own box)
     combo(boot)
     release_combo(boot)
     boot.run(3)
-    assert boot.mem("debug_story") == 0 and banner_is(boot, "LEVEL 01")
+    assert boot.mem("debug_story") == 0 and boot.mem("debug_classic") == 1 and banner_is(boot, "CLASSIC 01")
     tap(boot, "b")
     tap(boot, "up")
     tap(boot, "up")                                        # STORY again

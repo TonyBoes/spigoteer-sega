@@ -2,9 +2,9 @@
 // and stepping it. src/main.c keeps the per-frame START + SELECT combo watch (debug_watch) and the state.
 //
 // Mode-aware (owner 2026-10-10): the box selects in the mode it was opened in.
-//   - LEVEL ("LEVEL nn", the old 10-level rotation: the test harness, MODE_LEVEL): opened in its play (or CLASSIC's
-//     stand-in), or on the title with the cursor on any item but STORY / CONTINUE / ARCADE (the top level, PLAY's
-//     CLASSIC, the BONUS / SETTINGS submenus). Left/Down and Right/Up change the level (1..DEBUG_LEVELS, wrapping); A
+//   - LEVEL ("LEVEL nn", the old 10-level rotation: the test harness, MODE_LEVEL): opened in its play, or on the title
+//     with the cursor on any item but STORY / CONTINUE / ARCADE / CLASSIC (the top level, the BONUS / SETTINGS
+//     submenus). Left/Down and Right/Up change the level (1..DEBUG_LEVELS, wrapping); A
 //     starts it from scratch (start_new_game, MODE_LEVEL). P3: SELECT steps the bars' directions through CLASSIC's
 //     eight layouts (level_dirs: LLLL, RRRR, RRLL, LLRR, RLLR, LRRL, RLRL, LRLR, top bar first; the box then reads
 //     "LEVEL nn RRLL"), kept for every later level of that run (until the title).
@@ -19,6 +19,9 @@
 //     rules (story_debug_start, src/story.c: a fresh score, the venue's 3 lives, its goals and perfect pour; a POST
 //     scene goes on to the next chapter as usual). Such a run writes nothing to SRAM (save.c save_lock, cleared by
 //     the title): no story progress, no soundtrack unlocks, so a playtest jump never unlocks what was not earned.
+//   - CLASSIC ("CLASSIC nn", P5): opened in CLASSIC play, or on the title with PLAY's cursor on CLASSIC. Left/Down and
+//     Right/Up change the level (1..CLASSIC_ROWS, wrapping); A starts a CLASSIC game there (start_new_game, MODE_CLASSIC:
+//     3 lives, a fresh score, the table's directions; SELECT does nothing).
 //   B closes the box (back to the title, or unpauses).
 #pragma bank 255
 #include <gb/gb.h>
@@ -36,6 +39,7 @@ extern uint8_t overlay_on, level, story_chapter, story_step;
 uint8_t debug_story;               // 1: the box selects a story position, 2: an ARCADE one (0: a level)
 uint8_t debug_chapter;             // its chapter (0..STORY_CHAPTERS-1)
 uint8_t debug_pos;                 // its position (0 PRE, 1..STORY_STEPS step pos-1, POS_POST)
+uint8_t debug_classic;             // 1: the box is CLASSIC's (debug_level is its level, 1..CLASSIC_ROWS)
 void story_debug_start(uint8_t ch, uint8_t pos, uint8_t arc) BANKED;   // src/story.c
 
 static const char *const step_label[4] = { "OPEN", "HAPPY", "LAST", "" };   // a shift's index (STEP_INDEX)
@@ -61,6 +65,12 @@ static void debug_show(void) {
     char s[21];
     const char *n;
     uint8_t i = 0, k;
+    if (debug_classic) {
+        for (n = "CLASSIC "; *n; n++) s[i++] = *n;
+        s[8] = '0' + debug_level / 10; s[9] = '0' + debug_level % 10; s[10] = 0;
+        show_overlay(s);
+        return;
+    }
     if (!debug_story) {
         s[0] = 'L'; s[1] = 'E'; s[2] = 'V'; s[3] = 'E'; s[4] = 'L'; s[5] = ' ';
         s[6] = '0' + debug_level / 10; s[7] = '0' + debug_level % 10; s[8] = 0;
@@ -90,12 +100,13 @@ static void debug_show(void) {
 void debug_open(void) BANKED {
     uint8_t k;
     debug_from_title = game_state == GS_TITLE;
-    debug_story = 0;
+    debug_story = 0; debug_classic = 0;
     if (debug_from_title) {
         debug_level = 1;
         if (debug_toggled) title_music_toggle();     // the SELECT that began the combo toggled the music: undo
         k = title_items[title_sel];
         if (k == K_STORY) { debug_story = 1; debug_chapter = 0; debug_pos = 0; }
+        else if (k == K_CLASSIC) debug_classic = 1;
         else if (k == K_ARCADE) { debug_story = 2; debug_chapter = 0; debug_pos = pos_next(0, 0, 1); }
         else if (k == K_CONTINUE) {                  // as CONTINUE starts it (story.c story_begin)
             debug_story = 1;
@@ -107,6 +118,10 @@ void debug_open(void) BANKED {
         debug_chapter = story_chapter;
         debug_pos = story_step + 1;
         if (!pos_ok(debug_chapter, debug_pos)) debug_pos = pos_next(debug_chapter, debug_pos, 1);
+    } else if (play_mode == MODE_CLASSIC) {          // in CLASSIC play: its level (a repeat past wave 2: its row's)
+        debug_classic = 1;
+        for (k = level; k > CLASSIC_ROWS; k -= 13) ;
+        debug_level = k;
     } else debug_level = level < DEBUG_LEVELS ? level : DEBUG_LEVELS;
     debug_toggled = 0;
     game_state = GS_DEBUG;
@@ -127,12 +142,12 @@ static void story_keys(uint8_t pressed) {
 
 // 1: A started a level (the frame is over)
 uint8_t debug_step(uint8_t pressed) BANKED {
-    uint8_t l = debug_level;
+    uint8_t l = debug_level, top = debug_classic ? CLASSIC_ROWS : DEBUG_LEVELS;
     if (debug_story) story_keys(pressed);
     else {
-        if (pressed & (J_RIGHT | J_UP)) l = l == DEBUG_LEVELS ? 1 : l + 1;
-        else if (pressed & (J_LEFT | J_DOWN)) l = l == 1 ? DEBUG_LEVELS : l - 1;
-        if (pressed & J_SELECT) {                    // P3: the next layout of the bars' directions
+        if (pressed & (J_RIGHT | J_UP)) l = l == top ? 1 : l + 1;
+        else if (pressed & (J_LEFT | J_DOWN)) l = l == 1 ? top : l - 1;
+        if ((pressed & J_SELECT) && !debug_classic) {                    // P3: the next layout of the bars' directions
             uint8_t k, d = level_dirs, n = dir_layout[0];   // (d in a local: SDCC 4.5 kept k in L and loaded HL
             for (k = 0; k < DIR_LAYOUTS - 1; k++)            // with &level_dirs inside the loop)
                 if (dir_layout[k] == d) { n = dir_layout[k + 1]; break; }
@@ -144,7 +159,7 @@ uint8_t debug_step(uint8_t pressed) BANKED {
     if (pressed & J_A) {
         debug_menu_open = 0;
         if (debug_story) { overlay_on = 0; save_lock = SAVE_LOCK_DEBUG; story_debug_start(debug_chapter, debug_pos, debug_story == 2); }
-        else { play_mode = MODE_LEVEL; start_new_game(l); }
+        else { play_mode = debug_classic ? MODE_CLASSIC : MODE_LEVEL; start_new_game(l); }
         return 1;
     }
     if (pressed & J_B) {

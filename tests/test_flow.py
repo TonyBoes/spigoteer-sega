@@ -317,13 +317,14 @@ def test_play_arcade_starts_the_saloon_s_opening_shift_with_no_scene(boot):
     assert spr and all(o["tile"] < 56 for o in spr), "only the bartender: the title's sprites are gone"
 
 
-def test_play_classic_starts_the_old_rotation_as_a_stand_in(boot):
-    """Until CLASSIC is built (P5), PLAY > CLASSIC plays the old 10-level rotation, with extra lives and its own top 5."""
+def test_play_classic_starts_classic_s_level_1(boot):
+    """P5: PLAY > CLASSIC plays CLASSIC's table (no longer the old rotation): level 1 starts a patron on every bar (the
+    harness's level 1 starts bars 0 and 2), with extra lives and its own top 5 (tests/test_classic_mode.py has the rest)."""
     title_pick(boot, K_PLAY, K_CLASSIC)
     run_until(boot, lambda: state(boot) == PLAYING, 30)
     assert boot.mem("play_mode") == 2 and boot.mem("story_on") == 0 and boot.mem("level") == 1
     assert int.from_bytes(boot.read("extra_at", 4), "little") == 20000
-    assert patrons(boot) == [(0, ENTRY_X), (2, ENTRY_X)]
+    assert patrons(boot) == [(0, ENTRY_X), (1, ENTRY_X), (2, ENTRY_X), (3, ENTRY_X)]
 
 
 @pytest.mark.parametrize("lvl", [1, 7, 23])
