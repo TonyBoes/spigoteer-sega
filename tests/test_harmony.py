@@ -232,3 +232,77 @@ def test_mountains_harmony_starts_in_step_with_the_melody_at_the_pickup(srom):
     assert abs(heard - want) / want < 0.04, f"the harmony's first note is {heard:.0f} Hz, the line's row 248 is {want:.0f}"
     assert rows_seen[0] == 248 and 0 in rows_seen and rows_seen[-1] >= 24, rows_seen[:3] + rows_seen[-3:]
     assert checked >= 30 * t["tempo"]
+
+
+# ---- the owner's harmony picks (demos of 2026-10-12): which voice sounds in which bars -----------------------------------
+# ("pad" held, "harm" thirds, "stab" stabs: gm.HARM_INST names; a rest takes no instrument, so only bars with notes count)
+PICKED_SECTIONS = {
+    "ballgame": [((1, 16), "pad"), ((17, 32), "harm")],        # held, then thirds
+    "hall": [((1, 16), "harm")],                                # thirds all through
+    "danube": [((1, 24), "harm"), ((25, 32), "pad")],           # thirds, the closing phrase held
+    "weasel": [((1, 8), "stab"), ((9, 16), "harm")],            # stabs, then thirds
+}
+
+
+def instrument_by_bar(name):
+    t = songs.SONGS[name]
+    bar = t["harm_tune"].bar
+    ev = gm.harm_events(name, t, total_rows(name))
+    by_bar, row = {}, 0
+    for n, note, inst in ev:
+        for r in range(row, row + n):
+            if note is not None:
+                by_bar.setdefault(r // bar + 1, set()).add(t["ch1_inst"][inst])
+        row += n
+    return by_bar
+
+
+@pytest.mark.parametrize("name", sorted(PICKED_SECTIONS))
+def test_the_picked_harmony_sections_use_their_voices(name):
+    by_bar = instrument_by_bar(name)
+    for (a, b), inst in PICKED_SECTIONS[name]:
+        for bar in range(a, b + 1):
+            assert by_bar.get(bar, {inst}) == {inst}, f"{name} bar {bar}: {by_bar.get(bar)} not {inst}"
+        assert any(by_bar.get(bar) for bar in range(a, b + 1)), f"{name} bars {a}-{b} have notes"
+
+
+@pytest.mark.parametrize("name", sorted(PICKED_SECTIONS))
+def test_thirds_follow_every_melody_note_held_is_a_note_a_bar_and_stabs_are_four_a_bar(name):
+    """Thirds (grid 1, no merging): a note starts on every melody note start; held: one note a bar or less; stabs: four a 6/8 bar."""
+    t = songs.SONGS[name]
+    tune = t["harm_tune"]
+    starts = {s for s, n, p in H.timeline(t["ch1"]) if p is not None}
+    for (a, b), inst in PICKED_SECTIONS[name]:
+        rows = range((a - 1) * tune.bar, b * tune.bar)
+        have = [r for r in rows if r in starts]
+        if inst == "harm":
+            missed = [r for r in rows if r in tune.onsets and tune.mel[r] is not None and r not in starts]
+            assert not missed, f"{name} {a}-{b}: melody notes without a third: {missed[:6]}"
+        elif inst == "pad":
+            assert 0 < len(have) <= (b - a + 1), f"{name} {a}-{b}: held, a note a bar or less"
+        else:
+            assert len(have) == (b - a + 1) * 4, f"{name} {a}-{b}: stabs, four a 6/8 bar"
+
+
+@pytest.mark.parametrize("name", ["hall", "danube", "ballgame", "weasel"])
+def test_the_picked_lines_never_cross_above_the_melody(name):
+    t = songs.SONGS[name]
+    tune = t["harm_tune"]
+    for s, n, p in H.timeline(t["ch1"]):
+        if p is not None:
+            assert all(tune.mel[r] is None or p <= tune.mel[r] for r in range(s, s + n)), f"{name}: row {s} {H.name_of(p)} above the melody"
+
+
+def test_the_funiculi_tempo_is_swung_126_bpm_and_its_harmony_is_unchanged():
+    """Rows of 10 and 9 frames (swing 0xAA like the Entertainer, 9.5 on average): a dotted quarter of 3 rows is 28.5 frames
+    = 126.3 bpm; GAME_BPM says 126.  The harmony is the verse in thirds, the chorus held (as before)."""
+    s = songs.SONGS["funicula"]
+    assert s["tempo"] == 10 and s["swing"] == 0xAA and songs.GAME_BPM["funicula"] == 126
+    avg = s["tempo"] - bin(s["swing"]).count("1") / 8
+    assert abs(3600 / (avg * 3) - 126) < 1
+    assert gm.row_starts(10, 0xAA, 150)[-1] == 1425, "150 rows: 75 of 10 frames and 75 of 9"
+    src = (ROOT / "build" / "music_data.c").read_text()
+    assert "groove_venue3[] = {6, 170," in src
+    assert re.search(r"\{&song_venue3, 1, 1425, ", src)
+    by_bar = instrument_by_bar("funicula")
+    assert by_bar.get(1) == {"harm"} and by_bar.get(18) == {"pad"}

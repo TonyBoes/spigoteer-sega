@@ -89,10 +89,10 @@ def harmony(name, tune, ch1, inst=("harm", "harm")):
 # speed changes), in beats per minute of the beat the spec names; the spec's own tempo is in docs/music_specs.md and
 # SPEC_BPM_ROWS in tests/test_sound.py.  tempo = frames per row is the nearest whole number (60 fps), so the tempo
 # the game really plays is 3600 / (tempo x rows per beat): entertainer 9 and 8 alternating (swing 0xAA) -> 105.9, sakura 12 -> 150,
-# funicula 11 -> 109.1 (dotted quarter), skaters / danube / ballgame 9 -> 200 (quarter).  Tunes not listed play
+# funicula 10 and 9 alternating (swing 0xAA) -> 126.3 (dotted quarter), skaters / danube / ballgame 9 -> 200 (quarter).  Tunes not listed play
 # at the spec tempo.  mountain 4 -> 225 spec-quarters (music step 6: 3.88 frames per row is the MIDI's 116 MIDI-quarters of 8 rows;
 # 4 plays 112.5 of them, 5 would play 90, 6 played 75 and was too slow, the owner said; MTN_TEMPO).
-GAME_BPM = {"entertainer": 106, "sakura": 150, "funicula": 112, "skaters": 192, "danube": 192, "ballgame": 192,
+GAME_BPM = {"entertainer": 106, "sakura": 150, "funicula": 126, "skaters": 192, "danube": 192, "ballgame": 192,
             "mountain": 225}
 
 
@@ -237,10 +237,11 @@ TMO_CHORDS = [
 ]
 song("ballgame", 9, "A", " ".join(TMO_BARS), oompah(TMO_CHORDS, 6), groove="K:1 r:1 S:1 r:1 S:1 r:1")
 # Harmony (music step 5): the first sixteen bars hold one chord tone a chord (the organ's sustained chord: the third or
-# seventh first, G#4 in the E7 bars), the second sixteen a voice in thirds and sixths under "let me root, root, root".
+# seventh first, G#4 in the E7 bars), the second sixteen a voice in thirds and sixths under "let me root, root, root",
+# one note for each melody eighth (grid 1, no merging).  Owner's pick (harmony demos, 2026-10-12): held, then thirds.
 _t = H.Tune(" ".join(TMO_BARS), TMO_CHORDS, 6, 2, "G")
-harmony("ballgame", _t, " ".join([H.guide(_t, (1, 16), "D4", "C5"), H.follow(_t, (17, 32), "D4", "D5", grid=2, inst="/2")]),
-        ("pad", "harm"))
+harmony("ballgame", _t, " ".join([H.guide(_t, (1, 16), "D4", "C5"),
+                                  H.follow(_t, (17, 32), "D4", "D5", grid=1, merge=False, inst="/2")]), ("pad", "harm"))
 
 # ---------------------------------------------------------------------------------------------
 # Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song).  4/4, key D, one row = a sixteenth
@@ -294,7 +295,9 @@ FUN_CHORDS = [
     "F", "F", "F", "F", "C7", "F", "C7", "F", "F", "C7", "C7", "C7", "C7", "C7", "C7", "C7", "F",
     "A7", "Dm", "A7", "Dm", "Bb", "F", "C7", "F",
 ]
-song("funicula", 11, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"), groove="K:1 r:1 S:1 K:1 r:1 S:1")
+song("funicula", 10, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"), groove="K:1 r:1 S:1 K:1 r:1 S:1", swing=0xAA)
+# Tempo (owner pick, harmony demos 2026-10-12): rows alternate 10 and 9 frames (swing 0xAA, as the Entertainer) = 9.5 on
+# average = 126 bpm for the dotted quarter; a 6-row bar has the same long-short pattern every time.  Harmony unchanged.
 # Harmony (music step 5): the verse in thirds and sixths under the melody, one note a dotted beat (the echoes "and so
 # do I" answered in thirds, B-flat and C under D and E); the chorus ("Funiculi, funicula") a slow line of held chord
 # tones under the repeated A, through the A7 / D minor turn (C#4 / D4).
@@ -357,12 +360,11 @@ HALL_CHORDS = [
 HALL_BASS = " ".join(("F#2:2! " if 9 <= i <= 12 else "B2:2! ") * 4 for i in range(1, 17))
 song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS,
      " ".join(["K:1 r:3 S:1 r:3"] * 16), stac_all=(1, 2))
-# Harmony (music step 5): the motif creeps low, so the line sits above it: one held chord tone a chord on the pad (D, the
-# B of C#7, G for the C chord, F# for D), a dark organ; the answer (bars 9-12, F#) a plucked voice under the melody.
+# Harmony (music step 5): a voice in thirds and sixths UNDER the melody the whole way (G3 to B4, never crossing, one note
+# for each melody eighth, grid 1, no merging), a plucked "harm" voice.  The motif creeps down to B3 over the B2 bass, so
+# the line sits right above the bass: dark and a little thick there.  Owner's pick (harmony demos, 2026-10-12): thirds.
 _t = H.Tune(" ".join(HALL_BARS), HALL_CHORDS, 8, 2, "Bm")
-harmony("hall", _t, " ".join([H.guide(_t, (1, 8), "F#4", "F#5", below=False),
-                              H.follow(_t, (9, 12), "C#4", "A#4", grid=2, merge=False, inst="/2"),
-                              H.guide(_t, (13, 16), "F#4", "F#5", below=False)]), ("pad", "pluck"))
+harmony("hall", _t, H.follow(_t, (1, 16), "G3", "B4", grid=1, merge=False), ("harm", "harm"))
 
 # ---------------------------------------------------------------------------------------------
 # Teahouse: "Sakura Sakura" (Japanese traditional).  4/4, key A minor (A B C E F), the spec's quarter = 72-100.
@@ -429,13 +431,12 @@ DAN_CHORDS = [
 ]
 song("danube", 9, "A", " ".join(DAN_BARS), oompah(DAN_CHORDS, 6),
      groove="K:1 r:1 H:1 r:1 H:1 r:1")
-# Harmony (music step 5): the opening strain holds one chord tone a bar on the pad, above the rising C E G figure where
-# it lies low (the strings' sustained answer), the high strain (bars 17-24) a voice in thirds and sixths under the
-# melody, the closing bars held chord tones again.
+# Harmony (music step 5): a voice in thirds and sixths under the melody (G3 to A5, one note for each melody eighth, grid 1,
+# no merging) through bar 24, the closing phrase (bars 25-32) one held chord tone a bar on the pad, G3 to E5.  Owner's
+# pick (harmony demos, 2026-10-12): thirds, the last phrase held.
 _t = H.Tune(" ".join(DAN_BARS), DAN_CHORDS, 6, 2, "C")
-harmony("danube", _t, " ".join([H.guide(_t, (1, 16), "E4", "E5", per_bar=True, below=False),
-                                H.follow(_t, (17, 24), "E4", "A5", grid=2, inst="/2"),
-                                H.guide(_t, (25, 32), "E4", "E5", per_bar=True, below=False)]), ("pad", "harm"))
+harmony("danube", _t, " ".join([H.follow(_t, (1, 24), "G3", "A5", grid=1, merge=False),
+                                H.guide(_t, (25, 32), "G3", "E5", inst="/2")]), ("harm", "pad"))
 
 # ---------------------------------------------------------------------------------------------
 # Zoo: "Pop Goes the Weasel" (English folk tune, c. 1850), verse and second strain.  6/8, key G, dotted
@@ -455,11 +456,12 @@ WEA_CHORDS = [
 ]
 song("weasel", 12, "A", " ".join(WEA_BARS), oompah(WEA_CHORDS, "c6"),
      " ".join(["K:1 r:2 S:1 r:2"] * 16))
-# Harmony (music step 5): the verse in thirds and sixths under the melody, one note a dotted beat; the second strain a
-# slow line of held chord tones (B, A for D, ...) under the high melody, so "pop! goes the weasel" stands out.
+# Harmony (music step 5): the verse (bars 1-8) short dry stabs on the 6/8 off-beats (the bass plays the two dotted beats,
+# the stabs the two eighths after each: A3 to D5), the second strain (bars 9-16) a voice in thirds and sixths under the
+# melody, one note for each melody eighth (grid 1, no merging).  Owner's pick (harmony demos, 2026-10-12): stabs, then thirds.
 _t = H.Tune(" ".join(WEA_BARS), WEA_CHORDS, 6, 3, "G")
-harmony("weasel", _t, " ".join([H.follow(_t, (1, 8), "D4", "D5", grid=3), H.guide(_t, (9, 16), "D4", "D5", inst="/2")]),
-        ("harm", "pad"))
+harmony("weasel", _t, " ".join([H.stabs(_t, (1, 8), "A3", "D5", [(1, False), (1, True), (1, True)] * 2),
+                                H.follow(_t, (9, 16), "A3", "D5", grid=1, merge=False, inst="/2")]), ("stab", "harm"))
 
 # ---------------------------------------------------------------------------------------------
 # The Chrome Cow: "Drunken Sailor" (traditional sea shanty), the owner's pick, played fast and punky (docs/music_specs.md
