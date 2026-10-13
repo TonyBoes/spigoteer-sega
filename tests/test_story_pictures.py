@@ -71,7 +71,7 @@ def test_the_pictures_are_built_to_the_budget():
         assert all(a in (0, 5, 6, 7, 1) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
         assert p["tiles"] + p["extra"] <= 36 + 256 - p["base"], name
     # the numbers of the report (the picture tiles, the HUD palette cells of CREDITS)
-    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 115, "finale_a": 135, "credits_b": 131}
+    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 115, "finale_a": 135, "credits_b": 132}
     assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "credits_b": 12}
     # the portrait slot sits below the picture's tiles in every scene
     assert all(max(i for i in PICS[n]["map"] if i >= 36) < 256 for n in PICS)
@@ -531,12 +531,17 @@ def _find(pix, shape):
 
 
 def test_the_finale_shows_dregs_not_a_second_bartender():
-    """Dregs is his approved small art (J2, mirrored so he faces the Spigoteer): cap, long nose, grey jacket, no white
-    shirt or apron, and his colours are not the Spigoteer's."""
+    """Dregs is his Pour-Off sprite (assets/art/dregs/dregs.txt, faces left toward the Spigoteer): J2's head and neck (rows
+    0-17, the same face as the sprite's), the sprite's jacket body stretched to the picture's size (torso +2 rows, hem at y 88;
+    no legs here: the pavement hides them), no white shirt or apron, and his colours are not the Spigoteer's. His skin is the
+    finale's S, not the sprite's cream: a fifth BG palette would be needed (gen_story allows four)."""
     key, pix = _pix("finale_a")
     want = [r[::-1].replace("D", "S") for r in DREGS_J2]
     got = _region(pix, 142, 62, 160, 89)
-    assert all(g[i] == w[i] for g, w in zip(got, want) for i in range(18) if w[i] != "."), "Dregs is J2"
+    assert all(g[i] == w[i] for g, w in zip(got[:18], want[:18]) for i in range(18) if w[i] != "."), "Dregs's head is J2's"
+    sprite = [r for r in (ROOT / "assets/art/dregs/dregs.txt").read_text().splitlines() if r and not r.startswith(";")][:24]
+    assert all(got[1 + i][:16] == sprite[i].replace("-", "S").replace("+", "m") for i in range(13)), "the head is the sprite's (rows 0-12)"
+    assert got[18][:16] == sprite[14].replace("-", "S").replace("+", "m"), "the sprite's collar"
     assert "W" not in "".join(_region(pix, 139, 60, 160, 89)), "no white shirt or apron on Dregs"
     assert "r" in "".join(_region(pix, 126, 66, 139, 89)) and "r" not in "".join(got)       # the Spigoteer's rose cozy is not Dregs's
     assert key["m"]["hex"] == "#b0a0b8" and "".join(got).count("m") > 50                  # Dregs wears the grey jacket
