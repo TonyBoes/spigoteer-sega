@@ -98,7 +98,7 @@ static const uint8_t po_tune[8] = { 27, 16, 8, 6, 10, 40, 8, 60 };
 static const uint8_t po_crowd[3][2] = { { 0, 0 }, { 0, 1 }, { 3, 0 } };
 static const uint8_t walk_cycle[4] = { BT_WALK1, BT_IDLE, BT_WALK2, BT_IDLE };
 #define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
-static const uint16_t dregs_pal[4] = { 0, RGB15(30, 23, 17), RGB15(22, 20, 23), RGB15(4, 3, 5) };   // J2: skin, grey jacket, ink
+static const uint16_t dregs_pal[4] = { 0, RGB15(30, 27, 20), RGB15(22, 20, 23), RGB15(4, 3, 5) };   // J2: skin (his story-scene cream), grey jacket, ink
 
 // ---- the screen (LCD off) -------------------------------------------------------------------------------------------------
 static uint8_t *tile_at(uint8_t t) {             // VRAM of BG id t (signed mode, as mirror.c)

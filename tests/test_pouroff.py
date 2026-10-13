@@ -201,7 +201,7 @@ def test_dregs_has_his_own_art_and_palette_and_does_not_read_as_a_second_spigote
     assert [e["tile"] for e in y] == [0, 2, 4, 6]
     if gb.model_name == "cgb":
         assert [e["prop"] & 7 for e in d] == [3] * 4 and [e["prop"] & 7 for e in y] == [0] * 4
-        assert cgb_palette(gb, 3, True) == [0, 30 | 23 << 5 | 17 << 10, 22 | 20 << 5 | 23 << 10, 4 | 3 << 5 | 5 << 10]
+        assert cgb_palette(gb, 3, True) == [0, 30 | 27 << 5 | 20 << 10, 22 | 20 << 5 | 23 << 10, 4 | 3 << 5 | 5 << 10]
     else:
         assert gb.mem(0xFF49) == 0xE4                                                     # OBP1
         assert [e["prop"] & S_PALETTE for e in d] == [S_PALETTE] * 4 and [e["prop"] & S_PALETTE for e in y] == [0] * 4
