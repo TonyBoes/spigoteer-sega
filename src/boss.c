@@ -360,7 +360,7 @@ void boss_mark(uint8_t b, uint8_t c) BANKED {
 void boss_to_bar(uint8_t b, uint8_t x) BANKED {
     uint8_t ob = boss_bar, p, st;
     boss_bar = b; boss_x = x; boss_col = x >> 3; boss_pose = 255;
-    mark_dirty_attrs(ob, 0, 20);
+    if (ob != b) mark_dirty_attrs(ob, 0, 20);
     for (p = 0; p != MAX_PATRONS; p++) {
         st = patron_state[p];
         if (st == PATRON_NONE || st == PATRON_LEAVING || (patron_bar[p] & (NUM_BARS - 1)) != b) continue;
@@ -370,7 +370,8 @@ void boss_to_bar(uint8_t b, uint8_t x) BANKED {
     boss_pattern(BOSS_NONE);
     boss_look();
     boss_limit();
-    mark_dirty_attrs(b, 0, 20);
+    if (ob != b) mark_dirty_attrs(b, 0, 20);
+    else mark_dirty_attrs(b, boss_col, boss_col + (br->width >> 3));   // (his own bar again, Duke's entrance: only his columns changed)
 }
 
 // Held empties: the first one `sip` frames after it was caught (or after the last went), when boss_send lets it go.
@@ -443,7 +444,7 @@ uint8_t boss_frame(void) BANKED {
         if (boss_hold && boss_state != BS_JUMP) boss_empties();   // (away from his bar: none goes)
         if (x != boss_x) boss_move(x);
         boss_call(BEV_FRAME, 0);                 // his special
-    }
+    } else boss_call(BEV_INTRO, 0);              // (the intro: Duke's entrance holds intro_timer until he lands)
     boss_look();
     boss_limit();
     if ((uint8_t)(boss_x + br->width) >= BOSS_TAP_X) lose_life();   // at the tap: a life (boss_reset after the freeze)
@@ -478,6 +479,7 @@ void boss_draw(void) BANKED {
     OAM_item_t *o = shadow_OAM;
     uint8_t k, top = bar_oam_y[boss_bar] - 8, n0 = 0, n1 = 0, n2 = 0, n3 = 0;
     int8_t r;
+    if (intro_timer) boss_call(BEV_DRAW, 0);     // the intro: a special's own sprites (Duke's entrance) before the lines are counted
     if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (away: no hat in the air)
     for (k = 0; k != 40; k++, o++) {
         if (k == OAM_TOPPER || !o->y) continue;

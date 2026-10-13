@@ -69,10 +69,18 @@ BOSSES = [
      "fx": [("MARKER", "mascot")]},
     {"name": "prototype", "width": 32, "pal": ["#E8F0F8", "#F87818", "#182030"], "extra": ["RED"],
      "hats": ["LAMP_RING", "LAMP_X"], "fx": [("MARKER", "mascot")], "conveyor": "factory"},
-    {"name": "duke", "width": 40, "pal": ["#F8E0C8", "#D06030", "#201018"], "extra": ["TELL1", "TELL2"]},
+    {"name": "duke", "width": 40, "pal": ["#F8E0C8", "#D06030", "#201018"], "extra": ["TELL1", "TELL2"],
+     "entrance": "duke_entrance"},
     {"name": "mothership", "width": 40, "pal": ["#E8F0F8", "#E040B0", "#200828"], "extra": [], "fx": [("BEAM", "mothership")]},
 ]
-BOSS_TILES_MAX = 3           # "tiles": a boss's own 8x16 BG blocks (Leo's "!!"), at BG 246.. like the ice (6 ids)
+# The entrance's OBJ tiles (src/boss_duke.c): a fight borrows 32 ids (OBJ 96-127); the entrance, which plays before the first
+# drink exists, borrows 36 more (OBJ 56-91, reloaded afterwards from the venue's own drink tiles). 8x16 pairs: 18 low, 16 high.
+ENT_LOW, ENT_HIGH = 18, 16
+ENT_LOW_ID, ENT_HIGH_ID = 56, 96      # the pool's OBJ ids
+ENT_ORDER = ["BIKE", "DUST1", "DUST2", "DUST3", "RIDE", "SMOKE1", "SMOKE2", "HELM", "HOP"]   # the pool is filled in this order
+ENT_LATE = ["BIKE", "DUST1", "DUST2", "DUST3"]          # still on screen after the landing: their tiles are reloaded last
+ENT_EARLY = ["RIDE", "SMOKE1", "SMOKE2"]                # gone by the vault: the topper's ids (pairs 18, 19) may be theirs only
+BOSS_TILES_MAX = 3          # "tiles": a boss's own 8x16 BG blocks (Leo's "!!"), at BG 246.. like the ice (6 ids)
 
 
 def fail(msg):
@@ -205,7 +213,53 @@ def boss_art(b, prev):
         a["fx"] = fx
     if "conveyor" in b:
         a["conv_src"], a["conv"] = conveyor_tiles(b["conveyor"], prev, b["name"], named, path)
+    if "entrance" in b:
+        a["ent"] = entrance(b, prev)
     return a
+
+
+def entrance(b, prev):
+    """Duke's entrance frames (assets/art/<entrance>.txt: RIDE, BIKE 48x32, HOP 24x32, DUST1-3, SMOKE1-2, HELM 8x16) cut into
+    8x16 OBJ cells on an 8 x 16 grid, equal cells (and mirrored ones, with the X flip) sharing a tile pair. Returns the pairs
+    (32 bytes each, top tile then bottom) and, per frame, its cells (dx, dy, pair, flip)."""
+    path = ROOT / "assets/art" / f"{b['entrance']}.txt"
+    named = dict(blocks(path, named=True))
+    size = {"RIDE": (48, 32), "BIKE": (48, 32), "HOP": (24, 32), "HELM": (8, 16)}
+    pairs, index, frames = [], {}, {}
+
+    def key(f, x, y):
+        return tuple(f[y + j][x:x + 8] for j in range(16))
+
+    for n in ENT_ORDER:
+        w, h = size.get(n, (8, 16))
+        f = frame(named, n, w, h, path)
+        cells = []
+        for y in range(0, h, 16):
+            for x in range(0, w, 8):
+                k = key(f, x, y)
+                if all(set(r) == {"."} for r in k):
+                    continue
+                m = tuple(r[::-1] for r in k)
+                if k in index:
+                    p, fl = index[k], 0
+                elif m in index:
+                    p, fl = index[m], 1
+                else:
+                    p, fl = len(pairs), 0
+                    index[k] = p
+                    pairs.append(tile_bytes(f, x, y) + tile_bytes(f, x, y + 8))
+                cells.append((x, y, p, fl))
+        frames[n] = cells
+    if len(pairs) > ENT_LOW + ENT_HIGH:
+        fail(f"{b['name']}: the entrance needs {len(pairs)} tile pairs, the pool has {ENT_LOW + ENT_HIGH}")
+    late = {c[2] for n in ENT_LATE for c in frames[n]}
+    if max(late) >= ENT_LOW:
+        fail(f"{b['name']}: the entrance's late frames (the bike, the dust) must fit the low pairs (OBJ 56-91)")
+    topper = {c[2] for n in frames if n not in ENT_EARLY for c in frames[n]}
+    if topper & {ENT_LOW, ENT_LOW + 1}:
+        fail(f"{b['name']}: OBJ 96-99 (the topper's ids, reloaded at the vault) are used by a frame that is still on screen")
+    png([frame(named, n, *size.get(n, (8, 16)), path) for n in ENT_ORDER], prev / "boss_duke_entrance_x8.png", 8, transparent=True)
+    return {"pairs": [list(p) for p in pairs], "frames": frames}
 
 
 def header(a):
@@ -235,6 +289,21 @@ def header(a):
               carr("boss_art_tiles", a["tiles"])]
     if "fx" in a:
         h += [f"#define BOSS_ART_FX {len(a['fx']) // 16}", carr("boss_art_fx", a["fx"]) + "   // the landing marker"]
+    if "ent" in a:
+        e = a["ent"]
+        names = list(e["frames"])
+        flat = [c for n in names for c in e["frames"][n]]
+        first = [0]
+        for n in names:
+            first.append(first[-1] + len(e["frames"][n]))
+        h += [f"#define BOSS_ART_ENT_PAIRS {len(e['pairs'])}   // the entrance's 8x16 tile pairs: the first {ENT_LOW} at OBJ 56.., the rest at OBJ 96..",
+              carr("boss_ent_tiles", [x for p in e["pairs"] for x in p]),
+              "// entrance frames: " + ", ".join(f"{n} {i}" for i, n in enumerate(names))]
+        h += [f"#define ENT_{n} {i}" for i, n in enumerate(names)]
+        h += [carr("boss_ent_first", first) + "   // each frame's first cell (and the next one's: its end)",
+              carr("boss_ent_cells", [v for c in flat for v in (c[0], c[1], ENT_LOW_ID + 2 * c[2] if c[2] < ENT_LOW
+                                                               else ENT_HIGH_ID + 2 * (c[2] - ENT_LOW), 0x20 if c[3] else 0)])
+              + "   // per cell: dx, dy, its OBJ tile id (the pool: 56.. for the first 18 pairs, 96.. for the rest), S_FLIPX when mirrored"]
     if "conv" in a:
         h += [f"#define BOSS_ART_CONV {len(a['conv']) // 16}", f"#define BOSS_ART_CONV_SRC {len(a['conv_src'])}",
               carr("boss_conv_tiles", a["conv"]) + "   // the conveyor's 2 frames (CONV_A, CONV_B)",

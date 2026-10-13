@@ -24,6 +24,10 @@ enum {
                   // be freed or turned by then), 0 = the common catch (meter -1, push, gulp, one more empty held)
     BEV_TELL,     // boss_hook 1 (tests): start the special's tell now
     BEV_OUTRO,    // the outro's first frame (the mugs are gone): put back anything the special changed on screen
+    BEV_INTRO,    // boss_frame, every PLAYING frame while the level's intro_timer still runs (Duke's entrance holds it and
+                  // takes the player's input; it may set intro_timer again). Not called once the intro is over
+    BEV_DRAW,     // boss_draw, every drawn frame of the intro (after every other sprite, before the topper counts the OAM
+                  // lines): the special's own sprites
 };
 
 enum { BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO };   // boss_state (spec 2.5's test hook names)

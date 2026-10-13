@@ -2625,7 +2625,7 @@ Both new dispatchers autobank into bank 12 (about 4.4 KB for the two with their 
 
 ## Duke as built (the biker bar boss, docs/minigames_bosses.md 3.12, 2026-10-12)
 Follows "Boss hooks as built": src/boss_duke.c (dispatcher `boss_duke`, state struct duke_t in BOSS_OWN: phase, t, revs,
-lurches, stalls = 5 B, **no new WRAM global**: WRAM_LO / WRAM_HI_0 3936 / 3455 B by romusage before and after; earlier notes say 3454), boss.c rows[6] + hook case 6,
+lurches, stalls = 5 B (the entrance added ent, rl: 7 B), **no new WRAM global**: WRAM_LO / WRAM_HI_0 3936 / 3455 B by romusage before and after; earlier notes say 3454), boss.c rows[6] + hook case 6,
 boss.h, gen_boss BOSSES (width 40, extra TELL1 / TELL2), gen_story BUILT_SLOTS BOSS gains BIKER. Art: the owner-approved
 round 6 combination, assets/art/boss/duke.txt: **H2's body** (smooth leather back, one thick cream piping line) with **H1's
 beard** (forked into two braids, cream bead ends); the solid fist with the thumb far right in HAPPY, TELL1 / TELL2, D1's red
@@ -2635,7 +2635,8 @@ the piping and the fork do not clash; the fork's notch shows the dark leather be
 braids). Preview: scratchpad boss_duke/final/duke_final.png. Row: 40 px, start 16, bar 1, **step 0** (no engine stomp), push 16,
 gulp 20, hands 2, sip 45, meter 12; banner "THE BIGGEST SHAKE" / "12 MILKS FOR DUKE".
 - **Owner change: he stands behind the bar like Big Tex, NO bike in the fight.** The entrance bike (and the doc's 30-frame
-  skid with a dust puff) is **not built**; he simply starts at x 16. The doc's bike behaviours became standing ones:
+  skid with a dust puff) was not built at first (he simply started at x 16); **it is now: see "Duke's entrance as built" below** (a retry after a lost life
+  still has him at x 16 at once). The doc's bike behaviours became standing ones:
   - IDLE 150 / 120 / 90 frames by meter (12-9 / 8-5 / 4-1), measured from the entry, his last catch or last lurch; the idle pose
     alternates WALK / STOMP every 8 frames (boss_xpose = BP_STOMP, the topper bobs with it).
   - REV (the tell) 50 frames: the throttle twist, TELL1 / TELL2 every 8 frames, SFX_SHAKE at its start, he stands (BS_TELL),
@@ -2663,6 +2664,68 @@ gulp 20, hands 2, sip 45, meter 12; banner "THE BIGGEST SHAKE" / "12 MILKS FOR D
   rush_list_locked (a ninth row, DUKE), rush_next_card ("FIGHT 1 OF 9").
 - ROM (romusage, before -> after): ROM0 real free 745 -> 745 B; bank 13 (story pictures') 5307 -> 7365 B used (+2058 B: his file
   and art); the linker repacked others (bank 8 free 25 -> 109, bank 12 273 -> 178, bank 6 145, bank 9 248).
+
+### Duke's entrance as built (owner-approved X1 "skid and vault", 2026-10-12; the bike IS built now)
+The owner approved the proposal's X1 ("Animation looks good") with two art changes, both done: **(1) his face carries over**: the
+rider's head is the boss's head pixel for pixel (duke.txt WALK: the face rows 0-4 cols 12-27 and the forked beard with its cream
+beads, jacket and fist around them left out, a black edge where the jacket was his outline; 18 px wide at the beard) at the same
+scale in RIDE and in the vault's HOP, and the helmet sprite is the boss's own topper dome (HAT_STILL rows 2-7, in an 8x16 sprite
+with the dome in its lower half so the entry does not reach the wheel lines); x8 comparison: scratchpad boss_duke/entrance/build/face.png.
+The proposal's smaller 12 px head is gone. **(2) a complete empty bike**: BIKE has its own frame (backbone under the tank, a down
+tube, a seat post, a swing arm), a black sprung seat with a cream highlight, a chrome teardrop tank with a stripe and a filler cap,
+the V-twin, the neck and fork, ape hangers and the upswept pipe, cream chrome and black only (the rider's chaps stay in RIDE).
+Art: assets/art/duke_entrance.txt (RIDE and BIKE 48x32, HOP 24x32, DUST1-3, SMOKE1-2, HELM; named blocks), read by tools/gen_boss.py
+(BOSSES duke `entrance`: cut into 8x16 cells on a 16-row grid, equal and mirrored cells share a tile pair, the cells and their OBJ tile ids
+in build/boss_duke_art.h, the pairs in build/boss.json as `ent`; a preview in out/preview/boss_duke_entrance_x8.png).
+- **Timeline** (game frames from the first PLAYING frame, after the goal banner): 0-14 rides in from the left (4 px / frame, the engine's
+  shake 1 px every 2 frames), 15-29 skids (26 px, dust behind the rear tyre), 30-45 sits and revs (the exhaust puffs 4 frames in 8;
+  **SFX_REV from frame 28**: the growl's 49 frames run through the rev, the vault and fade as the bike rolls away), 46-61 vaults backwards
+  off the seat in a 16 px arc to x 25 (HOP, with the helmet), the bike rolls right from 48 (2 px / frame). Frame 62 (ENT_LAND): he
+  lands, SFX_SHAKE; **the intro's 90 frames start there**. The bike (frames 62-112) keeps rolling right behind him: the lower row of its
+  entries has the BG-priority bit (colours 1-3 of his body and the keg cover it; its upper row, over bar 0's counter, does not or the
+  counter would hide the tank), and it is off the screen at 113.
+- **Hand-off** (boss_duke.c, BEV_LOAD / RESET / INTRO / DRAW; boss.c, two new events): the entrance exists only if `BEV_LOAD` ran
+  (enter_level_screen: the fight's first start, also Boss Rush and Practice); `BEV_RESET` then puts him in BS_JUMP with BP_HIDE (nothing of his on
+  his bar, no topper, nothing caught, the engine's own rules); a lost life reruns BEV_RESET without the flag: no entrance, he is at
+  x 16 at once. boss.c `boss_frame` calls the new **BEV_INTRO** every frame while `intro_timer` runs (it never did anything then), Duke's
+  handler holds `intro_timer` at 90 until frame 62, then sets it to 89 as the level's first frame leaves it, so **the fight's first beat is
+  exactly where it was** (golden boss_duke and boss_duke_tell unchanged; the test compares the first beat after the landing with the
+  one after a retry). At the landing: `boss_xpose 0, BS_WALK, boss_to_bar(boss_bar, 16)`, then `to_idle` (the idle clock from 0). boss_to_bar on
+  the bar he is already on (new, only Duke) marks just his columns dirty instead of the 20 columns twice (the landing frame costs
+  LY 160 instead of 180+ and one missed frame instead of five). The sprites are drawn from boss.c `boss_draw` through the new
+  **BEV_DRAW** (only while intro_timer runs; after every other sprite, before the topper counts the lines), into OAM 5-24 (the mugs'
+  entries: none exist; the entries above 25 - 2 lift_total are never touched).
+- **Input is held** (decision: undo it, not skip it): each intro frame the bartender is put back at bar 0's tap, nothing filling (play_frame
+  ran first; one SFX_FILL can still sound on an A press) until the bike has gone and the tiles are back (frame ~123): no mug, no glass.
+- **Tiles: the 72-tile window, but trimmed to what is needed and without any restore of the coin.** The art is 34 tile pairs = 68 OBJ tiles
+  (RIDE 12 cells, BIKE 12, HOP 6, DUST 3, SMOKE 2, HELM 1; 2 cells shared by RIDE and BIKE, mirrors shared; no BRAKE lean, the skid uses RIDE).
+  The fight borrows 32 ids (OBJ 96-127); the entrance additionally takes **OBJ 56-91 (36 tiles)**: the drinks' (mug 56-59, crash glass 60-75,
+  fill 76-83, drink 84-91: nothing is poured during it) and leaves the coin's 92-95 alone. The pairs are ordered so the topper's ids (96-99) belong
+  to frames that end at frame 45 (RIDE): the topper tiles go back at frame 50 (a 64 B copy through the VBlank queue; the build fails if a late
+  frame used them) and the late frames (BIKE, DUST) live in OBJ 56-91; once the bike has gone (frame 113) the venue's own drink tiles come
+  back from its bank, **4 tiles a frame for 9 frames** (far_copy into 64 B of story_scratch, offset 300, then a queue entry to VRAM: the queue
+  copies from WRAM because the VBlank interrupt cannot see a ROM bank). A cleaner fit than reloading all 72 (the coin, the dancers'
+  tiles and the topper beyond 99 are not reloaded; the next level load restores the dancers as ever). CGB: OBJ 5 (the coin's slot: no coins in a
+  fight, as the Prototype) holds a copy of his BG palette 4, OBJ 7 the helmet's.
+- **OAM per line <= 10 on every frame.** The proposal's count assumed the bartender is 2 entries on lines 40-55; he is 4 (lines 40-71), and the
+  rebuilt bike has 6 entries a line. Riding / skidding: 6 + helmet 1 + dust or smoke 1 + bartender 2 = 10. The vault would be 6 + 3 (Duke) + 1
+  (helmet) + 2 = 12, so **the bartender ducks out of sight for frames 46-61** (OAM 0-3 zeroed after he is drawn; oam_touched at the last one so he is
+  redrawn). Landing: bike 6 + one dust puff + bartender 2 = 9, the topper 10. Tested on every game frame (the worst is exactly 10).
+- Cost: riding frames end at LY 60-100 (a plain fight frame 45-55), the vault 84, the landing frame 160 (one missed frame: the BG body's
+  columns are composed that frame); nothing else of the game's perf changes (ROM0 unchanged, no perf guard touched).
+- DMG: all entries use OBP1 0xE4 (his BG greys). On DMG the hardware draws the sprite with the smaller X on top where two sprites overlap, so in
+  the first frames of the vault the bike's pixels can win over Duke's where their cells' X differ (not on CGB, where the OAM order decides);
+  the overlap lasts about 6 frames. Not fixed.
+- **Not changed:** the fight's timing (above), the boss_duke / boss_duke_tell goldens, Boss Rush's CHOOSE and ALL, Practice's HARD. **Visible
+  differences:** every fight start is 62 frames (1 s) longer before the intro; Boss Rush's time (PLAYING frames) includes the entrance.
+- WRAM: no new global (the entrance's two bytes `ent`, `rl` are duke_t's 6th and 7th; BOSS_OWN_N 20); WRAM_LO / WRAM_HI_0 3936 / 3458 B before and after.
+  ROM0 real free 570 B before and after (all in banked files). Banks (romusage, before -> after): bank 17 5161 -> 8479 B used (the entrance's art,
+  tables and code, about 3.3 KB), the linker repacked the others (bank 9 free 20 -> 185, 12 100 -> 32, 13 17 -> 259, 14 52 -> 136, 15 476 -> 20, 16 9 -> 15).
+- Tests (tests/test_boss_duke.py, 47 cases now): the entrance on the first start only (BS_JUMP, no topper, intro held, SFX_REV once, the shake at the
+  landing, no entrance after a lost life, the same frames to the first beat), the hand-off at x 16 in his idle (body, topper, the priority bits),
+  every frame <= 10 a line and the bartender's duck, the input held, the tile pool borrowed and given back (every pair, the topper, the drinks,
+  the coin, OBJ 5), the face and the complete bike read from the art file, Practice's HARD and a Boss Rush CHOOSE on Duke. Goldens: new
+  boss_duke_entrance_ride (frame 22, skidding) and boss_duke_entrance_vault (frame 52), DMG + CGB.
 
 ## Mothership as built (the space lounge boss, docs/minigames_bosses.md 3.10, 2026-10-12; the last boss slot)
 Follows "Boss hooks as built": src/boss_mothership.c (dispatcher `boss_mothership`, state struct mothership_t in BOSS_OWN: phase, t,

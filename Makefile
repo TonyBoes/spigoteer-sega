@@ -127,7 +127,7 @@ preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h
 # The boss engine (src/boss.c): each boss's body poses (and extra poses), held empties, topper and HUD face, and the HUD
 # meter -> build/boss_art.h (the meter), build/boss_<name>_art.h (each boss's own, in his src/boss_<name>.c's bank),
 # build/boss.json (tests), out/preview/boss_*_x8.png (build/venues.json: the Yeti's icy counter is made from the igloo's)
-$(BUILD)/boss_art.h $(BOSS_H): tools/gen_boss.py tools/gen_art.py $(wildcard assets/art/boss/*.txt) $(BUILD)/art.h | $(BUILD) $(OUT)/preview
+$(BUILD)/boss_art.h $(BOSS_H): tools/gen_boss.py tools/gen_art.py $(wildcard assets/art/boss/*.txt) assets/art/duke_entrance.txt $(BUILD)/art.h | $(BUILD) $(OUT)/preview
 	python3 tools/gen_boss.py $(BUILD) $(OUT)/preview
 
 # CLASSIC's end-of-level antics (src/antics.c): the bartender's four poses, the dove and the stars (approved 2026-10-11)
