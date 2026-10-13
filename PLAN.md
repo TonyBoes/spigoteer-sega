@@ -221,6 +221,13 @@ Music step 2 (2026-10-11, the owner's listening notes):
   frames), SFX_KA (lane B: a noise tick then a ~1 kHz tonal tok, 4 frames) replace COIN / CATCH on hits (perfect and good
   sound alike; SERVE and BREAK stay); SFX_REV (Duke's rev tell: a 7-bit-LFSR growl climbing in five steps, 49 frames)
   replaces SFX_SHAKE there. Tests: tests/test_sfx_taiko_duke.py (the register writes), test_mg_taiko / test_boss_duke.
+- Taiko drums more prominent (owner: "the drums need to be more prominent in the Taiko version"): src/music.c TAIKO_VARIANT
+  (0 the first version, 1 T1 louder: envelope 0xF1 instead of 0xB1 and a one-frame-longer DON, 2 T2 = T1 plus a deeper DON
+  (the noise clock sliding 1024 -> 146 Hz, NR43 0x81..0x87, 8 frames), a brighter KA (0x10 then 0x09, 4 frames) and the
+  teahouse tune's own channel-4 groove stepping aside in Taiko Pour, 3 T3 = T2 plus the other channels panned to the right
+  output only (NR51 0x8F, -6 dB on the mono speaker) while a channel-4 effect sounds). The default is 2; a one-line
+  change of `#define TAIKO_VARIANT` (or -DTAIKO_VARIANT=n in DEBUGFLAGS) picks another. Bank 2: 14 B free (was 27); the
+  other effects and tunes are byte-identical (the later bytes of bank 2 move by 13, as addresses).
 - tools/check_music.py: the LEVEL harness starts at level g + 1 for venue g (the old level-clear trick reached the
   wrong venue for even groups since the 10th venue); a staccato note is measured over the part that sounds.
 

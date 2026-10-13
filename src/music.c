@@ -59,11 +59,39 @@ static const sfx_step_t s_shake[]  = { {0x2B, 2, 0}, {0x3B, 2, 0}, {0x2B, 2, 0},
 // rings out: C6 E6 G6 C7, G6 C7, G6 C7 (held); 33 frames (0.55 s) on a 25% pulse
 static const sfx_step_t s_extra[]  = { {1923, 3, 0}, {1949, 3, 0}, {1964, 3, 0}, {1985, 5, 0},
                                        {1964, 3, 0}, {1985, 3, 0}, {1964, 3, 0}, {1985, 10, 0} };
-// Taiko Pour's drum (channel 4, NR43 values; envelope 0xB1: starts at 11, falls one step per 1/64 s). DON, the centre
-// of the drum: a 2-frame noise knock (15-bit LFSR, clock 2048 Hz) then a low rumble, clock 512 Hz sliding down to ~290 Hz
-// over 6 frames. KA, the rim: a bright noise tick then a tonal "tok" (7-bit LFSR, ~1 kHz), 4 frames (67 ms) counting the start frame.
+// Taiko Pour's drum (channel 4, NR43 values; the player's hits are the lead, so they sit loud over the tune). Counting the
+// start frame, DON lasts 8 frames and KA 4. DON, the centre of the drum: a 2-frame noise knock (15-bit LFSR, clock 2048 Hz)
+// then a boom, the noise clock sliding down from 1024 Hz to 146 Hz (NR43 0x81..0x87: shift 8, divider 1..7, so the width
+// bit stays 15-bit). KA, the rim: a bright noise tick then a 7-bit-LFSR crack at ~2 kHz. Envelope 0xF1: starts at 15,
+// falls one step per 1/64 s. TAIKO_VARIANT picks the set (the owner listened to 0 and asked for more prominent drums):
+//   0 the first version (envelope 0xB1, 7-frame DON)      1 T1: louder (0xF1) and one frame longer, same sounds
+//   2 T2: T1 plus a deeper DON, a brighter KA, and no tune groove  3 T3: T2 plus the band ducked 6 dB during each hit
+#ifndef TAIKO_VARIANT
+#define TAIKO_VARIANT 2
+#endif
+#if TAIKO_VARIANT == 0
+#define TK_ENV 0xB1
 static const sfx_step_t s_don[]    = { {0x62, 2, 0}, {0x74, 6, 1} };
 static const sfx_step_t s_ka[]     = { {0x20, 2, 0}, {0x19, 2, 0} };
+#elif TAIKO_VARIANT == 1
+#define TK_ENV 0xF1
+static const sfx_step_t s_don[]    = { {0x62, 2, 0}, {0x74, 7, 1} };
+static const sfx_step_t s_ka[]     = { {0x20, 2, 0}, {0x19, 2, 0} };
+#else
+#define TK_ENV 0xF1
+static const sfx_step_t s_don[]    = { {0x62, 2, 0}, {0x81, 7, 1} };
+static const sfx_step_t s_ka[]     = { {0x10, 2, 0}, {0x09, 3, 0} };
+#endif
+// In Taiko Pour (variants 2 and up) the tune's own drum groove steps aside (the player's drums replace it); in 3 the
+// rest of the band is also pulled down while a channel-4 effect sounds: channels 1-3 go to the right output only (NR51
+// 0x8F), which halves them on the mono speaker (-6 dB) while the drum stays on both.
+#if TAIKO_VARIANT >= 2
+#include "game.h"
+extern uint8_t mg_game;
+#define taiko_solo() (game_state == GS_MINI && mg_game == 7)    // Taiko Pour (mg.c G_TK)
+#else
+#define taiko_solo() 0
+#endif
 // Duke's engine (channel 4, envelope 0xD0: loud, no decay, ends 50 frames later like the throttle-twist tell): a
 // tonal 7-bit-LFSR growl whose pitch climbs in five steps of 10 frames, 43 / 64 / 86 / 129 / 258 Hz.
 static const sfx_step_t s_rev[]    = { {0x4B, 10, 0}, {0x4A, 10, 0}, {0x3B, 10, 0}, {0x3A, 10, 0}, {0x39, 10, 0} };
@@ -80,8 +108,8 @@ static const sfx_def_t sfx_defs[SFX_COUNT] = {
     { 0, 0x40, 0xA3, N(s_life),   s_life },
     { 3, 0x00, 0x91, N(s_shake),  s_shake },
     { 0, 0x40, 0xD2, N(s_extra),  s_extra },
-    { 3, 0x00, 0xB1, N(s_don),    s_don },
-    { 3, 0x00, 0xB1, N(s_ka),     s_ka },
+    { 3, 0x00, TK_ENV, N(s_don),  s_don },
+    { 3, 0x00, TK_ENV, N(s_ka),   s_ka },
     { 3, 0x00, 0xD0, N(s_rev),    s_rev },
 };
 
@@ -200,6 +228,9 @@ static void step_begin(voice_t *v) {
         NR13_REG = (uint8_t)v->freq;
         NR14_REG = 0x80 | (v->freq >> 8);
     } else {
+#if TAIKO_VARIANT >= 3
+        NR51_REG = taiko_solo() ? 0x8F : 0xFF;
+#endif
         NR41_REG = 0;
         NR42_REG = v->def->env;
         NR43_REG = (uint8_t)v->freq;
@@ -224,6 +255,9 @@ static void voice_tick(uint8_t i) {
         if (++v->step < v->def->nsteps) { step_begin(v); return; }
         if (i == 0) { NR12_REG = 0x08; NR14_REG = 0x80; }   // channel 1: volume 0, the DAC stays on (the harmony comes
         else NR42_REG = 0;                                  // back on it without the click of a DAC switching); 4: DAC off
+#if TAIKO_VARIANT >= 3
+        if (i) NR51_REG = 0xFF;                             // (and the band is back to full)
+#endif
         v->busy = 0;
         if (i) mute_unless_sfx(3, 1);    // (channel 1: harm_tick picks the harmony up again by itself)
         return;
@@ -243,7 +277,7 @@ static void groove_tick(void) {
     g_cnt = hUGE_ticks_per_row;      // this row's length, as the driver has just set it
     d = groove[2 + g_pos];
     if (++g_pos == groove[0]) g_pos = 0;
-    if (d && !voice[1].busy) {
+    if (d && !voice[1].busy && !taiko_solo()) {
         const uint8_t *k = drum_kit[d - 1];
         NR41_REG = k[0]; NR42_REG = k[1]; NR43_REG = k[2]; NR44_REG = k[3];
     }
