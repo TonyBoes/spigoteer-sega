@@ -176,24 +176,6 @@ static void oam_put(uint8_t y, uint8_t x, uint8_t tile, uint8_t prop) {
     oam_next = o;
 }
 
-static void draw_full(uint8_t i) {
-    uint8_t *o = oam_next;
-    *o++ = bar_oam_y[mug_bar[i]] + MUG_DY;
-    *o++ = mug_x[i] + 8;
-    *o++ = spr_full_t;
-    *o++ = spr_full_p;
-    oam_next = o;
-}
-
-static void draw_empty(uint8_t i) {
-    uint8_t *o = oam_next;
-    *o++ = bar_oam_y[mug_bar[i]] + MUG_DY;
-    *o++ = mug_x[i] + 8;
-    *o++ = spr_empty_t;
-    *o++ = spr_empty_p;
-    oam_next = o;
-}
-
 // The breaking drink (gen_art crash_frames, loaded with the venue): its own tilted pose, on its side (two entries), the
 // shards. Left end: a full drink in its full palette; right end: an empty, mirrored (S_FLIPX; gen_art stores the empty
 // on its side with its two columns swapped for that), in its empty palette. DMG: OBP0, the tiles plane-swapped (lift.c).
@@ -235,27 +217,132 @@ static void draw_held(uint8_t i) {
     else oam_put(bar_oam_y[mug_bar[i]] + pose_dy[t], x + 8, g, prop_full_held);
 }
 
+// The per-slot loop of draw_mugs, hand-written (the C loop and writers cost ~25 DIV ticks a frame with a crowd): a full or an
+// empty mug is one OAM entry written here; a breaking glass or a mug in a patron's hand goes to draw_glass / draw_held (C),
+// called with oam_next in step. oam_left counts the entries still free (a glass takes 2); the bar's y is looked up without a mask.
+#if MAX_MUGS != 20 || MUG_DY != 4
+#error "draw_mugs_loop: the constants written into the asm"
+#endif
+typedef char draw_mugs_enums[(MUG_FREE == 0 && MUG_FULL == 1 && MUG_EMPTY == 2 && MUG_BREAKING == 3 && MUG_HELD == 4) ? 1 : -1];
+static void draw_mugs_loop(void) __naked {
+__asm
+    push bc
+    ld   a, (_oam_next)
+    ld   e, a
+    ld   a, (_oam_next + 1)
+    ld   d, a               ; de: the next OAM entry
+    ld   b, #0              ; b = 0 (add hl, bc), c = slot
+    ld   c, #0
+    ld   hl, #_mug_state
+1$:
+    ld   a, (hl+)
+    or   a, a
+    jr   z, 9$              ; (free)
+    cp   a, #3              ; MUG_BREAKING
+    jp   z, 20$
+    ld   hl, #_oam_left
+    ld   a, (hl)
+    or   a, a
+    jr   z, 8$              ; (no entry left)
+    dec  (hl)
+    ld   hl, #_mug_state
+    add  hl, bc
+    ld   a, (hl)
+    cp   a, #4              ; MUG_HELD
+    jp   z, 30$
+    ld   hl, #_mug_bar      ; y: bar_oam_y[mug_bar[i]] + MUG_DY
+    add  hl, bc
+    ld   a, (hl)
+    ld   hl, #_bar_oam_y
+    add  a, l
+    ld   l, a
+    jr   nc, 2$
+    inc  h
+2$:
+    ld   a, (hl)
+    add  a, #4
+    ld   (de), a
+    inc  de
+    ld   hl, #_mug_x        ; x: mug_x[i] + 8
+    add  hl, bc
+    ld   a, (hl)
+    add  a, #8
+    ld   (de), a
+    inc  de
+    ld   hl, #_mug_state
+    add  hl, bc
+    ld   a, (hl)
+    cp   a, #2              ; MUG_EMPTY (anything else draws as a full one)
+    jr   z, 3$
+    ld   a, (_spr_full_t)
+    ld   (de), a
+    inc  de
+    ld   a, (_spr_full_p)
+    jr   4$
+3$:
+    ld   a, (_spr_empty_t)
+    ld   (de), a
+    inc  de
+    ld   a, (_spr_empty_p)
+4$:
+    ld   (de), a
+    inc  de
+8$:
+    ld   hl, #_mug_state + 1
+    add  hl, bc
+9$:
+    inc  c
+    ld   a, c
+    cp   a, #20             ; MAX_MUGS
+    jr   nz, 1$
+    pop  bc
+    ret
+    ; ---- a breaking glass: 2 entries, draw_glass (C, with oam_next in step)
+20$:
+    ld   hl, #_oam_left
+    ld   a, (hl)
+    cp   a, #2
+    jr   c, 8$
+    sub  a, #2
+    ld   (hl), a
+    ld   a, e
+    ld   (_oam_next), a
+    ld   a, d
+    ld   (_oam_next + 1), a
+    push bc
+    ld   a, c
+    call _draw_glass
+    pop  bc
+    ld   a, (_oam_next)
+    ld   e, a
+    ld   a, (_oam_next + 1)
+    ld   d, a
+    jp   8$
+    ; ---- a mug in a patron's hand: draw_held (C, with oam_next in step)
+30$:
+    ld   a, e
+    ld   (_oam_next), a
+    ld   a, d
+    ld   (_oam_next + 1), a
+    push bc
+    ld   a, c
+    call _draw_held
+    pop  bc
+    ld   a, (_oam_next)
+    ld   e, a
+    ld   a, (_oam_next + 1)
+    ld   d, a
+    jp   8$
+__endasm;
+}
+
 void draw_mugs(void) {
-    uint8_t i, st, n;
+    uint8_t i, n;
     oam_next = (uint8_t *)(shadow_OAM + OAM_FILL + 1);
     oam_left = OAM_MUG_END - (OAM_FILL + 1) - 2 * lift_total;   // M13a: lifted patrons use the top entries
     if (mugs_live) {
         prop_full_held = is_cgb ? OBJPAL_MUG_FULL : 0;
-        for (i = 0; i != MAX_MUGS; i++) {
-            st = mug_state[i];
-            if (st == MUG_FREE) continue;
-            if (st == MUG_BREAKING) {
-                if (oam_left < 2) continue;
-                oam_left -= 2;
-                draw_glass(i);
-                continue;
-            }
-            if (oam_left == 0) continue;
-            oam_left--;
-            if (st == MUG_HELD) draw_held(i);
-            else if (st == MUG_EMPTY) draw_empty(i);
-            else draw_full(i);
-        }
+        draw_mugs_loop();
     }
     n = OAM_MUG_END - 2 * lift_total - oam_left;                 // first entry not used by a mug
     for (i = n; i < oam_used; i++) shadow_OAM[i].y = 0;       // hide what is no longer used

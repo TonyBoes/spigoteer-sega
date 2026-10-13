@@ -9,6 +9,8 @@
 #include "music.h"
 
 extern uint8_t cur_group;
+extern uint8_t bar_list[NUM_BARS][MAX_PATRONS], bar_n[NUM_BARS];
+void build_lists(void);
 
 void end_show(void) BANKED {
     uint8_t p;
@@ -23,29 +25,41 @@ void end_show(void) BANKED {
 }
 
 // M13b: does a distracted patron already cover one of p's columns? (Then p is not distracted: two watchers would
-// cover each other on the BG, as neither can be lifted.)
+// cover each other on the BG, as neither can be lifted.) One pass over the bar's patrons: s covers the columns
+// dc .. dc + 1, and dc + 2 off a multiple of 8 (col_scan's rule; it asked for each of p's columns in turn).
 static uint8_t near_watcher(uint8_t p) {
-    uint8_t d = patron_draw[p], b = patron_bar[p] & (NUM_BARS - 1), c, e;
+    const uint8_t *q;
+    uint8_t d = patron_draw[p], b = patron_bar[p] & (NUM_BARS - 1), c, e, n, s, ds, dc;
     if (d == 255) return 0;
     d &= ~DRAW_BACK;
     c = d >> 3;
     e = c + ((d & 7) ? 3 : 2);
-    for (; c != e; c++) { col_scan(b, c, p); if (cs_dist) return 1; }
+    if (!lists_ok) build_lists();
+    q = bar_list[b];
+    for (n = bar_n[b]; n; n--) {
+        s = *q++;
+        if (s == p || !patron_dist[s] || patron_state[s] == PATRON_NONE || (ds = patron_draw[s]) == 255) continue;
+        ds &= ~DRAW_BACK;
+        dc = ds >> 3;
+        if (dc < e && c < (uint8_t)(dc + ((ds & 7) ? 3 : 2))) return 1;
+    }
     return 0;
 }
 
 // The tip is picked up: each walking patron is distracted with probability 1/2 (at least one if any walk).
 // A distracted patron shuffles to the nearest multiple of 8 px and turns its back (watch_step).
 void start_show(void) BANKED {
-    uint8_t p, any = 0, first = NO_SLOT;
+    uint8_t p, any = 0, first = NO_SLOT, old = 0;
     show_timer = SHOW_FRAMES;
     music_play(TUNE_SHOW);                        // "Galop infernal" for as long as the show runs
     dancer_frame = 0; dance_tick = 0;
+    for (p = 0; p < MAX_PATRONS; p++) old |= patron_dist[p];
     for (p = 0; p < MAX_PATRONS; p++) {
         patron_dist[p] = 0;
         if (patron_state[p] != PATRON_WALKING || patron_x[p] < ENTRY_X) continue;   // (not while entering at the left end)
         if (first == NO_SLOT) first = p;
-        if (!(next_rand() & 0x40) || near_watcher(p)) continue;
+        // (near_watcher can only say yes when someone is distracted: earlier in this loop, or left over from a show still running)
+        if (!(next_rand() & 0x40) || ((any | old) && near_watcher(p))) continue;
         patron_dist[p] = 1; patron_timer[p] = 0; any = 1;
     }
     ovl_dirty |= 0x0F;                            // M13b: who may be lifted changed (lift.c)

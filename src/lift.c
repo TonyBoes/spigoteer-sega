@@ -280,88 +280,83 @@ static void lifted_one(uint8_t p, uint8_t v) {
 static uint8_t lo_p;
 static void lifted_slow(void) { lifted_one(lo_p, patron_lift[lo_p]); }
 
-// The pass itself (hand-written): the usual case, a lifted patron still over a BG one (or pinned by the test hook), is
-// only counted here; everything else goes to lifted_one.
+// The pass itself (hand-written): the usual cases are counted here (lift_n[bar]++, lift_total++), everything else goes to
+// lifted_one: a patron at the left end (LIFT_EDGE, drawn); an ordinary lifted one (not distracted, not in his back view)
+// still over a BG patron, pinned by the test hook, or clear for fewer than LIFT_CLEAR_FRAMES frames (lift_clear counts on).
+#if LIFT_CLEAR_FRAMES != 8 || MAX_PATRONS != 16 || LIFT_EDGE != 2 || LIFT_DROP != 0x80
+#error "lifted_scan: the constants written into the asm"
+#endif
 static void lifted_scan(void) __naked {
 __asm
     push bc
+    ld   b, #0              ; b = 0 (add hl, bc), c = slot
+    ld   c, #0
     ld   hl, #_patron_lift
-    ld   c, #0              ; p
 1$:
     ld   a, (hl+)
     or   a, a
     jr   z, 8$
+    ld   e, a               ; e: his patron_lift
     bit  7, a
-    jr   nz, 7$             ; (dropping)
-    push hl
-    ld   a, c
-    add  a, #<(_patron_state)
-    ld   l, a
-    ld   a, #0
-    adc  a, #>(_patron_state)
-    ld   h, a
+    jr   nz, 6$             ; (dropping)
+    ld   hl, #_patron_state
+    add  hl, bc
     ld   a, (hl)
     or   a, a
     jr   z, 6$              ; (gone)
-    ld   a, c
-    add  a, #<(_patron_draw)
-    ld   l, a
-    ld   a, #0
-    adc  a, #>(_patron_draw)
-    ld   h, a
+    ld   hl, #_patron_draw
+    add  hl, bc
     ld   a, (hl)
-    cp   a, #0xFF
+    ld   d, a
+    inc  a
     jr   z, 6$              ; (not drawn)
-    bit  7, a
+    ld   a, e
+    cp   a, #2              ; LIFT_EDGE: stays a sprite
+    jr   z, 5$
+    bit  7, d
     jr   nz, 6$             ; (back view)
-    ld   a, c
-    add  a, #<(_patron_dist)
-    ld   l, a
-    ld   a, #0
-    adc  a, #>(_patron_dist)
-    ld   h, a
+    ld   hl, #_patron_dist
+    add  hl, bc
     ld   a, (hl)
     or   a, a
     jr   nz, 6$             ; (watching the show)
-    ld   a, c
-    add  a, #<(_lift_bp)
-    ld   l, a
-    ld   a, #0
-    adc  a, #>(_lift_bp)
-    ld   h, a
-    ld   a, (hl)
+    ld   hl, #_lift_bp
+    add  hl, bc
+    ld   a, (hl)            ; lift_busy
     ld   de, #16            ; lift_pin follows lift_busy (+ 16)
     add  hl, de
     or   a, (hl)
-    jr   z, 6$              ; (clear: counting frames)
-    ld   a, c
-    add  a, #<(_patron_bar)
-    ld   l, a
-    ld   a, #0
-    adc  a, #>(_patron_bar)
-    ld   h, a
+    jr   nz, 5$             ; (over a BG patron, or pinned)
+    ld   hl, #_lift_clear
+    add  hl, bc
+    ld   a, (hl)
+    cp   a, #8              ; LIFT_CLEAR_FRAMES
+    jr   nc, 6$             ; (time to drop him)
+    inc  (hl)
+5$:
+    ld   hl, #_patron_bar
+    add  hl, bc
     ld   a, (hl)
     and  a, #3
-    add  a, #<(_lift_n)
+    ld   hl, #_lift_n
+    add  a, l
     ld   l, a
-    ld   a, #0
-    adc  a, #>(_lift_n)
-    ld   h, a
+    jr   nc, 4$
+    inc  h
+4$:
     inc  (hl)               ; lift_n[his bar]++
     ld   hl, #_lift_total
     inc  (hl)
-    pop  hl
-    jr   8$
+    jr   7$
 6$:
-    pop  hl
-7$:
-    push hl
     push bc
     ld   a, c
     ld   (_lo_p), a
     call _lifted_slow
     pop  bc
-    pop  hl
+7$:
+    ld   hl, #_patron_lift + 1
+    add  hl, bc
 8$:
     inc  c
     ld   a, c
@@ -974,9 +969,9 @@ void lift_frame(void) BANKED {
     est_ok = 0;
     if (lift_total) {                                     // (nobody lifted: only the chooser has work, keep it cheap)
         lifted_pass();
-        SEC(SEC_P3);
+        SEC(SEC_P5);
         need_estimate();
-        SEC(SEC_P4);
+        SEC(SEC_P6);
         forced_drops();
     }
     SEC(SEC_COMPOSE);
@@ -1002,7 +997,7 @@ void lift_frame(void) BANKED {
         }
         if (first == 2 || (done && LY_REG < 144 && LY_REG >= CHOOSER_LY_MAX)) { r |= w; continue; }
         done = 1;
-        SEC(SEC_P10);
+        SEC(SEC_P7);
         choose_bar(p);
         if (ch_retry == 2) r |= w;
         else if (ch_retry) { retry_wait[p] = RETRY_FRAMES; r |= w << 4; }
