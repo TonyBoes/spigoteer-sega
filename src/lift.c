@@ -974,9 +974,12 @@ void lift_frame(void) BANKED {
     est_ok = 0;
     if (lift_total) {                                     // (nobody lifted: only the chooser has work, keep it cheap)
         lifted_pass();
+        SEC(SEC_P3);
         need_estimate();
+        SEC(SEC_P4);
         forced_drops();
     }
+    SEC(SEC_COMPOSE);
     if (lift_hook_op) hook();
     // The chooser, on the bars whose columns changed (ovl_dirty bits 0-3). A lift refused by the budgets is tried again
     // RETRY_FRAMES later (bits 4-7: waiting), one that only has to wait for this frame's copy list next frame.
@@ -999,6 +1002,7 @@ void lift_frame(void) BANKED {
         }
         if (first == 2 || (done && LY_REG < 144 && LY_REG >= CHOOSER_LY_MAX)) { r |= w; continue; }
         done = 1;
+        SEC(SEC_P10);
         choose_bar(p);
         if (ch_retry == 2) r |= w;
         else if (ch_retry) { retry_wait[p] = RETRY_FRAMES; r |= w << 4; }

@@ -14,6 +14,21 @@
 #include "art.h"
 #include "layout.h"
 
+// Per-section frame cost in DIV ticks (256 cycles), only in a measurement build (-DPERF_SECTIONS): SEC(i) adds the ticks since the
+// last marker to section i (src/main.c stores them; tests/perf harness reads sec_done). SEC_P1..P9 are free probes for a
+// profiling session (the macros are empty in the normal build).
+enum { SEC_FLUSH, SEC_INPUT, SEC_MUGS, SEC_PATRONS, SEC_COMPOSE, SEC_QUEUE, SEC_DRAW_BT, SEC_DRAW_MUGS, SEC_FX, SEC_REST, SEC_MUSIC,
+       SEC_LIFT, SEC_ANIM, SEC_DLIFT, SEC_P1, SEC_P2, SEC_P3, SEC_P4, SEC_P5, SEC_P6, SEC_P7, SEC_P8, SEC_P9, SEC_P10, SEC_P11, SEC_P12, SEC_N };
+#ifdef PERF_SECTIONS
+extern uint8_t sec_frame[SEC_N], sec_t;
+#define SEC_BEGIN() do { uint8_t _k; for (_k = 0; _k < SEC_N; _k++) sec_frame[_k] = 0; sec_t = DIV_REG; } while (0)
+void sec_mark(uint8_t i);
+#define SEC(i) sec_mark(i)
+#else
+#define SEC_BEGIN()
+#define SEC(i)
+#endif
+
 // ---- tunables --------------------------------------------------------------
 // The keg stands on columns 18-19; its spout reaches left over column 17 (SPOUT_X), where the mug is filled.
 // TAP_X is the fill position: the bartender (16 px) stands just left of the spout (columns 15-16), the right end

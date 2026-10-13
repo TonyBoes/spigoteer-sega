@@ -49,18 +49,13 @@ void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank) {
 #define bkg_data(first, n, d) bkg_data_far(first, n, d, BANK(art_tiles))
 #define spr_data(first, n, d) spr_data_far(first, n, d, BANK(art_tiles))
 
-// Per-section frame cost in DIV ticks (256 cycles), only in a measurement build (-DPERF_SECTIONS).
-enum { SEC_FLUSH, SEC_INPUT, SEC_MUGS, SEC_PATRONS, SEC_COMPOSE, SEC_QUEUE, SEC_DRAW_BT, SEC_DRAW_MUGS, SEC_FX, SEC_REST, SEC_MUSIC, SEC_N };
+// Per-section frame cost in DIV ticks (256 cycles), only in a measurement build (-DPERF_SECTIONS); SEC / SEC_P* in game.h.
 #ifdef PERF_SECTIONS
 uint8_t  sec_frame[SEC_N];        // this frame's ticks per section
 uint8_t  sec_done[SEC_N];         // ... of the last finished frame, and its frame_counter (read by the measuring script)
 uint8_t  sec_done_id;
-static uint8_t sec_t;
-#define SEC_BEGIN() do { uint8_t _k; for (_k = 0; _k < SEC_N; _k++) sec_frame[_k] = 0; sec_t = DIV_REG; } while (0)
-#define SEC(i) do { uint8_t _t = DIV_REG; sec_frame[i] += (uint8_t)(_t - sec_t); sec_t = _t; } while (0)
-#else
-#define SEC_BEGIN()
-#define SEC(i)
+uint8_t  sec_t;
+void sec_mark(uint8_t i) { uint8_t t = DIV_REG; sec_frame[i] += (uint8_t)(t - sec_t); sec_t = t; }
 #endif
 
 // game flow
@@ -537,8 +532,10 @@ static void update(void) {
 
     SEC(SEC_REST);
     if ((lift_total | lift_hook_op | ovl_dirty) && (game_state == GS_PLAYING || game_state == GS_LIFE_LOST)) lift_frame();   // M13a/b
+    SEC(SEC_LIFT);
     // stage animation: on the level screen (sa_on), not frozen by a test (sa_hold), not while paused
     if (sa_on > sa_hold && game_state != GS_PAUSED && !--sa_timer) stage_anim_step();
+    SEC(SEC_ANIM);
     if (vram_pending | hud_dirty | sa_left) queue_vram();
     SEC(SEC_QUEUE);
     if (game_state == GS_PLAYING || game_state == GS_LIFE_LOST) {
@@ -550,8 +547,9 @@ static void update(void) {
         draw_fill();
         SEC(SEC_DRAW_BT);
         draw_mugs();
-        if (lift_total | lift_oam_n) draw_lifted();
         SEC(SEC_DRAW_MUGS);
+        if (lift_total | lift_oam_n) draw_lifted();
+        SEC(SEC_DLIFT);
         draw_stage_fx();
         if (bar_dirs) mirror_oam();              // P3: bars from the right: their entries to the mirrored place (mirror.c)
         if (story_on) pour_frame();             // story: the perfect pour (src/pour.c; last: it counts OAM lines)
