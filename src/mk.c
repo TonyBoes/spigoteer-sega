@@ -25,7 +25,7 @@
 //
 // Screen (the approved mock-up, reading 1 / G1): HUD row 0 (score, 8 coconut pips at columns 8-15, the timer at 16-19); the awning
 // band rows 1-4 (BG palette 5, over the banner rows 2-3 until the first play frame); Kiki's pile at columns 16-19, rows 5-7 (6
-// states) and her helmet at columns 14-15, row 7 (palette 3); the crates at columns 1 + 4 k, rows 12-13 (palette 2: closed,
+// states; no helmet beside it: the zoo wall shows, owner); the crates at columns 1 + 4 k, rows 12-13 (palette 2: closed,
 // 2 rattles, open); the framework's zoo wall between; the wood counter rows 14-16 (palette 6) and its floor row 17. OAM 0 the
 // puff, 1-2 the duster, 3-6 the Spigoteer (the fill pose mirrored for the shoo), 7-8 the runner, 9-18 a crate's occupant each
 // (monkey / parrot, 2 entries). CGB OBJ palettes: 0 the Spigoteer, 3 monkey, 6 parrot, 1 duster, 5 puff (not 4: the level load
@@ -84,7 +84,6 @@ typedef char mk_fits[(MK_BG + MK_BG_TILES <= 256 && MK_OBJ_A + MK_OBJ_A_TILES <=
 #define CRATE_ROW       12
 #define PILE_COL        16
 #define PILE_ROW         5
-#define HELMET_ROW       7
 #define BANNER_ROW       9
 #define OAM_PUFF         0
 #define OAM_DUSTER       1
@@ -288,10 +287,7 @@ void mk_enter(void) BANKED {
         vram_put(0, 14 + r, row_buf, 20);
         if (is_cgb) attr_put(14 + r, PAL_COUNTER, 0, 20);
     }
-    for (k = 0; k < 2; k++) row_buf[k] = MK_BG + MKB_HELMET + k;           // Kiki's helmet beside the pile
-    vram_put(14, HELMET_ROW, row_buf, 2);
     if (is_cgb) {
-        attr_put(HELMET_ROW, PAL_PILE, 14, 2);
         for (r = 0; r < 3; r++) attr_put(PILE_ROW + r, PAL_PILE, PILE_COL, 4);
         for (k = 0; k < MK_CRATES; k++) { attr_put(CRATE_ROW, PAL_CRATE, 1 + 4 * k, 2); attr_put(CRATE_ROW + 1, PAL_CRATE, 1 + 4 * k, 2); }
     }

@@ -147,7 +147,7 @@ def test_the_screen_and_its_art(model):
         got = [b for t in range(96, 96 + len(ART["obj_b"]) // 16) for b in gb.read(0x8000 + t * 16, 16)]
         assert got == ART["obj_b"], "OBJ tiles 96-"
         # the awning band's rows 1 and 4 (the banner covers 2-3 until the first play frame), row 11 is wall again, the crates, the
-        # pile and the helmet, the counter
+        # pile, the counter
         band = [MK_BG + OFF["band"] + i for i in ART["band_map"]]
         assert map_row(gb, 1) == band[0:20] and map_row(gb, 4) == band[60:80]
         assert map_row(gb, 11) == map_row(gb, 9), "no counter at row 11: the zoo wall"
@@ -158,7 +158,7 @@ def test_the_screen_and_its_art(model):
         pm = ART["pile_map"]
         for r in range(3):
             assert tilemap_row(gb, 5 + r, 16, 4) == [MK_BG + OFF["pile"] + pm[r * 4 + c] for c in range(4)]
-        assert tilemap_row(gb, 7, 14, 2) == [MK_BG + OFF["helmet"], MK_BG + OFF["helmet"] + 1]
+        assert tilemap_row(gb, 7, 14, 2) == tilemap_row(gb, 7, 12, 2), "no helmet: the zoo wall beside the pile"
         c0 = MK_BG + OFF["counter"]
         assert map_row(gb, 14) == [c0] * 20
         assert map_row(gb, 15) == map_row(gb, 16) == [c0 + 1 + (c & 1) for c in range(20)]
@@ -169,7 +169,7 @@ def test_the_screen_and_its_art(model):
             assert oam(gb, i)["y"] == 0, i
         if model == "cgb":
             assert [bank1(gb, 3, r) for r in (1, 4)] == [5, 5] and bank1(gb, 3, 2) == 1, "the awning's palette; the banner's is the HUD's"
-            assert bank1(gb, 2, 12) == 2 and bank1(gb, 18, 6) == 3 and bank1(gb, 14, 7) == 3 and bank1(gb, 5, 15) == 6
+            assert bank1(gb, 2, 12) == 2 and bank1(gb, 18, 6) == 3 and bank1(gb, 14, 7) == bank1(gb, 12, 7) and bank1(gb, 5, 15) == 6
             assert bank1(gb, 8, 0) == 1, "the HUD's palette"
         else:
             assert gb.mem(0xFF49) == 0xE4 and gb.mem(0xFF48) == 0xD0

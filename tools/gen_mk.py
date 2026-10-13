@@ -6,7 +6,6 @@ crates in leafy green) -> build/mk_art.h (src/mk.c's bank), build/mk.json (tests
   assets/art/monkey/band.txt       BG: the awning band, rows 1-4, 160x32, palette 5 (colour 0 = the zoo's wall)
   assets/art/monkey/pips.txt       BG: the HUD coconut pips, 2 tiles 8x8: full, empty
   assets/art/monkey/pile.txt       BG: Kiki's coconut pile 32x24, 6 states (8, 6, 4, 2, 1, 0 coconuts), palette 3
-  assets/art/monkey/helmet.txt     BG: Kiki's pith helmet 16x8, palette 3
   assets/art/monkey/crates.txt     BG: the crate 16x16, 4 frames (closed, rattle 1, rattle 2, open), palette 2
   assets/art/monkey/counter.txt    BG: the wood counter, 3 tiles 8x8 (top, front a, front b), palette 6
   assets/art/monkey/monkey.txt     OBJ: the monkey 16x16: peek, run, run
@@ -54,7 +53,6 @@ def main():
     band = frames("band", 1, 160, 32)[0]
     pips = frames("pips", 2, 8, 8)
     pile = frames("pile", 6, 32, 24)
-    helmet = frames("helmet", 1, 16, 8)[0]
     crates = frames("crates", 4, 16, 16)
     counter = frames("counter", 3, 8, 8)
     monkey = frames("monkey", 3, 16, 16)
@@ -84,7 +82,6 @@ def main():
     band_idx, n_band = group("band", tiles_of(band, 160, 32))
     group("pips", [tile_bytes(f, 0, 0) for f in pips])
     pile_idx, n_pile = group("pile", [t for f in pile for t in tiles_of(f, 32, 24)])
-    group("helmet", tiles_of(helmet, 16, 8))
     crate_idx, n_crate = group("crate", [t for f in crates for t in tiles_of(f, 16, 16)])
     group("counter", [tile_bytes(f, 0, 0) for f in counter])
     n_bg = len(bg) // 16
@@ -127,7 +124,6 @@ def main():
         f"#define MKB_BAND {off['band']}      // {n_band} tiles (mk_band_map: the 4x20 map as indexes)",
         f"#define MKB_PIPS {off['pips']}      // full, empty",
         f"#define MKB_PILE {off['pile']}      // {n_pile} tiles (mk_pile_map: 6 states x 4x3 as indexes)",
-        f"#define MKB_HELMET {off['helmet']}    // left, right",
         f"#define MKB_CRATE {off['crate']}     // {n_crate} tiles (mk_crate_map: 4 frames x TL TR BL BR as indexes)",
         f"#define MKB_COUNTER {off['counter']}   // top, front a, front b",
         f"#define MK_OBJ_A {OBJ_A}   // OBJ tile id of the first block: MK_OBJ_A_TILES tiles",
@@ -145,7 +141,7 @@ def main():
         "bg": bg, "obj_a": obj_a, "obj_b": obj_b, "off": off, "n_bg": n_bg, "band_map": band_idx, "pile_map": pile_idx,
         "crate_map": crate_idx, "spr": sprid, "duster": dustid, "puff": pufid, "n_entries": len(ents), "n_raw_entries": n_raw}))
     png([band], prev / "mk_band_x4.png", 4)
-    png(pips + counter + [helmet], prev / "mk_tiles_x8.png", 8)
+    png(pips + counter, prev / "mk_tiles_x8.png", 8)
     png(pile + crates, prev / "mk_pile_crates_x8.png", 8)
     png(monkey + mup + parrot + duster + puff, prev / "mk_sprites_x8.png", 8, transparent=True)
     print(f"gen_mk: {n_bg} BG tiles, {len(ents)} OBJ entries")

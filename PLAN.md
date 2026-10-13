@@ -2470,11 +2470,11 @@ awning band, pips HUD and barrel pile above, the crates and the awning in leafy 
   thefts), 30 late 3600-5500, 45 late 1800-2700 (the pile goes before 45 s). One setting (the spec has no HARD).
 - **Screen**: HUD row 0 (score, 8 coconut pips at columns 8-15, the timer at 16-19); the awning rows 1-4 (BG palette 5, colour 0 the zoo wall's;
   rows 2-3 hold the framework's banner text until the first play frame, with the HUD's attributes, then the awning's come back through the queue as in
-  Asteroid Delivery); the pile columns 16-19 rows 5-7 (palette 3, 6 states by coconuts: 8, 7-6, 5-4, 3-2, 1, 0) and Kiki's helmet columns 14-15
-  row 7; the crates columns 1 + 4 k rows 12-13 (palette 2); the wall again on row 11 (the framework's counter row: copied from row 9); the counter rows
+  Asteroid Delivery); the pile columns 16-19 rows 5-7 (palette 3, 6 states by coconuts: 8, 7-6, 5-4, 3-2, 1, 0); Kiki's pith helmet
+  (columns 14-15 row 7) was removed at the owner's request ("just remove the hat"): the zoo wall shows there, its helmet tiles are dropped; the crates columns 1 + 4 k rows 12-13 (palette 2); the wall again on row 11 (the framework's counter row: copied from row 9); the counter rows
   14-16 (palette 6). CGB OBJ: 0 the Spigoteer, 3 monkey, 6 parrot, 1 duster, 5 puff (**not 4**, OBJ palette 4 is the enhanced patrons': the level load
-  does not put it back; the proposal had the duster on 4). DMG: the Spigoteer on OBP0, the rest on OBP1 = 0xE4 (set at entry). Tiles: BG 125-169
-  (45), OBJ 56-91 + 96-105 (23 8x16 entries; 92-95 the coin). Zoo patrons: none are drawn (the spec has no patron cameo; the monkey, the parrot and
+  does not put it back; the proposal had the duster on 4). DMG: the Spigoteer on OBP0, the rest on OBP1 = 0xE4 (set at entry). Tiles: BG 125-167
+  (43), OBJ 56-91 + 96-105 (23 8x16 entries; 92-95 the coin). Zoo patrons: none are drawn (the spec has no patron cameo; the monkey, the parrot and
   Kiki's pile are this game's own approved art); the game plays on the zoo venue's backdrop.
 - **State**: struct mk_state (181 B) + struct mk_crate in the mg union; no new WRAM globals. `joy` (main.c) is read for the held repeat.
 - **Numbers**: ROM0 free 577 B unchanged (no ROM0 code); WRAM_LO 3936 / WRAM_HI_0 3455, heap start 0xDD7F: all unchanged; mk.c + art ~6 KB banked
