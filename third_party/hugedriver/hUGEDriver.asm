@@ -123,7 +123,8 @@ vibrato_tremolo_phase2: db
 envelope2: db
 table2: dw
 table_row2: db
-ds 5
+row_fx_none2: db ; $FF: this row has no effect on the channel (process_effects skips it)
+ds 4
 
 ;;;;;;;;;;;
 ;;Channel 3
@@ -137,7 +138,8 @@ vibrato_tremolo_phase3: db
 envelope3: db
 table3: dw
 table_row3: db
-ds 5
+row_fx_none3: db ; $FF: this row has no effect on the channel (process_effects skips it)
+ds 4
 
 ;;;;;;;;;;;
 ;;Channel 4
@@ -152,7 +154,8 @@ vibrato_tremolo_phase4: db
 envelope4: db
 table4: dw
 table_row4: db
-ds 4
+row_fx_none4: db
+ds 3
 
 end_zero:
 
@@ -1522,6 +1525,10 @@ process_ch2:
     ld [highmask2], a
 
 .do_setvol2:
+    ld a, c
+    cp 1
+    sbc a
+    ld [row_fx_none2], a
     ld e, 1
     call do_effect
 
@@ -1594,6 +1601,10 @@ process_ch3:
     ld [highmask3], a
 
 .do_setvol3:
+    ld a, c
+    cp 1
+    sbc a
+    ld [row_fx_none3], a
     ld e, 2
     call do_effect
 
@@ -1669,6 +1680,10 @@ process_ch4:
     ld [highmask4], a
 
 .do_setvol4:
+    ld a, c
+    cp 1
+    sbc a
+    ld [row_fx_none4], a
     ld e, 3
     call do_effect
 
@@ -1717,6 +1732,9 @@ process_effects:
 
 .process_ch2:
     checkMute 1, .after_effect2
+    ld a, [row_fx_none2]
+    or a
+    jr nz, .after_effect2
 
     ld hl, pattern2
     ld a, [hl+]
@@ -1743,6 +1761,9 @@ process_effects:
 
 .process_ch3:
     checkMute 2, .after_effect3
+    ld a, [row_fx_none3]
+    or a
+    jr nz, .after_effect3
 
     ld hl, pattern3
     ld a, [hl+]
@@ -1769,6 +1790,9 @@ process_effects:
 
 .process_ch4:
     checkMute 3, .after_effect4
+    ld a, [row_fx_none4]
+    or a
+    jr nz, .after_effect4
 
     ld hl, pattern4
     ld a, [hl+]

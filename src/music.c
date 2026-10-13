@@ -20,7 +20,7 @@ uint8_t  cur_tune = TUNE_NONE;
 uint16_t music_frames;
 uint16_t sfx_req;
 uint16_t music_late;
-static uint8_t mus_active;       // the driver is running a tune
+static uint8_t mus_active;       // the driver is running a tune: 1 a looping one, 2 a jingle (it stops after its frames)
 static uint8_t muted;            // bit n: driver channel n muted (cache of the driver's mask)
 static uint8_t loaded[3] = { TUNE_NONE, TUNE_NONE, TUNE_NONE };   // [buffer]: the tune whose patterns are in it
 static uint8_t ld_tune = TUNE_NONE;   // tune whose patterns are being copied (TUNE_NONE: no copy running)
@@ -167,7 +167,7 @@ static void start_song(uint8_t tune) {
         hUGE_row_break = (tunes[tune].start & 63) + 1;
         hUGE_dosound();             // that tick: the jump happens now, so the pump's first tick is the start row's tick 0
     }
-    mus_active = 1;
+    mus_active = 1 + !tunes[tune].loop;
     music_frames = 0;
     groove = tunes[tune].groove; g_pos = 0; g_cnt = 1;      // the groove's first row falls on the song's first row
     swing = groove && groove[1] > 15 ? groove[1] : 0;       // (a groove's second byte: a tempo is at most 15, over that it is a swing mask)
@@ -271,9 +271,8 @@ static void voice_tick(uint8_t i) {
 
 // A tune's groove is a drum loop played here instead of by hUGEDriver (which would need a pattern per order in WRAM):
 // one row every `tempo` frames, counted in step with the driver's own rows. A sound effect on channel 4 wins.
-static void groove_tick(void) {
+static void groove_row(void) {      // (tick calls it on the frame the row counter runs out)
     uint8_t d;
-    if (!groove || --g_cnt) return;
     g_cnt = hUGE_ticks_per_row;      // this row's length, as the driver has just set it
     d = groove[2 + g_pos];
     if (++g_pos == groove[0]) g_pos = 0;
@@ -318,43 +317,57 @@ static void harm_tick(void) {
     if (!h_sound && h_rows > 1 && (h_note & 0x7F) != HARM_REST && !voice[0].busy) harm_note();   // back after an effect
 }
 
-static void tick(void) {
+static void sfx_dispatch(uint16_t req) {
     uint8_t id;
-    uint16_t req = sfx_req;
-    if (req) {
-        sfx_req = 0;
-        for (id = 1; req; id++, req >>= 1)          // ascending: on one channel the highest id requested wins
-            if (req & 1) sfx_start(id);
+    sfx_req = 0;
+    for (id = 1; req; id++, req >>= 1)              // ascending: on one channel the highest id requested wins
+        if (req & 1) sfx_start(id);
+}
+
+// Copies the next slice of a tune's patterns to WRAM. Returns 1 when the tune started (this frame's tick is done).
+static uint8_t load_step(void) {
+    const tune_t *t = &tunes[ld_tune];
+    uint16_t n = t->bytes - ld_pos;
+    uint16_t cap = ld_play ? LOAD_PLAY_BYTES : LOAD_PRELOAD_BYTES;
+    if (n > cap) n = cap;
+    mus_copy(t->bank, t->blob + ld_pos, (t->buf == 1 ? mus_buf_a : mus_buf_b) + ld_pos, n);
+    ld_pos += n;
+    if (ld_pos >= t->bytes) {
+        uint8_t done = ld_tune;
+        loaded[t->buf] = done;
+        ld_tune = TUNE_NONE;
+        if (ld_play) { start_song(done); voice_tick(0); voice_tick(1); return 1; }
     }
+    return 0;
+}
+
+// One frame of the music. A frame where no row begins does as little as it can: the groove and the harmony only act on
+// their row counters running out (or, for the harmony, an effect on channel 1 / a note to bring back), and the sound
+// effects' voices are only stepped while one is sounding.
+static void tick(void) {
+    uint16_t req = sfx_req;
+    if (req) sfx_dispatch(req);
     if (ld_tune != TUNE_NONE) {
-        const tune_t *t = &tunes[ld_tune];
-        uint16_t n = t->bytes - ld_pos;
-        uint16_t cap = ld_play ? LOAD_PLAY_BYTES : LOAD_PRELOAD_BYTES;
-        if (n > cap) n = cap;
-        mus_copy(t->bank, t->blob + ld_pos, (t->buf == 1 ? mus_buf_a : mus_buf_b) + ld_pos, n);
-        ld_pos += n;
-        if (ld_pos >= t->bytes) {
-            uint8_t done = ld_tune;
-            loaded[t->buf] = done;
-            ld_tune = TUNE_NONE;
-            if (ld_play) { start_song(done); voice_tick(0); voice_tick(1); return; }
-        }
+        if (load_step()) return;
     } else if (mus_active && loaded[2] != TUNE_SHOW && sound_on)
         begin_load(TUNE_SHOW, 0);                                   // the show tune is copied once, while a level plays
     if (mus_active) {
         if (swing && !hUGE_tick)        // a swung tune: this row's length (bit n of the mask: the rows n mod 8 are a frame shorter)
             hUGE_ticks_per_row = tunes[cur_tune].song->tempo - fast_now - ((swing >> (hUGE_row & 7)) & 1);
         hUGE_dosound();
-        groove_tick();
-        if (harm) harm_tick();
+        if (groove && !--g_cnt) groove_row();
+        if (harm) {
+            if (voice[0].busy || h_cnt == 1 || !h_sound) harm_tick();
+            else h_cnt--;
+        }
         music_frames++;
-        if (!tunes[cur_tune].loop && music_frames >= tunes[cur_tune].frames) {
+        if (mus_active > 1 && music_frames >= tunes[cur_tune].frames) {
             cur_tune = TUNE_NONE;
             silence_music();
         }
     }
-    voice_tick(0);
-    voice_tick(1);
+    if (voice[0].busy) voice_tick(0);
+    if (voice[1].busy) voice_tick(1);
 }
 
 // The game's frame tick (main.c, once per main loop). It restarts the frame timer music_pump watches.

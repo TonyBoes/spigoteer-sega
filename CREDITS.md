@@ -18,6 +18,11 @@
     fifth, `_hUGE_note_table` (the driver's period table), so `src/music.c`'s channel-1 harmony voice (music step 5)
     plays the same pitches as the driver, and two more, `_hUGE_row_break` and `_hUGE_next_order` (the pending position
     jump), so `src/music.c` can start a tune partway in (`tune_t.start`: Mountain's "She'll be" pickup).
+  - `hUGEDriver.asm`: a per-channel flag `row_fx_none2..4` in the channel structs' unused padding: the driver's note
+    pass (tick 0 of a row) records whether the row has no effect on that channel, and `process_effects` (every other
+    tick) then skips the channel's row lookup instead of reading the row again just to find nothing. The sound is
+    unchanged (`tools/trace_music.py` compares every register write); it only saves time (about 4 DIV ticks on a tick
+    with nothing to do). The flag is zero (= look the row up, as before) until the first row has been read.
   - `tools/rgb2sdas.py` (the driver's RGBDS-object to GBDK-object converter): accepts RGBDS 1.0.x object
     files (revision 13: section records gained a node id and line number and a flag byte; `LOW()` and
     `HIGH()` became RPN operators).
