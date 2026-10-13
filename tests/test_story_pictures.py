@@ -576,14 +576,12 @@ def test_mashing_a_never_makes_the_drain_leave_vblank(model, scene, period):
 
 
 def test_the_finale_shows_dregs_not_a_second_bartender():
-    """Dregs is his Pour-Off sprite (assets/art/dregs/dregs.txt, faces left toward the Spigoteer): J2's head and neck (rows
-    0-17, the same face as the sprite's), the sprite's jacket body stretched to the picture's size (torso +2 rows, hem at y 88;
+    """Dregs is his Pour-Off sprite (assets/art/dregs/dregs.txt, faces left toward the Spigoteer): the sprite's head (face
+    variant F1, owner 2026-10-12), the sprite's jacket body stretched to the picture's size (torso +2 rows, hem at y 88;
     no legs here: the pavement hides them), no white shirt or apron, and his colours are not the Spigoteer's. His skin is the
     finale's S, not the sprite's cream: a fifth BG palette would be needed (gen_story allows four)."""
     key, pix = _pix("finale_a")
-    want = [r[::-1].replace("D", "S") for r in DREGS_J2]
-    got = _region(pix, 142, 62, 160, 89)
-    assert all(g[i] == w[i] for g, w in zip(got[:18], want[:18]) for i in range(18) if w[i] != "."), "Dregs's head is J2's"
+    got = _region(pix, 142, 62, 160, 89)              # (face variant F1 since 2026-10-12: the head is the sprite's, below)
     sprite = [r for r in (ROOT / "assets/art/dregs/dregs.txt").read_text().splitlines() if r and not r.startswith(";")][:24]
     assert all(got[1 + i][:16] == sprite[i].replace("-", "S").replace("+", "m") for i in range(13)), "the head is the sprite's (rows 0-12)"
     assert got[18][:16] == sprite[14].replace("-", "S").replace("+", "m"), "the sprite's collar"

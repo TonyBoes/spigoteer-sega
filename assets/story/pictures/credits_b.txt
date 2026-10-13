@@ -1,5 +1,7 @@
 ; CREDITS: the same square at dawn: the Golden Spigot (F1) drips, last night's strings hang loose, Dregs in an apron mops, the Sasquatch's coffee stand. Original art.
 ; Full-screen story picture, portrait-v2 at 160x104 (rows 0-12); see docs/story.md and tools/gen_story.py SCENE_PICS.
+; CREDITS: the same square at dawn: the Golden Spigot (F1) drips, last night's strings hang loose, Dregs in an apron mops, the Sasquatch's coffee stand. Original art.
+; Full-screen story picture, portrait-v2 at 160x104 (rows 0-12); see docs/story.md and tools/gen_story.py SCENE_PICS.
 @size 160 104
 @maxpal 4
 @key
@@ -95,12 +97,12 @@ B#ggg#BBB#ggg#BBB#ggg#BBB#ggg#BBB######mmm#####e................................
 B#ggg#BBB#ggg#BBB#ggg#BBB#ggg#BBB##############e.................................#bb#.W..........#mmmmmmmmmmgm#............#bbW.........ZTTZZZCZZCZZZZGCGGGCGTTZ
 B#ggg#BBB#ggg#BBB#ggg#BBB#ggg#BBB######DDD##BBBe.................................Wbb#............#mmmmmmmmmmgm#..........W.#bb#.........ZTTZZCZZCZZZZZGGGGGGGTTZ
 B#ggg#BBB#ggg#BBB#ggg#BBB#ggg#BBB####DDDDDD#BBBe................................WWWWWWWW.........#mmmmmmmmmmgm#.........WWWWWWWW........ZTTZCCCCCCZZZZGGGZGGGTTZ
-BB###BBBBB###BBBBB###BBBBB###BBBB#D##DDDDDD#BBBe................................WWWWWWWW.........#mmmmmmmmmmgm#.........WWWWWWWW........ZTTZCCCCCCTTZZTGGGTZZTTZ
-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB#DD#DDD###D#BBe................................WWWWWWWW.........#mmmmmmmmmmgm#.........WWWWWWWW........ZTTZTTTTTTZTZGGGGGGGGTTZ
+BB###BBBBB###BBBBB###BBBBB###BBBB#D##D##DDD#BBBe................................WWWWWWWW.........#mmmmmmmmmmgm#.........WWWWWWWW........ZTTZCCCCCCTTZZTGGGTZZTTZ
+BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB#DD#D#DD#DD#BBe................................WWWWWWWW.........#mmmmmmmmmmgm#.........WWWWWWWW........ZTTZTTTTTTZTZGGGGGGGGTTZ
 BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB#DD#DDDDDDDD#Be........................################################################################ZTTZCCCCCCTTZGGGGGGGGTTZ
 BB###BBBBBBBBBBBBBBBBBBBBBBBBBBBB#DDDDDDDDDDDD#e........................#gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg#ZTTZZCCCCZZZZGGGGGGGGTTZ
-B#ggg#BBBBBBBBBBBBBBBBBBBBBBBBBBBB#DDDDDDDD####e........................#mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm#ZTTZZCCCCZZZZGGGGGGGGTTZ
-B#ggg#BBBBBBBBBBBBBBBBBBBBBBBBBBBB#DDDDD###D#BBe........................#mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm#ZTTTTTTTTTTTTTGGGGGGGTTZ
+B#ggg#BBBBBBBBBBBBBBBBBBBBBBBBBBBB#DD#DDDDD####e........................#mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm#ZTTZZCCCCZZZZGGGGGGGGTTZ
+B#ggg#BBBBBBBBBBBBBBBBBBBBBBBBBBBB#DDD####DD#BBe........................#mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm#ZTTTTTTTTTTTTTGGGGGGGTTZ
 B#ggg#BBBBBBBBBBBBBBBBBBBBBBBBBBBB#DDDDDDDDD#BBe........................################################################################ZTTTTGTTGTTTTTGGGGGGGTTZ
 B#ggg#BBBBBBBBBBBBBBBBBBBBBBBBBBBBB##DDDDDD#BBBe........................#mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmm#ZTTZZZZZZZZZTTTGGGGGGTTZ
 BB###BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB#DDDD#BBBBe........................#mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmm#ZTTZZZZZZZZZZZZGGGGGGTTZ
