@@ -299,6 +299,7 @@ struct ad_state {               // tests read these at story_scratch + offset (t
 };
 
 void tk_enter(void) BANKED;                      // src/tk.c: TAIKO POUR (the teahouse)
+void tk_leave(void) BANKED;                      // src/tk.c: Taiko Pour's tune goes back to its full band (mg_leave)
 void tk_update(uint8_t pressed) BANKED;
 uint8_t tk_medal(void) BANKED;                   // the medal its accuracy earned (not a score threshold)
 

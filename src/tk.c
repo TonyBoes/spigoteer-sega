@@ -316,6 +316,7 @@ void tk_enter(void) BANKED {
     for (k = 0; k < TK_LIVE; k++) S.live[k] = 255;
     band_rows();
     S.combo = 0; hud_combo(); hud_cups();
+    backing();
     sprites();
 }
 
@@ -431,6 +432,90 @@ static void notes_update(uint16_t c, uint8_t pressed) {
     if (pressed & J_B) press(1, c);
 }
 
+#if TAIKO_VARIANT
+// ---- the drum's pitched body (src/music.h TAIKO_VARIANT; the noise layer is SFX_DON / SFX_KA, src/music.c) ----
+// A hit's age is TK_FLASH_LEN - 1 - flash_t (0 on the frame of the press), so the drum needs no state of its own: on age 0
+// the pulse channel is triggered (the hardware length counter ends it), on the next frames its period is slid down by hand.
+// DON: a knock then a thump: period TKD_PK (~240 Hz) on age 0, then TKD_P1 (120 Hz) falling by TKD_PS a frame to ~85 Hz
+// (period p sounds 131072 / (2048 - p) Hz), envelope 0xF2 (15, one step a 2/64 s), cut by the length counter after 14 frames.
+// KA: a high short pulse (12.5 % duty, ~2 kHz) cut after 4 frames.
+// The pulse is channel 2 (D1: the melody's channel), channels 2 and 1 together (D2: 50 % and 25 % duty, twice the level),
+// or channel 1 (D3).
+#define TKD_PK  1500
+#define TKD_P1   956
+#define TKD_PS   -91
+#define TKD_PKA 1985
+#define TKD_LEN_DON  4                      // the length counter: (64 - 4) / 256 s = 14 frames
+#define TKD_LEN_KA  47                      // 17 / 256 s = 4 frames
+#if TAIKO_VARIANT == 1
+#define TKD_N 1                             // channel 2 only
+#elif TAIKO_VARIANT == 2
+#define TKD_N 2                             // channel 2, then channel 1
+#else
+#define TKD_N 1
+#endif
+#if TAIKO_VARIANT == 3
+#define TKD_FIRST 0xFF10                    // NR10..NR14
+#else
+#define TKD_FIRST 0xFF15                    // (unused) NR21..NR24; the second pulse of D2 is five bytes below
+#endif
+static void pulse(volatile uint8_t *r, uint8_t age, uint8_t dl, uint16_t p) {   // r[0..4]: NR10 / (NR20) .. NR14 / NR24
+    if (age) { r[3] = (uint8_t)p; r[4] = 0x40 | (p >> 8); return; }   // (a retune: no trigger, the length counter stays on)
+    r[0] = 0; r[1] = dl; r[2] = 0xF2;
+    r[3] = (uint8_t)p; r[4] = 0xC0 | (p >> 8);
+}
+
+static void drum(void) {                                   // after the flash timers: the pulse body of the youngest hit
+    uint8_t a, b, ka = 0;
+    uint16_t p;
+    if (S.flash_t[0]) a = TK_FLASH_LEN - 1 - S.flash_t[0];
+    else if (S.flash_t[1]) a = 255;
+    else return;
+    if (S.flash_t[1]) {
+        b = TK_FLASH_LEN - 1 - S.flash_t[1];
+        if (b < a) { a = b; ka = 1; }
+    }
+    if (ka && a) return;                                   // (the KA is a click: one write, the length counter ends it)
+    p = ka ? TKD_PKA : a ? TKD_P1 + (a - 1) * TKD_PS : TKD_PK;
+    pulse((volatile uint8_t *)TKD_FIRST, a, ka ? TKD_LEN_KA : 0x80 | TKD_LEN_DON, p);
+#if TKD_N == 2
+    pulse((volatile uint8_t *)(TKD_FIRST - 5), a, ka ? TKD_LEN_KA : 0x40 | TKD_LEN_DON, p);
+#endif
+}
+#endif
+
+// What the tune does behind the drums (src/music.h TAIKO_VARIANT): kept in hUGE_mute_mask's spare bits, set again every frame.
+static void backing(void) {
+    uint8_t m = hUGE_mute_mask | TK_NOGROOVE;
+#if TAIKO_VARIANT == 1
+    m |= TK_NOMELODY | 2;
+    NR51_REG = 0xBF;                                        // the bass (channel 3) to the right side only: -6 dB on the speaker
+#elif TAIKO_VARIANT == 2
+    m |= TK_NOMELODY | TK_NOHARM | 2;
+    NR51_REG = 0xBF;                                        // the bass (channel 3) to the right side only: -6 dB on the speaker
+#elif TAIKO_VARIANT == 3
+    {                                                       // the melody sounds only where a half bar begins (its row start is
+        uint8_t ph = (uint8_t)(S.clk % 48);                 // the tick after clock 47 mod 48; a frame either side is harmless)
+        m |= TK_NOHARM | TK_NOMELODY;
+        NR51_REG = 0x9F;                                    // melody and bass to the right side only: -6 dB
+        if (ph == 46 || ph == 47 || ph == 0) m &= ~2; else m |= 2;
+    }
+#endif
+    hUGE_mute_mask = m;
+}
+
+void tk_leave(void) BANKED {                               // mg_leave: the tune goes back to its full band
+    volatile uint8_t *r;
+    hUGE_mute_mask &= ~(TK_HOLD | 2);
+#if TAIKO_VARIANT
+    r = (volatile uint8_t *)TKD_FIRST; r[2] = 0x08; r[4] = 0x80;   // (the pulses: volume 0, the DAC kept on: no click)
+#if TKD_N == 2
+    r = (volatile uint8_t *)(TKD_FIRST - 5); r[2] = 0x08; r[4] = 0x80;
+#endif
+    NR51_REG = 0xFF;                                       // (every channel to both sides again)
+#endif
+}
+
 void tk_update(uint8_t pressed) BANKED {
     uint16_t c;
     uint8_t want;
@@ -457,5 +542,9 @@ void tk_update(uint8_t pressed) BANKED {
         want = (uint8_t)((c >> 3) % 6) < 2;
         if (want != S.lant_on) lantern(want);
     }
+    backing();
+#if TAIKO_VARIANT
+    drum();
+#endif
     sprites();
 }

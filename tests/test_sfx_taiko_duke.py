@@ -1,12 +1,16 @@
-# The effects added for Taiko Pour's drum (SFX_DON, SFX_KA) and Duke's engine (SFX_REV): all on channel 4, started by a
-# request bit (sfx_req, bit id - 1) and stepped by src/music.c voice_tick, one frame per count.
+# The effects added for Taiko Pour's drum (SFX_DON, SFX_KA) and Duke's engine (SFX_REV). SFX_DON / SFX_KA are the noise layer
+# on channel 4 under the pulse drum src/tk.c plays itself (default sound balance D2, src/music.h TAIKO_VARIANT: the player's hits
+# are the lead, the tune is only the bass line); SFX_REV is on channel 4 too. Started by a request bit (sfx_req, bit id - 1) and
+# stepped by src/music.c voice_tick, one frame per count.
+import numpy as np
 import pytest
 from test_harmony import request
 from test_sound import NR52, sgb, srom  # noqa: F401  (fixtures)
 
 pytestmark = pytest.mark.timeout(120)
-NR42, NR43 = 0xFF21, 0xFF22
+NR12, NR22, NR42, NR43, NR51 = 0xFF12, 0xFF17, 0xFF21, 0xFF22, 0xFF25
 SFX_DON, SFX_KA, SFX_REV = 10, 11, 12
+MASK_TAIKO = 0x72                    # music.h TK_NOGROOVE | TK_NOHARM | TK_NOMELODY | the driver's channel-2 mute bit
 
 
 def trace(gb, sfx, n):
@@ -23,24 +27,105 @@ def settle(gb):
     gb.run(300)          # (the title's own sounds are over)
 
 
-def test_don_is_a_knock_then_a_deep_boom(sgb):
+def test_don_noise_is_a_short_knock(sgb):
     settle(sgb)
-    t = trace(sgb, SFX_DON, 12)
-    assert [x[1] for x in t[:8]] == [0x62, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87] and all(x[0] == 0xF1 for x in t[:8])
-    assert all(not x[1] & 8 for x in t[:8]), "15-bit noise throughout: the boom never crosses into the 7-bit buzz"
-    assert t[8][0] == 0, "8 frames in all (knock, then the boom's clock sliding down), then the DAC is off"
+    t = trace(sgb, SFX_DON, 6)
+    assert [x[1] for x in t[:2]] == [0x62, 0x74] and all(x[0] == 0xC1 for x in t[:2]), t
+    assert t[2][0] == 0, "2 frames in all: the pulse body (src/tk.c) carries the drum, the noise is its knock"
 
 
-def test_ka_is_a_bright_crack(sgb):
+def test_ka_noise_is_a_tick(sgb):
     settle(sgb)
     t = trace(sgb, SFX_KA, 6)
-    assert [x[1] for x in t[:4]] == [0x10, 0x09, 0x09, 0x09] and all(x[0] == 0xF1 for x in t[:4])
-    assert t[4][0] == 0, "4 frames in all (67 ms): short enough for eighth-note pairs 12 frames apart"
+    assert [x[1] for x in t[:3]] == [0x10, 0x09, 0x09] and all(x[0] == 0xC1 for x in t[:3]), t
+    assert t[3][0] == 0, "3 frames in all: short enough for eighth-note pairs 12 frames apart"
 
 
-def test_hits_are_louder_than_the_old_envelope(sgb):
-    settle(sgb)
-    assert trace(sgb, SFX_DON, 1)[0][0] >> 4 == 15 and trace(sgb, SFX_KA, 1)[0][0] >> 4 == 15, "full volume at the strike (was 11)"
+def taiko_rom(model, music):
+    """Taiko Pour in practice with sound emulation (registers read back), the tune on or off."""
+    from conftest import hold_stage_anim
+    from test_mg import MG_PRACTICE, mg_enter
+    from test_sound import make_rom
+    from tk_helpers import MG_TAIKO
+    gb = make_rom(model)
+    gb.run(120)
+    hold_stage_anim(gb)
+    if not music:
+        gb.write("sound_on", 0)
+    mg_enter(gb, MG_TAIKO, MG_PRACTICE, 0x5A17)
+    return gb
+
+
+def hit(gb, lane):
+    """A hit as src/tk.c hit() makes one (flash_t, the request), poked between two frames."""
+    from tk_helpers import LAYOUT
+    gb.write(gb.addr("story_scratch") + LAYOUT["flash_t"][0] + lane, 8)
+    request(gb, SFX_KA if lane else SFX_DON)
+
+
+def spectrum_peak(x, lo, hi, rate=48000):
+    x = x.astype(float).mean(axis=1) if x.ndim > 1 else x.astype(float)
+    f = np.abs(np.fft.rfft(x * np.hanning(len(x)), 1 << 15))
+    fr = np.fft.rfftfreq(1 << 15, 1 / rate)
+    band = (fr >= lo) & (fr <= hi)
+    return fr[band][f[band].argmax()]
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_hits_are_pulse_drums_on_the_melody_channels(model):
+    """The pulse body of the drum (src/tk.c drum): a DON triggers channels 2 and 1 at full volume (envelope 0xF2) and its pitch
+    falls from the knock through ~120 Hz to ~85 Hz; a KA is a short click (a high period, ~2 kHz). Music off, so only the
+    hits sound; the audio is the check (the period registers are write-only)."""
+    from test_mg import to_play
+    from test_sound import audio_frames
+    with taiko_rom(model, music=False) as gb:
+        to_play(gb)
+        hit(gb, 0)
+        gb.run(2)
+        assert gb.mem(NR22) == 0xF2 and gb.mem(NR12) == 0xF2, "both pulses at volume 15"
+        a = audio_frames(gb, 10)
+        assert spectrum_peak(a[len(a) // 4:], 60, 400, gb.pb.sound.sample_rate) < 260, "a thump: the pitch is down in the drum's range"
+        assert np.abs(a).max() > 20, "and loud"
+        gb.run(30)
+        hit(gb, 1)
+        k = audio_frames(gb, 4)
+        assert spectrum_peak(k, 800, 6000, gb.pb.sound.sample_rate) > 1200, "a KA is a high click"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_hits_stand_over_the_tune(model):
+    """The point of the rework: a DON is louder than the tune behind it (the bass line only) by a clear margin: its loudest
+    samples against the loudest of the tune alone just before."""
+    from test_mg import to_play
+    from test_sound import audio_frames
+    with taiko_rom(model, music=True) as gb:
+        to_play(gb)
+        gb.run(11)
+        base = np.abs(audio_frames(gb, 60)).max()
+        hit(gb, 0)
+        loud = np.abs(audio_frames(gb, 8)).max()
+        assert loud >= 2 * base, (loud, base)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_backing_steps_aside_and_comes_back(model):
+    """While Taiko Pour runs: the tune's drum groove, the channel-1 harmony and the melody are out (spare bits of the driver's
+    mute mask, src/music.h) and the bass is on the right side only; leaving it (the result's B) puts all of it back."""
+    from test_mg import GS_MGLIST, MG_RESULT, frames, to_play, until
+    from test_flow import run_until, state
+    with taiko_rom(model, music=True) as gb:
+        to_play(gb)
+        assert gb.mem("hUGE_mute_mask") & MASK_TAIKO == MASK_TAIKO and gb.mem(NR51) == 0xBF
+        gb.write("mg_phase", MG_RESULT)
+        until(gb, lambda: gb.mem("overlay_on") == 1, 20)
+        frames(gb, 2)
+        assert gb.mem("hUGE_mute_mask") & MASK_TAIKO == MASK_TAIKO
+        gb.press("b", 2)
+        run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
+        gb.run(5)
+        assert gb.mem("hUGE_mute_mask") & 0x72 == 0, "the melody, groove and harmony are back"
+        assert gb.mem(NR51) == 0xFF
+
 
 
 def test_rev_climbs_for_fifty_frames(sgb):
@@ -53,7 +138,7 @@ def test_rev_climbs_for_fifty_frames(sgb):
 
 
 def test_the_tunes_drum_groove_steps_aside_in_taiko_pour():
-    """The player's drums replace the teahouse tune's own channel-4 groove while Taiko Pour is up (src/music.c taiko_solo):
+    """The player's drums replace the teahouse tune's own channel-4 groove while Taiko Pour is up (src/music.h TK_NOGROOVE, set by src/tk.c):
     from the tune's first frames to just before the first note, no drum is written to channel 4 (NR42 / NR43 never change)."""
     from conftest import hold_stage_anim
     from test_mg import MG_PRACTICE, mg_enter

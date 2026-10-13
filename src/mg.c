@@ -307,6 +307,7 @@ static void result_row(uint8_t r) {             // queue window row r (0..5)
 
 // the window's rows as win_init left them, the banner's LYC; LCD off (the next screen turns it on)
 static void mg_leave(void) {
+    if (mg_game == G_TK) tk_leave();
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     SCX_REG = 0;                                 // (Milk Run's street)

@@ -31,6 +31,21 @@ extern const tune_t tunes[TUNE_COUNT];
 #define HARM_BANK 10
 #define HARM_REST 0x7F
 extern const unsigned char * const harm_tab[TUNE_COUNT];
+// Taiko Pour (src/tk.c) sets spare bits of hUGE_mute_mask (the driver only reads bits 0-3) while it runs: the tune's own
+// drum groove steps aside (TK_NOGROOVE), the channel-1 harmony stays silent (TK_NOHARM), the melody is out (TK_NOMELODY:
+// start_song turns it into the driver's channel-2 mute bit); start_song keeps them (TK_HOLD) across a tune restart.
+#define TK_NOGROOVE 0x10
+#define TK_NOHARM   0x20
+#define TK_NOMELODY 0x40
+#define TK_HOLD     0x70
+// TAIKO_VARIANT: which sound balance Taiko Pour has (make DEBUGFLAGS="-DDEBUG_MENU -DTAIKO_VARIANT=n"):
+//   0 T2 (the old one): the player's DON / KA are noise hits on channel 4, the tune's groove steps aside, the rest plays
+//   1 D1: DON / KA are pulse drums on channel 2 over a noise layer; the melody is out, the koto harmony (ch 1) and the bass stay
+//   2 D2: as D1 with a brighter pulse, and the harmony is out too: only the bass line and the beat
+//   3 D3: drums on channel 1; the melody plays only on the downbeats of each half bar, the harmony is out
+#ifndef TAIKO_VARIANT
+#define TAIKO_VARIANT 2
+#endif
 extern const unsigned char drum_kit[3][4];         // NR41, NR42, NR43, NR44 of kick, snare, hat (build/music_data.c)
 extern unsigned char mus_buf_a[], mus_buf_b[];     // WRAM pattern buffers (build/music_data.c)
 void mus_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n);   // unbanked (src/musicload.c)
