@@ -247,15 +247,33 @@ static void portrait_now(uint8_t spk) {
     story_cur = spk;
 }
 
-// one frame of a portrait change (LCD on)
-static void swap_frame(void) {
-    uint8_t n, k, id;
+// The VBlank list's room in a cut-scene, in cost units (a list entry's bytes + 4 for the entry itself: ~0.15 DIV ticks a byte,
+// ~0.55 an entry). A page turn (the three box rows and the name tag: 74 bytes, 4 entries = 90 units) drains in 13 ticks and ends on
+// line 153, the last line of VBlank; nothing a frame queues may cost more, whatever the player presses (A over a tile burst used to
+// reach 17 ticks and end on line 2 of the next frame). The swap takes what the press of this frame leaves: see scene_frame.
+#define VQ_STORY_ROOM  90
+#define COST(n)        ((n) + 4)
+
+static uint8_t room_left(uint8_t room) {         // what is left of `room` after what the list already holds
+    uint8_t i;
+    for (i = 0; i < vq_count; i++) {
+        if (room < COST(vq[i].n)) return 0;
+        room -= COST(vq[i].n);
+    }
+    return room;
+}
+
+// one frame of a portrait change (LCD on), within `room` cost units
+static void swap_frame(uint8_t room) {
+    uint8_t n, k, id, c;
     uint16_t a;
     uint8_t *src;
+    room = room_left(room);
     switch (story_swap) {
     case SW_OUT:                                 // wipe the old frame back to the backdrop
         if (PIC_SCENE && vq_held) break;         // (the staging rows are still waiting in last frame's list)
-        for (n = 0; n < SWAP_ROWS && sw_row < ch; n++, sw_row++) {
+        c = COST(cw) << is_cgb;                  // a row: its tiles, and on CGB its attributes
+        for (n = 0; n < SWAP_ROWS && sw_row < ch && room >= c; n++, sw_row++, room -= c) {
             if (PIC_SCENE) {                     // the picture's own rows, from ROM through the staging buffer
                 src = PS_ROWS + n * 18;
                 story_pic_row(story_hdr.pic, cy + sw_row, cx, cw, src);
@@ -278,6 +296,8 @@ static void swap_frame(void) {
         if (!sw_row) portrait_get(sw_next, &pt); // (its tile count)
         n = pt.ntiles - sw_row;
         if (n > PS_BURST) n = PS_BURST;
+        while (n && COST(16) * n > room) n--;
+        if (!n) break;
         portrait_tile_copy(sw_next, sw_row, n, PS_TILES);
         for (k = 0; k < n; k++) {                // BG ids 0-127 are at 0x9000, 128-255 at 0x8800 (LCDC bit 4 clear)
             id = STORY_PORTRAIT_BASE + sw_row + k;
@@ -297,7 +317,8 @@ static void swap_frame(void) {
         story_swap = SW_IN;
         // fall through: the first rows of the new frame
     case SW_IN:
-        for (n = 0; n < SWAP_ROWS && sw_row < ch; n++, sw_row++) {
+        c = COST(cw) << is_cgb;
+        for (n = 0; n < SWAP_ROWS && sw_row < ch && room >= c; n++, sw_row++, room -= c) {
             vq_add(0, pt_map + sw_row * cw, cx, cy + sw_row, cw);
             if (is_cgb) vq_add(1, pt_attr + sw_row * cw, cx, cy + sw_row, cw);
         }
@@ -820,7 +841,8 @@ static uint8_t pic_fx(void) {
 // One frame of a cut-scene (SP_SCENE) after START was looked at. 1: the screen was redrawn (LCD off) or the scene is over.
 static uint8_t scene_frame(uint8_t pressed) {
     if (story_hdr.swpage && PS_FX) return pic_fx();   // the picture switch: nothing else moves
-    if (story_swap) swap_frame();
+    if (story_swap) swap_frame(VQ_STORY_ROOM - ((pressed & (J_A | J_B)) ? story_typed < 54 ? 3 * COST(18) : VQ_STORY_ROOM : 0));
+                                                 // (the press queues the page's text, or turns the page: the swap waits a frame)
     if (story_typed < 54) {
         if (pressed & (J_A | J_B)) type_all();
         else type_frame();

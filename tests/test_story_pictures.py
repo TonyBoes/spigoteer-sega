@@ -335,7 +335,7 @@ def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
                     assert tilemap_row(gb, p["y"] + r, p["x"], p["w"]) == \
                         [SLOT_BASE + t for t in p["map"][r * p["w"]:(r + 1) * p["w"]]], (k, name, r)
         assert {1, 2, 4} <= seen_states, f"swap states seen: {sorted(seen_states)}"
-        assert 0 < gb.mem("drain_ticks_max") <= 14, gb.mem("drain_ticks_max")   # inside VBlank (17 ticks); the worst frame is A mashed over a tile burst
+        assert 0 < gb.mem("drain_ticks_max") <= 13, gb.mem("drain_ticks_max")   # inside VBlank (17 ticks): the page turn (74 bytes) is the worst frame, see test_mashing_a_never_makes_the_drain_leave_vblank
         assert gb.mem("vq_end_ly_max") <= 153
         assert gb.mem16("vq_late") == 0
 
@@ -453,7 +453,7 @@ def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
         assert not any(e["y"] for e in burst_oam(gb)), "every piece has left the screen"
         assert max(logic_end) < 100, f"the frame's logic ends on line {max(logic_end)}: inside the frame (VBlank is 144)"
         assert gb.mem16("vq_late") == 0 and gb.mem("vq_end_ly_max") <= 153
-        assert 0 < gb.mem("drain_ticks_max") <= 14, gb.mem("drain_ticks_max")
+        assert 0 < gb.mem("drain_ticks_max") <= 13, gb.mem("drain_ticks_max")
         assert 30 <= end <= 60, end
         # each piece leaves in its direction and goes on, never nearer its start, until it is off the screen
         import math
@@ -512,7 +512,7 @@ def test_mashing_a_through_the_burst_keeps_the_line_limit(model):
         assert worst <= 10
         assert gb.mem("story_scene") == SC["INTRO"] and gb.mem("story_page") == 7
         assert_picture(gb, "intro_a", skip=FRAME)
-        assert gb.mem("drain_ticks_max") <= 14 and gb.mem("vq_end_ly_max") <= 153 and gb.mem16("vq_late") == 0
+        assert gb.mem("drain_ticks_max") <= 13 and gb.mem("vq_end_ly_max") <= 153 and gb.mem16("vq_late") == 0
 
 
 # ---- the owner review of the finale and the credits ------------------------------------------------------------
@@ -528,6 +528,51 @@ def _find(pix, shape):
     h, w = len(shape), len(shape[0])
     return [(x, y) for y in range(len(pix) - h) for x in range(len(pix[0]) - w)
             if all(pix[y + j][x + i] == shape[j][i] for j in range(h) for i in range(w) if shape[j][i] != ".")]
+
+
+def mash_scene(model, scene):
+    """A cut-scene ready to be crawled, and when to stop (INTRO and a PRE scene end at the goal banner, FINALE_A at the Pour-Off,
+    FINALE_B on leaving the story state)."""
+    from test_flow import GS_GOAL
+    if scene == "INTRO":
+        return start_story(model), lambda g: state(g) == GS_GOAL
+    if scene == "PRE":
+        return start_story(model, v7_image([], story=2), cont=True), lambda g: state(g) == GS_GOAL
+    gb = to_finale(model)
+    if scene == "FINALE_A":
+        return gb, lambda g: state(g) != GS_STORY
+    through_the_pouroff(gb)
+    return gb, lambda g: state(g) != GS_STORY
+
+
+@pytest.mark.parametrize("period", [2, 3, 4, 6])
+@pytest.mark.parametrize("scene", ["INTRO", "PRE", "FINALE_A", "FINALE_B"])
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_mashing_a_never_makes_the_drain_leave_vblank(model, scene, period):
+    """A pressed over and over through a whole cut-scene: whatever a press queues (the page's text, a page turn) and whatever
+    a portrait change streams in the same frame (tile bursts, picture rows, attributes), the VBlank copy list drains in at
+    most 13 DIV ticks and is done by line 153. It used to reach 17-18 ticks and end on line 0-2 of the next frame, where
+    the LCD blocks VRAM writes: in SameBoy the last writes were lost and a name tag read DREGOTEER (src/story.c VQ_STORY_ROOM)."""
+    gb, done = mash_scene(model, scene)
+    gb.write("drain_ticks_max", 0)
+    gb.write("vq_end_ly_max", 0)
+    worst, end = 0, 0
+    for i in range(1500):
+        if i % period == 0:
+            gb.hold("a")
+        elif i % period == (period + 1) // 2:
+            gb.release("a")
+        gb.run(1)
+        worst, end = max(worst, gb.mem("drain_ticks_max")), max(end, gb.mem("vq_end_ly_max"))
+        gb.write("drain_ticks_max", 0)
+        gb.write("vq_end_ly_max", 0)
+        if done(gb):
+            break
+    gb.release("a")
+    assert i < 1499, "the scene was crawled to its end"
+    assert 0 < worst <= 13 and end <= 153, (worst, end)
+    assert gb.mem16("vq_late") == 0
+
 
 
 def test_the_finale_shows_dregs_not_a_second_bartender():

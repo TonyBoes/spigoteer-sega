@@ -3167,3 +3167,33 @@ The two new FINALE_A pages and the first FINALE_B page are **proposed dialogue, 
   Not added: it is not cheap. `boss_hard` would have to be set at a rush fight's start and cleared for every story / arcade
   fight (nobody clears it today), the list's three info lines are full, and the rush's fastest-time record is per boss with no
   room to keep a HARD time apart without a new SRAM field. Left for the owner's call.
+
+## Perf pass 2, as built: the music tick and the cut-scene drain (2026-10-12; scratchpad perf report recommendations 4 and 5)
+- **Music tick** (src/music.c tick, third_party/hugedriver): a frame where no row begins does as little as it can. The groove only runs on the
+  frame its row counter runs out; the harmony does too (or when an effect holds channel 1 / a note is to be brought back); the jingle's end is
+  a flag (`mus_active` 2) not a `tunes[]` lookup; the effect voices are stepped only while one sounds; the rare paths (a sound-effect request,
+  a pattern-copy slice) are their own functions, so the common path has no stack frame to build. In hUGEDriver.asm `row_fx_none2..4` (the
+  channel structs' padding: no WRAM) remember at a row's first tick that the row has no effect on the channel, and `process_effects`
+  skips the row lookup on the other ticks (flag 0 = look, as before, until the first row was read). DIV ticks, music_tick entry to exit, DMG
+  (CGB within 0.1): mean per frame 11.5 / 11.0 / 10.6 / 10.8 / 11.3 -> 7.5 / 7.2 / 6.7 / 6.9 / 7.7 (tunes 0, 3, 5, 8, 12); a frame with no row
+  10.2 -> 6.0, a frame a row begins 20.9 -> 19.0 (tune 0). (The report's 17 included its instrumentation.) Tried and dropped: skipping the
+  muted channel 1 at a row's first tick (-1.5 ticks on row frames): the Bonus tune's channel 1 carries its pattern-break effect.
+- **The sound is identical, proved by `tools/trace_music.py`**: it hooks every store instruction of bank 2's music code in PyBoy and records
+  each write to FF10-FF3F per frame; 100 runs (15 tunes from the soundtrack player, normal and fast, with and without 23 timed sound
+  effects, DMG and CGB) = 311292 writes, byte for byte the same before and after. Run it before and after any change to music.c or the driver
+  (`tools/trace_music.py build/game.gb out/a.json`, then `--diff out/a.json out/b.json`).
+- **Cut-scene drain** (src/story.c VQ_STORY_ROOM): with A mashed, a frame could queue the page's text (type_all, 54 bytes) or a page turn
+  (3 box rows + the name tag: 74 bytes, 4 entries) on top of a portrait swap's work (a 3-tile burst, 2 picture rows, attributes):
+  6-7 entries, 90-102 bytes, 17-18 DIV ticks, ending on line 0-2 of the next frame. **In SameBoy that is a real glitch**: the LCD blocks VRAM
+  writes outside VBlank, the last writes of the list are lost and stay lost: a speaker's name tag read "DREGOTEER" for "SPIGOTEER"
+  (screenshots: scratchpad perf/after_music_drain_*_glitch.png; INTRO and FINALE_A, DMG and CGB, reproduced with test ROMs that mash A
+  themselves). PyBoy does not model it, hence the tests passed. Now `swap_frame(room)` takes what is left of 90 cost units (bytes + 4 an
+  entry; ~0.145 ticks a byte, ~0.55 an entry, so 90 units = the page turn alone = 13 ticks, ending on line 153) after what the frame's press
+  will queue (type_all: 66 units; a page turn: all 90, the swap waits a frame, which it had to anyway: a press during a swap does nothing).
+  Max drain with A mashed at every cadence, INTRO / PRE / FINALE_A / FINALE_B, both models: 13 ticks, end line <= 153 (was 18 / 156). The
+  mashed scenes run 8-24 frames longer. tests/test_story_pictures.py: the three limits of 14 ticks are now 13, and
+  `test_mashing_a_never_makes_the_drain_leave_vblank` (32 cases: 4 scenes x 2 models x 4 cadences) fails on the old code and passes now.
+- Goldens: `tests/golden/classic_alt.dmg.png` replaced (a shorter music tick lets one frame of its scene run on time).
+- Guards (test_perf, DMG / CGB, before -> after): level 8 end 110 / 111 -> 109 / 110; worst pile 291 -> 290; overlap missed 340 / 349 -> 323 /
+  337; realistic peak missed 165 / 139 -> 128 / 162 (the scenario is chaotic: the CGB count went up while the DMG one fell; both under the 165
+  guard, which stays). No guard was raised.
