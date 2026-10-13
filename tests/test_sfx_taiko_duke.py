@@ -1,6 +1,6 @@
 # The effects added for Taiko Pour's drum (SFX_DON, SFX_KA) and Duke's engine (SFX_REV). SFX_DON / SFX_KA are the noise layer
-# on channel 4 under the pulse drum src/tk.c plays itself (default sound balance D2, src/music.h TAIKO_VARIANT: the player's hits
-# are the lead, the tune is only the bass line); SFX_REV is on channel 4 too. Started by a request bit (sfx_req, bit id - 1) and
+# on channel 4 under the pulse drum src/tk.c plays itself (default sound balance D3, src/music.h TAIKO_VARIANT: the player's hits
+# are the lead, the tune sits behind them); SFX_REV is on channel 4 too. Started by a request bit (sfx_req, bit id - 1) and
 # stepped by src/music.c voice_tick, one frame per count.
 import numpy as np
 import pytest
@@ -10,7 +10,7 @@ from test_sound import NR52, sgb, srom  # noqa: F401  (fixtures)
 pytestmark = pytest.mark.timeout(120)
 NR12, NR22, NR42, NR43, NR51 = 0xFF12, 0xFF17, 0xFF21, 0xFF22, 0xFF25
 SFX_DON, SFX_KA, SFX_REV = 10, 11, 12
-MASK_TAIKO = 0x72                    # music.h TK_NOGROOVE | TK_NOHARM | TK_NOMELODY | the driver's channel-2 mute bit
+MASK_TAIKO = 0x70                    # music.h TK_NOGROOVE | TK_NOHARM | TK_NOMELODY (the driver's channel-2 bit toggles in D3)
 
 
 def trace(gb, sfx, n):
@@ -73,7 +73,7 @@ def spectrum_peak(x, lo, hi, rate=48000):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_hits_are_pulse_drums_on_the_melody_channels(model):
-    """The pulse body of the drum (src/tk.c drum): a DON triggers channels 2 and 1 at full volume (envelope 0xF2) and its pitch
+    """The pulse body of the drum (src/tk.c drum): a DON triggers channel 1 (D3; channel 2 is the melody's) at full volume (envelope 0xF2) and its pitch
     falls from the knock through ~120 Hz to ~85 Hz; a KA is a short click (a high period, ~2 kHz). Music off, so only the
     hits sound; the audio is the check (the period registers are write-only)."""
     from test_mg import to_play
@@ -82,10 +82,11 @@ def test_the_hits_are_pulse_drums_on_the_melody_channels(model):
         to_play(gb)
         hit(gb, 0)
         gb.run(2)
-        assert gb.mem(NR22) == 0xF2 and gb.mem(NR12) == 0xF2, "both pulses at volume 15"
+        assert gb.mem(NR12) == 0xF2, "the drum is on channel 1 at volume 15"
+        assert gb.mem(NR22) != 0xF2, "and not on channel 2 (the melody's)"
         a = audio_frames(gb, 10)
         assert spectrum_peak(a[len(a) // 4:], 60, 400, gb.pb.sound.sample_rate) < 260, "a thump: the pitch is down in the drum's range"
-        assert np.abs(a).max() > 20, "and loud"
+        assert np.abs(a).max() >= 15, "and loud: one full-volume pulse (D3)"
         gb.run(30)
         hit(gb, 1)
         k = audio_frames(gb, 4)
@@ -109,13 +110,21 @@ def test_the_hits_stand_over_the_tune(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_backing_steps_aside_and_comes_back(model):
-    """While Taiko Pour runs: the tune's drum groove, the channel-1 harmony and the melody are out (spare bits of the driver's
-    mute mask, src/music.h) and the bass is on the right side only; leaving it (the result's B) puts all of it back."""
+    """While Taiko Pour runs (D3): the tune's drum groove and the channel-1 harmony are out and the melody is only let through
+    on the first row of each half bar (rows 0 mod 4: the driver's channel-2 mute bit is clear on exactly those row-start ticks),
+    the bass and melody are on the right side only (NR51 0x9F); leaving it (the result's B) puts all of it back."""
     from test_mg import GS_MGLIST, MG_RESULT, frames, to_play, until
     from test_flow import run_until, state
     with taiko_rom(model, music=True) as gb:
         to_play(gb)
-        assert gb.mem("hUGE_mute_mask") & MASK_TAIKO == MASK_TAIKO and gb.mem(NR51) == 0xBF
+        assert gb.mem("hUGE_mute_mask") & MASK_TAIKO == MASK_TAIKO and gb.mem(NR51) == 0x9F
+        open_rows, shut_rows = set(), set()
+        for _ in range(200):
+            gb.run(1)
+            if gb.mem("hUGE_tick") == 1:                 # (a row's first tick has just been played)
+                (shut_rows if gb.mem("hUGE_mute_mask") & 2 else open_rows).add(gb.mem("hUGE_row") % 4)
+        assert open_rows == {0}, open_rows
+        assert shut_rows == {1, 2, 3}, shut_rows
         gb.write("mg_phase", MG_RESULT)
         until(gb, lambda: gb.mem("overlay_on") == 1, 20)
         frames(gb, 2)
@@ -125,7 +134,6 @@ def test_the_backing_steps_aside_and_comes_back(model):
         gb.run(5)
         assert gb.mem("hUGE_mute_mask") & 0x72 == 0, "the melody, groove and harmony are back"
         assert gb.mem(NR51) == 0xFF
-
 
 
 def test_rev_climbs_for_fifty_frames(sgb):

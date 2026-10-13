@@ -41,10 +41,10 @@ extern const unsigned char * const harm_tab[TUNE_COUNT];
 // TAIKO_VARIANT: which sound balance Taiko Pour has (make DEBUGFLAGS="-DDEBUG_MENU -DTAIKO_VARIANT=n"):
 //   0 T2 (the old one): the player's DON / KA are noise hits on channel 4, the tune's groove steps aside, the rest plays
 //   1 D1: DON / KA are pulse drums on channel 2 over a noise layer; the melody is out, the koto harmony (ch 1) and the bass stay
-//   2 D2: as D1 with a brighter pulse, and the harmony is out too: only the bass line and the beat
-//   3 D3: drums on channel 1; the melody plays only on the downbeats of each half bar, the harmony is out
+//   2 D2: pulse drums on channels 2 and 1 together; melody and harmony out: only the bass line and the beat
+//   3 D3 (default): drums on channel 1; the melody plays only on the downbeats of each half bar, the harmony is out
 #ifndef TAIKO_VARIANT
-#define TAIKO_VARIANT 2
+#define TAIKO_VARIANT 3
 #endif
 extern const unsigned char drum_kit[3][4];         // NR41, NR42, NR43, NR44 of kick, snare, hat (build/music_data.c)
 extern unsigned char mus_buf_a[], mus_buf_b[];     // WRAM pattern buffers (build/music_data.c)

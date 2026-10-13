@@ -225,9 +225,17 @@ Music step 2 (2026-10-11, the owner's listening notes):
   (0 the first version, 1 T1 louder: envelope 0xF1 instead of 0xB1 and a one-frame-longer DON, 2 T2 = T1 plus a deeper DON
   (the noise clock sliding 1024 -> 146 Hz, NR43 0x81..0x87, 8 frames), a brighter KA (0x10 then 0x09, 4 frames) and the
   teahouse tune's own channel-4 groove stepping aside in Taiko Pour, 3 T3 = T2 plus the other channels panned to the right
-  output only (NR51 0x8F, -6 dB on the mono speaker) while a channel-4 effect sounds). The default is 2; a one-line
+  output only (NR51 0x8F, -6 dB on the mono speaker) while a channel-4 effect sounds). The default was 2 until the drums rework below; a one-line
   change of `#define TAIKO_VARIANT` (or -DTAIKO_VARIANT=n in DEBUGFLAGS) picks another. Bank 2: 14 B free (was 27); the
   other effects and tunes are byte-identical (the later bytes of bank 2 move by 13, as addresses).
+- Taiko Pour drums in front, tune behind (owner: the T2 drums were "little ticks" under the melody; picked D3 of D1-D3): the
+  player's DON / KA are pulse hits written by src/tk.c drum() (a thump falling 120 -> 85 Hz, a ~2 kHz click, ended by the length
+  counter) over the channel-4 noise (SFX_DON / SFX_KA, now a short layer). src/music.h TAIKO_VARIANT: 0 the old T2, 1 D1 (drum
+  on ch2, koto stays), 2 D2 (ch2 + ch1 drums, only the bass behind), **3 D3 = the default** (drum on ch1; the melody only on the
+  first row of each half bar; harmony out; bass and melody to the right output only, NR51 0x9F, -6 dB on the speaker). The tune
+  is held back through spare bits of hUGE_mute_mask (TK_NOGROOVE / TK_NOHARM / TK_NOMELODY, src/music.h) set by tk.c backing()
+  every frame and undone by tk_leave() from mg_leave. Other tunes and effects byte-identical; bank 2 now 66 B free.
+  tools/rec_taiko.py records a variant. Tests: test_sfx_taiko_duke.py, test_mg_taiko.py.
 - tools/check_music.py: the LEVEL harness starts at level g + 1 for venue g (the old level-clear trick reached the
   wrong venue for even groups since the 10th venue); a staccato note is measured over the part that sounds.
 

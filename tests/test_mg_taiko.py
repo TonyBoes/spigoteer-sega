@@ -31,7 +31,7 @@ OAM_SPIG, OAM_POT, OAM_STREAM, OAM_STEAM, OAM_FLASH, OAM_DRUM, OAM_NOTES = (tk_d
     "OAM_SPIG", "OAM_POT", "OAM_STREAM", "OAM_STEAM", "OAM_FLASH", "OAM_DRUM", "OAM_NOTES"))
 SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN = 3, 4, 5, 6
 SFX_DON, SFX_KA = 10, 11
-BACKING = 0x72      # music.h TK_NOGROOVE | TK_NOHARM | TK_NOMELODY + the driver's channel-2 mute bit: the default sound balance (D2)
+BACKING = 0x70      # music.h TK_NOGROOVE | TK_NOHARM | TK_NOMELODY: the default sound balance (D3: the melody's own mute bit toggles with the half bars)
 OFF = ART["off"]
 OBJ = ART["obj_at"]
 S_PALETTE = 0x10
@@ -653,7 +653,7 @@ def test_the_story_plays_it_in_chapter_8_and_the_last_call_has_everything_back(m
         to_result(gb)
         assert text(gb, 4, True, x0=4) == "A CONTINUE"
         until(gb, lambda: gb.mem("mg_t") >= RESULT_MIN, RESULT_MIN)
-        assert gb.mem("hUGE_mute_mask") & BACKING == BACKING, "the tune is only the bass line behind the drums"
+        assert gb.mem("hUGE_mute_mask") & BACKING == BACKING, "the groove and harmony are out, the melody thinned, behind the drums"
         gb.press("a", 2)
         run_until(gb, lambda: state(gb) == GS_GOAL, 60)
         gb.run(3)

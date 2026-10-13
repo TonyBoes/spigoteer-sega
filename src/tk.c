@@ -440,7 +440,7 @@ static void notes_update(uint16_t c, uint8_t pressed) {
 // (period p sounds 131072 / (2048 - p) Hz), envelope 0xF2 (15, one step a 2/64 s), cut by the length counter after 14 frames.
 // KA: a high short pulse (12.5 % duty, ~2 kHz) cut after 4 frames.
 // The pulse is channel 2 (D1: the melody's channel), channels 2 and 1 together (D2: 50 % and 25 % duty, twice the level),
-// or channel 1 (D3).
+// or channel 1 (D3, the default: the owner's pick).
 #define TKD_PK  1500
 #define TKD_P1   956
 #define TKD_PS   -91
@@ -457,7 +457,7 @@ static void notes_update(uint16_t c, uint8_t pressed) {
 #if TAIKO_VARIANT == 3
 #define TKD_FIRST 0xFF10                    // NR10..NR14
 #else
-#define TKD_FIRST 0xFF15                    // (unused) NR21..NR24; the second pulse of D2 is five bytes below
+#define TKD_FIRST 0xFF15                    // (unused) NR21..NR24; the second pulse of D2 (not the default) is five bytes below
 #endif
 static void pulse(volatile uint8_t *r, uint8_t age, uint8_t dl, uint16_t p) {   // r[0..4]: NR10 / (NR20) .. NR14 / NR24
     if (age) { r[3] = (uint8_t)p; r[4] = 0x40 | (p >> 8); return; }   // (a retune: no trigger, the length counter stays on)
