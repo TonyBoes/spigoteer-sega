@@ -51,6 +51,14 @@ void sec_mark(uint8_t i);
 #define ENTRY_X        16
 #define SPAWN_X         0
 #define EMERGE_SPEED  128
+#define WALK_X          8   // where an entering patron slows to the level's walking pace (the old door, x 0-16; owner 2026-10-13)
+// Push rules (owner 2026-10-13): every mug pushes a patron pushback_px, the same for the 1st, 2nd, 3rd (level.c: PUSH_COLS_*
+// per row class); he is served only when it carries all of him off the screen. EARLY_*: the chance (of 256) that a
+// patron slides only a quarter or a half of it and drinks at once, (level - 1) * EARLY_PER_LEVEL, none on level 1, at most EARLY_MAX.
+#define EARLY_PER_LEVEL 6
+#define EARLY_MAX     110
+// An empty bar: the next patron is due in REFILL_FRAMES (not after a pattern's breather, pat_breather).
+#define REFILL_FRAMES  30
 
 // patrons: 16x16 px, drawn as a 3x2-tile BG footprint on the two back-wall rows of a bar.
 // Position is in pixels (patron_x, left edge of the 16 px figure) plus a fraction; the picture
@@ -214,6 +222,8 @@ extern uint16_t spawn_interval, spawn_timer;
 // returns the frames to the next one. Set by story.c per shift, cleared by start_new_game (arcade).
 extern uint8_t  pat_len, pat_bar;
 uint16_t pat_done(void) BANKED;
+uint8_t  push_for(uint8_t p) BANKED;   // level.c: the push a mug gives patron p (served, early drinker, stopped on screen)
+uint8_t  pat_breather(void) BANKED;   // the pattern's last wait was a breather (code 3)
 extern uint8_t  tip_chance, tip_bar, tip_x, dancer_frame, dance_tick, dancers_vis, dancer_sig;
 extern uint16_t tip_timer, show_timer;
 

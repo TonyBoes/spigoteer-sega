@@ -50,17 +50,19 @@ extern uint8_t level, cur_group, arcade_loop, served, step_frames, pushback_cols
 // the old levels 6 and 7; levels 8-10 are the old rows 7-9 (the teahouse keeps the old level 7's numbers, the zoo takes
 // the old level 8's, the space lounge, now last, the old level 9's: the hardest row).
 //                 grp mask per quota spawn step push score gap
+#define PUSH_COLS_NORMAL 4   // a mug's push: 32 px (the row class's constant; the two hardest rows: PUSH_COLS_HARD)
+#define PUSH_COLS_HARD   3   // 24 px
 static const level_cfg_t level_table[LEVEL_ROWS] = {
-    { 0, 0x5, 1,  8, 300, 64, 4,  50, 120 },   // 1 cowboys: bars 0 and 2
-    { 1, 0x7, 1, 10, 275, 60, 4,  75, 110 },   // 2 sports: bars 0-2
-    { 2, 0xF, 1, 10, 269, 64, 4,  75, 108 },   // 3 lumberjacks: all bars; hurried patrons from here (M13b)
-    { 3, 0xF, 1, 11, 263, 63, 4, 100, 105 },   // 4 chefs
-    { 4, 0xF, 1, 11, 256, 62, 4, 100, 102 },   // 5 divers
-    { 5, 0xF, 1, 12, 250, 61, 4, 125, 100 },   // 6 robots: plays like the old level 3
-    { 6, 0xF, 1, 12, 244, 60, 4, 125,  97 },   // 7 punks (The Chrome Cow): midway between rows 6 and 8
-    { 7, 0xF, 1, 13, 237, 58, 4, 125,  93 },   // 8 ninjas
-    { 8, 0xF, 1, 15, 223, 56, 3, 150,  87 },   // 9 zoo
-    { 9, 0xF, 1, 16, 210, 52, 3, 150,  80 },   // 10 aliens: plays like the old level 5; level 11 is row 1 again (loop 2)
+    { 0, 0x5, 1,  8, 300, 64, PUSH_COLS_NORMAL,  50, 120 },   // 1 cowboys: bars 0 and 2
+    { 1, 0x7, 1, 10, 275, 60, PUSH_COLS_NORMAL,  75, 110 },   // 2 sports: bars 0-2
+    { 2, 0xF, 1, 10, 269, 64, PUSH_COLS_NORMAL,  75, 108 },   // 3 lumberjacks: all bars; hurried patrons from here (M13b)
+    { 3, 0xF, 1, 11, 263, 63, PUSH_COLS_NORMAL, 100, 105 },   // 4 chefs
+    { 4, 0xF, 1, 11, 256, 62, PUSH_COLS_NORMAL, 100, 102 },   // 5 divers
+    { 5, 0xF, 1, 12, 250, 61, PUSH_COLS_NORMAL, 125, 100 },   // 6 robots: plays like the old level 3
+    { 6, 0xF, 1, 12, 244, 60, PUSH_COLS_NORMAL, 125,  97 },   // 7 punks (The Chrome Cow): midway between rows 6 and 8
+    { 7, 0xF, 1, 13, 237, 58, PUSH_COLS_NORMAL, 125,  93 },   // 8 ninjas
+    { 8, 0xF, 1, 15, 223, 56, PUSH_COLS_HARD, 150,  87 },   // 9 zoo
+    { 9, 0xF, 1, 16, 210, 52, PUSH_COLS_HARD, 150,  80 },   // 10 aliens: plays like the old level 5; level 11 is row 1 again (loop 2)
 };
 
 static void load_patron_group(uint8_t g) {
@@ -85,6 +87,22 @@ static void load_patron_group(uint8_t g) {
 #define LOOP_GAP_STEP    5
 #define EMPTY_GAP_FLOOR 80
 #define HURRY_FROM       3
+// The push a mug gives patron p (the arcade's rule: the same for every mug, no thirst multiplier): pushback_px, the row
+// class's constant. He is SERVED only if it carries all of him (PATRON_W px) past the screen's left edge: d >= x +
+// PATRON_W; one left of ENTRY_X (a sprite at the door, in reach) is always served. Otherwise he stops on the screen
+// (never left of ENTRY_X, where the BG patrons end), and some patrons ((level - 1) * EARLY_PER_LEVEL, of 256; none on level 1)
+// take only a quarter or a half of the push and drink at once.
+uint8_t push_for(uint8_t p) BANKED {
+    uint8_t x = patron_x[p], d = pushback_px, m;
+    uint16_t c;
+    if (x < ENTRY_X) return x + PATRON_W;
+    if (d >= (uint8_t)(x + PATRON_W) && x < 256 - PATRON_W) return d;
+    c = (uint16_t)(level - 1) * EARLY_PER_LEVEL;                // (level 1: nobody drinks early)
+    if (level > 1 && next_rand() < (c > EARLY_MAX ? EARLY_MAX : c)) d = next_rand() & 1 ? d >> 2 : d >> 1;
+    m = x - ENTRY_X;
+    return d > m ? m : d;
+}
+
 void start_level(void) BANKED {
     uint8_t idx = level - 1, k, g;
     const level_cfg_t *c;

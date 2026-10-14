@@ -512,6 +512,11 @@ uint16_t pat_done(void) BANKED {
     return pat_wait[e >> 4];
 }
 
+// Was the wait the last spawn started a pattern's breather (wait code 3)? patrons.c: no quick refill then.
+uint8_t pat_breather(void) BANKED {
+    return pat_len && (pat_buf[pat_pos ? pat_pos - 1 : pat_len - 1] >> 4) == 3;
+}
+
 static const char *const shift_name[STORY_SHIFTS] = STORY_SHIFT_NAMES;
 static const char boss_word[] = "BOSS";
 

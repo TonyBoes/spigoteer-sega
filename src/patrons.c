@@ -295,10 +295,8 @@ static void caught(uint8_t i, uint8_t p) {
     patron_state[p] = PATRON_PUSHED;
     patron_timer[p] = 0;
     if (mosh_on) mosh_caught(p);                 // the mosh pit (src/mosh.c): a new push, a new bump
-    {
-        uint16_t d = (uint16_t)pushback_px * ++patron_drinks[p];     // 1st drink: pushback_px, 2nd: twice, ...
-        patron_aux[p] = d > 255 ? 255 : d;
-    }
+    patron_aux[p] = push_for(p);
+    if (patron_drinks[p] != 254) patron_drinks[p]++;
     patron_frac[p] = 0;
     patron_mug[p] = i;
     patron_catchx[p] = mug_x[i];
@@ -389,7 +387,7 @@ static uint8_t walking_step(uint8_t p) {
     if (mosh_on && (patron_shove[p] | patron_stag[p])) mosh_step(p);   // shoved or staggering (src/mosh.c)
     else if (go_now) {
         o = patron_frac[p];
-        f = o + (patron_x[p] < ENTRY_X ? EMERGE_SPEED : patron_hurry[p] ? hurry_speed : patron_speed);   // (entering)
+        f = o + (patron_x[p] < WALK_X ? EMERGE_SPEED : patron_hurry[p] ? hurry_speed : patron_speed);   // (entering)
         if (f < o) {                                      // carried: one whole pixel
             if (!walker_pixel(p, f)) return 0;
         } else {
@@ -413,11 +411,18 @@ static void start_drinking(uint8_t p) {
     patron_timer[p] = 0;
 }
 
-// Served (pushed back to ENTRY_X): he leaves, a sprite sliding out past the screen's left edge with the mug in his hand
-// (leaving_step). Score, tip and the count as before.
+// Served (the push carries him all the way off): he slides out past the screen's left edge, mug in hand
+// (leaving_step); the serve counts when he is gone (served_done). patron_drinks 255 marks him (the engine's other
+// leavers, a boss's scared regulars, score nothing).
 static void served_out(uint8_t p) {
     patron_state[p] = PATRON_LEAVING;
     patron_aux[p] = 0;
+    patron_drinks[p] = 255;
+}
+
+// All of a served patron is off the screen: score, count, tip.
+static void served_done(uint8_t p) {
+    if (patron_drinks[p] != 255) return;
     served++;
     add_score(serve_score);
     SFX(SFX_SERVE);
@@ -430,7 +435,7 @@ static void served_out(uint8_t p) {
 static uint8_t leaving_step(uint8_t p) {
     uint8_t x;
     if (patron_lift[p] != LIFT_EDGE) {
-        if (!(x = lift_leave(p))) { remove_patron(p); return 0; }
+        if (!(x = lift_leave(p))) { served_done(p); remove_patron(p); return 0; }
         patron_timer[p] = x - 1;
     }
     if (patron_timer[p]) {
@@ -439,6 +444,7 @@ static uint8_t leaving_step(uint8_t p) {
     }
     if ((x = patron_x[p])) { x -= PUSH_SPEED; patron_x[p] = x; patron_draw[p] = x & draw_mask; return 1; }
     if ((patron_aux[p] += PUSH_SPEED) < PATRON_W) return 1;
+    served_done(p);
     remove_patron(p);
     return 0;
 }
@@ -451,7 +457,8 @@ static void push_px(uint8_t p) {
     if (mosh_on && !patron_mosh[p]) mosh_bump(p);        // the mosh pit (src/mosh.c): the walker behind him is shoved
 }
 
-// Pushed back by a caught mug: one px a frame toward the left end, then he drinks.
+// Pushed back by a caught mug: one px a frame toward the left end, then he drinks (or, with a push that carries him
+// past ENTRY_X and on, he is served: push_for).
 static uint8_t pushed_step(uint8_t p) {
     if (patron_aux[p] == 0) start_drinking(p);
     else if (patron_x[p] <= ENTRY_X) { served_out(p); return leaving_step(p); }
@@ -548,6 +555,7 @@ void update_patrons(void) {
     if (!go_now) {
         if (intro_timer) intro_timer--;
     } else {
+        if (!patrons_live && spawn_timer > REFILL_FRAMES && !pat_breather()) spawn_timer = REFILL_FRAMES;   // an empty screen: the next one soon
         if (ramp_t && !--ramp_t) classic_ramp();  // CLASSIC: the in-level ramp's next step (classic.c)
         if (spawned < quota) {
             if (spawn_timer) spawn_timer--;
