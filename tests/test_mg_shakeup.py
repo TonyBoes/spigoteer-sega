@@ -1,6 +1,6 @@
 # The can shake-up's three levels in Practice (owner 2026-10-14): BONUS > MINI GAMES > CAN SHAKE-UP. Level 1 at the old first-shake-up pace,
-# each further level faster (swap frames 30, 22, 14; 7, 9, 11 swaps), level 3 with a distraction (a bartender strolls along behind the cans
-# during the swaps, OAM 30-33). 1000 points a level: 1, 2, 3 cleared = bronze, silver, gold (src/mg.h BONUS_SHAKE_*); a wrong pick ends the run
+# each further level faster (swap frames 30, 22, 14; 7, 9, 11 swaps), level 3 with a distraction (the bar cat walks along the counter top behind
+# the cans from the swaps' start, OAM 30-31, and is off the right edge before the choice). 1000 points a level: 1, 2, 3 cleared = bronze, silver, gold (src/mg.h BONUS_SHAKE_*); a wrong pick ends the run
 # and keeps what was earned. ARCADE and CLASSIC play their one round as before (tests/test_bonus.py, test_classic_mode.py).
 import pytest
 from conftest import check_golden, hold_stage_anim
@@ -12,7 +12,8 @@ from test_mg_list import MEDAL_BRONZE, MEDAL_GOLD, MEDAL_NONE, MEDAL_SILVER, MG_
 from test_scores import booted
 
 PH_SHOW, PH_SHAKE, PH_SWAP, PH_CHOOSE, PH_RESULT = range(5)
-WALK_OAM = range(30, 34)
+WALK_OAM = range(30, 32)     # the bar cat's two 8x16 halves
+CAT_FEET = 88                # the counter top (y 88): the cat's lowest feet pixel is on the row above, as the cans' base is
 MEDALS = [MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD]
 
 
@@ -38,7 +39,7 @@ def next_level(gb, lv):
 
 def walker(gb):
     o = gb.oam()
-    return [o[i] for i in WALK_OAM if 0 < o[i]["y"] < 160]
+    return [o[i] for i in WALK_OAM if 0 < o[i]["y"] < 160 and 0 < o[i]["x"] < 168]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -83,16 +84,23 @@ def test_each_level_swaps_faster_and_more_often(model):
                 next_level(gb, lv + 1)
 
 
+def head_x(gb):
+    """The cat's head OAM x (the right half; off screen it is the left half's + 8): runs 0 .. 176 over the walk."""
+    o = gb.oam()
+    return o[31]["x"] if 0 < o[31]["y"] < 160 and 0 < o[31]["x"] < 168 else o[30]["x"] + 8
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_distraction_walks_in_level_3_only(model):
-    """Levels 1 and 2: nothing in OAM 30-33 during the swaps. Level 3: a bartender walks left to right behind the cans (OAM index above
-    the cans'), <= 10 sprites a line all the way, gone before the choice."""
+def test_the_bar_cat_walks_in_level_3_only(model):
+    """Levels 1 and 2: nothing in OAM 30-31 during the swaps. Level 3: the cat walks left to right on the counter top behind the cans (OAM
+    index above the cans'), feet on the counter, <= 10 sprites a line all the way, off the right edge before the choice, and nothing of it
+    is in front of a can (it is a lower-priority OAM entry, so a can is never covered) when the player chooses."""
     with booted(model) as gb:
         hold_stage_anim(gb)
         mg_enter(gb, MG_SHAKEUP, MG_PRACTICE)
         gb.press("a", 2)
         for lv in (1, 2, 3):
-            xs, top = [], 0
+            xs, tiles = [], set()
             run_until(gb, lambda: gb.mem("bonus_phase") == PH_SWAP, 600)
             while gb.mem("bonus_phase") == PH_SWAP:
                 gb.run(1)
@@ -100,12 +108,17 @@ def test_the_distraction_walks_in_level_3_only(model):
                 if lv < 3:
                     assert not w
                 elif w:
-                    assert len(w) == 4
-                    xs.append(w[0]["x"])
+                    xs.append(head_x(gb))
+                    tiles.update(e["tile"] for e in w)
+                    assert all(e["y"] == CAT_FEET + 1 for e in w), w   # 16x16 at screen y 73, its feet row 14 ends on y 87: the counter top at 88
                     assert max(lines(gb)) <= 10
             if lv == 3:
-                assert len(xs) > 40 and xs == sorted(xs) and xs[0] < 24 and xs[-1] > 100, xs[:3]
-                assert not walker(gb)
+                assert len(xs) > 80 and xs == sorted(xs) and xs[0] < 24 and xs[-1] > 120, (len(xs), xs[:3], xs[-3:])
+                assert len(tiles) == 4, "both walk frames show (a left and a right half each)"
+                assert not walker(gb), "off the right edge before the choice"
+                o = gb.oam()
+                assert all(0 < o[i]["y"] < 160 for i in range(8, 14)), "the six cans are all there to choose from"
+                assert min(WALK_OAM) > 13, "a lower-priority OAM entry than every can: it can never cover one"
                 pick(gb, True)
             else:
                 pick(gb, True)
@@ -113,7 +126,7 @@ def test_the_distraction_walks_in_level_3_only(model):
 
 
 def test_arcade_and_classic_keep_their_single_round(gb):
-    """ARCADE round 3 (the shake-up's n = 1 pace: 30 frames, 7 swaps) shows no walker; a win there ends the round (no second level)."""
+    """ARCADE round 3 (the shake-up's n = 1 pace: 30 frames, 7 swaps) shows no cat; a win there ends the round (no second level)."""
 
     enter_bonus(gb, 2, rounds_before=0)
     assert gb.mem("bonus_swap_dur") == 30 and gb.mem("bonus_swaps_total") == 7
@@ -125,7 +138,7 @@ def test_arcade_and_classic_keep_their_single_round(gb):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_screenshots(model):
-    """Level 3 mid-shuffle with the walker, and the gold result (x3 previews: out/ by hand)."""
+    """Level 3 mid-shuffle with the cat, and the gold result (x3 previews: out/ by hand)."""
     with booted(model) as gb:
         hold_stage_anim(gb)
         mg_enter(gb, MG_SHAKEUP, MG_PRACTICE)
@@ -134,7 +147,7 @@ def test_screenshots(model):
             pick(gb, True)
             next_level(gb, lv + 1)
         run_until(gb, lambda: gb.mem("bonus_phase") == PH_SWAP and gb.mem("bonus_swaps_done") >= 4 and walker(gb), 800)
-        check_golden(gb, "shakeup_level3_walker")
+        check_golden(gb, "shakeup_level3_cat")
         pick(gb, True)
         run_until(gb, lambda: gb.mem("overlay_on") == 1, 400)
         gb.run(60)

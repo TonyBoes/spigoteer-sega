@@ -43,6 +43,7 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // venue.c
 #define OBJ_CURSOR       (OBJ_BONUS + CAN_TILE_COUNT)
 #define OBJ_GEYSER       (OBJ_CURSOR + 2)                 // left halves A, B, cap; right halves are +6
 #define OBJ_DROP         (OBJ_GEYSER + GEYSER_FRAMES * 2) // tall, round, splat
+#define OBJ_CAT          (OBJ_DROP + DROP_FRAMES * 2)     // 2 walk frames: left half, right half (8x16 each)
 #define GEY_BASE         (CAN_TOP + 6)      // screen y of the burst can's mouth
 #define GEY_MAX          56                 // geyser peak height, px
 #define GEY_OAM          30                 // 8 entries: 4 rows of left/right halves
@@ -63,7 +64,9 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // venue.c
 #define BT_TOP           112                // bartender 16x24, feet on the floor row (y 136)
 #define BT_IDLE_F         0
 #define BT_WALK1          1
-#define WALK_TOP         56                 // level 3's walker: 16x32, its lower half crosses the can band
+#define CAT_TOP          73                 // level 3's bar cat 16x16 (feet row 14): its feet on the counter top (y 88) like the cans'
+#define CAT_END         176                 // the walk's clock / 4 when its tail has left the screen
+#define OBJPAL_CAT        5
 #define BT_CATCH_F        5
 #define BT_FAIL_F         6
 #define NUM_CANS          6
@@ -127,6 +130,10 @@ static void load_palettes(void) {
     p[2] = 31 | (24 << 5) | (4 << 10);       // gold (cursor)
     p[3] = 8 | (4 << 5) | (2 << 10);
     set_sprite_palette(OBJPAL_FOAM, 1, p);
+    p[1] = 30 | (19 << 5) | (9 << 10);       // the bar cat: ginger coat, stripes (the saloon stage's #f09848, #702840, #181030)
+    p[2] = 14 | (5 << 5) | (8 << 10);
+    p[3] = 3 | (2 << 5) | (6 << 10);
+    set_sprite_palette(OBJPAL_CAT, 1, p);
 }
 
 // whole screen, LCD off. The round is played in the venue of the level just cleared (its BG tiles and palettes
@@ -296,14 +303,13 @@ static void draw(void) {
         for (k = 0; k < NUM_DROPS; k++) shadow_OAM[drop_oam[k]].y = 0;
         for (k = 0; k < 8; k++) shadow_OAM[GEY_OAM + k].y = 0;
     }
-    if (bonus_phase == PH_SWAP && game_state == GS_MINI && bonus_round == 3 && bonus_swaps_done >= 2 && drop_x[0] < 184) {
-        x = (uint8_t)drop_x[0]; drop_x[0] += 2;                 // level 3's distraction: a bartender strolls left to right behind the cans
-        f = BT_WALK1 + ((x >> 4) & 1);                          // (OAM 30-33, behind the cans' 8-13), 2 px a frame; drop_x[0] is the walk's clock
-        base = f * BARTENDER_TILES_PER_FRAME;
-        spr(GEY_OAM,     x,      WALK_TOP + 16, base,     0);
-        spr(GEY_OAM + 1, x + 8,  WALK_TOP + 16, base + 2, 0);
-        spr(GEY_OAM + 2, x,      WALK_TOP + 32, base + 4, 0);
-        spr(GEY_OAM + 3, x + 8,  WALK_TOP + 32, base + 6, 0);
+    if ((bonus_phase == PH_SWAP || bonus_phase == PH_CHOOSE) && game_state == GS_MINI && bonus_round == 3 && drop_x[0] < CAT_END * 4) {
+        drop_x[0] += 5;                                         // level 3's distraction: the bar cat walks along the counter top behind the cans
+        x = (uint8_t)(drop_x[0] >> 2);                          // (OAM 30-31, behind the cans' 8-13), 1.25 px a frame from the swaps' start, head
+        f = (x >> 3) & 1;                                       // first from off the left edge, off the right edge before the choice (drop_x[0] is
+        base = OBJ_CAT + 4 * f;                                 // the walk's clock, x its head's OAM x; the cat is 16 wide, x - 8 its tail's)
+        if (x >= 8) spr(GEY_OAM, x - 8, CAT_TOP + 16, base, OBJPAL_CAT); else shadow_OAM[GEY_OAM].y = 0;
+        if (x < 168) spr(GEY_OAM + 1, x, CAT_TOP + 16, base + 2, OBJPAL_CAT); else shadow_OAM[GEY_OAM + 1].y = 0;
     }
     if (bonus_phase == PH_RESULT && bonus_won) bf = BT_CATCH_F;
     base = bf * BARTENDER_TILES_PER_FRAME;       // OBJ tiles 0.. hold the bartender frames
