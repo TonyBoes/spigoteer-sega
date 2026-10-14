@@ -154,6 +154,10 @@ static void hud_timer(void) {                    // the hourglass + seconds (2 d
 
 static uint8_t secs_left(void) { return (uint8_t)((mg_timer + 59) / 60); }
 
+void mg_hourglass_load(uint8_t id) BANKED {
+    set_bkg_data(id, 1, hourglass_tile);
+}
+
 static void attr_rows(uint8_t y, uint8_t n) {    // LCD off, CGB: rows y.. in the HUD colours
     fill(row_buf, BGPAL_HUD, 20);
     VBK_REG = VBK_BANK_1;

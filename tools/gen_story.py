@@ -62,6 +62,7 @@ MAX_SPK = 3                      # portrait speakers per scene (their tiles are 
 PIC_ROWS = 13                    # picture slot: rows 0-12, above the text box
 PIC_POOL = 36                    # its own tiles at BG ids 0.. (no venue on a picture scene)
 
+SHIFT_TIMER_MAX = 99             # a shift's timer shows as two digits + the hourglass (owner 2026-10-13): at most 99 s
 # goal types / flags (src/story.c)
 G_SERVE, G_CATCH, G_CLEAR = 0, 1, 2
 F_NO_TAP, F_NO_BREAK = 1, 2      # strict rules (owner): breaking one costs 2 lives instead of 1 (src/story.c)
@@ -72,8 +73,8 @@ CHAPTERS = [
     ("STADIUM", 1, G_SERVE, 20, F_NO_TAP, 0, "SERVE 20 FANS", "FAN AT TAP COSTS TWO",
      "serve 20, a patron at the tap costs 2 lives"),
     ("LUMBER", 2, G_SERVE, 18, 0, 0, "WAKE UP 18", "SLEEPY LUMBERJACKS", "serve 18"),
-    ("BISTRO", 3, G_SERVE, 20, 0, 120, "SERVE 20 CHEFS", "BEFORE THE RUSH", "serve 20 before the timer"),
-    ("IGLOO", 4, G_SERVE, 20, 0, 120, "SERVE 20 COCOAS", "BEFORE THEY COOL", "serve 20 before the timer"),
+    ("BISTRO", 3, G_SERVE, 20, 0, SHIFT_TIMER_MAX, "SERVE 20 CHEFS", "BEFORE THE RUSH", "serve 20 before the timer"),
+    ("IGLOO", 4, G_SERVE, 20, 0, SHIFT_TIMER_MAX, "SERVE 20 COCOAS", "BEFORE THEY COOL", "serve 20 before the timer"),
     ("ROBOT", 5, G_CATCH, 25, 0, 0, "RECYCLE 25", "EMPTY BATTERIES", "catch 25 empties"),
     ("BIKER", 6, G_SERVE, 22, 0, 0, "SERVE 22 PUNKS", "NO CRYING OVER MILK", "serve 22"),
     ("TEAHOUSE", 7, G_CLEAR, 0, F_NO_BREAK, 0, "SERVE EVERY GUEST", "BROKEN CUP COSTS TWO",
@@ -155,9 +156,9 @@ SHIFTS = [
     ((G_SERVE, 9, 0, 0, 0, "WAKE UP 9", "SLEEPY LUMBERJACKS", "serve 9"),
      (G_SERVE, 20, 0, 0, 0, "WAKE UP 20", "ONE BAR IS PACKED", "serve 20", "flood bar 2", 115, 85)),
     ((G_SERVE, 10, 0, 75, 0, "SERVE 10 CHEFS", "BEFORE THE RUSH", "serve 10 in 75 s"),
-     (G_SERVE, 22, 0, 120, 0, "SERVE 22 CHEFS", "TABLES FOR TWO", "serve 22 in 120 s", "pairs", 115, 85)),
+     (G_SERVE, 22, 0, SHIFT_TIMER_MAX, 0, "SERVE 22 CHEFS", "TABLES FOR TWO", "serve 22 in 99 s", "pairs", 115, 85)),
     ((G_SERVE, 10, 0, 75, 0, "SERVE 10 COCOAS", "BEFORE THEY COOL", "serve 10 in 75 s"),
-     (G_SERVE, 22, 0, 120, 0, "SERVE 22 COCOAS", "BEFORE THEY FREEZE", "serve 22 in 120 s", "zigzag", 115, 85)),
+     (G_SERVE, 22, 0, SHIFT_TIMER_MAX, 0, "SERVE 22 COCOAS", "BEFORE THEY FREEZE", "serve 22 in 99 s", "zigzag", 115, 85)),
     ((G_CATCH, 12, 0, 0, 0, "RECYCLE 12", "EMPTY BATTERIES", "catch 12 empties"),
      (G_CATCH, 28, 0, 0, 0, "RECYCLE 28", "BATTERIES PILE UP", "catch 28 empties", "stairs up", 115, 85)),
     ((G_SERVE, 10, 0, 0, 0, "SERVE 10 PUNKS", "ICE COLD MILK", "serve 10"),
@@ -246,8 +247,8 @@ def check_shifts(rows):
                 fail(f"{where}: walk {sh['walk']} % / spawn {sh['spawn']} % outside {WALK_RANGE} / {SPAWN_RANGE}")
             if sh["pattern"] not in PATTERNS:
                 fail(f"{where}: unknown pattern {sh['pattern']!r}")
-            if not 0 <= sh["secs"] <= 255:
-                fail(f"{where}: timer 0-255 s")
+            if not 0 <= sh["secs"] <= SHIFT_TIMER_MAX:
+                fail(f"{where}: timer 0-{SHIFT_TIMER_MAX} s (two HUD digits and the hourglass)")
             if sh["secs"]:                       # enough arrivals in time: start patrons + spawns >= 1.3 x the goal
                 iv = row_iv * sh["spawn"] / 100 * pattern_mean(sh["pattern"])
                 arrivals = start + (sh["secs"] * 60 - 90) / iv

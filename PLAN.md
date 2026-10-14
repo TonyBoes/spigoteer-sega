@@ -877,7 +877,7 @@ per-chapter twists are part 2 (hook below). Portraits and pictures are placehold
   while it shows; 3 s or A / START) -> on success CHAPTER CLEAR (enter_level_clear + its 1000 bonus) -> progress saved ->
   POST scene -> chapter c + 1. After chapter 9's POST: FINALE, CREDITS, the title. [10th venue, 2026-10-11: chapter 10's.]
   Goals (gen_story CHAPTERS, checked against the chapters table): 1 serve 15; 2 serve 20 and no patron reaches the tap;
-  3 serve 18; 4 serve 20 within 120 s; 5 serve 20 within 120 s; 6 catch 25 empties (a glass taken from a patron counts,
+  3 serve 18; 4 serve 20 within 99 s; 5 serve 20 within 99 s; 6 catch 25 empties (a glass taken from a patron counts,
   it scores as a caught empty); 7 clear the level (the row's quota) with no broken glass; 8 serve 25; 9 serve 30.
   Serve / catch chapters set quota 255, so patrons keep coming until the goal is met. Counters: `served` (the engine's);
   catches and breaks are deltas of sfx_count[SFX_CATCH] / sfx_count[SFX_BREAK] (no change to the hot code); a life lost
@@ -938,8 +938,8 @@ Each chapter plays its venue several times in a row, as shifts with rising diffi
   | 1 | serve 8 | serve 15 | serve 18 | 110 / 90 | stairs down 1, 2, 3, 4 |
   | 2 | serve 10, none at the tap | serve 20, none at the tap | serve 22, none at the tap | 105 / 95 | all bars at once (4 x 12 frames, then 4 I) |
   | 3 | serve 9 | serve 18 | serve 20 | 115 / 85 | flood bar 2 (2, 1, 2, 3, 2, 4) |
-  | 4 | serve 10 in 75 s | serve 20 in 120 s | serve 22 in 120 s | 115 / 85 | pairs (1+3, 2 I, 2+4, 2 I) |
-  | 5 | serve 10 in 75 s | serve 20 in 120 s | serve 22 in 120 s | 115 / 85 | zigzag 1, 3, 2, 4, 3, 1, 4, 2 |
+  | 4 | serve 10 in 75 s | serve 20 in 99 s | serve 22 in 99 s | 115 / 85 | pairs (1+3, 2 I, 2+4, 2 I) |
+  | 5 | serve 10 in 75 s | serve 20 in 99 s | serve 22 in 99 s | 115 / 85 | zigzag 1, 3, 2, 4, 3, 1, 4, 2 |
   | 6 | catch 12 | catch 25 | catch 28 | 115 / 85 | stairs up 4, 3, 2, 1 |
   | 7 | 7 guests, no break | the row's 13, no break | 15 guests, no break | 115 / 85 | flood bar 4 (4, 1, 4, 2, 4, 3) |
   | 8 | serve 12 | serve 25 | serve 28 | 120 / 80 | inside out (2+3, 2 I, 1+4, 2 I) |
@@ -3225,3 +3225,11 @@ The two new FINALE_A pages and the first FINALE_B page are **proposed dialogue, 
 - Guards (test_perf, DMG / CGB, before -> after): level 8 end 110 / 111 -> 109 / 110; worst pile 291 -> 290; overlap missed 340 / 349 -> 323 /
   337; realistic peak missed 165 / 139 -> 128 / 162 (the scenario is chaotic: the CGB count went up while the DMG one fell; both under the 165
   guard, which stays). No guard was raised.
+
+## Shift timers capped at 99 s (owner, 2026-10-13)
+Every story shift timer is at most 99 s (tools/gen_story.py SHIFT_TIMER_MAX fails the build above it): the bistro and
+igloo Happy hour and Last call went from 120 to 99 s (the Opening stays 75 s). Balancing is deferred. The HUD (story.c
+hud_goal) shows the mini-games timer: column 16 blank, the hourglass, two figures. The hourglass tile is loaded by
+shift_start (mg.c mg_hourglass_load) at BG 252 (SHIFT_HOURGLASS), not at MG_HOURGLASS (BG 220): in a level 220 is variant
+C's shift-0 pose, third column, which a patron standing on a tile boundary draws. 252 is free outside boss fights (a boss
+HUD has no timer). Tests: tests/test_story.py (no timer over 99 s; the hourglass and figures in all six timed shifts).

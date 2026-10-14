@@ -468,6 +468,12 @@ static void two_digits(uint8_t *d, uint8_t v) {
     d[0] = TILE_GLYPH_0 + t; d[1] = TILE_GLYPH_0 + v;
 }
 
+// A timed shift's HUD timer is the mini-games' (hourglass + two digits, src/mg.c hud_timer), so at most 99 s (owner,
+// 2026-10-13). The hourglass cannot sit at MG_HOURGLASS (BG 220) in a level: that is variant C's shift-0 pose's 3rd
+// column, which a patron standing on a tile boundary draws. BG 252 is free in a shift (a boss fight's HUD face, the
+// only other user, has no timer).
+#define SHIFT_HOURGLASS 252
+
 static void hud_goal(void) {                     // queue the goal counter (and the timer) on the HUD row
     uint8_t s, h = 0;
     if (story_goal.type >= G_CLEAR) return;     // (a clear goal has no counter; a boss fight shows his meter: boss.c)
@@ -475,10 +481,9 @@ static void hud_goal(void) {                     // queue the goal counter (and 
     two_digits(hud_buf + 1, story_left);
     vq_add(0, hud_buf, HUD_GOAL_COL, HUD_ROW, 3);
     if (!story_goal.secs) return;
-    s = st_secs;
-    hud_buf[4] = TILE_GLYPH_T;
-    while (s >= 100) { s -= 100; h++; }
-    hud_buf[5] = TILE_GLYPH_0 + h;
+    s = st_secs;                                 // (never above SHIFT_TIMER_MAX: gen_story.py fails the build otherwise)
+    hud_buf[4] = TILE_HUD_BLANK;                 // column 16 blank, the hourglass, two digits: the mini-games' timer
+    hud_buf[5] = SHIFT_HOURGLASS;
     two_digits(hud_buf + 6, s);
     vq_add(0, hud_buf + 4, 16, HUD_ROW, 4);
 }
@@ -542,6 +547,7 @@ static void shift_start(void) {
     }
     level = story_chapter + 1;                   // (lives: set by venue_start, carried from shift to shift)
     if (story_arc) level += (arc_loop > 9 ? 8 : arc_loop - 1) * 10;   // ARCADE: the loop's row (start_level's loop maths)
+    if (story_goal.secs) mg_hourglass_load(SHIFT_HOURGLASS);   // a timed shift: its HUD's hourglass (LCD off)
     pour_load(story_chapter);                    // the perfect pour's frames and cue (LCD off; the venue = the chapter)
     music_fast = (story_twist & TWIST_FAST_TUNE) != 0;   // the twist: the band plays faster (before the tune starts)
     enter_level_screen();                        // the venue's level (row level - 1), LCD on again, PLAYING

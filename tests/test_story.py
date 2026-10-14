@@ -126,8 +126,8 @@ def test_the_build_fails_on_an_unknown_speaker_or_a_fourth_line(tmp_path):
 
 
 def test_the_chapter_goals_follow_the_chapters_table():
-    want = [(G_SERVE, 15, 0, 0), (G_SERVE, 20, F_NO_TAP, 0), (G_SERVE, 18, 0, 0), (G_SERVE, 20, 0, 120),
-            (G_SERVE, 20, 0, 120), (G_CATCH, 25, 0, 0), (G_SERVE, 22, 0, 0), (G_CLEAR, 0, F_NO_BREAK, 0),
+    want = [(G_SERVE, 15, 0, 0), (G_SERVE, 20, F_NO_TAP, 0), (G_SERVE, 18, 0, 0), (G_SERVE, 20, 0, 99),
+            (G_SERVE, 20, 0, 99), (G_CATCH, 25, 0, 0), (G_SERVE, 22, 0, 0), (G_CLEAR, 0, F_NO_BREAK, 0),
             (G_SERVE, 25, 0, 0), (G_SERVE, 30, 0, 0)]
     assert [(c["type"], c["count"], c["flags"], c["secs"]) for c in CHAPTERS] == want
     assert [c["venue"] for c in CHAPTERS] == list(range(10)), "chapter = venue = patron group = arcade level row"
@@ -1493,3 +1493,38 @@ def test_version_7_loads_its_progress_and_old_versions_reject_a_bad_one(model):
         assert rom.mem("story_progress") == 0 and rom.mem("save_migrated") == 0, "version 5 knew nine chapters"
     with booted(model, v3_image([("ABC", 500)], story=10)) as rom:
         assert rom.mem("story_progress") == 0 and rom.mem("save_migrated") == 0
+
+
+# ---- shift timers: at most 99 s, shown as the mini-games' hourglass and two digits (owner, 2026-10-13) ----------------
+SHIFT_HOURGLASS = 252           # src/story.c: BG 220 (MG_HOURGLASS) is variant C's shift-0 pose in a level
+HOURGLASS_TILE = [0xFF, 0xFF, 0x81, 0x81, 0xDB, 0xC3, 0xE7, 0xE7, 0xE7, 0xE7, 0xDB, 0xDB, 0xDB, 0xC3, 0x81, 0x81]
+
+
+def test_no_shift_timer_is_over_99_seconds():
+    """Every timer in the data (the chapters' Happy hour, the Opening and the Last call) is 0-99 s."""
+    assert max(c["secs"] for c in CHAPTERS) == 99
+    assert all(0 <= sh["secs"] <= 99 for row in SHIFTS for sh in row)
+    assert sorted({sh["secs"] for row in SHIFTS for sh in row}) == [0, 75, 99]
+    doc = (ROOT / "docs" / "story.md").read_text()
+    assert "in 99 s" in doc and "120 s" not in doc
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("c", [3, 4])
+@pytest.mark.parametrize("k", [0, 1, 2])
+def test_a_timed_shift_shows_the_hourglass_and_two_digits_and_never_passes_99(model, c, k):
+    """The bistro's and the igloo's three shifts: the timer starts at its table value (<= 99 s), the HUD's columns 16-19
+    are blank, the hourglass, the two digits, and it counts down."""
+    with to_shift(model, c, k) as gb:
+        secs = SHIFTS[c][k]["secs"]
+        assert 0 < secs <= 99 and gb.mem16("story_timer") == secs * 60
+        gb.run(2)
+        hud = tilemap_row(gb, 0, 16, 4)
+        want = [GLYPH[" "], SHIFT_HOURGLASS, GLYPH[str(secs // 10)], GLYPH[str(secs % 10)]]
+        assert hud == want, (hud, want)
+        assert list(gb.read(0x8FC0, 16)) == HOURGLASS_TILE, "the hourglass tile is in VRAM (BG 252)"
+        gb.write("intro_timer", 0)
+        gb.run(130)
+        assert gb.mem16("story_timer") <= secs * 60 - 120
+        now = (gb.mem16("story_timer") + 59) // 60
+        assert tilemap_row(gb, 0, 18, 2) == [GLYPH[str(now // 10)], GLYPH[str(now % 10)]] and now <= 99

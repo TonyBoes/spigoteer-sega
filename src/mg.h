@@ -58,6 +58,7 @@ extern uint16_t mg_score;       // the game's points (also added to the HUD scor
 extern uint16_t mg_seed, mg_seed_force;   // the game's RNG seed: next_rand() at entry, or mg_seed_force when non-zero
 
 void mg_enter(uint8_t id, uint8_t mode) BANKED;  // LCD off: game `id` (MG_*), the intro banner, GS_MINI
+void mg_hourglass_load(uint8_t id) BANKED;       // the timer's hourglass tile into BG id `id` (LCD off): a timed story shift's HUD (story.c)
 uint8_t mg_of_venue(uint8_t venue) BANKED;       // the venue's (the chapter's) mini-game id
 // helpers for the games
 void mg_points(uint16_t n) BANKED;               // n points to mg_score and the HUD score
