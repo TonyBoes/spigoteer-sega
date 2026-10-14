@@ -516,6 +516,11 @@ void mg_list_enter(void) BANKED;                        // LCD off: BONUS > MINI
 extern uint16_t mg_unlocked;                            // bit g = mini-game g (MG_* of src/mg.h) reached
 extern uint8_t  mg_best[];                              // the best medal (MEDAL_*) per mini-game
 void mg_record(uint8_t g, uint8_t medal) BANKED;        // game g reached / played to `medal`: saved when it changes
+// save.c: the bonus rounds' block "MGB1" at SRAM 0x70 (src/mg_list.c, mg.c): k = 0 shake-up, 1 Perfect Pour, 2 Tip Shower
+uint8_t bonus_info(uint8_t k) BANKED;                   // bit 0: played in ARCADE / CLASSIC (unlocked), bits 1-2: the best medal
+void bonus_record(uint8_t k, uint8_t medal) BANKED;     // round k played (medal 0) or earned `medal`
+uint8_t card_seen(uint8_t id) BANKED;                   // the HOW TO PLAY card of mini-game id was shown before (src/mg.c)
+void card_mark(uint8_t id) BANKED;                      // ... it is now (nothing in a debug-select run)
 #define SAVE_LOCK_DEBUG 2                               // save_lock: a debug-select run (not even the Practice block)
 // save.c: the Boss Rush part of the Practice block (src/rush.c): RUSH_SAVE_N bytes, see save.c's layout
 #define RUSH_SAVE_N     28

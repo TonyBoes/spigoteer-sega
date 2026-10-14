@@ -13,6 +13,7 @@ from conftest import (K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTL
                       hold_stage_anim, menu_items, menu_tap, menu_to, title_pick)
 from gbtools import Rom
 from pyboy import PyBoy
+from test_bonus import lines
 from test_flow import GS_GOAL, LEVEL_CLEAR, TITLE, run_until, state, tilemap_row
 from test_mg import GLYPH_CH, GS_MGLIST, GS_MINI, MG_PRACTICE, MG_RESULT, MG_STORY, MG_STUB, frames, mg_enter, score, text
 from test_scores import booted, table, v7_image
@@ -22,6 +23,7 @@ from test_story import to_goal, to_shift, win
 pytestmark = pytest.mark.timeout(300)
 
 MG_QUICKDRAW, MG_ORDERUP, MG_PLANNED = 0, 3, 10
+MG_SHAKEUP, MG_FILLLINE, MG_TIPS = 12, 13, 14
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
 PR_AT, PR_MEDAL = 0x40, 6
 PR_LEN = PR_MEDAL + MG_PLANNED
@@ -68,7 +70,7 @@ def line(gb, row):
     """A row of the list screen as text ('?' for the story font's question mark)."""
     out = ""
     for t in tilemap_row(gb, row, 0, 20):
-        out += GLYPH_CH.get(t, "?" if t == QUEST else " ")
+        out += GLYPH_CH.get(t, "?" if t == QUEST else "-" if t == QUEST + 2 else " ")   # (ST_GLYPH_HYPHEN is the story font's 6th)
     return out.rstrip()
 
 
@@ -116,9 +118,11 @@ def test_bonus_offers_soundtrack_and_mini_games(model):
 
 # (chapter order, docs/story.md: saloon, stadium, lodge, bistro, igloo, robot factory, Chrome Cow, teahouse, zoo, space lounge;
 # the list's name column, and the venue the details line shows)
+BONUS_LIST = [("CAN SHAKE-UP", "A BONUS ROUND"), ("PERFECT POUR", "A BONUS ROUND"), ("TIP SHOWER", "A BONUS ROUND")]
+VIS = 10                                          # the list shows ten lines (src/mg_list.c ML_VIS) and scrolls
 LIST = [("QUICK DRAW", "THE SALOON"), ("SHIRT CANNON", "THE STADIUM"), ("LOG ROLL", "THE LUMBER LODGE"), ("ORDER UP", "THE BISTRO"),
         ("MARSHMALLOWS", "THE IGLOO"), ("BATTERY SORT", "THE ROBOT FACTORY"), ("MILK RUN", "THE CHROME COW"),
-        ("TAIKO POUR", "THE TEAHOUSE"), ("MONKEY BIZ", "THE JUNGLE ZOO"), ("ASTEROIDS", "THE SPACE LOUNGE")]
+        ("TAIKO POUR", "THE TEAHOUSE"), ("MONKEY BIZ", "THE JUNGLE ZOO"), ("ASTEROIDS", "THE SPACE LOUNGE")] + BONUS_LIST
 
 
 def no_row_touches_the_separator(gb, n):
@@ -130,33 +134,64 @@ def no_row_touches_the_separator(gb, n):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_debug_list_has_every_built_game_unlocked(model):
-    """The DEBUG_MENU build (`make`): all ten games in chapter order and the stub GREEN LIGHT, all playable on a fresh cartridge; the
-    selected game's venue and best medal below (rows 15-16: eleven lines leave no room for the keys line); Up / Down move and wrap;
-    <= 10 sprites a line (the mug cursor); no line touches the separator (a blank row 13, the separator 14)."""
+def test_the_debug_list_has_every_built_game_unlocked_and_scrolls(model):
+    """The DEBUG_MENU build (`make`): the ten games in chapter order, the three bonus rounds and the stub GREEN LIGHT (14), all playable on a
+    fresh cartridge. The window shows ten lines (rows 2-11, a blank row 12, the separator 13); the selected game's venue, best medal and
+    keys below (rows 14-16). Down past the tenth line slides the window one line at a time (the cursor stays on the bottom line), wraps to
+    the top; Up from the top wraps to the bottom window; the mug stands on the selected line; no line touches the separator on any step;
+    <= 10 sprites a line."""
     names = [n for n, _ in LIST] + ["GREEN LIGHT"]
+    where = [w for _, w in LIST] + ["THE TEST STUB"]
     with to_list(booted(model)) as gb:
         hold_stage_anim(gb)
-        assert gb.mem("ml_n") == 11 and gb.mem("ml_sel") == 0 and gb.mem16("mg_unlocked") == 0
+        assert gb.mem("ml_n") == 14 and gb.mem("ml_sel") == 0 and gb.mem16("mg_unlocked") == 0
         assert line(gb, 0).strip() == "MINI GAMES  NORMAL"
-        assert [line(gb, r).strip() for r in range(2, 13)] == names
-        no_row_touches_the_separator(gb, 11)
-        assert [line(gb, r).strip() for r in range(15, 17)] == ["THE SALOON", "NO MEDAL YET"]
+        assert [line(gb, r).strip() for r in range(2, 12)] == names[:VIS]
+        no_row_touches_the_separator(gb, VIS)
+        assert [line(gb, r).strip() for r in range(14, 17)] == ["THE SALOON", "NO MEDAL YET", "NORMAL ONLY  B BACK"]
         o = gb.read(0xFE00, 4)
         assert o[0] == 2 * 8 - 7 + 16 and o[1] == 8, "the mug cursor on line 0"
         check_golden(gb, "mg_list")
-        for k in range(1, 10):
+        for k in range(1, 14):
             tap(gb, "down")
-            assert gb.mem("ml_sel") == k and [line(gb, r).strip() for r in (2 + k, 15)] == [LIST[k][0], LIST[k][1]]
+            gb.run(4)                                      # (a scroll redraws four lines a frame)
+            top = max(0, k - VIS + 1)
+            assert gb.mem("ml_sel") == k
+            assert [line(gb, r).strip() for r in range(2, 12)] == names[top:top + VIS], k
+            assert [line(gb, r).strip() for r in (14, 16)] == [where[k], "A PLAY  B BACK  SEL" if k in (6, 13) else "NORMAL ONLY  B BACK"], k
+            assert gb.read(0xFE00, 1)[0] == (2 + k - top) * 8 - 7 + 16, "the mug on the selected line"
+            no_row_touches_the_separator(gb, VIS)
+            assert max(lines(gb)) <= 10
+        gb.run(2)
+        check_golden(gb, "mg_list_scrolled")
+        assert line(gb, 11).strip() == "GREEN LIGHT" and line(gb, 14).strip() == "THE TEST STUB"
         tap(gb, "down")
-        assert gb.mem("ml_sel") == 10 and line(gb, 12).strip() == "GREEN LIGHT" and line(gb, 15).strip() == "THE TEST STUB"
-        tap(gb, "down")
+        gb.run(4)
         assert gb.mem("ml_sel") == 0, "wraps"
+        assert [line(gb, r).strip() for r in range(2, 12)] == names[:VIS] and gb.read(0xFE00, 1)[0] == 2 * 8 - 7 + 16
         tap(gb, "up")
-        assert gb.mem("ml_sel") == 10
+        gb.run(4)
+        assert gb.mem("ml_sel") == 13 and [line(gb, r).strip() for r in range(2, 12)] == names[4:]
+        for _ in range(4):                                 # Up slides the window back only when the cursor leaves its top line
+            tap(gb, "up")
+        gb.run(4)
+        assert gb.mem("ml_sel") == 9 and [line(gb, r).strip() for r in range(2, 12)] == names[4:], "still the lower window"
+        assert gb.read(0xFE00, 1)[0] == (2 + 9 - 4) * 8 - 7 + 16
+        for _ in range(6):
+            tap(gb, "up")
+        gb.run(4)
+        assert gb.mem("ml_sel") == 3 and [line(gb, r).strip() for r in range(2, 12)] == names[3:13], "one line up: the window slides"
+        tap(gb, "down")
+        tap(gb, "down")
+        tap(gb, "down")
+        tap(gb, "down")
+        tap(gb, "down")
+        tap(gb, "down")
+        tap(gb, "down")
+        gb.run(4)
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
-        assert gb.mem("mg_id") == MG_STUB and gb.mem("mg_mode") == MG_PRACTICE and text(gb, 2) == "GREEN LIGHT"
+        assert gb.mem("mg_id") == MG_SHAKEUP and gb.mem("mg_mode") == MG_PRACTICE
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -196,12 +231,12 @@ def test_quick_draw_from_the_list_retry_and_back(model):
 # ---- the release build: the unlock rule, no stub ------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_release_list_is_locked_until_reached(model, release_built):
-    """`make release`: all ten games in chapter order (the stub is not listed); on a fresh cartridge each is
+    """`make release`: the ten games in chapter order and the three bonus rounds (the stub is not listed; ten lines show); on a fresh cartridge each is
     "? ? ?" with LOCKED details and A does nothing; with Practice's block saying Quick Draw was reached (silver its best)
     it lists by name with SILVER and plays (the others still locked); with Order Up!'s bit it lists and plays."""
     with release_rom(model) as gb:
         to_list(gb)
-        assert gb.mem("ml_n") == 10
+        assert gb.mem("ml_n") == 13
         assert [line(gb, r).strip() for r in range(2, 13)] == ["? ? ?"] * 10 + [""]
         no_row_touches_the_separator(gb, 10)
         assert [line(gb, r).strip() for r in range(14, 17)] == ["LOCKED", "REACH IT IN STORY", "OR ARCADE"]
@@ -358,8 +393,8 @@ def test_select_flips_normal_hard_on_milk_run_and_hard_reaches_mg_mode(model):
         tap(gb, "select")
         gb.run(4)
         assert line(gb, 0).strip() == "MINI GAMES  HARD"
-        no_row_touches_the_separator(gb, 11)
-        assert line(gb, 8).strip() == "MILK RUN" and line(gb, 15).strip() == "THE CHROME COW"
+        no_row_touches_the_separator(gb, VIS)
+        assert line(gb, 8).strip() == "MILK RUN" and line(gb, 14).strip() == "THE CHROME COW"
         check_golden(gb, "mg_list_hard")
         tap(gb, "select")
         gb.run(4)
@@ -421,7 +456,7 @@ def test_the_hard_best_is_kept_apart_in_the_release_list(model, release_built):
         gb.run(4)
         assert line(gb, 0).strip() == "MINI GAMES  HARD" and line(gb, 8) == " MILK RUN     GOLD"
         assert line(gb, 15).strip() == "BEST GOLD"
-        no_row_touches_the_separator(gb, 10)
+        no_row_touches_the_separator(gb, VIS)
         for _ in range(MR_G - MG_ORDERUP):
             tap(gb, "up")
         gb.run(4)

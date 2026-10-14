@@ -15,7 +15,7 @@ PR_NONE, PR_PERFECT, PR_GOOD, PR_LOW, PR_HIGH, PR_SPILL = range(6)
 SFX_BREAK, SFX_COIN = 4, 6
 SFX_COUNT = 9
 B2H = (ROOT / "build" / "bonus2_art.h").read_text()
-B2_BASE = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))   # B2_BG: the patron range
+B2_BASE = 48 + int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))   # B2_BG (src/bonus2.c): past the framework's medal icon (48 tiles), MG_GAME_BG
 B2 = json.loads((ROOT / "build" / "bonus2.json").read_text())
 SRC = (ROOT / "src" / "bonus2.c").read_text()
 
@@ -434,8 +434,8 @@ def test_next_level_loads_with_the_venue_restored(gb, kind):
     assert tilemap_row(gb, 17, 0, 20) == [lodge["floor_tile"]] * 20
     obj = b"".join(bytes(gb.read(0x8000 + t * 16, 16)) for t in range(96, 128))
     assert obj == bytes(lodge["show"]), "the performer tiles are back"
-    first = (B2_BASE + 1) & ~1                   # M13a: the patron tiles start at the next even id (B2_BASE itself is unused in play)
-    bg = b"".join(bytes(gb.read(0x9000 + t * 16, 16)) for t in range(first, first + 24))
-    assert bg == patron_group_tiles(2)[:24 * 16], "the patron tiles are back over the glass and '!'"
+    first = B2_BASE & ~1                         # M13a: a patron group's tile k is BG id PATRON_FIRST_TILE (78) + k; the glass and '!' lie over ids from B2_BASE
+    bg = b"".join(bytes(gb.read((0x9000 + t * 16) if t < 128 else (0x8800 + (t - 128) * 16), 16)) for t in range(first, first + 24))   # (ids 128+: the 0x8800 block)
+    assert bg == patron_group_tiles(2)[(first - 78) * 16:(first - 78 + 24) * 16], "the patron tiles are back over the glass and '!'"
     if gb.model_name == "dmg":
         assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's again (M13a: 0xE4 in play, for lifted patrons)"

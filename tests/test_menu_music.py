@@ -131,7 +131,7 @@ def transitions(gb):
         act(t)
         t.until(end)
         if cut_at_end:
-            cut = len(t.flags)
+            cut = max(i for i, f in enumerate(t.flags) if f) + 1    # (the player stops the music, then its screen comes up: the frames after the last tick are silent by design, however many the tick's phase leaves)
         t.run(tail)
         out.append((name, t, cut if cut_at_end else None))
 

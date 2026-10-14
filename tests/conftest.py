@@ -41,6 +41,27 @@ def clear_regulars(gb):
 
 GS_PAUSED = 5
 
+# ---- the HOW TO PLAY cards (src/mg_card.c): the first play of a game shows its full card and waits for A. Almost every mini-game test is about
+# the game, not the card, so the cartridge images the tests build (test_sound.new_pyboy, the release list's) already hold the bonus block "MGB1"
+# (src/save.c, SRAM 0x70) with every card seen; tests/test_mg_card.py asks for a fresh one (seen=0).
+BX_AT = 0x70
+
+
+def bx_block(reached=0, medals=0, seen=0xFFFF):
+    """The save's "MGB1" block: played-bonus bits, medals (2 bits a round), cards seen (16 bits), checksum and complement."""
+    b = bytearray(b"MGB1" + bytes([reached, medals]) + seen.to_bytes(2, "little"))
+    c = (0x5A + sum(b)) & 255
+    return bytes(b + bytes([c, c ^ 255]))
+
+
+def with_cards(ram=None, seen=0xFFFF):
+    """A cartridge image (None: blank) with the bonus block in it, unless the image already carries one."""
+    r = bytearray(ram) if ram is not None else bytearray(0x2000)
+    if bytes(r[BX_AT:BX_AT + 4]) != b"MGB1":
+        r[BX_AT:BX_AT + 10] = bx_block(seen=seen)
+    return bytes(r)
+
+
 
 class logic_paused:
     """`with logic_paused(gb): ...` pokes made inside land between two whole game frames: the game runs one frame

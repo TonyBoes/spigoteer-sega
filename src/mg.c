@@ -2,7 +2,9 @@
 //
 //   mg_enter(id, mode)  LCD off: hides every sprite, the HUD (score; the timer at columns 16-19), the venue backdrop, the
 //                       game's own screen (its enter), the two banner rows (name, instruction), GS_MINI
-//   MG_INTRO   90 frames: the banner
+//   MG_CARD    (the first time a game is played: its full HOW TO PLAY card, src/mg_card.c, waits for A; the game's own screen is set
+//              up after it. Seen cards are a bit a game in the save: save.c "MGB1".)
+//   MG_INTRO   90 frames: the banner (the short card: the name and one line; A skips it at once)
 //   MG_COUNT   60 frames: READY, then GO (A skips it in practice only)
 //   MG_PLAY    the game's update; the HUD timer counts down when the game has one (time up: MG_END)
 //   MG_END     60 frames: the game's outro (its update still runs)
@@ -22,6 +24,7 @@
 #include "game.h"
 #include "music.h"
 #include "mg.h"
+#include "bonus.h"
 #include "mg_art.h"         // this bank's own art: the medal icon (assets/art/mg_medal.txt)
 typedef char mg_icon_tiles_match[(MG_ICON_TILES == 3 * MG_ICON_N * MG_ICON_N) ? 1 : -1];   // static assert (mg.h)
 
@@ -43,9 +46,9 @@ extern uint32_t score;
                                 // of columns 4-19 (so a line in the window has at most 16 characters)
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
 #define TIMER_COL       16      // HUD: blank, the hourglass, 2 digits (a timer never passes 99 s)
-#define MG_GAMES        12      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
-                                // G_OU Order Up!, G_MR Milk Run, G_LR Log Roll, G_AD Asteroid Delivery, G_TK Taiko Pour, G_MM Marshmallow Drop, G_MK Monkey Business, G_TS T-Shirt Cannon, G_PO the Pour-Off
-enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO };
+// the games built (mg_game): mg.h's G_*: G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort, G_OU Order Up!, G_MR Milk Run, G_LR Log Roll,
+// G_AD Asteroid Delivery, G_TK Taiko Pour, G_MM Marshmallow Drop, G_MK Monkey Business, G_TS T-Shirt Cannon, G_PO the Pour-Off, and the old
+// bonus rounds G_B0 the can shake-up, G_B1 Perfect Pour, G_B2 Tip Shower
 #define OBP0_BOOT     0xD0      // OBP0 as main_cold.c sets it once at boot (Milk Run's DMG look changes it)
 
 // ---- state (globals => symbols the tests read) ----
@@ -62,18 +65,23 @@ static char res_txt[2][14];
 
 // per game: the banner, the medal thresholds on mg_score (bronze, silver, gold)
 static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BATTERY SORT", "ORDER UP!",
-                                                "MILK RUN", "LOG ROLL", "ASTEROID DELIVERY", "TAIKO POUR", "MARSHMALLOW DROP", "MONKEY BUSINESS", "SHIRT CANNON", "THE POUR OFF" };
+                                                "MILK RUN", "LOG ROLL", "ASTEROID DELIVERY", "TAIKO POUR", "MARSHMALLOW DROP", "MONKEY BUSINESS", "SHIRT CANNON", "THE POUR OFF",
+                                                "CAN SHAKE UP", "PERFECT POUR", "TIP SHOWER" };
 static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "LEFT FULL RIGHT DEAD",
                                                 "REPEAT THE ORDER", "UP DOWN LANE A TOSS",
                                                 "TAP AGAINST THE ROLL", "STEER AND LAND SOFT", "A TOP LANE B BOTTOM",
-                                                "A DROPS MARSHMALLOWS", "A SHOO NOT PARROTS", "UP DOWN AIM A FIRE", "FIRST TO 20 SERVES" };
+                                                "A DROPS MARSHMALLOWS", "A SHOO NOT PARROTS", "UP DOWN AIM A FIRE", "FIRST TO 20 SERVES",
+                                                "PICK THE CALM CAN", "FILL TO THE LINE", "CATCH THE TIPS" };
 static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },   // (Quick Draw: qd_medal)
                                                 { 2000, 4000, 6000 }, { 0, 0, 0 },   // (Order Up!: ou_medal)
                                                 { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },   // (Milk Run: mr_medal, Log Roll: lr_medal, Asteroid Delivery: ad_medal, Taiko Pour: tk_medal)
                                                 { 2000, 4000, 6000 },   // Marshmallow Drop (the generic path)
                                                 { 2500, 5000, 8000 },   // Monkey Business: the score (the spec said 1200 / 2500 / 4000, "tune": PLAN.md)
                                                 { 1000, 2000, 3000 },   // T-Shirt Cannon: the score
-                                                { 0, 0, 0 } };   // the Pour-Off: no medal
+                                                { 0, 0, 0 },   // the Pour-Off: no medal
+                                                { BONUS_SHAKE_BRONZE, BONUS_SHAKE_SILVER, BONUS_SHAKE_GOLD },   // the bonus rounds: the points they earned (mg.h)
+                                                { BONUS_POUR_BRONZE, BONUS_POUR_SILVER, BONUS_POUR_GOLD },
+                                                { BONUS_TIPS_BRONZE, BONUS_TIPS_SILVER, BONUS_TIPS_GOLD } };
 // each planned game's venue (the id is not the venue: the two lists need not keep one order), and the reverse
 static const uint8_t mg_venue[MG_PLANNED] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 static const uint8_t venue_mg[MG_PLANNED] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY,
@@ -165,8 +173,8 @@ static void attr_rows(uint8_t y, uint8_t n) {    // LCD off, CGB: rows y.. in th
     VBK_REG = VBK_BANK_0;
 }
 
-void mg_enter(uint8_t id, uint8_t mode) BANKED {
-    uint8_t v = id < MG_PLANNED ? mg_venue[id] : 0, i;   // (the stub: the saloon)
+// The screen's first part, LCD off: everything of the last screen put away, the game chosen (also for the card). Returns the venue.
+static uint8_t prelude(uint8_t id, uint8_t mode) {
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC; SCX_REG = 0;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
@@ -186,8 +194,31 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     if (id == MG_MONKEY) mg_game = G_MK;
     if (id == MG_TSHIRT) mg_game = G_TS;
     if (id == MG_POUROFF) mg_game = G_PO;         // (the finale: the saloon's venue, no medal, no result window)
+    if (id >= MG_SHAKEUP && id < MG_SHAKEUP + MG_BONUS_N) mg_game = G_B0 + id - MG_SHAKEUP;   // (the old bonus rounds: the saloon's backdrop)
     if (!is_cgb) OBP0_REG = OBP0_BOOT;           // (Milk Run changes it: a game that is not it starts from the boot's)
     lcd_normal();                                // (and has the LYC / VBlank handlers it left)
+    return id < MG_PLANNED ? mg_venue[id] : 0;   // (the stub, the bonus rounds: the saloon)
+}
+
+static void mg_begin(uint8_t id, uint8_t mode);
+
+// Starts game `id`: the first time, its full HOW TO PLAY card (mg_card.c; the venue and the generic tiles are loaded for it, the game's own
+// screen waits for A: MG_CARD); after that mg_begin's screen with the short card, the banner.
+void mg_enter(uint8_t id, uint8_t mode) BANKED {
+    uint8_t v;
+    if (card_seen(id)) { mg_begin(id, mode); return; }
+    v = prelude(id, mode);
+    mg_phase = MG_CARD; mg_t = 0; res_on = 0;
+    load_venue(v);
+    bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
+    mg_card_draw(mg_game);
+    card_mark(id);
+    game_state = GS_MINI;
+    DISPLAY_ON;
+}
+
+static void mg_begin(uint8_t id, uint8_t mode) {
+    uint8_t v = prelude(id, mode), i;
     if (mode == MG_STORY) mg_record(id, MEDAL_NONE);   // STORY or ARCADE reached it: Practice lists it (save.c)
     else {                                       // practice: the score starts from 0 (story: it carries on)
         extra_at = 0;                            // (no extra lives by score here)
@@ -229,6 +260,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     case G_MK: mk_enter(); break;
     case G_TS: ts_enter(); break;
     case G_PO: po_enter(); break;
+    case G_B0: case G_B1: case G_B2: bonus_practice(mg_game - G_B0); break;   // (src/bonus.c: its own scene and jingle, on this HUD and backdrop)
     default: stub_enter(); break;
     }
     i = *(uint8_t *)(0x9800 + HUD_ROW * 32 + 8);   // (LCD off) a game whose own HUD took the lives digit's column (8) takes the head too
@@ -236,7 +268,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     if (mg_timer) { last_secs = secs_left(); hud_timer(); }
     mg_say(MG_TEXT_A, mg_name[mg_game]);         // (LCD off: written at once)
     mg_say(MG_TEXT_B, mg_instr[mg_game]);
-    music_play(TUNE_VENUE0 + v);
+    if (mg_game < G_B0) music_play(TUNE_VENUE0 + v);   // (a bonus round plays the bonus jingle: bonus_practice)
     game_state = GS_MINI;
     DISPLAY_ON;
 }
@@ -254,6 +286,9 @@ static void game_update(uint8_t pressed) {
     case G_MK: mk_update(pressed); break;
     case G_TS: ts_update(pressed); break;
     case G_PO: po_update(pressed); break;
+    case G_B0: case G_B1: case G_B2:             // the old bonus rounds: 1 when the round is over (their own end banner has run)
+        if (bonus_update(pressed)) { mg_phase = MG_RESULT; res_on = 0; }
+        break;
     default: stub_update(pressed); break;
     }
 }
@@ -264,6 +299,7 @@ static void result_begin(void) {
     const uint16_t *at = medal_at[mg_game];
     char *d;
     const char *w;
+    if (mg_game >= G_B0) mg_score = (uint16_t)score;   // (a practice round starts the score from 0: the points it earned)
     if (mg_game == G_QD) m = qd_medal();
     else if (mg_game == G_OU) m = ou_medal();
     else if (mg_game == G_MR) m = mr_medal();
@@ -375,8 +411,17 @@ static uint8_t mg_frame(uint8_t pressed) {
     uint8_t s;
     if (mg_t < 255) mg_t++;
     switch (mg_phase) {
+    case MG_CARD:                                // the full card: A starts the game (its screen is built now, the banner after it)
+        if (pressed & J_A) { mg_begin(mg_id, mg_mode); break; }
+        if (!(mg_t & 31)) mg_say(MG_CARD_PROMPT_ROW, (mg_t & 32) ? "" : "PRESS A");   // (blinks)
+        break;
     case MG_INTRO:
-        if (mg_t >= MG_INTRO_LEN) {
+        if (mg_t >= MG_INTRO_LEN || (pressed & J_A)) {   // the short card: A skips it at once
+            if (mg_game >= G_B0) {               // a bonus round has no count-in: its own banner and phases follow
+                mg_phase = MG_PLAY; mg_t = 0;
+                if (mg_game == G_B0) { mg_say(MG_TEXT_A, ""); mg_say(MG_TEXT_B, ""); }
+                break;
+            }
             mg_phase = MG_COUNT; mg_t = 0;
             mg_say(MG_TEXT_A, "READY"); mg_say(MG_TEXT_B, "");
         }

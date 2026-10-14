@@ -23,6 +23,13 @@
 //   A mini-game is reached when STORY or ARCADE starts it (mg_enter in MG_STORY mode); its best medal is any mode's
 //   (Practice too). A debug-select run (save_lock == SAVE_LOCK_DEBUG) records nothing; ARCADE's save_lock (1) does not
 //   stop it (the owner's rule: reached in STORY or ARCADE).
+//   0x70 the bonus rounds' block "MGB1" (BONUS > MINI GAMES lists the shake-up, Perfect Pour and Tip Shower; the HOW TO PLAY cards; 2026-10-14):
+//   0..3 magic; 4 the rounds played in ARCADE or CLASSIC (bit k, k = 0 shake-up, 1 Perfect Pour, 2 Tip Shower: the Practice unlock);
+//   5 their best medals (2 bits each, k * 2); 6..7 the cards seen (16-bit little endian, bit = the mini-game's id, ids from 15 up (the
+//   stub, 16) share bit 15); 8 the checksum (0x5A + bytes 0..7), 9 its complement. It sits in the gap after the Practice block
+//   (0x40..0x6D) and before the tables (0x80), so MGP2 is untouched; a block that does not check out (magic, checksum, a bit above
+//   the three rounds, a medal field above 3 -- impossible in two bits, the byte's top two bits must be 0) reads as nothing played,
+//   no medals and no card seen, and is rewritten on the next change. Nothing is written in a debug-select run.
 //   0x80 ARCADE, 0xC0 STORY, 0x100 CLASSIC: a top 5 each (TBL_AT(t), t = MODE_*): 0..3 magic "HSA1" / "HSS1" / "HSC2" (P5: CLASSIC's
 //   "HSC1" held the stand-in's scores and now loads as an empty table),
 //   5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little endian, <= 999999), best first;
@@ -108,6 +115,12 @@ uint8_t  mg_best[MG_PLANNED];       // Practice: the best medal per mini-game
 #define RSV_ALL_N     (RSV_ALL_SCORE + 5)
 #if RSV_ALL_N + 1 != RUSH_SAVE_N || PR_AT + PR_LEN + 2 > 0x80
 #error "the Practice block: the rush part's layout (src/rush.h) or its room before the tables at 0x80"
+#endif
+
+#define BX_AT    0x70               // the bonus rounds' block "MGB1" (4 bytes of data after the magic: reached, medals, seen x2)
+#define BX_LEN   8
+#if PR_AT + PR_LEN + 2 > BX_AT || BX_AT + BX_LEN + 2 > 0x80
+#error "the bonus block does not fit between the Practice block and the tables"
 #endif
 
 static uint8_t checksum(volatile uint8_t *b, uint8_t n) {
@@ -258,12 +271,88 @@ static void load_pr(void) {
 void mg_record(uint8_t g, uint8_t medal) BANKED {
     uint16_t m = (uint16_t)1 << g;
     uint8_t sh = (mg_mode & MG_HARD) ? 2 : 0;    // a HARD medal is kept apart (bits 2-3 of the game's byte)
+    if (g >= MG_SHAKEUP) { bonus_record(g - MG_SHAKEUP, medal); return; }   // (the old bonus rounds: their own block; ids 12..14, else ignored there)
     if (save_lock == SAVE_LOCK_DEBUG || g >= MG_PLANNED) return;
     if (medal ? medal <= ((mg_best[g] >> sh) & 3) : (mg_unlocked & m) != 0) return;
     if (medal) mg_best[g] = (mg_best[g] & ~(3 << sh)) | (medal << sh); else mg_unlocked |= m;
     ENABLE_RAM;
     SWITCH_RAM(0);
     pr_write(0);
+    DISABLE_RAM;
+}
+
+// The bonus block (RAM enabled): its 4 data bytes into d (zeros when it does not check out)
+static void bx_get(uint8_t *d) {
+    volatile uint8_t *b = SRAM + BX_AT;
+    uint8_t i, ok = b[0] == 'M' && b[1] == 'G' && b[2] == 'B' && b[3] == '1' && sum_ok(b, BX_LEN) && !(b[4] >> MG_BONUS_N) && !(b[5] >> 6);
+    for (i = 0; i < 4; i++) d[i] = ok ? b[4 + i] : 0;
+}
+
+static void bx_put(const uint8_t *d) {
+    volatile uint8_t *b = SRAM + BX_AT;
+    uint8_t i;
+    b[0] = 'M'; b[1] = 'G'; b[2] = 'B'; b[3] = '1';
+    for (i = 0; i < 4; i++) b[4 + i] = d[i];
+    sum_put(b, BX_LEN);
+}
+
+// Bonus round k: bit 0 played in ARCADE / CLASSIC, bits 1-2 its best medal
+uint8_t bonus_info(uint8_t k) BANKED {
+    uint8_t d[4], m, p, i;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    bx_get(d);
+    DISABLE_RAM;
+    m = d[1]; p = d[0];
+    for (i = 0; i < k; i++) { m >>= 2; p >>= 1; }   // (the medals: 2 bits a round, the played bits 1)
+    return (p & 1) | ((m & 3) << 1);
+}
+
+// Round k was played (medal 0: ARCADE / CLASSIC reached it) or earned `medal` (a better one is kept): written only when something changes
+void bonus_record(uint8_t k, uint8_t medal) BANKED {
+    uint8_t d[4], mask = 3, m = medal, old, was = 1, i;
+    if (save_lock == SAVE_LOCK_DEBUG || k >= MG_BONUS_N) return;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    bx_get(d);
+    old = d[1];
+    for (i = 0; i < k; i++) { mask <<= 2; m <<= 2; old >>= 2; was <<= 1; }   // (round k's 2 bits, its played bit)
+    old &= 3;
+    if (!(d[0] & was) || medal > old) {
+        d[0] |= was;
+        if (medal > old) d[1] = (d[1] & ~mask) | m;
+        bx_put(d);
+    }
+    DISABLE_RAM;
+}
+
+// The HOW TO PLAY card of mini-game `id` (the cards are a bit each: ids from 15 up share bit 15). (Loops, not variable shifts: SDCC gave a
+// wrong byte for `x << sh` with a run-time shift here.)
+static uint16_t card_bit(uint8_t id) {
+    uint16_t m = 1;
+    if (id > 15) id = 15;
+    while (id--) m <<= 1;
+    return m;
+}
+
+uint8_t card_seen(uint8_t id) BANKED {
+    uint8_t d[4];
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    bx_get(d);
+    DISABLE_RAM;
+    return ((d[2] | ((uint16_t)d[3] << 8)) & card_bit(id)) != 0;
+}
+
+void card_mark(uint8_t id) BANKED {
+    uint8_t d[4];
+    uint16_t m = card_bit(id);
+    if (save_lock == SAVE_LOCK_DEBUG) return;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    bx_get(d);
+    d[2] |= (uint8_t)m; d[3] |= (uint8_t)(m >> 8);
+    bx_put(d);
     DISABLE_RAM;
 }
 

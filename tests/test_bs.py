@@ -749,7 +749,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         for _ in range(5):
             list_tap(gb, "down")
         assert gb.mem("ml_sel") == 5
-        assert [line(gb, r).strip() for r in range(15, 17)] == ["THE ROBOT FACTORY", "NO MEDAL YET"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE ROBOT FACTORY", "NO MEDAL YET"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_BATTERY and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0

@@ -175,8 +175,8 @@ def table(rom, t=MODE_ARCADE):
     return [(names[i * 3:i * 3 + 3], int.from_bytes(raw[i * 4:i * 4 + 4], "little")) for i in range(TOP_N)]
 
 
-def booted(model, ram=None):
-    rom = make_rom(model, ram, sound=False)
+def booted(model, ram=None, cards=True):
+    rom = make_rom(model, ram, sound=False, cards=cards)
     rom.run(120)
     return rom
 
@@ -228,7 +228,7 @@ def test_a_score_goes_in_at_its_rank_and_pushes_the_rest_down(model):
 def test_ties_go_below_and_low_scores_stay_out(model):
     ram = v7_image(FIVE)
     for v, rank in ((300, 3), (100, 5), (50, 5), (900, 0)):
-        with booted(model, ram) as rom:
+        with booted(model, ram, cards=False) as rom:      # (the image as it is: the bonus block with the cards seen is not in it)
             game_over_with(rom, v)
             assert rom.mem("new_rank") == rank, v
             t = table(rom)

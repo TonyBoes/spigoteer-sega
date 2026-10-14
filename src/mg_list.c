@@ -14,9 +14,12 @@
 // Up / Down select (wrapping); A or START plays the selected game in MG_PRACTICE (score from 0; its result offers
 // "A RETRY B MENU", and B comes back here: src/mg.c); a locked one does nothing. B goes back to the title's BONUS
 // submenu with the cursor on MINI GAMES.
-// The list: every built game. The DEBUG_MENU build (`make`) lists them all unlocked, the stub GREEN LIGHT included, so
-// the owner can test; `make release` lists Quick Draw, Order Up!, Battery Sort, Milk Run, Log Roll, Asteroids, Taiko Pour and Shirt Cannon (the stub is not in it) and applies
-// the unlock rule.
+// The list: every built game, the ten venues' mini-games in chapter order and then the three old bonus rounds (CAN SHAKE-UP, PERFECT POUR,
+// TIP SHOWER: owner 2026-10-14; ARCADE and CLASSIC play them, here they play in the framework, src/bonus.c bonus_practice). The DEBUG_MENU build
+// (`make`) lists them all unlocked, the stub GREEN LIGHT included, so the owner can test; `make release` lists the thirteen (the stub is not in it)
+// and applies the unlock rule: a venue's game once STORY or ARCADE reached it, a bonus round once ARCADE or CLASSIC played it (save.c "MGB1").
+// The list shows ML_VIS lines and scrolls: Up / Down move the cursor, the lines slide when it leaves the window (the cursor wraps from the last
+// to the first). The panel under it is always the same: a blank row, the separator, three info lines (the venue, the best medal, the keys).
 // LCD off to enter; afterwards the rows go through the VBlank queue from WRAM buffers (story_scratch: no cut-scene and
 // no mini-game runs while this screen shows; mg_enter rewrites it).
 #pragma bank 255
@@ -37,23 +40,30 @@ extern uint8_t overlay_on;
 #define ML_ROWS_PER_FRAME 4     // 20-byte rows queued a frame (as mg_say)
 // chapter order (docs/story.md: saloon, stadium, lodge, bistro, igloo, robot factory, Chrome Cow, teahouse, zoo, space lounge)
 #ifdef DEBUG_MENU
-#define ML_N            11
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY, MG_MILKRUN, MG_TAIKO, MG_MONKEY, MG_ASTEROID, MG_STUB };
+#define ML_N            14
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY, MG_MILKRUN, MG_TAIKO, MG_MONKEY, MG_ASTEROID,
+                                       MG_SHAKEUP, MG_FILLLINE, MG_TIPS, MG_STUB };
 #else
-#define ML_N            10
-static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY, MG_MILKRUN, MG_TAIKO, MG_MONKEY, MG_ASTEROID };
+#define ML_N            13
+static const uint8_t ml_game[ML_N] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY, MG_MILKRUN, MG_TAIKO, MG_MONKEY, MG_ASTEROID,
+                                       MG_SHAKEUP, MG_FILLLINE, MG_TIPS };
 #endif
-// The panel sits one blank row under the last line (the Boss Rush list's fix, cfc9b38): list rows 2..ML_N+1, a blank row, the
-// separator, the info lines up to row 16, the panel's bottom on 17. The cursor's line shows the game's name, so the info lines
-// are the venue, the best medal and (when the screen has the room: 10 lines, not the debug build's 11) the keys.
-#define ML_ROW_BOX     (ML_ROW_LIST + ML_N + 1)
+// The panel sits one blank row under the last visible line (the Boss Rush list's fix, cfc9b38): list rows 2..ML_VIS+1, a blank row, the
+// separator, the info lines up to row 16, the panel's bottom on 17. The window shows ML_VIS of the ML_N games (ml_top is the first); the cursor's
+// line shows the game's name, so the info lines are the venue, the best medal and the keys.
+#define ML_VIS         10
+#define ML_ROW_BOX     (ML_ROW_LIST + ML_VIS + 1)
 #define ML_INFO_LINES  (16 - ML_ROW_BOX)
-typedef char ml_fits[(ML_INFO_LINES >= 2) ? 1 : -1];   // (no scrolling yet: up to 11 lines)
-#define ML_HEAD_K     (ML_N + ML_INFO_LINES)          // the header's buffer / dirty bit (after the info lines)
+typedef char ml_fits[(ML_INFO_LINES >= 3 && ML_N >= ML_VIS && ML_N - ML_VIS < 16) ? 1 : -1];
+#define ML_HEAD_K     (ML_VIS + ML_INFO_LINES)        // the header's buffer / dirty bit (after the info lines)
 #define ML_HARD       0x80                            // ml_dirty's bit 7: HARD is on (kept; the dirty bits are 0..ML_INFO_LINES)
 #define ML_DIRTY_BITS ((1 << (ML_INFO_LINES + 1)) - 1)
 #define ML_COL_MODE   13                              // the header's mode word ("MINI GAMES" is columns 1-10)
-#define ML_ROW(k)     (story_scratch + (uint8_t)(k) * 20)   // row buffer k: list line k < ML_N, else info line k - ML_N
+#define ML_ROW(k)     (story_scratch + (uint8_t)(k) * 20)   // row buffer k: window line k < ML_VIS, else info line k - ML_VIS, the header last
+// The window's state lives in story_scratch after the row buffers (no WRAM of its own): the first line shown, and how many of the window's
+// lines the scroll has sent to the screen so far (ML_VIS: all; the list is redrawn ML_ROWS_PER_FRAME lines a frame)
+#define ml_top        (story_scratch[(ML_HEAD_K + 1) * 20])
+#define ml_sent       (story_scratch[(ML_HEAD_K + 1) * 20 + 1])
 
 uint8_t ml_sel;                 // the selected line
 uint8_t ml_n;                   // lines listed (tests)
@@ -61,6 +71,7 @@ static uint8_t ml_dirty;        // bit k: the info line k (row buffer ML_N + k) 
 
 static const char locked_name[] = "? ? ?";
 static const char *const locked_info[3] = { "LOCKED", "REACH IT IN STORY", "OR ARCADE" };
+static const char *const locked_bonus[3] = { "LOCKED", "PLAY IT IN ARCADE", "OR CLASSIC" };   // a bonus round: played there once (the pour and the tips: ARCADE only)
 static const char *const medal_name[4] = { "", "BRONZE", "SILVER", "GOLD" };
 
 static const char *game_name(uint8_t g) {
@@ -74,6 +85,9 @@ static const char *game_name(uint8_t g) {
     if (g == MG_MARSHMALLOW) return "MARSHMALLOWS";
     if (g == MG_MONKEY) return "MONKEY BIZ";      // (the list's name column ends at 13: the details line has the whole name)
     if (g == MG_TSHIRT) return "SHIRT CANNON";
+    if (g == MG_SHAKEUP) return "CAN SHAKE-UP";
+    if (g == MG_FILLLINE) return "PERFECT POUR";
+    if (g == MG_TIPS) return "TIP SHOWER";
 #ifdef DEBUG_MENU
     return "GREEN LIGHT";
 #else
@@ -92,6 +106,7 @@ static const char *game_where(uint8_t g) {
     if (g == MG_MARSHMALLOW) return "THE IGLOO";
     if (g == MG_MONKEY) return "THE JUNGLE ZOO";
     if (g == MG_TSHIRT) return "THE STADIUM";
+    if (g >= MG_SHAKEUP && g < MG_SHAKEUP + MG_BONUS_N) return "A BONUS ROUND";
 #ifdef DEBUG_MENU
     return "THE TEST STUB";
 #else
@@ -118,11 +133,14 @@ static void put(uint8_t *r, uint8_t x, const char *s) {   // a string (this bank
     while (*s) r[x++] = ml_glyph(*s++);
 }
 
+static uint8_t is_bonus(uint8_t g) { return g >= MG_SHAKEUP && g < MG_SHAKEUP + MG_BONUS_N; }
+
 static uint8_t unlocked(uint8_t g) {
 #ifdef DEBUG_MENU
     (void)g;
     return 1;
 #else
+    if (is_bonus(g)) return bonus_info(g - MG_SHAKEUP) & 1;     // (played in ARCADE or CLASSIC: save.c's own block)
     return g < MG_PLANNED && ((mg_unlocked >> g) & 1);
 #endif
 }
@@ -139,6 +157,7 @@ static uint8_t hard_for(uint8_t g) {              // the mode in force for g
 }
 
 static uint8_t best(uint8_t g) {
+    if (is_bonus(g)) return (bonus_info(g - MG_SHAKEUP) >> 1) & 3;
     return g < MG_PLANNED ? (mg_best[g] >> (hard_for(g) ? 2 : 0)) & 3 : MEDAL_NONE;
 }
 
@@ -151,10 +170,10 @@ static void build(uint8_t k) {
         put(r, ML_COL_MODE, hard_for(ml_game[ml_sel]) ? "HARD" : "NORMAL");
         return;
     }
-    if (k >= ML_N) {                            // an info line of the selected game
-        k -= ML_N;
+    if (k >= ML_VIS) {                          // an info line of the selected game
+        k -= ML_VIS;
         g = ml_game[ml_sel];
-        if (!unlocked(g)) { put(r, 255, locked_info[k]); return; }
+        if (!unlocked(g)) { put(r, 255, (is_bonus(g) ? locked_bonus : locked_info)[k]); return; }
         switch (k) {
         case 0: put(r, 255, game_where(g)); break;
         case 1:                                 // "BEST GOLD" centred, or NO MEDAL YET
@@ -169,19 +188,19 @@ static void build(uint8_t k) {
         }
         return;
     }
-    g = ml_game[k];
+    g = ml_game[ml_top + k];
     if (!unlocked(g)) { put(r, ML_COL_NAME, locked_name); return; }
     put(r, ML_COL_NAME, game_name(g));
     put(r, ML_COL_MEDAL, medal_name[best(g)]);
 }
 
 static uint8_t screen_row(uint8_t k) {
-    return k == ML_HEAD_K ? ML_ROW_HEAD : k < ML_N ? ML_ROW_LIST + k : ML_ROW_BOX + 1 + k - ML_N;
+    return k == ML_HEAD_K ? ML_ROW_HEAD : k < ML_VIS ? ML_ROW_LIST + k : ML_ROW_BOX + 1 + k - ML_VIS;
 }
 
 static void cursor(void) {
     OAM_item_t *o = shadow_OAM;
-    o->y = (ML_ROW_LIST + ml_sel) * 8 - 7 + 16;  // the mug stands on the line (as the title's cursor)
+    o->y = (ML_ROW_LIST + ml_sel - ml_top) * 8 - 7 + 16;  // the mug stands on the line (as the title's cursor)
     o->x = 8;
     o->tile = OBJ_MUG; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;
 }
@@ -202,6 +221,8 @@ void mg_list_enter(void) BANKED {
     music_pump();
     if (ml_sel >= ML_N) ml_sel = 0;
     ml_n = ML_N; ml_dirty &= ML_HARD;
+    ml_top = ml_sel >= ML_VIS ? ml_sel - ML_VIS + 1 : 0;   // (the window that shows the cursor's game, as it comes back from one)
+    ml_sent = ML_VIS;
     blank(row_buf);
     for (y = 0; y < 18; y++) { set_bkg_tiles(0, y, 20, 1, row_buf); if (!(y & 3)) music_pump(); }
     for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_TOP;
@@ -227,15 +248,20 @@ void mg_list_enter(void) BANKED {
 
 // One frame. 1: the screen changed (a game started, or B went back to the title).
 uint8_t mg_list_update(uint8_t pressed) BANKED {
-    uint8_t old = ml_sel, k, n, g;
+    uint8_t old = ml_sel, k, n, g, top = ml_top;
     if (pressed & J_UP) ml_sel = ml_sel ? ml_sel - 1 : ML_N - 1;
     else if (pressed & J_DOWN) ml_sel = ml_sel == ML_N - 1 ? 0 : ml_sel + 1;
-    if (ml_sel != old) ml_dirty |= ML_DIRTY_BITS;
+    if (ml_sel != old) {
+        ml_dirty |= ML_DIRTY_BITS;
+        if (ml_sel < top) top = ml_sel;                     // the cursor left the window: it slides one line (a wrap: to the other end)
+        else if (ml_sel >= top + ML_VIS) top = ml_sel - ML_VIS + 1;
+        if (top != ml_top) { ml_top = top; ml_sent = 0; }   // (the window's lines are rebuilt and sent a few a frame)
+    }
     if ((pressed & (J_SELECT | J_LEFT | J_RIGHT)) && hard_game(ml_game[ml_sel])) {   // (inert on the other games)
         ml_dirty ^= ML_HARD;
         ml_dirty |= ML_DIRTY_BITS;
-        for (k = 0; k < ML_N; k++) {            // the medal column of the games that have a HARD best
-            g = ml_game[k];
+        for (k = 0; k < ML_VIS; k++) {          // the medal column of the games that have a HARD best
+            g = ml_game[ml_top + k];
             if (!hard_game(g) || !unlocked(g)) continue;
             build(k);
             vq_add(0, ML_ROW(k), 0, ML_ROW_LIST + k, 20);
@@ -249,9 +275,13 @@ uint8_t mg_list_update(uint8_t pressed) BANKED {
         title_enter();
         return 1;
     }
-    for (k = ML_N, n = 0; k <= ML_HEAD_K && n < ML_ROWS_PER_FRAME; k++) {
-        if (!(ml_dirty & (1 << (k - ML_N)))) continue;
-        ml_dirty &= ~(1 << (k - ML_N));
+    for (n = 0; ml_sent < ML_VIS && n < ML_ROWS_PER_FRAME; n++, ml_sent++) {   // a scroll: the window's lines again
+        build(ml_sent);
+        vq_add(0, ML_ROW(ml_sent), 0, ML_ROW_LIST + ml_sent, 20);
+    }
+    for (k = ML_VIS; k <= ML_HEAD_K && n < ML_ROWS_PER_FRAME; k++) {
+        if (!(ml_dirty & (1 << (k - ML_VIS)))) continue;
+        ml_dirty &= ~(1 << (k - ML_VIS));
         build(k);
         vq_add(0, ML_ROW(k), 0, screen_row(k), 20);
         n++;

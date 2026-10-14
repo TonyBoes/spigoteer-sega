@@ -28,7 +28,8 @@
 extern uint8_t joy;
 
 #define OBJ_B2          96      // the show performers' OBJ tiles (96..127) are borrowed, as in the shake-up
-#define B2_BG           BAR_TILE_COUNT      // BG ids over the patron tiles (no patrons here; the level load reloads them)
+#define B2_BG           (BAR_TILE_COUNT + 48)   // BG ids over the patron tiles (no patrons here; the level load reloads them); from MG_GAME_BG (mg.h):
+                                                // BONUS > MINI GAMES runs the round with the framework's medal icon in 77..124 for its result window
 #define OPAL_DRINK      6
 #define OPAL_RED        7
 #define OPAL_TAP        3                   // the tap: the game's old glass palette (slot 3 is a lifted patron's in play, M13a)
@@ -38,7 +39,7 @@ extern uint8_t joy;
 #define TEXT_ROW_B      3
 #define BT_X            72
 #define BT_OAM_Y        (112 + 16)
-#define BANNER_LEN      90
+#define BANNER_LEN      BONUS_BANNER_LEN
 #define BONUS_END_LEN   130
 #define PH_END          4
 

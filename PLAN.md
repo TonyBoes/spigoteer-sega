@@ -3235,3 +3235,40 @@ hud_goal) shows the mini-games timer: column 16 blank, the hourglass, two figure
 shift_start (mg.c mg_hourglass_load) at BG 252 (SHIFT_HOURGLASS), not at MG_HOURGLASS (BG 220): in a level 220 is variant
 C's shift-0 pose, third column, which a patron standing on a tile boundary draws. 252 is free outside boss fights (a boss
 HUD has no timer). Tests: tests/test_story.py (no timer over 99 s; the hourglass and figures in all six timed shifts).
+
+## The old bonus rounds in BONUS > MINI GAMES, and the HOW TO PLAY cards (owner-approved 2026-10-14)
+**The three bonus rounds on the list.** CAN SHAKE-UP, PERFECT POUR and TIP SHOWER (src/bonus.c, bonus2.c) are entries 11-13 of Practice's list
+(src/mg_list.c), after the ten venue games. ARCADE and CLASSIC play them exactly as before; Practice runs them inside the mini-game framework
+(mg.c: game ids MG_SHAKEUP 12, MG_FILLLINE 13, MG_TIPS 14, G_B0..G_B2; bonus.c `bonus_practice(kind)` is the same scene as `bonus_enter`, minus
+the HUD / backdrop / DISPLAY_ON that mg.c does). The framework's banner (name, one line; Perfect Pour's and Tip Shower's own 90-frame banner is
+skipped there), no count-in, the round's own phases, then the framework's result window (RETRY / MENU) with a medal on the points the round earned
+(`score` started at 0 in Practice). Medals (src/mg.h BONUS_*, **the owner will balance them**): shake-up all or nothing (the calm can, 3000: gold);
+Perfect Pour 1500 / 4500 / 7500 (a GOOD glass is 1500, a PERFECT 3000, three glasses); Tip Shower 800 / 1800 / 2800 (100 a coin, about 40 fall in
+20 s). Difficulty is as the rotation's first round (the shake-up at its first pace), no HARD (the owner moved difficulty work later).
+- Unlock: a round is listed once ARCADE or CLASSIC has started it (bonus.c `enter()` -> save.c `bonus_record(kind, 0)`); the DEBUG_MENU build
+  lists everything unlocked. A debug-select run records nothing. Locked: "? ? ?", LOCKED / PLAY IT IN ARCADE / OR CLASSIC.
+- Save: a new block "MGB1" at SRAM 0x70..0x79 (10 bytes, in the gap between "MGP2" (0x40..0x6D) and the tables (0x80)): magic, played bits, medals
+  (2 bits a round), cards seen (16 bits), checksum, complement. MGP2 is untouched (byte for byte, tests/test_mg_bonus.py); a block that does not
+  check out reads as nothing played, no medals, no card seen. No WRAM: the block is read from SRAM when the list builds a line / a game starts.
+- The list scrolls: ten lines show (rows 2-11), a blank row 12, the separator 13, three info lines (venue, best medal, keys) 14-16, the panel's
+  bottom 17. 13 games (14 with the debug stub): the cursor slides the window one line at a time, wrapping top and bottom. The window's state
+  (first line, lines sent by a scroll) is in story_scratch after the row buffers, not in WRAM; the redraw is four lines a frame (as before).
+- Tile ids: bonus2.c's glass and "!" tiles moved from BG 77 to 125 (`B2_BG` = BAR_TILE_COUNT + 48, past the framework's medal icon, MG_GAME_BG):
+  the same pictures in ARCADE (the goldens bonus_pour / bonus_tips are unchanged).
+- SDCC pitfall: `(x >> sh)` / `(m << sh)` with a run-time shift of a uint8_t gave a wrong byte in save.c (the medal field of round 1 stayed 0);
+  save.c uses loops there (see "SDCC pitfalls").
+
+**HOW TO PLAY cards.** src/mg_card.c, a table of the games (mg.h G_* order): the name and up to three short lines (<= 20 letters; HUD letters,
+digits and the story font's . , ! ? ' - :). mg.c `mg_enter` shows the FULL card the first time a game is played: a screen of its own (HOW TO PLAY,
+the name, the lines, the Spigoteer, PRESS A blinking), phase MG_CARD (5), waits for A, then builds the game's screen (`mg_begin`). Afterwards the
+SHORT card is the banner of old (name and one line, mg_instr, MG_INTRO, 90 frames) and A skips it at once (also in the story, where the count-in
+still cannot be skipped). "Seen" is a bit per game id in "MGB1" (ids from 15 up share bit 15); marked when the full card shows; nothing is written
+in a debug-select run (the full card comes every time there). Cards show in STORY, ARCADE and Practice alike; the ARCADE / CLASSIC bonus rounds
+keep their old banners (no card there).
+- Real cards: Quick Draw, Order Up!, Taiko Pour, Monkey Business, Asteroid Delivery, the shake-up, Perfect Pour, Tip Shower, and (not asked for,
+  its controls are settled) the Pour-Off and the stub.
+- Marked in the plan as **card text pending the Batch D rework**: T-Shirt Cannon, Log Roll, Marshmallow Drop, Battery Sort and Milk Run have a placeholder card, today's
+  banner line as its only line (mg_card.c, entries marked PENDING). Rewrite them when their rework settles the controls and the goal.
+- Tests: tests/test_mg_card.py (every game has a card; the full card first and it waits; A, then the short card, A skips it; the save; STORY);
+  tests/test_mg_bonus.py (list entries, unlocks, medals, the block); tests/test_mg_list.py (scrolling, no row on the separator). The test
+  cartridges start with every card seen (tests/conftest.py `with_cards`; `booted(model, cards=False)` for a fresh one).

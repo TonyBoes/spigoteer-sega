@@ -7,7 +7,7 @@ from io import BytesIO
 
 import numpy as np
 import pytest
-from conftest import GAME, K_SETTINGS, MENU_SETTLE, ROM, ROOT, title_level, title_pick
+from conftest import GAME, K_SETTINGS, MENU_SETTLE, ROM, ROOT, title_level, title_pick, with_cards
 from gbtools import Rom
 from pyboy import PyBoy
 from test_art import goto_group
@@ -39,16 +39,19 @@ def sfx_count(gb, i):
     return gb.read("sfx_count", SFX_COUNT)[i]
 
 
-def new_pyboy(model, ram=None, sound=True):
+def new_pyboy(model, ram=None, sound=True, cards=True):
+    """cards: the cartridge has every HOW TO PLAY card seen (conftest.with_cards); False: as given."""
+    if cards:
+        ram = with_cards(ram)
     return PyBoy(str(ROM), window="null", sound_emulated=sound, cgb=(model == "cgb"), log_level="ERROR",
                  ram_file=BytesIO(ram) if ram is not None else None)
 
 
-def make_rom(model, ram=None, sound=True):
+def make_rom(model, ram=None, sound=True, cards=True):
     """A Rom whose emulator has sound on and optionally a cartridge RAM image (the .sav contents)."""
     rom = Rom(ROM, model)
     rom.pb.stop(save=False)
-    rom.pb = new_pyboy(model, ram, sound)
+    rom.pb = new_pyboy(model, ram, sound, cards)
     rom.pb.set_emulation_speed(0)
     rom.model_name = model
     return rom

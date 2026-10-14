@@ -38,11 +38,31 @@
 #define MG_ASTEROID     9       // the space lounge (4.8)
 #define MG_PLANNED     10       // ids below this are saved (save.c: Practice's block)
 #define MG_POUROFF     11       // the story's finale race against Dregs (src/po.c; not in Practice, never saved)
+// The three old bonus rounds (src/bonus.c, bonus2.c) on Practice's list (owner 2026-10-14). They play in ARCADE / CLASSIC as ever; here
+// mg_enter runs them inside the framework (G_B0..G_B2), the framework's result window gives the medal, and their own block of the
+// save (save.c "MGB1", not MGP2) holds "played in ARCADE or CLASSIC", the best medal and the cards seen. Ids 12..14 are not below MG_PLANNED.
+#define MG_SHAKEUP     12       // the can shake-up (kind 0)
+#define MG_FILLLINE    13       // Perfect Pour, "fill to the line" (kind 1)
+#define MG_TIPS        14       // Tip Shower, "tip catching" (kind 2)
+#define MG_BONUS_N      3
+// Their medals (on the points the round earned; the owner will balance them). The shake-up is all or nothing (3000 for the calm can).
+#define BONUS_SHAKE_BRONZE  3000
+#define BONUS_SHAKE_SILVER  3000
+#define BONUS_SHAKE_GOLD    3000
+#define BONUS_POUR_BRONZE   1500        // one GOOD glass (a PERFECT is 3000, a GOOD 1500; three glasses: 9000 at most)
+#define BONUS_POUR_SILVER   4500
+#define BONUS_POUR_GOLD     7500
+#define BONUS_TIPS_BRONZE    800        // 100 a coin on the tray, ~40 fall in 20 s
+#define BONUS_TIPS_SILVER   1800
+#define BONUS_TIPS_GOLD     2800
 #define MG_STUB        16       // GREEN LIGHT, the framework's stub
 
-enum { MG_INTRO, MG_COUNT, MG_PLAY, MG_END, MG_RESULT };
+enum { MG_INTRO, MG_COUNT, MG_PLAY, MG_END, MG_RESULT, MG_CARD };   // MG_CARD: the full HOW TO PLAY card, waiting for A (mg_card.c)
 enum { MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD };
 
+// The games the framework runs (mg.c's mg_game; the cards of src/mg_card.c, the banner tables of mg.c: one entry each, in this order)
+#define MG_GAMES        15
+enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO, G_B0, G_B1, G_B2 };
 #define MG_TEXT_A       2       // the two banner rows (map rows, in the HUD colours)
 #define MG_TEXT_B       3
 #define MG_COUNTER_ROW 11       // the venue backdrop's counter row
@@ -58,6 +78,8 @@ extern uint16_t mg_score;       // the game's points (also added to the HUD scor
 extern uint16_t mg_seed, mg_seed_force;   // the game's RNG seed: next_rand() at entry, or mg_seed_force when non-zero
 
 void mg_enter(uint8_t id, uint8_t mode) BANKED;  // LCD off: game `id` (MG_*), the intro banner, GS_MINI
+void mg_card_draw(uint8_t game) BANKED;   // src/mg_card.c: the full HOW TO PLAY card (LCD off, the generic tiles and the venue loaded)
+#define MG_CARD_PROMPT_ROW 16    // the card's "PRESS A" row (mg.c blinks it)
 void mg_hourglass_load(uint8_t id) BANKED;       // the timer's hourglass tile into BG id `id` (LCD off): a timed story shift's HUD (story.c)
 uint8_t mg_of_venue(uint8_t venue) BANKED;       // the venue's (the chapter's) mini-game id
 // helpers for the games

@@ -28,6 +28,7 @@ extern uint32_t score;
 extern uint8_t next_rand(void);
 extern void add_score(uint16_t n);
 extern void draw_hud(void) BANKED;          // src/main_cold.c
+extern void bonus_record(uint8_t k, uint8_t medal) BANKED;   // src/save.c: round k was played (unlocks it in Practice)
 extern uint8_t *mg_say(uint8_t row, const char *s);   // main.c (ROM0)
 extern void clear_dirty(void);
 extern void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
@@ -126,10 +127,9 @@ static void load_palettes(void) {
 
 // whole screen, LCD off. The round is played in the venue of the level just cleared (its BG tiles and palettes
 // are still loaded): its plain wall, one counter row, its floor.
-static void draw_scene(void) {
+static void draw_scene(uint8_t prac) {
     uint8_t i;
-    draw_hud();
-    venue_backdrop(1, COUNTER_ROW);
+    if (!prac) { draw_hud(); venue_backdrop(1, COUNTER_ROW); }
     say("BONUS ROUND");
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
@@ -148,30 +148,37 @@ static void shuffle_order(void) {
     }
 }
 
-void bonus_enter(void) BANKED {
-    uint8_t i, n;
+#define NO_KIND 255            // enter(): the round the rotation gives (ARCADE, CLASSIC)
+
+// The round's scene, LCD off. In ARCADE / CLASSIC (kind NO_KIND) the rotation picks it, it is recorded as played (BONUS > MINI GAMES lists it
+// from then on: save.c) and the HUD, the backdrop and DISPLAY_ON are this file's. In Practice (kind 0..2: mg.c has drawn the HUD and the
+// backdrop and turns the LCD on itself) the round is the same, its banner's 90 frames left to the framework's card.
+static void enter(uint8_t kind) {
+    uint8_t i, n, prac = kind != NO_KIND, classic = !prac && play_mode == MODE_CLASSIC;
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0; vram_pending = 0;
     clear_dirty();
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
+    if (prac) bonus_round = kind;                               // (the first shake-up's pace; ++ below gives the round that makes `kind`)
     bonus_round++;
-    bonus_kind = play_mode == MODE_CLASSIC ? 0 : (uint8_t)((uint8_t)(bonus_round - 1) % 3);   // M12: shake-up, Perfect
+    bonus_kind = prac ? kind : classic ? 0 : (uint8_t)((uint8_t)(bonus_round - 1) % 3);   // M12: shake-up, Perfect
                                                                 // Pour, Tip Shower, again (CLASSIC: the shake-up only)
+    if (!prac) bonus_record(bonus_kind, 0);                     // played in ARCADE or CLASSIC: unlocked for Practice
     music_play(TUNE_BONUS);
-    bonus_phase = PH_SHOW; bonus_timer = 0;
+    bonus_phase = PH_SHOW; bonus_timer = prac && bonus_kind ? BONUS_BANNER_LEN : 0;   // (Practice: the card was the banner)
     if (bonus_kind) {                                           // the other two rounds: src/bonus2.c
-        draw_hud();
+        if (!prac) draw_hud();
         venue_backdrop(1, bonus_kind == 1 ? COUNTER_ROW : 18);   // Tip Shower: no counter, the coins fall from the ceiling
         bonus2_enter();
-        DISPLAY_ON;
+        if (!prac) DISPLAY_ON;
         return;
     }
     set_sprite_data(OBJ_BONUS, BONUS_TILE_COUNT, bonus_tiles);
     if (is_cgb) load_palettes();
-    draw_scene();
+    draw_scene(prac);
 
     bonus_won = 0; bonus_moving = 0; bonus_swaps_done = 0;
-    if (play_mode == MODE_CLASSIC) {                            // P5: faster every round: 30, 28, ... 14 frames a swap,
+    if (classic) {                                              // P5: faster every round: 30, 28, ... 14 frames a swap,
         n = bonus_round < 9 ? bonus_round : 9;                  // a swap more each time (7 .. 15)
         bonus_swap_dur = 32 - 2 * n;
     } else {
@@ -188,8 +195,11 @@ void bonus_enter(void) BANKED {
     }
     shuffle_order();
     oi = 0; swap_t = 0;
-    DISPLAY_ON;
+    if (!prac) DISPLAY_ON;
 }
+
+void bonus_enter(void) BANKED { enter(NO_KIND); }
+void bonus_practice(uint8_t kind) BANKED { enter(kind); }
 
 // ---- drawing ----
 static void spr(uint8_t i, uint8_t x, uint8_t y, uint8_t tile, uint8_t prop) {
