@@ -123,13 +123,13 @@ def put_bike(gb, lane):
 # ---- the screen ------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_screen_and_its_art(model):
-    """The intro: the banner, the HUD (score, the crate icon and 12, T045), the street's first 21 columns as the model builds
+    """The intro: the banner, the HUD (score, the crate icon and 12, the hourglass and 45), the street's first 21 columns as the model builds
     them, the tiles and palettes of the approved art, the sprites (bike entries, the rider), the DMG registers."""
     with milk_run(model) as gb:
         assert gb.mem("mg_id") == MG_MILKRUN and gb.mem("mg_mode") == MG_PRACTICE and gb.mem("mg_phase") == 0
         frames(gb, 30)
         assert text(gb, 2) == "MILK RUN" and text(gb, 3) == "UP DOWN LANE A TOSS"
-        assert hud_timer(gb) == "T045" and score(gb) == 0 and gb.mem16("mg_timer") == 0
+        assert hud_timer(gb) == "45" and score(gb) == 0 and gb.mem16("mg_timer") == 0
         assert tilemap_row(gb, 0, 8, 4) == [BLANK, MR_BG + art_define("MRB_HUDC"), 36 + 1, 36 + 2]   # "12" (glyph 0 is 36)
         s = mr(gb)
         assert (s["crates"], s["lane"], s["y"], s["px"], s["steps"], s["time"]) == (CRATES, 1, 64, 0, 0, TIME_S * 60)
@@ -588,7 +588,7 @@ def test_time_up_gives_100_a_crate_a_banner_and_the_street_stops(model):
         until(gb, lambda: gb.mem("overlay_on") == 1, 10)
         frames(gb, 3)
         assert text(gb, 2, True, x0=4) == f"SCORE {5 * PTS_CRATE}" and text(gb, 4, True, x0=4) == "A RETRY B MENU"
-        assert hud_timer(gb) == "T000"
+        assert hud_timer(gb) == "00"
         assert gb.mem(0xFF45) in (7, 64 + 46, 144), "LYC walks lcd_isr's chain"
 
 
@@ -643,7 +643,7 @@ def test_the_hud_counts_crates_and_seconds(model):
     with milk_run(model) as gb:
         to_riding(gb)
         clear_ring(gb)
-        assert hud_timer(gb) == "T045"
+        assert hud_timer(gb) == "45"
         put_bike(gb, 0)
         frames(gb, 14)
         for n in range(3):
@@ -655,15 +655,15 @@ def test_the_hud_counts_crates_and_seconds(model):
             assert tilemap_row(gb, 0, 9, 1) == [MR_BG + art_define("MRB_HUDC")]
         poke(gb, time=60 * 30 + 59)
         frames(gb, 3)
-        assert hud_timer(gb) == "T031"
+        assert hud_timer(gb) == "31"
         poke(gb, time=60 * 9 + 5)
         frames(gb, 3)
-        assert hud_timer(gb) == "T010"
+        assert hud_timer(gb) == "10"
         poke(gb, time=61)
         frames(gb, 3)
-        assert hud_timer(gb) == "T001"
+        assert hud_timer(gb) == "01"
         until(gb, lambda: gb.mem("mg_phase") == MG_END, 80)
-        assert hud_timer(gb) == "T000"
+        assert hud_timer(gb) == "00"
 
 
 # ---- sprites per line, a whole game ------------------------------------------------------------------------------------------------------

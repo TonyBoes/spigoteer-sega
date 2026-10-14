@@ -216,14 +216,14 @@ class Model:
 # ---- the screen ------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_screen_and_its_art(model):
-    """The intro: the banner, the HUD (score, the falls icon and 0, T040), the scene's tiles and map as tools/gen_lr.py builds
+    """The intro: the banner, the HUD (score, the falls icon and 0, the hourglass and 40), the scene's tiles and map as tools/gen_lr.py builds
     them, the CGB attributes and palettes, the sprites (marker, the Spigoteer's six entries, the Sasquatch's four), the DMG
     registers as at boot."""
     with log_roll(model) as gb:
         assert gb.mem("mg_id") == MG_LOGROLL and gb.mem("mg_mode") == MG_PRACTICE and gb.mem("mg_phase") == 0
         frames(gb, 30)
         assert text(gb, 2) == "LOG ROLL" and text(gb, 3) == "TAP AGAINST THE ROLL"
-        assert hud_timer(gb) == "T040" and score(gb) == 0 and gb.mem16("mg_timer") == TIME_S * 60
+        assert hud_timer(gb) == "40" and score(gb) == 0 and gb.mem16("mg_timer") == TIME_S * 60
         icon = LR_BG + art_define("LRB_HUD")
         row = tilemap_row(gb, 0, 8, 4)
         assert row[1] == icon and row[0] == BLANK and row[3] == BLANK and row[2] == 36, "the falls icon and a 0"   # glyph 0 is 36

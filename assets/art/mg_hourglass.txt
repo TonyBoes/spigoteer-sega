@@ -1,0 +1,11 @@
+; The mini-games' HUD timer icon: an hourglass (owner 2026-10-13: the timer is two digits and this icon, in place of the 'T').
+; One 8x8 BG tile in the HUD palette (BG palette 1, as the glyphs: '.' light, '-' sand, '#' the dark band; row 0 is band
+; like every glyph). src/mg.c loads it at MG_HOURGLASS; the games with a timer draw it at HUD column 17.
+########
+#......#
+##.--.##
+###..###
+###..###
+##.##.##
+##.--.##
+#......#

@@ -15,7 +15,7 @@ from mk_helpers import (ART, MA_HOP, MA_NONE, MA_SHOO, MC_AFTER, MC_FLY, MC_IDLE
                         poke, poke_crate, run_bot, LAYOUT)
 from test_bonus import lines
 from test_flow import GS_GOAL, LEVEL_CLEAR, TITLE, run_until, state, tilemap_row
-from test_mg import (GS_MGLIST, GS_MINI, MG_COUNT, MG_END, MG_PLAY, MG_PRACTICE, MG_RESULT, MG_STORY, RESULT_MIN, frames, mg_enter,
+from test_mg import (BLANK, HOURGLASS, GS_MGLIST, GS_MINI, MG_COUNT, MG_END, MG_PLAY, MG_PRACTICE, MG_RESULT, MG_STORY, RESULT_MIN, frames, mg_enter,
                      score, text, to_play, to_result, until)
 from test_mg_list import release_built  # noqa: F401  (the fixture: `make release`)
 
@@ -136,7 +136,7 @@ def test_the_screen_and_its_art(model):
         assert text(gb, 2) == "MONKEY BUSINESS" and text(gb, 3) == "A SHOO NOT PARROTS"
         pips = MK_BG + OFF["pips"]
         assert tilemap_row(gb, 0, 8, 8) == [pips] * 8
-        assert tilemap_row(gb, 0, 16, 4) == [glyph("T"), glyph("0"), glyph("4"), glyph("5")]
+        assert tilemap_row(gb, 0, 16, 4) == [BLANK, HOURGLASS, glyph("4"), glyph("5")]
         s = mk(gb)
         assert (s["coco"], s["time"], s["pos"], s["pile_shown"]) == (COCO, TIME, 2, 0)
         # the art's tiles
@@ -637,14 +637,14 @@ def test_a_forced_worst_case_stays_within_the_sprite_limit(model):
 # ---- the end, medals --------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_time_up_pays_200_a_coconut_left(model):
-    """At 45 s: TIME UP (the HUD timer reads T000), +200 for each coconut left, then the result."""
+    """At 45 s: TIME UP (the HUD timer reads the hourglass and 00), +200 for each coconut left, then the result."""
     with play(model) as gb:
         poke(gb, coco=5)
         poke(gb, time=3)
         until(gb, lambda: gb.mem("mg_phase") == MG_END, 20)
         frames(gb, 3)
         assert text(gb, 9) == "TIME UP" and gb.mem16("mg_score") == 1000
-        assert tilemap_row(gb, 0, 16, 4)[1:] == [glyph("0")] * 3
+        assert tilemap_row(gb, 0, 16, 4)[1:] == [HOURGLASS, glyph("0"), glyph("0")]
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 90)
 
 
@@ -660,14 +660,14 @@ def test_medals_by_score(model, points, medal):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_hud_timer_counts_down_from_45(model):
-    """T045 at the start; the seconds follow the frames left (rounded up)."""
+    """The hourglass and 45 at the start; the seconds follow the frames left (rounded up)."""
     with play(model) as gb:
-        assert tilemap_row(gb, 0, 16, 4) == [glyph("T"), glyph("0"), glyph("4"), glyph("5")]
+        assert tilemap_row(gb, 0, 16, 4) == [BLANK, HOURGLASS, glyph("4"), glyph("5")]
         poke(gb, time=62)
         frames(gb, 2)
-        assert tilemap_row(gb, 0, 16, 4) == [glyph("T"), glyph("0"), glyph("0"), glyph("2")]
+        assert tilemap_row(gb, 0, 16, 4) == [BLANK, HOURGLASS, glyph("0"), glyph("2")]
         frames(gb, 4)
-        assert tilemap_row(gb, 0, 16, 4) == [glyph("T"), glyph("0"), glyph("0"), glyph("1")]
+        assert tilemap_row(gb, 0, 16, 4) == [BLANK, HOURGLASS, glyph("0"), glyph("1")]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

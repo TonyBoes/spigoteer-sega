@@ -72,7 +72,7 @@ $(BUILD)/pour_art.h: tools/gen_pour.py tools/gen_art.py $(wildcard assets/art/po
 # Mini-game framework (src/mg.c), its stub game (src/mg_stub.c) and Quick Draw (src/qd.c): the medal icon (approved), the
 # lamp (a placeholder), Quick Draw's art (approved) -> build/qd_art.h too, Order Up!'s (approved) -> build/ou_art.h
 # -> build/mg_art.h, build/mg_stub_art.h, build/mg.json (tests), out/preview/mg_*_x8.png
-$(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h: tools/gen_mg.py tools/gen_art.py assets/art/mg_medal.txt assets/art/mg_lamp.txt $(wildcard assets/art/quickdraw/*.txt) $(wildcard assets/art/orderup/*.txt) assets/tiles/story.txt | $(BUILD) $(OUT)/preview
+$(BUILD)/mg_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h: tools/gen_mg.py tools/gen_art.py assets/art/mg_medal.txt assets/art/mg_lamp.txt assets/art/mg_hourglass.txt $(wildcard assets/art/quickdraw/*.txt) $(wildcard assets/art/orderup/*.txt) assets/tiles/story.txt | $(BUILD) $(OUT)/preview
 	python3 tools/gen_mg.py $(BUILD) $(OUT)/preview
 
 # Battery Sort (src/bs.c; docs/minigames_bosses.md 4.6): its approved art -> build/bs_art.h, build/bs.json (tests),

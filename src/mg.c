@@ -42,7 +42,7 @@ extern uint32_t score;
 #define TEXT_SHIFT      (MG_ICON_N / 2)   // the text: mg_say centres it in columns 0-19, this moves it to the centre
                                 // of columns 4-19 (so a line in the window has at most 16 characters)
 #define MG_ICON_PAL      4      // CGB BG palette of the icon (written when the result shows, in VBlank)
-#define TIMER_COL       16      // HUD: 'T' + 3 digits (story.c hud_goal's format)
+#define TIMER_COL       16      // HUD: blank, the hourglass, 2 digits (a timer never passes 99 s)
 #define MG_GAMES        12      // games built (mg_game): G_STUB the stub, G_QD Quick Draw, G_BS Battery Sort,
                                 // G_OU Order Up!, G_MR Milk Run, G_LR Log Roll, G_AD Asteroid Delivery, G_TK Taiko Pour, G_MM Marshmallow Drop, G_MK Monkey Business, G_TS T-Shirt Cannon, G_PO the Pour-Off
 enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO };
@@ -145,12 +145,10 @@ static void lcd_normal(void) {
 // ---- the framework -------------------------------------------------------------------------------------------
 static void fill(uint8_t *d, uint8_t v, uint8_t n) { while (n--) *d++ = v; }
 
-static void hud_timer(void) {                    // 'T' + seconds (3 digits) at HUD columns 16-19
-    uint8_t s = last_secs, h = 0, t = 0;
-    tbuf[0] = TILE_GLYPH_T;
-    while (s >= 100) { s -= 100; h++; }
+static void hud_timer(void) {                    // the hourglass + seconds (2 digits) at HUD columns 17-19 (column 16 stays blank)
+    uint8_t s = last_secs, t = 0;
     while (s >= 10) { s -= 10; t++; }
-    tbuf[1] = TILE_GLYPH_0 + h; tbuf[2] = TILE_GLYPH_0 + t; tbuf[3] = TILE_GLYPH_0 + s;
+    tbuf[0] = TILE_HUD_BLANK; tbuf[1] = MG_HOURGLASS; tbuf[2] = TILE_GLYPH_0 + t; tbuf[3] = TILE_GLYPH_0 + s;
     if (LCDC_REG & LCDCF_ON) vq_add(0, tbuf, TIMER_COL, HUD_ROW, 4); else vram_put(TIMER_COL, HUD_ROW, tbuf, 4);
 }
 
@@ -201,6 +199,7 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     load_venue(v);
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
     set_bkg_data(MG_BG, MG_ICON_TILES, medal_tiles);
+    set_bkg_data(MG_HOURGLASS, 1, hourglass_tile);
     draw_hud();
     venue_backdrop(1, MG_COUNTER_ROW);
     if (is_cgb) {

@@ -92,7 +92,7 @@ def star_hash(c, r):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_screen_and_its_art(model):
-    """The intro: the banner over the portholes, the HUD (score, the beaker icon and X0, T045), the starfield and lane lines
+    """The intro: the banner over the portholes, the HUD (score, the beaker icon and X0, the hourglass and 45), the starfield and lane lines
     (the mock-up's star hash), the counter, the lit porthole's tiles, the tiles of the approved art, the sprites (beaker, halo,
     arrow, the Spigoteer's bust, ten rocks), the palettes (CGB) and OBP1 (DMG)."""
     with asteroid(model) as gb:
@@ -100,7 +100,7 @@ def test_the_screen_and_its_art(model):
         assert gb.mem("venue_id") == SPACE
         frames(gb, 30)
         assert text(gb, 2) == "ASTEROID DELIVERY" and text(gb, 3) == "STEER AND LAND SOFT"
-        assert hud_timer(gb) == "T045" and score(gb) == 0 and gb.mem16("mg_timer") == 0
+        assert hud_timer(gb) == "45" and score(gb) == 0 and gb.mem16("mg_timer") == 0
         x_glyph = [t for t, ch in GLYPH_CH.items() if ch == "X"][0]
         assert tilemap_row(gb, 0, 8, 4) == [AD_BG + ART["hudi"], x_glyph, BLANK, 36], "the icon, X, 0 (glyph 0 is 36)"
         s = ad(gb)
@@ -528,7 +528,7 @@ def test_time_up_shows_a_banner_on_row_14_and_ends_the_play(model):
         assert gb.mem("mg_phase") == MG_END and snap(gb)["st"] == AS_OUT
         frames(gb, 2)
         assert text(gb, 14) == "TIME UP"
-        assert hud_timer(gb) == "T000"
+        assert hud_timer(gb) == "00"
         # the beaker coasts to a stop, nothing else is scored
         put_beaker(gb, 60, 60, vx=100, vy=-100)
         frames(gb, 5)
@@ -553,9 +553,9 @@ def test_the_medal_is_by_deliveries_3_5_7(n, medal):
 def test_the_hud_counts_deliveries_and_seconds(model):
     with asteroid(model) as gb:
         to_flying(gb)
-        assert hud_timer(gb) == "T045"
+        assert hud_timer(gb) == "45"
         frames(gb, 62)
-        assert hud_timer(gb) == "T044"
+        assert hud_timer(gb) == "44"
         poke(gb, delivered=9)
         lit = ad(gb)["lit"]
         clear_rocks(gb)

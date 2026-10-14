@@ -135,11 +135,10 @@ static void attr_put(uint8_t row, uint8_t pal, uint8_t col, uint8_t n) {        
     VBK_REG = VBK_BANK_0;
 }
 
-static void hud_time(void) {                    // 'T' + seconds (3 digits) at columns 16-19, as the framework's timer
-    uint8_t s = S.secs, h = 0, t = 0;
-    while (s >= 100) { s -= 100; h++; }
+static void hud_time(void) {                     // the hourglass + seconds (2 digits) at columns 17-19 (column 16 blank), as the framework's timer
+    uint8_t s = S.secs, t = 0;
     while (s >= 10) { s -= 10; t++; }
-    S.tbuf[0] = TILE_GLYPH_T; S.tbuf[1] = TILE_GLYPH_0 + h; S.tbuf[2] = TILE_GLYPH_0 + t; S.tbuf[3] = TILE_GLYPH_0 + s;
+    S.tbuf[0] = TILE_HUD_BLANK; S.tbuf[1] = MG_HOURGLASS; S.tbuf[2] = TILE_GLYPH_0 + t; S.tbuf[3] = TILE_GLYPH_0 + s;
 }
 
 static uint8_t secs_left(void) { return (uint8_t)((S.time + 59) / 60); }

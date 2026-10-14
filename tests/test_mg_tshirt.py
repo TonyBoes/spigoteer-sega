@@ -194,7 +194,7 @@ def test_the_screen_and_its_art(model):
 
 def hud_timer_ok(gb):
     from test_mg import hud_timer
-    return hud_timer(gb) == "T045"
+    return hud_timer(gb) == "45"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

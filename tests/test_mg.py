@@ -125,8 +125,15 @@ def text(gb, row, window=False, x0=0):
     return "".join(GLYPH_CH.get(t, " ") if t != BLANK else " " for t in tilemap_row(gb, row, x0, 20 - x0, window)).strip()
 
 
+HOURGLASS = 220          # MG_HOURGLASS (src/mg.h): the timer's icon tile
+
+
 def hud_timer(gb):
-    return "".join(GLYPH_CH.get(t, "?") for t in tilemap_row(gb, 0, 16, 4))
+    """The HUD timer's two digits as text; the layout is column 16 blank, the hourglass at 17, the digits at 18-19
+    (owner 2026-10-13: two digits and an hourglass in place of the 'T')."""
+    t = tilemap_row(gb, 0, 16, 4)
+    assert t[0] == BLANK and t[1] == HOURGLASS, f"HUD timer layout {t}"
+    return "".join(GLYPH_CH.get(x, "?") for x in t[2:])
 
 
 def score(gb):
@@ -182,7 +189,7 @@ def test_the_whole_flow_in_practice(model):
     with practice(model) as gb:
         assert gb.mem("mg_id") == MG_STUB and gb.mem("mg_mode") == MG_PRACTICE and gb.mem("mg_phase") == MG_INTRO
         assert text(gb, 2) == "GREEN LIGHT" and text(gb, 3) == "PRESS A ON GREEN"
-        assert hud_timer(gb) == "T030" and gb.mem16("mg_timer") == 30 * 60 and score(gb) == 0
+        assert hud_timer(gb) == "30" and gb.mem16("mg_timer") == 30 * 60 and score(gb) == 0
         assert gb.mem("overlay_on") == 0
         frames(gb, 30)
         shot(gb, "intro")
@@ -214,7 +221,7 @@ def test_the_whole_flow_in_practice(model):
             if r < ROUNDS - 1:
                 until(gb, lambda: stub(gb)["st"] == GL_RED, 60)
         assert gb.mem16("mg_score") == total and score(gb) == total
-        assert int(hud_timer(gb)[1:]) < 30, "the timer counts down"
+        assert int(hud_timer(gb)) < 30, "the timer counts down"
         until(gb, lambda: gb.mem("mg_phase") == MG_END, 60)
         frames(gb, 2)
         assert text(gb, 2) == "WELL DONE"
@@ -318,10 +325,10 @@ def test_the_timer_ends_the_play(model):
         gb.write("mg_timer", 61)
         gb.write(gb.addr("mg_timer") + 1, 0)
         frames(gb, 2)
-        assert hud_timer(gb) == "T001"
+        assert hud_timer(gb) == "01"
         until(gb, lambda: gb.mem("mg_phase") == MG_END, 62)
         frames(gb, 2)
-        assert gb.mem16("mg_timer") == 0 and hud_timer(gb) == "T000" and text(gb, 2) == "TIME UP"
+        assert gb.mem16("mg_timer") == 0 and hud_timer(gb) == "00" and text(gb, 2) == "TIME UP"
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, END_LEN + 2)
 
 

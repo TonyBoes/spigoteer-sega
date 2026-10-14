@@ -48,6 +48,7 @@ enum { MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD };
 #define MG_COUNTER_ROW 11       // the venue backdrop's counter row
 #define MG_BG          77       // BAR_TILE_COUNT: BG ids from here are free (the patrons' tiles; the level load puts them back)
 #define MG_ICON_N       4       // the medal icon: MG_ICON_N x MG_ICON_N tiles a medal (32x32; GOLD, SILVER, BRONZE)
+#define MG_HOURGLASS   220      // the HUD timer's hourglass tile (mg_enter loads it; just above every game's BG tiles, Marshmallow's end at 219; the level load puts it back)
 #define MG_GAME_BG     (MG_BG + 3 * MG_ICON_N * MG_ICON_N)   // after the icon's 48 tiles (77-124): the game's own BG tiles
 
 // ---- the framework's state (test hooks: mg_id, mg_phase, mg_timer, mg_score, mg_medal, mg_seed_force) ----
