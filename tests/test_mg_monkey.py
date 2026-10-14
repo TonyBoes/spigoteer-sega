@@ -135,8 +135,8 @@ def test_the_screen_and_its_art(model):
         frames(gb, 30)
         assert text(gb, 2) == "MONKEY BUSINESS" and text(gb, 3) == "A SHOO NOT PARROTS"
         pips = MK_BG + OFF["pips"]
-        assert tilemap_row(gb, 0, 8, 8) == [pips] * 8
-        assert tilemap_row(gb, 0, 16, 4) == [BLANK, HOURGLASS, glyph("4"), glyph("5")]
+        assert tilemap_row(gb, 0, 9, 8) == [pips] * 8
+        assert tilemap_row(gb, 0, 17, 3) == [HOURGLASS, glyph("4"), glyph("5")]
         s = mk(gb)
         assert (s["coco"], s["time"], s["pos"], s["pile_shown"]) == (COCO, TIME, 2, 0)
         # the art's tiles
@@ -170,7 +170,7 @@ def test_the_screen_and_its_art(model):
         if model == "cgb":
             assert [bank1(gb, 3, r) for r in (1, 4)] == [5, 5] and bank1(gb, 3, 2) == 1, "the awning's palette; the banner's is the HUD's"
             assert bank1(gb, 2, 12) == 2 and bank1(gb, 18, 6) == 3 and bank1(gb, 14, 7) == bank1(gb, 12, 7) and bank1(gb, 5, 15) == 6
-            assert bank1(gb, 8, 0) == 1, "the HUD's palette"
+            assert bank1(gb, 9, 0) == 1, "the HUD's palette"
         else:
             assert gb.mem(0xFF49) == 0xE4 and gb.mem(0xFF48) == 0xD0
 
@@ -418,7 +418,7 @@ def test_a_monkey_up_too_long_grabs_a_coconut_and_runs_off(model):
         assert s["coco"] == COCO - 1 and s["stolen"] == 1 and s["last"] == ML_THEFT and s["run_on"] == 0
         assert s["pile_shown"] == PILE_OF[COCO - 1]
         pips = MK_BG + OFF["pips"]
-        assert tilemap_row(gb, 0, 8, 8) == [pips] * 7 + [pips + 1]
+        assert tilemap_row(gb, 0, 9, 8) == [pips] * 7 + [pips + 1]
         pm = ART["pile_map"]
         st = PILE_OF[COCO - 1]
         assert tilemap_row(gb, 5, 16, 4) == [MK_BG + OFF["pile"] + pm[st * 12 + c] for c in range(4)]
@@ -644,7 +644,7 @@ def test_time_up_pays_200_a_coconut_left(model):
         until(gb, lambda: gb.mem("mg_phase") == MG_END, 20)
         frames(gb, 3)
         assert text(gb, 9) == "TIME UP" and gb.mem16("mg_score") == 1000
-        assert tilemap_row(gb, 0, 16, 4)[1:] == [HOURGLASS, glyph("0"), glyph("0")]
+        assert tilemap_row(gb, 0, 17, 3) == [HOURGLASS, glyph("0"), glyph("0")]
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 90)
 
 
@@ -662,12 +662,12 @@ def test_medals_by_score(model, points, medal):
 def test_the_hud_timer_counts_down_from_45(model):
     """The hourglass and 45 at the start; the seconds follow the frames left (rounded up)."""
     with play(model) as gb:
-        assert tilemap_row(gb, 0, 16, 4) == [BLANK, HOURGLASS, glyph("4"), glyph("5")]
+        assert tilemap_row(gb, 0, 17, 3) == [HOURGLASS, glyph("4"), glyph("5")]
         poke(gb, time=62)
         frames(gb, 2)
-        assert tilemap_row(gb, 0, 16, 4) == [BLANK, HOURGLASS, glyph("0"), glyph("2")]
+        assert tilemap_row(gb, 0, 17, 3) == [HOURGLASS, glyph("0"), glyph("2")]
         frames(gb, 4)
-        assert tilemap_row(gb, 0, 16, 4) == [BLANK, HOURGLASS, glyph("0"), glyph("1")]
+        assert tilemap_row(gb, 0, 17, 3) == [HOURGLASS, glyph("0"), glyph("1")]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

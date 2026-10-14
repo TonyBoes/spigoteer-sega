@@ -72,8 +72,8 @@ typedef char ts_fits[(TS_BGID + TS_BG_TILES <= 240 && TS_OBJ + TS_OBJ_TILES <= O
 #define CANNON_Y       104
 #define SOCK_COL         1
 #define SOCK_ROW         3
-#define HUD_SHOTS_COL    8
-#define HUD_WIND_COL    13
+#define HUD_SHOTS_COL   10
+#define HUD_WIND_COL    14
 #define MAP_FIRST        1                  // ts_map's first map row
 #define MAP_ROWS        17
 // OAM
@@ -141,16 +141,15 @@ static uint8_t sock_look(int8_t k) {            // calm, +1, +2, -1, -2
     return k >= 0 ? (uint8_t)k : (uint8_t)(2 - k);
 }
 
-static void hud_shots(void) {                   // columns 8-11: the shirt icon, the shirts left (2 digits), a blank
+static void hud_shots(void) {                   // columns 10-12: the shirt icon, the shirts left (2 digits)
     uint8_t n = TS_SHOTS - S.shots;
     S.hbuf[0] = TS_BGID + ts_hud[0];
     S.hbuf[1] = TILE_GLYPH_0 + (n >= 10 ? 1 : 0);
     S.hbuf[2] = TILE_GLYPH_0 + (n >= 10 ? n - 10 : n);
-    S.hbuf[3] = TILE_HUD_BLANK;                  // (the framework's lives, columns 9-11, are not shown in a mini-game)
-    ts_put(0, S.hbuf, HUD_SHOTS_COL, HUD_ROW, 4);
+    ts_put(0, S.hbuf, HUD_SHOTS_COL, HUD_ROW, 3);
 }
 
-static void hud_wind(void) {                    // columns 13-14: the chevron (> >> < <<, a dash for calm) and the strength
+static void hud_wind(void) {                    // columns 14-15: the chevron (> >> < <<, a dash for calm) and the strength
     int8_t k = S.wind;
     S.wbuf[0] = TS_BGID + ts_hud[3 + k];
     S.wbuf[1] = TILE_GLYPH_0 + (k < 0 ? -k : k);

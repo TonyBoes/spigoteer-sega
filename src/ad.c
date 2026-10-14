@@ -147,7 +147,7 @@ static void put_porthole(uint8_t p, uint8_t lit, uint8_t slot) {  // queued (or 
     for (r = 0; r < 3; r++) ad_put(0, b + 3 * r, porthole_col[p], 1 + r, 3);
 }
 
-static void hud_deliveries(void) {               // HUD columns 8-11: the beaker icon, X, the count
+static void hud_deliveries(void) {               // HUD columns 10-13: the beaker icon, X, the count
     S.dbuf[0] = AD_BG + ADB_HUDI; S.dbuf[1] = glyph_for('X');
     S.dbuf[2] = S.delivered >= 10 ? TILE_GLYPH_0 + S.delivered / 10 : TILE_HUD_BLANK;
     S.dbuf[3] = TILE_GLYPH_0 + S.delivered % 10;
@@ -220,12 +220,12 @@ void ad_enter(void) BANKED {
         ad_put(1, S.hattr, 0, 3, 20);            // mini-games' banners (the portholes' palettes made them unreadable)
     }
     hud_deliveries(); hud_time();
-    vram_put(8, HUD_ROW, S.dbuf, 4);
+    vram_put(10, HUD_ROW, S.dbuf, 4);
     vram_put(16, HUD_ROW, S.tbuf, 4);
     if (is_cgb) {                                // the HUD's attributes are the row's already
         for (k = 0; k < 4; k++) ta[k] = BGPAL_HUD;
         VBK_REG = VBK_BANK_1;
-        vram_put(8, HUD_ROW, ta, 4);
+        vram_put(10, HUD_ROW, ta, 4);
         VBK_REG = VBK_BANK_0;
     }
     draw();                                      // the beaker on the bar, the rocks at rest (no play before MG_PLAY)
@@ -330,7 +330,7 @@ static void deliver(void) {
     S.delivered++;
     if (S.delivered == 3) S.spd = 1; else if (S.delivered == 6) S.spd = 2;
     hud_deliveries();
-    vq_add(0, S.dbuf, 8, HUD_ROW, 4);
+    vq_add(0, S.dbuf, 10, HUD_ROW, 4);
     put_porthole(S.lit, 0, 0);                   // this one goes dark, another lights (never the same twice)
     next = (S.lit + 1 + mg_rand() % 2) % 3;
     S.lit = next;

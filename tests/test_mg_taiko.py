@@ -155,7 +155,7 @@ def test_the_screen_and_its_art(model):
         assert gb.mem("mg_id") == MG_TAIKO and gb.mem("mg_mode") == MG_PRACTICE and gb.mem("mg_phase") == 0
         frames(gb, 30)
         assert text(gb, 2) == "TAIKO POUR" and text(gb, 3) == "A TOP LANE B BOTTOM"
-        assert tilemap_row(gb, 0, 8, 4) == [TK_BG + OFF["hud"], glyph("X"), glyph("0"), glyph("0")]
+        assert tilemap_row(gb, 0, 10, 4) == [TK_BG + OFF["hud"], glyph("X"), glyph("0"), glyph("0")]
         assert tilemap_row(gb, 0, 16, 4) == [TK_BG + OFF["hud"] + 1, glyph("X"), glyph("0"), glyph("0")]
         s = tk(gb)
         assert (s["next"], s["judged"], s["combo"], s["cups"], s["cup_shown"]) == (0, 0, 0, 0, 0)
@@ -192,7 +192,7 @@ def test_the_screen_and_its_art(model):
         if model == "cgb":
             assert pot["prop"] & 7 == 7 and drum["prop"] & 7 == 5 and spig["prop"] & 7 == 0
             assert bank1(gb, 3, 1) == 3 and bank1(gb, 3, 6) == 2 and bank1(gb, 3, 12) == 5 and bank1(gb, 13, 15) == 6
-            assert bank1(gb, 8, 0) == 1, "the HUD's palette"
+            assert bank1(gb, 10, 0) == 1, "the HUD's palette"
         else:
             assert pot["prop"] & S_PALETTE and drum["prop"] & S_PALETTE and not spig["prop"] & S_PALETTE
             assert gb.mem(0xFF49) == 0xE4 and gb.mem(0xFF48) == 0xD0
@@ -356,7 +356,7 @@ def test_a_perfect_run_scores_the_spec_and_wins_gold(model):
         assert (s["perfect"], s["good"], s["miss"], s["spills"]) == (NOTES, 0, 0, 0)
         assert s["cups"] == NOTES // 8 and s["combo"] == NOTES and s["best"] == NOTES
         assert gb.mem16("mg_score") == perfect_score() == score(gb)
-        assert tilemap_row(gb, 0, 18, 2) == [glyph("1"), glyph("4")] and tilemap_row(gb, 0, 10, 2) == [glyph("9"), glyph("9")]
+        assert tilemap_row(gb, 0, 18, 2) == [glyph("1"), glyph("4")] and tilemap_row(gb, 0, 12, 2) == [glyph("9"), glyph("9")]
         until(gb, lambda: gb.mem("mg_phase") == MG_END, END_WAIT + 10)
         until(gb, lambda: gb.mem("overlay_on") == 1, 100)
         frames(gb, 3)

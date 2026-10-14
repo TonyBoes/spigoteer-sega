@@ -33,7 +33,7 @@
 // screen, the base with its ports and mouth; CGB BG palette 2); the bins on rows 12-16: CHARGE columns 1-4 (BG palette
 // 3, lime), the SCRAP chute 8-11 (palette 2, its lid closed until the first broken battery), RECYCLE 15-18 (BG palette
 // 5, red: not 4, which the result window's medal takes over while the bins still show under it). The strike lamps at
-// HUD columns 9-11 (the lives' place; 8 blank), the timer T045. The Spigoteer (x 100, y 112) beside the machine:
+// HUD columns 10-12 (beside the lives at 7-8), the timer T045. The Spigoteer (x 100, y 112) beside the machine:
 // IDLE, FILL for Left (X-flipped for Right), SLIDE for Down, CATCH for a right bin, FAIL for a strike; the outro FAIL
 // after three strikes, CATCH at time up.
 // Batteries: OBJ 8x16 standing on the belt (top y 49), the front one at x 76; charged OBJ 56 (CGB OBJ palette 1),
@@ -97,7 +97,7 @@ typedef char bs_obj_fits[(BS_OBJ + BS_OBJ_TILES <= OBJ_MUG_DRINK && BS_BG + BS_B
 #define CHARGE_COL       1
 #define CHUTE_COL        8
 #define RECYCLE_COL     15
-#define STRIKE_COL       9                      // HUD columns 9-11 (8: blank)
+#define STRIKE_COL      10                      // HUD columns 10-12 (the lives at 7-8)
 #define FRONT_X         76                      // the front battery's x on the flap
 #define BAT_Y           49                      // a battery's top on the belt
 #define SPIG_X         100
@@ -163,7 +163,7 @@ static void draw_bin(uint8_t col, uint8_t sign, uint8_t lid) {
     }
 }
 
-static void lamps(void) {                       // HUD columns 9-11: the strikes lit from the left
+static void lamps(void) {                       // HUD columns 10-12: the strikes lit from the left
     uint8_t k;
     for (k = 0; k < 3; k++) S.lamps[k] = BS_BG + BSB_STRIKE + (k < S.strikes ? 1 : 0);
     put(STRIKE_COL, HUD_ROW, S.lamps, 3);
@@ -260,8 +260,6 @@ void bs_enter(void) BANKED {
         S.qx[k] = (int16_t)(FRONT_X - BS_GAP * k) * 8;
     }
     S.n = BS_START_N;
-    row_buf[0] = TILE_HUD_BLANK;                 // the HUD: no lives; the strike lamps
-    vram_put(STRIKE_COL - 1, HUD_ROW, row_buf, 1);
     lamps();
     mg_timer = BS_TIME_S * 60;
     bs_update(0);                                // the sprites (the update draws them; no play before MG_PLAY)

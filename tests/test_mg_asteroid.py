@@ -102,7 +102,7 @@ def test_the_screen_and_its_art(model):
         assert text(gb, 2) == "ASTEROID DELIVERY" and text(gb, 3) == "STEER AND LAND SOFT"
         assert hud_timer(gb) == "45" and score(gb) == 0 and gb.mem16("mg_timer") == 0
         x_glyph = [t for t, ch in GLYPH_CH.items() if ch == "X"][0]
-        assert tilemap_row(gb, 0, 8, 4) == [AD_BG + ART["hudi"], x_glyph, BLANK, 36], "the icon, X, 0 (glyph 0 is 36)"
+        assert tilemap_row(gb, 0, 10, 4) == [AD_BG + ART["hudi"], x_glyph, BLANK, 36], "the icon, X, 0 (glyph 0 is 36)"
         s = ad(gb)
         assert (s["delivered"], s["st"], s["time"], s["x"], s["y"], s["vx"], s["vy"]) == (
             0, AS_FLY, TIME_S * 60, START_X << 8, START_Y << 8, 0, 0)
@@ -362,7 +362,7 @@ def test_a_soft_touch_delivers_500_plus_the_time_bonus_and_lights_another_portho
             for r in range(3):
                 for k in range(3):
                     assert tm[1 + r][col + k] & 0xFF == AD_BG + ART["port"][p][1 if s["lit"] == p else 0][3 * r + k]
-        assert tilemap_row(gb, 0, 8, 4)[3] == 36 + 1 and tilemap_row(gb, 0, 8, 4)[2] == BLANK
+        assert tilemap_row(gb, 0, 10, 4)[3] == 36 + 1 and tilemap_row(gb, 0, 10, 4)[2] == BLANK
         assert gb.mem("last_sfx") == SFX_COIN and gb.mem(gb.addr("sfx_count") + SFX_SERVE) >= 1
         assert oam(gb, OAM_BEAKER)["y"] == 0 and oam(gb, OAM_HALO)["y"] == 0, "the beaker is gone"
         a = oam(gb, OAM_ARROW)
@@ -562,7 +562,7 @@ def test_the_hud_counts_deliveries_and_seconds(model):
         at_dock(gb, PORTHOLE_CX[lit], vy=-100)
         frames(gb, 3)
         assert snap(gb)["delivered"] == 10
-        assert tilemap_row(gb, 0, 8, 4) == [AD_BG + ART["hudi"], [t for t, c in GLYPH_CH.items() if c == "X"][0], 36 + 1, 36]
+        assert tilemap_row(gb, 0, 10, 4) == [AD_BG + ART["hudi"], [t for t, c in GLYPH_CH.items() if c == "X"][0], 36 + 1, 36]
 
 
 # ---- sprites per line -----------------------------------------------------------------------------------------------------------------

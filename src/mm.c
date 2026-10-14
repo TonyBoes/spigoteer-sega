@@ -132,7 +132,7 @@ static void hud_tally(void) {
     if (p > 99) p = 99;
     while (p >= 10) { p -= 10; t++; }
     S.hud[0] = TILE_GLYPH_0 + t; S.hud[1] = TILE_GLYPH_0 + p;
-    put(S.hud, 11, HUD_ROW, 2);
+    put(S.hud, 12, HUD_ROW, 2);
 }
 
 static void new_cup(int16_t x) {
@@ -218,9 +218,9 @@ void mm_enter(void) BANKED {
         set_sprite_palette(OPAL_PAIL, 1, pal_pail);
         set_sprite_palette(OPAL_PUFF, 1, pal_puff);
     } else OBP1_REG = 0xE0;                               // cups, pail: white, dark grey, black (the level load puts 0xE4 back)
-    // the HUD tally: the icon, X, two digits at columns 9-12
-    row_buf[0] = MM_BG + MMB_ICON; row_buf[1] = TILE_GLYPH_X;
-    vram_put(9, HUD_ROW, row_buf, 2);
+    // the HUD tally: the icon, two digits at columns 11-13 (the lives at 7-8, the goal area of the story)
+    row_buf[0] = MM_BG + MMB_ICON;
+    vram_put(11, HUD_ROW, row_buf, 1);
     S.perfect = 0;
     hud_tally();
     // the belt's two phases (columns 1-18 of row 14) and the banner rows' scene (restored at the first play frame)

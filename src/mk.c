@@ -143,10 +143,10 @@ static void hud_time(void) {                     // the hourglass + seconds (2 d
 
 static uint8_t secs_left(void) { return (uint8_t)((S.time + 59) / 60); }
 
-static void hud_pips(void) {                    // the coconuts left: full pips, then empty ones (HUD columns 8-15)
+static void hud_pips(void) {                    // the coconuts left: full pips, then empty ones (HUD columns 9-16, the lives at 7-8, the timer at 17-19)
     uint8_t i;
     for (i = 0; i < MK_COCO; i++) S.pips[i] = MK_BG + MKB_PIPS + (i >= S.coco);
-    put(0, S.pips, 8, HUD_ROW, MK_COCO);
+    put(0, S.pips, 9, HUD_ROW, MK_COCO);
 }
 
 static void pile(void) {                        // Kiki's pile for the coconuts left (columns 16-19, rows 5-7)
@@ -294,7 +294,7 @@ void mk_enter(void) BANKED {
     crates();
     hud_pips();
     hud_time();
-    vram_put(16, HUD_ROW, S.tbuf, 4);
+    vram_put(17, HUD_ROW, S.tbuf + 1, 3);
     sprites();
 }
 
@@ -481,7 +481,7 @@ void mk_update(uint8_t pressed) BANKED {
         if (++S.gcnt >= MK_GAP_STEP) { S.gcnt = 0; if (S.gap > MK_GAP_MIN) S.gap--; }
         if (S.time) S.time--;
         s = secs_left();
-        if (s != S.secs) { S.secs = s; hud_time(); vq_add(0, S.tbuf, 16, HUD_ROW, 4); }
+        if (s != S.secs) { S.secs = s; hud_time(); vq_add(0, S.tbuf + 1, 17, HUD_ROW, 3); }
         if (!S.time || !S.coco) { mg_finish(); outro_begin(); }
     } else world();
     crates();

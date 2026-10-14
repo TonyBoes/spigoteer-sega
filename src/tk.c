@@ -20,7 +20,7 @@
 //   Visual metronome: the stone banks flash on each beat (their tile data is swapped), the drummer dances on it.
 // - Sounds: a hit on lane A SFX_DON, on lane B SFX_KA (perfect or good alike; the flash colour tells them), SPILL BREAK, a bowl served SERVE.
 //
-// Screen (the approved mock-up): HUD row 0 (score; combo icon + X + 2 digits at columns 8-11; cups icon + X + 2 digits at 16-19 (a perfect game serves 14 bowls));
+// Screen (the approved mock-up): HUD row 0 (score; combo icon + X + 2 digits at columns 10-13; cups icon + X + 2 digits at 16-19 (a perfect game serves 14 bowls));
 // the shoji window rows 1-4 (CGB BG palette 3; the lantern flickers; the banner rows 2-3 hold the framework's text until the
 // first note nears); the banks on rows 5, 8, 11; lanes rows 6-7 and 9-10 (palette 2) with the hit marks at columns 2-3; the
 // bamboo blind rows 12-13 (palette 5); the framework's teahouse wall and floor below; the bowl at columns 13-14, rows 15-16
@@ -146,7 +146,7 @@ static void digits(uint8_t n, uint8_t *d) {         // two digit tiles of n (0..
 
 static void hud_combo(void) {
     digits(S.combo > 99 ? 99 : S.combo, S.hud);
-    put(0, S.hud, 10, HUD_ROW, 2);
+    put(0, S.hud, 12, HUD_ROW, 2);
 }
 
 static void hud_cups(void) {
@@ -283,9 +283,9 @@ void tk_enter(void) BANKED {
     }
     S.cup_shown = 255;
     cup(0);
-    // the HUD: the combo icon, X, two digits at columns 8-11; the cups icon, X, two digits at 16-19
+    // the HUD: the combo icon, X, two digits at columns 10-13; the cups icon, X, two digits at 16-19
     row_buf[0] = TK_BG + TKB_HUD; row_buf[1] = TILE_GLYPH_X;
-    vram_put(8, HUD_ROW, row_buf, 2);
+    vram_put(10, HUD_ROW, row_buf, 2);
     row_buf[0] = TK_BG + TKB_HUD + 1; row_buf[1] = TILE_GLYPH_X;
     vram_put(16, HUD_ROW, row_buf, 2);
     if (is_cgb) {

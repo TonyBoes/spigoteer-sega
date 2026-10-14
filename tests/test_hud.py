@@ -154,14 +154,13 @@ def test_a_lost_life_changes_the_digit(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_mini_game_shows_the_lives_as_head_and_digit_unless_its_own_hud_takes_column_8(model):
+def test_every_mini_game_shows_the_lives_as_head_and_digit(model):
     import test_mg as tm
-    for gid, shows in ((tm.MG_QUICKDRAW, True), (tm.MG_TSHIRT, False)):
+    for gid in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9):   # mg.h: every saved mini-game (the finale shows its own, po.c)
         with booted(model) as gb:
             hold_stage_anim(gb)
             gb.model_name = model
             tm.mg_enter(gb, gid, tm.MG_STORY)
             gb.run(10)
-            want = [HEAD, GLYPH0 + 3] if shows else [BLANK, tilemap_row(gb, 0, 8, 1)[0]]
-            assert tilemap_row(gb, 0, 7, 2) == want, gid
+            assert tilemap_row(gb, 0, 7, 2) == [HEAD, GLYPH0 + 3], gid
             assert tilemap_row(gb, 0, 0, 6) == [GLYPH0] * 6, "the score from column 0"

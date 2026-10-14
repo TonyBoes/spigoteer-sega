@@ -127,7 +127,7 @@ def test_the_screen_and_its_art(model):
         assert gb.mem("mg_id") == MG_MARSHMALLOW and gb.mem("mg_mode") == MG_PRACTICE and gb.mem("mg_phase") == 0
         frames(gb, 30)
         assert text(gb, 2) == "MARSHMALLOW DROP" and text(gb, 3) == "A DROPS MARSHMALLOWS"
-        assert tilemap_row(gb, 0, 9, 4) == [MM_BG + ART["icon"], glyph("X"), glyph("0"), glyph("0")]
+        assert tilemap_row(gb, 0, 11, 3) == [MM_BG + ART["icon"], glyph("0"), glyph("0")]
         # the art's tiles
         got = [b for t in range(MM_BG, MM_BG + ART["n_bg"]) for b in tile_bytes(gb, t)]
         assert got == ART["bg"], "BG tiles"
@@ -144,7 +144,7 @@ def test_the_screen_and_its_art(model):
             for r in [1] + list(range(4, 18)):
                 assert [bank1(gb, c, r) & 7 for c in range(20)] == PAL[(r - 1) * 20:r * 20], f"attributes of row {r}"
             assert [bank1(gb, c, r) & 7 for c in range(20) for r in (2, 3)] == [1] * 40, "the banner rows: the HUD colours"
-            assert bank1(gb, 9, 0) & 7 == 1, "the HUD's palette"
+            assert bank1(gb, 11, 0) & 7 == 1, "the HUD's palette"
         # the first play frame: the window and the sign are back on rows 2-3
         to_play(gb)
         frames(gb, 3)
@@ -349,7 +349,7 @@ def test_three_marshmallows_score_100_each_and_300_for_a_perfect_cocoa(model):
             frames(gb, 1)
         s = snap(gb)
         assert s["perfect"] == 1 and 0 < s["pop"][0] <= POP_LEN and score(gb) == 600
-        assert tilemap_row(gb, 0, 11, 2) == [glyph("0"), glyph("1")], "the HUD tally"
+        assert tilemap_row(gb, 0, 12, 2) == [glyph("0"), glyph("1")], "the HUD tally"
         assert oam(gb, OAM_POP)["y"] == 80 + 16
         # the pop plays 40 frames then goes
         frames(gb, POP_LEN + 2)

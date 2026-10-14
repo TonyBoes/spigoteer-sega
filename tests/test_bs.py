@@ -223,7 +223,7 @@ def batteries(seed, n):
 # ---- the screen ----------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_screen(model):
-    """The intro: the banner, the hourglass and 45, the strike lamps where the lives were; the belt, the diverter, the three bins (the
+    """The intro: the banner, the hourglass and 45, the strike lamps beside the lives (column 8 keeps the lives number); the belt, the diverter, the three bins (the
     chute under its lid), the counter row turned to wall; the art in VRAM; three batteries on the belt and the
     Spigoteer beside the machine; CGB attributes and palettes (RECYCLE in palette 5: 4 is the result's medal);
     DMG OBP1 0xE4 (the title leaves 0xC4)."""
@@ -234,7 +234,7 @@ def test_the_screen(model):
         assert gb.mem16("mg_timer") == TIME_S * 60
         glyph = {int(m[1]): m[0] for m in re.findall(r"#define TILE_GLYPH_(\w) (\d+)", ART_H)}
         assert tilemap_row(gb, 0, 16, 2) == [BLANK, HOURGLASS] and "".join(glyph[t] for t in tilemap_row(gb, 0, 18, 2)) == "45"   # blank, hourglass, 4 5
-        assert tilemap_row(gb, 0, STRIKE_COL - 1, 1) == [BLANK] and lamps(gb) == [0, 0, 0]
+        assert tilemap_row(gb, 0, 8, 1) == [36 + 3] and lamps(gb) == [0, 0, 0]
         assert tilemap_row(gb, BELT_ROW, 0, BELT_N) == [BS_BG + BH["BSB_BELT"]] * BELT_N
         assert tilemap_row(gb, DIV_ROW, DIV_COL, 2) == [BS_BG + BH["BSB_FLAP"] + k for k in range(2)]
         assert tilemap_row(gb, DIV_ROW + 1, DIV_COL, 2) == [BS_BG + BH["BSB_SCREEN"] + k for k in range(2)], "idle"

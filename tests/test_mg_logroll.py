@@ -242,8 +242,8 @@ def test_the_screen_and_its_art(model):
         assert text(gb, 2) == "LOG ROLL" and text(gb, 3) == "TAP AGAINST THE ROLL"
         assert hud_timer(gb) == "40" and score(gb) == 0 and gb.mem16("mg_timer") == TIME_S * 60
         icon = LR_BG + art_define("LRB_HUD")
-        row = tilemap_row(gb, 0, 8, 4)
-        assert row[1] == icon and row[0] == BLANK and row[3] == BLANK and row[2] == 36, "the falls icon and a 0"   # glyph 0 is 36
+        row = tilemap_row(gb, 0, 10, 2)
+        assert row == [icon, 36], "the falls icon and a 0"   # glyph 0 is 36
         # the tiles of the art: resident tiles, the streamed slots at the first roll / ripple frame
         want = bytes(ART["bg"])
         assert vram_bg(gb, 0, ART["n_bg"]) == want, "BG tiles"
@@ -464,7 +464,7 @@ def test_a_fall_splashes_for_180_frames_with_droplets_then_climbs_back(model):
         frames(gb, 1)
         s = snap(gb)
         assert s["falls"] == 1 and s["lean"] == 0 and s["vel"] == 0 and sfx(gb, SFX_BREAK) == breaks + 1
-        assert tilemap_row(gb, 0, 10, 1) == [36 + 1], "the HUD digit"
+        assert tilemap_row(gb, 0, 11, 1) == [36 + 1], "the HUD digit"
         assert pose_tiles(gb) == [otile(e) for e in ART["pose_e"][4]], "SPLASH"
         assert oam(gb, OAM_SPIG)["y"] == 100 + 16
         assert all(oam(gb, OAM_DROPS + k)["y"] for k in range(4)), "four droplets"

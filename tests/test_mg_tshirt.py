@@ -148,8 +148,8 @@ def test_the_screen_and_its_art(model):
         frames(gb, 30)
         assert text(gb, 2) == "SHIRT CANNON" and text(gb, 3) == "UP DOWN AIM A FIRE"
         hud = ART["hud"]
-        assert tilemap_row(gb, 0, 8, 4) == [TS_BG + hud[0], glyph("1"), glyph("2"), BLANK]
-        assert tilemap_row(gb, 0, 13, 2) == [TS_BG + hud[3], glyph("0")]
+        assert tilemap_row(gb, 0, 10, 3) == [TS_BG + hud[0], glyph("1"), glyph("2")]
+        assert tilemap_row(gb, 0, 14, 2) == [TS_BG + hud[3], glyph("0")]
         assert hud_timer_ok(gb)
         got = [b for t in range(TS_BG, TS_BG + ART["n_bg"]) for b in tile_bytes(gb, t)]
         assert got == ART["bg"], "BG tiles"
@@ -343,10 +343,10 @@ def test_firing_puffs_poses_and_counts_the_shirt(model):
         gb.release("a")
         s = snap(gb)
         assert s["st"] == FLY and s["shots"] == 1 and s["pose"] == POSE_FIRE and s["puff"] == PUFF_LEN
-        assert tilemap_row(gb, 0, 8, 4)[2] in (glyph("1"), glyph("0"))
+        assert tilemap_row(gb, 0, 10, 3)[2] in (glyph("1"), glyph("0"))
         frames(gb, 1)
         s = snap(gb)
-        assert tilemap_row(gb, 0, 8, 3) == [TS_BG + ART["hud"][0], glyph("1"), glyph("1")], "11 shirts left"
+        assert tilemap_row(gb, 0, 10, 3) == [TS_BG + ART["hud"][0], glyph("1"), glyph("1")], "11 shirts left"
         sp = oam(gb, OAM_SPIG)
         assert sp["prop"] & 0x20 and sp["tile"] == 3 * BT_TILES, "the fill pose, mirrored"
         assert oam(gb, OAM_PUFF)["y"] and oam(gb, OAM_PUFF)["tile"] == ART["puff"][0]
@@ -462,7 +462,7 @@ def test_reload_is_40_frames_and_the_new_wind_shows_at_its_end(model):
         assert -1 <= k <= 1
         sock = ART["sock"][k if k >= 0 else 2 - k]
         assert tilemap_row(gb, 3, 1, 3) + tilemap_row(gb, 4, 1, 3) == [TS_BG + t for t in sock]
-        assert tilemap_row(gb, 0, 13, 2) == [TS_BG + ART["hud"][3 + k], glyph(str(abs(k)))]
+        assert tilemap_row(gb, 0, 14, 2) == [TS_BG + ART["hud"][3 + k], glyph(str(abs(k)))]
         assert calm == [TS_BG + t for t in ART["sock"][0]]
 
 
@@ -519,14 +519,14 @@ def test_the_twelfth_shirt_ends_the_round(model):
             while s["st"] != AIM:
                 frames(gb, 1)
                 s = snap(gb)
-            assert tilemap_row(gb, 0, 9, 2) == [glyph(str((SHOTS - n) // 10)), glyph(str((SHOTS - n) % 10))], n
+            assert tilemap_row(gb, 0, 11, 2) == [glyph(str((SHOTS - n) // 10)), glyph(str((SHOTS - n) % 10))], n
             poke(gb, angle=0, wave=5, wt=250)
             fire(gb)
             land(gb)
         s = snap(gb)
         assert s["st"] == SPENT and s["shots"] == SHOTS and gb.mem("mg_phase") == 2
         frames(gb, 3)
-        assert tilemap_row(gb, 0, 9, 2) == [glyph("0"), glyph("0")]
+        assert tilemap_row(gb, 0, 11, 2) == [glyph("0"), glyph("0")]
         tap(gb, "a")
         assert snap(gb)["shots"] == SHOTS
         until(gb, lambda: gb.mem("mg_phase") == MG_END, RELOAD_LEN + 5)

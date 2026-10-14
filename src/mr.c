@@ -23,7 +23,7 @@
 //   sides at random. All from mg_rand, so a seed gives one street.
 // - Sounds (no new SFX): toss LAUNCH, delivered COIN, PERFECT SERVE, crash BREAK.
 //
-// Screen: the HUD (score; the crates-left icon and count at columns 9-11; T + seconds at 16-19) is the framework's row 0
+// Screen: the HUD (score; the crates-left icon and count at columns 11-13; T + seconds at 16-19) is the framework's row 0
 // and does not scroll: lcd_isr (src/main.c) splits the frame at line MR_SPLIT_LY, setting SCX there and putting it back at
 // the end of the frame, and mr_vbl writes the next map column (17 tiles and, on CGB, 17 attributes, 36 bytes at
 // the start of the state) in VBlank. Map rows 1-3 the top verge (houses, trees, lawn, hedge), 4-5 the top kerb (a milk
@@ -97,7 +97,7 @@ typedef char mr_offsets[(__builtin_offsetof(struct mr_state, ctile) == 2 && __bu
 #define LEAD            21                       // columns streamed ahead of the scroll's column
 #define GATE_BEFORE      9                       // a gate from this many columns before a box to GATE_AFTER after it must leave the box's kerb lane free
 #define GATE_AFTER       4
-#define COUNT_COL        9                       // HUD: blank at 8, the crate icon at 9, two digits
+#define COUNT_COL       11                       // HUD: blank at 10, the crate icon at 11, two digits (the lives at 7-8)
 #define HUD_PAL_COLS    20
 #define MR_STREET_W     32                       // map columns
 #define GATE            0x80
@@ -245,7 +245,7 @@ static void put(uint8_t bank, uint8_t *t, uint8_t col, uint8_t row, uint8_t n) {
     vq_add(bank, t, col, row, n);
 }
 
-static void hud_crates(void) {                   // HUD columns 8-11: blank, the crate icon, the count
+static void hud_crates(void) {                   // HUD columns 10-13: blank, the crate icon, the count
     S.cbuf[0] = TILE_HUD_BLANK; S.cbuf[1] = MR_BG + MRB_HUDC;
     S.cbuf[2] = TILE_GLYPH_0 + S.crates / 10; S.cbuf[3] = TILE_GLYPH_0 + S.crates % 10;
 }

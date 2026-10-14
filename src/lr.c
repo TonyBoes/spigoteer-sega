@@ -76,8 +76,8 @@ typedef char lr_fits[(LR_BG + LR_ROLL_AT >= 128 && LR_BG + LR_BG_TILES <= 256 &&
 #define LR_DROP_Y        98
 #define LR_SPLASH_X     100                     // the splash's droplet origin
 #define LR_TOPPLE_X      52
-#define LR_HUD_ICON_COL   9
-#define LR_HUD_DIGIT_COL 10
+#define LR_HUD_ICON_COL  10
+#define LR_HUD_DIGIT_COL 11
 #define LR_PAL_DROP       1                     // CGB OBJ palettes
 #define LR_PAL_MARK       2
 // OAM
@@ -195,13 +195,9 @@ void lr_enter(void) BANKED {
         set_sprite_palette(LR_PAL_MARK, 1, lr_pal_obj + 4);
     }
     for (k = 0; k < 20; k++) S.hud_attr[k] = BGPAL_HUD;
-    // the HUD: no lives; the falls icon and its digit
-    row_buf[0] = TILE_HUD_BLANK; row_buf[1] = TILE_HUD_BLANK; row_buf[2] = LR_BG + LRB_HUD; row_buf[3] = TILE_GLYPH_0;
-    row_buf[4] = TILE_HUD_BLANK;
-    vram_put(LR_HUD_ICON_COL - 1, HUD_ROW, row_buf, 1);
-    vram_put(LR_HUD_ICON_COL, HUD_ROW, row_buf + 2, 1);
-    vram_put(LR_HUD_DIGIT_COL, HUD_ROW, row_buf + 3, 1);
-    vram_put(LR_HUD_DIGIT_COL + 1, HUD_ROW, row_buf + 4, 1);
+    // the HUD: the falls icon and its digit at columns 10-11 (the lives stay at 7-8)
+    row_buf[0] = LR_BG + LRB_HUD; row_buf[1] = TILE_GLYPH_0;
+    vram_put(LR_HUD_ICON_COL, HUD_ROW, row_buf, 2);
     // the state
     S.lean = 0; S.vel = 0; S.drift = 0; S.on = 0; S.elapsed = 0; S.roll = 0; S.st = LS_RUN; S.falls = 0; S.fall_t = 0;
     S.s60 = 0; S.roll_f = 0; S.roll_vis = 0; S.rip_f = 0; S.rip_vis = 0; S.anim = 0; S.started = 0; S.ended = 0;
