@@ -48,6 +48,7 @@
 
 extern uint8_t pat_pos, pat_buf[STORY_PAT_MAX];   // (story.c) the arrival pattern patrons.c follows while pat_len
 extern uint16_t pat_wait[4];
+extern uint8_t overlay_on;
 
 #define G_BOSS            3       // story_goal.type of a fight (story.h: G_SERVE 0, G_CATCH 1, G_CLEAR 2)
 #define BOSS_SPAWN_PCT  150       // the regulars' spawn interval in a fight (owner Q10: they keep coming, more slowly)
@@ -56,6 +57,7 @@ extern uint16_t pat_wait[4];
 #define HOP_FRAMES        4       // push-back: one 8 px hop per HOP_FRAMES
 #define STOMP_FRAMES      8       // the STOMP pose after each stomp
 #define OUTRO_FRAMES    120
+#define CLEAR_BANNER_FRAMES 90   // "CLEAR THE BAR" stays this long once he is beaten and regulars remain
 #define OAM_TOPPER      OAM_DANCERS   // (no show in a fight; OAM 26 is the perfect pour's cue)
 
 enum { HOOK_NONE, HOOK_TELL, HOOK_METER_1, HOOK_DEFEAT };            // boss_hook (tests)
@@ -419,10 +421,26 @@ static void boss_mugs(void) {
 }
 
 // story_play, every PLAYING frame of a fight (not the frame a life went): 1 = the meter is empty, the outro begins.
+//
+// The meter at 0 does not end the fight (owner, 2026-10-13): he is beaten (BS_OUTRO: the HAPPY pose or gone, his
+// special told to stand down) and the fight goes on until patrons_live is 0 (every regular served or cleared). No
+// regular spawns meanwhile (spawn_timer held), a patron at the tap still costs a life, and for CLEAR_BANNER_FRAMES the
+// banner says what is left. BOSS RUSH plays the same path (story_play calls this for both). 1 = the bar is clear.
 uint8_t boss_frame(void) BANKED {
     uint8_t x = boss_x;
     if (boss_hook) boss_take_hook();
-    if (!boss_hp) { boss_state = BS_OUTRO; boss_lim = 0; boss_look(); return 1; }
+    if (!boss_hp) {
+        if (boss_state != BS_OUTRO) {            // beaten now (boss_reset keeps BS_OUTRO after a life lost in the phase)
+            boss_state = BS_OUTRO; boss_lim = 0; boss_t = 0;
+            boss_call(BEV_OUTRO, 0);             // (a special's end state: the Yeti thaws, the Mascot lands, ...)
+            boss_look();
+            if (patrons_live) show_overlay("CLEAR THE BAR");
+        } else if (boss_t != 255 && ++boss_t == CLEAR_BANNER_FRAMES) overlay_on = 0;
+        if (!patrons_live) return 1;
+        spawn_timer = 0xFFFF;                    // no new regulars
+        boss_mugs();                             // (a Critic's returned drinks still fly)
+        return 0;
+    }
     if (boss_own_na) boss_own_na--;              // (counts down with next_arrival: patrons.c update_patrons)
     boss_mugs();
     if (!intro_timer) {                          // nothing moves before the level's intro is over
@@ -458,8 +476,8 @@ uint8_t boss_frame(void) BANKED {
 // bobbing; 1 when it is over (story.c: CHAPTER CLEAR).
 uint8_t boss_outro(uint8_t t) BANKED {
     uint8_t i, n;
-    if (t == 1) {
-        boss_call(BEV_OUTRO, 0);
+    if (t == 1) {                                // (BEV_OUTRO went at the start of the clear phase: boss_frame)
+        overlay_on = 0;
         clear_mugs();
         fill_timer = 0; cue_t = 0;
         n = OAM_MUG_END - 2 * lift_total;

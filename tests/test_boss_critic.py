@@ -8,7 +8,7 @@ import pytest
 from boss_common import (BP_GULP, BP_HAPPY, BP_WALK, BS_GULP, BS_OUTRO, BS_SPECIAL, EMPTY, FULL, RETURN, SP_OUTRO,
                          TAP_X, art, arrivals_ok, assert_body, block_empties, check_start, fight, frames, hud,
                          meter_tiles, mugs, play, row, still_regulars, throw, to_bar, until)
-from conftest import GAME, ROOT, check_golden
+from conftest import clear_regulars, GAME, ROOT, check_golden
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, state
 from test_pour import drop_mugs, first_launch, hold_release
 from test_story import banner_text, centred, post, settle, to_goal
@@ -192,7 +192,8 @@ def test_eight_perfect_drinks_satisfy_him(model):
             until(gb, lambda: gb.mem("boss_state") != BS_GULP and not gb.mem("boss_push"), 80)
             throw(gb, B, 72, perfect=True)
             until(gb, lambda: gb.mem("boss_hp") == hp, 30)
-        frames(gb, 1)
+        clear_regulars(gb)
+        frames(gb, 3)
         assert state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO and gb.mem("boss_state") == BS_OUTRO
         gb.run(60)
         assert_body(gb, C, A, gb.mem("boss_x"), BP_HAPPY)

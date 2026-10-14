@@ -10,7 +10,7 @@ import pytest
 from boss_common import (BP_HAPPY, BP_WALK, BS_JUMP, BS_OUTRO, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OAM_TOPPER, OBJ_TOPPER, Own,
                          SP_FAIL, SP_OUTRO, TAP_X, art, assert_body, bar_row, check_start, fight, frames, hud, meter_tiles, mugs,
                          play, pose_cols, pour, row, still_regulars, throw, to_bar, until)
-from conftest import ROOT, check_golden, logic_paused, venue
+from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
 from test_boss_mascot import marker_at, rows_of
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, score, state
 from test_story import banner_text, centred, post, settle, to_shift
@@ -380,7 +380,8 @@ def test_win_the_fight_by_pouring(model):
             f = clock.now()
         print(f"mothership bot win: {f} frames, hits {gb.mem('boss_hits')}, jumps {MS.get(gb, 'jumps')}, lives {gb.mem('lives')}")
         assert gb.mem("boss_hits") == 8 and MS.get(gb, "minis") == 0 and gb.mem("lives") == 3
-        frames(gb, 2)
+        clear_regulars(gb)
+        frames(gb, 3)
         assert state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO and gb.mem("boss_state") == BS_OUTRO
         gb.run(60)
         assert topper(gb)["y"] == 0 and gb.mem("boss_xpose") == BP_HIDE

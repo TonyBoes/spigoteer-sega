@@ -1298,9 +1298,17 @@ STEP_SKIP until their bosses exist). Chapter 1 is now Opening -> Happy hour -> L
   for any other (story_level_done and start_new_game turn it off too); the fight then runs through shift_start like a
   shift: boss_goal fills story_goal (type G_BOSS 3, walk 100 %, spawn BOSS_SPAWN_PCT 150 %, the two lines), the banner's
   first line is "CHAPTER n BOSS" ("BOSS" since 2026-10-11), boss_begin after shift_pace. story_play calls boss_frame every PLAYING frame (not the
-  frame a life went); when it reports the meter empty: story_phase SP_OUTRO (5), GS_STORY, boss_outro for 120 frames (the
+  frame a life went); when it reports the meter empty and the bar clear (see "The bar must be clear" below): story_phase SP_OUTRO (5), GS_STORY, boss_outro for 120 frames (the
   HAPPY pose, the mugs and the fill gone, the regulars frozen, the hat bobbing), then story_win: CHAPTER CLEAR with the
   level bonus, the POST scene, the chapter saved as cleared. hud_goal draws nothing for G_BOSS.
+- The bar must be clear (owner, 2026-10-13; every boss, BOSS RUSH too): the meter at 0 only beats him. boss_frame then
+  sets BS_OUTRO (the HAPPY pose; BEV_OUTRO, the special's stand-down, now goes here, not at the outro's first frame),
+  shows the window banner "CLEAR THE BAR" for CLEAR_BANNER_FRAMES (90; the HUD font has no '!'), holds spawn_timer at
+  0xFFFF (no new regular) and returns 1 (story.c: SP_OUTRO, the 120-frame outro, CHAPTER CLEAR / BOSS BEATEN) only once
+  patrons_live is 0, whatever the patron rules count as served. PLAYING all the while: a patron at the tap costs a
+  life (boss_reset keeps BS_OUTRO), the fight's clock (rush) runs. The banner hides sprites on its 3 rows for its 90
+  frames and adds none: the 10-a-line rule holds. Tests: tests/test_boss.py (the outro waits, no spawns, the last
+  regular ends it, a life lost in the phase), tests/test_rush.py; conftest.clear_regulars is the old "satisfied now".
 - Lives (owner's rule): the venue's lives carry into the fight (a gold medal's 4th included; no refill). A lost life: the
   freeze, then reset_actors -> boss_reset: he starts again at x 16 on his bar with empty hands, his meter kept. The last
   life: TRY AGAIN, the venue restarts at its Opening (venue_start -> step_start -> boss off); the next fight starts with a

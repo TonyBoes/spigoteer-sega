@@ -9,7 +9,7 @@ import re
 
 import pytest
 from po_helpers import po_win
-from conftest import (GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROOT, check_golden, hold_stage_anim,
+from conftest import (clear_regulars, GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROOT, check_golden, hold_stage_anim,
                       menu_items, menu_tap, title_pick)
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
                        settle_title, state, tilemap_row)
@@ -521,6 +521,7 @@ def beat_the_boss(gb, c):
     run_until(gb, lambda: state(gb) == GS_GOAL, 400)
     to_goal(gb)
     gb.write("boss_hook", 3)
+    clear_regulars(gb)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 200)
 
 
@@ -955,6 +956,7 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
             assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, BOSS_STEP)
             to_goal(gb)
             gb.write("boss_hook", 3)
+            clear_regulars(gb)
             run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 200)
             gb.run(3)
             assert banner_text(gb, 1) == centred("CHAPTER CLEAR")

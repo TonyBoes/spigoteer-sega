@@ -9,9 +9,9 @@ import json
 import re
 
 import pytest
-from conftest import GAME, ROOT, check_golden, venue
+from conftest import clear_regulars, GAME, ROOT, check_golden, venue
 from test_bonus import lines
-from test_flow import (GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, patron_group_tiles, run_until,
+from test_flow import (lose_a_life, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, patron_group_tiles, run_until,
                        state, tilemap_row)
 from test_story import (BOSS_BUILT, BOSS_STEP, SC, SHIFTS, STORY, banner_text, centred, post, pre, settle, skip_scene,
                         to_chapter, to_goal, to_shift, try_again, win)
@@ -294,7 +294,8 @@ def test_win_the_fight_by_pouring(model):
         assert all(b - a >= gap - 2 for a, b in zip(arrivals, arrivals[1:])), (arrivals, gap)
         assert gb.read("sfx_count", 9)[3] > catches, "his empties came back to the bartender"
         assert gb.mem("lives") == 3
-        frames(gb, 1)
+        clear_regulars(gb)
+        frames(gb, 3)
         assert state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO and gb.mem("boss_state") == BS_OUTRO
         gb.run(OUTRO_FRAMES // 2)
         assert all(s == 0 for s in gb.read("mug_state", 20)), "the mugs vanish"
@@ -346,7 +347,8 @@ def test_the_meter_counts_each_drink(model):
             until(gb, lambda: gb.mem("boss_state") == BS_WALK, 60)
         assert gb.mem("perfect_n") == perfect_n + 1
         gb.write("boss_hook", 3)                     # the test hook: satisfied now
-        frames(gb, 1)
+        clear_regulars(gb)
+        frames(gb, 3)
         assert state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO
 
 
@@ -585,3 +587,115 @@ def test_every_boss_slot_is_built_so_no_row_falls_back():
     assert BOSS_BUILT == set(range(10)) and all(rows) and set(hooks) == set(range(10))
     assert all(STORY["steps"][c][BOSS_STEP]["built"] for c in range(10))
     assert "BOSS" in STORY["built_slots"] and len(STORY["built_slots"]["BOSS"]) == 10
+
+
+# ---- the fight ends only when the bar is clear (owner, 2026-10-13) -----------------------------------------------------
+CLEAR_BANNER = "CLEAR THE BAR"
+CLEAR_BANNER_FRAMES = define("CLEAR_BANNER_FRAMES")
+
+
+def beaten_with_regulars(model, still=True):
+    """Tex's fight, the regulars standing still (or walking), the intro over; he is satisfied now with regulars on the
+    bars."""
+    gb = to_fight(model)
+    if still:
+        still_regulars(gb)
+    gb.write("intro_timer", 0)
+    frames(gb, 3)
+    assert gb.mem("patrons_live") > 0
+    gb.write("boss_hook", 3)
+    frames(gb, 3)
+    return gb
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_outro_waits_while_regulars_remain(model):
+    """The meter at 0 is not the end: he stands there happy, the banner says CLEAR THE BAR for a while, the fight keeps
+    going (PLAYING, no outro, no CHAPTER CLEAR) for as long as any regular is on screen; the banner goes by itself; the
+    bar clear then starts the outro and CHAPTER CLEAR."""
+    with beaten_with_regulars(model) as gb:
+        assert gb.mem("boss_hp") == 0 and gb.mem("boss_state") == BS_OUTRO
+        assert state(gb) == PLAYING and gb.mem("story_phase") != SP_OUTRO
+        assert gb.mem("overlay_on") == 1 and banner_text(gb, 1) == centred(CLEAR_BANNER)
+        assert_body(gb, gb.mem("boss_x"), BP_HAPPY)
+        frames(gb, CLEAR_BANNER_FRAMES + 10)
+        assert gb.mem("overlay_on") == 0, "the banner goes by itself"
+        frames(gb, 300)
+        assert state(gb) == PLAYING and gb.mem("patrons_live") > 0 and gb.mem("story_phase") != SP_OUTRO
+        clear_regulars(gb)
+        until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO, 10)
+        run_until(gb, lambda: state(gb) == LEVEL_CLEAR, OUTRO_FRAMES + 10)
+        gb.run(3)
+        assert banner_text(gb, 1) == centred("CHAPTER CLEAR")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_no_regulars_arrive_once_he_is_beaten(model):
+    """Before the meter is empty regulars keep spawning; once he is beaten none does (spawned stays, the count of
+    regulars never goes up)."""
+    def keep_off_the_tap(gb):                                # (the regulars walk, but none reaches the tap: no life)
+        st, xs = gb.read("patron_state", 16), gb.read("patron_x", 16)
+        for p in range(16):
+            if st[p] == 1 and xs[p] >= 72:
+                gb.write(gb.addr("patron_x") + p, 40)
+
+    with to_fight(model) as gb:
+        gb.write("intro_timer", 0)
+        s0, f = gb.mem("spawned"), 0
+        while gb.mem("spawned") == s0 and f < 1500:
+            frames(gb, 1)
+            keep_off_the_tap(gb)
+            f += 1
+        assert gb.mem("spawned") > s0, "regulars come while he is on"
+        gb.write("boss_hook", 3)
+        frames(gb, 3)
+        s1 = gb.mem("spawned")
+        assert gb.mem("boss_hp") == 0 and gb.mem("patrons_live") > 0
+        for _ in range(2000):                                # (four spawn intervals and more)
+            frames(gb, 1)
+            keep_off_the_tap(gb)
+            assert gb.mem("spawned") == s1 and state(gb) == PLAYING and gb.mem("lives") == 3
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_fight_ends_when_the_last_regular_leaves(model):
+    """The regulars are served one at a time (sliding out, LEAVING); the outro starts on the frame the last one is gone,
+    not before."""
+    with beaten_with_regulars(model) as gb:
+        live = [i for i, st in enumerate(gb.read("patron_state", 16)) if st]
+        assert len(live) >= 2
+        for i in live[:-1]:
+            gb.write(gb.addr("patron_state") + i, 4)         # LEAVING: served, sliding out past the left edge
+        for _ in range(400):
+            if gb.mem("patrons_live") == 1:
+                break
+            frames(gb, 1)
+        assert gb.mem("patrons_live") == 1 and state(gb) == PLAYING and gb.mem("story_phase") != SP_OUTRO
+        frames(gb, 60)
+        assert state(gb) == PLAYING, "one regular is still there"
+        gb.write(gb.addr("patron_state") + live[-1], 4)
+        until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO, 400)
+        assert gb.mem("patrons_live") == 0
+        run_until(gb, lambda: state(gb) == LEVEL_CLEAR, OUTRO_FRAMES + 10)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_life_lost_in_the_clear_phase_costs_a_life_and_the_phase_goes_on(model):
+    """A regular reaching the tap after he is beaten still costs a life (the freeze, then play resumes): he stays
+    beaten (meter 0, the outro's pose), nothing new spawns, and the bar's clearing ends the fight as before."""
+    with beaten_with_regulars(model, still=False) as gb:
+        lives = gb.mem("lives")
+        s0 = gb.mem("spawned")
+        lose_a_life(gb)
+        assert gb.mem("lives") == lives - 1
+        until(gb, lambda: state(gb) != LIFE_LOST, 200)
+        if state(gb) == PLAYING:
+            assert gb.mem("boss_hp") == 0 and gb.mem("boss_state") == BS_OUTRO and gb.mem("story_phase") != SP_OUTRO
+            frames(gb, 120)
+            assert gb.mem("spawned") == s0
+            clear_regulars(gb)
+            until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO, 10)
+        else:
+            assert state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO
+        assert gb.mem("lives") == lives - 1
+        run_until(gb, lambda: state(gb) == LEVEL_CLEAR, OUTRO_FRAMES + 10)

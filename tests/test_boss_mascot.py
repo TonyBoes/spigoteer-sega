@@ -10,7 +10,7 @@ import pytest
 from boss_common import (BP_HAPPY, BP_WALK, BS_JUMP, BS_OUTRO, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OAM_TOPPER,
                          OBJ_TOPPER, Own, SP_FAIL, SP_OUTRO, art, assert_body, bar_row, check_start, fight, frames, hud,
                          meter_tiles, mugs, play, pose_cols, pour, row, still_regulars, throw, to_bar, until)
-from conftest import ROOT, check_golden, logic_paused, venue
+from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, set_patron, score, state, tilemap_row
 from test_story import banner_text, centred, post, settle, to_goal
 
@@ -271,7 +271,8 @@ def test_win_the_fight_by_pouring(model):
             f = clock.now()
         assert gb.mem("boss_hits") == 10 and gb.mem("lives") == 3, (gb.mem("boss_hits"), gb.mem("lives"), f)
         assert M.get(gb, "leaps") >= 1, "the fight went through a leap"
-        frames(gb, 1)
+        clear_regulars(gb)
+        frames(gb, 3)
         assert state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO and gb.mem("boss_state") == BS_OUTRO
         gb.run(60)
         assert_body_on(gb, A, BP_HAPPY)

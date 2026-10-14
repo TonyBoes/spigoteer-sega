@@ -238,7 +238,9 @@ Rules common to every boss:
   he holds (0, 1, 2 steins), so the danger is visible.
 - **The tap**: if his right edge reaches the tap end (`boss_x + width >= 136`) the player loses a life (as a patron
   reaching the tap does). After the life-lost pause he restarts at his start x on his current bar, meter kept.
-- **Win**: meter 0 -> the boss's happy pose and a 120-frame outro (he burps a bubble, waves, hands over the piece),
+- **Win** (owner, 2026-10-13: the fight ends only when the bar is clear): meter 0 -> he is beaten (his happy pose, or
+  gone), the banner CLEAR THE BAR shows for 90 frames, no regular spawns any more, and the fight goes on (a patron at
+  the tap still costs a life) until no regular is left (`patrons_live` 0: served or cleared). Only then: the boss's happy pose and a 120-frame outro (he burps a bubble, waves, hands over the piece),
   all regulars stop, remaining mugs vanish, CHAPTER CLEAR as today, then the POST scene.
 - **Lose**: lives 0 -> TRY AGAIN, boss segment restarts with the meter full.
 - **Regulars**: the chapter's level row (speed, hurry, push-back, serve score, empty gap) on the bars without the

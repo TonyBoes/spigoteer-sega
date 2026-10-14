@@ -4,7 +4,7 @@
 # (music_load_now) instead of 384 bytes a frame. The tick is seen from outside as music_frames changing (it counts up
 # while a tune plays and restarts at 0 with a new one); a frame where it stands still is a silent or late one.
 import pytest
-from conftest import K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, hold_stage_anim, menu_to, title_pick
+from conftest import clear_regulars, K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, hold_stage_anim, menu_to, title_pick
 from test_flow import LEVEL_CLEAR, TITLE, run_until, state
 from test_mg import GS_MGLIST, GS_MINI, MG_RESULT
 from test_mg_list import MG_PLANNED
@@ -185,6 +185,7 @@ def after_a_fight(gb):
     tap(gb, "a")
     into_fight(gb)
     gb.write("boss_hook", 3)
+    clear_regulars(gb)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 300)
     run_until(gb, lambda: not lcd_on(gb), 400)           # (the result's screen is being built: the outro's own silence is not this)
     t = Ticks(gb)

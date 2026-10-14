@@ -7,7 +7,7 @@ import pytest
 from boss_common import (BP_GULP, Clock, BP_HAPPY, BP_WALK, BP_WINCE, BS_GULP, BS_OUTRO, EMPTY, FULL, SP_OUTRO, SPOUT_X,
                          TAP_X, art, assert_body, block_empties, check_start, fight, frames, hud, meter_tiles, mugs,
                          play, pour, row, still_regulars, throw, to_bar, until, arrivals_ok)
-from conftest import check_golden
+from conftest import clear_regulars, check_golden
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, run_until, state
 from test_story import banner_text, centred, post, settle
 
@@ -173,7 +173,8 @@ def test_win_the_fight_by_pouring(model):
             seen &= {i for i, s, _, _ in mugs(gb, st=EMPTY)}
         assert gb.mem("boss_hits") == 12 and gb.mem("lives") == 3
         arrivals_ok(sorted(arrivals), gb.mem("empty_gap"), OWN_GAP)
-        frames(gb, 1)
+        clear_regulars(gb)
+        frames(gb, 3)
         assert state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO and gb.mem("boss_state") == BS_OUTRO
         gb.run(60)
         assert_body(gb, C, A, gb.mem("boss_x"), BP_HAPPY)

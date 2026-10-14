@@ -31,6 +31,14 @@ def mark_lists_dirty(gb):
     _rom_write(gb, "lists_ok", 0)
 
 
+def clear_regulars(gb):
+    """Every regular off the bars (a boss fight ends only when none is left: src/boss.c boss_frame): the tests that
+    want the outro now call this after the meter is empty."""
+    for i in range(MAX_PATRONS):
+        gb.write(gb.addr("patron_state") + i, 0)
+    gb.write("patrons_live", 0)
+
+
 GS_PAUSED = 5
 
 

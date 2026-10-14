@@ -12,7 +12,7 @@ import pytest
 from boss_common import (BP_HAPPY, BP_WALK, BP_STOMP, BS_JUMP, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OBJ_TOPPER,
                          OAM_TOPPER, Own, block_empties, SP_FAIL, SP_OUTRO, SPOUT_X, TAP_X, art, arrivals_ok, assert_body, check_start,
                          fight, frames, hud, meter_tiles, mugs, play, pour, row, still_regulars, throw, to_bar, until)
-from conftest import ROOT, check_golden, logic_paused, venue
+from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
 from test_bonus import lines
 from test_flow import GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, score, state
 from test_story import banner_text, centred, post, settle, to_goal, to_shift, win
@@ -322,7 +322,8 @@ def test_win_the_fight_by_pouring(model):
               f"lurches {DUKE.get(gb, 'lurches')}, stalls {DUKE.get(gb, 'stalls')}, lives {gb.mem('lives')}")
         assert gb.mem("boss_hits") == 12 and gb.mem("lives") == 3
         arrivals_ok(sorted(arrivals), gb.mem("empty_gap"))
-        frames(gb, 1)
+        clear_regulars(gb)
+        frames(gb, 3)
         assert state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO and gb.mem("boss_state") == BS_OUTRO
         gb.run(60)
         assert_body(gb, C, A, gb.mem("boss_x"), BP_HAPPY)

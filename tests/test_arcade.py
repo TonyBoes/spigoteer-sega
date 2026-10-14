@@ -3,7 +3,7 @@
 # lives at 20,000 and every 40,000 after (at most 4); a bonus round after every venue (rotating); after the space
 # lounge "LOOP 2" and the saloon again, harder; game over -> initials -> the ARCADE top 5; nothing saved or unlocked.
 import pytest
-from conftest import GAME, check_golden, hold_stage_anim, title_arcade
+from conftest import clear_regulars, GAME, check_golden, hold_stage_anim, title_arcade
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, lose_a_life, run_until,
                        state)
 from test_scores import (EMPTY, GS_INITIALS, GS_SCORES, MODE_ARCADE, MODE_STORY, booted, main_block, parse_save,
@@ -37,6 +37,7 @@ def finish_step(gb):
         to_goal(gb)
     if gb.mem("boss_on"):
         gb.write("boss_hook", 3)
+        clear_regulars(gb)
     else:
         win(gb, gb.mem("story_chapter"), gb.mem("story_shift"))
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 200)

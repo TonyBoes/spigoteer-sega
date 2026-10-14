@@ -7,7 +7,7 @@
 import re
 
 import pytest
-from conftest import (K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP,
+from conftest import (clear_regulars, K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP,
                       check_golden, hold_stage_anim, menu_items, title_pick)
 from test_flow import GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, run_until, state, tilemap_row
 from test_mg import GLYPH_CH
@@ -113,6 +113,7 @@ def into_fight(gb):
 def beat(gb):
     """The fight on: he is satisfied now (boss_hook 3), the outro, BOSS BEATEN; stops on the rush's next screen."""
     gb.write("boss_hook", 3)
+    clear_regulars(gb)
     until(gb, lambda: state(gb) == LEVEL_CLEAR, 300)
     frames(gb, 3)
     until(gb, lambda: on_rush(gb), 400)
@@ -338,6 +339,7 @@ def test_a_story_boss_win_unlocks_him_and_it_survives_a_reset(model):
         assert gb.mem("story_chapter") == 0
         story_boss(gb)
         gb.write("boss_hook", 3)
+        clear_regulars(gb)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 300)
         ram = save_ram(gb)
     mg_bits, medals, part = parse2(ram)
@@ -354,6 +356,7 @@ def test_an_arcade_boss_win_unlocks_him_but_a_debug_select_run_does_not(model):
         to_goal(gb)
         story_boss(gb)
         gb.write("boss_hook", 3)
+        clear_regulars(gb)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 300)
         assert gb.mem("save_lock") == 1
         ram = save_ram(gb)
@@ -368,6 +371,7 @@ def test_an_arcade_boss_win_unlocks_him_but_a_debug_select_run_does_not(model):
         to_goal(gb)
         story_boss(gb)
         gb.write("boss_hook", 3)
+        clear_regulars(gb)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 300)
         ram = save_ram(gb)
     assert ram[PR_AT:PR_AT + 4] != b"MGP2", "nothing recorded"
@@ -434,6 +438,35 @@ def test_a_mini_game_record_keeps_the_rush_part(model):
 
 # ---- CHOOSE -----------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_rush_fight_ends_only_when_the_bar_is_clear(model):
+    """BOSS RUSH plays the same rule as the story: his meter at 0 does not end the fight while regulars are on screen
+    (still PLAYING, the banner CLEAR THE BAR, the fight's clock running, no BOSS BEATEN); the bar clear then ends it
+    as before (BOSS BEATEN, the result)."""
+    with booted(model, v7_image([("ABC", 500)], story=2, step=1, story_tbl=[("STO", 900)])) as gb:
+        to_list(gb)
+        tap(gb, "a")
+        run_until(gb, lambda: state(gb) == GS_GOAL, 60)
+        gb.run(3)
+        into_fight(gb)
+        gb.write("patron_speed", 0)
+        gb.write("hurry_speed", 0)
+        frames(gb, 100)
+        assert gb.mem("patrons_live") > 0
+        gb.write("boss_hook", 3)
+        frames(gb, 5)
+        t = R(gb, FIGHT_T, 2)
+        from test_story import banner_text, centred
+        assert state(gb) == PLAYING and banner_text(gb, 1) == centred("CLEAR THE BAR")
+        frames(gb, 200)
+        assert state(gb) == PLAYING and R(gb, FIGHT_T, 2) >= t + 200, "the fight's clock runs on"
+        clear_regulars(gb)
+        run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 300)
+        gb.run(3)
+        assert banner_text(gb, 1) == centred("BOSS BEATEN")
+        run_until(gb, lambda: on_rush(gb, RS_RESULT), 400)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_choose_plays_one_fight_and_comes_back(model):
     """A on a boss: his venue's boss step as the story plays it (his banner, 3 lives, the score from 0, MODE_RUSH,
     nothing else of the story), BOSS BEATEN, then the result: YOU WIN, his name, the time (the fight's PLAYING frames),
@@ -458,6 +491,7 @@ def test_choose_plays_one_fight_and_comes_back(model):
         t = R(gb, FIGHT_T, 2)
         assert 140 <= t <= 160
         gb.write("boss_hook", 3)
+        clear_regulars(gb)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 300)
         gb.run(3)
         from test_story import banner_text, centred

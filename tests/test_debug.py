@@ -3,7 +3,7 @@
 import subprocess
 
 import pytest
-from conftest import (K_ARCADE, K_BONUS, K_CLASSIC, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE,
+from conftest import (clear_regulars, K_ARCADE, K_BONUS, K_CLASSIC, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE,
                       ROOT, TM_PLAY, TM_SETTINGS, TM_TOP, menu_items, menu_tap, menu_to, title_arcade, title_level, title_pick)
 
 pytestmark = pytest.mark.timeout(120)
@@ -447,6 +447,7 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
         rom.press("a", 2)
         run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)
         rom.write("boss_hook", 3)                       # satisfied at once (tests/test_boss.py plays the fight)
+        clear_regulars(rom)
         run_until(rom, lambda: rom.mem("game_state") == LEVEL_CLEAR, 200)
         run_until(rom, lambda: rom.mem("game_state") == GS_STORY and rom.mem("story_scene") == SC["POST_SALOON"] + 2 * c,
                   400)
