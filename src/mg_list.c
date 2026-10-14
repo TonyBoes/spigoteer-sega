@@ -20,6 +20,7 @@
 // and applies the unlock rule: a venue's game once STORY or ARCADE reached it, a bonus round once ARCADE or CLASSIC played it (save.c "MGB1").
 // The list shows ML_VIS lines and scrolls: Up / Down move the cursor, the lines slide when it leaves the window (the cursor wraps from the last
 // to the first). The panel under it is always the same: a blank row, the separator, three info lines (the venue, the best medal, the keys).
+// The scroll arrows: see ML_ARROW_UP below.
 // LCD off to enter; afterwards the rows go through the VBlank queue from WRAM buffers (story_scratch: no cut-scene and
 // no mini-game runs while this screen shows; mg_enter rewrites it).
 #pragma bank 255
@@ -30,6 +31,7 @@
 #include "music.h"
 #include "story.h"
 #include "mg.h"
+#include "list_arrows.h"        // static const uint8_t list_arrow_tiles[]: the up and down arrow (assets/art/list_arrows.txt)
 
 extern uint8_t overlay_on;
 
@@ -64,6 +66,15 @@ typedef char ml_fits[(ML_INFO_LINES >= 3 && ML_N >= ML_VIS && ML_N - ML_VIS < 16
 // lines the scroll has sent to the screen so far (ML_VIS: all; the list is redrawn ML_ROWS_PER_FRAME lines a frame)
 #define ml_top        (story_scratch[(ML_HEAD_K + 1) * 20])
 #define ml_sent       (story_scratch[(ML_HEAD_K + 1) * 20 + 1])
+#define ml_t          (story_scratch[(ML_HEAD_K + 1) * 20 + 2])   // frames on this screen (the arrows' bob)
+// Scroll arrows (owner 2026-10-14): two 8x16 OBJ sprites (OAM 1 and 2) at the right edge, column 19: the up arrow on the separator line under the header
+// when games are listed above the window (ml_top > 0), the down arrow on the blank row under the window when games are listed below it. They bob
+// one pixel (the up one up, the down one down) every ML_BOB_FRAMES frames. Tiles at the dancer's OBJ ids (the title and the games reload them).
+#define ML_ARROW_UP   OBJ_DANCER
+#define ML_ARROW_DOWN (OBJ_DANCER + 2)      // (8x16 entries: the up arrow in the upper half of OBJ_DANCER, the down arrow in the lower half of the next pair)
+typedef char ml_arrow_even[(OBJ_DANCER & 1) ? -1 : 1];
+#define ML_ARROW_X    (19 * 8 + 8)
+#define ML_BOB_FRAMES 16
 
 uint8_t ml_sel;                 // the selected line
 uint8_t ml_n;                   // lines listed (tests)
@@ -205,6 +216,16 @@ static void cursor(void) {
     o->tile = OBJ_MUG; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;
 }
 
+static void arrows(void) {
+    OAM_item_t *u = shadow_OAM + 1, *d = shadow_OAM + 2;
+    uint8_t p = (ml_t / ML_BOB_FRAMES) & 1;
+    u->y = (uint8_t)(ml_top ? (ML_ROW_HEAD + 1) * 8 + 16 - p : 0);
+    d->y = (uint8_t)(ml_top + ML_VIS < ML_N ? (ML_ROW_BOX - 1) * 8 + 8 + p : 0);
+    u->x = ML_ARROW_X; d->x = ML_ARROW_X;
+    u->tile = ML_ARROW_UP; d->tile = ML_ARROW_DOWN;
+    u->prop = d->prop = is_cgb ? OBJPAL_MUG_FULL : 0;
+}
+
 void mg_list_enter(void) BANKED {
     uint8_t y;
     DISPLAY_OFF;
@@ -216,13 +237,14 @@ void mg_list_enter(void) BANKED {
     music_load_now();                           // copied back now, and the pumps below tick it through the rebuild)
     music_pump();
     mug_cursor_load();                          // (a game borrowed the mug's tiles and palettes)
+    set_sprite_data(ML_ARROW_UP, 4, list_arrow_tiles);
     music_pump();
     story_font_load();                          // the punctuation (over the title's lettering: title_enter reloads it)
     music_pump();
     if (ml_sel >= ML_N) ml_sel = 0;
     ml_n = ML_N; ml_dirty &= ML_HARD;
     ml_top = ml_sel >= ML_VIS ? ml_sel - ML_VIS + 1 : 0;   // (the window that shows the cursor's game, as it comes back from one)
-    ml_sent = ML_VIS;
+    ml_sent = ML_VIS; ml_t = 0;
     blank(row_buf);
     for (y = 0; y < 18; y++) { set_bkg_tiles(0, y, 20, 1, row_buf); if (!(y & 3)) music_pump(); }
     for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_TOP;
@@ -242,6 +264,7 @@ void mg_list_enter(void) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     cursor();
+    arrows();
     game_state = GS_MGLIST;
     DISPLAY_ON;
 }
@@ -286,6 +309,8 @@ uint8_t mg_list_update(uint8_t pressed) BANKED {
         vq_add(0, ML_ROW(k), 0, screen_row(k), 20);
         n++;
     }
+    ml_t++;
     cursor();
+    arrows();
     return 0;
 }

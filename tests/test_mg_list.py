@@ -462,3 +462,48 @@ def test_the_hard_best_is_kept_apart_in_the_release_list(model, release_built):
         gb.run(4)
         assert line(gb, 5) == " ORDER UP     SILVER" and line(gb, 16).strip() == "NORMAL ONLY  B BACK"
         assert line(gb, 0).strip() == "MINI GAMES  NORMAL"
+
+
+# ---- scroll arrows (src/mg_list.c ML_ARROW_*; owner 2026-10-14) ------------------------------------------------------------------------
+def arrow_ys(gb):
+    """(up y, down y) of OAM entries 1 and 2 (0: hidden), and their tiles."""
+    o = gb.read(0xFE00, 12)
+    return (o[4], o[8]), (o[6], o[10])
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_scroll_arrows_show_only_where_games_are_hidden_and_bob(model):
+    with to_list(booted(model)) as gb:
+        hold_stage_anim(gb)
+        (up, down), tiles = arrow_ys(gb)
+        assert up == 0 and 104 <= down <= 105, "top of the list: only the down arrow"
+        assert gb.read(0xFE00, 12)[5] == 160 and gb.read(0xFE00, 12)[9] == 160, "the right edge (column 19)"
+        seen = set()
+        for _ in range(40):                                # (two bobs of 16 frames and a bit)
+            gb.run(1)
+            (up, down), _ = arrow_ys(gb)
+            assert up == 0
+            seen.add(down)
+        assert seen == {104, 105}, "the down arrow bobs one pixel"
+        for _ in range(10):                                # the cursor to line 10: the window slides one line
+            tap(gb, "down")
+        gb.run(4)
+        assert gb.mem("ml_sel") == 10
+        (up, down), _ = arrow_ys(gb)
+        assert 23 <= up <= 24 and 104 <= down <= 105, "the middle: both"
+        seen = set()
+        for _ in range(40):
+            gb.run(1)
+            seen.add(arrow_ys(gb)[0][0])
+        assert seen == {23, 24}, "the up arrow bobs the other way"
+        for _ in range(3):
+            tap(gb, "down")
+        gb.run(4)
+        assert gb.mem("ml_sel") == 13
+        (up, down), _ = arrow_ys(gb)
+        assert 23 <= up <= 24 and down == 0, "the end of the list: only the up arrow"
+        tap(gb, "down")
+        gb.run(4)
+        (up, down), _ = arrow_ys(gb)
+        assert up == 0 and down >= 104, "wrapped to the top"
+        assert gb.read(0xFE00, 12)[6] != gb.read(0xFE00, 12)[10], "an up and a down tile"
