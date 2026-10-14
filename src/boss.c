@@ -388,10 +388,13 @@ static void boss_empties(void) {
 // back: 1 px a frame to the right, the bartender catches it as an empty, past the right end it breaks: a life) on any
 // bar (a boss that moves may have left it behind).
 static void boss_mugs(void) {
-    uint8_t i, x, st, b;
-    if (!(boss_fast_full | boss_fast_empty | boss_returns)) return;
-    for (i = 0; i != MAX_MUGS; i++) {
-        st = mug_state[i]; x = mug_x[i]; b = mug_bar[i];
+    uint8_t i, x, st, b, left = mugs_live;       // (the non-free slots: update_mugs counted them this frame; the loop stops after the last)
+    if (!left || !(boss_fast_full | boss_fast_empty | boss_returns)) return;
+    for (i = 0; i != MAX_MUGS && left; i++) {
+        st = mug_state[i];
+        if (st == MUG_FREE) continue;
+        left--;
+        x = mug_x[i]; b = mug_bar[i];
         if (st == MUG_RETURN) {
             mug_x[i] = ++x;
             if (x >= bartender_x && ((uint8_t)(x - bartender_x) < 16 || bartender_x == tap_now) && b == bar) {

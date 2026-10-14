@@ -37,7 +37,7 @@
 #define T_RIDE        450
 #define T_LAND        460
 #define CONV_COLS      18                // the counter's columns 0-17 (18-19: the keg)
-#define CONV_EVERY      6                // frames per arrow step
+#define CONV_EVERY      6                // frames per arrow step (the BEV_FRAME test below is written for 6)
 #if BOSS_ART_CONV != 2 || BOSS_ART_CONV_SRC > 2
 #error "the Prototype's conveyor: 2 frames, at most 2 counter tile ids"
 #endif
@@ -66,7 +66,8 @@ static void counter_attr(uint8_t belt) {
     uint8_t k;
     if (!is_cgb) return;
     if (belt) {
-        for (k = 0; k != CONV_COLS; k++) BELT_ATTR[k] = BGPAL_BAR_B;
+        uint8_t *d = BELT_ATTR;
+        for (k = 0; k != CONV_COLS; k++) *d++ = BGPAL_BAR_B;
         src = BELT_ATTR;
     }
     if (LCDC_REG & LCDCF_ON) vq_add(1, src, 0, counter_y(), CONV_COLS);
@@ -81,11 +82,11 @@ static void counter_attr(uint8_t belt) {
 // the venue's own row. The VBlank queue with the LCD on, VRAM with it off.
 static void counter_put(uint8_t f) {
     const uint8_t *src = venue.bar_map + BAR_COUNTER_DROW * 20;
-    uint8_t k, j;
-    if (f < 2) {
+    if (f < 2) {                         // (running pointers and hoisted ids: the old indexed loop with an inner loop took about twice the ticks)
+        uint8_t *d = proto.row, k, v, c0 = boss_conv_src[0], c1 = boss_conv_src[BOSS_ART_CONV_SRC - 1], n = BOSS_ICE_BG + f;
         for (k = 0; k != CONV_COLS; k++) {
-            proto.row[k] = src[k];
-            for (j = 0; j != BOSS_ART_CONV_SRC; j++) if (boss_conv_src[j] == src[k]) proto.row[k] = BOSS_ICE_BG + f;
+            v = *src++;
+            *d++ = (v == c0 || v == c1) ? n : v;
         }
         src = proto.row;
     }
@@ -194,7 +195,13 @@ uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED {
             break;
         }
         if (proto.t >= T_YELLOW && proto.t < T_RIDE) stand();
-        if (on_belt() && proto.t != T_RED && (uint8_t)(proto.t - T_RED) % CONV_EVERY == 0) counter_put(((uint8_t)(proto.t - T_RED) / CONV_EVERY) & 1);   // (T_RED's frame 0: to_red)
+        if (on_belt()) {                 // every CONV_EVERY frames after T_RED's own (to_red). No division (SDCC's cost ~30 DIV ticks a RED frame):
+            b = (uint8_t)(proto.t - T_RED);                    // d = 3m exactly when (uint8_t)(d * 171) = m <= 85 (171 = 3^-1 mod 256), and
+            if (b && !(b & 1)) {                               // 6 | d when d is even too; the step number d / 6 is m / 2 (CONV_EVERY 6)
+                b *= 171;
+                if (b <= 85) counter_put((b >> 1) & 1);
+            }
+        }
         break;
     }
     return 0;
