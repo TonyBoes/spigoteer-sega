@@ -344,7 +344,7 @@ def test_after_level_10_the_venues_come_round_again_with_a_loop_banner(gb):
     gb.run(3)
     assert window_text(gb) == "LOOP 2"
     assert gb.regs()["WY"] == 64
-    assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_1"), tile_id("GLYPH_1")], "L11"
+    assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("HUD_FLAG"), tile_id("GLYPH_1"), tile_id("GLYPH_1")], "flag 11"
     check_golden(gb, "loop_banner")
     # nothing moves under the banner; the level's own intro follows it
     start = patrons(gb)
@@ -406,7 +406,7 @@ def glyphs():
     from test_flow import tile_id
     g = {tile_id("GLYPH_" + c): c for c in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
     g[tile_id("HUD_BLANK")] = " "
-    g[tile_id("HUD_CURSOR")] = "^"
+    g[77] = "^"   # HUD_CURSOR_BG (src/game.h): scores.c loads the cursor there
     g[tile_id("PANEL_TOP")] = "="
     g[tile_id("PANEL_BOT")] = "_"
     return g
@@ -441,7 +441,7 @@ def test_the_new_letters_are_in_the_hud_style():
     from test_flow import ART_H
     for c in "JQXZ":
         assert f"TILE_GLYPH_{c} " in ART_H
-    assert "TILE_HUD_CURSOR " in ART_H
+    assert "TILE_HUD_FLAG " in ART_H and "TILE_HUD_CURSOR " not in ART_H
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

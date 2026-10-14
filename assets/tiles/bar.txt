@@ -195,15 +195,19 @@
 ########
 ########
 
-@hud_mug
+; HUD lives icon (owner 2026-10-14, hud proposal icon A): the Spigoteer's head, hair, eyes, one unbroken moustache, chin, collar.
+; Shared by every scene with a HUD (boss fights too). It took the place of the old lives mug, which the jukebox's playing marker
+; used: the jukebox loads that mug's art over this id while it is open (assets/art/hud_icons.txt PLAYING; title_enter reloads this table).
+; Palette 1: '.' light, '-' sand, '+' gold, '#' band.
+@hud_head
 ########
-#.....##
-#+++++##
-#+++++.#
-#+++++.#
-#+++++.#
-#+++++##
-########
+##----##
+#------#
+#.#..#.#
+#......#
+#.####.#
+##....##
+#--..--#
 
 ; ---- extra HUD-style letters for the overlays and title text ----
 @glyph_A
@@ -407,12 +411,14 @@
 #.######
 #.....##
 
-@hud_cursor
+; HUD level icon (owner 2026-10-14, flag B): a pennant on a pole, shown left of the level number. It took the place of the
+; initials cursor, which is loaded by the initials screen itself now (assets/art/hud_icons.txt CURSOR).
+@hud_flag
 ########
-#.....##
-#.....##
-########
-########
-########
-########
-########
+#-..####
+#-....##
+#-.....#
+#-....##
+#-..####
+#-######
+#---####

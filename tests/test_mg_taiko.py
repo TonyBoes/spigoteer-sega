@@ -335,7 +335,7 @@ def test_spills_cost_50_never_below_zero_and_reset_the_combo(model):
         s = press_at(gb, "b", t + 30)               # a spill: 260, combo 0
         assert (s["spills"], s["combo"]) == (2, 0) and SPILL_LEN - 3 <= s["spill_t"] <= SPILL_LEN
         assert gb.mem16("mg_score") == 260 and score(gb) == 260
-        assert tilemap_row(gb, 0, 1, 6) == [glyph(c) for c in "000260"]
+        assert tilemap_row(gb, 0, 0, 6) == [glyph(c) for c in "000260"]
         puddle = oam(gb, OAM_STEAM)
         assert puddle["y"] and puddle["x"] == 124 + 8 and puddle["tile"] in (TK_OBJ + OBJ["spill"][0], TK_OBJ + OBJ["spill"][1])
         assert oam(gb, OAM_SPIG)["tile"] == BT_FAIL * BT_TILES, "the fail pose"

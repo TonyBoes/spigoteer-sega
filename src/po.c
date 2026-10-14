@@ -178,7 +178,7 @@ void po_enter(void) BANKED {
     for (k = 0; k < 8; k++) S.tune[k] = po_tune[k];
     lives = PO_LIVES;
     prep_hud();
-    vram_put(8, HUD_ROW, lives_tiles, 4);
+    vram_put(7, HUD_ROW, lives_tiles, 2);
     Y.x = TAP_X; Y.bar = 1;
     D.x = PO_DX; D.bar = 2; D.st = PD_IDLE;
     S.spawn_t = 20;

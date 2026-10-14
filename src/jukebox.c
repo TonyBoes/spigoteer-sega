@@ -82,7 +82,7 @@ static void build(uint8_t k) {
     t = jb_top + k;
     if (t >= TUNE_COUNT) { blank(r); return; }
     put(r, 1, unlocked(t) ? jb_name[t] : locked_name);
-    if (t == jb_shown && !(jb_t & JB_BLINK)) r[JB_COL_PLAY] = TILE_HUD_MUG;   // (jb_shown: cur_tune as of the last frame; the title tune still plays while the screen is built)
+    if (t == jb_shown && !(jb_t & JB_BLINK)) r[JB_COL_PLAY] = TILE_HUD_HEAD;   // (the head's id holds the old mug here, jukebox_enter)   // (jb_shown: cur_tune as of the last frame; the title tune still plays while the screen is built)
 }
 
 static uint8_t screen_row(uint8_t k) {
@@ -131,6 +131,7 @@ void jukebox_enter(void) BANKED {
         for (y = 0; y < 18; y++) set_bkg_tiles(0, y, 20, 1, row_buf);
         VBK_REG = VBK_BANK_0;
     }
+    hud_icon_load(TILE_HUD_HEAD, HUD_ICON_PLAYING);   // the playing marker: a mug over the HUD head's tile (the title reloads the table)
     cursor();
     game_state = GS_JUKEBOX;
     music_stop();                              // silence until a tune is chosen (B then goes straight back)

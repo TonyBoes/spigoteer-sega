@@ -231,6 +231,8 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     case G_PO: po_enter(); break;
     default: stub_enter(); break;
     }
+    i = *(uint8_t *)(0x9800 + HUD_ROW * 32 + 8);   // (LCD off) a game whose own HUD took the lives digit's column (8) takes the head too
+    if (i != lives_tiles[1]) { i = TILE_HUD_BLANK; vram_put(7, HUD_ROW, &i, 1); }
     if (mg_timer) { last_secs = secs_left(); hud_timer(); }
     mg_say(MG_TEXT_A, mg_name[mg_game]);         // (LCD off: written at once)
     mg_say(MG_TEXT_B, mg_instr[mg_game]);

@@ -1,11 +1,12 @@
 ; The boss meter on the HUD (columns 13-19, 2 pips a tile; shared by every boss, src/boss.c).
 ; Art: approved design (owner 2026-10-11), "pints": one pint glass per drink still owed. A full pint is gold under a cream head; a drunk one is an
 ; empty glass, a tan U. 8 drinks = 8 pints, drained left to right as he drinks.
+; Owner 2026-10-14 (HUD redesign): a drunk pint is the dark OUTLINE of the full one (sand walls and rim, the band inside), not a U.
 ; 3 tiles of 8x8 in the HUD band's colours ('#' the band, '-' tan, '+' gold, '.' the light text): EMPTY (two pips
 ; gone), HALF (the left pip left), FULL (two pips).
 @EMPTY
 ########
-#-#-#-#-
+#---#---
 #-#-#-#-
 #-#-#-#-
 #-#-#-#-
@@ -15,7 +16,7 @@
 
 @HALF
 ########
-#...#-#-
+#...#---
 #+++#-#-
 #+++#-#-
 #+++#-#-

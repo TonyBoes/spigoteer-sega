@@ -548,7 +548,7 @@ def test_level_clear_scores_shows_banner_and_loads_level_2(gb):
     assert (gb.mem("quota"), gb.mem("step_frames"), gb.mem("serve_score")) == (10, 60, 75)
     assert patrons(gb) == [(0, ENTRY_X), (1, ENTRY_X), (2, ENTRY_X)] and gb.mem("bar") == 0 and mugs(gb) == []
     gb.run(15)
-    assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_2")]   # L02
+    assert tilemap_row(gb, LAYOUT["HUD_ROW"], 17, 3) == [tile_id("HUD_FLAG"), tile_id("GLYPH_0"), tile_id("GLYPH_2")]   # flag 02
     base = int(re.search(r"PATRON_FIRST_TILE (\d+)", ART_H).group(1))
     vram = b"".join(bytes(gb.read((0x9000 + t * 16) if t < 128 else (0x8800 + (t - 128) * 16), 16))   # LCDC bit 4 = 0: ids 0..127 at 0x9000, 128..255 at 0x8800
                     for t in range(base, base + PATRON_TILES))

@@ -117,13 +117,12 @@ palette_t coin_pal;                 // PAL_COIN, copied out of the banked palett
 // ---- scene -------------------------------------------------------------------
 static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
 
-// one mug per life (HUD row, cols 9-11; a story bonus life, the 4th, at col 8, the first to go) and the score
-// digits (cols 1-6): the tile ids are prepared by prep_hud() in the logic phase so that the VBlank part is nothing
-// but a copy.
+// the lives (HUD row, cols 7-8: the Spigoteer's head and the count as a digit) and the score digits (cols 0-5): the
+// tile ids are prepared by prep_hud() in the logic phase so that the VBlank part is nothing but a copy.
 void prep_hud(void) {
     uint8_t i;
-    lives_tiles[0] = lives > 3 ? TILE_HUD_MUG : TILE_HUD_BLANK;
-    for (i = 1; i < 4; i++) lives_tiles[i] = (i <= lives) ? TILE_HUD_MUG : TILE_HUD_BLANK;
+    lives_tiles[0] = TILE_HUD_HEAD;
+    lives_tiles[1] = digit_tile(lives);
     for (i = 0; i < 6; i++) score_tiles[i] = digit_tile(score_digits[i]);
 }
 

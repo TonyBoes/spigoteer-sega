@@ -52,27 +52,31 @@ static void glyph_row(uint8_t y, uint8_t x, const uint8_t *tiles, uint8_t n) {
 static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
 
 static void draw_lives(void) {
-    glyph_row(HUD_ROW, 8, lives_tiles, 4);
+    glyph_row(HUD_ROW, 7, lives_tiles, 2);
     hud_dirty &= ~HUD_LIVES;
 }
 
 static void draw_score(void) {
-    glyph_row(HUD_ROW, 1, score_tiles, 6);
+    glyph_row(HUD_ROW, 0, score_tiles, 6);
     hud_dirty &= ~HUD_SCORE;
 }
 
 void draw_hud(void) BANKED {
-    uint8_t buf[2], i;
+    uint8_t buf[3], i;
 
     prep_hud();
     for (i = 0; i < 20; i++) row_buf[i] = TILE_HUD_BLANK;
     put_row(HUD_ROW);
-    draw_score();                                   // six digits, cols 1-6
-    draw_lives();                                   // one mug per life, cols 9-11 (8: a story bonus life)
-    buf[0] = TILE_GLYPH_L;                          // "L" col 17, level as two digits cols 18-19
-    glyph_row(HUD_ROW, 17, buf, 1);
-    buf[0] = digit_tile(level / 10); buf[1] = digit_tile(level % 10);
-    glyph_row(HUD_ROW, 18, buf, 2);
+    draw_score();                                   // six digits, cols 0-5
+    draw_lives();                                   // the head and the lives digit, cols 7-8
+    buf[0] = TILE_HUD_FLAG;                          // the level: a flag col 17, two digits cols 18-19
+    buf[1] = digit_tile(level / 10); buf[2] = digit_tile(level % 10);
+    glyph_row(HUD_ROW, 17, buf, 3);
+}
+
+// tile k of the HUD icons (assets/art/hud_icons.txt) to BG id `id`, LCD off
+void hud_icon_load(uint8_t id, uint8_t k) BANKED {
+    bkg_data(id, 1, hud_icon_tiles + ((uint16_t)k << 4));
 }
 
 // The level screen (LCD off): shared tiles, the venue's stage / counters / floor, the HUD, then the bars' wall

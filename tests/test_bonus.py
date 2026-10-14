@@ -200,7 +200,7 @@ def test_picking_the_calm_can_wins_3000(gb):
     gb.run(10)
     assert gb.read("can_frame", 6)[gb.mem("bonus_calm_can")] == CF_OPEN
     assert tile_id("GLYPH_W") in tilemap_row(gb, 4, 0, 20)
-    assert tilemap_row(gb, 0, 1, 6) != [tile_id("GLYPH_0")] * 6, "HUD shows the new score"
+    assert tilemap_row(gb, 0, 0, 6) != [tile_id("GLYPH_0")] * 6, "HUD shows the new score"
     gb.run(40)
     check_golden(gb, "bonus_win")
     run_until(gb, lambda: state(gb) == PLAYING, 300)
@@ -342,7 +342,7 @@ def test_next_level_loads_and_the_bar_scene_is_intact(gb):
     gb.run(20)
     assert gb.mem("level") == 3 and gb.mem("cur_group") == 2 and gb.mem("overlay_on") == 0
     assert patrons(gb) == [(b, ENTRY_X) for b in range(4)]
-    assert tilemap_row(gb, 0, 17, 3) == [tile_id("GLYPH_L"), tile_id("GLYPH_0"), tile_id("GLYPH_3")]
+    assert tilemap_row(gb, 0, 17, 3) == [tile_id("HUD_FLAG"), tile_id("GLYPH_0"), tile_id("GLYPH_3")]
     # bar rows are the level 3 venue's (the lodge): counter row of bar 0 = row 7, floor row 17 (M9)
     lodge = venue("lodge")
     assert tilemap_row(gb, 7, 0, 20) == lodge["bar_map"][40:60]

@@ -880,14 +880,14 @@ def test_the_goal_banner_names_the_shift_and_the_hud_counts(model):
         assert banner_text(gb, 2) == centred(op["line1"]) and banner_text(gb, 3) == centred(op["line2"])
         assert gb.mem("level") == 1 and gb.mem("cur_group") == 0 and gb.mem("quota") == 255
         assert gb.mem("story_step") == 0 and gb.mem("story_shift") == 0
-        # the HUD: S + what is left (8) at columns 12-14
-        assert tilemap_row(gb, 0, 12, 3) == [GLYPH["S"], GLYPH["0"], GLYPH["8"]]
+        # the HUD: the mug-check icon + what is left (8) at columns 11-13
+        assert tilemap_row(gb, 0, 11, 3) == [GOAL_BG, GLYPH["0"], GLYPH["8"]]
         check_golden(gb, "story_goal")
         run_until(gb, lambda: state(gb) == PLAYING, 200)      # 3 s, then the level
         gb.write("served", 5)
         gb.run(3)
         assert gb.mem("story_left") == 3
-        assert tilemap_row(gb, 0, 12, 3) == [GLYPH["S"], GLYPH["0"], GLYPH["3"]]
+        assert tilemap_row(gb, 0, 11, 3) == [GOAL_BG, GLYPH["0"], GLYPH["3"]]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -897,7 +897,7 @@ def test_a_last_call_banner(model):
         last = SHIFTS[9][2]
         assert banner_text(gb, 1) == centred("LAST CALL")
         assert banner_text(gb, 2) == centred(last["line1"]) and banner_text(gb, 3) == centred(last["line2"])
-        assert tilemap_row(gb, 0, 12, 3) == [GLYPH["S"], GLYPH["3"], GLYPH["2"]]
+        assert tilemap_row(gb, 0, 11, 3) == [GOAL_BG, GLYPH["3"], GLYPH["2"]]
         check_golden(gb, "story_last_call")
 
 
@@ -974,16 +974,18 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
 
 
 # ---- lives (owner's rule): 3 per venue, carried through its shifts; the last one lost restarts the venue ----------
-HUD_MUG = GAME_ART["TILE_HUD_MUG"]
+HUD_HEAD = GAME_ART["TILE_HUD_HEAD"]
+GOAL_BG = int(re.search(r"#define HUD_GOAL_BG\s+(\d+)", (ROOT / "src" / "game.h").read_text()).group(1))   # the goal's icon tile
 
 
 def hud_lives(gb):
-    """HUD columns 8-11 as a string: 'U' a mug, '.' none (column 8 is the 4th, bonus, life; 9-11 lives 1-3)."""
-    return "".join("U" if t == HUD_MUG else "." for t in tilemap_row(gb, 0, 8, 4))
+    """HUD columns 7-8 as a string: 'H' the head, then the lives digit (HUD redesign, owner 2026-10-14)."""
+    head, d = tilemap_row(gb, 0, 7, 2)
+    return ("H" if head == HUD_HEAD else "?") + (str(d - GLYPH["0"]) if GLYPH["0"] <= d <= GLYPH["0"] + 9 else "?")
 
 
 def lives_hud(n):
-    return ("U" if n > 3 else ".") + "".join("U" if i <= n else "." for i in range(1, 4))
+    return f"H{n}"
 
 
 def call_banked(gb, name):
@@ -1105,7 +1107,7 @@ def test_time_up_costs_a_life_and_retries_the_shift(model):
 @pytest.mark.parametrize("c, k", [(1, 0), (1, 1), (1, 2), (7, 0), (7, 1), (7, 2)])
 def test_a_strict_rule_costs_two_lives(model, c, k):
     """Chapter 2 (a fan at the tap) and 8 (a broken cup), every shift: the banner says so, breaking the rule costs 2
-    lives, "2 LIVES LOST" shows over the freeze and the two lost mugs blink together; the shift goes on with the one
+    lives, "2 LIVES LOST" shows over the freeze and the lives digit blinks (3 and 1); the shift goes on with the one
     left, and the next break of the rule restarts the venue."""
     with to_shift(model, c, k, banner=True) as gb:
         sh = SHIFTS[c][k]
@@ -1125,7 +1127,7 @@ def test_a_strict_rule_costs_two_lives(model, c, k):
         while state(gb) == LIFE_LOST:
             seen.add(hud_lives(gb))
             gb.run(1)
-        assert seen == {".U..", ".UUU"}, f"the two lost mugs blink together: {seen}"
+        assert seen == {"H1", "H3"}, f"the lives digit blinks between the new count and the old: {seen}"
         gb.run(3)
         assert state(gb) == PLAYING and gb.mem("story_shift") == k and gb.mem("served") == 2
         assert hud_lives(gb) == lives_hud(1) and gb.mem("story_pen") == 0
@@ -1142,12 +1144,12 @@ def test_a_strict_rule_costs_two_lives(model, c, k):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_strict_rule_cue(model):
-    """The moment the two lost mugs light up during the freeze (chapter 2's Happy hour, a fan at the tap)."""
+    """The moment the old count (3) shows again during the freeze (chapter 2's Happy hour, a fan at the tap)."""
     with to_shift(model, 1, 1) as gb:
         lose_a_life(gb)
         run_until(gb, lambda: gb.mem("state_timer") >= 10, 20)
         gb.run(1)
-        assert hud_lives(gb) == ".UUU" and gb.mem("lives") == 1
+        assert hud_lives(gb) == "H3" and gb.mem("lives") == 1
         check_golden(gb, "story_two_lives")
 
 
@@ -1232,37 +1234,37 @@ def test_other_rules_cost_one_life(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_gold_medal_bonus_life(model):
-    """story_bonus_life (the mini-game framework's call on a gold medal): 4 lives, the 4th mug at column 8, capped at
-    4; the lives carry into the next shift; the bonus mug is the first to go."""
+    """story_bonus_life (the mini-game framework's call on a gold medal): 4 lives (the digit), capped at
+    4; the lives carry into the next shift."""
     with to_chapter(model, 0) as gb:
         call_banked(gb, "story_bonus_life")
         gb.run(2)
-        assert gb.mem("lives") == 4 and hud_lives(gb) == "UUUU" and state(gb) == PLAYING
+        assert gb.mem("lives") == 4 and hud_lives(gb) == "H4" and state(gb) == PLAYING
         check_golden(gb, "story_bonus_life")
         call_banked(gb, "story_bonus_life")
         gb.run(2)
-        assert gb.mem("lives") == 4 and hud_lives(gb) == "UUUU", "at most 4"
+        assert gb.mem("lives") == 4 and hud_lives(gb) == "H4", "at most 4"
         win(gb, 0, 0)
         run_until(gb, lambda: state(gb) == GS_GOAL, 400)
         gb.run(3)
-        assert gb.mem("lives") == 4 and hud_lives(gb) == "UUUU"
+        assert gb.mem("lives") == 4 and hud_lives(gb) == "H4"
         to_goal(gb)
         lose_a_life(gb)
         gb.run(2)
-        assert gb.mem("lives") == 3 and hud_lives(gb) == ".UUU"
+        assert gb.mem("lives") == 3 and hud_lives(gb) == "H3"
 
 
 def test_arcade_keeps_three_lives_for_the_run(gb):
-    """Arcade is unchanged: 3 lives for the whole run (not refilled at a new level), column 8 always empty."""
-    assert gb.mem("story_on") == 0 and gb.mem("lives") == 3 and hud_lives(gb) == ".UUU"
+    """Arcade is unchanged: 3 lives for the whole run (not refilled at a new level)."""
+    assert gb.mem("story_on") == 0 and gb.mem("lives") == 3 and hud_lives(gb) == "H3"
     lose_a_life(gb)
     freeze_over(gb)
-    assert gb.mem("lives") == 2 and hud_lives(gb) == ".UU."
+    assert gb.mem("lives") == 2 and hud_lives(gb) == "H2"
     clear_bars(gb)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
     run_until(gb, lambda: state(gb) == PLAYING and gb.mem("level") == 2, 400)
     gb.run(3)
-    assert gb.mem("lives") == 2 and hud_lives(gb) == ".UU."
+    assert gb.mem("lives") == 2 and hud_lives(gb) == "H2"
     lose_a_life(gb)
     freeze_over(gb)
     lose_a_life(gb)

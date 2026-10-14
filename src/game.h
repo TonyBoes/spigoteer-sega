@@ -275,7 +275,7 @@ extern const uint8_t bar_oam_y[NUM_BARS];     // OAM y (+16) of the bar's top pi
 uint8_t next_rand(void);
 void add_score(uint16_t n);
 void lose_life(void);
-void prep_hud(void);                          // lives_tiles / score_tiles from lives and score_digits
+void prep_hud(void);                          // lives_tiles (head, digit) / score_tiles from lives and score_digits
 void show_overlay(const char *s);             // the banner's text (ROM0: callers pass strings from their own bank)
 uint8_t *mg_say(uint8_t row, const char *s);  // a centred line of HUD glyphs on map row `row` (queued; LCD off: written)
 extern uint8_t say_bang;                      // (main_cold.c glyph_for) the tile drawn for '!' (bonus2's own, else blank)
@@ -285,7 +285,7 @@ void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
 void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define START_LIVES           3
-#define MAX_LIVES             4     // a gold medal's bonus life, an extra life (the HUD shows 4 mugs at columns 8-11)
+#define MAX_LIVES             4     // a gold medal's bonus life, an extra life (the HUD shows the head and the digit at columns 7-8)
 #define EXTRA_FIRST       20000UL   // ARCADE / CLASSIC: the first extra life at this score (add_score) ...
 #define EXTRA_EVERY       40000UL   // ... then one every this many points
 extern uint32_t extra_at;           // (main.c) the next extra life's score; 0: none in this mode (story, the harness)
@@ -296,6 +296,15 @@ void start_level(void) BANKED;                // src/level.c: the level table, t
 // ---- main_cold.c (banked: boot, screen changes; nothing per frame) ----------------------------
 void boot_init(void) BANKED;                  // hardware, palettes, sprites, the banner window, then the title
 void draw_hud(void) BANKED;                   // the whole HUD row (VRAM: LCD off)
+// HUD row 0 (owner 2026-10-14): score 0-5, the Spigoteer's head + the lives digit 7-8, a story goal's icon + 2 digits 11-13,
+// the boss's face 12 + meter 13-19, the level's flag + 2 digits 17-19 (a timed shift / mini-game: hourglass + seconds 17-19).
+// The head and the flag are generic tiles (TILE_HUD_HEAD, TILE_HUD_FLAG). The timer's hourglass and a goal's icon are BG
+// tiles of a shift without a boss (a boss's HUD takes 252-255). hud_icon_load: tile k of hud_icon_tiles (HUD_ICON_*,
+// art.h) to BG id `id` (LCD off)
+#define HUD_HOURGLASS_BG  252
+#define HUD_GOAL_BG       253
+#define HUD_CURSOR_BG      77   // the initials screen's cursor (scores.c): the pad id no screen of its own uses
+void hud_icon_load(uint8_t id, uint8_t k) BANKED;
 uint8_t glyph_for(char c) BANKED;             // HUD glyph tile of a character (blank if none)
 void enter_level_screen(void) BANKED;         // LCD off: the level's screen, then PLAYING (or LOOP)
 void start_new_game(uint8_t lv) BANKED;
@@ -343,7 +352,7 @@ void clear_mugs(void);
 // ---- render.c ------------------------------------------------------------------------------
 extern uint8_t row_buf[20];
 extern uint8_t vram_pending, vq_count, drain_ticks_max, vq_held;
-extern uint8_t score_tiles[6], lives_tiles[4];   // lives_tiles: HUD columns 8-11 (8: the 4th life)
+extern uint8_t score_tiles[6], lives_tiles[2];   // score: HUD columns 0-5; lives_tiles: the head and one digit, columns 7-8
 void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 void put_row(uint8_t y);
 void mark_dirty(uint8_t b, uint8_t x0, uint8_t x1);         // tile ids of columns x0..x1-1 changed

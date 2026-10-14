@@ -171,7 +171,7 @@ def test_a_plays_b_stops_then_b_goes_back(model):
                 rom.run(1)
                 seen.add(tilemap_row(rom, ROW_LIST + t - rom.mem("jb_top"), COL_PLAY, 1)[0])
             if t != 2:                                          # (the GAME OVER jingle may end within the 40 frames)
-                assert seen == {ART["TILE_HUD_MUG"], ART["TILE_HUD_BLANK"]}, "the playing icon blinks"
+                assert seen == {ART["TILE_HUD_HEAD"], ART["TILE_HUD_BLANK"]}, "the playing icon blinks"
         tap(rom, "b")
         assert rom.mem("cur_tune") == TUNE_NONE and state(rom) == GS_JUKEBOX, "B stops the tune"
         rom.run(3)

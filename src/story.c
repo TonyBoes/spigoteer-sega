@@ -73,7 +73,7 @@ extern uint32_t score;
 #define FAIL_FRAMES    150         // TRY AGAIN
 #define GOAL_WY        BANNER_WY   // the goal banner: window rows 0-4 (map rows 32-36): panel, 3 lines, panel
 #define GOAL_LYC       (BANNER_WY + 38)
-#define HUD_GOAL_COL    12         // story HUD: goal letter + 2 digits (what is left) at 12-14, timer 'T' + 3 digits at 16-19
+#define HUD_GOAL_COL    11         // story HUD: the goal's icon + 2 digits (what is left) at 11-13, a timer's hourglass + 2 digits at 17-19
 
 enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO, SP_LOOP, SP_RUSH };   // SP_OUTRO: a boss satisfied
                                                      // (boss.c); SP_LOOP: ARCADE's "LOOP n" before a goal banner;
@@ -472,17 +472,17 @@ static void two_digits(uint8_t *d, uint8_t v) {
 // 2026-10-13). The hourglass cannot sit at MG_HOURGLASS (BG 220) in a level: that is variant C's shift-0 pose's 3rd
 // column, which a patron standing on a tile boundary draws. BG 252 is free in a shift (a boss fight's HUD face, the
 // only other user, has no timer).
-#define SHIFT_HOURGLASS 252
+#define SHIFT_HOURGLASS HUD_HOURGLASS_BG   // 252 (253 the goal's icon)
 
 static void hud_goal(void) {                     // queue the goal counter (and the timer) on the HUD row
     uint8_t s, h = 0;
     if (story_goal.type >= G_CLEAR) return;     // (a clear goal has no counter; a boss fight shows his meter: boss.c)
-    hud_buf[0] = story_goal.type == G_CATCH ? TILE_GLYPH_C : TILE_GLYPH_S;
+    hud_buf[0] = HUD_GOAL_BG;
     two_digits(hud_buf + 1, story_left);
     vq_add(0, hud_buf, HUD_GOAL_COL, HUD_ROW, 3);
     if (!story_goal.secs) return;
     s = st_secs;                                 // (never above SHIFT_TIMER_MAX: gen_story.py fails the build otherwise)
-    hud_buf[4] = TILE_HUD_BLANK;                 // column 16 blank, the hourglass, two digits: the mini-games' timer
+    hud_buf[4] = TILE_HUD_BLANK;                 // column 16 blank, the hourglass, two digits (over the flag): the mini-games' timer
     hud_buf[5] = SHIFT_HOURGLASS;
     two_digits(hud_buf + 6, s);
     vq_add(0, hud_buf + 4, 16, HUD_ROW, 4);
@@ -553,6 +553,7 @@ static void shift_start(void) {
     level = story_chapter + 1;                   // (lives: set by venue_start, carried from shift to shift)
     if (story_arc) level += (arc_loop > 9 ? 8 : arc_loop - 1) * 10;   // ARCADE: the loop's row (start_level's loop maths)
     if (story_goal.secs) mg_hourglass_load(SHIFT_HOURGLASS);   // a timed shift: its HUD's hourglass (LCD off)
+    if (story_goal.type < G_CLEAR) hud_icon_load(HUD_GOAL_BG, story_goal.type == G_CATCH ? HUD_ICON_CATCH : HUD_ICON_MUGCHECK);   // the goal's icon
     pour_load(story_chapter);                    // the perfect pour's frames and cue (LCD off; the venue = the chapter)
     music_fast = (story_twist & TWIST_FAST_TUNE) != 0;   // the twist: the band plays faster (before the tune starts)
     enter_level_screen();                        // the venue's level (row level - 1), LCD on again, PLAYING
@@ -925,19 +926,17 @@ uint8_t story_update(uint8_t pressed) BANKED {
 }
 
 // Every GS_LIFE_LOST frame in story mode (main.c, before the freeze's frame count): after a strict rule's penalty the
-// lost mugs blink together (8 frames on, 8 off) until the freeze's last frame puts the HUD back.
+// lives digit blinks (the count before the penalty 8 frames, the new count 8) until the freeze's last frame puts the
+// HUD back.
 void story_life_frame(void) BANKED {
-    uint8_t t, n;
     if (!story_pen) return;
     if (state_timer + 1 >= LIFE_FREEZE_FRAMES) { story_pen = 0; prep_hud(); hud_dirty |= HUD_LIVES; return; }
     if (state_timer & 7) return;
-    t = (state_timer & 8) ? TILE_HUD_MUG : TILE_HUD_BLANK;
-    for (n = lives + 1; n <= lives + story_pen; n++) lives_tiles[n > 3 ? 0 : n] = t;
+    lives_tiles[1] = TILE_GLYPH_0 + ((state_timer & 8) ? lives + story_pen : lives);
     hud_dirty |= HUD_LIVES;
 }
 
-// The mini-game framework calls this on a gold medal (owner: +1 life, at most MAX_LIVES; the HUD's 4th mug sits at
-// column 8, left of the three, and is the first to go).
+// The mini-game framework calls this on a gold medal (owner: +1 life, at most MAX_LIVES; the HUD's digit counts it).
 void story_bonus_life(void) BANKED {
     if (lives < MAX_LIVES) lives++;
     prep_hud();

@@ -1,0 +1,48 @@
+; HUD icons for the right-hand and goal slots (owner 2026-10-14). 8x8 BG tiles in the HUD palette (BG palette 1:
+; '.' light, '-' sand, '+' gold, '#' the dark band; row 0 and columns 0 / 7 are band like every glyph).
+; src/story.c loads a shift's goal icon (MUGCHECK, or CATCH for a catch goal) at HUD_GOAL_BG, next to the hourglass; the
+; flag and the head are generic tiles (assets/tiles/bar.txt).
+
+; a serve goal's counter: a mug with a checkmark (variant A)
+@mugcheck
+########
+#.....##
+#++++.-#
+#+++.+-#
+#.+.++-#
+#+.+++-#
+#+++++##
+########
+
+; a catch goal's counter: an EMPTY mug (gold walls, dark inside, no foam) with an arrow dropping into it
+@catch
+########
+##...###
+###.####
+#+###+##
+#+###+-#
+#+###+-#
+#+++++##
+########
+
+; the jukebox's "playing" marker: the HUD's old lives mug (gold mug, light rim, sand handle); jukebox_enter loads it over TILE_HUD_HEAD
+@playing
+########
+#.....##
+#+++++##
+#+++++.#
+#+++++.#
+#+++++.#
+#+++++##
+########
+
+; the initials cursor (a bar under the letter): it left the generic table for the flag; scores.c loads it for the initials screen
+@cursor
+########
+#.....##
+#.....##
+########
+########
+########
+########
+########

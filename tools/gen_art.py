@@ -1075,6 +1075,15 @@ def _main():
           f"#define BAR_TILE_COUNT {n}   // all scene tiles (venue slots + shared): the patron tiles start here",
           "extern const uint8_t bar_tiles[];   // GENERIC_TILE_COUNT tiles, loaded at TILE_GENERIC_BASE", ""]
     c.append(fmt("bar_tiles", tiles))
+    # HUD icons of a shift (assets/art/hud_icons.txt): FLAG, MUGCHECK, CATCH, one tile each, loaded at BG ids the scene's
+    # other tiles do not use (src/main_cold.c hud_icons_load, src/story.c)
+    ic = []
+    for i, (name, rows) in enumerate(blocks(ROOT / "assets/art/hud_icons.txt", named=True)):
+        assert len(rows) == 8 and all(len(r) == 8 for r in rows), f"hud_icons {name}: not 8x8"
+        h.append(f"#define HUD_ICON_{name.upper()} {i}   // index in hud_icon_tiles[]")
+        ic += tile_bytes(rows, 0, 0)
+    h += ["extern const uint8_t hud_icon_tiles[];   // FLAG, MUGCHECK, CATCH (16 bytes each)", ""]
+    c.append(fmt("hud_icon_tiles", ic))
     # title lettering (assets/tiles/title.txt): ids BAR_TILE_COUNT.. at title time only, over the patron tiles
     ttiles = []
     for name, rows in blocks(ROOT / "assets/tiles/title.txt", named=True):

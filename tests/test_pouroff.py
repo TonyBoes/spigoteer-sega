@@ -83,7 +83,11 @@ def hud(gb):
 
 
 def lives_hud(gb):
-    return sum(1 for t in tilemap_row(gb, 0, 8, 4) if t != BLANK)
+    """The lives on the HUD (columns 7-8: the Spigoteer's head and one digit, owner 2026-10-14)."""
+    from test_flow import tile_id
+    head, d = tilemap_row(gb, 0, 7, 2)
+    assert head == tile_id("HUD_HEAD"), "the head icon"
+    return int(GLYPH_CH[d])
 
 
 def score(gb):

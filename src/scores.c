@@ -119,12 +119,13 @@ static void ini_draw(void) {        // the letters and the cursor into their buf
     uint8_t i;
     blank_row(ini_row); blank_row(cur_row);
     for (i = 0; i < 3; i++) ini_row[INI_COL + 2 * i] = tile_of(ini_name[i]);
-    cur_row[INI_COL + 2 * ini_pos] = TILE_HUD_CURSOR;
+    cur_row[INI_COL + 2 * ini_pos] = HUD_CURSOR_BG;
 }
 
 static void initials_enter(void) {
     char d[7];
     screen_begin();
+    hud_icon_load(HUD_CURSOR_BG, HUD_ICON_CURSOR);   // (the cursor is no generic tile: see assets/tiles/bar.txt hud_flag)
     text_at(ROW_HEAD, 255, "NEW HIGH SCORE");
     six_digits(d, score); d[6] = 0;
     text_at(ROW_SCORE, 255, d);
