@@ -58,7 +58,7 @@ optional. Each one changes one existing parameter or adds one small behaviour.
 | # | Venue | Owner | Piece | Chapter goal (in-world / engine) | Optional twist |
 |---|---|---|---|---|---|
 | 1 | Saloon | Sadie Spurs | Handle | "Keep 15 cowboys happy" / serve 15 | None. This is the tutorial chapter, with slow walkers and a generous EMPTY_GAP. |
-| 2 | Stadium concession | Coach Blitz | Spout | "Serve 20 fans; a fan at your tap costs two lives" / serve 20, a patron at the tap costs 2 lives (instead of 1) | **Quarters**: patrons come in 4 rushes with short breathers between them. |
+| 2 | Stadium concession | Coach Blitz | Spout | "Serve 20 fans; a fan at your tap costs two lives" / serve 20, a patron at the tap costs 2 lives (instead of 1) | **Innings**: patrons come in 4 rushes with short breathers between them. |
 | 3 | Lumber lodge | Big June | Valve | "Wake up 18 sleepy lumberjacks" / serve 18 | **Sasquatch sighting**: now and then the Sasquatch strolls past the back of one bar and its patrons stop to stare. That's a free single-bar distraction. |
 | 4 | Bistro | Chef Colby | Nozzle | "Serve 20 chefs before the dinner rush" / serve 20 before the timer runs out | **Fine dining**: patrons sip longer, so empties come back bunched together. Fair-empties spacing still applies. |
 | 5 | Igloo bar | Aurora | Knob | "20 cocoas before they cool" / serve 20 before the timer runs out | **Icy bars**: full and empty mugs slide faster. |
@@ -239,14 +239,14 @@ Picture: stadium concession stand under floodlights. The scoreboard reads HOME 0
 
 ```
 COACH
-TWEET! HUDDLE UP,
+TWEET! GATHER UP,
 ROOKIE! I'M COACH
 BLITZ. MY STAND.
 
 COACH
 GOT YOUR SPOUT
 RIGHT HERE. FOUND
-IT AT MIDFIELD.
+IT AT SECOND BASE.
 
 SPIGOTEER
 WHAT'S THE PLAY,
@@ -263,13 +263,13 @@ THE CROWD IS HOT.
 TWEET! GO GO GO!
 ```
 
-### POST_STADIUM: "Touchdown"
+### POST_STADIUM: "Home Run"
 
 Picture: the scoreboard flashes WIN as Coach dumps a cooler of soda over the Spigoteer and the cheerleaders kick.
 
 ```
 COACH
-TOUCHDOWN! TEAM
+HOME RUN! TEAM
 SPIGOTEER WINS!
 HIT THE SHOWERS!
 
@@ -338,8 +338,8 @@ Picture: the Sasquatch gently hands the golden valve to the Spigoteer while June
 
 ```
 JUNE
-ALL 18 WIDE AWAKE!
-THAT'S WORTH A
+EVERYONE'S WIDE
+AWAKE! WORTH A
 VALVE. HERE, UH...
 
 NARRATOR
@@ -627,8 +627,8 @@ Picture: the punks raise their glasses, milk mustaches all round, while Granny h
 
 ```
 GRANNY
-22 HAPPY BABIES,
-22 MILK MUSTACHES.
+HAPPY BABIES,
+MILK MUSTACHES.
 NOT BAD, MUSTACHE.
 
 GRANNY

@@ -437,7 +437,7 @@ Plugs into: boss engine + `mascot_special`; vars `boss_target_bar`, `boss_land_x
 pre-tell mugs (a mug launched 1 frame before the tell is caught), a mug launched during the tell breaks if it
 arrives after the leap, landing scares regulars without score, spawning suppressed on his bar.
 
-Story fit: Coach Blitz's team mascot is the one who found the spout at midfield. PRE_STADIUM page (COACH):
+Story fit: Coach Blitz's team mascot is the one who found the spout at second base. PRE_STADIUM page (COACH):
 `AND WATCH OUR` / `MASCOT. HE JUMPS` / `BARS FOR FUN.`
 
 ### 3.5 Sasquatch (Lumber lodge)
@@ -843,7 +843,7 @@ Story fit: suggested PRE_SALOON page (SADIE): `AND IF THE KID` / `CHALLENGES YOU
 
 ### 4.2 T-Shirt Cannon (Stadium)
 
-Play: halftime. The Spigoteer mans the T-shirt cannon on the field; the stands rise to the right and the crowd does
+Play: the seventh-inning stretch. The Spigoteer mans the T-shirt cannon on the field; the stands rise to the right and the crowd does
 the wave. Aim with Up/Down, read the windsock, fire with A so the shirt lands in the standing section.
 
 Rules and numbers:
@@ -909,7 +909,7 @@ Plugs into: mg framework only. Test hooks: `tc_angle`, `tc_wind`, `tc_shots`, `t
 `tc_last` (landing column). Tests: the reachability table; same input -> same landing (determinism); wave speed per
 stage; 12 shots end the round.
 
-Story fit: PRE_STADIUM page (COACH): `AT HALFTIME,` / `FIRE SHIRTS INTO` / `THE WAVE!`
+Story fit: PRE_STADIUM page (COACH): `IN THE STRETCH,` / `FIRE SHIRTS INTO` / `THE WAVE!`
 
 ### 4.3 Log Roll (Lumber lodge)
 
@@ -1628,7 +1628,7 @@ page to the named scene; place it before the scene's last page unless noted.
 |---|---|---|
 | PRE_SALOON | SADIE | AND IF THE KID / CHALLENGES YOU, / DRAW FAST! |
 | PRE_SALOON | SADIE | WATCH FOR BIG / TEX. HE DRINKS / A WHOLE BARREL. |
-| PRE_STADIUM | COACH | AT HALFTIME, / FIRE SHIRTS INTO / THE WAVE! |
+| PRE_STADIUM | COACH | IN THE STRETCH, / FIRE SHIRTS INTO / THE WAVE! |
 | PRE_STADIUM | COACH | AND WATCH OUR / MASCOT. HE JUMPS / BARS FOR FUN. |
 | PRE_LUMBER | JUNE | LUNCH IS LOG / ROLLING. YOUR / PARTNER IS... UH. |
 | POST_LUMBER | NARRATOR | THE SASQUATCH / DRANK 12 COFFEES / IN 12 SECONDS. (before HANDED IT OVER) |
