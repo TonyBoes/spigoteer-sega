@@ -99,7 +99,7 @@ def test_every_game_shows_its_full_card_first(model):
             frames(gb, 3)
             assert row_text(gb, 1) == "HOW TO PLAY" and row_text(gb, 4) == name, name
             assert [row_text(gb, r) for r in (6, 8, 10)] == ls, name
-            prompt = "A NEXT  B BACK" if gid == MG_STUB else "A START  B BACK"      # (from the list: B goes back; the stub has two pages)
+            prompt = "A NEXT  B BACK" if gid in (MG_STUB, MG_SHAKEUP) else "A START  B BACK"      # (from the list: B goes back; the stub and the shake-up have two pages)
             assert row_text(gb, 16) == prompt and row_text(gb, 2) == "" and row_text(gb, 12) == "", name
             for _ in range(4):                                     # the prompt blinks (32 frames on, 32 off)
                 gb.run(40)
@@ -196,7 +196,7 @@ def test_a_card_is_never_wider_than_the_screen_and_the_games_still_run(model):
             mg_enter(gb, gid, MG_PRACTICE)
             gb.run(3)
             gb.press("a", 2)
-            if gid == MG_STUB:                                     # (two pages)
+            if gid in (MG_STUB, MG_SHAKEUP):                       # (two pages)
                 gb.run(3)
                 gb.press("a", 2)
             run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)

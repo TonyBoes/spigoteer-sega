@@ -59,6 +59,7 @@ static const card_t cards[MG_GAMES] = {
 // the further pages, in page order (a game's entries together). Only the debug stub has a second page today.
 static const more_t more[] = {
     { G_STUB, { "EARLY IS A MISS", "SLOW IS A MISS", "KEEP YOUR EYES UP" } },
+    { G_B0,   { "3 LEVELS, EACH", "FASTER THAN LAST", "MISS: RUN ENDS" } },
 };
 #define MORE_N (sizeof(more) / sizeof(more[0]))
 

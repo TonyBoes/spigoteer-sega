@@ -20,6 +20,8 @@
 #include "can_tiles.h"      // static const uint8_t bonus_tiles[]: this bank's own art data
 
 // ---- shared with main.c (bank 0) ----
+extern uint8_t game_state;                  // GS_MINI inside the framework (Practice)
+#define GS_MINI 13                          // (game.h enum: tests/test_mg.py pins it too)
 extern uint8_t is_cgb, level, overlay_on, hud_dirty, life_lost, vram_pending;
 extern uint8_t play_mode;                   // src/story.c (game.h MODE_*)
 #define MODE_CLASSIC 2
@@ -60,6 +62,8 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // venue.c
 #define BT_X             72
 #define BT_TOP           112                // bartender 16x24, feet on the floor row (y 136)
 #define BT_IDLE_F         0
+#define BT_WALK1          1
+#define WALK_TOP         56                 // level 3's walker: 16x32, its lower half crosses the can band
 #define BT_CATCH_F        5
 #define BT_FAIL_F         6
 #define NUM_CANS          6
@@ -148,13 +152,40 @@ static void shuffle_order(void) {
     }
 }
 
+// One round's state: the pace, the cans, the shake order. Practice (the mini-game framework) plays three levels of it, bonus_round counting
+// them (1..3): each swaps faster (30, 22, 14 frames) and more often (7, 9, 11 swaps). ARCADE / CLASSIC play one round as ever.
+static void setup_round(uint8_t prac, uint8_t classic) {
+    uint8_t i, n;
+    bonus_won = 0; bonus_moving = 0; bonus_swaps_done = 0;
+    if (prac) {
+        n = (uint8_t)(2 * bonus_round - 1);
+        bonus_swap_dur = (uint8_t)(38 - 8 * bonus_round);
+    } else if (classic) {                                       // P5: faster every round: 30, 28, ... 14 frames a swap,
+        n = bonus_round < 9 ? bonus_round : 9;                  // a swap more each time (7 .. 15)
+        bonus_swap_dur = 32 - 2 * n;
+    } else {
+        n = (uint8_t)((uint8_t)(bonus_round + 2) / 3);         // shake-ups so far, this one included (1 in round 1, 2 in round 4, ...)
+        bonus_swap_dur = n < 3 ? 30 : (n < 6 ? 34 - 4 * n : 14);   // shake-ups 1-2 slow, then 22, 18, 14
+    }
+    bonus_swaps_total = 6 + n;
+    bonus_calm_can = next_rand() % NUM_CANS;
+    bonus_calm = bonus_calm_can;
+    bonus_cursor = 2;
+    for (i = 0; i < NUM_CANS; i++) {
+        slot_can[i] = i; can_pos[i] = slot_x(i); can_frame[i] = CF_STILL; can_shake[i] = 0;
+        can_shaken[i] = 0; can_dy[i] = 0;
+    }
+    shuffle_order();
+    oi = 0; swap_t = 0; drop_x[0] = 0;
+}
+
 #define NO_KIND 255            // enter(): the round the rotation gives (ARCADE, CLASSIC)
 
 // The round's scene, LCD off. In ARCADE / CLASSIC (kind NO_KIND) the rotation picks it, it is recorded as played (BONUS > MINI GAMES lists it
 // from then on: save.c) and the HUD, the backdrop and DISPLAY_ON are this file's. In Practice (kind 0..2: mg.c has drawn the HUD and the
 // backdrop and turns the LCD on itself) the round is the same, its banner's 90 frames left to the framework's card.
 static void enter(uint8_t kind) {
-    uint8_t i, n, prac = kind != NO_KIND, classic = !prac && play_mode == MODE_CLASSIC;
+    uint8_t i, prac = kind != NO_KIND, classic = !prac && play_mode == MODE_CLASSIC;
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0; vram_pending = 0;
     clear_dirty();
@@ -177,24 +208,7 @@ static void enter(uint8_t kind) {
     if (is_cgb) load_palettes();
     draw_scene(prac);
 
-    bonus_won = 0; bonus_moving = 0; bonus_swaps_done = 0;
-    if (classic) {                                              // P5: faster every round: 30, 28, ... 14 frames a swap,
-        n = bonus_round < 9 ? bonus_round : 9;                  // a swap more each time (7 .. 15)
-        bonus_swap_dur = 32 - 2 * n;
-    } else {
-        n = (uint8_t)((uint8_t)(bonus_round + 2) / 3);         // shake-ups so far, this one included (1 in round 1, 2 in round 4, ...)
-        bonus_swap_dur = n < 3 ? 30 : (n < 6 ? 34 - 4 * n : 14);   // shake-ups 1-2 slow, then 22, 18, 14
-    }
-    bonus_swaps_total = 6 + n;
-    bonus_calm_can = next_rand() % NUM_CANS;
-    bonus_calm = bonus_calm_can;
-    bonus_cursor = 2;
-    for (i = 0; i < NUM_CANS; i++) {
-        slot_can[i] = i; can_pos[i] = slot_x(i); can_frame[i] = CF_STILL; can_shake[i] = 0;
-        can_shaken[i] = 0; can_dy[i] = 0;
-    }
-    shuffle_order();
-    oi = 0; swap_t = 0;
+    setup_round(prac, classic);
     if (!prac) DISPLAY_ON;
 }
 
@@ -282,6 +296,15 @@ static void draw(void) {
         for (k = 0; k < NUM_DROPS; k++) shadow_OAM[drop_oam[k]].y = 0;
         for (k = 0; k < 8; k++) shadow_OAM[GEY_OAM + k].y = 0;
     }
+    if (bonus_phase == PH_SWAP && game_state == GS_MINI && bonus_round == 3 && bonus_swaps_done >= 2 && drop_x[0] < 184) {
+        x = (uint8_t)drop_x[0]; drop_x[0] += 2;                 // level 3's distraction: a bartender strolls left to right behind the cans
+        f = BT_WALK1 + ((x >> 4) & 1);                          // (OAM 30-33, behind the cans' 8-13), 2 px a frame; drop_x[0] is the walk's clock
+        base = f * BARTENDER_TILES_PER_FRAME;
+        spr(GEY_OAM,     x,      WALK_TOP + 16, base,     0);
+        spr(GEY_OAM + 1, x + 8,  WALK_TOP + 16, base + 2, 0);
+        spr(GEY_OAM + 2, x,      WALK_TOP + 32, base + 4, 0);
+        spr(GEY_OAM + 3, x + 8,  WALK_TOP + 32, base + 6, 0);
+    }
     if (bonus_phase == PH_RESULT && bonus_won) bf = BT_CATCH_F;
     base = bf * BARTENDER_TILES_PER_FRAME;       // OBJ tiles 0.. hold the bartender frames
     spr(4, BT_X + 8,  BT_TOP + 16, base,     0);
@@ -354,9 +377,12 @@ uint8_t bonus_update(uint8_t pressed) BANKED {
             if (bonus_picked == bonus_calm_can) {
                 bonus_won = 1;
                 can_frame[bonus_picked] = CF_OPEN;
-                add_score(BONUS_SCORE);
                 SFX(SFX_COIN);
-                say("WINNER 3000");
+                if (game_state != GS_MINI) { add_score(BONUS_SCORE); say("WINNER 3000"); }
+                else {                                          // Practice: 1000 a level (the medal's thresholds, mg.h), 3000 in all
+                    add_score(BONUS_SCORE / 3);
+                    say(bonus_round < 3 ? "LEVEL CLEARED" : "WINNER 3000");
+                }
             } else {
                 can_frame[bonus_picked] = CF_BURST;
                 SFX(SFX_BREAK);
@@ -365,7 +391,14 @@ uint8_t bonus_update(uint8_t pressed) BANKED {
         }
         break;
     case PH_RESULT:
-        if (bonus_timer >= RESULT_LEN) return 1;
+        if (bonus_won && game_state == GS_MINI && bonus_round < 3) {     // Practice: on to the next, faster level
+            if (bonus_timer >= 70) {
+                bonus_round++;
+                setup_round(1, 0);
+                bonus_phase = PH_SHOW; bonus_timer = 0;
+                say(bonus_round == 2 ? "LEVEL 2" : "LEVEL 3");
+            }
+        } else if (bonus_timer >= RESULT_LEN) return 1;
         break;
     }
     draw();

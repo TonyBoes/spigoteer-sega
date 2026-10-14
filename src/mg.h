@@ -45,9 +45,9 @@
 #define MG_FILLLINE    13       // Perfect Pour, "fill to the line" (kind 1)
 #define MG_TIPS        14       // Tip Shower, "tip catching" (kind 2)
 #define MG_BONUS_N      3
-// Their medals (on the points the round earned; the owner will balance them). The shake-up is all or nothing (3000 for the calm can).
-#define BONUS_SHAKE_BRONZE  3000
-#define BONUS_SHAKE_SILVER  3000
+// Their medals (on the points the round earned; the owner will balance them). The shake-up (Practice) has 3 levels worth 1000 each.
+#define BONUS_SHAKE_BRONZE  1000   // the shake-up in Practice has three levels, 1000 points each: 1, 2, 3 cleared
+#define BONUS_SHAKE_SILVER  2000
 #define BONUS_SHAKE_GOLD    3000
 #define BONUS_POUR_BRONZE   1500        // one GOOD glass (a PERFECT is 3000, a GOOD 1500; three glasses: 9000 at most)
 #define BONUS_POUR_SILVER   4500

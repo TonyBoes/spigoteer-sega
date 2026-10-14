@@ -223,7 +223,7 @@ def test_a_bonus_round_plays_in_the_framework_and_earns_its_medal(model, gid, ki
         assert gb.mem("mg_phase") == 0 and gb.mem("bonus_kind") == gid - MG_SHAKEUP
         assert (text(gb, 2), text(gb, 3)) == names[gid]
         frames(gb, 2)
-        points = [at[0] - 1, at[0], at[1], at[2]] if kind != "SHAKE" else [0, at[2]]
+        points = [at[0] - 1, at[0], at[1], at[2]]
         best = 0
         for p in points:
             want = medal_for(kind, p)
@@ -259,15 +259,19 @@ def test_a_bonus_round_plays_in_the_framework_and_earns_its_medal(model, gid, ki
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_shake_up_played_for_real_wins_gold(model):
-    """The whole shake-up inside the framework: the banner, the cans shaken and swapped, the calm one picked (+3000): GOLD."""
+    """The whole shake-up inside the framework: the banner, the cans shaken and swapped, the calm one picked on each of the three levels
+    (+1000 each; tests/test_mg_shakeup.py has the levels): GOLD."""
     with booted(model) as gb:
         mg_enter(gb, MG_SHAKEUP, MG_PRACTICE)
         gb.press("a", 2)
-        run_until(gb, lambda: gb.mem("bonus_phase") == 3, 1500)               # PH_CHOOSE
-        gb.write("bonus_cursor", gb.mem("bonus_calm"))
-        gb.run(2)
-        gb.press("a", 2)
-        assert gb.mem("bonus_won") == 1
+        for lv in range(3):
+            run_until(gb, lambda: gb.mem("bonus_phase") == 3, 1500)               # PH_CHOOSE
+            gb.write("bonus_cursor", gb.mem("bonus_calm"))
+            gb.run(2)
+            gb.press("a", 2)
+            assert gb.mem("bonus_won") == 1
+            if lv < 2:
+                run_until(gb, lambda: gb.mem("bonus_phase") == 0 and gb.mem("bonus_round") == lv + 2, 200)
         run_until(gb, lambda: gb.mem("overlay_on") == 1, 200)
         gb.run(3)
         assert gb.mem("mg_medal") == MEDAL_GOLD and gb.mem16("mg_score") == 3000
