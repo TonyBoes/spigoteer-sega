@@ -92,6 +92,23 @@ def snap(gb):
         return lr(gb)
 
 
+def game_rows(gb, n):
+    """The state after each of the next n-1 whole game frames (a hook on vq_frame_end, called right after the frame's update),
+    after the state now. A game that finishes its logic early in the frame can have two frames inside one PyBoy tick or none,
+    so a loop of run(1) + snap cannot count game frames; this can."""
+    rows = [lr(gb)]
+    hook = gb.addr("vq_frame_end") & 0xFFFF
+    gb.pb.hook_register(0, hook, lambda _: rows.append(lr(gb)), None)
+    try:
+        for _ in range(4 * n):
+            if len(rows) >= n:
+                break
+            gb.run(1)
+    finally:
+        gb.pb.hook_deregister(0, hook)
+    return rows[:n]
+
+
 def poke(gb, **kw):
     base = gb.addr("story_scratch")
     with logic_paused(gb):
@@ -373,10 +390,7 @@ def test_a_flip_is_told_30_frames_before_the_push_turns(model):
         set_push(gb, 1, 600, on=0)
         poke(gb, flip_in=3)
         shakes = sfx(gb, SFX_SHAKE)
-        rows = []
-        for _ in range(90):
-            rows.append(snap(gb))
-            frames(gb, 1)
+        rows = game_rows(gb, 90)
         t0 = next(i for i, r in enumerate(rows) if r["tsgn"] == -1)
         assert sfx(gb, SFX_SHAKE) == shakes + 1, "a creak"
         tell = [r["tell"] for r in rows[t0:]]
@@ -925,3 +939,54 @@ def test_goldens(model):
         frames(gb, 2)
         shot(gb, "lean")
         check_golden(gb, "lr_lean")
+
+
+# ---- speed and the VBlank copy: the slowdown, flicker and black bars the owner saw ------------------------------------------
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_whole_game_has_no_late_frame_and_no_copy_into_the_picture(model):
+    """40 seconds of balancing, with 200 frames of leaning one way (a fall, the splash, the droplets): every frame's logic and music end before
+    line 128 (the VBlank is at 144: a late frame was the slowdown), no VBlank copy was refused, and every copy ended inside VBlank
+    (vq_end_ly_max < 154: a copy that runs on into line 0 or 1 loses its last bytes on the hardware, and with them the banner rows
+    put back: the black bars)."""
+    with log_roll(model) as gb:
+        to_play(gb)
+        late0, worst_end, worst_drain, held, hold, since, i = gb.mem16("vq_late"), 0, 0, None, 0, 99, 0
+        while gb.mem("mg_phase") == MG_PLAY and i < 3300:
+            if hold:
+                hold -= 1
+                if not hold:
+                    gb.release(held)
+            else:
+                key = "right" if 400 < i < 600 and since >= 3 else None if 400 < i < 600 else bot_key(lr(gb), since)
+                if key:
+                    gb.hold(key)
+                    held, hold, since = key, 2, 0
+            since += 1
+            gb.run(1)
+            i += 1
+            worst_end = max(worst_end, gb.mem16("perf_end_last"))
+            worst_drain = max(worst_drain, gb.mem("vq_end_ly_max"))
+            gb.write("vq_end_ly_max", 0)
+        assert gb.mem("mg_phase") != MG_PLAY and snap(gb)["falls"] >= 1
+        assert worst_end < 128, f"a frame ended at line {worst_end}"
+        assert gb.mem16("vq_late") == late0, "a VBlank copy was refused"
+        assert worst_drain < 154, f"a copy ended at line {worst_drain - 154} of the next frame"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_oam_dma_is_off_while_a_mini_game_draws(model):
+    """mg_update turns the VBlank OAM DMA off for the frame's logic and on again at its end (a frame that runs past VBlank shows
+    the last complete sprite list, not a half-written one): checked at the game's own update and at the end of every frame."""
+    with log_roll(model) as gb:
+        from test_mg import BANKS
+        inside, outside = [], []
+        h1, h2 = gb.addr("lr_update") & 0xFFFF, gb.addr("vq_frame_end") & 0xFFFF
+        gb.pb.hook_register(BANKS["b_lr_update"], h1, lambda _: inside.append(gb.mem("_shadow_OAM_base")), None)
+        gb.pb.hook_register(0, h2, lambda _: outside.append(gb.mem("_shadow_OAM_base")), None)
+        try:
+            frames(gb, 400)
+        finally:
+            gb.pb.hook_deregister(BANKS["b_lr_update"], h1)
+            gb.pb.hook_deregister(0, h2)
+        assert len(inside) > 100 and set(inside) == {0}, "off while the game draws"
+        assert len(outside) > 300 and 0 not in outside, "on again at the end of every frame"

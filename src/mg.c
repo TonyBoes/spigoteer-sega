@@ -348,7 +348,20 @@ static uint8_t result_frame(uint8_t pressed) {
     return 0;
 }
 
+static uint8_t mg_frame(uint8_t pressed);
+
+// One mini-game frame, with the VBlank OAM DMA off while it runs (as main.c does for GS_PLAYING): every game clears and
+// rewrites its sprite entries here, and a frame that runs past the start of VBlank would put a half-written list on the
+// screen (the flicker of Log Roll's late frames). The DMA is off only inside this call: the last complete list stays up.
 uint8_t mg_update(uint8_t pressed) BANKED {
+    uint8_t left;
+    DISABLE_OAM_DMA;
+    left = mg_frame(pressed);
+    ENABLE_OAM_DMA;
+    return left;
+}
+
+static uint8_t mg_frame(uint8_t pressed) {
     uint8_t s;
     if (mg_t < 255) mg_t++;
     switch (mg_phase) {

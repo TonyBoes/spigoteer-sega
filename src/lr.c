@@ -31,6 +31,7 @@
 #include <gb/gb.h>
 #include <gb/cgb.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "game.h"
 #include "music.h"
@@ -85,6 +86,9 @@ typedef char lr_fits[(LR_BG + LR_ROLL_AT >= 128 && LR_BG + LR_BG_TILES <= 256 &&
 #define OAM_SPIG         5
 #define OAM_SQ          11
 #define OAM_N           15
+// the shifts that stand in for divides below hold for exactly these numbers
+typedef char lr_divs[(LR_RAMP_FRAMES == 30 && LR_RIPPLE_EVERY == 20 && LR_TOPPLE == 16 && LR_WATER_Y - LR_SQ_Y == 28
+                      && LR_WATER_Y - LR_SPIG_Y == 28 && LR_FALL_LEN - LR_HOP_AT == 12) ? 1 : -1];
 enum { LS_RUN, LS_WATER, LS_OVER };             // S.st: on the log; in the water; the outro
 enum { BAND_KEEP, BAND_FOREST, BAND_HUD };      // S.band[]: a banner row's pending change
 enum { P_CA, P_CB, P_L1, P_L2, P_SPLASH, P_CLIMB };   // poses (tools/gen_lr.py POSES)
@@ -128,13 +132,35 @@ static void fill_attr_rows(uint8_t first, uint8_t last) {   // LCD off, CGB: the
 
 // ---- the physics ----
 // No 32-bit multiply or divide anywhere here: the library routines would land in ROM0 (486 B). The ramps are 16-bit.
-static int16_t mag(void) {                      // the push's size now: 0.025 + 0.020 x elapsed / 2400 (x 35 / 64)
-    return LR_DRIFT0 + (S.elapsed >> 6) * 35 + (((S.elapsed & 63) * 35) >> 6);
+static int16_t mag(void) {                      // the push's size now: 0.025 + 0.020 x elapsed / 2400 (x 35 / 64); x 35 = shifts
+    uint8_t hi = S.elapsed >> 6, lo = S.elapsed & 63;
+    return LR_DRIFT0 + ((uint16_t)hi << 5) + ((uint16_t)hi << 1) + hi + ((((uint16_t)lo << 5) + ((uint16_t)lo << 1) + lo) >> 6);
 }
 
-static int16_t ramped(int16_t m, int8_t s) {    // m x s / 30 without overflowing 16 bits
-    int16_t q = m / LR_RAMP_FRAMES, r = m % LR_RAMP_FRAMES;
-    return q * s + (r * s) / LR_RAMP_FRAMES;
+static uint16_t mul5(uint16_t v, uint8_t a) {   // v x a, a < 32 (the library's multiply is a 16-step loop; this is five)
+    uint16_t p = 0;
+    if (a & 1) p += v;
+    v <<= 1; if (a & 2) p += v;
+    v <<= 1; if (a & 4) p += v;
+    v <<= 1; if (a & 8) p += v;
+    v <<= 1; if (a & 16) p += v;
+    return p;
+}
+
+// m x s / 30 (truncated toward 0) without overflowing 16 bits, and without the library's divide or multiply (the divide is
+// about 3000 cycles; two calls a frame made the physics most of the frame). m = 30 q + r: q by x17 >> 9 (one short at most,
+// mended), then q x |s| + r x |s| / 30 (the last by x69 >> 11: one too many at most, mended). Exact for m < 3856 (the
+// game's top is 2950).
+static int16_t ramped(uint16_t m, int8_t s) {
+    uint8_t a = s < 0 ? -s : s, r;
+    uint16_t q = ((m << 4) + m) >> 9, x, j;
+    r = m - ((q << 5) - (q << 1));
+    if (r >= 30) { r -= 30; q++; }
+    x = mul5(r, a);
+    j = ((x << 6) + (x << 2) + x) >> 11;
+    if (((j << 5) - (j << 1)) > x) j--;
+    x = mul5(q, a) + j;
+    return s < 0 ? -(int16_t)x : (int16_t)x;
 }
 
 static void new_flip(void) {
@@ -194,7 +220,8 @@ uint8_t lr_medal(void) BANKED {
 }
 
 static int16_t lean_px(void) {                  // whole px, truncated toward 0 (the same reach to both sides)
-    return S.lean < 0 ? -(int16_t)((-S.lean) >> 16) : (int16_t)(S.lean >> 16);
+    int16_t hi = ((int16_t *)&S.lean)[1];       // (little endian: the floor in whole px; a negative one with a fraction is 1 more)
+    return hi < 0 && ((uint16_t *)&S.lean)[0] ? hi + 1 : hi;
 }
 
 // ---- the sprites ----
@@ -204,26 +231,33 @@ static void ent(uint8_t i, uint8_t x, uint8_t y, uint8_t tile, uint8_t prop) {  
 }
 
 static void spigoteer(uint8_t y, uint8_t f, uint8_t flip) {
-    const uint8_t *e = lr_pose_e + f * 6;
-    uint8_t r, c;
-    for (r = 0; r < 2; r++)
-        for (c = 0; c < 3; c++)
-            ent(OAM_SPIG + r * 3 + c, LR_SPIG_X + 8 * (flip ? 2 - c : c), y + 16 * r, otile(e[r * 3 + c]), flip ? S_FLIPX : 0);
+    const uint8_t *e = lr_pose_e + (f << 2) + (f << 1);
+    OAM_item_t *o = (OAM_item_t *)shadow_OAM + OAM_SPIG;
+    uint8_t r, c, x, yy = y + 16, x0 = LR_SPIG_X + 8 + (flip ? 16 : 0), fl = flip ? S_FLIPX : 0, dx = flip ? -8 : 8;
+    for (r = 0; r < 2; r++, yy += 16)
+        for (x = x0, c = 0; c < 3; c++, x += dx, o++, e++) { o->y = yy; o->x = x; o->tile = otile(*e); o->prop = fl; }
 }
 
 static void partner(uint8_t x, uint8_t y, uint8_t f, uint8_t flip) {   // the show's performer, frame f: 4 entries
     const uint8_t *w = venue.show_tile[f];
-    uint8_t pal = is_cgb ? OBJPAL_DANCER : 0, fl = flip ? S_FLIPX : 0;
-    ent(OAM_SQ,     x + (flip ? 8 : 0), y,      OBJ_DANCER + w[0], pal | fl);
-    ent(OAM_SQ + 1, x + (flip ? 0 : 8), y,      OBJ_DANCER + w[1], pal | fl);
-    ent(OAM_SQ + 2, x + (flip ? 8 : 0), y + 16, OBJ_DANCER + w[2], pal | fl);
-    ent(OAM_SQ + 3, x + (flip ? 0 : 8), y + 16, OBJ_DANCER + w[3], pal | fl);
+    OAM_item_t *o = (OAM_item_t *)shadow_OAM + OAM_SQ;
+    uint8_t pal = (is_cgb ? OBJPAL_DANCER : 0) | (flip ? S_FLIPX : 0), xa = x + (flip ? 16 : 8), xb = x + (flip ? 8 : 16);
+    o->y = y + 16; o->x = xa; o->tile = OBJ_DANCER + w[0]; o->prop = pal; o++;
+    o->y = y + 16; o->x = xb; o->tile = OBJ_DANCER + w[1]; o->prop = pal; o++;
+    o->y = y + 32; o->x = xa; o->tile = OBJ_DANCER + w[2]; o->prop = pal; o++;
+    o->y = y + 32; o->x = xb; o->tile = OBJ_DANCER + w[3]; o->prop = pal;
+}
+
+static int16_t vt(int16_t v, uint8_t t) {      // v x t (t < 64) without the library's multiply: |v| x t by its bits
+    uint16_t p = 0, a = v < 0 ? -v : v;
+    for (; t; t >>= 1, a <<= 1) if (t & 1) p += a;
+    return v < 0 ? -(int16_t)p : (int16_t)p;
 }
 
 static void draw(void) {
     uint8_t k, f = P_CA, flip = 0, y = LR_SPIG_Y, sq = 0, t, shape;
-    int16_t a, x, dy, m;
-    for (k = 0; k < OAM_N; k++) shadow_OAM[k].y = 0;
+    int16_t a, x, dy, m, tt;
+    for (k = OAM_DROPS; k < OAM_SPIG; k++) shadow_OAM[k].y = 0;   // (the rest are all written below)
     // the marker
     m = lean_px();
     if (m > LR_FALL_PX) m = LR_FALL_PX; else if (m < -LR_FALL_PX) m = -LR_FALL_PX;
@@ -232,7 +266,7 @@ static void draw(void) {
     if (S.st == LS_WATER) {
         f = S.fall_t < LR_SPLASH_LEN ? P_SPLASH : P_CLIMB;
         y = LR_WATER_Y;
-        if (S.fall_t >= LR_HOP_AT) y = LR_WATER_Y - (uint8_t)((S.fall_t - LR_HOP_AT) * (LR_WATER_Y - LR_SPIG_Y) / (LR_FALL_LEN - LR_HOP_AT));
+        if (S.fall_t >= LR_HOP_AT) y = LR_WATER_Y - (uint8_t)((((uint16_t)(S.fall_t - LR_HOP_AT) * 7) * 171) >> 9);   // x 28 / 12 = x 7 / 3
     } else {
         a = m < 0 ? -m : m;
         f = a < 14 ? ((S.anim >> 3) & 1 ? P_CB : P_CA) : a < 40 ? P_L1 : P_L2;
@@ -242,7 +276,7 @@ static void draw(void) {
     // the partner: on the log, startled by a fall, or tumbling into the river at the end
     if (S.top_t) {
         t = S.top_t > LR_TOPPLE ? LR_TOPPLE : S.top_t;
-        partner(LR_SQ_X + 4 * t / LR_TOPPLE, LR_SQ_Y + (uint8_t)(t * (LR_WATER_Y - LR_SQ_Y) / LR_TOPPLE), 3, 1);
+        partner(LR_SQ_X + (t >> 2), LR_SQ_Y + (uint8_t)((t * 7) >> 2), 3, 1);   // 4 t / 16, 28 t / 16
     } else {
         if (S.st == LS_WATER && S.fall_t < LR_SQ_REACT) sq = 3;
         partner(LR_SQ_X, LR_SQ_Y, sq, 0);
@@ -251,9 +285,10 @@ static void draw(void) {
     if (S.drop_t) {
         t = S.drop_t;
         shape = t < 14 ? 0 : t < 28 ? 1 : 2;
+        tt = (int16_t)(((uint16_t)t * t * 27) >> 8);   // the fall's share, the same for the four
         for (k = 0; k < 4; k++) {
-            x = S.drop_x + 4 * (k - 1) - 2 + ((drop_vx[k] * t) >> 7);
-            dy = LR_DROP_Y + ((drop_vy[k] * t) >> 7) + (int16_t)(((uint16_t)t * t * 27) >> 8);
+            x = S.drop_x + 4 * (k - 1) - 2 + (vt(drop_vx[k], t) >> 7);
+            dy = LR_DROP_Y + (vt(drop_vy[k], t) >> 7) + tt;
             if (x < 0 || x >= 150 || dy < 0 || dy >= 140) continue;
             f = (k & 1) ? (shape < 2 ? shape + 1 : 3) : shape;
             ent(OAM_DROPS + k, (uint8_t)x, (uint8_t)dy, otile(lr_drop_e[f]), is_cgb ? LR_PAL_DROP : 0);
@@ -266,33 +301,53 @@ static void draw(void) {
 }
 
 // ---- the streamed tiles and the HUD ----
+// A drain runs ~40 cycles a byte from the start of VBlank and must end before line 0 (a copy that runs on into the picture is
+// ignored by the hardware: the rest of the list is lost and, with it, the banner rows put back: the "black bars in the sky").
+// The bark's 64 B, the ripples' 32 B and a banner row (20 B tiles + 20 B colours on CGB) together came to 136 B. A frame
+// therefore takes what fits under LR_Q_MAX bytes (entry overhead counted as 2 B each, the framework's own entries included),
+// and what does not waits for the next frame; nothing is queued while last frame's list still waits (vq_held: its sources
+// would be overwritten under it).
+#define LR_Q_MAX        76                      // ~12 DIV ticks of the ~17 a VBlank has (render.c: drain_ticks_max)
+extern uint8_t vq_held;
+
+static uint8_t q_room(uint8_t n, uint8_t entries) {   // 1: n more bytes in `entries` more entries fit this frame
+    uint8_t i;
+    uint16_t used = 0;
+    if (vq_held || vq_count + entries > VQ_MAX_RAW) return 0;
+    for (i = 0; i < vq_count; i++) used += vq[i].n + 2;
+    return used + n + 2 * entries <= LR_Q_MAX;
+}
+
 static void tiles(void) {
-    uint8_t k, f;
+    uint8_t f;
     f = (uint8_t)(S.roll >> 14);
     S.roll_f = f;
-    S.rip_f = (S.anim / LR_RIPPLE_EVERY) & 1;
-    if (S.roll_vis != S.roll_f) {
-        const uint8_t *s = lr_roll + (uint16_t)S.roll_f * 64;
-        for (k = 0; k < 64; k++) S.roll_buf[k] = s[k];
+    S.rip_f = ((((uint16_t)S.anim * 205) >> 12) & 1);   // anim / 20 without the divide (exact for 0..255)
+    if (S.roll_vis != S.roll_f && q_room(64, 1)) {
+        memcpy(S.roll_buf, lr_roll + (uint16_t)S.roll_f * 64, 64);
         if (stream(LR_BG + LR_ROLL_AT, S.roll_buf, 64)) S.roll_vis = S.roll_f;
     }
-    if (S.rip_vis != S.rip_f) {
-        const uint8_t *s = lr_rip + (uint16_t)S.rip_f * 32;
-        for (k = 0; k < 32; k++) S.rip_buf[k] = s[k];
+    if (S.rip_vis != S.rip_f && q_room(32, 1)) {
+        memcpy(S.rip_buf, lr_rip + (uint16_t)S.rip_f * 32, 32);
         if (stream(LR_BG + LR_RIP_AT, S.rip_buf, 32)) S.rip_vis = S.rip_f;
     }
 }
 
-// the banner rows: a row a frame (tiles and colours together), the forest back or the HUD band
+// the banner rows: a row a frame (tiles and colours together), the forest back or the HUD band; a row is done when its copy
+// is in the list (it waits, a frame at a time, until there is room)
 static void band(void) {
     uint8_t r, k;
     for (r = 0; r < 2; r++) {
         if (S.band[r] == BAND_KEEP) continue;
         if (S.band[r] == BAND_FOREST) {
+            if (!q_room(is_cgb ? 40 : 20, is_cgb ? 2 : 1)) return;
             for (k = 0; k < 20; k++) { S.brow[k] = LR_BG + lr_map[(1 + r) * 20 + k]; S.battr[k] = lr_attr[(1 + r) * 20 + k]; }
             if (is_cgb) vq_add(1, S.battr, 0, MG_TEXT_A + r, 20);
             vq_add(0, S.brow, 0, MG_TEXT_A + r, 20);
-        } else if (is_cgb) vq_add(1, S.hud_attr, 0, MG_TEXT_A + r, 20);
+        } else if (is_cgb) {
+            if (!q_room(20, 1)) return;
+            vq_add(1, S.hud_attr, 0, MG_TEXT_A + r, 20);
+        }
         S.band[r] = BAND_KEEP;
         return;
     }
