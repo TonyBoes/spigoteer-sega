@@ -1,5 +1,5 @@
 # The pause menu of every mode (src/pause.c): START opens RESUME / QUIT TO MENU (QUIT asks ARE YOU SURE?), gameplay stands still,
-# the music stops and its channels are muted (NR51 0) until RESUME, and QUIT ends the run through the same exits as finishing it:
+# the music plays on as the bass alone (NR51 0x44; Taiko Pour and the Sumo fight, clocked by it, stand still and silent) until RESUME, and QUIT ends the run through the same exits as finishing it:
 # STORY (shifts, boss fights, the Pour-Off): the title, the save untouched; ARCADE / CLASSIC: the initials when the score makes the
 # top 5, else the title; mini-games: the list (practice, no medal) or as the run they are part of; BOSS RUSH: its menu, no time.
 # Every mini-game's quit leaves what its normal leave leaves (OBP0, the LCD handler, the mute mask, OBJ / BG tiles, palettes).
@@ -17,6 +17,7 @@ pytestmark = pytest.mark.timeout(300)
 PAUSED = 5
 MG_ICON_PAL = 4                          # mg.c: the medal icon's CGB BG palette
 NR51, NR50 = 0xFF25, 0xFF24
+BASS = 0x44                              # NR51 while paused: channel 3 on both sides
 PAUSE_NR51 = 0xFFF0                      # HRAM (game.h): the NR51 to restore while the menu is open, else 0
 MODES = ["dmg", "cgb"]
 MENU, ASK = 0, 1
@@ -39,7 +40,7 @@ def tap(gb, b, settle=3):
 
 
 def win_text(gb, row):
-    """The window's text row (pause rows 0-5: panel, title, blank, two items, panel) with the '?' and the arrow decoded."""
+    """The window's text row (rows 0-5: panel, 4 text rows, panel; the 5-row layouts end the window at row 4) with the '?' and the arrow decoded."""
     out = ""
     for t in tilemap_row(gb, row, 0, 20, True):
         out += "?" if t == GLYPH_J else ">" if t == GLYPH_Z else GLYPH_CH.get(t, " ")
@@ -47,7 +48,7 @@ def win_text(gb, row):
 
 
 def menu_rows(gb):
-    return [win_text(gb, r) for r in (1, 3, 4)]
+    return [win_text(gb, r) for r in (1, 2, 3, 4)]
 
 
 def music(gb):
@@ -79,18 +80,19 @@ def start_classic(gb):
 def open_pause(gb):
     tap(gb, "start", 3)
     assert state(gb) == PAUSED and gb.mem("overlay_on") == 1
-    rows = menu_rows(gb)
-    assert rows[0] == "PAUSE" and rows[1] == "> RESUME" and rows[2] == "QUIT TO MENU", rows
+    assert menu_rows(gb) == ["", "> RESUME", "QUIT TO MENU", ""], menu_rows(gb)
 
 
 def quit_yes(gb):
     """From the open menu: QUIT TO MENU, then YES."""
-    for _ in range(2 if win_text(gb, 3).endswith("HOW TO PLAY") else 1):      # (a mini-game's menu has the HOW TO PLAY row between)
+    mini = win_text(gb, 2).endswith("HOW TO PLAY")      # (a mini-game's menu has the HOW TO PLAY row between, its answers sit a row higher)
+    for _ in range(2 if mini else 1):
         tap(gb, "down")
     tap(gb, "a")
-    assert win_text(gb, 1) == "ARE YOU SURE?" and win_text(gb, 4).startswith(">"), menu_rows(gb)
+    no, yes = (3, 2) if mini else (4, 3)
+    assert win_text(gb, 1) == "ARE YOU SURE?" and win_text(gb, no).startswith(">"), menu_rows(gb)
     tap(gb, "up")
-    assert win_text(gb, 3).startswith(">") and win_text(gb, 3).endswith("YES")
+    assert win_text(gb, yes).startswith(">") and win_text(gb, yes).endswith("YES")
     gb.press("a", 2)
 
 
@@ -112,23 +114,24 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         before_music = music(gb)
         tap(gb, "start", 3)
         assert state(gb) == PAUSED and gb.mem("overlay_on") == 1
-        assert menu_rows(gb) == ["PAUSE", "> RESUME", "QUIT TO MENU"]
-        assert win_text(gb, 2) == "", "a bar level has no HOW TO PLAY row: two items"
+        assert menu_rows(gb) == ["", "> RESUME", "QUIT TO MENU", ""], "two items, centred in the four text rows"
         assert tilemap_row(gb, 0, 0, 20, True) == [63] * 20 and tilemap_row(gb, 5, 0, 20, True) == [64] * 20   # the panels
-        assert gb.mem(NR51) == 0, "every channel muted"
+        assert gb.mem(NR51) == BASS, "only the bass (channel 3) is on"
         assert gb.mem(PAUSE_NR51) == 0xFF
         assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 46 and gb.mem(0xFF40) & 0x20, "the 48 px window"
         assert tile(gb, GLYPH_J) != glyphs[0] and tile(gb, GLYPH_Z) != glyphs[1], "the '?' and the arrow are loaded"
         assert max(lines(gb)) <= 10
         frozen = (gb.read("patron_state", 16), gb.read("mug_state", 12), gb.mem("bartender_x"), gb.mem16("score"),
-                  gb.mem("spawn_timer"), music(gb))
+                  gb.mem("spawn_timer"))
+        m0 = music(gb)
         gb.hold("left")
         gb.run(120)
         gb.release("left")
-        assert state(gb) == PAUSED and gb.mem(NR51) == 0
+        assert state(gb) == PAUSED and gb.mem(NR51) == BASS
         assert (gb.read("patron_state", 16), gb.read("mug_state", 12), gb.mem("bartender_x"), gb.mem16("score"),
-                gb.mem("spawn_timer"), music(gb)) == frozen, "the game and the tune stand still"
-        assert before_music[0] <= music(gb)[0] <= before_music[0] + 4
+                gb.mem("spawn_timer")) == frozen, "the game stands still"
+        assert music(gb)[0] >= m0[0] + 110, "the tune plays on, 120 frames"
+        assert before_music[0] <= m0[0] <= before_music[0] + 6
         check_golden(gb, "pause_menu")
         tap(gb, "start", 3)
         assert state(gb) == PLAYING and gb.mem("overlay_on") == 0 and gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0
@@ -136,32 +139,69 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         assert tilemap_row(gb, 0, 0, 20, True) == [63] * 20 and tilemap_row(gb, 1, 0, 20, True) == [54] * 20
         assert tilemap_row(gb, 2, 0, 20, True) == [64] * 20, "the banner's rows as win_init left them"
         assert (tile(gb, GLYPH_J), tile(gb, GLYPH_Z)) == glyphs, "the two letters are back"
-        row0 = frozen[-1][1]
+        mf = gb.mem16("music_frames")
+        assert mf >= m0[0] + 110, "the tune carried on through the pause"
         gb.run(90)
-        assert music(gb)[0] > frozen[-1][0] + 60, "the tune plays on"
-        assert gb.mem("hUGE_row") != row0 or gb.mem("hUGE_tick") != frozen[-1][2], "from where it stopped"
+        assert gb.mem16("music_frames") > mf + 60, "and plays on"
         gb.run(1)
 
 
 @pytest.mark.parametrize("model", MODES)
-def test_the_tune_continues_from_the_same_note(model):
-    """The driver's row and tick (and music_frames) stand still for a long pause; after RESUME the next frames are the next ticks."""
+def test_music_advances_while_paused_with_only_the_bass_and_resume_restores_it(model):
+    """The driver keeps ticking behind the menu (a frame a frame) with NR51 at channel 3 only; RESUME gives every channel back."""
     with rom_s(model) as gb:
         start_arcade(gb)
         gb.run(37)
         tap(gb, "start", 3)
         m = music(gb)
-        gb.run(300)
-        assert music(gb) == m
+        for _ in range(5):
+            gb.run(60)
+            assert gb.mem(NR51) == BASS and gb.mem(PAUSE_NR51) == 0xFF
+        n = music(gb)
+        assert n[0] - m[0] >= 295 and (n[1], n[2]) != (m[1], m[2]), (m, n)
         tap(gb, "b", 1)                                  # B resumes too
-        assert state(gb) == PLAYING
-        mf, row, tick, _ = m
-        n = 0
-        while n < 40 and gb.mem16("music_frames") < mf + 1:
-            gb.run(1)
-            n += 1
-        got = (gb.mem("hUGE_row"), gb.mem("hUGE_tick"))
-        assert got in ((row, tick), (row, tick + 1)) or (got[0] == row + 1 and got[1] in (0, 1)), (m, got)
+        assert state(gb) == PLAYING and gb.mem(NR51) == 0xFF
+        gb.run(60)
+        assert gb.mem16("music_frames") >= n[0] + 55, "the tune goes on from where it got to"
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_no_effect_sounds_while_paused(model):
+    """An effect that is still going when START lands stays off the speaker, and a request made meanwhile is not heard either."""
+    with rom_s(model) as gb:
+        start_arcade(gb)
+        gb.write("sfx_req", 1 << 7)                       # SFX_LIFE (16+ frames: still going when START lands)
+        gb.run(3)
+        tap(gb, "start", 2)
+        assert state(gb) == PAUSED
+        for _ in range(40):
+            gb.write("sfx_req", (1 << 6) | (1 << 3))      # a catch / serve-like pair on channels 1 and 4, every frame
+            gb.run(2)
+            assert gb.mem(NR51) == BASS, "channels 1, 2 and 4 stay off the mix (NR51 has bit 2 and 6 only)"
+        gb.run(60)
+        tap(gb, "start", 2)
+        assert gb.mem(NR51) == 0xFF
+        gb.run(120)
+        assert not gb.mem("hUGE_mute_mask") & 8, "the effects ended and gave channel 4 back"
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_the_sumo_fight_stands_still_and_silent_while_paused(model):
+    """The Sumo's beat is counted on music_frames: his fight stops the tune and mutes every channel, as Taiko Pour does."""
+    from boss_common import fight, play
+    gb = fight(model, 7)
+    play(gb)
+    gb.run(30)
+    assert gb.mem16("music_frames") > 20, "the tune plays"
+    tap(gb, "start", 3)                                   # (this rom's APU is off: NR51 reads 0; the tick is what shows)
+    assert state(gb) == PAUSED and gb.mem("boss_on") == 1 and gb.mem(PAUSE_NR51) != 0
+    mf = gb.mem16("music_frames")
+    gb.run(120)
+    assert gb.mem16("music_frames") == mf, "the tune stands still"
+    tap(gb, "start", 3)
+    assert state(gb) == PLAYING and gb.mem(PAUSE_NR51) == 0
+    gb.run(30)
+    assert gb.mem16("music_frames") > mf + 20
 
 
 @pytest.mark.parametrize("model", MODES)
@@ -173,14 +213,57 @@ def test_an_effect_in_progress_is_held_quietly_and_ends_after_resume(model):
         gb.write("sfx_req", 1 << 7)                       # SFX_LIFE (16 + frames: still going when START lands)
         gb.run(3)
         tap(gb, "start", 2)
-        assert state(gb) == PAUSED and gb.mem(NR51) == 0
+        assert state(gb) == PAUSED and gb.mem(NR51) == BASS
         gb.run(200)
-        assert gb.mem(NR51) == 0
+        assert gb.mem(NR51) == BASS
         tap(gb, "start", 2)
         assert gb.mem(NR51) == 0xFF
         gb.run(120)
         assert not gb.mem("hUGE_mute_mask") & 8, "the effect ended and gave channel 4 back"
         assert gb.mem(NR51) == 0xFF
+
+
+# ---- (a2) no flicker: every frame of a change shows the old menu or the new one, never a mix ----------------------------------------------
+def screen_frames(gb, n):
+    """The next n frames as images (each rendered: what the beam drew that frame)."""
+    out = []
+    for _ in range(n):
+        gb.run(1, True)
+        out.append(gb.image().tobytes())
+    return out
+
+
+def torn(gb, key, n=6):
+    """Press key, then n frames: those that are neither the screen before nor the screen after."""
+    gb.run(3)
+    before = screen_frames(gb, 1)[0]
+    gb.hold(key)
+    gb.run(1)
+    gb.release(key)
+    seen = screen_frames(gb, n)
+    gb.run(6)
+    after = screen_frames(gb, 1)[0]
+    assert before != after, key
+    return [i for i, f in enumerate(seen) if f != before and f != after]
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_a_cursor_move_and_the_question_never_show_a_half_drawn_menu(model):
+    with rom_s(model) as gb:
+        start_arcade(gb)
+        tap(gb, "start", 3)
+        for key in ("down", "up", "down", "a", "down", "up", "b"):      # 2 items: move, move, move, ask, YES/NO, YES/NO, back
+            assert torn(gb, key) == [], key
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_the_three_item_menu_and_its_card_never_show_a_half_drawn_menu(model):
+    with rom_s(model) as gb:
+        mg_enter(gb, 1, MG_PRACTICE)
+        until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
+        tap(gb, "start", 3)
+        for key in ("down", "down", "down", "up", "a", "up", "b"):      # 3 items: moves, the question (5 rows to 5), back
+            assert torn(gb, key) == [], key
 
 
 # ---- (b) the menu's own keys ------------------------------------------------------------------------------------------------------------
@@ -196,11 +279,12 @@ def test_menu_keys_resume_cancel_and_the_question(model):
         tap(gb, "up")
         assert menu_rows(gb)[2].startswith(">"), "wraps"
         tap(gb, "a")                                      # QUIT TO MENU: asks
-        assert win_text(gb, 1) == "ARE YOU SURE?"
-        assert win_text(gb, 3) == "YES" and win_text(gb, 4) == "> NO", "the cursor starts on NO"
+        assert menu_rows(gb) == ["ARE YOU SURE?", "", "YES", "> NO"], "the question and its answers fill the four text rows"
+        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 46, "the 48 px window"
         for key in ("a", "b", "start"):                   # NO, B and START all go back to the menu (the cursor on QUIT)
             tap(gb, key)
-            assert state(gb) == PAUSED and win_text(gb, 1) == "PAUSE" and menu_rows(gb)[2].startswith(">"), key
+            assert state(gb) == PAUSED and menu_rows(gb) == ["", "RESUME", "> QUIT TO MENU", ""], key
+            assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 46, "the 48 px window"
             tap(gb, "a")                                  # the question again
             assert win_text(gb, 1) == "ARE YOU SURE?"
         tap(gb, "b")
@@ -432,8 +516,10 @@ def test_boss_rush_quit_returns_to_its_menu_without_a_record(model):
 
 
 # ---- (f) mini-games -----------------------------------------------------------------------------------------------------------------------
-def mini_snapshot(gb):
-    return (gb.read("story_scratch", 480), gb.mem16("mg_timer"), gb.mem16("mg_score"), gb.mem("mg_phase"), gb.mem("mg_t"), music(gb))
+def mini_snapshot(gb, gid=None):
+    """What stands still while paused. The tune does too only where the game is clocked by it (Taiko Pour)."""
+    return (gb.read("story_scratch", 480), gb.mem16("mg_timer"), gb.mem16("mg_score"), gb.mem("mg_phase"), gb.mem("mg_t")) \
+        + ((music(gb),) if gid == MG_TAIKO else ())
 
 
 @pytest.mark.parametrize("model", MODES)
@@ -475,11 +561,11 @@ def test_every_mini_game_pauses_resumes_and_quits_to_the_list_with_everything_ba
         gb.release("start")
         gb.release("select")
         gb.run(3)
-        assert state(gb) == PAUSED and gb.mem("overlay_on") == 1 and gb.mem(NR51) == 0
-        assert menu_rows(gb)[0] == "PAUSE" and max(lines(gb)) <= 10
-        frozen = mini_snapshot(gb)
+        assert state(gb) == PAUSED and gb.mem("overlay_on") == 1 and gb.mem(NR51) == (0 if gid == MG_TAIKO else BASS)
+        assert menu_rows(gb)[:3] == ["> RESUME", "HOW TO PLAY", "QUIT TO MENU"] and max(lines(gb)) <= 10
+        frozen = mini_snapshot(gb, gid)
         gb.run(90)
-        assert mini_snapshot(gb) == frozen, "the mini-game and the tune stand still"
+        assert mini_snapshot(gb, gid) == frozen, "the mini-game stands still (Taiko's tune too)"
         assert state(gb) == PAUSED
         tap(gb, "start", 3)
         assert state(gb) == GS_MINI and gb.mem("overlay_on") == 0 and gb.mem(NR51) == nr51 and gb.mem(PAUSE_NR51) == 0
@@ -685,7 +771,7 @@ def screen_state(gb):
     """What the game needs back: tiles and the BG map (the window map's rows 0-5 aside: the menu's own), palettes, registers, OAM."""
     from test_bs import palettes
     regs = [gb.mem(a) for a in (0xFF40, 0xFF42, 0xFF43, 0xFF45, 0xFF4A, 0xFF4B, NR51)] + [gb.mem("overlay_on"), gb.mem("game_state")]
-    return (bytes(gb.read(0x8000, 0x1C00)), bytes(gb.read(0x9CC0, 0x340)), palettes(gb), regs, gb_oam(gb), music(gb))
+    return (bytes(gb.read(0x8000, 0x1C00)), bytes(gb.read(0x9CC0, 0x340)), palettes(gb), regs, gb_oam(gb))
 
 
 @pytest.mark.parametrize("model", MODES)
@@ -695,14 +781,35 @@ def test_a_mini_game_pause_menu_has_three_rows_and_the_level_two(model):
         until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
         tap(gb, "start", 3)
         assert state(gb) == PAUSED
-        assert [win_text(gb, r) for r in (1, 2, 3, 4)] == ["PAUSE", "> RESUME", "HOW TO PLAY", "QUIT TO MENU"]
+        assert menu_rows(gb) == ["> RESUME", "HOW TO PLAY", "QUIT TO MENU", ""], "three items, centred in the three rows of the 5-row window"
+        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 38 and tilemap_row(gb, 4, 0, 20, True) == [64] * 20, "the 40 px window, its panel on row 4"
         check_golden(gb, "pause_menu_mini")
         tap(gb, "up")
-        assert win_text(gb, 4).startswith(">"), "up wraps to QUIT"
+        assert win_text(gb, 3).startswith(">"), "up wraps to QUIT"
+        tap(gb, "down")
+        assert win_text(gb, 1).startswith(">")
         tap(gb, "down")
         assert win_text(gb, 2).startswith(">")
-        tap(gb, "down")
-        assert win_text(gb, 3).startswith(">")
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_milk_runs_handler_ends_the_window_after_five_rows_in_both_menus(model):
+    """Milk Run walks LYC itself (main.c mr_lcd_isr): the mini-game's menu and its question are 5 rows (WY + 38), never 6."""
+    with rom_s(model) as gb:
+        mg_enter(gb, MG_MILKRUN, MG_PRACTICE)
+        until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
+        tap(gb, "start", 3)
+        for step in range(2):
+            gb.run(6)
+            im, wy = gb.image(), gb.mem(0xFF4A)
+            bg = im.getpixel((0, wy + 12))                # the menu's flat background
+            assert im.getpixel((0, wy + 28)) == bg, "inside the window"
+            assert im.getpixel((0, wy + 42)) != bg and im.getpixel((0, wy + 44)) != bg, (step, "the window is over after 5 rows")
+            if step == 0:
+                tap(gb, "down")
+                tap(gb, "down")
+                tap(gb, "a")                              # the question
+                assert win_text(gb, 1) == "ARE YOU SURE?"
 
 
 @pytest.mark.parametrize("model", MODES)
@@ -725,16 +832,16 @@ def test_how_to_play_from_the_pause_menu_and_back_leaves_everything_as_it_was(mo
         assert state(gb) == PAUSED
         before = screen_state(gb)
         tap(gb, "down")
-        assert win_text(gb, 3).startswith(">") and win_text(gb, 3).endswith("HOW TO PLAY")
+        assert win_text(gb, 2).startswith(">") and win_text(gb, 2).endswith("HOW TO PLAY")
         tap(gb, "a", 10)
-        assert state(gb) == PAUSED and gb.mem(NR51) == 0
+        assert state(gb) == PAUSED and gb.mem(NR51) == (0 if gid == MG_TAIKO else BASS)
         rows = card_rows(gb)
         assert rows[1] == "HOW TO PLAY" and rows[4] != "", rows
         assert gb.mem(0xFF4A) == 0 and gb.mem(0xFF40) & 0x20 and not gb.mem(0xFF40) & 2, "the window over the screen, sprites off"
         gb.run(60)
         assert state(gb) == PAUSED
         tap(gb, "b", 10)
-        assert win_text(gb, 1) == "PAUSE" and win_text(gb, 3).startswith(">") and win_text(gb, 3).endswith("HOW TO PLAY")
+        assert menu_rows(gb)[:3] == ["RESUME", "> HOW TO PLAY", "QUIT TO MENU"]
         assert screen_state(gb) == before, "the game's tiles, map, palettes, sprites and registers are as they were"
         tap(gb, "up")
         tap(gb, "start", 3)                               # (cursor on RESUME: START resumes in any case)
@@ -765,12 +872,12 @@ def test_the_card_in_the_pause_menu_turns_pages_and_a_on_the_last_comes_back(mod
         rows = card_rows(gb)
         assert rows[4] == "GREEN LIGHT" and rows[6] == "EARLY IS A MISS" and rows[16] == "A BACK", rows
         tap(gb, "a", 10)
-        assert win_text(gb, 1) == "PAUSE" and state(gb) == PAUSED
+        assert win_text(gb, 2) == "> HOW TO PLAY" and state(gb) == PAUSED
         tap(gb, "a", 10)                                   # the card again: page 1
         assert card_rows(gb)[6] == "PRESS A ON GREEN"
         tap(gb, "a", 10)
         tap(gb, "b", 10)                                   # B on page 2 returns too
-        assert win_text(gb, 1) == "PAUSE"
+        assert win_text(gb, 2) == "> HOW TO PLAY"
         tap(gb, "up")
         tap(gb, "a", 10)
         assert state(gb) == GS_MINI

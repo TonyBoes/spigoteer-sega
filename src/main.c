@@ -184,7 +184,8 @@ void mr_lcd_isr(void) {
             if (overlay_on) {
                 SHOW_WIN;                        // (the banner window is wanted from its top line)
                 if (game_state == GS_PAUSED && (state_timer & 8)) ly = 144;   // (pause.c's HOW TO PLAY card: the window is the whole screen)
-                else ly = mg_phase == MG_RESULT || game_state == GS_PAUSED ? BANNER_WY + 46 : BANNER_LYC;
+                else if (game_state == GS_PAUSED) ly = BANNER_WY + ((state_timer & 0x80) ? 38 : 46);   // (pause.c WIN_LYC: a mini-game's menu is 5 rows)
+                else ly = mg_phase == MG_RESULT ? BANNER_WY + 46 : BANNER_LYC;
             } else ly = 144;
         } else ly = 144;                         // the window's end: hidden above
         LYC_REG = ly;
@@ -632,7 +633,7 @@ void main(void) {
         vq_frame_end();      // the copy list is complete: the next VBlank interrupt executes it
         perf_snap(); lt = snap_t; lly = snap_ly;
         // Music and effects, every frame, after the logic (so they cannot delay the game's input-to-state latency).
-        if (game_state != GS_PAUSED || !PAUSE_NR51) music_tick();   // (the pause menu: the tune stands still, its channels muted: pause.c)
+        if (game_state != GS_PAUSED || !PAUSE_NR51 || NR51_REG) music_tick();   // (the pause menu: the bass plays on; NR51 0: a tune the game is clocked by stands still, pause.c)
         SEC(SEC_MUSIC);
         perf_snap();
 #ifdef PERF_SECTIONS

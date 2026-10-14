@@ -14,7 +14,7 @@ COMBO = 30
 SAVE_LOCK_DEBUG = 2     # save.c save_lock: a debug-select run (ARCADE alone is 1: it still records the mini-games reached)
 
 
-def combo(gb, frames=COMBO + 2):
+def combo(gb, frames=COMBO + 5):      # (the pause menu opens in the first frames and its music tick makes a frame or two take two: the combo counts game frames)
     gb.hold("start")
     gb.hold("select")
     gb.run(frames)
