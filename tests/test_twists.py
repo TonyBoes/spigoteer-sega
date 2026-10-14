@@ -267,6 +267,7 @@ def scene(gb, mosh):
     """The same scripted scene with the mosh pit on or off: P served with Q behind him (shoved when it is on), P drinks
     and sends his empty; returns what the rules count (the fair-empties schedule, served, score) and the bumps."""
     quiet(gb)
+    gb.write("level", 1)                         # (no early drinkers: the random draw would differ with the pit on and off)
     gb.write("mosh_on", mosh)
     gb.write("mosh_count", 0)
     gb.write("next_arrival", 0)

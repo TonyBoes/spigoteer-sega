@@ -15,7 +15,7 @@ PX = 8 * PUSHBACK
 FAR_X = GAME["PATRON_FAR_X"]          # M8a: 120, a walker here has reached the bartender's end
 HELD = 4
 SPACING = 32
-ENTRY_X = GAME["ENTRY_X"]                # patrons walk on from here (left of it they enter / leave as sprites) and are served when pushed back to it
+ENTRY_X = GAME["ENTRY_X"]                # patrons are BG figures from here (left of it they enter / leave as sprites); a push of PX serves one at x <= PX - 16
 START_BARS = [0, 2]                   # level 1 starts with patrons on these bars (start_mask 0x5)
 
 
@@ -213,12 +213,13 @@ def test_served_near_entry_x_scores_slides_out_and_is_removed(gb):
     inject_mug(gb, 0, ENTRY_X + 18)          # reaches bar 0's patron (x 16-31) two frames later
     gb.run(12)
     assert [p["state"] for p in patrons(gb) if p["bar"] == 0] == [LEAVING], "served: sliding out past the left edge"
-    assert score(gb) == SERVE
-    assert list(gb.read("score_digits", 6)) == [0, 0, 0, 0, 5, 0]
+    assert score(gb) == 0 and gb.mem("served") == 0, "(it counts when he is off the screen)"
     gb.run(30)
     ps = patrons(gb)
     assert sorted(p["bar"] for p in ps) == [2], "bar 0's patron left"
     assert mugs(gb) == [], "the held mug is freed when its patron is gone"
+    assert score(gb) == SERVE and gb.mem("served") == 1
+    assert list(gb.read("score_digits", 6)) == [0, 0, 0, 0, 5, 0]
     check_golden(gb, "served")
 
 
@@ -256,36 +257,113 @@ def catch_once(gb, p, bar):
             break
 
 
-def test_thirst_second_drink_pushes_twice_as_far(gb):
-    """M8c: pushback = pushback_px x drinks caught so far."""
+def test_every_mug_pushes_the_same_distance(gb):
+    """Owner 2026-10-13 (the arcade's rule): no thirst multiplier. The 1st, 2nd and 3rd mug each push a patron
+    pushback_px (32 px on level 1) back; he walks on in between (frozen here: skip the drink by poking his state)."""
     clear_patrons(gb)
     freeze(gb)
     p = set_patron(gb, 1, 120)
-    catch_once(gb, p, 1)
-    assert gb.read("patron_drinks", MAX_P)[p] == 1
-    assert gb.read("patron_x", MAX_P)[p] == 120 - PX
-    put(gb, "patron_state", p, WALKING)                    # skip the drink: walk resumes (frozen, so he stays put)
-    gb.run(2)
-    for i in range(MAX_M):                                  # drop the returned empty
-        put(gb, "mug_state", i, FREE)
-    gb.write("mugs_live", 0)
-    catch_once(gb, p, 1)
-    assert gb.read("patron_drinks", MAX_P)[p] == 2
-    assert gb.read("patron_x", MAX_P)[p] == 120 - PX - 2 * PX
+    x = 120
+    for n in (1, 2, 3):
+        catch_once(gb, p, 1)
+        assert gb.read("patron_drinks", MAX_P)[p] == n
+        assert gb.read("patron_x", MAX_P)[p] == x - PX, (n, "the same push every time")
+        x -= PX
+        put(gb, "patron_state", p, WALKING)                # skip the drink: walk resumes (frozen, so he stays put)
+        gb.run(2)
+        for i in range(MAX_M):                              # drop the returned empty
+            put(gb, "mug_state", i, FREE)
+        gb.write("mugs_live", 0)
 
 
-def test_thirst_third_drink_takes_a_mid_bar_patron_out(gb):
+def test_a_mid_bar_patron_needs_several_mugs_and_is_served_off_the_screen(gb):
+    """x 60 on level 1: 60 -> 28 -> (a push that would leave 12 px of him on the screen stops him at ENTRY_X, 16) -> the
+    third mug carries him off: served. Nothing counts until he is off the screen."""
     clear_patrons(gb)
     freeze(gb)
     p = set_patron(gb, 1, 60)
-    put(gb, "patron_drinks", p, 2)                         # two already caught: this is the 3rd (3 x 32 = 96 px)
-    inject_mug(gb, 1, 64)
-    gb.run(3 + 44 + 4)
-    assert gb.read("patron_state", MAX_P)[p] == LEAVING, "pushed back to ENTRY_X: served"
-    assert score(gb) == SERVE
-    gb.run(2 * ENTRY_X + 4)
+    gb.run(3)
+    xs = []
+    for n in range(3):
+        if n == 2:
+            inject_mug(gb, 1, gb.read("patron_x", MAX_P)[p] + 4)
+            gb.run(8)
+            break
+        catch_once(gb, p, 1)
+        xs.append(gb.read("patron_x", MAX_P)[p])
+        assert gb.read("patron_state", MAX_P)[p] == DRINKING and score(gb) == 0
+        put(gb, "patron_state", p, WALKING)
+        gb.run(2)
+        for i in range(MAX_M):
+            put(gb, "mug_state", i, FREE)
+        gb.write("mugs_live", 0)
+    assert xs[:2] == [60 - PX, ENTRY_X], xs
+    assert gb.read("patron_state", MAX_P)[p] == LEAVING, "the third mug: served out"
+    assert gb.mem("served") == 0 and score(gb) == 0
+    gb.run(2 * ENTRY_X + 8)
     assert gb.read("patron_state", MAX_P)[p] == NONE, "slid out past the left edge"
-    assert score(gb) == SERVE
+    assert gb.mem("served") == 1 and score(gb) == SERVE
+
+
+def test_a_serve_happens_only_off_the_screen(gb):
+    """The push serves a patron only if x + 16 <= push (level 1: x <= 16). At x = 17 it would leave a pixel on the
+    screen: he stops at ENTRY_X and drinks, unserved; at x = 16 the same mug takes him off."""
+    for x, served in ((ENTRY_X + 1, False), (ENTRY_X, True)):
+        clear_patrons(gb)
+        freeze(gb)
+        gb.write("served", 0)
+        p = set_patron(gb, 1, x)
+        gb.run(3)
+        inject_mug(gb, 1, x + 4)
+        gb.run(3 + PX + 4)
+        st = gb.read("patron_state", MAX_P)[p]
+        if served:
+            assert st in (LEAVING, NONE)
+            gb.run(2 * ENTRY_X + 8)
+            assert gb.mem("served") == 1 and score(gb) == SERVE
+        else:
+            assert st == DRINKING and gb.read("patron_x", MAX_P)[p] == ENTRY_X
+            assert gb.mem("served") == 0 and score(gb) == 0
+
+
+def test_the_hard_rows_push_24_px(gb):
+    """The two hardest rows (zoo, space lounge) push 24 px a mug: a patron at ENTRY_X is stopped, not served."""
+    assert GAME["PATRON_W"] == 16
+    from test_edge import goto_level
+    goto_level(gb, 9)
+    assert gb.mem("pushback_px") == 24
+    clear_patrons(gb)
+    freeze(gb)
+    gb.write("level", 9)
+    p = set_patron(gb, 1, ENTRY_X)
+    gb.run(3)
+    inject_mug(gb, 1, ENTRY_X + 4)
+    gb.run(3 + 12)
+    assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.mem("served") == 0
+
+
+def test_some_patrons_drink_early(gb):
+    """From level 2 a patron may take only a quarter or a half of the push and drink at once (never on level 1).
+    Many mugs on fresh patrons at x 120: some stop after PX / 4 or PX / 2, the rest slide the whole PX; on level 1 none."""
+    def trial(level, n=40):
+        out = []
+        gb.write("level", level)
+        for k in range(n):
+            clear_patrons(gb)
+            freeze(gb)
+            for i in range(MAX_M):
+                put(gb, "mug_state", i, FREE)
+            gb.write("mugs_live", 0)
+            p = set_patron(gb, 1, 120)
+            inject_mug(gb, 1, 124)
+            gb.run(3 + PX + 4)
+            out.append(120 - gb.read("patron_x", MAX_P)[p])
+        return out
+    first = trial(1)
+    assert set(first) == {PX}, first
+    later = trial(10)
+    assert set(later) <= {PX, PX // 2, PX // 4}, later
+    assert PX in later and (PX // 2 in later or PX // 4 in later), later
 
 
 def test_a_new_patron_starts_thirsty_again(gb):
@@ -384,12 +462,12 @@ def test_a_clump_served_over_and_over_is_cleared(gb):
             gb.run(3)
             if gb.read("patron_state", MAX_P)[front] in (PUSHED, LEAVING, NONE):
                 catches += 1
-                for _ in range(PX + 2):                # every catch moves him back (or out: served at ENTRY_X)
+                for _ in range(PX + 2):                # every catch moves him back (or out)
                     gb.run(1)
                     if gb.read("patron_state", MAX_P)[front] != PUSHED:
                         break
                 st2, x2 = gb.read("patron_state", MAX_P)[front], gb.read("patron_x", MAX_P)[front]
-                assert st2 in (NONE, LEAVING) or x2 <= x0 - PX, (f, x0, x2, st2)
+                assert st2 in (NONE, LEAVING) or x2 <= max(x0 - PX, ENTRY_X), (f, x0, x2, st2)   # (a push that falls short stops at ENTRY_X)
             continue
         gb.run(1)
     else:
@@ -700,3 +778,64 @@ def test_a_lone_patron_is_never_held_back(gb):
     assert gb.read("patron_aux", MAX_P)[p] == DRINK_WINDUP, "winds up at once (M8d)"
     gb.run(WINDUP)
     assert gb.read("patron_state", MAX_P)[p] == WALKING and [m["state"] for m in mugs(gb)] == [EMPTY]
+
+
+# ---- quick refill: an empty screen brings the next patron within about half a second (owner 2026-10-13) ------------------
+REFILL = GAME["REFILL_FRAMES"]
+
+
+def due_in(gb, frames):
+    gb.write("intro_timer", 0)
+    gb.write("quota", 50)
+    gb.write("spawn_timer", frames & 255)
+    gb.write(gb.addr("spawn_timer") + 1, frames >> 8)
+
+
+def test_an_empty_screen_refills_within_about_30_frames(gb):
+    clear_patrons(gb)
+    due_in(gb, 250)                                   # (level 1 waits 300 frames between patrons)
+    n0 = gb.mem("spawned")
+    gb.run(REFILL + 6)
+    assert gb.mem("spawned") == n0 + 1, "the next patron came in about half a second, not 250 frames"
+
+
+def test_a_screen_with_a_patron_does_not_refill_early(gb):
+    clear_patrons(gb)
+    set_patron(gb, 1, 60)
+    due_in(gb, 250)
+    n0 = gb.mem("spawned")
+    gb.run(REFILL + 60)
+    assert gb.mem("spawned") == n0, "only an empty screen pulls the spawn forward"
+
+
+def test_a_patron_still_sliding_out_counts_as_on_the_screen(gb):
+    clear_patrons(gb)
+    freeze(gb)
+    p = set_patron(gb, 1, ENTRY_X)
+    gb.run(3)
+    inject_mug(gb, 1, ENTRY_X + 8)
+    gb.run(3)
+    assert gb.read("patron_state", MAX_P)[p] == LEAVING
+    due_in(gb, 250)
+    n0 = gb.mem("spawned")
+    gb.run(REFILL - 12)                               # (he needs about 32 frames to be fully off: no spawn before that)
+    assert gb.mem("spawned") == n0 and gb.read("patron_state", MAX_P)[p] == LEAVING
+    gb.run(80)
+    assert gb.mem("spawned") == n0 + 1, "off the screen: the bar is empty, the refill runs"
+
+
+def test_no_quick_refill_after_a_patterns_breather(gb):
+    """A story arrival pattern's breather ('b', wait code 3) is deliberate: an empty screen does not cut it short; a normal
+    wait (code 0) does."""
+    for code, comes in ((3, False), (0, True)):
+        clear_patrons(gb)
+        gb.write("pat_len", 2)
+        gb.write("pat_pos", 1)
+        put(gb, "pat_buf", 0, (code << 4) | 2)           # the entry just played (pat_pos - 1) ...
+        put(gb, "pat_buf", 1, 1)
+        gb.write("pat_bar", 1)
+        due_in(gb, 250)
+        n0 = gb.mem("spawned")
+        gb.run(REFILL + 20)
+        assert (gb.mem("spawned") > n0) == comes, (code, gb.mem("spawned") - n0)
+    gb.write("pat_len", 0)

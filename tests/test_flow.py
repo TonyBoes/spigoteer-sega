@@ -468,7 +468,7 @@ def test_pause_toggles_and_freezes(gb):
     check_golden(gb, "pause")
     gb.press("start", 2)
     assert state(gb) == PLAYING and gb.mem("overlay_on") == 0
-    gb.run(60)
+    gb.run(200)                                          # (the drinker's mug is held for 90 frames, then sent back)
     assert patrons(gb) != before[0] and mugs(gb) != before[1]
 
 
@@ -511,8 +511,8 @@ def test_lost_life_glass_animation_completes(gb):
 
 def test_served_count_persists_across_a_lost_life(gb):
     gb.write("intro_timer", 255)
-    inject_mug(gb, 0, ENTRY_X + 8)                        # next to the patron at ENTRY_X: served
-    gb.run(6)
+    inject_mug(gb, 0, ENTRY_X + 8)                        # next to the patron at ENTRY_X: served (when he is off the screen)
+    gb.run(45)
     assert gb.mem("served") == 1 and score(gb) == 50
     lose_a_life(gb)
     run_until(gb, lambda: state(gb) == PLAYING, 200)
@@ -568,7 +568,7 @@ def test_level_clear_banner_is_the_window(gb):
 def test_three_lost_lives_end_the_game_and_start_goes_on_to_the_title(gb):
     gb.write("intro_timer", 255)
     inject_mug(gb, 0, ENTRY_X + 8)
-    gb.run(6)
+    gb.run(45)
     assert score(gb) == 50
     for n in range(3):
         lose_a_life(gb)

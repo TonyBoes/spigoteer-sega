@@ -1,9 +1,10 @@
 # The bars' left end (owner 2026-10-09: no doors). The wall and the counter run to the screen's left edge. A new patron
 # slides in from beyond x 0 as a sprite (LIFT_EDGE: drawn patron_aux px left of patron_x, clipped by the screen edge,
-# no BG footprint), 32 px at EMERGE_SPEED / 256 px a frame to ENTRY_X (64 frames, what the door's emergence took), then
-# walks at the level's speed and drops to the BG by the M13b rules. A patron pushed back to ENTRY_X is served (score and
-# tip at once) and slides out past the edge as a sprite with his mug (PATRON_LEAVING), then is removed. Columns 0-1 of
-# the wall rows keep the venue's tiles throughout.
+# no BG footprint), 24 px at EMERGE_SPEED / 256 px a frame to WALK_X (48 frames; owner 2026-10-13: he slows to the
+# level's walking pace at the old door, x 0-16, not at ENTRY_X), walks at the level's speed and drops to the BG at ENTRY_X
+# by the M13b rules. A patron whose push carries all of him off the screen is served: he slides out past the edge as a
+# sprite with his mug (PATRON_LEAVING) and the serve (score, count, tip) counts when he is gone. Columns 0-1 of the wall
+# rows keep the venue's tiles throughout.
 import re
 
 import numpy as np
@@ -17,7 +18,7 @@ from test_patrons import (DRINKING, MAX_P, PUSHED, WALKING, clear_patrons, drawn
 
 pytestmark = pytest.mark.timeout(120)
 
-ENTRY_X, SPAWN_X, EMERGE_SPEED = GAME["ENTRY_X"], GAME["SPAWN_X"], GAME["EMERGE_SPEED"]
+ENTRY_X, SPAWN_X, EMERGE_SPEED, WALK_X = GAME["ENTRY_X"], GAME["SPAWN_X"], GAME["EMERGE_SPEED"], GAME["WALK_X"]
 LIFT_BG, LIFT_OBJ, LIFT_EDGE = GAME["LIFT_BG"], GAME["LIFT_OBJ"], GAME["LIFT_EDGE"]
 LEAVING = 4                                     # PATRON_LEAVING
 W = GAME["PATRON_W"]
@@ -110,10 +111,12 @@ def goto_level(gb, level):
 
 # ---- the geometry ------------------------------------------------------------------------------------------------------
 def test_entry_geometry():
-    """ENTRY_X is the old door's right edge (the counter's walk limit too); an entering patron covers the 32 px from
-    fully off the screen to ENTRY_X in the 64 frames the door's emergence took."""
+    """ENTRY_X is the old door's right edge (the counter's walk limit too, where a patron is a BG figure from); an
+    entering patron covers the 24 px from fully off the screen to WALK_X (the old door, x 0-16) in 48 frames, where he
+    slows to the level's walking pace."""
     assert ENTRY_X == 16 == GAME["LEFT_LIMIT"] and SPAWN_X == 0 and W == 16
-    assert (ENTRY_X - SPAWN_X + W) * 256 // EMERGE_SPEED == 64
+    assert 0 < WALK_X < ENTRY_X
+    assert (WALK_X - SPAWN_X + W) * 256 // EMERGE_SPEED == 48
 
 
 def test_no_venue_has_a_door():
@@ -172,7 +175,7 @@ def test_spawn_waits_while_the_left_end_is_crowded(gb):
 def test_he_slides_in_from_the_left_edge(gb, group):
     """Frame by frame while he enters: the part of him on the screen grows from the edge (none at patron_aux 16, and
     never a pixel right of his right edge, 16 - patron_aux), columns 0-2 of his wall rows keep the venue's tiles (no
-    garbage tile, no BG copy of him) until ENTRY_X, and columns 0-1 never change. x4 screenshots in out/doors/."""
+    garbage tile, no BG copy of him) until ENTRY_X, and columns 0-1 never change. He enters fast until WALK_X. x4 screenshots in out/doors/."""
     if group:
         goto_group(gb, group)
     gb.write("tip_chance", 0)
@@ -187,7 +190,7 @@ def test_he_slides_in_from_the_left_edge(gb, group):
     for i in range(90):
         a, x = aux(gb, p), px(gb, p)
         im = np.asarray(gb.image())
-        if x >= ENTRY_X:
+        if x >= WALK_X:
             break
         assert lift_of(gb, p) == LIFT_EDGE
         assert left_tiles(gb, b) == want2, (i, x, a)
@@ -204,7 +207,7 @@ def test_he_slides_in_from_the_left_edge(gb, group):
     ks = sorted(vis)
     assert ks[-1] == W and all(vis[k1] <= vis[k2] for k1, k2 in zip(ks, ks[1:])), vis
     assert vis[W] > vis[W // 2] > 0, vis
-    assert shot and 60 <= i <= 68, i                       # 32 px at EMERGE_SPEED / 256 px a frame: 64 frames
+    assert shot and 44 <= i <= 52, i                       # 24 px at EMERGE_SPEED / 256 px a frame: 48 frames
 
 
 def test_he_drops_to_the_bg_at_entry_x_when_clear(gb):
@@ -247,25 +250,32 @@ def test_one_who_meets_someone_at_entry_x_stays_lifted(gb):
 
 
 @pytest.mark.parametrize("level", [1, 10])
-def test_entry_to_tap_time_is_unchanged(gb, level):
-    """He takes 64 frames from the spawn to ENTRY_X (as the door's emergence did), and from ENTRY_X to the tap the
-    level's time as before (the old 120 px at 8 px per step_frames, within 2 %); level 1 stays at 15 s or more."""
+def test_patrons_slow_to_walking_pace_at_the_old_door_position(gb, level):
+    """He takes 48 frames from the spawn to WALK_X (fast: EMERGE_SPEED), where he slows to the level's walking pace (the
+    speed is unchanged), so the walk on to the tap takes the level's time for (FAR_X - WALK_X) px: the old walk from
+    ENTRY_X (within 2 %) plus the extra WALK_X..ENTRY_X px. Level 1 stays at 15 s or more."""
     if level > 1:
         goto_level(gb, level)
     gb.write("tip_chance", 0)
     p, b = spawn_one(gb)
     put(gb, "patron_hurry", p, 0)
-    n, t16 = 1, None
-    while gb.mem("lives") == 3 and n < 2000:
+    n, t8, xs = 1, None, []
+    while gb.mem("lives") == 3 and n < 2200:
         gb.run(1)
         n += 1
-        if t16 is None and px(gb, p) >= ENTRY_X:
-            t16 = n
+        xs.append(px(gb, p) - aux(gb, p))
+        if t8 is None and px(gb, p) >= WALK_X:
+            t8 = n
     step = TABLE[level - 1][5]
     old = 120 * 256 / (2048 // step)
-    assert abs(t16 - (ENTRY_X - SPAWN_X + W) * 256 / EMERGE_SPEED) <= 3, t16
-    cross = n - t16
-    assert abs(cross - old) <= 0.02 * old + 1, (level, cross, old)
+    assert abs(t8 - (WALK_X - SPAWN_X + W) * 256 / EMERGE_SPEED) <= 3, t8
+    # fast before WALK_X: 0.5 px a frame; slow after it (level 1: about 0.11 px a frame)
+    fast = xs[t8 - 2] - xs[t8 - 18]
+    assert fast >= 7, fast
+    assert xs[t8 + 30] - xs[t8 + 14] <= 4, "slow after WALK_X"
+    expect = old * (GAME["PATRON_FAR_X"] - WALK_X) / (GAME["PATRON_FAR_X"] - ENTRY_X)
+    cross = n - t8
+    assert abs(cross - expect) <= 0.02 * expect + 1, (level, cross, expect)
     if level == 1:
         assert cross >= 15 * 60
 
@@ -304,8 +314,8 @@ def test_no_catch_while_part_of_him_is_off_the_screen(gb):
 
 def test_he_catches_a_mug_while_entering_and_slides_back_out(gb):
     """On the screen but left of ENTRY_X he is a walker like any other: a full mug reaching him is caught, and the push
-    makes him served at once (score now); he slides back out past the edge with the mug in his hand and is removed;
-    columns 0-1 never change; no mug is left."""
+    carries him all the way off (x + 16 <= the push): served, he slides back out past the edge with the mug in his hand
+    and the serve counts when he is gone; columns 0-1 never change; no mug is left."""
     p, b = spawn_one(gb)
     while px(gb, p) < 6:
         gb.run(1)
@@ -313,7 +323,7 @@ def test_he_catches_a_mug_while_entering_and_slides_back_out(gb):
     inject_mug(gb, b, ENTRY_X + 4)
     gb.run(3)
     assert gb.read("patron_state", MAX_P)[p] == LEAVING and lift_of(gb, p) == LIFT_EDGE
-    assert gb.mem("served") == served0 + 1 and score(gb) == score0 + 50
+    assert gb.mem("served") == served0 and score(gb) == score0, "not counted until he is off the screen"
     held_seen = 0
     for i in range(40):
         gb.run(1)
@@ -323,31 +333,34 @@ def test_he_catches_a_mug_while_entering_and_slides_back_out(gb):
         held_seen += any(m["state"] == HELD for m in mugs(gb))
     assert gb.read("patron_state", MAX_P)[p] == 0 and i <= 6 + W + 2, i
     assert held_seen > 0 and mugs(gb) == [] and gb.mem("lives") == 3 and lifted_any(gb) == []
+    assert gb.mem("served") == served0 + 1 and score(gb) == score0 + 50
 
 
 # ---- leaving -----------------------------------------------------------------------------------------------------------
-def test_pushed_to_entry_x_is_served_and_slides_out_past_the_edge(gb):
-    """Pushed back to ENTRY_X: served then (score, count), a sprite from then on (LIFT_EDGE) at 1 px a frame to x 0 and
-    on past the edge (patron_aux grows), his mug drawn in his hand, then removed with it."""
+def test_a_push_that_carries_him_off_serves_him_when_he_is_gone_and_he_slides_out_past_the_edge(gb):
+    """A push of PUSH px takes a patron at ENTRY_X (x + 16 = PUSH) wholly off the screen: he is a sprite from ENTRY_X on
+    (LIFT_EDGE) at 1 px a frame to x 0 and on past the edge (patron_aux grows), his mug drawn in his hand; the serve
+    (score, count) counts only when all of him is gone, then he is removed with the mug."""
     clear_patrons(gb)
     freeze(gb)
-    p = set_patron(gb, 1, ENTRY_X + 1, state=PUSHED, aux=10)
-    m = hold_mug(gb, p, 1)
-    gb.run(2)
-    assert px(gb, p) == ENTRY_X and gb.mem("served") == 0
-    gb.run(1)
-    assert gb.read("patron_state", MAX_P)[p] == LEAVING and gb.mem("served") == 1 and score(gb) == 50
-    pos = []
-    for _ in range(40):
+    p = set_patron(gb, 1, ENTRY_X)
+    gb.run(3)                                                   # (drawn first: a never-drawn one has nothing to lift)
+    inject_mug(gb, 1, ENTRY_X + 8)
+    gb.run(3)
+    m = [q["i"] for q in mugs(gb) if q["state"] == HELD][0]
+    pos, left = [], False
+    for _ in range(80):
         st = gb.read("patron_state", MAX_P)[p]
         if not st:
             break
-        sx = px(gb, p) - aux(gb, p)
-        pos.append(sx)
-        assert lift_of(gb, p) == LIFT_EDGE and len(edge_sprites(gb, p)) == 2
-        mug = gb.read("mug_x", 20)[m]
-        assert gb.read("mug_state", 20)[m] == HELD and ((mug - sx) & 255) < 24, "the mug goes with him"
-        assert left_tiles(gb, 1) == venue_left(0)
+        if st == LEAVING:
+            sx = px(gb, p) - aux(gb, p)
+            pos.append(sx)
+            assert lift_of(gb, p) == LIFT_EDGE and len(edge_sprites(gb, p)) == 2
+            assert gb.mem("served") == 0 and score(gb) == 0, "still on the screen: not served yet"
+            mug = gb.read("mug_x", 20)[m]
+            assert gb.read("mug_state", 20)[m] == HELD and ((mug - sx) & 255) < 24, "the mug goes with him"
+            assert left_tiles(gb, 1) == venue_left(0)
         gb.run(1)
     assert pos == sorted(pos, reverse=True) and pos[-1] <= -W + 1 and pos[0] >= ENTRY_X - 2, pos
     assert all(a - b_ == 1 for a, b_ in zip(pos, pos[1:])), pos
@@ -355,18 +368,17 @@ def test_pushed_to_entry_x_is_served_and_slides_out_past_the_edge(gb):
     assert gb.mem("served") == 1 and score(gb) == 50
 
 
-def test_a_patron_pushed_back_from_further_in_is_served_at_entry_x(gb):
+def test_a_push_that_falls_short_stops_him_on_the_screen_at_entry_x(gb):
+    """One pixel too far in (x = ENTRY_X + 6: the push would leave 6 px of him on the screen): he is stopped at ENTRY_X,
+    a BG figure, and drinks; nothing is served."""
     clear_patrons(gb)
     freeze(gb)
-    p = set_patron(gb, 2, ENTRY_X + 6, state=PUSHED, aux=60)
-    for _ in range(12):
-        gb.run(1)
-        if gb.read("patron_state", MAX_P)[p] == LEAVING:
-            break
-    assert gb.mem("served") == 1 and px(gb, p) >= ENTRY_X - 2
-    for _ in range(40):
-        gb.run(1)
-    assert gb.read("patron_state", MAX_P)[p] == 0 and gb.mem("served") == 1
+    p = set_patron(gb, 2, ENTRY_X + 6)
+    inject_mug(gb, 2, ENTRY_X + 14)
+    gb.run(3 + 12)
+    assert gb.read("patron_state", MAX_P)[p] == DRINKING and px(gb, p) == ENTRY_X
+    gb.run(40)
+    assert gb.mem("served") == 0 and score(gb) == 0 and gb.read("patron_state", MAX_P)[p] == DRINKING
 
 
 def test_a_lifted_patron_served_out_slides_out_as_he_is(gb):
@@ -374,14 +386,14 @@ def test_a_lifted_patron_served_out_slides_out_as_he_is(gb):
     before he does, and columns 0-1 never change."""
     clear_patrons(gb)
     freeze(gb)
-    p = set_patron(gb, 1, ENTRY_X + 4)
+    p = set_patron(gb, 1, ENTRY_X)
     gb.run(3)
     gb.write("lift_hook_p", p)
     gb.write("lift_hook_res", 0)
     gb.write("lift_hook_op", 1)                                 # HOOK_LIFT (test_lift.py)
     gb.run(3)
     assert lift_of(gb, p) == LIFT_OBJ and lifted_any(gb)
-    inject_mug(gb, 1, ENTRY_X + 12)
+    inject_mug(gb, 1, ENTRY_X + 8)
     gone = None
     for i in range(50):
         gb.run(1)
@@ -416,10 +428,15 @@ def test_columns_0_1_keep_the_venue_tiles_with_patrons_coming_and_going(gb, grou
     assert len(seen_bars) >= 3 and edge > 0, "patrons came in on most bars"
     # serve one out on every bar: columns 0-1 stay as they are while they slide out
     freeze(gb)
+    clear_patrons(gb)
+    gb.write("quota", 250)                               # (no level clear while they leave: it would reset `served`)
+    gb.write("pushback_px", 32)                          # (the zoo's push is 24: one mug would not carry a patron from ENTRY_X off)
+    sx = ENTRY_X
     for b in range(4):
-        i = set_patron(gb, b, ENTRY_X + 4)
-        inject_mug(gb, b, ENTRY_X + 12)
-        put(gb, "patron_draw", i, 255)
+        set_patron(gb, b, sx)
+    gb.run(3)
+    for b in range(4):
+        inject_mug(gb, b, sx + 8)
     served0 = gb.mem("served")
     for n in range(70):
         gb.run(1)

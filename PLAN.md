@@ -18,8 +18,10 @@ and CGB, and the new behaviour has a test.
   the top bar to the bottom one. **Left/Right** walks along the bar.
 - **Hold A** at the tap to fill a mug. When it is full, it slides left.
 - When a full mug reaches a patron who is paying attention, the patron
-  catches it and is pushed back toward the left. A patron pushed back to the
-  left end leaves (served; no doors since 2026-10-09: he slides off the screen's left edge). A patron who stays drinks for a while, then sends the
+  catches it and is pushed back toward the left. A patron whose push carries all
+  of him off the screen's left edge is served (owner 2026-10-13: every mug pushes the same fixed distance, 32 px, 24 on the two
+  hardest rows, so a patron far in needs two or three; some patrons drink early after a quarter or half push; no doors since
+  2026-10-09). When the screen has no patron, the next one is due within 30 frames (not after an arrival pattern's breather). A patron who stays drinks for a while, then sends the
   empty mug sliding right.
 - You lose a life when:
   - a full mug reaches the left end without anyone catching it,
@@ -337,8 +339,8 @@ patron_facing[]); a patron who cannot get there keeps facing the bar until the s
 - Thirst: each patron counts drinks; push-back distance = pushback_px x (drinks so far, starting at
   1), so the 2nd drink pushes twice as far and the 3rd three times; clumps break up.
 
-As built (M8c): SHOW_FRAMES 576; patron_drinks[] (reset in add_patron) scales the push-back (pushback_px x drinks,
-capped at 255 px). Title logo SPIGOTEER: assets/tiles/title.txt, 8 letters x 4 tiles generated from stroke shapes,
+As built (M8c): SHOW_FRAMES 576; patron_drinks[] (reset in add_patron) scaled the push-back (pushback_px x drinks,
+capped at 255 px; REPLACED 2026-10-13: the push is the same for every mug, see the rules in "The game"; patron_drinks only counts). Title logo SPIGOTEER: assets/tiles/title.txt, 8 letters x 4 tiles generated from stroke shapes,
 loaded over the patron tile ids by enter_title (the level load's load_patron_tiles restores them); BAR_TILE_COUNT
 dropped by the 20 old title tiles, so BG ids in use are now 70 scene + 156 patron = 226 of 256. Header title SPIGOTEER.
 

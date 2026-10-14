@@ -30,6 +30,7 @@ def clear_level(gb, force=0, bar=None, x=None):
     gb.write("antics_force", force)
     gb.write("intro_timer", 255)
     gb.write("quota", gb.mem("spawned"))
+    gb.write("pushback_px", 255)                      # (a mug serves from anywhere: the push carries a patron off the screen)
     if bar is not None:
         gb.write("bar", bar)
         gb.write("bartender_x", x)

@@ -84,14 +84,15 @@ def test_served_patron_leaves_a_tip_where_it_caught_its_last_mug(gb):
 
 def test_a_catch_remembers_where_the_mug_was_caught(gb):
     quiet(gb)
-    i = set_patron(gb, 1, 20)
+    i = set_patron(gb, 1, 16)
+    gb.run(3)                                     # (drawn)
     gb.write("tip_chance", 255)
-    inject_mug(gb, 1, 20 + 14)
+    inject_mug(gb, 1, 16 + 14)
     gb.run(2)
-    assert gb.read("patron_state", MAX_P)[i] == PUSHED
+    assert gb.read("patron_state", MAX_P)[i] in (PUSHED, 4)
     x = gb.read("patron_catchx", MAX_P)[i]
-    assert 20 <= x < 36
-    gb.run(60)                                    # pushed back to ENTRY_X: served
+    assert 16 <= x < 32
+    gb.run(60)                                    # pushed off the screen: served, and the tip lies where the mug was caught
     assert gb.mem("tip_x") == x and gb.mem("tip_bar") == 1
 
 

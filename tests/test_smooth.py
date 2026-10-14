@@ -86,22 +86,24 @@ def test_pushed_patron_slides_one_px_per_frame(gb):
     assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == xs[-1]
 
 
-def test_pushed_back_to_entry_x_is_served_and_slides_out(gb):
+def test_a_push_off_the_screen_serves_him_and_slides_out(gb):
+    """A patron at ENTRY_X (x + 16 = the push): caught, he slides out past the left edge (LEAVING) and is served, scored
+    and removed only when all of him is off the screen."""
     clear_patrons(gb)
     freeze(gb)
-    p = set_patron(gb, 1, ENTRY_X + 20)
-    inject_mug(gb, 1, ENTRY_X + 30)
+    p = set_patron(gb, 1, ENTRY_X)
+    gb.run(3)
+    inject_mug(gb, 1, ENTRY_X + 10)
     for _ in range(8):
         gb.run(1)
-        if gb.read("patron_state", MAX_P)[p] == PUSHED:
+        if gb.read("patron_state", MAX_P)[p] == 4:           # LEAVING
             break
-    x0 = gb.read("patron_x", MAX_P)[p]
-    gb.run(x0 - ENTRY_X - 2)
-    assert gb.read("patron_state", MAX_P)[p] == PUSHED and gb.mem("served") == 0
-    gb.run(6)
-    assert gb.read("patron_state", MAX_P)[p] == 4 and gb.mem("served") == 1 and tp.score(gb) == 50   # LEAVING
-    gb.run(2 * ENTRY_X)
+    assert gb.read("patron_state", MAX_P)[p] == 4 and gb.mem("served") == 0 and tp.score(gb) == 0
+    gb.run(ENTRY_X + 4)
+    assert gb.read("patron_state", MAX_P)[p] == 4 and gb.mem("served") == 0, "still on the screen"
+    gb.run(ENTRY_X)
     assert gb.read("patron_state", MAX_P)[p] == 0 and mugs(gb) == []
+    assert gb.mem("served") == 1 and tp.score(gb) == 50
 
 
 def catch_one(gb, bar=1, x=96):

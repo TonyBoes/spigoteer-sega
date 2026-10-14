@@ -1760,10 +1760,11 @@ the back one first while the front one drinks."
 - A full mug is caught by the bar's rightmost catcher (`catch_full`): a walker, or a drinker who has finished
   (DRINK_WAIT / DRINK_WINDUP). A drinker still in DRINK_MIN (his first DRINK_FRAMES, 90) lets a mug slide past him
   to whoever is behind.
-- `caught()` makes him PATRON_PUSHED with `patron_aux` = pushback_px x drinks (32 px for the first drink at
-  pushback_cols 4, 64 for the second): `push_px` moves him 1 px a frame toward the left end, through anyone in his
-  way (lift.c lifts one over the other). When the push is used up he drinks where he stands (`start_drinking`); if he
-  reaches ENTRY_X 16 first he is served out.
+- `caught()` makes him PATRON_PUSHED with `patron_aux` = `push_for(p)` (level.c): pushback_px (32 px at pushback_cols 4,
+  the same for every drink), all of him off the screen (x + 16) to serve, else stopped on the screen at ENTRY_X 16 at the
+  latest, and from level 2 a quarter or half push for early drinkers: `push_px` moves him 1 px a frame toward the left end,
+  through anyone in his way (lift.c lifts one over the other). When the push is used up he drinks where he stands
+  (`start_drinking`); a push that carries him off serves him out, counted (score, tip) when he has left the screen.
 - After DRINK_FRAMES he sends the empty when the fair-empties schedule allows, then walks on.
 
 ### 9.2 The rule

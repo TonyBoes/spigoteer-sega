@@ -718,7 +718,7 @@ def earn_fifty_and_lose(rom):
     start_game(rom)
     rom.write("intro_timer", 255)
     inject_mug(rom, 0, GAME["ENTRY_X"] + 8)
-    rom.run(6)
+    rom.run(45)                                   # (served when he is off the screen)
     assert score(rom) == 50
     for n in range(3):
         lose_a_life(rom)

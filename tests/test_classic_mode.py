@@ -168,7 +168,7 @@ def test_a_bar_never_holds_more_than_its_cap(boot, lv):
     want = caps(boot)
     boot.write("intro_timer", 0)
     most = [0] * 4
-    for i in range(1500):
+    for i in range(2400):    # (patrons walk at the level pace from WALK_X now, a few frames later than from ENTRY_X)
         boot.write("spawn_interval", 1)
         boot.write(boot.addr("spawn_interval") + 1, 0)
         boot.write("quota", 200)
@@ -188,9 +188,11 @@ def serve_one(gb, b=1):
     """A patron near the left end of bar b catches a full mug and is served: the score it gives."""
     clear_patrons(gb)
     freeze(gb)
-    set_patron(gb, b, ENTRY_X + 2)
+    set_patron(gb, b, ENTRY_X)
+    gb.run(3)                                           # (drawn first)
+    gb.write("pushback_px", 255)                        # one mug carries him off the screen (served when he is gone)
     s0 = score(gb)
-    inject_mug(gb, b, ENTRY_X + 6)
+    inject_mug(gb, b, ENTRY_X + 4)
     run_until(gb, lambda: score(gb) > s0, 120)
     return score(gb) - s0
 
