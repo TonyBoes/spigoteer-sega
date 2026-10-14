@@ -72,8 +72,8 @@ void dust_load(void) BANKED {
 // Mode A (KEEP_POS, the debug box's START; never in CLASSIC): he keeps his place on screen, up to the new tap (a bar's
 // local x is mirrored between an L and an R bar, screen x = 144 - x for his left edge); pouring needs the tap, so he walks
 // back to it. Mode B (the default, and CLASSIC always): he snaps to the tap, a puff where he stood and a whoosh.
-void bar_change(uint8_t b) BANKED {
-    uint8_t x = bartender_x, t = tap_now;
+void bar_change(uint8_t pressed) BANKED {
+    uint8_t x = bartender_x, t = tap_now, b = (bar + ((pressed & J_UP) ? 1 : NUM_BARS - 1)) & (NUM_BARS - 1);   // b: the bar he left
     facing = 0;
     if ((level_dirs & KEEP_POS) && play_mode != MODE_CLASSIC) {
         if (((bar_dirs >> b) ^ (bar_dirs >> bar)) & 1) x = 144 - x;
@@ -90,43 +90,22 @@ void bar_change(uint8_t b) BANKED {
 }
 
 // The entries OAM 0..28 (bartender, fill, mugs, lifted patrons, the coin, the boss's topper at 28; the dancers 29..39 are
-// on the stage) that touch any of the 16 lines from OAM y cue_y (an upper bound for each line), counted into the y byte of
-// entry OAM_CUE (the caller has zeroed it; no WRAM of its own). Hand-written: the puff counts every frame it shows, and C
-// costs three times as much.
-#if OAM_DANCERS != 28 || OAM_CUE != 26
-#error "dust_count: the topper is OAM 28, the cue 26 (104 bytes in)"
+// on the stage) that touch any of the 16 lines from OAM y y (an upper bound for each line). Plain C, one pass with a
+// moving pointer; the puff skips frames that are late already (DUST_LATEST_LY).
+#if OAM_DANCERS != 28
+#error "dust_count: the topper is OAM 28"
 #endif
-static void dust_count(void) __naked {
-__asm
-    push bc
-    ld   hl, #_shadow_OAM
-    ld   a, (_cue_y)
-    ld   e, a
-    ld   bc, #0x1D00                ; b: 29 entries, c: the count
-1$:
-    ld   a, (hl)                    ; y
-    or   a, a
-    jr   z, 3$                      ; (hidden)
-    sub  a, e
-    add  a, #15
-    cp   a, #31
-    jr   nc, 3$                     ; (clear of the lines)
-    inc  c
-3$:
-    inc  hl
-    inc  hl
-    inc  hl
-    inc  hl
-    dec  b
-    jr   nz, 1$
-    ld   a, c
-    ld   (_shadow_OAM + 104), a
-    pop  bc
-    ret
-__endasm;
+static uint8_t dust_count(uint8_t y) {
+    const OAM_item_t *o = shadow_OAM;
+    uint8_t k = 29, n = 0;
+    do {
+        if (o->y && (uint8_t)(o->y - y + 15) < 31) n++;
+        o++;
+    } while (--k);
+    return n;
 }
 
-void draw_cue(void) BANKED {
+static void draw_cue(void) {
     OAM_item_t *o = shadow_OAM + OAM_CUE;
     uint8_t y = cue_y, t = cue_t, tile = OBJ_POUR_CUE, show;
     if (t & 0x80) {
@@ -138,8 +117,7 @@ void draw_cue(void) BANKED {
     } else show = --cue_t && (cue_t > CUE_BLINK || (cue_t & 4));
     if (show) {
         o->y = 0;                                            // (not counting its own entry)
-        dust_count();
-        if (o->y < LINE_OBJ_MAX) {
+        if (dust_count(y) < LINE_OBJ_MAX) {
             o->y = y; o->x = cue_x; o->tile = tile; o->prop = is_cgb ? (tile == OBJ_POUR_CUE ? OBJPAL_MUG_FULL : OBJPAL_BARTENDER) : 0;
             return;
         }
@@ -150,6 +128,10 @@ void draw_cue(void) BANKED {
 void pour_frame(void) BANKED {
     OAM_item_t *o;
     uint8_t end = POUR_WIN_START + pour_win;                 // the first overflow frame
+    if (!story_on) {                                         // (main.c: only the dust puff of a bar change)
+        draw_cue();
+        return;
+    }
     if (fill_timer < FILL_FRAMES) pour_t = 0;
     else if (bar != pour_bar) pour_t = end;                  // carried to another bar: never perfect
     else if (!pour_t) pour_t = FILL_FRAMES;
