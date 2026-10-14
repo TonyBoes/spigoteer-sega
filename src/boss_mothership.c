@@ -189,7 +189,8 @@ static void minis_frame(void) {
     for (p = 0; p != MAX_PATRONS; p++) {
         st = patron_state[p];
         if (st == PATRON_NONE || patron_variant[p] != MINI_VARIANT || patron_hurry[p] != 1) continue;
-        if (st == PATRON_PUSHED && patron_drinks[p] >= 2) {      // the second drink: served out wherever he stands
+        if ((st == PATRON_PUSHED || st == PATRON_DRINKING) && patron_drinks[p] >= 2) {   // the second drink: served out wherever he stands
+                                                              // (DRINKING too: a push that stops at once, patrons.c push_for, never shows PUSHED)
             patron_state[p] = PATRON_LEAVING; patron_aux[p] = 0; patron_timer[p] = 0;
             add_score(serve_score);
             SFX(SFX_SERVE);

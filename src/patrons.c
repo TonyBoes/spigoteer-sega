@@ -296,7 +296,7 @@ static void caught(uint8_t i, uint8_t p) {
     patron_timer[p] = 0;
     if (mosh_on) mosh_caught(p);                 // the mosh pit (src/mosh.c): a new push, a new bump
     patron_aux[p] = push_for(p);
-    if (patron_drinks[p] != 254) patron_drinks[p]++;
+    patron_drinks[p]++;                          // (255 marks a served one leaving, served_out: 254 mugs never happen)
     patron_frac[p] = 0;
     patron_mug[p] = i;
     patron_catchx[p] = mug_x[i];
@@ -421,7 +421,7 @@ static void served_out(uint8_t p) {
 }
 
 // All of a served patron is off the screen: score, count, tip.
-static void served_done(uint8_t p) {
+void served_done(uint8_t p) {
     if (patron_drinks[p] != 255) return;
     served++;
     add_score(serve_score);

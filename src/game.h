@@ -222,6 +222,7 @@ extern uint16_t spawn_interval, spawn_timer;
 // returns the frames to the next one. Set by story.c per shift, cleared by start_new_game (arcade).
 extern uint8_t  pat_len, pat_bar;
 uint16_t pat_done(void) BANKED;
+void     served_done(uint8_t p);      // patrons.c: a patron served out is gone: score, count, tip (lift.c force_out too)
 uint8_t  push_for(uint8_t p) BANKED;   // level.c: the push a mug gives patron p (served, early drinker, stopped on screen)
 uint8_t  pat_breather(void) BANKED;   // the pattern's last wait was a breather (code 3)
 extern uint8_t  tip_chance, tip_bar, tip_x, dancer_frame, dance_tick, dancers_vis, dancer_sig;

@@ -394,8 +394,12 @@ static uint8_t pick_lifted(uint8_t b) {
 // still off the screen cannot, so he is taken back (spawned again later) and a leaving one (served already) is gone.
 // One already dropping (a pushed patron, a drinker: his BG copy is on its way) only has his sprite taken away.
 static void force_out(uint8_t p) {
-    if ((patron_lift[p] & LIFT_DROP) || (patron_state[p] == PATRON_WALKING && !patron_aux[p])) { force_drop(p); return; }
+    if ((patron_lift[p] & LIFT_DROP) || (patron_state[p] != PATRON_LEAVING && (patron_state[p] != PATRON_WALKING || !patron_aux[p]))) {
+        force_drop(p);                                    // (anyone on the screen but a leaving one: a pushed patron or a drinker too)
+        return;
+    }
     if (patron_state[p] == PATRON_WALKING) spawned--;
+    else if (patron_state[p] == PATRON_LEAVING) served_done(p);   // (he was served: it counts, off the screen or not)
     lift_forced++;
     remove_patron(p);
     lift_n[patron_bar[p] & (NUM_BARS - 1)]--;
