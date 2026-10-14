@@ -327,19 +327,27 @@ def test_a_serve_happens_only_off_the_screen(gb):
 
 
 def test_the_hard_rows_push_24_px(gb):
-    """The two hardest rows (zoo, space lounge) push 24 px a mug: a patron at ENTRY_X is stopped, not served."""
-    assert GAME["PATRON_W"] == 16
+    """The two hardest rows (zoo, space lounge) push 24 px a mug: a patron at ENTRY_X + 4 is stopped at ENTRY_X, drinking,
+    unserved; the next mug serves him (one at the old door is always served, so no patron is ever stuck)."""
     from test_edge import goto_level
     goto_level(gb, 9)
     assert gb.mem("pushback_px") == 24
     clear_patrons(gb)
     freeze(gb)
-    gb.write("level", 9)
-    p = set_patron(gb, 1, ENTRY_X)
+    gb.write("level", 1)                              # (no early drinkers: the zoo is level 9)
+    p = set_patron(gb, 1, ENTRY_X + 4)
     gb.run(3)
-    inject_mug(gb, 1, ENTRY_X + 4)
+    inject_mug(gb, 1, ENTRY_X + 8)
     gb.run(3 + 12)
-    assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.mem("served") == 0
+    assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == ENTRY_X and gb.mem("served") == 0
+    put(gb, "patron_state", p, WALKING)
+    for i in range(MAX_M):
+        put(gb, "mug_state", i, FREE)
+    gb.write("mugs_live", 0)
+    gb.run(2)
+    inject_mug(gb, 1, ENTRY_X + 4)
+    gb.run(3 + 2 * ENTRY_X + 12)
+    assert gb.read("patron_state", MAX_P)[p] == NONE and gb.mem("served") == 1
 
 
 def test_some_patrons_drink_early(gb):

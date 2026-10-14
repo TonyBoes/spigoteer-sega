@@ -89,13 +89,14 @@ static void load_patron_group(uint8_t g) {
 #define HURRY_FROM       3
 // The push a mug gives patron p (the arcade's rule: the same for every mug, no thirst multiplier): pushback_px, the row
 // class's constant. He is SERVED only if it carries all of him (PATRON_W px) past the screen's left edge: d >= x +
-// PATRON_W; one left of ENTRY_X (a sprite at the door, in reach) is always served. Otherwise he stops on the screen
+// PATRON_W; one at or left of ENTRY_X (a sprite at the door; the push of the two hardest rows, 24, could never serve
+// one from the BG edge) is always served. Otherwise he stops on the screen
 // (never left of ENTRY_X, where the BG patrons end), and some patrons ((level - 1) * EARLY_PER_LEVEL, of 256; none on level 1)
 // take only a quarter or a half of the push and drink at once.
 uint8_t push_for(uint8_t p) BANKED {
     uint8_t x = patron_x[p], d = pushback_px, m;
     uint16_t c;
-    if (x < ENTRY_X) return x + PATRON_W;
+    if (x <= ENTRY_X) return x + PATRON_W;                    // (at the old door: always served; else a 24 px push could never serve one)
     if (d >= (uint8_t)(x + PATRON_W) && x < 256 - PATRON_W) return d;
     c = (uint16_t)(level - 1) * EARLY_PER_LEVEL;                // (level 1: nobody drinks early)
     if (level > 1 && next_rand() < (c > EARLY_MAX ? EARLY_MAX : c)) d = next_rand() & 1 ? d >> 2 : d >> 1;
