@@ -20,7 +20,7 @@ NR51, NR50 = 0xFF25, 0xFF24
 PAUSE_NR51 = 0xFFF0                      # HRAM (game.h): the NR51 to restore while the menu is open, else 0
 MODES = ["dmg", "cgb"]
 MENU, ASK = 0, 1
-GAMES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, MG_STUB]        # mg.h: every mini-game incl. the Pour-Off and the stub
+GAMES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, MG_STUB]       # mg.h: every mini-game incl. the Pour-Off, the three bonus rounds and the stub
 MG_MILKRUN, MG_TAIKO, MG_POUROFF = 6, 7, 11
 GLYPH_J, GLYPH_Z = 72, 75                                  # the '?' and the arrow take two rare letters' tiles while paused
 
