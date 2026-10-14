@@ -24,12 +24,14 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "music.h"
 #include "pour_art.h"        // this bank's own data (tools/gen_pour.py)
 
 #define PERFECT_MULT  2       // a perfect drink scores 2 x serve_score at the catch
 #define CUE_FRAMES   48
 #define CUE_BLINK    16
 
+extern uint8_t frame_t0;      // main.c: (uint8_t)sys_time when this frame began
 uint8_t pour_q;               // the drink launched next is perfect (spawn_mug -> mug_timer)
 uint8_t pour_t;               // story: the fill frames counted past FILL_FRAMES (0 while not full)
 uint8_t pour_win;             // the sparkle window's length (pour_load: POUR_WIN_LEN; Practice HARD: POUR_WIN_HARD)
@@ -54,19 +56,95 @@ void perfect_catch(uint8_t i) BANKED {
     cue_x = mug_x[i] + 16;                                   // right of the caught mug (OAM x = screen x + 8)
 }
 
-static void draw_cue(void) {
-    OAM_item_t *o = shadow_OAM;
-    uint8_t k, n = 0, y = cue_y;
-    if (--cue_t && (cue_t > CUE_BLINK || (cue_t & 4))) {
-        for (k = 0; k != 40; k++, o++)
-            if (k != OAM_CUE && o->y && (uint8_t)(o->y - y + 15) < 31) n++;
-        if (n < LINE_OBJ_MAX) {
-            o = shadow_OAM + OAM_CUE;
-            o->y = y; o->x = cue_x; o->tile = OBJ_POUR_CUE; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;
+// The dust puff of a bar change (mode B, and CLASSIC always): the same OAM 26 entry and the same lines count as the cue.
+// cue_t bit 7 marks it (the cue's frames stay below 64): its low bits count DUST_FRAMES * DUST_STEP video frames down.
+// The cue wins if both want the entry: a puff is not started while the cue shows (the whoosh still plays).
+#define DUST_FRAMES  3
+#define DUST_STEP    4          // video frames per dust frame
+#define DUST_LATEST_LY 143        // the puff is left out on a frame that has run into the next VBlank (it is late already; the count costs ~10 lines)
+#define DUST_DY      8          // the entry's OAM y below the bar's top: his lower 16 lines, the height of his legs
+
+void dust_load(void) BANKED {
+    set_sprite_data(OBJ_DUST, DUST_FRAMES * 2, dust_tiles);
+}
+
+// An Up/Down press (main.c play_frame): he came from bar b, bartender_x is still his place there and tap_now the new bar's.
+// Mode A (KEEP_POS, the debug box's START; never in CLASSIC): he keeps his place on screen, up to the new tap (a bar's
+// local x is mirrored between an L and an R bar, screen x = 144 - x for his left edge); pouring needs the tap, so he walks
+// back to it. Mode B (the default, and CLASSIC always): he snaps to the tap, a puff where he stood and a whoosh.
+void bar_change(uint8_t b) BANKED {
+    uint8_t x = bartender_x, t = tap_now;
+    facing = 0;
+    if ((level_dirs & KEEP_POS) && play_mode != MODE_CLASSIC) {
+        if (((bar_dirs >> b) ^ (bar_dirs >> bar)) & 1) x = 144 - x;
+        bartender_x = x > t ? t : x < LEFT_LIMIT ? LEFT_LIMIT : x;
+        return;
+    }
+    bartender_x = t;
+    x += 12;                                                 // the puff's centre: his 16 px (OAM x = screen x + 8)
+    SFX(SFX_WHOOSH);
+    if (cue_t) return;
+    if (bar_dirs & bar_bit[b]) x = 168 - x;                  // an R bar draws mirrored (mirror.c)
+    cue_x = x; cue_y = bar_oam_y[b] + DUST_DY;
+    cue_t = 0x80 | (DUST_FRAMES * DUST_STEP);
+}
+
+// The entries OAM 0..28 (bartender, fill, mugs, lifted patrons, the coin, the boss's topper at 28; the dancers 29..39 are
+// on the stage) that touch any of the 16 lines from OAM y cue_y (an upper bound for each line), counted into the y byte of
+// entry OAM_CUE (the caller has zeroed it; no WRAM of its own). Hand-written: the puff counts every frame it shows, and C
+// costs three times as much.
+#if OAM_DANCERS != 28 || OAM_CUE != 26
+#error "dust_count: the topper is OAM 28, the cue 26 (104 bytes in)"
+#endif
+static void dust_count(void) __naked {
+__asm
+    push bc
+    ld   hl, #_shadow_OAM
+    ld   a, (_cue_y)
+    ld   e, a
+    ld   bc, #0x1D00                ; b: 29 entries, c: the count
+1$:
+    ld   a, (hl)                    ; y
+    or   a, a
+    jr   z, 3$                      ; (hidden)
+    sub  a, e
+    add  a, #15
+    cp   a, #31
+    jr   nc, 3$                     ; (clear of the lines)
+    inc  c
+3$:
+    inc  hl
+    inc  hl
+    inc  hl
+    inc  hl
+    dec  b
+    jr   nz, 1$
+    ld   a, c
+    ld   (_shadow_OAM + 104), a
+    pop  bc
+    ret
+__endasm;
+}
+
+void draw_cue(void) BANKED {
+    OAM_item_t *o = shadow_OAM + OAM_CUE;
+    uint8_t y = cue_y, t = cue_t, tile = OBJ_POUR_CUE, show;
+    if (t & 0x80) {
+        t &= 0x7F;
+        tile = OBJ_DUST + ((2 - ((t - 1) >> 2)) << 1);       // (t: 12..1 -> frames 0, 1, 2)
+        show = t != 0;                                       // (0: its entry goes this frame)
+        cue_t = show ? cue_t - 1 : 0;
+        if (LY_REG > DUST_LATEST_LY || (uint8_t)sys_time != frame_t0) show = 0;   // a frame that ran into the next VBlank: no puff (the line count costs ~10 lines)
+    } else show = --cue_t && (cue_t > CUE_BLINK || (cue_t & 4));
+    if (show) {
+        o->y = 0;                                            // (not counting its own entry)
+        dust_count();
+        if (o->y < LINE_OBJ_MAX) {
+            o->y = y; o->x = cue_x; o->tile = tile; o->prop = is_cgb ? (tile == OBJ_POUR_CUE ? OBJPAL_MUG_FULL : OBJPAL_BARTENDER) : 0;
             return;
         }
     }
-    shadow_OAM[OAM_CUE].y = 0;
+    o->y = 0;
 }
 
 void pour_frame(void) BANKED {

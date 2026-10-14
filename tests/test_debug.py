@@ -94,7 +94,7 @@ def test_the_box_shows_the_level(boot):
     from test_flow import tile_id
     txt = banner_text(boot)
     want = [tile_id("GLYPH_" + c) for c in "L" "E" "V" "E" "L"] + [tile_id("HUD_BLANK"), tile_id("GLYPH_0"), tile_id("GLYPH_3")]
-    start = (20 - 8) // 2
+    start = (20 - 13) // 2                           # (then " SNAP": the bar-change mode)
     assert txt[start:start + 8] == want, txt
 
 
@@ -207,7 +207,9 @@ GS_STORY, GS_GOAL = 11, 12
 
 
 def banner_is(gb, s):
+    """The box's text s, then the bar-change mode (src/debug.c show_mode): SNAP by default."""
     from test_flow import tile_id
+    s += " SNAP"
     want = [tile_id("HUD_BLANK")] * 20
     x = (20 - len(s)) // 2
     for i, ch in enumerate(s):

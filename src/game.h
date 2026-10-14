@@ -177,10 +177,16 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // from copies of its tiles with the two bit planes swapped (colours 1 and 2 trade places), made at level load
 #define OBP1_PLAY        0xE4
 #define OBP1_MENU        0xC4   // the title / bonus OBP1 (mugs, sparkles)
+// the bar-change dust puff, 3 frames x 2 tiles (assets/art/dust.txt, tools/gen_pour.py), in ids other things also borrow, never
+// at the same time: CLASSIC's DMG flipped copies take 246..251, 77, 252..255 (11 at most; mirror.c free_ids), the story's
+// perfect pour 234..239 and neither does the other's work. So the puff sits at 234 (CLASSIC, the harness) or 246 (story, ARCADE).
+#define OBJ_DUST         (story_on ? 246 : 234)
+#define KEEP_POS         0x80   // level_dirs bit 7: mode A, the bartender keeps his x on a bar change (debug box, START);
+                                // clear (the default, and always in CLASSIC): mode B, he snaps to the tap with a dust puff
 #define OBJ_DMG_COPY     240    // sliding full mug 240, sliding empty 242, held empty 244
 // Perfect pour (story): sparkle 234-235, overflow 236-237 (the venue's), the cue 238-239 (tools/gen_pour.py,
 // src/pour.c pour_load at a shift's start). OBJ ids >= 128 share VRAM with BG ids >= 128: these sit above the patron
-// tiles (PATRON_FIRST_TILE .. + PATRON_GROUP_TILES - 1) and below the DMG copies (240-245); 246-255 are free.
+// tiles (PATRON_FIRST_TILE .. + PATRON_GROUP_TILES - 1) and below the DMG copies (240-245); 246-255 are mirror.c's flipped copies (and, in a story, the dust puff).
 #define OBJ_POUR         234
 #define OBJ_POUR_CUE     (OBJ_POUR + 4)
 #define POUR_CUE_TILES    2
@@ -319,6 +325,10 @@ void clear_patrons(void);
 // ---- perfect pour (story; src/pour.c, banked; ROM0 hooks: spawn_mug, caught, the draw block) ----------
 extern uint8_t pour_q, pour_t, pour_win, cue_t;
 void pour_load(uint8_t t) BANKED;             // LCD off: venue t's sparkle / overflow frames and the cue to OBJ_POUR..
+void dust_load(void) BANKED;                  // LCD off (every level screen): the dust puff's 3 frames to OBJ_DUST..
+void bar_change(uint8_t ob) BANKED;           // main.c, Up/Down from bar ob (tap_now = the new bar's tap): where he lands, facing the bar
+                                              // (mode A keeps his x; mode B, and CLASSIC always, snaps to the tap with a whoosh and the puff)
+void draw_cue(void) BANKED;                   // main.c, not story: the dust puff (OAM_CUE) while cue_t has its bit 7
 void perfect_catch(uint8_t i) BANKED;         // patrons.c caught(), story: full mug i caught (perfect if mug_timer 1)
 void pour_frame(void) BANKED;                 // story, every drawn play frame after the sprites: window, fill frame, cue
 

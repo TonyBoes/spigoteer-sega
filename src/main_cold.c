@@ -180,6 +180,7 @@ void enter_level_screen(void) BANKED {
     DISPLAY_OFF;                                  // (start_level reloads the show tiles the bonus round borrowed)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0;
     start_level();
+    dust_load();                                 // the bar-change puff's tiles (OBJ ids above the DMG copies)
     if (boss_on) boss_load();                    // a boss fight (story): his tiles over variant C's, his palettes
     init_scene();
     reset_actors();

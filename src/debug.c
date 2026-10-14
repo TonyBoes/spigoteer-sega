@@ -22,6 +22,8 @@
 //   - CLASSIC ("CLASSIC nn", P5): opened in CLASSIC play, or on the title with PLAY's cursor on CLASSIC. Left/Down and
 //     Right/Up change the level (1..CLASSIC_ROWS, wrapping); A starts a CLASSIC game there (start_new_game, MODE_CLASSIC:
 //     3 lives, a fresh score, the table's directions; SELECT does nothing).
+//   START (every box but CLASSIC's) flips the bar-change mode, shown at the end of the banner: SNAP (default: Up/Down snaps the
+//   bartender to the tap with a dust puff and a whoosh; CLASSIC always) or KEEP (he keeps his x): level_dirs bit 7, KEEP_POS.
 //   B closes the box (back to the title, or unpauses).
 #pragma bank 255
 #include <gb/gb.h>
@@ -61,6 +63,15 @@ static uint8_t pos_next(uint8_t ch, uint8_t p, int8_t d) {
 #define DIR_LAYOUTS 8
 static const uint8_t dir_layout[DIR_LAYOUTS] = { 0x0, 0xF, 0x3, 0xC, 0x9, 0x6, 0x5, 0xA };
 
+// the box's text, then " KEEP" (mode A: the bartender keeps his x on a bar change) or " SNAP" (mode B, the default; CLASSIC
+// always): START toggles it (KEEP_POS, level_dirs bit 7: kept across games and the title, not saved)
+static void show_mode(char *s) {
+    const char *n = (level_dirs & KEEP_POS) && !debug_classic ? " KEEP" : " SNAP";
+    while (*s) s++;
+    while (*n) *s++ = *n++;
+    *s = 0;
+}
+
 static void debug_show(void) {
     char s[21];
     const char *n;
@@ -68,17 +79,19 @@ static void debug_show(void) {
     if (debug_classic) {
         for (n = "CLASSIC "; *n; n++) s[i++] = *n;
         s[8] = '0' + debug_level / 10; s[9] = '0' + debug_level % 10; s[10] = 0;
+        show_mode(s);
         show_overlay(s);
         return;
     }
     if (!debug_story) {
         s[0] = 'L'; s[1] = 'E'; s[2] = 'V'; s[3] = 'E'; s[4] = 'L'; s[5] = ' ';
         s[6] = '0' + debug_level / 10; s[7] = '0' + debug_level % 10; s[8] = 0;
-        if (level_dirs) {                            // "LEVEL nn RRLL" (P3: bars from the right)
+        if (level_dirs & 0x3F) {                     // "LEVEL nn RRLL" (P3: bars from the right)
             s[8] = ' ';
             for (k = 0; k < NUM_BARS; k++) s[9 + k] = (level_dirs >> k) & 1 ? 'R' : 'L';
             s[13] = 0;
         }
+        show_mode(s);
         show_overlay(s);
         return;
     }
@@ -94,6 +107,7 @@ static void debug_show(void) {
     }
     while (*n) s[i++] = *n++;
     s[i] = 0;
+    show_mode(s);
     show_overlay(s);
 }
 
@@ -143,15 +157,16 @@ static void story_keys(uint8_t pressed) {
 // 1: A started a level (the frame is over)
 uint8_t debug_step(uint8_t pressed) BANKED {
     uint8_t l = debug_level, top = debug_classic ? CLASSIC_ROWS : DEBUG_LEVELS;
+    if ((pressed & J_START) && !debug_classic) { level_dirs ^= KEEP_POS; debug_show(); }   // KEEP <-> SNAP (the CLASSIC box always reads SNAP)
     if (debug_story) story_keys(pressed);
     else {
         if (pressed & (J_RIGHT | J_UP)) l = l == top ? 1 : l + 1;
         else if (pressed & (J_LEFT | J_DOWN)) l = l == 1 ? top : l - 1;
         if ((pressed & J_SELECT) && !debug_classic) {                    // P3: the next layout of the bars' directions
-            uint8_t k, d = level_dirs, n = dir_layout[0];   // (d in a local: SDCC 4.5 kept k in L and loaded HL
+            uint8_t k, d = level_dirs & 0x3F, n = dir_layout[0];   // (d in a local: SDCC 4.5 kept k in L and loaded HL
             for (k = 0; k < DIR_LAYOUTS - 1; k++)            // with &level_dirs inside the loop)
                 if (dir_layout[k] == d) { n = dir_layout[k + 1]; break; }
-            level_dirs = n;
+            level_dirs = n | (level_dirs & KEEP_POS);
             debug_show();
         }
         if (l != debug_level) { debug_level = l; debug_show(); }

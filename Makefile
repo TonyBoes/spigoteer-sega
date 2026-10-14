@@ -66,7 +66,7 @@ $(STORY_C) $(BUILD)/story.h: tools/gen_story.py tools/gen_art.py docs/story.md a
 
 # Perfect pour (story): per-venue sparkle / overflow frames and the catch cue -> build/pour_art.h (src/pour.c's bank),
 # build/pour.json (tests), out/preview/pour_<t>_x8.png
-$(BUILD)/pour_art.h: tools/gen_pour.py tools/gen_art.py $(wildcard assets/art/pour/*.txt) assets/art/pour_cue.txt $(wildcard assets/approved/venues/*_drink.txt) | $(BUILD) $(OUT)/preview
+$(BUILD)/pour_art.h: tools/gen_pour.py tools/gen_art.py $(wildcard assets/art/pour/*.txt) assets/art/pour_cue.txt assets/art/dust.txt $(wildcard assets/approved/venues/*_drink.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_pour.py $(BUILD) $(OUT)/preview
 
 # Mini-game framework (src/mg.c), its stub game (src/mg_stub.c) and Quick Draw (src/qd.c): the medal icon (approved), the

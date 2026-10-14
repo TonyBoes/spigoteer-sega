@@ -338,7 +338,7 @@ static uint8_t walk_px(void) {
 static const uint8_t walk_cycle[4] = { BT_WALK1, BT_IDLE, BT_WALK2, BT_IDLE };
 
 static void play_frame(uint8_t pressed) {
-    uint8_t walked = 0, switched, carry, x, d, t;
+    uint8_t walked = 0, switched, carry, x, d, t, ob = bar;
 
     // A full mug still held (A down) is carried along to another bar instead of being cancelled.
     carry = fill_timer >= FILL_FRAMES && (joy & J_A);
@@ -347,7 +347,7 @@ static void play_frame(uint8_t pressed) {
     if (pressed & J_UP)        bar = bar == 0 ? NUM_BARS - 1 : bar - 1;
     else if (pressed & J_DOWN) bar = bar == NUM_BARS - 1 ? 0 : bar + 1;
     tap_now = t = bar_tap[bar];                  // the bar's fill position (P6: a slanted bar's is further in)
-    if (switched) { bartender_x = t; facing = 0; }
+    if (switched) bar_change(ob);                // where he lands: src/pour.c (mode A keeps his x; mode B snaps to the tap, dust and whoosh)
 
     // Left/Right: walk (1.5 px per frame). On an R bar (CLASSIC, render.c bar_dirs) they swap: the tap is on the left.
     x = bartender_x;
@@ -371,7 +371,7 @@ static void play_frame(uint8_t pressed) {
     // Filling: A pressed at the fill position starts it; walking, a bar change (unless carrying a full mug)
     // or letting go ends it, and letting go after FILL_FRAMES launches a mug on the bar he is at.
     if (fill_timer) {
-        if (switched && carry && !walked) {
+        if (switched && carry && !walked && at_tap) {
             // carried to the new bar's fill position: still holding the full mug under the spout
         } else if (walked || switched || !at_tap || !(joy & J_A)) {
             if (!walked && !switched && at_tap && fill_timer >= FILL_FRAMES) {
@@ -553,6 +553,7 @@ static void update(void) {
         draw_stage_fx();
         if (bar_dirs) mirror_oam();              // P3: bars from the right: their entries to the mirrored place (mirror.c)
         if (story_on) pour_frame();             // story: the perfect pour (src/pour.c; last: it counts OAM lines)
+        else if (cue_t) draw_cue();             // otherwise only the dust puff of a bar change (OAM 26)
         ENABLE_OAM_DMA;
         SEC(SEC_FX);
     }

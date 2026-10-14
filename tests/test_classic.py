@@ -654,7 +654,7 @@ def test_the_level_box_select_steps_the_directions_and_a_starts_with_them(boot):
     assert boot.mem("level_dirs") == 0x3
     row = banner_text(boot)
     r, l = tile_id("GLYPH_R"), tile_id("GLYPH_L")
-    assert row[12:16] == [r, r, l, l], ("the box reads LEVEL 01 RRLL", row)
+    assert row[10:14] == [r, r, l, l], ("the box reads LEVEL 01 RRLL SNAP", row)
     boot.press("a", 2)
     for _ in range(80):
         boot.run(1)
