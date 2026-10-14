@@ -9,6 +9,11 @@
 //   title tune, always set; bit 15, above TUNE_COUNT, is kept as it is); 8 checksum (0x5A + bytes 0..7), 9 its
 //   complement. CONTINUE on the title: progress 1..9, or progress 0 with a step reached; it starts that chapter over
 //   (lives are not saved: story.c).
+//   0x0A the venue-start score "SV" (owner 2026-10-14: CONTINUE returns to the venue's start with 3 lives and the score the player
+//   had when they entered it): 0..1 magic "SV"; 2 the chapter it belongs to; 3..5 the score (LE, <= 999999); 6 checksum (0x5A +
+//   bytes 0..5), 7 its complement. Written when a venue is entered (a PRE scene's end, a chapter cleared: story.c) and read by
+//   CONTINUE, which takes it only when its chapter is the one to continue; anything else (an older save without the block, a bad
+//   checksum, another chapter, a score above 999999) reads as score 0. Not in a debug-select run or ARCADE (save_lock).
 //   0x40 Practice (BONUS > MINI GAMES and BOSS RUSH): 0..3 magic "MGP2"; 4..5 the mini-games reached (16-bit little
 //   endian, bit g = mini-game g, MG_* of src/mg.h; only bits below MG_PLANNED are ever set); 6..6+MG_PLANNED-1 the best
 //   medal of each (MEDAL_*, 0..3); 16..43 the boss rush's part (RUSH_SAVE_N bytes, src/rush.h RSV_*): 16..17 the bosses
@@ -86,6 +91,8 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define V7_STORY 4                  // the main block: progress, step, tunes (2), checksum, complement
 #define V7_STEP  5
 #define V7_TUNES 6
+#define SV_AT    0x0A               // the venue-start score block (see the top): magic, chapter, score x3, checksum, complement
+#define SV_LEN   6
 #define V7_LEN   8                  // bytes covered by the main block's checksum
 #define TBL_AT(t) (0x80 + (uint16_t)(t) * 0x40)
 #define TBL_LEN  (4 + TOP_N * 6)    // 34: bytes of a table block covered by its checksum
@@ -457,6 +464,32 @@ void story_save(uint8_t chapters, uint8_t step) BANKED {
     story_progress = chapters; story_reached = step;
     tune_unlocked |= progress_unlocks(chapters, step);
     hi_save();
+}
+
+// A venue (chapter ch) is entered with `s` on the score: kept for CONTINUE. Nothing in a debug-select run or ARCADE.
+void venue_score_put(uint8_t ch, uint32_t s) BANKED {
+    volatile uint8_t *b = SRAM + SV_AT;
+    if (save_lock) return;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    b[0] = 'S'; b[1] = 'V'; b[2] = ch;
+    b[3] = (uint8_t)s; b[4] = (uint8_t)(s >> 8); b[5] = (uint8_t)(s >> 16);
+    sum_put(b, SV_LEN);
+    DISABLE_RAM;
+}
+
+// ... and CONTINUE's: the score kept for chapter ch (0 when there is none, it is for another chapter or it does not check out)
+uint32_t venue_score_get(uint8_t ch) BANKED {
+    volatile uint8_t *b = SRAM + SV_AT;
+    uint32_t s = 0;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    if (b[0] == 'S' && b[1] == 'V' && b[2] == ch && sum_ok(b, SV_LEN)) {
+        s = (uint32_t)b[3] | ((uint32_t)b[4] << 8) | ((uint32_t)b[5] << 16);
+        if (s > HI_MAX) s = 0;
+    }
+    DISABLE_RAM;
+    return s;
 }
 
 // music_play, in story mode: tune t was heard. A new unlock is saved at once (once per tune, ever).

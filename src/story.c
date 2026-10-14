@@ -11,7 +11,7 @@
 // 2: a patron at the tap, 8: a broken glass) costs 2 lives instead of 1 ("2 LIVES LOST", the two mugs blink during the
 // freeze). A timed goal's clock running out costs a life and retries that shift (the venue when it was the last).
 // CONTINUE on the title starts the chapter not cleared over: its Opening banner when one of its steps was reached,
-// else its PRE scene (lives are not saved). The score carries on through a lost life and a timed goal's retry, but
+// else its PRE scene (lives are not saved: 3; the score is the one the venue was entered with, save.c venue_score_put). The score carries on through a lost life and a timed goal's retry, but
 // starts from 0 again when the lives run out (TRY AGAIN, the venue again: owner 2026-10-11), so a story score is one
 // run with no game over; when the credits end it goes into the STORY top 5 (initials, the table; not from a
 // debug-select run).
@@ -611,6 +611,7 @@ static void venue_start(void) {
 static void chapter_done(void) {                 // every step done: saved as cleared, the POST scene
     if (story_arc) { bonus_enter(); game_state = GS_BONUS; return; }   // ARCADE: the bonus round (then arcade_next)
     story_save(story_chapter + 1, 0);
+    venue_score_put(story_chapter + 1, score);   // (the next venue's start score: what CONTINUE gives back)
     scene_enter(SC_POST_SALOON + 2 * story_chapter);
 }
 
@@ -633,6 +634,8 @@ void story_begin(uint8_t cont) BANKED {
     if (cont && (story_progress || story_reached) && story_progress < STORY_CHAPTERS) {
         story_chapter = story_progress;
         story_scene = SC_PRE_SALOON + 2 * story_chapter;
+        score = venue_score_get(story_chapter);  // the score the venue was entered with (owner 2026-10-14), lives 3 (run_begin)
+        split6(score_digits, score);
         if (!story_reached) scene_enter(story_scene);
         else venue_start();
     } else {
@@ -683,7 +686,7 @@ static void scene_done(void) {
     if (s == SC_FINALE_A) { mg_enter(MG_POUROFF, MG_STORY); return; }   // Dregs challenges: the Pour-Off (src/po.c), then FINALE_B
     if (s == SC_FINALE_B) { scene_enter(SC_CREDITS); return; }
     if (s == SC_INTRO) { scene_enter(SC_PRE_SALOON); return; }
-    if (!((s - SC_PRE_SALOON) & 1)) { venue_start(); return; }     // a PRE scene: the chapter
+    if (!((s - SC_PRE_SALOON) & 1)) { venue_score_put(story_chapter, score); venue_start(); return; }     // a PRE scene: the chapter
     if (story_chapter + 1 < STORY_CHAPTERS) {                       // a POST scene: the next chapter's PRE
         story_chapter++;
         scene_enter(SC_PRE_SALOON + 2 * story_chapter);

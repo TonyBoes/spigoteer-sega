@@ -462,13 +462,13 @@ def to_chapter(model, c, banner=False):
     return to_goal(rom)
 
 
-def to_shift(model, c, k, banner=False):
+def to_shift(model, c, k, banner=False, image=None):
     """A rom in chapter c's shift k with 3 lives, past the banner (banner=True: still on it). CONTINUE from a save
     that reached the shift's step opens the venue's Opening banner (no PRE scene); the Opening is then won with
     story_step poked to the step before shift k, so the next playable step is k's (one SHIFT CLEAR)."""
     if k == 0:
         return to_chapter(model, c, banner)
-    rom = booted(model, v7_image([], story=c, step=SHIFT_STEP[k]))
+    rom = booted(model, image or v7_image([], story=c, step=SHIFT_STEP[k]))
     hold_stage_anim(rom)
     to_continue(rom)                                      # CONTINUE: the venue's Opening
     run_until(rom, lambda: state(rom) == GS_GOAL, 60)

@@ -10,7 +10,7 @@ from test_bonus import lines
 from test_flow import GS_GOAL, GS_STORY, LEVEL_CLEAR, PLAYING, TITLE, inject_mug, run_until, state, tilemap_row
 from test_mg import GLYPH_CH, GS_MGLIST, GS_MINI, MG_PLAY, MG_PRACTICE, MG_RESULT, MG_STORY, MG_STUB, frames, mg_enter, until
 from test_scores import GS_INITIALS, GS_SCORES, booted, set_score, table
-from test_sound import make_rom
+from test_sound import make_rom, save_ram
 
 pytestmark = pytest.mark.timeout(300)
 
@@ -297,10 +297,11 @@ def test_story_quit_goes_to_the_title_and_continue_starts_from_the_save_point(mo
     from test_story import to_shift
     from test_scores import v7_image
     c = 2
-    with to_shift(model, c, 1) as gb:                     # the lumber lodge's Happy hour: step 1 reached (saved)
+    with to_shift(model, c, 1, image=sv_image(c, 1, c, 12345)) as gb:   # the lumber lodge's Happy hour: step 1 reached (saved)
         saved = (gb.mem("story_progress"), gb.mem("story_reached"))
         assert saved[1] > 0
         gb.run(60)
+        set_score(gb, 54321)   # scored on in the venue (below the 20,000 life)
         open_pause(gb)
         quit_yes(gb)
         settled(gb, TITLE)
@@ -313,6 +314,54 @@ def test_story_quit_goes_to_the_title_and_continue_starts_from_the_save_point(mo
         gb.run(3)
         assert gb.mem("story_on") == 1 and gb.mem("story_chapter") == c and gb.mem("lives") == 3
         assert gb.mem("story_step") == 0, "CONTINUE starts the venue again (src/story.c story_begin)"
+        assert score_of(gb) == 12345, "the score the venue was entered with, not the one reached in it (owner 2026-10-14)"
+        assert gb.read("score_digits", 6) == bytes([0, 1, 2, 3, 4, 5])
+
+
+def sv_image(story, step, chapter, score, bad=False):
+    """A version-7 save with the venue-start score block (save.c SV_AT 0x0A) for `chapter`."""
+    from test_scores import v7_image
+    r = bytearray(v7_image([], story=story, step=step))
+    b = bytes([ord("S"), ord("V"), chapter]) + score.to_bytes(3, "little")
+    c = (0x5A + sum(b)) & 255
+    r[0x0A:0x12] = b + bytes([c ^ 1 if bad else c, c ^ 0xFF])
+    return bytes(r)
+
+
+def score_of(gb):
+    return int.from_bytes(gb.read("score", 4), "little")
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("img,want", [(sv_image(2, 0, 2, 777), 777), (sv_image(2, 0, 1, 777), 0), (sv_image(2, 0, 2, 777, bad=True), 0),
+                                      (sv_image(2, 0, 2, 1000000), 0)])
+def test_continue_takes_the_venue_start_score_only_when_it_checks_out(model, img, want):
+    from test_story import start_story
+    with start_story(model, img, cont=True) as gb:        # the PRE scene of chapter 2
+        assert gb.mem("story_chapter") == 2 and gb.mem("lives") == 3
+        assert score_of(gb) == want, "another chapter's, a bad checksum or a score out of range reads as 0"
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_an_older_save_without_the_block_continues_with_score_0(model):
+    from test_scores import v7_image
+    from test_story import start_story
+    with start_story(model, v7_image([], story=2, step=0), cont=True) as gb:
+        assert score_of(gb) == 0
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_entering_a_venue_keeps_its_start_score(model):
+    from test_story import start_story, skip_scene
+    from test_scores import saved_story
+    with start_story(model, sv_image(2, 0, 2, 777), cont=True) as gb:
+        assert score_of(gb) == 777
+        set_score(gb, 4321)
+        skip_scene(gb)                                    # the PRE scene ends: the venue is entered with 4321
+        run_until(gb, lambda: state(gb) == GS_GOAL, 120)
+        ram = save_ram(gb)
+    assert ram[0x0A:0x0C] == b"SV" and ram[0x0C] == 2 and int.from_bytes(ram[0x0D:0x10], "little") == 4321
+    assert (0x5A + sum(ram[0x0A:0x10])) & 255 == ram[0x10] and ram[0x11] == ram[0x10] ^ 0xFF
 
 
 @pytest.mark.parametrize("model", MODES)
