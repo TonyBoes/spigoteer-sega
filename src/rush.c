@@ -186,6 +186,7 @@ static void line_at(uint8_t y, uint8_t x, const char *s) {  // LCD off: a text r
     blank(row_buf);
     put(row_buf, x, s);
     set_bkg_tiles(0, y, 20, 1, row_buf);
+    music_pump();                                // (a screen's build is several frames: the tune ticks on)
 }
 
 // ---- the screen's frame -------------------------------------------------------------------------------------------
@@ -194,6 +195,11 @@ static uint8_t info_n(void) { return RUSH->scr == RS_LIST ? INFO_LIST : INFO_LIN
 
 static void frame_begin(uint8_t scr) {           // LCD off: a blank band with the title, its panels, HUD attributes
     DISPLAY_OFF;
+    if (scr != RS_NEXT) {                        // the menu, the list and the result play the title tune (left alone when it
+        music_play(TUNE_TITLE);                  // already plays; after a fight its patterns are copied back now and the
+        music_load_now();                        // pumps below tick it through the rebuild)
+    }
+    music_pump();
     RUSH->scr = scr;
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
@@ -203,7 +209,9 @@ static void frame_begin(uint8_t scr) {           // LCD off: a blank band with t
     hide_all_sprites();
     story_on = 0;                                // (the rush's screens are not a story; a fight sets it again)
     story_font_load();                           // the punctuation (over the patron range: a fight's load puts it back)
+    music_pump();
     rows_fill(0, 18, TILE_HUD_BLANK);
+    music_pump();
     line_at(ROW_HEAD, 255, "BOSS RUSH");
     rows_fill(ROW_HEAD + 1, 1, TILE_PANEL_TOP);
     rows_fill(box_row(), 1, TILE_PANEL_TOP);
@@ -309,11 +317,13 @@ static void cursor(void) {
 static void lines_open(uint8_t scr) {            // LCD off: the menu or the list
     uint8_t k, n;
     frame_begin(scr);
-    music_play(TUNE_TITLE);                      // (left alone when it already plays)
+    mug_cursor_load();                           // (a fight borrowed the mug's tiles and palettes)
+    music_pump();
     n = n_lines() + info_n();
     for (k = 0; k < n; k++) {
         build(k);
         set_bkg_tiles(0, screen_row(k), 20, 1, ROW(k));
+        if (!(k & 3)) music_pump();
     }
     cursor();
     DISPLAY_ON;
@@ -393,7 +403,6 @@ static void result_show(void) {                  // LCD off: the run's result
     uint8_t all = RUSH->mode == RM_ALL;
     uint16_t f = all ? RUSH->total_t : RUSH->fight_t;
     frame_begin(RS_RESULT);
-    music_play(TUNE_TITLE);
     line_at(3, 255, all ? (RUSH->result ? "ALL CLEAR" : "GAME OVER") : (RUSH->result ? "YOU WIN" : "YOU LOSE"));
     if (all) {
         d = num(b, RUSH->won);

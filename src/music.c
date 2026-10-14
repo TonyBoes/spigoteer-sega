@@ -347,6 +347,14 @@ static void tick(void) {
     if (voice[1].busy) voice_tick(1);
 }
 
+// A menu screen's rebuild (LCD off, nothing else running) copies a tune's patterns into WRAM at once instead of 384 bytes
+// a frame, so the tune starts with the screen's first pump and not four frames after it (music_play: the title tune after
+// a game, a boss fight or the soundtrack player overwrote its buffer). Nothing to do when no such load is running.
+void music_load_now(void) BANKED {
+    while (ld_tune != TUNE_NONE && ld_play)
+        if (load_step()) break;
+}
+
 // The game's frame tick (main.c, once per main loop). It restarts the frame timer music_pump watches.
 void music_tick(void) BANKED {
     tick();

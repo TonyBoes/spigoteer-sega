@@ -391,6 +391,7 @@ extern uint8_t lift_prop[8];                  // (lift.c) OAM attributes of vari
 void enhance_load(uint8_t g) BANKED;          // level load (LCD off), after lift_level_init: the tables, OBJ 4, the bank-1 lift tiles
 // ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
 extern uint8_t venue_id;
+void mug_cursor_load(void) BANKED;                      // the menus' mug cursor: OBJ_MUG.. tiles and OBJ palettes 1-2 (LCD off)
 void load_venue(uint8_t t) BANKED;                      // tiles, palettes, base_tile/base_attr of theme t
 void draw_venue(void) BANKED;                           // stage, counter rows, floor, HUD attributes
 // Stage animation (src/venue.c): a few stage tile ids get their pixels rewritten on a looped script, through the

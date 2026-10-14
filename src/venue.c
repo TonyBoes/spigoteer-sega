@@ -56,6 +56,18 @@ void load_venue(uint8_t t) BANKED {
     set_sprite_palette(OBJPAL_DANCER, 1, venue.pal[VENUE_PAL_SHOW]);
 }
 
+// The mug cursor of a menu (the title's, BONUS > MINI GAMES, the soundtrack, the boss rush): its pictures (OBJ_MUG..) and
+// palettes 1-2 are the saloon's drink. A mini-game or a boss fight borrows those slots and a menu is entered after them,
+// so every menu that draws the cursor loads it itself. LCD off.
+void mug_cursor_load(void) BANKED {
+    venue_fetch(0);
+    venue_id = 0;
+    spr_data_far(OBJ_MUG, MUG_TILE_COUNT, venue.drink_tiles, venue_bank);
+    if (!is_cgb) return;
+    set_sprite_palette(OBJPAL_MUG_FULL, 1, venue.pal[VENUE_PAL_DRINK_FULL]);
+    set_sprite_palette(OBJPAL_MUG_EMPTY, 1, venue.pal[VENUE_PAL_DRINK_EMPTY]);
+}
+
 static uint8_t vrow[20];
 
 static void put_both(uint8_t y, const uint8_t *tiles, const uint8_t *attrs) {

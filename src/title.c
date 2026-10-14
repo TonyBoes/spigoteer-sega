@@ -239,8 +239,12 @@ void title_enter(void) BANKED {
     uint8_t i, r;
     palette_t p;
     DISPLAY_OFF;
+    music_pump();                                     // (the tick this pass is due: the load below runs several frames)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0;
     music_fast = 0;                                   // (the jukebox plays every tune at its own pace)
+    music_play(TUNE_TITLE);                           // (before the long load: its patterns, if a game or the soundtrack player
+    music_load_now();                                 // overwrote them, are copied at once and the pumps below tick the tune)
+    music_pump();
     hide_all_sprites();
     mirror_load(0); level_dirs = 0;                   // every bar L (the scene's bartender; P3: CLASSIC may mirror bars)
     if (!is_cgb) OBP1_REG = OBP1_MENU;               // (play used OBP1_PLAY)
@@ -325,7 +329,6 @@ void title_enter(void) BANKED {
     bar = SCENE_BAR; bartender_x = BT_X; bt_bob = 0; facing = 0; bartender_frame = BT_IDLE;
     game_state = GS_TITLE;
     music_pump();
-    music_play(TUNE_TITLE);
     DISPLAY_ON;
 }
 

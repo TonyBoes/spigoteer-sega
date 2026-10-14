@@ -189,15 +189,21 @@ static void cursor(void) {
 void mg_list_enter(void) BANKED {
     uint8_t y;
     DISPLAY_OFF;
+    music_pump();                               // (the tick this pass is due: the rebuild runs several frames)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; vram_pending = 0;
     hide_all_sprites();
     story_on = 0;                               // (Practice is never a story)
-    music_play(TUNE_TITLE);                     // (left alone when it already plays: from the title)
+    music_play(TUNE_TITLE);                     // (left alone when it already plays: from the title; after a game its patterns are
+    music_load_now();                           // copied back now, and the pumps below tick it through the rebuild)
+    music_pump();
+    mug_cursor_load();                          // (a game borrowed the mug's tiles and palettes)
+    music_pump();
     story_font_load();                          // the punctuation (over the title's lettering: title_enter reloads it)
+    music_pump();
     if (ml_sel >= ML_N) ml_sel = 0;
     ml_n = ML_N; ml_dirty &= ML_HARD;
     blank(row_buf);
-    for (y = 0; y < 18; y++) set_bkg_tiles(0, y, 20, 1, row_buf);
+    for (y = 0; y < 18; y++) { set_bkg_tiles(0, y, 20, 1, row_buf); if (!(y & 3)) music_pump(); }
     for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_TOP;
     set_bkg_tiles(0, ML_ROW_HEAD + 1, 20, 1, row_buf);
     set_bkg_tiles(0, ML_ROW_BOX, 20, 1, row_buf);
@@ -206,6 +212,7 @@ void mg_list_enter(void) BANKED {
     for (y = 0; y <= ML_HEAD_K; y++) {
         build(y);
         set_bkg_tiles(0, screen_row(y), 20, 1, ML_ROW(y));
+        if (!(y & 3)) music_pump();
     }
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;

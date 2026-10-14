@@ -82,7 +82,7 @@ static void build(uint8_t k) {
     t = jb_top + k;
     if (t >= TUNE_COUNT) { blank(r); return; }
     put(r, 1, unlocked(t) ? jb_name[t] : locked_name);
-    if (t == cur_tune && !(jb_t & JB_BLINK)) r[JB_COL_PLAY] = TILE_HUD_MUG;
+    if (t == jb_shown && !(jb_t & JB_BLINK)) r[JB_COL_PLAY] = TILE_HUD_MUG;   // (jb_shown: cur_tune as of the last frame; the title tune still plays while the screen is built)
 }
 
 static uint8_t screen_row(uint8_t k) {
@@ -103,13 +103,16 @@ static void cursor(void) {
 void jukebox_enter(void) BANKED {
     uint8_t y;
     DISPLAY_OFF;
+    music_pump();                              // (the tick this pass is due: the rebuild runs several frames)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; vram_pending = 0;
     hide_all_sprites();
-    music_stop();                              // silence until a tune is chosen (B then goes straight back)
+    mug_cursor_load();                         // (a game or a boss fight borrowed the mug's tiles and palettes)
+    music_pump();                              // (the title tune plays on through the rebuild, then silence until a tune is chosen)
     story_font_load();                         // the punctuation (over the title's lettering: title_enter reloads it)
+    music_pump();
     jb_sel = 0; jb_top = 0; jb_forced = 0; jb_shown = TUNE_NONE; jb_t = 0; jb_dirty = 0;
     blank(row_buf);
-    for (y = 0; y < 18; y++) set_bkg_tiles(0, y, 20, 1, row_buf);
+    for (y = 0; y < 18; y++) { set_bkg_tiles(0, y, 20, 1, row_buf); if (!(y & 3)) music_pump(); }
     put(row_buf, 255, "SOUNDTRACK");
     set_bkg_tiles(0, JB_ROW_HEAD, 20, 1, row_buf);
     for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_TOP;
@@ -120,6 +123,7 @@ void jukebox_enter(void) BANKED {
     for (y = 0; y < JB_VISIBLE + JB_INFO_LINES; y++) {
         build(y);
         set_bkg_tiles(0, screen_row(y), 20, 1, JB_ROW(y));
+        if (!(y & 3)) music_pump();
     }
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
@@ -129,6 +133,7 @@ void jukebox_enter(void) BANKED {
     }
     cursor();
     game_state = GS_JUKEBOX;
+    music_stop();                              // silence until a tune is chosen (B then goes straight back)
     DISPLAY_ON;
 }
 
