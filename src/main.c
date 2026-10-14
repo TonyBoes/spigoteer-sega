@@ -176,14 +176,14 @@ void lcd_isr(void) {          // LYC: switch the banner window off below the ban
 void mr_lcd_isr(void) {
     uint8_t ly;
     HIDE_WIN;                                    // (as lcd_isr: the banner window's end)
-    if (game_state == GS_MINI && mg_id == MG_MILKRUN) {
+    if ((game_state == GS_MINI || game_state == GS_PAUSED) && mg_id == MG_MILKRUN) {
         ly = LYC_REG;
         if (ly == 144) { SCX_REG = 0; ly = MR_SPLIT_LY; }
         else if (ly == MR_SPLIT_LY) {
             SCX_REG = MG->mr.scx;
             if (overlay_on) {
                 SHOW_WIN;                        // (the banner window is wanted from its top line)
-                ly = mg_phase == MG_RESULT ? BANNER_WY + 46 : BANNER_LYC;
+                ly = mg_phase == MG_RESULT || game_state == GS_PAUSED ? BANNER_WY + 46 : BANNER_LYC;
             } else ly = 144;
         } else ly = 144;                         // the window's end: hidden above
         LYC_REG = ly;
@@ -316,7 +316,7 @@ uint8_t debug_step(uint8_t pressed) BANKED;
 static void debug_watch(void) {
     if ((joy & (J_START | J_SELECT)) != (J_START | J_SELECT)) { combo_timer = 0; return; }
     if (combo_timer > DEBUG_COMBO_FRAMES) return;                // already used: wait for a release
-    if (game_state != GS_TITLE && game_state != GS_PLAYING && game_state != GS_PAUSED) return;
+    if (game_state != GS_TITLE && game_state != GS_PLAYING && (game_state != GS_PAUSED || (state_timer & 0x80))) return;   // (not in a mini-game's pause)
     if (++combo_timer < DEBUG_COMBO_FRAMES) return;
     combo_timer = DEBUG_COMBO_FRAMES + 1;
     debug_open();
@@ -458,11 +458,7 @@ static void update(void) {
         frame_counter++;
         return;
     case GS_PLAYING:
-        if (pressed & J_START) {
-            game_state = GS_PAUSED;
-            show_overlay("PAUSE");
-            break;
-        }
+        if (pressed & J_START) { pause_open(); break; }   // the pause menu (src/pause.c)
         play_frame(pressed);
         if (story_on) story_play();              // M11b: the chapter goal
         break;
@@ -509,7 +505,7 @@ static void update(void) {
         if (scores_update(pressed)) { title_enter(); return; }
         break;
     case GS_PAUSED:
-        if (pressed & J_START) { game_state = GS_PLAYING; overlay_on = 0; }
+        if (pause_update(pressed)) return;       // RESUME / QUIT TO MENU (src/pause.c); 1: the run is over
         break;
     case GS_STORY:                               // M11b: a cut-scene / TRY AGAIN, the goal banner
     case GS_GOAL:
@@ -635,7 +631,7 @@ void main(void) {
         vq_frame_end();      // the copy list is complete: the next VBlank interrupt executes it
         perf_snap(); lt = snap_t; lly = snap_ly;
         // Music and effects, every frame, after the logic (so they cannot delay the game's input-to-state latency).
-        music_tick();
+        if (game_state != GS_PAUSED || !PAUSE_NR51) music_tick();   // (the pause menu: the tune stands still, its channels muted: pause.c)
         SEC(SEC_MUSIC);
         perf_snap();
 #ifdef PERF_SECTIONS

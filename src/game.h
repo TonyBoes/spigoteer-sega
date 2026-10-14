@@ -505,6 +505,12 @@ extern uint8_t story_unskip;                            // test hook: bit s = st
 // ---- mg.c (banked, the mini-game framework; the games include src/mg.h) ------------------------------------
 uint8_t mg_update(uint8_t pressed) BANKED;              // a GS_MINI frame; 1: it left (the next screen is up)
 uint8_t mg_list_update(uint8_t pressed) BANKED;         // a GS_MGLIST frame (src/mg_list.c); 1: the screen changed
+void mg_abort(void) BANKED;                             // the pause menu's QUIT in a mini-game: mg.c's own leave (LCD off)
+// ---- pause.c (banked): the pause menu, every mode (state_timer: bit 0 cursor, bit 1 the question, bit 7 a mini-game)
+#define PAUSE_NR51 (*(volatile uint8_t *)0xFFF0)       // HRAM (the linker uses 0xFF80-0xFF92): while the menu is open, the NR51 to restore (never 0); else 0
+void pause_open(void) BANKED;                           // START in play / a mini-game: GS_PAUSED, the music's channels quiet
+uint8_t pause_update(uint8_t pressed) BANKED;           // a GS_PAUSED frame; 1: it left (the next screen is up)
+void pause_close(void) BANKED;                          // the banner window and the sound as they were, back to the game
 void mg_list_enter(void) BANKED;                        // LCD off: BONUS > MINI GAMES, the list (GS_MGLIST)
 // save.c: Practice's block at SRAM 0x40 (the mini-games reached in STORY / ARCADE and the best medal of each)
 extern uint16_t mg_unlocked;                            // bit g = mini-game g (MG_* of src/mg.h) reached
@@ -518,7 +524,8 @@ void rush_store(const uint8_t *src) BANKED;             // write it (with the mi
 void boss_beaten(uint8_t v) BANKED;                     // venue v's boss beaten in STORY / ARCADE: unlocked for BOSS RUSH
 // ---- rush.c (banked, BONUS > BOSS RUSH; its screens run as GS_STORY, story_phase STORY_PHASE_RUSH) ----------------
 #define STORY_PHASE_RUSH 7                              // story.c's SP_RUSH: story_update hands the frame to rush_update
-void rush_enter(void) BANKED;                           // LCD off: the BOSS RUSH menu (ALL / CHOOSE)
+void rush_enter(void) BANKED;
+void rush_quit(void) BANKED;                            // the pause menu's QUIT in a fight: no result, no time; the BOSS RUSH menu (LCD off)                           // LCD off: the BOSS RUSH menu (ALL / CHOOSE)
 uint8_t rush_update(uint8_t pressed) BANKED;            // a frame of a rush screen; 1: the screen changed
 void rush_won(void) BANKED;                             // story_level_done in MODE_RUSH: the fight was won
 void rush_lost(void) BANKED;                            // story SP_FAIL in MODE_RUSH: out of lives

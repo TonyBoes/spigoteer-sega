@@ -113,6 +113,7 @@ static void debug_show(void) {
 
 void debug_open(void) BANKED {
     uint8_t k;
+    if (game_state == GS_PAUSED) pause_close();      // opened from the pause menu: its window and the sound go back first
     debug_from_title = game_state == GS_TITLE;
     debug_story = 0; debug_classic = 0;
     if (debug_from_title) {

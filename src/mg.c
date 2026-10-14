@@ -327,6 +327,9 @@ static void mg_leave(void) {
     if (is_cgb) attr_rows(RES_ROW, RES_ROWS);
 }
 
+// the pause menu's QUIT TO MENU (src/pause.c): the same leave as a finished game's
+void mg_abort(void) BANKED { mg_leave(); }
+
 static uint8_t result_frame(uint8_t pressed) {
     if (mg_game == G_PO) {                       // the Pour-Off has no result window: won -> FINALE_B, lost -> the Pour-Off again
         if (MG->po.res == PR_WIN) { mg_leave(); story_pouroff_done(); }
@@ -361,6 +364,7 @@ static uint8_t mg_frame(uint8_t pressed);
 // screen (the flicker of Log Roll's late frames). The DMA is off only inside this call: the last complete list stays up.
 uint8_t mg_update(uint8_t pressed) BANKED {
     uint8_t left;
+    if ((pressed & J_START) && mg_phase <= MG_PLAY) { pause_open(); return 0; }   // the pause menu (src/pause.c; not over the result)
     DISABLE_OAM_DMA;
     left = mg_frame(pressed);
     ENABLE_OAM_DMA;

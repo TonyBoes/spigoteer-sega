@@ -346,6 +346,12 @@ void rush_enter(void) BANKED {
     menu_open(0);
 }
 
+// The pause menu's QUIT TO MENU in a fight (src/pause.c): back to the menu, nothing recorded (no time, no best)
+void rush_quit(void) BANKED {
+    boss_set(BOSS_NONE);
+    menu_open(0);
+}
+
 // ---- a run ------------------------------------------------------------------------------------------------------
 static void run_reset(void) {
     uint8_t i;
