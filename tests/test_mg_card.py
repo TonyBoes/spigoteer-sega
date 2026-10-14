@@ -99,17 +99,18 @@ def test_every_game_shows_its_full_card_first(model):
             frames(gb, 3)
             assert row_text(gb, 1) == "HOW TO PLAY" and row_text(gb, 4) == name, name
             assert [row_text(gb, r) for r in (6, 8, 10)] == ls, name
-            assert row_text(gb, 16) == "PRESS A" and row_text(gb, 2) == "" and row_text(gb, 12) == "", name
+            prompt = "A NEXT  B BACK" if gid == MG_STUB else "A START  B BACK"      # (from the list: B goes back; the stub has two pages)
+            assert row_text(gb, 16) == prompt and row_text(gb, 2) == "" and row_text(gb, 12) == "", name
             for _ in range(4):                                     # the prompt blinks (32 frames on, 32 off)
                 gb.run(40)
-                assert row_text(gb, 16) in ("PRESS A", ""), name
+                assert row_text(gb, 16) in (prompt, ""), name
             frames(gb, 120)
             assert gb.mem("mg_phase") == MG_CARD and gb.mem("mg_t") > 100, "it waits for A"
             assert max(lines(gb)) <= 10 and len([s for s in gb.visible_sprites()]) <= 4, name
-            for b in ("b", "start", "left"):
+            for b in ("start", "left"):
                 gb.press(b, 2)
             gb.run(5)
-            assert gb.mem("mg_phase") == MG_CARD, "only A goes on"
+            assert gb.mem("mg_phase") == MG_CARD, "only A goes on (and B, from the list: back)"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -195,8 +196,70 @@ def test_a_card_is_never_wider_than_the_screen_and_the_games_still_run(model):
             mg_enter(gb, gid, MG_PRACTICE)
             gb.run(3)
             gb.press("a", 2)
+            if gid == MG_STUB:                                     # (two pages)
+                gb.run(3)
+                gb.press("a", 2)
             run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)
             gb.run(3)
             gb.press("a", 2)                                       # the short card skipped
             frames(gb, 100)
             assert state(gb) == GS_MINI and gb.mem("mg_phase") in (MG_COUNT, MG_PLAY, 2), gid
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_b_on_the_full_card_goes_back_to_the_list_with_no_medal(model):
+    """From BONUS > MINI GAMES B on the full card is the pause QUIT's clean leave: the list, no medal, and the card counts as seen."""
+    from test_mg_list import best, to_list
+    from test_mg import GS_MGLIST
+    with booted(model, cards=False) as gb:
+        hold_stage_anim(gb)
+        to_list(gb)
+        medals = best(gb)
+        gb.press("a", 2)
+        run_until(gb, lambda: gb.mem("mg_phase") == MG_CARD and gb.pb.memory[0xFF40] & 0x80, 60)
+        gb.run(3)
+        assert row_text(gb, 16) == "A START  B BACK"
+        gb.press("b", 2)
+        run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 60)
+        gb.run(3)
+        assert gb.mem("mg_phase") == MG_CARD or gb.mem("overlay_on") == 0
+        assert best(gb) == medals, "no medal"
+        mg_enter(gb, MG_QUICKDRAW, MG_PRACTICE)
+        assert gb.mem("mg_phase") == MG_INTRO, "the card was read: the short one now"
+        out = save_ram(gb)
+    assert parse_bx(out)[2] & 1, "the seen bit is saved"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_b_on_the_card_starts_the_game_where_there_is_no_list(model):
+    with booted(model, cards=False) as gb:
+        mg_enter(gb, MG_QUICKDRAW, MG_STORY)
+        gb.run(3)
+        assert row_text(gb, 16) == "PRESS A"
+        gb.press("b", 2)
+        run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_two_page_card_turns_its_page_before_it_starts(model):
+    """The stub's card has two pages: NEXT (story / ARCADE) or A NEXT  B BACK (list) on the first, A turns, the last page's prompt is
+    PRESS A / A START  B BACK, and only A on the last page starts the game."""
+    with booted(model, cards=False) as gb:
+        hold_stage_anim(gb)
+        mg_enter(gb, MG_STUB, MG_STORY)
+        gb.run(3)
+        assert [row_text(gb, r) for r in (6, 8, 10, 16)] == ["PRESS A ON GREEN", "NOT ON RED", "5 ROUNDS", "NEXT"]
+        check_golden(gb, "card_stub_page1")
+        gb.press("a", 2)
+        gb.run(3)
+        assert gb.mem("mg_phase") == MG_CARD
+        assert [row_text(gb, r) for r in (4, 6, 8, 10, 16)] == ["GREEN LIGHT", "EARLY IS A MISS", "SLOW IS A MISS", "KEEP YOUR EYES UP", "PRESS A"]
+        gb.press("a", 2)
+        run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)
+    with booted(model, cards=False) as gb:
+        mg_enter(gb, MG_STUB, MG_PRACTICE)
+        gb.run(3)
+        assert row_text(gb, 16) == "A NEXT  B BACK"
+        gb.press("a", 2)
+        gb.run(3)
+        assert row_text(gb, 6) == "EARLY IS A MISS" and row_text(gb, 16) == "A START  B BACK"

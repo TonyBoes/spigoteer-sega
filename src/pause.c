@@ -1,10 +1,13 @@
 // The pause menu (owner 2026-10-14), every mode: START in a level (main.c GS_PLAYING) or in a mini-game's INTRO / COUNT / PLAY
 // (mg.c mg_update) opens it; game_state is GS_PAUSED while it shows, so nothing moves and main.c does not tick the music (PAUSE_NR51 set).
 //
-//   PAUSE                        ARE YOU SURE?
-//   > RESUME                       YES
-//     QUIT TO MENU               > NO
+//   PAUSE                        PAUSE                        ARE YOU SURE?
+//   > RESUME                     > RESUME                       YES
+//     QUIT TO MENU                 HOW TO PLAY                > NO
+//                                  QUIT TO MENU
 //
+// (the middle one in a mini-game: the HOW TO PLAY card, src/mg_card.c, over the whole screen; A turns its pages, A on the last or B comes
+// back to the menu. pause_card() is the hook that says which card the context has, NO_CARD for none: bar levels and bosses today.)
 // Up / Down choose, A takes it, START or B resume (in the question: back to the menu). QUIT TO MENU asks first (NO is the
 // cursor). YES ends the run through the same exits as finishing it:
 //   - a mini-game: mg.c's own leave (tk_leave, OBP0, the LCD handlers, the sprites), then BONUS > MINI GAMES (practice, no
@@ -19,8 +22,9 @@
 // handler picks it too, main.c mr_lcd_isr), written straight to the window map (GBDK's set_win_tiles waits for VRAM).
 // The HUD glyph set has no '?' and no arrow: two rarely used letters' tiles (J, Z: no text on a playing screen has one)
 // take them while paused and are put back from the shared tiles when the pause ends.
-// State, no WRAM of its own: state_timer (idle while playing or paused) holds the menu: bit 0 the cursor row, bit 1 the
-// question, bit 7 a mini-game paused. The sound's NR51 is kept in HRAM 0xFFF0 (game.h PAUSE_NR51; the linker uses 0xFF80-0xFF92 only); it is also the "menu is open" flag.
+// State, no WRAM of its own: state_timer (idle while playing or paused) holds the menu: bits 0-1 the cursor (0 RESUME, 1 HOW TO PLAY,
+// 2 QUIT; in the question 0 YES, 1 NO), bit 2 the question, bit 3 the card is showing, bits 4-5 its page, bit 6 the sprites were on
+// (the card switches them off), bit 7 a mini-game paused. The sound's NR51 is kept in HRAM 0xFFF0 (game.h PAUSE_NR51; the linker uses 0xFF80-0xFF92 only); it is also the "menu is open" flag.
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -37,6 +41,11 @@ extern uint8_t state_timer, overlay_on, story_phase, new_rank;
 extern uint32_t score;
 
 #define PAUSE_MINI   0x80
+#define PAUSE_OBJ    0x40                   // the sprites were on when the card hid them
+#define PAUSE_PAGE   0x30                   // (bits 4-5: the card page, step 0x10)
+#define PAUSE_CARD   8                      // the card shows
+#define PAUSE_ASK    4                      // the question
+#define NO_CARD      255
 #define WIN_ROWS     6
 #define WIN_LYC      (BANNER_WY + 46)       // the window is 48 px tall (as mg.c RES_LYC)
 #define COL_ITEM     3                      // the arrow's column; the item's text follows at COL_ITEM + 2
@@ -66,16 +75,59 @@ static void fill_row(uint8_t r, uint8_t t) {
     set_win_tiles(0, r, 20, 1, b);
 }
 
-// the three changing rows for the menu state s
+// the HOW TO PLAY card of this context (mg.h's G_* id), or NO_CARD. A later batch gives bosses their hint pages here.
+static uint8_t pause_card(uint8_t s) {
+    return (s & PAUSE_MINI) ? mg_game : NO_CARD;
+}
+
+// the changing rows (1-4) for the menu state s
 static void draw(uint8_t s) {
-    uint8_t q = s & 2, k = s & 1;
-    line(1, 255, ' ', q ? "ARE YOU SURE?" : "PAUSE");
-    line(3, COL_ITEM + 2, k ? ' ' : '>', q ? "YES" : "RESUME");
-    line(4, COL_ITEM + 2, k ? '>' : ' ', q ? "NO" : "QUIT TO MENU");
+    uint8_t c = s & 3;
+    line(1, 255, ' ', (s & PAUSE_ASK) ? "ARE YOU SURE?" : "PAUSE");
+    if (s & PAUSE_ASK) {
+        fill_row(2, TILE_HUD_BLANK);
+        line(3, COL_ITEM + 2, c ? ' ' : '>', "YES");
+        line(4, COL_ITEM + 2, c ? '>' : ' ', "NO");
+    } else if (pause_card(s) != NO_CARD) {       // three items on rows 2-4
+        line(2, COL_ITEM + 2, c == 0 ? '>' : ' ', "RESUME");
+        line(3, COL_ITEM + 2, c == 1 ? '>' : ' ', "HOW TO PLAY");
+        line(4, COL_ITEM + 2, c == 2 ? '>' : ' ', "QUIT TO MENU");
+    } else {                                     // two, on rows 3-4
+        fill_row(2, TILE_HUD_BLANK);
+        line(3, COL_ITEM + 2, c == 0 ? '>' : ' ', "RESUME");
+        line(4, COL_ITEM + 2, c == 2 ? '>' : ' ', "QUIT TO MENU");
+    }
 }
 
 static void glyphs_back(void) {
     bkg_data_far(TILE_GLYPH_J, TILE_GLYPH_Z - TILE_GLYPH_J + 1, bar_tiles + (uint16_t)(TILE_GLYPH_J - TILE_GENERIC_BASE) * 16, BANK(art_tiles));
+}
+
+static void card_open(void) {
+    uint8_t s = state_timer;
+    HIDE_WIN;                                    // (hidden while the card is drawn, a few frames; main.c's update shows it again)
+    glyphs_back();                               // (the card's text may use J and Z)
+    if (LCDC_REG & LCDCF_OBJON) s |= PAUSE_OBJ;
+    state_timer = s | PAUSE_CARD;
+    HIDE_SPRITES;
+    WY_REG = 0;                                  // the window over the whole screen: no LYC end
+    mg_card_win_open(pause_card(s));
+    if (!(mg_id == MG_MILKRUN)) LYC_REG = 255;   // (Milk Run's handler: main.c mr_lcd_isr takes PAUSE_CARD into account)
+}
+
+static void card_close(void) {
+    uint8_t s = state_timer;
+    HIDE_WIN;
+    mg_card_win_close();
+    WY_REG = BANNER_WY;
+    if (!(mg_id == MG_MILKRUN)) LYC_REG = WIN_LYC;
+    if (s & PAUSE_OBJ) SHOW_SPRITES;
+    set_bkg_data(TILE_GLYPH_J, 1, qmark_tile);
+    set_bkg_data(TILE_GLYPH_Z, 1, arrow_tile);
+    fill_row(0, TILE_PANEL_TOP);
+    fill_row(5, TILE_PANEL_BOT);
+    state_timer = s & (PAUSE_MINI | 3);
+    draw(state_timer);
 }
 
 void pause_open(void) BANKED {
@@ -91,7 +143,6 @@ void pause_open(void) BANKED {
     set_bkg_data(TILE_GLYPH_J, 1, qmark_tile);
     set_bkg_data(TILE_GLYPH_Z, 1, arrow_tile);
     fill_row(0, TILE_PANEL_TOP);
-    fill_row(2, TILE_HUD_BLANK);
     fill_row(5, TILE_PANEL_BOT);
     draw(state_timer);
     if (is_cgb) {                                // the window's rows in the HUD palette
@@ -151,22 +202,33 @@ static void quit(void) {
 
 // every GS_PAUSED frame. 1: the screen changed (the run is over)
 uint8_t pause_update(uint8_t pressed) BANKED {
-    uint8_t s = state_timer;
+    uint8_t s = state_timer, c = s & 3, m = s & PAUSE_MINI;
     if (!PAUSE_NR51) return 0;                   // (no menu open: a test poked game_state = GS_PAUSED for a frame)
+    if (s & PAUSE_CARD) {                        // the HOW TO PLAY card: A turns the page (on the last it closes), B and START close it
+        if ((pressed & J_A) && ((s & PAUSE_PAGE) >> 4) + 1 < mg_card_pages(pause_card(s))) {
+            state_timer = s + 0x10;
+            mg_card_page(pause_card(s), (state_timer & PAUSE_PAGE) >> 4, 2);
+        } else if (pressed & (J_A | J_B | J_START)) card_close();
+        return 0;
+    }
     if (pressed & (J_UP | J_DOWN)) {
-        state_timer = s ^ 1;
+        if (s & PAUSE_ASK) c ^= 1;
+        else if (pressed & J_DOWN) { c = c == 2 ? 0 : c + 1; if (c == 1 && pause_card(s) == NO_CARD) c = 2; }
+        else { c = c == 0 ? 2 : c - 1; if (c == 1 && pause_card(s) == NO_CARD) c = 0; }
+        state_timer = (s & ~3) | c;
         draw(state_timer);
     } else if (pressed & (J_START | J_B)) {
-        if (s & 2) { state_timer = (s & PAUSE_MINI) | 1; draw(state_timer); }   // back to the menu, the cursor on QUIT
+        if (s & PAUSE_ASK) { state_timer = m | 2; draw(state_timer); }          // back to the menu, the cursor on QUIT
         else pause_close();
     } else if (pressed & J_A) {
-        if (!(s & 2)) {
-            if (!(s & 1)) pause_close();
-            else { state_timer = (s & PAUSE_MINI) | 3; draw(state_timer); }     // the question, the cursor on NO
-        } else if (!(s & 1)) {                   // YES
+        if (!(s & PAUSE_ASK)) {
+            if (c == 0) pause_close();
+            else if (c == 1) card_open();
+            else { state_timer = m | PAUSE_ASK | 1; draw(state_timer); }        // the question, the cursor on NO
+        } else if (c == 0) {                     // YES
             quit();
             return 1;
-        } else { state_timer = (s & PAUSE_MINI) | 1; draw(state_timer); }       // NO
+        } else { state_timer = m | 2; draw(state_timer); }                      // NO
     }
     return 0;
 }

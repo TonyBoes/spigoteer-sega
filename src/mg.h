@@ -72,13 +72,19 @@ enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO,
 #define MG_GAME_BG     (MG_BG + 3 * MG_ICON_N * MG_ICON_N)   // after the icon's 48 tiles (77-124): the game's own BG tiles
 
 // ---- the framework's state (test hooks: mg_id, mg_phase, mg_timer, mg_score, mg_medal, mg_seed_force) ----
-extern uint8_t  mg_id, mg_mode, mg_phase, mg_medal, mg_t;
+extern uint8_t  mg_id, mg_mode, mg_phase, mg_medal, mg_t, mg_game;
 extern uint16_t mg_timer;       // frames left (0: no timer / out); set by the game's enter for a timed game
 extern uint16_t mg_score;       // the game's points (also added to the HUD score as they are earned)
 extern uint16_t mg_seed, mg_seed_force;   // the game's RNG seed: next_rand() at entry, or mg_seed_force when non-zero
 
 void mg_enter(uint8_t id, uint8_t mode) BANKED;  // LCD off: game `id` (MG_*), the intro banner, GS_MINI
-void mg_card_draw(uint8_t game) BANKED;   // src/mg_card.c: the full HOW TO PLAY card (LCD off, the generic tiles and the venue loaded)
+// src/mg_card.c, the HOW TO PLAY card; `kind`: 0 the full card of a story / ARCADE game, 1 of BONUS > MINI GAMES (B goes back), 2 over a paused game (window map)
+void mg_card_draw(uint8_t game, uint8_t kind) BANKED;   // page 1, kind 0 / 1 (LCD off, the generic tiles and the venue loaded)
+uint8_t mg_card_pages(uint8_t game) BANKED;             // 1-3
+void mg_card_page(uint8_t game, uint8_t page, uint8_t kind) BANKED;   // page `page` three lines and the prompt row (any kind, LCD on or off)
+void mg_card_prompt(uint8_t game, uint8_t page, uint8_t kind, uint8_t on) BANKED;   // the prompt row shown / blank (the blink)
+void mg_card_win_open(uint8_t game) BANKED;             // kind 2: the card into the window map, the font tiles kept (pause.c)
+void mg_card_win_close(void) BANKED;                    // ... the font tiles back, the window map extra rows empty again
 #define MG_CARD_PROMPT_ROW 16    // the card's "PRESS A" row (mg.c blinks it)
 void mg_hourglass_load(uint8_t id) BANKED;       // the timer's hourglass tile into BG id `id` (LCD off): a timed story shift's HUD (story.c)
 uint8_t mg_of_venue(uint8_t venue) BANKED;       // the venue's (the chapter's) mini-game id

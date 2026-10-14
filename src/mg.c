@@ -211,7 +211,8 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
     mg_phase = MG_CARD; mg_t = 0; res_on = 0;
     load_venue(v);
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
-    mg_card_draw(mg_game);
+    mg_score = 0;                                // (the card page; mg_begin zeroes it again)
+    mg_card_draw(mg_game, mg_mode != MG_STORY);
     card_mark(id);
     game_state = GS_MINI;
     DISPLAY_ON;
@@ -412,8 +413,14 @@ static uint8_t mg_frame(uint8_t pressed) {
     if (mg_t < 255) mg_t++;
     switch (mg_phase) {
     case MG_CARD:                                // the full card: A starts the game (its screen is built now, the banner after it)
-        if (pressed & J_A) { mg_begin(mg_id, mg_mode); break; }
-        if (!(mg_t & 31)) mg_say(MG_CARD_PROMPT_ROW, (mg_t & 32) ? "" : "PRESS A");   // (blinks)
+        s = mg_mode != MG_STORY;                 // from BONUS > MINI GAMES: B goes back to the list (as the pause menu QUIT), no medal
+        if ((pressed & J_B) && s) { mg_leave(); mg_list_enter(); return 1; }
+        if (pressed & (J_A | J_B)) {             // A (B too where there is no list) turns the page, or starts the game after the last
+            if ((uint8_t)mg_score + 1 < mg_card_pages(mg_game)) { mg_score++; mg_card_page(mg_game, (uint8_t)mg_score, s); mg_t = 0; }
+            else mg_begin(mg_id, mg_mode);
+            break;
+        }
+        if (!(mg_t & 31)) mg_card_prompt(mg_game, (uint8_t)mg_score, s, !(mg_t & 32));   // (blinks)
         break;
     case MG_INTRO:
         if (mg_t >= MG_INTRO_LEN || (pressed & J_A)) {   // the short card: A skips it at once

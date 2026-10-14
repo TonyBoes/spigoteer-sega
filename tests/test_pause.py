@@ -85,7 +85,8 @@ def open_pause(gb):
 
 def quit_yes(gb):
     """From the open menu: QUIT TO MENU, then YES."""
-    tap(gb, "down")
+    for _ in range(2 if win_text(gb, 3).endswith("HOW TO PLAY") else 1):      # (a mini-game's menu has the HOW TO PLAY row between)
+        tap(gb, "down")
     tap(gb, "a")
     assert win_text(gb, 1) == "ARE YOU SURE?" and win_text(gb, 4).startswith(">"), menu_rows(gb)
     tap(gb, "up")
@@ -112,6 +113,7 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         tap(gb, "start", 3)
         assert state(gb) == PAUSED and gb.mem("overlay_on") == 1
         assert menu_rows(gb) == ["PAUSE", "> RESUME", "QUIT TO MENU"]
+        assert win_text(gb, 2) == "", "a bar level has no HOW TO PLAY row: two items"
         assert tilemap_row(gb, 0, 0, 20, True) == [63] * 20 and tilemap_row(gb, 5, 0, 20, True) == [64] * 20   # the panels
         assert gb.mem(NR51) == 0, "every channel muted"
         assert gb.mem(PAUSE_NR51) == 0xFF
@@ -615,3 +617,111 @@ def test_the_debug_box_from_a_level_s_pause_puts_the_window_and_sound_back(model
         assert gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0 and gb.mem(0xFF45) == gb.mem(0xFF4A) + 22
         tap(gb, "b", 3)
         assert state(gb) == PLAYING and gb.mem("overlay_on") == 0
+
+
+# ---- (g) HOW TO PLAY from the pause menu (mini-games: the card over the whole screen, the game as it was after it) ----------------------
+def card_rows(gb):
+    """The window's 18 rows as text (the story font's punctuation decoded as in test_mg_card)."""
+    from test_mg_card import row_text
+    out = []
+    for r in range(18):
+        t = ""
+        for v in tilemap_row(gb, r, 0, 20, True):
+            t += GLYPH_CH.get(v, __import__("test_mg_card").PUNCT.get(v, " ")) if v != 54 else " "
+        out.append(t.strip())
+    return out
+
+
+def screen_state(gb):
+    """What the game needs back: tiles and the BG map (the window map's rows 0-5 aside: the menu's own), palettes, registers, OAM."""
+    from test_bs import palettes
+    regs = [gb.mem(a) for a in (0xFF40, 0xFF42, 0xFF43, 0xFF45, 0xFF4A, 0xFF4B, NR51)] + [gb.mem("overlay_on"), gb.mem("game_state")]
+    return (bytes(gb.read(0x8000, 0x1C00)), bytes(gb.read(0x9CC0, 0x340)), palettes(gb), regs, gb_oam(gb), music(gb))
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_a_mini_game_pause_menu_has_three_rows_and_the_level_two(model):
+    with rom_s(model) as gb:
+        mg_enter(gb, 1, MG_PRACTICE)
+        until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
+        tap(gb, "start", 3)
+        assert state(gb) == PAUSED
+        assert [win_text(gb, r) for r in (1, 2, 3, 4)] == ["PAUSE", "> RESUME", "HOW TO PLAY", "QUIT TO MENU"]
+        check_golden(gb, "pause_menu_mini")
+        tap(gb, "up")
+        assert win_text(gb, 4).startswith(">"), "up wraps to QUIT"
+        tap(gb, "down")
+        assert win_text(gb, 2).startswith(">")
+        tap(gb, "down")
+        assert win_text(gb, 3).startswith(">")
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("gid", GAMES)
+def test_how_to_play_from_the_pause_menu_and_back_leaves_everything_as_it_was(model, gid):
+    def play_to(gb, t):
+        mg_enter(gb, gid, MG_PRACTICE)
+        until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
+        while gb.mem("mg_t") < t:
+            frames(gb, 1)
+
+    with rom_s(model) as ctl:                             # uninterrupted
+        play_to(ctl, 30)
+        while ctl.mem("mg_t") < 60:
+            frames(ctl, 1)
+        want = (ctl.read("story_scratch", 480), gb_oam(ctl), ctl.mem16("mg_timer"), ctl.mem16("mg_score"))
+    with rom_s(model) as gb:
+        play_to(gb, 30)
+        tap(gb, "start", 3)
+        assert state(gb) == PAUSED
+        before = screen_state(gb)
+        tap(gb, "down")
+        assert win_text(gb, 3).startswith(">") and win_text(gb, 3).endswith("HOW TO PLAY")
+        tap(gb, "a", 10)
+        assert state(gb) == PAUSED and gb.mem(NR51) == 0
+        rows = card_rows(gb)
+        assert rows[1] == "HOW TO PLAY" and rows[4] != "", rows
+        assert gb.mem(0xFF4A) == 0 and gb.mem(0xFF40) & 0x20 and not gb.mem(0xFF40) & 2, "the window over the screen, sprites off"
+        gb.run(60)
+        assert state(gb) == PAUSED
+        tap(gb, "b", 10)
+        assert win_text(gb, 1) == "PAUSE" and win_text(gb, 3).startswith(">") and win_text(gb, 3).endswith("HOW TO PLAY")
+        assert screen_state(gb) == before, "the game's tiles, map, palettes, sprites and registers are as they were"
+        tap(gb, "up")
+        tap(gb, "start", 3)                               # (cursor on RESUME: START resumes in any case)
+        assert state(gb) == GS_MINI and gb.mem("overlay_on") == 0 and gb.mem(NR51) != 0
+        while gb.mem("mg_t") < 60:
+            frames(gb, 1)
+        got = (gb.read("story_scratch", 480), gb_oam(gb), gb.mem16("mg_timer"), gb.mem16("mg_score"))
+        if gid == MG_TAIKO:
+            assert got[0][2:] == want[0][2:] and got[2:] == want[2:]
+        else:
+            assert got[0] == want[0] and got[2:] == want[2:], "the game went on as if it had never stopped"
+            assert got[1] == want[1]
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_the_card_in_the_pause_menu_turns_pages_and_a_on_the_last_comes_back(model):
+    """The stub has a two-page card: NEXT on page 1 (A turns), A BACK on page 2 (A returns to the menu); B returns from either."""
+    with rom_s(model) as gb:
+        mg_enter(gb, MG_STUB, MG_PRACTICE)
+        until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
+        tap(gb, "start", 3)
+        tap(gb, "down")
+        tap(gb, "a", 10)
+        rows = card_rows(gb)
+        assert rows[4] == "GREEN LIGHT" and rows[6] == "PRESS A ON GREEN" and rows[16] == "NEXT", rows
+        check_golden(gb, "pause_card_stub_p1")
+        tap(gb, "a", 10)
+        rows = card_rows(gb)
+        assert rows[4] == "GREEN LIGHT" and rows[6] == "EARLY IS A MISS" and rows[16] == "A BACK", rows
+        tap(gb, "a", 10)
+        assert win_text(gb, 1) == "PAUSE" and state(gb) == PAUSED
+        tap(gb, "a", 10)                                   # the card again: page 1
+        assert card_rows(gb)[6] == "PRESS A ON GREEN"
+        tap(gb, "a", 10)
+        tap(gb, "b", 10)                                   # B on page 2 returns too
+        assert win_text(gb, 1) == "PAUSE"
+        tap(gb, "up")
+        tap(gb, "a", 10)
+        assert state(gb) == GS_MINI

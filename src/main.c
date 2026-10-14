@@ -183,7 +183,8 @@ void mr_lcd_isr(void) {
             SCX_REG = MG->mr.scx;
             if (overlay_on) {
                 SHOW_WIN;                        // (the banner window is wanted from its top line)
-                ly = mg_phase == MG_RESULT || game_state == GS_PAUSED ? BANNER_WY + 46 : BANNER_LYC;
+                if (game_state == GS_PAUSED && (state_timer & 8)) ly = 144;   // (pause.c's HOW TO PLAY card: the window is the whole screen)
+                else ly = mg_phase == MG_RESULT || game_state == GS_PAUSED ? BANNER_WY + 46 : BANNER_LYC;
             } else ly = 144;
         } else ly = 144;                         // the window's end: hidden above
         LYC_REG = ly;
