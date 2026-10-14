@@ -12,8 +12,8 @@
 // freeze). A timed goal's clock running out costs a life and retries that shift (the venue when it was the last).
 // CONTINUE on the title starts the chapter not cleared over: its Opening banner when one of its steps was reached,
 // else its PRE scene (lives are not saved: 3; the score is the one the venue was entered with, save.c venue_score_put). The score carries on through a lost life and a timed goal's retry, but
-// starts from 0 again when the lives run out (TRY AGAIN, the venue again: owner 2026-10-11), so a story score is one
-// run with no game over; when the credits end it goes into the STORY top 5 (initials, the table; not from a
+// goes back to the venue's start score when the lives run out (TRY AGAIN, the venue again, as CONTINUE: owner 2026-10-14,
+// no incentive to quit before dying; a debug-select run has none saved: 0); when the credits end it goes into the STORY top 5 (initials, the table; not from a
 // debug-select run).
 //
 // ARCADE (the three modes, owner 2026-10-11: PLAY > ARCADE, story_arc = 1, play_mode MODE_ARCADE) runs this same
@@ -887,10 +887,10 @@ uint8_t story_update(uint8_t pressed) BANKED {
         if ((pressed & (J_A | J_START)) || story_t >= FAIL_FRAMES) {
             if (play_mode == MODE_RUSH) { rush_lost(); return 1; }   // BOSS RUSH: out of lives, the result
             if (lives) shift_start();
-            else {                               // out of lives: the venue again, the score from 0 (owner 2026-10-11)
+            else {                               // out of lives: the venue again, with the score it was entered with (owner 2026-10-14)
                 story_restarts++;
-                score = 0;
-                for (story_t = 0; story_t < 6; story_t++) score_digits[story_t] = 0;
+                score = save_lock ? 0 : venue_score_get(story_chapter);   // (a debug-select run saves none: it was entered with 0)
+                split6(score_digits, score);
                 venue_start();
             }
             return 1;

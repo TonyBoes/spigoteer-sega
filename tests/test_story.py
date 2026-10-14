@@ -1045,7 +1045,7 @@ def test_lives_carry_from_shift_to_shift(model):
 def test_losing_the_last_life_in_the_last_call_restarts_the_venue(model, c):
     """Every chapter: the last life lost in the Last call -> TRY AGAIN -> the Opening's banner with 3 lives (no PRE
     scene); the step reached stays recorded (and is not lowered by winning the Opening again); the score starts from 0
-    again (owner 2026-10-11: a story score is a run with no game over)."""
+    again (owner 2026-10-14: the venue-start score, the first test below checks a non-zero one)."""
     with to_shift(model, c, 2) as gb:
         gb.write("served", 3)
         gb.write("lives", 1)
@@ -1061,7 +1061,7 @@ def test_losing_the_last_life_in_the_last_call_restarts_the_venue(model, c):
         assert banner_text(gb, 1) == centred(shift_title(c, 0))
         assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, 3), "the step reached is kept"
         assert gb.mem("story_scene") == pre(c), "no PRE scene: straight to the goal"
-        assert score > 0 and int.from_bytes(gb.read("score", 4), "little") == 0, "out of lives: the score from 0"
+        assert score > 0 and int.from_bytes(gb.read("score", 4), "little") == 0, "out of lives: the venue-start score (0 here)"
         assert gb.mem("pat_len") == 0, "the Opening's normal arrivals"
         to_goal(gb)
         win(gb, c, 0)
@@ -1530,3 +1530,23 @@ def test_a_timed_shift_shows_the_hourglass_and_two_digits_and_never_passes_99(mo
         assert gb.mem16("story_timer") <= secs * 60 - 120
         now = (gb.mem16("story_timer") + 59) // 60
         assert tilemap_row(gb, 0, 18, 2) == [GLYPH[str(now // 10)], GLYPH[str(now % 10)]] and now <= 99
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_try_again_gives_the_venue_start_score(model):
+    """Out of lives -> TRY AGAIN: the score the venue was entered with (the SV block), not 0 and not the one reached in
+    it (owner 2026-10-14); the HUD digits follow."""
+    from test_pause import sv_image
+    from test_scores import set_score
+    c = 2
+    with to_shift(model, c, 2, image=sv_image(c, SHIFT_STEP[2], c, 12345)) as gb:
+        set_score(gb, 54321)
+        gb.write("served", 3)
+        gb.write("lives", 1)
+        lose_a_life(gb)
+        assert gb.mem("lives") == 0
+        run_until(gb, lambda: state(gb) == GS_STORY, 200)
+        try_again(gb)
+        assert gb.mem("story_restarts") == 1 and gb.mem("lives") == 3 and gb.mem("story_step") == 0
+        assert int.from_bytes(gb.read("score", 4), "little") == 12345
+        assert gb.read("score_digits", 6) == bytes([0, 1, 2, 3, 4, 5])
