@@ -40,7 +40,7 @@ m 2 #f890b8 cozy_pink (the sheen slot, recoloured)
 ..........#ssssSS#s#SSSSSSSSSSS########SSSSSSSS#....##..
 ...........#ssssS#SSSSSSS#################SSSSS#...#..#.
 ...........#ssssS##SSS###smsmsmsmsmsmsmsms###SS#....#.#.
-............#sssSSSS###mmmsmmmsmmmsmmmsmmmsm#####....##.
+............#sssS#SS###mmmsmmmsmmmsmmmsmmmsm#####....##.
 ............#sssS####m#mmsmsmsmsmsmsmsmsmsmm#m########..
 .............#s#########smmmsmmmsmmmsmmm###########.....
 .............#ssssssSSSS################SSSSSSSS........
