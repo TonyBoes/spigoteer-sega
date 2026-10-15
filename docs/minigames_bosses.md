@@ -1010,7 +1010,7 @@ jumping out of the water to dodge"; "the sasquatch doesn't move on the log").
 - A hit on the Spigoteer kicks his velocity 4 px a frame in the fish's direction (about 64 px of lean of the 64 to the edge unless he leans back),
   a 24-frame stagger (the hard-lean pose, no hop, **no Left / Right for the first 12 frames**), SFX_BREAK. Two quick taps after the 12 frames
   save him from a calm log; with the push on the fish's side it is a fall (3 s as ever). A dodge: **+150 points**, SFX_COIN.
-- Schedule: first ripples 240 frames in, then every `262 - elapsed / 16 (+ 0..31)` frames (262 at the start, 112 at the end: 4.4 s -> 1.9 s),
+- Schedule: first ripples 360 frames in, then every `360 - elapsed / 16 (+ 0..31)` frames (360 at the start, 210 at the end: 6 s -> 3.5 s; a hit always kicks him the way the fish flies and the roll's push waits out the stagger),
   never with under 90 frames left nor in the river. The fish has its own xorshift (`fseed`, from `mg_seed`): `mg_rand` is not called, so the
   flips' sequence is unchanged. A fall ends the fish in the air (it dives with the splash).
 - The Sasquatch (the lodge show's four dance frames, no new art): treads on the log (frames 0 2 0 3 by the bark's roll phase, a 1 px bob on

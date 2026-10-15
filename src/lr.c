@@ -23,7 +23,7 @@
 //   left or the right) or, one leap in four, at the Sasquatch (from the left). The Spigoteer HOPS over it with A, B or Up (36 frames in
 //   the air, 12 of rest; hop_h[]): hit while he is under LR_CLEAR px, the fish's direction kicks his velocity by 3 px a frame
 //   (about 45 px of lean of the 64: a big wobble that two or three quick taps against it cure; a fall when the push helps it) and he staggers 24 frames (no hop). A dodge scores LR_PTS_DODGE.
-//   The leaps come every 262 frames at the start and every 112 at the end (+ 0..31): LR_GAP0 - elapsed / 16. The fish has its own
+//   The leaps come every 360 frames at the start and every 210 at the end (the first after 360) (+ 0..31): LR_GAP0 - elapsed / 16. The fish has its own
 //   xorshift (fseed): mg_rand is not called, so the flips' sequence is the one the tests model. A fall ends the fish in the air.
 // - The SASQUATCH (the lodge show's 4 dance frames, no new art): he treads on the log (frames 0 2 0 3 by the bark's roll phase, a 1 px
 //   bob, mirrored by the roll's direction, swaying up to 3 px with the push), windmills (1 2 1 3) while a flip is being told, hops a
@@ -41,7 +41,7 @@
 // Worst line 9 (the splash): the fish and the rings are never up while the Spigoteer is in the water, and a fish that knocks the
 // Sasquatch in ends there.
 // OBJ tiles: the first 18 entries in ids 56-91 (the mugs' and crash frames: the level load puts them back), the rest from
-// the first even id above the BG tiles (166..).
+// the first even id above the BG tiles (166..), skipping the HUD hourglass at BG 220 (the last three entries from 222).
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -57,8 +57,10 @@
 #define LR_BG           MG_GAME_BG
 #define LR_OBJ_HI       ((LR_BG + LR_BG_TILES + 1) & ~1)   // the entries past the first LR_SLOT_ENTRIES
 #define LR_OBJ_HI_N     (LR_ENTRIES - LR_SLOT_ENTRIES)
+#define LR_OBJ_HI_A     ((MG_HOURGLASS - LR_OBJ_HI) / 2)   // the first run of those entries ends below the HUD hourglass (BG 220 is OBJ 220's memory)
+#define LR_OBJ_HI_B     (MG_HOURGLASS + 2)                 // the rest start past it (hourglass 220, 221 left empty)
 typedef char lr_fits[(LR_BG + LR_ROLL_AT >= 128 && LR_BG + LR_BG_TILES <= 256 && OBJ_MUG + 2 * LR_SLOT_ENTRIES <= OBJ_COIN
-                      && LR_OBJ_HI + 2 * LR_OBJ_HI_N <= OBJ_POUR && LR_ENTRIES > LR_SLOT_ENTRIES) ? 1 : -1];
+                      && LR_OBJ_HI_A > 0 && LR_OBJ_HI_A < LR_OBJ_HI_N && LR_OBJ_HI_B + 2 * (LR_OBJ_HI_N - LR_OBJ_HI_A) <= OBJ_POUR && LR_ENTRIES > LR_SLOT_ENTRIES) ? 1 : -1];
 #define LR_TIME_S       40
 #define LR_ONE          65536L                  // 1 px (1.0 px a frame for a press)
 #define LR_FALL_PX      64
@@ -89,8 +91,8 @@ typedef char lr_fits[(LR_BG + LR_ROLL_AT >= 128 && LR_BG + LR_BG_TILES <= 256 &&
 #define LR_LOCK          12                     // the first frames of the stagger ignore Left / Right (he cannot lean back yet)
 #define LR_HOP_LEN       36                     // frames in the air
 #define LR_HOP_END       48                     // ... then 12 of rest before the next hop
-#define LR_FISH_FIRST   240                     // frames to the first leap's ripples
-#define LR_GAP0         262                     // the gap between leaps at the start; elapsed / 16 shorter (112 at the end)
+#define LR_FISH_FIRST   360                     // frames to the first leap's ripples
+#define LR_GAP0         360                     // the gap between leaps at the start (6 s); elapsed / 16 shorter (210 = 3.5 s at the end)
 #define LR_FISH_LAST     90                     // no ripples with fewer frames than this left
 #define LR_PTS_DODGE    150
 #define LR_FISH_BASE_Y  118                     // the water line the arc starts on (the fish's centre)
@@ -168,7 +170,9 @@ static uint8_t stream(uint8_t id, const uint8_t *src, uint8_t n) {   // src: WRA
 }
 
 static uint8_t otile(uint8_t e) {               // an OBJ entry's (even) tile number
-    return e < LR_SLOT_ENTRIES ? OBJ_MUG + 2 * e : LR_OBJ_HI + 2 * (e - LR_SLOT_ENTRIES);
+    if (e < LR_SLOT_ENTRIES) return OBJ_MUG + 2 * e;
+    e -= LR_SLOT_ENTRIES;
+    return e < LR_OBJ_HI_A ? LR_OBJ_HI + 2 * e : LR_OBJ_HI_B + 2 * (e - LR_OBJ_HI_A);
 }
 
 static void fill_attr_rows(uint8_t first, uint8_t last) {   // LCD off, CGB: the scene's attributes (rows first..last)
@@ -229,7 +233,8 @@ void lr_enter(void) BANKED {
     uint8_t k, r;
     set_bkg_data(LR_BG, LR_BG_TILES, lr_bg_tiles);
     set_sprite_data(OBJ_MUG, 2 * LR_SLOT_ENTRIES, lr_obj_tiles);
-    set_sprite_data(LR_OBJ_HI, 2 * LR_OBJ_HI_N, lr_obj_tiles + (uint16_t)2 * LR_SLOT_ENTRIES * 16);
+    set_sprite_data(LR_OBJ_HI, 2 * LR_OBJ_HI_A, lr_obj_tiles + (uint16_t)2 * LR_SLOT_ENTRIES * 16);
+    set_sprite_data(LR_OBJ_HI_B, 2 * (LR_OBJ_HI_N - LR_OBJ_HI_A), lr_obj_tiles + (uint16_t)2 * (LR_SLOT_ENTRIES + LR_OBJ_HI_A) * 16);
     // the scene: map rows 1-17 (rows 2-3 are the banner's until the first play frame)
     for (r = 1; r <= 17; r++) {
         for (k = 0; k < 20; k++) row_buf[k] = LR_BG + lr_map[(r - 1) * 20 + k];
@@ -510,7 +515,8 @@ static void fish_step(void) {
         } else {
             if (spig_h() >= LR_CLEAR) return;
             S.fish_done = 1; S.hits++;
-            if (S.fish_dir > 0) S.vel += LR_KICK; else S.vel -= LR_KICK;
+            if (S.fish_dir > 0) S.vel = (S.vel > 0 ? S.vel : 0) + LR_KICK;   // always the fish's way: a lean the other way is cancelled first
+            else S.vel = (S.vel < 0 ? S.vel : 0) - LR_KICK;
             S.stun = LR_STUN; S.hit_dir = S.fish_dir;
             SFX(SFX_BREAK);
         }
@@ -541,7 +547,7 @@ static void on_log(uint8_t pressed) {
         if (pressed & J_LEFT) S.vel -= LR_ONE;
         if (pressed & J_RIGHT) S.vel += LR_ONE;
     }
-    S.vel += S.drift;
+    if (!S.stun) S.vel += S.drift;                // (the roll's push waits out the stagger: the kick wins)
     S.vel -= S.vel >> 4;
     S.lean += S.vel;
     S.on++;

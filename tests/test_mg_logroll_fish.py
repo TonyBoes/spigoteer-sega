@@ -131,8 +131,8 @@ def test_a_leap_is_told_by_ripples_then_arcs_across_the_log_then_a_ring_marks_th
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_schedule_the_first_leap_and_gaps_that_shrink_with_the_clock(model):
-    """The first ripples come FISH_FIRST frames into the play; after each leap's ripples the next gap is GAP0 - elapsed / 16 (+ 0..31): 262 at the
-    start, 112 at the end. The bubbling is the ripples' sound. No ripples with under FISH_LAST frames left, nor while he is in the river."""
+    """The first ripples come FISH_FIRST frames into the play; after each leap's ripples the next gap is GAP0 - elapsed / 16 (+ 0..31): 360 (6 s) at the
+    start, 210 (3.5 s) at the end; the first leap's ripples after 360 (6 s). The bubbling is the ripples' sound. No ripples with under FISH_LAST frames left, nor while he is in the river."""
     with log_roll(model) as gb:
         to_play(gb)
         s = snap(gb)
@@ -537,3 +537,24 @@ def poke_fish(gb, tgt, direction):
     x0 = (SQ_CX - HALF) if tgt else (SPIG_CX - HALF if direction > 0 else SPIG_CX + HALF)
     for name, v in (("fish_t", 1), ("fish_tgt", tgt), ("fish_dir", direction & 0xFF), ("fish_x0", x0), ("fish_done", 0), ("sq_dodge", 1)):
         gb.write(base + LAYOUT[name][0], v)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("direction", [-1, 1])
+@pytest.mark.parametrize("against", [False, True])
+def test_a_hit_always_pushes_him_the_way_the_fish_flies_even_against_the_roll_and_his_lean(model, direction, against):
+    """Owner 2026-10-15: a hit always pushes in the fish's direction. Even with the roll's push and his velocity both the other way, the velocity
+    is the fish's way for every stagger frame (the roll's push waits out the stagger) and the lean moves that way until the stagger ends."""
+    with log_roll(model) as gb:
+        to_playing(gb)
+        leap(gb, 0, direction)
+        if against:                                   # a strong push and a fast lean the other way, just before it arrives
+            run_until_state(gb, lambda s: s["fish_t"] == WARN + 20, 200)
+            poke(gb, tsgn=-direction, dsr=-direction * RAMP, tell=-direction * RAMP, vel=-direction * 3 * ONE)
+        run_until_state(gb, lambda s: s["stun"] == STUN, 200)
+        lean0 = snap(gb)["lean"]
+        for _ in range(STUN - 1):
+            s = snap(gb)
+            assert s["vel"] * direction > 0, s
+            frames(gb, 1)
+        assert (snap(gb)["lean"] - lean0) * direction > 0

@@ -56,8 +56,14 @@ SFX_CATCH, SFX_BREAK, SFX_SHAKE, SFX_LAUNCH = 3, 4, 8, 2
 HUD_ATTR_PAL, SQ_PAL = 1, 5
 
 
+HI_A = (220 - LR_OBJ_HI) // 2                    # the entries below the HUD hourglass (BG 220); the rest start at 222
+
+
 def otile(e):
-    return 56 + 2 * e if e < SLOT else LR_OBJ_HI + 2 * (e - SLOT)
+    if e < SLOT:
+        return 56 + 2 * e
+    e -= SLOT
+    return LR_OBJ_HI + 2 * e if e < HI_A else 222 + 2 * (e - HI_A)
 
 
 # ---- the state in the mg union (offsets parsed from struct lr_state in src/mg.h) -------------------------------------------
@@ -286,7 +292,9 @@ def test_the_screen_and_its_art(model):
         # the sprites' tile data (the first SLOT entries in 56.., the rest above the BG tiles)
         obj = bytes(ART["obj"])
         assert bytes(gb.read(0x8000 + 56 * 16, 2 * SLOT * 16)) == obj[:2 * SLOT * 16]
-        assert bytes(gb.read(0x8000 + LR_OBJ_HI * 16, (ART["n_ent"] - SLOT) * 32)) == obj[2 * SLOT * 16:]
+        hi = obj[2 * SLOT * 16:]
+        assert bytes(gb.read(0x8000 + LR_OBJ_HI * 16, HI_A * 32)) == hi[:HI_A * 32]
+        assert bytes(gb.read(0x8000 + 222 * 16, (ART["n_ent"] - SLOT - HI_A) * 32)) == hi[HI_A * 32:]
         if model == "dmg":
             assert gb.mem(0xFF47) == 0xE4 and gb.mem(0xFF48) == 0xD0, "the level's BGP, the boot's OBP0"
 
