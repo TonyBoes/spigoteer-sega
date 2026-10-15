@@ -50,9 +50,10 @@
 #if BOSS_ART_TILES * 2 > BOSS_HUD_BG - BOSS_ICE_BG || BOSS_ART_COLS != BANG_K
 #error "Leo's !!: the extra BG tiles (246-251), a 32 px body"
 #endif
-#if LEO_FX_OBJ < OBJ_TOPPER + 2 * BOSS_HATS_MAX || LEO_FX_OBJ + LEO_FX_TILES > OBJ_TAG || NUM_BARS * 2 != OAM_WAVE_N || OAM_WAVE + OAM_WAVE_N > 40
+#if LEO_FX_OBJ + LEO_FX_TILES > OBJ_TAG || NUM_BARS * 2 != OAM_WAVE_N || OAM_WAVE + OAM_WAVE_N > 40
 #error "Leo's sprites: OBJ tiles 104-127, OAM 30-37"
 #endif
+typedef char leo_fx_clear_of_his_hats[(LEO_FX_OBJ >= OBJ_TOPPER + sizeof(boss_art_hat) / 16) ? 1 : -1];   // (his own topper frames, not BOSS_HATS_MAX: each fight loads only its own)
 
 enum { LP_WALK, LP_TELL, LP_ROAR };
 
