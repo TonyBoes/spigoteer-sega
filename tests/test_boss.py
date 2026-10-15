@@ -94,7 +94,7 @@ def to_fight(model, banner=False):
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
     gb.run(3)
     assert banner_text(gb, 1) == centred("SHIFT CLEAR"), "the Last call is not the chapter's last step any more"
-    run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
     gb.run(3)
     return gb if banner else skip_entrance(to_goal(gb))
 
@@ -228,9 +228,9 @@ def test_the_fight_follows_the_last_call(model):
         assert banner_text(gb, 1) == centred("BOSS")
         assert banner_text(gb, 2) == centred(LINE1) and banner_text(gb, 3) == centred(LINE2)
         assert gb.mem("story_step") == BOSS_STEP and gb.mem("story_reached") == BOSS_STEP
-        assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_bar"), gb.mem("boss_hp")) == (1, 0, 1, 8)
+        assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_bar"), gb.mem("boss_hp")) == (1, 0, 255, 8)   # (bar 1 once he has entered: E9, BOSS_NONE meanwhile)
         assert gb.mem("lives") == 3 and gb.mem("tip_chance") == 0
-        assert gb.mem("pat_len") == 8 and all(b != ROW["bar"] for b in gb.read("pat_buf", 8))
+        assert gb.mem("pat_len") == 8      # (the warm-up's arrivals may go to any bar; the fight redraws them away from his: below)
         assert gb.mem16("spawn_interval") == 300 * SPAWN_PCT // 100, "the saloon's 300 frames x 1.5"
         if model == "cgb":
             wall = cgb_palette(gb, 2)[0]                   # (the venue's wall: colour 0 of every patron palette)
@@ -246,7 +246,9 @@ def test_the_fight_follows_the_last_call(model):
         assert bytes(gb.read(0x8000 + OBJ_TOPPER * 16, 64)) == bytes(TEX["hat"])
         skip_entrance(to_goal(gb))
         gb.run(2)
+        assert all(b != ROW["bar"] for b in gb.read("pat_buf", 8)), "the arrivals never go to his bar"
         assert state(gb) == PLAYING and gb.mem("boss_x") == ROW["x"] and gb.mem("boss_state") == BS_WALK
+        assert gb.mem("boss_bar") == ROW["bar"]
         assert_body(gb, ROW["x"], BP_WALK)
         assert hud(gb) == meter_tiles(8)
         o = gb.oam()[OAM_TOPPER]
@@ -575,7 +577,7 @@ def test_hard_stomps_faster_with_a_hand_fewer(model):
     with gb:
         gb.write("boss_hard", 1)
         win(gb, 0, 2)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         assert (gb.mem("boss_step"), gb.mem("boss_hands")) == (90, 2)
 
 

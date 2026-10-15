@@ -443,10 +443,13 @@ def through_the_pouroff(gb):
     settle(gb)
 
 
-def to_goal(gb):
-    """Past the goal banner (A), into the shift's play."""
+def to_goal(gb, boss_start=True):
+    """Past the goal banner (A), into the shift's play (a boss fight: started at once, no warm-up or entrance, unless
+    boss_start=False)."""
     run_until(gb, lambda: state(gb) == GS_GOAL, 30)
     gb.write("tip_chance", 0)
+    if boss_start and gb.mem("boss_on"):
+        gb.write("boss_hook", 4)                 # a boss fight opens with a warm-up and his entrance (E9): the tests of the fight itself start it
     gb.press("a", 2)
     run_until(gb, lambda: state(gb) == PLAYING, 10)
     return gb
@@ -484,7 +487,7 @@ def to_shift(model, c, k, banner=False, image=None):
     rom.write("story_step", SHIFT_STEP[k] - 1)
     win(rom, c, 0)
     run_until(rom, lambda: state(rom) == LEVEL_CLEAR, 20)
-    run_until(rom, lambda: state(rom) == GS_GOAL, 300)
+    run_until(rom, lambda: state(rom) == GS_GOAL, 800)
     rom.run(2)
     assert rom.mem("story_chapter") == c and rom.mem("story_shift") == k and rom.mem("story_step") == SHIFT_STEP[k]
     assert rom.mem("lives") == 3
@@ -525,7 +528,7 @@ def beat_the_boss(gb, c):
     real), its banner passed and the boss satisfied at once (boss_hook 3), up to its CHAPTER CLEAR."""
     if c not in BOSS_BUILT:
         return
-    run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
     to_goal(gb)
     gb.write("boss_hook", 3)
     clear_regulars(gb)
@@ -957,11 +960,11 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
             if k < 2:
                 mini = k == 1 and c in MINI_BUILT
                 if mini:                                  # Quick Draw, Order Up!, Battery Sort (test_qd / test_ou / test_bs)
-                    run_until(gb, lambda: state(gb) == GS_MINI, 300)
+                    run_until(gb, lambda: state(gb) == GS_MINI, 800)
                     assert gb.mem("mg_id") == CHAPTERS[c]["venue"] and gb.mem("story_step") == MINI_STEP
                     assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, MINI_STEP)
                     finish_mini(gb)
-                run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+                run_until(gb, lambda: state(gb) == GS_GOAL, 800)
                 gb.run(3)
                 assert banner_text(gb, 1) == centred(shift_title(c, k + 1))
                 assert banner_text(gb, 2) == centred(SHIFTS[c][k + 1]["line1"])
@@ -969,7 +972,7 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
                 assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, (MINI_STEP if mini else SHIFT_STEP[k]) + 1)
                 to_goal(gb)
         if c in BOSS_BUILT:
-            run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+            run_until(gb, lambda: state(gb) == GS_GOAL, 800)
             gb.run(3)
             assert banner_text(gb, 1) == centred("BOSS") and gb.mem("story_step") == BOSS_STEP
             assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, BOSS_STEP)
@@ -1084,7 +1087,7 @@ def test_losing_the_last_life_in_the_last_call_restarts_the_venue(model, c):
         assert gb.mem("pat_len") == 0, "the Opening's normal arrivals"
         to_goal(gb)
         win(gb, c, 0)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, 3), "Practice unlocks never go back"
         assert gb.mem("lives") == 3
 
@@ -1194,7 +1197,7 @@ def test_hana_thanks_a_clean_teahouse_with_not_one_cup(model):
     with to_chapter(model, TEA) as gb:
         assert gb.mem("story_conds") == 0
         win(gb, TEA, 0)                                    # the Opening, cleanly: SHIFT CLEAR, the Happy hour
-        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         gb.run(2)
         assert gb.mem("story_shift") == 1 and gb.mem("story_conds") == 0
         assert teahouse_post(gb) == glyph_rows(NOT_ONE)
@@ -1212,7 +1215,7 @@ def test_hana_after_a_broken_cup_says_so_few(model):
         assert gb.mem("lives") == 1 and gb.mem("story_conds") == 1, "the strict rule's event sets GLASS_BROKEN"
         freeze_over(gb)
         win(gb, TEA, 0)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         gb.run(2)
         assert gb.mem("story_shift") == 1 and gb.mem("story_conds") == 1, "kept from shift to shift"
         assert teahouse_post(gb) == glyph_rows(SO_FEW)
@@ -1264,7 +1267,7 @@ def test_the_gold_medal_bonus_life(model):
         gb.run(2)
         assert gb.mem("lives") == 4 and hud_lives(gb) == "H4", "at most 4"
         win(gb, 0, 0)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         gb.run(3)
         assert gb.mem("lives") == 4 and hud_lives(gb) == "H4"
         to_goal(gb)
@@ -1372,7 +1375,7 @@ def test_continue_mid_venue_starts_the_venue_over(model):
         lose_a_life(gb)
         freeze_over(gb)
         win(gb, 0, 0)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         assert gb.mem("lives") == 2
         ram = save_ram(gb)
     assert saved_story(ram) == (0, 1), "chapter 1, the happy hour reached"
@@ -1399,7 +1402,7 @@ def test_continue_keeps_the_step_reached_for_practice(model, step):
         assert (rom.mem("story_chapter"), rom.mem("story_step"), rom.mem("story_shift")) == (4, 0, 0)
         to_goal(rom)
         win(rom, 4, 0)
-        run_until(rom, lambda: state(rom) == GS_GOAL, 400)
+        run_until(rom, lambda: state(rom) == GS_GOAL, 800)
         assert rom.mem("story_shift") == 1
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (4, step)
         assert saved_story(save_ram(rom))[1] == step

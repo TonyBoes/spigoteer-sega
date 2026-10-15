@@ -32,6 +32,13 @@ enum {
                   // engine's guess (TAG_READY: a hand is free, a drink reaching him is caught; TAG_BUSY: hands full). Return
                   // 0 to keep it, else the tag you want + 1 (TAG_RETURN + 1: he sends what reaches him back; TAG_OFF + 1:
                   // no tag, for a state with no catching at all)
+    BEV_ENTER,    // boss.c entrance_start (E9: the fight opens as a normal shift and the boss enters after the warm-up; Boss
+                  // Rush enters at once): his entrance starts NOW, mid-play, the world already cleared of mugs and his bar of
+                  // regulars; boss_state is BS_ENTER, boss_xpose BP_HIDE, intro_timer held at INTRO_FRAMES. Return 1 = "I have
+                  // an entrance": BEV_INTRO / BEV_DRAW follow every frame (he holds intro_timer, as Duke's does) and, when it is
+                  // done, he sets boss_xpose 0 and boss_state out of BS_ENTER (BS_WALK) after boss_to_bar(bar, start x): the
+                  // engine then starts the fight (HUD, BEV_RESET, BEV_BEGIN, the banner). Return 0 = the engine's fallback: he
+                  // walks in from the left edge onto his bar
 };
 
 // The status tag (E1; assets/art/boss/tag.txt): one 8x16 sprite in OAM_TAG above his hand column. READY = an empty mug and
@@ -43,7 +50,11 @@ enum { TAG_READY, TAG_BUSY, TAG_RETURN, TAG_OFF };
 #define OAM_TAG        (OAM_DANCERS + 1)          // (the show's second dancer entry: no show in a fight)
 #define BOSS_TAG_BYTES 64
 
-enum { BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO };   // boss_state (spec 2.5's test hook names)
+
+enum { BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO,   // boss_state (spec 2.5's test hook names)
+       BS_WARM,      // E9: the warm-up: a normal shift on every bar (boss_bar is BOSS_NONE, boss_special_t counts the frames down)
+       BS_ENTER,     // his own entrance (BEV_ENTER returned 1) runs: he is not on his bar yet, nothing is caught
+       BS_WALKIN };  // the engine's fallback entrance: he walks in from the left edge (boss_special_t = its frame)
 // BS_JUMP: away from his bar (a leap, a ride): he catches nothing (a full mug on his bar slides past and breaks), sends
 // no empty, the topper is hidden; the special shows what it likes over his spot (boss_xpose: a puff, BP_HIDE) and ends
 // it with boss_to_bar.

@@ -4,12 +4,12 @@
 # tell (50 frames: the throttle twist, TELL1 / TELL2, the helmet jumping), the LURCH (16 px in 8 frames), a catch (restarts
 # the idle) and a catch during the rev (the stall). Every frame here is checked at <= 10 sprites a line.
 # His ENTRANCE (owner-approved 2026-10-12, X1 "skid and vault"): on the fight's first start he rides in, skids, revs and vaults
-# off his chopper (frames 0-61, BS_JUMP + BP_HIDE), lands at x 16 (frame 62) and the intro's 90 frames start there; the
+# off his chopper (frames 0-61, BS_ENTER + BP_HIDE), lands at x 16 (frame 62) and the intro's 90 frames start there; the
 # empty bike rolls on behind him; the drinks' tiles (OBJ 56-91) are borrowed and come back; a retry after a lost life has none.
 import re
 
 import pytest
-from boss_common import (BP_HAPPY, BP_WALK, BP_STOMP, BS_JUMP, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OBJ_TOPPER,
+from boss_common import (BP_HAPPY, BP_WALK, BP_STOMP, BS_ENTER, BS_OUTRO, BS_WARM, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OBJ_TOPPER,
                          OAM_TOPPER, Own, block_empties, SP_FAIL, SP_OUTRO, SPOUT_X, TAP_X, art, arrivals_ok, assert_body, check_start,
                          fight, frames, hud, meter_tiles, mugs, play, pour, row, still_regulars, throw, to_bar, until)
 from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
@@ -91,11 +91,11 @@ def test_the_fight_follows_the_last_call(model):
     Golden boss_duke: idling, a glass on its way."""
     with fight(model, C, banner=True) as gb:
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
-        pat = list(gb.read("pat_buf", 8))
+    with fight(model, C) as gb:
+        pat = list(gb.read("pat_buf", 8))              # (his chord is the fight's, after the warm-up: BEV_BEGIN at fight_start)
         assert gb.mem("pat_len") == 6
         assert {p & 3 for p in pat[:6]} == {0, 2, 3}, pat
         assert [p >> 4 for p in pat[:6]] == [1, 1, 3, 1, 1, 3], "three at once, a breather, three more"
-    with fight(model, C) as gb:
         gb.run(2)
         assert gb.mem("mosh_on") == 0
         until(gb, lambda: DUKE.get(gb, "ent") == 0 and state(gb) == PLAYING, 200)     # (the entrance first: the tests below)
@@ -398,16 +398,16 @@ def bar_row(r):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_entrance_plays_on_the_first_start_only(model):
-    """The first start: BS_JUMP with no body (BP_HIDE), no topper, nothing caught, the intro held at INTRO until frame 62, the
+    """The entrance (after the warm-up): BS_ENTER with no body (BP_HIDE), no topper, nothing caught, the intro held at INTRO until frame 62, the
     rev's sound once (SFX_REV from frame 28, the shake once at the landing); then he is on his bar, WALK at x 16, and the
     intro runs its 90 frames from there. After a lost life: no entrance, he is there at once, the intro runs from its start."""
-    with fight(model, C) as gb:
-        assert DUKE.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_JUMP and gb.mem("boss_xpose") == BP_HIDE
+    with fight(model, C, entrance=True) as gb:
+        assert DUKE.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER and gb.mem("boss_xpose") == BP_HIDE
         revs, shakes = sfx(gb, SFX_REV), sfx(gb, SFX_SHAKE)
         assert gb.oam()[OAM_TOPPER]["y"] == 0, "no topper before he lands"
         for t in (5, ENT_REVSFX - 1, ENT_REVSFX + 2, ENT_LAND - 1):
             to_frame(gb, t)
-            assert gb.mem("boss_state") == BS_JUMP and gb.mem("intro_timer") >= INTRO - 1, "the intro is held"
+            assert gb.mem("boss_state") == BS_ENTER and gb.mem("intro_timer") >= INTRO - 1, "the intro is held"
             assert gb.mem("boss_hp") == 12 and gb.mem("boss_hits") == 0 and gb.mem("boss_lim") == 0, "he catches nothing"
             assert gb.oam()[OAM_TOPPER]["y"] == 0
             assert sfx(gb, SFX_REV) == revs + (t >= ENT_REVSFX + 2), t
@@ -432,7 +432,7 @@ def test_the_entrance_plays_on_the_first_start_only(model):
 def test_the_hand_off_lands_him_at_x16_in_his_idle(model):
     """Frame 62: boss_to_bar(1, 16): his BG body (WALK) at x 16 on his bar, the idle clock at 0, the topper over his head;
     the empty bike carries on right behind him (its lower row of entries has the BG-priority bit, the upper row does not)."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         to_frame(gb, ENT_LAND - 1)
         assert gb.mem("boss_x") == R["x"] and gb.mem("boss_pose") & 15 == BP_HIDE
         assert not any(o[3] & 0x80 for o in entrance_oam(gb)), "no priority bit before the landing"
@@ -454,7 +454,7 @@ def test_every_entrance_frame_keeps_to_ten_sprites_a_line(model):
     """Every game frame of the entrance and the intro that follows (frames() checks each at <= 10 a line; the budget is
     used: 10 at the most crowded). The bartender, held at bar 0's tap, is out of sight for the vault (frames 46-61: the empty
     bike's 6 a line, Duke's 3 and his helmet make 10 without him) and back after."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         worst, y0 = 0, gb.oam()[0]["y"]
         for _ in range(ENT_GONE + 40):
             frames(gb, 1)
@@ -475,7 +475,7 @@ def test_every_entrance_frame_keeps_to_ten_sprites_a_line(model):
 def test_the_player_cannot_pour_or_move_during_the_entrance(model):
     """Input is held off until the bike has gone and the drinks' tiles are back: Down and A change nothing (no glass, the
     bartender at bar 0's tap); afterwards the bartender is his again."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         gb.hold("down")
         gb.hold("a")
         y0 = gb.oam()[0]["y"]
@@ -499,7 +499,7 @@ def test_the_tile_pool_is_borrowed_and_given_back(model):
     drinks = bytes(v["drink"][:64]) + bytes(v["crash"]) + bytes(v["drink"][64:])
     pairs = ENT_ART["pairs"]
     assert len(pairs) <= 34
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         coin = bytes(gb.read(0x8000 + 92 * 16, 64))
         to_frame(gb, 10)
         for k, p in enumerate(pairs):
@@ -561,16 +561,19 @@ def fight_hard(model, c):
     win(gb, c, 2)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
     gb.run(3)
-    run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
     gb.run(3)
-    return to_goal(gb)
+    to_goal(gb, boss_start=False)
+    gb.write("boss_hook", 5)                      # (the warm-up is over: the entrance)
+    until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+    return gb
 
 
 @pytest.mark.parametrize("model", ["cgb"])
 def test_practice_hard_starts_with_the_entrance_too(model):
     """Practice's HARD toggle (boss_hard before the fight): the entrance plays, then he is there with one hand fewer."""
     with fight_hard(model, C) as gb:
-        assert gb.mem("boss_hard") == 1 and DUKE.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_JUMP
+        assert gb.mem("boss_hard") == 1 and DUKE.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER
         to_frame(gb, ENT_LAND)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == R["x"] and gb.mem("boss_hands") == 1
@@ -588,8 +591,8 @@ def test_boss_rush_starts_with_the_entrance_too(model):
         for _ in range(BUILT.index(C)):
             tap(gb, "down")
         tap(gb, "a")
-        into_fight(gb)
-        assert gb.mem("boss_id") == C and DUKE.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_JUMP
+        into_fight(gb, entered=False)
+        assert gb.mem("boss_id") == C and DUKE.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER
         to_frame(gb, ENT_LAND)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == R["x"]

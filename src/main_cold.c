@@ -22,6 +22,7 @@ BANKREF_EXTERN(art_tiles)
 extern uint32_t score;
 extern uint8_t  bar, bartender_x, bartender_frac, facing, bartender_frame, at_tap, walk_timer, bt_bob, walk_phase;
 extern uint8_t  fill_timer, fill_stage, slide_timer, game_over, state_timer, overlay_on, level, cur_group;
+extern uint8_t  story_shift;
 extern uint8_t  frame_counter, joy, joy_prev, rng_state, score_digits[6], arcade_loop, new_rank;
 
 // ---- palettes ----------------------------------------------------------------
@@ -185,6 +186,7 @@ void enter_level_screen(void) BANKED {
     TRANS_WANT();                                 // (src/trans.c: title -> a level, a level -> the next; a story shift's LCD is already off: nothing wanted then)
     DISPLAY_OFF;                                 // (start_level reloads the show tiles the bonus round borrowed)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0;
+    state_timer = 0;                              // (the antics' 255 of the clear before)
     start_level();
     dust_load();                                 // the bar-change puff's tiles (OBJ ids above the DMG copies)
     if (boss_on) boss_load();                    // a boss fight (story): his tiles over variant C's, his palettes
@@ -261,6 +263,9 @@ void enter_level_clear(void) BANKED {
     state_timer = 0;
     show_overlay("LEVEL CLEAR");
     music_play(TUNE_CLEAR);
-    if (play_mode == MODE_CLASSIC) antics_start();   // P6: the end-of-level antics (src/antics.c)
+    // P6: the end-of-level antics (src/antics.c): CLASSIC's, and (F12) STORY / ARCADE's after the Happy hour: the clears of
+    // the Happy hour and the Last call (story_shift 1 and 2), not the Opening shift, a boss fight or a mini-game. state_timer
+    // 255 tells main.c's GS_LEVEL_CLEAR that the antics run (a plain clear counts it up to CLEAR_FRAMES, never so far).
+    if (play_mode == MODE_CLASSIC || (story_on && !boss_on && story_shift)) { antics_start(); state_timer = 255; }
     game_state = GS_LEVEL_CLEAR;                 // last: whoever sees the state sees the banner and the jingle
 }

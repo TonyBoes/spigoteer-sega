@@ -110,10 +110,13 @@ def to_list(gb):
     return gb
 
 
-def into_fight(gb):
-    """From the fight's banner (GS_GOAL) into its play."""
+def into_fight(gb, entered=True):
+    """From the fight's banner (GS_GOAL) into its play (entered: the fight starts at once; a BOSS RUSH fight opens with his
+    entrance, no warm-up: E9, entered=False)."""
     until(gb, lambda: state(gb) == GS_GOAL, 60)
     gb.write("tip_chance", 0)
+    if entered:
+        gb.write("boss_hook", 4)                  # (the fight now, no entrance: the tests of the rush itself)
     gb.press("a", 2)
     until(gb, lambda: state(gb) == PLAYING, 10)
 
@@ -325,7 +328,7 @@ def story_boss(gb):
     gb.write("story_step", BOSS_STEP - 1)
     win(gb, gb.mem("story_chapter"), 0)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 30)
-    run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
     assert gb.mem("boss_on") == 1
     into_fight(gb)
 

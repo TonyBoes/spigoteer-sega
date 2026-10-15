@@ -286,7 +286,7 @@ def test_unlocks_survive_a_new_story(model):
         skip_scene(rom)
         to_goal(rom)
         win(rom, 0, 0)
-        run_until(rom, lambda: state(rom) == GS_GOAL, 400)          # the happy hour's banner: saved (0, 1)
+        run_until(rom, lambda: state(rom) == GS_GOAL, 800)          # the happy hour's banner: saved (0, 1)
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (0, 1)
         assert rom.mem16("tune_unlocked") == tunes, "nothing re-locked"
         ram = save_ram(rom)

@@ -725,7 +725,8 @@ void story_pouroff_done(void) BANKED {
 // yet, for Practice: a venue restart never lowers it), the next playable step, or the chapter's POST scene
 void story_level_done(void) BANKED {
     uint8_t n = story_step + 1, s = next_step(n);
-    boss_set(BOSS_NONE);                        // (a won boss fight is over: the POST scene has no boss)
+    state_timer = 0;                             // (the antics' 255 of the clear: a mini-game's pause reads the bits)
+    boss_set(BOSS_NONE);                         // (a won boss fight is over: the POST scene has no boss)
     if (play_mode == MODE_RUSH) { rush_won(); return; }   // BOSS RUSH: no progress, the rush's next screen
     TRANS_WANT();                                // (src/trans.c: the next shift / mini-game / boss / scene comes up behind the drink)
     if (s >= STORY_STEPS) { chapter_done(); return; }

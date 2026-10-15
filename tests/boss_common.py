@@ -17,7 +17,7 @@ ART_H = (ROOT / "build" / "art.h").read_text()
 BLANK = int(re.search(r"#define TILE_HUD_BLANK (\d+)", ART_H).group(1))
 THEMES = ["saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "teahouse", "zoo", "space"]
 FIELDS = ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")
-BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO = range(6)
+BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO, BS_WARM, BS_ENTER, BS_WALKIN = range(9)
 BP_WALK, BP_STOMP, BP_GULP, BP_WINCE, BP_HAPPY = range(5)
 SP_FAIL, SP_OUTRO = 4, 5
 FULL, EMPTY, BREAKING, RETURN = 1, 2, 3, 5
@@ -107,36 +107,36 @@ def until(gb, cond, limit=600):
     raise AssertionError(f"not reached in {limit} frames (state {state(gb)}, boss_state {gb.mem('boss_state')})")
 
 
-ENTRANCES = {0: ("big_tex", "ent", 1), 1: ("mascot", "ent", 1), 5: ("prototype", "t", 1000)}   # venue: (boss file, clock field, running from)
-_own = {}
-
-
 def entrance_running(gb):
-    """The fight's entrance (Big Tex, the Mascot, the Prototype: BEV_INTRO + BEV_DRAW) is running: its clock is on."""
-    spec = ENTRANCES.get(gb.mem("boss_id"))
-    if not spec:
-        return False
-    own = _own.setdefault(spec[0], Own(spec[0]))
-    return own.get(gb, spec[1]) >= spec[2]
+    """The fight's entrance (his own, BEV_ENTER / BEV_INTRO, or the engine's walk-in) is on: boss_state BS_ENTER / BS_WALKIN."""
+    return gb.mem("boss_state") in (BS_ENTER, BS_WALKIN)
 
 
 def skip_entrance(gb):
-    """Play the entrance out (every frame checked at <= 10 sprites a line); the intro's 90 frames are still to run."""
-    until(gb, lambda: not entrance_running(gb), 400)
+    """Wait the warm-up / entrance out (every frame checked at <= 10 sprites a line); the intro's 90 frames are still to run."""
+    until(gb, lambda: gb.mem("boss_state") not in (BS_WARM, BS_ENTER, BS_WALKIN), 600)
     return gb
 
 
-def fight(model, c, banner=False):
-    """Chapter c's Last call won: SHIFT CLEAR, then its boss fight's banner (banner=True: still on it), or the fight."""
+def fight(model, c, banner=False, warm=False, entrance=False):
+    """Chapter c's Last call won: SHIFT CLEAR, then its boss fight's banner (banner=True: still on it), or the fight (started
+    at once: no warm-up, no entrance; warm=True: the warm-up runs; entrance=True: it is over and his entrance has begun)."""
     gb = to_shift(model, c, 2)
     win(gb, c, 2)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
     gb.run(3)
     assert banner_text(gb, 1) == centred("SHIFT CLEAR"), "the Last call is not the chapter's last step any more"
-    run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
     gb.run(3)
     assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c
-    return gb if banner else skip_entrance(to_goal(gb))
+    if banner:
+        return gb
+    to_goal(gb, boss_start=not (warm or entrance))
+    if entrance:                              # the warm-up is over now (boss_hook 5): his entrance starts on the next frame
+        gb.write("boss_hook", 5)
+        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+        frames(gb, 3)                             # (Duke's tile pool copy runs past a frame boundary)
+    return gb
 
 
 def still_regulars(gb):

@@ -241,7 +241,7 @@ uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_RESET:
         to_idle();
-        if (duke.ent) { boss_state = BS_JUMP; boss_xpose = BP_HIDE; }   // (the entrance: not on his bar yet)
+        if (duke.ent && boss_state == BS_ENTER) { boss_state = BS_JUMP; boss_xpose = BP_HIDE; }   // (the entrance: not on his bar yet)
         break;
     case BEV_LOAD:
         boss_art_load();
@@ -252,10 +252,12 @@ uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED {
             p[1] = boss_art_pal[1]; p[2] = boss_art_pal[2]; p[3] = boss_art_pal[3];   // the entrance's: his body's colours, OBJ 5
             set_sprite_palette(OBJPAL_COIN, 1, p);
         }
-        set_sprite_data(ENT_LOW_ID, ENT_LOW_N * 2, boss_ent_tiles);        // the first start's entrance: the tile pool
+        break;
+    case BEV_ENTER:                      // E9: the warm-up is over (boss.c entrance_start): the tile pool borrows the drinks' tiles
+        set_sprite_data(ENT_LOW_ID, ENT_LOW_N * 2, boss_ent_tiles);        // (LCD on: GBDK's STAT-waiting copy; the bar is held)
         set_sprite_data(ENT_HIGH_ID, (BOSS_ART_ENT_PAIRS - ENT_LOW_N) * 2, boss_ent_tiles + ENT_LOW_N * 32);
         duke.ent = 1; duke.rl = 0;
-        break;
+        return 1;
     case BEV_INTRO:
         if (duke.ent) ent_frame();
         break;

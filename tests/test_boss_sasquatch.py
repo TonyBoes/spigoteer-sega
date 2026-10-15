@@ -61,10 +61,10 @@ def test_the_fight_follows_the_last_call(model):
         assert banner_text(gb, 1) == centred("BOSS")
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         assert gb.mem("lives") == 3 and gb.mem("tip_chance") == 0
-        assert all(b != B for b in gb.read("pat_buf", 8))
         from test_story import to_goal
         to_goal(gb)
         gb.run(2)
+        assert all(b != B for b in gb.read("pat_buf", 8))   # (the fight has started: the warm-up's arrivals, any bar, are redrawn)
         still_regulars(gb)
         ready(gb)
         check_start(gb, C, A, model)

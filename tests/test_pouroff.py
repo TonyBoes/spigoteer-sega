@@ -906,7 +906,7 @@ def test_arcade_does_not_play_the_pour_off():
         assert state(gb) == BONUS and (GS_MINI, MG_POUROFF) not in seen
         gb.write("bonus_phase", 4)
         gb.write("bonus_timer", 129)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 200)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         gb.run(3)
         assert gb.mem("arc_loop") == 2 and banner_text(gb, 2) == centred("LOOP 2")
         assert gb.mem("story_on") == 1 and gb.mem("story_arc") == 1 and gb.mem("mg_id") != MG_POUROFF

@@ -66,7 +66,7 @@ def finish_venue(gb):
 def finish_bonus(gb):
     gb.write("bonus_phase", 4)
     gb.write("bonus_timer", 129)
-    run_until(gb, lambda: state(gb) == GS_GOAL, 200)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
     gb.run(3)
 
 
@@ -116,7 +116,7 @@ def test_after_the_space_lounge_loop_2_and_the_saloon_harder(model):
         run_until(gb, lambda: state(gb) == BONUS, 400)
         gb.write("bonus_phase", 4)
         gb.write("bonus_timer", 129)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 200)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         gb.run(3)
         assert gb.mem("arc_loop") == 2 and gb.mem("story_phase") == 6, "SP_LOOP"
         assert banner_text(gb, 2) == centred("LOOP 2") and banner_text(gb, 1) == centred("")
@@ -145,7 +145,7 @@ def test_extra_lives_at_20000_and_every_40000_at_most_four(model):
         gb.run(3)
         assert gb.mem("lives") == 4 and int.from_bytes(gb.read("extra_at", 4), "little") == 60_000
         assert hud_lives(gb) == lives_hud(4)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         to_goal(gb)
         set_score(gb, 59_999)
         win(gb, 0, 1)
@@ -190,7 +190,7 @@ def test_an_extra_life_plays_its_cue_over_the_music(model):
         assert sum(on[:30]) >= 28 and not any(on[36:]), f"the cue sounds ~33 frames on channel 1: {on}"
         assert (0x40, 0xD2) in regs, "its 25% pulse and envelope"
         assert all(b > a for a, b in zip(mf, mf[1:])), "the tune keeps ticking under the cue"
-        run_until(gb, lambda: state(gb) == GS_GOAL, 400)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         to_goal(gb)
         set_score(gb, 59_999)
         win(gb, 0, 1)

@@ -61,8 +61,14 @@ extern uint8_t overlay_on;
 #define OUTRO_FRAMES    120
 #define CLEAR_BANNER_FRAMES 90   // "CLEAR THE BAR" stays this long once he is beaten and regulars remain
 #define OAM_TOPPER      OAM_DANCERS   // (no show in a fight; OAM 26 is the perfect pour's cue)
+// E9: the fight opens as a normal shift (the warm-up), then the boss enters (docs/minigames_bosses.md 2.6)
+#define WARM_FRAMES   1200        // the warm-up: 20 s of play after the intro (Story and ARCADE; Boss Rush has none)
+#define WARM_AVOID     300        // the last 5 s: no new regular for his bar, so it empties before he comes
+#define WARM_WAIT      180        // after the warm-up: up to 3 s more for his bar to empty and the mugs to land
+#define WALK_STEP        6        // the fallback entrance: frames per 8 px he walks in from the left edge
 
-enum { HOOK_NONE, HOOK_TELL, HOOK_METER_1, HOOK_DEFEAT };            // boss_hook (tests)
+enum { HOOK_NONE, HOOK_TELL, HOOK_METER_1, HOOK_DEFEAT, HOOK_FIGHT, HOOK_ENTER };   // boss_hook (tests; any but HOOK_ENTER in the
+                                                                                    // warm-up / entrance = the fight starts now, no entrance)
 
 typedef struct {
     uint8_t width;        // px: 32 or 40 (BOSS_W_MAX columns)
@@ -234,7 +240,12 @@ void boss_set(uint8_t id) BANKED {
     boss_fast_full = boss_fast_empty = boss_returns = 0;
     BOSS_MARK_BAR = BOSS_NONE; BOSS_TOPPER_T = 0; BOSS_TOPPER_PAL = 0;   // (story_scratch: game.h BOSS_FX)
     boss_call(BEV_SET, 0);                       // his art's pose table, his own settings
-    boss_look();
+    // E9: the fight opens as a normal shift: BS_WARM, his bar is a bar like the others (BOSS_NONE: the ROM0 hooks see no
+    // boss) until he enters. Boss Rush skips the warm-up: his bar stays free of regulars but he is not on it (HIDE) and the
+    // entrance starts on the first frame.
+    boss_state = BS_WARM; boss_t = 0; boss_lim = 0;
+    if (play_mode == MODE_RUSH) { boss_special_t = 1; boss_t = WARM_WAIT; boss_xpose = BP_HIDE; boss_look(); }
+    else { boss_special_t = WARM_FRAMES; boss_look(); boss_bar = BOSS_NONE; }
 }
 
 // enter_level_screen, LCD off, after start_level (which loaded every patron variant): his body over variant C's tiles
@@ -249,6 +260,7 @@ void boss_load(void) BANKED {
 // reset_actors (the level's start, and after a lost life): at his start x on his bar, nothing in his hands, his meter
 // kept; the whole bar recomposed (he may have been anywhere).
 void boss_reset(void) BANKED {
+    if (boss_state >= BS_WARM) return;           // (E9: the warm-up and the entrance: nothing of his yet; fight_start resets him)
     boss_x = br->start_x; boss_col = boss_x >> 3;
     if (boss_state != BS_OUTRO) boss_state = BS_WALK;
     boss_t = 0; boss_push = 0; boss_hop = 0; boss_hold = 0; boss_step_t = 0; boss_sip_t = 0; boss_stomp = 0; boss_hat = 0;
@@ -287,9 +299,7 @@ void boss_begin(void) BANKED {
         pat_buf[i] = b;                          // (wait code 0: the interval)
     }
     pat_len = STORY_PAT_MAX; pat_pos = 0; pat_bar = pat_buf[0];
-    pat_wait[0] = spawn_interval;
-    boss_hud();
-    boss_call(BEV_BEGIN, 0);
+    pat_wait[0] = spawn_interval;                // (his face, meter and BEV_BEGIN: fight_start, when he has entered)
 }
 
 // patrons.c catch_full: full mug i reached him (on his bar, mug_x < boss_lim: a hand free). He drinks it.
@@ -309,7 +319,105 @@ uint8_t boss_catch(uint8_t i) BANKED {
     return 1;
 }
 
+// ---- E9: the warm-up and the entrance ----
+// The fight starts as the shift it is built on: BS_WARM, boss_special_t counts WARM_FRAMES down (after the level's intro),
+// the regulars come to every bar (boss_bar is BOSS_NONE: the ROM0 hooks, the render and the patrons see a plain bar). In the
+// last WARM_AVOID frames no new regular is bound for his bar; when the time is up the entrance waits (WARM_WAIT frames at the
+// most) until his bar is empty and no mug is in the air, then entrance_start: the world is cleared of mugs, any straggler on
+// his bar is gone, intro_timer freezes the bar (BEV_INTRO / BEV_DRAW run), his entrance plays (BEV_ENTER: his own, or the
+// fallback walk-in), and fight_start puts the banner up and the boss rules apply. Boss Rush: no warm-up (boss_set).
+static uint8_t bar_busy(void) {
+    uint8_t p;
+    for (p = 0; p != MAX_PATRONS; p++)
+        if (patron_state[p] != PATRON_NONE && (patron_bar[p] & (NUM_BARS - 1)) == br->bar) return 1;
+    return 0;
+}
+
+// He is on his bar now: it is his (stragglers vanish), recomposed.
+static void take_bar(void) {
+    uint8_t p;
+    boss_bar = br->bar;
+    for (p = 0; p != MAX_PATRONS; p++)
+        if (patron_state[p] != PATRON_NONE && (patron_bar[p] & (NUM_BARS - 1)) == boss_bar) remove_patron(p);
+    mark_dirty_attrs(boss_bar, 0, 20);
+}
+
+// The fight is on: his meter and face, the rules (BEV_RESET, BEV_BEGIN), the regulars never on his bar. shown: after an
+// entrance (the banner with his name stays through the intro's beat); 0: a test hook, straight to the fight.
+static void fight_start(uint8_t shown) {
+    if (boss_bar != br->bar) take_bar();
+    boss_state = BS_WALK; boss_xpose = 0; boss_special_t = 0;
+    boss_reset();
+    boss_pattern(BOSS_NONE);
+    boss_hud();
+    boss_call(BEV_BEGIN, 0);
+    if (shown) {
+        show_overlay(br->line1);
+        if (!intro_timer) intro_timer = INTRO_FRAMES - 1;
+    }
+}
+
+static void entrance_start(void) {
+    clear_mugs(); fill_timer = 0; fill_stage = 0; cue_t = 0; catch_pose = 0;
+    take_bar();
+    boss_state = BS_ENTER; boss_xpose = BP_HIDE; boss_hold = 0; boss_t = 0;
+    boss_to_bar(boss_bar, 0);                    // (his bar's regulars are gone: it recomposes without him)
+    intro_timer = INTRO_FRAMES;                  // the bar holds still: his entrance owns the screen
+    SFX(SFX_WHOOSH);
+    if (!boss_call(BEV_ENTER, 0)) { boss_state = BS_WALKIN; boss_special_t = 0; }   // (no entrance of his own: he walks in)
+}
+
+// boss_frame, in BS_WARM / BS_ENTER / BS_WALKIN
+static void boss_pre(void) {
+    uint8_t n, w = br->width >> 3, st = boss_state, k;
+    if (st == BS_WARM) {
+        if (boss_special_t > 1) {
+            if (!intro_timer && --boss_special_t == WARM_AVOID) boss_pattern(br->bar);
+        } else if (boss_t < WARM_WAIT && (mugs_live || bar_busy())) boss_t++;
+        else entrance_start();
+        return;
+    }
+    if (st == BS_ENTER) {                        // his own entrance (BEV_INTRO holds intro_timer; it ends by leaving BS_ENTER)
+        boss_call(BEV_INTRO, 0);
+        if (boss_state != BS_ENTER) fight_start(1);
+        return;
+    }
+    // the fallback: he walks in from the left edge, 8 px every WALK_STEP frames: first his body comes on screen column by
+    // column (the right end of his pose first), then he steps on to his start x with the stomp's thud
+    intro_timer = INTRO_FRAMES;
+    fill_timer = 0; fill_stage = 0;
+    n = boss_special_t / WALK_STEP;
+    if (!(boss_special_t++ % WALK_STEP)) {
+        if (n < w) {                             // n + 1 columns are in: his pose's last n + 1 columns, at the screen's left edge
+            for (k = 0; k != BOSS_W_MAX; k++)
+                boss_cols[k] = k <= n ? pair_id(boss_map[BP_WALK * BOSS_W_MAX + w - 1 - n + k]) : 0;
+            if (n + 1 == w) { boss_xpose = 0; boss_pose = 255; }   // (complete: the engine draws him from here on)
+            mark_dirty_attrs(boss_bar, 0, w + 3);
+            SFX(SFX_SHAKE);
+        } else if (boss_x < br->start_x) {
+            boss_move(boss_x + 8);
+            boss_stomp = STOMP_FRAMES;
+            SFX(SFX_SHAKE);
+        } else {                                 // there: the fight
+            intro_timer = INTRO_FRAMES - 1;
+            fight_start(1);
+            return;
+        }
+    }
+    if (boss_stomp) boss_stomp--;
+    boss_look();
+}
+
 static void boss_take_hook(void) {
+    if (boss_state >= BS_WARM) {                 // (E9 test pokes: HOOK_ENTER ends the warm-up, any other hook starts the fight now)
+        if (boss_hook == HOOK_ENTER) {
+            if (boss_state == BS_WARM) { boss_special_t = 1; boss_t = WARM_WAIT; }
+            boss_hook = HOOK_NONE;
+            return;
+        }
+        fight_start(0);
+        if (boss_hook == HOOK_FIGHT) { boss_hook = HOOK_NONE; return; }
+    }
     if (boss_hook == HOOK_METER_1) boss_hp = 1;
     else if (boss_hook == HOOK_DEFEAT) boss_hp = 0;
     else if (boss_hook == HOOK_TELL) boss_call(BEV_TELL, 0);   // (a boss without a special ignores it)
@@ -444,6 +552,7 @@ static void boss_mugs(void) {
 uint8_t boss_frame(void) BANKED {
     uint8_t x = boss_x;
     if (boss_hook) boss_take_hook();
+    if (boss_state >= BS_WARM) { boss_pre(); return 0; }   // E9: the warm-up, his entrance
     if (!boss_hp) {
         if (boss_state != BS_OUTRO) {            // beaten now (boss_reset keeps BS_OUTRO after a life lost in the phase)
             boss_state = BS_OUTRO; boss_lim = 0; boss_t = 0;
@@ -459,7 +568,7 @@ uint8_t boss_frame(void) BANKED {
     if (boss_own_na) boss_own_na--;              // (counts down with next_arrival: patrons.c update_patrons)
     boss_mugs();
     if (!intro_timer) {                          // nothing moves before the level's intro is over
-        if (boss_t != 255) boss_t++;
+        if (boss_t != 255 && ++boss_t == 1) overlay_on = 0;   // (E9: the banner fight_start put up goes with the first move)
         if (boss_stomp) boss_stomp--;
         if (boss_push) {
             if (++boss_hop >= HOP_FRAMES) {
@@ -515,6 +624,7 @@ void boss_draw(void) BANKED {
     OAM_item_t *o = shadow_OAM;
     uint8_t k, top = bar_oam_y[boss_bar] - 8, n0 = 0, n1 = 0, n2 = 0, n3 = 0, hat, tag;
     int8_t r;
+    if (boss_state == BS_WARM) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (E9: not here yet)
     if (intro_timer) boss_call(BEV_DRAW, 0);     // the intro: a special's own sprites (Duke's entrance) before the lines are counted
     shadow_OAM[OAM_TAG].y = 0;
     if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (away: no hat in the air)
