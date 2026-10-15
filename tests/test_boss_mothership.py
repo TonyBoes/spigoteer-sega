@@ -88,7 +88,7 @@ def test_his_row_and_art():
     """Spec 3.2 / 3.10's numbers (meter 14: the doc's 8 + 6), the banner lines, the owner-approved art (look A, silver saucer) with
     the BEAM as its fx (two columns of it side by side, 4 tiles), the art folder moved, and the timings."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
-        width=40, x=16, bar=1, step=100, push=8, gulp=24, hands=2, sip=45, meter=14, hat=12)
+        width=40, x=16, bar=1, step=100, push=8, gulp=34, hands=2, sip=45, meter=14, hat=12)
     assert (R["line1"], R["line2"]) == ("THE MOTHERSHIP", "IT SPLITS WHEN FULL")
     assert A["poses"] == ["WALK", "STOMP", "GULP", "WINCE", "HAPPY"] and A["cols"] == 5 and len(A["pairs"]) <= 30
     assert len(A["fx"]) == 64 and A["fx"][:32] == A["fx"][32:], "the beam: one 8x16 column, doubled"

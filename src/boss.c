@@ -39,12 +39,14 @@
 #include <gb/gb.h>
 #include <gb/cgb.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "game.h"
 #include "music.h"
 #include "palettes.h"
 #include "story.h"
 #include "boss.h"            // the engine's inside, shared with the boss files (src/boss_<name>.c)
+#include "boss_tag_art.h"    // the status tag's tiles (E1)
 
 extern uint8_t pat_pos, pat_buf[STORY_PAT_MAX];   // (story.c) the arrival pattern patrons.c follows while pat_len
 extern uint16_t pat_wait[4];
@@ -80,16 +82,16 @@ typedef struct {
 // One row per venue (boss id = the venue / chapter index). width 0: not built yet, the fight plays row 0's.
 static const boss_row_t rows[BOSS_COUNT] = {
     // width x  bar step push gulp hands sip meter hat art
-    [0] = {  40,  16,  1, 120,  16,  40,   3,  60,  8,   16,  0, "BIG TEX RIDES IN", "QUENCH HIM 8 MUGS" },   // Saloon: Big Tex (3.3)
-    [2] = {  32,  16,  2,  90,   8,   8,   2,   0, 12,   12,  0, "NO SUCH THING", "12 COFFEES FAST" },      // Lumber lodge: Sasquatch (3.5)
-    [3] = {  32,  16,  1, 110,  16,  60,   1,  90,  8,    9,  0, "THE CRITIC DINES", "PERFECT POURS ONLY" }, // Bistro: the Food Critic (3.6)
-    [1] = {  32,  16,  1, 100,   8,  24,   2,  45, 10,    8,  0, "THE MASCOT JUMPS", "FOLLOW HIM 10 MUGS" },   // Stadium: the Mascot (3.4)
-    [4] = {  32,  16,  2, 100,   8,  30,   2,  60, 12,    9,  0, "THE YETI IS COLD", "12 COCOAS ON ICE" },   // Igloo: the Yeti (3.7)
-    [5] = {  32,  16,  2, 100,   8,  20,   2,  45, 12,    8,  0, "GREEN MEANS GO", "RED MEANS STOP" },   // Robot factory: the Prototype (3.8)
-    [6] = {  40,  16,  1,   0,  16,  20,   2,  45, 12,   16,  0, "THE BIGGEST SHAKE", "12 MILKS FOR DUKE" },   // Biker bar: Duke (3.12; step 0: he never stomps)
+    [0] = {  40,  16,  1, 120,  16,  58,   3,  60,  8,   16,  0, "BIG TEX RIDES IN", "QUENCH HIM 8 MUGS" },   // Saloon: Big Tex (3.3)
+    [2] = {  32,  16,  2,  90,   8,  20,   2,   0, 12,   12,  0, "NO SUCH THING", "12 COFFEES FAST" },      // Lumber lodge: Sasquatch (3.5)
+    [3] = {  32,  16,  1, 110,  16,  84,   1,  90,  8,    9,  0, "THE CRITIC DINES", "PERFECT POURS ONLY" }, // Bistro: the Food Critic (3.6)
+    [1] = {  32,  16,  1, 100,   8,  34,   2,  45, 10,    8,  0, "THE MASCOT JUMPS", "FOLLOW HIM 10 MUGS" },   // Stadium: the Mascot (3.4)
+    [4] = {  32,  16,  2, 100,   8,  44,   2,  60, 12,    9,  0, "THE YETI IS COLD", "12 COCOAS ON ICE" },   // Igloo: the Yeti (3.7)
+    [5] = {  32,  16,  2, 100,   8,  30,   2,  45, 12,    8,  0, "GREEN MEANS GO", "RED MEANS STOP" },   // Robot factory: the Prototype (3.8)
+    [6] = {  40,  16,  1,   0,  16,  30,   2,  45, 12,   16,  0, "THE BIGGEST SHAKE", "12 MILKS FOR DUKE" },   // Biker bar: Duke (3.12; step 0: he never stomps)
     [7] = {  40,  16,  1,  96,   0,   0,   2,  90,  8,   16,  0, "THE CHAMPION", "KEEP THE TEA FLOWING" }, // Teahouse: the Sumo (3.9)
-    [8] = {  32,  16,  2,  80,   8,  30,   2,  60, 14,    6,  0, "LEO THE LION", "14 COCONUTS NO FEAR" },  // Jungle zoo: Leo (3.11)
-    [9] = {  40,  16,  1, 100,   8,  24,   2,  45, 14,   12,  0, "THE MOTHERSHIP", "IT SPLITS WHEN FULL" },  // Space lounge: the Mothership (3.10; meter 8 + 6)
+    [8] = {  32,  16,  2,  80,   8,  44,   2,  60, 14,    6,  0, "LEO THE LION", "14 COCONUTS NO FEAR" },  // Jungle zoo: Leo (3.11)
+    [9] = {  40,  16,  1, 100,   8,  34,   2,  45, 14,   12,  0, "THE MOTHERSHIP", "IT SPLITS WHEN FULL" },  // Space lounge: the Mothership (3.10; meter 8 + 6)
 };
 
 // ---- state (test hooks: spec 2.5's names) ----
@@ -158,6 +160,14 @@ static void boss_hud(void) {
     if (LCDC_REG & LCDCF_ON) vq_add(0, hud_row, 12, HUD_ROW, 8); else vram_put(12, HUD_ROW, hud_row, 8);
 }
 
+// The drinking shake (E1; owner 2026-10-14: "bosses should do the drinking shake like patrons"): the patrons' sway is a
+// 2 px shift every SWAY_FRAMES while they drink; a boss is BG art that cannot shift by pixels, so for the same beat the body
+// alternates GULP (the mug up) and WALK (the mug down: a sip, then another) and the topper (a sprite) shifts the patrons' 2 px.
+// 1 on the second beat of each pair, only in the common gulp (no push-back, no special's pose over it).
+static uint8_t sip_beat(void) {
+    return boss_state == BS_GULP && !boss_push && !boss_xpose && ((boss_t / SWAY_FRAMES) & 1);
+}
+
 // His pose from his state: the body's columns (boss_cols) and, when they changed, their tiles queued.
 static void boss_look(void) {
     uint8_t p = BP_WALK, h, key, k, w = br->width >> 3;
@@ -165,7 +175,7 @@ static void boss_look(void) {
     if (boss_state == BS_OUTRO) p = boss_xpose == BP_HIDE ? BP_HIDE : BP_HAPPY;   // (the Mothership's minis: no saucer left to be happy)
     else if (boss_push) p = BP_WINCE;
     else if (boss_xpose) p = boss_xpose;
-    else if (boss_state == BS_GULP) p = BP_GULP;
+    else if (boss_state == BS_GULP) p = sip_beat() ? BP_WALK : BP_GULP;   // (E1: the drinking shake, below)
     else if (boss_stomp) p = BP_STOMP;
     h = (p == BP_WALK || p == BP_STOMP || p == BP_WINCE) ? (boss_hold > 3 ? 3 : boss_hold) : 0;
     key = p | (h << 4);
@@ -230,6 +240,7 @@ void boss_set(uint8_t id) BANKED {
 // enter_level_screen, LCD off, after start_level (which loaded every patron variant): his body over variant C's tiles
 // and the back views, the HUD's face and meter, the topper's frames; CGB his palettes (colour 0 the venue's wall).
 void boss_load(void) BANKED {
+    set_sprite_data(OBJ_TAG, 4, boss_tag_tiles);  // the status tag's tiles (first: a boss file's pool over 124-127 is then his own)
     boss_call(BEV_LOAD, 0);                      // his body, face, topper and palettes (src/boss_load.h), his extras
     set_bkg_data(BOSS_HUD_BG + 1, 3, boss_meter_tiles);
     boss_pal = BOSS_PAL;
@@ -246,7 +257,11 @@ void boss_reset(void) BANKED {
     boss_look();
     mark_dirty_attrs(boss_bar, 0, 20);
     boss_limit();
-    shadow_OAM[OAM_TOPPER].y = 0;
+    shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_TAG].y = 0;
+}
+
+void boss_tag_stage(uint8_t *dst) BANKED {
+    memcpy(dst, boss_tag_tiles, BOSS_TAG_BYTES);
 }
 
 // story shift_start: the fight's goal_t (its banner lines, the pace: the row's walk, spawns x BOSS_SPAWN_PCT %)
@@ -498,20 +513,34 @@ uint8_t boss_outro(uint8_t t) BANKED {
 // band already has LINE_OBJ_MAX, so it is never an 11th object on a line (the hat blinks off for those frames).
 void boss_draw(void) BANKED {
     OAM_item_t *o = shadow_OAM;
-    uint8_t k, top = bar_oam_y[boss_bar] - 8, n0 = 0, n1 = 0, n2 = 0, n3 = 0;
+    uint8_t k, top = bar_oam_y[boss_bar] - 8, n0 = 0, n1 = 0, n2 = 0, n3 = 0, hat, tag;
     int8_t r;
     if (intro_timer) boss_call(BEV_DRAW, 0);     // the intro: a special's own sprites (Duke's entrance) before the lines are counted
+    shadow_OAM[OAM_TAG].y = 0;
     if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (away: no hat in the air)
     for (k = 0; k != 40; k++, o++) {
-        if (k == OAM_TOPPER || !o->y) continue;
+        if (k == OAM_TOPPER || k == OAM_TAG || !o->y) continue;
         r = (int8_t)(uint8_t)(o->y - top);
         if (r > 15 || r < -15) continue;
         if (r >= 0) { if (r < 4) n0++; if (r < 8) n1++; if (r < 12) n2++; n3++; }
         else { n0++; if (r >= -11) n1++; if (r >= -7) n2++; if (r >= -3) n3++; }
     }
     o = shadow_OAM + OAM_TOPPER;
-    if (n0 >= LINE_OBJ_MAX || n1 >= LINE_OBJ_MAX || n2 >= LINE_OBJ_MAX || n3 >= LINE_OBJ_MAX) { o->y = 0; return; }
-    o->y = top; o->x = boss_x + br->hat_dx + 8;
-    o->tile = OBJ_TOPPER + (BOSS_TOPPER_T ? BOSS_TOPPER_T : (boss_pose & 15) == BP_STOMP ? 2 : 0);
-    o->prop = !is_cgb ? S_PALETTE : BOSS_TOPPER_PAL ? BOSS_TOPPER_PAL : OBJPAL_PATRON_C;
+    hat = !(n0 >= LINE_OBJ_MAX || n1 >= LINE_OBJ_MAX || n2 >= LINE_OBJ_MAX || n3 >= LINE_OBJ_MAX);
+    if (hat) {
+        o->y = top; o->x = boss_x + br->hat_dx + 8 + (sip_beat() ? 2 : 0);   // (drinking: the patrons' 2 px shake)
+        o->tile = OBJ_TOPPER + (BOSS_TOPPER_T ? BOSS_TOPPER_T : (boss_pose & 15) == BP_STOMP ? 2 : 0);
+        o->prop = !is_cgb ? S_PALETTE : BOSS_TOPPER_PAL ? BOSS_TOPPER_PAL : OBJPAL_PATRON_C;
+    } else o->y = 0;
+    // The status tag (E1): above his hand column, where a drink reaches him; the hat has the line budget first.
+    if (intro_timer || !boss_hp || boss_state == BS_OUTRO) return;
+    if (n0 + hat >= LINE_OBJ_MAX || n1 + hat >= LINE_OBJ_MAX || n2 + hat >= LINE_OBJ_MAX || n3 + hat >= LINE_OBJ_MAX) return;
+    tag = boss_lim ? TAG_READY : TAG_BUSY;
+    k = boss_call(BEV_TAG, tag);
+    if (k) tag = k - 1;
+    if (tag == TAG_OFF) return;
+    o = shadow_OAM + OAM_TAG;
+    o->y = top; o->x = boss_x + br->width + (tag == TAG_RETURN ? (frame_t0 & 4) - 2 : 0);
+    o->tile = OBJ_TAG + (tag == TAG_READY ? 0 : 2);
+    o->prop = !is_cgb ? S_PALETTE : OBJPAL_PATRON_C;
 }

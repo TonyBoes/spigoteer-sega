@@ -42,7 +42,7 @@ def test_his_row_and_art():
     """Spec 3.2 / 3.5's numbers, the banner lines of spec 7, his approved art (5 poses + DUCK, BURST1, BURST2), the fast-empty
     bar and his own gap in his file."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
-        width=32, x=16, bar=2, step=90, push=8, gulp=8, hands=2, sip=0, meter=12, hat=12)
+        width=32, x=16, bar=2, step=90, push=8, gulp=20, hands=2, sip=0, meter=12, hat=12)
     assert (R["line1"], R["line2"]) == ("NO SUCH THING", "12 COFFEES FAST")
     assert A["poses"] == ["WALK", "STOMP", "GULP", "WINCE", "HAPPY", "DUCK", "BURST1", "BURST2"] and A["cols"] == 4
     from conftest import ROOT

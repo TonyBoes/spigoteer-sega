@@ -31,7 +31,7 @@ def test_his_row_and_art():
     """Spec 3.2 / 3.6's numbers, the banner lines of spec 7, his approved art with the TASTE pose (extra pose 5), the
     window and the taste in his file."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
-        width=32, x=16, bar=1, step=110, push=16, gulp=60, hands=1, sip=90, meter=8, hat=9)
+        width=32, x=16, bar=1, step=110, push=16, gulp=84, hands=1, sip=90, meter=8, hat=9)
     assert (R["line1"], R["line2"]) == ("THE CRITIC DINES", "PERFECT POURS ONLY")
     assert A["poses"] == ["WALK", "STOMP", "GULP", "WINCE", "HAPPY", "TASTE"] and A["cols"] == 4
     assert (CRIT_WIN, CRIT_TASTE, CRIT_QUEUE) == (12, 30, 3)
@@ -189,7 +189,7 @@ def test_eight_perfect_drinks_satisfy_him(model):
         quiet(gb)
         for hp in range(7, -1, -1):
             gb.write("boss_hold", 0)
-            until(gb, lambda: gb.mem("boss_state") != BS_GULP and not gb.mem("boss_push"), 80)
+            until(gb, lambda: gb.mem("boss_state") != BS_GULP and not gb.mem("boss_push"), 110)
             throw(gb, B, 72, perfect=True)
             until(gb, lambda: gb.mem("boss_hp") == hp, 30)
         clear_regulars(gb)

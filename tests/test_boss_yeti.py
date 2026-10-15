@@ -69,7 +69,7 @@ def test_his_row_and_art():
     """Spec 3.2 / 3.7's numbers and timings, the banner lines of spec 7, his approved art with INHALE and BLOW (extra
     poses 5 and 6), the icy copies of the igloo's two counter tiles (the owner-approved I2 icicles) and the 4 sparkle frames."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
-        width=32, x=16, bar=2, step=100, push=8, gulp=30, hands=2, sip=60, meter=12, hat=9)
+        width=32, x=16, bar=2, step=100, push=8, gulp=44, hands=2, sip=60, meter=12, hat=9)
     assert (R["line1"], R["line2"]) == ("THE YETI IS COLD", "12 COCOAS ON ICE")
     assert A["poses"] == ["WALK", "STOMP", "GULP", "WINCE", "HAPPY", "INHALE", "BLOW"]
     assert (EVERY, TELL, ICY, CREEP, CREEP_COLS, ICE_COLS) == (360, 50, 180, 12, 4, 18) and TELL >= 45

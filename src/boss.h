@@ -28,7 +28,20 @@ enum {
                   // takes the player's input; it may set intro_timer again). Not called once the intro is over
     BEV_DRAW,     // boss_draw, every drawn frame of the intro (after every other sprite, before the topper counts the OAM
                   // lines): the special's own sprites
+    BEV_TAG,      // boss_draw, every drawn frame he is on his bar and the intro is over (E1: the status tag): `arg` is the
+                  // engine's guess (TAG_READY: a hand is free, a drink reaching him is caught; TAG_BUSY: hands full). Return
+                  // 0 to keep it, else the tag you want + 1 (TAG_RETURN + 1: he sends what reaches him back; TAG_OFF + 1:
+                  // no tag, for a state with no catching at all)
 };
+
+// The status tag (E1; assets/art/boss/tag.txt): one 8x16 sprite in OAM_TAG above his hand column. READY = an empty mug and
+// an arrow down at his hand; BUSY = a full mug and a cross; RETURN = the BUSY tag shaking side to side. OBJ 124-127 and
+// OAM 29 are the tag's: a fight's special must not draw there (Duke's entrance pool covers 124-127 until it ends: his
+// file calls boss_tag_stage / queues the tiles back).
+enum { TAG_READY, TAG_BUSY, TAG_RETURN, TAG_OFF };
+#define OBJ_TAG        124                        // 2 pairs: READY, BUSY (tools/gen_boss.py: boss_tag_tiles, 64 bytes)
+#define OAM_TAG        (OAM_DANCERS + 1)          // (the show's second dancer entry: no show in a fight)
+#define BOSS_TAG_BYTES 64
 
 enum { BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO };   // boss_state (spec 2.5's test hook names)
 // BS_JUMP: away from his bar (a leap, a ride): he catches nothing (a full mug on his bar slides past and breaks), sends
@@ -109,5 +122,6 @@ uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED;  // src/boss_prototype.c
 uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED;        // src/boss_duke.c: Duke, the biker bar (3.12)
 uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED;         // src/boss_leo.c: Leo the Lion, the jungle zoo (3.11)
 uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED;  // src/boss_mothership.c: the Mothership, the space lounge (3.10)
+void boss_tag_stage(uint8_t *dst) BANKED;  // the tag's 4 tiles (BOSS_TAG_BYTES) to dst in WRAM, for a boss file that queues them to OBJ_TAG
 void boss_hud_now(void) BANKED;           // the HUD's face and meter from boss_hp now (a special that changes boss_hp itself)
 #endif

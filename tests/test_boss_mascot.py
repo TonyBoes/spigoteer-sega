@@ -69,7 +69,7 @@ def test_his_row_and_art(model):
     """Spec 3.2 / 3.4's numbers and timings, the banner lines of spec 7, his approved art (the red bull) with CROUCH,
     PUFF1 and PUFF2 (extra poses 5-7), the marker (4 BG tiles) and the crown as the topper; no WRAM of his own."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
-        width=32, x=16, bar=1, step=100, push=8, gulp=24, hands=2, sip=45, meter=10, hat=8)
+        width=32, x=16, bar=1, step=100, push=8, gulp=34, hands=2, sip=45, meter=10, hat=8)
     assert (R["line1"], R["line2"]) == ("THE MASCOT JUMPS", "FOLLOW HIM 10 MUGS")
     assert A["poses"] == ["WALK", "STOMP", "GULP", "WINCE", "HAPPY", "CROUCH", "PUFF1", "PUFF2"]
     assert (EVERY, TELL, AIR) == (300, 60, 20) and WAITMAX >= 44

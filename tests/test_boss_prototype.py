@@ -83,7 +83,7 @@ def test_his_row_and_art(model):
     with the RED pose (extra pose 5), the lamp's 3 shapes (HAT frames 0-3, the ring and X), the Mascot's marker, the
     conveyor's 2 tiles (K5 stripes + K6 arrows, below); no WRAM of his own."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
-        width=32, x=16, bar=2, step=100, push=8, gulp=20, hands=2, sip=45, meter=12, hat=8)
+        width=32, x=16, bar=2, step=100, push=8, gulp=30, hands=2, sip=45, meter=12, hat=8)
     assert (R["line1"], R["line2"]) == ("GREEN MEANS GO", "RED MEANS STOP")
     assert A["poses"] == ["WALK", "STOMP", "GULP", "WINCE", "HAPPY", "RED"]
     assert (T_YELLOW, T_RED - T_YELLOW, T_RIDE - T_RED, T_LAND - T_RIDE, T_RIDE - T_MARK) == (240, 60, 150, 10, 60)

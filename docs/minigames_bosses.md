@@ -231,6 +231,15 @@ Rules common to every boss:
   below). A catch: meter -1 (unless a special says otherwise), push-back `push` px, gulp pose for `gulp` frames
   (no advance meanwhile), the mug is freed (his drink is drawn in his BG pose, not as a mug sprite), and he now
   holds one empty.
+- **Drinking shake (E1, owner 2026-10-14)**: while he gulps (no push-back, no special's pose) his body alternates the
+  GULP pose (mug up) and WALK every `SWAY_FRAMES` (12), the patrons' sway beat, and the topper (a sprite) shifts the
+  patrons' 2 px on the odd beats. The gulps are 30-50% longer than the first build (the table in 3.2; the Sumo has none).
+- **Status tag (E1, owner 2026-10-14: "it's not clear what status he is in")**: one 8x16 sprite (OAM 29, OBJ 124-127,
+  `assets/art/boss/tag.txt`, his own colours) above his hand column, where a drink reaches him. READY: an empty mug and
+  an arrow down at his hand (a hand is free: `boss_lim`). BUSY: a full mug and a cross (hands full: a drink slides
+  past). The BUSY tag shaking side to side: he sends what reaches him back (the Critic while he holds a glass, tastes or
+  has a drink to send back). Hidden in the intro, in the outro, and while he is away (BS_JUMP / BP_HIDE). A special
+  overrides it through the `BEV_TAG` event (return TAG_x + 1; TAG_OFF + 1 hides it). The hat has the line budget first.
 - **Hands**: he holds at most `hands` empties. Each held empty is sent (spawn_mug(EMPTY) at his right edge) after
   `sip` frames **and** only when the fair-empties schedule allows (`next_arrival`, `empty_gap`, the same rule as
   patrons.c, computed with his own empty speed). With full hands a mug reaching him is not caught: it slides on
@@ -329,16 +338,16 @@ No regular stands on the boss's bar, so no lifted patron is ever on his lines.
 
 | boss | width | start x | step (frames per 8 px) | push per hit | gulp | hands | sip (frames before an empty) | his empty speed | meter |
 |---|---|---|---|---|---|---|---|---|---|
-| Big Tex | 40 | 16 | 120 | 16 | 40 | 3 | 60 | 0.5 | 8 |
-| Mascot | 32 | 16 | 100 | 8 | 24 | 2 | 45 | 0.5 | 10 |
-| Sasquatch | 32 | 16 | 90 | 8 | 8 | 2 | 0 (gap only) | 1.0 | 12 |
-| Food Critic | 32 | 16 | 110 | 16 (perfect only) | 60 | 1 | 90 | 0.5 | 8 |
-| Yeti | 32 | 16 | 100 | 8 | 30 | 2 | 60 | 0.5 (1.0 on ice) | 12 |
-| Prototype | 32 | 16 | 100 | 8 | 20 | 2 | 45 | 0.5 | 12 |
-| Duke (PROPOSAL) | 40 | 16 | no stomp: idle 150 / 120 / 90, rev 50, lurch 16 px in 8 frames | 16 | 20 | 2 | 45 | 0.5 | 12 |
+| Big Tex | 40 | 16 | 120 | 16 | 58 | 3 | 60 | 0.5 | 8 |
+| Mascot | 32 | 16 | 100 | 8 | 34 | 2 | 45 | 0.5 | 10 |
+| Sasquatch | 32 | 16 | 90 | 8 | 20 | 2 | 0 (gap only) | 1.0 | 12 |
+| Food Critic | 32 | 16 | 110 | 16 (perfect only) | 84 | 1 | 90 | 0.5 | 8 |
+| Yeti | 32 | 16 | 100 | 8 | 44 | 2 | 60 | 0.5 (1.0 on ice) | 12 |
+| Prototype | 32 | 16 | 100 | 8 | 30 | 2 | 45 | 0.5 | 12 |
+| Duke (PROPOSAL) | 40 | 16 | no stomp: idle 150 / 120 / 90, rev 50, lurch 16 px in 8 frames | 16 | 30 | 2 | 45 | 0.5 | 12 |
 | Sumo | 40 | 16 | 90 (on the drum beat) | 0 single / 8 chained | 0 | 2 | 90 | 0.5 | 12 |
-| Mothership | 32 | 16 | 100 | 8 | 20 | 2 | 45 | 0.5 | 6, then 3 minis x 2 |
-| Leo | 32 | 16 | 80 | 8 | 30 | 2 | 60 | 0.5 | 14 |
+| Mothership | 32 | 16 | 100 | 8 | 34 | 2 | 45 | 0.5 | 6, then 3 minis x 2 |
+| Leo | 32 | 16 | 80 | 8 | 44 | 2 | 60 | 0.5 | 14 |
 
 Distance from the start (right edge 48 or 56) to the tap (136): 11 stomps for a 32 px boss, 10 for Tex and the
 Sumo. Unhit, Big Tex reaches the tap in 1200 frames (20 s), Leo in 880 (14.7 s), Duke (40 px, lurches only) in

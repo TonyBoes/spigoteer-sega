@@ -65,6 +65,9 @@ uint8_t boss_critic(uint8_t ev, uint8_t arg) BANKED {
         }
         crit_look();
         return 1;
+    case BEV_TAG:                                // (E1: the status tag) busy or tasting: whatever reaches him is waved back
+        if (boss_hold || crit_taste || boss_queue) return TAG_RETURN + 1;
+        break;                                   // (free: the engine's READY tag: a perfect drink is taken)
     case BEV_FRAME:
         if (crit_taste) {
             if (!--crit_taste && boss_state == BS_SPECIAL) { boss_state = BS_WALK; boss_t = 0; }

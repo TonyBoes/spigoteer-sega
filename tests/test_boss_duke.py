@@ -74,7 +74,7 @@ def test_his_row_and_art():
     """Spec 3.2 / 3.12's numbers (step 0: no stomp), the banner lines, the owner-approved art (H2's body, H1's beard) with
     TELL1 and TELL2 (extra poses 5 and 6), and the timings."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
-        width=40, x=16, bar=1, step=0, push=16, gulp=20, hands=2, sip=45, meter=12, hat=16)
+        width=40, x=16, bar=1, step=0, push=16, gulp=30, hands=2, sip=45, meter=12, hat=16)
     assert (R["line1"], R["line2"]) == ("THE BIGGEST SHAKE", "12 MILKS FOR DUKE")
     assert A["poses"] == ["WALK", "STOMP", "GULP", "WINCE", "HAPPY", "TELL1", "TELL2"] and A["cols"] == 5
     assert (IDLE_HI, IDLE_MID, IDLE_LO, REV, HOP * 2, LURCH, STALL) == (150, 120, 90, 50, 8, 8, 20)

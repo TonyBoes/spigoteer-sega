@@ -172,7 +172,7 @@ def test_the_table_has_a_row_per_venue_and_the_built_bosses():
     slots are the ones built in the story data; Big Tex's art and the meter are approved; the right size."""
     assert re.search(r"#define BOSS_COUNT\s+10\b", (ROOT / "src" / "game.h").read_text())
     assert "rows[BOSS_COUNT]" in BOSS_C
-    assert ROW == dict(width=40, x=16, bar=1, step=120, push=16, gulp=40, hands=3, sip=60, meter=8, hat=16)
+    assert ROW == dict(width=40, x=16, bar=1, step=120, push=16, gulp=58, hands=3, sip=60, meter=8, hat=16)
     assert (LINE1, LINE2) == ("BIG TEX RIDES IN", "QUENCH HIM 8 MUGS")
     assert BOSS_BUILT == set(BUILT) and BOSS_STEP == 4
     assert {r: f[len("boss_"):] for r, f in boss_rows()[1].items()} == BUILT
@@ -355,7 +355,7 @@ def test_the_meter_counts_each_drink(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_stomps_push_back_and_the_gulp(model):
     """Unhit he stomps 8 px every 120 frames (STOMP pose for 8 frames, the topper bobbing); a catch pushes him back
-    16 px in two hops 4 frames apart (WINCE), he gulps for 40 frames (no stomp meanwhile), then walks on; the push-back
+    16 px in two hops 4 frames apart (WINCE), he gulps for 58 frames (E1: was 40) (no stomp meanwhile), then walks on; the push-back
     stops at his start x."""
     with to_fight(model) as gb:
         still_regulars(gb)
@@ -433,7 +433,7 @@ def test_the_tap_costs_a_life_and_he_starts_over_with_his_meter(model):
             throw(gb)
             until(gb, lambda: gb.mem("boss_hp") == hp, 30)
         gb.write("boss_hold", 0)                         # (no empty sent: the bartender is on bar 0)
-        until(gb, lambda: gb.mem("boss_state") == BS_WALK and not gb.mem("boss_push"), 100)
+        until(gb, lambda: gb.mem("boss_state") == BS_WALK and not gb.mem("boss_push"), 140)
         until(gb, lambda: gb.mem("intro_timer") == 0, 200)
         gb.write("boss_x", SPOUT_X - ROW["width"] - 8)
         until(gb, lambda: state(gb) == LIFE_LOST, ROW["step"] + 2)

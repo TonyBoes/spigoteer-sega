@@ -110,7 +110,7 @@ static void chord(void) {
 #define ENT_OAM      (OAM_FILL + 1)     // the mugs' first entry: nothing is in the air during the entrance
 #define ENT_OAM_N    20
 #define ENT_BUF      (story_scratch + 300)   // 64 B staging for the reloads (the queue copies from WRAM: banks are not mapped then)
-#define ENT_RELOADS  9
+#define ENT_RELOADS  10                // (the 9 drink chunks, then the status tag's 4 tiles: OBJ_TAG 124-127 lie in the pool)
 #if BOSS_ART_ENT_PAIRS > 34 || BOSS_ART_ENT_PAIRS < ENT_LOW_N || OBJ_COIN != 92 || OBJ_MUG != 56 || OBJ_GLASS != 60 || OBJ_MUG_FILL != 76 || OBJ_MUG_DRINK != 84 \
     || OBJ_TOPPER != 96 || OBJ_DANCER != 96 || ENT_BUF + 64 > BOSS_SCRATCH || ENT_OAM + ENT_OAM_N > OAM_MUG_END
 #error "Duke's entrance: the OBJ tile pool (56-91, 96-127), the OAM entries or the staging buffer"
@@ -122,7 +122,7 @@ extern uint8_t vq_count, vq_held;
 
 static const uint8_t skid[15] = { 4, 8, 11, 14, 17, 19, 21, 23, 24, 25, 26, 26, 26, 26, 26 };   // px slid since the ride's x 4 + 26
 static const uint8_t reload[ENT_RELOADS][2] = {           // the drinks: OBJ id, first tile in venue.drink_tiles (mug, crash, fill, drink)
-    { 56, 0 }, { 60, 20 }, { 64, 24 }, { 68, 28 }, { 72, 32 }, { 76, 4 }, { 80, 8 }, { 84, 12 }, { 88, 16 } };
+    { 56, 0 }, { 60, 20 }, { 64, 24 }, { 68, 28 }, { 72, 32 }, { 76, 4 }, { 80, 8 }, { 84, 12 }, { 88, 16 }, { OBJ_TAG, 0 } };
 
 // Room for a copy now: last frame's list went out (the VBlank interrupt reads ENT_BUF, so it is not written while an older
 // entry still waits for it) and the list has space.
@@ -218,7 +218,8 @@ static void ent_frame(void) {
     }
     if (t >= ENT_GONE && duke.rl < ENT_RELOADS && ent_room()) {            // the drinks' tiles, 4 a frame
         i = duke.rl++;
-        far_copy(ENT_BUF, venue.drink_tiles + reload[i][1] * 16, 64, venue_bank);
+        if (reload[i][0] == OBJ_TAG) boss_tag_stage(ENT_BUF);    // (boss.c: the status tag, not a drink)
+        else far_copy(ENT_BUF, venue.drink_tiles + reload[i][1] * 16, 64, venue_bank);
         ent_queue(reload[i][0], 4);
     }
     if (t >= ENT_GONE + ENT_RELOADS + 1 && duke.rl == ENT_RELOADS) {   // the last chunk has gone out: the bartender is his again

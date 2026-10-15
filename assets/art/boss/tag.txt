@@ -1,0 +1,41 @@
+; The boss's status tag (src/boss.c boss_draw; owner 2026-10-15: "it's not clear what status he is in"): one 8x16 sprite
+; above his hand column, the spot where a drink reaches him. Shared by every boss, in his own colours (colour 1 the
+; light, 2 the accent, 3 the outline).
+;   READY: an EMPTY mug and an arrow pointing down at his hand: "drink here" (a hand is free and he takes a catch).
+;   BUSY:  a FULL mug with a cross under it: his hands are full (a drink slides past him and breaks), or he is not
+;          taking drinks now. The same tag SHAKING side to side is "he sends it back" (the Critic's returns).
+@READY
+######..
+#----#..
+#----###
+#----#.#
+#----#.#
+#----###
+#----#..
+######..
+...##...
+...##...
+...##...
+.######.
+..####..
+...##...
+........
+........
+
+@BUSY
+######..
+#----#..
+#++++###
+#++++#.#
+#++++#.#
+#++++###
+#++++#..
+######..
+##....##
+.##..##.
+..####..
+.##..##.
+##....##
+........
+........
+........

@@ -55,7 +55,7 @@ def test_his_row_and_art():
     """Spec 3.2 / 3.11's numbers (meter 14) and timings, the banner lines of spec 7, his approved art (the patron lion
     with a crown) with INHALE and ROAR (extra poses 5 and 6) and the "!!" block (BANG, 8x16) of his own."""
     assert {k: R[k] for k in ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")} == dict(
-        width=32, x=16, bar=2, step=80, push=8, gulp=30, hands=2, sip=60, meter=14, hat=6)
+        width=32, x=16, bar=2, step=80, push=8, gulp=44, hands=2, sip=60, meter=14, hat=6)
     assert (R["line1"], R["line2"]) == ("LEO THE LION", "14 COCONUTS NO FEAR")
     assert A["poses"] == ["WALK", "STOMP", "GULP", "WINCE", "HAPPY", "INHALE", "ROAR"]
     assert (EVERY, TELL, ROAR, PUSH) == (420, 60, 30, 16) and TELL >= 45
