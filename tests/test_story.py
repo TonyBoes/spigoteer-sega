@@ -748,7 +748,8 @@ def tour_scene(gb, sid, seen):
                 pic = STORY["pictures"][s["pic"] + (1 if s["swpage"] and k + 1 >= s["swpage"] else 0)]["map"]
                 assert rows == [pic[r * 20 + rect[0]:r * 20 + rect[0] + rect[2]]
                                 for r in range(rect[1], rect[1] + rect[3])], f"{sid} page {k + 1}: the frame is wiped"
-            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) == spigoteer
+            held = 4 if (sid, k) == ("POST_BIKER", 5) else 0   # the chord page's gag leaves Dregs (4 entries) standing for the blast page
+            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) == spigoteer + held
         else:
             p = PORTRAITS[name]
             assert_portrait_exact(gb, name)

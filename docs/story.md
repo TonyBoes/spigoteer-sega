@@ -31,6 +31,13 @@ Running gags:
    and leaves the venue the way that venue would throw him out (swinging doors, crowd-surfed,
    spun out by plates, carried off on a conveyor, blown out by one loud chord...). In space he finally
    gets help (the Spigoteer asks Zizz to beam him back down), and in the finale he says sorry.
+   **Dregs's exits (animated, G17, src/dgag.c).** The narrator page after Dregs's own page in each POST scene plays the gag on the venue
+   backdrop in OBJ sprites (2-3 s; A cannot turn the page until it ends, START still skips): he dashes in from the right, reaches for the prize,
+   and the venue throws him off the LEFT edge (the bars have no doors on screen; dust and a crash sell one just out of view). Saloon: two cowboys
+   lay him on the bar and slide him down it. Stadium: three fans crowd-surf him. Lumber: he bolts out of his boots. Bistro: spun away by plates.
+   Igloo: slides the icy bar and rolls out the tunnel downhill. Factory: the conveyor carries him into a returns box. Chrome Cow: the chord's
+   sound arcs (page 1), the blast (page 2). Teahouse: the beat, then he bounces out. Zoo: monkeys steal his boots and hat. Space: the tractor
+   beam takes him up; the "came down" page sets him down in a pink-jacketed souvenir T-shirt (CGB).
 2. **The mustache.** Sadie rates it four tumbleweeds. Aurora knits it a **pink mustache cozy**,
    which it wears for the rest of the game. Manager-Bot scans it, Zizz calls it a "face-broom",
    and the credits confirm it's still on.
