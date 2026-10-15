@@ -11,7 +11,7 @@
 //        score, no served count, no thirst; when the push is used up he walks on (leo.mask: patrons.c would start his
 //        drink, and he has none);
 //      - the SHOCKWAVE starts (E6): from his right edge it sweeps right along every bar, LEO_WAVE px a frame, drawn as two
-//        arcs a bar (OAM 29-36, the dancers' unused entries; assets/art/leo_fx.txt). Every FULL mug it passes, on any bar,
+//        arcs a bar (OAM 30-37, the dancers' unused entries; assets/art/leo_fx.txt). Every FULL mug it passes, on any bar,
 //        is blown back: it becomes a MUG_RETURN (boss.c boss_mugs: 1 px a frame to the right, caught by the bartender at
 //        that bar's tap end like an empty, EMPTY score, nothing for his meter, and a life if it gets past: the Critic's
 //        sent-back drink). A mug launched while the front is at the spout is blown at once.
@@ -45,13 +45,13 @@
 #define BANG_BG      BOSS_ICE_BG     // its top tile (bottom: + 1)
 #define BANG_NONE    255
 #define FX_BUSY       4              // mugs alive from which the optional sprites (the trailing arc, the hoop) are left out
-#define OAM_WAVE     (OAM_DANCERS + 1)   // OAM 29-36: the arcs (two a bar) or the entrance's leap and hoop (4 + 4)
+#define OAM_WAVE     (OAM_DANCERS + 2)   // (OAM_TAG, 29, is the engine's status tag)   // OAM 30-37: the arcs (two a bar) or the entrance's leap and hoop (4 + 4)
 #define OAM_WAVE_N   8
 #if BOSS_ART_TILES * 2 > BOSS_HUD_BG - BOSS_ICE_BG || BOSS_ART_COLS != BANG_K
 #error "Leo's !!: the extra BG tiles (246-251), a 32 px body"
 #endif
-#if LEO_FX_OBJ < OBJ_TOPPER + 2 * BOSS_HATS_MAX || LEO_FX_OBJ + LEO_FX_TILES > 128 || NUM_BARS * 2 != OAM_WAVE_N || OAM_WAVE + OAM_WAVE_N > 40
-#error "Leo's sprites: OBJ tiles 104-127, OAM 29-36"
+#if LEO_FX_OBJ < OBJ_TOPPER + 2 * BOSS_HATS_MAX || LEO_FX_OBJ + LEO_FX_TILES > OBJ_TAG || NUM_BARS * 2 != OAM_WAVE_N || OAM_WAVE + OAM_WAVE_N > 40
+#error "Leo's sprites: OBJ tiles 104-127, OAM 30-37"
 #endif
 
 enum { LP_WALK, LP_TELL, LP_ROAR };
@@ -93,7 +93,7 @@ static void bang_at(uint8_t c) {
     if (c != BANG_NONE) mark_dirty_attrs(boss_bar, c, c + 1);
 }
 
-// ---- the sprites (OAM 29-36) ----
+// ---- the sprites (OAM 30-37) ----
 static void fx_clear(void) {
     uint8_t i;
     for (i = 0; i != OAM_WAVE_N; i++) shadow_OAM[OAM_WAVE + i].y = 0;
@@ -276,6 +276,8 @@ uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED {
     case BEV_INTRO:
         if (leo.ent) ent_frame();
         break;
+    case BEV_TAG:                                         // (E1's status tag: through the roar he sends back what reaches him)
+        return leo.phase == LP_ROAR ? TAG_RETURN + 1 : 0;
     case BEV_TELL:
         if (leo.phase == LP_WALK) to_tell();
         break;

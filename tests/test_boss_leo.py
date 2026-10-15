@@ -29,7 +29,7 @@ EVERY, TELL, ROAR, PUSH, WAVE, REACH, ENT_FLY, ENT_AIR = (int(re.search(rf"#defi
 ENT_LAND = ENT_FLY + ENT_AIR
 ENT_END = ENT_LAND + ROAR
 FX = json.loads((ROOT / "build" / "leo_fx.json").read_text())
-OAM_WAVE = 29
+OAM_WAVE = 30
 RETURN = 5
 LP_WALK, LP_TELL, LP_ROAR = range(3)
 LEO = Own("leo")
@@ -163,6 +163,7 @@ def test_the_roar_pushes_walkers_back_without_a_serve(model):
         with logic_paused(gb):
             gb.write("spawn_timer", 0xFF)
             gb.write(gb.addr("spawn_timer") + 1, 0x7F)          # (no new regular in the way)
+            clear_regulars(gb)
             before = set(i for i, s in enumerate(gb.read("patron_state", 16)) if s)
             for b, x in ((0, 60), (1, 24), (3, 100)):
                 set_patron(gb, b, x)
@@ -192,7 +193,7 @@ def to_roar(gb):
 
 
 def arcs(gb):
-    """The wave's entries (OAM 29-36): (y, x, tile) of the ones on."""
+    """The wave's entries (OAM 30-37): (y, x, tile) of the ones on."""
     return [(o["y"], o["x"], o["tile"]) for o in gb.oam()[OAM_WAVE:OAM_WAVE + 8] if o["y"]]
 
 
