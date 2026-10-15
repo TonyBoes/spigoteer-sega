@@ -32,7 +32,7 @@
 // Screen: the framework's space-lounge wall under everything; map rows 1-3 the portholes (columns 1-3, 8-10, 15-17; each 24x24
 // with its alien, unlit: black ring, lit: bright ring and dock; the lit one has an arrow bobbing under its dock), rows 4-14 the
 // starfield (a dotted lane line on the top edge of rows 4, 6, 8, 10, 12, 14), rows 15-16 the wall with the Spigoteer's bust,
-// row 17 the counter. The HUD (row 0): the score, the beaker icon and X + deliveries at columns 8-11, T + seconds at 16-19.
+// row 17 the counter. The HUD (row 0): the score, the beaker icon and the deliveries at columns 11-13, T + seconds at 16-19.
 // The framework's banner rows 2-3 cover the portholes during the intro and the count: their tiles and attributes are saved at
 // entry and put back on the first play frame. "WHOA" and "TIME UP" are written on row 14 (the launch gap) in the HUD colours,
 // WHOA put back after 40 frames.
@@ -163,10 +163,10 @@ static void put_porthole(uint8_t p, uint8_t lit, uint8_t slot) {  // queued (or 
     for (r = 0; r < 3; r++) ad_put(0, b + 3 * r, porthole_col[p], 1 + r, 3);
 }
 
-static void hud_deliveries(void) {               // HUD columns 10-13: the beaker icon, X, the count
-    S.dbuf[0] = AD_BG + ADB_HUDI; S.dbuf[1] = glyph_for('X');
-    S.dbuf[2] = S.delivered >= 10 ? TILE_GLYPH_0 + S.delivered / 10 : TILE_HUD_BLANK;
-    S.dbuf[3] = TILE_GLYPH_0 + S.delivered % 10;
+static void hud_deliveries(void) {               // HUD columns 11-13: the beaker icon, the count (no X: owner 2026-10-15)
+    S.dbuf[0] = AD_BG + ADB_HUDI;
+    S.dbuf[1] = S.delivered >= 10 ? TILE_GLYPH_0 + S.delivered / 10 : TILE_HUD_BLANK;
+    S.dbuf[2] = TILE_GLYPH_0 + S.delivered % 10;
 }
 
 static void hud_time(void) {                     // the hourglass + seconds (2 digits) at columns 17-19 (column 16 blank), as the framework's timer
@@ -236,12 +236,12 @@ void ad_enter(void) BANKED {
         ad_put(1, S.hattr, 0, 3, 20);            // mini-games' banners (the portholes' palettes made them unreadable)
     }
     hud_deliveries(); hud_time();
-    vram_put(10, HUD_ROW, S.dbuf, 4);
+    vram_put(11, HUD_ROW, S.dbuf, 3);
     vram_put(16, HUD_ROW, S.tbuf, 4);
     if (is_cgb) {                                // the HUD's attributes are the row's already
-        for (k = 0; k < 4; k++) ta[k] = BGPAL_HUD;
+        for (k = 0; k < 3; k++) ta[k] = BGPAL_HUD;
         VBK_REG = VBK_BANK_1;
-        vram_put(10, HUD_ROW, ta, 4);
+        vram_put(11, HUD_ROW, ta, 3);
         VBK_REG = VBK_BANK_0;
     }
     draw();                                      // the beaker on the bar, the rocks at rest (no play before MG_PLAY)
@@ -372,7 +372,7 @@ static void deliver(void) {
     S.delivered++;
     if (S.delivered == AD_STEP1) S.spd = 1; else if (S.delivered == AD_STEP2) S.spd = 2;
     hud_deliveries();
-    vq_add(0, S.dbuf, 10, HUD_ROW, 4);
+    vq_add(0, S.dbuf, 11, HUD_ROW, 3);
     put_porthole(S.lit, 0, 0);                   // this one goes dark, another lights (never the same twice)
     next = (S.lit + 1 + mg_rand() % 2) % 3;
     S.lit = next;

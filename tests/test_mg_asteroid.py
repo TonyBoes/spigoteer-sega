@@ -94,7 +94,7 @@ def star_hash(c, r):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_screen_and_its_art(model):
-    """The intro: the banner over the portholes, the HUD (score, the beaker icon and X0, the hourglass and 45), the starfield and lane lines
+    """The intro: the banner over the portholes, the HUD (score, the beaker icon and 0, the hourglass and 45), the starfield and lane lines
     (the mock-up's star hash), the counter, the lit porthole's tiles, the tiles of the approved art, the sprites (beaker, halo,
     arrow, the Spigoteer's bust, ten rocks), the palettes (CGB) and OBP1 (DMG)."""
     with asteroid(model) as gb:
@@ -103,8 +103,7 @@ def test_the_screen_and_its_art(model):
         frames(gb, 30)
         assert text(gb, 2) == "ASTEROID DELIVERY" and text(gb, 3) == "STEER AND LAND SOFT"
         assert hud_timer(gb) == "45" and score(gb) == 0 and gb.mem16("mg_timer") == 0
-        x_glyph = [t for t, ch in GLYPH_CH.items() if ch == "X"][0]
-        assert tilemap_row(gb, 0, 10, 4) == [AD_BG + ART["hudi"], x_glyph, BLANK, 36], "the icon, X, 0 (glyph 0 is 36)"
+        assert tilemap_row(gb, 0, 10, 4) == [BLANK, AD_BG + ART["hudi"], BLANK, 36], "the icon at 11 and the count (no X; glyph 0 is 36)"
         s = ad(gb)
         assert (s["delivered"], s["st"], s["time"], s["x"], s["y"], s["vx"], s["vy"]) == (
             0, AS_FLY, TIME_S * 60, START_X << 8, START_Y << 8, 0, 0)
@@ -570,7 +569,7 @@ def test_the_hud_counts_deliveries_and_seconds(model):
         at_dock(gb, PORTHOLE_CX[lit], vy=-100)
         frames(gb, 3)
         assert snap(gb)["delivered"] == 10
-        assert tilemap_row(gb, 0, 10, 4) == [AD_BG + ART["hudi"], [t for t, c in GLYPH_CH.items() if c == "X"][0], 36 + 1, 36]
+        assert tilemap_row(gb, 0, 11, 3) == [AD_BG + ART["hudi"], 36 + 1, 36]
 
 
 # ---- sprites per line -----------------------------------------------------------------------------------------------------------------
