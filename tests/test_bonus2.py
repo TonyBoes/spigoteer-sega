@@ -458,7 +458,7 @@ def tips_shot(gb, name):
 
 
 def test_the_tray_is_held_at_waist_height(gb):
-    """The tray's four entries sit over his body rows 12-27 (his waist: the tray's top surface, art row 5, is his row 17),
+    """The tray's four entries sit over his body rows 8-23 (belt height, 4 px above D5b: the tray's top surface, art row 5, is his row 13),
     on the same x as his two entries and with lower OAM indexes (so it is in front of him on DMG too, where the smaller x
     wins and a tie goes to the lower index); he is drawn behind the falling items. The hitbox surface is the drawn tray top."""
     enter_tips(gb)
@@ -469,13 +469,13 @@ def test_the_tray_is_held_at_waist_height(gb):
         t = [raw_oam(gb, OAM_TRAY + k) for k in range(4)]
         b = [raw_oam(gb, OAM_BT_TIPS + k) for k in range(4)]
         assert [e["tile"] for e in t] == [T_TRAY + 2 * k for k in range(4)]
-        assert all(e["y"] == BT_OAM_Y + 12 and e["x"] == tray(gb) + 8 * k for k, e in enumerate(t))
+        assert all(e["y"] == BT_OAM_Y + 8 and e["x"] == tray(gb) + 8 * k for k, e in enumerate(t))
         assert {e["y"] for e in b} == {BT_OAM_Y, BT_OAM_Y + 16}
         body_x = sorted({e["x"] for e in b})
         assert body_x == [tray(gb) + 8, tray(gb) + 16], "his two columns are the tray's middle two"
         assert OAM_ITEMS + TS_ITEMS <= OAM_TRAY and OAM_TRAY + 4 <= OAM_BT_TIPS, "items, then the tray, then him"
-        assert t[0]["y"] - 16 + 5 == TRAY_SURFACE and t[0]["y"] - 16 >= BT_OAM_Y - 16 + 12, "surface = art row 5, at his waist"
-        assert BT_OAM_Y - 16 + 17 == TRAY_SURFACE
+        assert t[0]["y"] - 16 + 5 == TRAY_SURFACE and t[0]["y"] - 16 >= BT_OAM_Y - 16 + 8, "surface = art row 5, at his waist"
+        assert BT_OAM_Y - 16 + 13 == TRAY_SURFACE
 
 
 def test_the_waist_tray_catches_what_the_overhead_one_did(gb):

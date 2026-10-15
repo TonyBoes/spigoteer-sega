@@ -1,8 +1,8 @@
 ; Tip Shower (M12, redrawn D5b 2026-10-15) OBJ art: 8x16 frames. Original art.
 ; Frames 1-2: the tray the Spigoteer holds in front of him at waist height, 32x16 (4 entries, the art is 24 wide, columns 4-27),
 ; clean (palette OBJ 0: '-' white, '#' outline) and dirty with a tomato splat (palette OBJ 7: '-' white, '+' tomato red,
-; '#' dark). The frame sits over his body rows 12-27 (his arms hang to the waist, his white-gloved hands grip the tray's top edge,
-; his legs show under it): the tray's top surface is row 5 (his body row 17, screen y 129). His body columns 0-15 are the
+; '#' dark). The frame sits over his body rows 8-23 (his arms hang to the waist, his white-gloved hands grip the tray's top edge,
+; his legs show under it): the tray's top surface is row 5 (his body row 13, screen y 125). His body columns 0-15 are the
 ; frame's columns 8-23. Frames 3-4: rotten tomato (art in the top 8 rows), splat on the floor (bottom rows), palette OBJ 7.
 ................................
 ................................

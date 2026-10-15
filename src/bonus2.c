@@ -84,8 +84,8 @@ enum { PR_NONE, PR_PERFECT, PR_GOOD, PR_LOW, PR_HIGH, PR_SPILL };
 #define TS_COIN         1
 #define TS_TOMATO       2
 #define TS_SPLAT        3
-#define TRAY_OAM_Y      (BT_OAM_Y + 12)   // the tray frame covers his body rows 12-27 (waist height)
-#define TRAY_SURFACE    129     // screen y of the tray's top (his body row 17)
+#define TRAY_OAM_Y      (BT_OAM_Y + 8)    // the tray frame covers his body rows 8-23 (belt height; D5b was 12-27, owner 2026-10-15: a bit higher)
+#define TRAY_SURFACE    125     // screen y of the tray's top (his body row 13)
 #define OAM_ITEMS       4
 #define OAM_TRAY        11
 #define OAM_BT_TIPS     15
