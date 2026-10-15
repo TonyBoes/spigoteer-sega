@@ -137,6 +137,7 @@ void pour_frame(void) BANKED {
     else if (!pour_t) pour_t = FILL_FRAMES;
     else if (pour_t < end) pour_t++;
     pour_bar = bar;
+    if (pour_t == POUR_WIN_START && pour_win > POUR_WIN_LEN) SFX(SFX_COIN);   // the Critic's wide window opens: a ding
     pour_q = pour_t >= POUR_WIN_START && pour_t < end;
     if (pour_t >= POUR_WIN_START) {                          // over draw_fill's full drink (OAM_FILL): sparkle / overflow
         // DMG: OBP1 (the fill glass uses OBP0): the drink darkens in his hand, and the light shades show on the wall

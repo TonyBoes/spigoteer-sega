@@ -2,13 +2,13 @@
 ; (assets/approved/venues/bistro_drink.txt frame 6, the full drink in his hand): SPARKLE, OVERFLOW.
 ; Colours are the full drink's (bistro_drink_full; # outline); DMG draws both frames with OBP1 (- light grey, + dark grey,
 ; # black), so the drink darkens in his hand when the window opens. SPARKLE: twinkles, a shine on the bowl. OVERFLOW: the wine over the brim, down the bowl, a spill.
-.+....+.
-+-+..+-+
-.+....+.
-........
-.#-..-#.
-.#....#.
-.#....#.
+...##...
+#.#--#.#
+..#--#..
+...##...
+##----##
+-#----#-
+##----##
 .#-+++#.
 .#--++#.
 ..#-+#..

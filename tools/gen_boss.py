@@ -52,7 +52,7 @@ BOSS_PAIRS_MAX = 30          # src/boss.h: 21 pairs at 162-203 + 9 at 216-233
 BOSS_SPARK_N = 4             # the sparkle frames (BG 248-251: the Yeti has no landing marker)
 BOSS_ICE_MAX = 2             # src/boss.h: icy counter tiles at BG 246.. (free in the story)
 BOSS_FX_MAX = 4              # src/boss.h: the landing marker's 2 column pairs at BG 248-251 (BOSS_MARK_BG)
-BOSS_HATS_MAX = 4            # topper frames (8x16) at OBJ 96..103
+BOSS_HATS_MAX = 10           # topper frames (8x16) at OBJ 96..115 (the Critic: STILL, BOB, the cloche, the glint, the bubbles)
 # per boss (the order of the hook table's ids does not matter): its art file, the C file it belongs to
 # (src/boss_<name>.c), its body width (px), colours 1-3 (CGB), its extra poses (tells), and "ice": a venue whose
 # counter tiles get icy copies.
@@ -60,7 +60,8 @@ BOSSES = [
     {"name": "big_tex", "width": 40, "pal": ["#F0B888", "#C83020", "#583018"], "extra": []},
     {"name": "sasquatch", "width": 32, "pal": ["#E8B878", "#5C2C14", "#140804"], "extra": ["DUCK", "BURST1", "BURST2"],
      "hats": ["HAT_DUCK"], "fx": [("MARKER", "sasquatch")]},
-    {"name": "critic", "width": 32, "pal": ["#F8D0A8", "#A03070", "#201018"], "extra": ["TASTE"]},
+    {"name": "critic", "width": 32, "pal": ["#F8D0A8", "#A03070", "#201018"], "extra": ["TASTE", "HOLD", "HOLDHOP"],
+     "hats": ["CLOCHE_END", "CLOCHE_MID", "GLINT", "NO_L", "NO_R", "BAD_L", "BAD_R"]},
     {"name": "yeti", "width": 32, "pal": ["#F8F8F8", "#80B0E8", "#182040"], "extra": ["INHALE", "BLOW"],
      "ice": "igloo"},
     {"name": "sumo", "width": 40, "pal": ["#F0A878", "#F0F0E0", "#282048"], "extra": ["SHIKO", "HMPH"]},

@@ -527,6 +527,15 @@ and is caught by the bartender; a return reaching x 152 costs a life; hands-1 wa
 Story fit: Colby's dinner rush has a famous critic in it. PRE_BISTRO page (COLBY): `TONIGHT A FOOD` /
 `CRITIC VISITS.` / `POUR PERFECTLY!`
 
+**As built, readable states and entrance (2026-10-15, owner playtest: "hard to tell what status he was in")**: his rule is unchanged
+(a drink reaching him while he holds a glass, tastes, or has returns waiting is waved back, perfect or not), but each state now has its
+own look: FREE = WALK / STOMP (a smile, the open palm out over a checked napkin); SAVOURING = GULP; HOLDING his empty = the HOLD /
+HOLDHOP poses (eye shut, the empty glass in hand); TASTING / sending back = TASTE. A drink waved back shows TASTE for 24 frames and a
+speech bubble beside him ("NO!" for a perfect drink that came too soon, "BAD" for a sloppy one; a sloppy one he tastes shows "BAD"
+too); the banner window is not used (it covers his bar). Wine's perfect moment: the sparkle frame is redrawn (glowing bowl, glints) and
+SFX_COIN dings as the 12-frame window opens (only in his fight). Entrance on the fight's first start: a silver cloche slides along his
+counter, a bell dings, the lid flies off and he is there (BEV_LOAD / BEV_INTRO / BEV_DRAW like Duke's; src/boss_critic.c).
+
 ### 3.7 The Yeti (Igloo)
 
 Play: a shaggy, friendly Yeti. Every few seconds he takes a big breath and blows: his whole bar ices over and every
