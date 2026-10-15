@@ -451,6 +451,20 @@ at 1.0 px/f (`empty_fast` bit of his bar). Hands 2: holding two, the third coffe
 `empty_gap` is 80 frames, the game's floor (the lodge level's 108 would make him mostly a holder); regulars' empties
 still keep the level's gap from his.
 
+Gone to the woods (built, E2; owner: "he goes invisible for a bit and shows up in another row"): every 360 frames of
+walking he ducks behind the counter (DUCK pose, only crest, brow and eyes show; he stands, still drinks a coffee that
+reaches him; at least 36 frames), then waits until no full mug is in his last 8 px of approach and no empty is sliding
+back on his bar (at most 150 more frames: nothing is lost to his leaving). He vanishes (BS_JUMP + BP_HIDE: no catch,
+no empty, no topper) for 66 frames; the target bar (any other, x 16/32/48) shows his blinking FOOTPRINTS (the landing
+marker slot) from the first frame, and the regulars are steered off both bars. He pops up there (BURST2, 14 frames, the
+thud; regulars on that bar scared off with no penalty), meter and held empties with him. A mug thrown at his empty bar
+while he is away breaks at its left end (a life): the bar is visibly bare. A lost life puts him home (bar 2, x 16).
+So the player must read the footprints and carry the bartender to the new row, not just pour faster.
+Entrance (BEV_INTRO, BG only; fires on the fight's first start like Duke's; `sasq.ent = 1` starts it for a later
+arrival): three thuds, a fist through the back wall (BURST1), him roaring out in splinters (BURST2), WALK at x 16, 60
+frames, the intro's 90 frames after; the bartender is held at bar 0 meanwhile. Rejected idea: swinging in on a rafter
+vine (a sprite pool like Duke's bike; too much OAM). Poses 8 (5 + DUCK, BURST1, BURST2), column pairs 29 of 30.
+
 Why fun and fair: Tapper's core skill (catch the empty you caused) at speed. From x 48 a fast empty takes 88 frames
 to the tap: visible, catchable after an instant bar switch. The hands rule plus the fast empty means the best
 rhythm is throw, switch away, come back for the empty: a real juggling pattern. Readable: his empties move visibly
