@@ -2437,42 +2437,42 @@ the chart is tools/taiko_chart.py (a text grid, 2 strings of 8 rows a bar) -> tk
   (the list's new line, counts). New goldens (dmg + cgb): tk_intro, tk_cup, tk_play, tk_spill, tk_result. Replaced on purpose: mg_list and
   mg_list_locked (the list gains the TAIKO POUR line / a fifth "? ? ?").
 
-## Marshmallow Drop as built (M11e, docs/minigames_bosses.md 4.5, 2026-10-12)
+## Marshmallow Drop as built (M11e, docs/minigames_bosses.md 4.5, 2026-10-12; reworked in batch D2, 2026-10-15)
 The igloo's mini-game (STORY chapter 5's mini slot, ARCADE, BONUS > MINI GAMES "MARSHMALLOWS", THE IGLOO). Look: the owner-approved hybrid
-(proposal2: B's tin cups, hoist-pail dropper and Aurora in the serving hatch on A's ice bricks, window, COCOA BAR sign, tally icon and
-conveyor), aurora window **W1** (three pleated curtains, green with magenta tips; DMG light curtains on a black sky), art imported pixel-exact
-from the proposal's mock-up scene (assets/art/marshmallow/*.txt; tools/gen_mm.py -> build/mm_art.h, build/mm.json, out/preview/mm_*).
-- **Shimmer: built as the tile shimmer** (not the CGB palette pulse). The real budget allows it: the framework's free BG ids are 125-255 (131) and
-  the whole screen with the window's 3 frames and both belt phases is **95 tiles** (125-219); the 3 frames' tiles are all resident, so a step is
-  just 4 queued map rows of 6 bytes (the window's 24 cells), every 10 frames, sequence 0 1 2 1, on even frames; the belt row (18 cells) swaps
-  its 2 tile phases every 8 frames on odd ones, so the two never share a frame. CGB and DMG both shimmer.
-- Code: src/mm.c (bank 255 by autobank), struct mm_state (191 B) in the mg union (G_MM = 8, MG_GAMES 9), medal_at {2000, 4000, 6000} (the
-  generic path), no HARD (the spec has none).
-- Rules as 4.5, with these decisions: the pail slides x 16..136 at 1.0 / 1.25 / 1.5 px a frame (0-15 / 15-30 / 30-45 s); a marshmallow falls 22
-  frames at 2 px (from y 51 at the pail's x + 4); a hit is -1 <= marshmallow x - cup x <= 11 (centre in the 12 px opening); cups 0.5 / 0.75 /
-  1.0 px a frame, 48-72 px apart (seeded with mg_rand), at most 4 visible (8 entries) + the falling marshmallow = **9 sprites a line**. +100 each
-  landing, +300 for the third (PERFECT COCOA: a pop, the HUD tally +1), a fourth splashes for -100 (never below this game's earnings) and that cup
-  takes nothing more. **Spec conflicts, decided:** (1) the reload counts 24 frames **after the marshmallow lands** (a drop every 46 frames at best,
-  the spec's "at most ~58 drops"); counted from the drop (the spec's literal sentence and the mock-up) it would be 112 drops and a mash of A scored a
-  silver. (2) Points are banked as marshmallows land (as in the mock-up), not when a cup leaves at the right: the totals are the same for cups that
-  leave, and every drop pays at once. Mash of A (every 3 frames, whole game): 2300 (bronze); the test pilot: ~3800 (2 perfects, 32 hits). Gold 6000
-  looks reachable only by very good play: tune the medals in playtest.
-- Screen: HUD tally = A's icon + X + 2 digits at columns 9-12 (the proposal had one digit); window columns 1-6 rows 1-4 (BG 6 green / 7 magenta),
-  sign columns 8-19 rows 1-4 (HUD glyphs, `COCOA BAR` / `3 PERFECT` on rows 2-3: the framework's banner covers them and the window's middle rows
-  until the first play frame, when mm_update queues them back; the attributes of rows 2-3 stay the HUD's until then), beam row 5, hatch columns
-  17-19 rows 8-10, belt row 14, panels row 15, floor rows 16-17. BG palettes 2 brick, 3 wood, 5 belt + hatch, 6, 7 (1 HUD, 4 the medal's). OAM: 0-3 pops,
-  4 falling marshmallow, 5 loaded one, 6-7 pail, 8-17 cups. OBJ: 22 entries (44 tiles) in two blocks, 56-91 (18 entries) and 96-103 (OBJ_DANCER..,
-  the show's tiles: no show runs; the level load restores them: a test compares the level after it with a fresh boot's); CGB OBJ palettes 1 cups,
-  2 pail, 3 marshmallows and pops; DMG cups and pail on OBP1 = 0xE0, marshmallows and pops on OBP0 (boot's 0xD0).
-- Numbers: ROM0 real free 577 B unchanged (no ROM0 code; mg.c gained one case each in 3 switches in its own bank); WRAM_LO 3936 / WRAM_HI_0 3455
-  unchanged (no new global). Shared files touched: mg.c / mg.h (G_MM + struct), mg_list.c, gen_story.py (BUILT_SLOTS MINI += IGLOO), Makefile
-  (mm_art.h), tests/test_mg_list.py.
-- Tests (tests/test_mg_marshmallow.py, 28 x DMG/CGB): the screen and its art byte for byte, the attributes, the colours; pail speeds and ends; cup
-  speeds, spacing 48-72 over a whole game, <= 4 visible; the 22-frame fall, one in the air, the reload; the opening edges (-2 miss, -1 / 11 hit, 12
-  miss); 100 / 100 / 400, the tally and pop; the splash and the dead cup; shimmer 0 1 2 1 and the belt; the forced worst scene (9 a line); a pilot's
-  whole game and a mash (<= 10 a line); medal edges; practice retry / menu; STORY chapter 5 and its Last call restored; ARCADE; the list; the release
-  list; goldens. New goldens (dmg+cgb): mm_intro, mm_play, mm_perfect, mm_splash, mm_result. Replaced on purpose, reason "the list gains
-  MARSHMALLOWS after TAIKO POUR": mg_list.{dmg,cgb}, mg_list_locked.{dmg,cgb}.
+(B's tin cups, hoist-pail dropper and Aurora in the serving hatch on A's ice bricks, window W1 with its tile shimmer, COCOA BAR sign, tally icon and
+conveyor; assets/art/marshmallow/*.txt; tools/gen_mm.py -> build/mm_art.h, build/mm.json, out/preview/mm_*). **Reworked after the owner's playtest
+("significantly harder than all of the other mini games", 2026-10-15)**; the shimmer details below are unchanged.
+- **Controls:** LEFT / RIGHT steer the pail along the rail (x 16..136): +3/8 px a frame^2 up to 2.0 px a frame, friction 4/8 with no key (a little
+  momentum), stops dead at the ends. A drops a marshmallow straight down (3 px a frame, 15 frames to the cups' rim; one in the air; the next loaded
+  12 frames after it is down). The pail no longer moves by itself.
+- **Mugs:** 6 (MM_MUGS) ride the belt at 0.5 px a frame, 48 px apart, and LOOP (past the right edge a cup comes back at the left with what it holds; a
+  lap is 576 frames). At most 4 on screen. A hit is -1 <= marshmallow x - cup x <= 11 (the 12 px opening). Three make a mug FULL: the 3-marshmallow
+  frame, copper on CGB (the pail's OBJ palette: the level load restores OBJ palettes 1-3 only), a pop; it takes nothing more.
+- **Supply:** 3 x 6 + 1 = 19 marshmallows, shown in the HUD (icon at column 11, what is left at 12-13; the goal area of the story). The game ends
+  when every cup is full ("ALL MUGS FULL"), when the supply is out and the last one is down ("OUT OF MARSHMALLOWS"), or at 60 s ("TIME UP").
+- **Misses (owner: "hit the conveyor belt with a splat"):** a marshmallow that is not in an open cup (a full cup included: it bounces, no penalty,
+  the supply is the cost) falls on to the belt (18 frames), SFX_BREAK, and lies there as a splat (3 frames: impact, settling, flat; new art
+  splat.txt, OBJ on the belt's scanlines 112-119, which no cup reaches) that rides right with the belt, blinks for its last 30 frames and is gone after
+  150 (3 at once; a fourth replaces the oldest). The old -100 cup splash is gone (its two cup frames stay in the art, unused).
+- **Scoring and medals:** +100 a marshmallow in a cup, +300 for the third: 6 x 600 = **3600 = GOLD** (all six full, at most one miss: 18 hits of 19), SILVER
+  2400, BRONZE 1200 (mg.h MM_MEDAL_*, mg.c medal_at). Pilots (tests): a steady pilot 3600 in 10-17 s; aiming at the edge of the opening 1600-2400;
+  mashing A uses the supply in 5 s for under 1200.
+- Code: src/mm.c (struct mm_state in the mg union, G_MM = 8); tuning is in named constants (MM_MUGS, MM_TIME_S, MM_BELT, MM_ARM_*, MM_FALL,
+  MM_RELOAD, MM_SPACING) for the later difficulty table. The aurora is frozen in the outro (its queued window rows would overwrite the end banner's
+  letters at columns 1-6). OAM: 0-3 pops, 4 falling, 5 loaded, 6-7 pail, 8-19 cups, 20-25 splats; the cup lines carry at most 8 + the falling marshmallow = **9 a
+  line**. The HOW TO PLAY card is real (2 pages); the banner line is "MOVE THEN A DROPS" (the HUD font has no comma).
+- Shimmer (unchanged): the tile shimmer (not the CGB palette pulse): the framework's free BG ids are 125-255 and the screen with the window's 3 frames
+  and both belt phases is **95 tiles** (125-219); a step is 4 queued map rows of 6 bytes every 10 frames, sequence 0 1 2 1, on even frames; the belt row
+  swaps its 2 phases every 8 frames on odd ones. CGB and DMG both shimmer. Screen: window columns 1-6 rows 1-4, sign columns 8-19 rows 1-4 (HUD
+  glyphs; the framework's banner covers the window's middle rows and the sign until the first play frame, when mm_update queues them back), beam
+  row 5, hatch columns 17-19 rows 8-10, belt row 14, panels row 15, floor rows 16-17. BG palettes 2 brick, 3 wood, 5 belt + hatch, 6, 7 (1 HUD, 4 the
+  medal's). OBJ 28 entries in two blocks (56-91 and 96-103..); CGB OBJ palettes 1 cups, 2 pail and full cups, 3 marshmallows, pops and splats; DMG cups
+  and pail on OBP1 = 0xE0, marshmallows, pops and splats on OBP0.
+- Tests (tests/test_mg_marshmallow.py, DMG and CGB): the screen and its art byte for byte, colours; the pail's steering and ends; the looping cups
+  and the belt speed; the 15-frame fall, one in the air, the reload, the HUD count; the opening edges; 100 / 100 / 400; a full cup and a miss; the splat
+  (position, three frames, blink, life, replacement); the three endings; the forced worst scene (9 a line); pilots with real keys (gold with <= 1 miss;
+  sloppy; mashing); medal edges; practice, STORY chapter 5, ARCADE, the list, the release list; goldens. Replaced goldens (the picture changed on
+  purpose): mm_intro, mm_play, mm_perfect, mm_splash, mm_result (dmg+cgb): HUD supply count, steered pail, splat instead of a cup splash.
 ## Monkey Business as built (M11e, docs/minigames_bosses.md 4.9, 2026-10-12)
 
 The jungle zoo's mini-game on the framework (src/mk.c), in STORY and ARCADE (gen_story BUILT_SLOTS MINI gains ZOO: chapter 9's slot after the
@@ -3267,7 +3267,7 @@ in a debug-select run (the full card comes every time there). Cards show in STOR
 keep their old banners (no card there).
 - Real cards: Quick Draw, Order Up!, Taiko Pour, Monkey Business, Asteroid Delivery, the shake-up, Perfect Pour, Tip Shower, and (not asked for,
   its controls are settled) the Pour-Off and the stub.
-- Marked in the plan as **card text pending the Batch D rework**: T-Shirt Cannon, Log Roll, Marshmallow Drop, Battery Sort and Milk Run have a placeholder card, today's
+- Marked in the plan as **card text pending the Batch D rework**: T-Shirt Cannon, Log Roll, Battery Sort and Milk Run have a placeholder card (Marshmallow Drop has its real card since D2), today's
   banner line as its only line (mg_card.c, entries marked PENDING). Rewrite them when their rework settles the controls and the goal.
 - Tests: tests/test_mg_card.py (every game has a card; the full card first and it waits; A, then the short card, A skips it; the save; STORY);
   tests/test_mg_bonus.py (list entries, unlocks, medals, the block); tests/test_mg_list.py (scrolling, no row on the separator). The test

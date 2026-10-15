@@ -50,7 +50,7 @@ static const card_t cards[MG_GAMES] = {
     /* G_LR   */ { "LOG ROLL", { "TAP AGAINST THE ROLL", "", "", "" } },                   // PENDING
     /* G_AD   */ { "ASTEROID DELIVERY", { "D-PAD: FLY, DODGE", "SOFT LAND AT LIGHT", "DELIVER 7 FOR GOLD", "" } },
     /* G_TK   */ { "TAIKO POUR", { "A: TOP LANE", "B: BOTTOM LANE", "STAY ON THE BEAT", "" } },
-    /* G_MM   */ { "MARSHMALLOW DROP", { "A DROPS MARSHMALLOWS", "", "", "" } },                   // PENDING
+    /* G_MM   */ { "MARSHMALLOW DROP", { "D-PAD: MOVE ARM", "A: DROP A MALLOW", "FILL SIX MUGS WITH", "THREE EACH" } },
     /* G_MK   */ { "MONKEY BUSINESS", { "LEFT RIGHT: HOP", "A: SHOO MONKEYS", "KEEP THE COCONUTS", "" } },
     /* G_TS   */ { "SHIRT CANNON", { "UP DOWN AIM A FIRE", "", "", "" } },                     // PENDING
     /* G_PO   */ { "THE POUR OFF", { "MOVE, THEN A: POUR", "SERVE THE GUESTS", "FIRST TO 20 WINS", "" } },
@@ -62,6 +62,7 @@ static const card_t cards[MG_GAMES] = {
 // the further pages, in page order (a game's entries together). Only the debug stub has a second page today.
 static const more_t more[] = {
     { G_STUB, { "EARLY IS A MISS", "SLOW IS A MISS", "KEEP YOUR EYES UP", "" } },
+    { G_MM,   { "MUGS LOOP ROUND", "19 MALLOWS ONLY", "MISS ONE AT MOST", "FOR GOLD" } },
     { G_B0,   { "3 LEVELS, EACH", "FASTER THAN LAST", "MISS: RUN ENDS", "" } },
 };
 #define MORE_N (sizeof(more) / sizeof(more[0]))

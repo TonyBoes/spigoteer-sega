@@ -23,7 +23,9 @@ CARD_C = (ROOT / "src" / "mg_card.c").read_text()
 PLAN = (ROOT / "PLAN.md").read_text()
 # game ids (mg.h) in the card table's order (G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO, G_B0, G_B1, G_B2)
 IDS = [MG_STUB, 0, 5, 3, 6, 2, 9, 7, 4, 8, 1, 11, MG_SHAKEUP, MG_FILLLINE, MG_TIPS]
-PENDING = ["BATTERY SORT", "MILK RUN", "LOG ROLL", "MARSHMALLOW DROP", "SHIRT CANNON"]
+PENDING = ["BATTERY SORT", "MILK RUN", "LOG ROLL", "SHIRT CANNON"]
+MG_MARSHMALLOW = 4
+TWO_PAGES = (MG_STUB, MG_SHAKEUP, MG_MARSHMALLOW)         # the games whose card has a second page
 # the story font's punctuation (build/story.h: ST_GLYPH_PERIOD .. COLON are STORY_FONT_BASE + 0..6)
 PUNCT = {QUEST - 3 + i: c for i, c in enumerate(".,!?'-:")}
 
@@ -84,7 +86,7 @@ def test_every_built_game_has_a_card():
 
 
 def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
-    """T-Shirt Cannon, Log Roll, Marshmallow Drop, Battery Sort and Milk Run: card text pending the Batch D rework (PLAN.md): their one line is
+    """T-Shirt Cannon, Log Roll, Battery Sort and Milk Run (Marshmallow Drop has its real card since D2): card text pending the Batch D rework (PLAN.md): their one line is
     today's banner line, the other two empty. The others have three real lines."""
     table, words = cards(), banner_words()
     assert len(words) == len(table)
@@ -96,7 +98,7 @@ def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
         else:
             assert all(ls[:3]), name                        # (the fourth line is there only where it helps)
     after = PLAN.split("card text pending the Batch D rework")[1][:300]
-    assert all(n in after for n in ("T-Shirt Cannon", "Log Roll", "Marshmallow Drop", "Battery Sort", "Milk Run")), "marked in PLAN.md"
+    assert all(n in after for n in ("T-Shirt Cannon", "Log Roll", "Battery Sort", "Milk Run")), "marked in PLAN.md"
 
 
 # ---- the full card ----------------------------------------------------------------------------------------------------------------
@@ -115,7 +117,7 @@ def test_every_game_shows_its_full_card_first(model):
             assert row_text(gb, 1) == "HOW TO PLAY" and row_text(gb, 5) == name, name
             assert [row_text(gb, r) for r in (7, 9, 11, 13)] == ls, name
             assert_frame(gb, name)
-            prompt = "A NEXT  B BACK" if gid in (MG_STUB, MG_SHAKEUP) else "A START  B BACK"      # (from the list: B goes back; the stub and the shake-up have two pages)
+            prompt = "A NEXT  B BACK" if gid in TWO_PAGES else "A START  B BACK"      # (from the list: B goes back; the stub and the shake-up have two pages)
             assert row_text(gb, 16) == prompt and row_text(gb, 2) == "" and row_text(gb, 4) == "" and row_text(gb, 14) == "", name
             for _ in range(4):                                     # the prompt blinks (32 frames on, 32 off)
                 gb.run(40)
@@ -212,7 +214,7 @@ def test_a_card_is_never_wider_than_the_screen_and_the_games_still_run(model):
             mg_enter(gb, gid, MG_PRACTICE)
             gb.run(3)
             gb.press("a", 2)
-            if gid in (MG_STUB, MG_SHAKEUP):                       # (two pages)
+            if gid in TWO_PAGES:                       # (two pages)
                 gb.run(3)
                 gb.press("a", 2)
             run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)
@@ -279,3 +281,19 @@ def test_a_two_page_card_turns_its_page_before_it_starts(model):
         gb.press("a", 2)
         gb.run(3)
         assert row_text(gb, 7) == "EARLY IS A MISS" and row_text(gb, 16) == "A START  B BACK"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_marshmallow_drops_card_has_two_pages(model):
+    """Marshmallow Drop's real card (D2 rework): the controls and the goal on page 1, the loop, the supply and the gold on page 2."""
+    with booted(model, cards=False) as gb:
+        hold_stage_anim(gb)
+        mg_enter(gb, MG_MARSHMALLOW, MG_STORY)
+        gb.run(3)
+        assert [row_text(gb, r) for r in (5, 7, 9, 11, 13, 16)] == ["MARSHMALLOW DROP", "D-PAD: MOVE ARM", "A: DROP A MALLOW", "FILL SIX MUGS WITH", "THREE EACH", "NEXT"]
+        gb.press("a", 2)
+        gb.run(3)
+        assert gb.mem("mg_phase") == MG_CARD
+        assert [row_text(gb, r) for r in (7, 9, 11, 13, 16)] == ["MUGS LOOP ROUND", "19 MALLOWS ONLY", "MISS ONE AT MOST", "FOR GOLD", "PRESS A"]
+        gb.press("a", 2)
+        run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)

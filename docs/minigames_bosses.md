@@ -1042,6 +1042,14 @@ Story fit: PRE_BISTRO page (COLBY): `ORDER UP! REPEAT` / `MY ORDERS. NO` / `CHEE
 
 ### 4.5 Marshmallow Drop (Igloo)
 
+**Reworked 2026-10-15 (batch D2, after the owner's playtest: "significantly harder than all of the other mini games"; PLAN.md "Marshmallow Drop as built"
+has the numbers).** Play: the player steers the marshmallow arm (LEFT / RIGHT, a little momentum) and drops with A. Six cocoa mugs loop round the
+conveyor (a mug leaving at the right comes back at the left) until each holds three marshmallows. The supply is fixed: 6 x 3 + 1 = 19 (shown in the
+HUD), so a perfect game (**gold**: all six full, 3600 points) may miss once. A miss, a full mug included, falls on to the belt and splats there. Ends:
+every mug full, supply out, or 60 s. SILVER 2400, BRONZE 1200. The sections below are the original proposal (the rail moved by itself) and are kept for
+the look and the sprite budget; the rules above replace its "Rules and numbers".
+
+
 Built (2026-10-12; PLAN.md "Marshmallow Drop as built"): the hybrid look with aurora window W1 and its tile shimmer; the reload counts 24 frames after a landing, points are banked as marshmallows land. The text below is the design as proposed.
 
 Play: cocoa mugs ride a conveyor under a marshmallow dispenser that slides along a rail. Press A to drop. Three

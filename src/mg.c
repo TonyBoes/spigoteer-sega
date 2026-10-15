@@ -70,12 +70,12 @@ static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BA
 static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "LEFT FULL RIGHT DEAD",
                                                 "REPEAT THE ORDER", "UP DOWN LANE A TOSS",
                                                 "TAP AGAINST THE ROLL", "STEER AND LAND SOFT", "A TOP LANE B BOTTOM",
-                                                "A DROPS MARSHMALLOWS", "A SHOO NOT PARROTS", "UP DOWN AIM A FIRE", "FIRST TO 20 SERVES",
+                                                "MOVE THEN A DROPS", "A SHOO NOT PARROTS", "UP DOWN AIM A FIRE", "FIRST TO 20 SERVES",
                                                 "PICK THE CALM CAN", "FILL TO THE LINE", "CATCH THE TIPS" };
 static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },   // (Quick Draw: qd_medal)
                                                 { 2000, 4000, 6000 }, { 0, 0, 0 },   // (Order Up!: ou_medal)
                                                 { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },   // (Milk Run: mr_medal, Log Roll: lr_medal, Asteroid Delivery: ad_medal, Taiko Pour: tk_medal)
-                                                { 2000, 4000, 6000 },   // Marshmallow Drop (the generic path)
+                                                { MM_MEDAL_BRONZE, MM_MEDAL_SILVER, MM_MEDAL_GOLD },   // Marshmallow Drop (the generic path; mg.h)
                                                 { 2500, 5000, 8000 },   // Monkey Business: the score (the spec said 1200 / 2500 / 4000, "tune": PLAN.md)
                                                 { 1000, 2000, 3000 },   // T-Shirt Cannon: the score
                                                 { 0, 0, 0 },   // the Pour-Off: no medal

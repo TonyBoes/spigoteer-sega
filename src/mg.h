@@ -46,6 +46,9 @@
 #define MG_TIPS        14       // Tip Shower, "tip catching" (kind 2)
 #define MG_BONUS_N      3
 // Their medals (on the points the round earned; the owner will balance them). The shake-up (Practice) has 3 levels worth 1000 each.
+#define MM_MEDAL_BRONZE     1200   // Marshmallow Drop: 100 a marshmallow + 300 a full cup; all 6 full = 3600 (<= 1 miss of 19)
+#define MM_MEDAL_SILVER     2400
+#define MM_MEDAL_GOLD       3600
 #define BONUS_SHAKE_BRONZE  1000   // the shake-up in Practice has three levels, 1000 points each: 1, 2, 3 cleared
 #define BONUS_SHAKE_SILVER  2000
 #define BONUS_SHAKE_GOLD    3000
@@ -372,35 +375,36 @@ struct tk_state {               // tests read these at story_scratch + offset (t
 void mm_enter(void) BANKED;                      // src/mm.c: MARSHMALLOW DROP (the igloo)
 void mm_update(uint8_t pressed) BANKED;
 
-#define MM_MUGS         5       // cup slots (at most 4 share the screen: spacing >= 48 px)
+#define MM_MUGS         6       // cups on the belt (they loop)
+#define MM_SPLATS       3       // splats on the belt at once
+#define MM_SUPPLY       (3 * MM_MUGS + 1)   // marshmallows in the game: one miss allowed for a perfect one
 struct mm_state {               // tests read these at story_scratch + offset (tests/test_mg_marshmallow.py)
-    int16_t dx;                 // +0 the pail's x, 1/8 px (128..1088)
-    int16_t ax;                 // +2 the falling marshmallow's x, px (its left edge)
-    int16_t cx[MM_MUGS];        // +4 each cup's x, 1/8 px
-    uint8_t on[MM_MUGS];        // +14 the slot is a cup on the belt
-    uint8_t n[MM_MUGS];         // +19 marshmallows in it (0..3)
-    uint8_t spl[MM_MUGS];       // +24 frames since it splashed + 1 (0: not splashed)
-    uint8_t pop[MM_MUGS];       // +29 frames left of its perfect pop
-    int8_t dir;                 // +34 the pail's direction (1 right, -1 left)
-    uint8_t air;                // +35 a marshmallow is falling
-    uint8_t t;                  // +36 frames it has fallen (22: it lands)
-    uint8_t load;               // +37 frames until the next one is loaded (0: loaded)
-    uint8_t anim;               // +38 frames counted
-    uint8_t started;            // +39 the banner rows are the scene again
-    uint8_t wstep;              // +40 the aurora frame shown (0..2)
-    uint8_t bph;                // +41 the belt's phase
-    uint8_t lead;               // +42 the last cup spawned (the next comes when it is gapn px in)
-    uint8_t gapn;               // +43 the spacing to the next cup, px (48..72)
-    uint8_t perfect;            // +44 perfect cocoas
-    uint8_t drops;              // +45
-    uint8_t hits;               // +46 marshmallows that landed in a cup
-    uint8_t splashes;           // +47
-    uint8_t gone;               // +48 cups that left at the right
-    uint8_t hud[2];             // +49 the tally's digits (VBlank queue source)
-    uint8_t win[4][6];          // +51 the aurora window's map rows (queue source)
-    uint8_t belt[2][18];        // +75 the belt row's two phases
-    uint8_t wall[2][20];        // +111 map rows 2-3 as the scene has them (the banner rows' place)
-    uint8_t wattr[2][20];       // +151
+    int16_t dx;                 // the pail's x, 1/8 px (128..1088)
+    int16_t ax;                 // the falling marshmallow's x, px (its left edge)
+    int16_t cx[MM_MUGS];        // each cup's x, 1/8 px (-128..1280; past the right edge it wraps by one lap)
+    uint8_t n[MM_MUGS];         // marshmallows in it (0..3; 3 is full)
+    uint8_t pop[MM_MUGS];       // frames left of its full pop
+    int16_t sx[MM_SPLATS];      // each splat's x, 1/8 px
+    uint8_t sage[MM_SPLATS];    // frames since it landed + 1 (0: no splat)
+    int8_t vx;                  // the pail's speed, 1/8 px a frame (-16..16)
+    uint8_t air;                // a marshmallow is falling
+    uint8_t miss;               // ... and it missed: it goes on to the belt
+    uint8_t t;                  // frames it has fallen (15: the rim, 18: the belt)
+    uint8_t load;               // frames until the next one is loaded (0: loaded)
+    uint8_t anim;               // frames counted
+    uint8_t started;            // the banner rows are the scene again
+    uint8_t wstep;              // the aurora frame shown (0..2)
+    uint8_t bph;                // the belt's phase
+    uint8_t supply;             // marshmallows left (HUD)
+    uint8_t full;               // cups at 3
+    uint8_t drops;              // marshmallows dropped
+    uint8_t hits;               // ... that landed in a cup
+    uint8_t misses;             // ... that did not
+    uint8_t hud[2];             // the supply's digits (VBlank queue source)
+    uint8_t win[4][6];          // the aurora window's map rows (queue source)
+    uint8_t belt[2][18];        // the belt row's two phases
+    uint8_t wall[2][20];        // map rows 2-3 as the scene has them (the banner rows' place)
+    uint8_t wattr[2][20];
 };
 
 void mk_enter(void) BANKED;                      // src/mk.c: MONKEY BUSINESS (the jungle zoo)
