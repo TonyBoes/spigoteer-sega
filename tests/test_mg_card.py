@@ -87,7 +87,7 @@ def test_every_built_game_has_a_card():
 
 
 def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
-    """Battery Sort and Milk Run (Marshmallow Drop, T-Shirt Cannon and Log Roll have their real cards since D2 / D1 / D3): card text pending the Batch D rework (PLAN.md): their one line is
+    """Milk Run (Marshmallow Drop, T-Shirt Cannon, Log Roll and Battery Sort have their real cards since D2 / D1 / D3 / D5a): card text pending the Batch D rework (PLAN.md): their one line is
     today's banner line, the other two empty. The others have three real lines."""
     table, words = cards(), banner_words()
     assert len(words) == len(table)
