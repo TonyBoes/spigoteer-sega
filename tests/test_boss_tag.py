@@ -161,7 +161,7 @@ def test_the_tag_and_the_shake_in_the_boss_rush(model):
         into_fight(gb)
         gb.write("patron_speed", 0)
         gb.write("hurry_speed", 0)
-        until(gb, lambda: gb.mem("intro_timer") == 0, 200)
+        until(gb, lambda: gb.mem("intro_timer") == 0, 400)     # (Big Tex's entrance, E8, comes first)
         block_empties(gb)
         frames(gb, 3)
         assert tag(gb)["y"] != 0 and tag(gb)["tile"] == OBJ_TAG + TAG_READY
