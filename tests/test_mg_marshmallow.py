@@ -2,7 +2,7 @@
 # 2026-10-15): the player steers the pail (D-pad, a little momentum), A drops; six cups loop round the belt; a supply of 19 marshmallows
 # (6 x 3 + 1: a perfect game may miss once); a miss splats on the belt; a full cup takes no more; the game ends when every cup is full, the
 # supply is out, or 60 s have passed; GOLD is a perfect game (all six full).
-# The tests: the screen (the approved art, its palettes, the DMG registers), the pail's steering, the looping cups, the drop (15 frames, one
+# The tests: the screen (the approved art, its palettes, the DMG registers), the pail's steering, the looping cups, the drop (22 frames, one
 # in the air, the reload), the opening, scoring, a full cup, the splat, the three endings, the sprites per line over whole games with a
 # pilot that steers and drops with real keys (perfect play = gold with at most one miss; a sloppy pilot; mashing A), the medal edges, STORY /
 # ARCADE reaching it in chapter 5, BONUS > MINI GAMES, what is put back when it is left, goldens.
@@ -289,8 +289,8 @@ def test_the_belt_moves_a_cup_half_a_pixel_a_frame(model):
 
 # ---- the drop and the opening ----------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_marshmallow_falls_3_px_a_frame_one_at_a_time_and_reloads_after_12(model):
-    """A drops it straight down (its x fixed) at 3 px a frame: 15 frames to the rim, 18 to the belt on a miss; a press while it falls or before
+def test_the_marshmallow_falls_2_px_a_frame_one_at_a_time_and_reloads_after_12(model):
+    """A drops it straight down (its x fixed) at 2 px a frame: 22 frames to the rim, 27 to the belt on a miss; a press while it falls or before
     the next is loaded (12 frames after) does nothing; the loaded one is drawn under the pail, none in the air or while reloading; the HUD
     counts the supply down from 19."""
     with marshmallow(model) as gb:
@@ -310,7 +310,7 @@ def test_the_marshmallow_falls_3_px_a_frame_one_at_a_time_and_reloads_after_12(m
                 ax = ax or s["ax"]
                 assert s["ax"] == ax, "straight down"
                 o = oam(gb, OAM_FALL)
-                assert o["x"] == ax + 8 and o["y"] in tuple(51 + 3 * t + 16 for t in (s["t"] - 1, s["t"], s["t"] + 1))
+                assert o["x"] == ax + 8 and o["y"] in tuple(51 + 2 * t + 16 for t in (s["t"] - 1, s["t"], s["t"] + 1))
                 assert oam(gb, OAM_HELD)["y"] == 0
                 if s["t"] >= 5 and not pressed:
                     gb.hold("a")                              # a second press in the air
@@ -572,12 +572,12 @@ def test_a_sloppy_pilot_earns_a_lesser_medal(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_mashing_a_uses_up_the_supply_for_little(model):
-    """A pressed every 3 frames with the pail left where it is: one drop in 15 frames at best (the supply of 19 is gone in 5 s), the game ends
+    """A pressed every 3 frames with the pail left where it is: one drop in 34 frames at best (22 to land, 12 to reload: the supply of 19 is gone in about 11 s), the game ends
     'OUT OF MARSHMALLOWS' with no medal; at most 10 a line."""
     worst = [0]
     with marshmallow(model) as gb:
         to_play(gb)
-        for i in range(0, 600, 3):
+        for i in range(0, 1200, 3):
             gb.hold("a")
             frames(gb, 1, worst)
             gb.release("a")

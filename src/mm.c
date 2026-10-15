@@ -5,7 +5,7 @@
 // Rules (1/8 px units in the code):
 // - LEFT / RIGHT steer the pail along the rail, x 16..136: +3/8 px a frame^2 up to 2.0 px a frame, friction 4/8 a frame when no key
 //   is held (a little momentum), stops dead at the ends. A drops a marshmallow straight down from the pail (top-left at the pail's
-//   x + 4, y 51) at 3 px a frame: 15 frames to the cups' rim (y 96). One in the air at a time; the next is loaded 12 frames after.
+//   x + 4, y 51) at 2 px a frame: 22 frames to the cups' rim (y 95). One in the air at a time; the next is loaded 12 frames after.
 // - MM_MUGS (6) cups ride the belt to the right at 0.5 px a frame, 48 px apart, and LOOP: a cup leaving at the right comes back at the
 //   left with what it holds. At most 4 share the screen: a cup line has at most 8 cup entries + the falling marshmallow = 9 of the 10.
 // - The supply is MM_MUGS x 3 + 1 = 19 marshmallows (HUD: the icon at column 11, what is left at 12-13). A hit: -1 <= marshmallow x -
@@ -50,9 +50,9 @@ typedef char mm_fits[(MM_BG + MM_BG_TILES <= 256 && (OBJ_MUG & 1) == 0 && (OBJ_D
 #define MM_ARM_FRIC     4                   // no key takes this off a frame
 #define MM_PAIL_Y      40
 #define MM_PUFF_Y0     51                   // the marshmallow's top at the drop; + MM_DROP_V a frame
-#define MM_DROP_V       3
-#define MM_FALL        15                   // frames to the rim
-#define MM_BELT_T      18                   // frames to the belt (a miss splats there)
+#define MM_DROP_V       2                   // (owner 2026-10-15: slower first; was 3)
+#define MM_FALL        22                   // frames to the rim (y 95 at 2 px a frame)
+#define MM_BELT_T      27                   // frames to the belt (a miss splats there)
 #define MM_RELOAD      12
 #define MM_CUP_Y       96
 #define MM_POP_Y       80
