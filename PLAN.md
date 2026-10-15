@@ -3277,7 +3277,7 @@ in a debug-select run (the full card comes every time there). Cards show in STOR
 keep their old banners (no card there).
 - Real cards: Quick Draw, Order Up!, Taiko Pour, Monkey Business, Asteroid Delivery, the shake-up, Perfect Pour, Tip Shower, and (not asked for,
   its controls are settled) the Pour-Off and the stub.
-- Marked in the plan as **card text pending the Batch D rework**: Log Roll, Battery Sort and Milk Run have a placeholder card (Marshmallow Drop has its real card since D2, T-Shirt Cannon since D1), today's
+- Marked in the plan as **card text pending the Batch D rework**: Battery Sort and Milk Run have a placeholder card (Marshmallow Drop has its real card since D2, T-Shirt Cannon since D1, Log Roll since D3), today's
   banner line as its only line (mg_card.c, entries marked PENDING). Rewrite them when their rework settles the controls and the goal.
 - Tests: tests/test_mg_card.py (every game has a card; the full card first and it waits; A, then the short card, A skips it; the save; STORY);
   tests/test_mg_bonus.py (list entries, unlocks, medals, the block); tests/test_mg_list.py (scrolling, no row on the separator). The test

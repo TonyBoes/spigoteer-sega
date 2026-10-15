@@ -298,6 +298,20 @@ struct lr_state {               // tests read these at story_scratch + offset (t
     uint8_t brow[20], battr[20];   // +59 a banner row's forest tiles and attributes (queue source)
     uint8_t roll_buf[64];       // +99 the log's body tiles of the frame queued (VBlank queue source)
     uint8_t rip_buf[32];        // +163 the ripple tiles
+    uint16_t fish_in;           // +195 frames until the next leap is told (the fish's schedule: D3, docs 4.3)
+    uint16_t fseed;             // +197 the fish's own xorshift (mg_rand is left alone: the flips' sequence stays)
+    uint8_t fish_t;             // +199 0: no fish; else frames since its ripples began (WARN, then FLY, then the landing ring)
+    int8_t  fish_dir;           // +200 -1 flies left, 1 flies right
+    uint8_t fish_x0;            // +201 the launch point's x (the fish's centre, px)
+    uint8_t fish_tgt;           // +202 0 aimed at the Spigoteer, 1 at the Sasquatch
+    uint8_t fish_done;          // +203 1: it has hit or been dodged
+    uint8_t hop_t;              // +204 the Spigoteer's hop: 0 idle, 1..36 in the air, then the landing rest
+    uint8_t stun;               // +205 frames of the stagger after a hit (no hop)
+    int8_t  hit_dir;            // +206 the direction the last fish was flying
+    uint8_t dodged, hits;       // +207 fish dodged, fish that hit the Spigoteer
+    uint8_t sq_st;              // +209 SQ_LOG on the log, SQ_SWIM in the river after a fish, SQ_END the outro's topple
+    uint8_t sq_hop;             // +210 the Sasquatch's hop (0 idle, 1..36)
+    uint8_t sq_dodge;           // +211 1: he hops this fish
 };
 
 void ad_enter(void) BANKED;                      // src/ad.c: ASTEROID DELIVERY (the space lounge)

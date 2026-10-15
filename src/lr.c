@@ -17,6 +17,19 @@
 //   (no HARD). If he is up at time up the partner topples into the river (frame 3, X-flipped, a droplet burst).
 // - Sounds (no new SFX): the creak SFX_SHAKE, the fall SFX_BREAK, the hop back SFX_LAUNCH, NO FALLS SFX_CATCH.
 //
+// D3 (the owner's playtest, 2026-10-15): "the game needs something more", "the sasquatch just stands there".
+// - FISH: one at a time a fish leaps out of the river across the log (a flat 96 px arc, 48 frames, apex over its target), told 40
+//   frames early by ripple rings at its launch point (SFX_FILL) and a splash ring where it lands. Aimed at the Spigoteer (from the
+//   left or the right) or, one leap in four, at the Sasquatch (from the left). The Spigoteer HOPS over it with A, B or Up (36 frames in
+//   the air, 12 of rest; hop_h[]): hit while he is under LR_CLEAR px, the fish's direction kicks his velocity by 3 px a frame
+//   (about 45 px of lean of the 64: a big wobble that two or three quick taps against it cure; a fall when the push helps it) and he staggers 24 frames (no hop). A dodge scores LR_PTS_DODGE.
+//   The leaps come every 262 frames at the start and every 112 at the end (+ 0..31): LR_GAP0 - elapsed / 16. The fish has its own
+//   xorshift (fseed): mg_rand is not called, so the flips' sequence is the one the tests model. A fall ends the fish in the air.
+// - The SASQUATCH (the lodge show's 4 dance frames, no new art): he treads on the log (frames 0 2 0 3 by the bark's roll phase, a 1 px
+//   bob, mirrored by the roll's direction, swaying up to 3 px with the push), windmills (1 2 1 3) while a flip is being told, hops a
+//   fish aimed at him half the time, and otherwise is knocked into the river, swims LR_SQ_SWIM frames and climbs back. His falls are
+//   flavour: nothing about the score or the medal depends on him.
+//
 // Screen (the approved mock-up): pines rows 1-4, far bank 5-6, river 7-17 with two ripple tiles, the log on rows 12-13
 // (columns 3-16), the meter on row 16 (columns 2-17: marker x = 76 + lean). The log's four body tiles are one of four roll
 // frames (a step of the bark = 64 B copied into fixed VRAM slots by a VBlank queue entry of its own), the ripples' two
@@ -24,7 +37,9 @@
 // MG_GAME_BG, the streamed slots at BG ids 128+). The HUD: score, the falls icon + digit at columns 9-10, T + seconds.
 // CGB BG palettes 2 forest, 3 river, 5 log, 6 meter, 7 bank (4 stays the medal's); OBJ 0 the Spigoteer (the bartender's),
 // 5 the Sasquatch (the show's), 1 droplets, 2 marker. DMG: BGP and OBP0 as the level's (every sprite on OBP0).
-// OAM: 0 marker, 1-4 droplets, 5-10 the Spigoteer (3 x 2 entries of 8x16), 11-14 the Sasquatch. Worst line 9 (the splash).
+// OAM: 0 marker, 1-4 droplets, 5-10 the Spigoteer (3 x 2 entries of 8x16), 11-14 the Sasquatch, 15-16 the fish, 17-18 a ring.
+// Worst line 9 (the splash): the fish and the rings are never up while the Spigoteer is in the water, and a fish that knocks the
+// Sasquatch in ends there.
 // OBJ tiles: the first 18 entries in ids 56-91 (the mugs' and crash frames: the level load puts them back), the rest from
 // the first even id above the BG tiles (166..).
 #pragma bank 255
@@ -62,6 +77,28 @@ typedef char lr_fits[(LR_BG + LR_ROLL_AT >= 128 && LR_BG + LR_BG_TILES <= 256 &&
 #define LR_GOLD          40                     // seconds on the log
 #define LR_SILVER        34
 #define LR_BRONZE        25
+// the fish and the hops (frames, px)
+#define LR_WARN          40                     // frames of ripples before a leap
+#define LR_FLY           48                     // frames of the leap (2 px a frame: 96 px)
+#define LR_LAND          12                     // frames of the landing ring
+#define LR_HALF          48                     // half the leap's span: the launch point is this far from the target's x
+#define LR_HIT_W         10                     // a fish is on its target while |fish x - target x| < this
+#define LR_CLEAR         14                     // a hop this high (px) clears a fish
+#define LR_KICK         262144L                 // a hit's velocity kick, 4 px a frame (about 64 px of lean unless he leans back: the edge is 64)
+#define LR_STUN          24
+#define LR_LOCK          12                     // the first frames of the stagger ignore Left / Right (he cannot lean back yet)
+#define LR_HOP_LEN       36                     // frames in the air
+#define LR_HOP_END       48                     // ... then 12 of rest before the next hop
+#define LR_FISH_FIRST   240                     // frames to the first leap's ripples
+#define LR_GAP0         262                     // the gap between leaps at the start; elapsed / 16 shorter (112 at the end)
+#define LR_FISH_LAST     90                     // no ripples with fewer frames than this left
+#define LR_PTS_DODGE    150
+#define LR_FISH_BASE_Y  118                     // the water line the arc starts on (the fish's centre)
+#define LR_SQ_HOP_K      12                     // the leap's frame the Sasquatch starts his hop
+#define LR_SQ_SWIM      150                     // frames in the river after a hit (top_t counts), then 12 of climbing
+#define LR_SQ_UP_LEN     12
+#define LR_SPIG_CX      104                     // the Spigoteer's and the Sasquatch's centres
+#define LR_SQ_CX         52
 #define LR_HIDE_AT       57                     // MG_END frame the figures below the result window's edge go
 #define LR_BAND_OFF      40                     // MG_END frame the banner rows go back to the forest
 #define LR_RIPPLE_EVERY  20
@@ -80,20 +117,31 @@ typedef char lr_fits[(LR_BG + LR_ROLL_AT >= 128 && LR_BG + LR_BG_TILES <= 256 &&
 #define LR_HUD_DIGIT_COL 11
 #define LR_PAL_DROP       1                     // CGB OBJ palettes
 #define LR_PAL_MARK       2
+#define LR_PAL_FISH       3
 // OAM
 #define OAM_MARK         0
 #define OAM_DROPS        1
 #define OAM_SPIG         5
 #define OAM_SQ          11
-#define OAM_N           15
+#define OAM_FISH        15
+#define OAM_RING        17
+#define OAM_N           19
 // the shifts that stand in for divides below hold for exactly these numbers
 typedef char lr_divs[(LR_RAMP_FRAMES == 30 && LR_RIPPLE_EVERY == 20 && LR_TOPPLE == 16 && LR_WATER_Y - LR_SQ_Y == 28
                       && LR_WATER_Y - LR_SPIG_Y == 28 && LR_FALL_LEN - LR_HOP_AT == 12) ? 1 : -1];
 enum { LS_RUN, LS_WATER, LS_OVER };             // S.st: on the log; in the water; the outro
+enum { SQ_LOG, SQ_SWIM, SQ_END };               // S.sq_st: standing on the log; knocked in by a fish; toppled by the outro
 enum { BAND_KEEP, BAND_FOREST, BAND_HUD };      // S.band[]: a banner row's pending change
 enum { P_CA, P_CB, P_L1, P_L2, P_SPLASH, P_CLIMB };   // poses (tools/gen_lr.py POSES)
 
 // a droplet's launch velocities, 1/128 px a frame (the mock-up's, x 0.9)
+// the Spigoteer's / Sasquatch's hop height by frame (t (36 - t) / 9) and the fish's arc by frame (28 x 4 k (48 - k) / 48^2): tables, no multiply
+static const uint8_t hop_h[LR_HOP_LEN + 1] = { 0, 3, 7, 11, 14, 17, 20, 22, 24, 27, 28, 30, 32, 33, 34, 35, 35, 35, 36, 35, 35, 35, 34, 33, 32, 30,
+                                               28, 27, 24, 22, 20, 17, 14, 11, 7, 3, 0 };
+static const uint8_t fish_arc[LR_FLY] = { 0, 2, 4, 7, 9, 10, 12, 14, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 26, 27, 27, 28, 28, 28, 28, 28, 28, 28, 27, 27,
+                                          26, 26, 25, 24, 23, 22, 21, 20, 18, 17, 16, 14, 12, 10, 9, 7, 4, 2 };
+static const uint8_t tread_f[4] = { 0, 2, 0, 3 }, flail_f[4] = { 1, 2, 1, 3 };   // the Sasquatch's dance frames: treading, windmilling
+static const uint8_t ring_seq[8] = { 0, 1, 2, 0, 1, 2, 1, 2 };
 static const int16_t drop_vx[4] = { -150, -57, 69, 161 };
 static const int16_t drop_vy[4] = { -414, -507, -484, -392 };
 
@@ -193,6 +241,7 @@ void lr_enter(void) BANKED {
         for (k = 0; k < 5; k++) set_bkg_palette(k < 2 ? 2 + k : 3 + k, 1, lr_pal_bg + 4 * k);   // 2 3 5 6 7
         set_sprite_palette(LR_PAL_DROP, 1, lr_pal_obj);
         set_sprite_palette(LR_PAL_MARK, 1, lr_pal_obj + 4);
+        set_sprite_palette(LR_PAL_FISH, 1, lr_pal_obj + 8);
     }
     for (k = 0; k < 20; k++) S.hud_attr[k] = BGPAL_HUD;
     // the HUD: the falls icon and its digit at columns 10-11 (the lives stay at 7-8)
@@ -202,6 +251,8 @@ void lr_enter(void) BANKED {
     S.lean = 0; S.vel = 0; S.drift = 0; S.on = 0; S.elapsed = 0; S.roll = 0; S.st = LS_RUN; S.falls = 0; S.fall_t = 0;
     S.s60 = 0; S.roll_f = 0; S.roll_vis = 0; S.rip_f = 0; S.rip_vis = 0; S.anim = 0; S.started = 0; S.ended = 0;
     S.top_t = 0; S.drop_t = 0; S.drop_x = 0; S.band[0] = S.band[1] = BAND_KEEP; S.digit = TILE_GLYPH_0;
+    S.fish_in = LR_FISH_FIRST; S.fseed = mg_seed ^ 0x5A5A; if (!S.fseed) S.fseed = 0xACE1;   // (mg_seed read, not advanced)
+    S.fish_t = 0; S.fish_done = 0; S.hop_t = 0; S.stun = 0; S.dodged = S.hits = 0; S.sq_st = SQ_LOG; S.sq_hop = 0; S.sq_dodge = 0;
     S.tsgn = (mg_rand() & 1) ? 1 : -1;
     S.tell = S.dsr = S.tsgn * LR_RAMP_FRAMES; S.fdelay = 0;
     S.flip_in = LR_FLIP_MIN + mg_rand() % LR_FLIP_RANGE;
@@ -244,6 +295,37 @@ static void partner(uint8_t x, uint8_t y, uint8_t f, uint8_t flip) {   // the sh
     o->y = y + 32; o->x = xb; o->tile = OBJ_DANCER + w[3]; o->prop = pal;
 }
 
+static void pair(uint8_t i, uint8_t cx, uint8_t y, const uint8_t *e, uint8_t flip, uint8_t pal) {   // two 8x16 entries side by side, centred on screen x cx
+    OAM_item_t *o = shadow_OAM + i;
+    uint8_t prop = (is_cgb ? pal : 0) | (flip ? S_FLIPX : 0);
+    o->y = y + 16; o->x = cx; o->tile = otile(e[flip]); o->prop = prop; o++;
+    o->y = y + 16; o->x = cx + 8; o->tile = otile(e[1 - flip]); o->prop = prop;
+}
+
+static uint8_t spig_h(void) { return S.hop_t && S.hop_t <= LR_HOP_LEN ? hop_h[S.hop_t] : 0; }
+static uint8_t sq_h(void) { return S.sq_hop && S.sq_hop <= LR_HOP_LEN ? hop_h[S.sq_hop] : 0; }
+
+static void hide(uint8_t i) { shadow_OAM[i].y = 0; shadow_OAM[i + 1].y = 0; }
+
+static void draw_fish(void) {                   // the fish (OAM 15-16) and a ring (17-18)
+    uint8_t k, rf;
+    int16_t fx;
+    hide(OAM_FISH); hide(OAM_RING);
+    if (!S.fish_t || S.st == LS_WATER) return;
+    if (S.fish_t <= LR_WARN) {                  // the ripples at the launch point, repeating
+        pair(OAM_RING, S.fish_x0, LR_FISH_BASE_Y - 4, lr_ring_e + (ring_seq[(S.fish_t >> 2) & 7] << 1), 0, LR_PAL_DROP);
+    } else if (S.fish_t <= LR_WARN + LR_FLY) {
+        k = S.fish_t - LR_WARN - 1;
+        fx = S.fish_dir > 0 ? S.fish_x0 + (k << 1) : S.fish_x0 - (k << 1);
+        rf = k < 16 ? 0 : k < 32 ? 1 : 2;
+        pair(OAM_FISH, (uint8_t)fx, LR_FISH_BASE_Y - fish_arc[k] - 8, lr_fish_e + (rf << 1), S.fish_dir > 0, LR_PAL_FISH);
+    } else {                                    // the landing ring grows
+        k = S.fish_t - (LR_WARN + LR_FLY);
+        fx = S.fish_dir > 0 ? S.fish_x0 + 2 * LR_FLY : S.fish_x0 - 2 * LR_FLY;
+        pair(OAM_RING, (uint8_t)fx, LR_FISH_BASE_Y - 4, lr_ring_e + ((k < 5 ? 0 : k < 9 ? 1 : 2) << 1), 0, LR_PAL_DROP);
+    }
+}
+
 static int16_t vt(int16_t v, uint8_t t) {      // v x t (t < 64) without the library's multiply: |v| x t by its bits
     uint16_t p = 0, a = v < 0 ? -v : v;
     for (; t; t >>= 1, a <<= 1) if (t & 1) p += a;
@@ -251,7 +333,7 @@ static int16_t vt(int16_t v, uint8_t t) {      // v x t (t < 64) without the lib
 }
 
 static void draw(void) {
-    uint8_t k, f = P_CA, flip = 0, y = LR_SPIG_Y, sq = 0, t, shape;
+    uint8_t k, f = P_CA, flip = 0, y = LR_SPIG_Y, sq = 0, t, shape, h, sx, sy, sflip;
     int16_t a, x, dy, m, tt;
     for (k = OAM_DROPS; k < OAM_SPIG; k++) shadow_OAM[k].y = 0;   // (the rest are all written below)
     // the marker
@@ -267,16 +349,40 @@ static void draw(void) {
         a = m < 0 ? -m : m;
         f = a < 14 ? ((S.anim >> 3) & 1 ? P_CB : P_CA) : a < 40 ? P_L1 : P_L2;
         flip = S.lean > 0 && a >= 14;
+        h = spig_h();
+        if (h) { f = P_CA; y = LR_SPIG_Y - h; }                      // a hop: arms out
+        if (S.stun) { f = P_L2; flip = S.hit_dir > 0; }              // a fish hit him: the hard lean, away from where it came
     }
     spigoteer(y, f, flip);
     // the partner: on the log, startled by a fall, or tumbling into the river at the end
     if (S.top_t) {
         t = S.top_t > LR_TOPPLE ? LR_TOPPLE : S.top_t;
-        partner(LR_SQ_X + (t >> 2), LR_SQ_Y + (uint8_t)((t * 7) >> 2), 3, 1);   // 4 t / 16, 28 t / 16
+        sx = LR_SQ_X + (t >> 2); sy = LR_SQ_Y + (uint8_t)((t * 7) >> 2);   // 4 t / 16, 28 t / 16
+        if (S.sq_st == SQ_SWIM && S.top_t > LR_SQ_SWIM) {            // climbing back out of the river
+            t = S.top_t - LR_SQ_SWIM;
+            sx = LR_SQ_X + ((LR_SQ_UP_LEN - t) >> 2); sy = LR_WATER_Y - (uint8_t)((((uint16_t)t * 7) * 171) >> 9);   // x 28 / 12
+        }
+        partner(sx, sy, 3, 1);
     } else {
+        sx = LR_SQ_X; sy = LR_SQ_Y;
         if (S.st == LS_WATER && S.fall_t < LR_SQ_REACT) sq = 3;
-        partner(LR_SQ_X, LR_SQ_Y, sq, 0);
+        else if (S.stun || (S.fish_t && S.fish_t <= LR_WARN + 30 && S.fish_tgt && !S.sq_hop)) sq = 3;   // startled: he was hit, or a fish is coming for him
+        else if (S.sq_hop) { sq = 1; sy -= sq_h(); }                 // his hop: arms up
+        else {
+            a = S.tell < 0 ? -S.tell : S.tell;
+            if (a < 12) sq = flail_f[(S.anim >> 2) & 3];             // the bark is stopping to turn: he windmills
+            else {                                                   // treading, a step to each of the bark's phases
+                t = (uint8_t)(S.roll >> 14);
+                sq = tread_f[t];
+                sy += t & 1;
+            }
+        }
+        a = S.dsr < 0 ? -S.dsr : S.dsr;                              // he sways with the push, up to 3 px
+        sx += S.dsr < 0 ? -(a >> 3) : (a >> 3);
+        sflip = S.tell < 0;
+        partner(sx, sy, sq, sflip);
     }
+    draw_fish();
     // the droplets of a burst: four, from the origin, shape by age
     if (S.drop_t) {
         t = S.drop_t;
@@ -352,9 +458,76 @@ static void band(void) {
 // ---- the rules ----
 static void burst(uint8_t x) { S.drop_t = 1; S.drop_x = x; }
 
+static uint8_t frand(void) {                    // the fish's xorshift (mg_rand's, on its own seed)
+    uint16_t v = S.fseed;
+    v ^= v << 7; v ^= v >> 9; v ^= v << 8;
+    S.fseed = v;
+    return (uint8_t)v;
+}
+
+static void fish_tell(void) {                   // the ripples begin; the leap's side and target are chosen now
+    uint8_t r = frand();
+    S.fish_tgt = (r & 3) == 0 && S.sq_st == SQ_LOG;          // one in four is the Sasquatch's, never while he is in the river
+    S.fish_dir = S.fish_tgt || (r & 4) ? 1 : -1;
+    S.fish_x0 = S.fish_tgt ? LR_SQ_CX - LR_HALF : S.fish_dir > 0 ? LR_SPIG_CX - LR_HALF : LR_SPIG_CX + LR_HALF;
+    S.sq_dodge = (r & 8) != 0;
+    S.fish_t = 1; S.fish_done = 0;
+    SFX(SFX_FILL);
+}
+
+static void sq_fall(void) {                     // a fish knocks the Sasquatch into the river
+    S.sq_st = SQ_SWIM; S.top_t = 1; S.sq_hop = 0;
+    SFX(SFX_BREAK);
+}
+
+// One frame of the fish (a play frame): the schedule, the leap's frames, and the hit test while it is over its target.
+static void fish_step(void) {
+    uint8_t k, tx;
+    int16_t fx, d;
+    if (S.fish_in) S.fish_in--;
+    if (!S.fish_t) {
+        if (!S.fish_in && S.st == LS_RUN && mg_timer > LR_FISH_LAST) {
+            fish_tell();
+            S.fish_in = LR_GAP0 - (S.elapsed >> 4) + (frand() & 31);
+        }
+        return;
+    }
+    if (++S.fish_t > LR_WARN + LR_FLY + LR_LAND) { S.fish_t = 0; return; }
+    if (S.fish_t == LR_WARN + 1) SFX(SFX_WHOOSH);
+    if (S.fish_t <= LR_WARN || S.fish_t > LR_WARN + LR_FLY || S.fish_done) return;
+    k = S.fish_t - LR_WARN - 1;
+    if (S.fish_tgt && k == LR_SQ_HOP_K && S.sq_dodge) S.sq_hop = 1;
+    tx = S.fish_tgt ? LR_SQ_CX : LR_SPIG_CX;
+    fx = S.fish_dir > 0 ? S.fish_x0 + (k << 1) : S.fish_x0 - (k << 1);
+    d = S.fish_dir > 0 ? fx - tx : tx - fx;                  // < 0 before the target, > 0 past it
+    if (d <= -LR_HIT_W) return;
+    if (d < LR_HIT_W) {                                      // over it: a hop must be high enough
+        if (S.fish_tgt) {
+            if (sq_h() >= LR_CLEAR) return;
+            S.fish_done = 1;
+            sq_fall();
+            S.fish_t = 0;                                    // stopped by him
+        } else {
+            if (spig_h() >= LR_CLEAR) return;
+            S.fish_done = 1; S.hits++;
+            if (S.fish_dir > 0) S.vel += LR_KICK; else S.vel -= LR_KICK;
+            S.stun = LR_STUN; S.hit_dir = S.fish_dir;
+            SFX(SFX_BREAK);
+        }
+        return;
+    }
+    S.fish_done = 1;                                         // past it with no hit
+    if (!S.fish_tgt) {
+        if (S.dodged < 255) S.dodged++;
+        mg_points(LR_PTS_DODGE);
+        SFX(SFX_COIN);
+    }
+}
+
 static void fall(void) {
     S.st = LS_WATER; S.fall_t = 0;
     S.lean = 0; S.vel = 0;
+    S.fish_t = 0; S.hop_t = 0; S.stun = 0;                   // the fish in the air dives; no hop in the river
     if (S.falls < 255) S.falls++;
     S.digit = TILE_GLYPH_0 + (S.falls > 9 ? 9 : S.falls);
     put(LR_HUD_DIGIT_COL, HUD_ROW, &S.digit, 1);
@@ -364,8 +537,10 @@ static void fall(void) {
 
 static void on_log(uint8_t pressed) {
     int16_t px;
-    if (pressed & J_LEFT) S.vel -= LR_ONE;
-    if (pressed & J_RIGHT) S.vel += LR_ONE;
+    if (S.stun <= LR_STUN - LR_LOCK) {
+        if (pressed & J_LEFT) S.vel -= LR_ONE;
+        if (pressed & J_RIGHT) S.vel += LR_ONE;
+    }
     S.vel += S.drift;
     S.vel -= S.vel >> 4;
     S.lean += S.vel;
@@ -379,7 +554,12 @@ void lr_update(uint8_t pressed) BANKED {
     int16_t m;
     S.anim++;
     if (S.drop_t && ++S.drop_t > LR_DROPS) S.drop_t = 0;
+    if (S.sq_hop && ++S.sq_hop > LR_HOP_LEN) S.sq_hop = 0;
     if (mg_phase == MG_PLAY || mg_phase == MG_END) {
+        if (S.sq_st == SQ_SWIM) {                // knocked in by a fish: the topple's splash, the swim, the climb back
+            if (++S.top_t == LR_TOPPLE) burst(LR_TOPPLE_X);
+            if (S.top_t >= LR_SQ_SWIM + LR_SQ_UP_LEN) { S.top_t = 0; S.sq_st = SQ_LOG; }
+        }
         if (!S.started) { S.started = 1; S.band[0] = S.band[1] = BAND_FOREST; }
         if (S.st == LS_WATER) {                  // in the river: SPLASH, CLIMB, the hop
             if (++S.fall_t >= LR_FALL_LEN) { S.st = LS_RUN; S.lean = 0; S.vel = 0; SFX(SFX_LAUNCH); }
@@ -387,24 +567,29 @@ void lr_update(uint8_t pressed) BANKED {
     }
     if (mg_phase == MG_PLAY) {
         S.elapsed++;
+        if (S.stun) S.stun--;
+        if (S.hop_t) { if (++S.hop_t > LR_HOP_END) S.hop_t = 0; }
+        else if ((pressed & (J_A | J_B | J_UP)) && S.st == LS_RUN && !S.stun) { S.hop_t = 1; SFX(SFX_LAUNCH); }
         if (S.flip_in && !--S.flip_in) new_flip();
         ramps();
         m = mag();
         S.drift = ramped(m, S.dsr);
         S.roll -= (uint16_t)ramped(m, S.tell);   // the bark leads the push by 30 frames
+        fish_step();
         if (S.st == LS_RUN) on_log(pressed);
         if (mg_timer == 1) S.band[0] = BAND_HUD;     // TIME UP comes this frame (mg.c): its colours
     } else if (mg_phase == MG_END) {
         if (!S.ended) {
             S.ended = 1;
-            if (S.st == LS_RUN) S.top_t = 1;         // up at time up: the partner topples in
+            S.fish_t = 0;                            // (no fish in the outro)
+            if (S.st == LS_RUN && S.sq_st == SQ_LOG) { S.top_t = 1; S.sq_st = SQ_END; }   // up at time up: the partner topples in
             if (!S.falls) {
                 mg_points(LR_PTS_CLEAN);
                 S.band[1] = BAND_HUD;
                 mg_say(MG_TEXT_B, "NO FALLS 1000");
                 SFX(SFX_CATCH);
             }
-        } else if (S.top_t) {
+        } else if (S.top_t && S.sq_st == SQ_END) {
             if (S.top_t < 250 && ++S.top_t == LR_TOPPLE) burst(LR_TOPPLE_X);
         }
         if (mg_t == LR_BAND_OFF) S.band[0] = S.band[1] = BAND_FOREST;

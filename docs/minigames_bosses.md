@@ -68,7 +68,7 @@ stays separate because it must survive a life lost.
 |---|---|---|---|---|---|---|
 | 1 | Saloon | Quick Draw | reaction + reading | A or B | ~30 s | added the A-or-B sign from round 3 and feints, so it is a choice reaction, not a single press; early press = foul |
 | 2 | Stadium | T-Shirt Cannon | golf-style power meter + picking the fan with raised hands | A start meter, A lock + fire | 10 shots, <= 45 s | meter with red oops zones; raised fans last 2 s, reach one column each side; build-time reach table |
-| 3 | Lumber | Log Roll | balance, timing of corrections | Left/Right taps | 40 s | falls are not game over (3 s penalty); drift changes are telegraphed; holding does nothing (taps only) |
+| 3 | Lumber | Log Roll | balance, timing of corrections, dodging | Left/Right taps; A / B / Up hop | 40 s | falls are not game over (3 s penalty); drift changes are telegraphed; holding does nothing (taps only); fish leap across the log (D3, 4.3), told by ripples, dodged by a hop |
 | 4 | Bistro | Order Up! | memory | D-pad, one direction per dish | ~45 s | dishes sit at their D-pad direction on screen; a strike replays the same order |
 | 5 | Igloo | Marshmallow Drop | timing, leading a moving target | A | 45 s | the claw moves at constant speed on a rail (not a pendulum); marshmallows fall straight down; 4th marshmallow overflows |
 | 6 | Robot | Battery Sort | categorise under pressure | Left / Right (Down from item 16) | 45 s | the front battery waits on a diverter for a shrinking window; a 3rd bin (scrap) arrives mid-game |
@@ -104,7 +104,7 @@ fussy). Highest technical risk: **Taiko Pour** (sync to hUGEDriver rows), **the 
 |---|---|---|---|---|---|---|
 | Quick Draw | 6 | 12 | ~31 | ~52 | 6 / 4 | 16 B |
 | T-Shirt Cannon | 6 | 11 | ~37 | ~28 | 6 / 3 | 40 B |
-| Log Roll | 8 | 13 | ~30 | ~62 (Sasquatch reused) | 5 / 4 | 20 B |
+| Log Roll | 9 | 19 | ~30 | ~86 (Sasquatch reused) | 5 / 5 | ~60 B (in the mg union) |
 | Order Up! | 4 | 4 | ~100 (portrait incl.) | 0 (waiter reused) | 8 / 1 | 20 B |
 | Marshmallow Drop | 9 | 14 | ~20 | ~30 | 5 / 3 | 30 B |
 | Battery Sort | 8 | 12 | ~41 | ~4 (+ factory drink reuse) | 7 / 4 | 45 B |
@@ -985,6 +985,38 @@ Plugs into: mg framework; reuses the lodge show performer and bonus droplets. Te
 < 3 s at the end drift; alternating taps every frame fall (mash); a flip is told 30 frames ahead.
 
 Story fit: PRE_LUMBER page (JUNE): `LUNCH IS LOG` / `ROLLING. YOUR` / `PARTNER IS... UH.`
+
+**D3 as built (2026-10-15): the leaping fish, the hop and the living Sasquatch** (owner: "the game needs something more ... frogs or fish
+jumping out of the water to dodge"; "the sasquatch doesn't move on the log").
+- Controls: Left / Right as before; **A, B or Up hops** (a press; 36 frames in the air, peak 36 px on the t (36 - t) / 9 curve, then 12 frames
+  of rest). No hop in the river or while staggering.
+- The fish: one at a time. 40 frames of **ripple rings** on the water at its launch point (SFX_FILL once), then a flat leap, 96 px in 48 frames
+  (2 px a frame, the apex 28 px over the water line at y 118, rise / flat / fall frames, SFX_WHOOSH), then a splash ring where it lands for 12
+  frames. It is aimed at the Spigoteer (x 104, from the left with its ring at x 56 or from the right with its ring at x 152) or, one leap in
+  four, at the Sasquatch (x 52, from the left, ring at x 4; never while he is in the river). The apex is over the target, so the fish crosses
+  the target at the same height whichever side it came from: |fish x - target x| < 10 for 9 frames, and a hop clears it from 14 px up (it is
+  that high for 29 of its 36 frames), so a hop started from 3 frames before the leap to 17 frames into it dodges (about 0.35 s of window,
+  tests/test_mg_logroll_fish.py).
+- A hit on the Spigoteer kicks his velocity 4 px a frame in the fish's direction (about 64 px of lean of the 64 to the edge unless he leans back),
+  a 24-frame stagger (the hard-lean pose, no hop, **no Left / Right for the first 12 frames**), SFX_BREAK. Two quick taps after the 12 frames
+  save him from a calm log; with the push on the fish's side it is a fall (3 s as ever). A dodge: **+150 points**, SFX_COIN.
+- Schedule: first ripples 240 frames in, then every `262 - elapsed / 16 (+ 0..31)` frames (262 at the start, 112 at the end: 4.4 s -> 1.9 s),
+  never with under 90 frames left nor in the river. The fish has its own xorshift (`fseed`, from `mg_seed`): `mg_rand` is not called, so the
+  flips' sequence is unchanged. A fall ends the fish in the air (it dives with the splash).
+- The Sasquatch (the lodge show's four dance frames, no new art): treads on the log (frames 0 2 0 3 by the bark's roll phase, a 1 px bob on
+  the odd phases, mirrored by the roll's direction, swaying up to 3 px with the push), windmills (1 2 1 3 every 4 frames) while a flip is
+  being told (the bark's ramp under 12), is startled (frame 3) while a fish comes for him or the Spigoteer is hit, hops a fish aimed at him
+  half the time (frame 1, the same curve), and otherwise is knocked into the river (the fish stops at him): the topple pose and a splash, 150
+  frames swimming, 12 climbing back. His falls are flavour only: the score and the medal do not depend on him. At time up he still topples in
+  if he is on the log.
+- Medals unchanged (seconds on the log: GOLD 40, SILVER 34, BRONZE 25; a fall costs 3 s). Scripted human-like players (10-14 frame reaction, a tap
+  every 12-16 frames at best, some missed): ignoring the fish 28-40 s (mean 34: silver), hopping 75 % of the leaps 34-40 s (mean 39), a bot that
+  hops every leap 37-40 s. Score: 100 a second on the log, +150 a dodge, +1000 with no fall.
+- Sprites: OAM 15-16 the fish, 17-18 a ring (19 entries in all); worst line 9, as before (the splash scenes; the fish and rings are never up
+  while he is in the river). OBJ palette 3 on CGB (cream, orange, dark). Art: assets/art/logroll/fish.txt (3 frames 16x16), ring.txt (3 frames
+  16x8). State: struct lr_state grew by 17 bytes inside the mg union (no new global).
+- Card: two pages ("LEFT RIGHT: LEAN / AGAINST THE ROLL / A OR B: HOP / OVER THE FISH", "WATCH THE RIPPLES / A FISH LEAPS SOON / HIT: YOU
+  WOBBLE / STAY UP 40 SECONDS").
 
 ### 4.4 Order Up! (Bistro)
 

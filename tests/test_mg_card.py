@@ -23,9 +23,10 @@ CARD_C = (ROOT / "src" / "mg_card.c").read_text()
 PLAN = (ROOT / "PLAN.md").read_text()
 # game ids (mg.h) in the card table's order (G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO, G_B0, G_B1, G_B2)
 IDS = [MG_STUB, 0, 5, 3, 6, 2, 9, 7, 4, 8, 1, 11, MG_SHAKEUP, MG_FILLLINE, MG_TIPS]
-PENDING = ["BATTERY SORT", "MILK RUN", "LOG ROLL"]
+PENDING = ["BATTERY SORT", "MILK RUN"]
 MG_MARSHMALLOW = 4
-TWO_PAGES = (MG_STUB, MG_SHAKEUP, MG_MARSHMALLOW, 1)   # the games whose card has a second page (1: T-Shirt Cannon)
+MG_LOGROLL = 2
+TWO_PAGES = (MG_STUB, MG_SHAKEUP, MG_MARSHMALLOW, 1, MG_LOGROLL)   # the games whose card has a second page (1: T-Shirt Cannon)
 # the story font's punctuation (build/story.h: ST_GLYPH_PERIOD .. COLON are STORY_FONT_BASE + 0..6)
 PUNCT = {QUEST - 3 + i: c for i, c in enumerate(".,!?'-:")}
 
@@ -86,7 +87,7 @@ def test_every_built_game_has_a_card():
 
 
 def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
-    """Log Roll, Battery Sort and Milk Run (Marshmallow Drop and T-Shirt Cannon have their real cards since D2 / D1): card text pending the Batch D rework (PLAN.md): their one line is
+    """Battery Sort and Milk Run (Marshmallow Drop, T-Shirt Cannon and Log Roll have their real cards since D2 / D1 / D3): card text pending the Batch D rework (PLAN.md): their one line is
     today's banner line, the other two empty. The others have three real lines."""
     table, words = cards(), banner_words()
     assert len(words) == len(table)
@@ -98,7 +99,7 @@ def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
         else:
             assert all(ls[:3]), name                        # (the fourth line is there only where it helps)
     after = PLAN.split("card text pending the Batch D rework")[1][:300]
-    assert all(n in after for n in ("Log Roll", "Battery Sort", "Milk Run")), "marked in PLAN.md"
+    assert all(n in after for n in ("Battery Sort", "Milk Run")), "marked in PLAN.md"
 
 
 # ---- the full card ----------------------------------------------------------------------------------------------------------------
@@ -117,7 +118,7 @@ def test_every_game_shows_its_full_card_first(model):
             assert row_text(gb, 1) == "HOW TO PLAY" and row_text(gb, 5) == name, name
             assert [row_text(gb, r) for r in (7, 9, 11, 13)] == ls, name
             assert_frame(gb, name)
-            prompt = "A NEXT  B BACK" if gid in TWO_PAGES else "A START  B BACK"      # (from the list: B goes back; the stub, the shake-up, Marshmallow Drop and T-Shirt Cannon have two pages)
+            prompt = "A NEXT  B BACK" if gid in TWO_PAGES else "A START  B BACK"      # (from the list: B goes back; the stub, the shake-up, Marshmallow Drop, T-Shirt Cannon and Log Roll have two pages)
             assert row_text(gb, 16) == prompt and row_text(gb, 2) == "" and row_text(gb, 4) == "" and row_text(gb, 14) == "", name
             for _ in range(4):                                     # the prompt blinks (32 frames on, 32 off)
                 gb.run(40)
@@ -295,5 +296,27 @@ def test_marshmallow_drops_card_has_two_pages(model):
         gb.run(3)
         assert gb.mem("mg_phase") == MG_CARD
         assert [row_text(gb, r) for r in (7, 9, 11, 13, 16)] == ["MUGS LOOP ROUND", "19 MALLOWS ONLY", "MISS ONE AT MOST", "FOR GOLD", "PRESS A"]
+        gb.press("a", 2)
+        run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_log_rolls_real_card_has_two_pages_of_lines_that_fit(model):
+    """D3: Log Roll's card, page 1 the lean and the hop, page 2 the fish and the goal, every line at most 18 letters (the frame takes a column each
+    side); A turns the page, A on the last starts the game."""
+    pages = [["LEFT RIGHT: LEAN", "AGAINST THE ROLL", "A OR B: HOP", "OVER THE FISH"],
+             ["WATCH THE RIPPLES", "A FISH LEAPS SOON", "HIT: YOU WOBBLE", "STAY UP 40 SECONDS"]]
+    assert all(len(t) <= 18 for p in pages for t in p)
+    with booted(model, cards=False) as gb:
+        hold_stage_anim(gb)
+        mg_enter(gb, MG_LOGROLL, MG_STORY)
+        gb.run(3)
+        assert row_text(gb, 5) == "LOG ROLL" and [row_text(gb, r) for r in (7, 9, 11, 13)] == pages[0] and row_text(gb, 16) == "NEXT"
+        check_golden(gb, "card_logroll_page1")
+        gb.press("a", 2)
+        gb.run(3)
+        assert gb.mem("mg_phase") == MG_CARD
+        assert row_text(gb, 5) == "LOG ROLL" and [row_text(gb, r) for r in (7, 9, 11, 13)] == pages[1] and row_text(gb, 16) == "PRESS A"
+        check_golden(gb, "card_logroll_page2")
         gb.press("a", 2)
         run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)

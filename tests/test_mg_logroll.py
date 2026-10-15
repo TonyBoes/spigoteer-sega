@@ -41,7 +41,12 @@ def art_define(name):
     "LR_TIME_S", "LR_RAMP_FRAMES", "LR_FLIP_MIN", "LR_FLIP_RANGE", "LR_FALL_LEN", "LR_SPLASH_LEN", "LR_TOPPLE", "LR_DROPS",
     "LR_PTS_SEC", "LR_PTS_CLEAN", "LR_GOLD", "LR_SILVER", "LR_BRONZE", "LR_BAND_OFF", "LR_DRIFT0", "LR_ONE", "LR_FALL_PX",
     "LR_HOP_AT"))
-OAM_MARK, OAM_DROPS, OAM_SPIG, OAM_SQ = (define(f"OAM_{n}") for n in ("MARK", "DROPS", "SPIG", "SQ"))
+(WARN, FLY, LAND, HALF, HIT_W, CLEAR, KICK, STUN, HOP_LEN, HOP_END, FISH_FIRST, GAP0, FISH_LAST, PTS_DODGE, BASE_Y, SQ_SWIM, SQ_UP_LEN,
+ SPIG_CX, SQ_CX) = (define(n) for n in (
+    "LR_WARN", "LR_FLY", "LR_LAND", "LR_HALF", "LR_HIT_W", "LR_CLEAR", "LR_KICK", "LR_STUN", "LR_HOP_LEN", "LR_HOP_END",
+    "LR_FISH_FIRST", "LR_GAP0", "LR_FISH_LAST", "LR_PTS_DODGE", "LR_FISH_BASE_Y", "LR_SQ_SWIM", "LR_SQ_UP_LEN", "LR_SPIG_CX", "LR_SQ_CX"))
+OAM_MARK, OAM_DROPS, OAM_SPIG, OAM_SQ, OAM_FISH, OAM_RING = (define(f"OAM_{n}") for n in ("MARK", "DROPS", "SPIG", "SQ", "FISH", "RING"))
+SQ_LOG, SQ_SWIM_ST, SQ_END = range(3)
 LR_BG = MG_GAME_BG
 LR_OBJ_HI = (LR_BG + ART["n_bg"] + 1) & ~1
 SLOT = ART["slot_entries"]
@@ -150,7 +155,7 @@ def to_playing(gb, extra=2):
 
 def calm(gb):
     """No push at all (the ramps at 0, the next flip far off), lean and velocity 0: the physics of a tap alone."""
-    poke(gb, tsgn=0, dsr=0, tell=0, fdelay=0, flip_in=65000, lean=0, vel=0)
+    poke(gb, tsgn=0, dsr=0, tell=0, fdelay=0, flip_in=65000, lean=0, vel=0, fish_in=65000, fish_t=0)
     frames(gb, 1)
 
 
@@ -271,7 +276,9 @@ def test_the_screen_and_its_art(model):
                 assert (o["y"], o["x"]) == (72 + 16 + 16 * r, 92 + 8 + 8 * c)
                 assert o["tile"] == otile(ART["pose_e"][0][3 * r + c]) and not o["prop"] & S_FLIPX
         sq = [oam(gb, OAM_SQ + k) for k in range(4)]
-        assert [(o["y"], o["x"]) for o in sq] == [(88, 52), (88, 60), (104, 52), (104, 60)]
+        sw = 3 * snap(gb)["tsgn"]                    # the Sasquatch leans into the push (3 px), mirrored when the log rolls the other way
+        xs = [52 + sw, 60 + sw] if sw > 0 else [60 + sw, 52 + sw]
+        assert [(o["y"], o["x"]) for o in sq] == [(88, xs[0]), (88, xs[1]), (104, xs[0]), (104, xs[1])]
         assert all(OBJ_DANCER <= o["tile"] < OBJ_DANCER + 32 for o in sq)
         if model == "cgb":
             assert mk["prop"] & 7 == 2 and all(o["prop"] & 7 == SQ_PAL for o in sq)
@@ -330,6 +337,7 @@ def test_the_physics_follow_the_model_through_flips_and_falls(model):
     as the model computes them from the seed, at eleven points over 1500 frames (several flips told, two or three falls)."""
     with log_roll(model) as gb:
         to_play(gb)
+        poke(gb, fish_in=65000)                      # (the fish are tested below: here the physics alone)
         seen_falls = set()
         for target in (40, 130, 200, 260, 400, 560, 700, 900, 1100, 1300, 1500):
             while snap(gb)["elapsed"] < target:
@@ -346,7 +354,7 @@ def test_the_physics_follow_the_model_through_flips_and_falls(model):
 
 
 def sfx(gb, i):
-    return gb.read("sfx_count", 10)[i]
+    return gb.read("sfx_count", 14)[i]
 
 
 def run_until_state(gb, stop, limit=400):
@@ -361,7 +369,7 @@ def run_until_state(gb, stop, limit=400):
 
 def set_push(gb, sign, elapsed=None, **kw):
     """A steady push of `sign` at the size of play frame `elapsed` (no flip pending), the Spigoteer centred."""
-    poke(gb, tsgn=sign, dsr=sign * RAMP, tell=sign * RAMP, fdelay=0, flip_in=65000, lean=0, vel=0,
+    poke(gb, tsgn=sign, dsr=sign * RAMP, tell=sign * RAMP, fdelay=0, flip_in=65000, lean=0, vel=0, fish_in=65000, fish_t=0,
          **({} if elapsed is None else {"elapsed": elapsed}), **kw)
     frames(gb, 1)
 
@@ -658,7 +666,7 @@ def test_the_bark_and_ripple_tiles_are_streamed_into_their_slots(model):
     beat (every 20 frames); over 700 frames the bark goes both ways (a flip), and the map is never touched."""
     with log_roll(model) as gb:
         to_playing(gb)
-        poke(gb, flip_in=60)
+        poke(gb, flip_in=60, fish_in=65000)
         seen, dirs, ripples, last, prev = set(), set(), set(), None, None
         frame = [b"".join(bytes(t) for t in ART["roll"][f]) for f in range(4)]
         ripf = [b"".join(bytes(t) for t in ART["rip"][f]) for f in range(2)]
@@ -695,20 +703,32 @@ def bot_key(s, since):
     return None
 
 
-def balance(gb):
-    """A bot keeps the Spigoteer on the log (a tap against where he will be, at most one in 8 frames) until the play ends."""
+def hop_key(s, rnd=None):
+    """"a" when the bot hops: a fish aimed at the Spigoteer has just leapt (4-11 frames into the leap), he is on the log and not in a hop."""
+    ok = s["st"] == LS_RUN and s["fish_tgt"] == 0 and s["hop_t"] == 0 and WARN + 4 <= s["fish_t"] <= WARN + 11 and not s["stun"]
+    return "a" if ok and (rnd is None or rnd.random() < 0.5) else None
+
+
+def balance(gb, hop=True):
+    """A bot keeps the Spigoteer on the log (a tap against where he will be, at most one in 8 frames) until the play ends, and hops each
+    fish aimed at him a few frames after it leaps."""
     since, taps, worst = 99, 0, [0]
     while gb.mem("mg_phase") == MG_PLAY:
         s = snap(gb)
+        keys = []
         key = bot_key(s, since)
         if key and s["st"] == LS_RUN:
-            gb.hold(key)
-            frames(gb, 2, worst)
-            gb.release(key)
+            keys.append(key)
             since, taps = 0, taps + 1
         else:
-            frames(gb, 1, worst)
             since += 1
+        if hop and hop_key(s):
+            keys.append("a")
+        for k in keys:
+            gb.hold(k)
+        frames(gb, 2 if keys else 1, worst)
+        for k in keys:
+            gb.release(k)
     return taps, worst[0]
 
 
@@ -720,13 +740,15 @@ def test_a_bot_balances_a_whole_game_for_gold(model, seed):
         to_play(gb)
         taps, worst = balance(gb)
         s = snap(gb)
-        assert s["falls"] == 0 and s["on"] == TIME_S * 60 and taps > 15 and worst <= 6
+        assert s["falls"] == 0 and s["on"] == TIME_S * 60 and taps > 15 and worst <= 9      # (9: the Sasquatch's own splash after a fish)
+        assert s["hits"] == 0 and s["dodged"] >= 4, (s["hits"], s["dodged"])
+        total = TIME_S * PTS_SEC + PTS_CLEAN + s["dodged"] * PTS_DODGE
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 80)
-        assert gb.mem16("mg_score") == TIME_S * PTS_SEC + PTS_CLEAN
+        assert gb.mem16("mg_score") == total
         until(gb, lambda: gb.mem("overlay_on") == 1, 10)
         frames(gb, 3)
-        assert gb.mem("mg_medal") == MEDAL_GOLD and score(gb) == TIME_S * PTS_SEC + PTS_CLEAN + 3000
-        assert text(gb, 2, True, x0=4) == f"SCORE {TIME_S * PTS_SEC + PTS_CLEAN}"
+        assert gb.mem("mg_medal") == MEDAL_GOLD and score(gb) == total + 3000
+        assert text(gb, 2, True, x0=4) == f"SCORE {total}"
         if seed == SEED:
             shot(gb, "result")
             check_golden(gb, "lr_result")
@@ -742,7 +764,7 @@ def test_a_game_with_falls_keeps_to_10_sprites_a_line(model):
             frames(gb, 1, worst)
         s = snap(gb)
         assert s["falls"] >= 3 and 7 <= worst[0] <= 9, (s["falls"], worst)
-        assert gb.mem16("mg_score") == (s["on"] // 60) * PTS_SEC, "100 a second on the log, no bonus"
+        assert gb.mem16("mg_score") == (s["on"] // 60) * PTS_SEC + s["dodged"] * PTS_DODGE, "100 a second on the log, 150 a dodge, no bonus"
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 80)
 
 
