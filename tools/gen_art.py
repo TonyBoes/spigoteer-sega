@@ -145,6 +145,42 @@ def obj_tiles(frames, w):
 
 
 
+# ---- the spigot pours (owner 2026-10-15: "the spigots should pour out the drink when the bartender is filling a glass") ----
+# The stream is baked into the venue's three filling frames (drink frames 2-4: empty, a third, two thirds; src/mugs.c
+# draw_fill shows them while A is held and the glass is not yet full), so it costs no OAM entry, no tile and no code, is
+# mirrored with the glass on an R bar, and takes the drink's own colours (OBJ palette 1 on CGB, OBP0 on DMG). It is 2 px wide
+# under the middle of the spout's lowest pixel row (bar art x 136-143) and runs from the pixel under the spout tip down
+# over the glass's empty pixels (its rim and walls stay in front) to the drink's surface (the first '+') or the glass's floor; the flow animates because its light
+# streaks shift 2 px with every filling frame. The full frame (5) shows the stream cut off: one bead hanging at the tip.
+STREAM_W = 2
+
+
+def pour_stream(drinks, bar, fdy, mug_dy):
+    """The venue's 10 drink frames with the stream drawn into the fill frames 2-4 and a bead into the full frame 5."""
+    rows = [(y, [x for x in range(136, 144) if bar[y][x] != "."]) for y in range(16)]
+    tip, xs = [(y, r) for y, r in rows if r][-1]
+    cx = xs[0] + len(xs) // 2 - 1            # the left column of the stream: centred under the spout's lowest run (bar x)
+    interior = sorted({c for f in drinks[2:6] for row in f for c, p in enumerate(row) if p == "+"})
+    left = min(max(cx - 136, interior[0]), interior[-1] - STREAM_W + 1)
+    r0 = tip + 1 - (mug_dy + fdy)            # the sprite row under the spout tip
+    assert 0 <= r0 <= 5, f"spout tip row {tip} vs the fill glass: the stream would start on sprite row {r0}"
+    floor = max(r for r, row in enumerate(drinks[5]) if "+" in row)      # the glass's lowest drink row: the stream goes no lower
+    out = [[list(r) for r in f] for f in drinks]
+    for k, fi in enumerate((2, 3, 4)):
+        f = out[fi]
+        for c in range(left, left + STREAM_W):
+            for r in range(r0, floor + 1):
+                p = f[r][c]
+                if p == "+":
+                    break
+                if p == ".":
+                    f[r][c] = "-" if c == left and (r + 2 * k) % 4 < 2 and r > r0 else "+"
+    bead = out[5]
+    if bead[r0][left] == "." and bead[r0 + 1][left] == ".":
+        bead[r0][left] = "+"                # (hanging drip: the stream has stopped)
+    return [["".join(r) for r in f] for f in out]
+
+
 # ---- the show performers, per venue (<t>_show.txt, frames 16x24; 32 OBJ tiles at OBJ_DANCER, 8x16 entries) ----
 # Two kinds of show, one engine (src/render.c draw_dancers): every venue gets a table of SHOW_ROWS rows x 4 tile offsets
 # (from OBJ_DANCER: the top-left, top-right, bottom-left, bottom-right 8x16 entries of a 16x24 figure, its bottom 8 px
@@ -482,7 +518,7 @@ def venues(outdir, prev):
         shows = [r for _, r in blocks(vd / f"{t}_show.txt")]
         assert len(shows) in (DANCE_FRAMES, BAND_FRAMES) and all(len(f) == 24 and all(len(r) == 16 for r in f) for f in shows), \
             f"{t}_show.txt: {DANCE_FRAMES} frames 16x24 (one dancer, all three dance it) or {BAND_FRAMES} (a band of three)"
-        dtile = obj_tiles(drinks, 8) + crash_tiles(drinks, shards)
+        dtile = obj_tiles(pour_stream(drinks, bar, fdy, mug_dy), 8) + crash_tiles(drinks, shards)
         stiles, band, show_tab = show_tiles(t, shows)
         assert len(dtile) == (20 + GLASS_TILES) * 16 and len(stiles) == 32 * 16
         abs_smap = list(smap)
