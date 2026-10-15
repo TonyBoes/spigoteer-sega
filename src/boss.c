@@ -89,7 +89,7 @@ static const boss_row_t rows[BOSS_COUNT] = {
     [4] = {  32,  16,  2, 100,   8,  44,   2,  60, 12,    9,  0, "THE YETI IS COLD", "12 COCOAS ON ICE" },   // Igloo: the Yeti (3.7)
     [5] = {  32,  16,  2, 100,   8,  30,   2,  45, 12,    8,  0, "GREEN MEANS GO", "RED MEANS STOP" },   // Robot factory: the Prototype (3.8)
     [6] = {  40,  16,  1,   0,  16,  30,   2,  45, 12,   16,  0, "THE BIGGEST SHAKE", "12 MILKS FOR DUKE" },   // Biker bar: Duke (3.12; step 0: he never stomps)
-    [7] = {  40,  16,  1,  96,   0,   0,   2,  90,  8,   16,  0, "THE CHAMPION", "KEEP THE TEA FLOWING" }, // Teahouse: the Sumo (3.9)
+    [7] = {  40,  24,  1, 192,   0,   0,   2,  90,  6,   16,  0, "THE CHAMPION", "PUSH HIM OUT" }, // Teahouse: the Sumo (3.9)
     [8] = {  32,  16,  2,  80,   8,  44,   2,  60, 14,    6,  0, "LEO THE LION", "14 COCONUTS NO FEAR" },  // Jungle zoo: Leo (3.11)
     [9] = {  40,  16,  1, 100,   8,  34,   2,  45, 14,   12,  0, "THE MOTHERSHIP", "IT SPLITS WHEN FULL" },  // Space lounge: the Mothership (3.10; meter 8 + 6)
 };

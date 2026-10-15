@@ -624,36 +624,48 @@ Story fit: Manager-Bot's newest model needs a full charge before its debut. PRE_
 
 ### 3.9 Sumo Champion (Teahouse)
 
-Play: the grand champion shuffles toward the tap on the drum beat. One cup does not budge him. A steady stream does.
-Now and then he stamps for a charge; hit him during the stamp and the charge is off.
+*Rebuilt 2026-10-15 as a pushing match (src/boss_sumo.c, tests/test_boss_sumo.py; owner: "the sumo fight feels pretty plain ... maybe there are no drink limits? He has to be pushed out of the bar to lose and he only gets knocked back a little after the drink meter completes, then it resets minus 1, until he is knocked back with every throw"). The first design (single hits do not push, a chain of hits pushes 8 px, meter 8) is gone.*
 
-Rules: width 40; he steps 8 px on every third taiko beat of the venue tune (90 frames at 120 bpm), so his advance
-is on the beat like the chapter's twist. A hit: meter -1 always; push 8 px only if it came within 80 frames of the
-previous hit (a "chain"; the HUD icon blinks while a chain is live); no gulp (he swallows and keeps going). Charge
-every 480 frames: tell 60 frames (shiko stamp pose, dust on his bar's counter), then he slides 24 px in 12 frames.
-Any hit during the tell cancels the charge (a "hmph" pose, the timer restarts).
+Play: the grand champion shuffles toward the tap on the drum beat, and there is no stopping him with a few cups: he drinks
+everything you send. Every cup fills a pint on the HUD; when the meter is full the crowd roars and he is shoved back
+along the bar, a big stagger. The meter then starts over one pint shorter (6, 5, 4, 3, 2, 1), until at one pint every cup
+knocks him back. Shove him out of the bar's left end (a ring-out) and you win; let him reach the tap and you lose a life.
+Now and then he stamps for a charge; a cup during the stamp calls the charge off.
 
-Why fun and fair: this is the throughput boss: a calm, steady rhythm beats him, bursts and gaps do not. A stream of
-one cup per 60-80 frames pins him (he gains 8 per 90, loses 8 per chained hit). The charge gives a reading moment
-with a clear answer (hit him now). Changed from the pitch: "barely moves when hit" became the chain rule, which
-explains itself after two hits. Spam: a burst is chained and works, but his empties (hands 2, sip 90) then queue
-and the third cup in a burst breaks behind him, so spamming self-limits. The teahouse's "not one broken cup" goal is
-not applied to the boss (open question 3).
+Rules: width 40; he starts at x 24 (three cells from the wall, 72 px from the tap); he steps 8 px on every second bar
+of the teahouse tune (192 frames; music_frames, his own clock with the music off; Practice's HARD 144). No drink limit and
+no hands rule (boss_cap 250): every cup that reaches him is drunk, no gulp; his empties come back one per sip (90 frames)
+through the fair-empties schedule as for every boss. boss_hp = the cups still to fill this meter (>= 1), `cyc` its length
+(6 down to 1). The full meter blinks (24 frames), then he is knocked back 32 px in four hops (WINCE), dazed (no steps) for
+44 frames in all, the charge timer starts over. Ring-out: the hop that takes him to x 0 starts a 24-frame stagger at the wall
+(WINCE, drum), then boss_hp 0: the engine's outro with him GONE (BP_HIDE, no topper), not happy. Charge: every 480 walking frames,
+a 60-frame stamp (SHIKO, he stands; any cup calls it off: HMPH), then 16 px in 8 frames (was 24). A knock-back also ends it.
 
-Hardware: as Tex; 40 px body. Poses walk A/B (on the beat), hit (no push), shove-back, stamp, happy = 6 x 10 = 60:
-too many; the lower row repeats in walk B / hit / happy, so ~50 + 4 HUD + 2 dust = 56 of 66. Topper: topknot.
-CGB BG 4 skin / mawashi dark blue / outline. DMG: skin light, belt dark.
+HUD: the meter's pints fill left to right; its length is the target. Odd targets end in a one-pip tile (BG 246 / 247, built at
+load from the engine's EMPTY / HALF pint: the left pip as drawn, the right half the band's colour).
 
-Art: Sumo body 40x16 x 6 poses (respectful: a champion, not a joke about size; he is calm and dignified like Hana);
-topknot 8x8 x 2; counter dust 8x8; icon.
+Tuning (model: steady cups with +-30 % jitter, the charge cancelled by a cup in its stamp; numbers per cup interval, frames):
+interval 70 / 90 / 110 / 130 / 150 / 180: wins 100 / 100 / 100 / 97 / 51 / 5 %, in 11 / 13 / 18 / 20 / 21 / 22 cups
+(about 13 / 20 / 33 / 43 / 53 s). A cup every 6 seconds loses to the tap; one every 1.2 to 1.8 s wins in 13-18 cups. The
+real-pour bot of the tests (a cup at the quickest every 60 / 100 frames) rings him out in 11 cups / 12.7 s and 18 cups / 32.1 s.
 
-Plugs into: boss engine; the beat comes from music.c's row counter (the tune's rows); without music (MUSIC OFF) a
-90-frame timer. Vars `boss_chain` (frames since the last hit), `boss_charge` (tell / charging). Tests: single hit no
-push, chained hit pushes 8, chain expires at 81 frames, charge cancelled by a hit in the tell, steps aligned to
-the beat.
+ENTRANCE, "the ring ritual" (BEV_LOAD arms it for the first start; BEV_INTRO runs 148 frames with the intro held, the player held
+as in Duke's; BEV_DRAW draws two sprites, OAM 26 / 27): the bar empty; at frame 20 he walks in from the left wall in three heavy steps
+(x 0 to 24); at 68 he lifts a leg (SHIKO) and throws salt (two grains of OBJ_DUST's scatter tile arcing over the counter); at 88
+the first stamp (STOMP, the picture shakes 2 px for 6 frames, dust at both feet, drum DON); at 104 the other leg; at 120 the second,
+harder stamp (3 px for 10 frames, DON + KA); at 136 a bow; at 148 the ritual is over and the intro's 30 last frames run. No new art
+(the salt and dust are the dust puff's frames) and no new sound effects (SFX_DON, SFX_KA, SFX_SHAKE).
+Not built: the noren-curtain entrance (he rises from a kneel behind the cloth and claps twice).
+
+Hardware: as Tex; 40 px body. Poses WALK, STOMP, GULP (the hit), WINCE (the knock-back and the wall), HAPPY, SHIKO, HMPH.
+Topper: topknot. CGB BG 4 skin / mawashi dark blue / outline. DMG: skin light, belt dark.
+
+Plugs into: boss engine; the beat comes from music.c's music_frames (the pause menu freezes the tune, so it freezes him:
+tests/test_pause.py). State: sumo_t in BOSS_OWN (test hooks sumo.phase, cyc, cycles, knock, out, ent, cancels, charges);
+the HUD row is staged in story_scratch + 300 (Duke's entrance staging area; no WRAM).
 
 Story fit: the teahouse's guest of honour. PRE_TEAHOUSE page (HANA): `THE CHAMPION` / `IS THIRSTY. KEEP` /
-`THE TEA FLOWING.`
+`THE TEA FLOWING.` (unchanged); the banner's lines are THE CHAMPION / PUSH HIM OUT.
 
 ### 3.10 The Mothership (Space lounge)
 
@@ -1786,7 +1798,7 @@ Boss intro banners (the goal banner's two lines, HUD glyphs only, <= 20 characte
 | Yeti | THE YETI IS COLD | 12 COCOAS ON ICE |
 | Prototype | GREEN MEANS GO | RED MEANS STOP |
 | Duke (PROPOSAL) | DUKE AND HIS GANG | 12 GLASSES OF MILK |
-| Sumo | THE CHAMPION | KEEP THE TEA FLOWING |
+| Sumo | THE CHAMPION | PUSH HIM OUT |
 | Mothership | THE MOTHERSHIP | FILL IT THEN SPLIT |
 | Leo | LEO THE LION | 14 COCONUTS NO FEAR |
 
