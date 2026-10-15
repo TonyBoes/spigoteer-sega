@@ -207,7 +207,7 @@ def test_eight_perfect_drinks_satisfy_him(model):
 
 
 # ---- the readable states (owner 2026-10-14: "hard to tell what status he was in") ------------------------------------
-OAM_CRIT = 29
+OAM_CRIT = 30
 OBJ_TOPPER_ = 96
 H_NO, H_BAD = 10, 14
 SFX_COIN = 6
@@ -244,7 +244,7 @@ def test_each_state_has_its_own_pose(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_drink_waved_back_shows_the_no_gesture_and_a_bubble(model):
     """Busy (savouring), a PERFECT drink reaches him: waved back with the TASTE pose for CRIT_NO frames and the 'NO!' bubble
-    (OAM 29-30: the hat tiles NO_L / NO_R); a sloppy one: the 'BAD' bubble. After the gesture he is back to GULP. Golden
+    (OAM 30-31: the hat tiles NO_L / NO_R); a sloppy one: the 'BAD' bubble. After the gesture he is back to GULP. Golden
     boss_critic_no."""
     with fight(model, C) as gb:
         quiet(gb)

@@ -21,7 +21,7 @@
 // is busy is waved back with the TASTE pose for CRIT_NO frames and a speech bubble beside him ("NO!" for a perfect drink,
 // "BAD" for a sloppy one; the banner window would cover his bar), and a sloppy one he tastes shows "BAD" too.
 // ENTRANCE (first start of the fight, BEV_INTRO like Duke's): a silver cloche slides along his counter, a bell dings and the lid
-// flies off: there he is, hand out. Sprites in OAM 29.. (no show runs in a fight) from his hat tiles (gen_boss hats).
+// flies off: there he is, hand out. Sprites in OAM 30.. (no show runs in a fight) from his hat tiles (gen_boss hats).
 // Every return goes by boss_send, so the fair-empties schedule holds for it like for an empty (its travel at 1 px a
 // frame): two of anything never reach the tap end closer than the level's empty_gap.
 #pragma bank 255
@@ -44,7 +44,7 @@
 #define H_GLINT       8
 #define H_NO          10       // NO_L, NO_R
 #define H_BAD         14       // BAD_L, BAD_R
-#define OAM_CRIT      (OAM_DANCERS + 1)   // 29..: the bubble (2) / the cloche (4) and the glint
+#define OAM_CRIT      (OAM_DANCERS + 2)   // 30..: the bubble (2) / the cloche (4) and the glint (29 is E1's status tag)
 #define E_SLIDE       30       // entrance: the cloche reaches his spot
 #define E_BELL        34       // the bell (SFX_COIN) and the glint
 #define E_LIFT        46       // the lid flies off, he is there
@@ -76,7 +76,7 @@ static void crit_look(void) {
 
 static void bubble(void) {
     OAM_item_t *o = shadow_OAM + OAM_CRIT;
-    uint8_t x = boss_x + 42, t = crit.bubk ? H_BAD : H_NO;
+    uint8_t x = boss_x + 46, t = crit.bubk ? H_BAD : H_NO;
     if (!crit.bub || x > 152 || boss_state == BS_OUTRO) { o[0].y = o[1].y = 0; return; }
     o[0].y = o[1].y = bar_oam_y[boss_bar] - 1;
     o[0].x = x; o[1].x = x + 8;
