@@ -159,8 +159,10 @@ uint8_t boss_sasquatch(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
-        sasq.ent = 1;
         break;
+    case BEV_ENTER:                      // E9: the warm-up is over (his bar is empty): the back wall
+        sasq.ent = 1;
+        return 1;
     case BEV_INTRO:
         if (sasq.ent) ent_frame();
         break;

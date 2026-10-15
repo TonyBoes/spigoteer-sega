@@ -357,7 +357,7 @@ def test_the_entrance_through_the_back_wall(model):
     """On the first start: he is away (thuds), BURST1 (the fist), BURST2 (the roar), then WALK on his bar
     at x 16 with the intro's 90 frames still to run; the bartender held at bar 0; every frame <= 10 sprites a line.
     Golden boss_sasquatch_burst1 is the fist."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         still_regulars(gb)
         gb.run(2)
         assert SQ.get(gb, "ent") >= 1

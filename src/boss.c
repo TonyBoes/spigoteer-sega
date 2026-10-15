@@ -343,7 +343,7 @@ static void take_bar(void) {
 }
 
 // The fight is on: his meter and face, the rules (BEV_RESET, BEV_BEGIN), the regulars never on his bar. shown: after an
-// entrance (the banner with his name stays through the intro's beat); 0: a test hook, straight to the fight.
+// entrance (the intro's beat: nothing moves for a moment); 0: a test hook, straight to the fight.
 static void fight_start(uint8_t shown) {
     if (boss_bar != br->bar) take_bar();
     boss_state = BS_WALK; boss_xpose = 0; boss_special_t = 0;
@@ -351,20 +351,20 @@ static void fight_start(uint8_t shown) {
     boss_pattern(BOSS_NONE);
     boss_hud();
     boss_call(BEV_BEGIN, 0);
-    if (shown) {
-        show_overlay(br->line1);
-        if (!intro_timer) intro_timer = INTRO_FRAMES - 1;
-    }
+    if (shown && !intro_timer) intro_timer = INTRO_FRAMES - 1;   // (the beat before the first drink: nothing moves)
 }
 
 static void entrance_start(void) {
     clear_mugs(); fill_timer = 0; fill_stage = 0; cue_t = 0; catch_pose = 0;
     take_bar();
     boss_state = BS_ENTER; boss_xpose = BP_HIDE; boss_hold = 0; boss_t = 0;
-    boss_to_bar(boss_bar, 0);                    // (his bar's regulars are gone: it recomposes without him)
+    boss_to_bar(boss_bar, br->start_x);          // (his bar's regulars are gone: it recomposes without him; his own entrance shows him there)
     intro_timer = INTRO_FRAMES;                  // the bar holds still: his entrance owns the screen
     SFX(SFX_WHOOSH);
-    if (!boss_call(BEV_ENTER, 0)) { boss_state = BS_WALKIN; boss_special_t = 0; }   // (no entrance of his own: he walks in)
+    if (!boss_call(BEV_ENTER, 0)) {              // (no entrance of his own: he walks in from the left edge)
+        boss_state = BS_WALKIN; boss_special_t = 0;
+        boss_x = 0; boss_col = 0;
+    }
 }
 
 // boss_frame, in BS_WARM / BS_ENTER / BS_WALKIN
@@ -380,6 +380,7 @@ static void boss_pre(void) {
     if (st == BS_ENTER) {                        // his own entrance (BEV_INTRO holds intro_timer; it ends by leaving BS_ENTER)
         boss_call(BEV_INTRO, 0);
         if (boss_state != BS_ENTER) fight_start(1);
+        else boss_look();                        // (a special's own poses: the Sasquatch's burst)
         return;
     }
     // the fallback: he walks in from the left edge, 8 px every WALK_STEP frames: first his body comes on screen column by
@@ -568,7 +569,7 @@ uint8_t boss_frame(void) BANKED {
     if (boss_own_na) boss_own_na--;              // (counts down with next_arrival: patrons.c update_patrons)
     boss_mugs();
     if (!intro_timer) {                          // nothing moves before the level's intro is over
-        if (boss_t != 255 && ++boss_t == 1) overlay_on = 0;   // (E9: the banner fight_start put up goes with the first move)
+        if (boss_t != 255) boss_t++;
         if (boss_stomp) boss_stomp--;
         if (boss_push) {
             if (++boss_hop >= HOP_FRAMES) {
@@ -624,7 +625,7 @@ void boss_draw(void) BANKED {
     OAM_item_t *o = shadow_OAM;
     uint8_t k, top = bar_oam_y[boss_bar] - 8, n0 = 0, n1 = 0, n2 = 0, n3 = 0, hat, tag;
     int8_t r;
-    if (boss_state == BS_WARM) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (E9: not here yet)
+    if (boss_state == BS_WARM) { shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_TAG].y = 0; return; }   // (E9: not here yet)
     if (intro_timer) boss_call(BEV_DRAW, 0);     // the intro: a special's own sprites (Duke's entrance) before the lines are counted
     shadow_OAM[OAM_TAG].y = 0;
     if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (away: no hat in the air)

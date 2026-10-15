@@ -91,7 +91,7 @@ def test_the_warm_up_ends_with_the_entrance_and_then_the_boss_rules_apply(model)
         assert cols_seen[0] <= 1 and max(cols_seen) >= R["width"] // 8, cols_seen
         assert all(b - a <= 1 or a == 0 for a, b in zip(cols_seen, cols_seen[1:])), "one column at a time"
         frames(gb, 2)
-        assert banner_text(gb, 1) == centred(R["line1"]), "his banner"
+        assert gb.mem("intro_timer") >= INTRO - 3, "the intro's beat follows the landing"
         assert hud(gb) == meter_tiles(R["meter"], R["meter"]), "his meter and face are up"
         assert_body(gb, C, A, R["x"], BP_WALK)
         until(gb, lambda: gb.mem("intro_timer") == 0, INTRO)

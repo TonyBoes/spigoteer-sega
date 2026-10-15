@@ -439,11 +439,12 @@ def test_the_hand_off_lands_him_at_x16_in_his_idle(model):
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_bar") == B and gb.mem("boss_x") == R["x"]
         assert (phase(gb), DUKE.get(gb, "t"), gb.mem("boss_xpose")) == (DP_IDLE, 0, 0)
-        assert_body(gb, C, A, R["x"], BP_WALK)
         o = gb.oam()[OAM_TOPPER]
         assert (o["y"], o["x"], o["tile"]) == (bar_row(R) * 8 + 8, R["x"] + R["hat"] + 8, HAT_STILL)
         bike = entrance_oam(gb)
         assert sum(1 for e in bike if e[3] & 0x80) >= 5 and any(not e[3] & 0x80 for e in bike), bike
+        frames(gb, 3)                                # (the whole bar is recomposed at the hand-off: a frame or two more)
+        assert_body(gb, C, A, R["x"], BP_WALK)
         assert gb.mem("boss_hold") == 0 and gb.mem("boss_hp") == 12
         frames(gb, 30)
         assert gb.mem("boss_x") == R["x"] and phase(gb) == DP_IDLE
@@ -566,6 +567,7 @@ def fight_hard(model, c):
     to_goal(gb, boss_start=False)
     gb.write("boss_hook", 5)                      # (the warm-up is over: the entrance)
     until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+    frames(gb, 3)                                 # (the tile pool's copy runs past a frame)
     return gb
 
 
@@ -592,6 +594,7 @@ def test_boss_rush_starts_with_the_entrance_too(model):
             tap(gb, "down")
         tap(gb, "a")
         into_fight(gb, entered=False)
+        frames(gb, 4)
         assert gb.mem("boss_id") == C and DUKE.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER
         to_frame(gb, ENT_LAND)
         frames(gb, 2)
@@ -605,7 +608,7 @@ def test_boss_rush_starts_with_the_entrance_too(model):
 def test_entrance_goldens(model):
     """Golden boss_duke_entrance_ride: frame 22 (skidding, the dust behind the rear tyre); boss_duke_entrance_vault: frame 52
     (Duke in the air, the empty bike rolling away, the bartender out of sight)."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         to_frame(gb, 22)
         check_golden(gb, "boss_duke_entrance_ride")
         to_frame(gb, 52)

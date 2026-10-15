@@ -24,7 +24,7 @@ R = row(C)
 A = art("yeti")
 B = R["bar"]
 BP_INHALE, BP_BLOW = 5, 6
-BS_JUMP, BP_HIDE = 4, 14
+BS_JUMP, BP_HIDE, BS_ENTER = 4, 14, 7
 SFX_LAUNCH, SFX_SHAKE, SFX_WHOOSH = 2, 8, 13
 SRC = (ROOT / "src" / "boss_yeti.c").read_text()
 EVERY, TELL, ICY, BLOW, CREEP, CREEP_COLS, ICE_COLS = (int(re.search(rf"#define {n}\s+(\d+)", SRC).group(1)) for n in (
@@ -106,8 +106,6 @@ def test_the_fight_follows_the_last_call(model):
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         to_goal(gb)
         gb.run(2)
-        assert gb.mem("yeti_phase") == YP_ENTER, "the entrance first"
-        entrance_over(gb)
         check_start(gb, C, A, model)
         assert bytes(gb.read(0x8000 + ICE_BG * 16, 32)) == bytes(A["ice"])
         assert bytes(gb.read(0x8000 + SPARK_BG * 16, 64)) == bytes(A["spark"])
@@ -354,16 +352,16 @@ def test_the_entrance_is_a_frost_front(model):
     (never back until the thaw) with a whoosh, he steps out of the frost in the BLOW pose at ENT_APPEAR, the frost
     thaws at ENT_THAW, he WALKS at ENT_LAND with the intro's 90 frames from there and the first breath EVERY away;
     every frame is checked at <= 10 sprites a line (frames()). Golden boss_yeti_entrance: the BLOW, the frost on."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         gb.run(2)
         whoosh = sfx(gb, SFX_WHOOSH)
-        assert gb.mem("yeti_phase") == YP_ENTER and gb.mem("boss_state") == BS_JUMP and gb.mem("boss_xpose") == BP_HIDE
+        assert gb.mem("yeti_phase") == YP_ENTER and gb.mem("boss_state") == BS_ENTER and gb.mem("boss_xpose") == BP_HIDE
         assert wall_bare(gb)
         most = 0
         while gb.mem("yeti_phase") == YP_ENTER:
             t = gb.mem("yeti_t")
             if t < ENT_APPEAR:
-                assert gb.mem("boss_state") == BS_JUMP and wall_bare(gb)
+                assert gb.mem("boss_state") == BS_ENTER and wall_bare(gb)
                 assert gb.mem("boss_hp") == 12 and gb.mem("intro_timer") >= 89, "held until he walks"
             n = sum(1 for a, b in zip(counter(gb), ICY_COUNTER) if a == b or SPARK_BG <= a < SPARK_BG + 4)
             if ENT_THAW + 2 <= t < ENT_LAND:
