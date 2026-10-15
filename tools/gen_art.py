@@ -787,8 +787,8 @@ def bonus2_art(outdir, prev):
     assert len(glass) == 40 and all(len(r) == 16 for r in glass)
     assert len(bang) == 8 and all(len(r) == 8 for r in bang)
     tips = [r for _, r in blocks(ROOT / "assets/art/tips.txt")]
-    assert len(tips) == 4 and [len(f[0]) for f in tips] == [24, 24, 8, 8] and all(len(f) == 16 for f in tips)
-    tips_frames = [[r[i:i + 8] for r in tips[k]] for k in (0, 1) for i in (0, 8, 16)] + tips[2:]
+    assert len(tips) == 4 and [len(f[0]) for f in tips] == [32, 32, 8, 8] and all(len(f) == 16 for f in tips)
+    tips_frames = [[r[i:i + 8] for r in tips[k]] for k in (0, 1) for i in (0, 8, 16, 24)] + tips[2:]
     pt = []
     for f in pour:
         pt += tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)

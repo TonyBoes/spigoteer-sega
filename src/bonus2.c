@@ -10,10 +10,15 @@
 // Three glasses, each with its own line height.
 //   OAM: bartender 4-7, dome 8-9 (in front of the beer), beer 10-13, foam 14-15, stream 16-18, arrows 19-20,
 //   spill streaks 21-24, tap 25-27. At most 9 on a line (2 columns x beer 2 + foam 1, stream 1, arrows 2).
-// TIP SHOWER: the bartender walks the floor with a tray over his head (1.75 px per frame). Coins and rotten tomatoes fall
+// TIP SHOWER: the bartender walks the floor with a tray held in front of him at waist height (1.75 px per frame; D5b, owner
+// 2026-10-15: it was over his head). Coins and rotten tomatoes fall
 // at varied x and speeds. A coin on a clean tray: +100. A tomato on the tray: it is dirty for TRAY_DIRTY frames and
 // catches nothing. TIPS_TIME frames, timer on the banner.
-//   OAM: bartender 4-7, tray 8-10, falling items 11-17 (at most TS_ITEMS): no line can pass 3 + 7 = 10.
+//   OAM: falling items 4-10 (at most TS_ITEMS), tray 11-14, bartender 15-18. The tray's 4 entries (the art is 24 wide in a 32-wide
+//   frame) sit on the same x as his two (a tie on DMG, where the smaller x wins, goes to the lower index) and have lower indexes, so
+//   the tray is in front of him on both models; the items have the lowest, so a coin falls in front of him (on a DMG a coin
+//   whose x is a little past his left half still goes behind it for a few frames: sprite priority there is by x).
+//   On the tray's lines: 2 (him) + 4 (tray) + the items on that line (the items are at least 14 frames apart): <= 10.
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -79,8 +84,11 @@ enum { PR_NONE, PR_PERFECT, PR_GOOD, PR_LOW, PR_HIGH, PR_SPILL };
 #define TS_COIN         1
 #define TS_TOMATO       2
 #define TS_SPLAT        3
-#define TRAY_OAM_Y      (96 + 16)
-#define TRAY_SURFACE    105     // screen y of the tray's top
+#define TRAY_OAM_Y      (BT_OAM_Y + 12)   // the tray frame covers his body rows 12-27 (waist height)
+#define TRAY_SURFACE    129     // screen y of the tray's top (his body row 17)
+#define OAM_ITEMS       4
+#define OAM_TRAY        11
+#define OAM_BT_TIPS     15
 #define FLOOR_Y         136
 #define TS_TOP          32      // items appear under the banner
 #define TIPS_TIME       1200    // 20 s
@@ -89,9 +97,9 @@ enum { PR_NONE, PR_PERFECT, PR_GOOD, PR_LOW, PR_HIGH, PR_SPILL };
 #define TRAY_MAX        136
 #define TIP_VALUE       100
 #define TT_TRAY         0
-#define TT_TRAY_DIRTY   3
-#define TT_TOMATO       6
-#define TT_SPLAT        7
+#define TT_TRAY_DIRTY   4
+#define TT_TOMATO       8
+#define TT_SPLAT        9
 #define TTL(f)          (OBJ_B2 + 2 * (f))
 
 extern uint8_t bonus_phase, bonus_timer;
@@ -139,13 +147,13 @@ static void spr(uint8_t i, uint8_t x, uint8_t y, uint8_t tile, uint8_t prop) {
 
 static void hide(uint8_t i, uint8_t n) { while (n--) shadow_OAM[i++].y = 0; }
 
-static void draw_bt(uint8_t x, uint8_t f, uint8_t left) {
+static void draw_bt(uint8_t o, uint8_t x, uint8_t f, uint8_t left) {     // OAM o..o+3
     uint8_t base = f * BARTENDER_TILES_PER_FRAME, xa = x + 8, xb = x + 16, fl = 0;
     if (left) { xa = x + 16; xb = x + 8; fl = S_FLIPX; }
-    spr(4, xa, BT_OAM_Y,      base,     fl);
-    spr(5, xb, BT_OAM_Y,      base + 2, fl);
-    spr(6, xa, BT_OAM_Y + 16, base + 4, fl);
-    spr(7, xb, BT_OAM_Y + 16, base + 6, fl);
+    spr(o, xa, BT_OAM_Y,      base,     fl);
+    spr(o + 1, xb, BT_OAM_Y,      base + 2, fl);
+    spr(o + 2, xa, BT_OAM_Y + 16, base + 4, fl);
+    spr(o + 3, xb, BT_OAM_Y + 16, base + 6, fl);
 }
 
 static void load_palettes(void) {
@@ -309,7 +317,7 @@ static void draw_pour(void) {
     spr(26, x + 8,  TAP_Y + 16, pouring ? PT(F_TAPB_OPEN) : PT(F_TAPB), k);
     spr(27, x + 16, TAP_Y + 16, PT(F_TAPC), k);
     // and the bartender
-    draw_bt(BT_X, pour_result == PR_SPILL ? BT_FAIL : pour_result == PR_PERFECT ? BT_CATCH : pouring ? BT_FILL : BT_IDLE, 0);
+    draw_bt(4, BT_X, pour_result == PR_SPILL ? BT_FAIL : pour_result == PR_PERFECT ? BT_CATCH : pouring ? BT_FILL : BT_IDLE, 0);
 }
 
 static uint8_t pour_update(void) {
@@ -407,11 +415,11 @@ static void tips_items(void) {
 }
 
 static void draw_tips(void) {
-    uint8_t i, f, o = 11, pal, k;
-    // tray over the head: clean (palette 0) or dirty (the red palette, OBP1 on DMG)
+    uint8_t i, f, o = OAM_ITEMS, pal, k;
+    // the tray at his waist: clean (palette 0) or dirty (the red palette, OBP1 on DMG)
     f = tray_dirty ? TT_TRAY_DIRTY : TT_TRAY;
     pal = tray_dirty ? (is_cgb ? OPAL_RED : S_PALETTE) : 0;
-    for (k = 0; k < 3; k++) spr(8 + k, tray_x - 4 + 8 * k + 8, TRAY_OAM_Y, TTL(f + k), pal);
+    for (k = 0; k < 4; k++) spr(OAM_TRAY + k, tray_x + 8 * k, TRAY_OAM_Y, TTL(f + k), pal);   // (x - 8 + 8 on the OAM's offset)
     for (i = 0; i < TS_ITEMS; i++, o++) {
         switch (ts_type[i]) {
         case TS_COIN:   spr(o, ts_x[i] + 8, (uint8_t)(ts_y[i] >> 4) + 8, OBJ_COIN + ((ts_v[i] + (bonus_timer >> 3)) & 2), is_cgb ? OBJPAL_COIN : 0); break;
@@ -423,7 +431,7 @@ static void draw_tips(void) {
     f = BT_IDLE;
     if (tray_dirty > TRAY_DIRTY - 20) f = BT_FAIL;
     else if (tray_walk) f = (tray_walk & 8) ? BT_WALK1 : BT_WALK2;
-    draw_bt(tray_x, f, tray_left);
+    draw_bt(OAM_BT_TIPS, tray_x, f, tray_left);
 }
 
 static uint8_t tips_update(void) {

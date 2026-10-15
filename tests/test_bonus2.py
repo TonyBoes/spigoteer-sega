@@ -28,7 +28,7 @@ POUR_RATE, FOAM_POUR, FOAM_RISE, FOAM_RISE_STEP = (define(n) for n in ("POUR_RAT
 TIPS_TIME, TRAY_DIRTY, TRAY_SURFACE = define("TIPS_TIME"), define("TRAY_DIRTY"), define("TRAY_SURFACE")
 OBJ_B2 = 96
 T_DOME, T_STREAK, T_HEAD = OBJ_B2 + 6, OBJ_B2 + 8, OBJ_B2 + 10
-T_TRAY, T_TRAY_DIRTY, T_TOMATO = OBJ_B2, OBJ_B2 + 6, OBJ_B2 + 12
+T_TRAY, T_TRAY_DIRTY, T_TOMATO = OBJ_B2, OBJ_B2 + 8, OBJ_B2 + 16   # (frames 0, 4, 8: 4 entries a tray)
 TS_ITEMS = 7
 GLASS_COL, GLASS_ROW, INNER_BOT = 9, 6, 80
 
@@ -314,8 +314,8 @@ def test_tray_moves_left_and_right(gb):
     gb.press("right", 200)
     assert tray(gb) == 136
     sp = gb.visible_sprites()
-    t = [s for s in sp if s["tile"] in (T_TRAY, T_TRAY + 2, T_TRAY + 4)]
-    assert len(t) == 3 and min(s["x"] - 8 for s in t) == 136 - 4, "the tray over his head moves with him"
+    t = [s for s in sp if s["tile"] in (T_TRAY, T_TRAY + 2, T_TRAY + 4, T_TRAY + 6)]
+    assert len(t) == 4 and min(s["x"] - 8 for s in t) == 136 - 8, "the tray at his waist moves with him"
 
 
 def test_a_coin_on_the_tray_scores_100(gb):
@@ -439,3 +439,91 @@ def test_next_level_loads_with_the_venue_restored(gb, kind):
     assert bg == patron_group_tiles(2)[(first - 78) * 16:(first - 78 + 24) * 16], "the patron tiles are back over the glass and '!'"
     if gb.model_name == "dmg":
         assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's again (M13a: 0xE4 in play, for lifted patrons)"
+
+
+# ---- D5b: the tray at waist height (owner 2026-10-15) -----------------------------------------------------------------------------
+OAM_ITEMS, OAM_TRAY, OAM_BT_TIPS = (define(n) for n in ("OAM_ITEMS", "OAM_TRAY", "OAM_BT_TIPS"))
+BT_OAM_Y = 112 + 16                                      # (a parenthesised define: his OAM y)
+SHOTS = ROOT / "out" / "tips"
+
+
+def raw_oam(gb, i):
+    a = 0xFE00 + 4 * i
+    return dict(y=gb.mem(a), x=gb.mem(a + 1), tile=gb.mem(a + 2), flags=gb.mem(a + 3))
+
+
+def tips_shot(gb, name):
+    SHOTS.mkdir(parents=True, exist_ok=True)
+    gb.screenshot(SHOTS / f"{name}.{gb.model_name}.png", 3)
+
+
+def test_the_tray_is_held_at_waist_height(gb):
+    """The tray's four entries sit over his body rows 12-27 (his waist: the tray's top surface, art row 5, is his row 17),
+    on the same x as his two entries and with lower OAM indexes (so it is in front of him on DMG too, where the smaller x
+    wins and a tie goes to the lower index); he is drawn behind the falling items. The hitbox surface is the drawn tray top."""
+    enter_tips(gb)
+    clear_items(gb)
+    for x_keys in ("right", "left"):                     # facing right, then facing left
+        gb.press(x_keys, 10)
+        gb.run(2)
+        t = [raw_oam(gb, OAM_TRAY + k) for k in range(4)]
+        b = [raw_oam(gb, OAM_BT_TIPS + k) for k in range(4)]
+        assert [e["tile"] for e in t] == [T_TRAY + 2 * k for k in range(4)]
+        assert all(e["y"] == BT_OAM_Y + 12 and e["x"] == tray(gb) + 8 * k for k, e in enumerate(t))
+        assert {e["y"] for e in b} == {BT_OAM_Y, BT_OAM_Y + 16}
+        body_x = sorted({e["x"] for e in b})
+        assert body_x == [tray(gb) + 8, tray(gb) + 16], "his two columns are the tray's middle two"
+        assert OAM_ITEMS + TS_ITEMS <= OAM_TRAY and OAM_TRAY + 4 <= OAM_BT_TIPS, "items, then the tray, then him"
+        assert t[0]["y"] - 16 + 5 == TRAY_SURFACE and t[0]["y"] - 16 >= BT_OAM_Y - 16 + 12, "surface = art row 5, at his waist"
+        assert BT_OAM_Y - 16 + 17 == TRAY_SURFACE
+
+
+def test_the_waist_tray_catches_what_the_overhead_one_did(gb):
+    """The catch box is unchanged horizontally (a coin whose x is tray_x-8 .. tray_x+16 is caught, one pixel further out falls
+    past) and a coin is caught the frame its bottom reaches the drawn tray top (it falls 24 px further than before)."""
+    enter_tips(gb)
+    clear_items(gb)
+    for dx, caught in ((-8, True), (-9, False), (16, True), (17, False), (4, True)):
+        clear_items(gb)
+        gb.run(1)
+        x = tray(gb) + dx
+        before = gb.mem("tips_caught")
+        drop(gb, 0, 1, x, 60)
+        seen = None
+        for _ in range(120):
+            gb.run(1)
+            if gb.read("ts_type", TS_ITEMS)[0] == 0:
+                break
+            y = (gb.read("ts_y", 2 * TS_ITEMS)[0] | gb.read("ts_y", 2 * TS_ITEMS)[1] << 8) >> 4
+            seen = y
+        gb.run(1)
+        assert (gb.mem("tips_caught") == before + 1) == caught, dx
+        if caught:
+            assert TRAY_SURFACE - 8 - 2 <= seen <= TRAY_SURFACE - 8, "its bottom reached the tray's top"
+
+
+def test_tips_screenshots_and_a_whole_round_keeps_to_10_sprites_a_line(gb):
+    """x3 pictures of the waist tray (clean, with a coin about to land, dirty); the busiest line of a whole round with items
+    falling all the time (tray 4 + him 2 + items) stays within 10."""
+    enter_tips(gb)
+    gb.press("right", 20)
+    gb.run(4)
+    tips_shot(gb, "tips_waist_clean")
+    clear_items(gb)
+    drop(gb, 0, 1, tray(gb) + 4, TRAY_SURFACE - 8 - 30)
+    gb.run(14)
+    tips_shot(gb, "tips_waist_coin")
+    drop(gb, 1, 2, tray(gb) + 4, 70)
+    run_until(gb, lambda: gb.mem("tray_dirty") > 0, 80)
+    gb.run(3)
+    tips_shot(gb, "tips_waist_dirty")
+    worst = 0
+    gb.write("tips_spawn", 1)
+    for n in range(500):
+        if n % 70 == 0:
+            gb.release("left"); gb.release("right")
+            gb.hold("left" if (n // 70) % 2 else "right")
+        gb.run(1)
+        worst = max(worst, max(lines(gb)))
+    gb.release("left"); gb.release("right")
+    assert worst <= 10, worst

@@ -404,7 +404,10 @@ table with initials + loop banner/harder loops.
   Hold A: 1 px of beer every 4 frames with a 3 px head; release: the head rises 4 px more (1 px / 8 frames). Final
   level vs the line: +-1 PERFECT 3000, +-4 GOOD 1500, past the 32 px rim SPILL (foam heap over the rim, streaks down
   the outside), else TOO LOW / TOO HIGH. Three glasses, each line different (six heights, 12-27 px). Max 9 sprites a line.
-- Tip Shower: tray (24 px, 3 entries) over the bartender's head, 1.75 px per frame; at most 7 falling items (coins
+- Tip Shower: tray (24 px wide, drawn as a 32x16 frame of 4 entries over his body rows 12-27; D5b 2026-10-15: it was over his head)
+  held in front of him at waist height with both gloved hands (surface y 129, TRAY_SURFACE; the catch box is unchanged horizontally, coins
+  fall 24 px further). OAM: items 4-10, tray 11-14, him 15-18 (the tray's entries share his two x's, lower index: in front of him on
+  DMG too; a coin falls in front of him on CGB, on DMG a coin a little right of his left half is behind it for a few frames). 1.75 px per frame; at most 7 falling items (coins
   25% tomatoes, 0.75-1.75 px per frame, new one every 14-29 frames) so no line passes 10. Coin on a clean tray +100;
   a tomato dirties the tray for 60 frames (no catches, no life lost). 20 s timer, "TIME UP / BONUS nnnn". No counter row.
 
