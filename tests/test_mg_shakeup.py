@@ -114,7 +114,7 @@ def test_the_bar_cat_walks_in_level_3_only(model):
                     assert max(lines(gb)) <= 10
             if lv == 3:
                 assert len(xs) > 80 and xs == sorted(xs) and xs[0] < 24 and xs[-1] > 120, (len(xs), xs[:3], xs[-3:])
-                assert len(tiles) == 4, "both walk frames show (a left and a right half each)"
+                assert len(tiles) == 8, "all four walk frames show (a left and a right half each: two leg steps, the tail down and up)"
                 assert not walker(gb), "off the right edge before the choice"
                 o = gb.oam()
                 assert all(0 < o[i]["y"] < 160 for i in range(8, 14)), "the six cans are all there to choose from"

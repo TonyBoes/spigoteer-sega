@@ -43,7 +43,7 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // venue.c
 #define OBJ_CURSOR       (OBJ_BONUS + CAN_TILE_COUNT)
 #define OBJ_GEYSER       (OBJ_CURSOR + 2)                 // left halves A, B, cap; right halves are +6
 #define OBJ_DROP         (OBJ_GEYSER + GEYSER_FRAMES * 2) // tall, round, splat
-#define OBJ_CAT          (OBJ_DROP + DROP_FRAMES * 2)     // 2 walk frames: left half, right half (8x16 each)
+#define OBJ_CAT          (OBJ_DROP + DROP_FRAMES * 2)     // 4 walk frames (leg step A / B, tail down / up): left half, right half (8x16 each)
 #define GEY_BASE         (CAN_TOP + 6)      // screen y of the burst can's mouth
 #define GEY_MAX          56                 // geyser peak height, px
 #define GEY_OAM          30                 // 8 entries: 4 rows of left/right halves
@@ -304,9 +304,9 @@ static void draw(void) {
         for (k = 0; k < 8; k++) shadow_OAM[GEY_OAM + k].y = 0;
     }
     if ((bonus_phase == PH_SWAP || bonus_phase == PH_CHOOSE) && game_state == GS_MINI && bonus_round == 3 && drop_x[0] < CAT_END * 4) {
-        drop_x[0] += 5;                                         // level 3's distraction: the bar cat walks along the counter top behind the cans
-        x = (uint8_t)(drop_x[0] >> 2);                          // (OAM 30-31, behind the cans' 8-13), 1.25 px a frame from the swaps' start, head
-        f = (x >> 3) & 1;                                       // first from off the left edge, off the right edge before the choice (drop_x[0] is
+        drop_x[0] += 4;                                         // level 3's distraction: the bar cat walks along the counter top behind the cans
+        x = (uint8_t)(drop_x[0] >> 2);                          // (OAM 30-31, behind the cans' 8-13), 1 px a frame from the swaps' start, head
+        f = ((x >> 3) & 1) | (((x + (x >> 1)) >> 3) & 1) << 1;  // (bit 0 the legs, bit 1 the tail wave on its own clock) first from off the left edge, off the right edge before the choice (drop_x[0] is
         base = OBJ_CAT + 4 * f;                                 // the walk's clock, x its head's OAM x; the cat is 16 wide, x - 8 its tail's)
         if (x >= 8) spr(GEY_OAM, x - 8, CAT_TOP + 16, base, OBJPAL_CAT); else shadow_OAM[GEY_OAM].y = 0;
         if (x < 168) spr(GEY_OAM + 1, x, CAT_TOP + 16, base + 2, OBJPAL_CAT); else shadow_OAM[GEY_OAM + 1].y = 0;
