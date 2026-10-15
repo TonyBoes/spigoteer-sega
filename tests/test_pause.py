@@ -167,6 +167,20 @@ def test_music_advances_while_paused_with_only_the_harmony_and_the_bass_and_resu
 
 
 @pytest.mark.parametrize("model", MODES)
+def test_junk_in_the_pause_byte_at_power_on_does_not_mute_the_tunes(model):
+    """HRAM is not cleared at power-on (real hardware, most emulators): main() clears PAUSE_NR51 first, so the title and a
+    level play every channel, not the pause mix (owner 2026-10-15: "I'm getting pause music for everything")."""
+    with make_rom(model, sound=True) as gb:
+        gb.pb.memory[PAUSE_NR51] = 0x5A                  # before the first instruction
+        gb.run(400)
+        assert gb.mem(PAUSE_NR51) == 0 and gb.mem(NR51) == 0xFF
+        hold_stage_anim(gb)
+        start_arcade(gb)
+        gb.run(120)
+        assert gb.mem(NR51) == 0xFF
+
+
+@pytest.mark.parametrize("model", MODES)
 def test_no_effect_sounds_while_paused(model):
     """An effect that is still going when START lands stays off the speaker, and a request made meanwhile is not heard either."""
     with rom_s(model) as gb:

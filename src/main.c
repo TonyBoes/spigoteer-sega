@@ -623,6 +623,7 @@ __endasm;
 
 void main(void) {
     uint8_t t0, ly0, st0, lt, lly, d, ok;
+    PAUSE_NR51 = 0;      // (HRAM is not cleared at power-on: left non-zero, music_tick played every tune as the pause mix)
     boot_init();
     perf_last_t = (uint8_t)sys_time;
     while (1) {
