@@ -2,15 +2,17 @@
 # the patron lion scaled up, crowned). The fight follows the zoo's Last call: his row (32 px, step 80, push 8, gulp 30,
 # hands 2, sip 60, meter 14) and his roar every 420 frames of walking: the tell (60 frames: the INHALE pose and "!!" in
 # the column right of him; he stands), the roar (30 frames: the ROAR pose; every regular walker pushed back 16 px
-# without a serve, every drinker in his minimum drink finishing now, his own held empty free to go: all of it within
-# the fair-empties schedule), then he walks again. Every frame here is checked at <= 10 sprites a line.
+# without a serve, and E6's shockwave: gold arcs sweeping right along every bar that blow every full mug they pass back
+# toward the bartender as a MUG_RETURN: caught at that bar's tap end like an empty, or a life), then he walks again; and
+# E6's entrance (a flaming hoop, the leap, the landing roar). Every frame here is checked at <= 10 sprites a line.
+import json
 import re
 
 import pytest
-from boss_common import (BP_HAPPY, BP_WALK, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, Own, SP_FAIL,
+from boss_common import (BP_HAPPY, BP_WALK, BS_JUMP, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, Own, SP_FAIL,
                          SP_OUTRO, SPOUT_X, TAP_X, art, arrivals_ok, assert_body, bar_row, check_start, fight, frames,
                          hud, meter_tiles, mugs, play, pour, row, still_regulars, throw, to_bar, until)
-from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
+from conftest import GAME, clear_regulars, ROOT, check_golden, logic_paused, venue
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, score, set_patron, state, tilemap_row
 from test_story import banner_text, centred, post, settle, to_goal
 
@@ -22,8 +24,13 @@ A = art("leo")
 B = R["bar"]
 BP_INHALE, BP_ROAR = 5, 6
 SRC = (ROOT / "src" / "boss_leo.c").read_text()
-EVERY, TELL, ROAR, PUSH = (int(re.search(rf"#define {n}\s+(\d+)", SRC).group(1)) for n in (
-    "LEO_EVERY", "LEO_TELL", "LEO_ROAR", "LEO_PUSH"))
+EVERY, TELL, ROAR, PUSH, WAVE, REACH, ENT_FLY, ENT_AIR = (int(re.search(rf"#define {n}\s+(\d+)", SRC).group(1)) for n in (
+    "LEO_EVERY", "LEO_TELL", "LEO_ROAR", "LEO_PUSH", "LEO_WAVE", "WAVE_REACH", "ENT_FLY", "ENT_AIR"))
+ENT_LAND = ENT_FLY + ENT_AIR
+ENT_END = ENT_LAND + ROAR
+FX = json.loads((ROOT / "build" / "leo_fx.json").read_text())
+OAM_WAVE = 29
+RETURN = 5
 LP_WALK, LP_TELL, LP_ROAR = range(3)
 LEO = Own("leo")
 BANG = 246
@@ -68,17 +75,21 @@ def test_his_row_and_art():
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_fight_follows_the_last_call(model):
-    """After the zoo's Last call: BOSS and his lines; Leo on bar 2 at x 16 (his tiles, palettes, the "!!" at BG
-    246-247), the meter of 14 (all 7 HUD tiles), his crown as the topper. Golden boss_leo: walking, a coconut on its
-    way."""
+    """After the zoo's Last call: BOSS and his lines; his entrance first (he is away from his bar), then Leo on bar 2
+    at x 16 (his tiles, palettes, the "!!" at BG 246-247, the wave and hoop sprites at OBJ 104+), the meter of 14 (all 7
+    HUD tiles), his crown as the topper. Golden boss_leo: walking, a coconut on its way."""
     with fight(model, C, banner=True) as gb:
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         to_goal(gb)
         gb.run(2)
+        assert LEO.get(gb, "ent") and gb.mem("boss_state") == BS_JUMP, "the entrance first"
+        play(gb)
+        assert LEO.get(gb, "ent") == 0
         check_start(gb, C, A, model)
         assert bytes(gb.read(0x8000 + BANG * 16, 32)) == bytes(A["tiles"])
+        assert bytes(gb.read(0x8000 + FX["base"] * 16, len(FX["pairs"]) * 32)) == bytes(b for p in FX["pairs"] for b in p)
         assert hud(gb) == meter_tiles(14, 14)
-        assert (phase(gb), gb.mem16("boss_special_t")) == (LP_WALK, EVERY)
+        assert phase(gb) == LP_WALK and gb.mem16("boss_special_t") in (EVERY, EVERY - 1)
         assert not bang_shown(gb)
         quiet(gb)
         throw(gb, B, 100)
@@ -173,48 +184,110 @@ def test_the_roar_pushes_walkers_back_without_a_serve(model):
         assert LEO.get(gb, "mask") == 0
 
 
+def to_roar(gb):
+    """The tell started by the hook, then on to the roar's first frame (the wave's front at its start)."""
+    gb.write("boss_hook", 1)
+    until(gb, lambda: phase(gb) == LP_TELL, 4)
+    until(gb, lambda: phase(gb) == LP_ROAR, TELL + 4)
+
+
+def arcs(gb):
+    """The wave's entries (OAM 29-36): (y, x, tile) of the ones on."""
+    return [(o["y"], o["x"], o["tile"]) for o in gb.oam()[OAM_WAVE:OAM_WAVE + 8] if o["y"]]
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_roar_hurries_four_drinkers_within_the_fair_schedule(model):
-    """Four regulars drinking (two on bar 0, one each on bars 1 and 3) and an empty in Leo's hands when he roars: each
-    drinker finishes at once and every empty (theirs and his) goes only when the fair-empties schedule lets it, so
-    every two arrive at the tap end >= empty_gap apart; all of them go long before their drinks would have ended."""
+def test_the_roar_blows_full_mugs_back_on_every_bar(model):
+    """A full mug on each of the four bars when he roars: the wave's front (LEO_WAVE px a frame from his right edge) turns
+    each into a MUG_RETURN as it passes it, the mug then slides back to the right at 1 px a frame; nothing is scored, no
+    meter pip is lost or gained, no life lost yet."""
     with fight(model, C) as gb:
         quiet(gb)
-        with logic_paused(gb):
-            gb.write("spawn_timer", 0xFF)
-            gb.write(gb.addr("spawn_timer") + 1, 0x7F)
-            before = set(i for i, s in enumerate(gb.read("patron_state", 16)) if s)
-            for b, x in ((0, 40), (0, 88), (1, 64), (3, 72)):
-                set_patron(gb, b, x)
-        slots = [i for i, s in enumerate(gb.read("patron_state", 16)) if s and i not in before]
-        throw(gb, B, 70)                                          # Leo catches one: an empty in his hands
-        until(gb, lambda: gb.mem("boss_hits") == 1, 30)
-        gb.write("boss_hook", 1)
-        frames(gb, 2)
-        for b, x in ((0, 40), (0, 88), (1, 64), (3, 72)):
-            throw(gb, b, x + 30)
-        until(gb, lambda: all(gb.read("patron_state", 16)[i] == DRINKING for i in slots), 60)
-        assert phase(gb) == LP_TELL and gb.mem("boss_hold") == 1
-        until(gb, lambda: phase(gb) == LP_ROAR, TELL + 4)
-        clock = Clock(gb)
-        assert LEO.get(gb, "hurried") == 4
-        gap = gb.mem("empty_gap")
-        arrivals, seen = [], set()
-        while len(arrivals) < 5 and clock.now() < 6 * gap + 200:
+        to_roar(gb)
+        hp, sc = gb.mem("boss_hp"), score(gb)
+        for b in range(4):
+            throw(gb, b, 110)
+        blown = {}
+        for _ in range(16):
             frames(gb, 1)
-            f = clock.now()
-            for i, s, b, x in mugs(gb, st=EMPTY):
-                if i not in seen:
-                    seen.add(i)
-                    arrivals.append((f + (TAP_X - x) * 2, b == B))
-                    with logic_paused(gb):                       # (gone: no break at the tap end, no life)
-                        gb.write(gb.addr("mug_state") + i, 0)
-                        gb.write("mugs_live", gb.mem("mugs_live") - 1)
-        assert len(arrivals) == 5, arrivals
-        arrivals.sort()
-        arrivals_ok(arrivals, gap)
-        assert gb.mem("lives") == 3 and gb.mem("boss_hold") == 0
-        assert arrivals[0][0] < 90 + 200, "the first empty went long before a 90-frame drink would have ended"
+            for i, st, b, x in mugs(gb):
+                if st == RETURN and i not in blown:
+                    blown[i] = (b, x)
+        assert sorted(b for b, x in blown.values()) == [0, 1, 2, 3], blown
+        assert LEO.get(gb, "blown") == 4
+        assert all(x < 110 for b, x in blown.values()), "blown on the way, not where they were thrown"
+        before = {i: x for i, st, b, x in mugs(gb, st=RETURN)}
+        frames(gb, 4)
+        after = {i: x for i, st, b, x in mugs(gb, st=RETURN)}
+        assert all(after[i] == before[i] + 4 for i in before), (before, after)
+        assert (gb.mem("boss_hp"), score(gb)) == (hp, sc) and gb.mem("lives") == 3
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_blown_mug_is_caught_like_an_empty_or_breaks(model):
+    """Mugs on bars 0 and 3, the bartender stays at bar 0's tap: bar 0's returns to him and is caught (EMPTY_SCORE, no life,
+    Leo's meter untouched); bar 3's goes past its tap end and breaks (a life). Alone on bar 3 with the bartender moved there in
+    time, it is caught and nothing breaks."""
+    with fight(model, C) as gb:
+        quiet(gb)
+        to_roar(gb)
+        sc, hp = score(gb), gb.mem("boss_hp")
+        throw(gb, 0, 110)
+        throw(gb, 3, 110)
+        until(gb, lambda: gb.mem("lives") == 2, 160)
+        assert score(gb) - sc == GAME["EMPTY_SCORE"] and gb.mem("boss_hp") == hp and gb.mem("boss_hits") == 0
+    with fight(model, C) as gb:
+        quiet(gb)
+        to_roar(gb)
+        sc = score(gb)
+        throw(gb, 3, 110)
+        to_bar(gb, 3)
+        until(gb, lambda: not mugs(gb), 160)
+        assert score(gb) - sc == GAME["EMPTY_SCORE"] and gb.mem("lives") == 3
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_tell_leaves_time_to_stop_throwing(model):
+    """A mug thrown as the tell begins is caught by Leo long before the roar (60 frames: a full mug needs about 40 to cross
+    to him); one thrown 20 frames before the roar is still blown back, so the player's choice is clear: stop throwing for
+    about a second and a half."""
+    with fight(model, C) as gb:
+        quiet(gb)
+        gb.write("boss_hook", 1)
+        until(gb, lambda: phase(gb) == LP_TELL, 4)
+        throw(gb, B, 130)
+        clock = Clock(gb)
+        until(gb, lambda: clock.now() >= TELL - 8, TELL)
+        assert gb.mem("boss_hits") == 1 and not mugs(gb), "caught by Leo during the tell"
+        throw(gb, 0, 130)
+        until(gb, lambda: phase(gb) == LP_ROAR, 30)
+        until(gb, lambda: LEO.get(gb, "blown") == 1, 40)
+        assert gb.mem("boss_hits") == 1 and mugs(gb)[0][1] == RETURN
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_wave_is_drawn_sweeping_right_on_every_bar(model):
+    """The roar's picture: from its first frame an arc a bar (the thin trailing one joins once the front is 14 px on),
+    LEO_WAVE px right a frame, all four bars, Leo's tiles at OBJ 104+; none left once the front is off the bars (frames()
+    checks every frame at <= 10 sprites a line). Golden boss_leo_blast: the wave over mugs."""
+    with fight(model, C) as gb:
+        quiet(gb)
+        to_roar(gb)
+        throw(gb, 0, 60)
+        throw(gb, 1, 90)
+        frames(gb, 1)
+        first = arcs(gb)
+        assert len(first) >= 4 and all(t >= FX["base"] for y, x, t in first)
+        assert len(set(y for y, x, t in first)) == 4
+        lead = FX["frames"]["ARC1"][0][2]
+        x0 = min(o[1] for o in first if o[2] == lead)
+        frames(gb, 6)
+        again = arcs(gb)
+        assert len(again) == 8, "both arcs on every bar once the front is 14 px on"
+        assert min(o[1] for o in again if o[2] == lead) == x0 + 6 * WAVE
+        frames(gb, 6)
+        check_golden(gb, "boss_leo_blast")
+        until(gb, lambda: not arcs(gb), 30)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -284,3 +357,70 @@ def test_win_the_fight_by_pouring(model):
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(C), 300)
         settle(gb)
         assert (gb.mem("boss_on"), gb.mem("story_progress")) == (0, C + 1)
+
+
+# ---- the entrance ----------------------------------------------------------------------------------------------------
+LEAP = {c[2] for c in FX["frames"]["LEAP"]}
+
+
+def ent_t(gb):
+    e = LEO.get(gb, "ent")
+    return e - 1 if e else None
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_entrance_plays_once_with_the_hoop_the_leap_and_the_landing_roar(model):
+    """First start: he is away from his bar (BS_JUMP, no body, no topper) with the bartender held at bar 0's tap; the hoop
+    from the first frame, Leo's leap from ENT_FLY; ENT_LAND: his body at x 16 (ROAR pose), the hoop gone, the wave sweeps
+    (a picture only: a full mug is not blown); ENT_END: WALK pose, the clock to the roar starts. After a lost life there is
+    no entrance. Golden boss_leo_leap (mid-air at the hoop)."""
+    with fight(model, C) as gb:
+        still_regulars(gb)
+        while ent_t(gb) is None or ent_t(gb) < ENT_LAND:
+            frames(gb, 1)
+            t = ent_t(gb)
+            if t is None:
+                continue
+            assert gb.mem("boss_state") == BS_JUMP and gb.mem("intro_timer") >= 89
+            assert gb.oam()[28]["y"] == 0, "no topper in the air"
+            assert gb.mem("bar") == 0 and gb.mem("bartender_x") == TAP_X
+            if t >= 1:
+                assert len(arcs(gb)) >= 4 - 2 * (t < ENT_FLY), (t, arcs(gb))
+            if t == ENT_FLY + 22:
+                check_golden(gb, "boss_leo_leap")
+        frames(gb, 2)
+        throw(gb, B, 120)
+        assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == R["x"] and gb.mem("boss_xpose") == BP_ROAR
+        assert_body(gb, C, A, R["x"], BP_ROAR)
+        assert gb.mem("intro_timer") >= 80
+        until(gb, lambda: ent_t(gb) is None, ROAR + 10)
+        assert LEO.get(gb, "blown") == 0 and not arcs(gb)
+        assert_body(gb, C, A, R["x"], BP_WALK)
+        assert phase(gb) == LP_WALK and gb.mem16("boss_special_t") == EVERY
+        play(gb)
+        assert gb.mem("boss_hits") == 1, "the mug thrown in the landing roar was caught, not blown back"
+        gb.write("boss_x", SPOUT_X - R["width"])
+        until(gb, lambda: state(gb) == LIFE_LOST, 6)
+        until(gb, lambda: state(gb) == PLAYING, 200)
+        frames(gb, 3)
+        assert LEO.get(gb, "ent") == 0 and gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == R["x"]
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_entrance_flies_in_an_arc_through_the_hoop(model):
+    """The leap's sprites: off the left edge at the take-off, rising to about 30 px above his bar's top at the middle of
+    the flight and level with it at the landing."""
+    with fight(model, C) as gb:
+        still_regulars(gb)
+        ys = {}
+        while ent_t(gb) is None or ent_t(gb) <= ENT_LAND - 2:
+            frames(gb, 1)
+            t = ent_t(gb)
+            if t is not None and t >= ENT_FLY + 1:
+                ents = [o for o in gb.oam()[OAM_WAVE:OAM_WAVE + 8] if o["y"] and o["tile"] in LEAP]
+                if ents:
+                    ys[t] = min(o["y"] for o in ents)
+        top = 16 + bar_row(R) * 8
+        mid = ENT_FLY + ENT_AIR // 2
+        assert ys[mid] <= top - 25 and top - 14 <= ys[ENT_LAND - 2] <= top
+        assert ys[mid] < ys[min(ys)] and ys[mid] < ys[ENT_LAND - 2]

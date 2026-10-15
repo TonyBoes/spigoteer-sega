@@ -710,31 +710,47 @@ Story fit: Zizz's mothership is parked behind the lounge and is very thirsty aft
 
 ### 3.11 Leo the Lion (Jungle zoo)
 
-Play: Leo, wearing the golden crown, pads toward the tap. He roars now and then: every walking animal jumps back
-and every drinker drops what it is doing and sends its empty.
+Play: Leo, wearing the golden crown, pads toward the tap. He roars now and then, and the roar is a wind: it blows every
+full mug sliding on any bar back toward the bartender (E6, owner 2026-10-15: "the lion's roar doesn't seem to do anything").
 
 Rules: common row, meter 14. Roar every 420 frames:
-1. Tell 60 frames: inhale pose (mane puffs out), two "!" BG tiles beside his head on his bar's wall.
-2. Roar 30 frames (roar pose, SFX): every regular walker on every bar is pushed back 16 px (the push-back
-   movement, no serve); every regular drinker ends its drink now and sends its empty as soon as the fair schedule
-   allows; Leo sends his held empty the same way; he does not advance during tell and roar.
+1. Tell 60 frames: inhale pose (mane puffs out), two "!" BG tiles beside his head on his bar's wall. This is the player's
+   second to stop throwing and park the bartender at the tap (a mug thrown as the tell begins reaches Leo in about 40
+   frames, before the roar).
+2. Roar 30 frames (roar pose, SFX_SHAKE): every regular walker on every bar is pushed back 16 px (the push-back
+   movement, no serve), and a shockwave starts at his right edge and sweeps right along all four bars at 5 px a frame
+   (about 27 frames to the tap end): gold arcs, one a bar (a thinner trailing one joins while fewer than 4 mugs are alive),
+   OAM 29-36. Every FULL mug the front passes (on any bar, one thrown while the front is at the spout too) becomes a
+   MUG_RETURN (the Critic's sent-back drink: 1 px a frame to the right): the bartender catches it at that bar's tap end
+   like an empty (EMPTY_SCORE, nothing for Leo's meter), or it goes past the tap end and breaks (a life). He does not
+   advance during tell and roar. Nothing else changed: no empties are hurried, his own held empty keeps its schedule.
 3. The "!" tiles go.
 
-Why fun and fair: the roar is double-edged: walkers retreat (relief) but a wave of empties follows. The empties
-still obey the fair schedule (>= 80 frames apart at L9), so the wave is a test of catching, never an impossible
-pile-up. Changed from the pitch: "empties fly" is "drinkers send early", not "empties all at once" (that could put
-four empties on four bars at the same moment). Readable: the tell is big (mane pose plus "!!"), 1 s long.
+Why fun and fair: it punishes spamming mugs (every mug in flight on any bar comes back at you, and the ones on the bars the
+bartender is not on must be run down in time, 30-90 frames of travel) but costs nothing for waiting: Leo stands still through
+the 90 frames of tell and roar, so stopping to catch is a clean answer. Rejected: stunning the bartender (a state the player
+cannot read), knocking the glass from his hand (invisible), the old "drinkers send early" (a wave of empties on top of blown
+mugs was unfair, and nobody saw it). A screen shake was left out: the play screen never scrolls and a scroll left set by a
+pause-and-quit would shift the title.
+
+ENTRANCE (E6, on the fight's first start like Duke's, BEV_INTRO): a flaming circus hoop appears over the left end of his bar
+(8 frames), Leo flies in from off the left edge in a 28-frame arc through it (his ROAR pose as sprites, 30 px up at the top),
+lands on his bar at x 16 (36 frames in), roars with the wave as a picture only, and the hoop is gone; the clock to the first
+roar starts 30 frames later. The bartender is held at bar 0's tap and nothing is poured while it plays. Not built: prowling
+in from the left and roaring at the screen.
 
 Hardware: as Tex. Poses walk A/B, gulp, inhale, roar, purr = 6 x 8 = 48 + "!" 2 + HUD 4 = 54. Topper: the golden
 crown (OBJ 7: gold; it is the piece the story is about, so it is the one topper that must look good). DMG: crown
 light with dark outline over a mid-grey mane.
 
 Art: Leo body 32x16 x 6 poses (respecting the owner's lion notes: a mane framing the whole head, ears, a cat
-muzzle, no bald-man look); crown 8x8 x 2 (glint); "!" 8x8; icon.
+muzzle, no bald-man look); crown 8x8 x 2 (glint); "!" 8x8; icon. E6: the wave's two arcs (8x16) and the hoop (16x32, two
+flames) in assets/art/leo_fx.txt (tools/gen_leo_fx.py -> build/leo_fx_art.h: 10 tile pairs at OBJ 104-123, Leo's colours;
+the leap is his ROAR pose drawn as sprites). PROPOSAL pending the owner's eye.
 
-Plugs into: boss engine + `lion_special`, which walks the patron list once (banked, on the roar frame only).
-Vars `boss_roar`. Tests: walkers pushed 16 px without score, drinkers' empties respect `next_arrival`, nothing
-breaks a fair-empties invariant over a scripted roar with 4 drinkers.
+Plugs into: boss engine, src/boss_leo.c only (no engine change). Its state is the struct leo_t in BOSS_OWN. Tests
+(tests/test_boss_leo.py): walkers pushed 16 px without score, the blast on every bar, a blown mug caught or broken, the
+tell's timing and time to react, the arcs' drawing, the entrance, <= 10 sprites a line on every frame.
 
 Story fit: PRE_ZOO already puts the crown on Leo. PRE_ZOO page (KIKI): `LEO WANTS A` / `DRINK FIRST. HE` /
 `ROARS. STAY CALM.` POST_ZOO's "the lion approaches... and purrs" is his defeat outro (the purr pose).
