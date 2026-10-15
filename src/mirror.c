@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "game.h"
+#include "music.h"
 
 uint8_t level_dirs;                 // the LEVEL harness's directions for its next level load (test hook, debug box)
 uint8_t draw_mask;                  // patron_draw = x & draw_mask (0xFE: a DMG mixed level)
@@ -129,13 +130,15 @@ void mirror_load(uint8_t dirs) BANKED {
     mixed = mixed && !is_cgb;                     // from here: the DMG's mixed scheme
     mir_bswap = mixed;
     draw_mask = mixed ? 0xFE : 0xFF;
-    for (v = 0; v < 4; v++)
+    for (v = 0; v < 4; v++) {
         for (s = 0; s < 8; s++) {
             se = mixed ? s & 6 : s;
             l = pose(v == 3 ? 0 : v, se);
             st_tab[(v << 3) | s] = l;
             st_tab[32 | (v << 3) | s] = mixed ? pose(v == 3 ? 0 : v, se + 1) : l;
         }
+        music_pump();                             // (the pose maths takes half a frame in all, LCD off in a screen's load: the tune ticks between its rows)
+    }
     mir_short = 0;
     if (!dirs) return;
     if (!is_cgb) {

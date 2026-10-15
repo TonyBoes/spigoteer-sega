@@ -46,6 +46,31 @@ void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank) {
     SWITCH_ROM(saved);
 }
 
+// (game.h redirects GBDK's calls to these: the music ticks through an LCD-off rebuild. The names in parentheses are the real ones.)
+void lcd_off_p(void) {
+    if (!(LCDC_REG & LCDCF_ON)) return;
+    while (LY_REG >= 0x92) music_pump();        // (display_off's own two waits: the LCD goes off at line 145)
+    while (LY_REG < 0x91) music_pump();
+    LCDC_REG &= ~LCDCF_ON;
+}
+
+void set_bkg_tiles_p(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t *t) {
+    (set_bkg_tiles)(x, y, w, h, t);
+    if (!(LCDC_REG & LCDCF_ON)) music_pump();
+}
+
+static void data_p(uint8_t obj, uint8_t first, uint8_t n, const uint8_t *d) {
+    uint8_t k;
+    do {
+        k = n > 8 ? 8 : n;
+        if (obj) (set_sprite_data)(first, k, d); else (set_bkg_data)(first, k, d);
+        if (!(LCDC_REG & LCDCF_ON)) music_pump();
+        first += 8; d += 128;
+    } while (n -= k);
+}
+void set_bkg_data_p(uint8_t first, uint8_t n, const uint8_t *d) { data_p(0, first, n, d); }
+void set_sprite_data_p(uint8_t first, uint8_t n, const uint8_t *d) { data_p(1, first, n, d); }
+
 #define bkg_data(first, n, d) bkg_data_far(first, n, d, BANK(art_tiles))
 #define spr_data(first, n, d) spr_data_far(first, n, d, BANK(art_tiles))
 

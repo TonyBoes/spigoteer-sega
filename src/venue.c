@@ -40,12 +40,14 @@ void load_venue(uint8_t t) BANKED {
     music_pump();
     // (P6: BASE_W wide; columns 20.. plain wall, the wall rows' columns 2.., for a slanted bar's window; the counter row's
     // too, from the upper wall row)
-    for (r = 0; r < 3; r++)
+    for (r = 0; r < 3; r++) {
         for (c = 0; c < BASE_W; c++) {
             k = c < 20 ? r * 20 + c : (r == 2 ? 0 : r * 20) + c - 18;
             if (r < 2) { base_tile[r][c] = venue.bar_map[k]; base_attr[r][c] = venue.bar_attr[k]; }
             else { ctr_all[0][c] = venue.bar_map[k]; ctr_all[1][c] = venue.bar_attr[k]; }
         }
+        music_pump();                           // (each row of the copy takes a sixth of a frame: the tune ticks between them)
+    }
     if (!is_cgb) return;                        // DMG: the fixed grey ramps (the art is luminance-ordered)
     set_bkg_palette(BGPAL_STAGE, 1, venue.pal[VENUE_PAL_STAGE_A]);
     set_bkg_palette(BGPAL_STAGE_B, 1, venue.pal[VENUE_PAL_STAGE_B]);

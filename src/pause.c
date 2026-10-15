@@ -86,6 +86,7 @@ static void fill_row(uint8_t r, uint8_t t) {
     uint8_t b[20], i;
     for (i = 0; i < 20; i++) b[i] = t;
     set_win_tiles(0, r, 20, 1, b);
+    music_pump();                                // (a row takes up to half a frame: it waits for the VRAM)
 }
 
 // the HOW TO PLAY card of this context (mg.h's G_* id), or NO_CARD. A later batch gives bosses their hint pages here.
@@ -107,7 +108,9 @@ static void build(uint8_t s, uint8_t *b) {
     uint8_t base = (s & PAUSE_ASK) ? 3 : 0, step = (s & (PAUSE_MINI | PAUSE_ASK)) ? 1 : 2;
     uint8_t pr = (s & PAUSE_MINI) ? 4 : 5;
     for (i = 0; i < 100; i++) b[i] = TILE_HUD_BLANK;
+    music_pump();                                // (the two fills and the text below take most of a frame, the beam in the visible part)
     for (i = 0; i < 20; i++) b[(pr - 1) * 20 + i] = TILE_PANEL_BOT;
+    music_pump();
     if (s & PAUSE_ASK) put(b, 255, 0, "ARE YOU SURE?");
     for (i = 0; i < n; i++) put(b + (r - 1 + i) * 20, COL_ITEM + 2, i == sel ? '>' : ' ', names[base + i * step]);
 }
@@ -117,7 +120,7 @@ static void build(uint8_t s, uint8_t *b) {
 // a few dozen bytes done by LY ~40 of the next frame are in before the window is drawn again: nothing half-drawn is ever seen. The
 // update runs from VBlank on, so there is normally no wait here.
 static void quiet_start(void) {
-    if (LCDC_REG & LCDCF_ON) while (LY_REG >= 8 && LY_REG < BANNER_WY + 47) ;
+    if (LCDC_REG & LCDCF_ON) while (LY_REG >= 8 && LY_REG < BANNER_WY + 47) music_pump();     // (the tune ticks while the beam crosses the window)
 }
 
 // menu state s on the window (rows 1-5 and the LYC that ends it); state_timer is s from then on.
@@ -127,7 +130,7 @@ static void apply(uint8_t s, uint8_t hidden) {
     uint8_t b[100], i;
     build(s, b);
     if (hidden) {
-        for (i = 0; i < 5; i++) set_win_tiles(0, i + 1, 20, 1, b + i * 20);
+        for (i = 0; i < 5; i++) { set_win_tiles(0, i + 1, 20, 1, b + i * 20); music_pump(); }   // (hidden: each row waits for the VRAM, a fifth of a frame)
     } else {
         quiet_start();
         for (i = 0; i < ((s & PAUSE_MINI) ? 3 : 4); i++) set_win_tiles(COL_ITEM, i + 1, 14, 1, b + i * 20 + COL_ITEM);
@@ -180,6 +183,7 @@ void pause_open(void) BANKED {
     state_timer = mini ? PAUSE_MINI : 0;
     game_state = GS_PAUSED;
     i = NR51_REG;                                // the music plays on as the bass and the harmony (main.c ticks it while NR51 is not 0); where
+    TMA_REG |= 2;                                // (the menu is open: music.c's flag)
     PAUSE_NR51 = i ? i : 0xFF;                   // the game counts music_frames it stands still, silent (NR51 0, no tick)
     NR51_REG = (mini && mg_id == MG_TAIKO) || (boss_on && boss_id == SUMO_VENUE) ? 0 : MENU_MIX;
     for (i = 0; i < 40; i++)                     // what the window covers (as mg.c's result window)
@@ -192,7 +196,7 @@ void pause_open(void) BANKED {
         uint8_t b[20];
         for (i = 0; i < 20; i++) b[i] = BGPAL_HUD;
         VBK_REG = VBK_BANK_1;
-        for (i = 0; i < WIN_ROWS; i++) set_win_tiles(0, i, 20, 1, b);
+        for (i = 0; i < WIN_ROWS; i++) { set_win_tiles(0, i, 20, 1, b); music_pump(); }
         VBK_REG = VBK_BANK_0;
     }
     apply(state_timer, 1);                       // (Milk Run's handler walks LYC itself)
@@ -202,7 +206,8 @@ void pause_open(void) BANKED {
 // the sound, the two letters' tiles and the banner window (panel, a blank text row, panel; its LYC) as they were
 static void put_back(void) {
     overlay_on = 0; HIDE_WIN;                    // (first: the window is gone before its rows change)
-    NR51_REG = PAUSE_NR51; PAUSE_NR51 = 0;
+    if (!NR51_REG) TIMA_REG = 0;                 // (the tune stood still, the timer ran on: no catch-up ticks from the pumps below; a clocked game's beat is the ticks)
+    NR51_REG = PAUSE_NR51; PAUSE_NR51 = 0; TMA_REG &= ~2;
     glyphs_back();
     fill_row(0, TILE_PANEL_TOP);                 // (win_init's banner)
     fill_row(1, TILE_HUD_BLANK);

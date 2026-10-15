@@ -360,11 +360,22 @@ void music_load_now(void) BANKED {
         if (load_step()) break;
 }
 
-// The game's frame tick (main.c, once per main loop). It restarts the frame timer music_pump watches.
+// The game's frame tick (main.c, once per main loop). The timer's reload register TMA (0 at rest; the timer never overflows
+// in a frame) holds two flags so that the common frame reads one register: bit 0, a pump ticked in this pass (that was this
+// frame's tick unless it is a whole frame old: no second one right behind it); bit 1, the pause menu is open (pause.c, as
+// PAUSE_NR51): with the tune playing, bass and harmony (channels 3, 1) are on the mix, the effects held: a request is dropped,
+// and while an effect still owns channel 1 it stays off it (the bass alone).
 void music_tick(void) BANKED {
-    if (*(volatile uint8_t *)0xFFF0 && NR51_REG) {   // the pause menu (game.h PAUSE_NR51) with the tune playing: bass and harmony (channels 3, 1)
-        sfx_req = 0;                                 // are on the mix, the effects held: a request is dropped, and while an effect still
-        NR51_REG = voice[0].busy ? 0x44 : 0x55;      // owns channel 1 it stays off it (the bass alone)
+    uint8_t f = TMA_REG;
+    if (f) {
+        if ((f & 2) && NR51_REG) {
+            sfx_req = 0;
+            NR51_REG = voice[0].busy ? 0x44 : 0x55;
+        }
+        if (f & 1) {
+            TMA_REG = f & 2;
+            if (TIMA_REG < FRAME_TIMA / 2) return;
+        }
     }
     tick();
     TIMA_REG = 0;
@@ -377,6 +388,12 @@ void music_tick(void) BANKED {
 void music_pump(void) BANKED {
     uint8_t t = TIMA_REG;
     if (t < FRAME_TIMA) return;
+    if (*(volatile uint8_t *)0xFFF0) {                // the pause menu: the tune stands still when NR51 is 0 (a game clocked by music_frames), else as music_tick
+        if (!NR51_REG) return;
+        sfx_req = 0;
+        NR51_REG = voice[0].busy ? 0x44 : 0x55;
+    }
     tick();
     TIMA_REG = t - FRAME_TIMA;
+    TMA_REG |= 1;                                     // (see music_tick)
 }

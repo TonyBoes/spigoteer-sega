@@ -10,6 +10,7 @@
 #ifndef GAME_H
 #define GAME_H
 #include <gb/gb.h>
+#include "mpump.h"
 #include <stdint.h>
 #include "art.h"
 #include "layout.h"
