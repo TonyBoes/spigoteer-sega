@@ -538,7 +538,7 @@ def test_from_the_mini_games_list(model):
     with to_list(booted(model)) as gb:
         for _ in range(3):
             list_tap(gb, "down")
-        assert line(gb, 5).strip() == "ORDER UP" and line(gb, 14).strip() == "THE BISTRO"
+        assert line(gb, 8).strip() == "ORDER UP" and line(gb, 15).strip() == "NORMAL NO MEDAL YET"
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_ORDERUP and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0

@@ -913,11 +913,11 @@ def test_bonus_mini_games_lists_and_plays_it(model):
     from test_mg_list import line, tap as list_tap, to_list
     from test_scores import booted
     with to_list(booted(model)) as gb:
-        assert line(gb, 4).strip() == "LOG ROLL"
+        assert line(gb, 6).strip() == "LOG ROLL"
         for _ in range(2):
             list_tap(gb, "down")
         assert gb.mem("ml_sel") == 2
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE LUMBER LODGE", "NORMAL NO MEDAL YET"]
+        assert line(gb, 15).strip() == "NORMAL NO MEDAL YET"
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_LOGROLL and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -928,7 +928,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(3)
-        assert gb.mem("ml_sel") == 2 and line(gb, 4).strip() == "LOG ROLL"
+        assert gb.mem("ml_sel") == 2 and line(gb, 6).strip() == "LOG ROLL"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -940,10 +940,10 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
     ram = with_block(v7_image(), pr_block(1 << MG_LOGROLL, best))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert [line(gb, r).strip() for r in range(2, 4)] == ["? ? ?"] * 2 and line(gb, 4) == " LOG ROLL     SILVER"
+        assert [line(gb, r).strip() for r in range(2, 6, 2)] == ["? ? ?"] * 2 and line(gb, 6) == " LOG ROLL     SILVER"
         for _ in range(2):
             list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE LUMBER LODGE", "NORMAL BEST SILVER"]
+        assert line(gb, 15).strip() == "NORMAL BEST SILVER"
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_LOGROLL and gb.mem("mg_mode") == MG_PRACTICE

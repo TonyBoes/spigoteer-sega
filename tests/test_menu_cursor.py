@@ -44,9 +44,9 @@ def list_ok(gb, sel):
     assert gb.mem("ml_sel") == sel
     y = gb.mem(0xFE00)
     row = (y - 16 + 7) // 8
-    assert 2 <= row <= 11 and (y - 16 + 7) % 8 == 0
+    assert 2 <= row <= 12 and row % 2 == 0 and (y - 16 + 7) % 8 == 0, "a game's row (every other row)"
     assert ml.line(gb, row).split("  ")[0].strip() == NAMES[sel], (row, ml.line(gb, row))
-    assert ml.line(gb, 14).strip() == WHERE[sel]
+    assert ml.line(gb, 16).strip() == ml.KEYS
     assert gb.mem(0xFE00 + 1) == 8
 
 

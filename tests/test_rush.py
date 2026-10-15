@@ -61,6 +61,14 @@ def lines(gb, rows):
     return [line(gb, r).strip() for r in rows]
 
 
+RVIS = 6                                       # the list's window: six bosses on rows 2, 4 .. 12 (src/rush.c RVIS)
+
+
+def window(gb, n=BOSS_COUNT):
+    """The list's names: the window's lines on every other row (a blank row between the bosses)."""
+    return [line(gb, 2 + 2 * i).strip() for i in range(min(n, RVIS))]
+
+
 def R(gb, off, n=1):
     a = gb.addr("story_scratch") + RUSH_AT + off
     return gb.mem(a) if n == 1 else gb.mem16(a)
@@ -212,13 +220,18 @@ def test_the_debug_list_has_every_built_boss_unlocked(model):
         hold_stage_anim(gb)
         assert BUILT[0] == 0 and {0, 2, 3, 4} <= set(BUILT) == set(BOSS_BUILT), "Big Tex first; the first four built at least"
         n = len(BUILT)
-        assert lines(gb, range(2, 2 + n)) == [NAMES[v] for v in BUILT] and line(gb, 2 + n) == ""
-        assert lines(gb, range(14, 17)) == ["THE SALOON", "NOT BEATEN YET", "A PLAY  B BACK"]
+        assert window(gb, n) == [NAMES[v] for v in BUILT][:RVIS] and line(gb, 13) == ""
+        assert [line(gb, r) for r in (3, 5, 7, 9, 11)] == [""] * 5, "a blank row between the bosses"
+        assert lines(gb, range(15, 17)) == ["NOT BEATEN YET", "A PLAY  B BACK"] and not any("THE " in line(gb, r) for r in range(14, 18)), "no venue line"
         assert list(gb.read(0xFE00, 2)) == [2 * 8 - 7 + 16, 8]
         check_golden(gb, "rush_list")
         for k in range(1, n):
             tap(gb, "down")
-            assert R(gb, LIST_SEL) == k and lines(gb, (14,))[0] == VENUES[BUILT[k]]
+            gb.run(4)
+            top = max(0, k - RVIS + 1)
+            assert R(gb, LIST_SEL) == k and R(gb, 46) == top
+            assert window(gb, n) == [NAMES[v] for v in BUILT][top:top + RVIS], k
+            assert gb.read(0xFE00, 1)[0] == (2 + 2 * (k - top)) * 8 - 7 + 16, "the mug on the selected line"
         tap(gb, "down")
         assert R(gb, LIST_SEL) == 0, "wraps"
         tap(gb, "b")
@@ -228,8 +241,8 @@ def test_the_debug_list_has_every_built_boss_unlocked(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_no_list_row_touches_the_separator_for_any_number_of_bosses(model):
-    """CHOOSE with 1..10 built bosses (the mask rewritten in RAM, the list reopened): every name sits on its own line
-    from row 2, a blank row stays above the separator (row 13), and the details (14-16) are intact."""
+    """CHOOSE with 1..10 built bosses (the mask rewritten in RAM, the list reopened): the names sit on every other row from row 2 (six at
+    most: the window scrolls), a blank row stays above the separator (row 14), and the details (15-16) are intact."""
     BUILT_AT = 44                                         # struct rush_state.built
     with to_list(booted(model)) as gb:
         for n in range(1, BOSS_COUNT + 1):
@@ -242,11 +255,12 @@ def test_no_list_row_touches_the_separator_for_any_number_of_bosses(model):
             tap(gb, "a")                                  # (the menu is on CHOOSE after B)
             run_until(gb, lambda: on_rush(gb, RS_LIST), 30)
             gb.run(8)
-            assert lines(gb, range(2, 2 + n)) == [NAMES[v] for v in range(n)], n
-            sep, blank = tilemap_row(gb, 13, 0, 20), tilemap_row(gb, 12, 0, 20)
+            assert window(gb, n) == [NAMES[v] for v in range(n)][:RVIS], n
+            sep, blank = tilemap_row(gb, 14, 0, 20), tilemap_row(gb, 13, 0, 20)
             assert len(set(sep)) == 1 and len(set(blank)) == 1 and sep[0] != blank[0], n
-            assert 2 + n <= 12 and all(tilemap_row(gb, r, 0, 20) == blank for r in range(2 + n, 13)), n
-            assert lines(gb, (14, 16)) == [VENUES[0], "A PLAY  B BACK"], n
+            assert all(tilemap_row(gb, r, 0, 20) == blank for r in range(3 + 2 * min(n, RVIS) - 2, 14)), n
+            assert all(tilemap_row(gb, 3 + 2 * i, 0, 20) == blank for i in range(min(n, RVIS) - 1)), n
+            assert lines(gb, (15, 16)) == ["NOT BEATEN YET", "A PLAY  B BACK"], n
 
 
 def test_the_list_follows_the_story_data():
@@ -274,8 +288,8 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
         run_until(gb, lambda: on_rush(gb, RS_LIST), 30)
         gb.run(3)
         n = len(BUILT)
-        assert lines(gb, range(2, 2 + n)) == ["? ? ?"] * n
-        assert lines(gb, range(14, 17)) == ["LOCKED", "BEAT HIM IN STORY", "OR ARCADE"]
+        assert window(gb, n) == ["? ? ?"] * RVIS
+        assert lines(gb, range(15, 17)) == ["BEAT HIM IN STORY", "OR ARCADE"]
         check_golden(gb, "rush_list_locked")
         tap(gb, "a")
         gb.run(5)
@@ -289,10 +303,10 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
         run_until(gb, lambda: on_rush(gb, RS_LIST), 30)
         gb.run(3)
         i = BUILT.index(2)                                # the Sasquatch
-        assert lines(gb, range(2, 2 + len(BUILT))).count("? ? ?") == len(BUILT) - 1 and line(gb, 2 + i) == " SASQUATCH     1:01"
+        assert window(gb).count("? ? ?") == RVIS - 1 and line(gb, 2 + 2 * i) == " SASQUATCH     1:01"
         for _ in range(i):
             tap(gb, "down")
-        assert lines(gb, range(14, 17)) == ["THE LUMBER LODGE", "BEST 1:01", "A PLAY  B BACK"]
+        assert lines(gb, range(15, 17)) == ["BEST 1:01", "A PLAY  B BACK"]
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_GOAL, 60)
         assert gb.mem("boss_id") == 2 and gb.mem("play_mode") == MODE_RUSH
@@ -518,7 +532,7 @@ def test_choose_plays_one_fight_and_comes_back(model):
         tap(gb, "b")
         run_until(gb, lambda: on_rush(gb, RS_LIST), 30)
         gb.run(3)
-        assert R(gb, LIST_SEL) == 1 and line(gb, 3) == f" {NAMES[v]:<14}{mmss(t)}"
+        assert R(gb, LIST_SEL) == 1 and line(gb, 4) == f" {NAMES[v]:<14}{mmss(t)}"
         ram = save_ram(gb)
     assert outside_block(ram) == outside_block(ram0), "no story progress, tunes or tables written"
     assert rush_best(parse2(ram)[2], v) == t
@@ -645,3 +659,23 @@ def test_all_out_of_lives_ends_the_run(model):
         n = len(BUILT)
         assert lines(gb, (3, 5, 13)) == ["GAME OVER", f"1 OF {n} BOSSES", "NEW BEST"]
         assert save_part(gb)[RSV_ALL_N] == 1
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_rush_list_scrolls_with_the_shared_arrows(model):
+    """The list shows six bosses a window (owner 2026-10-15: a blank row between them), the MINI GAMES list's scroll arrows (OAM 1 up, 2 down)
+    show where bosses are hidden: only the down arrow at the top, both in the middle, only the up arrow at the end."""
+    with to_list(booted(model)) as gb:
+        hold_stage_anim(gb)
+        o = gb.read(0xFE00, 12)
+        assert o[4] == 0 and 112 <= o[8] <= 113 and o[5] == o[9] == 160, "the top: the down arrow"
+        for _ in range(7):
+            tap(gb, "down")
+        gb.run(4)
+        o = gb.read(0xFE00, 12)
+        assert 23 <= o[4] <= 24 and 112 <= o[8] <= 113, "the middle: both"
+        for _ in range(2):
+            tap(gb, "down")
+        gb.run(4)
+        o = gb.read(0xFE00, 12)
+        assert R(gb, LIST_SEL) == 9 and 23 <= o[4] <= 24 and o[8] == 0, "the end: the up arrow"

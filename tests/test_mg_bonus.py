@@ -83,7 +83,7 @@ def test_a_bad_bonus_block_reads_as_nothing_and_the_rest_survives(model, release
         to_list(gb)
         for _ in range(12):
             tap(gb, "down")
-        assert line(gb, 9).split() == ["CAN", "SHAKE-UP", "GOLD"] and line(gb, 10).split() == ["PERFECT", "POUR", "GOLD"] and line(gb, 11).split() == ["TIP", "SHOWER", "GOLD"]
+        assert line(gb, 8).split() == ["CAN", "SHAKE-UP", "GOLD"] and line(gb, 10).split() == ["PERFECT", "POUR", "GOLD"] and line(gb, 12).split() == ["TIP", "SHOWER", "GOLD"]
     for name, blk in bad.items():
         ram = bytearray(base)
         ram[BX_AT:BX_AT + 10] = blk
@@ -92,7 +92,7 @@ def test_a_bad_bonus_block_reads_as_nothing_and_the_rest_survives(model, release
             assert line(gb, 2) == " QUICK DRAW   SILVER", name
             for _ in range(12):
                 tap(gb, "down")
-            assert [line(gb, r).strip() for r in range(9, 12)] == ["? ? ?"] * 3, name
+            assert [line(gb, r).strip() for r in (8, 10, 12)] == ["? ? ?"] * 3, name
 
 
 # ---- the unlock rule -------------------------------------------------------------------------------------------------------
@@ -107,8 +107,8 @@ def test_the_release_list_locks_the_bonus_rounds_until_played(model, release_bui
         for _ in range(10):
             tap(gb, "down")
         gb.run(4)
-        assert gb.mem("ml_sel") == 10 and [line(gb, r).strip() for r in range(2, 12)] == ["? ? ?"] * 10
-        assert [line(gb, r).strip() for r in range(14, 17)] == ["LOCKED", "PLAY IT IN ARCADE", "OR CLASSIC"]
+        assert gb.mem("ml_sel") == 10 and [line(gb, r).strip() for r in range(2, 13, 2)] == ["? ? ?"] * 6
+        assert [line(gb, r).strip() for r in range(15, 17)] == ["PLAY IT IN ARCADE", "OR CLASSIC"]
         no_row_touches_the_separator(gb, VIS)
         tap(gb, "a")
         gb.run(5)
@@ -121,14 +121,14 @@ def test_the_release_list_locks_the_bonus_rounds_until_played(model, release_bui
             tap(gb, "down")
         gb.run(4)
         assert gb.mem("ml_sel") == 12
-        rows = [line(gb, r) for r in range(9, 12)]
+        rows = [line(gb, r) for r in (8, 10, 12)]
         assert rows[0].split() == ["CAN", "SHAKE-UP", "SILVER"], rows
         assert rows[1].strip() == "? ? ?" and rows[2].split() == ["TIP", "SHOWER", "BRONZE"], rows
-        assert [line(gb, r).strip() for r in (14, 15, 16)] == ["A BONUS ROUND", "NORMAL BEST BRONZE", "A GO B BACK > MODE"]
+        assert [line(gb, r).strip() for r in (15, 16)] == ["NORMAL BEST BRONZE", "@ GO $ BACK > MODE"]
         check_golden(gb, "mg_list_bonus_release")
         tap(gb, "up")
         gb.run(4)
-        assert [line(gb, r).strip() for r in range(14, 17)] == ["LOCKED", "PLAY IT IN ARCADE", "OR CLASSIC"]
+        assert [line(gb, r).strip() for r in range(15, 17)] == ["PLAY IT IN ARCADE", "OR CLASSIC"]
         tap(gb, "a")
         gb.run(5)
         assert state(gb) == GS_MGLIST
@@ -247,7 +247,7 @@ def test_a_bonus_round_plays_in_the_framework_and_earns_its_medal(model, gid, ki
             tap(gb, "down")
         gb.run(4)
         sel = 10 + gid - MG_SHAKEUP
-        row = 2 + sel - max(0, sel - VIS + 1)
+        row = 2 + 2 * (sel - max(0, sel - VIS + 1))
         assert gb.mem("ml_sel") == sel and line(gb, row).split()[-1] == ["NO", "BRONZE", "SILVER", "GOLD"][best] or best == 0
         if best:
             assert line(gb, 15).strip() == "NORMAL BEST " + ["", "BRONZE", "SILVER", "GOLD"][best]

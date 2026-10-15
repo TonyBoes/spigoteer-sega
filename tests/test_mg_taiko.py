@@ -754,11 +754,10 @@ def test_bonus_mini_games_lists_and_plays_it(model):
     from test_mg_list import line, tap as list_tap, to_list
     from test_scores import booted
     with to_list(booted(model)) as gb:
-        assert line(gb, 9).strip() == "TAIKO POUR"
         for _ in range(7):
             list_tap(gb, "down")
         assert gb.mem("ml_sel") == 7
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE TEAHOUSE", "NORMAL NO MEDAL YET"]
+        assert line(gb, 15).strip() == "NORMAL NO MEDAL YET"
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_TAIKO and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -769,7 +768,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(3)
-        assert gb.mem("ml_sel") == 7 and line(gb, 9).strip() == "TAIKO POUR"
+        assert gb.mem("ml_sel") == 7 and line(gb, 12).strip() == "TAIKO POUR"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -781,10 +780,11 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
     ram = with_block(v7_image(), pr_block(1 << MG_TAIKO, best))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert [line(gb, r).strip() for r in range(2, 9)] == ["? ? ?"] * 7 and line(gb, 9) == " TAIKO POUR   SILVER"
+        assert [line(gb, r).strip() for r in range(2, 13, 2)] == ["? ? ?"] * 6
         for _ in range(7):
             list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE TEAHOUSE", "NORMAL BEST SILVER"]
+        assert line(gb, 12) == " TAIKO POUR   SILVER"
+        assert line(gb, 15).strip() == "NORMAL BEST SILVER"
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_TAIKO and gb.mem("mg_mode") == MG_PRACTICE

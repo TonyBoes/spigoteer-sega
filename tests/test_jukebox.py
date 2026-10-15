@@ -27,7 +27,7 @@ ART = {m[0]: int(m[1]) for m in re.findall(r"#define (TILE_\w+) (\d+)", (ROOT / 
 _H = (ROOT / "build" / "jukebox_names.h").read_text()
 NAMES = re.findall(r'^    "([^"]*)",   //', _H, re.M)
 INFO = [re.findall(r'"([^"]*)"', l) for l in re.findall(r"^    \{ (.*) \},$", _H, re.M)]
-ROW_LIST, VISIBLE, ROW_INFO, COL_PLAY = 2, 10, 13, 19
+ROW_LIST, VISIBLE, ROW_INFO, COL_PLAY = 2, 5, 13, 19         # five tunes on rows 2, 4 .. 10 (a blank row between them: owner 2026-10-15)
 
 
 def row_text(s, x=1):
@@ -41,7 +41,7 @@ def row_text(s, x=1):
 
 def list_row(gb, k):
     """List line k without the playing icon's column."""
-    return tilemap_row(gb, ROW_LIST + k, 0, 19)
+    return tilemap_row(gb, ROW_LIST + 2 * k, 0, 19)
 
 
 def tap(rom, b):
@@ -117,7 +117,7 @@ def test_up_down_select_and_wrap(boot):
         tap(boot, "down")
         assert boot.mem("jb_sel") == i and boot.mem("jb_top") == max(0, i - VISIBLE + 1)
         c = boot.oam()[0]
-        assert c["y"] - 16 + 7 == (ROW_LIST + i - boot.mem("jb_top")) * 8 and c["x"] == 8, "the mug on the line"
+        assert c["y"] - 16 + 7 == (ROW_LIST + 2 * (i - boot.mem("jb_top"))) * 8 and c["x"] == 8, "the mug on the line"
     assert state(boot) == GS_JUKEBOX
 
 
@@ -169,13 +169,13 @@ def test_a_plays_b_stops_then_b_goes_back(model):
             seen = set()
             for _ in range(40):
                 rom.run(1)
-                seen.add(tilemap_row(rom, ROW_LIST + t - rom.mem("jb_top"), COL_PLAY, 1)[0])
+                seen.add(tilemap_row(rom, ROW_LIST + 2 * (t - rom.mem("jb_top")), COL_PLAY, 1)[0])
             if t != 2:                                          # (the GAME OVER jingle may end within the 40 frames)
                 assert seen == {ART["TILE_HUD_HEAD"], ART["TILE_HUD_BLANK"]}, "the playing icon blinks"
         tap(rom, "b")
         assert rom.mem("cur_tune") == TUNE_NONE and state(rom) == GS_JUKEBOX, "B stops the tune"
         rom.run(3)
-        assert tilemap_row(rom, ROW_LIST + 2 - rom.mem("jb_top"), COL_PLAY, 1)[0] == ART["TILE_HUD_BLANK"]
+        assert tilemap_row(rom, ROW_LIST + 2 * (2 - rom.mem("jb_top")), COL_PLAY, 1)[0] == ART["TILE_HUD_BLANK"]
         tap(rom, "b")
         run_until(rom, lambda: state(rom) == TITLE, 30)
         assert rom.mem("cur_tune") == 0 and rom.mem("sound_on") == 1, "the title and its tune"
@@ -190,7 +190,7 @@ def test_a_jingle_stops_by_itself_and_its_icon_goes(boot):
     run_until(boot, lambda: boot.mem("cur_tune") == TUNE_NONE, 200)
     boot.run(3)
     assert boot.mem("jb_shown") == TUNE_NONE
-    assert tilemap_row(boot, ROW_LIST + 1, COL_PLAY, 1)[0] == ART["TILE_HUD_BLANK"]
+    assert tilemap_row(boot, ROW_LIST + 2, COL_PLAY, 1)[0] == ART["TILE_HUD_BLANK"]
 
 
 def test_music_off_still_plays_here_and_stays_off_after(boot):

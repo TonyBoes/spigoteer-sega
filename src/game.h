@@ -512,6 +512,8 @@ void pause_open(void) BANKED;                           // START in play / a min
 uint8_t pause_update(uint8_t pressed) BANKED;           // a GS_PAUSED frame; 1: it left (the next screen is up)
 void pause_close(void) BANKED;                          // the banner window and the sound as they were, back to the game
 void mg_list_enter(void) BANKED;                        // LCD off: BONUS > MINI GAMES, the list (GS_MGLIST)
+void list_arrows_load(void) BANKED;                        // the list scroll arrows (src/mg_list.c; the boss rush list shares them)
+void list_arrows_show(uint8_t up, uint8_t down, uint8_t t) BANKED;   // OAM 1 / 2: which show, the bob frame count
 // save.c: Practice's block at SRAM 0x40 (the mini-games reached in STORY / ARCADE and the best medal of each)
 extern uint16_t mg_unlocked;                            // bit g = mini-game g (MG_* of src/mg.h) reached
 extern uint8_t  mg_best[];                              // the best medal (MEDAL_*) per mini-game

@@ -2,7 +2,7 @@
 // GAMES, is src/mg_list.c).
 //
 // Screen (the scores table's style: light HUD glyphs and the story font's punctuation on the dark band, HUD palette):
-//   row 0 "SOUNDTRACK", row 1 a panel line; rows 2-11 the tunes in music.h order (JB_VISIBLE at a time, scrolling),
+//   row 0 "SOUNDTRACK", row 1 a panel line; rows 2, 4 .. 10 the tunes in music.h order (JB_VISIBLE at a time, scrolling),
 //   the name at columns 1-18, the mug cursor (a sprite) left of it, the playing tune's mug icon at column 19 (it
 //   blinks); row 12 a panel line, rows 13-16 the selected tune: its full title (2 lines), the credit, where the game
 //   plays it; row 17 a panel line. A locked tune shows "? ? ?" and does not play.
@@ -25,7 +25,7 @@ extern uint8_t overlay_on;
 
 #define JB_ROW_HEAD        0
 #define JB_ROW_LIST        2
-#define JB_VISIBLE        10
+#define JB_VISIBLE         5       // (owner 2026-10-15: a blank row between the tunes, rows 2, 4 .. 10)
 #define JB_ROW_BOX        12       // panel; the info lines 13-16; panel 17
 #define JB_INFO_LINES      4
 #define JB_COL_PLAY       19
@@ -86,7 +86,7 @@ static void build(uint8_t k) {
 }
 
 static uint8_t screen_row(uint8_t k) {
-    return k < JB_VISIBLE ? JB_ROW_LIST + k : JB_ROW_BOX + 1 + k - JB_VISIBLE;
+    return k < JB_VISIBLE ? JB_ROW_LIST + 2 * k : JB_ROW_BOX + 1 + k - JB_VISIBLE;
 }
 
 static void mark_tune(uint8_t t) {             // the list line of tune t, if it is on screen
@@ -95,7 +95,7 @@ static void mark_tune(uint8_t t) {             // the list line of tune t, if it
 
 static void cursor(void) {
     OAM_item_t *o = shadow_OAM;
-    o->y = (JB_ROW_LIST + jb_sel - jb_top) * 8 - 7 + 16;     // the mug stands on the line (as the title's cursor)
+    o->y = (JB_ROW_LIST + 2 * (jb_sel - jb_top)) * 8 - 7 + 16;     // the mug stands on the line (as the title's cursor)
     o->x = 8;
     o->tile = OBJ_MUG; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;
 }

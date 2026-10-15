@@ -25,14 +25,15 @@ pytestmark = pytest.mark.timeout(300)
 MG_QUICKDRAW, MG_ORDERUP, MG_PLANNED = 0, 3, 10
 MG_SHAKEUP, MG_FILLLINE, MG_TIPS = 12, 13, 14
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
-KEYS = "A GO B BACK > MODE"                     # the list's last info line (src/mg_list.c)
+KEYS = "@ GO $ BACK > MODE"                   # the list's last info line (src/mg_list.c): @ the A button, $ the B button, > D-pad right
 PR_AT, PR_MEDAL = 0x40, 6
 PR_LEN = PR_MEDAL + MG_PLANNED
 RELEASE = ROOT / "build" / "release.gb"
 # the story font's '?' (build/story.h: ST_GLYPH_QUEST = STORY_FONT_BASE + 3, STORY_FONT_BASE = BAR_TILE_COUNT)
 QUEST = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1)) + 3
-ARROW = QUEST - 1                              # ST_GLYPH_EXCL (+2): the keys line's right arrow, loaded over the font's '!'
-assert "#define ST_GLYPH_EXCL (STORY_FONT_BASE + 2)" in (ROOT / "build" / "story.h").read_text()
+BTN_A = QUEST + 4                              # ST_FRAME_TL (+7), _T, _TR: the keys line's A, B and D-pad buttons, loaded over the font's frame tiles
+BTN_B, BTN_R = BTN_A + 1, BTN_A + 2
+assert "#define ST_FRAME_TL (STORY_FONT_BASE + 7)" in (ROOT / "build" / "story.h").read_text()
 assert "#define ST_GLYPH_QUEST (STORY_FONT_BASE + 3)" in (ROOT / "build" / "story.h").read_text()
 
 
@@ -73,7 +74,7 @@ def line(gb, row):
     """A row of the list screen as text ('?' for the story font's question mark)."""
     out = ""
     for t in tilemap_row(gb, row, 0, 20):
-        out += GLYPH_CH.get(t, ">" if t == ARROW else "?" if t == QUEST else "-" if t == QUEST + 2 else " ")   # (ST_GLYPH_HYPHEN is the story font's 6th)
+        out += GLYPH_CH.get(t, "@" if t == BTN_A else "$" if t == BTN_B else ">" if t == BTN_R else "?" if t == QUEST else "-" if t == QUEST + 2 else " ")   # (ST_GLYPH_HYPHEN is the story font's 6th)
     return out.rstrip()
 
 
@@ -122,39 +123,53 @@ def test_bonus_offers_soundtrack_and_mini_games(model):
 # (chapter order, docs/story.md: saloon, stadium, lodge, bistro, igloo, robot factory, Chrome Cow, teahouse, zoo, space lounge;
 # the list's name column, and the venue the details line shows)
 BONUS_LIST = [("CAN SHAKE-UP", "A BONUS ROUND"), ("PERFECT POUR", "A BONUS ROUND"), ("TIP SHOWER", "A BONUS ROUND")]
-VIS = 10                                          # the list shows ten lines (src/mg_list.c ML_VIS) and scrolls
+VIS = 6                                           # the list shows six games, one every other row (src/mg_list.c ML_VIS) and scrolls
+
+
+def game_row(i):
+    """The screen row of the window's line i (a blank row between the games)."""
+    return 2 + 2 * i
+
+
+def window(gb):
+    """The names the window shows, line by line."""
+    return [line(gb, game_row(i)).strip() for i in range(VIS)]
 LIST = [("QUICK DRAW", "THE SALOON"), ("SHIRT CANNON", "THE STADIUM"), ("LOG ROLL", "THE LUMBER LODGE"), ("ORDER UP", "THE BISTRO"),
         ("MARSHMALLOWS", "THE IGLOO"), ("BATTERY SORT", "THE ROBOT FACTORY"), ("MILK RUN", "THE CHROME COW"),
         ("TAIKO POUR", "THE TEAHOUSE"), ("MONKEY BIZ", "THE JUNGLE ZOO"), ("ASTEROIDS", "THE SPACE LOUNGE")] + BONUS_LIST
 
 
 def no_row_touches_the_separator(gb, n):
-    """n list lines on rows 2..n+1, then a blank row, then the separator (the panel's top: one tile repeated, not text), details below."""
-    blank, sep = tilemap_row(gb, 2 + n, 0, 20), tilemap_row(gb, 3 + n, 0, 20)
+    """n games on rows 2, 4 .. (a blank row between them), then a blank row, then the separator (the panel's top: one tile repeated, not
+    text), details below."""
+    last = game_row(n - 1)
+    blank, sep = tilemap_row(gb, last + 1, 0, 20), tilemap_row(gb, last + 2, 0, 20)
     assert len(set(blank)) == 1 and len(set(sep)) == 1 and blank[0] != sep[0], "a blank row, then the separator"
-    assert all(tilemap_row(gb, r, 0, 20) != sep for r in range(2, 2 + n)), "no list line is the separator"
-    assert all(len(set(tilemap_row(gb, r, 0, 20))) > 1 for r in range(2, 2 + n)), "every list line has its text"
+    assert all(tilemap_row(gb, game_row(i), 0, 20) != sep for i in range(n)), "no list line is the separator"
+    assert all(len(set(tilemap_row(gb, game_row(i), 0, 20))) > 1 for i in range(n)), "every list line has its text"
+    assert all(tilemap_row(gb, game_row(i) + 1, 0, 20) == blank for i in range(n - 1)), "a blank row between the games"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_debug_list_has_every_built_game_unlocked_and_scrolls(model):
     """The DEBUG_MENU build (`make`): the ten games in chapter order, the three bonus rounds and the stub GREEN LIGHT (14), all playable on a
-    fresh cartridge. The window shows ten lines (rows 2-11, a blank row 12, the separator 13); the selected game's venue, best medal and
-    keys below (rows 14-16). Down past the tenth line slides the window one line at a time (the cursor stays on the bottom line), wraps to
-    the top; Up from the top wraps to the bottom window; the mug stands on the selected line; no line touches the separator on any step;
-    <= 10 sprites a line."""
+    fresh cartridge. The window shows six games on rows 2, 4 .. 12 (a blank row between them: owner 2026-10-15), a blank row 13, the separator
+    14; the selected game's best medal and the keys below (rows 15-16; no venue line any more). Down past the sixth game slides the window one
+    line at a time (the cursor stays on the bottom line), wraps to the top; Up from the top wraps to the bottom window; the mug stands on the
+    selected line; no line touches the separator on any step; <= 10 sprites a line."""
     names = [n for n, _ in LIST] + ["GREEN LIGHT"]
-    where = [w for _, w in LIST] + ["THE TEST STUB"]
     with to_list(booted(model)) as gb:
         hold_stage_anim(gb)
         assert gb.mem("ml_n") == 14 and gb.mem("ml_sel") == 0 and gb.mem16("mg_unlocked") == 0
         assert line(gb, 0).strip() == "MINI GAMES  NORMAL"
-        assert [line(gb, r).strip() for r in range(2, 12)] == names[:VIS]
+        assert window(gb) == names[:VIS]
         no_row_touches_the_separator(gb, VIS)
-        assert [line(gb, r).strip() for r in range(14, 17)] == ["THE SALOON", "NORMAL NO MEDAL YET", KEYS]
+        assert [line(gb, r).strip() for r in range(15, 17)] == ["NORMAL NO MEDAL YET", KEYS]
+        assert not any("THE " in line(gb, r) for r in range(14, 18)), "no venue line"
         keys_row = tilemap_row(gb, 16, 0, 20)
-        assert keys_row[KEYS.index(">") + 1] == ARROW and keys_row[0] == keys_row[19], "the arrow tile at column 13, a column spare each side"
-        assert "L R" not in line(gb, 16)
+        assert [keys_row[KEYS.index(c) + 1] for c in "@$>"] == [BTN_A + 0, BTN_B, BTN_R], "the A, B and D-pad button tiles at their columns"
+        assert KEYS.index("@") + 1 == 1 and KEYS.index("$") + 1 == 6 and KEYS.index(">") + 1 == 13
+        assert keys_row[0] == keys_row[19], "a column spare each side"
         o = gb.read(0xFE00, 4)
         assert o[0] == 2 * 8 - 7 + 16 and o[1] == 8, "the mug cursor on line 0"
         check_golden(gb, "mg_list")
@@ -163,38 +178,35 @@ def test_the_debug_list_has_every_built_game_unlocked_and_scrolls(model):
             gb.run(4)                                      # (a scroll redraws four lines a frame)
             top = max(0, k - VIS + 1)
             assert gb.mem("ml_sel") == k
-            assert [line(gb, r).strip() for r in range(2, 12)] == names[top:top + VIS], k
-            assert [line(gb, r).strip() for r in (14, 16)] == [where[k], KEYS], k
-            assert gb.read(0xFE00, 1)[0] == (2 + k - top) * 8 - 7 + 16, "the mug on the selected line"
+            assert window(gb) == names[top:top + VIS], k
+            assert line(gb, 16) == " " + KEYS, k
+            assert gb.read(0xFE00, 1)[0] == game_row(k - top) * 8 - 7 + 16, "the mug on the selected line"
             no_row_touches_the_separator(gb, VIS)
             assert max(lines(gb)) <= 10
         gb.run(2)
         check_golden(gb, "mg_list_scrolled")
-        assert line(gb, 11).strip() == "GREEN LIGHT" and line(gb, 14).strip() == "THE TEST STUB"
+        assert line(gb, game_row(VIS - 1)).strip() == "GREEN LIGHT" and line(gb, 15).strip() == "NORMAL NO MEDAL YET"
         tap(gb, "down")
         gb.run(4)
         assert gb.mem("ml_sel") == 0, "wraps"
-        assert [line(gb, r).strip() for r in range(2, 12)] == names[:VIS] and gb.read(0xFE00, 1)[0] == 2 * 8 - 7 + 16
+        assert window(gb) == names[:VIS] and gb.read(0xFE00, 1)[0] == 2 * 8 - 7 + 16
         tap(gb, "up")
         gb.run(4)
-        assert gb.mem("ml_sel") == 13 and [line(gb, r).strip() for r in range(2, 12)] == names[4:]
+        n = len(names)
+        assert gb.mem("ml_sel") == 13 and window(gb) == names[n - VIS:]
         for _ in range(4):                                 # Up slides the window back only when the cursor leaves its top line
             tap(gb, "up")
         gb.run(4)
-        assert gb.mem("ml_sel") == 9 and [line(gb, r).strip() for r in range(2, 12)] == names[4:], "still the lower window"
-        assert gb.read(0xFE00, 1)[0] == (2 + 9 - 4) * 8 - 7 + 16
-        for _ in range(6):
+        assert gb.mem("ml_sel") == 9 and window(gb) == names[n - VIS:], "still the lower window"
+        assert gb.read(0xFE00, 1)[0] == game_row(9 - (n - VIS)) * 8 - 7 + 16
+        for _ in range(7):
             tap(gb, "up")
         gb.run(4)
-        assert gb.mem("ml_sel") == 3 and [line(gb, r).strip() for r in range(2, 12)] == names[3:13], "one line up: the window slides"
-        tap(gb, "down")
-        tap(gb, "down")
-        tap(gb, "down")
-        tap(gb, "down")
-        tap(gb, "down")
-        tap(gb, "down")
-        tap(gb, "down")
+        assert gb.mem("ml_sel") == 2 and window(gb) == names[2:2 + VIS], "one line up: the window slides"
+        for _ in range(8):
+            tap(gb, "down")
         gb.run(4)
+        assert gb.mem("ml_sel") == 10
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_SHAKEUP and gb.mem("mg_mode") == MG_PRACTICE
@@ -243,9 +255,10 @@ def test_the_release_list_is_locked_until_reached(model, release_built):
     with release_rom(model) as gb:
         to_list(gb)
         assert gb.mem("ml_n") == 13
-        assert [line(gb, r).strip() for r in range(2, 13)] == ["? ? ?"] * 10 + [""]
-        no_row_touches_the_separator(gb, 10)
-        assert [line(gb, r).strip() for r in range(14, 17)] == ["LOCKED", "REACH IT IN STORY", "OR ARCADE"]
+        assert window(gb) == ["? ? ?"] * VIS
+        no_row_touches_the_separator(gb, VIS)
+        assert [line(gb, r).strip() for r in range(15, 17)] == ["REACH IT IN STORY", "OR ARCADE"]
+        assert gb.read(0xFE00, 12)[8] == 112 or gb.read(0xFE00, 12)[8] == 113, "the down arrow: games are listed below"
         check_golden(gb, "mg_list_locked")
         tap(gb, "a")
         gb.run(5)
@@ -253,7 +266,7 @@ def test_the_release_list_is_locked_until_reached(model, release_built):
     ram = with_block(v7_image(), pr_block(1, [MEDAL_SILVER]))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert line(gb, 2) == " QUICK DRAW   SILVER" and line(gb, 3).strip() == "? ? ?"
+        assert line(gb, 2) == " QUICK DRAW   SILVER" and line(gb, 4).strip() == "? ? ?"
         assert line(gb, 15).strip() == "NORMAL BEST SILVER"
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
@@ -261,10 +274,10 @@ def test_the_release_list_is_locked_until_reached(model, release_built):
     ram = with_block(v7_image(), pr_block(1 << MG_ORDERUP, [0, 0, 0, MEDAL_BRONZE]))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert line(gb, 2).strip() == "? ? ?" and line(gb, 5) == " ORDER UP     BRONZE"
+        assert line(gb, 2).strip() == "? ? ?" and line(gb, game_row(3)) == " ORDER UP     BRONZE"
         for _ in range(3):
             tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(14, 17)] == ["THE BISTRO", "NORMAL BEST BRONZE", KEYS]
+        assert [line(gb, r).strip() for r in range(15, 17)] == ["NORMAL BEST BRONZE", KEYS]
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_ORDERUP and gb.mem("mg_mode") == MG_PRACTICE
@@ -393,7 +406,7 @@ def test_the_scroll_arrows_show_only_where_games_are_hidden_and_bob(model):
     with to_list(booted(model)) as gb:
         hold_stage_anim(gb)
         (up, down), tiles = arrow_ys(gb)
-        assert up == 0 and 104 <= down <= 105, "top of the list: only the down arrow"
+        assert up == 0 and 112 <= down <= 113, "top of the list: only the down arrow"
         assert gb.read(0xFE00, 12)[5] == 160 and gb.read(0xFE00, 12)[9] == 160, "the right edge (column 19)"
         seen = set()
         for _ in range(40):                                # (two bobs of 16 frames and a bit)
@@ -401,13 +414,13 @@ def test_the_scroll_arrows_show_only_where_games_are_hidden_and_bob(model):
             (up, down), _ = arrow_ys(gb)
             assert up == 0
             seen.add(down)
-        assert seen == {104, 105}, "the down arrow bobs one pixel"
+        assert seen == {112, 113}, "the down arrow bobs one pixel"
         for _ in range(10):                                # the cursor to line 10: the window slides one line
             tap(gb, "down")
         gb.run(4)
         assert gb.mem("ml_sel") == 10
         (up, down), _ = arrow_ys(gb)
-        assert 23 <= up <= 24 and 104 <= down <= 105, "the middle: both"
+        assert 23 <= up <= 24 and 112 <= down <= 113, "the middle: both"
         seen = set()
         for _ in range(40):
             gb.run(1)
@@ -422,6 +435,33 @@ def test_the_scroll_arrows_show_only_where_games_are_hidden_and_bob(model):
         tap(gb, "down")
         gb.run(4)
         (up, down), _ = arrow_ys(gb)
-        assert up == 0 and down >= 104, "wrapped to the top"
+        assert up == 0 and down >= 112, "wrapped to the top"
         assert gb.read(0xFE00, 12)[6] != gb.read(0xFE00, 12)[10], "an up and a down tile"
 
+
+
+# ---- the keys line's buttons and the muted medal words (owner 2026-10-15) ---------------------------------------------------------------
+def attr(gb, row, col):
+    return gb.pb.memory[1, 0x9800 + row * 32 + col] & 7
+
+
+def test_cgb_colours_the_medal_column_and_the_buttons():
+    """CGB: the medal column (14-19) of the game rows is BG palette 3 (a muted gold), the three button tiles of the keys row palette 4 (gold),
+    everything else the HUD palette 1; after a scroll and a mode change the attributes are still right; a locked game's lines have no button."""
+    with to_list(booted("cgb")) as gb:
+        hold_stage_anim(gb)
+        for i in range(VIS):
+            assert [attr(gb, game_row(i), c) for c in range(20)] == [1] * 14 + [3] * 6, i
+        keys_row = tilemap_row(gb, 16, 0, 20)
+        assert [attr(gb, 16, c) for c in range(20)] == [4 if keys_row[c] in (BTN_A, BTN_B, BTN_R) else 1 for c in range(20)]
+        assert sum(attr(gb, 16, c) == 4 for c in range(20)) == 3
+        for _ in range(8):
+            tap(gb, "down")
+        tap(gb, "right")
+        gb.run(8)
+        for i in range(VIS):
+            assert [attr(gb, game_row(i), c) for c in range(20)] == [1] * 14 + [3] * 6, i
+        assert sum(attr(gb, 16, c) == 4 for c in range(20)) == 3
+    with release_rom("cgb") as gb:                         # (a locked game: "REACH IT IN STORY" / "OR ARCADE", no buttons)
+        to_list(gb)
+        assert [attr(gb, 16, c) for c in range(20)] == [1] * 20

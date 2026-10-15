@@ -837,11 +837,10 @@ def test_bonus_mini_games_lists_and_plays_it(model):
     from test_mg_list import line, tap as list_tap, to_list
     from test_scores import booted
     with to_list(booted(model)) as gb:
-        assert line(gb, 10).strip() == "MONKEY BIZ"
         for _ in range(8):
             list_tap(gb, "down")
         assert gb.mem("ml_sel") == 8
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE JUNGLE ZOO", "NORMAL NO MEDAL YET"]
+        assert line(gb, 15).strip() == "NORMAL NO MEDAL YET"
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_MONKEY and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -852,7 +851,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(3)
-        assert gb.mem("ml_sel") == 8 and line(gb, 10).strip() == "MONKEY BIZ"
+        assert gb.mem("ml_sel") == 8 and line(gb, 12).strip() == "MONKEY BIZ"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -864,11 +863,11 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
     ram = with_block(v7_image(), pr_block(1 << MG_MONKEY, best))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert [line(gb, r).strip() for r in range(2, 10)] == ["? ? ?"] * 8
-        assert line(gb, 10) == " MONKEY BIZ   SILVER"
+        assert [line(gb, r).strip() for r in range(2, 13, 2)] == ["? ? ?"] * 6
         for _ in range(8):
             list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE JUNGLE ZOO", "NORMAL BEST SILVER"]
+        assert line(gb, 12) == " MONKEY BIZ   SILVER"
+        assert line(gb, 15).strip() == "NORMAL BEST SILVER"
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_MONKEY and gb.mem("mg_mode") == MG_PRACTICE

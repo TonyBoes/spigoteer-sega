@@ -214,7 +214,7 @@ def test_a_bonus_round_keeps_a_medal_per_mode(model):
             assert got == medal, (mode, got)
         for mode, medal in ((NORMAL, 2), (HARD, 3), (EASY, 1)):
             goto_mode(gb, mode)
-            assert ml.line(gb, 11).split()[-1] == ["", "BRONZE", "SILVER", "GOLD"][medal]
+            assert ml.line(gb, 12).split()[-1] == ["", "BRONZE", "SILVER", "GOLD"][medal]
             assert ml.line(gb, 15).strip() == f"{WORD[mode]} BEST {['', 'BRONZE', 'SILVER', 'GOLD'][medal]}"
         ram = save_ram(gb)
     _, medals, _ = parse_bx(ram)
@@ -227,7 +227,7 @@ def test_a_bonus_round_keeps_a_medal_per_mode(model):
         gb.run(4)
         for mode, medal in ((NORMAL, 2), (HARD, 3), (EASY, 1)):
             goto_mode(gb, mode)
-            assert ml.line(gb, 11).split()[-1] == ["", "BRONZE", "SILVER", "GOLD"][medal], mode
+            assert ml.line(gb, 12).split()[-1] == ["", "BRONZE", "SILVER", "GOLD"][medal], mode
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -265,16 +265,16 @@ def test_an_old_save_keeps_its_medals_as_normal_and_has_none_for_easy_and_hard(m
         for _ in range(BONUS_FIRST):
             ml.tap(gb, "down")
         gb.run(4)
-        assert ml.line(gb, 11).split()[-1] == "GOLD"
+        assert ml.line(gb, 12).split()[-1] == "GOLD"
         for mode in (HARD, EASY):
             goto_mode(gb, mode)
-            assert ml.line(gb, 11).split()[-1] == "SHAKE-UP" and ml.line(gb, 15).strip() == WORD[mode] + " NO MEDAL YET"
+            assert ml.line(gb, 12).split()[-1] == "SHAKE-UP" and ml.line(gb, 15).strip() == WORD[mode] + " NO MEDAL YET"
         for _ in range(BONUS_FIRST):
             ml.tap(gb, "up")
         gb.run(4)
         for mode in (HARD, EASY):
             goto_mode(gb, mode)
-            assert ml.line(gb, 2).strip() == "QUICK DRAW" and ml.line(gb, 3).strip() == "SHIRT CANNON"
+            assert ml.line(gb, 2).strip() == "QUICK DRAW" and ml.line(gb, 4).strip() == "SHIRT CANNON"
         _, m = play_from_list(gb, rounds=1)           # EASY (the last goto): a bronze
         assert m == 1 and mini_best(gb, 0) == 3 | 1 << 4
         ram = save_ram(gb)
@@ -311,11 +311,11 @@ def test_a_bad_md_block_reads_as_no_easy_or_hard_bonus_medals_and_leaves_mgb1_al
             for _ in range(BONUS_FIRST):
                 ml.tap(gb, "down")
             gb.run(4)
-            assert ml.line(gb, 11).split()[-1] == "SILVER", name          # NORMAL, from MGB1
+            assert ml.line(gb, 12).split()[-1] == "SILVER", name          # NORMAL, from MGB1
             goto_mode(gb, EASY)
-            assert (ml.line(gb, 11).split()[-1] == "BRONZE") == ok, name
+            assert (ml.line(gb, 12).split()[-1] == "BRONZE") == ok, name
             goto_mode(gb, HARD)
-            assert (ml.line(gb, 11).split()[-1] == "GOLD") == ok, name
+            assert (ml.line(gb, 12).split()[-1] == "GOLD") == ok, name
 
 
 # ---- every game plays the same in every mode (for now) ------------------------------------------------------------------------
@@ -369,12 +369,12 @@ def test_the_list_in_each_mode_with_medals_goldens(model):
     mg_list_normal_medals (new): the header, the medal column and the "<MODE> BEST" line follow the mode."""
     from conftest import check_golden
     with shown_list(model, HARD, 6) as gb:
-        assert header(gb) == "MINI GAMES  HARD" and ml.line(gb, 8).split()[-1] == "SILVER" and ml.line(gb, 2).split()[-1] == "GOLD"
+        assert header(gb) == "MINI GAMES  HARD" and ml.line(gb, 12).split()[-1] == "SILVER" and ml.line(gb, 4).split()[-1] == "BRONZE"
         assert ml.line(gb, 15).strip() == "HARD BEST SILVER"
         check_golden(gb, "mg_list_hard")
     with shown_list(model, EASY, 0) as gb:
-        assert header(gb) == "MINI GAMES  EASY" and ml.line(gb, 2).split()[-1] == "BRONZE" and ml.line(gb, 3).split()[-1] == "GOLD"
+        assert header(gb) == "MINI GAMES  EASY" and ml.line(gb, 2).split()[-1] == "BRONZE" and ml.line(gb, 4).split()[-1] == "GOLD"
         check_golden(gb, "mg_list_easy")
     with shown_list(model, NORMAL, 1) as gb:
-        assert header(gb) == "MINI GAMES  NORMAL" and ml.line(gb, 2).split()[-1] == "SILVER" and ml.line(gb, 3).split()[-1] == "BRONZE"
+        assert header(gb) == "MINI GAMES  NORMAL" and ml.line(gb, 2).split()[-1] == "SILVER" and ml.line(gb, 4).split()[-1] == "BRONZE"
         check_golden(gb, "mg_list_normal_medals")

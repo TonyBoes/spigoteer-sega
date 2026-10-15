@@ -46,8 +46,11 @@ extern uint32_t score;
 #define ROW_LIST        2
 #define ROW_BOX        12       // panel; the info lines 13-16; panel 17
 #define INFO_LINES      4
-#define ROW_BOX_LIST   13       // the list (ten lines 2-11 and a blank row 12): panel 13, the info lines 14-16 (venue, best, keys), panel 17
-#define INFO_LIST       3
+// The list (owner 2026-10-15: the capitals touched): RVIS bosses on every other row 2, 4 .. 12 (a blank row between them, as the MINI GAMES list),
+// the window scrolls with the cursor (RUSH->top, the shared scroll arrows); a blank row 13, panel 14, the info lines 15-16 (best, keys), panel 17.
+#define RVIS            6
+#define ROW_BOX_LIST   14
+#define INFO_LIST       2
 #define MENU_ROW0       4       // the menu's lines: rows 4 and 6, the text at column 7
 #define MENU_COL        7
 #define COL_NAME        1
@@ -227,8 +230,8 @@ static void frame_begin(uint8_t scr) {           // LCD off: a blank band with t
 }
 
 // ---- MENU and LIST: lines with a cursor, the details below ---------------------------------------------------------
-static uint8_t n_lines(void) { return RUSH->scr == RS_MENU ? 2 : lines(); }
-static uint8_t sel(void) { return RUSH->scr == RS_MENU ? RUSH->sel : RUSH->list_sel; }
+static uint8_t n_lines(void) { uint8_t n; if (RUSH->scr == RS_MENU) return 2; n = lines(); return n < RVIS ? n : RVIS; }   // (the list: its window)
+static uint8_t sel(void) { return RUSH->scr == RS_MENU ? RUSH->sel : RUSH->list_sel - RUSH->top; }   // the cursor's line in the window
 
 static void build_menu(uint8_t k, uint8_t *r) {
     char b[20], *d;
@@ -271,10 +274,10 @@ static void build_menu(uint8_t k, uint8_t *r) {
 
 static void build_list(uint8_t k, uint8_t *r) {
     char b[20];
-    uint8_t v, n = lines();
+    uint8_t v, n = n_lines();
     uint16_t f;
     blank(r);
-    v = nth_built(k < n ? k : RUSH->list_sel);
+    v = nth_built(k < n ? RUSH->top + k : RUSH->list_sel);
     if (v >= BOSS_COUNT) return;
     f = get16(RSV_BEST + 2 * v);
     if (k < n) {                                 // a line: the name and his best time
@@ -284,10 +287,9 @@ static void build_list(uint8_t k, uint8_t *r) {
         return;
     }
     k -= n;
-    k++;                                         // (the list has no name line: the cursor's line is his name)
+    k += 2;                                      // (the list has no name or venue line: the cursor's line is his name)
     if (!unlocked(v)) { put(r, 255, locked_info[k]); return; }
     switch (k) {
-    case 1: put(r, 255, venue_name[v]); break;
     case 2:
         if (!f) { put(r, 255, "NOT BEATEN YET"); break; }
         mmss(cat(b, "BEST "), f);
@@ -304,7 +306,7 @@ static void build(uint8_t k) {
 static uint8_t screen_row(uint8_t k) {
     uint8_t n = n_lines();
     if (k >= n) return box_row() + 1 + k - n;
-    return RUSH->scr == RS_MENU ? MENU_ROW0 + 2 * k : ROW_LIST + k;
+    return RUSH->scr == RS_MENU ? MENU_ROW0 + 2 * k : ROW_LIST + 2 * k;
 }
 
 static void cursor(void) {
@@ -313,6 +315,9 @@ static void cursor(void) {
     o->x = RUSH->scr == RS_MENU ? (MENU_COL - 1) * 8 + 8 : 8;
     o->tile = OBJ_MUG; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;
 }
+
+extern uint8_t frame_counter;
+static void arrows(void) { list_arrows_show(RUSH->top != 0, RUSH->top + RVIS < lines(), frame_counter); }
 
 static void lines_open(uint8_t scr) {            // LCD off: the menu or the list
     uint8_t k, n;
@@ -326,6 +331,7 @@ static void lines_open(uint8_t scr) {            // LCD off: the menu or the lis
         if (!(k & 3)) music_pump();
     }
     cursor();
+    if (RUSH->scr == RS_LIST) { music_pump(); list_arrows_load(); music_pump(); arrows(); }
     DISPLAY_ON;
 }
 
@@ -333,6 +339,7 @@ static void menu_open(uint8_t s) { RUSH->sel = s; lines_open(RS_MENU); }
 
 static void list_open(void) {
     if (RUSH->list_sel >= lines()) RUSH->list_sel = 0;
+    RUSH->top = RUSH->list_sel >= RVIS ? RUSH->list_sel - RVIS + 1 : 0;   // (the window that shows the cursor)
     lines_open(RS_LIST);
 }
 
@@ -479,11 +486,17 @@ void rush_lost(void) BANKED {
 
 // ---- frames -----------------------------------------------------------------------------------------------------
 static uint8_t lines_frame(uint8_t pressed) {
-    uint8_t n = n_lines(), s = sel(), old = s, k, q;
-    if (pressed & J_UP) s = s ? s - 1 : n - 1;
-    else if (pressed & J_DOWN) s = s == n - 1 ? 0 : s + 1;
+    uint8_t n = n_lines(), s = RUSH->scr == RS_MENU ? RUSH->sel : RUSH->list_sel, old = s, k, q, top = RUSH->top, m = RUSH->scr == RS_MENU ? n : lines();
+    if (pressed & J_UP) s = s ? s - 1 : m - 1;
+    else if (pressed & J_DOWN) s = s == m - 1 ? 0 : s + 1;
     if (s != old) {
-        if (RUSH->scr == RS_MENU) RUSH->sel = s; else RUSH->list_sel = s;
+        if (RUSH->scr == RS_MENU) RUSH->sel = s;
+        else {                                   // the list: the window slides when the cursor leaves it (a wrap: to the other end)
+            RUSH->list_sel = s;
+            if (s < top) top = s;
+            else if (s >= top + RVIS) top = s - RVIS + 1;
+            if (top != RUSH->top) { RUSH->top = top; RUSH->dirty |= (1 << n) - 1; }
+        }
         RUSH->dirty |= ((1 << info_n()) - 1) << n;
     } else if (pressed & (J_A | J_START)) {
         if (RUSH->scr == RS_LIST) {
@@ -504,6 +517,7 @@ static uint8_t lines_frame(uint8_t pressed) {
         q++;
     }
     cursor();
+    if (RUSH->scr == RS_LIST) arrows();
     return 0;
 }
 
