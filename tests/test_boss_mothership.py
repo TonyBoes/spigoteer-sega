@@ -38,9 +38,11 @@ def phase(gb):
     return MS.get(gb, "phase")
 
 
-def quiet(gb):
+def quiet(gb, calm=3):
+    """The regulars stand still and none come; calm 3: no passengers and no ray (the tests of the older mechanics); the entrance over."""
     still_regulars(gb)
-    play(gb)
+    until(gb, lambda: MS.get(gb, "ent") == 0 and gb.mem("intro_timer") == 0 and state(gb) == PLAYING, 400)
+    MS.put(gb, "calm", calm)
     gb.write("spawn_timer", 0xFF)
     gb.write(gb.addr("spawn_timer") + 1, 0x7F)
 
@@ -108,6 +110,7 @@ def test_the_fight_follows_the_last_call(model):
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         assert gb.mem("boss_id") == C
     with fight(model, C) as gb:
+        until(gb, lambda: MS.get(gb, "ent") == 0 and gb.mem("intro_timer") < 89, 200)      # (the entrance first: its own tests below)
         gb.run(2)
         check_start(gb, C, A, model)
         assert hud(gb) == meter_tiles(14, 14)
@@ -391,3 +394,460 @@ def test_win_the_fight_by_pouring(model):
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(C), 300)
         settle(gb)
         assert (gb.mem("boss_on"), gb.mem("story_progress")) == (0, C + 1)
+
+
+# ---- E7: passengers, the stun ray, the entrance (owner 2026-10-15) -------------------------------------------------------------------
+CALM_RAY, CALM_DROP = 1, 2
+RY_IDLE, RY_CHARGE, RY_STUN = range(3)
+RAY_STAY, RAY_CHARGE, RAY_STUN, RAY_BEAM, ENT_LAND, ENT_BLINK, LIVE_MAX = (int(re.search(rf"#define {n}\s+(\d+)", SRC).group(1)) for n in (
+    "RAY_STAY", "RAY_CHARGE", "RAY_STUN", "RAY_BEAM", "ENT_LAND", "ENT_BLINK", "LIVE_MAX"))
+SFX_COIN, SFX_LAUNCH, SFX_FILL, SFX_SHAKE, SFX_REV, SFX_KA, SFX_WHOOSH = 6, 2, 1, 8, 12, 11, 13
+BT_IDLE, BT_FAIL = 0, 6
+
+
+def sfx(gb, n):
+    return gb.read("sfx_count", 14)[n]
+
+
+def live(gb):
+    """[(slot, bar, x, state, variant)] of every patron on the screen (a quiet fight: only the passengers)."""
+    st, bar, x, var = gb.read("patron_state", 16), gb.read("patron_bar", 16), gb.read("patron_x", 16), gb.read("patron_variant", 16)
+    return [(p, bar[p] & 3, x[p], st[p], var[p]) for p in range(15) if st[p]]       # (slot 15: wipe's sentinel)
+
+
+def wipe(gb, sentinel=True):
+    """Every patron off the screen, except a sentinel in slot 15 (bar 0, x 100, standing: on an empty screen the game calls the next
+    regular soon, and the tests want none)."""
+    with logic_paused(gb):
+        for p in range(16):
+            gb.write(gb.addr("patron_state") + p, 0)
+        if sentinel:
+            gb.write(gb.addr("patron_state") + 15, WALKING)
+            gb.write(gb.addr("patron_bar") + 15, 0)
+            gb.write(gb.addr("patron_x") + 15, 100)
+        gb.write("lists_dirty", 1)
+
+
+def bare(gb, calm):
+    """quiet() and the fight's start patrons gone: only what the test adds is on the screen."""
+    quiet(gb, calm)
+    wipe(gb)
+    frames(gb, 2)
+
+
+def serve(gb, slot, limit=6):
+    """Glasses thrown on passenger `slot`'s bar one at a time until he is LEAVING / gone (returns how many it took)."""
+    n = 0
+    while n < limit:
+        q = [m for m in live(gb) if m[0] == slot and m[3] != LEAVING]
+        if not q:
+            return n
+        p, b, x, st, v = q[0]
+        if st == WALKING and not mugs(gb, b, FULL):
+            throw(gb, b, x + 24)
+            n += 1
+        frames(gb, 25)
+    raise AssertionError("not served")
+
+
+def land_now(gb):
+    """The test hook's tell through to the landing: returns on the frame after he is on the new bar."""
+    n = MS.get(gb, "jumps")
+    to_tell(gb)
+    until(gb, lambda: MS.get(gb, "jumps") == n + 1, MS_TELL + MS_WAITMAX + MS_GONE + 20)
+    frames(gb, 1)
+
+
+def arm_ray(gb, stay=RAY_STAY - 1):
+    """Ray on, passengers off, the bartender's count one frame short of taking aim."""
+    MS.put(gb, "calm", CALM_DROP)
+    with logic_paused(gb):
+        MS.put(gb, "stay", stay)
+        MS.put(gb, "sbar", gb.mem("bar"))
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_every_teleport_drops_two_passengers(model):
+    """Each landing releases two alien passengers (variant A / B patrons) at x 24 on two different bars that are not his new bar, with a
+    chirp; none before the first landing; two more at the next landing."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_RAY)
+        assert live(gb) == [] and MS.get(gb, "drops") == 0
+        coin = sfx(gb, SFX_COIN)
+        land_now(gb)
+        ps = live(gb)
+        assert len(ps) == 2 and MS.get(gb, "drops") == 2 and sfx(gb, SFX_COIN) == coin + 1
+        assert len({p[1] for p in ps}) == 2 and all(p[1] != gb.mem("boss_bar") for p in ps), ps
+        assert all(p[2] in (24, 25) and p[3] == WALKING and p[4] in (0, 1) for p in ps), ps
+        wipe(gb)
+        land_now(gb)
+        assert len(live(gb)) == 2 and MS.get(gb, "drops") == 4
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_passengers_keep_to_the_cap_and_clear_entries(model):
+    """No passenger while LIVE_MAX patrons are on the screen; a bar whose entry has a patron at x < 40 gets none (the other bars do)."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_RAY)
+        with logic_paused(gb):
+            for p in range(LIVE_MAX):                           # twelve walkers well along the bars (the cap is a count)
+                gb.write(gb.addr("patron_state") + p, WALKING)
+                gb.write(gb.addr("patron_bar") + p, [0, 2, 3][p % 3])
+                gb.write(gb.addr("patron_x") + p, 100 + p)
+            gb.write("lists_dirty", 1)
+        land_now(gb)
+        assert len(live(gb)) == LIVE_MAX and MS.get(gb, "drops") == 0, "the cap"
+        n = 0
+        for _ in range(8):                                      # the sentinel at the entry of bar 0: in every run its bar gets nobody
+            wipe(gb)
+            with logic_paused(gb):
+                gb.write(gb.addr("patron_x") + 15, 30)
+                gb.write("lists_dirty", 1)
+            land_now(gb)
+            new = live(gb)
+            assert all(p[1] != 0 for p in new), "bar 0's entry was crowded"
+            n += len(new)
+        assert n >= 8
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_passenger_is_served_like_a_patron(model):
+    """A glass thrown on a passenger's bar is caught by him, he is pushed to the left end and drinks; the second glass serves him (as every
+    patron at the left end: he leaves); no life is lost."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_RAY)
+        land_now(gb)
+        p, b, x, st, v = live(gb)[0]
+        assert serve(gb, p) == 2
+        assert all(m[0] != p or m[3] == LEAVING for m in live(gb)) and gb.mem("lives") == 3
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_passengers_count_for_clear_the_bar(model):
+    """The meter at 0 with passengers aboard: the banner says CLEAR THE BAR and the fight goes on until both are served (one
+    glass each), then the outro."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_RAY)
+        land_now(gb)
+        assert len(live(gb)) == 2
+        gb.write("boss_hook", 3)
+        frames(gb, 3)
+        assert gb.mem("boss_hp") == 0 and banner_text(gb, 1) == centred("CLEAR THE BAR")
+        frames(gb, 120)
+        assert state(gb) == PLAYING and gb.mem("story_phase") != SP_OUTRO and len(live(gb)) == 2
+        for p, b, x, st, v in live(gb):
+            serve(gb, p)
+        until(gb, lambda: not any(q[3] != LEAVING for q in live(gb)), 600)
+        wipe(gb, False)                                         # (the sentinel goes: the last patron to leave ends the fight)
+        until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO, 600)
+        assert gb.mem("lives") == 3
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_split_takes_the_passengers_with_it(model):
+    """The split clears the screen: the passengers are gone and the three minis are all there is."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_RAY)
+        land_now(gb)
+        assert len(live(gb)) == 2
+        split_now(gb)
+        until(gb, lambda: phase(gb) == MP_MINIS, MS_FLASH + 30)
+        frames(gb, 3)
+        assert len(live(gb)) == 3 and all(p[4] == 2 for p in live(gb))
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_ray_takes_aim_after_a_long_stay_with_a_telegraph(model):
+    """Standing on one bar RAY_STAY frames: the charge begins (SFX_REV), the ship glows (HAPPY), the antenna blinks, the beam column
+    blinks on HIS bar under his feet (not the ship's); the bartender is free. Golden boss_mothership_charge."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_DROP)
+        to_bar(gb, 3)
+        MS.put(gb, "stay", 0)
+        clock = Clock(gb)
+        until(gb, lambda: clock.now() >= 0 and MS.get(gb, "ray") == RY_CHARGE, RAY_STAY + 20)
+        assert RAY_STAY - 4 <= clock.now() <= RAY_STAY + 4, clock.now()
+        assert sfx(gb, SFX_REV) >= 1
+        seen, tiles, golden = set(), set(), False
+        for _ in range(RAY_CHARGE - 14):
+            frames(gb, 1)
+            assert MS.get(gb, "ray") == RY_CHARGE and gb.mem("boss_xpose") == BP_HAPPY
+            seen.add(marker_at(gb, 3))
+            assert marker_at(gb, B) is None
+            tiles.add(topper(gb)["tile"])
+            if MS.get(gb, "rt") == 5 and not golden:
+                check_golden(gb, "boss_mothership_charge")
+                golden = True
+        col = (gb.mem("bartender_x") + 4) >> 3
+        assert seen == {None, col} and tiles == {HAT_STILL, HAT_BOB}, (seen, col, tiles)
+        gb.press("left", 4)                                     # the bartender walks as ever during the charge
+        frames(gb, 2)
+        assert gb.mem("bartender_x") < TAP_X and MS.get(gb, "stuns") == 0 and MS.get(gb, "ray") == RY_CHARGE
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_dodging_the_ray_by_changing_bars(model):
+    """Any bar change in the charge cancels it: no stun, the beam and the glow gone, the count from 0 on the new bar; and the ship
+    does not charge again until RAY_STAY frames there."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_DROP)
+        to_bar(gb, 3)
+        arm_ray(gb)
+        until(gb, lambda: MS.get(gb, "ray") == RY_CHARGE, 4)
+        frames(gb, RAY_CHARGE - 5)
+        to_bar(gb, 2)
+        frames(gb, 2)
+        assert MS.get(gb, "ray") == RY_IDLE and MS.get(gb, "stay") < 10 and gb.mem("boss_xpose") == 0
+        assert all(marker_at(gb, b) is None for b in range(4))
+        frames(gb, 120)
+        assert MS.get(gb, "stuns") == 0 and MS.get(gb, "ray") == RY_IDLE and gb.mem("bartender_frame") != BT_FAIL
+        gb.press("up", 2)                                       # free to move
+        frames(gb, 2)
+        assert gb.mem("bar") == 1
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_bartender_who_stays_is_stunned(model):
+    """The beam fires at the end of the charge (SFX_KA, the GULP pose, the beam solid RAY_BEAM frames): the bartender is stunned
+    RAY_STUN frames (BT_FAIL): Left / Right / Up / Down / A do nothing (no bar change, no walking, no pour), a mug on another bar keeps
+    sliding; after it he is free and the count starts at 0. Golden boss_mothership_stun."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_DROP)
+        to_bar(gb, 3)
+        arm_ray(gb)
+        zaps = sfx(gb, SFX_KA)
+        until(gb, lambda: MS.get(gb, "ray") == RY_STUN, RAY_CHARGE + 10)
+        frames(gb, 1)
+        assert sfx(gb, SFX_KA) == zaps + 1 and MS.get(gb, "stuns") == 1 and gb.mem("boss_xpose") == 2 and marker_at(gb, 3) is not None
+        hits = gb.mem("boss_hits")
+        check_golden(gb, "boss_mothership_stun")                # (the beam solid, the hatch open, the bartender's hands up)
+        throw(gb, B, 100)                                       # (the pause that places it gives the keys' edge back: one frame on, then the baseline)
+        frames(gb, 1)
+        x0, launches, fills, whooshes = gb.mem("bartender_x"), sfx(gb, SFX_LAUNCH), sfx(gb, SFX_FILL), sfx(gb, SFX_WHOOSH)
+        k = 0
+        while MS.get(gb, "rt") < RAY_STUN - 14:
+            gb.press("up" if k % 4 == 0 else "down" if k % 4 == 1 else "left" if k % 4 == 2 else "a", 1)
+            frames(gb, 1)
+            k += 1
+            assert MS.get(gb, "ray") == RY_STUN
+        assert k >= 10
+        with logic_paused(gb):                                  # (a read between frames: the game's own frame is done)
+            assert gb.mem("bar") == 3 and gb.mem("bartender_x") == x0 and gb.mem("fill_timer") == 0
+        assert sfx(gb, SFX_LAUNCH) == launches and sfx(gb, SFX_FILL) == fills and sfx(gb, SFX_WHOOSH) == whooshes, "no bar change, no pour"
+        assert marker_at(gb, 3) is None, "the beam is gone after RAY_BEAM frames"
+        assert gb.mem("boss_hits") == hits + 1 and gb.mem("lives") == 3, "the glass kept sliding to him"
+        until(gb, lambda: MS.get(gb, "ray") == RY_IDLE, 20)
+        assert MS.get(gb, "stay") < 6
+        frames(gb, 2)
+        gb.press("up", 2)
+        frames(gb, 2)
+        assert gb.mem("bar") == 2 and gb.mem("bartender_frame") != BT_FAIL
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_stun_is_the_stun_length_stops_a_pour_and_holds_the_tell(model):
+    """A pour in progress when the beam fires is cancelled (no glass); the stun is RAY_STUN frames from the beam; the teleport clock
+    does not run during the ray."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_DROP)
+        to_bar(gb, 2)
+        arm_ray(gb)
+        t0 = gb.mem16("boss_special_t")
+        gb.hold("a")
+        frames(gb, 3)
+        assert gb.mem("fill_timer") > 0
+        until(gb, lambda: MS.get(gb, "ray") == RY_STUN, RAY_CHARGE + 10)
+        gb.release("a")
+        launches = sfx(gb, SFX_LAUNCH)
+        t1 = gb.mem16("boss_special_t")
+        assert t0 - t1 <= 6, "the teleport clock waited through the charge"
+        n = 0
+        while MS.get(gb, "ray") == RY_STUN:
+            frames(gb, 1)
+            n += 1
+        assert RAY_STUN - 2 <= n <= RAY_STUN + 2, n
+        assert sfx(gb, SFX_LAUNCH) == launches and gb.mem16("boss_special_t") >= t1 - 3 and phase(gb) == MP_WALK
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_life_lost_in_the_ray_clears_it(model):
+    """A life lost in the stun: the ray is over (idle, no beam), the bartender is free after the freeze."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_DROP)
+        to_bar(gb, 3)
+        arm_ray(gb)
+        until(gb, lambda: MS.get(gb, "ray") == RY_STUN, RAY_CHARGE + 10)
+        frames(gb, 10)
+        with logic_paused(gb):
+            gb.write("boss_x", 150)                             # at the tap: a life
+        until(gb, lambda: state(gb) == LIFE_LOST, 10)
+        until(gb, lambda: state(gb) == PLAYING, 200)
+        frames(gb, 30)
+        assert MS.get(gb, "ray") == RY_IDLE and all(marker_at(gb, b) is None for b in range(4)) and gb.mem("lives") == 2
+        gb.press("down", 2)
+        frames(gb, 2)
+        assert gb.mem("bar") == 1
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_no_ray_in_phase_2_and_the_flash_ends_a_charge(model):
+    """The flash (the meter at the split) ends a charge at once; the minis' phase has no ray."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_DROP)
+        to_bar(gb, 3)
+        arm_ray(gb)
+        until(gb, lambda: MS.get(gb, "ray") == RY_CHARGE, 4)
+        frames(gb, 20)
+        split_now(gb)
+        frames(gb, 2)
+        assert MS.get(gb, "ray") == RY_IDLE and all(marker_at(gb, b) is None for b in range(4))
+        until(gb, lambda: phase(gb) == MP_MINIS, MS_FLASH + 30)
+        with logic_paused(gb):
+            MS.put(gb, "stay", RAY_STAY + 50)
+        frames(gb, 30)
+        assert MS.get(gb, "ray") == RY_IDLE and MS.get(gb, "stuns") == 0
+
+
+def ent_frame(gb):
+    return MS.get(gb, "ent") - 1
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_entrance_tractor_beam(model):
+    """The first start: he is not on his bar (JUMP, HIDE), the beam column stands on his bar at his start x, the lights flicker (DMG BGP
+    dimmed on some frames, CGB the bar palette halved on some), the hum, then he blinks in (HAPPY / hidden) and lands at ENT_LAND: WALK
+    at x 16 on his bar, the beam and the dim gone, the thud, the intro's 90 frames from there. The bartender cannot move meanwhile.
+    Every frame is checked at <= 10 sprites a line. Goldens boss_mothership_beam (frame 30), boss_mothership_materialise (frame 54)."""
+    with fight(model, C) as gb:
+        assert MS.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_JUMP and gb.mem("boss_xpose") == BP_HIDE
+        revs, bar0, x0, shakes = sfx(gb, SFX_REV), gb.mem("bar"), gb.mem("bartender_x"), sfx(gb, SFX_SHAKE)
+        dims, golden = set(), 0
+        wall = cgb_palette(gb, 0) if model == "cgb" else None
+        while True:
+            frames(gb, 1)
+            f = ent_frame(gb)
+            if f < 0 or f >= ENT_LAND:
+                break
+            assert gb.mem("intro_timer") >= 86 and gb.mem("boss_state") == BS_JUMP
+            if f < ENT_BLINK - 2:
+                assert marker_at(gb, B) == R["x"] // 8 + 2, f
+            elif f > ENT_BLINK + 4:
+                assert marker_at(gb, B) is None, "the beam fades as he blinks in"
+            dims.add(gb.mem(0xFF47) if model == "dmg" else tuple(cgb_palette(gb, 0)))
+            if f % 3 == 0:
+                gb.press("down" if f % 2 else "left", 1)
+            assert gb.mem("bar") == bar0 and gb.mem("bartender_x") == x0, f
+            if f == 30 and golden == 0:
+                check_golden(gb, "boss_mothership_beam")
+                golden = 1
+            if f == 54 and golden == 1:
+                check_golden(gb, "boss_mothership_materialise")
+                golden = 2
+        assert golden == 2 and sfx(gb, SFX_REV) == revs + 1 and len(dims) == 2, dims
+        frames(gb, 3)
+        assert MS.get(gb, "ent") == 0 and gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == R["x"] and sfx(gb, SFX_SHAKE) >= shakes + 1
+        assert all(marker_at(gb, b) is None for b in range(4)) and 84 <= gb.mem("intro_timer") <= 89
+        assert (gb.mem(0xFF47) == 0xE4) if model == "dmg" else cgb_palette(gb, 0) == wall
+        assert_body(gb, C, A, R["x"], BP_WALK)
+        gb.press("down", 2)                                     # the intro's 90 frames: the bartender is his own again at once
+        frames(gb, 2)
+        assert gb.mem("bar") == bar0 + 1
+        play(gb)
+        assert gb.mem("boss_hp") == 14
+
+
+@pytest.mark.parametrize("model", ["cgb"])
+def test_no_entrance_after_a_lost_life(model):
+    """A life lost in the fight: he comes back at his start at once (no entrance again)."""
+    with fight(model, C) as gb:
+        bare(gb, CALM_RAY | CALM_DROP)
+        with logic_paused(gb):
+            gb.write("boss_x", 150)
+        until(gb, lambda: state(gb) == LIFE_LOST, 10)
+        until(gb, lambda: state(gb) == PLAYING, 200)
+        frames(gb, 2)
+        assert MS.get(gb, "ent") == 0 and gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == R["x"]
+
+
+def need(gb):
+    """{bar: urgency} of what each bar needs now (a bot's eyes): an empty about to be missed first (1000 + its x), then the walking patron
+    nearest the tap (one with a glass already on its way is skipped), then the saucer when he has a hand free and wants a glass.
+    The second dict: the bars with something to pour on."""
+    u, pour_on = {}, set()
+    st, bar, x = gb.read("patron_state", 16), gb.read("patron_bar", 16), gb.read("patron_x", 16)
+    flying = {b: mugs(gb, b, FULL) for b in range(4)}
+    for p in range(16):
+        if st[p] == WALKING and not any(m[3] > x[p] for m in flying[bar[p] & 3]):
+            u[bar[p] & 3] = max(u.get(bar[p] & 3, 0), x[p])
+            pour_on.add(bar[p] & 3)
+    bb = gb.mem("boss_bar")
+    if phase(gb) == MP_WALK and gb.mem("boss_hold") + len(flying[bb]) < R["hands"] and gb.mem("boss_hp") > SPLIT_HP:
+        u[bb] = max(u.get(bb, 0), 70)
+        pour_on.add(bb)
+    for m in mugs(gb, st=EMPTY):
+        if m[3] >= TAP_X - 60:
+            u[m[2]] = 1000 + m[3]
+    return u, pour_on
+
+
+def go_bar(gb, b):
+    """to_bar, unless the keys do nothing now (a stun began meanwhile, a life was lost): the bot stands a frame."""
+    try:
+        to_bar(gb, b)
+    except AssertionError:
+        frames(gb, 1)
+
+
+def bot_step(gb, lag):
+    """One decision of a player who looks every `lag` frames: dodge a charge, catch an empty, serve the patron nearest the tap."""
+    if lag:
+        frames(gb, lag)
+    ray = MS.get(gb, "ray")
+    if ray == RY_STUN or state(gb) != PLAYING:
+        frames(gb, 1)
+        return
+    (u, pour_on), cur = need(gb), gb.mem("bar")
+    if ray == RY_CHARGE:
+        other = {b: v for b, v in u.items() if b != cur}
+        go_bar(gb, max(other, key=other.get) if other else (cur + 1) % 4)
+        frames(gb, 1)
+        return
+    if not u:
+        frames(gb, 1)
+        return
+    tgt = max(u, key=u.get)
+    go_bar(gb, tgt)
+    if gb.mem("bar") != tgt or tgt not in pour_on:                  # (standing at the tap catches the empties that come)
+        frames(gb, 1)
+        return
+    try:
+        pour(gb)
+    except AssertionError:                                      # (stunned mid-pour)
+        gb.release("a")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_win_the_real_fight_with_passengers_and_the_ray(model):
+    """The fight as a player meets it (the level's real speeds, regulars coming, passengers at every landing, the ray on): a bot that looks
+    every 6 frames, serves what is nearest the tap, catches the empties and dodges a charge brings the meter to 0: the saucer's eight
+    glasses, the split, the minis' twelve. (A patron pushed to the door needs a glass timed to the frame he turns, which the bot does not
+    try: the rest of the bar is cleared by hand, as test_boss.py does.) At most two lives are lost to the odd missed patron or empty;
+    the outro follows."""
+    with fight(model, C) as gb:
+        until(gb, lambda: MS.get(gb, "ent") == 0 and gb.mem("intro_timer") == 0 and state(gb) == PLAYING, 400)
+        clock, f, lost_at, peak = Clock(gb), 0, [], 0
+        while gb.mem("boss_hp") and f < 9000 and gb.mem("lives"):
+            if state(gb) == LIFE_LOST:
+                lost_at.append(f)
+                until(gb, lambda: state(gb) != LIFE_LOST, 400)
+                continue
+            bot_step(gb, 6)
+            peak = max(peak, len(live(gb)))
+            f = clock.now()
+        print(f"mothership real fight bot: {f} frames, lives {gb.mem('lives')}, stuns {MS.get(gb, 'stuns')}, passengers {MS.get(gb, 'drops')}, "
+              f"landings {MS.get(gb, 'jumps')}, peak patrons {peak}, lives lost at {lost_at}")
+        assert gb.mem("boss_hp") == 0 and gb.mem("lives") >= 1 and MS.get(gb, "minis") == 0
+        assert MS.get(gb, "drops") >= 2 and MS.get(gb, "jumps") >= 1 and peak <= LIVE_MAX + 3
+        clear_regulars(gb)
+        until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO, 30)
+        run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 160)

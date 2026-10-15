@@ -25,6 +25,17 @@
 //     bar is his" rule needs one, so a glass thrown on that bar is never caught and breaks (the player's mistake), and no
 //     regular or mini comes to it;
 //   - the minis are not made by the boss engine's regulars: every regular on the screen is cleared in the reload's blank frame.
+// E7 (owner 2026-10-15: "not threatening for the last boss"), phase 1 only:
+//   PASSENGERS: every landing releases two alien passengers (ordinary patrons, variant A / B) at x 24 on two bars that are not his
+//     (a bar whose entry is crowded is skipped; none while 12 patrons are live: the 16 slots keep a margin). They are served like
+//     any patron, count for CLEAR THE BAR, cost a life at the tap; the split wipes them with the rest of the screen.
+//   STUN RAY: the bartender stays on one bar RAY_STAY frames: the ship CHARGEs RAY_CHARGE frames (the HAPPY pose, the antenna
+//     blinking, SFX_REV, and the beam column blinking on HIS bar under his feet, faster for the last half); if he is still on
+//     that bar the beam fires (the GULP pose, SFX_KA) and he is STUNned RAY_STUN frames (BT_FAIL, no walk / bar change / pour:
+//     joy is overwritten so next frame's `pressed` is empty, and his place is put back every frame; mugs keep sliding). Any bar
+//     change in the charge dodges it. The teleport clock waits while the ray cycle runs.
+//   ENTRANCE (BEV_LOAD, the fight's first start, BEV_INTRO as Duke's): the beam lights on his bar, the lights flicker (CGB the bar
+//     palettes dim, DMG BGP), a hum, then he blinks into the beam and lands (ENT_LAND frames), then the intro's 90 frames.
 // Test hooks (WRAM: his state is the struct mothership_t in BOSS_OWN, no variable of his own): mothership.phase, .minis, ...
 #pragma bank 255
 #include "boss.h"
@@ -49,11 +60,28 @@ extern uint8_t cur_group;
 #define MINIS           3
 #define MINI_VARIANT    2                // patron variant C: only the minis (a fight's regulars are A / B)
 #define ENTRY_PLUS      1
+#define DROPS           2                // passengers per landing
+#define DROP_X         24                // (as the minis' entry)
+#define DROP_CROWD     40                // a patron left of this on the bar: the entry is crowded
+#define LIVE_MAX       12                // no passenger while this many patrons are live
+#define RAY_STAY      270                // frames on one bar before the ship takes aim
+#define RAY_CHARGE     60
+#define RAY_STUN       90
+#define RAY_BEAM       14                // frames the beam stays lit in the stun (the GULP pose)
+#define CALM_RAY        1                // ms.calm bits (tests): no ray, no passengers
+#define CALM_DROP       2
+#define ENT_LAND       64                // the entrance: the landing frame (0-43 the beam and the flicker, 44-63 he blinks in)
+#define ENT_BLINK      44
+#define ENT_HUM        20
+#define DIM_BGP      0xF9
+#define DIM_MASK   0x3DEF                // (c >> 1) & mask: each 5 bit channel halved
 #if BOSS_ART_COLS != 5 || BOSS_ART_FX != 4
 #error "Mothership: a 40 px body and the beam's two column pairs"
 #endif
 
 enum { MP_WALK, MP_TELL, MP_WAIT, MP_GONE, MP_FLASH, MP_MINIS };
+enum { RY_IDLE, RY_CHARGE, RY_STUN };
+extern uint8_t joy;
 
 typedef struct {
     uint8_t phase;      // MP_* (tests)
@@ -64,9 +92,18 @@ typedef struct {
     uint8_t wm;         // the earlier mugs are those on his bar at x <= wm (it falls MUG_SPEED_FULL a frame, as they do)
     uint8_t minis;      // phase 2: minis still to be served (3..0)
     uint8_t dead;       // phase 2: his hidden bar (no mini, no regular)
+    uint8_t ray;        // RY_* (tests)
+    uint8_t rt;         // frames in the ray's state
+    uint16_t stay;      // frames the bartender has been on bar sbar (tests)
+    uint8_t sbar;       // the bar he is counted on (the stun holds him there)
+    uint8_t sx;         // his x when stunned
+    uint8_t stuns;      // stuns this fight (tests)
+    uint8_t drops;      // passengers released this fight (tests)
+    uint8_t ent;        // the entrance: 0 none (or over), else the next frame's number + 1 (tests)
+    uint8_t calm;       // CALM_* (tests)
 } mothership_t;
 #define ms (*(mothership_t *)BOSS_OWN)
-#if 8 > BOSS_OWN_N
+#if 18 > BOSS_OWN_N
 #error "the Mothership's state: BOSS_OWN_N"
 #endif
 
@@ -114,6 +151,8 @@ static void vanish(void) {
     BOSS_TOPPER_T = 0;
 }
 
+static void drop_passengers(void);
+
 static void land(void) {
     boss_xpose = 0;
     boss_state = BS_WALK;
@@ -121,10 +160,131 @@ static void land(void) {
     boss_to_bar(ms.target, ms.land);
     SFX(SFX_SHAKE);
     ms.jumps++;
+    ms.stay = 0; ms.sbar = bar;
+    drop_passengers();
     to_walk();
 }
 
+// ---- the stun ray ----
+// The bartender held where he is (a stun, the entrance): joy is overwritten, so next frame's `pressed` is only START (the pause
+// stays his), and his place and pour are put back every frame; `frame` is his pose.
+static void hold(uint8_t frame) {
+    joy = 0x7F;
+    bar = ms.sbar; bartender_x = ms.sx; bartender_frac = 0;
+    fill_timer = 0; fill_stage = 0; catch_pose = 0; bt_bob = 0; facing = 0;
+    bartender_frame = frame;
+}
+
+// The beam column on his bar under his feet (on) or away.
+static void beam_on(uint8_t on) {
+    uint8_t c = (bartender_x + 4) >> 3;
+    if (on) { if (BOSS_MARK_BAR != bar || BOSS_MARK_COL != c) boss_mark(bar, c); }
+    else if (BOSS_MARK_BAR != BOSS_NONE) boss_mark(BOSS_NONE, 0);
+}
+
+// The ray's cycle ends (dodged, over, or the ship has other things to do): the count starts again on this bar.
+static void ray_off(void) {
+    if (ms.ray) {
+        ms.ray = RY_IDLE;
+        boss_mark(BOSS_NONE, 0);
+        boss_xpose = 0;
+        BOSS_TOPPER_T = 0;
+    }
+    ms.stay = 0; ms.sbar = bar;
+}
+
+// Phase 1, every frame: count his time on one bar, charge, fire, stun.
+static void ray_frame(void) {
+    uint8_t r;
+    if (ms.ray != RY_STUN && bar != ms.sbar) ray_off();                      // a bar change: counted afresh, a charge dodged
+    if (ms.ray == RY_IDLE) {
+        if (ms.stay != 0xFFFF) ms.stay++;
+        if (ms.stay >= RAY_STAY && ms.phase == MP_WALK && !(ms.calm & CALM_RAY)) { ms.ray = RY_CHARGE; ms.rt = 0; SFX(SFX_REV); }
+        return;
+    }
+    r = ++ms.rt;
+    if (ms.ray == RY_CHARGE) {
+        boss_xpose = BP_HAPPY;
+        BOSS_TOPPER_T = r & 4 ? HAT_BOB_T : 0;
+        beam_on(!(r & (r < RAY_CHARGE / 2 ? 8 : 4)));
+        if (r < RAY_CHARGE) return;
+        ms.ray = RY_STUN; ms.rt = 0; ms.sx = bartender_x; ms.stuns++;            // he is still here: the beam fires
+        beam_on(1);
+        boss_xpose = BP_GULP;
+        BOSS_TOPPER_T = 0;
+        SFX(SFX_KA);
+    } else if (r == RAY_BEAM) {
+        beam_on(0);
+        boss_xpose = 0;
+    } else if (r >= RAY_STUN) { ray_off(); return; }
+    hold(BT_FAIL);
+}
+
+// ---- the passengers ----
+// Two alien passengers off the ship, on the two bars that are not his and have the fewer patrons (the busiest of the three gets
+// none: the load spreads), if the bar's entry is clear and the slots allow.
+static void drop_passengers(void) {
+    uint8_t p, b, k = next_rand(), live = 0, n = DROPS, i, crowd[NUM_BARS], cnt[NUM_BARS], busy = BOSS_NONE;
+    if (ms.calm & CALM_DROP) return;
+    for (b = 0; b != NUM_BARS; b++) crowd[b] = cnt[b] = 0;
+    for (p = 0; p != MAX_PATRONS; p++) {
+        if (!patron_state[p]) continue;
+        live++;
+        b = patron_bar[p] & (NUM_BARS - 1);
+        if (patron_state[p] != PATRON_LEAVING) cnt[b]++;
+        if (patron_x[p] < DROP_CROWD) crowd[b] = 1;
+    }
+    for (i = 0; i != NUM_BARS; i++) {                     // (from a random bar: a tie for busiest is broken by chance)
+        b = (k + i) & (NUM_BARS - 1);
+        if (b != boss_bar && (busy == BOSS_NONE || cnt[b] > cnt[busy])) busy = b;
+    }
+    for (b = 0; b != NUM_BARS && n && live < LIVE_MAX; b++) {
+        if (b == boss_bar || b == busy || crowd[b]) continue;
+        if (!add_patron(b, DROP_X, next_rand() & 1)) continue;
+        n--; live++; ms.drops++;
+    }
+    if (n != DROPS) SFX(SFX_COIN);
+}
+
+// ---- the entrance ----
+// The room's lights: CGB the bar palette (its wall and counter) halved or back, DMG the BG's shades.
+static void lights(uint8_t dim) {
+    palette_t p;
+    uint8_t i;
+    if (!is_cgb) { BGP_REG = dim ? DIM_BGP : 0xE4; return; }
+    for (i = 0; i != 4; i++) p[i] = dim ? (venue.pal[VENUE_PAL_BAR][i] >> 1) & DIM_MASK : venue.pal[VENUE_PAL_BAR][i];
+    set_bkg_palette(BGPAL_BAR, 1, p);
+}
+
+// BEV_INTRO every frame while intro_timer runs: the tractor beam's column on his bar, the lights flicker, a hum, he blinks into
+// the beam and lands. The bartender is held (idle) and the intro's clock waits until he has landed.
+static void ent_frame(void) {
+    uint8_t f = ms.ent - 1;
+    if (!f) { ms.sbar = bar; ms.sx = bartender_x; SFX(SFX_WHOOSH); boss_mark(boss_bar, (MS_X >> 3) + 2); }
+    hold(BT_IDLE);
+    if (f < ENT_LAND) intro_timer = INTRO_FRAMES;
+    if (f == ENT_HUM) SFX(SFX_REV);
+    if (f < ENT_BLINK) { if (f >= 4 && !(f & 3)) lights((f >> 2) & 1); }
+    else if (f < ENT_LAND) {                                  // (the beam fades as he blinks in: it would hide half of him)
+        if (f == ENT_BLINK) { lights(0); boss_mark(BOSS_NONE, 0); }
+        boss_xpose = f & 2 ? BP_HAPPY : BP_HIDE;
+    }
+    else {
+        lights(0);
+        boss_mark(BOSS_NONE, 0);
+        boss_xpose = 0; boss_state = BS_WALK;
+        boss_to_bar(boss_bar, MS_X);
+        to_walk();
+        SFX(SFX_SHAKE);
+        intro_timer = INTRO_FRAMES - 1;                  // (as the level's first frame leaves it)
+        ms.ent = 0;
+        return;
+    }
+    ms.ent++;
+}
+
 static void to_flash(void) {
+    ray_off();
     ms.phase = MP_FLASH; ms.t = 0;
     boss_special_t = 0;
     boss_mark(BOSS_NONE, 0);
@@ -216,9 +376,12 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
     case BEV_SET:
         boss_art_set();
         ms.jumps = 0; ms.minis = 0; ms.dead = BOSS_NONE;
+        ms.ray = RY_IDLE; ms.stay = 0; ms.sbar = 0; ms.stuns = 0; ms.drops = 0; ms.ent = 0; ms.calm = 0;
         to_walk();
         break;
     case BEV_RESET:
+        ray_off();
+        if (ms.ent) { boss_state = BS_JUMP; boss_xpose = BP_HIDE; break; }   // (the entrance: not on his bar yet)
         if (ms.phase >= MP_MINIS) {                           // phase 2: the minis not served yet come back in
             boss_state = BS_JUMP;
             boss_xpose = BP_HIDE;
@@ -231,20 +394,26 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
+        ms.ent = 1;                                           // (the first start's entrance; a lost life does not load again)
+        break;
+    case BEV_INTRO:
+        if (ms.ent) ent_frame();
         break;
     case BEV_TELL:
-        if (ms.phase == MP_WALK) to_tell();
+        if (ms.phase == MP_WALK) { ray_off(); to_tell(); }
         break;
     case BEV_OUTRO:
+        ray_off();
         if (ms.phase < MP_FLASH) to_walk();
         else if (ms.phase == MP_FLASH) boss_xpose = 0;
         break;
     case BEV_FRAME:
         if (ms.t != 255) ms.t++;
         if (ms.phase < MP_FLASH && boss_hp <= SPLIT_HP && boss_hp && boss_state != BS_OUTRO) to_flash();
+        if (ms.phase < MP_FLASH) ray_frame();
         switch (ms.phase) {
         case MP_WALK:
-            if (boss_special_t && !--boss_special_t) to_tell();
+            if (!ms.ray && boss_special_t && !--boss_special_t) to_tell();
             break;
         case MP_TELL:
         case MP_WAIT:

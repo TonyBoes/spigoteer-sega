@@ -308,7 +308,7 @@ static void stamp_boss(void) {
 // A moving boss's landing marker (boss.c boss_mark) on another bar: two column pairs from BOSS_MARK_BG at columns
 // BOSS_MARK_COL, + 1, over the bar's patrons (the tell is never hidden), in his BG palette.
 static void stamp_fight(uint8_t b) {
-    if (b == boss_bar) { stamp_boss(); return; }
+    if (b == boss_bar) stamp_boss();                     // (the Mothership's ray and entrance beam fall on his own bar too: over him)
     if (b != BOSS_MARK_BAR) return;
     cz_pal = cz_palb = boss_pal;
     put_col(BOSS_MARK_COL, BOSS_MARK_BG);
