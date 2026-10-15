@@ -371,6 +371,11 @@ satisfied. Regulars come on the other three bars as in the chapter's opening shi
 Rules: the common rules with the table's row. No special. Hands 3 (generous: the tutorial boss forgives a burst of
 three throws). He starts on bar 1 (the second bar, so the topper overlaps a counter, which teaches the hat).
 
+Entrance (E8, built 2026-10-15, a proposal for the owner to judge; src/boss_big_tex.c): "the swagger". On the fight's first start he
+walks in from the left edge of the screen (spurs jingle: SFX_COIN every 16 frames), stops at his bar, bows and tips his hat (the
+hat lifts 6 px; SFX_SERVE the cheer), 138 frames, then the 90-frame intro. Sprites from his own body tiles (no new art); input held.
+Not built: riding in on a horse.
+
 Why it is fun and fair: it teaches the boss rules (meter, push-back, hands, the tap) with no twist. Skill: keeping
 the boss pinned while not neglecting three bars of regulars. Spam check: 3 quick throws are fine, the 4th passes him
 (his pose shows three steins) and breaks: the lesson of the hands rule, early. Unwinnable states: none; unhit he
@@ -420,6 +425,11 @@ her piano. Suggested PRE_SALOON page (SADIE): `WATCH FOR BIG` / `TEX. HE DRINKS`
 
 Play: the team mascot (a big foam bulldog suit) bounces from bar to bar. He crouches, a landing marker appears on
 another bar, he leaps, lands with a thud and scares that bar's fans off. You follow him.
+
+Entrance (E8, built 2026-10-15, a proposal for the owner to judge; src/boss_mascot.c, art BALL in assets/art/boss/mascot.txt): "fired
+from the T-shirt cannon". The landing marker shows on his spot, the cannon fires (SFX_WHOOSH) and he tumbles in from the top-left as a
+spinning red ball, falls on the marker, bounces once, lands (thud) crouching and cheers (HAPPY pose, SFX_SERVE): 124 frames, then
+the 90-frame intro. Input held. Not built: a cartwheel across the bar.
 
 Rules: common row. Special every 300 frames of standing (5 s):
 1. Tell 60 frames: crouch pose; a 2-tile dust marker appears on the target bar's wall at the landing columns
@@ -589,6 +599,13 @@ Story fit: Aurora's guests came in from the cold; one of them is very big and ve
 Play: Manager-Bot's experimental robot, a big walking charging cabinet. A lamp on its antenna cycles green, yellow,
 red. Green: it takes batteries. Red: its bar's conveyor runs backwards and sends everything on it back to you. After
 each red it rides the conveyor to another bar.
+
+Entrance (E8, built 2026-10-15, a proposal for the owner to judge; src/boss_prototype.c, art CHAIN / HOOK / SPARK1 / SPARK2 in
+assets/art/boss/prototype.txt): "lowered by the crane, then powers up". The overhead crane lowers him by his lamp onto his bar (clunk),
+lets go and rises away; the lamp is the red X, blinks to yellow (SFX_COIN) with sparks flying, and lights solid green (SFX_EXTRA):
+124 frames, then the 90-frame intro. His body is sprites made from his own body tiles; on CGB it wears the yellow lamp's OBJ
+palette until the BG body takes over (all 8 OBJ palettes are in use in his fight). Input held. Not built: assembling from parts
+on the conveyor.
 
 Rules: common row. Cycle: GREEN 240 frames (normal), YELLOW 60 (tell; still accepts), RED 150:
 - at RED start every full battery on its bar becomes a `MUG_RETURN` moving right at 1 px/f; a full battery that

@@ -8,7 +8,7 @@
 import re
 
 import pytest
-from boss_common import (BP_HAPPY, BP_WALK, BS_JUMP, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OAM_TOPPER,
+from boss_common import (skip_entrance, BP_HAPPY, BP_WALK, BS_JUMP, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OAM_TOPPER,
                          OBJ_TOPPER, Own, RETURN, SP_FAIL, SP_OUTRO, TAP_X, art, assert_body, bar_row, check_start, fight,
                          frames, hud, meter_tiles, mugs, play, pose_cols, pour, row, still_regulars, throw, to_bar, until)
 from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
@@ -132,7 +132,7 @@ def test_the_fight_follows_the_last_call(model):
     battery on its way."""
     with fight(model, C, banner=True) as gb:
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
-        to_goal(gb)
+        skip_entrance(to_goal(gb))
         gb.run(2)
         check_start(gb, C, A, model)
         assert bytes(gb.read(0x8000 + 248 * 16, 64)) == bytes(A["fx"])

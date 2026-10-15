@@ -9,6 +9,7 @@ import json
 import re
 
 import pytest
+from boss_common import skip_entrance
 from conftest import clear_regulars, GAME, ROOT, check_golden, venue
 from test_bonus import lines
 from test_flow import (lose_a_life, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, patron_group_tiles, run_until,
@@ -95,7 +96,7 @@ def to_fight(model, banner=False):
     assert banner_text(gb, 1) == centred("SHIFT CLEAR"), "the Last call is not the chapter's last step any more"
     run_until(gb, lambda: state(gb) == GS_GOAL, 300)
     gb.run(3)
-    return gb if banner else to_goal(gb)
+    return gb if banner else skip_entrance(to_goal(gb))
 
 
 def still_regulars(gb):
@@ -243,7 +244,7 @@ def test_the_fight_follows_the_last_call(model):
             assert vram == bytes(data), f"body column {p} at {a}"
         assert bytes(gb.read(0x8000 + HUD_BG * 16, 64)) == bytes(TEX["icon"] + ART["meter"])
         assert bytes(gb.read(0x8000 + OBJ_TOPPER * 16, 64)) == bytes(TEX["hat"])
-        to_goal(gb)
+        skip_entrance(to_goal(gb))
         gb.run(2)
         assert state(gb) == PLAYING and gb.mem("boss_x") == ROW["x"] and gb.mem("boss_state") == BS_WALK
         assert_body(gb, ROW["x"], BP_WALK)

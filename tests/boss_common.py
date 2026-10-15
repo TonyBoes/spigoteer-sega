@@ -107,6 +107,25 @@ def until(gb, cond, limit=600):
     raise AssertionError(f"not reached in {limit} frames (state {state(gb)}, boss_state {gb.mem('boss_state')})")
 
 
+ENTRANCES = {0: ("big_tex", "ent", 1), 1: ("mascot", "ent", 1), 5: ("prototype", "t", 1000)}   # venue: (boss file, clock field, running from)
+_own = {}
+
+
+def entrance_running(gb):
+    """The fight's entrance (Big Tex, the Mascot, the Prototype: BEV_INTRO + BEV_DRAW) is running: its clock is on."""
+    spec = ENTRANCES.get(gb.mem("boss_id"))
+    if not spec:
+        return False
+    own = _own.setdefault(spec[0], Own(spec[0]))
+    return own.get(gb, spec[1]) >= spec[2]
+
+
+def skip_entrance(gb):
+    """Play the entrance out (every frame checked at <= 10 sprites a line); the intro's 90 frames are still to run."""
+    until(gb, lambda: not entrance_running(gb), 400)
+    return gb
+
+
 def fight(model, c, banner=False):
     """Chapter c's Last call won: SHIFT CLEAR, then its boss fight's banner (banner=True: still on it), or the fight."""
     gb = to_shift(model, c, 2)
@@ -117,7 +136,7 @@ def fight(model, c, banner=False):
     run_until(gb, lambda: state(gb) == GS_GOAL, 300)
     gb.run(3)
     assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c
-    return gb if banner else to_goal(gb)
+    return gb if banner else skip_entrance(to_goal(gb))
 
 
 def still_regulars(gb):

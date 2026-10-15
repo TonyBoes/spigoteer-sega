@@ -274,3 +274,24 @@
 ................
 ................
 ................
+
+; ENTRANCE (E8 PROPOSAL, 2026-10-15: "fired from the T-shirt cannon"): BALL, the Mascot tucked into a ball (16x16: two 8x16 sprite
+; cells; flipped in X and Y it spins through four turns), tumbling in from the top-left corner. Sprite art, OBJ 108..111, in his OBJ palette 7.
+; The rest of the entrance is his own poses (CROUCH when he lands, HAPPY for the cheer) and the landing marker.
+@BALL
+......####..--..
+....#######---..
+..###++++++----.
+..#++++++++++#-.
+.##++++++++++##.
+.#++++++++++++#.
+##++++++++++++##
+##++##--##++++##
+##++-----+++++##
+##+-------++++##
+.#+--#-#--++++#.
+.##+-----++++##.
+..#++---+++++#..
+..###++++++###..
+....########....
+......####......

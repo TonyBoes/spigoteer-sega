@@ -68,9 +68,10 @@ BOSSES = [
     {"name": "leo", "width": 32, "pal": ["#F8D060", "#C86018", "#301808"], "extra": ["INHALE", "ROAR"],
      "tiles": ["BANG"]},
     {"name": "mascot", "width": 32, "pal": ["#F8E8C8", "#D02828", "#201018"], "extra": ["CROUCH", "PUFF1", "PUFF2"],
-     "fx": [("MARKER", "mascot")]},
+     "fx": [("MARKER", "mascot")], "spr": [("BALL", 16, 16)]},
     {"name": "prototype", "width": 32, "pal": ["#E8F0F8", "#F87818", "#182030"], "extra": ["RED"],
-     "hats": ["LAMP_RING", "LAMP_X"], "fx": [("MARKER", "mascot")], "conveyor": "factory"},
+     "hats": ["LAMP_RING", "LAMP_X"], "fx": [("MARKER", "mascot")], "conveyor": "factory",
+     "spr": [("CHAIN", 8, 16), ("HOOK", 16, 16), ("SPARK1", 8, 16), ("SPARK2", 8, 16)]},
     {"name": "duke", "width": 40, "pal": ["#F8E0C8", "#D06030", "#201018"], "extra": ["TELL1", "TELL2"],
      "entrance": "duke_entrance"},
     {"name": "mothership", "width": 40, "pal": ["#E8F0F8", "#E040B0", "#200828"], "extra": [], "fx": [("BEAM", "mothership")]},
@@ -82,7 +83,8 @@ ENT_LOW_ID, ENT_HIGH_ID = 56, 96      # the pool's OBJ ids
 ENT_ORDER = ["BIKE", "DUST1", "DUST2", "DUST3", "RIDE", "SMOKE1", "SMOKE2", "HELM", "HOP"]   # the pool is filled in this order
 ENT_LATE = ["BIKE", "DUST1", "DUST2", "DUST3"]          # still on screen after the landing: their tiles are reloaded last
 ENT_EARLY = ["RIDE", "SMOKE1", "SMOKE2"]                # gone by the vault: the topper's ids (pairs 18, 19) may be theirs only
-BOSS_TILES_MAX = 3          # "tiles": a boss's own 8x16 BG blocks (Leo's "!!"), at BG 246.. like the ice (6 ids)
+SPR_TILE0, SPR_PAIRS_MAX = 108, 10   # an entrance's own sprites (E8: the Mascot's ball, the Prototype's crane): OBJ 108..127, free in a fight
+BOSS_TILES_MAX = 3         # "tiles": a boss's own 8x16 BG blocks (Leo's "!!"), at BG 246.. like the ice (6 ids)
 
 
 def fail(msg):
@@ -217,7 +219,33 @@ def boss_art(b, prev):
         a["conv_src"], a["conv"] = conveyor_tiles(b["conveyor"], prev, b["name"], named, path)
     if "entrance" in b:
         a["ent"] = entrance(b, prev)
+    if "spr" in b:
+        a["spr"] = sprites(b, named, path, prev)
     return a
+
+
+def sprites(b, named, path, prev):
+    """An entrance's own sprite frames (the art file's blocks, `spr`: [(name, w, h)]) cut into 8x16 cells (equal cells share a
+    tile pair; no mirroring, so a frame's X flip stays the code's): the pairs (top tile, bottom tile: 32 bytes each, OBJ
+    SPR_TILE0 + 2 * pair) and per frame its cells (dx, dy, pair)."""
+    pairs, index, frames = [], {}, {}
+    for n, w, h in b["spr"]:
+        f = frame(named, n, w, h, path)
+        cells = []
+        for y in range(0, h, 16):
+            for x in range(0, w, 8):
+                k = tuple(f[y + j][x:x + 8] for j in range(16))
+                if all(set(r) == {"."} for r in k):
+                    continue
+                if k not in index:
+                    index[k] = len(pairs)
+                    pairs.append(tile_bytes(f, x, y) + tile_bytes(f, x, y + 8))
+                cells.append((x, y, index[k]))
+        frames[n] = cells
+    if len(pairs) > SPR_PAIRS_MAX:
+        fail(f"{b['name']}: the entrance's sprites need {len(pairs)} tile pairs, OBJ 108-127 has {SPR_PAIRS_MAX}")
+    png([frame(named, n, w, h, path) for n, w, h in b["spr"]], prev / f"boss_{b['name']}_entrance_x8.png", 8, transparent=True)
+    return {"pairs": [list(p) for p in pairs], "frames": frames}
 
 
 def entrance(b, prev):
@@ -306,6 +334,19 @@ def header(a):
               carr("boss_ent_cells", [v for c in flat for v in (c[0], c[1], ENT_LOW_ID + 2 * c[2] if c[2] < ENT_LOW
                                                                else ENT_HIGH_ID + 2 * (c[2] - ENT_LOW), 0x20 if c[3] else 0)])
               + "   // per cell: dx, dy, its OBJ tile id (the pool: 56.. for the first 18 pairs, 96.. for the rest), S_FLIPX when mirrored"]
+    if "spr" in a:
+        e = a["spr"]
+        names = list(e["frames"])
+        flat = [c for n in names for c in e["frames"][n]]
+        first = [0]
+        for n in names:
+            first.append(first[-1] + len(e["frames"][n]))
+        h += [f"#define BOSS_ART_SPR_PAIRS {len(e['pairs'])}   // the entrance's own 8x16 tile pairs, at OBJ {SPR_TILE0} + 2 * pair",
+              f"#define BOSS_SPR_TILE0 {SPR_TILE0}",
+              carr("boss_spr_tiles", [x for p in e["pairs"] for x in p])]
+        h += [f"#define SPR_{n} {i}" for i, n in enumerate(names)]
+        h += [carr("boss_spr_first", first) + "   // each frame's first cell (and the next one's: its end)",
+              carr("boss_spr_cells", [v for c in flat for v in c]) + "   // per cell: dx, dy, its tile pair"]
     if "conv" in a:
         h += [f"#define BOSS_ART_CONV {len(a['conv']) // 16}", f"#define BOSS_ART_CONV_SRC {len(a['conv_src'])}",
               carr("boss_conv_tiles", a["conv"]) + "   // the conveyor's 2 frames (CONV_A, CONV_B)",

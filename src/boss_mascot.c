@@ -1,7 +1,7 @@
 // The Mascot, the stadium's boss (docs/minigames_bosses.md 3.4; art approved 2026-10-11: the red foam bull "Stampede").
 // His row is boss.c rows[1]: 32 px, start x 16, bar 1, step 100, push 8, gulp 24, hands 2, sip 45, meter 10.
 //
-// His leap, every MASCOT_EVERY frames of walking (boss_special_t counts them down):
+// His leap, every MASCOT_EVERY frame of walking (boss_special_t counts them down):
 //   1. TELL, MASCOT_TELL frames: the CROUCH pose (and the crown tuft one row lower), he stands (BS_TELL). A random other
 //      bar is the target and the landing x one of 16 / 32 / 48 (boss_mark: the 2-column dust MARKER on the target bar's
 //      wall, drawn over its patrons); the regulars stop coming to the target bar (boss_pattern).
@@ -15,7 +15,16 @@
 // A hit in the tell shows GULP / WINCE as usual and the push-back moves him on his bar (the landing x stays); a lost life
 // brings him back to bar 1 at x 16 walking (the marker gone), his meter kept.
 // Test hooks (WRAM: his state is the struct mascot_t in BOSS_OWN, not variables of its own): mascot.phase, mascot.target
-// (the spec's boss_target_bar) and mascot.land (boss_land_x).
+// (the spec's boss_target_bar), mascot.land (boss_land_x) and mascot.ent (the entrance).
+//
+// ENTRANCE (E8, 2026-10-15; a PROPOSAL for the owner to judge, built like Duke's: BEV_INTRO + BEV_DRAW, the fight's first start
+// only): "fired from the T-shirt cannon". The landing marker shows on his spot (frame 6) and the cannon fires (SFX_WHOOSH,
+// frame 22): Stampede tumbles in from the top-left corner as a spinning red ball (BALL, a 16x16 sprite: 2 entries, flipped
+// in X and Y for the four turns; OBJ 108-111, loaded with the fight), falls on the marker (frame 58), bounces once and lands
+// (frame 74): the thud, the CROUCH pose for 10 frames, then the HAPPY pose, finger up, for 40 (SFX_SERVE: the crowd). 124
+// frames. BS_JUMP + BP_HIDE until he lands (nothing of his on his bar, no catch); boss_to_bar(boss_bar, 16) at the landing; the
+// intro's 90 frames start at the last frame (intro_timer is held until then). The bartender is held at bar 0's tap, no
+// pouring, meanwhile. At most 2 entries on any line from this entrance.
 #pragma bank 255
 #include "boss.h"
 #include "boss_mascot_art.h"
@@ -33,6 +42,21 @@
 #define MASCOT_AIR     20                // frames away from any bar
 #define HAT_CROUCH      2                // topper tile offset: HAT_BOB (one row lower, no bob)
 
+#define ENT_MARK        6                // the entrance: the marker shows
+#define ENT_FIRE       22                // the cannon fires: the ball is on its way
+#define ENT_FALL       36                // frames of the fall (x -16 -> 24, y -16 -> his wall's top)
+#define ENT_BOUNCE     16                // frames of the one bounce
+#define ENT_LAND       (ENT_FIRE + ENT_FALL + ENT_BOUNCE)   // 74: he lands (CROUCH)
+#define ENT_CHEER      (ENT_LAND + 10)   // 84: HAPPY
+#define ENT_END        (ENT_CHEER + 40)  // 124: the last frame
+#define ENT_OAM        (OAM_FILL + 1)    // the mugs' first entry: nothing is in the air during the entrance
+#define ENT_OAM_N       2
+#define ENT_X0        (-16)              // the ball's start (screen px), and where it lands (his columns 3-4)
+#define ENT_X1         24
+#if ENT_OAM + ENT_OAM_N > OAM_MUG_END || BOSS_ART_SPR_PAIRS != 2 || BOSS_SPR_TILE0 != 108 || ENT_END > 250
+#error "the Mascot's entrance: the OAM entries, the ball's tile pairs or the clock"
+#endif
+
 enum { MP_WALK, MP_TELL, MP_WAIT, MP_AIR };
 
 typedef struct {
@@ -42,9 +66,10 @@ typedef struct {
     uint8_t land;       // the landing x (the spec's boss_land_x; tests)
     uint8_t leaps;      // leaps this fight (tests)
     uint8_t wm;         // the earlier mugs are those on his bar at x <= wm (it falls MUG_SPEED_FULL a frame, as they do)
+    uint8_t ent;        // the entrance: 0 none (or over), else the next frame's number + 1 (tests)
 } mascot_t;
 #define mascot (*(mascot_t *)BOSS_OWN)
-#if 6 > BOSS_OWN_N
+#if 7 > BOSS_OWN_N
 #error "the Mascot's state: BOSS_OWN_N"
 #endif
 
@@ -103,20 +128,95 @@ static void land(void) {
     to_walk();
 }
 
+// ---- the entrance ----
+// BEV_DRAW: the ball for the frame the logic just reached (boss_draw, after every other sprite): it falls from the top-left
+// corner onto his marker with its spin (a turn every 3 frames), bounces once (the spin half as quick) and is gone as he lands.
+static void ent_draw(void) {
+    OAM_item_t *o = shadow_OAM + ENT_OAM, *top = o + ENT_OAM_N, *end = shadow_OAM + OAM_MUG_END - 2 * lift_total;
+    uint8_t t = mascot.ent - 2, k, n, spin, prop, ly = bar_oam_y[boss_bar];       // (his wall's top, as OAM y: screen + 16)
+    int16_t x, y;
+    const uint8_t *c;
+    if (mascot.ent < 2) return;
+    if (end > top) end = top;
+    if (t >= ENT_FIRE && t < ENT_LAND) {
+        k = t - ENT_FIRE;
+        if (k < ENT_FALL) {                            // x: straight across; y: gravity (the square of the time)
+            x = ENT_X0 + (int16_t)(((ENT_X1 - ENT_X0) * (uint16_t)k) / ENT_FALL);
+            y = (int16_t)(((uint16_t)((k * k) >> 4) * (uint8_t)(ly - 16 + 16)) / ((ENT_FALL * ENT_FALL) >> 4)) - 16;   // (to his wall's top at k = ENT_FALL)
+            spin = k / 3;
+        } else {
+            n = k - ENT_FALL;                          // 0..15: up 16 px and down
+            x = ENT_X1;
+            y = ly - 16 - ((n * (ENT_BOUNCE - n)) >> 2);
+            spin = (ENT_FALL / 3) + (n >> 2);
+        }
+        c = boss_spr_cells + (uint16_t)boss_spr_first[SPR_BALL] * 3;
+        n = boss_spr_first[SPR_BALL + 1] - boss_spr_first[SPR_BALL];
+        for (; n && o != end; n--, c += 3) {
+            prop = is_cgb ? OBJPAL_PATRON_C : S_PALETTE;
+            k = c[0];                                  // dx: 0 or 8 (mirrored: the cells swap places)
+            if (spin & 1) { prop |= S_FLIPX; k = 8 - k; }
+            if (spin & 2) prop |= S_FLIPY;
+            if ((uint16_t)(x + k + 8 - 1) >= 167 || y < -15) continue;     // (off the screen: left out)
+            o->y = (uint8_t)(y + 16); o->x = (uint8_t)(x + k + 8);
+            o->tile = BOSS_SPR_TILE0 + (c[2] << 1); o->prop = prop;
+            o++;
+        }
+    }
+    for (; o != top; o++) o->y = 0;
+}
+
+// BEV_INTRO, every frame while intro_timer runs: the entrance's clock and what happens at its frames. The player's input is
+// undone (the bartender stays at bar 0's tap, nothing is poured) until he has landed and cheered.
+static void ent_frame(void) {
+    uint8_t t = mascot.ent - 1, i;
+    bar = 0; bartender_x = bar_tap[0]; bartender_frac = 0; facing = 0; fill_timer = 0; fill_stage = 0;
+    bartender_frame = BT_IDLE; catch_pose = 0; bt_bob = 0;
+    if (t < ENT_END) intro_timer = INTRO_FRAMES;            // (held: the intro's 90 frames start at the last frame)
+    if (t == ENT_MARK) boss_mark(boss_bar, 3);              // the landing marker, columns 3-4
+    if (t == ENT_FIRE) SFX(SFX_WHOOSH);
+    if (t == ENT_LAND) {
+        boss_xpose = BP_CROUCH; BOSS_TOPPER_T = HAT_CROUCH;
+        boss_state = BS_WALK;
+        boss_mark(BOSS_NONE, 0);
+        boss_to_bar(boss_bar, MASCOT_X);                    // his BG body (CROUCH) at x 16
+        SFX(SFX_SHAKE);
+    }
+    if (t == ENT_CHEER) { boss_xpose = BP_HAPPY; BOSS_TOPPER_T = 0; SFX(SFX_SERVE); }
+    if (t == ENT_END) {
+        intro_timer = INTRO_FRAMES - 1;                      // (as the level's first frame leaves it: the fight starts 89 frames on)
+        boss_xpose = 0;
+        for (i = 0; i != ENT_OAM_N; i++) shadow_OAM[ENT_OAM + i].y = 0;
+        mascot.ent = 0;
+        return;
+    }
+    mascot.ent++;
+}
+
 uint8_t boss_mascot(uint8_t ev, uint8_t arg) BANKED {
     (void)arg;
     switch (ev) {
     case BEV_SET:
         boss_art_set();
         mascot.leaps = 0;
+        mascot.ent = 0;
         to_walk();
         break;
     case BEV_RESET:
         if (boss_bar != MASCOT_BAR) boss_to_bar(MASCOT_BAR, MASCOT_X);
         to_walk();
+        if (mascot.ent) { boss_state = BS_JUMP; boss_xpose = BP_HIDE; }   // (the entrance: not on his bar yet)
         break;
     case BEV_LOAD:
         boss_art_load();
+        set_sprite_data(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the ball (OBJ 108-111: the show's tiles, none in a fight)
+        mascot.ent = 1;                                      // the first start's entrance
+        break;
+    case BEV_INTRO:
+        if (mascot.ent) ent_frame();
+        break;
+    case BEV_DRAW:
+        if (mascot.ent) ent_draw();
         break;
     case BEV_TELL:
         if (mascot.phase == MP_WALK) to_tell();
