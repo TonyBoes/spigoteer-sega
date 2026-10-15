@@ -3,21 +3,27 @@
 // owner's playtest: "looks great, but isn't fun"): a golf-style power meter, fans who raise their hands, an OOPS for too short or too far.
 // The field is a baseball field (the chalk line on the grass is the foul line).
 //
-// The Spigoteer mans the T-shirt cannon on the field; the stands rise to the right. The barrel is fixed at the 60 degree lob: the power alone
-// walks the landing along the stand column by column (a flatter shot enters at the first column, so the angle was no second decision).
+// The Spigoteer mans the T-shirt cannon on the field; the stands rise to the right. Up / Down aim the barrel (4 angles: 45, 52, 60, 68 degrees,
+// the four barrel looks; the owner wanted the aim kept, 2026-10-15), then the golf-style power meter sets the speed.
 //
 // Rules (8.8 fixed point; tools/cannon_table.py simulates the same integer physics and checks the fairness rule):
-// - 10 shirts. A: starts the power meter (a marker sweeps 0..63 and back on the bar at the left of the sky, one step every 2 frames); A again
-//   locks the power and fires. It never stops by itself. After a shot lands 40 frames of reload.
-// - Flight: from the muzzle (43, 105), speed v = 224 + 13 p (8.8 px/f): vx = v >> 1, vy = -(v - v/8 - v/128) (v sin 60), gravity 1/16 px/f^2:
-//   each frame x += vx, y += vy, vy += 16, then the shirt's centre is looked up.
+// - 10 shirts. Up / Down step the angle (once a press, repeating every 8 frames held; also while reloading); A starts the power meter (a marker
+//   sweeps 0..63 and back on the bar at the left of the sky, one step every 2 frames, the angle is locked); A again locks the power and fires. It
+//   never stops by itself. After a shot lands 40 frames of reload.
+// - Flight: from the muzzle of the barrel look, speed v = 224 + 13 p (8.8 px/f) split by the angle: with vh = v >> 3, vx = (vh cos) >> 5,
+//   vy = -((vh sin) >> 5) (ts_cosk / ts_sink = 256 cos / 256 sin), gravity 1/16 px/f^2: each frame x += vx, y += vy, vy += 16, then the shirt's
+//   centre is looked up.
 // - Stands: 11 fan columns (map columns 9-19), 8x16, the top row of column c is 11 - (c - 9) / 2. The shirt hits the CROWD when its centre is in a
 //   column at or below the fan's top and above the ad boards (y < 104); it is SHORT at the ad boards or down at y 124 (the grass), OVER past x 168.
-//   Power 0-11 is short and 50-63 over (the red ends of the meter), 12-49 walk columns 0-10.
+//   What each angle changes: the landing barely moves with it (a column's window shifts 3-8 power steps), but a FLAT shot (45) crosses the stand
+//   while still rising, and a rising shirt cannot be caught; the lobs (52 and up) are falling everywhere, fly longer (47 .. 93 frames) and have a
+//   bigger short zone. The meter's red ends are the powers that are OOPS at every angle; the marker turns hollow (red on the CGB) in the powers
+//   that are OOPS at the aimed angle (ts_short / ts_over).
 // - The crowd: random fans raise their hands (arms up, hands open, the two frames alternating every 8 frames: they pop up and down) for
 //   120-151 frames (2.0-2.5 s), at most 3 at once, a new one every 50-81 frames (and at once when none is up). A fan with raised hands
-//   reaches one column each side: a hit in column c with a raised fan in c-1, c or c+1 is a PERFECT CATCH, 300 points (the fan holds its hands
-//   up 40 frames more). Any other hit of the crowd: 30 points (the pittance). Short or over: OOPS, 0 points.
+//   reaches one column each side: a hit in column c with a raised fan in c-1, c or c+1 AND a falling shirt is a PERFECT CATCH, 300 points (the fan
+//   holds its hands up 40 frames more). A rising shirt that hit near a raised fan is TOO FLAT, 30; any other hit of the crowd: 30 points (the
+//   pittance). Short or over: OOPS, 0 points.
 // - 45 s on the framework's timer (the HUD's T + seconds at columns 16-19): time up ends the round. Medal on the score (mg.c medal_at):
 //   GOLD >= 2700, SILVER >= 2100, BRONZE >= 1500 (tests/test_mg_tshirt.py: the bots behind them).
 // - Sounds (no new SFX): fire LAUNCH, a hit CATCH, a perfect catch COIN too.
@@ -28,11 +34,11 @@
 // their seats, the ad boards on row 13, the grass on rows 14-17. HUD row 0: the score, the shirt icon and shirts left at columns 8-10,
 // T + seconds at 16-19. The framework's banner rows 2-3 cover the stage during the intro and the count: their tiles and attributes are saved at
 // entry and put back on the first play frame (the HUD colours hold the banner until then). The outcome's message (OOPS! TOO SHORT, OOPS! TOO
-// FAR, PERFECT CATCH!, CROWD 30) takes row 2 in the HUD colours for 70 frames, then row 2 is the stage again.
+// FAR, PERFECT CATCH!, TOO FLAT! 30, CROWD 30) takes row 2 in the HUD colours for 70 frames, then row 2 is the stage again.
 // CGB BG palettes 0 (sky, red flags, the meter), 2 / 3 (the fans, blue flags), 5 (stands), 6 (grass), 7 (floodlights); 4 is left to the medal.
-// OBJ: 0 the Spigoteer, 1 puff and the marker, 2 shirt, 3 cannon. DMG: BGP the boot's, OBP0 the boot's (Spigoteer, shirt, puff, marker), OBP1 =
+// OBJ: 0 the Spigoteer, 1 puff and the marker (2 for its hollow look), 2 shirt, 3 cannon. DMG: BGP the boot's, OBP0 the boot's (Spigoteer, shirt, puff, marker), OBP1 =
 // OBP1_PLAY (the cannon).
-// OAM 0-3 the Spigoteer, 4-5 the cannon, 6 the puff, 7 the shirt, 8 the marker: worst line 9 of 10.
+// OAM 0-3 the Spigoteer, 4-5 the cannon, 6 the puff, 7 the shirt, 8 the marker: worst line 8 of 10.
 // Tiles: BG MG_GAME_BG.. (45), OBJ 56-73.
 #pragma bank 255
 #include <gb/gb.h>
@@ -54,6 +60,7 @@ typedef char ts_fits[(TS_BGID + TS_BG_TILES <= 240 && TS_OBJ + TS_OBJ_TILES <= O
 #define TS_RELOAD       40
 #define TS_SPENT_LEN    60                  // frames after the last shirt lands, before the result
 #define TS_TIME_S       45
+#define TS_REPEAT        8                  // frames before the aim repeats while Up / Down is held
 #define TS_STEP          2                  // frames a meter step takes (126 frames up, 126 down)
 #define TS_UP_FRAMES   120                  // a fan keeps its hands up 120 + (rand & TS_UP_RAND) frames (2.0 - 2.5 s)
 #define TS_UP_RAND      31
@@ -174,6 +181,7 @@ void ts_enter(void) BANKED {
         set_sprite_palette(OPAL_FX, 3, ts_pal_obj);            // 1, 2, 3
     } else OBP1_REG = OBP1_CANNON;
     S.num = 1; S.last = 255;
+    S.angle = TS_START_ANGLE; S.rep = 1;
     for (k = 0; k < 20; k++) S.hattr[k] = BGPAL_HUD;
     for (r = 0; r < MAP_ROWS; r++) {             // map rows 1-17
         for (c = 0; c < 20; c++) {
@@ -210,14 +218,17 @@ static void obj(uint8_t i, int16_t x, int16_t y, uint8_t tile, uint8_t prop) {  
 static void draw(void) {
     uint8_t k, f = 0, left = 0, show = 1;
     for (k = OAM_CANNON; k <= OAM_MARK; k++) shadow_OAM[k].y = 0;
-    obj(OAM_CANNON, CANNON_X, CANNON_Y, ts_cannon[0], OPAL_CANNON | S_PALETTE);
-    obj(OAM_CANNON + 1, CANNON_X + 8, CANNON_Y, ts_cannon[1], OPAL_CANNON | S_PALETTE);
-    if (S.puff) obj(OAM_PUFF, TS_MUZZLE_X - 3, TS_MUZZLE_Y - 4, ts_puff[S.puff > TS_PUFF_LEN / 2 ? 0 : 1], OPAL_FX);
+    obj(OAM_CANNON, CANNON_X, CANNON_Y, ts_cannon[2 * S.angle], OPAL_CANNON | S_PALETTE);
+    obj(OAM_CANNON + 1, CANNON_X + 8, CANNON_Y, ts_cannon[2 * S.angle + 1], OPAL_CANNON | S_PALETTE);
+    if (S.puff) obj(OAM_PUFF, ts_mx[S.angle] - 3, ts_my[S.angle] - 4, ts_puff[S.puff > TS_PUFF_LEN / 2 ? 0 : 1], OPAL_FX);
     if (S.st == TSS_FLY) obj(OAM_SHIRT, (int16_t)(S.x >> 8) - 4, (int16_t)(S.y >> 8) - 4, ts_shirt[(S.t >> 2) & 3], OPAL_SHIRT);
     if (S.st == TSS_AIM) show = (S.anim >> 4) & 1;                 // waiting for A: the marker blinks at the bottom
     else if (S.st == TSS_RELOAD || S.st == TSS_SPENT) show = 0;
     else if (S.st == TSS_FLY) show = (S.t >= 24) || ((S.t >> 2) & 1);   // the lock: it blinks for a moment, then holds the locked power
-    if (show && S.st != TSS_OUT) obj(OAM_MARK, 0, METER_TOP + TS_PMAX - S.power - 3, TS_MARKER, OPAL_FX);
+    if (show && S.st != TSS_OUT) {
+        k = S.st != TSS_AIM && (S.power <= ts_short[S.angle] || S.power >= ts_over[S.angle]);   // the powers that are OOPS at this angle: hollow, red
+        obj(OAM_MARK, 0, METER_TOP + TS_PMAX - S.power - 3, ts_marker[k], k ? OPAL_SHIRT : OPAL_FX);
+    }
     if (S.pose == TSP_FIRE) { f = 3; left = 1; }
     else if (S.pose == TSP_CHEER) { f = 5; left = 1; }
     else if (S.pose == TSP_MISS) f = 6;
@@ -244,19 +255,19 @@ static void crowd_step(void) {
 
 // ---- play ------------------------------------------------------------------------------------------------------------------
 static void fire(void) {
-    uint16_t v = TS_V0 + (uint16_t)TS_DV * S.power;
+    uint8_t vh = (uint8_t)((TS_V0 + (uint16_t)TS_DV * S.power) >> 3);   // the speed / 8, at most 130
     S.lastpow = S.power;
     S.st = TSS_FLY; S.t = 0; S.shots++;
-    S.x = (uint16_t)TS_MUZZLE_X << 8; S.y = (uint16_t)TS_MUZZLE_Y << 8;
-    S.vx = (int16_t)(v >> 1);
-    S.vy = -(int16_t)(v - (v >> 3) - (v >> 7));  // v sin 60 degrees (222 / 256)
+    S.x = (uint16_t)ts_mx[S.angle] << 8; S.y = (int16_t)((uint16_t)ts_my[S.angle] << 8);
+    S.vx = (int16_t)((vh * ts_cosk[S.angle]) >> 5);
+    S.vy = -(int16_t)((vh * ts_sink[S.angle]) >> 5);
     S.puff = TS_PUFF_LEN;
     S.pose = TSP_FIRE; S.pose_t = TS_FIRE_POSE;
     hud_shots();
     SFX(SFX_LAUNCH);
 }
 
-static void land(uint8_t res, uint8_t col) {     // the shirt is down: TSR_SHORT / TSR_OVER, or the crowd's column `col`
+static void land(uint8_t res, uint8_t col, uint8_t fall) {     // the shirt is down: TSR_SHORT / TSR_OVER, or the crowd's column `col` (fall: it was falling)
     uint8_t f = 255;
     S.result = res; S.last = res >= TSR_CROWD ? col : 255;
     S.pose = TSP_MISS;
@@ -265,7 +276,7 @@ static void land(uint8_t res, uint8_t col) {     // the shirt is down: TSR_SHORT
         else if (col && S.up[col - 1]) f = col - 1;
         else if (col + 1 < TS_FANS && S.up[col + 1]) f = col + 1;
         SFX(SFX_CATCH);
-        if (f != 255) {
+        if (f != 255 && fall) {
             res = S.result = TSR_PERFECT;
             if (S.up[f] < TS_HOLD) S.up[f] = TS_HOLD;
             mg_points(TS_PTS_PERFECT); SFX(SFX_COIN);
@@ -273,7 +284,7 @@ static void land(uint8_t res, uint8_t col) {     // the shirt is down: TSR_SHORT
             S.pose = TSP_CHEER;
         } else {
             mg_points(TS_PTS_CROWD);
-            say("CROWD 30");
+            say(f != 255 ? "TOO FLAT! 30" : "CROWD 30");
             S.pose = TSP_IDLE;
         }
     } else say(res == TSR_SHORT ? "OOPS! TOO SHORT" : "OOPS! TOO FAR");
@@ -283,7 +294,8 @@ static void land(uint8_t res, uint8_t col) {     // the shirt is down: TSR_SHORT
 }
 
 static void flight(void) {
-    uint8_t c, px, py, top;
+    uint8_t c, px, top;
+    int16_t py;                                  // (negative: above the screen)
     S.x += S.vx; S.y += S.vy;
     S.vy += TS_GRAV;
     S.t++;
@@ -291,11 +303,20 @@ static void flight(void) {
     c = px >> 3;
     if (c >= TS_FAN_COL && c < TS_FAN_COL + TS_FANS) {
         top = (11 - ((c - TS_FAN_COL) >> 1)) << 3;
-        if (py >= top && py < TS_BOARD_Y) { land(TSR_CROWD, c - TS_FAN_COL); return; }
-        if (py >= TS_BOARD_Y) { land(TSR_SHORT, 0); return; }
+        if (py >= top && py < TS_BOARD_Y) { land(TSR_CROWD, c - TS_FAN_COL, S.vy > 0); return; }
+        if (py >= TS_BOARD_Y) { land(TSR_SHORT, 0, 0); return; }
     }
-    if (px >= TS_OUT_X) land(TSR_OVER, 0);
-    else if (py >= TS_LAND_Y) land(TSR_SHORT, 0);
+    if (px >= TS_OUT_X) land(TSR_OVER, 0, 0);
+    else if (py >= TS_LAND_Y) land(TSR_SHORT, 0, 0);
+}
+
+static void aim(void) {                          // Up steeper, Down flatter: once a press, then every TS_REPEAT frames held
+    uint8_t held = joy & (J_UP | J_DOWN);
+    if (held != J_UP && held != J_DOWN) { S.rep = 1; return; }
+    if (--S.rep) return;
+    S.rep = TS_REPEAT;
+    if (held == J_UP) { if (S.angle < TS_ANGLES - 1) S.angle++; }
+    else if (S.angle) S.angle--;
 }
 
 static void meter_step(void) {                   // the marker: a step every TS_STEP frames, up to TS_PMAX and back
@@ -327,6 +348,7 @@ void ts_update(uint8_t pressed) BANKED {
     if (S.msg_t && S.st != TSS_OUT && !--S.msg_t) unsay();
     switch (S.st) {
     case TSS_AIM:
+        aim();
         if (pressed & J_A) { S.st = TSS_METER; S.power = 0; S.pdir = 1; S.pt = TS_STEP; }
         break;
     case TSS_METER:
@@ -337,6 +359,7 @@ void ts_update(uint8_t pressed) BANKED {
         flight();
         break;
     case TSS_RELOAD:
+        aim();
         if (!--S.reload) { S.num++; S.st = TSS_AIM; S.power = 0; }
         break;
     case TSS_SPENT:                              // the last shirt has landed: the message, then the result

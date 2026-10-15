@@ -9,8 +9,8 @@ out/preview/ts_*_x8.png. Fails when tools/cannon_table.py's fairness rule does n
   assets/art/tshirt/meter.txt     BG 8x8 x 8: the power meter's bar, top to bottom (map column 1, rows 3-10; pal 0)
   assets/art/tshirt/bunting.txt   BG 80x16: the 8 flags (map columns 7-16, rows 3-4; pal 0 / 3 alternating, the ends pal 7)
   assets/art/tshirt/hud.txt       BG 8x8 x 2: shirt icon, '!' (HUD pal 1)
-  assets/art/tshirt/cannon.txt    OBJ 16x16 x 1 (2 entries): the 60 degree barrel
-  assets/art/tshirt/shirt.txt     OBJ 8x8 x 4: the spin frames; puff.txt 2 frames; marker.txt 1 (the power marker)
+  assets/art/tshirt/cannon.txt    OBJ 16x16 x 4 (2 entries each): the 45 / 52 / 60 / 68 degree barrels (the aim)
+  assets/art/tshirt/shirt.txt     OBJ 8x8 x 4: the spin frames; puff.txt 2 frames; marker.txt 2 (the power marker: solid, hollow = OOPS zone)
 
 The map is built here as the mock-up did (sky and stars, floodlights, masts, stands, ad boards, grass, bunting, the meter; sitting fans): map rows 1-17, 20 tiles each, as tile ids (offsets from TS_BG) and CGB palettes.
 
@@ -63,10 +63,10 @@ def main():
     meter = frames("meter", 8, 8, 8)
     bunt = frames("bunting", 1, 80, 16)[0]
     hud = frames("hud", 2, 8, 8)
-    cannon = frames("cannon", 1, 16, 16)
+    cannon = frames("cannon", 4, 16, 16)
     shirt = frames("shirt", 4, 8, 8)
     puff = frames("puff", 2, 8, 8)
-    marker = frames("marker", 1, 8, 8)[0]
+    marker = frames("marker", 2, 8, 8)
     SKY, STAR1, STAR2, SEAT, SEAT_L, BOARD_A, BOARD_B, G1, G2, GL1, GL2, LAMP_L, LAMP_M, LAMP_R, MAST = range(15)
 
     bg, seen = [], {}
@@ -135,10 +135,10 @@ def main():
             ents.append(e)
         return OBJ_FIRST + 2 * ent_id[e]
 
-    cannon_e = [entry(cannon[0], x, 0, True) for x in (0, 8)]
+    cannon_e = [entry(cannon[a], x, 0, True) for a in range(len(cannon_table.ANGLES)) for x in (0, 8)]   # [look 0 left, right, look 1 ..]
     shirt_e = [entry(f, 0, 0, False) for f in shirt]
     puff_e = [entry(f, 0, 0, False) for f in puff]
-    marker_e = entry(marker, 0, 0, False)
+    marker_e = [entry(m, 0, 0, False) for m in marker]
     obj = [b for e in ents for b in e]
     if OBJ_FIRST + 2 * len(ents) > 92:
         sys.exit("gen_ts: too many OBJ tiles (the coin is at 92)")
@@ -149,11 +149,12 @@ def main():
     if bad:
         sys.exit("gen_ts: the landing table breaks the fairness rule:\n  " + "\n  ".join(bad))
     sm, om = cannon_table.zones(tb)
-    for t, f in enumerate(meter):                # the meter's red zones are the table's short and over powers
+    rs, ro = min(sm), max(om)                    # the meter's red ends: the powers that are OOPS at every angle
+    for t, f in enumerate(meter):
         for r, row in enumerate(f):
             p = cannon_table.PMAX - 8 * t - r
-            if r and not (t == 7 and r == 7) and (row[3] == "+") != (p <= sm or p >= om):
-                sys.exit(f"gen_ts: meter.txt tile {t} row {r} (power {p}): the red zones are power 0-{sm} and {om}-{cannon_table.PMAX}")
+            if r and not (t == 7 and r == 7) and (row[3] == "+") != (p <= rs or p >= ro):
+                sys.exit(f"gen_ts: meter.txt tile {t} row {r} (power {p}): the red ends are power 0-{rs} and {ro}-{cannon_table.PMAX}")
 
     pals_bg = [                                  # CGB BG palettes 0, 2, 3, 5, 6, 7
         ["#384058", "#f8f8f8", "#e04030", "#301018"],            # 0 sky, stars, red flags
@@ -178,19 +179,26 @@ def main():
         f"#define TS_V0 {cannon_table.V0}   // launch speed 8.8 px/f at power 0, + TS_DV a step, TS_PMAX steps (tools/cannon_table.py)",
         f"#define TS_DV {cannon_table.DV}",
         f"#define TS_PMAX {cannon_table.PMAX}",
-        f"#define TS_MUZZLE_X {cannon_table.MUZZLE[0]}   // the 60 degree barrel's tip, screen px",
-        f"#define TS_MUZZLE_Y {cannon_table.MUZZLE[1]}",
+        f"#define TS_ANGLES {len(cannon_table.ANGLES)}   // the aim's angles (the barrel looks): 45, 52, 60, 68 degrees",
+        f"#define TS_START_ANGLE {cannon_table.START_ANGLE}",
+        "// per angle: 256 cos, 256 sin (vx = ((v >> 3) cos) >> 5, vy = -((v >> 3) sin) >> 5), the muzzle (screen px), the last short power, the first over power",
+        carr("ts_cosk", list(cannon_table.COS)),
+        carr("ts_sink", list(cannon_table.SIN)),
+        carr("ts_mx", [m[0] for m in cannon_table.MUZZLES]),
+        carr("ts_my", [m[1] for m in cannon_table.MUZZLES]),
+        carr("ts_short", sm),
+        carr("ts_over", om),
         "// map rows 1-17 (20 tiles each, offsets from TS_BG) and their CGB palettes (the sitting fans, the meter's bar)",
         carr("ts_map", tmap),
         carr("ts_attr", amap),
         "// BG tile offsets: the fans [cap sit top, bottom, up A top, bottom, up B, band sit, up A, up B] (6 frames x 2), the HUD [shirt, '!']",
         carr("ts_fan", fan_t),
         carr("ts_hud", hud_t),
-        "// OBJ tile ids of the 8x16 entries: the cannon [left, right], the shirt's 4 spins, the puff's 2, the power marker",
+        "// OBJ tile ids of the 8x16 entries: the cannon [per look: left, right], the shirt's 4 spins, the puff's 2, the power marker [solid, hollow]",
         carr("ts_cannon", cannon_e),
         carr("ts_shirt", shirt_e),
         carr("ts_puff", puff_e),
-        f"#define TS_MARKER {marker_e}",
+        carr("ts_marker", marker_e),
         "// CGB palettes (RGB15): BG 0, 2, 3, 5, 6, 7 and OBJ 1, 2, 3",
         carr("ts_pal_bg", flat(pals_bg), "uint16_t"),
         carr("ts_pal_obj", flat(pals_obj), "uint16_t"),
@@ -205,7 +213,7 @@ def main():
     png(stands, prev / "ts_stage_x8.png", 8)
     png(fans + hud + meter, prev / "ts_fans_hud_meter_x8.png", 8)
     png([bunt], prev / "ts_bunting_x8.png", 8)
-    png(cannon + shirt + puff + [marker], prev / "ts_sprites_x8.png", 8, transparent=True)
+    png(cannon + shirt + puff + marker, prev / "ts_sprites_x8.png", 8, transparent=True)
 
 
 if __name__ == "__main__":

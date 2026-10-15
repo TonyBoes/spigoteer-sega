@@ -67,7 +67,7 @@ stays separate because it must survive a life lost.
 | # | Venue | Name | Skill | Controls | Length | Main change from the pitch |
 |---|---|---|---|---|---|---|
 | 1 | Saloon | Quick Draw | reaction + reading | A or B | ~30 s | added the A-or-B sign from round 3 and feints, so it is a choice reaction, not a single press; early press = foul |
-| 2 | Stadium | T-Shirt Cannon | golf-style power meter + picking the fan with raised hands | A start meter, A lock + fire | 10 shots, <= 45 s | meter with red oops zones; raised fans last 2 s, reach one column each side; build-time reach table |
+| 2 | Stadium | T-Shirt Cannon | aim (4 angles) + golf-style power meter + picking the fan with raised hands | Up / Down aim, A start meter, A lock + fire | 10 shots, <= 45 s | meter with red oops zones; raised fans last 2 s, reach one column each side; build-time reach table |
 | 3 | Lumber | Log Roll | balance, timing of corrections, dodging | Left/Right taps; A / B / Up hop | 40 s | falls are not game over (3 s penalty); drift changes are telegraphed; holding does nothing (taps only); fish leap across the log (D3, 4.3), told by ripples, dodged by a hop |
 | 4 | Bistro | Order Up! | memory | D-pad, one direction per dish | ~45 s | dishes sit at their D-pad direction on screen; a strike replays the same order |
 | 5 | Igloo | Marshmallow Drop | timing, leading a moving target | A | 45 s | the claw moves at constant speed on a rail (not a pendulum); marshmallows fall straight down; 4th marshmallow overflows |
@@ -847,30 +847,40 @@ Story fit: suggested PRE_SALOON page (SADIE): `AND IF THE KID` / `CHALLENGES YOU
 
 Play: the seventh-inning stretch at a baseball stadium (the chalk line on the grass is the foul line). The Spigoteer mans the T-shirt cannon on
 the field; the stands rise to the right. **Reworked 2026-10-15 (Batch D, the owner's playtest: "looks great, but isn't fun")**: a golf-style power
-meter replaces the aim and the wind; random fans raise their hands to catch the shirt instead of the wave.
+meter replaces the wind; random fans raise their hands to catch the shirt instead of the wave. **Follow-up F1 (the owner: "I intended for the aim
+mechanic to stay")**: Up / Down aim the barrel again, together with the meter.
 
 Rules and numbers (src/ts.c, tools/cannon_table.py simulates the same integer physics):
 - 10 shirts, <= 45 s. After a shot lands 40 frames reload.
-- Controls: **A starts the power meter, A again locks the power and fires**. The meter is a vertical bar at the left of the sky (BG column 1,
-  rows 3-10: 64 pixel rows, one a power step) and an arrow marker (a sprite) sweeps it 0..63 and back, one step every 2 frames (126 up, 126
-  down), until A (it never stops by itself). The bar is red at both ends: power 0-11 is too short, 50-63 flies over the stand; the red zones are
-  generated from the landing table (the build fails when they differ). While A has not started it, the marker blinks at the bottom.
-- The barrel is fixed at the 60 degree lob. (An angle was no second decision: the stand is a staircase, every angle below ~40 degrees is caught by
-  its first column whatever the power. At 60 degrees the power alone walks the landing along the stand column by column: that is the golf feel.)
-  The wind is dropped (a second noise on a timing meter nobody can read in 45 s); its windsock corner of the sky holds the meter.
-- Flight (8.8 fixed point): muzzle (43, 105), speed v = 224 + 13 p px/f (0.88 .. 4.07), vx = v / 2, vy = -(v - v/8 - v/128) (v sin 60), gravity
-  1/16 px/f^2. The shirt hits the **crowd** when its centre is in a stand column (9-19) at or below the column's fan top (11 - (c - 9) / 2 rows)
-  and above the ad boards (y 104); it is **short** at the ad boards or down at y 124 (the grass), **over** past x 168. Powers 0-11 short, 12-49
-  columns 0-10 (windows of 8, 3, 5, 2, 4, 2, 4, 1, 4, 2, 3 steps), 50-63 over. Flights 40-74 frames.
+- Controls: **Up / Down aim** the barrel through 4 angles (45, 52, 60, 68 degrees = the four barrel looks; once a press, a step every 8 frames
+  held; also while the cannon reloads), then **A starts the power meter, A again locks the power and fires** (the angle is locked from A on). The
+  meter is a vertical bar at the left of the sky (BG column 1, rows 3-10: 64 pixel rows, one a power step) and an arrow marker (a sprite) sweeps
+  it 0..63 and back, one step every 2 frames (126 up, 126 down), until A (it never stops by itself). The bar is red at both ends: power 0-10 and
+  58-63 are OOPS at every angle (generated from the landing table; the build fails when they differ). At the steeper angles more powers are OOPS
+  (short 0-15 at 68 degrees, over from 50 at 60); the marker turns hollow (red on the CGB) in exactly the powers that are OOPS at the aimed angle.
+  While A has not started it, the marker blinks at the bottom.
+- What the angle does (the D1 agent found that the landing barely moves with the angle, so the angle needed its own job): the power for a column
+  shifts only 3-8 steps between 45 and 68 degrees, but **a shirt that is still rising when it hits the stand cannot be caught**. At 45 degrees
+  21 of the 47 stand powers are hits on the way up (no catch); at 52, 60 and 68 degrees every hit is a falling shirt. A lob also flies longer
+  (47 / 58 / 74 / 93 frames at most: a fan's hands may come down first), has a bigger short zone and narrower windows, a flat shot is quick and
+  forgiving about the power but cannot catch the odd columns at all. Every fan can be caught at 3 or 4 angles, each with its own power (fan 6: powers
+  36-41 at 52 degrees, 35-41 at 60, 39-46 at 68), so a raised pair of hands has more than one way in.
+  The wind is dropped (a second noise on a timing meter nobody can read in 45 s).
+- Flight (8.8 fixed point): from the muzzle of the barrel look ((44,107) (44,106) (43,105) (41,105)), speed v = 224 + 13 p px/f (0.88 .. 4.07);
+  with vh = v >> 3, vx = (vh cos) >> 5, vy = -((vh sin) >> 5) (cos, sin = 256 cos, 256 sin of the angle: the game multiplies 8 x 8 bits), gravity
+  1/16 px/f^2; the shirt's height is signed (a steep shot flies above the screen). The shirt hits the **crowd** when its centre is in a stand
+  column (9-19) at or below the column's fan top (11 - (c - 9) / 2 rows) and above the ad boards (y 104); it is **short** at the ad boards or
+  down at y 124 (the grass), **over** past x 168. Per angle the build prints the zones, the falling windows and the reach table
+  (python3 tools/cannon_table.py).
 - The crowd: no wave. Random fans raise their hands (arms up, hands open, two frames that alternate every 8 frames: they pop up and down) for
   120-151 frames (2.0-2.5 s); at most 3 at once; a new one every 50-81 frames, and at once when none is up (always one, two at the start).
-- Score: a raised pair of hands reaches one column each side, so a hit in column c with a raised fan in c-1, c or c+1 is a **PERFECT CATCH**, 300
-  points (that fan keeps his hands up 40 frames more; COIN sound; the Spigoteer cheers). Any other hit of the crowd: **30 points** (the pittance,
-  10 %; message CROWD 30). Short or over: an **OOPS** (OOPS! TOO SHORT / OOPS! TOO FAR), 0 points, the miss pose. Messages take the banner row 2
+- Score: a raised pair of hands reaches one column each side, so a hit in column c with a raised fan in c-1, c or c+1 **and a falling shirt** is
+  a **PERFECT CATCH**, 300 points (that fan keeps his hands up 40 frames more; COIN sound; the Spigoteer cheers). Any other hit of the crowd:
+  **30 points** (the pittance, 10 %; message CROWD 30, or TOO FLAT! 30 when the shirt was rising near a raised fan). Short or over: an **OOPS** (OOPS! TOO SHORT / OOPS! TOO FAR), 0 points, the miss pose. Messages take the banner row 2
   in the HUD colours for 70 frames.
-- Medals (10 x 300 = 3000 at most): BRONZE >= 1500 (5 perfect catches), SILVER >= 2100 (7), GOLD >= 2700 (9). Bots in tests/test_mg_tshirt.py:
-  a player who reads the fans and times within +-2 steps scores 3000; off by up to 4 steps about 2700; up to 6 steps about 2300 (silver);
-  locking at a random power about 900 (no medal).
+- Medals (10 x 300 = 3000 at most) unchanged by the aim: BRONZE >= 1500 (5 perfect catches), SILVER >= 2100 (7), GOLD >= 2700 (9). Bots (test
+  harness, 3 seeds): perfect timing 3000 at every angle; timing off by up to 3 steps 3000 at 60 degrees; off by up to 6 steps 2430-2730 at 60,
+  2460-3000 at 68 and only 1350-1860 at 45 (flat is harder for the catch); locking at a random power 780-1290 (no medal).
 - Length: 10 x (meter ~1-2 s + flight ~1 s + 40 reload) ~ 35 s.
 
 Why fun and fair: one decision (when to lock the meter) with a clear picture (the red ends, the raised hands, the landing walks up the stand with

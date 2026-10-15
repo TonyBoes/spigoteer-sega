@@ -494,7 +494,7 @@ void ts_enter(void) BANKED;                      // src/ts.c: T-SHIRT CANNON (th
 void ts_update(uint8_t pressed) BANKED;
 
 struct ts_state {               // tests read these at story_scratch + offset (tests/test_mg_tshirt.py)
-    uint8_t st;                 // +0 TSS_*: 0 aim (waiting for A), 1 the power meter sweeps, 2 the shirt flies, 3 reload, 4 the last shirt landed, 5 the outro
+    uint8_t st;                 // +0 TSS_*: 0 aim (Up / Down, waiting for A), 1 the power meter sweeps, 2 the shirt flies, 3 reload, 4 the last shirt landed, 5 the outro
     uint8_t power;              // +1 the meter's marker 0..63 (the locked power while the shirt flies)
     int8_t  pdir;               // +2 +1 up, -1 down
     uint8_t shots;              // +3 shirts fired
@@ -513,12 +513,15 @@ struct ts_state {               // tests read these at story_scratch + offset (t
     uint8_t msg_t;              // +17 frames left of the message on row 2
     uint8_t up[11];             // +18 frames left of each fan's raised hands (0: sitting)
     uint8_t fshown[11];         // +29 the frame each fan shows on screen (0 sitting, 1 / 2 hands up)
-    uint16_t x, y;              // +40 / +42 the shirt's centre, 8.8 px
+    uint16_t x;                 // +40 the shirt's centre, 8.8 px
+    int16_t y;                  // +42 (signed: a steep shot flies above the screen)
     int16_t vx, vy;             // +44 / +46 8.8 px a frame
     uint8_t hbuf[4];            // +48 HUD shirts (icon, 2 digits, a blank): VBlank queue source
     uint8_t qb[8], qn;          // +52 one-tile queue sources of a frame, +60 how many
     uint8_t hattr[20];          // +61 the HUD colours (the message's attributes)
     uint8_t wall[2][20], wattr[2][20];   // +81 map rows 2-3 as the stage has them (the banner rows' place), their CGB attributes
+    uint8_t angle;              // +161 the barrel's angle 0..3 (45, 52, 60, 68 degrees; the barrel look)
+    uint8_t rep;                // +162 frames until the aim repeats while Up / Down is held
 };
 void po_enter(void) BANKED;                      // src/po.c: THE POUR-OFF (the finale, in the saloon)
 void po_update(uint8_t pressed) BANKED;

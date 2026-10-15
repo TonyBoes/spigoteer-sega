@@ -70,7 +70,7 @@ static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BA
 static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "L FULL R DEAD D BAD",
                                                 "REPEAT THE ORDER", "A TOSSES UP B DOWN",
                                                 "LEAN AND HOP FISH", "STEER AND LAND SOFT", "A TOP LANE B BOTTOM",
-                                                "MOVE THEN A DROPS", "A SHOO NOT PARROTS", "A POWER THEN A FIRE", "FIRST TO 20 SERVES",
+                                                "MOVE THEN A DROPS", "A SHOO NOT PARROTS", "UP DOWN AIM A POWER", "FIRST TO 20 SERVES",
                                                 "PICK THE CALM CAN", "FILL TO THE LINE", "CATCH THE TIPS" };
 static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },   // (Quick Draw: qd_medal)
                                                 { 2000, 4000, 6000 }, { 0, 0, 0 },   // (Order Up!: ou_medal)

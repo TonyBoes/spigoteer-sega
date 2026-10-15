@@ -1,14 +1,5 @@
 ; Art: approved design (owner 2026-10-12)
-; Power meter, BG 8x8 x 8, top to bottom (map column 1, rows 3-10): one pixel row a power step (63 at the top .. 0 at the bottom); plain between, solid '+' (CGB red) where the shot is too short (power 0-11) or flies over the stand (50-63); a tick (a full row) every 8 steps. Generated from tools/cannon_table.py's zones once, then edited by hand: gen_ts.py checks the zones against the table.
---------
--++++++-
--++++++-
--++++++-
--++++++-
--++++++-
--++++++-
--++++++-
-
+; Power meter, BG 8x8 x 8, top to bottom (map column 1, rows 3-10): one pixel row a power step (63 at the top .. 0 at the bottom); plain between, solid '+' (CGB red) where the shot is OOPS at every angle: too short (power 0-10) or over the stand (58-63); more powers are OOPS at the steeper angles, the marker shows them (hollow, red on the CGB); a tick (a full row) every 8 steps. gen_ts.py checks the red ends against tools/cannon_table.py's zones.
 --------
 -++++++-
 -++++++-
@@ -58,7 +49,16 @@
 -......-
 -......-
 -......-
--++++++-
+-......-
+-......-
+-......-
+-......-
+
+--------
+-......-
+-......-
+-......-
+-......-
 -++++++-
 -++++++-
 -++++++-

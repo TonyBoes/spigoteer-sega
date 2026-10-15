@@ -87,22 +87,27 @@ def glyph(ch):
 
 
 # ---- the model: the game's integer physics --------------------------------------------------------------------
+ANGLES = ART["angles"]                            # 45, 52, 60, 68 degrees (the four barrel looks)
+START_ANGLE = ART["start_angle"]
+
+
 def top_row(c):
     return 11 - (c - FAN_FIRST) // 2
 
 
-def fly(p):
-    """-> (SHORT | CROWD | OVER, fan column 0..10 or 0, frames of flight) for power p: the generator's table of the game's integer physics."""
-    return tuple(ART["table"][p])
+def fly(a, p):
+    """-> (SHORT | CROWD | OVER, fan column 0..10 or 0, frames of flight, 1 if the shirt was falling at the hit) for angle index a, power p: the
+    generator's table of the game's integer physics."""
+    return tuple(ART["table"][a][p])
 
 
-def path(p):
-    """The shirt's centre (screen px) each frame of the flight at power p."""
-    mx, my = ART["muzzle"]
+def path(a, p):
+    """The shirt's centre (screen px) each frame of the flight at angle a, power p."""
+    mx, my = ART["muzzles"][a]
     x, y = mx << 8, my << 8
-    vx, vy = ART["vel"][p]
+    vx, vy = ART["vel"][a][p]
     out = []
-    for _ in range(fly(p)[2]):
+    for _ in range(fly(a, p)[2]):
         x += vx
         y += vy
         vy += ART["grav"]
@@ -110,11 +115,12 @@ def path(p):
     return out
 
 
-def perfect_powers(up):
-    """The powers that catch a fan with raised hands, given the frames `up` each fan has them up left, if the shirt lands while they still are."""
+def perfect_powers(up, a):
+    """The powers at angle a that catch a fan with raised hands (falling shirt, the fan or a neighbour up), given the frames `up` each fan has
+    them up left, if the shirt lands while they still are."""
     out = []
     for p in range(PMAX + 1):
-        k, c, n = fly(p)
-        if k == CROWD and any(0 <= c + d < FAN_N and up[c + d] > n for d in (0, -1, 1)):
+        k, c, n, fall = fly(a, p)
+        if k == CROWD and fall and any(0 <= c + d < FAN_N and up[c + d] > n for d in (0, -1, 1)):
             out.append(p)
     return out
