@@ -838,7 +838,7 @@ def test_how_to_play_from_the_pause_menu_and_back_leaves_everything_as_it_was(mo
         tap(gb, "a", 10)
         assert state(gb) == PAUSED and gb.mem(NR51) == (0 if gid == MG_TAIKO else BASS)
         rows = card_rows(gb)
-        assert rows[1] == "HOW TO PLAY" and rows[4] != "", rows
+        assert rows[1] == "HOW TO PLAY" and rows[5] != "", rows
         assert gb.mem(0xFF4A) == 0 and gb.mem(0xFF40) & 0x20 and not gb.mem(0xFF40) & 2, "the window over the screen, sprites off"
         gb.run(60)
         assert state(gb) == PAUSED
@@ -868,15 +868,19 @@ def test_the_card_in_the_pause_menu_turns_pages_and_a_on_the_last_comes_back(mod
         tap(gb, "down")
         tap(gb, "a", 10)
         rows = card_rows(gb)
-        assert rows[4] == "GREEN LIGHT" and rows[6] == "PRESS A ON GREEN" and rows[16] == "NEXT", rows
+        assert rows[5] == "GREEN LIGHT" and rows[7] == "PRESS A ON GREEN" and rows[16] == "NEXT", rows
+        from test_flow import tilemap_row
+        from test_mg_card import FONT_BASE
+        assert tilemap_row(gb, 0, 0, 20, window=True)[0] == FONT_BASE + 7 and tilemap_row(gb, 3, 0, 20, window=True)[9] == FONT_BASE + 15, "frame and icon"
+        assert not gb.mem(0xFF40) & 2, "sprites off on the card"
         check_golden(gb, "pause_card_stub_p1")
         tap(gb, "a", 10)
         rows = card_rows(gb)
-        assert rows[4] == "GREEN LIGHT" and rows[6] == "EARLY IS A MISS" and rows[16] == "A BACK", rows
+        assert rows[5] == "GREEN LIGHT" and rows[7] == "EARLY IS A MISS" and rows[16] == "A BACK", rows
         tap(gb, "a", 10)
         assert win_text(gb, 2) == "> HOW TO PLAY" and state(gb) == PAUSED
         tap(gb, "a", 10)                                   # the card again: page 1
-        assert card_rows(gb)[6] == "PRESS A ON GREEN"
+        assert card_rows(gb)[7] == "PRESS A ON GREEN"
         tap(gb, "a", 10)
         tap(gb, "b", 10)                                   # B on page 2 returns too
         assert win_text(gb, 2) == "> HOW TO PLAY"

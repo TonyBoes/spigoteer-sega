@@ -29,11 +29,25 @@ PUNCT = {QUEST - 3 + i: c for i, c in enumerate(".,!?'-:")}
 
 
 def cards():
-    """The card table of src/mg_card.c: [(name, [line1, line2, line3], pending)] in G_* order."""
+    """The card table of src/mg_card.c: [(name, [line1, line2, line3, line4], pending)] in G_* order."""
     out = []
-    for m in re.finditer(r'/\* G_\w+\s*\*/ \{ "([^"]*)", \{ "([^"]*)", "([^"]*)", "([^"]*)" \} \},(.*)', CARD_C):
-        out.append((m.group(1), [m.group(2), m.group(3), m.group(4)], "PENDING" in m.group(5)))
+    for m in re.finditer(r'/\* G_\w+\s*\*/ \{ "([^"]*)", \{ "([^"]*)", "([^"]*)", "([^"]*)", "([^"]*)" \} \},(.*)', CARD_C):
+        out.append((m.group(1), [m.group(2), m.group(3), m.group(4), m.group(5)], "PENDING" in m.group(6)))
     return out
+
+
+FONT_BASE = int(re.search(r"STORY_PORTRAIT_BASE != (\d+)", (ROOT / "build" / "story.h").read_text()).group(1)) - 16   # (the font: 16 tiles)
+
+
+def assert_frame(gb, name):
+    """The story box's moulding round the screen (tiles FONT_BASE + 7..14) and the game's icon (the font's spigot slot) above the name."""
+    tl, t, tr, l, r, bl, b, br = range(FONT_BASE + 7, FONT_BASE + 15)
+    assert tilemap_row(gb, 0, 0, 20) == [tl] + [t] * 18 + [tr], name
+    assert tilemap_row(gb, 17, 0, 20) == [bl] + [b] * 18 + [br], name
+    for y in (1, 3, 4, 8, 16):
+        row = tilemap_row(gb, y, 0, 20)
+        assert row[0] == l and row[19] == r, (name, y)
+    assert tilemap_row(gb, 3, 0, 20)[9] == FONT_BASE + 15, name
 
 
 def row_text(gb, row):
@@ -78,9 +92,9 @@ def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
     assert sorted(pending) == sorted(PENDING)
     for (name, ls, p), w in zip(table, words):
         if p:
-            assert ls == [w, "", ""], name
+            assert ls == [w, "", "", ""], name
         else:
-            assert all(ls), name
+            assert all(ls[:3]), name                        # (the fourth line is there only where it helps)
     after = PLAN.split("card text pending the Batch D rework")[1][:300]
     assert all(n in after for n in ("T-Shirt Cannon", "Log Roll", "Marshmallow Drop", "Battery Sort", "Milk Run")), "marked in PLAN.md"
 
@@ -88,8 +102,9 @@ def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
 # ---- the full card ----------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_every_game_shows_its_full_card_first(model):
-    """On a fresh cartridge each game starts with its card: MG_CARD, the screen all HUD text (HOW TO PLAY on row 1, the name on row 4, the
-    three lines on rows 6, 8, 10, PRESS A on row 16 which blinks), no more than the Spigoteer's sprites, and it waits: 200 frames later it is
+    """On a fresh cartridge each game starts with its card: MG_CARD, the screen all HUD text (HOW TO PLAY on row 1, the name on row 5, the
+    up to four lines on rows 7, 9, 11, 13, PRESS A on row 16 which blinks), the frame round it and the game's icon above the name, no sprites at
+    all, and it waits: 200 frames later it is
     still the card. The game's own screen does not exist yet."""
     table = cards()
     for gid, (name, ls, _) in zip(IDS, table):
@@ -97,16 +112,17 @@ def test_every_game_shows_its_full_card_first(model):
             mg_enter(gb, gid, MG_PRACTICE)
             assert state(gb) == GS_MINI and gb.mem("mg_phase") == MG_CARD and gb.mem("mg_id") == gid, name
             frames(gb, 3)
-            assert row_text(gb, 1) == "HOW TO PLAY" and row_text(gb, 4) == name, name
-            assert [row_text(gb, r) for r in (6, 8, 10)] == ls, name
+            assert row_text(gb, 1) == "HOW TO PLAY" and row_text(gb, 5) == name, name
+            assert [row_text(gb, r) for r in (7, 9, 11, 13)] == ls, name
+            assert_frame(gb, name)
             prompt = "A NEXT  B BACK" if gid in (MG_STUB, MG_SHAKEUP) else "A START  B BACK"      # (from the list: B goes back; the stub and the shake-up have two pages)
-            assert row_text(gb, 16) == prompt and row_text(gb, 2) == "" and row_text(gb, 12) == "", name
+            assert row_text(gb, 16) == prompt and row_text(gb, 2) == "" and row_text(gb, 4) == "" and row_text(gb, 14) == "", name
             for _ in range(4):                                     # the prompt blinks (32 frames on, 32 off)
                 gb.run(40)
                 assert row_text(gb, 16) in (prompt, ""), name
             frames(gb, 120)
             assert gb.mem("mg_phase") == MG_CARD and gb.mem("mg_t") > 100, "it waits for A"
-            assert max(lines(gb)) <= 10 and len([s for s in gb.visible_sprites()]) <= 4, name
+            assert not list(gb.visible_sprites()), name
             for b in ("start", "left"):
                 gb.press(b, 2)
             gb.run(5)
@@ -248,12 +264,12 @@ def test_a_two_page_card_turns_its_page_before_it_starts(model):
         hold_stage_anim(gb)
         mg_enter(gb, MG_STUB, MG_STORY)
         gb.run(3)
-        assert [row_text(gb, r) for r in (6, 8, 10, 16)] == ["PRESS A ON GREEN", "NOT ON RED", "5 ROUNDS", "NEXT"]
+        assert [row_text(gb, r) for r in (7, 9, 11, 16)] == ["PRESS A ON GREEN", "NOT ON RED", "5 ROUNDS", "NEXT"]
         check_golden(gb, "card_stub_page1")
         gb.press("a", 2)
         gb.run(3)
         assert gb.mem("mg_phase") == MG_CARD
-        assert [row_text(gb, r) for r in (4, 6, 8, 10, 16)] == ["GREEN LIGHT", "EARLY IS A MISS", "SLOW IS A MISS", "KEEP YOUR EYES UP", "PRESS A"]
+        assert [row_text(gb, r) for r in (5, 7, 9, 11, 16)] == ["GREEN LIGHT", "EARLY IS A MISS", "SLOW IS A MISS", "KEEP YOUR EYES UP", "PRESS A"]
         gb.press("a", 2)
         run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)
     with booted(model, cards=False) as gb:
@@ -262,4 +278,4 @@ def test_a_two_page_card_turns_its_page_before_it_starts(model):
         assert row_text(gb, 16) == "A NEXT  B BACK"
         gb.press("a", 2)
         gb.run(3)
-        assert row_text(gb, 6) == "EARLY IS A MISS" and row_text(gb, 16) == "A START  B BACK"
+        assert row_text(gb, 7) == "EARLY IS A MISS" and row_text(gb, 16) == "A START  B BACK"
