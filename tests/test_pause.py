@@ -1,5 +1,5 @@
 # The pause menu of every mode (src/pause.c): START opens RESUME / QUIT TO MENU (QUIT asks ARE YOU SURE?), gameplay stands still,
-# the music plays on as the bass alone (NR51 0x44; Taiko Pour and the Sumo fight, clocked by it, stand still and silent) until RESUME, and QUIT ends the run through the same exits as finishing it:
+# the music plays on as the bass and the harmony (NR51 0x55; Taiko Pour and the Sumo fight, clocked by it, stand still and silent) until RESUME, and QUIT ends the run through the same exits as finishing it:
 # STORY (shifts, boss fights, the Pour-Off): the title, the save untouched; ARCADE / CLASSIC: the initials when the score makes the
 # top 5, else the title; mini-games: the list (practice, no medal) or as the run they are part of; BOSS RUSH: its menu, no time.
 # Every mini-game's quit leaves what its normal leave leaves (OBP0, the LCD handler, the mute mask, OBJ / BG tiles, palettes).
@@ -17,7 +17,8 @@ pytestmark = pytest.mark.timeout(300)
 PAUSED = 5
 MG_ICON_PAL = 4                          # mg.c: the medal icon's CGB BG palette
 NR51, NR50 = 0xFF25, 0xFF24
-BASS = 0x44                              # NR51 while paused: channel 3 on both sides
+BASS = 0x55                              # NR51 while paused: channel 1 (the harmony) and 3 (the bass) on both sides
+BASS_ONLY = 0x44                         # ... while an effect that began before the menu still owns channel 1
 PAUSE_NR51 = 0xFFF0                      # HRAM (game.h): the NR51 to restore while the menu is open, else 0
 MODES = ["dmg", "cgb"]
 MENU, ASK = 0, 1
@@ -116,7 +117,7 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         assert state(gb) == PAUSED and gb.mem("overlay_on") == 1
         assert menu_rows(gb) == ["", "> RESUME", "QUIT TO MENU", ""], "two items, centred in the four text rows"
         assert tilemap_row(gb, 0, 0, 20, True) == [63] * 20 and tilemap_row(gb, 5, 0, 20, True) == [64] * 20   # the panels
-        assert gb.mem(NR51) == BASS, "only the bass (channel 3) is on"
+        assert gb.mem(NR51) == BASS, "only the harmony and the bass (channels 1 and 3) are on"
         assert gb.mem(PAUSE_NR51) == 0xFF
         assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 46 and gb.mem(0xFF40) & 0x20, "the 48 px window"
         assert tile(gb, GLYPH_J) != glyphs[0] and tile(gb, GLYPH_Z) != glyphs[1], "the '?' and the arrow are loaded"
@@ -147,8 +148,8 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
 
 
 @pytest.mark.parametrize("model", MODES)
-def test_music_advances_while_paused_with_only_the_bass_and_resume_restores_it(model):
-    """The driver keeps ticking behind the menu (a frame a frame) with NR51 at channel 3 only; RESUME gives every channel back."""
+def test_music_advances_while_paused_with_only_the_harmony_and_the_bass_and_resume_restores_it(model):
+    """The driver keeps ticking behind the menu (a frame a frame) with NR51 at channels 1 and 3 only; RESUME gives every channel back."""
     with rom_s(model) as gb:
         start_arcade(gb)
         gb.run(37)
@@ -177,8 +178,9 @@ def test_no_effect_sounds_while_paused(model):
         for _ in range(40):
             gb.write("sfx_req", (1 << 6) | (1 << 3))      # a catch / serve-like pair on channels 1 and 4, every frame
             gb.run(2)
-            assert gb.mem(NR51) == BASS, "channels 1, 2 and 4 stay off the mix (NR51 has bit 2 and 6 only)"
+            assert gb.mem(NR51) in (BASS, BASS_ONLY), "channels 2 and 4 stay off the mix; channel 1 only carries the harmony"
         gb.run(60)
+        assert gb.mem(NR51) == BASS, "the held effect has ended, the requests were dropped: the harmony is on channel 1 again"
         tap(gb, "start", 2)
         assert gb.mem(NR51) == 0xFF
         gb.run(120)
@@ -213,7 +215,7 @@ def test_an_effect_in_progress_is_held_quietly_and_ends_after_resume(model):
         gb.write("sfx_req", 1 << 7)                       # SFX_LIFE (16 + frames: still going when START lands)
         gb.run(3)
         tap(gb, "start", 2)
-        assert state(gb) == PAUSED and gb.mem(NR51) == BASS
+        assert state(gb) == PAUSED and gb.mem(NR51) in (BASS, BASS_ONLY)
         gb.run(200)
         assert gb.mem(NR51) == BASS
         tap(gb, "start", 2)

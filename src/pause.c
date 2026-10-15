@@ -1,6 +1,6 @@
 // The pause menu (owner 2026-10-14), every mode: START in a level (main.c GS_PLAYING) or in a mini-game's INTRO / COUNT / PLAY
-// (mg.c mg_update) opens it; game_state is GS_PAUSED while it shows, so nothing moves. The music goes on, down to the bass
-// (channel 3: NR51 MENU_BASS) and the effects held silent; where the game is clocked by the tune (Taiko Pour, the Sumo's
+// (mg.c mg_update) opens it; game_state is GS_PAUSED while it shows, so nothing moves. The music goes on, down to the bass and the
+// harmony (channels 3 and 1: NR51 MENU_MIX) and the effects held silent; where the game is clocked by the tune (Taiko Pour, the Sumo's
 // fight: music_frames) it stands still and silent (NR51 0) and main.c does not tick it.
 //
 //   a level (6-row window)      a mini-game (5 rows)         the question: a level (6 rows) | a mini-game (5)
@@ -61,7 +61,8 @@ extern uint32_t score;
 #define NO_CARD      255
 #define WIN_ROWS     6
 #define WIN_LYC(s)   (BANNER_WY + (((s) & PAUSE_MINI) ? 38 : 46))   // 40 px (5 rows) or 48 (6: as mg.c RES_LYC); main.c mr_lcd_isr's twin
-#define MENU_BASS    0x44                   // NR51 while paused: channel 3 (the bass) on both sides
+#define MENU_MIX     0x55                   // NR51 while paused: channels 1 (the harmony) and 3 (the bass) on both sides; music.c's music_tick
+                                            // drops it to 0x44 while an effect still owns channel 1
 #define SUMO_VENUE   7                      // boss_id of the Sumo (teahouse): his beat is counted on music_frames
 #define COL_ITEM     3                      // the arrow's column; the item's text follows at COL_ITEM + 2
 
@@ -178,9 +179,9 @@ void pause_open(void) BANKED {
     overlay_on = 0; HIDE_WIN;                    // (hidden while its rows are written; shown again by main.c's next update)
     state_timer = mini ? PAUSE_MINI : 0;
     game_state = GS_PAUSED;
-    i = NR51_REG;                                // the music plays on as the bass alone (main.c ticks it while NR51 is not 0); where
+    i = NR51_REG;                                // the music plays on as the bass and the harmony (main.c ticks it while NR51 is not 0); where
     PAUSE_NR51 = i ? i : 0xFF;                   // the game counts music_frames it stands still, silent (NR51 0, no tick)
-    NR51_REG = (mini && mg_id == MG_TAIKO) || (boss_on && boss_id == SUMO_VENUE) ? 0 : MENU_BASS;
+    NR51_REG = (mini && mg_id == MG_TAIKO) || (boss_on && boss_id == SUMO_VENUE) ? 0 : MENU_MIX;
     for (i = 0; i < 40; i++)                     // what the window covers (as mg.c's result window)
         if (shadow_OAM[i].y > BANNER_WY && shadow_OAM[i].y < BANNER_WY + 64) shadow_OAM[i].y = 0;
     oam_touched();

@@ -362,6 +362,10 @@ void music_load_now(void) BANKED {
 
 // The game's frame tick (main.c, once per main loop). It restarts the frame timer music_pump watches.
 void music_tick(void) BANKED {
+    if (*(volatile uint8_t *)0xFFF0 && NR51_REG) {   // the pause menu (game.h PAUSE_NR51) with the tune playing: bass and harmony (channels 3, 1)
+        sfx_req = 0;                                 // are on the mix, the effects held: a request is dropped, and while an effect still
+        NR51_REG = voice[0].busy ? 0x44 : 0x55;      // owns channel 1 it stays off it (the bass alone)
+    }
     tick();
     TIMA_REG = 0;
 }
