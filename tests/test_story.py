@@ -87,8 +87,14 @@ def test_the_script_fits_the_text_box_and_the_font():
     assert STORY["text_bytes"] < 8000 and STORY["pages"] == sum(len(s["pages"]) for s in SCENES)
 
 
+def script_text():
+    """docs/story.md without the beat marks (`|`, `||`, `@beat` lines: docs/story.md "Beats", tests/test_story_beats.py)."""
+    md = re.sub(r"^@beat.*\n", "", (ROOT / "docs" / "story.md").read_text(), flags=re.M)
+    return re.sub(r"\|+$", "", re.sub(r"\|+ ", " ", md), flags=re.M)
+
+
 def test_the_script_matches_docs_story_md():
-    md = (ROOT / "docs" / "story.md").read_text()
+    md = script_text()
     for s in SCENES:
         for p in s["pages"]:
             assert "\n".join([p["speaker"]] + p["lines"]) in md, (s["id"], p["lines"])
@@ -262,7 +268,7 @@ def test_the_page_text_variants_follow_the_script():
     assert hana["speaker"] == "HANA" and hana["lines"] == NOT_ONE
     assert hana["variants"] == [{"cond": "GLASS_BROKEN", "lines": SO_FEW}]
     assert [(s["id"], k) for s in SCENES for k, p in enumerate(s["pages"]) if p["variants"]] == [("POST_TEAHOUSE", 0)]
-    md = (ROOT / "docs" / "story.md").read_text()
+    md = script_text()
     assert "\n".join(["HANA"] + NOT_ONE + ["", "HANA IF GLASS_BROKEN"] + SO_FEW) in md
 
 
@@ -271,9 +277,9 @@ def test_the_page_text_variants_follow_the_script():
     ("HANA IF GLASS_BROKEN\nSO FEW", "DREGS IF GLASS_BROKEN\nSO FEW", "the variant's speaker must be the page's (HANA)"),
     ("HANA IF GLASS_BROKEN\nSO FEW CUPS", "HANA IF GLASS_BROKEN\nNOT ONE CUP", "the same text as the page"),
     ("HANA IF GLASS_BROKEN\nSO FEW CUPS", "HANA IF GLASS_BROKEN\nSO FEW CUPS AND SAUCERS", "characters (max 18)"),
-    ("HANA\nNOT ONE CUP\nBROKEN. THAT IS\nRARE. THANK YOU.\n\n", "", "needs the page it replaces right above it"),
-    ("THANK YOU.\n\nHANA IF GLASS_BROKEN\nSO FEW CUPS\nBROKEN. THAT IS\nRARE. THANK YOU.\n",
-     "THANK YOU.\n\nHANA IF GLASS_BROKEN\nSO FEW CUPS\nBROKEN. THAT IS\nRARE. THANK YOU.\n\n"
+    ("HANA\n@beat 3\nNOT ONE CUP\nBROKEN.| THAT IS\nRARE. THANK YOU.\n\n", "", "needs the page it replaces right above it"),
+    ("THANK YOU.\n\nHANA IF GLASS_BROKEN\nSO FEW CUPS\nBROKEN.| THAT IS\nRARE. THANK YOU.\n",
+     "THANK YOU.\n\nHANA IF GLASS_BROKEN\nSO FEW CUPS\nBROKEN.| THAT IS\nRARE. THANK YOU.\n\n"
      "HANA IF GLASS_BROKEN\nA FEW CUPS\nBROKEN.\n", "a second variant IF GLASS_BROKEN"),
 ], ids=["condition", "speaker", "same-text", "long-line", "first-page", "twice"])
 def test_the_build_fails_on_a_bad_text_variant(tmp_path, old, new, why):
@@ -558,7 +564,7 @@ def test_story_from_the_title_opens_the_intro(model):
 def test_a_types_then_turns_the_page_and_start_skips_the_scene(model):
     with start_story(model) as gb:
         pages = SCENES[0]["pages"]
-        gb.run(2)
+        gb.run(2 + pages[0]["pre"])                  # (the page's @beat first: docs/story.md "Beats")
         t0 = gb.mem("story_typed")
         gb.run(5)
         assert 0 < gb.mem("story_typed") - t0 <= 10, "the text types on, one character a frame (spaces free)"

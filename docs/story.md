@@ -105,6 +105,21 @@ Each page below is one speaker line (it picks the speaker's portrait, or his var
 followed by 1-3 text lines. Pages are separated by blank lines. The text is already wrapped,
 so the engine prints it as is. Scene ids are what the engine would call each scene.
 
+Beats (pauses in the typing; dramatic timing, 2026-10-15). Two marks, both optional:
+
+* `|` or `||` written right after a word (before the space, or at the end of a line) pauses the typing there: `|` is a
+  short beat (15 frames, a quarter second), `||` a long one (36 frames). The mark takes no room in the box (it replaces
+  the space after the word, or sits in the free cell at the end of the line), so the lines wrap as before; a beat at the
+  end of an 18-character line has no free cell and the build says so. Nothing is shown during a beat. A beat at the very
+  end of a page is refused (it would pause nothing).
+* `@beat` or `@beat N` on the line right after the speaker pauses before the page types (the box is blank, the portrait
+  already changing): N from 1 to 7, 8 frames each (`@beat` alone is 3, 24 frames). Pick it for entrances and reveals.
+
+The engine also adds its own gap before every page so a page turn never types at once: 12 frames after a change of speaker,
+6 frames for the same speaker's next page (an `@beat` longer than that wins; the first page of a scene has none unless it
+says `@beat`). A or B during any beat skips it and shows the rest of the page, as it does while typing; A again turns
+the page. START still skips the scene. A text variant (below) has its own `|` marks and keeps the page's `@beat` unless it has one of its own.
+
 Text variants: a block whose speaker line reads `SPEAKER IF CONDITION`, right after a page of the same speaker, is
 another text for that page. The engine shows it instead of the page's own text when the condition holds (the first
 variant whose condition holds); the portrait and the name tag stay the page's. Conditions (`tools/gen_story.py`
@@ -127,6 +142,7 @@ Picture (page 5): the same square a moment later, after a white flash. The intac
 
 ```
 NARRATOR
+@beat 4
 ONCE UPON A TAP,
 IN FIZZWATER TOWN,
 STOOD THE GOLDEN
@@ -138,32 +154,35 @@ ANYONE WANTED!
 
 SPIGOTEER
 EACH YEAR, I POUR
-THE FIRST DRINK.
+THE FIRST DRINK.|
 NICE AND STEADY.
 
 DREGS
+@beat 3
 MOVE IT, MUSTACHE!
 DREGS POURS FIRST:
 ONE OF EVERYTHING!
 
 NARRATOR
-GLUG. GLUG. GLUG.
-GLUGGA-GLUGGA...
+GLUG.| GLUG.| GLUG.|
+GLUGGA-GLUGGA...||
 KA-SPLOOOOSH!!!
 
 NARRATOR
 THE SPIGOT BURST
-INTO TEN PIECES
+INTO TEN PIECES|
 AND FLEW AWAY!
 
 NARRATOR
+@beat 3
 TEN VENUES, TEN
 OWNERS. EACH WANTS
 A GREAT BARTENDER.
 
 SPIGOTEER
+@beat 2
 THEN I'LL KEEP
-TEN CROWDS HAPPY!
+TEN CROWDS HAPPY!|
 MUSTACHE: ONWARD!
 ```
 
@@ -175,14 +194,14 @@ Picture: dusty saloon front with swinging doors and a hitching post. Sadie leans
 
 ```
 SADIE
-HOWDY, STRANGER!
+HOWDY, STRANGER!|
 I'M SADIE SPURS.
 WELCOME TO MY BAR.
 
 SADIE
-THAT MUSTACHE? I
+THAT MUSTACHE?| I
 RATE IT FOUR
-TUMBLEWEEDS. NICE.
+TUMBLEWEEDS.| NICE.
 
 SPIGOTEER
 I HEAR YOU FOUND
@@ -190,7 +209,7 @@ A SHINY PIECE OF
 GOLDEN SPIGOT?
 
 SADIE
-SURE DID! KEEP 15
+SURE DID!| KEEP 15
 THIRSTY COWBOYS
 HAPPY, IT'S YOURS.
 
@@ -207,7 +226,7 @@ Picture: cowboys and the cowgirl throw their hats in the air while Sadie hands o
 ```
 SADIE
 WHOOEE! THAT'S
-FIVE TUMBLEWEEDS!
+FIVE TUMBLEWEEDS!|
 MY TOP RATING!
 
 SADIE
@@ -216,11 +235,13 @@ THE HANDLE. GOT
 STUCK IN MY PIANO.
 
 DREGS
+@beat 3
 OUTTA MY WAY! THAT
 HANDLE'S MINE! I
 CALLED DIBS!
 
 NARRATOR
+@beat 2
 THE COWBOYS SLID
 DREGS STRAIGHT OUT
 THE SWINGING DOORS
@@ -239,7 +260,7 @@ Picture: stadium concession stand under floodlights. The scoreboard reads HOME 0
 
 ```
 COACH
-TWEET! GATHER UP,
+TWEET!| GATHER UP,
 ROOKIE! I'M COACH
 BLITZ. MY STAND.
 
@@ -254,13 +275,13 @@ COACH?
 
 COACH
 LET ONE FAN REACH
-YOUR TAP AND IT
+YOUR TAP AND IT|
 COSTS TWO LIVES!
 
 COACH
-THE SODA'S COLD,
+THE SODA'S COLD,|
 THE CROWD IS HOT.
-TWEET! GO GO GO!
+TWEET!| GO GO GO!
 ```
 
 ### POST_STADIUM: "Home Run"
@@ -269,12 +290,13 @@ Picture: the scoreboard flashes WIN as Coach dumps a cooler of soda over the Spi
 
 ```
 COACH
-HOME RUN! TEAM
+HOME RUN!| TEAM
 SPIGOTEER WINS!
 HIT THE SHOWERS!
 
 NARRATOR
-SPLOOSH! THE
+@beat 2
+SPLOOSH!| THE
 SPIGOTEER GOT THE
 VICTORY SODA BATH.
 
@@ -284,11 +306,13 @@ ALL STICKY. WORTH
 IT FOR THE SPOUT!
 
 DREGS
+@beat 3
 WAIT! I'M HERE FOR
 THE SPOUT- HEY!
 PUT ME DOWN!
 
 NARRATOR
+@beat 2
 THE FANS CROWD-
 SURFED DREGS ALL
 THE WAY OUTSIDE.
@@ -307,7 +331,7 @@ Picture: log lodge among snowy pines with a giant coffee pot on the stove. In th
 
 ```
 JUNE
-TIMBER! OH, SORRY.
+TIMBER!| OH, SORRY.
 I SAY THAT A LOT.
 I'M BIG JUNE.
 
@@ -317,13 +341,14 @@ ON COFFEE. AND
 THEY'RE SLEEPY.
 
 SPIGOTEER
-UM. WHO'S THE BIG
+UM.| WHO'S THE BIG
 HAIRY FELLA
 BEHIND YOU?
 
 JUNE
-SASQUATCH? HA!
-NO SUCH THING.
+@beat 2
+SASQUATCH?| HA!
+NO SUCH THING.|
 NOW, THE JOB:
 
 JUNE
@@ -340,24 +365,26 @@ Picture: the Sasquatch gently hands the golden valve to the Spigoteer while June
 JUNE
 EVERYONE'S WIDE
 AWAKE! WORTH A
-VALVE. HERE, UH...
+VALVE. HERE,| UH...
 
 NARRATOR
 THE SASQUATCH
-HANDED IT OVER,
+HANDED IT OVER,|
 THEN TIPTOED OFF.
 
 JUNE
 SEE? NO SUCH THING
-AS A SASQUATCH.
+AS A SASQUATCH.|
 TIMBER!
 
 DREGS
-GIMME THAT VALVE!
+@beat 3
+GIMME THAT VALVE!|
 ...WAIT. WHO'S THE
 BIG HAIRY FELLA?
 
 NARRATOR
+@beat 2
 DREGS RAN SO FAST
 HE LEFT HIS BOOTS
 BEHIND.
@@ -377,16 +404,17 @@ Picture: candlelit bistro with checkered tablecloths. The head chef, pastry chef
 ```
 COLBY
 WELCOME! I AM
-CHEF COLBY. YOU
+CHEF COLBY.| YOU
 LOOK GOUDA TODAY.
 
 SPIGOTEER
+@beat 3
 ...WAS THAT A
 CHEESE PUN?
 
 COLBY
-I CAN'T HELP IT.
-IT'S NACHO FAULT.
+I CAN'T HELP IT.|
+IT'S NACHO FAULT.|
 IT'S MINE.
 
 COLBY
@@ -396,7 +424,7 @@ SERVE 20 OF THEM.
 
 COLBY
 SPARKLING GRAPE
-JUICE, CHILLED.
+JUICE, CHILLED.|
 NOW BRIE QUICK!
 ```
 
@@ -407,7 +435,7 @@ Picture: Colby lifts a silver dome to reveal the golden nozzle while the plate-s
 ```
 COLBY
 MAGNIFICENT! YOU
-ARE THE BIG
+ARE THE BIG|
 CHEESE NOW!
 
 COLBY
@@ -417,22 +445,24 @@ IT FOR FROSTING.
 
 SPIGOTEER
 IT'S A LITTLE
-STICKY. AND
+STICKY. AND|
 DELICIOUS.
 
 DREGS
+@beat 3
 I'LL TAKE THAT
 NOZZLE, CHEF!
-...WHOA, PLATES!
+...WHOA,| PLATES!
 
 NARRATOR
+@beat 2
 DREGS GOT TANGLED
 IN SPINNING PLATES
 AND SPUN AWAY!
 
 COLBY
 SAFE TRAVELS,
-FRIEND. AND STAY
+FRIEND. AND STAY|
 GRATE!
 ```
 
@@ -450,12 +480,12 @@ LOOK FROZEN SOLID!
 
 AURORA
 HERE, I KNIT YOU
-SOMETHING: A
+SOMETHING: A|
 MUSTACHE COZY!
 
 SPIGOTEER
-IT'S... VERY COZY.
-AND VERY PINK.
+IT'S...| VERY COZY.
+AND VERY PINK.|
 THANK YOU!
 
 AURORA
@@ -476,26 +506,28 @@ Picture: the Spigoteer in his pink mustache cozy holds up the golden knob while 
 ```
 AURORA
 EVERY MUG STILL
-WARM! TAKE THE
+WARM!| TAKE THE
 KNOB. IT'S YOURS.
 
 AURORA
 IT WAS MY IGLOO'S
-DOORKNOB. ODD, AS
+DOORKNOB. ODD, AS|
 IT HAS NO DOOR.
 
 DREGS
+@beat 3
 HAND OVER THE
 KNOB! WHOA, ICY!
 WHOA- WHOAAAA!
 
 NARRATOR
+@beat 2
 DREGS SLID DOWN
 THE BAR, OUT THE
 TUNNEL, DOWNHILL.
 
 SPIGOTEER
-FIVE DOWN! AND MY
+FIVE DOWN!| AND MY
 MUSTACHE HAS NEVER
 BEEN SO TOASTY.
 ```
@@ -510,14 +542,15 @@ Picture: factory floor with conveyor belts and a big lightning-bolt sign. Robots
 MANAGER-BOT
 GREETINGS, HUMAN.
 I AM MANAGER-BOT
-3000. STATUS: HI.
+3000.| STATUS: HI.
 
 MANAGER-BOT
-SCANNING...
+SCANNING...|
 MUSTACHE DETECTED.
 ALSO A PINK COZY.
 
 SPIGOTEER
+@beat 2
 IT WAS A GIFT.
 I'M HERE ABOUT
 THE GASKET.
@@ -540,12 +573,12 @@ Picture: the breakdancing robot spins on its dome while Manager-Bot holds out th
 ```
 MANAGER-BOT
 RECYCLING: DONE.
-STATUS: HAPPY.
+STATUS: HAPPY.|
 BEEP BOOP.
 
 MANAGER-BOT
 TAKE THE GASKET.
-UNIT 12 WAS USING
+UNIT 12 WAS USING|
 IT AS A HAT.
 
 SPIGOTEER
@@ -553,18 +586,20 @@ HE LOOKED GREAT
 IN IT, HONESTLY.
 
 DREGS
+@beat 3
 STEP ASIDE, TIN
 CANS! THAT GASKET
-IS MI- HEY! BELT!
+IS MI-| HEY! BELT!
 
 NARRATOR
+@beat 2
 THE CONVEYOR BELT
 CARRIED DREGS TO
 BOX 4: RETURNS.
 
 MANAGER-BOT
-STATUS: AMUSED.
-HA. HA. HA.
+STATUS: AMUSED.|
+HA.| HA.| HA.
 ```
 
 ---
@@ -576,21 +611,21 @@ Picture: a row of motorcycles outside a black, studded biker bar under a neon si
 ```
 NARRATOR
 THE TOUGHEST BAR
-IN FIZZWATER. ALL
+IN FIZZWATER. ALL|
 MOHAWKS AND STUDS.
 
 GRANNY
-WIPE YOUR BOOTS,
+WIPE YOUR BOOTS,|
 MUSTACHE. I'M
 GRANNY THROTTLE.
 
 GRANNY
 WELCOME TO THE
-CHROME COW. WE
+CHROME COW. WE|
 ONLY SERVE MILK.
 
 SPIGOTEER
-MILK? IN A PLACE
+MILK?| IN A PLACE
 THIS TOUGH?
 
 GRANNY
@@ -600,17 +635,17 @@ BONES, SWEETIE.
 
 NARRATOR
 A PUNK WITH A
-GREEN MOHAWK SAID
-PLEASE. TWICE.
+GREEN MOHAWK SAID|
+PLEASE.| TWICE.
 
 GRANNY
-YOUR DRIP TRAY?
+YOUR DRIP TRAY?|
 OUR DRUMMER USES
 IT AS A CYMBAL.
 
 GRANNY
 SERVE 22 OF MY
-BABIES. NO CRYING
+BABIES.| NO CRYING
 OVER SPILT MILK!
 
 GRANNY
@@ -628,7 +663,7 @@ Picture: the punks raise their glasses, milk mustaches all round, while Granny h
 ```
 GRANNY
 HAPPY BABIES,
-MILK MUSTACHES.
+MILK MUSTACHES.|
 NOT BAD, MUSTACHE.
 
 GRANNY
@@ -641,26 +676,30 @@ WHAT WILL YOUR
 DRUMMER PLAY NOW?
 
 GRANNY
-A POT LID. HE'S
+A POT LID.| HE'S
 HAPPY. LOOK AT
 THAT LITTLE FACE.
 
 DREGS
+@beat 3
 MOVE IT, GRANDMA!
 THAT TRAY'S MINE!
 AND THE COOKIES!
 
 NARRATOR
-THE BAND PLAYED
+@beat 2
+THE BAND PLAYED|
 ONE LOUD CHORD.
 
 NARRATOR
+@beat 3
 IT BLEW DREGS
 RIGHT OUT THE DOOR
 
 GRANNY
+@beat 2
 COME BACK WHEN
-YOU LEARN TO SAY
+YOU LEARN TO SAY|
 PLEASE, SWEETIE!
 
 SPIGOTEER
@@ -677,7 +716,8 @@ Picture: a wooden teahouse beside a garden pond under cherry blossoms. Its bambo
 
 ```
 HANA
-WELCOME. I AM
+@beat 3
+WELCOME.| I AM
 HANA, MASTER OF
 THIS TEAHOUSE.
 
@@ -687,33 +727,34 @@ MEET YOU!!! I'M
 HERE FOR THE PIPE!
 
 HANA
+@beat 4
 SHH. HERE, WE
-ENJOY THE QUIET.
+ENJOY THE QUIET.|
 ALSO THE TEA.
 
 SPIGOTEER
-WHAT? MY EARS ARE
+WHAT?| MY EARS ARE
 STILL RINGING FROM
 THE CHROME COW!
 
 SPIGOTEER
-SORRY. I MEAN:
+SORRY. I MEAN:|
 HELLO. NICE TO
 MEET YOU.
 
 HANA
-YOUR PIPE FELL IN
+YOUR PIPE FELL IN|
 MY BAMBOO FOUNTAIN
 IT FIT PERFECTLY.
 
 HANA
-SERVE WITH CARE.
+SERVE WITH CARE.|
 ONE BROKEN CUP
 COSTS TWO LIVES.
 
 HANA
 AND FOLLOW THE
-DRUM. GOOD TEA
+DRUM.| GOOD TEA
 HAS A RHYTHM.
 ```
 
@@ -728,13 +769,14 @@ the chapter's strict rule charges two lives for.
 
 ```
 HANA
+@beat 3
 NOT ONE CUP
-BROKEN. THAT IS
+BROKEN.| THAT IS
 RARE. THANK YOU.
 
 HANA IF GLASS_BROKEN
 SO FEW CUPS
-BROKEN. THAT IS
+BROKEN.| THAT IS
 RARE. THANK YOU.
 
 HANA
@@ -743,22 +785,25 @@ FOUNTAIN WILL MISS
 IT. TAKE IT HOME.
 
 DREGS
+@beat 3
 HAND OVER THAT
 PIPE!!! I AM VERY
 LOUD AND RUDE!!!
 
 NARRATOR
+@beat 2
 THE DRUMMER STRUCK
-ONE MIGHTY BEAT.
+ONE MIGHTY BEAT.|
 DREGS TUMBLED OUT.
 
 HANA
-AH. QUIET AGAIN.
+@beat 3
+AH. QUIET AGAIN.|
 MORE TEA?
 
 SPIGOTEER
 EIGHT DOWN. NEXT
-STOP: THE JUNGLE!
+STOP: THE JUNGLE!|
 ...QUIETLY.
 ```
 
@@ -770,22 +815,23 @@ Picture: a jungle zoo bar under hanging vines. Leo the lion lounges on a rock wi
 
 ```
 KIKI
-AND HERE WE SEE
+@beat 3
+AND HERE WE SEE|
 THE RARE MUSTACHED
 BARTENDER...
 
 SPIGOTEER
-HI. ARE YOU
+HI.| ARE YOU
 NARRATING ME?
 
 KIKI
-IT SPEAKS! HOW
-EXTRAORDINARY.
+IT SPEAKS!| HOW
+EXTRAORDINARY.|
 I'M KEEPER KIKI.
 
 KIKI
 YOUR NEXT PIECE,
-THE CROWN, IS ON
+THE CROWN, IS ON|
 LEO THE LION.
 
 KIKI
@@ -805,29 +851,31 @@ Picture: Leo places the golden crown on the Spigoteer's head while the flamingos
 
 ```
 KIKI
-REMARKABLE. THE
+REMARKABLE.| THE
 LION APPROACHES...
 ...AND PURRS.
 
 NARRATOR
 LEO PLACED THE
-CROWN ON THE
+CROWN ON THE|
 SPIGOTEER'S HEAD.
 
 DREGS
+@beat 3
 RIGHT HERE! THAT
 CROWN IS MINE! I-
-OH NO. MONKEYS.
+OH NO.| MONKEYS.
 
 NARRATOR
+@beat 2
 THE MONKEYS STOLE
 HIS SHOES, HIS HAT
 AND HIS DIGNITY.
 
 SPIGOTEER
-NINE DOWN! ONE
+NINE DOWN!| ONE
 PIECE LEFT. NEXT:
-OUTER SPACE. BUS?
+OUTER SPACE.| BUS?
 ```
 
 ---
@@ -838,22 +886,24 @@ Picture: a neon space lounge with a ringed planet in the window. A city bus with
 
 ```
 NARRATOR
+@beat 2
 THE SPIGOTEER
 TOOK THE BUS TO
 OUTER SPACE.
 
 NARRATOR
-IT WAS A VERY
+@beat 3
+IT WAS A VERY|
 LONG BUS RIDE.
 
 ZIZZ
-GREETINGS, EARTH
+GREETINGS, EARTH|
 DRINK-SLIDER! I AM
 ZIZZ, YOUR HOST!
 
 ZIZZ
 YOUR FACE-BROOM
-IS MOST HANDSOME!
+IS MOST HANDSOME!|
 ALSO VERY PINK.
 
 SPIGOTEER
@@ -861,17 +911,17 @@ THANKS. I'M HERE
 FOR THE LEVER.
 
 ZIZZ
-THE LAST PIECE?
+THE LAST PIECE?|
 IT IS ON OUR ROOF.
 WE ARE USING IT.
 
 ZIZZ
 SERVE 30 GLOWING
 BEAKERS TO MY
-GUESTS. ALL THREE!
+GUESTS.| ALL THREE!
 
 ZIZZ
-LOW GRAVITY HERE:
+LOW GRAVITY HERE:|
 DRINKS FLOAT SLOW.
 HOLD YOUR SPOONS!
 ```
@@ -883,13 +933,13 @@ saucer beams Dregs back down, in a sparkly souvenir T-shirt.
 
 ```
 ZIZZ
-YOU ARE THE CAT'S
+YOU ARE THE CAT'S|
 PAJAMAS! THE BEE'S
 ELBOWS!
 
 ZIZZ
 TAKE THE LEVER.
-WE USED IT AS A
+WE USED IT AS A|
 TV ANTENNA.
 
 SPIGOTEER
@@ -897,43 +947,48 @@ WHAT DID YOU
 WATCH?
 
 ZIZZ
+@beat 2
 A SHOW ABOUT A
-MUSTACHED MAN WHO
+MUSTACHED MAN WHO|
 SLIDES DRINKS.
 
 SPIGOTEER
-ALL TEN PIECES!
-...WAIT. WHERE'S
+ALL TEN PIECES!|
+...WAIT.| WHERE'S
 DREGS?
 
 DREGS
+@beat 3
 FINALLY, I'M ON
-TIME! GIVE ME THE-
+TIME!| GIVE ME THE-
 WHY AM I FLOATING?
 
 NARRATOR
+@beat 2
 A FRIENDLY SAUCER
 BEAMED DREGS UP
 FOR A CLOSER LOOK.
 
 ZIZZ
-OOPS. MY COUSIN
+OOPS.| MY COUSIN
 COLLECTS EARTH
 SOUVENIRS.
 
 SPIGOTEER
-ZIZZ, COULD YOU
+ZIZZ,| COULD YOU
 PLEASE BEAM HIM
 BACK DOWN?
 
 NARRATOR
+@beat 2
 DREGS CAME DOWN
 IN A SPARKLY
 SOUVENIR T-SHIRT.
 
 SPIGOTEER
+@beat 3
 COME ON, DREGS.
-LET'S GO HOME.
+LET'S GO HOME.|
 I'LL POUR YOU ONE.
 ```
 
@@ -947,26 +1002,30 @@ The FINALE is split in two (the Pour-Off, docs/minigames_bosses.md section 5, pl
 
 ```
 NARRATOR
+@beat 3
 BACK IN FIZZWATER,
-THE TEN PIECES
+THE TEN PIECES|
 CLICKED TOGETHER.
 
 NARRATOR
+@beat 2
 THE GOLDEN SPIGOT
-SHONE ONCE MORE!
+SHONE ONCE MORE!|
 THE CROWD GASPED.
 
 SADIE
-SIX TUMBLEWEEDS!
+SIX TUMBLEWEEDS!|
 I DIDN'T KNOW I
 HAD SIX!
 
 DREGS
-HOLD IT! WHO
+@beat 3
+HOLD IT!| WHO
 POURS FIRST? I
 SAY: A POUR-OFF!
 
 SPIGOTEER
+@beat 2
 FIRST TO 20
 SERVES. YOU'RE ON,
 DREGS.
@@ -978,32 +1037,38 @@ Picture: the same as FINALE_A (the Pour-Off was played in between, in the saloon
 
 ```
 DREGS
+@beat 4
 I LOST FAIR AND
-SQUARE. SORRY I
+SQUARE.| SORRY I
 BROKE IT.
 
 DREGS
-YOU POUR FIRST.
+@beat 2
+YOU POUR FIRST.|
 YOU EARNED IT.
 
 SPIGOTEER
+@beat 3
 IT CAN POUR ANY
 DRINK ANYONE COULD
-EVER WANT. SO...
+EVER WANT.| SO...
 
 SPIGOTEER
+@beat 5
 ...I'LL HAVE A
-NICE COLD GLASS
+NICE COLD GLASS|
 OF WATER.
 
 NARRATOR
-AFTER TEN BARS,
-IT WAS THE BEST
+@beat 3
+AFTER TEN BARS,|
+IT WAS THE BEST|
 DRINK EVER POURED.
 
 SPIGOTEER
+@beat 3
 NOW, WHO'S
-THIRSTY? FIRST
+THIRSTY?| FIRST
 ROUND'S ON ME!
 ```
 
@@ -1013,21 +1078,25 @@ Picture: the morning after, the same Fizzwater square at dawn. The restored Gold
 
 ```
 NARRATOR
+@beat 3
 DREGS NOW WORKS
 AS A BUSBOY. HE
-LOVES IT. MOSTLY.
+LOVES IT.| MOSTLY.
 
 NARRATOR
+@beat 2
 THE SASQUATCH
-SELLS COFFEE NOW.
+SELLS COFFEE NOW.|
 JUNE DOUBTS IT.
 
 NARRATOR
+@beat 2
 AND THE PINK
-MUSTACHE COZY?
+MUSTACHE COZY?|
 STILL WORN DAILY.
 
 NARRATOR
+@beat 4
 THANKS FOR
 PLAYING SPIGOTEER!
 LAST CALL!

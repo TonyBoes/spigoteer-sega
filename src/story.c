@@ -345,7 +345,13 @@ static void tag_build(void) {                    // row 13: the panel with the s
 // differs (another speaker, or the same speaker's variant: the Spigoteer's cozy, Dregs's apology)
 static void page_begin(uint8_t lcd_off) {
     uint8_t r;
+    uint8_t gap;
     story_page_get(story_scene, story_page, story_conds, page_buf);   // its text: a variant when its condition holds
+    gap = (page_buf[0] >> 4) * STORY_BEAT_UNIT;   // the page's @beat: a pause before it types (docs/story.md "Beats")
+    page_buf[0] &= 15;
+    if (!lcd_off && gap < (page_buf[0] != story_spk ? STORY_GAP_SPEAKER : STORY_GAP_PAGE))
+        gap = page_buf[0] != story_spk ? STORY_GAP_SPEAKER : STORY_GAP_PAGE;   // a page turn / speaker change never types at once
+    story_t = gap;                                // (the beat counter: story_update does not count frames in a scene)
     story_spk = page_buf[0];
     story_pid = page_buf[55];
     story_typed = 0;
@@ -366,12 +372,16 @@ static void page_begin(uint8_t lcd_off) {
     else story_swap = PIC_SCENE ? SW_TILES : SW_PAL;
 }
 
-static void type_frame(void) {                   // one character a frame (spaces are free)
+static void type_frame(void) {                   // one character a frame (spaces are free; a beat cell waits)
     uint8_t c, r, k;
     while (story_typed < 54) {
         c = page_buf[1 + story_typed];
         r = story_typed / 18; k = story_typed - r * 18;
         story_typed++;
+        if (c == 1 || c == 2) {                  // a beat: this frame is the first of its pause
+            story_t = (c == 1 ? STORY_BEAT_SHORT : STORY_BEAT_LONG) - 1;
+            return;
+        }
         if (c != ' ') {
             box_tiles[r][k] = st_glyph(c);
             vq_add(0, &box_tiles[r][k], 1 + k, BOX_TEXT_ROW + r, 1);
@@ -859,7 +869,8 @@ static uint8_t scene_frame(uint8_t pressed) {
     if (story_swap) swap_frame(VQ_STORY_ROOM - ((pressed & (J_A | J_B)) ? story_typed < 54 ? 3 * COST(18) : VQ_STORY_ROOM : 0));
                                                  // (the press queues the page's text, or turns the page: the swap waits a frame)
     if (story_typed < 54) {
-        if (pressed & (J_A | J_B)) type_all();
+        if (pressed & (J_A | J_B)) { story_t = 0; type_all(); }   // A or B skips a beat, and shows the rest of the page
+        else if (story_t) story_t--;                              // (a beat: before the page, or mid-line)
         else type_frame();
         return 0;
     }
@@ -874,7 +885,7 @@ static uint8_t scene_frame(uint8_t pressed) {
 // One frame of GS_STORY (a cut-scene, or TRY AGAIN) or GS_GOAL. 1: the screen was redrawn (LCD off): skip the rest.
 uint8_t story_update(uint8_t pressed) BANKED {
     uint8_t btn;
-    story_t++;
+    if (story_phase != SP_SCENE) story_t++;      // (a scene's story_t is the typing's beat counter: page_begin, type_frame)
     switch (story_phase) {
     case SP_GOAL:
         if ((pressed & (J_A | J_START)) || story_t >= GOAL_FRAMES) {

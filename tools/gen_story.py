@@ -280,6 +280,55 @@ def fail(msg):
 
 
 # ---- the script --------------------------------------------------------------------------------------------------
+# ---- beats (docs/story.md "Beats"): pauses in the typing -----------------------------------------------------------
+# `|` / `||` right after a word: a short / long pause there. In the data a mark is a control cell (MARK_SHORT / MARK_LONG)
+# that takes the place of the space after the word, or sits in the first free cell at the end of the line; the engine
+# (src/story.c type_frame) waits BEAT_FRAMES for it. `@beat [N]` on the line after the speaker: a pause of N x
+# BEAT_UNIT frames before the page types (N 1-7, default BEAT_DEFAULT); its N rides in the first line's length byte.
+MARK_SHORT, MARK_LONG = "\x01", "\x02"
+MARK_CELLS = MARK_SHORT + MARK_LONG
+BEAT_FRAMES = (15, 36)           # frames of a short and of a long mid-line beat
+BEAT_UNIT, BEAT_DEFAULT = 8, 3   # frames per @beat step; N when "@beat" has none
+GAP_SPEAKER, GAP_PAGE = 12, 6    # the engine's own gap before a page: another speaker's, the same speaker's next page
+
+
+def parse_marks(line, where):
+    """A script line with `|` marks -> the cells of the text box (control cells for the marks). Fails on a bad mark."""
+    out, i = "", 0
+    while i < len(line):
+        c = line[i]
+        if c != "|":
+            if c not in CHARSET:
+                fail(f"{where}: {line!r} has characters outside the font: {c!r}")
+            out += c
+            i += 1
+            continue
+        n = 1
+        while line[i + n:i + n + 1] == "|":
+            n += 1
+        if n > 2:
+            fail(f"{where}: {line!r}: use | (short beat) or || (long beat)")
+        if not out or out[-1] == " " or out[-1] in MARK_CELLS:
+            fail(f"{where}: {line!r}: a beat goes right after a word")
+        i += n
+        if i < len(line) and line[i] != " ":
+            fail(f"{where}: {line!r}: a beat must be followed by a space or the end of the line")
+        out += (MARK_SHORT, MARK_LONG)[n - 1]   # takes the space after the word, or the line's first free cell
+        if i < len(line):
+            i += 1
+    return out
+
+
+def marks_of(raw_lines):
+    """[(line, cell, frames)] of a page's beats, in typing order (tests)."""
+    return [[r, k, BEAT_FRAMES[MARK_CELLS.index(c)]] for r, l in enumerate(raw_lines) for k, c in enumerate(l) if c in MARK_CELLS]
+
+
+def clean_line(raw):
+    """The text a line shows: marks back to the spaces they replaced (a mark at the end of a line: nothing)."""
+    return raw.replace(MARK_SHORT, " ").replace(MARK_LONG, " ").rstrip()
+
+
 def parse_script(path):
     """-> [{"id", "title", "pages": [(speaker, [lines])], "alts": per page [(condition id, [lines])]}] in the order of
     docs/story.md. A block whose speaker line reads "SPEAKER IF COND" is a text variant of the page right above it
@@ -291,10 +340,17 @@ def parse_script(path):
         code = re.search(r"^```\n(.*?)^```", body, re.S | re.M)
         if not code:
             fail(f"{sid}: no script block")
-        pages, alts = [], []
+        pages, alts, raws, alts_raw = [], [], [], []
         for blk in re.split(r"\n\s*\n", code.group(1).strip("\n")):
             lines = [l.rstrip() for l in blk.split("\n")]
             spk, body_lines = lines[0], lines[1:]
+            pre = 0                             # "@beat [N]": a pause before the page types (BEAT_UNIT frames x N)
+            if body_lines and body_lines[0].startswith("@beat"):
+                mb = re.fullmatch(r"@beat(?: ([1-7]))?", body_lines[0])
+                if not mb:
+                    fail(f"{sid} page {len(pages) + 1}: {body_lines[0]!r} is not '@beat' or '@beat N' (N 1-7)")
+                pre = int(mb.group(1) or BEAT_DEFAULT)
+                body_lines = body_lines[1:]
             cond = None
             m2 = re.fullmatch(r"(\S+) IF (\S+)", spk)
             if m2:                              # a text variant of the page above (CONDITIONS)
@@ -306,12 +362,16 @@ def parse_script(path):
                 fail(f"{where}: unknown speaker {spk!r}")
             if not 1 <= len(body_lines) <= PAGE_LINES:
                 fail(f"{where}: {len(body_lines)} lines (1-{PAGE_LINES})")
+            raw_lines = []
             for l in body_lines:
+                l = parse_marks(l, where)
                 if len(l) > LINE_W:
-                    fail(f"{where}: {l!r} is {len(l)} characters (max {LINE_W})")
-                bad = set(l) - CHARSET
-                if bad:
-                    fail(f"{where}: {l!r} has characters outside the font: {''.join(sorted(bad))!r}")
+                    fail(f"{where}: {l!r} is {len(l)} characters (max {LINE_W})" +
+                         ("; a beat at the end of a full line has no room" if l[-1] in MARK_CELLS else ""))
+                raw_lines.append(l)
+            body_lines = [clean_line(l) for l in raw_lines]
+            if raw_lines[-1][-1:] in MARK_CELLS:
+                fail(f"{where}: a beat at the end of the page's last line pauses nothing")
             if cond is not None:
                 if cond not in CONDITIONS:
                     fail(f"{where}: unknown condition {cond!r} (known: {', '.join(CONDITIONS)})")
@@ -324,12 +384,15 @@ def parse_script(path):
                 if body_lines == pages[-1][1]:
                     fail(f"{where}: the same text as the page it replaces")
                 alts[-1].append((CONDITIONS[cond], body_lines))
+                alts_raw[-1].append((CONDITIONS[cond], pre or raws[-1][0], raw_lines))   # (it keeps the page's @beat unless it has its own)
                 continue
             pages.append((SPEAKERS.index(spk), body_lines))
+            raws.append((pre, raw_lines))
             alts.append([])
+            alts_raw.append([])
         if len(title) > 20 or set(title) - CHARSET:
             fail(f"{sid}: title {title!r} (max 20, the story charset)")
-        scenes.append({"id": sid, "title": title, "pages": pages, "alts": alts})
+        scenes.append({"id": sid, "title": title, "pages": pages, "alts": alts, "raws": raws, "alts_raw": alts_raw})
     want = ["INTRO"] + [f"{k}_{c[0]}" for c in CHAPTERS for k in ("PRE", "POST")] + ["FINALE_A", "FINALE_B", "CREDITS"]
     if [s["id"] for s in scenes] != want:
         fail(f"scene order {[s['id'] for s in scenes]} != {want}")
@@ -1099,20 +1162,21 @@ def main():
     scene_ofs = []
     for s in scenes:
         scene_ofs.append(len(text))
-        for pid, (_, lines), alts in zip(s["pids"], s["pages"], s["alts"]):
+        for pid, (pre, lines), alts in zip(s["pids"], s["raws"], s["alts_raw"]):
             if pid >= 0x80:
                 fail(f"portrait id {pid}: bit 7 of the page byte marks a variant")
-            # a page's variants first (portrait id | 0x80, the condition id, the lines), then the page itself
-            for cond, vl in alts:
+            # a page's variants first (portrait id | 0x80, the condition id, the lines), then the page itself; a line
+            # is its length (the first line's top 3 bits: the @beat steps) and its cells
+            for cond, vpre, vl in alts:
                 text += [pid | 0x80, cond]
                 for i in range(PAGE_LINES):
                     l = vl[i] if i < len(vl) else ""
-                    text.append(len(l))
+                    text.append(len(l) | (vpre << 5 if i == 0 else 0))
                     text += [ord(ch) for ch in l]
             text.append(pid)
             for i in range(PAGE_LINES):
                 l = lines[i] if i < len(lines) else ""
-                text.append(len(l))
+                text.append(len(l) | (pre << 5 if i == 0 else 0))
                 text += [ord(ch) for ch in l]
     names = []
     for n in SPEAKERS:
@@ -1177,13 +1241,13 @@ def main():
           "            q++;",
           "        } else if (!p) break;",
           "        else p--;",
-          "        q++; for (k = 0; k < 3; k++) q += 1 + *q;",
+          "        q++; for (k = 0; k < 3; k++) q += 1 + (*q & 31);",
           "    }",
           "    k = *q++;",
           "    if (k & 0x80) { k &= 0x7F; q++; }",
-          "    dst[55] = k; *dst++ = st_pid_spk[k];",
+          "    dst[55] = k; *dst++ = st_pid_spk[k] | ((*q >> 5) << 4);   // the speaker, the @beat steps in the top nibble",
           "    for (k = 0; k < 3; k++) {",
-          "        n = *q++;",
+          "        n = *q++ & 31;",
           "        for (i = 0; i < 18; i++) *dst++ = i < n ? q[i] : ' ';",
           "        q += n;",
           "    }",
@@ -1335,7 +1399,11 @@ def main():
     for i, s in enumerate(scenes):
         H.append(f"#define SC_{s['id']} {i}")
     H += [f"#define STORY_CHAPTERS {len(CHAPTERS)}   // chapter c: SC_PRE = 1 + 2c, SC_POST = 2 + 2c",
-          f"#define SPK_NARRATOR {NARRATOR}", f"#define STORY_SPEAKERS {len(SPEAKERS)}",
+          f"#define SPK_NARRATOR {NARRATOR}",
+          f"#define STORY_BEAT_SHORT {BEAT_FRAMES[0]}   // frames of a `|` / `||` mid-line beat (cell 1 / 2 of the text)",
+          f"#define STORY_BEAT_LONG {BEAT_FRAMES[1]}", f"#define STORY_BEAT_UNIT {BEAT_UNIT}   // frames per @beat step",
+          f"#define STORY_GAP_SPEAKER {GAP_SPEAKER}   // the engine's own gap before a page (an @beat longer than it wins)",
+          f"#define STORY_GAP_PAGE {GAP_PAGE}", f"#define STORY_SPEAKERS {len(SPEAKERS)}",
           f"#define G_SERVE {G_SERVE}", f"#define G_CATCH {G_CATCH}", f"#define G_CLEAR {G_CLEAR}",
           f"#define F_NO_TAP {F_NO_TAP}", f"#define F_NO_BREAK {F_NO_BREAK}",
           f"#define TWIST_MOSH 0x{TWIST_MOSH:02X}       // goal_t.twist bits: the mosh pit (src/mosh.c), x limit in goal_t.pad",
@@ -1384,7 +1452,7 @@ def main():
           "    char line1[21], line2[21];",
           "} goal_t;                         // one shift's goal",
           "void story_scene_get(uint8_t s, uint8_t *dst) BANKED;   // dst: scene_hdr_t",
-          "void story_page_get(uint8_t s, uint8_t p, uint8_t conds, uint8_t *dst) BANKED;   // dst[56]: speaker, 3 x 18, portrait",
+          "void story_page_get(uint8_t s, uint8_t p, uint8_t conds, uint8_t *dst) BANKED;   // dst[56]: speaker | @beat steps << 4, 3 x 18 cells (1, 2: beats), portrait",
           "void story_name_get(uint8_t spk, uint8_t *dst) BANKED;  // dst[12], 0-terminated",
           "void story_goal_get(uint8_t ch, uint8_t sh, uint8_t *dst) BANKED;   // dst: goal_t",
           "uint8_t story_pattern_get(uint8_t id, uint8_t *dst) BANKED;   // dst[STORY_PAT_MAX] (WRAM); the length",
@@ -1404,9 +1472,11 @@ def main():
     # ---- build/story.json (tests) ----
     js = {"scenes": [{"id": s["id"], "title": s["title"], "venue": s["venue"], "pic": s["pic"], "swpage": s["swpage"], "spk": s["spk"],
                       "pages": [{"speaker": SPEAKERS[p], "portrait": ports[q]["name"] if q in ports else None,
-                                 "lines": l, "variants": [{"cond": COND_NAME[c], "lines": vl} for c, vl in a]}
-                                for (p, l), q, a in zip(s["pages"], s["pids"], s["alts"])],
+                                 "lines": l, "variants": [{"cond": COND_NAME[c], "lines": vl} for c, vl in a],
+                                 "pre": pre * BEAT_UNIT, "marks": marks_of(rl)}
+                                for (p, l), q, a, (pre, rl) in zip(s["pages"], s["pids"], s["alts"], s["raws"])],
                       "bg_tiles": s["bg_tiles"], "obj_tiles": s["obj_tiles"]} for s in scenes],
+          "beat": {"frames": list(BEAT_FRAMES), "unit": BEAT_UNIT, "gap_speaker": GAP_SPEAKER, "gap_page": GAP_PAGE},
           "speakers": SPEAKERS, "font_base": font_base, "font": {n: fid[n] for n in font_names},
           "portrait_base": port_base, "bg_budget": budget, "obj_budget": OBJ_TILES,
           "glyphs": {ch: glyph(ch) for ch in sorted(CHARSET)},
