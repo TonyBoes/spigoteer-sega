@@ -588,8 +588,11 @@ def test_the_burst_pulses_while_the_pieces_fly_then_dies_down_and_the_crackle_ta
             assert on >= 12, (page, on)
             assert not any(e["y"] for e in pieces_oam(gb))
             assert star_cells(gb) == 0
-        gb.press("a", 2)
-        gb.run(4)
+        for _ in range(12):                                               # (A until the last page lets go: its beat, its typing)
+            if gb.mem("story_scene") != SC["INTRO"]:
+                break
+            gb.press("a", 2)
+            gb.run(8)
         assert gb.mem("story_scene") != SC["INTRO"]
 
 
