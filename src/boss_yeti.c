@@ -15,6 +15,19 @@
 //      big cross, dot), SPARK_STEP frames each, then the icy tile again; a new one may start every SPARK_EVERY frames,
 //      one in two does (a hash of yeti_t: yeti_t * 37 + 11, no next_rand). Their state is 2 bytes of BOSS_OWN after the icy row: column / 2 + 16 * frame, 255 free.
 //   3. THAW: the counter tiles swap back, half of them a frame (2 frames); then he walks again.
+// FROZEN TAP (owner 2026-10-14: "the icy bar make mugs slide faster, but I don't see how that is a help or a hindrance"):
+// while he is icy (YP_ICY), the tap on HIS bar is frozen. At that tap A starts a fill and the same frame the fill is
+// cancelled (fill_timer / fill_stage zeroed from BEV_FRAME) with a thud: no mug is launched at him for the ice's 180
+// frames (a held A does not start one again, only a fresh press would, and that is cancelled too). Other bars pour as
+// usual, so the ice is the breather it was (he stands, no stomp; a mug launched before the blow still rides the ice at
+// 3 px a frame) but the bartender has to spend it elsewhere and be back at his tap for the empties that now return at
+// 1 px a frame. The banner "TAP FROZEN" shows for the first YETI_BANNER frames of the ice (the whoosh is the blow's cue).
+// ENTRANCE (YP_ENTER, 'frost front'; yeti_t is its clock, no state of its own: BOSS_OWN is full): on the fight's start
+// (BEV_LOAD) the igloo wall is bare (BS_JUMP + BP_HIDE, as Duke's entrance) while the counter frosts over left to right
+// (ENT_FROST frames, a whoosh); at ENT_APPEAR he steps out of the frost in the BLOW pose (the thud; he catches nothing
+// yet: BS_JUMP's rules do not apply once he is there, but nothing is poured in the intro); at ENT_THAW the frost thaws
+// (2 frames) and at ENT_LAND he WALKS: intro_timer was held until then, so the intro's 90 frames and the first breath
+// (YETI_EVERY away) start there. The player is not held: the bar plays as in any intro.
 // Fair empties across the speed change: an empty must arrive at the tap end before the ice starts or ends, so its
 // whole trip is at one speed and its arrival is the one the schedule booked. boss_window says so: walking, the frames
 // left to the ice (special_t + the tell); in the tell and the thaw none (0); icy, the ice's frames left.
@@ -23,6 +36,9 @@
 #include "boss.h"
 #include "boss_yeti_art.h"
 #include "boss_load.h"
+#include "music.h"
+
+extern uint8_t overlay_on;
 
 #define BP_INHALE        BP_EXTRA        // gen_boss BOSSES yeti extra: INHALE, BLOW
 #define BP_BLOW          (BP_EXTRA + 1)
@@ -36,16 +52,21 @@
 #define SPARK_N            2             // sparkles at once
 #define SPARK_EVERY        8             // frames between two chances for a new sparkle
 #define SPARK_STEP         4             // frames per glint frame
+#define YETI_BANNER       40             // frames of "TAP FROZEN" at the ice's start
+#define ENT_FROST         30             // the entrance: the counter frosts over, 3 columns every 5 frames
+#define ENT_APPEAR        40             // he steps out of the frost, BLOW
+#define ENT_THAW          70             // the frost thaws, he stands
+#define ENT_LAND          72             // WALK; the intro's 90 frames start
 #if BOSS_ART_ICE > BOSS_ICE_MAX
 #error "the Yeti's icy counter tiles"
 #endif
 
-enum { YP_WALK, YP_TELL, YP_ICY, YP_THAW };
+enum { YP_WALK, YP_TELL, YP_ICY, YP_THAW, YP_ENTER };
 
-uint8_t yeti_phase;            // YP_* (tests)
+uint8_t yeti_phase;            // YP_* (tests; YP_ENTER: the entrance, yeti_t its frame)
 uint8_t boss_icy;              // frames of ice left (spec 3.7's test hook)
 uint8_t yeti_cols;             // counter columns frosted (from column 0)
-static uint8_t yeti_t;         // frames in the phase
+uint8_t yeti_t;                // frames in the phase (tests)
 #define ice_row BOSS_OWN       // [ICE_COLS] the icy counter row (the venue's counter tiles mapped to their icy copies)
 #define spark ((uint8_t *)BOSS_OWN + ICE_COLS)   // [SPARK_N] column / 2 + 16 * glint frame; SPARK_FREE: none
 #define SPARK_FREE 255
@@ -116,6 +137,7 @@ static void walk_window(void) {
 }
 
 static void to_walk(void) {
+    if (yeti_phase == YP_ENTER) return;          // (the entrance ends it: ent_frame)
     yeti_phase = YP_WALK; yeti_t = 0;
     boss_special_t = YETI_EVERY;
     boss_fast_full = boss_fast_empty = 0;
@@ -138,9 +160,40 @@ static void to_icy(void) {
     frost_to(ICE_COLS);
     boss_icy = YETI_ICY;
     boss_fast_full = boss_fast_empty = 1;
+    SFX(SFX_WHOOSH);
+    show_overlay("TAP FROZEN");
     boss_xpose = BP_BLOW;
     boss_sip_t = 255;                            // a held empty may go at once (if the schedule allows)
     boss_window = YETI_ICY;
+}
+
+// The entrance's frame (BEV_INTRO, while intro_timer runs): yeti_t counts it.
+static void ent_frame(void) {
+    uint8_t t = yeti_t;
+    if (t < ENT_LAND) intro_timer = INTRO_FRAMES;     // (held: the intro's 90 frames start when he walks)
+    if (t == 0) SFX(SFX_WHOOSH);
+    if (t < ENT_FROST) {
+        if (!(t % 5)) frost_to(yeti_cols + 3);
+    } else if (t == ENT_FROST) frost_to(ICE_COLS);
+    if (t >= ENT_FROST && t < ENT_THAW) spark_frame();
+    if (t == ENT_APPEAR) {
+        boss_xpose = BP_BLOW; boss_state = BS_SPECIAL;
+        boss_to_bar(boss_bar, 16);                    // his BG body, the topper
+        SFX(SFX_SHAKE);
+    }
+    if (t == ENT_THAW) {
+        spark_clear();
+        counter_put(0, ICE_COLS / 2, 0);
+        boss_xpose = 0; boss_state = BS_WALK;
+    }
+    if (t == ENT_THAW + 1) { counter_put(ICE_COLS / 2, ICE_COLS - ICE_COLS / 2, 0); yeti_cols = 0; }
+    if (t == ENT_LAND) {
+        intro_timer = INTRO_FRAMES - 1;               // (as the level's first frame leaves it)
+        yeti_phase = YP_WALK;
+        to_walk();
+        return;
+    }
+    yeti_t++;
 }
 
 uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED {
@@ -151,9 +204,13 @@ uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED {
         boss_art_set();
         yeti_cols = 0;
         spark[0] = spark[1] = SPARK_FREE;
+        yeti_phase = YP_WALK;
         /* fall through */
     case BEV_RESET:
         if (yeti_cols) thaw_all();
+        if (yeti_phase == YP_ENTER) { boss_state = BS_JUMP; boss_xpose = BP_HIDE; boss_window = 0; break; }   // (the entrance: not on his bar yet)
+        if (yeti_phase == YP_ICY && yeti_t < YETI_BANNER) overlay_on = 0;   // (a life lost within the ice's first frames: its banner)
+        yeti_phase = YP_WALK;
         to_walk();
         break;
     case BEV_LOAD:
@@ -167,6 +224,10 @@ uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED {
         }
         yeti_cols = 0;                           // (the level load drew the venue's counter)
         spark[0] = spark[1] = SPARK_FREE;
+        yeti_phase = YP_ENTER; yeti_t = 0;       // the fight's start: the entrance (BEV_RESET follows: the wall is bare)
+        break;
+    case BEV_INTRO:
+        if (yeti_phase == YP_ENTER) ent_frame();
         break;
     case BEV_TELL:
         if (yeti_phase == YP_WALK) to_tell();
@@ -189,6 +250,11 @@ uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED {
             break;
         case YP_ICY:
             if (yeti_t == YETI_BLOW) boss_xpose = 0;
+            if (yeti_t == YETI_BANNER) overlay_on = 0;
+            if (bar == boss_bar && fill_timer) {  // the frozen tap: nothing is poured at him
+                if (fill_timer == 1) SFX(SFX_SHAKE);
+                fill_timer = 0; fill_stage = 0;
+            }
             boss_window = --boss_icy;
             if (boss_icy) spark_frame();
             else {                               // the thaw: half the counter now, half next frame

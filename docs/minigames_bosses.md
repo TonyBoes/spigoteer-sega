@@ -516,6 +516,22 @@ Rules: common row. Special every 360 frames:
    advance. If he holds an empty he sends it at the start of ICY if the schedule allows.
 3. Thaw: the counter tiles swap back (18 columns, 2 frames).
 
+As built (E4, owner 2026-10-15 "I don't see how the icy bar is a help or a hindrance"): the ice's trade-off is the
+FROZEN TAP. While his bar is icy (ICY phase) the tap on HIS bar is frozen: pressing A at it starts a fill that is
+cancelled the same frame (a thud), so no mug can be launched at him for the 180 frames; the other bars pour as ever, and
+the tell still pours. The blow adds a whoosh and the banner "TAP FROZEN" for 40 frames. Help: he stands still (no stomp),
+a mug already on his bar rides the ice at 3 px/f and lands sooner, the bartender gets a breather to serve the regulars.
+Hindrance: nothing can be poured at him, and his empties come back at 1 px/f to a bartender who must be at his tap. The
+player's choice each breath: one last mug before the frost, or go serve the other bars and be back for the empties.
+Rejected: a slippery bartender floor (needs ROM0 and punishes the other bars), mugs overshooting him (a life lost for a
+speed the player could not judge; mugs.c shared with Leo and the Critic).
+
+Entrance (E4, the FROST FRONT; no new art, no sprites, YP_ENTER, BEV_LOAD / BEV_INTRO as Duke's): the wall is bare
+(BS_JUMP, BP_HIDE) while the counter frosts over left to right in 30 frames with a whoosh and the sparkles; at frame 40 he
+steps out of the frost in the BLOW pose (a thud); at 70 the frost thaws; at 72 he walks (intro_timer is held until then, the
+first breath is 360 frames after). Not built: the SNOW BURST (sprite puffs bursting out of the wall; needs OBJ tiles
+borrowed over the topper's and Duke's reload dance).
+
 Why fun and fair: risk and reward in one window. On ice your drinks reach him faster (more hits), but his empties
 come back fast too. The frost creeping along the counter is a clear, slow tell, readable on DMG by pattern (ice
 streaks), not only colour. Changed from the pitch: "speeds up mugs" applies to both directions, which makes the

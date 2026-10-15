@@ -4,11 +4,14 @@
 # bar's counter 4 columns every 12 frames), the ice (180 frames: the BLOW pose for 30, full mugs 3 px a frame and
 # empties 1 px a frame on his bar only, he stands), the thaw (the counter back in 2 frames); the fair schedule across
 # the speed change; a life lost on the ice; the win. Every frame here is checked at <= 10 sprites a line.
+# E4 (owner 2026-10-15): the ice's trade-off, the FROZEN TAP (nothing can be poured at him on his icy bar; the banner
+# TAP FROZEN, a thud on a blocked press; the other bars and the tell pour as ever), and the entrance, the FROST FRONT
+# (the wall bare, the counter frosts over, he steps out of the frost in the BLOW pose, it thaws, he walks).
 import re
 
 import pytest
 from boss_common import (BP_HAPPY, BP_WALK, BS_GULP, BS_OUTRO, BS_SPECIAL, BS_TELL, Clock, EMPTY, FULL, SP_OUTRO,
-                         SPOUT_X, TAP_X, art, arrivals_ok, assert_body, check_start, fight, frames, mugs, play, pour, row,
+                         SPOUT_X, TAP_X, art, arrivals_ok, assert_body, body, pair_id, check_start, fight, frames, mugs, play, pour, row,
                          still_regulars, throw, to_bar, until)
 from conftest import clear_regulars, ROOT, check_golden, venue
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, run_until, state, tilemap_row
@@ -21,10 +24,14 @@ R = row(C)
 A = art("yeti")
 B = R["bar"]
 BP_INHALE, BP_BLOW = 5, 6
+BS_JUMP, BP_HIDE = 4, 14
+SFX_LAUNCH, SFX_SHAKE, SFX_WHOOSH = 2, 8, 13
 SRC = (ROOT / "src" / "boss_yeti.c").read_text()
 EVERY, TELL, ICY, BLOW, CREEP, CREEP_COLS, ICE_COLS = (int(re.search(rf"#define {n}\s+(\d+)", SRC).group(1)) for n in (
     "YETI_EVERY", "YETI_TELL", "YETI_ICY", "YETI_BLOW", "YETI_CREEP", "YETI_CREEP_COLS", "ICE_COLS"))
-YP_WALK, YP_TELL, YP_ICY, YP_THAW = range(4)
+BANNER, ENT_FROST, ENT_APPEAR, ENT_THAW, ENT_LAND = (int(re.search(rf"#define {n}\s+(\d+)", SRC).group(1)) for n in (
+    "YETI_BANNER", "ENT_FROST", "ENT_APPEAR", "ENT_THAW", "ENT_LAND"))
+YP_WALK, YP_TELL, YP_ICY, YP_THAW, YP_ENTER = range(5)
 COUNTER_ROW = 5 + 3 * B + 2
 ICE_BG = 246
 SPARK_BG, SPARK_N = 248, 2          # the sparkle frames' tiles (SPARK1-4), at most SPARK_N glinting columns at once
@@ -77,6 +84,14 @@ def test_his_row_and_art():
     assert not (ROOT / "assets/art/approved/boss_yeti.txt").exists()
 
 
+def sfx(gb, i):
+    return gb.read("sfx_count", 14)[i]
+
+
+def entrance_over(gb):
+    until(gb, lambda: gb.mem("yeti_phase") != YP_ENTER and state(gb) == PLAYING, 200)
+
+
 def quiet(gb):
     still_regulars(gb)
     play(gb)
@@ -91,6 +106,8 @@ def test_the_fight_follows_the_last_call(model):
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         to_goal(gb)
         gb.run(2)
+        assert gb.mem("yeti_phase") == YP_ENTER, "the entrance first"
+        entrance_over(gb)
         check_start(gb, C, A, model)
         assert bytes(gb.read(0x8000 + ICE_BG * 16, 32)) == bytes(A["ice"])
         assert bytes(gb.read(0x8000 + SPARK_BG * 16, 64)) == bytes(A["spark"])
@@ -293,7 +310,9 @@ def test_win_the_fight_by_pouring(model):
         arrivals, seen, f, phases = [], set(), 0, set()
         clock = Clock(gb)
         while gb.mem("boss_hp") and f < 6000:
-            if gb.mem("boss_hold") + len(mugs(gb, B, FULL)) < R["hands"]:
+            ph = gb.mem("yeti_phase")
+            can = ph == YP_WALK and gb.mem16("boss_special_t") > 40 or ph == YP_TELL and gb.mem("yeti_t") < 20 or ph == YP_THAW
+            if can and gb.mem("boss_hold") + len(mugs(gb, B, FULL)) < R["hands"]:
                 pour(gb)
             else:
                 frames(gb, 1)
@@ -320,3 +339,108 @@ def test_win_the_fight_by_pouring(model):
         run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == post(C), 300)
         settle(gb)
         assert (gb.mem("boss_on"), gb.mem("story_progress")) == (0, C + 1)
+
+
+def wall_bare(gb):
+    """His two wall rows hold none of his body tiles (the igloo's wall as the venue draws it)."""
+    top, low = body(gb, R)
+    ids = {pair_id(p) + k for p in range(len(A["pairs"])) for k in (0, 1)}
+    return not (set(top[:12]) & ids or set(low[:12]) & ids)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_entrance_is_a_frost_front(model):
+    """The fight's start: the wall bare (BS_JUMP, BP_HIDE, nothing caught), the counter frosting over left to right
+    (never back until the thaw) with a whoosh, he steps out of the frost in the BLOW pose at ENT_APPEAR, the frost
+    thaws at ENT_THAW, he WALKS at ENT_LAND with the intro's 90 frames from there and the first breath EVERY away;
+    every frame is checked at <= 10 sprites a line (frames()). Golden boss_yeti_entrance: the BLOW, the frost on."""
+    with fight(model, C) as gb:
+        gb.run(2)
+        whoosh = sfx(gb, SFX_WHOOSH)
+        assert gb.mem("yeti_phase") == YP_ENTER and gb.mem("boss_state") == BS_JUMP and gb.mem("boss_xpose") == BP_HIDE
+        assert wall_bare(gb)
+        most = 0
+        while gb.mem("yeti_phase") == YP_ENTER:
+            t = gb.mem("yeti_t")
+            if t < ENT_APPEAR:
+                assert gb.mem("boss_state") == BS_JUMP and wall_bare(gb)
+                assert gb.mem("boss_hp") == 12 and gb.mem("intro_timer") >= 89, "held until he walks"
+            n = sum(1 for a, b in zip(counter(gb), ICY_COUNTER) if a == b or SPARK_BG <= a < SPARK_BG + 4)
+            if ENT_THAW + 2 <= t < ENT_LAND:
+                assert counter(gb) == VENUE_COUNTER, "thawed"
+            assert n >= most or t >= ENT_THAW, (t, n, most)
+            most = max(most, n)
+            if t == ENT_FROST + 3:
+                assert icy_cols(gb) == ICE_COLS and sfx(gb, SFX_WHOOSH) >= 1
+            if t == ENT_APPEAR + 3:
+                assert_body(gb, C, A, R["x"], BP_BLOW)
+                assert gb.mem("boss_state") != BS_JUMP and gb.mem("boss_x") == R["x"]
+                check_golden(gb, "boss_yeti_entrance")
+            if t == ENT_THAW + 4:
+                assert_body(gb, C, A, R["x"], BP_WALK)
+            frames(gb, 1)
+        assert most >= ICE_COLS - 2, "the frost reached the whole counter"
+        frames(gb, 2)
+        assert gb.mem("boss_state") == 0 and gb.mem("boss_hp") == 12 and counter(gb) == VENUE_COUNTER
+        assert gb.mem("intro_timer") in range(80, 90)
+        assert gb.mem("boss_fast_full") == 0
+        quiet(gb)
+        assert EVERY - 3 <= gb.mem16("boss_special_t") <= EVERY
+        throw(gb, B, 100)
+        until(gb, lambda: gb.mem("boss_hits") == 1, 40)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_tap_freezes_on_the_ice(model):
+    """The ice's trade-off. Walking and in the tell the tap on his bar pours (a mug launches); on the ice it does not: A
+    for 30 frames and no mug is launched, no fill shows, a thud sounds once per press; the banner TAP FROZEN shows
+    for BANNER frames, with the blow's whoosh; another bar pours as ever; after the thaw his tap pours again."""
+    with fight(model, C) as gb:
+        quiet(gb)
+        to_bar(gb, B)
+        pour(gb)
+        gb.write("boss_hook", 1)                                # the tell: the tap still pours
+        until(gb, lambda: gb.mem("yeti_phase") == YP_TELL, 4)
+        pour(gb, 20)                                             # (inside the tell's 50 frames)
+        whoosh = sfx(gb, SFX_WHOOSH)
+        until(gb, lambda: gb.mem("yeti_phase") == YP_ICY, TELL + 4)
+        frames(gb, 2)
+        assert sfx(gb, SFX_WHOOSH) == whoosh + 1 and gb.mem("overlay_on") == 1
+        assert banner_text(gb, 1) == centred("TAP FROZEN"), banner_text(gb, 1)
+        shakes, launches = sfx(gb, SFX_SHAKE), sfx(gb, SFX_LAUNCH)
+        gb.hold("a")
+        frames(gb, 3)
+        assert gb.mem("fill_timer") == 0 and gb.mem("fill_stage") == 0
+        frames(gb, 27)
+        assert gb.mem("fill_timer") == 0
+        gb.release("a")
+        frames(gb, 5)
+        assert sfx(gb, SFX_LAUNCH) == launches, "nothing launched at him"
+        assert sfx(gb, SFX_SHAKE) == shakes + 1, "a thud for the one press"
+        until(gb, lambda: gb.mem("overlay_on") == 0, BANNER)
+        assert gb.mem("yeti_phase") == YP_ICY
+        to_bar(gb, 0)
+        launches = sfx(gb, SFX_LAUNCH)
+        pour(gb)
+        assert sfx(gb, SFX_LAUNCH) == launches + 1, "another bar pours as ever"
+        to_bar(gb, B)
+        until(gb, lambda: gb.mem("yeti_phase") == YP_WALK, ICY + 4)
+        frames(gb, 2)
+        launches = sfx(gb, SFX_LAUNCH)
+        pour(gb)
+        assert sfx(gb, SFX_LAUNCH) == launches + 1, "thawed: his tap pours"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_mug_on_his_bar_rides_the_ice_to_him(model):
+    """The help side of the ice: a full mug on his bar when the blow comes slides at 3 px a frame and he drinks it while
+    the tap is frozen (a hit, the meter down)."""
+    with fight(model, C) as gb:
+        quiet(gb)
+        to_bar(gb, B)
+        gb.write("boss_hook", 1)
+        until(gb, lambda: gb.mem("yeti_phase") == YP_ICY, TELL + 4)
+        hp = gb.mem("boss_hp")
+        throw(gb, B, 150)
+        until(gb, lambda: gb.mem("boss_hits") == 1, 40)
+        assert gb.mem("boss_hp") == hp - 1 and gb.mem("yeti_phase") == YP_ICY
