@@ -37,7 +37,7 @@ HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
 # each boss's own art header (tools/gen_boss.py: build/boss_<name>_art.h, #included by src/boss_<name>.c only)
 BOSS_H   := $(foreach b,$(filter-out meter,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
-BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_card_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/leo_fx_art.h $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h
+BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_card_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/leo_fx_art.h $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h $(BUILD)/trans_art.h
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
@@ -145,6 +145,10 @@ $(BUILD)/leo_fx_art.h: tools/gen_leo_fx.py tools/gen_art.py assets/art/leo_fx.tx
 $(BUILD)/antics_art.h: tools/gen_antics.py tools/gen_art.py $(wildcard assets/art/antics/*.txt) assets/art/bartender.txt | $(BUILD) $(OUT)/preview
 	python3 tools/gen_antics.py $(BUILD) $(OUT)/preview
 
+# The scene transition's fizzy drink (src/trans.c): eight BG tiles -> build/trans_art.h, build/trans.json (tests), out/preview/fizz_*_x8.png
+$(BUILD)/trans_art.h: tools/gen_trans.py tools/gen_art.py assets/art/fizz.txt | $(BUILD) $(OUT)/preview
+	python3 tools/gen_trans.py $(BUILD) $(OUT)/preview
+
 # CGB palettes: assets/palettes.json -> build/palettes.c/.h
 $(BUILD)/palettes.c $(BUILD)/palettes.h: tools/palettes2c.py assets/palettes.json | $(BUILD)
 	python3 tools/palettes2c.py assets/palettes.json $(BUILD)
@@ -190,7 +194,7 @@ test: $(ROM)
 check: $(ROM)
 	gbcheck $(ROM) --length 10 --out $(OUT)/check
 
-preview: $(GEN) $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/boss_art.h $(BUILD)/antics_art.h
+preview: $(GEN) $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/boss_art.h $(BUILD)/antics_art.h $(BUILD)/trans_art.h
 	@ls -1 $(OUT)/preview/
 
 clean:

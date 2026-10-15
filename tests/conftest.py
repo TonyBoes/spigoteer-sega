@@ -106,6 +106,37 @@ def _write(gb, ref, value):
 Rom.write = _write
 
 
+# ---- the scene transition (src/trans.c): a fizzy drink fills the screen at a wired scene change and drains again, ~0.8 s of frames the
+# older tests' fixed waits do not expect. Every Rom the tests make has it off (HRAM 0xFFF1 bit 7, set after the game's first frame: main()
+# clears the flags at start-up); tests/test_trans.py turns it on with trans_enable and tests it.
+TRANS_ADDR, TR_OFF = 0xFFF1, 0x80
+_rom_run = Rom.run
+
+
+def _run(self, frames=1, render=False):
+    if not getattr(self, "_trans_managed", False):
+        self._trans_managed = True
+        while frames > 0:                       # (main() clears TRANS once the game's first frame has run: frame_counter is 1 by then)
+            _rom_run(self, 1, render and frames == 1)
+            frames -= 1
+            if self.mem("frame_counter") >= 1:
+                break
+        self.pb.memory[TRANS_ADDR] = TR_OFF if self.mem("frame_counter") >= 1 else 0
+        if frames <= 0:
+            self._trans_managed = self.mem("frame_counter") >= 1
+            return
+    _rom_run(self, frames, render)
+
+
+Rom.run = _run
+
+
+def trans_enable(gb, on=True):
+    """Transitions on (default) or off for this Rom, whatever the first run did."""
+    gb._trans_managed = True
+    gb.pb.memory[TRANS_ADDR] = gb.pb.memory[TRANS_ADDR] & ~TR_OFF if on else gb.pb.memory[TRANS_ADDR] | TR_OFF
+
+
 PLAYING = 1
 OLD_INTRO_LEFT = 44    # intro_timer the M1-M3 fixture had after 120 frames; kept so old tests see the same timing
 

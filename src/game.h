@@ -509,6 +509,20 @@ uint8_t mg_list_update(uint8_t pressed) BANKED;         // a GS_MGLIST frame (sr
 void mg_abort(void) BANKED;                             // the pause menu's QUIT in a mini-game: mg.c's own leave (LCD off)
 // ---- pause.c (banked): the pause menu, every mode (state_timer: bit 0 cursor, bit 1 the question, bit 7 a mini-game)
 #define PAUSE_NR51 (*(volatile uint8_t *)0xFFF0)       // HRAM (the linker uses 0xFF80-0xFF92): while the menu is open, the NR51 to restore (never 0); else 0
+// ---- trans.c (banked): the scene transition, a fizzy drink filling the screen from the bottom and bubbling away (docs: batchEF g14)
+// HRAM 0xFFF1 TRANS: TR_WANT (a wired scene change says "the next DISPLAY_OFF is a transition": TRANS_WANT()), TR_PEND (the cover ran,
+// the reveal is owed: main.c lcd_on_p runs it as the LCD comes on, or the caller does when it holds TR_HOLD), TR_OFF (a test hook: no transitions). 0xFFF2 / 0xFFF3: the
+// scene's LCDC and LYC while the drink covers it; 0xFF94-0xFFCF: its banner rows. main.c lcd_off_p / lcd_on_p / the loop call these.
+#define TRANS      (*(volatile uint8_t *)0xFFF1)
+#define TR_WANT    1
+#define TR_PEND    2
+#define TR_HOLD    8
+#define TR_OFF     0x80
+#define TRANS_WANT() (TRANS |= TR_WANT)
+#define TRANS_HOLD() (TRANS |= TR_HOLD)                 // the caller reveals itself (trans_reveal()) once its scene is whole: lcd_on_p does not
+void trans_cover(void) BANKED;                          // the old scene filling up; turns the LCD off (as lcd_off_p), PEND set
+void trans_arm(void) BANKED;                            // lcd_on_p, LCD still off: the drink behind the new scene, window over the screen
+void trans_reveal(void) BANKED;                         // the new scene is on: the drink drains, its bubbles pop; everything put back (nothing when no drink is up)
 void pause_open(void) BANKED;                           // START in play / a mini-game: GS_PAUSED, the music's channels quiet
 uint8_t pause_update(uint8_t pressed) BANKED;           // a GS_PAUSED frame; 1: it left (the next screen is up)
 void pause_close(void) BANKED;                          // the banner window and the sound as they were, back to the game

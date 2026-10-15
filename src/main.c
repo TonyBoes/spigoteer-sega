@@ -48,10 +48,20 @@ void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank) {
 
 // (game.h redirects GBDK's calls to these: the music ticks through an LCD-off rebuild. The names in parentheses are the real ones.)
 void lcd_off_p(void) {
+    uint8_t w = TRANS;
+    TRANS = w & ~TR_WANT;
     if (!(LCDC_REG & LCDCF_ON)) return;
+    if ((w & (TR_WANT | TR_OFF)) == TR_WANT && game_state != GS_PAUSED) { trans_cover(); return; }   // (a scene change: the drink fills the screen, then the LCD goes off)
     while (LY_REG >= 0x92) music_pump();        // (display_off's own two waits: the LCD goes off at line 145)
     while (LY_REG < 0x91) music_pump();
     LCDC_REG &= ~LCDCF_ON;
+}
+
+void lcd_on_p(void) {
+    uint8_t t = TRANS;
+    if (t & TR_PEND) trans_arm();                // (a scene change: the drink is the first frame, src/trans.c)
+    LCDC_REG |= LCDCF_ON;
+    if ((t & (TR_PEND | TR_HOLD)) == TR_PEND) trans_reveal();   // (the new scene is up: the drink drains; TR_HOLD: the caller still has work to do, and reveals itself)
 }
 
 void set_bkg_tiles_p(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t *t) {

@@ -94,6 +94,7 @@ static void win_init(void);
 void boot_init(void) BANKED {
     uint8_t i;
 
+    TRANS = 0;                                    // (HRAM is not cleared at power-on: first, DISPLAY_OFF reads it)
     DISPLAY_OFF;
     // _cpu alone is not enough under PyBoy: its DMG mode still hands the cart
     // A=0x11. FF4F (VBK) reads 0xFE|bank on colour hardware, but plain 0x00 in
@@ -181,7 +182,8 @@ static void reset_actors(void) {
 
 // Draw the playfield for the current level/lives/score. Screen transition: LCD off.
 void enter_level_screen(void) BANKED {
-    DISPLAY_OFF;                                  // (start_level reloads the show tiles the bonus round borrowed)
+    TRANS_WANT();                                 // (src/trans.c: title -> a level, a level -> the next; a story shift's LCD is already off: nothing wanted then)
+    DISPLAY_OFF;                                 // (start_level reloads the show tiles the bonus round borrowed)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0;
     start_level();
     dust_load();                                 // the bar-change puff's tiles (OBJ ids above the DMG copies)

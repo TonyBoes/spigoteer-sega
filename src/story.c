@@ -540,6 +540,7 @@ static const char boss_word[] = "BOSS";
 // One shift of the chapter: its goal banner over the venue's level (LCD off, then on), GS_GOAL.
 static void shift_start(void) {
     uint8_t i;
+    TRANS_HOLD();                                // (src/trans.c: the drink drains at the end of this function, when the scene is whole)
     if (boss_on) boss_goal((uint8_t *)&story_goal);   // a boss fight: his banner lines, the regulars' pace (boss.c)
     else story_goal_get(story_chapter, story_shift, (uint8_t *)&story_goal);
     story_twist = story_goal.twist;
@@ -588,6 +589,7 @@ static void shift_start(void) {
     story_phase = arc_banner ? SP_LOOP : SP_GOAL; story_t = 0;
     arc_banner = 0;
     game_state = GS_GOAL;
+    trans_reveal();                              // (the drink drains now: the banner, the boss's HUD and the pace are all in)
 }
 
 static void goal_banner_off(void) {
@@ -647,6 +649,7 @@ static void run_begin(uint8_t arc) {
 }
 
 void story_begin(uint8_t cont) BANKED {
+    TRANS_WANT();                                // (src/trans.c: title -> the story)
     run_begin(0);
     if (cont && (story_progress || story_reached) && story_progress < STORY_CHAPTERS) {
         story_chapter = story_progress;
@@ -663,6 +666,7 @@ void story_begin(uint8_t cont) BANKED {
 
 // PLAY > ARCADE: the saloon's first playable step, 3 lives, nothing saved (save_lock; title_enter clears it)
 void arcade_begin(void) BANKED {
+    TRANS_WANT();                                // (src/trans.c: title -> ARCADE)
     run_begin(1);
     save_lock = 1;
     story_conds = 0;
@@ -672,6 +676,7 @@ void arcade_begin(void) BANKED {
 
 // ARCADE: GS_BONUS is over (main.c): the next venue, or after the last one the saloon again, a loop harder
 void arcade_next(void) BANKED {
+    TRANS_WANT();                                // (src/trans.c: the bonus round -> the next venue)
     if (++story_chapter >= STORY_CHAPTERS) {
         story_chapter = 0;
         if (arc_loop < 255) arc_loop++;
@@ -690,6 +695,7 @@ void extra_life(void) BANKED {
 static void scene_done(void) {
     uint8_t s = story_scene;
     uint8_t aaa[3];
+    TRANS_WANT();                                // (src/trans.c: the next screen comes up behind the drink)
     if (s == SC_CREDITS) {                       // the end: the story's score into the STORY top 5 (initials, the table)
         story_on = 0; story_phase = SP_OFF;
         if (save_lock) { title_enter(); return; }   // (a debug-select run: nothing saved)
@@ -719,8 +725,9 @@ void story_pouroff_done(void) BANKED {
 // yet, for Practice: a venue restart never lowers it), the next playable step, or the chapter's POST scene
 void story_level_done(void) BANKED {
     uint8_t n = story_step + 1, s = next_step(n);
-    boss_set(BOSS_NONE);                         // (a won boss fight is over: the POST scene has no boss)
+    boss_set(BOSS_NONE);                        // (a won boss fight is over: the POST scene has no boss)
     if (play_mode == MODE_RUSH) { rush_won(); return; }   // BOSS RUSH: no progress, the rush's next screen
+    TRANS_WANT();                                // (src/trans.c: the next shift / mini-game / boss / scene comes up behind the drink)
     if (s >= STORY_STEPS) { chapter_done(); return; }
     story_save(story_chapter, story_progress == story_chapter && story_reached > n ? story_reached : n);
     story_step = s;
@@ -905,6 +912,7 @@ uint8_t story_update(uint8_t pressed) BANKED {
     case SP_FAIL:
         if ((pressed & (J_A | J_START)) || story_t >= FAIL_FRAMES) {
             if (play_mode == MODE_RUSH) { rush_lost(); return 1; }   // BOSS RUSH: out of lives, the result
+            TRANS_WANT();                        // (the drink: TRY AGAIN -> the shift / the venue again)
             if (lives) shift_start();
             else {                               // out of lives: the venue again, with the score it was entered with (owner 2026-10-14)
                 story_restarts++;
