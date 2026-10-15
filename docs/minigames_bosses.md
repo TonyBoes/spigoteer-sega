@@ -1292,6 +1292,8 @@ Story fit: PRE_TEAHOUSE page (HANA): `THE DRUM SETS` / `THE POUR. A AND B` / `ON
 
 ### 4.8 Asteroid Delivery (Space lounge)
 
+D6c (2026-10-15, owner: too hard): NORMAL has 7 rocks (lanes 0, 2, 4 hold one), speed steps x1.25 at 4 deliveries and x1.5 at 8, a blinking edge arrow 40 frames before a rock comes in (OAM 28-32, new art edge.txt), the lit porthole's whole 24 px ledge delivers on any touch at any speed (no WHOA), and medals 4 / 6 / 8 deliveries (pilot-derived; batchD d6_tuning DESIGN.md). The first values (10 rocks, x1.5 / x2 at 3 / 6, a +-8 px zone and 0.75 px a frame touch, medals 3 / 5 / 7) are HARD: noted beside the NORMAL block at the top of src/ad.c.
+
 Play: Zizz's guests wait in three portholes at the top. A glowing beaker appears on the bar at the bottom; steer it
 up through drifting asteroid lanes and hand it gently to the alien whose porthole is lit.
 

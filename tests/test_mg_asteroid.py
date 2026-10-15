@@ -23,6 +23,8 @@ SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_SHAKE = 4, 5, 6, 8
                            "AD_DELIVER_WAIT", "AD_WHOA_LEN", "AD_START_X", "AD_START_Y", "AD_OBP1"))
 OAM_BEAKER, OAM_PUFF, OAM_HALO, OAM_ARROW, OAM_SPIG, OAM_ROCK = (ad_define(n) for n in (
     "OAM_BEAKER", "OAM_PUFF", "OAM_HALO", "OAM_ARROW", "OAM_SPIG", "OAM_ROCK"))
+STEP1, STEP2, WARN, ZONE_HALF = (ad_define(n) for n in ("AD_STEP1", "AD_STEP2", "AD_WARN", "AD_ZONE_HALF"))
+OAM_WARN = ad_define("OAM_WARN")
 SEED = 0x5A17
 S_PALETTE = 0x10
 OUT = ROOT / "out" / "ad"
@@ -390,33 +392,38 @@ def test_the_time_bonus_is_600_minus_the_frames_over_10(clk, bonus):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_too_fast_is_whoa_a_bounce_and_nothing_lost(model):
-    """Over 0.75 px a frame (either axis) at the hand zone: no delivery, no points, WHOA on row 14 for 40 frames and then the
-    sky again, v = -v / 2 and the beaker just outside the zone (flask top 28)."""
+def test_any_touch_of_the_ledge_delivers_anywhere_along_it_and_at_any_speed(model):
+    """D6c (owner: "if your drink hits the line under the alien, it should be delivered"): the beaker's body touching the lit
+    porthole's ledge anywhere along its 24 px (its left edge to its right edge, the body 6 px wide: from 14 px left of the
+    dock's centre to 14 px right) and at any speed delivers: no WHOA, no bounce, nothing lost. Just outside that, and under an
+    unlit porthole, the ledge is still a wall."""
     with asteroid(model) as gb:
         to_flying(gb)
         lit = ad(gb)["lit"]
-        for vx, vy in ((0, -250), (200, -100)):
-            clear_rocks(gb)
-            at_dock(gb, PORTHOLE_CX[lit], vx=vx, vy=vy)
-            frames(gb, 1)
+        cx = PORTHOLE_CX[lit]
+        n = 0
+        for dx, vx, vy in ((-14, 0, -100), (-11, 150, -250), (-8, -100, -320), (0, 0, -250), (8, 200, -100), (11, 0, -320), (14, -150, -320)):
             s = snap(gb)
-            assert s["bounced"] >= 1 and s["delivered"] == 0 and gb.mem16("mg_score") == 0
-            assert s["y"] == 28 << 8 and s["vy"] > 0 and s["whoa"] > 0
-            assert s["vx"] == -((vx - (vx + 31 >> 5)) >> 1) or abs(s["vx"] - (-vx // 2)) <= 8
+            lit = s["lit"]
+            cx = PORTHOLE_CX[lit]
+            clear_rocks(gb)
+            at_dock(gb, cx + dx, vx=vx, vy=vy)
             frames(gb, 2)
-            assert text(gb, 14) == "WHOA"
-            if model == "cgb":
-                assert all(gb.pb.memory[1, 0x9800 + 14 * 32 + c] & 7 == HUD_PAL for c in range(20))
-            assert gb.mem("last_sfx") == SFX_SHAKE
-            put_beaker(gb, 20, 120)                   # out of the way: the clock of the banner
-            frames(gb, WHOA_LEN + 2)
-            tm = gb.bg_tilemap()
-            assert [t & 0xFF for t in tm[14][:20]] == [AD_BG + (ART["sep"] if False else ART["sky"])[star_hash(c, 14)] if False else
-                                                        AD_BG + ART["sep"][star_hash(c, 14)] for c in range(20)]
-            if model == "cgb":
-                assert all(gb.pb.memory[1, 0x9800 + 14 * 32 + c] & 7 == 2 for c in range(20))
-        assert snap(gb)["delivered"] == 0
+            s = snap(gb)
+            n += 1
+            assert s["delivered"] == n and s["bounced"] == 0 and s["spills"] == 0 and s["st"] == AS_GAP, (dx, vx, vy, s["delivered"])
+            poke(gb, st=AS_FLY)
+        # just outside the ledge it is a wall (the beaker's body is 6 px: 15 px from the centre is clear of the 24 px porthole)
+        lit = snap(gb)["lit"]
+        cx = PORTHOLE_CX[lit]
+        for dx in (-16, 16):
+            if not (4 <= cx + dx <= 156):
+                continue
+            clear_rocks(gb)
+            at_dock(gb, cx + dx, vy=-250)
+            frames(gb, 2)
+            s = snap(gb)
+            assert s["delivered"] == n and s["bounced"] == 0 and s["y"] == 28 << 8, (dx, s["delivered"], s["y"])
 
 
 def test_the_next_porthole_is_never_the_same_twice_and_all_three_come():
@@ -438,16 +445,17 @@ def test_the_next_porthole_is_never_the_same_twice_and_all_three_come():
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_rocks_speed_up_x1_5_after_3_deliveries_and_x2_after_6(model):
+def test_rocks_speed_up_after_the_4th_and_the_8th_delivery(model):
+    """NORMAL: x1 up to 3 deliveries, x1.25 from the 4th (AD_STEP1), x1.5 from the 8th (AD_STEP2); HARD was 3 / 6 at x1.5 / x2."""
     with asteroid(model) as gb:
         to_flying(gb)
-        for n in range(1, 8):
+        for n in range(1, STEP2 + 2):
             lit = ad(gb)["lit"]
             clear_rocks(gb)
             at_dock(gb, PORTHOLE_CX[lit], vy=-100)
             frames(gb, 2)
             s = snap(gb)
-            assert s["delivered"] == n and s["spd"] == (0 if n < 3 else 1 if n < 6 else 2), n
+            assert s["delivered"] == n and s["spd"] == (0 if n < STEP1 else 1 if n < STEP2 else 2), n
             poke(gb, st=AS_FLY)
             a = snap(gb)
             frames(gb, 10)
@@ -536,9 +544,9 @@ def test_time_up_shows_a_banner_on_row_14_and_ends_the_play(model):
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 70)
 
 
-@pytest.mark.parametrize("n,medal", [(0, MEDAL_NONE), (2, MEDAL_NONE), (3, MEDAL_BRONZE), (4, MEDAL_BRONZE), (5, MEDAL_SILVER),
-                                     (6, MEDAL_SILVER), (7, MEDAL_GOLD), (11, MEDAL_GOLD)])
-def test_the_medal_is_by_deliveries_3_5_7(n, medal):
+@pytest.mark.parametrize("n,medal", [(0, MEDAL_NONE), (BRONZE - 1, MEDAL_NONE), (BRONZE, MEDAL_BRONZE), (SILVER - 1, MEDAL_BRONZE),
+                                     (SILVER, MEDAL_SILVER), (GOLD - 1, MEDAL_SILVER), (GOLD, MEDAL_GOLD), (GOLD + 4, MEDAL_GOLD)])
+def test_the_medal_is_by_deliveries_4_6_8(n, medal):
     with asteroid("dmg") as gb:
         to_flying(gb)
         poke(gb, delivered=n)
@@ -566,24 +574,128 @@ def test_the_hud_counts_deliveries_and_seconds(model):
 
 
 # ---- sprites per line -----------------------------------------------------------------------------------------------------------------
+# ---- the edge warning (D6c) ----------------------------------------------------------------------------------------------------------
+LANE_ROCKS = (1, 2, 1, 2, 1)
+EDGE_TILE = ART["edge"][0]
+
+
+def to_entry(lane, u):
+    """ad.c's warn_lane: 8.8 px a rock still has to go before it comes in at its lane's edge (u: the rock's rx)."""
+    if lane % 2 == 0:
+        return (2 << 8) - u if u < (2 << 8) else (178 << 8) - u
+    return u - (174 << 8) if u > (174 << 8) else u + (2 << 8)
+
+
+def marker(gb, lane):
+    snap(gb)                                      # (a paused frame: the OAM DMA has caught up with the update)
+    o = oam(gb, OAM_WARN + lane)
+    return o if o["y"] else None
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_worst_case_scene_is_9_a_line(model):
-    """Lane 1 with both its rocks on screen, the arrow over its lit porthole, the beaker, its halo and the thrust puff all on
-    its lines: 4 + 1 + 1 + 2 + 1 = 9 (the limit is 10)."""
+def test_a_blinking_arrow_shows_the_edge_a_rock_comes_in_at_before_it_does(model):
+    """The edge arrow of a lane: right-moving lanes (0, 2, 4) at the left edge pointing right, left-moving ones at the right edge
+    X-flipped, in the lane's 16 px, the arrow's OBJ palette; it blinks (4 frames on, 4 off) from AD_WARN frames before the rock comes
+    in and is off earlier, after it, and for the second rock of a lane that has only one."""
     with asteroid(model) as gb:
         to_flying(gb)
-        for i in range(2, 10):
+        put_beaker(gb, 80, 120)
+        for lane in range(5):
+            for i in range(10):
+                poke(gb, rx=(i, 80 << 8))                       # every rock mid screen: no marker anywhere
+        frames(gb, 9)
+        assert all(marker(gb, k) is None for k in range(5)), "nothing is about to come in"
+        for lane in range(5):
+            sp = LANE_SPEED[0][lane]
+            for frames_left, want in ((WARN + 6, False), (WARN - 6, True)):
+                u_edge = (2 << 8) if lane % 2 == 0 else (174 << 8)
+                # a rock `frames_left` frames before it comes in: lane even moves up to 178 px then wraps, odd moves down to 0
+                d = frames_left * sp
+                k = 2 * lane
+                u = (178 << 8) - d if lane % 2 == 0 else d - (2 << 8)
+                assert to_entry(lane, u) == d
+                poke(gb, rx=(k, u))
+                seen = []
+                for _ in range(8):
+                    poke(gb, rx=(k, u))                         # (held there: the blink is what is measured)
+                    frames(gb, 1)
+                    seen.append(marker(gb, lane))
+                on = [m for m in seen if m]
+                if not want:
+                    assert not on, (lane, frames_left)
+                    continue
+                assert 3 <= len(on) <= 5, (lane, len(on))        # 4 on, 4 off
+                m = on[0]
+                assert m["x"] == (0 if lane % 2 == 0 else 152) + 8 and m["y"] == LANE_TOP0 + 16 * lane + 16, (lane, m)
+                assert m["tile"] == EDGE_TILE and (m["prop"] & 0x20 != 0) == (lane % 2 == 1)
+                if model == "cgb":
+                    assert m["prop"] & 7 == 7
+                poke(gb, rx=(k, 80 << 8))
+            if LANE_ROCKS[lane] == 1:                           # the lane's second rock does not exist: it warns of nothing
+                k = 2 * lane + 1
+                u = (178 << 8) - 5 * sp if lane % 2 == 0 else 5 * sp - (2 << 8)
+                for _ in range(8):
+                    poke(gb, rx=(k, u))
+                    frames(gb, 1)
+                    assert marker(gb, lane) is None
+                poke(gb, rx=(k, 80 << 8))
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_no_rock_comes_in_unannounced_over_a_whole_game(model):
+    """Over 2600 frames (the rocks at all three speed steps, the beaker parked on the bar) every time a rock is within
+    AD_WARN - 8 .. 1 frames of coming in at its lane's edge, its lane's arrow shows in every window of 8 frames (it blinks)."""
+    with asteroid(model) as gb:
+        to_flying(gb)
+        put_beaker(gb, 80, 120)
+        log = {lane: [] for lane in range(5)}                   # (frames to the next entry, arrow showing)
+        for f in range(2600):
+            if f in (800, 1700):
+                poke(gb, spd=1 if f == 800 else 2)
+            put_beaker(gb, 80, 120)
+            frames(gb, 1)
+            s = snap(gb)
+            for lane in range(5):
+                sp = LANE_SPEED[s["spd"]][lane]
+                tt = min((to_entry(lane, s["rx"][2 * lane + j]) / sp for j in range(LANE_ROCKS[lane])))
+                log[lane].append((tt, marker(gb, lane) is not None))
+        for lane in range(5):
+            run, worst_gap, due = 0, 0, 0
+            for tt, on in log[lane]:
+                if 1 <= tt <= WARN - 8:
+                    due += 1
+                    run = 0 if on else run + 1
+                    worst_gap = max(worst_gap, run)
+                else:
+                    run = 0
+            assert due > 20 and worst_gap <= 4, (lane, due, worst_gap)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_worst_case_scene_is_10_a_line_at_most(model):
+    """Lane 1 with both its rocks on screen, its edge arrow blinking, the lit porthole's arrow over the same lines, the beaker,
+    its halo and the thrust puff: 4 + 1 + 1 + 1 + 2 + 1 = 10 (the limit is 10)."""
+    with asteroid(model) as gb:
+        to_flying(gb)
+        for i in range(10):
             poke(gb, rx=(i, 0))
-        poke(gb, rx=(0, 60 << 8))
-        poke(gb, rx=(1, 120 << 8))
-        put_beaker(gb, 80, 34)
+        poke(gb, rx=(2, 60 << 8))                  # lane 1 (left-moving): both rocks on screen, one about to come in at the right edge
+        poke(gb, rx=(3, 8 << 8))
+        poke(gb, lit=0)
+        put_beaker(gb, 20, 40)
         gb.hold("right")
         worst = [0]
-        frames(gb, 8, worst)
+        seen_marker = False
+        for _ in range(16):
+            park = snap(gb)
+            frames(gb, 1, worst)
+            seen_marker |= oam(gb, OAM_WARN + 1)["y"] != 0
+            poke(gb, rx=(2, 60 << 8))
+            poke(gb, rx=(3, 8 << 8))
+            put_beaker(gb, 20, 40)
         gb.release("right")
-        assert worst[0] == 9, worst
-        assert max(lines(gb)) == 9
-        # with the beaker over the lit porthole's x the arrow is on the same lines: still 9
+        assert seen_marker
+        assert 9 <= worst[0] <= 10, worst
         assert snap(gb)["st"] == AS_FLY
 
 
@@ -603,7 +715,7 @@ def test_a_bot_flies_a_whole_game_without_a_hit_and_keeps_to_10_sprites_a_line(m
                 frames(gb, 1, worst)
                 route = []
                 continue
-            p = plan(read_model(s))
+            p = plan(read_model(s)) or plan(read_model(s), margin=0)     # (a rock coming in at the edge may leave only the exact path)
             if p:
                 route = p
             elif not route:                      # no safe route now (the rocks' gaps do not line up): wait on the bar
@@ -778,10 +890,10 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
         assert gb.mem("mg_id") == MG_ASTEROID and gb.mem("mg_mode") == MG_PRACTICE
 
 
-# ---- goldens: the intro, flying, WHOA, the tumble, the result -------------------------------------------------------------------------
+# ---- goldens: the intro, flying, the edge arrows, a delivery, the tumble, the result -------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_goldens(model):
-    """The count-in, a flight (a seeded game: the lit porthole and the rocks follow the seed), WHOA, a tumble, the result."""
+    """The count-in, a flight (a seeded game: the lit porthole and the rocks follow the seed), the edge arrows, a delivery, a tumble, the result."""
     with asteroid(model) as gb:
         until(gb, lambda: gb.mem("mg_phase") == MG_COUNT and gb.mem("mg_t") >= 10, 200)
         shot(gb, "intro")
@@ -795,15 +907,22 @@ def test_goldens(model):
         frames(gb, 1)
         shot(gb, "flying")
         check_golden(gb, "ad_flying")
-        # WHOA: too fast at the lit dock
+        # the edge arrows (D6c): lane 1's second rock about to come in at the right edge, lane 2's at the left one; the frame is
+        # taken when the blink is on
         clear_rocks(gb)
-        at_dock(gb, PORTHOLE_CX[lit], vy=-250)
-        frames(gb, 4)
-        shot(gb, "whoa")
-        check_golden(gb, "ad_whoa")
+        put_beaker(gb, 80, 100)
+        poke(gb, rx=(3, 8 << 8))
+        poke(gb, rx=(4, (178 << 8) - 30 * 128))
+        for _ in range(16):
+            poke(gb, rx=(3, 8 << 8))
+            poke(gb, rx=(4, (178 << 8) - 30 * 128))
+            frames(gb, 1)
+            if marker(gb, 1) is not None and marker(gb, 2) is not None:
+                break
+        frames(gb, 0)
+        shot(gb, "edge")
+        check_golden(gb, "ad_edge")
         # a delivery
-        poke(gb, whoa=1)
-        frames(gb, 2)
         lit = snap(gb)["lit"]
         at_dock(gb, PORTHOLE_CX[lit], vy=-100)
         frames(gb, 3)
@@ -817,7 +936,7 @@ def test_goldens(model):
         shot(gb, "tumble")
         check_golden(gb, "ad_tumble")
         # the result
-        poke(gb, delivered=7)
+        poke(gb, delivered=GOLD)
         to_result(gb)
         frames(gb, 3)
         shot(gb, "result")

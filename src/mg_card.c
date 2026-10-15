@@ -48,7 +48,7 @@ static const card_t cards[MG_GAMES] = {
     /* G_OU   */ { "ORDER UP!", { "WATCH THE ORDER", "D-PAD: REPEAT IT", "SERVE 7 FOR GOLD", "" } },
     /* G_MR   */ { "MILK RUN", { "UP DOWN: LANE", "RIGHT: GO FASTER", "LEFT: SLOW DOWN", "DODGE THE BUMPS" } },
     /* G_LR   */ { "LOG ROLL", { "LEFT RIGHT: LEAN", "AGAINST THE ROLL", "A OR B: HOP", "OVER THE FISH" } },
-    /* G_AD   */ { "ASTEROID DELIVERY", { "D-PAD: FLY, DODGE", "SOFT LAND AT LIGHT", "DELIVER 7 FOR GOLD", "" } },
+    /* G_AD   */ { "ASTEROID DELIVERY", { "D-PAD: FLY, DODGE", "HIT THE LIT LEDGE", "BLINK: ROCK COMING", "DELIVER 8 FOR GOLD" } },
     /* G_TK   */ { "TAIKO POUR", { "A: TOP LANE", "B: BOTTOM LANE", "STAY ON THE BEAT", "" } },
     /* G_MM   */ { "MARSHMALLOW DROP", { "D-PAD: MOVE ARM", "A: DROP A MALLOW", "FILL SIX MUGS WITH", "THREE EACH" } },
     /* G_MK   */ { "MONKEY BUSINESS", { "LEFT RIGHT: HOP", "A: SHOO MONKEYS", "KEEP THE COCONUTS", "" } },

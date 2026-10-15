@@ -32,12 +32,13 @@ from gen_art import blocks, png, rgb15, tile_bytes  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 ART = ROOT / "assets/art/asteroid"
 HEADER = "; Art: approved design (owner 2026-10-12)"
+PROPOSED = "; Art: proposed"                 # art made after the approval (the owner judges it from the x8 preview)
 OBJ_A, OBJ_A_ENTRIES, OBJ_B = 58, 17, 96
 
 
 def frames(name, n, w, h):
     path = ART / f"{name}.txt"
-    if not path.read_text().startswith(HEADER):
+    if not path.read_text().startswith((HEADER, PROPOSED)):
         sys.exit(f"gen_ad: assets/art/asteroid/{name}.txt: the first line must start with '{HEADER}'")
     fr = [r for _, r in blocks(path)]
     if len(fr) != n or not all(len(f) == h and all(len(r) == w and set(r) <= set(".-+#") for r in f) for f in fr):
@@ -62,6 +63,7 @@ def main():
     halo = frames("halo", 2, 16, 16)
     puff = frames("puff", 2, 8, 16)
     arrow = frames("arrow", 2, 8, 16)
+    edge = frames("edge", 1, 8, 16)
 
     bg, seen = [], {}
 
@@ -103,6 +105,7 @@ def main():
     halo_e = [entry(f, x) for f in halo for x in (0, 8)]
     puff_e = [entry(f, 0) for f in puff]
     arrow_e = [entry(f, 0) for f in arrow]
+    edge_e = [entry(f, 0) for f in edge]
     a_n = min(len(ents), OBJ_A_ENTRIES)
     obj_a = [b for e in ents[:a_n] for b in e]
     obj_b = [b for e in ents[a_n:] for b in e]
@@ -138,6 +141,7 @@ def main():
         carr("ad_halo", [obj_id(e) for e in halo_e]) + "     // 2 frames: left, right",
         carr("ad_puff", [obj_id(e) for e in puff_e]),
         carr("ad_arrow", [obj_id(e) for e in arrow_e]),
+        carr("ad_edge", [obj_id(e) for e in edge_e]) + "   // the edge warning (points right)",
         "// BG tile ids (offsets from AD_BG)",
         carr("ad_sky", sky_t) + "    // plain, 4 star variants",
         carr("ad_sep", sep_t) + "    // the same with the lane line",
@@ -162,12 +166,12 @@ def main():
         "bg": [b for t in bg for b in t], "obj_a": obj_a, "obj_b": obj_b, "n_bg": n_bg, "sky": sky_t, "sep": sep_t,
         "counter": ctr_t, "hudi": hud_t, "port": port_t, "rock": [obj_id(e) for e in rock_e],
         "tumble": [obj_id(e) for e in tumble_e], "halo": [obj_id(e) for e in halo_e], "puff": [obj_id(e) for e in puff_e],
-        "arrow": [obj_id(e) for e in arrow_e], "pal_bg": [c15(p) for p in pals_bg], "pal_obj": [c15(p) for p in pals_obj],
+        "arrow": [obj_id(e) for e in arrow_e], "edge": [obj_id(e) for e in edge_e], "pal_bg": [c15(p) for p in pals_bg], "pal_obj": [c15(p) for p in pals_obj],
         "n_entries": len(ents), "n_raw_entries": n_raw}))
     png(sky + sep + counter + [hud], prev / "ad_stage_x8.png", 8)
     png([p[0] for p in ports] + [p[1] for p in ports], prev / "ad_portholes_x8.png", 8)
     png(rocks + tumble, prev / "ad_rocks_tumble_x8.png", 8, transparent=True)
-    png(halo + puff + arrow, prev / "ad_fx_x8.png", 8, transparent=True)
+    png(halo + puff + arrow + edge, prev / "ad_fx_x8.png", 8, transparent=True)
 
 
 if __name__ == "__main__":

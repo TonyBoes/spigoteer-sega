@@ -23,7 +23,10 @@
 //   twice), a new beaker on the bar 30 frames later. Too fast: WHOA (a banner on row 14), the beaker bounces (v = -v / 2
 //   and it is put just outside the zone), nothing lost. An unlit porthole's dock is a wall.
 // - 45 s (the game's own clock, like Milk Run's), the HUD shows T + seconds. Medal by deliveries (ad_medal): GOLD 7,
-//   SILVER 5, BRONZE 3. No HARD setting (the spec has none).
+//   SILVER 5, BRONZE 3 (HARD values: the NORMAL tuning block below holds today's: D6c).
+// - D6c (NORMAL, owner 2026-10-15): lanes 0, 2, 4 hold ONE rock (7 rocks, the second rock of those lanes is not drawn and never hits),
+//   the rocks go x1.25 from the 4th and x1.5 from the 8th delivery, the lit porthole's whole 24 px ledge is the hand zone and any touch
+//   delivers at any speed (no WHOA), and a blinking arrow at the edge a rock is about to come in from shows AD_WARN (40) frames before.
 // - Sounds (no new SFX): delivered SERVE (and COIN), a rock hit BREAK, WHOA SHAKE.
 //
 // Screen: the framework's space-lounge wall under everything; map rows 1-3 the portholes (columns 1-3, 8-10, 15-17; each 24x24
@@ -38,7 +41,8 @@
 // OBJ: 0 the Spigoteer, 1 the beaker and its tumble (the venue's drink palette), 3 the rocks, 7 the arrow, 6 the puff and the
 // halo (5 is the show's, unused). DMG: OBP0 the Spigoteer (boot's), OBP1 AD_OBP1 for everything else (the per-OAM palette bit).
 // OAM 0-1 the beaker (its tumble's two halves), 2 the thrust puff, 3-4 the halo, 5 the arrow, 6-7 the Spigoteer's bust,
-// 8-27 the ten rocks (left and right entries): worst line 9 (a lane's 4 rock entries + the arrow, beaker, halo 2, puff).
+// 8-27 the ten rocks (left and right entries), 28-32 the edge arrows (one a lane): worst line 10 (a lane's 4 rock entries + its edge
+// arrow + the lit porthole's arrow, beaker, halo 2, puff).
 // Tiles: BG MG_GAME_BG.. (56), OBJ 58-91 and 96-97 (the venue's drink frame 0 at 56-57 is the beaker; the coin 92-95 stays).
 #pragma bank 255
 #include <gb/gb.h>
@@ -59,12 +63,20 @@ typedef char ad_fits[(AD_BG + AD_BG_TILES <= 256 && AD_OBJ_A + AD_OBJ_A_TILES <=
 #define AD_TIME_S       45
 #define AD_PAR         600                  // frames: the time bonus's par (10 s)
 #define AD_PTS         500
-#define AD_GOLD          7
-#define AD_SILVER        5
-#define AD_BRONZE        3
 #define AD_THRUST        8                  // 1/32 px a frame^2
 #define AD_CAP         320                  // 1.25 px a frame
-#define AD_SLOW        192                  // 0.75 px a frame: the soft landing
+// ---- the tuning, NORMAL (owner 2026-10-15: "a bit too hard": too many rocks, rocks from nowhere at the edge, too little grace at the
+// dock; today's first values are HARD and are noted here). A difficulty table later supplies them per level. ----
+#define AD_GOLD          8                  // NORMAL medals by deliveries (HARD: 7 / 5 / 3): scripted pilots, DESIGN.md
+#define AD_SILVER        6
+#define AD_BRONZE        4
+#define AD_SLOW        320                  // NORMAL (HARD 192 = 0.75 px a frame): the touch speed that still delivers; 320 is the cap,
+                                            // so any touch of the ledge delivers and there is no WHOA
+#define AD_ZONE_HALF    12                  // NORMAL (HARD 8): half the width of the hand zone on the lit porthole = the whole ledge
+                                            // under the alien (the porthole is 24 px wide); the beaker's body touching it anywhere delivers
+#define AD_STEP1         4                  // NORMAL (HARD 3): deliveries before the rocks go x1.25 (HARD x1.5)
+#define AD_STEP2         8                  // NORMAL (HARD 6): ... and x1.5 (HARD x2)
+#define AD_WARN         40                  // NORMAL: frames before a rock comes in that its edge arrow blinks (HARD: none)
 #define AD_LOOP     (176u << 8)             // the rocks' loop: 160 px of screen + a rock each side
 #define AD_TUMBLE       30
 #define AD_SPILL_WAIT   60                  // frames from a hit to the new beaker
@@ -90,7 +102,8 @@ typedef char ad_fits[(AD_BG + AD_BG_TILES <= 256 && AD_OBJ_A + AD_OBJ_A_TILES <=
 #define OAM_ARROW        5
 #define OAM_SPIG         6
 #define OAM_ROCK         8
-#define OAM_N           28
+#define OAM_WARN        28                  // 5 entries, one a lane: the edge arrows
+#define OAM_N           33
 // palettes
 #define PAL_SKY          2
 #define PAL_COUNTER      3
@@ -104,12 +117,15 @@ enum { AS_FLY, AS_TUMBLE, AS_GAP, AS_OUT };
 
 static const uint8_t porthole_col[3] = { 1, 8, 15 };
 static const uint8_t porthole_cx[3]  = { 20, 76, 132 };      // the docks' centres (x)
-// rock speeds, 8.8 px a frame: lane 0..4 at x1, x1.5, x2
+// rock speeds, 8.8 px a frame: lane 0..4 at x1, then NORMAL x1.25, x1.5 (HARD: x1.5 = { 96, 144, 192, 144, 96 }, x2 = { 128, 192, 256, 192, 128 })
 static const uint16_t lane_speed[3][5] = {
     {  64,  96, 128,  96,  64 },
+    {  80, 120, 160, 120,  80 },
     {  96, 144, 192, 144,  96 },
-    { 128, 192, 256, 192, 128 },
 };
+// rocks in a lane, NORMAL (HARD: 2 in every lane, 10): the second rock of a lane with 1 is not drawn and never hits
+static const uint8_t lane_rocks[5] = { 1, 2, 1, 2, 1 };
+static uint8_t rock_on(uint8_t k) { return (k & 1) < lane_rocks[k >> 1]; }
 
 static void ad_put(uint8_t bank, uint8_t *t, uint8_t col, uint8_t row, uint8_t n) {
     if (LCDC_REG & LCDCF_ON) { vq_add(bank, t, col, row, n); return; }
@@ -238,6 +254,24 @@ static void obj(uint8_t i, int16_t x, int16_t y, uint8_t tile, uint8_t prop) {  
     o->y = (uint8_t)(y + 16); o->x = (uint8_t)(x + 8); o->tile = tile; o->prop = prop;
 }
 
+// The edge warning: a lane's arrow blinks at the edge a rock is about to come in from, from AD_WARN frames before it enters. The rocks
+// run round a 176 px ring and are off screen (core x < 0 or >= 160) only for u in [174, 2) (4 px), so a rock "comes in" at the far
+// edge the moment it goes out at the near one: the time left is the distance to the near edge. Right-moving lanes (0, 2, 4) come in
+// at the left edge (u = 2), left-moving ones at the right edge (u = 174).
+static uint8_t warn_lane(uint8_t lane) {
+    uint8_t j, k;
+    uint16_t u, dist;
+    for (j = 0; j < 2; j++) {
+        k = 2 * lane + j;
+        if (!rock_on(k)) continue;
+        u = S.rx[k];
+        if (!(lane & 1)) dist = u < (2u << 8) ? (2u << 8) - u : (178u << 8) - u;
+        else dist = u > (174u << 8) ? u - (174u << 8) : u + (2u << 8);
+        if (dist <= (uint16_t)AD_WARN * lane_speed[S.spd][lane]) return 1;
+    }
+    return 0;
+}
+
 static void draw(void) {
     uint8_t k, f, lane, prop;
     int16_t bx = S.x >> 8, by = S.y >> 8, x;
@@ -258,6 +292,12 @@ static void draw(void) {
         obj(OAM_BEAKER, bx - 8, by + ((S.t * 5) >> 3), ad_tumble[2 * f], OPAL_BEAKER | S_PALETTE);
         obj(OAM_BEAKER + 1, bx, by + ((S.t * 5) >> 3), ad_tumble[2 * f + 1], OPAL_BEAKER | S_PALETTE);
     }
+    for (lane = 0; lane < 5; lane++) {           // the edge arrows (blinking 4 frames on, 4 off)
+        k = OAM_WARN + lane;
+        if (S.st != AS_OUT && ((S.anim >> 2) & 1) && warn_lane(lane))
+            obj(k, (lane & 1) ? 152 : 0, AD_LANE_TOP0 + 16 * lane, ad_edge[0], OPAL_ARROW | S_PALETTE | ((lane & 1) ? 0x20 : 0));
+        else shadow_OAM[k].y = 0;
+    }
     f = (S.anim / 10) & 1;                       // the arrow under the lit dock, bobbing 2 px
     obj(OAM_ARROW, porthole_cx[S.lit] - 4, AD_LANE_TOP0 + (f ? 2 : 0), ad_arrow[f], OPAL_ARROW | S_PALETTE);
     o = shadow_OAM + OAM_SPIG;                   // the Spigoteer's bust: his idle frame's top two entries
@@ -265,6 +305,7 @@ static void draw(void) {
     o->y = SPIG_Y + 16; o->x = SPIG_X + 16; o->tile = SPIG_FRAME_IDLE * BARTENDER_TILES_PER_FRAME + 2; o->prop = 0;
     for (k = 0; k < AD_ROCKS; k++) {             // a rock's two halves
         lane = k >> 1;
+        if (!rock_on(k)) { shadow_OAM[OAM_ROCK + 2 * k].y = shadow_OAM[OAM_ROCK + 2 * k + 1].y = 0; continue; }
         f = (lane + k) & 1;                      // the two shapes alternate along a lane and across lanes
         x = (int16_t)(S.rx[k] >> 8) - 16;
         prop = OPAL_ROCK | S_PALETTE;
@@ -310,6 +351,7 @@ static void hit_test(void) {                     // the beaker's body against th
     uint8_t k;
     int16_t bx = S.x >> 8, by = S.y >> 8, rx, ry;
     for (k = 0; k < AD_ROCKS; k++) {
+        if (!rock_on(k)) continue;
         ry = AD_LANE_TOP0 + 16 * (k >> 1);
         if (by + 3 >= ry + 14 || by + 15 <= ry + 2) continue;
         rx = (int16_t)(S.rx[k] >> 8) - 16;
@@ -328,7 +370,7 @@ static void deliver(void) {
     if (S.clk < AD_PAR) pts += (AD_PAR - S.clk) / 10;
     mg_points(pts);
     S.delivered++;
-    if (S.delivered == 3) S.spd = 1; else if (S.delivered == 6) S.spd = 2;
+    if (S.delivered == AD_STEP1) S.spd = 1; else if (S.delivered == AD_STEP2) S.spd = 2;
     hud_deliveries();
     vq_add(0, S.dbuf, 10, HUD_ROW, 4);
     put_porthole(S.lit, 0, 0);                   // this one goes dark, another lights (never the same twice)
@@ -352,7 +394,7 @@ static void whoa(void) {                         // too fast at the hand zone: i
 }
 
 static void beaker(void) {                       // the thrust, the walls, the dock, the rocks
-    uint16_t zx = (uint16_t)porthole_cx[S.lit] - 8, ymin;
+    uint16_t zx = (uint16_t)porthole_cx[S.lit] - AD_ZONE_HALF, ymin;
     uint8_t bx;
     if (S.st == AS_OUT) S.tx = S.ty = 0;         // (the outro: the beaker drifts to a stop)
     else {
@@ -365,7 +407,7 @@ static void beaker(void) {                       // the thrust, the walls, the d
     if (S.x < ((uint16_t)AD_X_MIN << 8)) { S.x = (uint16_t)AD_X_MIN << 8; S.vx = 0; }
     else if (S.x > ((uint16_t)AD_X_MAX << 8)) { S.x = (uint16_t)AD_X_MAX << 8; S.vx = 0; }
     bx = S.x >> 8;
-    ymin = (bx + 3 > zx && bx < zx + 16 + 3) ? AD_Y_MIN_DOCK : AD_Y_MIN;      // over the lit dock the way is open
+    ymin = (bx + 3 > zx && bx < zx + 2 * AD_ZONE_HALF + 3) ? AD_Y_MIN_DOCK : AD_Y_MIN;      // over the lit dock the way is open
     if (S.y > ((uint16_t)AD_Y_MAX << 8)) { S.y = (uint16_t)AD_Y_MAX << 8; S.vy = 0; }
     else if (S.y < (ymin << 8)) { S.y = ymin << 8; S.vy = 0; }
     if (S.st != AS_FLY) return;

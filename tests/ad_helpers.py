@@ -79,9 +79,13 @@ def poke(gb, **kw):
 # ---- the model --------------------------------------------------------------------------------------------------------------
 AS_FLY, AS_TUMBLE, AS_GAP, AS_OUT = range(4)
 LOOP = 176 << 8
-LANE_SPEED = [[64, 96, 128, 96, 64], [96, 144, 192, 144, 96], [128, 192, 256, 192, 128]]
+LANE_SPEED = [[64, 96, 128, 96, 64], [80, 120, 160, 120, 80], [96, 144, 192, 144, 96]]      # NORMAL (HARD: x1.5, x2 steps)
+LANE_ROCKS = [1, 2, 1, 2, 1]                  # NORMAL: rocks a lane (HARD: 2 each)
+ACTIVE = [(k & 1) < LANE_ROCKS[k >> 1] for k in range(10)]
 PORTHOLE_CX = [20, 76, 132]
-THRUST, CAP, SLOW = 8, 320, 192
+THRUST, CAP = 8, 320
+SLOW = ad_define("AD_SLOW")                   # NORMAL 320 (no WHOA: HARD 192)
+ZONE_HALF = ad_define("AD_ZONE_HALF")         # NORMAL 12: the lit porthole's whole ledge (HARD 8)
 X_MIN, X_MAX, Y_MAX, Y_MIN, Y_MIN_DOCK = 4, 156, 120, 28, 24
 LANE_TOP0 = 32
 
@@ -119,6 +123,8 @@ def hit(x, y, rx, m=0):
     """The beaker's body (x +- 3, y + 3 .. y + 15) against a rock's core (rx + 2 .. + 14 on the screen, lane top + 2 .. + 14)."""
     bx, by = x >> 8, y >> 8
     for k, r in enumerate(rx):
+        if not ACTIVE[k]:
+            continue
         ry = LANE_TOP0 + 16 * (k >> 1)
         if by + 3 - m >= ry + 14 or by + 15 + m <= ry + 2:
             continue
@@ -139,8 +145,8 @@ def beaker_step(x, y, vx, vy, tx, ty, lit):
     elif x > X_MAX << 8:
         x, vx = X_MAX << 8, 0
     bx = x >> 8
-    zx = PORTHOLE_CX[lit] - 8
-    ymin = Y_MIN_DOCK if (bx + 3 > zx and bx < zx + 19) else Y_MIN
+    zx = PORTHOLE_CX[lit] - ZONE_HALF
+    ymin = Y_MIN_DOCK if (bx + 3 > zx and bx < zx + 2 * ZONE_HALF + 3) else Y_MIN
     if y > Y_MAX << 8:
         y, vy = Y_MAX << 8, 0
     elif y < ymin << 8:
