@@ -46,7 +46,7 @@ static const card_t cards[MG_GAMES] = {
     /* G_QD   */ { "QUICK DRAW", { "WAIT FOR THE SIGN", "A OR B: THE BADGE", "WIN 3 FOR GOLD", "" } },
     /* G_BS   */ { "BATTERY SORT", { "LEFT: FULL CELL", "RIGHT: DEAD CELL", "DOWN: BROKEN CELL", "3 STRIKES END IT" } },
     /* G_OU   */ { "ORDER UP!", { "WATCH THE ORDER", "D-PAD: REPEAT IT", "SERVE 7 FOR GOLD", "" } },
-    /* G_MR   */ { "MILK RUN", { "UP DOWN LANE A TOSS", "", "", "" } },                    // PENDING
+    /* G_MR   */ { "MILK RUN", { "UP DOWN: LANE", "RIGHT: GO FASTER", "LEFT: SLOW DOWN", "DODGE THE BUMPS" } },
     /* G_LR   */ { "LOG ROLL", { "LEFT RIGHT: LEAN", "AGAINST THE ROLL", "A OR B: HOP", "OVER THE FISH" } },
     /* G_AD   */ { "ASTEROID DELIVERY", { "D-PAD: FLY, DODGE", "SOFT LAND AT LIGHT", "DELIVER 7 FOR GOLD", "" } },
     /* G_TK   */ { "TAIKO POUR", { "A: TOP LANE", "B: BOTTOM LANE", "STAY ON THE BEAT", "" } },
@@ -59,11 +59,13 @@ static const card_t cards[MG_GAMES] = {
     /* G_B2   */ { "TIP SHOWER", { "LEFT RIGHT: WALK", "TRAY CATCHES COINS", "AVOID THE TOMATOES", "100 POINTS A COIN" } },
 };
 
-// the further pages, in page order (a game's entries together). The debug stub, the shake-up, Marshmallow Drop, T-Shirt Cannon and Log Roll have a second page.
+// the further pages, in page order (a game's entries together). The debug stub, the shake-up, Marshmallow Drop, T-Shirt Cannon and Log Roll have a second page; Milk Run has three.
 static const more_t more[] = {
     { G_STUB, { "EARLY IS A MISS", "SLOW IS A MISS", "KEEP YOUR EYES UP", "" } },
     { G_MM,   { "MUGS LOOP ROUND", "19 MALLOWS ONLY", "MISS ONE AT MOST", "FOR GOLD" } },
     { G_LR,   { "WATCH THE RIPPLES", "A FISH LEAPS SOON", "HIT: YOU WOBBLE", "STAY UP 40 SECONDS" } },
+    { G_MR,   { "A: TOSS TO TOP", "B: TOSS TO BOTTOM", "LAND IT ON A BOX", "CENTER IS PERFECT" } },
+    { G_MR,   { "GRAB MILK BOTTLES", "FOR 3 MORE CRATES", "BUMPS DROP 2 OR 3", "FAST FINISH: BONUS" } },
     { G_B0,   { "3 LEVELS, EACH", "FASTER THAN LAST", "MISS: RUN ENDS", "" } },
     { G_TS,   { "FANS RAISE HANDS", "CATCH: 300 POINTS", "ANY OTHER FAN: 30", "9 CATCHES: GOLD" } },
 };

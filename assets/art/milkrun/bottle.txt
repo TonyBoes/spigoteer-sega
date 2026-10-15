@@ -1,0 +1,19 @@
+; Art: new for the D4 rework (2026-10-15)
+; Milk Run: the milk-bottle pickup standing in the road, 8x16, 1 frame (src/mr.c bobs it 2 px every 8 frames). One OAM entry.
+; CGB OBJ palette 1: '-' white, '+' red, '#' dark. DMG OBP1 0xE0.
+........
+..####..
+..#++#..
+..####..
+..#--#..
+..#--#..
+.##--##.
+#------#
+#------#
+#-++++-#
+#-++++-#
+#-++++-#
+#------#
+#------#
+.######.
+........

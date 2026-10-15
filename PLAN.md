@@ -3196,6 +3196,42 @@ The two new FINALE_A pages and the first FINALE_B page are **proposed dialogue, 
   lines; the stage comes back a row a frame (the VBlank copy stays <= 14 ticks). tests/test_mg.py mg_enter waits 60 frames, not 20, for
   the Pour-Off's longer enter. New goldens regenerated (all six po_*): the taps and the banner changed them.
 
+## Milk Run rework as built (Batch D4, 2026-10-15)
+
+The owner's playtest: "give the player more control: speed up and down with forward and back; A tosses one direction, B the other; a milk bottle in the
+road to pick up for ammunition, only a couple; a bump drops more than one bottle and slows you down; clearer instructions". Design note:
+scratchpad/batchD/d4_milkrun/DESIGN.md. The sections above ("Milk Run as built") describe the first build; where they differ, this one wins.
+- **Controls**: UP / DOWN lane (unchanged: 8 frames, one press queued); RIGHT held +1/16 px a frame every 2nd frame up to 2.5 px (40), LEFT held down to
+  1.0 px (16), no key keeps the speed (mr.c MR_SPD_*; `S.spd`, was `steps`, same offset); **A tosses to the top kerb, B to the bottom kerb, from any lane**
+  (A and B together: A). Two crates in the air at most, 16 frames, none in a wobble, as before. The old shrug in lane 2 is gone.
+- **Speed trade-off**: the course is the 12 boxes (as before); it ends ("ROUTE DONE") when the 12th is made and no unfilled box is within reach of a crate
+  (centre + 16 < the bike's landing spot at the slowest lead) and nothing is in the air; each whole second left is +MR_PTS_SEC (20); at MR_TIME_S (70) the
+  clock ends it (TIME UP, no bonus). Scripted runs (6 seeds, the bot with a speed target): perfect play at 2.5 px finishes with 35-40 s left (score 7100-7200),
+  at 2.0 px 26-33 s (6920-7060), at 1.5 px 12-20 s (6640-6800); at 1.0 px the clock runs out at box 9-11. A faster toss has a longer lead (speed x 16 frames: 16
+  px at 1.0, 40 px at 2.5), the gates come faster, and a bump costs more (below).
+- **Ammunition**: MR_CRATES 10 (was 12) for 12 boxes; two milk-bottle pickups (MR_PICK1 column 140, MR_PICK2 column 380; lane from the seed, `pk_lane`, no
+  mg_rand call: the street of a seed is unchanged), each +MR_PICK_CRATES (3): 16 in all; without them 12 boxes cannot be served. A pickup is an OBJ (one OAM entry
+  13, 8x16, bobbing 2 px every 8 frames), taken when the bike's hit box touches it (COIN). gen_gate removes the pickup's lane from any gate from MR_PICK_BEFORE
+  (16) columns before to MR_PICK_AFTER (7) after it (the box rule's twin), so a route exists (generator test over seeds 1-199; the bot takes both bottles at 6 seeds
+  and 2 speeds). A bottle shows 160 px ahead: 64 frames at 2.5 px, a lane change is 8.
+- **Bumps**: MR_DROP 2 crates, MR_DROP_FAST 3 at speed >= 2.0 px (MR_SPD_FAST) and always in HARD; the speed goes to the floor (1.0, HARD 1.75) and the throttle is
+  dead during the 30-frame wobble; the spilled crates tumble out one after another (MR_LOST_GAP 6 frames), each its own arc, and lie on the street (OAM 8-10,
+  `lost_n`, `lost_t`). With fewer crates than the bump spills it spills what is left.
+- **HARD** (Practice): starts at 2.0 px (MR_HARD_SPD_START), floor 1.75 (MR_HARD_SPD_MIN), bumps spill 3. Medals saved apart as before.
+- **Medals** (mr_medal, by mg_score): BRONZE 3000, SILVER 4500, GOLD 6000. From scripted runs: doing nothing but driving tops out at 2400 (10 crates left x 100 + 37 s x
+  20 + a chance bottle), so BRONZE needs about 5 boxes served; every one of the 12 served but none PERFECT scores 4240-4800 (SILVER from 2.0 px up, BRONZE at 1.5 px); GOLD
+  needs about 7-9 of the 12 PERFECT with the seconds in hand (perfect at 1.5 px 6640-6800, one bump at speed 6260-6880, two bumps 5700 = SILVER); mashing A and B
+  scores 240-880.
+- **HUD**: the crates count starts at 10; a two-cell speed gauge (new BG tiles hud_gauge.txt, 5 levels) at columns 14-15; the timer from 70.
+- **Card**: three pages (driving; tossing; bottles, bumps, bonus), no line over 18 letters; the banner line is "A TOSSES UP B DOWN".
+- **OAM**: 0-2 bike, 3 rider, 4-5 stars, 6-7 crates in the air, 8-10 spilled crates, 11-12 pop, 13 pickup; worst line 10 (bike 4 + stars 2 + three spilled 3 + the pickup 1;
+  the air crates have landed before the third spills). Tiles: OBJ 56-91 (36; the budget below OBJ_COIN is full: a second bottle frame did not fit, so the bob is code), BG 125-174 (3 new: the gauge).
+- **Numbers**: ROM0 free 513 B before and after (the handler and column writer are untouched); WRAM_LO 3936 / WRAM_HI_0 3457 unchanged (struct mr_state grows 190 -> 198 B
+  inside the mg union). mr.c and the art re-packed by autobank (bank free before/after in the commit message).
+- **Tests**: tests/test_mg_milkrun.py rewritten around the new rules (throttle, A / B tosses, pickups, bumps, the course end and the time bonus, medals by score, HARD,
+  sprites per line incl. the worst scene, the bot with the planner in tests/mr_helpers.py), tests/test_mg_card.py (Milk Run's three pages). Goldens replaced on
+  purpose (the picture changed: crates 10, the gauge, the timer 70): mr_riding, mr_toss, mr_perfect, mr_crash, mr_result (dmg and cgb); new: mr_pickup, mr_bump.
+
 ## Practice HARD toggle (owner Q7), as built
 - **BONUS > MINI GAMES** (src/mg_list.c): SELECT (or LEFT / RIGHT) flips NORMAL / HARD. The header's right side (row 0, column
   13) shows the mode in force for the selected game; the list's medal column and the "BEST" line show that mode's best; A / START
@@ -3203,7 +3239,7 @@ The two new FINALE_A pages and the first FINALE_B page are **proposed dialogue, 
   survives a game and a return to the list. The layout is as before (ten games, a blank row, the separator); the header is a
   buffer after the info lines (row buffer ML_N + ML_INFO_LINES, same dirty-bit queue).
 - **Which games read MG_HARD** (checked by grep over src/, and each game's "as built" section): **Milk Run** (`mr.c`: starts at
-  2.0 px, a crash never slows below it) and the debug **GREEN LIGHT stub** (`mg_stub.c`). Every other game reads none: Quick
+  2.0 px, the throttle never goes below 1.75 and a bump always spills 3; D4 rework) and the debug **GREEN LIGHT stub** (`mg_stub.c`). Every other game reads none: Quick
   Draw, Order Up, Battery Sort, Log Roll, Asteroids, Taiko Pour, Marshmallows, Monkey Business, Shirt Cannon. On those the toggle
   is inert (SELECT does nothing, the header says NORMAL), the last info line says "NORMAL ONLY  B BACK", and the game starts with
   MG_PRACTICE alone. `hard_game()` in mg_list.c is the list; add a game there when it grows a HARD. (The Pour-Off is not a list
@@ -3285,8 +3321,9 @@ in a debug-select run (the full card comes every time there). Cards show in STOR
 keep their old banners (no card there).
 - Real cards: Quick Draw, Order Up!, Taiko Pour, Monkey Business, Asteroid Delivery, the shake-up, Perfect Pour, Tip Shower, and (not asked for,
   its controls are settled) the Pour-Off and the stub.
-- Marked in the plan as **card text pending the Batch D rework**: Milk Run has a placeholder card (Marshmallow Drop has its real card since D2, T-Shirt Cannon since D1, Log Roll since D3, Battery Sort since D5a), today's
-  banner line as its only line (mg_card.c, entries marked PENDING). Rewrite them when their rework settles the controls and the goal.
+- No card text is pending any more: the Batch D reworks gave Marshmallow Drop (D2), T-Shirt Cannon (D1), Log Roll (D3), Battery Sort (D5a)
+  and Milk Run (D4) their real cards. The PENDING mechanism stays for a later rework (mg_card.c: an entry marked PENDING has today's banner line
+  as its only line).
 - Tests: tests/test_mg_card.py (every game has a card; the full card first and it waits; A, then the short card, A skips it; the save; STORY);
   tests/test_mg_bonus.py (list entries, unlocks, medals, the block); tests/test_mg_list.py (scrolling, no row on the separator). The test
   cartridges start with every card seen (tests/conftest.py `with_cards`; `booted(model, cards=False)` for a fresh one).

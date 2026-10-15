@@ -72,7 +72,7 @@ stays separate because it must survive a life lost.
 | 4 | Bistro | Order Up! | memory | D-pad, one direction per dish | ~45 s | dishes sit at their D-pad direction on screen; a strike replays the same order |
 | 5 | Igloo | Marshmallow Drop | timing, leading a moving target | A | 45 s | the claw moves at constant speed on a rail (not a pendulum); marshmallows fall straight down; 4th marshmallow overflows |
 | 6 | Robot | Battery Sort | categorise under pressure | Left / Right (Down from item 16) | 45 s | the front battery waits on a diverter for a shrinking window; a 3rd bin (scrap) arrives mid-game |
-| 7 | Chrome Cow (PROPOSAL) | Milk Run (4.10) | lane dodging + delivery timing | Up/Down lane, A toss | 45 s | mostly BG: the street scrolls (SCX), obstacles and milk boxes are BG tiles; every gate leaves a lane free |
+| 7 | Chrome Cow (PROPOSAL) | Milk Run (4.10) | lane dodging + delivery timing | Up/Down lane, Right/Left speed, A top toss, B bottom toss | 70 s (D4 rework) | mostly BG: the street scrolls (SCX), obstacles and milk boxes are BG tiles; every gate leaves a lane free |
 | 8 | Teahouse | Taiko Pour | rhythm | A (top lane), B (bottom lane) | ~45 s | two lanes instead of one (readable on DMG, fits 10 per line) |
 | 9 | Zoo | Monkey Business | reaction + positioning | Left/Right, A | 45 s | one row of 5 crates, the Spigoteer hops between them; lids rattle before a pop; a parrot decoy from 15 s |
 | 10 | Space | Asteroid Delivery | inertia steering, route reading | D-pad thrust | 45 s | asteroids drift in horizontal lanes (Frogger-like); soft-delivery speed limit; no gravity, just drift |
@@ -1429,6 +1429,17 @@ Story fit: PRE_ZOO already says WATCH THE MONKEYS. THEY LOVE TO STEAL A COCONUT;
 
 Approved by the owner and built (2026-10-12; PLAN.md "Milk Run as built": the HUD stays on row 0 with a raster split instead of a bottom window). Numbered last so the references to 4.1-4.9 stay; in chapter order it
 is the seventh mini-game.
+
+**Reworked 2026-10-15 (batch D4, after the owner's playtest: "let's give the player more control"; PLAN.md "Milk Run rework as built" has the numbers).**
+Controls now: UP / DOWN change lane, RIGHT held speeds the street up and LEFT held slows it (1.0 .. 2.5 px a frame, start 1.5; let go and the speed
+stays), **A tosses a crate to the top kerb and B to the bottom kerb from any lane** (the old "toss from the top / bottom lane only" rule is gone).
+The bike starts with 10 crates; **two milk-bottle pickups** stand in the road (each +3 crates, a bob and a lane of its own; a gate near one never
+blocks its lane); **a bump spills 2 crates (3 at 2.0 px a frame or faster) and takes the speed away** (back to 1.0 and no throttle while the bike
+wobbles). The speed is a trade-off: the course is the 12 boxes and ends when the last is out of reach (ROUTE DONE, +20 points for each whole second
+left; the clock is 70 s), so a fast run pays more, but gates arrive faster, the lead of a toss is longer (speed x 16 frames) and a bump costs more.
+Medals are by the score now: BRONZE 3000, SILVER 4500, GOLD 6000 (scripted runs in the PLAN section). The HOW TO PLAY card is three pages (driving, tossing,
+bottles / bumps / bonus). A two-cell speed gauge sits in the HUD (columns 14-15). The text below is the original design; its "Rules and numbers" are
+replaced by the paragraph above where they differ (speed ramp, toss lanes, 12 crates, 45 s, medals by deliveries).
 
 Play: Granny lends the Spigoteer her motorcycle, its sidecar stacked with milk crates. Seen from above, he rides along
 a three-lane street that scrolls past, dodging potholes and traffic cones, and tosses a crate onto each milk box on

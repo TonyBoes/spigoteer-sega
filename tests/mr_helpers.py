@@ -110,6 +110,14 @@ class Rng:
 
 GATE_BEFORE, GATE_AFTER = mr_define("GATE_BEFORE"), mr_define("GATE_AFTER")
 MR_BOXES = mr_define("MR_BOXES")
+PICK_COLS = (mr_define("MR_PICK1"), mr_define("MR_PICK2"))
+PICK_BEFORE, PICK_AFTER = mr_define("MR_PICK_BEFORE"), mr_define("MR_PICK_AFTER")
+
+
+def pick_lanes(seed):
+    """The pickups' lanes mr_enter takes from the seed (no mg_rand)."""
+    a = ((seed >> 8) ^ seed) & 0xFF
+    return a % 3, (a % 3 + 1 + ((seed >> 4) & 1)) % 3
 
 
 def crossing(prev, mask):
@@ -133,6 +141,7 @@ class Street:
 
     def __init__(self, seed):
         self.r = Rng(seed)
+        self.pk_lane = pick_lanes(seed)
         self.feats = []                          # (column, kind) in the order they went live
         self.made = 0
         self.bcol, self.bside = NO_BOX, 0
@@ -147,6 +156,9 @@ class Street:
         col = (prev + ((20 * l + 87) >> 3) + (self.r() & 15)) & 0xFFFF
         if self.bcol != NO_BOX and near(col, self.bcol):
             mask &= ~(4 if self.bside else 1)
+        for p in range(2):
+            if col + PICK_BEFORE >= PICK_COLS[p] and col <= PICK_COLS[p] + PICK_AFTER:
+                mask &= ~(1 << self.pk_lane[p])
         self.gcol = col
         self.gkind = (GATE | (pot << 3) | mask) if mask else 0
 
@@ -239,7 +251,7 @@ def free_lanes(kind):
 
 
 def speed16(s):
-    return 24 + 4 * s["steps"]
+    return s["spd"]
 
 
 def px_after(s, n):
@@ -262,8 +274,55 @@ def next_box(s):
     return best
 
 
-def bot(s, deliver=True):
-    """What the bot does this frame: (the lane it wants or None to hold, whether to toss now)."""
+def next_pickup(s):
+    """The nearest pickup not taken and not past the bike: (column, lane) or None."""
+    for k in range(2):
+        if not (s["pk_got"] >> k) & 1 and PICK_COLS[k] * 8 + 8 > s["px"] + HX0:
+            return PICK_COLS[k], s["pk_lane"][k]
+    return None
+
+
+AIM_TOL = 5                                    # how close (px) the bot waits for the aim to be
+AIM_OFF = 0                                    # px right of a box's centre the bot aims at (a sloppy player's error; 0 is PERFECT)
+
+
+def plan(s, with_pick):
+    """The lane to be in now: a path of lanes over the events ahead (the live gates, and the next bottle when with_pick), each lane
+    free for the whole stretch the bike's hit box overlaps the event, the changes (8 frames a lane) fitting in the gaps between
+    them. Returns (lane to go to, ok)."""
+    px, v = s["px"], speed16(s)
+    ev = []                                        # (px where it starts, px where it ends, the lanes allowed)
+    for c, k in zip(s["fcol"], s["fkind"]):
+        if k & GATE and c * 8 + 16 > px + HX0:
+            ev.append((c * 8 - HX1, c * 8 + 16 - HX0, set(free_lanes(k))))
+    pick = next_pickup(s) if with_pick else None
+    if pick and pick[0] * 8 - px < 220:
+        ev.append((pick[0] * 8 - HX1 + 1, pick[0] * 8 - HX1 + 5, {pick[1]}))      # (it is taken the moment the hit box touches it)
+    ev.sort(key=lambda e: (e[0], e[1]))
+    lane0 = s["lane"]
+    cur_end, state = px, {lane0: None}             # lane after the events so far -> the first event's lane on that path
+    for st, en, allowed in ev:
+        nxt = {}
+        for lane, first in state.items():
+            for l in allowed:
+                gap = max(0.0, st - max(cur_end, px)) * 16 / v           # frames between the last event's end and this one's start
+                need = 8 * abs(l - lane) + (2 if l != lane else 0)
+                ok = (l == lane) if st <= px else gap >= need           # (active now: no change)
+                if ok:
+                    nf = l if first is None else first
+                    if l not in nxt or abs(nf - lane0) < abs(nxt[l] - lane0):
+                        nxt[l] = nf
+        if not nxt:
+            return None, False
+        state, cur_end = nxt, en
+    firsts = [f for f in state.values() if f is not None]
+    if not firsts:
+        return lane0, True
+    return min(firsts, key=lambda l: (abs(l - lane0), l)), True
+
+
+def bot(s, deliver=True, collect=True):
+    """What the bot does this frame: (the lane it wants or None to hold, the toss now: None, "a" (top kerb) or "b" (bottom))."""
     px = s["px"]
     gates = sorted((c, k) for c, k in zip(s["fcol"], s["fkind"]) if k & GATE)
     if any(c * 8 < px + HX1 and c * 8 + 16 > px + HX0 for c, k in gates):
@@ -271,17 +330,15 @@ def bot(s, deliver=True):
     else:
         ahead = [(c, k) for c, k in gates if c * 8 + 16 > px + HX0]
         free = free_lanes(ahead[0][1]) if ahead else [0, 1, 2]
-        want = min(free, key=lambda l: (abs(l - s["lane"]), l))
-        box = next_box(s) if deliver else None
-        if box and box[1] in free and box[2] - (px + 34) < 140:
-            frames_left = 99 if not ahead else (ahead[0][0] * 8 - (px + HX1)) * 16 / speed16(s)
-            if frames_left >= 8 * abs(box[1] - s["lane"]) + 3:
-                want = box[1]                      # a box is coming: its kerb lane, when it fits before the next gate
-    toss = False
-    side = 1 if s["lane"] == 2 else 0
-    if (deliver and s["crates"] and s["lane"] in (0, 2) and s["inv"] <= 60
-            and not any(t["t"] and t["side"] == side for t in s["toss"])):         # (one crate in the air a box)
+        want, ok = plan(s, collect)
+        if not ok:
+            want, ok = plan(s, False)
+        if not ok:
+            want = min(free, key=lambda l: (abs(l - s["lane"]), l))
+    toss = None
+    if deliver and s["crates"] and s["inv"] <= 60:
         box = next_box(s)
-        if box and box[1] == s["lane"] and abs(box[2] - (px_after(s, 17) + 34)) <= 5:
-            toss = True
+        side = 1 if box and box[1] == 2 else 0
+        if box and not any(t["t"] and t["side"] == side for t in s["toss"]) and abs(box[2] + AIM_OFF - (px_after(s, 17) + 34)) <= AIM_TOL:
+            toss = "b" if side else "a"            # (one crate in the air a box; A the top kerb, B the bottom)
     return want, toss

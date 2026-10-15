@@ -1,13 +1,16 @@
 # docs/minigames_bosses.md 4.10: MILK RUN (src/mr.c), The Chrome Cow's mini-game, on the framework (src/mg.c): the screen
 # (the approved art, its palettes, the DMG look V1: the rider on OBP0 = 0xC0, the rest on OBP1 = 0xE0), the street that
 # scrolls under the HUD (lcd_isr's raster split, mr_vbl's column writer) and follows its seed (a Python model of the
-# generator), lane changes, tosses and their landing (PERFECT 500, delivered 300, lost), crashes (wobble, a crate lost,
-# blinking), time up, medals, Practice's HARD, a bot that rides every seed without a crash, the sprites per line on
-# every frame, OBP0 put back when the game is left, STORY / ARCADE reaching it in chapter 7, BONUS > MINI GAMES.
+# generator), the throttle (RIGHT / LEFT held), lane changes, A / B tosses from any lane and their landing (PERFECT 500,
+# delivered 300, lost), the milk-bottle pickups, bumps (wobble, 2-3 crates spilled, the speed gone, blinking), the course's
+# end and the time bonus, medals by score, Practice's HARD, a bot that rides every seed without a crash and takes both
+# bottles, the sprites per line on every frame, OBP0 put back when the game is left, STORY / ARCADE reaching it in
+# chapter 7, BONUS > MINI GAMES.
 import pytest
 from conftest import ROOT, check_golden, hold_stage_anim, logic_paused, title_level
-from mr_helpers import (ART, BIKER, BOTTOM, BOX, FULL, GATE, LAYOUT, MG_MILKRUN, MR_BG, MR_OBJ, STATE_SIZE, Street, art_define,
-                        bot, column_tiles, lane_top, mr, mr_define, next_box, poke, px_after, speed16)
+from mr_helpers import (ART, BIKER, BOTTOM, BOX, FULL, GATE, LAYOUT, MG_MILKRUN, MR_BG, MR_OBJ, NO_BOX, PICK_COLS, STATE_SIZE, Street,
+                        art_define, bot, column_tiles, lane_top, mr, mr_define, next_box, next_pickup, pick_lanes, poke, px_after,
+                        speed16)
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, run_until, state, tilemap_row
 from test_mg import (BLANK, GS_MGLIST, GS_MINI, MEDAL_PTS, MG_COUNT, MG_END, MG_HARD, MG_PLAY, MG_PRACTICE, MG_RESULT,
                      MG_STORY, RESULT_MIN, frames, hud_timer, lines, mg_enter, score, text, to_play, to_result, until)
@@ -17,17 +20,20 @@ pytestmark = pytest.mark.timeout(300)
 
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
 SFX_LAUNCH, SFX_SERVE, SFX_COIN, SFX_BREAK = 2, 5, 6, 4
-(TIME_S, CRATES, STEP_FRAMES, FLIGHT, PTS_DELIVERED, PTS_PERFECT, PTS_CRATE, WOBBLE, BLINK, GOLD, SILVER, BRONZE, POP_LEN,
- BANNER_OFF, HARD_STEPS) = (mr_define(n) for n in (
-    "MR_TIME_S", "MR_CRATES", "MR_STEP_FRAMES", "MR_FLIGHT", "MR_PTS_DELIVERED", "MR_PTS_PERFECT", "MR_PTS_CRATE",
-    "MR_WOBBLE", "MR_BLINK", "MR_GOLD", "MR_SILVER", "MR_BRONZE", "MR_POP_LEN", "MR_BANNER_OFF", "MR_HARD_STEPS"))
-OAM_BIKE, OAM_RIDER, OAM_STARS, OAM_CRATE, OAM_LOST, OAM_POP = (mr_define(n) for n in (
-    "OAM_BIKE", "OAM_RIDER", "OAM_STARS", "OAM_CRATE", "OAM_LOST", "OAM_POP"))
+(TIME_S, CRATES, FLIGHT, PTS_DELIVERED, PTS_PERFECT, PTS_CRATE, WOBBLE, BLINK, POP_LEN, BANNER_OFF, PICK_CRATES, SPD_MIN, SPD_START,
+ SPD_MAX, SPD_FAST, DROP, DROP_FAST, HARD_START, HARD_MIN, PTS_SEC, LOST_GAP, GOLD, SILVER, BRONZE) = (mr_define(n) for n in (
+    "MR_TIME_S", "MR_CRATES", "MR_FLIGHT", "MR_PTS_DELIVERED", "MR_PTS_PERFECT", "MR_PTS_CRATE", "MR_WOBBLE", "MR_BLINK",
+    "MR_POP_LEN", "MR_BANNER_OFF", "MR_PICK_CRATES", "MR_SPD_MIN", "MR_SPD_START", "MR_SPD_MAX", "MR_SPD_FAST", "MR_DROP",
+    "MR_DROP_FAST", "MR_HARD_SPD_START", "MR_HARD_SPD_MIN", "MR_PTS_SEC", "MR_LOST_GAP", "MR_MEDAL_GOLD", "MR_MEDAL_SILVER",
+    "MR_MEDAL_BRONZE"))
+OAM_BIKE, OAM_RIDER, OAM_STARS, OAM_CRATE, OAM_LOST, OAM_POP, OAM_PICK = (mr_define(n) for n in (
+    "OAM_BIKE", "OAM_RIDER", "OAM_STARS", "OAM_CRATE", "OAM_LOST", "OAM_POP", "OAM_PICK"))
+GAUGE_COL = mr_define("GAUGE_COL")
 SEED = 0x5A17
 S_PALETTE = 0x10
 OUT = ROOT / "out" / "mr"
 OBJ_ENTRY = {name: art_define(f"MRO_{name}") for name in ("RIDER_A", "RIDER_B", "RIDER_W", "CRATE_LO", "CRATE_HI",
-                                                           "STARS", "POP_L", "POP_R")}
+                                                           "STARS", "POP_L", "POP_R", "BOTTLE")}
 BIKE_T = ART["bike_t"]                           # ride A, ride B, wobble x 3 entries
 
 
@@ -72,18 +78,24 @@ def to_riding(gb, extra=2):
     frames(gb, extra)
 
 
-def ride(gb, stop, limit=3000, worst=None, deliver=True, hook=None):
-    """The bot rides (a lane change it needs, a toss when one is due) frame by frame until stop(state); returns the state."""
+def ride(gb, stop, limit=3000, worst=None, deliver=True, hook=None, target=None, collect=True):
+    """The bot rides (a lane change it needs, a toss when one is due, RIGHT / LEFT held toward the speed `target` if given)
+    frame by frame until stop(state); returns the state."""
     for _ in range(limit):
         s = snap(gb)
         if stop(s):
             return s
-        want, toss = bot(s, deliver)
+        want, toss = bot(s, deliver, collect)
         keys = []
         if want is not None and s["y"] == lane_top(s["lane"]) and want != s["lane"]:
             keys.append("up" if want < s["lane"] else "down")
         if toss:
-            keys.append("a")
+            keys.append(toss)
+        if target is not None and s["inv"] <= BLINK:
+            if s["spd"] < target:
+                keys.append("right")
+            elif s["spd"] > target:
+                keys.append("left")
         for k in keys:
             gb.hold(k)
         frames(gb, 2 if keys else 1, worst)
@@ -116,6 +128,13 @@ def clear_ring(gb):
         poke(gb, fkind=(slot, 0))
 
 
+def run_clear(gb, n):
+    """n frames with no gate or box on the street (a long stretch of the logic's tests: the bike is not to meet what streams in)."""
+    for _ in range(n):
+        clear_ring(gb)
+        frames(gb, 1)
+
+
 def put_bike(gb, lane):
     poke(gb, lane=lane, y=lane_top(lane))
 
@@ -128,11 +147,14 @@ def test_the_screen_and_its_art(model):
     with milk_run(model) as gb:
         assert gb.mem("mg_id") == MG_MILKRUN and gb.mem("mg_mode") == MG_PRACTICE and gb.mem("mg_phase") == 0
         frames(gb, 30)
-        assert text(gb, 2) == "MILK RUN" and text(gb, 3) == "UP DOWN LANE A TOSS"
-        assert hud_timer(gb) == "45" and score(gb) == 0 and gb.mem16("mg_timer") == 0
-        assert tilemap_row(gb, 0, 10, 4) == [BLANK, MR_BG + art_define("MRB_HUDC"), 36 + 1, 36 + 2]   # "12" (glyph 0 is 36)
+        assert text(gb, 2) == "MILK RUN" and text(gb, 3) == "A TOSSES UP B DOWN"
+        assert hud_timer(gb) == "70" and score(gb) == 0 and gb.mem16("mg_timer") == 0
+        assert tilemap_row(gb, 0, 10, 4) == [BLANK, MR_BG + art_define("MRB_HUDC"), 36 + 1, 36 + 0]   # "10" (glyph 0 is 36)
+        g0 = MR_BG + art_define("MRB_GAUGE")
+        assert tilemap_row(gb, 0, GAUGE_COL, 2) == [g0 + 2, g0 + 0], "the speed gauge at 1.5 px: one cell full, one empty"
         s = mr(gb)
-        assert (s["crates"], s["lane"], s["y"], s["px"], s["steps"], s["time"]) == (CRATES, 1, 64, 0, 0, TIME_S * 60)
+        assert (s["crates"], s["lane"], s["y"], s["px"], s["spd"], s["time"]) == (CRATES, 1, 64, 0, SPD_START, TIME_S * 60)
+        assert s["pk_lane"] == list(pick_lanes(SEED)) and s["pk_got"] == 0
         # the tiles of the art
         want = bytes(ART["bg"])
         got = b"".join(bytes(gb.read((0x9000 + t * 16) if t < 128 else (0x8000 + t * 16), 16))
@@ -225,36 +247,57 @@ def test_the_generator_keeps_its_rules():
                 if gc + mr_define("GATE_BEFORE") >= bc and gc <= bc + mr_define("GATE_AFTER"):
                     assert not (gk >> lane) & 1, (seed, bc, gc)
         assert boxes[0][0] >= 30 and gates[0][0] >= 34
+        for p, pc in enumerate(PICK_COLS):             # no gate near a bottle blocks its lane: a way to it always exists
+            for gc, gk in gates:
+                if gc + mr_define("MR_PICK_BEFORE") >= pc and gc <= pc + mr_define("MR_PICK_AFTER"):
+                    assert not (gk >> st.pk_lane[p]) & 1, (seed, p, gc)
+        assert st.pk_lane[0] != st.pk_lane[1]
 
 
 # ---- driving: the scroll, the lanes --------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_speed_steps_up_every_10_seconds_and_a_crash_drops_a_step(model):
-    """1.5 px a frame (90 px in 60 frames), +0.25 every 600 frames to 2.5 (150 px in 60); a crash drops one step, never
-    below 1.5."""
+def test_right_speeds_up_left_slows_down_and_letting_go_keeps_the_speed(model):
+    """The street's speed is the player's: RIGHT held +1/16 px every 2nd frame up to 2.5 px (40), LEFT held -1/16 down to 1.0 (16);
+    no key: it stays; the scroll is the speed (px_after), and the HUD gauge follows."""
     with milk_run(model) as gb:
         to_riding(gb)
         put_bike(gb, 1)
-        for steps, per60 in ((0, 90), (1, 105), (2, 120), (3, 135), (4, 150)):
-            clear_ring(gb)
-            poke(gb, steps=steps, clk=0)
-            s0 = settle(gb)
-            frames(gb, 60)
-            s1 = settle(gb)
-            assert s1["steps"] == steps
-            n = (s1["anim"] - s0["anim"]) & 255          # (game frames: PyBoy's frame can fall between two of the game's)
-            assert 58 <= n <= 62
-            assert s1["px"] == px_after(s0, n), steps
-            assert abs(s1["px"] - s0["px"] - per60 * n // 60) <= 2
-        poke(gb, steps=0, clk=STEP_FRAMES - 3)
-        until_steps = []
-        for _ in range(6):
-            frames(gb, 1)
-            until_steps.append(mr(gb)["steps"])
-        assert until_steps[-1] == 1 and until_steps[0] == 0, "one step at 600 frames"
-        poke(gb, steps=mr_define("MR_STEPS_MAX"), clk=STEP_FRAMES - 1)
-        frames(gb, 3)
-        assert mr(gb)["steps"] == mr_define("MR_STEPS_MAX"), "2.5 is the top"
+        clear_ring(gb)
+        s0 = settle(gb)
+        assert s0["spd"] == SPD_START == 24
+        run_clear(gb, 60)
+        s1 = settle(gb)
+        assert s1["spd"] == 24, "no key: the speed stays"
+        n = (s1["anim"] - s0["anim"]) & 255                  # (game frames: PyBoy's frame can fall between two of the game's)
+        assert s1["px"] == px_after(s0, n) and abs(s1["px"] - s0["px"] - 90 * n // 60) <= 2, "1.5 px a frame"
+        gb.hold("right")
+        a0 = snap(gb)
+        run_clear(gb, 20)
+        a1 = snap(gb)
+        gained = a1["spd"] - a0["spd"]
+        assert gained == ((a1["anim"] - a0["anim"]) & 255) // 2 or abs(gained - ((a1["anim"] - a0["anim"]) & 255) // 2) <= 1, "+1 every 2nd frame"
+        run_clear(gb, 60)
+        assert snap(gb)["spd"] == SPD_MAX == 40, "2.5 px is the top"
+        assert tilemap_row(gb, 0, GAUGE_COL, 2) == [MR_BG + art_define("MRB_GAUGE") + 2] * 2, "both cells full"
+        gb.release("right")
+        run_clear(gb, 30)
+        assert snap(gb)["spd"] == 40, "let go: it keeps its speed"
+        s2 = settle(gb)
+        run_clear(gb, 60)
+        s3 = settle(gb)
+        n = (s3["anim"] - s2["anim"]) & 255
+        assert abs(s3["px"] - s2["px"] - 150 * n // 60) <= 2, "2.5 px a frame"
+        gb.hold("left")
+        run_clear(gb, 100)
+        assert snap(gb)["spd"] == SPD_MIN == 16, "1.0 px is the floor"
+        assert tilemap_row(gb, 0, GAUGE_COL, 2) == [MR_BG + art_define("MRB_GAUGE")] * 2, "both cells empty"
+        gb.release("left")
+        run_clear(gb, 2)
+        s4 = settle(gb)
+        run_clear(gb, 60)
+        s5 = settle(gb)
+        n = (s5["anim"] - s4["anim"]) & 255
+        assert s5["px"] == px_after(s4, n) and abs(s5["px"] - s4["px"] - n) <= 2, "1.0 px a frame"
 
 
 def lane_now(gb):
@@ -312,31 +355,55 @@ def test_up_and_down_change_lane_in_8_frames_and_one_press_is_queued(model):
 
 # ---- tosses and landings -------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_toss_flies_16_frames_and_costs_a_crate(model):
+def test_a_tosses_up_b_tosses_down_from_any_lane_16_frames_and_costs_a_crate(model):
     with milk_run(model) as gb:
         to_riding(gb)
         clear_ring(gb)
-        tap(gb, "a")
-        s = snap(gb)
-        assert s["crates"] == CRATES and not any(t["t"] for t in s["toss"]), "lane 2: he shrugs, nothing lost"
-        put_bike(gb, 0)
+        for lane, key, side in ((1, "a", 0), (1, "b", 1), (0, "b", 1), (2, "a", 0)):
+            put_bike(gb, lane)
+            frames(gb, 2)
+            c0 = snap(gb)["crates"]
+            gb.hold(key)
+            frames(gb, 2)
+            gb.release(key)
+            s = snap(gb)
+            t = [x for x in s["toss"] if x["t"]]
+            assert s["crates"] == c0 - 1 and len(t) == 1 and 1 <= t[0]["t"] <= 3 and t[0]["side"] == side, (lane, key)
+            assert gb.mem("last_sfx") == SFX_LAUNCH
+            frames(gb, 20)
+            assert not any(x["t"] for x in snap(gb)["toss"])
+        put_bike(gb, 1)
         frames(gb, 2)
+        c0 = snap(gb)["crates"]
         gb.hold("a")
+        gb.hold("b")
         frames(gb, 2)
         gb.release("a")
+        gb.release("b")
         s = snap(gb)
-        assert s["crates"] == CRATES - 1 and 1 <= s["toss"][0]["t"] <= 3 and s["toss"][0]["side"] == 0
-        assert gb.mem("last_sfx") == SFX_LAUNCH
-        assert tilemap_row(gb, 0, 12, 2) == [36 + 1, 36 + 1], "the HUD shows 11"
+        assert s["crates"] == c0 - 1 and [x["side"] for x in s["toss"] if x["t"]] == [0], "A and B together: A"
+        frames(gb, 20)
+        put_bike(gb, 0)
+        frames(gb, 2)
+        tap(gb, "a")
+        c = snap(gb)["crates"]
+        assert tilemap_row(gb, 0, 12, 2) == [36 + c // 10, 36 + c % 10], "the HUD counts"
+        frames(gb, 20)
+        # the flight of a toss up from the top lane: the crate climbs to the top kerb's box
+        put_bike(gb, 0)
+        frames(gb, 2)
+        tap(gb, "a", 2)
         ys, last = [], 0
         for _ in range(20):
             s = snap(gb)
-            t = s["toss"][0]["t"]
+            t = s["toss"][0]["t"] or s["toss"][1]["t"]
             if t == 0:
                 break
+            slot = 0 if s["toss"][0]["t"] else 1
+            t = s["toss"][slot]["t"]
             assert t >= last
             if t != last:
-                o = oam(gb, OAM_CRATE)
+                o = oam(gb, OAM_CRATE + slot)
                 ys.append(o["y"] - 16)
                 assert o["x"] == 24 + 6 + 8
                 assert o["tile"] == MR_OBJ + (OBJ_ENTRY["CRATE_HI"] if 4 <= t <= 11 else OBJ_ENTRY["CRATE_LO"]), t
@@ -350,16 +417,28 @@ def test_a_toss_flies_16_frames_and_costs_a_crate(model):
         # two in the air at most; the third press is ignored (nothing lost)
         c0 = snap(gb)["crates"]
         for _ in range(3):
-            tap(gb, "a", 2)
+            tap(gb, "b", 2)
         s = snap(gb)
         assert sum(1 for t in s["toss"] if t["t"]) == 2 and s["crates"] == c0 - 2
-        # lane 3's crates go down to the bottom kerb
+        # a toss down: the crate goes to the bottom kerb
         frames(gb, 30)
-        put_bike(gb, 2)
+        put_bike(gb, 0)
         frames(gb, 18)
-        tap(gb, "a", 2)
+        tap(gb, "b", 2)
         s = snap(gb)
         assert [t["side"] for t in s["toss"] if t["t"]] == [1]
+        ys = []
+        for _ in range(16):
+            frames(gb, 1)
+            if snap(gb)["toss"][0]["t"]:
+                ys.append(oam(gb, OAM_CRATE)["y"] - 16)
+        assert ys[-1] >= 80 and ys == sorted(ys), "it falls to the bottom kerb's box"
+        # no crates, no toss
+        poke(gb, crates=0)
+        frames(gb, 20)
+        tap(gb, "a", 2)
+        tap(gb, "b", 2)
+        assert not any(t["t"] for t in snap(gb)["toss"]), "nothing to throw"
 
 
 def align_toss(gb, side, off, d_land=None):
@@ -470,13 +549,23 @@ def put_gate(gb, lanes, ahead=0):
     return slot
 
 
+def pickup_at(gb, k, lane, ahead_px):
+    """Pickup k in `lane`, its left edge `ahead_px` right of the bike's hit box (the scroll is poked; nothing else on the street)."""
+    clear_ring(gb)
+    px = PICK_COLS[k] * 8 - (28 + ahead_px)
+    poke(gb, px=px, frac=0, pk_got=0)
+    a = gb.addr("story_scratch") + LAYOUT["pk_lane"][0] + k
+    with logic_paused(gb):
+        gb.write(a, lane)
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_crash_wobbles_loses_a_crate_slows_the_street_then_blinks(model):
+def test_a_bump_spills_two_crates_three_when_fast_takes_the_speed_and_wobbles(model):
     with milk_run(model) as gb:
         to_riding(gb)
         put_bike(gb, 0)
         frames(gb, 14)
-        poke(gb, steps=2)
+        poke(gb, spd=SPD_FAST - 4)
         # a gate in lane 2 / 3 does not touch a bike in lane 1
         put_gate(gb, 0b110)
         frames(gb, 2)
@@ -484,9 +573,11 @@ def test_a_crash_wobbles_loses_a_crate_slows_the_street_then_blinks(model):
         put_gate(gb, 0b001)
         frames(gb, 1)
         s = settle(gb)
-        assert s["inv"] >= WOBBLE + BLINK - 2 and s["crates"] == CRATES - 1 and s["steps"] == 1
+        assert s["inv"] >= WOBBLE + BLINK - 2 and s["crates"] == CRATES - DROP and s["lost_n"] == DROP, "2 crates below 2.0 px"
+        assert s["spd"] == SPD_MIN, "the bump takes the speed away"
         assert s["lost_t"] > 0 and gb.mem("last_sfx") == SFX_BREAK
-        assert tilemap_row(gb, 0, 12, 2) == [36 + 1, 36 + 1], "the HUD shows 11"
+        c = CRATES - DROP
+        assert tilemap_row(gb, 0, 12, 2) == [36 + c // 10, 36 + c % 10], "the HUD shows 8"
         # the wobble: frame 3 of the bike, the rider 1 px left, two stars; no tosses
         o = [oam(gb, OAM_BIKE + k) for k in range(3)]
         assert [x["tile"] for x in o] == [MR_OBJ + BIKE_T[6 + k] for k in range(3)]
@@ -494,19 +585,57 @@ def test_a_crash_wobbles_loses_a_crate_slows_the_street_then_blinks(model):
         st1, st2 = oam(gb, OAM_STARS), oam(gb, OAM_STARS + 1)
         assert st1["tile"] == st2["tile"] == MR_OBJ + OBJ_ENTRY["STARS"] and not st1["prop"] & 0x20 and st2["prop"] & 0x20
         assert (st1["x"], st1["y"] - 16) == (24 + 6 + 8, 48 - 10) and (st2["x"], st2["y"] - 16) == (24 + 14 + 8, 48 - 6)
+        # the crates tumble out one after another and lie on the street, left behind with it
+        frames(gb, 8)
+        assert oam(gb, OAM_LOST)["y"] != 0 and oam(gb, OAM_LOST)["tile"] in (MR_OBJ + OBJ_ENTRY["CRATE_LO"], MR_OBJ + OBJ_ENTRY["CRATE_HI"])
+        assert oam(gb, OAM_LOST + 1)["y"] != 0, "the second is out by now"
+        assert oam(gb, OAM_LOST + 2)["y"] == 0, "and the third is not (only 2 spilled)"
         c0 = mr(gb)["crates"]
         tap(gb, "a")
+        tap(gb, "b")
         assert mr(gb)["crates"] == c0 and not any(t["t"] for t in mr(gb)["toss"]), "no tosses in a wobble"
-        # the lost crate is on the street, left behind with it
-        lost = oam(gb, OAM_LOST)
-        assert lost["tile"] == MR_OBJ + OBJ_ENTRY["CRATE_LO"]
-        x0 = lost["x"]
-        frames(gb, 6)
-        assert oam(gb, OAM_LOST)["x"] < x0 or oam(gb, OAM_LOST)["y"] == 0
+        # the throttle is dead in a wobble
+        gb.hold("right")
+        frames(gb, 12)
+        assert mr(gb)["spd"] == SPD_MIN and mr(gb)["inv"] > BLINK, "RIGHT does nothing in the wobble"
         # invulnerable: another gate does nothing
         put_gate(gb, 0b001)
         frames(gb, 3)
         assert mr(gb)["crates"] == c0
+        until(gb, lambda: mr(gb)["inv"] <= BLINK, 40)
+        frames(gb, 6)
+        assert mr(gb)["spd"] > SPD_MIN, "after the wobble RIGHT speeds up again"
+        gb.release("right")
+        until(gb, lambda: not mr(gb)["inv"], 70)
+        frames(gb, 1)
+        # a bump at 2.0 px or faster spills 3
+        put_bike(gb, 0)
+        frames(gb, 14)
+        clear_ring(gb)
+        poke(gb, spd=SPD_FAST, lost_t=0)
+        c0 = mr(gb)["crates"]
+        put_gate(gb, 0b001)
+        frames(gb, 2)
+        s = mr(gb)
+        assert s["crates"] == c0 - DROP_FAST and s["lost_n"] == DROP_FAST and s["spd"] == SPD_MIN
+        frames(gb, 7)
+        assert all(oam(gb, OAM_LOST + k)["y"] != 0 for k in range(2)) and oam(gb, OAM_LOST + 2)["y"] == 0, "the third follows 6 frames after the second"
+        frames(gb, LOST_GAP)
+        assert all(oam(gb, OAM_LOST + k)["y"] != 0 for k in (1, 2)), "the third is out too"
+        # with fewer crates than the bump spills it spills what is left
+        until(gb, lambda: not mr(gb)["inv"], 100)
+        clear_ring(gb)
+        poke(gb, crates=1, spd=SPD_MAX)
+        put_gate(gb, 0b001)
+        frames(gb, 2)
+        s = mr(gb)
+        assert s["crates"] == 0 and s["lost_n"] == 1
+        poke(gb, inv=0)
+        put_gate(gb, 0b001)
+        frames(gb, 2)
+        s = mr(gb)
+        assert s["crates"] == 0 and s["lost_n"] == 0 and s["inv"] > 0 and s["spd"] == SPD_MIN, "a bump with nothing to drop still slows"
+        # the blink after the wobble
         until(gb, lambda: mr(gb)["inv"] <= BLINK, 40)
         frames(gb, 1)
         shown = []
@@ -518,17 +647,68 @@ def test_a_crash_wobbles_loses_a_crate_slows_the_street_then_blinks(model):
         assert True in shown and False in shown, "blinking"
         runs = "".join("1" if v else "0" for v in shown)
         assert "1111" in runs and "0000" in runs, runs
-        frames(gb, 4)
-        assert mr(gb)["inv"] == 0
-        # a toss is allowed again, a crash again
-        c0 = mr(gb)["crates"]
-        put_gate(gb, 0b001)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_milk_bottle_in_the_road_is_picked_up_for_three_crates(model):
+    with milk_run(model) as gb:
+        to_riding(gb)
+        put_bike(gb, 1)
+        pickup_at(gb, 0, 0, 70)                     # in the top lane, 70 px ahead of the bike
         frames(gb, 2)
-        assert mr(gb)["crates"] == c0 - 1 and mr(gb)["steps"] == 0, "the second crash: down to 1.5, the floor"
-        poke(gb, inv=0)
-        put_gate(gb, 0b001)
-        frames(gb, 3)
-        assert mr(gb)["steps"] == 0, "never below 1.5"
+        o = oam(gb, OAM_PICK)
+        assert o["y"] != 0 and o["tile"] == MR_OBJ + OBJ_ENTRY["BOTTLE"] and o["prop"] & S_PALETTE
+        assert o["y"] - 16 in (lane_top(0), lane_top(0) - 2), "standing (bobbing 2 px) in its lane"
+        assert abs(o["x"] - 8 - (PICK_COLS[0] * 8 - snap(gb)["px"])) <= 3
+        ys = set()
+        for _ in range(24):
+            frames(gb, 1)
+            ys.add(oam(gb, OAM_PICK)["y"])
+        assert len(ys) == 2, "the bottle bobs"
+        c0 = snap(gb)["crates"]
+        frames(gb, 40)                               # (the bike is in lane 2: it passes the bottle in the top lane)
+        s = snap(gb)
+        assert s["crates"] == c0 and s["pk_got"] == 0, "the middle lane misses a bottle in the top lane"
+        pickup_at(gb, 0, 1, 30)
+        poke(gb, spd=24)
+        a = gb.mem16("mg_score")
+        until(gb, lambda: snap(gb)["pk_got"] == 1, 60)
+        s = snap(gb)
+        assert s["crates"] == c0 + PICK_CRATES and gb.mem("last_sfx") == SFX_COIN
+        assert tilemap_row(gb, 0, 12, 2) == [36 + s["crates"] // 10, 36 + s["crates"] % 10], "the HUD shows 13"
+        frames(gb, 2)
+        assert oam(gb, OAM_PICK)["y"] == 0, "the bottle is gone"
+        assert gb.mem16("mg_score") == a, "(crates, not points)"
+        # the second bottle is the other pickup; both in the same game
+        pickup_at(gb, 1, 2, 20)
+        poke(gb, pk_got=1)
+        put_bike(gb, 2)
+        until(gb, lambda: snap(gb)["pk_got"] == 3, 60)
+        assert snap(gb)["crates"] == c0 + 2 * PICK_CRATES
+        # a bike changing lane over a bottle still gets it (the hit box is 12 tall, a lane 16)
+        pickup_at(gb, 0, 0, 10)
+        put_bike(gb, 1)
+        gb.hold("up")
+        frames(gb, 2)
+        gb.release("up")
+        until(gb, lambda: snap(gb)["pk_got"] & 1, 40)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_bottle_is_visible_early_enough_to_steer_for(model):
+    """It appears at the right screen edge: at 2.5 px a frame that is 64 frames before the bike reaches it (a lane change is 8)."""
+    with milk_run(model) as gb:
+        to_riding(gb)
+        pickup_at(gb, 0, 0, 160 - 28 - 4)           # just inside the right edge (left edge at screen x 156)
+        poke(gb, spd=SPD_MAX)
+        frames(gb, 2)
+        assert oam(gb, OAM_PICK)["y"] != 0
+        s = snap(gb)
+        d = PICK_COLS[0] * 8 - (s["px"] + 28)
+        assert d / (SPD_MAX / 16) >= 40, "at the top speed there are 40+ frames to steer"
+        pickup_at(gb, 0, 0, 160 - 28 + 40)
+        frames(gb, 2)
+        assert oam(gb, OAM_PICK)["y"] == 0, "not drawn before it is within the screen"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -570,12 +750,12 @@ def test_a_gate_between_lanes_hits_a_bike_changing_lane(model):
 def test_time_up_gives_100_a_crate_a_banner_and_the_street_stops(model):
     with milk_run(model) as gb:
         to_riding(gb)
-        poke(gb, crates=5, time=3, steps=4)
+        poke(gb, crates=5, time=3, spd=SPD_MAX)
         until(gb, lambda: gb.mem("mg_phase") == MG_END, 10)
         frames(gb, 3)
-        assert gb.mem16("mg_score") == 5 * PTS_CRATE and score(gb) == 5 * PTS_CRATE
+        assert gb.mem16("mg_score") == 5 * PTS_CRATE and score(gb) == 5 * PTS_CRATE, "no seconds left: no time bonus"
         assert gb.mem("overlay_on") == 1 and text(gb, 1, True) == "TIME UP"
-        assert mr(gb)["st"] == 1
+        assert mr(gb)["st"] == 1 and mr(gb)["done"] == 0
         px = [mr(gb)["px"]]
         for _ in range(50):
             frames(gb, 1)
@@ -592,62 +772,106 @@ def test_time_up_gives_100_a_crate_a_banner_and_the_street_stops(model):
         assert gb.mem(0xFF45) in (7, 64 + 46, 144), "LYC walks lcd_isr's chain"
 
 
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_course_ends_when_the_last_box_is_out_of_reach_and_the_seconds_left_pay(model):
+    """The 12th box made and no box left within reach of a crate: ROUTE DONE, 20 points a whole second left on top of 100 a crate;
+    not before (a box still ahead, or a crate in the air)."""
+    with milk_run(model) as gb:
+        to_riding(gb)
+        clear_ring(gb)
+        poke(gb, boxes_made=MR_BOXES_N, bcol=NO_BOX, crates=4, time=25 * 60 + 30, spd=SPD_MAX)
+        # a box still ahead of the bike: not done
+        slot = free_slot(mr(gb))
+        poke(gb, fcol=(slot, (snap(gb)["px"] + 34) // 8 + 6), fkind=(slot, BOX))
+        frames(gb, 5)
+        assert snap(gb)["done"] == 0 and gb.mem("mg_phase") == MG_PLAY
+        poke(gb, fkind=(slot, 0))
+        a = gb.addr("story_scratch")
+        from mr_helpers import TOSS_AT
+        with logic_paused(gb):
+            gb.write(a + TOSS_AT, 5)                  # a crate in the air: not yet
+        frames(gb, 1)
+        assert snap(gb)["done"] == 0
+        with logic_paused(gb):
+            gb.write(a + TOSS_AT, 0)
+        until(gb, lambda: gb.mem("mg_phase") == MG_END, 10)
+        frames(gb, 3)
+        s = mr(gb)
+        left = (25 * 60 + 30 - 5 - 3) // 60          # the clock ran a few more frames: still 25 whole seconds
+        assert s["done"] == 1 and left == 25
+        assert gb.mem16("mg_score") == 4 * PTS_CRATE + 25 * PTS_SEC, gb.mem16("mg_score")
+        assert gb.mem("overlay_on") == 1 and text(gb, 1, True) == "ROUTE DONE"
+
+
+MR_BOXES_N = mr_define("MR_BOXES")
+
+
 def deliveries(gb, n, perfect=0):
     poke(gb, delivered=n, perfect=perfect)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("n,medal", [(0, MEDAL_NONE), (3, MEDAL_NONE), (4, MEDAL_BRONZE), (6, MEDAL_BRONZE),
-                                     (7, MEDAL_SILVER), (9, MEDAL_SILVER), (10, MEDAL_GOLD), (12, MEDAL_GOLD)])
-def test_the_medal_is_by_deliveries_4_7_10(model, n, medal):
+@pytest.mark.parametrize("pts,medal", [(0, MEDAL_NONE), (BRONZE - 1, MEDAL_NONE), (BRONZE, MEDAL_BRONZE), (SILVER - 1, MEDAL_BRONZE),
+                                       (SILVER, MEDAL_SILVER), (GOLD - 1, MEDAL_SILVER), (GOLD, MEDAL_GOLD), (7000, MEDAL_GOLD)])
+def test_the_medal_is_by_the_score(model, pts, medal):
     with milk_run(model) as gb:
         to_riding(gb)
-        deliveries(gb, n)
         frames(gb, 2)
-        to_result(gb)
+        to_result(gb, pts)
         assert gb.mem("mg_medal") == medal
         assert score(gb) == MEDAL_PTS[medal]
         assert text(gb, 3, True, x0=4) == ["NO MEDAL", "BRONZE 500", "SILVER 1500", "GOLD 3000"][medal]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_practice_hard_starts_at_2_px_and_does_not_slow_below_it(model):
+def test_practice_hard_starts_at_2_px_and_does_not_slow_below_1_75(model):
     with milk_run(model, MG_PRACTICE | MG_HARD) as gb:
         to_riding(gb)
-        assert mr(gb)["steps"] == HARD_STEPS
+        assert mr(gb)["spd"] == HARD_START == 32
+        clear_ring(gb)
         a = settle(gb)["px"]
         frames(gb, 60)
         assert abs(settle(gb)["px"] - a - 120) <= 3, "2.0 px a frame"
+        gb.hold("left")
+        frames(gb, 60)
+        gb.release("left")
+        assert snap(gb)["spd"] == HARD_MIN == 28, "HARD: LEFT stops at 1.75"
         put_bike(gb, 0)
         frames(gb, 14)
+        poke(gb, spd=SPD_MAX)
         put_gate(gb, 0b001)
         frames(gb, 2)
         s = mr(gb)
-        assert s["inv"] > 0 and s["steps"] == HARD_STEPS, "HARD: the floor is 2.0"
-        poke(gb, inv=0, steps=3)
+        assert s["inv"] > 0 and s["spd"] == HARD_MIN and s["lost_n"] == DROP_FAST, "HARD: a bump drops to 1.75 and spills 3 even when slow"
+        poke(gb, inv=0, spd=HARD_MIN)
+        c0 = mr(gb)["crates"]
         put_gate(gb, 0b001)
         frames(gb, 2)
-        assert mr(gb)["steps"] == 2, "a crash drops a step"
-        poke(gb, inv=0)
-        put_gate(gb, 0b001)
-        frames(gb, 2)
-        assert mr(gb)["steps"] == HARD_STEPS, "but not below 2.0"
+        assert mr(gb)["crates"] == c0 - DROP_FAST
     with milk_run(model) as gb:
         to_riding(gb)
-        assert mr(gb)["steps"] == 0, "a normal practice starts at 1.5"
+        assert mr(gb)["spd"] == SPD_START, "a normal practice starts at 1.5"
+        clear_ring(gb)
+        poke(gb, spd=SPD_FAST - 4)
+        put_bike(gb, 0)
+        frames(gb, 14)
+        c0 = mr(gb)["crates"]
+        put_gate(gb, 0b001)
+        frames(gb, 2)
+        assert mr(gb)["crates"] == c0 - DROP
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_hud_counts_crates_and_seconds(model):
-    """Score, the crates left (icon + 2 digits at columns 9-11), T + seconds from 45 (the framework's format, own timer)."""
+    """Score, the crates left (icon + 2 digits at columns 11-13), the hourglass and seconds from 70 (the framework's format, own timer)."""
     with milk_run(model) as gb:
         to_riding(gb)
         clear_ring(gb)
-        assert hud_timer(gb) == "45"
+        assert hud_timer(gb) == "70"
         put_bike(gb, 0)
         frames(gb, 14)
         for n in range(3):
-            tap(gb, "a", 2)
+            tap(gb, "a" if n % 2 == 0 else "b", 2)
             frames(gb, 20)
             crates = snap(gb)["crates"]
             assert crates == CRATES - 1 - n
@@ -669,8 +893,8 @@ def test_the_hud_counts_crates_and_seconds(model):
 # ---- sprites per line, a whole game ------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_whole_game_keeps_to_10_sprites_a_line(model):
-    """The bot plays a whole game from the intro to the result, delivering, with a crash dropped in with two crates in the air
-    and a PERFECT pop showing: never more than 10 sprites on a line (the design's worst is 9)."""
+    """The bot plays a whole game from the intro to the result, delivering, with a bump dropped in with two crates in the air
+    and a PERFECT pop showing: never more than 10 sprites on a line (the design's worst is 10)."""
     with milk_run(model, seed=0x2468) as gb:
         worst = [0]
         to_play(gb)
@@ -683,11 +907,11 @@ def test_a_whole_game_keeps_to_10_sprites_a_line(model):
                 put_bike(g, 0)
                 frames(g, 1, worst)
                 tap(g, "a", 1)
-                tap(g, "a", 1)                      # two crates in the air (the bot's own tosses aside)
+                tap(g, "b", 1)                      # two crates in the air (the bot's own tosses aside)
                 put_gate(g, 0b001)
                 poke(g, pop_t=POP_LEN)
 
-        ride(gb, lambda s: gb.mem("mg_phase") != MG_PLAY, limit=6000, worst=worst, hook=crash_now)
+        ride(gb, lambda s: gb.mem("mg_phase") != MG_PLAY, limit=6000, worst=worst, hook=crash_now, target=SPD_MAX)
         assert done
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 80)
         assert worst[0] <= 10, worst
@@ -696,26 +920,32 @@ def test_a_whole_game_keeps_to_10_sprites_a_line(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_worst_case_scene_is_9_a_line(model):
-    """Everything at once on the bike's lines: its 4 entries, two crates in the air, the lost crate, the stars: 9 on a line."""
+@pytest.mark.parametrize("fast", [False, True])
+def test_the_worst_case_scene_is_10_a_line_at_most(model, fast):
+    """Everything at once on the bike's lines: its 4 entries, the stars, two crates in the air, the crates the bump spills (they come
+    out 6 frames apart, so the air ones have landed before the third) and a milk bottle standing in the bike's own lane: never over 10."""
     with milk_run(model) as gb:
         to_riding(gb)
         put_bike(gb, 2)
         frames(gb, 18)
-        tap(gb, "a", 1)
-        tap(gb, "a", 1)
+        pickup_at(gb, 0, 2, 120)                    # a bottle in the bike's lane, on the screen
+        poke(gb, spd=SPD_MAX if fast else 24)
+        tap(gb, "a", 2)
+        tap(gb, "b", 2)
         put_gate(gb, 0b100)
         worst = [0]
         frames(gb, 3, worst)
         s = mr(gb)
-        assert sum(1 for t in s["toss"] if t["t"]) == 2 and s["inv"] > BLINK and s["lost_t"]
-        frames(gb, 8, worst)
+        assert sum(1 for t in s["toss"] if t["t"]) == 2 and s["inv"] > BLINK and s["lost_t"] and s["lost_n"] >= 2
+        frames(gb, 40, worst)
         assert 8 <= worst[0] <= 10, worst
+        print("worst sprites on a line:", worst[0])
 
 
 # ---- the bot: a clean run exists at every seed ------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("seed", [SEED, 0x1234, 0xBEEF, 0x2468])
-def test_the_bot_rides_a_whole_game_without_a_crash_and_delivers(seed):
+@pytest.mark.parametrize("target", [SPD_MAX, SPD_START])
+def test_the_bot_rides_a_whole_game_without_a_bump_takes_both_bottles_and_finishes(seed, target):
     with milk_run("cgb", seed=seed) as gb:
         to_play(gb)
         crashes = []
@@ -727,11 +957,13 @@ def test_the_bot_rides_a_whole_game_without_a_crash_and_delivers(seed):
                 crashes.append(mr(g)["px"])
             last[0] = inv
 
-        ride(gb, lambda s: gb.mem("mg_phase") != MG_PLAY, limit=6000, hook=watch)
+        ride(gb, lambda s: gb.mem("mg_phase") != MG_PLAY, limit=7000, hook=watch, target=target)
         s = mr(gb)
-        assert crashes == [] and s["steps"] == 4
-        assert s["delivered"] >= 8 and s["perfect"] == s["delivered"], s
-        assert s["px"] > 5000, "the whole street (656 columns) went by"
+        assert crashes == [] and s["pk_got"] == 3, (crashes, s["pk_got"])
+        assert s["done"] == 1, "the course was done before the clock"
+        assert s["delivered"] >= 10 and s["perfect"] == s["delivered"], s
+        assert s["spd"] == target
+        print("seed", hex(seed), "speed", target, "delivered", s["delivered"], "score", gb.mem16("mg_score"), "secs left", s["time"] // 60)
 
 
 # ---- leaving: OBP0, VRAM, STORY, ARCADE, the list ---------------------------------------------------------------------------------------------
@@ -795,7 +1027,7 @@ def test_the_level_after_milk_run_has_everything_back(model):
         fresh, pals = level_vram(gb), palettes(gb)
     with milk_run(model) as gb:
         to_riding(gb)
-        ride(gb, lambda s: s["delivered"] >= 1, limit=1200)
+        ride(gb, lambda s: s["delivered"] >= 1, limit=1800)
         put_bike(gb, 0)
         frames(gb, 14)
         put_gate(gb, 0b001)
@@ -951,7 +1183,7 @@ def test_goldens(model):
         shot(gb, "perfect")
         check_golden(gb, "mr_perfect")
         # a crash: the bike stays in its lane into the next gate that blocks it
-        ride(gb, lambda s: s["inv"] == 0 and s["px"] > 900, deliver=False)
+        ride(gb, lambda s: s["inv"] == 0 and s["px"] > 900, deliver=False, collect=False)
         s = mr(gb)
         gates = sorted((c, k) for c, k in zip(s["fcol"], s["fkind"]) if k & GATE)
         for _ in range(400):
@@ -968,11 +1200,31 @@ def test_goldens(model):
         shot(gb, "crash")
         check_golden(gb, "mr_crash")
         # the result
-        poke(gb, delivered=10)
-        to_result(gb)
+        to_result(gb, GOLD)
         frames(gb, 3)
         shot(gb, "result")
         check_golden(gb, "mr_result")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_goldens_the_bottle_ahead_and_the_bump(model):
+    """A milk bottle standing in the top lane ahead of the bike (mr_pickup), and a bump at speed with the crates tumbling out (mr_bump)."""
+    with milk_run(model) as gb:
+        to_riding(gb)
+        put_bike(gb, 1)
+        pickup_at(gb, 0, 0, 80)
+        frames(gb, 3)
+        shot(gb, "pickup")
+        check_golden(gb, "mr_pickup")
+        clear_ring(gb)
+        put_bike(gb, 0)
+        frames(gb, 14)
+        poke(gb, spd=SPD_MAX)
+        put_gate(gb, 0b001)
+        frames(gb, 14)
+        assert mr(gb)["lost_n"] == DROP_FAST
+        shot(gb, "bump")
+        check_golden(gb, "mr_bump")
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -986,20 +1238,17 @@ def test_a_hard_medal_is_saved_apart_from_the_normal_one(model):
     with booted(model, ram) as gb:
         mg_enter(gb, MG_MILKRUN, MG_PRACTICE | MG_HARD)
         to_riding(gb)
-        deliveries(gb, 7)
         frames(gb, 2)
-        to_result(gb)
+        to_result(gb, SILVER)
         assert gb.mem("mg_medal") == MEDAL_SILVER and best(gb)[MG_MILKRUN] == MEDAL_BRONZE | MEDAL_SILVER << 2
         mg_enter(gb, MG_MILKRUN, MG_PRACTICE | MG_HARD)
         to_riding(gb)
-        deliveries(gb, 4)
         frames(gb, 2)
-        to_result(gb)
+        to_result(gb, BRONZE)
         assert gb.mem("mg_medal") == MEDAL_BRONZE and best(gb)[MG_MILKRUN] == MEDAL_BRONZE | MEDAL_SILVER << 2
         mg_enter(gb, MG_MILKRUN, MG_PRACTICE)
         to_riding(gb)
-        deliveries(gb, 10)
         frames(gb, 2)
-        to_result(gb)
+        to_result(gb, GOLD)
         assert best(gb)[MG_MILKRUN] == MEDAL_GOLD | MEDAL_SILVER << 2, "a normal gold leaves the HARD silver"
         assert parse_block(save_ram(gb))[1][MG_MILKRUN] == MEDAL_GOLD | MEDAL_SILVER << 2, "saved in the block"

@@ -23,9 +23,11 @@ CARD_C = (ROOT / "src" / "mg_card.c").read_text()
 PLAN = (ROOT / "PLAN.md").read_text()
 # game ids (mg.h) in the card table's order (G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO, G_B0, G_B1, G_B2)
 IDS = [MG_STUB, 0, 5, 3, 6, 2, 9, 7, 4, 8, 1, 11, MG_SHAKEUP, MG_FILLLINE, MG_TIPS]
-PENDING = ["MILK RUN"]
+PENDING = []
 MG_MARSHMALLOW = 4
 MG_LOGROLL = 2
+MG_MILKRUN = 6
+THREE_PAGES = (MG_MILKRUN,)                           # the games whose card has three pages
 TWO_PAGES = (MG_STUB, MG_SHAKEUP, MG_MARSHMALLOW, 1, MG_LOGROLL)   # the games whose card has a second page (1: T-Shirt Cannon)
 # the story font's punctuation (build/story.h: ST_GLYPH_PERIOD .. COLON are STORY_FONT_BASE + 0..6)
 PUNCT = {QUEST - 3 + i: c for i, c in enumerate(".,!?'-:")}
@@ -87,7 +89,7 @@ def test_every_built_game_has_a_card():
 
 
 def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
-    """Milk Run (Marshmallow Drop, T-Shirt Cannon, Log Roll and Battery Sort have their real cards since D2 / D1 / D3 / D5a): card text pending the Batch D rework (PLAN.md): their one line is
+    """No game is pending any more (every Batch D rework has its real card); the mechanism stays for a later rework: a PENDING one line is
     today's banner line, the other two empty. The others have three real lines."""
     table, words = cards(), banner_words()
     assert len(words) == len(table)
@@ -98,8 +100,7 @@ def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
             assert ls == [w, "", "", ""], name
         else:
             assert all(ls[:3]), name                        # (the fourth line is there only where it helps)
-    after = PLAN.split("card text pending the Batch D rework")[1][:300]
-    assert all(n in after for n in ("Milk Run",)), "marked in PLAN.md"
+    assert "No card text is pending any more" in PLAN, "marked in PLAN.md"
 
 
 # ---- the full card ----------------------------------------------------------------------------------------------------------------
@@ -118,7 +119,7 @@ def test_every_game_shows_its_full_card_first(model):
             assert row_text(gb, 1) == "HOW TO PLAY" and row_text(gb, 5) == name, name
             assert [row_text(gb, r) for r in (7, 9, 11, 13)] == ls, name
             assert_frame(gb, name)
-            prompt = "A NEXT  B BACK" if gid in TWO_PAGES else "A START  B BACK"      # (from the list: B goes back; the stub, the shake-up, Marshmallow Drop, T-Shirt Cannon and Log Roll have two pages)
+            prompt = "A NEXT  B BACK" if gid in TWO_PAGES + THREE_PAGES else "A START  B BACK"      # (from the list: B goes back; the stub, the shake-up, Marshmallow Drop, T-Shirt Cannon and Log Roll have two pages, Milk Run three)
             assert row_text(gb, 16) == prompt and row_text(gb, 2) == "" and row_text(gb, 4) == "" and row_text(gb, 14) == "", name
             for _ in range(4):                                     # the prompt blinks (32 frames on, 32 off)
                 gb.run(40)
@@ -215,7 +216,10 @@ def test_a_card_is_never_wider_than_the_screen_and_the_games_still_run(model):
             mg_enter(gb, gid, MG_PRACTICE)
             gb.run(3)
             gb.press("a", 2)
-            if gid in TWO_PAGES:                       # (two pages)
+            if gid in TWO_PAGES + THREE_PAGES:         # (two pages)
+                gb.run(3)
+                gb.press("a", 2)
+            if gid in THREE_PAGES:                     # (a third)
                 gb.run(3)
                 gb.press("a", 2)
             run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)
@@ -320,3 +324,25 @@ def test_log_rolls_real_card_has_two_pages_of_lines_that_fit(model):
         check_golden(gb, "card_logroll_page2")
         gb.press("a", 2)
         run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_milk_runs_card_has_three_pages(model):
+    """Milk Run's real card (D4 rework): the driving (lane, RIGHT faster, LEFT slower) on page 1, the tosses (A top, B bottom) on page 2, the
+    bottles, the bumps and the bonus on page 3; NEXT, NEXT, PRESS A; the short banner line says the tosses again."""
+    with booted(model, cards=False) as gb:
+        hold_stage_anim(gb)
+        mg_enter(gb, MG_MILKRUN, MG_STORY)
+        gb.run(3)
+        assert [row_text(gb, r) for r in (5, 7, 9, 11, 13, 16)] == ["MILK RUN", "UP DOWN: LANE", "RIGHT: GO FASTER", "LEFT: SLOW DOWN", "DODGE THE BUMPS", "NEXT"]
+        gb.press("a", 2)
+        gb.run(3)
+        assert [row_text(gb, r) for r in (7, 9, 11, 13, 16)] == ["A: TOSS TO TOP", "B: TOSS TO BOTTOM", "LAND IT ON A BOX", "CENTER IS PERFECT", "NEXT"]
+        gb.press("a", 2)
+        gb.run(3)
+        assert gb.mem("mg_phase") == MG_CARD
+        assert [row_text(gb, r) for r in (7, 9, 11, 13, 16)] == ["GRAB MILK BOTTLES", "FOR 3 MORE CRATES", "BUMPS DROP 2 OR 3", "FAST FINISH: BONUS", "PRESS A"]
+        gb.press("a", 2)
+        run_until(gb, lambda: gb.mem("mg_phase") == MG_INTRO and gb.pb.memory[0xFF40] & 0x80, 30)
+        frames(gb, 30)
+        assert row_text(gb, 3) == "A TOSSES UP B DOWN"

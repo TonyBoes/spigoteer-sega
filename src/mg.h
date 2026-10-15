@@ -228,13 +228,13 @@ struct mr_state {               // tests read these at story_scratch + offset (t
     uint8_t colq;               // +36 1: a column waits for the next VBlank
     uint8_t scx;                // +37 the street's SCX (lcd_isr sets it below the HUD)
     uint8_t st;                 // +38 0 riding, 1 the outro (time up)
-    uint8_t steps;              // +39 speed steps: 1/16 px a frame = 24 + 4 x steps (1.5 .. 2.5 px)
+    uint8_t spd;                // +39 the street's speed, 1/16 px a frame: 16 .. 40 (1.0 .. 2.5 px), the player's throttle
     uint8_t frac;               // +40 the scroll's 1/16 px
     uint8_t lane;               // +41 the bike's lane (the target): 0 top, 1 middle, 2 bottom
     uint8_t y;                  // +42 the bike's top, screen px
     int8_t  queued;             // +43 a lane change pressed during one: -1 up, 1 down, 0 none
     uint8_t inv;                // +44 crash timer: 90 .. 61 wobbling, 60 .. 1 blinking
-    uint8_t crates;             // +45 crates left
+    uint8_t crates;             // +45 crates left (the ammunition)
     uint8_t delivered;          // +46 crates that landed on a box (the medal)
     uint8_t perfect;            // +47 of them PERFECT
     uint8_t anim;               // +48 frames counted (the ride's two frames)
@@ -244,14 +244,14 @@ struct mr_state {               // tests read these at story_scratch + offset (t
     uint8_t secs;               // +53 the HUD timer's seconds
     uint8_t pop_t;              // +54 frames left of the PERFECT pop
     uint8_t pop_y;              // +55 its y (the kerb's), before it rises
-    uint8_t lost_t;             // +56 frames since a crate fell off (0: none)
-    uint8_t lost_y;             // +57 its y
+    uint8_t lost_t;             // +56 frames since the bump spilled crates (0: none; stops counting at 40)
+    uint8_t lost_y;             // +57 the bike's y then
     uint16_t px;                // +58 the scroll, px
     uint16_t next_col;          // +60 the next world column to stream
     uint16_t time;              // +62 frames left
-    uint16_t clk;               // +64 frames toward the next speed step
+    uint16_t clk;               // +64 the outro's slowing-down counter
     uint16_t pop_x;             // +66 world x of the pop's left
-    uint16_t lost_x;            // +68 world x of the lost crate
+    uint16_t lost_x;            // +68 world x of the spill
     uint16_t fcol[MR_FT];       // +70 the live features' world columns
     uint8_t fkind[MR_FT];       // +82 0 none; gate: 0x80 | potholes << 3 | blocked lanes; box: 0x40 | full << 1 | bottom
     uint16_t gcol;              // +88 the next gate (generated, not streamed yet)
@@ -262,6 +262,12 @@ struct mr_state {               // tests read these at story_scratch + offset (t
     uint8_t tbuf[4], cbuf[4];   // +100 HUD timer and crates (VBlank queue sources)
     uint8_t boxbuf[2];          // +108 a landed box's new top tiles
     uint8_t wall[2][20], wattr[2][20];   // +110 map rows 2-3 as the street has them (the banner rows' place)
+    uint8_t pk_lane[2];         // +190 the lane of each milk-bottle pickup (columns MR_PICK1 / MR_PICK2)
+    uint8_t pk_got;             // +192 bit k: pickup k is collected
+    uint8_t lost_n;             // +193 crates the last bump spilled (0-3)
+    uint8_t gbuf[2];            // +194 the HUD speed gauge's two cells (VBlank queue source)
+    uint8_t gauge;              // +196 the gauge's level shown (0-4)
+    uint8_t done;               // +197 1: the course is done (the last box is out of reach), not the clock
 };
 
 void lr_enter(void) BANKED;                      // src/lr.c: LOG ROLL (the lumber lodge)

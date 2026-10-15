@@ -10,6 +10,8 @@ bank), build/mr.json (tests) and x8 previews out/preview/mr_*_x8.png.
   assets/art/milkrun/verge_tree.txt  BG: the tree 16x16
   assets/art/milkrun/verge_tiles.txt BG: lawn, picket fence, hedge: 3 tiles 8x8
   assets/art/milkrun/hud_crate.txt   BG: the HUD's crates-left icon 8x8
+  assets/art/milkrun/hud_gauge.txt   BG: the HUD speed gauge's cell, 3 tiles 8x8: empty, half, full (D4 rework)
+  assets/art/milkrun/bottle.txt      OBJ: the milk-bottle pickup 8x16, 1 frame (D4 rework)
   assets/art/milkrun/bike.txt        OBJ: the bike, 3 frames 24x16 (ride A, ride B, wobble): 3 entries 8x16 a frame
   assets/art/milkrun/rider.txt       OBJ: the Spigoteer overlay, 3 frames 8x16 (one entry each)
   assets/art/milkrun/crate.txt       OBJ: the tossed crate, 2 frames 8x16 (low, high)
@@ -36,10 +38,13 @@ TOP_LOTS, BOT_LOTS = "HTHLTHHT", "TLHHTLHT"
 PAL_ROAD, PAL_HOUSE_A, PAL_BOX, PAL_GREEN, PAL_HOUSE_B, PAL_CONE = 0, 2, 3, 5, 6, 7
 
 
-def frames(name, n, w, h):
+HEADER_NEW = "; Art: new for the D4 rework"    # (the bottle and the gauge: not yet owner-judged)
+
+
+def frames(name, n, w, h, header=HEADER):
     path = ART / f"{name}.txt"
-    if not path.read_text().startswith(HEADER):
-        sys.exit(f"gen_mr: assets/art/milkrun/{name}.txt: the first line must start with '{HEADER}'")
+    if not path.read_text().startswith(header):
+        sys.exit(f"gen_mr: assets/art/milkrun/{name}.txt: the first line must start with '{header}'")
     fr = [r for _, r in blocks(path)]
     if len(fr) != n or not all(len(f) == h and all(len(r) == w and set(r) <= set(".-+#") for r in f) for f in fr):
         sys.exit(f"gen_mr: assets/art/milkrun/{name}.txt: needs {n} frames of {w}x{h} in . - + #")
@@ -112,6 +117,8 @@ def main():
     # with '+' (the proposal's mock-up painted indexes 2 and 3 alike); the real palette 1 has orange at index 2, so the
     # band is exported as index 3 (the art file itself is as approved).
     hudc = [r.replace("+", "#") for r in frames("hud_crate", 1, 8, 8)[0]]
+    gauge = frames("hud_gauge", 3, 8, 8, HEADER_NEW)
+    bottle = frames("bottle", 1, 8, 16, HEADER_NEW)
     bike = frames("bike", 3, 24, 16)
     rider = frames("rider", 3, 8, 16)
     crate = frames("crate", 2, 8, 16)
@@ -135,6 +142,7 @@ def main():
     add("fence", [tile_bytes(green[1], 0, 0)])
     add("hedge", [tile_bytes(green[2], 0, 0)])
     add("hudc", [tile_bytes(hudc, 0, 0)])
+    add("gauge", [tile_bytes(f, 0, 0) for f in gauge])           # empty, half, full
     n_bg = len(bg) // 16
     top_t, top_p, bot_t, bot_p = strips(off)
     n_top, n_bot = len(top_t) // 3, len(bot_t) // 4
@@ -153,6 +161,7 @@ def main():
     crate_t = [entry(f, 0) for f in crate]
     stars_t = entry(stars, 0)
     pop_t = [entry(pop, 0), entry(pop, 8)]
+    bottle_t = [entry(f, 0) for f in bottle]
     obj = [b for e in ents for b in e]
     n_obj = len(obj) // 16
 
@@ -173,6 +182,8 @@ def main():
         f"#define MR_OBJ_TILES {n_obj}   // OBJ tiles: {n_obj // 2} 8x16 entries (the bike's deduplicated, the rider, crate, stars, pop)",
         f"#define MRO_RIDER_A {rider_t[0]}", f"#define MRO_RIDER_B {rider_t[1]}", f"#define MRO_RIDER_W {rider_t[2]}",
         f"#define MRO_CRATE_LO {crate_t[0]}", f"#define MRO_CRATE_HI {crate_t[1]}",
+        f"#define MRB_GAUGE {off['gauge']}     // the speed gauge's cells: empty, half, full",
+        f"#define MRO_BOTTLE {bottle_t[0]}",
         f"#define MRO_STARS {stars_t}", f"#define MRO_POP_L {pop_t[0]}", f"#define MRO_POP_R {pop_t[1]}",
         "// the bike's three entries (x + 0, 8, 16) of ride A, ride B and the wobble, as OBJ tile numbers from MR_OBJ",
         carr("mr_bike_t", bike_t),
@@ -181,7 +192,7 @@ def main():
     (outdir / "mr_art.h").write_text("\n".join(lines))
     (outdir / "mr.json").write_text(json.dumps({
         "bg": bg, "obj": obj, "off": off, "n_bg": n_bg, "n_obj": n_obj, "bike_t": bike_t, "rider_t": rider_t,
-        "crate_t": crate_t, "stars_t": stars_t, "pop_t": pop_t, "top_t": top_t, "top_p": top_p, "bot_t": bot_t,
+        "crate_t": crate_t, "bottle_t": bottle_t, "stars_t": stars_t, "pop_t": pop_t, "top_t": top_t, "top_p": top_p, "bot_t": bot_t,
         "bot_p": bot_p}))
     png(road, prev / "mr_road_x8.png", 8)
     png(box, prev / "mr_box_x8.png", 8)
@@ -189,6 +200,7 @@ def main():
     png([cone] + green + [hudc], prev / "mr_cone_verge_x8.png", 8)
     png([house], prev / "mr_house_x8.png", 8)
     png(bike, prev / "mr_bike_x8.png", 8, transparent=True)
+    png(bottle + [r for r in gauge], prev / "mr_bottle_gauge_x8.png", 8, transparent=True)
     png(rider + crate + [stars, pop], prev / "mr_sprites_x8.png", 8, transparent=True)
 
 
