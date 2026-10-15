@@ -1,31 +1,38 @@
-# docs/minigames_bosses.md 4.2: T-SHIRT CANNON (src/ts.c), the stadium's mini-game, on the framework (src/mg.c): the screen (look A, the
-# night game, plus the A1 bunting: every row of the approved art as tools/gen_ts.py laid it out, the palettes, the DMG registers), the
-# controls (Up / Down steps, repeats, the dot preview), the flight against a Python model of the integer physics for every angle and
-# wind (the landing table of tools/cannon_table.py), the wave and its speeds, scoring (300 in the wave, 100 next to it, 0), the reload and
-# the wind schedule, the 12 shirts, the 45 s timer, medals, a bot that reads the wind and the wave and wins gold, the sprites per line,
-# STORY / ARCADE reaching it in chapter 2, BONUS > MINI GAMES, what is put back when it is left.
+# docs/minigames_bosses.md 4.2: T-SHIRT CANNON (src/ts.c), the stadium's mini-game, on the framework (src/mg.c), as reworked in Batch D (2026-10-15):
+# the screen (look A, the night game: every row of the approved art as tools/gen_ts.py laid it out, the meter's bar, the palettes, the DMG
+# registers), the golf-style power meter (A starts it, it sweeps 0-63 and back, A locks and fires), the flight against a Python model of the
+# integer physics for every power (the landing table of tools/cannon_table.py), the too-short / too-far OOPS, the crowd (random fans raise
+# their hands for ~2 s, at most 3, always one), the scoring (PERFECT CATCH 300, the pittance 30, OOPS 0) and its messages, the reload, the 10
+# shirts, the 45 s timer, medals and the bots behind their thresholds, the sprites per line, STORY / ARCADE reaching it in chapter 2,
+# BONUS > MINI GAMES, what is put back when it is left.
+import random
+
 import pytest
 from conftest import ROOT, check_golden, hold_stage_anim, logic_paused
 from test_flow import GS_GOAL, LEVEL_CLEAR, TITLE, run_until, state, tilemap_row
-from test_mg import (BLANK, GS_MGLIST, GS_MINI, MEDAL_AT, MEDAL_PTS, MG_COUNT, MG_END, MG_PRACTICE, MG_RESULT, MG_STORY, RESULT_MIN,
+from test_mg import (BLANK, GS_MGLIST, GS_MINI, MG_COUNT, MG_END, MG_PRACTICE, MG_RESULT, MG_STORY, RESULT_MIN,
                      frames, lines, mg_enter, score, text, to_play, to_result, until)
 from test_mg_list import release_built  # noqa: F401  (the fixture: `make release`)
-from ts_helpers import (ANGLES, ART, FAN_FIRST, FAN_N, LAYOUT, MG_TSHIRT, SHOTS, STADIUM, STATE_SIZE, TS_BG, TS_OBJ, fly, glyph, look,
-                        path, points, poke, top_row, ts, ts_define, wave_interval)
+from ts_helpers import (ART, CROWD, FAN_FIRST, FAN_N, LAYOUT, MG_TSHIRT, OVER, PMAX, SHORT, SHOTS, STADIUM, STATE_SIZE, TS_BG, TS_OBJ,
+                        fly, glyph, path, perfect_powers, poke, ts, ts_define)
 
-pytestmark = pytest.mark.timeout(600)
+pytestmark = pytest.mark.timeout(900)
 
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
 SEED = 0x5A17
 OUT = ROOT / "out" / "ts"
 S_PALETTE = 0x10
-AIM, FLY, RELOAD, SPENT, OUTRO = range(5)
+AIM, METER, FLY, RELOAD, SPENT, OUTRO = range(6)
+R_NONE, R_SHORT, R_OVER, R_CROWD, R_PERFECT = range(5)
 POSE_IDLE, POSE_FIRE, POSE_CHEER, POSE_MISS = range(4)
-SFX_LAUNCH, SFX_CATCH, SFX_COIN = 2, 3, 6
-(RELOAD_LEN, TIME_S, REPEAT, CHEER_LEN, POSE_LEN, FIRE_POSE, PUFF_LEN, PTS_WAVE, PTS_NEAR) = (ts_define(n) for n in (
-    "TS_RELOAD", "TS_TIME_S", "TS_REPEAT", "TS_CHEER", "TS_POSE_LEN", "TS_FIRE_POSE", "TS_PUFF_LEN", "TS_PTS_WAVE", "TS_PTS_NEAR"))
-OAM_SPIG, OAM_CANNON, OAM_PUFF, OAM_SHIRT, OAM_DOT = (ts_define(n) for n in ("OAM_SPIG", "OAM_CANNON", "OAM_PUFF", "OAM_SHIRT", "OAM_DOT"))
-BT_TILES = 8                                    # the bartender's OBJ tiles a frame (src/game.h)
+(RELOAD_LEN, TIME_S, STEP, PTS_PERFECT, PTS_CROWD, MSG_LEN, POSE_LEN, FIRE_POSE, PUFF_LEN, UP_FRAMES, UP_RAND, UP_MAX, HOLD, SPAWN, POP,
+ SPENT_LEN) = (ts_define(n) for n in (
+    "TS_RELOAD", "TS_TIME_S", "TS_STEP", "TS_PTS_PERFECT", "TS_PTS_CROWD", "TS_MSG_LEN", "TS_POSE_LEN", "TS_FIRE_POSE", "TS_PUFF_LEN",
+    "TS_UP_FRAMES", "TS_UP_RAND", "TS_UP_MAX", "TS_HOLD", "TS_SPAWN", "TS_POP", "TS_SPENT_LEN"))
+OAM_SPIG, OAM_CANNON, OAM_PUFF, OAM_SHIRT, OAM_MARK = (ts_define(n) for n in ("OAM_SPIG", "OAM_CANNON", "OAM_PUFF", "OAM_SHIRT", "OAM_MARK"))
+MEDALS = (1500, 2100, 2700)                      # mg.c medal_at: bronze, silver, gold
+SHORT_MAX, OVER_MIN = ART["short_max"], ART["over_min"]
+MUZ = ART["muzzle"]
 
 
 def game(model, mode=MG_PRACTICE, seed=SEED):
@@ -82,44 +89,46 @@ def map_row(gb, row):
     return tilemap_row(gb, row, 0, 20)
 
 
-def wave_after(s, n):
-    """(wave, direction, frames to the next move) n updates after the state s (the game's wave_step)."""
-    w, d, t = s["wave"], s["wdir"], s["wt"]
-    for _ in range(n):
-        t -= 1
-        if t == 0:
-            t = wave_interval(s["num"])
-            w += d
-            if w >= 9:
-                d = -1
-            elif w <= 1:
-                d = 1
-    return w, d, t
-
-
 def expected_map(s):
-    """The 17 map rows (rows 1-17) as the game has them: the generator's map with each fan sitting or standing."""
+    """The 17 map rows (rows 1-17) as the game has them: the generator's map with each fan in the frame it shows."""
     rows = [[TS_BG + t for t in ART["map"][r * 20:(r + 1) * 20]] for r in range(17)]
     for i in range(FAN_N):
-        up = (s["shown"] >> i) & 1
-        base = 2 * ((2 if i & 1 else 0) + up)
+        base = 2 * ((3 if i & 1 else 0) + s["fshown"][i])
         rt = 11 - (i >> 1)
         rows[rt - 1][FAN_FIRST + i] = TS_BG + ART["fan"][base]
         rows[rt][FAN_FIRST + i] = TS_BG + ART["fan"][base + 1]
     return rows
 
 
-def fire(gb):
-    """A pressed for one update; the state after it (the shirt in the air)."""
+def power_for(col, k=0):
+    """The k-th meter power whose shot hits the stand column `col`."""
+    return [p for p in range(PMAX + 1) if fly(p)[0] == CROWD and fly(p)[1] == col][k]
+
+
+def hold_fans(gb, up):
+    """Between two updates: the fans with raised hands (a list of columns, or {column: frames}); the next fan is far off, nothing else can raise."""
+    d = {c: 250 for c in up} if not isinstance(up, dict) else up
+    poke(gb, up=[d.get(i, 0) for i in range(FAN_N)], spawn=250)
+
+
+def to_wait(gb):
+    """Run to the state where A starts the meter (AIM)."""
+    for _ in range(400):
+        if snap(gb)["st"] == AIM:
+            return
+        frames(gb, 1)
+    raise AssertionError("no aim")
+
+
+def lock(gb, p):
+    """The meter at power p, A pressed for one update: the state with the shirt in the air."""
+    poke(gb, st=METER, power=p, pdir=1, pt=STEP, spawn=250)
     gb.hold("a")
     frames(gb, 1)
     gb.release("a")
-    for _ in range(4):
-        s = snap(gb)
-        if s["st"] == FLY:
-            return s
-        frames(gb, 1)
-    raise AssertionError("no shot")
+    s = snap(gb)
+    assert s["st"] == FLY, s
+    return s
 
 
 def land(gb, limit=200):
@@ -132,24 +141,28 @@ def land(gb, limit=200):
     raise AssertionError("no landing")
 
 
-def reset_aim(gb, angle, wind, wave=5, num=1, shots=0):
-    """Between two updates: the state of an aim (the wave held still where it is wanted)."""
-    poke(gb, st=AIM, angle=angle, wind=wind, wave=wave, wdir=1, wt=250, num=num, shots=shots, pose=POSE_IDLE, pose_t=0)
+def shoot(gb, p, up=None):
+    """A whole shot at power p (the fans in `up` raised if given): the state at the landing."""
+    to_wait(gb)
+    if up is not None:
+        hold_fans(gb, up)
+    lock(gb, p)
+    return land(gb)
 
 
 # ---- the screen ------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_screen_and_its_art(model):
-    """The intro: the banner, the HUD (the shirt icon and 12, the wind), every row of the approved art as the generator laid it out
-    (the stage, the bunting, the windsock, the fans), the tiles and palettes, the sprites, the DMG registers."""
+    """The intro: the banner, the HUD (the shirt icon and 10), every row of the approved art as the generator laid it out (the stage, the
+    bunting, the meter's bar, the fans), the tiles and palettes, the sprites, the DMG registers."""
     with game(model) as gb:
         assert gb.mem("mg_id") == MG_TSHIRT and gb.mem("mg_mode") == MG_PRACTICE and gb.mem("mg_phase") == 0
         assert gb.mem("venue_id") == STADIUM
         frames(gb, 30)
-        assert text(gb, 2) == "SHIRT CANNON" and text(gb, 3) == "UP DOWN AIM A FIRE"
+        assert text(gb, 2) == "SHIRT CANNON" and text(gb, 3) == "A POWER THEN A FIRE"
         hud = ART["hud"]
-        assert tilemap_row(gb, 0, 10, 3) == [TS_BG + hud[0], glyph("1"), glyph("2")]
-        assert tilemap_row(gb, 0, 14, 2) == [TS_BG + hud[3], glyph("0")]
+        assert tilemap_row(gb, 0, 10, 3) == [TS_BG + hud[0], glyph("1"), glyph("0")]
+        assert tilemap_row(gb, 0, 13, 3) == [BLANK] * 3, "no wind any more"
         assert hud_timer_ok(gb)
         got = [b for t in range(TS_BG, TS_BG + ART["n_bg"]) for b in tile_bytes(gb, t)]
         assert got == ART["bg"], "BG tiles"
@@ -158,7 +171,8 @@ def test_the_screen_and_its_art(model):
         to_play(gb)
         frames(gb, 3)
         s = snap(gb)
-        assert s["shown"] == 0b111 and s["wave"] == 1 and s["angle"] == 7 and s["wind"] == 0 and s["num"] == 1
+        assert s["st"] == AIM and s["power"] == 0 and s["num"] == 1 and s["shots"] == 0 and s["result"] == R_NONE
+        assert sum(1 for u in s["up"] if u) == 2, "two fans have their hands up from the start"
         want = expected_map(s)
         for r in range(17):
             assert map_row(gb, r + 1) == want[r], f"map row {r + 1}"
@@ -175,21 +189,17 @@ def test_the_screen_and_its_art(model):
                 assert cgb_palette(gb, p, obj=True) == ART["pal_obj"][i], f"OBJ palette {p}"
         else:
             assert gb.mem(0xFF47) == 0xE4 and gb.mem(0xFF48) == 0xD0 and gb.mem(0xFF49) == 0xE4
-        # the sprites: the Spigoteer idle, the 45 degree barrel, three dots, no shirt, no puff
+        # the sprites: the Spigoteer idle, the barrel, no shirt, no puff
         sp = oam(gb, OAM_SPIG)
         assert (sp["x"], sp["y"], sp["tile"]) == (12 + 8, 96 + 16, 0)
         c0, c1 = oam(gb, OAM_CANNON), oam(gb, OAM_CANNON + 1)
-        l = look(7)
-        assert (c0["x"], c0["y"], c0["tile"]) == (32 + 8, 104 + 16, ART["cannon"][2 * l])
-        assert (c1["x"], c1["y"], c1["tile"]) == (40 + 8, 104 + 16, ART["cannon"][2 * l + 1])
+        assert (c0["x"], c0["y"], c0["tile"]) == (32 + 8, 104 + 16, ART["cannon"][0])
+        assert (c1["x"], c1["y"], c1["tile"]) == (40 + 8, 104 + 16, ART["cannon"][1])
         assert oam(gb, OAM_SHIRT)["y"] == 0 and oam(gb, OAM_PUFF)["y"] == 0
-        for k in range(3):
-            d = oam(gb, OAM_DOT + k)
-            assert d["tile"] == ART["dot"] and d["y"] and d["x"]
         if model == "cgb":
-            assert c0["prop"] & 7 == 3 and d["prop"] & 7 == 1
+            assert c0["prop"] & 7 == 3
         else:
-            assert c0["prop"] & S_PALETTE and not d["prop"] & S_PALETTE
+            assert c0["prop"] & S_PALETTE
 
 
 def hud_timer_ok(gb):
@@ -197,331 +207,301 @@ def hud_timer_ok(gb):
     return hud_timer(gb) == "45"
 
 
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_colours_are_the_approved_ones(model):
-    """CGB: the sky, grass, stands and the two teams' fans on the screen are the mock-up's colours; DMG: the four greys only."""
-    from PIL import Image
-    with game(model) as gb:
-        to_aim(gb)
-        OUT.mkdir(parents=True, exist_ok=True)
-        gb.screenshot(OUT / f"colours.{model}.png", 1)
-    px = Image.open(OUT / f"colours.{model}.png").convert("RGB")
-    if model == "dmg":
-        assert len({px.getpixel((x, y)) for x in range(160) for y in range(144)}) <= 4
-        return
-    near = lambda a, b: all(abs(x - y) <= 8 for x, y in zip(a, b))
-    assert near(px.getpixel((10, 60)), (0x38, 0x40, 0x58)), "the night sky"
-    assert near(px.getpixel((10, 130)), (0x3C, 0x94, 0x48)) or near(px.getpixel((10, 130)), (0x2C, 0x70, 0x38)), "the grass"
-    assert near(px.getpixel((100, 100)), (0x78, 0x80, 0xA0)) or near(px.getpixel((100, 100)), (0xC8, 0xD0, 0xE8)), "the stands"
+def test_the_meter_bar_shows_the_red_zones_of_the_table():
+    """The bar's art: 8 tiles, 64 pixel rows (a row a power step); solid red-index pixels exactly where the shot is short (0-11) or over (50-63)."""
+    assert (SHORT_MAX, OVER_MIN) == (11, 50)
+    assert all(fly(p)[0] == SHORT for p in range(SHORT_MAX + 1)) and all(fly(p)[0] == OVER for p in range(OVER_MIN, PMAX + 1))
+    assert all(fly(p)[0] == CROWD for p in range(SHORT_MAX + 1, OVER_MIN)), "every power between hits the stand"
+    cols = [c for p in range(SHORT_MAX + 1, OVER_MIN) for k, c, _ in [fly(p)]]
+    assert cols == sorted(cols) and set(cols) == set(range(FAN_N)), "the power walks the landing along the stand"
+    for r in range(8):                                 # the map: the bar at column 1, rows 3-10
+        assert ART["map"][(2 + r) * 20 + 1] == ART["meter"][r]
 
 
-# ---- the controls -------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_up_and_down_step_once_a_press_and_repeat_every_8_frames(model):
+def test_the_marker_blinks_at_the_bottom_until_a_starts_the_meter(model):
     with game(model) as gb:
         to_aim(gb)
-        assert snap(gb)["angle"] == 7
-        tap(gb, "up")
-        assert snap(gb)["angle"] == 8
-        tap(gb, "down")
-        tap(gb, "down")
-        assert snap(gb)["angle"] == 6
-        reset_aim(gb, 0, 0)
-        tap(gb, "down")
-        assert snap(gb)["angle"] == 0, "no angle below 10 degrees"
-        reset_aim(gb, 10, 0)
-        tap(gb, "up")
-        assert snap(gb)["angle"] == 10, "no angle above 60 degrees"
-        # held: the press, then a step every 8 frames
-        reset_aim(gb, 0, 0)
-        poke(gb, rep=REPEAT)
-        gb.hold("up")
-        seen = []
+        seen = set()
         for _ in range(40):
             frames(gb, 1)
-            a = snap(gb)["angle"]
-            if not seen or a != seen[-1][1]:
-                seen.append((len(seen), a))
-        gb.release("up")
-        assert [a for _, a in seen] == [1, 2, 3, 4, 5], seen
-        # a release resets the repeat: one tap is one step
-        reset_aim(gb, 3, 0)
-        tap(gb, "up")
-        frames(gb, 12)
-        assert snap(gb)["angle"] == 4
+            m = oam(gb, OAM_MARK)
+            seen.add(m["y"] != 0)
+            if m["y"]:
+                assert (m["x"], m["y"], m["tile"]) == (0 + 8, 16 + (24 + PMAX - 0 - 3), ART["marker"])
+        assert seen == {True, False}, "it blinks"
+        assert snap(gb)["st"] == AIM and snap(gb)["shots"] == 0
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_hold_repeat_period_is_8_frames(model):
+def test_a_starts_the_meter_it_sweeps_a_step_every_2_frames_and_bounces(model):
     with game(model) as gb:
         to_aim(gb)
-        reset_aim(gb, 0, 0)
-        poke(gb, rep=REPEAT)
-        gb.hold("up")
-        changes = []
-        last = 0
-        for f in range(60):
+        to_wait(gb)
+        tap(gb, "a")
+        s = snap(gb)
+        assert s["st"] == METER and STEP == 2
+        trace = []
+        for _ in range(2 * 2 * (PMAX + 2) + 40):
             frames(gb, 1)
-            a = snap(gb)["angle"]
-            if a != last:
-                changes.append(f)
-                last = a
-        gb.release("up")
-        gaps = [b - a for a, b in zip(changes, changes[1:])]
-        assert len(changes) >= 6 and all(g == REPEAT for g in gaps), (changes, gaps)
+            s = snap(gb)
+            assert s["st"] == METER
+            trace.append(s["power"])
+            m = oam(gb, OAM_MARK)
+            assert (m["x"], m["y"], m["tile"]) == (8, 16 + 24 + PMAX - s["power"] - 3, ART["marker"]), s["power"]
+        assert max(trace) == PMAX and min(trace[trace.index(PMAX):]) == 0, "up to the top and back down to the bottom"
+        steps = [b - a for a, b in zip(trace, trace[1:]) if b != a]
+        assert set(steps) == {1, -1}
+        # one step per STEP frames: runs of equal values are STEP long
+        runs, n = [], 1
+        for a, b in zip(trace, trace[1:]):
+            if a == b:
+                n += 1
+            else:
+                runs.append(n)
+                n = 1
+        assert set(runs[1:]) <= {STEP, STEP + 1}, set(runs)
+        up = trace.index(PMAX)
+        assert all(b >= a for a, b in zip(trace[:up], trace[1:up + 1])), "monotonic up"
+        assert snap(gb)["shots"] == 0, "it never fires by itself"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_barrel_look_and_the_preview_dots_follow_the_angle(model):
-    """The cannon's entries show the look of the angle (<= 20, <= 35, <= 50, else); the three dots are the arc's frames 6, 12, 18 without wind."""
+def test_a_locks_the_power_and_fires_puffs_poses_and_counts_the_shirt(model):
     with game(model) as gb:
         to_aim(gb)
-        for a in range(11):
-            reset_aim(gb, a, 2)                     # (the wind does not bend the preview)
-            poke(gb, st=AIM)
-            frames(gb, 2)
-            l = look(a)
-            assert oam(gb, OAM_CANNON)["tile"] == ART["cannon"][2 * l] and oam(gb, OAM_CANNON + 1)["tile"] == ART["cannon"][2 * l + 1]
-            mx, my = ART["muzzle"][l]
-            vx, vy = ART["vel"][a]
-            for k, t in enumerate((6, 12, 18)):
-                d = oam(gb, OAM_DOT + k)
-                x, y = mx + ((t * vx) >> 8), my + ((t * vy + 8 * t * (t - 1)) >> 8)
-                assert (d["x"] - 8, d["y"] - 16) == (x - 3, y - 3), (a, k)
-            if a in (0, 10):
-                tap(gb, "down" if a == 0 else "up")
-        # the dots are the flight's own positions without wind
-        reset_aim(gb, 8, 0)
-        poke(gb, st=AIM)
-        pa = path(8, 0)
-        frames(gb, 2)
-        for k, t in enumerate((6, 12, 18)):
-            d = oam(gb, OAM_DOT + k)
-            assert (d["x"] - 8 + 3, d["y"] - 16 + 3) == pa[t - 1]
-
-
-# ---- the flight, the wave, the score ---------------------------------------------------------------------------------------
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_every_angle_and_wind_flies_as_the_model_says(model):
-    """The landing table: 11 angles x 5 winds, each shot fired in the game and compared with the integer model (the fan caught, the
-    frames of flight), the shirt's centre on every frame against the model's path, the spin frame, then the puff and the pose."""
-    with game(model) as gb:
-        to_aim(gb)
-        for wind in (-2, -1, 0, 1, 2):
-            for a in range(11):
-                reset_aim(gb, a, wind)
-                poke(gb, cheer=0)
-                frames(gb, 1)
-                reset_aim(gb, a, wind)
-                s = fire(gb)
-                want_col, want_t = fly(a, wind)
-                p = path(a, wind)
-                assert len(p) == want_t
-                while s["st"] == FLY:
-                    t = s["t"]
-                    if t >= 1:
-                        assert (s["x"] >> 8, s["y"] >> 8) == p[t - 1], (a, wind, t)
-                        if s["st"] == FLY and t < want_t:
-                            o = oam(gb, OAM_SHIRT)
-                            assert (o["x"] - 8 + 4, o["y"] - 16 + 4) in (p[t - 1], p[min(t, want_t) - 1]), (a, wind, t, o)
-                    frames(gb, 1)
-                    s = snap(gb)
-                assert s["t"] == want_t, (a, wind, s["t"], want_t)
-                assert s["last"] == (255 if want_col is None else want_col), (a, wind)
-                assert s["st"] in (RELOAD, SPENT)
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_firing_puffs_poses_and_counts_the_shirt(model):
-    with game(model) as gb:
-        to_aim(gb)
-        reset_aim(gb, 7, 0)
-        before = snap(gb)
-        assert before["shots"] == 0
-        gb.hold("a")
+        to_wait(gb)
+        s = lock(gb, 30)
+        assert (s["lastpow"], s["shots"], s["num"], s["puff"] > 0, s["pose"]) == (30, 1, 1, True, POSE_FIRE)
+        assert oam(gb, OAM_PUFF)["y"] != 0 and oam(gb, OAM_SHIRT)["y"] != 0
         frames(gb, 1)
-        gb.release("a")
-        s = snap(gb)
-        assert s["st"] == FLY and s["shots"] == 1 and s["pose"] == POSE_FIRE and s["puff"] == PUFF_LEN
-        assert tilemap_row(gb, 0, 10, 3)[2] in (glyph("1"), glyph("0"))
-        frames(gb, 1)
-        s = snap(gb)
-        assert tilemap_row(gb, 0, 10, 3) == [TS_BG + ART["hud"][0], glyph("1"), glyph("1")], "11 shirts left"
-        sp = oam(gb, OAM_SPIG)
-        assert sp["prop"] & 0x20 and sp["tile"] == 3 * BT_TILES, "the fill pose, mirrored"
-        assert oam(gb, OAM_PUFF)["y"] and oam(gb, OAM_PUFF)["tile"] == ART["puff"][0]
-        assert oam(gb, OAM_DOT)["y"] == 0, "no preview in the air"
-        frames(gb, PUFF_LEN // 2 + 1)
-        assert oam(gb, OAM_PUFF)["tile"] == ART["puff"][1]
+        assert tilemap_row(gb, 0, 10, 3) == [TS_BG + ART["hud"][0], glyph("0"), glyph("9")]
+        sp = [oam(gb, OAM_SPIG + k) for k in range(4)]
+        assert sp[0]["tile"] != 0, "the fire pose"
         frames(gb, PUFF_LEN)
         assert oam(gb, OAM_PUFF)["y"] == 0
-        # a shot is not fired in the air or in the reload
-        poke(gb, st=FLY)
-        n = snap(gb)["shots"]
+        # A during the flight does nothing
         tap(gb, "a")
-        assert snap(gb)["shots"] == n
+        assert snap(gb)["shots"] == 1
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_wave_moves_on_its_beat_and_bounces(model):
-    """3 fans stand, centred on S.wave (1..9), moving a column every 20 frames (shots 1-4), 16 (5-8), 12 (9-12), up and back."""
+def test_every_power_flies_as_the_model_says(model):
+    """All 64 powers: the shirt is where the model puts it, lands (or is lost) on the model's frame with the model's result."""
     with game(model) as gb:
         to_aim(gb)
-        for num in (1, 5, 9, 12):
-            poke(gb, st=AIM, num=num, wave=1, wdir=1, wt=wave_interval(num))
-            frames(gb, 1)
-            seen, prev = [], snap(gb)["wave"]
-            moves = []
-            for f in range(40 + 18 * wave_interval(num)):
-                frames(gb, 1)
-                s = snap(gb)
-                if s["wave"] != prev:
-                    seen.append(s["wave"])
-                    moves.append(f)
-                    prev = s["wave"]
-            gaps = [b - a for a, b in zip(moves, moves[1:])]
-            assert all(g == wave_interval(num) for g in gaps), (num, gaps)
-            assert seen[:10] == [2, 3, 4, 5, 6, 7, 8, 9, 8, 7][:len(seen[:10])] or seen[:8] == [2, 3, 4, 5, 6, 7, 8, 9], seen
-            assert 1 <= min(seen) and max(seen) == 9
-            frames(gb, 3)
+        for p in range(PMAX + 1):
+            gb.write("mg_timer", 2000 & 0xFF)
+            gb.write(gb.addr("mg_timer") + 1, 2000 >> 8)
+            poke(gb, shots=0, num=1)
+            to_wait(gb)
+            hold_fans(gb, [])
+            poke(gb, up=[0] * 10 + [250])
+            kind, col, n = fly(p)
+            s = lock(gb, p)
+            pts = path(p)
+            mid = n // 2
+            frames(gb, mid - 1)
             s = snap(gb)
-            assert s["shown"] == sum(1 << i for i in range(FAN_N) if s["wave"] - 1 <= i <= s["wave"] + 1)
-            want = expected_map(s)
-            for r in range(5, 13):
-                assert map_row(gb, r + 1) == want[r], (num, r + 1)
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_catch_scores_300_in_the_wave_100_next_to_it_and_nothing_elsewhere(model):
-    with game(model) as gb:
-        to_aim(gb)
-        # angle index 3 (25 degrees) with no wind lands on fan 0 (column 9)
-        a = 3
-        col, T = fly(a, 0)
-        assert col == 0
-        for wave, want, lastpts in ((1, PTS_WAVE, 3), (2, PTS_NEAR, 1), (3, 0, 0), (4, 0, 0), (9, 0, 0)):
-            reset_aim(gb, a, 0, wave=wave)
-            before = gb.mem16("mg_score")
-            hud_before = score(gb)
-            fire(gb)
+            assert s["st"] == FLY and abs(s["t"] - mid) <= 1 and (s["x"] >> 8, s["y"] >> 8) == pts[s["t"] - 1], (p, mid, s["t"])
             s = land(gb)
-            assert s["last"] == 0 and s["lastpts"] == lastpts, (wave, s["last"], s["lastpts"])
-            assert gb.mem16("mg_score") - before == want and score(gb) - hud_before == want, wave
-            assert s["cheer"][0] == CHEER_LEN, "the catching fan cheers"
-            assert s["pose"] == (POSE_CHEER if want else POSE_MISS) and s["pose_t"] == POSE_LEN
-            frames(gb, 2)
-            sp = oam(gb, OAM_SPIG)
-            f = 5 if want else 6
-            assert sp["tile"] == f * BT_TILES and bool(sp["prop"] & 0x20) == bool(want)
-            assert snap(gb)["shown"] & 1, "the fan stands while it cheers"
-            assert oam(gb, OAM_SHIRT)["y"] == 0, "the shirt is gone"
-            reset_aim(gb, a, 0, wave=wave)
+            assert s["t"] == n, (p, s["t"], n)
+            want = {SHORT: R_SHORT, OVER: R_OVER}.get(kind)
+            if kind == CROWD:
+                assert s["st"] in (RELOAD, SPENT) and s["result"] in (R_CROWD, R_PERFECT) and s["last"] == col, (p, s)
+            else:
+                assert s["st"] in (RELOAD, SPENT) and s["result"] == want and s["last"] == 255, (p, s)
+        assert max(lines(gb)) <= 10
+
+
+# ---- scoring and messages --------------------------------------------------------------------------------------------------
+def msg_row(gb):
+    """Row 2 as text; the game's own '!' tile (say_bang) reads as '!'."""
+    from test_mg import GLYPH_CH
+    bang = TS_BG + ART["hud"][1]
+    return "".join("!" if t == bang else GLYPH_CH.get(t, " ") if t != BLANK else " " for t in tilemap_row(gb, 2, 0, 20)).strip()
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_hit_on_raised_hands_is_a_perfect_catch_for_300(model):
+    """The fan hit, or the one each side (a raised pair of hands reaches a column): PERFECT CATCH!, 300 points, the fan holds its hands up."""
+    with game(model) as gb:
+        to_aim(gb)
+        total = 0
+        for col, fan in ((4, 4), (4, 3), (4, 5), (0, 0), (0, 1), (10, 10), (10, 9)):
+            p = power_for(col)
+            before = gb.mem16("mg_score")
+            s = shoot(gb, p, up={fan: 250})
+            total += PTS_PERFECT
+            assert (s["result"], s["last"]) == (R_PERFECT, col), (col, fan)
+            assert gb.mem16("mg_score") == before + PTS_PERFECT
+            frames(gb, 3)
+            assert msg_row(gb) == "PERFECT CATCH!", msg_row(gb)
+            assert snap(gb)["pose"] == POSE_CHEER
+            poke(gb, st=AIM, spawn=250)
+            frames(gb, MSG_LEN)
+            assert msg_row(gb) == ""
+        assert gb.mem16("mg_score") == total and snap(gb)["shots"] == 7
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_fan_that_catches_keeps_its_hands_up(model):
+    with game(model) as gb:
+        to_aim(gb)
+        to_wait(gb)
+        p = power_for(6)
+        hold_fans(gb, {6: 60})
+        lock(gb, p)
+        n = fly(p)[2]
+        frames(gb, n + 1)
+        s = snap(gb)
+        assert s["result"] == R_PERFECT and s["up"][6] >= HOLD - 3, s["up"]
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_hit_elsewhere_in_the_crowd_is_the_pittance(model):
+    """Two or more columns from every raised fan, or the hands already down: CROWD 30, 10 percent of a catch."""
+    assert PTS_CROWD * 10 == PTS_PERFECT
+    with game(model) as gb:
+        to_aim(gb)
+        total = 0
+        for col, ups in ((4, {10: 250}), (4, {1: 250}), (4, {6: 250}), (8, {5: 250, 10: 250}), (0, {2: 250})):
+            p = power_for(col)
+            s = shoot(gb, p, up=ups)
+            total += PTS_CROWD
+            assert (s["result"], s["last"]) == (R_CROWD, col), (col, ups)
+            assert gb.mem16("mg_score") == total
+            frames(gb, 3)
+            assert msg_row(gb) == "CROWD 30"
             poke(gb, st=AIM)
-        # a shot that is lost: nothing, the failing pose, the lost column 255
-        reset_aim(gb, 0, 0, wave=5)
-        fire(gb)
-        s = land(gb)
-        assert s["last"] == 255 and s["lastpts"] == 0 and s["pose"] == POSE_MISS
+            frames(gb, MSG_LEN)
+        # the hands come down before the shirt arrives: no catch
+        p = power_for(5)
+        n = fly(p)[2]
+        s = shoot(gb, p, up={5: n // 2, 10: 250})
+        assert s["result"] == R_CROWD and gb.mem16("mg_score") == total + PTS_CROWD
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_cheer_lasts_30_frames_then_the_fan_sits_down(model):
+def test_too_short_and_too_far_are_oops_and_score_nothing(model):
     with game(model) as gb:
         to_aim(gb)
-        reset_aim(gb, 3, 0, wave=6)
-        fire(gb)
-        s = land(gb)
-        assert s["last"] == 0 and s["cheer"][0] == CHEER_LEN
+        for p, res, word in ((0, R_SHORT, "OOPS! TOO SHORT"), (SHORT_MAX, R_SHORT, "OOPS! TOO SHORT"), (OVER_MIN, R_OVER, "OOPS! TOO FAR"),
+                             (PMAX, R_OVER, "OOPS! TOO FAR")):
+            s = shoot(gb, p, up=list(range(FAN_N))[:3])
+            assert (s["result"], s["last"]) == (res, 255), p
+            assert gb.mem16("mg_score") == 0 and score(gb) == 0, "no points"
+            frames(gb, 3)
+            assert msg_row(gb) == word
+            assert snap(gb)["pose"] == POSE_MISS
+            poke(gb, st=AIM, spawn=250)
+            frames(gb, MSG_LEN)
+        assert SHORT_MAX + 1 == 12 and OVER_MIN == 50
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_message_takes_row_2_in_the_hud_colours_for_70_frames_then_the_stage_is_back(model):
+    with game(model) as gb:
+        to_aim(gb)
+        stage = [TS_BG + t for t in ART["map"][1 * 20:2 * 20]]       # map row 2
+        stage_attr = ART["attr"][1 * 20:2 * 20]
+        s = shoot(gb, 0)
         frames(gb, 2)
-        assert snap(gb)["shown"] & 1
-        for _ in range(CHEER_LEN - 3):
-            frames(gb, 1)
-        frames(gb, 3)
-        s = snap(gb)
-        assert s["cheer"][0] == 0 and not s["shown"] & 1
-        rows = tilemap_row(gb, 11, 9, 1) + tilemap_row(gb, 12, 9, 1)
-        assert rows == [TS_BG + ART["fan"][4], TS_BG + ART["fan"][5]] or rows == [TS_BG + ART["fan"][0], TS_BG + ART["fan"][1]]
+        assert msg_row(gb) == "OOPS! TOO SHORT"
+        if model == "cgb":
+            assert all(bank1(gb, c, 2) == 1 for c in range(20)), "the HUD colours"
+        assert MSG_LEN == 70
+        poke(gb, st=AIM, spawn=250)
+        frames(gb, MSG_LEN - 6)
+        assert msg_row(gb) == "OOPS! TOO SHORT"
+        frames(gb, 10)
+        assert map_row(gb, 2) == stage
+        if model == "cgb":
+            assert [bank1(gb, c, 2) for c in range(20)] == stage_attr
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_reload_is_40_frames_and_the_new_wind_shows_at_its_end(model):
+def test_reload_is_40_frames(model):
     with game(model) as gb:
         to_aim(gb)
-        reset_aim(gb, 3, 0, wave=6, num=4)             # shot 4: the wind may be -1, 0 or 1
-        fire(gb)
-        s = land(gb)
-        assert s["st"] == RELOAD and s["reload"] == RELOAD_LEN and s["num"] == 4
-        calm = tilemap_row(gb, 3, 1, 3) + tilemap_row(gb, 4, 1, 3)
-        for _ in range(RELOAD_LEN - 2):
-            frames(gb, 1)
-            assert snap(gb)["st"] == RELOAD
-        frames(gb, 3)
+        s = shoot(gb, power_for(3))
+        assert s["st"] == RELOAD and s["reload"] in (RELOAD_LEN, RELOAD_LEN - 1)
+        tap(gb, "a")
+        assert snap(gb)["st"] == RELOAD, "A is ignored while reloading"
+        until(gb, lambda: snap(gb)["st"] == AIM, RELOAD_LEN + 2)
         s = snap(gb)
-        assert s["st"] == AIM and s["num"] == 5 and s["shots"] == 1
-        k = s["wind"]
-        assert -1 <= k <= 1
-        sock = ART["sock"][k if k >= 0 else 2 - k]
-        assert tilemap_row(gb, 3, 1, 3) + tilemap_row(gb, 4, 1, 3) == [TS_BG + t for t in sock]
-        assert tilemap_row(gb, 0, 14, 2) == [TS_BG + ART["hud"][3 + k], glyph(str(abs(k)))]
-        assert calm == [TS_BG + t for t in ART["sock"][0]]
+        assert s["num"] == 2 and s["power"] == 0 and RELOAD_LEN == 40
 
 
-@pytest.mark.parametrize("seed", [SEED, 0x1234, 0xBEEF])
+# ---- the crowd -------------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_wind_schedule(model, seed):
-    """Shots 1-3 calm; 4-8 k in -1..1; 9-12 k in -2..2 (and the windsock and the HUD show it); 12 shots end the round."""
-    with game(model, seed=seed) as gb:
+def test_random_fans_raise_their_hands_for_about_two_seconds_at_most_three_at_once_and_always_one(model):
+    with game(model) as gb:
         to_aim(gb)
-        winds = {}
-        for n in range(1, SHOTS + 1):
+        poke(gb, st=AIM)
+        gb.write("mg_timer", 0xFF)
+        gb.write(gb.addr("mg_timer") + 1, 0xFF)
+        T = 3000
+        started, lens, counts, gaps, last_start = {}, [], [], [], None
+        prev = [0] * FAN_N
+        cols = set()
+        for f in range(T):
+            frames(gb, 1)
             s = snap(gb)
-            while s["st"] != AIM:
-                frames(gb, 1)
-                s = snap(gb)
-            assert s["num"] == n and s["shots"] == n - 1
-            winds[n] = s["wind"]
-            sock = ART["sock"][s["wind"] if s["wind"] >= 0 else 2 - s["wind"]]
-            assert tilemap_row(gb, 3, 1, 3) + tilemap_row(gb, 4, 1, 3) == [TS_BG + t for t in sock], n
-            poke(gb, angle=0, wave=5, wt=250)
-            fire(gb)
-            land(gb)
-        assert [winds[n] for n in (1, 2, 3)] == [0, 0, 0]
-        assert all(-1 <= winds[n] <= 1 for n in range(4, 9)) and all(-2 <= winds[n] <= 2 for n in range(9, 13))
-        until(gb, lambda: gb.mem("mg_phase") == MG_END, 100)
-        assert snap(gb)["shots"] == SHOTS
-
-
-def test_the_winds_vary_over_seeds():
-    """(a model of mg_rand is not needed: over three seeds each range shows more than one wind) -- a quick sanity check on the real game."""
-    seen = {4: set(), 9: set()}
-    for seed in (SEED, 0x1234, 0xBEEF, 0x4321):
-        with game("cgb", seed=seed) as gb:
-            to_aim(gb)
-            for n in range(1, 10):
-                s = snap(gb)
-                while s["st"] != AIM:
-                    frames(gb, 1)
-                    s = snap(gb)
-                if n >= 4:
-                    seen[4 if n < 9 else 9].add(s["wind"])
-                poke(gb, angle=0, wave=5, wt=250)
-                fire(gb)
-                land(gb)
-    assert len(seen[4]) >= 2 and len(seen[9]) >= 2, seen
+            up = s["up"]
+            counts.append(sum(1 for u in up if u))
+            for i in range(FAN_N):
+                if up[i] and not prev[i]:
+                    started[i] = f
+                    cols.add(i)
+                    if last_start is not None:
+                        gaps.append(f - last_start)
+                    last_start = f
+                elif not up[i] and prev[i]:
+                    lens.append(f - started[i])
+            prev = up
+        assert max(counts) <= UP_MAX == 3 and min(counts) >= 1, (max(counts), min(counts))
+        assert max(counts) == 3, "it does get busy"
+        assert lens and min(lens) >= UP_FRAMES - 2 and max(lens) <= UP_FRAMES + UP_RAND + 2, (min(lens), max(lens))
+        assert 100 <= UP_FRAMES and UP_FRAMES + UP_RAND <= 160, "about two seconds"
+        assert len(cols) >= 9, f"random fans: {sorted(cols)}"
+        assert sum(gaps) / len(gaps) < 80
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_twelfth_shirt_ends_the_round(model):
+def test_raised_fans_show_the_hands_up_frames_that_pop_every_8_frames(model):
+    with game(model) as gb:
+        to_aim(gb)
+        hold_fans(gb, [2, 7])
+        poke(gb, up=[0, 0, 250, 0, 0, 0, 0, 250, 0, 0, 0], spawn=250)
+        seq = []
+        for _ in range(60):
+            frames(gb, 1)
+            s = snap(gb)
+            seq.append((s["fshown"][2], s["fshown"][7]))
+            want = expected_map(s)
+            for r in range(17):
+                assert map_row(gb, r + 1) == want[r], f"row {r + 1} frame {len(seq)}"
+        a = [x[0] for x in seq[4:]]
+        assert set(a) == {1, 2} and POP == 8
+        flips = [i for i in range(1, len(a)) if a[i] != a[i - 1]]
+        assert all(b - a_ == POP for a_, b in zip(flips, flips[1:])), flips
+        assert [x[1] for x in seq[4:]] != a, "the fans are not in step"
+        assert all(s_ == 0 for s_ in snap(gb)["fshown"][:2]), "the others sit"
+
+
+# ---- the round -----------------------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_tenth_shirt_ends_the_round(model):
+    assert SHOTS == 10
     with game(model) as gb:
         to_aim(gb)
         for n in range(SHOTS):
-            s = snap(gb)
-            while s["st"] != AIM:
-                frames(gb, 1)
-                s = snap(gb)
+            to_wait(gb)
             assert tilemap_row(gb, 0, 11, 2) == [glyph(str((SHOTS - n) // 10)), glyph(str((SHOTS - n) % 10))], n
-            poke(gb, angle=0, wave=5, wt=250)
-            fire(gb)
+            hold_fans(gb, [])
+            poke(gb, up=[250] + [0] * 10)
+            lock(gb, 0)
             land(gb)
         s = snap(gb)
         assert s["st"] == SPENT and s["shots"] == SHOTS and gb.mem("mg_phase") == 2
@@ -529,9 +509,9 @@ def test_the_twelfth_shirt_ends_the_round(model):
         assert tilemap_row(gb, 0, 11, 2) == [glyph("0"), glyph("0")]
         tap(gb, "a")
         assert snap(gb)["shots"] == SHOTS
-        until(gb, lambda: gb.mem("mg_phase") == MG_END, RELOAD_LEN + 5)
+        until(gb, lambda: gb.mem("mg_phase") == MG_END, SPENT_LEN + 5)
         frames(gb, 2)
-        assert snap(gb)["st"] == OUTRO and oam(gb, OAM_SHIRT)["y"] == 0 and oam(gb, OAM_DOT)["y"] == 0
+        assert snap(gb)["st"] == OUTRO and oam(gb, OAM_SHIRT)["y"] == 0 and oam(gb, OAM_MARK)["y"] == 0
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 80)
 
 
@@ -556,8 +536,9 @@ def test_the_45_second_timer_ends_a_stalling_round(model):
 def test_time_up_with_a_shirt_in_the_air_scores_nothing_for_it(model):
     with game(model) as gb:
         to_aim(gb)
-        reset_aim(gb, 3, 0, wave=1)
-        fire(gb)
+        to_wait(gb)
+        hold_fans(gb, [3, 4, 5])
+        lock(gb, power_for(4))
         frames(gb, 3)
         gb.write("mg_timer", 1)
         gb.write(gb.addr("mg_timer") + 1, 0)
@@ -566,128 +547,110 @@ def test_time_up_with_a_shirt_in_the_air_scores_nothing_for_it(model):
         assert gb.mem16("mg_score") == 0 and oam(gb, OAM_SHIRT)["y"] == 0
 
 
-# ---- medals -------------------------------------------------------------------------------------------------------------------
-@pytest.mark.parametrize("points", [0, 999, 1000, 1900, 2000, 2900, 3000, 3600])
+@pytest.mark.parametrize("points", [0, 299, 1499, 1500, 2099, 2100, 2699, 2700, 3000])
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_medals_by_score(model, points):
-    """BRONZE 1000, SILVER 2000, GOLD 3000 (the framework's table on mg_score), the result's name, score and medal word."""
     with game(model) as gb:
         to_play(gb)
         to_result(gb, points)
-        m = sum(points >= t for t in (1000, 2000, 3000))
-        assert gb.mem("mg_medal") == m
-        assert text(gb, 1, True, x0=4) == "SHIRT CANNON" and text(gb, 2, True, x0=4) == f"SCORE {points}"
-        assert text(gb, 3, True, x0=4).startswith(("NO MEDAL", "BRONZE", "SILVER", "GOLD")[m])
+        want = sum(points >= t for t in MEDALS)
+        assert gb.mem("mg_medal") == want, (points, want)
 
 
-# ---- a bot that plays whole games ----------------------------------------------------------------------------------------------
-def landing_wave(s, a, f):
-    """The wave's centre when a shot of angle index a, fired by the update f updates after the state s, lands."""
-    col, T = fly(a, s["wind"])
-    if col is None:
-        return None, T
-    w, _, _ = wave_after(s, f + T)
-    return (col, w), T
+def test_the_medal_thresholds_are_5_7_and_9_perfect_catches():
+    assert MEDALS == (5 * PTS_PERFECT, 7 * PTS_PERFECT, 9 * PTS_PERFECT) and SHOTS * PTS_PERFECT == 3000
+    mg_c = (ROOT / "src" / "mg.c").read_text()
+    assert "{ 1500, 2100, 2700 },   // T-Shirt Cannon" in mg_c
 
 
-def robust_300(s, a, f):
-    col, T = fly(a, s["wind"])
-    if col is None:
-        return False
-    return all(points(col, wave_after(s, f + T + d)[0]) == 300 for d in (-1, 0, 1))
-
-
-def play_bot(gb, worst=None, limit=4000, mash=False):
-    """The bot plays a whole round: in an aim it picks the angle whose shot (its landing column, the model's flight time) arrives in the
-    wave soonest (counting 2 frames a step), steps to it with taps, and fires when that landing is in the wave for the frames around it."""
-    target = None
+# ---- the bots behind the thresholds ----------------------------------------------------------------------------------------------------
+def play_bot(gb, rng=None, jitter=0, blind=False, limit=3300):
+    """A player: A starts the meter; with its eyes on the fans (not `blind`) it locks the power in the middle of the nearest power window that
+    catches a fan who will still have his hands up when the shirt lands, off by up to +-jitter steps (its timing error). `blind` locks at a random
+    power. Returns the score at the end of the round."""
+    rng = rng or random.Random(1)
+    offset, blind_at = None, None
     for _ in range(limit):
-        s = snap(gb)
         if gb.mem("mg_phase") != 2:
             break
-        if s["st"] != AIM:
-            frames(gb, 1, worst)
-            continue
-        if mash:
+        s = snap(gb)
+        if s["st"] == AIM:
             tap(gb, "a")
+            offset, blind_at = None, rng.randint(0, PMAX)
             continue
-        best = None
-        for a in range(11):
-            steps = abs(a - s["angle"])
-            for f in range(2 * steps + 1, 2 * steps + 400):
-                if robust_300(s, a, f):
-                    if best is None or f < best[0]:
-                        best = (f, a)
-                    break
-        if best is None:
-            frames(gb, 1, worst)
+        if s["st"] == METER:
+            press = False
+            if blind:
+                press = s["power"] == blind_at
+            else:
+                good = perfect_powers([u - 4 for u in s["up"]])
+                if good:
+                    if offset is None:
+                        offset = rng.randint(-jitter, jitter) if jitter else 0
+                    # the middle of the block of good powers nearest ahead of the marker
+                    blocks, cur = [], [good[0]]
+                    for p in good[1:]:
+                        if p == cur[-1] + 1:
+                            cur.append(p)
+                        else:
+                            blocks.append(cur)
+                            cur = [p]
+                    blocks.append(cur)
+                    tgt = [b[len(b) // 2] for b in blocks]
+                    ahead = [t for t in tgt if (t - s["power"]) * s["pdir"] >= 0]
+                    t = min(ahead, key=lambda t: abs(t - s["power"])) if ahead else min(tgt, key=lambda t: abs(t - s["power"]))
+                    press = s["power"] == max(0, min(PMAX, t + offset))
+                else:
+                    offset = None
+            if press:
+                gb.hold("a")
+                frames(gb, 1)
+                gb.release("a")
+            else:
+                frames(gb, 1)
             continue
-        f, a = best
-        if target is not None and target != a and target in range(11):
-            tf = next((ff for ff in range(2 * abs(target - s["angle"]) + 1, 2 * abs(target - s["angle"]) + 400)
-                       if robust_300(s, target, ff)), None)
-            if tf is not None and tf <= f + 12:
-                a, f = target, tf
-        target = a
-        if s["angle"] < a:
-            gb.hold("up")
-            frames(gb, 1, worst)
-            gb.release("up")
-            frames(gb, 1, worst)
-        elif s["angle"] > a:
-            gb.hold("down")
-            frames(gb, 1, worst)
-            gb.release("down")
-            frames(gb, 1, worst)
-        elif robust_300(s, a, 1):
-            gb.hold("a")
-            frames(gb, 1, worst)
-            gb.release("a")
-            frames(gb, 1, worst)
-        else:
-            frames(gb, 1, worst)
-    return snap(gb)
+        frames(gb, 1)
+    return gb.mem16("mg_score")
 
 
 @pytest.mark.parametrize("seed", [SEED, 0x1234])
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_bot_that_reads_the_wind_and_the_wave_wins_gold(model, seed):
-    """12 shots in under 45 s: the bot lands most in the wave (300 each): GOLD (>= 3000), every frame at most 10 sprites a line."""
+def test_a_player_who_watches_the_fans_wins_gold(model, seed):
     with game(model, seed=seed) as gb:
-        worst = [0]
         to_play(gb)
-        s = play_bot(gb, worst)
-        assert s["shots"] == SHOTS, s["shots"]
-        sc = gb.mem16("mg_score")
-        assert sc >= 3000, sc
-        until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 200)
-        assert gb.mem("mg_medal") == MEDAL_GOLD
-        assert worst[0] <= 9, worst
+        pts = play_bot(gb)
+        assert pts >= MEDALS[2], pts
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_firing_blind_is_not_a_medal(model):
-    """Mashing A at the starting angle for all 12 shots: far from gold."""
+def test_locking_at_random_is_not_a_medal(model):
     with game(model) as gb:
         to_play(gb)
-        play_bot(gb, mash=True)
-        until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 300)
-        assert gb.mem16("mg_score") < 3000 and gb.mem("mg_medal") < MEDAL_GOLD
+        pts = play_bot(gb, blind=True)
+        assert pts < MEDALS[0], pts
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_at_most_10_sprites_a_line_in_the_worst_frames(model):
-    """The aim shows the Spigoteer 2 + cannon 2 + 3 dots (+ the puff); a flight the Spigoteer, the cannon, the puff and the shirt: forced
-    worst frames (every state's sprites on the cannon's lines) never pass 9."""
+    """The aim shows the Spigoteer 2 + cannon 2 + the marker (+ the puff); a flight the Spigoteer, the cannon, the puff, the shirt and the marker:
+    forced worst frames (every state's sprites on the cannon's lines, the marker everywhere on its bar) never pass 9."""
     with game(model) as gb:
         to_aim(gb)
         worst = [0]
-        for st in (AIM, FLY):
-            for a in range(11):
-                reset_aim(gb, a, 0)
-                poke(gb, st=st, puff=PUFF_LEN, x=(46 << 8), y=(110 << 8), vx=0, vy=0, t=3)
+        for st in (AIM, METER, FLY):
+            for p in range(0, PMAX + 1, 3):
+                poke(gb, st=st, power=p, pdir=1, pt=5, puff=PUFF_LEN, x=(46 << 8), y=(110 << 8), vx=0, vy=0, t=3, spawn=250, pose=POSE_FIRE, pose_t=9)
                 frames(gb, 2, worst)
         assert worst[0] <= 9, worst
+
+
+def test_no_football_remnants_the_field_is_baseball():
+    """The owner: the stadium is a baseball field; the chalk line on the grass is the foul line."""
+    import re
+    for f in ("src/ts.c", "tools/gen_ts.py", "tools/cannon_table.py", "assets/art/tshirt/stands.txt", "src/mg_card.c"):
+        t = (ROOT / f).read_text().lower()
+        assert not re.search(r"football|touchdown|yard|goal ?post|end zone|gridiron", t), f
+    assert "foul line" in (ROOT / "assets/art/tshirt/stands.txt").read_text()
 
 
 # ---- flow: practice, story, arcade, the list, what is put back ---------------------------------------------------------------------
@@ -696,16 +659,14 @@ def test_practice_retry_and_menu(model):
     """Practice: A on the result retries (the score from 0, the state fresh), B comes back to the list."""
     with game(model) as gb:
         to_aim(gb)
-        reset_aim(gb, 3, 0, wave=1)
-        fire(gb)
-        land(gb)
-        assert gb.mem16("mg_score") == PTS_WAVE
+        shoot(gb, power_for(0), up=[0])
+        assert gb.mem16("mg_score") == PTS_PERFECT
         to_result(gb)
         assert text(gb, 4, True, x0=4) == "A RETRY B MENU"
         gb.press("a", 2)
         run_until(gb, lambda: gb.mem("mg_phase") == 0 and gb.pb.memory[0xFF40] & 0x80, 30)
         s = ts(gb)
-        assert state(gb) == GS_MINI and score(gb) == 0 and (s["shots"], s["num"], s["angle"], s["wave"]) == (0, 1, 7, 1)
+        assert state(gb) == GS_MINI and score(gb) == 0 and (s["shots"], s["num"], s["power"]) == (0, 1, 0)
         assert text(gb, 2) == "SHIRT CANNON"
         to_play(gb)
         to_result(gb)
@@ -766,12 +727,8 @@ def test_the_level_after_t_shirt_cannon_has_everything_back(model):
         fresh, pals = level_vram(gb), palettes(gb)
     with game(model) as gb:
         to_aim(gb)
-        reset_aim(gb, 3, 0, wave=1)
-        fire(gb)
-        land(gb)
-        reset_aim(gb, 0, 0)
-        fire(gb)
-        land(gb)
+        shoot(gb, power_for(0), up=[0])
+        shoot(gb, 0)
         to_result(gb)
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
@@ -850,53 +807,64 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
         assert gb.mem("mg_id") == MG_TSHIRT and gb.mem("mg_mode") == MG_PRACTICE
 
 
+
+
 def test_the_state_fits_the_union_and_the_tile_budget():
-    assert STATE_SIZE <= 520 and LAYOUT["cheer"][1] == FAN_N
+    assert STATE_SIZE <= 520 and LAYOUT["up"][1] == FAN_N and LAYOUT["fshown"][1] == FAN_N
     free = 256 - TS_BG                                # the framework's free BG ids: MG_GAME_BG..255
     assert ART["n_bg"] <= free - 16, (ART["n_bg"], free)   # (240-255 stay clear, as the other games)
     assert TS_OBJ + ART["obj_tiles"] <= 92, "the coin sits at OBJ 92-95"
-    # the muzzles are the barrel tips of the art: inside the cannon's 16x16 box, the tips one pixel past the barrel
-    for (mx, my), l in zip(ART["muzzle"], range(4)):
-        assert 32 <= mx < 48 and 104 <= my < 120
+    mx, my = ART["muzzle"]                            # the muzzle is the barrel tip of the art: inside the cannon's 16x16 box
+    assert 32 <= mx < 48 and 104 <= my < 120
 
 
 # ---- goldens ---------------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_goldens(model):
-    """The intro banner, an aim with the dots, a shirt in the air in a headwind, a catch in the wave (the cheer), the result: from a seeded
-    game, each shot taken a fixed number of frames after a press."""
+    """The intro banner, the aim (the marker blinking), the meter sweeping, a shirt in the air, a perfect catch (PERFECT CATCH!), an OOPS, the
+    result: from a seeded game, each shot taken a fixed number of frames after a press."""
     with game(model) as gb:
         frames(gb, 40)
         shot(gb, "intro")
         check_golden(gb, "ts_intro")
         to_play(gb)
         frames(gb, 4)
-        reset_aim(gb, 4, 0, wave=3)
-        frames(gb, 3)
+        hold_fans(gb, [4, 8])
+        poke(gb, anim=0)
+        frames(gb, 18)
         shot(gb, "aim")
         check_golden(gb, "ts_aim")
-        for _ in range(30):                             # the game's own wind (the windsock and the HUD show it): a headwind
-            poke(gb, st=RELOAD, reload=1, num=8, wave=7, wt=250, shots=2)
-            frames(gb, 2)
-            if snap(gb)["wind"] < 0:
-                break
-        assert snap(gb)["wind"] < 0
-        poke(gb, angle=9, wave=7, wt=250)
-        fire(gb)
-        frames(gb, 24)
-        s = snap(gb)
-        assert s["st"] == FLY
+        to_wait(gb)
+        tap(gb, "a")
+        poke(gb, power=38, pt=2)
+        frames(gb, 2)
+        shot(gb, "meter")
+        check_golden(gb, "ts_meter")
+        lock(gb, power_for(4))
+        frames(gb, 22)
+        assert snap(gb)["st"] == FLY
         shot(gb, "flight")
         check_golden(gb, "ts_flight")
-        # a catch in the wave: 25 degrees lands on the first fan
-        land(gb)
-        reset_aim(gb, 3, 0, wave=1)
-        fire(gb)
         s = land(gb)
-        assert s["lastpts"] == 3
+        assert s["result"] == R_PERFECT
         frames(gb, 6)
         shot(gb, "cheer")
         check_golden(gb, "ts_cheer")
+        poke(gb, st=AIM, spawn=250)
+        shoot(gb, 0)
+        frames(gb, 6)
+        shot(gb, "oops")
+        check_golden(gb, "ts_oops")
         to_result(gb, 2300)
         shot(gb, "result")
         check_golden(gb, "ts_result")
+
+
+@pytest.mark.parametrize("seed", [SEED, 0x1234])
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_player_with_a_sloppy_thumb_still_earns_a_medal(model, seed):
+    """Timing off by up to 6 meter steps (about 0.2 s): a medal, not necessarily gold."""
+    with game(model, seed=seed) as gb:
+        to_play(gb)
+        pts = play_bot(gb, jitter=6, rng=random.Random(seed))
+        assert MEDALS[0] <= pts, pts

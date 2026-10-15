@@ -1,6 +1,6 @@
 # T-Shirt Cannon (src/ts.c): what tests/test_mg_tshirt.py needs to read and model: the game's state in the mg union (the offsets are
 # parsed from struct ts_state in src/mg.h, so the header stays the one source), the art / physics numbers (build/ts.json, from
-# tools/gen_ts.py and tools/cannon_table.py) and a Python model of the flight and the wave.
+# tools/gen_ts.py and tools/cannon_table.py) and a Python model of the flight.
 import json
 import re
 
@@ -14,17 +14,20 @@ TS_BG = 77 + 48                                   # MG_GAME_BG: after the medal 
 TS_OBJ = 56
 MG_TSHIRT = 1
 STADIUM = 1                                       # the venue (chapter 2)
-ANGLES = ART["angles"]
 FAN_FIRST, FAN_N = 9, 11
-SHOTS = 12
+PMAX = ART["pmax"]
+SHORT, CROWD, OVER = 0, 1, 2
 
 
 def ts_define(name):
     return int(re.search(rf"#define {name}\s+\(?(\d+)", TS_C).group(1))
 
 
+SHOTS = ts_define("TS_SHOTS")
+
+
 def _layout():
-    """struct ts_state's fields: {name: (offset, elements, width, dims)}, and its size."""
+    """struct ts_state's fields: {name: (offset, elements, width, dims, signed)}, and its size."""
     body = re.search(r"struct ts_state \{(.*?)\n\};", MG_H, re.S).group(1)
     out, off = {}, 0
     for line in body.splitlines():
@@ -63,12 +66,16 @@ def ts(gb):
 
 
 def poke(gb, **kw):
-    """Scalar fields of the game's state, between two whole frames."""
+    """Fields of the game's state, between two whole frames: scalars as ints, byte arrays (up, fshown) as lists."""
     from conftest import logic_paused
     a = gb.addr("story_scratch")
     with logic_paused(gb):
         for k, v in kw.items():
             off, n, width, dims, signed = LAYOUT[k]
+            if isinstance(v, (list, tuple)):
+                for i, x in enumerate(v):
+                    gb.write(a + off + i, x & 0xFF)
+                continue
             gb.write(a + off, v & 0xFF)
             if width == 2:
                 gb.write(a + off + 1, (v >> 8) & 0xFF)
@@ -80,72 +87,34 @@ def glyph(ch):
 
 
 # ---- the model: the game's integer physics --------------------------------------------------------------------
-def look(a):
-    """Barrel look of angle index a (0..10)."""
-    return 0 if a <= 2 else 1 if a <= 5 else 2 if a <= 8 else 3
-
-
 def top_row(c):
     return 11 - (c - FAN_FIRST) // 2
 
 
-def fly(a, k):
-    """-> (fan index 0..10 or None, frames) for angle index a and wind k, the game's integer physics."""
-    mx, my = ART["muzzle"][look(a)]
-    x, y = mx << 8, my << 8
-    vx, vy = ART["vel"][a]
-    for t in range(1, 400):
-        x += vx
-        y += vy
-        vy += ART["grav"]
-        vx += k
-        c = (x >> 8) >> 3
-        if FAN_FIRST <= c < FAN_FIRST + FAN_N:
-            top = top_row(c) * 8
-            if top <= (y >> 8) < top + 16:
-                return c - FAN_FIRST, t
-        if (x >> 8) >= ART["out_x"] or (y >> 8) >= ART["land_y"]:
-            return None, t
-    return None, 400
+def fly(p):
+    """-> (SHORT | CROWD | OVER, fan column 0..10 or 0, frames of flight) for power p: the generator's table of the game's integer physics."""
+    return tuple(ART["table"][p])
 
 
-def path(a, k):
-    """The shirt's centre (screen px) each frame of the flight."""
-    mx, my = ART["muzzle"][look(a)]
+def path(p):
+    """The shirt's centre (screen px) each frame of the flight at power p."""
+    mx, my = ART["muzzle"]
     x, y = mx << 8, my << 8
-    vx, vy = ART["vel"][a]
+    vx, vy = ART["vel"][p]
     out = []
-    for t in range(1, 400):
+    for _ in range(fly(p)[2]):
         x += vx
         y += vy
         vy += ART["grav"]
-        vx += k
         out.append((x >> 8, y >> 8))
-        n = fly_end(x, y)
-        if n:
-            break
     return out
 
 
-def fly_end(x, y):
-    c = (x >> 8) >> 3
-    if FAN_FIRST <= c < FAN_FIRST + FAN_N:
-        top = top_row(c) * 8
-        if top <= (y >> 8) < top + 16:
-            return True
-    return (x >> 8) >= ART["out_x"] or (y >> 8) >= ART["land_y"]
-
-
-def wave_interval(num):
-    return 20 if num <= 4 else 16 if num <= 8 else 12
-
-
-def points(i, wave):
-    """Points of a catch in fan i with the wave centred on `wave`."""
-    if i is None:
-        return 0
-    if wave - 1 <= i <= wave + 1:
-        return 300
-    if i == wave - 2 or i == wave + 2:
-        return 100
-    return 0
+def perfect_powers(up):
+    """The powers that catch a fan with raised hands, given the frames `up` each fan has them up left, if the shirt lands while they still are."""
+    out = []
+    for p in range(PMAX + 1):
+        k, c, n = fly(p)
+        if k == CROWD and any(0 <= c + d < FAN_N and up[c + d] > n for d in (0, -1, 1)):
+            out.append(p)
+    return out

@@ -67,7 +67,7 @@ stays separate because it must survive a life lost.
 | # | Venue | Name | Skill | Controls | Length | Main change from the pitch |
 |---|---|---|---|---|---|---|
 | 1 | Saloon | Quick Draw | reaction + reading | A or B | ~30 s | added the A-or-B sign from round 3 and feints, so it is a choice reaction, not a single press; early press = foul |
-| 2 | Stadium | T-Shirt Cannon | aim + lead + wind | Up/Down aim, A fire | 12 shots, <= 45 s | wave is a 3-column band moving ping-pong (predictable); aim preview without wind; build-time reachability table |
+| 2 | Stadium | T-Shirt Cannon | golf-style power meter + picking the fan with raised hands | A start meter, A lock + fire | 10 shots, <= 45 s | meter with red oops zones; raised fans last 2 s, reach one column each side; build-time reach table |
 | 3 | Lumber | Log Roll | balance, timing of corrections | Left/Right taps | 40 s | falls are not game over (3 s penalty); drift changes are telegraphed; holding does nothing (taps only) |
 | 4 | Bistro | Order Up! | memory | D-pad, one direction per dish | ~45 s | dishes sit at their D-pad direction on screen; a strike replays the same order |
 | 5 | Igloo | Marshmallow Drop | timing, leading a moving target | A | 45 s | the claw moves at constant speed on a rail (not a pendulum); marshmallows fall straight down; 4th marshmallow overflows |
@@ -845,39 +845,47 @@ Story fit: suggested PRE_SALOON page (SADIE): `AND IF THE KID` / `CHALLENGES YOU
 
 ### 4.2 T-Shirt Cannon (Stadium)
 
-Play: the seventh-inning stretch. The Spigoteer mans the T-shirt cannon on the field; the stands rise to the right and the crowd does
-the wave. Aim with Up/Down, read the windsock, fire with A so the shirt lands in the standing section.
+Play: the seventh-inning stretch at a baseball stadium (the chalk line on the grass is the foul line). The Spigoteer mans the T-shirt cannon on
+the field; the stands rise to the right. **Reworked 2026-10-15 (Batch D, the owner's playtest: "looks great, but isn't fun")**: a golf-style power
+meter replaces the aim and the wind; random fans raise their hands to catch the shirt instead of the wave.
 
-Rules and numbers:
-- 12 shirts. After a shot, 40 frames reload; the new wind shows when the reload ends.
-- Aim: 11 angles, 10 to 60 degrees in 5-degree steps; Up/Down steps once per press, repeats every 8 frames held.
-  A 3-dot preview shows the first 18 frames of the arc **without** wind (dots at 6, 12, 18 frames).
-- Flight (8.8 fixed point): muzzle (40, 100), speed 3.0 px/f, gravity 1/16 px/f^2, wind k/256 px/f^2 horizontal,
-  k in {-2..2}. Flight times 20-90 frames; wind moves a long lob up to ~30 px, a flat shot ~5 px.
-- Wind schedule: shots 1-3 calm; 4-8 k in {-1, 0, 1}; 9-12 k in {-2..2}. The windsock has 5 looks (limp, half and
-  full left / right): shape, not colour.
-- Stands: 11 fan columns (cols 9-19), seats rising 8 px every 2 columns. A shirt is caught when its centre enters a
-  fan's 8x16 box. Past the top row it flies out (no catch).
-- The wave: 3 adjacent columns standing; it moves one column every 20 frames (shots 1-4), 16 (5-8), 12 (9-12),
-  ping-pong across the 11 columns, so where it will be is predictable.
-- Score: caught in the wave 300 (that fan cheers for 30 frames); next to the wave 100; elsewhere 0. Medal: GOLD
-  >= 3000, SILVER >= 2000, BRONZE >= 1000. A 45 s cap ends the round if the player stalls.
-- Length: 12 x (40 reload + ~60 aim + ~50 flight) ~ 1800 frames: 30 s.
+Rules and numbers (src/ts.c, tools/cannon_table.py simulates the same integer physics):
+- 10 shirts, <= 45 s. After a shot lands 40 frames reload.
+- Controls: **A starts the power meter, A again locks the power and fires**. The meter is a vertical bar at the left of the sky (BG column 1,
+  rows 3-10: 64 pixel rows, one a power step) and an arrow marker (a sprite) sweeps it 0..63 and back, one step every 2 frames (126 up, 126
+  down), until A (it never stops by itself). The bar is red at both ends: power 0-11 is too short, 50-63 flies over the stand; the red zones are
+  generated from the landing table (the build fails when they differ). While A has not started it, the marker blinks at the bottom.
+- The barrel is fixed at the 60 degree lob. (An angle was no second decision: the stand is a staircase, every angle below ~40 degrees is caught by
+  its first column whatever the power. At 60 degrees the power alone walks the landing along the stand column by column: that is the golf feel.)
+  The wind is dropped (a second noise on a timing meter nobody can read in 45 s); its windsock corner of the sky holds the meter.
+- Flight (8.8 fixed point): muzzle (43, 105), speed v = 224 + 13 p px/f (0.88 .. 4.07), vx = v / 2, vy = -(v - v/8 - v/128) (v sin 60), gravity
+  1/16 px/f^2. The shirt hits the **crowd** when its centre is in a stand column (9-19) at or below the column's fan top (11 - (c - 9) / 2 rows)
+  and above the ad boards (y 104); it is **short** at the ad boards or down at y 124 (the grass), **over** past x 168. Powers 0-11 short, 12-49
+  columns 0-10 (windows of 8, 3, 5, 2, 4, 2, 4, 1, 4, 2, 3 steps), 50-63 over. Flights 40-74 frames.
+- The crowd: no wave. Random fans raise their hands (arms up, hands open, two frames that alternate every 8 frames: they pop up and down) for
+  120-151 frames (2.0-2.5 s); at most 3 at once; a new one every 50-81 frames, and at once when none is up (always one, two at the start).
+- Score: a raised pair of hands reaches one column each side, so a hit in column c with a raised fan in c-1, c or c+1 is a **PERFECT CATCH**, 300
+  points (that fan keeps his hands up 40 frames more; COIN sound; the Spigoteer cheers). Any other hit of the crowd: **30 points** (the pittance,
+  10 %; message CROWD 30). Short or over: an **OOPS** (OOPS! TOO SHORT / OOPS! TOO FAR), 0 points, the miss pose. Messages take the banner row 2
+  in the HUD colours for 70 frames.
+- Medals (10 x 300 = 3000 at most): BRONZE >= 1500 (5 perfect catches), SILVER >= 2100 (7), GOLD >= 2700 (9). Bots in tests/test_mg_tshirt.py:
+  a player who reads the fans and times within +-2 steps scores 3000; off by up to 4 steps about 2700; up to 6 steps about 2300 (silver);
+  locking at a random power about 900 (no medal).
+- Length: 10 x (meter ~1-2 s + flight ~1 s + 40 reload) ~ 35 s.
 
-Why fun and fair: aim, lead a moving target, compensate a shown wind: a small, honest physics toy. Two angles reach
-most columns (flat and lob), a real choice: lobs drift more. Fairness check, built in: tools/cannon_table.py
-simulates every (angle, wind) landing and the build fails unless every fan column is reachable within 4 px for
-every wind; the same table drives a test. No time pressure per shot, so a slow thinker is not punished. Mash:
-firing blind lands in the wave about 3 times in 11.
+Why fun and fair: one decision (when to lock the meter) with a clear picture (the red ends, the raised hands, the landing walks up the stand with
+the power), and a target that moves (who has his hands up, for two seconds). The reach of the hands makes every target at least 5 power steps
+wide (10 frames, 0.17 s) and the build fails otherwise (tools/cannon_table.py). A shirt that hits the crowd always scores something, so the
+wrong guess costs 270, not the shot; only the red ends of the meter score nothing.
 
 Hardware:
 
 ```
     01234567890123456789
- 00 .999999..HHH...HHH..    score, shirts left, wind number
+ 00 .999999..HHH...HHH..    score, shirts left (the wind number is gone)
  01 kkkkkkkkkkkkkkkkkkkk    k sky / stadium lights
- 02 kyykkkkkkkkkkkkkkkkk    y windsock (BG 2x2, 5 looks)
- 03 kyykkkkkkkkkkkkkkkkk
+ 02 kkkkkkkkkkkkkkkkkkkk    (the message row: OOPS!, PERFECT CATCH!)
+ 03 kmkkkkkkkkkkkkkkkkkk    m power meter bar (BG 1x8, rows 3-10, red ends)
  04 kkkkkkkkkkkkkkkkkkkk
  05 kkkkkkkkkkkkkkkkkkkk
  06 kkkkkkkkkkkkkkkkkkkn    n fans (BG 1x2: sitting / standing, 2 looks), rising to the right

@@ -23,9 +23,9 @@ CARD_C = (ROOT / "src" / "mg_card.c").read_text()
 PLAN = (ROOT / "PLAN.md").read_text()
 # game ids (mg.h) in the card table's order (G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO, G_B0, G_B1, G_B2)
 IDS = [MG_STUB, 0, 5, 3, 6, 2, 9, 7, 4, 8, 1, 11, MG_SHAKEUP, MG_FILLLINE, MG_TIPS]
-PENDING = ["BATTERY SORT", "MILK RUN", "LOG ROLL", "SHIRT CANNON"]
+PENDING = ["BATTERY SORT", "MILK RUN", "LOG ROLL"]
 MG_MARSHMALLOW = 4
-TWO_PAGES = (MG_STUB, MG_SHAKEUP, MG_MARSHMALLOW)         # the games whose card has a second page
+TWO_PAGES = (MG_STUB, MG_SHAKEUP, MG_MARSHMALLOW, 1)   # the games whose card has a second page (1: T-Shirt Cannon)
 # the story font's punctuation (build/story.h: ST_GLYPH_PERIOD .. COLON are STORY_FONT_BASE + 0..6)
 PUNCT = {QUEST - 3 + i: c for i, c in enumerate(".,!?'-:")}
 
@@ -86,7 +86,7 @@ def test_every_built_game_has_a_card():
 
 
 def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
-    """T-Shirt Cannon, Log Roll, Battery Sort and Milk Run (Marshmallow Drop has its real card since D2): card text pending the Batch D rework (PLAN.md): their one line is
+    """Log Roll, Battery Sort and Milk Run (Marshmallow Drop and T-Shirt Cannon have their real cards since D2 / D1): card text pending the Batch D rework (PLAN.md): their one line is
     today's banner line, the other two empty. The others have three real lines."""
     table, words = cards(), banner_words()
     assert len(words) == len(table)
@@ -98,7 +98,7 @@ def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
         else:
             assert all(ls[:3]), name                        # (the fourth line is there only where it helps)
     after = PLAN.split("card text pending the Batch D rework")[1][:300]
-    assert all(n in after for n in ("T-Shirt Cannon", "Log Roll", "Battery Sort", "Milk Run")), "marked in PLAN.md"
+    assert all(n in after for n in ("Log Roll", "Battery Sort", "Milk Run")), "marked in PLAN.md"
 
 
 # ---- the full card ----------------------------------------------------------------------------------------------------------------
@@ -117,7 +117,7 @@ def test_every_game_shows_its_full_card_first(model):
             assert row_text(gb, 1) == "HOW TO PLAY" and row_text(gb, 5) == name, name
             assert [row_text(gb, r) for r in (7, 9, 11, 13)] == ls, name
             assert_frame(gb, name)
-            prompt = "A NEXT  B BACK" if gid in TWO_PAGES else "A START  B BACK"      # (from the list: B goes back; the stub and the shake-up have two pages)
+            prompt = "A NEXT  B BACK" if gid in TWO_PAGES else "A START  B BACK"      # (from the list: B goes back; the stub, the shake-up, Marshmallow Drop and T-Shirt Cannon have two pages)
             assert row_text(gb, 16) == prompt and row_text(gb, 2) == "" and row_text(gb, 4) == "" and row_text(gb, 14) == "", name
             for _ in range(4):                                     # the prompt blinks (32 frames on, 32 off)
                 gb.run(40)

@@ -464,32 +464,31 @@ void ts_enter(void) BANKED;                      // src/ts.c: T-SHIRT CANNON (th
 void ts_update(uint8_t pressed) BANKED;
 
 struct ts_state {               // tests read these at story_scratch + offset (tests/test_mg_tshirt.py)
-    uint8_t st;                 // +0 TSS_*: 0 aim, 1 the shirt flies, 2 reload, 3 the last shirt landed (the cheer), 4 the outro
-    uint8_t angle;              // +1 0..10 (10 + 5 x angle degrees)
-    int8_t  wind;               // +2 k, -2..2 (k / 256 px a frame^2)
+    uint8_t st;                 // +0 TSS_*: 0 aim (waiting for A), 1 the power meter sweeps, 2 the shirt flies, 3 reload, 4 the last shirt landed, 5 the outro
+    uint8_t power;              // +1 the meter's marker 0..63 (the locked power while the shirt flies)
+    int8_t  pdir;               // +2 +1 up, -1 down
     uint8_t shots;              // +3 shirts fired
-    uint8_t num;                // +4 the number of the shot aimed or flying, 1..12 (the wave's speed, the wind's schedule)
+    uint8_t num;                // +4 the number of the shot aimed or flying, 1..10
     uint8_t reload;             // +5 frames of reload left
-    uint8_t rep;                // +6 frames until a held Up / Down steps again
-    uint8_t wave;               // +7 the wave's centre fan column, 1..9 (columns centre - 1 .. centre + 1 stand)
-    int8_t  wdir;               // +8 its direction
-    uint8_t wt;                 // +9 frames until it moves
-    uint8_t last;               // +10 the last shot's fan column 0..10 (map column - 9), 255: lost
-    uint8_t lastpts;            // +11 its points / 100 (3 wave, 1 next to it, 0)
-    uint8_t pose, pose_t;       // +12 the Spigoteer's pose (idle, fire, cheer, miss), +13 frames left of it
-    uint8_t puff;               // +14 frames of the muzzle puff left
-    uint8_t anim;               // +15 frames counted
-    uint8_t started;            // +16 the first play frame has put the banner rows back
-    uint8_t t;                  // +17 frames of the flight
-    uint16_t shown;             // +18 the fans drawn standing (bit 0..10)
-    uint8_t cheer[11];          // +20 frames left of each fan's cheer
-    uint16_t x, y;              // +31 / +33 the shirt's centre, 8.8 px
-    int16_t vx, vy;             // +35 / +37 8.8 px a frame
-    uint8_t dots[6];            // +39 the preview's three dots, x y x y x y (screen px)
-    uint8_t hbuf[4], wbuf[2];   // +45 HUD shirts (icon, 2 digits, a blank), +49 HUD wind (chevron, strength): VBlank queue sources
-    uint8_t qb[8], qn;          // +51 one-tile queue sources of a frame, +59 how many
-    uint8_t sock[6];            // +60 the windsock's tiles
-    uint8_t wall[2][20], wattr[2][20];   // +66 map rows 2-3 as the stage has them (the banner rows' place), their CGB attributes
+    uint8_t pt;                 // +6 frames until the marker steps
+    uint8_t spawn;              // +7 frames until the next fan raises his hands
+    uint8_t result;             // +8 the last shot: TSR_ 0 none, 1 short, 2 over, 3 the crowd (30), 4 a perfect catch (300)
+    uint8_t last;               // +9 the last shot's fan column 0..10 (map column - 9), 255: short / over
+    uint8_t lastpow;            // +10 the power it was fired at
+    uint8_t pose, pose_t;       // +11 the Spigoteer's pose (idle, fire, cheer, miss), +12 frames left of it
+    uint8_t puff;               // +13 frames of the muzzle puff left
+    uint8_t anim;               // +14 frames counted
+    uint8_t started;            // +15 the first play frame has put the banner rows back
+    uint8_t t;                  // +16 frames of the flight
+    uint8_t msg_t;              // +17 frames left of the message on row 2
+    uint8_t up[11];             // +18 frames left of each fan's raised hands (0: sitting)
+    uint8_t fshown[11];         // +29 the frame each fan shows on screen (0 sitting, 1 / 2 hands up)
+    uint16_t x, y;              // +40 / +42 the shirt's centre, 8.8 px
+    int16_t vx, vy;             // +44 / +46 8.8 px a frame
+    uint8_t hbuf[4];            // +48 HUD shirts (icon, 2 digits, a blank): VBlank queue source
+    uint8_t qb[8], qn;          // +52 one-tile queue sources of a frame, +60 how many
+    uint8_t hattr[20];          // +61 the HUD colours (the message's attributes)
+    uint8_t wall[2][20], wattr[2][20];   // +81 map rows 2-3 as the stage has them (the banner rows' place), their CGB attributes
 };
 void po_enter(void) BANKED;                      // src/po.c: THE POUR-OFF (the finale, in the saloon)
 void po_update(uint8_t pressed) BANKED;

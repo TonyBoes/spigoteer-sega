@@ -52,18 +52,19 @@ static const card_t cards[MG_GAMES] = {
     /* G_TK   */ { "TAIKO POUR", { "A: TOP LANE", "B: BOTTOM LANE", "STAY ON THE BEAT", "" } },
     /* G_MM   */ { "MARSHMALLOW DROP", { "D-PAD: MOVE ARM", "A: DROP A MALLOW", "FILL SIX MUGS WITH", "THREE EACH" } },
     /* G_MK   */ { "MONKEY BUSINESS", { "LEFT RIGHT: HOP", "A: SHOO MONKEYS", "KEEP THE COCONUTS", "" } },
-    /* G_TS   */ { "SHIRT CANNON", { "UP DOWN AIM A FIRE", "", "", "" } },                     // PENDING
+    /* G_TS   */ { "SHIRT CANNON", { "A STARTS THE METER", "A AGAIN TO FIRE", "RED ENDS: OOPS", "OOPS: NO POINTS" } },
     /* G_PO   */ { "THE POUR OFF", { "MOVE, THEN A: POUR", "SERVE THE GUESTS", "FIRST TO 20 WINS", "" } },
     /* G_B0   */ { "CAN SHAKE UP", { "TRACK THE CALM CAN", "LEFT RIGHT: CHOOSE", "A: PICK IT", "" } },
     /* G_B1   */ { "PERFECT POUR", { "HOLD A: POUR", "LET GO AT THE LINE", "3 GLASSES TO FILL", "FOAM KEEPS RISING" } },
     /* G_B2   */ { "TIP SHOWER", { "LEFT RIGHT: WALK", "TRAY CATCHES COINS", "AVOID THE TOMATOES", "100 POINTS A COIN" } },
 };
 
-// the further pages, in page order (a game's entries together). Only the debug stub has a second page today.
+// the further pages, in page order (a game's entries together). The debug stub, the shake-up and the T-Shirt Cannon have a second page.
 static const more_t more[] = {
     { G_STUB, { "EARLY IS A MISS", "SLOW IS A MISS", "KEEP YOUR EYES UP", "" } },
     { G_MM,   { "MUGS LOOP ROUND", "19 MALLOWS ONLY", "MISS ONE AT MOST", "FOR GOLD" } },
     { G_B0,   { "3 LEVELS, EACH", "FASTER THAN LAST", "MISS: RUN ENDS", "" } },
+    { G_TS,   { "FANS RAISE HANDS", "CATCH: 300 POINTS", "ANY OTHER FAN: 30", "9 CATCHES: GOLD" } },
 };
 #define MORE_N (sizeof(more) / sizeof(more[0]))
 

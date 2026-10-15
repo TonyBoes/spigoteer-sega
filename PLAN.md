@@ -2563,6 +2563,16 @@ The stage is a precomposed map (rows 1-17 tiles + CGB palettes in ts_art.h); onl
   ts_aim, ts_flight, ts_cheer, ts_result. Changed on purpose: mg_list, mg_list_locked (the list gains SHIRT CANNON after TAIKO POUR). test_mg.py's unbuilt-slot test now finds an unbuilt
   game itself; test_arcade.py allows chapter 1's mini-game.
 
+- **REWORKED 2026-10-15 (Batch D, D1; supersedes the rules, HUD and numbers above; owner: "looks great, but isn't fun")**: docs/minigames_bosses.md 4.2 has the rules. A golf-style
+  power meter (A starts, A locks and fires; the bar at BG column 1 rows 3-10 with red too-short / too-far ends, a blinking arrow marker sprite, 1 step / 2 frames, 0..63 and back),
+  the barrel fixed at 60 degrees (no angle, no wind, no windsock, no preview dots, the cannon art keeps only the 60 degree look), 10 shirts, 45 s. No wave: random fans raise their
+  hands (2.0-2.5 s, at most 3, two at the start, always one; two hands-up frames that alternate every 8 frames); a hit with a raised fan within one column = PERFECT CATCH 300; any other
+  crowd hit 30 (CROWD 30); short (power 0-11) or over (50-63) = OOPS 0. Messages on banner row 2 (the stage's row 2 saved at entry and put back after 70 frames; '!' is the game's own HUD tile
+  via say_bang). Medals 1500 / 2100 / 2700 (5 / 7 / 9 perfect catches; bots in the tests). The field is baseball: the chalk line is the foul line (stands.txt). Real HOW TO PLAY card (2 pages).
+  tools/cannon_table.py now simulates the power table and checks the fairness rule (short / over zones, every column hit, a raised fan's reach >= 5 steps); the meter's red rows are checked
+  against it by gen_ts.py. No new WRAM global (struct ts_state is the mg union's, 100 B). Tests: tests/test_mg_tshirt.py rewritten (the old angle / wind / wave tests are gone with the
+  mechanics). Goldens replaced on purpose: ts_intro (banner line), ts_aim, ts_flight, ts_cheer, ts_result (new stage art, meter); new: ts_meter, ts_oops.
+
 ## SDCC pitfalls found so far (keep adding)
 - **`x++; if (global)`**: with `S.anim++;` (a field reached through a pointer, so `inc (hl)`) directly before `if (sound_on)`, SDCC 4.5 emitted
   `ld a, (_sound_on)` / `or a, (hl)`: the branch tested the counter's value ORed in, not `sound_on`. Found in src/tk.c (Taiko Pour's clock ran the
@@ -3267,7 +3277,7 @@ in a debug-select run (the full card comes every time there). Cards show in STOR
 keep their old banners (no card there).
 - Real cards: Quick Draw, Order Up!, Taiko Pour, Monkey Business, Asteroid Delivery, the shake-up, Perfect Pour, Tip Shower, and (not asked for,
   its controls are settled) the Pour-Off and the stub.
-- Marked in the plan as **card text pending the Batch D rework**: T-Shirt Cannon, Log Roll, Battery Sort and Milk Run have a placeholder card (Marshmallow Drop has its real card since D2), today's
+- Marked in the plan as **card text pending the Batch D rework**: Log Roll, Battery Sort and Milk Run have a placeholder card (Marshmallow Drop has its real card since D2, T-Shirt Cannon since D1), today's
   banner line as its only line (mg_card.c, entries marked PENDING). Rewrite them when their rework settles the controls and the goal.
 - Tests: tests/test_mg_card.py (every game has a card; the full card first and it waits; A, then the short card, A skips it; the save; STORY);
   tests/test_mg_bonus.py (list entries, unlocks, medals, the block); tests/test_mg_list.py (scrolling, no row on the separator). The test
