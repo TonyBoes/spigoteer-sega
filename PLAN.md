@@ -3333,3 +3333,19 @@ Practice difficulty and the menu highlight (2026-10-15)
   it on title_sel (tests/test_menu_cursor.py drives every way back).
 - Practice: EASY / NORMAL / HARD for every list game, LEFT / RIGHT, every game identical in the three for now; see docs/minigames_bosses.md
   "Practice difficulty" (MG_DIFF, medals per mode in MGP2's byte and the "MD" block at 0x7A, tests/test_difficulty.py).
+
+### F11: a beat before the trick, a drumroll, a cymbal crash (owner 2026-10-15)
+
+- CLASSIC's clear is now 60 (banner, jingle) + **42 beat** + 210 (ending) + 30 (hold) = 342 frames (was 300). In the beat the banner
+  is gone and he holds the ending's first picture (the glass in hand; beers: the cheers) while a **drumroll** builds: 18 noise
+  hits (channel 4), one every 2 frames from beat frame 4 to 38, volume 5 -> 15, NR43 alternating 0x23 / 0x33. The
+  **cymbal crash** (NR42 0xF3 = full volume, ~0.7 s decay, NR43 0x19: 7-bit LFSR, high clock) sounds on the result: smash
+  ending frame 28 (the shards), foot 38, dove 24 (it lands on his head), hat 24, crash 20, beers 160. It takes the place of
+  SFX_BREAK in those endings (the glass-break noise would cut it off). The 30-frame hold after the ending's last picture
+  and the ending's own tail are the pause after the result.
+- Where the sounds live: the sound bank (music.c, bank 2) has 6 B free, too little for two definitions, so antics.c (banked)
+  writes NR41-NR44 itself (`roll`, `cymbal`). Safe because the clear jingle has no channel-4 part and no groove, and it
+  ends (frame 112 of the clear) before the first ending frame that could clash. Tests read NR42 / NR43 from the
+  sound-emulated ROM (test_sound's `srom`). The state is frozen by construction (no patron, mug or clock runs in a clear).
+- Tests: tests/test_antics.py (hold lengths, the 18 rising hits inside the beat, none before, the cymbal on the
+  result frame, >= 30 frames of hold after it, state frozen); the antics goldens are taken after the beat, unchanged.
