@@ -704,6 +704,17 @@ def portrait_pairs(sids=None):
     return out
 
 
+def crackle_sprites(gb, sid, k, s):
+    """INTRO from the explosion's page on: the electric crackle's bolts (OBJ, flickering: 0-2 of them lit, inside their box above the
+    stump) are on screen besides the page's own sprites; how many are lit now."""
+    if not (sid == "INTRO" and k + 1 >= s["swpage"]):
+        return 0
+    x0, y0 = STORY["burst"]["crackle_xy"]
+    lit = [e for e in gb.visible_sprites() if x0 <= e["x"] - 8 < x0 + 14 and y0 <= e["y"] - 16 < y0 + 1]
+    assert len(lit) <= 2
+    return len(lit)
+
+
 def tour_scene(gb, sid, seen):
     """Every page of the scene on screen: the page's portrait (the speaker's own or his variant) pixel for pixel,
     framed on the box, its tile map the scene's copy of its tiles (nothing of the previous one left), the name tag;
@@ -736,7 +747,7 @@ def tour_scene(gb, sid, seen):
                 pic = STORY["pictures"][s["pic"] + (1 if s["swpage"] and k + 1 >= s["swpage"] else 0)]["map"]
                 assert rows == [pic[r * 20 + rect[0]:r * 20 + rect[0] + rect[2]]
                                 for r in range(rect[1], rect[1] + rect[3])], f"{sid} page {k + 1}: the frame is wiped"
-            assert len(gb.visible_sprites()) == spigoteer
+            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) == spigoteer
         else:
             p = PORTRAITS[name]
             assert_portrait_exact(gb, name)
@@ -746,7 +757,7 @@ def tour_scene(gb, sid, seen):
                 assert tilemap_row(gb, p["y"] + r, p["x"], p["w"]) == \
                     [b + t for t in p["map"][r * p["w"]:(r + 1) * p["w"]]], f"{sid} page {k + 1} row {r}"
             assert tilemap_row(gb, BOX_ROW, 2, len(page["speaker"])) == [GLYPH[c] for c in page["speaker"]]
-            assert len(gb.visible_sprites()) - spigoteer == (1 if name == "SADIE" and gb.model_name == "cgb" else 0)
+            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) - spigoteer == (1 if name == "SADIE" and gb.model_name == "cgb" else 0)
             if cur and cur != name:
                 seen.add((cur, name))
         if (sid, k) in TOUR_GOLDENS:

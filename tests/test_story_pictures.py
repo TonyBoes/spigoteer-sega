@@ -18,6 +18,7 @@ BURST = STORY["burst"]                 # the INTRO's ten pieces (OBJ sprites): t
 SLOT_BASE = STORY["portrait_base"]
 FRAME = (8, 40, 80, 104)               # a speaker page's portrait frame: columns 1-9, rows 5-12 (x0, y0, x1, y1)
 _EXPECT = {}
+CRACKLE = (98, 27, 112, 43)            # the two crackle sprites' box over INTRO A (OBJ: the picture under them is exact)
 
 
 def expected(name, model):
@@ -36,6 +37,8 @@ def picture_diff(gb, name, skip=None):
     """Pixels of the picture area (rows 0-12) that differ from the source; `skip` = a rectangle to leave out."""
     got = np.array(gb.image())[:104, :160]
     bad = np.any(got != expected(name, gb.model_name), axis=2)
+    if name == "intro_a":
+        bad[CRACKLE[1]:CRACKLE[3], CRACKLE[0]:CRACKLE[2]] = False
     if skip:
         x0, y0, x1, y1 = skip
         bad[y0:y1, x0:x1] = False
@@ -182,6 +185,11 @@ def burst_oam(gb):
     return gb.oam()[BURST["oam"]:BURST["oam"] + len(BURST["entries"])]
 
 
+def pieces_oam(gb):
+    """the pieces' entries without the crackle's two (OAM 20 and 21 once the star is gone)"""
+    return burst_oam(gb)[2:]
+
+
 def line_max(gb):
     """The most sprites on one scanline (every OAM entry, 8x16 mode)."""
     assert gb.pb.memory[0xFF40] & 4, "8x16 sprites"
@@ -231,9 +239,13 @@ def test_intro_before_then_flash_then_the_explosion(model):
         assert gb.mem("story_cur") == 255
         run_until(gb, lambda: burst_t(gb) == 255, 80)             # (the ten pieces fly off the screen, trails behind them)
         assert_picture(gb, "intro_a")                             # page 5: the spigot gone, the fountain stopped, no frame
-        assert not any(e["y"] for e in burst_oam(gb)), "every piece has left the screen"
+        assert not any(e["y"] for e in pieces_oam(gb)), "every piece has left the screen"
         assert gb.mem("story_swap") == 0
-        check_golden(gb, "story_pic_intro_a")
+        golden_err = None
+        try:
+            check_golden(gb, "story_pic_intro_a")                 # (with the crackle above the stump: it flickers, but the same every run)
+        except AssertionError as err:
+            golden_err = err
         for k in (5, 6):                                          # pages 6-7: narrator, still the explosion
             gb.press("a", 2)
             page_ready(gb)
@@ -246,6 +258,8 @@ def test_intro_before_then_flash_then_the_explosion(model):
         gb.press("a", 2)
         gb.run(2)
         assert gb.mem("story_scene") != SC["INTRO"], "the last page ends the scene"
+        if golden_err:
+            raise golden_err
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -276,7 +290,7 @@ def test_start_skips_the_intro_before_and_during_the_flash(model):
             settle(gb)
             page_ready(gb)
             assert gb.mem("story_scene") == SC["PRE_SALOON"]
-            assert not any(e["y"] for e in gb.oam()[BURST["oam"]:BURST["oam"] + len(BURST["entries"])]), when
+            assert not any(e["y"] for e in gb.oam()[BURST["oam"]:BURST["oam"] + len(BURST["entries"])]), when   # (the crackle too)
             shots.append(np.array(gb.image()))
     assert all((shots[0] == sh).all() for sh in shots[1:])
 
@@ -417,7 +431,11 @@ def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
             assert n < 40
         assert burst_t(gb) == 1 and row(0) == row(1), "they sit in the spigot's place at the start"
         prev = [tilemap_row(gb, r, 0, 20) for r in range(13)]
-        assert [v for r in prev for v in r] == clean, "the dots are off at the start"
+        x0, y0, sw, sh = BURST["star_cells"]
+        start = list(clean)
+        for k, t in enumerate(BURST["star0"]):                            # (the star is drawn full size with the LCD off)
+            start[(y0 + k // sw) * 20 + x0 + k % sw] = PICS["intro_a"]["ids"][t]
+        assert [v for r in prev for v in r] == start, "the dots are off at the start, the star is up"
         changes, tops, logic_end, last, n, fading = {}, [], [], 1, 0, True
         while last != 255:                                                # the explosion, frame by frame
             gb.run(1)
@@ -435,14 +453,15 @@ def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
             if not fading:
                 logic_end.append(gb.mem16("perf_end_last"))
             oam = burst_oam(gb)
-            assert [v for e in oam for v in (e["y"], e["x"])] == row(step), f"frame {step}: OAM is the table"
-            for e, ent in zip(oam, ents):
+            lo = 2 if step >= BURST["crackle_t"] else 0                   # (from then on OAM 20 and 21 are the crackle's: its own test)
+            assert [v for e in oam[lo:] for v in (e["y"], e["x"])] == row(step)[lo * 2:], f"frame {step}: OAM is the table"
+            for e, ent in zip(oam[lo:], ents[lo:]):
                 if e["y"]:
                     assert (e["tile"], e["flags"] & 0x7F) == (ent["tile"], (ent["flip"] << 5) | BURST["pal"])
             assert line_max(gb) <= 10, f"frame {step}: {line_max(gb)} sprites on a line"
             if step == 1:
                 assert line_max(gb) == 10, "the intact spigot's busiest line: ten (the limit)"
-            tops.append([(e["x"] - 8 - ent["dx"], e["y"] - 16) if e["y"] else None for e, ent in zip(oam, ents)])
+            tops.append([(e["x"] - 8 - ent["dx"], e["y"] - 16) if e["y"] and k >= lo else None for k, (e, ent) in enumerate(zip(oam, ents))])
             now = [tilemap_row(gb, r, 0, 20) for r in range(13)]
             for r in range(13):
                 for c in range(20):
@@ -450,11 +469,11 @@ def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
                         changes.setdefault((c, r), []).append((step, now[r][c]))
             prev = now
         gb.run(6)
-        assert not any(e["y"] for e in burst_oam(gb)), "every piece has left the screen"
+        assert not any(e["y"] for e in pieces_oam(gb)), "every piece has left the screen"
         assert max(logic_end) < 100, f"the frame's logic ends on line {max(logic_end)}: inside the frame (VBlank is 144)"
         assert gb.mem16("vq_late") == 0 and gb.mem("vq_end_ly_max") <= 153
         assert 0 < gb.mem("drain_ticks_max") <= 13, gb.mem("drain_ticks_max")
-        assert 30 <= end <= 60, end
+        assert 30 <= end <= 70, end
         # each piece leaves in its direction and goes on, never nearer its start, until it is off the screen
         import math
         for i, pc in enumerate(pieces):
@@ -472,19 +491,106 @@ def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
         ev = {}
         for (t, x, y, tile) in BURST["events"]:
             ev.setdefault((x, y), []).append((t, PICS["intro_a"]["ids"][tile]))
+        state = {(x0 + k % sw, y0 + k // sw): PICS["intro_a"]["ids"][t] for k, t in enumerate(BURST["star0"])}
+        for (t, y, tiles) in BURST["rows"]:                              # the star: a row of cells a write; a cell is seen when its tile changes
+            for i, tile in enumerate(tiles):
+                tid = PICS["intro_a"]["ids"][tile]
+                if state[(x0 + i, y)] != tid:
+                    ev.setdefault((x0 + i, y), []).append((t, tid))
+                    state[(x0 + i, y)] = tid
         assert set(changes) == set(ev)
         for cell, seq in ev.items():
             assert [tile for _, tile in changes[cell]] == [tile for _, tile in seq], cell
             for (step, _), (te, _) in zip(changes[cell], seq):
                 assert te <= step <= te + 8, (cell, step, te)
         assert [v for r in prev for v in r] == clean, "the sky is plain again"
-        assert len({tile for seq in ev.values() for _, tile in seq[:2]}) == BURST["extra_tiles"] and PICS["intro_a"]["extra"] == BURST["extra_tiles"]
+        pid = PICS["intro_a"]["ids"]
+        extras = set(pid[PICS["intro_a"]["tiles"]:])                      # (every appended tile, the trail's dots and the star's, is used)
+        used = {tile for seq in ev.values() for _, tile in seq} | {pid[t] for t in BURST["star0"]}
+        assert extras <= used and len(extras) == BURST["extra_tiles"] == PICS["intro_a"]["extra"]
         assert_picture(gb, "intro_a")
         # nothing flies while the pages go on, over a speaker's frame too
         gb.press("a", 2)
         page_ready(gb)
         assert_picture(gb, "intro_a")
-        assert not any(e["y"] for e in burst_oam(gb))
+        assert not any(e["y"] for e in pieces_oam(gb))
+
+
+def star_cells(gb):
+    """how many of the star's cells (BG map) are not the plain sky: 0 = gone, 12 = full size, fewer = the small size"""
+    x0, y0, sw, sh = BURST["star_cells"]
+    clean = PICS["intro_a"]["map"]
+    n = 0
+    for r in range(y0, y0 + sh):
+        row = tilemap_row(gb, r, x0, sw)
+        n += sum(row[i] != clean[r * 20 + x0 + i] for i in range(sw))
+    return n
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_burst_pulses_while_the_pieces_fly_then_dies_down_and_the_crackle_takes_over(model):
+    """Owner 2026-10-15: the explosion graphic is in the middle, pulses while the pieces fly away, dies down once they are
+    gone, replaced by an electric crackle. The star (BG cells over the spigot's spot) is up at the flash in its big size,
+    swings between the big and the small size (a pulse each time it is big again), is gone a couple of frames after its last
+    scheduled write, and from BURST['crackle_t'] on two flickering bolts (OBJ) sit above the stump, with the rattle sound,
+    on pages 5-8 alike, inside the line limit, and gone when the scene ends."""
+    SHAKE = 8                                                         # music.h SFX_SHAKE
+    x0, y0, sw, sh = BURST["star_cells"]
+    full = sw * sh
+    with start_story(model) as gb:
+        to_page5(gb)
+        n = 0
+        while burst_t(gb) == 255:
+            gb.run(1)
+            n += 1
+            assert n < 40
+        assert star_cells(gb) == full, "the star is up the moment the flash lets go"
+        sizes, crackle = [], []
+        before = gb.read("sfx_count", SHAKE + 1)[SHAKE]
+        for _ in range(110):
+            gb.run(1)
+            t = burst_t(gb)
+            sizes.append(star_cells(gb))
+            e = burst_oam(gb)[:2]
+            if t == 255 or t >= BURST["crackle_t"]:
+                crackle.append([(x["y"], x["x"], x["tile"], x["flags"] & 0x60) for x in e])
+                for x in e:
+                    if x["y"]:
+                        assert BURST["crackle_xy"][1] < x["y"] - 16 + 1 <= BURST["crackle_xy"][1] + 1, x
+                        assert BURST["crackle_xy"][0] <= x["x"] - 8 < BURST["crackle_xy"][0] + 7 + 6, x
+                        assert x["tile"] in (96, 98, 100, 102), x
+                        assert line_max(gb) <= 10
+        # the pulse: full -> small -> full ... (the swings follow the generator's timeline), then 0 for good
+        assert min(s for s in sizes[:25]) < full, "it shrinks between the peaks"
+        assert sum(1 for k in range(1, len(sizes)) if sizes[k - 1] < full == sizes[k]) >= 1, "it grows back to full size: a pulse"
+        first_zero = next(i for i, v in enumerate(sizes) if v == 0)
+        assert all(v == 0 for v in sizes[first_zero:]), "gone for good"
+        last_row = BURST["rows"][-1][0]
+        assert last_row <= first_zero + 3 <= last_row + 8, (first_zero, last_row)
+        assert 25 <= BURST["crackle_t"] <= 60 and first_zero <= BURST["crackle_t"] + 2
+        # the star is still up while pieces are still flying (the last piece leaves around frame max(leave))
+        assert first_zero + 1 >= max(BURST["leave"]) - 6, (first_zero, max(BURST["leave"]))
+        # the crackle: flickers (several different looks, some frames a bolt hidden), nothing before the star is gone
+        looks = {tuple(c) for c in crackle}
+        assert len(looks) >= 6, f"only {len(looks)} different looks"
+        assert any(not c[0][0] for c in crackle) or any(not c[1][0] for c in crackle), "a bolt blinks out now and then"
+        assert any(c[0][0] and c[1][0] for c in crackle), "both bolts are lit at times"
+        assert gb.read("sfx_count", SHAKE + 1)[SHAKE] > before, "the rattle sounds"
+        # it keeps crackling on the next pages, over the Spigoteer's frame too; line limit
+        for page in (5, 6, 7):
+            gb.press("a", 2)
+            page_ready(gb)
+            on = 0
+            for _ in range(32):
+                gb.run(1)
+                on += any(x["y"] for x in burst_oam(gb)[:2])
+                assert line_max(gb) <= 10
+            assert on >= 12, (page, on)
+            assert not any(e["y"] for e in pieces_oam(gb))
+            assert star_cells(gb) == 0
+        gb.press("a", 2)
+        gb.run(4)
+        assert gb.mem("story_scene") != SC["INTRO"]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

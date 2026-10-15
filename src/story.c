@@ -34,7 +34,7 @@
 // (assets/story/pictures, build/story_pictures.c: its tiles at BG ids 0-35 and above the scene's one portrait slot; a
 // speaker's tiles are streamed into that slot when he comes on; INTRO page 5 switches pictures behind a white flash: the
 // picture then shows the spigot gone and the fountain stopped, and the ten pieces, as OBJ sprites where the spigot was,
-// fly off the screen while a trail of dots fades in the sky behind each (PB_T, story_burst_step). The text types on, one character a frame. Buttons: A or B shows the
+// fly off the screen while a trail of dots fades in the sky behind each (PB_T, story_burst_step); a gold burst star (BG cells over the spigot) pulses meanwhile and dies down, then two crackle sprites flicker above the stump for the rest of the scene (story_burst_crackle). The text types on, one character a frame. Buttons: A or B shows the
 // rest of the page at once, then the next page; START skips the rest of the scene. A page may have text variants
 // (docs/story.md "SPEAKER IF CONDITION"): story_page_get shows the first whose condition bit is set in story_conds.
 //
@@ -934,8 +934,12 @@ uint8_t story_update(uint8_t pressed) BANKED {
         return 1;
     }
     btn = scene_frame(pressed);
-    if (!btn && PIC_SCENE && PB_T != 255)        // the INTRO's explosion, last: its trail goes into whatever room the frame's list has
-        PB_T = story_burst_step(PB_T, (story_hdr.swpage && PS_FX) || (pressed & (J_A | J_B)) ? 0 : story_swap ? 1 : STORY_BURST_PER) ? 255 : PB_T + 1;
+    if (!btn && PIC_SCENE) {
+        if (PB_T != 255)                         // the INTRO's explosion, last: its trail and star go into whatever room the frame's list has
+            PB_T = story_burst_step(PB_T, (story_hdr.swpage && PS_FX) || (pressed & (J_A | J_B)) ? 0 : story_swap ? 1 : STORY_BURST_PER) ? 255 : PB_T + 1;
+        else if (story_hdr.pic == STORY_BURST_PIC && !PS_FX) story_burst_crackle(story_t);   // over: the crackle keeps on above the stump
+        if (story_hdr.pic == STORY_BURST_PIC && (PB_T == 255 || PB_T >= STORY_CRACKLE_T) && !(story_t & 31)) SFX(SFX_SHAKE);   // (its rattle)
+    }
     return btn;
 }
 

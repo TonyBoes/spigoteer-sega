@@ -666,8 +666,41 @@ TRAIL_S0 = 8                    # the first dot is this far (px along the path) 
 TRAIL_SPARSE = 24               # every second dot only over the first TRAIL_SPARSE px after that ("further back is sparser")
 TRAIL_BRIGHT_FRAMES = 6         # a dot stays bright this many frames after the piece passed, then faint ...
 TRAIL_FAINT_FRAMES = 8          # ... this many, then the sky again
+# The burst (owner 2026-10-15: "the actual explosion graphic that used to be in the middle should be there and should pulse while
+# the pieces fly away and then die down once they're gone, replaced by an electric crackle"): a gold star of BG tiles over the
+# spigot's spot (4 x 4 cells from BURST_CELL0, in the picture's palette 0: light, gold, sky), drawn in three sizes, switched in the
+# map by the same timed writes as the trail (an event table; BURST_TIMELINE: frame, size), so the final picture is intro_a.
+# Then the crackle: two 8x16 OBJ sprites (OBJ ids CRACKLE_OBJ.., OBJ palette BURST_PAL) flicker above the stub.
+BURST_CELL0 = (11, 2)           # the star's top-left cell (column, row): its centre (104, 28) is the middle of the spigot
+BURST_W, BURST_H = 4, 3         # cells
+BURST_SIZES = {"M": 10, "B": 14.5}      # radii in px of the two sizes (the picture has room for 22 tiles more)
+BURST_TIMELINE = ((0, "B"), (9, "M"), (18, "B"), (27, "M"), (32, "."))
+CRACKLE_OBJ = 96                # OBJ_DANCER: the INTRO has no overlay, the next venue's load puts its own tiles back
+CRACKLE_XY = (98, 27)           # the first crackle sprite's top-left (the second 6 px to the right): above the stump
+CRACKLE_PATTERNS = 4            # zig-zag bolts (crackle_art), each one 8x16 sprite pair; story_crackle flickers between them
+
+
+def crackle_art(k):
+    """bolt k -> 16 rows of 8 characters ('. Y y'): a one-pixel zig-zag top to bottom (steps of up to 3 px sideways, a short
+    gold side spark here and there), light on the sky, a gold halo beside it"""
+    seed, x, rows = 0x35 + 41 * k, 3 + k % 3, []
+    for y in range(16):
+        seed = (seed * 109 + 89) & 255
+        nx = min(6, max(1, x + (seed >> 5) % 5 - 2 + (1 if x < 3 else -1 if x > 4 else 0)))
+        r = ["."] * 8
+        for c in range(min(x, nx), max(x, nx) + 1):
+            r[c] = "Y"
+        for c in range(8):
+            if r[c] == "." and any(0 <= c + d < 8 and r[c + d] == "Y" for d in (-1, 1)) and (y + k) % 3 == 0:
+                r[c] = "y"
+        rows.append("".join(r))
+        x = nx
+    return rows
+
+
 SCRATCH_CURSOR = 170            # story_scratch offset of the trail's cursor (src/story.c PB_T is [168]); then its stage
 TRAIL_SCHED = 3                 # writes a frame the generator schedules at most
+BURST_FIRST_WRITE = 6           # the first frame the map can be written (the flash's fade-in has no room before)
 TRAIL_PER_FRAME = 5             # map bytes queued per frame at most (each costs ~6 lines of logic and ~0.7 DIV tick of VBlank),
                                 # and only while the list has room: an entry already in it counts 2 ticks, one trail byte 1 (of 10)
 
@@ -767,7 +800,8 @@ def burst_build(key, pieces, pic):
     # dash's pixels are sky, and the speaker pages' portrait frame does not cover it
     pure = lambda cx, cy, px2: set("".join(cellpix(cx, cy))) <= set(".#BO") and all(pix[y][x] == "." for x, y in px2) and not (
         cx * 8 < frame_x1 and cx * 8 + 8 > frame_x0 and cy * 8 < frame_y1 and cy * 8 + 8 > frame_y0)
-    used, dots = set(), []                       # dots: (t_bright, cx, cy, [(x, y)])
+    bcells = [(BURST_CELL0[0] + i, BURST_CELL0[1] + j) for j in range(BURST_H) for i in range(BURST_W)]
+    used, dots = set(bcells), []                 # dots: (t_bright, cx, cy, [(x, y)])   (no dash in the burst's cells)
     for i, p in enumerate(pieces):
         a = p["dir"] * math.pi / 180
         ux, uy = math.cos(a), -math.sin(a)
@@ -812,15 +846,78 @@ def burst_build(key, pieces, pic):
         ev += [(tb, cx, cy, ids[0]), (tb + TRAIL_BRIGHT_FRAMES, cx, cy, ids[1]),
                (tb + TRAIL_BRIGHT_FRAMES + TRAIL_FAINT_FRAMES, cx, cy, clean)]
     ev.sort(key=lambda e: (e[0], e[2], e[1]))
-    sched, t0, k0 = [], 0, 0                     # at most TRAIL_SCHED writes in a frame (the rest wait a frame: no backlog at run time)
-    for (t, x, y, tile) in ev:
-        if t > t0:
-            t0, k0 = t, 0
-        elif k0 >= TRAIL_SCHED:
-            t0, k0 = t0 + 1, 0
-        sched.append((t0, x, y, tile))
-        k0 += 1
+    # ---- the burst star: its tiles per size and the map writes of the timeline (inner cells first; a cell whose tile did not
+    # change is not written; the sky is the picture's own tile, so the last step leaves intro_a exactly) ----
+    kk0 = pic["key"]
+    if pic["pals"][0][:3] != [kk0["Y"]["hex"], kk0["y"]["hex"], kk0["."]["hex"]]:
+        fail(f"{BURST_PIC}: palette 0 must be gold_light, gold, sky (the burst star's)")
+    for (cx, cy) in bcells:
+        if tmap[cy * 20 + cx] != tmap[BURST_CELL0[1] * 20 + BURST_CELL0[0]] or any(v != 2 for r in px[cy * 8:cy * 8 + 8] for v in r[cx * 8:cx * 8 + 8]):
+            fail(f"{BURST_PIC}: the burst's cell ({cx},{cy}) is not plain sky")
+    sw, sh = BURST_W * 8, BURST_H * 8
+    mx, my = (sw - 1) / 2, (sh - 1) / 2
+
+    def star(sz):
+        """the size's 32x32 pixels as shade characters (eight points, a light core, gold points, sky around)"""
+        if sz == ".":
+            return [["+"] * sw for _ in range(sh)]
+        rad = BURST_SIZES[sz]
+        g = []
+        for y in range(sh):
+            row = []
+            for x in range(sw):
+                dx, dy = x - mx, y - my
+                r = math.hypot(dx, dy)
+                f = 0.5 + 0.5 * abs(math.cos(4 * math.atan2(dy, dx))) ** 2
+                row.append("." if r < rad * f * 0.62 else "-" if r < rad * f else "+")
+            g.append(row)
+        return g
+
+    cur = [[tmap[(BURST_CELL0[1] + j) * 20 + BURST_CELL0[0] + i] for i in range(BURST_W)] for j in range(BURST_H)]
+    rows_ev, star0 = [], []                      # star0: the first size: the map's cells as the picture is drawn (LCD off)
+    base = len(pic["tiles"])
+    order = sorted(range(BURST_H), key=lambda j: abs(j - (BURST_H - 1) / 2))      # a step writes its middle row first
+    for n_step, (tb, sz) in enumerate(BURST_TIMELINE):
+        g = star(sz)
+        grid = []
+        for j in range(BURST_H):
+            ids = []
+            for i in range(BURST_W):
+                rows = ["".join(g[j * 8 + y][i * 8:i * 8 + 8]) for y in range(8)]
+                t = tuple(tile_bytes(rows, 0, 0))
+                if t in pic["tiles"]:
+                    ids.append(pic["tiles"].index(t))
+                else:
+                    if t not in extra:
+                        extra.append(t)
+                    ids.append(base + extra.index(t))
+            grid.append(ids)
+        if n_step == 0:
+            star0 = [v for r in grid for v in r]
+            cur = grid
+            continue
+        for j in order:
+            if grid[j] != cur[j]:                # (a whole row of 4 cells is one VBlank list entry: 2 + 4 ticks, half the cost of four)
+                rows_ev.append((tb, BURST_CELL0[1] + j, list(grid[j])))
+                cur[j] = grid[j]
+    for (cx, cy) in bcells:
+        pic["attr"][cy * 20 + cx] = 0            # the star's cells use the picture's palette 0 (light, gold, sky, ink)
+    # the schedule, frame by frame, as story_burst_step will find room for it: a row first (its 6 ticks of the list's 10), then the
+    # trail's single cells (3 ticks each); one entry is in the list already (the text); nothing is written before the fade-in is over
+    sched, srows, ti, ri, f, lag, rlag = [], [], 0, 0, BURST_FIRST_WRITE, 0, 0
+    while ti < len(ev) or ri < len(rows_ev):
+        vq, by, n = 1, 0, 0
+        if ri < len(rows_ev) and rows_ev[ri][0] <= f and vq * 2 + by + 2 + BURST_W <= 11:
+            srows.append((f, rows_ev[ri][1], rows_ev[ri][2]))
+            rlag = max(rlag, f - rows_ev[ri][0])
+            ri, vq, by = ri + 1, vq + 1, by + BURST_W
+        while ti < len(ev) and ev[ti][0] <= f and n < TRAIL_PER_FRAME and vq * 2 + by < 10:
+            sched.append((f,) + ev[ti][1:])
+            lag = max(lag, f - ev[ti][0])
+            ti, vq, by, n = ti + 1, vq + 1, by + 1, n + 1
+        f += 1
     ev = sched
+    print(f"burst schedule: {len(ev)} trail writes (the latest {lag} frames behind its piece), {len(srows)} star rows ({rlag} behind)")
     # the dot cells take the palette that has the dot colours (any palette has the plain sky in slot 2)
     kk = pic["key"]
     want = {0: kk[TRAIL_BRIGHT]["hex"], 1: kk[TRAIL_FAINT]["hex"], 2: kk["."]["hex"]}
@@ -830,7 +927,16 @@ def burst_build(key, pieces, pic):
     for (cx, cy) in sky:
         pic["attr"][cy * 20 + cx] = pal
     pic["extra"] = [list(t) for t in extra]
-    end = max([max(leave)] + [e[0] for e in ev])
+    crackle_t = srows[-1][0] + 1                # the star is gone: the crackle from this frame on
+    crk_tiles = []
+    for k in range(CRACKLE_PATTERNS):
+        rows = [r.translate(str.maketrans("Yy", "-+")) for r in crackle_art(k)]
+        crk_tiles.append([b for half in (rows[:8], rows[8:]) for b in tile_bytes(half, 0, 0)])
+    seed, crk_seq = 0x5B, []                    # per frame and sprite (32 frames): the bolt shown (0-3, +4: mirrored) or 255
+    for _ in range(32):
+        seed = (seed * 75 + 74) % 257
+        crk_seq.append(255 if seed % 4 == 0 else (seed >> 2) % 4 + (4 if seed % 2 else 0))
+    end = max([max(leave), crackle_t] + [e[0] for e in ev])
     pos = []                                    # per frame, per cell: OAM y, x (0, 0: not on the screen)
     for t in range(end + 1):
         for (i, dx, _, _) in entries:
@@ -852,7 +958,8 @@ def burst_build(key, pieces, pic):
     if end > 120:
         fail(f"{BURST_FILE}: the explosion lasts {end} frames (at most 120)")
     return {"tiles": tiles, "entries": entries, "end": end, "worst": worst, "worst_t": worst_t, "pos": pos, "leave": leave,
-            "events": ev, "dots": len(dots), "extra": len(extra), "pal": pal}
+            "events": ev, "dots": len(dots), "extra": len(extra), "pal": pal, "crackle_t": crackle_t,
+            "crk_tiles": crk_tiles, "crk_seq": crk_seq, "rows": srows, "star0": star0}
 
 
 def burst_c(key, pieces, b, pic):
@@ -869,17 +976,38 @@ def burst_c(key, pieces, b, pic):
           carr("stb_tiles", [v for t in b["tiles"] for v in t]),
           carr("stb_ent", [v for (i, dx, k, fl) in b["entries"] for v in (BURST_OBJ + 2 * k, (fl << 5) | BURST_PAL)]),
           carr("stb_pos", b["pos"]), carr("stb_pal", pal, "uint16_t"),
-          carr("stb_ev", [v for (t, x, y, tile) in b["events"] for v in (t, x, y, ids[tile])]), "",
+          carr("stb_ev", [v for (t, x, y, tile) in b["events"] for v in (t, x, y, ids[tile])]),
+          f"#define STB_CRK_T {b['crackle_t']}",
+          carr("stb_star", [pic["ids"][t] for t in b["star0"]]),
+          f"#define STB_NROW {len(b['rows'])}",
+          carr("stb_row", [v for (t, y, tl) in b["rows"] for v in [t, y] + [ids[x] for x in tl]]),
+          carr("stb_crk_tiles", [v for t in b["crk_tiles"] for v in t]), carr("stb_crk_seq", b["crk_seq"]), "",
           "extern uint8_t story_scratch[];", "extern uint8_t vq_count, vq_held;",
           "extern void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n);",
           f"#define STB_CURSOR (*(uint16_t *)(story_scratch + {SCRATCH_CURSOR}))      // the next trail write",
+          f"#define STB_RCUR   (story_scratch[{SCRATCH_CURSOR + 10}])                 // the next star row",
+          f"#define STB_RSTAGE (story_scratch + {SCRATCH_CURSOR + 11})                // its {BURST_W} tile ids until the list copies them",
           f"#define STB_STAGE  (story_scratch + {SCRATCH_CURSOR + 2})                  // its tile ids until the VBlank list copies them", "",
           "// LCD off: the pieces' tiles into the OBJ ids and (CGB) their palette; the trail cursor to the start",
           "void story_burst_load(uint8_t cgb) BANKED {",
           f"    set_sprite_data({BURST_OBJ}, {len(b['tiles']) * 2}, stb_tiles);",
+          f"    set_sprite_data({CRACKLE_OBJ}, {len(b['crk_tiles']) * 2}, stb_crk_tiles);",
+          f"    set_bkg_tiles({BURST_CELL0[0]}, {BURST_CELL0[1]}, {BURST_W}, {BURST_H}, stb_star);   // the star, full size",
           f"    if (cgb) set_sprite_palette({BURST_PAL}, 1, stb_pal);",
           "    STB_CURSOR = 0;",
+          "    STB_RCUR = 0;",
           "}", "",
+          "// the crackle: two bolts flickering above the stump, frame t (any t: 32 repeat)",
+          "static void stb_crackle(OAM_item_t *o, uint8_t t) {",
+          "    uint8_t i, v;",
+          "    for (i = 0; i < 2; i++, o++) {",
+          "        v = stb_crk_seq[(uint8_t)(t + (i << 4) + (i << 2)) & 31];",
+          "        if (v == 255) { o->y = 0; continue; }",
+          f"        o->y = {CRACKLE_XY[1] + 16}; o->x = (uint8_t)({CRACKLE_XY[0] + 8} + i * 6);",
+          f"        o->tile = {CRACKLE_OBJ} + ((v & 3) << 1); o->prop = ((v & 4) << 3) | {BURST_PAL};",
+          "    }",
+          "}", "",
+          "void story_burst_crackle(uint8_t t) BANKED { stb_crackle(shadow_OAM + " + str(BURST_OAM) + ", t); }", "",
           "// frame t of the explosion (0 = the first after the flash): the pieces' OAM entries, and, when the VBlank list is free",
           "// (ev: how many it may queue: 0 in the picture switch), the trail's map writes that are due; 1 once everything is done",
           "uint8_t story_burst_step(uint8_t t, uint8_t ev) BANKED {",
@@ -894,14 +1022,24 @@ def burst_c(key, pieces, b, pic):
           "    }",
           "    c = STB_CURSOR;",
           "    if (ev && !vq_held) {",
+          "        i = 0;                                   // (ticks of the list the star row took)",
+          "        n = STB_RCUR;",
+          "        p = stb_row + (uint16_t)n * (2 + " + str(BURST_W) + ");",
+          "        if (n < STB_NROW && p[0] <= t && (uint8_t)(vq_count * 2) + 2 + " + str(BURST_W) + " <= 11) {",
+          "            for (i = 0; i < " + str(BURST_W) + "; i++) STB_RSTAGE[i] = p[2 + i];",
+          "            vq_add(0, STB_RSTAGE, " + str(BURST_CELL0[0]) + ", p[1], " + str(BURST_W) + ");",
+          "            STB_RCUR = n + 1;",
+          "            i = " + str(BURST_W) + ";",
+          "        }",
           "        p = stb_ev + c * 4;",
-          "        for (n = 0; n < ev && c < STB_NEV && (uint8_t)(vq_count * 2 + n) < 10 && p[0] <= t; n++, c++, p += 4) {",
+          "        for (n = 0; n < ev && c < STB_NEV && (uint8_t)(vq_count * 2 + n + i) < 10 && p[0] <= t; n++, c++, p += 4) {",
           "            STB_STAGE[n] = p[3];",
           "            vq_add(0, STB_STAGE + n, p[1], p[2], 1);",
           "        }",
           "        STB_CURSOR = c;",
           "    }",
-          "    return t >= STB_END && c >= STB_NEV;",
+          "    if (t >= STB_CRK_T) stb_crackle(shadow_OAM + " + str(BURST_OAM) + ", t);",
+          "    return t >= STB_END && c >= STB_NEV && STB_RCUR >= STB_NROW;",
           "}", ""]
     return pc
 
@@ -1432,6 +1570,8 @@ def main():
           f"#define STORY_PIC_POOL {PIC_POOL}      // a picture's first 36 tiles at BG ids 0.., the rest above the scene's portrait slot",
           f"#define STORY_BURST_OAM {BURST_OAM}      // the INTRO's flying pieces: OAM entries from here ...",
           f"#define STORY_BURST_CELLS {len(burst['entries'])}      // ... this many",
+          f"#define STORY_CRACKLE_T {burst['crackle_t']}      // from this frame on the crackle flickers above the stump",
+          f"#define STORY_BURST_PIC {next(i for i, q in enumerate(pics) if q['name'] == BURST_PIC)}      // the picture (index) the crackle goes on showing",
           f"#define STORY_BURST_END {burst['end']}      // the last frame (after the flash) of the explosion",
           f"#define STORY_BURST_PER {TRAIL_PER_FRAME}      // trail map writes a frame at most", "",
           "typedef struct {",
@@ -1462,6 +1602,7 @@ def main():
           "void story_pic_row(uint8_t pic, uint8_t y, uint8_t x, uint8_t w, uint8_t *dst) BANKED;   // dst[2 w]: tiles, attributes",
           "void story_pic_pals(uint8_t pic, uint16_t *dst) BANKED;    // dst[20]: its 4 palettes (slots 0 5 6 7), then the HUD's",
           "void story_burst_load(uint8_t cgb) BANKED;   // LCD off: the INTRO's pieces' OBJ tiles and (CGB) palette 4",
+          "void story_burst_crackle(uint8_t t) BANKED;   // after the explosion: the crackle's two sprites for frame t (each frame, while INTRO A shows)",
           "uint8_t story_burst_step(uint8_t t, uint8_t ev) BANKED;  // frame t of their flight into shadow_OAM (+ up to ev trail map writes); 1 when done",
           "void portrait_tile_copy(uint8_t spk, uint8_t first, uint8_t n, uint8_t *dst) BANKED;   // BG tiles into WRAM",
           "void portrait_get(uint8_t spk, portrait_t *dst) BANKED;",
@@ -1499,7 +1640,7 @@ def main():
                         "art": f"assets/story/pictures/{p['name']}.txt"} for p in pics],
           "pic_slots": list(PIC_SLOTS), "pic_pool": PIC_POOL,
           "burst": {"file": f"assets/story/pictures/{BURST_FILE}", "oam": BURST_OAM, "obj": BURST_OBJ, "pal": BURST_PAL,
-                    "end": burst["end"], "worst_line": burst["worst"], "worst_frame": burst["worst_t"], "leave": burst["leave"],
+                    "end": burst["end"], "crackle_t": burst["crackle_t"], "crackle_obj": CRACKLE_OBJ, "crackle_xy": list(CRACKLE_XY), "star_cells": [BURST_CELL0[0], BURST_CELL0[1], BURST_W, BURST_H], "star0": burst["star0"], "rows": burst["rows"], "timeline": [list(q) for q in BURST_TIMELINE], "worst_line": burst["worst"], "worst_frame": burst["worst_t"], "leave": burst["leave"],
                     "key": bkey, "frame": list(BURST_FRAME), "acc": BURST_ACC, "scratch_cursor": SCRATCH_CURSOR,
                     "per_frame": TRAIL_PER_FRAME, "bright": TRAIL_BRIGHT_FRAMES, "faint": TRAIL_FAINT_FRAMES,
                     "tiles": len(burst["tiles"]) * 2, "pos": burst["pos"], "dots": burst["dots"], "extra_tiles": burst["extra"],
