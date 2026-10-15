@@ -244,7 +244,7 @@ def test_the_screen_and_its_art(model):
     with log_roll(model) as gb:
         assert gb.mem("mg_id") == MG_LOGROLL and gb.mem("mg_mode") == MG_PRACTICE and gb.mem("mg_phase") == 0
         frames(gb, 30)
-        assert text(gb, 2) == "LOG ROLL" and text(gb, 3) == "TAP AGAINST THE ROLL"
+        assert text(gb, 2) == "LOG ROLL" and text(gb, 3) == "LEAN AND HOP FISH"
         assert hud_timer(gb) == "40" and score(gb) == 0 and gb.mem16("mg_timer") == TIME_S * 60
         icon = LR_BG + art_define("LRB_HUD")
         row = tilemap_row(gb, 0, 10, 2)
