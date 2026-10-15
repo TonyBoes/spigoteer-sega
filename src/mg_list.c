@@ -84,6 +84,10 @@ static uint8_t ml_dirty;        // bit k: the info line k (row buffer ML_N + k) 
 static const char locked_name[] = "? ? ?";
 static const char *const locked_info[3] = { "LOCKED", "REACH IT IN STORY", "OR ARCADE" };
 static const char *const locked_bonus[3] = { "LOCKED", "PLAY IT IN ARCADE", "OR CLASSIC" };   // a bonus round: played there once (the pour and the tips: ARCADE only)
+// The keys line's right arrow (owner 2026-10-15: Left, the other way round, is implied). A text glyph like the font's: light on the dark band, rows 1-7.
+//   ########  ##.#####  ##..####  ##...###  ##....##  ##...###  ##..####  ##.#####
+static const uint8_t key_arrow_tile[16] = { 0xFF,0xFF, 0xDF,0xDF, 0xCF,0xCF, 0xC7,0xC7, 0xC3,0xC3, 0xC7,0xC7, 0xCF,0xCF, 0xDF,0xDF };
+
 static const char *const medal_name[4] = { "", "BRONZE", "SILVER", "GOLD" };
 
 static const char *game_name(uint8_t g) {
@@ -129,6 +133,7 @@ static const char *game_where(uint8_t g) {
 static uint8_t ml_glyph(char c) {
     switch (c) {
     case '.': return ST_GLYPH_PERIOD; case '?': return ST_GLYPH_QUEST; case '-': return ST_GLYPH_HYPHEN;
+    case '>': return ST_GLYPH_EXCL;             // (the right arrow: the font's '!' tile, unused here, loaded over in mg_list_enter)
     }
     return glyph_for(c);
 }
@@ -193,7 +198,7 @@ static void build(uint8_t k) {
             cat(w, medal_name[best(g)]);
             put(r, 255, buf);
             break;
-        default: put(r, 255, "A GO B BACK L R MODE");
+        default: put(r, 255, "A GO B BACK > MODE");
         }
         return;
     }
@@ -238,6 +243,7 @@ void mg_list_enter(void) BANKED {
     set_sprite_data(ML_ARROW_UP, 4, list_arrow_tiles);
     music_pump();
     story_font_load();                          // the punctuation (over the title's lettering: title_enter reloads it)
+    set_bkg_data(ST_GLYPH_EXCL, 1, key_arrow_tile);   // ('!' is not on this screen)
     music_pump();
     if (ml_sel >= ML_N) ml_sel = 0;
     ml_n = ML_N; ml_dirty &= ML_DIFF_BITS;

@@ -100,7 +100,7 @@ def play_from_list(gb, rounds=None, score=None):
 def test_left_right_cycle_the_mode_on_every_entry_and_the_header_and_info_lines_follow(model):
     """On every one of the 14 lines: RIGHT goes NORMAL > HARD > EASY > NORMAL (EASY, NORMAL, HARD is the order on the screen, so RIGHT from
     HARD wraps to EASY), LEFT goes back, SELECT goes forward; the header names the mode, the "<MODE> ..." info line follows, the keys line
-    says L R MODE; the mug stays on the line of the selected game."""
+    says the right arrow, MODE; the mug stays on the line of the selected game."""
     with ml.to_list(booted(model)) as gb:
         for k in range(GAMES):
             assert gb.mem("ml_sel") == k

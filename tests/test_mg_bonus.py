@@ -124,7 +124,7 @@ def test_the_release_list_locks_the_bonus_rounds_until_played(model, release_bui
         rows = [line(gb, r) for r in range(9, 12)]
         assert rows[0].split() == ["CAN", "SHAKE-UP", "SILVER"], rows
         assert rows[1].strip() == "? ? ?" and rows[2].split() == ["TIP", "SHOWER", "BRONZE"], rows
-        assert [line(gb, r).strip() for r in (14, 15, 16)] == ["A BONUS ROUND", "NORMAL BEST BRONZE", "A GO B BACK L R MODE"]
+        assert [line(gb, r).strip() for r in (14, 15, 16)] == ["A BONUS ROUND", "NORMAL BEST BRONZE", "A GO B BACK > MODE"]
         check_golden(gb, "mg_list_bonus_release")
         tap(gb, "up")
         gb.run(4)

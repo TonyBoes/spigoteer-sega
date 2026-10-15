@@ -25,12 +25,14 @@ pytestmark = pytest.mark.timeout(300)
 MG_QUICKDRAW, MG_ORDERUP, MG_PLANNED = 0, 3, 10
 MG_SHAKEUP, MG_FILLLINE, MG_TIPS = 12, 13, 14
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
-KEYS = "A GO B BACK L R MODE"                     # the list's last info line (src/mg_list.c)
+KEYS = "A GO B BACK > MODE"                     # the list's last info line (src/mg_list.c)
 PR_AT, PR_MEDAL = 0x40, 6
 PR_LEN = PR_MEDAL + MG_PLANNED
 RELEASE = ROOT / "build" / "release.gb"
 # the story font's '?' (build/story.h: ST_GLYPH_QUEST = STORY_FONT_BASE + 3, STORY_FONT_BASE = BAR_TILE_COUNT)
 QUEST = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1)) + 3
+ARROW = QUEST - 1                              # ST_GLYPH_EXCL (+2): the keys line's right arrow, loaded over the font's '!'
+assert "#define ST_GLYPH_EXCL (STORY_FONT_BASE + 2)" in (ROOT / "build" / "story.h").read_text()
 assert "#define ST_GLYPH_QUEST (STORY_FONT_BASE + 3)" in (ROOT / "build" / "story.h").read_text()
 
 
@@ -71,7 +73,7 @@ def line(gb, row):
     """A row of the list screen as text ('?' for the story font's question mark)."""
     out = ""
     for t in tilemap_row(gb, row, 0, 20):
-        out += GLYPH_CH.get(t, "?" if t == QUEST else "-" if t == QUEST + 2 else " ")   # (ST_GLYPH_HYPHEN is the story font's 6th)
+        out += GLYPH_CH.get(t, ">" if t == ARROW else "?" if t == QUEST else "-" if t == QUEST + 2 else " ")   # (ST_GLYPH_HYPHEN is the story font's 6th)
     return out.rstrip()
 
 
@@ -150,6 +152,9 @@ def test_the_debug_list_has_every_built_game_unlocked_and_scrolls(model):
         assert [line(gb, r).strip() for r in range(2, 12)] == names[:VIS]
         no_row_touches_the_separator(gb, VIS)
         assert [line(gb, r).strip() for r in range(14, 17)] == ["THE SALOON", "NORMAL NO MEDAL YET", KEYS]
+        keys_row = tilemap_row(gb, 16, 0, 20)
+        assert keys_row[KEYS.index(">") + 1] == ARROW and keys_row[0] == keys_row[19], "the arrow tile at column 13, a column spare each side"
+        assert "L R" not in line(gb, 16)
         o = gb.read(0xFE00, 4)
         assert o[0] == 2 * 8 - 7 + 16 and o[1] == 8, "the mug cursor on line 0"
         check_golden(gb, "mg_list")
@@ -419,3 +424,4 @@ def test_the_scroll_arrows_show_only_where_games_are_hidden_and_bob(model):
         (up, down), _ = arrow_ys(gb)
         assert up == 0 and down >= 104, "wrapped to the top"
         assert gb.read(0xFE00, 12)[6] != gb.read(0xFE00, 12)[10], "an up and a down tile"
+
