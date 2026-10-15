@@ -698,6 +698,16 @@ split (the saucer and dome are gone by then) boss.c writes alien C's BG 4 and OB
 before the minis are drawn. DMG: saucer light with a dark rim; minis are the regular alien C art (readable as
 patrons). Minis can be lifted like any patron (lift budgets unchanged).
 
+**E7 additions (owner 2026-10-15: "the mothership gimmick isn't very threatening"), phase 1 only; the header of src/boss_mothership.c has the detail.**
+- Passengers: every landing releases two alien passengers (ordinary variant A / B patrons) at x 24 on the two least busy bars that are not his
+  (a crowded entry is skipped; none while 12 patrons are live). Served like any patron (CLEAR THE BAR counts them); the split clears them.
+- Stun ray: the bartender on one bar 270 frames (4.5 s; reset by any bar change and each landing): a 60-frame charge (HAPPY pose, antenna
+  blinking, SFX_REV, the beam column blinking on HIS bar under his feet, faster in the second half), then, if he is still on that bar, the beam
+  fires (GULP pose, SFX_KA) and he is stunned 90 frames (BT_FAIL: no walking, bar change or pouring; mugs keep sliding). Any bar change in the
+  charge dodges it. The teleport clock waits through the ray. Phase 2 (the minis) has no ray; the split is kept as the climax.
+- Entrance (first start, BEV_LOAD / BEV_INTRO as Duke's): the beam column lights on his bar, the room lights flicker (CGB the bar palette halves,
+  DMG BGP), a hum, then he blinks in as the beam fades and lands (64 frames), then the intro's 90.
+
 Art: saucer body 32x16 x 2 poses (hover, hit flash); dome 8x8 x 3 (lights); beam column 8x16 (2 tiles); icon.
 The minis are the existing alien C patron.
 
