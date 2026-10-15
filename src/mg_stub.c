@@ -25,6 +25,7 @@
 #define SHOW_LEN        40
 #define STEP_PTS        20                  // points lost per frame of reaction (HARD: STEP_PTS_HARD)
 #define STEP_PTS_HARD   30
+#define STUB_IS_HARD    0                           // (every difficulty plays the same for now, owner 2026-10-15: `(MG_DIFF == MG_D_HARD)` brings HARD back)
 #define BT_X            72
 #define BT_Y            112
 enum { GL_NEXT, GL_RED, GL_GREEN, GL_SHOW };
@@ -76,7 +77,7 @@ void stub_update(uint8_t pressed) BANKED {
         switch (S.st) {
         case GL_NEXT:
             S.round++;
-            S.wait = ((mg_mode & MG_HARD) ? RED_MIN_HARD : RED_MIN) + (mg_rand() & 63);
+            S.wait = (STUB_IS_HARD ? RED_MIN_HARD : RED_MIN) + (mg_rand() & 63);
             S.st = GL_RED; S.t = 0;
             S.txt[0] = 'R'; S.txt[1] = 'O'; S.txt[2] = 'U'; S.txt[3] = 'N'; S.txt[4] = 'D'; S.txt[5] = ' ';
             mg_number(S.txt + 6, S.round);
@@ -89,7 +90,7 @@ void stub_update(uint8_t pressed) BANKED {
             break;
         case GL_GREEN:
             if (pressed & J_A) {
-                d = (uint16_t)S.t * ((mg_mode & MG_HARD) ? STEP_PTS_HARD : STEP_PTS);
+                d = (uint16_t)S.t * (STUB_IS_HARD ? STEP_PTS_HARD : STEP_PTS);
                 d = d >= 900 ? 100 : 1000 - d;
                 mg_points(d);
                 mg_number(S.txt, d);                     // "920 POINTS" (the HUD glyphs have no '+')

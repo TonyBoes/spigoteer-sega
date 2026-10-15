@@ -824,30 +824,26 @@ def test_the_medal_is_by_the_score(model, pts, medal):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_practice_hard_starts_at_2_px_and_does_not_slow_below_1_75(model):
-    with milk_run(model, MG_PRACTICE | MG_HARD) as gb:
-        to_riding(gb)
-        assert mr(gb)["spd"] == HARD_START == 32
-        clear_ring(gb)
-        a = settle(gb)["px"]
-        frames(gb, 60)
-        assert abs(settle(gb)["px"] - a - 120) <= 3, "2.0 px a frame"
-        gb.hold("left")
-        frames(gb, 60)
-        gb.release("left")
-        assert snap(gb)["spd"] == HARD_MIN == 28, "HARD: LEFT stops at 1.75"
-        put_bike(gb, 0)
-        frames(gb, 14)
-        poke(gb, spd=SPD_MAX)
-        put_gate(gb, 0b001)
-        frames(gb, 2)
-        s = mr(gb)
-        assert s["inv"] > 0 and s["spd"] == HARD_MIN and s["lost_n"] == DROP_FAST, "HARD: a bump drops to 1.75 and spills 3 even when slow"
-        poke(gb, inv=0, spd=HARD_MIN)
-        c0 = mr(gb)["crates"]
-        put_gate(gb, 0b001)
-        frames(gb, 2)
-        assert mr(gb)["crates"] == c0 - DROP_FAST
+def test_practice_hard_plays_as_normal_for_now(model):
+    """Owner 2026-10-15: every difficulty plays the same until the playtest notes come, so HARD is NORMAL (src/mr.c MR_IS_HARD 0; the
+    HARD constants stay in the source): it starts at 1.5 px, LEFT stops at the 1.0 floor, a bump slow spills 2."""
+    assert HARD_START == 32 and HARD_MIN == 28, "the HARD constants are kept for later"
+    for mode in (MG_PRACTICE | MG_HARD, MG_PRACTICE | 4):
+        with milk_run(model, mode) as gb:
+            to_riding(gb)
+            assert mr(gb)["spd"] == SPD_START == 24
+            clear_ring(gb)
+            gb.hold("left")
+            frames(gb, 60)
+            gb.release("left")
+            assert snap(gb)["spd"] == SPD_MIN == 16, "LEFT stops at 1.0 in every mode"
+            put_bike(gb, 0)
+            frames(gb, 14)
+            poke(gb, inv=0, spd=SPD_MIN)
+            c0 = mr(gb)["crates"]
+            put_gate(gb, 0b001)
+            frames(gb, 2)
+            assert mr(gb)["crates"] == c0 - DROP and mr(gb)["lost_n"] == DROP, "a slow bump spills 2, not 3"
     with milk_run(model) as gb:
         to_riding(gb)
         assert mr(gb)["spd"] == SPD_START, "a normal practice starts at 1.5"
@@ -1131,7 +1127,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         for _ in range(6):
             list_tap(gb, "down")
         assert gb.mem("ml_sel") == 6
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE CHROME COW", "NO MEDAL YET"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE CHROME COW", "NORMAL NO MEDAL YET"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_MILKRUN and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -1157,7 +1153,7 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
         assert [line(gb, r).strip() for r in range(2, 8)] == ["? ? ?"] * 6 and line(gb, 8) == " MILK RUN     SILVER"
         for _ in range(6):
             list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE CHROME COW", "BEST SILVER"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE CHROME COW", "NORMAL BEST SILVER"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_MILKRUN and gb.mem("mg_mode") == MG_PRACTICE

@@ -17,10 +17,19 @@
 #include "game.h"
 #include "po.h"
 
-// mg_enter's mode: the story's mini-game slot, or Practice (a later step: its menu), optionally HARD (owner Q7)
+// mg_enter's mode: the story's mini-game slot (always NORMAL), or Practice with a difficulty chosen on the list (src/mg_list.c).
+// The difficulty is two bits of mg_mode (no WRAM of its own): a game reads MG_DIFF, 0 NORMAL, 1 HARD, 2 EASY (NORMAL is 0 so that STORY and
+// ARCADE, which pass MG_STORY, play it). Owner 2026-10-15: EASY, NORMAL and HARD are selectable in Practice but every game plays the same in
+// all three for now; the owner's playtest notes will set them apart later (Milk Run's and the stub's old HARD constants stay in place, unused).
 #define MG_STORY        0
 #define MG_PRACTICE     1
-#define MG_HARD         2       // | MG_PRACTICE: the game plays its HARD setting (the game reads mg_mode)
+#define MG_HARD         2       // | MG_PRACTICE: difficulty code MG_D_HARD
+#define MG_EASY         4       // | MG_PRACTICE: difficulty code MG_D_EASY
+#define MG_D_NORMAL     0
+#define MG_D_HARD       1
+#define MG_D_EASY       2
+#define MG_DIFFS        3
+#define MG_DIFF         (((mg_mode) >> 1) & 3)   // the difficulty the running game was entered with (MG_D_*)
 
 // Mini-game ids (mg_enter's id; Practice's SRAM bit and medal index): one per planned game, named, independent of the
 // venue order (each game's venue is mg.c's mg_venue[]; the story finds a chapter's game with mg_of_venue[]). An id that

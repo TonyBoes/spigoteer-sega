@@ -53,7 +53,7 @@ extern uint32_t score;
 
 // ---- state (globals => symbols the tests read) ----
 uint8_t  mg_id;                 // the id mg_enter was given (MG_*, mg.h)
-uint8_t  mg_mode;               // MG_STORY, MG_PRACTICE (| MG_HARD)
+uint8_t  mg_mode;               // MG_STORY, MG_PRACTICE (| MG_HARD or MG_EASY: the difficulty, mg.h MG_DIFF)
 uint8_t  mg_phase;              // MG_*
 uint8_t  mg_medal;              // MEDAL_* (set when the result shows)
 uint8_t  mg_t;                  // frames in this phase
@@ -86,6 +86,9 @@ static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 
 static const uint8_t mg_venue[MG_PLANNED] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 static const uint8_t venue_mg[MG_PLANNED] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY,
                                               MG_MILKRUN, MG_TAIKO, MG_MONKEY, MG_ASTEROID };
+// The thresholds per difficulty (mg.h MG_DIFF: NORMAL, HARD, EASY): the same table for all three for now (owner 2026-10-15); a mode that
+// gets its own gets its own table here. The games with their own medal function (qd_medal .. tk_medal) read MG_DIFF there when they need to.
+static const uint16_t (*const medal_tbl[MG_DIFFS])[3] = { medal_at, medal_at, medal_at };
 static const uint16_t medal_pts[4] = { 0, 500, 1500, 3000 };
 static const char *const medal_word[4] = { "NO MEDAL", "BRONZE ", "SILVER ", "GOLD " };
 // CGB: the icon's metal (colours 0-2: highlight, disc, ribbon / numeral) on the HUD band (colour 3, main_cold.c)
@@ -297,7 +300,7 @@ static void game_update(uint8_t pressed) {
 // the result's first frame (also when a test poked mg_phase = MG_RESULT): the medal, its points, the window's text
 static void result_begin(void) {
     uint8_t m = MEDAL_NONE;
-    const uint16_t *at = medal_at[mg_game];
+    const uint16_t *at = medal_tbl[MG_DIFF][mg_game];
     char *d;
     const char *w;
     if (mg_game >= G_B0) mg_score = (uint16_t)score;   // (a practice round starts the score from 0: the points it earned)

@@ -25,6 +25,7 @@ pytestmark = pytest.mark.timeout(300)
 MG_QUICKDRAW, MG_ORDERUP, MG_PLANNED = 0, 3, 10
 MG_SHAKEUP, MG_FILLLINE, MG_TIPS = 12, 13, 14
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
+KEYS = "A GO B BACK L R MODE"                     # the list's last info line (src/mg_list.c)
 PR_AT, PR_MEDAL = 0x40, 6
 PR_LEN = PR_MEDAL + MG_PLANNED
 RELEASE = ROOT / "build" / "release.gb"
@@ -148,7 +149,7 @@ def test_the_debug_list_has_every_built_game_unlocked_and_scrolls(model):
         assert line(gb, 0).strip() == "MINI GAMES  NORMAL"
         assert [line(gb, r).strip() for r in range(2, 12)] == names[:VIS]
         no_row_touches_the_separator(gb, VIS)
-        assert [line(gb, r).strip() for r in range(14, 17)] == ["THE SALOON", "NO MEDAL YET", "NORMAL ONLY  B BACK"]
+        assert [line(gb, r).strip() for r in range(14, 17)] == ["THE SALOON", "NORMAL NO MEDAL YET", KEYS]
         o = gb.read(0xFE00, 4)
         assert o[0] == 2 * 8 - 7 + 16 and o[1] == 8, "the mug cursor on line 0"
         check_golden(gb, "mg_list")
@@ -158,7 +159,7 @@ def test_the_debug_list_has_every_built_game_unlocked_and_scrolls(model):
             top = max(0, k - VIS + 1)
             assert gb.mem("ml_sel") == k
             assert [line(gb, r).strip() for r in range(2, 12)] == names[top:top + VIS], k
-            assert [line(gb, r).strip() for r in (14, 16)] == [where[k], "A PLAY  B BACK  SEL" if k in (6, 13) else "NORMAL ONLY  B BACK"], k
+            assert [line(gb, r).strip() for r in (14, 16)] == [where[k], KEYS], k
             assert gb.read(0xFE00, 1)[0] == (2 + k - top) * 8 - 7 + 16, "the mug on the selected line"
             no_row_touches_the_separator(gb, VIS)
             assert max(lines(gb)) <= 10
@@ -248,7 +249,7 @@ def test_the_release_list_is_locked_until_reached(model, release_built):
     with release_rom(model, ram) as gb:
         to_list(gb)
         assert line(gb, 2) == " QUICK DRAW   SILVER" and line(gb, 3).strip() == "? ? ?"
-        assert line(gb, 15).strip() == "BEST SILVER"
+        assert line(gb, 15).strip() == "NORMAL BEST SILVER"
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_QUICKDRAW and gb.mem("mg_mode") == MG_PRACTICE
@@ -258,7 +259,7 @@ def test_the_release_list_is_locked_until_reached(model, release_built):
         assert line(gb, 2).strip() == "? ? ?" and line(gb, 5) == " ORDER UP     BRONZE"
         for _ in range(3):
             tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(14, 17)] == ["THE BISTRO", "BEST BRONZE", "NORMAL ONLY  B BACK"]
+        assert [line(gb, r).strip() for r in range(14, 17)] == ["THE BISTRO", "NORMAL BEST BRONZE", KEYS]
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_ORDERUP and gb.mem("mg_mode") == MG_PRACTICE
@@ -364,7 +365,7 @@ def test_a_bad_block_unlocks_nothing_and_leaves_the_others_alone(model):
     cases = {
         "checksum": bytes(bad_sum),
         "magic": pr_block(1, [MEDAL_GOLD], magic=b"MGP2"),
-        "a medal past the two fields": pr_block(1, [16]),
+        "a medal byte past the three fields": pr_block(1, [64]),
         "a bit past the planned games": pr_block(1 | 1 << MG_PLANNED, [MEDAL_GOLD]),
         "blank": bytes(PR_LEN + 2),
     }
@@ -373,95 +374,6 @@ def test_a_bad_block_unlocks_nothing_and_leaves_the_others_alone(model):
             assert rom.mem16("mg_unlocked") == 0 and best(rom) == [0] * MG_PLANNED, name
             assert rom.mem("story_progress") == 3 and rom.mem("story_reached") == 1, name
             assert table(rom)[0] == ("ABC", 500) and table(rom, 1)[0] == ("STO", 900), name
-
-
-# ---- the Practice HARD toggle (owner Q7) ------------------------------------------------------------------------------
-def play_and_mode(gb):
-    tap(gb, "a")
-    run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
-    return gb.mem("mg_mode")
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_select_flips_normal_hard_on_milk_run_and_hard_reaches_mg_mode(model):
-    """Milk Run (list line 6) reads MG_HARD: SELECT flips the header NORMAL / HARD (and LEFT / RIGHT too), the keys line says
-    SEL, A then plays with MG_PRACTICE | MG_HARD; the layout holds (a blank row, the separator, the header on row 0 only)."""
-    with to_list(booted(model)) as gb:
-        for _ in range(6):
-            tap(gb, "down")
-        assert gb.mem("ml_sel") == 6 and line(gb, 0).strip() == "MINI GAMES  NORMAL"
-        tap(gb, "select")
-        gb.run(4)
-        assert line(gb, 0).strip() == "MINI GAMES  HARD"
-        no_row_touches_the_separator(gb, VIS)
-        assert line(gb, 8).strip() == "MILK RUN" and line(gb, 14).strip() == "THE CHROME COW"
-        check_golden(gb, "mg_list_hard")
-        tap(gb, "select")
-        gb.run(4)
-        assert line(gb, 0).strip() == "MINI GAMES  NORMAL"
-        tap(gb, "right")
-        gb.run(4)
-        assert line(gb, 0).strip() == "MINI GAMES  HARD"
-        tap(gb, "left")
-        gb.run(4)
-        assert line(gb, 0).strip() == "MINI GAMES  NORMAL"
-        assert play_and_mode(gb) == MG_PRACTICE
-    with to_list(booted(model)) as gb:
-        for _ in range(6):
-            tap(gb, "down")
-        tap(gb, "select")
-        assert play_and_mode(gb) == MG_PRACTICE | 2 and gb.mem("mg_id") == 6
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_games_without_hard_stay_normal_and_the_toggle_is_inert(model):
-    """Quick Draw reads no MG_HARD: SELECT does nothing on it (the header stays NORMAL) and it starts MG_PRACTICE alone, even
-    when HARD was switched on at Milk Run first (the switch stays for Milk Run: back there the header says HARD again)."""
-    with to_list(booted(model)) as gb:
-        tap(gb, "select")
-        gb.run(4)
-        assert line(gb, 0).strip() == "MINI GAMES  NORMAL"
-        for _ in range(6):
-            tap(gb, "down")
-        tap(gb, "select")
-        for _ in range(6):
-            tap(gb, "up")
-        gb.run(4)
-        assert gb.mem("ml_sel") == 0 and line(gb, 0).strip() == "MINI GAMES  NORMAL", "HARD is not in force on Quick Draw"
-        tap(gb, "select")
-        gb.run(4)
-        assert line(gb, 0).strip() == "MINI GAMES  NORMAL", "still inert (it did not flip back either)"
-        for _ in range(6):
-            tap(gb, "down")
-        gb.run(4)
-        assert line(gb, 0).strip() == "MINI GAMES  HARD"
-        for _ in range(6):
-            tap(gb, "up")
-        assert play_and_mode(gb) == MG_PRACTICE and gb.mem("mg_id") == MG_QUICKDRAW
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_hard_best_is_kept_apart_in_the_release_list(model, release_built):
-    """Release build, Milk Run reached with a normal BRONZE and a HARD GOLD (bits 0-1 / 2-3 of its medal byte): the list's medal
-    column and the BEST line follow the mode; the keys line says SEL on Milk Run and NORMAL ONLY on Order Up."""
-    MR_G = 6
-    ram = with_block(v7_image(), pr_block(1 << MR_G | 1 << MG_ORDERUP, [0, 0, 0, MEDAL_SILVER, 0, 0, MEDAL_BRONZE | MEDAL_GOLD << 2]))
-    with release_rom(model, ram) as gb:
-        to_list(gb)
-        assert line(gb, 8) == " MILK RUN     BRONZE"
-        for _ in range(MR_G):
-            tap(gb, "down")
-        assert [line(gb, r).strip() for r in (15, 16)] == ["BEST BRONZE", "A PLAY  B BACK  SEL"]
-        tap(gb, "select")
-        gb.run(4)
-        assert line(gb, 0).strip() == "MINI GAMES  HARD" and line(gb, 8) == " MILK RUN     GOLD"
-        assert line(gb, 15).strip() == "BEST GOLD"
-        no_row_touches_the_separator(gb, VIS)
-        for _ in range(MR_G - MG_ORDERUP):
-            tap(gb, "up")
-        gb.run(4)
-        assert line(gb, 5) == " ORDER UP     SILVER" and line(gb, 16).strip() == "NORMAL ONLY  B BACK"
-        assert line(gb, 0).strip() == "MINI GAMES  NORMAL"
 
 
 # ---- scroll arrows (src/mg_list.c ML_ARROW_*; owner 2026-10-14) ------------------------------------------------------------------------

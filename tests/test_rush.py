@@ -410,7 +410,7 @@ def test_a_good_block_loads_and_a_bad_one_loses_only_itself(model):
         "a boss bit past the table": pr_block2(1, [MEDAL_GOLD], bits=1 << BOSS_COUNT),
         "ALL's score out of range": pr_block2(1, [MEDAL_GOLD], all_score=1000000),
         "ALL's count out of range": pr_block2(1, [MEDAL_GOLD], all_n=BOSS_COUNT + 1),
-        "a medal past the two fields": pr_block2(1, [16], bits=1),
+        "a medal byte past the three fields": pr_block2(1, [64], bits=1),
         "blank": bytes(PR_LEN + 2),
     }
     for name, block in cases.items():

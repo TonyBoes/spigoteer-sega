@@ -292,16 +292,18 @@ def test_too_soon_and_too_slow_score_nothing(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_hard_waits_less_and_scores_steeper(model):
-    with practice(model, MG_PRACTICE | MG_HARD) as gb:
-        waits = []
-        to_play(gb)
-        for r in range(3):
-            until(gb, lambda: stub(gb)["st"] == GL_RED and stub(gb)["round"] == r + 1, 200)
-            waits.append(stub(gb)["wait"])
-            pts = play_round(gb, after=4)
-            assert pts == max(100, 1000 - STEP_PTS_HARD * stub(gb)["react"])
-        assert all(RED_MIN_HARD - 1 <= w <= RED_MIN_HARD + 63 for w in waits)
+def test_hard_and_easy_play_as_normal_for_now(model):
+    """Owner 2026-10-15: every difficulty plays the same for now (src/mg_stub.c STUB_IS_HARD 0): the waits and the scoring are NORMAL's."""
+    for mode in (MG_PRACTICE | MG_HARD, MG_PRACTICE | 4):
+        with practice(model, mode) as gb:
+            waits = []
+            to_play(gb)
+            for r in range(3):
+                until(gb, lambda: stub(gb)["st"] == GL_RED and stub(gb)["round"] == r + 1, 200)
+                waits.append(stub(gb)["wait"])
+                pts = play_round(gb, after=4)
+                assert pts == max(100, 1000 - STEP_PTS * stub(gb)["react"])
+            assert all(RED_MIN - 1 <= w <= RED_MIN + 63 for w in waits)
 
 
 def first_wait(model, seed):

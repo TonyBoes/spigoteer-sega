@@ -758,7 +758,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         for _ in range(7):
             list_tap(gb, "down")
         assert gb.mem("ml_sel") == 7
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE TEAHOUSE", "NO MEDAL YET"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE TEAHOUSE", "NORMAL NO MEDAL YET"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_TAIKO and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -784,7 +784,7 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
         assert [line(gb, r).strip() for r in range(2, 9)] == ["? ? ?"] * 7 and line(gb, 9) == " TAIKO POUR   SILVER"
         for _ in range(7):
             list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE TEAHOUSE", "BEST SILVER"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE TEAHOUSE", "NORMAL BEST SILVER"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_TAIKO and gb.mem("mg_mode") == MG_PRACTICE

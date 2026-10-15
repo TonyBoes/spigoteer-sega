@@ -124,7 +124,7 @@ def test_the_release_list_locks_the_bonus_rounds_until_played(model, release_bui
         rows = [line(gb, r) for r in range(9, 12)]
         assert rows[0].split() == ["CAN", "SHAKE-UP", "SILVER"], rows
         assert rows[1].strip() == "? ? ?" and rows[2].split() == ["TIP", "SHOWER", "BRONZE"], rows
-        assert [line(gb, r).strip() for r in (14, 15, 16)] == ["A BONUS ROUND", "BEST BRONZE", "NORMAL ONLY  B BACK"]
+        assert [line(gb, r).strip() for r in (14, 15, 16)] == ["A BONUS ROUND", "NORMAL BEST BRONZE", "A GO B BACK L R MODE"]
         check_golden(gb, "mg_list_bonus_release")
         tap(gb, "up")
         gb.run(4)
@@ -250,7 +250,7 @@ def test_a_bonus_round_plays_in_the_framework_and_earns_its_medal(model, gid, ki
         row = 2 + sel - max(0, sel - VIS + 1)
         assert gb.mem("ml_sel") == sel and line(gb, row).split()[-1] == ["NO", "BRONZE", "SILVER", "GOLD"][best] or best == 0
         if best:
-            assert line(gb, 15).strip() == "BEST " + ["", "BRONZE", "SILVER", "GOLD"][best]
+            assert line(gb, 15).strip() == "NORMAL BEST " + ["", "BRONZE", "SILVER", "GOLD"][best]
         out = save_ram(gb)
     played, medals, _ = parse_bx(out)
     assert played == 1 << (gid - MG_SHAKEUP) and medal_of(medals, gid - MG_SHAKEUP) == best

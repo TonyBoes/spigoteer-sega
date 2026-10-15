@@ -10,7 +10,7 @@
 //
 // Rules (fixed point 1/16 px):
 // - The street scrolls at the player's speed (start 1.5 px). 2.5 is the top: the gate spacing is built for it. A bump drops it to the
-//   floor (1.0) and the throttle is dead while the bike wobbles. HARD (Practice): it starts at 2.0 and the floor is 1.75.
+//   floor (1.0) and the throttle is dead while the bike wobbles. HARD (Practice; off since 2026-10-15, see MR_IS_HARD): it starts at 2.0 and the floor is 1.75.
 // - A crate flies 16 frames from the bike (screen x 34, the centre of the crate) to the kerb while the street moves under
 //   it, so it lands where the box has come to (the lead is the speed x 16 frames: slow is easier to aim). Within 8 px of a box's
 //   centre: PERFECT, 500; within 16: delivered, 300; anywhere else (or on a full box) it is lost on the pavement. Two crates at most
@@ -78,6 +78,9 @@ typedef char mr_offsets[(__builtin_offsetof(struct mr_state, ctile) == 2 && __bu
 #define MR_DROP_FAST     3
 #define MR_HARD_SPD_START 32                     // HARD: from 2.0 px a frame, and no slower than 1.75 (bumps always spill 3)
 #define MR_HARD_SPD_MIN  28
+// Owner 2026-10-15: every difficulty plays the same for now, so HARD is NORMAL (the HARD constants above stay for the playtest pass: make this
+// `(MG_DIFF == MG_D_HARD)` again to bring them back)
+#define MR_IS_HARD       0
 #define MR_PICK1       140                       // the pickups' columns (about the 3rd and the 8th box)
 #define MR_PICK2       380
 #define MR_PICK_BEFORE  16                       // a gate from this many columns before a pickup to MR_PICK_AFTER after it keeps its lane free
@@ -333,7 +336,7 @@ void mr_enter(void) BANKED {
         OBP1_REG = 0xE0;                         // the bike, crates, stars, pop: idx2 dark grey
     }
     // the state
-    S.spd = (mg_mode & MG_HARD) ? MR_HARD_SPD_START : MR_SPD_START;
+    S.spd = MR_IS_HARD ? MR_HARD_SPD_START : MR_SPD_START;
     S.pk_lane[0] = (uint8_t)((mg_seed >> 8) ^ mg_seed) % 3;            // the pickups' lanes from the seed (no mg_rand: the street stays as it was)
     S.pk_lane[1] = (S.pk_lane[0] + 1 + ((mg_seed >> 4) & 1)) % 3;
     S.lane = 1; S.y = lane_top[1]; S.crates = MR_CRATES; S.time = MR_TIME_S * 60; S.secs = MR_TIME_S;
@@ -435,10 +438,10 @@ static void lane_press(int8_t d) {
     if ((uint8_t)d <= 2) S.lane = d;
 }
 
-static uint8_t spd_floor(void) { return (mg_mode & MG_HARD) ? MR_HARD_SPD_MIN : MR_SPD_MIN; }
+static uint8_t spd_floor(void) { return MR_IS_HARD ? MR_HARD_SPD_MIN : MR_SPD_MIN; }
 
 static void crash(void) {
-    uint8_t n = (S.spd >= MR_SPD_FAST || (mg_mode & MG_HARD)) ? MR_DROP_FAST : MR_DROP;
+    uint8_t n = (S.spd >= MR_SPD_FAST || MR_IS_HARD) ? MR_DROP_FAST : MR_DROP;
     S.inv = MR_WOBBLE + MR_BLINK;
     S.spd = spd_floor();                         // the bump takes the speed away
     if (n > S.crates) n = S.crates;

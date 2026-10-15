@@ -3327,3 +3327,9 @@ keep their old banners (no card there).
 - Tests: tests/test_mg_card.py (every game has a card; the full card first and it waits; A, then the short card, A skips it; the save; STORY);
   tests/test_mg_bonus.py (list entries, unlocks, medals, the block); tests/test_mg_list.py (scrolling, no row on the separator). The test
   cartridges start with every card seen (tests/conftest.py `with_cards`; `booted(model, cards=False)` for a fresh one).
+
+Practice difficulty and the menu highlight (2026-10-15)
+- Title: backing out of BONUS > MINI GAMES / BOSS RUSH put the cursor on line 1 / 2 but title_enter drew the gold line on line 0; it now draws
+  it on title_sel (tests/test_menu_cursor.py drives every way back).
+- Practice: EASY / NORMAL / HARD for every list game, LEFT / RIGHT, every game identical in the three for now; see docs/minigames_bosses.md
+  "Practice difficulty" (MG_DIFF, medals per mode in MGP2's byte and the "MD" block at 0x7A, tests/test_difficulty.py).

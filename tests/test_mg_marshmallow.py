@@ -766,7 +766,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         for _ in range(4):
             list_tap(gb, "down")
         assert gb.mem("ml_sel") == 4
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE IGLOO", "NO MEDAL YET"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE IGLOO", "NORMAL NO MEDAL YET"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_MARSHMALLOW and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -792,7 +792,7 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
         assert [line(gb, r).strip() for r in range(2, 6)] == ["? ? ?"] * 4 and line(gb, 6) == " MARSHMALLOWS SILVER"
         for _ in range(4):
             list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE IGLOO", "BEST SILVER"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE IGLOO", "NORMAL BEST SILVER"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_MARSHMALLOW and gb.mem("mg_mode") == MG_PRACTICE

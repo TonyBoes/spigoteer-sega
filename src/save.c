@@ -16,7 +16,8 @@
 //   checksum, another chapter, a score above 999999) reads as score 0. Not in a debug-select run or ARCADE (save_lock).
 //   0x40 Practice (BONUS > MINI GAMES and BOSS RUSH): 0..3 magic "MGP2"; 4..5 the mini-games reached (16-bit little
 //   endian, bit g = mini-game g, MG_* of src/mg.h; only bits below MG_PLANNED are ever set); 6..6+MG_PLANNED-1 the best
-//   medal of each (MEDAL_*, 0..3); 16..43 the boss rush's part (RUSH_SAVE_N bytes, src/rush.h RSV_*): 16..17 the bosses
+//   medal of each (a byte: MEDAL_* in bits 0-1 for NORMAL, 2-3 for HARD, 4-5 for EASY, owner 2026-10-15: Practice's difficulties; a byte above 63
+//   is bad; an older save has bits 4-5 clear: no EASY medals, and its medals read as NORMAL); 16..43 the boss rush's part (RUSH_SAVE_N bytes, src/rush.h RSV_*): 16..17 the bosses
 //   beaten in STORY or ARCADE (LE, bit v = venue v's boss; only bits below BOSS_COUNT), 18..37 each boss's fastest rush
 //   win in frames (LE, 0 none), 38..40 ALL's best score (LE, <= 999999), 41..42 that run's frames, 43 its bosses beaten
 //   (<= BOSS_COUNT); 44 the checksum (0x5A + bytes 0..43), 45 its complement. A block that does not check out (magic,
@@ -35,6 +36,9 @@
 //   (0x40..0x6D) and before the tables (0x80), so MGP2 is untouched; a block that does not check out (magic, checksum, a bit above
 //   the three rounds, a medal field above 3 -- impossible in two bits, the byte's top two bits must be 0) reads as nothing played,
 //   no medals and no card seen, and is rewritten on the next change. Nothing is written in a debug-select run.
+//   0x7A the bonus rounds' EASY / HARD medals "MD" (6 bytes, the last gap before the tables): 0..1 magic, 2 the EASY medals, 3 the HARD medals
+//   (2 bits a round as MGB1's byte 5, round k at k * 2; the top two bits must be 0), 4 the checksum (0x5A + bytes 0..3), 5 its complement. NORMAL
+//   medals stay in MGB1. A block that does not check out (an older save has none) reads as no EASY or HARD medals; MGB1 and the rest are unaffected.
 //   0x80 ARCADE, 0xC0 STORY, 0x100 CLASSIC: a top 5 each (TBL_AT(t), t = MODE_*): 0..3 magic "HSA1" / "HSS1" / "HSC2" (P5: CLASSIC's
 //   "HSC1" held the stand-in's scores and now loads as an empty table),
 //   5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little endian, <= 999999), best first;
@@ -126,8 +130,10 @@ uint8_t  mg_best[MG_PLANNED];       // Practice: the best medal per mini-game
 
 #define BX_AT    0x70               // the bonus rounds' block "MGB1" (4 bytes of data after the magic: reached, medals, seen x2)
 #define BX_LEN   8
-#if PR_AT + PR_LEN + 2 > BX_AT || BX_AT + BX_LEN + 2 > 0x80
-#error "the bonus block does not fit between the Practice block and the tables"
+#define DX_AT    (BX_AT + BX_LEN + 2) // the bonus rounds' EASY and HARD medals "MD": 0..1 magic, 2 the EASY medals, 3 the HARD medals (2 bits a round, as MGB1's byte 5), 4 checksum, 5 complement
+#define DX_LEN   4
+#if PR_AT + PR_LEN + 2 > BX_AT || DX_AT + DX_LEN + 2 > 0x80
+#error "the bonus blocks do not fit between the Practice block and the tables"
 #endif
 
 static uint8_t checksum(volatile uint8_t *b, uint8_t n) {
@@ -242,7 +248,7 @@ static uint8_t pr_version(void) {
     if (v == '1') { if (!sum_ok(b, PR1_LEN)) return 0; }
     else if (v != '2' || !sum_ok(b, PR_LEN)) return 0;
     if ((b[4] | ((uint16_t)b[5] << 8)) >> MG_PLANNED) return 0;
-    for (g = 0; g < MG_PLANNED; g++) if (b[PR_MEDAL + g] > 15) return 0;   // (bits 0-1 normal, 2-3 HARD)
+    for (g = 0; g < MG_PLANNED; g++) if (b[PR_MEDAL + g] > 63) return 0;   // (bits 0-1 NORMAL, 2-3 HARD, 4-5 EASY)
     if (v == '1') return v;
     if ((r[RSV_BITS] | ((uint16_t)r[RSV_BITS + 1] << 8)) >> BOSS_COUNT || r[RSV_ALL_N] > BOSS_COUNT
         || (r[RSV_ALL_SCORE] | ((uint32_t)r[RSV_ALL_SCORE + 1] << 8) | ((uint32_t)r[RSV_ALL_SCORE + 2] << 16)) > HI_MAX)
@@ -277,7 +283,7 @@ static void load_pr(void) {
 // when one of them changes (the rush part kept). Nothing in a debug-select run, nothing for the stub (g >= MG_PLANNED).
 void mg_record(uint8_t g, uint8_t medal) BANKED {
     uint16_t m = (uint16_t)1 << g;
-    uint8_t sh = (mg_mode & MG_HARD) ? 2 : 0;    // a HARD medal is kept apart (bits 2-3 of the game's byte)
+    uint8_t sh = MG_DIFF * 2;                    // a medal per difficulty (bits 0-1 NORMAL, 2-3 HARD, 4-5 EASY of the game's byte)
     if (g >= MG_SHAKEUP) { bonus_record(g - MG_SHAKEUP, medal); return; }   // (the old bonus rounds: their own block; ids 12..14, else ignored there)
     if (save_lock == SAVE_LOCK_DEBUG || g >= MG_PLANNED) return;
     if (medal ? medal <= ((mg_best[g] >> sh) & 3) : (mg_unlocked & m) != 0) return;
@@ -303,6 +309,32 @@ static void bx_put(const uint8_t *d) {
     sum_put(b, BX_LEN);
 }
 
+// The EASY and HARD medals block (RAM enabled): d[0] the EASY medals, d[1] the HARD ones (zeros when it does not check out: an older save)
+static void dx_get(uint8_t *d) {
+    volatile uint8_t *b = SRAM + DX_AT;
+    uint8_t i, ok = b[0] == 'M' && b[1] == 'D' && sum_ok(b, DX_LEN) && !(b[2] >> 6) && !(b[3] >> 6);
+    for (i = 0; i < 2; i++) d[i] = ok ? b[2 + i] : 0;
+}
+
+static void dx_put(const uint8_t *d) {
+    volatile uint8_t *b = SRAM + DX_AT;
+    b[0] = 'M'; b[1] = 'D'; b[2] = d[0]; b[3] = d[1];
+    sum_put(b, DX_LEN);
+}
+
+// Bonus round k's best medal (MEDAL_*) in difficulty `diff` (mg.h MG_D_*)
+uint8_t bonus_best(uint8_t k, uint8_t diff) BANKED {
+    uint8_t d[2], m, i;
+    if (diff == MG_D_NORMAL) return (bonus_info(k) >> 1) & 3;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    dx_get(d);
+    DISABLE_RAM;
+    m = d[diff == MG_D_EASY ? 0 : 1];
+    for (i = 0; i < k; i++) m >>= 2;
+    return m & 3;
+}
+
 // Bonus round k: bit 0 played in ARCADE / CLASSIC, bits 1-2 its best medal
 uint8_t bonus_info(uint8_t k) BANKED {
     uint8_t d[4], m, p, i;
@@ -317,10 +349,19 @@ uint8_t bonus_info(uint8_t k) BANKED {
 
 // Round k was played (medal 0: ARCADE / CLASSIC reached it) or earned `medal` (a better one is kept): written only when something changes
 void bonus_record(uint8_t k, uint8_t medal) BANKED {
-    uint8_t d[4], mask = 3, m = medal, old, was = 1, i;
+    uint8_t d[4], mask = 3, m = medal, old, was = 1, i, x = medal ? MG_DIFF : MG_D_NORMAL;
     if (save_lock == SAVE_LOCK_DEBUG || k >= MG_BONUS_N) return;
     ENABLE_RAM;
     SWITCH_RAM(0);
+    if (x != MG_D_NORMAL) {                      // an EASY or HARD medal: its own block (the played bit is set by NORMAL / ARCADE / CLASSIC)
+        dx_get(d);
+        x = x == MG_D_EASY ? 0 : 1;
+        old = d[x];
+        for (i = 0; i < k; i++) { mask <<= 2; m <<= 2; old >>= 2; }
+        if (medal > (old & 3)) { d[x] = (d[x] & ~mask) | m; dx_put(d); }
+        DISABLE_RAM;
+        return;
+    }
     bx_get(d);
     old = d[1];
     for (i = 0; i < k; i++) { mask <<= 2; m <<= 2; old >>= 2; was <<= 1; }   // (round k's 2 bits, its played bit)

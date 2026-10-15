@@ -841,7 +841,7 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         for _ in range(8):
             list_tap(gb, "down")
         assert gb.mem("ml_sel") == 8
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE JUNGLE ZOO", "NO MEDAL YET"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE JUNGLE ZOO", "NORMAL NO MEDAL YET"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_MONKEY and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -868,7 +868,7 @@ def test_the_release_list_unlocks_it_when_reached(model, release_built):
         assert line(gb, 10) == " MONKEY BIZ   SILVER"
         for _ in range(8):
             list_tap(gb, "down")
-        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE JUNGLE ZOO", "BEST SILVER"]
+        assert [line(gb, r).strip() for r in range(14, 16)] == ["THE JUNGLE ZOO", "NORMAL BEST SILVER"]
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_MONKEY and gb.mem("mg_mode") == MG_PRACTICE

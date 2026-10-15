@@ -1941,3 +1941,20 @@ every frame on time; four bars at once (more than one bartender can serve) run s
 10. The counter splash: the tile under the contact column is the splash for 30 frames, then the bar's own again.
 11. Fair empties: `next_arrival` is the same with and without a shove in the same scripted scene.
 12. Score, served and tips are the same with and without shoves.
+
+## Practice difficulty (2026-10-15, owner: "put in the selection but make every difficulty level the same right now")
+
+BONUS > MINI GAMES offers EASY / NORMAL / HARD for every game on the list (the ten venue games, the three bonus rounds; the debug stub too).
+LEFT and RIGHT cycle them (RIGHT: EASY, NORMAL, HARD, round; SELECT goes forward too); the header's right side names the mode ("MINI GAMES  HARD"),
+the info lines read "<MODE> BEST GOLD" / "<MODE> NO MEDAL YET" and the keys line "A GO B BACK L R MODE", and the list's medal column is that mode's.
+The mode is chosen once for the whole list and outlasts a game and a visit to the title. A game reads it as `MG_DIFF` (mg.h: two bits of
+`mg_mode`, 0 NORMAL, 1 HARD, 2 EASY; no WRAM of its own); STORY and ARCADE pass `MG_STORY` and always play NORMAL.
+Every game plays exactly the same in the three modes for now (tests/test_difficulty.py runs each game 420 frames from a fixed seed and keys in
+each mode and compares its whole state). Milk Run's HARD tuning (start 2.0 px, floor 1.75, 3 crates a bump) and the stub's are kept as named
+constants but switched off (`MR_IS_HARD`, `STUB_IS_HARD` are 0; make them `(MG_DIFF == MG_D_HARD)` to bring them back). Medal thresholds are one
+table for all three modes (mg.c `medal_tbl[MG_DIFF]`, three pointers to the same table); a mode that gets its own thresholds gets its own table;
+the games with their own medal function read `MG_DIFF` there.
+Saving: a medal per game per mode. The ten games' byte in the "MGP2" block holds NORMAL in bits 0-1, HARD in 2-3, EASY in 4-5 (an older save has
+bits 4-5 clear: its medals are NORMAL's, EASY has none; a byte above 63 makes the block bad: nothing loads). The bonus rounds keep NORMAL in
+"MGB1" (byte 5) and EASY / HARD in a new six-byte block "MD" at 0x7A (the last gap before the tables: magic, EASY medals, HARD medals, checksum,
+complement; a block that does not check out, as in every older save, reads as no EASY or HARD medals and touches nothing else).
