@@ -1,0 +1,17 @@
+; Art: PROPOSAL (new, unapproved: pending owner approval). A sound-wave arc ')' 8x16, the punks' chord and the teahouse's beat, drawn facing left (it travels left).
+........
+.....#..
+......#.
+.......#
+.......#
+......#.
+.....#..
+........
+........
+.....#..
+......#.
+.......#
+.......#
+......#.
+.....#..
+........

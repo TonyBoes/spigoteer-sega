@@ -1,0 +1,9 @@
+; Art: PROPOSAL (new, unapproved: pending owner approval). A boot, 8x8 (the bottom of an 8x16 entry), used for the lumber, robot and zoo gags: black with a grey sole and a toe cap.
+........
+........
+..####..
+..#++#..
+..#++#..
+.#####..
+####+##.
+#++++##.

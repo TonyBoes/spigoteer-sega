@@ -387,6 +387,7 @@ def page_ready(gb):
     if gb.mem("story_typed") < 54:
         gb.press("a", 2)
     run_until(gb, lambda: gb.mem("story_swap") == 0, 30)
+    run_until(gb, lambda: gb.mem(gb.addr("win_rows") + 4) != 1, 400)   # Dregs's exit gag (src/dgag.c, state win_rows[0][4]) is over
     gb.run(3)
 
 

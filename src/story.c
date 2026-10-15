@@ -62,6 +62,10 @@ BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
 extern uint8_t overlay_on, level, game_over, state_timer, score_digits[6], new_rank;
 extern uint32_t score;
+// Dregs's late-arrival gags (src/dgag.c): their state is win_rows[0] (the goal banner's buffer, unused in a scene); [4] 1 = a gag is running
+void dg_load(uint8_t *st, uint8_t v) BANKED;
+void dg_page(uint8_t *st, uint8_t scene, uint8_t prev, uint8_t spk) BANKED;
+void dg_frame(uint8_t *st) BANKED;
 
 #define SCENE_BAR        1         // the Spigoteer stands at this bar's tap during a cut-scene
 #define BOX_ROW         13         // the text box: panel row 13, text rows 14-16, panel row 17
@@ -119,7 +123,7 @@ static uint8_t page_buf[56];      // speaker, 3 x 18 characters, portrait id
 static uint8_t box_tiles[3][18];
 static uint8_t tag_row[20];
 static uint8_t hud_buf[8];
-static uint8_t win_rows[5][20];
+uint8_t win_rows[5][20];            // (global for the tests: [0][4] is Dregs's gag state, src/dgag.c)
 // the backdrop of rows 0-12 (map, then attributes): used only while a cut-scene shows, and rewritten from scratch by
 // every scene_enter, so the mini-games lay their state over it (src/mg.h union mg_ram)
 #if STORY_PIC_ROWS * 40 != STORY_SCRATCH
@@ -344,7 +348,7 @@ static void tag_build(void) {                    // row 13: the panel with the s
 // LCD on (lcd 0) or off (1): the page's box cleared, its name tag; a portrait change starts if the page's portrait
 // differs (another speaker, or the same speaker's variant: the Spigoteer's cozy, Dregs's apology)
 static void page_begin(uint8_t lcd_off) {
-    uint8_t r;
+    uint8_t r, prev = story_spk;
     uint8_t gap;
     story_page_get(story_scene, story_page, story_conds, page_buf);   // its text: a variant when its condition holds
     gap = (page_buf[0] >> 4) * STORY_BEAT_UNIT;   // the page's @beat: a pause before it types (docs/story.md "Beats")
@@ -353,6 +357,7 @@ static void page_begin(uint8_t lcd_off) {
         gap = page_buf[0] != story_spk ? STORY_GAP_SPEAKER : STORY_GAP_PAGE;   // a page turn / speaker change never types at once
     story_t = gap;                                // (the beat counter: story_update does not count frames in a scene)
     story_spk = page_buf[0];
+    if (story_page && !PIC_SCENE) dg_page(win_rows[0], story_scene, prev, story_spk);   // Dregs's exit gag, on the narrator page after his
     story_pid = page_buf[55];
     story_typed = 0;
     for (r = 0; r < 3; r++) fill(box_tiles[r], TILE_HUD_BLANK, 18);
@@ -421,6 +426,7 @@ static void scene_enter(uint8_t s) {
     tip_timer = 0; show_timer = 0;
     story_scene = s; story_page = 0; story_swap = SW_IDLE; story_phase = SP_SCENE; story_t = 0;
     story_scene_get(s, (uint8_t *)&story_hdr);
+    win_rows[0][4] = 0;                          // (no Dregs gag running; a POST scene loads its tiles below)
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
     story_font_load();
     if (story_hdr.venue != 255) {
@@ -432,6 +438,7 @@ static void scene_enter(uint8_t s) {
         bar = SCENE_BAR; bartender_x = TAP_X; facing = 0; bartender_frame = BT_IDLE; bt_bob = 0;
         draw_bartender();
         stage_anim_start();
+        if (!(s & 1)) dg_load(win_rows[0], story_hdr.venue);   // a POST scene: Dregs's gag tiles and palettes (OBJ 56.., LCD off)
     } else {
         story_pic_draw(story_hdr.pic, is_cgb);
         PS_FX = 0;
@@ -866,6 +873,7 @@ static uint8_t pic_fx(void) {
 // One frame of a cut-scene (SP_SCENE) after START was looked at. 1: the screen was redrawn (LCD off) or the scene is over.
 static uint8_t scene_frame(uint8_t pressed) {
     if (story_hdr.swpage && PS_FX) return pic_fx();   // the picture switch: nothing else moves
+    if (win_rows[0][4] == 1) dg_frame(win_rows[0]);   // Dregs's gag (src/dgag.c) draws its sprites
     if (story_swap) swap_frame(VQ_STORY_ROOM - ((pressed & (J_A | J_B)) ? story_typed < 54 ? 3 * COST(18) : VQ_STORY_ROOM : 0));
                                                  // (the press queues the page's text, or turns the page: the swap waits a frame)
     if (story_typed < 54) {
@@ -874,7 +882,7 @@ static uint8_t scene_frame(uint8_t pressed) {
         else type_frame();
         return 0;
     }
-    if ((pressed & (J_A | J_B)) && !story_swap) {
+    if ((pressed & (J_A | J_B)) && !story_swap && win_rows[0][4] != 1) {   // (not while Dregs's gag plays)
         if (++story_page >= story_hdr.pages) { scene_done(); return 1; }
         if (story_page + 1 == story_hdr.swpage) { PS_FX = 1; return pic_fx(); }   // the next picture, behind a flash
         page_begin(0);
