@@ -1,6 +1,6 @@
 ; list_keys: the Practice list keys line's three button glyphs (src/mg_list.c), BG tiles over the story font's frame tiles TL, T, TR (this screen shows no frame).
-; HUD palette: '.' the text colour (light), '#' the band. Order: A, B, right. A and B are 7x7 round buttons with the letter knocked out, the D-pad a rounded square
-; with the right arrow knocked out. CGB colours them with a button palette (src/mg_list.c ML_PAL_BTN).
+; HUD palette: '.' the text colour (light), '#' the band. Order: A, B, right. A and B are 7x7 round buttons with the letter knocked out, the D-pad a plus with the
+; pressed arm (right) lit (owner 2026-10-15: variant 2's buttons with variant 1's D-pad). CGB colours them with a button palette (src/mg_list.c ML_PAL_BTN).
 ########
 ##...###
 #..#..##
@@ -20,10 +20,10 @@
 ##...###
 
 ########
-#.....##
-..#....#
-..##...#
-..###..#
-..##...#
-..#....#
-#.....##
+##+++###
+##+++###
+++++...#
+++++...#
+++++...#
+##+++###
+##+++###
