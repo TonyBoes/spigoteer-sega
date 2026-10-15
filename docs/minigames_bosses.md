@@ -1157,7 +1157,7 @@ Story fit: PRE_IGLOO page (AURORA): `MARSHMALLOWS GO` / `IN EVERY MUG.` / `THREE
 ### 4.6 Battery Sort (Robot factory)
 
 Play: batteries roll in on a belt and stop on a diverter. Left sends a charged one to the CHARGE bin, Right a dead
-one to RECYCLE. From the 16th battery some are broken: Down sends those to SCRAP. The belt speeds up as you go.
+one to RECYCLE, a broken one Down to SCRAP (all three bins from the very first battery, owner 2026-10-15). The belt speeds up as you go.
 
 Rules and numbers:
 - The front battery waits on the diverter for at most D frames: D = 120 at the start, -8 every 4 correct sorts, never
@@ -1165,8 +1165,11 @@ Rules and numbers:
 - Belt speed (refills the queue): 0.75 px/f, +0.125 every 6 correct sorts, max 2.0; batteries enter 24 px apart.
 - Correct: the battery flies into its bin (arc, 20 frames), 100 + 10 x streak (streak bonus capped at 200).
   Wrong bin or D runs out: a strike (buzzer, the bin spits it onto the floor). 3 strikes or 45 s end it.
-- Mix: charged / dead 50 / 50; from battery 16: 20% broken (the SCRAP chute's door opens with a banner "DOWN =
-  SCRAP" for 60 frames, the belt pauses meanwhile).
+- Mix (D5a, 2026-10-15): the first three batteries are one of each kind (charged, dead, broken) so the player sees every bin
+  and direction at once; then 30% broken, the rest charged / dead 50 / 50. No mid-game banner, no pause: the chute is open
+  from the start and the HOW TO PLAY card explains Down.
+- A strike never eats the next battery's time: a wrong bin is judged when the battery lands (24 frames after the sort), by
+  when the next battery has been waiting up to 24 frames; at the strike its wait is restored to the full D.
 - Medal: GOLD >= 6000, SILVER >= 4000, BRONZE >= 2000. A fast, clean player sorts ~50 in 45 s.
 
 Why fun and fair: categorise under rising pressure, with the next five visible so you can read ahead. Mashing
@@ -1192,7 +1195,7 @@ Hardware:
  11 wwwwwwwwwwwwwwwwwwww
  12 wnnnnnnwwwwwwrrrrrrw    n CHARGE bin (bolt sign), r RECYCLE bin
  13 wnnnnnnwwwwwwrrrrrrw
- 14 wnnnnnnwkkkkwrrrrrrw    k SCRAP chute (opens at battery 16)
+ 14 wnnnnnnwkkkkwrrrrrrw    k SCRAP chute (open from the start since D5a)
  15 wnnnnnnwkkkkwrrrrrrw
  16 wnnnnnnwkkkkwrrrrrrw
  17 ffffffffffffffffffff

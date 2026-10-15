@@ -1,7 +1,7 @@
 # docs/minigames_bosses.md 4.6: BATTERY SORT (src/bs.c), the robot factory's mini-game, on the framework (src/mg.c):
 # the screen (the approved art), the rules (each type to its bin, the diverter's window shrinking and the belt speeding
-# up, a wrong bin and a timeout as strikes, the SCRAP chute opening at the 16th battery with its banner and everything
-# paused, three strikes, time up), the points and medals, the seeded batteries, STORY / ARCADE reaching it in the
+# up, a wrong bin and a timeout as strikes, the SCRAP chute open from the first battery (one of each kind first, no banner, no pause),
+# a strike never eating the next battery's time, three strikes, time up), the points and medals, the seeded batteries, STORY / ARCADE reaching it in the
 # factory, BONUS > MINI GAMES, and everything put back for the level after. Sprites per line <= 10 on every frame.
 import json
 import re
@@ -22,15 +22,15 @@ ART_H = (ROOT / "build" / "art.h").read_text()
 MG_BATTERY = 5
 FACTORY = 5
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
-SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_LIFE, SFX_SHAKE = 2, 3, 4, 7, 8
+SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_LIFE = 2, 3, 4, 7
 BH = {m[0]: int(m[1]) for m in re.findall(r"#define (BS\w+) (\d+)", BS_H)}
-(TIME_S, WIN0, WIN_STEP, WIN_EVERY, WIN_MIN, SPEED0, SPEED_EVERY, SPEED_MAX, GAP_IN, GAP, START_N, BROKEN_FROM, BROKEN_P,
- PTS, STREAK_PTS, STREAK_MAX, STRIKES, BANNER_LEN, FLY_DROP, FLY_ARC, FLY_LEN, SCREEN_LEN, SPARK_LEN, CROSS_LEN, SPIT_ARC,
- BAND_OFF) = (define(n, BS_C) for n in (
+(TIME_S, WIN0, WIN_STEP, WIN_EVERY, WIN_MIN, SPEED0, SPEED_EVERY, SPEED_MAX, GAP_IN, GAP, START_N, ONE_EACH, BROKEN_P,
+ PTS, STREAK_PTS, STREAK_MAX, STRIKES, FLY_DROP, FLY_ARC, FLY_LEN, SCREEN_LEN, SPARK_LEN, CROSS_LEN, SPIT_ARC,
+ BAND_OFF, POSE_FAIL) = (define(n, BS_C) for n in (
     "BS_TIME_S", "BS_WIN0", "BS_WIN_STEP", "BS_WIN_EVERY", "BS_WIN_MIN", "BS_SPEED0", "BS_SPEED_EVERY", "BS_SPEED_MAX",
-    "BS_GAP_IN", "BS_GAP", "BS_START_N", "BS_BROKEN_FROM", "BS_BROKEN_P", "BS_PTS", "BS_STREAK_PTS", "BS_STREAK_MAX",
-    "BS_STRIKES", "BS_BANNER_LEN", "BS_FLY_DROP", "BS_FLY_ARC", "BS_FLY_LEN", "BS_SCREEN_LEN", "BS_SPARK_LEN",
-    "BS_CROSS_LEN", "BS_SPIT_ARC", "BS_BAND_OFF"))
+    "BS_GAP_IN", "BS_GAP", "BS_START_N", "BS_ONE_EACH", "BS_BROKEN_P", "BS_PTS", "BS_STREAK_PTS", "BS_STREAK_MAX",
+    "BS_STRIKES", "BS_FLY_DROP", "BS_FLY_ARC", "BS_FLY_LEN", "BS_SCREEN_LEN", "BS_SPARK_LEN",
+    "BS_CROSS_LEN", "BS_SPIT_ARC", "BS_BAND_OFF", "BS_POSE_FAIL"))
 (BELT_ROW, BELT_N, DIV_COL, DIV_ROW, BIN_ROW, CHARGE_COL, CHUTE_COL, RECYCLE_COL, STRIKE_COL, FRONT_X, BAT_Y, SPIG_X,
  SPIG_Y, CROSS_Y, CROSS_DIV_X, CROSS_DIV_Y, SPARK_Y, LIE_Y, DIV_PAL, CHARGE_PAL, RECYCLE_PAL, PAL_BROKEN, PAL_SPARK,
  PAL_CROSS, OAM_SPIG, OAM_CROSS, OAM_SPARKS, OAM_SPIT, OAM_FLY, OAM_BELT_SPARK, OAM_QUEUE, OAM_N) = (
@@ -137,19 +137,6 @@ def sort_right(gb):
     return sort(gb, right_dir(bs(gb)["queue"][0]))
 
 
-def play_to_scrap(gb, check=None):
-    """Sort every battery right (one in the air at a time) until the chute's banner."""
-    while bs(gb)["st"] != BS_SCRAP:
-        s = bs(gb)
-        assert s["chute"] == 0 and s["st"] == BS_RUN and gb.mem("mg_phase") == MG_PLAY
-        assert check is None or check()
-        if s["wait"] and not flying(gb):
-            assert s["queue"][0] != BT_BROKEN
-            tap(gb, KEY[right_dir(s["queue"][0])])
-        else:
-            frames(gb, 1)
-
-
 def window_of(n):
     return max(WIN_MIN, WIN0 - WIN_STEP * (n // WIN_EVERY))
 
@@ -162,7 +149,7 @@ def streak_pts(k):
     return PTS + min(STREAK_PTS * k, STREAK_MAX)
 
 
-def bin_tiles(sign, lid=False):
+def bin_tiles(sign):
     """The bin's 5 rows of 4 tiles as the game draws them."""
     rows = []
     for r in range(5):
@@ -172,7 +159,7 @@ def bin_tiles(sign, lid=False):
             if m == 255:
                 row.append(BS_BG + BH["BSB_SIGN"] + sign * 4 + (r - 1) * 2 + (c - 1))
             else:
-                row.append(BS_BG + BH["BSB_BIN"] + (ART["lid_map"][c] if r == 0 and lid else m))
+                row.append(BS_BG + BH["BSB_BIN"] + m)
         rows.append(row)
     return rows
 
@@ -211,9 +198,9 @@ def batteries(seed, n):
     """The types of batteries 1..n as the game makes them."""
     r, out = Rng(seed), []
     for made in range(1, n + 1):
-        if made == BROKEN_FROM:
-            out.append(BT_BROKEN)
-        elif made > BROKEN_FROM and r() < BROKEN_P:
+        if made <= ONE_EACH:
+            out.append(made - 1)
+        elif r() < BROKEN_P:
             out.append(BT_BROKEN)
         else:
             out.append(r() & 1)
@@ -224,13 +211,13 @@ def batteries(seed, n):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_screen(model):
     """The intro: the banner, the hourglass and 45, the strike lamps beside the lives (column 8 keeps the lives number); the belt, the diverter, the three bins (the
-    chute under its lid), the counter row turned to wall; the art in VRAM; three batteries on the belt and the
+    chute open, no lid), the counter row turned to wall; the art in VRAM; three batteries on the belt and the
     Spigoteer beside the machine; CGB attributes and palettes (RECYCLE in palette 5: 4 is the result's medal);
     DMG OBP1 0xE4 (the title leaves 0xC4)."""
     with battery_sort(model) as gb:
         frames(gb, 30)
         assert gb.mem("mg_id") == MG_BATTERY and gb.mem("venue_id") == FACTORY and gb.mem("mg_phase") == 0
-        assert text(gb, 2) == "BATTERY SORT" and text(gb, 3) == "LEFT FULL RIGHT DEAD"
+        assert text(gb, 2) == "BATTERY SORT" and text(gb, 3) == "L FULL R DEAD D BAD"
         assert gb.mem16("mg_timer") == TIME_S * 60
         glyph = {int(m[1]): m[0] for m in re.findall(r"#define TILE_GLYPH_(\w) (\d+)", ART_H)}
         assert tilemap_row(gb, 0, 16, 2) == [BLANK, HOURGLASS] and "".join(glyph[t] for t in tilemap_row(gb, 0, 18, 2)) == "45"   # blank, hourglass, 4 5
@@ -240,7 +227,7 @@ def test_the_screen(model):
         assert tilemap_row(gb, DIV_ROW + 1, DIV_COL, 2) == [BS_BG + BH["BSB_SCREEN"] + k for k in range(2)], "idle"
         assert tilemap_row(gb, DIV_ROW + 2, DIV_COL, 2) == [BS_BG + BH["BSB_BASE"] + k for k in range(2)]
         assert bin_on_screen(gb, CHARGE_COL) == bin_tiles(0)
-        assert bin_on_screen(gb, CHUTE_COL) == bin_tiles(2, lid=True)
+        assert bin_on_screen(gb, CHUTE_COL) == bin_tiles(2), "the chute is open from the start"
         assert bin_on_screen(gb, RECYCLE_COL) == bin_tiles(1)
         assert tilemap_row(gb, 11, 0, 20) == tilemap_row(gb, 5, 0, 20), "the counter row is wall (an odd wall row)"
         bg = b"".join(bytes(gb.read((0x9000 if t < 128 else 0x8000) + t * 16, 16))
@@ -253,7 +240,7 @@ def test_the_screen(model):
         for k in range(START_N):
             o = oam(gb, OAM_QUEUE + k)
             assert (o["x"], o["y"]) == (FRONT_X - GAP * k + 8, BAT_Y + 16)
-        assert all(oam(gb, i)["y"] == 0 for i in range(OAM_CROSS, OAM_QUEUE))
+        assert all(oam(gb, i)["y"] == 0 for i in range(OAM_CROSS, OAM_QUEUE) if i != OAM_BELT_SPARK), "(the broken one sparks on the belt)"
         assert all(oam(gb, i)["y"] == 0 for i in range(OAM_QUEUE + START_N, 40))
         sp = oam(gb, OAM_SPIG)
         assert (sp["x"], sp["y"], sp["tile"]) == (SPIG_X + 8, SPIG_Y + 16, BT_IDLE * 8)
@@ -268,9 +255,9 @@ def test_the_screen(model):
             assert cgb_bg_palette(gb, CHARGE_PAL)[0] == cgb_bg_palette(gb, 0)[0], "the bins' outline on the wall"
             assert len({tuple(cgb_obj_palette(gb, p)[1:]) for p in (PAL_BROKEN, PAL_SPARK, PAL_CROSS)}) == 3
             assert [oam(gb, OAM_QUEUE + k)["prop"] & 7 for k in range(START_N)] == [
-                1 if t == BT_CHARGED else 2 for t in s["queue"]], "the factory drink's own palettes"
+                {BT_CHARGED: 1, BT_DEAD: 2, BT_BROKEN: PAL_BROKEN}[t] for t in s["queue"]], "the factory drink's palettes, the broken one's"
         else:
-            assert gb.mem(0xFF49) == 0xE4 and all(oam(gb, OAM_QUEUE + k)["prop"] & 0x10 == 0 for k in range(START_N))
+            assert gb.mem(0xFF49) == 0xE4 and all(oam(gb, OAM_QUEUE + k)["prop"] & 0x10 == (0x10 if s["queue"][k] == BT_BROKEN else 0) for k in range(START_N))
         shot(gb, "intro")
         check_golden(gb, "bs_intro")
 
@@ -327,7 +314,7 @@ def test_each_type_goes_to_its_bin(model, kind):
     with battery_sort(model) as gb:
         to_play(gb)
         to_waiting(gb)
-        poke(gb, front=kind, chute=1 if kind == BT_BROKEN else 0)
+        poke(gb, front=kind)
         to_waiting(gb)
         before = gb.mem16("mg_score")
         s0 = bs(gb)
@@ -371,16 +358,12 @@ def test_each_type_goes_to_its_bin(model, kind):
 def test_a_wrong_bin_is_a_strike(model):
     """A dead battery sent Left: on landing a strike (the first lamp lit, the buzzer), the streak back to 0, no points;
     the WRONG cross blinks over the CHARGE bin, the battery is spat out and lies on the floor (the drink's lying empty
-    frame); the Spigoteer's fail pose. Down with the chute closed does nothing."""
+    frame); the Spigoteer's fail pose."""
     with battery_sort(model) as gb:
         to_play(gb)
         to_waiting(gb)
         poke(gb, front=BT_DEAD, streak=5)
         to_waiting(gb)
-        w = bs(gb)["wait"]
-        tap(gb, "down")
-        s = bs(gb)
-        assert not flying(gb) and w - 2 <= s["wait"] < w and s["queue"][0] == BT_DEAD, "the chute is closed"
         before = gb.mem16("mg_score")
         sort(gb, DIR_LEFT)
         landed(gb)
@@ -405,6 +388,35 @@ def test_a_wrong_bin_is_a_strike(model):
         assert True in crosses and False in crosses, "it blinks"
         assert spit[SPIT_ARC + 2] == (SPIT_X1[DIR_LEFT], LIE_Y, OBJ_MUG_DRINK + 4), "lying: the drink's empty frame"
         assert oam(gb, OAM_CROSS)["y"] == 0 and oam(gb, OAM_SPIT)["y"] == 0
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("sorted_n", [0, 40, 254], ids=["D120", "D40", "Dmin_fast"])
+def test_a_strike_does_not_eat_the_next_batterys_time(model, sorted_n):
+    """Owner 2026-10-15: after the wrong-bin strike the next battery's timer seemed to expire at once. A wrong bin is judged
+    when the battery lands (FLY_LEN frames after the sort) while the next battery already waits on the flap. At the strike
+    the waiting battery's wait is the full D again, so from the moment the strike shows the player has D frames (D >= 40,
+    more than the FAIL pose's 30) to sort it, and sorting it right after the strike counts. The numbers are printed (-s)."""
+    with battery_sort(model) as gb:
+        to_play(gb)
+        poke(gb, sorted=sorted_n, streak=0, window=window_of(sorted_n), speed=speed_of(sorted_n))
+        to_waiting(gb)
+        win = bs(gb)["window"]
+        t = bs(gb)["queue"][0]
+        tap(gb, KEY[DIR_RIGHT if t == BT_CHARGED else DIR_LEFT])       # the wrong bin for a charged / dead one
+        until(gb, lambda: bs(gb)["strikes"] == 1, FLY_LEN + 2)
+        frames(gb, 1)
+        s = bs(gb)
+        assert s["n"] and s["wait"], "the next battery is waiting on the flap when the strike shows"
+        print("BS lockout", model, "sorted", sorted_n, "D", win, "wait at the strike", s["wait"])
+        assert s["wait"] >= win - 2, "the next battery has its whole window from the strike on"
+        until(gb, lambda: bs(gb)["pose_t"] == 0, POSE_FAIL + 2)      # sort it when the FAIL pose ends: still in time
+        s = bs(gb)
+        assert s["wait"] > 0 and s["strikes"] == 1, "the pose is over and the battery still has time"
+        print("BS lockout", model, "D", win, "wait left when the FAIL pose ends", s["wait"])
+        tap(gb, KEY[right_dir(s["queue"][0])])
+        landed(gb)
+        assert bs(gb)["strikes"] == 1 and bs(gb)["last"] == BR_RIGHT
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -458,54 +470,42 @@ def test_the_window_shrinks_and_the_belt_speeds_up(model):
         assert (speed_of(5), speed_of(6), speed_of(59), speed_of(60), speed_of(255)) == (6, 7, 15, 16, 16)
 
 
-# ---- the SCRAP chute ----------------------------------------------------------------------------------------------------------
+# ---- the SCRAP chute (open from the first battery) -------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_scrap_chute_opens_at_the_16th_battery(model):
-    """No broken battery before the 16th, which always is one; when it reaches the flap the chute's lid slides away and
-    SCRAP CHUTE OPEN / BROKEN ONES DOWN shows for 60 frames with the belt, the wait and the timer stopped; then the rows
-    are wall again and Down sends it into the chute."""
+def test_the_scrap_chute_is_in_play_from_the_start(model):
+    """Owner 2026-10-15: no mid-game pause. The first three batteries are one of each kind (charged, dead, broken); the
+    chute is open from the intro (no lid), Down sends the third into it at once, nothing pauses (no banner: the belt,
+    the wait and the timer run all the time) and the banner rows are wall."""
     with battery_sort(model) as gb:
+        assert bs(gb)["queue"] == [BT_CHARGED, BT_DEAD, BT_BROKEN] and bs(gb)["chute"] == 1
         to_play(gb)
-        play_to_scrap(gb, check=lambda: bin_on_screen(gb, CHUTE_COL)[0] == bin_tiles(2, lid=True)[0])
-        s = bs(gb)
-        assert s["made"] >= BROKEN_FROM and s["queue"][0] == BT_BROKEN and s["chute"] == 1
-        assert s["sorted"] == BROKEN_FROM - 1, "every battery before it was charged or dead"
-        assert gb.mem("last_sfx") == SFX_SHAKE and s["banner"] == BANNER_LEN
-        timer, qx, wait = gb.mem16("mg_timer"), s["qx"], s["wait"]
-        frames(gb, 3)
-        assert text(gb, 2) == "SCRAP CHUTE OPEN" and text(gb, 3) == "BROKEN ONES DOWN"
-        if model == "cgb":
-            assert all(attr(gb, r, c) == 1 for r in (2, 3) for c in range(20))
-        assert bin_on_screen(gb, CHUTE_COL)[0] == bin_tiles(2)[0], "the lid is gone: the bin's own rim"
-        assert oam(gb, OAM_BELT_SPARK)["y"] - 16 == BAT_Y - 7 and oam(gb, OAM_BELT_SPARK)["x"] - 8 == FRONT_X + 1
-        tap(gb, "down")
-        frames(gb, 25)
-        s = bs(gb)
-        assert (s["qx"], s["wait"], s["st"]) == (qx, wait, BS_SCRAP), "all paused"
-        assert abs(gb.mem16("mg_timer") - timer) <= 1, "the timer too (mg.c counts it down after the game's update)"
-        assert not flying(gb)
-        shot(gb, "scrap_open")
-        check_golden(gb, "bs_scrap_open")
-        until(gb, lambda: bs(gb)["st"] == BS_RUN, BANNER_LEN)
         frames(gb, 3)
         assert text(gb, 2) == "" and tilemap_row(gb, 2, 0, 20) == tilemap_row(gb, 4, 0, 20)
         assert tilemap_row(gb, 3, 0, 20) == tilemap_row(gb, 5, 0, 20)
-        before = gb.mem16("mg_score")
-        sort(gb, DIR_DOWN)
-        landed(gb)
-        assert bs(gb)["last"] == BR_RIGHT and gb.mem16("mg_score") == before + streak_pts(BROKEN_FROM)
-        assert bs(gb)["spark_x"] == BIN_X[DIR_DOWN]
+        got = []
+        for _ in range(3):
+            to_waiting(gb)
+            timer, wait = gb.mem16("mg_timer"), bs(gb)["wait"]
+            frames(gb, 5)
+            assert bs(gb)["st"] == BS_RUN and abs(bs(gb)["wait"] - (wait - 5)) <= 1 and abs(gb.mem16("mg_timer") - (timer - 5)) <= 1, "never paused"
+            got.append(sort_right(gb))
+            landed(gb)
+        assert got == [BT_CHARGED, BT_DEAD, BT_BROKEN]
+        s = bs(gb)
+        assert s["sorted"] == 3 and s["strikes"] == 0 and s["last"] == BR_RIGHT and s["spark_x"] == BIN_X[DIR_DOWN]
+        assert gb.mem16("mg_score") == streak_pts(1) + streak_pts(2) + streak_pts(3)
+        assert bs(gb)["made"] >= ONE_EACH
 
 
 @pytest.mark.parametrize("seed", [SEED, 0x1234, 0xBEEF, 0x0001])
 def test_the_batteries_follow_the_seed(seed):
-    """The types are the seed's (mg_rand): batteries 1-15 charged or dead, about half each; the 16th broken; from the
-    17th about 20% broken. The game makes exactly the model's sequence."""
-    seq = batteries(seed, 220)
-    assert BT_BROKEN not in seq[:BROKEN_FROM - 1] and seq[BROKEN_FROM - 1] == BT_BROKEN
-    later = seq[BROKEN_FROM:]
-    assert 0.1 < later.count(BT_BROKEN) / len(later) < 0.3
-    assert 0.35 < seq.count(BT_CHARGED) / (len(seq) - seq.count(BT_BROKEN)) < 0.65
+    """The types are the seed's (mg_rand): the first three one of each kind, then about 30% broken and the rest charged / dead
+    half each (so about a third of each kind). The game makes exactly the model's sequence."""
+    seq = batteries(seed, 300)
+    assert seq[:ONE_EACH] == [BT_CHARGED, BT_DEAD, BT_BROKEN]
+    later = seq[ONE_EACH:]
+    assert 0.2 < later.count(BT_BROKEN) / len(later) < 0.4
+    assert 0.35 < later.count(BT_CHARGED) / (len(later) - later.count(BT_BROKEN)) < 0.65
     with battery_sort("dmg", seed=seed) as gb:
         to_play(gb)
         got = list(bs(gb)["queue"])
@@ -514,9 +514,6 @@ def test_the_batteries_follow_the_seed(seed):
             if s["n"] > 0 and s["made"] > len(got):
                 got.append(s["queue"][s["n"] - 1])
             if s["wait"] and not flying(gb):
-                if s["queue"][0] == BT_BROKEN and not s["chute"]:
-                    frames(gb, 1)
-                    continue
                 tap(gb, KEY[right_dir(s["queue"][0])])
             else:
                 frames(gb, 1)
@@ -603,7 +600,7 @@ def test_points_streaks_and_medals(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_whole_game_keeps_to_10_sprites_a_line(model):
     """A whole game frame by frame from the intro to the result, the player quick (sorting as soon as he can, the 7th
-    one wrong, the 13th left to time out), across the chute's opening: never more than 10 sprites on a line (the
+    one wrong, the 13th left to time out), with the chute in play from the start: never more than 10 sprites on a line (the
     belt's worst is 8)."""
     with battery_sort(model, seed=0x2468) as gb:
         worst, k, late = [0], 0, False
@@ -656,8 +653,9 @@ def test_the_level_after_battery_sort_has_everything_back(model):
         to_play(gb)
         sort_right(gb)
         landed(gb)
-        poke(gb, made=BROKEN_FROM - 1)
-        play_to_scrap(gb)
+        poke(gb, front=BT_BROKEN)
+        sort(gb, DIR_DOWN)
+        landed(gb)
         with logic_paused(gb):
             gb.write("mg_phase", MG_RESULT)
         until(gb, lambda: gb.mem("overlay_on") == 1, 10)

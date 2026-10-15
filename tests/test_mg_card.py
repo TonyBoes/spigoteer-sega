@@ -23,7 +23,7 @@ CARD_C = (ROOT / "src" / "mg_card.c").read_text()
 PLAN = (ROOT / "PLAN.md").read_text()
 # game ids (mg.h) in the card table's order (G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO, G_B0, G_B1, G_B2)
 IDS = [MG_STUB, 0, 5, 3, 6, 2, 9, 7, 4, 8, 1, 11, MG_SHAKEUP, MG_FILLLINE, MG_TIPS]
-PENDING = ["BATTERY SORT", "MILK RUN"]
+PENDING = ["MILK RUN"]
 MG_MARSHMALLOW = 4
 MG_LOGROLL = 2
 TWO_PAGES = (MG_STUB, MG_SHAKEUP, MG_MARSHMALLOW, 1, MG_LOGROLL)   # the games whose card has a second page (1: T-Shirt Cannon)
@@ -99,7 +99,7 @@ def test_the_games_being_reworked_have_placeholder_cards_from_the_banner():
         else:
             assert all(ls[:3]), name                        # (the fourth line is there only where it helps)
     after = PLAN.split("card text pending the Batch D rework")[1][:300]
-    assert all(n in after for n in ("Battery Sort", "Milk Run")), "marked in PLAN.md"
+    assert all(n in after for n in ("Milk Run",)), "marked in PLAN.md"
 
 
 # ---- the full card ----------------------------------------------------------------------------------------------------------------

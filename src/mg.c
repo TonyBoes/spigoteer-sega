@@ -67,7 +67,7 @@ static char res_txt[2][14];
 static const char *const mg_name[MG_GAMES]  = { "GREEN LIGHT", "QUICK DRAW", "BATTERY SORT", "ORDER UP!",
                                                 "MILK RUN", "LOG ROLL", "ASTEROID DELIVERY", "TAIKO POUR", "MARSHMALLOW DROP", "MONKEY BUSINESS", "SHIRT CANNON", "THE POUR OFF",
                                                 "CAN SHAKE UP", "PERFECT POUR", "TIP SHOWER" };
-static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "LEFT FULL RIGHT DEAD",
+static const char *const mg_instr[MG_GAMES] = { "PRESS A ON GREEN", "PRESS A OR B ON DRAW", "L FULL R DEAD D BAD",
                                                 "REPEAT THE ORDER", "UP DOWN LANE A TOSS",
                                                 "TAP AGAINST THE ROLL", "STEER AND LAND SOFT", "A TOP LANE B BOTTOM",
                                                 "MOVE THEN A DROPS", "A SHOO NOT PARROTS", "A POWER THEN A FIRE", "FIRST TO 20 SERVES",

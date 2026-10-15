@@ -44,7 +44,7 @@ typedef struct { uint8_t game; const char *line[4]; } more_t;   // a further pag
 static const card_t cards[MG_GAMES] = {
     /* G_STUB */ { "GREEN LIGHT", { "PRESS A ON GREEN", "NOT ON RED", "5 ROUNDS", "" } },
     /* G_QD   */ { "QUICK DRAW", { "WAIT FOR THE SIGN", "A OR B: THE BADGE", "WIN 3 FOR GOLD", "" } },
-    /* G_BS   */ { "BATTERY SORT", { "LEFT FULL RIGHT DEAD", "", "", "" } },                   // PENDING (the Batch D rework)
+    /* G_BS   */ { "BATTERY SORT", { "LEFT: FULL CELL", "RIGHT: DEAD CELL", "DOWN: BROKEN CELL", "3 STRIKES END IT" } },
     /* G_OU   */ { "ORDER UP!", { "WATCH THE ORDER", "D-PAD: REPEAT IT", "SERVE 7 FOR GOLD", "" } },
     /* G_MR   */ { "MILK RUN", { "UP DOWN LANE A TOSS", "", "", "" } },                    // PENDING
     /* G_LR   */ { "LOG ROLL", { "LEFT RIGHT: LEAN", "AGAINST THE ROLL", "A OR B: HOP", "OVER THE FISH" } },

@@ -4,17 +4,23 @@
 // bartender poses).
 //
 // Batteries roll along a belt to a diverter. The front one waits on its flap for at most D frames: Left sends it to the
-// CHARGE bin (a charged one), Right to RECYCLE (a dead one), and from the 16th battery Down to the SCRAP chute (a broken
-// one). A wrong bin, or D running out, is a strike; three strikes or 45 seconds end it.
+// CHARGE bin (a charged one), Right to RECYCLE (a dead one), Down to the SCRAP chute (a broken one): all three bins are
+// open from the first battery (owner 2026-10-15: no mid-game pause to explain the chute). A wrong bin, or D running out,
+// is a strike; three strikes or 45 seconds end it.
 //
 // Rules (the spec's numbers):
 // - D = 120 frames, -8 every 4 correct sorts, never under 40. The belt (it refills the queue): 0.75 px a frame,
 //   +0.125 every 6 correct sorts, at most 2.0 (BS speed in 1/8 px); batteries enter 24 px apart and queue 16 px apart,
 //   the next five in view.
-// - Charged / dead 50 / 50 (mg_rand); the 16th battery is broken (it brings in the chute), and from the 17th 20% are.
-//   When the first broken one reaches the flap the chute's lid slides away and the banner SCRAP CHUTE OPEN / BROKEN
-//   ONES DOWN shows for BS_BANNER_LEN frames: the belt, the wait and the timer stop meanwhile. Down does nothing while
-//   the chute is closed.
+// - The first three batteries are one of each kind (charged, dead, broken: the three bins and their directions shown at
+//   once), then BS_BROKEN_P / 256 (about 30%) are broken and the rest charged / dead 50 / 50 (mg_rand), so the three
+//   kinds come about a third each. The chute has no lid and no banner; the HOW TO PLAY card (mg_card.c) says what Down
+//   does.
+// - A strike's lock-out (owner 2026-10-15: the next battery's timer seemed to run out during the strike): a wrong bin
+//   is judged when the battery lands, BS_FLY_LEN frames after the sort, and the FAIL pose, the cross and the buzzer
+//   start then; the battery waiting on the flap by then has been running its D for up to BS_FLY_LEN frames while the
+//   player watched the previous one. The waiting battery's wait is restored to the full D at the strike, so the
+//   player always has the whole D to sort it once the strike shows (tests/test_bs.py).
 // - A right sort counts at once (the next battery's D, the belt's speed); its points and the streak come when it lands.
 // - A sort: the battery drops into the diverter (BS_FLY_DROP frames, behind its tiles), comes out of the port its
 //   arrow shows and arcs into the bin (BS_FLY_ARC frames; DOWN falls straight through the mouth into the chute), sinks
@@ -22,16 +28,15 @@
 //   bonus at most 200) and a burst of sparks over the bin; wrong, a strike, the streak back to 0, the WRONG cross
 //   blinking over the bin and the battery spat out onto the floor. Running out of D: a strike, the cross over the
 //   diverter, and the battery drops into it (gone). Up to BS_FLY batteries are in the air at once.
-// - Medal (mg.c's medal_at on mg_score): GOLD >= 6000, SILVER >= 4000, BRONZE >= 2000. One setting for story and
-//   practice (no HARD).
-// - Sounds (no new SFX): a sort SFX_LAUNCH, a right bin SFX_CATCH, a strike SFX_BREAK, the chute opening SFX_SHAKE, the
-//   third strike SFX_LIFE.
+// - Medal (mg.c's medal_at on mg_score): GOLD >= 6000, SILVER >= 4000, BRONZE >= 2000 (derived in PLAN.md). One setting
+//   for story and practice (no HARD).
+// - Sounds (no new SFX): a sort SFX_LAUNCH, a right bin SFX_CATCH, a strike SFX_BREAK, the third strike SFX_LIFE.
 //
 // Screen (the approved mock-up): the framework's factory backdrop, its counter row 11 replaced by wall; the banner rows
 // 2-3 are the wall too while no banner shows (put back a row a frame through the VBlank queue). The belt on row 8,
 // columns 0-8 (one tile, 4 frames stepped with the belt); the diverter at columns 9-10, rows 8-10 (flap, the arrow
 // screen, the base with its ports and mouth; CGB BG palette 2); the bins on rows 12-16: CHARGE columns 1-4 (BG palette
-// 3, lime), the SCRAP chute 8-11 (palette 2, its lid closed until the first broken battery), RECYCLE 15-18 (BG palette
+// 3, lime), the SCRAP chute 8-11 (palette 2, open), RECYCLE 15-18 (BG palette
 // 5, red: not 4, which the result window's medal takes over while the bins still show under it). The strike lamps at
 // HUD columns 10-12 (beside the lives at 7-8), the timer T045. The Spigoteer (x 100, y 112) beside the machine:
 // IDLE, FILL for Left (X-flipped for Right), SLIDE for Down, CATCH for a right bin, FAIL for a strike; the outro FAIL
@@ -69,13 +74,12 @@ typedef char bs_obj_fits[(BS_OBJ + BS_OBJ_TILES <= OBJ_MUG_DRINK && BS_BG + BS_B
 #define BS_GAP          16                      // px between batteries queued
 #define BS_Q             8                      // the queue's places
 #define BS_START_N       3                      // batteries on the belt at the start (the intro shows them)
-#define BS_BROKEN_FROM  16                      // the first broken battery (always broken), then BS_BROKEN_P / 256
-#define BS_BROKEN_P     51                      // 20%
+#define BS_ONE_EACH      3                      // the first batteries: charged, dead, broken (one of each kind)
+#define BS_BROKEN_P     77                      // then 30% broken
 #define BS_PTS         100
 #define BS_STREAK_PTS   10
 #define BS_STREAK_MAX  200
 #define BS_STRIKES       3
-#define BS_BANNER_LEN   60
 #define BS_FLY           3                      // batteries in the air at once
 #define BS_FLY_DROP      4                      // frames into the diverter
 #define BS_FLY_ARC      16                      // frames of the arc out of the port
@@ -127,7 +131,7 @@ typedef char bs_obj_fits[(BS_OBJ + BS_OBJ_TILES <= OBJ_MUG_DRINK && BS_BG + BS_B
 #define OAM_BELT_SPARK  12
 #define OAM_QUEUE       13
 #define OAM_N           21
-enum { BS_RUN, BS_SCRAP, BS_OVER };             // S.st: playing; the chute's banner (all paused); over
+enum { BS_RUN, BS_UNUSED, BS_OVER };            // S.st: playing; (the chute's banner is gone: its value kept for the tests); over
 enum { BT_CHARGED, BT_DEAD, BT_BROKEN };        // battery types
 enum { DIR_NONE, DIR_LEFT, DIR_RIGHT, DIR_DOWN, DIR_DROP };   // a flight (DIR_DROP: timed out); screen states 0-3
 enum { BR_NONE, BR_RIGHT, BR_WRONG, BR_LATE };  // S.last: the last outcome
@@ -150,14 +154,14 @@ static void fill_attr(uint8_t col, uint8_t row, uint8_t w, uint8_t h, uint8_t pa
     VBK_REG = VBK_BANK_0;
 }
 
-// a bin (LCD off): its 4x5 tiles, the sign at its columns 1-2, rows 1-2; the chute under its lid
-static void draw_bin(uint8_t col, uint8_t sign, uint8_t lid) {
+// a bin (LCD off): its 4x5 tiles, the sign at its columns 1-2, rows 1-2
+static void draw_bin(uint8_t col, uint8_t sign) {
     uint8_t r, c, m, *t = row_buf;
     for (r = 0; r < 5; r++) {
         for (c = 0; c < 4; c++) {
             m = bs_bin_map[r * 4 + c];
             if (m == 255) t[c] = BS_BG + BSB_SIGN + sign * 4 + (r - 1) * 2 + (c - 1);
-            else t[c] = BS_BG + BSB_BIN + (r == 0 && lid ? bs_lid_map[c] : m);
+            else t[c] = BS_BG + BSB_BIN + m;
         }
         vram_put(col, BIN_ROW + r, t, 4);
     }
@@ -182,8 +186,8 @@ static void belt_row(void) {
 
 static uint8_t new_type(void) {
     if (S.made < 255) S.made++;
-    if (S.made == BS_BROKEN_FROM) return BT_BROKEN;
-    if (S.made > BS_BROKEN_FROM && mg_rand() < BS_BROKEN_P) return BT_BROKEN;
+    if (S.made <= BS_ONE_EACH) return S.made - 1;          // BT_CHARGED, BT_DEAD, BT_BROKEN
+    if (mg_rand() < BS_BROKEN_P) return BT_BROKEN;
     return mg_rand() & 1;
 }
 
@@ -245,11 +249,11 @@ void bs_enter(void) BANKED {
     S.scr[0] = BS_BG + BSB_BASE; S.scr[1] = BS_BG + BSB_BASE + 1;
     vram_put(DIV_COL, DIV_ROW + 2, S.scr, 2);
     screen(DIR_NONE);
-    draw_bin(CHARGE_COL, 0, 0);
-    draw_bin(CHUTE_COL, 2, 1);
-    draw_bin(RECYCLE_COL, 1, 0);
+    draw_bin(CHARGE_COL, 0);
+    draw_bin(CHUTE_COL, 2);
+    draw_bin(RECYCLE_COL, 1);
     // the state
-    S.st = BS_RUN; S.wait = 0; S.strikes = 0; S.sorted = 0; S.streak = 0; S.made = 0; S.chute = 0;
+    S.st = BS_RUN; S.wait = 0; S.strikes = 0; S.sorted = 0; S.streak = 0; S.made = 0; S.chute = 1;
     S.banner = 0; S.last = BR_NONE; S.screen_t = 0; S.pose = BT_IDLE; S.pose_t = 0; S.flip = 0; S.anim = 0;
     S.started = 0; S.band[0] = S.band[1] = BAND_KEEP;
     S.spark_t = 0; S.cross_t = 0; S.spit_t = 0;
@@ -352,6 +356,7 @@ static void set_pose(uint8_t pose, uint8_t t, uint8_t flip) { S.pose = pose; S.p
 
 static void strike(void) {
     S.streak = 0;
+    if (S.wait) S.wait = S.window;               // the lock-out: the battery waiting now gets its whole D from the strike
     if (S.strikes >= BS_STRIKES) return;         // (a battery landing after the third: the game is over already)
     S.strikes++;
     lamps();
@@ -416,14 +421,6 @@ static void belt(void) {
     }
     if (S.n && !S.wait && S.qx[0] == FRONT_X * 8) {   // the front one reaches the flap
         S.wait = S.window;
-        if (S.queue[0] == BT_BROKEN && !S.chute) {   // the first broken one: the chute opens, the banner, all paused
-            S.chute = 1;
-            S.st = BS_SCRAP; S.banner = BS_BANNER_LEN;
-            S.band[0] = S.band[1] = BAND_HUD;
-            for (k = 0; k < 4; k++) S.lid[k] = BS_BG + BSB_BIN + bs_bin_map[k];
-            put(CHUTE_COL, BIN_ROW, S.lid, 4);
-            SFX(SFX_SHAKE);
-        }
     }
 }
 
@@ -437,7 +434,6 @@ static void band(void) {
             vq_add(0, S.wall[r], 0, MG_TEXT_A + r, 20);
         } else {
             if (is_cgb) vq_add(1, S.hud_attr, 0, MG_TEXT_A + r, 20);
-            if (S.st == BS_SCRAP) mg_say(MG_TEXT_A + r, r ? "BROKEN ONES DOWN" : "SCRAP CHUTE OPEN");
         }
         S.band[r] = BAND_KEEP;
         return;
@@ -462,14 +458,11 @@ void bs_update(uint8_t pressed) BANKED {
         if (S.pose_t && !--S.pose_t) set_pose(BT_IDLE, 0, 0);
     }
     if (mg_phase == MG_PLAY) {
-        if (S.st == BS_SCRAP) {                  // the chute's banner: the belt, the wait and the timer stop
-            mg_timer++;
-            if (!--S.banner) { S.st = BS_RUN; S.band[0] = S.band[1] = BAND_WALL; }
-        } else if (S.st == BS_RUN) {
+        if (S.st == BS_RUN) {
             d = DIR_NONE;
             if (pressed & J_LEFT) d = DIR_LEFT;
             else if (pressed & J_RIGHT) d = DIR_RIGHT;
-            else if ((pressed & J_DOWN) && S.chute) d = DIR_DOWN;
+            else if ((pressed & J_DOWN)) d = DIR_DOWN;
             if (d && S.wait && fly_slot() != 255) {     // a sort (a right one counts now: the next D, the belt's speed)
                 if (d == S.queue[0] + 1 && S.sorted < 255) {
                     S.sorted++;

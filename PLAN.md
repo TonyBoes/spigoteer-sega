@@ -2098,17 +2098,22 @@ signs, chute lid, strike lamps, broken battery, spark, WRONG cross, in assets/ar
 (owner 2026-10-12)"); tools/gen_bs.py -> build/bs_art.h, build/bs.json, out/preview/bs_*_x8.png (it checks cells.txt
 against the drink and the cross's mirror symmetry; the bin's and lid's tiles deduplicated: 44 BG tiles).
 - **Rules** (the spec's numbers): the front battery waits on the diverter's flap D frames (120, -8 every 4 right sorts,
-  never under 40); Left CHARGE (charged), Right RECYCLE (dead), Down SCRAP (broken; nothing while the chute is closed).
+  never under 40); Left CHARGE (charged), Right RECYCLE (dead), Down SCRAP (broken; the chute is open from the start since D5a).
   The belt 0.75 px a frame + 0.125 every 6 right sorts, at most 2.0 (1/8 px units); batteries enter 24 px apart from
   x -8, queue 16 px apart from x 76. A right sort counts when it is made (the next D, the speed); its points come when
   it lands (24 frames: 4 into the diverter behind its tiles, 16 arcing out of the port or falling through the mouth,
   4 sinking behind the bin's rim): 100 + 10 x the streak (bonus at most 200), sparks over the bin, the catch pose. A
   wrong bin: a strike on landing (the cross blinks over the bin 40 frames, the battery spat onto the floor as the
   drink's lying frame); D running out: a strike, the cross over the diverter, the battery drops in. 3 strikes (THREE
-  STRIKES) or 45 s (TIME UP) end it; up to 3 batteries in the air. Types: 50/50 from mg_rand; the 16th always broken,
-  from the 17th 20%. When the first broken one reaches the flap the lid slides away and SCRAP CHUTE OPEN / BROKEN ONES
-  DOWN shows 60 frames with the belt, the wait and the timer stopped. Medals on mg_score: 2000 / 4000 / 6000. One
-  setting (no HARD). SFX: sort LAUNCH, right CATCH, strike BREAK, chute SHAKE, third strike LIFE.
+  STRIKES) or 45 s (TIME UP) end it; up to 3 batteries in the air. Types (D5a, owner 2026-10-15): the first three are
+  charged, dead, broken, then 30% broken (BS_BROKEN_P 77 / 256) and the rest 50/50 from mg_rand; the chute is open from the
+  intro: no lid, no SCRAP CHUTE OPEN banner, no pause (the old 16th-battery pause confused the owner); instruction line
+  "L FULL R DEAD D BAD", the HOW TO PLAY card says Down = broken. Lock-out: a strike restores the waiting battery's wait to the
+  full D (found: at D 40 and the belt at 2.0 the next battery had only 22-25 of its 40 frames left when the strike showed,
+  less than the 30-frame FAIL pose; with D 120 it had 116). Medals on mg_score: 2000 / 4000 / 6000, kept: the scrap change
+  leaves the throughput alone (a bot with a 6-frame reaction scores 44000 for 155 sorts, 15 frames 27500, 22 frames 20900,
+  30 frames 16100; slips cost streaks), so the thresholds stay (gold is cheap for a clean player: owner to judge). One
+  setting (no HARD). SFX: sort LAUNCH, right CATCH, strike BREAK, third strike LIFE (SHAKE is no longer used here).
 - **Screen**: the framework's factory backdrop, its counter row 11 made wall (row 9's tiles); the banner rows 2-3 are
   wall while no banner shows (a row a frame through the queue, tiles and CGB attributes; the HUD band only for the
   chute's banner, THREE STRIKES and TIME UP; the wall back at MG_END frame 40). Belt row 8 columns 0-8 (one tile id,
@@ -3277,7 +3282,7 @@ in a debug-select run (the full card comes every time there). Cards show in STOR
 keep their old banners (no card there).
 - Real cards: Quick Draw, Order Up!, Taiko Pour, Monkey Business, Asteroid Delivery, the shake-up, Perfect Pour, Tip Shower, and (not asked for,
   its controls are settled) the Pour-Off and the stub.
-- Marked in the plan as **card text pending the Batch D rework**: Battery Sort and Milk Run have a placeholder card (Marshmallow Drop has its real card since D2, T-Shirt Cannon since D1, Log Roll since D3), today's
+- Marked in the plan as **card text pending the Batch D rework**: Milk Run has a placeholder card (Marshmallow Drop has its real card since D2, T-Shirt Cannon since D1, Log Roll since D3, Battery Sort since D5a), today's
   banner line as its only line (mg_card.c, entries marked PENDING). Rewrite them when their rework settles the controls and the goal.
 - Tests: tests/test_mg_card.py (every game has a card; the full card first and it waits; A, then the short card, A skips it; the save; STORY);
   tests/test_mg_bonus.py (list entries, unlocks, medals, the block); tests/test_mg_list.py (scrolling, no row on the separator). The test
