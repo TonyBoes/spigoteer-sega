@@ -76,7 +76,7 @@ static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 
                                                 { 2000, 4000, 6000 }, { 0, 0, 0 },   // (Order Up!: ou_medal)
                                                 { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },   // (Milk Run: mr_medal, Log Roll: lr_medal, Asteroid Delivery: ad_medal, Taiko Pour: tk_medal)
                                                 { MM_MEDAL_BRONZE, MM_MEDAL_SILVER, MM_MEDAL_GOLD },   // Marshmallow Drop (the generic path; mg.h)
-                                                { 2500, 5000, 8000 },   // Monkey Business: the score (the spec said 1200 / 2500 / 4000, "tune": PLAN.md)
+                                                { 3000, 5200, 7500 },   // Monkey Business NORMAL (HARD was 2500 / 5000 / 8000; D6b: scripted human-speed bots, batchD d6_tuning DESIGN.md)
                                                 { 1500, 2100, 2700 },   // T-Shirt Cannon: the score (10 shirts x 300: 5, 7, 9 perfect catches)
                                                 { 0, 0, 0 },   // the Pour-Off: no medal
                                                 { BONUS_SHAKE_BRONZE, BONUS_SHAKE_SILVER, BONUS_SHAKE_GOLD },   // the bonus rounds: the points they earned (mg.h)

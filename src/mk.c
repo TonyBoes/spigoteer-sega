@@ -49,15 +49,19 @@ typedef char mk_fits[(MK_BG + MK_BG_TILES <= 256 && MK_OBJ_A + MK_OBJ_A_TILES <=
 #define MK_COCO          8
 #define MK_RATTLE       20
 #define MK_PEEK          6
-#define MK_U0           90
-#define MK_U_MIN        45
-#define MK_U_STEP       40                  // frames a step of U: 90 -> 45 at 30 s
-#define MK_GAP0         60
-#define MK_GAP_MIN      24
-#define MK_GAP_STEP     75                  // frames a step of the interval: 60 -> 24 at 45 s
+// ---- the tuning, NORMAL (owner 2026-10-15: "a bit too hard", no medal at full speed; the first values are HARD). A difficulty
+// table later supplies these per level (the HARD values are noted); the medal row is in src/mg.c. ----
+#define MK_U0          120                  // NORMAL (HARD 90): frames a monkey stays up after its peek at the start ...
+#define MK_U_MIN        75                  // (HARD 45) ... falling to this
+#define MK_U_STEP       40                  // frames a step of U (one less each): 120 -> 75 at 30 s
+#define MK_GAP0         84                  // (HARD 60): the pop interval at the start ...
+#define MK_GAP_MIN      42                  // (HARD 24) ... falling to this
+#define MK_GAP_STEP     65                  // frames a step of the interval (one less each): 84 -> 42 at 45 s
 #define MK_FIRST_POP    30
-#define MK_CAP_LATE   1500                  // time left at 20 s: the cap goes 2 -> 3
-#define MK_PARROT_AT  1800                  // time left at 15 s: the parrots begin
+#define MK_CAP_LATE    900                  // (HARD 1500) time left (30 s in; HARD 20 s): the cap goes 2 -> 3
+#define MK_PARROT_AT  2100                  // (HARD 1800) time left (10 s in; HARD 15 s): the random parrots begin (1 pop in 6)
+#define MK_PARROT_POP    4                  // the pop (0-based) that is always a parrot, so every run has one (NORMAL; HARD: none)
+#define MK_PARROT_GAP   10                  // and never more than this many pops without one once they have begun
 #define MK_HOP           6
 #define MK_REPEAT       10
 #define MK_SHOO          8
@@ -350,6 +354,7 @@ static void pop_try(void) {
     for (k = 0; k < MK_CRATES; k++) if (S.c[k].st == MC_RATTLE || S.c[k].st == MC_UP || S.c[k].st == MC_FLY) occ++;
     if (occ >= cap) return;
     if (S.time <= MK_PARROT_AT) parrot = mg_rand() % 6 == 0;
+    if (S.pops == MK_PARROT_POP || (S.pops > MK_PARROT_POP && S.pgap >= MK_PARROT_GAP)) parrot = 1;   // (a schedule: every run has parrots)
     r = mg_rand() % MK_CRATES;
     for (k = 0; k < MK_CRATES; k++) {
         j = r + k;
@@ -357,6 +362,7 @@ static void pop_try(void) {
         if (S.c[j].st != MC_IDLE) continue;
         if (!parrot && !reach_ok(j, u)) continue;
         S.c[j].st = MC_RATTLE; S.c[j].kind = parrot; S.c[j].t = 0; S.c[j].u = u;
+        if (parrot) S.pgap = 0; else if (S.pgap < 255) S.pgap++;
         S.next = S.gap;
         S.pops++;
         return;

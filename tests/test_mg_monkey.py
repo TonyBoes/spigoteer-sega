@@ -31,7 +31,7 @@ OFF = ART["off"]
     "MK_FIRST_POP", "MK_CAP_LATE", "MK_PARROT_AT", "MK_HOP", "MK_REPEAT", "MK_SHOO", "MK_HIT", "MK_LOCK", "MK_SPARE", "MK_QUICK",
     "MK_AFTER", "MK_FLY_END", "MK_RUN_SPEED", "MK_PUFF_LEN", "MK_FAIL_LEN"))
 OAM_PUFF, OAM_DUSTER, OAM_SPIG, OAM_RUN, OAM_OCC = (mk_define(n) for n in ("OAM_PUFF", "OAM_DUSTER", "OAM_SPIG", "OAM_RUN", "OAM_OCC"))
-MEDAL_AT = (2500, 5000, 8000)                    # src/mg.c's medal_at row of Monkey Business
+MEDAL_AT = (3000, 5200, 7500)                    # src/mg.c's medal_at row of Monkey Business
 SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE = 2, 3, 4, 5, 6, 7, 8
 S_PALETTE = 0x10
 BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL = range(7)
@@ -564,8 +564,9 @@ def test_at_most_two_up_before_20_s_three_after_and_parrots_from_15_s(model):
                 peak_late = max(peak_late, occ)
             if parrot_at is None and any(c["kind"] and c["st"] != MC_IDLE for c in s["c"]):
                 parrot_at = s["time"]
+                parrot_pops = s["pops"]
         assert peak_early == 2 and peak_late == 3, (peak_early, peak_late)
-        assert parrot_at is not None and parrot_at <= mk_define("MK_PARROT_AT")
+        assert parrot_at is not None and parrot_pops == mk_define("MK_PARROT_POP") + 1, "the scheduled parrot comes first"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -600,8 +601,8 @@ def test_a_bot_never_loses_a_coconut_and_the_sprites_fit(model, seed):
         to_play(gb)
         worst = [0]
         s = run_bot(gb, lambda g, n: frames(g, n, worst), lambda s: s["st"] == 1)
-        assert s["stolen"] == 0 and s["coco"] == COCO and s["whiffs"] == 0 and s["time"] == 0 and s["shooed"] >= 40
-        assert s["pops"] >= 60, "about 45 s / the interval"
+        assert s["stolen"] == 0 and s["coco"] == COCO and s["whiffs"] == 0 and s["time"] == 0 and s["shooed"] >= 30
+        assert s["pops"] >= 40, "about 45 s / the interval (NORMAL: 84 falling to 42 frames)"
         assert worst[0] <= 9
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 90)
         assert gb.mem("mg_medal") == MEDAL_GOLD and gb.mem16("mg_score") >= MEDAL_AT[2]
@@ -609,13 +610,47 @@ def test_a_bot_never_loses_a_coconut_and_the_sprites_fit(model, seed):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_slow_bot_loses_coconuts_and_may_lose_them_all(model):
-    """A bot that only reacts 45 frames after the lid opens loses all 8 coconuts well before 45 s: ALL GONE, a low medal."""
+    """A bot that only reacts 95 frames after the lid opens loses all 8 coconuts well before 45 s: ALL GONE, a low medal."""
     with monkey(model) as gb:
         to_play(gb)
-        s = run_bot(gb, frames, lambda s: s["st"] == 1, keys=lambda st: bot_keys(st, 45))
+        s = run_bot(gb, frames, lambda s: s["st"] == 1, keys=lambda st: bot_keys(st, 95))
         assert s["coco"] == 0 and s["stolen"] == COCO and s["time"] > 300
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 90)
         assert gb.mem("mg_medal") <= MEDAL_BRONZE
+
+
+def parrot_pops(gb, keys=None, limit=6000):
+    """Plays a whole game (`keys`: a bot, or nobody) and returns the kinds of its pops in order (1 a parrot)."""
+    kinds, last = [], [0]
+
+    def hook(s):
+        if s["pops"] != last[0]:                 # a pop is new: the crate whose rattle is youngest
+            young = min((c for c in s["c"] if c["st"] == MC_RATTLE), key=lambda c: c["t"], default=None)
+            if young is not None:
+                kinds.append(young["kind"])
+            last[0] = s["pops"]
+    run_bot(gb, frames, lambda s: s["st"] == 1, keys=keys or (lambda s: None), limit=limit, hook=hook)
+    return kinds
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_every_run_has_parrots_over_many_seeds(model):
+    """D6b (owner: "a run where no parrots appeared"): the parrot is scheduled, not only random: the pop MK_PARROT_POP (0-based) is
+    always one, and never more than MK_PARROT_GAP pops pass without one afterwards. 40 seeds of a player who does nothing (the game
+    ends when the pile is empty) and 8 of the perfect bot (the whole 45 s)."""
+    first, gap = mk_define("MK_PARROT_POP"), mk_define("MK_PARROT_GAP")
+    for seed in range(1, 41):
+        with monkey(model, seed=seed * 2503) as gb:
+            to_play(gb)
+            k = parrot_pops(gb)
+            assert len(k) > first and k[first] == 1, (seed, k)
+    for seed in range(1, 9):
+        with monkey(model, seed=seed * 7919) as gb:
+            to_play(gb)
+            k = parrot_pops(gb, keys=bot_keys)
+            assert sum(k) >= 2 and k[first] == 1, (seed, k)
+            runs = "".join(map(str, k[first:])).split("1")
+            assert max(len(r) for r in runs) <= gap, (seed, k)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -649,8 +684,9 @@ def test_time_up_pays_200_a_coconut_left(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("points,medal", [(0, MEDAL_NONE), (2499, MEDAL_NONE), (2500, MEDAL_BRONZE), (4999, MEDAL_BRONZE),
-                                            (5000, MEDAL_SILVER), (7999, MEDAL_SILVER), (8000, MEDAL_GOLD)])
+@pytest.mark.parametrize("points,medal", [(0, MEDAL_NONE), (MEDAL_AT[0] - 1, MEDAL_NONE), (MEDAL_AT[0], MEDAL_BRONZE),
+                                            (MEDAL_AT[1] - 1, MEDAL_BRONZE), (MEDAL_AT[1], MEDAL_SILVER),
+                                            (MEDAL_AT[2] - 1, MEDAL_SILVER), (MEDAL_AT[2], MEDAL_GOLD)])
 def test_medals_by_score(model, points, medal):
     with play(model) as gb:
         to_result(gb, points)

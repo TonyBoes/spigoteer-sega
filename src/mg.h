@@ -478,6 +478,7 @@ struct mk_state {               // tests read these at story_scratch + offset (t
     uint8_t band[2][20];        // +101 the awning's rows 2-3 (the banner rows' place)
     uint8_t pal[20];            // +141 their CGB attributes (palette 5)
     uint8_t hattr[20];          // +161 the HUD colours (the end banner)
+    uint8_t pgap;               // +181 pops since the last parrot (the parrot schedule, MK_PARROT_POP / MK_PARROT_GAP)
 };
 
 void ts_enter(void) BANKED;                      // src/ts.c: T-SHIRT CANNON (the stadium)

@@ -1362,6 +1362,8 @@ Story fit: PRE_SPACE page (ZIZZ): `DELIVER BEAKERS` / `PAST THE ROCKS.` / `GENTL
 
 Built (2026-10-12; PLAN.md "Monkey Business as built"): reading 1 with G1 (green crates and awning), at most one runner on screen, medals GOLD 8000 / SILVER 5000 / BRONZE 2500, the parrot's -200 never below 0, the list name MONKEY BIZ. The text below is the design as proposed.
 
+D6b (2026-10-15, owner: too hard, and a run with no parrots): NORMAL gives more reaction time (U 120 falling to 75, pop interval 84 falling to 42, caps 2 until 30 s then 3), always has parrots (pop 4 is a parrot, then never more than 10 pops without one, on top of the random 1 in 6 from 10 s) and its medals are 3000 / 5200 / 7500 (derived from human-speed scripted bots; batchD d6_tuning DESIGN.md). The first values (U 90 -> 45, interval 60 -> 24, caps 2 -> 3 at 20 s, parrots from 15 s, medals 2500 / 5000 / 8000) are HARD: noted beside the NORMAL block at the top of src/mk.c.
+
 Play: five supply crates on the counter. Monkeys pop out of them to grab coconuts from Kiki's pile. Hop to the crate
 and shoo the monkey (gently, with a feather duster) before it grabs one. Don't shoo the parrot.
 
