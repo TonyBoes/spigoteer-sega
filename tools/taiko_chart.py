@@ -36,10 +36,24 @@ GRID = [
 ]
 
 
-def build():
+# NORMAL (owner 2026-10-15: the chart above is "too many notes too fast" and becomes HARD): the same three rounds with a thinned
+# density rule, no eighth notes and no pairs: every note is on a quarter-note row (even rows) and no two notes of either lane
+# are closer than 24 frames (a quarter note). Round 1 two notes a bar then three, round 2 three a bar, round 3 four a bar.
+GRID_NORMAL = [
+    *[("A...A...", "........")] * 4, *[("A.A.A...", "........")] * 4,
+    ("A.......", "..B...B."), ("A...A...", "......B."), ("A.......", "..B.B..."), ("A...A...", "..B....."),
+    ("A.......", "..B...B."), ("A...A...", "......B."), ("A.......", "..B.B..."), ("A.A.....", "....B..."),
+    ("A...A...", "..B...B."), ("A.A.....", "....B.B."), ("A...A.A.", "..B....."), ("A.......", "..B.B.B."),
+    ("A...A...", "..B...B."), ("A.A.....", "....B.B."), ("A...A.A.", "..B....."), ("A.A.A...", "......B."),
+]
+
+GRIDS = {"normal": GRID_NORMAL, "hard": GRID}
+
+
+def build(level="normal"):
     """-> [(T, lane)] sorted by time (lane 0 = A, 1 = B)."""
     notes = []
-    for bar, (a, b) in enumerate(GRID):
+    for bar, (a, b) in enumerate(GRIDS[level]):
         for lane, rows in enumerate((a, b)):
             assert len(rows) == 8 and set(rows) <= set(".AB"), (bar, rows)
             for r, ch in enumerate(rows):
@@ -48,6 +62,8 @@ def build():
                     notes.append((FIRST + bar * BAR + r * ROW, lane))
     notes.sort()
     assert len({t for t, _ in notes}) == len(notes), "two notes on one row: one key press each, never both at once"
+    if level == "normal":
+        assert all(b - a >= 2 * ROW for (a, _), (b, _) in zip(notes, notes[1:])), "NORMAL: no notes closer than a quarter"
     return notes
 
 
@@ -63,5 +79,6 @@ def stats(notes):
 
 
 if __name__ == "__main__":
-    n = build()
-    print(stats(n))
+    for lv in GRIDS:
+        n = build(lv)
+        print(lv, stats(n))

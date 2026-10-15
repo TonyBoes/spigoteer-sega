@@ -1224,6 +1224,8 @@ already about recycling batteries.)
 
 Built (2026-10-12; PLAN.md "Taiko Pour as built"): look B, the tune plays at 12 frames a row (not 15), 112 notes from frame 288, a missed note is dropped at x < 6, the HUD cups counter has two digits, OBJ palette 7 for the pot. The text below is the design as proposed.
 
+D6a (2026-10-15, owner: "too many notes too fast"): NORMAL is now a thinned chart of 76 notes (quarter-note rows only, no pairs, never two notes within 24 frames, 2-3 a bar in round 1, 3 in round 2, 4 in round 3), windows PERFECT 4 / GOOD 8 / REACH 11 frames, medals by accuracy GOLD 90% / SILVER 70% / BRONZE 50% (derived from scripted bots; batchD d6_tuning DESIGN.md). The first chart (112 notes, windows 3/6/10, SILVER 75%) is HARD: tools/taiko_chart.py GRIDS["hard"], kept for the difficulty table; the tuning constants are the NORMAL block at the top of src/tk.c.
+
 Play: the taiko drummer sets the beat of "Sakura Sakura". Notes slide along two lanes to the hit marks: A for the
 top lane (the drum's face, "don"), B for the bottom lane (the rim, "ka"). Good hits pour tea; eight fill a cup for
 a guest.

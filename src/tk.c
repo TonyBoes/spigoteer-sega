@@ -6,12 +6,12 @@
 // Rules (the spec's numbers; tools/taiko_chart.py has the chart):
 // - Notes move left at 1.5 px a frame from x 160 to the hit mark at x 24: 91 frames of look-ahead (spawned at 93 frames, the
 //   last that fits the screen: no note waits off-screen on a scanline).
-// - A press judges the earliest note of its lane not judged yet within 10 frames (T = the note's hit time): PERFECT within 3,
-//   GOOD within 6, else MISS (the note is spent, the combo ends). A press with no such note is a SPILL (-50, never below what
+// - A press judges the earliest note of its lane not judged yet within 11 frames (T = the note's hit time): PERFECT within 4,
+//   GOOD within 8, else MISS (the note is spent, the combo ends). A press with no such note is a SPILL (-50, never below what
 //   this game earned, combo ends). A note not pressed by T + 10 is a MISS too, and slides on to x < 6, where it is dropped (the
 //   proposal's engine rule: with the 22 px spacing, an 8th note on a lane line plus the hit flash made 10 sprites).
 // - Score: PERFECT 300, GOOD 100, plus 10 for each note of the combo counting this one (at most 100); each 8 GOOD-or-better
-//   notes serve a bowl (+500). Medal by accuracy (PERFECT 1, GOOD 0.5, of all the notes): GOLD >= 90%, SILVER >= 75%,
+//   notes serve a bowl (+500). Medal by accuracy (PERFECT 1, GOOD 0.5, of all the notes): GOLD >= 90%, SILVER >= 70%,
 //   BRONZE >= 50%. One setting (the spec has no HARD).
 // - Sync: the clock is src/music.c's music_frames (frames since the tune's first row), so a late frame never drifts the
 //   chart: a note's x is computed from the clock, not stepped. With MUSIC OFF (owner Q4: silent, but playable) the game
@@ -45,10 +45,16 @@
 typedef char tk_fits[(TK_OBJ + TK_OBJ_TILES <= OBJ_COIN && TK_BG + TK_BG_TILES <= 256
                       && sizeof(struct tk_state) <= STORY_SCRATCH) ? 1 : -1];
 #define TK_SPAWN       93                   // frames before T a note appears (x 163: its sprite's left edge is 159)
-#define TK_PERFECT      3
-#define TK_GOOD         6
-#define TK_REACH       10                   // a press this near a note judges it; later than this the note is a miss
-#define TK_DROP        12                   // c - T > 12: x < 6, the note is dropped (the engine rule)
+// ---- the tuning, NORMAL (owner 2026-10-15: the first chart was "too many notes too fast" and becomes HARD). A difficulty table
+// later supplies these per level: the windows below, the medal percentages, and the chart (tools/taiko_chart.py GRIDS:
+// "normal" is what tk_chart holds, "hard" is the first chart; gen_tk.py TK_CHART_LEVEL picks which one is built in). ----
+#define TK_PERFECT      4                   // NORMAL (HARD: 3): within this many frames of T
+#define TK_GOOD         8                   // NORMAL (HARD: 6)
+#define TK_REACH       11                   // NORMAL (HARD: 10): a press this near a note judges it; later than this the note is a miss
+#define TK_DROP        12                   // c - T > 12: x < 6, the note is dropped (the engine rule; must stay >= TK_REACH)
+#define TK_GOLD_PCT    90                   // medals by accuracy (PERFECT 1, GOOD 0.5 of all notes): scripted bots in DESIGN.md
+#define TK_SILVER_PCT  70                   // (HARD: 75)
+#define TK_BRONZE_PCT  50
 #define TK_HIT_X       24                   // the hit mark's centre
 #define TK_BEAT        24                   // frames a quarter note
 #define TK_FLASH_LEN    8                   // the banks lit at each beat
@@ -322,9 +328,9 @@ void tk_enter(void) BANKED {
 
 uint8_t tk_medal(void) BANKED {
     uint16_t a2 = 2 * (uint16_t)S.perfect + S.good;      // accuracy in half notes, of 2 x TK_NOTES
-    if (10 * a2 >= 18 * (uint16_t)TK_NOTES) return MEDAL_GOLD;
-    if (2 * a2 >= 3 * (uint16_t)TK_NOTES) return MEDAL_SILVER;
-    return a2 >= TK_NOTES ? MEDAL_BRONZE : MEDAL_NONE;
+    if (100 * a2 >= 2 * TK_GOLD_PCT * (uint16_t)TK_NOTES) return MEDAL_GOLD;
+    if (100 * a2 >= 2 * TK_SILVER_PCT * (uint16_t)TK_NOTES) return MEDAL_SILVER;
+    return 100 * a2 >= 2 * TK_BRONZE_PCT * (uint16_t)TK_NOTES ? MEDAL_BRONZE : MEDAL_NONE;
 }
 
 // ---- the game ----

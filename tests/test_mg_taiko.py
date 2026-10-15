@@ -29,6 +29,7 @@ COUNT_AT, END_WAIT, POUR_LEN, SPILL_LEN, SERVE_LEN, OWN_START = (tk_define(n) fo
     "TK_COUNT_AT", "TK_END_WAIT", "TK_POUR_LEN", "TK_SPILL_LEN", "TK_SERVE_LEN", "TK_OWN_START"))
 OAM_SPIG, OAM_POT, OAM_STREAM, OAM_STEAM, OAM_FLASH, OAM_DRUM, OAM_NOTES = (tk_define(n) for n in (
     "OAM_SPIG", "OAM_POT", "OAM_STREAM", "OAM_STEAM", "OAM_FLASH", "OAM_DRUM", "OAM_NOTES"))
+TK_GOLD_PCT, TK_SILVER_PCT, TK_BRONZE_PCT = (tk_define(n) for n in ("TK_GOLD_PCT", "TK_SILVER_PCT", "TK_BRONZE_PCT"))
 SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN = 3, 4, 5, 6
 SFX_DON, SFX_KA = 10, 11
 BACKING = 0x70      # music.h TK_NOGROOVE | TK_NOHARM | TK_NOMELODY: the default sound balance (D3: the melody's own mute bit toggles with the half bars)
@@ -219,21 +220,27 @@ def test_the_colours_are_the_approved_ones(model):
 
 # ---- the chart and the clock -----------------------------------------------------------------------------------------------
 def test_the_chart_keeps_its_rules():
-    """Hit times on the tune's rows (12 frames) from bar 4 (FIRST 288); a lane's notes at least a row apart and no two notes at
-    one time (one key press each); at most 5 notes a lane in the 105 frames a note lives on screen; the rounds of the spec:
-    bars 1-8 the don only in quarter notes, both lanes from bar 9, the eighth pairs (12 apart) only from bar 17."""
-    assert CHART[0][0] == FIRST == 288 and all((t - FIRST) % 12 == 0 for t, _ in CHART)
+    """NORMAL (D6a): hit times on the tune's rows (12 frames) from bar 4 (FIRST 288); every note on a quarter-note row, no two
+    notes (either lane) closer than 24 frames, no eighth pairs (so none of HARD's fast runs); at most 5 notes a lane in the 105
+    frames a note lives on screen; the rounds: bars 1-8 the don only, both lanes from bar 9; clearly fewer notes than HARD's 112."""
+    assert CHART[0][0] == FIRST == 288 and all((t - FIRST) % 24 == 0 for t, _ in CHART)
     assert [t for t, _ in CHART] == sorted(t for t, _ in CHART) and len({t for t, _ in CHART}) == NOTES
+    assert min(b - a for (a, _), (b, _) in zip(CHART, CHART[1:])) >= 24
     for lane in (0, 1):
         ts = [t for t, ln in CHART if ln == lane]
-        assert min(b - a for a, b in zip(ts, ts[1:])) >= 12
         assert max(sum(1 for u in ts if t <= u < t + 105) for t in ts) <= 5
-    r1 = [t for t, ln in CHART if t < FIRST + 8 * 96]
-    assert all(ln == 0 for t, ln in CHART if t < FIRST + 8 * 96) and all(b - a == 24 for a, b in zip(r1, r1[1:]))
+    assert all(ln == 0 for t, ln in CHART if t < FIRST + 8 * 96)
     assert any(ln == 1 for t, ln in CHART if FIRST + 8 * 96 <= t < FIRST + 16 * 96)
-    pairs = [a for (a, la), (b, lb) in zip(CHART, CHART[1:]) if b - a == 12 and la == lb]
-    assert pairs and min(pairs) >= FIRST + 16 * 96
-    assert 100 <= NOTES <= 120 and CHART[-1][0] - FIRST < 45 * 60
+    assert 60 <= NOTES <= 80 and CHART[-1][0] - FIRST < 45 * 60
+
+
+def test_the_hard_chart_is_kept_for_the_difficulty_table():
+    """The first chart (112 notes, eighth pairs 12 frames apart) stays buildable: tools/taiko_chart.py GRIDS["hard"]."""
+    import sys
+    sys.path.insert(0, str(ROOT / "tools"))
+    import taiko_chart
+    hard = taiko_chart.build("hard")
+    assert len(hard) == 112 and len(hard) > NOTES * 1.4 and taiko_chart.stats(hard)["gap0"] == 12
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -272,19 +279,19 @@ def test_a_lane_never_holds_more_than_5_notes_and_one_sliding_off():
 
 
 # ---- the windows -----------------------------------------------------------------------------------------------------------
-WINDOWS = [0, 3, -3, 4, -4, 6, -6, 7, -7, 11, -10, 10, -11]     # (each press 3 or more frames after the last: a key needs a frame up)
+WINDOWS = [0, 4, -4, 5, -5, 8, -8, 9, -9, 12, -9, 9, -12]     # (each press 3 or more frames after the last: a key needs a frame up)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_windows_perfect_3_good_6_miss_10_spill_beyond(model):
-    """A press at the note's frame +-3 is PERFECT, +-4..6 GOOD, +-7..10 a MISS (the note spent, no -50), +11 is after the note
-    (a miss by itself) and -11 before it: both a SPILL (-50). The score follows: 300 / 100 + 10 a note of the combo; a miss
+def test_the_windows_perfect_4_good_8_miss_11_spill_beyond(model):
+    """A press at the note's frame +-4 is PERFECT, +-5..8 GOOD, +-9..11 a MISS (the note spent, no -50), +12 is after the note
+    (a miss by itself) and -12 before it: both a SPILL (-50). The score follows: 300 / 100 + 10 a note of the combo; a miss
     resets the combo."""
     with taiko(model) as gb:
         to_play(gb)
         for i, d in enumerate(WINDOWS):
             press_at(gb, "a", CHART[i][0] + d)
-        s = press_at(gb, "a", CHART[len(WINDOWS) - 1][0] + 12)         # (a last press with no note within 10: a spill)
+        s = press_at(gb, "a", CHART[len(WINDOWS) - 1][0] + 12)         # (a last press with no note within 11: a spill)
         assert (s["perfect"], s["good"], s["miss"], s["spills"]) == (3, 4, 4 + 2, 3)
         assert gb.mem16("mg_score") == 310 + 320 + 330 + 140 + 150 + 160 + 170 - 50 - 50 - 50
         assert s["combo"] == 0 and s["best"] == 7 and s["hits"] == 7 and s["cups"] == 0
@@ -295,7 +302,7 @@ def test_the_windows_perfect_3_good_6_miss_10_spill_beyond(model):
 def test_each_window_edge_in_isolation(model):
     """The edges one note at a time: the last frame of PERFECT / GOOD, the first of the next window, as the state's `last`
     (1 PERFECT, 2 GOOD, 3 MISS, 4 SPILL) says right after the press."""
-    cases = [(3, 1), (4, 2), (6, 2), (7, 3), (10, 3), (-3, 1), (-4, 2), (-6, 2), (-7, 3), (-10, 3), (-11, 4)]
+    cases = [(4, 1), (5, 2), (8, 2), (9, 3), (11, 3), (-4, 1), (-5, 2), (-8, 2), (-9, 3), (-11, 3), (-12, 4)]
     with taiko(model) as gb:
         to_play(gb)
         for i, (d, want) in enumerate(cases):
@@ -356,7 +363,8 @@ def test_a_perfect_run_scores_the_spec_and_wins_gold(model):
         assert (s["perfect"], s["good"], s["miss"], s["spills"]) == (NOTES, 0, 0, 0)
         assert s["cups"] == NOTES // 8 and s["combo"] == NOTES and s["best"] == NOTES
         assert gb.mem16("mg_score") == perfect_score() == score(gb)
-        assert tilemap_row(gb, 0, 18, 2) == [glyph("1"), glyph("4")] and tilemap_row(gb, 0, 12, 2) == [glyph("9"), glyph("9")]
+        assert tilemap_row(gb, 0, 18, 2) == [glyph(c) for c in f"{NOTES // 8:02d}"]
+        assert tilemap_row(gb, 0, 12, 2) == [glyph(c) for c in f"{min(NOTES, 99):02d}"]
         until(gb, lambda: gb.mem("mg_phase") == MG_END, END_WAIT + 10)
         until(gb, lambda: gb.mem("overlay_on") == 1, 100)
         frames(gb, 3)
@@ -406,14 +414,15 @@ def test_mashing_both_keys_keeps_to_10_sprites_a_line(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_medal_edges_accuracy_90_75_50(model):
-    """Accuracy = (PERFECT + GOOD / 2) / notes: in half notes a2 of 2 x 112: GOLD from 202 (90%), SILVER from 168 (75%),
-    BRONZE from 112 (50%); the result window names it and adds its points to the score."""
+def test_the_medal_edges_accuracy_90_70_50(model):
+    """Accuracy = (PERFECT + GOOD / 2) / notes: in half notes a2 of 2 x NOTES: GOLD from 90%, SILVER from 70%, BRONZE from 50%
+    (NORMAL, TK_*_PCT; derived from scripted bots, DESIGN.md); the result window names it and adds its points to the score."""
+    need = [-(-2 * p * NOTES // 100) for p in (TK_GOLD_PCT, TK_SILVER_PCT, TK_BRONZE_PCT)]    # ceil
+    g, sv, br = need
     with taiko(model) as gb:
         to_play(gb)
-        for a2, medal in ((201, MEDAL_SILVER), (202, MEDAL_GOLD), (168, MEDAL_SILVER), (167, MEDAL_BRONZE),
-                          (112, MEDAL_BRONZE), (111, MEDAL_NONE)):
-            assert NOTES == 112
+        for a2, medal in ((g - 1, MEDAL_SILVER), (g, MEDAL_GOLD), (sv, MEDAL_SILVER), (sv - 1, MEDAL_BRONZE),
+                          (br, MEDAL_BRONZE), (br - 1, MEDAL_NONE)):
             poke(gb, perfect=a2 // 2, good=a2 % 2)
             gb.write("mg_phase", MG_RESULT)
             until(gb, lambda: gb.mem("overlay_on") == 1, 10)
@@ -422,6 +431,27 @@ def test_the_medal_edges_accuracy_90_75_50(model):
             gb.press("a", 2)
             run_until(gb, lambda: gb.mem("mg_phase") == 0 and gb.pb.memory[0xFF40] & 0x80, 30)
             to_play(gb)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("name, offset, skip_mod, medal", [
+    ("every note PERFECT: 100%", 0, 0, MEDAL_GOLD),
+    ("every 4th note left, the rest PERFECT: 75%", 0, 4, MEDAL_SILVER),
+    ("every 3rd note left, the rest PERFECT: 66%", 0, 3, MEDAL_BRONZE),
+    ("every note GOOD (5-6 late): 50%", 6, 0, MEDAL_BRONZE),
+    ("every 4th left, the rest GOOD: 37%", 6, 4, MEDAL_NONE)])
+def test_scripted_players_earn_the_medals_of_the_design(model, name, offset, skip_mod, medal):
+    """D6a: the thresholds (90 / 70 / 50 %) were derived from jittery bots (DESIGN.md); these deterministic ones pin the edges
+    in the real game: all-GOOD is exactly 50% (BRONZE), a PERFECT player who leaves a quarter is 75% (SILVER)."""
+    skip = {i for i in range(NOTES) if skip_mod and i % skip_mod == skip_mod - 1}
+    with taiko(model) as gb:
+        to_play(gb)
+        s = play_to(gb, CHART[-1][0] + 20, plan_for(offset=offset, skip=skip))
+        acc = (2 * s["perfect"] + s["good"]) / (2 * NOTES)
+        until(gb, lambda: gb.mem("mg_phase") == MG_END, END_WAIT + 10)
+        until(gb, lambda: gb.mem("overlay_on") == 1, 100)
+        frames(gb, 3)
+        assert gb.mem("mg_medal") == medal, (name, acc)
 
 
 # ---- the bowl, the pour, the count-in, the beat ------------------------------------------------------------------------------
@@ -439,10 +469,10 @@ def test_eight_good_hits_serve_a_bowl_for_500(model):
         def want(st):
             return [[cup + cm[4 * st], cup + cm[4 * st + 1]], [cup + cm[4 * st + 2], cup + cm[4 * st + 3]]]
 
-        plan = plan_for(offset=5)                  # every note GOOD (judged 4 or 5 frames late)
+        plan = plan_for(offset=6)                  # every note GOOD (judged 5 or 6 frames late)
         assert bowl() == want(0)
         for k in range(1, 9):
-            play_to(gb, CHART[k - 1][0] + 5 + 2, plan)
+            play_to(gb, CHART[k - 1][0] + 6 + 2, plan)
             s = snap(gb)
             if k < 8:
                 assert (s["good"], s["hits"], s["cups"]) == (k, k, 0) and bowl() == want(k // 2), (k, s)
