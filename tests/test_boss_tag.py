@@ -95,8 +95,11 @@ def test_the_tag_ready_busy_and_gone(model, c):
             assert o["flags"] & 7 == 7                            # OBJ palette 7: his own colours
         gb.write("boss_hold", gb.mem("boss_cap"))                # hands full: a drink would slide past
         frames(gb, 2)
-        assert gb.mem("boss_lim") == 0
-        assert tag(gb)["tile"] == OBJ_TAG + TAG_BUSY and tag(gb)["y"] == hat["y"]
+        if c == 7:                                               # the Sumo has no drink limit (E5): always READY (his BEV_TAG)
+            assert tag(gb)["tile"] == OBJ_TAG + TAG_READY and tag(gb)["y"] == hat["y"]
+        else:
+            assert gb.mem("boss_lim") == 0
+            assert tag(gb)["tile"] == OBJ_TAG + TAG_BUSY and tag(gb)["y"] == hat["y"]
         gb.write("boss_hold", 0)
         frames(gb, 2)
         assert tag(gb)["tile"] == OBJ_TAG + TAG_READY
