@@ -315,8 +315,7 @@ void title_enter(void) BANKED {
         VBK_REG = VBK_BANK_1;
         for (i = 0; i < 20; i++) row_buf[i] = BGPAL_LOGO;
         set_bkg_tiles(1, LOGO_ROW, 18, 1, row_buf); set_bkg_tiles(1, LOGO_ROW + 1, 18, 1, row_buf);
-        set_bkg_tiles(0, title_rows[0], 20, 1, attr_sel);
-        for (i = 1; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, attr_txt);
+        for (i = 0; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, i == title_sel ? attr_sel : attr_txt);   // (the gold line is the cursor's: it may come back on line 1 or 2)
         set_bkg_tiles(0, ROW_HI, 20, 1, attr_txt);
         for (i = 0; i < 2; i++) row_buf[i] = BGPAL_TPATRON;
         set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR), 2, 1, row_buf);
