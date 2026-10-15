@@ -220,7 +220,7 @@ def test_no_more_than_ten_sprites_a_line(boot):
     for b in ["down"] * 15 + ["up"] * 3:
         boot.press(b, 2)
         assert most_per_scanline(boot) <= 10
-    assert len(boot.visible_sprites()) == 1, "the cursor only"
+    assert len(boot.visible_sprites()) == 3, "the cursor and the two scroll arrows (mid-list)"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -421,3 +421,24 @@ def test_mountain_starts_on_its_pickup_and_the_loop_is_unchanged(srom):
     assert (srom.mem("hUGE_current_order"), srom.mem("hUGE_row")) == (0, 0)
     srom.run(tempo * 255)                                            # ...and 255 rows on, the last row of the loop
     assert (srom.mem("hUGE_current_order"), srom.mem("hUGE_row")) == (6, 63)
+
+
+def test_scroll_arrows_show_only_where_tunes_are_hidden(boot):
+    """The Practice list's arrows (OAM 1 up, 2 down): the top of the soundtrack shows only the down arrow (on the blank row 11), the middle both,
+    the end only the up arrow."""
+    to_jukebox(boot)
+    settle_rows(boot)
+    o = boot.read(0xFE00, 12)
+    assert o[4] == 0 and 104 <= o[8] <= 105 and o[5] == o[9] == 160, "the top: the down arrow"
+    for _ in range(6):
+        tap(boot, "down")
+    boot.run(4)
+    o = boot.read(0xFE00, 12)
+    assert 23 <= o[4] <= 24 and 104 <= o[8] <= 105, "the middle: both"
+    for _ in range(TUNE_COUNT):
+        tap(boot, "down")
+        if boot.mem("jb_sel") == TUNE_COUNT - 1:
+            break
+    boot.run(4)
+    o = boot.read(0xFE00, 12)
+    assert boot.mem("jb_sel") == TUNE_COUNT - 1 and 23 <= o[4] <= 24 and o[8] == 0, "the end: the up arrow"

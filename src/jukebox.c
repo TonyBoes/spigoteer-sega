@@ -93,6 +93,13 @@ static void mark_tune(uint8_t t) {             // the list line of tune t, if it
     if (t >= jb_top && t < jb_top + JB_VISIBLE) jb_dirty |= (uint16_t)1 << (t - jb_top);
 }
 
+// The scroll arrows (the Practice list's, src/mg_list.c): up under the header when tunes are above the window, down on the blank row 11 (the list's
+// sit a row lower: 8 px up) when tunes are below it.
+static void arrows(void) {
+    list_arrows_show(jb_top != 0, jb_top + JB_VISIBLE < TUNE_COUNT, jb_t);
+    if (shadow_OAM[2].y) shadow_OAM[2].y -= 8;
+}
+
 static void cursor(void) {
     OAM_item_t *o = shadow_OAM;
     o->y = (JB_ROW_LIST + 2 * (jb_sel - jb_top)) * 8 - 7 + 16;     // the mug stands on the line (as the title's cursor)
@@ -132,7 +139,10 @@ void jukebox_enter(void) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     hud_icon_load(TILE_HUD_HEAD, HUD_ICON_PLAYING);   // the playing marker: a mug over the HUD head's tile (the title reloads the table)
+    list_arrows_load();
+    music_pump();
     cursor();
+    arrows();
     game_state = GS_JUKEBOX;
     music_stop();                              // silence until a tune is chosen (B then goes straight back)
     DISPLAY_ON;
@@ -175,5 +185,6 @@ uint8_t jukebox_update(uint8_t pressed) BANKED {
         n++;
     }
     cursor();
+    arrows();
     return 0;
 }
