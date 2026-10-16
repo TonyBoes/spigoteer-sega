@@ -399,6 +399,8 @@ struct tk_state {               // tests read these at story_scratch + offset (t
     uint8_t pal[20];            // +120 CGB attributes (the shoji palette) for them
     uint8_t lant[2][2];         // +140 the lantern's tiles as queued
     uint8_t last;               // +144 the last press: 0 none, 1 PERFECT, 2 GOOD, 3 MISS, 4 SPILL
+    uint8_t p24;                // +145 clk % 24 (the beat phase), advanced with the clock
+    uint8_t q6;                 // +146 (clk / 24) % 6 (the beat count mod 6); both re-derived when the clock jumps (tk_clock)
 };
 
 void mm_enter(void) BANKED;                      // src/mm.c: MARSHMALLOW DROP (the igloo)

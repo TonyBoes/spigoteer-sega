@@ -27,6 +27,12 @@ MG_MILKRUN, MG_TAIKO, MG_POUROFF = 6, 7, 11
 GLYPH_J, GLYPH_Z = 72, 75                                  # the '?' and the arrow take two rare letters' tiles while paused
 
 
+
+def taiko_phase_ok(b):
+    """Taiko's beat phase counters (tk_state p24 +145, q6 +146) follow its clock (+0): clk % 24 and clk / 24 % 6."""
+    clk = int.from_bytes(b[:2], "little")
+    return b[145] == clk % 24 and b[146] == (clk // 24) % 6
+
 def rom_s(model, ram=None):
     """A booted rom with the emulator's sound on (the APU registers read back), on the title."""
     rom = make_rom(model, ram, sound=True)
@@ -591,7 +597,7 @@ def test_every_mini_game_pauses_resumes_and_quits_to_the_list_with_everything_ba
             frames(gb, 1)
         got = (gb.read("story_scratch", 480), gb_oam(gb), gb.mem16("mg_timer"), gb.mem16("mg_score"))
         if gid == MG_TAIKO:       # its clock is music_frames, and the music's tick runs on the frame RESUME is pressed (the
-            assert got[0][2:] == want[0][2:] and 0 <= int.from_bytes(got[0][:2], "little") - int.from_bytes(want[0][:2], "little") <= 1
+            assert got[0][2:145] == want[0][2:145] and taiko_phase_ok(got[0]) and taiko_phase_ok(want[0]) and 0 <= int.from_bytes(got[0][:2], "little") - int.from_bytes(want[0][:2], "little") <= 1
             assert got[2:] == want[2:]
         else:
             assert got[0] == want[0] and got[2:] == want[2:], "the game went on as if it had never stopped"
@@ -866,7 +872,7 @@ def test_how_to_play_from_the_pause_menu_and_back_leaves_everything_as_it_was(mo
             frames(gb, 1)
         got = (gb.read("story_scratch", 480), gb_oam(gb), gb.mem16("mg_timer"), gb.mem16("mg_score"))
         if gid == MG_TAIKO:
-            assert got[0][2:] == want[0][2:] and got[2:] == want[2:]
+            assert got[0][2:145] == want[0][2:145] and taiko_phase_ok(got[0]) and taiko_phase_ok(want[0]) and got[2:] == want[2:]
         else:
             assert got[0] == want[0] and got[2:] == want[2:], "the game went on as if it had never stopped"
             assert got[1] == want[1]

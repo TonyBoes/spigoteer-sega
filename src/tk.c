@@ -211,7 +211,7 @@ static void sprites(void) {
     }
     // the drummer: his rest pose, a dance step on each beat's first half (the whole show's tiles, as the level has them)
     f = 0;
-    if ((mg_phase == MG_PLAY || mg_phase == MG_END) && (uint8_t)(S.clk % TK_BEAT) < 12) f = 1 + (uint8_t)((S.clk / TK_BEAT) % 3);
+    if ((mg_phase == MG_PLAY || mg_phase == MG_END) && S.p24 < 12) f = 1 + (S.q6 >= 3 ? S.q6 - 3 : S.q6);   // (the beat phase and count: p24, q6)
     w = venue.show_tile[f];
     obj(OAM_DRUM, DRUM_X, DRUM_Y, OBJ_DANCER + w[0], cgb(OPAL_DRUM));
     obj(OAM_DRUM + 1, DRUM_X + 8, DRUM_Y, OBJ_DANCER + w[1], cgb(OPAL_DRUM));
@@ -254,6 +254,8 @@ static void band_rows(void) {                           // the shoji window's ro
         for (c = 0; c < 20; c++) S.band[r][c] = TK_BG + TKB_BAND + tk_band_map[(1 + r) * 20 + c];
     for (c = 0; c < 20; c++) S.pal[c] = PAL_SHOJI;
 }
+
+static void backing(void);                              // (defined below, with the sound balance)
 
 void tk_enter(void) BANKED {
     uint16_t p[4];
@@ -315,7 +317,7 @@ void tk_enter(void) BANKED {
     // the tune from its first row (a looping tune already playing is not restarted by music_play); the count is in tune frames
     music_fast = 0;
     music_stop();
-    S.clk = 0; S.own = TK_OWN_START; S.next = 0; S.judged = 0; S.combo = 0; S.best = 0; S.hits = 0; S.cups = 0;
+    S.clk = 0; S.p24 = S.q6 = 0; S.own = TK_OWN_START; S.next = 0; S.judged = 0; S.combo = 0; S.best = 0; S.hits = 0; S.cups = 0;
     S.perfect = S.good = S.miss = S.spills = 0; S.cnt = 0; S.band_on = 0; S.end_t = 0; S.anim = 0; S.pour_t = 0;
     S.spill_t = 0; S.serve_t = 0; S.flash_t[0] = S.flash_t[1] = 0; S.flash_k[0] = S.flash_k[1] = 0;
     S.rail_on = 0; S.lant_on = 0; S.last = 0;
@@ -501,10 +503,10 @@ static void backing(void) {
     NR51_REG = 0xBF;                                        // the bass (channel 3) to the right side only: -6 dB on the speaker
 #elif TAIKO_VARIANT == 3
     {                                                       // the melody sounds only where a half bar begins (its row start is
-        uint8_t ph = (uint8_t)(S.clk % 48);                 // the tick after clock 47 mod 48; a frame either side is harmless)
-        m |= TK_NOHARM | TK_NOMELODY;
+        uint8_t ph = S.p24;                                 // clock mod 48 = 24 * (q6 odd) + p24: the tick after clock 47 mod 48;
+        m |= TK_NOHARM | TK_NOMELODY;                       // a frame either side is harmless)
         NR51_REG = 0x9F;                                    // melody and bass to the right side only: -6 dB
-        if (ph == 46 || ph == 47 || ph == 0) m &= ~2; else m |= 2;
+        if (S.q6 & 1 ? ph >= 22 : ph == 0) m &= ~2; else m |= 2;
     }
 #endif
     hUGE_mute_mask = m;
@@ -522,12 +524,19 @@ void tk_leave(void) BANKED {                               // mg_leave: the tune
 #endif
 }
 
+static void tk_clock(uint16_t c) {                    // S.clk = c, with the beat phase counters (p24 = c % 24, q6 = c / 24 % 6)
+    uint16_t d = c - S.clk;
+    S.clk = c;
+    if (d == 1) { if (++S.p24 == TK_BEAT) { S.p24 = 0; if (++S.q6 == 6) S.q6 = 0; } }
+    else if (d) { S.p24 = (uint8_t)(c % TK_BEAT); S.q6 = (uint8_t)((c / TK_BEAT) % 6); }   // (it jumped: a restart, a late frame)
+}
+
 void tk_update(uint8_t pressed) BANKED {
     uint16_t c;
     uint8_t want;
     if (sound_on) c = music_frames;                       // (before S.anim++: SDCC fuses that inc (hl) with the test into an `or a, (hl)`)
     else { c = S.own + 1; S.own = c; }
-    S.clk = c;
+    tk_clock(c);
     S.anim++;
     if (mg_phase == MG_PLAY) {
         count_in(c);
@@ -542,10 +551,10 @@ void tk_update(uint8_t pressed) BANKED {
     if (S.flash_t[0]) S.flash_t[0]--;
     if (S.flash_t[1]) S.flash_t[1]--;
     cup(S.serve_t ? 4 : S.hits >> 1);
-    want = mg_phase == MG_PLAY && (uint8_t)(c % TK_BEAT) < TK_FLASH_LEN;   // the beat's flash on the banks
+    want = mg_phase == MG_PLAY && S.p24 < TK_FLASH_LEN;   // the beat's flash on the banks
     if (want != S.rail_on) rails_data(want);
     if (S.band_on) {                                   // the lantern flickers (slowly, not in step with the beat)
-        want = (uint8_t)((c >> 3) % 6) < 2;
+        want = !(S.q6 & 1) && S.p24 < 16;      // (c >> 3) % 6 < 2
         if (want != S.lant_on) lantern(want);
     }
     backing();
