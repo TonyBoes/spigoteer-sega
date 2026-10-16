@@ -140,12 +140,16 @@ static void hud_supply(void) {                      // what is left of the suppl
     put(S.hud, 12, HUD_ROW, 2);
 }
 
+static uint8_t pop_f(uint8_t k) {                      // (k / 6) & 1 for k < 40: the odd sixes are 6-11, 18-23, 30-35
+    return (uint8_t)(k - 6) < 6 || (uint8_t)(k - 18) < 6 || (uint8_t)(k - 30) < 6;
+}
+
 static void sprites(void) {
     uint8_t k, f, np = 0;
     int16_t x;
     // the pail (swings every 6 frames) and the loaded marshmallow
     x = S.dx >> 3;
-    obj2(OAM_PAIL, x, MM_PAIL_Y, mm_pail + 2 * ((S.anim / 6) & 1), cgb(OPAL_PAIL));
+    obj2(OAM_PAIL, x, MM_PAIL_Y, mm_pail + 2 * S.p6, cgb(OPAL_PAIL));
     if (!S.air && !S.load && S.supply && mg_phase <= MG_PLAY) obj(OAM_HELD, x + 4, MM_PUFF_Y0, mm_puff[0], cgb0(OPAL_PUFF));
     else hide(OAM_HELD);
     if (S.air) obj(OAM_FALL, S.ax, MM_PUFF_Y0 + MM_DROP_V * S.t, mm_puff[(S.t >> 1) & 1], cgb0(OPAL_PUFF));
@@ -156,7 +160,7 @@ static void sprites(void) {
         f = S.n[k];
         obj2(OAM_CUP + 2 * k, x, MM_CUP_Y, mm_cup + 2 * f, f == 3 && is_cgb ? OPAL_FULL : cgb(OPAL_CUP));
         if (S.pop[k] && np < 2 && x >= -8 && x < 160) {
-            obj2(OAM_POP + 2 * np, x, MM_POP_Y, mm_pop + 2 * (((MM_POP_LEN - S.pop[k]) / 6) & 1), cgb0(OPAL_PUFF));
+            obj2(OAM_POP + 2 * np, x, MM_POP_Y, mm_pop + 2 * pop_f(MM_POP_LEN - S.pop[k]), cgb0(OPAL_PUFF));
             np++;
         }
     }
@@ -216,7 +220,7 @@ void mm_enter(void) BANKED {
     for (c = 0; c < 20; c++) { S.wattr[0][c] = mm_pal[20 + c]; S.wattr[1][c] = mm_pal[40 + c]; }
     // the game
     mg_timer = MM_TIME_S * 60;
-    S.dx = 76 * 8; S.vx = 0; S.air = 0; S.miss = 0; S.load = 0; S.t = 0; S.ax = 0; S.anim = 0; S.started = 0; S.wstep = 0; S.bph = 0;
+    S.dx = 76 * 8; S.vx = 0; S.air = 0; S.miss = 0; S.load = 0; S.t = 0; S.ax = 0; S.anim = 0; S.a6 = S.a10 = S.p6 = S.p10 = 0; S.started = 0; S.wstep = 0; S.bph = 0;
     S.drops = 0; S.hits = 0; S.misses = 0; S.full = 0;
     for (c = 0; c < MM_MUGS; c++) { S.cx[c] = (MM_START_X - MM_SPACING * c) * 8; S.n[c] = 0; S.pop[c] = 0; }
     for (c = 0; c < MM_SPLATS; c++) S.sage[c] = 0;
@@ -269,7 +273,11 @@ void mm_update(uint8_t pressed) BANKED {
         vq_add(0, S.wall[0], 0, 2, 20); vq_add(0, S.wall[1], 0, 3, 20);
         if (is_cgb) { vq_add(1, S.wattr[0], 0, 2, 20); vq_add(1, S.wattr[1], 0, 3, 20); }
     }
-    S.anim++;
+    if (!++S.anim) S.a6 = S.a10 = S.p6 = S.p10 = 0;       // (the counters follow anim, wrap included: no divides)
+    else {
+        if (++S.a6 == 6) { S.a6 = 0; S.p6 ^= 1; }
+        if (++S.a10 == 10) { S.a10 = 0; S.p10 = (S.p10 + 1) & 3; }
+    }
     if (mg_phase >= MG_PLAY && mg_phase <= MG_END) {      // the belt rides on through the outro
         for (k = 0; k < MM_MUGS; k++) {                   // the cups loop: past the right edge they come back at the left
             S.cx[k] += MM_BELT;
@@ -302,9 +310,9 @@ void mm_update(uint8_t pressed) BANKED {
             SFX(SFX_LAUNCH);
         }
     }
-    want = shimmer[(S.anim / 10) & 3];                     // the aurora (every 10 frames, even frames; the belt's step is on odd ones)
+    want = shimmer[S.p10];                     // the aurora (every 10 frames, even frames; the belt's step is on odd ones)
     // (the aurora is frozen in the outro: the banner's text is on rows 2-3, over the window)
-    if (mg_phase <= MG_PLAY && !(S.anim % 10) && want != S.wstep) { S.wstep = want; win_rows(want); }
+    if (mg_phase <= MG_PLAY && !S.a10 && want != S.wstep) { S.wstep = want; win_rows(want); }
     if (((S.anim + 3) & 7) == 0) { S.bph ^= 1; belt_row(S.bph); }
     sprites();
 }

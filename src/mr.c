@@ -282,7 +282,10 @@ static void hud_time(void) {                     // the hourglass + seconds (2 d
     S.tbuf[0] = TILE_HUD_BLANK; S.tbuf[1] = MG_HOURGLASS; S.tbuf[2] = TILE_GLYPH_0 + t; S.tbuf[3] = TILE_GLYPH_0 + s;
 }
 
-static uint8_t gauge_level(void) { return (uint8_t)((S.spd - MR_SPD_MIN + 5) / 6); }     // 0 .. 4 (1.0 .. 2.5 px)
+static uint8_t gauge_level(void) {               // 0 .. 4 (1.0 .. 2.5 px): (spd - MR_SPD_MIN + 5) / 6 for spd 16 .. 40, by thresholds
+    uint8_t v = S.spd;
+    return (v >= MR_SPD_MIN + 1) + (v >= MR_SPD_MIN + 7) + (v >= MR_SPD_MIN + 13) + (v >= MR_SPD_MIN + 19);
+}
 
 static void hud_gauge(void) {                    // the two cells: each 0 empty, 1 half, 2 full; two levels a cell
     uint8_t lvl = gauge_level(), k;

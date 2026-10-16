@@ -329,12 +329,13 @@ static void start_swap(void) {
 
 static void step_swap(void) {
     uint8_t ca = slot_can[swap_a], cb = slot_can[swap_b], dur = bonus_swap_dur, ax, bx, h;
-    int16_t span;
+    int16_t span, q;
     swap_t++;
     ax = slot_x(swap_a); bx = slot_x(swap_b);
     span = (int16_t)bx - ax;
-    can_pos[ca] = (uint8_t)(ax + span * swap_t / dur);
-    can_pos[cb] = (uint8_t)(bx - span * swap_t / dur);
+    q = span * swap_t / dur;           // (one multiply and divide for both cans)
+    can_pos[ca] = (uint8_t)(ax + q);
+    can_pos[cb] = (uint8_t)(bx - q);
     h = (uint8_t)(((uint16_t)swap_t * (dur - swap_t) * 64u) / ((uint16_t)dur * dur));
     can_dy[ca] = h;                    // ca hops over, cb slides underneath
     if (swap_t >= dur) {

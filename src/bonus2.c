@@ -136,7 +136,15 @@ static void say_num(uint8_t row, const char *s, uint16_t n) {
     uint8_t i = 0, j;
     while (s[i]) { tmp[i] = s[i]; i++; }
     tmp[i] = 0;
-    for (j = i; j && tmp[j - 1] == '#'; j--) { tmp[j - 1] = '0' + n % 10; n /= 10; }
+    static const uint16_t pw[5] = { 1, 10, 100, 1000, 10000 };
+    uint8_t k, d;
+    for (j = i; j && tmp[j - 1] == '#'; j--) ;
+    k = i - j;                                   // the digits shown (1..4); n keeps its low k digits, as n % 10 per digit did
+    while (n >= pw[k]) n -= pw[k];
+    while (k--) {                                // (digit by subtraction: the 16-bit divide and modulo cost 71 lines once)
+        for (d = 0; n >= pw[k]; d++) n -= pw[k];
+        tmp[i - 1 - k] = '0' + d;
+    }
     mg_say(row, tmp);
 }
 

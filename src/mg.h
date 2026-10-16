@@ -358,6 +358,7 @@ struct ad_state {               // tests read these at story_scratch + offset (t
     uint8_t r14[20], r14a[20];  // +72 / +92 map row 14 (the launch gap's sky) and its CGB attributes
     uint8_t hattr[20];          // +112 the HUD colours (the banner on row 14)
     uint8_t wall[2][20], wattr[2][20];   // +132 map rows 2-3 as the portholes have them (the banner rows' place)
+    uint8_t a10, p10;           // +212 / +213 anim % 10 and (anim / 10) & 1, counted with anim (no divide)
 };
 
 void tk_enter(void) BANKED;                      // src/tk.c: TAIKO POUR (the teahouse)
@@ -436,6 +437,8 @@ struct mm_state {               // tests read these at story_scratch + offset (t
     uint8_t belt[2][18];        // the belt row's two phases
     uint8_t wall[2][20];        // map rows 2-3 as the scene has them (the banner rows' place)
     uint8_t wattr[2][20];
+    uint8_t a6, a10;            // anim % 6, anim % 10 (counted with anim: no divides)
+    uint8_t p6, p10;            // (anim / 6) & 1, (anim / 10) & 3
 };
 
 void mk_enter(void) BANKED;                      // src/mk.c: MONKEY BUSINESS (the jungle zoo)

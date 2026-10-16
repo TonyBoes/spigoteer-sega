@@ -293,7 +293,10 @@ static void draw(void) {
                 OPAL_FX | S_PALETTE);
         }
     } else if (S.st == AS_TUMBLE) {              // the three turns, falling
-        f = (S.t / 5) % 3;
+        f = S.t;                                 // (S.t / 5) % 3, S.t <= AD_TUMBLE = 30
+        if (f >= 15) f -= 15;
+        if (f >= 15) f -= 15;
+        f = f >= 10 ? 2 : f >= 5 ? 1 : 0;
         obj(OAM_BEAKER, bx - 8, by + ((S.t * 5) >> 3), ad_tumble[2 * f], OPAL_BEAKER | S_PALETTE);
         obj(OAM_BEAKER + 1, bx, by + ((S.t * 5) >> 3), ad_tumble[2 * f + 1], OPAL_BEAKER | S_PALETTE);
     }
@@ -303,7 +306,7 @@ static void draw(void) {
             obj(k, (lane & 1) ? 152 : 0, AD_LANE_TOP0 + 16 * lane, ad_edge[0], OPAL_ARROW | S_PALETTE | ((lane & 1) ? 0x20 : 0));
         else shadow_OAM[k].y = 0;
     }
-    f = (S.anim / 10) & 1;                       // the arrow under the lit dock, bobbing 2 px
+    f = S.p10;                                 // the arrow under the lit dock, bobbing 2 px
     obj(OAM_ARROW, porthole_cx[S.lit] - 4, AD_LANE_TOP0 + (f ? 2 : 0), ad_arrow[f], OPAL_ARROW | S_PALETTE);
     o = shadow_OAM + OAM_SPIG;                   // the Spigoteer's bust: his idle frame's top two entries
     o->y = SPIG_Y + 16; o->x = SPIG_X + 8; o->tile = SPIG_FRAME_IDLE * BARTENDER_TILES_PER_FRAME; o->prop = 0; o++;
@@ -439,7 +442,8 @@ void ad_update(uint8_t pressed) BANKED {
         vq_add(0, S.wall[0], 0, 2, 20); vq_add(0, S.wall[1], 0, 3, 20);
         if (is_cgb) { vq_add(1, S.wattr[0], 0, 2, 20); vq_add(1, S.wattr[1], 0, 3, 20); }
     }
-    S.anim++;
+    if (!++S.anim) S.a10 = S.p10 = 0;            // (a10 and p10 follow anim, its wrap included: no divide in draw)
+    else if (++S.a10 == 10) { S.a10 = 0; S.p10 ^= 1; }
     if (S.t < 255) S.t++;
     for (k = 0; k < AD_ROCKS; k++) {             // the rocks drift (lane 0 right, then alternating)
         sp = lane_speed[S.spd][k >> 1];
