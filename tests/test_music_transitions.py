@@ -251,6 +251,47 @@ def pause_legs(gb, legs):
     leg(gb, legs, "pause QUIT -> title", quit_, lambda: on_title(gb), 6, cont=False)
 
 
+def pause_ask_legs(gb, legs):
+    """The question and back, in a level and in a mini-game: QUIT -> ARE YOU SURE? -> NO (and B, and START): no tick more than LATE frames
+    after the last, the window rewrite never running a VBlank over (owner 2026-10-15: a one-frame tempo shift of the paused bass)."""
+    title_pick(gb, K_PLAY, K_ARCADE, press=False)
+    gb.press("a", 2)
+    run_until(gb, lambda: state(gb) == 12, 60)
+    gb.write("tip_chance", 0)
+    gb.press("a", 2)
+    run_until(gb, lambda: state(gb) == PLAYING, 20)
+    gb.run(120)
+    open_pause(gb)
+    gb.run(10)
+    for i, back in enumerate(("a", "b", "start") * 4):
+        while gb.mem("state_timer") & 3 != 2:
+            gb.press("down", 2)
+            gb.run(10 + i)                                    # (the tune's phase against the frame differs from round to round)
+        leg(gb, legs, "level: QUIT -> question", lambda l: l.press("a"), lambda: gb.mem("state_timer") & 4, 6)
+        gb.run(10 + 3 * i)
+        leg(gb, legs, f"level: question -> back ({back})", lambda l: l.press(back), lambda: not gb.mem("state_timer") & 4, 6)
+        gb.run(10)
+
+
+def pause_ask_mini_legs(gb, legs):
+    to_list(gb)
+    gb.run(10)
+    tap(gb, "a")
+    run_until(gb, lambda: state(gb) == GS_MINI and lcd_on(gb), 40)
+    gb.run(90)
+    tap(gb, "start")
+    assert state(gb) == PAUSED
+    gb.run(10)
+    for i, back in enumerate(("a", "b", "start") * 4):
+        while gb.mem("state_timer") & 3 != 2:
+            gb.press("down", 2)
+            gb.run(10 + i)
+        leg(gb, legs, "mini: QUIT -> question", lambda l: l.press("a"), lambda: gb.mem("state_timer") & 4, 6)
+        gb.run(10 + 3 * i)
+        leg(gb, legs, f"mini: question -> back ({back})", lambda l: l.press(back), lambda: not gb.mem("state_timer") & 4, 6)
+        gb.run(10)
+
+
 def quit_list_legs(gb, legs):
     to_list(gb)
     gb.run(10)
@@ -299,7 +340,7 @@ def bonus_to(f):
 SCENARIOS = {"title": [title_legs], "table": [table_legs], "minilist": [bonus_to(minilist_legs)],
              "soundtrack": [bonus_to(soundtrack_legs)], "rush": [bonus_to(rush_legs)], "card": [list_legs], "game0": [lambda g, l: game_legs(g, l, 0)],
              "game6": [lambda g, l: game_legs(g, l, 6)], "pause": [pause_legs], "quitlist": [quit_list_legs], "over": [gameover_legs],
-             "story": [story_legs]}
+             "story": [story_legs], "pauseask": [pause_ask_legs], "pauseaskmini": [pause_ask_mini_legs]}
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -316,3 +357,7 @@ def test_transitions_keep_the_tune_in_time(model, scenario):
     if REPORT:
         print(f"== {model} {scenario}")
     check(legs)
+    if scenario.startswith("pauseask"):                  # the paused bass keeps its beat to within a tenth of a frame through the question (it was 0.26 late)
+        for l in legs:
+            late, early, _ = l.stats()
+            assert 0.88 <= early and late <= 1.15, f"{l.name}: ticks {early:.2f}..{late:.2f} frames apart"

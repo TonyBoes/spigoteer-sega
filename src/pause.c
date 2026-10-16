@@ -73,13 +73,23 @@ static uint8_t gl(char c) {
     return c == '?' ? TILE_GLYPH_J : c == '>' ? TILE_GLYPH_Z : glyph_for(c);
 }
 
-// `mark` at COL_ITEM and s after it (col 255: s centred, no mark), into the blank row buffer b (20 tiles)
-static void put(uint8_t *b, uint8_t col, char mark, const char *s) {
-    uint8_t i = 0, n = 0;
-    while (s[n]) n++;
+// The menu's words as tiles (a length, then the tiles): a row costs a copy, not a banked glyph_for call a letter (~400 cycles each, ~10k
+// cycles a rewrite: it ran the frame so long that the tune's tick came 0.26 frame late after QUIT / NO).
+#define G(c) TILE_GLYPH_##c
+#define SP   TILE_HUD_BLANK
+static const uint8_t w_resume[] = { 6, G(R), G(E), G(S), G(U), G(M), G(E) };
+static const uint8_t w_how[]    = { 11, G(H), G(O), G(W), SP, G(T), G(O), SP, G(P), G(L), G(A), G(Y) };
+static const uint8_t w_quit[]   = { 12, G(Q), G(U), G(I), G(T), SP, G(T), G(O), SP, G(M), G(E), G(N), G(U) };
+static const uint8_t w_yes[]    = { 3, G(Y), G(E), G(S) };
+static const uint8_t w_no[]     = { 2, G(N), G(O) };
+static const uint8_t w_sure[]   = { 13, G(A), G(R), G(E), SP, G(Y), G(O), G(U), SP, G(S), G(U), G(R), G(E), TILE_GLYPH_J };   // (J: the '?' while paused)
+
+// the tiles t (length first) at COL_ITEM + 2 after `mark` at COL_ITEM, or centred (col 255, no mark), into the blank row buffer b (20 tiles)
+static void put(uint8_t *b, uint8_t col, uint8_t mark, const uint8_t *t) {
+    uint8_t i = 0, n = *t++;
     if (col == 255) col = (uint8_t)(20 - n) >> 1;
-    else b[COL_ITEM] = gl(mark);
-    for (; i < n; i++) b[col + i] = gl(s[i]);
+    else b[COL_ITEM] = mark;
+    for (; i < n; i++) b[col + i] = t[i];
 }
 
 static void fill_row(uint8_t r, uint8_t t) {
@@ -94,7 +104,7 @@ static uint8_t pause_card(uint8_t s) {
     return (s & PAUSE_MINI) ? mg_game : NO_CARD;
 }
 
-static const char *const names[] = { "RESUME", "HOW TO PLAY", "QUIT TO MENU", "YES", "NO" };
+static const uint8_t *const names[] = { w_resume, w_how, w_quit, w_yes, w_no };
 
 // where the items are in menu state s: the first item's window row, and the item the cursor is on
 static uint8_t first_row(uint8_t s) { return ((s & PAUSE_MINI) ? 1 : 2) + ((s & PAUSE_ASK) != 0); }
@@ -107,12 +117,15 @@ static void build(uint8_t s, uint8_t *b) {
     uint8_t i, n = (s & PAUSE_MINI) && !(s & PAUSE_ASK) ? 3 : 2, sel = cursor_item(s), r = first_row(s);
     uint8_t base = (s & PAUSE_ASK) ? 3 : 0, step = (s & (PAUSE_MINI | PAUSE_ASK)) ? 1 : 2;
     uint8_t pr = (s & PAUSE_MINI) ? 4 : 5;
-    for (i = 0; i < 100; i++) b[i] = TILE_HUD_BLANK;
-    music_pump();                                // (the two fills and the text below take most of a frame, the beam in the visible part)
+    uint8_t *p = b, j;
+    for (j = 0; j < 4; j++) {                    // (a pump every 25 tiles: the fills and the text below take most of a frame, and the tune's tick falls
+        for (i = 0; i < 25; i++) *p++ = TILE_HUD_BLANK;   // due about line 9: with the first pump at line 48 it came 0.26 frame late after QUIT / NO)
+        music_pump();
+    }
     for (i = 0; i < 20; i++) b[(pr - 1) * 20 + i] = TILE_PANEL_BOT;
     music_pump();
-    if (s & PAUSE_ASK) put(b, 255, 0, "ARE YOU SURE?");
-    for (i = 0; i < n; i++) put(b + (r - 1 + i) * 20, COL_ITEM + 2, i == sel ? '>' : ' ', names[base + i * step]);
+    if (s & PAUSE_ASK) put(b, 255, 0, w_sure);
+    for (i = 0; i < n; i++) put(b + (r - 1 + i) * 20, COL_ITEM + 2, i == sel ? TILE_GLYPH_Z : TILE_HUD_BLANK, names[base + i * step]);
 }
 
 // The window is on screen from line BANNER_WY to its LYC (WY + 38 or 46), and a write through set_win_tiles waits for VRAM (a byte per
@@ -134,7 +147,10 @@ static void apply(uint8_t s, uint8_t hidden) {
     } else {
         quiet_start();
         for (i = 0; i < ((s & PAUSE_MINI) ? 3 : 4); i++) set_win_tiles(COL_ITEM, i + 1, 14, 1, b + i * 20 + COL_ITEM);
-        if (overlay_on) SHOW_WIN;                // (the build and the wait can run past a VBlank: main.c's update shows the window a frame late)
+        if (overlay_on) {                        // (lcd_isr hid it at the menu's last line; shown from VBlank on or while the beam is above its top: below that it would start under the beam)
+            while (LY_REG >= BANNER_WY && LY_REG < 144) music_pump();
+            SHOW_WIN;
+        }
     }
     state_timer = s;
     if (!((s & PAUSE_MINI) && mg_id == MG_MILKRUN)) LYC_REG = WIN_LYC(s);   // (Milk Run's handler: main.c mr_lcd_isr)
