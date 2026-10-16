@@ -910,3 +910,24 @@ def test_arcade_does_not_play_the_pour_off():
         gb.run(3)
         assert gb.mem("arc_loop") == 2 and banner_text(gb, 2) == centred("LOOP 2")
         assert gb.mem("story_on") == 1 and gb.mem("story_arc") == 1 and gb.mem("mg_id") != MG_POUROFF
+
+
+def test_dregs_glass_stream_falls_under_the_lowest_pixel_of_his_mirrored_spout(pour):
+    """The glass under Dregs's spout reuses the spigot fill frames with their baked pour stream (aa867c0). His spout is yours mirrored
+    about the screen's centre (screen x -> 159 - x), the glass sits at the mirrored x (16 for 136): the stream's columns must be
+    centred on the mirror of the spout's lowest pixel run, as yours are on the spout (test_spigot)."""
+    from test_spigot import nozzle, stream_pixels
+    gb = pour
+    calm(gb)
+    pokes(gb, {"d.bar": 0, "d.st": PD_FILL, "d.t": 2, "y.bar": 3})
+    ff = GAME["FILL_FRAMES"]
+    for t_fill, k in ((1, 0), (ff // 3 + 1, 1), (2 * ff // 3 + 1, 2)):
+        pokes(gb, {"d.st": PD_FILL, "d.t": t_fill})
+        frames(gb, 2)
+        o = oam(gb, 9)
+        assert o["y"] and o["x"] - 8 == SPOUT_D and o["tile"] == OBJ_FILL + 2 * k, (k, o)
+        cols = sorted({c for _, c in stream_pixels("saloon", k)})
+        stream_x = [o["x"] - 8 + (7 - c if o["prop"] & 0x20 else c) for c in cols]
+        run = nozzle("saloon")                                   # (yours: screen x of the spout's lowest run)
+        want = (159 - run[0] + 159 - run[-1]) / 2
+        assert abs(sum(stream_x) / len(stream_x) - want) <= 0.5, (k, stream_x, [159 - x for x in run])
