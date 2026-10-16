@@ -165,6 +165,7 @@ static uint8_t stream(uint8_t id, const uint8_t *src, uint8_t n) {   // src: WRA
     struct vq_raw *e;
     if (vq_count >= VQ_MAX_RAW) return 0;
     e = &vq[vq_count++];
+    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += n + 3;
     e->n = n; e->bank = 0; e->src = src; e->dst = tile_addr(id);
     return 1;
 }

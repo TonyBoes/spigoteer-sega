@@ -133,6 +133,7 @@ static uint8_t ent_room(void) {
 // n tiles from ENT_BUF to OBJ tile id `tile` in the next VBlank (after ent_room)
 static void ent_queue(uint8_t tile, uint8_t n) {
     vq_entry_t *e = &vq[vq_count++];
+    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += (n << 4) + 3;
     e->n = n << 4; e->bank = 0; e->src = ENT_BUF; e->dst = (uint8_t *)(0x8000 + ((uint16_t)tile << 4));
 }
 

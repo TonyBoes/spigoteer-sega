@@ -415,6 +415,9 @@ typedef struct {
 #define VQ_BUDGET     64    // cost units (~40 cycles each) per frame, see queue_vram
 #define VQ_CHUNK       6    // widest span queued for one bar row at a time
 #define VQ_LATEST_LY 147    // a full-budget drain (~7 lines, drain_ticks_max) that starts later could run into line 0
+// VQ_DRAIN_BUDGET (game.h): bytes + 3 per entry (~40 cycles each) one VBlank's drain may take, whoever queued them (queue_vram, or a
+// direct vq_add / vq[] writer): vq_frame_end hands over only the entries that fit, the rest wait at the head of the list for the
+// next VBlank, in order (the first entry always goes, however big: the biggest is a 64-byte tile reload).
 vq_entry_t vq[VQ_MAX];
 uint8_t    vq_count;
 volatile uint8_t vq_ready;      // the list is complete: the VBlank interrupt may execute it
@@ -500,32 +503,45 @@ void vq_vbl(void) {
     vq_ready = 0;
 }
 
+uint8_t qv_cost;                          // the list's cost so far (bytes + 3 an entry; every writer adds, 255 when entries are left over)
+uint8_t qv_w, qv_bar;                     // queue_vram's scratch (below); also what a split list leaves for vq_restore
+
 // Start of a frame's logic: if last frame's list is still waiting, take it back; it is handed over again,
 // unchanged but for what this frame adds with vq_add(), by vq_frame_end().
 void vq_frame_begin(void) {
     vq_held = vq_ready;
+    if (qv_cost == VQ_SPLIT) vq_restore();       // the last list was split: the entries that did not go out rejoin it (vq_held = 1)
+    qv_cost = -vq_held;                          // 0, or 255 for entries left from last frame: they are not tallied, vq_frame_end counts them out
     vq_ready = 0;
 }
 
+// The list is complete. One whose tally is over what a VBlank's drain takes is cut by vq_split to the first entries that fit
+// (at least one); the rest waits at the head of the next frame's list.
 void vq_frame_end(void) {
-    if (vq_count) vq_ready = 1;
+    if (!vq_count) return;
+    if (qv_cost > VQ_DRAIN_BUDGET) vq_split();
+    vq_ready = 1;
 }
 
 // Throw the list away (screen changes, LCD off).
 void vq_reset(void) {
     vq_ready = 0;
     vq_count = 0;
+    qv_cost = 0;
     vq_held = 0;
     sa_on = 0;                                   // the stage animation runs on the level screen only (stage_anim_start)
     sa_left = 0;
 }
 
 void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n) {
-    vq_entry_t *e;
-    if (vq_count >= VQ_MAX) return;              // (cannot happen: one frame queues at most ~16 entries)
-    e = &vq[vq_count++];
-    e->n = n; e->bank = bank; e->src = src;
-    e->dst = (uint8_t *)0x9800 + ((uint16_t)y << 5) + x;
+    uint8_t *p, c = vq_count;
+    if (c >= VQ_MAX) return;                     // (cannot happen: one frame queues at most ~16 entries)
+    vq_count = c + 1;
+    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += n + 3;
+    p = (uint8_t *)&vq[c];                       // (byte by byte, as queue_entry: the map address is 0x9800 + y * 32 + x, x < 32)
+    *p++ = n; *p++ = bank;
+    *p++ = (uint8_t)(uint16_t)src; *p++ = (uint8_t)((uint16_t)src >> 8);
+    *p++ = (uint8_t)(y << 5) | x; *p = 0x98 + (y >> 3);
 }
 
 static uint8_t * const bar_map[NUM_BARS] = {
@@ -535,7 +551,6 @@ static uint8_t * const bar_map[NUM_BARS] = {
 
 // End of the logic phase: turn the HUD flags and dirty bar spans into queue entries, composing the bar columns
 // as they are queued (in small steps, for the same reason as the compose functions).
-static uint8_t qv_cost, qv_w, qv_bar;
 static uint8_t *qv_p;                    // next entry, as bytes
 static uint16_t qv_src, qv_dst;
 
@@ -551,13 +566,14 @@ static void queue_entry(uint8_t bank) {
 
 // one wall row of qv_w bytes: the tile entry, and the attribute entry if they changed (sh_attr follows sh_tile)
 static void queue_row(void) {
-    queue_entry(0);
-    vq_count++;
-    if (!cz_attrs) return;
-    qv_src += sizeof sh_tile;
-    queue_entry(1);
-    vq_count++;
-    qv_src -= sizeof sh_tile;
+    uint8_t *p = qv_p, w = qv_w;
+    uint16_t s = qv_src, d = qv_dst;
+    *p++ = w; *p++ = 0; *p++ = (uint8_t)s; *p++ = (uint8_t)(s >> 8); *p++ = (uint8_t)d; *p++ = (uint8_t)(d >> 8); p += 2;
+    if (!cz_attrs) { qv_p = p; vq_count++; return; }
+    s += sizeof sh_tile;
+    *p++ = w; *p++ = 1; *p++ = (uint8_t)s; *p++ = (uint8_t)(s >> 8); *p++ = (uint8_t)d; *p++ = (uint8_t)(d >> 8); p += 2;
+    qv_p = p;
+    vq_count += 2;
 }
 
 // Do the columns cz_x0..cz_x1-1 of bar qv_bar need their attributes? Consumes that part of the attribute span.
@@ -690,26 +706,29 @@ static void queue_stage(void) {
 }
 
 void queue_vram(void) {
-    uint8_t sa;
+    uint8_t sa, pre;
     if (vq_held) return;                         // last frame's list has not gone out yet: everything stays dirty
-    qv_cost = 0;
-    if (hud_dirty & HUD_LIVES) { vq_add(0, lives_tiles, 7, HUD_ROW, 2); qv_cost += 5; }
-    if (hud_dirty & HUD_SCORE) { vq_add(0, score_tiles, 0, HUD_ROW, 6); qv_cost += 9; }
+    pre = qv_cost;                               // (what direct vq_add writers queued earlier this frame is no part of the budget below,
+    qv_cost = 0;                                 // as ever: only the VBlank drain budget, in vq_frame_end, counts it)
+    if (hud_dirty & HUD_LIVES) vq_add(0, lives_tiles, 7, HUD_ROW, 2);     // (vq_add tallies them in qv_cost: 5 and 9)
+    if (hud_dirty & HUD_SCORE) vq_add(0, score_tiles, 0, HUD_ROW, 6);
     hud_dirty = 0;
     sa = sa_left;
     if (!vram_pending) {                         // nothing else this frame: the stage update always fits
         if (sa) { qv_p = (uint8_t *)&vq[vq_count]; queue_stage(); }
-        return;
+    } else {
+        vram_pending = 0;
+        qv_p = (uint8_t *)&vq[vq_count];
+        while (urg_n) { urg_n--; queue_urgent(urg_b[urg_n], urg_c[urg_n]); }
+        // Stage animation: patrons first. It goes after the bars if the budget has room, else waits; after SA_MAX_WAIT
+        // refused frames it goes before the quick redraws and bars (they get what is left, the rest stays dirty).
+        if (sa && sa_wait >= SA_MAX_WAIT) { queue_stage(); sa = 0; }
+        if (quick_n) queue_quick();
+        if (queue_bar(0) && queue_bar(1) && queue_bar(2)) queue_bar(3);
+        if (sa) { if ((uint8_t)(qv_cost + SA_COST) <= VQ_BUDGET) queue_stage(); else sa_wait++; }
     }
-    vram_pending = 0;
-    qv_p = (uint8_t *)&vq[vq_count];
-    while (urg_n) { urg_n--; queue_urgent(urg_b[urg_n], urg_c[urg_n]); }
-    // Stage animation: patrons first. It goes after the bars if the budget has room, else waits; after SA_MAX_WAIT
-    // refused frames it goes before the quick redraws and bars (they get what is left, the rest stays dirty).
-    if (sa && sa_wait >= SA_MAX_WAIT) { queue_stage(); sa = 0; }
-    if (quick_n) queue_quick();
-    if (queue_bar(0) && queue_bar(1) && queue_bar(2)) queue_bar(3);
-    if (sa) { if ((uint8_t)(qv_cost + SA_COST) <= VQ_BUDGET) queue_stage(); else sa_wait++; }
+    qv_cost += pre;                              // the whole list's tally again
+    if (qv_cost < pre) qv_cost = 255;
 }
 
 // ---- sprites other than the mugs ------------------------------------------------------

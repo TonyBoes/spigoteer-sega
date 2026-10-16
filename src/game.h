@@ -352,7 +352,7 @@ void clear_mugs(void);
 
 // ---- render.c ------------------------------------------------------------------------------
 extern uint8_t row_buf[20];
-extern uint8_t vram_pending, vq_count, drain_ticks_max, vq_held;
+extern uint8_t vram_pending, vq_count, drain_ticks_max, vq_held, qv_cost;   // (qv_cost: the copy list's tally, see vq_frame_end)
 extern uint8_t score_tiles[6], lives_tiles[2];   // score: HUD columns 0-5; lives_tiles: the head and one digit, columns 7-8
 void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 void put_row(uint8_t y);
@@ -366,6 +366,11 @@ void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n);
 void vq_vbl(void);
 void vq_frame_begin(void);
 void vq_frame_end(void);
+// The most a VBlank drain takes (bytes + 3 an entry, ~40 cycles each: ~6.3 lines, so that even a drain starting on VQ_LATEST_LY ends on line 153).
+#define VQ_DRAIN_BUDGET 86
+#define VQ_SPLIT        254      // qv_cost's value for a list that was split (vq_split): its tail is still in the list
+void vq_split(void) BANKED;      // src/vq_split.c: the entries of a list that go out this VBlank (vq_ready), the rest wait
+void vq_restore(void) BANKED;    // ... and the rest, moved to the head of the next frame's list
 void vq_reset(void);
 void queue_vram(void);
 // P6 slanted bars (CLASSIC, the trapezoid levels): bar b's tap end lies (3 - b) * taper tile columns in from the screen

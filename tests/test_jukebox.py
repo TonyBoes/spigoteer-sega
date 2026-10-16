@@ -57,7 +57,7 @@ def to_jukebox(rom):
 
 
 def settle_rows(gb):
-    gb.run(6)                                 # 4 rows a frame through the VBlank queue
+    gb.run(8)                                 # 4 rows a frame through the VBlank queue (a VBlank drains at most 3 of them: VQ_DRAIN_BUDGET; the 4th goes out a frame later)
 
 
 # ---- the data ------------------------------------------------------------------------------------------------
