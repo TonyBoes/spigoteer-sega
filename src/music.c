@@ -365,8 +365,9 @@ void music_load_now(void) BANKED {
 }
 
 // The game's frame tick (main.c, once per main loop). The timer's reload register TMA (0 at rest; the timer never overflows
-// in a frame) holds two flags so that the common frame reads one register: bit 0, a pump ticked in this pass (that was this
-// frame's tick unless it is a whole frame old: no second one right behind it); bit 1, the pause menu is open (pause.c, as
+// in a frame) holds two flags and a number so that the common frame reads one register: bit 0, a pump ticked in this pass (that
+// was this frame's tick, so the loop's own is refused unless a half frame of real time has passed since it); bit 1, the pause
+// menu is open (pause.c, as
 // PAUSE_NR51): with the tune playing, bass and harmony (channels 3, 1) are on the mix, the effects held: a request is dropped,
 // and while an effect still owns channel 1 it stays off it (the bass alone).
 void music_tick(void) BANKED {
@@ -378,7 +379,7 @@ void music_tick(void) BANKED {
         }
         if (f & 1) {
             TMA_REG = f & 2;
-            if (TIMA_REG < FRAME_TIMA / 2) return;
+            if (TIMA_REG < (f & 0xFC) + FRAME_TIMA / 2) return;   // (under half a frame since the pump's tick, that carried its lateness in TIMA: no tick, however it was timed)
         }
     }
     tick();
@@ -398,6 +399,7 @@ void music_pump(void) BANKED {
         NR51_REG = voice[0].busy ? 0x44 : 0x55;
     }
     tick();
-    TIMA_REG = t - FRAME_TIMA;
-    TMA_REG |= 1;                                     // (see music_tick)
+    t -= FRAME_TIMA;
+    TIMA_REG = t;                                     // (the remainder carries over: it is how late this tick was)
+    TMA_REG = (TMA_REG & 2) | 1 | (t & 0xFC);         // (bits 2-7: that lateness, rounded down to 4 counts: TIMA minus it is the real time since this tick, see music_tick)
 }
