@@ -490,7 +490,7 @@ def test_the_player_cannot_pour_or_move_during_the_entrance(model):
             assert gb.oam()[0]["y"] in (0, y0) and not mugs(gb) and gb.oam()[4]["y"] == 0, ent_t(gb)
         gb.release("down")
         gb.release("a")
-        until(gb, lambda: DUKE.get(gb, "ent") == 0, 40)
+        until(gb, lambda: DUKE.get(gb, "ent") == 0, 60)             # (the entrance first loads its tiles for 17 frames: ENT_LOAD_N)
         frames(gb, 2)
         to_bar(gb, 2)
         assert gb.mem("bar") == 2

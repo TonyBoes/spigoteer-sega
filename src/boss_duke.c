@@ -110,6 +110,7 @@ static void chord(void) {
 #define ENT_OAM      (OAM_FILL + 1)     // the mugs' first entry: nothing is in the air during the entrance
 #define ENT_OAM_N    20
 #define ENT_BUF      (story_scratch + 300)   // 64 B staging for the reloads (the queue copies from WRAM: banks are not mapped then)
+#define ENT_LOAD_N   ((BOSS_ART_ENT_PAIRS * 2 + 3) / 4)   // chunks of 4 tiles that bring the whole entrance pool in
 #define ENT_RELOADS  10                // (the 9 drink chunks, then the status tag's 4 tiles: OBJ_TAG 124-127 lie in the pool)
 #if BOSS_ART_ENT_PAIRS > 34 || BOSS_ART_ENT_PAIRS < ENT_LOW_N || OBJ_COIN != 92 || OBJ_MUG != 56 || OBJ_GLASS != 60 || OBJ_MUG_FILL != 76 || OBJ_MUG_DRINK != 84 \
     || OBJ_TOPPER != 96 || OBJ_DANCER != 96 || ENT_BUF + 64 > BOSS_SCRATCH || ENT_OAM + ENT_OAM_N > OAM_MUG_END
@@ -142,13 +143,19 @@ static void ent_queue(uint8_t tile, uint8_t n) {
 // off the screen are left out (the hardware counts every entry on a line, seen or not).
 static OAM_item_t *ent_put(OAM_item_t *o, OAM_item_t *end, uint8_t f, int16_t x, uint8_t y, uint8_t prop, uint8_t low) {
     const uint8_t *c = boss_ent_cells + ((uint16_t)boss_ent_first[f] << 2);
-    uint8_t n = boss_ent_first[f + 1] - boss_ent_first[f];
-    uint16_t cx;
+    uint8_t n = boss_ent_first[f + 1] - boss_ent_first[f], lo, hi, d, bx;
+    int16_t a, b;
     x += 8; y += 16;
+    a = 1 - x;                                       // the cells whose screen x (x + dx) is 1-167 are on the screen: dx a..b, clipped once
+    b = 167 - x;
+    if (b < 0 || a > 255) return o;
+    lo = a < 0 ? 0 : (uint8_t)a;
+    hi = b > 255 ? 255 : (uint8_t)b;
+    bx = (uint8_t)x;
     for (; n && o != end; n--, c += 4) {
-        cx = x + c[0];
-        if ((uint16_t)(cx - 1) >= 167) continue;
-        o->y = y + c[1]; o->x = (uint8_t)cx; o->tile = c[2];
+        d = c[0];
+        if (d < lo || d > hi) continue;
+        o->y = y + c[1]; o->x = bx + d; o->tile = c[2];
         o->prop = prop | c[3] | (c[1] ? low : 0);
         o++;
     }
@@ -203,6 +210,20 @@ static void ent_frame(void) {
     fill_timer = 0; fill_stage = 0;                          // (the bartender stays where he is: main.c skips his input while he is held)
     bartender_frame = BT_IDLE; catch_pose = 0; bt_bob = 0;
     if (t < ENT_LAND) intro_timer = INTRO_FRAMES;            // (held: the intro's 90 frames start at the landing)
+    if (duke.ent == 1) {                                     // (before frame 0: the entrance's tiles, ENT_LOAD_N chunks of 4, through the VBlank queue)
+        if (duke.rl < ENT_LOAD_N) {
+            if (ent_room()) {
+                i = duke.rl << 2;                            // first tile of the chunk; tiles 0-35 go to OBJ 56.., the rest to OBJ 96..
+                t = BOSS_ART_ENT_PAIRS * 2 - i;
+                if (t > 4) t = 4;
+                memcpy(ENT_BUF, boss_ent_tiles + ((uint16_t)i << 4), (uint16_t)t << 4);
+                ent_queue(i < ENT_LOW_N * 2 ? ENT_LOW_ID + i : ENT_HIGH_ID + i - ENT_LOW_N * 2, t);
+                duke.rl++;
+            }
+            return;
+        }
+        duke.rl = 0;                                         // (all in: frame 0)
+    }
     if (t == ENT_REVSFX) SFX(SFX_REV);
     if (t >= ENT_TOPPER && t < ENT_LAND && !duke.rl && ent_room()) {       // (retried until the queue has room)
         memcpy(ENT_BUF, boss_art_hat, BOSS_ART_HAT_TILES * 16);
@@ -255,9 +276,7 @@ uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED {
         }
         break;
     case BEV_ENTER:                      // E9: the warm-up is over (boss.c entrance_start): the tile pool borrows the drinks' tiles
-        set_sprite_data(ENT_LOW_ID, ENT_LOW_N * 2, boss_ent_tiles);        // (LCD on: GBDK's STAT-waiting copy; the bar is held)
-        set_sprite_data(ENT_HIGH_ID, (BOSS_ART_ENT_PAIRS - ENT_LOW_N) * 2, boss_ent_tiles + ENT_LOW_N * 32);
-        duke.ent = 1; duke.rl = 0;
+        duke.ent = 1; duke.rl = 0;       // (ent_frame streams them in, 4 tiles a frame, before the ride begins: no upload with the LCD on)
         return 1;
     case BEV_INTRO:
         if (duke.ent) ent_frame();
