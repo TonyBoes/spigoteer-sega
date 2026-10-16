@@ -294,7 +294,12 @@ static void hud_gauge(void) {                    // the two cells: each 0 empty,
     S.gauge = lvl;
 }
 
-static uint8_t secs_left(void) { return (uint8_t)((S.time + 59) / 60); }
+// seconds shown = ceil(t / 60): the last value stands while t is inside its 60-frame band (no divide per frame)
+static uint8_t secs_left(uint8_t s, uint16_t t) {
+    uint16_t hi = ((uint16_t)s << 6) - ((uint16_t)s << 2);   // 60 * s
+    if (t <= hi && t + 60 > hi) return s;
+    return (uint8_t)((t + 59) / 60);
+}
 
 static void draw(void);
 
@@ -586,7 +591,7 @@ void mr_update(uint8_t pressed) BANKED {
                 }
         if (gauge_level() != S.gauge) { hud_gauge(); vq_add(0, S.gbuf, GAUGE_COL, HUD_ROW, 2); }
         if (S.time) S.time--;
-        s = secs_left();
+        s = secs_left(S.secs, S.time);
         if (s != S.secs) { S.secs = s; hud_time(); vq_add(0, S.tbuf, 16, HUD_ROW, 4); }
         if (!S.time) { mg_finish(); outro_begin(); }
         else if (course_done()) { S.done = 1; mg_finish(); outro_begin(); }

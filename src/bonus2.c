@@ -462,7 +462,8 @@ static uint8_t tips_update(void) {
         if (!--tips_spawn) { tips_spawn_item(); tips_spawn = 14 + (next_rand() & 15); }
         tips_items();
         tips_time--;
-        s = (uint8_t)((tips_time + 59) / 60);
+        s = last_secs;                           // (ceil(tips_time / 60): re-derived only when tips_time leaves the last value's 60-frame band)
+        { uint16_t hi = ((uint16_t)s << 6) - ((uint16_t)s << 2); if (tips_time > hi || tips_time + 60 <= hi) s = (uint8_t)((tips_time + 59) / 60); }
         if (s != last_secs) { last_secs = s; say_num(TEXT_ROW_A, "TIME ##", s); }
         if (!tips_time) {
             bonus_phase = PH_END; bonus_timer = 0; tray_dirty = 0;

@@ -163,7 +163,12 @@ static void hud_timer(void) {                    // the hourglass + seconds (2 d
     if (LCDC_REG & LCDCF_ON) vq_add(0, tbuf, TIMER_COL, HUD_ROW, 4); else vram_put(TIMER_COL, HUD_ROW, tbuf, 4);
 }
 
-static uint8_t secs_left(void) { return (uint8_t)((mg_timer + 59) / 60); }
+// seconds shown = ceil(t / 60): the last value stands while t is inside its 60-frame band (no divide per frame)
+static uint8_t secs_left(uint8_t s, uint16_t t) {
+    uint16_t hi = ((uint16_t)s << 6) - ((uint16_t)s << 2);   // 60 * s
+    if (t <= hi && t + 60 > hi) return s;
+    return (uint8_t)((t + 59) / 60);
+}
 
 void mg_hourglass_load(uint8_t id) BANKED {
     set_bkg_data(id, 1, hourglass_tile);
@@ -269,7 +274,7 @@ static void mg_begin(uint8_t id, uint8_t mode) {
     }
     i = *(uint8_t *)(0x9800 + HUD_ROW * 32 + 8);   // (LCD off) a game whose own HUD took the lives digit's column (8) takes the head too
     if (i != lives_tiles[1]) { i = TILE_HUD_BLANK; vram_put(7, HUD_ROW, &i, 1); }
-    if (mg_timer) { last_secs = secs_left(); hud_timer(); }
+    if (mg_timer) { last_secs = secs_left(last_secs, mg_timer); hud_timer(); }
     mg_say(MG_TEXT_A, mg_name[mg_game]);         // (LCD off: written at once)
     mg_say(MG_TEXT_B, mg_instr[mg_game]);
     if (mg_game < G_B0) music_play(TUNE_VENUE0 + v);   // (a bonus round plays the bonus jingle: bonus_practice)
@@ -448,7 +453,7 @@ static uint8_t mg_frame(uint8_t pressed) {
         game_update(pressed);
         if (mg_timer && mg_phase == MG_PLAY) {
             if (--mg_timer == 0) { mg_say(MG_TEXT_A, "TIME UP"); mg_finish(); }
-            if ((s = secs_left()) != last_secs) { last_secs = s; hud_timer(); }
+            if ((s = secs_left(last_secs, mg_timer)) != last_secs) { last_secs = s; hud_timer(); }
         }
         break;
     case MG_END:

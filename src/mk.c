@@ -145,7 +145,12 @@ static void hud_time(void) {                     // the hourglass + seconds (2 d
     S.tbuf[0] = TILE_HUD_BLANK; S.tbuf[1] = MG_HOURGLASS; S.tbuf[2] = TILE_GLYPH_0 + t; S.tbuf[3] = TILE_GLYPH_0 + s;
 }
 
-static uint8_t secs_left(void) { return (uint8_t)((S.time + 59) / 60); }
+// seconds shown = ceil(t / 60): the last value stands while t is inside its 60-frame band (no divide per frame)
+static uint8_t secs_left(uint8_t s, uint16_t t) {
+    uint16_t hi = ((uint16_t)s << 6) - ((uint16_t)s << 2);   // 60 * s
+    if (t <= hi && t + 60 > hi) return s;
+    return (uint8_t)((t + 59) / 60);
+}
 
 static void hud_pips(void) {                    // the coconuts left: full pips, then empty ones (HUD columns 9-16, the lives at 7-8, the timer at 17-19)
     uint8_t i;
@@ -486,7 +491,7 @@ void mk_update(uint8_t pressed) BANKED {
         if (++S.ucnt >= MK_U_STEP) { S.ucnt = 0; if (S.unow > MK_U_MIN) S.unow--; }
         if (++S.gcnt >= MK_GAP_STEP) { S.gcnt = 0; if (S.gap > MK_GAP_MIN) S.gap--; }
         if (S.time) S.time--;
-        s = secs_left();
+        s = secs_left(S.secs, S.time);
         if (s != S.secs) { S.secs = s; hud_time(); vq_add(0, S.tbuf + 1, 17, HUD_ROW, 3); }
         if (!S.time || !S.coco) { mg_finish(); outro_begin(); }
     } else world();
