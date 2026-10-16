@@ -142,6 +142,7 @@ void trans_arm(void) BANKED {
             for (c = 0; c < 20; c++) *s++ = m[c];
         TRANS |= TR_ARMED;
     }
+    music_load_now();                                            // (the new tune's patterns copied at once, not a few frames into the drain)
     load_tiles(1);
     drink_rows(0, 18);
     WX_REG = 7; WY_REG = 0; LYC_REG = 255; SHOW_WIN; HIDE_SPRITES;
