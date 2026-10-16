@@ -97,12 +97,11 @@ uint8_t push_for(uint8_t p) BANKED {
     uint8_t x = patron_x[p], d = pushback_px, m;
     uint16_t c;
     if (x <= ENTRY_X) return x + PATRON_W;                    // (at the old door: always served; else a 24 px push could never serve one)
-    if (play_mode == MODE_CLASSIC && d >= (uint8_t)(x + PATRON_W) && x < 256 - PATRON_W) return d;   // CLASSIC keeps the old rule
     c = (uint16_t)(level - 1) * EARLY_PER_LEVEL;                // (level 1: nobody drinks early)
     if (level > 1 && next_rand() < (c > EARLY_MAX ? EARLY_MAX : c)) d = next_rand() & 1 ? d >> 2 : d >> 1;
     m = x - ENTRY_X;
-    if (d >= m && play_mode != MODE_CLASSIC) return x + PATRON_W;                           // (Option C: a push that reaches the left-edge stop serves him: he slides on and off)
-    return d > m ? m : d;
+    if (d >= m) return x + PATRON_W;                           // (Option C: a push that reaches the left-edge stop serves him: he slides on and off)
+    return d;
 }
 
 void start_level(void) BANKED {

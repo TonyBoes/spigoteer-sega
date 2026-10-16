@@ -440,18 +440,3 @@ def test_the_classic_box_starts_any_classic_level(boot):
     release_combo(boot)
     boot.run(3)
     assert boot.mem("debug_classic") == 1 and banner_is(boot, "CLASSIC 03")
-
-
-def test_classic_keeps_the_old_serve_rule(boot):
-    """CLASSIC stays authentic (not Option C): a patron whose push reaches the left-edge stop but would leave part of him
-    on the screen (x = ENTRY_X + 6, push 32) is stopped at ENTRY_X and drinks, unserved; one at ENTRY_X is served."""
-    gb = classic_at(boot, 1)
-    clear_patrons(gb)
-    freeze(gb)
-    p = set_patron(gb, 1, ENTRY_X + 6)
-    gb.run(3)
-    inject_mug(gb, 1, ENTRY_X + 14)
-    gb.run(3 + 12)
-    assert gb.read("patron_state", MAX_P)[p] == 3 and gb.read("patron_x", MAX_P)[p] == ENTRY_X   # DRINKING
-    gb.run(40)
-    assert gb.mem("served") == 0 and gb.read("patron_state", MAX_P)[p] == 3
