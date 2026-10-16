@@ -537,7 +537,7 @@ void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n) {
     uint8_t *p, c = vq_count;
     if (c >= VQ_MAX) return;                     // (cannot happen: one frame queues at most ~16 entries)
     vq_count = c + 1;
-    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += n + 3;
+    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += n + 3 + (bank << 1);   // (a bank 1 entry costs more: the VBK writes)
     p = (uint8_t *)&vq[c];                       // (byte by byte, as queue_entry: the map address is 0x9800 + y * 32 + x, x < 32)
     *p++ = n; *p++ = bank;
     *p++ = (uint8_t)(uint16_t)src; *p++ = (uint8_t)((uint16_t)src >> 8);
@@ -566,14 +566,13 @@ static void queue_entry(uint8_t bank) {
 
 // one wall row of qv_w bytes: the tile entry, and the attribute entry if they changed (sh_attr follows sh_tile)
 static void queue_row(void) {
-    uint8_t *p = qv_p, w = qv_w;
-    uint16_t s = qv_src, d = qv_dst;
-    *p++ = w; *p++ = 0; *p++ = (uint8_t)s; *p++ = (uint8_t)(s >> 8); *p++ = (uint8_t)d; *p++ = (uint8_t)(d >> 8); p += 2;
-    if (!cz_attrs) { qv_p = p; vq_count++; return; }
-    s += sizeof sh_tile;
-    *p++ = w; *p++ = 1; *p++ = (uint8_t)s; *p++ = (uint8_t)(s >> 8); *p++ = (uint8_t)d; *p++ = (uint8_t)(d >> 8); p += 2;
-    qv_p = p;
-    vq_count += 2;
+    queue_entry(0);
+    vq_count++;
+    if (!cz_attrs) return;
+    qv_src += sizeof sh_tile;
+    queue_entry(1);
+    vq_count++;
+    qv_src -= sizeof sh_tile;
 }
 
 // Do the columns cz_x0..cz_x1-1 of bar qv_bar need their attributes? Consumes that part of the attribute span.

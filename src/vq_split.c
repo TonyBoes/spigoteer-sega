@@ -17,7 +17,7 @@ extern uint8_t qv_bar, qv_w;
 void vq_split(void) BANKED {
     uint8_t n = vq_count, k = 0, rem = VQ_DRAIN_BUDGET, u;
     for (; k != n; k++) {
-        u = vq[k].n + 3;
+        u = vq[k].n + 3 + (vq[k].bank << 1);
         if (u > rem) {
             if (k) break;
             u = rem;                             // (the first entry always goes, whatever its size)

@@ -221,7 +221,7 @@ def test_the_street_follows_the_seed_and_scrolls_under_a_fixed_hud(model):
                 for r in range(17):
                     assert tm[r + 1][c & 31] & 0xFF == tiles[r], (i, c, r + 1)
             assert gb.image().crop((0, 0, 8 * 8, 7)).tobytes() == hud0, "the score on the HUD row stays put"
-        s = mr(gb)
+        s = settle(gb)                           # (a whole game frame: a plain read at the emulator's frame end can fall between px += and scx = px)
         assert s["px"] > 300 and s["scx"] == s["px"] & 255 and s["colq"] in (0, 1)
         assert text(gb, 2) == "" and text(gb, 3) == "", "the banner is gone (the street is back under it)"
 
