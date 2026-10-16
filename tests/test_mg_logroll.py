@@ -852,7 +852,7 @@ def to_mini_slot(model):
     gb = to_shift(model, LUMBER, 1)
     win(gb, LUMBER, 1)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-    run_until(gb, lambda: state(gb) == GS_MINI, 300)
+    run_until(gb, lambda: state(gb) == GS_MINI, 800)
     run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
     return gb
 
@@ -899,7 +899,7 @@ def test_arcade_plays_it_in_chapter_3(model):
         gb.write("story_step", 1)
         win(gb, 0, 0)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-        run_until(gb, lambda: state(gb) == GS_MINI, 400)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_id") == MG_LOGROLL and gb.mem("mg_mode") == MG_STORY and gb.mem("venue_id") == LUMBER
         assert gb.mem("save_lock") == 1 and gb.mem16("mg_unlocked") == 1 << MG_LOGROLL

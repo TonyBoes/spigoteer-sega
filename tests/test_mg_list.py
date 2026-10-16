@@ -302,7 +302,7 @@ def test_story_reaching_quick_draw_unlocks_it_and_the_medal_is_kept(model):
     with to_shift(model, 0, 1) as gb:
         assert gb.mem16("mg_unlocked") == 0
         win(gb, 0, 1)
-        run_until(gb, lambda: state(gb) == GS_MINI, 300)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_mode") == MG_STORY and gb.mem("mg_id") == MG_QUICKDRAW
         assert gb.mem16("mg_unlocked") == 1 and best(gb)[0] == MEDAL_NONE

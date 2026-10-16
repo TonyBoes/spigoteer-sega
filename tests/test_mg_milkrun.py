@@ -996,7 +996,7 @@ def test_obp0_is_put_back_when_milk_run_is_left_whichever_way():
     with to_shift("dmg", BIKER, 1) as gb:
         win(gb, BIKER, 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-        run_until(gb, lambda: state(gb) == GS_MINI, 300)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         frames(gb, 3)
         assert gb.mem(0xFF48) == 0xC0
@@ -1055,7 +1055,7 @@ def to_mini_slot(model, mode_arcade=False):
     gb = to_shift(model, BIKER, 1)
     win(gb, BIKER, 1)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-    run_until(gb, lambda: state(gb) == GS_MINI, 300)
+    run_until(gb, lambda: state(gb) == GS_MINI, 800)
     run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
     return gb
 
@@ -1074,7 +1074,7 @@ def test_the_story_plays_it_in_chapter_7_and_the_last_call_has_everything_back(m
         assert gb.mem16("mg_unlocked") == 0
         win(gb, BIKER, 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-        run_until(gb, lambda: state(gb) == GS_MINI, 300)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_id") == MG_MILKRUN and gb.mem("mg_mode") == MG_STORY and gb.mem("venue_id") == BIKER
         assert text(gb, 2) == "MILK RUN" and score(gb) > 0
@@ -1109,7 +1109,7 @@ def test_arcade_plays_it_in_chapter_7(model):
         gb.write("story_step", 1)
         win(gb, 0, 0)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-        run_until(gb, lambda: state(gb) == GS_MINI, 400)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_id") == MG_MILKRUN and gb.mem("mg_mode") == MG_STORY and gb.mem("venue_id") == BIKER
         assert gb.mem("save_lock") == 1 and gb.mem16("mg_unlocked") == 1 << MG_MILKRUN

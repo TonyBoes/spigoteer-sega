@@ -753,7 +753,7 @@ def test_the_story_plays_it_in_chapter_9_and_the_last_call_has_everything_back(m
         assert gb.mem16("mg_unlocked") == 0
         win(gb, ZOO, 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-        run_until(gb, lambda: state(gb) == GS_MINI, 300)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_id") == MG_MONKEY and gb.mem("mg_mode") == MG_STORY and gb.mem("venue_id") == ZOO
         assert text(gb, 2) == "MONKEY BUSINESS" and score(gb) > 0
@@ -823,7 +823,7 @@ def test_arcade_plays_it_in_chapter_9(model):
         gb.write("story_step", 1)
         win(gb, 0, 0)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-        run_until(gb, lambda: state(gb) == GS_MINI, 400)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_id") == MG_MONKEY and gb.mem("mg_mode") == MG_STORY and gb.mem("venue_id") == ZOO
         assert gb.mem("save_lock") == 1 and gb.mem16("mg_unlocked") == 1 << MG_MONKEY

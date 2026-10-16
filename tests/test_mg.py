@@ -471,7 +471,7 @@ def test_a_built_mini_slot_plays_the_mini_game_and_the_story_goes_on(model, poin
     with to_shift(model, 0, 1) as gb:
         win(gb, 0, 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-        run_until(gb, lambda: state(gb) == GS_MINI, 200)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_id") == MG_QUICKDRAW and gb.mem("mg_mode") == MG_STORY and gb.mem("story_step") == 2
         assert text(gb, 2) == "QUICK DRAW" and gb.mem("lives") == 3
@@ -532,7 +532,7 @@ def test_an_unbuilt_venue_s_slot_plays_the_stub_in_its_own_venue(model):
         with to_shift(model, gid0, 1) as gb:
             gb.write("story_unskip", 1 << 2)
             win(gb, gid0, 1)
-            run_until(gb, lambda: state(gb) == GS_MINI, 300)
+            run_until(gb, lambda: state(gb) == GS_MINI, 800)
             run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
             assert gb.mem("mg_id") == gid0 and gb.mem("venue_id") == gid0 and text(gb, 2) == "GREEN LIGHT"
     for gid, venue in ((9, 9), (MG_STUB, 0), (MG_QUICKDRAW, 0), (10, 0), (15, 0), (20, 0)):

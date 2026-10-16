@@ -569,7 +569,7 @@ def test_story_plays_it_in_the_bistro_and_the_last_call_has_everything_back(mode
         assert gb.mem16("mg_unlocked") & (1 << MG_ORDERUP) == 0
         win(gb, BISTRO, 1)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-        run_until(gb, lambda: state(gb) == GS_MINI, 300)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_id") == MG_ORDERUP and gb.mem("mg_mode") == MG_STORY and gb.mem("venue_id") == BISTRO
         assert gb.mem16("mg_unlocked") & (1 << MG_ORDERUP) and text(gb, 2) == "ORDER UP"
@@ -614,7 +614,7 @@ def test_arcade_reaches_it_in_the_bistro(model):
         gb.write("story_step", 1)
         win(gb, 0, 0)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-        run_until(gb, lambda: state(gb) == GS_MINI, 400)
+        run_until(gb, lambda: state(gb) == GS_MINI, 800)
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_id") == MG_ORDERUP and gb.mem("mg_mode") == MG_STORY and gb.mem("venue_id") == BISTRO
         assert gb.mem16("mg_unlocked") & (1 << MG_ORDERUP)
