@@ -1,0 +1,14 @@
+hUGEDriver (third_party/hugedriver/)
+Source: SuperDisk/hUGEDriver, commit d6863d2947 (offline reference copy, reference/hugedriver).
+
+The upstream repository has NO LICENSE file. Its README.md ends with this section, quoted verbatim:
+
+    ## License
+
+    hUGETracker and hUGEDriver are dedicated to the public domain.
+
+(CLAUDE.md and reference/MANIFEST.md call it "MIT"; the repository itself says public domain. This file records what
+the repository actually says. No licence text is invented here; there is none to copy.)
+
+third_party/hugedriver/include/hardware.inc is the copy of gbdev's hardware.inc that ships with the driver; its header
+(Jones / Carsten Sorensen, 1997-) carries no licence statement.
