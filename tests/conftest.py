@@ -159,8 +159,9 @@ def hold_stage_anim(rom, hold=1):
 
 # ---- the title menu (src/title.c): the top level PLAY / BONUS / SETTINGS, each opening a submenu in the same place:
 # PLAY [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS MUSIC. K_* / TM_*: src/game.h.
-K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES, K_BOSSRUSH, K_BARCHANGE, K_BARKEEP = range(13)
-TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS = range(4)
+(K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES, K_BOSSRUSH,
+ K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP) = range(18)
+TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE = range(5)
 MENU_SETTLE = 6          # frames for a submenu's lines to reach the screen (2-5: src/title.c menu_frame)
 
 
@@ -311,3 +312,70 @@ DMG_COPIES.update({OBJ_DMG_COPY + 4 + k: OBJ_MUG_DRINK_ID + 6 + k for k in range
 def logical_tile(t):
     """The tile a sprite shows, with a DMG copy (OBJ 240-245) mapped back to its original id."""
     return DMG_COPIES.get(t, t)
+
+
+# ---- the debug menu (src/debug.c): in every build, locked until its flag is saved (SRAM 0x18 "DU": src/save.c) ----
+DU_AT = 0x18
+
+
+def du_block(flag=1):
+    """The save's "DU" block: magic, the flag (1 unlocked), checksum, complement."""
+    b = bytearray(b"DU" + bytes([flag]))
+    c = (0x5A + sum(b)) & 255
+    return bytes(b + bytes([c, c ^ 255]))
+
+
+def with_unlock(ram=None):
+    """A cartridge image (None: blank) with the debug menu unlocked."""
+    r = bytearray(ram) if ram is not None else bytearray(0x2000)
+    r[DU_AT:DU_AT + 5] = du_block()
+    return bytes(r)
+
+
+def sram_poke(gb, off, data):
+    """Write cartridge RAM of a running Rom behind the game's back (the MBC's RAM enable, then off again)."""
+    m = gb.pb.memory
+    m[0x0000] = 0x0A
+    for i, v in enumerate(data):
+        m[0xA000 + off + i] = v
+    m[0x0000] = 0x00
+
+
+def sram_peek(gb, off, n):
+    m = gb.pb.memory
+    m[0x0000] = 0x0A
+    out = bytes(m[0xA000 + off + i] for i in range(n))
+    m[0x0000] = 0x00
+    return out
+
+
+def unlock_debug(gb):
+    """Unlock the debug menu of a running Rom (what the Konami code on the title saves)."""
+    sram_poke(gb, DU_AT, du_block())
+
+
+def debug_unlocked(gb):
+    return sram_peek(gb, DU_AT, 5) == du_block()
+
+
+def gesture(gb, taps=3, gap=3, hold_first=2):
+    """SELECT held, START tapped `taps` times (each tap 2 frames down, `gap` frames up). SELECT stays held: release_gesture."""
+    gb.hold("select")
+    gb.run(hold_first)
+    for _ in range(taps):
+        gb.press("start", 2)
+        gb.run(gap)
+
+
+def release_gesture(gb):
+    gb.release("select")
+    gb.run(2)
+
+
+KONAMI = ["up", "up", "down", "down", "left", "right", "left", "right", "b", "a"]
+
+
+def konami(gb, keys=KONAMI):
+    for k in keys:
+        gb.press(k, 2)
+        gb.run(2)

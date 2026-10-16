@@ -94,6 +94,9 @@ extern uint8_t story_progress;              // M11b: story chapters cleared (0..
 extern uint8_t story_reached;               // story shifts: the step reached in chapter story_progress (save.c)
 void story_save(uint8_t chapters, uint8_t step) BANKED;   // story_progress / story_reached, then the whole save
 void bar_mode_save(void) BANKED;                       // SETTINGS > BAR CHANGE: the mode in level_dirs (KEEP_POS) into SRAM
+void save_erase(void) BANKED;                          // SETTINGS > ERASE DATA, confirmed: all of SRAM zeroed, the working copies reloaded (a blank cartridge)
+uint8_t debug_unlocked(void) BANKED;                   // the DEBUG MENU is unlocked (SRAM "DU"; a -DDEBUG_UNLOCKED build: always)
+void debug_unlock(void) BANKED;                        // ... and kept (src/debug.c's trigger on the title)
 void venue_score_put(uint8_t ch, uint32_t s) BANKED;     // a venue was entered with score s: kept for CONTINUE (not in a debug / ARCADE run)
 uint32_t venue_score_get(uint8_t ch) BANKED;             // CONTINUE: the score kept for chapter ch (0 when none)
 extern uint16_t tune_unlocked;              // bonus menu: bit t = tune t playable in the soundtrack player (SRAM v5 on)

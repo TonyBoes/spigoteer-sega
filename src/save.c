@@ -11,6 +11,9 @@
 //   (lives are not saved: story.c).
 //   0x12 the BAR CHANGE setting "BC" (SETTINGS; 2026-10-16): 0..1 magic, 2 the mode (1 KEEP, else SNAP), 3 checksum (0x5A + bytes 0..2), 4 its
 //   complement; no block, a bad checksum or any other mode reads as SNAP.
+//   0x18 the DEBUG MENU unlock "DU" (2026-10-16; SETTINGS > DEBUG MENU and the open gesture: src/debug.c): 0..1 magic, 2 the flag (1 unlocked, else
+//   locked), 3 checksum (0x5A + bytes 0..2), 4 its complement; no block, a bad checksum or any other flag reads as LOCKED. ERASE DATA (save_erase)
+//   zeroes the whole 8 KB, so it locks the menu again with everything else.
 //   0x0A the venue-start score "SV" (owner 2026-10-14: CONTINUE returns to the venue's start with 3 lives and the score the player
 //   had when they entered it): 0..1 magic "SV"; 2 the chapter it belongs to; 3..5 the score (LE, <= 999999); 6 checksum (0x5A +
 //   bytes 0..5), 7 its complement. Written when a venue is entered (a PRE scene's end, a chapter cleared: story.c) and read by
@@ -102,7 +105,9 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define SV_LEN   6
 #define BC_AT    0x12               // the BAR CHANGE setting "BC" (SETTINGS, 2026-10-16): 0..1 magic, 2 the mode (0 SNAP, 1 KEEP), 3 checksum, 4 complement
 #define BC_LEN   3
-#define V7_LEN   8                  // bytes covered by the main block's checksum
+#define DU_AT    0x18               // the DEBUG MENU unlock "DU" (see the top): 0..1 magic, 2 the flag, 3 checksum, 4 complement
+#define DU_LEN   3
+#define V7_LEN   8                 // bytes covered by the main block's checksum
 #define TBL_AT(t) (0x80 + (uint16_t)(t) * 0x40)
 #define TBL_LEN  (4 + TOP_N * 6)    // 34: bytes of a table block covered by its checksum
 #define V3_STORY 34                 // versions 3-6: the story progress
@@ -490,6 +495,45 @@ void bar_mode_save(void) BANKED {
     b[0] = 'B'; b[1] = 'C'; b[2] = (level_dirs & KEEP_POS) ? 1 : 0;
     sum_put(b, BC_LEN);
     DISABLE_RAM;
+}
+
+// DEBUG MENU unlocked? (src/debug.c, SETTINGS' DEBUG line, the open gesture). A build with -DDEBUG_UNLOCKED is always unlocked.
+uint8_t debug_unlocked(void) BANKED {
+#ifdef DEBUG_UNLOCKED
+    return 1;
+#else
+    volatile uint8_t *b = SRAM + DU_AT;
+    uint8_t u;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    u = b[0] == 'D' && b[1] == 'U' && b[2] == 1 && sum_ok(b, DU_LEN);
+    DISABLE_RAM;
+    return u;
+#endif
+}
+
+void debug_unlock(void) BANKED {
+    volatile uint8_t *b = SRAM + DU_AT;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    b[0] = 'D'; b[1] = 'U'; b[2] = 1;
+    sum_put(b, DU_LEN);
+    DISABLE_RAM;
+}
+
+// SETTINGS > ERASE DATA, confirmed: the cartridge as it left the factory. The whole 8 KB of SRAM is zeroed (every block above, the ones
+// of older versions and anything unknown: none checks out, so every table, the story, the unlocks, the medals, BAR CHANGE and the
+// debug unlock read as on a blank cartridge), then the working copies are loaded from it again (hi_load: everything empty, KEEP off).
+void save_erase(void) BANKED {
+    volatile uint8_t *p = SRAM;
+    uint16_t n;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    for (n = 0; n < 0x2000; n++) { p[n] = 0; if (!(n & 0x1FF)) music_pump(); }
+    DISABLE_RAM;
+    level_dirs &= ~KEEP_POS;
+    save_lock = 0;
+    hi_load();
 }
 
 void hi_save(void) BANKED {

@@ -17,7 +17,9 @@ LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynSPIGOTEER
 # under `#pragma bank 255` (all ten would not fit one bank); bankpack places each in a switchable bank. -Wm-yoA sizes the ROM.
 LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 
-# DEBUG_MENU: the START+SELECT debug level select (src/main.c). On in the normal build; `make release` leaves it out.
+# DEBUG_MENU: the playtest build (rush.c / mg_list.c list every boss and mini-game unlocked); `make release` leaves it out. The debug MENU itself
+# (src/debug.c) is in both, locked until its unlock is saved (SETTINGS' Konami code, src/debug.c konami_step). An always-unlocked build for
+# testing by hand: make DEBUGFLAGS="-DDEBUG_MENU -DDEBUG_UNLOCKED"
 DEBUGFLAGS := -DDEBUG_MENU
 LCCFLAGS += $(DEBUGFLAGS)
 
@@ -184,7 +186,7 @@ release: $(RELEASE)
 $(RELEASE): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
 	$(LCC) $(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ) > $(BUILD)/release_link.log 2>&1; rc=$$?; cat $(BUILD)/release_link.log; test $$rc -eq 0 || { rm -f $@; false; }
 	@! grep -q "overflow from Bank 0" $(BUILD)/release_link.log || { rm -f $@; echo "ROM0 overflowed into bank 1 (see PLAN.md, ROM0 cleanup)"; false; }
-	@! grep -q debug_menu_open $(BUILD)/release.noi || { echo "release build still has the debug menu"; false; }
+	@grep -q debug_menu_open $(BUILD)/release.noi || { echo "release build lost the debug menu (it ships, locked: src/debug.c)"; false; }
 	@romusage $(BUILD)/release.noi 2>/dev/null | head -12 || true
 	@python3 tools/rom0free.py $(BUILD)/release.map
 

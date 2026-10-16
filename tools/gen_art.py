@@ -618,7 +618,11 @@ MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "m
                 "minigames": "MINI GAMES",  # BONUS's second item, the Practice list (src/mg_list.c)
                 "bossrush": "BOSS RUSH",
                 "bar_snap": "BAR SNAP",  # SETTINGS' second line (src/title.c K_BARCHANGE; SNAP is the default)
-                "bar_keep": "BAR KEEP"}     # BONUS's third item (src/rush.c)
+                "bar_keep": "BAR KEEP",     # BONUS's third item (src/rush.c)
+                "erase": "ERASE DATA",      # SETTINGS' third line (K_ERASE): even lengths reuse the other lines' glyph tiles
+                "debug": "DEBUG MENU",      # SETTINGS' DEBUG line (K_DEBUG, unlocked only)
+                "erase_q": "ERASE ALL DATA",  # the confirm prompt's label line (K_ERASEQ)
+                "no": "NO", "yes": "YES "}
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 # ... and past it the perfect pour's OBJ ids 234-239 (loaded at a story shift's start, never shown on the title: its
 # sprites are the bartender, the mug, the drink frames and the effects, all below 128); the DMG copies start at 240

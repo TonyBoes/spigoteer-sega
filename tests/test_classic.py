@@ -637,7 +637,7 @@ def test_golden_classic_alt(boot):
 
 # ---- the debug select: the LEVEL box's SELECT steps the bars' directions -------------------------------------------------
 def test_the_level_box_select_steps_the_directions_and_a_starts_with_them(boot):
-    from test_debug import banner_text, combo, release_combo
+    from test_debug import combo, release_combo, win_row
     from test_flow import tile_id
     combo(boot)
     release_combo(boot)
@@ -652,9 +652,9 @@ def test_the_level_box_select_steps_the_directions_and_a_starts_with_them(boot):
         boot.press("select", 2)
         boot.run(4)
     assert boot.mem("level_dirs") == 0x3
-    row = banner_text(boot)
+    row = win_row(boot, 6)
     r, l = tile_id("GLYPH_R"), tile_id("GLYPH_L")
-    assert row[10:14] == [r, r, l, l], ("the box reads LEVEL 01 RRLL SNAP", row)
+    assert row[12:16] == [r, r, l, l], ("the BARS line reads RRLL", row)
     boot.press("a", 2)
     for _ in range(80):
         boot.run(1)

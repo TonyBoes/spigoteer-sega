@@ -994,7 +994,6 @@ void rush_fight(uint8_t v) BANKED {
     step_start();
 }
 
-#ifdef DEBUG_MENU
 // The debug select in story mode (src/debug.c): chapter ch at position pos (0 its PRE scene, 1..STORY_STEPS the step
 // pos - 1, STORY_STEPS + 1 its POST scene) with the story's rules: a fresh score, the venue's lives as venue_start sets
 // them (from any step), its goals. arc 1 (the ARCADE box: a step only): the same as an ARCADE run from there (loop 1).
@@ -1007,4 +1006,3 @@ void story_debug_start(uint8_t ch, uint8_t pos, uint8_t arc) BANKED {
     else if (pos > STORY_STEPS) scene_enter(SC_POST_SALOON + 2 * ch);
     else { story_step = pos - 1; step_start(); }
 }
-#endif

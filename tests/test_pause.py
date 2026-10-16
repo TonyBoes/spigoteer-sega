@@ -4,6 +4,7 @@
 # top 5, else the title; mini-games: the list (practice, no medal) or as the run they are part of; BOSS RUSH: its menu, no time.
 # Every mini-game's quit leaves what its normal leave leaves (OBP0, the LCD handler, the mute mask, OBJ / BG tiles, palettes).
 import pytest
+from conftest import unlock_debug
 from conftest import K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, MENU_SETTLE, check_golden, hold_stage_anim, menu_items, \
     menu_tap, title_pick
 from test_bonus import lines
@@ -577,12 +578,14 @@ def test_every_mini_game_pauses_resumes_and_quits_to_the_list_with_everything_ba
         mask = gb.mem("hUGE_mute_mask")
         medals = best(gb)
         glyphs = (tile(gb, GLYPH_J), tile(gb, GLYPH_Z))
-        gb.hold("select")                                 # START + SELECT held: the debug box opens from a level's pause,
-        gb.hold("start")                                  # never from a mini-game's
-        gb.run(45)
-        gb.release("start")
+        unlock_debug(gb)                                  # the debug menu opens from a level's pause (SELECT held, START tapped three times),
+        gb.hold("select")                                 # never from a mini-game's: here SELECT + START is a plain pause
+        gb.run(2)
+        gb.press("start", 2)
+        gb.run(3)
         gb.release("select")
         gb.run(3)
+        assert gb.mem("debug_menu_open") == 0
         assert state(gb) == PAUSED and gb.mem("overlay_on") == 1 and gb.mem(NR51) == (0 if gid == MG_TAIKO else BASS)
         assert menu_rows(gb)[:3] == ["> RESUME", "HOW TO PLAY", "QUIT TO MENU"] and max(lines(gb)) <= 10
         frozen = mini_snapshot(gb, gid)
@@ -759,21 +762,25 @@ def test_an_arcade_mini_game_quit_offers_the_initials(model):
         assert table(gb, 0)[0][1] == 1234
 
 
-# ---- (h) the debug box still opens from a level's pause ---------------------------------------------------------------------------------
+# ---- (h) the debug menu still opens from a level's pause ---------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", MODES)
 def test_the_debug_box_from_a_level_s_pause_puts_the_window_and_sound_back(model):
     with rom_s(model) as gb:
         start_arcade(gb)
-        gb.hold("start")
+        unlock_debug(gb)
+        tap(gb, "start", 3)
+        assert state(gb) == PAUSED
+        gb.hold("select")                                 # SELECT held, START tapped three times (src/debug.c)
         gb.run(2)
-        gb.hold("select")
-        gb.run(40)
-        gb.release("start")
+        for _ in range(3):
+            gb.press("start", 2)
+            gb.run(3)
         gb.release("select")
         assert state(gb) == 7, "GS_DEBUG"
-        assert gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0 and gb.mem(0xFF45) == gb.mem(0xFF4A) + 22
+        assert gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0 and gb.mem(0xFF45) == 255, "the pause is closed (sound back), the menu's window covers the screen"
         tap(gb, "b", 3)
         assert state(gb) == PLAYING and gb.mem("overlay_on") == 0
+        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22, "the banner window's LYC is back"
 
 
 # ---- (g) HOW TO PLAY from the pause menu (mini-games: the card over the whole screen, the game as it was after it) ----------------------

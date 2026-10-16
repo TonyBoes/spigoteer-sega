@@ -129,7 +129,7 @@ enum { MUG_FREE, MUG_FULL, MUG_EMPTY, MUG_BREAKING, MUG_HELD };   // HELD: caugh
 #define HUD_SCORE         2
 
 // game flow
-// GS_DEBUG: the debug level select (DEBUG_MENU builds). M10b: GS_LOOP the "LOOP n" banner before the first level of a
+// GS_DEBUG: the debug menu (src/debug.c). M10b: GS_LOOP the "LOOP n" banner before the first level of a
 // loop, GS_INITIALS the initials entry after a game over that made the top 5, GS_SCORES the top-5 table (scores.c)
 // M11b story mode: GS_STORY a cut-scene (or the TRY AGAIN banner), GS_GOAL the chapter's goal banner before play
 enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUSED, GS_BONUS, GS_DEBUG, GS_LOOP, GS_INITIALS, GS_SCORES,
@@ -451,11 +451,19 @@ void title_music_toggle(void) BANKED;                   // music on/off and the 
 // title menu items (title_items[], debug.c reads them): the top level PLAY / BONUS / SETTINGS, PLAY's submenu
 // [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS's MUSIC ON-OFF / BAR CHANGE SNAP-KEEP
 enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES,
-       K_BOSSRUSH, K_BARCHANGE, K_BARKEEP };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP)
-enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS };        // title_menu: the top level or the submenu of top item n-1
+       K_BOSSRUSH, K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
+                                                                                         // DEBUG MENU (unlocked only); the confirm: the K_ERASEQ label, NO, YES)
+enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE };   // title_menu: the top level or the submenu of top item n-1 (TM_ERASE: SETTINGS' ERASE ALL DATA? prompt)
 extern uint8_t title_items[], title_sel;                // the shown menu's items in screen order, the selected line
 extern uint8_t title_back;                              // the menu title_enter opens (TM_*; it resets it to TM_TOP)
-extern uint8_t title_back_sel;                          // the line its cursor starts on (then 0)
+extern uint8_t title_back_sel;                          // the line its cursor starts on (then 0); on the title, the debug unlock code's progress
+// ---- debug.c (banked): the debug menu (every build; locked until the unlock is saved: save.c debug_unlocked) ----
+#define KONAMI_DONE 10                                  // the unlock code's length (debug.c konami_step: the trigger lives there)
+uint8_t konami_step(uint8_t i, uint8_t pressed) BANKED; // the code's progress after a frame's new presses; KONAMI_DONE: complete
+uint8_t debug_gesture(uint8_t pressed) BANKED;          // SELECT held: SELECT + three START taps open the menu; `pressed` back without the taps
+void debug_open(void) BANKED;                           // the full-screen menu (GS_DEBUG)
+uint8_t debug_step(uint8_t pressed) BANKED;             // one GS_DEBUG frame; 1: a game started
+extern uint8_t debug_menu_open;
 // ---- jukebox.c (banked: the title's BONUS, the soundtrack player) ---------------------------------
 void jukebox_enter(void) BANKED;                        // LCD off: the soundtrack list (GS_JUKEBOX)
 uint8_t jukebox_update(uint8_t pressed) BANKED;         // one frame; 1: back on the title (the screen changed)

@@ -338,33 +338,7 @@ void show_overlay(const char *s) {
 
 // reset_actors, enter_level_screen, start_new_game: src/main_cold.c
 
-#ifdef DEBUG_MENU
-// Debug level select (build flag DEBUG_MENU; `make release` leaves it out). Hold START + SELECT for
-// DEBUG_COMBO_FRAMES on the title or in play (a START press pauses first, so play opens it from the pause). A
-// banner shows "LEVEL nn": Left/Down and Right/Up change it (1..DEBUG_LEVELS, wrapping), A starts that level
-// from scratch (fresh lives and score), B closes the box (back to the title, or unpauses). game_state is GS_DEBUG
-// while it is open, so nothing moves.
-#define DEBUG_COMBO_FRAMES 30
-// (DEBUG_LEVELS: src/debug.c)
-// debug_open / debug_step live in src/debug.c (a switchable bank: ROM0 is full); the per-frame combo watch stays here.
-uint8_t debug_menu_open;
-uint8_t debug_level;
-uint8_t debug_from_title, debug_toggled;
-static uint8_t combo_timer;
-void debug_open(void) BANKED;
-uint8_t debug_step(uint8_t pressed) BANKED;
-
-// before the state machine: counts the held combo
-static void debug_watch(void) {
-    if ((joy & (J_START | J_SELECT)) != (J_START | J_SELECT)) { combo_timer = 0; return; }
-    if (combo_timer > DEBUG_COMBO_FRAMES) return;                // already used: wait for a release
-    if (game_state != GS_TITLE && game_state != GS_PLAYING && (game_state != GS_PAUSED || (state_timer & 0x80))) return;   // (not in a mini-game's pause)
-    if (++combo_timer < DEBUG_COMBO_FRAMES) return;
-    combo_timer = DEBUG_COMBO_FRAMES + 1;
-    debug_open();
-}
-
-#endif
+// The debug menu: src/debug.c (opened by the gesture debug_gesture, called from update below).
 
 uint8_t new_rank = TOP_N;   // M10b: the game's place in the top 5 (TOP_N: none)
 // resume_after_life, enter_game_over, enter_level_clear: src/main_cold.c
@@ -484,19 +458,11 @@ static void update(void) {
     joy_prev = joy;
     joy = joypad();
     pressed = joy & ~joy_prev;
+    if (joy & J_SELECT) pressed = debug_gesture(pressed);   // SELECT + three START taps: the debug menu (src/debug.c; before the state switch: it may change the state)
 
     switch (game_state) {
     case GS_TITLE:
-#ifdef DEBUG_MENU
-        debug_toggled = (joy & J_SELECT) != 0;
-#endif
-#ifdef DEBUG_MENU
-        if ((pressed & J_START) && (joy & J_SELECT)) pressed &= ~J_START;   // START + SELECT is the debug combo
-#endif
         if (title_update(pressed) == 2) scores_table();   // the menu (title.c; it starts the games); 2: idle, the top 5
-#ifdef DEBUG_MENU
-        debug_watch();
-#endif
         frame_counter++;
         return;
     case GS_PLAYING:
@@ -534,11 +500,9 @@ static void update(void) {
             return;
         }
         break;
-#ifdef DEBUG_MENU
     case GS_DEBUG:
         if (debug_step(pressed)) { frame_counter++; return; }
         break;
-#endif
     case GS_GAME_OVER:                           // M10b: then the initials (top 5) or the table, then the title
         if ((pressed & (J_START | J_A)) || ++state_timer >= GAMEOVER_FRAMES) { scores_after_game(); return; }
         break;
@@ -604,9 +568,6 @@ static void update(void) {
         }
     }
     if (overlay_on) hide_banner_sprites();
-#ifdef DEBUG_MENU
-    debug_watch();                                   // last: the game's own frame work keeps its timing
-#endif
     frame_counter++;
     SEC(SEC_REST);
 }

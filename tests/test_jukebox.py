@@ -210,7 +210,7 @@ def test_music_off_still_plays_here_and_stays_off_after(boot):
     tap(boot, "b")                                            # BONUS -> the top level
     title_pick(boot, K_SETTINGS)
     boot.run(MENU_SETTLE)
-    assert tilemap_row(boot, 8, 0, 20) == title_text_row("music_off")
+    assert tilemap_row(boot, 7, 0, 20) == title_text_row("music_off")
 
 
 def test_no_more_than_ten_sprites_a_line(boot):

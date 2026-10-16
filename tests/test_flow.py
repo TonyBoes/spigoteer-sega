@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import (GAME, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
+from conftest import (GAME, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_ERASE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
                       ROOT, TM_BONUS, TM_PLAY, TM_SETTINGS, TM_TOP, bar_top_row, check_golden, menu_items, menu_tap,
                       title_arcade, title_level, title_pick)
 
@@ -111,8 +111,8 @@ import json as _json
 TITLE_ART = _json.loads((ROOT / "build" / "title.json").read_text())   # tools/gen_art.py title_art(): tile ids
 # the menu (owner 2026-10-11: submenus): the top level PLAY / BONUS / SETTINGS on rows 7, 9, 11; a submenu in the same
 # place, its lines centred on row 9 (1 line: row 9; 2: rows 8, 10; 3: rows 7, 9, 11). PLAY: [CONTINUE] / STORY /
-# ARCADE, BONUS: SOUNDTRACK, SETTINGS: MUSIC ON-OFF (row 8), BAR SNAP-KEEP (row 10). The HI line on row 0 (the in-game HUD's row).
-LOGO_ROW, ROW_MUSIC, ROW_BAR, ROW_HI = 2, 8, 10, 0
+# ARCADE, BONUS: SOUNDTRACK, SETTINGS: MUSIC ON-OFF (row 7), BAR SNAP-KEEP (row 9), ERASE DATA (row 11), DEBUG MENU (row 12 of four: unlocked only). The HI line on row 0 (the in-game HUD's row).
+LOGO_ROW, ROW_MUSIC, ROW_BAR, ROW_HI = 2, 7, 9, 0
 TOP_ROWS = (7, 9, 11)
 TOP_KEYS = ("play", "bonus", "settings")
 SEL_PLAY, SEL_BONUS, SEL_SETTINGS = range(3)
@@ -142,7 +142,7 @@ def hi_shown(gb):
 
 
 def music_line(gb):
-    """The MUSIC line (SETTINGS' first line, row 8)."""
+    """The MUSIC line (SETTINGS first line, row 7)."""
     return tilemap_row(gb, ROW_MUSIC, 0, 20)
 
 
@@ -228,7 +228,7 @@ def test_up_down_move_the_mug_cursor_and_wrap(boot):
 
 # (top item, its submenu, the submenu's lines without a story save)
 SUBMENUS = [(K_PLAY, TM_PLAY, ("story", "arcade", "classic")), (K_BONUS, TM_BONUS, ("soundtrack", "minigames", "bossrush")),
-            (K_SETTINGS, TM_SETTINGS, ("music_on", "bar_snap"))]
+            (K_SETTINGS, TM_SETTINGS, ("music_on", "bar_snap", "erase"))]
 
 
 @pytest.mark.parametrize("top,menu,keys", SUBMENUS, ids=["play", "bonus", "settings"])
@@ -349,7 +349,7 @@ def test_story_starts_the_story_mode(boot):
 def test_music_toggles_from_the_settings(boot):
     title_pick(boot, K_SETTINGS)
     boot.run(MENU_SETTLE)
-    assert menu_items(boot) == [K_MUSIC, K_BARCHANGE] and music_line(boot) == title_text_row("music_on")
+    assert menu_items(boot) == [K_MUSIC, K_BARCHANGE, K_ERASE] and music_line(boot) == title_text_row("music_on")
     menu_tap(boot, "a")
     boot.run(2)
     assert boot.mem("sound_on") == 0 and music_line(boot) == title_text_row("music_off")

@@ -136,9 +136,11 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
-                                         tt_soundtrack, tt_classic, tt_minigames, tt_bossrush, tt_bar_snap, tt_bar_keep };
+                                         tt_soundtrack, tt_classic, tt_minigames, tt_bossrush, tt_erase, tt_debug, tt_erase_q, tt_no, tt_yes,
+                                         tt_bar_snap, tt_bar_keep };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
-                                  TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH, TT_X_BAR_SNAP, TT_X_BAR_KEEP };
+                                  TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH, TT_X_ERASE, TT_X_DEBUG, TT_X_ERASE_Q, TT_X_NO, TT_X_YES,
+                                  TT_X_BAR_SNAP, TT_X_BAR_KEEP };
 
 static void build_item(uint8_t i) {
     uint8_t k = title_items[i];
@@ -178,9 +180,16 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_MINIGAMES;
         title_items[title_n++] = K_BOSSRUSH;
         break;
+    case TM_ERASE:    // SETTINGS > ERASE DATA: "ERASE ALL DATA" (a label: the cursor skips it), NO, YES; the cursor starts on NO
+        title_items[title_n++] = K_ERASEQ;
+        title_items[title_n++] = K_NO;
+        title_items[title_n++] = K_YES;
+        break;
     default:
         title_items[title_n++] = K_MUSIC;
         title_items[title_n++] = K_BARCHANGE + (level_dirs >> 7);   // (two items, K_BARKEEP follows: the line's wording is its item)
+        title_items[title_n++] = K_ERASE;
+        if (debug_unlocked()) title_items[title_n++] = K_DEBUG;     // (the debug menu, once unlocked: src/debug.c)
     }
     for (i = 0; i < title_n; i++) {
         title_rows[i] = MENU_ROW(title_n) + 2 * i;
@@ -479,6 +488,15 @@ uint8_t title_update(uint8_t pressed) BANKED {
     title_t++;
     if (pressed) {
         title_idle = 0;
+        title_back_sel = konami_step(title_back_sel, pressed);   // the debug unlock's trigger (src/debug.c konami_step: the one place to change it)
+        if (title_back_sel == KONAMI_DONE) {
+            title_back_sel = 0;
+            pressed &= ~J_A;                         // (the code's last A is not a menu choice)
+            if (!debug_unlocked()) {
+                debug_unlock();
+                SFX(SFX_EXTRA);                      // (the code's B left any submenu: SETTINGS lists DEBUG MENU when it is opened next)
+            }
+        }
         if ((pressed & (J_LEFT | J_RIGHT)) && title_items[title_sel] >= K_BARCHANGE) bar_mode_toggle();
     }
     else if (++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables
@@ -489,6 +507,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
     if (pressed & J_SELECT) title_music_toggle();
     if (pressed & J_UP) title_sel = title_sel ? title_sel - 1 : last;
     else if (pressed & J_DOWN) title_sel = title_sel == last ? 0 : title_sel + 1;
+    if (title_items[title_sel] == K_ERASEQ) title_sel = (pressed & J_UP) ? last : 1;   // (the prompt's label is no choice)
     if (title_sel != old) { set_sel_attr(old, 0); set_sel_attr(title_sel, 1); }
     else if (pressed & (J_A | J_START)) {
         switch (title_items[title_sel]) {
@@ -502,9 +521,16 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_PLAY: menu_open(TM_PLAY, 0); break;
         case K_BONUS: menu_open(TM_BONUS, 0); break;
         case K_SETTINGS: menu_open(TM_SETTINGS, 0); break;
+        case K_ERASE: menu_open(TM_ERASE, 1); break;                           // ("ERASE ALL DATA", the cursor on NO)
+        case K_NO: menu_open(TM_SETTINGS, 2); break;
+        case K_YES: save_erase(); title_hi = 0xFF; menu_open(TM_TOP, 2); break;   // a blank cartridge; the title again (the HI line follows on a quiet frame)
+        case K_DEBUG: debug_open(); return 0;                                  // (full-screen over the title; B closes it)
         default: if (title_items[title_sel] >= K_BARCHANGE) bar_mode_toggle(); else title_music_toggle();
         }
-    } else if ((pressed & J_B) && title_menu != TM_TOP) menu_open(TM_TOP, title_menu - 1);
+    } else if ((pressed & J_B) && title_menu != TM_TOP) {
+        if (title_menu == TM_ERASE) menu_open(TM_SETTINGS, 2);
+        else menu_open(TM_TOP, title_menu - 1);
+    }
     if (title_sel == old) {                        // (a cursor move already queued its two attribute rows)
         full = menu_frame() == MENU_COPIES_PER_FRAME;
         if (!title_dirty && hi_want() != title_hi) {   // a quiet frame: the HI line follows the cursor's mode

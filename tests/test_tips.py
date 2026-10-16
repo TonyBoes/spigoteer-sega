@@ -335,7 +335,9 @@ def other_watcher_first(gb, x, ox):
     put(gb, "patron_dist", i, 0)
     put(gb, "patron_dist", i + 1, 1)
     gb.write("intro_timer", 255)
-    gb.run(2)
+    gb.run(1)
+    put(gb, "patron_x", i, x)                      # (the first frame after the pokes may or may not take his one step, by where the frame's end falls)
+    gb.run(1)
     assert facing(gb, i + 1) == 1 and gb.read("patron_x", MAX_P)[i] == x
     put(gb, "patron_dist", i, 1)
     return i
