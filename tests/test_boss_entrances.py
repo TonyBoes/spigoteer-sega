@@ -5,7 +5,7 @@
 # at the last frame his BG body takes over at x 16 (WALK) and the intro's 90 frames start; no sprite is left; no entrance after a
 # lost life; the same on the Story, ARCADE, BOSS RUSH and Practice paths.
 import pytest
-from boss_common import (BP_HAPPY, BP_WALK, BS_JUMP, BS_WALK, ENTRANCES, Own, SPOUT_X, art, check_start, entrance_running, fight, frames,
+from boss_common import (BP_HAPPY, BP_WALK, BS_ENTER, BS_JUMP, BS_WALK, start_entrance, ENTRANCES, Own, SPOUT_X, art, check_start, entrance_running, fight, frames,
                          mugs, play, row, still_regulars, until)
 from conftest import check_golden
 from test_flow import GS_GOAL, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, state
@@ -47,7 +47,7 @@ def entrance_oam(gb):
 
 def fight_raw(model, c):
     """The fight's first frame of play: the entrance has just begun."""
-    return to_goal(fight(model, c, banner=True))
+    return start_entrance(to_goal(fight(model, c, banner=True), boss_start=False))
 
 
 def to_frame(gb, c, t):
@@ -88,7 +88,7 @@ def test_the_entrance_runs_holds_the_input_and_ends_with_him_on_his_bar(model, c
     name, length, cues = SPEC[c]
     R = row(c)
     with fight_raw(model, c) as gb:
-        assert entrance_running(gb) and gb.mem("boss_state") == BS_JUMP and gb.mem("boss_xpose") == BP_HIDE
+        assert entrance_running(gb) and gb.mem("boss_state") == BS_ENTER and gb.mem("boss_xpose") == BP_HIDE
         assert gb.oam()[27 + 1]["y"] == 0, "no topper from the engine before he lands"
         sf0, tap, launched = list(sfxs(gb)), gb.mem("bartender_x"), sfxs(gb)[SFX_LAUNCH]
         gb.hold("a")
@@ -212,14 +212,14 @@ def fight_hard(model, c):
     gb.run(3)
     run_until(gb, lambda: state(gb) == GS_GOAL, 300)
     gb.run(3)
-    return to_goal(gb)
+    return start_entrance(to_goal(gb, boss_start=False))
 
 
 @pytest.mark.parametrize("c", VENUES)
 def test_practice_hard_starts_with_the_entrance_too(c):
     """Practice's HARD toggle: the entrance plays, then he is there with one hand fewer."""
     with fight_hard("cgb", c) as gb:
-        assert gb.mem("boss_hard") == 1 and entrance_running(gb) and gb.mem("boss_state") == BS_JUMP
+        assert gb.mem("boss_hard") == 1 and entrance_running(gb) and gb.mem("boss_state") == BS_ENTER
         until(gb, lambda: not entrance_running(gb), 260)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == row(c)["x"] and gb.mem("boss_hands") == row(c)["hands"] - 1
@@ -240,8 +240,8 @@ def test_arcade_starts_the_boss_with_the_entrance_too(model, c):
         run_until(gb, lambda: state(gb) == GS_GOAL, 300)
         gb.run(3)
         assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c and gb.mem("story_arc") == 1
-        to_goal(gb)
-        assert entrance_running(gb) and gb.mem("boss_state") == BS_JUMP
+        start_entrance(to_goal(gb, boss_start=False))
+        assert entrance_running(gb) and gb.mem("boss_state") == BS_ENTER
         until(gb, lambda: not entrance_running(gb), 260)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == row(c)["x"] and entrance_oam(gb) == []
@@ -259,8 +259,10 @@ def test_boss_rush_starts_with_the_entrance_too(model, c):
         for _ in range(BUILT.index(c)):
             tap(gb, "down")
         tap(gb, "a")
-        into_fight(gb)
-        assert gb.mem("boss_id") == c and entrance_running(gb) and gb.mem("boss_state") == BS_JUMP
+        into_fight(gb, entered=False)
+        until(gb, lambda: gb.mem("boss_state") != 6, 5)     # (BOSS RUSH: no warm-up)
+        frames(gb, 3)
+        assert gb.mem("boss_id") == c and entrance_running(gb) and gb.mem("boss_state") == BS_ENTER
         until(gb, lambda: not entrance_running(gb), 260)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == row(c)["x"] and entrance_oam(gb) == []

@@ -170,14 +170,13 @@ static void ent_draw(void) {
 // undone (the bartender stays at bar 0's tap, nothing is poured) until he has landed and cheered.
 static void ent_frame(void) {
     uint8_t t = mascot.ent - 1, i;
-    bar = 0; bartender_x = bar_tap[0]; bartender_frac = 0; facing = 0; fill_timer = 0; fill_stage = 0;
+    fill_timer = 0; fill_stage = 0;                          // (the bartender stays where he is: main.c skips his input while he is held)
     bartender_frame = BT_IDLE; catch_pose = 0; bt_bob = 0;
     if (t < ENT_END) intro_timer = INTRO_FRAMES;            // (held: the intro's 90 frames start at the last frame)
     if (t == ENT_MARK) boss_mark(boss_bar, 3);              // the landing marker, columns 3-4
     if (t == ENT_FIRE) SFX(SFX_WHOOSH);
     if (t == ENT_LAND) {
         boss_xpose = BP_CROUCH; BOSS_TOPPER_T = HAT_CROUCH;
-        boss_state = BS_WALK;
         boss_mark(BOSS_NONE, 0);
         boss_to_bar(boss_bar, MASCOT_X);                    // his BG body (CROUCH) at x 16
         SFX(SFX_SHAKE);
@@ -185,7 +184,7 @@ static void ent_frame(void) {
     if (t == ENT_CHEER) { boss_xpose = BP_HAPPY; BOSS_TOPPER_T = 0; SFX(SFX_SERVE); }
     if (t == ENT_END) {
         intro_timer = INTRO_FRAMES - 1;                      // (as the level's first frame leaves it: the fight starts 89 frames on)
-        boss_xpose = 0;
+        boss_xpose = 0; boss_state = BS_WALK;                // (E9: the entrance is over: boss.c starts the fight)
         for (i = 0; i != ENT_OAM_N; i++) shadow_OAM[ENT_OAM + i].y = 0;
         mascot.ent = 0;
         return;
@@ -210,8 +209,10 @@ uint8_t boss_mascot(uint8_t ev, uint8_t arg) BANKED {
     case BEV_LOAD:
         boss_art_load();
         set_sprite_data(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the ball (OBJ 108-111: the show's tiles, none in a fight)
-        mascot.ent = 1;                                      // the first start's entrance
         break;
+    case BEV_ENTER:                                          // (E9: after the warm-up)
+        mascot.ent = 1;
+        return 1;
     case BEV_INTRO:
         if (mascot.ent) ent_frame();
         break;

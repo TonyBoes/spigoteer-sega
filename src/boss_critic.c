@@ -111,17 +111,17 @@ static void ent_draw(void) {
 // BEV_INTRO: the entrance's clock; the bartender stays at bar 0's tap until it is over
 static void ent_frame(void) {
     uint8_t t = crit.ent - 1;
-    bar = 0; bartender_x = bar_tap[0]; bartender_frac = 0; facing = 0; fill_timer = 0; fill_stage = 0;
+    fill_timer = 0; fill_stage = 0;                          // (the bartender stays where he is: main.c skips his input while he is held)
     bartender_frame = BT_IDLE; catch_pose = 0; bt_bob = 0;
     if (t < E_LIFT) intro_timer = INTRO_FRAMES;
     if (t == E_BELL) SFX(SFX_COIN);
     if (t == E_LIFT) {
         intro_timer = INTRO_FRAMES - 1;
-        boss_xpose = 0; boss_state = BS_WALK;
+        boss_xpose = 0;
         boss_to_bar(boss_bar, 16);
         SFX(SFX_SHAKE);
     }
-    if (t >= E_END) { crit.ent = 0; ent_clear(); return; }
+    if (t >= E_END) { crit.ent = 0; boss_state = BS_WALK; ent_clear(); return; }   // (E9: over: boss.c starts the fight)
     crit.ent++;
 }
 
@@ -149,8 +149,10 @@ uint8_t boss_critic(uint8_t ev, uint8_t arg) BANKED {
             p[0] = 0; p[1] = RGB(30, 31, 31); p[2] = RGB(15, 17, 21); p[3] = RGB(3, 4, 7);
             set_sprite_palette(OBJPAL_COIN, 1, p);
         }
-        crit.ent = 1;
         break;
+    case BEV_ENTER:                      // (E9: after the warm-up)
+        crit.ent = 1;
+        return 1;
     case BEV_INTRO:
         if (crit.ent) ent_frame();
         break;

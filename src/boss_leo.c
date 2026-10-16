@@ -217,7 +217,7 @@ static void slid(void) {
 static void ent_frame(void) {
     uint8_t t = leo.ent - 1, n = OAM_WAVE, pal = fx_pal(), top = bar_oam_y[boss_bar] - 16, i;
     int16_t x;
-    bar = 0; bartender_x = bar_tap[0]; bartender_frac = 0; facing = 0; fill_timer = 0; fill_stage = 0;
+    fill_timer = 0; fill_stage = 0;                          // (the bartender stays where he is: main.c skips his input while he is held)
     bartender_frame = BT_IDLE; catch_pose = 0; bt_bob = 0;
     if (t < ENT_LAND) {
         intro_timer = INTRO_FRAMES;                           // (held: the intro's 90 frames start at the landing)
@@ -232,7 +232,6 @@ static void ent_frame(void) {
         if (t == ENT_LAND) {
             fx_clear();                                       // (the hoop burns out)
             intro_timer = INTRO_FRAMES - 1;                   // (as the level's first frame leaves it: the fight starts 89 frames on)
-            boss_state = BS_WALK;
             boss_xpose = BP_ROAR;
             boss_to_bar(boss_bar, 16);                        // his BG body (the ROAR pose) at x 16
             SFX(SFX_SHAKE);
@@ -241,6 +240,7 @@ static void ent_frame(void) {
         wave_step();
         if (t >= ENT_END) {                                   // the wave is off: he stands there, walking from now
             leo.wave = 0; fx_clear();
+            boss_state = BS_WALK;                             // (E9: over: boss.c starts the fight)
             to_walk();
             boss_to_bar(boss_bar, 16);                        // (the pose back to WALK)
             leo.ent = 0;
@@ -272,8 +272,10 @@ uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED {
         boss_art_load();
         set_bkg_data(BANG_BG, BOSS_ART_TILES * 2, boss_art_tiles);
         set_sprite_data(LEO_FX_OBJ, LEO_FX_TILES, leo_fx_tiles);
-        leo.ent = 1;                                      // (the first start's entrance)
         break;
+    case BEV_ENTER:                                       // (E9: after the warm-up)
+        leo.ent = 1;
+        return 1;
     case BEV_INTRO:
         if (leo.ent) ent_frame();
         break;

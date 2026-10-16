@@ -221,7 +221,7 @@ static void ent_draw(void) {
 // undone (the bartender stays at bar 0's tap, nothing is poured) until he stands on his bar.
 static void ent_frame(void) {
     uint8_t t = (uint8_t)(proto.t - ENT_T0) - 1, i;
-    bar = 0; bartender_x = bar_tap[0]; bartender_frac = 0; facing = 0; fill_timer = 0; fill_stage = 0;
+    fill_timer = 0; fill_stage = 0;                          // (the bartender stays where he is: main.c skips his input while he is held)
     bartender_frame = BT_IDLE; catch_pose = 0; bt_bob = 0;
     if (t < ENT_LAND) intro_timer = INTRO_FRAMES;            // (held: the intro's 90 frames start at the last frame)
     if (t == ENT_CLUNK) SFX(SFX_SHAKE);
@@ -229,6 +229,7 @@ static void ent_frame(void) {
     if (t == ENT_GREEN) SFX(SFX_EXTRA);
     if (t == ENT_LAND) {
         intro_timer = INTRO_FRAMES - 1;                      // (as the level's first frame leaves it: the fight starts 89 frames on)
+        boss_state = BS_WALK;                                // (E9: over: boss.c starts the fight)
         to_green();                                          // (proto.t 0: the cycle's first frame is the fight's)
         boss_to_bar(boss_bar, PROTO_X);                      // his BG body (WALK) at x 16, under where the sprites were
         for (i = 0; i != ENT_OAM_N; i++) shadow_OAM[ENT_OAM + i].y = 0;
@@ -256,7 +257,6 @@ uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED {
         boss_art_load();
         set_bkg_data(BOSS_ICE_BG, BOSS_ART_CONV, boss_conv_tiles);
         set_sprite_data(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the entrance's crane and sparks (OBJ 108-117)
-        proto.t = ENT_T0 + 1;                                                       // the first start's entrance
         if (is_cgb) {                    // the lamp's colour 2 per phase: palettes are written with the LCD off only
             palette_t p;                 // (the logic runs in the picture, not in VBlank), so one OBJ palette each
             p[0] = 0; p[1] = boss_art_pal[1]; p[3] = boss_art_pal[3];
@@ -265,6 +265,9 @@ uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED {
             p[2] = RGB(31, 3, 3); set_sprite_palette(OBJPAL_ENH, 1, p);        // red: OBJ 4 (an enhanced patron's; a fight
         }                                                                       // only has variants A / B)
         break;
+    case BEV_ENTER:                                          // (E9: after the warm-up)
+        proto.t = ENT_T0 + 1;
+        return 1;
     case BEV_INTRO:
         if (proto.t >= ENT_T0) ent_frame();
         break;

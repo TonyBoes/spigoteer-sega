@@ -62,6 +62,7 @@ extern uint8_t overlay_on;
 #define CLEAR_BANNER_FRAMES 90   // "CLEAR THE BAR" stays this long once he is beaten and regulars remain
 #define OAM_TOPPER      OAM_DANCERS   // (no show in a fight; OAM 26 is the perfect pour's cue)
 // E9: the fight opens as a normal shift (the warm-up), then the boss enters (docs/minigames_bosses.md 2.6)
+typedef char bs_enter_is_7_for_main_c[(BS_ENTER == 7) ? 1 : -1];   // (main.c holds the bartender while boss_state >= 7)
 #define WARM_FRAMES   1200        // the warm-up: 20 s of play after the intro (Story and ARCADE; Boss Rush has none)
 #define WARM_AVOID     300        // the last 5 s: no new regular for his bar, so it empties before he comes
 #define WARM_WAIT      180        // after the warm-up: up to 3 s more for his bar to empty and the mugs to land

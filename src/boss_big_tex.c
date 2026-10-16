@@ -80,7 +80,7 @@ static void ent_draw(void) {
 // undone (the bartender stays at bar 0's tap, nothing is poured) until he is on his bar.
 static void ent_frame(void) {
     uint8_t t = tex.ent - 1, i;
-    bar = 0; bartender_x = bar_tap[0]; bartender_frac = 0; facing = 0; fill_timer = 0; fill_stage = 0;
+    fill_timer = 0; fill_stage = 0;                          // (the bartender stays where he is: main.c skips his input while he is held)
     bartender_frame = BT_IDLE; catch_pose = 0; bt_bob = 0;
     if (t < ENT_LAND) intro_timer = INTRO_FRAMES;           // (held: the intro's 90 frames start at the landing)
     if (t >= ENT_START && t < ENT_WALKEND && !(t & 15)) SFX(SFX_COIN);       // the spurs
@@ -106,8 +106,10 @@ uint8_t boss_big_tex(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
-        tex.ent = 1;                                        // the first start's entrance
         break;
+    case BEV_ENTER:                                         // (E9: after the warm-up)
+        tex.ent = 1;
+        return 1;
     case BEV_RESET:
         if (tex.ent) { boss_state = BS_JUMP; boss_xpose = BP_HIDE; }   // (the entrance: not on his bar yet)
         break;

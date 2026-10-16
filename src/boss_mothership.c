@@ -394,8 +394,10 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
-        ms.ent = 1;                                           // (the first start's entrance; a lost life does not load again)
         break;
+    case BEV_ENTER:                                       // (E9: after the warm-up)
+        ms.ent = 1;
+        return 1;
     case BEV_INTRO:
         if (ms.ent) ent_frame();
         break;

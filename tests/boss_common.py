@@ -107,6 +107,17 @@ def until(gb, cond, limit=600):
     raise AssertionError(f"not reached in {limit} frames (state {state(gb)}, boss_state {gb.mem('boss_state')})")
 
 
+ENTRANCES = {0: ("big_tex", "ent", 1), 1: ("mascot", "ent", 1), 5: ("prototype", "t", 1000)}   # venue: (boss file, clock field, running from)
+
+
+def start_entrance(gb):
+    """The warm-up is over (boss_hook 5): his entrance begins (the logic can still be mid-frame: a few frames on)."""
+    gb.write("boss_hook", 5)
+    until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+    frames(gb, 3)
+    return gb
+
+
 def entrance_running(gb):
     """The fight's entrance (his own, BEV_ENTER / BEV_INTRO, or the engine's walk-in) is on: boss_state BS_ENTER / BS_WALKIN."""
     return gb.mem("boss_state") in (BS_ENTER, BS_WALKIN)
@@ -132,10 +143,8 @@ def fight(model, c, banner=False, warm=False, entrance=False):
     if banner:
         return gb
     to_goal(gb, boss_start=not (warm or entrance))
-    if entrance:                              # the warm-up is over now (boss_hook 5): his entrance starts on the next frame
-        gb.write("boss_hook", 5)
-        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
-        frames(gb, 3)                             # (Duke's tile pool copy runs past a frame boundary)
+    if entrance:                              # the warm-up is over now: his entrance has begun
+        start_entrance(gb)
     return gb
 
 

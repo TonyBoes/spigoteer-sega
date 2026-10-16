@@ -119,7 +119,7 @@ static void pop(void) {
 // BEV_INTRO, every frame while intro_timer runs and the entrance is on.
 static void ent_frame(void) {
     uint8_t t = sasq.ent - 1;
-    bar = 0; bartender_x = bar_tap[0]; bartender_frac = 0; facing = 0; fill_timer = 0; fill_stage = 0;
+    fill_timer = 0; fill_stage = 0;                          // (the bartender stays where he is: main.c skips his input while he is held)
     bartender_frame = BT_IDLE; catch_pose = 0; bt_bob = 0;
     if (t < ENT_LAND) intro_timer = INTRO_FRAMES;         // (held: the intro's 90 frames start at the landing)
     if (t < ENT_BURST1) {

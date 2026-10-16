@@ -496,7 +496,7 @@ static void update(void) {
         return;
     case GS_PLAYING:
         if (pressed & J_START) { pause_open(); break; }   // the pause menu (src/pause.c)
-        play_frame(pressed);
+        if (!(boss_on && boss_state >= 7)) play_frame(pressed);   // (boss.h BS_ENTER / BS_WALKIN: his entrance holds the bartender where he is)
         if (story_on) story_play();              // M11b: the chapter goal
         break;
     case GS_LIFE_LOST:

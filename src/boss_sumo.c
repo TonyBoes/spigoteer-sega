@@ -192,7 +192,7 @@ static void shake(uint8_t t) {          // the picture's jolt: SCY 0 / 2 on stam
 // BEV_INTRO: the ritual's clock. The player is held (the bartender at bar 0's tap, nothing poured) and no cup may be his.
 static void ent_frame(void) {
     uint8_t t = sumo.ent - 1;
-    bar = 0; bartender_x = bar_tap[0]; bartender_frac = 0; facing = 0; fill_timer = 0; fill_stage = 0;
+    fill_timer = 0; fill_stage = 0;                          // (the bartender stays where he is: main.c skips his input while he is held)
     bartender_frame = BT_IDLE; catch_pose = 0; bt_bob = 0;
     if (t < SE_END) intro_timer = INTRO_FRAMES;           // (held until the ritual is over)
     if (t == 0) {
@@ -200,7 +200,7 @@ static void ent_frame(void) {
         boss_to_bar(boss_bar, 0);                          // hidden (BEV_RESET: BP_HIDE), at the wall
         SFX(SFX_DON);
     } else if (t == SE_IN) {
-        boss_state = BS_WALK; boss_xpose = BP_WALK;        // he is there: standing at the left wall
+        boss_xpose = BP_WALK;                              // he is there: standing at the left wall
         mark_dirty_attrs(boss_bar, 0, 20);
     } else if (t == SE_IN + SE_STEP || t == SE_IN + 2 * SE_STEP || t == SE_IN + 3 * SE_STEP) {
         move_to(boss_x + 8);
@@ -288,8 +288,10 @@ uint8_t boss_sumo(uint8_t ev, uint8_t arg) BANKED {
             }
             set_bkg_data(SOLO_BG, 2, t);
         }
-        sumo.ent = 1;                            // the first start: the ritual (not after a lost life)
         break;
+    case BEV_ENTER:                              // (E9: after the warm-up) the ritual
+        sumo.ent = 1;
+        return 1;
     case BEV_INTRO:
         if (sumo.ent) ent_frame();
         break;
