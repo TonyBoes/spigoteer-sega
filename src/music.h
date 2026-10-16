@@ -97,5 +97,8 @@ void venue_score_put(uint8_t ch, uint32_t s) BANKED;     // a venue was entered 
 uint32_t venue_score_get(uint8_t ch) BANKED;             // CONTINUE: the score kept for chapter ch (0 when none)
 extern uint16_t tune_unlocked;              // bonus menu: bit t = tune t playable in the soundtrack player (SRAM v5 on)
 extern uint8_t  save_lock;                  // 1: a debug-select story run writes nothing to SRAM (title_enter clears it)
-void tune_heard(uint8_t t) BANKED;          // music_play in story mode: unlock tune t (saved at once when new)
+void tune_heard(uint8_t t) BANKED;          // music_play in story mode: unlock tune t (saved by the next TUNE_FLUSH / story_save when heard in a shift, at once elsewhere)
+extern uint8_t  save_migrated;              // (save.c) bit 7 = TUNE_DIRTY: a tune unlock heard in a shift is not saved yet
+#define TUNE_DIRTY 0x80
+#define TUNE_FLUSH() do { if (save_migrated & TUNE_DIRTY) hi_save(); } while (0)   // at a quiet moment (a shift's start, the title): saves it
 #endif

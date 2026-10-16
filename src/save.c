@@ -84,7 +84,8 @@ extern uint8_t  hi_digits[6];
 uint8_t  top_names[TOP_TABLES * TOP_N * 3];      // 3 initials per entry, ASCII
 uint32_t top_scores[TOP_TABLES * TOP_N];         // best first
 uint8_t  score_tbl;                 // the table top_rank / top_insert / the table screen work on (MODE_*)
-uint8_t  save_migrated;             // the boot converted an old save: its version 3..6 (tests)
+uint8_t  save_migrated;             // the boot converted an old save: its version 3..6 (tests); bit 7: a tune unlock is not saved yet
+                                    // (TUNE_DIRTY, music.h: tune_heard sets it, hi_save clears it, TUNE_FLUSH saves: no new global in a full WRAM)
 uint8_t  story_progress;            // M11b: story chapters cleared (0..10)
 uint8_t  story_reached;             // story shifts: the furthest step reached in chapter story_progress (0..STORY_STEPS-1)
 uint16_t tune_unlocked;             // bonus menu: bit t = tune t unlocked in the soundtrack player (saved, never cleared)
@@ -478,6 +479,7 @@ void hi_save(void) BANKED {
     uint8_t i, k, t, *nm;
     volatile uint8_t *b, *e;
     uint32_t v, *sc;
+    save_migrated &= ~TUNE_DIRTY;                // (whatever tune_unlocked holds goes in below)
     ENABLE_RAM;
     SWITCH_RAM(0);
     SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '7';
@@ -534,15 +536,18 @@ uint32_t venue_score_get(uint8_t ch) BANKED {
     return s;
 }
 
-// music_play, in story mode: tune t was heard. A new unlock is saved at once (once per tune, ever).
+// music_play, in story mode: tune t was heard. A new unlock heard in a shift (GS_PLAYING .. GS_LEVEL_CLEAR) is marked and saved at the next quiet moment (TUNE_FLUSH: a
+// shift's start, the title, any story_save), not mid-frame: the save takes 113 lines. Elsewhere (scenes, menus) it is saved at once. A power-off before then loses the unlock only.
 void tune_heard(uint8_t t) BANKED {
     uint16_t m;
     if (save_lock || t >= TUNE_COUNT) return;
     m = (uint16_t)1 << t;
     if (tune_unlocked & m) return;
     tune_unlocked |= m;
-    hi_save();
+    if (game_state >= GS_PLAYING && game_state <= GS_LEVEL_CLEAR) { save_migrated |= TUNE_DIRTY; return; }   // in a shift: later
+    hi_save();                                   // (a scene, a menu: at once, as before)
 }
+
 
 // Where a score would go in table score_tbl: 0..TOP_N-1, or TOP_N when it does not make it. A tie goes below the
 // older entry; a score of 0 never enters.

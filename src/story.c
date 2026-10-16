@@ -574,6 +574,7 @@ static void shift_start(void) {
     if (story_goal.type < G_CLEAR) hud_icon_load(HUD_GOAL_BG, story_goal.type == G_CATCH ? HUD_ICON_CATCH : HUD_ICON_MUGCHECK);   // the goal's icon
     pour_load(story_chapter);                    // the perfect pour's frames and cue (LCD off; the venue = the chapter)
     music_fast = (story_twist & TWIST_FAST_TUNE) != 0;   // the twist: the band plays faster (before the tune starts)
+    TUNE_FLUSH();                                // (an unlock heard in the last shift or scene: saved here, the LCD is off)
     enter_level_screen();                        // the venue's level (row level - 1), LCD on again, PLAYING
     mosh_set(story_twist, story_goal.pad);       // the twist: the mosh pit (src/mosh.c), with this shift's limit; else off
     shift_pace();
