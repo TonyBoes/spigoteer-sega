@@ -83,7 +83,7 @@ void bar_change(uint8_t pressed) BANKED {
     bartender_x = t;
     x += 12;                                                 // the puff's centre: his 16 px (OAM x = screen x + 8)
     SFX(SFX_SWISH);
-    if (cue_t) return;
+    if (cue_t || boss_on) return;                            // (a boss fight loads its BG tiles over the story's puff ids 246-251: no puff there)
     if (bar_dirs & bar_bit[b]) x = 168 - x;                  // an R bar draws mirrored (mirror.c)
     cue_x = x; cue_y = bar_oam_y[b] + DUST_DY;
     cue_t = 0x80 | (DUST_FRAMES * DUST_STEP);
@@ -107,9 +107,10 @@ static uint8_t dust_count(uint8_t y) {
 
 static void draw_cue(void) {
     OAM_item_t *o = shadow_OAM + OAM_CUE;
-    uint8_t y = cue_y, t = cue_t, tile = OBJ_POUR_CUE, show;
+    uint8_t y = cue_y, t = cue_t, tile = OBJ_POUR_CUE, show, pal = OBJPAL_MUG_FULL;
     if (t & 0x80) {
         t &= 0x7F;
+        pal = OBJPAL_BARTENDER;                              // (not by the tile: in CLASSIC the puff's third frame is the cue's id)
         tile = OBJ_DUST + ((2 - ((t - 1) >> 2)) << 1);       // (t: 12..1 -> frames 0, 1, 2)
         show = t != 0;                                       // (0: its entry goes this frame)
         cue_t = show ? cue_t - 1 : 0;
@@ -118,7 +119,7 @@ static void draw_cue(void) {
     if (show) {
         o->y = 0;                                            // (not counting its own entry)
         if (dust_count(y) < LINE_OBJ_MAX) {
-            o->y = y; o->x = cue_x; o->tile = tile; o->prop = is_cgb ? (tile == OBJ_POUR_CUE ? OBJPAL_MUG_FULL : OBJPAL_BARTENDER) : 0;
+            o->y = y; o->x = cue_x; o->tile = tile; o->prop = is_cgb ? pal : 0;
             return;
         }
     }

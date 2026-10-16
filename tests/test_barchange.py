@@ -5,7 +5,9 @@
 #      tap); pouring needs the tap, so he walks back (a fresh A within TAP_GRACE of it still snaps and pours).
 # The Pour-Off (src/po.c) keeps its own rules in both modes.
 import pytest
-from conftest import GAME, K_CLASSIC, K_PLAY, bar_top_y, check_golden, title_pick
+from conftest import GAME, K_ARCADE, K_CLASSIC, K_PLAY, ROM as GAME_ROM, bar_top_y, check_golden, hold_stage_anim, title_level, title_pick
+from test_flow import run_until
+from test_story import to_chapter, to_goal
 from test_classic_mode import classic_at
 from test_debug import banner_text, combo, release_combo
 
@@ -375,3 +377,83 @@ def test_the_pour_off_keeps_its_own_rules_in_both_modes(model):
             assert gb.read("sfx_count", 15)[SFX_SWISH] == w0 and dust(gb) is None
     finally:
         gb.stop()
+
+
+# ---- the puff's tiles and palette on the first bar change after each kind of level start (owner 2026-10-16: "a glitch on the
+# puff of smoke when first starting"). The first puff must look exactly like a later one: the same three pictures (OBJ ids
+# the level load wrote), on the bartender's palette every frame (CGB palette 0: CLASSIC's third frame once drew with the
+# full mug's palette 1, the cue's id), and a boss fight, which loads its own BG tiles over the story's puff ids 246-251, shows none.
+def puff_pictures(gb):
+    """Press Down (a bar change) and return one (tile offset, the tile pair's 32 bytes, OBJ palette) per frame the puff shows."""
+    gb.press("down", 1)
+    base = 246 if gb.mem("story_on") else 234
+    out = []
+    for _ in range(DUST_LEN + 3):
+        gb.run(1)
+        d = dust(gb)
+        if d:
+            mem = gb.pb.memory
+            out.append((d["tile"] - base, bytes(mem[0x8000 + 16 * d["tile"]:0x8000 + 16 * d["tile"] + 32]), d["flags"] & 7))
+    return out
+
+
+def start_kind(model, kind):
+    from conftest import PLAYING
+    from gbtools import Rom
+    gb = Rom(GAME_ROM, model)
+    gb.model_name = model
+    gb.run(120)
+    hold_stage_anim(gb)
+    if kind == "harness":
+        title_level(gb)
+    elif kind == "classic":
+        classic_at(gb, 1)
+    elif kind == "arcade":
+        title_pick(gb, K_PLAY, K_ARCADE)
+        to_goal(gb)
+    else:
+        gb.stop()
+        gb = to_chapter(model, 0)
+    run_until(gb, lambda: gb.mem("game_state") == PLAYING, 200)
+    gb.write("tip_chance", 0)
+    gb.run(2)
+    return gb
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("kind", ["harness", "classic", "arcade", "story"])
+def test_the_first_puff_after_a_level_start_is_the_same_as_a_later_one(model, kind):
+    gb = start_kind(model, kind)
+    try:
+        first = puff_pictures(gb)
+        gb.run(DUST_LEN)
+        later = puff_pictures(gb)
+        assert len(first) >= 10 and [f[0] for f in first][::4][:3] == [0, 2, 4]
+        assert first == later, "the first puff is the later one"
+        assert {f[2] for f in first} == {0}, "every frame on the bartender's palette"
+        # and not stale: the three pictures are the art's own (tools/gen_pour.py), seen again on a level started later
+        pics = {f[0]: f[1] for f in first}
+        assert len(pics) == 3 and len(set(pics.values())) == 3 and all(any(p) for p in pics.values())
+    finally:
+        gb.stop()
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_boss_fight_shows_no_puff_over_its_own_tiles(model):
+    """The Yeti's ice and the Prototype's conveyor (BG 246-251) share the story puff's OBJ ids: no puff there (the swish plays)."""
+    import boss_common as bc
+    for c in (1, 4, 5):
+        gb = bc.fight(model, c)
+        try:
+            bc.still_regulars(gb)
+            bc.skip_entrance(gb)
+            gb.run(60)
+            gb.press("left", 30)
+            w0 = gb.read("sfx_count", 15)[SFX_SWISH]
+            gb.press("down", 1)
+            for _ in range(DUST_LEN):
+                assert dust(gb) is None
+                gb.run(1)
+            assert gb.read("sfx_count", 15)[SFX_SWISH] == w0 + 1
+        finally:
+            gb.stop()
