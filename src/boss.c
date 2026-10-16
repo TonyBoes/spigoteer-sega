@@ -62,7 +62,6 @@ extern uint8_t overlay_on;
 #define CLEAR_BANNER_FRAMES 90   // "CLEAR THE BAR" stays this long once he is beaten and regulars remain
 #define OAM_TOPPER      OAM_DANCERS   // (no show in a fight; OAM 26 is the perfect pour's cue)
 // E9: the fight opens as a normal shift (the warm-up), then the boss enters (docs/minigames_bosses.md 2.6)
-typedef char bs_enter_is_7_for_main_c[(BS_ENTER == 7) ? 1 : -1];   // (main.c holds the bartender while boss_state >= 7)
 #define WARM_FRAMES   1200        // the warm-up: 20 s of play after the intro (Story and ARCADE; Boss Rush has none)
 #define WARM_AVOID     300        // the last 5 s: no new regular for his bar, so it empties before he comes
 #define WARM_WAIT      180        // after the warm-up: up to 3 s more for his bar to empty and the mugs to land
@@ -359,6 +358,7 @@ static void entrance_start(void) {
     uint8_t k;
     clear_mugs(); fill_timer = 0; fill_stage = 0; cue_t = 0; catch_pose = 0;
     take_bar();
+    boss_hop = bartender_x; boss_step_t = bar; boss_hat = facing;   // (where the bartender is: held there meanwhile, boss_pre; boss_reset clears all three)
     boss_state = BS_ENTER; boss_xpose = BP_HIDE; boss_hold = 0; boss_t = 0;
     boss_to_bar(boss_bar, br->start_x);          // (his bar's regulars are gone: it recomposes without him; his own entrance shows him there)
     intro_timer = INTRO_FRAMES;                  // the bar holds still: his entrance owns the screen
@@ -380,6 +380,8 @@ static void boss_pre(void) {
         else entrance_start();
         return;
     }
+    bar = boss_step_t; bartender_x = boss_hop; facing = boss_hat; bartender_frac = 0;   // (the player's input is held: he stays where he was)
+    fill_timer = 0; fill_stage = 0;
     if (st == BS_ENTER) {                        // his own entrance (BEV_INTRO holds intro_timer; it ends by leaving BS_ENTER)
         boss_call(BEV_INTRO, 0);
         if (boss_state != BS_ENTER) fight_start(1);

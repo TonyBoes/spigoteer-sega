@@ -6,7 +6,7 @@ import re
 import pytest
 from boss_common import (BP_WALK, BS_ENTER, BS_WALK, BS_WALKIN, BS_WARM, art, assert_body, body, fight, frames, hud, meter_tiles, mugs,
                          play, row, still_regulars, throw, until)
-from conftest import ROOT, venue
+from conftest import ROOT, logic_paused, venue
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, run_until, state
 from test_story import banner_text, centred, to_chapter, to_shift, win
 
@@ -205,7 +205,8 @@ def test_an_entrance_holds_the_bartender_where_he_is(model):
         gb.hold("a")
         for _ in range(60):
             frames(gb, 1)
-            assert gb.mem("boss_state") in (BS_ENTER, BS_WALK) and gb.mem("bar") == bar and gb.mem("bartender_x") == x
-            assert not mugs(gb) and gb.read("sfx_count", 9)[2] == launched
+            with logic_paused(gb):                   # (the held input is undone later in the same frame's logic)
+                assert gb.mem("boss_state") in (BS_ENTER, BS_WALK) and gb.mem("bar") == bar and gb.mem("bartender_x") == x
+                assert not mugs(gb) and gb.read("sfx_count", 9)[2] == launched
         gb.release("down")
         gb.release("a")

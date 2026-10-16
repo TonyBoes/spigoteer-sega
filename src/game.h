@@ -560,7 +560,7 @@ void rush_fight(uint8_t venue) BANKED;                  // story.c: venue's boss
 #define BOSS_COUNT      10      // rows of the boss table (one per venue; a later venue adds its row, not a constant)
 #define BOSS_W_MAX       5      // body columns at most (40 px)
 #define BOSS_NONE      255
-extern uint8_t boss_on, boss_state, boss_id, boss_bar, boss_lim, boss_col, boss_pal, boss_cols[BOSS_W_MAX];
+extern uint8_t boss_on, boss_id, boss_bar, boss_lim, boss_col, boss_pal, boss_cols[BOSS_W_MAX];
 // The engine's fight-time bytes at the very end of story_scratch (no WRAM of their own: src/boss.h BOSS_SCRATCH; boss_set
 // fills them, so they are read only while boss_on): a moving boss's landing marker (boss.c boss_mark), two column
 // pairs (BOSS_MARK_BG.. : top t, bottom t + 1) on bar BOSS_MARK_BAR at columns BOSS_MARK_COL, + 1 (render.c compose_bar
