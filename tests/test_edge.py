@@ -368,15 +368,17 @@ def test_a_push_that_carries_him_off_serves_him_when_he_is_gone_and_he_slides_ou
     assert gb.mem("served") == 1 and score(gb) == 50
 
 
-def test_a_push_that_falls_short_stops_him_on_the_screen_at_entry_x(gb):
-    """One pixel too far in (x = ENTRY_X + 6: the push would leave 6 px of him on the screen): he is stopped at ENTRY_X,
-    a BG figure, and drinks; nothing is served."""
+def test_a_push_that_falls_short_stops_him_on_the_screen(gb):
+    """Option C: one pixel too far in (x = ENTRY_X + 33: the 32 px push stops 1 px short of the left-edge stop): he is
+    pushed the full 32 px, stops at ENTRY_X + 1, a BG figure, and drinks; nothing is served. (One at ENTRY_X + 32 is
+    served: test_patrons.py.)"""
     clear_patrons(gb)
     freeze(gb)
-    p = set_patron(gb, 2, ENTRY_X + 6)
-    inject_mug(gb, 2, ENTRY_X + 14)
-    gb.run(3 + 12)
-    assert gb.read("patron_state", MAX_P)[p] == DRINKING and px(gb, p) == ENTRY_X
+    x = ENTRY_X + 33
+    p = set_patron(gb, 2, x)
+    inject_mug(gb, 2, x + 8)
+    gb.run(3 + 36)
+    assert gb.read("patron_state", MAX_P)[p] == DRINKING and px(gb, p) == ENTRY_X + 1
     gb.run(40)
     assert gb.mem("served") == 0 and score(gb) == 0 and gb.read("patron_state", MAX_P)[p] == DRINKING
 

@@ -15,7 +15,7 @@ PX = 8 * PUSHBACK
 FAR_X = GAME["PATRON_FAR_X"]          # M8a: 120, a walker here has reached the bartender's end
 HELD = 4
 SPACING = 32
-ENTRY_X = GAME["ENTRY_X"]                # patrons are BG figures from here (left of it they enter / leave as sprites); a push of PX serves one at x <= PX - 16
+ENTRY_X = GAME["ENTRY_X"]                # patrons are BG figures from here (left of it they enter / leave as sprites); Option C: a push that reaches ENTRY_X serves one at x <= ENTRY_X + PX
 START_BARS = [0, 2]                   # level 1 starts with patrons on these bars (start_mask 0x5)
 
 
@@ -276,29 +276,38 @@ def test_every_mug_pushes_the_same_distance(gb):
         gb.write("mugs_live", 0)
 
 
-def test_a_mid_bar_patron_needs_several_mugs_and_is_served_off_the_screen(gb):
-    """x 60 on level 1: 60 -> 28 -> (a push that would leave 12 px of him on the screen stops him at ENTRY_X, 16) -> the
-    third mug carries him off: served. Nothing counts until he is off the screen."""
+def slide_out(gb, p, x):
+    """Option C: a patron caught with a push that reaches the left-edge stop keeps sliding (PUSHED, 1 px a frame) to
+    ENTRY_X, never drinks, then leaves (LEAVING). Returns the frames he was pushed."""
+    n = 0
+    while gb.read("patron_state", MAX_P)[p] == PUSHED:
+        gb.run(1)
+        n += 1
+        assert n < 100
+    assert gb.read("patron_state", MAX_P)[p] in (LEAVING, NONE), "served: no stop to drink"
+    return n
+
+
+def test_a_mid_bar_patron_is_pushed_then_served_when_a_push_reaches_the_door(gb):
+    """Option C. x 76 on level 1: 76 -> 44 (a full push, he drinks) -> the second mug would carry him to (or past) the
+    left-edge stop (44 - ENTRY_X = 28 <= 32): served at once, he does not drink, he slides off. Nothing counts
+    until he is off the screen."""
     clear_patrons(gb)
     freeze(gb)
-    p = set_patron(gb, 1, 60)
+    p = set_patron(gb, 1, 76)
     gb.run(3)
-    xs = []
-    for n in range(3):
-        if n == 2:
-            inject_mug(gb, 1, gb.read("patron_x", MAX_P)[p] + 4)
-            gb.run(8)
-            break
-        catch_once(gb, p, 1)
-        xs.append(gb.read("patron_x", MAX_P)[p])
-        assert gb.read("patron_state", MAX_P)[p] == DRINKING and score(gb) == 0
-        put(gb, "patron_state", p, WALKING)
-        gb.run(2)
-        for i in range(MAX_M):
-            put(gb, "mug_state", i, FREE)
-        gb.write("mugs_live", 0)
-    assert xs[:2] == [60 - PX, ENTRY_X], xs
-    assert gb.read("patron_state", MAX_P)[p] == LEAVING, "the third mug: served out"
+    catch_once(gb, p, 1)
+    assert gb.read("patron_x", MAX_P)[p] == 76 - PX
+    assert gb.read("patron_state", MAX_P)[p] == DRINKING and score(gb) == 0
+    put(gb, "patron_state", p, WALKING)
+    gb.run(2)
+    for i in range(MAX_M):
+        put(gb, "mug_state", i, FREE)
+    gb.write("mugs_live", 0)
+    inject_mug(gb, 1, gb.read("patron_x", MAX_P)[p] + 4)
+    gb.run(3)
+    assert gb.read("patron_state", MAX_P)[p] == PUSHED
+    slide_out(gb, p, 76 - PX)
     assert gb.mem("served") == 0 and score(gb) == 0
     gb.run(2 * ENTRY_X + 8)
     assert gb.read("patron_state", MAX_P)[p] == NONE, "slid out past the left edge"
@@ -306,48 +315,55 @@ def test_a_mid_bar_patron_needs_several_mugs_and_is_served_off_the_screen(gb):
 
 
 def test_a_serve_happens_only_off_the_screen(gb):
-    """The push serves a patron only if x + 16 <= push (level 1: x <= 16). At x = 17 it would leave a pixel on the
-    screen: he stops at ENTRY_X and drinks, unserved; at x = 16 the same mug takes him off."""
-    for x, served in ((ENTRY_X + 1, False), (ENTRY_X, True)):
+    """Option C (level 1, push 32): a patron hit at x - ENTRY_X <= 32 (x <= 48) is served at once and slides off without
+    drinking; one hit at x 49 is pushed the full 32 px, drinks, unserved. Credit only when he is off the screen."""
+    for x, served in ((ENTRY_X + 1, True), (ENTRY_X + 20, True), (ENTRY_X + PX, True), (ENTRY_X + PX + 1, False), (ENTRY_X, True)):
         clear_patrons(gb)
         freeze(gb)
+        gb.write("served", 0)
+        s0 = score(gb)
+        p = set_patron(gb, 1, x)
+        gb.run(3)
+        inject_mug(gb, 1, x + 4)
+        gb.run(3 + 4)
+        st = gb.read("patron_state", MAX_P)[p]
+        assert st == PUSHED or (served and x - ENTRY_X <= 4 and st == LEAVING), st
+        if served:
+            slide_out(gb, p, x)
+            assert gb.mem("served") == 0 and score(gb) == s0, "(not counted until he is off the screen)"
+            gb.run(x + 16 + 8)
+            assert gb.read("patron_state", MAX_P)[p] == NONE
+            assert gb.mem("served") == 1 and score(gb) == s0 + SERVE
+        else:
+            gb.run(PX + 4)
+            assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == x - PX
+            assert gb.mem("served") == 0 and score(gb) == s0
+
+
+def test_the_hard_rows_push_24_px(gb):
+    """The two hardest rows (zoo, space lounge) push 24 px a mug. Option C: a patron at ENTRY_X + 24 is served at once;
+    one at ENTRY_X + 25 is pushed the full 24 px and drinks, unserved."""
+    from test_edge import goto_level
+    goto_level(gb, 9)
+    assert gb.mem("pushback_px") == 24
+    for x, served in ((ENTRY_X + 24, True), (ENTRY_X + 25, False)):
+        clear_patrons(gb)
+        freeze(gb)
+        gb.write("level", 1)                              # (no early drinkers: the zoo is level 9)
         gb.write("served", 0)
         p = set_patron(gb, 1, x)
         gb.run(3)
         inject_mug(gb, 1, x + 4)
-        gb.run(3 + PX + 4)
-        st = gb.read("patron_state", MAX_P)[p]
+        gb.run(3 + 4)
+        assert gb.read("patron_state", MAX_P)[p] == PUSHED
         if served:
-            assert st in (LEAVING, NONE)
-            gb.run(2 * ENTRY_X + 8)
-            assert gb.mem("served") == 1 and score(gb) == SERVE
+            slide_out(gb, p, x)
+            gb.run(x + 16 + 8)
+            assert gb.read("patron_state", MAX_P)[p] == NONE and gb.mem("served") == 1
         else:
-            assert st == DRINKING and gb.read("patron_x", MAX_P)[p] == ENTRY_X
-            assert gb.mem("served") == 0 and score(gb) == 0
-
-
-def test_the_hard_rows_push_24_px(gb):
-    """The two hardest rows (zoo, space lounge) push 24 px a mug: a patron at ENTRY_X + 4 is stopped at ENTRY_X, drinking,
-    unserved; the next mug serves him (one at the old door is always served, so no patron is ever stuck)."""
-    from test_edge import goto_level
-    goto_level(gb, 9)
-    assert gb.mem("pushback_px") == 24
-    clear_patrons(gb)
-    freeze(gb)
-    gb.write("level", 1)                              # (no early drinkers: the zoo is level 9)
-    p = set_patron(gb, 1, ENTRY_X + 4)
-    gb.run(3)
-    inject_mug(gb, 1, ENTRY_X + 8)
-    gb.run(3 + 12)
-    assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == ENTRY_X and gb.mem("served") == 0
-    put(gb, "patron_state", p, WALKING)
-    for i in range(MAX_M):
-        put(gb, "mug_state", i, FREE)
-    gb.write("mugs_live", 0)
-    gb.run(2)
-    inject_mug(gb, 1, ENTRY_X + 4)
-    gb.run(3 + 2 * ENTRY_X + 12)
-    assert gb.read("patron_state", MAX_P)[p] == NONE and gb.mem("served") == 1
+            gb.run(24 + 4)
+            assert gb.read("patron_state", MAX_P)[p] == DRINKING and gb.read("patron_x", MAX_P)[p] == x - 24
+            assert gb.mem("served") == 0
 
 
 def test_some_patrons_drink_early(gb):

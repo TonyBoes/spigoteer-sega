@@ -514,13 +514,13 @@ def test_passengers_keep_to_the_cap_and_clear_entries(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_passenger_is_served_like_a_patron(model):
-    """A glass thrown on a passenger's bar is caught by him, he is pushed to the left end and drinks; the second glass serves him (as every
-    patron at the left end: he leaves); no life is lost."""
+    """A glass thrown on a passenger's bar is caught by him, he lands near the left end, where one glass is enough (Option C: a push that
+    reaches the left-edge stop serves him: he slides off without drinking); no life is lost."""
     with fight(model, C) as gb:
         bare(gb, CALM_RAY)
         land_now(gb)
         p, b, x, st, v = live(gb)[0]
-        assert serve(gb, p) == 2
+        assert serve(gb, p) == 1
         assert all(m[0] != p or m[3] == LEAVING for m in live(gb)) and gb.mem("lives") == 3
 
 

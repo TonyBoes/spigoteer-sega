@@ -635,3 +635,18 @@ def test_level_table_and_wrap(gb):
             gb.write("bonus_timer", 129)
             run_until(gb, lambda: state(gb) == PLAYING, 200)          # (after level 10: the LOOP 2 banner)
         gb.run(2)
+
+
+def test_level_clear_counts_patrons_pushed_out_from_mid_bar(gb):
+    """Option C: both boot patrons hit at x 40 (a 32 px push reaches the left-edge stop) are served at once, slide off
+    and count when gone: CLEAR THE BAR."""
+    gb.write("intro_timer", 255)
+    gb.write("quota", 2)
+    for b in (0, 2):
+        i = [j for j in range(MAX_P) if gb.read("patron_bar", MAX_P)[j] == b and gb.read("patron_state", MAX_P)[j]][0]
+        gb.write(gb.addr("patron_x") + i, 40)
+        inject_mug(gb, b, 44)
+    gb.run(3)
+    assert gb.mem("served") == 0 and state(gb) == PLAYING, "(nothing counts until they are off the screen)"
+    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 120)
+    assert gb.mem("served") == 2 and score(gb) == 2 * 50 + 1000
