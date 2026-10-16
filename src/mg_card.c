@@ -23,6 +23,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "music.h"
 #include "story.h"
 #include "mg.h"
 #include "mg_card_art.h"   // card_icons[]: one 8x8 tile a game (assets/art/mg_card.txt)
@@ -96,7 +97,7 @@ static uint8_t glyph(char c) {
 
 // kind: 0 the full card of a story / ARCADE game, 1 of BONUS > MINI GAMES (B goes back), 2 over a paused game (window map)
 static void put(uint8_t kind, uint8_t y, const uint8_t *b) {
-    if (kind == 2) set_win_tiles(0, y, 20, 1, b); else set_bkg_tiles(0, y, 20, 1, b);
+    if (kind == 2) { set_win_tiles(0, y, 20, 1, b); music_pump(); } else set_bkg_tiles(0, y, 20, 1, b);   // (kind 2: the LCD is off, the tune ticks through)
 }
 
 static void edges(uint8_t *b) {                 // the frame's sides on a 20-wide row (the middle blank)
@@ -189,7 +190,7 @@ void mg_card_win_open(uint8_t game) BANKED {
     for (i = 0; i < STORY_FONT_COUNT; i++) {     // the font tiles, kept
         const volatile uint8_t *t = (const volatile uint8_t *)((STORY_FONT_BASE + i < 128 ? 0x9000 : 0x8000) + (uint16_t)(STORY_FONT_BASE + i) * 16);
         for (k = 0; k < 16; k++) b[k] = vget(t + k);
-        set_win_tiles((i & 1) << 4, SAVE_ROW + (i >> 1), 16, 1, b);
+        { set_win_tiles((i & 1) << 4, SAVE_ROW + (i >> 1), 16, 1, b); music_pump(); }
     }
     story_font_load();
     if (is_cgb) {
@@ -212,7 +213,7 @@ void mg_card_win_close(void) BANKED {
     }
     for (i = 0; i < 20; i++) b[i] = 0;
     for (i = 6; i < 18; i++) set_win_tiles(0, i, 20, 1, b);
-    for (i = 0; i < STORY_FONT_COUNT; i++) set_win_tiles((i & 1) << 4, SAVE_ROW + (i >> 1), 16, 1, b);
+    for (i = 0; i < STORY_FONT_COUNT; i++) { set_win_tiles((i & 1) << 4, SAVE_ROW + (i >> 1), 16, 1, b); music_pump(); }
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
         for (i = 6; i < 18; i++) set_win_tiles(0, i, 20, 1, b);

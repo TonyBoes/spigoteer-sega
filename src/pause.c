@@ -153,9 +153,19 @@ static void glyphs_back(void) {
     bkg_data_far(TILE_GLYPH_J, TILE_GLYPH_Z - TILE_GLYPH_J + 1, bar_tiles + (uint16_t)(TILE_GLYPH_J - TILE_GENERIC_BASE) * 16, BANK(art_tiles));
 }
 
+// The card and the menu swap with the LCD off (owner 2026-10-15: the paused game showed for several frames while the card drew): the
+// menu stays up until the LCD goes off (lcd_off_p waits for the next VBlank, the tune pumped), the new screen is built in one pass
+// with the music pumped, and the LCD comes on with the window already covering what it covers: no frame shows the game in between.
+// (Milk Run's handler: LYC at 144 / the menu's end and SCX 0 as the frame before its split would have them.)
+static void lcd_back(uint8_t lyc) {
+    if (mg_id == MG_MILKRUN) { SCX_REG = 0; LYC_REG = lyc; }
+    SHOW_WIN;                                    // (lcd_isr hid it at the menu's last line; main.c's update shows it from the next frame)
+    DISPLAY_ON;
+}
+
 static void card_open(void) {
     uint8_t s = state_timer;
-    HIDE_WIN;                                    // (hidden while the card is drawn, a few frames; main.c's update shows it again)
+    DISPLAY_OFF;
     glyphs_back();                               // (the card's text may use J and Z)
     if (LCDC_REG & LCDCF_OBJON) s |= PAUSE_OBJ;
     state_timer = s | PAUSE_CARD;
@@ -163,11 +173,12 @@ static void card_open(void) {
     WY_REG = 0;                                  // the window over the whole screen: no LYC end
     mg_card_win_open(pause_card(s));
     if (!(mg_id == MG_MILKRUN)) LYC_REG = 255;   // (Milk Run's handler: main.c mr_lcd_isr takes PAUSE_CARD into account)
+    lcd_back(144);
 }
 
 static void card_close(void) {
     uint8_t s = state_timer;
-    HIDE_WIN;
+    DISPLAY_OFF;
     mg_card_win_close();
     WY_REG = BANNER_WY;
     if (s & PAUSE_OBJ) SHOW_SPRITES;
@@ -175,6 +186,7 @@ static void card_close(void) {
     set_bkg_data(TILE_GLYPH_Z, 1, arrow_tile);
     fill_row(0, TILE_PANEL_TOP);
     apply(s & (PAUSE_MINI | 3), 1);
+    lcd_back(WIN_LYC(s));
 }
 
 void pause_open(void) BANKED {

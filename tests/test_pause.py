@@ -879,6 +879,7 @@ def test_the_card_in_the_pause_menu_turns_pages_and_a_on_the_last_comes_back(mod
         mg_enter(gb, MG_STUB, MG_PRACTICE)
         until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
         tap(gb, "start", 3)
+        gb.run(1, True)                                    # (PyBoy's first rendered frame of a session draws a window from its line 1: render one first)
         tap(gb, "down")
         tap(gb, "a", 10)
         rows = card_rows(gb)
@@ -901,3 +902,65 @@ def test_the_card_in_the_pause_menu_turns_pages_and_a_on_the_last_comes_back(mod
         tap(gb, "up")
         tap(gb, "a", 10)
         assert state(gb) == GS_MINI
+
+
+# ---- (h) the card swaps in and out with no frame of the game, and fills the screen exactly (owner 2026-10-15, Batch H) ----------------
+def render(gb):
+    gb.run(1, True)
+    return gb.image()
+
+
+def press_frames(gb, key, n):
+    """Press key for 2 frames then release, rendering every frame (gb.press skips them); the n images."""
+    out = []
+    gb.pb.button_press(key)
+    for i in range(n):
+        if i == 2:
+            gb.pb.button_release(key)
+        out.append(render(gb))
+    return out
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("gid", [MG_STUB, MG_MILKRUN])
+def test_no_frame_shows_the_game_between_the_menu_and_the_card(model, gid):
+    """Every frame is the menu, a blank one (the LCD off for the rebuild, the first frame after it on) or the finished card: never the paused game."""
+    with rom_s(model) as gb:
+        mg_enter(gb, gid, MG_PRACTICE)
+        until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
+        tap(gb, "start", 3)
+        render(gb)
+        tap(gb, "down")
+        menu = render(gb).tobytes()
+        gb.run(1)
+        opening = press_frames(gb, "a", 20)
+        card = render(gb).tobytes()
+        kinds = lambda ims: ["menu" if im.tobytes() == menu else "card" if im.tobytes() == card else "blank" if len(im.getcolors()) == 1 else "GAME" for im in ims]
+        k = kinds(opening)
+        assert "GAME" not in k, k
+        assert k[0] == "menu" and k[-1] == "card" and "blank" in k, k
+        assert k.index("card") > k.index("blank") and "menu" not in k[k.index("blank"):], k
+        closing = kinds(press_frames(gb, "b", 20))
+        assert "GAME" not in closing, closing
+        assert closing[0] == "card" and closing[-1] == "menu", closing
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_the_card_fills_the_screen_exactly(model):
+    """Lines 0-7 are the frame's top tile and lines 136-143 its bottom tile (no row lost on top, none of the game below)."""
+    with rom_s(model) as gb:
+        mg_enter(gb, MG_STUB, MG_PRACTICE)
+        until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
+        tap(gb, "start", 3)
+        render(gb)
+        tap(gb, "down")
+        tap(gb, "a", 10)
+        im = render(gb)
+        assert gb.mem(0xFF4A) == 0 and gb.mem(0xFF4B) == 7
+        for map_row, y0 in ((0, 0), (17, 136)):
+            t = tile(gb, tilemap_row(gb, map_row, 0, 20, True)[1])
+            idx = [sum((((t[2 * r + p] >> 4) & 1) << p) for p in (0, 1)) for r in range(8)]     # (the tile's pixel at x 3 of each row)
+            cols = [im.getpixel((8 + 3, y0 + r)) for r in range(8)]
+            for a in range(8):
+                for b in range(8):
+                    assert (idx[a] == idx[b]) == (cols[a] == cols[b]), (map_row, a, b, idx, cols)
