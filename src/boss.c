@@ -171,7 +171,7 @@ static void boss_hud(void) {
 // alternates GULP (the mug up) and WALK (the mug down: a sip, then another) and the topper (a sprite) shifts the patrons' 2 px.
 // 1 on the second beat of each pair, only in the common gulp (no push-back, no special's pose over it).
 static uint8_t sip_beat(void) {
-    return boss_state == BS_GULP && !boss_push && !boss_xpose && ((boss_t / SWAY_FRAMES) & 1);
+    return boss_state == BS_GULP && !boss_push && !boss_xpose && sway_tab[boss_t];   // (boss_t < gulp <= 30 here: the table is (t / SWAY_FRAMES) & 1, no divide)
 }
 
 // His pose from his state: the body's columns (boss_cols) and, when they changed, their tiles queued.
@@ -622,25 +622,33 @@ uint8_t boss_outro(uint8_t t) BANKED {
     return t >= OUTRO_FRAMES;
 }
 
+// One entry near the topper: d = its y minus the topper's (-15..15 as a byte): the 4-line bands n[0..3] of the topper's 16 lines it touches.
+static void band_add(uint8_t d, uint8_t *n) {
+    int8_t r = (int8_t)d;
+    if (r >= 0) { if (r < 4) n[0]++; if (r < 8) n[1]++; if (r < 12) n[2]++; n[3]++; }
+    else { n[0]++; if (r >= -11) n[1]++; if (r >= -7) n[2]++; if (r >= -3) n[3]++; }
+}
+
 // pour_frame (every drawn frame of a fight, after every other sprite): the topper over his head, its upper half above
 // his bar. Sprites per line: every other OAM entry is counted on the four 4-line bands of the topper's 16 lines it
 // touches (an upper bound for each line: spec 3.1 counts the same bands); the topper is left out on a frame where a
 // band already has LINE_OBJ_MAX, so it is never an 11th object on a line (the hat blinks off for those frames).
 void boss_draw(void) BANKED {
     OAM_item_t *o = shadow_OAM;
-    uint8_t k, top = bar_oam_y[boss_bar] - 8, n0 = 0, n1 = 0, n2 = 0, n3 = 0, hat, tag;
-    int8_t r;
+    uint8_t k, top = bar_oam_y[boss_bar] - 8, n0, n1, n2, n3, hat, tag;
+    uint8_t n[4];
     if (boss_state == BS_WARM) { shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_TAG].y = 0; return; }   // (E9: not here yet)
     if (intro_timer) boss_call(BEV_DRAW, 0);     // the intro: a special's own sprites (Duke's entrance) before the lines are counted
     shadow_OAM[OAM_TAG].y = 0;
     if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (away: no hat in the air)
-    for (k = 0; k != 40; k++, o++) {
-        if (k == OAM_TOPPER || k == OAM_TAG || !o->y) continue;
-        r = (int8_t)(uint8_t)(o->y - top);
-        if (r > 15 || r < -15) continue;
-        if (r >= 0) { if (r < 4) n0++; if (r < 8) n1++; if (r < 12) n2++; n3++; }
-        else { n0++; if (r >= -11) n1++; if (r >= -7) n2++; if (r >= -3) n3++; }
-    }
+    shadow_OAM[OAM_TOPPER].y = 0;   // (so the count skips it and the tag: both are set again below)
+    n[0] = n[1] = n[2] = n[3] = 0;
+    k = 40;
+    do {
+        if (o->y && (uint8_t)(o->y - top + 15) < 31) band_add(o->y - top, n);
+        o++;
+    } while (--k);
+    n0 = n[0]; n1 = n[1]; n2 = n[2]; n3 = n[3];
     o = shadow_OAM + OAM_TOPPER;
     hat = !(n0 >= LINE_OBJ_MAX || n1 >= LINE_OBJ_MAX || n2 >= LINE_OBJ_MAX || n3 >= LINE_OBJ_MAX);
     if (hat) {

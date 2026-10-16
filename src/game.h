@@ -404,6 +404,7 @@ void mirror_load(uint8_t dirs) BANKED;        // LCD off: after load_venue and t
 void draw_bartender(void);
 void draw_stage_fx(void);
 void hide_all_sprites(void);
+extern const uint8_t sway_tab[256];                 // (patrons.c, ROM0) (t / SWAY_FRAMES) & 1 for t < WINDUP_T0, else 0
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
 uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
 uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c-1..c+3 of bar b first thing this frame (0: not now)

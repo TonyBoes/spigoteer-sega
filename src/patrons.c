@@ -59,7 +59,7 @@ static uint8_t catch_ok;               // bit b: catch_p/catch_x of bar b are up
 #define SWAY4(n)  SWAY(n), SWAY((n) + 1), SWAY((n) + 2), SWAY((n) + 3)
 #define SWAY16(n) SWAY4(n), SWAY4((n) + 4), SWAY4((n) + 8), SWAY4((n) + 12)
 #define SWAY64(n) SWAY16(n), SWAY16((n) + 16), SWAY16((n) + 32), SWAY16((n) + 48)
-static const uint8_t sway_tab[256] = { SWAY64(0), SWAY64(64), SWAY64(128), SWAY64(192) };
+const uint8_t sway_tab[256] = { SWAY64(0), SWAY64(64), SWAY64(128), SWAY64(192) };
 
 static void list_add(uint8_t p) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1);
