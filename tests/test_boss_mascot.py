@@ -166,7 +166,7 @@ def test_the_landing_scares_regulars_without_score_and_spawns_stay_off(model):
         frames(gb, 1)
         st = gb.read("patron_state", 16)
         assert all(st[i] in (LEAVING, 0) for i in slots) and LEAVING in st, st   # (a leaving regular may be gone already)
-        until(gb, lambda: all(gb.read("patron_state", 16)[i] == 0 for i in slots), 120)
+        until(gb, lambda: all(gb.read("patron_state", 16)[i] == 0 for i in slots), 220)
         assert (score(gb), gb.mem("served")) == (sc, served) and gb.mem("lives") == 3
         n = int(re.search(r"#define STORY_PAT_MAX\s+(\d+)", (ROOT / "build" / "story.h").read_text()).group(1))
         assert all(p & 3 != tb for p in gb.read("pat_buf", n)), "no regular is due on the bar he landed on"

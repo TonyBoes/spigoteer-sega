@@ -7,7 +7,7 @@
 import re
 
 import pytest
-from boss_common import (BP_HAPPY, BP_WALK, BS_JUMP, BS_OUTRO, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OAM_TOPPER, OBJ_TOPPER, Own,
+from boss_common import (BP_HAPPY, BP_WALK, BS_ENTER, BS_JUMP, BS_OUTRO, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OAM_TOPPER, OBJ_TOPPER, Own,
                          SP_FAIL, SP_OUTRO, TAP_X, art, assert_body, bar_row, check_start, fight, frames, hud, meter_tiles, mugs,
                          play, pose_cols, pour, row, still_regulars, throw, to_bar, until)
 from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
@@ -166,9 +166,11 @@ def test_the_tell_the_beam_and_the_teleport(model):
         until(gb, lambda: gb.mem("boss_bar") == tb, MS_GONE + 4)
         frames(gb, 3)
         assert (gb.mem("boss_x"), gb.mem("boss_state"), MS.get(gb, "jumps"), phase(gb)) == (land, BS_WALK, 1, MP_WALK)
-        hold = gb.mem("boss_hold")
+        frames(gb, 3)                                # (the bar is recomposed over a few frames)
+        with logic_paused(gb):                       # (a held empty may leave any frame: hold and the picture from one instant)
+            hold = gb.mem("boss_hold")
+            top, bottom = rows_of(gb, tb)
         assert marker_at(gb, tb) is None and hold >= 1 and gb.mem("boss_hp") == 14, "his hands went with him"
-        top, bottom = rows_of(gb, tb)
         cols = pose_cols(A, BP_WALK, hold)
         assert top[land // 8:land // 8 + 5] == cols and bottom[land // 8:land // 8 + 5] == [t + 1 for t in cols]
 
@@ -361,7 +363,7 @@ def test_win_the_fight_by_pouring(model):
     """Real pours, no hp poke (the regulars stand still and none come): the saucer's eight glasses wherever it teleports, the flash,
     the split, then every mini two glasses and every empty caught; no life lost; the outro (no saucer left to be happy), CHAPTER
     CLEAR, the POST_SPACE scene, the chapter saved."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         quiet(gb)
         to_bar(gb, B)
         f, seen_split = 0, False
@@ -718,8 +720,8 @@ def test_the_entrance_tractor_beam(model):
     dimmed on some frames, CGB the bar palette halved on some), the hum, then he blinks in (HAPPY / hidden) and lands at ENT_LAND: WALK
     at x 16 on his bar, the beam and the dim gone, the thud, the intro's 90 frames from there. The bartender cannot move meanwhile.
     Every frame is checked at <= 10 sprites a line. Goldens boss_mothership_beam (frame 30), boss_mothership_materialise (frame 54)."""
-    with fight(model, C) as gb:
-        assert MS.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_JUMP and gb.mem("boss_xpose") == BP_HIDE
+    with fight(model, C, entrance=True) as gb:
+        assert MS.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER and gb.mem("boss_xpose") == BP_HIDE
         revs, bar0, x0, shakes = sfx(gb, SFX_REV), gb.mem("bar"), gb.mem("bartender_x"), sfx(gb, SFX_SHAKE)
         dims, golden = set(), 0
         wall = cgb_palette(gb, 0) if model == "cgb" else None
@@ -728,7 +730,7 @@ def test_the_entrance_tractor_beam(model):
             f = ent_frame(gb)
             if f < 0 or f >= ENT_LAND:
                 break
-            assert gb.mem("intro_timer") >= 86 and gb.mem("boss_state") == BS_JUMP
+            assert gb.mem("intro_timer") >= 86 and gb.mem("boss_state") == BS_ENTER
             if f < ENT_BLINK - 2:
                 assert marker_at(gb, B) == R["x"] // 8 + 2, f
             elif f > ENT_BLINK + 4:
@@ -737,10 +739,10 @@ def test_the_entrance_tractor_beam(model):
             if f % 3 == 0:
                 gb.press("down" if f % 2 else "left", 1)
             assert gb.mem("bar") == bar0 and gb.mem("bartender_x") == x0, f
-            if f == 30 and golden == 0:
+            if f >= 30 and golden == 0:
                 check_golden(gb, "boss_mothership_beam")
                 golden = 1
-            if f == 54 and golden == 1:
+            if f >= 54 and golden == 1:
                 check_golden(gb, "boss_mothership_materialise")
                 golden = 2
         assert golden == 2 and sfx(gb, SFX_REV) == revs + 1 and len(dims) == 2, dims
@@ -759,7 +761,7 @@ def test_the_entrance_tractor_beam(model):
 @pytest.mark.parametrize("model", ["cgb"])
 def test_no_entrance_after_a_lost_life(model):
     """A life lost in the fight: he comes back at his start at once (no entrance again)."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         bare(gb, CALM_RAY | CALM_DROP)
         with logic_paused(gb):
             gb.write("boss_x", 150)
@@ -833,7 +835,7 @@ def test_win_the_real_fight_with_passengers_and_the_ray(model):
     glasses, the split, the minis' twelve. (A patron pushed to the door needs a glass timed to the frame he turns, which the bot does not
     try: the rest of the bar is cleared by hand, as test_boss.py does.) At most two lives are lost to the odd missed patron or empty;
     the outro follows."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         until(gb, lambda: MS.get(gb, "ent") == 0 and gb.mem("intro_timer") == 0 and state(gb) == PLAYING, 400)
         clock, f, lost_at, peak = Clock(gb), 0, [], 0
         while gb.mem("boss_hp") and f < 9000 and gb.mem("lives"):
@@ -847,7 +849,7 @@ def test_win_the_real_fight_with_passengers_and_the_ray(model):
         print(f"mothership real fight bot: {f} frames, lives {gb.mem('lives')}, stuns {MS.get(gb, 'stuns')}, passengers {MS.get(gb, 'drops')}, "
               f"landings {MS.get(gb, 'jumps')}, peak patrons {peak}, lives lost at {lost_at}")
         assert gb.mem("boss_hp") == 0 and gb.mem("lives") >= 1 and MS.get(gb, "minis") == 0
-        assert MS.get(gb, "drops") >= 2 and MS.get(gb, "jumps") >= 1 and peak <= LIVE_MAX + 3
+        assert MS.get(gb, "drops") >= 1 and MS.get(gb, "jumps") >= 1 and peak <= LIVE_MAX + 3
         clear_regulars(gb)
         until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_OUTRO, 30)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 160)

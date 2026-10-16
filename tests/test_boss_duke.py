@@ -339,7 +339,7 @@ def test_win_the_fight_by_pouring(model):
 def test_the_regulars_come_in_chords_on_the_other_bars(model):
     """With the regulars live: every one that appears is on bars 0, 2 or 3 (never his), and in 900 frames the three free
     bars all get some."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         play(gb)
         bars, seen = set(), set()
         for _ in range(900):
@@ -413,6 +413,7 @@ def test_the_entrance_plays_on_the_first_start_only(model):
             assert sfx(gb, SFX_REV) == revs + (t >= ENT_REVSFX + 2), t
         frames(gb, 1)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("intro_timer") == INTRO - 1, "he lands: the intro's 90 frames start"
+        frames(gb, 2)                                # (the landing frame's logic runs past a frame boundary)
         assert sfx(gb, SFX_SHAKE) == shakes + 1 and sfx(gb, SFX_REV) == revs + 1
         n_landing = frames_to_first_beat(gb)
         assert INTRO - 2 <= n_landing <= INTRO, n_landing       # (89 game frames: the sampling is up to one frame off)
@@ -439,12 +440,16 @@ def test_the_hand_off_lands_him_at_x16_in_his_idle(model):
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_bar") == B and gb.mem("boss_x") == R["x"]
         assert (phase(gb), DUKE.get(gb, "t"), gb.mem("boss_xpose")) == (DP_IDLE, 0, 0)
-        o = gb.oam()[OAM_TOPPER]
-        assert (o["y"], o["x"], o["tile"]) == (bar_row(R) * 8 + 8, R["x"] + R["hat"] + 8, HAT_STILL)
-        bike = entrance_oam(gb)
+        for _ in range(6):                           # (the landing frame's logic runs past a frame boundary: the bike's drawn a frame late)
+            bike = entrance_oam(gb)
+            if sum(1 for e in bike if e[3] & 0x80) >= 5:
+                break
+            frames(gb, 1)
         assert sum(1 for e in bike if e[3] & 0x80) >= 5 and any(not e[3] & 0x80 for e in bike), bike
         frames(gb, 3)                                # (the whole bar is recomposed at the hand-off: a frame or two more)
         assert_body(gb, C, A, R["x"], BP_WALK)
+        o = gb.oam()[OAM_TOPPER]
+        assert (o["y"], o["x"], o["tile"]) == (bar_row(R) * 8 + 8, R["x"] + R["hat"] + 8, HAT_STILL)
         assert gb.mem("boss_hold") == 0 and gb.mem("boss_hp") == 12
         frames(gb, 30)
         assert gb.mem("boss_x") == R["x"] and phase(gb) == DP_IDLE

@@ -9,7 +9,7 @@ import json
 import re
 
 import pytest
-from boss_common import (BP_HAPPY, BP_WALK, BS_JUMP, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, Own, SP_FAIL,
+from boss_common import (BP_HAPPY, BP_WALK, BS_ENTER, BS_JUMP, start_entrance, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, Own, SP_FAIL,
                          SP_OUTRO, SPOUT_X, TAP_X, art, arrivals_ok, assert_body, bar_row, check_start, fight, frames,
                          hud, meter_tiles, mugs, play, pour, row, still_regulars, throw, to_bar, until)
 from conftest import GAME, clear_regulars, ROOT, check_golden, logic_paused, venue
@@ -80,9 +80,9 @@ def test_the_fight_follows_the_last_call(model):
     HUD tiles), his crown as the topper. Golden boss_leo: walking, a coconut on its way."""
     with fight(model, C, banner=True) as gb:
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
-        to_goal(gb)
+        start_entrance(to_goal(gb, boss_start=False))
         gb.run(2)
-        assert LEO.get(gb, "ent") and gb.mem("boss_state") == BS_JUMP, "the entrance first"
+        assert LEO.get(gb, "ent") and gb.mem("boss_state") == BS_ENTER, "the entrance first"
         play(gb)
         assert LEO.get(gb, "ent") == 0
         check_start(gb, C, A, model)
@@ -326,7 +326,7 @@ def test_win_the_fight_by_pouring(model):
     """Real pours on his bar through a roar, the bartender staying at the tap: 14 coconuts and he is satisfied; no
     life lost; every two arrivals of the empties >= empty_gap apart; the outro (the purr: HAPPY), no "!!"; CHAPTER
     CLEAR, the POST_ZOO scene, the chapter saved."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         quiet(gb)
         to_bar(gb, B)
         arrivals, seen, f, phases = [], set(), 0, set()
@@ -375,14 +375,14 @@ def test_the_entrance_plays_once_with_the_hoop_the_leap_and_the_landing_roar(mod
     from the first frame, Leo's leap from ENT_FLY; ENT_LAND: his body at x 16 (ROAR pose), the hoop gone, the wave sweeps
     (a picture only: a full mug is not blown); ENT_END: WALK pose, the clock to the roar starts. After a lost life there is
     no entrance. Golden boss_leo_leap (mid-air at the hoop)."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         still_regulars(gb)
         while ent_t(gb) is None or ent_t(gb) < ENT_LAND:
             frames(gb, 1)
             t = ent_t(gb)
             if t is None:
                 continue
-            assert gb.mem("boss_state") == BS_JUMP and gb.mem("intro_timer") >= 89
+            assert gb.mem("boss_state") == BS_ENTER and gb.mem("intro_timer") >= 89
             assert gb.oam()[28]["y"] == 0, "no topper in the air"
             assert gb.mem("bar") == 0 and gb.mem("bartender_x") == TAP_X
             if t >= 1:
@@ -391,7 +391,7 @@ def test_the_entrance_plays_once_with_the_hoop_the_leap_and_the_landing_roar(mod
                 check_golden(gb, "boss_leo_leap")
         frames(gb, 2)
         throw(gb, B, 120)
-        assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == R["x"] and gb.mem("boss_xpose") == BP_ROAR
+        assert gb.mem("boss_state") == BS_ENTER and gb.mem("boss_x") == R["x"] and gb.mem("boss_xpose") == BP_ROAR
         assert_body(gb, C, A, R["x"], BP_ROAR)
         assert gb.mem("intro_timer") >= 80
         until(gb, lambda: ent_t(gb) is None, ROAR + 10)
@@ -411,7 +411,7 @@ def test_the_entrance_plays_once_with_the_hoop_the_leap_and_the_landing_roar(mod
 def test_the_entrance_flies_in_an_arc_through_the_hoop(model):
     """The leap's sprites: off the left edge at the take-off, rising to about 30 px above his bar's top at the middle of
     the flight and level with it at the landing."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         still_regulars(gb)
         ys = {}
         while ent_t(gb) is None or ent_t(gb) <= ENT_LAND - 2:

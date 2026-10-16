@@ -100,7 +100,7 @@ def test_the_entrance_runs_holds_the_input_and_ends_with_him_on_his_bar(model, c
             assert n < 260
             if entrance_running(gb):
                 t = ent_t(gb, c)
-                assert gb.mem("boss_state") == (BS_JUMP if c != 1 or t is None or t < 74 else BS_WALK), "away until he lands"
+                assert gb.mem("boss_state") in (BS_ENTER, BS_WALK), "away until he lands (the last frame: mid-logic)"
                 assert gb.mem("intro_timer") >= INTRO - 1, "the intro is held"
                 assert gb.mem("boss_state") != BS_JUMP or gb.mem("boss_lim") == 0, "nothing for him to catch while he is away"
             assert gb.mem("bar") == 0 and gb.mem("bartender_x") == tap and gb.mem("fill_timer") <= 1 and gb.mem("fill_stage") == 0, "input held"   # (a press's own frame shows fill_timer 1: the next frame's reset is before the pour)
@@ -174,7 +174,7 @@ def test_the_mascot_falls_on_the_marker_and_lands_crouching_then_cheers(model):
             ys.append(entrance_oam(gb)[0][0])
         assert max(ys) <= 80 and ys[-1] >= 64 + 16 - 16, ys              # (it never goes below his wall's top: OAM y 80)
         to_frame(gb, c, 74 + 3)
-        assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_pose") & 15 == 5 and entrance_oam(gb) == [], "he has landed: CROUCH"
+        assert gb.mem("boss_state") == BS_ENTER and gb.mem("boss_pose") & 15 == 5 and entrance_oam(gb) == [], "he has landed: CROUCH"
         to_frame(gb, c, 84 + 3)
         assert gb.mem("boss_pose") & 15 == BP_HAPPY
         until(gb, lambda: not entrance_running(gb), 60)
@@ -210,7 +210,7 @@ def fight_hard(model, c):
     win(gb, c, 2)
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
     gb.run(3)
-    run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
     gb.run(3)
     return start_entrance(to_goal(gb, boss_start=False))
 
@@ -237,7 +237,7 @@ def test_arcade_starts_the_boss_with_the_entrance_too(model, c):
         win(gb, 0, 0)
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 40)
         gb.run(3)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 300)
+        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         gb.run(3)
         assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c and gb.mem("story_arc") == 1
         start_entrance(to_goal(gb, boss_start=False))

@@ -214,7 +214,7 @@ def test_win_the_fight_by_pouring(model):
 def test_push_back_and_the_tap(model):
     """A coffee pushes him back 8 px (one hop: WINCE); unhit he stomps 8 px every 90 frames; his right edge at the tap
     costs a life and he starts over at x 16 with his meter kept."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         still_regulars(gb)
         ready(gb)
         xs = []

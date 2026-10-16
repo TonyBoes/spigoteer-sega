@@ -107,6 +107,7 @@ def until(gb, cond, limit=600):
     raise AssertionError(f"not reached in {limit} frames (state {state(gb)}, boss_state {gb.mem('boss_state')})")
 
 
+_own = {}
 ENTRANCES = {0: ("big_tex", "ent", 1), 1: ("mascot", "ent", 1), 5: ("prototype", "t", 1000)}   # venue: (boss file, clock field, running from)
 
 
@@ -119,8 +120,13 @@ def start_entrance(gb):
 
 
 def entrance_running(gb):
-    """The fight's entrance (his own, BEV_ENTER / BEV_INTRO, or the engine's walk-in) is on: boss_state BS_ENTER / BS_WALKIN."""
-    return gb.mem("boss_state") in (BS_ENTER, BS_WALKIN)
+    """The fight's entrance is on: the clock of the ones with a table row (Big Tex, the Mascot, the Prototype: BEV_INTRO + BEV_DRAW),
+    else boss_state BS_ENTER / BS_WALKIN."""
+    spec = ENTRANCES.get(gb.mem("boss_id"))
+    if not spec:
+        return gb.mem("boss_state") in (BS_ENTER, BS_WALKIN)
+    own = _own.setdefault(spec[0], Own(spec[0]))
+    return own.get(gb, spec[1]) >= spec[2]
 
 
 def skip_entrance(gb):

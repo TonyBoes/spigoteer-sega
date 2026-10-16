@@ -68,7 +68,7 @@ typedef char bs_enter_is_7_for_main_c[(BS_ENTER == 7) ? 1 : -1];   // (main.c ho
 #define WARM_WAIT      180        // after the warm-up: up to 3 s more for his bar to empty and the mugs to land
 #define WALK_STEP        6        // the fallback entrance: frames per 8 px he walks in from the left edge
 
-enum { HOOK_NONE, HOOK_TELL, HOOK_METER_1, HOOK_DEFEAT, HOOK_FIGHT, HOOK_ENTER };   // boss_hook (tests; any but HOOK_ENTER in the
+enum { HOOK_NONE, HOOK_TELL, HOOK_METER_1, HOOK_DEFEAT, HOOK_FIGHT, HOOK_ENTER, HOOK_WALKIN };   // boss_hook (tests; any but HOOK_ENTER in the
                                                                                     // warm-up / entrance = the fight starts now, no entrance)
 
 typedef struct {
@@ -356,13 +356,15 @@ static void fight_start(uint8_t shown) {
 }
 
 static void entrance_start(void) {
+    uint8_t k;
     clear_mugs(); fill_timer = 0; fill_stage = 0; cue_t = 0; catch_pose = 0;
     take_bar();
     boss_state = BS_ENTER; boss_xpose = BP_HIDE; boss_hold = 0; boss_t = 0;
     boss_to_bar(boss_bar, br->start_x);          // (his bar's regulars are gone: it recomposes without him; his own entrance shows him there)
     intro_timer = INTRO_FRAMES;                  // the bar holds still: his entrance owns the screen
     SFX(SFX_WHOOSH);
-    if (!boss_call(BEV_ENTER, 0)) {              // (no entrance of his own: he walks in from the left edge)
+    k = boss_hook == HOOK_WALKIN; boss_hook = HOOK_NONE;   // (the test hook: the engine's own walk-in, whoever he is)
+    if (k || !boss_call(BEV_ENTER, 0)) {         // (no entrance of his own: he walks in from the left edge)
         boss_state = BS_WALKIN; boss_special_t = 0;
         boss_x = 0; boss_col = 0;
     }
@@ -412,9 +414,9 @@ static void boss_pre(void) {
 
 static void boss_take_hook(void) {
     if (boss_state >= BS_WARM) {                 // (E9 test pokes: HOOK_ENTER ends the warm-up, any other hook starts the fight now)
-        if (boss_hook == HOOK_ENTER) {
+        if (boss_hook == HOOK_ENTER || boss_hook == HOOK_WALKIN) {
             if (boss_state == BS_WARM) { boss_special_t = 1; boss_t = WARM_WAIT; }
-            boss_hook = HOOK_NONE;
+            if (boss_hook == HOOK_ENTER) boss_hook = HOOK_NONE;   // (WALKIN stays until entrance_start has taken it)
             return;
         }
         fight_start(0);

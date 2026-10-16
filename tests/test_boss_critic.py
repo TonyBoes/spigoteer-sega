@@ -290,7 +290,7 @@ def test_a_sloppy_drink_when_free_says_bad(model):
 def test_the_perfect_window_shows_a_sparkle_and_dings(model):
     """Wine's perfect moment is unmistakable: the glass in his hand turns to the SPARKLE frame (OBJ 234, the bistro's
     redrawn one: a glowing bowl and glints) for exactly the window's 12 frames and SFX_COIN rings once when it opens."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         quiet(gb)
         gb.write("intro_timer", 255)
         coin0 = gb.read("sfx_count", 14)[SFX_COIN]
@@ -323,8 +323,8 @@ def test_the_entrance_a_cloche_slides_in_and_the_lid_flies_off(model):
     """First start: he is not on his bar (BS_JUMP, no body) while a silver cloche slides along his counter (4 entries, the end
     pieces mirrored), the bell dings (SFX_COIN) at E_BELL, at E_LIFT the lid flies off and he stands there in the WALK pose; the
     intro's 90 frames run from there; every frame is <= 10 sprites a line. A lost life does not replay it."""
-    with fight(model, C) as gb:
-        assert CRIT.get(gb, "ent") >= 1 and gb.mem("boss_state") == 4 and gb.mem("boss_xpose") == 14
+    with fight(model, C, entrance=True) as gb:
+        assert CRIT.get(gb, "ent") >= 1 and gb.mem("boss_state") == 7 and gb.mem("boss_xpose") == 14
         coin0 = gb.read("sfx_count", 14)[SFX_COIN]
         xs = []
         for _ in range(E_LIFT - 2):
@@ -338,8 +338,8 @@ def test_the_entrance_a_cloche_slides_in_and_the_lid_flies_off(model):
                 assert gb.read("sfx_count", 14)[SFX_COIN] == coin0
         assert xs == sorted(xs) and xs[-1] > xs[0], "it slides right"
         assert gb.read("sfx_count", 14)[SFX_COIN] == coin0 + 1, "the bell"
-        assert gb.mem("boss_state") == 4
-        until(gb, lambda: gb.mem("boss_state") == 0, 10)
+        assert gb.mem("boss_state") == 7
+        until(gb, lambda: gb.mem("boss_state") == 0, 80)
         frames(gb, 2)
         assert_body(gb, C, A, 16, BP_WALK)
         until(gb, lambda: CRIT.get(gb, "ent") == 0, 60)

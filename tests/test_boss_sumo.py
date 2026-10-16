@@ -7,7 +7,7 @@
 import re
 
 import pytest
-from boss_common import (BLANK, BP_GULP, BP_HAPPY, BP_STOMP, BP_WALK, BP_WINCE, BS_JUMP, BS_OUTRO, BS_SPECIAL, BS_TELL,
+from boss_common import (BLANK, BP_GULP, BP_HAPPY, BP_STOMP, BP_WALK, BP_WINCE, BS_ENTER, BS_JUMP, start_entrance, BS_OUTRO, BS_SPECIAL, BS_TELL,
                          BS_WALK, Clock, EMPTY, FULL, HUD_BG, OAM_TOPPER, OBJ_TOPPER, Own, SP_FAIL, SP_OUTRO, SPOUT_X,
                          TAP_X, art, arrivals_ok, assert_body, block_empties, body, fight, frames, hud, mugs, pour, row,
                          still_regulars, throw, to_bar, until)
@@ -128,9 +128,9 @@ def test_the_fight_follows_the_last_call(model):
     timer off (boss_step 0, his period 192). Golden boss_sumo: walking, a cup on its way."""
     with fight(model, C, banner=True) as gb:
         assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
-        to_goal(gb)
+        start_entrance(to_goal(gb, boss_start=False))
         gb.run(2)
-        assert SUMO.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_JUMP, "the entrance first"
+        assert SUMO.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER, "the entrance first"
         quiet(gb)
         assert (gb.mem("boss_step"), SUMO.get(gb, "period"), phase(gb)) == (0, R["step"], SU_WALK)
         assert (gb.mem("boss_cap"), gb.mem("boss_hp"), SUMO.get(gb, "cyc"), gb.mem("boss_x")) == (CAP_ANY, 6, 6, START_X)
@@ -318,7 +318,7 @@ def test_no_drink_limit(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_his_empties_still_come_back(model):
     """He sends the empties back up his bar after the sip (90 frames): one per sip while the fair-empties schedule allows."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         still_regulars(gb)
         until(gb, lambda: SUMO.get(gb, "ent") == 0 and gb.mem("intro_timer") == 0 and state(gb) == PLAYING, 400)
         setx(gb, 56)
@@ -468,7 +468,7 @@ def test_the_tap_and_the_last_life(model):
 def test_a_lost_life_keeps_the_meter_and_the_target(model):
     """The tap costs a life: he starts over at x 24, nothing in his hands; the meter and its target are kept (a half-filled
     meter of 5: 2 cups in); no entrance again."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         quiet(gb)
         fill_meter(gb, 64)
         settled(gb)
@@ -495,8 +495,10 @@ def ent_t(gb):
 def to_frame(gb, t):
     """Frame by frame (each checked at <= 10 sprites a line) to the moment the ritual has just drawn its frame t."""
     while ent_t(gb) != t:
-        assert ent_t(gb) is None or ent_t(gb) < t, (ent_t(gb), t)
+        assert ent_t(gb) is None or ent_t(gb) <= t, (ent_t(gb), t)   # (a long frame's logic may run past the sample: t may have been passed by one)
         frames(gb, 1)
+        if ent_t(gb) == t + 1:
+            break
 
 
 def salt_oam(gb):
@@ -509,19 +511,19 @@ def test_the_entrance_walks_in_and_stamps(model):
     at the wall (x 0) and takes three heavy steps to x 24 (the thud each); the leg goes up (SHIKO), the stamps (STOMP) with
     the drum, the shake of the picture on the stamps' frames (SCY), the bow; then the intro's tail and the fight at x 24 with
     the engine's settings back (boss_cap, SCY 0)."""
-    with fight(model, C) as gb:
-        assert SUMO.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_JUMP and gb.mem("boss_xpose") == BP_HIDE
+    with fight(model, C, entrance=True) as gb:
+        assert SUMO.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER and gb.mem("boss_xpose") == BP_HIDE
         assert gb.oam()[OAM_TOPPER]["y"] == 0
         for t in (3, SE_IN - 1):
             to_frame(gb, t)
-            assert gb.mem("boss_state") == BS_JUMP and gb.mem("intro_timer") >= 89 and gb.mem("boss_x") == 0
+            assert gb.mem("boss_state") == BS_ENTER and gb.mem("intro_timer") >= 89 and gb.mem("boss_x") == 0
             assert gb.mem("boss_cap") == 0 and gb.mem("boss_lim") == 0 and gb.mem("boss_hits") == 0
             assert gb.oam()[OAM_TOPPER]["y"] == 0 and gb.mem(SCY) == 0
             if t == 3:
                 shakes, dons = sfx(gb, SFX_SHAKE), sfx(gb, SFX_DON)
                 assert dons >= 1, "the drum at the start"
         to_frame(gb, SE_IN + 2)
-        assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == 0
+        assert gb.mem("boss_state") == BS_ENTER and gb.mem("boss_x") == 0
         assert_body(gb, C, A, 0, BP_WALK)
         for k in (1, 2, 3):
             to_frame(gb, SE_IN + k * SE_STEP + 2)
@@ -569,7 +571,7 @@ def test_the_salt_flies_and_the_dust_rises(model):
     """OAM 26 / 27 (the perfect cue's and the coin's entries) carry the salt (OBJ_DUST's scatter tile, two grains arcing
     right of him) from frame SE_SALT, and the dust puffs (both feet, opening frames 0, 1, 2) at each stamp; nothing at
     other times. Goldens boss_sumo_salt (mid-toss) and boss_sumo_stamp (stamp 2's dust and shake)."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         to_frame(gb, SE_SALT - 1)
         assert salt_oam(gb) == []
         to_frame(gb, SE_SALT + 10)
@@ -597,7 +599,7 @@ def test_the_salt_flies_and_the_dust_rises(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_every_entrance_frame_keeps_to_ten_sprites_a_line(model):
     """Every game frame of the ritual and the intro after it (frames() checks each at <= 10 a line)."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         for _ in range(START_FRAMES + 40):
             frames(gb, 1)
         assert SUMO.get(gb, "ent") == 0
@@ -606,7 +608,7 @@ def test_every_entrance_frame_keeps_to_ten_sprites_a_line(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_player_cannot_pour_or_move_during_the_entrance(model):
     """Held at bar 0's tap as in Duke's: A and Down do nothing until the ritual is over."""
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         to_frame(gb, 30)
         gb.hold("a")
         gb.press("down", 2)
@@ -618,7 +620,7 @@ def test_the_player_cannot_pour_or_move_during_the_entrance(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_retry_after_a_lost_life_has_no_entrance(model):
-    with fight(model, C) as gb:
+    with fight(model, C, entrance=True) as gb:
         quiet(gb)
         gb.write("boss_x", SPOUT_X - R["width"])
         until(gb, lambda: state(gb) == LIFE_LOST, 4)
@@ -639,8 +641,9 @@ def test_boss_rush_starts_with_the_entrance_too(model):
         for _ in range(BUILT.index(C)):
             tap(gb, "down")
         tap(gb, "a")
-        into_fight(gb)
-        assert gb.mem("boss_id") == C and SUMO.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_JUMP
+        into_fight(gb, entered=False)
+        frames(gb, 4)
+        assert gb.mem("boss_id") == C and SUMO.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER
         until(gb, lambda: SUMO.get(gb, "ent") == 0, START_FRAMES + 10)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == START_X
