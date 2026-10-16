@@ -94,10 +94,10 @@ static void mark_tune(uint8_t t) {             // the list line of tune t, if it
 }
 
 // The scroll arrows (the Practice list's, src/mg_list.c): up under the header when tunes are above the window, down on the blank row 11 (the list's
-// sit a row lower: 8 px up) when tunes are below it.
+// sit two rows lower (its panel is on row 14, the soundtrack's on 12): 16 px up, the same 2 px clear of the divider; it overlapped it by a couple of pixels at 8 px up) when tunes are below it.
 static void arrows(void) {
     list_arrows_show(jb_top != 0, jb_top + JB_VISIBLE < TUNE_COUNT, jb_t);
-    if (shadow_OAM[2].y) shadow_OAM[2].y -= 8;
+    if (shadow_OAM[2].y) shadow_OAM[2].y -= 16;
 }
 
 static void cursor(void) {

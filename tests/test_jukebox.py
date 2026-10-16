@@ -429,12 +429,12 @@ def test_scroll_arrows_show_only_where_tunes_are_hidden(boot):
     to_jukebox(boot)
     settle_rows(boot)
     o = boot.read(0xFE00, 12)
-    assert o[4] == 0 and 104 <= o[8] <= 105 and o[5] == o[9] == 160, "the top: the down arrow"
+    assert o[4] == 0 and 96 <= o[8] <= 97 and o[5] == o[9] == 160, "the top: the down arrow"
     for _ in range(6):
         tap(boot, "down")
     boot.run(4)
     o = boot.read(0xFE00, 12)
-    assert 23 <= o[4] <= 24 and 104 <= o[8] <= 105, "the middle: both"
+    assert 23 <= o[4] <= 24 and 96 <= o[8] <= 97, "the middle: both"
     for _ in range(TUNE_COUNT):
         tap(boot, "down")
         if boot.mem("jb_sel") == TUNE_COUNT - 1:
@@ -442,3 +442,19 @@ def test_scroll_arrows_show_only_where_tunes_are_hidden(boot):
     boot.run(4)
     o = boot.read(0xFE00, 12)
     assert boot.mem("jb_sel") == TUNE_COUNT - 1 and 23 <= o[4] <= 24 and o[8] == 0, "the end: the up arrow"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_down_arrow_stays_clear_of_the_bottom_divider(model):
+    """The divider (panel row 12, lines 96-103) is the same at the arrow's columns (152-159) as just left of them, on both bob frames."""
+    with booted(model) as rom:
+        to_jukebox(rom)
+        settle_rows(rom)
+        seen = set()
+        for _ in range(40):
+            rom.run(1, True)
+            im = rom.image()
+            seen.add(rom.read(0xFE00, 12)[8])
+            for y in range(96, 104):
+                assert [im.getpixel((x, y)) for x in range(152, 160)] == [im.getpixel((x, y)) for x in range(144, 152)], (y, rom.read(0xFE00, 12)[8])
+        assert len(seen) == 2, "both bob positions were checked"
