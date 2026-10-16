@@ -382,7 +382,9 @@ def main():
          f"#define BOSS_ICE_MAX {BOSS_ICE_MAX}",
          f"#define BOSS_FX_MAX {BOSS_FX_MAX}",
          f"#define BOSS_HATS_MAX {BOSS_HATS_MAX}",
-         carr("boss_meter_tiles", meter_bytes) + "   // EMPTY, HALF, FULL"]
+         "#ifdef BOSS_WANT_METER   // (only src/boss.c and src/boss_sumo.c use it: a copy in every module that includes boss.h was 528 B)",
+         carr("boss_meter_tiles", meter_bytes) + "   // EMPTY, HALF, FULL",
+         "#endif"]
     (outdir / "boss_art.h").write_text("\n".join(h) + "\n")
     for a in arts:
         (outdir / f"boss_{a['name']}_art.h").write_text(header(a))

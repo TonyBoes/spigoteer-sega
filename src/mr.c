@@ -271,10 +271,6 @@ static void stream(void) {                       // play: the next column, when 
 }
 
 // ---- screen --------------------------------------------------------------------------------------------------------
-static void put(uint8_t bank, uint8_t *t, uint8_t col, uint8_t row, uint8_t n) {
-    vq_add(bank, t, col, row, n);
-}
-
 static void hud_crates(void) {                   // HUD columns 10-13: blank, the crate icon, the count
     S.cbuf[0] = TILE_HUD_BLANK; S.cbuf[1] = MR_BG + MRB_HUDC;
     S.cbuf[2] = TILE_GLYPH_0 + S.crates / 10; S.cbuf[3] = TILE_GLYPH_0 + S.crates % 10;

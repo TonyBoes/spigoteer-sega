@@ -45,6 +45,7 @@
 #include "music.h"
 #include "palettes.h"
 #include "story.h"
+#define BOSS_WANT_METER      // (boss_art.h: this module draws the meter)
 #include "boss.h"            // the engine's inside, shared with the boss files (src/boss_<name>.c)
 #include "boss_tag_art.h"    // the status tag's tiles (E1)
 

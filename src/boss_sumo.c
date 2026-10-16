@@ -35,6 +35,7 @@
 // Test hooks (WRAM: his state is the struct sumo_t in BOSS_OWN, not variables of his own): sumo.phase, sumo.cyc,
 // sumo.cycles, sumo.knock, sumo.out, sumo.ent.
 #pragma bank 255
+#define BOSS_WANT_METER      // (boss_art.h: the meter tiles, recoloured here)
 #include "boss.h"
 #include "boss_sumo_art.h"
 #include "boss_load.h"

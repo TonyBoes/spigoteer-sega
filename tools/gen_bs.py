@@ -131,8 +131,6 @@ def main():
         "#define BSO_BROKEN 0", "#define BSO_SPARK 2", "#define BSO_CROSS 6",
         "// the bin's 4x5 cells (row-major) as offsets from BSB_BIN; 255: the sign's 2x2 at columns 1-2, rows 1-2",
         carr("bs_bin_map", bin_map),
-        "// the chute's top row with the lid closed (offsets from BSB_BIN; open: the bin's own top row)",
-        carr("bs_lid_map", lid_map),
         carr("bs_bg_tiles", bg), carr("bs_obj_tiles", obj), ""]))
     (outdir / "bs.json").write_text(json.dumps({"bg": bg, "obj": obj, "bin_map": bin_map, "lid_map": lid_map,
                                                 "n_bin": n_bin, "n_lid": n_lid}))

@@ -203,8 +203,6 @@ __asm
 __endasm;
 }
 
-static void scan_lifted(void) { scan_src = patron_lift; scan_len = MAX_PATRONS; scan_nz(); }
-
 // The mugs' part is counted again only when the mugs changed: one more or fewer (mugs_live; a test's poke too), a new
 // one or a breaking glass (mug_events, which also catches one gone and one new in the same frame).
 static uint8_t mg_ld[NUM_BARS], mg_oam, mg_ev;
