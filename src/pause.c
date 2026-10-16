@@ -263,8 +263,8 @@ static void quit(void) {
     }
     boss_set(BOSS_NONE);
     story_phase = 0;                             // (SP_OFF)
-    if (story_on && !story_arc) {                // STORY: the title; CONTINUE starts from the last save
-        story_on = 0;
+    if (story_on && !(story_arc & 1)) {              // STORY: the title; CONTINUE starts from the last save
+        story_on = 0; story_arc = 0; hud_pal_reset();   // (the run's difficulty and the HUD colour it tinted end here)
         title_enter();
         return;
     }

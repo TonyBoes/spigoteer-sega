@@ -257,7 +257,7 @@ void debug_open(void) BANKED {
             debug_pos = story_reached ? pos_next(debug_chapter, 0, 1) : 0;
         }
     } else if (story_on) {                           // in story (ARCADE) play: where the story (the run) is
-        debug_story = story_arc ? 2 : 1;
+        debug_story = (story_arc & 1) ? 2 : 1;
         debug_chapter = story_chapter;
         debug_pos = story_step + 1;
         if (!pos_ok(debug_chapter, debug_pos)) debug_pos = pos_next(debug_chapter, debug_pos, 1);

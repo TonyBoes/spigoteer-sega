@@ -28,16 +28,27 @@ extern uint8_t  frame_counter, joy, joy_prev, rng_state, score_digits[6], arcade
 // ---- palettes ----------------------------------------------------------------
 #define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
 
-static void load_cgb_palettes(void) {
+// BG 1: HUD, light text on a dark band (art: '.' text, '#' band). c2 (0: none) replaces colour 2, the HUD flag's cloth in a STORY EASY / HARD run (draw_hud)
+// (tools/gen_story.py reads the four literal colours below)
+static void hud_palette(uint16_t c2) {
     palette_t p;
-
-    // BG 0, 5, 6, 7 (bar, stage, keg) and the drink / show OBJ palettes come with the venue (load_venue)
-    // BG 1: HUD, light text on a dark band (art: '.' text, '#' band)
     p[0] = RGB15(31, 29, 22);
     p[1] = RGB15(24, 20, 10);
     p[2] = RGB15(29, 20, 4);
     p[3] = RGB15(3, 2, 8);
+    if (c2) p[2] = c2;
     set_bkg_palette(BGPAL_HUD, 1, p);
+}
+
+void hud_pal_reset(void) BANKED {                  // a STORY run ends (credits, quit): the HUD palette as it was made (an EASY / HARD run tinted its colour 2)
+    if (is_cgb) hud_palette(0);
+}
+
+static void load_cgb_palettes(void) {
+    palette_t p;
+
+    // BG 0, 5, 6, 7 (bar, stage, keg) and the drink / show OBJ palettes come with the venue (load_venue)
+    hud_palette(0);
 
     pal_get(PAL_BARTENDER, p);
     set_sprite_palette(OBJPAL_BARTENDER, 1, p);
@@ -64,6 +75,7 @@ static void draw_score(void) {
 
 void draw_hud(void) BANKED {
     uint8_t buf[3], i;
+    volatile uint8_t *t;
 
     prep_hud();
     for (i = 0; i < 20; i++) row_buf[i] = TILE_HUD_BLANK;
@@ -73,6 +85,12 @@ void draw_hud(void) BANKED {
     buf[0] = TILE_HUD_FLAG;                          // the level: a flag col 17, two digits cols 18-19
     buf[1] = digit_tile(level / 10); buf[2] = digit_tile(level % 10);
     glyph_row(HUD_ROW, 17, buf, 3);
+    if (is_cgb && RUN_DIFF) {                       // the difficulty's colour (STORY only; DMG shows none; NORMAL: as always, nothing here): the flag's cloth, the
+        i = RUN_DIFF;                               // tile's pixels of colour 0, becomes colour 2 of the HUD palette, which is green (EASY) or red (HARD) for this
+        hud_palette(i == DIFF_EASY ? RGB15(6, 24, 8) : RGB15(30, 5, 5));   // run (hud_pal_reset puts it back when the run ends)
+        t = (volatile uint8_t *)(0x9000 + TILE_HUD_FLAG * 16);   // (LCD off: the tile's bytes in VRAM, signed id 76 < 128 at 0x9000)
+        for (i = 0; i < 16; i += 2) t[i + 1] |= ~(t[i] | t[i + 1]);
+    }
 }
 
 // tile k of the HUD icons (assets/art/hud_icons.txt) to BG id `id`, LCD off

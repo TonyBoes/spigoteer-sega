@@ -10,7 +10,7 @@
 import re
 
 import pytest
-from conftest import ROM, K_ARCADE, K_CLASSIC, K_PLAY, K_STORY, TR_OFF, TRANS_ADDR, check_golden, hold_stage_anim, title_pick, trans_enable
+from conftest import ROM, K_ARCADE, K_CLASSIC, K_PLAY, K_STORY, TR_OFF, TRANS_ADDR, check_golden, hold_stage_anim, menu_tap, title_pick, trans_enable
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, lose_a_life, run_until, state
 from test_music_transitions import FRAME, LATE, tick_log
 from test_sound import make_rom
@@ -140,6 +140,7 @@ def test_the_flag_is_off_in_every_other_test(title):
 
 def test_title_to_story_runs_the_drink_and_opens_the_intro(title):
     title_pick(title, K_PLAY, K_STORY, press=False)
+    menu_tap(title, "a")                                                  # (HOW HARD: the cursor on NORMAL; the next A starts the story)
     title.run(2)
     t = Trace(title)
     title.press("a", 2)
@@ -336,6 +337,7 @@ def goto_drink_frame(gb, name):
     """Title -> STORY, on to a frame by what the screen is doing: `rise` the foam line at WY <= 72 over the title, `full` the first frame the
     LCD is on again (the new scene behind a full screen), `drain` the foam line falling past WY 72 over the intro."""
     title_pick(gb, K_PLAY, K_STORY, press=False)
+    menu_tap(gb, "a")                                                     # (HOW HARD: the cursor on NORMAL; the next A starts the story)
     gb.run(2)
     t = Trace(gb)
     gb.press("a", 2)

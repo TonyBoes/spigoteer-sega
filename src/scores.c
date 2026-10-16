@@ -23,6 +23,7 @@ extern uint32_t score;
 #define ROW_ENTER       8       // "ENTER INITIALS"
 #define ROW_INITIALS   11       // the three letters at columns INI_COL, +2, +4
 #define ROW_CURSOR     12       // the cursor bar under the current letter
+#define ROW_MULT       14       // a STORY score made in HARD or EASY: "HARD X1.5" (clear of the rows above, which touch their neighbours)
 #define INI_COL         8
 #define TABLE_COL       4       // "1 ABC 012345": 12 characters at columns 4..15
 #define SCORES_FRAMES 300       // the table stays 5 s
@@ -43,6 +44,7 @@ static const uint8_t alpha[26] = {
 static uint8_t tile_of(uint8_t c) {
     if (c >= 'A' && c <= 'Z') return alpha[c - 'A'];
     if (c >= '0' && c <= '9') return TILE_GLYPH_0 + (c - '0');
+    if (c == '.') return HUD_GOAL_BG;                // (loaded by the initials screen only)
     return TILE_HUD_BLANK;
 }
 
@@ -93,18 +95,24 @@ static void screen_begin(void) {
 // ---- the table --------------------------------------------------------------------------------
 static const char *const tbl_head[TOP_TABLES] = { "ARCADE HIGH SCORES", "STORY HIGH SCORES", "CLASSIC HIGH SCORES" };
 
+// the mark of the entry whose initials are n[0..2]: bit 7 of the first (save.c) HARD, of the second EASY
+static char mark_of(const uint8_t *n) {
+    return n[0] & 0x80 ? 'H' : n[1] & 0x80 ? 'E' : ' ';
+}
+
 // table score_tbl (MODE_*), its header naming the mode
 void scores_table(void) BANKED {
     uint8_t i, k, *nm = top_names + score_tbl * (TOP_N * 3);
     uint32_t *sc = top_scores + score_tbl * TOP_N;
-    char s[13];
+    char s[15];
     screen_begin();
     text_at(ROW_HEAD, 255, tbl_head[score_tbl]);
-    s[1] = ' '; s[5] = ' '; s[12] = 0;
+    s[1] = ' '; s[5] = ' '; s[12] = ' '; s[14] = 0;
     for (i = 0; i < TOP_N; i++) {
         s[0] = '1' + i;
-        for (k = 0; k < 3; k++) s[2 + k] = nm[i * 3 + k];
+        for (k = 0; k < 3; k++) s[2 + k] = nm[i * 3 + k] & 0x7F;
         six_digits(s + 6, sc[i]);
+        s[13] = mark_of(nm + i * 3);               // (STORY's table: H after a HARD score, E after an EASY one; every other entry unmarked)
         text_at(ROW_FIRST + 2 * i, TABLE_COL, s);
         music_pump();
     }
@@ -123,12 +131,23 @@ static void ini_draw(void) {        // the letters and the cursor into their buf
 }
 
 static void initials_enter(void) {
-    char d[7];
+    char d[10];
+    uint8_t *n = top_names + score_tbl * (TOP_N * 3) + new_rank * 3, pct, i;
+    const char *w;
     screen_begin();
-    hud_icon_load(HUD_CURSOR_BG, HUD_ICON_CURSOR);   // (the cursor is no generic tile: see assets/tiles/bar.txt hud_flag)
+    hud_icon_load(HUD_CURSOR_BG, HUD_ICON_CURSOR);
+    // (the cursor is no generic tile: see assets/tiles/bar.txt hud_flag)
+    hud_icon_load(HUD_GOAL_BG, HUD_ICON_DOT);        // (the full stop of the multiplier line)
     text_at(ROW_HEAD, 255, "NEW HIGH SCORE");
     six_digits(d, score); d[6] = 0;
     text_at(ROW_SCORE, 255, d);
+    if (mark_of(n) != ' ') {                         // a STORY score made in HARD or EASY: its multiplier, so the number makes sense ("HARD X1.5")
+        pct = mark_of(n) == 'H' ? STORY_MULT_HARD_PCT : STORY_MULT_EASY_PCT;
+        w = mark_of(n) == 'H' ? "HARD X" : "EASY X";
+        for (i = 0; i < 6; i++) d[i] = w[i];
+        d[6] = '0' + pct / 100; d[7] = '.'; d[8] = '0' + (pct % 100) / 10; d[9] = 0;
+        text_at(ROW_MULT, 255, d);
+    }
     text_at(ROW_ENTER, 255, "ENTER INITIALS");
     ini_name[0] = ini_name[1] = ini_name[2] = 'A';
     ini_pos = 0;
@@ -158,7 +177,7 @@ uint8_t scores_update(uint8_t pressed) BANKED {
     }
     if (pressed & (J_A | J_START)) {                    // save the initials, then the table
         c = top_names + score_tbl * (TOP_N * 3) + new_rank * 3;
-        c[0] = ini_name[0]; c[1] = ini_name[1]; c[2] = ini_name[2];
+        c[0] = ini_name[0] | (c[0] & 0x80); c[1] = ini_name[1] | (c[1] & 0x80); c[2] = ini_name[2];   // (the entry's mark stays)
         hi_save();
         scores_table();
         return 0;

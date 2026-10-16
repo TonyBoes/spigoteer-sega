@@ -137,10 +137,11 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
                                          tt_soundtrack, tt_classic, tt_minigames, tt_bossrush, tt_erase, tt_debug, tt_erase_q, tt_no, tt_yes,
-                                         tt_bar_snap, tt_bar_keep };
+                                         tt_bar_snap, tt_bar_keep, tt_how_hard, tt_easy, tt_normal, tt_hard };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
                                   TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH, TT_X_ERASE, TT_X_DEBUG, TT_X_ERASE_Q, TT_X_NO, TT_X_YES,
-                                  TT_X_BAR_SNAP, TT_X_BAR_KEEP };
+                                  TT_X_BAR_SNAP, TT_X_BAR_KEEP, TT_X_HOW_HARD, TT_X_EASY, TT_X_NORMAL, TT_X_HARD };
+#define IS_BAR(k) ((k) == K_BARCHANGE || (k) == K_BARKEEP)   // SETTINGS' BAR line (the items after K_BARKEEP are the difficulty prompt's)
 
 static void build_item(uint8_t i) {
     uint8_t k = title_items[i];
@@ -184,6 +185,12 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_ERASEQ;
         title_items[title_n++] = K_NO;
         title_items[title_n++] = K_YES;
+        break;
+    case TM_HARD:     // PLAY > STORY (a new one): "PICK ONE" (the HOW HARD label: a W would be a 129th title tile and the title's load would run a frame longer, tests/test_menu_music.py; the cursor skips it), EASY, NORMAL, HARD; the cursor starts on NORMAL
+        title_items[title_n++] = K_HOWHARD;
+        title_items[title_n++] = K_EASY;
+        title_items[title_n++] = K_NORMAL;
+        title_items[title_n++] = K_HARD;
         break;
     default:
         title_items[title_n++] = K_MUSIC;
@@ -497,7 +504,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
                 SFX(SFX_EXTRA);                      // (the code's B left any submenu: SETTINGS lists DEBUG MENU when it is opened next)
             }
         }
-        if ((pressed & (J_LEFT | J_RIGHT)) && title_items[title_sel] >= K_BARCHANGE) bar_mode_toggle();
+        if ((pressed & (J_LEFT | J_RIGHT)) && IS_BAR(title_items[title_sel])) bar_mode_toggle();
     }
     else if (++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables
         score_tbl = attract_tbl[attract_n];
@@ -507,13 +514,16 @@ uint8_t title_update(uint8_t pressed) BANKED {
     if (pressed & J_SELECT) title_music_toggle();
     if (pressed & J_UP) title_sel = title_sel ? title_sel - 1 : last;
     else if (pressed & J_DOWN) title_sel = title_sel == last ? 0 : title_sel + 1;
-    if (title_items[title_sel] == K_ERASEQ) title_sel = (pressed & J_UP) ? last : 1;   // (the prompt's label is no choice)
+    if (title_items[title_sel] == K_ERASEQ || title_items[title_sel] == K_HOWHARD) title_sel = (pressed & J_UP) ? last : 1;   // (a prompt's label is no choice)
     if (title_sel != old) { set_sel_attr(old, 0); set_sel_attr(title_sel, 1); }
     else if (pressed & (J_A | J_START)) {
         switch (title_items[title_sel]) {
         case K_ARCADE: arcade_begin(); return 0;
         case K_CLASSIC: play_mode = MODE_CLASSIC; start_new_game(1); return 0;   // CLASSIC's level 1 (classic.c)
-        case K_STORY: story_begin(0); return 0;
+        case K_STORY: menu_open(TM_HARD, 2); break;                            // (a new story asks "HOW HARD", the cursor on NORMAL; CONTINUE does not: the save holds it)
+        case K_EASY: story_begin(DIFF_EASY << 1); return 0;
+        case K_NORMAL: story_begin(DIFF_NORMAL << 1); return 0;
+        case K_HARD: story_begin(DIFF_HARD << 1); return 0;
         case K_CONTINUE: story_begin(1); return 0;
         case K_SOUNDTRACK: title_back = TM_BONUS; jukebox_enter(); return 0;   // (B there comes back to BONUS)
         case K_MINIGAMES: mg_list_enter(); return 0;                           // (its B: BONUS, on MINI GAMES)
@@ -525,10 +535,11 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_NO: menu_open(TM_SETTINGS, 2); break;
         case K_YES: save_erase(); title_hi = 0xFF; menu_open(TM_TOP, 2); break;   // a blank cartridge; the title again (the HI line follows on a quiet frame)
         case K_DEBUG: debug_open(); return 0;                                  // (full-screen over the title; B closes it)
-        default: if (title_items[title_sel] >= K_BARCHANGE) bar_mode_toggle(); else title_music_toggle();
+        default: if (IS_BAR(title_items[title_sel])) bar_mode_toggle(); else title_music_toggle();
         }
     } else if ((pressed & J_B) && title_menu != TM_TOP) {
         if (title_menu == TM_ERASE) menu_open(TM_SETTINGS, 2);
+        else if (title_menu == TM_HARD) menu_open(TM_PLAY, (story_progress || story_reached) && story_progress < STORY_CHAPTERS);   // (STORY's line: after CONTINUE when it is shown)
         else menu_open(TM_TOP, title_menu - 1);
     }
     if (title_sel == old) {                        // (a cursor move already queued its two attribute rows)

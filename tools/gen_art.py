@@ -622,11 +622,13 @@ MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "m
                 "erase": "ERASE DATA",      # SETTINGS' third line (K_ERASE): even lengths reuse the other lines' glyph tiles
                 "debug": "DEBUG MENU",      # SETTINGS' DEBUG line (K_DEBUG, unlocked only)
                 "erase_q": "ERASE ALL DATA",  # the confirm prompt's label line (K_ERASEQ)
-                "no": "NO", "yes": "YES "}
+                "no": "NO", "yes": "YES ",
+                "how_hard": "PICK ONE", "easy": "EASY", "normal": "NORMAL", "hard": "HARD"}   # PLAY > STORY (new): the difficulty prompt (K_HOWHARD label, K_EASY, K_NORMAL, K_HARD)
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 # ... and past it the perfect pour's OBJ ids 234-239 (loaded at a story shift's start, never shown on the title: its
 # sprites are the bartender, the mug, the drink frames and the effects, all below 128); the DMG copies start at 240
-TITLE_TILE_END = 240
+# 242 since the STORY difficulty prompt (2026-10-16): the title may use the two ids of the DMG mug copies 240-241 (lift.c swap_copy makes them at every level start; the title's sprites are all below 128)
+TITLE_TILE_END = 242
 
 
 def _px_tile_bytes(px):

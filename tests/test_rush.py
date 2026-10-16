@@ -347,6 +347,7 @@ def test_a_story_boss_win_unlocks_him_and_it_survives_a_reset(model):
         from conftest import K_STORY, menu_to, menu_tap
         menu_to(gb, K_STORY)
         menu_tap(gb, "a")
+        menu_tap(gb, "a")                                 # (HOW HARD: NORMAL)
         run_until(gb, lambda: state(gb) == GS_STORY, 60)
         gb.write("story_step", 0)
         while state(gb) != GS_GOAL:

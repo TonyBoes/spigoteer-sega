@@ -3,7 +3,8 @@
 // soundtrack's unlocked tunes; the 10th venue: version 6; the three modes: version 7, one top 5 per mode, each in its
 // own block, so a bad block empties only that table (owner 2026-10-11).
 // Layout at 0xA000 (version 7):
-//   0x00 the main block: 0..3 magic "TPR7"; 4 story progress (chapters cleared, 0..10); 5 the furthest step reached in
+//   0x00 the main block: 0..3 magic "TPR7"; 4 story progress (chapters cleared, 0..10; bits 6-7: the STORY's difficulty, 0 NORMAL, 1 HARD, 2 EASY,
+//   set when the story is first saved, kept by every other save; an older save has them clear: NORMAL); 5 the furthest step reached in
 //   the next chapter (0..STORY_STEPS-1: its steps before it were done at least once; a venue restart never lowers it;
 //   0 when the story is complete); 6..7 the unlocked tunes (16-bit little endian, bit t = TUNE_t of music.h; bit 0, the
 //   title tune, always set; bit 15, above TUNE_COUNT, is kept as it is); 8 checksum (0x5A + bytes 0..7), 9 its
@@ -45,6 +46,7 @@
 //   (2 bits a round as MGB1's byte 5, round k at k * 2; the top two bits must be 0), 4 the checksum (0x5A + bytes 0..3), 5 its complement. NORMAL
 //   medals stay in MGB1. A block that does not check out (an older save has none) reads as no EASY or HARD medals; MGB1 and the rest are unaffected.
 //   0x80 ARCADE, 0xC0 STORY, 0x100 CLASSIC: a top 5 each (TBL_AT(t), t = MODE_*): 0..3 magic "HSA1" / "HSS1" / "HSC2" (P5: CLASSIC's
+//   (STORY's table marks a score made in HARD with bit 7 of the first initial and in EASY with bit 7 of the second; the score is kept multiplied: game.h)
 //   "HSC1" held the stand-in's scores and now loads as an empty table),
 //   5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little endian, <= 999999), best first;
 //   34 checksum (0x5A + bytes 0..33), 35 its complement. A block that does not check out (magic, checksum, letters,
@@ -100,6 +102,7 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define HI_MAX 999999UL
 #define V7_STORY 4                  // the main block: progress, step, tunes (2), checksum, complement
 #define V7_STEP  5
+#define PROG_MASK 0x3F              // byte 4's bits 0-5 the progress; bits 6-7 the story's difficulty (DIFF_*; 3 reads as NORMAL)
 #define V7_TUNES 6
 #define SV_AT    0x0A               // the venue-start score block (see the top): magic, chapter, score x3, checksum, complement
 #define SV_LEN   6
@@ -166,7 +169,8 @@ static uint8_t magic(uint8_t version) {
     return SRAM[0] == 'T' && SRAM[1] == 'P' && SRAM[2] == 'R' && SRAM[3] == version;
 }
 
-static uint8_t valid_char(uint8_t c) {
+static uint8_t valid_char(uint8_t c) {         // (bit 7 of the first two initials is the STORY table's E / H mark, see the top)
+    c &= 0x7F;
     return c == ' ' || (c >= 'A' && c <= 'Z');
 }
 
@@ -295,7 +299,7 @@ void mg_record(uint8_t g, uint8_t medal) BANKED {
     uint16_t m = (uint16_t)1 << g;
     uint8_t sh = MG_DIFF * 2;                    // a medal per difficulty (bits 0-1 NORMAL, 2-3 HARD, 4-5 EASY of the game's byte)
     if (g >= MG_SHAKEUP) { bonus_record(g - MG_SHAKEUP, medal); return; }   // (the old bonus rounds: their own block; ids 12..14, else ignored there)
-    if (save_lock == SAVE_LOCK_DEBUG || g >= MG_PLANNED) return;
+    if (save_lock == SAVE_LOCK_DEBUG || g >= MG_PLANNED || EASY_RUN) return;   // (an EASY story: no reach, no medal)
     if (medal ? medal <= ((mg_best[g] >> sh) & 3) : (mg_unlocked & m) != 0) return;
     if (medal) mg_best[g] = (mg_best[g] & ~(3 << sh)) | (medal << sh); else mg_unlocked |= m;
     ENABLE_RAM;
@@ -440,7 +444,7 @@ void rush_store(const uint8_t *src) BANKED {
 void boss_beaten(uint8_t v) BANKED {
     uint8_t r[RUSH_SAVE_N];
     uint16_t m;
-    if (save_lock == SAVE_LOCK_DEBUG || v >= BOSS_COUNT) return;
+    if (save_lock == SAVE_LOCK_DEBUG || v >= BOSS_COUNT || EASY_RUN) return;   // (an EASY story: he is not listed in BOSS RUSH)
     rush_load(r);
     m = r[RSV_BITS] | ((uint16_t)r[RSV_BITS + 1] << 8);
     if ((m >> v) & 1) return;
@@ -464,9 +468,9 @@ void hi_load(void) BANKED {
     tune_unlocked = 0;
     story_progress = 0; story_reached = 0;
     if (magic('7')) {
-        if (sum_ok(SRAM, V7_LEN) && SRAM[V7_STORY] <= STORY_MAX && SRAM[V7_STEP] < STORY_STEPS
-            && !(SRAM[V7_STORY] == STORY_MAX && SRAM[V7_STEP])) {
-            story_progress = SRAM[V7_STORY]; story_reached = SRAM[V7_STEP];
+        if (sum_ok(SRAM, V7_LEN) && (SRAM[V7_STORY] & PROG_MASK) <= STORY_MAX && SRAM[V7_STEP] < STORY_STEPS
+            && !((SRAM[V7_STORY] & PROG_MASK) == STORY_MAX && SRAM[V7_STEP])) {
+            story_progress = SRAM[V7_STORY] & PROG_MASK; story_reached = SRAM[V7_STEP];
             tune_unlocked = SRAM[V7_TUNES] | ((uint16_t)SRAM[V7_TUNES + 1] << 8);
         }
         for (t = 0; t < TOP_TABLES; t++) load_tbl(t);   // each on its own (a bad main block keeps the tables)
@@ -536,15 +540,17 @@ void save_erase(void) BANKED {
     hi_load();
 }
 
-void hi_save(void) BANKED {
+// The save: the main block with the story's difficulty `d` (DIFF_*; 0xFF: the one the block holds now, NORMAL when there is none), the three tables
+static void save_all(uint8_t d) {
     uint8_t i, k, t, *nm;
     volatile uint8_t *b, *e;
     uint32_t v, *sc;
     save_migrated &= ~TUNE_DIRTY;                // (whatever tune_unlocked holds goes in below)
     ENABLE_RAM;
     SWITCH_RAM(0);
+    if (d == 0xFF) d = magic('7') && sum_ok(SRAM, V7_LEN) ? SRAM[V7_STORY] >> 6 : 0;   // (before the magic is rewritten)
     SRAM[0] = 'T'; SRAM[1] = 'P'; SRAM[2] = 'R'; SRAM[3] = '7';
-    SRAM[V7_STORY] = story_progress; SRAM[V7_STEP] = story_reached;
+    SRAM[V7_STORY] = story_progress | (d == 3 ? 0 : d << 6); SRAM[V7_STEP] = story_reached;
     SRAM[V7_TUNES] = (uint8_t)tune_unlocked; SRAM[V7_TUNES + 1] = (uint8_t)(tune_unlocked >> 8);
     sum_put(SRAM, V7_LEN);
     for (t = 0; t < TOP_TABLES; t++) {
@@ -562,13 +568,39 @@ void hi_save(void) BANKED {
     DISABLE_RAM;
 }
 
+void hi_save(void) BANKED {
+    save_all(0xFF);                              // (the difficulty stays as saved: only a story_save, the progress it belongs to, changes it)
+}
+
 // M11b: the story progress (chapters cleared; story shifts: and the step reached in the next one), saved with the rest,
 // and the unlocks it implies. Nothing in a debug-select run or ARCADE (save_lock): the real progress stays as it was.
 void story_save(uint8_t chapters, uint8_t step) BANKED {
     if (save_lock) return;
     story_progress = chapters; story_reached = step;
-    tune_unlocked |= progress_unlocks(chapters, step);
-    hi_save();
+    if (!EASY_RUN) tune_unlocked |= progress_unlocks(chapters, step);   // (EASY: the progress is kept for CONTINUE, nothing unlocks)
+    save_all(RUN_DIFF);                          // (a STORY run: its difficulty goes with the progress)
+}
+
+// CONTINUE's difficulty: what the saved story was started in (an older save, a bad block, a bad code: NORMAL)
+uint8_t story_diff_saved(void) BANKED {
+    uint8_t d = 0;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    if (magic('7') && sum_ok(SRAM, V7_LEN)) d = SRAM[V7_STORY] >> 6;
+    DISABLE_RAM;
+    return d == 3 ? 0 : d;
+}
+
+// The STORY score s times the difficulty's multiplier (game.h STORY_MULT_*_PCT), at most 999999
+uint32_t story_scaled(uint32_t s, uint8_t diff) BANKED {
+    uint8_t pct = diff == DIFF_EASY ? STORY_MULT_EASY_PCT : diff == DIFF_HARD ? STORY_MULT_HARD_PCT : 100;
+    uint32_t a, r = 0;
+    uint8_t m;
+    if (pct == 100) return s;
+    a = s / 100;                                 // whole hundreds times pct (shifts and adds: a 32-bit multiply is a 230-byte library routine in the full ROM0) ...
+    for (m = pct; m; m >>= 1, a <<= 1) if (m & 1) r += a;
+    r += (uint16_t)((uint8_t)(s % 100) * pct) / 100;   // ... and the last two digits (16-bit)
+    return r > HI_MAX ? HI_MAX : r;
 }
 
 // A venue (chapter ch) is entered with `s` on the score: kept for CONTINUE. Nothing in a debug-select run or ARCADE.
@@ -601,7 +633,7 @@ uint32_t venue_score_get(uint8_t ch) BANKED {
 // shift's start, the title, any story_save), not mid-frame: the save takes 113 lines. Elsewhere (scenes, menus) it is saved at once. A power-off before then loses the unlock only.
 void tune_heard(uint8_t t) BANKED {
     uint16_t m;
-    if (save_lock || t >= TUNE_COUNT) return;
+    if (save_lock || t >= TUNE_COUNT || EASY_RUN) return;   // (an EASY story unlocks nothing)
     m = (uint16_t)1 << t;
     if (tune_unlocked & m) return;
     tune_unlocked |= m;

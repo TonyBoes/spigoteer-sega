@@ -46,3 +46,14 @@
 ########
 ########
 ########
+
+; a full stop for the initials screen's score multiplier line ("HARD X1.5"; the HUD glyphs have none): scores.c loads it
+@dot
+########
+########
+########
+########
+########
+########
+##..####
+##..####

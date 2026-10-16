@@ -569,7 +569,7 @@ static void shift_start(void) {
         VBK_REG = VBK_BANK_0;
     }
     level = story_chapter + 1;                   // (lives: set by venue_start, carried from shift to shift)
-    if (story_arc) level += (arc_loop > 9 ? 8 : arc_loop - 1) * 10;   // ARCADE: the loop's row (start_level's loop maths)
+    if (story_arc & 1) level += (arc_loop > 9 ? 8 : arc_loop - 1) * 10;   // ARCADE: the loop's row (start_level's loop maths)
     if (story_goal.secs) mg_hourglass_load(SHIFT_HOURGLASS);   // a timed shift: its HUD's hourglass (LCD off)
     if (story_goal.type < G_CLEAR) hud_icon_load(HUD_GOAL_BG, story_goal.type == G_CATCH ? HUD_ICON_CATCH : HUD_ICON_MUGCHECK);   // the goal's icon
     pour_load(story_chapter);                    // the perfect pour's frames and cue (LCD off; the venue = the chapter)
@@ -622,14 +622,14 @@ static void step_start(void) {
 // the venue (chapter) from its first playable step, with 3 lives (a new chapter, a lost last life, CONTINUE): a new
 // venue attempt, so its page text conditions start over
 static void venue_start(void) {
-    if (!story_arc) lives = START_LIVES;         // (ARCADE: the run's lives carry on)
+    if (!(story_arc & 1)) lives = START_LIVES;         // (ARCADE: the run's lives carry on)
     story_conds &= ~COND_GLASS_BROKEN;           // a new attempt at the venue: no glass broken in it yet
     story_step = next_step(0);
     step_start();
 }
 
 static void chapter_done(void) {                 // every step done: saved as cleared, the POST scene
-    if (story_arc) { bonus_enter(); game_state = GS_BONUS; return; }   // ARCADE: the bonus round (then arcade_next)
+    if (story_arc & 1) { bonus_enter(); game_state = GS_BONUS; return; }   // ARCADE: the bonus round (then arcade_next)
     story_save(story_chapter + 1, 0);
     venue_score_put(story_chapter + 1, score);   // (the next venue's start score: what CONTINUE gives back)
     scene_enter(SC_POST_SALOON + 2 * story_chapter);
@@ -649,9 +649,11 @@ static void run_begin(uint8_t arc) {
     arc_loop = 1; arc_banner = 0;
 }
 
-void story_begin(uint8_t cont) BANKED {
+void story_begin(uint8_t how) BANKED {
+    uint8_t cont = how & 1;
     TRANS_WANT();                                // (src/trans.c: title -> the story)
     run_begin(0);
+    story_arc = cont ? story_diff_saved() << 1 : how & 6;   // the difficulty: the saved one, or the prompt's (bits 1-2, DIFF_*; the run's, game.h RUN_DIFF)
     if (cont && (story_progress || story_reached) && story_progress < STORY_CHAPTERS) {
         story_chapter = story_progress;
         story_scene = SC_PRE_SALOON + 2 * story_chapter;
@@ -702,6 +704,10 @@ static void scene_done(void) {
         if (save_lock) { title_enter(); return; }   // (a debug-select run: nothing saved)
         score_tbl = MODE_STORY;
         aaa[0] = aaa[1] = aaa[2] = 'A';
+        if (RUN_DIFF == DIFF_HARD) aaa[0] |= 0x80;             // the table's E / H mark (save.c); the score counts with the difficulty's multiplier
+        else if (RUN_DIFF == DIFF_EASY) aaa[1] |= 0x80;
+        score = story_scaled(score, RUN_DIFF);
+        story_arc = 0; hud_pal_reset();                         // (the run's difficulty and the HUD colour it tinted end here)
         new_rank = top_insert(score, aaa);
         if (new_rank < TOP_N) hi_save();
         scores_after_game();
@@ -749,7 +755,7 @@ void story_fail(void) BANKED {
 static void story_win(void) {
     enter_level_clear();                         // (its LEVEL CLEAR banner, the bonus, the jingle, GS_LEVEL_CLEAR)
     show_overlay(play_mode == MODE_RUSH ? "BOSS BEATEN"
-                 : next_step(story_step + 1) >= STORY_STEPS ? (story_arc ? "VENUE CLEAR" : "CHAPTER CLEAR") : "SHIFT CLEAR");
+                 : next_step(story_step + 1) >= STORY_STEPS ? ((story_arc & 1) ? "VENUE CLEAR" : "CHAPTER CLEAR") : "SHIFT CLEAR");
 }
 
 // Every GS_PLAYING frame in story mode, after the rules (main.c): the goal's counters, success and failure.
@@ -781,7 +787,7 @@ void story_play(void) BANKED {
         if (!--story_timer) {                    // time up: a life, and the shift again (the venue: it was the last)
             if (lives) lives--;
             hud_dirty |= HUD_LIVES; prep_hud();
-            if (story_arc && !lives) { game_over = 1; enter_game_over(); return; }   // ARCADE: that was the last
+            if ((story_arc & 1) && !lives) { game_over = 1; enter_game_over(); return; }   // ARCADE: that was the last
             story_fail();
             return;
         }

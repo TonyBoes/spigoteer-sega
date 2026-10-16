@@ -451,9 +451,11 @@ void title_music_toggle(void) BANKED;                   // music on/off and the 
 // title menu items (title_items[], debug.c reads them): the top level PLAY / BONUS / SETTINGS, PLAY's submenu
 // [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS's MUSIC ON-OFF / BAR CHANGE SNAP-KEEP
 enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES,
-       K_BOSSRUSH, K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
-                                                                                         // DEBUG MENU (unlocked only); the confirm: the K_ERASEQ label, NO, YES)
-enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE };   // title_menu: the top level or the submenu of top item n-1 (TM_ERASE: SETTINGS' ERASE ALL DATA? prompt)
+       K_BOSSRUSH, K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP,
+       K_HOWHARD, K_EASY, K_NORMAL, K_HARD };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
+                                                                                         // DEBUG MENU (unlocked only); the confirm: the K_ERASEQ label, NO, YES;
+                                                                                         // PLAY > STORY's difficulty prompt: the K_HOWHARD label, EASY, NORMAL, HARD; K_BARCHANGE and K_BARKEEP are the bar toggles)
+enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD };   // title_menu: the top level or the submenu of top item n-1 (TM_ERASE: SETTINGS' ERASE ALL DATA? prompt; TM_HARD: PLAY > STORY's HOW HARD prompt)
 extern uint8_t title_items[], title_sel;                // the shown menu's items in screen order, the selected line
 extern uint8_t title_back;                              // the menu title_enter opens (TM_*; it resets it to TM_TOP)
 extern uint8_t title_back_sel;                          // the line its cursor starts on (then 0); on the title, the debug unlock code's progress
@@ -507,14 +509,27 @@ void classic_tip(uint8_t p) BANKED;           // patron p sent the level's 2nd e
 extern uint8_t antics_force, antics_rng, antics_end;   // test hook (1..6: ending n - 1), the endings' own random byte, the ending
 void antics_start(void) BANKED;               // enter_level_clear in CLASSIC: pick the ending, where he stands
 uint8_t antics_frame(void) BANKED;            // every GS_LEVEL_CLEAR frame in CLASSIC; 1: the clear is over
-void story_begin(uint8_t cont) BANKED;                  // from the title: STORY (0) or CONTINUE (1); LCD off
+void story_begin(uint8_t how) BANKED;                   // from the title, LCD off: bit 0 CONTINUE (the saved difficulty), else a new STORY in the difficulty of bits 1-2 (DIFF_*)
 uint8_t story_update(uint8_t pressed) BANKED;           // a GS_STORY / GS_GOAL frame; 1: the screen changed
 void story_play(void) BANKED;                           // every GS_PLAYING frame in story mode: the chapter goal
 void story_level_done(void) BANKED;                     // GS_LEVEL_CLEAR is over: save, the POST scene
 void story_fail(void) BANKED;                           // the goal failed: TRY AGAIN, then the shift / the venue again
 void story_life_frame(void) BANKED;                     // every GS_LIFE_LOST frame in story mode: the 2-lives cue
 void story_bonus_life(void) BANKED;                     // +1 life (max MAX_LIVES): a gold medal in the mini-game
-extern uint8_t story_arc;                               // 1: ARCADE (the story's engine, arcade rules: story.c)
+extern uint8_t story_arc;                               // bit 0: ARCADE (the story's engine, arcade rules: story.c); bits 1-2: a STORY run's difficulty (RUN_DIFF)
+// The STORY difficulty (owner 2026-10-16: STORY only; chosen when a new story starts, saved with it; EASY and HARD play like NORMAL for now). The
+// codes are mg.h's MG_D_* (Practice's). RUN_DIFF is what balancing reads (0 in ARCADE, CLASSIC, BOSS RUSH, Practice); EASY_RUN: this run unlocks nothing.
+#define DIFF_NORMAL 0
+#define DIFF_HARD   1
+#define DIFF_EASY   2
+#define RUN_DIFF    (((story_arc) >> 1) & 3)
+#define EASY_RUN    (story_on && play_mode == MODE_STORY && RUN_DIFF == DIFF_EASY)
+// The STORY score's multiplier, in percent, applied when the score is recorded in the table (the HUD shows raw points): tune after balancing
+#define STORY_MULT_EASY_PCT 50
+#define STORY_MULT_HARD_PCT 150
+void hud_pal_reset(void) BANKED;                        // CGB: BG palette 1 (the HUD) with its normal colour 2 (a STORY EASY / HARD run changes it: main_cold.c draw_hud)
+uint8_t story_diff_saved(void) BANKED;                  // the difficulty the saved story was started in (DIFF_*; NORMAL for an older save)
+uint32_t story_scaled(uint32_t s, uint8_t diff) BANKED; // s times the difficulty's multiplier (<= 999999)
 void arcade_begin(void) BANKED;                         // PLAY > ARCADE: the saloon's Opening shift, a new run (LCD off)
 void arcade_next(void) BANKED;                          // ARCADE: a venue's bonus round is over, the next venue
 void extra_life(void) BANKED;                           // add_score passed extra_at: a life (at most MAX_LIVES), the next

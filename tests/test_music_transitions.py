@@ -12,7 +12,7 @@ import re
 
 import pytest
 from conftest import ROM, K_ARCADE, K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE, hold_stage_anim, \
-    menu_to, title_pick
+    menu_tap, menu_to, title_pick
 from test_flow import GS_INITIALS, GS_SCORES, PLAYING, TITLE, run_until, state
 from test_mg import GS_MGLIST, GS_MINI
 from test_menu_music import GS_JUKEBOX, lcd_on, tap, to_list
@@ -322,6 +322,7 @@ def gameover_legs(gb, legs):
 
 def story_legs(gb, legs):
     title_pick(gb, K_PLAY, K_STORY, press=False)
+    menu_tap(gb, "a")                                                     # (HOW HARD: the cursor on NORMAL; the leg's A starts the story)
     leg(gb, legs, "title -> STORY (first scene)", lambda l: l.press("a"), lambda: state(gb) != TITLE and lcd_on(gb), 20, cont=False)
 
 
