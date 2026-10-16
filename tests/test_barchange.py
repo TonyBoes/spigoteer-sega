@@ -1,6 +1,6 @@
 # How the bartender changes bars (owner playtest, batch B2). Two behaviours, switched in the debug box (START):
 #   B, the default and CLASSIC always: Up/Down snaps him to the new bar's tap; a dust puff (3 frames of 4 video frames,
-#      OBJ ids 246..251 in OAM 26, cue_t bit 7) shows where he stood and SFX_WHOOSH plays.
+#      OBJ ids 246..251 in OAM 26, cue_t bit 7) shows where he stood and SFX_SWISH plays.
 #   A, KEEP (level_dirs bit 7, KEEP_POS): he keeps his place (mirrored on screen between an L and an R bar, up to the new
 #      tap); pouring needs the tap, so he walks back (a fresh A within TAP_GRACE of it still snaps and pours).
 # The Pour-Off (src/po.c) keeps its own rules in both modes.
@@ -12,7 +12,7 @@ from test_debug import banner_text, combo, release_combo
 pytestmark = pytest.mark.timeout(240)
 
 TAP_X, LEFT_LIMIT, TAP_GRACE = GAME["TAP_X"], GAME["LEFT_LIMIT"], GAME["TAP_GRACE"]
-SFX_WHOOSH = 13
+SFX_SWISH = 14
 OBJ_DUST = 234                    # (a story's: 246; tiles are shared with mirror.c / pour.c, never in use together)
 KEEP_POS = 0x80
 DUST_LEN = 12
@@ -46,10 +46,10 @@ def test_b_is_the_default_and_snaps_with_a_puff_and_a_whoosh(gb):
     gb.press("left", 30)
     x0 = gb.mem("bartender_x")
     assert x0 == TAP_X - 45
-    w0 = gb.read("sfx_count", 14)[SFX_WHOOSH]
+    w0 = gb.read("sfx_count", 15)[SFX_SWISH]
     gb.press("down", 1)
     assert gb.mem("bar") == 1 and gb.mem("bartender_x") == TAP_X and gb.mem("facing") == 0
-    assert gb.mem("last_sfx") == SFX_WHOOSH and gb.read("sfx_count", 14)[SFX_WHOOSH] == w0 + 1
+    assert gb.mem("last_sfx") == SFX_SWISH and gb.read("sfx_count", 15)[SFX_SWISH] == w0 + 1
     gb.run(1)
     seen, d = [], dust(gb)
     assert d is not None, "the puff shows"
@@ -76,12 +76,12 @@ def test_the_puff_golden(gb):
 def test_the_puff_is_not_drawn_in_a(gb):
     mode_a(gb)
     gb.press("left", 30)
-    w0 = gb.read("sfx_count", 14)[SFX_WHOOSH]
+    w0 = gb.read("sfx_count", 15)[SFX_SWISH]
     gb.press("down", 1)
     for _ in range(DUST_LEN):
         assert dust(gb) is None
         gb.run(1)
-    assert gb.read("sfx_count", 14)[SFX_WHOOSH] == w0, "no whoosh"
+    assert gb.read("sfx_count", 15)[SFX_SWISH] == w0, "no swish"
 
 
 def test_a_keeps_his_place_and_walks_back_to_pour(gb):
@@ -228,10 +228,10 @@ def test_classic_always_snaps_with_the_dust_even_if_the_flag_is_set(boot):
     assert boot.mem("play_mode") == 2
     boot.write("tip_chance", 0)
     boot.press("left", 30)
-    w0 = boot.read("sfx_count", 14)[SFX_WHOOSH]
+    w0 = boot.read("sfx_count", 15)[SFX_SWISH]
     boot.press("down", 1)
     assert boot.mem("bartender_x") == boot.read("bar_tap", 4)[boot.mem("bar")]
-    assert boot.read("sfx_count", 14)[SFX_WHOOSH] == w0 + 1
+    assert boot.read("sfx_count", 15)[SFX_SWISH] == w0 + 1
     boot.run(2)
     assert dust(boot) is not None
 
@@ -359,7 +359,7 @@ def test_a_boss_fight_with_either_mode(mode):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_pour_off_keeps_its_own_rules_in_both_modes(model):
-    """Interaction: the Pour-Off (src/po.c). Your Spigoteer snaps to his tap as ever, no whoosh and no puff, whatever the
+    """Interaction: the Pour-Off (src/po.c). Your Spigoteer snaps to his tap as ever, no swish and no puff, whatever the
     mode; Dregs does not use the keys."""
     from test_pouroff import start
     from po_helpers import po
@@ -367,11 +367,11 @@ def test_the_pour_off_keeps_its_own_rules_in_both_modes(model):
     try:
         for flag in (0, KEEP_POS):
             gb.write("level_dirs", flag)
-            w0 = gb.read("sfx_count", 14)[SFX_WHOOSH]
+            w0 = gb.read("sfx_count", 15)[SFX_SWISH]
             gb.press("left", 20)
             assert po(gb)["y"]["x"] < TAP_X
             gb.press("down", 2)
             assert po(gb)["y"]["x"] == TAP_X, "snaps"
-            assert gb.read("sfx_count", 14)[SFX_WHOOSH] == w0 and dust(gb) is None
+            assert gb.read("sfx_count", 15)[SFX_SWISH] == w0 and dust(gb) is None
     finally:
         gb.stop()

@@ -75,9 +75,12 @@ static const sfx_step_t s_ka[]     = { {0x10, 2, 0}, {0x09, 2, 0} };
 #endif
 // Duke's engine (channel 4, envelope 0xD0: loud, no decay, ends 50 frames later like the throttle-twist tell): a
 // tonal 7-bit-LFSR growl whose pitch climbs in five steps of 10 frames, 43 / 64 / 86 / 129 / 258 Hz.
-// The bar-change whoosh (mode B / CLASSIC, src/pour.c dust_puff; channel 4, 8 frames, envelope 0xA1: a rush of air): the
+// The whoosh (the bosses' and stories'; channel 4, 8 frames, envelope 0xA1: a rush of air): the
 // noise clock climbs 128 -> 512 -> 2 kHz-ish in three steps (NR43 0x53, 0x33, 0x13) as the decay fades it out.
 static const sfx_step_t s_whoosh[] = { {0x53, 3, 0}, {0x33, 3, 0}, {0x13, 2, 0} };
+// The bar change's swish (src/pour.c bar_change; channel 4, 4 frames, envelope 0x41: volume 4 of 15, fading by 1 a step):
+// a short quiet high hiss, 15-bit noise clock at ~65 kHz / 2 (NR43 0x12). The whoosh stays for the bosses and the stories.
+static const sfx_step_t s_swish[]  = { {0x12, 4, 0} };
 static const sfx_step_t s_rev[]    = { {0x4B, 10, 0}, {0x4A, 10, 0}, {0x3B, 10, 0}, {0x3A, 10, 0}, {0x39, 10, 0} };
 
 #define N(a) (sizeof(a) / sizeof((a)[0]))
@@ -96,6 +99,7 @@ static const sfx_def_t sfx_defs[SFX_COUNT] = {
     { 3, 0x00, TK_ENV, N(s_ka),   s_ka },
     { 3, 0x00, 0xD0, N(s_rev),    s_rev },
     { 3, 0x00, 0xA1, N(s_whoosh), s_whoosh },
+    { 3, 0x00, 0x41, N(s_swish),  s_swish },
 };
 
 typedef struct {
@@ -224,7 +228,7 @@ static void step_begin(voice_t *v) {
 static void sfx_start(uint8_t id) {
     voice_t *v = &voice[sfx_defs[id].ch ? 1 : 0];
     if (v->busy && v->def == &sfx_defs[SFX_EXTRA] && id != SFX_EXTRA) return;   // the extra life is not cut short
-    if (v->busy && id == SFX_WHOOSH) return;     // the whoosh never cuts a crash or a drum off (channel 4)
+    if (v->busy && id >= SFX_WHOOSH) return;     // the whoosh and the swish never cuts a crash or a drum off (channel 4)
     v->def = &sfx_defs[id];
     v->step = 0;
     v->busy = 1;

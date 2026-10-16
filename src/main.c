@@ -383,7 +383,7 @@ static void play_frame(uint8_t pressed) {
     if (pressed & J_UP)        bar = bar == 0 ? NUM_BARS - 1 : bar - 1;
     else if (pressed & J_DOWN) bar = bar == NUM_BARS - 1 ? 0 : bar + 1;
     tap_now = t = bar_tap[bar];                  // the bar's fill position (P6: a slanted bar's is further in)
-    if (switched) bar_change(pressed);               // where he lands: src/pour.c (mode A keeps his x; mode B snaps to the tap, dust and whoosh)
+    if (switched) bar_change(pressed);               // where he lands: src/pour.c (mode A keeps his x; mode B snaps to the tap, dust and swish)
 
     // Left/Right: walk (1.5 px per frame). On an R bar (CLASSIC, render.c bar_dirs) they swap: the tap is on the left.
     x = bartender_x;

@@ -337,7 +337,7 @@ extern uint8_t pour_q, pour_t, pour_win, cue_t;
 void pour_load(uint8_t t) BANKED;             // LCD off: venue t's sparkle / overflow frames and the cue to OBJ_POUR..
 void dust_load(void) BANKED;                  // LCD off (every level screen): the dust puff's 3 frames to OBJ_DUST..
 void bar_change(uint8_t pressed) BANKED;      // main.c, Up/Down was pressed (bar is the new one; tap_now = the new bar's tap): where he lands, facing the bar
-                                              // (mode A keeps his x; mode B, and CLASSIC always, snaps to the tap with a whoosh and the puff)
+                                              // (mode A keeps his x; mode B, and CLASSIC always, snaps to the tap with a swish and the puff)
 void perfect_catch(uint8_t i) BANKED;         // patrons.c caught(), story: full mug i caught (perfect if mug_timer 1)
 void pour_frame(void) BANKED;                 // story, every drawn play frame after the sprites: window, fill frame, cue
 

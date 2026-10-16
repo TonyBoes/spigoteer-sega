@@ -71,7 +71,7 @@ void dust_load(void) BANKED {
 // An Up/Down press (main.c play_frame): he came from bar b, bartender_x is still his place there and tap_now the new bar's.
 // Mode A (KEEP_POS, the debug box's START; never in CLASSIC): he keeps his place on screen, up to the new tap (a bar's
 // local x is mirrored between an L and an R bar, screen x = 144 - x for his left edge); pouring needs the tap, so he walks
-// back to it. Mode B (the default, and CLASSIC always): he snaps to the tap, a puff where he stood and a whoosh.
+// back to it. Mode B (the default, and CLASSIC always): he snaps to the tap, a puff where he stood and a soft swish.
 void bar_change(uint8_t pressed) BANKED {
     uint8_t x = bartender_x, t = tap_now, b = (bar + ((pressed & J_UP) ? 1 : NUM_BARS - 1)) & (NUM_BARS - 1);   // b: the bar he left
     facing = 0;
@@ -82,7 +82,7 @@ void bar_change(uint8_t pressed) BANKED {
     }
     bartender_x = t;
     x += 12;                                                 // the puff's centre: his 16 px (OAM x = screen x + 8)
-    SFX(SFX_WHOOSH);
+    SFX(SFX_SWISH);
     if (cue_t) return;
     if (bar_dirs & bar_bit[b]) x = 168 - x;                  // an R bar draws mirrored (mirror.c)
     cue_x = x; cue_y = bar_oam_y[b] + DUST_DY;

@@ -23,7 +23,7 @@
 //     Right/Up change the level (1..CLASSIC_ROWS, wrapping); A starts a CLASSIC game there (start_new_game, MODE_CLASSIC:
 //     3 lives, a fresh score, the table's directions; SELECT does nothing).
 //   START (every box but CLASSIC's) flips the bar-change mode, shown at the end of the banner: SNAP (default: Up/Down snaps the
-//   bartender to the tap with a dust puff and a whoosh; CLASSIC always) or KEEP (he keeps his x): level_dirs bit 7, KEEP_POS.
+//   bartender to the tap with a dust puff and a soft swish; CLASSIC always) or KEEP (he keeps his x): level_dirs bit 7, KEEP_POS.
 //   B closes the box (back to the title, or unpauses).
 #pragma bank 255
 #include <gb/gb.h>
