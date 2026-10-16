@@ -254,7 +254,9 @@ def test_realistic_peak(rom):
     # TEMPORARY baseline 2026-10-14 after the fixed-push rules (owner option 1); the crowd speed-up must bring it back to
     # 165 missed / 240 end LY. Old limits: end <= 240, missed <= 165. Measured on the new rules: DMG end 233 / 309 missed,
     # CGB end 242 / 302-365 missed (the CGB count moves with code timing); limits = measured + about 5 % / 10 %.
-    assert r["end"] <= 255 and r["missed"] <= 400, r
+    # end LY back to the old 240 (H4, 2026-10-15: measured on main DMG end 220 / 255 missed, CGB end 221 / 348 missed; no C-only
+    # speed-up found). missed stays <= 400: the CGB count swings about +-30 with any code timing; the old 165 needs the asm pass.
+    assert r["end"] <= 240 and r["missed"] <= 400, r
 
 
 @pytest.mark.xfail(strict=True, reason="owner target NOT met at the realistic peak (PyBoy; no doors): DMG end LY ~187, "
