@@ -29,7 +29,7 @@ extern uint8_t overlay_on;
 #define JB_ROW_BOX        12       // panel; the info lines 13-16; panel 17
 #define JB_INFO_LINES      4
 #define JB_COL_PLAY       19
-#define JB_ROWS_PER_FRAME  4       // 20-byte rows queued a frame (as mg_say)
+#define JB_ROWS_PER_FRAME  2       // rows built and queued a frame (a row is ~10k cycles: a quick scroll with 4 ran the frame late)
 #define JB_INFO_BITS     (((1 << JB_INFO_LINES) - 1) << JB_VISIBLE)
 #define JB_BLINK          16       // the playing icon: frames on, frames off
 
@@ -45,12 +45,13 @@ static const char locked_name[] = "? ? ?";
 static const char *const locked_info[JB_INFO_LINES] = { locked_name, "", "LOCKED", "PLAY STORY MODE" };
 
 static uint8_t jb_glyph(char c) {
+    if ((uint8_t)(c - 'A') < 26) return glyph_az[(uint8_t)(c - 'A')];   // (letters first: the common case, no switch)
     switch (c) {
     case '.': return ST_GLYPH_PERIOD; case ',': return ST_GLYPH_COMMA; case '!': return ST_GLYPH_EXCL;
     case '?': return ST_GLYPH_QUEST; case '\'': return ST_GLYPH_APOS; case '-': return ST_GLYPH_HYPHEN;
     case ':': return ST_GLYPH_COLON;
     }
-    return glyph_for(c);
+    return GLYPH_FAST(c, glyph_for(c));
 }
 
 static void blank(uint8_t *r) {

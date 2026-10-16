@@ -55,7 +55,7 @@ extern uint32_t score;
 #define MENU_COL        7
 #define COL_NAME        1
 #define COL_BEST       15
-#define ROWS_PER_FRAME  4       // 20-byte rows queued a frame (as the MINI GAMES list)
+#define ROWS_PER_FRAME  2       // rows built and queued a frame (~15k cycles each: a quick scroll with 4 ran the frame past its VBlank)
 #define NEXT_FRAMES   180       // the NEXT card stays 3 s (or until A / START)
 #define ROW(k)        (story_scratch + (uint8_t)(k) * 20)   // row buffer k: a line k < lines(), else info line
 #define T_MAX      0xFFFFu
@@ -99,11 +99,7 @@ static uint8_t nth_built(uint8_t k) {            // the venue of the list's line
     return BOSS_COUNT;
 }
 
-static uint8_t lines(void) {                     // the list's lines (the built bosses)
-    uint8_t v, n = 0;
-    for (v = 0; v < BOSS_COUNT; v++) n += built(v);
-    return n;
-}
+static uint8_t lines(void) { return RUSH->nlines; }   // the list's lines (the built bosses, counted once in rush_enter)
 
 static uint8_t count_unlocked(void) {
     uint8_t v, n = 0;
@@ -125,11 +121,12 @@ static uint32_t all_score(void) {
 
 // ---- text ------------------------------------------------------------------------------------------------------
 static uint8_t glyph(char c) {
+    if ((uint8_t)(c - 'A') < 26) return glyph_az[(uint8_t)(c - 'A')];   // (letters first: the common case, no switch)
     switch (c) {
     case '.': return ST_GLYPH_PERIOD; case '?': return ST_GLYPH_QUEST; case '-': return ST_GLYPH_HYPHEN;
     case ':': return ST_GLYPH_COLON;
     }
-    return glyph_for(c);
+    return GLYPH_FAST(c, glyph_for(c));
 }
 
 static void blank(uint8_t *r) {
@@ -348,7 +345,8 @@ void rush_enter(void) BANKED {
     uint8_t v;
     rush_load(RUSH->save);
     RUSH->built = 0;
-    for (v = 0; v < BOSS_COUNT; v++) if (scan_built(v)) RUSH->built |= (uint16_t)1 << v;
+    RUSH->nlines = 0;
+    for (v = 0; v < BOSS_COUNT; v++) if (scan_built(v)) { RUSH->built |= (uint16_t)1 << v; RUSH->nlines++; }
     RUSH->list_sel = 0;
     menu_open(0);
 }
@@ -497,7 +495,8 @@ static uint8_t lines_frame(uint8_t pressed) {
             else if (s >= top + RVIS) top = s - RVIS + 1;
             if (top != RUSH->top) { RUSH->top = top; RUSH->dirty |= (1 << n) - 1; }
         }
-        RUSH->dirty |= ((1 << info_n()) - 1) << n;
+        RUSH->dirty |= (RUSH->scr == RS_LIST ? 1 : (1 << info_n()) - 1) << n;   // (the list: the best line; the keys line only when the lock changes)
+        if (RUSH->scr == RS_LIST && unlocked(nth_built(s)) != unlocked(nth_built(old))) RUSH->dirty |= 2 << n;
     } else if (pressed & (J_A | J_START)) {
         if (RUSH->scr == RS_LIST) {
             if (unlocked(nth_built(s))) { run_start(RM_CHOOSE); return 1; }

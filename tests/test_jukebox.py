@@ -220,6 +220,10 @@ def test_no_more_than_ten_sprites_a_line(boot):
     for b in ["down"] * 15 + ["up"] * 3:
         boot.press(b, 2)
         assert most_per_scanline(boot) <= 10
+    for b in ["up"] * 6:                                      # (15 taps wrap past the last tune and 3 more go up: the window is at the end;
+        boot.press(b, 2)                                      # a frame no longer drops a tap, so go up to the middle of the list)
+        assert most_per_scanline(boot) <= 10
+    boot.run(2)
     assert len(boot.visible_sprites()) == 3, "the cursor and the two scroll arrows (mid-list)"
 
 

@@ -42,7 +42,7 @@ extern uint8_t overlay_on;
 #define ML_ROW_LIST     2
 #define ML_COL_NAME     1
 #define ML_COL_MEDAL   14       // (BATTERY SORT is 12 letters: columns 1-12)
-#define ML_ROWS_PER_FRAME 4     // 20-byte rows queued a frame (as mg_say)
+#define ML_BUILDS_PER_FRAME 2   // rows built and queued a frame (a row's build is ~15k cycles: a quick scroll with 4 ran the frame past its VBlank)
 // chapter order (docs/story.md: saloon, stadium, lodge, bistro, igloo, robot factory, Chrome Cow, teahouse, zoo, space lounge)
 #ifdef DEBUG_MENU
 #define ML_N            14
@@ -69,9 +69,9 @@ typedef char ml_fits[(ML_INFO_LINES == 2 && ML_N >= ML_VIS && ML_N - ML_VIS < 16
 #define ML_COL_MODE   13                              // the header's mode word ("MINI GAMES" is columns 1-10)
 #define ML_ROW(k)     (story_scratch + (uint8_t)(k) * 20)   // row buffer k: window line k < ML_VIS, else info line k - ML_VIS, the header last
 // The window's state lives in story_scratch after the row buffers (no WRAM of its own): the first line shown, and how many of the window's
-// lines the scroll has sent to the screen so far (ML_VIS: all; the list is redrawn ML_ROWS_PER_FRAME lines a frame)
+// lines waiting to go to the screen (a scroll or a mode change sets them all; ML_BUILDS_PER_FRAME are rebuilt a frame, from the state as it is then)
 #define ml_top        (story_scratch[(ML_HEAD_K + 1) * 20])
-#define ml_sent       (story_scratch[(ML_HEAD_K + 1) * 20 + 1])
+#define ml_wd         (story_scratch[(ML_HEAD_K + 1) * 20 + 1])   // bit k: window line k is waiting to be rebuilt and sent (a scroll or a mode change)
 #define ml_t          (story_scratch[(ML_HEAD_K + 1) * 20 + 2])   // frames on this screen (the arrows' bob)
 #define ml_attr       (story_scratch + (ML_HEAD_K + 1) * 20 + 4)  // the keys line's CGB attribute row (20 bytes: the buttons' palette)
 typedef char ml_scratch_fits[(ML_HEAD_K + 1) * 20 + 24 <= STORY_SCRATCH ? 1 : -1];
@@ -122,11 +122,12 @@ static const char *game_name(uint8_t g) {
 }
 
 static uint8_t ml_glyph(char c) {
+    if ((uint8_t)(c - 'A') < 26) return glyph_az[(uint8_t)(c - 'A')];   // (letters first: the common case, no switch)
     switch (c) {
     case '.': return ST_GLYPH_PERIOD; case '?': return ST_GLYPH_QUEST; case '-': return ST_GLYPH_HYPHEN;
     case '@': return KEY_A; case '$': return KEY_B; case '>': return KEY_R;   // (the buttons: frame tiles, loaded over in mg_list_enter)
     }
-    return glyph_for(c);
+    return GLYPH_FAST(c, glyph_for(c));
 }
 
 static void blank(uint8_t *r) {
@@ -248,7 +249,7 @@ void mg_list_enter(void) BANKED {
     if (ml_sel >= ML_N) ml_sel = 0;
     ml_n = ML_N; ml_dirty &= ML_DIFF_BITS;
     ml_top = ml_sel >= ML_VIS ? ml_sel - ML_VIS + 1 : 0;   // (the window that shows the cursor's game, as it comes back from one)
-    ml_sent = ML_VIS; ml_t = 0;
+    ml_wd = 0; ml_t = 0;
     blank(row_buf);
     for (y = 0; y < 18; y++) { set_bkg_tiles(0, y, 20, 1, row_buf); if (!(y & 3)) music_pump(); }
     for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_TOP;
@@ -289,17 +290,20 @@ uint8_t mg_list_update(uint8_t pressed) BANKED {
     if (pressed & J_UP) ml_sel = ml_sel ? ml_sel - 1 : ML_N - 1;
     else if (pressed & J_DOWN) ml_sel = ml_sel == ML_N - 1 ? 0 : ml_sel + 1;
     if (ml_sel != old) {
-        ml_dirty |= ML_DIRTY_BITS;
+        g = ml_game[old];                                   // the info lines: the medal line always, the keys / locked lines only when the lock changes
+        n = ml_game[ml_sel];                                // (the header names the mode: it waits for a mode change)
+        ml_dirty |= 1;
+        if (unlocked(g) != unlocked(n) || is_bonus(g) != is_bonus(n)) ml_dirty |= 2;
         if (ml_sel < top) top = ml_sel;                     // the cursor left the window: it slides one line (a wrap: to the other end)
         else if (ml_sel >= top + ML_VIS) top = ml_sel - ML_VIS + 1;
-        if (top != ml_top) { ml_top = top; ml_sent = 0; }   // (the window's lines are rebuilt and sent a few a frame)
+        if (top != ml_top) { ml_top = top; ml_wd = (1 << ML_VIS) - 1; }   // (the window's lines are rebuilt and sent a few a frame)
     }
     if (pressed & (J_SELECT | J_LEFT | J_RIGHT)) {   // the difficulty: EASY, NORMAL, HARD, round (LEFT back, RIGHT and SELECT forward), for every game
         k = diff_ui[ml_diff];
         if (pressed & J_LEFT) k = k ? k - 1 : MG_DIFFS - 1;
         else k = k == MG_DIFFS - 1 ? 0 : k + 1;
         ml_dirty = ML_DIRTY_BITS | (ui_diff[k] << 6);   // (the header and the info lines again)
-        ml_sent = 0;                            // and the medal column: the window's lines, a few a frame
+        ml_wd = (1 << ML_VIS) - 1;              // and the medal column: the window's lines, a few a frame
     }
     if (pressed & (J_A | J_START)) {
         g = ml_game[ml_sel];
@@ -309,11 +313,14 @@ uint8_t mg_list_update(uint8_t pressed) BANKED {
         title_enter();
         return 1;
     }
-    for (n = 0; ml_sent < ML_VIS && n < ML_ROWS_PER_FRAME; n++, ml_sent++) {   // a scroll: the window's lines again
-        build(ml_sent);
-        vq_add(0, ML_ROW(ml_sent), 0, ML_ROW_LIST + 2 * ml_sent, 20);
+    for (n = 0, k = 0; ml_wd && k < ML_VIS && n < ML_BUILDS_PER_FRAME; k++) {   // a scroll: the window's lines again
+        if (!(ml_wd & (1 << k))) continue;
+        ml_wd &= ~(1 << k);
+        build(k);
+        vq_add(0, ML_ROW(k), 0, ML_ROW_LIST + 2 * k, 20);
+        n++;
     }
-    for (k = ML_VIS; k <= ML_HEAD_K && n < ML_ROWS_PER_FRAME; k++) {
+    for (k = ML_VIS; k <= ML_HEAD_K && n < ML_BUILDS_PER_FRAME; k++) {
         if (!(ml_dirty & (1 << (k - ML_VIS)))) continue;
         ml_dirty &= ~(1 << (k - ML_VIS));
         build(k);

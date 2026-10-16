@@ -306,6 +306,10 @@ void draw_hud(void) BANKED;                   // the whole HUD row (VRAM: LCD of
 #define HUD_GOAL_BG       253
 #define HUD_CURSOR_BG      77   // the initials screen's cursor (scores.c): the pad id no screen of its own uses
 void hud_icon_load(uint8_t id, uint8_t k) BANKED;
+extern const uint8_t glyph_az[26];                    // (ROM0, main.c) the letters' HUD tiles
+// A letter or digit's HUD tile without glyph_for's banked call (~800 cycles a character; the full-screen menus rebuild rows of them);
+// anything else: `slow`.
+#define GLYPH_FAST(c, slow) ((uint8_t)((c) - 'A') < 26 ? glyph_az[(uint8_t)((c) - 'A')] : (uint8_t)((c) - '0') < 10 ? TILE_GLYPH_0 + (uint8_t)((c) - '0') : (slow))
 uint8_t glyph_for(char c) BANKED;             // HUD glyph tile of a character (blank if none)
 void enter_level_screen(void) BANKED;         // LCD off: the level's screen, then PLAYING (or LOOP)
 void start_new_game(uint8_t lv) BANKED;

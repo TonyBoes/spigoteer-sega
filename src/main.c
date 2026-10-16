@@ -300,6 +300,11 @@ uint8_t arcade_loop = 1;                // pass through the ten venues: 1, 2, ..
 
 // ---- screens and state changes --------------------------------------------------------
 // glyph_for and the banner window's setup (win_init): src/main_cold.c
+// The letters' tiles, in ROM0 so that any bank reads them without a banked call (GLYPH_FAST, game.h: the full-screen menus; glyph_for keeps its own switch).
+const uint8_t glyph_az[26] = {
+    TILE_GLYPH_A, TILE_GLYPH_B, TILE_GLYPH_C, TILE_GLYPH_D, TILE_GLYPH_E, TILE_GLYPH_F, TILE_GLYPH_G, TILE_GLYPH_H, TILE_GLYPH_I,
+    TILE_GLYPH_J, TILE_GLYPH_K, TILE_GLYPH_L, TILE_GLYPH_M, TILE_GLYPH_N, TILE_GLYPH_O, TILE_GLYPH_P, TILE_GLYPH_Q, TILE_GLYPH_R,
+    TILE_GLYPH_S, TILE_GLYPH_T, TILE_GLYPH_U, TILE_GLYPH_V, TILE_GLYPH_W, TILE_GLYPH_X, TILE_GLYPH_Y, TILE_GLYPH_Z };
 
 static void hide_banner_sprites(void) {      // 8x16 sprites that would overlap the banner lines
     uint8_t i;

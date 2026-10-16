@@ -87,12 +87,13 @@ static const char *page_line(uint8_t game, uint8_t page, uint8_t k) {
 }
 
 static uint8_t glyph(char c) {
+    if ((uint8_t)(c - 'A') < 26) return glyph_az[(uint8_t)(c - 'A')];   // (letters first: the common case, no switch)
     switch (c) {
     case '.': return ST_GLYPH_PERIOD; case ',': return ST_GLYPH_COMMA; case '!': return ST_GLYPH_EXCL;
     case '?': return ST_GLYPH_QUEST;  case '\'': return ST_GLYPH_APOS; case '-': return ST_GLYPH_HYPHEN;
     case ':': return ST_GLYPH_COLON;
     }
-    return glyph_for(c);
+    return GLYPH_FAST(c, glyph_for(c));
 }
 
 // kind: 0 the full card of a story / ARCADE game, 1 of BONUS > MINI GAMES (B goes back), 2 over a paused game (window map)
