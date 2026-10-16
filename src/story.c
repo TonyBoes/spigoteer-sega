@@ -784,7 +784,8 @@ void story_play(void) BANKED {
             story_fail();
             return;
         }
-        c = (uint8_t)((story_timer + 59) / 60);
+        c = st_secs;                             // ceil(story_timer / 60), re-derived only when the timer leaves the shown second's 60-frame band
+        { uint16_t hi = ((uint16_t)c << 6) - ((uint16_t)c << 2); if (story_timer > hi || story_timer + 60 <= hi) c = (uint8_t)((story_timer + 59) / 60); }
         if (c != st_secs) { st_secs = c; hud_goal(); }
     }
     switch (story_goal.type) {
