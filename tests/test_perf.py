@@ -92,7 +92,9 @@ def test_worst_case_pile(rom):
     # Before P6: DMG 290 / 254, CGB 289 / 253 (at the guard); P6 (the slanted bars' per-bar tap lookups): DMG 292 / 257,
     # CGB 291 / 255.
     assert r["missed"] <= 270, r
-    assert r["end"] <= 300, r
+    # TEMPORARY 2026-10-16 (owner: "You can relax it for now"): Option C serves more patrons at once, each sliding off and
+    # redrawn every pixel: DMG 310 / 231, CGB 310 / 235. end <= 320 until the asm pass (was 300).
+    assert r["end"] <= 320, r
 
 
 def patron_cols(gb, bar):
