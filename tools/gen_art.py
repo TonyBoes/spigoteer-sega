@@ -35,7 +35,7 @@ THEMES = ["saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "t
 # BG ids 0..VENUE_POOL-1: one pool for a venue's stage and bar tiles (option A, owner 2026-10-10). The stage takes ids
 # from 0 up (animated tiles last), the bar + floor pack at the top (VENUE_POOL - bar_n ..), so stage_n + bar_n <= the
 # pool. The title's menu text overwrites ids 0..TITLE_TEXT_SLOT-1 while it shows the saloon's bar: bar ids stay above.
-# (22 since BOSS RUSH, 2026-10-12: its 5 new text tiles did not fit under TITLE_TILE_END; every venue's bar + floor has
+# (22 since BOSS RUSH, 2026-10-12: its 5 new text tiles did not fit under TITLE_TILE_END; 23 since SETTINGS > BAR SNAP, 2026-10-16: the saloon has 13; every other venue's bar + floor has
 # at most 12 tiles, so ids 20-21 were stage ids only, and the title shows no stage.)
 # The glass held under the spout hangs FILL_DY px lower than a sliding mug, per venue (owner's per-venue tap picks, 2026-10-12).
 # Packed into venue.show_band bits 1-2 (WRAM-free: the venue struct is WRAM already; src/mugs.c draw_fill reads it). The
@@ -50,7 +50,7 @@ FILL_DY = {"saloon": 3, "sports": 2, "lodge": 0, "bistro": 0, "igloo": 2, "facto
 # them into free BG ids on a level with an R bar (the DMG flipped) and the R rows use them in place of the L lettering tiles, so
 # the bar's flip shows the text the right way round. They are not in the venue's tile pool.
 LETTER_BOX = {"sports": (147, 18, 157, 22), "biker": (145, 14, 158, 18)}
-VENUE_POOL, TITLE_TEXT_SLOT = 36, 22
+VENUE_POOL, TITLE_TEXT_SLOT = 36, 23
 STAGE_ROWS, BAR_ROWS = 4, 3              # screen rows 1-4; per bar 2 wall rows + the counter row
 # CGB BG palette slots (= src/game.h BGPAL_*): stage_a, stage_b, bar, bar_b
 PAL_STAGE_A, PAL_STAGE_B, PAL_BAR, PAL_BAR_B = 5, 6, 0, 7
@@ -616,7 +616,9 @@ MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "m
                 "soundtrack": "SOUNDTRACK",   # BONUS's soundtrack player (src/jukebox.c)
                 "classic": "CLASSIC",         # PLAY's fourth mode (the three modes, owner 2026-10-11)
                 "minigames": "MINI GAMES",  # BONUS's second item, the Practice list (src/mg_list.c)
-                "bossrush": "BOSS RUSH"}     # BONUS's third item (src/rush.c)
+                "bossrush": "BOSS RUSH",
+                "bar_snap": "BAR SNAP",  # SETTINGS' second line (src/title.c K_BARCHANGE; SNAP is the default)
+                "bar_keep": "BAR KEEP"}     # BONUS's third item (src/rush.c)
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 # ... and past it the perfect pour's OBJ ids 234-239 (loaded at a story shift's start, never shown on the title: its
 # sprites are the bartender, the mug, the drink frames and the effects, all below 128); the DMG copies start at 240

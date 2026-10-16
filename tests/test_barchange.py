@@ -457,3 +457,104 @@ def test_a_boss_fight_shows_no_puff_over_its_own_tiles(model):
             assert gb.read("sfx_count", 15)[SFX_SWISH] == w0 + 1
         finally:
             gb.stop()
+
+
+# ---- SETTINGS > BAR SNAP / BAR KEEP (owner 2026-10-16: the debug switch moved to the settings menu): the second line of SETTINGS
+# (K_BARCHANGE while SNAP, K_BARKEEP while KEEP), A / START / LEFT / RIGHT flip it, saved in SRAM 0x12 "BC". An older save, a
+# corrupt block or any other mode reads as SNAP. CLASSIC snaps whatever it says. The debug box's START still flips the bit for the session.
+from conftest import K_BARCHANGE, K_BARKEEP, K_MUSIC, K_SETTINGS, MENU_SETTLE, menu_items, menu_tap, menu_to
+from test_flow import ROW_BAR, ROW_MUSIC, cursor_on, expect_menu
+
+
+def settings_open(gb):
+    title_pick(gb, K_SETTINGS)
+    gb.run(MENU_SETTLE)
+    return gb
+
+
+def bc_block(mode, ok=True):
+    b = bytearray(b"BC" + bytes([mode]))
+    c = (0x5A + sum(b)) & 255
+    return bytes(b + bytes([c if ok else c ^ 1, (c ^ 255) if ok else c]))
+
+
+def with_bc(block):
+    ram = bytearray(0x2000)
+    ram[0x12:0x12 + len(block)] = block
+    return bytes(ram)
+
+
+def test_settings_has_the_bar_line_second_and_snap_by_default(boot):
+    assert boot.mem("level_dirs") & KEEP_POS == 0
+    settings_open(boot)
+    assert menu_items(boot) == [K_MUSIC, K_BARCHANGE] and boot.mem("title_sel") == 0
+    expect_menu(boot, ("music_on", "bar_snap"))
+
+
+@pytest.mark.parametrize("key", ["a", "start", "left", "right"])
+def test_the_bar_line_flips_with_a_start_left_right_and_back(boot, key):
+    settings_open(boot)
+    menu_to(boot, K_BARCHANGE)
+    cursor_on(boot, "bar_snap", ROW_BAR)
+    menu_tap(boot, key)
+    boot.run(MENU_SETTLE)
+    assert boot.mem("level_dirs") & KEEP_POS and menu_items(boot) == [K_MUSIC, K_BARKEEP]
+    expect_menu(boot, ("music_on", "bar_keep"))
+    cursor_on(boot, "bar_keep", ROW_BAR)
+    menu_tap(boot, key)
+    boot.run(MENU_SETTLE)
+    assert boot.mem("level_dirs") & KEEP_POS == 0 and menu_items(boot) == [K_MUSIC, K_BARCHANGE]
+    expect_menu(boot, ("music_on", "bar_snap"))
+
+
+def test_left_and_right_do_nothing_on_the_music_line(boot):
+    settings_open(boot)
+    for key in ("left", "right"):
+        menu_tap(boot, key)
+    boot.run(MENU_SETTLE)
+    assert boot.mem("level_dirs") & KEEP_POS == 0 and boot.mem("sound_on") == 1
+    expect_menu(boot, ("music_on", "bar_snap"))
+
+
+def test_the_setting_is_what_the_game_plays_and_classic_still_snaps(boot):
+    settings_open(boot)
+    menu_to(boot, K_BARCHANGE)
+    menu_tap(boot, "a")
+    menu_tap(boot, "b")
+    title_level(boot)
+    run_until(boot, lambda: boot.mem("game_state") == 1, 60)
+    boot.run(100)
+    boot.press("left", 30)
+    x0 = boot.mem("bartender_x")
+    boot.press("down", 1)
+    assert boot.mem("bartender_x") == x0, "KEEP from the settings: he keeps his place"
+    assert dust(boot) is None
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_setting_is_saved_and_a_bad_block_reads_as_snap(model):
+    from test_sound import make_rom, save_ram
+    rom = make_rom(model, None, sound=False)
+    try:
+        rom.run(120)
+        hold_stage_anim(rom)
+        settings_open(rom)
+        menu_to(rom, K_BARCHANGE)
+        menu_tap(rom, "a")
+        assert rom.mem("level_dirs") & KEEP_POS
+        ram = save_ram(rom)
+    finally:
+        if rom.pb:
+            rom.stop()
+    assert ram[0x12:0x14] == b"BC" and ram[0x14] == 1
+    for image, want in ((ram, KEEP_POS), (None, 0), (bytes(0x2000), 0), (with_bc(bc_block(1)), KEEP_POS), (with_bc(bc_block(0)), 0),
+                        (with_bc(bc_block(1, ok=False)), 0), (with_bc(bc_block(2)), 0), (with_bc(b"BX" + bytes(3)), 0)):
+        r = make_rom(model, image, sound=False)
+        try:
+            r.run(120)
+            assert r.mem("level_dirs") & KEEP_POS == want, image and image[0x12:0x17].hex()
+            hold_stage_anim(r)
+            settings_open(r)
+            expect_menu(r, ("music_on", "bar_keep" if want else "bar_snap"))
+        finally:
+            r.stop()

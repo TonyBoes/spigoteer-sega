@@ -3,7 +3,7 @@
 import subprocess
 
 import pytest
-from conftest import (clear_regulars, K_ARCADE, K_BONUS, K_CLASSIC, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE,
+from conftest import (clear_regulars, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_MUSIC, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE,
                       ROOT, TM_PLAY, TM_SETTINGS, TM_TOP, menu_items, menu_tap, menu_to, title_arcade, title_level, title_pick)
 
 pytestmark = pytest.mark.timeout(120)
@@ -180,7 +180,7 @@ def test_the_release_build_has_no_debug_menu():
 def test_the_combo_works_from_any_menu_item_and_the_menu_survives(boot):
     from test_flow import music_line, title_text_row
     title_pick(boot, K_SETTINGS)                          # the cursor on MUSIC
-    assert menu_items(boot) == [K_MUSIC] and boot.mem("title_sel") == 0
+    assert menu_items(boot) == [K_MUSIC, K_BARCHANGE] and boot.mem("title_sel") == 0
     s0 = boot.mem("sound_on")
     boot.hold("select")
     boot.run(2)

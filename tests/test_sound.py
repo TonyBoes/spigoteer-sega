@@ -675,7 +675,7 @@ def test_the_show_tune_waits_for_nothing_when_a_show_starts(sgb):
 
 # ---- MUSIC ON / OFF -------------------------------------------------------------------------
 def music_text(gb):
-    return music_line(gb)          # the title's MUSIC line (SETTINGS' only line, row 9)
+    return music_line(gb)          # the title's MUSIC line (SETTINGS' first line, row 8)
 
 
 def test_select_toggles_the_music(srom):

@@ -97,7 +97,7 @@ uint8_t  title_menu;            // TM_* (game.h): the top level, or the submenu 
 uint8_t  title_back;            // the menu title_enter opens (the soundtrack player goes back to BONUS); then TM_TOP
 uint8_t  title_back_sel;        // ... and the line its cursor starts on (then 0)
 uint8_t  title_sel;             // the selected line of the shown menu (top: 0 PLAY, 1 BONUS, 2 SETTINGS; PLAY: [CONTINUE],
-                                // STORY, ARCADE, CLASSIC; BONUS: SOUNDTRACK; SETTINGS: MUSIC)
+                                // STORY, ARCADE, CLASSIC; BONUS: SOUNDTRACK; SETTINGS: MUSIC, BAR CHANGE)
 uint8_t  title_hi;              // the top 5 the HI line shows (MODE_*): the one under PLAY's cursor, else ARCADE's
 uint8_t  attract_n;             // the idle title's next table (attract_tbl index)
 uint8_t  title_items[MENU_MAX]; // K_* per menu line (game.h)
@@ -136,16 +136,16 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
-                                         tt_soundtrack, tt_classic, tt_minigames, tt_bossrush };
+                                         tt_soundtrack, tt_classic, tt_minigames, tt_bossrush, tt_bar_snap, tt_bar_keep };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
-                                  TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH };
+                                  TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH, TT_X_BAR_SNAP, TT_X_BAR_KEEP };
 
 static void build_item(uint8_t i) {
     uint8_t k = title_items[i];
     build_row(menu_buf[i], k == K_MUSIC && !sound_on ? tt_music_off : k_text[k]);
 }
 
-static uint8_t text_left(uint8_t i) {           // screen x of the first text pixel of menu line i
+static uint8_t text_left(uint8_t i) {           // screen x of the first text pixel of menu line i 
     uint8_t k = title_items[i];
     return k == K_MUSIC && !sound_on ? TT_X_MUSIC_OFF : k_left[k];
 }
@@ -180,6 +180,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
         break;
     default:
         title_items[title_n++] = K_MUSIC;
+        title_items[title_n++] = K_BARCHANGE + (level_dirs >> 7);   // (two items, K_BARKEEP follows: the line's wording is its item)
     }
     for (i = 0; i < title_n; i++) {
         title_rows[i] = MENU_ROW(title_n) + 2 * i;
@@ -228,6 +229,14 @@ void title_music_toggle(void) BANKED {
     music_set_on(!sound_on);
     for (i = 0; i < title_n; i++)
         if (title_items[i] == K_MUSIC) { build_item(i); title_dirty |= (uint16_t)1 << title_rows[i]; }
+}
+
+// SETTINGS > BAR CHANGE (A, START, LEFT or RIGHT on its line): SNAP <-> KEEP (level_dirs bit 7), kept in the save; CLASSIC snaps whatever it says
+static void bar_mode_toggle(void) {
+    level_dirs ^= KEEP_POS;
+    title_items[title_sel] ^= K_BARCHANGE ^ K_BARKEEP;
+    build_item(title_sel); title_dirty |= (uint16_t)1 << title_rows[title_sel];
+    bar_mode_save();
 }
 
 static void logo_put(uint8_t i) {               // letter i's current state into its buffer (LCD off: straight to VRAM)
@@ -468,7 +477,10 @@ uint8_t title_update(uint8_t pressed) BANKED {
         return 0;
     }
     title_t++;
-    if (pressed) title_idle = 0;
+    if (pressed) {
+        title_idle = 0;
+        if ((pressed & (J_LEFT | J_RIGHT)) && title_items[title_sel] >= K_BARCHANGE) bar_mode_toggle();
+    }
     else if (++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables
         score_tbl = attract_tbl[attract_n];
         if (++attract_n == TOP_TABLES) attract_n = 0;
@@ -490,7 +502,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_PLAY: menu_open(TM_PLAY, 0); break;
         case K_BONUS: menu_open(TM_BONUS, 0); break;
         case K_SETTINGS: menu_open(TM_SETTINGS, 0); break;
-        default: title_music_toggle();
+        default: if (title_items[title_sel] >= K_BARCHANGE) bar_mode_toggle(); else title_music_toggle();
         }
     } else if ((pressed & J_B) && title_menu != TM_TOP) menu_open(TM_TOP, title_menu - 1);
     if (title_sel == old) {                        // (a cursor move already queued its two attribute rows)

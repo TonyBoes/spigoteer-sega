@@ -440,9 +440,9 @@ void title_enter(void) BANKED;                          // LCD off: draws the ti
 uint8_t title_update(uint8_t pressed) BANKED;           // one title frame (it starts the games); 2: idle, show the table
 void title_music_toggle(void) BANKED;                   // music on/off and the MUSIC line
 // title menu items (title_items[], debug.c reads them): the top level PLAY / BONUS / SETTINGS, PLAY's submenu
-// [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS's MUSIC ON-OFF
+// [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS's MUSIC ON-OFF / BAR CHANGE SNAP-KEEP
 enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES,
-       K_BOSSRUSH };
+       K_BOSSRUSH, K_BARCHANGE, K_BARKEEP };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP)
 enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS };        // title_menu: the top level or the submenu of top item n-1
 extern uint8_t title_items[], title_sel;                // the shown menu's items in screen order, the selected line
 extern uint8_t title_back;                              // the menu title_enter opens (TM_*; it resets it to TM_TOP)
