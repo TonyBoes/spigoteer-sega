@@ -702,9 +702,8 @@ void story_end(void) BANKED {
     if (save_lock) { title_enter(); return; }   // (a debug-select run: nothing saved)
     score_tbl = MODE_STORY;
     aaa[0] = aaa[1] = aaa[2] = 'A';
-    if (RUN_DIFF == DIFF_HARD) aaa[0] |= 0x80;             // the table's E / H mark (save.c); the score counts with the difficulty's multiplier
+    if (RUN_DIFF == DIFF_HARD) aaa[0] |= 0x80;             // the table's E / H mark (save.c)
     else if (RUN_DIFF == DIFF_EASY) aaa[1] |= 0x80;
-    score = story_scaled(score, RUN_DIFF);
     story_arc = 0; hud_pal_reset();                         // (the run's difficulty and the HUD colour it tinted end here)
     new_rank = top_insert(score, aaa);
     if (new_rank < TOP_N) hi_save();

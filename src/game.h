@@ -452,9 +452,9 @@ void title_music_toggle(void) BANKED;                   // music on/off and the 
 // [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS's MUSIC ON-OFF / BAR CHANGE SNAP-KEEP
 enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES,
        K_BOSSRUSH, K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP,
-       K_HOWHARD, K_EASY, K_NORMAL, K_HARD, K_CREDITS };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
+       K_CREDITS, K_EASY, K_NORMAL, K_HARD, K_CAP_EASY, K_CAP_NORMAL, K_CAP_HARD };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
                                                                                          // DEBUG MENU (unlocked only); the confirm: the K_ERASEQ label, NO, YES;
-                                                                                         // PLAY > STORY's difficulty prompt: the K_HOWHARD label, EASY, NORMAL, HARD; K_BARCHANGE and K_BARKEEP are the bar toggles)
+                                                                                         // PLAY > STORY's difficulty prompt: EASY, NORMAL, HARD, each with its K_CAP_* caption (HALF / NORMAL / EXTRA POINTS) on the row below (no item: title.c menu_frame); K_BARCHANGE and K_BARKEEP are the bar toggles)
 enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD };   // title_menu: the top level or the submenu of top item n-1 (TM_ERASE: SETTINGS' ERASE ALL DATA? prompt; TM_HARD: PLAY > STORY's HOW HARD prompt)
 extern uint8_t title_items[], title_sel;                // the shown menu's items in screen order, the selected line
 extern uint8_t title_back;                              // the menu title_enter opens (TM_*; it resets it to TM_TOP)
@@ -524,12 +524,9 @@ extern uint8_t story_arc;                               // bit 0: ARCADE (the st
 #define DIFF_EASY   2
 #define RUN_DIFF    (((story_arc) >> 1) & 3)
 #define EASY_RUN    (story_on && play_mode == MODE_STORY && RUN_DIFF == DIFF_EASY)
-// The STORY score's multiplier, in percent, applied when the score is recorded in the table (the HUD shows raw points): tune after balancing
-#define STORY_MULT_EASY_PCT 50
-#define STORY_MULT_HARD_PCT 150
 void hud_pal_reset(void) BANKED;                        // CGB: BG palette 1 (the HUD) with its normal colour 2 (a STORY EASY / HARD run changes it: main_cold.c draw_hud)
 uint8_t story_diff_saved(void) BANKED;                  // the difficulty the saved story was started in (DIFF_*; NORMAL for an older save)
-uint32_t story_scaled(uint32_t s, uint8_t diff) BANKED; // s times the difficulty's multiplier (<= 999999)
+uint16_t story_pts(uint16_t n) BANKED;                  // a STORY run's points n scaled live by the difficulty (EASY x0.5, HARD x1.5, nearest 5; other runs: n)
 void arcade_begin(void) BANKED;                         // PLAY > ARCADE: the saloon's Opening shift, a new run (LCD off)
 void arcade_next(void) BANKED;                          // ARCADE: a venue's bonus round is over, the next venue
 void extra_life(void) BANKED;                           // add_score passed extra_at: a life (at most MAX_LIVES), the next

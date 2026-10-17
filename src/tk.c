@@ -353,7 +353,7 @@ static uint16_t note_t(uint8_t i) { return TKT.chart[i] & 0x7FFF; }
 static void spill_penalty(void) {                         // -50, never below what this game earned
     uint16_t n = mg_score < TK_PTS_SPILL ? mg_score : TK_PTS_SPILL;
     mg_score -= n;
-    score -= n;
+    score -= (story_arc & 6) ? story_pts(n) : n;              // (a STORY difficulty scaled what it earned)
     split6(score_digits, score);
     hud_dirty |= HUD_SCORE;
     prep_hud();

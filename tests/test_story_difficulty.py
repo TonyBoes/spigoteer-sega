@@ -3,13 +3,14 @@
 A new STORY (PLAY > STORY, not CONTINUE) asks HOW HARD: EASY / NORMAL / HARD, the cursor on NORMAL, B backs out. The choice is saved with the story (bits 6-7 of
 the main block's byte 4: 0 NORMAL, 1 HARD, 2 EASY, the codes of mg.h MG_D_*), CONTINUE uses it, an older save reads NORMAL. ARCADE and CLASSIC are unchanged.
 EASY unlocks nothing (tunes, BOSS RUSH's bosses, Practice's mini-games and medals; the progress for CONTINUE is kept); NORMAL and HARD unlock as always. On CGB the
-HUD's level flag is green (EASY) or red (HARD) through BG palette 1's colour 2; NORMAL and DMG are as before. The STORY's score is recorded multiplied (game.h
-STORY_MULT_*_PCT: EASY 50 %, HARD 150 %), marked E / H in the table; the HUD shows the raw points. EASY and HARD play exactly like NORMAL for now."""
+HUD's level flag is green (EASY) or red (HARD) through BG palette 1's colour 2; NORMAL and DMG are as before. Owner 2026-10-17: the prompt has no header, each
+choice a caption under it (HALF / NORMAL / EXTRA POINTS), and every score added in a STORY run is scaled live (save.c story_pts: EASY x0.5, HARD x1.5, to the
+nearest 5), so the HUD shows the scaled score; nothing is multiplied at the end and the initials screen says nothing; the table still marks E / H."""
 import pytest
 import test_story as ts
-from conftest import (K_ARCADE, K_CLASSIC, K_CONTINUE, K_EASY, K_HARD, K_HOWHARD, K_NORMAL, K_PLAY, K_STORY, MENU_SETTLE, ROOT, TM_HARD, TM_PLAY, check_golden,
+from conftest import (K_ARCADE, K_CLASSIC, K_CONTINUE, K_EASY, K_HARD, K_NORMAL, K_PLAY, K_STORY, MENU_SETTLE, ROOT, TM_HARD, TM_PLAY, check_golden,
                       hold_stage_anim, menu_items, menu_tap, menu_to, title_pick)
-from test_flow import GS_GOAL, GS_STORY, LEVEL_CLEAR, PLAYING, TITLE, run_until, state
+from test_flow import TITLE_ART, GS_GOAL, GS_STORY, LEVEL_CLEAR, PLAYING, TITLE, run_until, state
 from test_hud import FLAG, art_bytes, vram_tile
 from test_scores import GS_INITIALS, GS_SCORES, MODE_STORY, booted, screen_text, set_score, v7_image
 from test_sound import save_ram
@@ -77,20 +78,39 @@ def test_a_new_story_asks_how_hard_with_the_cursor_on_normal_and_b_backs_out(mod
         title_pick(rom, K_PLAY, K_STORY, press=False)
         assert rom.mem("title_menu") == TM_PLAY
         menu_tap(rom, "a")
-        assert rom.mem("title_menu") == TM_HARD and menu_items(rom) == [K_HOWHARD, K_EASY, K_NORMAL, K_HARD]
+        assert rom.mem("title_menu") == TM_HARD and menu_items(rom) == [K_EASY, K_NORMAL, K_HARD]
         assert menu_items(rom)[rom.mem("title_sel")] == K_NORMAL
         assert rom.mem("game_state") == TITLE, "asking starts nothing"
         seen = []
-        for _ in range(4):                                       # the label is no choice: Down wraps HARD -> EASY, Up EASY -> HARD
+        for _ in range(4):                                       # Down wraps HARD -> EASY
             menu_tap(rom, "down")
             seen.append(menu_items(rom)[rom.mem("title_sel")])
         assert seen == [K_HARD, K_EASY, K_NORMAL, K_HARD]
         menu_tap(rom, "up")
         menu_tap(rom, "up")
         menu_tap(rom, "up")
-        assert menu_items(rom)[rom.mem("title_sel")] == K_HARD, "Up from EASY wraps past the label"
+        assert menu_items(rom)[rom.mem("title_sel")] == K_HARD, "Up from EASY wraps to HARD"
         menu_tap(rom, "b")
         assert rom.mem("title_menu") == TM_PLAY and menu_items(rom)[rom.mem("title_sel")] == K_STORY and rom.mem("game_state") == TITLE
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_prompt_has_no_header_and_a_caption_under_each_choice(model):
+    t = TITLE_ART
+    with booted(model) as rom:
+        title_pick(rom, K_PLAY, K_STORY, press=False)
+        menu_tap(rom, "a")
+        rom.run(MENU_SETTLE)
+        rows = [[x % 256 for x in r] for r in rom.bg_tilemap()]
+        want = {5: "easy", 8: "normal", 11: "hard", 6: "cap_easy", 9: "cap_normal", 12: "cap_hard"}
+        for r, k in want.items():
+            e = t["text"][k]
+            assert rows[r][e["col"]:e["col"] + len(e["tiles"])] == e["tiles"], (r, k)
+        for r in (4, 7, 10, 13):
+            assert len(set(rows[r])) == 1, ("a blank row between the lines", r)
+        assert t["text"]["cap_hard"]["tiles"] != t["text"]["cap_easy"]["tiles"]
+        assert "how_hard" not in t["text"], "no header"
+        assert all(len(set(rows[r])) == 1 for r in range(4, 14) if r not in want), "nothing else on the menu rows"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -292,8 +312,9 @@ def names(rom, t=MODE_STORY):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("d,raw,scaled,mark,line", [(HARD, 999, 1498, "H", "HARD X1.5"), (EASY, 1001, 500, "E", "EASY X0.5"), (HARD, 700000, 999999, "H", "HARD X1.5")])
-def test_the_story_score_is_recorded_with_the_multiplier_marked_and_explained(model, d, raw, scaled, mark, line):
+@pytest.mark.parametrize("d,mark", [(HARD, "H"), (EASY, "E"), (NORMAL, " ")])
+def test_the_credits_record_the_score_as_it_is_with_no_indicator_on_the_initials_screen_and_the_table_marks_it(model, d, mark):
+    raw = 1495
     with credits_with(model, d, raw) as gb:
         gb.press("start", 2)                                     # (the credits' pages, then the roll: START skips each)
         run_until(gb, lambda: gb.mem("story_phase") == 8, 30)
@@ -301,10 +322,9 @@ def test_the_story_score_is_recorded_with_the_multiplier_marked_and_explained(mo
         gb.press("start", 2)
         run_until(gb, lambda: state(gb) == GS_INITIALS, 30)
         gb.run(2)
-        assert int.from_bytes(gb.read("score", 4), "little") == scaled
-        assert screen_text(gb, 5).strip() == "%06d" % scaled
-        assert screen_text(gb, 14).strip() == line.replace(".", "?"), "the multiplier line (its full stop is a tile the glyph map does not know)"
-        assert vram_tile(gb, 253) == art_bytes("assets/art/hud_icons.txt", "dot")
+        assert int.from_bytes(gb.read("score", 4), "little") == raw, "no multiplier at the end"
+        assert screen_text(gb, 5).strip() == "%06d" % raw
+        assert screen_text(gb, 14).strip() == "", "no difficulty line"
         n = names(gb)
         assert (n[0] & 0x80 != 0) == (d == HARD) and (n[1] & 0x80 != 0) == (d == EASY) and n[2] & 0x80 == 0
         gb.press("up", 2)
@@ -312,14 +332,9 @@ def test_the_story_score_is_recorded_with_the_multiplier_marked_and_explained(mo
         gb.press("a", 2)
         run_until(gb, lambda: state(gb) == GS_SCORES, 30)
         gb.run(2)
-        assert screen_text(gb, 3).strip() == "STORY HIGH SCORES"
-        assert screen_text(gb, 6).strip() == "1 BAA %06d %s" % (scaled, mark), "the E / H mark after the score; the initials are the letters"
+        assert screen_text(gb, 6).strip() == ("1 BAA %06d %s" % (raw, mark)).strip(), "the E / H mark after the score (kept)"
         ram = save_ram(gb)
-    assert ram[0xC0:0xC4] == b"HSS1" and ram[0xC4] & 0x80 == (0x80 if d == HARD else 0) and ram[0xC5] & 0x80 == (0x80 if d == EASY else 0)
-    assert int.from_bytes(ram[0xC7:0xCA], "little") == scaled
-    with booted(model, ram) as gb:                               # a reset loads the marks (the table block still checks out)
-        assert int.from_bytes(gb.read("top_scores", 3 * 5 * 4)[5 * 4:5 * 4 + 4], "little") == scaled
-        assert (names(gb)[0] & 0x80 != 0) == (d == HARD)
+    assert int.from_bytes(ram[0xC7:0xCA], "little") == raw
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -347,10 +362,50 @@ def test_the_story_table_screen_marks_only_easy_and_hard_entries(model):
         check_golden(gb, "story_table_marks")
 
 
+def want_pts(n, d):
+    return {NORMAL: n, EASY: (n + 5) // 10 * 5, HARD: (3 * n + 5) // 10 * 5}[d]
+
+
+def hud_digits(rom):
+    return int("".join(str(b) for b in rom.read("score_digits", 6)))
+
+
+@pytest.mark.parametrize("model,d", MODES, ids=IDS)
+def test_every_score_event_of_a_story_run_is_scaled_as_it_happens_and_the_hud_shows_it(model, d):
+    from test_classic_mode import serve_one
+    with in_shift(model, d) as rom:
+        base = int.from_bytes(rom.read("score", 4), "little")
+        got = serve_one(rom)
+        s = rom.mem("serve_score")
+        assert got == want_pts(s, d), (d, s, got)
+        assert got % 5 == 0
+        assert hud_digits(rom) == base + got == int.from_bytes(rom.read("score", 4), "little"), "the HUD shows the scaled score"
+        got2 = serve_one(rom)
+        assert got2 == want_pts(s, d)
+
+
+@pytest.mark.parametrize("model,d", MODES, ids=IDS)
+def test_the_level_bonus_and_a_medal_are_scaled_too(model, d):
+    with in_shift(model, d) as rom:
+        s0 = int.from_bytes(rom.read("score", 4), "little")
+        ts.win(rom, 1, 0)
+        run_until(rom, lambda: state(rom) == LEVEL_CLEAR, 800)
+        run_until(rom, lambda: state(rom) == GS_GOAL, 800)
+        gained = int.from_bytes(rom.read("score", 4), "little") - s0
+        assert gained >= want_pts(1000, d) and gained % 5 == 0, (d, gained)
+        assert hud_digits(rom) == s0 + gained
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_multipliers_are_one_named_pair_of_percentages(model):
-    from conftest import GAME
-    assert GAME["STORY_MULT_EASY_PCT"] == 50 and GAME["STORY_MULT_HARD_PCT"] == 150
+def test_arcade_and_classic_scores_are_not_scaled(model):
+    from test_classic_mode import serve_one
+    for k in (K_ARCADE, K_CLASSIC):
+        with booted(model, image(2, EASY)) as rom:
+            title_pick(rom, K_PLAY, k)
+            run_until(rom, lambda: state(rom) == PLAYING, 60)
+            rom.run(60)
+            assert run_diff(rom) == NORMAL
+            assert serve_one(rom) == rom.mem("serve_score")
 
 
 # ---- ERASE DATA --------------------------------------------------------------------------------------------------------------------

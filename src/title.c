@@ -47,7 +47,8 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 // K_*, TM_*: game.h.
 #define MENU_MAX        4
 #define MENU_ROW(n)   (10 - (n))
-#define MENU_FIRST_ROW  6       // the rows a menu can use: 6..12
+#define HARD_ROW        5       // the difficulty prompt: its lines on rows 5, 8, 11, the captions on 6, 9, 12
+#define MENU_FIRST_ROW  5       // the rows a menu can use: 5..12
 #define MENU_LAST_ROW  12
 #define MENU_COPIES_PER_FRAME 2 // a submenu's redraw: 20-byte rows (tiles or CGB attributes) queued per frame
 #define SCENE_BAR       3       // the scene stands on bar 3's rows (14-15 wall, 16 counter): draw_bartender() places him
@@ -137,10 +138,10 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
                                          tt_soundtrack, tt_classic, tt_minigames, tt_bossrush, tt_erase, tt_debug, tt_erase_q, tt_no, tt_yes,
-                                         tt_bar_snap, tt_bar_keep, tt_how_hard, tt_easy, tt_normal, tt_hard, tt_credits };
+                                         tt_bar_snap, tt_bar_keep, tt_credits, tt_easy, tt_normal, tt_hard, tt_cap_easy, tt_cap_normal, tt_cap_hard };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
                                   TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH, TT_X_ERASE, TT_X_DEBUG, TT_X_ERASE_Q, TT_X_NO, TT_X_YES,
-                                  TT_X_BAR_SNAP, TT_X_BAR_KEEP, TT_X_HOW_HARD, TT_X_EASY, TT_X_NORMAL, TT_X_HARD, TT_X_CREDITS };
+                                  TT_X_BAR_SNAP, TT_X_BAR_KEEP, TT_X_CREDITS, TT_X_EASY, TT_X_NORMAL, TT_X_HARD, TT_X_CAP_EASY, TT_X_CAP_NORMAL, TT_X_CAP_HARD };
 #define IS_BAR(k) ((k) == K_BARCHANGE || (k) == K_BARKEEP)   // SETTINGS' BAR line (the items after K_BARKEEP are the difficulty prompt's)
 
 static void build_item(uint8_t i) {
@@ -161,7 +162,7 @@ static void set_sel_attr(uint8_t sel, uint8_t on) {
 // old and the new menu are marked for the redraw (menu_frame; title_enter draws them at once with the LCD off).
 static void menu_open(uint8_t m, uint8_t sel) {
     uint8_t i;
-    for (i = 0; i < title_n; i++) title_dirty |= (uint16_t)1 << title_rows[i];
+    for (i = 0; i < title_n; i++) title_dirty |= (uint16_t)1 << title_rows[i] | (title_menu == TM_HARD ? (uint16_t)2 << title_rows[i] : 0);   // (the prompt's captions too)
     title_menu = m;
     title_n = 0;
     switch (m) {
@@ -187,8 +188,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_NO;
         title_items[title_n++] = K_YES;
         break;
-    case TM_HARD:     // PLAY > STORY (a new one): "PICK ONE" (the HOW HARD label: a W would be a 129th title tile and the title's load would run a frame longer, tests/test_menu_music.py; the cursor skips it), EASY, NORMAL, HARD; the cursor starts on NORMAL
-        title_items[title_n++] = K_HOWHARD;
+    case TM_HARD:     // PLAY > STORY (a new one): EASY, NORMAL, HARD, each with its caption on the row below (menu_frame); the cursor starts on NORMAL
         title_items[title_n++] = K_EASY;
         title_items[title_n++] = K_NORMAL;
         title_items[title_n++] = K_HARD;
@@ -200,8 +200,8 @@ static void menu_open(uint8_t m, uint8_t sel) {
         if (debug_unlocked()) title_items[title_n++] = K_DEBUG;     // (the debug menu, once unlocked: src/debug.c)
     }
     for (i = 0; i < title_n; i++) {
-        title_rows[i] = MENU_ROW(title_n) + 2 * i;
-        title_dirty |= (uint16_t)1 << title_rows[i];
+        title_rows[i] = m == TM_HARD ? HARD_ROW + 3 * i : MENU_ROW(title_n) + 2 * i;
+        title_dirty |= (uint16_t)1 << title_rows[i] | (m == TM_HARD ? (uint16_t)2 << title_rows[i] : 0);
         build_item(i);
     }
     title_sel = sel;
@@ -217,6 +217,15 @@ static uint8_t menu_frame(void) {
         if (!(title_dirty & ((uint16_t)1 << r))) continue;
         k = 255;
         for (i = 0; i < title_n; i++) if (title_rows[i] == r) k = i;
+        if (k == 255 && title_menu == TM_HARD && (r - HARD_ROW) % 3 == 1) {      // the prompt's caption: one a frame (they share menu_buf[3])
+            if (n) continue;
+            title_dirty &= ~((uint16_t)1 << r);
+            build_row(menu_buf[3], k_text[title_items[(r - HARD_ROW) / 3] + 3]);
+            vq_add(0, menu_buf[3], 0, r, 20);
+            if (is_cgb) vq_add(1, attr_txt, 0, r, 20);
+            n = MENU_COPIES_PER_FRAME;
+            continue;
+        }
         need = (is_cgb && k != 255) ? 2 : 1;
         if (n + need > MENU_COPIES_PER_FRAME) continue;          // next frame (a cheaper row may still fit)
         title_dirty &= ~((uint16_t)1 << r);
@@ -282,8 +291,8 @@ void title_enter(void) BANKED {
     music_pump();
     set_bkg_data(BAR_TILE_COUNT, TITLE_TILE_COUNT, title_tiles);   // lettering over the patron ids; the level load puts them back
     music_pump();
-    for (i = 0; i < TT_EXTRA_COUNT; i += 16) {        // (2 KB: in slices, the music ticking between them)
-        set_bkg_data(TT_EXTRA_BASE + i, TT_EXTRA_COUNT - i < 16 ? TT_EXTRA_COUNT - i : 16, tt_extra_tiles + i * 16);
+    for (i = 0; i < TT_EXTRA_COUNT; i += 14) {        // (2 KB: in slices, the music ticking between them)
+        set_bkg_data(TT_EXTRA_BASE + i, TT_EXTRA_COUNT - i < 14 ? TT_EXTRA_COUNT - i : 14, tt_extra_tiles + i * 16);
         music_pump();
     }
     set_bkg_data(0, TT_LOW_COUNT, tt_low_tiles);
@@ -336,7 +345,7 @@ void title_enter(void) BANKED {
     row_buf[6] = TT_HI;
     title_hi = hi_want(); hi_build();
     for (i = 0; i < 6; i++) row_buf[8 + i] = hi_buf[i];
-    row_buf[17] = tt_digit[VERSION_MAJOR]; row_buf[19] = tt_digit[VERSION_MINOR];   // the version, top right (the Makefile's VERSION)
+    row_buf[17] = tt_digit[VERSION_MAJOR]; row_buf[18] = TT_DOT; row_buf[19] = tt_digit[VERSION_MINOR];   // the version, top right (the Makefile's VERSION)
     set_bkg_tiles(0, ROW_HI, 20, 1, row_buf);
     music_pump();
     // the scene's patron
@@ -360,6 +369,7 @@ void title_enter(void) BANKED {
     bar = SCENE_BAR; bartender_x = BT_X; bt_bob = 0; facing = 0; bartender_frame = BT_IDLE;
     game_state = GS_TITLE;
     music_pump();
+    while (TIMA_REG < (TMA_REG & 0xFC) + 34) ;   // (the loop's tick, due as this pass ends, is refused until half a frame has passed since the pump's: wait that out here, LCD off, so the first title frame ticks)
     DISPLAY_ON;
 }
 
@@ -520,13 +530,13 @@ uint8_t title_update(uint8_t pressed) BANKED {
     if (pressed & J_SELECT) title_music_toggle();
     if (pressed & J_UP) title_sel = title_sel ? title_sel - 1 : last;
     else if (pressed & J_DOWN) title_sel = title_sel == last ? 0 : title_sel + 1;
-    if (title_items[title_sel] == K_ERASEQ || title_items[title_sel] == K_HOWHARD) title_sel = (pressed & J_UP) ? last : 1;   // (a prompt's label is no choice)
+    if (title_items[title_sel] == K_ERASEQ) title_sel = (pressed & J_UP) ? last : 1;   // (a prompt's label is no choice)
     if (title_sel != old) { set_sel_attr(old, 0); set_sel_attr(title_sel, 1); }
     else if (pressed & (J_A | J_START)) {
         switch (title_items[title_sel]) {
         case K_ARCADE: arcade_begin(); return 0;
         case K_CLASSIC: play_mode = MODE_CLASSIC; start_new_game(1); return 0;   // CLASSIC's level 1 (classic.c)
-        case K_STORY: menu_open(TM_HARD, 2); break;                            // (a new story asks "HOW HARD", the cursor on NORMAL; CONTINUE does not: the save holds it)
+        case K_STORY: menu_open(TM_HARD, 1); break;                            // (a new story asks "HOW HARD", the cursor on NORMAL; CONTINUE does not: the save holds it)
         case K_EASY: story_begin(DIFF_EASY << 1); return 0;
         case K_NORMAL: story_begin(DIFF_NORMAL << 1); return 0;
         case K_HARD: story_begin(DIFF_HARD << 1); return 0;

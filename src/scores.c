@@ -23,7 +23,6 @@ extern uint32_t score;
 #define ROW_ENTER       8       // "ENTER INITIALS"
 #define ROW_INITIALS   11       // the three letters at columns INI_COL, +2, +4
 #define ROW_CURSOR     12       // the cursor bar under the current letter
-#define ROW_MULT       14       // a STORY score made in HARD or EASY: "HARD X1.5" (clear of the rows above, which touch their neighbours)
 #define INI_COL         8
 #define TABLE_COL       4       // "1 ABC 012345": 12 characters at columns 4..15
 #define SCORES_FRAMES 300       // the table stays 5 s
@@ -44,7 +43,6 @@ static const uint8_t alpha[26] = {
 static uint8_t tile_of(uint8_t c) {
     if (c >= 'A' && c <= 'Z') return alpha[c - 'A'];
     if (c >= '0' && c <= '9') return TILE_GLYPH_0 + (c - '0');
-    if (c == '.') return HUD_GOAL_BG;                // (loaded by the initials screen only)
     return TILE_HUD_BLANK;
 }
 
@@ -137,17 +135,9 @@ static void initials_enter(void) {
     screen_begin();
     hud_icon_load(HUD_CURSOR_BG, HUD_ICON_CURSOR);
     // (the cursor is no generic tile: see assets/tiles/bar.txt hud_flag)
-    hud_icon_load(HUD_GOAL_BG, HUD_ICON_DOT);        // (the full stop of the multiplier line)
     text_at(ROW_HEAD, 255, "NEW HIGH SCORE");
     six_digits(d, score); d[6] = 0;
     text_at(ROW_SCORE, 255, d);
-    if (mark_of(n) != ' ') {                         // a STORY score made in HARD or EASY: its multiplier, so the number makes sense ("HARD X1.5")
-        pct = mark_of(n) == 'H' ? STORY_MULT_HARD_PCT : STORY_MULT_EASY_PCT;
-        w = mark_of(n) == 'H' ? "HARD X" : "EASY X";
-        for (i = 0; i < 6; i++) d[i] = w[i];
-        d[6] = '0' + pct / 100; d[7] = '.'; d[8] = '0' + (pct % 100) / 10; d[9] = 0;
-        text_at(ROW_MULT, 255, d);
-    }
     text_at(ROW_ENTER, 255, "ENTER INITIALS");
     ini_name[0] = ini_name[1] = ini_name[2] = 'A';
     ini_pos = 0;

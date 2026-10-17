@@ -64,7 +64,7 @@ def test_the_prompt_text_is_centred_and_fits_the_title_tile_budget(model):
         left = t["x"] - 1
         assert left == 160 - (left + 8 * len(s)), f"{key}: {left} px left, {160 - left - 8 * len(s)} px right"
     assert TITLE_ART["text"]["yes"]["x"] - 1 == 160 - (TITLE_ART["text"]["yes"]["x"] - 1 + 8 * 4), "YES sits in a four-tile cell"
-    assert TITLE_ART["patron_base"] + 4 <= 242      # (240 until the STORY difficulty prompt, 2026-10-16: it may use the DMG mug copies' ids 240-241)
+    assert TITLE_ART["patron_base"] + 4 <= 244      # (240; 242 for the STORY difficulty prompt, 244 for its captions: the DMG mug copies' ids, made at every level start)
 
 
 @pytest.mark.parametrize("model", MODELS)

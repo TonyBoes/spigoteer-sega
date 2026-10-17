@@ -167,6 +167,7 @@ void add_score(uint16_t n) {
     // 16-bit divide costs ~600 cycles a call, and a patron serve (this, plus the tip roll, plus a redraw) is one of
     // the heaviest frames of the game.
     uint8_t d4 = 0, d3 = 0, d2 = 0, d1 = 0, d, carry;
+    if (story_arc & 6) n = story_pts(n);              // a STORY run's difficulty scales every score as it is added (save.c)
     score += n;
     if (extra_at && score >= extra_at) extra_life();   // ARCADE / CLASSIC (story.c)
     while (n >= 10000) { n -= 10000; d4++; }

@@ -46,7 +46,7 @@
 //   (2 bits a round as MGB1's byte 5, round k at k * 2; the top two bits must be 0), 4 the checksum (0x5A + bytes 0..3), 5 its complement. NORMAL
 //   medals stay in MGB1. A block that does not check out (an older save has none) reads as no EASY or HARD medals; MGB1 and the rest are unaffected.
 //   0x80 ARCADE, 0xC0 STORY, 0x100 CLASSIC: a top 5 each (TBL_AT(t), t = MODE_*): 0..3 magic "HSA1" / "HSS1" / "HSC2" (P5: CLASSIC's
-//   (STORY's table marks a score made in HARD with bit 7 of the first initial and in EASY with bit 7 of the second; the score is kept multiplied: game.h)
+//   (STORY's table marks a score made in HARD with bit 7 of the first initial and in EASY with bit 7 of the second)
 //   "HSC1" held the stand-in's scores and now loads as an empty table),
 //   5 entries of 6 bytes from 4: 3 initials ('A'..'Z' or ' '), score (3 bytes, little endian, <= 999999), best first;
 //   34 checksum (0x5A + bytes 0..33), 35 its complement. A block that does not check out (magic, checksum, letters,
@@ -591,16 +591,12 @@ uint8_t story_diff_saved(void) BANKED {
     return d == 3 ? 0 : d;
 }
 
-// The STORY score s times the difficulty's multiplier (game.h STORY_MULT_*_PCT), at most 999999
-uint32_t story_scaled(uint32_t s, uint8_t diff) BANKED {
-    uint8_t pct = diff == DIFF_EASY ? STORY_MULT_EASY_PCT : diff == DIFF_HARD ? STORY_MULT_HARD_PCT : 100;
-    uint32_t a, r = 0;
-    uint8_t m;
-    if (pct == 100) return s;
-    a = s / 100;                                 // whole hundreds times pct (shifts and adds: a 32-bit multiply is a 230-byte library routine in the full ROM0) ...
-    for (m = pct; m; m >>= 1, a <<= 1) if (m & 1) r += a;
-    r += (uint16_t)((uint8_t)(s % 100) * pct) / 100;   // ... and the last two digits (16-bit)
-    return r > HI_MAX ? HI_MAX : r;
+// A STORY run's points n as the difficulty scales them, live, in add_score: EASY half, HARD one and a half, NORMAL as they are (game.h
+// (game.h). Rounded to the nearest 5 (half up) so a score stays a multiple of 5 as the game's are; 16-bit only.
+uint16_t story_pts(uint16_t n) BANKED {
+    if (RUN_DIFF == DIFF_EASY) return (n + 5) / 10 * 5;
+    if (RUN_DIFF == DIFF_HARD) return (3 * n + 5) / 10 * 5;
+    return n;
 }
 
 // A venue (chapter ch) is entered with `s` on the score: kept for CONTINUE. Nothing in a debug-select run or ARCADE.

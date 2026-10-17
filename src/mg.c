@@ -341,7 +341,7 @@ static void result_begin(void) {
     mg_record(mg_id, m);                         // the best medal (Practice's list; any mode)
     if (is_cgb) set_bkg_palette(MG_ICON_PAL, 1, medal_pal[MEDAL_GOLD - m]);   // (the top of the frame: VBlank)
     if (m) {
-        add_score(medal_pts[m]);
+        add_score(medal_pts[m]);                 // (a STORY run scales it: add_score)
         SFX(SFX_COIN);
         if (m == MEDAL_GOLD && mg_mode == MG_STORY) story_bonus_life();       // owner: +1 life for the venue
     }
@@ -351,7 +351,7 @@ static void result_begin(void) {
     d = res_txt[1];                              // "GOLD 3000" / "NO MEDAL"
     for (w = medal_word[m]; *w; ) *d++ = *w++;
     *d = 0;
-    if (m) mg_number(d, medal_pts[m]);
+    if (m) mg_number(d, mg_mode == MG_STORY ? story_pts(medal_pts[m]) : medal_pts[m]);   // (the points the HUD got)
     for (m = 0; m < 40; m++) if (shadow_OAM[m].y > BANNER_WY && shadow_OAM[m].y < BANNER_WY + 64) shadow_OAM[m].y = 0;
     res_on = 1; res_row = 0; mg_t = 0;
 }
