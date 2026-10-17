@@ -407,8 +407,8 @@ void music_tick(void) BANKED {
             if (TIMA_REG < (f & 0xFC) + FRAME_TIMA / 2) return;   // (under half a frame since the pump's tick, that carried its lateness in TIMA: no tick, however it was timed)
         }
     }
+    TIMA_REG = 0;        // (zeroed before the tick, not after: the pump's clock then runs from this tick's START, as music_pump's own remainder does; a tick's cost, 8 to 20 lines by the row, no longer moves the next pumped tick)
     tick();
-    TIMA_REG = 0;
 }
 
 // A long LCD-off load (the title's, the top-5 table's) is one main-loop pass of several frames, and the music only

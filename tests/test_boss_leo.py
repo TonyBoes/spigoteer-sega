@@ -333,7 +333,15 @@ def test_win_the_fight_by_pouring(model):
         clock = Clock(gb)
         while gb.mem("boss_hp") and f < 6000:
             if gb.mem("boss_hold") + len(mugs(gb, B, FULL)) < R["hands"]:
-                pour(gb)
+                try:
+                    pour(gb)
+                except AssertionError:
+                    # a pour that starts as the roar lands is cut by it (the frame the roar begins on moves with the code's timing); the
+                    # bartender stays at the tap, so the pour is tried again once the roar is over
+                    assert phase(gb) != LP_WALK, "a pour at the tap in his walking phase launches"
+                    while phase(gb) != LP_WALK:
+                        frames(gb, 1)
+                        phases.add(phase(gb))
             else:
                 frames(gb, 1)
             f = clock.now()
