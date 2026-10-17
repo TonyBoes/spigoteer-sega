@@ -849,8 +849,8 @@ def test_a_patron_still_sliding_out_counts_as_on_the_screen(gb):
 
 
 def test_no_quick_refill_after_a_patterns_breather(gb):
-    """A story arrival pattern's breather ('b', wait code 3) is deliberate: an empty screen does not cut it short; a normal
-    wait (code 0) does."""
+    """A story arrival pattern's breather ('b', wait code 3) is deliberate: an empty screen does not cut it as short as a normal
+    wait (code 0, REFILL_FRAMES) but never leaves the player idle: the next patron is there by BREATHER_REFILL (tests/test_idle_gap.py)."""
     for code, comes in ((3, False), (0, True)):
         clear_patrons(gb)
         gb.write("pat_len", 2)
@@ -862,4 +862,6 @@ def test_no_quick_refill_after_a_patterns_breather(gb):
         n0 = gb.mem("spawned")
         gb.run(REFILL + 20)
         assert (gb.mem("spawned") > n0) == comes, (code, gb.mem("spawned") - n0)
+        gb.run(GAME["BREATHER_REFILL"] - REFILL - 20 + 6)
+        assert gb.mem("spawned") > n0, "a breather on an empty screen lasts 1.5 s at most"
     gb.write("pat_len", 0)

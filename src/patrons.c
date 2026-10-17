@@ -555,7 +555,7 @@ void update_patrons(void) {
     if (!go_now) {
         if (intro_timer) intro_timer--;
     } else {
-        if (!patrons_live && spawn_timer > REFILL_FRAMES && !pat_breather()) spawn_timer = REFILL_FRAMES;   // an empty screen: the next one soon
+        if (!patrons_live && spawn_timer > REFILL_FRAMES) pat_refill();   // an empty screen: the next one soon
         if (ramp_t && !--ramp_t) classic_ramp();  // CLASSIC: the in-level ramp's next step (classic.c)
         if (spawned < quota) {
             if (spawn_timer) spawn_timer--;

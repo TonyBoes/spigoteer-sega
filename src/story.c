@@ -531,9 +531,12 @@ uint16_t pat_done(void) BANKED {
     return pat_wait[e >> 4];
 }
 
-// Was the wait the last spawn started a pattern's breather (wait code 3)? patrons.c: no quick refill then.
-uint8_t pat_breather(void) BANKED {
-    return pat_len && (pat_buf[pat_pos ? pat_pos - 1 : pat_len - 1] >> 4) == 3;
+// An empty screen with the next patron further off than REFILL_FRAMES (patrons.c): pull the spawn forward to REFILL_FRAMES, or
+// after a pattern's breather (the wait the last spawn started was code 3) to the longer BREATHER_REFILL: a breather is a pause
+// for the player who is busy, not a stretch with nothing to do (owner 2026-10-17: the Stadium's Last call left him idle for 16 s).
+void pat_refill(void) BANKED {
+    uint8_t c = pat_len && (pat_buf[pat_pos ? pat_pos - 1 : pat_len - 1] >> 4) == 3 ? BREATHER_REFILL : REFILL_FRAMES;
+    if (spawn_timer > c) spawn_timer = c;
 }
 
 static const char *const shift_name[STORY_SHIFTS] = STORY_SHIFT_NAMES;

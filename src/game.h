@@ -58,8 +58,10 @@ void sec_mark(uint8_t i);
 // patron slides only a quarter or a half of it and drinks at once, (level - 1) * EARLY_PER_LEVEL, none on level 1, at most EARLY_MAX.
 #define EARLY_PER_LEVEL 6
 #define EARLY_MAX     110
-// An empty bar: the next patron is due in REFILL_FRAMES (not after a pattern's breather, pat_breather).
+// An empty bar: the next patron is due in REFILL_FRAMES (after a pattern's breather, BREATHER_REFILL: 1.5 s, still never a long
+// wait with nothing to do, pat_refill).
 #define REFILL_FRAMES  30
+#define BREATHER_REFILL 90
 
 // patrons: 16x16 px, drawn as a 3x2-tile BG footprint on the two back-wall rows of a bar.
 // Position is in pixels (patron_x, left edge of the 16 px figure) plus a fraction; the picture
@@ -231,7 +233,7 @@ extern uint8_t  pat_len, pat_bar;
 uint16_t pat_done(void) BANKED;
 void     served_done(uint8_t p);      // patrons.c: a patron served out is gone: score, count, tip (lift.c force_out too)
 uint8_t  push_for(uint8_t p) BANKED;   // level.c: the push a mug gives patron p (served, early drinker, stopped on screen)
-uint8_t  pat_breather(void) BANKED;   // the pattern's last wait was a breather (code 3)
+void     pat_refill(void) BANKED;      // spawn_timer at most REFILL_FRAMES, or BREATHER_REFILL when the pattern's last wait was a breather (code 3)
 extern uint8_t  tip_chance, tip_bar, tip_x, dancer_frame, dance_tick, dancers_vis, dancer_sig;
 extern uint16_t tip_timer, show_timer;
 
