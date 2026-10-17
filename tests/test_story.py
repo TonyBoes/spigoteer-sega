@@ -723,13 +723,13 @@ def portrait_pairs(sids=None):
 
 
 def crackle_sprites(gb, sid, k, s):
-    """INTRO from the explosion's page on: the electric crackle's bolts (OBJ, flickering: 0-2 of them lit, inside their box above the
+    """INTRO from the explosion's page on: the sparks (OBJ, 0-6 of them lit, inside their box above the
     stump) are on screen besides the page's own sprites; how many are lit now."""
     if not (sid == "INTRO" and k + 1 >= s["swpage"]):
         return 0
-    x0, y0 = STORY["burst"]["crackle_xy"]
-    lit = [e for e in gb.visible_sprites() if x0 <= e["x"] - 8 < x0 + 14 and y0 <= e["y"] - 16 < y0 + 1]
-    assert len(lit) <= 2
+    x0, y0 = 80, 14
+    lit = [e for e in gb.visible_sprites() if x0 <= e["x"] - 8 < 128 and y0 <= e["y"] - 16 < 46 and e["tile"] in (96, 98, 100, 102)]
+    assert len(lit) <= 6
     return len(lit)
 
 

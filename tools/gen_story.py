@@ -676,26 +676,50 @@ BURST_W, BURST_H = 4, 3         # cells
 BURST_SIZES = {"M": 10, "B": 14.5}      # radii in px of the two sizes (the picture has room for 22 tiles more)
 BURST_TIMELINE = ((0, "B"), (9, "M"), (18, "B"), (27, "M"), (32, "."))
 CRACKLE_OBJ = 96                # OBJ_DANCER: the INTRO has no overlay, the next venue's load puts its own tiles back
-CRACKLE_XY = (98, 27)           # the first crackle sprite's top-left (the second 6 px to the right): above the stump
-CRACKLE_PATTERNS = 4            # zig-zag bolts (crackle_art), each one 8x16 sprite pair; story_crackle flickers between them
+CRACKLE_XY = (103, 42)          # where the sparks leave the stump: the middle of its broken top (the spawn x is +-3 around it)
+SPARK_N = 6                     # particles (OAM BURST_OAM .. BURST_OAM + 5); they come after the pieces have left
+SPARK_SCRATCH = 192             # story_scratch offset of the particle table (7 bytes each: life, x16, y16, vx, vy), then rng, timer, burst left
+SPARK_PAL = ["#000000", "#ffffff", "#ffe040", "#ff8020"]   # CGB OBJ palette: white, yellow, orange (DMG: shades 1-3 of the OBJ palette)
+# Four 8x16 tile pairs (art in the top rows; the reference pixel of each is on row 1 so a flip lands it in the same place):
+# 0 a 2x2 glowing dot (the top of the arc), 1 a vertical 3-px streak (head at the top, white to orange), 2 a diagonal streak
+# (head top right), 3 a single orange ember (the last frames).  1 white, 2 yellow, 3 orange.
+SPARK_ART = ["""........
+........
+...11...
+...12...
+........
+........
+........
+........""", """........
+...1....
+...2....
+...3....
+........
+........
+........
+........""", """.....1..
+....2...
+...3....
+........
+........
+........
+........
+........""", """........
+........
+...3....
+........
+........
+........
+........
+........"""]
+CRACKLE_PATTERNS = len(SPARK_ART)
 
 
-def crackle_art(k):
-    """bolt k -> 16 rows of 8 characters ('. Y y'): a one-pixel zig-zag top to bottom (steps of up to 3 px sideways, a short
-    gold side spark here and there), light on the sky, a gold halo beside it"""
-    seed, x, rows = 0x35 + 41 * k, 3 + k % 3, []
-    for y in range(16):
-        seed = (seed * 109 + 89) & 255
-        nx = min(6, max(1, x + (seed >> 5) % 5 - 2 + (1 if x < 3 else -1 if x > 4 else 0)))
-        r = ["."] * 8
-        for c in range(min(x, nx), max(x, nx) + 1):
-            r[c] = "Y"
-        for c in range(8):
-            if r[c] == "." and any(0 <= c + d < 8 and r[c + d] == "Y" for d in (-1, 1)) and (y + k) % 3 == 0:
-                r[c] = "y"
-        rows.append("".join(r))
-        x = nx
-    return rows
+def spark_tile_bytes(k):
+    rows = SPARK_ART[k].split("\n")
+    rows = [r.translate(str.maketrans("123", "-+#")) for r in rows]
+    return list(tile_bytes(rows, 0, 0)) + list(tile_bytes(["........"] * 8, 0, 0))
+
 
 
 SCRATCH_CURSOR = 170            # story_scratch offset of the trail's cursor (src/story.c PB_T is [168]); then its stage
@@ -928,14 +952,9 @@ def burst_build(key, pieces, pic):
         pic["attr"][cy * 20 + cx] = pal
     pic["extra"] = [list(t) for t in extra]
     crackle_t = srows[-1][0] + 1                # the star is gone: the crackle from this frame on
-    crk_tiles = []
-    for k in range(CRACKLE_PATTERNS):
-        rows = [r.translate(str.maketrans("Yy", "-+")) for r in crackle_art(k)]
-        crk_tiles.append([b for half in (rows[:8], rows[8:]) for b in tile_bytes(half, 0, 0)])
-    seed, crk_seq = 0x5B, []                    # per frame and sprite (32 frames): the bolt shown (0-3, +4: mirrored) or 255
-    for _ in range(32):
-        seed = (seed * 75 + 74) % 257
-        crk_seq.append(255 if seed % 4 == 0 else (seed >> 2) % 4 + (4 if seed % 2 else 0))
+    crk_tiles = [spark_tile_bytes(k) for k in range(CRACKLE_PATTERNS)]
+    crk_seq = []
+    crackle_t = max(crackle_t, max(leave) + 1)  # the sparks start once the last piece has left (their OAM entries are the pieces')
     end = max([max(leave), crackle_t] + [e[0] for e in ev])
     pos = []                                    # per frame, per cell: OAM y, x (0, 0: not on the screen)
     for t in range(end + 1):
@@ -967,7 +986,7 @@ def burst_c(key, pieces, b, pic):
     cell): the step is a copy, not arithmetic (SDCC's 16-bit multiplies made the frame's logic run past VBlank). The trail
     is a time-ordered list of map bytes (frame, x, y, tile id) the step queues from a cursor kept in story_scratch."""
     e, nev = len(b["entries"]), len(b["events"])
-    pal = rgb15(["#000000", key["Y"], key["y"], key["#"]])
+    pal = rgb15(SPARK_PAL)
     ids = pic["ids"]
     pc = [f"// the INTRO's explosion (assets/story/pictures/{BURST_FILE}): {e} cells of 8x16, {len(b['tiles'])} tile pairs "
           f"at OBJ ids {BURST_OBJ}.., the last frame {b['end']}; {nev} trail map writes ({b['dots']} dots, "
@@ -981,13 +1000,14 @@ def burst_c(key, pieces, b, pic):
           carr("stb_star", [pic["ids"][t] for t in b["star0"]]),
           f"#define STB_NROW {len(b['rows'])}",
           carr("stb_row", [v for (t, y, tl) in b["rows"] for v in [t, y] + [ids[x] for x in tl]]),
-          carr("stb_crk_tiles", [v for t in b["crk_tiles"] for v in t]), carr("stb_crk_seq", b["crk_seq"]), "",
+          carr("stb_crk_tiles", [v for t in b["crk_tiles"] for v in t]), "",
           "extern uint8_t story_scratch[];", "extern uint8_t vq_count, vq_held;",
           "extern void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n);",
           f"#define STB_CURSOR (*(uint16_t *)(story_scratch + {SCRATCH_CURSOR}))      // the next trail write",
           f"#define STB_RCUR   (story_scratch[{SCRATCH_CURSOR + 10}])                 // the next star row",
           f"#define STB_RSTAGE (story_scratch + {SCRATCH_CURSOR + 11})                // its {BURST_W} tile ids until the list copies them",
           f"#define STB_STAGE  (story_scratch + {SCRATCH_CURSOR + 2})                  // its tile ids until the VBlank list copies them", "",
+          "static void stb_sparks_reset(void);",
           "// LCD off: the pieces' tiles into the OBJ ids and (CGB) their palette; the trail cursor to the start",
           "void story_burst_load(uint8_t cgb) BANKED {",
           f"    set_sprite_data({BURST_OBJ}, {len(b['tiles']) * 2}, stb_tiles);",
@@ -996,18 +1016,71 @@ def burst_c(key, pieces, b, pic):
           f"    if (cgb) set_sprite_palette({BURST_PAL}, 1, stb_pal);",
           "    STB_CURSOR = 0;",
           "    STB_RCUR = 0;",
+          "    stb_sparks_reset();",
           "}", "",
-          "// the crackle: two bolts flickering above the stump, frame t (any t: 32 repeat)",
-          "static void stb_crackle(OAM_item_t *o, uint8_t t) {",
-          "    uint8_t i, v;",
-          "    for (i = 0; i < 2; i++, o++) {",
-          "        v = stb_crk_seq[(uint8_t)(t + (i << 4) + (i << 2)) & 31];",
-          "        if (v == 255) { o->y = 0; continue; }",
-          f"        o->y = {CRACKLE_XY[1] + 16}; o->x = (uint8_t)({CRACKLE_XY[0] + 8} + i * 6);",
-          f"        o->tile = {CRACKLE_OBJ} + ((v & 3) << 1); o->prop = ((v & 4) << 3) | {BURST_PAL};",
+          "// the sparks: a table of SPARK_N particles in story_scratch (life, x and y in 8.8 fixed point, vx and vy in 1/32 px a frame),",
+          "// gravity on vy, deterministic spawns (an 8-bit xorshift) in short bursts with long gaps of quiet",
+          "typedef struct { uint8_t life; uint16_t x, y; int8_t vx, vy; } stb_spark_t;",
+          f"#define STB_SPK ((stb_spark_t *)(story_scratch + {SPARK_SCRATCH}))",
+          f"#define STB_RNG (story_scratch[{SPARK_SCRATCH + 7 * SPARK_N}])",
+          f"#define STB_TM  (story_scratch[{SPARK_SCRATCH + 7 * SPARK_N + 1}])        // frames to the next spawn",
+          f"#define STB_LEFT (story_scratch[{SPARK_SCRATCH + 7 * SPARK_N + 2}])       // sparks left in this burst",
+          "static uint8_t stb_rnd(void) {",
+          "    uint8_t r = STB_RNG;",
+          "    r ^= (uint8_t)(r << 7); r ^= r >> 5; r ^= (uint8_t)(r << 3);",
+          "    return STB_RNG = r;",
+          "}", "",
+          "static void stb_sparks_reset(void) {",
+          "    uint8_t i;",
+          f"    for (i = 0; i < {SPARK_N}; i++) STB_SPK[i].life = 0;",
+          "    STB_RNG = 0xA5; STB_TM = 0; STB_LEFT = 4;",
+          "}", "",
+          "// one frame of the sparks into the OAM entries o.. (the table steps once per call)",
+          "static void stb_crackle(OAM_item_t *o) {",
+          "    stb_spark_t *s = STB_SPK;",
+          "    uint8_t i, l, r, ax, ay, tile, fl, xo, yo;",
+          "    if (STB_TM) STB_TM--;",
+          "    else {",
+          f"        for (i = 0; i < {SPARK_N} && s[i].life; i++) ;",
+          "        r = stb_rnd();",
+          f"        if (i < {SPARK_N}) {{",
+          "            s[i].life = 20 + (r & 3);",
+          f"            s[i].x = ((uint16_t)({CRACKLE_XY[0] - 3} + ((r >> 2) & 7) % 7) << 8) | 0x80;",
+          f"            s[i].y = (uint16_t){CRACKLE_XY[1]} << 8;",
+          "            r = stb_rnd();",
+          "            s[i].vx = (int8_t)((r & 31) + ((r >> 3) & 15)) - 24;",
+          "            s[i].vy = -50 - (int8_t)(r >> 4);",
+          "        }",
+          "        r = stb_rnd();",
+          "        if (--STB_LEFT) STB_TM = r & 1;",
+          "        else { STB_LEFT = 3 + (r & 3); STB_TM = 40 + ((r >> 2) & 31); }",
+          "    }",
+          f"    for (i = 0; i < {SPARK_N}; i++, s++, o++) {{",
+          "        l = s->life;",
+          "        if (!l) { o->y = 0; continue; }",
+          "        s->life = --l;",
+          "        s->x += (int16_t)s->vx << 3;",
+          "        s->vy += 4;",
+          "        s->y += (int16_t)s->vy << 3;",
+          "        if (!l || (l < 4 && (l & 1))) { o->y = 0; continue; }          // gone, or blinking out",
+          "        ax = s->vx < 0 ? -s->vx : s->vx;",
+          "        ay = s->vy < 0 ? -s->vy : s->vy;",
+          "        fl = 0; xo = 3; yo = 1;",
+          f"        if (l < 5) tile = {CRACKLE_OBJ + 6};                  // the last frames: an orange ember",
+          f"        else if (ax < 14 && ay < 14) tile = {CRACKLE_OBJ};    // at the top of its arc: a glowing dot",
+          "        else {",
+          "            if (s->vy > 0) { fl = 0x40; yo = 14; }",
+          f"            if ((uint8_t)(ax << 1) < ay) tile = {CRACKLE_OBJ + 2};",
+          "            else {",
+          f"                tile = {CRACKLE_OBJ + 4};",
+          "                if (s->vx < 0) fl |= 0x20; else xo = 4;",
+          "            }",
+          "        }",
+          "        o->y = (uint8_t)(s->y >> 8) + 16 - yo; o->x = (uint8_t)(s->x >> 8) + 8 - xo;",
+          f"        o->tile = tile; o->prop = fl | {BURST_PAL};",
           "    }",
           "}", "",
-          "void story_burst_crackle(uint8_t t) BANKED { stb_crackle(shadow_OAM + " + str(BURST_OAM) + ", t); }", "",
+          "void story_burst_crackle(uint8_t t) BANKED { (void)t; stb_crackle(shadow_OAM + " + str(BURST_OAM) + "); }", "",
           "// frame t of the explosion (0 = the first after the flash): the pieces' OAM entries, and, when the VBlank list is free",
           "// (ev: how many it may queue: 0 in the picture switch), the trail's map writes that are due; 1 once everything is done",
           "uint8_t story_burst_step(uint8_t t, uint8_t ev) BANKED {",
@@ -1038,7 +1111,7 @@ def burst_c(key, pieces, b, pic):
           "        }",
           "        STB_CURSOR = c;",
           "    }",
-          "    if (t >= STB_CRK_T) stb_crackle(shadow_OAM + " + str(BURST_OAM) + ", t);",
+          "    if (t >= STB_CRK_T) stb_crackle(shadow_OAM + " + str(BURST_OAM) + ");",
           "    return t >= STB_END && c >= STB_NEV && STB_RCUR >= STB_NROW;",
           "}", ""]
     return pc
@@ -1602,7 +1675,7 @@ def main():
           "void story_pic_row(uint8_t pic, uint8_t y, uint8_t x, uint8_t w, uint8_t *dst) BANKED;   // dst[2 w]: tiles, attributes",
           "void story_pic_pals(uint8_t pic, uint16_t *dst) BANKED;    // dst[20]: its 4 palettes (slots 0 5 6 7), then the HUD's",
           "void story_burst_load(uint8_t cgb) BANKED;   // LCD off: the INTRO's pieces' OBJ tiles and (CGB) palette 4",
-          "void story_burst_crackle(uint8_t t) BANKED;   // after the explosion: the crackle's two sprites for frame t (each frame, while INTRO A shows)",
+          "void story_burst_crackle(uint8_t t) BANKED;   // after the explosion: the sparks (one frame; t unused) (each frame, while INTRO A shows)",
           "uint8_t story_burst_step(uint8_t t, uint8_t ev) BANKED;  // frame t of their flight into shadow_OAM (+ up to ev trail map writes); 1 when done",
           "void portrait_tile_copy(uint8_t spk, uint8_t first, uint8_t n, uint8_t *dst) BANKED;   // BG tiles into WRAM",
           "void portrait_get(uint8_t spk, portrait_t *dst) BANKED;",

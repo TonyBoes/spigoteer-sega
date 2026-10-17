@@ -18,7 +18,8 @@ BURST = STORY["burst"]                 # the INTRO's ten pieces (OBJ sprites): t
 SLOT_BASE = STORY["portrait_base"]
 FRAME = (8, 40, 80, 104)               # a speaker page's portrait frame: columns 1-9, rows 5-12 (x0, y0, x1, y1)
 _EXPECT = {}
-CRACKLE = (98, 27, 112, 43)            # the two crackle sprites' box over INTRO A (OBJ: the picture under them is exact)
+CRACKLE = (80, 14, 128, 46)            # the sparks' box over INTRO A (OBJ: the picture under them is exact)
+SPARKS = 6                             # OAM entries of the sparks (BURST["oam"] .. +5)
 
 
 def expected(name, model):
@@ -186,8 +187,8 @@ def burst_oam(gb):
 
 
 def pieces_oam(gb):
-    """the pieces' entries without the crackle's two (OAM 20 and 21 once the star is gone)"""
-    return burst_oam(gb)[2:]
+    """the pieces' entries without the sparks' six (OAM 20-25 once the star is gone)"""
+    return burst_oam(gb)[SPARKS:]
 
 
 def line_max(gb):
@@ -243,7 +244,7 @@ def test_intro_before_then_flash_then_the_explosion(model):
         assert gb.mem("story_swap") == 0
         golden_err = None
         try:
-            check_golden(gb, "story_pic_intro_a")                 # (with the crackle above the stump: it flickers, but the same every run)
+            check_golden(gb, "story_pic_intro_a")                 # (with the sparks above the stump: the same every run)
         except AssertionError as err:
             golden_err = err
         for k in (5, 6):                                          # pages 6-7: narrator, still the explosion
@@ -453,7 +454,7 @@ def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
             if not fading:
                 logic_end.append(gb.mem16("perf_end_last"))
             oam = burst_oam(gb)
-            lo = 2 if step >= BURST["crackle_t"] else 0                   # (from then on OAM 20 and 21 are the crackle's: its own test)
+            lo = SPARKS if step >= BURST["crackle_t"] else 0              # (from then on OAM 20-25 are the sparks': their own test)
             assert [v for e in oam[lo:] for v in (e["y"], e["x"])] == row(step)[lo * 2:], f"frame {step}: OAM is the table"
             for e, ent in zip(oam[lo:], ents[lo:]):
                 if e["y"]:
@@ -527,6 +528,67 @@ def star_cells(gb):
     return n
 
 
+def spark_slots(gb):
+    """OAM 20-25 (each one a spark slot): None for a hidden one, else (x, y, tile, flags) with y the spark's own row (the sprite's
+    reference pixel: row 1, or row 14 when it is flipped upside down)"""
+    out = []
+    for e in burst_oam(gb)[:SPARKS]:
+        fl = e["flags"] & 0x60
+        out.append((e["x"] - 8, e["y"] - 16 + (14 if fl & 0x40 else 1), e["tile"], fl) if e["y"] else None)
+    return out
+
+
+def spark_boxes(gb):
+    return [q for q in spark_slots(gb) if q]
+
+
+def check_sparks(frames):
+    """sparks off the stump over a stretch of frames (one list of 6 slots per frame): inside the box above the stump, only the
+    spark tiles, they rise and then fall, and they come in bursts with quiet between them"""
+    x0, y0, x1, y1 = CRACKLE
+    xs, ys = BURST["crackle_xy"]                                      # the stump's broken top: where they leave
+    for f in frames:
+        for q in f:
+            if q:
+                assert x0 <= q[0] < x1 and y0 <= q[1] < y1, q
+                assert q[1] <= ys + 1, "they never drop below the stump's top"
+                assert q[2] in (96, 98, 100, 102), q
+    counts = [sum(1 for q in f if q) for f in frames]
+    runs, quiet, inb, gaps = 0, 0, False, []
+    for c in counts:
+        if c:
+            if not inb:
+                runs += 1
+                if quiet:
+                    gaps.append(quiet)
+            inb, quiet = True, 0
+        else:
+            inb = False
+            quiet += 1
+    big = [g for g in gaps if g >= 8]                                 # (a burst's own sparks blink out for a frame or two: not a gap)
+    assert len(big) >= 2 and max(big) >= 15, gaps                     # bursts with real quiet between them, not a steady stream
+    assert len(set(big)) > 1, "irregular gaps"
+    assert 3 <= max(counts) <= SPARKS, max(counts)
+    assert sum(1 for c in counts if c == 0) >= len(counts) // 4, "mostly quiet between bursts"
+    # arcs: each lit stretch of a slot (a spark blinks out for a frame in its last frames, so one spark can be two stretches) is at
+    # most 25 frames; the long ones rise (y falls) and then fall back (y grows): the arc
+    peaks = rose = fell = 0
+    for i in range(SPARKS):
+        ys_ = []
+        for f in frames + [[None] * SPARKS]:
+            if f[i]:
+                ys_.append(f[i][1])
+            elif ys_:
+                assert len(ys_) <= 25, ("life", len(ys_))
+                if len(ys_) >= 8:
+                    top = ys_.index(min(ys_))
+                    peaks += 0 < top < len(ys_) - 1
+                    rose += min(ys_) < ys_[0]
+                    fell += ys_[-1] > min(ys_)
+                ys_ = []
+    assert peaks >= 6 and rose >= 6 and fell >= 6, (peaks, rose, fell)
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_burst_pulses_while_the_pieces_fly_then_dies_down_and_the_crackle_takes_over(model):
     """Owner 2026-10-15: the explosion graphic is in the middle, pulses while the pieces fly away, dies down once they are
@@ -545,21 +607,15 @@ def test_the_burst_pulses_while_the_pieces_fly_then_dies_down_and_the_crackle_ta
             n += 1
             assert n < 40
         assert star_cells(gb) == full, "the star is up the moment the flash lets go"
-        sizes, crackle = [], []
+        sizes, frames = [], []
         before = gb.read("sfx_count", SHAKE + 1)[SHAKE]
-        for _ in range(110):
+        for _ in range(150):
             gb.run(1)
             t = burst_t(gb)
             sizes.append(star_cells(gb))
-            e = burst_oam(gb)[:2]
             if t == 255 or t >= BURST["crackle_t"]:
-                crackle.append([(x["y"], x["x"], x["tile"], x["flags"] & 0x60) for x in e])
-                for x in e:
-                    if x["y"]:
-                        assert BURST["crackle_xy"][1] < x["y"] - 16 + 1 <= BURST["crackle_xy"][1] + 1, x
-                        assert BURST["crackle_xy"][0] <= x["x"] - 8 < BURST["crackle_xy"][0] + 7 + 6, x
-                        assert x["tile"] in (96, 98, 100, 102), x
-                        assert line_max(gb) <= 10
+                frames.append(spark_slots(gb))
+                assert line_max(gb) <= 10
         # the pulse: full -> small -> full ... (the swings follow the generator's timeline), then 0 for good
         assert min(s for s in sizes[:25]) < full, "it shrinks between the peaks"
         assert sum(1 for k in range(1, len(sizes)) if sizes[k - 1] < full == sizes[k]) >= 1, "it grows back to full size: a pulse"
@@ -570,22 +626,19 @@ def test_the_burst_pulses_while_the_pieces_fly_then_dies_down_and_the_crackle_ta
         assert 25 <= BURST["crackle_t"] <= 60 and first_zero <= BURST["crackle_t"] + 2
         # the star is still up while pieces are still flying (the last piece leaves around frame max(leave))
         assert first_zero + 1 >= max(BURST["leave"]) - 6, (first_zero, max(BURST["leave"]))
-        # the crackle: flickers (several different looks, some frames a bolt hidden), nothing before the star is gone
-        looks = {tuple(c) for c in crackle}
-        assert len(looks) >= 6, f"only {len(looks)} different looks"
-        assert any(not c[0][0] for c in crackle) or any(not c[1][0] for c in crackle), "a bolt blinks out now and then"
-        assert any(c[0][0] and c[1][0] for c in crackle), "both bolts are lit at times"
-        assert gb.read("sfx_count", SHAKE + 1)[SHAKE] > before, "the rattle sounds"
-        # it keeps crackling on the next pages, over the Spigoteer's frame too; line limit
+        check_sparks(frames)
+        assert gb.read("sfx_count", SHAKE + 1)[SHAKE] == before, "no crackle sound"
+        # it keeps sparking on the next pages, over the Spigoteer's frame too; line limit
         for page in (5, 6, 7):
             gb.press("a", 2)
             page_ready(gb)
-            on = 0
-            for _ in range(32):
+            fr = []
+            for _ in range(150):
                 gb.run(1)
-                on += any(x["y"] for x in burst_oam(gb)[:2])
+                fr.append(spark_slots(gb))
                 assert line_max(gb) <= 10
-            assert on >= 12, (page, on)
+            assert sum(1 for f in fr if any(f)) >= 40, page
+            assert gb.read("sfx_count", SHAKE + 1)[SHAKE] == before, "no crackle sound"
             assert not any(e["y"] for e in pieces_oam(gb))
             assert star_cells(gb) == 0
         for _ in range(12):                                               # (A until the last page lets go: its beat, its typing)
