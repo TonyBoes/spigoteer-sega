@@ -862,7 +862,7 @@ __asm
     ld   a, (hl)            ; r[1]
     dec  hl
     cp   a, c
-    jr   c, 25$             ; r[1] <= x[0]: only r's empty column meets x
+    jr   c, 25$             ; r[1] <= x[0]: only the empty column of r meets x
     jr   z, 25$
     push hl
     push de

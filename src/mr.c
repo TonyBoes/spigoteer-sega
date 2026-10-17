@@ -445,7 +445,7 @@ static void lane_press(int8_t d) {
 static uint8_t spd_floor(void) { return MR_IS_HARD ? MR_HARD_SPD_MIN : MR_SPD_MIN; }
 
 static void crash(void) {
-    uint8_t n = (S.spd >= MR_SPD_FAST || MR_IS_HARD) ? MR_DROP_FAST : MR_DROP;
+    uint8_t n = (S.spd >= MR_SPD_FAST | MR_IS_HARD) ? MR_DROP_FAST : MR_DROP;
     S.inv = MR_WOBBLE + MR_BLINK;
     S.spd = spd_floor();                         // the bump takes the speed away
     if (n > S.crates) n = S.crates;

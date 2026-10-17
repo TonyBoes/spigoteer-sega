@@ -368,7 +368,7 @@ static void logo_frame(uint8_t letters) {
     for (i = 0; letters && i < LOGO_LETTERS; i++) {
         d = (int16_t)title_t - LOGO_T0 - i * LOGO_STAGGER;
         if (d < 0) break;
-        s = d >= (TT_LOGO_STATES - 1) * LOGO_STEP ? TT_LOGO_STATES - 1 : (uint8_t)d / LOGO_STEP;
+        s = d >= (TT_LOGO_STATES - 1) * LOGO_STEP ? TT_LOGO_STATES - 1 : (uint16_t)(uint8_t)d / LOGO_STEP;
         if (s != logo_state[i]) {
             logo_state[i] = s;
             logo_put(i);

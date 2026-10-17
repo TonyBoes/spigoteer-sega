@@ -192,7 +192,7 @@ static uint8_t new_type(void) {
 }
 
 static uint8_t window_now(void) {
-    uint8_t d = S.sorted / BS_WIN_EVERY;
+    uint8_t d = (uint16_t)S.sorted / BS_WIN_EVERY;
     return d >= (BS_WIN0 - BS_WIN_MIN) / BS_WIN_STEP ? BS_WIN_MIN : BS_WIN0 - d * BS_WIN_STEP;
 }
 

@@ -318,7 +318,7 @@ __asm
     ld   a, (_oam_next + 1)
     ld   d, a
     jp   8$
-    ; ---- a mug in a patron's hand: draw_held (C, with oam_next in step)
+    ; ---- a mug in the hand of a patron: draw_held (C, with oam_next in step)
 30$:
     ld   a, e
     ld   (_oam_next), a

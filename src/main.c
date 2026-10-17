@@ -235,7 +235,7 @@ __asm
     push bc
     ldh  a, (0x4F)
     and  a, #1
-    ld   c, a               ; the interrupted code's VRAM bank
+    ld   c, a               ; the VRAM bank of the interrupted code
     xor  a, a
     ldh  (0x4F), a
     ld   de, #_story_scratch + 2

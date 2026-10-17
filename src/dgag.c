@@ -138,7 +138,7 @@ static uint8_t gag_saloon(uint8_t *st, uint8_t t) {
 
 // 2 STADIUM. Three fans run in behind him, get under him, hoist him up flat and crowd-surf him left, off the edge.
 static uint8_t gag_stadium(uint8_t *st, uint8_t t) {
-    int16_t u = (int16_t)t - OPEN, a = t < 20 ? (20 - t) * 4 : 0, sh = u < 16 ? 0 : (u - 16) * 3 / 2, bx;
+    int16_t u = (int16_t)t - OPEN, a = t < 20 ? (20 - t) * 4 : 0, sh = u < 16 ? 0 : (uint16_t)((u - 16) * 3) / 2, bx;
     uint8_t i;
     if (opening(st, t)) { }
     else if (u < 10) dregs(st, XD, LANE, 1, 0);
@@ -192,8 +192,8 @@ static uint8_t gag_igloo(uint8_t *st, uint8_t t) {
     else if (u < 16) dregs(st, XD + (((u >> 1) & 1) ? 3 : -3), LANE, (u >> 2) & 1, (u >> 3) & 1);
     else if (w < 0) lying(st, XD - (v * v) / 10 - 2 * v, 46, 0);
     else {
-        x = 16 - (w * 3) / 2;
-        if (x > -17) ball(st, x, 46 + (w * 3) / 2, w);
+        x = 16 - (uint16_t)(w * 3) / 2;
+        if (x > -17) ball(st, x, 46 + (uint16_t)(w * 3) / 2, w);
         else edge(st, w - 22, 70);
         if (w < 12) puff(st, 8, 42, w >> 2);
     }
@@ -322,7 +322,7 @@ static uint8_t gag_space(uint8_t *st, uint8_t t, uint8_t ph) {
     rows = t < 14 ? 0 : t < 18 ? 1 : t < 22 ? 2 : 3;
     if (t >= 104) { rows = t < 108 ? 3 : t < 112 ? 2 : t < 116 ? 1 : 0; }
     if (w >= 0) sx = XD + w * 6;
-    if (t >= 26 && t < 74) dregs(st, XD, 16 + (t - 26) / 2, (t >> 2) & 1, (t >> 3) & 1);
+    if (t >= 26 && t < 74) dregs(st, XD, 16 + (uint16_t)(t - 26) / 2, (t >> 2) & 1, (t >> 3) & 1);
     else if (t >= 74 && t < 116) dregs(st, XD, LANE, (t >> 2) & 1, 0);
     else if (w >= 0) dregs(st, XD - w * 3, LANE + ((w >> 1) & 1), 0, 0);
     if (t >= 26 && t < 74) puff(st, XD + ((t >> 2) & 1) * 14 - 2, 24 + ((t >> 3) & 3) * 12, (t >> 1) % 3);   // the T-shirt's sparkle

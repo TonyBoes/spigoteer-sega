@@ -373,7 +373,7 @@ uint8_t bonus_update(uint8_t pressed) BANKED {
     case PH_SWAP:
         if (bonus_moving) step_swap();
         else if (bonus_swaps_done >= bonus_swaps_total) { bonus_phase = PH_CHOOSE; bonus_timer = 0; say("PICK THE CALM CAN"); }
-        else if (bonus_timer >= (bonus_swaps_done ? bonus_swap_dur / 4 : 20)) start_swap();
+        else if (bonus_timer >= (bonus_swaps_done ? (uint16_t)bonus_swap_dur / 4 : 20)) start_swap();
         break;
     case PH_CHOOSE:
         if ((pressed & J_LEFT) && bonus_cursor) bonus_cursor--;

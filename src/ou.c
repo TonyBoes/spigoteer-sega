@@ -193,7 +193,7 @@ static void bubble(uint8_t b) {
 }
 
 static void pips(uint8_t done) {               // this round's order: one pip a dish, the first `done` served
-    uint8_t k, c0 = PIP_MID - (S.len + 1) / 2 - PIP_COL;
+    uint8_t k, c0 = PIP_MID - (uint16_t)(S.len + 1) / 2 - PIP_COL;
     for (k = 0; k < 9; k++) {
         if (k < c0 || k >= c0 + S.len) S.pips[k] = S.pwall[k];
         else S.pips[k] = OU_BG + (k - c0 < done ? OUB_PIP_DONE : OUB_PIP_TODO);
@@ -279,7 +279,7 @@ static void poses(void) {
     if (S.x_on != OU_NONE)
         obj2(OAM_X, cell_col[S.x_on] * 8, cell_row[S.x_on] * 8, OU_OBJ + OUO_X, is_cgb ? PAL_X : S_PALETTE);
     if (S.colby == C_CROSS)
-        obj2(OAM_STEAM, COLBY_X - 1, COLBY_Y - 16, OU_OBJ + OUO_STEAM + 4 * ((S.anim / OU_STEAM_BEAT) & 1), top);
+        obj2(OAM_STEAM, COLBY_X - 1, COLBY_Y - 16, OU_OBJ + OUO_STEAM + 4 * (((uint16_t)S.anim / OU_STEAM_BEAT) & 1), top);
     obj2(OAM_COLBY, COLBY_X, COLBY_Y, OU_OBJ + OUO_COLBY + 4 * S.colby, top);
     obj2(OAM_COLBY + 2, COLBY_X, COLBY_Y + 16, OU_OBJ + OUO_COLBY_LOW, is_cgb ? PAL_COLBY_LOW : 0);
     f = SPIG_IDLE;

@@ -188,8 +188,9 @@ static uint8_t vget(const volatile uint8_t *a) {
 
 void mg_card_win_open(uint8_t game) BANKED {
     uint8_t i, k, b[20];
+    typedef char font_in_9000_block[STORY_FONT_BASE + STORY_FONT_COUNT <= 128 ? 1 : -1];   // BG ids 0-127: VRAM 0x9000 + id * 16
     for (i = 0; i < STORY_FONT_COUNT; i++) {     // the font tiles, kept
-        const volatile uint8_t *t = (const volatile uint8_t *)((STORY_FONT_BASE + i < 128 ? 0x9000 : 0x8000) + (uint16_t)(STORY_FONT_BASE + i) * 16);
+        const volatile uint8_t *t = (const volatile uint8_t *)(0x9000 + (uint16_t)(STORY_FONT_BASE + i) * 16);
         for (k = 0; k < 16; k++) b[k] = vget(t + k);
         { set_win_tiles((i & 1) << 4, SAVE_ROW + (i >> 1), 16, 1, b); music_pump(); }
     }

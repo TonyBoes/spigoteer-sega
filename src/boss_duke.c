@@ -198,7 +198,7 @@ static void ent_draw(void) {
         if (t == ENT_LAND - 1) oam_touched();        // line) + Duke (3) + his helmet (1) leave room for no more than that; redrawn after
     } else if (bx < 160) {                           // the empty bike rolls on behind him (BG colours 1-3 cover it)
         o = ent_put(o, end, ENT_BIKE, bx, by, pal, S_PRIORITY);
-        if (t < ENT_LAND + 6) o = ent_put(o, end, ENT_DUST1 + (t - ENT_LAND) / 2, 48, 64, pal | S_PRIORITY, 0);   // the landing's dust, by his feet
+        if (t < ENT_LAND + 6) o = ent_put(o, end, ENT_DUST1 + (uint16_t)(t - ENT_LAND) / 2, 48, 64, pal | S_PRIORITY, 0);   // the landing's dust, by his feet
     }
     for (; o != top; o++) o->y = 0;
 }

@@ -268,8 +268,9 @@ void debug_open(void) BANKED {
     } else debug_level = level < DEBUG_LEVELS ? level : DEBUG_LEVELS;
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN;
+    typedef char keys_in_9000_block[KEY_A + 3 <= 128 ? 1 : -1];   // BG ids 0-127: VRAM 0x9000 + id * 16
     for (i = 0; i < 3; i++) {                        // the three button tiles' place is kept, the buttons go in
-        const volatile uint8_t *t = (const volatile uint8_t *)((KEY_A + i < 128 ? 0x9000 : 0x8000) + (uint16_t)(KEY_A + i) * 16);
+        const volatile uint8_t *t = (const volatile uint8_t *)(0x9000 + (uint16_t)(KEY_A + i) * 16);
         for (k = 0; k < 16; k++) b[k] = vget(t + k);
         set_win_tiles(0, DBG_SAVE_ROW + i, 16, 1, b);
     }
