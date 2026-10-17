@@ -550,7 +550,7 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #define TR_VSHIFT  5                                 // bits 5-6: the variant (0 the drink, 1 fade to white, 2 fade through amber), src/trans.c; the debug ROM cycles 1, 2
 #define TR_VMASK   0x60
 #ifndef TRANS_DEFAULT
-#define TRANS_DEFAULT 0                              // the variant at power-on (-DTRANS_DEFAULT=n: the owner's pick, or a debug ROM fixed to one)
+#define TRANS_DEFAULT 1                              // the variant at power-on (-DTRANS_DEFAULT=n: the owner's pick, or a debug ROM fixed to one)
 #endif
 #define TR_OFF     0x80
 #define TRANS_WANT() (TRANS |= TR_WANT)

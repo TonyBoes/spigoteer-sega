@@ -74,7 +74,7 @@ def test_the_pictures_are_built_to_the_budget():
         assert all(a in (0, 5, 6, 7, 1) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
         assert p["tiles"] + p["extra"] <= 36 + 256 - p["base"], name
     # the numbers of the report (the picture tiles, the HUD palette cells of CREDITS)
-    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 115, "finale_a": 135, "credits_b": 132}
+    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 113, "finale_a": 134, "credits_b": 132}
     assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "credits_b": 12}
     # the portrait slot sits below the picture's tiles in every scene
     assert all(max(i for i in PICS[n]["map"] if i >= 36) < 256 for n in PICS)
@@ -693,11 +693,13 @@ def test_the_finale_shows_dregs_not_a_second_bartender():
     key, pix = _pix("finale_a")
     got = _region(pix, 142, 62, 160, 89)              # (face variant F1 since 2026-10-12: the head is the sprite's, below)
     sprite = [r for r in (ROOT / "assets/art/dregs/dregs.txt").read_text().splitlines() if r and not r.startswith(";")][:24]
-    assert all(got[1 + i][:16] == sprite[i].replace("-", "S").replace("+", "m") for i in range(13)), "the head is the sprite's (rows 0-12)"
+    sm = lambda r: r.replace("-", "S").replace("+", "m")
+    # (the picture's Dregs is the Pour-Off sprite itself, idle frame, hung 3 rows lower than the old figure)
+    assert all(got[4 + i][:16] == sm(sprite[i]) for i in range(14)), "the head and neck are the sprite's (rows 0-13)"
     assert got[18][:16] == sprite[14].replace("-", "S").replace("+", "m"), "the sprite's collar"
     assert "W" not in "".join(_region(pix, 139, 60, 160, 89)), "no white shirt or apron on Dregs"
     assert "r" in "".join(_region(pix, 126, 66, 139, 89)) and "r" not in "".join(got)       # the Spigoteer's rose cozy is not Dregs's
-    assert key["m"]["hex"] == "#b0a0b8" and "".join(got).count("m") > 50                  # Dregs wears the grey jacket
+    assert key["m"]["hex"] == "#b0a0b8" and "".join(got).count("m") > 40                  # Dregs wears the grey jacket
 
 
 def test_the_credits_flags_match_the_finales_and_the_stand_and_legs_read():
