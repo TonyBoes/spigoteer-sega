@@ -12,8 +12,9 @@
 // bartender, facing them, who raises a hand now and then. They move up with the text and are hidden once off the screen.
 // A speeds it up (held), B / START skip (to the end: story_end, or the BONUS menu). The roll ends HOLD_FRAMES after the last line
 // has scrolled to the middle of the screen, or when the music has finished if that is later. The music is the credits tune
-// (TUNE_CREDITS: the Entertainer's intro, the strains the title tune lacks and its opening bar again, 88 s, played once; owner's pick of
-// the drafts, 2026-10-17): the scroll is over long before it ends (about 21 s), so the last line stays up for the rest of it.
+// (TUNE_CREDITS: the Entertainer in full, intro to ringing last chord, 146 s, played once; owner's pick D3c of the drafts, 2026-10-17):
+// the roll waits for the tune, whatever its length (cur_tune goes to TUNE_NONE when music_tick's frame count ends it); the scroll is over
+// long before (about 21 s), so the last line stays up for the rest of it.
 // With the sound off the roll ends as before.
 // State in story_scratch (no WRAM of its own; nothing else runs while the roll shows): tests read it at story_scratch + offset.
 #pragma bank 20          // (pinned: bank 20 is the roomy one)

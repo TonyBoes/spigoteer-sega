@@ -3,8 +3,8 @@
 // pointers, so it only sees data in the bank it runs from, or in WRAM. The title, show and venue tunes are too big
 // for bank 2: their patterns sit in ROM bank 10 and music_tick copies them into WRAM (mus_buf_a: the title or the
 // level's venue tune; mus_buf_b: the show tune, copied once and kept), a slice per frame, before a tune starts.
-// The credits tune (TUNE_CREDITS, bank 20) has 12 patterns, the buffer 8: it starts with the first 8 and music_tick copies
-// the other 4 over the first 4 once those have been played (see tick).
+// The credits tune (TUNE_CREDITS, bank CREDITS_BANK) has 20 patterns, the buffer 8: it starts with the first 8 and music_tick
+// copies each later order over the slot of the order two before it as it plays (see tick); its harmony is in the same bank.
 // The music uses channels 2 and 3 (melody, bass) and 4 (percussion in most tunes) through the driver, and channel 1 for
 // a quieter harmony line that harm_tick plays itself (music step 5). Sound effects own channels 1 and 4: while one
 // plays, the driver is told to leave channel 4 alone (hUGE_mute_channel) and harm_tick writes nothing to channel 1;
@@ -35,7 +35,7 @@ uint8_t music_fast;                   // 1: a venue tune plays one frame a row f
 static uint8_t fast_now;              // the running tune plays fast
 static uint16_t ld_pos;               // bytes copied so far
 extern const uint16_t hUGE_note_table[];   // the driver's 72 periods (exported for this: CREDITS.md)
-static const uint8_t *harm;           // the running tune's channel-1 harmony track (bank HARM_BANK), NULL: none
+static const uint8_t *harm;           // the running tune's channel-1 harmony track (bank HARM_BANK; the credits tune's: CREDITS_BANK), NULL: none
 static const uint8_t *h_ptr;          // its next event
 static uint8_t h_inst[4];             // duty A, envelope A, duty B, envelope B (the track's header)
 static uint8_t h_note;                // the current event's note byte (HARM_REST: a rest)
@@ -168,7 +168,7 @@ static void start_song(uint8_t tune) {
     harm = harm_tab[tune]; h_rows = 0; h_cnt = 1;           // so does the harmony's first event
     if (harm) {
         uint8_t skip = tunes[tune].start;                   // a pickup: skip the events before the start row
-        mus_copy(HARM_BANK, harm, h_inst, 4); h_ptr = harm + 4;
+        mus_copy(tune == TUNE_CREDITS ? CREDITS_BANK : HARM_BANK, harm, h_inst, 4); h_ptr = harm + 4;
         while (skip) { skip -= harm_peek(h_ptr) >> 8; h_ptr += 2; }   // (gen_music: the row is an event boundary)
     }
     mute_unless_sfx(3, 1);          // a sound effect that is still sounding keeps channel 4
@@ -344,12 +344,13 @@ static void tick(void) {
         if (swing && !hUGE_tick)        // a swung tune: this row's length (bit n of the mask: the rows n mod 8 are a frame shorter)
             hUGE_ticks_per_row = tunes[cur_tune].song->tempo - fast_now - ((swing >> (hUGE_row & 7)) & 1);
         hUGE_dosound();
-        if (cur_tune == TUNE_CREDITS && hUGE_tick == 1 && hUGE_current_order == 4) {   // the credits tune: while order 2 plays (the driver counts orders by 2),
-            uint8_t k = hUGE_row - 2;                                                 // orders 4 and 5 go over orders 0 and 1 in the buffer, 96 bytes a row for 8 rows
-            if (k < 8) {
+        if (cur_tune == TUNE_CREDITS && hUGE_tick == 1) {            // the credits tune: while order k plays (the driver counts orders by 2), order k+2 goes
+            uint8_t k = hUGE_current_order >> 1, r = hUGE_row - 2;    // over the buffer slot of order k-2, which is done: one slice on each of the order's
+            if (k >= 2 && k + 2 < CREDITS_ORDERS && r < CREDITS_COPY_ROWS) {    // rows 2 .. 2 + CREDITS_COPY_ROWS - 1
                 const tune_t *c = &tunes[TUNE_CREDITS];
-                uint16_t o = (uint16_t)k * 96;
-                mus_copy(c->bank, c->blob + c->bytes + o, mus_buf_a + o, 96);
+                uint16_t o = (uint16_t)r * CREDITS_SLICE;
+                mus_copy(c->bank, c->blob + (uint16_t)(k + 2) * CREDITS_ORDER_BYTES + o,
+                         mus_buf_a + (uint16_t)((k + 2) & 3) * CREDITS_ORDER_BYTES + o, CREDITS_SLICE);
             }
         }
         if (groove && !--g_cnt) groove_row();

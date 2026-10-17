@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record the credits roll's audio (the credits tune, src/credits.c) to a WAV, as the game plays it.
 
-    python3 tools/rec_credits.py out/c3_ingame.wav [--model dmg|cgb] [--compare audition.wav]
+    python3 tools/rec_credits.py out/d3c_ingame.wav [--model dmg|cgb] [--compare audition.wav]
 
 Boots build/game.gb with PyBoy's sound emulation, opens BONUS > CREDITS, and records every frame until the credits tune has
 ended (a bit longer with --tail seconds).  PyBoy's sound buffer is sliced by raw_buffer_head // 2 per frame: the whole array
@@ -39,7 +39,7 @@ def record(model, tail):
         pb.tick(1, False, True)
         chunks.append(pb.sound.ndarray[:pb.sound.raw_buffer_head // 2].copy())
         frames += 1
-        if gb.mem("cur_tune") != TUNE_CREDITS or frames > 7000:
+        if gb.mem("cur_tune") != TUNE_CREDITS or frames > 9500:
             break
     rate = pb.sound.sample_rate
     for _ in range(int(tail * 60)):
@@ -108,7 +108,7 @@ def main():
     ap.add_argument("--model", default="dmg", choices=("dmg", "cgb"))
     ap.add_argument("--tail", type=float, default=0.5, help="seconds recorded after the tune ends")
     ap.add_argument("--compare")
-    ap.add_argument("--seconds", type=float, default=88.0, help="length compared")
+    ap.add_argument("--seconds", type=float, default=145.3, help="length compared (the tune is 8732 frames = 145.5 s of PyBoy audio; what follows it is the title tune)")
     args = ap.parse_args()
     s, rate, frames = record(args.model, args.tail)
     s = save(args.out, s, rate)

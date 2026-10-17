@@ -830,7 +830,8 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
     src = (ROOT / "build" / "music_data.c").read_text()
     frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+, \w+, \d+\}", src)]
     assert len(frames) == TUNE_COUNT + 1, "the listed tunes, then the credits tune (src/music.h TUNE_CREDITS)"
-    assert frames.pop() == 88 * 60, "the credits tune: 88 s, played once (tests/test_credits.py)"
+    t = songs.SONGS["credits"]
+    assert frames.pop() == gm.pass_frames(579, t["tempo"], 0, t["tempo_map"]) == 8732, "the credits tune: 146 s with its ritard, played once (tests/test_credits.py)"
     assert all(60 <= f <= 2400 for f in frames), frames
     venue = frames[TUNE_VENUE0:]
     assert all(15 * 60 <= f <= 36 * 60 for f in venue), f"venue tunes loop for 15-36 s (the owner specs are up to 32 bars of a waltz): {venue}"
@@ -887,7 +888,7 @@ def test_music_mix_balance_bass_and_drums_sit_under_a_quieter_melody():
     vol = lambda env: env >> 4
     # melody: every pulse instrument at volume <= 8 (it was 10 / 9 / 12 / 9 / 10); the song lead and the lead are 8 or less
     for n, (sweep, duty, env) in enumerate(gm.DUTY, 1):
-        assert vol(env) <= (12 if n in (3, 4) else 8), (n, hex(env))   # 3 plink and 4 thin are short jingle voices
+        assert vol(env) <= (12 if n in (3, 4, 7) else 8), (n, hex(env))   # 3 plink and 4 thin are short jingle voices; 7 ring is the credits tune's last chord only
     assert vol(gm.DUTY[4][2]) == 8 and vol(gm.DUTY[0][2]) == 8, "song lead and lead: volume 8"
     # bass: wave output 100% (NR32 0x20), triangle samples scaled to half range so it is not buzzy
     assert gm.WAVE[0][1] == 0x20, "bass at 100% output"

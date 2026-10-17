@@ -35,6 +35,7 @@ DUTY = [  # sweep, len_duty (NR11), envelope (NR12), subpattern, highmask
     (0x08, 0x00, 0xC1),   # 4 thin: 12.5% pulse, volume 12, fast decay (quick bonus-round notes)
     (0x08, 0x80, 0x85),   # 5 song lead: 50% pulse, volume 8, slow decay (long notes keep sounding)
     (0x08, 0x80, LEGATO_ENV),   # 6 legato lead (sung tunes, songs.song(legato=)): 50% pulse, held volume, no decay
+    (0x08, 0x80, 0xC7),   # 7 ring: 50% pulse, volume 12, slowest decay (12 x 7/64 s = 1.3 s): the credits tune's final chord
 ]
 WAVE = [  # length, volume (NR32: 0x20 = 100%, 0x40 = 50%), waveform index, subpattern, highmask
     (0, 0x20, 0),         # 1 bass: triangle, NR32 100% (the waveform itself is scaled, BASS_AMP)
@@ -56,6 +57,7 @@ HARM_INST = {
     "stab": (0x40, 0x52),     # 25% pulse, volume 5, quick decay (0.16 s): off-beat stabs
     "harm50": (0x80, 0x57),   # "harm" at 50% duty (the Entertainer's thirds: rounder, less nasal)
     "pluck": (0x00, 0x55),    # 12.5% pulse, volume 5, medium decay (0.39 s): plucked, koto-like
+    "ring50": (0x80, 0x97),   # 50% pulse, volume 9, slowest decay (1.0 s): the credits tune's final chord rings
 }
 HARM_REST = 0x7F
 HARM_BANK = 10              # src/music.h HARM_BANK (checked in main)
@@ -270,15 +272,16 @@ ORDER = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in rang
 SOURCE = {"title": "entertainer", "show": "galop"}
 SOURCE.update({f"venue{i}": n for i, n in enumerate(songs.VENUES)})
 BLOB_BANKS = (10,)      # a bank of their own (the autobanker only places `#pragma bank 255` files)
-# The credits tune (music.h TUNE_CREDITS, after the listed tunes: no jukebox item, no unlock): 88 s, 6 orders of 2 patterns (melody,
-# bass; no drums), so its 12 patterns do not fit the 8-pattern WRAM buffer A.  Its blob (bank CREDITS_BANK, src/music.h) holds the
-# patterns in order: slots 0-7 = orders 0-3, copied to buffer A before it starts (tune_t.bytes), slots 8-11 = orders 4 and 5, which
-# src/music.c copies over the buffer's first four patterns (orders 0 and 1, played by then) while order 2 plays
-# (CREDITS_STREAM bytes).  It plays once (a jingle: the credits roll waits for it), so nothing is ever reloaded for a second pass.
+# The credits tune (music.h TUNE_CREDITS, after the listed tunes: no jukebox item, no unlock): 146 s, 10 orders of 2 patterns (melody,
+# bass; no drums), so its 20 patterns do not fit the 8-pattern WRAM buffer A (4 orders).  Its blob (bank CREDITS_BANK, src/music.h,
+# a bank of its own with the tune's harmony) holds one pattern pair per order, a repeated pattern stored again: slots 0-7 = orders 0-3,
+# copied to buffer A before it starts (tune_t.bytes); then src/music.c copies order k+2 over the buffer slot of order k-2 (finished
+# two orders ago) while order k plays, in slices of one order / CREDITS_COPY_ROWS bytes a row.  It plays once (a jingle: the credits
+# roll waits for it), so nothing is ever reloaded for a second pass.
 CREDITS = "credits"
-CREDITS_BANK = 20
+CREDITS_BANK = 22
 CREDITS_PRELOAD = 8          # patterns in the first copy (the buffer's size)
-CREDITS_ORDERS = 6
+CREDITS_ORDERS = 10
 TUNES = ORDER + [CREDITS]
 SOURCE[CREDITS] = CREDITS
 BUF_ID = {"A": 1, "B": 2}
@@ -353,8 +356,36 @@ def build(name, t, legacy):
                 break
         else:
             raise SystemExit(f"{name}: no channel has a free effect column on its last row")
-    per = {c: list(chunks_of(chans[c], n_orders)) for c in (1, 2, 3, 4)}
+    per = {c: [list(ch) for ch in chunks_of(chans[c], n_orders)] for c in (1, 2, 3, 4)}
+    for row, T in sorted((t.get("tempo_map") or {}).items()):      # Fxx is global: any channel's free effect column
+        o, r = divmod(row, 64)
+        for c in (4, 3, 2):
+            if c == 4 and not t["ch4"]:
+                continue
+            note, ins, eff = per[c][o][r]
+            if eff == 0:
+                per[c][o][r] = (note, ins, 0xF00 | T)
+                break
+        else:
+            raise SystemExit(f"{name}: no free effect column at row {row}")
+    for row, lst in sorted((t.get("fx_map") or {}).items()):       # a channel's own effect (Cxx wave volume, 0xy arpeggio)
+        o, r = divmod(row, 64)
+        for c, eff in lst:
+            note, ins, e0 = per[c][o][r]
+            assert e0 == 0, f"{name}: row {row} channel {c} already has effect {e0:03X}"
+            per[c][o][r] = (note, ins, eff)
+    per = {c: [tuple(ch) for ch in per[c]] for c in per}
     return dict(total=total, tempo=tempo, n_orders=n_orders, per=per)
+
+
+def pass_frames(total, tempo, swing=0, tempo_map=None):
+    """Frames one pass of a tune lasts: every row is the tempo set last (hUGE Fxx, tempo_map: row -> frames a row), a swung
+    row a frame shorter (src/music.c tick).  This is what music_tick's jingle stop counts (tune_t.frames)."""
+    cur, frames = tempo, 0
+    for r in range(total):
+        cur = (tempo_map or {}).get(r, cur)
+        frames += cur - ((swing >> (r % 8)) & 1)
+    return frames
 
 
 def groove_rows(name, t):
@@ -408,15 +439,14 @@ def main():
         if name in JINGLES:
             continue
         sl = {}
-        if name == CREDITS:        # order by order: melody, bass (pairs of slots), see CREDITS above
+        if name == CREDITS:        # order by order: melody, bass (pairs of slots), see CREDITS above; a repeated pattern is stored again
             b = built[name]
-            assert b["n_orders"] == CREDITS_ORDERS and not songs.SONGS[SOURCE[name]]["ch4"], "the credits tune: 6 orders, no drums"
+            assert b["n_orders"] == CREDITS_ORDERS and not songs.SONGS[SOURCE[name]]["ch4"], f"the credits tune: {CREDITS_ORDERS} orders, no drums"
             assert all(k == EMPTY for c in (1, 4) for k in b["per"][c])
             for o in range(CREDITS_ORDERS):
                 for c in (2, 3):
-                    key = b["per"][c][o]
-                    assert key != EMPTY and key not in sl, f"credits order {o} channel {c}: a repeated or empty pattern (the stream expects 12)"
-                    sl[key] = len(sl)
+                    assert b["per"][c][o] != EMPTY, f"credits order {o} channel {c}: an empty pattern (the stream expects every slot)"
+                    sl[(o, c)] = len(sl)
             assert len(sl) == 2 * CREDITS_ORDERS
         else:
             for c in (1, 2, 3, 4):
@@ -434,7 +464,7 @@ def main():
         size = len(slots[name]) * SLOT_BYTES
         if name == CREDITS:
             bank_of[name] = CREDITS_BANK
-            assert size <= 8192, "the credits blob shares its bank with the credits roll's code"
+            assert size <= 16384, "the credits blob and harmony share a bank of their own"
             continue
         for b in BLOB_BANKS:
             if used[b] + size <= 15500:
@@ -443,21 +473,32 @@ def main():
                 break
         else:
             raise SystemExit("blobs do not fit banks %s" % (BLOB_BANKS,))
+    def blob_keys(name):        # the patterns of a tune's blob in slot order
+        if name == CREDITS:
+            return [built[name]["per"][c][o] for (o, c) in slots[name]]
+        return list(slots[name])
+
     harms = {}
     for name in slots:
         t = songs.SONGS[SOURCE[name]]
         ev = harm_events(name, t, built[name]["total"])
         if ev:
             harms[name] = harm_bytes(t, ev)
-            used[HARM_BANK] += len(harms[name])
+            if name == CREDITS:     # the credits tune's harmony sits in its blob's bank (src/music.c: cur_tune == TUNE_CREDITS ? CREDITS_BANK : HARM_BANK)
+                assert len(harms[name]) + len(slots[name]) * SLOT_BYTES <= 16384, "the credits bank"
+            else:
+                used[HARM_BANK] += len(harms[name])
     assert used[HARM_BANK] <= 16384, used
     hdr = (Path(__file__).resolve().parent.parent / "src" / "music.h").read_text()
     m = re.search(r"#define HARM_BANK (\d+)", hdr)
     assert m and int(m.group(1)) == HARM_BANK, "src/music.h HARM_BANK differs from gen_music.HARM_BANK"
     m = re.search(r"#define CREDITS_BANK\s+(\d+)", hdr)
     assert m and int(m.group(1)) == CREDITS_BANK, "src/music.h CREDITS_BANK differs from gen_music.CREDITS_BANK"
-    m = re.search(r"#define CREDITS_STREAM\s+(\d+)", hdr)
-    assert m and int(m.group(1)) == (2 * CREDITS_ORDERS - CREDITS_PRELOAD) * SLOT_BYTES, "src/music.h CREDITS_STREAM"
+    m = re.search(r"#define CREDITS_ORDERS\s+(\d+)", hdr)
+    assert m and int(m.group(1)) == CREDITS_ORDERS, "src/music.h CREDITS_ORDERS differs from gen_music.CREDITS_ORDERS"
+    m = re.search(r"#define CREDITS_ORDER_BYTES\s+\(?(\d+) \* (\d+)\)?", hdr)
+    assert m and int(m.group(1)) * int(m.group(2)) == 2 * SLOT_BYTES, "src/music.h CREDITS_ORDER_BYTES (a melody and a bass pattern)"
+    assert CREDITS_PRELOAD == 8, "src/music.c: the buffer holds four orders (a slot is order & 3)"
     for b in BLOB_BANKS + (CREDITS_BANK,):
         with open(out / f"music_pat{b}.c", "w") as f:
             f.write("// Generated by tools/gen_music.py from tools/songs.py. Do not edit.\n// Pattern blobs: copied into WRAM by src/music.c.\n")
@@ -466,16 +507,17 @@ def main():
                 if bank_of[name] != b:
                     continue
                 f.write(f"const unsigned char blob_{name}[] = {{   // {SOURCE[name]}: {len(slots[name])} patterns\n")
-                for key in slots[name]:
+                for key in blob_keys(name):
                     f.write(row_text(key))
                 f.write("};\n\n")
-            if b == HARM_BANK:
-                for name, hb in harms.items():
-                    f.write(f"const unsigned char harm_{name}[] = {{   // {SOURCE[name]}: channel-1 harmony, "
-                            f"{len(hb) // 2 - 3} events\n")
-                    for i in range(0, len(hb), 16):
-                        f.write("    " + ",".join(str(x) for x in hb[i:i + 16]) + ",\n")
-                    f.write("};\n\n")
+            for name, hb in harms.items():
+                if (name == CREDITS and b != CREDITS_BANK) or (name != CREDITS and b != HARM_BANK):    # (the credits tune's harmony: its own bank)
+                    continue
+                f.write(f"const unsigned char harm_{name}[] = {{   // {SOURCE[name]}: channel-1 harmony, "
+                        f"{len(hb) // 2 - 3} events\n")
+                for i in range(0, len(hb), 16):
+                    f.write("    " + ",".join(str(x) for x in hb[i:i + 16]) + ",\n")
+                f.write("};\n\n")
 
     with open(out / "music_data.c", "w") as f:
         f.write("// Generated by tools/gen_music.py from the tune sources there and in tools/songs.py. Do not edit.\n")
@@ -526,8 +568,9 @@ def main():
             else:
                 buf = "mus_buf_" + songs.SONGS[SOURCE[name]]["buf"].lower()
                 wrap = CREDITS_PRELOAD if name == CREDITS else 1 << 30      # the credits' later orders sit over the first ones
-                orders = {c: [("empty_pat" if key == EMPTY else f"&{buf}[{slots[name][key] % wrap * SLOT_BYTES}]")
-                              for key in b["per"][c]] for c in (1, 2, 3, 4)}
+                slot = (lambda o, c, key: slots[name][(o, c)]) if name == CREDITS else (lambda o, c, key: slots[name][key])
+                orders = {c: [("empty_pat" if key == EMPTY else f"&{buf}[{slot(o, c, key) % wrap * SLOT_BYTES}]")
+                              for o, key in enumerate(b["per"][c])] for c in (1, 2, 3, 4)}
             f.write(f"static const unsigned char {name}_order_cnt = {b['n_orders'] * 2};\n")
             for c in (1, 2, 3, 4):
                 f.write(f"static const unsigned char * const {name}_order{c}[] = {{{', '.join(orders[c])}}};\n")
@@ -540,7 +583,8 @@ def main():
         for name in TUNES:
             b = built[name]
             sw = songs.SONGS[SOURCE[name]].get("swing", 0) if name in SOURCE else 0
-            frames = b["total"] * b["tempo"] - sum((sw >> (r % 8)) & 1 for r in range(b["total"]))   # a swung row is a frame short
+            frames = pass_frames(b["total"], b["tempo"], sw, (JINGLES[name] if name in JINGLES else songs.SONGS[SOURCE[name]]).get("tempo_map"))
+            b["frames"] = frames
             loop = JINGLES[name]["loop"] if name in JINGLES else int(name != CREDITS)
             if name in JINGLES:
                 tail = "0, 0, NULL, 0"
@@ -560,7 +604,7 @@ def main():
         b = built[name]
         extra = f", blob {len(slots[name])} patterns in bank {bank_of[name]}" if name in slots else ""
         print(f"gen_music: {name}{'=' + SOURCE[name] if name in SOURCE else ''}: {b['total']} rows x {b['tempo']} frames "
-              f"= {b['total'] * b['tempo'] / 60:.1f}s, {b['n_orders']} orders{extra}")
+              f"= {b['frames'] / 60:.1f}s ({b['frames']} frames), {b['n_orders']} orders{extra}")
     print(f"gen_music: WRAM buffers: A {max_a} patterns ({max_a * SLOT_BYTES} B), B {max_b} ({max_b * SLOT_BYTES} B); "
           f"blob and harmony bytes per bank {used} (harmony {sum(len(h) for h in harms.values())} B: "
           + ", ".join(f"{n} {len(h)}" for n, h in harms.items()) + ")")

@@ -13,7 +13,7 @@ from test_mg import GLYPH_CH
 SP_CREDITS = 8
 TUNE_CREDITS = 15                          # src/music.h: after the 15 listed tunes
 TUNE_NONE_ = 255
-TUNE_FRAMES = 5400                         # the credits tune: 352 rows x 15 frames = 5280, and the roll's start
+TUNE_FRAMES = 8900                         # the credits tune: 8732 frames (146 s), and the roll's start
 CR_AT = 0                                  # struct cr_state in story_scratch (src/credits.c): row[20], scroll(2), sub, next, t, hold, from_story
 SCROLL, SUB, NEXT, T, HOLD, FROM_STORY = 20, 22, 23, 24, 25, 26
 STORY_H = (ROOT / "build" / "story.h").read_text()
@@ -81,7 +81,7 @@ def test_the_roll_shows_every_line_and_the_sprites_stay_within_the_limit(model):
         assert seen == set(LINES), sorted(seen ^ set(LINES))
         assert 0 < most <= 8, most
         assert {OBJ_ROBOTS, OBJ_ROBOTS + 6, OBJ_ROBOTS + 12} <= shown, "the three robots"
-        assert state(gb) == GS_STORY and gb.mem("cur_tune") == TUNE_CREDITS, "the last line stays up while the 88 s tune plays"
+        assert state(gb) == GS_STORY and gb.mem("cur_tune") == TUNE_CREDITS, "the last line stays up while the 146 s tune plays"
         run_until(gb, lambda: state(gb) == TITLE, TUNE_FRAMES)          # (the tune ends, the roll with it)
         assert state(gb) == TITLE, "the end: back to the title's BONUS"
         assert gb.mem("title_menu") == TM_BONUS and menu_items(gb)[gb.mem("title_sel")] == K_CREDITS
@@ -145,7 +145,7 @@ def test_the_story_credits_lead_into_the_roll_and_then_the_score_entry(model):
         assert gb.mem("score_tbl") == 1 and gb.regs()["SCY"] == 0
 
 
-# ---- the credits tune (draft "C3": the Entertainer's intro, trio, D strain and opening bar; tools/songs.py "credits") ---------------------
+# ---- the credits tune (draft "D3c": The Entertainer, intro / A / B / trio / bridge / D, ending on a ringing chord; tools/songs.py "credits") ------
 import filecmp
 import sys
 
@@ -155,6 +155,9 @@ import songs                 # noqa: E402
 
 BUILD = ROOT / "build"
 BANK_BYTES = 0x4000
+ORDERS = 10
+ORDER_BYTES = 2 * gm.SLOT_BYTES                            # a melody and a bass pattern
+FRAMES = 8732                                              # 579 rows x 15 frames and the last bar's ritard (17, 19, 20 frames a row)
 
 
 def noi_addr(name):
@@ -166,6 +169,10 @@ def rom_bytes(name, n):
     a = noi_addr(name)                                         # bank << 16 | CPU address (GBDK .noi)
     off = (a >> 16) * BANK_BYTES + (a & 0x3FFF)
     return (BUILD / "game.gb").read_bytes()[off:off + n]
+
+
+def rom_bank(name):
+    return noi_addr(name) >> 16
 
 
 def dn(key):
@@ -182,56 +189,112 @@ def credits_patterns():
     return b, [b["per"][c][o] for o in range(b["n_orders"]) for c in (2, 3)]
 
 
-def test_the_credits_tune_in_the_rom_is_the_generators_c3(tmp_path, monkeypatch):
+def test_the_credits_tune_in_the_rom_is_the_generators_d3c(tmp_path, monkeypatch):
     t = songs.SONGS["credits"]
     b, pats = credits_patterns()
-    assert (b["total"], b["n_orders"], t["tempo"], len(pats)) == (352, 6, 15, 12), "88 s: intro, trio, D strain, the opening bar"
-    assert not t["ch4"] and t["ch1_inst"] == ("harm50", "harm50") and "credits" not in gm.ORDER, "no drums, not a listed tune"
-    assert all(k != gm.EMPTY for k in pats) and len(set(pats)) == 12
-    assert b["per"][1] == [gm.EMPTY] * 6 and b["per"][4] == [gm.EMPTY] * 6
-    # the melody is the audition's: starts on the intro's D E C, ends on the held C of the opening bar
+    assert (b["total"], b["n_orders"], t["tempo"], len(pats)) == (579, ORDERS, 15, 2 * ORDERS), "the whole piece and its ending"
+    assert not t["ch4"] and t["ch1_inst"] == ("harm50", "ring50") and "credits" not in gm.ORDER, "no drums, not a listed tune"
+    assert all(k != gm.EMPTY for k in pats) and b["per"][1] == [gm.EMPTY] * ORDERS and b["per"][4] == [gm.EMPTY] * ORDERS
+    # the melody is the audition's: starts on the intro's D E C, ends on the ringing C chord (instrument 7) and a rest
     toks = gm.merge_ties(t["ch2"]).split()
-    assert toks[:3] == ["D5:1", "E5:1", "C5:1"] and toks[-1] == "C5:8" and sum(int(x.split(":")[1]) for x in toks) == 352
+    assert toks[:3] == ["D5:1", "E5:1", "C5:1"] and toks[-2:] == ["C6:6/7", "r:1"] and sum(int(x.split(":")[1].split("/")[0]) for x in toks) == 579
+    assert len(gm.DUTY) == 7 and gm.DUTY[6] == (0x08, 0x80, 0xC7) and gm.HARM_INST["ring50"] == (0x80, 0x97)
+    # the length is the real frames: Fxx tempo changes counted (rows 568-571 at 17 and 19, then 20 a row to the end)
+    assert t["tempo_map"] == {568: 17, 570: 19, 572: 20}
+    assert gm.pass_frames(579, 15, 0, t["tempo_map"]) == FRAMES == 579 * 15 + 2 * 2 + 2 * 4 + 7 * 5
+    assert gm.pass_frames(579, 15) == 579 * 15
     # build/ is what the generator makes from the sources now
     monkeypatch.setattr(sys, "argv", ["gen_music", str(tmp_path)])
     gm.main()
-    for f in ("music_data.c", "music_pat10.c", "music_pat20.c"):
+    for f in ("music_data.c", "music_pat10.c", "music_pat22.c"):
         assert filecmp.cmp(tmp_path / f, BUILD / f, shallow=False), f + " is stale"
-    # the order tables: orders 0-3 use patterns 0-7 of the buffer, orders 4 and 5 sit over orders 0 and 1
+    # the order tables: orders 0-3 use patterns 0-7 of the buffer, order j >= 4 sits over order j & 3
     data = (BUILD / "music_data.c").read_text()
-    assert "credits_order2[] = {&mus_buf_a[0], &mus_buf_a[384], &mus_buf_a[768], &mus_buf_a[1152], &mus_buf_a[0], &mus_buf_a[384]}" in data
-    assert "credits_order3[] = {&mus_buf_a[192], &mus_buf_a[576], &mus_buf_a[960], &mus_buf_a[1344], &mus_buf_a[192], &mus_buf_a[576]}" in data
-    assert "{&song_credits, 0, 5280, 1, 20, blob_credits, 1536, NULL, 0}" in data, "a jingle (once), 5280 frames, 8 patterns first, bank 20"
-    # the pattern data in ROM bank 20 and the harmony in bank 10
-    assert rom_bytes("blob_credits", 12 * 192) == b"".join(dn(k) for k in pats)
+    for c, name in ((2, "credits_order2"), (3, "credits_order3")):
+        want = ", ".join("&mus_buf_a[%d]" % (((o & 3) * 2 + c - 2) * gm.SLOT_BYTES) for o in range(ORDERS))
+        assert f"{name}[] = {{{want}}}" in data, name
+    assert "{&song_credits, 0, %d, 1, 22, blob_credits, 1536, NULL, 0}" % FRAMES in data, "a jingle (once), the real frames, 8 patterns first, bank 22"
+    # the pattern data and the harmony are in ROM bank 22 (a bank of its own; the other tunes' harmony stays in bank 10)
+    assert rom_bank("blob_credits") == rom_bank("harm_credits") == 22 == gm.CREDITS_BANK
+    assert rom_bank("harm_title") == gm.HARM_BANK == 10
+    assert rom_bytes("blob_credits", len(pats) * gm.SLOT_BYTES) == b"".join(dn(k) for k in pats)
     h = bytes(gm.harm_bytes(t, gm.harm_events("credits", t, b["total"])))
-    assert len(h) == 440 and rom_bytes("harm_credits", len(h)) == h
+    assert len(h) == 762 and rom_bytes("harm_credits", len(h)) == h
+    # the harmony and the tune's length agree: the last events are the ringing E and a rest
+    assert h[-6:] == bytes([gm.note_no("E5") | 0x80, 6, gm.HARM_REST, 1, 0, 0])
+
+
+def test_the_generator_stores_a_repeated_pattern_again(tmp_path, monkeypatch):
+    """The credits blob has one slot per order and channel, so an order that plays the same pattern as an earlier one (a repeated strain)
+    is stored again, and the order tables point at the buffer slot of each order."""
+    src = dict(songs.SONGS["credits"])
+    src.update(ch2=" ".join(["C4:64"] * ORDERS), ch3=" ".join(["C3:64"] * ORDERS), ch1="", tempo_map=None, fx_map=None)
+    monkeypatch.setitem(songs.SONGS, "credits", src)
+    monkeypatch.setattr(sys, "argv", ["gen_music", str(tmp_path)])
+    gm.main()
+    blob = (tmp_path / "music_pat22.c").read_text()
+    assert "blob_credits[] = {   // credits: 20 patterns" in blob and "harm_credits" not in blob
+    assert blob.count("DN(") == 20 * 64, "all twenty slots are written out"
+    assert f"{{&song_credits, 0, {64 * 15 * ORDERS}, 1, 22, blob_credits, 1536, NULL, 0}}" in (tmp_path / "music_data.c").read_text()
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_credits_play_the_tune_and_it_advances_through_its_orders(model):
+def test_the_credits_play_the_tune_and_the_buffer_holds_the_blob_at_every_order(model):
+    """The first four orders are in the buffer before the first note; while order k plays, order k+2 is copied over order k-2's slot (rows
+    2 to 9 of the order); at every order change and once the copy is done the buffer equals the blob, order by order."""
     _, pats = credits_patterns()
     blob = b"".join(dn(k) for k in pats)
+    order = lambda j: blob[j * ORDER_BYTES:(j + 1) * ORDER_BYTES]
     with roll_from_bonus(model) as gb:
         buf = gb.addr("mus_buf_a")
+
+        def slot_is(j):
+            return bytes(gb.read(buf + (j & 3) * ORDER_BYTES, ORDER_BYTES)) == order(j)
+
         assert gb.mem("cur_tune") == TUNE_CREDITS and gb.mem("sound_on") == 1
-        assert bytes(gb.read(buf, 1536)) == blob[:1536], "orders 0-3 are in the buffer before the first note"
-        orders, frames = [], 0
-        while gb.mem("cur_tune") == TUNE_CREDITS and frames < TUNE_FRAMES:
-            gb.run(1)
-            frames += 1
-            o = gb.mem("hUGE_current_order") // 2          # (the driver counts orders by 2)
+        assert bytes(gb.read(buf, 4 * ORDER_BYTES)) == blob[:4 * ORDER_BYTES], "orders 0-3 are in the buffer before the first note"
+        orders, checks, frames, done = [], 0, 0, set()
+        while gb.mem("cur_tune") == TUNE_CREDITS and frames < FRAMES + 100:
+            o, row = gb.mem("hUGE_current_order") // 2, gb.mem("hUGE_row")     # (the driver counts orders by 2)
             if not orders or orders[-1] != o:
                 orders.append(o)
-            if o <= 1 and frames % 50 == 0:
-                assert bytes(gb.read(buf, 1536)) == blob[:1536], "orders 4 and 5 wait until orders 0 and 1 have played"
-            if o == 3 and frames % 50 == 0:
-                assert bytes(gb.read(buf, 768)) == blob[1536:2304], "order 2 played: orders 4 and 5 are in place"
-                assert bytes(gb.read(buf + 768, 768)) == blob[768:1536], "orders 2 and 3 are untouched"
-        assert orders[:6] == [0, 1, 2, 3, 4, 5] and orders[6:] in ([], [0]), orders      # (the driver wraps on the last tick, the jingle stops at once)
-        assert 5270 <= frames <= 5290, "88 s"
+                if o < ORDERS:                                 # the change: this order and the next are in place, the earlier ones not yet overwritten
+                    assert all(slot_is(j) for j in (o, o + 1) if j < ORDERS), f"order {o} starts: it and the next are in the buffer"
+                    if o >= 1:
+                        assert slot_is(o - 1), f"order {o} starts: the order just played is intact"
+                    checks += 1
+            if row == 12 and o not in done and o < ORDERS:    # the copy of order o + 2 (rows 2-9) is finished
+                done.add(o)
+                assert all(slot_is(j) for j in range(max(o - 1, 0), min(o + 3, ORDERS))), f"during order {o}: orders {o - 1}..{o + 2}"
+                checks += 1
+            gb.run(1)
+            frames += 1
+        assert orders[:ORDERS] == list(range(ORDERS)) and orders[ORDERS:] in ([], [0]), orders      # (the driver wraps on the last tick, the jingle stops at once)
+        assert checks >= 2 * ORDERS - 2 and done >= set(range(ORDERS - 1)), (checks, done)
+        assert FRAMES - 12 <= frames <= FRAMES + 2, "the jingle stop counts the tune's real frames (the ritard included)"
         assert gb.mem("cur_tune") == TUNE_NONE_ and state(gb) == GS_STORY, "the tune ended; the roll leaves on the next frame"
         run_until(gb, lambda: state(gb) == TITLE, 60)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_tune_stops_after_the_final_chord_has_rung_out(model):
+    """Rows 572-577 are the final chord (6 rows at 20 frames), row 578 a rest: the tune stops when the rest ends, about 2 s after the
+    chord was struck and with nothing cut short; the row starts follow the tempo changes (17, 19, 20 frames a row)."""
+    t = songs.SONGS["credits"]
+    start, cur = [0], 15
+    for r in range(579):
+        cur = t["tempo_map"].get(r, cur)
+        start.append(start[-1] + cur)
+    with roll_from_bonus(model) as gb:
+        seen, frames = {}, 0
+        while gb.mem("cur_tune") == TUNE_CREDITS and frames < FRAMES + 100:
+            seen.setdefault((gb.mem("hUGE_current_order") // 2, gb.mem("hUGE_row")), frames)
+            gb.run(1)
+            frames += 1
+        for r in range(500, 579):
+            assert abs(seen[(r // 64, r % 64)] - start[r]) <= 3, f"row {r} starts at frame {seen[(r // 64, r % 64)]}, the generator says {start[r]}"
+        assert frames >= start[578] + 15, "the last row (a rest) is played out before the tune is cut"
+        assert start[579] - start[572] == 6 * 20 + 20, "the chord rings for six rows, then the rest"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
