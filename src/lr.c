@@ -13,8 +13,8 @@
 //   centre at the start, 2.7 at the end.
 // - A fall (|lean| > 64): the splash and the droplets, LR_FALL_LEN = 180 frames in the water (SPLASH, then CLIMB, then a
 //   hop back up), lean 0 on the log again. Only time on the log scores: 100 each second on it (lr_on / 60), +1000 with no
-//   fall (NO FALLS 1000 in the outro). Medal by seconds on the log (lr_medal): GOLD 40, SILVER 34, BRONZE 25. One setting
-//   (no HARD). If he is up at time up the partner topples into the river (frame 3, X-flipped, a droplet burst).
+//   fall (NO FALLS 1000 in the outro). Medal by seconds on the log (lr_medal): GOLD 40, SILVER 34, BRONZE 25. EASY / HARD change the roll's strength, the fish and
+//   the medals' seconds (lr_tune). If he is up at time up the partner topples into the river (frame 3, X-flipped, a droplet burst).
 // - Sounds (no new SFX): the creak SFX_SHAKE, the fall SFX_BREAK, the hop back SFX_LAUNCH, NO FALLS SFX_CATCH.
 //
 // D3 (the owner's playtest, 2026-10-15): "the game needs something more", "the sasquatch just stands there".
@@ -93,6 +93,17 @@ typedef char lr_fits[(LR_BG + LR_ROLL_AT >= 128 && LR_BG + LR_BG_TILES <= 256 &&
 #define LR_HOP_END       48                     // ... then 12 of rest before the next hop
 #define LR_FISH_FIRST   360                     // frames to the first leap's ripples
 #define LR_GAP0         360                     // the gap between leaps at the start (6 s); elapsed / 16 shorter (210 = 3.5 s at the end)
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL), TUNING.md: the drift's start (the ramp's rise is
+// the same), the frames to the first fish and the gap between fish at the start, the frames between the roll's flips (min + 0..range - 1) and the
+// medals (seconds on the log).
+static const struct lr_tune lr_tune[MG_DIFFS] = {
+    { LR_DRIFT0, LR_FISH_FIRST, LR_GAP0, LR_FLIP_MIN, LR_FLIP_RANGE, LR_GOLD, LR_SILVER, LR_BRONZE },
+    { 2500, 280, 220, 70, 91, 40, 30, 22 },             // HARD: a stronger roll (0.038; the ramp's m stays under 3856), flips every 70 - 160 frames, fish sooner and more often
+    { 1100, 480, 480, 160, 121, 40, 36, 28 },             // EASY: a gentler roll (0.017), flips every 160 - 280, fish later and further apart
+};
+#define LRT             (S.tn)
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&lr_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
 #define LR_FISH_LAST     90                     // no ripples with fewer frames than this left
 #define LR_PTS_DODGE    150
 #define LR_FISH_BASE_Y  118                     // the water line the arc starts on (the fish's centre)
@@ -187,7 +198,7 @@ static void fill_attr_rows(uint8_t first, uint8_t last) {   // LCD off, CGB: the
 // No 32-bit multiply or divide anywhere here: the library routines would land in ROM0 (486 B). The ramps are 16-bit.
 static int16_t mag(void) {                      // the push's size now: 0.025 + 0.020 x elapsed / 2400 (x 35 / 64); x 35 = shifts
     uint8_t hi = S.elapsed >> 6, lo = S.elapsed & 63;
-    return LR_DRIFT0 + ((uint16_t)hi << 5) + ((uint16_t)hi << 1) + hi + ((((uint16_t)lo << 5) + ((uint16_t)lo << 1) + lo) >> 6);
+    return LRT.drift0 + ((uint16_t)hi << 5) + ((uint16_t)hi << 1) + hi + ((((uint16_t)lo << 5) + ((uint16_t)lo << 1) + lo) >> 6);
 }
 
 static uint16_t mul5(uint16_t v, uint8_t a) {   // v x a, a < 32 (the library's multiply is a 16-step loop; this is five)
@@ -219,7 +230,7 @@ static int16_t ramped(uint16_t m, int8_t s) {
 static void new_flip(void) {
     S.tsgn = -S.tsgn;
     S.fdelay = LR_RAMP_FRAMES;
-    S.flip_in = LR_FLIP_MIN + mg_rand() % LR_FLIP_RANGE;
+    S.flip_in = LRT.flip_min + mg_rand() % LRT.flip_range;
     SFX(SFX_SHAKE);
 }
 
@@ -232,6 +243,7 @@ static void ramps(void) {                       // the bark's ramp turns first, 
 
 void lr_enter(void) BANKED {
     uint8_t k, r;
+    TUNE_LOAD();
     set_bkg_data(LR_BG, LR_BG_TILES, lr_bg_tiles);
     set_sprite_data(OBJ_MUG, 2 * LR_SLOT_ENTRIES, lr_obj_tiles);
     set_sprite_data((uint8_t)LR_OBJ_HI, (uint8_t)(2 * LR_OBJ_HI_A), lr_obj_tiles + (uint16_t)2 * LR_SLOT_ENTRIES * 16);
@@ -257,11 +269,11 @@ void lr_enter(void) BANKED {
     S.lean = 0; S.vel = 0; S.drift = 0; S.on = 0; S.elapsed = 0; S.roll = 0; S.st = LS_RUN; S.falls = 0; S.fall_t = 0;
     S.s60 = 0; S.roll_f = 0; S.roll_vis = 0; S.rip_f = 0; S.rip_vis = 0; S.anim = 0; S.started = 0; S.ended = 0;
     S.top_t = 0; S.drop_t = 0; S.drop_x = 0; S.band[0] = S.band[1] = BAND_KEEP; S.digit = TILE_GLYPH_0;
-    S.fish_in = LR_FISH_FIRST; S.fseed = mg_seed ^ 0x5A5A; if (!S.fseed) S.fseed = 0xACE1;   // (mg_seed read, not advanced)
+    S.fish_in = LRT.fish_first; { uint16_t v = mg_seed ^ 0x5A5A; S.fseed = v ? v : 0xACE1; }   // (mg_seed read, not advanced)
     S.fish_t = 0; S.fish_done = 0; S.hop_t = 0; S.stun = 0; S.dodged = S.hits = 0; S.sq_st = SQ_LOG; S.sq_hop = 0; S.sq_dodge = 0;
     S.tsgn = (mg_rand() & 1) ? 1 : -1;
     S.tell = S.dsr = S.tsgn * LR_RAMP_FRAMES; S.fdelay = 0;
-    S.flip_in = LR_FLIP_MIN + mg_rand() % LR_FLIP_RANGE;
+    S.flip_in = LRT.flip_min + mg_rand() % LRT.flip_range;
     S.drift = ramped(mag(), S.dsr);
     mg_timer = LR_TIME_S * 60;
     lr_update(0);                                // the sprites (the update draws them; no play before MG_PLAY)
@@ -269,7 +281,7 @@ void lr_enter(void) BANKED {
 
 uint8_t lr_medal(void) BANKED {
     uint8_t s = S.on / 60;
-    return s >= LR_GOLD ? MEDAL_GOLD : s >= LR_SILVER ? MEDAL_SILVER : s >= LR_BRONZE ? MEDAL_BRONZE : MEDAL_NONE;
+    return s >= LRT.gold ? MEDAL_GOLD : s >= LRT.silver ? MEDAL_SILVER : s >= LRT.bronze ? MEDAL_BRONZE : MEDAL_NONE;
 }
 
 static int16_t lean_px(void) {                  // whole px, truncated toward 0 (the same reach to both sides)
@@ -494,7 +506,7 @@ static void fish_step(void) {
     if (!S.fish_t) {
         if (!S.fish_in && S.st == LS_RUN && mg_timer > LR_FISH_LAST) {
             fish_tell();
-            S.fish_in = LR_GAP0 - (S.elapsed >> 4) + (frand() & 31);
+            S.fish_in = LRT.gap0 - (S.elapsed >> 4) + (frand() & 31);
         }
         return;
     }

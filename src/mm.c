@@ -13,7 +13,8 @@
 //   copper on CGB, a pop; it takes nothing more). Any other marshmallow, a full cup included, is a MISS: it falls on to the belt (y 112),
 //   SFX_BREAK, and lies there as a splat that rides right, blinks and is gone.
 // - Ends: every cup full ("ALL MUGS FULL"), the supply used up and the last one down ("OUT OF MARSHMALLOWS"), or 60 s (the framework's
-//   TIME UP). Medal by score (mg.c medal_at): GOLD 3600 = all 6 full (18 hits: at most 1 miss), SILVER 2400, BRONZE 1200.
+//   TIME UP). Medal by score (mg.c medal_at): GOLD 3600 = all 6 full (18 hits: at most 1 miss), SILVER 2400, BRONZE 1200. EASY / HARD: mm_tune (the belt's speed,
+//   the opening, the supply) and the medal rows of mg.c.
 //
 // Screen (the approved mock-up): HUD row 0 (score; the supply: a marshmallow icon at 11, 2 digits at 12-13; the timer at 17-19);
 // the ice-brick wall rows 1-13 with the aurora window at columns 1-6, rows 1-4 (CGB BG palettes 6 green and 7 magenta; it shimmers
@@ -66,6 +67,16 @@ typedef char mm_fits[(MM_BG + MM_BG_TILES <= 256 && (OBJ_MUG & 1) == 0 && (OBJ_D
 #define MM_SPLAT_LIFE  150
 #define MM_PTS_HIT    100
 #define MM_PTS_FULL   300
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL), TUNING.md: the belt's speed (1/8 px a frame), the
+// hit window (the marshmallow's x - the cup's x from lo to hi, px) and the supply; the medals are in mg.c.
+static const struct mm_tune mm_tune[MG_DIFFS] = {
+    { MM_BELT, -1, 11, MM_SUPPLY },
+    { 6, 1, 9, 18 },                            // HARD: 0.75 px a frame, a 9 px opening, 18 marshmallows (all 6 cups full = 18 hits)
+    { 3, -2, 12, 20 },                          // EASY: 0.375 px a frame, a 15 px opening, 20 marshmallows
+};
+#define MMT             (S.tn)
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&mm_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
 #define OAM_POP         0
 #define OAM_FALL        4
 #define OAM_HELD        5
@@ -185,6 +196,7 @@ static void belt_row(uint8_t ph) {
 
 void mm_enter(void) BANKED {
     uint8_t r, c;
+    TUNE_LOAD();
     set_bkg_data(MM_BG, MM_BG_TILES, mm_bg_tiles);
     set_sprite_data(OBJ_MUG, 2 * MM_LO, mm_obj_tiles);
     set_sprite_data(OBJ_DANCER, MM_OBJ_TILES - 2 * MM_LO, mm_obj_tiles + 32 * MM_LO);
@@ -212,7 +224,7 @@ void mm_enter(void) BANKED {
     // the HUD supply: the icon at column 11, two digits at 12-13 (the lives at 7-8, the goal area of the story)
     row_buf[0] = (uint8_t)(MM_BG + MMB_ICON);
     vram_put(11, HUD_ROW, row_buf, 1);
-    S.supply = MM_SUPPLY;
+    S.supply = MMT.supply;
     hud_supply();
     // the belt's two phases (columns 1-18 of row 14) and the banner rows' scene (restored at the first play frame)
     for (c = 0; c < 18; c++) { S.belt[0][c] = (uint8_t)(MM_BG + MMB_BELT0); S.belt[1][c] = (uint8_t)(MM_BG + MMB_BELT1); }
@@ -248,7 +260,7 @@ static void land(void) {                                  // the marshmallow at 
     int16_t d;
     for (k = 0; k < MM_MUGS; k++) {
         d = S.ax - (S.cx[k] >> 3);
-        if (d < -1 || d > 11) continue;
+        if (d < MMT.lo || d > MMT.hi) continue;
         if (S.n[k] == 3) break;                           // a full cup: it bounces off (a miss)
         S.hits++;
         S.n[k]++;
@@ -280,13 +292,13 @@ void mm_update(uint8_t pressed) BANKED {
     }
     if (mg_phase >= MG_PLAY && mg_phase <= MG_END) {      // the belt rides on through the outro
         for (k = 0; k < MM_MUGS; k++) {                   // the cups loop: past the right edge they come back at the left
-            S.cx[k] += MM_BELT;
+            S.cx[k] += MMT.belt;
             if (S.cx[k] >= MM_END_X * 8) S.cx[k] -= MM_LOOP;
             if (S.pop[k]) S.pop[k]--;
         }
         for (k = 0; k < MM_SPLATS; k++) {
             if (!S.sage[k]) continue;
-            S.sx[k] += MM_BELT;
+            S.sx[k] += MMT.belt;
             if (++S.sage[k] > MM_SPLAT_LIFE || S.sx[k] >= MM_END_X * 8) S.sage[k] = 0;
         }
     }

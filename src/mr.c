@@ -10,7 +10,7 @@
 //
 // Rules (fixed point 1/16 px):
 // - The street scrolls at the player's speed (start 1.5 px). 2.5 is the top: the gate spacing is built for it. A bump drops it to the
-//   floor (1.0) and the throttle is dead while the bike wobbles. HARD (Practice; off since 2026-10-15, see MR_IS_HARD): it starts at 2.0 and the floor is 1.75.
+//   floor (1.0) and the throttle is dead while the bike wobbles. HARD (Practice): it starts at 2.0 and the floor is 1.75 (mr_tune: EASY, NORMAL and HARD differ in the start, the floor, the spill, the windows, the crates and the medals).
 // - A crate flies 16 frames from the bike (screen x 34, the centre of the crate) to the kerb while the street moves under
 //   it, so it lands where the box has come to (the lead is the speed x 16 frames: slow is easier to aim). Within 8 px of a box's
 //   centre: PERFECT, 500; within 16: delivered, 300; anywhere else (or on a full box) it is lost on the pavement. Two crates at most
@@ -78,9 +78,6 @@ typedef char mr_offsets[(__builtin_offsetof(struct mr_state, ctile) == 2 && __bu
 #define MR_DROP_FAST     3
 #define MR_HARD_SPD_START 32                     // HARD: from 2.0 px a frame, and no slower than 1.75 (bumps always spill 3)
 #define MR_HARD_SPD_MIN  28
-// Owner 2026-10-15: every difficulty plays the same for now, so HARD is NORMAL (the HARD constants above stay for the playtest pass: make this
-// `(MG_DIFF == MG_D_HARD)` again to bring them back)
-#define MR_IS_HARD       0
 #define MR_PICK1       140                       // the pickups' columns (about the 3rd and the 8th box)
 #define MR_PICK2       380
 #define MR_PICK_BEFORE  16                       // a gate from this many columns before a pickup to MR_PICK_AFTER after it keeps its lane free
@@ -101,6 +98,17 @@ typedef char mr_offsets[(__builtin_offsetof(struct mr_state, ctile) == 2 && __bu
 #define MR_MEDAL_BRONZE 3000                     // by the score (the design note: scripted runs; no-op play tops out at 2400)
 #define MR_MEDAL_SILVER 4500
 #define MR_MEDAL_GOLD   6000
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL), TUNING.md: the speed a game starts at and the floor
+// (a bump drops the speed to it; LEFT stops there), the crates a bump spills (slow, at MR_SPD_FAST and up), the PERFECT and delivered windows (px), the
+// crates at the start, and the medals (score).
+static const struct mr_tune mr_tune[MG_DIFFS] = {
+    { MR_SPD_START, MR_SPD_MIN, MR_DROP, MR_DROP_FAST, MR_PERFECT, MR_DELIVERED, MR_CRATES, MR_MEDAL_BRONZE, MR_MEDAL_SILVER, MR_MEDAL_GOLD },
+    { MR_HARD_SPD_START, MR_HARD_SPD_MIN, 3, 3, 6, 12, 9, 2500, 4000, 5500 },   // HARD: 2.0 px from the start and never under 1.75; 3 spilled; narrow windows
+    { 20, MR_SPD_MIN, 1, 2, 12, 22, 12, 3500, 5000, 6600 },                     // EASY: 1.25 px to start; 1 spilled (2 when fast); wide windows; 12 crates
+};
+#define MRT             (S.tn)
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&mr_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
 #define MR_POP_LEN      50
 #define MR_BANNER_OFF   54                       // MG_END frame the TIME UP banner goes (the result is at 60)
 #define MR_BANNER_ROW   33                       // the window's text row
@@ -311,6 +319,7 @@ void mr_enter(void) BANKED {
     uint8_t k, *v = (uint8_t *)0x9800;
     uint8_t *z = (uint8_t *)&S;
     for (k = 0; k < sizeof(struct mr_state); k++) z[k] = 0;
+    TUNE_LOAD();
     CRITICAL {                                   // (mg_enter has put the normal handlers back: a retry has no mg_leave)
         remove_LCD(lcd_isr);
         add_LCD(mr_lcd_isr);                     // the raster split (main.c)
@@ -340,10 +349,10 @@ void mr_enter(void) BANKED {
         OBP1_REG = 0xE0;                         // the bike, crates, stars, pop: idx2 dark grey
     }
     // the state
-    S.spd = MR_IS_HARD ? MR_HARD_SPD_START : MR_SPD_START;
+    S.spd = MRT.spd_start;
     S.pk_lane[0] = (uint8_t)((mg_seed >> 8) ^ mg_seed) % 3;            // the pickups' lanes from the seed (no mg_rand: the street stays as it was)
     S.pk_lane[1] = (S.pk_lane[0] + 1 + ((mg_seed >> 4) & 1)) % 3;
-    S.lane = 1; S.y = lane_top[1]; S.crates = MR_CRATES; S.time = MR_TIME_S * 60; S.secs = MR_TIME_S;
+    S.lane = 1; S.y = lane_top[1]; S.crates = MRT.crates; S.time = MR_TIME_S * 60; S.secs = MR_TIME_S;
     S.bcol = NO_BOX;
     gen_gate(24, 0);                             // the first gate after column 24; then the first box
     gen_box(0xFFFC);
@@ -442,10 +451,10 @@ static void lane_press(int8_t d) {
     if ((uint8_t)d <= 2) S.lane = d;
 }
 
-static uint8_t spd_floor(void) { return MR_IS_HARD ? MR_HARD_SPD_MIN : MR_SPD_MIN; }
+static uint8_t spd_floor(void) { return MRT.spd_min; }
 
 static void crash(void) {
-    uint8_t n = (S.spd >= MR_SPD_FAST | MR_IS_HARD) ? MR_DROP_FAST : MR_DROP;
+    uint8_t n = S.spd >= MR_SPD_FAST ? MRT.drop_fast : MRT.drop;
     S.inv = MR_WOBBLE + MR_BLINK;
     S.spd = spd_floor();                         // the bump takes the speed away
     if (n > S.crates) n = S.crates;
@@ -498,7 +507,7 @@ static void land(struct mr_toss *c) {            // the crate comes down: on a b
         if (!(k & BOX) || (k & FULL) || ((k & BOTTOM) ? 1 : 0) != c->side) continue;
         d = (int16_t)(x - (S.fcol[e] * 8 + 8));
         if (d < 0) d = -d;
-        if (d > MR_DELIVERED) continue;
+        if (d > MRT.delivered) continue;
         S.fkind[e] |= FULL;                      // the box's two top tiles: the crate in it
         row = c->side ? 12 : 4;
         f = MR_BG + MRB_BOX + 4 * (c->side * 2 + 1);
@@ -506,7 +515,7 @@ static void land(struct mr_toss *c) {            // the crate comes down: on a b
         vq_add(0, S.boxbuf, S.fcol[e] & (MR_STREET_W - 1), row, 1);
         vq_add(0, S.boxbuf + 1, (S.fcol[e] + 1) & (MR_STREET_W - 1), row, 1);
         S.delivered++;
-        if (d <= MR_PERFECT) {
+        if (d <= MRT.perfect) {
             S.perfect++;
             mg_points(MR_PTS_PERFECT);
             S.pop_t = MR_POP_LEN; S.pop_x = S.fcol[e] * 8; S.pop_y = c->side ? POP_Y_BOT : POP_Y_TOP;
@@ -525,7 +534,7 @@ static uint8_t course_done(void) {               // the 12th box is made and eve
     if (S.boxes_made < MR_BOXES || S.bcol != NO_BOX || S.toss[0].t || S.toss[1].t) return 0;
     for (e = 0; e < MR_FT; e++) {
         k = S.fkind[e];
-        if ((k & BOX) && !(k & FULL) && (uint16_t)(S.fcol[e] * 8 + 8 + MR_DELIVERED) >= S.px + CRATE_CX + MR_FLIGHT) return 0;   // (a crate lands at least speed 1.0 x 16 frames ahead)
+        if ((k & BOX) && !(k & FULL) && (uint16_t)(S.fcol[e] * 8 + 8 + MRT.delivered) >= S.px + CRATE_CX + MR_FLIGHT) return 0;   // (a crate lands at least speed 1.0 x 16 frames ahead)
     }
     return 1;
 }
@@ -603,6 +612,6 @@ void mr_update(uint8_t pressed) BANKED {
 }
 
 uint8_t mr_medal(void) BANKED {
-    return mg_score >= MR_MEDAL_GOLD ? MEDAL_GOLD : mg_score >= MR_MEDAL_SILVER ? MEDAL_SILVER
-         : mg_score >= MR_MEDAL_BRONZE ? MEDAL_BRONZE : MEDAL_NONE;
+    return mg_score >= MRT.gold ? MEDAL_GOLD : mg_score >= MRT.silver ? MEDAL_SILVER
+         : mg_score >= MRT.bronze ? MEDAL_BRONZE : MEDAL_NONE;
 }
