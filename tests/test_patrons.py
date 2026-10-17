@@ -323,6 +323,7 @@ def test_a_serve_happens_only_off_the_screen(gb):
         gb.write("served", 0)
         s0 = score(gb)
         p = set_patron(gb, 1, x)
+        put(gb, "patron_drinks", p, 1)                 # (not his first drink: the almost-out roll, tests/test_almost_out.py, is not this test's subject)
         gb.run(3)
         inject_mug(gb, 1, x + 4)
         gb.run(3 + 4)

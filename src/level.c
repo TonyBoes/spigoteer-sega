@@ -87,6 +87,18 @@ static void load_patron_group(uint8_t g) {
 #define LOOP_GAP_STEP    5
 #define EMPTY_GAP_FLOOR 80
 #define HURRY_FROM       3
+// "Almost out" (owner 2026-10-17): of the patrons whose FIRST drink would carry them off the left edge, 1 in N stops just shy of it
+// (at ENTRY_X, the last BG column) and drinks there, then comes back as any drinker does. N per play mode (rows: ARCADE, STORY,
+// CLASSIC, the LEVEL harness, BOSS RUSH) and run difficulty (columns: NORMAL, HARD, EASY, -): 0 never. This is the tuning table: 7
+// everywhere, CLASSIC (kept authentic: the original has no such patron) never.
+#define ALMOST_N 7
+const uint8_t almost_one_in[5][4] = {
+    { ALMOST_N, ALMOST_N, ALMOST_N, ALMOST_N },   // ARCADE
+    { ALMOST_N, ALMOST_N, ALMOST_N, ALMOST_N },   // STORY
+    { 0, 0, 0, 0 },                               // CLASSIC
+    { ALMOST_N, ALMOST_N, ALMOST_N, ALMOST_N },   // the LEVEL harness (the debug select, the tests)
+    { ALMOST_N, ALMOST_N, ALMOST_N, ALMOST_N },   // BOSS RUSH
+};
 // The push a mug gives patron p (the arcade's rule: the same for every mug, no thirst multiplier): pushback_px, the row
 // class's constant. He is SERVED (Option C) when it reaches the left-edge stop, d >= x - ENTRY_X: he does not stop
 // to drink but slides on and off the screen (the push returned is x + PATRON_W, all of him past the edge); one at or
@@ -100,7 +112,10 @@ static uint8_t push_calc(uint8_t p) {
     c = (uint16_t)(level - 1) * EARLY_PER_LEVEL;                // (level 1: nobody drinks early)
     if (level > 1 && next_rand() < (c > EARLY_MAX ? EARLY_MAX : c)) d = next_rand() & 1 ? d >> 2 : d >> 1;
     m = x - ENTRY_X;
-    if (d >= m) return x + PATRON_W;                           // (Option C: a push that reaches the left-edge stop serves him: he slides on and off)
+    if (d >= m) {                                              // (Option C: a push that reaches the left-edge stop serves him: he slides on and off)
+        if (!patron_drinks[p] && (c = almost_one_in[play_mode][RUN_DIFF & 3]) && next_rand() % (uint8_t)c == 0) return m;   // almost out: stops at ENTRY_X
+        return x + PATRON_W;
+    }
     return d;
 }
 
