@@ -6,13 +6,17 @@
 # sources in assets/, not the generated files.
 
 NAME     := game
+# The release number, set here only: MAJOR.MINOR, each one digit (the title's top-right corner, the header's version byte, dist/ names).
+VERSION  := 0.9
+VER_MAJOR := $(word 1,$(subst ., ,$(VERSION)))
+VER_MINOR := $(word 2,$(subst ., ,$(VERSION)))
 BUILD    := build
 OUT      := out
 LCC      := lcc
 # -Wa-l listing, -Wl-m map, -Wl-j NoICE symbols (build/game.noi -> tests read
 # variables by name), -Wm-yc CGB-compatible (runs on DMG and CGB),
 # -Wm-yn cartridge title (max 15 chars), -Wm-yt MBC type if you need banks.
-LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-ynSPIGOTEER
+LCCFLAGS := -Wa-l -Wl-m -Wl-j -Wm-yc -Wm-yj -Wm-ynSPIGOTEER -Wm-yp0x14C=$(shell echo $$(($(VER_MAJOR)*10+$(VER_MINOR)))) -DVERSION_MAJOR=$(VER_MAJOR) -DVERSION_MINOR=$(VER_MINOR)
 # MBC5+RAM+BATTERY (0x1B, one 8 KB SRAM bank for the hi score, M7) + GBDK autobanking (M4.7): the pre-shifted patron tiles (M8b: 10 x 2.5 KB) live in build/patrons_<group>.c, one file per group
 # under `#pragma bank 255` (all ten would not fit one bank); bankpack places each in a switchable bank. -Wm-yoA sizes the ROM.
 LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
@@ -43,7 +47,7 @@ BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(B
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
-.PHONY: all test check preview clean assets release
+.PHONY: all test check preview clean assets release dist
 
 all: $(ROM)
 
@@ -189,6 +193,21 @@ $(RELEASE): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_O
 	@grep -q debug_menu_open $(BUILD)/release.noi || { echo "release build lost the debug menu (it ships, locked: src/debug.c)"; false; }
 	@romusage $(BUILD)/release.noi 2>/dev/null | head -12 || true
 	@python3 tools/rom0free.py $(BUILD)/release.map
+
+# dist/: the release ROM (rebuilt from the sources; the debug menu ships locked, see DEBUGFLAGS) named by VERSION, its SHA-256,
+# RELEASE.txt, licenses/ and CREDITS.md. Nothing is published (CLAUDE.md rule 5).
+DIST := dist
+dist:
+	rm -f $(RELEASE)
+	$(MAKE) $(RELEASE)
+	rm -rf $(DIST)
+	mkdir -p $(DIST)
+	cp $(RELEASE) $(DIST)/spigoteer-v$(VERSION).gb
+	cd $(DIST) && sha256sum spigoteer-v$(VERSION).gb > spigoteer-v$(VERSION).gb.sha256
+	python3 tools/dist_info.py $(RELEASE) $(VERSION) > $(DIST)/RELEASE.txt
+	cp -r licenses $(DIST)/licenses
+	cp CREDITS.md $(DIST)/CREDITS.md
+	@ls -l $(DIST)
 
 test: $(ROM)
 	python3 -m pytest -q tests

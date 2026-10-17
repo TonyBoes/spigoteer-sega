@@ -331,6 +331,7 @@ void title_enter(void) BANKED {
     row_buf[6] = TT_HI;
     title_hi = hi_want(); hi_build();
     for (i = 0; i < 6; i++) row_buf[8 + i] = hi_buf[i];
+    row_buf[17] = tt_digit[VERSION_MAJOR]; row_buf[19] = tt_digit[VERSION_MINOR];   // the version, top right (the Makefile's VERSION)
     set_bkg_tiles(0, ROW_HI, 20, 1, row_buf);
     music_pump();
     // the scene's patron
