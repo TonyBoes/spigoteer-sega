@@ -16,7 +16,7 @@ pytestmark = pytest.mark.timeout(240)
 PICS = {p["name"]: p for p in STORY["pictures"]}
 BURST = STORY["burst"]                 # the INTRO's ten pieces (OBJ sprites): the places they land on, their art
 SLOT_BASE = STORY["portrait_base"]
-FRAME = (8, 40, 80, 104)               # a speaker page's portrait frame: columns 1-9, rows 5-12 (x0, y0, x1, y1)
+FRAME = (8, 32, 80, 104)               # a speaker page's portrait frame with its name plate: columns 1-9, rows 4-12 (x0, y0, x1, y1)
 _EXPECT = {}
 CRACKLE = (98, 27, 112, 43)            # the two crackle sprites' box over INTRO A (OBJ: the picture under them is exact)
 
@@ -314,13 +314,13 @@ def to_finale(model):
 def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
     """Every page: the picture is intact (the slot is below its tiles), the speaker's portrait is exact in the slot's
     ids, a swap goes wipe -> tiles -> frame (story_swap 1, 4, 2/3) and the copy list drains inside VBlank. FINALE_B (after the
-    Pour-Off) shows the same picture, from the one copy FINALE_A's slot (44 tiles) leaves room for (its own portraits: 42)."""
+    Pour-Off) shows the same picture, from the one copy FINALE_A's slot (49 tiles with the name plate) leaves room for (its own portraits: 48)."""
     with to_finale(model) as gb:
         if scene == "FINALE_B":
             through_the_pouroff(gb)
         s = SCENES[SC[scene]]
         slot = list(range(SLOT_BASE, SLOT_BASE + s["bg_tiles"]))
-        assert max(slot) < PICS["finale_a"]["base"] and s["bg_tiles"] == (44 if scene == "FINALE_A" else 42)
+        assert max(slot) < PICS["finale_a"]["base"] and s["bg_tiles"] == (49 if scene == "FINALE_A" else 48)
         page_ready(gb)
         assert_picture(gb, "finale_a", skip=None if s["pages"][0]["portrait"] is None else FRAME)
         if scene == "FINALE_A":
