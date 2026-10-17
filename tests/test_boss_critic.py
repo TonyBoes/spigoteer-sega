@@ -7,8 +7,8 @@
 import pytest
 from boss_common import (Own, BP_GULP, BP_HAPPY, BP_WALK, BS_GULP, BS_OUTRO, BS_SPECIAL, EMPTY, FULL, RETURN, SP_OUTRO,
                          TAP_X, art, arrivals_ok, assert_body, block_empties, check_start, fight, frames, hud,
-                         meter_tiles, mugs, play, row, still_regulars, throw, to_bar, until)
-from conftest import clear_regulars, GAME, ROOT, check_golden
+                         meter_tiles, mugs, play, row, still_regulars, throw, to_bar, until, until_g, gframes)
+from conftest import clear_regulars, GAME, ROOT, check_golden, check_golden_game, finish_goldens
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, state
 from test_pour import drop_mugs, first_launch, hold_release
 from test_story import banner_text, centred, post, settle, to_goal
@@ -92,18 +92,19 @@ def test_a_sloppy_drink_is_tasted_and_sent_back(model):
         quiet(gb)
         x0 = gb.mem("boss_x")
         throw(gb, B, 72)
-        until(gb, lambda: gb.mem("crit_sloppy") == 1, 30)
+        until_g(gb, lambda: gb.mem("crit_sloppy") == 1, 30)
         assert gb.mem("boss_hp") == 8 and gb.mem("boss_hits") == 0 and gb.mem("boss_state") == BS_SPECIAL
         tasting = 0
         for f in range(CRIT_TASTE + 10):
-            frames(gb, 1)
+            gframes(gb, 1)
             if gb.mem("crit_taste"):
                 tasting += 1
             if f == 10:
                 assert_body(gb, C, A, gb.mem("boss_x"), BP_TASTE)
-                check_golden(gb, "boss_critic_taste")
+                check_golden_game(gb, "boss_critic_taste", wait=False)   # (shot a few game frames on: the loop goes on counting)
             if mugs(gb, B, RETURN):
                 break
+        finish_goldens(gb)
         assert CRIT_TASTE - 3 <= tasting <= CRIT_TASTE, tasting
         assert gb.mem("boss_x") == x0, "he stands while he tastes"
         until(gb, lambda: mugs(gb, B, RETURN), 30)
@@ -254,13 +255,13 @@ def test_a_drink_waved_back_shows_the_no_gesture_and_a_bubble(model):
         until(gb, lambda: not gb.mem("boss_push"), 20)
         assert bubble(gb) == [(0, bubble(gb)[0][1])] * 2 or bubble(gb)[0][0] == 0, "no bubble yet"
         throw(gb, B, 70, perfect=True)
-        until(gb, lambda: gb.mem("crit_waved") == 1, 40)
-        frames(gb, 3)
+        until_g(gb, lambda: gb.mem("crit_waved") == 1, 40)
+        gframes(gb, 3)
         assert CRIT.get(gb, "no") > 0 and gb.mem("boss_xpose") == BP_TASTE
         assert_body(gb, C, A, gb.mem("boss_x"), BP_TASTE)
         (y0, t0), (y1, t1) = bubble(gb)
         assert y0 and y0 == y1 and (t0, t1) == (OBJ_TOPPER_ + H_NO, OBJ_TOPPER_ + H_NO + 2)
-        check_golden(gb, "boss_critic_no")
+        check_golden_game(gb, "boss_critic_no")
         until(gb, lambda: not CRIT.get(gb, "no"), CRIT_WIN * 4)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_GULP or gb.mem("boss_xpose") != BP_TASTE or gb.mem("boss_queue")

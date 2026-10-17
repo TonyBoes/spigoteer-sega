@@ -9,7 +9,7 @@ import subprocess
 from io import BytesIO
 
 import pytest
-from conftest import (K_BONUS, K_BOSSRUSH, K_CREDITS, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP, check_golden,
+from conftest import (K_BONUS, K_BOSSRUSH, K_CREDITS, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROM, ROOT, TM_BONUS, TM_TOP, check_golden,
                       hold_stage_anim, menu_items, menu_tap, menu_to, title_pick)
 from gbtools import Rom
 from pyboy import PyBoy
@@ -301,7 +301,7 @@ def test_the_release_build_names_no_stub(release_built):
     assert "_ml_n" in noi and "_mg_list_enter" in noi
     rom = RELEASE.read_bytes()
     assert b"QUICK DRAW" in rom and b"ORDER UP" in rom
-    dbg = (ROOT / "build" / "game.gb").read_bytes()
+    dbg = ROM.read_bytes()
     assert dbg.count(b"GREEN LIGHT") > rom.count(b"GREEN LIGHT"), "the list's stub entry: debug only"
 
 

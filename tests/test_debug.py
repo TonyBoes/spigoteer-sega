@@ -698,7 +698,7 @@ def test_the_box_follows_play_s_cursor_and_b_leaves_the_submenu_as_it_was(boot):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_story_select_golden(model):
-    from conftest import check_golden
+    from conftest import check_golden_game, game_frames
     from test_flow import settle_title
     from test_sound import make_rom
     rom = make_rom(model, with_unlock())
@@ -711,9 +711,9 @@ def test_the_story_select_golden(model):
         chap(rom, 1)
         pos(rom, 1)
         pos(rom, 1)
-        rom.run(3)
+        game_frames(rom, 3)
         assert banner_is(rom, "STORY 3 HAPPY")
-        check_golden(rom, "debug_story")
+        check_golden_game(rom, "debug_story")
     finally:
         rom.stop()
 

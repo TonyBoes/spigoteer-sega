@@ -1,4 +1,4 @@
-# Build system: the ROM variants (game, release, game-unlocked) must not disturb each other (Makefile: per-variant scratch
+# Build system: the ROM variants (game, release, game-unlocked, game-c) must not disturb each other (Makefile: per-variant scratch
 # directory, flags stamps). Runs make / make release / make / make unlocked in a scratch copy of the sources and checks that
 # every ROM boots to the title and that build/game.gb is byte-identical before and after building the others.
 import hashlib
@@ -61,6 +61,13 @@ def test_variants_do_not_disturb_each_other(tmp_path):
     assert digest(b / "game.gb") == game, "make unlocked changed build/game.gb"
     boots_to_title(b / "game-unlocked.gb")
     assert digest(b / "game-unlocked.gb") != game
+
+    # the C fallback (`make cfall`, -DASM_PASS=0, src/asm_cfg.h): its own ROM, game.gb untouched, the same RAM layout as game.gb
+    make(tmp_path, "cfall")
+    assert digest(b / "game.gb") == game, "make cfall changed build/game.gb"
+    boots_to_title(b / "game-c.gb")
+    r = subprocess.run(["python3", "tools/data_layout_check.py", "build/game.gb", "build/game-c.gb"], cwd=tmp_path, capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
 
     # a flag change forces a rebuild, and changing it back restores the identical ROM
     out = make(tmp_path, "DEBUGFLAGS=-DDEBUG_MENU -DDEBUG_UNLOCKED")

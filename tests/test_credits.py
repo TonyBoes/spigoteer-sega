@@ -5,7 +5,7 @@ import re
 from contextlib import contextmanager
 
 import pytest
-from conftest import K_BONUS, K_CREDITS, MENU_SETTLE, ROOT, TM_BONUS, check_golden, hold_stage_anim, menu_items, menu_tap, menu_to, title_pick
+from conftest import K_BONUS, K_CREDITS, MENU_SETTLE, ROM, ROOT, TM_BONUS, check_golden, hold_stage_anim, menu_items, menu_tap, menu_to, title_pick
 from gbtools import Rom
 from test_flow import GS_INITIALS, GS_SCORES, GS_STORY, TITLE, most_per_scanline, run_until, state, tilemap_row
 from test_mg import GLYPH_CH
@@ -39,7 +39,7 @@ def cr_t(gb):
 
 @contextmanager
 def roll_from_bonus(model):
-    with Rom(ROOT / "build" / "game.gb", model) as gb:
+    with Rom(ROM, model) as gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)
@@ -51,7 +51,7 @@ def roll_from_bonus(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_credits_is_the_fourth_bonus_item_and_opens_the_roll(model):
-    with Rom(ROOT / "build" / "game.gb", model) as gb:
+    with Rom(ROM, model) as gb:
         gb.run(120)
         title_pick(gb, K_BONUS)
         gb.run(MENU_SETTLE)
@@ -161,14 +161,14 @@ FRAMES = 8732                                              # 579 rows x 15 frame
 
 
 def noi_addr(name):
-    m = re.search(r"DEF _%s 0x([0-9A-Fa-f]+)" % name, (BUILD / "game.noi").read_text())
+    m = re.search(r"DEF _%s 0x([0-9A-Fa-f]+)" % name, ROM.with_suffix(".noi").read_text())
     return int(m.group(1), 16)
 
 
 def rom_bytes(name, n):
     a = noi_addr(name)                                         # bank << 16 | CPU address (GBDK .noi)
     off = (a >> 16) * BANK_BYTES + (a & 0x3FFF)
-    return (BUILD / "game.gb").read_bytes()[off:off + n]
+    return ROM.read_bytes()[off:off + n]
 
 
 def rom_bank(name):
@@ -299,7 +299,7 @@ def test_the_tune_stops_after_the_final_chord_has_rung_out(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_with_the_sound_off_the_roll_ends_after_its_own_hold(model):
-    with Rom(ROOT / "build" / "game.gb", model) as gb:
+    with Rom(ROM, model) as gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)

@@ -232,6 +232,160 @@ def check_golden(gb, name):
     assert ok, f"screen differs from golden {name}.{gb.model_name}.png (see out/diff/). Intentional? GB_UPDATE_GOLDEN=1 make test"
 
 
+# ---- game frames, not emulator frames (asm pass, PLAN.md 6.2) -----------------------------------------------------------------------
+# A golden shot after `gb.run(n)` or after `until(cond)` polling once per EMULATOR frame lands on a different GAME frame when the game
+# gets faster or slower: a game frame that straddled the VBlank (the logic ran into the next one) no longer does, and the shot is one
+# game frame later. These helpers count GAME frames instead: a hook on vq_frame_end (called once at the end of every game frame's
+# logic) and one on the VBlank vector. The picture of a game frame is the one on screen once its copy list has been drained and shown:
+# the emulator frame that ends after the second VBlank following the frame-end hook (the first VBlank drains the list, the picture
+# drawn after it is complete at the second). The shot is taken then, so the game is 1-3 game frames further on when it is taken
+# (it is never wound back: PyBoy's save_state / load_state does not restore everything, a shot after a rewind differs).
+#
+#   until_game(gb, cond)          cond() is evaluated at the end of each game frame's logic (the hook), so it is the first game frame
+#                                 for which it holds, whatever the speed. Returns that frame's index (the clock's `frames`).
+#   game_frames(gb, n)            n more game frames after the last until_game / game_frames (not after the current emulator frame).
+#   check_golden_game(gb, name)   check_golden on the picture of the current game frame (runs on until it is shown).
+#                  wait=False     only arms the shot: it is taken inside the next until_game / game_frames loop that gets there, so a
+#                                 test can go on counting frames; finish_goldens(gb) at the end asserts none is left.
+#
+# Phase probing (tools/golden_phase.py): the classifier runs the tests three times with GB_PHASE_PROBE=<dir> and GB_PHASE_SHIFT=0, -1, +1.
+# check_golden_game then shoots the game frame that many frames earlier / later (+1: one more game frame before the shot; -1: the
+# game_frames advance just before the shot is one shorter, the next advance one longer; not possible after an until_game) and writes
+# <dir>/<name>.<model>.0|m1|p1.png instead of asserting. A picture is never taken from a ticking sequence the test did not have: only
+# the emulator frame that shows the game frame is rendered (rendering every frame changes what some scenes draw).
+class GameClock:
+    def __init__(self, gb):
+        self.gb, self.frames, self.vb, self.anchor, self.cond, self.hit = gb, 0, 0, None, None, None
+        self.vb_at = {0: 0}                                 # game frame -> the VBlank count (self.vb, only ever grows) at its end hook
+        self.deficit = 0                                    # PHASE_SHIFT -1: game frames the last game_frames left out (made up by the next)
+        self.na = False                                     # the last advance was an until_game: a -1 shot is not possible
+        self.armed = []                                     # (name, game frame) shots waiting for their picture
+        a = gb.addr("vq_frame_end")
+        gb.pb.hook_register(a >> 16, a & 0xFFFF, self._frame, None)
+        gb.pb.hook_register(0, 0x0040, self._vbl, None)
+
+    def _frame(self, _):
+        self.frames += 1
+        self.vb_at[self.frames] = self.vb
+        self.vb_at.pop(self.frames - 12, None)
+        if self.cond is not None and self.hit is None and self.cond():
+            self.hit = self.frames
+
+    def _vbl(self, _):
+        self.vb += 1
+
+    def tick(self, each=None):
+        """One emulator frame, rendered only if it is the one that shows an armed shot's game frame (the frame whose second VBlank
+        after its end hook arrives in it); the armed shots that became due are checked."""
+        want = any(f in self.vb_at and self.vb - self.vb_at[f] == 1 for _, f in self.armed)
+        self.gb.run(1, render=want)
+        if each:
+            each(self.gb)
+        due = [x for x in self.armed if x[1] in self.vb_at and self.vb - self.vb_at[x[1]] >= 2]
+        if due:
+            img = self.gb.pb.screen.image.convert("RGB").copy()
+            for x in due:
+                self.armed.remove(x)
+                self._finish(x[0], img)
+
+    def _finish(self, name, im):
+        gb = self.gb
+        if PHASE_PROBE:
+            d = Path(PHASE_PROBE)
+            d.mkdir(parents=True, exist_ok=True)
+            tag = {0: "0", -1: "m1", 1: "p1"}[PHASE_SHIFT]
+            im.save(d / f"{name}.{gb.model_name}.{tag}.png")
+            return
+        from PIL import Image, ImageChops
+        path = GOLDEN / f"{name}.{gb.model_name}.png"
+        if UPDATE or not path.is_file():
+            im.save(path)
+            return
+        ref = Image.open(path).convert("RGB")
+        ok = ref.size == im.size and ImageChops.difference(ref, im).getbbox() is None
+        if not ok:
+            d = ROOT / "out" / "diff"
+            d.mkdir(parents=True, exist_ok=True)
+            im.save(d / f"{path.stem}.actual.png")
+            if ref.size == im.size:
+                ImageChops.difference(ref, im).point(lambda v: 255 if v else 0).save(d / f"{path.stem}.diff.png")
+        assert ok, f"screen differs from golden {name}.{gb.model_name}.png (see out/diff/). Intentional? GB_UPDATE_GOLDEN=1 make test"
+
+
+PHASE_PROBE = os.environ.get("GB_PHASE_PROBE")
+PHASE_SHIFT = int(os.environ.get("GB_PHASE_SHIFT", "0")) if PHASE_PROBE else 0
+
+
+def game_clock(gb):
+    if not hasattr(gb, "_game_clock"):
+        gb._game_clock = GameClock(gb)
+        gb._game_clock.anchor = gb._game_clock.frames
+    return gb._game_clock
+
+
+def until_game(gb, cond, limit=400, each=None):
+    """Run until cond() holds at the end of a game frame's logic (checked first, now). `each(gb)` after every emulator frame."""
+    c = game_clock(gb)
+    c.na, c.deficit = True, 0
+    if cond():
+        return c.anchor
+    c.cond, c.hit, start = cond, None, c.frames
+    try:
+        while c.hit is None:
+            assert c.frames - start <= limit, "condition not reached in %d game frames" % limit
+            c.tick(each)
+    finally:
+        c.cond = None
+    c.anchor = c.hit
+    return c.hit
+
+
+def game_frames(gb, n, each=None):
+    """Advance to n game frames after the last until_game / game_frames."""
+    c = game_clock(gb)
+    if c.anchor is None or c.anchor > c.frames:
+        c.anchor = c.frames
+    eff = n + c.deficit
+    c.deficit, c.na = 0, False
+    if PHASE_SHIFT < 0:                                      # (probing one game frame earlier: the next advance makes it up)
+        eff, c.deficit = eff - 1, 1
+    c.anchor += max(eff, 0)
+    while c.frames < c.anchor:
+        c.tick(each)
+    return c.anchor
+
+
+def check_golden_game(gb, name, wait=True):
+    """check_golden on the picture of the current game frame (where game_frames / until_game stopped)."""
+    c = game_clock(gb)
+    if PHASE_SHIFT < 0 and c.na:
+        d = Path(PHASE_PROBE)
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{name}.{gb.model_name}.m1.na").write_text("the golden follows an until_game: one game frame earlier is not possible")
+        return
+    if PHASE_SHIFT > 0:
+        c.anchor += PHASE_SHIFT
+        while c.frames < c.anchor:
+            c.tick()
+    c.armed.append((name, c.anchor))
+    for _ in range(40):
+        if not wait or (name, c.anchor) not in c.armed:
+            break
+        c.tick()
+    if wait:
+        assert (name, c.anchor) not in c.armed, "the picture of game frame %d never came" % c.anchor
+
+
+def finish_goldens(gb, each=None):
+    """Run until every shot armed with wait=False has been taken and checked."""
+    c = game_clock(gb)
+    for _ in range(40):
+        if not c.armed:
+            return
+        c.tick(each)
+    assert not c.armed, c.armed
+
+
 # ---- screen layout: parsed from src/layout.h so a layout tweak needs no test edits ----
 import re as _re
 

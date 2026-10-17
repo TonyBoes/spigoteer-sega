@@ -99,6 +99,28 @@ def frames(gb, n):
         assert max(lines(gb)) <= 10
 
 
+def _lines_ok(gb):
+    assert max(lines(gb)) <= 10
+
+
+def gframes(gb, n):
+    """n GAME frames (conftest.game_frames: counted at the end of each frame's logic, not per emulator frame), each emulator frame
+    checked at <= 10 sprites on every line. For a test that takes a golden: the shot is then at a fixed game frame."""
+    from conftest import game_frames
+    return game_frames(gb, n, each=_lines_ok)
+
+
+def until_g(gb, cond, limit=600):
+    """until(), with cond evaluated at the end of each game frame's logic (conftest.until_game): the first game frame it holds on."""
+    from conftest import until_game
+    try:
+        return until_game(gb, cond, limit, each=_lines_ok)
+    except AssertionError as e:
+        if "not reached" in str(e):
+            raise AssertionError(f"not reached in {limit} game frames (state {state(gb)}, boss_state {gb.mem('boss_state')})")
+        raise
+
+
 def until(gb, cond, limit=600):
     for _ in range(limit):
         if cond():

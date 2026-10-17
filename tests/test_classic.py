@@ -616,10 +616,16 @@ def test_a_served_patron_leaves_past_the_right_edge(boot):
 
 
 # ---- goldens: the three CLASSIC layouts (level numbers of the classic table, played through the LEVEL harness) -----------
-def golden_scene(boot, dirs, lv):
+def golden_scene(boot, dirs, lv, game=False):
+    """game: GAME frames instead of 30 emulator frames (conftest.game_frames), so the shot does not move when the game gets faster
+    (asm pass). The scene runs at about 30 fps, and its 30 emulator frames were 28 game frames on DMG and 27 on CGB (measured)."""
     gb = start(boot, dirs, lv)
     scene(gb, even=True, watcher_bar=next(k for k in range(4) if not is_r(dirs, k)) if dirs != ALL_R else 1)
-    gb.run(30)
+    if game:
+        from conftest import game_frames
+        game_frames(gb, 28 if boot.model_name == "dmg" else 27)
+    else:
+        gb.run(30)
     return gb
 
 
@@ -635,7 +641,8 @@ def test_golden_classic_split(boot):
 
 def test_golden_classic_alt(boot):
     """Classic level 12 (the space bar, RLRL: fully alternating) = the harness's space lounge level."""
-    check_golden(golden_scene(boot, ALT, 10), "classic_alt")
+    from conftest import check_golden_game
+    check_golden_game(golden_scene(boot, ALT, 10, game=True), "classic_alt")
 
 
 # ---- the debug select: the LEVEL box's SELECT steps the bars' directions -------------------------------------------------
