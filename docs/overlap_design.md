@@ -49,6 +49,11 @@ entries) until clear, then dropped back to BG.
   - Glass shards (16 tiles) don't fit, so they show light and white swapped on DMG. Accepted.
 
 ## Rules
+
+> **Update 2026-10-17:** the lift, drop and collision rules below stand. The *push* rule they assume (full push-back x drinks, served when carried out through the
+> door) was replaced on 2026-10-13 by a fixed push per mug (32 px, 24 on the two hardest rows) and on 2026-10-16 by **Option C**: a push that reaches the
+> left-edge stop serves the patron, who keeps sliding off and counts when off the screen (every mode, CLASSIC included; PLAN.md "Patron clearing, Option C").
+> Perf: the crowd path (`draw_held`, patron steps, lift loops) is the one place that still runs late frames; its assembly pass is the last open perf item.
 - **Collision.** Columns overlap when |c1 - c2| < width, where c = draw >> 3 and width is 2 at shift 0,
   else 3.
 - **Choosing who lifts.** The lifted set makes the remaining BG patrons column-disjoint (greedy, left to

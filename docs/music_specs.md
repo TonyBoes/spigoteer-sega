@@ -497,3 +497,15 @@ Confidence: High (the shanty's well-known melody: its first and third lines on A
 Rhythm checked 2026-10-11 (music step 3) against the Wikifonia lead sheet "What Shall We Do with a Drunken Sailor?" in OpenEWLD (github.com/00sapo/OpenEWLD, a dataset of public-domain scores): the verse matches; the chorus was flattened: "Way hay (and) up she rises" is a quarter, a dotted eighth and a sixteenth (A4:4 A4:3 A4:1), not two quarters (old bars 9, 11 and 13: 'A4:4 A4:4', 'G4:4 G4:4', 'A4:4 A4:4', which left out "and").
 Source: Traditional English sea shanty (19th century or earlier), public domain.
 ```
+
+## Engine notes added 2026-10-17 (not tune specs)
+
+- **Pause mix:** behind the pause menu the tune plays bass (channel 3) and harmony (channel 1) only, NR51 0x55 (0x44 while a channel-1 effect that began before the menu
+  finishes); effects are dropped while paused. Taiko Pour and the Sumo fight are clocked by `music_frames` and stay frozen and silent. `PAUSE_NR51` (HRAM 0xFFF0) is
+  cleared at boot (a real-hardware bug of 2026-10-14 played every tune as the pause mix).
+- **Time-keeping through screen changes:** `src/mpump.h` makes DISPLAY_OFF, set_bkg_tiles, set_bkg_data and set_sprite_data pump the music while the LCD is off;
+  `music_tick` refuses a tick unless half a frame of real time has passed since a pump's tick (the pump's lateness is kept in TMA bits 2-7); the scene transition ducks
+  NR50 and loads the new tune's patterns at once with the LCD off. Shortest tick interval over every transition leg: 0.48 frame (was 0.22); the pause menu's rewrite stays
+  within 0.88-1.15 frames (tests/test_music_transitions.py).
+- **Tunes unlock** when first heard in a shift; the save is deferred to the next quiet moment (shift start or title) instead of mid-frame.
+- **Sound effects added:** SFX_SWISH (the bar change), the CLASSIC trick's drumroll and cymbal (antics.c writes channel 4 itself; the sound bank has about 6-31 B free).

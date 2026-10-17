@@ -10,6 +10,68 @@ GBDK-2020. It runs on both DMG and CGB, and CGB gets the full-colour art from
 Done for every milestone means `make && make test && make check` pass on DMG
 and CGB, and the new behaviour has a test.
 
+## Current state (2026-10-17)
+
+Where the game stands after the week of 2026-10-13 to 10-17 (details in the dated "as built" sections at the end of this file, "Week of
+2026-10-13 .. 10-17"; superseded sections elsewhere are marked **SUPERSEDED** with a pointer, never deleted).
+
+- **Complete and playable:** ten venues, ten boss fights, ten venue mini-games plus the three bonus rounds, the
+  Pour-Off finale, STORY / ARCADE / CLASSIC, BOSS RUSH, BONUS > MINI GAMES (Practice), SOUNDTRACK, SETTINGS, the story pictures and the CREDITS.
+  DMG and CGB, GBDK-2020 C, MBC5 + RAM + battery (SRAM 8 KB).
+- **Patron clearing is Option C in every mode** (owner 2026-10-16): a push that reaches the left-edge stop serves the patron at once; the score,
+  tip and CLEAR THE BAR count when he is off the screen. Mean mugs to clear fell from 3.5-4.3 to about 1.8 (level 1) / 2.5 (level 9).
+- **Bar change:** SETTINGS > BAR SNAP / BAR KEEP (saved), a soft swish, the dust puff fixed (CLASSIC always snaps).
+- **Pause menu** in every mode: RESUME / HOW TO PLAY (mini-games) / QUIT TO MENU (ARE YOU SURE?), bass + harmony play behind it, no flicker,
+  the card swap with the LCD off.
+- **Menus:** the Practice list (difficulty per game, medals per mode, spaced rows, button glyphs, scroll arrows), BOSS RUSH list and SOUNDTRACK
+  share the look; mashing Up / Down no longer runs frames late.
+- **STORY difficulty:** EASY / NORMAL / HARD asked on a new story (PICK ONE), saved with it, a live score multiplier x0.5 / x1.5, E / H marks in
+  the table, green / red level flag on CGB. EASY and HARD still **play like NORMAL**; EASY unlocks nothing.
+- **Bosses:** every boss has a gimmick and an entrance; a boss round opens as a normal warm-up shift and the boss then arrives (E9); a status
+  tag (READY / BUSY / RETURN) over each boss's hand column; bosses shake while drinking and drink 30-50% slower.
+- **Mini-games:** Batch D reworks (T-Shirt Cannon, Marshmallow Drop, Log Roll, Battery Sort, Tip Shower, Milk Run), NORMAL tuning for Taiko Pour,
+  Monkey Business and Asteroid Delivery; real HOW TO PLAY cards for all.
+- **Story:** script beats (`|`, `||`, `@beat`), ten Dregs venue gags, the INTRO burst pulse and crackle, a fizzy-drink scene transition.
+- **Engineering:** the CGB VBlank copy list has one drain budget (no more late writes); the music keeps time through every transition; the perf
+  review's C-only items are done; the debug menu is full-screen, locked in release, opened by SELECT + 3 START taps or the Konami code;
+  SETTINGS > ERASE DATA wipes the cartridge.
+- **Budgets (last measured, 2026-10-16):** ROM0 about 230 B free (175 B after the VBlank budget commit 70f2766, 240 B after the scene
+  transition, 745 B at the start of the week); WRAM has no real headroom (new globals use the existing unions, `story_scratch` and `BOSS_OWN`;
+  `_DATA` 7370 B at 07e99b8; the "free" figures romusage prints are `shadow_OAM` and the stack, whose deepest measured use is 263 B);
+  switchable banks are 98-100% full except bank 20. Rule for every agent: no new WRAM globals, no raised perf guard.
+- **Temporary perf guards (restore after the assembly pass):** `test_worst_case_pile` end LY <= 320 (was 300; Option C sends more patrons
+  sliding off at once); `test_realistic_peak` end LY <= 240 and missed <= 400 (was 165 missed). Both are measurements of the C-only build, not
+  targets; main measures realistic peak DMG 220 / 255, CGB 221 / 348.
+
+### Open items (2026-10-17)
+
+Owner playtest questions pending (the owner tests look, sound and feel only; mechanics are checked by tests):
+1. Option C clearing feel, all modes (does a patron now take about two mugs; is CLASSIC still "the arcade"?).
+2. BAR SNAP vs BAR KEEP, and the swish volume.
+3. Each boss's entrance and gimmick, in order: Big Tex swagger, Mascot cannon, Sasquatch (back wall, the woods), Critic (cloche, BAD / NO bubble),
+   Yeti (frozen tap), Prototype (crane), Duke, Sumo (pushing match, fill meter), Leo (roar wind, hoop), Mothership (passengers, stun ray, beam).
+4. The boss status tag, the slower gulps, the warm-up length (1200 frames) before a boss arrives.
+5. Mini-game reworks and NORMAL tuning; medal thresholds are first guesses ("will playtest and balance later", owner). Asteroid's 4 / 6 / 8 is flagged
+   UNSURE.
+6. EASY and HARD for STORY, ARCADE and Practice: every level currently plays the same; the owner will send notes per game.
+7. Dregs: the ten gags and the late-arrival gag; the face and portrait revision (H1 / H2 / H3, proposals only, nothing built).
+8. Scene transitions: the shipped drink versus the palette fades F1 (white) / F2 (amber) and the band / foam variants, test ROMs only.
+9. Menu looks: the full-screen list skins (A1 chalkboard, A2 shelf variants V1-V5, A3 title style) are mock-ups; nothing chosen.
+
+Batch H remaining:
+- **Assembly pass** (owner: last, after every C item; never started). Candidates in rank order (perf review, scratchpad/batchH/perf_review/REPORT.md,
+  section 4): (1) `draw_held` + `oam_put` folded into `draw_mugs_loop`, 19-26 lines to about 4-6; (2) the patron step functions and
+  `update_patrons`' loop, 20-29 lines; (3) `lifted_scan` and `lift_frame`'s loops, about 10; (4) `boss_draw` if the C rewrite is not enough; (5) one
+  shared mini-game OAM writer per bank (`ad:obj` 28, `mm:obj` 24); (6)-(10) Pour-Off, Quick Draw's stream, `hide_banner_sprites`, `perf_ly`,
+  LCD-on window copies (cosmetic). Leave hUGEDriver's `dosound` alone. H4 (2026-10-16) measured no C-level gain in the crowd path: the cost is in
+  SDCC's loads and stack traffic, not the structure. Items 1 and 2 together should give the 17-19 lines the old guards need.
+- **Balancing:** medals per game and per difficulty, EASY / HARD tables, boss tuning (HP, meter, speeds), after the owner's playtest notes.
+- **Release:** the final build, ROM0 / bank repack check, the guards restored, CREDITS.md and licenses/ reviewed (another agent's draft), a clean
+  `make release`, publishing happens outside this container.
+- Smaller carry-overs: perf review items B1 (pin lift / mirror / pour / show into bank 20), A9 (`place_start_patrons` `% 3`), A10 (`perf_ly`
+  instrumentation), the ROM0 candidates (`hi_pick` 32-bit divide, `draw_dancers`, `add_score`, `play_frame`), WRAM overlays (screen-local
+  buffers about 360 B; story portrait buffers 520 B over `sa_frames` / `sa_script`).
+
 ## Game rules (from `upload/tapper.txt`)
 
 - There are 4 bars. The bartender stands at the tap on the **right** end.
@@ -19,7 +81,7 @@ and CGB, and the new behaviour has a test.
 - **Hold A** at the tap to fill a mug. When it is full, it slides left.
 - When a full mug reaches a patron who is paying attention, the patron
   catches it and is pushed back toward the left. A patron whose push carries all
-  of him off the screen's left edge is served (owner 2026-10-13: every mug pushes the same fixed distance, 32 px, 24 on the two
+  of him off the screen's left edge is served (**SUPERSEDED 2026-10-16, Option C: a push that reaches the left-edge stop serves him, he slides off and counts when off the screen, in every mode; see "Patron clearing, Option C" at the end**; owner 2026-10-13: every mug pushes the same fixed distance, 32 px, 24 on the two
   hardest rows, so a patron far in needs two or three; some patrons drink early after a quarter or half push; no doors since
   2026-10-09). When the screen has no patron, the next one is due within 30 frames (not after an arrival pattern's breather). A patron who stays drinks for a while, then sends the
   empty mug sliding right.
@@ -497,6 +559,8 @@ DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lif
   where both are opaque; on CGB the coin (OAM 27) and puff (26) are behind lifted patrons.
 
 ## M13b as built (the overlap rules)
+
+> **Partly SUPERSEDED:** the push rule ("his full push-back x drinks", the thirst multiplier) was replaced by the fixed push per mug on 2026-10-13 and by Option C (served when the push reaches the left-edge stop, every mode) on 2026-10-16; see "Patron clearing, Option C" at the end. The overlap and lift rules here stand.
 - Rules (src/patrons.c): `push_px` no longer stops behind anyone: every caught mug moves the catcher back his full
   push-back (pushback_px x drinks) unless he goes out through the door (the owner's stalled clump). Walkers pass slower
   walkers and drinkers: `walker_pixel` waits only when the step from a multiple of 8 would take him into a tile column
@@ -1459,6 +1523,8 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
     `conveyor` (a venue's counter replaced by the art file's 2-frame CONV_A / CONV_B: the Prototype's approved K5 + K6 look).
 
 ## The Sasquatch as built (lumber lodge boss, docs/minigames_bosses.md 3.5, 2026-10-12)
+
+> **Updated 2026-10-15 (E2):** he now ducks and vanishes to the woods every 360 walking frames and enters through the back wall; see the Week of 2026-10-13 .. 10-17 section at the end.
 - src/boss_sasquatch.c, rows[2]: 32 px, start 16, bar 2, step 90, push 8, gulp 8, hands 2, sip 0, meter 12, topper
   at 12 (his crest); "NO SUCH THING" / "12 COFFEES FAST". Art: the owner's approved look A round 2
   (assets/art/boss/sasquatch.txt, moved from assets/art/approved/; 22 column pairs; colours face #E8B878, fur
@@ -1477,6 +1543,8 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   POST_LUMBER, saved); stomps every 90, push-back, the tap. New goldens boss_sasquatch (dmg + cgb).
 
 ## The Food Critic as built (bistro boss, docs/minigames_bosses.md 3.6, 2026-10-12)
+
+> **Updated 2026-10-14 / 15 (E3):** readable states, wine's perfect cue, a NO! / BAD bubble and a cloche entrance; see the Week of 2026-10-13 .. 10-17 section at the end.
 - src/boss_critic.c, rows[3]: 32 px, start 16, bar 1, step 110, push 16, gulp 60, hands 1, sip 90, meter 8, topper at
   9 (the beret's stalk); "THE CRITIC DINES" / "PERFECT POURS ONLY". Art: the owner's approved look 2 "the gourmand",
   round 5 (assets/art/boss/critic.txt, moved from assets/art/approved/; 17 column pairs with TASTE, extra pose 5).
@@ -1503,6 +1571,8 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   poke could see update_mugs recount mugs_live to 0 and the mug never moved.
 
 ## The Yeti as built (igloo boss, docs/minigames_bosses.md 3.7, 2026-10-12)
+
+> **Updated 2026-10-15 (E4):** the icy bar now also freezes the tap on his bar (BANNER TAP FROZEN) and he has a frost-front entrance; see the Week of 2026-10-13 .. 10-17 section at the end.
 - src/boss_yeti.c, rows[4]: 32 px, start 16, bar 2, step 100, push 8, gulp 30, hands 2, sip 60, meter 12, topper at
   9 (his horns); "THE YETI IS COLD" / "12 COCOAS ON ICE". Art: the owner's approved look 1 round 2
   (assets/art/boss/yeti.txt, moved from assets/art/approved/; 26 column pairs with INHALE and BLOW, extra poses 5, 6).
@@ -1546,6 +1616,8 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   CLEAR, POST_IGLOO). New goldens boss_yeti, boss_yeti_inhale (the tell), boss_yeti_blow (the blow), dmg + cgb.
 
 ## Boss wave 1 ROM and WRAM (2026-10-12, game.gb, on top of Modes P6)
+
+> **Numbers superseded** by "Engineering: ... ROM0 / WRAM budgets" at the end (ROM0 about 230 B free, 2026-10-16).
 - ROM0 unchanged by the whole wave: 811 B free after P6 (tools/rom0free.py). Every boss byte is banked (autobank:
   the engine and the boss files land wherever bankpack finds room; banks 1-10 are full now, bank 11 has 15.8 KB
   free, so the next bosses go there). romusage free: 1 78, 2 21, 3 148, 4 31, 5 166, 6 282, 7 52, 8 1, 9 15,
@@ -1559,6 +1631,8 @@ Each boss lives in his own banked file, so bosses can be built in parallel. What
   654 B (P6 alone: 671; with the 62 B: 591, too little). Watch it: every new WRAM byte comes out of the stack.
 
 ## Mode-aware debug select as built (owner request, 2026-10-10)
+
+> **SUPERSEDED 2026-10-16** by the full-screen debug menu (locked in every build, SELECT + 3 START taps, Konami unlock, SETTINGS > DEBUG MENU): see "Engineering: the CGB VBlank budget, the music tick, the debug menu, ERASE DATA" at the end. The START + SELECT hold and "make release has no debug symbol" below are history.
 
 The START + SELECT debug select (DEBUG_MENU builds only; `make release` still has none: build/release.noi names no
 debug symbol) now selects in the mode it was opened in. src/debug.c (banked) does it all; main.c's combo watch is
@@ -2590,6 +2664,8 @@ The stage is a precomposed map (rows 1-17 tiles + CGB palettes in ts_art.h); onl
   here (BG tile ids 125-255).
 
 ## Leo and Sumo as built (docs/minigames_bosses.md 3.11 / 3.9, 2026-10-12)
+
+> **SUPERSEDED in part (2026-10-15):** Leo's roar is now a wind that blows full mugs back (E6) and the Sumo is a pushing match with a shrinking fill meter and no drink limit (E5); both have entrances. See "Bosses: gimmicks, entrances, the arrival flow, the status tag" at the end and docs/minigames_bosses.md section 10.
 Both follow "Boss hooks as built": a dispatcher `uint8_t boss_<name>(uint8_t ev, uint8_t arg) BANKED` in its own
 `src/boss_<name>.c` (case 7 Teahouse = the Sumo, case 8 Jungle zoo = Leo in boss.c), state in a struct in the 20 B
 BOSS_OWN buffer, so **no new WRAM global** (WRAM_LO / WRAM_HI_0 unchanged: 3936 / 3454 B used). Their slots are built
@@ -2776,6 +2852,8 @@ in build/boss_duke_art.h, the pairs in build/boss.json as `ent`; a preview in ou
   boss_duke_entrance_ride (frame 22, skidding) and boss_duke_entrance_vault (frame 52), DMG + CGB.
 
 ## Mothership as built (the space lounge boss, docs/minigames_bosses.md 3.10, 2026-10-12; the last boss slot)
+
+> **Updated 2026-10-15 (E7):** two passengers per landing, a telegraphed stun ray and a tractor-beam entrance; see the Week of 2026-10-13 .. 10-17 section at the end.
 Follows "Boss hooks as built": src/boss_mothership.c (dispatcher `boss_mothership`, state struct mothership_t in BOSS_OWN: phase, t,
 target, land, jumps, wm, minis, dead = 8 B, **no new WRAM global**: WRAM_LO / WRAM_HI_0 3936 / 3455 B before and after), boss.c
 rows[9] + hook case 9, boss.h, gen_boss BOSSES (width 40, no extra poses, `fx` BEAM), gen_story BUILT_SLOTS BOSS gains SPACE (all ten
@@ -2834,6 +2912,8 @@ arm), start 16, bar 1, step 100, push 8, gulp 24, hands 2, sip 45, **meter 14** 
   beam), the linker repacked the others (free: bank 1 49 -> 21, 6 145 -> 76, 7 100 -> 84, 8 109 -> 22, 9 248 -> 136, 11 70 -> 149, 12 178 -> 139).
 
 ## Boss Rush as built (owner request 2026-10-12: "a boss rush mode in the bonus section, that can be unlockable, but will also help us in play testing the bosses. Options can be played all or choose a boss")
+
+> **Updated 2026-10-15:** Boss Rush enters each boss at once (no warm-up); a story or ARCADE boss round now opens with a 1200-frame warm-up shift first (E9). The list is spaced, scrolls six at a time and has no venue line.
 
 BONUS is now SOUNDTRACK / MINI GAMES / BOSS RUSH (title rows 7 / 9 / 11; "BOSS RUSH" is one new title string, so the
 title's menu-text tiles reserve 22 ids, VENUE_POOL 36 / TITLE_TEXT_SLOT 22 in gen_art.py: no venue's bar + floor uses
@@ -3233,6 +3313,8 @@ scratchpad/batchD/d4_milkrun/DESIGN.md. The sections above ("Milk Run as built")
   purpose (the picture changed: crates 10, the gauge, the timer 70): mr_riding, mr_toss, mr_perfect, mr_crash, mr_result (dmg and cgb); new: mr_pickup, mr_bump.
 
 ## Practice HARD toggle (owner Q7), as built
+
+> **SUPERSEDED 2026-10-15** by EASY / NORMAL / HARD per game (f4709c5; docs/minigames_bosses.md "Practice difficulty", PLAN.md "The Practice list" at the end). The single NORMAL / HARD flag in `ml_dirty` below is history.
 - **BONUS > MINI GAMES** (src/mg_list.c): SELECT (or LEFT / RIGHT) flips NORMAL / HARD. The header's right side (row 0, column
   13) shows the mode in force for the selected game; the list's medal column and the "BEST" line show that mode's best; A / START
   plays with `MG_PRACTICE | MG_HARD` when HARD is in force. The flag is bit 7 of the static `ml_dirty` (no new WRAM), so it
@@ -3349,3 +3431,193 @@ Practice difficulty and the menu highlight (2026-10-15)
   sound-emulated ROM (test_sound's `srom`). The state is frozen by construction (no patron, mug or clock runs in a clear).
 - Tests: tests/test_antics.py (hold lengths, the 18 rising hits inside the beat, none before, the cymbal on the
   result frame, >= 30 frames of hold after it, state frozen); the antics goldens are taken after the beat, unchanged.
+
+## Week of 2026-10-13 .. 10-17 as built (index of the decisions and merges; written 2026-10-17 from git history and the batch notes)
+
+This section brings the plan up to date. Each part names the commits that carry it and the older sections it supersedes. Details of the bosses
+and mini-games are in docs/minigames_bosses.md "10. Status 2026-10-17"; the story parts in docs/story.md.
+
+### Patron clearing, Option C (owner 2026-10-16: "Go with 1")
+- **SUPERSEDES** the rule of commit 49934d7 (2026-10-13, "served only when the push carries all of him off the screen", old door always served, d82850b),
+  documented in "Game rules" above, "M13b as built", "Patron review decisions" and the push sections of the modes P-sections.
+- Why (scratchpad/batchH/patron_clear/RESULTS.md): a BG patron can never be pushed left of ENTRY_X (x 16), so with a 32 px push he was served only
+  from x <= 16; a hit at x 17+ moved him only `x - 16` px and he stopped at the edge and drank. 55-65% of non-served catches moved him under 16 px;
+  only 25-29% of all catches served; mean mugs to clear 3.5-3.7 (rows 1-8), 4.1-4.3 (rows 9-10), 26% of patrons needed 5+. Early drinkers were
+  minor (3.61 vs 3.70 with them off). Options measured: A bigger push (48 / 40), B thirst, **C served when the push reaches the door line**, D no
+  early drinkers, E leaves on the 2nd mug.
+- Built (2d2666c): `push_for` (src/level.c): a catch whose push reaches ENTRY_X (`x - ENTRY_X <= push`, after the early-drinker roll) returns
+  `x + PATRON_W`, so he keeps sliding left, never drinks, and leaves as a served patron. **Score, serve counter, tip and CLEAR THE BAR still count
+  only when he is off the screen.** Push lengths (32 / 24 px) and early drinkers are unchanged.
+- **Every mode**, CLASSIC included (6f95313, owner: the old CLASSIC rule was our engine's, not the 1983 game's; 99b50f7 had kept the old rule for
+  one commit and is reverted). ARCADE, STORY, boss regulars and CLASSIC's table rows all use `push_for`; CLASSIC's table values are untouched.
+- Result: about 1.8 mugs to clear at level 1, about 2.5 at level 9 (tests/test_patron_clear.py).
+- **Temporary perf guards** (owner 2026-10-16: "You can relax it for now"): more patrons slide off at once, each redrawn every pixel.
+  `test_worst_case_pile`: end LY <= 320 (was 300; measured DMG / CGB 310; missed 231 / 235 under 270). `test_realistic_peak`: end LY back to 240,
+  **missed <= 400** (was 165, then 255 / 400 -> 240 / 365 at H4; CGB swings +-30). **Restore both after the assembly pass.**
+
+### Bar change (SNAP / KEEP), the swish and the puff
+- 0acb2fd: up / down used to snap the bartender to the next bar's tap. Two behaviours: KEEP (he keeps his place on screen, mirrored between L and R
+  bars, clamped to the tap and the left limit) and SNAP (default; a 3-frame dust puff on the bar he left, OAM 26, with a noise sound). Bit 7 of
+  `level_dirs` (KEEP_POS); CLASSIC always snaps; the Pour-Off keeps its own rules.
+- f4f7faf: the mode moved from the debug box to **SETTINGS > BAR SNAP / BAR KEEP** (second line, under MUSIC; A, START, LEFT or RIGHT flips it). Saved in
+  SRAM 0x12, block "BC" (magic, mode, checksum, complement); no block, a bad checksum or any mode but 1 reads SNAP. The debug box's START still flips it
+  for the session without saving. The label is BAR SNAP / BAR KEEP because a longer text needs 17 more title tiles (TITLE_TEXT_SLOT 22 -> 23).
+- 73a5364: a **soft swish** (SFX_SWISH id 14, channel 4, 4 frames, volume 4 of 15) replaces the whoosh (owner: "too much"); the whoosh keeps its other users;
+  never cuts a crash or a drum. Bank 2 free 41 -> 31 B.
+- 532611d, the puff fixes: on CGB in CLASSIC the puff's third frame (OBJ 238, the PERFECT cue's id) took the full mug's gold palette 1 (chosen by tile);
+  now chosen by kind. In a boss fight the Yeti's ice, the Prototype's conveyor and the landing marker own BG tiles 246-251, so the puff drew whatever
+  was there: **a boss fight shows no puff** (the swish still plays). Tests: tests/test_barchange.py.
+
+### The pause menu (supersedes the one-line PAUSE banner)
+- f5a428d: START opens a 6-row window menu in every level (ARCADE, CLASSIC, STORY shifts, bosses, rush fights) and every mini-game: RESUME, QUIT TO MENU
+  (ARE YOU SURE?, cursor on NO). Quit leaves through each mode's normal exits: mini-games to the list (no medal) or as the run quits; STORY and
+  the Pour-Off to the title (nothing saved; CONTINUE is what story.c saved); ARCADE / CLASSIC as a game over; BOSS RUSH to its menu (no time).
+- 58d0798: **HOW TO PLAY** row in the mini-games' menu (every game incl. the bonus rounds and the Pour-Off): the game's card is drawn into the window
+  map over the whole screen (sprites off), A turns pages, B / START back; bar levels and bosses keep the two-row menu (`pause_card()` is the hook for later
+  boss hints). Cards: 1-3 pages. B on the full card from BONUS > MINI GAMES leaves cleanly (no medal). Menu state is in `state_timer` bits.
+- acefbe7 + ea67638: **no flicker** (a cursor move changes only the two mark tiles; the menu <-> question change rewrites only the text columns; all
+  writes start only when the beam is outside the window, `quiet_start`: LY >= 111 or < 8; the window is hidden while the whole thing is rewritten).
+  **Bass + harmony** play behind the menu (NR51 0x55: channel 3 the bass and channel 1 the harmony; effects stay off, and a channel-1 effect begun before
+  the menu keeps NR51 at 0x44 until it ends); Taiko Pour and the Sumo fight, clocked by `music_frames`, stay frozen and silent. Centred layout, no PAUSE title.
+- 0992b62: `PAUSE_NR51` (HRAM 0xFFF0) is not cleared at power-on; junk there made every tune play as the pause mix on real hardware. `main()` clears it
+  first; the test pokes 0x5A before the first instruction.
+- ee1d3d2 / 8443869 (Batch H 1-2): the card swap goes through DISPLAY_OFF so no frame shows the paused game; the rewrite after QUIT / NO uses tile tables
+  and pumps the music, so the tick stays within 0.88-1.15 frames. Golden `pause_card_stub_p1` was re-taken (PyBoy's first window render is one line high).
+- Superseded text: "Pause" in the early milestones and test_flow's one-line banner.
+
+### The Practice list (BONUS > MINI GAMES), BOSS RUSH list, SOUNDTRACK
+- **Difficulty per game** (f4709c5, owner 2026-10-15): LEFT / RIGHT (SELECT forward) cycle EASY / NORMAL / HARD on every entry (ten venue games, three
+  bonus rounds, the debug stub); `MG_DIFF` is two bits of `mg_mode`; STORY and ARCADE always play NORMAL. **Every game plays the same in all three for
+  now** (owner: notes come later); Milk Run's and the stub's HARD constants are kept but switched off. **Supersedes "Practice HARD toggle (owner Q7)".**
+  Per-mode named constant blocks (NORMAL marked, the old values noted as HARD) are in place for Taiko, Monkey and Asteroid.
+- **Medals per mode:** one byte per game in "MGP2" (0x40): bits 0-1 NORMAL, 2-3 HARD, 4-5 EASY (a byte above 63 is a bad block); the bonus rounds keep NORMAL
+  in "MGB1" (0x70) and EASY / HARD in "MD" (0x7A). An older save's medals read as NORMAL's. Header names the mode; info lines "<MODE> BEST <MEDAL>" /
+  "<MODE> NO MEDAL YET".
+- **Layout** (3207dd7, owner 2026-10-15): no venue line (two info lines: best medal, keys), the games on every other row (six per window, rows 2-12, blank
+  row 13, separator 14, info 15-16); scroll arrows (pulsing up and down, 01aa9eb) when games are hidden; the medal words muted on CGB (BG palette 3);
+  locked games show two lines ("REACH IT IN STORY" / "OR ARCADE", or "PLAY IT IN ARCADE" / "OR CLASSIC"). BOSS RUSH list: the same spacing and a scrolling
+  window of six; SOUNDTRACK: five tunes on rows 2-10 with blanks between, the same arrows (the down arrow 16 px up to clear the divider, Batch H 3).
+- **Buttons** (521cc97): the keys line shows round A and B button glyphs and a plus-shaped D-pad right press (gold on CGB), "A GO B BACK > MODE"
+  (assets/art/list_keys.txt); the right arrow replaced "L R" (013c69f). Can Shake-up is on the list with three levels.
+- **No more dropped frames** (e2eafd9): mashing Up / Down ran frames to end LY 160-225. GLYPH_FAST (letters without the banked call), a step builds only what
+  changed, at most 2 rows a frame, the Practice list keeps a pending-lines mask, Boss Rush caches its line count. Max end LY: Practice 216 -> 95, Boss Rush
+  196 -> 103, Soundtrack 142 -> 56; late frames of 360 -> 0 (tests/test_menu_scroll.py).
+- Full-screen list skins (A1 chalkboard, A2 shelf V1-V5, A3 title style) are **mock-ups only** (scratchpad/batchH/menus); nothing was chosen or built.
+
+### STORY difficulty (07e99b8, with the owner's batch H menu notes)
+- PLAY > STORY (a new story, not CONTINUE) asks **PICK ONE: EASY / NORMAL / HARD** (the label is not "HOW HARD": a W would be a 129th title tile and
+  breaks tests/test_menu_music.py; TITLE_TILE_END 240 -> 242). Cursor on NORMAL, B backs out. CLASSIC has no selector (the one authentic ruleset).
+- Saved with the story: bits 6-7 of the main block's progress byte (0 NORMAL, 1 HARD, 2 EASY = `MG_D_*`); an older save reads NORMAL; written by the first
+  `story_save`, kept by every save, restored by CONTINUE. The run's value is bits 1-2 of `story_arc` (RUN_DIFF; no new WRAM).
+- **Live multiplier:** the STORY score is recorded times `STORY_MULT_EASY_PCT` 50 / `STORY_MULT_HARD_PCT` 150 when the credits end (the HUD shows raw
+  points); the initials screen says "EASY X0.5" / "HARD X1.5"; the table marks **E / H** after the score (bit 7 of the first initial for HARD, of the
+  second for EASY; unmarked rows unchanged).
+- **EASY unlocks nothing** (tunes, jingles, BOSS RUSH bosses, Practice reach and medals); its progress for CONTINUE is still saved. NORMAL and HARD as before.
+- CGB: the HUD level flag is green (EASY) / red (HARD) through BG palette 1 colour 2 and the flag tile's cloth pixels; NORMAL and DMG unchanged.
+- EASY and HARD play **like NORMAL for now**; the effect of each is an open owner question (scratchpad batchH/menus: whether STORY can raise difficulty
+  mid-save was also left open: it cannot, the choice is locked with the save). Tests: tests/test_story_difficulty.py; the conftest `title_pick` answers the
+  prompt. Goldens title_how_hard, story_table_marks, trans_rise.
+- Captions: the prompt PICK ONE / EASY / NORMAL / HARD; the initials line EASY X0.5 / HARD X1.5. ROM0 230 B free, WRAM unchanged.
+
+### Bosses: gimmicks, entrances, the arrival flow, the status tag (Batch E, owner playtest 2026-10-14 / 15)
+Per-boss detail is in docs/minigames_bosses.md section 10. Summary:
+- **E1 engine** (2011c71): bosses shake while they drink (GULP / WALK on the patrons' 12-frame sway beat, topper 2 px), every gulp 30-50% longer
+  (Sumo none), and a **status tag** (OAM 29, OBJ 124-127, assets/art/boss/tag.txt) above the hand column: READY (empty mug + arrow) / BUSY (full mug) /
+  shaking BUSY = RETURN. A boss file overrides it through `BEV_TAG` (Critic: holding, tasting or queue = RETURN; Sumo: always READY; Mothership: hidden
+  while he is gone or split; Leo: RETURN during the roar). Tests: tests/test_boss_tag.py.
+- **Gimmicks:** Sasquatch vanishes to the woods every 360 walking frames and pops up on another bar (his bar's footprints blink); Critic: every state
+  readable, wine's perfect cue, "NO!" / "BAD" bubble (OAM 30-31); Yeti: the ice **freezes the tap on his bar** (BANNER TAP FROZEN); Sumo: a pushing match,
+  ring-out, no drink limit, a shrinking fill meter 6,5,4,3,2,1,1; Leo: the roar is a **wind that blows full mugs back on every bar** (arcs on OAM 30-37);
+  Mothership: two passengers per landing, a telegraphed stun ray (60 frame charge, 90 frame stun), tractor-beam entrance.
+- **Entrances** for all ten (E2-E8): Tex's swagger, the Mascot fired from the T-shirt cannon, Sasquatch through the back wall, the Critic's cloche, the
+  Yeti stepping out of the frost, the Prototype lowered by a crane and powered up (red -> yellow -> green lamp), Sumo's ring ritual (salt, stamp), Leo's flaming
+  hoop, the Mothership's beam, Duke's skid and vault (his tiles now stream in before the ride: worst frame 459 -> 201). All armed at `BEV_ENTER`, end in
+  `BS_ENTER -> BS_WALK`; the bartender is held where he is (main.c), not moved to bar 0.
+- **Arrival after warm-up (E9 + F12, 862951a / 76bedb8):** a boss round opens as a **normal shift** (BS_WARM, 1200 frames after the level's intro, no
+  regular bound for his bar in the last 300), then the mugs clear, the bar empties (up to 180 frames of grace) and the boss enters (BEV_ENTER; fallback
+  BS_WALKIN). The HUD face and meter appear when he lands. BOSS RUSH enters at once. Boss fights end only when the bar is clear (ff1d432). The CLASSIC trick
+  plays after the Happy hour and Last call shifts in STORY and ARCADE (never after the Opening, a boss or Boss Rush); F11 gave it a 0.7 s beat, a
+  drumroll and a cymbal crash (9be7c5b, 342 frames in all).
+- Supersedes the entrance paragraphs and rules in "Boss engine as built", "The Sasquatch / Food Critic / Yeti as built", "Leo and Sumo as built",
+  "Mascot and Prototype as built", "Duke as built", "Mothership as built" where they differ (each section has a SUPERSEDED note).
+
+### Mini-games: Batch D reworks and the NORMAL tuning (owner playtest 2026-10-14 / 15)
+Summary (detail in docs/minigames_bosses.md section 10):
+- D1 + F1 **T-Shirt Cannon**: golf-style power meter, the 4-angle aim kept (owner: "I intended for the aim mechanic to stay"), fans raising ONE arm
+  (the "bunny ears" were redrawn), OOPS / PERFECT CATCH / TOO FLAT!, medals 1500 / 2100 / 2700.
+- D2 **Marshmallow Drop**: steer the pail, six looping mugs, a supply of 19, splats on the belt; marshmallows fall 2 px a frame (was 3).
+- D3 **Log Roll**: leaping fish told by ripples, A / B / Up hops, a living Sasquatch, HUD hourglass fixed (tile 220), a fish hit pushes the way the fish flies.
+- D4 **Milk Run**: speed on Right / Left, A / B toss to either kerb from any lane, milk-bottle pickups, bumps that spill and slow you ("Milk Run rework").
+- D5a **Battery Sort**: the scrap chute open from the start, one of each kind for the first three, a strike no longer eats the next battery's time.
+  D5b **Tip Shower**: the tray at waist height (TRAY_SURFACE 129, then 125 after the owner's "a bit higher").
+- D6 **NORMAL tuning**: Taiko Pour (76-note chart, wider windows, medals 90 / 70 / 50%), Monkey Business (more reaction time, guaranteed parrots, medals
+  3000 / 5200 / 7500), Asteroid Delivery (7 rocks, edge arrows, a 24 px forgiving ledge, medals 4 / 6 / 8, UNSURE: needs a human). The old values are HARD.
+- Small: Asteroid HUD without the X, a lighter edge arrow; the Can Shake-up cat (level 3), slower walk and a waving tail.
+- Real HOW TO PLAY cards for all (the "No card text is pending any more" rule of "The old bonus rounds in BONUS > MINI GAMES" stands; the PENDING mechanism
+  stays for later reworks).
+
+### Story: Dregs gags, beats, INTRO, scene transition
+- **Dregs's ten venue gags** (8d3e95e, cee7c2f, src/dgag.c, G17): the narrator page after Dregs's page in each POST scene plays a 2-3.5 s OBJ gag on the
+  venue backdrop (A is held off until it ends, START still skips; nothing is left on screen): saloon slide, stadium crowd surf, lumber boots, bistro
+  plates, igloo roll, robot conveyor box, punks chord blast (two pages), teahouse bounce, zoo monkeys, space tractor beam (two pages). The generic one:
+  he dashes in late, reaches, hops, is thrown off the left edge as a tumbling ball. Detected from the script at run time; no WRAM (`win_rows`). The
+  face / portrait revision (batch H dregs) is proposals only.
+- **Script beats** (766c48f, docs/story.md "Beats"): `|` (15 frames) and `||` (36) mid-line, `@beat [N]` (8 frames each) before a page, an engine gap
+  of 12 frames after a speaker change and 6 for the same speaker; A or B skips a beat. 118 beats placed; tools/gen_story.py validates.
+- **INTRO** (fad16a3, G15): the burst star pulses while the pieces fly, dies down, and an electric crackle (two OBJ bolts, OAM 20-21) flickers above the
+  stump through pages 5-8.
+- **Scene transition** (09cb15d, acdf41b, G14): a fizzy drink rises over the frozen old scene (foam row, amber fill, shimmering bubbles), the LCD goes
+  off for the rebuild behind a whitened screen, the drink drains while its bubbles pop; about 50 frames plus the load; the old tune ducks (NR50) and the new
+  one fades in, `music_tick` runs every frame and the new tune's patterns load at once with the LCD off. HRAM 0xFFF1-0xFFF3, 0xFF94-0xFFCF; no WRAM;
+  ROM0 305 -> 240 B free. Wired: scene -> scene, venue changes, shift -> shift / mini-game / boss / POST, mini-game -> next, TRY AGAIN, title -> STORY /
+  ARCADE / CLASSIC, ARCADE bonus -> next venue, level -> next level; not over the pause menu. Tests run with it off (conftest, HRAM bit 7).
+  Alternatives tried afterwards as **test ROMs only, not merged:** band / foam / sizes (batchH/transitions) and the palette fades F1 white / F2 amber
+  (batchH/fades; TRANS bits 5-6 of HRAM 0xFFF1, -DTRANS_DEFAULT / -DTRANS_CYCLE); the owner has not picked one.
+- Smaller story-adjacent changes: story shift timers capped at 99 s with the hourglass HUD (17ba4a7); STORY TRY AGAIN and CONTINUE return to the venue's
+  start with 3 lives and the score it was entered with (SRAM "SV" at 0x0A); HUD row 0 redesign (head + lives digit, goal icons, flag + level);
+  the spigots pour a 2 px stream (G18) and the cowboy A back hat is symmetric (G19).
+
+### Engineering: the CGB VBlank budget, the music tick, the debug menu, ERASE DATA
+- **VBlank copy list budget** (70f2766, perf review): 13 CGB scenarios ended the drain on line 0-3 of the next frame (writes dropped on hardware).
+  `VQ_BUDGET` counted only `queue_vram`'s adds; direct `vq_add` callers (mini-game HUDs, Duke's reloads, story streaming) and `VQ_LATEST_LY 147` assumed a
+  7-line drain. Now every writer tallies bytes + 3 (+2 bank 1) in `qv_cost`; `vq_frame_end` hands VBlank the whole list when the tally fits
+  `VQ_DRAIN_BUDGET` (86 units, 13 DIV ticks: a drain from line 146 ends on 153), otherwise src/vq_split.c (bank 20) cuts the list and the rest rejoin
+  the head of the next frame. tests/test_vq_budget.py (CLASSIC lv25 CGB, Duke's entrance, story PRE scenes, nine mini-games, both models). ROM0 237 -> 175 B.
+- **Music tick** (490e3ee, 4818558, 0992b62): the tune keeps time through every menu transition (src/mpump.h: DISPLAY_OFF, set_bkg_tiles, set_bkg_data and
+  set_sprite_data pump the music after each call while the LCD is off; 208 B of ROM0); a loop tick is refused unless half a frame of REAL time has passed
+  since a pump's tick (the pump stores its lateness in TMA bits 2-7), so the shortest tick interval over all transition legs went 0.22 -> 0.48 frame;
+  the unlock save no longer lands mid-frame (a8b687f: `TUNE_DIRTY`, saved at the next shift start or in title_enter; a power-off before then loses that
+  one unlock). tests/test_music_transitions.py (12+ scenarios x DMG / CGB).
+- **Perf review** (scratchpad/batchH/perf_review/REPORT.md, commit 380ae63, an Opus research agent, read-only): only crowds run late (ARCADE realistic
+  peak 27-46% late frames, STORY peak shifts 12-28%, CLASSIC lv25 98%); the crowd path is about 120 of 145 profiled lines at the ARCADE peak, `draw_held` +
+  `oam_put` the biggest function; it takes 20-30 lines saved to change that visibly. DMG and CGB within 1-4 lines. **Done in C** (Top 10 and A items):
+  STORY and mini-game HUD seconds re-derived only when the shown second changes (36f33fd, 76b5639), Taiko phase counters (a21a117), the per-frame divides
+  of Marshmallow / Milk Run / Asteroid / shake-up / Tip Shower (1eb0782), `boss_draw` pointer loop (444826b: 20 -> 10 lines in a fight), Duke's streamed
+  entrance, the mid-play save moved, dead data (62aa92f: -474 B). **Not done / not possible in C:** the crowd path (H4: no gain, see Open items), B1 bank
+  pinning, A9, A10, the ROM0 candidates. The correctness finding (the VBlank budget) is fixed.
+- **Debug menu** (dd9a4b2; **supersedes "Mode-aware debug select as built"**, whose START + SELECT hold and "release has no debug symbol" are gone):
+  src/debug.c is a full-screen window menu in the lists' look (MODE / LEVEL or CHAPTER + STEP / BARS / BAR CHANGE, mug cursor, info and keys lines). It is
+  **in every build including release, locked** until SRAM "DU" (0x18) is set. Opened by holding SELECT and tapping START **three times within 72 frames**
+  (title, play, a level's pause) or SETTINGS > DEBUG MENU; unlocked by the **Konami code** on the title (`konami_step`); `-DDEBUG_UNLOCKED` builds are
+  always unlocked. Goldens debug_menu_level / story, title_settings_debug.
+- **ERASE DATA** (SETTINGS line 3): "ERASE ALL DATA / NO / YES", cursor on NO; YES zeroes all 8 KB of SRAM (`save_erase`), reloads the working copies,
+  returns to the title, and locks the debug menu again. Tests: test_erase, test_save_upgrade.
+- **SRAM map** (src/save.c header is the master; all blocks have a checksum 0x5A + bytes and a complement, and a bad block reads as empty without
+  touching the others): `0x00` main "TPR7" (progress, step, tunes; bits 6-7 of progress = STORY difficulty), `0x0A` "SV" venue-start score, `0x12` "BC"
+  bar-change mode, `0x18` "DU" debug unlock, `0x40` "MGP2" Practice + Boss Rush (medals per mode), `0x70` "MGB1" bonus rounds + cards seen, `0x7A` "MD"
+  bonus rounds' EASY / HARD medals, `0x80` ARCADE "HSA1", `0xC0` STORY "HSS1", `0x100` CLASSIC "HSC2" (top 5 each; E / H marks in the initials' bit 7).
+  Supersedes the earlier "0x40 reserved" notes (lines about SRAM version 7 above).
+- **ROM0 / WRAM budgets:** ROM0 free over the week: 745 B -> 570 (bar change) -> 513 -> 305 (mpump) -> 240 (transition) -> 237 -> 175 (VBlank budget) ->
+  230 B (07e99b8 after the other agents' merges). WRAM: `_DATA` 7370 B; the lists' scratch, the Taiko phase counters and the Sumo / Mothership state live in
+  `story_scratch` and `BOSS_OWN`; the owner's rule is **no new WRAM globals** (one once overwrote GBDK's `__map_tile_offset`). Stack: deepest measured 263 B
+  (FINALE), 199 B (pause), 142 B (CLASSIC). Largest WRAM users: `mus_buf_a` + `mus_buf_b` 1920 B, `story_scratch` 520, `sh_rows` 512, `sa_frames` +
+  `sa_script` 508, `venue` 383. Bank 20 is the only roomy switchable bank (about 12.5 KB at review time); the others are 98-100% full.
+- **Owner's rules in force:** only new commits on a branch (no amend, rebase, reset); goldens may be ADDED but never replaced by feature agents (the
+  supervisor checks the diff box and replaces); NO ASSEMBLY REWRITES until the owner starts the assembly pass (2026-10-14).
+
+### Goldens replaced on purpose this week (for the record)
+HUD redesign (6df4965; row 0 only), pause and pause_menu, the Practice list set (title_settings, mg_list*, rush_list*, jukebox, card_full_qd), boss status tag
+(eaa7895), the fights after E9 (380ae63), trans_rise (title shows the STORY prompt), title_settings (BAR SNAP, then ERASE DATA), debug_story (full-screen menu),
+patrons and stage_anim_zoo (the fixed push, bf5a155), the spigot stream and cowboy back hat (filling, spout_fill, patrons_cowboys, show_backs), Asteroid /
+Marshmallow / Log Roll / Tip Shower HUD and tuning shots, boss_critic_no / taste and boss_sasquatch (timing after the faster `boss_draw` and the save move).
+Each commit message names the golden, its diff box and the reason.

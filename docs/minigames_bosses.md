@@ -1,6 +1,8 @@
 # Spigoteer: mini-games, bosses and the Pour-Off (design spec)
 
-Status: design proposal for the owner, 2026-10-10. Nothing here is built. Art in this document is a list of what
+Status (updated 2026-10-17): this began as a design proposal (2026-10-10); **everything in it is now built** (ten bosses, ten mini-games, the three bonus rounds on
+the Practice list, the Pour-Off) and has been reworked after owner playtests: see section 10 "Status 2026-10-17" for what changed. The text of
+sections 1-9 is kept as history; sections 3.x and 4.x carry dated "as built" notes. Original status line: design proposal for the owner, 2026-10-10, nothing built then. Art in this document is a list of what
 must be drawn; every piece goes to the owner as a proposal first. Story text changes are suggestions only
 (docs/story.md is not edited by this document).
 
@@ -78,6 +80,8 @@ stays separate because it must survive a life lost.
 | 10 | Space | Asteroid Delivery | inertia steering, route reading | D-pad thrust | 45 s | asteroids drift in horizontal lanes (Frogger-like); soft-delivery speed limit; no gravity, just drift |
 
 ### 1.2 Bosses
+
+> **Status 2026-10-17:** this table is the original pitch. All ten are built; Sumo (pushing match), Leo (roar wind), the Yeti (frozen tap), the Mothership (passengers, stun ray), Sasquatch (the woods), the Critic (readable states) and every entrance were reworked after the 2026-10-14 / 15 playtests: see section 10.2.
 
 | # | Venue | Boss | Meter | Special | Main change from the pitch |
 |---|---|---|---|---|---|
@@ -2071,3 +2075,79 @@ Saving: a medal per game per mode. The ten games' byte in the "MGP2" block holds
 bits 4-5 clear: its medals are NORMAL's, EASY has none; a byte above 63 makes the block bad: nothing loads). The bonus rounds keep NORMAL in
 "MGB1" (byte 5) and EASY / HARD in a new six-byte block "MD" at 0x7A (the last gap before the tables: magic, EASY medals, HARD medals, checksum,
 complement; a block that does not check out, as in every older save, reads as no EASY or HARD medals and touches nothing else).
+
+## 10. Status 2026-10-17 (what is built, what changed since the spec; added by the docs update of 2026-10-17)
+
+Sections 1 to 9 are the design spec and carry their own "as built" notes; where they disagree with this section, **this section and the dated
+notes inside 3.x / 4.x win** (the table in 1.2 is the original pitch: Sumo's meter 8 "chained hits", Leo's "walkers jump back 16 px, drinkers send
+empties early", the Yeti's "icy mugs 2x", the Mothership "teleports, splits" have all been reworked below). Everything in this document is now built:
+ten bosses, ten venue mini-games, the three bonus rounds on the Practice list, the Pour-Off. PLAN.md "Week of 2026-10-13 .. 10-17 as built" has the
+cross-cutting parts (patron clearing, pause menu, difficulty, save map).
+
+### 10.1 Boss engine changes shared by all ten (E1, E9, ff1d432)
+- **Drinking shake and slower gulps** (2011c71): in the common gulp the body alternates GULP / WALK on the patrons' 12-frame sway beat and the topper
+  shifts 2 px; every gulp is 30-50% longer (Tex 40 -> 58, Mascot 24 -> 34, Sasquatch 8 -> 20, Critic 60 -> 84, Yeti 30 -> 44, Prototype 20 -> 30,
+  Duke 20 -> 30, Leo 30 -> 44, Mothership 24 -> 34; Sumo none). A longer gulp is a longer no-stomp window: easier, never harder.
+- **Status tag**: one 8x16 sprite (OAM 29, OBJ 124-127, assets/art/boss/tag.txt) above the hand column (`boss_x` + width): READY (empty mug and an
+  arrow), BUSY (full mug), RETURN (BUSY shaking 2 px every 4 frames; the Critic sending a drink back). The engine decides READY / BUSY from `boss_lim`;
+  a boss file overrides it through `BEV_TAG` (return `TAG_x + 1`, `TAG_OFF + 1` hides it). Critic: holding, tasting or queueing = RETURN; Sumo: always
+  READY (no drink limit); Mothership: hidden while he is gone or split; Leo: RETURN during the roar; Duke reloads the tag's tiles after his entrance.
+  Hidden in the intro, outro and away. tests/test_boss_tag.py covers every boss on both models.
+- **Arrival after warm-up (E9 + F12)**: a boss round opens as a **normal shift**: `BS_WARM`, `boss_bar = BOSS_NONE`, regulars on all four bars,
+  `boss_special_t` = 1200 frames counted after the level's 90-frame intro, no new regular for his bar in the last 300 frames. At 0 it waits up to 180
+  more frames for his bar to be empty and no mug in the air, clears the mugs and stragglers, holds the intro (90 frames) with a whoosh sting and calls
+  `BEV_ENTER`. `BEV_ENTER` returns 1 when the boss has his own entrance (all ten do), 0 for the fallback `BS_WALKIN` (his body slides in from the left
+  edge). Every entrance ends in `BS_ENTER -> BS_WALK`; the bartender is held where he is (main.c), not moved to bar 0; no post-entrance banner; the HUD face
+  and meter appear when he lands; then `fight_start` (banner over the intro's last beat). **BOSS RUSH** has no warm-up and enters on the first frame.
+  Test pokes: `boss_hook` 4 = fight now, 5 = warm-up over. The fights end only when the bar is clear (ff1d432: meter 0 beats him, the fight goes on in
+  PLAYING with no new regulars until `patrons_live` is 0, CLEAR THE BAR for 90 frames).
+- The CLASSIC end-of-level trick also runs at the clear of the Happy hour and Last call shifts in STORY and ARCADE (F12), with F11's 0.7 s beat, a drumroll
+  (18 noise hits) and a cymbal crash (PLAN.md "F11").
+
+### 10.2 Each boss: gimmick and entrance (owner playtest 2026-10-14 / 15)
+Entrances run in `BEV_INTRO` / `BEV_DRAW` on the fight's first start (a lost life does not replay them; TRY AGAIN does).
+
+| Boss | Gimmick as built | Entrance |
+|---|---|---|
+| Big Tex (saloon) | tutorial boss, unchanged: owns one bar, 40 px wide | "The swagger": 12 frames of empty bar, he walks in from the left (spurs jingle, a STOMP bob every 8 frames), bows and tips his hat; 138 frames |
+| The Mascot (stadium) | jumps bars every 5 s with a crouch and a landing marker (the marker is also stamped on his own bar) | fired from the T-shirt cannon: the marker, a whoosh, a spinning red ball tumbles in, bounces once, lands in a CROUCH, then HAPPY; 114 frames; new BALL art |
+| Sasquatch (lodge) | every 360 walking frames he ducks (DUCK pose), waits for the mugs on his bar, vanishes for 66 frames while his destination bar blinks footprints, pops up there | through the back wall: thuds, a fist through the wall, a roar, landing (BG only) |
+| Food Critic (bistro) | busy = any drink waved back, but every state is readable: FREE = WALK / STOMP (open palm over a napkin), SAVOURING = GULP, HOLDING = HOLD / HOLDHOP, TASTING = TASTE; a waved-back drink shows a bubble ("NO!" a perfect pour that came too soon, "BAD" a sloppy one; OAM 30-31); wine's perfect moment has a redrawn glowing sparkle frame and a coin ding | a silver cloche slides along his counter, a bell dings, the lid flies off (BOSS_HATS_MAX 4 -> 10) |
+| The Yeti (igloo) | his bar goes icy; **the tap on his bar is frozen** while it is icy (a press is cancelled the same frame with a thud; other bars and the tell pour as ever); mugs already on his bar ride at 3 px/f, his empties return at 1 px/f; banner "TAP FROZEN" for 40 frames on the blow (owner: "I don't see how the icy bar is a help or a hindrance") | the counter frosts over, he steps out of the frost in the BLOW pose, it thaws, he walks (72 frames) |
+| The Prototype (factory) | green / yellow / red conveyor cycle, unchanged | lowered by the overhead crane (new CHAIN / HOOK / SPARK art), clunk, powers up: lamp red, yellow ring (coin), solid green with sparks; 112 frames |
+| Duke (Chrome Cow) | idles, revs, lurches 16 px; a glass resets his idle (unchanged) | skid and vault on the bike; his 68 tiles now stream in 4 a frame before the ride (`ent_queue`, 17 chunks) and `ent_put` clips once per call; worst frame 459 -> 201 |
+| Sumo Champion (teahouse) | **a pushing match** (38b4aaa): no drink limit, every cup fills a HUD meter whose target shrinks 6, 5, 4, 3, 2, 1, 1; a full meter knocks him back 32 px; **ring-out** at the bar's left end wins; he starts at x 24; the stamp charge (every 480 frames, 16 px) stays | the ring ritual: salt, stamp (SHIKO) |
+| Leo (zoo) | **the roar is a wind** (796d2d6): a visible shockwave (gold arcs, one a bar, OAM 30-37) sweeps all four bars and every full mug it passes becomes a MUG_RETURN (caught at that bar's tap end like an empty, or a life); a 60-frame tell is the time to stop throwing; the drinkers-hurry and held-empty rules are dropped | a flaming hoop, Leo leaps through it, lands and roars (10 tile pairs at OBJ 104-123, tools/gen_leo_fx.py) |
+| The Mothership (space) | **two passengers per landing** (alien patrons at x 24 on two other bars, cap 12 live); a **telegraphed stun ray** after 270 frames on one bar (60-frame charge, the BEAM column blinks on his bar, dodge with any Up / Down; the stun is 90 frames, input blocked by joy = 0x7F); phase 2 (the split) has no ray | a tractor beam lights his bar, the room flickers, the saucer blinks in and lands (62 frames) |
+
+- Gotcha for new bosses: the engine's status tag owns OAM 29; effect sprites live at OAM 30-37. A boss fight shows no bar-change puff (PLAN.md).
+- Goldens: every boss has its entrance golden(s) and fight timelines (380ae63); tests/test_boss_entrances.py, test_boss_tag.py and each boss's file.
+
+### 10.3 Mini-game reworks, Batch D (owner playtest 2026-10-14 / 15)
+The per-game sections 4.2, 4.3, 4.5, 4.6, 4.10 and the PLAN.md rework sections carry the details; the decisions in one place:
+- **T-Shirt Cannon (D1, F1)**: golf-style power meter (red ends = OOPS), the 4-angle aim stays (Up / Down: 45, 52, 60, 68 degrees; 52 and 68 are new art),
+  fans raise ONE arm (cap fans the right, headband fans the left), PERFECT CATCH 300 = a falling shirt and a raised fan within one column, TOO FLAT! 30 for a
+  shirt still rising at 45 degrees, OOPS 0. Medals 1500 / 2100 / 2700. Build-time reach table in tools/cannon_table.py.
+- **Marshmallow Drop (D2)**: you steer the pail (momentum), six mugs loop round the belt, a supply of 19, splats on the belt; marshmallows fall 2 px a frame
+  (owner: "slow down the marshmallows as they fall first"). Medals 3600 / 2400 / 1200.
+- **Log Roll (D3)**: A / B / Up hop (36 frames); fish leap in an arc (told by 40 frames of ripples), a hit kicks the lean the way the fish flies and staggers
+  for 24 frames; +150 a dodge; the Sasquatch treads, windmills at flips, hops or is knocked in; fewer fish on NORMAL (first at 6 s, gap 6 s down to 3.5 s);
+  the banner says LEAN AND HOP FISH; the HUD hourglass fixed (tile 220 had been zeroed by the OBJ run).
+- **Milk Run (D4)**: Right / Left throttle (1.0-2.5 px/f), A tosses to the top kerb and B to the bottom from ANY lane, two milk-bottle pickups (+3 crates), a
+  bump drops 2-3 crates and sets the speed to the floor, a 3-cell speed gauge, 20 points a second left when the route is done.
+- **Battery Sort (D5a)**: the scrap chute is open from the first battery (no lid, no pause state); batteries 1-3 are one of each kind, then 30% broken; a
+  strike restores the waiting battery's full wait; medals 2000 / 4000 / 6000 left for balancing. **Tip Shower (D5b)**: the tray held at waist height
+  (surface y 129, then 125 on the owner's "maybe a bit higher").
+- **NORMAL tuning (D6)**: Taiko Pour (76-note quarter-note chart, windows PERFECT 4 / GOOD 8 / REACH 11, medals GOLD 90% / SILVER 70% / BRONZE 50%); Monkey
+  Business (U0 120, U_MIN 75, pop interval 84 -> 42, a parrot guaranteed at pop 4 and never 10 pops without one, medals 3000 / 5200 / 7500); Asteroid
+  Delivery (7 rocks, speed x1.25 from the 4th delivery and x1.5 from the 8th, a blinking edge arrow 40 frames before each rock enters, the dock's whole 24 px
+  ledge delivers on any touch, medals 4 / 6 / 8, **UNSURE: needs a human playtest**). The old values stay in named constants as HARD, which plays
+  identically for now.
+- **Medals will be balanced later** (owner: "will playtest and balance later"); EASY / HARD behave as NORMAL in every game.
+- HOW TO PLAY: real cards for every game (1-3 pages); the full card the first time, the short banner afterwards; the pause menu has a HOW TO PLAY row.
+
+### 10.4 Dregs and the Pour-Off
+- Dregs's ten venue gags and the late-arrival gag are in docs/story.md (src/dgag.c) and PLAN.md. The Pour-Off is unchanged; a test now pins that his
+  pour stream falls under his mirrored spout (707415d: no 1-2 px offset, his glass stays as it is).
+- Open: the Dregs face and portrait revision (batch H): three proposals (H1 portrait leads, H2 smirk everywhere, H3 turned, smaller nose), nothing built;
+  18-19 goldens would change.

@@ -3,13 +3,22 @@
 Milestone M11a, owner-approved 2026-10-09. Nothing here is wired into the game yet; M11b builds the text engine and
 chapter goals, M11c the art. Everything below is original writing.
 
+**Status 2026-10-17:** the whole story is built and playable (text engine, ten chapters, shifts, mini-games, bosses, the pictures, the finale and the
+credits). Added since the original text: script beats ("Beats" below), Dregs's ten venue gags (running gag 1), the INTRO's pulsing burst star and crackle, a
+fizzy-drink scene transition, shift timers capped at 99 s, and **STORY difficulty** (next paragraph). The script blocks below are unchanged.
+
+**STORY difficulty (2026-10-17, commit 07e99b8).** A new story asks PICK ONE: EASY / NORMAL / HARD (cursor on NORMAL, B backs out; CONTINUE does not ask,
+the save holds the choice in bits 6-7 of its progress byte). The score is recorded times 0.5 (EASY) or 1.5 (HARD) when the credits end, the initials screen
+says "EASY X0.5" / "HARD X1.5", and the STORY table marks E / H after the score. EASY unlocks nothing (tunes, jingles, Boss Rush bosses, Practice reach and
+medals); on CGB the HUD level flag is green (EASY) or red (HARD). EASY and HARD still play like NORMAL: what they change is for the owner's playtest notes.
+
 **The 10th venue (owner, 2026-10-10 / 11; built 2026-10-11): The Chrome Cow.** The toughest-looking bar in
 Fizzwater, all mohawks, leather and studs, where everyone very politely orders an ice-cold glass of milk. It is chapter
 7, before the teahouse, and the space lounge moves to the end. The order, in story and arcade: 1 saloon, 2 stadium,
 3 lumber lodge, 4 bistro, 5 igloo, 6 robot factory, 7 The Chrome Cow, 8 teahouse, 9 jungle zoo, 10 space lounge.
 Owner **Granny Throttle**, piece the **drip tray**, twist the **mosh pit** (docs/minigames_bosses.md section 9; on in
 its Happy hour and Last call), tune "Drunken Sailor" (traditional sea shanty, fast and punky), mini-game **Milk Run**
-and boss **Duke** (sections 4.10 and 3.12 there, not built yet). Difficulty stays tied to the position, not the venue:
+and boss **Duke** (sections 4.10 and 3.12 there; both built since). Difficulty stays tied to the position, not the venue:
 the zoo takes the goals and pace chapter 9 had, space those of the last chapter, and space now leads into the finale.
 The engine checklist was docs/venue10_impact.md.
 
