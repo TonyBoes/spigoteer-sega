@@ -120,6 +120,9 @@ static const uint8_t k_in[5] = { 1, 2, 4, 5, 7 };
 static const uint8_t kc_out[2] = { 5, 2 };                 // the pause card's fades (owner 2026-10-17: much faster): two big steps of 2 frames each way
 static const uint8_t kc_in[2] = { 3, 6 };          // the fade-in, then the saved colours exactly (k 8)
 
+#define FAST_ON    (game_state == GS_PAUSED || (TRANS & TR_FAST))   // the pause card's fast fades and the menu screen changes' (trans_menu): the same steps
+#define FADING     (TRANS & (TR_VMASK | TR_FAST))
+
 static uint16_t part(uint16_t x, uint8_t k) {               // x * k / 8, each channel on its own
     uint16_t r = 0;
     if (k & 4) r += (x >> 1) & 0x3DEF;
@@ -244,7 +247,7 @@ static uint8_t dstep(const uint8_t *o, uint8_t k, uint8_t fr, uint8_t f0, uint8_
 }
 
 static void cgb_cover(uint8_t v) {
-    uint8_t s, f, fast = game_state == GS_PAUSED, n = 4 + 6 * FADE_STEP + (v == V_AMBER ? 3 * FADE_STEP : 0), o[128];
+    uint8_t s, f, fast = FAST_ON, n = fast ? 4 + 2 * 2 : 4 + 6 * FADE_STEP + (v == V_AMBER ? 3 * FADE_STEP : 0), o[128];
     uint16_t t = v == V_AMBER ? COL_A : COL_W;
     f = pal_in(o, 0, n, 0);
     if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_out[s], t, 0, 2, f, n, 0);
@@ -252,6 +255,7 @@ static void cgb_cover(uint8_t v) {
     if (v == V_AMBER) for (s = 0; s < 3; s++) f += cstep(0, k_amb[s], COL_W, COL_A, FADE_STEP, f, n, 0);
     volume(0);
     lcd_off_p();                                                 // (TR_WANT is already clear: the plain way) the LCD goes off in the white
+    if (game_state != GS_PAUSED) music_pump();                   // (the tick that fell due while the LCD went off)
     BCPS_REG = 0x80;                                             // the scene's own colours back (LCD off: palette RAM is free)
     for (s = 0; s < 64; s++) BCPD_REG = o[s];
     OCPS_REG = 0x80;
@@ -259,11 +263,12 @@ static void cgb_cover(uint8_t v) {
 }
 
 static void dmg_cover(void) {
-    uint8_t s, f = 0, o[3], fr = game_state == GS_PAUSED ? 2 : FADE_DMG;   // (the pause card's fades: 2 frames a shade)
+    uint8_t s, f = 0, o[3], fr = FAST_ON ? 2 : FADE_DMG;   // (the pause card's fades: 2 frames a shade)
     o[0] = BGP_REG; o[1] = OBP0_REG; o[2] = OBP1_REG;
     for (s = 1; s <= 3; s++) f += dstep(o, s, fr, f, 3 * fr, 0);
     volume(0);
     lcd_off_p();
+    if (game_state != GS_PAUSED) music_pump();
     dset(o, 0);
 }
 
@@ -293,11 +298,13 @@ static void fade_arm(void) {                                     // LCD off, the
 }
 
 static void fade_reveal(void) {                                  // LCD on, white: the new scene's colours come in
-    uint8_t s, f = 0, n, o[128], fast = game_state == GS_PAUSED;
+    uint8_t s, f = 0, n, o[128], fast = FAST_ON;
+    if (game_state != GS_PAUSED) music_tick();                   // (the tick the main loop would give straight after DISPLAY_ON: the first vsync below is ~1 frame away)
     if (is_cgb) {
-        n = 4 + 5 * FADE_STEP + 2;
+        n = fast ? 4 + 2 * 2 + 2 : 4 + 5 * FADE_STEP + 2;
         f = pal_in(o, 1, n, 1);                                  // (4 frames of white while the colours are read back)
-        for (s = 0; s < 5; s++) f += cstep(o, k_in[s], COL_W, 0, FADE_STEP, f, n, 1);
+        if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_in[s], COL_W, 0, 2, f, n, 1);
+        else for (s = 0; s < 5; s++) f += cstep(o, k_in[s], COL_W, 0, FADE_STEP, f, n, 1);
         cstep(o, 8, 0, 0, 2, f, n, 1);
     } else {
         uint8_t fr = fast ? 2 : FADE_DMG;
@@ -307,8 +314,9 @@ static void fade_reveal(void) {                                  // LCD on, whit
         f += dstep(HR_PAL, 1, fr, f, n, 1);
         dstep(HR_PAL, 0, 1, f, n, 1);
     }
-    TRANS &= ~(TR_PEND | TR_ARMED);
+    TRANS &= ~(TR_PEND | TR_ARMED | TR_FAST);
     volume(7);
+    if (game_state != GS_PAUSED) TMA_REG |= 1;                   // (the last frame ticked: the main loop's tick straight after is refused, music_tick)
 }
 
 // The pause menu's HOW TO PLAY card (src/pause.c CARD_FADE): the white fade F1 over the pause screen, whatever the variant of the scene changes. Out: the picture fades
@@ -353,12 +361,19 @@ void trans_card_in(void) BANKED {
     volume(7);
 }
 
+// A menu screen change (owner 2026-10-17: "quick palette fade transition for menu flashes too"): the next DISPLAY_OFF is the white fade F1 at the pause card's
+// fast steps (FAST_ON), whatever variant the scene changes use. Not over the pause menu, not where a scene change is already wanted, not with the LCD off or the
+// transitions off (tests).
+void trans_menu(void) BANKED {
+    if ((LCDC_REG & LCDCF_ON) && game_state != GS_PAUSED && !(TRANS & (TR_WANT | TR_OFF))) TRANS |= TR_WANT | TR_FAST;
+}
+
 void trans_cover(void) BANKED {
-    uint8_t i, j, wy, rows = 0, v = (TRANS >> TR_VSHIFT) & 3;
+    uint8_t i, j, wy, rows = 0, v = (TRANS & TR_FAST) ? V_WHITE : (TRANS >> TR_VSHIFT) & 3;
     uint8_t b[20];
 #ifdef TRANS_CYCLE                                               // the debug ROM: each transition takes the next fade, SELECT held repeats the last
-    if (!(joypad() & J_SELECT)) v = v == V_WHITE ? V_AMBER : V_WHITE;
-    TRANS = (TRANS & ~TR_VMASK) | (v << TR_VSHIFT);
+    if (!(TRANS & TR_FAST) && !(joypad() & J_SELECT)) v = v == V_WHITE ? V_AMBER : V_WHITE;
+    if (!(TRANS & TR_FAST)) TRANS = (TRANS & ~TR_VMASK) | (v << TR_VSHIFT);
 #endif
     music_tick();                                                // (this frame's tick: the logic that called us never reaches the main loop's)
     if (v) { fade_cover(v); return; }
@@ -402,7 +417,7 @@ void trans_arm(void) BANKED {
     const uint8_t *m = (const uint8_t *)0x9C00 + 32;             // window row 1
     uint8_t *s = HR_ROWS;
     if (LCDC_REG & LCDCF_ON) return;
-    if (TRANS & TR_VMASK) { fade_arm(); music_load_now(); volume(0); TRANS |= TR_ARMED; return; }
+    if (FADING) { fade_arm(); music_load_now(); volume(0); TRANS |= TR_ARMED; return; }
     if (!(TRANS & TR_ARMED)) {                                   // (a second arm before the reveal keeps the first's copy)
         HR_LCDC = LCDC_REG; HR_LYC = LYC_REG;
         for (r = 0; r < 3; r++, m += 32)                         // the scene's banner rows 33-35 (LCD off: VRAM can be read)
@@ -421,7 +436,7 @@ void trans_reveal(void) BANKED {
     uint8_t b[20], e[20];
     TRANS &= ~TR_HOLD;
     if (!(TRANS & TR_PEND) || !(LCDC_REG & LCDCF_ON)) return;
-    if (TRANS & TR_VMASK) { fade_reveal(); return; }
+    if (FADING) { fade_reveal(); return; }
     lcdc = HR_LCDC;
     lyc = LYC_REG;
     if (lyc == 255) lyc = HR_LYC;                                // (the scene may have set its own after lcd_on_p)

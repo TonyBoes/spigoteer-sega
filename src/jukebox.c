@@ -110,6 +110,7 @@ static void cursor(void) {
 
 void jukebox_enter(void) BANKED {
     uint8_t y;
+    TRANS_MENU();                              // (src/trans.c: the quick white fade)
     DISPLAY_OFF;
     music_pump();                              // (the tick this pass is due: the rebuild runs several frames)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; vram_pending = 0;

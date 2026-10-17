@@ -272,6 +272,7 @@ static void arrows(void) { list_arrows_show(ml_top != 0, ml_top + ML_VIS < ML_N,
 
 void mg_list_enter(void) BANKED {
     uint8_t y, x;
+    TRANS_MENU();                               // (src/trans.c: the quick white fade, from the title's BONUS and back from a game)
     DISPLAY_OFF;
     music_pump();                               // (the tick this pass is due: the rebuild runs several frames)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; vram_pending = 0;

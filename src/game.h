@@ -554,6 +554,7 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #define TR_WANT    1
 #define TR_PEND    2
 #define TR_HOLD    8
+#define TR_FAST    0x10                              // a menu screen change (trans_menu): the white fade at the pause card's fast steps; set by TRANS_MENU(), cleared by the reveal
 #define TR_VSHIFT  5                                 // bits 5-6: the variant (0 the drink, 1 fade to white, 2 fade through amber), src/trans.c; the debug ROM cycles 1, 2
 #define TR_VMASK   0x60
 #ifndef TRANS_DEFAULT
@@ -561,6 +562,7 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #endif
 #define TR_OFF     0x80
 #define TRANS_WANT() (TRANS |= TR_WANT)
+#define TRANS_MENU() trans_menu()                      // a menu / list / debug screen change: the quick white fade (src/trans.c)
 #define TRANS_HOLD() (TRANS |= TR_HOLD)                 // the caller reveals itself (trans_reveal()) once its scene is whole: lcd_on_p does not
 #ifdef AUTO_NOTE
 uint8_t auto_note(void) BANKED;                          // src/debug.c: the test-only note cut-off hook
@@ -568,6 +570,7 @@ uint8_t auto_note(void) BANKED;                          // src/debug.c: the tes
 #ifdef AUTO_CARD
 uint8_t auto_card(void) BANKED;                         // src/debug.c: the test-only hook of tests/test_fade_hw.py
 #endif
+void trans_menu(void) BANKED;                           // TRANS_MENU()
 void trans_card_out(void) BANKED;                       // the pause card's fades (src/pause.c): the white fade out (LCD off at the end), the new screen's palettes kept, the fade in
 void trans_card_in(void) BANKED;
 void trans_cover(void) BANKED;                          // the old scene filling up; turns the LCD off (as lcd_off_p), PEND set

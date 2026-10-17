@@ -271,6 +271,7 @@ void debug_open(void) BANKED {
         debug_level = k;
     } else debug_level = level < DEBUG_LEVELS ? level : DEBUG_LEVELS;
     end_note();                                      // (WY and LYC back where the menu saves them)
+    TRANS_MENU();                                    // (src/trans.c: the quick white fade)
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN;
     typedef char keys_in_9000_block[KEY_A + 3 <= 128 ? 1 : -1];   // BG ids 0-127: VRAM 0x9000 + id * 16
@@ -322,6 +323,7 @@ void debug_open(void) BANKED {
 // everything the menu moved comes back: the button tiles, LYC and WY, the banner rows, the sprites
 static void close_menu(void) {
     uint8_t i, k, b[20];
+    TRANS_MENU();                                    // (src/trans.c: the quick white fade)
     DISPLAY_OFF;                                     // (the tiles and palettes go back unseen: the game under the window shows them as soon as the window goes)
     overlay_on = 0; HIDE_WIN;
     debug_menu_open = 0;
