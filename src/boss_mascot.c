@@ -29,6 +29,7 @@
 #include "boss.h"
 #include "boss_mascot_art.h"
 #include "boss_load.h"
+BOSS_CAST_FN(boss_mascot_cast)   // the credits' cast card (src/credits.c)
 #include "music.h"
 
 #define BP_CROUCH     BP_EXTRA           // gen_boss BOSSES mascot extra: CROUCH, PUFF1, PUFF2

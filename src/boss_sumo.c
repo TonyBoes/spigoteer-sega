@@ -39,6 +39,7 @@
 #include "boss.h"
 #include "boss_sumo_art.h"
 #include "boss_load.h"
+BOSS_CAST_FN(boss_sumo_cast)   // the credits' cast card (src/credits.c)
 #include "music.h"
 
 #define BP_SHIKO      BP_EXTRA       // gen_boss BOSSES sumo extra: SHIKO, HMPH

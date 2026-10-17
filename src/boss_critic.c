@@ -28,6 +28,7 @@
 #include "boss.h"
 #include "boss_critic_art.h"
 #include "boss_load.h"
+BOSS_CAST_FN(boss_critic_cast)   // the credits' cast card (src/credits.c)
 #include "music.h"
 
 #define BP_TASTE     BP_EXTRA  // gen_boss BOSSES critic extra: TASTE

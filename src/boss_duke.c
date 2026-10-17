@@ -33,6 +33,7 @@
 #include "boss.h"
 #include "boss_duke_art.h"
 #include "boss_load.h"
+BOSS_CAST_FN(boss_duke_cast)   // the credits' cast card (src/credits.c)
 #include "music.h"
 #include "story.h"
 

@@ -29,6 +29,7 @@
 #include "boss.h"
 #include "boss_sasquatch_art.h"
 #include "boss_load.h"
+BOSS_CAST_FN(boss_sasquatch_cast)   // the credits' cast card (src/credits.c)
 #include "music.h"
 
 #define SASQ_GAP      80          // frames between two of his own empties' arrivals (spec 3.5)

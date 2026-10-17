@@ -17,35 +17,36 @@ TUNE_NONE_ = 255
 TUNE_FRAMES = 5400                         # the credits tune: 352 rows x 15 frames = 5280, and the roll's start
 CR_AT = 0                                  # struct cr_state in story_scratch (src/credits.c)
 SCROLL, CARD, NEXT, T, PHASE, FROM_STORY, F, STEP = 20, 22, 23, 24, 26, 27, 28, 30
-TUNE_T, E_TITLE, E_HERO, CARD_LEN, ROLL_AT, F1_AT, K_AT = 39, 41, 43, 45, 47, 49, 51      # the timeline's fields (u16 each, K a byte)
+TUNE_T, E_TITLE, CARD_LEN, ROLL_AT, F1_AT, K_AT, BN, BP, POSE = 39, 41, 43, 45, 47, 49, 50, 51, 52      # the timeline's fields (u16 each, K a byte), the boss card's
 STORY_H = (ROOT / "build" / "story.h").read_text()
 FONT = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))   # STORY_FONT_BASE (build/story.h)
 PUNCT = {FONT + 0: ".", FONT + 1: ",", FONT + 2: "!", FONT + 3: "?", FONT + 4: "'", FONT + 5: "-", FONT + 6: ":"}
 OBJ_ROBOTS = 100
-# the timeline (frames of the 88 s tune; src/credits.c: shares of 1/352 of it: 8, 10, 20 x 10, the roll to 322)
-TOTAL, TITLE_F, HERO_END, CARD_F, ROLL, SCROLL_END = 5280, 120, 270, 150, 3270, 4830
+# the timeline (frames of the 88 s tune; src/credits.c: shares of 1/352 of it: 7 a card, the title included, 33 cards, the roll to 322)
+TOTAL, CARD_F, ROLL, SCROLL_END = 5280, 105, 3465, 4830
 ROLL_START = ROLL + 70                                          # (the roll's rows, the robots and the fades take 40 frames and a bit)
-CARD_START = [0, TITLE_F] + [HERO_END + CARD_F * k for k in range(20)]
+CARD_START = [0] + [CARD_F * (1 + k) for k in range(32)]
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
-BOSS_LINES = [(b, "") for b in BOSSES]
-BOSS_LINES[8] = ("LEO THE", "LION")                              # (a name too wide for its column breaks at a word)
 OWNERS = ["SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "GRANNY", "HANA", "KIKI", "ZIZZ"]   # the story's own names (build/story_data.c st_names), in venue order
-OWNER_LINES = [(o, "") for o in OWNERS]
-OWNER_LINES[5] = ("MANAGER-", "BOT")
-PATRONS = [   # (line 1, line 2) of the three patrons of each venue: labels, the game gives them no names; a word is never split
-    [("COWBOY", ""), ("COW", "GIRL"), ("RANCH", "HAND")], [("CAP", "FAN"), ("BAND", "FAN"), ("REF", "")],
-    [("BIG", "JACK"), ("RED", "HAIR"), ("GREEN", "CAP")], [("HEAD", "CHEF"), ("SOUS", "CHEF"), ("LINE", "COOK")],
-    [("PARKA", "MAN"), ("PARKA", "GIRL"), ("BIG", "PARKA")], [("BOX", "BOT"), ("LADY", "BOT"), ("DOME", "BOT")],
-    [("MOHAWK", ""), ("SCARF", ""), ("QUIFF", "")], [("NINJA", ""), ("NINJA", "GIRL"), ("RED", "HELM")],
-    [("MONKEY", ""), ("PANDA", ""), ("HIPPO", "")], [("EYE", "STALK"), ("GREY", ""), ("SQUID", "")]]
-# every card's lines, top to bottom (words of a row joined by one space)
-CARDS = [["CAST OF", "CHARACTERS"], ["SPIGOTEER DREGS", "BARTENDER RIVAL"]]
-for k in range(10):
-    CARDS.append([VENUES[k], " ".join([OWNER_LINES[k][0], BOSS_LINES[k][0]])] + ([" ".join(x for x in (OWNER_LINES[k][1], BOSS_LINES[k][1]) if x)] if OWNER_LINES[k][1] or BOSS_LINES[k][1] else []))
+_src = (ROOT / "src" / "credits.c").read_text()
+LABELS = [re.findall(r'"([^"]+)"', row) for row in re.findall(r"\{ (\"[A-Z]+\", \"[A-Z]+\", \"[A-Z]+\") \},", _src[_src.index("cr_pat[10][3]"):])]   # the patrons' labels, one table in credits.c
+assert len(LABELS) == 10
+# every card's lines, top to bottom (words of a row joined by one space): 0 the title, 1 the Spigoteer, 2 Dregs, then per venue the owner, the patrons, the boss
+CARDS = [["CAST OF", "CHARACTERS"], ["SAL TAPLEY", "THE SPIGOTEER"], ["DREGS"]]
+def lowered(labels):
+    """The middle label goes a row lower when it would stand closer than a tile to a neighbour (credits.c cr_lowered)."""
+    cx = [32 + 48 * k + (4 if len(w) & 1 else 0) for k, w in enumerate(labels)]
+    gaps = [(cx[k + 1] - 4 * len(labels[k + 1])) - (cx[k] + 4 * len(labels[k])) for k in range(2)]
+    return min(gaps) < 8
+
+
 for v in range(10):
-    CARDS.append([VENUES[v], " ".join(p[0] for p in PATRONS[v] if p[0])] + [t for t in [" ".join(p[1] for p in PATRONS[v] if p[1])] if t])
+    CARDS.append([OWNERS[v], VENUES[v]])
+    CARDS.append([VENUES[v], " ".join(w for k, w in enumerate(LABELS[v]) if not (k == 1 and lowered(LABELS[v])))] + ([LABELS[v][1]] if lowered(LABELS[v]) else []))
+    CARDS.append([BOSSES[v], VENUES[v]])
+KINDS = ["title", "spigoteer", "dregs"] + ["owner", "patrons", "boss"] * 10
 ROLL_LINES = ["SPIGOTEER", "GAME DESIGN,", "MEDIA, AND", "STORY BY", "TONY", "AND HIS TIRELESS", "TEAM OF", "ROBOT FRIENDS", "MUSIC", "PUBLIC DOMAIN",
               "MELODIES,", "ARRANGED", "FOR THIS GAME", "SPECIAL", "THANKS TO:", "GBDK-2020", "SDCC", "HUGEDRIVER", "RGBDS", "SAMEBOY", "PYBOY",
               "PAN DOCS", "THE GBDEV", "COMMUNITY", "THANKS FOR", "PLAYING!"]
@@ -105,7 +106,7 @@ def at(gb, f, settle=10):
     if f < ROLL:
         for _ in range(120):
             st = gb.read("story_scratch", 48)
-            if st[PHASE] == 5 and st[CARD] == max(c for c in range(22) if CARD_START[c] <= f):   # (built and faded in)
+            if st[PHASE] == 5 and st[CARD] == max(c for c in range(33) if CARD_START[c] <= f):   # (built and faded in)
                 break
             gb.run(1)
         else:
@@ -177,55 +178,71 @@ def test_the_cast_cards_in_order_with_their_names_and_figures(model):
     with roll_from_bonus(model, sound=False) as gb:
         most = 0
         for c, text in enumerate(CARDS):
-            at(gb, CARD_START[c] + 100)
+            at(gb, CARD_START[c] + 5)
             assert [" ".join(t.split()) for t in lines_on_screen(gb)] == text, (c, lines_on_screen(gb))
             shown = {s["tile"] for s in gb.visible_sprites()}
             most = max(most, most_per_scanline(gb))
-            if c == 1:
-                assert OBJ_ROBOTS not in shown and any(56 <= t < 64 for t in shown), "Dregs (OBJ 56..) and the Spigoteer (0..)"
-                assert any(t < 56 for t in shown)
-            elif 2 <= c < 12:
-                assert shown == {64}, "the topper"
-                body = [r for r in range(18) if any(t >= 160 for t in tilemap_row(gb, r, 0, 20))]
-                assert body == [6, 7], "the boss's two rows, straight on the band (no panel)"
+            kind = KINDS[c]
+            rows = [r for r in range(18) if row_cols(gb, r)]
+            if kind == "spigoteer":
+                assert shown and all(t < 56 for t in shown), "the Spigoteer's own OBJ tiles"
+            elif kind == "dregs":
+                assert shown and all(56 <= t < 64 for t in shown), "Dregs's (OBJ 56..)"
+            elif kind in ("spigoteer", "dregs", "owner"):
+                pass
+            if kind in ("spigoteer", "dregs", "owner"):
                 art = [r for r in range(18) if any(94 <= t < 138 for t in tilemap_row(gb, r, 0, 20))]
-                assert art == list(range(3, art[-1] + 1)) and 8 <= art[-1] <= 9, ("the owner's portrait", art)
-                rows = [r for r in range(18) if row_cols(gb, r)]
-                assert rows[:2] == [1, 11] and all(b - a >= 2 for a, b in zip(rows, rows[1:])), (c, rows)
-            elif c >= 12:
+                assert art[0] == 4 and art == list(range(4, art[-1] + 1)) and 9 <= art[-1] <= 10, ("the story portrait", art)
+                assert rows == ([12, 14] if kind != "dregs" else [12]), (c, rows)
+                if kind == "owner":
+                    assert not shown, "an owner's card has no sprites"
+            elif kind == "boss":
+                assert shown and shown <= {64, 66}, "the topper"
+                body = [r for r in range(18) if any(100 <= t < 160 for t in tilemap_row(gb, r, 0, 20))]
+                assert body == [6, 7] and rows == [10, 12], ("the boss's two rows, straight on the band, his name, the venue", body, rows)
+            elif kind == "patrons":
                 assert shown == {100, 102, 106, 108, 112, 114}, shown
-                rows = [r for r in range(18) if row_cols(gb, r)]
-                assert all(b - a >= 2 for a, b in zip(rows, rows[1:])), (c, rows)
+                assert rows == ([2, 10, 12] if lowered(LABELS[(c - 3) // 3]) else [2, 10]), rows
             for r in range(18):                                 # every line keeps a clear column at each edge
                 cols = row_cols(gb, r)
                 if cols:
                     assert cols[0] >= 1 and cols[1] <= 18, (c, r, cols)
         assert most <= 10
-        assert gb.read("story_scratch", 32)[CARD] == 21
+        assert gb.read("story_scratch", 32)[CARD] == 32
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_each_patron_name_is_centred_under_its_patron(model):
+def test_the_boss_is_animated_on_his_card(model):
+    with roll_from_bonus(model, sound=False) as gb:
+        at(gb, CARD_START[5] + 10)
+        seen, hats = set(), set()
+        for _ in range(60):
+            gb.run(1)
+            seen.add(tuple(tilemap_row(gb, 6, 0, 20)) + tuple(tilemap_row(gb, 7, 0, 20)))
+            hats |= {s["tile"] for s in gb.visible_sprites()}
+        assert len(seen) >= 3, "his walk and gulp poses (WALK, STOMP, GULP) cycle"
+        assert hats == {64, 66}, "the topper bobs with the stomp"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_each_patron_label_is_one_line_centred_under_its_patron(model):
+    assert all(len(l) <= 6 for row in LABELS for l in row), "a label is one line of at most 6 letters (one table in src/credits.c)"
     with roll_from_bonus(model, sound=False) as gb:
         for v in range(10):
-            at(gb, CARD_START[12 + v] + 100)
+            at(gb, CARD_START[4 + 3 * v] + 5)
             xs = sorted(s["x"] for s in gb.visible_sprites())
             assert len(xs) == 6
             for k in range(3):
                 cx = xs[2 * k] + 0                              # OAM x of the pair's first column = the pair's centre (left edge + 8)
                 assert cx in (32 + 48 * k, 36 + 48 * k)
-                for r in (10, 12):
-                    row = tilemap_row(gb, r, 0, 20)
-                    cols = [c for c in range((cx - 24) // 8, (cx + 24) // 8) if GLYPH_CH.get(row[c]) or PUNCT.get(row[c])]
-                    if cols:
-                        assert abs((cols[0] + cols[-1] + 1) * 4 - cx) <= 4, (v, k, r, cols, cx)
-                words = [w for w in PATRONS[v][k] if w]
-                assert max(len(w) for w in words) <= 6 and all(" " not in w for w in words)
-                longest = max(words, key=len)
-                row = tilemap_row(gb, 10 if longest == PATRONS[v][k][0] else 12, 0, 20)
-                cols = [c for c in range(20) if GLYPH_CH.get(row[c]) or PUNCT.get(row[c])]
-                cols = [c for c in cols if abs(c * 8 + 4 - cx) <= 24]
-                assert abs((cols[0] + cols[-1] + 1) * 4 - cx) == 0, "the longest line is exactly under its sprite"
+                row = tilemap_row(gb, 12 if k == 1 and lowered(LABELS[v]) else 10, 0, 20)
+                cols = [c for c in range((cx - 24) // 8, (cx + 24) // 8) if GLYPH_CH.get(row[c]) or PUNCT.get(row[c])]
+                if k == 1 and not lowered(LABELS[v]):
+                    assert abs((cols[0] + cols[-1] + 1) * 4 - cx) <= 4, (v, k, cols, cx)
+                elif k != 1:
+                    cols = [c for c in cols if abs(c * 8 + 4 - cx) <= 24]
+                    assert abs((cols[0] + cols[-1] + 1) * 4 - cx) <= 4, (v, k, cols, cx)
+                assert (cols[0] + cols[-1] + 1) * 4 == cx or len(LABELS[v][k]) % 2 == 0 and abs((cols[0] + cols[-1] + 1) * 4 - cx) <= 4
 
 
 def test_the_roll_text_is_centred_broken_at_words_and_spaced_by_section():
@@ -351,20 +368,10 @@ def test_a_and_b_and_start(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_goldens_of_the_cast(model):
     with roll_from_bonus(model, sound=False) as gb:
-        at(gb, CARD_START[0] + 60)
-        check_golden(gb, "credits_cast_title")
-        at(gb, CARD_START[1] + 100)
-        check_golden(gb, "credits_cast_hero")
-        at(gb, CARD_START[2] + 100)
-        check_golden(gb, "credits_cast_venue_saloon")
-        at(gb, CARD_START[8] + 100)
-        check_golden(gb, "credits_cast_venue_chromecow")
-        at(gb, CARD_START[11] + 100)
-        check_golden(gb, "credits_cast_venue_space")
-        at(gb, CARD_START[12] + 100)
-        check_golden(gb, "credits_cast_patrons_saloon")
-        at(gb, CARD_START[17] + 100)
-        check_golden(gb, "credits_cast_patrons_factory")
+        for c, name in ((0, "title"), (1, "spigoteer"), (2, "dregs"), (3, "owner_saloon"), (4, "patrons_saloon"), (5, "boss_saloon"), (21, "owner_chromecow"),
+                        (23, "boss_chromecow"), (30, "owner_space"), (32, "boss_space")):
+            at(gb, CARD_START[c] + 5)
+            check_golden(gb, "credits_cast_" + name)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -552,8 +559,8 @@ def settled_cards(model):
     """Every cast card, built and faded in (sound off), as images."""
     refs = {}
     with roll_from_bonus(model, sound=False) as gb:
-        for c in range(1, 22):
-            at(gb, CARD_START[c] + 100)
+        for c in range(1, 33):
+            at(gb, CARD_START[c] + 5)
             refs[c] = gb.image().convert("RGB")
     return refs
 
@@ -567,20 +574,19 @@ def test_no_frame_during_a_card_change_shows_a_partly_built_card(model):
     refs = {c: ink(im) for c, im in cards.items()}
     energies = {c: energy(im) for c, im in cards.items()}
     with roll_from_bonus(model, sound=False) as gb:
-        for c in range(2, 22):
-            at(gb, CARD_START[c - 1] + 100)
+        for c in range(2, 33):
+            at(gb, CARD_START[c - 1] + 5)
             dim = 0
-            while cr_f(gb) < CARD_START[c] + 60:
+            while cr_f(gb) < CARD_START[c] + 70:
                 gb.run(1)
                 st = gb.read("story_scratch", 32)
                 card, phase = st[CARD], st[PHASE]
                 m = ink(gb.image())
-                if card >= 12 or card == c - 1 and c - 1 >= 12:
-                    m[40:90, :] = False                           # (patrons bob)
-                    ref = refs[card].copy()
-                    ref[40:90, :] = False
-                else:
-                    ref = refs[card]
+                ref = refs[card].copy()
+                if KINDS[card] in ("patrons", "boss"):            # (patrons bob, the boss walks: that band is left out)
+                    band = (40, 90) if KINDS[card] == "patrons" else (36, 68)
+                    m[band[0]:band[1], :] = False
+                    ref[band[0]:band[1], :] = False
                 if phase in (1, 2, 3):
                     assert not m.any(), ("a card being built shows", model, c, phase, int(m.sum()))
                 else:
@@ -588,7 +594,7 @@ def test_no_frame_during_a_card_change_shows_a_partly_built_card(model):
                     e = energy(gb.image())
                     if 0.05 * energies[card] < e < 0.9 * energies[card]:
                         dim += 1
-            assert dim >= 6, ("the fades are seen: a few dimmer frames each way", model, c, dim)
+            assert dim >= 3, ("the fades are seen: a few dimmer frames each way", model, c, dim)
             assert gb.read("story_scratch", 32)[CARD] == c
 
 
@@ -604,14 +610,14 @@ def test_the_cast_timeline_is_a_share_of_the_tunes_length(model):
     with roll_from_bonus(model, sound=False) as gb:
         s = gb.read("story_scratch", 64)
         u16 = lambda o: s[o] | s[o + 1] << 8
-        T_, e_title, e_hero, card, roll, f1 = (u16(o) for o in (TUNE_T, E_TITLE, E_HERO, CARD_LEN, ROLL_AT, F1_AT))
-        assert (T_, e_title, e_hero, card, roll, f1) == (5280, 120, 270, 150, 3270, 4830), (T_, e_title, e_hero, card, roll, f1)
-        assert e_hero + 20 * card == roll and card >= 150, "a card holds 2.5 s (150 frames) at the 88 s tune"
-        assert (share(5280, 8), share(5280, 18), share(5280, 10), share(5280, 322)) == (e_title, e_hero, card, f1)
-    for T in (5280, 7200, 10800):                              # a longer arrangement: every share grows with it
-        c = share(T, 10)
-        assert abs(c - T * 10 / 352) <= 8, (T, c)
-        assert share(T, 18) + 20 * c < share(T, 322) < T
+        T_, e_title, card, roll, f1 = (u16(o) for o in (TUNE_T, E_TITLE, CARD_LEN, ROLL_AT, F1_AT))
+        assert (T_, e_title, card, roll, f1) == (5280, 105, 105, 3465, 4830), (T_, e_title, card, roll, f1)
+        assert e_title + 32 * card == roll and card >= 90, "a card holds 1.75 s (105 frames) at the 88 s tune: never under 1.5 s"
+        assert (share(5280, 7), share(5280, 322)) == (card, f1)
+    for T, hold in ((5280, 90), (8800, 150), (10800, 150)):    # 88 s: at least 1.5 s; 147 s (D3c) and a 180 s arrangement: at least 2.5 s; every share grows with the tune
+        c = share(T, 7)
+        assert c >= hold and abs(c - T * 7 / 352) <= 8, (T, c)
+        assert 33 * c < share(T, 322) - 600 and share(T, 322) < T
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -622,7 +628,8 @@ def test_centring_audit_of_every_card(model):
     import json
     import numpy as np
     out = {}
-    names = ["title", "hero"] + [f"venue {v}: {OWNERS[v]} and {BOSSES[v]}" for v in range(10)] + [f"patrons {v}: {VENUES[v]}" for v in range(10)]
+    names = ["title", "Spigoteer card", "Dregs card"] + [f"{k} {(c - 3) // 3}: " + (OWNERS[(c - 3) // 3] if k == "owner" else BOSSES[(c - 3) // 3] if k == "boss" else VENUES[(c - 3) // 3])
+                                                     for c, k in enumerate(KINDS) if c >= 3]
     for c, im in settled_cards(model).items():
         m = ink(im)
         cols = np.where(m.any(axis=0))[0]

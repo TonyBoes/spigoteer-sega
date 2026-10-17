@@ -414,7 +414,6 @@ void trans_reveal(void) BANKED {
 // Same machinery as the white fades: palette RAM is written only by the unrolled bursts in the VBlank (vframe), a step is computed in the active part
 // of the frame. The caller keeps the card's colours in RAM (o) and never writes palette RAM itself, so the card can be built behind the faded screen.
 //   CGB: o = the 128 bytes of palette RAM, BG then OBJ. DMG: o[0..2] = BGP, OBP0, OBP1, stepped shade by shade toward black (the band's shade).
-#define COL_BAND   0x2043                         // RGB15(3, 2, 8): colour 3 of the HUD palette, what the band is
 #define CAST_DMG   3                              // frames a DMG step takes
 static const uint8_t k_co[4] = { 5, 3, 1, 0 };    // out: eighths of the card's colour kept (0: flat band)
 static const uint8_t k_ci[4] = { 1, 3, 5, 8 };    // in, then the card's colours exactly (k 8)
@@ -428,20 +427,70 @@ static uint8_t ddark(uint8_t p, uint8_t k) {      // a DMG palette k shades dark
     return r;
 }
 
-uint8_t trans_cast(uint8_t *o, uint8_t in) BANKED {      // in 0: the card's colours to the band; 1: back. Returns the frames it took
-    uint8_t s, f = 0, fr, k;
+// The tune keeps its time through a fade, frame for frame: the main loop ticks at line 18 of every frame, and so does the fade (once a frame, inside
+// the long compute; the tick of the frame the call began in first, and the next frame's left to the loop when it ends), so there is no stall when it
+// begins and no bunched tick when it ends (a tick at the VBlank instead was ~1.9 frames after the loop's, then ~0.1 before it: an audible hitch a card).
+#define TICK_LY 18
+#define COL_WHITE 0x7FFF
+static void group_t(const uint8_t *o, uint8_t k, uint8_t tick) {   // group(): the 32 colours (most of a frame) toward white, the frame's tick at line 18 inside it
+    uint8_t i, a = k & 4, b = k & 2, c = k & 1;
+    uint16_t kk = COL_WHITE - part(COL_WHITE, k), w, r;
+    uint16_t *q = (uint16_t *)RES;
+    const uint16_t *p = (const uint16_t *)o;
+    for (i = 0; i < 32; i++) {
+        if (tick && (i & 1) && LY_REG >= TICK_LY && LY_REG < 100) { music_tick(); tick = 0; }
+        w = *p++;
+        if (k == 8) r = w;
+        else {
+            r = kk;
+            if (a) r += (w >> 1) & 0x3DEF;
+            if (b) r += (w >> 2) & 0x1CE7;
+            if (c) r += (w >> 3) & 0x0C63;
+        }
+        *q++ = r;
+    }
+}
+
+static void tick18(void) {
+    while (LY_REG >= TICK_LY) ;                                // (from the VBlank: the next frame's line 18)
+    while (LY_REG < TICK_LY) ;
+    music_tick();
+}
+
+static uint8_t dlite(uint8_t p, uint8_t k) {                   // a DMG palette k shades lighter
+    uint8_t r = 0, i, s;
+    for (i = 0; i < 8; i += 2) {
+        s = (p >> i) & 3;
+        r |= (s > k ? s - k : 0) << i;
+    }
+    return r;
+}
+
+uint8_t trans_cast(uint8_t *o, uint8_t in) BANKED {      // in 0: the card's colours to white; 1: from white back. Returns the frames it took
+    uint8_t s, f = 0, fr, k, g;
+    if (LY_REG < TICK_LY) { while (LY_REG < TICK_LY) ; music_tick(); }   // (this frame's tick: the call began before line 18, the loop's would come after us)
+    else music_tick();
     if (is_cgb) {
-        for (s = 0; s < 4 && !(joypad() & (J_B | J_START)); s++) f += cstep(o, in ? k_ci[s] : k_co[s], COL_BAND, COL_BAND, 2, f, 0, 2);   // (B / START cut a fade short: the caller sees the press)
+        for (s = 0; s < 4; s++) {
+            if (joypad() & (J_B | J_START)) break;             // (B / START cut a fade short: the caller sees the press)
+            k = in ? k_ci[s] : k_co[s];
+            for (g = 0; g < 2; g++) {
+                group_t(g ? o + 64 : o, k, s || g);            // (the first group's frame has had its tick)
+                f += vframe(g);
+            }
+        }
     } else {
-        for (s = 0; s < 3 && !(joypad() & (J_B | J_START)); s++) {
+        for (s = 0; s < 3; s++) {
+            if (joypad() & (J_B | J_START)) break;
             k = in ? 2 - s : s + 1;
             for (fr = 0; fr < CAST_DMG; fr++) {
                 vsync(); f++;
-                if (!fr) { BGP_REG = ddark(o[0], k); OBP0_REG = ddark(o[1], k); OBP1_REG = ddark(o[2], k); }
-                fa_tail(f, 0, 2);
+                if (!fr) { BGP_REG = dlite(o[0], k); OBP0_REG = dlite(o[1], k); OBP1_REG = dlite(o[2], k); }
+                if (s < 2 || fr < CAST_DMG - 1) tick18();
             }
         }
     }
+    while (LY_REG >= 8) ;                                      // (back at the top of the next frame, as the loop's own logic: its tick follows at line 18)
     return f;
 }
 

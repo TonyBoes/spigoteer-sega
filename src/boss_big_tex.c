@@ -15,6 +15,7 @@
 #include "boss.h"
 #include "boss_big_tex_art.h"
 #include "boss_load.h"
+BOSS_CAST_FN(boss_big_tex_cast)   // the credits' cast card (src/credits.c)
 #include "music.h"
 
 typedef struct {

@@ -28,6 +28,7 @@
 #include "boss.h"
 #include "boss_leo_art.h"
 #include "boss_load.h"
+BOSS_CAST_FN(boss_leo_cast)   // the credits' cast card (src/credits.c)
 #include "leo_fx_art.h"
 #include "music.h"
 
