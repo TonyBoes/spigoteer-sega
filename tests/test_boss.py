@@ -541,9 +541,10 @@ def test_regulars_keep_coming_more_slowly_on_the_other_bars(model):
 # ---- the topper and the line budget ---------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_topper_gives_way_to_the_tenth_sprite(model):
-    """Bar 0 (the bar above his): the bartender filling there (his lower pair on the topper's lines), the fill glass and
-    7 empties on its counter are 10 objects on the topper's upper lines: the topper is left out (never an 11th); with 6
-    it shows (10 on those lines)."""
+    """Bar 0 (the bar above his): the bartender filling there (his two pairs and the fill glass on the topper's lines) and 7 empties on its
+    counter: the topper is left out (never an 11th). The count is by 4-line bands, an upper bound: the bartender hangs BT_DY 2 px lower
+    (2026-10-17), so his upper pair now touches the band his lower pair starts in, and the bound reaches 10 with 5 empties (a real line
+    holds 8) and drops to 9 with 4: then it shows. Every frame at most 10 on a line."""
     with to_fight(model) as gb:
         still_regulars(gb)
         gb.write("intro_timer", 0)
@@ -553,15 +554,16 @@ def test_the_topper_gives_way_to_the_tenth_sprite(model):
         for x in (24, 32, 40, 48, 56, 64, 72):
             inject_mug(gb, 0, x, st=EMPTY)
         frames(gb, 3)
-        assert gb.oam()[OAM_TOPPER]["y"] == 0, "10 others on its lines: the topper is left out"
+        assert gb.oam()[OAM_TOPPER]["y"] == 0, "10 or more others on its lines: the topper is left out"
         assert max(lines(gb)) == 10
-        st = list(gb.read("mug_state", 20))
-        m = max(i for i in range(20) if st[i] == EMPTY)
-        gb.write(gb.addr("mug_state") + m, 0)
-        gb.write("mugs_live", gb.mem("mugs_live") - 1)
+        for _ in range(3):
+            st = list(gb.read("mug_state", 20))
+            m = max(i for i in range(20) if st[i] == EMPTY)
+            gb.write(gb.addr("mug_state") + m, 0)
+            gb.write("mugs_live", gb.mem("mugs_live") - 1)
         frames(gb, 3)
-        assert gb.oam()[OAM_TOPPER]["y"] == TOP_Y + 8, "9 others: it shows"
-        assert max(lines(gb)) == 10
+        assert gb.oam()[OAM_TOPPER]["y"] == TOP_Y + 8, "room for it: it shows"
+        assert max(lines(gb)) <= 10
         gb.release("a")
         frames(gb, 30)
 
