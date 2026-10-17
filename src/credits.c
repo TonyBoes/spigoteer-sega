@@ -622,6 +622,7 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         cr_white();
         hide_all_sprites();
         if (!is_cgb) CR_PAL[2] = CR_PAL[3];
+        while (!cr_clear_unit()) cr_tk();                  // (the last card's rows and CGB attributes: a boss's palette cells would tint the text)
         for (c = 0; c < 32; c++) { cr_rows(c, 1); cr_tk(); }
         for (c = 0; c < 6; c++) { load_patron_pose0(5, CR_T_P + 6 * (c >> 1) + 3 * (c & 1), c >> 1, c & 1); cr_tk(); }
         CR->phase = 4;

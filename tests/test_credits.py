@@ -773,3 +773,70 @@ def test_no_music_tick_is_lost_through_the_fades_and_the_tune_ends_on_wall_time(
         span = (s[-1] - s[0]) / FRAME
         assert abs(span - (len(s) - 1)) <= 2, ("the tune is one tick a frame", span, len(s))
         assert abs(span + 3 - (TOTAL - 1)) <= 5, ("the tune's length in wall frames", span)
+
+
+def _to_roll(gb, last=32):
+    at(gb, CARD_START[last] + 5)                                    # the last card: the boss, who tints the map's attributes
+    for f in range(ROLL_START - 40, ROLL_START, 2):
+        set_t(gb, f)
+        gb.run(1)
+    run_until(gb, lambda: gb.read("story_scratch", 32)[CARD] == 201, 200)
+    gb.run(40)                                                       # (the fade in)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_roll_shows_only_the_text_and_band_colours_after_the_last_card(model):
+    """Nothing of the cast is left on the screen when the roll comes (a boss's or a portrait's palette cells, a sprite): every sample of the roll has
+    only the colours of the text and the band, the robot band's rows excepted."""
+    with roll_from_bonus(model, sound=False) as gb:                 # (the reference: the roll after the title card only, nothing tinted)
+        _to_roll(gb, last=0)
+        for f in range(ROLL_START, SCROLL_END + 50, 2):
+            set_t(gb, f)
+            gb.run(1)
+        gb.run(5)
+        ref = {c for _, c in gb.image().convert("RGB").getcolors(10000)}
+    with roll_from_bonus(model, sound=False) as gb:
+        _to_roll(gb)
+        for f in range(ROLL_START, SCROLL_END + 50, 2):
+            set_t(gb, f)
+            gb.run(1)
+            if (f - ROLL_START) % 10:
+                continue
+            im = gb.image().convert("RGB")
+            ys = [s["y"] - 16 for s in gb.visible_sprites()]
+            lo, hi = (max(0, min(ys) - 2), min(144, max(ys) + 34)) if ys else (0, 0)
+            for y in range(144):
+                if lo <= y < hi:
+                    continue
+                for x in range(160):
+                    assert im.getpixel((x, y)) in ref, ("a colour that is not the text's or the band's", model, f, x, y, im.getpixel((x, y)))
+
+
+@pytest.mark.parametrize("path", ["bonus", "story"])
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_roll_returns_to_its_caller_within_a_second_of_the_tune_with_the_screen_on(model, path):
+    from tick_helpers import FRAME
+    if path == "bonus":
+        ctx = roll_from_bonus(model)
+    else:
+        from test_story_pictures import to_finale
+        ctx = to_finale(model)
+    with ctx as gb:
+        if path == "story":
+            from test_story import SC, page_ready, settle
+            from test_story_pictures import through_the_pouroff
+            through_the_pouroff(gb)
+            gb.press("start", 2)
+            run_until(gb, lambda: gb.mem("story_scene") == SC["CREDITS"], 30)
+            settle(gb)
+            page_ready(gb)
+            gb.press("start", 2)
+            run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 30)
+        run_until(gb, lambda: gb.mem("cur_tune") != TUNE_CREDITS, TOTAL + 300)
+        end = gb.pb._cycles()
+        run_until(gb, lambda: state(gb) != GS_STORY, 120)
+        assert (gb.pb._cycles() - end) / FRAME <= 70, "the roll leaves within about a second of the tune's end"
+        gb.run(120)                                                  # (the drink or the fade, then the next screen)
+        assert gb.pb.memory[0xFF40] & 0x80, "the LCD is on"
+        assert len(gb.image().convert("RGB").getcolors(10000)) >= 3, "a screen, not a blank one"
+        assert state(gb) == (TITLE if path == "bonus" else state(gb)) and state(gb) != GS_STORY
