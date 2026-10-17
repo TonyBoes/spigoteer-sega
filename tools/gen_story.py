@@ -96,7 +96,7 @@ PICTURE_SCENES = ["INTRO", "FINALE_A", "FINALE_B", "CREDITS"]
 # one at the start of its page behind a white flash (src/story.c pic_switch); that page must be the narrator's (no
 # portrait frame up) and docs/story.md's scene must say "Picture (page N):". A picture's id is its place in this list
 # (scene header byte 1 = the scene's first picture; the next one of the scene is +1).
-SCENE_PICS = {"INTRO": [(1, "intro_before"), (5, "intro_a")], "FINALE_A": [(1, "finale_a")], "FINALE_B": [(1, "finale_a")], "CREDITS": [(1, "credits_b")]}
+SCENE_PICS = {"INTRO": [(1, "intro_before"), (6, "intro_a")], "FINALE_A": [(1, "finale_a")], "FINALE_B": [(1, "finale_a")], "CREDITS": [(1, "credits_b")]}
 # A picture scene that shows another scene's picture (FINALE_B: the Pour-Off was played between the two halves) shares its one
 # copy in ROM: the picture's tiles sit above the first scene's portrait slot, so the sharer's biggest portrait must fit it.
 PIC_SHARE = {"FINALE_B": "FINALE_A"}

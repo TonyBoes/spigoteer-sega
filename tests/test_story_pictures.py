@@ -62,7 +62,7 @@ def assert_picture(gb, name, skip=None):
 def test_the_pictures_are_built_to_the_budget():
     assert list(PICS) == ["intro_before", "intro_a", "finale_a", "credits_b"]
     by_scene = {s["id"]: s for s in SCENES}
-    assert [(by_scene[i]["pic"], by_scene[i]["swpage"]) for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [(0, 5), (2, 0), (2, 0), (3, 0)]
+    assert [(by_scene[i]["pic"], by_scene[i]["swpage"]) for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [(0, 6), (2, 0), (2, 0), (3, 0)]
     for name, p in PICS.items():
         sc = by_scene[p["scene"]]
         slot = sc["bg_tiles"]
@@ -167,11 +167,11 @@ def test_a_picture_switch_needs_the_narrators_page_and_the_docs_line(monkeypatch
     monkeypatch.setattr(g, "SCENE_PICS", dict(g.SCENE_PICS, INTRO=[(1, "intro_before"), (4, "intro_a")]))
     with pytest.raises(g.StoryError, match="page 4, which is not the narrator's"):
         g.check_pictures(scenes)
-    monkeypatch.setattr(g, "SCENE_PICS", dict(g.SCENE_PICS, INTRO=[(1, "intro_before"), (6, "intro_a")]))
-    with pytest.raises(g.StoryError, match=r"no 'Picture \(page 6\):' line"):
+    monkeypatch.setattr(g, "SCENE_PICS", dict(g.SCENE_PICS, INTRO=[(1, "intro_before"), (7, "intro_a")]))
+    with pytest.raises(g.StoryError, match=r"no 'Picture \(page 7\):' line"):
         g.check_pictures(scenes)
-    monkeypatch.setattr(g, "SCENE_PICS", dict(g.SCENE_PICS, INTRO=[(1, "intro_before"), (9, "intro_a")]))
-    with pytest.raises(g.StoryError, match="the scene has 8"):
+    monkeypatch.setattr(g, "SCENE_PICS", dict(g.SCENE_PICS, INTRO=[(1, "intro_before"), (10, "intro_a")]))
+    with pytest.raises(g.StoryError, match="the scene has 9"):
         g.check_pictures(scenes)
 
 
@@ -212,16 +212,16 @@ def test_intro_before_then_flash_then_the_explosion(model):
         page_ready(gb)
         assert_picture(gb, "intro_before")                       # page 1: no Dregs, the whole spigot, the fountain running
         check_golden(gb, "story_pic_intro_before")
-        for k in (1, 2):                                          # pages 2-3: the picture stays (3: the Spigoteer's frame)
+        for k in (1, 2, 3):                                       # pages 2-4: the picture stays (3: the festival, 4: the Spigoteer's frame)
             gb.press("a", 2)
             page_ready(gb)
             assert gb.mem("story_page") == k
         assert_picture(gb, "intro_before", skip=FRAME)
-        gb.press("a", 2)                                          # page 4: Dregs
+        gb.press("a", 2)                                          # page 5: Dregs
         page_ready(gb)
-        assert gb.mem("story_page") == 3 and gb.mem("story_cur") != 255
+        assert gb.mem("story_page") == 4 and gb.mem("story_cur") != 255
         assert_picture(gb, "intro_before", skip=FRAME)
-        # page 5 (KA-SPLOOOOSH!!!): white, the LCD off for the reload, the explosion fades in
+        # page 6 (GLUG... KA-SPLOOOOSH!!!): white, the LCD off for the reload, the explosion fades in
         gb.press("a", 2)
         whites, lcd_off, frames = 0, 0, 2
         while gb.mem("story_typed") == 54 or gb.mem("story_scratch") != 0:
@@ -230,7 +230,7 @@ def test_intro_before_then_flash_then_the_explosion(model):
             whites += white_frame(gb)
             lcd_off += not gb.pb.memory[0xFF40] & 0x80
             assert frames < 40
-        assert gb.mem("story_page") == 4
+        assert gb.mem("story_page") == 5
         assert 6 <= frames <= 16, f"the flash takes {frames} frames"
         assert whites >= 3, "the screen is white for a few frames"
         gb.run(2)
@@ -238,7 +238,7 @@ def test_intro_before_then_flash_then_the_explosion(model):
         page_ready(gb)
         assert gb.mem("story_cur") == 255
         run_until(gb, lambda: burst_t(gb) == 255, 80)             # (the ten pieces fly off the screen, trails behind them)
-        assert_picture(gb, "intro_a")                             # page 5: the spigot gone, the fountain stopped, no frame
+        assert_picture(gb, "intro_a")                             # page 6: the spigot gone, the fountain stopped, no frame
         assert not any(e["y"] for e in pieces_oam(gb)), "every piece has left the screen"
         assert gb.mem("story_swap") == 0
         golden_err = None
@@ -246,14 +246,14 @@ def test_intro_before_then_flash_then_the_explosion(model):
             check_golden(gb, "story_pic_intro_a")                 # (with the crackle above the stump: it flickers, but the same every run)
         except AssertionError as err:
             golden_err = err
-        for k in (5, 6):                                          # pages 6-7: narrator, still the explosion
+        for k in (6, 7):                                          # pages 7-8: narrator, still the explosion
             gb.press("a", 2)
             page_ready(gb)
             assert gb.mem("story_page") == k
             assert_picture(gb, "intro_a")
-        gb.press("a", 2)                                          # page 8: the Spigoteer's frame over the explosion
+        gb.press("a", 2)                                          # page 9: the Spigoteer's frame over the explosion
         page_ready(gb)
-        assert gb.mem("story_page") == 7 and gb.mem("story_cur") == 0
+        assert gb.mem("story_page") == 8 and gb.mem("story_cur") == 0
         assert_picture(gb, "intro_a", skip=FRAME)
         gb.press("a", 2)
         gb.run(2)
@@ -270,7 +270,7 @@ def test_start_skips_the_intro_before_and_during_the_flash(model):
     for when in ("page1", "flash", "fade", "burst", "done"):
         with start_story(model) as gb:
             if when != "page1":
-                for _ in range(4):
+                for _ in range(5):
                     page_ready(gb)
                     gb.press("a", 2)
                 if when in ("burst", "done"):                     # the pieces are flying (frame 14), or the explosion is over
@@ -370,8 +370,8 @@ def test_credits_picture_and_start_skips_the_finale(model):
 
 # ---- the burst: the ten pieces fly out of the explosion ---------------------------------------------------------
 def to_page5(gb):
-    """Pages 1-4 (A each), then the turn onto page 5: returns when the switch has begun."""
-    for _ in range(4):
+    """Pages 1-5 (A each), then the turn onto page 6 (the explosion): returns when the switch has begun."""
+    for _ in range(5):
         page_ready(gb)
         gb.press("a", 2)
     run_until(gb, lambda: picture_switching(gb), 40)
@@ -577,7 +577,7 @@ def test_the_burst_pulses_while_the_pieces_fly_then_dies_down_and_the_crackle_ta
         assert any(c[0][0] and c[1][0] for c in crackle), "both bolts are lit at times"
         assert gb.read("sfx_count", SHAKE + 1)[SHAKE] > before, "the rattle sounds"
         # it keeps crackling on the next pages, over the Spigoteer's frame too; line limit
-        for page in (5, 6, 7):
+        for page in (6, 7, 8):
             gb.press("a", 2)
             page_ready(gb)
             on = 0
@@ -598,14 +598,14 @@ def test_the_burst_pulses_while_the_pieces_fly_then_dies_down_and_the_crackle_ta
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_mashing_a_through_the_burst_keeps_the_line_limit(model):
-    """A pressed every other frame from the flash on: pages 5-8 come while the pieces still fly and the trail fades (and
+    """A pressed every other frame from the flash on: pages 6-9 come while the pieces still fly and the trail fades (and
     the Spigoteer's frame and its overlay swap in): still at most 10 sprites on a line, the copy list inside VBlank,
     and the picture at the end is intact."""
     with start_story(model) as gb:
         to_page5(gb)
         worst, fading = 0, True
         for f in range(300):
-            if f % 4 == 0 and not picture_switching(gb) and gb.mem("story_page") < 7:
+            if f % 4 == 0 and not picture_switching(gb) and gb.mem("story_page") < 8:
                 gb.press("a", 1)
             else:
                 gb.run(1)
@@ -616,10 +616,10 @@ def test_mashing_a_through_the_burst_keeps_the_line_limit(model):
             worst = max(worst, line_max(gb))
             if gb.mem("story_scene") != SC["INTRO"]:
                 break
-            if gb.mem("story_page") == 7 and burst_t(gb) == 255 and gb.mem("story_swap") == 0 and gb.mem("story_typed") == 54:
+            if gb.mem("story_page") == 8 and burst_t(gb) == 255 and gb.mem("story_swap") == 0 and gb.mem("story_typed") == 54:
                 break
         assert worst <= 10
-        assert gb.mem("story_scene") == SC["INTRO"] and gb.mem("story_page") == 7
+        assert gb.mem("story_scene") == SC["INTRO"] and gb.mem("story_page") == 8
         assert_picture(gb, "intro_a", skip=FRAME)
         assert gb.mem("drain_ticks_max") <= 13 and gb.mem("vq_end_ly_max") <= 153 and gb.mem16("vq_late") == 0
 
