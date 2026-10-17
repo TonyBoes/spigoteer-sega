@@ -803,7 +803,7 @@ def title_art(outdir, prev, base, ttiles, bg):
     out += [carr("tt_digit", digits), ""]
     (outdir / "title_art.h").write_text("\n".join(out))
     (outdir / "title.json").write_text(json.dumps({
-        "extra_base": first, "blank": blank, "hi": hi_tile, "digits": digits, "text": text, "word": TITLE_WORD,
+        "extra_base": first, "blank": blank, "hi": hi_tile, "dot": dot_tile, "digits": digits, "text": text, "word": TITLE_WORD,
         "logo": {L: fill_map[i] for i, L in enumerate(TITLE_LETTERS)}, "patron_base": patron_base, "fill_tiles": n_fill}))
     # previews: each letter's fill states (columns: letters, rows: states), the menu strings
     S = len(LOGO_FILL) + 1

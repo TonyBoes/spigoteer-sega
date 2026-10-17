@@ -198,7 +198,7 @@ def test_title_menu_is_centred_without_bands(boot):
     assert boot.mem("title_menu") == TM_TOP and menu_items(boot) == [K_PLAY, K_BONUS, K_SETTINGS]
     expect_menu(boot, TOP_KEYS)
     # the HI line on row 0: 8 tiles at columns 6..13 (a small "HI", a space, six digits)
-    assert tilemap_row(boot, ROW_HI, 0, 20) == [blank] * 6 + [TITLE_ART["hi"], blank] + hi_tiles("000000") + [blank] * 3 + [TITLE_ART["digits"][0], blank, TITLE_ART["digits"][9]]   # (+ the version, 0 9, top right)
+    assert tilemap_row(boot, ROW_HI, 0, 20) == [blank] * 6 + [TITLE_ART["hi"], blank] + hi_tiles("000000") + [blank] * 3 + [TITLE_ART["digits"][0], TITLE_ART["dot"], TITLE_ART["digits"][9]]   # (+ the version, 0.9, top right)
     # every line centred to the pixel: as many px left of the text as right of it. An odd-length line is drawn
     # 4 px right inside one more tile, so its tiles are an even count with as many blank columns either side.
     for key, s in (("arcade", "ARCADE"), ("story", "STORY"), ("music_on", "MUSIC ON"), ("music_off", "MUSIC OFF"),

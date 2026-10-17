@@ -17,7 +17,7 @@ def test_version_on_title(boot):
     settle_title(boot)
     row = tilemap_row(boot, 0, 0, 20)
     d = TITLE["digits"]
-    assert [row[17], row[18], row[19]] == [d[int(VERSION[0])], TITLE["blank"], d[int(VERSION[1])]], "major, a blank, minor in the top-right corner"
+    assert [row[17], row[18], row[19]] == [d[int(VERSION[0])], TITLE["dot"], d[int(VERSION[1])]], "major, the dot, minor in the top-right corner (0.9)"
     check_golden(boot, "title_version")
 
 
