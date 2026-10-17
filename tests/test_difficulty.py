@@ -318,7 +318,7 @@ def test_a_bad_md_block_reads_as_no_easy_or_hard_bonus_medals_and_leaves_mgb1_al
             assert (ml.line(gb, 12).split()[-1] == "GOLD") == ok, name
 
 
-# ---- every game plays the same in every mode (for now) ------------------------------------------------------------------------
+# ---- every game plays each mode its own way ------------------------------------------------------------------------
 SEED = 0x1D2C
 MG_IDS = [int(m.group(2)) for m in re.finditer(r"#define (MG_(?:QUICKDRAW|TSHIRT|LOGROLL|ORDERUP|MARSHMALLOW|BATTERY|MILKRUN|TAIKO|MONKEY|ASTEROID|SHAKEUP|FILLLINE|TIPS|STUB))\s+(\d+)",
                                               (ROOT / "src" / "mg.h").read_text())]
@@ -338,14 +338,20 @@ def run_script(model, game_id, mode):
                 gb.mem16("mg_timer"), gb.mem("mg_phase"), gb.mem16("mg_seed"), gb.mem("mg_medal"), bytes(gb.read(0x9800, 0x400)))
 
 
+TUNED = list(range(10)) + [12, 14]               # the ten venue games, the shake-up and Tip Shower differ in these 420 frames; Perfect Pour (a pour needs a held A: test_mg_tuning.py) and
+                                                  # the stub (GREEN LIGHT, not one of the 13) play the same
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("game_id", MG_IDS)
-def test_every_game_plays_the_same_in_all_three_modes(model, game_id):
-    """The same seed and keys: the game's whole state (its WRAM union, the sprites, score, timer, phase, seed, the tilemap) is byte for byte
-    the same after 420 frames in NORMAL, HARD and EASY."""
+def test_every_game_plays_each_mode_its_own_way(model, game_id):
+    """(Until 2026-10-17 every game played the same in all three modes.) The same seed and keys: the game's whole state (its WRAM union, the sprites,
+    score, timer, phase, seed, the tilemap) is the same on every run of one mode, and in HARD and EASY it is not NORMAL's (the tuning row is in the
+    state, and the games play differently: tests/test_mg_tuning.py has the key values), except where the first 420 frames cannot show it."""
     ref = run_script(model, game_id, NORMAL)
+    assert run_script(model, game_id, NORMAL) == ref, "a mode plays the same on every run"
     for mode in (HARD, EASY):
-        assert run_script(model, game_id, mode) == ref, (game_id, mode)
+        assert (run_script(model, game_id, mode) != ref) == (game_id in TUNED), (game_id, mode)
 
 
 # ---- the screens (goldens) ----------------------------------------------------------------------------------------------------

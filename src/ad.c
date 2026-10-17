@@ -23,7 +23,7 @@
 //   twice), a new beaker on the bar 30 frames later. Too fast: WHOA (a banner on row 14), the beaker bounces (v = -v / 2
 //   and it is put just outside the zone), nothing lost. An unlit porthole's dock is a wall.
 // - 45 s (the game's own clock, like Milk Run's), the HUD shows T + seconds. Medal by deliveries (ad_medal): GOLD 7,
-//   SILVER 5, BRONZE 3 (HARD values: the NORMAL tuning block below holds today's: D6c).
+//   SILVER 5, BRONZE 3 (HARD values; NORMAL 8 / 6 / 4, EASY 10 / 7 / 4: the ad_tune rows below).
 // - D6c (NORMAL, owner 2026-10-15): lanes 0, 2, 4 hold ONE rock (7 rocks, the second rock of those lanes is not drawn and never hits),
 //   the rocks go x1.25 from the 4th and x1.5 from the 8th delivery, the lit porthole's whole 24 px ledge is the hand zone and any touch
 //   delivers at any speed (no WHOA), and a blinking arrow at the edge a rock is about to come in from shows AD_WARN (40) frames before.
@@ -118,14 +118,26 @@ enum { AS_FLY, AS_TUMBLE, AS_GAP, AS_OUT };
 static const uint8_t porthole_col[3] = { 1, 8, 15 };
 static const uint8_t porthole_cx[3]  = { 20, 76, 132 };      // the docks' centres (x)
 // rock speeds, 8.8 px a frame: lane 0..4 at x1, then NORMAL x1.25, x1.5 (HARD: x1.5 = { 96, 144, 192, 144, 96 }, x2 = { 128, 192, 256, 192, 128 })
-static const uint16_t lane_speed[3][5] = {
+static const uint16_t lane_speed_n[3][5] = {
     {  64,  96, 128,  96,  64 },
     {  80, 120, 160, 120,  80 },
     {  96, 144, 192, 144,  96 },
 };
-// rocks in a lane, NORMAL (HARD: 2 in every lane, 10): the second rock of a lane with 1 is not drawn and never hits
-static const uint8_t lane_rocks[5] = { 1, 2, 1, 2, 1 };
-static uint8_t rock_on(uint8_t k) { return (k & 1) < lane_rocks[k >> 1]; }
+// HARD x1 / x1.5 / x2, EASY x1 / x1.125 / x1.25
+static const uint16_t lane_speed_h[3][5] = { { 64, 96, 128, 96, 64 }, { 96, 144, 192, 144, 96 }, { 128, 192, 256, 192, 128 } };
+static const uint16_t lane_speed_e[3][5] = { { 64, 96, 128, 96, 64 }, { 72, 108, 144, 108, 72 }, { 80, 120, 160, 120, 80 } };
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL), TUNING.md: the rock speeds, the rocks in each lane (the
+// second rock of a lane with 1 is not drawn and never hits), the deliveries before each speed step, half the hand zone, the touch speed that still delivers,
+// the edge warning's frames (0: none) and the medals (deliveries).
+static const struct ad_tune ad_tune[MG_DIFFS] = {
+    { lane_speed_n, { 1, 2, 1, 2, 1 }, AD_STEP1, AD_STEP2, AD_ZONE_HALF, AD_WARN, AD_GOLD, AD_SILVER, AD_BRONZE, AD_SLOW },
+    { lane_speed_h, { 2, 2, 2, 2, 2 }, 3, 6, 8, 0, 7, 5, 3, 192 },        // HARD: the first set: 10 rocks, x1.5 / x2, a 16 px zone, 0.75 px a frame to deliver
+    { lane_speed_e, { 1, 1, 1, 1, 1 }, 5, 10, 12, 60, 10, 7, 4, AD_SLOW },   // EASY: 5 rocks, x1.125 / x1.25, the whole ledge, no WHOA, the arrow 60 frames early
+};
+#define ADT             (S.tn)
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&ad_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
+static uint8_t rock_on(uint8_t k) { return (k & 1) < ADT.rocks[k >> 1]; }
 
 static void ad_put(uint8_t bank, uint8_t *t, uint8_t col, uint8_t row, uint8_t n) {
     if (LCDC_REG & LCDCF_ON) { vq_add(bank, t, col, row, n); return; }
@@ -187,6 +199,7 @@ static void draw(void);
 void ad_enter(void) BANKED {
     uint8_t k, r, c, *z = (uint8_t *)&S, *v = (uint8_t *)0x9800, tb[20], ta[20];
     for (k = 0; k < sizeof(struct ad_state); k++) z[k] = 0;
+    TUNE_LOAD();
     set_bkg_data(AD_BG, AD_BG_TILES, ad_bg_tiles);
     set_sprite_data(AD_OBJ_A, AD_OBJ_A_TILES, ad_obj_a_tiles);
     if (AD_OBJ_B_TILES) set_sprite_data(AD_OBJ_B, AD_OBJ_B_TILES, ad_obj_b_tiles);
@@ -272,7 +285,7 @@ static uint8_t warn_lane(uint8_t lane) {
         u = S.rx[k];
         if (!(lane & 1)) dist = u < (2u << 8) ? (2u << 8) - u : (178u << 8) - u;
         else dist = u > (174u << 8) ? u - (174u << 8) : u + (2u << 8);
-        if (dist <= (uint16_t)AD_WARN * lane_speed[S.spd][lane]) return 1;
+        if (ADT.warn && dist <= (uint16_t)ADT.warn * ADT.speed[S.spd][lane]) return 1;
     }
     return 0;
 }
@@ -378,7 +391,7 @@ static void deliver(void) {
     if (S.clk < AD_PAR) pts += (AD_PAR - S.clk) / 10;
     mg_points(pts);
     S.delivered++;
-    if (S.delivered == AD_STEP1) S.spd = 1; else if (S.delivered == AD_STEP2) S.spd = 2;
+    if (S.delivered == ADT.step1) S.spd = 1; else if (S.delivered == ADT.step2) S.spd = 2;
     hud_deliveries();
     vq_add(0, S.dbuf, 11, HUD_ROW, 3);
     put_porthole(S.lit, 0, 0);                   // this one goes dark, another lights (never the same twice)
@@ -402,7 +415,7 @@ static void whoa(void) {                         // too fast at the hand zone: i
 }
 
 static void beaker(void) {                       // the thrust, the walls, the dock, the rocks
-    uint16_t zx = (uint16_t)porthole_cx[S.lit] - AD_ZONE_HALF, ymin;
+    uint16_t zx = (uint16_t)porthole_cx[S.lit] - ADT.zone_half, ymin;
     uint8_t bx;
     if (S.st == AS_OUT) S.tx = S.ty = 0;         // (the outro: the beaker drifts to a stop)
     else {
@@ -415,12 +428,12 @@ static void beaker(void) {                       // the thrust, the walls, the d
     if (S.x < ((uint16_t)AD_X_MIN << 8)) { S.x = (uint16_t)AD_X_MIN << 8; S.vx = 0; }
     else if (S.x > ((uint16_t)AD_X_MAX << 8)) { S.x = (uint16_t)AD_X_MAX << 8; S.vx = 0; }
     bx = S.x >> 8;
-    ymin = (bx + 3 > zx && bx < zx + 2 * AD_ZONE_HALF + 3) ? AD_Y_MIN_DOCK : AD_Y_MIN;      // over the lit dock the way is open
+    ymin = (bx + 3 > zx && bx < zx + 2 * ADT.zone_half + 3) ? AD_Y_MIN_DOCK : AD_Y_MIN;      // over the lit dock the way is open
     if (S.y > ((uint16_t)AD_Y_MAX << 8)) { S.y = (uint16_t)AD_Y_MAX << 8; S.vy = 0; }
     else if (S.y < (ymin << 8)) { S.y = ymin << 8; S.vy = 0; }
     if (S.st != AS_FLY) return;
     if (S.y < ((uint16_t)AD_Y_MIN << 8)) {       // the flask's top is on the dock: soft enough, or WHOA
-        if (absv(S.vx) <= AD_SLOW && absv(S.vy) <= AD_SLOW) deliver();
+        if (absv(S.vx) <= ADT.slow && absv(S.vy) <= ADT.slow) deliver();
         else whoa();
         return;
     }
@@ -446,7 +459,7 @@ void ad_update(uint8_t pressed) BANKED {
     else if (++S.a10 == 10) { S.a10 = 0; S.p10 ^= 1; }
     if (S.t < 255) S.t++;
     for (k = 0; k < AD_ROCKS; k++) {             // the rocks drift (lane 0 right, then alternating)
-        sp = lane_speed[S.spd][k >> 1];
+        sp = ADT.speed[S.spd][k >> 1];
         if (!((k >> 1) & 1)) {
             S.rx[k] += sp;
             if (S.rx[k] >= AD_LOOP) S.rx[k] -= AD_LOOP;
@@ -478,6 +491,6 @@ void ad_update(uint8_t pressed) BANKED {
 }
 
 uint8_t ad_medal(void) BANKED {
-    return S.delivered >= AD_GOLD ? MEDAL_GOLD : S.delivered >= AD_SILVER ? MEDAL_SILVER
-         : S.delivered >= AD_BRONZE ? MEDAL_BRONZE : MEDAL_NONE;
+    return S.delivered >= ADT.gold ? MEDAL_GOLD : S.delivered >= ADT.silver ? MEDAL_SILVER
+         : S.delivered >= ADT.bronze ? MEDAL_BRONZE : MEDAL_NONE;
 }

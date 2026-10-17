@@ -35,6 +35,8 @@ def _layout():
         if not line:
             continue
         m = re.match(r"(uint8_t|uint16_t|int8_t|int16_t)\s+(.*);", line)
+        if m is None:                       # (the `struct xx_tune tn` at the end: the difficulty's tuning row, not read by the tests)
+            continue
         width = {"uint8_t": 1, "uint16_t": 2, "int8_t": 1, "int16_t": 2}[m[1]]
         signed = m[1].startswith("int")
         for decl in m[2].split(","):

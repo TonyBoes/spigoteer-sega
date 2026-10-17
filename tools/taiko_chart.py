@@ -47,7 +47,17 @@ GRID_NORMAL = [
     ("A...A...", "..B...B."), ("A.A.....", "....B.B."), ("A...A.A.", "..B....."), ("A.A.A...", "......B."),
 ]
 
-GRIDS = {"normal": GRID_NORMAL, "hard": GRID}
+# EASY (the difficulty table, 2026-10-17): a note every half note at most in a lane: round 1 the don on beats 1 and 3, round 2 one note a half bar
+# alternating the lanes, round 3 three a bar (a note of the other lane may sit a quarter away, never one of the same lane): 56 notes.
+GRID_EASY = [
+    *[("A...A...", "........")] * 8,
+    ("A.......", "....B..."), ("..A.....", "......B."), ("A.......", "....B..."), ("..A.....", "......B."),
+    ("A.......", "....B..."), ("..A.....", "......B."), ("A.......", "....B..."), ("..A.....", "......B."),
+    ("A.......", "..B...B."), ("A...A...", "......B."), ("A.......", "..B...B."), ("A...A...", "......B."),
+    ("A.......", "..B...B."), ("A...A...", "......B."), ("A.......", "..B...B."), ("A...A...", "..B...B."),
+]
+
+GRIDS = {"normal": GRID_NORMAL, "hard": GRID, "easy": GRID_EASY}
 
 
 def build(level="normal"):
@@ -64,6 +74,10 @@ def build(level="normal"):
     assert len({t for t, _ in notes}) == len(notes), "two notes on one row: one key press each, never both at once"
     if level == "normal":
         assert all(b - a >= 2 * ROW for (a, _), (b, _) in zip(notes, notes[1:])), "NORMAL: no notes closer than a quarter"
+    if level == "easy":
+        for lane in (0, 1):
+            ts = [t for t, ln in notes if ln == lane]
+            assert all(b - a >= 4 * ROW for a, b in zip(ts, ts[1:])), "EASY: no two notes of a lane closer than a half note"
     return notes
 
 

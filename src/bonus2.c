@@ -58,7 +58,10 @@ enum { PR_NONE, PR_PERFECT, PR_GOOD, PR_LOW, PR_HIGH, PR_SPILL };
 #define INNER_BOT       (RIM_Y + 32)         // 80: interior bottom (the base starts here)
 #define GLASS_H         32
 #define TAP_Y           32
-#define POUR_RATE       4       // frames per px of beer
+#define POUR_RATE       4       // frames per px of beer (NORMAL)
+// Perfect Pour per difficulty (indexed by BONUS_DIFF: NORMAL, HARD, EASY; ARCADE / CLASSIC play NORMAL), TUNING.md: frames per px of beer and the
+// PERFECT and GOOD windows (px off the line).
+static const uint8_t pour_rate[3] = { POUR_RATE, 3, 5 }, pour_perfect[3] = { 1, 1, 2 }, pour_good[3] = { 4, 3, 5 };
 #define FOAM_POUR       3       // head while pouring
 #define FOAM_RISE       4       // ... and how much more it rises after the release
 #define FOAM_RISE_STEP  8       // frames per px of that rise
@@ -93,6 +96,12 @@ enum { PR_NONE, PR_PERFECT, PR_GOOD, PR_LOW, PR_HIGH, PR_SPILL };
 #define TS_TOP          32      // items appear under the banner
 #define TIPS_TIME       1200    // 20 s
 #define TRAY_DIRTY      60
+// Tip Shower per difficulty (indexed by BONUS_DIFF: NORMAL, HARD, EASY; ARCADE / CLASSIC play NORMAL), TUNING.md: frames to the next item (+ 0..15), a tomato
+// when (random & mask) < tomatoes, an item's speed (vbase + 0..vrange - 1, 1/16 px a frame), and the frames a tomato dirties the tray.
+static const struct { uint8_t spawn, mask, tomatoes, vbase, vrange, dirty; } tips_tune[3] = {
+    { 14, 3, 1, 12, 17, TRAY_DIRTY }, { 10, 7, 3, 16, 21, 90 }, { 18, 7, 1, 10, 13, 36 },
+};
+#define TIPT            tips_tune[BONUS_DIFF()]
 #define TRAY_MIN        8
 #define TRAY_MAX        136
 #define TIP_VALUE       100
@@ -255,8 +264,8 @@ static void pour_judge(void) {
     uint8_t lv = pour_liquid + pour_foam, d;
     d = lv > pour_line ? lv - pour_line : pour_line - lv;
     if (lv > GLASS_H) pour_result = PR_SPILL;
-    else if (d <= 1) pour_result = PR_PERFECT;
-    else if (d <= 4) pour_result = PR_GOOD;
+    else if (d <= pour_perfect[BONUS_DIFF()]) pour_result = PR_PERFECT;
+    else if (d <= pour_good[BONUS_DIFF()]) pour_result = PR_GOOD;
     else pour_result = lv < pour_line ? PR_LOW : PR_HIGH;
     bonus_timer = 0;
     switch (pour_result) {
@@ -340,7 +349,7 @@ static uint8_t pour_update(void) {
         break;
     case PP_POUR:
         if (!held) { bonus_phase = PP_SETTLE; bonus_timer = 0; pour_sub = 0; pour_rise = pour_liquid ? FOAM_RISE : 0; break; }
-        if (++pour_sub >= POUR_RATE) {
+        if (++pour_sub >= pour_rate[BONUS_DIFF()]) {
             pour_sub = 0;
             pour_liquid++;
             if (pour_foam < FOAM_POUR && pour_liquid >= 2 * (pour_foam + 1)) pour_foam++;
@@ -389,9 +398,9 @@ static void tips_spawn_item(void) {
     for (i = 0; i < TS_ITEMS; i++) if (!ts_type[i]) break;
     if (i == TS_ITEMS) return;
     r = next_rand();
-    ts_type[i] = (r & 3) == 0 ? TS_TOMATO : TS_COIN;
+    ts_type[i] = (r & TIPT.mask) < TIPT.tomatoes ? TS_TOMATO : TS_COIN;
     ts_x[i] = 8 + next_rand() % 145;                  // 8..152
-    ts_v[i] = 12 + next_rand() % 17;                  // 0.75 .. 1.75 px per frame
+    ts_v[i] = TIPT.vbase + next_rand() % TIPT.vrange;                  // 0.75 .. 1.75 px per frame
     ts_y[i] = TS_TOP << 4;
 }
 
@@ -406,7 +415,7 @@ static void tips_items(void) {
         cx = ts_x[i] + 4;
         if (bot0 < TRAY_SURFACE && bot1 >= TRAY_SURFACE && cx + 4 >= tray_x && cx <= tray_x + 20) {   // the tray spans x-4..x+19
             if (ts_type[i] == TS_TOMATO) {
-                ts_type[i] = 0; tray_dirty = TRAY_DIRTY; tips_tomatoes++; SFX(SFX_BREAK);
+                ts_type[i] = 0; tray_dirty = TIPT.dirty; tips_tomatoes++; SFX(SFX_BREAK);
                 continue;
             }
             if (!tray_dirty) {
@@ -437,7 +446,7 @@ static void draw_tips(void) {
         }
     }
     f = BT_IDLE;
-    if (tray_dirty > TRAY_DIRTY - 20) f = BT_FAIL;
+    if (tray_dirty > TIPT.dirty - 20) f = BT_FAIL;
     else if (tray_walk) f = (tray_walk & 8) ? BT_WALK1 : BT_WALK2;
     draw_bt(OAM_BT_TIPS, tray_x, f, tray_left);
 }
@@ -467,7 +476,7 @@ static uint8_t tips_update(void) {
             tray_walk = (uint8_t)(bonus_timer | 1);
         }
         if (tray_dirty) tray_dirty--;
-        if (!--tips_spawn) { tips_spawn_item(); tips_spawn = 14 + (next_rand() & 15); }
+        if (!--tips_spawn) { tips_spawn_item(); tips_spawn = TIPT.spawn + (next_rand() & 15); }
         tips_items();
         tips_time--;
         s = last_secs;                           // (ceil(tips_time / 60): re-derived only when tips_time leaves the last value's 60-frame band)

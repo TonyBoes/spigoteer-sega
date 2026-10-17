@@ -824,26 +824,29 @@ def test_the_medal_is_by_the_score(model, pts, medal):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_practice_hard_plays_as_normal_for_now(model):
-    """Owner 2026-10-15: every difficulty plays the same until the playtest notes come, so HARD is NORMAL (src/mr.c MR_IS_HARD 0; the
-    HARD constants stay in the source): it starts at 1.5 px, LEFT stops at the 1.0 floor, a bump slow spills 2."""
-    assert HARD_START == 32 and HARD_MIN == 28, "the HARD constants are kept for later"
-    for mode in (MG_PRACTICE | MG_HARD, MG_PRACTICE | 4):
+def test_practice_hard_and_easy_play_their_own_tuning(model):
+    """Since 2026-10-17 (src/mr.c mr_tune, TUNING.md): HARD starts at 2.0 px, LEFT stops at 1.75 and a bump spills 3 at any speed, 9 crates; EASY starts at
+    1.25 px, LEFT stops at the 1.0 floor, a slow bump spills 1 (2 from 2.0 px), 12 crates. (NORMAL, STORY and ARCADE: below.)"""
+    assert HARD_START == 32 and HARD_MIN == 28
+    # mode, start speed, LEFT's floor, crates at the start, the spill at the floor's speed, the spill at 2.0 px
+    for mode, start, floor, crates, slow_drop, fast_drop in ((MG_PRACTICE | MG_HARD, 32, 28, 9, 3, 3), (MG_PRACTICE | 4, 20, 16, 12, 1, 2)):
         with milk_run(model, mode) as gb:
             to_riding(gb)
-            assert mr(gb)["spd"] == SPD_START == 24
+            assert mr(gb)["spd"] == start and mr(gb)["crates"] == crates
             clear_ring(gb)
             gb.hold("left")
-            frames(gb, 60)
+            frames(gb, 90)
             gb.release("left")
-            assert snap(gb)["spd"] == SPD_MIN == 16, "LEFT stops at 1.0 in every mode"
-            put_bike(gb, 0)
-            frames(gb, 14)
-            poke(gb, inv=0, spd=SPD_MIN)
-            c0 = mr(gb)["crates"]
-            put_gate(gb, 0b001)
-            frames(gb, 2)
-            assert mr(gb)["crates"] == c0 - DROP and mr(gb)["lost_n"] == DROP, "a slow bump spills 2, not 3"
+            assert snap(gb)["spd"] == floor, "LEFT stops at the mode's floor"
+            for spd, drop in ((floor, slow_drop), (SPD_FAST, fast_drop)):
+                put_bike(gb, 0)
+                frames(gb, 14)
+                poke(gb, inv=0, spd=spd)
+                c0 = mr(gb)["crates"]
+                put_gate(gb, 0b001)
+                frames(gb, 2)
+                assert mr(gb)["crates"] == c0 - drop and mr(gb)["lost_n"] == drop, (mode, spd)
+                poke(gb, inv=0, crates=c0)
     with milk_run(model) as gb:
         to_riding(gb)
         assert mr(gb)["spd"] == SPD_START, "a normal practice starts at 1.5"

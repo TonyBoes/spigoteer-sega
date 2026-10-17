@@ -2059,18 +2059,27 @@ every frame on time; four bars at once (more than one bartender can serve) run s
 11. Fair empties: `next_arrival` is the same with and without a shove in the same scripted scene.
 12. Score, served and tips are the same with and without shoves.
 
-## Practice difficulty (2026-10-15, owner: "put in the selection but make every difficulty level the same right now")
+## Practice difficulty (2026-10-15 the selection; 2026-10-17 the tuning)
 
 BONUS > MINI GAMES offers EASY / NORMAL / HARD for every game on the list (the ten venue games, the three bonus rounds; the debug stub too).
 LEFT and RIGHT cycle them (RIGHT: EASY, NORMAL, HARD, round; SELECT goes forward too); the header's right side names the mode ("MINI GAMES  HARD"),
 the info lines read "<MODE> BEST GOLD" / "<MODE> NO MEDAL YET" and the keys line "A GO B BACK L R MODE", and the list's medal column is that mode's.
 The mode is chosen once for the whole list and outlasts a game and a visit to the title. A game reads it as `MG_DIFF` (mg.h: two bits of
 `mg_mode`, 0 NORMAL, 1 HARD, 2 EASY; no WRAM of its own); STORY and ARCADE pass `MG_STORY` and always play NORMAL.
-Every game plays exactly the same in the three modes for now (tests/test_difficulty.py runs each game 420 frames from a fixed seed and keys in
-each mode and compares its whole state). Milk Run's HARD tuning (start 2.0 px, floor 1.75, 3 crates a bump) and the stub's are kept as named
-constants but switched off (`MR_IS_HARD`, `STUB_IS_HARD` are 0; make them `(MG_DIFF == MG_D_HARD)` to bring them back). Medal thresholds are one
-table for all three modes (mg.c `medal_tbl[MG_DIFF]`, three pointers to the same table); a mode that gets its own thresholds gets its own table;
-the games with their own medal function read `MG_DIFF` there.
+Since 2026-10-17 (owner: "go ahead and implement the difficulty suggestions you come up with for mini games") each of the ten venue games and the three
+bonus rounds plays its own EASY and HARD (NORMAL, STORY and ARCADE unchanged; the stub, GREEN LIGHT, plays the same in every mode). A game keeps a
+const table of rows (`struct xx_tune`, src/mg.h; the table in the game's own file, indexed by `MG_DIFF`: NORMAL, HARD, EASY) and copies its row into the
+last field of its state at entry (`S.tn`; reading a field costs less than indexing a table, and Asteroid Delivery's frame budget needs that). The bonus
+rounds use small arrays indexed by `BONUS_DIFF()` (bonus.h: 0 outside the framework, so ARCADE and CLASSIC play NORMAL). What each mode changes, the medal
+thresholds per mode and the scripted players (beginner, average, expert) behind them are in the design table TUNING.md that went with the change; in short:
+Quick Draw the Kid's draw frames, feints and badge; Order Up! the light, gap, press time and order length; Battery Sort D, the belt and the broken share;
+T-Shirt Cannon the meter step, the fans' hands and the time; Log Roll the roll's strength, flips and fish; Milk Run the start speed and floor, the spill,
+the windows and crates; Marshmallow the belt, the opening and the supply; Taiko Pour the chart (HARD the first 112 notes, EASY 57) and the windows; Monkey
+Business the stay, pop interval, cap and parrots; Asteroid Delivery the rocks, their speed, the hand zone and the warning; the shake-up the swap speed
+and count; Perfect Pour the pour rate and windows; Tip Shower the item rate, tomatoes, speed and dirty time. Medal thresholds: mg.c `medal_at` (NORMAL),
+`medal_at_hard`, `medal_at_easy`; the games with their own medal function (Quick Draw, Order Up!, Milk Run, Log Roll, Asteroid, Taiko) keep their
+thresholds in their row. tests/test_mg_tuning.py checks every row, the key values in play and the medals of each mode; tests/test_difficulty.py runs each
+game 420 frames from a fixed seed and keys in each mode and compares its whole state (NORMAL repeats; HARD and EASY differ).
 Saving: a medal per game per mode. The ten games' byte in the "MGP2" block holds NORMAL in bits 0-1, HARD in 2-3, EASY in 4-5 (an older save has
 bits 4-5 clear: its medals are NORMAL's, EASY has none; a byte above 63 makes the block bad: nothing loads). The bonus rounds keep NORMAL in
 "MGB1" (byte 5) and EASY / HARD in a new six-byte block "MD" at 0x7A (the last gap before the tables: magic, EASY medals, HARD medals, checksum,

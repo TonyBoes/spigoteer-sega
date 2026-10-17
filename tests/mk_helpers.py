@@ -39,6 +39,8 @@ def _layout():
         if not line:
             continue
         m = re.match(r"(uint8_t|uint16_t|struct mk_crate)\s+(.*);", line)
+        if m is None:                       # (the `struct xx_tune tn` at the end: the difficulty's tuning row, not read by the tests)
+            continue
         width = {"uint8_t": 1, "uint16_t": 2, "struct mk_crate": 4}[m[1]]
         for decl in m[2].split(","):
             decl = decl.strip()

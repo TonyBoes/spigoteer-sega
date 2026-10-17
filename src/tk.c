@@ -12,7 +12,7 @@
 //   proposal's engine rule: with the 22 px spacing, an 8th note on a lane line plus the hit flash made 10 sprites).
 // - Score: PERFECT 300, GOOD 100, plus 10 for each note of the combo counting this one (at most 100); each 8 GOOD-or-better
 //   notes serve a bowl (+500). Medal by accuracy (PERFECT 1, GOOD 0.5, of all the notes): GOLD >= 90%, SILVER >= 70%,
-//   BRONZE >= 50%. One setting (the spec has no HARD).
+//   BRONZE >= 50% (NORMAL). EASY / HARD: tk_tune (the chart, the windows, the percentages).
 // - Sync: the clock is src/music.c's music_frames (frames since the tune's first row), so a late frame never drifts the
 //   chart: a note's x is computed from the clock, not stepped. With MUSIC OFF (owner Q4: silent, but playable) the game
 //   counts its own frames from the same start (the framework's intro + count are about 150 frames).
@@ -55,6 +55,16 @@ typedef char tk_fits[(TK_OBJ + TK_OBJ_TILES <= OBJ_COIN && TK_BG + TK_BG_TILES <
 #define TK_GOLD_PCT    90                   // medals by accuracy (PERFECT 1, GOOD 0.5 of all notes): scripted bots in DESIGN.md
 #define TK_SILVER_PCT  70                   // (HARD: 75)
 #define TK_BRONZE_PCT  50
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL), TUNING.md: the chart and its note count, the judging
+// windows (frames) and the medal percentages.
+static const struct tk_tune tk_tune[MG_DIFFS] = {
+    { tk_chart,   TK_NOTES,   TK_PERFECT, TK_GOOD, TK_REACH, TK_GOLD_PCT, TK_SILVER_PCT, TK_BRONZE_PCT },
+    { tk_chart_h, TK_NOTES_H, 3, 6, 10, 82, 68, 45 },       // HARD: the first chart (112 notes, eighth pairs), tighter windows
+    { tk_chart_e, TK_NOTES_E, 5, 9, 12, 90, 70, 40 },       // EASY: 56 notes at most a half note apart in a lane, wider windows
+};
+#define TKT             (S.tn)
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&tk_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
 #define TK_HIT_X       24                   // the hit mark's centre
 #define TK_BEAT        24                   // frames a quarter note
 #define TK_FLASH_LEN    8                   // the banks lit at each beat
@@ -221,8 +231,8 @@ static void sprites(void) {
     for (k = 0; k < TK_LIVE; k++) {
         i = S.live[k];
         if (i == 255) { hide(OAM_NOTES + k); continue; }
-        lane = tk_chart[i & 0x7F] >> 15;
-        d = (int16_t)(tk_chart[i & 0x7F] & 0x7FFF) - (int16_t)S.clk;
+        lane = TKT.chart[i & 0x7F] >> 15;
+        d = (int16_t)(TKT.chart[i & 0x7F] & 0x7FFF) - (int16_t)S.clk;
         cx = TK_HIT_X + d + (d >> 1);                   // 1.5 px a frame
         if (cx - 4 >= 160 || cx < 6) { hide(OAM_NOTES + k); continue; }
         x = (uint8_t)(cx - 4);
@@ -260,6 +270,7 @@ static void backing(void);                              // (defined below, with 
 void tk_enter(void) BANKED {
     uint16_t p[4];
     uint8_t r, c, k;
+    TUNE_LOAD();
     set_bkg_data(TK_BG, TK_BG_TILES, tk_bg_tiles);
     set_sprite_data(TK_OBJ, TK_OBJ_TILES, tk_obj_tiles);
     for (k = 0; k < 16; k++) {                          // the banks' two tile states, from the BG data just loaded
@@ -330,13 +341,14 @@ void tk_enter(void) BANKED {
 
 uint8_t tk_medal(void) BANKED {
     uint16_t a2 = 2 * (uint16_t)S.perfect + S.good;      // accuracy in half notes, of 2 x TK_NOTES
-    if (100 * a2 >= 2 * TK_GOLD_PCT * (uint16_t)TK_NOTES) return MEDAL_GOLD;
-    if (100 * a2 >= 2 * TK_SILVER_PCT * (uint16_t)TK_NOTES) return MEDAL_SILVER;
-    return 100 * a2 >= 2 * TK_BRONZE_PCT * (uint16_t)TK_NOTES ? MEDAL_BRONZE : MEDAL_NONE;
+    uint16_t n2 = 2 * (uint16_t)TKT.notes;
+    if (100 * a2 >= TKT.gold * n2) return MEDAL_GOLD;
+    if (100 * a2 >= TKT.silver * n2) return MEDAL_SILVER;
+    return 100 * a2 >= TKT.bronze * n2 ? MEDAL_BRONZE : MEDAL_NONE;
 }
 
 // ---- the game ----
-static uint16_t note_t(uint8_t i) { return tk_chart[i] & 0x7FFF; }
+static uint16_t note_t(uint8_t i) { return TKT.chart[i] & 0x7FFF; }
 
 static void spill_penalty(void) {                         // -50, never below what this game earned
     uint16_t n = mg_score < TK_PTS_SPILL ? mg_score : TK_PTS_SPILL;
@@ -384,10 +396,10 @@ static void press(uint8_t lane, uint16_t c) {
     int16_t d;
     for (k = 0; k < TK_LIVE; k++) {
         i = S.live[k];
-        if (i == 255 || (i & 0x80) || (tk_chart[i] >> 15) != lane) continue;
+        if (i == 255 || (i & 0x80) || (TKT.chart[i] >> 15) != lane) continue;
         d = (int16_t)c - (int16_t)note_t(i);
-        if (d < -TK_REACH) break;                          // (live is in time order: nothing nearer follows)
-        if (d <= TK_REACH) { found = k; break; }
+        if (d < -(int16_t)TKT.reach) break;                          // (live is in time order: nothing nearer follows)
+        if (d <= TKT.reach) { found = k; break; }
     }
     if (found == 255) {                                    // SPILL
         S.spills++; S.last = 4;
@@ -400,7 +412,7 @@ static void press(uint8_t lane, uint16_t c) {
     i = S.live[found];
     d = (int16_t)c - (int16_t)note_t(i);
     if (d < 0) d = -d;
-    if (d <= TK_GOOD) { hit(lane, found, d <= TK_PERFECT); return; }
+    if (d <= TKT.good) { hit(lane, found, d <= TKT.perfect); return; }
     S.live[found] = i | 0x80;                              // MISS: spent, slides on
     S.miss++; S.judged++; S.last = 3;
     lose_combo();
@@ -428,14 +440,14 @@ static void notes_update(uint16_t c, uint8_t pressed) {
         i = S.live[k];
         if (i == 255) continue;
         d = (int16_t)c - (int16_t)note_t(i & 0x7F);
-        if (d > TK_REACH && !(i & 0x80)) { S.live[k] = i |= 0x80; S.miss++; S.judged++; S.last = 3; lose_combo(); }
+        if (d > TKT.reach && !(i & 0x80)) { S.live[k] = i |= 0x80; S.miss++; S.judged++; S.last = 3; lose_combo(); }
         if (d > TK_DROP) S.live[k] = 255;
     }
     // compact (time order), then spawn
     for (k = 0, n = 0; k < TK_LIVE; k++)
         if (S.live[k] != 255) S.live[n++] = S.live[k];
     for (k = n; k < TK_LIVE; k++) S.live[k] = 255;
-    while (S.next < TK_NOTES && n < TK_LIVE && (int16_t)note_t(S.next) - (int16_t)c <= TK_SPAWN) S.live[n++] = S.next++;
+    while (S.next < TKT.notes && n < TK_LIVE && (int16_t)note_t(S.next) - (int16_t)c <= TK_SPAWN) S.live[n++] = S.next++;
     if (pressed & J_A) press(0, c);
     if (pressed & J_B) press(1, c);
 }
@@ -541,7 +553,7 @@ void tk_update(uint8_t pressed) BANKED {
     if (mg_phase == MG_PLAY) {
         count_in(c);
         notes_update(c, pressed);
-        if (S.judged >= TK_NOTES && S.next >= TK_NOTES) {
+        if (S.judged >= TKT.notes && S.next >= TKT.notes) {
             if (++S.end_t >= TK_END_WAIT) mg_finish();
         }
     }

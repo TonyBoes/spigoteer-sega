@@ -15,7 +15,8 @@
 //   cross and steaming, OU_SENT_LEN frames, then the same order is called again (not grown). 3 strikes end the game.
 // - The order served: ORDER UP! (the cloche lifts, Colby pleased, the Spigoteer cheers, the waiter dances) and
 //   200 x r points, OU_UP_LEN frames; round 7 served ends the game, +1000 with no strike at all.
-// - Medal (ou_medal, not a score threshold): GOLD round 7 served, SILVER round 5, BRONZE round 3. No timer, no HARD.
+// - Medal (ou_medal, not a score threshold): GOLD round 7 served, SILVER round 5, BRONZE round 3. No timer. EASY / HARD change how long a
+//   dish is lit, the order's length (EASY one dish shorter, HARD one longer, at most 9) and the frames a press has (press_len, TUNING.md).
 // - Sounds (no new SFX): the dishes UP SFX_COIN, RIGHT SFX_CATCH, DOWN SFX_LAUNCH, LEFT SFX_SHAKE; ORDER UP!
 //   SFX_SERVE (the bell); SENT BACK SFX_BREAK.
 //
@@ -107,8 +108,15 @@ static const uint16_t dish_col[4][3] = {
     { HEX(0xC890E8UL), HEX(0x7838A8UL), HEX(0x281038UL) },    // grapes
 };
 #define GLOW    HEX(0xF8E070UL)
-static const uint8_t lit_len[OU_ROUNDS] = { 24, 24, 24, 20, 20, 16, 16 };
-static const uint8_t gap_len[OU_ROUNDS] = { 8, 8, 8, 6, 6, 6, 6 };
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL), TUNING.md: how long each dish is lit and dark
+// (frames, per round), the frames for each press, and the first order's length (round r: r + first - 1 dishes, at most OU_LEN_MAX).
+static const struct ou_tune ou_tune[MG_DIFFS] = {
+    { { 24, 24, 24, 20, 20, 16, 16 }, { 8, 8, 8, 6, 6, 6, 6 }, OU_PRESS_LEN, OU_FIRST_LEN },
+    { { 18, 16, 14, 12, 12, 10, 10 }, { 6, 5, 4, 4, 4, 4, 4 }, 100, OU_FIRST_LEN + 1 },
+    { { 30, 30, 30, 26, 26, 22, 22 }, { 10, 10, 10, 8, 8, 8, 8 }, 240, OU_FIRST_LEN - 1 },
+};
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&ou_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
 
 static void ou_put(uint8_t bank, uint8_t *t, uint8_t col, uint8_t row, uint8_t n) {
     if (LCDC_REG & LCDCF_ON) { vq_add(bank, t, col, row, n); return; }
@@ -249,6 +257,7 @@ void ou_enter(void) BANKED {
         set_sprite_palette(PAL_X, 1, p);         // the X: red, outlined dark
         set_sprite_palette(PAL_WAITER, 1, venue.pal[VENUE_PAL_SHOW]);
     } else OBP1_REG = OBP1_MENU;                 // the X and the waiter: 0xC4 (the level load puts 0xE4 back)
+    TUNE_LOAD();
     S.st = OS_NEXT; S.round = 0; S.len = 0; S.idx = 0; S.strikes = 0; S.t = 0; S.wait = 0; S.cleared = 0;
     for (k = 0; k < OU_LEN_MAX; k++) S.seq[k] = 0;
     S.x_on = S.want = S.shown = S.pal_dish = S.pal_want = OU_NONE;
@@ -360,7 +369,10 @@ void ou_update(uint8_t pressed) BANKED {
         case OS_NEXT:                            // a new round (the order grown by one), or the same order again
             if (!S.again) {
                 S.round++; r = S.round - 1;
-                while (S.len < S.round + OU_FIRST_LEN - 1) S.seq[S.len++] = mg_rand() & 3;
+                r = S.round + S.tn.first - 1;
+                if (r > OU_LEN_MAX) r = OU_LEN_MAX;
+                while (S.len < r) S.seq[S.len++] = mg_rand() & 3;
+                r = S.round - 1;
             }
             S.again = 0; S.idx = 0; S.t = 0;
             S.st = OS_PRE;
@@ -375,11 +387,11 @@ void ou_update(uint8_t pressed) BANKED {
             break;
         case OS_CALL:
             S.t++;
-            if (S.t == lit_len[r]) { S.want = OU_NONE; S.colby = C_WATCH; bubble(OU_EMPTY); }
-            else if (S.t >= lit_len[r] + gap_len[r]) {
+            if (S.t == S.tn.lit[r]) { S.want = OU_NONE; S.colby = C_WATCH; bubble(OU_EMPTY); }
+            else if (S.t >= S.tn.lit[r] + S.tn.gap[r]) {
                 if (++S.idx < S.len) call(S.idx);
                 else {
-                    S.st = OS_TURN; S.idx = 0; S.t = 0; S.wait = OU_PRESS_LEN;
+                    S.st = OS_TURN; S.idx = 0; S.t = 0; S.wait = S.tn.press;
                     bubble(OU_NONE);
                     mg_say(MG_TEXT_B, "YOUR TURN");
                 }
@@ -411,7 +423,7 @@ void ou_update(uint8_t pressed) BANKED {
                 mg_points(OU_DISH_PTS);
                 pips(S.idx);
                 S.want = d; S.light_t = OU_LIGHT_LEN; S.serve_t = OU_LIGHT_LEN;
-                S.wait = OU_PRESS_LEN;
+                S.wait = S.tn.press;
                 tone(d);
             } else if (--S.wait == 0) strike(OU_NONE);
             break;

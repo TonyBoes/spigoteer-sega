@@ -19,8 +19,9 @@
 
 // mg_enter's mode: the story's mini-game slot (always NORMAL), or Practice with a difficulty chosen on the list (src/mg_list.c).
 // The difficulty is two bits of mg_mode (no WRAM of its own): a game reads MG_DIFF, 0 NORMAL, 1 HARD, 2 EASY (NORMAL is 0 so that STORY and
-// ARCADE, which pass MG_STORY, play it). Owner 2026-10-15: EASY, NORMAL and HARD are selectable in Practice but every game plays the same in
-// all three for now; the owner's playtest notes will set them apart later (Milk Run's and the stub's old HARD constants stay in place, unused).
+// ARCADE, which pass MG_STORY, play it). Since 2026-10-17 each of the ten venue games and the three bonus rounds has its own EASY and HARD tuning (a const
+// table per game indexed by MG_DIFF, its row copied into the state at entry: the tune structs below; the medal thresholds per mode in mg.c, mr.c, lr.c,
+// ad.c, tk.c; the design table and the scripted players behind them in TUNING.md). The stub (GREEN LIGHT) plays the same in every mode.
 #define MG_STORY        0
 #define MG_PRACTICE     1
 #define MG_HARD         2       // | MG_PRACTICE: difficulty code MG_D_HARD
@@ -109,6 +110,19 @@ uint8_t mg_rand(void) BANKED;                    // the game's own 16-bit xorshi
 void mg_spigoteer(uint8_t x, uint8_t y, uint8_t frame, uint8_t left, uint8_t oam) BANKED;   // OAM oam..oam+3, px of his top-left
 void mg_number(char *dst, uint16_t n) BANKED;    // n in decimal, no leading zeros, 0-terminated (dst: WRAM, >= 6)
 
+// ---- the difficulty's tuning (EASY / NORMAL / HARD; mg.h MG_DIFF): each game keeps a const table of these rows (indexed by MG_DIFF: NORMAL, HARD, EASY)
+// and copies its row into its state at entry (the last field of each state: a field read is cheaper than indexing a table every frame). TUNING.md.
+struct qd_tune { uint8_t r[5], feint_from, badge_from, silver_lost; };
+struct ou_tune { uint8_t lit[7], gap[7], press, first; };
+struct bs_tune { uint8_t win0, win_step, win_every, win_min, speed0, speed_every, speed_max, broken_p; };
+struct ts_tune { uint8_t step, up, up_max, spawn, time_s; };
+struct lr_tune { int16_t drift0; uint16_t fish_first, gap0; uint8_t flip_min, flip_range, gold, silver, bronze; };
+struct mr_tune { uint8_t spd_start, spd_min, drop, drop_fast, perfect, delivered, crates; uint16_t bronze, silver, gold; };
+struct mm_tune { uint8_t belt; int8_t lo, hi; uint8_t supply; };
+struct tk_tune { const uint16_t *chart; uint8_t notes, perfect, good, reach, gold, silver, bronze; };
+struct mk_tune { uint8_t u0, u_min, gap0, gap_min, gap_step; uint16_t cap_late, parrot_at; };
+struct ad_tune { const uint16_t (*speed)[5]; uint8_t rocks[5], step1, step2, zone_half, warn, gold, silver, bronze; uint16_t slow; };
+
 // ---- the games -------------------------------------------------------------------------------------------------
 void stub_enter(void) BANKED;                    // src/mg_stub.c: GREEN LIGHT
 void stub_update(uint8_t pressed) BANKED;
@@ -148,6 +162,7 @@ struct qd_state {               // tests read these at story_scratch + offset (t
     uint8_t anim;               // frames counted by qd_update (the shake's and the drips' beat)
     uint8_t wall[20];           // the wall's tile row under the stream, saved at entry
     uint8_t row[20];            // the stream row being shown (VBlank queue source)
+    struct qd_tune tn;           // the difficulty's tuning (copied at entry: src/qd.c)
 };
 
 void bs_enter(void) BANKED;                      // src/bs.c: BATTERY SORT (the robot factory)
@@ -182,6 +197,7 @@ struct bs_state {               // tests read these at story_scratch + offset (t
     uint8_t lamps[3], scr[2], lid[4], belt_row[9];   // VBlank queue sources
     uint8_t hud_attr[20];
     uint8_t wall[2][20], wattr[2][20];   // the banner rows as wall (tiles, CGB attributes), saved at entry
+    struct bs_tune tn;           // the difficulty's tuning (copied at entry: src/bs.c)
 };
 
 void ou_enter(void) BANKED;                      // src/ou.c: ORDER UP! (the bistro)
@@ -220,6 +236,7 @@ struct ou_state {               // tests read these at story_scratch + offset (t
     uint8_t pwall[9];           // the wall there, saved at entry
     uint8_t hud[3];             // the strikes, HUD columns 16-18
     char    txt[14];            // a text line being built
+    struct ou_tune tn;           // the difficulty's tuning (copied at entry: src/ou.c)
 };
 
 void mr_enter(void) BANKED;                      // src/mr.c: MILK RUN (The Chrome Cow)
@@ -279,6 +296,7 @@ struct mr_state {               // tests read these at story_scratch + offset (t
     uint8_t gbuf[2];            // +194 the HUD speed gauge's two cells (VBlank queue source)
     uint8_t gauge;              // +196 the gauge's level shown (0-4)
     uint8_t done;               // +197 1: the course is done (the last box is out of reach), not the clock
+    struct mr_tune tn;           // the difficulty's tuning (copied at entry: src/mr.c)
 };
 
 void lr_enter(void) BANKED;                      // src/lr.c: LOG ROLL (the lumber lodge)
@@ -329,6 +347,7 @@ struct lr_state {               // tests read these at story_scratch + offset (t
     uint8_t sq_st;              // +209 SQ_LOG on the log, SQ_SWIM in the river after a fish, SQ_END the outro's topple
     uint8_t sq_hop;             // +210 the Sasquatch's hop (0 idle, 1..36)
     uint8_t sq_dodge;           // +211 1: he hops this fish
+    struct lr_tune tn;           // the difficulty's tuning (copied at entry: src/lr.c)
 };
 
 void ad_enter(void) BANKED;                      // src/ad.c: ASTEROID DELIVERY (the space lounge)
@@ -361,6 +380,7 @@ struct ad_state {               // tests read these at story_scratch + offset (t
     uint8_t hattr[20];          // +112 the HUD colours (the banner on row 14)
     uint8_t wall[2][20], wattr[2][20];   // +132 map rows 2-3 as the portholes have them (the banner rows' place)
     uint8_t a10, p10;           // +212 / +213 anim % 10 and (anim / 10) & 1, counted with anim (no divide)
+    struct ad_tune tn;           // the difficulty's tuning (copied at entry: src/ad.c)
 };
 
 void tk_enter(void) BANKED;                      // src/tk.c: TAIKO POUR (the teahouse)
@@ -404,6 +424,7 @@ struct tk_state {               // tests read these at story_scratch + offset (t
     uint8_t last;               // +144 the last press: 0 none, 1 PERFECT, 2 GOOD, 3 MISS, 4 SPILL
     uint8_t p24;                // +145 clk % 24 (the beat phase), advanced with the clock
     uint8_t q6;                 // +146 (clk / 24) % 6 (the beat count mod 6); both re-derived when the clock jumps (tk_clock)
+    struct tk_tune tn;           // the difficulty's tuning (copied at entry: src/tk.c)
 };
 
 void mm_enter(void) BANKED;                      // src/mm.c: MARSHMALLOW DROP (the igloo)
@@ -441,6 +462,7 @@ struct mm_state {               // tests read these at story_scratch + offset (t
     uint8_t wattr[2][20];
     uint8_t a6, a10;            // anim % 6, anim % 10 (counted with anim: no divides)
     uint8_t p6, p10;            // (anim / 6) & 1, (anim / 10) & 3
+    struct mm_tune tn;           // the difficulty's tuning (copied at entry: src/mm.c)
 };
 
 void mk_enter(void) BANKED;                      // src/mk.c: MONKEY BUSINESS (the jungle zoo)
@@ -495,6 +517,7 @@ struct mk_state {               // tests read these at story_scratch + offset (t
     uint8_t pal[20];            // +141 their CGB attributes (palette 5)
     uint8_t hattr[20];          // +161 the HUD colours (the end banner)
     uint8_t pgap;               // +181 pops since the last parrot (the parrot schedule, MK_PARROT_POP / MK_PARROT_GAP)
+    struct mk_tune tn;           // the difficulty's tuning (copied at entry: src/mk.c)
 };
 
 void ts_enter(void) BANKED;                      // src/ts.c: T-SHIRT CANNON (the stadium)
@@ -529,6 +552,7 @@ struct ts_state {               // tests read these at story_scratch + offset (t
     uint8_t wall[2][20], wattr[2][20];   // +81 map rows 2-3 as the stage has them (the banner rows' place), their CGB attributes
     uint8_t angle;              // +161 the barrel's angle 0..3 (45, 52, 60, 68 degrees; the barrel look)
     uint8_t rep;                // +162 frames until the aim repeats while Up / Down is held
+    struct ts_tune tn;           // the difficulty's tuning (copied at entry: src/ts.c)
 };
 void po_enter(void) BANKED;                      // src/po.c: THE POUR-OFF (the finale, in the saloon)
 void po_update(uint8_t pressed) BANKED;

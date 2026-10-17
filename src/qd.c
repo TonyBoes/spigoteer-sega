@@ -23,7 +23,7 @@
 //   The match's end: YOU WIN, the Spigoteer aiming (no stream), the Kid dripping; THE KID WINS, the Kid's cheer, the
 //   Spigoteer dripping.
 // - Score: 500 a round won + (R - t) x 20; the match won +2000. Medal (qd_medal, not a score threshold): GOLD 3-0,
-//   SILVER won 3-1 / 3-2, BRONZE lost with a round won, else none. One setting for story and practice (no HARD).
+//   SILVER won 3-1 / 3-2, BRONZE lost with a round won, else none. EASY / HARD change the Kid's draw frames, the feints and the badge (qd_tune; EASY: a 3-2 win is a BRONZE).
 // - Sounds: the DRAW! bell SFX_CATCH, a round won SFX_SERVE, a foul SFX_BREAK, too slow SFX_LIFE.
 //
 // Screen (the approved mock-up): the framework's saloon backdrop (counter row 11); the sign's frame at columns 3-16,
@@ -63,7 +63,6 @@ typedef char qd_obj_fits[(QD_OBJ + QDO_RUN_A <= OBJ_COIN && QD_OBJ == 7 * BARTEN
 #define QD_WAIT_MIN     90
 #define QD_WAIT_SPAN   211                  // W = QD_WAIT_MIN + 0..210
 #define QD_SHOW_LEN     60
-#define QD_FEINT_FROM   3                   // feints from this round
 #define QD_FEINT_LEN    48
 #define QD_FEINT_GAP    30                  // never in the last 30 frames before DRAW!
 #define QD_ROUND_PTS   500
@@ -122,7 +121,16 @@ enum { W_SPLASH, W_DRIP_A, W_DRIP_B };            // the wet overlay (wet.txt)
 enum { WHO_KID, WHO_YOU };
 enum { ST_MID_A, ST_MID_B, ST_HEAD_R, ST_HEAD_L, ST_RISE_R };   // the stream's BG tiles (stream.txt)
 
-static const uint8_t kid_r[QD_ROUNDS] = { 34, 30, 30, 28, 26 };
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL): the frame the Kid draws on in each round, the
+// round the feints begin, the round the badge may be B, and the most rounds the Kid may win for a SILVER on a won match (TUNING.md).
+static const struct qd_tune qd_tune[MG_DIFFS] = {
+    { { 34, 30, 30, 28, 26 }, 3, 3, 2 },        // NORMAL
+    { { 24, 22, 20, 19, 18 }, 2, 2, 2 },        // HARD: feints and badge B from round 2
+    { { 40, 38, 36, 34, 34 }, 6, 4, 1 },        // EASY: no feints; badge B from round 4; a 3-2 win is a BRONZE
+};
+#define QT              (S.tn)
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&qd_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
 
 static uint16_t rand16(void) {
     uint16_t v = mg_rand();
@@ -211,6 +219,7 @@ void qd_enter(void) BANKED {
     S.sign[0][0] = (uint8_t)(QD_BG + QDB_FRAME + 3); S.sign[0][1] = (uint8_t)(QD_BG + QDB_FRAME + 4);
     vram_put(SIGN_COL, SIGN_ROW + 1, S.sign[0], 1); vram_put(SIGN_COL + SIGN_W - 1, SIGN_ROW + 1, S.sign[0] + 1, 1);
     vram_put(SIGN_COL, SIGN_ROW + 2, S.sign[0], 1); vram_put(SIGN_COL + SIGN_W - 1, SIGN_ROW + 2, S.sign[0] + 1, 1);
+    TUNE_LOAD();
     S.st = QS_NEXT; S.round = 0; S.wins[0] = S.wins[1] = 0; S.wait = 0; S.badge = 0; S.r = 0; S.t = 0;
     S.res = QR_NONE; S.react = 0; S.feint = QF_NONE; S.feint_at = 0; S.feint_t = 0; S.fx = 0;
     S.anim = 0;
@@ -222,7 +231,7 @@ void qd_enter(void) BANKED {
 }
 
 uint8_t qd_medal(void) BANKED {
-    if (S.wins[0] >= QD_TO_WIN) return S.wins[1] ? MEDAL_SILVER : MEDAL_GOLD;
+    if (S.wins[0] >= QD_TO_WIN) return S.wins[1] ? (S.wins[1] <= QT.silver_lost ? MEDAL_SILVER : MEDAL_BRONZE) : MEDAL_GOLD;
     return S.wins[0] ? MEDAL_BRONZE : MEDAL_NONE;
 }
 
@@ -387,11 +396,11 @@ void qd_update(uint8_t pressed) BANKED {
         switch (S.st) {
         case QS_NEXT:
             S.round++;
-            S.r = kid_r[S.round - 1];
-            S.badge = S.round < QD_FEINT_FROM ? 0 : mg_rand() & 1;
+            S.r = QT.r[S.round - 1];
+            S.badge = S.round < QT.badge_from ? 0 : mg_rand() & 1;
             S.wait = w = QD_WAIT_MIN + rand16() % QD_WAIT_SPAN;
             S.feint = QF_NONE; S.feint_t = QD_FEINT_LEN; S.feint_at = 0;
-            if (S.round >= QD_FEINT_FROM) {
+            if (S.round >= QT.feint_from) {
                 S.feint = (mg_rand() & 1) ? QF_CROW : QF_TUMBLE;
                 S.feint_at = QD_FEINT_GAP + QD_FEINT_LEN + rand16() % (w - QD_FEINT_GAP - QD_FEINT_LEN + 1);
                 S.feint_t = 0;
