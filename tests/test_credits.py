@@ -141,9 +141,9 @@ def test_credits_is_the_fourth_bonus_item_and_opens_the_roll(model):
         gb.run(120)
         title_pick(gb, K_BONUS)
         gb.run(MENU_SETTLE)
-        assert menu_items(gb) == [7, 9, 10, K_CREDITS]
+        assert menu_items(gb) == [K_CREDITS, 7, 9, 10]
         from test_flow import title_text_row
-        assert tilemap_row(gb, 12, 0, 20) == title_text_row("credits")
+        assert tilemap_row(gb, 6, 0, 20) == title_text_row("credits")
         menu_to(gb, K_CREDITS)
         menu_tap(gb, "a")
         run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 20)

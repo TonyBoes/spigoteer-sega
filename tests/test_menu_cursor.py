@@ -92,18 +92,18 @@ def test_b_from_the_soundtrack_the_list_and_the_rush_menu(model):
                 break
             gb.press("b", 2)
             gb.run(4)
-        title_ok(gb, TM_BONUS, 0)
+        title_ok(gb, TM_BONUS, 1)
         menu_tap(gb, "down")
         menu_tap(gb, "a")
         list_ok(gb, 0)
         gb.press("b", 2)
-        title_ok(gb, TM_BONUS, 1)
+        title_ok(gb, TM_BONUS, 2)
         menu_tap(gb, "down")
         menu_tap(gb, "a")
         run_until(gb, lambda: tr.on_rush(gb, tr.RS_MENU), 30)
         rush_ok(gb, tr.RS_MENU, 0)
         gb.press("b", 2)
-        title_ok(gb, TM_BONUS, 2)
+        title_ok(gb, TM_BONUS, 3)
         menu_tap(gb, "b")
         title_ok(gb, TM_TOP, 1)
 
@@ -118,7 +118,7 @@ def test_the_list_keeps_its_selection_through_b_and_back_in(model, sel):
         gb.run(4)
         list_ok(gb, sel)
         gb.press("b", 2)
-        title_ok(gb, TM_BONUS, 1)
+        title_ok(gb, TM_BONUS, 2)
         menu_tap(gb, "a")
         list_ok(gb, sel)
 
@@ -137,7 +137,7 @@ def test_the_list_after_the_card_b_the_result_b_and_quit(model, sel):
         gb.press("b", 2)                                  # the card's B BACK
         list_ok(gb, sel)
         gb.press("b", 2)
-        title_ok(gb, TM_BONUS, 1)
+        title_ok(gb, TM_BONUS, 2)
         menu_tap(gb, "a")
         list_ok(gb, sel)
     with tp.rom_s(model) as gb:                           # (cards seen: the game plays at once)
@@ -153,7 +153,7 @@ def test_the_list_after_the_card_b_the_result_b_and_quit(model, sel):
             tp.settled(gb, GS_MGLIST)
             list_ok(gb, sel)
         gb.press("b", 2)
-        title_ok(gb, TM_BONUS, 1)
+        title_ok(gb, TM_BONUS, 2)
 
 
 # ---- the boss rush: its list and its quit -------------------------------------------------------------------------------------
@@ -177,4 +177,4 @@ def test_the_boss_rush_menu_and_list_after_b_and_after_a_quit(model):
         run_until(gb, lambda: tr.on_rush(gb, tr.RS_MENU), 60)
         rush_ok(gb, tr.RS_MENU, 0)
         gb.press("b", 2)
-        title_ok(gb, TM_BONUS, 2)
+        title_ok(gb, TM_BONUS, 3)

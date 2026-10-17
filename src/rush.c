@@ -490,7 +490,7 @@ static uint8_t lines_frame(uint8_t pressed) {
         else if (count_unlocked() >= 2) { run_start(RM_ALL); return 1; }
     } else if (pressed & J_B) {
         if (RUSH->scr == RS_LIST) { menu_open(1); return 1; }
-        title_back = TM_BONUS; title_back_sel = 2;   // the BONUS submenu, the cursor on BOSS RUSH
+        title_back = TM_BONUS; title_back_sel = 3;   // the BONUS submenu, the cursor on BOSS RUSH
         title_enter();
         return 1;
     }

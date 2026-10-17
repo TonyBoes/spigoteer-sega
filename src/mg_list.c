@@ -336,7 +336,7 @@ uint8_t mg_list_update(uint8_t pressed) BANKED {
         g = ml_game[ml_sel];
         if (unlocked(g)) { mg_enter(g, MG_PRACTICE | (ml_diff << 1)); return 1; }
     } else if (pressed & J_B) {
-        title_back = TM_BONUS; title_back_sel = 1;   // the BONUS submenu, the cursor on MINI GAMES
+        title_back = TM_BONUS; title_back_sel = 2;   // the BONUS submenu, the cursor on MINI GAMES
         title_enter();
         return 1;
     }

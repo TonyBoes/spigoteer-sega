@@ -187,7 +187,7 @@ def test_bonus_gains_boss_rush_and_its_menu(model):
     with booted(model) as gb:
         title_pick(gb, K_BONUS)
         gb.run(MENU_SETTLE)
-        assert menu_items(gb) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH, K_CREDITS]
+        assert menu_items(gb) == [K_CREDITS, K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH]
         assert list(gb.read("title_rows", 4)) == [6, 8, 10, 12]
         tap(gb, "b")
         gb.run(MENU_SETTLE)
@@ -209,7 +209,7 @@ def test_bonus_gains_boss_rush_and_its_menu(model):
         tap(gb, "b")
         run_until(gb, lambda: state(gb) == TITLE and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(MENU_SETTLE)
-        assert gb.mem("title_menu") == TM_BONUS and gb.mem("title_sel") == 2, "BONUS, the cursor on BOSS RUSH"
+        assert gb.mem("title_menu") == TM_BONUS and gb.mem("title_sel") == 3, "BONUS, the cursor on BOSS RUSH"
         tap(gb, "b")
         gb.run(MENU_SETTLE)
         assert gb.mem("title_menu") == TM_TOP

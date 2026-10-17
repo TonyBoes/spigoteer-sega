@@ -483,7 +483,7 @@ static void cr_leave(void) {
     SCY_REG = 0;
     TRANS_WANT();                                     // (src/trans.c: the next screen comes up behind the drink)
     if (s) story_end();
-    else { title_back = TM_BONUS; title_back_sel = 3; title_enter(); }   // BONUS, the cursor on CREDITS
+    else { title_back = TM_BONUS; title_back_sel = 0; title_enter(); }   // BONUS, the cursor on CREDITS (the first item)
 }
 
 // story_update, every frame of the roll (GS_STORY). 1: the screen changed.
