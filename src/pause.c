@@ -53,6 +53,9 @@ extern const uint8_t bar_tiles[];
 extern uint8_t state_timer, overlay_on, story_phase, new_rank;
 extern uint32_t score;
 
+#ifndef CARD_FADE
+#define CARD_FADE    1                      // the card opens and closes through the white fade of src/trans.c (owner 2026-10-17: try it); -DCARD_FADE=0: the LCD-off cut
+#endif
 #define PAUSE_MINI   0x80
 #define PAUSE_OBJ    0x40                   // the sprites were on when the card hid them
 #define PAUSE_PAGE   0x30                   // (bits 4-5: the card page, step 0x10)
@@ -178,12 +181,24 @@ static void glyphs_back(void) {
 static void lcd_back(uint8_t lyc) {
     if (mg_id == MG_MILKRUN) { SCX_REG = 0; LYC_REG = lyc; }
     SHOW_WIN;                                    // (lcd_isr hid it at the menu's last line; main.c's update shows it from the next frame)
+#if CARD_FADE
+    trans_card_arm();                            // (the new screen's palettes kept, the screen white)
     DISPLAY_ON;
+    trans_card_in();                             // (and faded in)
+#else
+    DISPLAY_ON;
+#endif
 }
+
+#if CARD_FADE
+#define CARD_OFF() trans_card_out()              // (fades to white, the LCD off in it)
+#else
+#define CARD_OFF() DISPLAY_OFF
+#endif
 
 static void card_open(void) {
     uint8_t s = state_timer;
-    DISPLAY_OFF;
+    CARD_OFF();
     glyphs_back();                               // (the card's text may use J and Z)
     if (LCDC_REG & LCDCF_OBJON) s |= PAUSE_OBJ;
     state_timer = s | PAUSE_CARD;
@@ -196,7 +211,7 @@ static void card_open(void) {
 
 static void card_close(void) {
     uint8_t s = state_timer;
-    DISPLAY_OFF;
+    CARD_OFF();
     mg_card_win_close();
     WY_REG = BANNER_WY;
     if (s & PAUSE_OBJ) SHOW_SPRITES;

@@ -90,7 +90,8 @@ static void drink_rows(uint8_t from, uint8_t to) {               // rows from ..
     }
 }
 
-static void volume(uint8_t v) { NR50_REG = v * 0x11; }
+static void volume(uint8_t v) { if (game_state != GS_PAUSED) NR50_REG = v * 0x11; }   // (the pause card's fades leave the volume alone: the pause mix plays on)
+static void keep_win(void) { if (game_state == GS_PAUSED && overlay_on) SHOW_WIN; }     // (the pause card's fades: the main loop that shows the menu's window each frame is not running)
 
 // ---- the palette fades (variants 1 and 2, owner 2026-10-16: the drink's window layer shows the LCD-off white and reads as noise) --------------
 // The picture itself fades, no window: F1 to WHITE, F2 through AMBER (the drink) and then white; the LCD goes off in the white (what an off LCD shows, so no
@@ -146,6 +147,7 @@ static uint8_t vframe(uint8_t g) {
     uint8_t f = 0, ly;
     for (;;) {
         vsync(); f++;
+        keep_win();
         ly = LY_REG;
         if (ly >= 144 && ly <= (g < 2 ? 149 : 152)) break;   // (a burst is ~1540 cycles and must be over before line 153 ends: 149 at the latest)
         music_tick();
@@ -155,7 +157,10 @@ static uint8_t vframe(uint8_t g) {
 }
 
 // the frame's volume and music, after its VBlank work
-static void fa_tail(uint8_t f, uint8_t n, uint8_t rise) { if (rise) vol_in(f, n); else vol_out(f, n); music_tick(); }
+static void fa_tail(uint8_t f, uint8_t n, uint8_t rise) {
+    if (rise) vol_in(f, n); else vol_out(f, n);
+    if (game_state != GS_PAUSED || NR51_REG) music_tick();   // (a pause with the tune standing still, NR51 0: no tick, as main.c)
+}
 
 // RES = group g's 32 colours of `o` (64 bytes) at level k toward t; o null: all `base` at level k
 static void group(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base) {
@@ -228,6 +233,7 @@ static uint8_t dstep(const uint8_t *o, uint8_t k, uint8_t fr, uint8_t f0, uint8_
     uint8_t f;
     for (f = 1; f <= fr; f++) {
         vsync();
+        keep_win();
         if (f == 1) dset(o, k);
         fa_tail(f0 + f, n, rise);
     }
@@ -291,7 +297,7 @@ static void fade_reveal(void) {                                  // LCD on, whit
         cstep(o, 8, 0, 0, 2, f, n, 1);
     } else {
         n = 2 + 2 * FADE_DMG + 1;
-        for (s = 0; s < 2; s++) { vsync(); f++; fa_tail(f, n, 1); }
+        for (s = 0; s < 2; s++) { vsync(); keep_win(); f++; fa_tail(f, n, 1); }
         f += dstep(HR_PAL, 2, FADE_DMG, f, n, 1);
         f += dstep(HR_PAL, 1, FADE_DMG, f, n, 1);
         dstep(HR_PAL, 0, 1, f, n, 1);
@@ -299,6 +305,21 @@ static void fade_reveal(void) {                                  // LCD on, whit
     TRANS &= ~(TR_PEND | TR_ARMED);
     volume(7);
 }
+
+// The pause menu's HOW TO PLAY card (src/pause.c CARD_FADE): the white fade F1 over the pause screen, whatever the variant of the scene changes. Out: the picture fades
+// to white and the LCD goes off in it (the palettes back as they were), the caller builds the other screen; arm: its palettes are kept and painted white (LCD still off);
+// in: the LCD is on, the new colours fade in. The tune plays on as the pause mix (volume() is quiet in a pause; fa_tail ticks it; a tune that stands still, NR51 0, stays still).
+void trans_card_out(void) BANKED {
+    music_tick();                                                // (this frame's tick: the pause logic that called us never reaches the main loop's)
+    if (is_cgb) cgb_cover(V_WHITE); else dmg_cover();
+}
+
+void trans_card_arm(void) BANKED {
+    fade_arm();
+    if (NR51_REG) while (TIMA_REG > 23) music_pump();            // (the LCD comes on a third of a frame after a tick: the first fade-in tick follows ~1.3 frames later, not 1.9)
+}
+
+void trans_card_in(void) BANKED { fade_reveal(); }
 
 void trans_cover(void) BANKED {
     uint8_t i, j, wy, rows = 0, v = (TRANS >> TR_VSHIFT) & 3;

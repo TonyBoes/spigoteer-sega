@@ -43,6 +43,9 @@ def rom_s(model, ram=None):
     return rom
 
 
+CARD_FRAMES = 120                 # the card opens and closes through the white fade (src/pause.c CARD_FADE): ~22 frames out, ~21 in
+
+
 def tap(gb, b, settle=3):
     gb.press(b, 2)
     gb.run(settle)
@@ -867,14 +870,14 @@ def test_how_to_play_from_the_pause_menu_and_back_leaves_everything_as_it_was(mo
         before = screen_state(gb)
         tap(gb, "down")
         assert win_text(gb, 2).startswith(">") and win_text(gb, 2).endswith("HOW TO PLAY")
-        tap(gb, "a", 10)
+        tap(gb, "a", CARD_FRAMES)
         assert state(gb) == PAUSED and gb.mem(NR51) == (0 if gid == MG_TAIKO else BASS)
         rows = card_rows(gb)
         assert rows[1] == "HOW TO PLAY" and rows[5] != "", rows
         assert gb.mem(0xFF4A) == 0 and gb.mem(0xFF40) & 0x20 and not gb.mem(0xFF40) & 2, "the window over the screen, sprites off"
         gb.run(60)
         assert state(gb) == PAUSED
-        tap(gb, "b", 10)
+        tap(gb, "b", CARD_FRAMES)
         assert menu_rows(gb)[:3] == ["RESUME", "> HOW TO PLAY", "QUIT TO MENU"]
         assert screen_state(gb) == before, "the game's tiles, map, palettes, sprites and registers are as they were"
         tap(gb, "up")
@@ -899,7 +902,7 @@ def test_the_card_in_the_pause_menu_turns_pages_and_a_on_the_last_comes_back(mod
         tap(gb, "start", 3)
         gb.run(1, True)                                    # (PyBoy's first rendered frame of a session draws a window from its line 1: render one first)
         tap(gb, "down")
-        tap(gb, "a", 10)
+        tap(gb, "a", CARD_FRAMES)
         rows = card_rows(gb)
         assert rows[5] == "GREEN LIGHT" and rows[7] == "PRESS A ON GREEN" and rows[16] == "NEXT", rows
         from test_flow import tilemap_row
@@ -907,18 +910,18 @@ def test_the_card_in_the_pause_menu_turns_pages_and_a_on_the_last_comes_back(mod
         assert tilemap_row(gb, 0, 0, 20, window=True)[0] == FONT_BASE + 7 and tilemap_row(gb, 3, 0, 20, window=True)[9] == FONT_BASE + 15, "frame and icon"
         assert not gb.mem(0xFF40) & 2, "sprites off on the card"
         check_golden(gb, "pause_card_stub_p1")
-        tap(gb, "a", 10)
+        tap(gb, "a", CARD_FRAMES)
         rows = card_rows(gb)
         assert rows[5] == "GREEN LIGHT" and rows[7] == "EARLY IS A MISS" and rows[16] == "A BACK", rows
-        tap(gb, "a", 10)
+        tap(gb, "a", CARD_FRAMES)
         assert win_text(gb, 2) == "> HOW TO PLAY" and state(gb) == PAUSED
-        tap(gb, "a", 10)                                   # the card again: page 1
+        tap(gb, "a", CARD_FRAMES)                                   # the card again: page 1
         assert card_rows(gb)[7] == "PRESS A ON GREEN"
-        tap(gb, "a", 10)
-        tap(gb, "b", 10)                                   # B on page 2 returns too
+        tap(gb, "a", CARD_FRAMES)
+        tap(gb, "b", CARD_FRAMES)                                   # B on page 2 returns too
         assert win_text(gb, 2) == "> HOW TO PLAY"
         tap(gb, "up")
-        tap(gb, "a", 10)
+        tap(gb, "a", CARD_FRAMES)
         assert state(gb) == GS_MINI
 
 
@@ -939,10 +942,23 @@ def press_frames(gb, key, n):
     return out
 
 
+def press_wy(gb, key, n):
+    """press_frames, with the window's WY and the LCD bit each frame: [(image, WY, lcd on)]."""
+    out = []
+    gb.pb.button_press(key)
+    for i in range(n):
+        if i == 2:
+            gb.pb.button_release(key)
+        im = render(gb)
+        out.append((im, gb.mem(0xFF4A), bool(gb.mem(0xFF40) & 0x80)))
+    return out
+
+
 @pytest.mark.parametrize("model", MODES)
 @pytest.mark.parametrize("gid", [MG_STUB, MG_MILKRUN])
 def test_no_frame_shows_the_game_between_the_menu_and_the_card(model, gid):
-    """Every frame is the menu, a blank one (the LCD off for the rebuild, the first frame after it on) or the finished card: never the paused game."""
+    """The card swaps through the white fade (CARD_FADE): the menu fades to white, the LCD goes off in it, the card fades in from white. Every frame from the LCD going off
+    on has the window over the whole screen (WY 0): the paused game is never between them; the first frame is the menu, the last the finished card, and back."""
     with rom_s(model) as gb:
         mg_enter(gb, gid, MG_PRACTICE)
         until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
@@ -951,16 +967,18 @@ def test_no_frame_shows_the_game_between_the_menu_and_the_card(model, gid):
         tap(gb, "down")
         menu = render(gb).tobytes()
         gb.run(1)
-        opening = press_frames(gb, "a", 20)
-        card = render(gb).tobytes()
-        kinds = lambda ims: ["menu" if im.tobytes() == menu else "card" if im.tobytes() == card else "blank" if len(im.getcolors()) == 1 else "GAME" for im in ims]
-        k = kinds(opening)
-        assert "GAME" not in k, k
-        assert k[0] == "menu" and k[-1] == "card" and "blank" in k, k
-        assert k.index("card") > k.index("blank") and "menu" not in k[k.index("blank"):], k
-        closing = kinds(press_frames(gb, "b", 20))
-        assert "GAME" not in closing, closing
-        assert closing[0] == "card" and closing[-1] == "menu", closing
+        for key in ("a", "b"):
+            fr = press_wy(gb, key, CARD_FRAMES)
+            off = [i for i, f in enumerate(fr) if not f[2]]
+            assert off and off == list(range(off[0], off[-1] + 1)), "the LCD goes off once, in the white"
+            before, after = (64, 0) if key == "a" else (0, 64)
+            assert all(f[1] == before for f in fr[:off[0]]) and all(f[1] == after for f in fr[off[-1] + 1:]), [f[1] for f in fr]
+            assert len(fr[off[0]][0].getcolors()) == 1, "the LCD goes off in white"
+            if key == "a":
+                assert fr[0][0].tobytes() == menu, "the first frame is the menu"
+                card = fr[-1][0].tobytes()
+            else:
+                assert fr[0][0].tobytes() == card and fr[-1][0].tobytes() == menu
 
 
 @pytest.mark.parametrize("model", MODES)
@@ -972,7 +990,7 @@ def test_the_card_fills_the_screen_exactly(model):
         tap(gb, "start", 3)
         render(gb)
         tap(gb, "down")
-        tap(gb, "a", 10)
+        tap(gb, "a", CARD_FRAMES)
         im = render(gb)
         assert gb.mem(0xFF4A) == 0 and gb.mem(0xFF4B) == 7
         for map_row, y0 in ((0, 0), (17, 136)):
@@ -1028,19 +1046,19 @@ def test_a_boss_fight_pause_menu_opens_his_hint_card(model, c):
         if c == 0:
             check_golden(gb, "pause_menu_boss")
         tap(gb, "down")
-        tap(gb, "a", 10)
+        tap(gb, "a", CARD_FRAMES)
         rows = card_rows(gb)
         assert rows[1] == "HOW TO PLAY" and rows[5] == name and rows[7:14:2] == p1, rows
         assert rows[16] == ("NEXT" if p2 else "A BACK") and not gb.mem(0xFF40) & 2, "sprites off on the card"
         if c in (0, 7):
             check_golden(gb, f"pause_card_boss{c}_p1")
         if p2:
-            tap(gb, "a", 10)
+            tap(gb, "a", CARD_FRAMES)
             rows = card_rows(gb)
             assert rows[5] == name and rows[7:14:2] == p2 and rows[16] == "A BACK", rows
             if c in (0, 7):
                 check_golden(gb, f"pause_card_boss{c}_p2")
-        tap(gb, "a", 10)
+        tap(gb, "a", CARD_FRAMES)
         assert win_text(gb, 2) == "> HOW TO PLAY" and state(gb) == PAUSED
         tap(gb, "down")                                # the question: rows 3-4 as in a level, NO the cursor
         tap(gb, "a")
@@ -1070,11 +1088,11 @@ def test_a_boss_hint_card_and_back_leaves_the_fight_as_if_it_had_not_been_opened
             menu = _boss_state(gb)
             if card:
                 tap(gb, "down")
-                tap(gb, "a", 10)
+                tap(gb, "a", CARD_FRAMES)
                 while card_rows(gb)[16] != "A BACK":
-                    tap(gb, "a", 10)
+                    tap(gb, "a", CARD_FRAMES)
                 gb.run(30)
-                tap(gb, "b", 10)
+                tap(gb, "b", CARD_FRAMES)
                 assert menu_rows(gb)[:3] == ["RESUME", "> HOW TO PLAY", "QUIT TO MENU"]
                 assert _boss_state(gb)[:4] + _boss_state(gb)[7:] == menu[:4] + menu[7:], "the menu is as it was"
                 tap(gb, "up")

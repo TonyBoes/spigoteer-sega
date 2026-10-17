@@ -559,6 +559,9 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #define TR_OFF     0x80
 #define TRANS_WANT() (TRANS |= TR_WANT)
 #define TRANS_HOLD() (TRANS |= TR_HOLD)                 // the caller reveals itself (trans_reveal()) once its scene is whole: lcd_on_p does not
+void trans_card_out(void) BANKED;                       // the pause card's fades (src/pause.c): the white fade out (LCD off at the end), the new screen's palettes kept, the fade in
+void trans_card_arm(void) BANKED;
+void trans_card_in(void) BANKED;
 void trans_cover(void) BANKED;                          // the old scene filling up; turns the LCD off (as lcd_off_p), PEND set
 void trans_arm(void) BANKED;                            // lcd_on_p, LCD still off: the drink behind the new scene, window over the screen
 void trans_reveal(void) BANKED;                         // the new scene is on: the drink drains, its bubbles pop; everything put back (nothing when no drink is up)
