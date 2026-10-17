@@ -43,8 +43,9 @@ THEMES = ["saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "t
 # drink's foam head row 4, the sprite top MUG_DY + FILL_DY below the bar's top row, so the lowest art pixel over the glass
 # (x 136-143, rows 0-15) must be above row MUG_DY + FILL_DY + 4. At most 3 (the launch handoff is a step of that many px).
 # bistro 0 -> 2 (owner 2026-10-17): its keg lost 2 px of red band and its top part, spout and grape label hang 2 px lower, so the glass does too.
+# igloo 2 -> 3 (its stove top lost a row, the spout is 1 px lower).
 # lodge 0 -> 3 and teahouse 2 -> 3 (owner 2026-10-17, every keg shortened like the bistro's): their spouts hang 2 px (lodge) and 1 px (teahouse) lower with the keg top.
-FILL_DY = {"saloon": 3, "sports": 2, "lodge": 3, "bistro": 3, "igloo": 2, "factory": 0, "biker": 3, "teahouse": 3, "zoo": 2, "space": 3}
+FILL_DY = {"saloon": 3, "sports": 2, "lodge": 3, "bistro": 3, "igloo": 3, "factory": 0, "biker": 3, "teahouse": 3, "zoo": 2, "space": 3}
 # Lettering on a tap (owner 2026-10-12: POP on the stadium's base, MOO on the biker's churn) must not read backwards on an R
 # (mirrored) bar, which draws every bar tile flipped. LETTER_BOX = (x0, y0, x1, y1) of the lettering in the bar art (pixels,
 # inclusive): the box is mirrored in place to make the R bar's version of the art, and the tiles that differ ("twins", at most 4)
