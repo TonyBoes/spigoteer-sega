@@ -258,6 +258,7 @@ static void cgb_cover(uint8_t v) {
     if (game_state != GS_PAUSED) music_pump();                   // (the tick that fell due while the LCD went off)
     BCPS_REG = 0x80;                                             // the scene's own colours back (LCD off: palette RAM is free)
     for (s = 0; s < 64; s++) BCPD_REG = o[s];
+    if (game_state != GS_PAUSED) music_pump();
     OCPS_REG = 0x80;
     for (s = 0; s < 64; s++) OCPD_REG = o[64 + s];
 }
