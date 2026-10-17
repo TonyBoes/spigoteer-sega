@@ -102,6 +102,7 @@ static uint8_t opening(uint8_t *st, uint8_t t) {
 // ---- more pieces ----------------------------------------------------------------------------------------------------------------------
 // The venue's patrons are its shift-0 poses (facing right in the art): flipped, they face Dregs at the left.
 #define PPAT(v)  (is_cgb ? 5 + (v) : S_PALETTE)
+#define PAT_Y    40                 // a patron's play depth: the two wall rows above the counter row (y 56): behind the bar, never over it
 static void pat(uint8_t *st, int16_t x, int16_t y, uint8_t v) { two(st, x, y, T_P + v * 6, PPAT(v), 1); }
 
 static void puff(uint8_t *st, int16_t x, int16_t y, uint8_t f) { ent(st, x, y, T_DUST + (f % 3) * 2, 0); }   // a dust picture anywhere
@@ -124,7 +125,7 @@ static void arc(uint8_t *st, int16_t x, int16_t y, uint8_t fx) { ent(st, x, y, T
 static uint8_t gag_saloon(uint8_t *st, uint8_t t) {
     int16_t u = (int16_t)t - OPEN, a = t < 20 ? (20 - t) * 4 : 0, v, ca, y;
     ca = 106 + a - (u > 0 ? (u < 8 ? u : 8) : 0);
-    y = 48 - (u >= 16 ? ((t >> 2) & 1) * 2 : 0);
+    y = PAT_Y - (u >= 16 ? ((t >> 2) & 1) * 2 : 0);
     if (opening(st, t)) { }
     else if (u < 16) dregs(st, XD, LANE - 6 + ((u >> 1) & 1) * 2, 1, 0);          // hoisted, kicking
     else {
@@ -142,12 +143,12 @@ static uint8_t gag_stadium(uint8_t *st, uint8_t t) {
     uint8_t i;
     if (opening(st, t)) { }
     else if (u < 10) dregs(st, XD, LANE, 1, 0);
-    else if (u < 95) lying(st, XD - 2 - sh, 32 + ((t >> 2) & 1) * 2, (t >> 4) & 1);
+    else if (u < 95) lying(st, XD - 2 - sh, 26 + ((t >> 2) & 1) * 2, (t >> 4) & 1);
     else edge(st, u - 95, 42);
     for (i = 0; i < 3; i++) {
         bx = XD + 20 + 14 * i + a;
         if (u > 0) bx = XD + 20 + 14 * i - (u < 15 ? u * 2 : 30) - sh;
-        pat(st, bx, 48 - (((t >> 3) + i) & 1), i);
+        pat(st, bx, PAT_Y - (((t >> 3) + i) & 1), i);
     }
     return u < 115;
 }
