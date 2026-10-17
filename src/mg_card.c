@@ -42,7 +42,7 @@
 typedef struct { const char *name, *line[4]; } card_t;   // (strings of this bank: the card is drawn from here, not from mg.c's)
 typedef struct { uint8_t game; const char *line[4]; } more_t;   // a further page of game `game`
 
-static const card_t cards[MG_GAMES] = {
+static const card_t cards[MG_GAMES + MG_BOSS_CARDS] = {
     /* G_STUB */ { "GREEN LIGHT", { "PRESS A ON GREEN", "NOT ON RED", "5 ROUNDS", "" } },
     /* G_QD   */ { "QUICK DRAW", { "WAIT FOR THE SIGN", "A OR B: THE BADGE", "WIN 3 FOR GOLD", "" } },
     /* G_BS   */ { "BATTERY SORT", { "LEFT: FULL CELL", "RIGHT: DEAD CELL", "DOWN: BROKEN CELL", "3 STRIKES END IT" } },
@@ -58,6 +58,17 @@ static const card_t cards[MG_GAMES] = {
     /* G_B0   */ { "CAN SHAKE UP", { "TRACK THE CALM CAN", "LEFT RIGHT: CHOOSE", "A: PICK IT", "" } },
     /* G_B1   */ { "PERFECT POUR", { "HOLD A: POUR", "LET GO AT THE LINE", "3 GLASSES TO FILL", "FOAM KEEPS RISING" } },
     /* G_B2   */ { "TIP SHOWER", { "LEFT RIGHT: WALK", "TRAY CATCHES COINS", "AVOID THE TOMATOES", "100 POINTS A COIN" } },
+    // the bosses' hint pages (pause.c: HOW TO PLAY in a fight), card id MG_BOSS_CARD + boss_id; page 2 is in more[]
+    /* B_TEX  */ { "BIG TEX", { "TEX STOMPS TO TAP", "MUGS PUSH HIM BACK", "8 MUGS BEAT HIM", "AT THE TAP: A LIFE" } },
+    /* B_MASC */ { "THE MASCOT", { "HE HOPS TO ANOTHER", "BAR. DUST SHOWS", "WHERE HE WILL LAND", "FOLLOW HIM THERE" } },
+    /* B_SASQ */ { "SASQUATCH", { "HE DUCKS, VANISHES", "THEN POPS UP WHERE", "FOOTPRINTS BLINK", "GO THERE FIRST" } },
+    /* B_CRIT */ { "THE FOOD CRITIC", { "PERFECT POURS ONLY", "LET GO WHEN THE", "WINE GLOWS WHITE", "SLOPPY COMES BACK" } },
+    /* B_YETI */ { "THE YETI", { "HE BLOWS ICE ONTO", "HIS BAR. THE TAP", "FREEZES: NO THROWS", "AT HIM WHILE ICY" } },
+    /* B_PROT */ { "THE PROTOTYPE", { "WATCH HIS LAMP", "GREEN: THROW", "YELLOW: STOP", "RED: MUGS BOUNCE" } },
+    /* B_DUKE */ { "DUKE", { "DUKE REVS, THEN", "LURCHES AT THE TAP", "A MUG WHILE HE", "REVS STALLS HIM" } },
+    /* B_SUMO */ { "SUMO CHAMPION", { "NO DRINK LIMIT", "FILL THE METER TO", "SHOVE HIM BACK", "PUSH HIM OUT!" } },
+    /* B_LEO  */ { "LEO THE LION", { "HIS ROAR IS A WIND", "BLOWING FULL MUGS", "BACK ON EVERY BAR", "CATCH THEM!" } },
+    /* B_MOTH */ { "THE MOTHERSHIP", { "SAUCER JUMPS BARS", "BEAM SHOWS WHERE", "AFTER 8 IT SPLITS", "MINIS WANT 2 EACH" } },
 };
 
 // the further pages, in page order (a game's entries together). The debug stub, the shake-up, Marshmallow Drop, T-Shirt Cannon and Log Roll have a second page; Milk Run has three.
@@ -69,6 +80,16 @@ static const more_t more[] = {
     { G_MR,   { "GRAB MILK BOTTLES", "FOR 3 MORE CRATES", "BUMPS DROP 2 OR 3", "FAST FINISH: BONUS" } },
     { G_B0,   { "3 LEVELS, EACH", "FASTER THAN LAST", "MISS: RUN ENDS", "" } },
     { G_TS,   { "FANS RAISE HANDS", "LOB IT: CATCH 300", "FLAT OR OTHER: 30", "SHORT OR FAR: 0" } },
+    { MG_BOSS_CARD + 0, { "HE HOLDS 3 MUGS,", "THE 4TH ONE BREAKS", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
+    { MG_BOSS_CARD + 1, { "A MUG AT HIS OLD", "BAR BREAKS", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
+    { MG_BOSS_CARD + 2, { "A MUG AT HIS EMPTY", "BAR BREAKS", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
+    { MG_BOSS_CARD + 3, { "EMPTY MUG: THROW", "FULL MUG: BUSY", "SHAKING: SENT BACK", "CATCH THEM AT TAP" } },
+    { MG_BOSS_CARD + 4, { "THROW ONE BEFORE", "THE FROST COMES", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
+    { MG_BOSS_CARD + 5, { "AFTER RED HE RIDES", "TO ANOTHER BAR", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
+    { MG_BOSS_CARD + 6, { "STEADY MUGS KEEP", "HIM FROM LURCHING", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
+    { MG_BOSS_CARD + 7, { "HE STEPS ON THE", "DRUM BEAT", "A MUG CALLS OFF", "HIS STAMP" } },
+    { MG_BOSS_CARD + 8, { "'!' MEANS A ROAR:", "STOP, CATCH MUGS", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
+    { MG_BOSS_CARD + 9, { "EACH JUMP BRINGS", "2 PASSENGERS", "STAYING PUT: STUN", "RAY! CHANGE BARS" } },
 };
 #define MORE_N (sizeof(more) / sizeof(more[0]))
 

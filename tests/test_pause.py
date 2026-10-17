@@ -88,7 +88,8 @@ def start_classic(gb):
 def open_pause(gb):
     tap(gb, "start", 3)
     assert state(gb) == PAUSED and gb.mem("overlay_on") == 1
-    assert menu_rows(gb) == ["", "> RESUME", "QUIT TO MENU", ""], menu_rows(gb)
+    want = ["> RESUME", "HOW TO PLAY", "QUIT TO MENU", ""] if gb.mem("boss_on") else ["", "> RESUME", "QUIT TO MENU", ""]   # (a boss fight has the hint card)
+    assert menu_rows(gb) == want, menu_rows(gb)
 
 
 def quit_yes(gb):
@@ -97,7 +98,7 @@ def quit_yes(gb):
     for _ in range(2 if mini else 1):
         tap(gb, "down")
     tap(gb, "a")
-    no, yes = (3, 2) if mini else (4, 3)
+    no, yes = (3, 2) if mini and not gb.mem("boss_on") else (4, 3)
     assert win_text(gb, 1) == "ARE YOU SURE?" and win_text(gb, no).startswith(">"), menu_rows(gb)
     tap(gb, "up")
     assert win_text(gb, yes).startswith(">") and win_text(gb, yes).endswith("YES")
@@ -977,3 +978,105 @@ def test_the_card_fills_the_screen_exactly(model):
             for a in range(8):
                 for b in range(8):
                     assert (idx[a] == idx[b]) == (cols[a] == cols[b]), (map_row, a, b, idx, cols)
+
+
+# ---- (i) boss hint pages: HOW TO PLAY in every boss fight (Batch H, owner-approved Batch E item) ------------------------------------------
+def _bosses():
+    from test_story import BOSS_BUILT
+    return sorted(BOSS_BUILT)
+
+
+def boss_cards():
+    """src/mg_card.c's boss pages: {boss id: (name, [page 1 lines], [page 2 lines])}."""
+    import re
+    from conftest import ROOT
+    src = (ROOT / "src" / "mg_card.c").read_text()
+    out = {}
+    for i, m in enumerate(re.finditer(r'/\* B_\w+\s*\*/ \{ "([^"]*)", \{ "([^"]*)", "([^"]*)", "([^"]*)", "([^"]*)" \} \},', src)):
+        out[i] = [m.group(1), list(m.groups()[1:]), None]
+    for m in re.finditer(r'\{ MG_BOSS_CARD \+ (\d+), \{ "([^"]*)", "([^"]*)", "([^"]*)", "([^"]*)" \} \},', src):
+        out[int(m.group(1))][2] = list(m.groups()[1:])
+    return out
+
+
+def test_every_boss_has_a_hint_card_of_one_or_two_pages_with_short_plain_lines():
+    import re
+    cards = boss_cards()
+    assert sorted(cards) == list(range(10))
+    for b, (name, p1, p2) in cards.items():
+        for t in [name] + p1 + (p2 or []):
+            assert re.fullmatch(r"[A-Z0-9 .,!?:'-]*", t) and len(t) <= 18, (b, t)
+        assert p1[0] and (p2 is None or p2[0])
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", _bosses())
+def test_a_boss_fight_pause_menu_opens_his_hint_card(model, c):
+    from boss_common import fight, play
+    name, p1, p2 = boss_cards()[c]
+    with fight(model, c) as gb:
+        play(gb)
+        gb.run(40)
+        tap(gb, "start", 3)
+        gb.run(1, True)
+        assert state(gb) == PAUSED and menu_rows(gb) == ["> RESUME", "HOW TO PLAY", "QUIT TO MENU", ""], menu_rows(gb)
+        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 46 and tilemap_row(gb, 5, 0, 20, True) == [64] * 20, "the 6-row window, its panel on row 5"
+        if c == 0:
+            check_golden(gb, "pause_menu_boss")
+        tap(gb, "down")
+        tap(gb, "a", 10)
+        rows = card_rows(gb)
+        assert rows[1] == "HOW TO PLAY" and rows[5] == name and rows[7:14:2] == p1, rows
+        assert rows[16] == ("NEXT" if p2 else "A BACK") and not gb.mem(0xFF40) & 2, "sprites off on the card"
+        if c in (0, 7):
+            check_golden(gb, f"pause_card_boss{c}_p1")
+        if p2:
+            tap(gb, "a", 10)
+            rows = card_rows(gb)
+            assert rows[5] == name and rows[7:14:2] == p2 and rows[16] == "A BACK", rows
+            if c in (0, 7):
+                check_golden(gb, f"pause_card_boss{c}_p2")
+        tap(gb, "a", 10)
+        assert win_text(gb, 2) == "> HOW TO PLAY" and state(gb) == PAUSED
+        tap(gb, "down")                                # the question: rows 3-4 as in a level, NO the cursor
+        tap(gb, "a")
+        assert menu_rows(gb) == ["ARE YOU SURE?", "", "YES", "> NO"], menu_rows(gb)
+        tap(gb, "a")
+        assert menu_rows(gb) == ["RESUME", "HOW TO PLAY", "> QUIT TO MENU", ""], menu_rows(gb)
+
+
+def _boss_state(gb):
+    """The picture, the boss's own buffers and the counters: what 'the same as uninterrupted' means for a fight."""
+    from test_bs import palettes
+    return (bytes(gb.read(0x8000, 0x1800)), bytes(gb.read(0x9800, 0x400)), gb_oam(gb), gb.read("story_scratch", 480),
+            gb.mem("boss_hp"), gb.mem("boss_on"), gb.mem("game_state"), palettes(gb))
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", _bosses())
+def test_a_boss_hint_card_and_back_leaves_the_fight_as_if_it_had_not_been_opened(model, c):
+    """Pause, read the pages, back, RESUME == pause, RESUME: tiles (the font tiles the card saves hold boss art), maps, palettes, OAM, his state."""
+    from boss_common import fight, play
+
+    def run(card):
+        with fight(model, c) as gb:
+            play(gb)
+            gb.run(40)
+            tap(gb, "start", 3)
+            menu = _boss_state(gb)
+            if card:
+                tap(gb, "down")
+                tap(gb, "a", 10)
+                while card_rows(gb)[16] != "A BACK":
+                    tap(gb, "a", 10)
+                gb.run(30)
+                tap(gb, "b", 10)
+                assert menu_rows(gb)[:3] == ["RESUME", "> HOW TO PLAY", "QUIT TO MENU"]
+                assert _boss_state(gb)[:4] + _boss_state(gb)[7:] == menu[:4] + menu[7:], "the menu is as it was"
+                tap(gb, "up")
+            tap(gb, "start", 3)
+            assert state(gb) == PLAYING and gb.mem("overlay_on") == 0
+            gb.run(90)
+            return _boss_state(gb)
+
+    assert run(True) == run(False), "the fight went on as if the card had never opened"

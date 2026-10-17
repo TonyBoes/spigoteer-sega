@@ -99,23 +99,25 @@ static void fill_row(uint8_t r, uint8_t t) {
     music_pump();                                // (a row takes up to half a frame: it waits for the VRAM)
 }
 
-// the HOW TO PLAY card of this context (mg.h's G_* id), or NO_CARD. A later batch gives bosses their hint pages here.
+// the HOW TO PLAY card of this context (mg.h's G_* id, or MG_BOSS_CARD + the boss's id), or NO_CARD (a level with no boss).
 static uint8_t pause_card(uint8_t s) {
-    return (s & PAUSE_MINI) ? mg_game : NO_CARD;
+    return (s & PAUSE_MINI) ? mg_game : boss_on ? MG_BOSS_CARD + boss_id : NO_CARD;   // (a boss fight: his hint page, mg_card.c)
 }
 
 static const uint8_t *const names[] = { w_resume, w_how, w_quit, w_yes, w_no };
 
 // where the items are in menu state s: the first item's window row, and the item the cursor is on
-static uint8_t first_row(uint8_t s) { return ((s & PAUSE_MINI) ? 1 : 2) + ((s & PAUSE_ASK) != 0); }
-static uint8_t cursor_item(uint8_t s) { return (s & (PAUSE_MINI | PAUSE_ASK)) ? s & 3 : (s & 3) >> 1; }
+// (a boss fight lists three items like a mini-game, on rows 1-3 of its 6-row window; the other levels two, on rows 2-3)
+#define three(s) (((s) & PAUSE_MINI) || (boss_on && !((s) & PAUSE_ASK)))
+static uint8_t first_row(uint8_t s) { return (three(s) ? 1 : 2) + ((s & PAUSE_ASK) != 0); }
+static uint8_t cursor_item(uint8_t s) { return (s & PAUSE_ASK) || three(s) ? s & 3 : (s & 3) >> 1; }
 
 // window rows 1-5 for menu state s into b (100 tiles). Level: a 6-row window, the bottom panel on row 5; two items on rows 2-3,
 // the question on row 1 and its answers on 3-4 (a blank row between). Mini-game: a 5-row window, the panel on row 4; three items
 // on rows 1-3, the question on row 1 and its answers on 2-3.
 static void build(uint8_t s, uint8_t *b) {
-    uint8_t i, n = (s & PAUSE_MINI) && !(s & PAUSE_ASK) ? 3 : 2, sel = cursor_item(s), r = first_row(s);
-    uint8_t base = (s & PAUSE_ASK) ? 3 : 0, step = (s & (PAUSE_MINI | PAUSE_ASK)) ? 1 : 2;
+    uint8_t i, n = three(s) && !(s & PAUSE_ASK) ? 3 : 2, sel = cursor_item(s), r = first_row(s);
+    uint8_t base = (s & PAUSE_ASK) ? 3 : 0, step = (s & PAUSE_ASK) || three(s) ? 1 : 2;
     uint8_t pr = (s & PAUSE_MINI) ? 4 : 5;
     uint8_t *p = b, j;
     for (j = 0; j < 4; j++) {                    // (a pump every 25 tiles: the fills and the text below take most of a frame, and the tune's tick falls

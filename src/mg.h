@@ -75,6 +75,8 @@ enum { MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD };
 // The games the framework runs (mg.c's mg_game; the cards of src/mg_card.c, the banner tables of mg.c: one entry each, in this order)
 #define MG_GAMES        15
 enum { G_STUB, G_QD, G_BS, G_OU, G_MR, G_LR, G_AD, G_TK, G_MM, G_MK, G_TS, G_PO, G_B0, G_B1, G_B2 };
+#define MG_BOSS_CARDS   10      // src/mg_card.c: a hint card per boss (pause.c), card id MG_BOSS_CARD + boss_id
+#define MG_BOSS_CARD    MG_GAMES
 #define MG_TEXT_A       2       // the two banner rows (map rows, in the HUD colours)
 #define MG_TEXT_B       3
 #define MG_COUNTER_ROW 11       // the venue backdrop's counter row
