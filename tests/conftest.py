@@ -386,3 +386,7 @@ def konami(gb, keys=KONAMI):
     for k in keys:
         gb.press(k, 2)
         gb.run(2)
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: builds the ROM variants from scratch (tests/test_build.py)")

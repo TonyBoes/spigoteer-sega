@@ -47,7 +47,7 @@ BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(B
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
-.PHONY: all test check preview clean assets release dist
+.PHONY: all test check preview clean assets release dist unlocked
 
 all: $(ROM)
 
@@ -177,22 +177,47 @@ $(BUILD)/hUGEDriver.obj: $(HUGE)/hUGEDriver.asm $(wildcard $(HUGE)/include/*) | 
 $(HUGE_OBJ): $(BUILD)/hUGEDriver.obj $(HUGE)/tools/rgb2sdas.py
 	python3 $(HUGE)/tools/rgb2sdas.py -c _CODE_2 -o $@ $<
 
-$(ROM): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
-	$(LCC) $(LCCFLAGS) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ) > $(BUILD)/link.log 2>&1; rc=$$?; cat $(BUILD)/link.log; test $$rc -eq 0 || { rm -f $@; false; }
-	@! grep -q "overflow from Bank 0" $(BUILD)/link.log || { rm -f $@; echo "ROM0 overflowed into bank 1 (see PLAN.md, ROM0 cleanup)"; false; }
-	@romusage $(BUILD)/$(NAME).noi 2>/dev/null | head -12 || true
-	@python3 tools/rom0free.py $(BUILD)/$(NAME).map
+# Each ROM variant (game, release, game-unlocked) is linked with its own scratch directory and depends on a flags stamp.
+# Why: bankpack rewrites its input objects in place, so a shared build/hUGEDriver.o was touched (and could be rewritten while
+# another build was reading it) by every variant's link; the lcc temp files lived in the shared /tmp; and a ROM did not depend
+# on the flags at all, so a changed DEBUGFLAGS/LCCFLAGS reused the old ROM. Now build/obj/<variant>/ holds a private copy of
+# the hUGEDriver object and the lcc temp files (-tempdir), and build/<variant>.flags (rewritten only when the flags change)
+# is a prerequisite of the ROM.
+ROM_DEPS := $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
+
+.PHONY: FORCE
+FORCE:
+
+# $(call flags_stamp,variant,flags)
+define flags_stamp
+$(BUILD)/$(1).flags: FORCE | $(BUILD)
+	@printf '%s\n' '$(2)' | cmp -s - $$@ || printf '%s\n' '$(2)' > $$@
+endef
+
+# $(call rom_rule,variant,rom,flags,extra check line or empty): one lcc invocation, log in build/<variant>_link.log
+define rom_rule
+$(call flags_stamp,$(1),$(3))
+$(2): $(ROM_DEPS) $(BUILD)/$(1).flags
+	mkdir -p $(BUILD)/obj/$(1)
+	cp $(HUGE_OBJ) $(BUILD)/obj/$(1)/hUGEDriver.o
+	$(LCC) $(3) -tempdir=$(BUILD)/obj/$(1) -I$(BUILD) -Isrc -I$(HUGE)/include -o $$@ $(SRC) $(GEN) $(BUILD)/obj/$(1)/hUGEDriver.o > $(BUILD)/$(1)_link.log 2>&1; rc=$$$$?; cat $(BUILD)/$(1)_link.log; test $$$$rc -eq 0 || { rm -f $$@; false; }
+	@! grep -q "overflow from Bank 0" $(BUILD)/$(1)_link.log || { rm -f $$@; echo "ROM0 overflowed into bank 1 (see PLAN.md, ROM0 cleanup)"; false; }
+	$(4)
+	@romusage $(basename $(2)).noi 2>/dev/null | head -12 || true
+	@python3 tools/rom0free.py $(basename $(2)).map
+endef
+
+$(eval $(call rom_rule,game,$(ROM),$(LCCFLAGS),@true))
 
 # build/release.gb: the same flags without the debug menu (build/release.noi must not name its symbols)
 RELEASE  := $(BUILD)/release.gb
 release: $(RELEASE)
+$(eval $(call rom_rule,release,$(RELEASE),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)),@grep -q debug_menu_open $(BUILD)/release.noi || { echo "release build lost the debug menu (it ships locked: src/debug.c)"; false; }))
 
-$(RELEASE): $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
-	$(LCC) $(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -I$(BUILD) -Isrc -I$(HUGE)/include -o $@ $(SRC) $(GEN) $(HUGE_OBJ) > $(BUILD)/release_link.log 2>&1; rc=$$?; cat $(BUILD)/release_link.log; test $$rc -eq 0 || { rm -f $@; false; }
-	@! grep -q "overflow from Bank 0" $(BUILD)/release_link.log || { rm -f $@; echo "ROM0 overflowed into bank 1 (see PLAN.md, ROM0 cleanup)"; false; }
-	@grep -q debug_menu_open $(BUILD)/release.noi || { echo "release build lost the debug menu (it ships, locked: src/debug.c)"; false; }
-	@romusage $(BUILD)/release.noi 2>/dev/null | head -12 || true
-	@python3 tools/rom0free.py $(BUILD)/release.map
+# build/game-unlocked.gb: the playtest build with the debug menu always unlocked (for a flash cart); build/game.gb is untouched
+UNLOCKED := $(BUILD)/$(NAME)-unlocked.gb
+unlocked: $(UNLOCKED)
+$(eval $(call rom_rule,$(NAME)-unlocked,$(UNLOCKED),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -DDEBUG_MENU -DDEBUG_UNLOCKED,@true))
 
 # dist/: the release ROM (rebuilt from the sources; the debug menu ships locked, see DEBUGFLAGS) named by VERSION, its SHA-256,
 # RELEASE.txt, licenses/ and CREDITS.md. Nothing is published (CLAUDE.md rule 5).
