@@ -1,16 +1,16 @@
 # Status (branch asm-b1-b2, from main 9d9ed79)
 
-Batch 1 (ASM_F: perf_ly / perf_snap asm in src/main.c, C kept under #else): DONE and verified before batch 2 edits.
-make test 4504 passed, GB_ROM=build/game-c.gb pytest 4505 passed, make check and gbcheck game-c OK, data layout identical,
-rig cases 0 mismatches (tests/test_asm_equiv.py, RUN_SLOW sweep passed). ROM0 free 126 -> 273 B. No golden changes.
-test_perf asm vs C: level8 same, pile 311/313 vs 311/313, realistic peak dmg end 234 vs 216 (single-worst frame, noisy), missed 239 vs 245.
-Not finished: profiler comparison (out/run_prof.sh asm|c, then python3 out/cmp.py prof_c prof_asm main:_perf_ly,main:_perf_snap) and the
-RUN_SLOW test_build run (out/b1_build.log) were still running; rerun if the logs are empty. out/ is not committed.
+Batches 1 and 2 are done and verified; the two are in the WIP commit 87dc160 plus this one (main.c carries both edits).
 
-Batch 2 (ROM0 relief in C): WIP, UNBUILT AND UNTESTED. New src/rom0_relief.c (#pragma bank 21) holds add_score (BANKED) and
-dancers_step (dancer_look + draw_dancers); render.c draw_stage_fx calls dancers_step(); game.h declares both BANKED; bonus.c extern
-add_score now BANKED (shared-file edit, one line). hi_pick/split6 skipped as told.
+Batch 1 (ASM_F: perf_ly / perf_snap asm in src/main.c, C kept under #else): ROM0 free 126 -> 273 B.
+Batch 2 (ROM0 relief in C): add_score (BANKED) and dancers_step (dancer_look + draw_dancers) in src/rom0_relief.c, bank 21.
+  ROM0 free 273 -> 1093 B (asm build), 946 B (cfall). Bank 21 free 10325 B. hi_pick/split6 skipped.
 
-Resume: make (fix compile errors, e.g. duplicate externs in rom0_relief.c), make cfall, then make test / make check, cfall pytest,
-gbcheck game-c, RUN_SLOW test_build, tools/data_layout_check.py, report ROM0 free + bank 21 free, commit batch 1 and 2 separately
-(this WIP commit mixes them: main.c carries both edits).
+Verified on the final tree: make test 4504 passed; GB_ROM=build/game-c.gb pytest 4505 passed; make check and gbcheck game-c OK;
+RUN_SLOW test_build passed; data_layout_check identical; rig 0 mismatches (perf_ly: 20,000 random plus RUN_SLOW exhaustive sweep).
+No golden changed.
+
+NOT done: profiler re-run against the baseline. The old scripts (out/asm_scripts, not committed) fail on boss/story scenarios against
+current main (the CONTINUE menu assertion) and the arcade_peak jobs did not finish in 17 min, so no profile numbers were recorded.
+test_perf stands in: level-8 106/118 missed 0; pile 311/313 (unchanged); realistic peak dmg end 236 missed 239 / cgb end 230 missed 288
+(C build of the same tree: dmg 216/245, cgb 228/306; single-worst frames swing +-30 with layout).
