@@ -432,7 +432,7 @@ static uint8_t ddark(uint8_t p, uint8_t k) {      // a DMG palette k shades dark
 // begins and no bunched tick when it ends (a tick at the VBlank instead was ~1.9 frames after the loop's, then ~0.1 before it: an audible hitch a card).
 #define TICK_LY 18
 #define COL_WHITE 0x7FFF
-static void group_t(const uint8_t *o, uint8_t k, uint8_t tick) {   // group(): the 32 colours (most of a frame) toward white, the frame's tick at line 18 inside it
+static void group_t(const uint8_t *o, uint8_t k, uint8_t tick, uint8_t skip6) {   // group(): the 32 colours (most of a frame) toward white, the frame's tick at line 18 inside it
     uint8_t i, a = k & 4, b = k & 2, c = k & 1;
     uint16_t kk = COL_WHITE - part(COL_WHITE, k), w, r;
     uint16_t *q = (uint16_t *)RES;
@@ -440,7 +440,7 @@ static void group_t(const uint8_t *o, uint8_t k, uint8_t tick) {   // group(): t
     for (i = 0; i < 32; i++) {
         if (tick && (i & 1) && LY_REG >= TICK_LY && LY_REG < 100) { music_tick(); tick = 0; }
         w = *p++;
-        if (k == 8) r = w;
+        if (k == 8 || (skip6 && (i >> 2) == 6)) r = w;                 // (skip6: BG palette 6, the cast cards' header, is left as it is)
         else {
             r = kk;
             if (a) r += (w >> 1) & 0x3DEF;
@@ -466,7 +466,7 @@ static uint8_t dlite(uint8_t p, uint8_t k) {                   // a DMG palette 
     return r;
 }
 
-uint8_t trans_cast(uint8_t *o, uint8_t in) BANKED {      // in 0: the card's colours to white; 1: from white back. Returns the frames it took
+uint8_t trans_cast(uint8_t *o, uint8_t in, uint8_t hdr) BANKED {      // in 0: the card's colours to white; 1: from white back. Returns the frames it took
     uint8_t s, f = 0, fr, k, g;
     if (LY_REG < TICK_LY) { while (LY_REG < TICK_LY) ; music_tick(); }   // (this frame's tick: the call began before line 18, the loop's would come after us)
     else music_tick();
@@ -475,7 +475,7 @@ uint8_t trans_cast(uint8_t *o, uint8_t in) BANKED {      // in 0: the card's col
             if (joypad() & (J_B | J_START)) break;             // (B / START cut a fade short: the caller sees the press)
             k = in ? k_ci[s] : k_co[s];
             for (g = 0; g < 2; g++) {
-                group_t(g ? o + 64 : o, k, s || g);            // (the first group's frame has had its tick)
+                group_t(g ? o + 64 : o, k, s || g, !g && !hdr);            // (the first group's frame has had its tick)
                 f += vframe(g);
             }
         }
@@ -485,7 +485,11 @@ uint8_t trans_cast(uint8_t *o, uint8_t in) BANKED {      // in 0: the card's col
             k = in ? 2 - s : s + 1;
             for (fr = 0; fr < CAST_DMG; fr++) {
                 vsync(); f++;
-                if (!fr) { BGP_REG = dlite(o[0], k); OBP0_REG = dlite(o[1], k); OBP1_REG = dlite(o[2], k); }
+                if (!fr) {
+                    story_scratch[69] = dlite(o[0], k);                // (the card's BGP; the header's too unless it stays: main.c cast_isr)
+                    if (hdr) story_scratch[68] = story_scratch[69];
+                    OBP0_REG = dlite(o[1], k); OBP1_REG = dlite(o[2], k);
+                }
                 if (s < 2 || fr < CAST_DMG - 1) tick18();
             }
         }

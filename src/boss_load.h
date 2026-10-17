@@ -43,20 +43,23 @@ static void boss_art_load(void) {
     set_sprite_palette(OBJPAL_PATRON_C, 1, p);
 }
 // The credits' cast card (src/credits.c) takes his body from his own art file, in his bank: one banked function per boss file, BOSS_CAST_FN(name).
-// cmd 0: body chunk a (4 tiles = 64 bytes, fewer at the end) into dst, the tiles copied; 1: the tile pair of column b in pose a; 2: the topper's four tiles
-// (STILL, BOB) into dst; 3: dst[0] columns, dst[1] tile pairs, dst[2..7] his colours 1-3 (little endian).
+// cmd 0: body tile a (16 bytes) into dst, copied (a DMG card remaps it); 1: the tile pair of column b in pose a; 2: the topper's four tiles
+// (STILL, BOB) into dst; 3: dst[0] columns, dst[1] tile pairs, dst[2..7] his colours 1-3 (little endian); 4: body tile a straight to BG tile b;
+// 5: the topper's tile a straight to OBJ tile b. (A byte loop in C is ~70 cycles a byte: the card's build takes a tile a unit and writes it direct.)
 #define BOSS_CAST_FN(fn) \
 uint8_t fn(uint8_t cmd, uint8_t a, uint8_t b, uint8_t *dst) BANKED { \
     uint8_t i, n = 0; \
     uint16_t left; \
     const uint8_t *src; \
     if (cmd == 0) { \
-        left = BOSS_ART_PAIRS * 32 - (uint16_t)a * 64; \
-        n = left > 64 ? 64 : (uint8_t)left; \
-        src = boss_art_body + (uint16_t)a * 64; \
+        left = BOSS_ART_PAIRS * 32 - (uint16_t)a * 16; \
+        n = left > 16 ? 16 : (uint8_t)left; \
+        src = boss_art_body + (uint16_t)a * 16; \
         for (i = 0; i != n; i++) dst[i] = src[i]; \
         return n >> 4; \
     } \
+    if (cmd == 4) { set_bkg_data(b, 1, boss_art_body + (uint16_t)a * 16); return 0; } \
+    if (cmd == 5) { set_sprite_data(b, 1, boss_art_hat + (uint16_t)a * 16); return 0; } \
     if (cmd == 1) return boss_art_pose[a][b]; \
     if (cmd == 2) { for (i = 0; i != 64; i++) dst[i] = boss_art_hat[i]; return 0; } \
     dst[0] = BOSS_ART_COLS; dst[1] = BOSS_ART_PAIRS; \

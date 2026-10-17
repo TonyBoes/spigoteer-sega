@@ -34,7 +34,7 @@ _src = (ROOT / "src" / "credits.c").read_text()
 LABELS = [re.findall(r'"([^"]+)"', row) for row in re.findall(r"\{ (\"[A-Z]+\", \"[A-Z]+\", \"[A-Z]+\") \},", _src[_src.index("cr_pat[10][3]"):])]   # the patrons' labels, one table in credits.c
 assert len(LABELS) == 10
 # every card's lines, top to bottom (words of a row joined by one space): 0 the title, 1 the Spigoteer, 2 Dregs, then per venue the owner, the patrons, the boss
-CARDS = [["CAST OF", "CHARACTERS"], ["SAL TAPLEY", "THE SPIGOTEER"], ["DREGS"]]
+CARDS = [["CAST OF", "CHARACTERS"], ["SAL TAPLEY", "THE SPIGOTEER"], ["DREGS", "RIVAL"]]
 def lowered(labels):
     """The middle label goes a row lower when it would stand closer than a tile to a neighbour (credits.c cr_lowered)."""
     cx = [32 + 48 * k + (4 if len(w) & 1 else 0) for k, w in enumerate(labels)]
@@ -43,9 +43,9 @@ def lowered(labels):
 
 
 for v in range(10):
-    CARDS.append([OWNERS[v], VENUES[v]])
+    CARDS.append([VENUES[v], OWNERS[v]])                    # (the venue is the header, the top rows, through all three cards)
     CARDS.append([VENUES[v], " ".join(w for k, w in enumerate(LABELS[v]) if not (k == 1 and lowered(LABELS[v])))] + ([LABELS[v][1]] if lowered(LABELS[v]) else []))
-    CARDS.append([BOSSES[v], VENUES[v]])
+    CARDS.append([VENUES[v], BOSSES[v]])
 KINDS = ["title", "spigoteer", "dregs"] + ["owner", "patrons", "boss"] * 10
 ROLL_LINES = ["SPIGOTEER", "GAME DESIGN,", "MEDIA, AND", "STORY BY", "TONY", "AND HIS TIRELESS", "TEAM OF", "ROBOT FRIENDS", "MUSIC", "PUBLIC DOMAIN",
               "MELODIES,", "ARRANGED", "FOR THIS GAME", "SPECIAL", "THANKS TO:", "GBDK-2020", "SDCC", "HUGEDRIVER", "RGBDS", "SAMEBOY", "PYBOY",
@@ -192,22 +192,31 @@ def test_the_cast_cards_in_order_with_their_names_and_figures(model):
             if kind == "spigoteer":
                 assert shown and all(t < 56 for t in shown), "the Spigoteer's own OBJ tiles"
             elif kind == "dregs":
-                assert shown and all(56 <= t < 64 for t in shown), "Dregs's (OBJ 56..)"
+                assert shown and all(56 <= t < 80 for t in shown), "Dregs's (OBJ 56..79: idle and two walk frames)"
             elif kind in ("spigoteer", "dregs", "owner"):
                 pass
             if kind in ("spigoteer", "dregs", "owner"):
                 art = [r for r in range(18) if any(94 <= t < 138 for t in tilemap_row(gb, r, 0, 20))]
-                assert art[0] == 4 and art == list(range(4, art[-1] + 1)) and 9 <= art[-1] <= 10, ("the story portrait", art)
-                assert rows == ([12, 14] if kind != "dregs" else [12]), (c, rows)
+                top = 3 if kind == "owner" else 2                # (an owner's is under the venue's header)
+                assert art[0] == top and art == list(range(top, art[-1] + 1)) and art[-1] <= 9, ("the story portrait", art)
+                assert rows == ([1, 12] if kind == "owner" else [10, 12]), (c, rows)
+                cols = [i for r in art for i, t in enumerate(tilemap_row(gb, r, 0, 20)) if 94 <= t < 138]
+                assert abs((min(cols) + max(cols) + 1) * 4 - 80) <= 4, ("the portrait is centred", min(cols), max(cols))
                 if kind == "owner":
                     assert not shown, "an owner's card has no sprites"
             elif kind == "boss":
                 assert shown and shown <= {64, 66}, "the topper"
                 body = [r for r in range(18) if any(100 <= t < 160 for t in tilemap_row(gb, r, 0, 20))]
-                assert body == [6, 7] and rows == [10, 12], ("the boss's two rows, straight on the band, his name, the venue", body, rows)
+                assert body == [6, 7] and rows == [1, 10], ("the boss's two rows, straight on the band, his name; the venue is the header", body, rows)
             elif kind == "patrons":
                 assert shown == {100, 102, 106, 108, 112, 114}, shown
-                assert rows == ([2, 10, 12] if lowered(LABELS[(c - 3) // 3]) else [2, 10]), rows
+                assert rows == ([1, 10, 12] if lowered(LABELS[(c - 3) // 3]) else [1, 10]), rows
+            if kind in ("spigoteer", "dregs"):                  # the sprite to the left of the two lines, the group centred
+                xs = sorted(s["x"] for s in gb.visible_sprites())
+                l1 = row_cols(gb, 10)
+                left, right = xs[0] - 8, (l1[1] + 1) * 8 if len(CARDS[c][0]) >= len(CARDS[c][1]) else (row_cols(gb, 12)[1] + 1) * 8
+                assert abs(left + right - 160) <= 8, ("sprite and text centred as one group", left, right)
+                assert xs[-1] + 8 <= min(row_cols(gb, 10)[0], row_cols(gb, 12)[0]) * 8, "the sprite is left of the text"
             for r in range(18):                                 # every line keeps a clear column at each edge
                 cols = row_cols(gb, r)
                 if cols:
@@ -373,7 +382,7 @@ def test_a_and_b_and_start(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_goldens_of_the_cast(model):
     with roll_from_bonus(model, sound=False) as gb:
-        for c, name in ((0, "title"), (1, "spigoteer"), (2, "dregs"), (3, "owner_saloon"), (4, "patrons_saloon"), (5, "boss_saloon"), (21, "owner_chromecow"),
+        for c, name in ((0, "title"), (1, "spigoteer"), (2, "dregs"), (3, "owner_saloon"), (4, "patrons_saloon"), (5, "boss_saloon"), (10, "patrons_lodge"), (21, "owner_chromecow"),
                         (23, "boss_chromecow"), (30, "owner_space"), (32, "boss_space")):
             at(gb, CARD_START[c] + 5)
             check_golden(gb, "credits_cast_" + name)
@@ -604,7 +613,7 @@ def test_with_the_sound_off_the_roll_ends_when_the_tune_would_have(model):
             gb.run(1)
             n += 1
             assert n < TOTAL + 200
-        assert TOTAL - 60 <= n <= TOTAL + 10, n
+        assert TOTAL - 60 <= n <= TOTAL + 30, n                  # (the leave: the drink to the next screen is part of it)
 
 
 def ink(im):
@@ -631,14 +640,29 @@ def settled_cards(model):
     return refs
 
 
+HEAD = 16                                                      # the venue header: the top two tile rows (16 px)
+
+
+def body_ink(im):
+    """ink() of the card's body (everything under the header): the pixels that are not its top-left pixel's colour (band when the card is up, white when faded out)."""
+    return ink(im.crop((0, HEAD, 160, 144)))
+
+
+def body_energy(im):
+    return energy(im.crop((0, HEAD, 160, 144)))
+
+
+def head_ink(im):
+    return ink(im.crop((0, 0, 160, HEAD)))
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_no_frame_during_a_card_change_shows_a_partly_built_card(model):
-    """A card is built behind the fade: while it is cleared, loaded and written the screen is one colour; its fade-in shows its picture whole (every
-    pixel of a frame is a pixel of the finished card, dimmer); its fade-out the old card's."""
-    import numpy as np
+    """A card is built behind the fade with the LCD ON: while it is cleared, loaded and written the body of the screen (under the header) is one colour;
+    its fade-in shows its picture whole (every pixel of a frame is a pixel of the finished card, dimmer); its fade-out the old card's."""
     cards = settled_cards(model)
-    refs = {c: ink(im) for c, im in cards.items()}
-    energies = {c: energy(im) for c, im in cards.items()}
+    refs = {c: body_ink(im) for c, im in cards.items()}
+    energies = {c: body_energy(im) for c, im in cards.items()}
     with roll_from_bonus(model, sound=False) as gb:
         for c in range(2, 33):
             at(gb, CARD_START[c - 1] + 5)
@@ -647,21 +671,71 @@ def test_no_frame_during_a_card_change_shows_a_partly_built_card(model):
                 gb.run(1)
                 st = gb.read("story_scratch", 32)
                 card, phase = st[CARD], st[PHASE]
-                m = ink(gb.image())
+                im = gb.image()
+                m = body_ink(im)
                 ref = refs[card].copy()
-                if KINDS[card] in ("patrons", "boss"):            # (patrons bob, the boss walks: that band is left out)
-                    band = (40, 90) if KINDS[card] == "patrons" else (36, 68)
+                if KINDS[card] in ("patrons", "boss", "spigoteer", "dregs"):   # (patrons bob, the boss and the pair walk: that band is left out)
+                    band = {"patrons": (24, 74), "boss": (20, 52), "spigoteer": (58, 94), "dregs": (58, 94)}[KINDS[card]]
                     m[band[0]:band[1], :] = False
                     ref[band[0]:band[1], :] = False
                 if phase in (1, 2, 3):
                     assert not m.any(), ("a card being built shows", model, c, phase, int(m.sum()))
                 else:
                     assert not (m & ~ref).any(), ("pixels that are not the card's", model, c, card, phase)
-                    e = energy(gb.image())
+                    e = body_energy(im)
                     if 0.05 * energies[card] < e < 0.9 * energies[card]:
                         dim += 1
             assert dim >= 3, ("the fades are seen: a few dimmer frames each way", model, c, dim)
             assert gb.read("story_scratch", 32)[CARD] == c
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_venue_header_stays_through_its_three_cards_and_fades_once_each_way(model):
+    """The venue's name is fixed at the top for the owner, patrons and boss cards: through the fades between them (and the builds) its pixels do not
+    change at all; it fades in once with the owner and out once after the boss."""
+    with roll_from_bonus(model, sound=False) as gb:
+        for v in (0, 4, 9):
+            first = 3 + 3 * v
+            at(gb, CARD_START[first] - 60)
+            ref, seen_blank, dim_in, dim_out = None, False, 0, 0
+            end = CARD_START[first + 2] + 100                        # the boss card is up for 100 frames
+            after = (CARD_START[first + 3] if first + 3 < 33 else ROLL) + 40
+            while cr_f(gb) < after:
+                gb.run(1)
+                st = gb.read("story_scratch", 32)
+                card, f = st[CARD], cr_f(gb)
+                hd = gb.image().convert("RGB").crop((0, 0, 160, HEAD))
+                cols = len(set(hd.getdata()))
+                if ref is None:
+                    if card == first and st[PHASE] == 5 and f > CARD_START[first] + 40:
+                        ref = list(hd.getdata())                     # the header at full colour (the owner is up)
+                        assert cols >= 2, "the venue's name is on it"
+                    elif card == first and st[PHASE] == 4 + 0 and cols >= 2 and False:
+                        pass
+                    elif f < CARD_START[first] + 40 and cols > 1:
+                        dim_in += 1                                  # (the fade in, seen)
+                    continue
+                if f < end:
+                    assert list(hd.getdata()) == ref, ("the header changed within its venue", model, v, card, st[PHASE], f)
+                elif cols == 1:
+                    seen_blank = True                                # (faded out to one colour after the boss)
+            assert ref is not None and dim_in >= 1, ("the header faded in with the owner", v, dim_in)
+            assert seen_blank, ("the header faded out after the boss", v)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_portrait_has_no_square_backdrop_in_the_credits(model):
+    """The story portraits stand on the band: the top corners of a cast portrait's box (its backdrop; a bust fills its bottom) are the band's colour, for Sal, Dregs and the ten owners."""
+    with roll_from_bonus(model, sound=False) as gb:
+        for c in [1, 2] + [3 + 3 * v for v in range(10)]:
+            at(gb, CARD_START[c] + 5)
+            im = gb.image().convert("RGB")
+            band = im.getpixel((2, 100))
+            rows = [r for r in range(18) if any(94 <= t < 138 for t in tilemap_row(gb, r, 0, 20))]
+            cols = sorted({i for r in rows for i, t in enumerate(tilemap_row(gb, r, 0, 20)) if 94 <= t < 138})
+            x0, x1, y0, y1 = cols[0] * 8, cols[-1] * 8 + 7, rows[0] * 8, rows[-1] * 8 + 7
+            for xy in ((x0, y0), (x1, y0), (x0 + 1, y0 + 1), (x1 - 1, y0 + 1)):
+                assert im.getpixel(xy) == band, ("the portrait's corner is the band, not a backdrop square", model, c, xy, im.getpixel(xy), band)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

@@ -713,11 +713,11 @@ void po_update(uint8_t pressed) BANKED {
     draw();
 }
 
-// The credits' cast card (src/credits.c): Dregs's idle frame (8 tiles, drawn as the Spigoteer's four entries) to OBJ ids first.., and his palette
+// The credits' cast card (src/credits.c): n tiles of Dregs's frames (8 tiles each, drawn as the Spigoteer's four entries: idle, walk, walk) from tile `from` to OBJ ids first + from.., and his palette
 // (4 colours, colour 0 zero) to pal (the card keeps its palettes in RAM: it fades them in VBlank itself). The art and the colours stay here, so a
 // change to either shows on the card too. Not in a fight.
-void dregs_cast_load(uint8_t first, uint16_t *pal) BANKED {
+void dregs_cast_load(uint8_t first, uint8_t from, uint8_t n, uint16_t *pal) BANKED {
     uint8_t i;
-    set_sprite_data(first, 8, po_dregs_tiles);
+    set_sprite_data(first + from, n, po_dregs_tiles + 16 * from);
     for (i = 0; i < 4; i++) pal[i] = dregs_pal[i];
 }
