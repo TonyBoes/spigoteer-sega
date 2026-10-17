@@ -6,8 +6,9 @@
 //   dg_page(st, scene, prev, spk)  every page turn: the running gag is cleaned up, a new one starts when this page is its page
 //   dg_frame(st)              every frame of a scene while st[4] is 1 (the gag runs): draws; A does not turn the page meanwhile
 // All state is `st`, story.c's win_rows (the goal banner's 100 bytes, unused in a scene): no WRAM of its own.
-//   st[0] frame of the gag (a gag is at most 255 frames), st[1] next OAM entry while drawing, st[2] venue, st[3] phase,
-//   st[4] 0 idle, 1 running, 2 finished but still on screen (Dregs standing: the punks' chord page waits for the blast page).
+//   st[0] the gag's next frame (its own, closed-form frame number: below, 0-255), st[1] next OAM entry while drawing, st[2] venue, st[3] phase,
+//   st[4] 0 idle, 1 running, 2 finished but still on screen (Dregs standing: the punks' chord page waits for the blast page),
+//   st[5], st[6] the real frames since the page turn (16 bits; the gag's own frame follows it through warp(): a beat, then slower).
 // Phases: 0 the exit; 1 the punks' second page (blast); 2 the space lounge's "came down" page (beam down).
 // Every gag is a closed-form function of its frame number. The common opening (OPEN = 48 frames): Dregs dashes in from the right (whoosh), reaches for
 // the prize (arm out, one hop), then the venue's way out; the common ending: dust and a crash at the left edge.
@@ -331,6 +332,22 @@ static uint8_t gag_space(uint8_t *st, uint8_t t, uint8_t ph) {
     return w < 40;
 }
 
+// ---- the beat and the slow-down (owner playtest 2026-10-17: "the sliding happens really fast after text from Dregs") ------------------
+// After the common opening Dregs stands, arm out, HOLD frames (idling on the opening's last 14 frames), so the owner sees what is about to
+// happen; then the venue's own gag plays at 13/16 speed (a little slower). The punks' blast page (phase 1) has no beat (the chord page
+// before it was the wait) but plays slower too; the space lounge's "came down" page (phase 2) is untouched.
+#define HOLD     72                                 // 1.2 s
+static uint8_t warp(uint16_t r, uint8_t ph) {
+    if (ph == 2) return (uint8_t)r;
+    if (ph == 0) {
+        if (r < OPEN) return (uint8_t)r;
+        if (r < OPEN + HOLD) { r &= 15; return (uint8_t)(r < 2 ? 46 + r : 32 + r); }   // 46 47 34 35 .. 47: the opening's idle (no hop: that is 28-33)
+        r -= OPEN + HOLD;
+        return (uint8_t)(OPEN + (((r << 3) + (r << 2) + r) >> 4));
+    }
+    return (uint8_t)(((r << 3) + (r << 2) + r) >> 4);
+}
+
 // ---- dispatch ---------------------------------------------------------------------------------------------------------------------
 static void spr_pal(uint8_t slot, const uint16_t *p) { if (is_cgb) set_sprite_palette(slot, 1, p); }
 
@@ -382,11 +399,13 @@ void dg_page(uint8_t *st, uint8_t scene, uint8_t prev, uint8_t spk) BANKED {
     else if (prev == SPK_SPIGOTEER && v == 9) ph = 2;              // the space lounge's "came down" page
     if (ph == 255) return;
     if (ph == 2) spr_pal(1, pal_tee);
-    st[0] = 0; st[2] = v; st[3] = ph; st[4] = 1;
+    st[0] = st[5] = st[6] = 0; st[2] = v; st[3] = ph; st[4] = 1;
 }
 
 void dg_frame(uint8_t *st) BANKED {
-    uint8_t t = st[0], i, run = 1, ph = st[3];
+    uint16_t r = st[5] | ((uint16_t)st[6] << 8);
+    uint8_t t = warp(r, st[3]), i, run = 1, ph = st[3];
+    if (r && t + 1 == st[0]) { st[5]++; if (!st[5]) st[6]++; return; }   // (slowed: the picture of the last frame stays, nothing is said twice)
     st[1] = OAM0;
     switch (st[2]) {
     case 0: run = gag_saloon(st, t); break;
@@ -403,5 +422,5 @@ void dg_frame(uint8_t *st) BANKED {
     for (i = run ? st[1] : OAM0; i < 40; i++) shadow_OAM[i].y = 0;   // (a gag that ends leaves nothing)
     if (run == 2) st[4] = 2;                        // done, left standing
     else if (!run) { st[4] = 0; if (ph == 2) spr_pal(1, pal_dregs); }   // (the T-shirt's colours go back)
-    else st[0] = t + 1;
+    else { st[0] = t + 1; st[5]++; if (!st[5]) st[6]++; }
 }

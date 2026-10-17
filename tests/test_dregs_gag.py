@@ -15,7 +15,8 @@ VENUES = ["saloon", "stadium", "lumber", "bistro", "igloo", "robot", "punks", "t
 # space lounge's "came down" page
 EXPECT = {c: 1 for c in range(10)}
 EXPECT[6] = EXPECT[9] = 2
-LENGTH = (100, 240)        # frames a gag runs (the owner asked for 2-4 s of scene animation; 100 frames = 1.7 s is the floor)
+LENGTH = (100, 300)        # real frames a gag runs (2-4 s asked first; the beat before the venue acts and the slower slide of 2026-10-17 lift the cap to 5 s)
+OPEN, HOLD = 48, 72        # src/dgag.c: the opening's frames, the beat after it (Dregs stands, arm out) before the venue's own gag
 LENGTHS = {}
 
 
@@ -28,7 +29,13 @@ def gag_state(gb):
 
 
 def gag_t(gb):
+    """The gag's next (closed-form) frame number: it idles at 33-48 through the beat and then runs at 13/16 speed."""
     return gb.mem(st_addr(gb))
+
+
+def gag_raw(gb):
+    """The real frames since the page turn (16 bits at win_rows[0][5])."""
+    return gb.mem16(st_addr(gb) + 5)
 
 
 def gag_pages(c):
@@ -121,7 +128,7 @@ def test_the_gag_plays_ends_cleanly_and_holds_the_page(model, c):
             gb.run(1)
             assert gb.mem("story_page") == k and gag_state(gb) == 1, "A does not turn the page while the gag plays"
             frames, most, line = play_gag(gb)
-            total = gag_t(gb) + 1                 # the gag's own frame count (it was already running while the text typed)
+            total = gag_raw(gb) + 1               # the real frame count (the gag was already running while the text typed)
             LENGTHS[(c, n)] = total
             assert gag_state(gb) in (0, 2), "the gag ends"
             assert most >= 2, f"{VENUES[c]}: something moved"
@@ -185,3 +192,26 @@ def test_gag_goldens(model, c):
             run_until(gb, lambda: gag_t(gb) == t and gag_state(gb) == 1, 300)
             check_golden(gb, f"dregs_gag_{VENUES[c]}" + ("_b" if which else ""))
             run_until(gb, lambda: gag_state(gb) != 1, 300)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("c", range(10))
+def test_dregs_stands_a_beat_before_the_venue_acts_and_the_shove_is_slower(model, c):
+    """After the dash and the reach Dregs stands HOLD frames (the gag idles on frames 32-47, shown as 33-48), then the venue's gag starts; played at
+    13/16 speed its frame number advances 13 for every 16 real frames."""
+    gb = post_scene(model, c)
+    with gb:
+        to_page(gb, gag_pages(c)[0])
+        assert gag_raw(gb) < OPEN
+        run_until(gb, lambda: gag_raw(gb) == OPEN + 4, 80)
+        beat = []
+        while gag_raw(gb) < OPEN + HOLD - 1:
+            beat.append(gag_t(gb))
+            gb.run(1)
+        assert 33 <= min(beat) and max(beat) <= 48, f"{VENUES[c]}: Dregs idles through the beat: {sorted(set(beat))}"
+        gb.run(6)
+        assert gag_raw(gb) >= OPEN + HOLD + 4 and gag_t(gb) > OPEN, f"{VENUES[c]}: the venue acts once the beat is over"
+        t0, r0 = gag_t(gb), gag_raw(gb)
+        gb.run(32)
+        assert 22 <= gag_t(gb) - t0 <= 28, f"{VENUES[c]}: slowed to 13/16 (26 gag frames in 32): {gag_t(gb) - t0}"
+        assert gag_raw(gb) - r0 == 32

@@ -42,7 +42,7 @@ Running gags:
    gets help (the Spigoteer asks Zizz to beam him back down), and in the finale he says sorry.
    **Dregs's exits (animated, G17, src/dgag.c).** The narrator page after Dregs's own page in each POST scene plays the gag on the venue
    backdrop in OBJ sprites (2-3 s; A cannot turn the page until it ends, START still skips): he dashes in from the right, reaches for the prize,
-   and the venue throws him off the LEFT edge (the bars have no doors on screen; dust and a crash sell one just out of view). Saloon: two cowboys
+   and the venue throws him off the LEFT edge (the bars have no doors on screen; dust and a crash sell one just out of view). After his dash and reach he stands a 1.2 s beat, arm out, while the text types, then the venue acts at 13/16 speed (playtest 2026-10-17: the shove used to follow his line too fast to follow). Saloon: two cowboys
    lay him on the bar and slide him down it. Stadium: three fans crowd-surf him. Lumber: he bolts out of his boots. Bistro: spun away by plates.
    Igloo: slides the icy bar and rolls out the tunnel downhill. Factory: the conveyor carries him into a returns box. Chrome Cow: the chord's
    sound arcs (page 1), the blast (page 2). Teahouse: the beat, then he bounces out. Zoo: monkeys steal his boots and hat. Space: the tractor
