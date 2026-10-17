@@ -270,6 +270,7 @@ void debug_open(void) BANKED {
         for (k = level; k > CLASSIC_ROWS; k -= 13) ;
         debug_level = k;
     } else debug_level = level < DEBUG_LEVELS ? level : DEBUG_LEVELS;
+    end_note();                                      // (WY and LYC back where the menu saves them)
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN;
     typedef char keys_in_9000_block[KEY_A + 3 <= 128 ? 1 : -1];   // BG ids 0-127: VRAM 0x9000 + id * 16

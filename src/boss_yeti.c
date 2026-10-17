@@ -161,7 +161,7 @@ static void to_icy(void) {
     boss_icy = YETI_ICY;
     boss_fast_full = boss_fast_empty = 1;
     SFX(SFX_WHOOSH);
-    show_overlay("TAP FROZEN");
+    show_note("TAP FROZEN");          // (a note: the game goes on, the bars stay in view)
     boss_xpose = BP_BLOW;
     boss_sip_t = 255;                            // a held empty may go at once (if the schedule allows)
     boss_window = YETI_ICY;
@@ -253,7 +253,7 @@ uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED {
             break;
         case YP_ICY:
             if (yeti_t == YETI_BLOW) boss_xpose = 0;
-            if (yeti_t == YETI_BANNER) overlay_on = 0;
+            if (yeti_t == YETI_BANNER) end_note();
             if (bar == boss_bar && fill_timer) {  // the frozen tap: nothing is poured at him
                 if (fill_timer == 1) SFX(SFX_SHAKE);
                 fill_timer = 0; fill_stage = 0;
