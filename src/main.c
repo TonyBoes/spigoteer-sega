@@ -481,24 +481,8 @@ static void update(void) {
     joy = 0;                                     // (AUTO_TRANS 1: STORY / NORMAL, 2: ARCADE; the frames count from boot, the menu is up from about 90)
     if (game_state == GS_TITLE && frame_counter >= 96 && (frame_counter & 15) < 2) joy = (AUTO_TRANS == 2 && (frame_counter & 0x10)) ? J_DOWN : J_A;
 #endif
-#ifdef AUTO_CARD                        // test-only (tests/test_fade_hw.py, never in a release): boot -> BOSS RUSH's first fight (as rush.c starts it) -> START 300 frames in -> DOWN, A: the
-    {                                            // HOW TO PLAY card -> (AUTO_CARD 1: B, 100 frames later, back to the menu; 2: the card stays open); the pause fades or the LCD-off cut (-DCARD_FADE=0)
-        static uint16_t ac_t;
-        joy = 0;
-        if (game_state == GS_TITLE) {
-            if (frame_counter == 100) { score = 0; lives = START_LIVES; rush_fight(0); }
-        } else if (game_state == GS_GOAL) {
-            if (!(++ac_t & 15)) joy = J_A;
-        } else if (game_state == GS_PLAYING || game_state == GS_PAUSED) {
-            ac_t++;
-            if (ac_t == 300) joy = J_START;
-            if (ac_t == 320) joy = J_DOWN;
-            if (ac_t == 340) joy = J_A;
-#if AUTO_CARD == 1
-            if (ac_t == 440) joy = J_B;
-#endif
-        }
-    }
+#ifdef AUTO_CARD                        // test-only (tests/test_fade_hw.py, never in a release): the hook is in src/debug.c (a banked file: ROM0 has no room)
+    joy = auto_card();
 #endif
     pressed = joy & ~joy_prev;
     if (joy & J_SELECT) pressed = debug_gesture(pressed);   // SELECT + three START taps: the debug menu (src/debug.c; before the state switch: it may change the state)

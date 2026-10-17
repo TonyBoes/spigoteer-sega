@@ -431,3 +431,26 @@ uint8_t debug_step(uint8_t pressed) BANKED {
     }
     return 0;
 }
+
+#ifdef AUTO_CARD                        // test-only (tests/test_fade_hw.py, never in a release): boot -> BOSS RUSH's first fight (as rush.c starts it) -> START 300 frames in -> DOWN, A: the
+extern uint8_t frame_counter;
+extern uint32_t score;
+uint8_t auto_card(void) BANKED {         // HOW TO PLAY card -> (AUTO_CARD 1: B, 100 frames later, back to the menu; 2: the card stays open); the pause fades or the LCD-off cut (-DCARD_FADE=0). Returns joy.
+    static uint16_t ac_t;
+    uint8_t j = 0;
+    if (game_state == GS_TITLE) {
+        if (frame_counter == 100) { score = 0; lives = START_LIVES; rush_fight(0); }
+    } else if (game_state == GS_GOAL) {
+        if (!(++ac_t & 15)) j = J_A;
+    } else if (game_state == GS_PLAYING || game_state == GS_PAUSED) {
+        ac_t++;
+        if (ac_t == 300) j = J_START;
+        if (ac_t == 320) j = J_DOWN;
+        if (ac_t == 340) j = J_A;
+#if AUTO_CARD == 1
+        if (ac_t == 440) j = J_B;
+#endif
+    }
+    return j;
+}
+#endif
