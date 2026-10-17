@@ -22,7 +22,7 @@ BANKREF_EXTERN(art_tiles)
 extern uint32_t score;
 extern uint8_t  bar, bartender_x, bartender_frac, facing, bartender_frame, at_tap, walk_timer, bt_bob, walk_phase;
 extern uint8_t  fill_timer, fill_stage, slide_timer, game_over, state_timer, overlay_on, level, cur_group;
-extern uint8_t  story_shift;
+extern uint8_t  story_shift, story_chapter;
 extern uint8_t  frame_counter, joy, joy_prev, rng_state, score_digits[6], arcade_loop, new_rank;
 
 // ---- palettes ----------------------------------------------------------------
@@ -133,6 +133,7 @@ void boot_init(void) BANKED {
         OBP1_REG = OBP1_MENU;   // title: mugs, sparkles: idx1 light grey, idx2 white, idx3 black; in play OBP1_PLAY (lift.c)
     }
     music_init();
+    story_chapter = 0;                          // (bit 7 would offer a debug-select resume: WRAM holds junk on a real Game Boy)
     hi_load();
     SPRITES_8x16;
     spr_data(OBJ_BARTENDER, BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME, bartender_tiles);

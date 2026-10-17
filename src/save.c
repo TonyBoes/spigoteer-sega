@@ -581,6 +581,13 @@ void story_save(uint8_t chapters, uint8_t step) BANKED {
     save_all(RUN_DIFF);                          // (a STORY run: its difficulty goes with the progress)
 }
 
+// Is CONTINUE offered: a story saved part way (a shift or a chapter cleared, not all ten), or a quit debug-select run to resume
+// (story_chapter | DEBUG_RESUME, set by pause.c's QUIT; main_cold.c clears it at start-up: WRAM is not zero on a real Game Boy)?
+extern uint8_t story_chapter;
+uint8_t can_continue(void) BANKED {
+    return ((story_progress || story_reached) && story_progress < STORY_CHAPTERS) || (story_chapter & DEBUG_RESUME);
+}
+
 // CONTINUE's difficulty: what the saved story was started in (an older save, a bad block, a bad code: NORMAL)
 uint8_t story_diff_saved(void) BANKED {
     uint8_t d = 0;

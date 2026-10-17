@@ -658,6 +658,12 @@ void story_begin(uint8_t how) BANKED {
     uint8_t cont = how & 1;
     TRANS_WANT();                                // (src/trans.c: title -> the story)
     run_begin(0);
+    if (cont && (story_chapter & DEBUG_RESUME)) {            // a debug-select run was quit: back to its chapter and step, nothing saved
+        story_chapter &= ~DEBUG_RESUME;
+        save_lock = SAVE_LOCK_DEBUG;
+        story_debug_start(story_chapter, story_step + 1, 0);
+        return;
+    }
     story_arc = cont ? story_diff_saved() << 1 : how & 6;   // the difficulty: the saved one, or the prompt's (bits 1-2, DIFF_*; the run's, game.h RUN_DIFF)
     if (cont && (story_progress || story_reached) && story_progress < STORY_CHAPTERS) {
         story_chapter = story_progress;

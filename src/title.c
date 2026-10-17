@@ -174,7 +174,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_SETTINGS;
         break;
     case TM_PLAY:     // M11b: CONTINUE when a story is saved part way (a shift or a chapter cleared, not all ten)
-        if ((story_progress || story_reached) && story_progress < STORY_CHAPTERS) title_items[title_n++] = K_CONTINUE;
+        if (can_continue()) title_items[title_n++] = K_CONTINUE;
         title_items[title_n++] = K_STORY;
         title_items[title_n++] = K_ARCADE;
         title_items[title_n++] = K_CLASSIC;
@@ -561,7 +561,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
         }
     } else if ((pressed & J_B) && title_menu != TM_TOP) {
         if (title_menu == TM_ERASE) menu_open(TM_SETTINGS, 2);
-        else if (title_menu == TM_HARD) menu_open(TM_PLAY, (story_progress || story_reached) && story_progress < STORY_CHAPTERS);   // (STORY's line: after CONTINUE when it is shown)
+        else if (title_menu == TM_HARD) menu_open(TM_PLAY, can_continue());   // (STORY's line: after CONTINUE when it is shown)
         else menu_open(TM_TOP, title_menu - 1);
     }
     if (title_sel == old) {                        // (a cursor move already queued its two attribute rows)

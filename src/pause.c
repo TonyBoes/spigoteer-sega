@@ -50,7 +50,7 @@
 
 BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
-extern uint8_t state_timer, overlay_on, story_phase, new_rank;
+extern uint8_t state_timer, overlay_on, story_phase, new_rank, story_chapter, save_lock;
 extern uint32_t score;
 
 #ifndef CARD_FADE
@@ -281,6 +281,7 @@ static void quit(void) {
     story_phase = 0;                             // (SP_OFF)
     if (story_on && !(story_arc & 1)) {              // STORY: the title; CONTINUE starts from the last save
         story_on = 0; story_arc = 0; hud_pal_reset();   // (the run's difficulty and the HUD colour it tinted end here)
+        if (save_lock == SAVE_LOCK_DEBUG) story_chapter |= DEBUG_RESUME;   // a debug-select run saved nothing: CONTINUE resumes it (story_begin)
         title_enter();
         return;
     }
