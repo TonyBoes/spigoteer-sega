@@ -172,7 +172,7 @@ def test_page_gaps_and_mid_line_beats(model):
         trace = typed_trace(gb, 30)
         assert gb.mem("story_page") == 3
         assert first_char(trace) in range(GAP_SPK - 1, GAP_SPK + 3), trace
-        # page 4's "THE SPIGOTEER.|": the typing stops SHORT frames after the line's last character
+        # page 4's "THE SPIGOTEER,|": the typing stops SHORT frames after the line's last character
         assert intro[3]["marks"] == [[1, 14, SHORT]]
         run_until(gb, lambda: gb.mem("story_typed") == 54, 200)
         assert text_rows(gb) == glyph_rows(intro[3]["lines"])
