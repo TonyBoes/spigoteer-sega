@@ -163,3 +163,46 @@ def test_ten_objects_a_line_on_every_frame_of_a_play_sample(boot, group):
     worst, bars = sample_run(boot, group)
     assert len(bars) >= 2, "the script changed bars"
     assert worst <= GAME["LINE_OBJ_MAX"], worst
+
+
+# Every venue's keg (owner 2026-10-17: "look at the kegs, all that are so tall they leave no headroom, fix them like the juice keg").
+# Each lost 1-2 px of a plain middle section (the saloon 1, the others 2), the top part hangs lower and the bottom stays on the counter's
+# last row; labels, lids, spouts, lightning and the star are untouched. The spouts that sit below the cut hang lower with it: the lodge's
+# 2 px (FILL_DY 0 -> 3, a 2 px stream), the teahouse's 1 px (FILL_DY 2 -> 3), the factory's 2 px (FILL_DY 0, its stream just gets shorter).
+GAP_MIN = 2
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_every_keg_leaves_a_gap_to_the_next_bars_keg_in_the_art(theme):
+    first, last = keg_extent(theme)
+    assert last == 23, (theme, "the keg stands on the bar's last row")
+    assert first + (24 - 1 - last) >= GAP_MIN, (theme, first, last)
+
+
+def screen_gap(gb, b, wall_x):
+    """Blank screen rows between the lowest row of bar b's keg (x 144-158) and the first keg row of the bar below."""
+    gap, y = 0, bar_top_y(b) + 24
+    while gap < 6 and all(screen_px(gb, x, y) == screen_px(gb, wall_x, y) for x in range(144, 159)):
+        gap, y = gap + 1, y + 1
+    return gap
+
+
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
+def test_every_keg_leaves_a_gap_on_screen(boot, group):
+    """Both models, every venue: the rows right under a bar's keg show the wall for at least GAP_MIN rows before the next keg."""
+    t = THEMES[group]
+    at_theme(boot, group)
+    boot.run(30)
+    rows = bar_rows(t)
+    wall_x = next(x for x in range(100, 136) if all(rows[y][x] == "." for y in range(0, 4)))
+    for b in range(3):
+        assert screen_px(boot, 152, bar_top_y(b) + 23) != screen_px(boot, 152, bar_top_y(b) + 24), (t, b, "keg's last row, then wall")
+        assert screen_gap(boot, b, wall_x) >= GAP_MIN, (t, b)
+
+
+def test_the_factory_bolt_is_centred_in_its_box_and_the_saloon_star_is_whole():
+    rows = bar_rows("factory")
+    bolt = [y for y in range(4, 13) if any(rows[y][x] == "-" for x in range(150, 158))]
+    assert bolt and bolt[0] - 4 == 12 - bolt[-1], ("the same blank rows above and below the bolt in its box (rows 4-12)", bolt)
+    star = {(x, y) for y in range(13, 19) for x in range(148, 155) if bar_rows("saloon")[y][x] == "-"}
+    assert len(star) >= 8

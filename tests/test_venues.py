@@ -327,12 +327,12 @@ def _spout_tip(theme):
     return max((y for y in range(16) for x in range(136, 144) if rows[y][x] != "."), default=-1)
 
 
-def test_the_saloon_keg_is_23_px_tall():
-    """Columns 18-19: the keg fills rows 1-23 of the 24-px bar (was 4-23, owner's per-venue pick: as tall as the strip
-    allows, one clear row above); bar + floor still clear of the title's text ids, the bar palette only."""
+def test_the_saloon_keg_is_22_px_tall():
+    """Columns 18-19: the keg fills rows 2-23 of the 24-px bar (was 1-23: 1 px shorter, owner 2026-10-17, so 2 clear rows
+    keep it off the next bar's keg); bar + floor still clear of the title's text ids, the bar palette only."""
     rows = _saloon_bar_rows()
     keg = [y for y in range(24) if set(rows[y][144:160]) != {"."}]
-    assert keg == list(range(1, 24)), keg
+    assert keg == list(range(2, 24)), keg
     v = venue("saloon")
     assert v["bar_n"] <= VENUES["pool"] - VENUES["title_text_slot"]
     assert all(v["bar_attr"][r * 20 + c] == BGPAL_BAR for r in range(3) for c in (18, 19))
@@ -356,7 +356,7 @@ def test_the_spout_tip_ends_above_the_empty_glass(theme):
     assert 0 <= tip < LAYOUT["MUG_DY"] + dy + 4, (theme, tip, dy)
     # the cup is as high as the art allows: one row lower of drop would put the foam head on the tip
     # (the bistro's owner pick, 2026-10-17: a visible gap under the spout so the stream shows: FILL_DY 3, tip 9)
-    assert dy == 0 or theme == "bistro" or tip >= LAYOUT["MUG_DY"] + (dy - 1) + 4, (theme, tip, dy, "cup could be raised")
+    assert dy == 0 or theme in ("bistro", "lodge") or tip >= LAYOUT["MUG_DY"] + (dy - 1) + 4, (theme, tip, dy, "cup could be raised")
 
 
 @pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
