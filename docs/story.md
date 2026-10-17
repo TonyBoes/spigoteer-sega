@@ -283,7 +283,7 @@ Picture: stadium concession stand under floodlights. The scoreboard reads HOME 0
 COACH
 TWEET!| GATHER UP,
 ROOKIE! I'M COACH
-BLITZ. MY STAND.
+BLITZ. MY STADIUM!
 
 COACH
 GOT YOUR SPOUT
