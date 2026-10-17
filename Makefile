@@ -26,11 +26,6 @@ LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 # testing by hand: make DEBUGFLAGS="-DDEBUG_MENU -DDEBUG_UNLOCKED"
 DEBUGFLAGS := -DDEBUG_MENU
 LCCFLAGS += $(DEBUGFLAGS)
-# BOSS_CAP_UI=1|2|3: which look of the bosses' capacity indicator (how many more drinks he can hold) the build has (src/boss.h; unset: its default).
-# The three review builds: make bosscap (out/test_roms/spigoteer-bosscap{1,2,3}-unlocked.gb + .noi)
-ifdef BOSS_CAP_UI
-LCCFLAGS += -DBOSS_CAP_UI=$(BOSS_CAP_UI)
-endif
 
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
@@ -47,7 +42,7 @@ GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/m
 HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
 # each boss's own art header (tools/gen_boss.py: build/boss_<name>_art.h, #included by src/boss_<name>.c only)
-BOSS_H   := $(foreach b,$(filter-out meter,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
+BOSS_H   := $(foreach b,$(filter-out meter tag,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
 BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(BUILD)/list_skin.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_card_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/leo_fx_art.h $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h $(BUILD)/trans_art.h
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
@@ -227,16 +222,6 @@ $(eval $(call rom_rule,release,$(RELEASE),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)
 UNLOCKED := $(BUILD)/$(NAME)-unlocked.gb
 unlocked: $(UNLOCKED)
 
-# The three looks of the bosses' capacity indicator as debug builds for review (and tests/test_boss_cap_ui.py): out/test_roms/spigoteer-bosscap<n>-unlocked.gb
-# with its .noi beside it. Each is `make unlocked BOSS_CAP_UI=n` (the flags stamp rebuilds the unlocked ROM for each).
-.PHONY: bosscap
-bosscap:
-	mkdir -p $(OUT)/test_roms
-	for n in 1 2 3; do \
-	  $(MAKE) unlocked BOSS_CAP_UI=$$n || exit 1; \
-	  cp $(UNLOCKED) $(OUT)/test_roms/spigoteer-bosscap$$n-unlocked.gb; \
-	  cp $(BUILD)/$(NAME)-unlocked.noi $(OUT)/test_roms/spigoteer-bosscap$$n-unlocked.noi; \
-	done
 $(eval $(call rom_rule,$(NAME)-unlocked,$(UNLOCKED),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -DDEBUG_MENU -DDEBUG_UNLOCKED,@true))
 
 # build/game-c.gb: the same ROM as build/game.gb with every asm candidate built from its C version (-DASM_PASS=0, src/asm_cfg.h).
@@ -244,6 +229,14 @@ $(eval $(call rom_rule,$(NAME)-unlocked,$(UNLOCKED),$(filter-out $(DEBUGFLAGS),$
 CFALL := $(BUILD)/$(NAME)-c.gb
 cfall: $(CFALL)
 $(eval $(call rom_rule,$(NAME)-c,$(CFALL),$(LCCFLAGS) -DASM_PASS=0,@true))
+
+# The default build as a debug ROM for review (the bosses' capacity row of glasses, the hand mugs, the Mothership's beam):
+# out/test_roms/spigoteer-bosscap-unlocked.gb with its .noi beside it (tests/test_boss_cap_ui.py needs no ROM of its own).
+.PHONY: bosscap
+bosscap: unlocked
+	mkdir -p $(OUT)/test_roms
+	cp $(UNLOCKED) $(OUT)/test_roms/spigoteer-bosscap-unlocked.gb
+	cp $(BUILD)/$(NAME)-unlocked.noi $(OUT)/test_roms/spigoteer-bosscap-unlocked.noi
 
 # dist/: the release ROM (rebuilt from the sources; the debug menu ships locked, see DEBUGFLAGS) named by VERSION, its SHA-256,
 # RELEASE.txt, licenses/ and CREDITS.md. Nothing is published (CLAUDE.md rule 5).

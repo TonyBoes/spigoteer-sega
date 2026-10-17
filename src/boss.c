@@ -47,7 +47,6 @@
 #include "story.h"
 #define BOSS_WANT_METER      // (boss_art.h: this module draws the meter)
 #include "boss.h"            // the engine's inside, shared with the boss files (src/boss_<name>.c)
-#include "boss_tag_art.h"    // the capacity indicator's tiles (assets/art/boss/tag.txt)
 
 extern uint8_t pat_pos, pat_buf[STORY_PAT_MAX];   // (story.c) the arrival pattern patrons.c follows while pat_len
 extern uint16_t pat_wait[4];
@@ -114,7 +113,7 @@ uint16_t boss_special_t;          // frames to the next special (no special yet:
 uint8_t  boss_hook;               // test poke: HOOK_*
 uint8_t  boss_lim;                // a full mug on his bar at mug_x < boss_lim is his (0: hands full / none)
 uint8_t  boss_col, boss_pal, boss_cols[BOSS_W_MAX];   // render.c's stamp: columns, palette, top tile per column
-uint8_t  boss_pose;               // pose | the empties shown << 4 (255: redraw)
+uint8_t  boss_pose;               // the pose shown (255: redraw)
 uint8_t  boss_push;               // px of push-back still to hop
 uint8_t  boss_hits;               // drinks caught this fight (tests)
 uint8_t  boss_hard;               // Practice's HARD toggle (owner Q7): stomps a quarter faster, one hand fewer
@@ -179,27 +178,24 @@ static uint8_t sip_beat(void) {
 
 // His pose from his state: the body's columns (boss_cols) and, when they changed, their tiles queued.
 static void boss_look(void) {
-    uint8_t p = BP_WALK, h, key, k, w = br->width >> 3;
+    uint8_t p = BP_WALK, k, w = br->width >> 3;
     const uint8_t *m;
     if (boss_state == BS_OUTRO) p = boss_xpose == BP_HIDE ? BP_HIDE : BP_HAPPY;   // (the Mothership's minis: no saucer left to be happy)
     else if (boss_push) p = BP_WINCE;
     else if (boss_xpose) p = boss_xpose;
     else if (boss_state == BS_GULP) p = sip_beat() ? (br->sway ? BP_SWAY : BP_WALK) : BP_GULP;   // (the drinking sway, above)
     else if (boss_stomp) p = BP_STOMP;
-    h = (p == BP_WALK || p == BP_STOMP || p == BP_WINCE) ? (boss_hold > 3 ? 3 : boss_hold) : 0;
-    key = p | (h << 4);
-    if (key == boss_pose) return;
+    if (p == boss_pose) return;
     if (p == BP_HIDE || (boss_pose & 15) == BP_HIDE) {   // (a moving boss: gone from his spot, or back: the wall's
-        boss_pose = key;                                  // own attributes there, then his)
+        boss_pose = p;                                    // own attributes there, then his)
         for (k = 0; k < BOSS_W_MAX; k++) boss_cols[k] = p == BP_HIDE || k >= w ? 0 : pair_id(boss_map[p * BOSS_W_MAX + k]);
-        if (h) boss_cols[w - 1] = pair_id(boss_hand[h]);
         mark_dirty_attrs(boss_bar, boss_col, boss_col + w);
         return;
     }
-    boss_pose = key;
+    boss_pose = p;
     m = boss_map + p * BOSS_W_MAX;
     for (k = 0; k < w; k++) boss_cols[k] = pair_id(m[k]);
-    if (h) boss_cols[w - 1] = pair_id(boss_hand[h]);   // (columns w.. are his special's: boss_set clears them)
+    // (columns w.. are his special's: boss_set clears them)
     mark_dirty(boss_bar, boss_col, boss_col + w);
 }
 
@@ -254,7 +250,8 @@ void boss_set(uint8_t id) BANKED {
 // enter_level_screen, LCD off, after start_level (which loaded every patron variant): his body over variant C's tiles
 // and the back views, the HUD's face and meter, the topper's frames; CGB his palettes (colour 0 the venue's wall).
 void boss_load(void) BANKED {
-    set_sprite_data(OBJ_CAP, 4, boss_cap_tiles);  // the capacity indicator's tiles (first: a boss file's pool over 124-127 is then his own)
+    boss_cap_stage(BOSS_CAPBUF);                 // the free slot's glass (first: a boss file's pool over 124-127 is then his own)
+    set_sprite_data(OBJ_CAP, 4, BOSS_CAPBUF);
     boss_call(BEV_LOAD, 0);                      // his body, face, topper and palettes (src/boss_load.h), his extras
     set_bkg_data((uint8_t)(BOSS_HUD_BG + 1), 3, boss_meter_tiles);
     boss_pal = BOSS_PAL;
@@ -275,8 +272,18 @@ void boss_reset(void) BANKED {
     shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_HAND].y = 0;
 }
 
+// The capacity row's free slot (owner 2026-10-17: "a faint outline or dimmed glass in the same spot"): the venue's empty glass (drink tiles 2, 3)
+// with every other pixel dropped (a checkerboard on both bit planes), 64 bytes to dst (the second pair blank): OBJ_CAP. DMG: the bit planes
+// swapped like the sliding empties' copy (lift.c swap_copy: OBP0).
 void boss_cap_stage(uint8_t *dst) BANKED {
-    memcpy(dst, boss_cap_tiles, BOSS_CAP_BYTES);
+    uint8_t i, a, b, m;
+    far_copy(dst, venue.drink_tiles + 32, 32, venue_bank);
+    for (i = 0; i != 32; i += 2) {
+        m = i & 2 ? 0xAA : 0x55;
+        a = dst[i] & m; b = dst[i + 1] & m;
+        dst[i] = is_cgb ? a : b; dst[i + 1] = is_cgb ? b : a;
+    }
+    for (i = 32; i != 64; i++) dst[i] = 0;
 }
 
 // story shift_start: the fight's goal_t (its banner lines, the pace: the row's walk, spawns x BOSS_SPAWN_PCT %)
@@ -686,20 +693,16 @@ static uint8_t fits(const uint8_t *n, uint8_t k0, uint8_t k1, uint8_t c) {
     return 1;
 }
 
-// The indicator's tile attributes: CGB OBJ palette 2, the venue's empty-glass colours (OBJPAL_MUG_EMPTY: light, mid, dark outline: bright on the
-// dark counters, whatever the venue; palette 5 is the coin's, Duke's, the Critic's and the Prototype's lamp's, 7 the boss's own); DMG OBP0 0xD0 (the
-// bartender's: colour 1 white, 2 light grey, 3 black)
-#define CAP_PROP   (is_cgb ? OBJPAL_MUG_EMPTY : 0)
+// The hand mug: while he gulps, the mug the player served over his right hand (the hand column: OBJ tile / palette of the sliding mug: the venue's own
+// drink art, mugs.c), its bottom at row hand_base of his 16 body rows. 255: none (the Sumo is hit, the Mothership beams its drinks up).
+static const uint8_t hand_base[BOSS_COUNT] = { 15, 15, 15, 12, 15, 11, 12, 255, 15, 255 };   // (rows[] order: Tex, Mascot, Sasquatch, Critic, Yeti, Prototype, Duke, Sumo, Leo, Mothership)
 
-// The hand mug: while he gulps, the mug the player served over his hand column (OBJ tile / palette of the sliding mug: the venue's own
-// drink art, mugs.c), its bottom at row hand_base of his 16 body rows. 255: none (the Sumo).
-static const uint8_t hand_base[BOSS_COUNT] = { 15, 15, 15, 12, 15, 11, 12, 255, 15, 14 };   // (rows[] order: Tex, Mascot, Sasquatch, Critic, Yeti, Prototype, Duke, Sumo, Leo, Mothership)
-
-// n: the bands from the topper's y; extra: the entries drawn over them already (the hat, the indicator)
+// n: the bands from the topper's y; extra: the entries drawn over them already (the hat, the row of glasses)
 static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
     OAM_item_t *o = shadow_OAM + OAM_HAND;
     uint8_t d, dx = 0;
     o->y = 0;
+    if (boss_row == 9) boss_call(BEV_DRAW, 1);   // (the Mothership's own: a drink lifted into the saucer on a beam, OAM 29 and 30)
     if (boss_state != BS_GULP || boss_push || boss_xpose || hand_base[boss_row] == 255) return;   // (the common gulp only: the pose shows his hand up)
     if (sip_beat()) {
         if (!br->sway) return;                   // (the mug-down beat of a boss with no shifted pose: the Sasquatch)
@@ -710,60 +713,45 @@ static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
     o->y = d; o->x = boss_x + br->width + dx; o->tile = spr_full_t; o->prop = spr_full_p;
 }
 
-// The capacity indicator: free hands now, 255: none to show (no limit: the Sumo's 250, the Prototype's red light bounces everything; or his
-// own say, BEV_ROOM: the Mothership gone, split)
+// The capacity row's slots: 255 none to show (BEV_ROOM: the Mothership, which holds nothing), 254 no limit (the Sumo's 250, the Prototype's red light:
+// only the glasses he holds are shown), else the free slots now (0 while a drink would not be caught).
 static uint8_t room_free(void) {
-    uint8_t f = boss_lim && boss_hands > boss_hold ? boss_hands - boss_hold : 0, k;
-    if (boss_cap > 9) return 255;
-    k = boss_call(BEV_ROOM, f);
+    uint8_t f, k = 0;
+    if (boss_cap > 9 || boss_row == 7) return 254;
+    f = boss_lim && boss_hands > boss_hold ? boss_hands - boss_hold : 0;
+    if (boss_row == 3 || boss_row >= 8) k = boss_call(BEV_ROOM, f);
     return k ? (k == ROOM_OFF ? 255 : k - 2) : f;
 }
 
-#if BOSS_CAP_UI == 3
-static void hud_count(uint8_t f) {               // "xN" in HUD columns 10-11 (255: blanks); the queue copies from WRAM, every drawn frame
-    uint8_t *b = BOSS_HUD2;
-    b[0] = f < 4 ? TILE_GLYPH_X : TILE_HUD_BLANK;
-    b[1] = f < 4 ? TILE_GLYPH_0 + f : TILE_HUD_BLANK;
-    vq_add(0, b, 10, HUD_ROW, 2);
-}
-#endif
-
-// n: the bands from the topper's y `top`; hat: 1 if the hat is drawn (its budget first). Returns the entries drawn over his bar (0: none, or the
-// HUD's) in the high bits and the free hands shown in the low ones; 255: no indicator
-static uint8_t cap_draw(uint8_t top, const uint8_t *n, uint8_t hat) {
-    OAM_item_t *o = shadow_OAM + OAM_CAP;
-    uint8_t f = room_free(), sl = boss_hands, k;
-    if (f == 255) return 255;
-    if (f > sl) f = sl;
-#if BOSS_CAP_UI == 3
-    o--;                                        // the mug on the HUD (columns 9): lines 0-15 hold nothing else of a fight's
-    o->y = 16; o->x = 80; o->tile = OBJ_CAP; o->prop = CAP_PROP;
-    (void)n; (void)hat; (void)top; (void)k;
-#elif BOSS_CAP_UI == 1
-    sl -= f;                                    // the hands taken: the first icons
-    if (!fits(n, 0, 3, hat + boss_hands)) return 255;
-    for (k = 0; k != boss_hands; k++) {
-        o--;
-        o->y = top; o->x = boss_x + br->width + (k << 3); o->tile = OBJ_CAP + (k < sl ? 2 : 0); o->prop = CAP_PROP;
+// The capacity row (owner 2026-10-17: "a row of the venue's own glasses in the boss's left hand, one per slot"): one glass per slot at his LEFT
+// hand (the side away from the tap), the nearest the hand first. A slot holding an empty is the venue's empty glass (mugs.c spr_empty_t / _p, the
+// sliding empty's own tile and palette); a free slot is the same glass dotted (OBJ_CAP, boss_cap_stage), so the room left can be counted. Their
+// bottoms are on his body's last row; they sway with him. OAM 39 down to 37 (Leo has 2 slots, Tex 3: Tex has no effect sprites).
+// n: the bands from the topper's y `top`; hat: 1 if the hat is drawn (its budget first). Returns the glasses drawn.
+static uint8_t cap_draw(const uint8_t *n, uint8_t hat) {
+    uint8_t *p = (uint8_t *)(shadow_OAM + OAM_CAP), f = room_free(), sl = boss_hands, tk, k, y;
+    int16_t x;
+    if (f == 255) return 0;
+    if (f == 254) { f = 0; tk = boss_hold > sl ? sl : boss_hold; }
+    else { if (f > sl) f = sl; tk = sl - f; }
+    sl = tk + f;
+    if (!sl || !fits(n, 2, 6, hat + sl)) return 0;
+    y = bar_oam_y[boss_bar] + 1;                 // (its bottom row 14 on his body's row 15)
+    x = boss_x + 4 + (sip_beat() ? (br->sway == 2 ? -2 : 2) : 0);
+    for (k = 0; k != sl; k++, x -= 6) {
+        if (x < 1) return k;
+        p -= 4;
+        p[0] = y; p[1] = (uint8_t)x; p[2] = k < tk ? spr_empty_t : OBJ_CAP; p[3] = spr_empty_p;
     }
-#else
-    uint8_t y = top + 8;                        // the bottom cell: its 5 art rows (the tile's last 5) on his body's last 5; the next ones 4 px up
-    sl -= f;
-    if (boss_x < 8 || !fits(n, 0, 5, hat + boss_hands)) return 255;
-    for (k = 0; k != boss_hands; k++, y -= 4) {
-        o--;
-        o->y = y; o->x = boss_x; o->tile = OBJ_CAP + (k < sl ? 2 : 0); o->prop = CAP_PROP;
-    }
-#endif
-    return f;
+    return sl;
 }
 
 // pour_frame (every drawn frame of a fight, after every other sprite): the topper over his head, its upper half above his bar; the capacity
-// indicator; the hand mug. Sprites per line: every other OAM entry is counted on the 4-line bands its lines touch (bands above); the topper is
+// row of glasses; the hand mug. Sprites per line: every other OAM entry is counted on the 4-line bands its lines touch (bands above); the topper is
 // left out on a frame where a band already has LINE_OBJ_MAX, so it is never an 11th object on a line (the hat blinks off for those frames); the
 // indicator and the mug likewise.
 void boss_draw(void) BANKED {
-    uint8_t k, top = bar_oam_y[boss_bar] - 8, hat, extra, intro;
+    uint8_t k, top = bar_oam_y[boss_bar] - 8, hat, intro;
     uint8_t n[BANDS];
     const uint8_t *np;
     OAM_item_t *o;
@@ -771,21 +759,14 @@ void boss_draw(void) BANKED {
     intro = intro_timer;
     if (intro) {                                 // the intro: a special's own sprites (Duke's entrance) before the lines are counted
         boss_call(BEV_DRAW, 0);
-        shadow_OAM[OAM_CAP - 1].y = 0;           // (no indicator in the intro: after a lost life it would still show; Leo's waves end at OAM 37)
+        shadow_OAM[OAM_CAP - 1].y = 0;           // (no row of glasses in the intro: after a lost life it would still show; Leo's waves end at OAM 37)
         shadow_OAM[OAM_CAP - 2].y = 0;
     } else {
-#if BOSS_CAP_UI == 3
-        shadow_OAM[OAM_CAP - 1].y = 0;           // (the indicator: set again below)
-#else
-        for (k = 0; k != boss_hands; k++) shadow_OAM[OAM_CAP - 1 - k].y = 0;
-#endif
+        for (k = 0; k != boss_hands; k++) shadow_OAM[OAM_CAP - 1 - k].y = 0;   // (the glasses: set again below)
         shadow_OAM[OAM_HAND].y = 0;
     }
     if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) {   // (away: no hat in the air)
         shadow_OAM[OAM_TOPPER].y = 0;
-#if BOSS_CAP_UI == 3
-        hud_count(255);
-#endif
         return;
     }
     shadow_OAM[OAM_TOPPER].y = 0;   // (so the count skips it: it is set again below)
@@ -798,12 +779,6 @@ void boss_draw(void) BANKED {
         o->prop = !is_cgb ? S_PALETTE : BOSS_TOPPER_PAL ? BOSS_TOPPER_PAL : OBJPAL_PATRON_C;
     } else o->y = 0;
     if (intro) return;
-    k = !boss_hp || boss_state == BS_OUTRO ? 255 : cap_draw(top, np, hat);
-#if BOSS_CAP_UI == 3
-    extra = hat;
-    hud_count(k);
-#else
-    extra = hat + (k == 255 ? 0 : boss_hands);
-#endif
-    hand_draw(top, np, extra);
+    k = !boss_hp || boss_state == BS_OUTRO ? 0 : cap_draw(np, hat);
+    hand_draw(top, np, hat + k);
 }

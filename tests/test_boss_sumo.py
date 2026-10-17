@@ -235,7 +235,7 @@ def test_pose_and_golden_during_the_knock_back(model):
         fill_meter(gb, 64)
         until(gb, lambda: gb.mem("boss_x") <= 56, 14)
         frames(gb, 2)
-        assert pose(gb) == BP_WINCE and gb.mem("boss_pose") >> 4 == 3, "WINCE, three empties in his hand"
+        assert pose(gb) == BP_WINCE and gb.mem("boss_hold") >= 3, "WINCE, three or more empties held (the glasses are the capacity row: sprites)"
         check_golden(gb, "boss_sumo_knock")
 
 

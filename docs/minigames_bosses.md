@@ -243,17 +243,22 @@ Rules common to every boss:
   READY = a hand is free (a drink reaching him is caught), BUSY = hands full (a drink slides past and breaks), shaking = he sends what reaches him
   back (the Critic holding / tasting / queueing, Leo's roar), absent = no catching at all (the Mothership gone or split, the intro, the outro).
   The capacity indicator below carries the first two (free hands 0 = BUSY).
-- **Capacity indicator (owner 2026-10-17: "the player needs clear indication of how many more drinks they can serve them")**: how many of his
-  `boss_hands` slots are free (`boss_hands - boss_hold`; 0 while `boss_lim` is 0 or a special says so through `BEV_ROOM`: Critic busy, Leo's roar).
-  Three looks, compile-time (`-DBOSS_CAP_UI=n`, src/boss.h; art `assets/art/boss/tag.txt`, 2 sprite pairs at OBJ 124-127, OBJ palette 5 cream / amber /
-  dark, DMG OBP0): **1 mug row** (a mug per hand over his hand column, bright = room, dark rimmed = an empty held; OAM 39 down), **2 belly gauge** (the
-  default: cells to his left, bottom up; OAM 39 down), **3 HUD counter** (a mug sprite at HUD column 9 and "xN" in the HUD font at 10-11; OAM 39).
-  Hidden in the intro, outro, away, and for the Sumo (no limit), the Prototype's red light (cap 255) and the Mothership gone / split.
-  `make bosscap` builds the three as out/test_roms/spigoteer-bosscap{1,2,3}-unlocked.gb; tests/test_boss_cap_ui.py reads them back after every drink.
-- **Hand mug (owner 2026-10-17: "the mugs they drink from should look more like the drink served to them")**: while he gulps, OAM 29 (the tag's old
-  entry) draws the sliding mug's own tile and palette (mugs.c `spr_full_t / spr_full_p`: the venue's drink art; DMG its OBP0 copy) over his hand column
-  (`boss_x + width`, its bottom at the row `hand_base[]` of his body), moving with the sway; his GULP art has no mug of its own (the old ones were
-  erased and the arm kept). No sprite for the Sumo (he is hit by the cup, he does not drink). Costs no column pair (Yeti, Mascot, Mothership stay at 30).
+- **Capacity row (owner 2026-10-17: "the player needs clear indication of how many more drinks they can serve them"; he picked the per-slot row, "in their
+  left hand")**: one glass per slot (`boss_hands`) at his LEFT hand (the side away from the tap), sprites at OAM 39 down to 37 (src/boss.c `cap_draw`). A
+  slot holding an empty is the venue's empty glass (mugs.c `spr_empty_t / _p`: the sliding empty's own tile and palette); a free slot is that glass dotted
+  (every other pixel dropped: `boss_cap_stage`, OBJ 124-125, built from the venue's drink tiles at each fight's load and again after Duke's entrance). It
+  replaces the generic held-empties hand column (HAND1..3) of the body art, which is no longer built: the poses are WALK, STOMP, ... only, and the pair
+  count is lower. Nearest the hand first; the row sways with him. The Sumo (no drink limit) shows only the glasses he holds; the Prototype's red light
+  likewise; the Critic's busy states fill his one slot; the Mothership shows none (below). Hidden in the intro, outro, away.
+- **Hand mug (owner 2026-10-17: "the mugs they drink from should look more like the drink served to them")**: while he gulps, OAM 29 draws the sliding
+  mug's own tile and palette (mugs.c `spr_full_t / spr_full_p`: the venue's drink art; DMG its OBP0 copy) over his right hand (`boss_x + width`, its bottom at
+  the row `hand_base[]` of his body), moving with the sway; his GULP art has no mug of its own. None for the Sumo (he is hit, he does not drink) and the Mothership.
+- **The Mothership's tractor beam (owner 2026-10-17)**: his grab arm is gone from the art (the saucer is columns 0-3; column 4 is empty). A drink that reaches
+  him (`BEV_CATCH`, then the common catch: meter, push, the GULP pose with the hatch open) is drawn as a sprite (OAM 29, the served mug, behind the BG): it
+  slides left under the saucer to the hatch in 6 frames, then a light column (OAM 30, BEAM1 / BEAM2 at OBJ 108-111) shines from the hatch and the mug rises 7 px
+  behind the hull and vanishes, 20 frames in all (`beam_draw`). He holds nothing visible: `boss_hold` (2 hands, HARD 1) still counts his empties: each caught drink
+  is one, it is sent back out of his right edge `sip` (45) frames later, and with both held a drink that reaches him slides past and breaks. Nothing shows that
+  limit now (suggested: the antenna light, HAT_STILL lit / HAT_BOB, dark at 2 held; no new art).
 - **Hands**: he holds at most `hands` empties. Each held empty is sent (spawn_mug(EMPTY) at his right edge) after
   `sip` frames **and** only when the fair-empties schedule allows (`next_arrival`, `empty_gap`, the same rule as
   patrons.c, computed with his own empty speed). With full hands a mug reaching him is not caught: it slides on

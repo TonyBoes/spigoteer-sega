@@ -41,26 +41,21 @@ enum {
                   // walks in from the left edge onto his bar
 };
 
-// The capacity indicator (owner 2026-10-17: the status tag's arrow is gone; "the player needs clear indication of how many more
-// drinks they can serve them"): how many of his boss_hands slots are free, three compile-time looks (-DBOSS_CAP_UI=n, assets/art/boss/tag.txt,
-// boss.c cap_draw):
-//   1 MUG ROW: a row of boss_hands small mugs over his hand column, each hollow (room) or filled (an empty held); OAM 39 down to 37
-//   2 BELLY GAUGE: a vertical gauge of boss_hands cells to his left, filled from the bottom as he drinks; OAM 39 down to 37
-//   3 HUD COUNTER: a mug sprite on the HUD (columns 9-11) and "xN" (N the free hands) in the HUD font; OAM 39
-// OBJ 124-127 (2 pairs) hold the looks' tiles; Leo's waves have OAM 30-37 but he has 2 hands (OAM 38-39), and Tex, with 3, has no effect sprites.
-#ifndef BOSS_CAP_UI
-#define BOSS_CAP_UI 2          // the default look: the belly gauge (see the three looks above; the build asks for another with -DBOSS_CAP_UI=n)
-#endif
-#define ROOM_OFF       1                          // BEV_ROOM's return: no indicator
-#define ROOM_FREE(n)   ((n) + 2)                  // BEV_ROOM's return: n free hands
-#define OBJ_CAP        124                        // 2 pairs (tools/gen_boss.py: boss_cap_tiles, 64 bytes)
+// The capacity row (owner 2026-10-17: the status tag's arrow is gone; "the player needs clear indication of how many more drinks they can serve
+// them"; he picked the per-slot row, drawn as "a row of their drinks in their left hand"): a row of the venue's own glasses at his left hand, one per
+// slot (boss_hands): an empty held = the venue's empty glass (spr_empty), a free slot = the same glass dotted (OBJ_CAP 124-125, boss_cap_stage
+// builds it from the venue's drink tiles). It replaces the old generic held-empties hand column of his body art. OAM 39 down to 37 (boss.c cap_draw).
+#define ROOM_OFF       1                          // BEV_ROOM's return: no row (the Mothership holds nothing)
+#define ROOM_FREE(n)   ((n) + 2)                  // BEV_ROOM's return: n free slots
+#define OBJ_CAP        124                        // the dotted glass (a pair) and a pair free (OBJ 126-127: nobody's)
 #define BOSS_CAP_BYTES 64
-#define OAM_CAP        40                         // the indicator's entries are OAM_CAP - 1 downward
+#define BOSS_CAPBUF    (story_scratch + 300)      // boss_load's staging for it (Duke's entrance stages its own at the same place, later)
+#define OAM_CAP        40                         // the row's entries are OAM_CAP - 1 downward
 // The hand mug (owner 2026-10-17: "the mugs they drink from should look more like the drink served to them"): while he gulps, one OAM
-// entry (OAM 29, the old tag's) over his hand column draws the mug the player served (mugs.c spr_full_t / spr_full_p: the venue's
-// drink art and palette); his GULP pose has no mug of its own. The Sumo drinks nothing (he is hit), the Mothership's rides at his grabber.
+// entry (OAM 29) over his right hand column draws the mug the player served (mugs.c spr_full_t / spr_full_p: the venue's drink art and palette);
+// his GULP pose has no mug of its own. The Sumo drinks nothing (he is hit); the Mothership beams its drinks up (boss_mothership.c: OAM 29, 30).
 #define OAM_HAND       (OAM_DANCERS + 1)          // (the show's second dancer entry: no show in a fight)
-#define BOSS_HUD2      (story_scratch + 440)      // BOSS_CAP_UI 3: the HUD counter's two glyphs (queued every frame); Duke's staging ends at 364
+
 enum { BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO,   // boss_state (spec 2.5's test hook names)
        BS_WARM,      // E9: the warm-up: a normal shift on every bar (boss_bar is BOSS_NONE, boss_special_t counts the frames down)
        BS_ENTER,     // his own entrance (BEV_ENTER returned 1) runs: he is not on his bar yet, nothing is caught
@@ -112,7 +107,7 @@ extern uint8_t  boss_returns;     // 1: MUG_RETURN mugs may be on his bar (the C
 #define BOSS_SCRATCH    (story_scratch + STORY_SCRATCH - BOSS_SCRATCH_N)
 #define boss_map        BOSS_SCRATCH       // [(BOSS_POSES_MAX + 1) * BOSS_W_MAX]: his poses (the last: BP_SWAY), pose p's column k's pair at
                                            // p * BOSS_W_MAX + k
-#define boss_hand       (BOSS_SCRATCH + (BOSS_POSES_MAX + 1) * BOSS_W_MAX)       // [4]: the hand column holding 0..3 empties
+#define boss_hand       (BOSS_SCRATCH + (BOSS_POSES_MAX + 1) * BOSS_W_MAX)       // [4]: (was the hand column holding 0..3 empties; unused: BOSS_OWN stays where it was)
 #define BOSS_OWN        (boss_hand + 4)                                     // a boss file's own buffer (BOSS_OWN_N bytes)
 #define BOSS_OWN_N      (BOSS_SCRATCH_N - (BOSS_POSES_MAX + 1) * BOSS_W_MAX - 4 - BOSS_FX_N)   // (then BOSS_FX: game.h)
 // The topper's look, for a special that changes it (boss_set: 0, 0; put them back at BEV_OUTRO): a tile offset from
@@ -144,6 +139,6 @@ uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED;  // src/boss_prototype.c
 uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED;        // src/boss_duke.c: Duke, the biker bar (3.12)
 uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED;         // src/boss_leo.c: Leo the Lion, the jungle zoo (3.11)
 uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED;  // src/boss_mothership.c: the Mothership, the space lounge (3.10)
-void boss_cap_stage(uint8_t *dst) BANKED;  // the indicator's 4 tiles (BOSS_CAP_BYTES) to dst in WRAM, for a boss file that queues them to OBJ_CAP
+void boss_cap_stage(uint8_t *dst) BANKED;  // the free slot's glass, 4 tiles (BOSS_CAP_BYTES) to dst in WRAM, for a boss file that queues them to OBJ_CAP
 void boss_hud_now(void) BANKED;           // the HUD's face and meter from boss_hp now (a special that changes boss_hp itself)
 #endif

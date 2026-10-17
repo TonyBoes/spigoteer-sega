@@ -73,6 +73,10 @@ extern uint8_t cur_group;
 #define ENT_LAND       64                // the entrance: the landing frame (0-43 the beam and the flicker, 44-63 he blinks in)
 #define ENT_BLINK      44
 #define ENT_HUM        20
+#define BEAM_N         20                // the tractor beam's frames: the mug slides under the saucer (BEAM_SLIDE), then rises into it
+#define BEAM_SLIDE      6
+// (the mug rises (t - BEAM_SLIDE) / 2 px, 7 at the end, behind the hull: the hull hides it, OBJ-behind-BG)
+#define BEAM_X         11                // the mug's left edge under the saucer: his hatch (GULP's rows 13-15) is its middle
 #define DIM_BGP      0xF9
 #define DIM_MASK   0x3DEF                // (c >> 1) & mask: each 5 bit channel halved
 #if BOSS_ART_COLS != 5 || BOSS_ART_FX != 4
@@ -101,9 +105,11 @@ typedef struct {
     uint8_t drops;      // passengers released this fight (tests)
     uint8_t ent;        // the entrance: 0 none (or over), else the next frame's number + 1 (tests)
     uint8_t calm;       // CALM_* (tests)
+    uint8_t bt;         // the beam lifting a caught drink: 0 none, else its frame (1..BEAM_N; tests)
+    uint8_t bx;         // the caught mug's x
 } mothership_t;
 #define ms (*(mothership_t *)BOSS_OWN)
-#if 18 > BOSS_OWN_N
+#if 20 > BOSS_OWN_N
 #error "the Mothership's state: BOSS_OWN_N"
 #endif
 
@@ -143,7 +149,10 @@ static uint8_t waiting(void) {
     return 0;
 }
 
+static void beam_off(void);
+
 static void vanish(void) {
+    beam_off();
     ms.phase = MP_GONE; ms.t = 0;
     boss_state = BS_JUMP;
     boss_push = 0;
@@ -283,6 +292,27 @@ static void ent_frame(void) {
     ms.ent++;
 }
 
+// ---- the tractor beam (owner 2026-10-17: "it should tractor-beam its drinks in, no stack and no holding") ----
+// A drink that reaches him (BEV_CATCH; the common catch goes on: meter, push, the GULP pose whose hatch is open) is shown as a sprite (OAM 29, the
+// mug the player served): it slides left under the saucer to the hatch in BEAM_SLIDE frames, then a light column (OAM 30, two shimmering frames
+// from his art: BEAM1 / BEAM2 at OBJ 108-111) shines from the hatch to the counter and the mug rises BEAM_LIFT px up into the hull, behind it
+// (the sprite is behind the BG's dark / light pixels: it vanishes into the saucer), BEAM_N frames in all. ms.bt counts them (BEV_FRAME).
+static void beam_off(void) {
+    ms.bt = 0;
+    shadow_OAM[OAM_HAND + 1].y = 0;
+}
+
+static void beam_draw(void) {
+    OAM_item_t *m = shadow_OAM + OAM_HAND, *b = m + 1;
+    uint8_t t = ms.bt, x = boss_x + BEAM_X, y = bar_oam_y[boss_bar];
+    b->y = 0;
+    if (!t || boss_state == BS_JUMP || boss_xpose == BP_HIDE) return;
+    if (t <= BEAM_SLIDE) x = (uint8_t)(t << 2) >= (uint8_t)(ms.bx - x) ? x : ms.bx - (uint8_t)(t << 2);   // (4 px a frame: no multiply or divide, they would be ROM0 library code)
+    else { b->y = y + 15; b->x = x + 8; b->tile = BOSS_SPR_TILE0 + (t & 2); b->prop = !is_cgb ? S_PALETTE : OBJPAL_PATRON_C; }
+    m->y = y + MUG_DY - (t > BEAM_SLIDE ? (uint8_t)(t - BEAM_SLIDE) >> 1 : 0);
+    m->x = x + 8; m->tile = spr_full_t; m->prop = spr_full_p | 0x80;
+}
+
 static void to_flash(void) {
     ray_off();
     ms.phase = MP_FLASH; ms.t = 0;
@@ -327,6 +357,7 @@ static void split(void) {
     for (p = 0; p != MAX_PATRONS; p++) if (patron_state[p]) remove_patron(p);
     LCDC_REG |= LCDCF_ON;
     boss_hold = 0; boss_queue = 0; boss_push = 0;
+    beam_off();
     boss_state = BS_JUMP;
     boss_xpose = BP_HIDE;
     BOSS_TOPPER_T = 0;
@@ -381,6 +412,7 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_RESET:
         ray_off();
+        beam_off();
         if (ms.ent) { boss_state = BS_JUMP; boss_xpose = BP_HIDE; break; }   // (the entrance: not on his bar yet)
         if (ms.phase >= MP_MINIS) {                           // phase 2: the minis not served yet come back in
             boss_state = BS_JUMP;
@@ -394,6 +426,13 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
+        set_sprite_data(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the beam's two frames (OBJ 108-111: free in a fight)
+        break;
+    case BEV_CATCH:                                       // (the common catch follows: this only starts the beam's show)
+        if (ms.phase < MP_GONE && boss_xpose != BP_HIDE) { ms.bt = 1; ms.bx = mug_x[arg]; }
+        break;
+    case BEV_DRAW:                                        // (after the intro, every drawn frame: boss.c hand_draw)
+        if (arg) beam_draw();
         break;
     case BEV_ENTER:                                       // (E9: after the warm-up)
         ms.ent = 1;
@@ -401,18 +440,20 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
     case BEV_INTRO:
         if (ms.ent) ent_frame();
         break;
-    case BEV_ROOM:                                            // no indicator while he is gone, flashing or split
-        return ms.phase < MP_GONE ? 0 : ROOM_OFF;
+    case BEV_ROOM:                                            // no row of glasses: he holds nothing, he beams his drinks in
+        return ROOM_OFF;
     case BEV_TELL:
         if (ms.phase == MP_WALK) { ray_off(); to_tell(); }
         break;
     case BEV_OUTRO:
         ray_off();
+        beam_off();
         if (ms.phase < MP_FLASH) to_walk();
         else if (ms.phase == MP_FLASH) boss_xpose = 0;
         break;
     case BEV_FRAME:
         if (ms.t != 255) ms.t++;
+        if (ms.bt && ++ms.bt > BEAM_N) beam_off();
         if (ms.phase < MP_FLASH && boss_hp <= SPLIT_HP && boss_hp && boss_state != BS_OUTRO) to_flash();
         if (ms.phase < MP_FLASH) ray_frame();
         switch (ms.phase) {

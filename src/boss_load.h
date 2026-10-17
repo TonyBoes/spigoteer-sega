@@ -10,7 +10,7 @@
 #error "boss art: too many poses, columns or column pairs for the engine"
 #endif
 
-// BEV_SET: his pose table and hand column into the engine's WRAM copy (boss.c boss_look reads it every pose change)
+// BEV_SET: his pose table into the engine's WRAM copy (boss.c boss_look reads it every pose change)
 static void boss_art_set(void) {
     uint8_t p, k;
     for (p = 0; p != BOSS_ART_POSES; p++)
@@ -18,7 +18,6 @@ static void boss_art_set(void) {
 #ifdef BOSS_ART_SWAY
     for (k = 0; k != BOSS_ART_COLS; k++) boss_map[BP_SWAY * BOSS_W_MAX + k] = boss_art_sway[k];
 #endif
-    for (k = 0; k != 4; k++) boss_hand[k] = boss_art_hand[k];
 }
 
 // BEV_LOAD (LCD off, after start_level loaded every patron variant): his body's column pairs over variant C's tiles

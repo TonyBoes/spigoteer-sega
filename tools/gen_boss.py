@@ -6,7 +6,7 @@ own art, #included by its own src/boss_<name>.c and nowhere else, so it lands in
   assets/art/boss/<boss>.txt   per boss (BOSSES below): the body poses (WALK, STOMP, GULP, WINCE, HAPPY: W x 16, BG,
                                on his bar's two wall rows), then the boss's own extra poses in his `extra` list (the
                                tells: Yeti INHALE / BLOW, the Critic's TASTE; the engine's pose numbers 5, 6, ... in
-                               that order), the hand column with 1-3 held empties (HAND1..3, 8x16), the topper
+                               that order), (the old hand column with 1-3 held empties, HAND1..3, is no longer read: the capacity row of glasses is sprites, src/boss.c), the topper
                                (HAT_STILL, HAT_BOB: 8x16 OBJ) and the HUD face (ICON, 8x8), and his `tiles` (8x16 BG
                                blocks of his special's own, e.g. Leo's "!!": boss_art_tiles, loaded at BG 246..).
                                Other blocks in the file are not read.
@@ -75,7 +75,7 @@ BOSSES = [
      "spr": [("CHAIN", 8, 16), ("HOOK", 16, 16), ("SPARK1", 8, 16), ("SPARK2", 8, 16)]},
     {"name": "duke", "width": 40, "pal": ["#F8E0C8", "#D06030", "#201018"], "extra": ["TELL1", "TELL2"],
      "entrance": "duke_entrance", "sway_dir": 2},
-    {"name": "mothership", "width": 40, "pal": ["#E8F0F8", "#E040B0", "#200828"], "extra": [], "fx": [("BEAM", "mothership")]},
+    {"name": "mothership", "width": 40, "pal": ["#E8F0F8", "#E040B0", "#200828"], "extra": [], "fx": [("BEAM", "mothership")], "spr": [("BEAM1", 8, 16), ("BEAM2", 8, 16)]},
 ]
 # The entrance's OBJ tiles (src/boss_duke.c): a fight borrows 32 ids (OBJ 96-127); the entrance, which plays before the first
 # drink exists, borrows 36 more (OBJ 56-91, reloaded afterwards from the venue's own drink tiles). 8x16 pairs: 18 low, 16 high.
@@ -181,7 +181,6 @@ def boss_art(b, prev):
             fail(f"{path.relative_to(ROOT)}: @{n} must be {w} px wide (an extra pose: or a narrower multiple of 8)")
         else:
             poses.append(padded(frame(named, n, fw, 16, path), w))
-    hands = [frame(named, f"HAND{k}", 8, 16, path) for k in (1, 2, 3)]
     hat = [frame(named, n, 8, 16, path) for n in ["HAT_STILL", "HAT_BOB"] + b.get("hats", [])]
     if len(hat) > BOSS_HATS_MAX:
         fail(f"{b['name']}: {len(hat)} topper frames, room for {BOSS_HATS_MAX}")
@@ -197,17 +196,16 @@ def boss_art(b, prev):
     sway = None if b.get("nosway") else sway_pose(named["GULP"], w, b.get("sway_dir"))
     pose_map = [[pair(column(p, x)) for x in range(0, w, 8)] for p in poses]
     sway_map = [pair(column(sway[1], x)) for x in range(0, w, 8)] if sway else None
-    hand_map = [pose_map[0][-1]] + [pair(column(h, 0)) for h in hands]
     if len(pairs) > BOSS_PAIRS_MAX:
         fail(f"{b['name']}: {len(pairs)} different body columns, the fight has room for {BOSS_PAIRS_MAX}")
     hat_tiles = []
     for f in hat:
         hat_tiles += tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)
     png(poses + ([sway[1]] if sway else []), prev / f"boss_{b['name']}_x8.png", 8)
-    png(hands + hat, prev / f"boss_{b['name']}_hand_hat_x8.png", 8, transparent=True)
+    png(hat, prev / f"boss_{b['name']}_hat_x8.png", 8, transparent=True)
     png([icon], prev / f"boss_{b['name']}_icon_x8.png", 8)
     a = {"name": b["name"], "width": w, "cols": w // 8, "pairs": [list(p) for p in pairs], "poses": names,
-         "pose": pose_map, "hand": hand_map, "hat": hat_tiles, "icon": tile_bytes(icon, 0, 0),
+         "pose": pose_map, "hat": hat_tiles, "icon": tile_bytes(icon, 0, 0),
          "pal": rgb15(["#000000"] + b["pal"]), "art": {n: p for n, p in zip(names, poses)},
          "sway": sway[0] if sway else 0, "sway_map": sway_map, "sway_art": sway[1] if sway else None}
     if "ice" in b:
@@ -323,7 +321,7 @@ def header(a):
          carr("boss_art_body", [x for p in a["pairs"] for x in p]),
          f"static const uint8_t boss_art_pose[BOSS_ART_POSES][BOSS_ART_COLS] = {{ "
          + ", ".join("{ " + ", ".join(str(v) for v in row) + " }" for row in a["pose"]) + " };",
-         carr("boss_art_hand", a["hand"]) + "   // the hand column holding 0..3 empties"]
+         ]
     if a["sway"]:
         h += [f"#define BOSS_ART_SWAY {a['sway']}   // his drinking sway moves him right (1) or left (2): the row's `sway`",
               "static const uint8_t boss_art_sway[BOSS_ART_COLS] = { " + ", ".join(str(v) for v in a["sway_map"]) + " };"
@@ -387,20 +385,6 @@ def main():
     meter = [frame(mnamed, n, 8, 8, mpath) for n in ("EMPTY", "HALF", "FULL")]
     meter_bytes = [x for f in meter for x in tile_bytes(f, 0, 0)]
     png(meter, prev / "boss_meter_x8.png", 8)
-    tpath = ROOT / "assets/art/boss/tag.txt"          # the capacity indicator's looks (src/boss.c only: build/boss_tag_art.h)
-    tnamed = dict(blocks(tpath, named=True))
-    looks = {1: ("ROOM", "TAKEN"), 2: ("CELL_ROOM", "CELL_TAKEN"), 3: ("HUD_MUG", "HUD_BLANK")}   # BOSS_CAP_UI: the 2 pairs at OBJ 124..127
-    cap_src = ["// generated by tools/gen_boss.py from assets/art/boss/tag.txt -- do not edit; #included by src/boss.c only (BOSS_CAP_UI: src/boss.h)"]
-    cap_png = []
-    for ui, pair in looks.items():
-        fr = [frame(tnamed, n, 8, 16, tpath) for n in pair]
-        cap_png += fr
-        data = [x for f in fr for x in tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)]
-        cap_src.append(f"#{'if' if ui == 1 else 'elif'} BOSS_CAP_UI == {ui}")
-        cap_src.append(carr("boss_cap_tiles", data) + "   // " + ", ".join(pair) + ": 8x16 each")
-    cap_src.append('#else\n#error "BOSS_CAP_UI is 1, 2 or 3"\n#endif')
-    png(cap_png, prev / "boss_tag_x8.png", 8, transparent=True)
-    (outdir / "boss_tag_art.h").write_text("\n".join(cap_src) + "\n")
     names = [b["name"] for b in BOSSES]
     if len(set(names)) != len(names):
         fail("a boss is listed twice")

@@ -55,8 +55,6 @@ def pair_id(p):
 
 def pose_cols(pose, hold=0):
     cols = [pair_id(p) for p in TEX["pose"][pose]]
-    if hold and pose in (BP_WALK, BP_STOMP, BP_WINCE):
-        cols[-1] = pair_id(TEX["hand"][min(hold, 3)])
     return cols
 
 
