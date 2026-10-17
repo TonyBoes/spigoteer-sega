@@ -355,7 +355,8 @@ def test_the_spout_tip_ends_above_the_empty_glass(theme):
     tip = _spout_tip(theme)
     assert 0 <= tip < LAYOUT["MUG_DY"] + dy + 4, (theme, tip, dy)
     # the cup is as high as the art allows: one row lower of drop would put the foam head on the tip
-    assert dy == 0 or tip >= LAYOUT["MUG_DY"] + (dy - 1) + 4, (theme, tip, dy, "cup could be raised")
+    # (the bistro's owner pick, 2026-10-17: a visible gap under the spout so the stream shows: FILL_DY 3, tip 9)
+    assert dy == 0 or theme == "bistro" or tip >= LAYOUT["MUG_DY"] + (dy - 1) + 4, (theme, tip, dy, "cup could be raised")
 
 
 @pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])

@@ -34,12 +34,14 @@ def test_the_bistro_keg_is_22_px_with_a_gap_to_the_next_bars_keg():
     rows = bar_rows("bistro")
     gap = first + (24 - 1 - last)                  # blank rows between this keg's last row and the next bar's first
     assert gap == 2
-    # the grape label (the light box with the red bunch) is on the boiler, 2 px lower than before (its bunch rows 6-11 -> 8-13)
-    label = [y for y in range(24) if "+" in rows[y][148:156] and "-" in rows[y][148:156]]
-    assert label[0] == 8 and label[-1] == 13, label
+    # the grape label (its frame is a box of 9 rows, x 147-156) is in the vertical middle of the 22 px barrel (rows 2-23)
+    frame = [y for y in range(24) if rows[y][147:157] == "#" * 10]
+    frame = [y for y in frame if 6 <= y <= 20]
+    assert frame == [9, 17], frame
+    assert abs((frame[0] + frame[1]) / 2 - (first + last) / 2) <= 0.5
     # the spout: its tip over the glass at SPOUT_X, 2 px lower than before (7 -> 9), FILL_DY 2 under it
     assert max(y for y in range(16) for x in range(136, 144) if rows[y][x] != ".") == 9
-    assert venue("bistro")["fill_dy"] == 2
+    assert venue("bistro")["fill_dy"] == 3, "the glass hangs 3 px lower: 2 px of the stream show above its rim"
 
 
 def screen_px(gb, x, y):
