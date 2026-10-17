@@ -27,18 +27,18 @@ CARD_START = [0, TITLE_F] + [HERO_END + CARD_F * k for k in range(15)]
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
-PATRONS = [   # (line 1, line 2) of the three patrons of each venue: labels, the game gives them no names
-    [("COW", "BOY"), ("COW", "GIRL"), ("RANCH", "HAND")], [("CAP", "FAN"), ("BAND", "FAN"), ("REF", "")],
+PATRONS = [   # (line 1, line 2) of the three patrons of each venue: labels, the game gives them no names; a word is never split
+    [("COWBOY", ""), ("COW", "GIRL"), ("RANCH", "HAND")], [("CAP", "FAN"), ("BAND", "FAN"), ("REF", "")],
     [("BIG", "JACK"), ("RED", "HAIR"), ("GREEN", "CAP")], [("HEAD", "CHEF"), ("SOUS", "CHEF"), ("LINE", "COOK")],
     [("PARKA", "MAN"), ("PARKA", "GIRL"), ("BIG", "PARKA")], [("BOX", "BOT"), ("LADY", "BOT"), ("DOME", "BOT")],
-    [("MO", "HAWK"), ("BAND", "ANA"), ("QUIFF", "")], [("NINJA", ""), ("NINJA", "GIRL"), ("RED", "HELM")],
-    [("MON", "KEY"), ("PANDA", ""), ("HIPPO", "")], [("EYE", "STALK"), ("GREY", ""), ("SQUID", "")]]
+    [("MOHAWK", ""), ("SCARF", ""), ("QUIFF", "")], [("NINJA", ""), ("NINJA", "GIRL"), ("RED", "HELM")],
+    [("MONKEY", ""), ("PANDA", ""), ("HIPPO", "")], [("EYE", "STALK"), ("GREY", ""), ("SQUID", "")]]
 # every card's lines, top to bottom (words of a row joined by one space)
 CARDS = [["CAST OF", "CHARACTERS"], ["SPIGOTEER DREGS", "BARTENDER RIVAL"]]
 for k in range(5):
     CARDS.append([BOSSES[2 * k], VENUES[2 * k], BOSSES[2 * k + 1], VENUES[2 * k + 1]])
 for v in range(10):
-    CARDS.append([VENUES[v], " ".join(p[0] for p in PATRONS[v] if p[0]), " ".join(p[1] for p in PATRONS[v] if p[1])])
+    CARDS.append([VENUES[v], " ".join(p[0] for p in PATRONS[v] if p[0])] + [t for t in [" ".join(p[1] for p in PATRONS[v] if p[1])] if t])
 ROLL_LINES = ["SPIGOTEER", "GAME DESIGN,", "MEDIA, AND", "STORY BY", "TONY", "AND HIS TIRELESS", "TEAM OF", "ROBOT FRIENDS", "MUSIC", "PUBLIC DOMAIN",
               "MELODIES,", "ARRANGED", "FOR THIS GAME", "SPECIAL", "THANKS TO:", "GBDK-2020", "SDCC", "HUGEDRIVER", "RGBDS", "SAMEBOY", "PYBOY",
               "PAN DOCS", "THE GBDEV", "COMMUNITY", "THANKS FOR", "PLAYING!"]
@@ -175,13 +175,23 @@ def test_each_patron_name_is_centred_under_its_patron(model):
     with roll_from_bonus(model, sound=False) as gb:
         for v in range(10):
             at(gb, CARD_START[7 + v] + 100)
+            xs = sorted(s["x"] for s in gb.visible_sprites())
+            assert len(xs) == 6
             for k in range(3):
-                sp = sorted(s["x"] for s in gb.visible_sprites() if s["tile"] in (100 + 6 * k, 102 + 6 * k))
-                centre_px = sp[0] - 8 + 8                          # the pair's left edge + 8 (two 8 px columns)
+                cx = xs[2 * k] + 0                              # OAM x of the pair's first column = the pair's centre (left edge + 8)
+                assert cx in (32 + 48 * k, 36 + 48 * k)
                 for r in (10, 11):
-                    cols = [c for c in range(1 + 6 * k, 7 + 6 * k) if GLYPH_CH.get(tilemap_row(gb, r, 0, 20)[c]) or PUNCT.get(tilemap_row(gb, r, 0, 20)[c])]
+                    row = tilemap_row(gb, r, 0, 20)
+                    cols = [c for c in range((cx - 24) // 8, (cx + 24) // 8) if GLYPH_CH.get(row[c]) or PUNCT.get(row[c])]
                     if cols:
-                        assert abs((cols[0] + cols[-1] + 1) * 4 - centre_px) <= 8, (v, k, r, cols, centre_px)
+                        assert abs((cols[0] + cols[-1] + 1) * 4 - cx) <= 4, (v, k, r, cols, cx)
+                words = [w for w in PATRONS[v][k] if w]
+                assert max(len(w) for w in words) <= 6 and all(" " not in w for w in words)
+                longest = max(words, key=len)
+                row = tilemap_row(gb, 10 if longest == PATRONS[v][k][0] else 11, 0, 20)
+                cols = [c for c in range(20) if GLYPH_CH.get(row[c]) or PUNCT.get(row[c])]
+                cols = [c for c in cols if abs(c * 8 + 4 - cx) <= 24]
+                assert abs((cols[0] + cols[-1] + 1) * 4 - cx) == 0, "the longest line is exactly under its sprite"
 
 
 def test_the_roll_text_is_centred_broken_at_words_and_spaced_by_section():

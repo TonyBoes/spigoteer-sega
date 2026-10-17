@@ -90,19 +90,30 @@ static const char *const cr_boss[10][2] = {      // name, venue (venue order)
     { "LEO THE LION", "THE JUNGLE ZOO" }, { "MOTHERSHIP", "THE SPACE LOUNGE" },
 };
 static const uint8_t cr_hat_dx[10] = { 16, 8, 12, 9, 9, 8, 16, 16, 6, 12 };   // boss.c rows[]: the topper's x from his left edge
-// The patrons have no names in the game: short labels for what they look like, two lines of at most 5 letters, three a venue (art order A, B, C)
+// The patrons have no names in the game: short labels for what they look like, three a venue (art order A, B, C). A label of one word, or of
+// two that fit, is one line (line 1); a longer one breaks between its words (no word is split). A line is at most 6 tiles.
 static const char *const cr_pat[10][3][2] = {
-    { { "COW", "BOY" }, { "COW", "GIRL" }, { "RANCH", "HAND" } },
+    { { "COWBOY", "" }, { "COW", "GIRL" }, { "RANCH", "HAND" } },
     { { "CAP", "FAN" }, { "BAND", "FAN" }, { "REF", "" } },
     { { "BIG", "JACK" }, { "RED", "HAIR" }, { "GREEN", "CAP" } },
     { { "HEAD", "CHEF" }, { "SOUS", "CHEF" }, { "LINE", "COOK" } },
     { { "PARKA", "MAN" }, { "PARKA", "GIRL" }, { "BIG", "PARKA" } },
     { { "BOX", "BOT" }, { "LADY", "BOT" }, { "DOME", "BOT" } },
-    { { "MO", "HAWK" }, { "BAND", "ANA" }, { "QUIFF", "" } },
+    { { "MOHAWK", "" }, { "SCARF", "" }, { "QUIFF", "" } },
     { { "NINJA", "" }, { "NINJA", "GIRL" }, { "RED", "HELM" } },
-    { { "MON", "KEY" }, { "PANDA", "" }, { "HIPPO", "" } },
+    { { "MONKEY", "" }, { "PANDA", "" }, { "HIPPO", "" } },
     { { "EYE", "STALK" }, { "GREY", "" }, { "SQUID", "" } },
 };
+
+static uint8_t cr_len(const char *s) { uint8_t n = 0; while (s[n]) n++; return n; }
+
+// patron k's centre x (px) on a venue card: the columns 48 px apart, 32 / 80 / 128; a label whose longest line is an odd number of tiles
+// centres on a tile boundary + 4 px, so its sprite moves 4 px with it (the sprite is centred on the label)
+static uint8_t cr_pat_cx(uint8_t v, uint8_t k) {
+    uint8_t n = cr_len(cr_pat[v][k][0]), m = cr_len(cr_pat[v][k][1]);
+    if (m > n) n = m;
+    return 32 + 48 * k + ((n & 1) ? 4 : 0);
+}
 
 // ---- the roll. 20 columns a row. Owner's lines (2026-10-17): "Game Design, Media, and Story by Tony and his tireless team of robot
 // friends"; "no credits for public domain tunes. Public Domain."; "Special thanks to:" the platforms, frameworks and projects used.
@@ -290,33 +301,38 @@ static uint8_t cr_show_unit(uint8_t c, uint8_t i) {   // unit i of card c's rows
         else if (i == 0) { cr_cell("SPIGOTEER", 1, 9); cr_cell("DREGS", 10, 9); cr_put_card(11); }
         else { cr_cell("BARTENDER", 1, 9); cr_cell("RIVAL", 10, 9); cr_put_card(13); }
     } else if (c < 7) {
-        j = i >> 3;                                // boss j of the card: 8 units
-        if (j >= 2) return 1;
-        k = i & 7;
+        j = i >= 12;                               // boss j of the card: 12 units
+        if (i >= 24) return 1;
+        k = i - 12 * j;
         b = 2 * (c - 2) + j;
         n = boss_cast_cols[b];
-        L = 10 - (n >> 1);                         // the body's first column: centred within a tile
-        y = j ? 9 : 1;                             // the panel's top row (the topper's)
-        if (k < 2) { cr_blank(); cr_cell(cr_boss[b][k], 0, 20); cr_put_card(y + 4 + 2 * k); }   // name, venue
-        else if (k < 5) {                          // the panel's top row, the body's two rows
+        L = 10 - (n >> 1);                         // the body's first column
+        y = j ? 9 : 1;                             // the panel's top row: a margin row, then the topper's row, the body's two, a margin row
+        if (k < 2) { cr_blank(); cr_cell(cr_boss[b][k], 0, 20); cr_put_card((j ? 14 : 6) + k); }   // name, venue
+        else if (k < 7) {                          // the panel's five rows
             cr_blank();
-            if (k == 2) for (m = L - 1; m <= L + n; m++) CR->row[m] = CR_T_BLANK;
-            else for (m = 0; m < n; m++) CR->row[L + m] = CR_T_BOSS + j * 11 + 2 * m + (k - 3);
+            if (k == 4 || k == 5) for (m = 0; m < n; m++) CR->row[L + m] = CR_T_BOSS + j * 11 + 2 * m + (k - 4);
+            for (m = L - 1; m <= L + n; m++) if (CR->row[m] == TILE_HUD_BLANK) CR->row[m] = CR_T_BLANK;
             cr_put_card(y + k - 2);
         } else if (is_cgb) {                       // their attributes: the panel's palette
             for (m = 0; m < 20; m++) CR->row[m] = BGPAL_HUD;
             for (m = L - 1; m <= L + n; m++) CR->row[m] = BGPAL_STAGE + j;
             VBK_REG = VBK_BANK_1;
-            cr_put(y + k - 5);
+            cr_put(y + k - 7);
             VBK_REG = VBK_BANK_0;
-            cr_amark(y + k - 5);
+            cr_amark(y + k - 7);
         }
     } else {
         if (i >= 3) return 1;
         cr_blank();
         if (!i) { cr_cell(cr_boss[c - 7][1], 0, 20); cr_put_card(2); }
         else {
-            for (k = 0; k < 3; k++) cr_cell(cr_pat[c - 7][k][i - 1], 1 + 6 * k, 6);
+            for (k = 0; k < 3; k++) {                  // each line centred under its sprite (to the half tile)
+                const char *t = cr_pat[c - 7][k][i - 1];
+                n = cr_len(t);
+                L = (uint8_t)(cr_pat_cx(c - 7, k) - 4 * n) >> 3;
+                for (m = 0; m < n; m++) CR->row[L + m] = cr_glyph(t[m]);
+            }
             cr_put_card(9 + i);
         }
     }
@@ -332,13 +348,14 @@ static void cr_card_sprites(uint8_t c) {          // every frame a card is shown
         for (j = 0; j < 2; j++) {
             b = 2 * (c - 2) + j;
             n = boss_cast_cols[b];
-            cr_oam(j, (j ? 9 : 1) * 8 + 16, (10 - (n >> 1)) * 8 + cr_hat_dx[b] + 8, CR_T_HAT + 2 * j, is_cgb ? OBJPAL_CAST + j : 0);
+            cr_oam(j, (j ? 10 : 2) * 8 + 16, (10 - (n >> 1)) * 8 + cr_hat_dx[b] + 8, CR_T_HAT + 2 * j, is_cgb ? OBJPAL_CAST + j : 0);
         }
     } else if (c >= 7) {
         for (k = 0; k < 3; k++) {                 // the three patrons, bobbing in turn
             bob = (((t >> 4) + k) & 3) ? 0 : 2;
-            cr_oam(2 * k, 72 - bob, 24 + 48 * k + 8, CR_T_P + 6 * k, is_cgb ? OBJPAL_ROBOT + k : 0);
-            cr_oam(2 * k + 1, 72 - bob, 24 + 48 * k + 16, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
+            n = cr_pat_cx(c - 7, k);                  // (the pair's left edge + 8: the OAM x of its first column)
+            cr_oam(2 * k, 72 - bob, n, CR_T_P + 6 * k, is_cgb ? OBJPAL_ROBOT + k : 0);
+            cr_oam(2 * k + 1, 72 - bob, n + 8, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
         }
     }
 }
