@@ -1,6 +1,8 @@
 # Frame-time benchmark helpers (M7.1). The game records, in WRAM, the scanline its per-frame work ended on
 # (perf_logic_max: logic only, perf_end_max: logic + music tick; > 143 = ran past the next VBlank)
 # and missed_frames (a frame that began outside VBlank or was skipped). Scenarios are set up by poking state.
+import os
+
 PLAYING = 1
 LINE_OBJ_MAX = 10
 MAX_P, MAX_M = 16, 20
@@ -30,9 +32,31 @@ def start_game(gb):
 def perf_reset(gb):
     for name in ("perf_logic_max", "perf_end_max", "missed_frames"):
         put16(gb, name, 0)
+    gb.perf_samples, gb.perf_hist = [], [False, False]
+
+
+def sample(gb):
+    """Call after each frame of a scenario: the scanline the frame's work (logic + music tick) ended on (> 143: it ran into the next VBlank).
+    Only frames the game itself counts (main.c: the state at the frame's start was PLAYING, and at the one before's too: a transition's
+    LCD-off frames are not normal ones); the state at a frame's start is the one the frame before ended in."""
+    if gb.perf_hist[0] and gb.perf_hist[1]:
+        gb.perf_samples.append(gb.mem16("perf_end_last"))
+    gb.perf_hist = [gb.perf_hist[1], gb.mem("game_state") == PLAYING]
+
+
+def perf_stats(gb):
+    """The distribution of the sampled end lines. A frame count or the single worst frame is chaotic in a heavy scenario (which frame
+    starts badly against VBlank moves with any change of code timing, and one late frame drags the next); the median, the 90th percentile
+    and the share of late frames are what a slower engine moves and a different layout does not."""
+    v = sorted(gb.perf_samples)
+    n = len(v)
+    return dict(n=n, mean=round(sum(v) / n, 1), p50=v[n // 2], p90=v[n * 9 // 10], p99=v[n * 99 // 100], worst=v[-1],
+                late=sum(x >= 144 for x in v))
 
 
 def perf_read(gb):
+    if os.environ.get("PERF_REPORT") and getattr(gb, "perf_samples", None):
+        print("PERFSTATS", os.environ.get("PYTEST_CURRENT_TEST", "").split("::")[-1].split(" ")[0], perf_stats(gb), flush=True)
     return dict(logic=gb.mem16("perf_logic_max"), end=gb.mem16("perf_end_max"), missed=gb.mem16("missed_frames"))
 
 
@@ -64,6 +88,7 @@ def play_script(gb, frames, lvl=8, keep=None):
                 gb.hold(want)
             held = want
         gb.run(1)
+        sample(gb)
         gb.write("lives", 3)
         gb.write("quota", 250)
         if keep:
@@ -289,6 +314,7 @@ def overlap_run(gb, frames, check=None, mugs=4):
     for i in range(frames):
         oc.tick()
         gb.run(1)
+        sample(gb)
         if check:
             check(gb, i)
     return perf_read(gb)
@@ -509,6 +535,7 @@ def realistic_run(gb, frames, check=None, target=10, dirs=0, cls=None, classic=0
         sp = gb.mem("spawned")
         rp.tick()
         gb.run(1)
+        sample(gb)
         if gb.mem("spawned") > sp:
             rp.stats["spawned"] += gb.mem("spawned") - sp
         rp.observe()

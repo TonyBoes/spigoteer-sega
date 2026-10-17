@@ -391,6 +391,17 @@ def page_ready(gb):
     gb.run(3)
 
 
+def turn_page(gb, k):
+    """A (after page_ready) until the scene is on page k: a key in the frames the scene is still settling is not taken, and which frames those
+    are moves with the code's timing, so press again until the page turns."""
+    for _ in range(5):
+        gb.press("a", 2)
+        gb.run(2)
+        if gb.mem("story_page") == k:
+            return
+    raise AssertionError(f"page {k} not reached")
+
+
 def text_rows(gb):
     return [tilemap_row(gb, TEXT_ROW + r, 1, 18) for r in range(3)]
 
@@ -409,7 +420,10 @@ def play_items(rom):
 def to_continue(rom):
     """From the title's top level: PLAY > CONTINUE (first in PLAY when there is a story save)."""
     assert play_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE, K_CLASSIC], "CONTINUE, STORY, ARCADE, CLASSIC"
-    menu_tap(rom, "a")
+    for _ in range(4):                                    # (a key in the first frames of a freshly opened submenu is not taken: how many depends on the
+        menu_tap(rom, "a")                                # code's timing; the first try is the frame count every golden was taken at)
+        if state(rom) != TITLE:
+            break
 
 
 def start_story(model, ram=None, cont=False):
@@ -639,7 +653,7 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
         assert [p["speaker"] for p in pages] == ["SADIE", "SADIE", "DREGS", "NARRATOR", "SPIGOTEER"]
         for k in range(2):
             page_ready(gb)
-            gb.press("a", 2)
+            turn_page(gb, k + 1)
         page_ready(gb)
         assert gb.mem("story_page") == 2 and SPEAKERS[gb.mem("story_cur")] == "DREGS"
         dregs = STORY["portraits"]["DREGS"]
@@ -649,7 +663,7 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
         check_golden(gb, "story_dregs")
         rows = range(dregs["y"] - 1, BOX_ROW)          # the frame's rows (its bottom edge is the box's panel)
         rect = [tilemap_row(gb, r, dregs["x"] - 1, dregs["w"] + 2) for r in rows]
-        gb.press("a", 2)                               # NARRATOR: the frame wipes back to the backdrop
+        turn_page(gb, 3)                               # NARRATOR: the frame wipes back to the backdrop
         page_ready(gb)
         assert gb.mem("story_cur") == 255 and len(gb.visible_sprites()) == 4
         after = [tilemap_row(gb, r, dregs["x"] - 1, dregs["w"] + 2) for r in rows]
@@ -735,7 +749,7 @@ def tour_scene(gb, sid, seen):
     cur = None
     for k, page in enumerate(s["pages"]):
         if k:
-            gb.press("a", 2)
+            turn_page(gb, k)
         page_ready(gb)
         assert gb.mem("story_page") == k, (sid, k)
         if sid == "INTRO" and k + 1 >= s["swpage"]:   # the explosion's ten pieces (OBJ sprites) fly off the screen: none stay

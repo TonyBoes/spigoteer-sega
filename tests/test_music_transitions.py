@@ -8,10 +8,9 @@
 #   - no restart on the legs where the tune is supposed to carry on (the title's submenus, the practice list, the table screens).
 # MUSIC_REPORT=1 pytest -s tests/test_music_transitions.py prints the table of every leg.
 import os
-import re
 
 import pytest
-from conftest import ROM, K_ARCADE, K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE, hold_stage_anim, \
+from conftest import K_ARCADE, K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_STORY, MENU_SETTLE, hold_stage_anim, \
     menu_tap, menu_to, title_pick
 from test_flow import GS_INITIALS, GS_SCORES, PLAYING, TITLE, run_until, state
 from test_mg import GS_MGLIST, GS_MINI
@@ -20,27 +19,12 @@ from test_pause import PAUSED, open_pause
 from test_rush import RS_LIST, RS_MENU, on_rush
 from test_scores import game_over_with, idle_title
 from test_sound import make_rom
+from tick_helpers import EARLY, FRAME, LATE, tick_at, tick_log
 
 pytestmark = pytest.mark.timeout(900)
 
 REPORT = bool(os.environ.get("MUSIC_REPORT"))
 MG_CARD = 5
-FRAME = 70224                # T-cycles in a frame
-LATE, EARLY = 1.6, 0.3       # a tick interval over / under this many frames is a hitch / a bunched tick (one frame is a tick a frame; before the fix up to 35)
-
-
-def tick_at():
-    """(bank, address) of hUGE_dosound, called once per music tick (build/game.noi: bank << 16 | address)."""
-    v = int(re.search(r"DEF _hUGE_dosound (0x[0-9A-F]+)", ROM.with_suffix(".noi").read_text()).group(1), 16)
-    return v >> 16, v & 0xFFFF
-
-
-def tick_log(gb):
-    """The T-cycle stamp of every music tick from now on (a hook on the driver's step), attached once to a rom."""
-    if not hasattr(gb, "tick_stamps"):
-        gb.tick_stamps = []
-        gb.pb.hook_register(*tick_at(), lambda ctx: gb.tick_stamps.append(gb.pb._cycles()), None)
-    return gb.tick_stamps
 
 
 class Leg:
@@ -92,12 +76,13 @@ class Leg:
         out = []
         for i, (ticks, end) in enumerate(parts):
             out += [(b - a) / FRAME for a, b in zip(ticks, ticks[1:])]
-            if len(parts) == 2 and i == 1 and not ticks:
-                if not self.mute_after:                       # (the new tune never ticked in the leg)
-                    out.append((end - hi) / FRAME)
+            if len(parts) == 2:
+                # (a replaced tune: the old one's last tick and the cut, and the cut and the new one's first, are by design. The cut is
+                # only known to the frame it was seen in, so the stretch from the last old tick to it is up to two frames of phase,
+                # not a stall; the ticks inside each tune are what must keep time)
+                if i == 1 and not ticks and not self.mute_after:
+                    out.append((end - hi) / FRAME)            # (the new tune never ticked in the leg)
                 continue
-            if len(parts) == 2 and i == 0 and not ticks:
-                continue                                      # (no old tune was playing)
             tail = (end - (ticks[-1] if ticks else self.c0)) / FRAME
             if tail > LATE:
                 out.append(tail)                              # (a tick not yet due at the leg's end is not late)

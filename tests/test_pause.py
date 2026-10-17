@@ -4,6 +4,7 @@
 # top 5, else the title; mini-games: the list (practice, no medal) or as the run they are part of; BOSS RUSH: its menu, no time.
 # Every mini-game's quit leaves what its normal leave leaves (OBP0, the LCD handler, the mute mask, OBJ / BG tiles, palettes).
 import pytest
+from tick_helpers import FRAME
 from conftest import unlock_debug
 from conftest import K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, MENU_SETTLE, check_golden, hold_stage_anim, menu_items, \
     menu_tap, title_pick
@@ -120,7 +121,7 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         gb.run(30)
         assert gb.mem(NR51) == 0xFF
         glyphs = (tile(gb, GLYPH_J), tile(gb, GLYPH_Z))
-        before_music = music(gb)
+        before_music, before_cyc = music(gb), gb.pb._cycles()
         tap(gb, "start", 3)
         assert state(gb) == PAUSED and gb.mem("overlay_on") == 1
         assert menu_rows(gb) == ["", "> RESUME", "QUIT TO MENU", ""], "two items, centred in the four text rows"
@@ -132,7 +133,7 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         assert max(lines(gb)) <= 10
         frozen = (gb.read("patron_state", 16), gb.read("mug_state", 12), gb.mem("bartender_x"), gb.mem16("score"),
                   gb.mem("spawn_timer"))
-        m0 = music(gb)
+        m0, m0_cyc = music(gb), gb.pb._cycles()
         gb.hold("left")
         gb.run(120)
         gb.release("left")
@@ -140,7 +141,9 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         assert (gb.read("patron_state", 16), gb.read("mug_state", 12), gb.mem("bartender_x"), gb.mem16("score"),
                 gb.mem("spawn_timer")) == frozen, "the game stands still"
         assert music(gb)[0] >= m0[0] + 110, "the tune plays on, 120 frames"
-        assert before_music[0] <= m0[0] <= before_music[0] + 6
+        # the tap's own frames play on at a tick a frame, no more (a pause that ticked twice, or the tune jumping): in real time, not
+        # in the emulator's frames (how many ticks a 5-frame window holds is 4-6 by where the tune's phase falls)
+        assert 0 <= m0[0] - before_music[0] <= (m0_cyc - before_cyc) / FRAME + 1.5, (before_music, m0, (m0_cyc - before_cyc) / FRAME)
         check_golden(gb, "pause_menu")
         tap(gb, "start", 3)
         assert state(gb) == PLAYING and gb.mem("overlay_on") == 0 and gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0

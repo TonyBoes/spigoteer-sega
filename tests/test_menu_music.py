@@ -3,6 +3,8 @@
 # each such rebuild calls music_pump (src/music.c) between its steps and loads the title tune's patterns in one go
 # (music_load_now) instead of 384 bytes a frame. The tick is seen from outside as music_frames changing (it counts up
 # while a tune plays and restarts at 0 with a new one); a frame where it stands still is a silent or late one.
+import os
+
 import pytest
 from conftest import clear_regulars, K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, hold_stage_anim, menu_to, title_pick
 from test_flow import LEVEL_CLEAR, TITLE, run_until, state
@@ -10,12 +12,12 @@ from test_mg import GS_MGLIST, GS_MINI, MG_RESULT
 from test_mg_list import MG_PLANNED
 from test_scores import booted
 from test_rush import RS_LIST, RS_MENU, into_fight, on_rush
+from tick_helpers import FRAME, LATE, LOAD_MAX, load_log, tick_log
 
 pytestmark = pytest.mark.timeout(600)
 
 GS_JUKEBOX = 14
 OBJ_MUG = 56
-MAX_GAP = 1                 # frames in a row without a music tick, at most
 
 
 def mug_tiles(gb, n=4):
@@ -38,16 +40,21 @@ def cursor_oam(gb):
 
 
 class Ticks:
-    """Steps frame by frame, noting whether the music ticked (music_frames changed) in each."""
+    """Steps frame by frame noting the emulator's cycle count at each frame's end and the tune playing; the ticks' stamps come from
+    the hook (tick_helpers)."""
     def __init__(self, gb):
-        self.gb, self.last, self.flags, self.lead = gb, gb.mem16("music_frames"), [], 0
+        self.gb, self.stamps, self.loads, self.lead = gb, tick_log(gb), load_log(gb), 0
+        self.n_loads = len(self.loads)
+        self.cyc = [gb.pb._cycles()]
+        self.tunes = [gb.mem("cur_tune")]
+        self.mf = [gb.mem16("music_frames")]
 
     def run(self, n):
         for _ in range(n):
             self.gb.run(1)
-            now = self.gb.mem16("music_frames")
-            self.flags.append(now != self.last)
-            self.last = now
+            self.cyc.append(self.gb.pb._cycles())
+            self.tunes.append(self.gb.mem("cur_tune"))
+            self.mf.append(self.gb.mem16("music_frames"))
 
     def press(self, b):
         self.gb.pb.button_press(b)
@@ -62,14 +69,34 @@ class Ticks:
             self.run(1)
         raise AssertionError("not reached")
 
+    def frame_of_last_tick(self):
+        """The index of the frame the leg's last tick fell in (its end's index in `cyc`)."""
+        last = max(x for x in self.stamps if x <= self.cyc[-1])
+        return next(i for i, c in enumerate(self.cyc) if c >= last)
+
     def worst(self, upto=None):
-        """The longest run of frames without a tick (and the number of such frames in all)."""
-        w = run = tot = 0
-        for f in self.flags[self.lead:upto]:
-            run = 0 if f else run + 1
-            tot += not f
-            w = max(w, run)
-        return w, tot
+        """(the longest time in frames between two ticks of one tune, the longest time from a music_load_now to the next tick or None,
+        the ticks) from frame `lead` to frame `upto` of the leg (the end when None). The stretch to the window's end counts too, unless
+        `upto` cuts it (the music is stopped there by design); a window without two ticks is one long gap. Where a tune is replaced
+        by another the cut is only known to the frame it was seen in: the ticks of the old tune and of the new one are judged apart,
+        and the hole between them is the load, which has its own bound (the new tune's patterns are copied in one go before it starts)."""
+        end = upto if upto is not None else len(self.cyc) - 1
+        lo, hi = self.cyc[self.lead], self.cyc[end]
+        st = [x for x in self.stamps if lo <= x <= hi]
+        cuts = [i for i in range(self.lead, end) if self.tunes[i + 1] != self.tunes[i] or self.mf[i + 1] < self.mf[i]]
+        parts = [st]
+        if cuts:
+            a, b = self.cyc[cuts[0]], self.cyc[cuts[-1] + 1]
+            parts = [[x for x in st if x < a], [x for x in st if x >= b]]
+        gaps = []
+        for p in parts:
+            gaps += [(y - x) / FRAME for x, y in zip(p, p[1:])]
+        if upto is None and parts[-1]:
+            gaps.append((hi - parts[-1][-1]) / FRAME)
+        elif not st:
+            gaps.append((hi - lo) / FRAME)
+        holes = [((next((x for x in st if x > e), hi)) - e) / FRAME for e in self.loads[self.n_loads:] if lo <= e <= hi]
+        return max(gaps, default=0), max(holes, default=None), len(st)
 
 
 def lcd_on(gb):
@@ -131,7 +158,7 @@ def transitions(gb):
         act(t)
         t.until(end)
         if cut_at_end:
-            cut = max(i for i, f in enumerate(t.flags) if f) + 1    # (the player stops the music, then its screen comes up: the frames after the last tick are silent by design, however many the tick's phase leaves)
+            cut = t.frame_of_last_tick()    # (the player stops the music, then its screen comes up: the stretch after the last tick is silent by design)
         t.run(tail)
         out.append((name, t, cut if cut_at_end else None))
 
@@ -197,7 +224,7 @@ def after_a_fight(gb):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_menu_transitions_keep_the_music_ticking(model):
     """On every transition between the title, BONUS > MINI GAMES, the SOUNDTRACK and BOSS RUSH (menu and list), and the way
-    back from a game and from a boss fight, at most MAX_GAP frames in a row pass without a music tick."""
+    back from a game and from a boss fight, no two music ticks are more than LATE frames apart."""
     bad = []
     with booted(model) as gb:
         hold_stage_anim(gb)
@@ -211,7 +238,11 @@ def test_menu_transitions_keep_the_music_ticking(model):
         hold_stage_anim(gb)
         runs += after_a_fight(gb)
     for name, t, cut in runs:
-        w, tot = t.worst(cut)
-        if w > MAX_GAP:
-            bad.append(f"{name}: {w} in a row, {tot} in all: " + "".join("T" if f else "." for f in t.flags))
+        w, hole, tot = t.worst(cut)
+        if os.environ.get("MUSIC_REPORT"):
+            print(f"{model} {name:34s} longest gap {w:5.2f} frames, load to first tick {hole}, {tot} ticks")
+        if w > LATE:
+            bad.append(f"{name}: {w:.2f} frames between two ticks ({tot} ticks in the window)")
+        if hole is not None and hole > LOAD_MAX:
+            bad.append(f"{name}: {hole:.2f} frames from music_load_now to the new tune's first tick")
     assert not bad, "\n".join(bad)

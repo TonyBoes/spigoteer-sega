@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import GAME, LAYOUT, ROOT, bar_top_y, check_golden
+from conftest import GAME, LAYOUT, ROOT, bar_top_y, check_golden, logic_paused
 from test_flow import LEVEL_CLEAR, LIFE_LOST, PAUSED, PLAYING, clear_level, lose_a_life, run_until, state
 from test_patrons import (BACK_BASE, BASE, DRINKING, FULL, HELD, MAX_M, MAX_P, PUSHED, WALKING, clear_patrons,
                           drawn_tiles, go, inject_mug, lineup, map_ids, mugs, patrons, put, score, set_patron)
@@ -55,12 +55,21 @@ def started(gb):
     gb.run(2)
 
 
-def serve(gb, bar, catch_x, x=2):
-    """A pushed-back patron one step from ENTRY_X: it is served in a few frames."""
-    i = set_patron(gb, bar, x, state=PUSHED, aux=40)
-    put(gb, "patron_catchx", i, catch_x)
-    s0 = gb.mem("served")
-    gb.run(8)
+def serve(gb, bar, catch_x, x=2, rng=None, chance=None):
+    """A pushed-back patron one step from ENTRY_X: it is served in a few frames. The pokes land between two whole game frames
+    (logic_paused): one that lands inside a frame's update is undone by the update's own read-modify-write of the same variable
+    (tip_timer's count-down), on the frames the code's timing puts the emulator's frame boundary there. rng: the generator's state
+    for the tip's roll; chance: tip_chance, and a tip left from before is taken away."""
+    with logic_paused(gb):
+        if chance is not None:
+            gb.write("tip_chance", chance)
+            w16(gb, "tip_timer", 0)
+        if rng is not None:
+            gb.write("rng_state", rng)
+        i = set_patron(gb, bar, x, state=PUSHED, aux=40)
+        put(gb, "patron_catchx", i, catch_x)
+        s0 = gb.mem("served")
+    run_until(gb, lambda: gb.mem("served") > s0, 40)      # (the step's phase against the frame moves with the code's timing: wait for it, not 8 frames)
     assert gb.mem("served") == s0 + 1
     return i
 
@@ -103,16 +112,28 @@ def test_no_tip_when_the_chance_is_never(gb):
     assert gb.mem16("tip_timer") == 0 and coin_sprites(gb) == []
 
 
+def xorshift(s):
+    """The game's next_rand (src/main.c): one step of the 8-bit xorshift, as the value it returns."""
+    s ^= (s << 7) & 255
+    s ^= s >> 5
+    s ^= (s << 3) & 255
+    return s
+
+
 def test_tip_chance_is_a_probability_out_of_256(gb):
+    """The roll is `next_rand() < tip_chance`. The generator's state is set before each serve to 40 spread values, so the 40 rolls do not
+    depend on how many random numbers the frames in between happened to draw (the generator has period 255, and a fixed stride through it
+    visits only a short orbit of it: with the old 8-frame serve the count was 10, with another code timing 37 of 40). The count is then
+    the one the generator gives for those states: 10 of 40, about 1 in 4 as 64 / 256 says."""
     quiet(gb)
-    gb.write("tip_chance", 64)
+    states = [6 * n + 1 for n in range(40)]
+    want = sum(xorshift(st) < 64 for st in states)
+    assert 3 <= want <= 20, want                  # (the chosen states are about 1 in 4)
     got = 0
-    for n in range(40):
-        gb.write("tip_chance", 64)
-        w16(gb, "tip_timer", 0)
-        serve(gb, n % 4, 50)
+    for n, st in enumerate(states):
+        serve(gb, n % 4, 50, rng=st, chance=64)
         got += gb.mem16("tip_timer") > 0
-    assert 3 <= got <= 20, got                    # about 1 in 4
+    assert abs(got - want) <= 2, (got, want)
 
 
 def test_only_one_tip_at_a_time(gb):
@@ -126,7 +147,8 @@ def test_tip_vanishes_after_480_frames(gb):
     quiet(gb)
     serve(gb, 2, 90)
     left = gb.mem16("tip_timer")
-    gb.run(left - 2)
+    assert 470 <= left <= 480, left                       # (the sample may be a frame into the count: the frame's phase moves with the code)
+    run_until(gb, lambda: gb.mem16("tip_timer") <= 2, left)
     assert gb.mem16("tip_timer") == 2
     gb.run(3)
     assert gb.mem16("tip_timer") == 0 and coin_sprites(gb) == [] and gb.mem("show_timer") == 0 \
