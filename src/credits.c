@@ -5,29 +5,29 @@
 // "Special thanks to:" list in it.
 //
 // The music is the credits tune (TUNE_CREDITS), started by credits_enter while the screen is built (BONUS' own tune stops there). The whole
-// roll is tied to the tune's POSITION (the frames its engine has ticked: cr_pos, the same count as the tune's length, so a tempo change inside it does not matter) and its LENGTH (music_tune_frames: orders x 64 rows x tempo), not to
-// constants: every boundary below is a share of the tune (units of 1/352, the 352 rows of the 88 s C3 draft), so a longer arrangement slows
-// everything in proportion. With the sound off the position is the frames on the screen (the same pace).
+// roll is tied to the tune's POSITION (the frames its engine has ticked: cr_pos, the same count as the tune's length, so a tempo change inside it
+// does not matter) and its LENGTH (music_tune_frames), not to constants: every boundary below is a share of the tune (units of 1/352), so a
+// longer arrangement slows everything in proportion. With the sound off the position is the frames on the screen (the same pace).
 //
-//   units  0-7     "CAST OF CHARACTERS"
-//          8-17    card: the Spigoteer (the player) and Dregs, the Pour-Off's rival
-//          18-217  20 cards of 10 units: the ten venues' owner and boss (their story portrait, his fight body and topper: build/boss_cast_art.h),
-//                  then the ten venues' three patrons each, side by side with a label under each
-//          218-321 the credits roll (text rows streamed in as before; its first 40 frames build it behind the fade)
-//          322-351 "THANKS FOR PLAYING!" alone, the tune's last bars and its held C; the roll ends when the tune has
-//          (C3, 88 s: a unit is 15 frames, a card 2.5 s; a 180 s tune: 30.7 frames, a card 5.1 s)
+//   units  0-6     "CAST OF CHARACTERS"
+//          7-230   32 cards of 7 units: Sal Tapley AKA the Spigoteer, Dregs (each his story portrait, his sprite, his name), then for each
+//                  venue the owner (portrait, name, venue), the patrons (three, a label each) and the boss (animated: his fight walk and gulp)
+//          231-321 the credits roll (text rows streamed in as before; its first 40 frames build it behind the fade)
+//          322-351 "THANKS FOR PLAYING!" alone, the tune's last bars and its ring; the roll ends when the tune has
+//          (D3c, 146 s: a unit is 24.8 frames, a card 2.9 s; the 88 s C3: 15 frames, 1.75 s; a 180 s tune 5.1 s)
 //
-// A card changes behind a fade (trans.c trans_cast: the picture to the band colour and back, ~8 frames each way, palette RAM written in the
-// VBlank only). The card's colours live in RAM (CR_PAL: all 128 bytes of palette RAM on CGB; BGP / OBP0 / OBP1 on DMG), never written to the
-// hardware by the card's own code, so it is built behind the faded screen: the old card fades out, its rows are cleared, the new one's tiles,
-// palettes and rows are loaded (CR_UNITS a frame), its sprites set, then it fades in. The tilemap is the 32-row ring the roll scrolls (SCY 0
-// during the cast; the cards use rows 0-17). BG tile ids: the owner's portrait from STORY_PORTRAIT_BASE (44 at most), the boss's body from
-// CR_T_BOSS; OBJ ids: Dregs 56.., the topper 64.., the patrons' shift-0 poses 100-117 (the roll's robots are the same).
+// A card changes behind a fade to WHITE (trans.c trans_cast, palette RAM written in the VBlank only, ~9 frames each way, the tune's ticks kept
+// frame for frame): the old card fades out, the LCD goes off (white, so no flash), the new card is built in one go with the LCD off (the
+// library's tile writes are a byte a scanline with it on), the LCD comes on and the card fades in. The card's colours live in RAM (CR_PAL: all
+// 128 bytes of palette RAM on CGB; BGP / OBP0 / OBP1 on DMG). The tune's ticks in the build come from DIV (cr_tk: exact), and every card
+// change costs the tune a fraction of a frame that CR_LAG makes up with a tick now and then, so it ends on wall time. The tilemap is the
+// 32-row ring the roll scrolls (SCY 0 during the cast; the cards use rows 0-17). BG tile ids: the portrait from STORY_PORTRAIT_BASE (44 at
+// most), the boss's tile pairs from CR_T_BOSS; OBJ ids: Dregs 56.., the topper 64.., the patrons' shift-0 poses 100-117 (the roll's robots too).
 //
 // The roll's text is one string per tilemap ROW, centred; "" is a blank row. The lines of one sentence are on consecutive rows, the items of
 // a list have two blank rows between them, sections more. Every line is at most 18 tiles (a clear column at each edge). CR_BAND is the row
 // where the sprites' band starts (4 rows: the three robots stand under the "robot friends" line, who bob in turn, and the Spigoteer, facing
-// them, raises a hand now and then). B / START skip (not during a fade: they last 8 frames). With the sound on the roll ends when the music
+// them, raises a hand now and then). B / START skip (a fade or a build is cut short and the press seen). With the sound on the roll ends when the music
 // has; with the sound off when its length has passed.
 // State in story_scratch (no WRAM of its own; nothing else runs while the roll shows): tests read it at story_scratch + offset.
 #pragma bank 255
@@ -79,6 +79,7 @@ struct cr_state {
     uint8_t d0, ph;           // the LCD-off build's tick clock: DIV last read, the tick count (the period 274, 274, 275 DIV counts: 274.3 a frame)
     uint16_t acc, dsum;       // ... DIV counts since the last tick, all of them
     uint8_t lagq;             // the tune's lag behind the wall clock, in hundredths of a frame (see CR_LAG)
+    uint8_t skipq;            // B / START came down during a build
 };
 #define CR ((struct cr_state *)story_scratch)
 #define CR_PAL ((uint8_t *)story_scratch + 72)                          // the card's colours (CGB: 128 bytes; DMG: BGP, OBP0, OBP1, the first OBP1)
@@ -252,7 +253,8 @@ static void cr_pal(uint8_t obj, uint8_t i, const uint16_t *p) {   // CGB: palett
 // ---- the tune's ticks while the LCD is off (no VBlank to count): the DIV register (16384 Hz, 274.3 counts a frame), read often enough not to wrap
 // (16 ms): a tick every 274, 274, 275 counts, so the tune keeps exact time (music_pump's 69 timer counts a frame are 0.6% slow) ----------------------
 static void cr_tk(void) {
-    uint8_t n = DIV_REG, d = n - CR->d0;               // (read once: a second read would lose the counts between the two)
+    uint8_t n = DIV_REG, d = n - CR->d0;
+    if (joypad() & (J_B | J_START)) CR->skipq = 1;               // (read once: a second read would lose the counts between the two)
     CR->d0 = n;
     CR->acc += d;
     CR->dsum += d;
@@ -595,16 +597,20 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         if (c >= CR_CARDS) c = CR_CARDS - 1;
         if (CR->card != c) {
             if (CR->card < CR_CARDS && cr_fade(0)) { cr_leave(); return 1; }   // the old card fades out (to white)
-            CR->card = c;
+            CR->card = c; CR->phase = 1;                                       // (1: being built, 5: shown)
             cr_off();
             cr_white();
             hide_all_sprites();
             if (!is_cgb) CR_PAL[2] = cr_kind(c, &top) == CK_BOSS ? DMG_HAT_OBP1 : CR_PAL[3];
+            CR->skipq = 0;
             cr_make(c);
+            CR->phase = 4;                                                     // (built)
             cr_card_sprites(c);
             cr_on();
+            if (CR->skipq) { cr_leave(); return 1; }
             if (cr_fade(1)) { cr_leave(); return 1; }                          // the new card fades in
             CR->phase = 5;
+            CR->t += 3;                                                        // (the frames the clock misses in a card change: the call's partial frames)
             if (sound_on) { CR->lagq += CR_LAG; if (CR->lagq >= 100) { CR->lagq -= 100; music_tick(); } }   // (the card change costs the tune this much: a fraction of a frame each; a tick makes up a whole one now and then)
         } else cr_card_sprites(c);
         return 0;
@@ -618,6 +624,7 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         if (!is_cgb) CR_PAL[2] = CR_PAL[3];
         for (c = 0; c < 32; c++) { cr_rows(c, 1); cr_tk(); }
         for (c = 0; c < 6; c++) { load_patron_pose0(5, CR_T_P + 6 * (c >> 1) + 3 * (c & 1), c >> 1, c & 1); cr_tk(); }
+        CR->phase = 4;
         if (is_cgb) for (c = 0; c < 3; c++) { patron_pal_get(5, c, (uint16_t *)CR->row); ((uint16_t *)CR->row)[0] = 0; cr_pal(1, OBJPAL_ROBOT + c, (uint16_t *)CR->row); }
         cr_on();
         if (cr_fade(1)) { cr_leave(); return 1; }

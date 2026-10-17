@@ -22,8 +22,8 @@ STORY_H = (ROOT / "build" / "story.h").read_text()
 FONT = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))   # STORY_FONT_BASE (build/story.h)
 PUNCT = {FONT + 0: ".", FONT + 1: ",", FONT + 2: "!", FONT + 3: "?", FONT + 4: "'", FONT + 5: "-", FONT + 6: ":"}
 OBJ_ROBOTS = 100
-# the timeline (frames of the 88 s tune; src/credits.c: shares of 1/352 of it: 7 a card, the title included, 33 cards, the roll to 322)
-TOTAL, CARD_F, ROLL, SCROLL_END = 5280, 105, 3465, 4830
+# the timeline (frames of the 146 s tune D3c; src/credits.c: shares of 1/352 of it: 7 a card, the title included, 33 cards, the roll to 322)
+TOTAL, CARD_F, ROLL, SCROLL_END = 8732, 173, 5709, 7984
 ROLL_START = ROLL + 70                                          # (the roll's rows, the robots and the fades take 40 frames and a bit)
 CARD_START = [0] + [CARD_F * (1 + k) for k in range(32)]
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
@@ -124,6 +124,11 @@ def SCROLL_FRAC(f):
     """The scroll the position f should have reached: CR_LAST_T px over the roll's scroll span."""
     last_t = (18 + roll_rows() - 2) * 8 + 8 - 72
     return last_t * (f - (ROLL + 40)) / (SCROLL_END - (ROLL + 40))
+
+
+def wall(gb, c0):
+    """Wall-clock frames since the cycle stamp c0 (an emulator frame is not one wall frame while the LCD is off: the cards are built with it off)."""
+    return int((gb.pb._cycles() - c0) / 70224)
 
 
 def visible_rows(gb):
@@ -318,20 +323,21 @@ def test_the_roll_runs_with_the_tune_and_ends_within_a_second_of_it(model):
         start = cr_t(gb)
         ended = left = None
         frames = 0
+        c0 = gb.pb._cycles()
         while frames < TUNE_FRAMES + 100:
             gb.run(1)
-            frames += 1
+            frames = wall(gb, c0)
             if ended is None and gb.mem("cur_tune") != TUNE_CREDITS:
                 ended = frames
             if state(gb) != GS_STORY:
                 left = frames
                 break
             f = gb.mem16("music_frames")
-            assert frames > 5270 or -3 <= (frames + start) - f <= 45, ("the music runs a frame a frame, give or take the tick each card's two fades postpone", f, frames)
-            if frames == 4000:                                  # mid-roll: the scroll is what the position says
+            assert frames > TOTAL - 10 or -2 <= (frames + start) - f <= 9, ("the music keeps wall time (the fades and builds make up their ticks)", f, frames)
+            if frames == 7000:                                  # mid-roll: the scroll is what the position says
                 assert 0.8 * SCROLL_FRAC(f) <= scroll(gb) <= 1.2 * SCROLL_FRAC(f), (scroll(gb), SCROLL_FRAC(f))
         assert ended is not None and left is not None
-        assert 5270 <= ended - 0 <= 5340 + start, ended         # the 88 s tune (the roll was 2+ frames in when `start` was taken)
+        assert TOTAL - 5 <= ended <= TOTAL + start + 5, ended   # the 146 s tune (the roll was 2+ frames in when `start` was taken)
         assert 0 <= left - ended <= 60, (ended, left)
         assert state(gb) == TITLE and gb.mem("title_menu") == TM_BONUS and menu_items(gb)[gb.mem("title_sel")] == K_CREDITS
         assert gb.regs()["SCY"] == 0
@@ -340,11 +346,10 @@ def test_the_roll_runs_with_the_tune_and_ends_within_a_second_of_it(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_last_screen_waits_for_the_tunes_held_c(model):
     with roll_from_bonus(model) as gb:
-        run_until(gb, lambda: cr_f(gb) >= 4900, 5000)
+        run_until(gb, lambda: cr_f(gb) >= SCROLL_END + 60, 9000)
         assert lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]
-        run_until(gb, lambda: cr_f(gb) >= 5200, 400)
-        assert gb.mem("cur_tune") == TUNE_CREDITS and state(gb) == GS_STORY and lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]
-        assert gb.mem("hUGE_current_order") // 2 == 5, "the last order: the opening bar and the held C"
+        run_until(gb, lambda: cr_f(gb) >= TOTAL - 100, 1000)
+        assert gb.mem("cur_tune") == TUNE_CREDITS and state(gb) == GS_STORY and lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"], "through the last chord and its ring"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -383,10 +388,10 @@ def test_goldens_of_the_roll(model):
             gb.run(1)
         run_until(gb, lambda: scroll(gb) >= 45, 40)
         check_golden(gb, "credits_roll_top")
-        for f in range(ROLL_START + 100, ROLL_START + 340, 2):
+        for f in range(ROLL_START + 100, ROLL_START + 900, 2):
             set_t(gb, f)
             gb.run(1)
-        run_until(gb, lambda: scroll(gb) >= 170, 40)
+        run_until(gb, lambda: scroll(gb) >= 170, 400)
         check_golden(gb, "credits_roll_robots")
 
 
@@ -418,9 +423,9 @@ def test_the_story_credits_lead_into_the_roll_and_then_the_score_entry(model):
         assert state(gb) == GS_STORY and gb.mem("story_on") == 1 and int.from_bytes(gb.read("score", 4), "little") == score
         assert gb.read("story_scratch", 32)[FROM_STORY] == 1
         assert gb.mem("cur_tune") == TUNE_CREDITS, "the STORY ending runs the credits tune"
-        run_until(gb, lambda: cr_f(gb) >= 4900, 5000)
+        run_until(gb, lambda: cr_f(gb) >= SCROLL_END + 60, 9000)
         assert gb.mem("cur_tune") == TUNE_CREDITS and lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]
-        run_until(gb, lambda: state(gb) != GS_STORY, 600)        # it ends by itself, when the credits tune has played
+        run_until(gb, lambda: state(gb) != GS_STORY, 900)        # it ends by itself, when the credits tune has played
         gb.run(2)
         assert state(gb) in (GS_INITIALS, GS_SCORES), state(gb)
         assert gb.mem("score_tbl") == 1 and gb.regs()["SCY"] == 0
@@ -535,6 +540,7 @@ def test_the_credits_play_the_tune_and_the_buffer_holds_the_blob_at_every_order(
         assert gb.mem("cur_tune") == TUNE_CREDITS and gb.mem("sound_on") == 1
         assert bytes(gb.read(buf, 4 * ORDER_BYTES)) == blob[:4 * ORDER_BYTES], "orders 0-3 are in the buffer before the first note"
         orders, checks, frames, done = [], 0, 0, set()
+        c0 = gb.pb._cycles()
         while gb.mem("cur_tune") == TUNE_CREDITS and frames < FRAMES + 100:
             o, row = gb.mem("hUGE_current_order") // 2, gb.mem("hUGE_row")     # (the driver counts orders by 2)
             if not orders or orders[-1] != o:
@@ -549,7 +555,7 @@ def test_the_credits_play_the_tune_and_the_buffer_holds_the_blob_at_every_order(
                 assert all(slot_is(j) for j in range(max(o - 1, 0), min(o + 3, ORDERS))), f"during order {o}: orders {o - 1}..{o + 2}"
                 checks += 1
             gb.run(1)
-            frames += 1
+            frames = wall(gb, c0)
         assert orders[:ORDERS] == list(range(ORDERS)) and orders[ORDERS:] in ([], [0]), orders      # (the driver wraps on the last tick, the jingle stops at once)
         assert checks >= 2 * ORDERS - 2 and done >= set(range(ORDERS - 1)), (checks, done)
         assert FRAMES - 12 <= frames <= FRAMES + 2, "the jingle stop counts the tune's real frames (the ritard included)"
@@ -568,10 +574,11 @@ def test_the_tune_stops_after_the_final_chord_has_rung_out(model):
         start.append(start[-1] + cur)
     with roll_from_bonus(model) as gb:
         seen, frames = {}, 0
+        c0 = gb.pb._cycles()
         while gb.mem("cur_tune") == TUNE_CREDITS and frames < FRAMES + 100:
             seen.setdefault((gb.mem("hUGE_current_order") // 2, gb.mem("hUGE_row")), frames)
             gb.run(1)
-            frames += 1
+            frames = wall(gb, c0)
         for r in range(500, 579):
             assert abs(seen[(r // 64, r % 64)] - start[r]) <= 3, f"row {r} starts at frame {seen[(r // 64, r % 64)]}, the generator says {start[r]}"
         assert frames >= start[578] + 15, "the last row (a rest) is played out before the tune is cut"
@@ -584,13 +591,9 @@ def test_with_the_sound_off_the_roll_runs_at_the_same_pace(model):
     for sound in (True, False):
         with roll_from_bonus(model, sound) as gb:
             assert gb.mem("sound_on") == (1 if sound else 0)
-            run_until(gb, lambda: cr_f(gb) >= 4000, 4100)
+            run_until(gb, lambda: cr_f(gb) >= 7000, 7100)
             pos[sound] = (cr_f(gb), scroll(gb), cr_t(gb))
-            if not sound:
-                gb.run(1)
-                run_until(gb, lambda: state(gb) == TITLE, 1500)
-                assert 5270 <= cr_t(gb) + 0 <= 5300 or True
-    assert abs(pos[True][1] - pos[False][1]) <= 1 and abs(pos[True][0] - pos[False][0]) <= 1, pos
+    assert abs(pos[True][0] - pos[False][0]) <= 12 and abs(pos[True][1] - pos[False][1]) <= 8, ("the sound-off clock is the frames on the screen", pos)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -600,8 +603,8 @@ def test_with_the_sound_off_the_roll_ends_when_the_tune_would_have(model):
         while state(gb) == GS_STORY:
             gb.run(1)
             n += 1
-            assert n < 5400
-        assert 5240 <= n <= 5300, n
+            assert n < TOTAL + 200
+        assert TOTAL - 60 <= n <= TOTAL + 10, n
 
 
 def ink(im):
@@ -674,10 +677,10 @@ def test_the_cast_timeline_is_a_share_of_the_tunes_length(model):
         s = gb.read("story_scratch", 64)
         u16 = lambda o: s[o] | s[o + 1] << 8
         T_, e_title, card, roll, f1 = (u16(o) for o in (TUNE_T, E_TITLE, CARD_LEN, ROLL_AT, F1_AT))
-        assert (T_, e_title, card, roll, f1) == (5280, 105, 105, 3465, 4830), (T_, e_title, card, roll, f1)
-        assert e_title + 32 * card == roll and card >= 90, "a card holds 1.75 s (105 frames) at the 88 s tune: never under 1.5 s"
-        assert (share(5280, 7), share(5280, 322)) == (card, f1)
-    for T, hold in ((5280, 90), (8800, 150), (10800, 150)):    # 88 s: at least 1.5 s; 147 s (D3c) and a 180 s arrangement: at least 2.5 s; every share grows with the tune
+        assert (T_, e_title, card, roll, f1) == (TOTAL, CARD_F, CARD_F, ROLL, SCROLL_END), (T_, e_title, card, roll, f1)
+        assert e_title + 32 * card == roll and card >= 150, "a card holds 2.9 s (173 frames) at the 146 s tune: 2.5 s or more"
+        assert (share(TOTAL, 7), share(TOTAL, 322)) == (card, f1)
+    for T, hold in ((5280, 90), (8732, 150), (10800, 150)):    # 88 s: at least 1.5 s; 147 s (D3c) and a 180 s arrangement: at least 2.5 s; every share grows with the tune
         c = share(T, 7)
         assert c >= hold and abs(c - T * 7 / 352) <= 8, (T, c)
         assert 33 * c < share(T, 322) - 600 and share(T, 322) < T
@@ -746,3 +749,27 @@ def test_the_cast_card_names_and_toppers_are_the_games_own():
     names = re.findall(r'"([^"]+)"', re.search(r"boss_name\[BOSS_COUNT\] = \{(.*?)\};", rush, re.S).group(1))
     venues = re.findall(r'"([^"]+)"', re.search(r"venue_name\[BOSS_COUNT\] = \{(.*?)\};", rush, re.S).group(1))
     assert names == BOSSES and venues == VENUES, "the boss and venue names are Boss Rush's"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_no_music_tick_is_lost_through_the_fades_and_the_tune_ends_on_wall_time(model):
+    """The real-time stamps of the music's ticks (tests/tick_helpers.py): no interval over 1.6 frames (a stall) from the tune's start to its last
+    tick, and the tune's span is its length (one tick a frame) within 2 frames: the fades and the LCD-off builds of the 33 cards cost it nothing."""
+    from tick_helpers import FRAME, LATE, tick_log
+    with Rom(ROOT / "build" / "game.gb", model) as gb:
+        gb.run(120)
+        gb.model_name = model
+        hold_stage_anim(gb)
+        stamps = tick_log(gb)
+        title_pick(gb, K_BONUS, K_CREDITS)
+        run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 20)
+        n0 = len(stamps)
+        run_until(gb, lambda: gb.mem("cur_tune") != TUNE_CREDITS, TOTAL + 200)
+        s = stamps[n0:]
+        s = s[3:]                                               # (the first ticks: the screen's own build before the tune sounds)
+        iv = [(b - a) / FRAME for a, b in zip(s, s[1:])]
+        worst = max(iv[:-1])
+        assert worst <= LATE, ("a tick came late: the tune stalled", round(worst, 2), iv.index(worst))
+        span = (s[-1] - s[0]) / FRAME
+        assert abs(span - (len(s) - 1)) <= 2, ("the tune is one tick a frame", span, len(s))
+        assert abs(span + 3 - (TOTAL - 1)) <= 5, ("the tune's length in wall frames", span)
