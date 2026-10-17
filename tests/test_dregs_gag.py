@@ -215,3 +215,37 @@ def test_dregs_stands_a_beat_before_the_venue_acts_and_the_shove_is_slower(model
         gb.run(32)
         assert 22 <= gag_t(gb) - t0 <= 28, f"{VENUES[c]}: slowed to 13/16 (26 gag frames in 32): {gag_t(gb) - t0}"
         assert gag_raw(gb) - r0 == 32
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_stadium_soda_bath_plays_on_screen_and_gives_the_spigoteer_back(model):
+    """POST_STADIUM page 2 ("SPLOOSH! ... SODA BATH", after Coach's page): Coach's cooler and a soda stream/sheet/splash are drawn over the
+    Spigoteer (his four entries parked in OAM 36-39 meanwhile, so the soda is in front), A cannot turn the page, at most 10 sprites a line,
+    and afterwards the Spigoteer is back in OAM 0-3 with nothing of the bath left."""
+    gb = post_scene(model, 1)
+    with gb:
+        page_ready(gb)                                     # page 0: Coach
+        gb.press("a", 2)
+        assert gb.mem("story_page") == 1
+        run_until(gb, lambda: gag_state(gb) == 1, 10)
+        most = line = 0
+        n = 0
+        parked = None
+        while gag_state(gb) == 1 and n < 400:
+            gb.run(1)
+            n += 1
+            most = max(most, len(gag_sprites(gb)))
+            line = max(line, per_line(gb))
+            if n == 70:
+                assert [s["y"] > 0 for s in gb.oam()[36:40]] == [True] * 4, "the Spigoteer is parked behind the soda"
+                parked = gb.oam()[36:40]
+                check_golden(gb, "dregs_gag_soda")
+                gb.press("a", 2)
+                assert gb.mem("story_page") == 1, "A does not turn the page while the bath plays"
+        assert 120 <= n <= 200, n
+        assert most >= 6 and line <= 10
+        assert gag_sprites(gb) == [], "nothing of the bath is left"
+        assert gb.oam()[0:4] == [dict(s) for s in parked], "the Spigoteer is back where he was"
+        assert len(gb.visible_sprites()) == 4
+        gb.press("a", 2)
+        assert gb.mem("story_page") == 2

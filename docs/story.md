@@ -307,7 +307,7 @@ TWEET!| GO GO GO!
 
 ### POST_STADIUM: "Home Run"
 
-Picture: the scoreboard flashes WIN as Coach dumps a cooler of soda over the Spigoteer and the cheerleaders kick.
+Picture: the scoreboard flashes WIN as Coach dumps a cooler of soda over the Spigoteer and the cheerleaders kick. (Animated, G17b, src/dgag.c phase 3: on the "SPLOOSH!" page Coach's cooler slides in over the Spigoteer, tips, pours an orange soda stream onto him, a dithered sheet of soda runs down him and splashes at his feet, the cooler lifts away and a few drips are left; 2.5 s, A waits, START skips.)
 
 ```
 COACH

@@ -9,7 +9,8 @@
 //   st[0] the gag's next frame (its own, closed-form frame number: below, 0-255), st[1] next OAM entry while drawing, st[2] venue, st[3] phase,
 //   st[4] 0 idle, 1 running, 2 finished but still on screen (Dregs standing: the punks' chord page waits for the blast page),
 //   st[5], st[6] the real frames since the page turn (16 bits; the gag's own frame follows it through warp(): a beat, then slower).
-// Phases: 0 the exit; 1 the punks' second page (blast); 2 the space lounge's "came down" page (beam down).
+// Phases: 0 the exit; 1 the punks' second page (blast); 2 the space lounge's "came down" page (beam down); 3 the stadium's victory soda bath
+// (POST_STADIUM's "SPLOOSH!" page, after Coach's page: not a Dregs gag, the same machinery).
 // Every gag is a closed-form function of its frame number. The common opening (OPEN = 48 frames): Dregs dashes in from the right (whoosh), reaches for
 // the prize (arm out, one hop), then the venue's way out; the common ending: dust and a crash at the left edge.
 // OAM 20-39 (the Spigoteer 0-3, Sadie's accent 4..): at most 10 sprites a line (checked in tests/test_dregs_gag.py).
@@ -34,6 +35,7 @@ void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);   /
 
 #define SPK_SPIGOTEER 0             // speaker indices (tools/gen_story.py SPEAKERS; SPK_NARRATOR is in story.h)
 #define SPK_DREGS 1
+#define SPK_COACH 3
 #define OAM0     20
 #define T_A      56
 #define T_DUST   (T_A + 0)          // 3 frames x one 8x16 entry
@@ -43,7 +45,7 @@ void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);   /
 #define T_REACH  (T_A + 24)
 #define T_B      88                 // 88-91: the venue's first prop
 #define T_P      98                 // patron poses: 6 tiles a variant
-#define T_X      116                // 116-127: a second prop
+#define T_X      116                // 116-127: a second prop (the stadium's soda bath: the tipped cooler, stream, sheet, splash, drips)
 typedef char dg_set_a_fits[(DG_A_TILES == 32 && T_A + DG_A_TILES == T_B) ? 1 : -1];
 
 #define XD       96                 // where Dregs stands to grab (his left edge); bar 0's lane: top y 40, feet on y 64
@@ -332,13 +334,52 @@ static uint8_t gag_space(uint8_t *st, uint8_t t, uint8_t ph) {
     return w < 40;
 }
 
+// ---- the stadium's victory soda bath (phase 3). POST_STADIUM page 2, "SPLOOSH! THE SPIGOTEER GOT THE VICTORY SODA BATH." ------------------
+// Coach's cooler (OBJ 2) slides in over the Spigoteer from the right, shakes, tips and pours (SFX_FILL) a stream of orange soda (OBJ 3) onto
+// his head; a dithered sheet of soda runs down over his whole body (he shows through it) and it splashes at his feet (SFX_SWISH); the
+// cooler lifts away and a few drips are left, then nothing. The Spigoteer's four entries (OAM 0-3) are parked in OAM 36-39 meanwhile so that
+// the soda is drawn over him (CGB: the lower entry wins; DMG: the lower x, then the lower entry: the sheet sits on his own x), and come back.
+#define SODA_END 150
+static void soda_park(uint8_t back) {
+    uint8_t i;
+    for (i = 0; i < 4; i++) {
+        if (back) { shadow_OAM[i] = shadow_OAM[36 + i]; shadow_OAM[36 + i].y = 0; }
+        else { shadow_OAM[36 + i] = shadow_OAM[i]; shadow_OAM[i].y = 0; }
+    }
+}
+
+static uint8_t gag_soda(uint8_t *st, uint8_t t) {
+    int16_t sx = 120, sy = 66, cx, cy = 40 + ((t >> 2) & 1);                        // (where story.c puts him, unless he is found)
+    uint8_t ps = is_cgb ? 3 : S_PALETTE, i, f = ((t >> 2) & 1) ? S_FLIPY : 0;
+    if (shadow_OAM[0].y) soda_park(0);                                              // (he is drawn a few frames after the page turn: parked as soon as he is there)
+    if (shadow_OAM[36].y) { sx = shadow_OAM[36].x - 8; sy = shadow_OAM[36].y - 16; }
+    if (t == 36) SFX(SFX_FILL);
+    if (t == 52) SFX(SFX_SWISH);
+    if (t >= 44 && t < 140) {                                                       // the soda over him: first sheet, then drips
+        for (i = 0; i < 4; i++)
+            ent(st, sx + (i & 1) * 8, sy + (i >> 1) * 16 + (t >= 108 ? ((t >> 1) & 3) : 0), T_X + (t >= 108 ? 10 : 6), ps | f | ((i & 1) ? S_FLIPX : 0));
+    }
+    if (t >= 52 && t < 128) {                                                       // the splash at his feet, both sides
+        ent(st, sx - 6, sy + 21 - ((t >> 2) & 1), T_X + 8, ps | S_FLIPX);
+        ent(st, sx + 14, sy + 21 - ((t >> 2) & 1), T_X + 8, ps);
+    }
+    if (t >= 36 && t < 96) ent(st, sx + 4 + ((t >> 1) & 1), sy - 16, T_X + 4, ps);   // the stream, cooler lip to his head
+    cx = sx + 2;
+    if (t < 30) cx += (29 - t) * 3;
+    else if (t < 36) cx += (t & 1) ? 1 : -1;                                        // shaking before it tips
+    else if (t >= 96) cx += (t - 96) * 4;
+    if (t >= 36 && t < 96) two(st, cx, cy - 2, T_X, PP, 0);                          // tipped, lip over his head
+    else two(st, cx, cy, T_B, PP, 0);
+    return t < SODA_END;
+}
+
 // ---- the beat and the slow-down (owner playtest 2026-10-17: "the sliding happens really fast after text from Dregs") ------------------
 // After the common opening Dregs stands, arm out, HOLD frames (idling on the opening's last 14 frames), so the owner sees what is about to
 // happen; then the venue's own gag plays at 13/16 speed (a little slower). The punks' blast page (phase 1) has no beat (the chord page
 // before it was the wait) but plays slower too; the space lounge's "came down" page (phase 2) is untouched.
 #define HOLD     72                                 // 1.2 s
 static uint8_t warp(uint16_t r, uint8_t ph) {
-    if (ph == 2) return (uint8_t)r;
+    if (ph >= 2) return (uint8_t)r;
     if (ph == 0) {
         if (r < OPEN) return (uint8_t)r;
         if (r < OPEN + HOLD) { r &= 15; return (uint8_t)(r < 2 ? 46 + r : 32 + r); }   // 46 47 34 35 .. 47: the opening's idle (no hop: that is 28-33)
@@ -358,6 +399,8 @@ static const uint16_t pal_chord[4]  = { 0, 0, 0, RGB15(30, 10, 22) };           
 static const uint16_t pal_beat[4]   = { 0, 0, 0, RGB15(30, 24, 6) };                                  // the taiko's: gold
 static const uint16_t pal_saucer[4] = { 0, RGB15(26, 28, 31), RGB15(18, 16, 28), RGB15(6, 4, 14) };
 static const uint16_t pal_beam[4]   = { 0, RGB15(18, 31, 31), 0, 0 };
+static const uint16_t pal_cooler[4] = { 0, RGB15(31, 31, 30), RGB15(28, 5, 6), RGB15(6, 2, 4) };      // Coach's cooler: white lid and stripes, red body
+static const uint16_t pal_soda[4]   = { 0, RGB15(31, 30, 24), RGB15(30, 16, 3), RGB15(10, 4, 2) };    // victory soda: foam, orange, dark
 static const uint16_t pal_monkey[4] = { 0, RGB15(29, 24, 18), RGB15(17, 10, 5), RGB15(5, 3, 1) };    // Monkey Business's
 
 static void pats(uint8_t g, uint8_t n) {           // the group's n variants' shift-0 poses to OBJ T_P.., their palettes to OBJ 5..
@@ -375,7 +418,7 @@ void dg_load(uint8_t *st, uint8_t v) BANKED {
     if (!is_cgb) OBP1_REG = OBP1_PLAY;
     switch (v) {
     case 0: pats(0, 2); break;
-    case 1: pats(1, 3); break;
+    case 1: pats(1, 3); set_sprite_data(T_B, 4, dg_cooler); set_sprite_data(T_X, 12, dg_soda); spr_pal(2, pal_cooler); spr_pal(3, pal_soda); break;
     case 2: set_sprite_data(T_B, 2, dg_boots); break;
     case 3: set_sprite_data(T_B, 2, dg_plate); spr_pal(2, pal_plate); break;
     case 5: set_sprite_data(T_B, 4, dg_crate); set_sprite_data(T_X, 2, dg_boots); spr_pal(2, pal_crate); break;
@@ -397,6 +440,7 @@ void dg_page(uint8_t *st, uint8_t scene, uint8_t prev, uint8_t spk) BANKED {
     if (prev == SPK_DREGS) ph = 0;
     else if (prev == SPK_NARRATOR && v == 6) ph = 1;               // the punks' blast page
     else if (prev == SPK_SPIGOTEER && v == 9) ph = 2;              // the space lounge's "came down" page
+    else if (prev == SPK_COACH && v == 1) ph = 3;                  // the stadium's soda bath page
     if (ph == 255) return;
     if (ph == 2) spr_pal(1, pal_tee);
     st[0] = st[5] = st[6] = 0; st[2] = v; st[3] = ph; st[4] = 1;
@@ -407,7 +451,8 @@ void dg_frame(uint8_t *st) BANKED {
     uint8_t t = warp(r, st[3]), i, run = 1, ph = st[3];
     if (r && t + 1 == st[0]) { st[5]++; if (!st[5]) st[6]++; return; }   // (slowed: the picture of the last frame stays, nothing is said twice)
     st[1] = OAM0;
-    switch (st[2]) {
+    if (ph == 3) run = gag_soda(st, t);
+    else switch (st[2]) {
     case 0: run = gag_saloon(st, t); break;
     case 1: run = gag_stadium(st, t); break;
     case 2: run = gag_lumber(st, t); break;
@@ -419,7 +464,8 @@ void dg_frame(uint8_t *st) BANKED {
     case 8: run = gag_zoo(st, t); break;
     default: run = gag_space(st, t, ph);
     }
-    for (i = run ? st[1] : OAM0; i < 40; i++) shadow_OAM[i].y = 0;   // (a gag that ends leaves nothing)
+    if (!run && ph == 3 && shadow_OAM[36].y) soda_park(1);              // (the Spigoteer's entries come back first: the sweep below clears OAM 36-39)
+    for (i = run ? st[1] : OAM0; i < (run && ph == 3 ? 36 : 40); i++) shadow_OAM[i].y = 0;   // (the soda bath keeps OAM 36-39: the parked Spigoteer)   // (a gag that ends leaves nothing)
     if (run == 2) st[4] = 2;                        // done, left standing
     else if (!run) { st[4] = 0; if (ph == 2) spr_pal(1, pal_dregs); }   // (the T-shirt's colours go back)
     else { st[0] = t + 1; st[5]++; if (!st[5]) st[6]++; }
