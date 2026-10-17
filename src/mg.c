@@ -86,9 +86,30 @@ static const uint16_t medal_at[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 
 static const uint8_t mg_venue[MG_PLANNED] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 static const uint8_t venue_mg[MG_PLANNED] = { MG_QUICKDRAW, MG_TSHIRT, MG_LOGROLL, MG_ORDERUP, MG_MARSHMALLOW, MG_BATTERY,
                                               MG_MILKRUN, MG_TAIKO, MG_MONKEY, MG_ASTEROID };
-// The thresholds per difficulty (mg.h MG_DIFF: NORMAL, HARD, EASY): the same table for all three for now (owner 2026-10-15); a mode that
-// gets its own gets its own table here. The games with their own medal function (qd_medal .. tk_medal) read MG_DIFF there when they need to.
-static const uint16_t (*const medal_tbl[MG_DIFFS])[3] = { medal_at, medal_at, medal_at };
+// HARD and EASY (2026-10-17, TUNING.md: each from scripted players of three skills): the same rows as above for the games with their own medal
+// function (qd_medal .. tk_medal read MG_DIFF themselves).
+static const uint16_t medal_at_hard[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },
+                                                     { 1500, 4500, 7500 }, { 0, 0, 0 },   // Battery Sort
+                                                     { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
+                                                     { 900, 1800, 3000 },   // Marshmallow Drop
+                                                     { 2500, 5000, 8000 },  // Monkey Business: the pre-D6b row
+                                                     { 1200, 2100, 2700 },  // T-Shirt Cannon
+                                                     { 0, 0, 0 },
+                                                     { BONUS_SHAKE_BRONZE, BONUS_SHAKE_SILVER, BONUS_SHAKE_GOLD },   // the shake-up: levels cleared
+                                                     { BONUS_POUR_BRONZE, BONUS_POUR_SILVER, BONUS_POUR_GOLD },      // Perfect Pour
+                                                     { BONUS_TIPS_BRONZE, BONUS_TIPS_SILVER, BONUS_TIPS_GOLD } };    // Tip Shower
+static const uint16_t medal_at_easy[MG_GAMES][3] = { { 1500, 3000, 4000 }, { 0, 0, 0 },
+                                                     { 2000, 4500, 7500 }, { 0, 0, 0 },   // Battery Sort
+                                                     { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
+                                                     { 1800, 3000, 3600 },  // Marshmallow Drop
+                                                     { 2500, 4500, 5700 },  // Monkey Business
+                                                     { 1200, 2100, 2700 },  // T-Shirt Cannon
+                                                     { 0, 0, 0 },
+                                                     { BONUS_SHAKE_BRONZE, BONUS_SHAKE_SILVER, BONUS_SHAKE_GOLD },
+                                                     { 3000, 6000, 9000 },  // Perfect Pour
+                                                     { 900, 1700, 2400 } }; // Tip Shower
+// The thresholds per difficulty (mg.h MG_DIFF: NORMAL, HARD, EASY)
+static const uint16_t (*const medal_tbl[MG_DIFFS])[3] = { medal_at, medal_at_hard, medal_at_easy };
 static const uint16_t medal_pts[4] = { 0, 500, 1500, 3000 };
 static const char *const medal_word[4] = { "NO MEDAL", "BRONZE ", "SILVER ", "GOLD " };
 // CGB: the icon's metal (colours 0-2: highlight, disc, ribbon / numeral) on the HUD band (colour 3, main_cold.c)

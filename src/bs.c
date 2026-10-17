@@ -28,8 +28,8 @@
 //   bonus at most 200) and a burst of sparks over the bin; wrong, a strike, the streak back to 0, the WRONG cross
 //   blinking over the bin and the battery spat out onto the floor. Running out of D: a strike, the cross over the
 //   diverter, and the battery drops into it (gone). Up to BS_FLY batteries are in the air at once.
-// - Medal (mg.c's medal_at on mg_score): GOLD >= 6000, SILVER >= 4000, BRONZE >= 2000 (derived in PLAN.md). One setting
-//   for story and practice (no HARD).
+// - Medal (mg.c's medal_at on mg_score): GOLD >= 6000, SILVER >= 4000, BRONZE >= 2000 (derived in PLAN.md). EASY / HARD
+//   change D, the belt and the share of broken batteries (bs_tune, the medal thresholds per mode are in mg.c).
 // - Sounds (no new SFX): a sort SFX_LAUNCH, a right bin SFX_CATCH, a strike SFX_BREAK, the third strike SFX_LIFE.
 //
 // Screen (the approved mock-up): the framework's factory backdrop, its counter row 11 replaced by wall; the banner rows
@@ -80,6 +80,16 @@ typedef char bs_obj_fits[(BS_OBJ + BS_OBJ_TILES <= OBJ_MUG_DRINK && BS_BG + BS_B
 #define BS_STREAK_PTS   10
 #define BS_STREAK_MAX  200
 #define BS_STRIKES       3
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL), TUNING.md: D (the front battery's wait),
+// its step, the sorts per step and its floor; the belt's speed, its sorts per step and cap (1/8 px a frame); the share of broken batteries (/ 256).
+static const struct bs_tune bs_tune[MG_DIFFS] = {
+    { BS_WIN0, BS_WIN_STEP, BS_WIN_EVERY, BS_WIN_MIN, BS_SPEED0, BS_SPEED_EVERY, BS_SPEED_MAX, BS_BROKEN_P },
+    { 100, 6, 4, 58, 8, 5, 20, 102 },           // HARD: a shorter D, a faster belt, 40% broken
+    { 160, 6, 4, 96, 5, 6, 12, 51 },            // EASY: a long D, a slow belt, 20% broken
+};
+#define BST            (S.tn)
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&bs_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
 #define BS_FLY           3                      // batteries in the air at once
 #define BS_FLY_DROP      4                      // frames into the diverter
 #define BS_FLY_ARC      16                      // frames of the arc out of the port
@@ -187,18 +197,18 @@ static void belt_row(void) {
 static uint8_t new_type(void) {
     if (S.made < 255) S.made++;
     if (S.made <= BS_ONE_EACH) return S.made - 1;          // BT_CHARGED, BT_DEAD, BT_BROKEN
-    if (mg_rand() < BS_BROKEN_P) return BT_BROKEN;
+    if (mg_rand() < BST.broken_p) return BT_BROKEN;
     return mg_rand() & 1;
 }
 
 static uint8_t window_now(void) {
-    uint8_t d = (uint16_t)S.sorted / BS_WIN_EVERY;
-    return d >= (BS_WIN0 - BS_WIN_MIN) / BS_WIN_STEP ? BS_WIN_MIN : BS_WIN0 - d * BS_WIN_STEP;
+    uint8_t d = (uint16_t)S.sorted / BST.win_every;
+    return d >= (BST.win0 - BST.win_min) / BST.win_step ? BST.win_min : BST.win0 - d * BST.win_step;
 }
 
 static uint8_t speed_now(void) {
-    uint8_t s = BS_SPEED0 + S.sorted / BS_SPEED_EVERY;
-    return s > BS_SPEED_MAX ? BS_SPEED_MAX : s;
+    uint8_t s = BST.speed0 + S.sorted / BST.speed_every;
+    return s > BST.speed_max ? BST.speed_max : s;
 }
 
 // LCD off, after the framework's screen
@@ -253,6 +263,7 @@ void bs_enter(void) BANKED {
     draw_bin(CHUTE_COL, 2);
     draw_bin(RECYCLE_COL, 1);
     // the state
+    TUNE_LOAD();
     S.st = BS_RUN; S.wait = 0; S.strikes = 0; S.sorted = 0; S.streak = 0; S.made = 0; S.chute = 1;
     S.banner = 0; S.last = BR_NONE; S.screen_t = 0; S.pose = BT_IDLE; S.pose_t = 0; S.flip = 0; S.anim = 0;
     S.started = 0; S.band[0] = S.band[1] = BAND_KEEP;

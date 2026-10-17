@@ -25,7 +25,8 @@
 //   holds its hands up 40 frames more). A rising shirt that hit near a raised fan is TOO FLAT, 30; any other hit of the crowd: 30 points (the
 //   pittance). Short or over: OOPS, 0 points.
 // - 45 s on the framework's timer (the HUD's T + seconds at columns 16-19): time up ends the round. Medal on the score (mg.c medal_at):
-//   GOLD >= 2700, SILVER >= 2100, BRONZE >= 1500 (tests/test_mg_tshirt.py: the bots behind them).
+//   GOLD >= 2700, SILVER >= 2100, BRONZE >= 1500 (tests/test_mg_tshirt.py: the bots behind them). EASY / HARD (ts_tune): the meter's step (3 / 1 frames), how
+//   long and how many fans have their hands up, the time (60 / 40 s), and BRONZE 1200 in both (mg.c medal_at_easy / medal_at_hard).
 // - Sounds (no new SFX): fire LAUNCH, a hit CATCH, a perfect catch COIN too.
 //
 // Screen: the whole stage is a precomposed map (tools/gen_ts.py ts_map / ts_attr, rows 1-17 over the framework's backdrop): sky and stars,
@@ -67,6 +68,16 @@ typedef char ts_fits[(TS_BGID + TS_BG_TILES <= 240 && TS_OBJ + TS_OBJ_TILES <= O
 #define TS_UP_MAX        3                  // fans with their hands up at once
 #define TS_SPAWN        50                  // frames to the next fan: 50 + (rand & TS_SPAWN_RAND)
 #define TS_SPAWN_RAND   31
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL), TUNING.md: the frames a meter step takes, the frames
+// a fan keeps his hands up (+ TS_UP_RAND), how many are up at once, the frames to the next fan (+ TS_SPAWN_RAND), and the seconds of the round.
+static const struct ts_tune ts_tune[MG_DIFFS] = {
+    { TS_STEP, TS_UP_FRAMES, TS_UP_MAX, TS_SPAWN, TS_TIME_S },
+    { 1, 90, 2, 60, 40 },                       // HARD: a fast meter, hands up for 1.5 - 2 s, two at most, 40 s
+    { 3, 180, 4, 40, 60 },                      // EASY: a slow meter, hands up 3 - 3.5 s, four at most, 60 s
+};
+#define TST             (S.tn)
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&ts_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
 #define TS_POP           8                  // frames a raised fan holds each of its two hands-up frames
 #define TS_HOLD         40                  // a fan that caught the shirt keeps its hands up at least this long
 #define TS_PTS_PERFECT 300
@@ -171,6 +182,7 @@ static void raise_fan(void);
 void ts_enter(void) BANKED {
     uint8_t k, r, c, tb[20], ta[20], *z = (uint8_t *)&S;
     for (k = 0; k < sizeof(struct ts_state); k++) z[k] = 0;
+    TUNE_LOAD();
     set_bkg_data(TS_BGID, TS_BG_TILES, ts_bg_tiles);
     set_sprite_data(TS_OBJ, TS_OBJ_TILES, ts_obj_tiles);
     say_bang = TS_BGID + ts_hud[1];             // mg_say's '!' (OOPS! PERFECT CATCH!); mg_leave clears it
@@ -200,11 +212,11 @@ void ts_enter(void) BANKED {
         }
     }
     raise_fan(); raise_fan();                    // two fans have their hands up from the start
-    S.spawn = TS_SPAWN;
+    S.spawn = TST.spawn;
     for (k = 0; k < TS_FANS; k++) S.fshown[k] = 0;   // (the map has them all sitting)
     fans_sync(TS_FANS);
     hud_shots();
-    mg_timer = TS_TIME_S * 60;
+    mg_timer = TST.time_s * 60;
     draw();
 }
 
@@ -239,9 +251,9 @@ static void draw(void) {
 static void raise_fan(void) {                    // a random sitting fan raises its hands (at most TS_UP_MAX are up)
     uint8_t i = mg_rand() % TS_FANS, k, n = 0;
     for (k = 0; k < TS_FANS; k++) if (S.up[k]) n++;
-    if (n >= TS_UP_MAX) return;
+    if (n >= TST.up_max) return;
     for (k = 0; k < TS_FANS; k++, i = (i + 1 == TS_FANS) ? 0 : i + 1)
-        if (!S.up[i]) { S.up[i] = TS_UP_FRAMES + (mg_rand() & TS_UP_RAND); return; }
+        if (!S.up[i]) { S.up[i] = TST.up + (mg_rand() & TS_UP_RAND); return; }
 }
 
 static void crowd_step(void) {
@@ -249,7 +261,7 @@ static void crowd_step(void) {
     for (k = 0; k < TS_FANS; k++) if (S.up[k]) { S.up[k]--; n++; }
     if (!n || !--S.spawn) {                      // (some fan always has his hands up)
         raise_fan();
-        S.spawn = TS_SPAWN + (mg_rand() & TS_SPAWN_RAND);
+        S.spawn = TST.spawn + (mg_rand() & TS_SPAWN_RAND);
     }
 }
 
@@ -321,7 +333,7 @@ static void aim(void) {                          // Up steeper, Down flatter: on
 
 static void meter_step(void) {                   // the marker: a step every TS_STEP frames, up to TS_PMAX and back
     if (--S.pt) return;
-    S.pt = TS_STEP;
+    S.pt = TST.step;
     S.power += S.pdir;
     if (S.power >= TS_PMAX) S.pdir = -1;
     else if (S.power == 0) S.pdir = 1;
@@ -349,7 +361,7 @@ void ts_update(uint8_t pressed) BANKED {
     switch (S.st) {
     case TSS_AIM:
         aim();
-        if (pressed & J_A) { S.st = TSS_METER; S.power = 0; S.pdir = 1; S.pt = TS_STEP; }
+        if (pressed & J_A) { S.st = TSS_METER; S.power = 0; S.pdir = 1; S.pt = TST.step; }
         break;
     case TSS_METER:
         if (pressed & J_A) fire();

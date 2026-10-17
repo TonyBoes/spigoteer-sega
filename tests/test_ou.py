@@ -306,8 +306,12 @@ def test_the_calling_timings_per_round(model):
                     merged[-1] = (v, merged[-1][1] + n)
                 else:
                     merged.append((v, n))
-            # (the hidden bubble's first frames: how many are seen depends on where PyBoy's frame cuts the logic)
-            assert runs[0][0] == NONE and runs[1:] == merged[1:], (r, runs)
+            # (the hidden bubble's first frames: how many are seen depends on where PyBoy's frame cuts the logic; so does a run's edge, by one frame:
+            # the logic of a heavy frame ends past the cut, so each boundary may sit one frame either side of the model's)
+            assert runs[0][0] == NONE and [v for v, _ in runs[1:]] == [v for v, _ in merged[1:]], (r, runs)
+            seen = [sum(n for _, n in runs[1:k + 1]) for k in range(1, len(runs))]
+            want_t = [sum(n for _, n in merged[1:k + 1]) for k in range(1, len(merged))]
+            assert all(abs(a - b) <= 1 for a, b in zip(seen, want_t)), (r, runs)
             serve(gb)
             to_state(gb, OS_ORDERUP)
 
@@ -423,7 +427,7 @@ def test_the_time_for_each_press(model):
         to_state(gb, OS_TURN)
         seq = ou(gb)["seq"]
         frames(gb, PRESS_LEN - 10)
-        assert ou(gb)["st"] == OS_TURN and ou(gb)["wait"] == 10
+        assert ou(gb)["st"] == OS_TURN and ou(gb)["wait"] in (9, 10)       # (a frame's logic may end past PyBoy's frame cut: one frame either way)
         tap(gb, seq[0])
         n = PRESS_LEN - ou(gb)["wait"]
         assert ou(gb)["idx"] == 1 and 0 < n <= 5, "the time starts again after a right press"

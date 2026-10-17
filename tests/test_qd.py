@@ -26,13 +26,15 @@ QF_NONE, QF_TUMBLE, QF_CROW = range(3)
 KID_STAND, KID_DRAW, KID_CHEER = range(3)
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
 SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_LIFE, SFX_SHAKE = 2, 3, 4, 5, 7, 8
-KID_R = [int(v) for v in re.search(r"kid_r\[QD_ROUNDS\] = \{ ([\d, ]+) \}", QD_C).group(1).split(", ")]
-(READY_LEN, WAIT_MIN, WAIT_SPAN, SHOW_LEN, FEINT_FROM, FEINT_LEN, FEINT_GAP, ROUND_PTS, SPEED_PTS, MATCH_PTS, SIGN_COL,
+_TUNE = re.findall(r"\{ \{ ([\d, ]+) \}, (\d+), (\d+), (\d+) \},", QD_C)   # qd_tune rows: NORMAL, HARD, EASY
+KID_R = [int(v) for v in _TUNE[0][0].split(", ")]                 # NORMAL's (STORY / ARCADE / Practice NORMAL)
+(READY_LEN, WAIT_MIN, WAIT_SPAN, SHOW_LEN, FEINT_LEN, FEINT_GAP, ROUND_PTS, SPEED_PTS, MATCH_PTS, SIGN_COL,
  SIGN_ROW, SIGN_W, LET_COL, PIP_ROW, PIP_KID_COL, PIP_YOU_COL, KID_X, SPIG_X, DUEL_Y, TW_Y, CROW_X, CROW_Y) = (
-    define(n, QD_C) for n in ("QD_READY_LEN", "QD_WAIT_MIN", "QD_WAIT_SPAN", "QD_SHOW_LEN", "QD_FEINT_FROM",
+    define(n, QD_C) for n in ("QD_READY_LEN", "QD_WAIT_MIN", "QD_WAIT_SPAN", "QD_SHOW_LEN",
                               "QD_FEINT_LEN", "QD_FEINT_GAP", "QD_ROUND_PTS", "QD_SPEED_PTS", "QD_MATCH_PTS",
                               "SIGN_COL", "SIGN_ROW", "SIGN_W", "LET_COL", "PIP_ROW", "PIP_KID_COL", "PIP_YOU_COL",
                               "KID_X", "SPIG_X", "DUEL_Y", "TW_Y", "CROW_X", "CROW_Y"))
+FEINT_FROM = int(_TUNE[0][1])
 QH = {m[0]: int(m[1]) for m in re.findall(r"#define (Q\w+) (\d+)", QD_H)}
 MG_GAME_BG = 77 + 48
 QD_BG = MG_GAME_BG
