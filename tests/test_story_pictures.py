@@ -693,7 +693,10 @@ def test_the_finale_shows_dregs_not_a_second_bartender():
     key, pix = _pix("finale_a")
     got = _region(pix, 142, 62, 160, 89)              # (face variant F1 since 2026-10-12: the head is the sprite's, below)
     sprite = [r for r in (ROOT / "assets/art/dregs/dregs.txt").read_text().splitlines() if r and not r.startswith(";")][:24]
-    assert all(got[1 + i][:16] == sprite[i].replace("-", "S").replace("+", "m") for i in range(13)), "the head is the sprite's (rows 0-12)"
+    sm = lambda r: r.replace("-", "S").replace("+", "m")
+    assert all(got[1 + i][:16] == sm(sprite[i]) for i in range(12)), "the head is the sprite's (rows 0-11)"
+    # (the picture's chin row is doubled, then the sprite's jaw edge and shaded neck, then a neck that widens into the collar)
+    assert [got[13 + k][:16] for k in range(3)] == [sm(sprite[11]), sm(sprite[12]), sm(sprite[13])], "the sprite's chin, jaw edge and neck"
     assert got[18][:16] == sprite[14].replace("-", "S").replace("+", "m"), "the sprite's collar"
     assert "W" not in "".join(_region(pix, 139, 60, 160, 89)), "no white shirt or apron on Dregs"
     assert "r" in "".join(_region(pix, 126, 66, 139, 89)) and "r" not in "".join(got)       # the Spigoteer's rose cozy is not Dregs's
