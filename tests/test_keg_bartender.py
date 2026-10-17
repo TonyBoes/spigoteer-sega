@@ -40,7 +40,7 @@ def test_the_bistro_keg_is_22_px_with_a_gap_to_the_next_bars_keg():
     assert frame == [9, 17], frame
     assert abs((frame[0] + frame[1]) / 2 - (first + last) / 2) <= 0.5
     # the spout: its tip over the glass at SPOUT_X, 2 px lower than before (7 -> 9), FILL_DY 2 under it
-    assert max(y for y in range(16) for x in range(136, 144) if rows[y][x] != ".") == 9
+    assert max(y for y in range(16) for x in range(136, 144) if rows[y][x] != ".") == 8   # 9 until the stream was made 2 px (thumb 1 row shorter)
     assert venue("bistro")["fill_dy"] == 3, "the glass hangs 3 px lower: 2 px of the stream show above its rim"
 
 
@@ -198,6 +198,31 @@ def test_every_keg_leaves_a_gap_on_screen(boot, group):
     for b in range(3):
         assert screen_px(boot, 152, bar_top_y(b) + 23) != screen_px(boot, 152, bar_top_y(b) + 24), (t, b, "keg's last row, then wall")
         assert screen_gap(boot, b, wall_x) >= GAP_MIN, (t, b)
+
+
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
+def test_the_stream_shows_2_to_3_px_above_the_glass(boot, group):
+    """Owner 2026-10-17 ("can you see the stream?"): on screen, both models, every venue: the rows between the spout's tip and the
+    rim of the empty glass (the first row of the glass sprite that has a pixel) show the stream, 2 or 3 of them."""
+    t = THEMES[group]
+    at_theme(boot, group)
+    boot.run(30)
+    boot.write("intro_timer", 255)
+    boot.hold("a")
+    boot.run(3)
+    o = boot.oam()[OAM_FILL]
+    top = o["y"] - 16
+    d = stream_pixels(t, 0)
+    r0 = min(r for r, _ in d)
+    art = art_frames(t)[0]
+    rim = min(r for r in range(16) if any(art[r][c] != "." for c in range(8)))
+    c = min(c for r, c in d if r == r0)
+    wall = screen_px(boot, o["x"] - 8 + c, top + r0)
+    visible = rim - r0
+    assert 2 <= visible <= 3, (t, visible)
+    for r in range(r0, rim):                         # the screen shows the stream's pixels on those rows, not the wall
+        assert any(screen_px(boot, o["x"] - 8 + cc, top + r) != screen_px(boot, 100, top + r) for cc in {cc for rr, cc in d if rr == r}), (t, r)
+    boot.release("a")
 
 
 def test_the_factory_bolt_is_centred_in_its_box_and_the_saloon_star_is_whole():
