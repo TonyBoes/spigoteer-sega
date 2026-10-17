@@ -16,7 +16,7 @@ ART = json.loads((ROOT / "build" / "boss.json").read_text())
 ART_H = (ROOT / "build" / "art.h").read_text()
 BLANK = int(re.search(r"#define TILE_HUD_BLANK (\d+)", ART_H).group(1))
 THEMES = ["saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "teahouse", "zoo", "space"]
-FIELDS = ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat")
+FIELDS = ("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat", "sway")
 BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO, BS_WARM, BS_ENTER, BS_WALKIN = range(9)
 BP_WALK, BP_STOMP, BP_GULP, BP_WINCE, BP_HAPPY = range(5)
 SP_FAIL, SP_OUTRO = 4, 5
@@ -35,7 +35,7 @@ def row(c):
     """src/boss.c rows[c] as a dict (FIELDS, line1, line2)."""
     m = re.search(rf"\[{c}\] = \{{\s*" + r",\s*".join([r"(\d+)"] * 11) + r',\s*"([^"]*)",\s*"([^"]*)"\s*\}', BOSS_C)
     v = m.groups()
-    d = dict(zip(FIELDS, (int(x) for x in v[:10])))
+    d = dict(zip(FIELDS, (int(x) for x in v[:11])))
     d["line1"], d["line2"] = v[11], v[12]
     return d
 
@@ -49,7 +49,7 @@ def pair_id(p):
 
 
 def pose_cols(a, pose, hold=0):
-    cols = [pair_id(p) for p in a["pose"][pose]]
+    cols = [pair_id(p) for p in (a["sway_map"] if pose == "sway" else a["pose"][pose])]   # ("sway": his shifted GULP, BP_SWAY)
     if hold and pose in (BP_WALK, BP_STOMP, BP_WINCE):
         cols[-1] = pair_id(a["hand"][min(hold, 3)])
     return cols
@@ -275,7 +275,7 @@ class Own:
         for t, n in re.findall(r"(uint8_t|uint16_t)\s+(\w+);", body):
             self.fields[n] = (off, 2 if t == "uint16_t" else 1)
             off += 2 if t == "uint16_t" else 1
-        poses = define("BOSS_POSES_MAX", (ROOT / "build" / "boss_art.h").read_text())
+        poses = define("BOSS_POSES_MAX", (ROOT / "build" / "boss_art.h").read_text()) + 1   # (+ the sway pose: BP_SWAY)
         self.base = GAME["STORY_SCRATCH"] - define("BOSS_SCRATCH_N") + poses * GAME["BOSS_W_MAX"] + 4
         assert off <= define("BOSS_SCRATCH_N") - poses * GAME["BOSS_W_MAX"] - 4
 

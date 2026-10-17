@@ -15,6 +15,9 @@ static void boss_art_set(void) {
     uint8_t p, k;
     for (p = 0; p != BOSS_ART_POSES; p++)
         for (k = 0; k != BOSS_ART_COLS; k++) boss_map[p * BOSS_W_MAX + k] = boss_art_pose[p][k];
+#ifdef BOSS_ART_SWAY
+    for (k = 0; k != BOSS_ART_COLS; k++) boss_map[BP_SWAY * BOSS_W_MAX + k] = boss_art_sway[k];
+#endif
     for (k = 0; k != 4; k++) boss_hand[k] = boss_art_hand[k];
 }
 

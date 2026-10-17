@@ -48,7 +48,8 @@ from gen_art import blocks, png, rgb15, tile_bytes  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 POSES = ["WALK", "STOMP", "GULP", "WINCE", "HAPPY"]   # every boss's, the engine's pose numbers 0-4 (src/boss.h BP_*)
 BOSS_POSES_MAX = 8           # src/boss.h: the 5 common poses + up to 3 extra (tells) per boss
-BOSS_PAIRS_MAX = 30          # src/boss.h: 21 pairs at 162-203 + 9 at 216-233
+SWAY_PX = 2                  # the drinking sway's shift: the patrons' (src/patrons.c drawn_x: +2 px on alternate beats)
+BOSS_PAIRS_MAX = 30         # src/boss.h: 21 pairs at 162-203 + 9 at 216-233
 BOSS_SPARK_N = 4             # the sparkle frames (BG 248-251: the Yeti has no landing marker)
 BOSS_ICE_MAX = 2             # src/boss.h: icy counter tiles at BG 246.. (free in the story)
 BOSS_FX_MAX = 4              # src/boss.h: the landing marker's 2 column pairs at BG 248-251 (BOSS_MARK_BG)
@@ -59,12 +60,12 @@ BOSS_HATS_MAX = 10           # topper frames (8x16) at OBJ 96..115 (the Critic: 
 BOSSES = [
     {"name": "big_tex", "width": 40, "pal": ["#F0B888", "#C83020", "#583018"], "extra": []},
     {"name": "sasquatch", "width": 32, "pal": ["#E8B878", "#5C2C14", "#140804"], "extra": ["DUCK", "BURST1", "BURST2"],
-     "hats": ["HAT_DUCK"], "fx": [("MARKER", "sasquatch")]},
+     "hats": ["HAT_DUCK"], "fx": [("MARKER", "sasquatch")], "nosway": True},   # (29 pairs of 30: a shifted GULP needs 4 more)
     {"name": "critic", "width": 32, "pal": ["#F8D0A8", "#A03070", "#201018"], "extra": ["TASTE", "HOLD", "HOLDHOP"],
      "hats": ["CLOCHE_END", "CLOCHE_MID", "GLINT", "NO_L", "NO_R", "BAD_L", "BAD_R"]},
     {"name": "yeti", "width": 32, "pal": ["#F8F8F8", "#80B0E8", "#182040"], "extra": ["INHALE", "BLOW"],
      "ice": "igloo"},
-    {"name": "sumo", "width": 40, "pal": ["#F0A878", "#F0F0E0", "#282048"], "extra": ["SHIKO", "HMPH"]},
+    {"name": "sumo", "width": 40, "pal": ["#F0A878", "#F0F0E0", "#282048"], "extra": ["SHIKO", "HMPH"], "nosway": True},
     {"name": "leo", "width": 32, "pal": ["#F8D060", "#C86018", "#301808"], "extra": ["INHALE", "ROAR"],
      "tiles": ["BANG"]},
     {"name": "mascot", "width": 32, "pal": ["#F8E8C8", "#D02828", "#201018"], "extra": ["CROUCH", "PUFF1", "PUFF2"],
@@ -148,6 +149,20 @@ def ice_tiles(theme, prev, name, named, path):
     return src, [x for f in ice for x in tile_bytes(f, 0, 0)], [x for f in spark for x in tile_bytes(f, 0, 0)]
 
 
+def sway_pose(f, w):
+    """The drinking sway (owner 2026-10-17: the patrons' technique): his GULP shifted SWAY_PX px sideways, drawn on every other
+    beat of the patrons' sway (src/boss.c sip_beat). BG art is whole tiles, so the shifted copy is its own column pairs. It
+    moves right like the patrons (1) unless that clips more ink off his right edge than a move left clips off his left (2:
+    Duke, whose mug is at the right edge); what leaves the body's width is cut. Returns (direction, rows)."""
+    d = SWAY_PX
+    right = ["." * d + r[:w - d] for r in f]
+    left = [r[d:] + "." * d for r in f]
+
+    def ink(g):
+        return sum(c != "." for r in g for c in r)
+    return (1, right) if ink(left) <= ink(right) else (2, left)
+
+
 def boss_art(b, prev):
     path = ROOT / "assets/art/boss" / f"{b['name']}.txt"
     named = dict(blocks(path, named=True))
@@ -177,19 +192,22 @@ def boss_art(b, prev):
             pairs.append(col)
         return index[col]
 
+    sway = None if b.get("nosway") else sway_pose(named["GULP"], w)
     pose_map = [[pair(column(p, x)) for x in range(0, w, 8)] for p in poses]
+    sway_map = [pair(column(sway[1], x)) for x in range(0, w, 8)] if sway else None
     hand_map = [pose_map[0][-1]] + [pair(column(h, 0)) for h in hands]
     if len(pairs) > BOSS_PAIRS_MAX:
         fail(f"{b['name']}: {len(pairs)} different body columns, the fight has room for {BOSS_PAIRS_MAX}")
     hat_tiles = []
     for f in hat:
         hat_tiles += tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)
-    png(poses, prev / f"boss_{b['name']}_x8.png", 8)
+    png(poses + ([sway[1]] if sway else []), prev / f"boss_{b['name']}_x8.png", 8)
     png(hands + hat, prev / f"boss_{b['name']}_hand_hat_x8.png", 8, transparent=True)
     png([icon], prev / f"boss_{b['name']}_icon_x8.png", 8)
     a = {"name": b["name"], "width": w, "cols": w // 8, "pairs": [list(p) for p in pairs], "poses": names,
          "pose": pose_map, "hand": hand_map, "hat": hat_tiles, "icon": tile_bytes(icon, 0, 0),
-         "pal": rgb15(["#000000"] + b["pal"]), "art": {n: p for n, p in zip(names, poses)}}
+         "pal": rgb15(["#000000"] + b["pal"]), "art": {n: p for n, p in zip(names, poses)},
+         "sway": sway[0] if sway else 0, "sway_map": sway_map, "sway_art": sway[1] if sway else None}
     if "ice" in b:
         if "fx" in b:
             fail(f"{b['name']}: the sparkles use BG 248-251, the landing marker's ids")
@@ -303,7 +321,12 @@ def header(a):
          carr("boss_art_body", [x for p in a["pairs"] for x in p]),
          f"static const uint8_t boss_art_pose[BOSS_ART_POSES][BOSS_ART_COLS] = {{ "
          + ", ".join("{ " + ", ".join(str(v) for v in row) + " }" for row in a["pose"]) + " };",
-         carr("boss_art_hand", a["hand"]) + "   // the hand column holding 0..3 empties",
+         carr("boss_art_hand", a["hand"]) + "   // the hand column holding 0..3 empties"]
+    if a["sway"]:
+        h += [f"#define BOSS_ART_SWAY {a['sway']}   // his drinking sway moves him right (1) or left (2): the row's `sway`",
+              "static const uint8_t boss_art_sway[BOSS_ART_COLS] = { " + ", ".join(str(v) for v in a["sway_map"]) + " };"
+              f"   // his GULP shifted {SWAY_PX} px: the pose BP_SWAY"]
+    h += [
          f"#define BOSS_ART_HAT_TILES {len(a['hat']) // 16}",
          carr("boss_art_hat", a["hat"]) + "   // STILL top, bottom, BOB top, bottom (then his `hats`)",
          carr("boss_art_icon", a["icon"]),

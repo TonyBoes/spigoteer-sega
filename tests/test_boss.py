@@ -33,7 +33,7 @@ def define(name):
 
 ROW = dict(zip(("width", "x", "bar", "step", "push", "gulp", "hands", "sip", "meter", "hat"),
                (int(v) for v in re.search(r"\{\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),"
-                                          r"\s*(\d+),\s*(\d+),\s*0, \"BIG TEX", BOSS_C).groups())))
+                                          r"\s*(\d+),\s*(\d+),\s*\d+, \"BIG TEX", BOSS_C).groups())))
 LINE1, LINE2 = re.search(r'"(BIG TEX[^"]*)", "([^"]*)"', BOSS_C).groups()
 STOMP_FRAMES, HOP_FRAMES, CATCH_DX, OUTRO_FRAMES = (define(n) for n in ("STOMP_FRAMES", "HOP_FRAMES", "CATCH_DX",
                                                                           "OUTRO_FRAMES"))

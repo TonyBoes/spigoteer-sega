@@ -60,6 +60,7 @@ enum { BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO,   // boss_state
 // it with boss_to_bar.
 // poses: the art's order (tools/gen_boss.py POSES), then each boss's extra poses from BP_EXTRA (his gen_boss `extra`)
 enum { BP_WALK, BP_STOMP, BP_GULP, BP_WINCE, BP_HAPPY, BP_EXTRA };
+#define BP_SWAY   BOSS_POSES_MAX   // the pose after the last extra one's slot: his GULP shifted 2 px (gen_boss sway_pose; the drinking sway)
 #define BP_HIDE   14              // boss_xpose: no body at all (his columns are the bar's wall again)
 
 // Resources a fight borrows (the next level load puts every one back)
@@ -97,13 +98,13 @@ extern uint8_t  boss_returns;     // 1: MUG_RETURN mugs may be on his bar (the C
 // cut-scene, mini-game or title list runs during a fight; BEV_SET / BEV_LOAD fill them again for every fight). Not
 // in WRAM of their own: the stack sits right above the game's variables, and 62 more bytes there cost it the
 // headroom it needs (the GBDK library's __map_tile_offset, the last variable, was overwritten).
-#define BOSS_SCRATCH_N  68
+#define BOSS_SCRATCH_N  73
 #define BOSS_SCRATCH    (story_scratch + STORY_SCRATCH - BOSS_SCRATCH_N)
-#define boss_map        BOSS_SCRATCH       // [BOSS_POSES_MAX * BOSS_W_MAX]: his poses, pose p's column k's pair at
+#define boss_map        BOSS_SCRATCH       // [(BOSS_POSES_MAX + 1) * BOSS_W_MAX]: his poses (the last: BP_SWAY), pose p's column k's pair at
                                            // p * BOSS_W_MAX + k
-#define boss_hand       (BOSS_SCRATCH + BOSS_POSES_MAX * BOSS_W_MAX)       // [4]: the hand column holding 0..3 empties
+#define boss_hand       (BOSS_SCRATCH + (BOSS_POSES_MAX + 1) * BOSS_W_MAX)       // [4]: the hand column holding 0..3 empties
 #define BOSS_OWN        (boss_hand + 4)                                     // a boss file's own buffer (BOSS_OWN_N bytes)
-#define BOSS_OWN_N      (BOSS_SCRATCH_N - BOSS_POSES_MAX * BOSS_W_MAX - 4 - BOSS_FX_N)   // (then BOSS_FX: game.h)
+#define BOSS_OWN_N      (BOSS_SCRATCH_N - (BOSS_POSES_MAX + 1) * BOSS_W_MAX - 4 - BOSS_FX_N)   // (then BOSS_FX: game.h)
 // The topper's look, for a special that changes it (boss_set: 0, 0; put them back at BEV_OUTRO): a tile offset from
 // OBJ_TOPPER (0: STILL, BOB on a stomp; else that frame, no bob: gen_boss `hats` from 4) and a CGB OBJ palette (0: OBJ 7)
 #define BOSS_TOPPER_T   (BOSS_FX[2])

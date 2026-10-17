@@ -82,23 +82,23 @@ typedef struct {
     uint8_t sip;          // frames before each held empty may go
     uint8_t meter;        // drinks to satisfy him (<= 14: 7 HUD tiles)
     uint8_t hat_dx;       // the topper's x from his left edge
-    uint8_t art;          // (0: his art is in his own file, src/boss_<name>.c)
+    uint8_t sway;         // his drinking sway (gen_boss: BOSS_ART_SWAY, boss_art_sway): 1 right, 2 left, 0 none (the Sumo)
     const char *line1, *line2;   // the banner's goal lines (HUD glyphs, <= 20)
 } boss_row_t;
 
 // One row per venue (boss id = the venue / chapter index). width 0: not built yet, the fight plays row 0's.
 static const boss_row_t rows[BOSS_COUNT] = {
-    // width x  bar step push gulp hands sip meter hat art
-    [0] = {  40,  16,  1, 120,  16,  58,   3,  60,  8,   16,  0, "BIG TEX RIDES IN", "QUENCH HIM 8 MUGS" },   // Saloon: Big Tex (3.3)
+    // width x  bar step push gulp hands sip meter hat sway
+    [0] = {  40,  16,  1, 120,  16,  58,   3,  60,  8,   16,  1, "BIG TEX RIDES IN", "QUENCH HIM 8 MUGS" },   // Saloon: Big Tex (3.3)
     [2] = {  32,  16,  2,  90,   8,  20,   2,   0, 12,   12,  0, "NO SUCH THING", "12 COFFEES FAST" },      // Lumber lodge: Sasquatch (3.5)
-    [3] = {  32,  16,  1, 110,  16,  84,   1,  90,  8,    9,  0, "THE CRITIC DINES", "PERFECT POURS ONLY" }, // Bistro: the Food Critic (3.6)
-    [1] = {  32,  16,  1, 100,   8,  34,   2,  45, 10,    8,  0, "THE MASCOT JUMPS", "FOLLOW HIM 10 MUGS" },   // Stadium: the Mascot (3.4)
-    [4] = {  32,  16,  2, 100,   8,  44,   2,  60, 12,    9,  0, "THE YETI IS COLD", "12 COCOAS ON ICE" },   // Igloo: the Yeti (3.7)
-    [5] = {  32,  16,  2, 100,   8,  30,   2,  45, 12,    8,  0, "GREEN MEANS GO", "RED MEANS STOP" },   // Robot factory: the Prototype (3.8)
-    [6] = {  40,  16,  1,   0,  16,  30,   2,  45, 12,   16,  0, "THE BIGGEST SHAKE", "12 MILKS FOR DUKE" },   // Biker bar: Duke (3.12; step 0: he never stomps)
+    [3] = {  32,  16,  1, 110,  16,  84,   1,  90,  8,    9,  1, "THE CRITIC DINES", "PERFECT POURS ONLY" }, // Bistro: the Food Critic (3.6)
+    [1] = {  32,  16,  1, 100,   8,  34,   2,  45, 10,    8,  1, "THE MASCOT JUMPS", "FOLLOW HIM 10 MUGS" },   // Stadium: the Mascot (3.4)
+    [4] = {  32,  16,  2, 100,   8,  44,   2,  60, 12,    9,  1, "THE YETI IS COLD", "12 COCOAS ON ICE" },   // Igloo: the Yeti (3.7)
+    [5] = {  32,  16,  2, 100,   8,  30,   2,  45, 12,    8,  1, "GREEN MEANS GO", "RED MEANS STOP" },   // Robot factory: the Prototype (3.8)
+    [6] = {  40,  16,  1,   0,  16,  30,   2,  45, 12,   16,  2, "THE BIGGEST SHAKE", "12 MILKS FOR DUKE" },   // Biker bar: Duke (3.12; step 0: he never stomps)
     [7] = {  40,  24,  1, 192,   0,   0,   2,  90,  6,   16,  0, "THE CHAMPION", "PUSH HIM OUT" }, // Teahouse: the Sumo (3.9)
-    [8] = {  32,  16,  2,  80,   8,  44,   2,  60, 14,    6,  0, "LEO THE LION", "14 COCONUTS NO FEAR" },  // Jungle zoo: Leo (3.11)
-    [9] = {  40,  16,  1, 100,   8,  34,   2,  45, 14,   12,  0, "THE MOTHERSHIP", "IT SPLITS WHEN FULL" },  // Space lounge: the Mothership (3.10; meter 8 + 6)
+    [8] = {  32,  16,  2,  80,   8,  44,   2,  60, 14,    6,  1, "LEO THE LION", "14 COCONUTS NO FEAR" },  // Jungle zoo: Leo (3.11)
+    [9] = {  40,  16,  1, 100,   8,  34,   2,  45, 14,   12,  1, "THE MOTHERSHIP", "IT SPLITS WHEN FULL" },  // Space lounge: the Mothership (3.10; meter 8 + 6)
 };
 
 // ---- state (test hooks: spec 2.5's names) ----
@@ -167,12 +167,14 @@ static void boss_hud(void) {
     if (LCDC_REG & LCDCF_ON) vq_add(0, hud_row, 12, HUD_ROW, 8); else vram_put(12, HUD_ROW, hud_row, 8);
 }
 
-// The drinking shake (E1; owner 2026-10-14: "bosses should do the drinking shake like patrons"): the patrons' sway is a
-// 2 px shift every SWAY_FRAMES while they drink; a boss is BG art that cannot shift by pixels, so for the same beat the body
-// alternates GULP (the mug up) and WALK (the mug down: a sip, then another) and the topper (a sprite) shifts the patrons' 2 px.
-// 1 on the second beat of each pair, only in the common gulp (no push-back, no special's pose over it).
+// The drinking shake (owner 2026-10-17: "use the same technique that we use with patrons"): the patrons sway 2 px every
+// SWAY_FRAMES while they drink, by drawing a pre-shifted copy of their tiles. A boss does the same: gen_boss makes one extra
+// pose of his GULP shifted 2 px (BP_SWAY, boss_art_sway: its own column pairs), and while he drinks the body alternates GULP
+// and BP_SWAY on the patrons' beat, the mug staying up; the topper (a sprite) moves with it (sway_dx). The tag stays put.
+// Only in the common gulp (no push-back, no special's pose over it). br->sway 0: no shifted pose (his column pairs are
+// full: the Sasquatch, whose 20-frame gulp keeps E1's mug-down beat; the Sumo never gulps).
 static uint8_t sip_beat(void) {
-    return boss_state == BS_GULP && !boss_push && !boss_xpose && sway_tab[boss_t];   // (boss_t < gulp <= 30 here: the table is (t / SWAY_FRAMES) & 1, no divide)
+    return boss_state == BS_GULP && !boss_push && !boss_xpose && sway_tab[boss_t];   // (boss_t < gulp: the table is (t / SWAY_FRAMES) & 1, no divide)
 }
 
 // His pose from his state: the body's columns (boss_cols) and, when they changed, their tiles queued.
@@ -182,7 +184,7 @@ static void boss_look(void) {
     if (boss_state == BS_OUTRO) p = boss_xpose == BP_HIDE ? BP_HIDE : BP_HAPPY;   // (the Mothership's minis: no saucer left to be happy)
     else if (boss_push) p = BP_WINCE;
     else if (boss_xpose) p = boss_xpose;
-    else if (boss_state == BS_GULP) p = sip_beat() ? BP_WALK : BP_GULP;   // (E1: the drinking shake, below)
+    else if (boss_state == BS_GULP) p = sip_beat() ? (br->sway ? BP_SWAY : BP_WALK) : BP_GULP;   // (the drinking sway, above)
     else if (boss_stomp) p = BP_STOMP;
     h = (p == BP_WALK || p == BP_STOMP || p == BP_WINCE) ? (boss_hold > 3 ? 3 : boss_hold) : 0;
     key = p | (h << 4);
@@ -653,7 +655,7 @@ void boss_draw(void) BANKED {
     o = shadow_OAM + OAM_TOPPER;
     hat = !(n0 >= LINE_OBJ_MAX || n1 >= LINE_OBJ_MAX || n2 >= LINE_OBJ_MAX || n3 >= LINE_OBJ_MAX);
     if (hat) {
-        o->y = top; o->x = boss_x + br->hat_dx + 8 + (sip_beat() ? 2 : 0);   // (drinking: the patrons' 2 px shake)
+        o->y = top; o->x = boss_x + br->hat_dx + 8 + (sip_beat() ? (br->sway == 2 ? -2 : 2) : 0);   // (drinking: moves with his body)
         o->tile = OBJ_TOPPER + (BOSS_TOPPER_T ? BOSS_TOPPER_T : (boss_pose & 15) == BP_STOMP ? 2 : 0);
         o->prop = !is_cgb ? S_PALETTE : BOSS_TOPPER_PAL ? BOSS_TOPPER_PAL : OBJPAL_PATRON_C;
     } else o->y = 0;

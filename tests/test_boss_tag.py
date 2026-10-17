@@ -1,15 +1,21 @@
 # Batch E1 (owner 2026-10-14 playtest), every boss, both models: (1) the drinking shake: while a boss gulps, his body
-# alternates GULP / WALK every SWAY_FRAMES like the patrons' sway beat and his topper shifts their 2 px; (2) slower
+# alternates GULP and his shifted GULP (BP_SWAY: gen_boss sway_pose, 2 px; owner 2026-10-17, the patrons' technique; the
+# Sasquatch's pairs are full: his WALK, the mug down) every SWAY_FRAMES like the patrons' sway beat, and his topper moves
+# with the body (+2 px, Duke's body goes left: -2); the mug stays up. (2) slower
 # drinking: every row's gulp is >= 1.3x what it was (the Sumo's stays 0: he has no gulp); (3) the status tag: one 8x16
 # sprite (OAM 29, OBJ 124-127) above his hand column: READY (a hand is free), BUSY (hands full), shaking BUSY (the
 # Critic sends a drink back), gone in the intro and the outro. Every frame is checked at <= 10 sprites a line.
 import re
+import sys
 
 import pytest
 from boss_common import (BP_GULP, BP_WALK, BS_GULP, GAME, ROOT, THEMES, art, assert_body, block_empties, fight, frames,
                          play, row, still_regulars, throw, until)
 from conftest import clear_regulars
 from test_flow import PLAYING, state
+
+sys.path.insert(0, str(ROOT / "tools"))
+from gen_art import tile_bytes  # noqa: E402
 
 pytestmark = pytest.mark.timeout(300)
 
@@ -48,8 +54,8 @@ def tag(gb):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("c", range(10))
 def test_the_drinking_shake(model, c):
-    """He gulps (boss_state GULP, no push-back, no special pose): GULP while (boss_t / SWAY) is even, WALK while odd;
-    the topper sits 2 px right on the odd beats, as a patron's sway."""
+    """He gulps (boss_state GULP, no push-back, no special pose): GULP while (boss_t / SWAY) is even, his shifted GULP while
+    odd (Sasquatch: WALK); the topper moves 2 px with it on the odd beats, as a patron's sway."""
     r, a = row(c), art(NAMES[c])
     with play_in(model, c) as gb:
         if r["gulp"] <= SWAY:
@@ -66,8 +72,9 @@ def test_the_drinking_shake(model, c):
                 break
             beat = (t // SWAY) & 1
             x = gb.mem("boss_x")
-            assert_body(gb, c, a, x, BP_WALK if beat else BP_GULP)
-            assert gb.oam()[OAM_TOPPER]["x"] == x + r["hat"] + 8 + (2 if beat else 0), (t, beat)
+            assert_body(gb, c, a, x, (("sway" if r["sway"] else BP_WALK) if beat else BP_GULP))
+            assert gb.oam()[OAM_TOPPER]["x"] == x + r["hat"] + 8 + ((-2 if r["sway"] == 2 else 2) if beat else 0), (t, beat)
+            assert gb.mem("boss_pose") & 15 in ((BP_GULP, 8) if r["sway"] else (BP_GULP, BP_WALK)), "the mug is never down"
             seen.add(beat)
         assert seen == {0, 1}, "both beats happened"
 
@@ -169,4 +176,25 @@ def test_the_tag_and_the_shake_in_the_boss_rush(model):
         gb.write("boss_t", SWAY)
         frames(gb, 1)
         hat = gb.oam()[OAM_TOPPER]["x"]
-        assert hat == gb.mem("boss_x") + row(gb.mem("boss_id"))["hat"] + 8 + 2
+        assert hat == gb.mem("boss_x") + row(gb.mem("boss_id"))["hat"] + 8 + (-2 if row(gb.mem("boss_id"))["sway"] == 2 else 2)
+
+
+def shifted(rows, d, left):
+    return [r[d:] + "." * d if left else "." * d + r[:len(r) - d] for r in rows]
+
+
+@pytest.mark.parametrize("c", range(10))
+def test_the_shifted_gulp_pose_exists_per_boss(c):
+    """Every boss but the Sasquatch (29 of 30 column pairs: a shifted GULP needs 4 more) and the Sumo (no gulp) has his GULP
+    shifted 2 px (the generator's sway_pose: right like the patrons, left for Duke whose mug is at his right edge) as
+    its own column pairs, under the row's `sway`; the pose never needs more than the engine's 30 pairs."""
+    r, a = row(c), art(NAMES[c])
+    assert len(a["pairs"]) <= 30
+    if NAMES[c] in ("sasquatch", "sumo"):
+        assert r["sway"] == 0 and a["sway"] == 0 and a["sway_map"] is None
+        return
+    assert r["sway"] == a["sway"] in (1, 2) and a["sway"] == (2 if NAMES[c] == "duke" else 1)
+    assert a["sway_art"] == shifted(a["art"]["GULP"], 2, a["sway"] == 2)
+    assert a["sway_art"] != a["art"]["GULP"]
+    for k, p in enumerate(a["sway_map"]):                       # the columns are the shifted art's own pairs
+        assert a["pairs"][p] == tile_bytes(a["sway_art"], 8 * k, 0) + tile_bytes(a["sway_art"], 8 * k, 8), k

@@ -8,8 +8,8 @@
 #include <stdint.h>
 #include "game.h"
 
-#define RUSH_AT        400        // offset in story_scratch (the list's row buffers: 14 x 20 = 280 bytes before it)
-#define RUSH_TOP       452        // boss.h BOSS_SCRATCH: STORY_SCRATCH - BOSS_SCRATCH_N (68)
+#define RUSH_AT        395        // offset in story_scratch (the list's row buffers: 14 x 20 = 280 bytes before it)
+#define RUSH_TOP       447        // boss.h BOSS_SCRATCH: STORY_SCRATCH - BOSS_SCRATCH_N (73)
 
 enum { RS_MENU, RS_LIST, RS_NEXT, RS_RESULT, RS_FIGHT };   // rush_state.scr
 enum { RM_ALL, RM_CHOOSE };                                 // rush_state.mode

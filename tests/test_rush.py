@@ -24,7 +24,7 @@ __all__ = ["release_built"]
 
 SP_RUSH = 7
 MODE_RUSH = 4
-RUSH_AT = 400
+RUSH_AT = 395
 RS_MENU, RS_LIST, RS_NEXT, RS_RESULT, RS_FIGHT = range(5)
 RM_ALL, RM_CHOOSE = range(2)
 # struct rush_state (src/rush.h)
