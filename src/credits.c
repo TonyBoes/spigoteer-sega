@@ -80,6 +80,7 @@ struct cr_state {
     uint16_t f;               // the position in the tune's frames (cr_pos)
     uint8_t step;             // the unit of the card's stage
     uint32_t tmask, amask;    // rows (bit y) the last card wrote: their tiles, and their CGB attributes (a boss panel)
+    uint8_t blank;            // 1: the screen is cut to the band colour while a card is built
 };
 #define CR ((struct cr_state *)story_scratch)
 
@@ -357,12 +358,33 @@ static void cr_card_sprites(uint8_t c) {          // every frame a card is shown
 }
 
 // a card's work, CR_UNITS units a frame: phase 1 clearing, 2 loading, 3 rows, 4 shown (CR->step: the unit)
+// The cut: while a card is built (6 to 16 frames) nothing of it may show, so the screen goes to the band colour at once: sprites off and the
+// window (the second tilemap, 0x9C00, which credits_enter filled with blank tiles) over the whole screen. All LCDC bits and WX / WY / LYC: no
+// palette write at all (palette RAM drops writes in mode 3 on a real LCD), no VRAM access, nothing to wait for. (The library's tile writes
+// follow the background map bit of LCDC, so the cut does not use it.) The LYC interrupt, which ends the window at the banner, is parked past the
+// frame. The switch is at the top of the frame, whose first lines are blank in every card. cr_unblank is the same in reverse, the frame after
+// the card's last step.
+static void cr_cut(void) {
+    CR->blank = 1;
+    LYC_REG = 255;
+    overlay_on = 1;                                   // (main.c update shows the window every frame while it is set)
+    WX_REG = 7; WY_REG = 0;
+    CRITICAL { LCDC_REG = (LCDC_REG & ~LCDCF_OBJON) | LCDCF_WINON | LCDCF_WIN9C00; }
+}
+
+static void cr_unblank(void) {
+    CR->blank = 0;
+    CRITICAL { LCDC_REG = (LCDC_REG | LCDCF_OBJON) & ~LCDCF_WINON; }
+    LYC_REG = BANNER_LYC;
+    overlay_on = 0;
+}
+
 static void cr_card_work(uint8_t c) {
     uint8_t u;
     for (u = 0; u < CR_UNITS; u++) {
         if (CR->phase == 1) { if (cr_clear_unit()) { CR->phase = 2; CR->step = 0; } }
         else if (CR->phase == 2) { if (cr_load_unit(c, CR->step)) { CR->phase = 3; CR->step = 0; } else CR->step++; }
-        else if (CR->phase == 3) { if (cr_show_unit(c, CR->step)) { CR->phase = 4; return; } else CR->step++; }
+        else if (CR->phase == 3) { if (cr_show_unit(c, CR->step)) { CR->phase = 4; CR->step = 0; return; } else CR->step++; }
         else return;
     }
 }
@@ -386,7 +408,16 @@ void credits_enter(uint8_t from_story) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     music_pump();
-    CR->scroll = 0; CR->card = 255; CR->next = CR_AHEAD + 1; CR->t = 0; CR->phase = 0; CR->from_story = from_story; CR->f = 0; CR->step = 0; CR->tmask = 0; CR->amask = 0;
+    cr_blank();                                       // the second map (0x9C00), blank: what the cut shows
+    for (y = 0; y < 32; y++) set_win_tiles(0, y, 20, 1, CR->row);
+    if (is_cgb) {
+        for (y = 0; y < 20; y++) CR->row[y] = BGPAL_HUD;
+        VBK_REG = VBK_BANK_1;
+        for (y = 0; y < 32; y++) set_win_tiles(0, y, 20, 1, CR->row);
+        VBK_REG = VBK_BANK_0;
+    }
+    music_pump();
+    CR->scroll = 0; CR->card = 255; CR->next = CR_AHEAD + 1; CR->t = 0; CR->phase = 0; CR->from_story = from_story; CR->f = 0; CR->step = 0; CR->tmask = 0; CR->amask = 0; CR->blank = 0;
     SCX_REG = 0; SCY_REG = 0;
     story_phase = STORY_PHASE_CREDITS;
     game_state = GS_STORY;
@@ -396,6 +427,7 @@ void credits_enter(uint8_t from_story) BANKED {
 
 static void cr_leave(void) {
     uint8_t s = CR->from_story;
+    cr_unblank();                                     // (a skip in the middle of a card's build)
     SCY_REG = 0;
     TRANS_WANT();                                     // (src/trans.c: the next screen comes up behind the drink)
     if (s) story_end();
@@ -406,6 +438,7 @@ static void cr_leave(void) {
 uint8_t credits_update(uint8_t pressed) BANKED {
     uint8_t c, top;
     uint16_t f, p;
+    if (CR->blank && CR->phase == 4 && CR->step && CR->card < 200) cr_unblank();   // (first thing: the top lines of every card are blank, so the switch is not seen mid-picture)
     if (pressed & (J_B | J_START)) { cr_leave(); return 1; }
     CR->t++;
     f = cr_pos();
@@ -413,12 +446,15 @@ uint8_t credits_update(uint8_t pressed) BANKED {
     if (sound_on ? (cur_tune != TUNE_CREDITS && CR->t > 30) : f >= CR_TOTAL) { cr_leave(); return 1; }   // (the tune ends: cur_tune goes to TUNE_NONE)
     if (f < CR_ROLL) {                                                     // the cast
         c = f < CR_TITLE ? 0 : f < CR_HERO_END ? 1 : 2 + (uint8_t)((f - CR_HERO_END) / CR_CARD);
-        if (CR->card != c) { CR->card = c; CR->phase = 1; CR->step = 0; hide_all_sprites(); }
+        if (CR->card != c) { CR->card = c; CR->phase = 1; CR->step = 0; if (!CR->blank) cr_cut(); hide_all_sprites(); }
         if (CR->phase < 4) cr_card_work(c);
-        if (CR->phase == 4) cr_card_sprites(c);
+        if (CR->phase == 4) {
+            cr_card_sprites(c);                    // (its OAM goes out with the next VBlank, and then the colours come back, so the card shows whole)
+            if (CR->step < 2) CR->step++;
+        }
         return 0;
     }
-    if (CR->card < 200 || CR->card == 255) { CR->card = 200; CR->step = 0; CR->tmask = 0; hide_all_sprites(); }   // the roll's start: its rows from the top (a wipe), the robots
+    if (CR->card < 200 || CR->card == 255) { if (CR->blank) cr_unblank(); CR->card = 200; CR->step = 0; CR->tmask = 0; hide_all_sprites(); }   // the roll's start: its rows from the top (a wipe), the robots
     if (CR->card == 200) {
         for (c = 0; c < CR_UNITS && CR->card == 200; c++, CR->step++) {
             if (CR->step < 32) cr_rows(CR->step, 1);

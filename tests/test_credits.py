@@ -16,7 +16,7 @@ TUNE_CREDITS = 15                          # src/music.h: after the 15 listed tu
 TUNE_NONE_ = 255
 TUNE_FRAMES = 5400                         # the credits tune: 352 rows x 15 frames = 5280, and the roll's start
 CR_AT = 0                                  # struct cr_state in story_scratch (src/credits.c): row[20], scroll(2), card, next, t(2), phase, from_story, f(2), dirty
-SCROLL, CARD, NEXT, T, PHASE, FROM_STORY, F, DIRTY = 20, 22, 23, 24, 26, 27, 28, 30
+SCROLL, CARD, NEXT, T, PHASE, FROM_STORY, F, STEP, BLANK = 20, 22, 23, 24, 26, 27, 28, 30, 39
 STORY_H = (ROOT / "build" / "story.h").read_text()
 FONT = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))   # STORY_FONT_BASE (build/story.h)
 PUNCT = {FONT + 0: ".", FONT + 1: ",", FONT + 2: "!", FONT + 3: "?", FONT + 4: "'", FONT + 5: "-", FONT + 6: ":"}
@@ -92,7 +92,8 @@ def at(gb, f, settle=10):
     gb.run(settle)
     if f < ROLL:
         for _ in range(60):
-            if gb.read("story_scratch", 32)[PHASE] == 4:
+            st = gb.read("story_scratch", 48)
+            if st[PHASE] == 4 and st[STEP] >= 2 and not st[BLANK]:   # (whole, and the cut over)
                 break
             gb.run(1)
         else:
@@ -501,6 +502,39 @@ def test_with_the_sound_off_the_roll_ends_when_the_tune_would_have(model):
             n += 1
             assert n < 5400
         assert 5240 <= n <= 5300, n
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_no_frame_during_a_card_change_shows_a_partly_built_card(model):
+    from PIL import ImageChops
+
+    def masked(im, c):                                         # (a venue card's patrons bob: leave their band out)
+        im = im.copy()
+        if c >= 12:
+            im.paste((0, 0, 0), (0, 40, im.width, 90))
+        return im
+
+    refs = {}
+    with roll_from_bonus(model, sound=False) as gb:
+        for c in range(1, 22):
+            at(gb, CARD_START[c] + 100)
+            refs[c] = gb.image().convert("RGB")
+    with roll_from_bonus(model, sound=False) as gb:
+        for c in range(2, 22):
+            at(gb, CARD_START[c - 1] + 100)
+            assert gb.regs()["LCDC"] & 2, "sprites on while a card shows"
+            cuts = 0
+            while cr_f(gb) < CARD_START[c] + 30:
+                gb.run(1)
+                im = gb.image().convert("RGB")
+                cols = im.getcolors(2)
+                if cols is not None and len(cols) == 1:
+                    cuts += 1
+                    continue
+                same = [k for k in (c - 1, c) if ImageChops.difference(masked(im, k), masked(refs[k], k)).getbbox() is None]
+                assert same, ("a partly built card on screen", model, c, cr_f(gb))
+            assert cuts >= 3, ("the cut to the band colour", c, cuts)
+            assert gb.regs()["LCDC"] & 2, "sprites back on once the card is up"
 
 
 def test_the_cast_card_names_and_toppers_are_the_games_own():
