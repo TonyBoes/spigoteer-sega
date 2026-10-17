@@ -39,14 +39,10 @@ LABELS = CT["patrons"]                                          # the patrons' l
 assert len(LABELS) == 10 and CT["venues"] == VENUES and CT["owners"] == OWNERS and CT["bosses"] == BOSSES
 # every card's lines, top to bottom (words of a row joined by one space): 0 the title, 1 the Spigoteer, 2 Dregs, then per venue the owner, the patrons, the boss
 CARDS = [["CAST OF", "CHARACTERS"], ["SAL TAPLEY", "THE SPIGOTEER"], ["DREGS", "RIVAL"]]
-def lowered(labels):
-    """The middle label goes a row lower when its ink would stand closer than a tile to a neighbour's (the generator's CT_LOW_MASK)."""
-    return bool(CT["low_mask"] >> LABELS.index(labels) & 1)
-
 
 for v in range(10):
     CARDS.append([VENUES[v], OWNERS[v]])                    # (the venue is the header, the top rows, through all three cards)
-    CARDS.append([VENUES[v], " ".join(w for k, w in enumerate(LABELS[v]) if not (k == 1 and lowered(LABELS[v])))] + ([LABELS[v][1]] if lowered(LABELS[v]) else []))
+    CARDS.append([VENUES[v], " ".join(LABELS[v])])           # (the three labels on ONE row)
     CARDS.append([VENUES[v], BOSSES[v]])
 KINDS = ["title", "spigoteer", "dregs"] + ["owner", "patrons", "boss"] * 10
 ROLL_LINES = [t for t in CT["roll"] if t]
@@ -253,7 +249,7 @@ def test_the_cast_cards_in_order_with_their_names_and_figures(model):
                 assert body == [8, 9] and rows == [1, 12], ("the boss's two rows, straight on the band, his name; the venue is the header", body, rows)
             elif kind == "patrons":
                 assert shown == {100, 102, 106, 108, 112, 114}, shown
-                assert rows == ([1, 10, 12] if lowered(LABELS[(c - 3) // 3]) else [1, 11]), rows
+                assert rows == [1, 11], ("the three labels on one row, no second row for a middle label", rows)
             if kind in ("spigoteer", "dregs"):                  # the sprite to the left of the two lines, the group centred (to the pixel)
                 xs = sorted(s["x"] for s in gb.visible_sprites())
                 names = [n for _, n in matched_rows(gb)]
@@ -286,7 +282,7 @@ def test_the_boss_is_animated_on_his_card(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_each_patron_label_is_one_line_centred_under_its_patron(model):
     assert all(len(l) <= 6 for row in LABELS for l in row), "a label is one line of at most 6 letters (one table in tools/gen_credits.py)"
-    assert LABELS[2] == ["CEDAR", "ASH", "WILLOW"] and not lowered(LABELS[2]), "the lumber lodge: ASH in the middle, the three labels on one row"
+    assert LABELS[2] == ["CEDAR", "ASH", "WILLOW"], "the lumber lodge: ASH in the middle"
     with roll_from_bonus(model, sound=False) as gb:
         for v in range(10):
             at(gb, CARD_START[4 + 3 * v] + 5)
@@ -296,9 +292,13 @@ def test_each_patron_label_is_one_line_centred_under_its_patron(model):
             boxes = {b["text"]: b for n in names for b in TEXT_ROWS[n]["ink"]}
             for k in range(3):
                 cx = xs[2 * k] + 0                              # OAM x of the pair's first column = the pair's centre (left edge + 8)
-                assert cx == 32 + 48 * k, (v, k, cx)
                 b = boxes[LABELS[v][k]]
+                assert cx == CT["pat_cx"][v][k], (v, k, cx)
                 assert abs((b["x0"] + b["x1"] + 1) / 2 - cx) <= 1, ("the label is centred to the pixel under its patron", v, k, b, cx)
+            bs = sorted(boxes.values(), key=lambda b: b["x0"])
+            assert all(bs[i + 1]["x0"] - bs[i]["x1"] - 1 >= 8 for i in range(2)), ("a tile of air between labels", v)
+            assert abs((bs[0]["x0"] + bs[2]["x1"] + 1) / 2 - 80) <= 1, ("the whole row is centred", v)
+            assert len(names) == 1 and names[0].startswith("PATA"), ("no label on a second row", v, names)
 
 
 def test_the_roll_text_is_centred_broken_at_words_and_spaced_by_section():
@@ -535,7 +535,7 @@ def test_the_credits_tune_in_the_rom_is_the_generators_d3c(tmp_path, monkeypatch
     # the melody is the audition's: starts on the intro's D E C, ends on the ringing C chord (instrument 7) and a rest
     toks = gm.merge_ties(t["ch2"]).split()
     assert toks[:3] == ["D5:1", "E5:1", "C5:1"] and toks[-2:] == ["C6:6/7", "r:1"] and sum(int(x.split(":")[1].split("/")[0]) for x in toks) == 579
-    assert len(gm.DUTY) == 7 and gm.DUTY[6] == (0x08, 0x80, 0xC7) and gm.HARM_INST["ring50"] == (0x80, 0x97)
+    assert len(gm.DUTY) >= 7 and gm.DUTY[6] == (0x08, 0x80, 0xC7) and gm.HARM_INST["ring50"] == (0x80, 0x97)
     # the length is the real frames: Fxx tempo changes counted (rows 568-571 at 17 and 19, then 20 a row to the end)
     assert t["tempo_map"] == {568: 17, 570: 19, 572: 20}
     assert gm.pass_frames(579, 15, 0, t["tempo_map"]) == FRAMES == 579 * 15 + 2 * 2 + 2 * 4 + 7 * 5

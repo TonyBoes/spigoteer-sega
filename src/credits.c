@@ -404,14 +404,14 @@ static void cr_header(uint8_t v, uint8_t step) {   // the venue's name in the to
 
 // The cards' content is centred vertically in the space under the header (rows 2-17, or the whole screen without one): the key row is where the block
 // starts. Heights (px), design, from the ink: the pair (portrait h rows, 2 blank rows, the text rows with the sprite beside them) 8 h + 40; an owner
-// (portrait, 2 blank rows, the name) 8 h + 24; the patrons (the sprites, a row of air, the label row, or two) 32 (48); the boss (the topper, the body,
+// (portrait, 2 blank rows, the name) 8 h + 24; the patrons (the sprites, a row of air, the label row) 32; the boss (the topper, the body,
 // a blank row, his name) 48.
 static uint8_t cr_key(uint8_t kd, uint8_t v, uint8_t h) {
     switch (kd) {
     case CK_TITLE: return 8;                       // (rows 8 and 10, the screen scrolled 4 px: the block's ink centred on the screen's middle)
     case CK_SPIGOTEER: case CK_DREGS: return (uint8_t)(112 - 8 * h) >> 4;   // the portrait's first row
     case CK_OWNER: return (uint8_t)(20 + ((104 - 8 * h) >> 1)) >> 3;
-    case CK_PATRONS: return (CT_LOW_MASK >> v) & 1 ? 10 : 11;              // the label row
+    case CK_PATRONS: return 11;                                            // the label row
     }
     return 8;                                      // the boss's body rows
 }
@@ -459,9 +459,8 @@ static uint8_t cr_show_unit(uint8_t c, uint8_t i) {   // unit i of card c's rows
             VBK_REG = VBK_BANK_1; cr_put(CR->ky + i - 3); VBK_REG = VBK_BANK_0;
             cr_amark(CR->ky + i - 3);
         }
-    } else {                                       // the patrons (the venue is in the header): the labels, the middle one a row lower if it is crowded
+    } else {                                       // the patrons (the venue is in the header): the three labels on one row
         if (i == 0) cr_trow(CT_PATA + v, CR->ky, &id);
-        else if (i == 1 && (CT_LOW_MASK >> v) & 1) cr_trow(CT_PATB + v, CR->ky + 2, &id);
         else return 1;
     }
     CR->tn = id;
@@ -480,10 +479,10 @@ static void cr_card_sprites(uint8_t c) {          // every frame a card is shown
         if (pose != CR->pose) cr_pose_rows(v, pose, 1);
         cr_oam(0, 8 * CR->ky + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (pose == 1 ? 2 : 0), is_cgb ? OBJPAL_CAST : S_PALETTE);
     } else if (kd == CK_PATRONS) {
-        for (k = 0; k < 3; k++) {                 // the three patrons, bobbing in turn, centred on 32, 80, 128
+        for (k = 0; k < 3; k++) {                 // the three patrons, bobbing in turn, each centred over his own label (ct_cx)
             bob = (((t >> 4) + k) & 3) ? 0 : 2;
-            cr_oam(2 * k, 8 * CR->ky - 8 - bob, 32 + 48 * k, CR_T_P + 6 * k, is_cgb ? OBJPAL_ROBOT + k : 0);
-            cr_oam(2 * k + 1, 8 * CR->ky - 8 - bob, 40 + 48 * k, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
+            cr_oam(2 * k, 8 * CR->ky - 8 - bob, ct_cx[v][k], CR_T_P + 6 * k, is_cgb ? OBJPAL_ROBOT + k : 0);
+            cr_oam(2 * k + 1, 8 * CR->ky - 8 - bob, ct_cx[v][k] + 8, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
         }
     }
 }

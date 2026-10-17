@@ -45,7 +45,6 @@ PATRONS = [
 ]
 SLOT = [[0, 1, 2]] * 10
 SLOT[2] = [0, 2, 1]
-PAT_CX = [32, 80, 128]                       # the patrons' centres (px)
 
 # the roll: one string a tilemap ROW, centred; "" is a blank row. A sentence's lines are on consecutive rows, a list's items have two blank rows
 # between them, a section gap is four or five. (Owner's lines 2026-10-17: "Game Design, Media, and Story by Tony and his tireless team of robot
@@ -168,30 +167,25 @@ def main():
         add(f"HDR{v}", centred(VENUES[v]))
     for v in range(10):
         add(f"OWNER{v}", centred(OWNERS[v]))
-    low = 0
-    pata, patb = [], []
+    # the three labels of a venue are laid out from their ACTUAL ink widths on one row: the widest gap (at most 24 px, never under a tile) that
+    # keeps the whole row inside the screen's edge margins, the row centred; each patron sprite then stands centred over its own label
+    pat_cx = []
     for v in range(10):
         labels = PATRONS[v]
         assert all(len(s) <= 6 for s in labels)
-        bx = [(s, PAT_CX[k]) for k, s in enumerate(labels)]
-        # ink boxes at the centres: the middle label drops a row when it stands closer than a tile to a neighbour
-        spans = []
-        for s, cx in bx:
-            _, a, b = strip(s)
-            d = cx - (a + b + 1) // 2
-            spans.append((a + d, b + d))
-        gaps = [spans[1][0] - spans[0][1] - 1, spans[2][0] - spans[1][1] - 1]
-        if min(gaps) < 8:
-            low |= 1 << v
-            pata.append([bx[0], bx[2]])
-            patb.append([bx[1]])
-        else:
-            pata.append(bx)
-            patb.append([])      # (none)
-    for v in range(10):
-        add(f"PATA{v}", pata[v])
-    for v in range(10):
-        add(f"PATB{v}", patb[v])
+        w = [ink_width(t) for t in labels]
+        gap = min(24, (160 - 2 * 8 - sum(w)) // 2)
+        assert gap >= 8, f"{labels}: the three labels do not fit one row ({sum(w)} px of ink)"
+        total = sum(w) + 2 * gap
+        x = (160 - total) // 2
+        items, cxs = [], []
+        for t, wi in zip(labels, w):
+            cx = x + wi // 2                    # (the ink's centre; the sprite's 16 px are centred on it)
+            items.append((t, cx))
+            cxs.append(cx)
+            x += wi + gap
+        pat_cx.append(cxs)
+        add(f"PATA{v}", items)
     for v in range(10):
         add(f"BOSS{v}", centred(BOSSES[v]))
     roll_ids = []
@@ -241,19 +235,20 @@ def main():
          f"#define CT_POOL_TILES {len(POOL)}   // unique tiles ({len(POOL) * 16} bytes), {n_rows} rows, {len(flat)} cells", f"#define CT_ROWS {n_rows}"]
     for key in ("TITLE", "SAL", "DREGS"):
         h.append(f"#define CT_{key} {ids[key + '0']}   // two rows")
-    for key in ("HDR", "OWNER", "PATA", "PATB", "BOSS"):
+    for key in ("HDR", "OWNER", "PATA", "BOSS"):
         h.append(f"#define CT_{key} {ids[key + '0']}   // ten rows (a venue each)")
     h += [f"#define CT_SAL_X {pair_x['SAL']}      // the Spigoteer's sprite's left edge (px): sprite, a tile of air and his two lines, centred as a group",
-          f"#define CT_DREGS_X {pair_x['DREGS']}", f"#define CT_LOW_MASK 0x{low:03X}   // bit v: venue v's middle patron label drops a row (PATB)",
+          f"#define CT_DREGS_X {pair_x['DREGS']}",
+          "static const uint8_t ct_cx[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in c) + " }" for c in pat_cx) + " };   // each patron's centre x (px): over his label",
           f"#define CT_ROLL_N {len(ROLL)}   // the roll's rows", f"#define CT_RING {ROLL_POOL}   // BG tiles for the roll's text at once (peak {peak})", "",
           "static const uint8_t ct_roll[CT_ROLL_N] = { " + ", ".join(str(r) for r in roll_ids) + " };   // each roll row's text row, 255: blank",
           "static const uint8_t ct_slot[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in s) + " }" for s in SLOT) + " };   // the patron art variant in each slot",
           "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", "#endif", ""]
     (out / "credits_text.h").write_text("\n".join(h))
     js = {"rows": INFO, "ids": ids, "roll": ROLL, "roll_ids": roll_ids, "venues": VENUES, "owners": OWNERS, "bosses": BOSSES, "patrons": PATRONS,
-          "slot": SLOT, "pair_x": pair_x, "low_mask": low, "pool": len(POOL), "ring_peak": peak, "title": TITLE}
+          "slot": SLOT, "pair_x": pair_x, "pat_cx": pat_cx, "pool": len(POOL), "ring_peak": peak, "title": TITLE}
     (out / "credits_text.json").write_text(json.dumps(js, indent=1))
-    print(f"credits text: {n_rows} rows, {len(POOL)} tiles ({len(POOL) * 16} bytes) + {len(flat) * 2} bytes of cells, roll peak {peak}/{ROLL_POOL}, low mask {low:03X}")
+    print(f"credits text: {n_rows} rows, {len(POOL)} tiles ({len(POOL) * 16} bytes) + {len(flat) * 2} bytes of cells, roll peak {peak}/{ROLL_POOL}, one row each")
 
 
 if __name__ == "__main__":
