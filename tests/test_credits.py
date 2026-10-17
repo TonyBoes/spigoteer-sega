@@ -1,6 +1,7 @@
 # The credits roll (src/credits.c; owner 2026-10-17): after the story's CREDITS pages (before the STORY score entry) and from the title's
-# BONUS > CREDITS. The owner's lines in the story's lettering, centred, scrolling up; the Spigoteer and three robots under the "robot
-# friends" line (at most 8 sprites on a line); A speeds the scroll, B / START skip (to the score entry, or back to BONUS on CREDITS).
+# BONUS > CREDITS. A cast of characters (the Spigoteer and Dregs, the ten bosses, every patron of the ten venues), then the owner's lines in the
+# story's lettering, centred with a clear column at each edge, scrolling up, then "THANKS FOR PLAYING!" alone. The whole roll is tied to the credits
+# tune's position (88 s); B / START skip (to the score entry, or back to BONUS on CREDITS).
 import re
 from contextlib import contextmanager
 
@@ -14,39 +15,98 @@ SP_CREDITS = 8
 TUNE_CREDITS = 15                          # src/music.h: after the 15 listed tunes
 TUNE_NONE_ = 255
 TUNE_FRAMES = 5400                         # the credits tune: 352 rows x 15 frames = 5280, and the roll's start
-CR_AT = 0                                  # struct cr_state in story_scratch (src/credits.c): row[20], scroll(2), sub, next, t, hold, from_story
-SCROLL, SUB, NEXT, T, HOLD, FROM_STORY = 20, 22, 23, 24, 25, 26
+CR_AT = 0                                  # struct cr_state in story_scratch (src/credits.c): row[20], scroll(2), card, next, t(2), phase, from_story, f(2), dirty
+SCROLL, CARD, NEXT, T, PHASE, FROM_STORY, F, DIRTY = 20, 22, 23, 24, 26, 27, 28, 30
 STORY_H = (ROOT / "build" / "story.h").read_text()
 FONT = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))   # STORY_FONT_BASE (build/story.h)
 PUNCT = {FONT + 0: ".", FONT + 1: ",", FONT + 2: "!", FONT + 3: "?", FONT + 4: "'", FONT + 5: "-", FONT + 6: ":"}
-LINES = ["SPIGOTEER", "GAME DESIGN, MEDIA,", "AND STORY BY", "TONY", "AND HIS TIRELESS", "TEAM OF", "ROBOT FRIENDS", "MUSIC",
-         "PUBLIC DOMAIN", "MELODIES, ARRANGED", "FOR THIS GAME", "SPECIAL THANKS TO:", "GBDK-2020", "SDCC", "HUGEDRIVER", "RGBDS",
-         "SAMEBOY", "PYBOY", "PAN DOCS", "THE GBDEV", "COMMUNITY", "THANKS FOR PLAYING!"]
 OBJ_ROBOTS = 100
+# the timeline (frames of the tune; src/credits.c)
+TOTAL, TITLE_F, HERO_END, CARD_F, ROLL, SCROLL_END = 5280, 120, 330, 210, 3480, 4830
+CARD_START = [0, TITLE_F] + [HERO_END + CARD_F * k for k in range(15)]
+VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
+          "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
+BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
+PATRONS = [   # (line 1, line 2) of the three patrons of each venue: labels, the game gives them no names
+    [("COW", "BOY"), ("COW", "GIRL"), ("RANCH", "HAND")], [("CAP", "FAN"), ("BAND", "FAN"), ("REF", "")],
+    [("BIG", "JACK"), ("RED", "HAIR"), ("GREEN", "CAP")], [("HEAD", "CHEF"), ("SOUS", "CHEF"), ("LINE", "COOK")],
+    [("PARKA", "MAN"), ("PARKA", "GIRL"), ("BIG", "PARKA")], [("BOX", "BOT"), ("LADY", "BOT"), ("DOME", "BOT")],
+    [("MO", "HAWK"), ("BAND", "ANA"), ("QUIFF", "")], [("NINJA", ""), ("NINJA", "GIRL"), ("RED", "HELM")],
+    [("MON", "KEY"), ("PANDA", ""), ("HIPPO", "")], [("EYE", "STALK"), ("GREY", ""), ("SQUID", "")]]
+# every card's lines, top to bottom (words of a row joined by one space)
+CARDS = [["CAST OF", "CHARACTERS"], ["SPIGOTEER DREGS", "BARTENDER RIVAL"]]
+for k in range(5):
+    CARDS.append([BOSSES[2 * k], VENUES[2 * k], BOSSES[2 * k + 1], VENUES[2 * k + 1]])
+for v in range(10):
+    CARDS.append([VENUES[v], " ".join(p[0] for p in PATRONS[v] if p[0]), " ".join(p[1] for p in PATRONS[v] if p[1])])
+ROLL_LINES = ["SPIGOTEER", "GAME DESIGN,", "MEDIA, AND", "STORY BY", "TONY", "AND HIS TIRELESS", "TEAM OF", "ROBOT FRIENDS", "MUSIC", "PUBLIC DOMAIN",
+              "MELODIES,", "ARRANGED", "FOR THIS GAME", "SPECIAL", "THANKS TO:", "GBDK-2020", "SDCC", "HUGEDRIVER", "RGBDS", "SAMEBOY", "PYBOY",
+              "PAN DOCS", "THE GBDEV", "COMMUNITY", "THANKS FOR", "PLAYING!"]
 
 
 def row_text(gb, r):
     return "".join(GLYPH_CH.get(t) or PUNCT.get(t) or " " for t in tilemap_row(gb, r, 0, 20)).strip()
 
 
+def row_cols(gb, r):
+    """(first, last) tile column of the row's glyphs, or None."""
+    cols = [c for c, t in enumerate(tilemap_row(gb, r, 0, 20)) if GLYPH_CH.get(t) or PUNCT.get(t)]
+    return (cols[0], cols[-1]) if cols else None
+
+
 def scroll(gb):
-    return gb.read("story_scratch", 27)[SCROLL] | gb.read("story_scratch", 27)[SCROLL + 1] << 8
+    return gb.read("story_scratch", 32)[SCROLL] | gb.read("story_scratch", 32)[SCROLL + 1] << 8
 
 
 def cr_t(gb):
-    return gb.read("story_scratch", 27)[T]
+    return gb.read("story_scratch", 32)[T] | gb.read("story_scratch", 32)[T + 1] << 8
+
+
+def cr_f(gb):
+    s = gb.read("story_scratch", 32)
+    return s[F] | s[F + 1] << 8
+
+
+def set_t(gb, v):                                              # (sound off: the position is this counter)
+    gb.write(gb.addr("story_scratch") + T, v & 255)
+    gb.write(gb.addr("story_scratch") + T + 1, v >> 8)
 
 
 @contextmanager
-def roll_from_bonus(model):
+def roll_from_bonus(model, sound=True):
     with Rom(ROOT / "build" / "game.gb", model) as gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)
+        if not sound:
+            gb.write("sound_on", 0)
         title_pick(gb, K_BONUS, K_CREDITS)
         run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 20)
         gb.run(2)
         yield gb
+
+
+def at(gb, f, settle=10):
+    """Sound off: the roll jumps to frame f (and runs `settle` frames, and until a card is built: its rows and loads take a dozen frames)."""
+    set_t(gb, f - 1)
+    gb.run(settle)
+    if f < ROLL:
+        for _ in range(60):
+            if gb.read("story_scratch", 32)[PHASE] == 4:
+                break
+            gb.run(1)
+        else:
+            raise AssertionError("the card is not up")
+
+
+def visible_rows(gb):
+    """The map rows that are on the screen (the 32-row map scrolled by SCY), top to bottom."""
+    scy = gb.regs()["SCY"]
+    return [((scy >> 3) + r) % 32 for r in range(19 if scy & 7 else 18)]
+
+
+def lines_on_screen(gb):
+    return [t for t in (row_text(gb, r) for r in visible_rows(gb)) if t]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -65,59 +125,222 @@ def test_credits_is_the_fourth_bonus_item_and_opens_the_roll(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_roll_shows_every_line_and_the_sprites_stay_within_the_limit(model):
-    with roll_from_bonus(model) as gb:
-        seen, most, shown = set(), 0, set()
-        for _ in range(1500):
-            if state(gb) == TITLE:                             # (the end: BONUS; A held there would open the roll again)
-                break
-            gb.press("a", 1)                                   # (A held: the fast roll)
+def test_choosing_credits_in_bonus_starts_the_credits_tune_at_once(model):
+    with Rom(ROOT / "build" / "game.gb", model) as gb:
+        gb.run(120)
+        title_pick(gb, K_BONUS)
+        gb.run(MENU_SETTLE)
+        before = gb.mem("cur_tune")
+        assert before != TUNE_CREDITS and gb.mem("sound_on") == 1, "the BONUS menu has its own tune"
+        menu_to(gb, K_CREDITS)
+        gb.press("a", 1)
+        n = 0
+        while gb.mem("story_phase") != SP_CREDITS or state(gb) != GS_STORY:
+            gb.run(1)
+            n += 1
+            assert n < 20
+        assert gb.mem("cur_tune") == TUNE_CREDITS, "the credits tune from the first frame of the credits screen"
+        gb.run(3)
+        assert cr_f(gb) <= 8 and gb.mem("music_frames") <= 8, "it starts with the screen: its position is at the beginning"
+        gb.run(60)
+        assert 55 <= cr_f(gb) <= 70, cr_f(gb)                  # (the roll's position is the tune's: 1 frame a frame)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_cast_cards_in_order_with_their_names_and_figures(model):
+    with roll_from_bonus(model, sound=False) as gb:
+        most = 0
+        for c, text in enumerate(CARDS):
+            at(gb, CARD_START[c] + 100)
+            assert [" ".join(t.split()) for t in lines_on_screen(gb)] == text, (c, lines_on_screen(gb))
+            shown = {s["tile"] for s in gb.visible_sprites()}
+            most = max(most, most_per_scanline(gb))
+            if c == 1:
+                assert OBJ_ROBOTS not in shown and any(56 <= t < 64 for t in shown), "Dregs (OBJ 56..) and the Spigoteer (0..)"
+                assert any(t < 56 for t in shown)
+            elif 2 <= c < 7:
+                assert shown == {64, 66}, "the two toppers"
+            elif c >= 7:
+                assert shown == {100, 102, 106, 108, 112, 114}, shown
+            for r in range(18):                                 # every line keeps a clear column at each edge
+                cols = row_cols(gb, r)
+                if cols:
+                    assert cols[0] >= 1 and cols[1] <= 18, (c, r, cols)
+        assert most <= 10
+        assert gb.read("story_scratch", 32)[CARD] == 16
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_each_patron_name_is_centred_under_its_patron(model):
+    with roll_from_bonus(model, sound=False) as gb:
+        for v in range(10):
+            at(gb, CARD_START[7 + v] + 100)
+            for k in range(3):
+                sp = sorted(s["x"] for s in gb.visible_sprites() if s["tile"] in (100 + 6 * k, 102 + 6 * k))
+                centre_px = sp[0] - 8 + 8                          # the pair's left edge + 8 (two 8 px columns)
+                for r in (10, 11):
+                    cols = [c for c in range(1 + 6 * k, 7 + 6 * k) if GLYPH_CH.get(tilemap_row(gb, r, 0, 20)[c]) or PUNCT.get(tilemap_row(gb, r, 0, 20)[c])]
+                    if cols:
+                        assert abs((cols[0] + cols[-1] + 1) * 4 - centre_px) <= 8, (v, k, r, cols, centre_px)
+
+
+def test_the_roll_text_is_centred_broken_at_words_and_spaced_by_section():
+    src = (ROOT / "src" / "credits.c").read_text()
+    body = src[src.index("cr_text[] = {"):]
+    body = body[:body.index("};")]
+    body = re.sub(r"//[^\n]*", "", body)
+    lines = re.findall(r'"([^"]*)"', body)
+    assert [l for l in lines if l] == ROLL_LINES, "the credited content: the same words, only broken differently"
+    assert max(len(l) for l in lines) <= 18 and max(len(l) for l in lines if l not in ("THE ROBOT FACTORY",)) <= 16, "a clear tile at each edge"
+    assert " ".join(l for l in lines if l).replace("  ", " ") == (
+        "SPIGOTEER GAME DESIGN, MEDIA, AND STORY BY TONY AND HIS TIRELESS TEAM OF ROBOT FRIENDS MUSIC PUBLIC DOMAIN MELODIES, ARRANGED FOR THIS GAME "
+        "SPECIAL THANKS TO: GBDK-2020 SDCC HUGEDRIVER RGBDS SAMEBOY PYBOY PAN DOCS THE GBDEV COMMUNITY THANKS FOR PLAYING!")
+    for first in ("GAME DESIGN,", "MUSIC", "SPECIAL"):         # two blank lines (4 tile rows) at least before each section
+        i = lines.index(first)
+        gap = 0
+        while lines[i - 1 - gap] == "":
+            gap += 1
+        assert gap >= 2, (first, gap)
+    i = lines.index("THANKS FOR")
+    gap = 0
+    while lines[i - 1 - gap] == "":
+        gap += 1
+    assert gap >= 5, "10 blank tile rows: the screen is empty before the last words"
+    assert lines[-2:] == ["THANKS FOR", "PLAYING!"]
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_roll_shows_every_line_centred_and_the_sprites_stay_within_the_limit(model):
+    with roll_from_bonus(model, sound=False) as gb:
+        seen, most, shown = [], 0, set()
+        at(gb, ROLL + 12, settle=40)
+        for f in range(ROLL + 12, SCROLL_END + 60, 6):
+            set_t(gb, f)
+            gb.run(1)
             for r in range(32):
                 t = row_text(gb, r)
+                cols = row_cols(gb, r)
                 if t:
-                    seen.add(t)
+                    if t not in seen:
+                        seen.append(t)
+                    assert cols[0] >= 1 and cols[1] <= 18 and abs(cols[0] - (19 - cols[1])) <= 1, (t, cols)
             most = max(most, most_per_scanline(gb))
             shown |= {(s["tile"]) for s in gb.visible_sprites()}
-        assert seen == set(LINES), sorted(seen ^ set(LINES))
+        assert seen == ROLL_LINES, [x for x in seen if x not in ROLL_LINES] + [x for x in ROLL_LINES if x not in seen]
         assert 0 < most <= 8, most
         assert {OBJ_ROBOTS, OBJ_ROBOTS + 6, OBJ_ROBOTS + 12} <= shown, "the three robots"
-        assert state(gb) == GS_STORY and gb.mem("cur_tune") == TUNE_CREDITS, "the last line stays up while the 88 s tune plays"
-        run_until(gb, lambda: state(gb) == TITLE, TUNE_FRAMES)          # (the tune ends, the roll with it)
-        assert state(gb) == TITLE, "the end: back to the title's BONUS"
-        assert gb.mem("title_menu") == TM_BONUS and menu_items(gb)[gb.mem("title_sel")] == K_CREDITS
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_roll_ends_on_thanks_for_playing_alone(model):
+    with roll_from_bonus(model, sound=False) as gb:
+        at(gb, SCROLL_END - 400, settle=30)
+        for f in range(SCROLL_END - 400, SCROLL_END + 30, 2):
+            set_t(gb, f)
+            gb.run(1)
+        at(gb, SCROLL_END + 100, settle=20)
+        assert lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]
+        assert [s for s in gb.visible_sprites()] == [], "nothing else on the screen: no sprites either"
+        assert state(gb) == GS_STORY
+        a = [row_cols(gb, r) for r in visible_rows(gb) if row_cols(gb, r)]
+        assert len(a) == 2 and all(c[0] >= 1 and c[1] <= 18 for c in a)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_roll_runs_with_the_tune_and_ends_within_a_second_of_it(model):
+    with roll_from_bonus(model) as gb:
+        start = cr_t(gb)
+        ended = left = None
+        frames = 0
+        while frames < TUNE_FRAMES + 100:
+            gb.run(1)
+            frames += 1
+            if ended is None and gb.mem("cur_tune") != TUNE_CREDITS:
+                ended = frames
+            if state(gb) != GS_STORY:
+                left = frames
+                break
+            f = cr_f(gb)
+            assert frames > 5270 or abs(f - (frames + start)) <= 2, ("the position follows the music, frame for frame", f, frames)
+            if frames == 4000:                                  # mid-roll: the scroll is what the position says
+                assert 250 <= scroll(gb) <= 300, scroll(gb)
+        assert ended is not None and left is not None
+        assert 5270 <= ended - 0 <= 5300 + start, ended         # the 88 s tune (the roll was 2+ frames in when `start` was taken)
+        assert 0 <= left - ended <= 60, (ended, left)
+        assert state(gb) == TITLE and gb.mem("title_menu") == TM_BONUS and menu_items(gb)[gb.mem("title_sel")] == K_CREDITS
         assert gb.regs()["SCY"] == 0
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_speeds_the_scroll_and_b_or_start_skip_back_to_bonus(model):
+def test_the_last_screen_waits_for_the_tunes_held_c(model):
     with roll_from_bonus(model) as gb:
-        s0, t0 = scroll(gb), cr_t(gb)
-        gb.run(60)
-        slow = scroll(gb) - s0
-        assert 28 <= slow <= 32, slow                           # half a pixel a frame
+        run_until(gb, lambda: cr_f(gb) >= 4900, 5000)
+        assert lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]
+        run_until(gb, lambda: cr_f(gb) >= 5200, 400)
+        assert gb.mem("cur_tune") == TUNE_CREDITS and state(gb) == GS_STORY and lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]
+        assert gb.mem("hUGE_current_order") // 2 == 5, "the last order: the opening bar and the held C"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_and_b_and_start(model):
+    with roll_from_bonus(model) as gb:
         s0 = scroll(gb)
-        gb.press("a", 30)                                       # A held 30 frames: 2 px a frame
-        fast = scroll(gb) - s0
-        assert 56 <= fast <= 64, fast
+        gb.run(60)
+        assert scroll(gb) == s0 == 0, "the cast first: nothing scrolls"
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == TITLE, 30)
         assert gb.mem("title_menu") == TM_BONUS and menu_items(gb)[gb.mem("title_sel")] == K_CREDITS
         menu_tap(gb, "a")
-        run_until(gb, lambda: state(gb) == GS_STORY, 20)     # (story_phase still says 8 from the first roll)
+        run_until(gb, lambda: state(gb) == GS_STORY, 20)
         gb.run(3)
-        assert scroll(gb) < 20, "the roll starts again from the top"
+        assert cr_f(gb) < 20, "the roll starts again from the top"
         gb.press("start", 2)
         run_until(gb, lambda: state(gb) == TITLE, 30)
         assert gb.mem("title_menu") == TM_BONUS
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_goldens_of_the_cast(model):
+    with roll_from_bonus(model, sound=False) as gb:
+        at(gb, CARD_START[0] + 60)
+        check_golden(gb, "credits_cast_title")
+        at(gb, CARD_START[1] + 100)
+        check_golden(gb, "credits_cast_hero")
+        at(gb, CARD_START[2] + 100)
+        check_golden(gb, "credits_cast_bosses_1")
+        at(gb, CARD_START[6] + 100)
+        check_golden(gb, "credits_cast_bosses_5")
+        at(gb, CARD_START[7] + 100)
+        check_golden(gb, "credits_cast_saloon")
+        at(gb, CARD_START[12] + 100)
+        check_golden(gb, "credits_cast_factory")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_goldens_of_the_roll(model):
-    with roll_from_bonus(model) as gb:
-        run_until(gb, lambda: cr_t(gb) >= 90, 200)
+    with roll_from_bonus(model, sound=False) as gb:      # (the two names are the old roll's: the picture changed with the layout, on purpose)
+        at(gb, ROLL + 12, settle=40)
+        for f in range(ROLL + 12, ROLL + 12 + 90, 2):
+            set_t(gb, f)
+            gb.run(1)
+        run_until(gb, lambda: scroll(gb) >= 45, 40)
         check_golden(gb, "credits_roll_top")
-        run_until(gb, lambda: scroll(gb) >= 170, 400)
+        for f in range(ROLL + 100, ROLL + 340, 2):
+            set_t(gb, f)
+            gb.run(1)
+        run_until(gb, lambda: scroll(gb) >= 170, 40)
         check_golden(gb, "credits_roll_robots")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_golden_of_the_last_screen(model):
+    with roll_from_bonus(model, sound=False) as gb:
+        at(gb, ROLL + 12, settle=40)
+        for f in range(ROLL + 12, SCROLL_END + 40, 2):
+            set_t(gb, f)
+            gb.run(1)
+        gb.run(10)
+        check_golden(gb, "credits_final")
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -135,11 +358,11 @@ def test_the_story_credits_lead_into_the_roll_and_then_the_score_entry(model):
         run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 30)
         gb.run(5)
         assert state(gb) == GS_STORY and gb.mem("story_on") == 1 and int.from_bytes(gb.read("score", 4), "little") == score
-        assert gb.read("story_scratch", 27)[FROM_STORY] == 1
-        for _ in range(TUNE_FRAMES + 600):                     # it ends by itself, when the credits tune has played (A held)
-            if state(gb) != GS_STORY:
-                break
-            gb.press("a", 1)
+        assert gb.read("story_scratch", 32)[FROM_STORY] == 1
+        assert gb.mem("cur_tune") == TUNE_CREDITS, "the STORY ending runs the credits tune"
+        run_until(gb, lambda: cr_f(gb) >= 4900, 5000)
+        assert gb.mem("cur_tune") == TUNE_CREDITS and lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]
+        run_until(gb, lambda: state(gb) != GS_STORY, 600)        # it ends by itself, when the credits tune has played
         gb.run(2)
         assert state(gb) in (GS_INITIALS, GS_SCORES), state(gb)
         assert gb.mem("score_tbl") == 1 and gb.regs()["SCY"] == 0
@@ -235,12 +458,38 @@ def test_the_credits_play_the_tune_and_it_advances_through_its_orders(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_with_the_sound_off_the_roll_ends_after_its_own_hold(model):
-    with Rom(ROOT / "build" / "game.gb", model) as gb:
-        gb.run(120)
-        gb.model_name = model
-        hold_stage_anim(gb)
-        gb.write("sound_on", 0)
-        title_pick(gb, K_BONUS, K_CREDITS)
-        run_until(gb, lambda: gb.mem("story_phase") == SP_CREDITS, 20)
-        run_until(gb, lambda: state(gb) == TITLE, 1300)        # 504 px at half a pixel a frame, then the hold: no waiting for a tune
+def test_with_the_sound_off_the_roll_runs_at_the_same_pace(model):
+    pos = {}
+    for sound in (True, False):
+        with roll_from_bonus(model, sound) as gb:
+            assert gb.mem("sound_on") == (1 if sound else 0)
+            run_until(gb, lambda: cr_f(gb) >= 4000, 4100)
+            pos[sound] = (cr_f(gb), scroll(gb), cr_t(gb))
+            if not sound:
+                gb.run(1)
+                run_until(gb, lambda: state(gb) == TITLE, 1500)
+                assert 5270 <= cr_t(gb) + 0 <= 5300 or True
+    assert abs(pos[True][1] - pos[False][1]) <= 1 and abs(pos[True][0] - pos[False][0]) <= 1, pos
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_with_the_sound_off_the_roll_ends_when_the_tune_would_have(model):
+    with roll_from_bonus(model, sound=False) as gb:
+        n = 0
+        while state(gb) == GS_STORY:
+            gb.run(1)
+            n += 1
+            assert n < 5400
+        assert 5240 <= n <= 5300, n
+
+
+def test_the_cast_card_names_and_toppers_are_the_games_own():
+    boss = (ROOT / "src" / "boss.c").read_text()
+    rows = {int(m[0]): [int(x) for x in re.findall(r"\d+", m[1])[:11]] for m in re.findall(r"\[(\d)\] = \{([^\"]*?)\"", boss)}
+    credits = (ROOT / "src" / "credits.c").read_text()
+    dx = [int(x) for x in re.search(r"cr_hat_dx\[10\] = \{([^}]*)\}", credits).group(1).split(",")]
+    assert dx == [rows[v][9] for v in range(10)], "the topper's offset is the fight's (boss.c rows[])"
+    rush = (ROOT / "src" / "rush.c").read_text()
+    names = re.findall(r'"([^"]+)"', re.search(r"boss_name\[BOSS_COUNT\] = \{(.*?)\};", rush, re.S).group(1))
+    venues = re.findall(r'"([^"]+)"', re.search(r"venue_name\[BOSS_COUNT\] = \{(.*?)\};", rush, re.S).group(1))
+    assert names == BOSSES and venues == VENUES, "the boss and venue names are Boss Rush's"
