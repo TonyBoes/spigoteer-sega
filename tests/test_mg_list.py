@@ -9,7 +9,7 @@ import subprocess
 from io import BytesIO
 
 import pytest
-from conftest import (K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP, check_golden,
+from conftest import (K_BONUS, K_BOSSRUSH, K_CREDITS, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP, check_golden,
                       hold_stage_anim, menu_items, menu_tap, menu_to, title_pick)
 from gbtools import Rom
 from pyboy import PyBoy
@@ -114,7 +114,7 @@ def test_bonus_offers_soundtrack_and_mini_games(model):
     with booted(model) as rom:
         title_pick(rom, K_BONUS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH]
+        assert menu_items(rom) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH, K_CREDITS]
         menu_to(rom, K_MINIGAMES)
         menu_tap(rom, "a")
         run_until(rom, lambda: state(rom) == GS_MGLIST, 30)
@@ -239,7 +239,7 @@ def test_quick_draw_from_the_list_retry_and_back(model):
         tap(gb, "b")
         run_until(gb, lambda: state(gb) == TITLE and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(MENU_SETTLE)
-        assert gb.mem("title_menu") == TM_BONUS and menu_items(gb) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH]
+        assert gb.mem("title_menu") == TM_BONUS and menu_items(gb) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH, K_CREDITS]
         assert gb.mem("title_sel") == 1, "the cursor on MINI GAMES"
         tap(gb, "b")
         gb.run(MENU_SETTLE)

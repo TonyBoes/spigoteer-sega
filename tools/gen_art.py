@@ -623,6 +623,7 @@ MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "m
                 "debug": "DEBUG MENU",      # SETTINGS' DEBUG line (K_DEBUG, unlocked only)
                 "erase_q": "ERASE ALL DATA",  # the confirm prompt's label line (K_ERASEQ)
                 "no": "NO", "yes": "YES ",
+                "credits": "CREDITS ",      # BONUS's fourth item: the credits roll (src/credits.c)
                 "how_hard": "PICK ONE", "easy": "EASY", "normal": "NORMAL", "hard": "HARD"}   # PLAY > STORY (new): the difficulty prompt (K_HOWHARD label, K_EASY, K_NORMAL, K_HARD)
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 # ... and past it the perfect pour's OBJ ids 234-239 (loaded at a story shift's start, never shown on the title: its

@@ -7,7 +7,7 @@
 import re
 
 import pytest
-from conftest import (clear_regulars, K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP,
+from conftest import (clear_regulars, K_BONUS, K_BOSSRUSH, K_CREDITS, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP,
                       check_golden, hold_stage_anim, menu_items, title_pick)
 from test_flow import GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, run_until, state, tilemap_row
 from test_mg import GLYPH_CH
@@ -187,8 +187,8 @@ def test_bonus_gains_boss_rush_and_its_menu(model):
     with booted(model) as gb:
         title_pick(gb, K_BONUS)
         gb.run(MENU_SETTLE)
-        assert menu_items(gb) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH]
-        assert list(gb.read("title_rows", 3)) == [7, 9, 11]
+        assert menu_items(gb) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH, K_CREDITS]
+        assert list(gb.read("title_rows", 4)) == [6, 8, 10, 12]
         tap(gb, "b")
         gb.run(MENU_SETTLE)
         to_rush(gb)

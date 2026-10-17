@@ -295,6 +295,9 @@ def names(rom, t=MODE_STORY):
 @pytest.mark.parametrize("d,raw,scaled,mark,line", [(HARD, 999, 1498, "H", "HARD X1.5"), (EASY, 1001, 500, "E", "EASY X0.5"), (HARD, 700000, 999999, "H", "HARD X1.5")])
 def test_the_story_score_is_recorded_with_the_multiplier_marked_and_explained(model, d, raw, scaled, mark, line):
     with credits_with(model, d, raw) as gb:
+        gb.press("start", 2)                                     # (the credits' pages, then the roll: START skips each)
+        run_until(gb, lambda: gb.mem("story_phase") == 8, 30)
+        gb.run(3)
         gb.press("start", 2)
         run_until(gb, lambda: state(gb) == GS_INITIALS, 30)
         gb.run(2)

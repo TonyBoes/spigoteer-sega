@@ -452,7 +452,7 @@ void title_music_toggle(void) BANKED;                   // music on/off and the 
 // [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS's MUSIC ON-OFF / BAR CHANGE SNAP-KEEP
 enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES,
        K_BOSSRUSH, K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP,
-       K_HOWHARD, K_EASY, K_NORMAL, K_HARD };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
+       K_HOWHARD, K_EASY, K_NORMAL, K_HARD, K_CREDITS };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
                                                                                          // DEBUG MENU (unlocked only); the confirm: the K_ERASEQ label, NO, YES;
                                                                                          // PLAY > STORY's difficulty prompt: the K_HOWHARD label, EASY, NORMAL, HARD; K_BARCHANGE and K_BARKEEP are the bar toggles)
 enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD };   // title_menu: the top level or the submenu of top item n-1 (TM_ERASE: SETTINGS' ERASE ALL DATA? prompt; TM_HARD: PLAY > STORY's HOW HARD prompt)
@@ -591,6 +591,11 @@ uint8_t rush_update(uint8_t pressed) BANKED;            // a frame of a rush scr
 void rush_won(void) BANKED;                             // story_level_done in MODE_RUSH: the fight was won
 void rush_lost(void) BANKED;                            // story SP_FAIL in MODE_RUSH: out of lives
 void rush_fight(uint8_t venue) BANKED;                  // story.c: venue's boss fight alone (the story's step, rules)
+// ---- credits.c (banked 20: the credits roll; runs as GS_STORY, story_phase STORY_PHASE_CREDITS) ----------------------------
+#define STORY_PHASE_CREDITS 8                           // story.c's SP_CREDITS: story_update hands the frame to credits_update
+void credits_enter(uint8_t from_story) BANKED;          // from_story 1: after the story's CREDITS pages (its end is story_end); 0: BONUS > CREDITS (B / the end: BONUS)
+uint8_t credits_update(uint8_t pressed) BANKED;         // a frame of the roll; 1: the screen changed
+void story_end(void) BANKED;                            // story.c: the run is over, the story's score into the STORY top 5
 // ---- boss.c (banked, the boss engine, docs/minigames_bosses.md 2.5; ROM0 hooks: patrons.c catch_full / try_spawn,
 // render.c compose_bar). A fight is the venue's level with the boss as a BG figure on his own bar (boss_bar,
 // BOSS_NONE when no fight is on: the ROM0 hooks compare against it); boss_cols[k] is the first tile id (top; bottom =

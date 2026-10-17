@@ -364,8 +364,8 @@ def test_credits_picture_and_start_skips_the_finale(model):
         page_ready(gb)
         assert_picture(gb, "credits_b")
         check_golden(gb, "story_pic_credits_b")
-        gb.press("start", 2)                                      # ... and the CREDITS: on to the title
-        run_until(gb, lambda: gb.mem("story_scene") != SC["CREDITS"] or state(gb) != GS_STORY, 60)
+        gb.press("start", 2)                                      # ... and the CREDITS pages: on to the credits roll (tests/test_credits.py)
+        run_until(gb, lambda: gb.mem("story_phase") == 8, 60)
 
 
 # ---- the burst: the ten pieces fly out of the explosion ---------------------------------------------------------

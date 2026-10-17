@@ -1348,7 +1348,11 @@ def test_the_last_chapter_leads_to_the_finale_credits_and_the_title(model):
         assert gb.mem("story_scene") == SC["CREDITS"]
         score = int.from_bytes(gb.read("score", 4), "little")
         assert score > 0
-        # the credits end: the story's score into the STORY top 5 (owner 2026-10-11), its initials, the table, the title
+        # the credits' pages end in the credits roll (src/credits.c; START skips it); then the story's score into the STORY top 5
+        # (owner 2026-10-11), its initials, the table, the title
+        gb.press("start", 2)
+        run_until(gb, lambda: gb.mem("story_phase") == 8, 30)
+        gb.run(3)
         gb.press("start", 2)
         run_until(gb, lambda: state(gb) == GS_INITIALS, 30)
         assert gb.mem("story_on") == 0 and gb.mem("score_tbl") == MODE_STORY and gb.mem("new_rank") == 0

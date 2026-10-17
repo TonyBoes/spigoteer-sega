@@ -79,10 +79,10 @@ void dg_frame(uint8_t *st) BANKED;
 #define GOAL_LYC       (BANNER_WY + 38)
 #define HUD_GOAL_COL    11         // story HUD: the goal's icon + 2 digits (what is left) at 11-13, a timer's hourglass + 2 digits at 17-19
 
-enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO, SP_LOOP, SP_RUSH };   // SP_OUTRO: a boss satisfied
+enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO, SP_LOOP, SP_RUSH, SP_CREDITS };   // SP_OUTRO: a boss satisfied
                                                      // (boss.c); SP_LOOP: ARCADE's "LOOP n" before a goal banner;
                                                      // SP_RUSH: a BOSS RUSH screen (src/rush.c rush_update)
-typedef char sp_rush_is_game_h[(SP_RUSH == STORY_PHASE_RUSH) ? 1 : -1];
+typedef char sp_rush_is_game_h[(SP_RUSH == STORY_PHASE_RUSH && SP_CREDITS == STORY_PHASE_CREDITS) ? 1 : -1];
 enum { SW_IDLE, SW_OUT, SW_PAL, SW_IN, SW_TILES };   // SW_TILES: picture scenes only (the portrait slot's tiles stream in)
 
 // vq_entry_t of src/render.c (the VBlank copy list): tile data goes to a raw VRAM address, which vq_add cannot express
@@ -695,24 +695,26 @@ void extra_life(void) BANKED {
     if (lives < MAX_LIVES) { lives++; hud_dirty |= HUD_LIVES; SFX(SFX_EXTRA); }   // its cue: music.c s_extra
 }
 
+// The story's end (after the credits roll, src/credits.c): the story's score into the STORY top 5 (initials, the table)
+void story_end(void) BANKED {
+    uint8_t aaa[3];
+    story_on = 0; story_phase = SP_OFF;
+    if (save_lock) { title_enter(); return; }   // (a debug-select run: nothing saved)
+    score_tbl = MODE_STORY;
+    aaa[0] = aaa[1] = aaa[2] = 'A';
+    if (RUN_DIFF == DIFF_HARD) aaa[0] |= 0x80;             // the table's E / H mark (save.c); the score counts with the difficulty's multiplier
+    else if (RUN_DIFF == DIFF_EASY) aaa[1] |= 0x80;
+    score = story_scaled(score, RUN_DIFF);
+    story_arc = 0; hud_pal_reset();                         // (the run's difficulty and the HUD colour it tinted end here)
+    new_rank = top_insert(score, aaa);
+    if (new_rank < TOP_N) hi_save();
+    scores_after_game();
+}
+
 static void scene_done(void) {
     uint8_t s = story_scene;
-    uint8_t aaa[3];
     TRANS_WANT();                                // (src/trans.c: the next screen comes up behind the drink)
-    if (s == SC_CREDITS) {                       // the end: the story's score into the STORY top 5 (initials, the table)
-        story_on = 0; story_phase = SP_OFF;
-        if (save_lock) { title_enter(); return; }   // (a debug-select run: nothing saved)
-        score_tbl = MODE_STORY;
-        aaa[0] = aaa[1] = aaa[2] = 'A';
-        if (RUN_DIFF == DIFF_HARD) aaa[0] |= 0x80;             // the table's E / H mark (save.c); the score counts with the difficulty's multiplier
-        else if (RUN_DIFF == DIFF_EASY) aaa[1] |= 0x80;
-        score = story_scaled(score, RUN_DIFF);
-        story_arc = 0; hud_pal_reset();                         // (the run's difficulty and the HUD colour it tinted end here)
-        new_rank = top_insert(score, aaa);
-        if (new_rank < TOP_N) hi_save();
-        scores_after_game();
-        return;
-    }
+    if (s == SC_CREDITS) { credits_enter(1); return; }   // the end: the credits roll, then story_end
     if (s == SC_FINALE_A) { mg_enter(MG_POUROFF, MG_STORY); return; }   // Dregs challenges: the Pour-Off (src/po.c), then FINALE_B
     if (s == SC_FINALE_B) { scene_enter(SC_CREDITS); return; }
     if (s == SC_INTRO) { scene_enter(SC_PRE_SALOON); return; }
@@ -948,6 +950,8 @@ uint8_t story_update(uint8_t pressed) BANKED {
         return 0;
     case SP_RUSH:                                // a BOSS RUSH screen (src/rush.c)
         return rush_update(pressed);
+    case SP_CREDITS:                             // the credits roll (src/credits.c)
+        return credits_update(pressed);
     case SP_SCENE:
         break;
     default:

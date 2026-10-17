@@ -137,10 +137,10 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
                                          tt_soundtrack, tt_classic, tt_minigames, tt_bossrush, tt_erase, tt_debug, tt_erase_q, tt_no, tt_yes,
-                                         tt_bar_snap, tt_bar_keep, tt_how_hard, tt_easy, tt_normal, tt_hard };
+                                         tt_bar_snap, tt_bar_keep, tt_how_hard, tt_easy, tt_normal, tt_hard, tt_credits };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
                                   TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH, TT_X_ERASE, TT_X_DEBUG, TT_X_ERASE_Q, TT_X_NO, TT_X_YES,
-                                  TT_X_BAR_SNAP, TT_X_BAR_KEEP, TT_X_HOW_HARD, TT_X_EASY, TT_X_NORMAL, TT_X_HARD };
+                                  TT_X_BAR_SNAP, TT_X_BAR_KEEP, TT_X_HOW_HARD, TT_X_EASY, TT_X_NORMAL, TT_X_HARD, TT_X_CREDITS };
 #define IS_BAR(k) ((k) == K_BARCHANGE || (k) == K_BARKEEP)   // SETTINGS' BAR line (the items after K_BARKEEP are the difficulty prompt's)
 
 static void build_item(uint8_t i) {
@@ -180,6 +180,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_SOUNDTRACK;   // the boss rush (src/rush.c)
         title_items[title_n++] = K_MINIGAMES;
         title_items[title_n++] = K_BOSSRUSH;
+        title_items[title_n++] = K_CREDITS;      // the credits roll (src/credits.c)
         break;
     case TM_ERASE:    // SETTINGS > ERASE DATA: "ERASE ALL DATA" (a label: the cursor skips it), NO, YES; the cursor starts on NO
         title_items[title_n++] = K_ERASEQ;
@@ -312,12 +313,13 @@ void title_enter(void) BANKED {
     for (i = 0; i < LOGO_LETTERS; i++) {
         logo_state[i] = 0;
         logo_put(i);
-        set_bkg_tiles(1 + 2 * i, LOGO_ROW, 2, 1, logo_buf[i]);
-        set_bkg_tiles(1 + 2 * i, LOGO_ROW + 1, 2, 1, logo_buf[i] + 2);
+    }
+    for (r = 0; r < 2; r++) {                         // (the logo's two rows, 18 tiles each: a call a letter ran the rebuild a tick late)
+        for (i = 0; i < LOGO_LETTERS; i++) { row_buf[2 * i] = logo_buf[i][2 * r]; row_buf[2 * i + 1] = logo_buf[i][2 * r + 1]; }
+        set_bkg_tiles(1, LOGO_ROW + r, 18, 1, row_buf);
     }
     // the menu block, rows 4-13: plain wall (the text's blank tile is colour 0, the wall colour; no specks), text centred
     for (i = 0; i < 20; i++) { row_blank[i] = TT_BLANK; attr_txt[i] = BGPAL_TEXT; attr_sel[i] = BGPAL_TEXT_SEL; }
-    for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++) set_bkg_tiles(0, r, 20, 1, row_blank);
     music_pump();
     save_lock = 0;                     // (a debug-select story run ends here: save.c)
     title_n = 0;
@@ -325,7 +327,10 @@ void title_enter(void) BANKED {
     music_pump();
     title_back = TM_TOP; title_back_sel = 0;
     title_dirty = 0;                   // drawn here, with the LCD off
-    for (i = 0; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, menu_buf[i]);
+    for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++) {   // (the block's rows: a menu line, else the plain wall; a fourth line made the rebuild a tick late)
+        for (i = 0; i < title_n && title_rows[i] != r; i++) ;
+        set_bkg_tiles(0, r, 20, 1, i < title_n ? menu_buf[i] : row_blank);
+    }
     music_pump();
     for (i = 0; i < 20; i++) row_buf[i] = TT_BLANK;
     row_buf[6] = TT_HI;
@@ -528,6 +533,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_CONTINUE: story_begin(1); return 0;
         case K_SOUNDTRACK: title_back = TM_BONUS; jukebox_enter(); return 0;   // (B there comes back to BONUS)
         case K_MINIGAMES: mg_list_enter(); return 0;                           // (its B: BONUS, on MINI GAMES)
+        case K_CREDITS: credits_enter(0); return 0;                            // (its end / B: BONUS, on CREDITS)
         case K_BOSSRUSH: rush_enter(); return 0;                               // (its B: BONUS, on BOSS RUSH)
         case K_PLAY: menu_open(TM_PLAY, 0); break;
         case K_BONUS: menu_open(TM_BONUS, 0); break;
