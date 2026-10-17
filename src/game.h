@@ -604,7 +604,9 @@ void rush_fight(uint8_t venue) BANKED;                  // story.c: venue's boss
 #define STORY_PHASE_CREDITS 8                           // story.c's SP_CREDITS: story_update hands the frame to credits_update
 void credits_enter(uint8_t from_story) BANKED;          // from_story 1: after the story's CREDITS pages (its end is story_end); 0: BONUS > CREDITS (B / the end: BONUS)
 uint8_t credits_update(uint8_t pressed) BANKED;         // a frame of the roll; 1: the screen changed
-void dregs_cast_load(uint8_t first, uint8_t pal) BANKED;     // src/po.c: Dregs's idle frame (8 OBJ tiles) and CGB palette, for the credits' cast card
+uint8_t trans_cast(uint8_t *o, uint8_t in) BANKED;   // src/trans.c: the credits' cast cards' fade (in 0: to the band colour, 1: back; the colours are in o); the frames it took
+void trans_cast_set(uint8_t *o) BANKED;               // ... o to the hardware at once
+void dregs_cast_load(uint8_t first, uint16_t *pal) BANKED;     // src/po.c: Dregs's idle frame (8 OBJ tiles) and his palette (to pal[4]), for the credits' cast card
 void story_end(void) BANKED;                            // story.c: the run is over, the story's score into the STORY top 5
 // ---- boss.c (banked, the boss engine, docs/minigames_bosses.md 2.5; ROM0 hooks: patrons.c catch_full / try_spawn,
 // render.c compose_bar). A fight is the venue's level with the boss as a BG figure on his own bar (boss_bar,

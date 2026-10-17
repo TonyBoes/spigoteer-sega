@@ -155,7 +155,7 @@ static uint8_t vframe(uint8_t g) {
 }
 
 // the frame's volume and music, after its VBlank work
-static void fa_tail(uint8_t f, uint8_t n, uint8_t rise) { if (rise) vol_in(f, n); else vol_out(f, n); music_tick(); }
+static void fa_tail(uint8_t f, uint8_t n, uint8_t rise) { if (rise < 2) { if (rise) vol_in(f, n); else vol_out(f, n); } music_tick(); }   // (rise 2: the tune's volume is left alone: the credits' cast cards)
 
 // RES = group g's 32 colours of `o` (64 bytes) at level k toward t; o null: all `base` at level k
 static void group(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base) {
@@ -408,4 +408,44 @@ void trans_reveal(void) BANKED {
         CRITICAL { remove_LCD(lcd_isr); add_LCD(mr_lcd_isr); }
         SCX_REG = 0;
     }
+}
+
+// ---- the credits' cast cards (src/credits.c): the picture fades to the band colour and back, the tune playing on (rise 2: no volume) -------------------
+// Same machinery as the white fades: palette RAM is written only by the unrolled bursts in the VBlank (vframe), a step is computed in the active part
+// of the frame. The caller keeps the card's colours in RAM (o) and never writes palette RAM itself, so the card can be built behind the faded screen.
+//   CGB: o = the 128 bytes of palette RAM, BG then OBJ. DMG: o[0..2] = BGP, OBP0, OBP1, stepped shade by shade toward black (the band's shade).
+#define COL_BAND   0x2043                         // RGB15(3, 2, 8): colour 3 of the HUD palette, what the band is
+#define CAST_DMG   3                              // frames a DMG step takes
+static const uint8_t k_co[4] = { 5, 3, 1, 0 };    // out: eighths of the card's colour kept (0: flat band)
+static const uint8_t k_ci[4] = { 1, 3, 5, 8 };    // in, then the card's colours exactly (k 8)
+
+static uint8_t ddark(uint8_t p, uint8_t k) {      // a DMG palette k shades darker
+    uint8_t r = 0, i, s;
+    for (i = 0; i < 8; i += 2) {
+        s = ((p >> i) & 3) + k;
+        r |= (s > 3 ? 3 : s) << i;
+    }
+    return r;
+}
+
+uint8_t trans_cast(uint8_t *o, uint8_t in) BANKED {      // in 0: the card's colours to the band; 1: back. Returns the frames it took
+    uint8_t s, f = 0, fr, k;
+    if (is_cgb) {
+        for (s = 0; s < 4 && !(joypad() & (J_B | J_START)); s++) f += cstep(o, in ? k_ci[s] : k_co[s], COL_BAND, COL_BAND, 2, f, 0, 2);   // (B / START cut a fade short: the caller sees the press)
+    } else {
+        for (s = 0; s < 3 && !(joypad() & (J_B | J_START)); s++) {
+            k = in ? 2 - s : s + 1;
+            for (fr = 0; fr < CAST_DMG; fr++) {
+                vsync(); f++;
+                if (!fr) { BGP_REG = ddark(o[0], k); OBP0_REG = ddark(o[1], k); OBP1_REG = ddark(o[2], k); }
+                fa_tail(f, 0, 2);
+            }
+        }
+    }
+    return f;
+}
+
+void trans_cast_set(uint8_t *o) BANKED {                  // the colours in o to the hardware at once (in the VBlank)
+    if (is_cgb) { group(o, 8, 0, 0); vframe(0); group(o + 64, 8, 0, 0); vframe(1); }
+    else { BGP_REG = o[0]; OBP0_REG = o[1]; OBP1_REG = o[2]; }
 }
