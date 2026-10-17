@@ -604,6 +604,7 @@ def test_boss_rush_starts_with_the_entrance_too(model):
         to_frame(gb, ENT_LAND)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == R["x"]
+        frames(gb, 1)                                # (his last column's tile reaches the map a frame later since the bartender hangs BT_DY lower)
         assert_body(gb, C, A, R["x"], BP_WALK)
         assert INTRO - 5 <= frames_to_first_beat(gb) <= INTRO - 2
         assert gb.mem("boss_hp") == 12 and DUKE.get(gb, "ent") == 0 and gb.mem("lives") == 3

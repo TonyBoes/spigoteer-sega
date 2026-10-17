@@ -648,7 +648,12 @@ void boss_draw(void) BANKED {
     n[0] = n[1] = n[2] = n[3] = 0;
     k = 40;
     do {
-        if (o->y && (uint8_t)(o->y - top + 15) < 31) band_add(o->y - top, n);
+        if (o->y) {
+            // (the bartender's 4 entries hang BT_DY lower than the bands were laid out for: counted as before, so his
+            // two pairs, which never share a line, are not both counted in the band that his top pair now just reaches)
+            uint8_t y = o < shadow_OAM + 4 ? (uint8_t)(o->y - BT_DY) : o->y;
+            if ((uint8_t)(y - top + 15) < 31) band_add(y - top, n);
+        }
         o++;
     } while (--k);
     n0 = n[0]; n1 = n[1]; n2 = n[2]; n3 = n[3];

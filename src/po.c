@@ -606,9 +606,9 @@ static void draw(void) {
     struct po_mug *m = S.mug;
     OAM_item_t *o = shadow_OAM + OAM_MUG0;
     struct po_seat *s;
-    put_bt(OAM_YOU, Y.x, BAR_TOP_Y(Y.bar) - Y.bob, OBJ_BARTENDER + Y.frame * BARTENDER_TILES_PER_FRAME, Y.facing, 0);
+    put_bt(OAM_YOU, Y.x, BAR_TOP_Y(Y.bar) + BT_DY - Y.bob, OBJ_BARTENDER + Y.frame * BARTENDER_TILES_PER_FRAME, Y.facing, 0);
     f = D.frame;
-    put_bt(OAM_DREGS, D.x, BAR_TOP_Y(D.bar), PO_DREGS + f * BARTENDER_TILES_PER_FRAME, f != BT_FILL, is_cgb ? PO_DREGS_PAL : S_PALETTE);
+    put_bt(OAM_DREGS, D.x, BAR_TOP_Y(D.bar) + BT_DY, PO_DREGS + f * BARTENDER_TILES_PER_FRAME, f != BT_FILL, is_cgb ? PO_DREGS_PAL : S_PALETTE);
     // the glasses under the spouts
     if (Y.fill || Y.hold) {
         k = Y.hold || Y.fill >= FILL_FRAMES ? 3 : Y.fill >= 2 * FILL_FRAMES / 3 ? 2 : Y.fill >= FILL_FRAMES / 3 ? 1 : 0;

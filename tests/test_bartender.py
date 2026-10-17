@@ -95,8 +95,8 @@ def test_bartender_sprite_position(gb):
         spr = [s for s in gb.visible_sprites() if s["tile"] < 56]      # (the bartender: a bar change leaves a dust puff behind)
         xs = sorted({s["x"] - 8 for s in spr})
         assert xs == [TAP_X, TAP_X + 8]
-        assert max(s["y"] - 16 for s in spr) == bar_top_y(b) + 16, "bottom entry row"
-        assert min(s["y"] - 16 for s in spr) == bar_top_y(b), "top entry row: 24 px tall, feet on the counter row"
+        assert max(s["y"] - 16 for s in spr) == bar_top_y(b) + 16 + LAYOUT["BT_DY"], "bottom entry row"
+        assert min(s["y"] - 16 for s in spr) == bar_top_y(b) + LAYOUT["BT_DY"], "top entry row: 24 px tall, BT_DY px below the bar top (owner 2026-10-17), feet that far past the counter row"
         gb.press("down", 2)
 
 

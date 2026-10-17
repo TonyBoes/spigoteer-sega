@@ -5,7 +5,7 @@
 #      tap); pouring needs the tap, so he walks back (a fresh A within TAP_GRACE of it still snaps and pours).
 # The Pour-Off (src/po.c) keeps its own rules in both modes.
 import pytest
-from conftest import GAME, K_ARCADE, K_CLASSIC, K_PLAY, ROM as GAME_ROM, bar_top_y, check_golden, hold_stage_anim, title_level, title_pick
+from conftest import GAME, LAYOUT, K_ARCADE, K_CLASSIC, K_PLAY, ROM as GAME_ROM, bar_top_y, check_golden, hold_stage_anim, title_level, title_pick
 from test_flow import run_until
 from test_story import to_chapter, to_goal
 from test_classic_mode import classic_at
@@ -55,7 +55,7 @@ def test_b_is_the_default_and_snaps_with_a_puff_and_a_whoosh(gb):
     gb.run(1)
     seen, d = [], dust(gb)
     assert d is not None, "the puff shows"
-    assert d["x"] == x0 + 8 + 4 and d["y"] == bar_top_y(0) + 16 + 8, "where he stood, on the bar he left"
+    assert d["x"] == x0 + 8 + 4 and d["y"] == bar_top_y(0) + 16 + 8 + LAYOUT["BT_DY"], "where he stood, on the bar he left"
     for _ in range(DUST_LEN + 4):
         d = dust(gb)
         seen.append(d["tile"] if d else None)
@@ -165,7 +165,7 @@ def test_b_between_mirrored_bars_the_puff_is_mirrored_too(boot):
     gb.press("down", 1)
     gb.run(1)
     d = dust(gb)
-    assert d and d["x"] == 168 - (x0 + 12) and d["y"] == bar_top_y(0) + 16 + 8
+    assert d and d["x"] == 168 - (x0 + 12) and d["y"] == bar_top_y(0) + 16 + 8 + LAYOUT["BT_DY"]
 
 
 # ---- the debug box -------------------------------------------------------------------------------------------------
