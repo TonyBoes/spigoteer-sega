@@ -35,7 +35,7 @@ VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
 # M11b story mode: the script (docs/story.md), the portraits and the story font -> two banked files (tools/gen_story.py)
 STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c $(BUILD)/story_pictures.c
-GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(STORY_C)
+GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(STORY_C) $(BUILD)/credits_text.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
 # rgb2sdas.py, placed in ROM bank 2 next to the order tables and src/music.c (all `#pragma bank 2`); the song patterns are
 # in bank 10 (build/music_pat10.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
@@ -43,7 +43,7 @@ HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
 # each boss's own art header (tools/gen_boss.py: build/boss_<name>_art.h, #included by src/boss_<name>.c only)
 BOSS_H   := $(foreach b,$(filter-out meter,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
-BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(BUILD)/list_skin.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_card_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/leo_fx_art.h $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h $(BUILD)/trans_art.h
+BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(BUILD)/list_skin.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_card_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/leo_fx_art.h $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h $(BUILD)/trans_art.h $(BUILD)/credits_text.h
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
@@ -69,6 +69,10 @@ $(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list
 # tile budget); the build fails on any error. Also writes build/story.json (tests) and out/preview/story_*.png.
 $(STORY_C) $(BUILD)/story.h: tools/gen_story.py tools/gen_art.py docs/story.md assets/story/portraits.json assets/tiles/story.txt $(wildcard assets/story/portraits/*.txt) $(wildcard assets/story/pictures/*.txt) src/main_cold.c $(BUILD)/art.h | $(BUILD) $(OUT)/preview
 	python3 tools/gen_story.py $(BUILD) $(OUT)/preview
+
+# The credits' pre-rendered text (src/credits.c): every cast label and roll line cut into centred tiles -> build/credits_text.c (banked), .h, .json (tests)
+$(BUILD)/credits_text.c $(BUILD)/credits_text.h: tools/gen_credits.py tools/gen_art.py assets/tiles/bar.txt assets/tiles/story.txt | $(BUILD)
+	python3 tools/gen_credits.py $(BUILD)
 
 # Perfect pour (story): per-venue sparkle / overflow frames and the catch cue -> build/pour_art.h (src/pour.c's bank),
 # build/pour.json (tests), out/preview/pour_<t>_x8.png

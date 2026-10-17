@@ -2,6 +2,7 @@
 # BONUS > CREDITS. A cast of characters (the Spigoteer and Dregs, each venue's owner and boss, every patron of the ten venues), then the owner's lines
 # in the story's lettering, centred with a clear column at each edge, scrolling up, then "THANKS FOR PLAYING!" alone. The whole roll is tied to the
 # credits tune's position and length (88 s now); B / START skip (to the score entry, or back to BONUS on CREDITS).
+import json
 import re
 from contextlib import contextmanager
 
@@ -30,16 +31,17 @@ VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IG
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
 OWNERS = ["SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "GRANNY", "HANA", "KIKI", "ZIZZ"]   # the story's own names (build/story_data.c st_names), in venue order
-_src = (ROOT / "src" / "credits.c").read_text()
-LABELS = [re.findall(r'"([^"]+)"', row) for row in re.findall(r"\{ (\"[A-Z]+\", \"[A-Z]+\", \"[A-Z]+\") \},", _src[_src.index("cr_pat[10][3]"):])]   # the patrons' labels, one table in credits.c
-assert len(LABELS) == 10
+CT = json.loads((ROOT / "build" / "credits_text.json").read_text())          # the pre-rendered text (tools/gen_credits.py): every row, its cells, its ink boxes
+_pool_src = (ROOT / "build" / "credits_text.c").read_text()
+POOL = bytes(int(x) for x in re.search(r"ct_pool\[\d+\] = \{ ([^}]*) \}", _pool_src).group(1).split(","))
+TEXT_ROWS = CT["rows"]
+LABELS = CT["patrons"]                                          # the patrons' labels, in the order they stand (slot A, B, C)
+assert len(LABELS) == 10 and CT["venues"] == VENUES and CT["owners"] == OWNERS and CT["bosses"] == BOSSES
 # every card's lines, top to bottom (words of a row joined by one space): 0 the title, 1 the Spigoteer, 2 Dregs, then per venue the owner, the patrons, the boss
 CARDS = [["CAST OF", "CHARACTERS"], ["SAL TAPLEY", "THE SPIGOTEER"], ["DREGS", "RIVAL"]]
 def lowered(labels):
-    """The middle label goes a row lower when it would stand closer than a tile to a neighbour (credits.c cr_lowered)."""
-    cx = [32 + 48 * k + (4 if len(w) & 1 else 0) for k, w in enumerate(labels)]
-    gaps = [(cx[k + 1] - 4 * len(labels[k + 1])) - (cx[k] + 4 * len(labels[k])) for k in range(2)]
-    return min(gaps) < 8
+    """The middle label goes a row lower when its ink would stand closer than a tile to a neighbour's (the generator's CT_LOW_MASK)."""
+    return bool(CT["low_mask"] >> LABELS.index(labels) & 1)
 
 
 for v in range(10):
@@ -47,19 +49,61 @@ for v in range(10):
     CARDS.append([VENUES[v], " ".join(w for k, w in enumerate(LABELS[v]) if not (k == 1 and lowered(LABELS[v])))] + ([LABELS[v][1]] if lowered(LABELS[v]) else []))
     CARDS.append([VENUES[v], BOSSES[v]])
 KINDS = ["title", "spigoteer", "dregs"] + ["owner", "patrons", "boss"] * 10
-ROLL_LINES = ["SPIGOTEER", "GAME DESIGN,", "MEDIA, AND", "STORY BY", "TONY", "AND HIS TIRELESS", "TEAM OF", "ROBOT FRIENDS", "MUSIC", "PUBLIC DOMAIN",
-              "MELODIES,", "ARRANGED", "FOR THIS GAME", "SPECIAL", "THANKS TO:", "GBDK-2020", "SDCC", "HUGEDRIVER", "RGBDS", "SAMEBOY", "PYBOY",
-              "PAN DOCS", "THE GBDEV", "COMMUNITY", "THANKS FOR", "PLAYING!"]
+ROLL_LINES = [t for t in CT["roll"] if t]
+
+
+def bg_tile_addr(t):
+    """Where BG tile id t is in VRAM (the tile data is at 0x8800 signed: ids 128-255 at 0x8800, 0-127 at 0x9000)."""
+    return 0x8000 + 16 * t if t >= 128 else 0x9000 + 16 * t
+
+
+def pool_tile(i):
+    return POOL[16 * i:16 * i + 16]
+
+
+def matched_rows(gb):
+    """[(map row, name)] for the visible map rows (top to bottom) that are one of the pre-rendered text rows: the live cells' VRAM tiles are the pool's
+    tiles, the empty ones the blank tile."""
+    out = []
+    for r in visible_rows(gb):
+        ids = tilemap_row(gb, r, 0, 20)
+        live = [c for c in range(20) if ids[c] != ids[0]]
+        if not live:
+            continue
+        for name, info in TEXT_ROWS.items():
+            if info["n"] == 0 or info["col"] != live[0] or info["col"] + info["n"] - 1 != live[-1]:
+                continue
+            if all((ids[info["col"] + i] == ids[0]) if cell == 65535 else bytes(gb.read(bg_tile_addr(ids[info["col"] + i]), 16)) == pool_tile(cell)
+                   for i, cell in enumerate(info["cells"])):
+                out.append((r, name))
+                break
+    return out
 
 
 def row_text(gb, r):
-    return "".join(GLYPH_CH.get(t) or PUNCT.get(t) or " " for t in tilemap_row(gb, r, 0, 20)).strip()
+    for rr, name in matched_rows(gb):
+        if rr == r:
+            return " ".join(i["text"] for i in TEXT_ROWS[name]["ink"])
+    return ""
 
 
 def row_cols(gb, r):
-    """(first, last) tile column of the row's glyphs, or None."""
-    cols = [c for c, t in enumerate(tilemap_row(gb, r, 0, 20)) if GLYPH_CH.get(t) or PUNCT.get(t)]
-    return (cols[0], cols[-1]) if cols else None
+    """(first, last) tile column of the text row r, or None."""
+    for rr, name in matched_rows(gb):
+        if rr == r:
+            i = TEXT_ROWS[name]
+            return (i["col"], i["col"] + i["n"] - 1)
+    return None
+
+
+def text_rows(gb):
+    return [r for r, _ in matched_rows(gb)]
+
+
+def ink_centre(name):
+    """The centre (px) of a row's ink (all its items together)."""
+    boxes = TEXT_ROWS[name]["ink"]
+    return (boxes[0]["x0"] + boxes[-1]["x1"] + 1) / 2
 
 
 def scroll(gb):
@@ -115,9 +159,7 @@ def at(gb, f, settle=10):
 
 
 def roll_rows():
-    src = (ROOT / "src" / "credits.c").read_text()
-    body = src[src.index("cr_text[] = {"):]
-    return len(re.findall(r'"[^"]*"', re.sub(r"//[^\n]*", "", body[:body.index("};")])))
+    return len(CT["roll"])
 
 
 def SCROLL_FRAC(f):
@@ -138,7 +180,7 @@ def visible_rows(gb):
 
 
 def lines_on_screen(gb):
-    return [t for t in (row_text(gb, r) for r in visible_rows(gb)) if t]
+    return [row_text(gb, r) for r in text_rows(gb)]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -188,7 +230,7 @@ def test_the_cast_cards_in_order_with_their_names_and_figures(model):
             shown = {s["tile"] for s in gb.visible_sprites()}
             most = max(most, most_per_scanline(gb))
             kind = KINDS[c]
-            rows = [r for r in range(18) if row_cols(gb, r)]
+            rows = text_rows(gb)
             if kind == "spigoteer":
                 assert shown and all(t < 56 for t in shown), "the Spigoteer's own OBJ tiles"
             elif kind == "dregs":
@@ -196,31 +238,34 @@ def test_the_cast_cards_in_order_with_their_names_and_figures(model):
             elif kind in ("spigoteer", "dregs", "owner"):
                 pass
             if kind in ("spigoteer", "dregs", "owner"):
-                art = [r for r in range(18) if any(94 <= t < 138 for t in tilemap_row(gb, r, 0, 20))]
-                top = 3 if kind == "owner" else 2                # (an owner's is under the venue's header)
-                assert art[0] == top and art == list(range(top, art[-1] + 1)) and art[-1] <= 9, ("the story portrait", art)
-                assert rows == ([1, 12] if kind == "owner" else [10, 12]), (c, rows)
-                cols = [i for r in art for i, t in enumerate(tilemap_row(gb, r, 0, 20)) if 94 <= t < 138]
+                art = [r for r in range(18) if any(93 <= t < 143 for t in tilemap_row(gb, r, 0, 20))]
+                h = 7                                            # (the portraits are 7x7 tiles)
+                top = 5 if kind == "owner" else 3                # (centred vertically: an owner's under the venue's header)
+                assert art[0] == top and art == list(range(top, top + h)), ("the story portrait", art)
+                assert rows == ([1, top + h + 2] if kind == "owner" else [top + h + 2, top + h + 4]), (c, rows)
+                cols = [i for r in art for i, t in enumerate(tilemap_row(gb, r, 0, 20)) if 93 <= t < 143]
                 assert abs((min(cols) + max(cols) + 1) * 4 - 80) <= 4, ("the portrait is centred", min(cols), max(cols))
                 if kind == "owner":
                     assert not shown, "an owner's card has no sprites"
             elif kind == "boss":
                 assert shown and shown <= {64, 66}, "the topper"
-                body = [r for r in range(18) if any(100 <= t < 160 for t in tilemap_row(gb, r, 0, 20))]
-                assert body == [6, 7] and rows == [1, 10], ("the boss's two rows, straight on the band, his name; the venue is the header", body, rows)
+                body = [r for r in range(18) if any(100 <= t < 160 for t in tilemap_row(gb, r, 0, 20)) and r not in text_rows(gb)]
+                assert body == [8, 9] and rows == [1, 12], ("the boss's two rows, straight on the band, his name; the venue is the header", body, rows)
             elif kind == "patrons":
                 assert shown == {100, 102, 106, 108, 112, 114}, shown
-                assert rows == ([1, 10, 12] if lowered(LABELS[(c - 3) // 3]) else [1, 10]), rows
-            if kind in ("spigoteer", "dregs"):                  # the sprite to the left of the two lines, the group centred
+                assert rows == ([1, 10, 12] if lowered(LABELS[(c - 3) // 3]) else [1, 11]), rows
+            if kind in ("spigoteer", "dregs"):                  # the sprite to the left of the two lines, the group centred (to the pixel)
                 xs = sorted(s["x"] for s in gb.visible_sprites())
-                l1 = row_cols(gb, 10)
-                left, right = xs[0] - 8, (l1[1] + 1) * 8 if len(CARDS[c][0]) >= len(CARDS[c][1]) else (row_cols(gb, 12)[1] + 1) * 8
-                assert abs(left + right - 160) <= 8, ("sprite and text centred as one group", left, right)
-                assert xs[-1] + 8 <= min(row_cols(gb, 10)[0], row_cols(gb, 12)[0]) * 8, "the sprite is left of the text"
-            for r in range(18):                                 # every line keeps a clear column at each edge
+                names = [n for _, n in matched_rows(gb)]
+                boxes = [b for n in names for b in TEXT_ROWS[n]["ink"]]
+                left, right = xs[0] - 8, max(b["x1"] for b in boxes) + 1
+                assert abs(left + right - 160) <= 1, ("sprite and text centred as one group", left, right)
+                assert xs[-1] + 8 <= min(b["x0"] for b in boxes), "the sprite is left of the text"
+                for n in names:
+                    assert abs(ink_centre(n) - (left + 24 + (right - left - 24) / 2)) <= 1, ("each line centred in the text block", n)
+            for r in text_rows(gb):                             # every line keeps a clear column at each edge
                 cols = row_cols(gb, r)
-                if cols:
-                    assert cols[0] >= 1 and cols[1] <= 18, (c, r, cols)
+                assert cols[0] >= 1 and cols[1] <= 18, (c, r, cols)
         assert most <= 10
         assert gb.read("story_scratch", 32)[CARD] == 32
 
@@ -232,7 +277,7 @@ def test_the_boss_is_animated_on_his_card(model):
         seen, hats = set(), set()
         for _ in range(60):
             gb.run(1)
-            seen.add(tuple(tilemap_row(gb, 6, 0, 20)) + tuple(tilemap_row(gb, 7, 0, 20)))
+            seen.add(tuple(tilemap_row(gb, 8, 0, 20)) + tuple(tilemap_row(gb, 9, 0, 20)))
             hats |= {s["tile"] for s in gb.visible_sprites()}
         assert len(seen) >= 3, "his walk and gulp poses (WALK, STOMP, GULP) cycle"
         assert hats == {64, 66}, "the topper bobs with the stomp"
@@ -240,33 +285,32 @@ def test_the_boss_is_animated_on_his_card(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_each_patron_label_is_one_line_centred_under_its_patron(model):
-    assert all(len(l) <= 6 for row in LABELS for l in row), "a label is one line of at most 6 letters (one table in src/credits.c)"
+    assert all(len(l) <= 6 for row in LABELS for l in row), "a label is one line of at most 6 letters (one table in tools/gen_credits.py)"
+    assert LABELS[2] == ["CEDAR", "ASH", "WILLOW"] and not lowered(LABELS[2]), "the lumber lodge: ASH in the middle, the three labels on one row"
     with roll_from_bonus(model, sound=False) as gb:
         for v in range(10):
             at(gb, CARD_START[4 + 3 * v] + 5)
             xs = sorted(s["x"] for s in gb.visible_sprites())
             assert len(xs) == 6
+            names = [n for _, n in matched_rows(gb) if n.startswith("PAT")]
+            boxes = {b["text"]: b for n in names for b in TEXT_ROWS[n]["ink"]}
             for k in range(3):
                 cx = xs[2 * k] + 0                              # OAM x of the pair's first column = the pair's centre (left edge + 8)
-                assert cx in (32 + 48 * k, 36 + 48 * k)
-                row = tilemap_row(gb, 12 if k == 1 and lowered(LABELS[v]) else 10, 0, 20)
-                cols = [c for c in range((cx - 24) // 8, (cx + 24) // 8) if GLYPH_CH.get(row[c]) or PUNCT.get(row[c])]
-                if k == 1 and not lowered(LABELS[v]):
-                    assert abs((cols[0] + cols[-1] + 1) * 4 - cx) <= 4, (v, k, cols, cx)
-                elif k != 1:
-                    cols = [c for c in cols if abs(c * 8 + 4 - cx) <= 24]
-                    assert abs((cols[0] + cols[-1] + 1) * 4 - cx) <= 4, (v, k, cols, cx)
-                assert (cols[0] + cols[-1] + 1) * 4 == cx or len(LABELS[v][k]) % 2 == 0 and abs((cols[0] + cols[-1] + 1) * 4 - cx) <= 4
+                assert cx == 32 + 48 * k, (v, k, cx)
+                b = boxes[LABELS[v][k]]
+                assert abs((b["x0"] + b["x1"] + 1) / 2 - cx) <= 1, ("the label is centred to the pixel under its patron", v, k, b, cx)
 
 
 def test_the_roll_text_is_centred_broken_at_words_and_spaced_by_section():
-    src = (ROOT / "src" / "credits.c").read_text()
-    body = src[src.index("cr_text[] = {"):]
-    body = body[:body.index("};")]
-    body = re.sub(r"//[^\n]*", "", body)
-    rows = re.findall(r'"([^"]*)"', body)                        # one string a tilemap ROW
-    assert [l for l in rows if l] == ROLL_LINES, "the credited content: the same words, only broken differently"
+    rows = CT["roll"]                                            # one string a tilemap ROW (tools/gen_credits.py)
+    assert [l for l in rows if l] == ROLL_LINES == ["SPIGOTEER", "GAME DESIGN,", "MEDIA, AND", "STORY BY", "TONY", "AND HIS TIRELESS", "TEAM OF", "ROBOT FRIENDS", "MUSIC",
+                                                    "PUBLIC DOMAIN", "MELODIES,", "ARRANGED", "FOR THIS GAME", "SPECIAL", "THANKS TO:", "GBDK-2020", "SDCC", "HUGEDRIVER",
+                                                    "RGBDS", "SAMEBOY", "PYBOY", "PAN DOCS", "THE GBDEV", "COMMUNITY", "THANKS FOR", "PLAYING!"], "the credited content: the same words, only broken differently"
     assert max(len(l) for l in rows) <= 16, "a clear tile at each edge"
+    for name, info in TEXT_ROWS.items():
+        if name.startswith("ROLL"):
+            b = info["ink"][0]
+            assert b["x0"] >= 8 and b["x1"] <= 151 and abs((b["x0"] + b["x1"] + 1) / 2 - 80) <= 1, ("every roll line is centred to the pixel", name, b)
 
     def gap_before(first):
         i = rows.index(first)
@@ -294,16 +338,14 @@ def test_the_roll_shows_every_line_centred_and_the_sprites_stay_within_the_limit
     with roll_from_bonus(model, sound=False) as gb:
         seen, most, shown = [], 0, set()
         at(gb, ROLL + 12, settle=80)
-        for f in range(ROLL_START, SCROLL_END + 60, 6):
+        for f in range(ROLL_START, SCROLL_END + 60, 2):          # (real speed: a row's tiles stream in a few at a frame)
             set_t(gb, f)
-            gb.run(1)
-            for r in range(32):
-                t = row_text(gb, r)
-                cols = row_cols(gb, r)
-                if t:
-                    if t not in seen:
-                        seen.append(t)
-                    assert cols[0] >= 1 and cols[1] <= 18 and abs(cols[0] - (19 - cols[1])) <= 1, (t, cols)
+            gb.run(2)
+            for r, name in matched_rows(gb):
+                t = " ".join(i["text"] for i in TEXT_ROWS[name]["ink"])
+                if t not in seen:
+                    seen.append(t)
+                assert abs(ink_centre(name) - 80) <= 1, (t, ink_centre(name))
             most = max(most, most_per_scanline(gb))
             shown |= {(s["tile"]) for s in gb.visible_sprites()}
         assert seen == ROLL_LINES, [x for x in seen if x not in ROLL_LINES] + [x for x in ROLL_LINES if x not in seen]
@@ -322,7 +364,7 @@ def test_the_roll_ends_on_thanks_for_playing_alone(model):
         assert lines_on_screen(gb) == ["THANKS FOR", "PLAYING!"]
         assert [s for s in gb.visible_sprites()] == [], "nothing else on the screen: no sprites either"
         assert state(gb) == GS_STORY
-        a = [row_cols(gb, r) for r in visible_rows(gb) if row_cols(gb, r)]
+        a = [row_cols(gb, r) for r in text_rows(gb)]
         assert len(a) == 2 and all(c[0] >= 1 and c[1] <= 18 for c in a)
 
 
@@ -675,7 +717,7 @@ def test_no_frame_during_a_card_change_shows_a_partly_built_card(model):
                 m = body_ink(im)
                 ref = refs[card].copy()
                 if KINDS[card] in ("patrons", "boss", "spigoteer", "dregs"):   # (patrons bob, the boss and the pair walk: that band is left out)
-                    band = {"patrons": (24, 74), "boss": (20, 52), "spigoteer": (58, 94), "dregs": (58, 94)}[KINDS[card]]
+                    band = {"patrons": (34, 64), "boss": (36, 66), "spigoteer": (74, 110), "dregs": (74, 110)}[KINDS[card]]
                     m[band[0]:band[1], :] = False
                     ref[band[0]:band[1], :] = False
                 if phase in (1, 2, 3):
@@ -731,8 +773,8 @@ def test_a_portrait_has_no_square_backdrop_in_the_credits(model):
             at(gb, CARD_START[c] + 5)
             im = gb.image().convert("RGB")
             band = im.getpixel((2, 100))
-            rows = [r for r in range(18) if any(94 <= t < 138 for t in tilemap_row(gb, r, 0, 20))]
-            cols = sorted({i for r in rows for i, t in enumerate(tilemap_row(gb, r, 0, 20)) if 94 <= t < 138})
+            rows = [r for r in range(18) if any(93 <= t < 143 for t in tilemap_row(gb, r, 0, 20))]
+            cols = sorted({i for r in rows for i, t in enumerate(tilemap_row(gb, r, 0, 20)) if 93 <= t < 143})
             x0, x1, y0, y1 = cols[0] * 8, cols[-1] * 8 + 7, rows[0] * 8, rows[-1] * 8 + 7
             for xy in ((x0, y0), (x1, y0), (x0 + 1, y0 + 1), (x1 - 1, y0 + 1)):
                 assert im.getpixel(xy) == band, ("the portrait's corner is the band, not a backdrop square", model, c, xy, im.getpixel(xy), band)
@@ -774,8 +816,12 @@ def test_centring_audit_of_every_card(model):
         m = ink(im)
         cols = np.where(m.any(axis=0))[0]
         rows = np.where(m.any(axis=1))[0]
+        head = 16 if KINDS[c] in ("owner", "patrons", "boss") else 0          # (a venue card: the header's 16 px are not the body)
+        mb = m[head:]
+        brows = np.where(mb.any(axis=1))[0] + head
+        mid = (head + 144) / 2                                               # the middle of the space under the header (the screen without one)
         out[names[c]] = {"x0": int(cols[0]), "x1": int(cols[-1]) + 1, "centre_x": (int(cols[0]) + int(cols[-1]) + 1) / 2 - 80,
-                         "y0": int(rows[0]), "y1": int(rows[-1]) + 1, "centre_y": (int(rows[0]) + int(rows[-1]) + 1) / 2 - 72}
+                         "y0": int(brows[0]), "y1": int(brows[-1]) + 1, "centre_y": (int(brows[0]) + int(brows[-1]) + 1) / 2 - mid}
     with roll_from_bonus(model, sound=False) as gb:             # the title card, the roll's lines, the robot band, the last words
         at(gb, CARD_START[0] + 60)
         m = ink(gb.image())
@@ -792,9 +838,8 @@ def test_centring_audit_of_every_card(model):
             a = np.asarray(im)
             for r in visible_rows(gb):
                 t = row_text(gb, r)
-                cc = row_cols(gb, r)
-                if t and cc:
-                    lines[t] = ((cc[0] + cc[1] + 1) * 4 - 80)
+                if t:
+                    lines[t] = ink_centre([n for rr, n in matched_rows(gb) if rr == r][0]) - 80
             xs = [s["x"] for s in gb.visible_sprites() if s["tile"] in (100, 102, 106, 108, 112, 114, 118, 0, 2, 4, 6) or s["tile"] < 56]
             if xs and band is None:
                 sp = gb.visible_sprites()
@@ -810,7 +855,29 @@ def test_centring_audit_of_every_card(model):
     (ROOT / "out" / f"credits_offsets.{model}.json").write_text(json.dumps({"worst_first": [k for k, _ in worst], **out}, indent=1))
     print("\nworst offenders (px from the screen centre):", [(k, v["centre_x"]) for k, v in worst[:5]])
     assert all(abs(v["centre_x"]) <= 6 for v in cards.values()), [(k, v["centre_x"]) for k, v in worst[:5]]
-    assert worst_line <= 4, "a text line is within half a tile of the centre"
+    assert worst_line <= 1, "a text line is centred to the pixel"
+    worst_y = sorted(cards.items(), key=lambda kv: -abs(kv[1].get("centre_y", 0)))
+    print("worst vertical offsets (px from the middle of the space under the header):", [(k, v.get("centre_y")) for k, v in worst_y[:5]])
+    assert all(abs(v["centre_y"]) <= 4 for v in cards.values() if "centre_y" in v), [(k, v["centre_y"]) for k, v in worst_y[:5]]
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_cast_of_characters_and_thanks_for_playing_are_centred_on_the_whole_screen(model):
+    """CAST OF CHARACTERS and the last words are centred vertically on the full screen (middle 72), not under any header."""
+    import numpy as np
+    with roll_from_bonus(model, sound=False) as gb:
+        at(gb, CARD_START[0] + 60)
+        m = ink(gb.image())
+        rows = np.where(m.any(axis=1))[0]
+        assert abs((rows[0] + rows[-1] + 1) / 2 - 72) <= 4, ("the title card", rows[0], rows[-1])
+        at(gb, ROLL + 12, settle=80)
+        for f in range(ROLL_START, SCROLL_END + 30, 2):
+            set_t(gb, f)
+            gb.run(1)
+        at(gb, SCROLL_END + 100, settle=20)
+        m = ink(gb.image())
+        rows = np.where(m.any(axis=1))[0]
+        assert abs((rows[0] + rows[-1] + 1) / 2 - 72) <= 4, ("the last screen", rows[0], rows[-1])
 
 
 def test_the_cast_card_names_and_toppers_are_the_games_own():

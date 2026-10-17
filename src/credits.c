@@ -27,7 +27,9 @@
 // 32-row ring the roll scrolls (SCY 0 during the cast; the cards use rows 0-17). BG tile ids: the portrait from STORY_PORTRAIT_BASE (44 at
 // most), the boss's tile pairs from CR_T_BOSS; OBJ ids: Dregs 56.., the topper 64.., the patrons' shift-0 poses 100-117 (the roll's robots too).
 //
-// The roll's text is one string per tilemap ROW, centred; "" is a blank row. The lines of one sentence are on consecutive rows, the items of
+// The text (every cast label, every roll line) is PRE-RENDERED at build time (tools/gen_credits.py), as the title menu's is: each row's tiles cut from a
+// pixel row on which its ink is centred to the pixel (an odd-length line sits 4 px right inside one more tile), streamed into VRAM as the row is
+// needed (credits_text.c). The roll's text is one row per tilemap ROW (the list is in the generator); "" is a blank row. The lines of one sentence are on consecutive rows, the items of
 // a list have two blank rows between them, sections more. Every line is at most 18 tiles (a clear column at each edge). CR_BAND is the row
 // where the sprites' band starts (4 rows: the three robots stand under the "robot friends" line, who bob in turn, and the Spigoteer, facing
 // them, raises a hand now and then). B / START skip (a fade or a build is cut short and the press seen). With the sound on the roll ends when the music
@@ -42,6 +44,7 @@
 #include "music.h"
 #include "palettes.h"
 #include "story.h"
+#include "credits_text.h"
 
 extern uint8_t overlay_on, joy, story_phase;
 
@@ -52,6 +55,9 @@ extern uint8_t overlay_on, joy, story_phase;
 #define CR_T_D        56      // Dregs's 8 OBJ tiles
 #define CR_T_HAT      64      // the topper (8x16)
 #define CR_T_BOSS    100      // BG ids: the boss's tile pairs (top, bottom; 30 at most, 60 tiles)
+#define CR_RING_T     93      // BG ids of the roll's text: a ring of CT_RING tiles (the roll shows no portrait or boss)
+#define CR_HDR_T     160      // the venue header's tiles (17 at most), kept through its venue's three cards
+#define CR_TXT_T     178      // a card's text tiles, up to 255
 #define CR_BT_X      120      // the Spigoteer's left edge in the roll; the robots stand at 24, 56, 88
 #define OBJPAL_ROBOT   5
 #define OBJPAL_CAST    3      // Dregs's, the topper's
@@ -74,7 +80,7 @@ struct cr_state {
     uint8_t phase;            // 1 clearing, 2 loading, 3 rows, 4 built, 5 shown (a card)
     uint8_t from_story;       // 1: story_end follows
     uint16_t f;               // the position in the tune's frames (cr_pos)
-    uint8_t step;             // the unit of the card's stage
+    uint8_t pad;              // (keeps the fields below where the tests read them)
     uint32_t tmask, amask;    // rows (bit y) the last card wrote: their tiles, and their CGB attributes
     uint16_t T;               // the tune's frames
     uint16_t e_title, card_len, roll, f1;   // the timeline's boundaries (frames): the title card ends, a card's length, the roll starts, its scroll ends
@@ -82,6 +88,11 @@ struct cr_state {
     uint8_t bn, bp, pose;     // the boss card: his columns, his tile pairs, the pose drawn
     uint8_t ft;               // the frame (sys_time) of the build's last tick
     uint8_t ls;               // sys_time at the last update (the frames on the screen, t, are counted from it: a build or a fade is several)
+    uint8_t tn;               // the card's next text tile id
+    uint8_t rt;               // the roll's ring: the next tile
+    uint8_t ld;               // the roll row being built: its cells done
+    uint8_t lr;               // ... which row (255: none)
+    uint8_t ky;               // the card's key row (its content block is centred vertically from it)
     uint8_t skipq;            // B / START came down during a build
 };
 #define CR ((struct cr_state *)story_scratch)
@@ -93,32 +104,11 @@ typedef char cr_fits[(sizeof(struct cr_state) <= 68 && 200 + sizeof(portrait_t) 
 
 #define CR_F0   (CR->roll + 40)
 
-// ---- the cast: names from the game's own data (boss names and venues: src/rush.c; the people: the story's speakers; the patrons have none) ----
-static const char *const cr_venue[10] = {
-    "THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
-    "THE JUNGLE ZOO", "THE SPACE LOUNGE",
-};
-static const char *const cr_bname[10] = {         // the boss's name, in venue order (Boss Rush's)
-    "BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP",
-};
+// ---- the cast: the names are in tools/gen_credits.py (pre-rendered); the owners' portraits are the story's speakers' ----
 static const uint8_t cr_owner[10] = { 2, 3, 4, 5, 6, 7, 11, 8, 10, 9 };   // the venue owner's speaker id (tools/gen_story.py SPEAKERS): Sadie, Coach, June, Colby, Aurora, Manager-Bot, Granny, Hana, Kiki, Zizz
 static const uint8_t cr_hat_dx[10] = { 16, 8, 12, 9, 9, 8, 16, 16, 6, 12 };   // boss.c rows[]: the topper's x from his left edge
 static const uint8_t cr_walk[4] = { BT_WALK1, BT_IDLE, BT_WALK2, BT_IDLE };   // the pair's walk cycle (po.c walk_cycle's)
 static const uint8_t cr_seq[8] = { 0, 1, 0, 2, 0, 1, 0, 2 };      // the boss's poses (WALK, STOMP, GULP: boss.h BP_*), 16 frames each
-// The patrons have no names in the game: one short label each (at most 6 letters), three a venue (art order A, B, C). Change a name here.
-static const char *const cr_pat[10][3] = {
-    { "DUSTY", "ROSIE", "HANK" },        // the saloon: the cowboy, the cowgirl, the ranch hand
-    { "PETE", "SERENA", "NORM" },        // the stadium: the cap fan, the band fan, the ref
-    { "CEDAR", "WILLOW", "ASH" },        // the lumber lodge (owner 2026-10-17: trees)
-    { "PIERRE", "BRIE", "BASIL" },       // the bistro
-    { "IGGY", "POLLY", "MOOSE" },       // the igloo: the parka man, the parka girl, the big parka
-    { "BOXY", "VOLTA", "BLIP" },         // the robot factory
-    { "SPIKE", "BANDIT", "SLICK" },      // the chrome cow
-    { "KAGE", "SAKURA", "RONIN" },       // the teahouse
-    { "COCO", "BAMBOO", "MUDDY" },       // the jungle zoo: the monkey, the panda, the hippo
-    { "ZORP", "XENO", "GLORP" },         // the space lounge: the green one with eye stalks, the grey one, the squid
-};
-
 uint8_t boss_big_tex_cast(uint8_t cmd, uint8_t a, uint8_t b, uint8_t *dst) BANKED;      // each boss file's cast accessor (src/boss_load.h BOSS_CAST_FN)
 uint8_t boss_mascot_cast(uint8_t cmd, uint8_t a, uint8_t b, uint8_t *dst) BANKED;
 uint8_t boss_sasquatch_cast(uint8_t cmd, uint8_t a, uint8_t b, uint8_t *dst) BANKED;
@@ -147,93 +137,46 @@ static uint8_t cr_boss(uint8_t v, uint8_t cmd, uint8_t a, uint8_t b, uint8_t *ds
     return boss_mothership_cast(cmd, a, b, dst);
 }
 
-static uint8_t cr_len(const char *s) { uint8_t n = 0; while (s[n]) n++; return n; }
-
-// patron k's centre x (px) on a venue card: the columns 48 px apart, 32 / 80 / 128; a label of an odd number of tiles centres on a tile boundary
-// + 4 px, so its sprite moves 4 px with it (the sprite is centred on the label)
-static uint8_t cr_pat_cx(uint8_t v, uint8_t k) {
-    return 32 + 48 * k + ((cr_len(cr_pat[v][k]) & 1) ? 4 : 0);
-}
-
-// a venue's middle label goes a row lower (row 12; the other two on row 10) when it would stand closer than a tile to either neighbour
-static uint8_t cr_lowered(uint8_t v) {
-    uint8_t k, n, g[2];
-    for (k = 0; k < 2; k++) {
-        n = cr_len(cr_pat[v][k]);
-        g[k] = (cr_pat_cx(v, k + 1) - 4 * cr_len(cr_pat[v][k + 1])) - (cr_pat_cx(v, k) + 4 * n);
-    }
-    return g[0] < 8 || g[1] < 8;
-}
-
-// ---- the roll. 20 columns a row, one string a ROW. Owner's lines (2026-10-17): "Game Design, Media, and Story by Tony and his tireless team of
-// robot friends"; "no credits for public domain tunes. Public Domain."; "Special thanks to:" the platforms, frameworks and projects used.
-// A sentence's lines are on consecutive rows; a list's items have two blank rows between them; a section gap is four or five.
-static const char *const cr_text[] = {
-    "SPIGOTEER",
-    "", "", "",
-    "GAME DESIGN,", "MEDIA, AND", "STORY BY", "TONY", "AND HIS TIRELESS", "TEAM OF", "ROBOT FRIENDS",   // one sentence
-    "", "", "",
-    "", "", "", "",                                 // the sprites' band (CR_BAND: 4 rows)
-    "", "", "", "",
-    "MUSIC",
-    "", "", "",
-    "PUBLIC DOMAIN", "MELODIES,", "ARRANGED", "FOR THIS GAME",                           // one sentence
-    "", "", "", "", "",
-    "SPECIAL", "THANKS TO:",
-    "", "", "",
-    "GBDK-2020", "", "",                            // the list: an item, two blank rows
-    "SDCC", "", "",
-    "HUGEDRIVER", "", "",
-    "RGBDS", "", "",
-    "SAMEBOY", "", "",
-    "PYBOY", "", "",
-    "PAN DOCS", "", "",
-    "THE GBDEV", "COMMUNITY",                       // (one item, two lines)
-    "", "", "", "", "", "", "", "", "", "", "", "",   // the screen empties before the last words
-    "THANKS FOR", "PLAYING!",
-};
-#define CR_N (sizeof(cr_text) / sizeof(cr_text[0]))
+#define CR_N CT_ROLL_N
 #define CR_LAST_T ((CR_FIRST + (CR_N - 2)) * 8 + 8 - 72)   // the scroll at which the last two rows are in the middle of the screen
-
-static uint8_t cr_glyph(char c) {
-    if ((uint8_t)(c - 'A') < 26) return glyph_az[(uint8_t)(c - 'A')];
-    switch (c) {
-    case '.': return ST_GLYPH_PERIOD; case ',': return ST_GLYPH_COMMA; case '!': return ST_GLYPH_EXCL;
-    case '?': return ST_GLYPH_QUEST; case '\'': return ST_GLYPH_APOS; case '-': return ST_GLYPH_HYPHEN;
-    case ':': return ST_GLYPH_COLON;
-    }
-    return GLYPH_FAST(c, glyph_for(c));
-}
 
 static void cr_blank(void) { uint8_t i; for (i = 0; i < 20; i++) CR->row[i] = TILE_HUD_BLANK; }
 
-static void cr_cell(const char *s, uint8_t c0, uint8_t w) {   // s centred in the columns c0 .. c0 + w - 1 of CR->row
-    uint8_t i, n = cr_len(s), x = c0 + ((uint8_t)(w - n) >> 1);
-    for (i = 0; i < n; i++) CR->row[x + i] = cr_glyph(s[i]);
-}
-
-static void cr_place(const char *s, uint8_t cx) {   // s centred on x = cx px (to the tile), kept a tile clear of each edge
-    uint8_t i, n = cr_len(s);
-    int16_t x = (int16_t)cx - 4 * n;
-    if (x < 8) x = 8;
-    if (x > 152 - 8 * n) x = 152 - 8 * n;
-    for (i = 0; i < n; i++) CR->row[(x >> 3) + i] = cr_glyph(s[i]);
-}
-
+static void cr_pp(void);
 static void cr_put(uint8_t y) {                   // a row of the map (LCD off: the project's own fast copy; on: the library's, which waits for the picture)
     if (LCDC_REG & LCDCF_ON) set_bkg_tiles(0, y, 20, 1, CR->row);
     else vram_put(0, y, CR->row, 20);
 }
 
-// the row for world row w (blank before the roll and after it), centred, into CR->row
-static void cr_build(uint8_t w) {
-    cr_blank();
-    if (w >= CR_FIRST && (uint8_t)(w - CR_FIRST) < CR_N) cr_cell(cr_text[w - CR_FIRST], 0, 20);
+// the map row for world row w (blank before the roll and after it) into CR->row, its pre-rendered tiles written to the ring (at most `max` a call: one
+// is a twentieth of a frame with the LCD on); 1: the row is complete
+static uint8_t cr_roll_step(uint8_t w, uint8_t max) {
+    uint8_t r, n, i, id;
+    uint16_t *cell = (uint16_t *)(CR_BUF + 2);
+    if (CR->lr != w) {
+        CR->lr = w; CR->ld = 0;
+        cr_blank();
+        r = w >= CR_FIRST && (uint8_t)(w - CR_FIRST) < CR_N ? ct_roll[w - CR_FIRST] : 255;
+        if (r == 255) CR_BUF[1] = 0;
+        else credits_row_get(r, CR_BUF);
+    }
+    n = CR_BUF[1];
+    while (CR->ld < n && max) {
+        i = CR->ld++;
+        if (cell[i] == 0xFFFF) continue;
+        id = CR_RING_T + CR->rt;
+        if (++CR->rt == CT_RING) CR->rt = 0;
+        credits_tile_put(cell[i], id);
+        CR->row[CR_BUF[0] + i] = id;
+        max--;
+    }
+    return CR->ld >= n;
 }
 
-static void cr_rows(uint8_t y, uint8_t n) {       // n rows from row y of the roll's rows (blank where it is not), ring slot y & 31
+static void cr_rows(uint8_t y, uint8_t n) {       // n rows from row y of the roll's rows, ring slot y & 31 (the build: the tune ticked between tiles)
+    uint8_t d;
     for (; n; n--, y++) {
-        cr_build(y);
+        do { d = cr_roll_step(y, 1); cr_pp(); } while (!d);
         cr_put(y & 31);
     }
 }
@@ -413,72 +356,82 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
         return 0;
     } else if (kd == CK_PATRONS) {
         if (i > 18) return 1;
-        if (i < 18) load_patron_pose0(v, CR_T_P + 6 * (i / 6), i / 6, i % 6);      // (a tile at a time: with the LCD on a byte takes two scanlines)
-        else if (is_cgb) for (k = 0; k < 3; k++) { patron_pal_get(v, k, p); p[0] = 0; cr_pal(1, OBJPAL_ROBOT + k, p); }
+        if (i < 18) load_patron_pose0(v, CR_T_P + 6 * (i / 6), ct_slot[v][i / 6], i % 6);      // (a tile at a time: with the LCD on a byte takes two scanlines; the variant in slot k)
+        else if (is_cgb) for (k = 0; k < 3; k++) { patron_pal_get(v, ct_slot[v][k], p); p[0] = 0; cr_pal(1, OBJPAL_ROBOT + k, p); }
         return 0;
     }
     return 1;
 }
 
-static void cr_pose_rows(uint8_t v, uint8_t pose, uint8_t q) {   // the boss's two rows in a pose (rows 6, 7); q: queued for the next VBlank (a card that is up), else written now
+static void cr_pose_rows(uint8_t v, uint8_t pose, uint8_t q) {   // the boss's two rows in a pose; q: queued for the next VBlank (a card that is up), else written now
     uint8_t r, k, L = (20 - CR->bn) >> 1, *d;
     for (r = 0; r < 2; r++) {
         d = q ? (uint8_t *)CR_BUF + 20 * r : CR->row;
         for (k = 0; k < 20; k++) d[k] = TILE_HUD_BLANK;
         for (k = 0; k < CR->bn; k++) d[L + k] = CR_T_BOSS + 2 * cr_boss(v, 1, pose, k, 0) + r;
-        if (q) vq_add(0, d, 0, 6 + r, 20);
-        else cr_put_card(6 + r);
+        if (q) vq_add(0, d, 0, CR->ky + r, 20);
+        else cr_put_card(CR->ky + r);
     }
     CR->pose = pose;
 }
 
-static void cr_header(uint8_t v, uint8_t step) {   // the venue's name in the top strip (the text on row 1, the cells of both rows BG palette 6), or none (v 255); a row a step
-    uint8_t k;
+// a pre-rendered text row r at map row y: its tiles to ids from *id on (one a call of the writer, the tune ticked between), a blank cell where it is empty
+static void cr_trow(uint8_t r, uint8_t y, uint8_t *id) {
+    uint8_t n, i, c, *d = CR_BUF;
+    uint16_t *cell = (uint16_t *)(d + 2);
+    cr_blank();
+    n = credits_row_get(r, d);
+    c = d[0];
+    for (i = 0; i < n; i++) {
+        if (cell[i] == 0xFFFF) continue;
+        credits_tile_put(cell[i], *id);
+        CR->row[c + i] = (*id)++;
+        cr_pp();
+    }
+    cr_put_card(y);
+}
+
+static void cr_header(uint8_t v, uint8_t step) {   // the venue's name in the top strip (its text on row 1, the cells of both rows BG palette 6), or none (v 255); a row a step
+    uint8_t k, id = CR_HDR_T;
     if (!step) {
-        cr_blank();
-        if (v < 10) cr_cell(cr_venue[v], 0, 20);
-        cr_put(1);
+        if (v < 10) { cr_trow(CT_HDR + v, 1, &id); CR->tmask &= ~2UL; }   // (the header is not the card's: it stays through the venue)
+        else { cr_blank(); cr_put(1); }
     } else if (is_cgb) {
         for (k = 0; k < 20; k++) CR->row[k] = v < 10 ? BGPAL_HDR : BGPAL_HUD;
         VBK_REG = VBK_BANK_1; cr_put(step - 1); VBK_REG = VBK_BANK_0;
     }
 }
 
-// the line of text i of the Spigoteer's and Dregs's pairs (13 and 5 tiles wide: the text block's width, w)
-static const char *cr_pair(uint8_t kd, uint8_t i) {
-    if (kd == CK_SPIGOTEER) return i ? "THE SPIGOTEER" : "SAL TAPLEY";
-    return i ? "RIVAL" : "DREGS";
+// The cards' content is centred vertically in the space under the header (rows 2-17, or the whole screen without one): the key row is where the block
+// starts. Heights (px), design, from the ink: the pair (portrait h rows, 2 blank rows, the text rows with the sprite beside them) 8 h + 40; an owner
+// (portrait, 2 blank rows, the name) 8 h + 24; the patrons (the sprites, a row of air, the label row, or two) 32 (48); the boss (the topper, the body,
+// a blank row, his name) 48.
+static uint8_t cr_key(uint8_t kd, uint8_t v, uint8_t h) {
+    switch (kd) {
+    case CK_TITLE: return 8;                       // (rows 8 and 10, the screen scrolled 4 px: the block's ink centred on the screen's middle)
+    case CK_SPIGOTEER: case CK_DREGS: return (uint8_t)(112 - 8 * h) >> 4;   // the portrait's first row
+    case CK_OWNER: return (uint8_t)(20 + ((104 - 8 * h) >> 1)) >> 3;
+    case CK_PATRONS: return (CT_LOW_MASK >> v) & 1 ? 10 : 11;              // the label row
+    }
+    return 8;                                      // the boss's body rows
 }
-#define CR_PAIR_W(kd)  ((kd) == CK_SPIGOTEER ? 13 : 5)
-#define CR_PAIR_X(kd)  (68 - 4 * CR_PAIR_W(kd))    // the sprite's left edge (16 px wide, a tile before the text: the group centred on the screen)
 
 static uint8_t cr_show_unit(uint8_t c, uint8_t i) {   // unit i of card c's rows; 1: there are no more
-    uint8_t k, v = 0, L, n, m, h, kd = cr_kind(c, &v), x;
+    uint8_t k, v = 0, L, n, h, kd = cr_kind(c, &v), x, id = CR->tn;
     portrait_t *pt = CR_PT;
-    const char *s;
+    CR->ky = cr_key(kd, v, pt->h);
     if (kd == CK_TITLE) {
         if (i >= 2) return 1;
-        cr_blank();
-        cr_cell(i ? "CHARACTERS" : "CAST OF", 0, 20);
-        cr_put_card(7 + 2 * i);
-    } else if (kd <= CK_OWNER) {                   // a person: the portrait (at the top, centred), under it the owner's name, or the pair: sprite and two lines
+        cr_trow(CT_TITLE + i, 8 + 2 * i, &id);
+    } else if (kd <= CK_OWNER) {                   // a person: the portrait (centred), under it the owner's name, or the pair: sprite and two lines
         h = pt->h;
-        x = kd == CK_OWNER ? 3 : 2;                // the portrait's first row (an owner's is under the venue's header)
+        x = CR->ky;                                // the portrait's first row
         L = (20 - pt->w) >> 1;
         n = kd == CK_OWNER ? 1 : 2;                // the text units
         if (i < n) {
-            cr_blank();
-            if (kd == CK_OWNER) {
-                story_name_get(cr_owner[v], CR_BUF);
-                cr_place((const char *)CR_BUF, 80);
-                cr_put_card(12);
-            } else {                               // each line centred in the text block (to the tile), the block a tile right of the sprite
-                s = cr_pair(kd, i);
-                m = cr_len(s);
-                L = (uint8_t)(CR_PAIR_X(kd) + 24) >> 3;
-                for (k = 0; k < m; k++) CR->row[L + ((CR_PAIR_W(kd) - m) >> 1) + k] = cr_glyph(s[k]);
-                cr_put_card(10 + 2 * i);
-            }
+            if (kd == CK_OWNER) cr_trow(CT_OWNER + v, x + h + 2, &id);
+            else cr_trow((kd == CK_SPIGOTEER ? CT_SAL : CT_DREGS) + i, x + h + 2 + 2 * i, &id);
+            CR->tn = id;
             return 0;
         }
         i -= n;
@@ -494,50 +447,43 @@ static uint8_t cr_show_unit(uint8_t c, uint8_t i) {   // unit i of card c's rows
         for (k = 0; k < pt->w; k++) CR->row[L + k] = BGPAL_PATRON + pt->attr[i * pt->w + k];
         VBK_REG = VBK_BANK_1; cr_put(x + i); VBK_REG = VBK_BANK_0;
         cr_amark(x + i);
-    } else if (kd == CK_BOSS) {                    // the body (rows 6, 7) with the topper above, his name (row 10); the venue is in the header
+    } else if (kd == CK_BOSS) {                    // the body (two rows) with the topper above, his name 4 rows under it; the venue is in the header
         n = CR->bn;
         L = (20 - n) >> 1;
-        if (i < 1) { cr_blank(); cr_place(cr_bname[v], 80); cr_put_card(10); }
+        if (i < 1) cr_trow(CT_BOSS + v, CR->ky + 4, &id);
         else if (i < 3) { if (i == 1) cr_pose_rows(v, 0, 0); }
         else {
             if (!is_cgb || i >= 5) return 1;
             for (k = 0; k < 20; k++) CR->row[k] = BGPAL_HUD;
             for (k = 0; k < n; k++) CR->row[L + k] = BGPAL_BOSS;
-            VBK_REG = VBK_BANK_1; cr_put(6 + i - 3); VBK_REG = VBK_BANK_0;
-            cr_amark(6 + i - 3);
+            VBK_REG = VBK_BANK_1; cr_put(CR->ky + i - 3); VBK_REG = VBK_BANK_0;
+            cr_amark(CR->ky + i - 3);
         }
-    } else {                                       // the patrons (the venue is in the header): the labels
-        if (i >= 1 + cr_lowered(v)) return 1;
-        cr_blank();
-        for (k = 0; k < 3; k++) {                  // each label centred under its sprite (to the half tile); the middle one lower if it is crowded
-            if ((k == 1 && cr_lowered(v)) != (i == 1)) continue;
-            s = cr_pat[v][k];
-            n = cr_len(s);
-            L = (uint8_t)(cr_pat_cx(v, k) - 4 * n) >> 3;
-            for (h = 0; h < n; h++) CR->row[L + h] = cr_glyph(s[h]);
-        }
-        cr_put_card(10 + 2 * i);
+    } else {                                       // the patrons (the venue is in the header): the labels, the middle one a row lower if it is crowded
+        if (i == 0) cr_trow(CT_PATA + v, CR->ky, &id);
+        else if (i == 1 && (CT_LOW_MASK >> v) & 1) cr_trow(CT_PATB + v, CR->ky + 2, &id);
+        else return 1;
     }
+    CR->tn = id;
     return 0;
 }
 
 static void cr_card_sprites(uint8_t c) {          // every frame a card is shown
-    uint8_t t = (uint8_t)CR->t, k, n, bob, v = 0, kd = cr_kind(c, &v), pose;
-    if (kd == CK_SPIGOTEER || kd == CK_DREGS) {    // his walk cycle (walk, idle, the other foot, idle: 16 frames each), at the text's left
+    uint8_t t = (uint8_t)CR->t, k, bob, v = 0, kd = cr_kind(c, &v), pose, y;
+    if (kd == CK_SPIGOTEER || kd == CK_DREGS) {    // his walk cycle (walk, idle, the other foot, idle: 16 frames each), at the text's left, level with it
         pose = cr_walk[(t >> 4) & 3];
-        if (kd == CK_SPIGOTEER) cr_fig(0, 92, CR_PAIR_X(kd), OBJ_BARTENDER + pose * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
-        else cr_fig(0, 92, CR_PAIR_X(kd), CR_T_D + pose * 8, is_cgb ? OBJPAL_CAST : 0, 0);
-    }
-    else if (kd == CK_BOSS) {                      // his walk and gulp, the topper bobbing with the stomp
+        y = 8 * (CR->ky + CR_PT->h + 2) + 12;      // (OAM y: the sprite's top 4 px above the first text row's, so that it stands level with the two lines)
+        if (kd == CK_SPIGOTEER) cr_fig(0, y, CT_SAL_X, OBJ_BARTENDER + pose * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
+        else cr_fig(0, y, CT_DREGS_X, CR_T_D + pose * 8, is_cgb ? OBJPAL_CAST : 0, 0);
+    } else if (kd == CK_BOSS) {                    // his walk and gulp, the topper bobbing with the stomp
         pose = cr_seq[(t >> 4) & 7];
         if (pose != CR->pose) cr_pose_rows(v, pose, 1);
-        cr_oam(0, 5 * 8 + 16, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (pose == 1 ? 2 : 0), is_cgb ? OBJPAL_CAST : S_PALETTE);
+        cr_oam(0, 8 * CR->ky + 8, ((20 - CR->bn) >> 1) * 8 + cr_hat_dx[v] + 8, CR_T_HAT + (pose == 1 ? 2 : 0), is_cgb ? OBJPAL_CAST : S_PALETTE);
     } else if (kd == CK_PATRONS) {
-        for (k = 0; k < 3; k++) {                 // the three patrons, bobbing in turn
+        for (k = 0; k < 3; k++) {                 // the three patrons, bobbing in turn, centred on 32, 80, 128
             bob = (((t >> 4) + k) & 3) ? 0 : 2;
-            n = cr_pat_cx(v, k);                  // (the pair's left edge + 8: the OAM x of its first column)
-            cr_oam(2 * k, 72 - bob, n, CR_T_P + 6 * k, is_cgb ? OBJPAL_ROBOT + k : 0);
-            cr_oam(2 * k + 1, 72 - bob, n + 8, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
+            cr_oam(2 * k, 8 * CR->ky - 8 - bob, 32 + 48 * k, CR_T_P + 6 * k, is_cgb ? OBJPAL_ROBOT + k : 0);
+            cr_oam(2 * k + 1, 8 * CR->ky - 8 - bob, 40 + 48 * k, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
         }
     }
 }
@@ -559,6 +505,8 @@ static uint8_t cr_hdr(uint8_t a, uint8_t b) {     // 1: the header (a venue's na
 static void cr_make(uint8_t c, uint8_t hd, uint8_t old) {   // card c's rows and tiles (hd: its header is new; old: the card before)
     uint8_t i, v = 0;
     cr_begin();
+    CR->tn = CR_TXT_T;
+    SCY_REG = c ? 0 : 4;                            // (the title card: two lines a row apart, 4 px up to the middle; the screen is white now)
     while (!CR->skipq && !cr_clear_unit()) cr_pp();
     if (hd && !CR->skipq) {
         if (cr_kind(c, &v) < CK_OWNER) v = 255;
@@ -572,6 +520,7 @@ static void cr_make(uint8_t c, uint8_t hd, uint8_t old) {   // card c's rows and
 void credits_enter(uint8_t from_story) BANKED {
     uint8_t y, *o = CR_PAL;
     DISPLAY_OFF;
+    CR->lr = 255;
     music_play(TUNE_CREDITS);                         // (BONUS' or the story's tune stops here; copied while the screen is built: music_load_now below finishes it)
     music_pump();
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
@@ -601,7 +550,7 @@ void credits_enter(uint8_t from_story) BANKED {
     CR->roll = CR->e_title + (CR_CARDS - 1) * CR->card_len;
     CR->f1 = cr_share(322);
     CR->k = (uint8_t)((CR_LAST_T * 32 + (CR->f1 - CR_F0) / 2) / (CR->f1 - CR_F0));
-    CR->scroll = 0; CR->card = 255; CR->next = CR_AHEAD + 1; CR->t = 0; CR->ls = (uint8_t)sys_time; CR->phase = 0; CR->from_story = from_story; CR->f = 0; CR->step = 0; CR->tmask = 0; CR->amask = 0;
+    CR->scroll = 0; CR->card = 255; CR->next = CR_AHEAD + 1; CR->t = 0; CR->ls = (uint8_t)sys_time; CR->phase = 0; CR->from_story = from_story; CR->f = 0; CR->tmask = 0; CR->amask = 0;
     SCX_REG = 0; SCY_REG = 0;
     story_phase = STORY_PHASE_CREDITS;
     game_state = GS_STORY;
@@ -665,7 +614,8 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         cr_begin();
         while (!cr_clear_unit()) cr_pp();                  // (the last card's rows and CGB attributes: a boss's palette cells would tint the text)
         if (CR->card >= 3 && CR->card < CR_CARDS) for (c = 0; c < 3; c++) { cr_header(255, c); cr_pp(); }
-        for (c = 0; c < 32; c++) { cr_rows(c, 1); cr_pp(); }
+        CR->rt = 0; CR->lr = 255;
+        cr_rows(0, CR_AHEAD + 1);                          // (the rest as the scroll comes: ring slots 21-31 are blank)
         for (c = 0; c < 18; c++) { load_patron_pose0(5, CR_T_P + 6 * (c / 6), c / 6, c % 6); cr_pp(); }
         cr_sync();
         CR->card = 201;
@@ -682,9 +632,10 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         CR->scroll = p;
         top = (uint8_t)(CR->scroll >> 3);
         if (CR->next <= (uint8_t)(top + CR_AHEAD)) {   // a row has come within reach: its ring slot is off the screen
-            cr_build(CR->next);
-            vq_add(0, CR->row, 0, CR->next & 31, 20);
-            CR->next++;
+            if (cr_roll_step(CR->next, 3)) {           // (its tiles three a frame, then the row at the next VBlank)
+                vq_add(0, CR->row, 0, CR->next & 31, 20);
+                CR->next++;
+            }
         }
         SCY_REG = (uint8_t)CR->scroll;
     }
