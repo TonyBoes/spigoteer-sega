@@ -223,7 +223,7 @@ void ou_enter(void) BANKED {
     uint8_t k, r, *m = (uint8_t *)0x9800;
     set_bkg_data(OU_BG, OU_BG_TILES, ou_bg_tiles);
     set_sprite_data(OU_OBJ, OU_OBJ_TILES, ou_obj_tiles);
-    say_bang = OU_BG + OUB_BANG;                 // mg_say's '!' ("ORDER UP!"); mg_leave clears it
+    say_bang = (uint8_t)(OU_BG + OUB_BANG);                 // mg_say's '!' ("ORDER UP!"); mg_leave clears it
     for (r = 0; r < 5; r++)                      // the wall under the bubble and the pips (LCD off: VRAM readable)
         for (k = 0; k < 4; k++) S.wall[r][k] = S.bub[r][k] = m[(BUB_ROW + r) * 32 + BUB_COL + k];
     for (k = 0; k < 9; k++) S.pwall[k] = m[PIP_ROW * 32 + PIP_COL + k];
@@ -290,7 +290,7 @@ static void poses(void) {
     if (st == OS_ORDERUP || (st == OS_OVER && win)) {   // the waiter dances: his three dance frames, a show beat each
         w = venue.show_tile[1 + (uint8_t)(S.t / DANCER_BEAT) % 3];
         obj2(OAM_WAITER, WAITER_X, WAITER_Y, OBJ_DANCER + w[0], is_cgb ? PAL_WAITER : S_PALETTE);
-        obj2(OAM_WAITER + 2, WAITER_X, WAITER_Y + 16, OBJ_DANCER + w[2], is_cgb ? PAL_WAITER : S_PALETTE);
+        obj2(OAM_WAITER + 2, WAITER_X, (uint8_t)(WAITER_Y + 16), OBJ_DANCER + w[2], is_cgb ? PAL_WAITER : S_PALETTE);
         shadow_OAM[OAM_WAITER + 1].tile = OBJ_DANCER + w[1];
         shadow_OAM[OAM_WAITER + 3].tile = OBJ_DANCER + w[3];
     }

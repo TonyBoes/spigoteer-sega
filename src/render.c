@@ -252,7 +252,7 @@ static void stamp_blank(uint8_t s) {
     c = (d & ~DRAW_BACK) >> 3;
     if (c + 3 <= cz_x0 || c >= cz_x1) return;
     cz_pal = cz_palb = BGPAL_PATRON + (patron_variant[s] & 3);   // (colour 0 only: the wall in every patron palette)
-    put_col(c, PATRON_BLANK); put_col(c + 1, PATRON_BLANK); put_col(c + 2, PATRON_BLANK);
+    put_col(c, (uint8_t)PATRON_BLANK); put_col(c + 1, (uint8_t)PATRON_BLANK); put_col(c + 2, (uint8_t)PATRON_BLANK);
 }
 
 static uint8_t cz_attrs;                  // compose the attributes too (CGB, and they changed)
@@ -312,7 +312,7 @@ static void stamp_fight(uint8_t b) {
     if (b != BOSS_MARK_BAR) return;
     cz_pal = cz_palb = boss_pal;
     put_col(BOSS_MARK_COL, BOSS_MARK_BG);
-    put_col(BOSS_MARK_COL + 1, BOSS_MARK_BG + 2);
+    put_col(BOSS_MARK_COL + 1, (uint8_t)(BOSS_MARK_BG + 2));
 }
 
 static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1-1 of bar b

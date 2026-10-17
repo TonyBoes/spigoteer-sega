@@ -158,10 +158,10 @@ static void hide(uint8_t i, uint8_t n) { while (n--) shadow_OAM[i++].y = 0; }
 static void draw_bt(uint8_t o, uint8_t x, uint8_t f, uint8_t left) {     // OAM o..o+3
     uint8_t base = f * BARTENDER_TILES_PER_FRAME, xa = x + 8, xb = x + 16, fl = 0;
     if (left) { xa = x + 16; xb = x + 8; fl = S_FLIPX; }
-    spr(o, xa, BT_OAM_Y,      base,     fl);
-    spr(o + 1, xb, BT_OAM_Y,      base + 2, fl);
-    spr(o + 2, xa, BT_OAM_Y + 16, base + 4, fl);
-    spr(o + 3, xb, BT_OAM_Y + 16, base + 6, fl);
+    spr(o, xa, (uint8_t)BT_OAM_Y,      base,     fl);
+    spr(o + 1, xb, (uint8_t)BT_OAM_Y,      base + 2, fl);
+    spr(o + 2, xa, (uint8_t)(BT_OAM_Y + 16), base + 4, fl);
+    spr(o + 3, xb, (uint8_t)(BT_OAM_Y + 16), base + 6, fl);
 }
 
 static void load_palettes(void) {
@@ -427,7 +427,7 @@ static void draw_tips(void) {
     // the tray at his waist: clean (palette 0) or dirty (the red palette, OBP1 on DMG)
     f = tray_dirty ? TT_TRAY_DIRTY : TT_TRAY;
     pal = tray_dirty ? (is_cgb ? OPAL_RED : S_PALETTE) : 0;
-    for (k = 0; k < 4; k++) spr(OAM_TRAY + k, tray_x + 8 * k, TRAY_OAM_Y, TTL(f + k), pal);   // (x - 8 + 8 on the OAM's offset)
+    for (k = 0; k < 4; k++) spr(OAM_TRAY + k, tray_x + 8 * k, (uint8_t)TRAY_OAM_Y, TTL(f + k), pal);   // (x - 8 + 8 on the OAM's offset)
     for (i = 0; i < TS_ITEMS; i++, o++) {
         switch (ts_type[i]) {
         case TS_COIN:   spr(o, ts_x[i] + 8, (uint8_t)(ts_y[i] >> 4) + 8, OBJ_COIN + ((ts_v[i] + (bonus_timer >> 3)) & 2), is_cgb ? OBJPAL_COIN : 0); break;
@@ -490,7 +490,7 @@ static uint8_t tips_update(void) {
 void bonus2_enter(void) BANKED {
     load_palettes();
     set_bkg_data(B2_BG, B2_BG_TILES, b2_bg_tiles);
-    say_bang = B2_BG + B2_BANG;                   // mg_say draws '!' with this round's tile
+    say_bang = (uint8_t)(B2_BG + B2_BANG);                   // mg_say draws '!' with this round's tile
     bonus2_total = 0;
     if (bonus_kind == 1) pour_enter(); else tips_enter();
     if (bonus_kind == 1) draw_pour(); else draw_tips();

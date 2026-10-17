@@ -219,10 +219,10 @@ static void make_column(uint16_t c) {
     p = S.ti * 3;                                // the top verge, map rows 1-3
     for (i = 0; i < 3; i++) { t[i] = MR_BG + mr_top_t[p + i]; a[i] = mr_top_a[p + i]; }
     if (++S.ti == MR_TOP_N) S.ti = 0;
-    t[3] = MR_BG + MRB_SLAB; t[4] = MR_BG + MRB_KERB_TOP;                       // rows 4-5: the top kerb
+    t[3] = (uint8_t)(MR_BG + MRB_SLAB); t[4] = (uint8_t)(MR_BG + MRB_KERB_TOP);                       // rows 4-5: the top kerb
     for (i = 5; i < 11; i++) t[i] = MR_BG + MRB_ROAD0;                          // rows 6-11: the lanes
     if (!(c & 1)) { t[7] = MR_BG + MRB_ROAD1; t[9] = MR_BG + MRB_ROAD1; }       // the lane lines' dashes
-    t[11] = MR_BG + MRB_KERB_BOT; t[12] = MR_BG + MRB_SLAB;                     // rows 12-13: the bottom kerb
+    t[11] = (uint8_t)(MR_BG + MRB_KERB_BOT); t[12] = (uint8_t)(MR_BG + MRB_SLAB);                     // rows 12-13: the bottom kerb
     for (i = 3; i < 13; i++) a[i] = PAL_ROAD;
     p = S.bi * 4;                                // the bottom verge, rows 14-17
     for (i = 0; i < 4; i++) { t[13 + i] = MR_BG + mr_bot_t[p + i]; a[13 + i] = mr_bot_a[p + i]; }
@@ -238,7 +238,7 @@ static void make_column(uint16_t c) {
                 r = 5 + 2 * lane;
                 if ((k >> (3 + lane)) & 1) { t[r] = MR_BG + MRB_POT + d; t[r + 1] = MR_BG + MRB_POT + 2 + d; }
                 else {
-                    t[r] = MR_BG + MRB_CONE; t[r + 1] = MR_BG + MRB_CONE + 1;
+                    t[r] = (uint8_t)(MR_BG + MRB_CONE); t[r + 1] = (uint8_t)(MR_BG + MRB_CONE + 1);
                     a[r] = a[r + 1] = PAL_CONE;
                 }
             }
@@ -272,7 +272,7 @@ static void stream(void) {                       // play: the next column, when 
 
 // ---- screen --------------------------------------------------------------------------------------------------------
 static void hud_crates(void) {                   // HUD columns 10-13: blank, the crate icon, the count
-    S.cbuf[0] = TILE_HUD_BLANK; S.cbuf[1] = MR_BG + MRB_HUDC;
+    S.cbuf[0] = TILE_HUD_BLANK; S.cbuf[1] = (uint8_t)(MR_BG + MRB_HUDC);
     S.cbuf[2] = TILE_GLYPH_0 + S.crates / 10; S.cbuf[3] = TILE_GLYPH_0 + S.crates % 10;
 }
 

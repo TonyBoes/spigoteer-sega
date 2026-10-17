@@ -65,7 +65,7 @@ enum { RES_NONE, RES_DONE, RES_REFUSED };
 #define OAM_SPARE      2                                  // kept free for this frame's new mug / breaking glass
 
 static const uint8_t lift_pal[4] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_A };
-static const uint8_t lift_tile[4] = { PATRON_OBJ_BASE, PATRON_OBJ_BASE + 6, PATRON_OBJ_BASE + 12, PATRON_OBJ_BASE };
+static const uint8_t lift_tile[4] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON_OBJ_BASE + 6), (uint8_t)(PATRON_OBJ_BASE + 12), (uint8_t)PATRON_OBJ_BASE };
 uint8_t lift_prop[8];                 // OAM attributes of variant v's left column [v] and right column [4 + v] (CGB its
                                       // palettes and bit 3 VRAM bank 1, M14a; DMG OBP1), set at level load (enhance.c)
 static uint8_t mg_live;
@@ -101,10 +101,10 @@ void lift_level_init(uint8_t g) BANKED {
     }
     OBP1_REG = OBP1_PLAY;
     swap_copy(OBJ_MUG, OBJ_DMG_COPY, 4);                 // sliding full, sliding empty
-    swap_copy(OBJ_MUG_DRINK + 6, OBJ_DMG_COPY + 4, 2);   // the empty in a patron's hand
+    swap_copy((uint8_t)(OBJ_MUG_DRINK + 6), (uint8_t)(OBJ_DMG_COPY + 4), 2);   // the empty in a patron's hand
     spr_full_t = OBJ_DMG_COPY;      spr_full_p = 0;
-    spr_empty_t = OBJ_DMG_COPY + 2; spr_empty_p = 0;
-    spr_hempty_t = OBJ_DMG_COPY + 4; spr_hempty_p = 0;
+    spr_empty_t = (uint8_t)(OBJ_DMG_COPY + 2); spr_empty_p = 0;
+    spr_hempty_t = (uint8_t)(OBJ_DMG_COPY + 4); spr_hempty_p = 0;
     swap_copy(OBJ_GLASS, OBJ_GLASS, GLASS_TILE_COUNT);   // the crash in place (load_venue reloaded it): looks like the drink
 }
 

@@ -313,10 +313,10 @@ static void draw(void) {
     }
     if (bonus_phase == PH_RESULT && bonus_won) bf = BT_CATCH_F;
     base = bf * BARTENDER_TILES_PER_FRAME;       // OBJ tiles 0.. hold the bartender frames
-    spr(4, BT_X + 8,  BT_TOP + 16, base,     0);
-    spr(5, BT_X + 16, BT_TOP + 16, base + 2, 0);
-    spr(6, BT_X + 8,  BT_TOP + 32, base + 4, 0);
-    spr(7, BT_X + 16, BT_TOP + 32, base + 6, 0);
+    spr(4, (uint8_t)(BT_X + 8),  (uint8_t)(BT_TOP + 16), base,     0);
+    spr(5, (uint8_t)(BT_X + 16), (uint8_t)(BT_TOP + 16), base + 2, 0);
+    spr(6, (uint8_t)(BT_X + 8),  (uint8_t)(BT_TOP + 32), base + 4, 0);
+    spr(7, (uint8_t)(BT_X + 16), (uint8_t)(BT_TOP + 32), base + 6, 0);
 }
 
 // ---- logic ----

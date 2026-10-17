@@ -210,12 +210,12 @@ void mm_enter(void) BANKED {
         set_sprite_palette(OPAL_PUFF, 1, pal_puff);
     } else OBP1_REG = 0xE0;                               // cups, pail: white, dark grey, black (the level load puts 0xE4 back)
     // the HUD supply: the icon at column 11, two digits at 12-13 (the lives at 7-8, the goal area of the story)
-    row_buf[0] = MM_BG + MMB_ICON;
+    row_buf[0] = (uint8_t)(MM_BG + MMB_ICON);
     vram_put(11, HUD_ROW, row_buf, 1);
     S.supply = MM_SUPPLY;
     hud_supply();
     // the belt's two phases (columns 1-18 of row 14) and the banner rows' scene (restored at the first play frame)
-    for (c = 0; c < 18; c++) { S.belt[0][c] = MM_BG + MMB_BELT0; S.belt[1][c] = MM_BG + MMB_BELT1; }
+    for (c = 0; c < 18; c++) { S.belt[0][c] = (uint8_t)(MM_BG + MMB_BELT0); S.belt[1][c] = (uint8_t)(MM_BG + MMB_BELT1); }
     row_tiles(2, S.wall[0]); row_tiles(3, S.wall[1]);
     for (c = 0; c < 20; c++) { S.wattr[0][c] = mm_pal[20 + c]; S.wattr[1][c] = mm_pal[40 + c]; }
     // the game

@@ -234,8 +234,8 @@ void lr_enter(void) BANKED {
     uint8_t k, r;
     set_bkg_data(LR_BG, LR_BG_TILES, lr_bg_tiles);
     set_sprite_data(OBJ_MUG, 2 * LR_SLOT_ENTRIES, lr_obj_tiles);
-    set_sprite_data(LR_OBJ_HI, 2 * LR_OBJ_HI_A, lr_obj_tiles + (uint16_t)2 * LR_SLOT_ENTRIES * 16);
-    set_sprite_data(LR_OBJ_HI_B, 2 * (LR_OBJ_HI_N - LR_OBJ_HI_A), lr_obj_tiles + (uint16_t)2 * (LR_SLOT_ENTRIES + LR_OBJ_HI_A) * 16);
+    set_sprite_data((uint8_t)LR_OBJ_HI, (uint8_t)(2 * LR_OBJ_HI_A), lr_obj_tiles + (uint16_t)2 * LR_SLOT_ENTRIES * 16);
+    set_sprite_data((uint8_t)LR_OBJ_HI_B, (uint8_t)(2 * (LR_OBJ_HI_N - LR_OBJ_HI_A)), lr_obj_tiles + (uint16_t)2 * (LR_SLOT_ENTRIES + LR_OBJ_HI_A) * 16);
     // the scene: map rows 1-17 (rows 2-3 are the banner's until the first play frame)
     for (r = 1; r <= 17; r++) {
         for (k = 0; k < 20; k++) row_buf[k] = LR_BG + lr_map[(r - 1) * 20 + k];
@@ -433,11 +433,11 @@ static void tiles(void) {
     S.rip_f = ((((uint16_t)S.anim * 205) >> 12) & 1);   // anim / 20 without the divide (exact for 0..255)
     if (S.roll_vis != S.roll_f && q_room(64, 1)) {
         memcpy(S.roll_buf, lr_roll + (uint16_t)S.roll_f * 64, 64);
-        if (stream(LR_BG + LR_ROLL_AT, S.roll_buf, 64)) S.roll_vis = S.roll_f;
+        if (stream((uint8_t)(LR_BG + LR_ROLL_AT), S.roll_buf, 64)) S.roll_vis = S.roll_f;
     }
     if (S.rip_vis != S.rip_f && q_room(32, 1)) {
         memcpy(S.rip_buf, lr_rip + (uint16_t)S.rip_f * 32, 32);
-        if (stream(LR_BG + LR_RIP_AT, S.rip_buf, 32)) S.rip_vis = S.rip_f;
+        if (stream((uint8_t)(LR_BG + LR_RIP_AT), S.rip_buf, 32)) S.rip_vis = S.rip_f;
     }
 }
 

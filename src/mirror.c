@@ -34,7 +34,7 @@ uint8_t bar_sfp[2 * NUM_BARS];      // OAM attribute toggle of bar b's mugs, gla
 static uint8_t mo_tm[16], mo_tp[16];   // mirror_oam: the toggle by (OAM Y - 52) >> 3: bartender, fill, mugs, coin / lifted
 
 // bit-reversed bytes: one row of 8 pixels mirrored (both bit planes)
-#define R2(n) n, n + 2 * 64, n + 1 * 64, n + 3 * 64
+#define R2(n) n, (uint8_t)(n + 2 * 64), (uint8_t)(n + 1 * 64), (uint8_t)(n + 3 * 64)
 #define R4(n) R2(n), R2(n + 2 * 16), R2(n + 1 * 16), R2(n + 3 * 16)
 #define R6(n) R4(n), R4(n + 2 * 4), R4(n + 1 * 4), R4(n + 3 * 4)
 static const uint8_t rev[256] = { R6(0), R6(2), R6(1), R6(3) };

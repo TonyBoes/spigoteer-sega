@@ -244,9 +244,9 @@ void bs_enter(void) BANKED {
     // the machine
     S.belt = 0; S.belt_f = 0;
     belt_row();
-    S.scr[0] = BS_BG + BSB_FLAP; S.scr[1] = BS_BG + BSB_FLAP + 1;
+    S.scr[0] = (uint8_t)(BS_BG + BSB_FLAP); S.scr[1] = (uint8_t)(BS_BG + BSB_FLAP + 1);
     vram_put(DIV_COL, DIV_ROW, S.scr, 2);
-    S.scr[0] = BS_BG + BSB_BASE; S.scr[1] = BS_BG + BSB_BASE + 1;
+    S.scr[0] = (uint8_t)(BS_BG + BSB_BASE); S.scr[1] = (uint8_t)(BS_BG + BSB_BASE + 1);
     vram_put(DIV_COL, DIV_ROW + 2, S.scr, 2);
     screen(DIR_NONE);
     draw_bin(CHARGE_COL, 0);

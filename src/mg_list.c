@@ -223,7 +223,7 @@ void list_arrows_show(uint8_t up, uint8_t down, uint8_t t) BANKED {
     uint8_t p = (t / ML_BOB_FRAMES) & 1;
     u->y = (uint8_t)(up ? (ML_ROW_HEAD + 1) * 8 + 16 - p : 0);
     d->y = (uint8_t)(down ? (ML_ROW_BOX - 1) * 8 + 8 + p : 0);
-    u->x = ML_ARROW_X; d->x = ML_ARROW_X;
+    u->x = (uint8_t)ML_ARROW_X; d->x = (uint8_t)ML_ARROW_X;
     u->tile = ML_ARROW_UP; d->tile = ML_ARROW_DOWN;
     u->prop = d->prop = is_cgb ? OBJPAL_MUG_FULL : 0;
 }

@@ -334,7 +334,7 @@ void title_enter(void) BANKED {
     set_bkg_tiles(0, ROW_HI, 20, 1, row_buf);
     music_pump();
     // the scene's patron
-    row_buf[0] = TT_PATRON_BASE; row_buf[1] = TT_PATRON_BASE + 1; row_buf[2] = TT_PATRON_BASE + 2; row_buf[3] = TT_PATRON_BASE + 3;
+    row_buf[0] = (uint8_t)TT_PATRON_BASE; row_buf[1] = (uint8_t)(TT_PATRON_BASE + 1); row_buf[2] = (uint8_t)(TT_PATRON_BASE + 2); row_buf[3] = (uint8_t)(TT_PATRON_BASE + 3);
     set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR), 2, 1, row_buf);
     set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR) + 1, 2, 1, row_buf + 2);
     if (is_cgb) {
@@ -444,7 +444,7 @@ static void scene_frame(void) {
     case SC_SLIDE:                                  // the full mug slides left, 2 px per frame
         if (t <= SC_SLIDE_POSE) bartender_frame = BT_SLIDE;
         tscene_mug_x -= 2;
-        o->y = SCENE_TOP_Y + MUG_DY; o->x = tscene_mug_x + 8; o->tile = OBJ_MUG; o->prop = S_PALETTE | OBJPAL_MUG_FULL;
+        o->y = (uint8_t)(SCENE_TOP_Y + MUG_DY); o->x = tscene_mug_x + 8; o->tile = OBJ_MUG; o->prop = S_PALETTE | OBJPAL_MUG_FULL;
         if (tscene_mug_x <= CATCH_X) { tscene_phase = SC_DRINK; tscene_timer = 0; }
         break;
     case SC_DRINK:                                  // at the hand, up to the mouth, tilted
@@ -456,13 +456,13 @@ static void scene_frame(void) {
         break;
     case SC_WINDUP:                                 // the empty lowered, drawn back, swung forward
         f = t < 8 ? 8 - (t >> 1) : t < 18 ? 4 : 14;
-        o->y = SCENE_TOP_Y + 6; o->x = PATRON_PX + f + 8;
+        o->y = (uint8_t)(SCENE_TOP_Y + 6); o->x = PATRON_PX + f + 8;
         o->tile = OBJ_MUG_DRINK + 3 * 2; o->prop = S_PALETTE | OBJPAL_MUG_EMPTY;
         if (t >= SC_WINDUP_FRAMES) { tscene_phase = SC_RETURN; tscene_timer = 0; tscene_mug_x = CATCH_X; }
         break;
     case SC_RETURN:                                 // the empty slides back, 1 px per frame
         tscene_mug_x++;
-        o->y = SCENE_TOP_Y + MUG_DY; o->x = tscene_mug_x + 8; o->tile = OBJ_MUG + 2; o->prop = S_PALETTE | OBJPAL_MUG_EMPTY;
+        o->y = (uint8_t)(SCENE_TOP_Y + MUG_DY); o->x = tscene_mug_x + 8; o->tile = OBJ_MUG + 2; o->prop = S_PALETTE | OBJPAL_MUG_EMPTY;
         if (tscene_mug_x >= LAUNCH_X) { tscene_phase = SC_CATCH; tscene_timer = 0; }
         break;
     case SC_CATCH:

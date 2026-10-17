@@ -164,7 +164,7 @@ static void put_porthole(uint8_t p, uint8_t lit, uint8_t slot) {  // queued (or 
 }
 
 static void hud_deliveries(void) {               // HUD columns 11-13: the beaker icon, the count (no X: owner 2026-10-15)
-    S.dbuf[0] = AD_BG + ADB_HUDI;
+    S.dbuf[0] = (uint8_t)(AD_BG + ADB_HUDI);
     S.dbuf[1] = S.delivered >= 10 ? TILE_GLYPH_0 + S.delivered / 10 : TILE_HUD_BLANK;
     S.dbuf[2] = TILE_GLYPH_0 + S.delivered % 10;
 }
@@ -309,8 +309,8 @@ static void draw(void) {
     f = S.p10;                                 // the arrow under the lit dock, bobbing 2 px
     obj(OAM_ARROW, porthole_cx[S.lit] - 4, AD_LANE_TOP0 + (f ? 2 : 0), ad_arrow[f], OPAL_ARROW | S_PALETTE);
     o = shadow_OAM + OAM_SPIG;                   // the Spigoteer's bust: his idle frame's top two entries
-    o->y = SPIG_Y + 16; o->x = SPIG_X + 8; o->tile = SPIG_FRAME_IDLE * BARTENDER_TILES_PER_FRAME; o->prop = 0; o++;
-    o->y = SPIG_Y + 16; o->x = SPIG_X + 16; o->tile = SPIG_FRAME_IDLE * BARTENDER_TILES_PER_FRAME + 2; o->prop = 0;
+    o->y = (uint8_t)(SPIG_Y + 16); o->x = (uint8_t)(SPIG_X + 8); o->tile = SPIG_FRAME_IDLE * BARTENDER_TILES_PER_FRAME; o->prop = 0; o++;
+    o->y = (uint8_t)(SPIG_Y + 16); o->x = (uint8_t)(SPIG_X + 16); o->tile = SPIG_FRAME_IDLE * BARTENDER_TILES_PER_FRAME + 2; o->prop = 0;
     for (k = 0; k < AD_ROCKS; k++) {             // a rock's two halves
         lane = k >> 1;
         if (!rock_on(k)) { shadow_OAM[OAM_ROCK + 2 * k].y = shadow_OAM[OAM_ROCK + 2 * k + 1].y = 0; continue; }

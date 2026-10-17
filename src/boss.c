@@ -254,7 +254,7 @@ void boss_set(uint8_t id) BANKED {
 void boss_load(void) BANKED {
     set_sprite_data(OBJ_TAG, 4, boss_tag_tiles);  // the status tag's tiles (first: a boss file's pool over 124-127 is then his own)
     boss_call(BEV_LOAD, 0);                      // his body, face, topper and palettes (src/boss_load.h), his extras
-    set_bkg_data(BOSS_HUD_BG + 1, 3, boss_meter_tiles);
+    set_bkg_data((uint8_t)(BOSS_HUD_BG + 1), 3, boss_meter_tiles);
     boss_pal = BOSS_PAL;
 }
 

@@ -210,8 +210,8 @@ void po_enter(void) BANKED {
     if (is_cgb) set_sprite_palette(PO_DREGS_PAL, 1, dregs_pal);
     else {
         OBP1_REG = PO_OBP1;
-        swap_copy(OBJ_MUG, PO_DMG, 4);                   // sliding full, sliding empty
-        swap_copy(OBJ_MUG_DRINK + 6, PO_DMG + 4, 2);     // the empty in a hand
+        swap_copy((uint8_t)OBJ_MUG, (uint8_t)PO_DMG, 4);                   // sliding full, sliding empty
+        swap_copy((uint8_t)(OBJ_MUG_DRINK + 6), (uint8_t)(PO_DMG + 4), 2);     // the empty in a hand
     }
     put_hud();
     vram_put(13, HUD_ROW, S.hud, 7);
@@ -614,7 +614,7 @@ static void draw(void) {
         k = Y.hold || Y.fill >= FILL_FRAMES ? 3 : Y.fill >= 2 * FILL_FRAMES / 3 ? 2 : Y.fill >= FILL_FRAMES / 3 ? 1 : 0;
         t = OBJ_MUG_FILL + k * 2; p = full_p;
         if (Y.pour_t >= POUR_WIN_START && !Y.hold) { t = Y.pq ? OBJ_POUR : OBJ_POUR + 2; p = is_cgb ? OBJPAL_MUG_FULL : S_PALETTE; }
-        put_obj(OAM_FILL_Y, SPOUT_X + 8, bar_oam_y[Y.bar] + MUG_DY, t, p);
+        put_obj(OAM_FILL_Y, (uint8_t)(SPOUT_X + 8), bar_oam_y[Y.bar] + MUG_DY, t, p);
     } else shadow_OAM[OAM_FILL_Y].y = 0;
     if (D.st == PD_FILL || D.hold) {
         k = D.hold || D.t >= FILL_FRAMES ? 3 : D.t >= 2 * FILL_FRAMES / 3 ? 2 : D.t >= FILL_FRAMES / 3 ? 1 : 0;
@@ -655,7 +655,7 @@ static void draw(void) {
                 if (((uint8_t *)shadow_OAM)[f] && (uint8_t)(((uint8_t *)shadow_OAM)[f] - y + 15) < 31) n++;
             S.cue_ok = n < LINE_OBJ_MAX;
         }
-        if (S.cue_ok && (S.cue_t > 16 || (S.cue_t & 4))) put_obj(OAM_CUE_PO, S.cue_x, S.cue_y, OBJ_POUR_CUE, full_p);
+        if (S.cue_ok && (S.cue_t > 16 || (S.cue_t & 4))) put_obj(OAM_CUE_PO, S.cue_x, S.cue_y, (uint8_t)OBJ_POUR_CUE, full_p);
     }
 }
 

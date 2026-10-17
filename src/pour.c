@@ -44,7 +44,7 @@ static uint8_t pour_bar;      // the bar of the last frame (a change while full 
 void pour_load(uint8_t t) BANKED {
     pour_win = POUR_WIN_LEN;
     set_sprite_data(OBJ_POUR, 4, pour_venue_tiles[t]);
-    set_sprite_data(OBJ_POUR_CUE, POUR_CUE_TILES, pour_cue_tiles);
+    set_sprite_data((uint8_t)OBJ_POUR_CUE, POUR_CUE_TILES, pour_cue_tiles);
 }
 
 void perfect_catch(uint8_t i) BANKED {
@@ -107,7 +107,7 @@ static uint8_t dust_count(uint8_t y) {
 
 static void draw_cue(void) {
     OAM_item_t *o = shadow_OAM + OAM_CUE;
-    uint8_t y = cue_y, t = cue_t, tile = OBJ_POUR_CUE, show, pal = OBJPAL_MUG_FULL;
+    uint8_t y = cue_y, t = cue_t, tile = (uint8_t)OBJ_POUR_CUE, show, pal = OBJPAL_MUG_FULL;
     if (t & 0x80) {
         t &= 0x7F;
         pal = OBJPAL_BARTENDER;                              // (not by the tile: in CLASSIC the puff's third frame is the cue's id)

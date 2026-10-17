@@ -215,8 +215,8 @@ static void sprites(void) {
     w = venue.show_tile[f];
     obj(OAM_DRUM, DRUM_X, DRUM_Y, OBJ_DANCER + w[0], cgb(OPAL_DRUM));
     obj(OAM_DRUM + 1, DRUM_X + 8, DRUM_Y, OBJ_DANCER + w[1], cgb(OPAL_DRUM));
-    obj(OAM_DRUM + 2, DRUM_X, DRUM_Y + 16, OBJ_DANCER + w[2], cgb(OPAL_DRUM));
-    obj(OAM_DRUM + 3, DRUM_X + 8, DRUM_Y + 16, OBJ_DANCER + w[3], cgb(OPAL_DRUM));
+    obj(OAM_DRUM + 2, DRUM_X, (uint8_t)(DRUM_Y + 16), OBJ_DANCER + w[2], cgb(OPAL_DRUM));
+    obj(OAM_DRUM + 3, DRUM_X + 8, (uint8_t)(DRUM_Y + 16), OBJ_DANCER + w[3], cgb(OPAL_DRUM));
     // the notes
     for (k = 0; k < TK_LIVE; k++) {
         i = S.live[k];
@@ -234,7 +234,7 @@ static void sprites(void) {
 static void rails_data(uint8_t on) {                    // the banks' lit / dim tile data (one tile, 16 bytes at VBlank)
     S.rail_on = on;
     vq_add(0, S.rail[on], 0, 0, 16);
-    vq[vq_count - 1].dst = tile_addr(TK_BG + TKB_RAIL);
+    vq[vq_count - 1].dst = tile_addr((uint8_t)(TK_BG + TKB_RAIL));
 }
 
 static void lantern(uint8_t on) {                       // the lantern's 2x2 tiles: frame 0 or frame 1
@@ -292,9 +292,9 @@ void tk_enter(void) BANKED {
     S.cup_shown = 255;
     cup(0);
     // the HUD: the combo icon, X, two digits at columns 10-13; the cups icon, X, two digits at 16-19
-    row_buf[0] = TK_BG + TKB_HUD; row_buf[1] = TILE_GLYPH_X;
+    row_buf[0] = (uint8_t)(TK_BG + TKB_HUD); row_buf[1] = TILE_GLYPH_X;
     vram_put(10, HUD_ROW, row_buf, 2);
-    row_buf[0] = TK_BG + TKB_HUD + 1; row_buf[1] = TILE_GLYPH_X;
+    row_buf[0] = (uint8_t)(TK_BG + TKB_HUD + 1); row_buf[1] = TILE_GLYPH_X;
     vram_put(16, HUD_ROW, row_buf, 2);
     if (is_cgb) {
         for (r = 1; r <= 4; r++) attr_row(r, PAL_SHOJI, 0, 20);

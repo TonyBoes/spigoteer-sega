@@ -145,14 +145,14 @@ static void badge_pal(uint8_t b) {
 // the sign's letter rows: the planks (waiting), or DRAW! with the badge
 static void sign(uint8_t face) {
     uint8_t c, k, *a = S.sign[0], *b = S.sign[1];
-    for (c = 0; c < 12; c++) a[c] = b[c] = QD_BG + QDB_BACK;
+    for (c = 0; c < 12; c++) a[c] = b[c] = (uint8_t)(QD_BG + QDB_BACK);
     if (face) {
         for (k = 0; k < 4; k++) {               // D R A W: 2x2 each
             c = QD_BG + QDB_LETTERS + 4 * k;
             a[2 * k] = c; a[2 * k + 1] = c + 1; b[2 * k] = c + 2; b[2 * k + 1] = c + 3;
         }
-        a[8] = QD_BG + QDB_BANG; b[8] = QD_BG + QDB_BANG + 1;
-        a[9] = b[9] = QD_BG + QDB_FACE;
+        a[8] = (uint8_t)(QD_BG + QDB_BANG); b[8] = (uint8_t)(QD_BG + QDB_BANG + 1);
+        a[9] = b[9] = (uint8_t)(QD_BG + QDB_FACE);
         c = QD_BG + (S.badge ? (is_cgb ? QDB_BADGE + 4 : QDB_BADGE_DMG) : QDB_BADGE);   // B: blue (CGB) / light (DMG)
         a[10] = c; a[11] = c + 1; b[10] = c + 2; b[11] = c + 3;
     }
@@ -185,7 +185,7 @@ void qd_enter(void) BANKED {
     set_bkg_data(QD_BG, QD_BG_TILES, qd_bg_tiles);
     set_sprite_data(QD_OBJ, QDO_RUN_A, qd_obj_tiles);
     set_sprite_data(QD_KID, QDO_KID_N, qd_obj_tiles + QDO_KID * 16);
-    set_sprite_data(QD_CROW, QDO_RUN_C, qd_obj_tiles + QDO_CROW * 16);   // the crow, the soda duel (and its stream)
+    set_sprite_data((uint8_t)QD_CROW, QDO_RUN_C, qd_obj_tiles + QDO_CROW * 16);   // the crow, the soda duel (and its stream)
     if (is_cgb) {
         p[0] = RGB8(248, 240, 208); p[1] = RGB8(216, 168, 96); p[2] = RGB8(216, 40, 24); p[3] = RGB8(48, 16, 8);
         set_bkg_palette(SIGN_PAL, 1, p);         // the sign: cream face, tan wood, red letters, dark
@@ -203,12 +203,12 @@ void qd_enter(void) BANKED {
         fill_attr(PIP_YOU_COL, PIP_ROW, 3, 1, BGPAL_BAR);
     } else OBP1_REG = OBP1_PLAY;                 // the Kid and the feints (OBP1 0xE4; the title leaves 0xC4)
     // the frame: TL T.. TR / L .. R / BL B.. BR
-    for (k = 0; k < SIGN_W; k++) { S.sign[0][k] = QD_BG + QDB_FRAME + 1; S.sign[1][k] = QD_BG + QDB_FRAME + 6; }
+    for (k = 0; k < SIGN_W; k++) { S.sign[0][k] = (uint8_t)(QD_BG + QDB_FRAME + 1); S.sign[1][k] = (uint8_t)(QD_BG + QDB_FRAME + 6); }
     S.sign[0][0] = QD_BG + QDB_FRAME; S.sign[0][SIGN_W - 1] = QD_BG + QDB_FRAME + 2;
-    S.sign[1][0] = QD_BG + QDB_FRAME + 5; S.sign[1][SIGN_W - 1] = QD_BG + QDB_FRAME + 7;
+    S.sign[1][0] = (uint8_t)(QD_BG + QDB_FRAME + 5); S.sign[1][SIGN_W - 1] = (uint8_t)(QD_BG + QDB_FRAME + 7);
     vram_put(SIGN_COL, SIGN_ROW, S.sign[0], SIGN_W);
     vram_put(SIGN_COL, SIGN_ROW + 3, S.sign[1], SIGN_W);
-    S.sign[0][0] = QD_BG + QDB_FRAME + 3; S.sign[0][1] = QD_BG + QDB_FRAME + 4;
+    S.sign[0][0] = (uint8_t)(QD_BG + QDB_FRAME + 3); S.sign[0][1] = (uint8_t)(QD_BG + QDB_FRAME + 4);
     vram_put(SIGN_COL, SIGN_ROW + 1, S.sign[0], 1); vram_put(SIGN_COL + SIGN_W - 1, SIGN_ROW + 1, S.sign[0] + 1, 1);
     vram_put(SIGN_COL, SIGN_ROW + 2, S.sign[0], 1); vram_put(SIGN_COL + SIGN_W - 1, SIGN_ROW + 2, S.sign[0] + 1, 1);
     S.st = QS_NEXT; S.round = 0; S.wins[0] = S.wins[1] = 0; S.wait = 0; S.badge = 0; S.r = 0; S.t = 0;
@@ -243,7 +243,7 @@ static void end_round(uint8_t res) {
         S.txt[0] = 'Y'; S.txt[1] = 'O'; S.txt[2] = 'U'; S.txt[3] = ' '; S.txt[4] = '0'; S.txt[5] = ' ';
         S.txt[6] = '0' + h / 10; S.txt[7] = '0' + h % 10; S.txt[8] = 0;
         b = mg_say(MG_TEXT_B, S.txt);
-        b[(20 - 8) / 2 + 5] = QD_BG + QDB_PERIOD;   // the '.' (queued: patched before the VBlank copies it)
+        b[(20 - 8) / 2 + 5] = (uint8_t)(QD_BG + QDB_PERIOD);   // the '.' (queued: patched before the VBlank copies it)
         SFX(SFX_SERVE);
     } else {
         S.wins[1]++;
@@ -255,7 +255,7 @@ static void end_round(uint8_t res) {
 
 static void kid_obj(uint8_t f) {             // (KID_STAND: the shake body, his bottle in his fist)
     OAM_item_t *o = shadow_OAM + OAM_KID;
-    uint8_t t = QD_KID + f * 8, y = DUEL_Y + 16, x = KID_X + 8, pt, pb;
+    uint8_t t = QD_KID + f * 8, y = (uint8_t)(DUEL_Y + 16), x = (uint8_t)(KID_X + 8), pt, pb;
     pt = is_cgb ? PAL_KID_TOP : S_PALETTE; pb = is_cgb ? PAL_KID_BODY : S_PALETTE;
     o->y = y;      o->x = x;     o->tile = t;     o->prop = pt; o++;
     o->y = y;      o->x = x + 8; o->tile = t + 2; o->prop = pt; o++;
@@ -271,7 +271,7 @@ static void feint_obj(void) {
     if (S.feint == QF_TUMBLE) {                  // rolls left to right, 4 px a frame
         S.fx = ft << 2;
         t = QD_OBJ + QDO_TW + (((ft / 3) & 1) << 2);
-        o[0].y = o[1].y = TW_Y + 16;
+        o[0].y = o[1].y = (uint8_t)(TW_Y + 16);
         o[0].x = S.fx; o[1].x = S.fx + 8;
         o[0].tile = t; o[1].tile = t + 2;
         o[0].prop = o[1].prop = pal;
@@ -307,7 +307,7 @@ static void hand(uint8_t who, uint8_t f, int8_t dy) {   // the bottle in his fis
 static void shake_body(uint8_t who) {            // STAND with the holstered bottle out (it is in his fist)
     if (who == WHO_KID) { kid_obj(KID_STAND); return; }
     mg_spigoteer(SPIG_X, DUEL_Y, SPIG_STAND, 0, OAM_SPIG);
-    shadow_OAM[OAM_SPIG + 2].tile = QD_SODA + QDS_SPIG_BL;
+    shadow_OAM[OAM_SPIG + 2].tile = (uint8_t)(QD_SODA + QDS_SPIG_BL);
 }
 
 static void wet(uint8_t who, uint8_t f) {        // the wet overlay on his head: W_SPLASH, W_DRIP_A, W_DRIP_B
@@ -337,7 +337,7 @@ static void stream(uint8_t who, uint8_t len, uint8_t cut) {
         v = S.wall[c];
         if (k >= cut && k < len) {
             if (k == len - 1 && len < STREAM_N) v = QD_SODA + QDS_STREAM + (who == WHO_YOU ? ST_HEAD_L : ST_HEAD_R);
-            else if (k == 0 && who == WHO_KID) v = QD_SODA + QDS_STREAM + ST_RISE_R;   // up from his lower hand
+            else if (k == 0 && who == WHO_KID) v = (uint8_t)(QD_SODA + QDS_STREAM + ST_RISE_R);   // up from his lower hand
             else v = flow;
         }
         if (S.row[c] != v) { S.row[c] = v; dirty = 1; }
@@ -355,7 +355,7 @@ static void poses(void) {
         if (t < FOUL_FIZZ) {
             hand(WHO_YOU, B_FIZZ, 0);
             if (t >= FOUL_FOAM_AT && t < FOUL_FOAM_END)
-                piece(OAM_FOAM, QD_SODA + QDS_BOT + 2 * B_FOAM, SPIG_X - 4, DUEL_Y - 7 + ((t >> 1) & 1), WHO_YOU, 0);
+                piece(OAM_FOAM, (uint8_t)(QD_SODA + QDS_BOT + 2 * B_FOAM), SPIG_X - 4, DUEL_Y - 7 + ((t >> 1) & 1), WHO_YOU, 0);
         } else hand(WHO_YOU, B_STILL, 0);
         if (t >= FOUL_WET_AT) wet(WHO_YOU, t < FOUL_FIZZ ? W_SPLASH : drip());
     } else if (s == QS_SHOW) {                   // the winner sprays (the Kid on TOO SLOW), the loser gets wet

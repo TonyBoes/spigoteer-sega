@@ -23,9 +23,9 @@ static void boss_art_set(void) {
 // the body, OBJ palette 7 (lifted variant C's) for the topper. DMG: OBP1 is lift_level_init's 0xE4, the BG's shades.
 static void boss_art_load(void) {
     palette_t p;
-    set_bkg_data(BOSS_BG_A, (BOSS_ART_PAIRS > BOSS_PAIRS_A ? BOSS_PAIRS_A : BOSS_ART_PAIRS) << 1, boss_art_body);
+    set_bkg_data((uint8_t)BOSS_BG_A, (BOSS_ART_PAIRS > BOSS_PAIRS_A ? BOSS_PAIRS_A : BOSS_ART_PAIRS) << 1, boss_art_body);
 #if BOSS_ART_PAIRS > BOSS_PAIRS_A
-    set_bkg_data(BOSS_BG_B, (BOSS_ART_PAIRS - BOSS_PAIRS_A) << 1, boss_art_body + BOSS_PAIRS_A * 32);
+    set_bkg_data((uint8_t)BOSS_BG_B, (BOSS_ART_PAIRS - BOSS_PAIRS_A) << 1, boss_art_body + BOSS_PAIRS_A * 32);
 #endif
     set_bkg_data(BOSS_HUD_BG, 1, boss_art_icon);
     set_sprite_data(OBJ_TOPPER, BOSS_ART_HAT_TILES, boss_art_hat);   // HAT_STILL, HAT_BOB (and his `hats`)
