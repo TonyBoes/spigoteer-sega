@@ -43,8 +43,8 @@
 #define POS_POST          (STORY_STEPS + 1)    // positions: 0 PRE, 1..STORY_STEPS the steps, POS_POST
 #define DBG_WINDOW         72                  // frames from the first START tap to the third
 #define DBG_SAVE_ROW       28                  // the window map's off-screen rows: the saved tiles (28-30) and LYC (31)
-#define SKIN_SAVE_ROW      18                  // rows 18-22: the wood wall's five tiles (src/mg_list.c list_skin_load); in the attribute map the six palettes' bytes
-#define SKIN_SAVE_N         5
+#define SKIN_SAVE_ROW      18                  // rows 18-22: the wood wall's four tiles (src/mg_list.c list_skin_load); in the attribute map the six palettes' bytes
+#define SKIN_SAVE_N         4
 #define SKIN_PALS           6
 
 extern uint8_t overlay_on, level, story_chapter, story_step, state_timer;
@@ -206,11 +206,6 @@ static void fill_win(uint8_t y, uint8_t t) {
     win_row(y, r);
 }
 
-static void seam_row(uint8_t y) {                        // a blank row with the wood wall's board seams (as the lists', src/mg_list.c list_frame)
-    uint8_t r[20], x;
-    for (x = 0; x < 20; x++) r[x] = (x & 3) == (y & 2) ? SKIN_TILE_SEAM : TILE_HUD_BLANK;
-    win_row(y, r);
-}
 
 static void draw_line(uint8_t i) {                       // line slot i (0..5): its row, or a blank one past the last line
     uint8_t k[5], r[20], n = lines(k);
@@ -234,7 +229,7 @@ static void draw_all(void) {
     fill_win(1, SKIN_TILE_EDGE);
     for (i = 0; i < 6; i++) {                                // six line slots on rows 2, 4 .. 12, a blank row after each (3, 5 .. 13)
         draw_line(i);
-        seam_row(ROW_LINE0 + 2 * i + 1);
+        fill_win(ROW_LINE0 + 2 * i + 1, TILE_HUD_BLANK);
     }
     fill_win(ROW_SEP, TILE_PANEL_TOP);
     blank(r); put(r, 255, info_text[dmode()]); win_row(ROW_INFO, r);
@@ -285,7 +280,7 @@ void debug_open(void) BANKED {
     }
     b[0] = LYC_REG;
     set_win_tiles(0, DBG_SAVE_ROW + 3, 1, 1, b);
-    for (i = 0; i < SKIN_SAVE_N; i++) {              // the wood wall's five tiles (over the stage ids 0-4) and, CGB, its six palettes: kept in the window map's off-screen rows
+    for (i = 0; i < SKIN_SAVE_N; i++) {              // the wood wall's four tiles (over the stage ids 0-4) and, CGB, its six palettes: kept in the window map's off-screen rows
         const volatile uint8_t *t = (const volatile uint8_t *)(0x9000 + (uint16_t)i * 16);
         for (k = 0; k < 16; k++) b[k] = vget(t + k);
         set_win_tiles(0, SKIN_SAVE_ROW + i, 16, 1, b);

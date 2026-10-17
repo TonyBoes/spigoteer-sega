@@ -119,7 +119,7 @@ void jukebox_enter(void) BANKED {
     story_font_load();                         // the punctuation (over the title's lettering: title_enter reloads it)
     music_pump();
     jb_sel = 0; jb_top = 0; jb_forced = 0; jb_shown = TUNE_NONE; jb_t = 0; jb_dirty = 0;
-    list_frame(JB_ROW_BOX, 1);                 // (the wood wall, src/mg_list.c: tiles, palettes, the header band, the board seams, the panel)
+    list_frame(JB_ROW_BOX);                 // (the wood wall, src/mg_list.c: tiles, palettes, the header band, the board seams, the panel)
     blank(row_buf);
     put(row_buf, 255, "SOUNDTRACK");
     set_bkg_tiles(0, JB_ROW_HEAD, 20, 1, row_buf);

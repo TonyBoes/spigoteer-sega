@@ -216,18 +216,18 @@ static const uint16_t skin_pal[6][4] = {
 };
 
 void list_skin_load(void) BANKED {            // the tiles and palettes alone (LCD off; the debug menu's window map uses them too, src/debug.c)
-    set_bkg_data(0, 5, list_skin_tiles);
+    set_bkg_data(0, 4, list_skin_tiles);
     if (is_cgb) set_bkg_palette(SKIN_PAL_WALL, 6, (uint16_t *)skin_pal);
 }
 
-void list_frame(uint8_t sep, uint8_t seams) BANKED {
+void list_frame(uint8_t sep) BANKED {
     uint8_t y, x;
     list_skin_load();
     music_pump();
     for (y = 0; y < 18; y++) {
         for (x = 0; x < 20; x++)
             row_buf[x] = y == 1 ? SKIN_TILE_EDGE : y == sep ? TILE_PANEL_TOP : y == 17 ? TILE_PANEL_BOT
-                       : seams && (y & 1) && y > 2 && y < sep && (x & 3) == (y & 2) ? SKIN_TILE_SEAM : TILE_HUD_BLANK;
+                       : TILE_HUD_BLANK;
         set_bkg_tiles(0, y, 20, 1, row_buf);
         if (is_cgb) {
             for (x = 0; x < 20; x++) row_buf[x] = y == 0 ? SKIN_PAL_HEAD : y == 1 ? SKIN_PAL_EDGE : y >= sep ? SKIN_PAL_FOOT : SKIN_PAL_WALL;
@@ -290,7 +290,7 @@ void mg_list_enter(void) BANKED {
     ml_n = ML_N; ml_dirty &= ML_DIFF_BITS;
     ml_top = ml_sel >= ML_VIS ? ml_sel - ML_VIS + 1 : 0;   // (the window that shows the cursor's game, as it comes back from one)
     ml_wd = 0; ml_t = 0;
-    list_frame(ML_ROW_BOX, 1);                  // (the wood wall: tiles, palettes, the header band, the panel)
+    list_frame(ML_ROW_BOX);                  // (the wood wall: tiles, palettes, the header band, the panel)
     for (y = 0; y <= ML_HEAD_K; y++) {
         build(y);
         set_bkg_tiles(0, screen_row(y), 20, 1, ML_ROW(y));

@@ -113,10 +113,10 @@ def test_it_is_a_full_screen_menu(boot):
     assert r["WY"] == 0 and boot.mem(0xFF45) == 255
     assert row_text(boot, 0).strip() == "DEBUG MENU"
     from test_flow import tile_id
-    assert win_row(boot, 1) == [1] * 20 and win_row(boot, 14) == [tile_id("PANEL_TOP")] * 20 and win_row(boot, 17) == [tile_id("PANEL_BOT")] * 20
+    assert win_row(boot, 1) == [0] * 20 and win_row(boot, 14) == [tile_id("PANEL_TOP")] * 20 and win_row(boot, 17) == [tile_id("PANEL_BOT")] * 20
     assert row_text(boot, 16).strip() == "@ GO $ BACK > EDIT"
     assert [line(boot, y) for y in (2, 4, 6, 8)] == [("MODE", "LEVEL"), ("LEVEL", "01"), ("BARS", "LLLL"), ("BAR CHANGE", "SNAP")]
-    assert all(row_text(boot, y).replace("?", " ").strip() == "" for y in (3, 5, 7, 9, 10, 11, 12, 13))   # (the blank rows hold the wall's board seams, tile 0)
+    assert all(row_text(boot, y).strip() == "" for y in (3, 5, 7, 9, 10, 11, 12, 13))   # (the blank rows hold the wall's board seams, tile 0)
     ys = [boot.pb.memory[0xFE00 + 4 * i] for i in range(40)]
     assert sum(1 for y in ys if y) == 1, "the mug cursor only"
     assert boot.pb.memory[0xFE00] == (4 * 8 - 7 + 16) and boot.pb.memory[0xFE01] == 8

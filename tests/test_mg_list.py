@@ -37,9 +37,9 @@ assert "#define ST_FRAME_TL (STORY_FONT_BASE + 7)" in (ROOT / "build" / "story.h
 assert "#define ST_GLYPH_QUEST (STORY_FONT_BASE + 3)" in (ROOT / "build" / "story.h").read_text()
 
 
-SKIN_MEDAL = 2                                 # the wood-wall tiles (src/game.h SKIN_TILE_*): ids 2, 3, 4 are the BRONZE, SILVER and GOLD icons
+SKIN_MEDAL = 1                                 # the wood-wall tiles (src/game.h SKIN_TILE_*): ids 1, 2, 3 are the BRONZE, SILVER and GOLD icons (0 the header edge)
 MEDAL_TILES = {SKIN_MEDAL: "BRONZE", SKIN_MEDAL + 1: "SILVER", SKIN_MEDAL + 2: "GOLD"}
-assert "#define SKIN_TILE_MEDAL   1 " in (ROOT / "src" / "game.h").read_text()
+assert "#define SKIN_TILE_MEDAL   0 " in (ROOT / "src" / "game.h").read_text()
 
 
 def pr_block(unlocked=0, best=(), magic=b"MGP1"):
@@ -155,10 +155,10 @@ def no_row_touches_the_separator(gb, n):
     text), details below."""
     last = game_row(n - 1)
     blank, sep = tilemap_row(gb, last + 1, 0, 20), tilemap_row(gb, last + 2, 0, 20)
-    assert set(blank) <= {0, 54} and len(set(sep)) == 1 and blank[0] != sep[0], "a blank row, then the separator"
+    assert set(blank) <= {54} and len(set(sep)) == 1 and blank[0] != sep[0], "a blank row, then the separator"
     assert all(tilemap_row(gb, game_row(i), 0, 20) != sep for i in range(n)), "no list line is the separator"
     assert all(len(set(tilemap_row(gb, game_row(i), 0, 20))) > 1 for i in range(n)), "every list line has its text"
-    assert all(set(tilemap_row(gb, game_row(i) + 1, 0, 20)) <= {0, 54} for i in range(n - 1)), "a blank row (the wall: blank tiles and board seams) between the games"
+    assert all(set(tilemap_row(gb, game_row(i) + 1, 0, 20)) <= {54} for i in range(n - 1)), "a blank row (the wall: blank tiles and board seams) between the games"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -483,10 +483,7 @@ def test_the_list_shows_the_icons_only_for_a_medal_and_the_wall_around_it():
         with to_list(booted(model, ram)) as gb:
             hold_stage_anim(gb)
             assert [tilemap_row(gb, game_row(i), 19, 1)[0] for i in range(4)] == [SKIN_MEDAL + 1, SKIN_MEDAL, SKIN_MEDAL + 2, 54], "silver, bronze, gold; none: the blank tile"
-            assert set(tilemap_row(gb, 1, 0, 20)) == {1}, "row 1 is the header band's edge"
-            seams = [x for r in range(3, 14, 2) for x, t in enumerate(tilemap_row(gb, r, 0, 20)) if t == 0]
-            assert len(seams) == 6 * 5, "a seam every four tiles in the blank rows 3..13 (the rows between the lines are plain wall: 54)"
-            assert all(t in (0, 54) for r in range(3, 14, 2) for t in tilemap_row(gb, r, 0, 20))
+            assert set(tilemap_row(gb, 1, 0, 20)) == {0}, "row 1 is the header band's edge"
             if model == "cgb":
                 for i in range(VIS):
                     assert [attr(gb, game_row(i), c) for c in range(20)] == [2] * 19 + [3], i

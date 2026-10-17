@@ -260,9 +260,9 @@ def test_no_list_row_touches_the_separator_for_any_number_of_bosses(model):
             gb.run(8)
             assert window(gb, n) == [NAMES[v] for v in range(n)][:RVIS], n
             sep, blank = tilemap_row(gb, 14, 0, 20), tilemap_row(gb, 13, 0, 20)
-            assert len(set(sep)) == 1 and set(blank) <= {0, 54} and sep[0] != blank[0], n
-            assert all(set(tilemap_row(gb, r, 0, 20)) <= {0, 54} for r in range(3 + 2 * min(n, RVIS) - 2, 14)), n
-            assert all(set(tilemap_row(gb, 3 + 2 * i, 0, 20)) <= {0, 54} for i in range(min(n, RVIS) - 1)), n
+            assert len(set(sep)) == 1 and set(blank) <= {54} and sep[0] != blank[0], n
+            assert all(set(tilemap_row(gb, r, 0, 20)) <= {54} for r in range(3 + 2 * min(n, RVIS) - 2, 14)), n
+            assert all(set(tilemap_row(gb, 3 + 2 * i, 0, 20)) <= {54} for i in range(min(n, RVIS) - 1)), n
             assert lines(gb, (15, 16)) == ["NOT BEATEN YET", "A PLAY  B BACK"], n
 
 

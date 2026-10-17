@@ -204,7 +204,7 @@ static void frame_begin(uint8_t scr) {           // LCD off: a blank band with t
     story_on = 0;                                // (the rush's screens are not a story; a fight sets it again)
     story_font_load();                           // the punctuation (over the patron range: a fight's load puts it back)
     music_pump();
-    list_frame(box_row(), scr == RS_MENU || scr == RS_LIST);   // (the wood wall, src/mg_list.c: the header band, the board seams on the menu and the list, the panel)
+    list_frame(box_row());   // (the wood wall, src/mg_list.c: the header band, the board seams on the menu and the list, the panel)
     music_pump();
     line_at(ROW_HEAD, 255, "BOSS RUSH");
     RUSH->t = 0; RUSH->dirty = 0;

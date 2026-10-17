@@ -1244,7 +1244,7 @@ def _main():
 
     # ---- the full-screen lists' wood-wall tiles (seam, header edge, three medal icons) -> build/list_skin.h ----
     skin = [r for _, r in blocks(ROOT / "assets/art/list_skin.txt")]
-    assert len(skin) == 5 and all(len(f) == 8 and len(f[0]) == 8 for f in skin)
+    assert len(skin) == 4 and all(len(f) == 8 and len(f[0]) == 8 for f in skin)
     st = []
     for f in skin:
         st += tile_bytes(f, 0, 0)
