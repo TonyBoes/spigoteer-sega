@@ -29,6 +29,7 @@ Usage: gen_story.py outdir previewdir
 """
 import json
 import math
+import os
 import re
 import sys
 from pathlib import Path
@@ -45,6 +46,12 @@ HUD_CHARSET = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")     # the play screen
 SPEAKERS = ["SPIGOTEER", "DREGS", "SADIE", "COACH", "JUNE", "COLBY", "AURORA", "MANAGER-BOT", "HANA", "ZIZZ", "KIKI",
             "GRANNY", "NARRATOR"]
 NARRATOR = SPEAKERS.index("NARRATOR")
+# The name plate (the frame's bottom row, src/story.c compose_portrait): inside the 56x56 portrait's 9-tile frame the plate has 7
+# cells, so a longer name shows in a short form (PLATE_NAMES). Its tiles are the HUD glyphs inverted (dark ink on the frame's light
+# gold), appended to each portrait's own tiles (add_plates): one per letter of its plate name, (the cells either side of the name are the frame's own bottom moulding).
+PLATE_FULL = os.environ.get("SPIGOT_PLATE", "A") == "B"     # A (default): 7 cells between the frame corners. B: all 9 cells, SPIGOTEER whole; needs 2 more BG tiles than INTRO has, see PLATE_NAMES
+PLATE_CELLS = 9 if PLATE_FULL else 7
+PLATE_NAMES = {"SPIGOTEER": "SAL", "MANAGER-BOT": "MGR-BOT"}   # SAL fits the 7-cell plate in both layouts
 PUNCT = {".": "period", ",": "comma", "!": "excl", "?": "quest", "'": "apos", "-": "hyphen", ":": "colon"}
 
 # ---- the cut-scene budget (src/story.c draws to it; see PLAN.md "M11b story engine as built") ----
@@ -89,7 +96,7 @@ PICTURE_SCENES = ["INTRO", "FINALE_A", "FINALE_B", "CREDITS"]
 # one at the start of its page behind a white flash (src/story.c pic_switch); that page must be the narrator's (no
 # portrait frame up) and docs/story.md's scene must say "Picture (page N):". A picture's id is its place in this list
 # (scene header byte 1 = the scene's first picture; the next one of the scene is +1).
-SCENE_PICS = {"INTRO": [(1, "intro_before"), (5, "intro_a")], "FINALE_A": [(1, "finale_a")], "FINALE_B": [(1, "finale_a")], "CREDITS": [(1, "credits_b")]}
+SCENE_PICS = {"INTRO": [(1, "intro_before"), (6, "intro_a")], "FINALE_A": [(1, "finale_a")], "FINALE_B": [(1, "finale_a")], "CREDITS": [(1, "credits_b")]}
 # A picture scene that shows another scene's picture (FINALE_B: the Pour-Off was played between the two halves) shares its one
 # copy in ROM: the picture's tiles sit above the first scene's portrait slot, so the sharer's biggest portrait must fit it.
 PIC_SHARE = {"FINALE_B": "FINALE_A"}
@@ -660,7 +667,7 @@ BURST_OAM = 20                  # OAM 20..: the portrait overlay of a speaker pa
 BURST_PAL = 4                   # CGB OBJ palette 4 (OBJPAL_ENH: unused on a cut-scene)
 BURST_ACC = 0.09                # px / frame^2 added to a piece's first speed
 BURST_LINE_MAX = 10
-BURST_FRAME = (8, 40, 80, 104)  # a speaker page's portrait frame (x0, y0, x1, y1): no trail dot in a cell it touches
+BURST_FRAME = (8, 32, 80, 104)  # a speaker page's portrait frame (x0, y0, x1, y1): no trail dot in a cell it touches
 TRAIL_BRIGHT, TRAIL_FAINT = "g", "e"   # intro_a's key characters of the dots: shade 0 cream, shade 1 mauve (both in palette 1)
 TRAIL_S0 = 8                    # the first dot is this far (px along the path) from the piece's start centre
 TRAIL_SPARSE = 24               # every second dot only over the first TRAIL_SPARSE px after that ("further back is sparser")
@@ -1269,6 +1276,29 @@ def carr(name, vals, typ="uint8_t"):
     return f"static const {typ} {name}[{max(1, len(vals))}] = {{\n" + ("\n".join(body) if vals else "    0") + "\n};"
 
 
+def add_plates(ports):
+    """Every portrait gets its name plate's tiles after its own (sp["tiles"], sp["art_tiles"] its art's count): one
+    inverted HUD glyph per letter of the plate name (the cells either side are the frame's own bottom moulding); sp["plate"]: their tile indices in name order."""
+    bar_blocks = dict(blocks(ROOT / "assets/tiles/bar.txt", named=True))
+    story_blocks = dict(blocks(ROOT / "assets/tiles/story.txt", named=True))
+    inv = lambda rows: ["".join({"#": "-", ".": "#"}.get(c, c) for c in r) for r in rows]
+    for sp in ports.values():
+        name = PLATE_NAMES.get(SPEAKERS[sp["speaker"]], SPEAKERS[sp["speaker"]])
+        if len(name) > PLATE_CELLS:
+            fail(f"{sp['name']}: plate name {name!r} is over {PLATE_CELLS} cells (PLATE_NAMES)")
+        sp["art_tiles"] = len(sp["tiles"])
+        sp["plate_name"] = name
+        idx = {}
+        for ch in name:
+            if ch not in idx:
+                src = story_blocks["glyph_hyphen"] if ch == "-" else bar_blocks["glyph_" + ch]
+                idx[ch] = len(sp["tiles"])
+                sp["tiles"].append(tile_bytes(inv(src), 0, 0))
+        sp["plate"] = [idx[ch] for ch in name]
+        if len(sp["tiles"]) > 255:
+            fail(f"{sp['name']}: too many tiles")
+
+
 def scene_budget(scenes, ports, budget):
     """Per scene its portraits (s["spk"]: portrait ids in order of appearance; a speaker's variant is one more), all
     loaded when the scene starts: their BG tiles must fit the budget together (a scene with several speakers swaps
@@ -1305,6 +1335,7 @@ def main():
     cfg = json.loads((ROOT / "assets/story/portraits.json").read_text())
     ports = portraits(cfg)
     assign_portraits(scenes, ports)
+    add_plates(ports)
 
     # the story font: punctuation, frame, icon (ids FONT_BASE..), A-Z 0-9 space are the HUD's own tiles
     font_blocks = blocks(ROOT / "assets/tiles/story.txt", named=True)
@@ -1389,10 +1420,11 @@ def main():
                 l = lines[i] if i < len(lines) else ""
                 text.append(len(l) | (pre << 5 if i == 0 else 0))
                 text += [ord(ch) for ch in l]
-    names = []
-    for n in SPEAKERS:
-        names += [ord(ch) for ch in n.ljust(12, "\0")[:12]]
     npid = max(ports) + 1
+    names = []                                   # per portrait id: its plate name's tiles (relative to its first), 0-terminated
+    for i in range(npid):
+        t = ports[i]["plate"] if i in ports else []
+        names += (t + [0] * 12)[:12]
     pid_spk = [ports[i]["speaker"] if i in ports else NARRATOR for i in range(npid)]
     hdr = []
     for s in scenes:
@@ -1646,6 +1678,7 @@ def main():
           f"#define STORY_CRACKLE_T {burst['crackle_t']}      // from this frame on the crackle flickers above the stump",
           f"#define STORY_BURST_PIC {next(i for i, q in enumerate(pics) if q['name'] == BURST_PIC)}      // the picture (index) the crackle goes on showing",
           f"#define STORY_BURST_END {burst['end']}      // the last frame (after the flash) of the explosion",
+          f"#define STORY_PLATE_FULL {int(PLATE_FULL)}   // 1: the name plate uses all the frame row's cells, 0: those between its corners",
           f"#define STORY_BURST_PER {TRAIL_PER_FRAME}      // trail map writes a frame at most", "",
           "typedef struct {",
           "    uint8_t w, h, x, y;          // tiles (w 0: no portrait); x, y the picture's top-left screen tile",
@@ -1666,7 +1699,7 @@ def main():
           "} goal_t;                         // one shift's goal",
           "void story_scene_get(uint8_t s, uint8_t *dst) BANKED;   // dst: scene_hdr_t",
           "void story_page_get(uint8_t s, uint8_t p, uint8_t conds, uint8_t *dst) BANKED;   // dst[56]: speaker | @beat steps << 4, 3 x 18 cells (1, 2: beats), portrait",
-          "void story_name_get(uint8_t spk, uint8_t *dst) BANKED;  // dst[12], 0-terminated",
+          "void story_name_get(uint8_t spk, uint8_t *dst) BANKED;  // dst[12]: the plate tile ids, 0-terminated",
           "void story_goal_get(uint8_t ch, uint8_t sh, uint8_t *dst) BANKED;   // dst: goal_t",
           "uint8_t story_pattern_get(uint8_t id, uint8_t *dst) BANKED;   // dst[STORY_PAT_MAX] (WRAM); the length",
           "uint8_t story_step_get(uint8_t ch, uint8_t s) BANKED;",
@@ -1704,7 +1737,7 @@ def main():
           "pat_short": PAT_SHORT, "conditions": CONDITIONS,
           "portraits": {sp["name"]: {"pid": pid, "speaker": SPEAKERS[sp["speaker"]], "variant": sp["variant"],
                                      "art": sp["art"], "w": sp["w"], "h": sp["h"], "x": sp["x"], "y": sp["y"],
-                                     "tiles": len(sp["tiles"]), "pals": len(sp["pals"]), "obj": len(sp["obj"]),
+                                     "plate_full": int(PLATE_FULL), "tiles": len(sp["tiles"]), "art_tiles": sp["art_tiles"], "plate_name": sp["plate_name"], "plate": sp["plate"], "pals": len(sp["pals"]), "obj": len(sp["obj"]),
                                      "map": sp["map"], "attr": sp["attr"], "palettes": sp["pals"]}
                         for pid, sp in sorted(ports.items())},
           "pictures": [{"id": p["name"], "name": p["name"], "scene": p["scene"], "page": p["page"], "map": p["map"],
