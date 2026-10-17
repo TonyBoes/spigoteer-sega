@@ -319,3 +319,21 @@ def test_the_mothership_beams_a_drink_up_into_the_saucer(model):
         frames(gb, 3)
         assert gb.oam()[OAM_HAND]["y"] == 0 and gb.oam()[OAM_HAND + 1]["y"] == 0, "the beam and the mug are gone"
         assert glasses(gb, 3) == []
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_beam_never_makes_an_11th_sprite_on_a_line_in_a_crowd(model):
+    """The beam's two sprites cover 34 lines; boss_mothership.c counts every other entry touching them and leaves the beam out unless
+    LINE_OBJ_MAX - 2 or fewer do (a sufficient bound for every line). Crowd: full mugs and empties thrown onto his bar and the bars next to it
+    while three drinks are beamed in; every frame is checked at <= 10 sprites a line (frames)."""
+    from test_flow import inject_mug
+    with play_in(model, SHIP) as gb:
+        for k in range(3):
+            catch_one(gb, SHIP)
+            for b in range(4):
+                for x in (40, 70, 100):
+                    try:
+                        inject_mug(gb, b, x, st=1 + (x == 70))
+                    except ValueError:
+                        pass
+            frames(gb, 40)
