@@ -22,8 +22,8 @@ FONT = int(re.search(r"#define BAR_TILE_COUNT (\d+)", (ROOT / "build" / "art.h")
 PUNCT = {FONT + 0: ".", FONT + 1: ",", FONT + 2: "!", FONT + 3: "?", FONT + 4: "'", FONT + 5: "-", FONT + 6: ":"}
 OBJ_ROBOTS = 100
 # the timeline (frames of the tune; src/credits.c)
-TOTAL, TITLE_F, HERO_END, CARD_F, ROLL, SCROLL_END = 5280, 120, 330, 210, 3480, 4830
-CARD_START = [0, TITLE_F] + [HERO_END + CARD_F * k for k in range(15)]
+TOTAL, TITLE_F, HERO_END, CARD_F, ROLL, SCROLL_END = 5280, 120, 330, 157, 3470, 4830
+CARD_START = [0, TITLE_F] + [HERO_END + CARD_F * k for k in range(20)]
 VENUES = ["THE SALOON", "THE STADIUM", "THE LUMBER LODGE", "THE BISTRO", "THE IGLOO", "THE ROBOT FACTORY", "THE CHROME COW", "THE TEAHOUSE",
           "THE JUNGLE ZOO", "THE SPACE LOUNGE"]
 BOSSES = ["BIG TEX", "THE MASCOT", "SASQUATCH", "THE CRITIC", "THE YETI", "PROTOTYPE", "DUKE", "SUMO CHAMP", "LEO THE LION", "MOTHERSHIP"]
@@ -35,8 +35,8 @@ PATRONS = [   # (line 1, line 2) of the three patrons of each venue: labels, the
     [("MONKEY", ""), ("PANDA", ""), ("HIPPO", "")], [("EYE", "STALK"), ("GREY", ""), ("SQUID", "")]]
 # every card's lines, top to bottom (words of a row joined by one space)
 CARDS = [["CAST OF", "CHARACTERS"], ["SPIGOTEER DREGS", "BARTENDER RIVAL"]]
-for k in range(5):
-    CARDS.append([BOSSES[2 * k], VENUES[2 * k], BOSSES[2 * k + 1], VENUES[2 * k + 1]])
+for k in range(10):
+    CARDS.append([BOSSES[k], VENUES[k]])
 for v in range(10):
     CARDS.append([VENUES[v], " ".join(p[0] for p in PATRONS[v] if p[0])] + [t for t in [" ".join(p[1] for p in PATRONS[v] if p[1])] if t])
 ROLL_LINES = ["SPIGOTEER", "GAME DESIGN,", "MEDIA, AND", "STORY BY", "TONY", "AND HIS TIRELESS", "TEAM OF", "ROBOT FRIENDS", "MUSIC", "PUBLIC DOMAIN",
@@ -158,29 +158,37 @@ def test_the_cast_cards_in_order_with_their_names_and_figures(model):
             if c == 1:
                 assert OBJ_ROBOTS not in shown and any(56 <= t < 64 for t in shown), "Dregs (OBJ 56..) and the Spigoteer (0..)"
                 assert any(t < 56 for t in shown)
-            elif 2 <= c < 7:
-                assert shown == {64, 66}, "the two toppers"
-            elif c >= 7:
+            elif 2 <= c < 12:
+                assert shown == {64}, "the topper"
+            elif c >= 12:
                 assert shown == {100, 102, 106, 108, 112, 114}, shown
+            if c >= 2:                                          # a blank row between a card's lines (the name and venue; a label's two lines)
+                rows = [r for r in range(18) if row_cols(gb, r)]
+                assert all(b - a >= 2 for a, b in zip(rows[1:], rows[2:])), (c, rows)
+                if c < 12:
+                    assert rows[-2:] == [10, 12], (c, rows)
+                    panel = [r for r in range(18) if any(t >= 120 for t in tilemap_row(gb, r, 0, 20))]
+                    assert panel == [4, 5, 6, 7, 8], "the panel (a margin row, the topper's row, the body, a margin row)"
+                    assert 10 - panel[-1] >= 2, "a clear row between the panel and the name"
             for r in range(18):                                 # every line keeps a clear column at each edge
                 cols = row_cols(gb, r)
                 if cols:
                     assert cols[0] >= 1 and cols[1] <= 18, (c, r, cols)
         assert most <= 10
-        assert gb.read("story_scratch", 32)[CARD] == 16
+        assert gb.read("story_scratch", 32)[CARD] == 21
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_each_patron_name_is_centred_under_its_patron(model):
     with roll_from_bonus(model, sound=False) as gb:
         for v in range(10):
-            at(gb, CARD_START[7 + v] + 100)
+            at(gb, CARD_START[12 + v] + 100)
             xs = sorted(s["x"] for s in gb.visible_sprites())
             assert len(xs) == 6
             for k in range(3):
                 cx = xs[2 * k] + 0                              # OAM x of the pair's first column = the pair's centre (left edge + 8)
                 assert cx in (32 + 48 * k, 36 + 48 * k)
-                for r in (10, 11):
+                for r in (10, 12):
                     row = tilemap_row(gb, r, 0, 20)
                     cols = [c for c in range((cx - 24) // 8, (cx + 24) // 8) if GLYPH_CH.get(row[c]) or PUNCT.get(row[c])]
                     if cols:
@@ -188,7 +196,7 @@ def test_each_patron_name_is_centred_under_its_patron(model):
                 words = [w for w in PATRONS[v][k] if w]
                 assert max(len(w) for w in words) <= 6 and all(" " not in w for w in words)
                 longest = max(words, key=len)
-                row = tilemap_row(gb, 10 if longest == PATRONS[v][k][0] else 11, 0, 20)
+                row = tilemap_row(gb, 10 if longest == PATRONS[v][k][0] else 12, 0, 20)
                 cols = [c for c in range(20) if GLYPH_CH.get(row[c]) or PUNCT.get(row[c])]
                 cols = [c for c in cols if abs(c * 8 + 4 - cx) <= 24]
                 assert abs((cols[0] + cols[-1] + 1) * 4 - cx) == 0, "the longest line is exactly under its sprite"
@@ -317,12 +325,14 @@ def test_goldens_of_the_cast(model):
         at(gb, CARD_START[1] + 100)
         check_golden(gb, "credits_cast_hero")
         at(gb, CARD_START[2] + 100)
-        check_golden(gb, "credits_cast_bosses_1")
-        at(gb, CARD_START[6] + 100)
-        check_golden(gb, "credits_cast_bosses_5")
-        at(gb, CARD_START[7] + 100)
-        check_golden(gb, "credits_cast_saloon")
+        check_golden(gb, "credits_cast_boss_bigtex")
+        at(gb, CARD_START[8] + 100)
+        check_golden(gb, "credits_cast_boss_duke")
+        at(gb, CARD_START[11] + 100)
+        check_golden(gb, "credits_cast_boss_mothership")
         at(gb, CARD_START[12] + 100)
+        check_golden(gb, "credits_cast_saloon")
+        at(gb, CARD_START[17] + 100)
         check_golden(gb, "credits_cast_factory")
 
 

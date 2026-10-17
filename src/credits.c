@@ -11,9 +11,9 @@
 //
 //   frames 0-119         "CAST OF CHARACTERS"
 //   120-329              card: the Spigoteer (the player) and Dregs, the Pour-Off's rival
-//   330-1379             5 cards of 210 frames: the ten bosses, two a card, in venue order (their body, WALK pose, and topper: build/boss_cast_art.h)
-//   1380-3479            10 cards of 210 frames: a venue each (its name, its three patrons, side by side with a name under each)
-//   3480-4829            the credits roll (about 0.5 px a frame, text rows streamed in as before)
+//   330-1899             10 cards of 157 frames: the ten bosses, one a card, in venue order (their body, WALK pose, and topper: build/boss_cast_art.h)
+//   1900-3469            10 cards of 157 frames: a venue each (its name, its three patrons, side by side with a label under each)
+//   3470-4829            the credits roll (about 0.53 px a frame, text rows streamed in as before)
 //   4830-5279            "THANKS FOR PLAYING!" alone, the tune's last bars and its held C; the roll ends when the tune has
 //
 // A card is built behind a blank screen with the LCD ON (nothing on the screen, no flash): frame 0 of a card clears it (sprites hidden, text
@@ -58,11 +58,11 @@ void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);   /
 #define CR_UNITS       2      // work units a frame (cards, the roll's start)
 #define CR_ROWF       15      // frames a row of the tune
 #define CR_TOTAL    5280      // the tune's frames
-#define CR_CARD      210      // a card's frames (14 rows)
+#define CR_CARD      157      // a card's frames (10.5 rows)
 #define CR_TITLE     120
 #define CR_HERO_END  330      // the first boss card
-#define CR_CARDS      17      // title, hero, 5 boss cards, 10 patron cards
-#define CR_ROLL     3480      // the roll starts (init: 8 frames of rows, then the scroll)
+#define CR_CARDS      22      // title, hero, 10 boss cards, 10 patron cards
+#define CR_ROLL     3470      // (330 + 20 cards of 157) the roll starts (init: 8 frames of rows, then the scroll)
 #define CR_F0       (CR_ROLL + 10)
 #define CR_F1       4830      // the scroll ends: the last line is up
 #define CR_SPAN     (CR_F1 - CR_F0)
@@ -266,57 +266,55 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
     if (c == 1) {
         if (i) return 1;
         dregs_cast_load(CR_T_D, OBJPAL_CAST);
-    } else if (c >= 2 && c < 7) {
-        if (i >= 6) return 1;
-        j = i / 3;
-        b = 2 * (c - 2) + j;
-        switch (i % 3) {
-        case 0: set_bkg_data(CR_T_BOSS + j * 11, boss_cast_cols[b] << 1, boss_cast_tiles[b]); break;
+    } else if (c >= 2 && c < 12) {
+        if (i >= 3) return 1;
+        b = c - 2;
+        switch (i) {
+        case 0: set_bkg_data(CR_T_BOSS, boss_cast_cols[b] << 1, boss_cast_tiles[b]); break;
         case 1:
-            set_sprite_data(CR_T_HAT + 2 * j, 2, boss_cast_hat[b]);
-            if (!j) set_bkg_data(CR_T_BLANK, 1, cr_zero);
+            set_sprite_data(CR_T_HAT, 2, boss_cast_hat[b]);
+            set_bkg_data(CR_T_BLANK, 1, cr_zero);
             break;
         default:
             if (is_cgb) {
                 p[0] = CR_PANEL; p[1] = boss_cast_pal[b][1]; p[2] = boss_cast_pal[b][2]; p[3] = boss_cast_pal[b][3];
-                set_bkg_palette(BGPAL_STAGE + j, 1, p);
+                set_bkg_palette(BGPAL_STAGE, 1, p);
                 p[0] = 0;
-                set_sprite_palette(OBJPAL_CAST + j, 1, p);
+                set_sprite_palette(OBJPAL_CAST, 1, p);
             }
         }
-    } else if (c >= 7) {
+    } else if (c >= 12) {
         if (i >= 4) return 1;
-        if (i < 3) load_patron_pose0(c - 7, CR_T_P + 6 * i, i);
-        else if (is_cgb) for (j = 0; j < 3; j++) { patron_pal_get(c - 7, j, p); p[0] = 0; set_sprite_palette(OBJPAL_ROBOT + j, 1, p); }
+        if (i < 3) load_patron_pose0(c - 12, CR_T_P + 6 * i, i);
+        else if (is_cgb) for (j = 0; j < 3; j++) { patron_pal_get(c - 12, j, p); p[0] = 0; set_sprite_palette(OBJPAL_ROBOT + j, 1, p); }
     } else return 1;
     return 0;
 }
 
 static uint8_t cr_show_unit(uint8_t c, uint8_t i) {   // unit i of card c's rows; 1: there are no more
-    uint8_t j, k, b, y, L, n, m;
+    uint8_t k, b, y, L, n, m;
     if (c < 2) {
         if (i >= 2) return 1;
         cr_blank();
         if (c == 0) { cr_cell(i ? "CHARACTERS" : "CAST OF", 0, 20); cr_put_card(7 + 2 * i); }
         else if (i == 0) { cr_cell("SPIGOTEER", 1, 9); cr_cell("DREGS", 10, 9); cr_put_card(11); }
         else { cr_cell("BARTENDER", 1, 9); cr_cell("RIVAL", 10, 9); cr_put_card(13); }
-    } else if (c < 7) {
-        j = i >= 12;                               // boss j of the card: 12 units
-        if (i >= 24) return 1;
-        k = i - 12 * j;
-        b = 2 * (c - 2) + j;
+    } else if (c < 12) {
+        if (i >= 12) return 1;                     // one boss a card: 12 units
+        k = i;
+        b = c - 2;
         n = boss_cast_cols[b];
         L = 10 - (n >> 1);                         // the body's first column
-        y = j ? 9 : 1;                             // the panel's top row: a margin row, then the topper's row, the body's two, a margin row
-        if (k < 2) { cr_blank(); cr_cell(cr_boss[b][k], 0, 20); cr_put_card((j ? 14 : 6) + k); }   // name, venue
+        y = 4;                                     // the panel's top row: a margin row, then the topper's row, the body's two, a margin row
+        if (k < 2) { cr_blank(); cr_cell(cr_boss[b][k], 0, 20); cr_put_card(10 + 2 * k); }   // name, a blank row, the venue
         else if (k < 7) {                          // the panel's five rows
             cr_blank();
-            if (k == 4 || k == 5) for (m = 0; m < n; m++) CR->row[L + m] = CR_T_BOSS + j * 11 + 2 * m + (k - 4);
+            if (k == 4 || k == 5) for (m = 0; m < n; m++) CR->row[L + m] = CR_T_BOSS + 2 * m + (k - 4);
             for (m = L - 1; m <= L + n; m++) if (CR->row[m] == TILE_HUD_BLANK) CR->row[m] = CR_T_BLANK;
             cr_put_card(y + k - 2);
         } else if (is_cgb) {                       // their attributes: the panel's palette
             for (m = 0; m < 20; m++) CR->row[m] = BGPAL_HUD;
-            for (m = L - 1; m <= L + n; m++) CR->row[m] = BGPAL_STAGE + j;
+            for (m = L - 1; m <= L + n; m++) CR->row[m] = BGPAL_STAGE;
             VBK_REG = VBK_BANK_1;
             cr_put(y + k - 7);
             VBK_REG = VBK_BANK_0;
@@ -325,35 +323,33 @@ static uint8_t cr_show_unit(uint8_t c, uint8_t i) {   // unit i of card c's rows
     } else {
         if (i >= 3) return 1;
         cr_blank();
-        if (!i) { cr_cell(cr_boss[c - 7][1], 0, 20); cr_put_card(2); }
+        if (!i) { cr_cell(cr_boss[c - 12][1], 0, 20); cr_put_card(2); }
         else {
             for (k = 0; k < 3; k++) {                  // each line centred under its sprite (to the half tile)
-                const char *t = cr_pat[c - 7][k][i - 1];
+                const char *t = cr_pat[c - 12][k][i - 1];
                 n = cr_len(t);
-                L = (uint8_t)(cr_pat_cx(c - 7, k) - 4 * n) >> 3;
+                L = (uint8_t)(cr_pat_cx(c - 12, k) - 4 * n) >> 3;
                 for (m = 0; m < n; m++) CR->row[L + m] = cr_glyph(t[m]);
             }
-            cr_put_card(9 + i);
+            cr_put_card(8 + 2 * i);                   // (a blank row between the two lines: rows 10 and 12)
         }
     }
     return 0;
 }
 
 static void cr_card_sprites(uint8_t c) {          // every frame a card is shown
-    uint8_t t = (uint8_t)CR->t, k, j, b, n, bob;
+    uint8_t t = (uint8_t)CR->t, k, b, n, bob;
     if (c == 1) {                                 // the two bartenders, facing each other
         cr_fig(0, 72, 36, OBJ_BARTENDER, OBJPAL_BARTENDER, 1);
         cr_fig(4, 72, 108, CR_T_D, is_cgb ? OBJPAL_CAST : 0, 0);
-    } else if (c >= 2 && c < 7) {
-        for (j = 0; j < 2; j++) {
-            b = 2 * (c - 2) + j;
-            n = boss_cast_cols[b];
-            cr_oam(j, (j ? 10 : 2) * 8 + 16, (10 - (n >> 1)) * 8 + cr_hat_dx[b] + 8, CR_T_HAT + 2 * j, is_cgb ? OBJPAL_CAST + j : 0);
-        }
-    } else if (c >= 7) {
+    } else if (c >= 2 && c < 12) {
+        b = c - 2;
+        n = boss_cast_cols[b];
+        cr_oam(0, 5 * 8 + 16, (10 - (n >> 1)) * 8 + cr_hat_dx[b] + 8, CR_T_HAT, is_cgb ? OBJPAL_CAST : 0);
+    } else if (c >= 12) {
         for (k = 0; k < 3; k++) {                 // the three patrons, bobbing in turn
             bob = (((t >> 4) + k) & 3) ? 0 : 2;
-            n = cr_pat_cx(c - 7, k);                  // (the pair's left edge + 8: the OAM x of its first column)
+            n = cr_pat_cx(c - 12, k);                  // (the pair's left edge + 8: the OAM x of its first column)
             cr_oam(2 * k, 72 - bob, n, CR_T_P + 6 * k, is_cgb ? OBJPAL_ROBOT + k : 0);
             cr_oam(2 * k + 1, 72 - bob, n + 8, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
         }
