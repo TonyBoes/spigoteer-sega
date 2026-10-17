@@ -21,7 +21,7 @@
 //   shoo-able) until the runner has gone: at most 22 frames. The sprite budget follows: at most 3 crates occupied (a flying parrot
 //   keeps its crate until it has left) = 6 entries, 1 runner = 2, the puff = 1: 9 on the worst line.
 // - 8 coconuts. Ends at 45 s or when the pile is empty; +200 per coconut left. Medal by score (src/mg.c's table): GOLD 8000,
-//   SILVER 5000, BRONZE 2500 (tuned: PLAN.md "Monkey Business as built"). One setting (the spec has no HARD).
+//   SILVER 5000, BRONZE 2500 (tuned: PLAN.md "Monkey Business as built"). EASY / HARD: mk_tune (U, the pop interval, the cap, the parrots) and the medal rows of mg.c.
 //
 // Screen (the approved mock-up, reading 1 / G1): HUD row 0 (score, 8 coconut pips at columns 8-15, the timer at 16-19); the awning
 // band rows 1-4 (BG palette 5, over the banner rows 2-3 until the first play frame); Kiki's pile at columns 16-19, rows 5-7 (6
@@ -62,6 +62,16 @@ typedef char mk_fits[(MK_BG + MK_BG_TILES <= 256 && MK_OBJ_A + MK_OBJ_A_TILES <=
 #define MK_PARROT_AT  2100                  // (HARD 1800) time left (10 s in; HARD 15 s): the random parrots begin (1 pop in 6)
 #define MK_PARROT_POP    4                  // the pop (0-based) that is always a parrot, so every run has one (NORMAL; HARD: none)
 #define MK_PARROT_GAP   10                  // and never more than this many pops without one once they have begun
+// The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL), TUNING.md; the medal row of each is in src/mg.c.
+// HARD is the first (pre-D6b) set. U, the pop interval and its floor, the interval's step, the time left when the cap goes 2 -> 3 and when the random parrots begin.
+static const struct mk_tune mk_tune[MG_DIFFS] = {
+    { MK_U0, MK_U_MIN, MK_GAP0, MK_GAP_MIN, MK_GAP_STEP, MK_CAP_LATE, MK_PARROT_AT },
+    { 90, 45, 60, 24, 75, 1500, 1800 },         // HARD: U 90 -> 45, a pop every 60 -> 24 frames, three up from 20 s, parrots from 15 s
+    { 150, 105, 100, 56, 55, 300, 1800 },       // EASY: U 150 -> 105, a pop every 100 -> 56, three up only for the last 5 s, parrots from 15 s
+};
+#define MKT             (S.tn)
+#define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&mk_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
+
 #define MK_HOP           6
 #define MK_REPEAT       10
 #define MK_SHOO          8
@@ -251,6 +261,7 @@ void mk_enter(void) BANKED {
     uint8_t k, r, c, *z = (uint8_t *)&S, *v = (uint8_t *)0x9800, tb[20], ta[20];
     uint16_t p[4];
     for (k = 0; k < sizeof(struct mk_state); k++) z[k] = 0;
+    TUNE_LOAD();
     set_bkg_data(MK_BG, MK_BG_TILES, mk_bg_tiles);
     set_sprite_data(MK_OBJ_A, MK_OBJ_A_TILES, mk_obj_a_tiles);
     if (MK_OBJ_B_TILES) set_sprite_data(MK_OBJ_B, MK_OBJ_B_TILES, mk_obj_b_tiles);
@@ -269,7 +280,7 @@ void mk_enter(void) BANKED {
     } else OBP1_REG = 0xE4;                                 // everything but the Spigoteer
     // the state
     S.pos = 2; S.from = 2; S.coco = MK_COCO; S.time = MK_TIME; S.secs = MK_TIME / 60;
-    S.unow = MK_U0; S.gap = MK_GAP0; S.next = MK_FIRST_POP; S.pile_shown = 255;
+    S.unow = MKT.u0; S.gap = MKT.gap0; S.next = MK_FIRST_POP; S.pile_shown = 255;
     for (k = 0; k < MK_CRATES; k++) S.cshown[k] = 255;
     for (k = 0; k < 20; k++) S.hattr[k] = BGPAL_HUD;
     // the screen: the framework drew the wall and floor
@@ -355,10 +366,10 @@ static uint8_t reach_ok(uint8_t j, uint8_t u) {
 }
 
 static void pop_try(void) {
-    uint8_t occ = 0, k, j, r, parrot = 0, u = 6 + S.unow, cap = S.time <= MK_CAP_LATE ? 3 : 2;
+    uint8_t occ = 0, k, j, r, parrot = 0, u = 6 + S.unow, cap = S.time <= MKT.cap_late ? 3 : 2;
     for (k = 0; k < MK_CRATES; k++) if (S.c[k].st == MC_RATTLE || S.c[k].st == MC_UP || S.c[k].st == MC_FLY) occ++;
     if (occ >= cap) return;
-    if (S.time <= MK_PARROT_AT) parrot = mg_rand() % 6 == 0;
+    if (S.time <= MKT.parrot_at) parrot = mg_rand() % 6 == 0;
     if (S.pops == MK_PARROT_POP || (S.pops > MK_PARROT_POP && S.pgap >= MK_PARROT_GAP)) parrot = 1;   // (a schedule: every run has parrots)
     r = mg_rand() % MK_CRATES;
     for (k = 0; k < MK_CRATES; k++) {
@@ -488,8 +499,8 @@ void mk_update(uint8_t pressed) BANKED {
         world();
         if (S.next) S.next--;
         if (!S.next) pop_try();
-        if (++S.ucnt >= MK_U_STEP) { S.ucnt = 0; if (S.unow > MK_U_MIN) S.unow--; }
-        if (++S.gcnt >= MK_GAP_STEP) { S.gcnt = 0; if (S.gap > MK_GAP_MIN) S.gap--; }
+        if (++S.ucnt >= MK_U_STEP) { S.ucnt = 0; if (S.unow > MKT.u_min) S.unow--; }
+        if (++S.gcnt >= MKT.gap_step) { S.gcnt = 0; if (S.gap > MKT.gap_min) S.gap--; }
         if (S.time) S.time--;
         s = secs_left(S.secs, S.time);
         if (s != S.secs) { S.secs = s; hud_time(); vq_add(0, S.tbuf + 1, 17, HUD_ROW, 3); }
