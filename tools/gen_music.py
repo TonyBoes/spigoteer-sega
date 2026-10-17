@@ -19,6 +19,7 @@ Two kinds of tune:
 
 Usage: gen_music.py OUTDIR
 """
+import math
 import re
 import sys
 from pathlib import Path
@@ -57,6 +58,8 @@ HARM_INST = {
     "stab": (0x40, 0x52),     # 25% pulse, volume 5, quick decay (0.16 s): off-beat stabs
     "harm50": (0x80, 0x57),   # "harm" at 50% duty (the Entertainer's thirds: rounder, less nasal)
     "pluck": (0x00, 0x55),    # 12.5% pulse, volume 5, medium decay (0.39 s): plucked, koto-like
+    "voice": (0x80, 0x67),    # 50% pulse, volume 6, slow decay (0.66 s): the show tune's counter-melody
+    "vstab": (0x40, 0x62),    # 25% pulse, volume 6, quick decay (0.19 s): a stab chord's lower note (unused: see ARPEGGIO CHORD STABS)
     "ring50": (0x80, 0x97),   # 50% pulse, volume 9, slowest decay (1.0 s): the credits tune's final chord rings
 }
 HARM_REST = 0x7F
@@ -102,6 +105,69 @@ WAVES = [
     # 1 hollow: 25% duty square, softened
     [0xFF, 0xFF, 0xFF, 0xFF, 0xCC, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
 ]
+
+
+# ---- the show tune's instruments (galop, "v2" arrangement) and the tables (hUGEDriver subpatterns) they use ----------
+# A subpattern is a per-tick script attached to an instrument, 3 bytes a tick: (note offset or None, jump, effect).  Effects in a
+# table run on every row they stand in.  A table is as long as its hold row (the last, which jumps to itself).  Only the show tune
+# uses these; every other tune's instruments are the plain ones above.
+NO_NOTE = 90
+SUBPAT = {}
+
+
+def table(name, rows):
+    """rows: [(note offset from the channel's note or None, effect)]; the last row holds (jumps to itself)."""
+    out = []
+    for i, (off, eff) in enumerate(rows):
+        n = NO_NOTE if off is None else 36 + off
+        assert 0 <= n <= 71 or n == NO_NOTE
+        out.append((n, len(rows) if i == len(rows) - 1 else 0, eff))
+    SUBPAT[name] = out
+    return name
+
+
+def pro_bass_wave():
+    """32 samples over the full 4-bit range: a sine with a touch of 2nd and 3rd harmonic (warm, with enough edge for a small
+    speaker); the triangle above runs at half amplitude."""
+    v = []
+    for i in range(32):
+        x = 2 * math.pi * (i + 0.5) / 32
+        y = 0.72 * math.sin(x) + 0.2 * math.sin(2 * x) + 0.1 * math.sin(3 * x)
+        v.append(max(0, min(15, int(round(7.5 + 7.5 * y)))))
+    return [(v[i] << 4) | v[i + 1] for i in range(0, 32, 2)]
+
+# lead: 50 % duty (effect 0x980 = duty 50 %) for two ticks, 25 % after; from tick 8 a 7.5 Hz triangle vibrato of +-2 period units
+# (about 15 cents at D5) made of 1-unit pitch slides, rows 8-15 looping (a delayed vibrato: eighths stay clean).
+table("sp_lead", [(None, 0x980), (None, 0x980), (None, 0x940)] + [(None, 0)] * 5
+      + [(None, 0x101), (None, 0x101), (None, 0x201), (None, 0x201), (None, 0x201), (None, 0x201), (None, 0x101), (None, 0x101)])
+SUBPAT["sp_lead"][-1] = (NO_NOTE, 9, 0x101)      # the last row jumps back to row 8
+# bass: the wave channel has no envelope; the table steps NR32 (0xC0x): 100 % for 7 ticks, 50 % for 5, 25 % for 3, then off.
+table("sp_bass", [(None, 0)] * 7 + [(None, 0xC05)] + [(None, 0)] * 4 + [(None, 0xC02)] + [(None, 0)] * 2 + [(None, 0xC00)])
+# kick: the noise clock drops over three ticks (NR43 0x37 -> 0x57 -> 0x77: 4.7 kHz, 1.2 kHz, 292 Hz): a thump.
+table("sp_kick", [(16, 0), (8, 0), (0, 0)])
+# snare: one tick of the brightest white noise, then the 9.4 kHz body under the envelope.
+table("sp_snare", [(15, 0), (0, 0)])
+
+DUTY.append((0x08, 0x80, 0xA5, "sp_lead"))       # 8 brass lead: volume 10, decay 5 (0.78 s), the duty attack + delayed vibrato table
+LEAD_PRO = len(DUTY)
+WAVES.append(pro_bass_wave())
+WAVE.append((0, 0x20, len(WAVES) - 1, "sp_bass"))   # 3 pro bass: the full-amplitude wave at 100 %, the decay table
+BASS_PRO = len(WAVE)
+NOISE += [
+    (0xA1, 0x00, "sp_kick"),           # 7 kick: volume 10, decay 1 (0.16 s), 15-bit
+    (0x82, 0x00, "sp_snare"),          # 8 snare: volume 8, decay 2 (0.25 s), 15-bit
+    (0x41, 0xB8),                      # 9 closed hat: volume 4, 7-bit, length-limited (8/256 s = 31 ms)
+    (0x52, 0x80),                      # 10 open hat: volume 5, decay 2 (0.16 s), 7-bit
+]
+# The show tune's drum letters in a pattern: channel-4 rows go to hUGEDriver as they are, and its get_note_poly does NOT subtract 36
+# (noise_poly above does, for the groove kit: left alone, the owner decides).  Note 28 -> NR43 0x77, 48 -> 0x27, 63 -> 0x00.
+NOISE_NOTE.update({"b": (28, 7), "n": (48, 8), "t": (63, 9), "o": (63, 10)})   # kick, snare, closed hat, open hat
+
+# ARPEGGIO CHORD STABS (the first galop audition's technique, kept for other songs; no tune uses it now).  A stab row carries a
+# hardware arpeggio, effect 0xy = the note, +x and +y semitones cycling every frame (0x059 = note, +5, +9).  Give the song
+# songs.song(..., fx_map={row: [(2, 0x059)]}): build() writes it into that row's (free) effect column, so the note's staccato cut
+# moves to a later row.  Play it on a short 25 % pulse WITHOUT a table (a table would own the pitch): DUTY.append((0x08, 0x40, 0xA3))
+# gives the "stab" melody instrument, and HARM_INST["vstab"] is the matching channel-1 voice for the lower note.
 
 
 def note_no(name):
@@ -411,15 +477,23 @@ EMPTY = tuple([(REST, 0, 0)] * 64)
 
 
 def emit_instruments(f):
+    for name, rows in SUBPAT.items():
+        f.write(f"static const unsigned char {name}[] = {{   // subpattern, {len(rows)} rows\n")
+        for n, j, e in rows:
+            f.write(f"    DN({n},{j},0x{e:03X}),\n")
+        f.write("};\n")
     f.write("static const hUGEDutyInstr_t duty_inst[] = {\n")
-    for sw, ld, env in DUTY:
-        f.write(f"    {{{sw},{ld},{env},0,128}},\n")
+    for ins in DUTY:
+        sw, ld, env = ins[:3]
+        f.write(f"    {{{sw},{ld},{env},{ins[3] if len(ins) > 3 else 0},128}},\n")
     f.write("};\nstatic const hUGEWaveInstr_t wave_inst[] = {\n")
-    for ln, vol, wv in WAVE:
-        f.write(f"    {{{ln},{vol},{wv},0,128}},\n")
+    for ins in WAVE:
+        ln, vol, wv = ins[:3]
+        f.write(f"    {{{ln},{vol},{wv},{ins[3] if len(ins) > 3 else 0},128}},\n")
     f.write("};\nstatic const hUGENoiseInstr_t noise_inst[] = {\n")
-    for env, hm in NOISE:
-        f.write(f"    {{{env},0,{hm},0,0}},\n")
+    for ins in NOISE:
+        env, hm = ins[:2]
+        f.write(f"    {{{env},{ins[2] if len(ins) > 2 else 0},{hm},0,0}},\n")
     f.write("};\n\n")
 
 

@@ -86,7 +86,7 @@ void music_pump(void) BANKED;               // inside a long LCD-off load: music
 #define SFX(id) do { last_sfx = (id); sfx_count[(id)]++; sfx_req |= (uint16_t)1 << ((id) - 1); } while (0)
 extern uint16_t sfx_req;        // bit (id-1): effect id requested since the last music_tick (16 bits: up to 16 effects)
 extern uint16_t music_late;      // frames whose music tick was postponed because the frame was nearly full
-#define MUSIC_LATEST_LY 124     // one tick takes up to ~16 lines (a row start with all channels busy): not started when the frame's logic ended on line 124..143
+#define MUSIC_LATEST_LY 120     // one tick takes up to ~18 lines (a show-tune row start with the lead, bass and a drum table running: measured 18 in game, 16.8 in the audition harness); a tick started after line 120 could run into VBlank (documentation: main.c ticks every frame and counts those that began after VBlank in music_late)
 
 // src/save.c (M10b; the three modes: SRAM version 7): one top 5 with initials per mode, table t = MODE_ARCADE /
 // MODE_STORY / MODE_CLASSIC (game.h; the LEVEL harness counts as ARCADE), each its own SRAM block; hi_score / hi_digits

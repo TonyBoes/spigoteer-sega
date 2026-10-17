@@ -70,7 +70,7 @@ def mg_enter(gb, gid, mode, seed=SEED):
             return
         rf = gb.pb.register_file
         sp, pc = rf.SP, rf.PC
-        stub = sp - 600                       # well below anything mg_enter's calls push
+        stub = sp - 360                       # below anything mg_enter's calls push, and inside the stack's free space (WRAM_HI_0 keeps 446 B between .HEAP and .STACK: sp - 600 was inside the music buffer)
         code = [0xF5, 0xC5, 0xD5, 0xE5, 0x3E, mode, 0xF5, 0x33, 0x3E, gid, 0xF5, 0x33, 0x1E, bank, 0x21, f & 0xFF, f >> 8,
                 0xCD, bc & 0xFF, bc >> 8, 0xE1, 0xE1, 0xD1, 0xC1, 0xF1, 0xC9]
         for i, b in enumerate(code):
