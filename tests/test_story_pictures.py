@@ -641,7 +641,7 @@ def _find(pix, shape):
 
 def mash_scene(model, scene):
     """A cut-scene ready to be crawled, and when to stop (INTRO and a PRE scene end at the goal banner, FINALE_A at the Pour-Off,
-    FINALE_B on leaving the story state)."""
+    FINALE_B on leaving the story state or when the credits roll has scrolled to its end)."""
     from test_flow import GS_GOAL
     if scene == "INTRO":
         return start_story(model), lambda g: state(g) == GS_GOAL
@@ -651,7 +651,8 @@ def mash_scene(model, scene):
     if scene == "FINALE_A":
         return gb, lambda g: state(g) != GS_STORY
     through_the_pouroff(gb)
-    return gb, lambda g: state(g) != GS_STORY
+    # (FINALE_B, the CREDITS pages, the roll's scroll: the roll then holds its last line until the 88 s credits tune has played)
+    return gb, lambda g: state(g) != GS_STORY or (g.mem("story_phase") == 8 and g.read("story_scratch", 27)[25] > 0)
 
 
 @pytest.mark.parametrize("period", [2, 3, 4, 6])

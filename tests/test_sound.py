@@ -829,7 +829,9 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
     from conftest import ROOT
     src = (ROOT / "build" / "music_data.c").read_text()
     frames = [int(x) for x in re.findall(r"\{&song_\w+, \d, (\d+), \d+, \d+, \w+, \d+, \w+, \d+\}", src)]
-    assert len(frames) == TUNE_COUNT and all(60 <= f <= 2400 for f in frames), frames
+    assert len(frames) == TUNE_COUNT + 1, "the listed tunes, then the credits tune (src/music.h TUNE_CREDITS)"
+    assert frames.pop() == 88 * 60, "the credits tune: 88 s, played once (tests/test_credits.py)"
+    assert all(60 <= f <= 2400 for f in frames), frames
     venue = frames[TUNE_VENUE0:]
     assert all(15 * 60 <= f <= 36 * 60 for f in venue), f"venue tunes loop for 15-36 s (the owner specs are up to 32 bars of a waltz): {venue}"
     assert 8 * 60 <= frames[TUNE_SHOW] <= 12 * 60, "the show tune loops for 8-12 s"

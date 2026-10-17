@@ -3,6 +3,8 @@
 // pointers, so it only sees data in the bank it runs from, or in WRAM. The title, show and venue tunes are too big
 // for bank 2: their patterns sit in ROM bank 10 and music_tick copies them into WRAM (mus_buf_a: the title or the
 // level's venue tune; mus_buf_b: the show tune, copied once and kept), a slice per frame, before a tune starts.
+// The credits tune (TUNE_CREDITS, bank 20) has 12 patterns, the buffer 8: it starts with the first 8 and music_tick copies
+// the other 4 over the first 4 once those have been played (see tick).
 // The music uses channels 2 and 3 (melody, bass) and 4 (percussion in most tunes) through the driver, and channel 1 for
 // a quieter harmony line that harm_tick plays itself (music step 5). Sound effects own channels 1 and 4: while one
 // plays, the driver is told to leave channel 4 alone (hUGE_mute_channel) and harm_tick writes nothing to channel 1;
@@ -28,7 +30,7 @@ static uint8_t ld_play;               // start it when the copy is done (else it
 static const uint8_t *groove;         // the running tune's drum loop (NULL: none)
 static uint8_t swing;                 // the running tune's swing mask (0 none): src/music.h tune_t.groove
 static uint8_t g_pos, g_cnt;          // groove row, frames until it advances
-extern unsigned char hUGE_ticks_per_row, hUGE_tick, hUGE_row, hUGE_row_break, hUGE_next_order;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
+extern unsigned char hUGE_ticks_per_row, hUGE_tick, hUGE_row, hUGE_row_break, hUGE_next_order, hUGE_current_order;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
 uint8_t music_fast;                   // 1: a venue tune plays one frame a row faster (story: TWIST_FAST_TUNE)
 static uint8_t fast_now;              // the running tune plays fast
 static uint16_t ld_pos;               // bytes copied so far
@@ -41,6 +43,7 @@ static uint8_t h_rows, h_cnt;         // rows left in the event, frames left in 
 static uint8_t h_sound;               // 1: the current harmony note sounds on channel 1 (0: rest, or an effect took it)
 #define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
 #define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
+#define FAST_TUNE(t) ((t) >= TUNE_VENUE0 && (t) < TUNE_COUNT)   // the tunes a story twist can speed up (not the credits tune)
 #define FRAME_TIMA          69     // one frame (1/59.73 s) in 4096 Hz timer counts (68.6)
 
 typedef struct { uint16_t freq; uint8_t len; int8_t slide; } sfx_step_t;   // CH1: 11-bit period; CH4: NR43
@@ -146,7 +149,7 @@ void music_init(void) BANKED {
 static void start_song(uint8_t tune) {
     uint8_t keep = hUGE_mute_mask & TK_HOLD;    // Taiko Pour's flags (src/tk.c) outlive a tune restart
     hUGE_init(tunes[tune].song);    // clears the driver's channel mute mask
-    fast_now = music_fast && tune >= TUNE_VENUE0;
+    fast_now = music_fast && FAST_TUNE(tune);
     hUGE_ticks_per_row -= fast_now;   // (the groove below follows: one frame less a row)
     hUGE_mute_mask = keep | (muted = 1) | ((keep >> 5) & 2);     // channel 1 is harm_tick's: the driver leaves it alone (set directly: no note cut,
                                     // so an effect still sounding there plays on)
@@ -181,10 +184,10 @@ void music_play(uint8_t tune) BANKED {
     uint8_t buf = tunes[tune].buf;
     if (story_on) tune_heard(tune);                 // the soundtrack player's unlocks (save.c), music on or off
     if (sound_on && cur_tune == tune && tunes[tune].loop && (mus_active || ld_tune == tune)
-        && fast_now == (music_fast && tune >= TUNE_VENUE0)) return;   // (a speed change restarts it)
+        && fast_now == (music_fast && FAST_TUNE(tune))) return;   // (a speed change restarts it)
     cur_tune = tune;
     if (!sound_on) return;
-    if (buf && loaded[buf] != tune) {
+    if (buf && (loaded[buf] != tune || tune == TUNE_CREDITS)) {      // (the credits tune overwrites its own buffer as it plays: always copied afresh)
         if (ld_tune == tune) {                      // its preload is running: keep the bytes copied so far
             silence_music(); ld_tune = tune; ld_play = 1;
             return;
@@ -341,6 +344,14 @@ static void tick(void) {
         if (swing && !hUGE_tick)        // a swung tune: this row's length (bit n of the mask: the rows n mod 8 are a frame shorter)
             hUGE_ticks_per_row = tunes[cur_tune].song->tempo - fast_now - ((swing >> (hUGE_row & 7)) & 1);
         hUGE_dosound();
+        if (cur_tune == TUNE_CREDITS && hUGE_tick == 1 && hUGE_current_order == 4) {   // the credits tune: while order 2 plays (the driver counts orders by 2),
+            uint8_t k = hUGE_row - 2;                                                 // orders 4 and 5 go over orders 0 and 1 in the buffer, 96 bytes a row for 8 rows
+            if (k < 8) {
+                const tune_t *c = &tunes[TUNE_CREDITS];
+                uint16_t o = (uint16_t)k * 96;
+                mus_copy(c->bank, c->blob + c->bytes + o, mus_buf_a + o, 96);
+            }
+        }
         if (groove && !--g_cnt) groove_row();
         if (harm) {
             if (voice[0].busy || h_cnt == 1 || !h_sound) harm_tick();

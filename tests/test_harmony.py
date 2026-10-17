@@ -21,6 +21,7 @@ pytestmark = pytest.mark.timeout(180)
 NR10, NR11, NR12, NR51 = 0xFF10, 0xFF11, 0xFF12, 0xFF25
 SFX_COIN, SFX_EXTRA = 6, 9
 WITH_HARMONY = [n for n, t in songs.SONGS.items() if t.get("ch1")]
+CHECKED = [n for n in WITH_HARMONY if "harm_tune" in songs.SONGS[n]]    # (the credits tune's thirds are the draft's own: tests/test_credits.py)
 
 
 def harm_regs(name):
@@ -33,7 +34,7 @@ def total_rows(name):
 
 
 # ---- the lines themselves (no emulator) -----------------------------------------------------------------------------
-@pytest.mark.parametrize("name", WITH_HARMONY)
+@pytest.mark.parametrize("name", CHECKED)
 def test_the_harmony_stays_in_key_under_the_melody_and_lasts_the_tune(name):
     t = songs.SONGS[name]
     ev = gm.harm_events(name, t, total_rows(name))     # (asserts: as many rows as the tune, so it loops with it)
@@ -42,7 +43,7 @@ def test_the_harmony_stays_in_key_under_the_melody_and_lasts_the_tune(name):
     assert not probs, f"{name}: " + "; ".join(probs[:6])
 
 
-@pytest.mark.parametrize("name", WITH_HARMONY)
+@pytest.mark.parametrize("name", CHECKED)
 def test_the_harmony_does_not_double_the_melody(name):
     """Never the melody in unison for long: at most a tenth of the tune's rows have the harmony on the melody's pitch."""
     t = songs.SONGS[name]
@@ -90,8 +91,8 @@ def test_the_harmony_track_format():
     h = (ROOT / "src" / "music.h").read_text()
     assert f"#define HARM_BANK {gm.HARM_BANK}" in h and f"#define HARM_REST 0x{gm.HARM_REST:02X}" in h
     data = (ROOT / "build" / "music_data.c").read_text()
-    tab = re.search(r"harm_tab\[TUNE_COUNT\] = \{(.*?)\};", data).group(1).split(", ")
-    want = [f"harm_{n}" if gm.SOURCE.get(n) in WITH_HARMONY else "NULL" for n in gm.ORDER]
+    tab = re.search(r"harm_tab\[TUNE_ALL\] = \{(.*?)\};", data).group(1).split(", ")
+    want = [f"harm_{n}" if gm.SOURCE.get(n) in WITH_HARMONY else "NULL" for n in gm.TUNES]
     assert tab == want
 
 

@@ -495,6 +495,47 @@ _t = H.Tune(" ".join(SAI_BARS), SAI_CHORDS, 8, 2, "Ddor")
 harmony("sailor", _t, " ".join([H.stabs(_t, (1, 8), "C4", "A4", [(1, False), (1, True)] * 4),
                                 H.follow(_t, (9, 16), "A3", "A4", grid=2, merge=False, inst="/2")]), ("stab", "harm"))
 
+# ---------------------------------------------------------------------------------------------
+# The credits tune (src/credits.c; owner picked draft "C3", 2026-10-17): The Entertainer's intro, then the strains the title tune
+# does not use (the C strain in F, the bridge, the D strain), then the A strain's first three bars and a held C, in a slow warm
+# style (15 frames a row, no drums, held root / fifth bass, the title's thirds on the 50% pulse).  A pass is 352 rows = 88 s: not
+# a venue tune (it is no VENUES entry, no jukebox item): gen_music plays it once as a jingle and streams its patterns (12 of
+# them: the buffer holds 8, see gen_music.CREDITS and src/music.c).  The notes were read from the Mutopia Project score
+# entertainer.ly (Public Domain, 1902 edition) by the draft generator (tools/music_drafts.py on the drafts branch); they are
+# data here so that no score file is needed to build.  The bass chords and the harmony (tools/harmony.py follow) are ours.
+CR_MEL = (
+    "D5:1 E5:1 C5:1 A4:2 B4:1 G4:2 D5:1 E5:1 C5:1 A4:2 B4:1 G4:2 D5:1 E5:1 C5:1 A4:2 B4:1 A4:1 G#4:1 G4:2 r:2 G4:2 D4:1 "
+    "D#4:1 A4:1 G#4:1 A4:4 C5:2 D5:8 F4:1 E4:1 F4:4 A4:2 A#4:7 G4:1 D4:2 G4:1 D4:2 G4:1 D4:2 C4:4 F4:4 E4:1 G#4:1 B4:1 E5:2 "
+    "D5:1 B4:1 C5:1 A4:4 A#4:4 A4:1 G#4:1 A4:4 C5:2 D5:8 F4:1 E4:1 F4:4 A4:2 A#4:7 G4:1 D4:2 G4:1 D4:2 G4:1 D4:2 C4:4 F4:3 "
+    "F4:1 A4:1 C5:2 G4:2 C4:1 D4:1 E4:1 F5:2 r:2 F5:2 r:2 C5:2 A4:1 C5:2 A4:1 C5:1 A4:1 G4:1 C5:1 E5:1 G5:2 E5:1 C5:1 G4:1 "
+    "A4:2 C5:2 E5:1 D5:2 C5:1 C5:4 C5:2 r:2 F4:2 E4:1 F4:2 E4:1 F4:2 r:1 A4:1 D5:1 A4:1 C5:1 D5:1 C5:1 A4:1 G4:2 F#4:1 G4:2 "
+    "F#4:1 G4:2 r:1 C5:1 E5:1 C5:1 D5:1 E5:1 D5:1 C5:1 D5:2 C#5:1 D5:2 C#5:1 D5:2 r:1 F5:1 A5:1 F5:1 G5:1 A5:1 G5:1 F5:1 "
+    "C6:1 C6:1 C6:4 A5:2 G5:2 G4:1 G4:1 G4:2 G4:2 F4:2 E4:1 F4:2 E4:1 F4:2 r:1 A4:1 D5:1 A4:1 C5:1 D5:1 C5:1 A4:1 G4:2 "
+    "F#4:1 G4:2 F#4:1 G4:2 r:1 C5:1 E5:1 C5:1 D5:1 E5:1 D5:1 C5:1 A4:1 G#4:1 A4:1 G5:2 F5:2 C5:1 E5:1 D#5:1 E5:1 A5:2 C6:1 "
+    "G5:1 E5:1 C5:2 C5:2 E5:1 D5:2 C5:1 C5:4 C5:2 r:2 E4:1 C5:2 E4:1 C5:2 E4:1 C5:1 ~:5 C5:1 D5:1 D#5:1 E5:1 C5:1 D5:1 E5:2 "
+    "B4:1 D5:2 C5:8"
+)
+CR_BASS = (
+    "G2:4 D3:4 G2:4 D3:4 G2:4 D3:4 G2:4 D3:4 F2:4 C3:4 A#2:4 F3:4 D3:4 A3:4 G2:4 D3:4 A#2:4 G2:4 F2:4 D3:4 E3:4 B3:4 A2:4 "
+    "C3:4 F2:4 C3:4 A#2:4 F3:4 D3:4 A3:4 G2:4 D3:4 A#2:4 G2:4 F2:4 C3:4 C3:4 G3:4 F2:4 C3:4 F2:4 F#2:4 C3:4 G3:4 D3:4 G2:4 "
+    "C3:4 G3:4 D3:4 A3:4 D3:4 A3:4 C3:4 G3:4 C3:4 G3:4 G2:4 D3:4 G2:4 D3:4 F#2:4 C3:4 C3:4 G3:4 D3:4 A3:4 D3:4 A3:4 C3:4 "
+    "G3:4 C3:4 G3:4 F2:4 C3:4 C3:4 G3:4 D3:4 G2:4 C3:4 G3:4 C3:4 G3:4 F2:4 C3:4 G2:4 D3:4 C3:4 G3:4"
+)
+CR_HARM = (
+    "B4:1 B4:1 G4:1 F4:2 G4:1 B3:2 B4:1 B4:1 G4:1 F4:2 G4:1 B3:2 B4:1 B4:1 G4:1 F4:2 G4:1 F4:1 F4:1 B3:2 r:2 B3:2 B3:1 B3:1 "
+    "F4:1 F4:1 F4:4 A4:2 A#4:8 D4:1 A3:1 D4:4 F4:2 G4:7 D4:1 A#3:2 A#3:1 A#3:1 A#3:1 A#3:1 A#3:2 A3:4 D4:4 G#3:1 E4:1 G#4:1 "
+    "G#4:2 B4:1 G#4:1 G#4:1 E4:4 G4:4 F4:1 F4:1 F4:4 A4:2 A#4:8 D4:1 A3:1 D4:4 F4:2 G4:7 D4:1 A#3:2 A#3:1 A#3:1 A#3:1 A#3:1 "
+    "A#3:2 A3:4 C4:3 C4:1 C4:1 E4:2 E4:2 E3:1 A#3:1 C4:1 A4:2 r:2 A4:2 r:2 A4:2 F4:1 A4:1 A4:1 F#4:1 A4:1 F#4:1 E4:1 E4:1 "
+    "G4:1 B4:2 G4:1 E4:1 E4:1 F#4:2 A4:2 G4:1 B4:2 G4:1 E4:4 E4:2 r:2 D4:2 A3:1 D4:2 A3:1 D4:2 r:1 F4:1 F4:1 F4:1 A4:1 A4:1 "
+    "A4:1 F4:1 E4:2 D4:1 E4:2 D4:1 E4:2 r:1 E4:1 G4:1 E4:1 G4:1 G4:1 G4:1 E4:1 B4:2 F4:1 B4:2 F4:1 B4:2 r:1 A4:1 G4:1 A4:1 "
+    "B4:1 G4:1 B4:1 A4:1 A4:1 A4:1 A4:4 F#4:2 B4:2 E4:1 E4:1 E4:2 E4:2 D4:2 A3:1 D4:2 A3:1 D4:2 r:1 F4:1 F4:1 F4:1 A4:1 "
+    "A4:1 A4:1 F4:1 E4:2 D4:1 E4:2 D4:1 E4:2 r:1 E4:1 G4:1 E4:1 G4:1 G4:1 G4:1 E4:1 F4:1 F4:1 F4:1 B4:2 A4:2 A4:1 G4:1 G4:1 "
+    "G4:1 G4:2 G4:1 B4:1 G4:1 A4:2 A4:2 G4:1 B4:2 G4:1 E4:4 E4:2 r:2 C4:1 E4:2 C4:1 E4:2 C4:1 E4:1 A4:4 E4:1 E4:1 G4:1 G4:1 "
+    "G4:1 G4:1 B4:1 B4:2 G4:1 B4:2 E4:8"
+)
+song("credits", 15, "A", CR_MEL, CR_BASS, "", inst=5)
+SONGS["credits"].update(ch1=CR_HARM, ch1_inst=("harm50", "harm50"))
+
 # which songs, in tune order after title/show
 VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sailor", "sakura", "weasel", "danube"]
 

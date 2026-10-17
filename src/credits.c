@@ -11,7 +11,10 @@
 // the three robot variants of the factory's patron group (shift-0 poses as OBJ tiles, OBJ palettes 5-7), who bob in turn, and the
 // bartender, facing them, who raises a hand now and then. They move up with the text and are hidden once off the screen.
 // A speeds it up (held), B / START skip (to the end: story_end, or the BONUS menu). The roll ends HOLD_FRAMES after the last line
-// has scrolled to the middle of the screen. The music plays on as it was (the title's tune in both places).
+// has scrolled to the middle of the screen, or when the music has finished if that is later. The music is the credits tune
+// (TUNE_CREDITS: the Entertainer's intro, the strains the title tune lacks and its opening bar again, 88 s, played once; owner's pick of
+// the drafts, 2026-10-17): the scroll is over long before it ends (about 21 s), so the last line stays up for the rest of it.
+// With the sound off the roll ends as before.
 // State in story_scratch (no WRAM of its own; nothing else runs while the roll shows): tests read it at story_scratch + offset.
 #pragma bank 20          // (pinned: bank 20 is the roomy one)
 #include <gb/gb.h>
@@ -116,6 +119,7 @@ void credits_enter(uint8_t from_story) BANKED {
     uint8_t v, y;
     uint16_t p[4];
     DISPLAY_OFF;
+    music_play(TUNE_CREDITS);                         // (copied while the screen is built: music_load_now below finishes it)
     music_pump();
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     vq_reset(); hud_dirty = 0; vram_pending = 0;
@@ -136,6 +140,7 @@ void credits_enter(uint8_t from_story) BANKED {
     SCX_REG = 0; SCY_REG = 0;
     story_phase = STORY_PHASE_CREDITS;
     game_state = GS_STORY;
+    music_load_now();                                 // the tune's first notes sound with the picture
     DISPLAY_ON;
 }
 
@@ -187,8 +192,8 @@ uint8_t credits_update(uint8_t pressed) BANKED {
         }
         SCY_REG = (uint8_t)CR->scroll;
     } else {
-        CR->hold += (joy & J_A) ? 4 : 1;
-        if (CR->hold >= CR_HOLD) { cr_leave(); return 1; }
+        if (CR->hold < CR_HOLD) CR->hold += (joy & J_A) ? 4 : 1;
+        else if (!sound_on || cur_tune != TUNE_CREDITS) { cr_leave(); return 1; }     // (the tune ends: cur_tune goes to TUNE_NONE)
     }
     cr_sprites();
     return 0;

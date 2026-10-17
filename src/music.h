@@ -9,7 +9,9 @@
 
 // TUNE_VENUE0 + g is the gameplay tune of patron group g (cowboys, sports, lumberjacks, chefs, divers, robots, punks,
 // ninjas, zoo, aliens: tools/songs.py VENUES); TUNE_SHOW plays while a show runs.
-enum { TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0, TUNE_COUNT = TUNE_VENUE0 + 10, TUNE_NONE = 255 };
+// TUNE_COUNT: the tunes the soundtrack player lists and the save unlocks (bits of tune_unlocked); TUNE_CREDITS (the credits roll's
+// tune, src/credits.c) comes after them and is in neither; TUNE_ALL sizes the tune tables.
+enum { TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0, TUNE_COUNT = TUNE_VENUE0 + 10, TUNE_CREDITS = TUNE_COUNT, TUNE_ALL, TUNE_NONE = 255 };
 enum { SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_EXTRA, SFX_DON, SFX_KA, SFX_REV, SFX_WHOOSH, SFX_SWISH, SFX_COUNT };   // (14 of the 16 request bits)
 
 typedef struct {
@@ -23,14 +25,19 @@ typedef struct {
     const uint8_t *groove;  // NULL, or a drum loop src/music.c plays on channel 4: {rows, frames per row (over 15: a swing mask, bit n = the rows n mod 8 are a frame shorter than the song's tempo), one byte per row: 0 none, 1 kick, 2 snare, 3 hat}
     uint8_t  start;         // row of the song (0-255) the first play begins on (tools/songs.py song(start=)); the loop wraps to row 0
 } tune_t;
-extern const tune_t tunes[TUNE_COUNT];
+extern const tune_t tunes[TUNE_ALL];
+// The credits tune is longer than buffer A (12 patterns, 8 fit): its blob (bank CREDITS_BANK) holds the first 8 (tune_t.bytes, copied
+// before it starts) and then CREDITS_STREAM bytes (orders 4 and 5), which music_tick copies over the buffer's start (orders 0 and 1, played
+// by then) during order 2: 96 bytes on each of eight rows. tools/gen_music.py checks these numbers.
+#define CREDITS_BANK   20
+#define CREDITS_STREAM 768
 // Channel 1 harmony voice (music step 5): played by src/music.c itself, not by hUGEDriver (a fourth pattern per order
 // would not fit WRAM). harm_tab[tune]: NULL or the tune's track in ROM bank HARM_BANK: duty A, envelope A, duty B,
 // envelope B (NR11, NR12), then events of two bytes, note (bits 0-6: hUGE note index or HARM_REST; bit 7: instrument
 // B) and rows (1..255); rows 0 ends the track (it starts again, in step with the driver's loop). tools/gen_music.py.
 #define HARM_BANK 10
 #define HARM_REST 0x7F
-extern const unsigned char * const harm_tab[TUNE_COUNT];
+extern const unsigned char * const harm_tab[TUNE_ALL];
 // Taiko Pour (src/tk.c) sets spare bits of hUGE_mute_mask (the driver only reads bits 0-3) while it runs: the tune's own
 // drum groove steps aside (TK_NOGROOVE), the channel-1 harmony stays silent (TK_NOHARM), the melody is out (TK_NOMELODY:
 // start_song turns it into the driver's channel-2 mute bit); start_song keeps them (TK_HOLD) across a tune restart.

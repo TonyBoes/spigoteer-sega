@@ -62,7 +62,7 @@ def loop_silence(name, t, legacy):
 
 
 def looping_tunes():
-    out = [(n, songs.SONGS[n], False) for n in songs.SONGS]
+    out = [(n, songs.SONGS[n], False) for n in songs.SONGS if n != gm.CREDITS]      # (the credits tune plays once)
     out += [(n, t, True) for n, t in gm.JINGLES.items() if t["loop"]]
     return out
 
