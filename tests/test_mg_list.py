@@ -37,6 +37,11 @@ assert "#define ST_FRAME_TL (STORY_FONT_BASE + 7)" in (ROOT / "build" / "story.h
 assert "#define ST_GLYPH_QUEST (STORY_FONT_BASE + 3)" in (ROOT / "build" / "story.h").read_text()
 
 
+SKIN_MEDAL = 2                                 # the wood-wall tiles (src/game.h SKIN_TILE_*): ids 2, 3, 4 are the BRONZE, SILVER and GOLD icons
+MEDAL_TILES = {SKIN_MEDAL: "BRONZE", SKIN_MEDAL + 1: "SILVER", SKIN_MEDAL + 2: "GOLD"}
+assert "#define SKIN_TILE_MEDAL   1 " in (ROOT / "src" / "game.h").read_text()
+
+
 def pr_block(unlocked=0, best=(), magic=b"MGP1"):
     """Practice's SRAM block: magic, the unlock bits (LE), a medal per planned game, checksum, complement."""
     r = bytearray(PR_LEN + 2)
@@ -73,8 +78,14 @@ def best(rom):
 def line(gb, row):
     """A row of the list screen as text ('?' for the story font's question mark)."""
     out = ""
-    for t in tilemap_row(gb, row, 0, 20):
+    row_tiles = tilemap_row(gb, row, 0, 20)
+    for t in row_tiles[:19]:
         out += GLYPH_CH.get(t, "@" if t == BTN_A else "$" if t == BTN_B else ">" if t == BTN_R else "?" if t == QUEST else "-" if t == QUEST + 2 else " ")   # (ST_GLYPH_HYPHEN is the story font's 6th)
+    t = row_tiles[19]
+    if t in MEDAL_TILES:                           # (owner 2026-10-17: the best medal is an icon at column 19; the tests read it as its word at column 14, as before)
+        out = out.rstrip().ljust(14) + MEDAL_TILES[t]
+    else:
+        out += GLYPH_CH.get(t, "@" if t == BTN_A else "$" if t == BTN_B else ">" if t == BTN_R else "?" if t == QUEST else " ")
     return out.rstrip()
 
 
@@ -144,10 +155,10 @@ def no_row_touches_the_separator(gb, n):
     text), details below."""
     last = game_row(n - 1)
     blank, sep = tilemap_row(gb, last + 1, 0, 20), tilemap_row(gb, last + 2, 0, 20)
-    assert len(set(blank)) == 1 and len(set(sep)) == 1 and blank[0] != sep[0], "a blank row, then the separator"
+    assert set(blank) <= {0, 54} and len(set(sep)) == 1 and blank[0] != sep[0], "a blank row, then the separator"
     assert all(tilemap_row(gb, game_row(i), 0, 20) != sep for i in range(n)), "no list line is the separator"
     assert all(len(set(tilemap_row(gb, game_row(i), 0, 20))) > 1 for i in range(n)), "every list line has its text"
-    assert all(tilemap_row(gb, game_row(i) + 1, 0, 20) == blank for i in range(n - 1)), "a blank row between the games"
+    assert all(set(tilemap_row(gb, game_row(i) + 1, 0, 20)) <= {0, 54} for i in range(n - 1)), "a blank row (the wall: blank tiles and board seams) between the games"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -440,28 +451,60 @@ def test_the_scroll_arrows_show_only_where_games_are_hidden_and_bob(model):
 
 
 
-# ---- the keys line's buttons and the muted medal words (owner 2026-10-15) ---------------------------------------------------------------
+
+
+# ---- the wood wall and the medal icons (owner 2026-10-17: v1 of the tavern mock-ups without the shelves and bottles; an icon for the best medal) ----
 def attr(gb, row, col):
     return gb.pb.memory[1, 0x9800 + row * 32 + col] & 7
 
 
-def test_cgb_colours_the_medal_column_and_the_buttons():
-    """CGB: the medal column (14-19) of the game rows is BG palette 3 (a muted gold), the three button tiles of the keys row palette 4 (gold),
-    everything else the HUD palette 1; after a scroll and a mode change the attributes are still right; a locked game's lines have no button."""
-    with to_list(booted("cgb")) as gb:
-        hold_stage_anim(gb)
-        for i in range(VIS):
-            assert [attr(gb, game_row(i), c) for c in range(20)] == [1] * 14 + [3] * 6, i
-        keys_row = tilemap_row(gb, 16, 0, 20)
-        assert [attr(gb, 16, c) for c in range(20)] == [4 if keys_row[c] in (BTN_A, BTN_B, BTN_R) else 1 for c in range(20)]
-        assert sum(attr(gb, 16, c) == 4 for c in range(20)) == 3
-        for _ in range(8):
-            tap(gb, "down")
-        tap(gb, "right")
-        gb.run(8)
-        for i in range(VIS):
-            assert [attr(gb, game_row(i), c) for c in range(20)] == [1] * 14 + [3] * 6, i
-        assert sum(attr(gb, 16, c) == 4 for c in range(20)) == 3
+def tile_pixels(gb, tid):
+    """The 8x8 colour indices of BG tile `tid` (ids < 128 at 0x9000, as the tests of the story font read them)."""
+    b = gb.read(0x9000 + tid * 16, 16)
+    return [[((b[2 * y + 1] >> (7 - x)) & 1) << 1 | ((b[2 * y] >> (7 - x)) & 1) for x in range(8)] for y in range(8)]
+
+
+def test_the_medal_icons_differ_by_shape_and_by_colour_index():
+    """DMG tells the three by shape (GOLD a solid disc, SILVER a disc with a small hole, BRONZE a ring), CGB by colour: each icon is drawn in its own colour
+    index (gold 0, silver 1, bronze 2) of palette 3, the ground colour 3."""
+    with to_list(booted("dmg")) as gb:
+        shapes = {}
+        for tid, idx in ((SKIN_MEDAL, 2), (SKIN_MEDAL + 1, 1), (SKIN_MEDAL + 2, 0)):
+            px = tile_pixels(gb, tid)
+            assert {v for r in px for v in r} == {idx, 3}, (tid, "one metal colour on the ground")
+            shapes[tid] = sum(v != 3 for r in px for v in r)
+        assert shapes[SKIN_MEDAL + 2] > shapes[SKIN_MEDAL + 1] > shapes[SKIN_MEDAL], shapes   # solid > small hole > ring
+
+
+def test_the_list_shows_the_icons_only_for_a_medal_and_the_wall_around_it():
+    """The debug list, QUICK DRAW silver, SHIRT CANNON bronze (the shown_list save of tests/test_difficulty.py is not used: the medals come from a block here)."""
+    ram = with_block(v7_image(), pr_block(0, [2, 1, 3]))
+    for model in ("dmg", "cgb"):
+        with to_list(booted(model, ram)) as gb:
+            hold_stage_anim(gb)
+            assert [tilemap_row(gb, game_row(i), 19, 1)[0] for i in range(4)] == [SKIN_MEDAL + 1, SKIN_MEDAL, SKIN_MEDAL + 2, 54], "silver, bronze, gold; none: the blank tile"
+            assert set(tilemap_row(gb, 1, 0, 20)) == {1}, "row 1 is the header band's edge"
+            seams = [x for r in range(3, 14, 2) for x, t in enumerate(tilemap_row(gb, r, 0, 20)) if t == 0]
+            assert len(seams) == 6 * 5, "a seam every four tiles in the blank rows 3..13 (the rows between the lines are plain wall: 54)"
+            assert all(t in (0, 54) for r in range(3, 14, 2) for t in tilemap_row(gb, r, 0, 20))
+            if model == "cgb":
+                for i in range(VIS):
+                    assert [attr(gb, game_row(i), c) for c in range(20)] == [2] * 19 + [3], i
+                    assert [attr(gb, game_row(i) + 1, c) for c in range(20)] == [2] * 20, i
+                assert [attr(gb, r, 3) for r in (0, 1, 13, 14, 15, 16, 17)] == [5, 7, 2, 6, 6, 6, 6]
+                keys_row = tilemap_row(gb, 16, 0, 20)
+                assert [attr(gb, 16, c) for c in range(20)] == [4 if keys_row[c] in (BTN_A, BTN_B, BTN_R) else 6 for c in range(20)]
+                assert sum(attr(gb, 16, c) == 4 for c in range(20)) == 3
+                for _ in range(8):
+                    tap(gb, "down")
+                tap(gb, "right")
+                gb.run(8)
+                for i in range(VIS):
+                    assert [attr(gb, game_row(i), c) for c in range(20)] == [2] * 19 + [3], i
+                assert sum(attr(gb, 16, c) == 4 for c in range(20)) == 3
+
+
+def test_cgb_release_list_locked_has_no_buttons(release_built):
     with release_rom("cgb") as gb:                         # (a locked game: "REACH IT IN STORY" / "OR ARCADE", no buttons)
         to_list(gb)
-        assert [attr(gb, 16, c) for c in range(20)] == [1] * 20
+        assert [attr(gb, 16, c) for c in range(20)] == [6] * 20

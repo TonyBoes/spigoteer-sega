@@ -43,6 +43,9 @@
 #define POS_POST          (STORY_STEPS + 1)    // positions: 0 PRE, 1..STORY_STEPS the steps, POS_POST
 #define DBG_WINDOW         72                  // frames from the first START tap to the third
 #define DBG_SAVE_ROW       28                  // the window map's off-screen rows: the saved tiles (28-30) and LYC (31)
+#define SKIN_SAVE_ROW      18                  // rows 18-22: the wood wall's five tiles (src/mg_list.c list_skin_load); in the attribute map the six palettes' bytes
+#define SKIN_SAVE_N         5
+#define SKIN_PALS           6
 
 extern uint8_t overlay_on, level, story_chapter, story_step, state_timer;
 uint8_t debug_menu_open;
@@ -203,6 +206,12 @@ static void fill_win(uint8_t y, uint8_t t) {
     win_row(y, r);
 }
 
+static void seam_row(uint8_t y) {                        // a blank row with the wood wall's board seams (as the lists', src/mg_list.c list_frame)
+    uint8_t r[20], x;
+    for (x = 0; x < 20; x++) r[x] = (x & 3) == (y & 2) ? SKIN_TILE_SEAM : TILE_HUD_BLANK;
+    win_row(y, r);
+}
+
 static void draw_line(uint8_t i) {                       // line slot i (0..5): its row, or a blank one past the last line
     uint8_t k[5], r[20], n = lines(k);
     if (i < n) line_row(k[i], r); else blank(r);
@@ -222,10 +231,10 @@ static void draw_all(void) {
     blank(r);
     put(r, COL_LABEL, "DEBUG MENU");
     win_row(0, r);
-    fill_win(1, TILE_PANEL_TOP);
+    fill_win(1, SKIN_TILE_EDGE);
     for (i = 0; i < 6; i++) {                                // six line slots on rows 2, 4 .. 12, a blank row after each (3, 5 .. 13)
         draw_line(i);
-        fill_win(ROW_LINE0 + 2 * i + 1, TILE_HUD_BLANK);
+        seam_row(ROW_LINE0 + 2 * i + 1);
     }
     fill_win(ROW_SEP, TILE_PANEL_TOP);
     blank(r); put(r, 255, info_text[dmode()]); win_row(ROW_INFO, r);
@@ -276,12 +285,29 @@ void debug_open(void) BANKED {
     }
     b[0] = LYC_REG;
     set_win_tiles(0, DBG_SAVE_ROW + 3, 1, 1, b);
+    for (i = 0; i < SKIN_SAVE_N; i++) {              // the wood wall's five tiles (over the stage ids 0-4) and, CGB, its six palettes: kept in the window map's off-screen rows
+        const volatile uint8_t *t = (const volatile uint8_t *)(0x9000 + (uint16_t)i * 16);
+        for (k = 0; k < 16; k++) b[k] = vget(t + k);
+        set_win_tiles(0, SKIN_SAVE_ROW + i, 16, 1, b);
+    }
+    if (is_cgb) {
+        VBK_REG = VBK_BANK_1;                        // (the attribute map's bytes hold the palettes' 8 bytes each)
+        for (i = 0; i < SKIN_PALS; i++) {
+            for (k = 0; k < 8; k++) { BCPS_REG = (SKIN_PAL_WALL + i) * 8 + k; b[k] = BCPD_REG; }
+            set_win_tiles(0, SKIN_SAVE_ROW + i, 8, 1, b);
+        }
+        VBK_REG = VBK_BANK_0;
+    }
     music_pump();
+    list_skin_load();
     set_bkg_data(KEY_A, 3, list_key_tiles);
-    if (is_cgb) {                                    // the window map's attributes: the HUD palette
-        for (i = 0; i < 20; i++) b[i] = BGPAL_HUD;
+    if (is_cgb) {                                    // the window map's attributes: the wall's palettes (header, edge, lines, panel), the buttons' on the keys row
         VBK_REG = VBK_BANK_1;
-        for (i = 0; i < 18; i++) set_win_tiles(0, i, 20, 1, b);
+        for (i = 0; i < 18; i++) {
+            for (k = 0; k < 20; k++) b[k] = i == 0 ? SKIN_PAL_HEAD : i == 1 ? SKIN_PAL_EDGE : i >= ROW_SEP ? SKIN_PAL_FOOT : SKIN_PAL_WALL;
+            if (i == ROW_KEYS) b[1] = b[6] = b[13] = SKIN_PAL_BTN;      // ("@ GO $ BACK > EDIT": the three buttons)
+            set_win_tiles(0, i, 20, 1, b);
+        }
         VBK_REG = VBK_BANK_0;
     }
     debug_sel = 1;                                   // (the first value line: Left / Right change the level at once)
@@ -300,6 +326,7 @@ void debug_open(void) BANKED {
 // everything the menu moved comes back: the button tiles, LYC and WY, the banner rows, the sprites
 static void close_menu(void) {
     uint8_t i, k, b[20];
+    DISPLAY_OFF;                                     // (the tiles and palettes go back unseen: the game under the window shows them as soon as the window goes)
     overlay_on = 0; HIDE_WIN;
     debug_menu_open = 0;
     debug_sel = 0; debug_timer = 0;                  // (the gesture's count starts clean)
@@ -307,6 +334,20 @@ static void close_menu(void) {
         const volatile uint8_t *r = (const volatile uint8_t *)(0x9C00 + (DBG_SAVE_ROW + i) * 32);
         for (k = 0; k < 16; k++) b[k] = vget(r + k);
         set_bkg_data(KEY_A + i, 1, b);
+    }
+    for (i = 0; i < SKIN_SAVE_N; i++) {              // the wood wall's tiles and palettes go back
+        const volatile uint8_t *r = (const volatile uint8_t *)(0x9C00 + (SKIN_SAVE_ROW + i) * 32);
+        for (k = 0; k < 16; k++) b[k] = vget(r + k);
+        set_bkg_data(i, 1, b);
+    }
+    if (is_cgb) {
+        for (i = 0; i < SKIN_PALS; i++) {
+            const volatile uint8_t *r = (const volatile uint8_t *)(0x9C00 + (SKIN_SAVE_ROW + i) * 32);
+            VBK_REG = VBK_BANK_1;
+            for (k = 0; k < 8; k++) b[k] = vget(r + k);
+            VBK_REG = VBK_BANK_0;
+            set_bkg_palette(SKIN_PAL_WALL + i, 1, (uint16_t *)b);
+        }
     }
     LYC_REG = vget((const volatile uint8_t *)(0x9C00 + (DBG_SAVE_ROW + 3) * 32));
     WY_REG = BANNER_WY;
@@ -390,6 +431,7 @@ uint8_t debug_step(uint8_t pressed) BANKED {
     if (pressed & J_B) {
         close_menu();
         game_state = debug_from_title ? GS_TITLE : GS_PLAYING;
+        DISPLAY_ON;
     }
     return 0;
 }

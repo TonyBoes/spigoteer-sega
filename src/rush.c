@@ -176,12 +176,6 @@ static char *six(char *d, uint32_t v) {          // a score's six digits
     return d;
 }
 
-static void rows_fill(uint8_t y0, uint8_t n, uint8_t t) {   // LCD off: rows y0.. of tile t
-    uint8_t i;
-    for (i = 0; i < 20; i++) row_buf[i] = t;
-    for (; n; n--, y0++) set_bkg_tiles(0, y0, 20, 1, row_buf);
-}
-
 static void line_at(uint8_t y, uint8_t x, const char *s) {  // LCD off: a text row
     blank(row_buf);
     put(row_buf, x, s);
@@ -210,17 +204,9 @@ static void frame_begin(uint8_t scr) {           // LCD off: a blank band with t
     story_on = 0;                                // (the rush's screens are not a story; a fight sets it again)
     story_font_load();                           // the punctuation (over the patron range: a fight's load puts it back)
     music_pump();
-    rows_fill(0, 18, TILE_HUD_BLANK);
+    list_frame(box_row(), scr == RS_MENU || scr == RS_LIST);   // (the wood wall, src/mg_list.c: the header band, the board seams on the menu and the list, the panel)
     music_pump();
     line_at(ROW_HEAD, 255, "BOSS RUSH");
-    rows_fill(ROW_HEAD + 1, 1, TILE_PANEL_TOP);
-    rows_fill(box_row(), 1, TILE_PANEL_TOP);
-    rows_fill(box_row() + info_n() + 1, 1, TILE_PANEL_BOT);
-    if (is_cgb) {
-        VBK_REG = VBK_BANK_1;
-        rows_fill(0, 18, BGPAL_HUD);
-        VBK_REG = VBK_BANK_0;
-    }
     RUSH->t = 0; RUSH->dirty = 0;
     story_phase = STORY_PHASE_RUSH;
     game_state = GS_STORY;

@@ -33,15 +33,18 @@
 #include "mg.h"
 #include "list_arrows.h"        // static const uint8_t list_arrow_tiles[]: the up and down arrow (assets/art/list_arrows.txt)
 #include "list_keys.h"          // static const uint8_t list_key_tiles[]: the keys line's A, B and right buttons (assets/art/list_keys.txt)
+#include "list_skin.h"          // static const uint8_t list_skin_tiles[]: the wood-wall look's seam, header edge and medal icons (assets/art/list_skin.txt)
 #include <gb/cgb.h>
 #include "palettes.h"
+
+#define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
 
 extern uint8_t overlay_on;
 
 #define ML_ROW_HEAD     0
 #define ML_ROW_LIST     2
 #define ML_COL_NAME     1
-#define ML_COL_MEDAL   14       // (BATTERY SORT is 12 letters: columns 1-12)
+#define ML_COL_MEDAL   19       // the best medal's icon (owner 2026-10-17: an icon, no word; the right end; BATTERY SORT is 12 letters: columns 1-12)
 #define ML_BUILDS_PER_FRAME 2   // rows built and queued a frame (a row's build is ~15k cycles: a quick scroll with 4 ran the frame past its VBlank)
 // chapter order (docs/story.md: saloon, stadium, lodge, bistro, igloo, robot factory, Chrome Cow, teahouse, zoo, space lounge)
 #ifdef DEBUG_MENU
@@ -75,8 +78,6 @@ typedef char ml_fits[(ML_INFO_LINES == 2 && ML_N >= ML_VIS && ML_N - ML_VIS < 16
 #define ml_t          (story_scratch[(ML_HEAD_K + 1) * 20 + 2])   // frames on this screen (the arrows' bob)
 #define ml_attr       (story_scratch + (ML_HEAD_K + 1) * 20 + 4)  // the keys line's CGB attribute row (20 bytes: the buttons' palette)
 typedef char ml_scratch_fits[(ML_HEAD_K + 1) * 20 + 24 <= STORY_SCRATCH ? 1 : -1];
-#define ML_PAL_MEDAL  (BGPAL_PATRON + 1)    // CGB: the medal words' muted palette, columns 14-19 of the list lines (palette 3: the title sets it again)
-#define ML_PAL_BTN    (BGPAL_PATRON + 2)    // CGB: the keys line's buttons (palette 4)
 // Scroll arrows (owner 2026-10-14): two 8x16 OBJ sprites (OAM 1 and 2) at the right edge, column 19: the up arrow on the separator line under the header
 // when games are listed above the window (ml_top > 0), the down arrow on the blank row under the window when games are listed below it. They bob
 // one pixel (the up one up, the down one down) every ML_BOB_FRAMES frames. Tiles at the dancer's OBJ ids (the title and the games reload them).
@@ -196,7 +197,46 @@ static void build(uint8_t k) {
     g = ml_game[ml_top + k];
     if (!unlocked(g)) { put(r, ML_COL_NAME, locked_name); return; }
     put(r, ML_COL_NAME, game_name(g));
-    put(r, ML_COL_MEDAL, medal_name[best(g)]);
+    if (best(g)) r[ML_COL_MEDAL] = SKIN_TILE_MEDAL + best(g);     // (the icon: ids SKIN_TILE_MEDAL + MEDAL_BRONZE .. GOLD)
+}
+
+// The wood-wall look of the full-screen lists (owner 2026-10-17: v1 of the tavern mock-ups without the shelves and the bottles). LCD off: loads the tiles over the
+// stage ids and the CGB palettes 2-7, then all 18 rows: row 0 the header's text row (the caller writes its text over it), row 1 the band's edge (SKIN_TILE_EDGE),
+// the wall with a board seam in the blank rows (`seams`: the odd rows 3.. above the panel, the seam shifting two tiles every other row), the panel's top line on
+// `sep`, its info rows, its bottom line on 17. CGB: the header on a gold band with dark text (the text row's tiles have the letters on tile rows 1-7: with the
+// edge row's first gold pixel row the text has 1 px of band above and below), the wall dark wood, the panel a darker reddish band. DMG: the wall stays the
+// darkest shade (the letters' tiles have colour 3 for the ground), the edge row is two light lines under the header.
+static const uint16_t skin_pal[6][4] = {
+    { RGB15(31, 29, 22), RGB15(14, 9, 4), RGB15(3, 1, 1), RGB15(7, 3, 2) },       // SKIN_PAL_WALL: cream text, -, the seams' gap, the wall
+    { RGB15(31, 25, 6), RGB15(26, 28, 30), RGB15(22, 12, 5), RGB15(7, 3, 2) },    // SKIN_PAL_MEDAL: gold, silver, bronze, the wall
+    { RGB15(31, 23, 6), RGB15(24, 17, 4), RGB15(18, 12, 3), RGB15(11, 4, 3) },    // SKIN_PAL_BTN: the buttons' golds on the panel
+    { RGB15(5, 2, 1), RGB15(5, 2, 1), RGB15(5, 2, 1), RGB15(30, 24, 10) },        // SKIN_PAL_HEAD: dark text on the gold band
+    { RGB15(31, 29, 22), RGB15(24, 18, 8), RGB15(15, 9, 4), RGB15(11, 4, 3) },    // SKIN_PAL_FOOT: cream text, the panel's lines, the panel
+    { RGB15(30, 24, 10), RGB15(15, 9, 2), RGB15(0, 0, 0), RGB15(7, 3, 2) },       // SKIN_PAL_EDGE: the band's last gold row, its shadow, the wall
+};
+
+void list_skin_load(void) BANKED {            // the tiles and palettes alone (LCD off; the debug menu's window map uses them too, src/debug.c)
+    set_bkg_data(0, 5, list_skin_tiles);
+    if (is_cgb) set_bkg_palette(SKIN_PAL_WALL, 6, (uint16_t *)skin_pal);
+}
+
+void list_frame(uint8_t sep, uint8_t seams) BANKED {
+    uint8_t y, x;
+    list_skin_load();
+    music_pump();
+    for (y = 0; y < 18; y++) {
+        for (x = 0; x < 20; x++)
+            row_buf[x] = y == 1 ? SKIN_TILE_EDGE : y == sep ? TILE_PANEL_TOP : y == 17 ? TILE_PANEL_BOT
+                       : seams && (y & 1) && y > 2 && y < sep && (x & 3) == (y & 2) ? SKIN_TILE_SEAM : TILE_HUD_BLANK;
+        set_bkg_tiles(0, y, 20, 1, row_buf);
+        if (is_cgb) {
+            for (x = 0; x < 20; x++) row_buf[x] = y == 0 ? SKIN_PAL_HEAD : y == 1 ? SKIN_PAL_EDGE : y >= sep ? SKIN_PAL_FOOT : SKIN_PAL_WALL;
+            VBK_REG = VBK_BANK_1;
+            set_bkg_tiles(0, y, 20, 1, row_buf);
+            VBK_REG = VBK_BANK_0;
+        }
+        if (!(y & 1)) music_pump();
+    }
 }
 
 static uint8_t screen_row(uint8_t k) {
@@ -212,7 +252,7 @@ static void cursor(void) {
 
 static void keys_attr(void) {                   // the keys row's attributes: the buttons' palette under the three button tiles, the HUD's elsewhere
     uint8_t x, t, *r = ML_ROW(ML_HEAD_K - 1);
-    for (x = 0; x < 20; x++) { t = r[x]; ml_attr[x] = t >= KEY_A && t <= KEY_R ? ML_PAL_BTN : BGPAL_HUD; }
+    for (x = 0; x < 20; x++) { t = r[x]; ml_attr[x] = t >= KEY_A && t <= KEY_R ? SKIN_PAL_BTN : SKIN_PAL_FOOT; }
 }
 
 // The scroll arrows, shared with the boss rush's list (src/rush.c): the sprite tiles, and OAM 1 / 2 (up shown, down shown, frame count for the bob)
@@ -250,33 +290,20 @@ void mg_list_enter(void) BANKED {
     ml_n = ML_N; ml_dirty &= ML_DIFF_BITS;
     ml_top = ml_sel >= ML_VIS ? ml_sel - ML_VIS + 1 : 0;   // (the window that shows the cursor's game, as it comes back from one)
     ml_wd = 0; ml_t = 0;
-    blank(row_buf);
-    for (y = 0; y < 18; y++) { set_bkg_tiles(0, y, 20, 1, row_buf); if (!(y & 3)) music_pump(); }
-    for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_TOP;
-    set_bkg_tiles(0, ML_ROW_HEAD + 1, 20, 1, row_buf);
-    set_bkg_tiles(0, ML_ROW_BOX, 20, 1, row_buf);
-    for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_BOT;
-    set_bkg_tiles(0, ML_ROW_BOX + ML_INFO_LINES + 1, 20, 1, row_buf);
+    list_frame(ML_ROW_BOX, 1);                  // (the wood wall: tiles, palettes, the header band, the panel)
     for (y = 0; y <= ML_HEAD_K; y++) {
         build(y);
         set_bkg_tiles(0, screen_row(y), 20, 1, ML_ROW(y));
         if (!(y & 3)) music_pump();
     }
     if (is_cgb) {
-        palette_t p;                            // (the HUD palette's slots: 0 text, 3 the band)
-        p[0] = (uint16_t)(20 | (16 << 5) | (10 << 10)); p[1] = p[0]; p[2] = p[0]; p[3] = (uint16_t)(3 | (2 << 5) | (8 << 10));
-        set_bkg_palette(ML_PAL_MEDAL, 1, p);    // the medal words: a muted dusty gold under the menu text's cream
-        p[0] = (uint16_t)(31 | (23 << 5) | (6 << 10)); p[1] = (uint16_t)(24 | (17 << 5) | (4 << 10)); p[2] = (uint16_t)(18 | (12 << 5) | (3 << 10));
-        set_bkg_palette(ML_PAL_BTN, 1, p);      // the buttons: gold
         keys_attr();
-        music_pump();
+        for (x = 0; x < 20; x++) row_buf[x] = x == ML_COL_MEDAL ? SKIN_PAL_MEDAL : SKIN_PAL_WALL;
         VBK_REG = VBK_BANK_1;
-        for (y = 0; y < 18; y++) {              // the HUD palette everywhere, the medal column's on the game rows, the buttons' on the keys row
-            for (x = 0; x < 20; x++) row_buf[x] = y >= ML_ROW_LIST && y < ML_ROW_BOX - 1 && !(y & 1) && x >= ML_COL_MEDAL ? ML_PAL_MEDAL : BGPAL_HUD;
-            set_bkg_tiles(0, y, 20, 1, y == screen_row(ML_HEAD_K - 1) ? ml_attr : row_buf);
-            if (!(y & 3)) music_pump();
-        }
+        for (y = ML_ROW_LIST; y < ML_ROW_BOX; y += 2) set_bkg_tiles(0, y, 20, 1, row_buf);   // (the medal icons' column on the game rows)
+        set_bkg_tiles(0, screen_row(ML_HEAD_K - 1), 20, 1, ml_attr);                          // (the buttons' palette on the keys row)
         VBK_REG = VBK_BANK_0;
+        music_pump();
     }
     cursor();
     arrows();

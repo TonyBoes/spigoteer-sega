@@ -565,6 +565,18 @@ void pause_open(void) BANKED;                           // START in play / a min
 uint8_t pause_update(uint8_t pressed) BANKED;           // a GS_PAUSED frame; 1: it left (the next screen is up)
 void pause_close(void) BANKED;                          // the banner window and the sound as they were, back to the game
 void mg_list_enter(void) BANKED;                        // LCD off: BONUS > MINI GAMES, the list (GS_MGLIST)
+// The full-screen lists' wood-wall look (src/mg_list.c list_frame; the Practice list, the Boss Rush, the soundtrack). Tiles over the stage ids 0-4, CGB palettes 2-7.
+#define SKIN_TILE_SEAM    0
+#define SKIN_TILE_EDGE    1
+#define SKIN_TILE_MEDAL   1                      // + the medal (MEDAL_BRONZE 1 .. MEDAL_GOLD 3): ids 2-4
+#define SKIN_PAL_WALL     2                      // the lines and the blank rows: c0 text, c3 the wall
+#define SKIN_PAL_MEDAL    3                      // the medal icons: c0 gold, c1 silver, c2 bronze
+#define SKIN_PAL_BTN      4                      // the keys line's buttons
+#define SKIN_PAL_HEAD     5                      // the header text row: dark text on the gold band
+#define SKIN_PAL_FOOT     6                      // the panel: info lines and its lines
+#define SKIN_PAL_EDGE     7                      // the row under the header text
+void list_skin_load(void) BANKED;                       // LCD off: the tiles over the stage ids 0-4 and the CGB palettes 2-7
+void list_frame(uint8_t sep, uint8_t seams) BANKED;   // LCD off: the 18 rows (tiles and CGB attributes): the panel's top line on row `sep`, its bottom on 17
 void list_arrows_load(void) BANKED;                        // the list scroll arrows (src/mg_list.c; the boss rush list shares them)
 void list_arrows_show(uint8_t up, uint8_t down, uint8_t t) BANKED;   // OAM 1 / 2: which show, the bob frame count
 // save.c: Practice's block at SRAM 0x40 (the mini-games reached in STORY / ARCADE and the best medal of each)

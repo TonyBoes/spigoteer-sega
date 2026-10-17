@@ -73,7 +73,7 @@ def banner_is(gb, s):
 
 def tap(gb, b):
     gb.press(b, 2)
-    gb.run(1)
+    gb.run(2)
 
 
 def goto(gb, k):
@@ -113,10 +113,10 @@ def test_it_is_a_full_screen_menu(boot):
     assert r["WY"] == 0 and boot.mem(0xFF45) == 255
     assert row_text(boot, 0).strip() == "DEBUG MENU"
     from test_flow import tile_id
-    assert win_row(boot, 1) == [tile_id("PANEL_TOP")] * 20 and win_row(boot, 14) == [tile_id("PANEL_TOP")] * 20 and win_row(boot, 17) == [tile_id("PANEL_BOT")] * 20
+    assert win_row(boot, 1) == [1] * 20 and win_row(boot, 14) == [tile_id("PANEL_TOP")] * 20 and win_row(boot, 17) == [tile_id("PANEL_BOT")] * 20
     assert row_text(boot, 16).strip() == "@ GO $ BACK > EDIT"
     assert [line(boot, y) for y in (2, 4, 6, 8)] == [("MODE", "LEVEL"), ("LEVEL", "01"), ("BARS", "LLLL"), ("BAR CHANGE", "SNAP")]
-    assert all(row_text(boot, y).strip() == "" for y in (3, 5, 7, 9, 10, 11, 12, 13))
+    assert all(row_text(boot, y).replace("?", " ").strip() == "" for y in (3, 5, 7, 9, 10, 11, 12, 13))   # (the blank rows hold the wall's board seams, tile 0)
     ys = [boot.pb.memory[0xFE00 + 4 * i] for i in range(40)]
     assert sum(1 for y in ys if y) == 1, "the mug cursor only"
     assert boot.pb.memory[0xFE00] == (4 * 8 - 7 + 16) and boot.pb.memory[0xFE01] == 8
@@ -151,6 +151,7 @@ def test_taps_too_slow_do_not_open_and_a_quick_run_after_them_does(boot):
     for _ in range(2):                                    # (that tap started a new count: two quick ones more make three)
         boot.press("start", 2)
         boot.run(3)
+    boot.run(4)                                           # (the menu comes up with the LCD off for a few frames)
     assert boot.mem("debug_menu_open") == 1
     release_combo(boot)
 
@@ -318,7 +319,7 @@ def test_b_closes_and_play_resumes_as_it_was(gb):
     lyc, wy = gb.mem(0xFF45), gb.regs()["WY"]
     combo(gb)
     release_combo(gb)
-    gb.press("b", 2)
+    gb.press("b", 2); gb.run(1)   # (closing takes a frame more: the LCD goes off while the wall's tiles and palettes go back)
     assert gb.mem("debug_menu_open") == 0 and gb.mem("game_state") == PLAYING and gb.mem("overlay_on") == 0
     assert gb.mem(0xFF45) == lyc and gb.regs()["WY"] == wy, "the banner window's LYC and WY"
     assert win_row(gb, 0) == [tile_id("PANEL_TOP")] * 20 and win_row(gb, 2) == [tile_id("PANEL_BOT")] * 20
@@ -331,7 +332,7 @@ def test_b_closes_and_play_resumes_as_it_was(gb):
 def test_b_returns_to_the_title(boot):
     combo(boot)
     release_combo(boot)
-    boot.press("b", 2)
+    boot.press("b", 2); boot.run(1)   # (closing takes a frame more: the LCD goes off while the wall's tiles and palettes go back)
     boot.run(5)
     assert boot.mem("debug_menu_open") == 0 and boot.mem("game_state") == TITLE and boot.mem("overlay_on") == 0
     assert boot.regs()["WY"] == 64 and boot.mem(0xFF45) == 86, "LYC and WY as they were"
@@ -342,7 +343,7 @@ def test_b_returns_to_the_title(boot):
 
 def test_b_with_select_still_held_does_not_reopen(gb):
     combo(gb)
-    gb.press("b", 2)
+    gb.press("b", 2); gb.run(1)   # (closing takes a frame more: the LCD goes off while the wall's tiles and palettes go back)
     gb.run(WINDOW + 10)
     assert gb.mem("debug_menu_open") == 0 and gb.mem("game_state") == PLAYING
     release_combo(gb)
@@ -366,7 +367,7 @@ def test_the_gesture_opens_from_a_level_s_pause(gb):
     gesture(gb)
     assert gb.mem("game_state") == DEBUG and gb.mem("debug_menu_open") == 1
     release_combo(gb)
-    gb.press("b", 2)
+    gb.press("b", 2); gb.run(1)   # (closing takes a frame more: the LCD goes off while the wall's tiles and palettes go back)
     assert gb.mem("game_state") == PLAYING and gb.mem("overlay_on") == 0
 
 
@@ -435,7 +436,7 @@ def test_settings_lists_debug_menu_only_when_unlocked(boot):
 def test_the_settings_line_opens_the_menu_and_b_comes_back_to_it(boot):
     unlock_debug(boot)
     title_pick(boot, K_SETTINGS, K_DEBUG)
-    boot.run(3)
+    boot.run(7)
     assert boot.mem("debug_menu_open") == 1 and boot.mem("debug_from_title") == 1 and banner_is(boot, "LEVEL 01")
     tap(boot, "b")
     boot.run(MENU_SETTLE)
@@ -468,7 +469,7 @@ def test_the_release_build_ships_the_menu_locked():
             gesture(rom)
             assert rom.mem("debug_menu_open") == 1 and rom.mem("game_state") == DEBUG
             release_gesture(rom)
-            rom.press("b", 2)
+            rom.press("b", 2); rom.run(1)   # (closing takes a frame more: the LCD goes off while the wall's tiles and palettes go back)
             assert rom.mem("game_state") == TITLE
 
 
@@ -480,7 +481,7 @@ def test_the_gesture_works_from_any_menu_item_and_the_menu_survives(boot):
     combo(boot)
     assert boot.mem("debug_menu_open") == 1 and boot.mem("sound_on") == s0, "neither START nor SELECT toggled it"
     release_combo(boot)
-    boot.press("b", 2)
+    boot.press("b", 2); boot.run(1)   # (closing takes a frame more: the LCD goes off while the wall's tiles and palettes go back)
     boot.run(3)
     boot.run(MENU_SETTLE)
     assert boot.mem("game_state") == TITLE and boot.mem("title_menu") == TM_SETTINGS and boot.mem("title_sel") == 0
@@ -808,3 +809,16 @@ def test_the_arcade_box_offers_the_steps_only_and_a_starts_an_arcade_run(boot):
     combo(boot)                                            # in ARCADE play: the ARCADE box where the run is
     release_combo(boot)
     assert boot.mem("debug_story") == 2 and banner_is(boot, "ARCADE 2 HAPPY")
+
+
+def test_closing_puts_the_wall_s_tiles_back_under_the_game(gb):
+    """The menu's wood wall uses the stage ids 0-4 (src/mg_list.c list_skin_load); the game under the window gets its own tiles back on B."""
+    vram = lambda: bytes(gb.read(0x9000, 5 * 16))
+    before = vram()
+    combo(gb)
+    release_combo(gb)
+    gb.run(3)
+    assert vram() != before, "the wall's tiles are in while the menu shows"
+    gb.press("b", 2)
+    gb.run(3)
+    assert gb.mem("debug_menu_open") == 0 and vram() == before

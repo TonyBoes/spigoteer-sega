@@ -368,6 +368,10 @@ def gesture(gb, taps=3, gap=3, hold_first=2):
     for _ in range(taps):
         gb.press("start", 2)
         gb.run(gap)
+    for _ in range(8):                               # (the third tap opens the menu with the LCD off for a few frames: wait for it to come on)
+        if gb.pb.memory[0xFF40] & 0x80:
+            break
+        gb.run(1)
 
 
 def release_gesture(gb):

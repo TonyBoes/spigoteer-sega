@@ -777,6 +777,7 @@ def test_the_debug_box_from_a_level_s_pause_puts_the_window_and_sound_back(model
             gb.press("start", 2)
             gb.run(3)
         gb.release("select")
+        gb.run(6)                                         # (the menu comes up with the LCD off for a few frames)
         assert state(gb) == 7, "GS_DEBUG"
         assert gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0 and gb.mem(0xFF45) == 255, "the pause is closed (sound back), the menu's window covers the screen"
         tap(gb, "b", 3)

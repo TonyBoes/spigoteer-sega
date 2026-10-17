@@ -1,0 +1,51 @@
+; list_skin: the full-screen lists' wood-wall look (src/mg_list.c list_frame, shared by the Boss Rush, the soundtrack): five BG tiles loaded over the venue's stage
+; ids 0-4 (no list shows a stage). '.' 0, '-' 1, '+' 2, '#' 3. Order: SEAM, EDGE, BRONZE, SILVER, GOLD.
+; SEAM (wall palette, c2 a dark gap, c3 the wall): a board's seam, in the blank rows between the lines (the letters' tiles have a flat ground).
+; EDGE (edge palette, c0 the header band's gold, c1 its shadow line, c3 the wall): the row under the header text, a 1 px gold, a 1 px shadow, then wall.
+;   The header's text row has the letters on tile rows 1-7 (row 0 blank): with this row's gold the text has 1 px of band above and 1 px below.
+; BRONZE, SILVER, GOLD (medal palette: c0 gold, c1 silver, c2 bronze, c3 the wall): the list rows' best-medal icon, one colour index each (CGB tells them by colour, DMG by shape:
+; GOLD a solid disc, SILVER a disc with a small hole, BRONZE a ring).
+########
++#######
++#######
++#######
++#######
++#######
++#######
+########
+
+........
+--------
+########
+########
+########
+########
+########
+########
+
+###++###
+##++++##
+#++##++#
+#+####+#
+#+####+#
+#++##++#
+##++++##
+###++###
+
+###--###
+##----##
+#------#
+#--##--#
+#--##--#
+#------#
+##----##
+###--###
+
+###..###
+##....##
+#......#
+#......#
+#......#
+#......#
+##....##
+###..###

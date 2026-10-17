@@ -119,25 +119,14 @@ void jukebox_enter(void) BANKED {
     story_font_load();                         // the punctuation (over the title's lettering: title_enter reloads it)
     music_pump();
     jb_sel = 0; jb_top = 0; jb_forced = 0; jb_shown = TUNE_NONE; jb_t = 0; jb_dirty = 0;
+    list_frame(JB_ROW_BOX, 1);                 // (the wood wall, src/mg_list.c: tiles, palettes, the header band, the board seams, the panel)
     blank(row_buf);
-    for (y = 0; y < 18; y++) { set_bkg_tiles(0, y, 20, 1, row_buf); if (!(y & 3)) music_pump(); }
     put(row_buf, 255, "SOUNDTRACK");
     set_bkg_tiles(0, JB_ROW_HEAD, 20, 1, row_buf);
-    for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_TOP;
-    set_bkg_tiles(0, JB_ROW_HEAD + 1, 20, 1, row_buf);
-    set_bkg_tiles(0, JB_ROW_BOX, 20, 1, row_buf);
-    for (y = 0; y < 20; y++) row_buf[y] = TILE_PANEL_BOT;
-    set_bkg_tiles(0, JB_ROW_BOX + JB_INFO_LINES + 1, 20, 1, row_buf);
     for (y = 0; y < JB_VISIBLE + JB_INFO_LINES; y++) {
         build(y);
         set_bkg_tiles(0, screen_row(y), 20, 1, JB_ROW(y));
         if (!(y & 3)) music_pump();
-    }
-    if (is_cgb) {
-        VBK_REG = VBK_BANK_1;
-        for (y = 0; y < 20; y++) row_buf[y] = BGPAL_HUD;
-        for (y = 0; y < 18; y++) set_bkg_tiles(0, y, 20, 1, row_buf);
-        VBK_REG = VBK_BANK_0;
     }
     hud_icon_load(TILE_HUD_HEAD, HUD_ICON_PLAYING);   // the playing marker: a mug over the HUD head's tile (the title reloads the table)
     list_arrows_load();
