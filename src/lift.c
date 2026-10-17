@@ -36,6 +36,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "music.h"
 #include "palettes.h"
 
 uint8_t patron_lift[MAX_PATRONS];   // LIFT_BG / LIFT_OBJ / LIFT_EDGE, | LIFT_DROP while dropping
@@ -75,6 +76,7 @@ static void swap_copy(uint8_t src, uint8_t dst, uint8_t n) {
     const uint8_t *s = (const uint8_t *)(0x8000u + (uint16_t)src * 16u);
     uint8_t *d = (uint8_t *)(0x8000u + (uint16_t)dst * 16u), k, a;
     for (k = n * 8; k; k--) { a = s[0]; d[0] = s[1]; d[1] = a; s += 2; d += 2; }
+    music_pump();                                        // (the level load runs several frames: the three copies are ~0.55 of one, and the tick due in them was a frame late)
 }
 
 // Level load, LCD off, after load_venue / the patron tiles: nobody lifted; CGB the patrons' OBJ palettes (colours 1-3 of
