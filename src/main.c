@@ -20,6 +20,7 @@
 #include "bonus.h"
 #include "music.h"
 #include "mg.h"
+#include "asm_cfg.h"
 
 BANKREF_EXTERN(art_tiles)
 
@@ -161,36 +162,7 @@ void prep_hud(void) {
     for (i = 0; i < 6; i++) score_tiles[i] = digit_tile(score_digits[i]);
 }
 
-// score as 32-bit total (for tests) plus decimal digits (no division in VBlank)
-void add_score(uint16_t n) {
-    // The HUD digits are kept in step with `score`. Digits come off n by repeated subtraction of constants: SDCC's
-    // 16-bit divide costs ~600 cycles a call, and a patron serve (this, plus the tip roll, plus a redraw) is one of
-    // the heaviest frames of the game.
-    uint8_t d4 = 0, d3 = 0, d2 = 0, d1 = 0, d, carry;
-    if (story_arc & 6) n = story_pts(n);              // a STORY run's difficulty scales every score as it is added (save.c)
-    score += n;
-    if (extra_at && score >= extra_at) extra_life();   // ARCADE / CLASSIC (story.c)
-    while (n >= 10000) { n -= 10000; d4++; }
-    while (n >= 1000)  { n -= 1000;  d3++; }
-    while (n >= 100)   { n -= 100;   d2++; }
-    d = (uint8_t)n;                                  // now n < 100
-    while (d >= 10) { d -= 10; d1++; }
-    // digit by digit from the ones (score_digits[5]) up; [0] is the 100000s
-    d += score_digits[5];
-    carry = d >= 10; score_digits[5] = carry ? d - 10 : d;
-    d = score_digits[4] + d1 + carry;
-    carry = d >= 10; score_digits[4] = carry ? d - 10 : d;
-    d = score_digits[3] + d2 + carry;
-    carry = d >= 10; score_digits[3] = carry ? d - 10 : d;
-    d = score_digits[2] + d3 + carry;
-    carry = d >= 10; score_digits[2] = carry ? d - 10 : d;
-    d = score_digits[1] + d4 + carry;
-    carry = d >= 10; score_digits[1] = carry ? d - 10 : d;
-    d = score_digits[0] + carry;
-    score_digits[0] = d >= 10 ? d - 10 : d;
-    hud_dirty |= HUD_SCORE;
-    prep_hud();
-}
+// add_score (score as 32-bit total plus decimal digits) lives in src/rom0_relief.c, banked: ROM0 relief.
 
 void lose_life(void) {
     if (life_lost) return;          // one incident costs one life, however many things go wrong in the same frame
@@ -620,6 +592,74 @@ uint8_t  frame_ly_max;      // latest LY a frame's logic started on (after the V
 static uint8_t perf_last_t, perf_prev_playing;
 static uint8_t snap_t, snap_ly;
 
+#if ASM_F
+// Hand-written (asm pass batch 1, src/asm_cfg.h ASM_F; the C versions are below under #else and are the reference).
+static void perf_snap(void) __naked {
+__asm
+1$:
+    ld   a, (_sys_time)
+    ld   (_snap_t), a
+    ldh  a, (0x44)          ; LY
+    ld   (_snap_ly), a
+    ld   a, (_sys_time)     ; a VBlank between the reads would skew it: again
+    ld   hl, #_snap_t
+    cp   a, (hl)
+    jr   nz, 1$
+    ret
+__endasm;
+}
+
+// perf_ly(t0 = A, t = E, ly = on the stack, popped here) -> BC: dt = t - t0; dt 0: ly >= 144 ? 0 : ly;
+// else 144 + (dt - 1) * 154 + (ly >= 144 ? ly - 144 : ly + 10). The multiply is an add loop: dt is nearly always 1 or 2.
+static uint16_t perf_ly(uint8_t t0, uint8_t t, uint8_t ly) __naked {
+    (void)t0; (void)t; (void)ly;
+__asm
+    ld   c, a               ; t0
+    ld   a, e
+    sub  a, c               ; dt
+    ld   c, a
+    ldhl sp, #2
+    ld   e, (hl)            ; ly
+    or   a, a
+    jr   nz, 2$
+    ld   a, e               ; dt 0
+    cp   a, #144
+    jr   c, 1$
+    xor  a, a
+1$:
+    ld   c, a
+    ld   b, #0
+    jr   9$
+2$:
+    ld   a, e
+    cp   a, #144
+    jr   c, 3$
+    sub  a, #144
+    jr   4$
+3$:
+    add  a, #10
+4$:
+    ld   e, a
+    ld   d, #0
+    ld   hl, #144
+    add  hl, de             ; 144 + the last-line part
+    dec  c                  ; dt - 1 lots of 154
+    jr   z, 6$
+    ld   de, #154
+5$:
+    add  hl, de
+    dec  c
+    jr   nz, 5$
+6$:
+    ld   b, h
+    ld   c, l
+9$:
+    pop  hl                 ; the return address; the caller's one stack byte goes with it
+    inc  sp
+    jp   (hl)
+__endasm;
+}
+#else
 static void perf_snap(void) {
     do { snap_t = (uint8_t)sys_time; snap_ly = LY_REG; } while (snap_t != (uint8_t)sys_time);   // (a VBlank between the reads would skew it)
 }
@@ -629,6 +669,7 @@ static uint16_t perf_ly(uint8_t t0, uint8_t t, uint8_t ly) {
     if (dt == 0) return ly >= 144 ? 0 : ly;
     return 144 + (uint16_t)(dt - 1) * 154 + (ly >= 144 ? ly - 144 : ly + 10);
 }
+#endif
 
 // Wait for the next VBlank (GBDK's vsync() without its race). vsync() clears the "VBlank done" flag and then halts: a
 // VBlank interrupt that lands between the two sets the flag before the halt, and the CPU then sleeps until the next

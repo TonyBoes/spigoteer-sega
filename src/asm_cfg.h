@@ -2,7 +2,7 @@
 //
 // ASM_PASS = 1 (default): every candidate that has an asm version builds it. ASM_PASS = 0 (`make cfall`, build/game-c.gb): every
 // candidate builds its C version, the reference the owner may port to other platforms. Each candidate has its own ASM_<X> switch,
-// defaulting to ASM_PASS, so one can be turned off alone (-DASM_PERF_LY=0).
+// defaulting to ASM_PASS, so one can be turned off alone (-DASM_F=0).
 //
 // Rules for a switch:
 //  - `#if ASM_<X>` ... `#else` (the C) ... `#endif` goes around FUNCTION BODIES only, never around a data declaration: _DATA and
@@ -17,8 +17,8 @@
 #endif
 
 // batch 1: perf_ly / perf_snap / the main tail (main.c)
-#ifndef ASM_PERF
-#define ASM_PERF ASM_PASS
+#ifndef ASM_F
+#define ASM_F ASM_PASS
 #endif
 // batch 3: draw_held / draw_glass / oam_put folded into draw_mugs_loop (mugs.c)
 #ifndef ASM_DRAW_HELD

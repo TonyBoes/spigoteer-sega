@@ -756,9 +756,7 @@ void draw_bartender(void) {
     o->y = ybot; o->x = xb; o->tile = base + 6; o->prop = flags;
 }
 
-static const uint8_t dancer_x[NUM_DANCERS] = { 24, 72, 120 };   // screen x of the left edge, across the stage
 uint8_t dancers_vis;              // dancer OAM entries written (and so to be hidden again)
-#define DANCER_OAM_Y (STAGE_LAST_ROW * 8 - 24 + 16)   // OAM y of a dancer's top entries: art 24 px tall, feet on the platform
 uint8_t dancer_sig;               // what the dancer entries show (0x80 | frame << 3 | visible mask); 0: rewrite them
 
 // OAM 27: the tip coin on its bar's counter (blinks in its last second, glints every half second).
@@ -789,38 +787,8 @@ static void pal5_write(void) {
     pal5_req = 0;
 }
 
-// What the dancer entries must show: 0x80 | dance frame << 3 | bit k: dancer k is on stage. They pop in one
-// after another at the start of the show and leave in the same order at the end.
-static uint8_t dancer_look(void) {
-    uint16_t left = show_timer, elapsed = SHOW_FRAMES - show_timer;
-    uint8_t sig = 0x80 | (dancer_frame << 3);
-    if (elapsed >= 1 * DANCER_STAGGER && left > 1 * DANCER_STAGGER) sig |= 1;
-    if (elapsed >= 2 * DANCER_STAGGER && left > 2 * DANCER_STAGGER) sig |= 2;
-    if (elapsed >= 3 * DANCER_STAGGER && left > 3 * DANCER_STAGGER) sig |= 4;
-    return sig;
-}
-
-// OAM 28..39: the performers on the platform, 4 entries each (16x24 art, feet on the top of row STAGE_LAST_ROW). Their
-// tiles come from the venue's show table (tools/gen_art.py show_tiles): a dance shows row dancer_frame for all three,
-// a band shows performer k's own row 2k + (beat & 1) (pose A on even beats, B on odd ones).
-static void draw_dancers(uint8_t sig) {
-    OAM_item_t *o = shadow_OAM + OAM_DANCERS;
-    const uint8_t *t;
-    uint8_t k, flags, x;
-    flags = is_cgb ? OBJPAL_DANCER : 0;
-    for (k = 0; k < NUM_DANCERS; k++, o += 4) {
-        if (!(sig & (1 << k))) { o[0].y = o[1].y = o[2].y = o[3].y = 0; continue; }
-        t = venue.show_tile[(venue.show_band & 1) ? (k << 1) | (dancer_frame & 1) : dancer_frame];
-        x = dancer_x[k] + 8;
-        o[0].y = DANCER_OAM_Y;      o[0].x = x;     o[0].tile = OBJ_DANCER + t[0]; o[0].prop = flags;
-        o[1].y = DANCER_OAM_Y;      o[1].x = x + 8; o[1].tile = OBJ_DANCER + t[1]; o[1].prop = flags;
-        o[2].y = DANCER_OAM_Y + 16; o[2].x = x;     o[2].tile = OBJ_DANCER + t[2]; o[2].prop = flags;
-        o[3].y = DANCER_OAM_Y + 16; o[3].x = x + 8; o[3].tile = OBJ_DANCER + t[3]; o[3].prop = flags;
-    }
-}
-
 void draw_stage_fx(void) {
-    uint8_t k, sig;
+    uint8_t k;
     draw_coin();
     pal5_check();
     if (!show_timer) {
@@ -833,10 +801,7 @@ void draw_stage_fx(void) {
         return;
     }
     dancers_vis = 1;
-    sig = dancer_look();
-    if (sig == dancer_sig) return;               // the entries already show exactly this
-    dancer_sig = sig;
-    draw_dancers(sig);
+    dancers_step();                              // (banked, src/rom0_relief.c: what they must show; redraws only when that changed)
 }
 
 // Anything that writes OAM entries behind the drawing code's back calls this: the cached ones are redrawn.
