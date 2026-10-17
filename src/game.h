@@ -570,6 +570,9 @@ uint8_t auto_note(void) BANKED;                          // src/debug.c: the tes
 #ifdef AUTO_CARD
 uint8_t auto_card(void) BANKED;                         // src/debug.c: the test-only hook of tests/test_fade_hw.py
 #endif
+#ifdef GLOW_A
+void glow_tick(void) BANKED;                            // src/glow.c: the bistro's palette pulse (make GLOW=A)
+#endif
 void trans_menu(void) BANKED;                           // TRANS_MENU()
 void trans_card_out(void) BANKED;                       // the pause card's fades (src/pause.c): the white fade out (LCD off at the end), the new screen's palettes kept, the fade in
 void trans_card_in(void) BANKED;

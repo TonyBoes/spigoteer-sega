@@ -451,6 +451,9 @@ static void update(void) {
     uint8_t pressed;
 
     vq_frame_begin();                // the VBlank interrupt has drained last frame's copy list (or it waits)
+#ifdef GLOW_A
+    glow_tick();                     // (src/glow.c, make GLOW=A: the bistro's palette pulse; VBlank, first thing)
+#endif
     if (lists_dirty) { lists_dirty = 0; lists_ok = 0; }   // a test poked patron_state / patron_bar: rebuild the bar lists
     SEC(SEC_FLUSH);
     if (overlay_on) SHOW_WIN;

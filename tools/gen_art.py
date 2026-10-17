@@ -416,7 +416,8 @@ def venues(outdir, prev):
                        "themes": THEMES, "venues": {}}
     sa_buf, sa_scr = 16, 4
     for ti, t in enumerate(THEMES):
-        stage = plain_rows(vd / f"{t}_stage.txt")
+        gb_ = "_glowb" if (t == "bistro" and os.environ.get("GLOW") == "B") else ""     # GLOW=B (make GLOW=B): the bistro oven's halo tiles, tools/gen_glowb.py
+        stage = plain_rows(vd / f"{t}_stage{gb_}.txt")
         bar = plain_rows(vd / f"{t}_bar.txt")
         floor = plain_rows(vd / f"{t}_floor.txt")
         assert len(stage) == 32 and all(len(r) == 160 for r in stage), f"{t}_stage.txt: not 160x32"
@@ -445,7 +446,7 @@ def venues(outdir, prev):
         # stage: unique tiles -> ids TILE_STAGE_BASE..; the animated tiles (<t>_anim.txt) get their own ids, last and
         # contiguous (never merged with a static tile), so one copy entry rewrites them
         sgrid, suniq = cut(stage, 20, 4), []
-        apath = vd / f"{t}_anim.txt"
+        apath = vd / f"{t}_anim{gb_}.txt"
         anim = stage_anim(t, apath, sgrid) if apath.exists() else None
         akeys = anim["keys"] if anim else []
         smap = []

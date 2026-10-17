@@ -34,6 +34,14 @@ export TIP
 ifneq ($(TIP),)
 LCCFLAGS += -DTIP_VARIANT_$(TIP)
 endif
+# Playtest variants (owner 2026-10-17), off by default; each is built into its own directory so the default build is untouched:
+#   make BUILD=out/b_glowA OUT=out/o_glowA GLOW=A unlocked  GLOW=A: the bistro oven's CGB palette pulse (src/glow.c); GLOW=B: a halo in the BG tiles
+#                                                         around it and a flicker (assets/approved/venues/bistro_*_glowb.txt, tools/gen_art.py)
+GLOW     ?=
+export GLOW
+ifneq ($(GLOW),)
+LCCFLAGS += -DGLOW_$(GLOW)
+endif
 
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
