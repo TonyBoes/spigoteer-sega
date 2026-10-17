@@ -113,7 +113,7 @@ static void win_init(void);
 void boot_init(void) BANKED {
     uint8_t i;
 
-    TRANS = 0;                                    // (HRAM is not cleared at power-on: first, DISPLAY_OFF reads it)
+    TRANS = TRANS_DEFAULT << TR_VSHIFT;                                  // (HRAM is not cleared at power-on: first, DISPLAY_OFF reads it)
     DISPLAY_OFF;
     // _cpu alone is not enough under PyBoy: its DMG mode still hands the cart
     // A=0x11. FF4F (VBK) reads 0xFE|bank on colour hardware, but plain 0x00 in

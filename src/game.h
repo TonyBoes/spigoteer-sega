@@ -550,6 +550,11 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #define TR_WANT    1
 #define TR_PEND    2
 #define TR_HOLD    8
+#define TR_VSHIFT  5                                 // bits 5-6: the variant (0 the drink, 1 fade to white, 2 fade through amber), src/trans.c; the debug ROM cycles 1, 2
+#define TR_VMASK   0x60
+#ifndef TRANS_DEFAULT
+#define TRANS_DEFAULT 0                              // the variant at power-on (-DTRANS_DEFAULT=n: the owner's pick, or a debug ROM fixed to one)
+#endif
 #define TR_OFF     0x80
 #define TRANS_WANT() (TRANS |= TR_WANT)
 #define TRANS_HOLD() (TRANS |= TR_HOLD)                 // the caller reveals itself (trans_reveal()) once its scene is whole: lcd_on_p does not

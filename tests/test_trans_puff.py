@@ -9,7 +9,7 @@ from test_story import to_shift, win
 
 pytestmark = pytest.mark.timeout(900)
 
-VARIANTS = [0]
+VARIANTS = [0, 1, 2]
 
 
 def boot(model, variant, on=True):
