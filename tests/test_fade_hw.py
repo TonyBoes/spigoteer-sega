@@ -113,3 +113,32 @@ def test_the_card_after_the_fade_in_has_its_own_colours(card_shots, model):
     a = card_shots["open_cut", model]
     assert len(a.getcolors()) > 3, "the card, not a white screen"
     same_picture(a, card_shots["open_fade", model])
+
+
+# ---- a note cut off (owner 2026-10-17, SameBoy iOS: the menu at the top of the screen, stale rows below its band) ------------------------------------
+# A note (show_note: WY 24, LYC 31) ended by anything but end_note (a life lost, a scene change: overlay_on = 0) left WY and LYC on the note; the next
+# window (the pause menu, a result card) then started at line 24 and ran to its LYC, showing the window map's stale rows (the debug menu's text) below the band.
+# -DAUTO_NOTE (src/debug.c) cuts a note off 10 frames before START: the menu must still be the band at line 64 (its blank text row, lines 72-79, one colour).
+@pytest.fixture(scope="module")
+def cut_note():
+    OUT.mkdir(parents=True, exist_ok=True)
+    bdir = OUT / "build_note"
+    cmd = ["make", f"BUILD={bdir}", "DEBUGFLAGS=-DDEBUG_MENU -DAUTO_TRANS=2 -DAUTO_NOTE -DAUTO_NOTRANS"]
+    assert subprocess.run(cmd, cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT).returncode == 0
+    rom = OUT / "note.gb"
+    rom.write_bytes((bdir / "game.gb").read_bytes())
+    r = subprocess.run(["gbcheck", str(rom), "--length", "20", "--out", str(OUT / "note")], cwd=ROOT, capture_output=True, text=True)
+    assert "FAIL" not in r.stdout, r.stdout
+    return {m: Image.open(OUT / "note" / f"note.{m}.png").convert("RGB") for m in ("dmg", "cgb")}
+
+
+def row_colours(img, y):
+    return {img.getpixel((x, y)) for x in range(img.width)}
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_cut_off_note_does_not_move_the_pause_menu(cut_note, model):
+    img = cut_note[model]
+    for y in range(72, 80):
+        assert len(row_colours(img, y)) == 1, f"line {y} is not the menu's blank row"
+    assert len(row_colours(img, 30)) > 1 and len(row_colours(img, 130)) > 1, "the scene above and below the band is not the window"

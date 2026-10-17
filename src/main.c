@@ -453,7 +453,11 @@ static void update(void) {
     vq_frame_begin();                // the VBlank interrupt has drained last frame's copy list (or it waits)
     if (lists_dirty) { lists_dirty = 0; lists_ok = 0; }   // a test poked patron_state / patron_bar: rebuild the bar lists
     SEC(SEC_FLUSH);
-    if (overlay_on) SHOW_WIN; else HIDE_WIN;
+    if (overlay_on) SHOW_WIN;
+    else {
+        HIDE_WIN;
+        if (WY_REG == NOTE_WY) { WY_REG = BANNER_WY; LYC_REG = BANNER_LYC; }   // (a note cut off by a life lost or a scene change: overlay_on 0 without end_note; the next window would start on the note's line)
+    }
 
     joy_prev = joy;
     joy = joypad();
@@ -461,7 +465,10 @@ static void update(void) {
     joy = 0;                                     // (AUTO_TRANS 1: STORY / NORMAL, 2: ARCADE; the frames count from boot, the menu is up from about 90)
     if (game_state == GS_TITLE && frame_counter >= 96 && (frame_counter & 15) < 2) joy = (AUTO_TRANS == 2 && (frame_counter & 0x10)) ? J_DOWN : J_A;
 #endif
-#ifdef AUTO_CARD                        // test-only (tests/test_fade_hw.py, never in a release): the hook is in src/debug.c (a banked file: ROM0 has no room)
+#ifdef AUTO_NOTE                        // test-only (the hook is in src/debug.c)
+    joy |= auto_note();
+#endif
+#ifdef AUTO_CARD                       // test-only (tests/test_fade_hw.py, never in a release): the hook is in src/debug.c (a banked file: ROM0 has no room)
     joy = auto_card();
 #endif
     pressed = joy & ~joy_prev;

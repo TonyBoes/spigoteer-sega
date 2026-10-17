@@ -562,8 +562,11 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #define TR_OFF     0x80
 #define TRANS_WANT() (TRANS |= TR_WANT)
 #define TRANS_HOLD() (TRANS |= TR_HOLD)                 // the caller reveals itself (trans_reveal()) once its scene is whole: lcd_on_p does not
+#ifdef AUTO_NOTE
+uint8_t auto_note(void) BANKED;                          // src/debug.c: the test-only note cut-off hook
+#endif
 #ifdef AUTO_CARD
-uint8_t auto_card(void) BANKED;                          // src/debug.c: the test-only hook of tests/test_fade_hw.py
+uint8_t auto_card(void) BANKED;                         // src/debug.c: the test-only hook of tests/test_fade_hw.py
 #endif
 void trans_card_out(void) BANKED;                       // the pause card's fades (src/pause.c): the white fade out (LCD off at the end), the new screen's palettes kept, the fade in
 void trans_card_in(void) BANKED;

@@ -454,3 +454,17 @@ uint8_t auto_card(void) BANKED {         // HOW TO PLAY card -> (AUTO_CARD 1: B,
     return j;
 }
 #endif
+
+#ifdef AUTO_NOTE                        // test-only (tests/test_fade_hw.py, never in a release): a note shown at frame 100 of play is cut off at 110 the way a life lost or a scene change cuts it (overlay_on cleared, WY and LYC left on the note), START at 120. Returns joy.
+uint8_t auto_note(void) BANKED {
+    static uint8_t an_t;
+    uint8_t j = 0;
+    if (game_state == GS_PLAYING || game_state == GS_PAUSED) {
+        if (an_t < 121) an_t++;
+        if (an_t == 100) show_note("CLEAR THE BAR");
+        if (an_t == 110) { overlay_on = 0; HIDE_WIN; }
+        if (an_t == 120) j = J_START;
+    }
+    return j;
+}
+#endif
