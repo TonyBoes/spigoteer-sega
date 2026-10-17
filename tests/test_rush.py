@@ -474,7 +474,7 @@ def test_a_rush_fight_ends_only_when_the_bar_is_clear(model):
         frames(gb, 5)
         t = R(gb, FIGHT_T, 2)
         from test_story import banner_text, centred
-        assert state(gb) == PLAYING and banner_text(gb, 1) == centred("CLEAR THE BAR")
+        assert state(gb) == PLAYING and banner_text(gb, 0) == centred("CLEAR THE BAR")
         frames(gb, 200)
         assert state(gb) == PLAYING and R(gb, FIGHT_T, 2) >= t + 200, "the fight's clock runs on"
         clear_regulars(gb)

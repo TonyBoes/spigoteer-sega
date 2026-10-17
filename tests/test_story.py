@@ -143,7 +143,7 @@ def test_the_chapter_goals_follow_the_chapters_table():
 
 def test_the_cut_scene_budget():
     """Every scene's portraits fit the free BG ids (the patron range up) and OBJ ids together."""
-    assert STORY["font_base"] == 77 and STORY["portrait_base"] == 77 + 16 and STORY["bg_budget"] == 256 - 93
+    assert STORY["font_base"] == 77 and STORY["portrait_base"] == 77 + 16 and STORY["bg_budget"] == 256 - 93   # (the name plates are in each portrait's own tiles)
     for s in SCENES:
         assert s["bg_tiles"] <= STORY["bg_budget"] and s["obj_tiles"] <= STORY["obj_budget"], s["id"]
         assert len(s["spk"]) <= 3, s["id"]
@@ -152,8 +152,8 @@ def test_the_cut_scene_budget():
     assert {n: (p["speaker"], p["variant"]) for n, p in PORTRAITS.items() if p["variant"]} == \
         {"SPIGOTEER COZY": ("SPIGOTEER", "COZY"), "DREGS SORRY": ("DREGS", "SORRY")}
     for name, p in PORTRAITS.items():           # the approved 56x56 portraits (docs/story.md "Portraits")
-        assert (p["w"], p["h"], p["x"], p["y"]) == (7, 7, 2, 6), f"{name}: 56x56 standing on the text box"
-        assert p["tiles"] <= 44 and 1 <= p["pals"] <= 3 and p["obj"] == (1 if name == "SADIE" else 0), name
+        assert (p["w"], p["h"], p["x"], p["y"]) == (7, 7, 2, 5), f"{name}: 56x56, its frame's bottom row (the name plate) on the row above the box"
+        assert p["art_tiles"] <= 44 and p["tiles"] == p["art_tiles"] + len(set(p["plate"])) and 1 <= p["pals"] <= 3 and p["obj"] == (1 if name == "SADIE" else 0), name
     # a venue scene loads all its portraits together: the busiest is the saloon's POST scene (Sadie, Coach, ...)
     most = max(s["bg_tiles"] for s in SCENES if s["venue"] != 255)
     assert most <= STORY["bg_budget"]
@@ -163,7 +163,7 @@ def test_the_cut_scene_budget():
     for s in SCENES:
         if s["venue"] == 255:
             assert s["bg_tiles"] == max([PORTRAITS[PID_NAME[p]]["tiles"] for p in s["spk"]] or [0]), s["id"]
-    assert [SCENES[SC[i]]["bg_tiles"] for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [42, 44, 42, 0]
+    assert [SCENES[SC[i]]["bg_tiles"] for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [45, 49, 45, 0]   # (each portrait's art plus its name plate's letters)
 
 
 def portrait_cfg(name):
@@ -305,6 +305,7 @@ def test_every_speaker_needs_art_and_the_scene_budget_fails_the_build():
     scenes = g.parse_script(ROOT / "docs" / "story.md")
     ports = g.portraits(PORTRAIT_CFG)
     g.assign_portraits(scenes, ports)
+    g.add_plates(ports)
     most = max(s["bg_tiles"] for s in SCENES if s["venue"] != 255)
     first = next(s["id"] for s in SCENES if s["venue"] != 255 and s["bg_tiles"] == most)
     g.scene_budget(scenes, ports, most)          # the real budget's tightest fit passes ...
@@ -352,16 +353,35 @@ def assert_portrait_exact(gb, name):
     assert gb.mem("story_cur") == PORTRAITS[name]["pid"], name
 
 
+PLATE_NAMES = {"SPIGOTEER": "SAL", "MANAGER-BOT": "MGR-BOT"}   # tools/gen_story.py: the plate has 7 cells
+
+
 def assert_on_the_box(gb, p):
-    """A 56x56 frame: top row, sides down to row 12, no bottom row (the text box's top panel is its bottom edge)."""
+    """A 56x56 frame: top row, sides, and a bottom row that is the name plate: the corners, the speaker's name (dark letters
+    on the gold) centred between them (to within half a tile), the frame's moulding either side of a short name. The name is
+    inside the frame's bounding box and none is left on the text box's top panel (row 13) between the frame and the text."""
     x, y, w, h = p["x"], p["y"], p["w"], p["h"]
     assert tilemap_row(gb, y - 1, x - 1, w + 2) == [FONT["frame_tl"]] + [FONT["frame_t"]] * w + [FONT["frame_tr"]]
     for r in range(h):
         assert tilemap_row(gb, y + r, x - 1, 1) == [FONT["frame_l"]]
         assert tilemap_row(gb, y + r, x + w, 1) == [FONT["frame_r"]]
-    assert y + h == BOX_ROW
-    frame = {FONT[n] for n in FONT if n.startswith("frame")}
-    assert not frame & set(tilemap_row(gb, BOX_ROW, 0, 20)), "the box's top panel is not overdrawn"
+    assert y + h + 1 == BOX_ROW, "the plate row is the one above the text box's panel"
+    row = tilemap_row(gb, y + h, x - 1, w + 2)
+    assert row[0] == FONT["frame_bl"] and row[-1] == FONT["frame_br"]
+    cells = row[1:-1]
+    named = [i for i, t in enumerate(cells) if t != FONT["frame_b"]]
+    assert named == list(range(named[0], named[0] + len(p["plate"]))), "the name is one run of plate tiles"
+    assert len(p["plate"]) == len(p["plate_name"]) <= len(cells)
+    assert p["plate_name"] == PLATE_NAMES.get(p["speaker"], p["speaker"])
+    first = cells[named[0]] - p["plate"][0]                      # the portrait's first tile on screen
+    assert first >= STORY["portrait_base"]
+    assert [cells[i] - first for i in named] == p["plate"], "the plate's letters, in order"
+    assert abs(named[0] - (len(cells) - 1 - named[-1])) <= 1, "the name is centred in the plate to within half a tile"
+    # the name's letters sit in the plate cells (inside the frame's bounding box: columns x..x+w-1 of the plate row); the box's top
+    # panel (row 13, between the frame and the text) is one plain tile: no name ink there
+    assert all(x <= x + i < x + w for i in named)
+    panel = tilemap_row(gb, BOX_ROW, 0, 20)
+    assert len(set(panel)) == 1, "no name (or frame) tile on the text box's top panel"
 
 
 def overlay_sprites(gb):
@@ -620,8 +640,7 @@ def test_a_venue_scene_has_the_backdrop_the_spigoteer_and_a_framed_portrait(mode
             assert tilemap_row(gb, y + r, x, w) == [base + t for t in sadie["map"][r * w:(r + 1) * w]]
         assert_on_the_box(gb, sadie)
         assert_portrait_exact(gb, "SADIE")
-        # the name on the panel, the title on the HUD row
-        assert tilemap_row(gb, BOX_ROW, 2, 5) == [GLYPH[c] for c in "SADIE"]
+        # (the name is on the frame's plate: assert_on_the_box), the title on the HUD row
         title = SCENES[SC["PRE_SALOON"]]["title"]
         assert tilemap_row(gb, 0, (20 - len(title)) // 2, len(title)) == [GLYPH[c] for c in title]
         # the Spigoteer's sprite at bar 1's tap; on CGB Sadie's gold star (1 OBJ), on DMG the BG star shows instead
@@ -661,7 +680,7 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
         assert_portrait_exact(gb, "DREGS")
         assert_on_the_box(gb, dregs)
         check_golden(gb, "story_dregs")
-        rows = range(dregs["y"] - 1, BOX_ROW)          # the frame's rows (its bottom edge is the box's panel)
+        rows = range(dregs["y"] - 1, BOX_ROW)          # the frame's rows, its plate row last
         rect = [tilemap_row(gb, r, dregs["x"] - 1, dregs["w"] + 2) for r in rows]
         turn_page(gb, 3)                               # NARRATOR: the frame wipes back to the backdrop
         page_ready(gb)
@@ -723,19 +742,19 @@ def portrait_pairs(sids=None):
 
 
 def crackle_sprites(gb, sid, k, s):
-    """INTRO from the explosion's page on: the electric crackle's bolts (OBJ, flickering: 0-2 of them lit, inside their box above the
+    """INTRO from the explosion's page on: the sparks (OBJ, 0-6 of them lit, inside their box above the
     stump) are on screen besides the page's own sprites; how many are lit now."""
     if not (sid == "INTRO" and k + 1 >= s["swpage"]):
         return 0
-    x0, y0 = STORY["burst"]["crackle_xy"]
-    lit = [e for e in gb.visible_sprites() if x0 <= e["x"] - 8 < x0 + 14 and y0 <= e["y"] - 16 < y0 + 1]
-    assert len(lit) <= 2
+    x0, y0 = 80, 14
+    lit = [e for e in gb.visible_sprites() if x0 <= e["x"] - 8 < 128 and y0 <= e["y"] - 16 < 46 and e["tile"] in (96, 98, 100, 102)]
+    assert len(lit) <= 6
     return len(lit)
 
 
 def tour_scene(gb, sid, seen):
     """Every page of the scene on screen: the page's portrait (the speaker's own or his variant) pixel for pixel,
-    framed on the box, its tile map the scene's copy of its tiles (nothing of the previous one left), the name tag;
+    framed above the box with its name on the plate, its tile map the scene's copy of its tiles (nothing of the previous one left);
     a narrator page: no portrait, the frame wiped. Records the swaps seen in `seen`."""
     s = SCENES[SC[sid]]
     assert gb.mem("story_scene") == SC[sid] and gb.mem("story_page") == 0
@@ -744,7 +763,7 @@ def tour_scene(gb, sid, seen):
         first[pid] = base                        # (a picture scene: one slot, each streamed in when he comes on)
         if s["venue"] != 255:
             base += PORTRAITS[PID_NAME[pid]]["tiles"]
-    rect = (1, 5, 9, 8)                          # the 56x56 frame: columns 1-9, rows 5-12 (its bottom is the box)
+    rect = (1, 4, 9, 9)                          # the 56x56 frame with its name plate: columns 1-9, rows 4-12
     spigoteer = 4 if s["venue"] != 255 else 0    # his sprite at the tap (a venue scene; a picture scene has none)
     cur = None
     for k, page in enumerate(s["pages"]):
@@ -775,7 +794,6 @@ def tour_scene(gb, sid, seen):
             for r in range(p["h"]):
                 assert tilemap_row(gb, p["y"] + r, p["x"], p["w"]) == \
                     [b + t for t in p["map"][r * p["w"]:(r + 1) * p["w"]]], f"{sid} page {k + 1} row {r}"
-            assert tilemap_row(gb, BOX_ROW, 2, len(page["speaker"])) == [GLYPH[c] for c in page["speaker"]]
             assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) - spigoteer == (1 if name == "SADIE" and gb.model_name == "cgb" else 0)
             if cur and cur != name:
                 seen.add((cur, name))
@@ -830,7 +848,7 @@ def test_manager_bot_s_portrait(model):
         page_ready(gb)
         assert_portrait_exact(gb, "MANAGER-BOT")
         assert_on_the_box(gb, STORY["portraits"]["MANAGER-BOT"])
-        assert tilemap_row(gb, BOX_ROW, 2, 11) == [GLYPH[c] for c in "MANAGER-BOT"]
+        assert STORY["portraits"]["MANAGER-BOT"]["plate_name"] == "MGR-BOT"
         check_golden(gb, "story_managerbot")
 
 

@@ -62,7 +62,7 @@ void perfect_catch(uint8_t i) BANKED {
 #define DUST_FRAMES  3
 #define DUST_STEP    4          // video frames per dust frame
 #define DUST_LATEST_LY 143        // the puff is left out on a frame that has run into the next VBlank (it is late already; the count costs ~10 lines)
-#define DUST_DY      8          // the entry's OAM y below the bar's top: his lower 16 lines, the height of his legs
+#define DUST_DY      (8 + BT_DY)          // the entry's OAM y below the bar's top: his lower 16 lines, the height of his legs
 
 void dust_load(void) BANKED {
     set_sprite_data(OBJ_DUST, DUST_FRAMES * 2, dust_tiles);

@@ -1,0 +1,165 @@
+# The Bistro's shorter keg and the bartender 2 px lower (owner 2026-10-17: "move the grape label down ... make the whole
+# barrel shorter by a couple pixels, taking them out of the middle portion, so that it doesn't touch the top of the next
+# row ... lower the entire bartender by a couple of pixels in each row, so that he naturally holds the cups a little bit
+# lower"). BT_DY (src/layout.h) is the bartender's drop below his bar's top; the Bistro's keg lost 2 px of its red band and
+# its top part (cap, boiler, grape label, spout) hangs 2 px lower, so its spout, FILL_DY 2 and the glass follow.
+import pytest
+from conftest import GAME, LAYOUT, THEMES, bar_top_y, fill_top_y, mug_top_y, title_level
+from test_art import goto_group
+from test_lift import oam_lines
+from test_spigot import VDIR, art_frames, built_frames, nozzle, stream_pixels
+from test_venues import GROUP_THEME, GROUPS, at_theme, venue
+
+pytestmark = pytest.mark.timeout(240)
+
+BT_DY = LAYOUT["BT_DY"]
+OAM_FILL = GAME["OAM_FILL"]
+KEG = range(144, 160)
+
+
+def bar_rows(t):
+    return [r for r in (VDIR / f"{t}_bar.txt").read_text().splitlines() if r and not r.startswith(";")]
+
+
+def keg_extent(t):
+    """(first, last) bar-art row with a pixel in the keg columns (x 144-159)."""
+    rows = bar_rows(t)
+    used = [y for y in range(24) if any(rows[y][x] != "." for x in KEG)]
+    return used[0], used[-1]
+
+
+def test_the_bistro_keg_is_22_px_with_a_gap_to_the_next_bars_keg():
+    first, last = keg_extent("bistro")
+    assert (first, last) == (2, 23), "22 px tall: 2 px shorter than the 24 px keg that touched the next bar's"
+    rows = bar_rows("bistro")
+    gap = first + (24 - 1 - last)                  # blank rows between this keg's last row and the next bar's first
+    assert gap == 2
+    # the grape label (its frame is a box of 9 rows, x 147-156) is in the vertical middle of the 22 px barrel (rows 2-23)
+    frame = [y for y in range(24) if rows[y][147:157] == "#" * 10]
+    frame = [y for y in frame if 6 <= y <= 20]
+    assert frame == [9, 17], frame
+    assert abs((frame[0] + frame[1]) / 2 - (first + last) / 2) <= 0.5
+    # the spout: its tip over the glass at SPOUT_X, 2 px lower than before (7 -> 9), FILL_DY 2 under it
+    assert max(y for y in range(16) for x in range(136, 144) if rows[y][x] != ".") == 9
+    assert venue("bistro")["fill_dy"] == 3, "the glass hangs 3 px lower: 2 px of the stream show above its rim"
+
+
+def screen_px(gb, x, y):
+    return gb.image().convert("RGB").getpixel((x, y))
+
+
+def test_bistro_kegs_do_not_touch_on_screen(boot):
+    """On the running game, both models: between one bar's keg and the next bar's, 2 screen rows show the wall."""
+    at_theme(boot, GROUPS.index("chefs"))
+    boot.run(30)
+    for b in range(3):
+        last_row = bar_top_y(b) + 23                 # the lowest pixel row of bar b's keg
+        for dy in (1, 2):                            # the next bar's first two rows
+            for x in range(146, 158):
+                wall = screen_px(boot, 159, last_row + dy)
+                assert screen_px(boot, x, last_row + dy) == wall, (b, dy, x)
+        for x in range(147, 157):                    # and the keg itself is there on both sides of the gap
+            assert screen_px(boot, x, last_row) != screen_px(boot, 159, last_row), (b, x)
+            assert screen_px(boot, x, last_row + 3) != screen_px(boot, 159, last_row + 3), (b, x)
+
+
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
+def test_the_glass_hangs_under_the_spout_and_the_stream_joins_both(boot, group):
+    """Every venue, both models, while A fills the glass: the glass is at SPOUT_X, FILL_DY below a sliding mug; the stream
+    starts on the pixel row right under the spout's tip, runs without a break, and ends in the glass (on the drink)."""
+    t = THEMES[group]
+    at_theme(boot, group)
+    boot.run(30)
+    boot.write("intro_timer", 255)
+    boot.hold("a")
+    boot.run(3)
+    o = boot.oam()[OAM_FILL]
+    assert o["x"] - 8 == GAME["SPOUT_X"] and o["y"] - 16 == fill_top_y(0, group) == mug_top_y(0) + venue(t)["fill_dy"]
+    rows = bar_rows(t)
+    tip = max(y for y in range(16) for x in range(136, 144) if rows[y][x] != ".")
+    xs = nozzle(t)
+    for k in range(3):
+        d = stream_pixels(t, k)
+        top, bottom = min(r for r, _ in d), max(r for r, _ in d)
+        assert o["y"] - 16 + top == bar_top_y(0) + tip + 1, (t, k, "the stream starts right under the spout's tip")
+        cols = sorted({c for _, c in d})
+        art = art_frames(t)[k]
+        for c in cols:                               # no break: every row from the first to the last is the stream or the glass's own pixel in front of it
+            assert all((r, c) in d or art[r][c] != "." for r in range(top, bottom + 1)), (t, k, c, "no break in the stream")
+        assert any(xs[0] <= GAME["SPOUT_X"] + c <= xs[-1] for c in cols), (t, k, "under the spout")
+        full = built_frames(t)[3]
+        assert any(full[bottom + 1][c] != 0 for c in cols), (t, k, "the stream ends on the glass / the drink")
+    boot.release("a")
+
+
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
+def test_the_spout_is_over_the_glass_on_screen(boot, group):
+    """The stream's first pixel on the screen has a spout pixel of the bar art right above it."""
+    t = THEMES[group]
+    at_theme(boot, group)
+    boot.run(30)
+    boot.write("intro_timer", 255)
+    boot.hold("a")
+    boot.run(3)
+    o = boot.oam()[OAM_FILL]
+    d = stream_pixels(t, 0)
+    r0 = min(r for r, _ in d)
+    c = min(c for r, c in d if r == r0)
+    x, y = o["x"] - 8 + c, o["y"] - 16 + r0
+    spout = bar_rows(t)[y - 1 - bar_top_y(0)][x]
+    assert spout != ".", (t, "a spout pixel over the stream's first pixel")
+    boot.release("a")
+
+
+@pytest.mark.parametrize("bar", range(4))
+def test_the_bartender_is_2_px_lower_in_every_row(boot, bar):
+    title_level(boot, 1)
+    boot.run(40)
+    boot.write("tip_chance", 0)
+    boot.write("intro_timer", 255)
+    boot.run(20)
+    for _ in range(bar):
+        boot.press("down", 2)
+        boot.run(10)
+    assert boot.mem("bar") == bar
+    o = boot.oam()
+    assert BT_DY == 2
+    assert [o[i]["y"] - 16 for i in (0, 1, 2, 3)] == [bar_top_y(bar) + BT_DY] * 2 + [bar_top_y(bar) + BT_DY + 16] * 2
+
+
+SAMPLE_FRAMES = 600
+
+
+def sample_run(gb, group):
+    """perf_helpers.realistic_run's play (the RealisticPeak crowd on the level-8 script: fills, launches, catches, bar changes,
+    lifted patrons, tips), but in the venue of `group` instead of level 10's; returns the worst line count of any frame."""
+    from perf_helpers import SCRIPT, RealisticPeak
+    at_theme(gb, group)
+    gb.write("intro_timer", 0)
+    gb.write("tip_chance", 0)
+    rp = RealisticPeak(gb, 10)
+    rp.seed()
+    gb.run(2)
+    worst, held, bars = 0, None, set()
+    for i in range(SAMPLE_FRAMES):
+        want = SCRIPT[i % len(SCRIPT)]
+        if want != held:
+            if held:
+                gb.release(held)
+            if want:
+                gb.hold(want)
+            held = want
+        rp.tick()
+        gb.run(1)
+        worst = max(worst, max(oam_lines(gb)))
+        bars.add(gb.mem("bar"))
+    return worst, bars
+
+
+@pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
+def test_ten_objects_a_line_on_every_frame_of_a_play_sample(boot, group):
+    """Every venue, both models: patrons, mugs, tips and the bartender (2 px lower) on every bar, 600 frames, never an 11th
+    object on a line."""
+    worst, bars = sample_run(boot, group)
+    assert len(bars) >= 2, "the script changed bars"
+    assert worst <= GAME["LINE_OBJ_MAX"], worst

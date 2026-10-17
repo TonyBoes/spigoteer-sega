@@ -143,9 +143,12 @@ def scene(gb, even=False, lifted=True, watcher_bar=1, pushed=True):
     return lp
 
 
-def bar_crop(gb, b):
+BT_DY = LAYOUT["BT_DY"]
+
+
+def bar_crop(gb, b, dy=0):
     y = bar_top_y(b)
-    return gb.image().convert("RGB").crop((0, y, 160, y + 24))
+    return gb.image().convert("RGB").crop((0, y + dy, 160, y + 24))
 
 
 def sprite_overlaps(gb):
@@ -180,9 +183,9 @@ class Mirror:
         if ImageChops.difference(a.image().convert("RGB").crop(top), b.image().convert("RGB").crop(top)).getbbox():
             bad.append("hud/stage")
         ovl = sprite_overlaps(a) if a.model_name == "dmg" else None
-        now = [(bar_crop(a, k), ovl) for k in range(4)]
+        now = [(bar_crop(a, k, BT_DY), ovl) for k in range(4)]   # (without the bar's first BT_DY rows: the bartender above hangs his feet over them, mirrored by his bar, not this one)
         for k in range(4):
-            got = bar_crop(b, k)
+            got = bar_crop(b, k, BT_DY)
             if is_r(self.dirs, k):
                 got = ImageOps.mirror(got)
             boxes = []
@@ -190,7 +193,7 @@ class Mirror:
                 d = ImageChops.difference(want, got).convert("L")
                 if m is not None:
                     y = bar_top_y(k)
-                    d = ImageChops.subtract(d, m.crop((0, y, 160, y + 24)))
+                    d = ImageChops.subtract(d, m.crop((0, y + BT_DY, 160, y + 24)))
                 boxes.append(d.getbbox())
             if all(boxes):
                 bad.append((k, boxes[0]))

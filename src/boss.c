@@ -567,8 +567,8 @@ uint8_t boss_frame(void) BANKED {
             boss_state = BS_OUTRO; boss_lim = 0; boss_t = 0;
             boss_call(BEV_OUTRO, 0);             // (a special's end state: the Yeti thaws, the Mascot lands, ...)
             boss_look();
-            if (patrons_live) show_overlay("CLEAR THE BAR");
-        } else if (boss_t != 255 && ++boss_t == CLEAR_BANNER_FRAMES) overlay_on = 0;
+            if (patrons_live) show_note("CLEAR THE BAR");   // (a note, not the banner: it never covers a bar)
+        } else if (boss_t != 255 && ++boss_t == CLEAR_BANNER_FRAMES) end_note();
         if (!patrons_live) return 1;
         spawn_timer = 0xFFFF;                    // no new regulars
         boss_mugs();                             // (a Critic's returned drinks still fly)
@@ -610,7 +610,7 @@ uint8_t boss_frame(void) BANKED {
 uint8_t boss_outro(uint8_t t) BANKED {
     uint8_t i, n;
     if (t == 1) {                                // (BEV_OUTRO went at the start of the clear phase: boss_frame)
-        overlay_on = 0;
+        end_note(); overlay_on = 0;
         clear_mugs();
         fill_timer = 0; cue_t = 0;
         n = OAM_MUG_END - 2 * lift_total;
@@ -648,7 +648,12 @@ void boss_draw(void) BANKED {
     n[0] = n[1] = n[2] = n[3] = 0;
     k = 40;
     do {
-        if (o->y && (uint8_t)(o->y - top + 15) < 31) band_add(o->y - top, n);
+        if (o->y) {
+            // (the bartender's 4 entries hang BT_DY lower than the bands were laid out for: counted as before, so his
+            // two pairs, which never share a line, are not both counted in the band that his top pair now just reaches)
+            uint8_t y = o < shadow_OAM + 4 ? (uint8_t)(o->y - BT_DY) : o->y;
+            if ((uint8_t)(y - top + 15) < 31) band_add(y - top, n);
+        }
         o++;
     } while (--k);
     n0 = n[0]; n1 = n[1]; n2 = n[2]; n3 = n[3];

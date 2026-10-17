@@ -13,6 +13,8 @@
 #define BAR_COUNTER_DROW  2     // counter row = BAR_TOP_ROW(b) + this
 #define FLOOR_ROW        17
 #define MUG_DY            4     // mug/fill/glass sprite top, in px below the bar's top (counter surface under its base)
+#define BT_DY             2     // the bartender (and the sprites that stand where his legs do) hang this many px below the bar's top; his feet reach
+                                // 2 px past the counter row (owner 2026-10-17: he holds the glass a little lower). One place: draw_bartender and its users
 #define BAR_TOP_ROW(b)      (BAR_FIRST_ROW + BAR_ROW_STRIDE * (b))
 #define BAR_COUNTER_ROW(b)  (BAR_TOP_ROW(b) + BAR_COUNTER_DROW)
 #define BAR_TOP_Y(b)        (BAR_TOP_ROW(b) * 8)          // screen y of the bar's first pixel row

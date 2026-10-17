@@ -339,7 +339,25 @@ uint8_t *mg_say(uint8_t row, const char *s) {
     return b;
 }
 
+// A note (overlay_on 2) is a one-row window on the stage wall (y 24..30): its text in window map row 32 (the banner's top
+// frame, put back by end_note), WY and LYC moved to it. Nothing plays there, so a message can show while the game runs.
+void show_note(const char *s) {
+    mg_say(32, s);
+    WY_REG = NOTE_WY; LYC_REG = NOTE_LYC;
+    overlay_on = 2;
+}
+
+void end_note(void) {
+    uint8_t *b, n = 20;
+    if (overlay_on != 2) return;
+    b = mg_say(32, "");
+    while (n) b[--n] = TILE_PANEL_TOP;
+    WY_REG = BANNER_WY; LYC_REG = BANNER_LYC;
+    overlay_on = 0; HIDE_WIN;
+}
+
 void show_overlay(const char *s) {
+    end_note();
     mg_say(33, s);
     overlay_on = 1;
     hide_banner_sprites();
@@ -581,7 +599,7 @@ static void update(void) {
             enter_level_clear();
         }
     }
-    if (overlay_on) hide_banner_sprites();
+    if (overlay_on == 1) hide_banner_sprites();   // (a note is not over the bars)
     frame_counter++;
     SEC(SEC_REST);
 }

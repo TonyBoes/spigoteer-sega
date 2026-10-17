@@ -619,7 +619,7 @@ def test_the_outro_waits_while_regulars_remain(model):
     with beaten_with_regulars(model) as gb:
         assert gb.mem("boss_hp") == 0 and gb.mem("boss_state") == BS_OUTRO
         assert state(gb) == PLAYING and gb.mem("story_phase") != SP_OUTRO
-        assert gb.mem("overlay_on") == 1 and banner_text(gb, 1) == centred(CLEAR_BANNER)
+        assert gb.mem("overlay_on") == 2 and banner_text(gb, 0) == centred(CLEAR_BANNER)   # (a note: the one row on the stage wall)
         assert_body(gb, gb.mem("boss_x"), BP_HAPPY)
         frames(gb, CLEAR_BANNER_FRAMES + 10)
         assert gb.mem("overlay_on") == 0, "the banner goes by itself"
@@ -630,6 +630,53 @@ def test_the_outro_waits_while_regulars_remain(model):
         run_until(gb, lambda: state(gb) == LEVEL_CLEAR, OUTRO_FRAMES + 10)
         gb.run(3)
         assert banner_text(gb, 1) == centred("CHAPTER CLEAR")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_clear_the_bar_note_covers_no_bar(model):
+    """Owner 2026-10-17: the message must never hide a bar while play goes on. CLEAR THE BAR is a one-row note on the stage
+    wall (window WY 24, ended by LYC at 31): every line from the first bar down (y >= 40) is the same picture with the note
+    on as with it off, the note's own row holds the text, and it goes away by itself (WY / LYC back for the banner)."""
+    from PIL import ImageChops
+    with beaten_with_regulars(model) as gb:
+        frames(gb, 20)
+        assert gb.mem("overlay_on") == 2
+        r = gb.regs()
+        assert r["WY"] == 24
+        assert gb.pb.memory[0xFF45] == 31, "the window ends before the first bar's top (y 40)"
+        assert banner_text(gb, 0) == centred(CLEAR_BANNER)
+        on = gb.image()
+        gb.write("overlay_on", 0)                         # (the same frame without the note: the window hides)
+        frames(gb, 1)
+        off = gb.image()
+        bars = (0, 40, 160, 144)
+        assert ImageChops.difference(on.crop(bars), off.crop(bars)).getbbox() is None, "the bars' rows show no window ink"
+        assert ImageChops.difference(on.crop((0, 0, 160, 24)), off.crop((0, 0, 160, 24))).getbbox() is None, "the HUD and sign stay"
+        assert ImageChops.difference(on.crop((0, 24, 160, 32)), off.crop((0, 24, 160, 32))).getbbox() is not None, "the note's row"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_clear_the_bar_note_ends_and_returns_the_banner_window(model):
+    """After CLEAR_BANNER_FRAMES the note is gone: overlay_on 0, WY / LYC the banner's again (a later banner is where it was)
+    and window row 32 is the panel's top frame."""
+    with beaten_with_regulars(model) as gb:
+        assert gb.mem("overlay_on") == 2
+        frames(gb, CLEAR_BANNER_FRAMES + 5)
+        r = gb.regs()
+        assert gb.mem("overlay_on") == 0 and r["WY"] == 64 and gb.pb.memory[0xFF45] == 86
+        assert banner_text(gb, 0) == [int(re.search(r"#define TILE_PANEL_TOP (\d+)", ART_H).group(1))] * 20
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_mug_is_caught_while_the_note_shows(model):
+    """The note does not stop the game: an empty mug sliding back to the bartender is caught (the catch sound counts) while it
+    shows."""
+    with beaten_with_regulars(model) as gb:
+        assert gb.mem("overlay_on") == 2
+        b = gb.mem("bar")
+        inject_mug(gb, b, TAP_X - 16, EMPTY)
+        until(gb, lambda: gb.read("mug_state", 1)[0] == 0, 70)       # (caught at the tap: not broken, no life)
+        assert gb.mem("overlay_on") == 2 and gb.mem("lives") == 3 and state(gb) == PLAYING
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

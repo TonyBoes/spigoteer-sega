@@ -96,7 +96,7 @@ def test_the_data_carries_the_beats():
     assert all(p["pre"] % UNIT == 0 and p["pre"] <= 7 * UNIT for p in pages)
     intro = SCENES[SC["INTRO"]]["pages"]
     assert intro[0]["pre"] == 4 * UNIT, "the story opens on a beat"
-    assert intro[4]["marks"] == [[0, 5, SHORT], [0, 11, SHORT], [0, 17, SHORT], [1, 16, LONG]], "GLUG. GLUG. GLUG. ..."
+    assert intro[5]["marks"] == [[0, 5, SHORT], [0, 11, SHORT], [0, 17, SHORT], [1, 16, LONG]], "GLUG. GLUG. GLUG. ..."
     assert variants, "the teahouse's variant keeps its own text"
 
 
@@ -162,15 +162,20 @@ def test_page_gaps_and_mid_line_beats(model):
         trace = typed_trace(gb, 20)
         assert gb.mem("story_page") == 1
         assert first_char(trace) in range(GAP_PAGE - 1, GAP_PAGE + 3), trace
-        # page 2 -> 3 (the narrator -> the Spigoteer): a longer gap
+        # page 2 -> 3 (the narrator again: the festival page)
+        turn_page(gb)
+        trace = typed_trace(gb, 20)
+        assert gb.mem("story_page") == 2
+        assert first_char(trace) in range(GAP_PAGE - 1, GAP_PAGE + 3), trace
+        # page 3 -> 4 (the narrator -> the Spigoteer): a longer gap
         turn_page(gb)
         trace = typed_trace(gb, 30)
-        assert gb.mem("story_page") == 2
+        assert gb.mem("story_page") == 3
         assert first_char(trace) in range(GAP_SPK - 1, GAP_SPK + 3), trace
-        # page 3's "THE FIRST DRINK.|": the typing stops SHORT frames after the line's last character
-        assert intro[2]["marks"] == [[1, 16, SHORT]]
+        # page 4's "THE SPIGOTEER,|": the typing stops SHORT frames after the line's last character
+        assert intro[3]["marks"] == [[1, 14, SHORT]]
         run_until(gb, lambda: gb.mem("story_typed") == 54, 200)
-        assert text_rows(gb) == glyph_rows(intro[2]["lines"])
+        assert text_rows(gb) == glyph_rows(intro[3]["lines"])
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

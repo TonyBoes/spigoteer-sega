@@ -403,8 +403,8 @@ def test_the_tap_freezes_on_the_ice(model):
         whoosh = sfx(gb, SFX_WHOOSH)
         until(gb, lambda: gb.mem("yeti_phase") == YP_ICY, TELL + 4)
         frames(gb, 2)
-        assert sfx(gb, SFX_WHOOSH) == whoosh + 1 and gb.mem("overlay_on") == 1
-        assert banner_text(gb, 1) == centred("TAP FROZEN"), banner_text(gb, 1)
+        assert sfx(gb, SFX_WHOOSH) == whoosh + 1 and gb.mem("overlay_on") == 2
+        assert banner_text(gb, 0) == centred("TAP FROZEN"), banner_text(gb, 1)
         shakes, launches = sfx(gb, SFX_SHAKE), sfx(gb, SFX_LAUNCH)
         gb.hold("a")
         frames(gb, 3)

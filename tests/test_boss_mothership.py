@@ -534,7 +534,7 @@ def test_passengers_count_for_clear_the_bar(model):
         assert len(live(gb)) == 2
         gb.write("boss_hook", 3)
         frames(gb, 3)
-        assert gb.mem("boss_hp") == 0 and banner_text(gb, 1) == centred("CLEAR THE BAR")
+        assert gb.mem("boss_hp") == 0 and banner_text(gb, 0) == centred("CLEAR THE BAR")
         frames(gb, 120)
         assert state(gb) == PLAYING and gb.mem("story_phase") != SP_OUTRO and len(live(gb)) == 2
         for p, b, x, st, v in live(gb):

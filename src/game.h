@@ -277,6 +277,10 @@ uint8_t next_rand(void);
 void add_score(uint16_t n);
 void lose_life(void);
 void prep_hud(void);                          // lives_tiles (head, digit) / score_tiles from lives and score_digits
+#define NOTE_WY    ((STAGE_FIRST_ROW + 2) * 8)  // a note (show_note): the window is ONE row, over the stage's wall under the sign (y 24..30), where nothing plays
+#define NOTE_LYC   (NOTE_WY + 7)               // (the glyphs are 7 lines tall: the 8th is blank, so the window may end a line early)
+void show_note(const char *s);                // a one-row message on the stage wall while play goes on (never over a bar); end_note takes it away
+void end_note(void);                          // (no-op unless a note shows) the banner window's rows, WY and LYC as the banner wants them
 void show_overlay(const char *s);             // the banner's text (ROM0: callers pass strings from their own bank)
 uint8_t *mg_say(uint8_t row, const char *s);  // a centred line of HUD glyphs on map row `row` (queued; LCD off: written)
 extern uint8_t say_bang;                      // (main_cold.c glyph_for) the tile drawn for '!' (bonus2's own, else blank)

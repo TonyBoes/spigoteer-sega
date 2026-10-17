@@ -25,10 +25,10 @@ The engine checklist was docs/venue10_impact.md.
 ## The pitch
 
 In the town of Fizzwater, the **Golden Spigot** (it can pour any drink anyone could ever want)
-sits on the fountain in the square. Every year the town's best bartender, the **Spigoteer**,
+sits on the fountain in the square. Every year the town's best pourer, Sal Tapley, the **Spigoteer**,
 pours its first drink of the festival. This year his rival **Dregs Dribbleton** barges in and
 orders "one of everything, all at once". The spigot overloads, goes KA-SPLOOSH and bursts into
-ten pieces that land in ten famous venues. Each owner will hand a piece only to a bartender who
+ten pieces that land in ten famous venues. Each owner will hand a piece only to a spigoteer who
 keeps their crowd happy. The Spigoteer goes on tour.
 
 Cast (kept small): the Spigoteer, Dregs (comic rival, never a real threat), ten one-note venue
@@ -152,9 +152,9 @@ text as its page, and two variants with the same condition on one page.
 
 ### INTRO: "The Big Pour"
 
-Picture (pages 1-4): Fizzwater town square at night: the clock tower and houses at the left, the fountain right of centre. The whole Golden Spigot gleams on it, string lights hang across the square and a few townsfolk in hats wait in the foreground. The Spigoteer walks in from the right. (`assets/story/pictures/intro_before.txt`)
+Picture (pages 1-5): Fizzwater town square at night: the clock tower and houses at the left, the fountain right of centre. The whole Golden Spigot gleams on it, string lights hang across the square and a few townsfolk in hats wait in the foreground. The Spigoteer walks in from the right. (`assets/story/pictures/intro_before.txt`)
 
-Picture (page 5): the same square a moment later, after a white flash. The intact Golden Spigot bursts into its ten pieces, which fly outward and off the screen (a short animation, OBJ sprites), each leaving a trail of faded dots in the sky that fades away. Over the spigot's spot a gold burst star (BG tiles, two sizes) is up at the flash and pulses (big, small, big...) while the pieces fly, then dies down once they are gone and an electric crackle (two flickering bolt sprites, with a rattle sound) takes its place above the broken stub and keeps on through pages 6-8. What is left: an empty rim with a broken stub and a last drip, and the fountain stopped (no jets). Dregs stands on the cobbles, the Spigoteer shrugs, and the townsfolk duck or point. Pages 6-8 stay on it. (`assets/story/pictures/intro_a.txt`, the pieces `assets/story/pictures/intro_pieces.txt`)
+Picture (page 6): the same square a moment later, after a white flash. The intact Golden Spigot bursts into its ten pieces, which fly outward and off the screen (a short animation, OBJ sprites), each leaving a trail of faded dots in the sky that fades away. Over the spigot's spot a gold burst star (BG tiles, two sizes) is up at the flash and pulses (big, small, big...) while the pieces fly, then dies down once they are gone and an electric crackle (two flickering bolt sprites, with a rattle sound) takes its place above the broken stub and keeps on through pages 7-9. What is left: an empty rim with a broken stub and a last drip, and the fountain stopped (no jets). Dregs stands on the cobbles, the Spigoteer shrugs, and the townsfolk duck or point. Pages 7-9 stay on it. (`assets/story/pictures/intro_a.txt`, the pieces `assets/story/pictures/intro_pieces.txt`)
 
 ```
 NARRATOR
@@ -168,10 +168,15 @@ SPIGOT. IT COULD
 POUR ANY DRINK
 ANYONE WANTED!
 
+NARRATOR
+EVERY YEAR AT THE
+FESTIVAL, THE BEST
+SERVER GOES FIRST.
+
 SPIGOTEER
-EACH YEAR, I POUR
-THE FIRST DRINK.|
-NICE AND STEADY.
+I'M SAL TAPLEY,
+THE SPIGOTEER,|
+REIGNING CHAMP!
 
 DREGS
 @beat 3
@@ -193,7 +198,7 @@ NARRATOR
 @beat 3
 TEN VENUES, TEN
 OWNERS. EACH WANTS
-A GREAT BARTENDER.
+A GREAT SPIGOTEER.
 
 SPIGOTEER
 @beat 2
@@ -550,7 +555,7 @@ BEEN SO TOASTY.
 
 ---
 
-### PRE_ROBOT: "Beep Boop, Barkeep"
+### PRE_ROBOT: "Beep Boop, Spigoteer"
 
 Picture: factory floor with conveyor belts and a big lightning-bolt sign. Robots stand in line and Manager-Bot 3000 sits on a hover platform.
 
@@ -834,7 +839,7 @@ KIKI
 @beat 3
 AND HERE WE SEE|
 THE RARE MUSTACHED
-BARTENDER...
+SPIGOTEER...
 
 SPIGOTEER
 HI.| ARE YOU
@@ -1152,7 +1157,7 @@ overlaps another variant of his or that no page uses):
 
 | Portrait | One line |
 |---|---|
-| SPIGOTEER | Big curled mustache, bartender's apron and bow tie, confident grin. |
+| SPIGOTEER | Big curled mustache, spigoteer's apron and bow tie, confident grin. |
 | SPIGOTEER (cozy) | The same with the pink knitted mustache cozy, from PRE_IGLOO page 3 onward. |
 | DREGS | Lanky rival with a scraggly little mustache and a crooked bow tie, sheepish. His FINALE_B apology has its own variant (hand behind his head). |
 | SADIE | Small saloon owner, huge hat, sheriff-style star badge, big laugh. |

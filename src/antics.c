@@ -198,7 +198,7 @@ void antics_start(void) BANKED {
     while (e >= AE_N) e -= AE_N;
     antics_end = antics_force ? antics_force - 1 : e;
     antics_t = 0; antics_loaded = 0;
-    bx = bartender_x; by = bar_oam_y[bar] - 16;
+    bx = bartender_x; by = bar_oam_y[bar] - 16 + BT_DY;
     an_r = (bar_dirs & bar_bit[bar]) != 0;
 }
 

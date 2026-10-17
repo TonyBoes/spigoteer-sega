@@ -34,7 +34,7 @@
 // (assets/story/pictures, build/story_pictures.c: its tiles at BG ids 0-35 and above the scene's one portrait slot; a
 // speaker's tiles are streamed into that slot when he comes on; INTRO page 5 switches pictures behind a white flash: the
 // picture then shows the spigot gone and the fountain stopped, and the ten pieces, as OBJ sprites where the spigot was,
-// fly off the screen while a trail of dots fades in the sky behind each (PB_T, story_burst_step); a gold burst star (BG cells over the spigot) pulses meanwhile and dies down, then two crackle sprites flicker above the stump for the rest of the scene (story_burst_crackle). The text types on, one character a frame. Buttons: A or B shows the
+// fly off the screen while a trail of dots fades in the sky behind each (PB_T, story_burst_step); a gold burst star (BG cells over the spigot) pulses meanwhile and dies down, then sparks spray off the stump in short bursts for the rest of the scene (story_burst_crackle). The text types on, one character a frame. Buttons: A or B shows the
 // rest of the page at once, then the next page; START skips the rest of the scene. A page may have text variants
 // (docs/story.md "SPEAKER IF CONDITION"): story_page_get shows the first whose condition bit is set in story_conds.
 //
@@ -189,16 +189,24 @@ static uint8_t spk_index(uint8_t spk) {          // the speaker's place in the s
     return 255;
 }
 
-// pt (fetched) -> its framed rectangle in pt_map / pt_attr; new cx..ch. A picture whose bottom is the row above the
-// text box stands on it: the box's top panel is the frame's bottom edge, so the frame has no bottom row.
-static void compose_portrait(uint8_t k) {
-    uint8_t w = pt.w + 2, h = pt.h + 2, x, y, i = 0, t, a;
+// pt (fetched) -> its framed rectangle in pt_map / pt_attr; new cx..ch. The frame's bottom row is the speaker's name plate:
+// the frame's corners, between them the name (story_name_get's plate tiles: dark letters on the frame's gold) centred in the
+// plate's cells, the frame's bottom moulding either side. A picture whose bottom is the row above the text box stands on it: the box's top
+// panel is then the frame's bottom edge, no plate (no portrait is placed so now).
+static void compose_portrait(uint8_t k, uint8_t pid) {
+    uint8_t w = pt.w + 2, h = pt.h + 2, x, y, i = 0, t, a, n = 0, o, name[12];
     if (pt.y + pt.h == BOX_ROW) h--;
+    story_name_get(pid, name);                   // the name's plate tiles (relative to the portrait's first), 0-terminated
+    while (n < 11 && name[n]) n++;
+    o = (w - 2 * !STORY_PLATE_FULL - n) >> 1;    // the cells before the name (A: between the corners, B: all of the row)
     for (y = 0; y < h; y++)
         for (x = 0; x < w; x++, i++) {
             a = BGPAL_HUD;
             if (y == 0)          t = x == 0 ? ST_FRAME_TL : x == w - 1 ? ST_FRAME_TR : ST_FRAME_T;
-            else if (y == pt.h + 1) t = x == 0 ? ST_FRAME_BL : x == w - 1 ? ST_FRAME_BR : ST_FRAME_B;
+            else if (y == pt.h + 1) {
+                t = x == 0 ? ST_FRAME_BL : x == w - 1 ? ST_FRAME_BR : ST_FRAME_B;
+                if (x >= !STORY_PLATE_FULL + o && x < !STORY_PLATE_FULL + o + n) t = spk_bg[k] + name[x - !STORY_PLATE_FULL - o];
+            }
             else if (x == 0)     t = ST_FRAME_L;
             else if (x == w - 1) t = ST_FRAME_R;
             else {
@@ -241,7 +249,7 @@ static void portrait_now(uint8_t spk) {
     if (k == 255) return;
     if (PIC_SCENE) portrait_tiles_load(spk, STORY_PORTRAIT_BASE, spk_obj[k]);   // the one slot holds this speaker's
     portrait_get(spk, &pt);
-    compose_portrait(k);
+    compose_portrait(k, spk);
     write_palettes();
     for (y = 0; y < ch; y++) {
         set_bkg_tiles(cx, cy + y, cw, 1, pt_map + y * cw);
@@ -316,7 +324,7 @@ static void swap_frame(uint8_t room) {
         k = spk_index(sw_next);
         portrait_get(sw_next, &pt);
         write_palettes();
-        compose_portrait(k);
+        compose_portrait(k, sw_next);
         sw_row = 0;
         story_swap = SW_IN;
         // fall through: the first rows of the new frame
@@ -332,17 +340,11 @@ static void swap_frame(uint8_t room) {
 }
 
 // ---- pages ------------------------------------------------------------------------------------------------
-static void tag_build(void) {                    // row 13: the panel with the speaker's name (or the spigot) at the left
-    uint8_t name[12], i;
+static void tag_build(void) {                    // row 13: the box's top panel; the narrator's little spigot at the left (a speaker's name is on his portrait's plate)
     fill(tag_row, TILE_PANEL_TOP, 20);
-    tag_row[1] = TILE_HUD_BLANK;
     if (story_spk == SPK_NARRATOR) {
-        tag_row[2] = ST_SPIGOT_ICON; tag_row[3] = TILE_HUD_BLANK;
-        return;
+        tag_row[1] = TILE_HUD_BLANK; tag_row[2] = ST_SPIGOT_ICON; tag_row[3] = TILE_HUD_BLANK;
     }
-    story_name_get(story_spk, name);
-    for (i = 0; name[i] && i < 12; i++) tag_row[2 + i] = st_glyph(name[i]);
-    tag_row[2 + i] = TILE_HUD_BLANK;
 }
 
 // LCD on (lcd 0) or off (1): the page's box cleared, its name tag; a portrait change starts if the page's portrait
@@ -965,8 +967,7 @@ uint8_t story_update(uint8_t pressed) BANKED {
     if (!btn && PIC_SCENE) {
         if (PB_T != 255)                         // the INTRO's explosion, last: its trail and star go into whatever room the frame's list has
             PB_T = story_burst_step(PB_T, (story_hdr.swpage && PS_FX) || (pressed & (J_A | J_B)) ? 0 : story_swap ? 1 : STORY_BURST_PER) ? 255 : PB_T + 1;
-        else if (story_hdr.pic == STORY_BURST_PIC && !PS_FX) story_burst_crackle(story_t);   // over: the crackle keeps on above the stump
-        if (story_hdr.pic == STORY_BURST_PIC && (PB_T == 255 || PB_T >= STORY_CRACKLE_T) && !(story_t & 31)) SFX(SFX_SHAKE);   // (its rattle)
+        else if (story_hdr.pic == STORY_BURST_PIC && !PS_FX) story_burst_crackle(story_t);   // over: the sparks keep on off the stump
     }
     return btn;
 }

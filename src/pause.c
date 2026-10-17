@@ -209,6 +209,7 @@ static void card_close(void) {
 
 void pause_open(void) BANKED {
     uint8_t i, mini = game_state == GS_MINI;
+    end_note();                                  // (a note moved WY and LYC; its row 32 is the menu's now)
     overlay_on = 0; HIDE_WIN;                    // (hidden while its rows are written; shown again by main.c's next update)
     state_timer = mini ? PAUSE_MINI : 0;
     game_state = GS_PAUSED;
