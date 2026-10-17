@@ -182,9 +182,7 @@ static void lcd_back(uint8_t lyc) {
     if (mg_id == MG_MILKRUN) { SCX_REG = 0; LYC_REG = lyc; }
     SHOW_WIN;                                    // (lcd_isr hid it at the menu's last line; main.c's update shows it from the next frame)
 #if CARD_FADE
-    trans_card_arm();                            // (the new screen's palettes kept, the screen white)
-    DISPLAY_ON;
-    trans_card_in();                             // (and faded in)
+    trans_card_in();                             // (the new screen's palettes kept, the screen white, the LCD on, and faded in)
 #else
     DISPLAY_ON;
 #endif

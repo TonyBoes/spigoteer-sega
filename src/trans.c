@@ -208,44 +208,17 @@ static uint8_t pal_in(uint8_t *o, uint8_t stash, uint8_t n, uint8_t rise) {
                 VBK_REG = VBK_BANK_0;
             }
         } else {
-            do {
+            uint8_t *q = o + (c << 1);
+            do {                                                 // (the card's fade waits for this: a colour costs ~100 cycles, ~7 a frame)
                 i = (c & 31) << 1;
-                if (c < 32) { BCPS_REG = i; o[c << 1] = BCPD_REG; BCPS_REG = i | 1; o[(c << 1) | 1] = BCPD_REG; }
-                else { OCPS_REG = i; o[c << 1] = OCPD_REG; OCPS_REG = i | 1; o[(c << 1) | 1] = OCPD_REG; }
+                if (c < 32) { BCPS_REG = i; *q++ = BCPD_REG; BCPS_REG = i | 1; *q++ = BCPD_REG; }
+                else { OCPS_REG = i; *q++ = OCPD_REG; OCPS_REG = i | 1; *q++ = OCPD_REG; }
                 c++;
             } while (c < 64 && pal_gap());
         }
         fa_tail(f, n, rise);
     }
     return f;
-}
-
-// The pause card's reads (owner 2026-10-17: the fade much faster): the read in VBlank only takes 13 frames (the VBlank handler leaves ~5 colours' time), so this one
-// reads whenever the PPU is not drawing (STAT mode 0, 1 or 2; the colour is read with the mode checked before AND after: a read takes under the 172 cycles of mode 3,
-// so a pair of checks that both pass means the PPU stayed out of mode 3 for the whole read) and goes on from the next colour when one fails. A colour at a time under
-// CRITICAL: the interrupts wait ~150 cycles at most. Done within about half a frame, from a VBlank on; the writes stay in VBlank (burst). Returns the frames it took (1).
-static uint8_t pal_fast(uint8_t *o, uint8_t stash, uint8_t n) {
-    uint8_t c = 0, i, lo, hi, ok;
-    vsync(); keep_win();
-    while (c < 64) {
-        if (!(c & 7)) music_pump();
-        if (LY_REG >= 144) keep_win();                           // (the read lasts over a frame: the menu's window shown again in each VBlank)
-        CRITICAL {
-            ok = (STAT_REG & 3) != 3;
-            if (ok) {
-                if (stash) { VBK_REG = VBK_BANK_1; lo = STASH[c << 1]; hi = STASH[(c << 1) | 1]; VBK_REG = VBK_BANK_0; }
-                else {
-                    i = (c & 31) << 1;
-                    if (c < 32) { BCPS_REG = i; lo = BCPD_REG; BCPS_REG = i | 1; hi = BCPD_REG; }
-                    else { OCPS_REG = i; lo = OCPD_REG; OCPS_REG = i | 1; hi = OCPD_REG; }
-                }
-                ok = (STAT_REG & 3) != 3;
-            }
-        }
-        if (ok) { o[c << 1] = lo; o[(c << 1) | 1] = hi; c++; }
-    }
-    fa_tail(1, n, 0);
-    return 1;
 }
 
 static uint8_t dfade(uint8_t p, uint8_t k) {               // a DMG palette k shades lighter
@@ -273,7 +246,7 @@ static uint8_t dstep(const uint8_t *o, uint8_t k, uint8_t fr, uint8_t f0, uint8_
 static void cgb_cover(uint8_t v) {
     uint8_t s, f, fast = game_state == GS_PAUSED, n = 4 + 6 * FADE_STEP + (v == V_AMBER ? 3 * FADE_STEP : 0), o[128];
     uint16_t t = v == V_AMBER ? COL_A : COL_W;
-    f = fast ? pal_fast(o, 0, n) : pal_in(o, 0, n, 0);
+    f = pal_in(o, 0, n, 0);
     if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_out[s], t, 0, 2, f, n, 0);
     else for (s = 0; s < 6; s++) f += cstep(o, k_out[s], t, 0, FADE_STEP, f, n, 0);
     if (v == V_AMBER) for (s = 0; s < 3; s++) f += cstep(0, k_amb[s], COL_W, COL_A, FADE_STEP, f, n, 0);
@@ -323,9 +296,8 @@ static void fade_reveal(void) {                                  // LCD on, whit
     uint8_t s, f = 0, n, o[128], fast = game_state == GS_PAUSED;
     if (is_cgb) {
         n = 4 + 5 * FADE_STEP + 2;
-        f = fast ? pal_fast(o, 1, n) : pal_in(o, 1, n, 1);   // (4 frames of white while the colours are read back)
-        if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_in[s], COL_W, 0, 2, f, n, 1);
-        else for (s = 0; s < 5; s++) f += cstep(o, k_in[s], COL_W, 0, FADE_STEP, f, n, 1);
+        f = pal_in(o, 1, n, 1);                                  // (4 frames of white while the colours are read back)
+        for (s = 0; s < 5; s++) f += cstep(o, k_in[s], COL_W, 0, FADE_STEP, f, n, 1);
         cstep(o, 8, 0, 0, 2, f, n, 1);
     } else {
         uint8_t fr = fast ? 2 : FADE_DMG;
@@ -348,12 +320,38 @@ void trans_card_out(void) BANKED {
     if (is_cgb) cgb_cover(V_WHITE); else dmg_cover();
 }
 
-void trans_card_arm(void) BANKED {
-    fade_arm();
+static void tick_sync(void) {
     if (NR51_REG) while (TIMA_REG > 23) music_pump();            // (the LCD comes on a third of a frame after a tick: the first fade-in tick follows ~1.3 frames later, not 1.9)
 }
 
-void trans_card_in(void) BANKED { fade_reveal(); }
+// After the build, LCD still off, the window and registers set: the new screen's colours are read back at once (the LCD is off: no VBlank to wait for, no stash in VRAM),
+// the palettes painted white, the LCD on and the colours faded in. (A read outside VBlank with the LCD on, STAT-checked, was tried: SameBoy returned 0xFF for some, a
+// washed-out picture: tests/test_fade_hw.py.)
+void trans_card_in(void) BANKED {
+    uint8_t c, i, s, f = 0, n = 8, o[128];
+    if (!is_cgb) {
+        fade_arm();
+        tick_sync();
+        DISPLAY_ON;
+        fade_reveal();
+        return;
+    }
+    for (c = 0; c < 64; c++) {
+        i = (c & 31) << 1;
+        if (c < 32) { BCPS_REG = i; o[c << 1] = BCPD_REG; BCPS_REG = i | 1; o[(c << 1) | 1] = BCPD_REG; }
+        else { OCPS_REG = i; o[c << 1] = OCPD_REG; OCPS_REG = i | 1; o[(c << 1) | 1] = OCPD_REG; }
+    }
+    BCPS_REG = 0x80;
+    for (c = 0; c < 32; c++) { BCPD_REG = 0xFF; BCPD_REG = 0x7F; }
+    OCPS_REG = 0x80;
+    for (c = 0; c < 32; c++) { OCPD_REG = 0xFF; OCPD_REG = 0x7F; }
+    tick_sync();
+    DISPLAY_ON;
+    vsync(); keep_win(); f++; fa_tail(f, n, 1);                  // (the LCD's first frame is not whole: white)
+    for (s = 0; s < 2; s++) f += cstep(o, kc_in[s], COL_W, 0, 2, f, n, 1);
+    cstep(o, 8, 0, 0, 2, f, n, 1);
+    volume(7);
+}
 
 void trans_cover(void) BANKED {
     uint8_t i, j, wy, rows = 0, v = (TRANS >> TR_VSHIFT) & 3;
