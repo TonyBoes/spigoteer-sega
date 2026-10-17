@@ -51,11 +51,12 @@ def rep(text, n):
 
 
 SONGS = {}
-LEGATO_LEAD = 6      # gen_music.DUTY: the legato lead
+DUTY_RING, LEAD_PRO, LEGATO_LEAD = 5, 6, 7   # gen_music.DUTY: the credits ring, the brass lead, its held-volume twin for the sung tunes (gen_music asserts)
+BASS_HELD = 2         # gen_music.WAVE: the bass without its pluck table (the default bass, 1, is plucked)
 SUNG_ARTIC = 3       # frames of silence between two sung notes of the same pitch (legato=)
 
 
-def song(name, tempo, bufname, ch2, ch3, ch4="", inst=5, gap=True, stac_all=None, groove="", legato=None, start=0, swing=0, tempo_map=None, fx_map=None):
+def song(name, tempo, bufname, ch2, ch3, ch4="", inst=LEAD_PRO, gap=True, stac_all=None, groove="", legato=None, start=0, swing=0, tempo_map=None, fx_map=None):
     """stac_all: (num, den) cuts every melody note after num/den of its length (staccato).
     legato: n frames.  A sung tune: the melody plays on the legato lead (gen_music instrument 6, a held volume
     instead of the song lead's decay, which made every note a plucked syllable), each note runs into the next, and a
@@ -121,8 +122,8 @@ SUS_MEL = "  ".join([A1, A2, A1, A2_LAST, CHORUS, ENDING])
 SUS_CH = (["C", "C", "C", "G"] + ["C", "C", "G", "C"]) * 2 + ["F", "C", "C", "G"] + ["C", "C", "G", "C"]
 SUS_BASS_BAR = {"C": "C3:4! G2:4!", "G": "G2:4! D3:4!", "F": "F2:4! C3:4!"}
 SUS_BASS = " ".join(SUS_BASS_BAR[c] for c in SUS_CH)
-VERSE_D = "K:2 r:2 S:2 r:2"
-CHORUS_D = "K:2 H:2 S:2 H:2"
+VERSE_D = "b:2 r:2 n:2 r:2"
+CHORUS_D = "b:2 t:2 n:2 t:2"
 SUS_DRUMS = " ".join([VERSE_D] * 16 + [CHORUS_D] * 4 + [VERSE_D] * 4)
 song("susanna", 8, "A", SUS_MEL, SUS_BASS, SUS_DRUMS, legato=SUNG_ARTIC)
 # Harmony (music step 5): a second voice in thirds and sixths under the verses (one note an eighth at most, held where it
@@ -187,7 +188,7 @@ ENT_CHORDS = [
     "C", "C", "F", "C", "C", "C", "D7", "G7", "C", "C", "F", "C", "F/F#dim7", "C", "D7/G7", "C",
 ]
 song("entertainer", 9, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8), swing=0xAA,
-     groove="K:1 r:1 H:1 r:1 S:1 r:1 H:1 r:1")
+     groove="b:1 r:1 t:1 r:1 n:1 r:1 t:1 r:1")
 # Harmony (the owner's "1b", 2026-10-12): a second voice in thirds and sixths under the whole tune, in the melody's own
 # rhythm (grid 1: it moves on any sixteenth, the off-beat ragtime notes included; merge=False re-strikes a repeated note
 # as the melody does), on the 50% "harm50" pulse (decaying like a piano's second hand).  C3-B4 keeps it under the melody.
@@ -224,7 +225,7 @@ GAL_CHORDS = ["D", "A7", "D", "D", "A7", "A7", "D", "A7", "D", "A7", "D", "D", "
 def _gal_lead(tok):
     if tok.startswith("r:"):
         return tok
-    return tok.rstrip("!") + "/8" + ("!" if tok.endswith("!") else "")
+    return tok
 
 
 GAL_MEL = " ".join(_gal_lead(t) for b in GAL for t in b.split())
@@ -246,7 +247,7 @@ GAL_BASS_BARS = [
     "D3:1 F#3:1 A2:1 C#3:1",     # 15 D then A7: a half bar each
     "D3:2 A2:2",                 # 16 D, the A4 pickup over the fifth
 ]
-GAL_BASS = " ".join(f"{t}/3" for b in GAL_BASS_BARS for t in b.split())
+GAL_BASS = " ".join(t for b in GAL_BASS_BARS for t in b.split())
 GAL_HARM_BARS = [
     "F#4:2 A4:2",                # 1  under the held D5: third, then fifth
     "C#5:1 E5:1 D5:1 C#5:1",     # 2  thirds under E G F# E
@@ -267,7 +268,7 @@ GAL_HARM_BARS = [
 ]
 GAL_HARM = " ".join(GAL_HARM_BARS)
 GAL_DRUMS = " ".join(["b:1 t:1 n:1 t:1"] * 7 + ["b:1 t:1 n:1 o:1"] + ["b:1 t:1 n:1 t:1"] * 7 + ["b:1 t:1 n:1 n:1"])
-song("galop", 11, "B", GAL_MEL, GAL_BASS, GAL_DRUMS, inst=8)
+song("galop", 11, "B", GAL_MEL, GAL_BASS, GAL_DRUMS)
 _t = H.Tune(" ".join(GAL), GAL_CHORDS, 4, 2, "D")
 harmony("galop", _t, GAL_HARM, ("voice", "voice"))
 
@@ -292,7 +293,7 @@ TMO_CHORDS = [
     "G", "Em", "D7", "D7", "G", "Em", "D", "D", "E7", "E7", "Am", "Am", "A7", "A7", "D", "D", "G",
     "Em", "D7", "D7", "G", "G7", "C", "C", "C", "A7", "D", "E7", "Am", "D7", "G", "G",
 ]
-song("ballgame", 9, "A", " ".join(TMO_BARS), oompah(TMO_CHORDS, 6), groove="K:1 r:1 S:1 r:1 S:1 r:1")
+song("ballgame", 9, "A", " ".join(TMO_BARS), oompah(TMO_CHORDS, 6), groove="b:1 r:1 n:1 r:1 n:1 r:1")
 # Harmony (music step 5): the first sixteen bars hold one chord tone a chord (the organ's sustained chord: the third or
 # seventh first, G#4 in the E7 bars), the second sixteen a voice in thirds and sixths under "let me root, root, root",
 # one note for each melody eighth (grid 1, no merging).  Owner's pick (harmony demos, 2026-10-12): held, then thirds.
@@ -324,7 +325,7 @@ MTN_CHORDS = [
 MTN_PICKUP_ROW = 248
 MTN_TEMPO = 4
 song("mountain", MTN_TEMPO, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 16),
-     " ".join(["K:2 r:2 S:2 r:2 K:2 r:2 S:2 r:2"] * 16), legato=SUNG_ARTIC, start=MTN_PICKUP_ROW)
+     " ".join(["b:2 r:2 n:2 r:2 b:2 r:2 n:2 r:2"] * 16), legato=SUNG_ARTIC, start=MTN_PICKUP_ROW)
 # Harmony (music step 6): the Susanna approach, a second voice in thirds and sixths under the whole verse in the melody's
 # own rhythm (it moves where the melody does, the 2/6 snap included; grid 2 = an eighth or finer), on the held 12.5% pad.
 # The pickup row is a note boundary of the line (gen_music asserts it), so the first play can start the line there.
@@ -352,7 +353,7 @@ FUN_CHORDS = [
     "F", "F", "F", "F", "C7", "F", "C7", "F", "F", "C7", "C7", "C7", "C7", "C7", "C7", "C7", "F",
     "A7", "Dm", "A7", "Dm", "Bb", "F", "C7", "F",
 ]
-song("funicula", 10, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"), groove="K:1 r:1 S:1 K:1 r:1 S:1", swing=0xAA)
+song("funicula", 10, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"), groove="b:1 r:1 n:1 b:1 r:1 n:1", swing=0xAA)
 # Tempo (owner pick, harmony demos 2026-10-12): rows alternate 10 and 9 frames (swing 0xAA, as the Entertainer) = 9.5 on
 # average = 126 bpm for the dotted quarter; a 6-row bar has the same long-short pattern every time.  Harmony unchanged.
 # Harmony (music step 5): the verse in thirds and sixths under the melody, one note a dotted beat (the echoes "and so
@@ -384,7 +385,7 @@ SKT_CHORDS = [
     "G", "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "D7", "G",
     "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "G",
 ]
-song("skaters", 9, "A", " ".join(SKT_BARS), oompah(SKT_CHORDS, 6), groove="K:1 r:1 H:1 r:1 H:1 r:1")
+song("skaters", 9, "A", " ".join(SKT_BARS), oompah(SKT_CHORDS, 6), groove="b:1 r:1 t:1 r:1 t:1 r:1")
 # Harmony (music step 5): the first strain holds one chord tone a bar on the pad (the waltz's sustained middle voice:
 # B, then C, the seventh of D7, back to B), the repeat a voice in thirds and sixths under the melody, one note a beat.
 _t = H.Tune(" ".join(SKT_BARS), SKT_CHORDS, 6, 2, "G")
@@ -416,7 +417,7 @@ HALL_CHORDS = [
 ]
 HALL_BASS = " ".join(("F#2:2! " if 9 <= i <= 12 else "B2:2! ") * 4 for i in range(1, 17))
 song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS,
-     " ".join(["K:1 r:3 S:1 r:3"] * 16), stac_all=(1, 2))
+     " ".join(["b:1 r:3 n:1 r:3"] * 16), stac_all=(1, 2))
 # Harmony (music step 5): a voice in thirds and sixths UNDER the melody the whole way (G3 to B4, never crossing, one note
 # for each melody eighth, grid 1, no merging), a plucked "harm" voice.  The motif creeps down to B3 over the B2 bass, so
 # the line sits right above the bass: dark and a little thick there.  Owner's pick (harmony demos, 2026-10-12): thirds.
@@ -457,7 +458,7 @@ def sakura_bass(chords):
 
 
 song("sakura", 12, "A", " ".join(SAK_BARS), sakura_bass(SAK_CHORDS), "", gap=True, stac_all=(3, 4),
-     groove="K:1 r:1 H:1 K:1 K:1 r:1 H:1 H:1 K:1 r:1 H:1 K:1 K:1 r:1 S:1 S:1")
+     groove="b:1 r:1 t:1 b:1 b:1 r:1 t:1 t:1 b:1 r:1 t:1 b:1 b:1 r:1 n:1 n:1")
 # Harmony (music step 5): a koto's second string, a fourth or fifth under the melody (E under A, E under B), one plucked
 # note per melody note on the beat, only the scale's notes (A B C E F: the E chord's G# is left out).
 _t = H.Tune(" ".join(SAK_BARS), SAK_CHORDS, 8, 2, "Asak", strict=True)
@@ -487,7 +488,7 @@ DAN_CHORDS = [
     "C", "C", "C", "C", "Dm", "Dm", "Dm", "Dm", "G7", "G7", "C", "C", "F", "G", "C",
 ]
 song("danube", 9, "A", " ".join(DAN_BARS), oompah(DAN_CHORDS, 6),
-     groove="K:1 r:1 H:1 r:1 H:1 r:1")
+     groove="b:1 r:1 t:1 r:1 t:1 r:1")
 # Harmony (music step 5): a voice in thirds and sixths under the melody (G3 to A5, one note for each melody eighth, grid 1,
 # no merging) through bar 24, the closing phrase (bars 25-32) one held chord tone a bar on the pad, G3 to E5.  Owner's
 # pick (harmony demos, 2026-10-12): thirds, the last phrase held.
@@ -512,7 +513,7 @@ WEA_CHORDS = [
     "G", "G", "D7", "G", "G", "G", "Am", "G", "G", "D", "G", "D", "C", "G", "C/D7", "G",
 ]
 song("weasel", 12, "A", " ".join(WEA_BARS), oompah(WEA_CHORDS, "c6"),
-     " ".join(["K:1 r:2 S:1 r:2"] * 16))
+     " ".join(["b:1 r:2 n:1 r:2"] * 16))
 # Harmony (music step 5): the verse (bars 1-8) short dry stabs on the 6/8 off-beats (the bass plays the two dotted beats,
 # the stabs the two eighths after each: A3 to D5), the second strain (bars 9-16) a voice in thirds and sixths under the
 # melody, one note for each melody eighth (grid 1, no merging).  Owner's pick (harmony demos, 2026-10-12): stabs, then thirds.
@@ -544,7 +545,7 @@ def punk_bass(chords):
 
 
 song("sailor", 9, "A", " ".join(SAI_BARS), punk_bass(SAI_CHORDS), stac_all=(3, 4),
-     groove="K:1 H:1 S:1 H:1 K:1 K:1 S:1 H:1")
+     groove="b:1 t:1 n:1 t:1 b:1 b:1 n:1 t:1")
 # Harmony (music step 5): the verse gets punk off-beat upstrokes (a short chord tone on every second eighth: D or F for D
 # minor, C or E for C), the chorus ("Hur-ray and up she ri-ses") a voice in thirds under the melody, struck on each
 # eighth like a second shouting voice.
@@ -580,7 +581,7 @@ CR_MEL = (
     "E5:1 D5:1 C5:1 D5:2 C#5:1 D5:2 C#5:1 D5:2 r:1 F5:1 A5:1 F5:1 G5:1 A5:1 G5:1 F5:1 C6:1 C6:1 C6:4 A5:2 G5:2 G4:1 G4:1 "
     "G4:2 G4:2 F4:2 E4:1 F4:2 E4:1 F4:2 r:1 A4:1 D5:1 A4:1 C5:1 D5:1 C5:1 A4:1 G4:2 F#4:1 G4:2 F#4:1 G4:2 r:1 C5:1 E5:1 "
     "C5:1 D5:1 E5:1 D5:1 C5:1 A4:1 G#4:1 A4:1 G5:2 F5:2 C5:1 E5:1 D#5:1 E5:1 A5:2 C6:1 G5:1 E5:1 C5:2 C5:2 E5:1 D5:2 C5:5 "
-    "C6:6/7 r:1"
+    "C6:6/5 r:1"
 )
 CR_BASS = (
     "G2:4 D3:4 G2:4 D3:4 G2:4 D3:4 G2:4 D3:4 C3:4 G3:4 F2:4 C3:4 G2:4 D3:4 C3:4 G3:4 C3:4 G3:4 F2:4 C3:4 D3:4 A3:4 G2:4 "
@@ -589,7 +590,7 @@ CR_BASS = (
     "G2:4 C3:4 G3:4 F2:4 C3:4 A#2:4 F3:4 D3:4 A3:4 G2:4 D3:4 A#2:4 G2:4 F2:4 D3:4 E3:4 B3:4 A2:4 C3:4 F2:4 C3:4 A#2:4 F3:4 "
     "D3:4 A3:4 G2:4 D3:4 A#2:4 G2:4 F2:4 C3:4 C3:4 G3:4 F2:4 C3:4 F2:4 F#2:4 C3:4 G3:4 D3:4 G2:4 C3:4 G3:4 D3:4 A3:4 D3:4 "
     "A3:4 C3:4 G3:4 C3:4 G3:4 G2:4 D3:4 G2:4 D3:4 F#2:4 C3:4 C3:4 G3:4 D3:4 A3:4 D3:4 A3:4 C3:4 G3:4 C3:4 G3:4 F2:4 C3:4 "
-    "C3:4 G3:4 A2:2 D3:2 G2:2 B2:2 C3:2 G2:2 C2:6 r:1"
+    "C3:4 G3:4 A2:2 D3:2 G2:2 B2:2 C3:2 G2:2 C2:6/2 r:1"
 )
 CR_HARM = (
     "B4:1 B4:1 G4:1 F4:2 G4:1 B3:2 B4:1 B4:1 G4:1 F4:2 G4:1 B3:2 B4:1 B4:1 G4:1 F4:2 G4:1 F4:1 F4:1 B3:2 r:2 B3:2 B3:1 B3:1 "
@@ -611,8 +612,8 @@ CR_HARM = (
     "G4:1 B4:1 G4:1 F#4:2 F#4:2 B4:1 B4:2 G4:5 E5:6/2 r:1"
 )
 CR_TEMPO_MAP = {568: 17, 570: 19, 572: 20}
-CR_FX_MAP = {574: [(3, 3152)], 576: [(3, 3104)]}
-song("credits", 15, "A", CR_MEL, CR_BASS, "", inst=5, tempo_map=CR_TEMPO_MAP, fx_map=CR_FX_MAP)
+CR_FX_MAP = {574: [(3, 0xC05)], 576: [(3, 0xC02)]}   # the last bass chord: 50 %, then 25 % (the driver reads the LOW nibble of Cxy for the wave channel)
+song("credits", 15, "A", CR_MEL, CR_BASS, "", tempo_map=CR_TEMPO_MAP, fx_map=CR_FX_MAP)
 SONGS["credits"].update(ch1=CR_HARM, ch1_inst=("harm50", "ring50"))
 
 # which songs, in tune order after title/show

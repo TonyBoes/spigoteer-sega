@@ -46,10 +46,10 @@ def test_the_show_tune_in_the_rom_is_the_generators_output(tmp_path, monkeypatch
 
 def test_the_arrangement_is_the_audition_v2():
     t, b = galop()
-    assert t["inst"] == 8 and t["groove"] == "" and t["ch1_inst"] == ("voice", "voice")
-    assert gm.DUTY[7] == (0x08, 0x80, 0xA5, "sp_lead") and gm.WAVE[2][1:] == (0x20, 2, "sp_bass")
+    assert t["inst"] == gm.LEAD_PRO and t["groove"] == "" and t["ch1_inst"] == ("voice", "voice")
+    assert gm.DUTY[gm.LEAD_PRO - 1] == (0x08, 0x80, 0xA5, "sp_lead") and gm.WAVE[gm.BASS_PRO - 1] == (0, 0x20, 0, "sp_bass")
     assert [len(gm.SUBPAT[k]) for k in ("sp_lead", "sp_bass", "sp_kick", "sp_snare")] == [16, 16, 3, 2]
-    nib = [x for byte in gm.WAVES[2] for x in (byte >> 4, byte & 15)]
+    nib = [x for byte in gm.WAVES[0] for x in (byte >> 4, byte & 15)]
     assert min(nib) <= 3 and max(nib) >= 12, "the new bass wave spans 2..13 of 0..15 (the old triangle 4..11)"
     # the bass's table steps NR32 100 % (7 ticks), 50 % (5), 25 % (3), then off: 0xC05, 0xC02, 0xC00
     assert [e for _, _, e in gm.SUBPAT["sp_bass"] if e] == [0xC05, 0xC02, 0xC00]
@@ -57,7 +57,7 @@ def test_the_arrangement_is_the_audition_v2():
     k, t_, n, o = (gm.NOISE_NOTE[c] for c in "btno")
     drums = [row[0] for row in b["per"][4][0]]
     assert drums[:4] == [k[0], t_[0], n[0], t_[0]] and drums[28:32] == [k[0], t_[0], n[0], o[0]] and drums[60:64] == [k[0], t_[0], n[0], n[0]]
-    # the other tunes keep their groove or pattern drums, and the groove kit is untouched (the owner decides the noise_poly fix)
+    # the other tunes keep their groove or pattern drums (all on the one kit since music batch 0)
     assert all(songs.SONGS[s]["groove"] or songs.SONGS[s]["ch4"] for s in songs.SONGS if s not in ("credits",))
     # "vstab" and the arpeggio route stay available for another song
     assert gm.HARM_INST["vstab"] == (0x40, 0x62) and "ARPEGGIO CHORD STABS" in (ROOT / "tools" / "gen_music.py").read_text()

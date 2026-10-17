@@ -423,7 +423,7 @@ def test_oh_susanna_is_the_owners_notes_in_fosters_rhythm():
     assert s["tempo"] == 8, "8 frames per sixteenth row = quarter 112.5 (the score's MM 114; the eighth rows were 120)"
     bass = s["ch3"].replace("!", "").split()
     assert bass[:4] == ["C3:4", "G2:4", "C3:4", "G2:4"] and bass[-2:] == ["C3:4", "G2:4"], "boom-chick to the last bar"
-    assert len(bass) == 48 and s["ch4"].split()[-4:] == ["K:2", "r:2", "S:2", "r:2"], \
+    assert len(bass) == 48 and s["ch4"].split()[-4:] == ["b:2", "r:2", "n:2", "r:2"], \
         "the beat carries on through the last bar into bar 1"
     b = gm.build("venue0", s, False)
     assert b["total"] == 192 and b["n_orders"] == 3
@@ -474,7 +474,7 @@ def test_sung_tunes_hold_their_notes_and_only_articulate_a_repeated_syllable():
     songs.SUNG_ARTIC frames early so the new syllable is heard, a note before a rest one frame early (rests stay)."""
     lead = gm.DUTY[songs.LEGATO_LEAD - 1]
     assert lead[2] & 7 == 0 and 5 <= lead[2] >> 4 <= 8, "a held volume, no louder than the song lead"
-    assert lead[1] == gm.DUTY[4][1], "the same 50% pulse as the song lead"
+    assert lead[1] == gm.DUTY[gm.LEAD_PRO - 1][1] and lead[3] == "sp_lead", "the brass lead's 50% pulse and its attack and vibrato table, held"
     for name in ("susanna", "mountain"):
         s = songs.SONGS[name]
         assert s["legato"] == songs.SUNG_ARTIC and s["inst"] == songs.LEGATO_LEAD and not s["stac_all"]
@@ -855,7 +855,7 @@ def test_title_and_every_venue_tune_have_drums():
             m = re.search(r"groove_%s\[\] = \{(\d+), (\d+)," % tune, src)
             assert m and int(m.group(1)) == len(g) and int(m.group(2)) == (t.get("swing", 0) or t["tempo"]), \
                 f"{name}: groove table in music_data.c (its second byte: the tempo, or a swing mask over 15)"
-    assert len(gm.drum_kit()) == 3
+    assert len(gm.drum_kit()) == 6 and all(len(r) == 6 for r in gm.drum_kit()), "the one kit: b n t o m x, six register bytes each"
 
 
 def sample_channel4(rom, frames):
@@ -886,21 +886,20 @@ def test_music_mix_balance_bass_and_drums_sit_under_a_quieter_melody():
     This pins the instrument registers so a later change cannot silently put the melody back on top."""
     import re
     vol = lambda env: env >> 4
-    # melody: every pulse instrument at volume <= 8 (it was 10 / 9 / 12 / 9 / 10); the song lead and the lead are 8 or less
+    # melody: the brass lead (10, every tune's lead since music batch 0) and the plink / thin / ring jingle voices (12) are the loud ones; the rest 8 or less
     for n, (sweep, duty, env, *_) in enumerate(gm.DUTY, 1):
-        assert vol(env) <= (12 if n in (3, 4, 7) else 10 if n == gm.LEAD_PRO else 8), (n, hex(env))   # 3 plink and 4 thin are short jingle voices; 7 ring is the credits tune's last chord only; 8 is the show tune's brass lead (10)
-    assert vol(gm.DUTY[4][2]) == 8 and vol(gm.DUTY[0][2]) == 8, "song lead and lead: volume 8"
-    # bass: wave output 100% (NR32 0x20), triangle samples scaled to half range so it is not buzzy
-    assert gm.WAVE[0][1] == 0x20, "bass at 100% output"
+        assert vol(env) <= (12 if n in (3, 4, songs.DUTY_RING) else 10 if n == gm.LEAD_PRO else 8), (n, hex(env))   # 3 plink and 4 thin are short jingle voices; the ring is the credits tune's last chord only
+    assert vol(gm.DUTY[0][2]) == 8 and vol(gm.DUTY[gm.LEAD_LEGATO - 1][2]) == 8, "lead and the sung tunes' held lead: volume 8"
+    # bass: wave output 100% (NR32 0x20), the pro bass wave spans the full 4-bit range (6 dB louder than the old half-height triangle)
+    assert gm.WAVE[0][1] == 0x20 and len(gm.WAVE) == 2, "bass at 100% output; the plucked bass and its held twin"
     nib = [x for b in gm.WAVES[0] for x in (b >> 4, b & 15)]
-    assert len(nib) == 32 and 3 <= min(nib) <= 5 and 10 <= max(nib) <= 12, nib
-    assert all(abs(a - b) <= 1 for a, b in zip(nib, nib[1:] + nib[:1])), "a smooth triangle, no jumps"
-    # drums: quiet kit (the groove kit) at volume 8 / 7 / 6, loud kit unchanged
-    assert [vol(gm.NOISE[i][0]) for i in (3, 4, 5)] == [8, 7, 6]
-    assert [vol(gm.NOISE[i][0]) for i in (0, 1, 2)] == [8, 6, 3]
+    assert len(nib) == 32 and min(nib) <= 3 and max(nib) >= 12, nib
+    assert all(abs(a - b) <= 3 for a, b in zip(nib, nib[1:] + nib[:1])), "a smooth wave, no jumps"
+    # drums: the one kit b n t o m x (proarr batch 0)
+    assert [vol(gm.NOISE[i][0]) for i in range(6)] == [10, 8, 4, 5, 9, 5]
     # the generated tables (what the ROM really has) carry the same numbers
     src = (ROOT / "build" / "music_data.c").read_text()
     assert re.search(r"hUGEWaveInstr_t wave_inst\[\] = \{\s*\{0,32,0,", src)
     duty = re.search(r"duty_inst\[\] = \{(.*?)\};", src, re.S).group(1)
-    assert "{8,128,131,0,128}" in duty and "{8,128,133,0,128}" in duty
+    assert "{8,128,131,0,128}" in duty and "{8,128,128,sp_lead,128}" in duty and "{8,128,165,sp_lead,128}" in duty
     # sound effects stay clearly louder than the melody: channel 1 effects are volume 8-12, the rattle/crash noise 9-13

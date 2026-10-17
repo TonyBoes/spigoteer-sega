@@ -74,9 +74,9 @@ def test_every_looping_tune_flows_back_into_bar_1(name, t, legacy):
 
 
 def test_the_silence_measure_sees_a_held_last_note_and_a_trailing_rest():
-    lead = {"tempo": 10, "ch2": "C5:2 D5:2 E5:16", "ch3": "C3:20", "ch4": "", "inst": 5, "gap": True, "stac_all": None}
-    # E5 starts at frame 40 and is below half volume 5 steps x 5/64 s later (23.3 frames); the pass is 200 frames
-    assert loop_silence("t", lead, False) == pytest.approx((200 - 40 - 5 * 5 * FPS / 64) / FPS, abs=0.01)
+    lead = {"tempo": 10, "ch2": "C5:2 D5:2 E5:16", "ch3": "C3:20", "ch4": "", "inst": gm.LEAD_PRO, "gap": True, "stac_all": None}
+    # E5 starts at frame 40 and is below half volume 6 steps x 5/64 s later (28.1 frames: the brass lead, volume 10); the pass is 200 frames
+    assert loop_silence("t", lead, False) == pytest.approx((200 - 40 - 6 * 5 * FPS / 64) / FPS, abs=0.01)
     rest = dict(lead, ch2="C5:2 D5:2 E5:2 r:14")
     assert loop_silence("t", rest, False) > 2
     tight = dict(lead, ch2="C5:2 D5:2 E5:14 G4:2")

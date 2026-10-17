@@ -58,7 +58,7 @@ extern const unsigned char * const harm_tab[TUNE_ALL];
 #ifndef TAIKO_VARIANT
 #define TAIKO_VARIANT 3
 #endif
-extern const unsigned char drum_kit[3][4];         // NR41, NR42, NR43, NR44 of kick, snare, hat (build/music_data.c)
+extern const unsigned char drum_kit[6][6];         // NR41, NR42, NR43, NR44, NR43 +1 and +2 frames of b n t o m x (build/music_data.c)
 extern unsigned char mus_buf_a[], mus_buf_b[];     // WRAM pattern buffers (build/music_data.c)
 void mus_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n);   // unbanked (src/musicload.c)
 uint16_t harm_peek(const uint8_t *p);       // unbanked (src/musicload.c): p[0] | p[1] << 8 from the running tune's harmony bank (HARM_BANK, the credits tune's: CREDITS_BANK)

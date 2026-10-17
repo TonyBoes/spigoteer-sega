@@ -30,6 +30,7 @@ static uint8_t ld_play;               // start it when the copy is done (else it
 static const uint8_t *groove;         // the running tune's drum loop (NULL: none)
 static uint8_t swing;                 // the running tune's swing mask (0 none): src/music.h tune_t.groove
 static uint8_t g_pos, g_cnt;          // groove row, frames until it advances
+static uint8_t g_step;                // the groove drum struck last, its NR43 steps still to follow: drum id (1-6) << 2 | frames since the hit (1, 2); 0: none (one byte)
 extern unsigned char hUGE_ticks_per_row, hUGE_tick, hUGE_row, hUGE_row_break, hUGE_next_order, hUGE_current_order;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
 uint8_t music_fast;                   // 1: a venue tune plays one frame a row faster (story: TWIST_FAST_TUNE)
 static uint8_t fast_now;              // the running tune plays fast
@@ -162,7 +163,7 @@ static void start_song(uint8_t tune) {
     }
     mus_active = 1 + !tunes[tune].loop;
     music_frames = 0;
-    groove = tunes[tune].groove; g_pos = 0; g_cnt = 1;      // the groove's first row falls on the song's first row
+    groove = tunes[tune].groove; g_pos = 0; g_cnt = 1; g_step = 0;   // the groove's first row falls on the song's first row
     swing = groove && groove[1] > 15 ? groove[1] : 0;       // (a groove's second byte: a tempo is at most 15, over that it is a swing mask)
     harm_off();
     harm = harm_tab[tune]; h_rows = 0; h_cnt = 1;           // so does the harmony's first event
@@ -269,7 +270,16 @@ static void groove_row(void) {      // (tick calls it on the frame the row count
     if (d && !voice[1].busy && !(hUGE_mute_mask & TK_NOGROOVE)) {
         const uint8_t *k = drum_kit[d - 1];
         NR41_REG = k[0]; NR42_REG = k[1]; NR43_REG = k[2]; NR44_REG = k[3];
+        g_step = d << 2 | 1;
     }
+}
+
+// The hit's clock moves on the two frames after it (a kick's thump drops in pitch, a snare's crack becomes its body: the same
+// steps the drum tables give hUGEDriver's pattern drums); an effect that took channel 4 meanwhile keeps it.
+static void groove_step(void) {
+    if (!voice[1].busy) NR43_REG = drum_kit[(g_step >> 2) - 1][3 + (g_step & 3)];
+    if ((g_step & 3) == 2) g_step = 0;
+    else g_step++;
 }
 
 static void harm_note(void) {
@@ -356,6 +366,7 @@ static void tick(void) {
             }
         }
         if (groove && !--g_cnt) groove_row();
+        else if (g_step) groove_step();
         if (harm) {
             if (voice[0].busy || h_cnt == 1 || !h_sound) harm_tick();
             else h_cnt--;

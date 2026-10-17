@@ -6,7 +6,7 @@ No tracker GUI is involved: each tune is a few lines of text per channel.  A tok
 the note staccato (note cut), and '/N' picks instrument N for that note.  hUGEDriver's channel 1 is never used
 (its patterns are empty): the buffered tunes' channel-1 harmony (songs.harmony, music step 5) is a compact event list
 (harm_<tune>, bank HARM_BANK) that src/music.c plays itself and gives up to the sound effects; channel 4 is
-percussion (k s h: the loud old kit, K S H: the quiet kit).
+percussion (b kick, n snare, t closed hat, o open hat, m tom, x rim: KIT).
 
 Two kinds of tune:
  * jingles (level clear, game over, bonus): small, their patterns sit in bank 2 beside the driver.
@@ -28,28 +28,15 @@ SEMI = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 REST = 90          # ___ in hUGEDriver.h
 
 # ---- instruments (indexes are 1-based in the pattern data) -------------------------------------
-LEGATO_ENV = 0x60   # NR12 of the legato lead: volume 6, envelope off (period 0): a sung note holds its level
 DUTY = [  # sweep, len_duty (NR11), envelope (NR12), subpattern, highmask
     (0x08, 0x80, 0x83),   # 1 lead: 50% pulse, volume 8, slow decay
     (0x08, 0x40, 0x73),   # 2 soft lead: 25% pulse, volume 7, slow decay
     (0x08, 0x80, 0xA1),   # 3 plink: 50% pulse, volume 10, fast decay (short jingle notes)
     (0x08, 0x00, 0xC1),   # 4 thin: 12.5% pulse, volume 12, fast decay (quick bonus-round notes)
-    (0x08, 0x80, 0x85),   # 5 song lead: 50% pulse, volume 8, slow decay (long notes keep sounding)
-    (0x08, 0x80, LEGATO_ENV),   # 6 legato lead (sung tunes, songs.song(legato=)): 50% pulse, held volume, no decay
-    (0x08, 0x80, 0xC7),   # 7 ring: 50% pulse, volume 12, slowest decay (12 x 7/64 s = 1.3 s): the credits tune's final chord
+    (0x08, 0x80, 0xC7),   # 5 ring: 50% pulse, volume 12, slowest decay (12 x 7/64 s = 1.3 s): the credits tune's final chord
 ]
-WAVE = [  # length, volume (NR32: 0x20 = 100%, 0x40 = 50%), waveform index, subpattern, highmask
-    (0, 0x20, 0),         # 1 bass: triangle, NR32 100% (the waveform itself is scaled, BASS_AMP)
-    (0, 0x20, 1),         # 2 hollow bass: pulse-ish wave at 100%
-]
-NOISE = [  # envelope (NR42), subpattern, highmask+length
-    (0x81, 0x00),         # 1 kick  (vol 8, fast decay)
-    (0x61, 0x00),         # 2 snare (vol 6, fast decay)
-    (0x31, 0x80),         # 3 hat   (vol 3, fast decay, 7-bit LFSR = metallic)
-    (0x81, 0x00),         # 4 kick, quiet kit: low noise, 15-bit LFSR, volume 8, fast decay
-    (0x73, 0x00),         # 5 snare, quiet kit: mid noise, 15-bit LFSR, volume 7, medium decay
-    (0x61, 0xB6),         # 6 hat, quiet kit: high noise, 7-bit LFSR, volume 6, very short (length-limited)
-]
+WAVE = []   # length, volume (NR32: 0x20 = 100%, 0x40 = 50%), waveform index, subpattern, highmask
+NOISE = []  # envelope (NR42), subpattern, highmask+length: the one kit (KIT below)
 # channel-1 harmony instruments (songs.harmony inst names): NR11 (duty), NR12 (envelope).  Quieter than the melody
 # (song lead 0x85, legato lead 0x60) and the effects (channel 1 volume 8-12): volume 5, a thinner duty.
 HARM_INST = {
@@ -64,28 +51,62 @@ HARM_INST = {
 }
 HARM_REST = 0x7F
 HARM_BANK = 10              # src/music.h HARM_BANK (checked in main)
-NOISE_NOTE = {"k": (12, 1), "s": (44, 2), "h": (60, 3), "K": (12, 4), "S": (44, 5), "H": (60, 6)}   # note number sets the pitch
-DRUM_ID = {"K": 1, "S": 2, "H": 3}     # groove byte -> row of the generator's kit (0 = no hit)
+NOISE_NOTE = {}     # drum letter -> (note number, noise instrument), filled from KIT
+DRUM_ID = {}        # groove byte -> row of the kit (1-based; 0 = no hit)
+
+# THE KIT: one definition (owner-approved 2026-10-17, tools/proarr.py batch 0).  letter: (name, NR42 envelope, 7-bit LFSR, length (NR41
+# field, None = free-running), NR43 clock steps without the 7-bit flag: the value written with the hit, then one a frame).  Every value is
+# one the driver can reach from a note number (get_note_poly: no -36), so the pattern route (hUGEDriver's noise instruments and their
+# tables, kit_instruments) and the groove route (src/music.c's rows, drum_kit) write the same bytes.
+KIT = {
+    "b": ("kick",       0xA1, 0, None, [0x37, 0x57, 0x77]),   # 4.7 kHz -> 1.2 kHz -> 292 Hz over three frames: a thump
+    "n": ("snare",      0x82, 0, None, [0x00, 0x27]),         # one frame of 1 MHz white noise (the crack), then the 9.4 kHz body
+    "t": ("hat_closed", 0x41, 1, None, [0x00]),               # 7-bit at the top of the range, 62 ms under its decay: "tss"
+    "o": ("hat_open",   0x52, 1, None, [0x00]),               # the same clock, free-running under a 0.16 s decay
+    "m": ("tom",        0x92, 0, None, [0x57, 0x77, 0x87]),   # a low tom for fills: 1.2 kHz -> 292 -> 146 Hz
+    "x": ("rim",        0x51, 1, 60,   [0x24]),               # a rim click: 7-bit at 32 kHz, 16 ms (the waltzes' light beats)
+}
+KIT_ORDER = "bntomx"
+GROOVE_STEPS = 3            # NR43 writes per hit in the groove player's rows (hit, +1 frame, +2 frames)
+DRUM_ID.update({letter: i + 1 for i, letter in enumerate(KIT_ORDER)})
 
 
-def noise_poly(n):
-    """NR43 base value hUGEDriver's get_note_poly makes of a noise note number n (before the instrument's 7-bit step flag)."""
-    a = (~((n - 36 + 192) & 255)) & 255
-    if a < 7:
-        return a
-    return ((((a >> 2) - 1) << 4) | ((a & 3) + 4)) & 255
+def driver_poly(n):
+    """NR43 the driver makes of noise note n (hUGEDriver.asm get_note_poly: no -36)."""
+    a = (~((n + 192) & 255)) & 255
+    return a if a < 7 else ((((a >> 2) - 1) << 4) | ((a & 3) + 4)) & 255
+
+
+def note_for(nr43):
+    for n in range(64):
+        if driver_poly(n) == nr43:
+            return n
+    raise ValueError(f"NR43 0x{nr43:02X} is not a note's poly")
+
+
+def kit_instruments():
+    """KIT -> the driver's noise instruments (appended to NOISE, 1-based in KIT_ORDER) and tables; fills NOISE_NOTE.  The note is the
+    LAST step's; the table walks the earlier steps as offsets (row 0 runs on the hit's own tick); a one-step drum has no table."""
+    for letter in KIT_ORDER:
+        name, env, bit7, length, steps = KIT[letter]
+        base = note_for(steps[-1])
+        hm = (0x80 if bit7 else 0) | ((0x40 | length) if length is not None else 0)
+        ins = (env, hm)
+        if len(steps) > 1:
+            table(f"sp_{name}", [(note_for(v) - base, 0) for v in steps])
+            ins = (env, hm, f"sp_{name}")
+        NOISE.append(ins)
+        NOISE_NOTE[letter] = (base, len(NOISE))
 
 
 def drum_kit():
-    """The quiet kit as register values (NR41, NR42, NR43, NR44) for src/music.c's groove player, derived from the
-    same instruments hUGEDriver plays so that a groove sounds like the pattern drums."""
+    """The groove player's rows (src/music.c): NR41, NR42, NR43 (hit), NR44, NR43 a frame later, NR43 two frames later."""
     out = []
-    for key in "KSH":
-        n, inst = NOISE_NOTE[key]
-        env, hm = NOISE[inst - 1]
-        nr43 = noise_poly(n) | (0x08 if hm & 0x80 else 0)
-        nr44 = 0x80 | (hm & 0x40)
-        out.append((hm & 0x3F, env, nr43, nr44))
+    for letter in KIT_ORDER:
+        name, env, bit7, length, steps = KIT[letter]
+        flag = 0x08 if bit7 else 0
+        s = [v | flag for v in steps] + [steps[-1] | flag] * GROOVE_STEPS
+        out.append((length or 0, env, s[0], 0x80 | (0x40 if length is not None else 0), s[1], s[2]))
     return out
 
 
@@ -99,12 +120,7 @@ def scaled_wave(w, amp):
     return [(nib[i] << 4) | nib[i + 1] for i in range(0, 32, 2)]
 
 
-WAVES = [
-    # 0 triangle (full range 0..15 scaled by BASS_AMP)
-    scaled_wave([0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10], BASS_AMP),
-    # 1 hollow: 25% duty square, softened
-    [0xFF, 0xFF, 0xFF, 0xFF, 0xCC, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-]
+WAVES = []
 
 
 # ---- the show tune's instruments (galop, "v2" arrangement) and the tables (hUGEDriver subpatterns) they use ----------
@@ -143,26 +159,16 @@ table("sp_lead", [(None, 0x980), (None, 0x980), (None, 0x940)] + [(None, 0)] * 5
 SUBPAT["sp_lead"][-1] = (NO_NOTE, 9, 0x101)      # the last row jumps back to row 8
 # bass: the wave channel has no envelope; the table steps NR32 (0xC0x): 100 % for 7 ticks, 50 % for 5, 25 % for 3, then off.
 table("sp_bass", [(None, 0)] * 7 + [(None, 0xC05)] + [(None, 0)] * 4 + [(None, 0xC02)] + [(None, 0)] * 2 + [(None, 0xC00)])
-# kick: the noise clock drops over three ticks (NR43 0x37 -> 0x57 -> 0x77: 4.7 kHz, 1.2 kHz, 292 Hz): a thump.
-table("sp_kick", [(16, 0), (8, 0), (0, 0)])
-# snare: one tick of the brightest white noise, then the 9.4 kHz body under the envelope.
-table("sp_snare", [(15, 0), (0, 0)])
-
-DUTY.append((0x08, 0x80, 0xA5, "sp_lead"))       # 8 brass lead: volume 10, decay 5 (0.78 s), the duty attack + delayed vibrato table
+DUTY.append((0x08, 0x80, 0xA5, "sp_lead"))       # 6 brass lead: volume 10, decay 5 (0.78 s), the duty attack + delayed vibrato table
 LEAD_PRO = len(DUTY)
+DUTY.append((0x08, 0x80, 0x80, "sp_lead"))       # 7 the sung tunes' lead: the same table, held volume 8 (no decay)
+LEAD_LEGATO = len(DUTY)
 WAVES.append(pro_bass_wave())
-WAVE.append((0, 0x20, len(WAVES) - 1, "sp_bass"))   # 3 pro bass: the full-amplitude wave at 100 %, the decay table
+WAVE.append((0, 0x20, 0, "sp_bass"))             # 1 pro bass: the full-amplitude wave at 100 %, the plucked decay table
 BASS_PRO = len(WAVE)
-NOISE += [
-    (0xA1, 0x00, "sp_kick"),           # 7 kick: volume 10, decay 1 (0.16 s), 15-bit
-    (0x82, 0x00, "sp_snare"),          # 8 snare: volume 8, decay 2 (0.25 s), 15-bit
-    (0x41, 0xB8),                      # 9 closed hat: volume 4, 7-bit, length-limited (8/256 s = 31 ms)
-    (0x52, 0x80),                      # 10 open hat: volume 5, decay 2 (0.16 s), 7-bit
-]
-# The show tune's drum letters in a pattern: channel-4 rows go to hUGEDriver as they are, and its get_note_poly does NOT subtract 36
-# (noise_poly above does, for the groove kit: left alone, the owner decides).  Note 28 -> NR43 0x77, 48 -> 0x27, 63 -> 0x00.
-NOISE_NOTE.update({"b": (28, 7), "n": (48, 8), "t": (63, 9), "o": (63, 10)})   # kick, snare, closed hat, open hat
-
+WAVE.append((0, 0x20, 0))                        # 2 held bass: the same wave, no table (the credits tune's last chord fades by hand)
+BASS_HELD = len(WAVE)
+kit_instruments()
 # ARPEGGIO CHORD STABS (the first galop audition's technique, kept for other songs; no tune uses it now).  A stab row carries a
 # hardware arpeggio, effect 0xy = the note, +x and +y semitones cycling every frame (0x059 = note, +5, +9).  Give the song
 # songs.song(..., fx_map={row: [(2, 0x059)]}): build() writes it into that row's (free) effect column, so the note's staccato cut
@@ -285,6 +291,7 @@ def rows_for(channel, text, default_inst, tempo, legacy=True, gap=True, stac_all
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import songs  # noqa: E402
+assert (songs.DUTY_RING, songs.LEAD_PRO, songs.LEGATO_LEAD, songs.BASS_HELD) == (5, LEAD_PRO, LEAD_LEGATO, BASS_HELD) and BASS_PRO == 1, "tools/songs.py instrument numbers"
 
 TUNES = {}
 
@@ -325,7 +332,7 @@ tune("bonus", 5, 1,
          "E6:1 D6:1 C6:1 B5:1 A5:1 G5:1", "A5:3 B4:1 C5:1 D5:1"]),   # the last bar climbs back into bar 1's E5
      ch3=bass([("A3", "E4"), ("D3", "A3"), ("C3", "G3"), ("A3", "E4"),
                ("A3", "E4"), ("D3", "A3"), ("E3", "B3"), ("A3", "E4")], 6),
-     ch4=" ".join(["k:1 h:1 h:1 k:1 h:1 h:1"] * 8))
+     ch4=" ".join(["b:1 t:1 t:1 b:1 t:1 t:1"] * 8))
 # the bonus lead uses the thin pulse
 TUNES["bonus"]["ch2"] = " ".join(t + "/4" if ":" in t and not t.startswith("r:") else t
                                  for t in TUNES["bonus"]["ch2"].split())
@@ -400,11 +407,11 @@ def chunks_of(chan_rows, n_orders):
 def build(name, t, legacy):
     """Rows -> orders.  Returns the song's channel chunks (4 channels x n_orders patterns)."""
     tempo = t["tempo"]
-    inst = t.get("inst", 1)
+    inst = t.get("inst", LEAD_PRO)
     gap = t.get("gap", True)
     chans = {
         2: rows_for(2, t["ch2"], inst, tempo, legacy, gap, t.get("stac_all"), t.get("legato"), t.get("swing", 0)),
-        3: rows_for(3, t["ch3"], 1, tempo, legacy, gap, swing=t.get("swing", 0)),
+        3: rows_for(3, t["ch3"], BASS_PRO, tempo, legacy, gap, swing=t.get("swing", 0)),
         4: rows_for(4, t["ch4"], 1, tempo, legacy) if t["ch4"] else [],
     }
     total = max(len(v) for v in chans.values())
@@ -604,8 +611,8 @@ def main():
         f.write("};\n\n")
         emit_instruments(f)
         f.write("static const unsigned char empty_pat[] = {\n" + row_text(EMPTY) + "};\n\n")
-        f.write("// drum kit of the groove player (src/music.c): NR41, NR42, NR43, NR44 of kick, snare, hat\n")
-        f.write("const unsigned char drum_kit[3][4] = {" + ", ".join("{" + ",".join(f"0x{v:02X}" for v in d) + "}" for d in drum_kit()) + "};\n")
+        f.write("// drum kit of the groove player (src/music.c): NR41, NR42, NR43, NR44, NR43 +1 frame, NR43 +2 frames of b n t o m x\n")
+        f.write("const unsigned char drum_kit[6][6] = {" + ", ".join("{" + ",".join(f"0x{v:02X}" for v in d) + "}" for d in drum_kit()) + "};\n")
         grooves = {}
         for name in TUNES:
             if name in JINGLES:

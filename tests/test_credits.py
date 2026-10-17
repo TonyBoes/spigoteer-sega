@@ -532,10 +532,10 @@ def test_the_credits_tune_in_the_rom_is_the_generators_d3c(tmp_path, monkeypatch
     assert (b["total"], b["n_orders"], t["tempo"], len(pats)) == (579, ORDERS, 15, 2 * ORDERS), "the whole piece and its ending"
     assert not t["ch4"] and t["ch1_inst"] == ("harm50", "ring50") and "credits" not in gm.ORDER, "no drums, not a listed tune"
     assert all(k != gm.EMPTY for k in pats) and b["per"][1] == [gm.EMPTY] * ORDERS and b["per"][4] == [gm.EMPTY] * ORDERS
-    # the melody is the audition's: starts on the intro's D E C, ends on the ringing C chord (instrument 7) and a rest
+    # the melody is the audition's: starts on the intro's D E C, ends on the ringing C chord (instrument 5, the ring) and a rest
     toks = gm.merge_ties(t["ch2"]).split()
-    assert toks[:3] == ["D5:1", "E5:1", "C5:1"] and toks[-2:] == ["C6:6/7", "r:1"] and sum(int(x.split(":")[1].split("/")[0]) for x in toks) == 579
-    assert len(gm.DUTY) >= 7 and gm.DUTY[6] == (0x08, 0x80, 0xC7) and gm.HARM_INST["ring50"] == (0x80, 0x97)
+    assert toks[:3] == ["D5:1", "E5:1", "C5:1"] and toks[-2:] == ["C6:6/5", "r:1"] and sum(int(x.split(":")[1].split("/")[0]) for x in toks) == 579
+    assert len(gm.DUTY) >= 7 and gm.DUTY[songs.DUTY_RING - 1] == (0x08, 0x80, 0xC7) and gm.HARM_INST["ring50"] == (0x80, 0x97)
     # the length is the real frames: Fxx tempo changes counted (rows 568-571 at 17 and 19, then 20 a row to the end)
     assert t["tempo_map"] == {568: 17, 570: 19, 572: 20}
     assert gm.pass_frames(579, 15, 0, t["tempo_map"]) == FRAMES == 579 * 15 + 2 * 2 + 2 * 4 + 7 * 5

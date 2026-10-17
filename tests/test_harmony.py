@@ -79,10 +79,10 @@ def test_harmony_instruments_sit_under_the_melody_and_the_effects():
             assert env >> 4 == 6 and not env & 8, (k, hex(env))
             continue
         if k == "ring50":       # the credits tune's final chord rings (owner's pick of draft D3c): volume 9, a slow decay, under the "ring" lead (12)
-            assert env >> 4 == 9 and not env & 8 and env >> 4 < gm.DUTY[6][2] >> 4, hex(env)
+            assert env >> 4 == 9 and not env & 8 and env >> 4 < gm.DUTY[songs.DUTY_RING - 1][2] >> 4, hex(env)
             continue
         assert 3 <= env >> 4 <= 5 and not env & 8, (k, hex(env))
-        assert env >> 4 < gm.LEGATO_ENV >> 4 <= gm.DUTY[4][2] >> 4
+        assert env >> 4 < gm.DUTY[gm.LEAD_LEGATO - 1][2] >> 4 <= gm.DUTY[0][2] >> 4
 
 
 def test_the_harmony_track_format():
