@@ -27,6 +27,14 @@ LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 DEBUGFLAGS := -DDEBUG_MENU
 LCCFLAGS += $(DEBUGFLAGS)
 
+# Playtest variants (owner 2026-10-17), the default is the shipped art / no glow; each is built into its own directory so the default build is untouched:
+#   make BUILD=out/b_tipA OUT=out/o_tipA TIP=A unlocked   TIP=A|B|C: the tip as a coin stack / a bill with coins / a bill alone (tools/gen_art.py, assets/art/tip/)
+TIP      ?=
+export TIP
+ifneq ($(TIP),)
+LCCFLAGS += -DTIP_VARIANT_$(TIP)
+endif
+
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patron_load.c
@@ -59,7 +67,7 @@ $(BUILD) $(OUT)/preview:
 # Tile and sprite data: bar.txt (shared BG tiles), bartender.txt (8x16 OBJ tiles, padded so each bartender frame is
 # 4 OAM entries), the patrons, and the venues (assets/approved/venues: stage, bar, drink, show per theme)
 # -> build/art.c/.h, build/patrons_*.c, build/venue_*.c, build/venues.json. Also writes x8 previews to out/preview/.
-$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tiles/title.txt assets/art/bartender.txt assets/art/glass_shards.txt assets/art/coin.txt assets/art/can.txt assets/art/geyser.txt assets/art/cat_walk.txt assets/art/droplets.txt assets/art/cursor.txt assets/art/title_fx.txt assets/art/pour.txt assets/art/tap.txt assets/art/pour_glass.txt assets/art/tips.txt assets/art/hud_icons.txt assets/art/list_arrows.txt assets/art/list_keys.txt assets/art/list_skin.txt $(wildcard assets/art/patrons/*.txt) $(wildcard assets/art/splash/*.txt) $(wildcard assets/approved/venues/*) | $(BUILD) $(OUT)/preview
+$(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tiles/title.txt assets/art/bartender.txt assets/art/glass_shards.txt assets/art/coin.txt assets/art/can.txt assets/art/geyser.txt assets/art/cat_walk.txt assets/art/droplets.txt assets/art/cursor.txt assets/art/title_fx.txt assets/art/pour.txt assets/art/tap.txt assets/art/pour_glass.txt assets/art/tips.txt assets/art/hud_icons.txt assets/art/list_arrows.txt assets/art/list_keys.txt assets/art/list_skin.txt $(wildcard assets/art/tip/*.txt) $(wildcard assets/art/patrons/*.txt) $(wildcard assets/art/splash/*.txt) $(wildcard assets/approved/venues/*) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
 $(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(BUILD)/list_skin.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h: $(BUILD)/art.c

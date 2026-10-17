@@ -22,6 +22,7 @@
 Usage: gen_art.py outdir previewdir
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -1190,10 +1191,14 @@ def _main():
 
     h[-2:-2] = ["#define MUG_DRINK_FRAMES 4", "#define MUG_DRINK_TILE_COUNT 8", ""]
     # ---- coin (tip): 8x8 art in the lower half of an 8x16 entry; frame 1 swaps the two body shades (glint) ----
-    coin = [r for _, r in blocks(ROOT / "assets/art/coin.txt")][0]
-    assert len(coin) == 8 and len(coin[0]) == 8
+    # TIP=A|B|C (make TIP=A, a playtest ROM): a variant from assets/art/tip/coin_<a|b|c>.txt, 8x16 art on the coin's baseline; default: coin.txt
+    tip = os.environ.get("TIP", "").lower()
+    assert tip in ("", "a", "b", "c"), f"TIP={tip}: a, b or c"
+    coin = [r for _, r in blocks(ROOT / ("assets/art/tip/coin_%s.txt" % tip if tip else "assets/art/coin.txt"))][0]
+    assert len(coin) in (8, 16) and len(coin[0]) == 8
+    coin = ["." * 8] * (16 - len(coin)) + coin
     swap = str.maketrans("-+", "+-")
-    coin_frames = [["." * 8] * 8 + coin, ["." * 8] * 8 + [r.translate(swap) for r in coin]]
+    coin_frames = [coin, [r.translate(swap) for r in coin]]
     ct = []
     for f in coin_frames:
         ct += tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)

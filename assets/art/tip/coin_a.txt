@@ -1,0 +1,18 @@
+; Tip variant A (TIP=A): a stack of three coins, 8x16 (the art sits on the same baseline as the single coin: rows 5-15).
+; Palette: the coin's ('-' pale yellow, '+' gold, '#' dark brown). Frame 1 (the glint) is made by tools/gen_art.py swapping '-' and '+'.
+........
+........
+........
+........
+........
+..####..
+.#--++#.
+#--+++-#
+.######.
+#++-++-#
+.######.
+#++-++-#
+.######.
+#++-++-#
+.######.
+..####..
