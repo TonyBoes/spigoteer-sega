@@ -55,21 +55,26 @@ def started(gb):
     gb.run(2)
 
 
-def serve(gb, bar, catch_x, x=2, rng=None, chance=None):
-    """A pushed-back patron one step from ENTRY_X: it is served in a few frames. The pokes land between two whole game frames
+def serve(gb, bar, x, rng=None, chance=None):
+    """A walking patron at x catches a full mug whose push (poked: pushback_px 250) carries him off the left edge: he is served. The
+    tip is decided as the mug lands, so its coin lies under him there (tip_x = his x + 4). The pokes land between two whole game frames
     (logic_paused): one that lands inside a frame's update is undone by the update's own read-modify-write of the same variable
     (tip_timer's count-down), on the frames the code's timing puts the emulator's frame boundary there. rng: the generator's state
-    for the tip's roll; chance: tip_chance, and a tip left from before is taken away."""
+    for the tip's roll; chance: tip_chance, and a tip left from before is taken away. patron_drinks 1: not his first drink (the
+    almost-out roll, tests/test_almost_out.py, would take a random number first). Returns the slot, once the serve is counted."""
     with logic_paused(gb):
         if chance is not None:
             gb.write("tip_chance", chance)
             w16(gb, "tip_timer", 0)
         if rng is not None:
             gb.write("rng_state", rng)
-        i = set_patron(gb, bar, x, state=PUSHED, aux=40)
-        put(gb, "patron_catchx", i, catch_x)
+        gb.write("pushback_px", 250)
+        w16(gb, "spawn_timer", 0xFFFF)                    # (an empty bar's quick refill cut it short last time: nobody spawns during the serve)
+        i = set_patron(gb, bar, x)
+        put(gb, "patron_drinks", i, 1)
         s0 = gb.mem("served")
-    run_until(gb, lambda: gb.mem("served") > s0, 40)      # (the step's phase against the frame moves with the code's timing: wait for it, not 8 frames)
+        inject_mug(gb, bar, x + 6)
+    run_until(gb, lambda: gb.mem("served") > s0, 300)     # (the long push to the left end: 250 px at most)
     assert gb.mem("served") == s0 + 1
     return i
 
@@ -79,30 +84,63 @@ def dist(gb):
 
 
 # ---- tips -------------------------------------------------------------------------------
-def test_served_patron_leaves_a_tip_where_it_caught_its_last_mug(gb):
-    quiet(gb)
-    serve(gb, 2, 90)
-    assert 470 < gb.mem16("tip_timer") <= TIP_FRAMES
-    assert gb.mem("tip_bar") == 2 and gb.mem("tip_x") == 90
-    cs = coin_sprites(gb)
-    assert len(cs) == 1
-    assert cs[0]["x"] - 8 == 90 and cs[0]["y"] - 16 == bar_top_y(2) + MUG_DY
-    if gb.model_name == "cgb":
-        assert cs[0]["flags"] & 7 == 5, "coin OBJ palette (M13a: slot 5, shared with the show)"
+def catch_serving(gb, bar, x):
+    """A patron at x whose mug's push (pushback_px poked) carries him off the left edge; returns his slot, the mug landing next frame."""
+    with logic_paused(gb):
+        gb.write("pushback_px", 250)
+        gb.write("tip_chance", 255)
+        w16(gb, "spawn_timer", 0xFFFF)
+        i = set_patron(gb, bar, x)
+        put(gb, "patron_drinks", i, 1)                 # (not the first drink: no almost-out roll, tests/test_almost_out.py)
+        inject_mug(gb, bar, x + 6)
+    return i
 
 
-def test_a_catch_remembers_where_the_mug_was_caught(gb):
+def test_the_tip_is_dropped_under_the_patron_while_he_is_still_on_the_screen(gb):
+    """Owner 2026-10-17: the coin appeared after the patron had gone. It is his now: the tip is decided as the mug lands that serves him
+    and the coin lies under him (his x + 4) on the counter at that moment, while he is pushed off; it stays where he dropped it."""
     quiet(gb)
-    i = set_patron(gb, 1, 16)
-    gb.run(3)                                     # (drawn)
-    gb.write("tip_chance", 255)
-    inject_mug(gb, 1, 16 + 14)
+    i = catch_serving(gb, 2, 90)
+    run_until(gb, lambda: gb.mem16("tip_timer") > 0, 10)
+    st = gb.read("patron_state", MAX_P)[i]
+    assert st == PUSHED and gb.mem("served") == 0, "he is still there, and not counted yet"
+    x = gb.read("patron_x", MAX_P)[i]
+    assert gb.mem("tip_bar") == 2 and abs(gb.mem("tip_x") - (x + 4)) <= 1, (gb.mem("tip_x"), x)
+    drop = gb.mem("tip_x")
     gb.run(2)
-    assert gb.read("patron_state", MAX_P)[i] in (PUSHED, 4)
-    x = gb.read("patron_catchx", MAX_P)[i]
-    assert 16 <= x < 32
-    gb.run(60)                                    # pushed off the screen: served, and the tip lies where the mug was caught
-    assert gb.mem("tip_x") == x and gb.mem("tip_bar") == 1
+    cs = coin_sprites(gb)
+    assert len(cs) == 1 and cs[0]["x"] - 8 == drop and cs[0]["y"] - 16 == bar_top_y(2) + MUG_DY, "the coin shows while he is visible"
+    assert gb.read("patron_x", MAX_P)[i] < x, "and he is carried away from it"
+    run_until(gb, lambda: gb.mem("served") == 1, 300)
+    assert gb.mem("tip_x") == drop and 0 < gb.mem16("tip_timer") < TIP_FRAMES, "after he is gone it lies where he dropped it"
+    if gb.model_name == "cgb":
+        assert coin_sprites(gb)[0]["flags"] & 7 == 5, "coin OBJ palette (M13a: slot 5, shared with the show)"
+
+
+def test_a_drinker_who_stops_on_the_bar_drops_no_tip(gb):
+    quiet(gb)
+    with logic_paused(gb):
+        gb.write("pushback_px", 24)
+        gb.write("tip_chance", 255)
+        i = set_patron(gb, 1, 100)
+        put(gb, "patron_drinks", i, 1)
+        inject_mug(gb, 1, 106)
+    gb.run(60)
+    assert gb.read("patron_state", MAX_P)[i] in (3, 2) and gb.mem16("tip_timer") == 0, "he stopped to drink: not served, no coin"
+
+
+def test_the_ten_objects_a_line_limit_holds_with_the_coin_under_a_crowded_bar(gb):
+    quiet(gb)
+    catch_serving(gb, 1, 60)
+    for x in (100, 76, 124, 44):
+        i = set_patron(gb, 1, x)
+        put(gb, "patron_dist", i, 1)
+    run_until(gb, lambda: gb.mem16("tip_timer") > 0, 10)
+    for _ in range(60):
+        gb.run(1)
+        y = bar_top_y(1) + MUG_DY
+        on = [s for s in gb.visible_sprites() if s["y"] - 16 <= y + 7 and s["y"] - 16 + 8 > y]
+        assert len(on) <= 10, len(on)
 
 
 def test_no_tip_when_the_chance_is_never(gb):
@@ -140,16 +178,16 @@ def test_only_one_tip_at_a_time(gb):
     quiet(gb)
     serve(gb, 2, 90)
     serve(gb, 3, 40)
-    assert gb.mem("tip_bar") == 2 and gb.mem("tip_x") == 90 and len(coin_sprites(gb)) == 1
+    assert gb.mem("tip_bar") == 2 and gb.mem("tip_x") == 94 and len(coin_sprites(gb)) == 1
 
 
 def test_tip_vanishes_after_480_frames(gb):
     quiet(gb)
     serve(gb, 2, 90)
     left = gb.mem16("tip_timer")
-    assert 470 <= left <= 480, left                       # (the sample may be a frame into the count: the frame's phase moves with the code)
+    assert 300 < left <= 480, left                        # (it was dropped as the mug landed: the push and the slide out ran since)
     run_until(gb, lambda: gb.mem16("tip_timer") <= 2, left)
-    assert gb.mem16("tip_timer") == 2
+    assert gb.mem16("tip_timer") <= 2
     gb.run(3)
     assert gb.mem16("tip_timer") == 0 and coin_sprites(gb) == [] and gb.mem("show_timer") == 0 \
         and gb.mem16("show_timer") == 0
@@ -179,7 +217,7 @@ def test_walking_over_the_coin_scores_1500_and_starts_the_show(gb):
     serve(gb, 1, 100)
     s0 = score(gb)
     walk_onto_coin(gb, 1, 100)
-    assert gb.mem("bar") == 1 and 85 <= gb.mem("bartender_x") <= 107, "the 16 px span overlaps the 8 px coin"
+    assert gb.mem("bar") == 1 and 89 <= gb.mem("bartender_x") <= 111, "the 16 px span overlaps the 8 px coin (at 104)"
     assert score(gb) == s0 + TIP_SCORE
     assert gb.mem16("tip_timer") == 0 and coin_sprites(gb) == []
     assert 0 < gb.mem16("show_timer") <= SHOW_FRAMES

@@ -93,7 +93,7 @@ static void load_patron_group(uint8_t g) {
 // left of ENTRY_X is always served. Otherwise he is pushed d px and drinks (never left of ENTRY_X, where the BG
 // patrons end), and some patrons ((level - 1) * EARLY_PER_LEVEL, of 256; none on level 1)
 // take only a quarter or a half of the push and drink at once.
-uint8_t push_for(uint8_t p) BANKED {
+static uint8_t push_calc(uint8_t p) {
     uint8_t x = patron_x[p], d = pushback_px, m;
     uint16_t c;
     if (x <= ENTRY_X) return x + PATRON_W;                    // (at the old door: always served; else a 24 px push could never serve one)
@@ -102,6 +102,15 @@ uint8_t push_for(uint8_t p) BANKED {
     m = x - ENTRY_X;
     if (d >= m) return x + PATRON_W;                           // (Option C: a push that reaches the left-edge stop serves him: he slides on and off)
     return d;
+}
+
+// push_calc, and a patron it serves may tip (patrons.c maybe_tip: the coin drops under him as the mug lands and the push takes him away,
+// so it is his and shows while he is still on the screen; owner 2026-10-17). A drinker's push is d < x - ENTRY_X.
+extern void maybe_tip(uint8_t p);
+uint8_t push_for(uint8_t p) BANKED {
+    uint8_t r = push_calc(p);
+    if (r + ENTRY_X > patron_x[p]) maybe_tip(p);
+    return r;
 }
 
 void start_level(void) BANKED {

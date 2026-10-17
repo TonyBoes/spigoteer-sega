@@ -177,13 +177,15 @@ void clear_patrons(void) {
     lists_ok = 0;
 }
 
-// A served patron may leave a tip where it last caught a mug: not while a tip lies there or a show runs.
-static void maybe_tip(uint8_t p) {
+// A patron whose mug is going to serve him (the push carries him off the left edge) may tip: the coin drops under him where he
+// stands as the mug lands and the push takes him away, so it is his and shows while he is still on the screen (owner 2026-10-17: it
+// used to appear after he was gone). Not while a tip lies there or a show runs.
+void maybe_tip(uint8_t p) {              // (level.c push_for: the push that serves him)
     if (tip_timer || show_timer || tip_first) return;   // (CLASSIC: not before the level's first tip, send_empty)
     if (!tip_chance || (tip_chance != 255 && next_rand() >= tip_chance)) return;   // 0 never (and draws no random number)
     tip_timer = TIP_FRAMES;
     tip_bar = patron_bar[p];
-    tip_x = patron_catchx[p];
+    tip_x = patron_x[p] + 4;                            // (centred under him, as classic_tip puts the first one)
 }
 
 // M13b: patrons overlap. A patron's real columns are c = draw >> 3 (without DRAW_BACK) and c + 1, and c + 2 unless he
@@ -420,13 +422,12 @@ static void served_out(uint8_t p) {
     patron_drinks[p] = 255;
 }
 
-// All of a served patron is off the screen: score, count, tip.
+// All of a served patron is off the screen: score, count (his tip was dropped when his mug landed: caught).
 void served_done(uint8_t p) {
     if (patron_drinks[p] != 255) return;
     served++;
     add_score(serve_score);
     SFX(SFX_SERVE);
-    maybe_tip(p);
 }
 
 // Leaving: lifted first (LIFT_EDGE; no sprite room: he is gone at once), then PUSH_SPEED px a frame to x 0 and on past
