@@ -47,7 +47,7 @@
 #include "story.h"
 #define BOSS_WANT_METER      // (boss_art.h: this module draws the meter)
 #include "boss.h"            // the engine's inside, shared with the boss files (src/boss_<name>.c)
-#include "boss_tag_art.h"    // the status tag's tiles (E1)
+#include "boss_tag_art.h"    // the capacity indicator's tiles (assets/art/boss/tag.txt)
 
 extern uint8_t pat_pos, pat_buf[STORY_PAT_MAX];   // (story.c) the arrival pattern patrons.c follows while pat_len
 extern uint16_t pat_wait[4];
@@ -170,7 +170,7 @@ static void boss_hud(void) {
 // The drinking shake (owner 2026-10-17: "use the same technique that we use with patrons"): the patrons sway 2 px every
 // SWAY_FRAMES while they drink, by drawing a pre-shifted copy of their tiles. A boss does the same: gen_boss makes one extra
 // pose of his GULP shifted 2 px (BP_SWAY, boss_art_sway: its own column pairs), and while he drinks the body alternates GULP
-// and BP_SWAY on the patrons' beat, the mug staying up; the topper (a sprite) moves with it (sway_dx). The tag stays put.
+// and BP_SWAY on the patrons' beat, the mug staying up; the topper and the hand mug (sprites) move with it (sway_dx).
 // Only in the common gulp (no push-back, no special's pose over it). br->sway 0: no shifted pose (his column pairs are
 // full: the Sasquatch, whose 20-frame gulp keeps E1's mug-down beat; the Sumo never gulps).
 static uint8_t sip_beat(void) {
@@ -254,7 +254,7 @@ void boss_set(uint8_t id) BANKED {
 // enter_level_screen, LCD off, after start_level (which loaded every patron variant): his body over variant C's tiles
 // and the back views, the HUD's face and meter, the topper's frames; CGB his palettes (colour 0 the venue's wall).
 void boss_load(void) BANKED {
-    set_sprite_data(OBJ_TAG, 4, boss_tag_tiles);  // the status tag's tiles (first: a boss file's pool over 124-127 is then his own)
+    set_sprite_data(OBJ_CAP, 4, boss_cap_tiles);  // the capacity indicator's tiles (first: a boss file's pool over 124-127 is then his own)
     boss_call(BEV_LOAD, 0);                      // his body, face, topper and palettes (src/boss_load.h), his extras
     set_bkg_data((uint8_t)(BOSS_HUD_BG + 1), 3, boss_meter_tiles);
     boss_pal = BOSS_PAL;
@@ -272,11 +272,11 @@ void boss_reset(void) BANKED {
     boss_look();
     mark_dirty_attrs(boss_bar, 0, 20);
     boss_limit();
-    shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_TAG].y = 0;
+    shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_HAND].y = 0;
 }
 
-void boss_tag_stage(uint8_t *dst) BANKED {
-    memcpy(dst, boss_tag_tiles, BOSS_TAG_BYTES);
+void boss_cap_stage(uint8_t *dst) BANKED {
+    memcpy(dst, boss_cap_tiles, BOSS_CAP_BYTES);
 }
 
 // story shift_start: the fight's goal_t (its banner lines, the pace: the row's walk, spawns x BOSS_SPAWN_PCT %)
@@ -625,28 +625,18 @@ uint8_t boss_outro(uint8_t t) BANKED {
     return t >= OUTRO_FRAMES;
 }
 
-// One entry near the topper: d = its y minus the topper's (-15..15 as a byte): the 4-line bands n[0..3] of the topper's 16 lines it touches.
+// Sprites per line over his bar. The intro (Duke's entrance has 20 sprites) only has the hat: every entry within 15 lines of its y is counted on the
+// four 4-line bands of the topper's 16 lines it touches (an upper bound for each line: spec 3.1 counts the same bands), as ever.
 static void band_add(uint8_t d, uint8_t *n) {
     int8_t r = (int8_t)d;
     if (r >= 0) { if (r < 4) n[0]++; if (r < 8) n[1]++; if (r < 12) n[2]++; n[3]++; }
     else { n[0]++; if (r >= -11) n[1]++; if (r >= -7) n[2]++; if (r >= -3) n[3]++; }
 }
 
-// pour_frame (every drawn frame of a fight, after every other sprite): the topper over his head, its upper half above
-// his bar. Sprites per line: every other OAM entry is counted on the four 4-line bands of the topper's 16 lines it
-// touches (an upper bound for each line: spec 3.1 counts the same bands); the topper is left out on a frame where a
-// band already has LINE_OBJ_MAX, so it is never an 11th object on a line (the hat blinks off for those frames).
-void boss_draw(void) BANKED {
+static const uint8_t *bands_intro(uint8_t top, uint8_t *n) {
     OAM_item_t *o = shadow_OAM;
-    uint8_t k, top = bar_oam_y[boss_bar] - 8, n0, n1, n2, n3, hat, tag;
-    uint8_t n[4];
-    if (boss_state == BS_WARM) { shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_TAG].y = 0; return; }   // (E9: not here yet)
-    if (intro_timer) boss_call(BEV_DRAW, 0);     // the intro: a special's own sprites (Duke's entrance) before the lines are counted
-    shadow_OAM[OAM_TAG].y = 0;
-    if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) { shadow_OAM[OAM_TOPPER].y = 0; return; }   // (away: no hat in the air)
-    shadow_OAM[OAM_TOPPER].y = 0;   // (so the count skips it and the tag: both are set again below)
+    uint8_t k = 40;
     n[0] = n[1] = n[2] = n[3] = 0;
-    k = 40;
     do {
         if (o->y) {
             // (the bartender's 4 entries hang BT_DY lower than the bands were laid out for: counted as before, so his
@@ -656,23 +646,164 @@ void boss_draw(void) BANKED {
         }
         o++;
     } while (--k);
-    n0 = n[0]; n1 = n[1]; n2 = n[2]; n3 = n[3];
+    return n;
+}
+
+// After the intro the hat, the indicator and the hand mug add at most CAP_EXTRA entries (hat 1, 3 hands, mug 1) on the 28 lines from the topper's y
+// (OAM y `top`), so when no more than LINE_OBJ_MAX - CAP_EXTRA of the entries already in OAM touch those lines nothing can reach 11 on a line and
+// nothing more is counted (the usual case: a pass over OAM and nothing else; 0 is returned and fits() says yes). Otherwise each such entry is counted
+// in n[] on the seven 4-line bands it touches and n is returned.
+#define CAP_EXTRA 5
+#define BANDS 7
+static const uint8_t *bands(uint8_t top, uint8_t *n) {
+    OAM_item_t *o = shadow_OAM;
+    uint8_t k = 40, near = 0, d, lo, hi;
+    do {
+        if (o->y && (uint8_t)(o->y - top + 15) < 43) near++;     // (its lines overlap the 28 from top: its y from -15 to 27 on)
+        o++;
+    } while (--k);
+    if (near + CAP_EXTRA <= LINE_OBJ_MAX) return 0;
+    for (lo = 0; lo != BANDS; lo++) n[lo] = 0;
+    o = shadow_OAM;
+    k = 40;
+    do {
+        d = o->y - top + 15;                     // (a byte: 0 is the entry 15 lines above the first line)
+        if (o->y && d < 43) {
+            lo = d < 15 ? 0 : (d - 15) >> 2;
+            hi = d >= 27 ? BANDS - 1 : d >> 2;   // (its last line is 15 on: d)
+            for (; lo <= hi; lo++) n[lo]++;
+        }
+        o++;
+    } while (--k);
+    return n;
+}
+
+// c more entries on bands k0..k1 would stay within LINE_OBJ_MAX (n 0: yes)
+static uint8_t fits(const uint8_t *n, uint8_t k0, uint8_t k1, uint8_t c) {
+    if (!n) return 1;
+    for (; k0 <= k1; k0++)
+        if (n[k0] + c > LINE_OBJ_MAX) return 0;
+    return 1;
+}
+
+// The indicator's tile attributes: CGB OBJ palette 2, the venue's empty-glass colours (OBJPAL_MUG_EMPTY: light, mid, dark outline: bright on the
+// dark counters, whatever the venue; palette 5 is the coin's, Duke's, the Critic's and the Prototype's lamp's, 7 the boss's own); DMG OBP0 0xD0 (the
+// bartender's: colour 1 white, 2 light grey, 3 black)
+#define CAP_PROP   (is_cgb ? OBJPAL_MUG_EMPTY : 0)
+
+// The hand mug: while he gulps, the mug the player served over his hand column (OBJ tile / palette of the sliding mug: the venue's own
+// drink art, mugs.c), its bottom at row hand_base of his 16 body rows. 255: none (the Sumo).
+static const uint8_t hand_base[BOSS_COUNT] = { 15, 15, 15, 12, 15, 11, 12, 255, 15, 14 };   // (rows[] order: Tex, Mascot, Sasquatch, Critic, Yeti, Prototype, Duke, Sumo, Leo, Mothership)
+
+// n: the bands from the topper's y; extra: the entries drawn over them already (the hat, the indicator)
+static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
+    OAM_item_t *o = shadow_OAM + OAM_HAND;
+    uint8_t d, dx = 0;
+    o->y = 0;
+    if (boss_state != BS_GULP || boss_push || boss_xpose || hand_base[boss_row] == 255) return;   // (the common gulp only: the pose shows his hand up)
+    if (sip_beat()) {
+        if (!br->sway) return;                   // (the mug-down beat of a boss with no shifted pose: the Sasquatch)
+        dx = br->sway == 2 ? -2 : 2;
+    }
+    d = bar_oam_y[boss_bar] + hand_base[boss_row] - 14;   // its y; from top: 5..9, so bands 1..6 (24 lines on at most)
+    if (!fits(n, (uint8_t)(d - top) >> 2, (uint8_t)(d - top + 15) >> 2, extra + 1)) return;
+    o->y = d; o->x = boss_x + br->width + dx; o->tile = spr_full_t; o->prop = spr_full_p;
+}
+
+// The capacity indicator: free hands now, 255: none to show (no limit: the Sumo's 250, the Prototype's red light bounces everything; or his
+// own say, BEV_ROOM: the Mothership gone, split)
+static uint8_t room_free(void) {
+    uint8_t f = boss_lim && boss_hands > boss_hold ? boss_hands - boss_hold : 0, k;
+    if (boss_cap > 9) return 255;
+    k = boss_call(BEV_ROOM, f);
+    return k ? (k == ROOM_OFF ? 255 : k - 2) : f;
+}
+
+#if BOSS_CAP_UI == 3
+static void hud_count(uint8_t f) {               // "xN" in HUD columns 10-11 (255: blanks); the queue copies from WRAM, every drawn frame
+    uint8_t *b = BOSS_HUD2;
+    b[0] = f < 4 ? TILE_GLYPH_X : TILE_HUD_BLANK;
+    b[1] = f < 4 ? TILE_GLYPH_0 + f : TILE_HUD_BLANK;
+    vq_add(0, b, 10, HUD_ROW, 2);
+}
+#endif
+
+// n: the bands from the topper's y `top`; hat: 1 if the hat is drawn (its budget first). Returns the entries drawn over his bar (0: none, or the
+// HUD's) in the high bits and the free hands shown in the low ones; 255: no indicator
+static uint8_t cap_draw(uint8_t top, const uint8_t *n, uint8_t hat) {
+    OAM_item_t *o = shadow_OAM + OAM_CAP;
+    uint8_t f = room_free(), sl = boss_hands, k;
+    if (f == 255) return 255;
+    if (f > sl) f = sl;
+#if BOSS_CAP_UI == 3
+    o--;                                        // the mug on the HUD (columns 9): lines 0-15 hold nothing else of a fight's
+    o->y = 16; o->x = 80; o->tile = OBJ_CAP; o->prop = CAP_PROP;
+    (void)n; (void)hat; (void)top; (void)k;
+#elif BOSS_CAP_UI == 1
+    sl -= f;                                    // the hands taken: the first icons
+    if (!fits(n, 0, 3, hat + boss_hands)) return 255;
+    for (k = 0; k != boss_hands; k++) {
+        o--;
+        o->y = top; o->x = boss_x + br->width + (k << 3); o->tile = OBJ_CAP + (k < sl ? 2 : 0); o->prop = CAP_PROP;
+    }
+#else
+    uint8_t y = top + 8;                        // the bottom cell: its 5 art rows (the tile's last 5) on his body's last 5; the next ones 4 px up
+    sl -= f;
+    if (boss_x < 8 || !fits(n, 0, 5, hat + boss_hands)) return 255;
+    for (k = 0; k != boss_hands; k++, y -= 4) {
+        o--;
+        o->y = y; o->x = boss_x; o->tile = OBJ_CAP + (k < sl ? 2 : 0); o->prop = CAP_PROP;
+    }
+#endif
+    return f;
+}
+
+// pour_frame (every drawn frame of a fight, after every other sprite): the topper over his head, its upper half above his bar; the capacity
+// indicator; the hand mug. Sprites per line: every other OAM entry is counted on the 4-line bands its lines touch (bands above); the topper is
+// left out on a frame where a band already has LINE_OBJ_MAX, so it is never an 11th object on a line (the hat blinks off for those frames); the
+// indicator and the mug likewise.
+void boss_draw(void) BANKED {
+    uint8_t k, top = bar_oam_y[boss_bar] - 8, hat, extra, intro;
+    uint8_t n[BANDS];
+    const uint8_t *np;
+    OAM_item_t *o;
+    if (boss_state == BS_WARM) { shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_HAND].y = 0; return; }   // (E9: not here yet)
+    intro = intro_timer;
+    if (intro) {                                 // the intro: a special's own sprites (Duke's entrance) before the lines are counted
+        boss_call(BEV_DRAW, 0);
+        shadow_OAM[OAM_CAP - 1].y = 0;           // (no indicator in the intro: after a lost life it would still show; Leo's waves end at OAM 37)
+        shadow_OAM[OAM_CAP - 2].y = 0;
+    } else {
+#if BOSS_CAP_UI == 3
+        shadow_OAM[OAM_CAP - 1].y = 0;           // (the indicator: set again below)
+#else
+        for (k = 0; k != boss_hands; k++) shadow_OAM[OAM_CAP - 1 - k].y = 0;
+#endif
+        shadow_OAM[OAM_HAND].y = 0;
+    }
+    if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) {   // (away: no hat in the air)
+        shadow_OAM[OAM_TOPPER].y = 0;
+#if BOSS_CAP_UI == 3
+        hud_count(255);
+#endif
+        return;
+    }
+    shadow_OAM[OAM_TOPPER].y = 0;   // (so the count skips it: it is set again below)
+    np = intro ? bands_intro(top, n) : bands(top, n);
     o = shadow_OAM + OAM_TOPPER;
-    hat = !(n0 >= LINE_OBJ_MAX || n1 >= LINE_OBJ_MAX || n2 >= LINE_OBJ_MAX || n3 >= LINE_OBJ_MAX);
+    hat = fits(np, 0, 3, 1);
     if (hat) {
         o->y = top; o->x = boss_x + br->hat_dx + 8 + (sip_beat() ? (br->sway == 2 ? -2 : 2) : 0);   // (drinking: moves with his body)
         o->tile = OBJ_TOPPER + (BOSS_TOPPER_T ? BOSS_TOPPER_T : (boss_pose & 15) == BP_STOMP ? 2 : 0);
         o->prop = !is_cgb ? S_PALETTE : BOSS_TOPPER_PAL ? BOSS_TOPPER_PAL : OBJPAL_PATRON_C;
     } else o->y = 0;
-    // The status tag (E1): above his hand column, where a drink reaches him; the hat has the line budget first.
-    if (intro_timer || !boss_hp || boss_state == BS_OUTRO) return;
-    if (n0 + hat >= LINE_OBJ_MAX || n1 + hat >= LINE_OBJ_MAX || n2 + hat >= LINE_OBJ_MAX || n3 + hat >= LINE_OBJ_MAX) return;
-    tag = boss_lim ? TAG_READY : TAG_BUSY;
-    k = boss_call(BEV_TAG, tag);
-    if (k) tag = k - 1;
-    if (tag == TAG_OFF) return;
-    o = shadow_OAM + OAM_TAG;
-    o->y = top; o->x = boss_x + br->width + (tag == TAG_RETURN ? (frame_t0 & 4) - 2 : 0);
-    o->tile = OBJ_TAG + (tag == TAG_READY ? 0 : 2);
-    o->prop = !is_cgb ? S_PALETTE : OBJPAL_PATRON_C;
+    if (intro) return;
+    k = !boss_hp || boss_state == BS_OUTRO ? 255 : cap_draw(top, np, hat);
+#if BOSS_CAP_UI == 3
+    extra = hat;
+    hud_count(k);
+#else
+    extra = hat + (k == 255 ? 0 : boss_hands);
+#endif
+    hand_draw(top, np, extra);
 }

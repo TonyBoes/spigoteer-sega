@@ -1,3 +1,5 @@
+; GULP (owner 2026-10-17, the mug matches the drink served): the mug is NOT drawn in this pose; src/boss.c draws the served venue drink's own
+; mug (a sprite, OAM 29) over the hand column (x width - 8, the mug's bottom on body row 14) while he gulps; the arm that holds it is the art's.
 ; Art: approved design (the owner, 2026-10-11: the Mothership, look A "silver saucer"). Built: src/boss_mothership.c.
 ; The Mothership, the space lounge's (final) boss (src/boss.c, tools/gen_boss.py). PROPOSAL, look 1: "Silver saucer".
 ; Art: a classic flying saucer: a glass dome with two angry eyes, a silver upper hull, a dark rim band of lights, a

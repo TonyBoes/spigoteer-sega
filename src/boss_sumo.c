@@ -303,8 +303,8 @@ uint8_t boss_sumo(uint8_t ev, uint8_t arg) BANKED {
         sumo.shown = 255;
         hud();
         break;
-    case BEV_TAG:                                // no drink limit: a hand is always free
-        return TAG_READY + 1;
+    case BEV_ROOM:                               // no drink limit: no indicator
+        return ROOM_OFF;
     case BEV_TELL:
         if (sumo.phase == SU_WALK) to_tell();
         sumo.shown = 255;                        // (the engine draws its own meter after a test hook)

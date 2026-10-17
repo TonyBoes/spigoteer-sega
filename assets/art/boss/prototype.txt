@@ -1,3 +1,5 @@
+; GULP (owner 2026-10-17, the mug matches the drink served): the mug is NOT drawn in this pose; src/boss.c draws the served venue drink's own
+; mug (a sprite, OAM 29) over the hand column (x width - 8, the mug's bottom on body row 11) while he gulps; the arm that holds it is the art's.
 ; Art: approved design (the owner, 2026-10-11: the Prototype, look 2 / B). Built: src/boss_prototype.c.
 ; The Prototype, the robot factory's boss (docs/minigames_bosses.md 3.8). PROPOSAL, look B: "the hauler".
 ; Drop-in for the big_tex.txt format (tools/gen_boss.py): 32x16 BG (4 columns x 2 rows), facing the tap (right).
@@ -48,10 +50,10 @@
 .#--#--#--##----#---#...#-----#.
 
 @GULP
-......############......#######.
-....##++++++++++++##....#++++##.
-...#----------------....#++++##.
-...#-##############-....#######.
+......############..............
+....##++++++++++++##............
+...#----------------............
+...#-##############-............
 ...#-##---####---##-.....#---#..
 ...#-##---####---##-....#---#...
 ...#-##############-...#---#....

@@ -238,12 +238,22 @@ Rules common to every boss:
 - **Drinking shake (E1, owner 2026-10-14)**: while he gulps (no push-back, no special's pose) his body alternates the
   GULP pose (mug up) and WALK every `SWAY_FRAMES` (12), the patrons' sway beat, and the topper (a sprite) shifts the
   patrons' 2 px on the odd beats. The gulps are 30-50% longer than the first build (the table in 3.2; the Sumo has none).
-- **Status tag (E1, owner 2026-10-14: "it's not clear what status he is in")**: one 8x16 sprite (OAM 29, OBJ 124-127,
-  `assets/art/boss/tag.txt`, his own colours) above his hand column, where a drink reaches him. READY: an empty mug and
-  an arrow down at his hand (a hand is free: `boss_lim`). BUSY: a full mug and a cross (hands full: a drink slides
-  past). The BUSY tag shaking side to side: he sends what reaches him back (the Critic while he holds a glass, tastes or
-  has a drink to send back). Hidden in the intro, in the outro, and while he is away (BS_JUMP / BP_HIDE). A special
-  overrides it through the `BEV_TAG` event (return TAG_x + 1; TAG_OFF + 1 hides it). The hat has the line budget first.
+- **Status tag, gone (owner 2026-10-17: "get rid of the drink arrow on the bosses")**: E1's tag (an empty mug with an arrow down at his hand =
+  READY, a full mug with a cross = BUSY, the BUSY tag shaking = he sends it back) is removed in every boss and mode. What it told the player:
+  READY = a hand is free (a drink reaching him is caught), BUSY = hands full (a drink slides past and breaks), shaking = he sends what reaches him
+  back (the Critic holding / tasting / queueing, Leo's roar), absent = no catching at all (the Mothership gone or split, the intro, the outro).
+  The capacity indicator below carries the first two (free hands 0 = BUSY).
+- **Capacity indicator (owner 2026-10-17: "the player needs clear indication of how many more drinks they can serve them")**: how many of his
+  `boss_hands` slots are free (`boss_hands - boss_hold`; 0 while `boss_lim` is 0 or a special says so through `BEV_ROOM`: Critic busy, Leo's roar).
+  Three looks, compile-time (`-DBOSS_CAP_UI=n`, src/boss.h; art `assets/art/boss/tag.txt`, 2 sprite pairs at OBJ 124-127, OBJ palette 5 cream / amber /
+  dark, DMG OBP0): **1 mug row** (a mug per hand over his hand column, bright = room, dark rimmed = an empty held; OAM 39 down), **2 belly gauge** (the
+  default: cells to his left, bottom up; OAM 39 down), **3 HUD counter** (a mug sprite at HUD column 9 and "xN" in the HUD font at 10-11; OAM 39).
+  Hidden in the intro, outro, away, and for the Sumo (no limit), the Prototype's red light (cap 255) and the Mothership gone / split.
+  `make bosscap` builds the three as out/test_roms/spigoteer-bosscap{1,2,3}-unlocked.gb; tests/test_boss_cap_ui.py reads them back after every drink.
+- **Hand mug (owner 2026-10-17: "the mugs they drink from should look more like the drink served to them")**: while he gulps, OAM 29 (the tag's old
+  entry) draws the sliding mug's own tile and palette (mugs.c `spr_full_t / spr_full_p`: the venue's drink art; DMG its OBP0 copy) over his hand column
+  (`boss_x + width`, its bottom at the row `hand_base[]` of his body), moving with the sway; his GULP art has no mug of its own (the old ones were
+  erased and the arm kept). No sprite for the Sumo (he is hit by the cup, he does not drink). Costs no column pair (Yeti, Mascot, Mothership stay at 30).
 - **Hands**: he holds at most `hands` empties. Each held empty is sent (spawn_mug(EMPTY) at his right edge) after
   `sip` frames **and** only when the fair-empties schedule allows (`next_arrival`, `empty_gap`, the same rule as
   patrons.c, computed with his own empty speed). With full hands a mug reaching him is not caught: it slides on
@@ -2097,11 +2107,9 @@ cross-cutting parts (patron clearing, pause menu, difficulty, save map).
 - **Drinking shake and slower gulps** (2011c71): in the common gulp the body alternates GULP / WALK on the patrons' 12-frame sway beat and the topper
   shifts 2 px; every gulp is 30-50% longer (Tex 40 -> 58, Mascot 24 -> 34, Sasquatch 8 -> 20, Critic 60 -> 84, Yeti 30 -> 44, Prototype 20 -> 30,
   Duke 20 -> 30, Leo 30 -> 44, Mothership 24 -> 34; Sumo none). A longer gulp is a longer no-stomp window: easier, never harder.
-- **Status tag**: one 8x16 sprite (OAM 29, OBJ 124-127, assets/art/boss/tag.txt) above the hand column (`boss_x` + width): READY (empty mug and an
-  arrow), BUSY (full mug), RETURN (BUSY shaking 2 px every 4 frames; the Critic sending a drink back). The engine decides READY / BUSY from `boss_lim`;
-  a boss file overrides it through `BEV_TAG` (return `TAG_x + 1`, `TAG_OFF + 1` hides it). Critic: holding, tasting or queueing = RETURN; Sumo: always
-  READY (no drink limit); Mothership: hidden while he is gone or split; Leo: RETURN during the roar; Duke reloads the tag's tiles after his entrance.
-  Hidden in the intro, outro and away. tests/test_boss_tag.py covers every boss on both models.
+- **Status tag** (removed 2026-10-17, see 3.x above): it was one 8x16 sprite (OAM 29, OBJ 124-127) above the hand column; READY / BUSY / RETURN from
+  `boss_lim` and `BEV_TAG`. Now `BEV_ROOM` (arg = free hands; return 0 keep, `ROOM_OFF`, `ROOM_FREE(n)`) feeds the capacity indicator, and OAM 29 is the hand mug.
+  tests/test_boss_tag.py (the shake) and tests/test_boss_cap_ui.py (the arrow, the mug, the indicator) cover every boss on both models.
 - **Arrival after warm-up (E9 + F12)**: a boss round opens as a **normal shift**: `BS_WARM`, `boss_bar = BOSS_NONE`, regulars on all four bars,
   `boss_special_t` = 1200 frames counted after the level's 90-frame intro, no new regular for his bar in the last 300 frames. At 0 it waits up to 180
   more frames for his bar to be empty and no mug in the air, clears the mugs and stragglers, holds the intro (90 frames) with a whoosh sting and calls
@@ -2129,7 +2137,7 @@ Entrances run in `BEV_INTRO` / `BEV_DRAW` on the fight's first start (a lost lif
 | Leo (zoo) | **the roar is a wind** (796d2d6): a visible shockwave (gold arcs, one a bar, OAM 30-37) sweeps all four bars and every full mug it passes becomes a MUG_RETURN (caught at that bar's tap end like an empty, or a life); a 60-frame tell is the time to stop throwing; the drinkers-hurry and held-empty rules are dropped | a flaming hoop, Leo leaps through it, lands and roars (10 tile pairs at OBJ 104-123, tools/gen_leo_fx.py) |
 | The Mothership (space) | **two passengers per landing** (alien patrons at x 24 on two other bars, cap 12 live); a **telegraphed stun ray** after 270 frames on one bar (60-frame charge, the BEAM column blinks on his bar, dodge with any Up / Down; the stun is 90 frames, input blocked by joy = 0x7F); phase 2 (the split) has no ray | a tractor beam lights his bar, the room flickers, the saucer blinks in and lands (62 frames) |
 
-- Gotcha for new bosses: the engine's status tag owns OAM 29; effect sprites live at OAM 30-37. A boss fight shows no bar-change puff (PLAN.md).
+- Gotcha for new bosses: the engine's hand mug owns OAM 29 and the capacity indicator OAM 37-39 (Leo, with 2 hands, 38-39); effect sprites live at OAM 30-36. A boss fight shows no bar-change puff (PLAN.md).
 - Goldens: every boss has its entrance golden(s) and fight timelines (380ae63); tests/test_boss_entrances.py, test_boss_tag.py and each boss's file.
 
 ### 10.3 Mini-game reworks, Batch D (owner playtest 2026-10-14 / 15)

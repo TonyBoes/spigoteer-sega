@@ -44,7 +44,7 @@
 #define H_GLINT       8
 #define H_NO          10       // NO_L, NO_R
 #define H_BAD         14       // BAD_L, BAD_R
-#define OAM_CRIT      (OAM_DANCERS + 2)   // 30..: the bubble (2) / the cloche (4) and the glint (29 is E1's status tag)
+#define OAM_CRIT      (OAM_DANCERS + 2)   // 30..: the bubble (2) / the cloche (4) and the glint (29 is the engine's hand mug; 37-39 its capacity indicator)
 #define E_SLIDE       30       // entrance: the cloche reaches his spot
 #define E_BELL        34       // the bell (SFX_COIN) and the glint
 #define E_LIFT        46       // the lid flies off, he is there
@@ -181,9 +181,9 @@ uint8_t boss_critic(uint8_t ev, uint8_t arg) BANKED {
         }
         crit_look();
         return 1;
-    case BEV_TAG:                                // (E1: the status tag) busy or tasting: whatever reaches him is waved back
-        if (boss_hold || crit_taste || boss_queue) return TAG_RETURN + 1;
-        break;                                   // (free: the engine's READY tag: a perfect drink is taken)
+    case BEV_ROOM:                               // busy or tasting: whatever reaches him is waved back (no room)
+        if (boss_hold || crit_taste || boss_queue) return ROOM_FREE(0);
+        break;                                   // (free: the engine counts his one hand: a perfect drink is taken)
     case BEV_FRAME:
         if (boss_x > crit.px) crit.dip = 8;
         else if (crit.dip) crit.dip--;

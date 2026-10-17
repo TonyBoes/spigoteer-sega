@@ -45,12 +45,12 @@
 #define BANG_BG      BOSS_ICE_BG     // its top tile (bottom: + 1)
 #define BANG_NONE    255
 #define FX_BUSY       4              // mugs alive from which the optional sprites (the trailing arc, the hoop) are left out
-#define OAM_WAVE     (OAM_DANCERS + 2)   // (OAM_TAG, 29, is the engine's status tag)   // OAM 30-37: the arcs (two a bar) or the entrance's leap and hoop (4 + 4)
+#define OAM_WAVE     (OAM_DANCERS + 2)   // (OAM 29 is the engine's hand mug; 37-39 its capacity indicator: Leo has 2 hands, so 38-39)   // OAM 30-37: the arcs (two a bar) or the entrance's leap and hoop (4 + 4)
 #define OAM_WAVE_N   8
 #if BOSS_ART_TILES * 2 > BOSS_HUD_BG - BOSS_ICE_BG || BOSS_ART_COLS != BANG_K
 #error "Leo's !!: the extra BG tiles (246-251), a 32 px body"
 #endif
-#if LEO_FX_OBJ + LEO_FX_TILES > OBJ_TAG || NUM_BARS * 2 != OAM_WAVE_N || OAM_WAVE + OAM_WAVE_N > 40
+#if LEO_FX_OBJ + LEO_FX_TILES > OBJ_CAP || NUM_BARS * 2 != OAM_WAVE_N || OAM_WAVE + OAM_WAVE_N > 40
 #error "Leo's sprites: OBJ tiles 104-127, OAM 30-37"
 #endif
 typedef char leo_fx_clear_of_his_hats[(LEO_FX_OBJ >= OBJ_TOPPER + sizeof(boss_art_hat) / 16) ? 1 : -1];   // (his own topper frames, not BOSS_HATS_MAX: each fight loads only its own)
@@ -279,8 +279,8 @@ uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED {
     case BEV_INTRO:
         if (leo.ent) ent_frame();
         break;
-    case BEV_TAG:                                         // (E1's status tag: through the roar he sends back what reaches him)
-        return leo.phase == LP_ROAR ? TAG_RETURN + 1 : 0;
+    case BEV_ROOM:                                        // through the roar he sends back what reaches him: no room
+        return leo.phase == LP_ROAR ? ROOM_FREE(0) : 0;
     case BEV_TELL:
         if (leo.phase == LP_WALK) to_tell();
         break;

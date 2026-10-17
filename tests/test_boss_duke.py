@@ -602,7 +602,7 @@ def test_boss_rush_starts_with_the_entrance_too(model):
         frames(gb, 4)
         assert gb.mem("boss_id") == C and DUKE.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER
         to_frame(gb, ENT_LAND)
-        frames(gb, 2)
+        frames(gb, 3)                              # (the landing frame overruns by a few lines: his last column reaches the screen a frame later with the capacity code in boss_draw)
         assert gb.mem("boss_state") == BS_WALK and gb.mem("boss_x") == R["x"]
         frames(gb, 1)                                # (his last column's tile reaches the map a frame later since the bartender hangs BT_DY lower)
         assert_body(gb, C, A, R["x"], BP_WALK)

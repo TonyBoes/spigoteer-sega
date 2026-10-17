@@ -401,8 +401,8 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
     case BEV_INTRO:
         if (ms.ent) ent_frame();
         break;
-    case BEV_TAG:                                             // (E1: the status tag) none while he is gone, flashing or split
-        return ms.phase < MP_GONE ? 0 : TAG_OFF + 1;
+    case BEV_ROOM:                                            // no indicator while he is gone, flashing or split
+        return ms.phase < MP_GONE ? 0 : ROOM_OFF;
     case BEV_TELL:
         if (ms.phase == MP_WALK) { ray_off(); to_tell(); }
         break;

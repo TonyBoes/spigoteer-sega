@@ -3525,6 +3525,9 @@ Per-boss detail is in docs/minigames_bosses.md section 10. Summary:
   (Sumo none), and a **status tag** (OAM 29, OBJ 124-127, assets/art/boss/tag.txt) above the hand column: READY (empty mug + arrow) / BUSY (full mug) /
   shaking BUSY = RETURN. A boss file overrides it through `BEV_TAG` (Critic: holding, tasting or queue = RETURN; Sumo: always READY; Mothership: hidden
   while he is gone or split; Leo: RETURN during the roar). Tests: tests/test_boss_tag.py.
+  **2026-10-17 (owner): the tag's arrow is gone**; `BEV_TAG` became `BEV_ROOM` and feeds a **capacity indicator** (free hands) in three compile-time looks
+  (`-DBOSS_CAP_UI=1` mug row, 2 belly gauge = the default, 3 HUD counter; `make bosscap` builds out/test_roms/spigoteer-bosscap{1,2,3}-unlocked.gb), and OAM 29 draws
+  the served drink's own mug (mugs.c `spr_full_t / spr_full_p`) in his hand while he gulps. Tests: tests/test_boss_cap_ui.py.
 - **Gimmicks:** Sasquatch vanishes to the woods every 360 walking frames and pops up on another bar (his bar's footprints blink); Critic: every state
   readable, wine's perfect cue, "NO!" / "BAD" bubble (OAM 30-31); Yeti: the ice **freezes the tap on his bar** (BANNER TAP FROZEN); Sumo: a pushing match,
   ring-out, no drink limit, a shrinking fill meter 6,5,4,3,2,1,1; Leo: the roar is a **wind that blows full mugs back on every bar** (arcs on OAM 30-37);

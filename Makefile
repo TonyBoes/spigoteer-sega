@@ -26,6 +26,11 @@ LCCFLAGS += -Wm-yt0x1B -Wm-ya1 -Wm-yoA -autobank
 # testing by hand: make DEBUGFLAGS="-DDEBUG_MENU -DDEBUG_UNLOCKED"
 DEBUGFLAGS := -DDEBUG_MENU
 LCCFLAGS += $(DEBUGFLAGS)
+# BOSS_CAP_UI=1|2|3: which look of the bosses' capacity indicator (how many more drinks he can hold) the build has (src/boss.h; unset: its default).
+# The three review builds: make bosscap (out/test_roms/spigoteer-bosscap{1,2,3}-unlocked.gb + .noi)
+ifdef BOSS_CAP_UI
+LCCFLAGS += -DBOSS_CAP_UI=$(BOSS_CAP_UI)
+endif
 
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
@@ -221,6 +226,17 @@ $(eval $(call rom_rule,release,$(RELEASE),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)
 # build/game-unlocked.gb: the playtest build with the debug menu always unlocked (for a flash cart); build/game.gb is untouched
 UNLOCKED := $(BUILD)/$(NAME)-unlocked.gb
 unlocked: $(UNLOCKED)
+
+# The three looks of the bosses' capacity indicator as debug builds for review (and tests/test_boss_cap_ui.py): out/test_roms/spigoteer-bosscap<n>-unlocked.gb
+# with its .noi beside it. Each is `make unlocked BOSS_CAP_UI=n` (the flags stamp rebuilds the unlocked ROM for each).
+.PHONY: bosscap
+bosscap:
+	mkdir -p $(OUT)/test_roms
+	for n in 1 2 3; do \
+	  $(MAKE) unlocked BOSS_CAP_UI=$$n || exit 1; \
+	  cp $(UNLOCKED) $(OUT)/test_roms/spigoteer-bosscap$$n-unlocked.gb; \
+	  cp $(BUILD)/$(NAME)-unlocked.noi $(OUT)/test_roms/spigoteer-bosscap$$n-unlocked.noi; \
+	done
 $(eval $(call rom_rule,$(NAME)-unlocked,$(UNLOCKED),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -DDEBUG_MENU -DDEBUG_UNLOCKED,@true))
 
 # build/game-c.gb: the same ROM as build/game.gb with every asm candidate built from its C version (-DASM_PASS=0, src/asm_cfg.h).

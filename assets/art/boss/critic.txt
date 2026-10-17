@@ -1,3 +1,5 @@
+; GULP (owner 2026-10-17, the mug matches the drink served): the mug is NOT drawn in this pose; src/boss.c draws the served venue drink's own
+; mug (a sprite, OAM 29) over the hand column (x width - 8, the mug's bottom on body row 12) while he gulps; the arm that holds it is the art's.
 ; Art: approved design (the owner, 2026-10-11: the Food Critic, look 2 the gourmand, round 5 beret 4 two-tone, monocle chain). Built: src/boss_critic.c.
 ; ROUND 5, BERET 4 'two-tone': a soft dome tipped slightly forward with a small front tip; colour 1 (skin/light
 ;   grey) as a sheen on the crown's back to show the felt's roundness. Topper: 3-px crown top + stalk.
@@ -63,15 +65,15 @@
 @GULP
 .....####-++#####...............
 ...##--+++++++++++###...........
-..#-++++++++++++++++++#..######.
-...##################++#.#++++#.
-...#---------#---#---###.#++++#.
-...#----#----#-#-#---#...#++++#.
-...#---------#---#---#....#++#..
-...#----------###----#.....##...
-....#-----##-----#--#.....####..
-.....###############.....#---#..
-..#######++++++###-#######---#..
+..#-++++++++++++++++++#.........
+...##################++#..####..
+...#---------#---#---###.#----#.
+...#----#----#-#-#---#..#------#
+...#---------#---#---#..#--+---#
+...#----------###----#...#-----#
+....#-----##-----#--#.....#---#.
+.....###############.......#-#..
+..#######++++++###-#####...#-#..
 .#######++++++++#-###########...
 ######.###++++####-######.......
 #+---#--###++############.......
