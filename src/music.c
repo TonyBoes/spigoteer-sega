@@ -55,7 +55,7 @@ static const sfx_step_t s_launch[] = { {1950, 14, -45} };                 // fas
 static const sfx_step_t s_catch[]  = { {1982, 3, 0}, {2004, 8, 0} };      // two high pings
 static const sfx_step_t s_break[]  = { {0x35, 6, 0}, {0x45, 8, 0}, {0x55, 8, 0} };   // noise crash, falling in pitch
 static const sfx_step_t s_serve[]  = { {1798, 3, 0}, {1849, 3, 0}, {1881, 3, 0}, {1923, 8, 0} };   // C5 E5 G5 C6
-static const sfx_step_t s_coin[]   = { {1915, 3, 0}, {1949, 10, 0} };     // B5 then E6
+static const sfx_step_t s_coin[]   = { {1915, 5, 0}, {1949, 10, 0} };     // B5 then E6 a fourth up, the "ba-ding": the second note 5 frames after the first (it was 3: too close to hear as two)
 static const sfx_step_t s_life[]   = { {1714, 8, 0}, {1650, 8, 0}, {1547, 16, -6} };   // G4 E4 C4, sagging
 static const sfx_step_t s_shake[]  = { {0x2B, 2, 0}, {0x3B, 2, 0}, {0x2B, 2, 0}, {0x3B, 2, 0} };   // noise rattle
 // extra life (owner request): a bright C-major fanfare above the serve's arpeggio, ending in a G6 / C7 shimmer that

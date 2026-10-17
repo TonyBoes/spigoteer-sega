@@ -136,7 +136,7 @@ def test_the_harmony_plays_on_channel_1_between_effects(sgb):
     assert nr12 <= {e for _, e in inst} | {0x08}, f"only the harmony's envelopes or a silent rest (0x08): {nr12}"
 
 
-@pytest.mark.parametrize("sfx,duty,env,frames", [(SFX_COIN, 0x80, 0xC1, 13), (SFX_EXTRA, 0x40, 0xD2, 33)])
+@pytest.mark.parametrize("sfx,duty,env,frames", [(SFX_COIN, 0x80, 0xC1, 15), (SFX_EXTRA, 0x40, 0xD2, 33)])
 def test_the_harmony_steps_aside_for_an_effect_and_comes_back(sgb, sfx, duty, env, frames):
     """While the effect sounds, every frame channel 1 holds the effect's duty and envelope (the music writes nothing:
     the effect is not cut); then the harmony comes back on its own instrument.  The DAC is never switched off (NR12 is
@@ -164,7 +164,7 @@ def test_the_harmony_steps_aside_for_an_effect_and_comes_back(sgb, sfx, duty, en
 def test_effects_on_channel_1_are_never_cut_by_the_harmony(sgb):
     """Two effects in a row and an extra life during a harmony note: each runs its whole length on its own registers."""
     playing_harmony(sgb)
-    for sfx, env, frames in ((SFX_COIN, 0xC1, 13), (SFX_EXTRA, 0xD2, 33), (SFX_COIN, 0xC1, 13)):
+    for sfx, env, frames in ((SFX_COIN, 0xC1, 15), (SFX_EXTRA, 0xD2, 33), (SFX_COIN, 0xC1, 15)):
         request(sgb, sfx)
         sgb.run(1)
         for _ in range(frames - 1):
