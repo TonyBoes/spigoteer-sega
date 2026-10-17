@@ -188,6 +188,7 @@ void trans_reveal(void) BANKED {
     if (overlay_on) SHOW_WIN; else HIDE_WIN;
     if (lcdc & LCDCF_OBJON) SHOW_SPRITES;
     volume(7);
+    dust_load();                                                 // (the drink borrowed BG ids 248-251, the story bar-change puff's OBJ tiles 248-251 too: its own again)
     if (in_milkrun()) {
         CRITICAL { remove_LCD(lcd_isr); add_LCD(mr_lcd_isr); }
         SCX_REG = 0;
