@@ -47,9 +47,9 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 // K_*, TM_*: game.h.
 #define MENU_MAX        4
 #define MENU_ROW(n)   (10 - (n))
-#define HARD_ROW        5       // the difficulty prompt: its lines on rows 5, 7, 9 and ONE caption on row 12 (rows 10-11 blank: the block, rows 5-12, is centred in rows 4-13)
-#define CAP_ROW        12
-#define HARD_STEP       2
+#define HARD_ROW        6       // the difficulty prompt: its lines on rows 6, 7, 8 and ONE caption on row 11 (rows 9-10 blank: the block, rows 6-11, is centred in rows 4-13)
+#define CAP_ROW        11
+#define HARD_STEP       1
 #define MENU_FIRST_ROW  5       // the rows a menu can use: 5..12
 #define MENU_LAST_ROW  12
 #define MENU_COPIES_PER_FRAME 2 // a submenu's redraw: 20-byte rows (tiles or CGB attributes) queued per frame

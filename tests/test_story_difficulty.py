@@ -95,8 +95,8 @@ def test_a_new_story_asks_how_hard_with_the_cursor_on_normal_and_b_backs_out(mod
 
 
 WORDS = {"easy": "EASY", "normal": "NORMAL", "hard": "HARD", "cap_easy": "HALF POINTS", "cap_normal": "NORMAL POINTS", "cap_hard": "EXTRA POINTS"}
-ROWS = {"easy": 5, "normal": 7, "hard": 9}
-CAP_ROW = 12
+ROWS = {"easy": 6, "normal": 7, "hard": 8}
+CAP_ROW = 11
 CAP_OF = {K_EASY: "cap_easy", K_NORMAL: "cap_normal", K_HARD: "cap_hard"}
 
 
@@ -117,7 +117,7 @@ def check_caption(rom):
     rows = prompt_rows(rom)
     e = t[CAP_OF[sel]]
     assert rows[CAP_ROW][e["col"]:e["col"] + len(e["tiles"])] == e["tiles"], ("caption of", sel)
-    assert ink_rows(rom) == [5, 7, 9, CAP_ROW], "only one caption row has ink"
+    assert ink_rows(rom) == [6, 7, 8, CAP_ROW], "only one caption row has ink"
     for k, r in ROWS.items():
         e = t[k]
         assert rows[r][e["col"]:e["col"] + len(e["tiles"])] == e["tiles"], (r, k)
@@ -139,7 +139,7 @@ def test_the_prompt_has_no_header_and_one_caption_line_that_follows_the_cursor(m
             check_caption(rom)
         assert len({tuple(t["text"][k]["tiles"]) for k in CAP_OF.values()}) == 3
         rows = prompt_rows(rom)
-        for r in (4, 6, 8, 10, 11, 13):
+        for r in (4, 5, 9, 10, 12, 13):
             assert len(set(rows[r])) == 1, ("blank row", r)
         assert CAP_ROW - ROWS["hard"] >= 3, "two or more blank rows between HARD and the caption"
 
@@ -153,7 +153,7 @@ def test_the_prompt_lines_are_centred_within_half_a_tile(model):
         last_ink = first_ink + 8 * len(w) - 2           # (8 px a glyph, 1 px shadow inside the cell)
         assert abs((first_ink + last_ink) / 2 - 80) <= 4, (k, first_ink, last_ink)
         assert abs(e["col"] * 8 + len(e["tiles"]) * 4 - 80) <= 0.5, (k, "tiles centred on the grid")
-    # the block: rows 5..12, centred in the rows between the logo and the scene (4..13)
+    # the block: rows 6..11, centred in the rows between the logo and the scene (4..13)
     assert (min(ROWS.values()) - 4) == (13 - CAP_ROW)
 
 
