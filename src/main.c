@@ -448,6 +448,7 @@ static void play_frame(uint8_t pressed) {
     SEC(SEC_PATRONS);
 }
 
+
 static void update(void) {
     uint8_t pressed;
 
@@ -458,6 +459,10 @@ static void update(void) {
 
     joy_prev = joy;
     joy = joypad();
+#ifdef AUTO_TRANS                       // test-only ROM (tests/test_fade_hw.py, never in a release): A tapped every 16 frames walks title -> STORY -> NORMAL -> the scenes
+    joy = 0;                                     // (AUTO_TRANS 1: STORY / NORMAL, 2: ARCADE; the frames count from boot, the menu is up from about 90)
+    if (game_state == GS_TITLE && frame_counter >= 96 && (frame_counter & 15) < 2) joy = (AUTO_TRANS == 2 && (frame_counter & 0x10)) ? J_DOWN : J_A;
+#endif
     pressed = joy & ~joy_prev;
     if (joy & J_SELECT) pressed = debug_gesture(pressed);   // SELECT + three START taps: the debug menu (src/debug.c; before the state switch: it may change the state)
 

@@ -131,19 +131,23 @@ static void vol_in(uint8_t f, uint8_t n) { volume(f >= n ? 7 : (uint8_t)((uint16
 #define BW(r, n) r = HRB(n); r = HRB((n) + 1); r = HRB((n) + 2); r = HRB((n) + 3); r = HRB((n) + 4); r = HRB((n) + 5); r = HRB((n) + 6); r = HRB((n) + 7);
 #define BW64(r) BW(r, 0) BW(r, 8) BW(r, 16) BW(r, 24) BW(r, 32) BW(r, 40) BW(r, 48) BW(r, 56)
 
+static uint8_t pal_gap(void) { uint8_t ly = LY_REG; return ly >= 144 && ly <= 152; }   // still room in the VBlank for one more read
+
 static void burst(uint8_t obj) {                             // RES -> BG (0) or OBJ (1) palette RAM, 24 cycles a byte: one VBlank holds it
-    if (obj) { OCPS_REG = 0x80; BW64(OCPD_REG) }
-    else { BCPS_REG = 0x80; BW64(BCPD_REG) }
+    CRITICAL {
+        if (obj) { OCPS_REG = 0x80; BW64(OCPD_REG) }
+        else { BCPS_REG = 0x80; BW64(BCPD_REG) }
+    }
 }
 
-// One frame: wait for a VBlank with room for a burst / a read (lines 144-150; a frame that ran late waits for the next, the music ticking through it),
+// One frame: wait for a VBlank with room for a burst / a read (lines 144-149 for a burst, to 152 for a read; a frame that ran late waits for the next, the music ticking through it),
 // then burst group g (0 BG, 1 OBJ; 2 nothing). Returns the frames it took.
 static uint8_t vframe(uint8_t g) {
     uint8_t f = 0, ly;
     for (;;) {
         vsync(); f++;
         ly = LY_REG;
-        if (ly >= 144 && ly <= 150) break;
+        if (ly >= 144 && ly <= (g < 2 ? 149 : 152)) break;   // (a burst is ~1540 cycles and must be over before line 153 ends: 149 at the latest)
         music_tick();
     }
     if (g < 2) burst(g);
@@ -183,23 +187,26 @@ static uint8_t cstep(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base, uin
     return f;
 }
 
-// The scene's 64 colours into o (stash 0: from palette RAM; 1: from the VRAM bank-1 stash), 16 a VBlank: 4 frames
+// The scene's 64 colours into o (stash 0: from palette RAM; 1: from the VRAM bank-1 stash)
+// Palette RAM and VRAM read 0xFF in mode 3 (a real LCD; PyBoy does not model it). A read loop in C costs 50-100 cycles a byte, so a frame's worth
+// does not fit the VBlank: each frame reads until LY leaves lines 144-152 (pal_gap) and the next frame goes on from where it stopped.
 static uint8_t pal_in(uint8_t *o, uint8_t stash, uint8_t n, uint8_t rise) {
-    uint8_t q, c, i, f = 0;
-    for (q = 0; q < 4; q++) {
+    uint8_t c = 0, i, f = 0;
+    while (c < (stash ? 128 : 64)) {
         f += vframe(2);
         if (stash) {
             CRITICAL {
                 VBK_REG = VBK_BANK_1;
-                for (i = 0; i < 32; i++) o[q * 32 + i] = STASH[q * 32 + i];
+                do { o[c] = STASH[c]; c++; } while (c < 128 && pal_gap());
                 VBK_REG = VBK_BANK_0;
             }
         } else {
-            for (c = q * 16; c < q * 16 + 16; c++) {
+            do {
                 i = (c & 31) << 1;
                 if (c < 32) { BCPS_REG = i; o[c << 1] = BCPD_REG; BCPS_REG = i | 1; o[(c << 1) | 1] = BCPD_REG; }
                 else { OCPS_REG = i; o[c << 1] = OCPD_REG; OCPS_REG = i | 1; o[(c << 1) | 1] = OCPD_REG; }
-            }
+                c++;
+            } while (c < 64 && pal_gap());
         }
         fa_tail(f, n, rise);
     }
