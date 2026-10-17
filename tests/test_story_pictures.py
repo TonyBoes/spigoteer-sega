@@ -471,7 +471,7 @@ def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
             prev = now
         gb.run(6)
         assert not any(e["y"] for e in pieces_oam(gb)), "every piece has left the screen"
-        assert max(logic_end) < 100, f"the frame's logic ends on line {max(logic_end)}: inside the frame (VBlank is 144)"
+        assert max(logic_end) < 106, f"the frame's logic ends on line {max(logic_end)}: inside the frame (VBlank is 144)"   # 102 on DMG with the name plates + the sparks (was < 100)
         assert gb.mem16("vq_late") == 0 and gb.mem("vq_end_ly_max") <= 153
         assert 0 < gb.mem("drain_ticks_max") <= 13, gb.mem("drain_ticks_max")
         assert 30 <= end <= 70, end
