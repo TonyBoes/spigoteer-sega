@@ -143,7 +143,7 @@ def test_the_mode_outlasts_a_game_and_the_title_and_reaches_the_game(model):
             assert gb.mem("ml_sel") == 0
         goto_mode(gb, EASY)
         gb.press("b", 2)
-        mc.title_ok(gb, TM_BONUS, 1)
+        mc.title_ok(gb, TM_BONUS, 2)
         menu_tap(gb, "a")
         mc.list_ok(gb, 0)
         assert header(gb) == "MINI GAMES  EASY"
@@ -191,7 +191,7 @@ def test_story_always_plays_normal_and_records_a_normal_medal(model):
     with ml.to_list(booted(model)) as gb:
         goto_mode(gb, HARD)
         gb.press("b", 2)
-        mc.title_ok(gb, TM_BONUS, 1)
+        mc.title_ok(gb, TM_BONUS, 2)
         mg_enter(gb, 0, MG_STORY)
         assert gb.mem("mg_mode") == MG_STORY
         gb.write(gb.addr("story_scratch") + 2, 3)

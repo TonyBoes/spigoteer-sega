@@ -74,6 +74,7 @@ extern uint8_t music_fast;      // 1: venue tunes play one frame a row faster (a
 void music_init(void) BANKED;               // sound hardware on, no tune
 void music_play(uint8_t tune) BANKED;       // start a tune (a looping tune already playing is left alone). A tune whose patterns
                                             // are not in WRAM yet starts a few frames later (music_tick copies them first)
+uint16_t music_tune_frames(uint8_t tune) BANKED;   // one pass of the tune, in frames (orders x 64 rows x its tempo)
 void music_stop(void) BANKED;
 void music_set_on(uint8_t on) BANKED;       // sound_on, then start/stop the current tune accordingly
 void music_tick(void) BANKED;               // once per frame, after the VBlank queue drain

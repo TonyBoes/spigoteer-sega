@@ -86,10 +86,10 @@ def test_bonus_is_always_on_the_menu(boot):
         assert menu_items(rom) == [K_PLAY, K_BONUS, K_SETTINGS], "the same with a story save"
         title_pick(rom, K_BONUS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH, K_CREDITS] and tilemap_row(rom, 6, 0, 20) == title_text_row("soundtrack")
-        assert tilemap_row(rom, 8, 0, 20) == title_text_row("minigames"), "MINI GAMES second (tests/test_mg_list.py)"
-        assert tilemap_row(rom, 10, 0, 20) == title_text_row("bossrush"), "BOSS RUSH third (tests/test_rush.py)"
-        assert tilemap_row(rom, 12, 0, 20) == title_text_row("credits"), "CREDITS fourth (tests/test_credits.py)"
+        assert menu_items(rom) == [K_CREDITS, K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH] and tilemap_row(rom, 6, 0, 20) == title_text_row("credits") and tilemap_row(rom, 8, 0, 20) == title_text_row("soundtrack")
+        assert tilemap_row(rom, 10, 0, 20) == title_text_row("minigames"), "MINI GAMES third (tests/test_mg_list.py)"
+        assert tilemap_row(rom, 12, 0, 20) == title_text_row("bossrush"), "BOSS RUSH fourth (tests/test_rush.py)"
+        assert tilemap_row(rom, 6, 0, 20) == title_text_row("credits"), "CREDITS first (tests/test_credits.py)"
 
 
 def test_soundtrack_opens_the_player_and_b_comes_back_to_bonus(boot):
@@ -98,9 +98,9 @@ def test_soundtrack_opens_the_player_and_b_comes_back_to_bonus(boot):
     tap(boot, "b")                                            # (nothing playing: back to the title)
     run_until(boot, lambda: state(boot) == TITLE, 30)
     boot.run(MENU_SETTLE)
-    assert boot.mem("title_menu") == TM_BONUS and menu_items(boot) == [K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH, K_CREDITS]
-    assert boot.mem("title_sel") == 0
-    assert tilemap_row(boot, 6, 0, 20) == title_text_row("soundtrack"), "the BONUS submenu, where it was opened"
+    assert boot.mem("title_menu") == TM_BONUS and menu_items(boot) == [K_CREDITS, K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH]
+    assert boot.mem("title_sel") == 1
+    assert tilemap_row(boot, 8, 0, 20) == title_text_row("soundtrack"), "the BONUS submenu, where it was opened"
     tap(boot, "b")
     boot.run(MENU_SETTLE)
     assert boot.mem("title_menu") == TM_TOP and boot.mem("title_sel") == 1, "then the top level, on BONUS"

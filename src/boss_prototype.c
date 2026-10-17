@@ -39,6 +39,7 @@
 #include "boss.h"
 #include "boss_prototype_art.h"
 #include "boss_load.h"
+BOSS_CAST_FN(boss_prototype_cast)   // the credits' cast card (src/credits.c)
 #include "music.h"
 
 #define BP_RED        BP_EXTRA           // gen_boss BOSSES prototype extra: RED

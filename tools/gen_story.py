@@ -1609,6 +1609,18 @@ def main():
           f"    for (i = 0; i < {MAX_OBJ * 4}; i++) dst->obj[i] = e[i];",
           "    music_pump();",
           "}", "",
+          "// the credits' cast cards (LCD on, the tune ticked between the calls: portrait_get's copies take over a frame and pump the timer): part 0 of the struct",
+          "// (its 9 header bytes and the 49 map bytes), 1 the attributes, 2 the three BG palettes",
+          "void portrait_part(uint8_t spk, uint8_t part, portrait_t *dst) BANKED {",
+          "    const uint8_t *h, *e; const uint16_t *p, *o;",
+          "    uint8_t i, *d = (uint8_t *)dst;",
+          "    switch (spk) {"] + sel + [
+          "    default: dst->w = 0; return;",
+          "    }",
+          "    if (part == 0) for (i = 0; i < 9 + 49; i++) d[i] = h[i];",
+          "    else if (part == 1) for (i = 0; i < 49; i++) dst->attr[i] = h[9 + 49 + i];",
+          "    else for (i = 0; i < 12; i++) dst->pal[i] = p[i];",
+          "}", "",
           "// LCD off: its BG tiles at bg_first.., its overlay tiles at OBJ obj_first..",
           "void portrait_tiles_load(uint8_t spk, uint8_t bg_first, uint8_t obj_first) BANKED {",
           "    const uint8_t *t, *ot;",
@@ -1627,6 +1639,14 @@ def main():
           "    }",
           "    t += (uint16_t)first * 16;",
           "    for (i = 0; i < (uint16_t)n * 16; i++) dst[i] = t[i];",
+          "}", "",
+          "// BG tile `tile` of portrait spk straight to VRAM tile `to` (the credits' cast cards on a CGB: a tile at a time, no WRAM copy: a byte loop in C is ~70 cycles a byte)",
+          "void portrait_tile_set(uint8_t spk, uint8_t tile, uint8_t to) BANKED {",
+          "    const uint8_t *t, *ot;",
+          "    switch (spk) {"] + selt + [
+          "    default: return;",
+          "    }",
+          "    set_bkg_data(to, 1, t + ((uint16_t)tile << 4));",
           "}", ""]
     nt = [len(ports[i]["tiles"]) if i in ports else 0 for i in range(npid)]
     no = [len(ports[i]["obj_tiles"]) * 2 if i in ports else 0 for i in range(npid)]
@@ -1711,7 +1731,9 @@ def main():
           "void story_burst_crackle(uint8_t t) BANKED;   // after the explosion: the sparks (one frame; t unused) (each frame, while INTRO A shows)",
           "uint8_t story_burst_step(uint8_t t, uint8_t ev) BANKED;  // frame t of their flight into shadow_OAM (+ up to ev trail map writes); 1 when done",
           "void portrait_tile_copy(uint8_t spk, uint8_t first, uint8_t n, uint8_t *dst) BANKED;   // BG tiles into WRAM",
+          "void portrait_tile_set(uint8_t spk, uint8_t tile, uint8_t to) BANKED;   // one BG tile straight to VRAM tile `to` (the credits' cast)",
           "void portrait_get(uint8_t spk, portrait_t *dst) BANKED;",
+          "void portrait_part(uint8_t spk, uint8_t part, portrait_t *dst) BANKED;   // the credits' cast: 0 header and map, 1 attributes, 2 palettes (no timer pump inside)",
           "void portrait_tiles_load(uint8_t spk, uint8_t bg_first, uint8_t obj_first) BANKED;",
           "#endif", ""]
     (outdir / "story.h").write_text("\n".join(H))

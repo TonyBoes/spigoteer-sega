@@ -41,6 +41,7 @@
 #include "boss.h"
 #include "boss_mothership_art.h"
 #include "boss_load.h"
+BOSS_CAST_FN(boss_mothership_cast)   // the credits' cast card (src/credits.c)
 #include "music.h"
 
 extern uint8_t cur_group;

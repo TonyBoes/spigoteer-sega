@@ -180,10 +180,10 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_CLASSIC;
         break;
     case TM_BONUS:    // the soundtrack (its songs unlock as the story is played: save.c); the mini-games (Practice);
+        title_items[title_n++] = K_CREDITS;      // the credits roll (src/credits.c; owner 2026-10-17: on top; it is always unlocked)
         title_items[title_n++] = K_SOUNDTRACK;   // the boss rush (src/rush.c)
         title_items[title_n++] = K_MINIGAMES;
         title_items[title_n++] = K_BOSSRUSH;
-        title_items[title_n++] = K_CREDITS;      // the credits roll (src/credits.c)
         break;
     case TM_ERASE:    // SETTINGS > ERASE DATA: "ERASE ALL DATA" (a label: the cursor skips it), NO, YES; the cursor starts on NO
         title_items[title_n++] = K_ERASEQ;
@@ -546,7 +546,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_NORMAL: story_begin(DIFF_NORMAL << 1); return 0;
         case K_HARD: story_begin(DIFF_HARD << 1); return 0;
         case K_CONTINUE: story_begin(1); return 0;
-        case K_SOUNDTRACK: title_back = TM_BONUS; jukebox_enter(); return 0;   // (B there comes back to BONUS)
+        case K_SOUNDTRACK: title_back = TM_BONUS; title_back_sel = 1; jukebox_enter(); return 0;   // (B there comes back to BONUS, on SOUNDTRACK)
         case K_MINIGAMES: mg_list_enter(); return 0;                           // (its B: BONUS, on MINI GAMES)
         case K_CREDITS: credits_enter(0); return 0;                            // (its end / B: BONUS, on CREDITS)
         case K_BOSSRUSH: rush_enter(); return 0;                               // (its B: BONUS, on BOSS RUSH)

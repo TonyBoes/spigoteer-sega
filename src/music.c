@@ -200,6 +200,8 @@ void music_play(uint8_t tune) BANKED {
     start_song(tune);
 }
 
+uint16_t music_tune_frames(uint8_t tune) BANKED { return tunes[tune].frames; }   // the credits roll's timeline is a share of this
+
 void music_stop(void) BANKED {
     cur_tune = TUNE_NONE;
     silence_music();

@@ -160,7 +160,7 @@ static uint8_t vframe(uint8_t g) {
 
 // the frame's volume and music, after its VBlank work
 static void fa_tail(uint8_t f, uint8_t n, uint8_t rise) {
-    if (rise) vol_in(f, n); else vol_out(f, n);
+    if (rise < 2) { if (rise) vol_in(f, n); else vol_out(f, n); }   // (rise 2: the tune's volume is left alone: the credits' cast cards)
     if (game_state != GS_PAUSED || NR51_REG) music_tick();   // (a pause with the tune standing still, NR51 0: no tick, as main.c)
 }
 
@@ -461,4 +461,97 @@ void trans_reveal(void) BANKED {
         CRITICAL { remove_LCD(lcd_isr); add_LCD(mr_lcd_isr); }
         SCX_REG = 0;
     }
+}
+
+// ---- the credits' cast cards (src/credits.c): the picture fades to the band colour and back, the tune playing on (rise 2: no volume) -------------------
+// Same machinery as the white fades: palette RAM is written only by the unrolled bursts in the VBlank (vframe), a step is computed in the active part
+// of the frame. The caller keeps the card's colours in RAM (o) and never writes palette RAM itself, so the card can be built behind the faded screen.
+//   CGB: o = the 128 bytes of palette RAM, BG then OBJ. DMG: o[0..2] = BGP, OBP0, OBP1, stepped shade by shade toward black (the band's shade).
+#define CAST_DMG   3                              // frames a DMG step takes
+static const uint8_t k_co[4] = { 5, 3, 1, 0 };    // out: eighths of the card's colour kept (0: flat band)
+static const uint8_t k_ci[4] = { 1, 3, 5, 8 };    // in, then the card's colours exactly (k 8)
+
+static uint8_t ddark(uint8_t p, uint8_t k) {      // a DMG palette k shades darker
+    uint8_t r = 0, i, s;
+    for (i = 0; i < 8; i += 2) {
+        s = ((p >> i) & 3) + k;
+        r |= (s > 3 ? 3 : s) << i;
+    }
+    return r;
+}
+
+// The tune keeps its time through a fade, frame for frame: the main loop ticks at line 18 of every frame, and so does the fade (once a frame, inside
+// the long compute; the tick of the frame the call began in first, and the next frame's left to the loop when it ends), so there is no stall when it
+// begins and no bunched tick when it ends (a tick at the VBlank instead was ~1.9 frames after the loop's, then ~0.1 before it: an audible hitch a card).
+#define TICK_LY 18
+#define COL_WHITE 0x7FFF
+static void group_t(const uint8_t *o, uint8_t k, uint8_t tick, uint8_t skip6) {   // group(): the 32 colours (most of a frame) toward white, the frame's tick at line 18 inside it
+    uint8_t i, a = k & 4, b = k & 2, c = k & 1;
+    uint16_t kk = COL_WHITE - part(COL_WHITE, k), w, r;
+    uint16_t *q = (uint16_t *)RES;
+    const uint16_t *p = (const uint16_t *)o;
+    for (i = 0; i < 32; i++) {
+        if (tick && (i & 1) && LY_REG >= TICK_LY && LY_REG < 100) { music_tick(); tick = 0; }
+        w = *p++;
+        if (k == 8 || (skip6 && (i >> 2) == 6)) r = w;                 // (skip6: BG palette 6, the cast cards' header, is left as it is)
+        else {
+            r = kk;
+            if (a) r += (w >> 1) & 0x3DEF;
+            if (b) r += (w >> 2) & 0x1CE7;
+            if (c) r += (w >> 3) & 0x0C63;
+        }
+        *q++ = r;
+    }
+}
+
+static void tick18(void) {
+    while (LY_REG >= TICK_LY) ;                                // (from the VBlank: the next frame's line 18)
+    while (LY_REG < TICK_LY) ;
+    music_tick();
+}
+
+static uint8_t dlite(uint8_t p, uint8_t k) {                   // a DMG palette k shades lighter
+    uint8_t r = 0, i, s;
+    for (i = 0; i < 8; i += 2) {
+        s = (p >> i) & 3;
+        r |= (s > k ? s - k : 0) << i;
+    }
+    return r;
+}
+
+uint8_t trans_cast(uint8_t *o, uint8_t in, uint8_t hdr) BANKED {      // in 0: the card's colours to white; 1: from white back. Returns the frames it took
+    uint8_t s, f = 0, fr, k, g;
+    if (LY_REG < TICK_LY) { while (LY_REG < TICK_LY) ; music_tick(); }   // (this frame's tick: the call began before line 18, the loop's would come after us)
+    else music_tick();
+    if (is_cgb) {
+        for (s = 0; s < 4; s++) {
+            if (joypad() & (J_B | J_START)) break;             // (B / START cut a fade short: the caller sees the press)
+            k = in ? k_ci[s] : k_co[s];
+            for (g = 0; g < 2; g++) {
+                group_t(g ? o + 64 : o, k, s || g, !g && !hdr);            // (the first group's frame has had its tick)
+                f += vframe(g);
+            }
+        }
+    } else {
+        for (s = 0; s < 3; s++) {
+            if (joypad() & (J_B | J_START)) break;
+            k = in ? 2 - s : s + 1;
+            for (fr = 0; fr < CAST_DMG; fr++) {
+                vsync(); f++;
+                if (!fr) {
+                    story_scratch[69] = dlite(o[0], k);                // (the card's BGP; the header's too unless it stays: main.c cast_isr)
+                    if (hdr) story_scratch[68] = story_scratch[69];
+                    OBP0_REG = dlite(o[1], k); OBP1_REG = dlite(o[2], k);
+                }
+                if (s < 2 || fr < CAST_DMG - 1) tick18();
+            }
+        }
+    }
+    while (LY_REG >= 8) ;                                      // (back at the top of the next frame, as the loop's own logic: its tick follows at line 18)
+    return f;
+}
+
+void trans_cast_set(uint8_t *o) BANKED {                  // the colours in o to the hardware at once (in the VBlank)
+    if (is_cgb) { group(o, 8, 0, 0); vframe(0); group(o + 64, 8, 0, 0); vframe(1); }
+    else { BGP_REG = o[0]; OBP0_REG = o[1]; OBP1_REG = o[2]; }
 }
