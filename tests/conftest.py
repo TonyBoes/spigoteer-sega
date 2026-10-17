@@ -195,6 +195,8 @@ def title_pick(rom, top, item=None, press=True):
             if item == K_STORY:                   # a new story asks HOW HARD (2026-10-16): the cursor starts on NORMAL, A takes it
                 assert rom.mem("title_menu") == TM_HARD
                 menu_tap(rom, "a")
+                if rom.mem("title_menu") == TM_HARD and rom.mem("game_state") == 0:   # (a 2-frame tap can fall inside a long pass of the title and not be read: once more)
+                    menu_tap(rom, "a")
 
 
 def title_arcade(rom):
