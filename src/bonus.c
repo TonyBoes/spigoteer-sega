@@ -161,12 +161,18 @@ static void shuffle_order(void) {
 
 // One round's state: the pace, the cans, the shake order. Practice (the mini-game framework) plays three levels of it, bonus_round counting
 // them (1..3): each swaps faster (30, 22, 14 frames) and more often (7, 9, 11 swaps). ARCADE / CLASSIC play one round as ever.
+// Practice's three levels per difficulty (indexed by BONUS_DIFF: NORMAL, HARD, EASY): the swaps a level adds to 6 (the first 7, 9, 11 on NORMAL) and the
+// frames a swap takes (30, 22, 14 on NORMAL).
+static const uint8_t shake_n[3][3]   = { { 1, 3, 5 }, { 3, 5, 7 },    { 1, 2, 3 } };
+static const uint8_t shake_dur[3][3] = { { 30, 22, 14 }, { 26, 18, 10 }, { 38, 30, 22 } };
+
 static void setup_round(uint8_t prac, uint8_t classic) {
     uint8_t i, n;
     bonus_won = 0; bonus_moving = 0; bonus_swaps_done = 0;
-    if (prac) {
-        n = (uint8_t)(2 * bonus_round - 1);
-        bonus_swap_dur = (uint8_t)(38 - 8 * bonus_round);
+    if (prac) {                                                 // (the difficulty's table, TUNING.md: bonus_round 1..3; game_state is not GS_MINI yet: mg_mode is the round's)
+        i = (mg_mode >> 1) & 3;
+        n = shake_n[i][bonus_round - 1];
+        bonus_swap_dur = shake_dur[i][bonus_round - 1];
     } else if (classic) {                                       // P5: faster every round: 30, 28, ... 14 frames a swap,
         n = bonus_round < 9 ? bonus_round : 9;                  // a swap more each time (7 .. 15)
         bonus_swap_dur = 32 - 2 * n;

@@ -5,6 +5,8 @@
 #include <gb/gb.h>
 #include <stdint.h>
 
+extern uint8_t mg_mode, game_state;   // (src/mg.c, src/main.c) the difficulty of a Practice round: mg.h MG_DIFF (0 NORMAL, 1 HARD, 2 EASY); ARCADE / CLASSIC always play NORMAL
+#define BONUS_DIFF()  (game_state == 13 ? ((mg_mode >> 1) & 3) : 0)   // (13 = GS_MINI: inside the mini-game framework, where mg_mode is the round's)
 extern uint8_t bonus_round;        // bonus rounds played so far (1 during the first)
 extern uint8_t bonus_kind;         // M12: this round's game: 0 can shake-up, 1 Perfect Pour, 2 Tip Shower ((bonus_round - 1) % 3)
 extern uint8_t bonus_phase, bonus_timer;   // every round ends in phase 4 (PH_RESULT / PH_END) after ~130 frames
