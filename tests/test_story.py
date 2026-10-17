@@ -9,7 +9,7 @@ import re
 
 import pytest
 from po_helpers import po_win
-from conftest import (clear_regulars, GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROOT, check_golden, hold_stage_anim,
+from conftest import (clear_regulars, GAME, K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, K_STORY, MENU_SETTLE, ROM, ROOT, check_golden, hold_stage_anim,
                       menu_items, menu_tap, title_pick)
 from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, inject_mug, lose_a_life, run_until,
                        settle_title, state, tilemap_row)
@@ -48,7 +48,7 @@ BOX_ROW, TEXT_ROW = 13, 14
 TAP_X = GAME["TAP_X"]
 CHARSET = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?'-: ")
 GAME_ART = {m[0]: int(m[1]) for m in re.findall(r"#define (TILE_\w+) (\d+)", (ROOT / "build" / "art.h").read_text())}
-BANKS = {p[1]: int(p[2], 16) for p in (l.split() for l in (ROOT / "build" / "game.noi").read_text().splitlines())
+BANKS = {p[1]: int(p[2], 16) for p in (l.split() for l in ROM.with_suffix(".noi").read_text().splitlines())
          if len(p) == 3 and p[1].startswith("b_")}
 
 

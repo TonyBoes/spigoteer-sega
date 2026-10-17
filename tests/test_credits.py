@@ -7,7 +7,7 @@ import re
 from contextlib import contextmanager
 
 import pytest
-from conftest import K_BONUS, K_CREDITS, MENU_SETTLE, ROOT, TM_BONUS, check_golden, hold_stage_anim, menu_items, menu_tap, menu_to, title_pick
+from conftest import K_BONUS, K_CREDITS, MENU_SETTLE, ROM, ROOT, TM_BONUS, check_golden, hold_stage_anim, menu_items, menu_tap, menu_to, title_pick
 from gbtools import Rom
 from test_flow import GS_INITIALS, GS_SCORES, GS_STORY, TITLE, most_per_scanline, run_until, state, tilemap_row
 from test_mg import GLYPH_CH
@@ -126,7 +126,7 @@ def set_t(gb, v):                                              # (sound off: the
 
 @contextmanager
 def roll_from_bonus(model, sound=True):
-    with Rom(ROOT / "build" / "game.gb", model) as gb:
+    with Rom(ROM, model) as gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)
@@ -185,7 +185,7 @@ def lines_on_screen(gb):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_credits_is_the_fourth_bonus_item_and_opens_the_roll(model):
-    with Rom(ROOT / "build" / "game.gb", model) as gb:
+    with Rom(ROM, model) as gb:
         gb.run(120)
         title_pick(gb, K_BONUS)
         gb.run(MENU_SETTLE)
@@ -200,7 +200,7 @@ def test_credits_is_the_fourth_bonus_item_and_opens_the_roll(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_choosing_credits_in_bonus_starts_the_credits_tune_at_once(model):
-    with Rom(ROOT / "build" / "game.gb", model) as gb:
+    with Rom(ROM, model) as gb:
         gb.run(120)
         title_pick(gb, K_BONUS)
         gb.run(MENU_SETTLE)
@@ -897,7 +897,7 @@ def test_no_music_tick_is_lost_through_the_fades_and_the_tune_ends_on_wall_time(
     """The real-time stamps of the music's ticks (tests/tick_helpers.py): no interval over 1.6 frames (a stall) from the tune's start to its last
     tick, and the tune's span is its length (one tick a frame) within 2 frames: the fades and the LCD-off builds of the 33 cards cost it nothing."""
     from tick_helpers import FRAME, LATE, tick_log
-    with Rom(ROOT / "build" / "game.gb", model) as gb:
+    with Rom(ROM, model) as gb:
         gb.run(120)
         gb.model_name = model
         hold_stage_anim(gb)

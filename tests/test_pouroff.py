@@ -9,7 +9,7 @@
 import json
 
 import pytest
-from conftest import GAME, ROOT, check_golden, hold_stage_anim, venue
+from conftest import GAME, ROM, ROOT, check_golden, hold_stage_anim, venue
 from po_helpers import (BT_CATCH, BT_FAIL, BT_FILL, BT_IDLE, BT_SLIDE, DREGS_X, MG_POUROFF, MUGS, PD_FILL, PD_IDLE, PD_SLIDE,
                         PD_THINK, PD_WAIT, PM_BREAK, PM_EMPTY, PM_FREE, PM_FULL, PM_HELD, PR_DREGS, PR_LIVES, PR_PLAY, PR_WIN,
                         PS_DRINKING, PS_EMPTY, PS_THIRSTY, PT_AHEAD, PT_COMIC, PT_REACT, PT_SLIP, PT_THINK0, PT_THINK15,
@@ -250,7 +250,7 @@ def test_the_crowd_is_three_looks_loaded_per_variant_from_their_groups(pour):
 
 def test_the_state_fits_the_mini_game_union():
     assert STATE_SIZE <= 520, STATE_SIZE                    # STORY_SCRATCH; nothing of the Pour-Off is a WRAM global of its own
-    wram = (ROOT / "build" / "game.noi").read_text()
+    wram = ROM.with_suffix(".noi").read_text()
     assert " _po_" not in wram.replace("_po_enter", "").replace("_po_update", "")
 
 

@@ -198,7 +198,7 @@ harmony("entertainer", _t, H.follow(_t, (1, 32), "C3", "B4", grid=1, merge=False
 # Show: "Galop infernal" (Jacques Offenbach, Orphee aux enfers, 1858, the can-can), the owner's spec (docs/music_specs.md
 # tune 10): key D, 2/4, quarter = 160 -> 11 frames per eighth row (163.6 bpm).  16 bars = 64 rows = one 64-row pattern per
 # channel (buffer B holds 2 patterns), a pass is 704 frames (11.7 s).  The quarter notes of bars 3, 5, 11 and 13 are
-# detached ('!').  Bass: oom-pah, root then fifth (bar 15 = D then A7).  Drums: a groove, kick / hat / snare / hat.
+# detached ('!').  Bass, harmony, drums: the arrangement below the melody (it replaced the oom-pah, the stabs and the groove).
 # Confirmed (music step 4, 2026-10-12) by the owner-supplied transcription of the chorus statement in the vocal score
 # "Orpheus in der Unterwelt" (IMSLP #26815, plate 10779; G major there, a fifth up here): every note and rhythm.  Seamless
 # loop: the spec's last bar D5:2 R:2 left a hole before bar 1's D5; its rest is an A4 pickup, which is exactly the score's
@@ -210,11 +210,66 @@ GAL = ["D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
        "D5:4", "E5:1 G5:1 F#5:1 E5:1", "A5:2! A5:2!", "A5:1 B5:1 F#5:1 G5:1",
        "E5:2! E5:2!", "E5:1 G5:1 F#5:1 E5:1", "D5:1 A5:1 E5:1 F#5:1", "D5:2 A4:2"]
 GAL_CHORDS = ["D", "A7", "D", "D", "A7", "A7", "D", "A7", "D", "A7", "D", "D", "A7", "A7", "D/A7", "D"]
-song("galop", 11, "B", " ".join(GAL), oompah(GAL_CHORDS, 4), groove="K:1 H:1 S:1 H:1")
-# Harmony (music step 5): light off-beat stabs, the can-can's "pah" between the bass's beats: a chord tone (D or A7)
-# under the melody on every second eighth, short and dry (the 25% "stab").
+# The arrangement (owner-approved 2026-10-17, the "v2" audition of tools/promusic.py on branch promusic): the melody is GAL as
+# above, on the brass lead (gen_music instrument 8: a 50 % -> 25 % duty attack and a delayed vibrato, from its table); the
+# stabbed quarters are plain detached notes on it.  The bass (wave instrument 3: the full-amplitude wave, plucked 100/50/25 % by
+# its table) walks under the held and stabbed bars and oom-pahs, with a two-note lead into the next chord, under the running ones.
+# The harmony (channel 1, the "voice" 50 % pulse) is a counter-melody a third or a sixth under the running melody in its own
+# rhythm, so that the pause mix's bass is joined by a line that still sounds like the can-can in the full mix.  The drums are a
+# channel-4 pattern (the 192 B pattern of buffer B): kick, closed hat, snare, closed hat each bar; an open hat closes bar 8 and
+# a snare double closes bar 16 into the loop (gen_music: b kick, t closed hat, n snare, o open hat).  v1's arpeggio chord stabs
+# are not used; gen_music's "ARPEGGIO CHORD STABS" note says how to bring them back for another song.
+
+
+def _gal_lead(tok):
+    if tok.startswith("r:"):
+        return tok
+    return tok.rstrip("!") + "/8" + ("!" if tok.endswith("!") else "")
+
+
+GAL_MEL = " ".join(_gal_lead(t) for b in GAL for t in b.split())
+GAL_BASS_BARS = [
+    "D3:1 F#3:1 A3:1 F#3:1",     # 1  D held: walk up the chord and back
+    "A2:2 E3:2",                 # 2  A7 run: oom-pah
+    "D3:1 F#3:1 A3:1 A2:1",      # 3  D stabs: walk, the octave A lands on the next bar's D
+    "D3:2 C#3:1 B2:1",           # 4  D run: oom, then C# B stepping down into A7
+    "A2:1 C#3:1 E3:1 G3:1",      # 5  A7 stabs: the seventh chord, walking up
+    "A2:2 E3:2",                 # 6  A7 run
+    "D3:2 A2:2",                 # 7  D run (the melody's leap to D6)
+    "A2:2 E3:1 C#3:1",           # 8  A7 run: E C# leading into bar 9's D
+    "D3:1 F#3:1 A3:1 F#3:1",     # 9
+    "A2:2 E3:2",                 # 10
+    "D3:1 F#3:1 A3:1 A2:1",      # 11
+    "D3:2 C#3:1 B2:1",           # 12
+    "A2:1 C#3:1 E3:1 G3:1",      # 13
+    "A2:2 E3:2",                 # 14
+    "D3:1 F#3:1 A2:1 C#3:1",     # 15 D then A7: a half bar each
+    "D3:2 A2:2",                 # 16 D, the A4 pickup over the fifth
+]
+GAL_BASS = " ".join(f"{t}/3" for b in GAL_BASS_BARS for t in b.split())
+GAL_HARM_BARS = [
+    "F#4:2 A4:2",                # 1  under the held D5: third, then fifth
+    "C#5:1 E5:1 D5:1 C#5:1",     # 2  thirds under E G F# E
+    "F#4:2 F#4:2",               # 3  the stabs' lower note (D chord)
+    "F#5:1 G5:1 D5:1 E5:1",      # 4  thirds under A B F# G
+    "C#5:2 C#5:2",               # 5  stabs (A7)
+    "C#5:1 E5:1 D5:1 C#5:1",     # 6
+    "F#4:1 F#5:1 A5:1 G5:1",     # 7  sixth under D5, sixth under D6, thirds under C#6 B5
+    "F#5:1 E5:1 D5:1 C#5:1",     # 8  thirds under A G F# E
+    "F#4:2 A4:2",                # 9
+    "C#5:1 E5:1 D5:1 C#5:1",     # 10
+    "F#4:2 F#4:2",               # 11
+    "F#5:1 G5:1 D5:1 E5:1",      # 12
+    "C#5:2 C#5:2",               # 13
+    "C#5:1 E5:1 D5:1 C#5:1",     # 14
+    "F#4:1 F#5:1 C#5:1 D5:1",    # 15 under D5 A5 (D), E5 F#5 (A7)
+    "A4:2 F#4:2",                # 16 a fourth under D5, a third under the A4 pickup
+]
+GAL_HARM = " ".join(GAL_HARM_BARS)
+GAL_DRUMS = " ".join(["b:1 t:1 n:1 t:1"] * 7 + ["b:1 t:1 n:1 o:1"] + ["b:1 t:1 n:1 t:1"] * 7 + ["b:1 t:1 n:1 n:1"])
+song("galop", 11, "B", GAL_MEL, GAL_BASS, GAL_DRUMS, inst=8)
 _t = H.Tune(" ".join(GAL), GAL_CHORDS, 4, 2, "D")
-harmony("galop", _t, H.stabs(_t, (1, 16), "F#4", "D5", [(1, False), (1, True)] * 2), ("stab", "stab"))
+harmony("galop", _t, GAL_HARM, ("voice", "voice"))
 
 
 # ---------------------------------------------------------------------------------------------

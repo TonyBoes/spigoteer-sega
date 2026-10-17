@@ -52,18 +52,19 @@ def test_the_harmony_does_not_double_the_melody(name):
     assert same <= total_rows(name) // 10, f"{name}: {same} rows in unison with the melody"
 
 
-def test_galops_harmony_is_a_dry_pah_on_every_off_beat_between_the_bass_notes():
-    """Galop infernal (the shows): a one-row chord stab (the 25% "stab") on each second eighth of every bar, i.e. the rows
-    between the oom-pah bass notes (bass on rows 0, 2 of a bar's 4; the stab on 1, 3), D or A7 chord tones under the melody, the
-    whole 16 bars (64 rows)."""
+def test_galops_harmony_is_a_counter_melody_a_third_or_sixth_under_the_melody():
+    """Galop infernal (the shows, the owner's v2 arrangement): the channel-1 harmony is the 50% "voice", a line in the melody's own
+    rhythm under it (thirds and sixths, chord tones under the held and stabbed bars), the whole 16 bars (64 rows), no clash with
+    tools/harmony.py's check, and every note below the melody's note on the same row."""
     assert "galop" in WITH_HARMONY, "the Galop has its harmony"
     t = songs.SONGS["galop"]
-    assert t["ch1_inst"] == ("stab", "stab") and total_rows("galop") == 64
+    assert t["ch1_inst"] == ("voice", "voice") and total_rows("galop") == 64
+    assert H.check(t["harm_tune"], t["ch1"]) == []
+    tune = t["harm_tune"]
     tl = [(s, n, p) for s, n, p in H.timeline(t["ch1"]) if p is not None]
-    assert len(tl) == 32, len(tl)
+    assert len(tl) == 50, len(tl)   # (a repeated stab note ties into one)
     for s, n, p in tl:
-        assert n == 1 and s % 2 == 1, (s, n)
-        assert p % 12 in t["harm_tune"].pcs(s), (s, H.name_of(p))
+        assert p < tune.mel[s] and tune.mel[s] - p in (3, 4, 8, 9, 5, 7, 6, 10, 12, 15, 16), (s, H.name_of(p), H.name_of(tune.mel[s]))
 
 
 def test_harmony_instruments_sit_under_the_melody_and_the_effects():
@@ -74,6 +75,9 @@ def test_harmony_instruments_sit_under_the_melody_and_the_effects():
     assert len(effects) == 7 and min(e >> 4 for e in effects) >= 8, effects
     for k, (duty, env) in gm.HARM_INST.items():
         assert duty in (0x00, 0x40, 0x80), (k, hex(duty))
+        if k in ("voice", "vstab"):   # the show tune's counter-melody voice, and the unused arpeggio-stab voice: volume 6 (a line that carries the pause mix)
+            assert env >> 4 == 6 and not env & 8, (k, hex(env))
+            continue
         if k == "ring50":       # the credits tune's final chord rings (owner's pick of draft D3c): volume 9, a slow decay, under the "ring" lead (12)
             assert env >> 4 == 9 and not env & 8 and env >> 4 < gm.DUTY[6][2] >> 4, hex(env)
             continue

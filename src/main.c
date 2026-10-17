@@ -667,7 +667,7 @@ void main(void) {
         vq_frame_end();      // the copy list is complete: the next VBlank interrupt executes it
         perf_snap(); lt = snap_t; lly = snap_ly;
         // Music and effects, every frame, after the logic (so they cannot delay the game's input-to-state latency).
-        if (game_state != GS_PAUSED || !PAUSE_NR51 || NR51_REG) music_tick();   // (the pause menu: the bass plays on; NR51 0: a tune the game is clocked by stands still, pause.c)
+        if (game_state != GS_PAUSED || !PAUSE_NR51 || NR51_REG) music_tick();   // (the pause menu: the bass and drums play on; NR51 0: a tune the game is clocked by stands still, pause.c)
         SEC(SEC_MUSIC);
         perf_snap();
 #ifdef PERF_SECTIONS

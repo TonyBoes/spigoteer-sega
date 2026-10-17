@@ -7,8 +7,8 @@ import pytest
 from boss_common import (BP_GULP, Clock, BP_HAPPY, BP_WALK, BP_WINCE, BS_GULP, BS_JUMP, BS_TELL, BS_OUTRO, EMPTY, FULL, SP_OUTRO, SPOUT_X,
                          TAP_X, art, Own, assert_body, block_empties, check_start, fight, frames, hud, meter_tiles, mugs,
                          play, pour, row, still_regulars, throw, to_bar, until, arrivals_ok)
-from conftest import clear_regulars, check_golden, venue
-from boss_common import pose_cols
+from conftest import clear_regulars, check_golden, check_golden_game, venue
+from boss_common import pose_cols, until_g, gframes
 from test_flow import tilemap_row, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, run_until, state
 from test_story import banner_text, centred, post, settle
 
@@ -69,11 +69,11 @@ def test_the_fight_follows_the_last_call(model):
         ready(gb)
         check_start(gb, C, A, model)
         throw(gb, B, 72)
-        until(gb, lambda: gb.mem("boss_hits") == 1, 30)
-        until(gb, lambda: mugs(gb, B, EMPTY), 30)
-        frames(gb, 24)
+        until_g(gb, lambda: gb.mem("boss_hits") == 1, 30)
+        until_g(gb, lambda: mugs(gb, B, EMPTY), 30)
+        gframes(gb, 24)
         assert hud(gb) == meter_tiles(11, 12)
-        check_golden(gb, "boss_sasquatch")
+        check_golden_game(gb, "boss_sasquatch")
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

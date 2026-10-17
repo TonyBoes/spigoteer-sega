@@ -7,7 +7,7 @@ import json
 import re
 
 import pytest
-from conftest import ROOT, check_golden, hold_stage_anim, title_level, venue
+from conftest import ROM, ROOT, check_golden, hold_stage_anim, title_level, venue
 from test_bonus import lines
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, patron_group_tiles, run_until, state, tilemap_row
 from test_story import BANKS, SEQ, hud_lives, lives_hud, to_goal, to_shift, win
@@ -70,7 +70,7 @@ def mg_enter(gb, gid, mode, seed=SEED):
             return
         rf = gb.pb.register_file
         sp, pc = rf.SP, rf.PC
-        stub = sp - 600                       # well below anything mg_enter's calls push
+        stub = sp - 360                       # below anything mg_enter's calls push, and inside the stack's free space (WRAM_HI_0 keeps 446 B between .HEAP and .STACK: sp - 600 was inside the music buffer)
         code = [0xF5, 0xC5, 0xD5, 0xE5, 0x3E, mode, 0xF5, 0x33, 0x3E, gid, 0xF5, 0x33, 0x1E, bank, 0x21, f & 0xFF, f >> 8,
                 0xCD, bc & 0xFF, bc >> 8, 0xE1, 0xE1, 0xD1, 0xC1, 0xF1, 0xC9]
         for i, b in enumerate(code):
@@ -392,7 +392,7 @@ def test_the_result_window_layout(model, points):
 
 # ---- mg_say (ROM0) and the bonus rounds on it: their tests and goldens (test_bonus*.py) are unchanged -----------------
 def test_mg_say_is_in_rom0_and_the_bonus_rounds_use_it():
-    noi = {p[1]: int(p[2], 16) for p in (l.split() for l in (ROOT / "build" / "game.noi").read_text().splitlines())
+    noi = {p[1]: int(p[2], 16) for p in (l.split() for l in ROM.with_suffix(".noi").read_text().splitlines())
            if len(p) == 3}
     assert noi["_mg_say"] < 0x4000 and noi["_show_overlay"] < 0x4000
     for f in ("bonus.c", "bonus2.c"):
@@ -404,7 +404,7 @@ def test_the_union_fits_story_scratch():
     """The static assert is in src/mg.h; the buffer it overlays is story.c's backdrop (STORY_PIC_ROWS x 20, twice)."""
     assert "mg_ram_fits_in_story_scratch[(sizeof(union mg_ram) <= STORY_SCRATCH)" in MG_H
     assert re.search(r"#define STORY_SCRATCH 520\b", (ROOT / "src" / "game.h").read_text())
-    noi = {p[1]: int(p[2], 16) for p in (l.split() for l in (ROOT / "build" / "game.noi").read_text().splitlines())
+    noi = {p[1]: int(p[2], 16) for p in (l.split() for l in ROM.with_suffix(".noi").read_text().splitlines())
            if len(p) == 3}
     assert "_bd_map" not in noi and "_story_scratch" in noi
 

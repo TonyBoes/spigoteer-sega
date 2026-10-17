@@ -541,11 +541,11 @@ def test_the_tunes_are_the_specs_token_for_token():
     for name, (bars, chords) in specs.items():
         s = songs.SONGS[name]
         want = " ".join(spec_bars_for_the_game(name, bars)).split()
-        assert [t.rstrip("!") for t in s["ch2"].split()] == want, f"{name}: melody differs from docs/music_specs.md"
+        assert [t.rstrip("!").split("/")[0] for t in s["ch2"].split()] == want, f"{name}: melody differs from docs/music_specs.md"
         per_bar = songs.BAR_ROWS[name]
         for ch in ("ch2", "ch3"):                       # every bar adds up (ties included), melody and bass
             rows = gm.merge_ties(s[ch]).split()
-            assert sum(int(t.split(":")[1].rstrip("!")) for t in rows) == per_bar * len(bars), f"{name} {ch} length"
+            assert sum(int(t.split(":")[1].rstrip("!").split("/")[0]) for t in rows) == per_bar * len(bars), f"{name} {ch} length"
         bpm, rows_per_beat = SPEC_BPM_ROWS[name]
         bpm = songs.GAME_BPM.get(name, bpm)             # the owner-approved game tempo (the spec's where none is listed)
         ideal = 3600 / bpm / rows_per_beat
@@ -559,7 +559,7 @@ def test_the_tunes_are_the_specs_token_for_token():
             assert bass[i].split(":")[0] == songs.CHORD[chord.split("/")[0]][0], f"{name}: chord {chord} vs bass {bass[i]}"
             n = 0
             while n < per_bar:
-                n += int(bass[i].split(":")[1])
+                n += int(bass[i].split(":")[1].split("/")[0])
                 i += 1
             assert n == per_bar
 
@@ -887,8 +887,8 @@ def test_music_mix_balance_bass_and_drums_sit_under_a_quieter_melody():
     import re
     vol = lambda env: env >> 4
     # melody: every pulse instrument at volume <= 8 (it was 10 / 9 / 12 / 9 / 10); the song lead and the lead are 8 or less
-    for n, (sweep, duty, env) in enumerate(gm.DUTY, 1):
-        assert vol(env) <= (12 if n in (3, 4, 7) else 8), (n, hex(env))   # 3 plink and 4 thin are short jingle voices; 7 ring is the credits tune's last chord only
+    for n, (sweep, duty, env, *_) in enumerate(gm.DUTY, 1):
+        assert vol(env) <= (12 if n in (3, 4, 7) else 10 if n == gm.LEAD_PRO else 8), (n, hex(env))   # 3 plink and 4 thin are short jingle voices; 7 ring is the credits tune's last chord only; 8 is the show tune's brass lead (10)
     assert vol(gm.DUTY[4][2]) == 8 and vol(gm.DUTY[0][2]) == 8, "song lead and lead: volume 8"
     # bass: wave output 100% (NR32 0x20), triangle samples scaled to half range so it is not buzzy
     assert gm.WAVE[0][1] == 0x20, "bass at 100% output"

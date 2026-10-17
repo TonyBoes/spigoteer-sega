@@ -47,7 +47,7 @@ BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(B
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
-.PHONY: all test check preview clean assets release dist unlocked
+.PHONY: all test check preview clean assets release dist unlocked cfall
 
 all: $(ROM)
 
@@ -191,7 +191,7 @@ $(HUGE_OBJ): $(BUILD)/hUGEDriver.obj $(HUGE)/tools/rgb2sdas.py
 # on the flags at all, so a changed DEBUGFLAGS/LCCFLAGS reused the old ROM. Now build/obj/<variant>/ holds a private copy of
 # the hUGEDriver object and the lcc temp files (-tempdir), and build/<variant>.flags (rewritten only when the flags change)
 # is a prerequisite of the ROM.
-ROM_DEPS := $(SRC) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
+ROM_DEPS := $(SRC) $(wildcard src/*.h) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
 
 .PHONY: FORCE
 FORCE:
@@ -226,6 +226,12 @@ $(eval $(call rom_rule,release,$(RELEASE),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)
 UNLOCKED := $(BUILD)/$(NAME)-unlocked.gb
 unlocked: $(UNLOCKED)
 $(eval $(call rom_rule,$(NAME)-unlocked,$(UNLOCKED),$(filter-out $(DEBUGFLAGS),$(LCCFLAGS)) -DDEBUG_MENU -DDEBUG_UNLOCKED,@true))
+
+# build/game-c.gb: the same ROM as build/game.gb with every asm candidate built from its C version (-DASM_PASS=0, src/asm_cfg.h).
+# The C is the reference the owner may port; `GB_ROM=build/game-c.gb python3 -m pytest -q tests` runs the whole suite on it.
+CFALL := $(BUILD)/$(NAME)-c.gb
+cfall: $(CFALL)
+$(eval $(call rom_rule,$(NAME)-c,$(CFALL),$(LCCFLAGS) -DASM_PASS=0,@true))
 
 # dist/: the release ROM (rebuilt from the sources; the debug menu ships locked, see DEBUGFLAGS) named by VERSION, its SHA-256,
 # RELEASE.txt, licenses/ and CREDITS.md. Nothing is published (CLAUDE.md rule 5).
