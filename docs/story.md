@@ -25,10 +25,10 @@ The engine checklist was docs/venue10_impact.md.
 ## The pitch
 
 In the town of Fizzwater, the **Golden Spigot** (it can pour any drink anyone could ever want)
-sits on the fountain in the square. Every year the town's best bartender, the **Spigoteer**,
+sits on the fountain in the square. Every year the town's best pourer, Sal Tapley, the **Spigoteer**,
 pours its first drink of the festival. This year his rival **Dregs Dribbleton** barges in and
 orders "one of everything, all at once". The spigot overloads, goes KA-SPLOOSH and bursts into
-ten pieces that land in ten famous venues. Each owner will hand a piece only to a bartender who
+ten pieces that land in ten famous venues. Each owner will hand a piece only to a spigoteer who
 keeps their crowd happy. The Spigoteer goes on tour.
 
 Cast (kept small): the Spigoteer, Dregs (comic rival, never a real threat), ten one-note venue
@@ -169,9 +169,9 @@ POUR ANY DRINK
 ANYONE WANTED!
 
 SPIGOTEER
-EACH YEAR, I POUR
-THE FIRST DRINK.|
-NICE AND STEADY.
+I'M SAL TAPLEY,
+THE SPIGOTEER.| I
+POUR THE FIRST.
 
 DREGS
 @beat 3
@@ -193,7 +193,7 @@ NARRATOR
 @beat 3
 TEN VENUES, TEN
 OWNERS. EACH WANTS
-A GREAT BARTENDER.
+A GREAT SPIGOTEER.
 
 SPIGOTEER
 @beat 2
@@ -550,7 +550,7 @@ BEEN SO TOASTY.
 
 ---
 
-### PRE_ROBOT: "Beep Boop, Barkeep"
+### PRE_ROBOT: "Beep Boop, Spigoteer"
 
 Picture: factory floor with conveyor belts and a big lightning-bolt sign. Robots stand in line and Manager-Bot 3000 sits on a hover platform.
 
@@ -834,7 +834,7 @@ KIKI
 @beat 3
 AND HERE WE SEE|
 THE RARE MUSTACHED
-BARTENDER...
+SPIGOTEER...
 
 SPIGOTEER
 HI.| ARE YOU
@@ -1152,7 +1152,7 @@ overlaps another variant of his or that no page uses):
 
 | Portrait | One line |
 |---|---|
-| SPIGOTEER | Big curled mustache, bartender's apron and bow tie, confident grin. |
+| SPIGOTEER | Big curled mustache, spigoteer's apron and bow tie, confident grin. |
 | SPIGOTEER (cozy) | The same with the pink knitted mustache cozy, from PRE_IGLOO page 3 onward. |
 | DREGS | Lanky rival with a scraggly little mustache and a crooked bow tie, sheepish. His FINALE_B apology has its own variant (hand behind his head). |
 | SADIE | Small saloon owner, huge hat, sheriff-style star badge, big laugh. |

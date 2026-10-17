@@ -163,7 +163,7 @@ def test_the_cut_scene_budget():
     for s in SCENES:
         if s["venue"] == 255:
             assert s["bg_tiles"] == max([PORTRAITS[PID_NAME[p]]["tiles"] for p in s["spk"]] or [0]), s["id"]
-    assert [SCENES[SC[i]]["bg_tiles"] for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [48, 49, 48, 0]   # (each portrait's art plus its name plate's letters)
+    assert [SCENES[SC[i]]["bg_tiles"] for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [45, 49, 45, 0]   # (each portrait's art plus its name plate's letters)
 
 
 def portrait_cfg(name):
@@ -353,7 +353,7 @@ def assert_portrait_exact(gb, name):
     assert gb.mem("story_cur") == PORTRAITS[name]["pid"], name
 
 
-PLATE_NAMES = {"SPIGOTEER": "SPIGOT", "MANAGER-BOT": "MGR-BOT"}   # tools/gen_story.py: the plate has 7 cells
+PLATE_NAMES = {"SPIGOTEER": "SAL", "MANAGER-BOT": "MGR-BOT"}   # tools/gen_story.py: the plate has 7 cells
 
 
 def assert_on_the_box(gb, p):

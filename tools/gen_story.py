@@ -51,7 +51,7 @@ NARRATOR = SPEAKERS.index("NARRATOR")
 # gold), appended to each portrait's own tiles (add_plates): one per letter of its plate name, (the cells either side of the name are the frame's own bottom moulding).
 PLATE_FULL = os.environ.get("SPIGOT_PLATE", "A") == "B"     # A (default): 7 cells between the frame corners. B: all 9 cells, SPIGOTEER whole; needs 2 more BG tiles than INTRO has, see PLATE_NAMES
 PLATE_CELLS = 9 if PLATE_FULL else 7
-PLATE_NAMES = {"MANAGER-BOT": "MGR-BOT"} if PLATE_FULL else {"SPIGOTEER": "SPIGOT", "MANAGER-BOT": "MGR-BOT"}   # B keeps SPIGOTEER whole but INTRO is 2 tiles short (the trail dots)
+PLATE_NAMES = {"SPIGOTEER": "SAL", "MANAGER-BOT": "MGR-BOT"}   # SAL fits the 7-cell plate in both layouts
 PUNCT = {".": "period", ",": "comma", "!": "excl", "?": "quest", "'": "apos", "-": "hyphen", ":": "colon"}
 
 # ---- the cut-scene budget (src/story.c draws to it; see PLAN.md "M11b story engine as built") ----

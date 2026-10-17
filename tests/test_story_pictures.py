@@ -314,13 +314,13 @@ def to_finale(model):
 def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
     """Every page: the picture is intact (the slot is below its tiles), the speaker's portrait is exact in the slot's
     ids, a swap goes wipe -> tiles -> frame (story_swap 1, 4, 2/3) and the copy list drains inside VBlank. FINALE_B (after the
-    Pour-Off) shows the same picture, from the one copy FINALE_A's slot (49 tiles with the name plate) leaves room for (its own portraits: 48)."""
+    Pour-Off) shows the same picture, from the one copy FINALE_A's slot (49 tiles with the name plate) leaves room for (its own portraits: 45)."""
     with to_finale(model) as gb:
         if scene == "FINALE_B":
             through_the_pouroff(gb)
         s = SCENES[SC[scene]]
         slot = list(range(SLOT_BASE, SLOT_BASE + s["bg_tiles"]))
-        assert max(slot) < PICS["finale_a"]["base"] and s["bg_tiles"] == (49 if scene == "FINALE_A" else 48)
+        assert max(slot) < PICS["finale_a"]["base"] and s["bg_tiles"] == (49 if scene == "FINALE_A" else 45)
         page_ready(gb)
         assert_picture(gb, "finale_a", skip=None if s["pages"][0]["portrait"] is None else FRAME)
         if scene == "FINALE_A":
