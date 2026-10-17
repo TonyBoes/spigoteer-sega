@@ -116,7 +116,9 @@ static void keep_win(void) { if (game_state == GS_PAUSED && overlay_on) SHOW_WIN
 
 static const uint8_t k_out[6] = { 7, 5, 4, 2, 1, 0 };     // eighths of the scene's colour kept, step by step (0: flat)
 static const uint8_t k_amb[3] = { 5, 3, 0 };               // amber -> white
-static const uint8_t k_in[5] = { 1, 2, 4, 5, 7 };          // the fade-in, then the saved colours exactly (k 8)
+static const uint8_t k_in[5] = { 1, 2, 4, 5, 7 };
+static const uint8_t kc_out[2] = { 5, 2 };                 // the pause card's fades (owner 2026-10-17: much faster): two big steps of 2 frames each way
+static const uint8_t kc_in[2] = { 3, 6 };          // the fade-in, then the saved colours exactly (k 8)
 
 static uint16_t part(uint16_t x, uint8_t k) {               // x * k / 8, each channel on its own
     uint16_t r = 0;
@@ -218,6 +220,34 @@ static uint8_t pal_in(uint8_t *o, uint8_t stash, uint8_t n, uint8_t rise) {
     return f;
 }
 
+// The pause card's reads (owner 2026-10-17: the fade much faster): the read in VBlank only takes 13 frames (the VBlank handler leaves ~5 colours' time), so this one
+// reads whenever the PPU is not drawing (STAT mode 0, 1 or 2; the colour is read with the mode checked before AND after: a read takes under the 172 cycles of mode 3,
+// so a pair of checks that both pass means the PPU stayed out of mode 3 for the whole read) and goes on from the next colour when one fails. A colour at a time under
+// CRITICAL: the interrupts wait ~150 cycles at most. Done within about half a frame, from a VBlank on; the writes stay in VBlank (burst). Returns the frames it took (1).
+static uint8_t pal_fast(uint8_t *o, uint8_t stash, uint8_t n) {
+    uint8_t c = 0, i, lo, hi, ok;
+    vsync(); keep_win();
+    while (c < 64) {
+        if (!(c & 7)) music_pump();
+        if (LY_REG >= 144) keep_win();                           // (the read lasts over a frame: the menu's window shown again in each VBlank)
+        CRITICAL {
+            ok = (STAT_REG & 3) != 3;
+            if (ok) {
+                if (stash) { VBK_REG = VBK_BANK_1; lo = STASH[c << 1]; hi = STASH[(c << 1) | 1]; VBK_REG = VBK_BANK_0; }
+                else {
+                    i = (c & 31) << 1;
+                    if (c < 32) { BCPS_REG = i; lo = BCPD_REG; BCPS_REG = i | 1; hi = BCPD_REG; }
+                    else { OCPS_REG = i; lo = OCPD_REG; OCPS_REG = i | 1; hi = OCPD_REG; }
+                }
+                ok = (STAT_REG & 3) != 3;
+            }
+        }
+        if (ok) { o[c << 1] = lo; o[(c << 1) | 1] = hi; c++; }
+    }
+    fa_tail(1, n, 0);
+    return 1;
+}
+
 static uint8_t dfade(uint8_t p, uint8_t k) {               // a DMG palette k shades lighter
     uint8_t r = 0, i, s;
     for (i = 0; i < 8; i += 2) {
@@ -241,10 +271,11 @@ static uint8_t dstep(const uint8_t *o, uint8_t k, uint8_t fr, uint8_t f0, uint8_
 }
 
 static void cgb_cover(uint8_t v) {
-    uint8_t s, f, n = 4 + 6 * FADE_STEP + (v == V_AMBER ? 3 * FADE_STEP : 0), o[128];
+    uint8_t s, f, fast = game_state == GS_PAUSED, n = 4 + 6 * FADE_STEP + (v == V_AMBER ? 3 * FADE_STEP : 0), o[128];
     uint16_t t = v == V_AMBER ? COL_A : COL_W;
-    f = pal_in(o, 0, n, 0);
-    for (s = 0; s < 6; s++) f += cstep(o, k_out[s], t, 0, FADE_STEP, f, n, 0);
+    f = fast ? pal_fast(o, 0, n) : pal_in(o, 0, n, 0);
+    if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_out[s], t, 0, 2, f, n, 0);
+    else for (s = 0; s < 6; s++) f += cstep(o, k_out[s], t, 0, FADE_STEP, f, n, 0);
     if (v == V_AMBER) for (s = 0; s < 3; s++) f += cstep(0, k_amb[s], COL_W, COL_A, FADE_STEP, f, n, 0);
     volume(0);
     lcd_off_p();                                                 // (TR_WANT is already clear: the plain way) the LCD goes off in the white
@@ -255,9 +286,9 @@ static void cgb_cover(uint8_t v) {
 }
 
 static void dmg_cover(void) {
-    uint8_t s, f = 0, o[3];
+    uint8_t s, f = 0, o[3], fr = game_state == GS_PAUSED ? 2 : FADE_DMG;   // (the pause card's fades: 2 frames a shade)
     o[0] = BGP_REG; o[1] = OBP0_REG; o[2] = OBP1_REG;
-    for (s = 1; s <= 3; s++) f += dstep(o, s, FADE_DMG, f, 3 * FADE_DMG, 0);
+    for (s = 1; s <= 3; s++) f += dstep(o, s, fr, f, 3 * fr, 0);
     volume(0);
     lcd_off_p();
     dset(o, 0);
@@ -289,17 +320,19 @@ static void fade_arm(void) {                                     // LCD off, the
 }
 
 static void fade_reveal(void) {                                  // LCD on, white: the new scene's colours come in
-    uint8_t s, f = 0, n, o[128];
+    uint8_t s, f = 0, n, o[128], fast = game_state == GS_PAUSED;
     if (is_cgb) {
         n = 4 + 5 * FADE_STEP + 2;
-        f = pal_in(o, 1, n, 1);                                  // (4 frames of white while the colours are read back)
-        for (s = 0; s < 5; s++) f += cstep(o, k_in[s], COL_W, 0, FADE_STEP, f, n, 1);
+        f = fast ? pal_fast(o, 1, n) : pal_in(o, 1, n, 1);   // (4 frames of white while the colours are read back)
+        if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_in[s], COL_W, 0, 2, f, n, 1);
+        else for (s = 0; s < 5; s++) f += cstep(o, k_in[s], COL_W, 0, FADE_STEP, f, n, 1);
         cstep(o, 8, 0, 0, 2, f, n, 1);
     } else {
-        n = 2 + 2 * FADE_DMG + 1;
-        for (s = 0; s < 2; s++) { vsync(); keep_win(); f++; fa_tail(f, n, 1); }
-        f += dstep(HR_PAL, 2, FADE_DMG, f, n, 1);
-        f += dstep(HR_PAL, 1, FADE_DMG, f, n, 1);
+        uint8_t fr = fast ? 2 : FADE_DMG;
+        n = 2 + 2 * fr + 1;
+        for (s = 0; s < (fast ? 1 : 2); s++) { vsync(); keep_win(); f++; fa_tail(f, n, 1); }
+        f += dstep(HR_PAL, 2, fr, f, n, 1);
+        f += dstep(HR_PAL, 1, fr, f, n, 1);
         dstep(HR_PAL, 0, 1, f, n, 1);
     }
     TRANS &= ~(TR_PEND | TR_ARMED);
@@ -310,6 +343,7 @@ static void fade_reveal(void) {                                  // LCD on, whit
 // to white and the LCD goes off in it (the palettes back as they were), the caller builds the other screen; arm: its palettes are kept and painted white (LCD still off);
 // in: the LCD is on, the new colours fade in. The tune plays on as the pause mix (volume() is quiet in a pause; fa_tail ticks it; a tune that stands still, NR51 0, stays still).
 void trans_card_out(void) BANKED {
+    keep_win();                                                  // (the main loop shows the menu's window after the update: this frame's too)
     music_tick();                                                // (this frame's tick: the pause logic that called us never reaches the main loop's)
     if (is_cgb) cgb_cover(V_WHITE); else dmg_cover();
 }

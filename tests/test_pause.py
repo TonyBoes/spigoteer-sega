@@ -43,7 +43,7 @@ def rom_s(model, ram=None):
     return rom
 
 
-CARD_FRAMES = 120                 # the card opens and closes through the white fade (src/pause.c CARD_FADE): ~22 frames out, ~21 in
+CARD_FRAMES = 60                  # the card opens and closes through the white fade (src/pause.c CARD_FADE): about 8 frames out, 8 of LCD-off build, 8 in
 
 
 def tap(gb, b, settle=3):

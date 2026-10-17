@@ -62,5 +62,5 @@ def test_the_pause_mix_loses_no_tick_through_the_card_fades(model, c, monkeypatc
         gb.run(10)
         t = st[max(n0 - 1, 0):]
         gaps = [(b - a) / FRAME for a, b in zip(t, t[1:])]
-        assert len(t) > 150, len(t)                # (the tune ticked on the whole time: ~one a frame through 250 frames)
+        assert len(t) > 125, len(t)                # (the tune ticked on the whole time: about one a frame through 130 frames)
         assert max(gaps) <= LATE, (max(gaps), [round(g, 2) for g in gaps if g > 1.3])
