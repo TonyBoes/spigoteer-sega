@@ -47,7 +47,9 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 // K_*, TM_*: game.h.
 #define MENU_MAX        4
 #define MENU_ROW(n)   (10 - (n))
-#define HARD_ROW        5       // the difficulty prompt: its lines on rows 5, 8, 11, the captions on 6, 9, 12
+#define HARD_ROW        5       // the difficulty prompt: its lines on rows 5, 7, 9 and ONE caption on row 12 (rows 10-11 blank: the block, rows 5-12, is centred in rows 4-13)
+#define CAP_ROW        12
+#define HARD_STEP       2
 #define MENU_FIRST_ROW  5       // the rows a menu can use: 5..12
 #define MENU_LAST_ROW  12
 #define MENU_COPIES_PER_FRAME 2 // a submenu's redraw: 20-byte rows (tiles or CGB attributes) queued per frame
@@ -162,7 +164,7 @@ static void set_sel_attr(uint8_t sel, uint8_t on) {
 // old and the new menu are marked for the redraw (menu_frame; title_enter draws them at once with the LCD off).
 static void menu_open(uint8_t m, uint8_t sel) {
     uint8_t i;
-    for (i = 0; i < title_n; i++) title_dirty |= (uint16_t)1 << title_rows[i] | (title_menu == TM_HARD ? (uint16_t)2 << title_rows[i] : 0);   // (the prompt's captions too)
+    for (i = 0; i < title_n; i++) title_dirty |= (uint16_t)1 << title_rows[i] | (title_menu == TM_HARD ? (uint16_t)1 << CAP_ROW : 0);   // (the prompt's caption too)
     title_menu = m;
     title_n = 0;
     switch (m) {
@@ -188,7 +190,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_NO;
         title_items[title_n++] = K_YES;
         break;
-    case TM_HARD:     // PLAY > STORY (a new one): EASY, NORMAL, HARD, each with its caption on the row below (menu_frame); the cursor starts on NORMAL
+    case TM_HARD:     // PLAY > STORY (a new one): EASY, NORMAL, HARD, and one caption line under them (menu_frame) for the item under the cursor; the cursor starts on NORMAL
         title_items[title_n++] = K_EASY;
         title_items[title_n++] = K_NORMAL;
         title_items[title_n++] = K_HARD;
@@ -200,8 +202,8 @@ static void menu_open(uint8_t m, uint8_t sel) {
         if (debug_unlocked()) title_items[title_n++] = K_DEBUG;     // (the debug menu, once unlocked: src/debug.c)
     }
     for (i = 0; i < title_n; i++) {
-        title_rows[i] = m == TM_HARD ? HARD_ROW + 3 * i : MENU_ROW(title_n) + 2 * i;
-        title_dirty |= (uint16_t)1 << title_rows[i] | (m == TM_HARD ? (uint16_t)2 << title_rows[i] : 0);
+        title_rows[i] = m == TM_HARD ? HARD_ROW + HARD_STEP * i : MENU_ROW(title_n) + 2 * i;
+        title_dirty |= (uint16_t)1 << title_rows[i] | (m == TM_HARD ? (uint16_t)1 << CAP_ROW : 0);
         build_item(i);
     }
     title_sel = sel;
@@ -217,10 +219,10 @@ static uint8_t menu_frame(void) {
         if (!(title_dirty & ((uint16_t)1 << r))) continue;
         k = 255;
         for (i = 0; i < title_n; i++) if (title_rows[i] == r) k = i;
-        if (k == 255 && title_menu == TM_HARD && (r - HARD_ROW) % 3 == 1) {      // the prompt's caption: one a frame (they share menu_buf[3])
+        if (k == 255 && title_menu == TM_HARD && r == CAP_ROW) {      // the prompt's caption: the cursor's item's, a whole 20-wide row over the old one (menu_buf[3])
             if (n) continue;
             title_dirty &= ~((uint16_t)1 << r);
-            build_row(menu_buf[3], k_text[title_items[(r - HARD_ROW) / 3] + 3]);
+            build_row(menu_buf[3], k_text[title_items[title_sel] + 3]);
             vq_add(0, menu_buf[3], 0, r, 20);
             if (is_cgb) vq_add(1, attr_txt, 0, r, 20);
             n = MENU_COPIES_PER_FRAME;
@@ -531,7 +533,10 @@ uint8_t title_update(uint8_t pressed) BANKED {
     if (pressed & J_UP) title_sel = title_sel ? title_sel - 1 : last;
     else if (pressed & J_DOWN) title_sel = title_sel == last ? 0 : title_sel + 1;
     if (title_items[title_sel] == K_ERASEQ) title_sel = (pressed & J_UP) ? last : 1;   // (a prompt's label is no choice)
-    if (title_sel != old) { set_sel_attr(old, 0); set_sel_attr(title_sel, 1); }
+    if (title_sel != old) {
+        set_sel_attr(old, 0); set_sel_attr(title_sel, 1);
+        if (title_menu == TM_HARD) title_dirty |= (uint16_t)1 << CAP_ROW;   // (the caption follows: drawn next frame, the queue is full this one)
+    }
     else if (pressed & (J_A | J_START)) {
         switch (title_items[title_sel]) {
         case K_ARCADE: arcade_begin(); return 0;

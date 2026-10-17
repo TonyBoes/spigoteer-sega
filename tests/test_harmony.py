@@ -68,12 +68,15 @@ def test_galops_harmony_is_a_dry_pah_on_every_off_beat_between_the_bass_notes():
 
 def test_harmony_instruments_sit_under_the_melody_and_the_effects():
     """The harmony's volume is 4-5 (song lead and lead 8, legato lead 6), its duty 12.5%, 25% or (harm50, the Entertainer's thirds) 50%, always
-    quieter than the melody's volume; the channel-1 effects are volume 8-12, so an effect is always louder than the line it interrupts."""
+    quieter than the melody's volume (ring50, the credits tune's ringing last chord, is 9: under its ring lead's 12); the channel-1 effects are volume 8-12, so an effect is always louder than the line it interrupts."""
     music_c = (ROOT / "src" / "music.c").read_text()
     effects = [int(v, 16) for v in re.findall(r"\{ 0, 0x[0-9A-F]{2}, (0x[0-9A-F]{2}), N\(", music_c)]
     assert len(effects) == 7 and min(e >> 4 for e in effects) >= 8, effects
     for k, (duty, env) in gm.HARM_INST.items():
         assert duty in (0x00, 0x40, 0x80), (k, hex(duty))
+        if k == "ring50":       # the credits tune's final chord rings (owner's pick of draft D3c): volume 9, a slow decay, under the "ring" lead (12)
+            assert env >> 4 == 9 and not env & 8 and env >> 4 < gm.DUTY[6][2] >> 4, hex(env)
+            continue
         assert 3 <= env >> 4 <= 5 and not env & 8, (k, hex(env))
         assert env >> 4 < gm.LEGATO_ENV >> 4 <= gm.DUTY[4][2] >> 4
 

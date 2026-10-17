@@ -94,23 +94,67 @@ def test_a_new_story_asks_how_hard_with_the_cursor_on_normal_and_b_backs_out(mod
         assert rom.mem("title_menu") == TM_PLAY and menu_items(rom)[rom.mem("title_sel")] == K_STORY and rom.mem("game_state") == TITLE
 
 
+WORDS = {"easy": "EASY", "normal": "NORMAL", "hard": "HARD", "cap_easy": "HALF POINTS", "cap_normal": "NORMAL POINTS", "cap_hard": "EXTRA POINTS"}
+ROWS = {"easy": 5, "normal": 7, "hard": 9}
+CAP_ROW = 12
+CAP_OF = {K_EASY: "cap_easy", K_NORMAL: "cap_normal", K_HARD: "cap_hard"}
+
+
+def prompt_rows(rom):
+    return [[x % 256 for x in r] for r in rom.bg_tilemap()]
+
+
+def ink_rows(rom):
+    """The prompt block's rows (4..13) that hold anything but the blank tile."""
+    blank = TITLE_ART["blank"]
+    rows = prompt_rows(rom)
+    return [r for r in range(4, 14) if any(t != blank for t in rows[r])]
+
+
+def check_caption(rom):
+    t = TITLE_ART["text"]
+    sel = menu_items(rom)[rom.mem("title_sel")]
+    rows = prompt_rows(rom)
+    e = t[CAP_OF[sel]]
+    assert rows[CAP_ROW][e["col"]:e["col"] + len(e["tiles"])] == e["tiles"], ("caption of", sel)
+    assert ink_rows(rom) == [5, 7, 9, CAP_ROW], "only one caption row has ink"
+    for k, r in ROWS.items():
+        e = t[k]
+        assert rows[r][e["col"]:e["col"] + len(e["tiles"])] == e["tiles"], (r, k)
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_prompt_has_no_header_and_a_caption_under_each_choice(model):
+def test_the_prompt_has_no_header_and_one_caption_line_that_follows_the_cursor(model):
     t = TITLE_ART
     with booted(model) as rom:
         title_pick(rom, K_PLAY, K_STORY, press=False)
         menu_tap(rom, "a")
         rom.run(MENU_SETTLE)
-        rows = [[x % 256 for x in r] for r in rom.bg_tilemap()]
-        want = {5: "easy", 8: "normal", 11: "hard", 6: "cap_easy", 9: "cap_normal", 12: "cap_hard"}
-        for r, k in want.items():
-            e = t["text"][k]
-            assert rows[r][e["col"]:e["col"] + len(e["tiles"])] == e["tiles"], (r, k)
-        for r in (4, 7, 10, 13):
-            assert len(set(rows[r])) == 1, ("a blank row between the lines", r)
-        assert t["text"]["cap_hard"]["tiles"] != t["text"]["cap_easy"]["tiles"]
         assert "how_hard" not in t["text"], "no header"
-        assert all(len(set(rows[r])) == 1 for r in range(4, 14) if r not in want), "nothing else on the menu rows"
+        assert menu_items(rom)[rom.mem("title_sel")] == K_NORMAL
+        check_caption(rom)
+        for b in ["down", "down", "down", "up", "up", "up", "up", "down"]:    # wrapping both ways
+            menu_tap(rom, b)
+            rom.run(3)
+            check_caption(rom)
+        assert len({tuple(t["text"][k]["tiles"]) for k in CAP_OF.values()}) == 3
+        rows = prompt_rows(rom)
+        for r in (4, 6, 8, 10, 11, 13):
+            assert len(set(rows[r])) == 1, ("blank row", r)
+        assert CAP_ROW - ROWS["hard"] >= 3, "two or more blank rows between HARD and the caption"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_prompt_lines_are_centred_within_half_a_tile(model):
+    t = TITLE_ART["text"]
+    for k, w in WORDS.items():
+        e = t[k]
+        first_ink = e["x"]
+        last_ink = first_ink + 8 * len(w) - 2           # (8 px a glyph, 1 px shadow inside the cell)
+        assert abs((first_ink + last_ink) / 2 - 80) <= 4, (k, first_ink, last_ink)
+        assert abs(e["col"] * 8 + len(e["tiles"]) * 4 - 80) <= 0.5, (k, "tiles centred on the grid")
+    # the block: rows 5..12, centred in the rows between the logo and the scene (4..13)
+    assert (min(ROWS.values()) - 4) == (13 - CAP_ROW)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

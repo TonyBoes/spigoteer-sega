@@ -2,6 +2,7 @@
 # directory, flags stamps). Runs make / make release / make / make unlocked in a scratch copy of the sources and checks that
 # every ROM boots to the title and that build/game.gb is byte-identical before and after building the others.
 import hashlib
+import os
 import shutil
 import subprocess
 
@@ -32,6 +33,7 @@ def boots_to_title(path):
 
 
 @pytest.mark.slow
+@pytest.mark.skipif(not os.environ.get("RUN_SLOW"), reason="slow: rebuilds every ROM variant in a scratch copy (RUN_SLOW=1)")
 def test_variants_do_not_disturb_each_other(tmp_path):
     for name in COPY:
         src = ROOT / name

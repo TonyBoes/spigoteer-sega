@@ -3,7 +3,7 @@
 ; (assets/approved/venues/biker_drink.txt frame 6, the full drink in his hand): SPARKLE, OVERFLOW.
 ; Colours are the full drink's (punk_drink_full; # outline); DMG draws both frames with OBP1 (- light grey, + dark grey,
 ; # black), so the drink darkens in his hand when the window opens. SPARKLE: a frosty twinkle over the rim, a shine
-; down the glass. OVERFLOW: the milk domed up over the rim, running down both sides, a white puddle.
+; down the glass. OVERFLOW: the milk domed up over the rim, running down both sides (no puddle: owner 2026-10-17, "the overflowing animation on top is enough").
 .-...-..
 -+-.-+-.
 .-...-..
@@ -36,4 +36,4 @@
 #+++++#.
 .#+++#..
 .#####..
-+++++++.
+........
