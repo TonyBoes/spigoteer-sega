@@ -592,11 +592,14 @@ static void update(void) {
     SEC(SEC_REST);
 }
 
-// Frame-time instrumentation (cheap enough to ship; tests/test_perf.py reads it). "End LY" is the LY register
+// Frame-time instrumentation (tests/test_perf.py reads it; it costs ~1.2 lines a frame, so only the test / playtest builds have it:
+// DEBUG_MENU, the Makefile's default, and PERF_SECTIONS; `make release` leaves it out). "End LY" is the LY register
 // when the frame's work ended: 0..143 normally (a frame that finishes inside the VBlank it started in reads 0).
 // A frame that ran past the next VBlank reads 144 + the lines since that VBlank began (+154 per extra one).
 // During the frame only (sys_time, LY) snapshots are taken; the arithmetic happens after the music tick.
 uint8_t  frame_t0;          // (uint8_t)sys_time when this frame began (lift.c: has the frame run into the next one?)
+#if defined(DEBUG_MENU) || defined(PERF_SECTIONS)
+#define FRAME_STATS 1
 uint16_t perf_logic_max;    // highest end LY of update() so far
 uint16_t perf_end_max;      // ... of update() + music tick
 uint16_t perf_logic_last, perf_end_last;     // this frame's
@@ -684,6 +687,8 @@ static uint16_t perf_ly(uint8_t t0, uint8_t t, uint8_t ly) {
 }
 #endif
 
+#endif   // FRAME_STATS
+
 // Wait for the next VBlank (GBDK's vsync() without its race). vsync() clears the "VBlank done" flag and then halts: a
 // VBlank interrupt that lands between the two sets the flag before the halt, and the CPU then sleeps until the next
 // interrupt, the banner's LYC at line 86 or a whole frame later (M13b: the worst-case pile's 218/223 end LY was a frame
@@ -712,25 +717,38 @@ __endasm;
 }
 
 void main(void) {
+#ifdef FRAME_STATS
     uint8_t t0, ly0, st0, lt, lly, d, ok;
+#endif
     PAUSE_NR51 = 0;      // (HRAM is not cleared at power-on: left non-zero, music_tick played every tune as the pause mix)
     boot_init();
+#ifdef FRAME_STATS
     perf_last_t = (uint8_t)sys_time;
+#endif
     while (1) {
         frame_wait();
+#ifdef FRAME_STATS
         frame_t0 = t0 = (uint8_t)sys_time; ly0 = LY_REG; st0 = game_state;
+#else
+        frame_t0 = (uint8_t)sys_time;
+#endif
         SEC_BEGIN();
         update();
         vq_frame_end();      // the copy list is complete: the next VBlank interrupt executes it
+#ifdef FRAME_STATS
         perf_snap(); lt = snap_t; lly = snap_ly;
+#endif
         // Music and effects, every frame, after the logic (so they cannot delay the game's input-to-state latency).
         if (game_state != GS_PAUSED || !PAUSE_NR51 || NR51_REG) music_tick();   // (the pause menu: the bass and drums play on; NR51 0: a tune the game is clocked by stands still, pause.c)
         SEC(SEC_MUSIC);
+#ifdef FRAME_STATS
         perf_snap();
+#endif
 #ifdef PERF_SECTIONS
         for (d = 0; d < SEC_N; d++) sec_done[d] = sec_frame[d];
         sec_done_id = frame_counter;
 #endif
+#ifdef FRAME_STATS
         d = t0 - perf_last_t;
         perf_last_t = t0;
         ok = perf_prev_playing && st0 == GS_PLAYING;            // transitions turn the LCD off: not a normal frame
@@ -743,5 +761,6 @@ void main(void) {
         if (ly0 > frame_ly_max) frame_ly_max = ly0;
         if (perf_logic_last > perf_logic_max) perf_logic_max = perf_logic_last;
         if (perf_end_last > perf_end_max) perf_end_max = perf_end_last;
+#endif
     }
 }

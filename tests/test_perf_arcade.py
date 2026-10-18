@@ -1,0 +1,99 @@
+# Frame-time guard for the busiest ARCADE scene (owner perf report 2026-10-18, "fix b"): loop 4 of the space lounge's last
+# shift (level 40), the realistic peak (perf_helpers.RealisticPeak: about 10 patrons and 10 mugs at the fastest row's speeds,
+# new patrons sliding in, lifts, a tip or a show), the level-8 play script on the bartender, the game's own rules everywhere.
+# A frame that runs past the next VBlank (end line >= 144, perf_helpers.perf_stats "late") repeats the picture once: the game
+# then runs at 30 fps for that moment. Before the "fix b" work 45-50 % of this scene's frames were late (target 15-25 %).
+#
+# Whether a frame is late is a threshold on a number that sits right at it (the mean end line is ~135-140, the budget 144),
+# and where the scene goes depends on which frames were late: one run swings by +-10 points with any change of code timing.
+# So the guard pools EIGHT runs that start at different frame alignments (the deterministic PyBoy: the same build gives the
+# same numbers every time) and bounds the pooled share, with a margin of about 6 points over the measured one, and the mean
+# end line likewise. A real regression moves every run: the pre-"fix b" build measured 45 / 146 (DMG and CGB alike).
+#
+# The frame-time counter (main.c FRAME_STATS) is in the test build only (DEBUG_MENU), which is what this test runs.
+import pytest
+from gbtools import Rom
+import perf_helpers as ph
+from test_arcade import start_arcade
+from test_story import SHIFT_STEP, win, to_goal
+from test_flow import state, LEVEL_CLEAR, GS_GOAL, run_until
+
+pytestmark = pytest.mark.timeout(300)
+PLAYING = 1
+ALIGNMENTS = (0, 5, 11, 23, 2, 7, 17, 29)       # frames waited after the scene's start: a different place of the frame boundary against the logic
+FRAMES = 1800
+# (model, target patrons): (late share limit in %, mean end line limit). Measured pooled with the "fix b" build, then the limits:
+#   dmg 8: 24.4 % / 127.5 (limits 30 / 132); cgb 8: 27.0 / 129.2 (32 / 134); dmg 10: 30.3 / 133.2 (35 / 138); cgb 10: 36.1 / 137.3 (41 / 142).
+# The build before it: dmg 8: 34.1 / 136.3; cgb 8: 34.4 / 136.6; dmg 10: 42.7 / 143.7; cgb 10: 45.7 / 146.8 (all four over the limits).
+# The owner's target for the 10-patron peak was 15-25 %; the rest is the asm pass (draw_held, draw_lifted, update_mugs ~ 35 lines).
+LIMITS = {("dmg", 8): (30, 132), ("cgb", 8): (32, 134),
+          ("dmg", 10): (35, 138), ("cgb", 10): (41, 142)}
+
+
+def arcade_peak_gb(model):
+    gb = start_arcade(model)
+    to_goal(gb)
+    gb.write("story_step", SHIFT_STEP[2] - 1)
+    gb.write("story_chapter", 9)                  # the space lounge ...
+    gb.write("arc_loop", 4)                       # ... in the 4th loop: the fastest rows
+    win(gb, 0, 0)
+    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 40)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
+    to_goal(gb)
+    for _ in range(220):
+        if gb.mem("game_state") == PLAYING:
+            break
+        gb.run(1)
+    assert gb.mem("game_state") == PLAYING
+    return gb
+
+
+def one_run(model, target, wait):
+    gb = arcade_peak_gb(model)
+    try:
+        gb.write("intro_timer", 0)
+        gb.write("tip_chance", 0)
+        rp = ph.RealisticPeak(gb, target)
+        rp.seed()
+        gb.run(2 + wait)
+        ph.perf_reset(gb)
+        held = None
+        for i in range(FRAMES):
+            want = ph.SCRIPT[i % len(ph.SCRIPT)]
+            if want != held:
+                if held:
+                    gb.release(held)
+                if want:
+                    gb.hold(want)
+                held = want
+            rp.tick()
+            gb.run(1)
+            rp.observe()
+            ph.sample(gb)
+            for name, v in (("lives", 3), ("served", 0), ("story_catches", 0), ("quota", 250)):
+                gb.write(name, v)
+        st = ph.perf_stats(gb)
+        patrons = sum(rp.stats["patrons"]) / len(rp.stats["patrons"])
+        return st, gb.perf_samples, patrons
+    finally:
+        gb.stop()
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("target", [8, 10])
+def test_the_arcade_peak_is_late_on_a_bounded_share_of_its_frames(model, target):
+    late = n = 0
+    means = []
+    crowd = []
+    for wait in ALIGNMENTS:
+        st, samples, patrons = one_run(model, target, wait)
+        late += sum(1 for x in samples if x >= 144)
+        n += len(samples)
+        means.append(st["mean"])
+        crowd.append(patrons)
+    share = round(100.0 * late / n, 1)
+    mean = round(sum(means) / len(means), 1)
+    print("ARCADE PEAK", model, target, "late", share, "% of", n, "frames, mean end line", mean, "patrons", round(sum(crowd) / len(crowd), 1))
+    assert sum(crowd) / len(crowd) >= 8, "the scene is a crowd (the realistic peak's own rules keep the bars full)"
+    lim_share, lim_mean = LIMITS[(model, target)]
+    assert share <= lim_share and mean <= lim_mean, (share, mean, (lim_share, lim_mean))

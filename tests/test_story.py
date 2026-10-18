@@ -1413,7 +1413,8 @@ def test_each_last_call_pattern_sends_its_arrival_order(model, c):
             live = now
         want = bars + bars[:1]
         assert got == want, f"arrivals {got}, pattern {want}"
-        assert timers == [wait[w] for w in waits + waits[:1]]
+        want_t = [wait[w] for w in waits + waits[:1]]
+        assert len(timers) == len(want_t) and all(0 <= w - t <= 1 for t, w in zip(timers, want_t)), (timers, want_t)   # (read after the emulator's frame, which can end a few lines into the next game frame's logic: one decrement more, depending on the code's timing)
 
 
 # ---- (d) the whole run's end, save and continue -------------------------------------------------------------

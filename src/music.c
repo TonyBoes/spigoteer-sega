@@ -187,7 +187,9 @@ static void begin_load(uint8_t tune, uint8_t play) {
 
 extern uint8_t story_on;
 void music_play(uint8_t tune) BANKED {
-    uint8_t buf = tunes[tune].buf;
+    uint8_t buf, later = tune & MUSIC_LATER;        // MUSIC_LATER: an already-loaded tune starts with the next frame's tick, not this one's
+    tune &= ~MUSIC_LATER;
+    buf = tunes[tune].buf;
     if (story_on) tune_heard(tune);                 // the soundtrack player's unlocks (save.c), music on or off
     if (sound_on && cur_tune == tune && tunes[tune].loop && (mus_active || ld_tune == tune)
         && fast_now == (music_fast && FAST_TUNE(tune))) return;   // (a speed change restarts it)
@@ -203,6 +205,10 @@ void music_play(uint8_t tune) BANKED {
         return;
     }
     if (ld_tune != TUNE_NONE && ld_play) ld_tune = TUNE_NONE;       // a tune that was still loading is superseded
+    if (later && ld_tune == TUNE_NONE) {                            // a copy already done, a start after one idle tick (load_step): the frame of a show
+        ld_tune = tune; ld_play = 2; ld_pos = tunes[tune].bytes;    // starting or ending is already a busy one
+        return;
+    }
     start_song(tune);
 }
 
@@ -333,6 +339,7 @@ static void sfx_dispatch(uint16_t req) {
 // Copies the next slice of a tune's patterns to WRAM. Returns 1 when the tune started (this frame's tick is done).
 static uint8_t load_step(void) {
     const tune_t *t = &tunes[ld_tune];
+    if (ld_play == 2) { ld_play = 1; return 0; }                  // (music_play MUSIC_LATER: one idle tick first)
     uint16_t n = t->bytes - ld_pos;
     uint16_t cap = ld_play ? LOAD_PLAY_BYTES : LOAD_PRELOAD_BYTES;
     if (n > cap) n = cap;
