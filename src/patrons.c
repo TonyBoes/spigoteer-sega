@@ -385,7 +385,11 @@ static uint8_t walker_pixel(uint8_t p, uint8_t f) {
 
 static uint8_t walking_step(uint8_t p) {
     uint8_t f, o;
-    if (patron_dist[p]) return watch_step(p);           // distracted by the show: no walking
+    if (patron_dist[p]) {                               // distracted by the show: no walking
+        f = patron_x[p] | DRAW_BACK;
+        if (patron_draw[p] == f) return 1;              // (already watching the stage, x a multiple of 8: watch_step would only say so, a banked call a frame)
+        return watch_step(p);
+    }
     if (mosh_on && (patron_shove[p] | patron_stag[p])) mosh_step(p);   // shoved or staggering (src/mosh.c)
     else if (go_now) {
         o = patron_frac[p];

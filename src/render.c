@@ -725,8 +725,8 @@ void queue_vram(void) {
         if (sa && sa_wait >= SA_MAX_WAIT) { queue_stage(); sa = 0; }
         if (quick_n) queue_quick();
         // The bars' spans (a compose is 5-15 lines on a crowded bar) wait for the next frame when this one is already deep in its
-        // budget (past line QUEUE_LY_LATE, or into the next frame); every other frame at most, so a span is never held for long.
-        if (((uint8_t)sys_time != frame_t0 || LY_REG >= QUEUE_LY_LATE) && (frame_counter & 1)) vram_pending = 1;
+        // budget (LY past QUEUE_LY_LATE, VBlank included); every other frame at most, so a span is never held for long.
+        if ((frame_counter & 1) && LY_REG >= QUEUE_LY_LATE) vram_pending = 1;
         else if (queue_bar(0) && queue_bar(1) && queue_bar(2)) queue_bar(3);
         if (sa) { if ((uint8_t)(qv_cost + SA_COST) <= VQ_BUDGET) queue_stage(); else sa_wait++; }
     }
@@ -805,8 +805,12 @@ void draw_stage_fx(void) {
         return;
     }
     dancers_vis = 1;
-    dancers_step();                              // (banked, src/rom0_relief.c: what they must show; redraws only when that changed)
+    if (!((uint8_t)show_timer & 7) || (dancer_sig & 0x98) != (uint8_t)(0x80 | (dancer_frame << 3))) dancers_step();   // (they pop in and out only on show_timer multiples of 8 (DANCER_STAGGER), else change with the dance step: no banked call to find that out)
 }
+
+#if DANCER_STAGGER != 8 || SHOW_FRAMES % 8
+#error "draw_stage_fx: the dancers' pop-ins and pop-outs fall on show_timer multiples of 8"
+#endif
 
 // Anything that writes OAM entries behind the drawing code's back calls this: the cached ones are redrawn.
 void oam_touched(void) {
