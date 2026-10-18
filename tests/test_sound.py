@@ -211,6 +211,19 @@ def test_sfx_drive_channel_1_and_4_and_end(sgb):
     assert sgb.mem(NR52) & 8, "the break is a burst on the noise channel (4)"
 
 
+def test_the_perfect_pour_chime_is_a_short_two_note_ting_on_channel_1(sgb):
+    """SFX_PERFECT (15; owner playtest 2026-10-18): two notes (G6, D7) on channel 1 lasting 15 frames, then the channel is let go (NR12 0x08 or the
+    tune's harmony). Requested through sfx_req's bit 14 (the high byte)."""
+    sgb.write("intro_timer", 255)
+    sgb.run(30)
+    sgb.write(sgb.addr("sfx_req") + 1, 0x40)
+    sgb.run(1)
+    assert sgb.mem(NR52) & 1, "the chime sounds on channel 1"
+    sgb.run(30)
+    harm = {gm.HARM_INST[k][1] for k in songs.SONGS["susanna"]["ch1_inst"] or ()}
+    assert sgb.mem(0xFF12) in {0x08} | harm, f"the chime let go of channel 1 (NR12 {sgb.mem(0xFF12):#x})"
+
+
 def test_music_yields_channel_4_to_an_effect_then_takes_it_back(sgb):
     sgb.write("intro_timer", 255)
     sgb.run(30)                                         # the in-game tune has a noise percussion line

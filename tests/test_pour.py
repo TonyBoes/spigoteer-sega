@@ -128,6 +128,36 @@ def test_a_release_in_the_window_is_perfect_and_scores_double(model, t):
         assert_cue(gb)
 
 
+SFX_LAUNCH, SFX_PERFECT, SFX_N = 2, 15, 16        # src/music.h
+
+
+def sfx(gb, i):
+    return gb.read("sfx_count", SFX_N)[i]
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_perfect_release_chimes_instead_of_the_launch_sound(model):
+    """Owner playtest 2026-10-18: a perfect pour plays a soft chime (SFX_PERFECT) INSTEAD of the launch's sweep; every other release (settling, the
+    overflow) still plays SFX_LAUNCH and no chime."""
+    with story(model) as gb:
+        n0 = first_launch(gb)
+        for n in range(n0, n0 + END - FILL_FRAMES + 4):
+            l0, p0 = sfx(gb, SFX_LAUNCH), sfx(gb, SFX_PERFECT)
+            q = hold_release(gb, n)
+            drop_mugs(gb)
+            assert q is not None
+            assert (sfx(gb, SFX_PERFECT) - p0, sfx(gb, SFX_LAUNCH) - l0) == ((1, 0) if q else (0, 1)), (n - n0, q)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_chime_request_bit_is_dispatched(model):
+    """SFX_PERFECT is request bit 14 (the high byte of sfx_req, the table's last row): the next music tick takes it (the sound itself: tests/test_sound.py)."""
+    with story(model) as gb:
+        gb.write(gb.addr("sfx_req") + 1, 1 << (SFX_PERFECT - 1 - 8))
+        gb.run(1)
+        assert gb.read("sfx_req", 2) == b"\0\0", "dispatched by the tick"
+
+
 def sweep(gb, k=16):
     """Qualities of the drinks released after first_launch .. + k - 1 frames of A."""
     n0, q = first_launch(gb), []

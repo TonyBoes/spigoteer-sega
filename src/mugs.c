@@ -42,7 +42,8 @@ uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
 
 void launch_mug(void) {
     spawn_mug(bar, tap_now + (SPOUT_X - TAP_X), MUG_FULL);   // (under his bar's spout: P6 slanted bars, game.h)
-    SFX(SFX_LAUNCH);
+    if (pour_q) SFX(SFX_PERFECT);                           // (a story perfect pour: the chime, not the launch's sweep; src/pour.c)
+    else SFX(SFX_LAUNCH);
 }
 
 void clear_mugs(void) {
