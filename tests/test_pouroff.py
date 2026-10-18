@@ -805,9 +805,10 @@ def test_the_finale_flow_finale_a_the_pour_off_finale_b_and_the_credits(model):
     from test_story_pictures import to_finale
     with to_finale(model) as gb:
         a = SCENES[SC["FINALE_A"]]
-        assert [p["speaker"] for p in a["pages"]] == ["NARRATOR", "NARRATOR", "SADIE", "DREGS", "SPIGOTEER"]
-        assert a["pages"][3]["lines"] == ["HOLD IT! WHO", "POURS FIRST? I", "SAY: A POUR-OFF!"]
-        assert a["pages"][4]["lines"] == ["FIRST TO 20", "SERVES. YOU'RE ON,", "DREGS."]
+        assert [p["speaker"] for p in a["pages"]] == ["NARRATOR"] * 4 + ["SADIE", "DREGS", "SPIGOTEER", "NARRATOR"]
+        assert a["pages"][5]["lines"] == ["HOLD IT! WHO", "POURS FIRST? I", "SAY: A POUR-OFF!"]
+        assert a["pages"][6]["lines"] == ["FIRST TO 20", "SERVES. YOU'RE ON,", "DREGS."]
+        assert a["pages"][7]["lines"] == ["THE POUR-OFF WILL", "BE AT SADIE'S", "SALOON."]
         for k, p in enumerate(a["pages"]):
             if k:
                 gb.press("a", 2)
