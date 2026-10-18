@@ -986,7 +986,7 @@ void lift_frame(void) BANKED {
     // one only (the start bar goes round); bars it leaves stay dirty for the next frame.
     b = ovl_dirty;
     ovl_dirty = 0;
-    for (i = 0; i < NUM_BARS; i++) {
+    for (i = b ? 0 : NUM_BARS; i < NUM_BARS; i++) {      // (nothing dirty or waiting: no pass over the bars)
         p = (i + frame_counter) & (NUM_BARS - 1);         // (round robin: the bar the frame starts at moves on every frame)
         w = bar_bit[p];
         if (!(b & w)) {
