@@ -409,6 +409,30 @@ bass_check).  tests/test_music_batch1.py pins the generated notes to proarr's by
 - **Recordings** (`tools/rec_music.py`: the game ROM itself, full and pause mix, spectrum-matched against proarr's WAVs): title 0.994 / 0.989,
   Susanna 0.991 / 0.970, Ball Game 0.993 / 0.991 (mean short-time spectrum cosine).
 
+## Music batches 2-4 as built (owner-approved 2026-10-17)
+
+Audition: `promusic` (docs/proarr/BATCH_2.md, BATCH_3.md, BATCH_4.md, specs/*.md, tools/proarr.py).  Ported into tools/songs.py (MTN_/FUN_/SKT_/HALL_/SAK_/
+DAN_/WEA_/SAI_ bass, drum and harmony lines, the grooves, the fallbacks FUN_GROOVE_1BAR, DAN_GROOVE_1BAR, SAI_GROOVE_2BAR); tests/test_music_batch234.py pins
+the generated notes to proarr's by digest (the credits' brass version, the three jingles, the Sailor both ways).
+
+- **Sailor.** The owner picked the arpeggio version (sailor_b3d): `songs.SAILOR_VARIANT = "b3d"`; `None` is the plain riff (sailor_b3).  One effect row is
+  dropped from b3d (`SAILOR_LASTCALL_SAFE`: row 5 of bars 8 and 16): at the Last call's tempo (music_fast) that row tick ran 18.5 lines, 2 calls over;
+  without it 18.0.  `False` restores proarr's b3d exactly.
+- **Credits.** The brass lead (it is the default lead) and the held bass on every note: 15.7 lines cold, 14.0 warm (was 19.1 with the copy on tick 1).
+  `songs.CREDITS_LEAD` is the one-line fallback.  Jingles: the fanfare ends on the brass lead, the game-over bass is the held one.
+- **Space.** Venue and show harmony moved from bank 10 to bank 24 (`HARM_BANK` 24, with the jingles; src/music.h and gen_music agree); bank 10 keeps the
+  blobs.  Bank 2's grooves grew (+42 funicula/skaters, +24 sailor, +18 danube) and it still ended with more room than before (the jingles' and
+  the venues' pattern data are elsewhere).  Mountain's harmony track is stored from its pickup row (`gen_music.rotated`; the track is a cycle) and
+  start_song no longer walks 48 events; a pickup tune starts one frame after its last pattern slice.  Before -> after, used bytes: bank 2 16358 -> 16150,
+  bank 10 16373 -> 16302, bank 22 11196 -> 10183 (autobank moved other code), bank 23 9324, bank 24 1920 -> 3428, ROM0 14962 (1081 B real free) unchanged,
+  WRAM_LO 3936 / WRAM_HI_0 3652 unchanged (no new global).
+- **CPU** (tools/music_rig.py, per call, whole passes, warm unless it is the title / show): worst lines title 17.4, clear 12.9, over 10.7, bonus 14.6, show 17.4,
+  Susanna 17.4, Ball Game 15.7, Mountain 17.4, Funicula 16.3, Skaters 15.7, Hall 18.0, Sailor 17.4 (Last call 18.0), Sakura 15.7, Weasel 16.8, Danube 15.7,
+  credits 14.0 (15.7 cold).  tests/test_music_cpu.py covers every tune.
+- **Recordings** (tools/rec_music.py, the game ROM itself, vs proarr's WAVs, mean short-time spectrum cosine, DMG): Mountain 0.994 / 0.991 (full / pause),
+  Funicula 0.985 / 0.985, Skaters 0.987 / 0.994, Hall 0.984 / 0.983, Sailor 0.992 / 0.996, Sakura 0.982 / 0.987, Weasel 0.991 / 0.967, Danube 0.988 / 0.993,
+  clear 0.995, over 1.000, bonus 0.995, credits 0.995.
+
 ## M8b as built
 
 Approved art imported (assets/art is now the source of truth; tools/extract_art.py refuses to overwrite it
