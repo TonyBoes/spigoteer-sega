@@ -22,8 +22,8 @@
 //   the Kid stands. The pips, and "YOU 0.32" (the reaction in seconds, '.' the story font's) / "FOUL" / "TOO SLOW".
 //   The match's end: YOU WIN, the Spigoteer aiming (no stream), the Kid dripping; THE KID WINS, the Kid's cheer, the
 //   Spigoteer dripping.
-// - Score: 500 a round won + (R - t) x 20; the match won +2000. Medal (qd_medal, not a score threshold): GOLD 3-0,
-//   SILVER won 3-1 / 3-2, BRONZE lost with a round won, else none. EASY / HARD change the Kid's draw frames, the feints and the badge (qd_tune; EASY: a 3-2 win is a BRONZE).
+// - Score: 500 a round won + (R - t) x 20; the match won +2000. Medal (qd_medal, not a score threshold; owner 2026-10-18): the rounds the player LOST, in every mode and difficulty:
+//   0 GOLD, 1 SILVER, 2 BRONZE, 3 none (the match lost). EASY / HARD change the Kid's draw frames, the feints and the badge (qd_tune).
 // - Sounds: the DRAW! bell SFX_CATCH, a round won SFX_SERVE, a foul SFX_BREAK, too slow SFX_LIFE.
 //
 // Screen (the approved mock-up): the framework's saloon backdrop (counter row 11); the sign's frame at columns 3-16,
@@ -122,11 +122,11 @@ enum { WHO_KID, WHO_YOU };
 enum { ST_MID_A, ST_MID_B, ST_HEAD_R, ST_HEAD_L, ST_RISE_R };   // the stream's BG tiles (stream.txt)
 
 // The tuning per difficulty (indexed by MG_DIFF: NORMAL, HARD, EASY; STORY and ARCADE play NORMAL): the frame the Kid draws on in each round, the
-// round the feints begin, the round the badge may be B, and the most rounds the Kid may win for a SILVER on a won match (TUNING.md).
+// round the feints begin, the round the badge may be B (TUNING.md). The medal is the same in every mode: the rounds the player lost.
 static const struct qd_tune qd_tune[MG_DIFFS] = {
-    { { 34, 30, 30, 28, 26 }, 3, 3, 2 },        // NORMAL
-    { { 24, 22, 20, 19, 18 }, 2, 2, 2 },        // HARD: feints and badge B from round 2
-    { { 40, 38, 36, 34, 34 }, 6, 4, 1 },        // EASY: no feints; badge B from round 4; a 3-2 win is a BRONZE
+    { { 34, 30, 30, 28, 26 }, 3, 3 },           // NORMAL
+    { { 24, 22, 20, 19, 18 }, 2, 2 },           // HARD: feints and badge B from round 2
+    { { 40, 38, 36, 34, 34 }, 6, 4 },           // EASY: no feints; badge B from round 4
 };
 #define QT              (S.tn)
 #define TUNE_LOAD()     { const uint8_t *tl_s = (const uint8_t *)&qd_tune[MG_DIFF]; uint8_t *tl_d = (uint8_t *)&S.tn, tl_k; for (tl_k = 0; tl_k < sizeof(S.tn); tl_k++) tl_d[tl_k] = tl_s[tl_k]; }
@@ -231,8 +231,9 @@ void qd_enter(void) BANKED {
 }
 
 uint8_t qd_medal(void) BANKED {
-    if (S.wins[0] >= QD_TO_WIN) return S.wins[1] ? (S.wins[1] <= QT.silver_lost ? MEDAL_SILVER : MEDAL_BRONZE) : MEDAL_GOLD;
-    return S.wins[0] ? MEDAL_BRONZE : MEDAL_NONE;
+    uint8_t lost = S.wins[1];
+    if (lost >= 3 || S.wins[0] < QD_TO_WIN) return MEDAL_NONE;   // the match lost, or not played out
+    return MEDAL_GOLD - lost;                                    // 0 lost GOLD, 1 SILVER, 2 BRONZE
 }
 
 // "3 TO 1" (a, b) into S.txt

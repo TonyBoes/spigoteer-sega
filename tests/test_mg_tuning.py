@@ -91,9 +91,9 @@ def enter(model, game, mode):
 
 # The design table (TUNING.md): the whole row each difficulty copies at entry. NORMAL is what STORY and ARCADE play.
 ROWS = {
-    "qd": {"NORMAL": dict(r=[34, 30, 30, 28, 26], feint_from=3, badge_from=3, silver_lost=2),
-           "HARD": dict(r=[24, 22, 20, 19, 18], feint_from=2, badge_from=2, silver_lost=2),
-           "EASY": dict(r=[40, 38, 36, 34, 34], feint_from=6, badge_from=4, silver_lost=1)},
+    "qd": {"NORMAL": dict(r=[34, 30, 30, 28, 26], feint_from=3, badge_from=3),
+           "HARD": dict(r=[24, 22, 20, 19, 18], feint_from=2, badge_from=2),
+           "EASY": dict(r=[40, 38, 36, 34, 34], feint_from=6, badge_from=4)},
     "ou": {"NORMAL": dict(lit=[24, 24, 24, 20, 20, 16, 16], gap=[8, 8, 8, 6, 6, 6, 6], press=150, first=3),
            "HARD": dict(lit=[18, 16, 14, 12, 12, 10, 10], gap=[6, 5, 4, 4, 4, 4, 4], press=100, first=4),
            "EASY": dict(lit=[30, 30, 30, 26, 26, 22, 22], gap=[10, 10, 10, 8, 8, 8, 8], press=240, first=2)},
@@ -350,7 +350,7 @@ def test_score_medals_by_mode(model, mode, game):
 @pytest.mark.parametrize("mode", list(MODES))
 def test_counted_medals_by_mode(model, mode):
     """The games with their own medal, by the game's own count: Order Up (rounds cleared 3 / 5 / 7), Asteroid (deliveries), Log Roll (seconds on the
-    log), Taiko (accuracy), Quick Draw (the match: EASY's 3-2 win is a BRONZE)."""
+    log), Taiko (accuracy), Quick Draw (the rounds lost: 0 gold, 1 silver, 2 bronze, 3 none, in every mode)."""
     for n, want in ((2, 0), (3, 1), (4, 1), (5, 2), (6, 2), (7, 3)):
         assert medal_of_state(model, "ou", mode, lambda gb: put(gb, "ou", "cleared", n)) == want, ("ou", mode, n)
     a = ROWS["ad"][mode]
@@ -370,7 +370,7 @@ def test_counted_medals_by_mode(model, mode):
             put(gb, "tk", "perfect", half // 2)
             put(gb, "tk", "good", half % 2)
         assert medal_of_state(model, "tk", mode, poke) == want, ("tk", mode, pct, half)
-    for wins, lost, want in ((3, 0, 3), (3, 1, 2), (3, 2, 1 if mode == "EASY" else 2), (2, 3, 1), (1, 3, 1), (0, 3, 0)):
+    for wins, lost, want in ((3, 0, 3), (3, 1, 2), (3, 2, 1), (2, 3, 0), (1, 3, 0), (0, 3, 0), (0, 0, 0)):
         def poke(gb, wins=wins, lost=lost):
             put(gb, "qd", "wins", wins, 0)
             put(gb, "qd", "wins", lost, 1)

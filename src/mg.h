@@ -112,7 +112,7 @@ void mg_number(char *dst, uint16_t n) BANKED;    // n in decimal, no leading zer
 
 // ---- the difficulty's tuning (EASY / NORMAL / HARD; mg.h MG_DIFF): each game keeps a const table of these rows (indexed by MG_DIFF: NORMAL, HARD, EASY)
 // and copies its row into its state at entry (the last field of each state: a field read is cheaper than indexing a table every frame). TUNING.md.
-struct qd_tune { uint8_t r[5], feint_from, badge_from, silver_lost; };
+struct qd_tune { uint8_t r[5], feint_from, badge_from; };
 struct ou_tune { uint8_t lit[7], gap[7], press, first; };
 struct bs_tune { uint8_t win0, win_step, win_every, win_min, speed0, speed_every, speed_max, broken_p; };
 struct ts_tune { uint8_t step, up, up_max, spawn, time_s; };

@@ -152,11 +152,11 @@ def test_the_mode_outlasts_a_game_and_the_title_and_reaches_the_game(model):
 # ---- a medal per game per mode ---------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_medal_earned_in_one_mode_shows_only_in_that_mode(model):
-    """Quick Draw: a bronze in EASY, a gold in HARD, a silver in NORMAL (rounds won 1-0, 3-0, 3-1): each only under its own header, in the list's
+    """Quick Draw: a bronze in EASY, a gold in HARD, a silver in NORMAL (rounds won 3-2, 3-0, 3-1): each only under its own header, in the list's
     medal column and the info line; the byte holds them in its three two-bit fields; a worse medal later changes nothing."""
     with ml.to_list(booted(model)) as gb:
         want = {}
-        for mode, rounds in ((EASY, 1), (HARD, 3), (NORMAL, (3, 1))):
+        for mode, rounds in ((EASY, (3, 2)), (HARD, 3), (NORMAL, (3, 1))):
             goto_mode(gb, mode)
             _, medal = play_from_list(gb, rounds=rounds)
             assert medal and header(gb) == "MINI GAMES  " + WORD[mode]
@@ -169,7 +169,7 @@ def test_a_medal_earned_in_one_mode_shows_only_in_that_mode(model):
             goto_mode(gb, mode)
             assert ml.line(gb, 2).split()[-1] == ["", "BRONZE", "SILVER", "GOLD"][want[mode]]
         goto_mode(gb, HARD)
-        play_from_list(gb, rounds=1)                  # a worse HARD medal: the gold stays
+        play_from_list(gb, rounds=(3, 2))  # a worse HARD medal: the gold stays
         assert (mini_best(gb, 0) >> 2) & 3 == want[HARD]
 
 
@@ -237,7 +237,7 @@ def test_all_three_bonus_rounds_and_ten_games_round_trip_in_every_mode(model):
         want = [0] * 10
         for mode in (EASY, HARD, NORMAL):
             goto_mode(gb, mode)
-            _, m = play_from_list(gb, rounds={EASY: 1, HARD: 3, NORMAL: (3, 1)}[mode])
+            _, m = play_from_list(gb, rounds={EASY: (3, 2), HARD: 3, NORMAL: (3, 1)}[mode])
             want[0] |= m << SHIFT[mode]
         ram = save_ram(gb)
     assert ml.parse_block(ram)[1][0] == want[0]
@@ -275,7 +275,7 @@ def test_an_old_save_keeps_its_medals_as_normal_and_has_none_for_easy_and_hard(m
         for mode in (HARD, EASY):
             goto_mode(gb, mode)
             assert ml.line(gb, 2).strip() == "QUICK DRAW" and ml.line(gb, 4).strip() == "SHIRT CANNON"
-        _, m = play_from_list(gb, rounds=1)           # EASY (the last goto): a bronze
+        _, m = play_from_list(gb, rounds=(3, 2))         # EASY (the last goto): a bronze
         assert m == 1 and mini_best(gb, 0) == 3 | 1 << 4
         ram = save_ram(gb)
     assert ml.parse_block(ram)[1][:3] == [3 | 1 << 4, 2, 1]
