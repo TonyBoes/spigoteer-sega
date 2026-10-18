@@ -50,6 +50,40 @@ def fight_raw(model, c):
     return start_entrance(to_goal(fight(model, c, banner=True), boss_start=False))
 
 
+POP_TILES = (100, 102, 104, 106)   # OBJ_TOPPER + 4..: HAT_POP0..3, the whole hat (crown and brim) in four 8x16 sprites
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_big_tex_whole_hat_pops_off_with_the_brim_and_comes_back(model):
+    """The tip lifts the crown AND the brim (four sprites, x 24-48) while his BG-art pair tiles show a bare head (the BARE pose: the
+    body columns 0-3 differ from the hatted ones); before the tip and after it the hat is on again (the crown sprite, the hatted body)."""
+    c = 0
+    with fight_raw(model, c) as gb:
+        to_frame(gb, c, 90)
+        on = sorted(entrance_oam(gb), key=lambda o: o[1])
+        assert not [o for o in on if o[2] in POP_TILES]
+        assert len(on) == 6 and [o for o in on if o[2] == 96], "hat on: five body columns and the crown"
+        by = max(o[0] for o in on)
+        seen = 0
+        for t in range(98, 128):
+            to_frame(gb, c, t)
+            oam = entrance_oam(gb)
+            pop = sorted(o for o in oam if o[2] in POP_TILES)
+            if not pop:
+                continue
+            seen += 1
+            body = sorted((o for o in oam if o[2] not in POP_TILES), key=lambda o: o[1])
+            assert [o[1] for o in pop] == [24, 32, 40, 48] and len({o[0] for o in pop}) == 1 and pop[0][0] < by - 8, (t, oam)
+            assert len(body) == 5 and all(o[0] == body[0][0] for o in body) and not [o for o in body if o[2] in (96, 98)], (t, oam)
+            assert [o[2] for o in body[:4]] != [o[2] for o in on[:4] if o[2] != 96] and len(oam) == 9, "a bare head under the hat"
+        assert seen >= 20, "the whole hat is up for most of the tip"
+        to_frame(gb, c, 130)
+        oam = entrance_oam(gb)
+        assert not [o for o in oam if o[2] in POP_TILES] and [o for o in oam if o[2] in (96, 98)], "the hat is back on"
+        assert sorted(o[2] for o in oam if o[2] not in (96, 98)) == sorted(o[2] for o in on if o[2] != 96), "the hatted body again"
+        until(gb, lambda: not entrance_running(gb), 60)
+
+
 def to_frame(gb, c, t):
     """Frame by frame (each checked at <= 10 sprites a line) to the moment the entrance has just drawn its frame t."""
     while ent_t(gb, c) != t:
@@ -135,7 +169,7 @@ def test_no_entrance_after_a_lost_life_and_the_fight_is_the_usual_one(model, c):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_big_tex_swaggers_in_from_the_left_and_tips_his_hat(model):
     """Sprites only: his body walks in from the left edge (frame 12: off the screen; he is at x -40 + 0.75 px a frame), stops at x 16
-    at frame 87, tips the hat from 98 (the hat sprite 6 px up, the body bows: the STOMP pose); the hat is back and the BG body
+    at frame 87, tips the hat from 98 (the whole hat 10 px up, the body bows: the STOMP pose); the hat is back and the BG body
     takes over at 138. Golden boss_big_tex_entrance: the hat tipped (frame 110)."""
     c = 0
     with fight_raw(model, c) as gb:
@@ -149,8 +183,8 @@ def test_big_tex_swaggers_in_from_the_left_and_tips_his_hat(model):
         body = [o for o in oam if o[0] == oam[-1][0] or o[0] == max(p[0] for p in oam)]
         assert [o[1] for o in body] == [24, 32, 40, 48, 56], oam    # at x 16: his five columns
         to_frame(gb, c, 98 + 7)
-        hats = [o for o in entrance_oam(gb) if o[1] == 16 + 16 + 8 and o[2] == 96]
-        assert hats and hats[0][0] == body[0][0] - 8 - 6, "the hat is lifted 6 px"
+        hats = [o for o in entrance_oam(gb) if o[2] in POP_TILES]
+        assert len(hats) == 4 and {o[0] for o in hats} == {body[0][0] - 8 - 10}, "the whole hat is lifted 10 px"
         to_frame(gb, c, 110)
         check_golden(gb, "boss_big_tex_entrance")
         until(gb, lambda: not entrance_running(gb), 60)

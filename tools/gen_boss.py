@@ -58,7 +58,8 @@ BOSS_HATS_MAX = 10           # topper frames (8x16) at OBJ 96..115 (the Critic: 
 # (src/boss_<name>.c), its body width (px), colours 1-3 (CGB), its extra poses (tells), and "ice": a venue whose
 # counter tiles get icy copies.
 BOSSES = [
-    {"name": "big_tex", "width": 40, "pal": ["#F0B888", "#C83020", "#583018"], "extra": []},
+    {"name": "big_tex", "width": 40, "pal": ["#F0B888", "#C83020", "#583018"], "extra": ["BARE"],
+     "hats": ["HAT_POP0", "HAT_POP1", "HAT_POP2", "HAT_POP3"]},
     {"name": "sasquatch", "width": 32, "pal": ["#E8B878", "#5C2C14", "#140804"], "extra": ["DUCK", "BURST1", "BURST2"],
      "hats": ["HAT_DUCK"], "fx": [("MARKER", "sasquatch")], "nosway": True},   # (29 pairs of 30: a shifted GULP needs 4 more)
     {"name": "critic", "width": 32, "pal": ["#F8D0A8", "#A03070", "#201018"], "extra": ["TASTE", "HOLD", "HOLDHOP"],

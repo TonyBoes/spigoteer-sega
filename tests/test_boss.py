@@ -170,7 +170,7 @@ def test_the_table_has_a_row_per_venue_and_the_built_bosses():
     assert (LINE1, LINE2) == ("BIG TEX RIDES IN", "QUENCH HIM 8 MUGS")
     assert BOSS_BUILT == set(BUILT)
     assert {r: f[len("boss_"):] for r, f in boss_rows()[1].items()} == BUILT
-    assert len(TEX["pairs"]) <= ART["pairs_max"] == 30 and TEX["cols"] == 5 and len(TEX["pose"]) == 5
+    assert len(TEX["pairs"]) <= ART["pairs_max"] == 30 and TEX["cols"] == 5 and len(TEX["pose"]) == 6   # (5 + BARE, the bare head under the entrance's hat tip)
     assert "; Art: approved design" in (ROOT / "assets/art/boss/meter.txt").read_text()
     assert "; Art: approved design" in (ROOT / "assets/art/boss/big_tex.txt").read_text()
 
@@ -236,7 +236,7 @@ def test_the_fight_follows_the_last_call(model):
             vram = bytes(gb.read((0x9000 if a < 128 else 0x8000) + a * 16, 32))
             assert vram == bytes(data), f"body column {p} at {a}"
         assert bytes(gb.read(0x8000 + HUD_BG * 16, 64)) == bytes(TEX["icon"] + ART["meter"])
-        assert bytes(gb.read(0x8000 + OBJ_TOPPER * 16, 64)) == bytes(TEX["hat"])
+        assert bytes(gb.read(0x8000 + OBJ_TOPPER * 16, len(TEX["hat"]))) == bytes(TEX["hat"])
         skip_entrance(to_goal(gb))
         gb.run(2)
         assert all(b != ROW["bar"] for b in gb.read("pat_buf", 8)), "the arrivals never go to his bar"
