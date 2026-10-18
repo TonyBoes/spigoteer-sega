@@ -41,7 +41,7 @@ typedef char stream_slice_check[STREAM_ORDER_BYTES % STREAM_COPY_ROWS == 0 && ST
 // would not fit WRAM). harm_tab[tune]: NULL or the tune's track in ROM bank HARM_BANK (a streamed tune's: its blob's bank, tune_t.bank): duty A, envelope A, duty B,
 // envelope B (NR11, NR12), then events of two bytes, note (bits 0-6: hUGE note index or HARM_REST; bit 7: instrument
 // B) and rows (1..255); rows 0 ends the track (it starts again, in step with the driver's loop). tools/gen_music.py.
-#define HARM_BANK 10
+#define HARM_BANK 24
 #define HARM_REST 0x7F
 extern const unsigned char * const harm_tab[TUNE_ALL];
 // Taiko Pour (src/tk.c) sets spare bits of hUGE_mute_mask (the driver only reads bits 0-3) while it runs: the tune's own

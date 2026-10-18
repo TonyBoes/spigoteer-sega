@@ -551,10 +551,10 @@ def test_the_credits_tune_in_the_rom_is_the_generators_d3c(tmp_path, monkeypatch
         want = ", ".join("&mus_buf_a[%d]" % (((o & 3) * 2 + c - 2) * gm.SLOT_BYTES) for o in range(ORDERS))
         assert f"{name}[] = {{{want}}}" in data, name
     assert "{&song_credits, 0, %d, 3, 22, blob_credits, 1536, NULL, 0}" % FRAMES in data, "a jingle (once), the real frames, 8 patterns first, bank 22, streamed (buf 3)"
-    # the pattern data and the harmony are in ROM bank 22 (a bank of its own; the other tunes' harmony stays in bank 10)
+    # the pattern data and the harmony are in ROM bank 22 (a bank of its own; the other tunes' harmony is in bank 24, with the jingles)
     assert rom_bank("blob_credits") == rom_bank("harm_credits") == 22 == gm.CREDITS_BANK
     assert rom_bank("harm_title") == rom_bank("blob_title") == gm.TITLE_BANK == 23, "the streamed title: its own bank too"
-    assert rom_bank("harm_venue0") == gm.HARM_BANK == 10
+    assert rom_bank("harm_venue0") == gm.HARM_BANK == 24
     assert rom_bytes("blob_credits", len(pats) * gm.SLOT_BYTES) == b"".join(dn(k) for k in pats)
     h = bytes(gm.harm_bytes(t, gm.harm_events("credits", t, b["total"])))
     assert len(h) == 762 and rom_bytes("harm_credits", len(h)) == h

@@ -117,8 +117,8 @@ def test_the_title_blob_and_harmony_are_in_bank_23_and_the_jingles_left_bank_2()
         assert f"{{&song_{name}, {loop}, {frames}, 1, 24, blob_{name}, {n * gm.SLOT_BYTES}, " in data, name
         assert rom_bank(f"blob_{name}") == gm.JINGLE_BANK == 24
     assert "_p0[]" not in data, "no jingle pattern is left in bank 2"
-    # the other tunes' harmony stays in bank 10; the ROM's streaming constants are the generator's
-    assert rom_bank("harm_venue0") == rom_bank("harm_show") == 10
+    # the other tunes' harmony is in bank 24 with the jingles; the ROM's streaming constants are the generator's
+    assert rom_bank("harm_venue0") == rom_bank("harm_show") == gm.HARM_BANK == 24
     h_ = (ROOT / "src" / "music.h").read_text()
     assert "#define STREAM_TICK        3" in h_ and "#define STREAM_COPY_ROWS   8" in h_
     music_c = (ROOT / "src" / "music.c").read_text()

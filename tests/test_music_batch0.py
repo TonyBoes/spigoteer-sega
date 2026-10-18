@@ -77,7 +77,7 @@ def test_every_tune_uses_the_shared_instruments():
         assert {ins for chunk in b["per"][3] for note, ins, eff in chunk if note != gm.REST} <= {gm.BASS_PRO, gm.BASS_HELD}, name
     for name, t in gm.JINGLES.items():
         b = gm.build(name, t, True)
-        assert {ins for chunk in b["per"][3] for note, ins, eff in chunk if note != gm.REST} == {gm.BASS_PRO}, name
+        assert {ins for chunk in b["per"][3] for note, ins, eff in chunk if note != gm.REST} == {gm.BASS_HELD if name == "over" else gm.BASS_PRO}, name   # (batch 4: the game-over bass is held)
     # nothing of the old kits or waves is left
     assert not any(k.startswith("sp_") and k in ("sp_hollow", "sp_old") for k in gm.SUBPAT)
     for letter in "KSHksh":
