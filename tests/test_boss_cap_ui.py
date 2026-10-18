@@ -320,6 +320,13 @@ def test_the_beam_never_makes_an_11th_sprite_on_a_line_in_a_crowd(model):
     from test_flow import inject_mug
     with play_in(model, SHIP) as gb:
         for k in range(3):
+            # A round leaves its mugs behind (12 thrown, 20 slots): the full ones slide past him and break, which costs a life and freezes the scene while they
+            # break, and in a crowd like this the game runs at about half an emulator frame per game frame, so how many are still there 40 frames on moves
+            # with every few cycles of the frame's cost. Each round starts on a clear scene instead: the freeze over, every slot free.
+            until(gb, lambda: gb.mem("game_state") == 1, 600)
+            for i in range(20):
+                gb.write(gb.addr("mug_state") + i, 0)
+            gb.write("mugs_live", 0)
             catch_one(gb, SHIP)
             for b in range(4):
                 for x in (40, 70, 100):
