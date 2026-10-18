@@ -43,7 +43,19 @@ def candidate(name, ret="none"):
     return deco
 
 
-# batch 1 .. 11 add their @candidate generators here.
+# batch 1 (ASM_F): main.c perf_ly(t0 in A, t in E, ly on the stack) -> BC, and perf_snap (writes snap_t / snap_ly).
+@candidate("perf_ly", ret="bc")
+def _gen_perf_ly(rnd, rig):
+    t0, t, ly = perf_ly_cases(rnd, 15)[-1]
+    return Call("main:_perf_ly", a=t0, e=t, stack=bytes([ly]))
+
+
+@candidate("perf_snap")
+def _gen_perf_snap(rnd, rig):
+    return Call("main:_perf_snap", poke={"main:_snap_t": rnd.randrange(256), "main:_snap_ly": rnd.randrange(256)})
+
+
+# batch 2 .. 11 add their @candidate generators here.
 
 
 @pytest.mark.skipif(not C_ROM.exists() or not CANDIDATES, reason="needs build/game-c.gb (make cfall) and a registered candidate")
@@ -95,7 +107,18 @@ def test_rig_perf_ly_matches_its_python_model(model):
         assert r.diff == {}, (t0, t, ly, r.diff)                                 # a pure function writes nothing outside the stack
     lo, med, hi = cycles_summary(res)
     print(model, "perf_ly T per call (C)", lo, med, hi)
-    assert 300 <= lo and hi <= 1500                                              # the profiler's 433 (dt 0) .. ~1,000 (late path)
+    assert 60 <= lo and hi <= 7000                                               # C: 332 (dt 0) .. ~1,036; asm: 120 (dt 0) .. ~190 (dt 1-2), 6,272 at dt 255 (an add loop; dt is that large only after a long transition)
+
+
+@pytest.mark.skipif(not SLOW, reason="the exhaustive perf_ly sweep: RUN_SLOW=1")
+def test_perf_ly_exhaustive(model):
+    """Every dt (0..255) x every ly (0..255) against the Python model; t0 is poked through the register so only dt matters."""
+    rig = Rig(ROM, model)
+    cases = [(5, (5 + dt) & 255, ly) for dt in range(256) for ly in range(256)]
+    res = rig.run([Call("main:_perf_ly", a=t0, e=t, stack=bytes([ly])) for t0, t, ly in cases])
+    for (t0, t, ly), r in zip(cases, res):
+        assert r.bc == perf_ly_model(t0, t, ly), (t0, t, ly, r.bc)
+        assert r.diff == {}
 
 
 def test_rig_leaves_the_game_running(model):

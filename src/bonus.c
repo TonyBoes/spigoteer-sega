@@ -28,7 +28,7 @@ extern uint8_t play_mode;                   // src/story.c (game.h MODE_*)
 extern void vq_reset(void);
 extern uint32_t score;
 extern uint8_t next_rand(void);
-extern void add_score(uint16_t n);
+extern void add_score(uint16_t n) BANKED;
 extern void draw_hud(void) BANKED;          // src/main_cold.c
 extern void bonus_record(uint8_t k, uint8_t medal) BANKED;   // src/save.c: round k was played (unlocks it in Practice)
 extern uint8_t *mg_say(uint8_t row, const char *s);   // main.c (ROM0)

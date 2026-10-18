@@ -276,7 +276,8 @@ extern const uint8_t bar_oam_y[NUM_BARS];     // OAM y (+16) of the bar's top pi
 
 // ---- main.c --------------------------------------------------------------------------
 uint8_t next_rand(void);
-void add_score(uint16_t n);
+void add_score(uint16_t n) BANKED;                      // src/rom0_relief.c (bank 21)
+void dancers_step(void) BANKED;                         // src/rom0_relief.c: the show's dancer entries
 void lose_life(void);
 void prep_hud(void);                          // lives_tiles (head, digit) / score_tiles from lives and score_digits
 #define NOTE_WY    ((STAGE_FIRST_ROW + 2) * 8)  // a note (show_note): the window is ONE row, over the stage's wall under the sign (y 24..30), where nothing plays
