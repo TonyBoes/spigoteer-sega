@@ -96,7 +96,7 @@ def test_the_data_carries_the_beats():
     assert all(p["pre"] % UNIT == 0 and p["pre"] <= 7 * UNIT for p in pages)
     intro = SCENES[SC["INTRO"]]["pages"]
     assert intro[0]["pre"] == 4 * UNIT, "the story opens on a beat"
-    assert intro[5]["marks"] == [[0, 5, SHORT], [0, 11, SHORT], [0, 17, SHORT], [1, 16, LONG]], "GLUG. GLUG. GLUG. ..."
+    assert intro[6]["marks"] == [[0, 5, SHORT], [0, 11, SHORT], [0, 17, SHORT], [1, 16, LONG]], "GLUG. GLUG. GLUG. ..."
     assert variants, "the teahouse's variant keeps its own text"
 
 

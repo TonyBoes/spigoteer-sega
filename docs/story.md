@@ -152,9 +152,9 @@ text as its page, and two variants with the same condition on one page.
 
 ### INTRO: "The Big Pour"
 
-Picture (pages 1-5): Fizzwater town square at night: the clock tower and houses at the left, the fountain right of centre. The whole Golden Spigot gleams on it, string lights hang across the square and a few townsfolk in hats wait in the foreground. The Spigoteer walks in from the right. (`assets/story/pictures/intro_before.txt`)
+Picture (pages 1-6): Fizzwater town square at night: the clock tower and houses at the left, the fountain right of centre. The whole Golden Spigot gleams on it, string lights hang across the square and a few townsfolk in hats wait in the foreground. The Spigoteer walks in from the right. (`assets/story/pictures/intro_before.txt`)
 
-Picture (page 6): the same square a moment later, after a white flash. The intact Golden Spigot bursts into its ten pieces, which fly outward and off the screen (a short animation, OBJ sprites), each leaving a trail of faded dots in the sky that fades away. Over the spigot's spot a gold burst star (BG tiles, two sizes) is up at the flash and pulses (big, small, big...) while the pieces fly, then dies down once they are gone and an electric crackle (two flickering bolt sprites, with a rattle sound) takes its place above the broken stub and keeps on through pages 7-11. What is left: an empty rim with a broken stub and a last drip, and the fountain stopped (no jets). Dregs stands on the cobbles, the Spigoteer shrugs, and the townsfolk duck or point. Pages 7-11 stay on it. (`assets/story/pictures/intro_a.txt`, the pieces `assets/story/pictures/intro_pieces.txt`)
+Picture (page 7): the same square a moment later, after a white flash. The intact Golden Spigot bursts into its ten pieces, which fly outward and off the screen (a short animation, OBJ sprites), each leaving a trail of faded dots in the sky that fades away. Over the spigot's spot a gold burst star (BG tiles, two sizes) is up at the flash and pulses (big, small, big...) while the pieces fly, then dies down once they are gone and an electric crackle (two flickering bolt sprites, with a rattle sound) takes its place above the broken stub and keeps on through pages 8-12. What is left: an empty rim with a broken stub and a last drip, and the fountain stopped (no jets). Dregs stands on the cobbles, the Spigoteer shrugs, and the townsfolk duck or point. Pages 8-12 stay on it. (`assets/story/pictures/intro_a.txt`, the pieces `assets/story/pictures/intro_pieces.txt`)
 
 ```
 NARRATOR
@@ -177,6 +177,11 @@ SPIGOTEER
 I'M SAL TAPLEY,
 THE SPIGOTEER,|
 REIGNING CHAMP!
+
+NARRATOR
+HE'S ALSO FAMOUS
+FOR HIS MUSTACHE:
+BIG, BOLD, TIDY.
 
 DREGS
 @beat 3
