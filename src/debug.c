@@ -437,11 +437,12 @@ uint8_t debug_step(uint8_t pressed) BANKED {
 #ifdef AUTO_CARD                        // test-only (tests/test_fade_hw.py, never in a release): boot -> BOSS RUSH's first fight (as rush.c starts it) -> START 300 frames in -> DOWN, A: the
 extern uint8_t frame_counter;
 extern uint32_t score;
+void boss_card_mark(uint8_t v) BANKED;
 uint8_t auto_card(void) BANKED {         // HOW TO PLAY card -> (AUTO_CARD 1: B, 100 frames later, back to the menu; 2: the card stays open); the pause fades or the LCD-off cut (-DCARD_FADE=0). Returns joy.
     static uint16_t ac_t;
     uint8_t j = 0;
     if (game_state == GS_TITLE) {
-        if (frame_counter == 100) { score = 0; lives = START_LIVES; rush_fight(0); }
+        if (frame_counter == 100) { score = 0; lives = START_LIVES; boss_card_mark(0); rush_fight(0); }   // (his card marked seen: the first-encounter card would pause the game by itself)
     } else if (game_state == GS_GOAL) {
         if (!(++ac_t & 15)) j = J_A;
     } else if (game_state == GS_PLAYING || game_state == GS_PAUSED) {
@@ -457,7 +458,52 @@ uint8_t auto_card(void) BANKED {         // HOW TO PLAY card -> (AUTO_CARD 1: B,
 }
 #endif
 
-#ifdef AUTO_NOTE                        // test-only (tests/test_fade_hw.py, never in a release): a note shown at frame 100 of play is cut off at 110 the way a life lost or a scene change cuts it (overlay_on cleared, WY and LYC left on the note), START at 120. Returns joy.
+#ifdef AUTO_BOSS                        // test-only (tests/test_fade_hw.py, never in a release): boot -> STORY chapter 1's Last call (as the debug select starts it) -> its quota poked met at
+extern uint8_t frame_counter, boss_on, boss_state, boss_step, boss_hp;   // frame 60 of play -> the bars poked empty -> the level turns into Big Tex's fight (cover, banner, entrance) ->
+extern uint8_t story_goal[], rng_state, pat_buf[];             // (AUTO_BOSS 1: his first-encounter card opens by itself, A turns and closes it; 2: his card marked seen first: no card) -> 120 frames into the fight everything
+extern uint32_t score;                   // is frozen (no arrivals, no walkers, no stomp), so the last frame is a still picture whatever the fades took. A on every banner. Returns joy.
+uint8_t auto_boss(void) BANKED {
+    static uint16_t ab_t, ab_f;
+    static uint8_t ab_p;
+    uint8_t j = 0, p;
+    if (game_state == GS_TITLE) {
+        if (frame_counter == 100) {
+            score = 0; lives = START_LIVES; rng_state = 0xA7;
+#if AUTO_BOSS == 2
+            boss_card_mark(0);
+#endif
+            story_debug_start(0, 4, 0);
+        }
+    } else if (game_state == GS_GOAL) {
+        if (!(++ab_t & 15)) j = J_A;
+        if (boss_on) {                               // (his banner: the regulars' order and every draw after it the same in every run: the fades, the card and the cover
+            rng_state = 0x3D;                        // take different numbers of next_rand calls)
+            for (p = 0; p < STORY_PAT_MAX; p++) pat_buf[p] = p % 3 ? 2 + (p % 3 - 1) : 0;   // (bars 0, 2, 3: never Tex's, bar 1)
+        }
+    } else if (game_state == GS_PAUSED) {            // (the card: A turns its page, A on the last one closes it)
+        ab_p++;
+        if (ab_p == 120 || ab_p == 240 || ab_p == 360) j = J_A;
+    } else if (game_state == GS_PLAYING) {
+        if (!boss_on) {
+            if (++ab_t == 60) served = story_goal[1];
+            if (ab_t > 70) {
+                for (p = 0; p < MAX_PATRONS; p++) patron_state[p] = 0;
+                patrons_live = 0; lists_dirty = 1;
+                clear_mugs(); mugs_live = 0;
+            }
+        } else if (boss_state == 0 && boss_hp) {      // (BS_WALK: the fight itself is on)
+            if (ab_f == 0) rng_state = 0x5C;               // (which regular comes where is random: the same draw in every run)
+            if (++ab_f == 120) {
+                patron_speed = 0; hurry_speed = 0; spawn_timer = 0xFFFF; boss_step = 0;
+                sa_hold = 255;
+            }
+        }
+    }
+    return j;
+}
+#endif
+
+#ifdef AUTO_NOTE                       // test-only (tests/test_fade_hw.py, never in a release): a note shown at frame 100 of play is cut off at 110 the way a life lost or a scene change cuts it (overlay_on cleared, WY and LYC left on the note), START at 120. Returns joy.
 uint8_t auto_note(void) BANKED {
     static uint8_t an_t;
     uint8_t j = 0;

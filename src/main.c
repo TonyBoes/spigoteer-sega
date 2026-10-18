@@ -471,6 +471,9 @@ static void update(void) {
 #ifdef AUTO_NOTE                        // test-only (the hook is in src/debug.c)
     joy |= auto_note();
 #endif
+#ifdef AUTO_BOSS                       // test-only (tests/test_fade_hw.py): the hook is in src/debug.c
+    joy = auto_boss();
+#endif
 #ifdef AUTO_CARD                       // test-only (tests/test_fade_hw.py, never in a release): the hook is in src/debug.c (a banked file: ROM0 has no room)
     joy = auto_card();
 #endif

@@ -567,6 +567,9 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #ifdef AUTO_NOTE
 uint8_t auto_note(void) BANKED;                          // src/debug.c: the test-only note cut-off hook
 #endif
+#ifdef AUTO_BOSS
+uint8_t auto_boss(void) BANKED;                         // src/debug.c: the test-only Last call -> boss hook of tests/test_fade_hw.py
+#endif
 #ifdef AUTO_CARD
 uint8_t auto_card(void) BANKED;                         // src/debug.c: the test-only hook of tests/test_fade_hw.py
 #endif

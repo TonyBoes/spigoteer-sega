@@ -142,3 +142,46 @@ def test_a_cut_off_note_does_not_move_the_pause_menu(cut_note, model):
     for y in range(72, 80):
         assert len(row_colours(img, y)) == 1, f"line {y} is not the menu's blank row"
     assert len(row_colours(img, 30)) > 1 and len(row_colours(img, 130)) > 1, "the scene above and below the band is not the window"
+
+
+# ---- Last call turning into the boss fight, on SameBoy (owner 2026-10-17: the level is rebuilt mid-play behind the cover) ---------------------------------
+# src/story.c boss_in_place: LCD off behind the drink / white fade, his tiles and palettes loaded, the HUD columns rewritten, the tune restarted, then the banner, his
+# entrance and (first time) his HOW TO PLAY card by itself. A palette or VRAM write that PyBoy accepts but an accurate LCD drops would show only here.
+# -DAUTO_BOSS=n (src/debug.c auto_boss): boot -> STORY chapter 1's Last call -> quota poked met, bars poked empty -> the swap, banner, entrance -> (1: his card opens
+# by itself, A turns and closes it; 2: his card marked seen first) -> 120 game frames into the fight everything is frozen: the last frame (at 26 s) is a still picture
+# whatever the fades took. The run with no transition and the LCD-off card (-DAUTO_NOTRANS -DCARD_FADE=0) is the reference: the fades, the swap and the card's exit must
+# leave pixel for pixel the same picture, and so must the run that never showed the card.
+BOSS_VARIANTS = {"ref": "-DAUTO_BOSS=1 -DAUTO_NOTRANS -DCARD_FADE=0", "fade": "-DAUTO_BOSS=1", "seen": "-DAUTO_BOSS=2", "white": "-DAUTO_BOSS=1 -DTRANS_DEFAULT=2"}
+
+
+@pytest.fixture(scope="module")
+def boss_shots():
+    OUT.mkdir(parents=True, exist_ok=True)
+    jobs = {}
+    for name, flags in BOSS_VARIANTS.items():
+        bdir = OUT / f"build_boss_{name}"
+        cmd = ["make", f"BUILD={bdir}", f"DEBUGFLAGS=-DDEBUG_MENU {flags}"]
+        jobs[name] = (bdir, subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT))
+    out = {}
+    for name, (bdir, p) in jobs.items():
+        assert p.wait() == 0, f"build {name} failed"
+        rom = OUT / f"boss_{name}.gb"
+        rom.write_bytes((bdir / "game.gb").read_bytes())
+        shot = OUT / f"boss_{name}"
+        r = subprocess.run(["gbcheck", str(rom), "--length", "26", "--out", str(shot)], cwd=ROOT, capture_output=True, text=True)
+        assert "FAIL" not in r.stdout, r.stdout
+        for m in ("dmg", "cgb"):
+            out[name, m] = Image.open(shot / f"boss_{name}.{m}.png").convert("RGB")
+    return out
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("var", ["fade", "seen", "white"])
+def test_the_boss_fight_after_the_swap_and_the_card_is_the_picture_without_them(boss_shots, var, model):
+    a = boss_shots["ref", model]
+    assert len(a.getcolors()) > 3, "the fight, not a blank screen"
+    b = boss_shots[var, model]
+    assert set(a.getdata()) == set(b.getdata()), "the same colours"
+    # (a regular walking in at the left edge is a game frame or so apart between runs of different fades: the picture must be the same everywhere but that entry zone)
+    box = Image.frombytes("L", a.size, bytes(abs(x - y) for x, y in zip(a.convert("L").tobytes(), b.convert("L").tobytes()))).getbbox()
+    assert box is None or (box[0] >= 0 and box[2] <= 40 and box[1] >= 40), f"differs in {box}"
