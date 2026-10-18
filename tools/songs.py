@@ -56,7 +56,8 @@ BASS_HELD = 2         # gen_music.WAVE: the bass without its pluck table (the de
 SUNG_ARTIC = 3       # frames of silence between two sung notes of the same pitch (legato=)
 
 
-def song(name, tempo, bufname, ch2, ch3, ch4="", inst=LEAD_PRO, gap=True, stac_all=None, groove="", legato=None, start=0, swing=0, tempo_map=None, fx_map=None):
+def song(name, tempo, bufname, ch2, ch3, ch4="", inst=LEAD_PRO, gap=True, stac_all=None, groove="", legato=None, start=0, swing=0, tempo_map=None, fx_map=None,
+         short_orders=()):
     """stac_all: (num, den) cuts every melody note after num/den of its length (staccato).
     legato: n frames.  A sung tune: the melody plays on the legato lead (gen_music instrument 6, a held volume
     instead of the song lead's decay, which made every note a plucked syllable), each note runs into the next, and a
@@ -72,11 +73,14 @@ def song(name, tempo, bufname, ch2, ch3, ch4="", inst=LEAD_PRO, gap=True, stac_a
     takes the place of the tempo byte in the groove's header, which src/music.c reads; 0 = none, a mask is over 15).
     0xAA: rows of 9, 8, 9, 8 frames = 105.9 bpm at tempo 9 for the Entertainer.
     tempo_map: {row: frames a row from that row on} (hUGE Fxx, put on a free effect column of that row; gen_music counts the
-    tune's frames with it).  fx_map: {row: [(channel, hUGE effect word)]} (a channel's own effect, e.g. 0xC50 wave volume)."""
+    tune's frames with it).  fx_map: {row: [(channel, hUGE effect word)]} (a channel's own effect, e.g. 0xC50 wave volume).
+    short_orders: order numbers (in the tune's hUGE order list) that play only their first 32 rows: the melody and bass text has no rows for
+    the other 32; gen_music pads them with rests and puts a pattern break on row 31 (the streamed title: its intro and bridge are 4 bars)."""
     if legato:
         inst = LEGATO_LEAD
     SONGS[name] = dict(tempo=tempo, buf=bufname, ch2=ch2, ch3=ch3, ch4=ch4, inst=inst, gap=gap, stac_all=stac_all,
-                       groove=groove, legato=legato, start=start, swing=swing, tempo_map=tempo_map, fx_map=fx_map, ch1="", ch1_inst=None)
+                       groove=groove, legato=legato, start=start, swing=swing, tempo_map=tempo_map, fx_map=fx_map, ch1="", ch1_inst=None,
+                       short_orders=tuple(short_orders))
 
 
 def harmony(name, tune, ch1, inst=("harm", "harm")):
@@ -120,18 +124,46 @@ CHORUS = "F4:4 F4:4  A4:2 A4:4 A4:2  G4:2 G4:2 E4:2 C4:2  D4:6 C4:1 D4:1"
 ENDING = "E4:2 G4:2 G4:2 A4:2  G4:2 E4:2 C4:3 D4:1  E4:2 E4:2 D4:2 D4:2  C4:6 C4:1 D4:1"   # (score: C4:4 r:4)
 SUS_MEL = "  ".join([A1, A2, A1, A2_LAST, CHORUS, ENDING])
 SUS_CH = (["C", "C", "C", "G"] + ["C", "C", "G", "C"]) * 2 + ["F", "C", "C", "G"] + ["C", "C", "G", "C"]
-SUS_BASS_BAR = {"C": "C3:4! G2:4!", "G": "G2:4! D3:4!", "F": "F2:4! C3:4!"}
-SUS_BASS = " ".join(SUS_BASS_BAR[c] for c in SUS_CH)
-VERSE_D = "b:2 r:2 n:2 r:2"
-CHORUS_D = "b:2 t:2 n:2 t:2"
-SUS_DRUMS = " ".join([VERSE_D] * 16 + [CHORUS_D] * 4 + [VERSE_D] * 4)
+# Music batch 1 (owner-approved 2026-10-17, docs/proarr/BATCH_1.md on branch promusic): the arrangement is ours, the melody unchanged.
+# Bass (plucked, BASS_PRO: a banjo song's thumb; the walking eighths are full plucks, the beat notes die before the next, which
+# grooves with the kit): root on 1, fifth or third on 2, a walk at every chord change (C B A into G, D B into C, D E into the
+# chorus's F, B into C), the verse ending C G B into the next verse.
+SUS_BASS = " ".join(H.expand([
+    "C3:4 G2:4", "C3:4 E3:4", "C3:4 B2:2 A2:2", "G2:4 D3:2 B2:2",      # 1-4   C C C G
+    1, "C3:4 E3:2 D3:2", "G2:4 B2:2 D3:2", "C3:4 G2:2 B2:2",          # 5-8   C C G C
+    1, 2, 3, 4,                                                       # 9-12
+    1, 6, 7, "C3:4 D3:2 E3:2",                                        # 13-16 (16: the walk into the chorus's F)
+    "F3:4 C3:2 B2:2", 1, 3, 4,                                        # 17-20 F C C G
+    1, 6, 7, 8,                                                       # 21-24 C C G C (24 walks into bar 1)
+], 24))
+# Drums (a pattern: fills cost nothing): verse kick, hat, snare, hat; a snare double at the end of every first four-bar phrase, a
+# snare-snare tom-tom roll at the end of every eighth bar (into the second verse, into the chorus, into the next pass).  Every
+# 8-bar order has the same drum pattern: one pattern, so the tune keeps 7 in the WRAM buffer.
+SUS_DRUMS = " ".join(H.expand([
+    "b:2 t:2 n:2 t:2", 1, 1, "b:2 t:2 n:2 n:1 n:1",                    # 1-4
+    1, 1, 1, "b:2 t:2 n:1 n:1 m:1 m:1",                               # 5-8
+    1, 1, 1, 4,                                                       # 9-12
+    1, 1, 1, 8,                                                       # 13-16 (the roll into the chorus)
+    1, 1, 1, 4,                                                       # 17-20 chorus
+    1, 1, 1, 8,                                                       # 21-24 (the roll into the next pass)
+], 24))
 song("susanna", 8, "A", SUS_MEL, SUS_BASS, SUS_DRUMS, legato=SUNG_ARTIC)
 # Harmony (music step 5): a second voice in thirds and sixths under the verses (one note an eighth at most, held where it
 # repeats), a slow counter-line of chord tones under the chorus ("Oh! Su-san-na"), on the held 12.5% pad like a second
-# singer.
+# singer.  Batch 1: under the held "comes" D (bars 4, 12, 20) and the verse-ending C (8, 24) the voice moves, and the chorus
+# gets a counter-line of its own under "Oh! Su-san-na, oh".
 _t = H.Tune(SUS_MEL, SUS_CH, 8, 4, "C")
-harmony("susanna", _t, " ".join([H.follow(_t, (1, 16), "G3", "A4", grid=2), H.guide(_t, (17, 20), "G3", "E4"),
-                                 H.follow(_t, (21, 24), "G3", "A4", grid=2)]), ("pad", "pad"))
+SUS_HARM_BARS = {
+    4: "B3:4 A3:2 G3:2", 12: "B3:4 A3:2 G3:2", 20: "B3:4 A3:2 G3:2",
+    8: "G3:2 E3:2 G3:4", 24: "G3:2 E3:2 G3:4",
+    17: "A3:4 C4:2 D4:2",          # under F F: A, C, D (F chord, D of the key)
+    18: "E4:2 C4:2 D4:2 E4:2",     # under the repeated A: E C D E
+    19: "E4:2 D4:2 C4:2 G3:2",     # under G G E C: a line stepping down
+}
+SUS_HARM = H.patch_bars(" ".join([H.follow(_t, (1, 16), "G3", "A4", grid=2), H.guide(_t, (17, 20), "G3", "E4"),
+                                  H.follow(_t, (21, 24), "G3", "A4", grid=2)]), 8, SUS_HARM_BARS)
+harmony("susanna", _t, SUS_HARM, ("pad", "pad"))
+SUS_HARM_CHECK = H.check(_t, SUS_HARM)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -187,13 +219,10 @@ ENT_CHORDS = [
     "C", "F/C", "G7", "C", "C", "F/C", "D7", "G7", "C", "F/C", "G7", "C", "C", "F", "G7", "C",
     "C", "C", "F", "C", "C", "C", "D7", "G7", "C", "C", "F", "C", "F/F#dim7", "C", "D7/G7", "C",
 ]
-song("entertainer", 9, "A", " ".join(ENT_BARS), oompah(ENT_CHORDS, 8), swing=0xAA,
-     groove="b:1 r:1 t:1 r:1 n:1 r:1 t:1 r:1")
+# The title tune itself is defined after the credits tune's data (below): the whole Entertainer, looping, from these A and B bars.
 # Harmony (the owner's "1b", 2026-10-12): a second voice in thirds and sixths under the whole tune, in the melody's own
 # rhythm (grid 1: it moves on any sixteenth, the off-beat ragtime notes included; merge=False re-strikes a repeated note
 # as the melody does), on the 50% "harm50" pulse (decaying like a piano's second hand).  C3-B4 keeps it under the melody.
-_t = H.Tune(" ".join(ENT_BARS), ENT_CHORDS, 8, 4, "C")
-harmony("entertainer", _t, H.follow(_t, (1, 32), "C3", "B4", grid=1, merge=False), ("harm50", "harm50"))
 
 # ---------------------------------------------------------------------------------------------
 # Show: "Galop infernal" (Jacques Offenbach, Orphee aux enfers, 1858, the can-can), the owner's spec (docs/music_specs.md
@@ -293,13 +322,35 @@ TMO_CHORDS = [
     "G", "Em", "D7", "D7", "G", "Em", "D", "D", "E7", "E7", "Am", "Am", "A7", "A7", "D", "D", "G",
     "Em", "D7", "D7", "G", "G7", "C", "C", "C", "A7", "D", "E7", "Am", "D7", "G", "G",
 ]
-song("ballgame", 9, "A", " ".join(TMO_BARS), oompah(TMO_CHORDS, 6), groove="b:1 r:1 n:1 r:1 n:1 r:1")
-# Harmony (music step 5): the first sixteen bars hold one chord tone a chord (the organ's sustained chord: the third or
-# seventh first, G#4 in the E7 bars), the second sixteen a voice in thirds and sixths under "let me root, root, root",
-# one note for each melody eighth (grid 1, no merging).  Owner's pick (harmony demos, 2026-10-12): held, then thirds.
+# Music batch 1 (owner-approved 2026-10-17, docs/proarr/BATCH_1.md): a waltz bass with a line: the root on 1, two chord tones on 2
+# and 3 that rise or fall toward the next bar's root, the descending D C B into G (bars 4, 16, 20, 30), a chromatic D D# into E7
+# (8, 27), B C into D (6, 18), E D C into C and the like.
+TMO_BASS = " ".join(H.expand([
+    "G2:2 B2:2 D3:2", "E3:2 B2:2 G3:2", "D3:2 F#3:2 A3:2", "D3:2 C3:2 B2:2",     # 1-4   G Em D7 D7
+    1, "E3:2 B2:2 C3:2", "D3:2 A2:2 F#3:2", "D3:2 A2:2 D3:1 D#3:1",            # 5-8   G Em D D
+    "E3:2 G#3:2 B2:2", 9, "A2:2 E3:2 C3:2", "A2:2 C3:2 E3:2",                  # 9-12  E7 E7 Am Am
+    "A2:2 E3:2 G3:2", "A2:2 C#3:2 E3:2", 7, 4,                                 # 13-16 A7 A7 D D
+    1, 6, 3, 4,                                                                # 17-20 G Em D7 D7
+    1, "G2:2 F3:2 D3:2", "C3:2 E3:2 G3:2", "C3:2 G2:2 E3:2",                   # 21-24 G G7 C C
+    "C3:2 E3:2 C3:1 B2:1", 14, 8, 9,                                           # 25-28 C A7 D E7
+    11, 4, 1, "G2:2 D3:2 F#2:2",                                               # 29-32 Am D7 G G (32 leads into bar 1)
+], 32))
+# Drums: a 4-bar groove (24 rows): kick on 1, snare on 2, rim on 3, closed hats between; bar 4 ends with a snare on 3 and an open hat.
+TMO_GROOVE = " ".join(["b:1 t:1 n:1 t:1 x:1 t:1"] * 3 + ["b:1 t:1 n:1 t:1 n:1 o:1"])
+song("ballgame", 9, "A", " ".join(TMO_BARS), TMO_BASS, groove=TMO_GROOVE)
+# Harmony (music step 5): bars 1-16 a moving inner voice on the pad under the long notes (it held one tone a chord before batch 1),
+# bars 17-32 a voice in thirds and sixths under "let me root, root, root", one note for each melody eighth (grid 1, no merging).
+# Owner's pick (harmony demos, 2026-10-12): held, then thirds.
 _t = H.Tune(" ".join(TMO_BARS), TMO_CHORDS, 6, 2, "G")
-harmony("ballgame", _t, " ".join([H.guide(_t, (1, 16), "D4", "C5"),
-                                  H.follow(_t, (17, 32), "D4", "D5", grid=1, merge=False, inst="/2")]), ("pad", "harm"))
+TMO_HARM_1_16 = [
+    "D4:4 B4:2", "G4:2 B4:2 G4:2", "F#4:2 A4:2 B4:2", "F#4:2 E4:2 C4:2",
+    "D4:4 B4:2", "G4:2 B4:2 G4:2", "F#4:2 A4:2 B4:2", "A4:2 F#4:2 r:2",
+    "G#4:2 B4:2 G#4:2", "G#4:2 E4:2 B4:2", "C5:2 A4:2 E4:2", "E4:2 C4:2 E4:2",
+    "C#5:2 A4:2 G4:2", "C#5:2 D5:2 E5:2", "F#5:2 D5:2 B4:2", "B4:2 G4:2 F#4:2",
+]
+TMO_HARM = " ".join(TMO_HARM_1_16) + " " + H.follow(_t, (17, 32), "D4", "D5", grid=1, merge=False, inst="/2")
+harmony("ballgame", _t, TMO_HARM, ("pad", "harm"))
+TMO_HARM_CHECK = H.check(_t, TMO_HARM)
 
 # ---------------------------------------------------------------------------------------------
 # Lumber lodge: "She'll Be Coming 'Round the Mountain" (American folk song).  4/4, key D, one row = a sixteenth
@@ -615,6 +666,148 @@ CR_TEMPO_MAP = {568: 17, 570: 19, 572: 20}
 CR_FX_MAP = {574: [(3, 0xC05)], 576: [(3, 0xC02)]}   # the last bass chord: 50 %, then 25 % (the driver reads the LOW nibble of Cxy for the wave channel)
 song("credits", 15, "A", CR_MEL, CR_BASS, "", tempo_map=CR_TEMPO_MAP, fx_map=CR_FX_MAP)
 SONGS["credits"].update(ch1=CR_HARM, ch1_inst=("harm50", "ring50"))
+
+# ---------------------------------------------------------------------------------------------
+# The title tune (owner-approved 2026-10-17: music batch 1's title, then "the whole Entertainer, looping", the second B strain an
+# octave up; docs/proarr/BATCH_1.md, BATCH_TITLE_FULL.md and specs/title_full.md on branch promusic).  152 bars, 1216 rows, 10336 frames
+# (173 s a pass), swing 0xAA like the old title:
+#   intro (4) | A1 (16) | A2 (16) | B1 (16) | B2 (16, an octave up: Joplin's "8va") | A3 (16) | C1 (16) | C2 (16, the trio in F) |
+#   bridge (4) | D1 (16) | D2 (16) | -> back to the intro
+# The A and B strains are the old title's (ENT_BARS), the intro, trio, bridge and D strain the credits tune's notes (CR_MEL, bar by bar).
+# It streams like the credits tune: 20 hUGE orders, the intro's and the bridge's short (32 rows, `short_orders`); src/music.c copies
+# order k+2 (mod 20) over the buffer slot of order k-2 while order k plays.  The bass is a ragtime left hand with a walk into every
+# chord change, the drums a 4-bar groove with a fill on every fourth bar, the second voice on channel 1 in thirds with the walking
+# held bars.  Real pitches throughout (the bass gets the wave octave from gen_music).
+ENT_BASS = H.expand([
+    "C3:2 G2:2 C3:2 D3:1 E3:1",      # 1  C -> F
+    "F3:2 A2:2 E3:2 F3:1 F#3:1",     # 2  F, C/E -> G7 (the F F# walk lands on the G above)
+    "G3:2 D3:2 G2:2 B2:2",           # 3  G7 -> C: the left hand runs down G D G, B into C
+    "C3:2 G2:2 A2:2 B2:2",           # 4  C: the walk-up into bar 5
+    1,                               # 5
+    "F3:2 A2:2 E3:2 C3:1 C#3:1",     # 6  F, C/E -> D7
+    "D3:2 A2:2 D3:2 F#2:2",          # 7  D7 -> G7
+    "G2:2 D3:2 G2:2 B2:2",           # 8  G7 -> C (from the low F#: the low G)
+    1, 2, 3, 4,                      # 9-12
+    1,                               # 13
+    "F2:2 C3:2 F2:2 F#2:2",          # 14 F -> G7 (the low F this time)
+    8,                               # 15
+    "C3:2 G2:2 E3:2 G2:2",           # 16 C, into the B section
+    16,                              # 17
+    1,                               # 18 C -> F
+    "F3:2 C3:2 A2:2 B2:2",           # 19 F -> C
+    4,                               # 20
+    16,                              # 21
+    "C3:2 G2:2 C3:2 C#3:2",          # 22 C -> D7
+    7,                               # 23
+    8,                               # 24
+    16,                              # 25
+    1,                               # 26
+    19,                              # 27
+    "C3:2 G2:2 C3:2 E3:2",           # 28 C -> F
+    "F3:2 C3:2 F#3:2 A2:2",          # 29 F, F#dim7 -> C/G
+    "G2:2 E3:2 C3:2 C#3:2",          # 30 C -> D7
+    "D3:2 A2:2 G2:2 B2:2",           # 31 D7, G7 -> C
+    4,                               # 32 C: the walk-up into bar 1
+], 32)
+# Drums: a 4-bar groove (32 rows; the title's 8 patterns fill the WRAM buffer, so its drums stay with the groove player): kick on 1,
+# snare on 2, closed hats on the "ands"; bar 2 ends with a hat double, bar 4 with a snare on the and-of-2 and an open hat.
+ENT_GROOVE = " ".join(["b:1 r:1 t:1 r:1 n:1 r:1 t:1 r:1", "b:1 r:1 t:1 r:1 n:1 r:1 t:1 t:1",
+                       "b:1 r:1 t:1 r:1 n:1 r:1 t:1 r:1", "b:1 r:1 t:1 r:1 n:1 r:1 n:1 o:1"])
+# Harmony: the owner's thirds (follow, grid 1) stay; under the held notes the voice now walks instead of holding one tone.
+ENT_HARM_BARS = {
+    2: "A4:2 F4:2 E4:2 G4:2",            # under the held C5 (F, then C/E): A F E, G under the D D# pickup
+    4: "E4:2 G4:2 E4:1 C4:1 B3:1 C4:1",  # the rag's E-C figure under the held C, B C under the D D# pickup
+    6: "A4:2 F4:2 G4:2 E4:2",            # under the held C5, then E under A G
+    8: "B4:2 G4:2 F4:2 B3:2",            # under the held D5 (G7): B G F, then B under the pickup
+    10: "A4:2 F4:2 E4:2 G4:2",
+    12: "E4:2 G4:2 E4:3 G4:1",
+    16: "E4:2 G4:2 E4:1 C4:1 C4:1 D4:1",
+    24: "D4:2 B3:4 D4:2",                # under the held G4 (G7)
+    28: "E3:2 G3:2 E3:2 D3:1 E3:1",      # under the held C4, low
+    32: "E3:2 G3:2 E3:2 G3:1 C4:1",      # under the held C4, G C under the D D# pickup into bar 1
+}
+ENT_TRIO_BASS = H.expand([                # the trio's 15 bars (F major; roots F2, A#2, D3, G2, E3, A2, C3), a lead into every bar
+    "F2:2 C3:2 F2:2 A2:2", "A#2:2 F3:2 A#2:2 C3:2", "D3:2 A2:2 F3:2 A2:2", "G2:2 D3:2 G2:2 A2:2",
+    "A#2:2 F3:2 G2:2 E2:2", "F2:2 C3:2 D3:2 B2:2", "E3:2 B2:2 E3:2 G#2:2", "A2:2 E3:2 C3:2 G2:2",
+    1, 2, 3, 4, 5, "F2:2 C3:2 C3:2 G2:2", "C3:2 G2:2 C3:2 E3:2"], 15)
+ENT_D_BASS = H.expand([                   # the D strain's 15 bars (the last, Joplin's own walking bass under the cadence: A D G B)
+    "D3:2 A2:2 D3:2 A2:2", "D3:2 A2:2 F3:2 D3:2", "C3:2 G2:2 E3:2 G2:2", "C3:2 G2:2 C3:2 D3:2",
+    "G2:2 D3:2 F3:2 D3:2", "G2:2 D3:2 G2:2 G2:2", "F#2:2 A2:2 C3:2 B2:2", "C3:2 G2:2 C3:2 C#3:2",
+    1, 2, 3, "C3:2 G2:2 C3:2 E3:2", "F2:2 C3:2 A2:2 B2:2", "C3:2 G2:2 E3:2 C3:2", "A2:2 D3:2 G2:2 B2:2"], 15)
+ENT_CH = dict(intro=["G7"] * 4, A=ENT_CHORDS[0:16], B=ENT_CHORDS[16:32],
+              C1=["F", "Bb", "Dm", "Gm", "Bb/Gm", "F/Dm", "E7", "Am/C7", "F", "Bb", "Dm", "Gm", "Bb/Gm", "F/C7", "C7", "C7"],
+              C2=["F", "Bb", "Dm", "Gm", "Bb/Gm", "F/Dm", "E7", "Am/C7", "F", "Bb", "Dm", "Gm", "Bb/Gm", "F/C7", "C7", "F"],
+              bridge=["F/F#dim7", "C", "D7/G7", "C"],
+              D=["Dm", "Dm", "C", "C", "G7", "G7", "F#dim7", "C", "Dm", "Dm", "C", "C", "F", "C", "D7/G7", "C"])
+ENT_SECTIONS = ("intro", "A1", "A2", "B1", "B2", "A3", "C1", "C2", "bridge", "D1", "D2")
+
+
+def entertainer_sections():
+    """[dict(name, mel, bass, chords, key, harm, tune)] for the 11 sections of the title tune (every one a whole number of bars of 8 rows)."""
+    E, B = ENT_BARS, ENT_BASS
+    j = " ".join
+    trio, bridge = H.bars_of(CR_MEL, 37, 51), H.bars_of(CR_MEL, 53, 56)
+    d_strain = H.bars_of(CR_MEL, 57, 70)
+    d89 = "C5:2 C5:2 E5:1 D5:2 C5:1"                 # Joplin's bar 89 (the score's), one octave below
+    mel = dict(
+        intro=H.bars_of(CR_MEL, 1, 4),
+        A1=j(E[0:15]) + " C5:6 D4:1 D#4:1",          # the first ending: the C held, D D# back up into A
+        A2=j(E[0:16]),                              # the second ending C5:5 E4 F4 F#4 into B
+        B1=j(E[16:31]) + " ~:5 E5:1 F5:1 F#5:1",    # the first ending: the C held, the pickup an octave up into the 8va repeat
+        B2=H.transpose(j(E[16:31]), 1) + " ~:6 D4:1 D#4:1",   # Joplin marks the B repeat "8va"; its second ending drops back for the D D# pickup into A
+        A3=j(E[0:15]) + " C5:4 C5:2 r:2",            # the score's bar 54: the cadence, a chord, a rest, into the trio
+        C1=trio + " F5:2 B3:1 C4:1 D4:1 E4:1 F4:1 G4:1",     # the first ending: the F, then the run up into the trio's A4
+        C2=trio + " F5:2 r:2 F5:2 r:2",             # the second ending, as the credits have it
+        bridge=bridge,
+        D1=d_strain + " " + d89 + " ~:2 G4:1 G4:1 G4:2 G4:2",   # bar 89 and the first ending 90a
+        D2=d_strain + " " + d89 + " ~:4 C5:3 r:1",  # bar 89 and the second ending: Joplin's "C held, chord, rest", the rest shortened (the loop seam)
+    )
+    bass = dict(
+        intro="D3:1 E3:1 C3:1 A2:2 B2:1 G2:2 D3:1 E3:1 C3:1 A2:2 B2:1 G2:2 D3:1 E3:1 C3:1 A2:2 B2:1 A2:1 G#2:1 G2:2 r:2 G2:2 B2:2",
+        A1=j(B[0:15]) + " C3:2 G2:2 A2:2 B2:2", A2=j(B[0:15]) + " C3:2 G2:2 A2:2 B2:2",
+        B1=j(B[16:32]), B2=j(B[16:32]),
+        A3=j(B[0:15]) + " C3:2 G2:2 C3:2 D3:1 E3:1",
+        C1=j(ENT_TRIO_BASS) + " C3:2 G2:2 D3:2 E3:2", C2=j(ENT_TRIO_BASS) + " F2:2 C3:2 F2:2 C3:2",
+        bridge="F2:2 C3:2 F#2:2 A2:2 C3:2 G2:2 E3:2 G2:2 D3:2 A2:2 G2:2 B2:2 C3:2 G2:2 C3:2 C#3:2",
+        D1=j(ENT_D_BASS) + " C3:2 G2:2 C3:2 C#3:2", D2=j(ENT_D_BASS) + " C3:2 G2:2 B2:2 C3:2",
+    )
+    chords = dict(intro=ENT_CH["intro"], A1=ENT_CH["A"], A2=ENT_CH["A"], A3=ENT_CH["A"], B1=ENT_CH["B"], B2=ENT_CH["B"],
+                  C1=ENT_CH["C1"], C2=ENT_CH["C2"], bridge=ENT_CH["bridge"], D1=ENT_CH["D"], D2=ENT_CH["D"])
+    hb = ENT_HARM_BARS
+    a_patch = {k: v for k, v in hb.items() if k <= 16}
+    b_patch = {k - 16: v for k, v in hb.items() if k > 16}
+    patches = dict(
+        A1=a_patch | {16: hb[4]}, A2=a_patch, A3=a_patch | {16: "E4:2 G4:2 E4:2 r:2"},
+        # B1's last bar: thirds under the pickup (the spec's "E3:2 G3:2 E3:2 C5:1 D5:1 D5:1" is 9 rows: the third E3 is 1 row here)
+        B1=b_patch | {16: "E3:2 G3:2 E3:1 C5:1 D5:1 D5:1"},
+        B2={k: H.transpose(v, 1) for k, v in b_patch.items() if k != 16} | {16: "E4:2 G4:2 E4:2 G4:1 C5:1"},
+    )
+    out = []
+    for name in ENT_SECTIONS:
+        key = "F" if name in ("C1", "C2") else "C"
+        ch = chords[name]
+        t = H.Tune(mel[name], ch, 8, 4, key)
+        lo, hi = ("C4", "B5") if name == "B2" else ("C3", "B4")
+        harm = H.follow(t, (1, len(ch)), lo, hi, grid=1, merge=False)
+        if name in patches:
+            harm = H.patch_bars(harm, 8, patches[name])
+        rows = 8 * len(ch)
+        assert H.nrows(mel[name]) == H.nrows(bass[name]) == H.nrows(harm) == rows, (name, H.nrows(mel[name]), H.nrows(bass[name]), H.nrows(harm))
+        out.append(dict(name=name, mel=mel[name], bass=bass[name], chords=ch, key=key, harm=harm, tune=t, rows=rows))
+    return out
+
+
+ENT_SECS = entertainer_sections()
+ENT_FULL_MEL, ENT_FULL_BASS = " ".join(x["mel"] for x in ENT_SECS), " ".join(x["bass"] for x in ENT_SECS)
+ENT_FULL_HARM = " ".join(x["harm"] for x in ENT_SECS)
+ENT_FULL_CHORDS = sum((x["chords"] for x in ENT_SECS), [])
+ENT_ROWS = 1216
+assert H.nrows(ENT_FULL_MEL) == H.nrows(ENT_FULL_BASS) == H.nrows(ENT_FULL_HARM) == ENT_ROWS == 8 * len(ENT_FULL_CHORDS)
+ENT_HARM_CHECK = {x["name"]: H.check(x["tune"], x["harm"]) for x in ENT_SECS}      # every section: no clash (tests/test_music_batch1.py)
+ENT_BASS_CHECK = H.bass_check(ENT_FULL_BASS, ENT_FULL_CHORDS, 8)
+# 20 hUGE orders: 0 = the intro and 15 = the bridge play 32 rows (src/music.c streams order k+2 while order k plays; gen_music pads them)
+song("entertainer", 9, "A", ENT_FULL_MEL, ENT_FULL_BASS, swing=0xAA, groove=ENT_GROOVE, short_orders=(0, 15))
+SONGS["entertainer"].update(ch1=ENT_FULL_HARM, ch1_inst=("harm50", "harm50"))
 
 # which songs, in tune order after title/show
 VENUES = ["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sailor", "sakura", "weasel", "danube"]

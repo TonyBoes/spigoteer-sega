@@ -18,7 +18,7 @@ typedef struct {
     const hUGESong_t *song;
     uint8_t  loop;          // 1: repeats forever, 0: jingle that stops after `frames`
     uint16_t frames;        // length of one pass
-    uint8_t  buf;           // 0: patterns are in bank 2; 1: copy them to mus_buf_a (title, venue tunes); 2: to mus_buf_b (show)
+    uint8_t  buf;           // 1: copy the patterns to mus_buf_a (the jingles, venue tunes); 2: to mus_buf_b (show); 3: a streamed tune in mus_buf_a (the title, the credits)
     uint8_t  bank;          // ROM bank of the pattern blob
     const uint8_t *blob;    // pattern blob (buffer != 0)
     uint16_t bytes;         // its size
@@ -26,18 +26,19 @@ typedef struct {
     uint8_t  start;         // row of the song (0-255) the first play begins on (tools/songs.py song(start=)); the loop wraps to row 0
 } tune_t;
 extern const tune_t tunes[TUNE_ALL];
-// The credits tune is longer than buffer A (CREDITS_ORDERS orders of a melody and a bass pattern; the buffer holds four orders): its blob
-// (bank CREDITS_BANK, a bank of its own that also holds the tune's harmony) stores every order's pair, in order. The first four orders
-// (tune_t.bytes) are copied before it starts; then, while order k plays, music_tick copies order k+2 over the buffer slot of order k-2
-// (played by then), one slice of CREDITS_SLICE bytes on each of CREDITS_COPY_ROWS rows. tools/gen_music.py checks these numbers.
-#define CREDITS_BANK        22
-#define CREDITS_ORDERS      10
-#define CREDITS_ORDER_BYTES (2 * 192)                                   // a melody and a bass pattern (192: 64 rows of 3 bytes)
-#define CREDITS_COPY_ROWS   8                                           // the rows of an order the copy is spread over
-#define CREDITS_SLICE       (CREDITS_ORDER_BYTES / CREDITS_COPY_ROWS)   // bytes copied on each of them
-typedef char credits_slice_check[CREDITS_ORDER_BYTES % CREDITS_COPY_ROWS == 0 && CREDITS_SLICE <= 255 ? 1 : -1];
+// The title tune (20 orders, looping) and the credits tune (10 orders, once) are longer than buffer A (a streamed tune: tune_t.buf 3; the buffer
+// holds four orders of a melody and a bass pattern). Each has a bank of its own (tune_t.bank) with its blob, one pattern pair per order in order,
+// and its harmony. The first four orders (tune_t.bytes) are copied before it starts; then, while order k plays, music_tick copies order k+2 (mod the
+// order count: the title wraps, the credits stop) over the buffer slot of order k-2 (played by then), one slice of STREAM_SLICE bytes on
+// each of STREAM_COPY_ROWS rows, on tick STREAM_TICK of the row (a plain tick: tick 1 follows the row tick, the dearest call).
+// tools/gen_music.py checks these numbers.
+#define STREAM_ORDER_BYTES (2 * 192)                                   // a melody and a bass pattern (192: 64 rows of 3 bytes)
+#define STREAM_COPY_ROWS   8                                           // the rows of an order the copy is spread over (rows 2 .. 9)
+#define STREAM_SLICE       (STREAM_ORDER_BYTES / STREAM_COPY_ROWS)     // bytes copied on each of them
+#define STREAM_TICK        3
+typedef char stream_slice_check[STREAM_ORDER_BYTES % STREAM_COPY_ROWS == 0 && STREAM_SLICE <= 255 ? 1 : -1];
 // Channel 1 harmony voice (music step 5): played by src/music.c itself, not by hUGEDriver (a fourth pattern per order
-// would not fit WRAM). harm_tab[tune]: NULL or the tune's track in ROM bank HARM_BANK (the credits tune's: CREDITS_BANK): duty A, envelope A, duty B,
+// would not fit WRAM). harm_tab[tune]: NULL or the tune's track in ROM bank HARM_BANK (a streamed tune's: its blob's bank, tune_t.bank): duty A, envelope A, duty B,
 // envelope B (NR11, NR12), then events of two bytes, note (bits 0-6: hUGE note index or HARM_REST; bit 7: instrument
 // B) and rows (1..255); rows 0 ends the track (it starts again, in step with the driver's loop). tools/gen_music.py.
 #define HARM_BANK 10
@@ -61,7 +62,7 @@ extern const unsigned char * const harm_tab[TUNE_ALL];
 extern const unsigned char drum_kit[6][6];         // NR41, NR42, NR43, NR44, NR43 +1 and +2 frames of b n t o m x (build/music_data.c)
 extern unsigned char mus_buf_a[], mus_buf_b[];     // WRAM pattern buffers (build/music_data.c)
 void mus_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n);   // unbanked (src/musicload.c)
-uint16_t harm_peek(const uint8_t *p);       // unbanked (src/musicload.c): p[0] | p[1] << 8 from the running tune's harmony bank (HARM_BANK, the credits tune's: CREDITS_BANK)
+uint16_t harm_peek(uint8_t bank, const uint8_t *p);   // unbanked (src/musicload.c): p[0] | p[1] << 8 from the harmony's ROM bank (HARM_BANK, a streamed tune's: its blob's)
 
 extern uint8_t sound_on;        // music enabled (SELECT on the title toggles it)
 extern uint8_t last_sfx;        // id of the SFX started last (SFX_*), for tests

@@ -180,6 +180,7 @@ def test_sound_is_on_and_the_title_tune_plays(srom):
 
 
 def test_music_is_audible_and_changes(srom):
+    audio_frames(srom, 290)          # (the title's 4-bar intro is the same run three times: listen to the tune proper)
     a = audio_frames(srom, 60).astype(float)
     b = audio_frames(srom, 60).astype(float)
     assert a.std() > 2 and b.std() > 2, "not silent"
@@ -379,9 +380,9 @@ def test_the_swung_title_plays_rows_of_alternating_length(srom):
     assert set(lens) == {8, 9} and abs(sum(lens) / len(lens) - 8.5) < 0.1
     # the drums header carries the mask and the pass length counts the short rows
     src = (ROOT / "build" / "music_data.c").read_text()
-    assert "groove_title[] = {8, 170," in src
-    assert re.search(r"\{&song_title, 1, 2176, ", src), "256 rows: 128 of 9 frames and 128 of 8"
-    assert gm.row_starts(9, 0xAA, 256)[-1] == 2176
+    assert "groove_title[] = {32, 170," in src, "the 4-bar groove (music batch 1)"
+    assert re.search(r"\{&song_title, 1, 10336, 3, 23, ", src), "1216 rows: 608 of 9 frames and 608 of 8, streamed from bank 23"
+    assert gm.row_starts(9, 0xAA, 1216)[-1] == 10336
     assert gm.row_starts(8, 0, 256)[-1] == 2048, "no swing: tempo x rows"
 
 
@@ -422,29 +423,29 @@ def test_oh_susanna_is_the_owners_notes_in_fosters_rhythm():
     assert SUSANNA_FOSTER[17] == "A4:2 A4:4 A4:2" and SUSANNA_FOSTER[16] == "F4:4 F4:4"
     assert s["tempo"] == 8, "8 frames per sixteenth row = quarter 112.5 (the score's MM 114; the eighth rows were 120)"
     bass = s["ch3"].replace("!", "").split()
-    assert bass[:4] == ["C3:4", "G2:4", "C3:4", "G2:4"] and bass[-2:] == ["C3:4", "G2:4"], "boom-chick to the last bar"
-    assert len(bass) == 48 and s["ch4"].split()[-4:] == ["b:2", "r:2", "n:2", "r:2"], \
-        "the beat carries on through the last bar into bar 1"
+    assert bass[:3] == ["C3:4", "G2:4", "C3:4"] and bass[-3:] == ["C3:4", "G2:2", "B2:2"], "boom-chick, the last bar walks B into bar 1 (batch 1)"
+    assert sum(int(t.split(":")[1]) for t in bass) == 192
+    assert s["ch4"].split()[-6:] == ["b:2", "t:2", "n:1", "n:1", "m:1", "m:1"], "the snare and tom roll leads the last bar into bar 1"
     b = gm.build("venue0", s, False)
     assert b["total"] == 192 and b["n_orders"] == 3
 
 
 def test_the_entertainer_plays_its_b_section_before_it_loops():
-    """Owner: "I kind of wish the next section of The Entertainer was there before it looped back".  32 bars: the A
+    """Owner: "I kind of wish the next section of The Entertainer was there before it looped back".  ENT_BARS: 32 bars: the A
     section with its second ending (E F F# up into the B section's G), then the B section, whose second ending's D D#
-    pickup leads back to bar 1; the pattern blobs moved to bank 10 to make room (bank 3 had 39 bytes free)."""
+    pickup leads back to bar 1.  The title is now the whole piece (tests/test_music_batch1.py): 1216 rows in 20 streamed orders, bank 23."""
     s = songs.SONGS["entertainer"]
     assert len(songs.ENT_BARS) == 32 == len(songs.ENT_CHORDS)
     # (the melody is written an octave below the spec: the owner's "1b", 2026-10-12)
     assert songs.ENT_BARS[15].endswith("E4:1 F4:1 F#4:1") and songs.ENT_BARS[16].startswith("G4:2 A4:1 G4:2")
     assert songs.ENT_BARS[31].endswith("D4:1 D#4:1") and songs.ENT_BARS[0].startswith("E4:1")
     b = gm.build("title", s, False)
-    assert b["total"] == 32 * 8 and b["n_orders"] == 4
-    assert gm.BLOB_BANKS == (10,)
-    pat = (ROOT / "build" / "music_pat10.c").read_text()
-    assert "#pragma bank 10" in pat and "blob_title[]" in pat
+    assert b["total"] == 152 * 8 and b["n_orders"] == 20
+    assert gm.BLOB_BANKS == (10,) and gm.STREAMED["title"] == 23
+    pat = (ROOT / "build" / "music_pat23.c").read_text()
+    assert "#pragma bank 23" in pat and "blob_title[]" in pat and "harm_title[]" in pat
     data = (ROOT / "build" / "music_data.c").read_text()
-    assert "unsigned char mus_buf_a[1536];" in data, "buffer A holds the title's 8 patterns"
+    assert "unsigned char mus_buf_a[1536];" in data, "buffer A holds 8 patterns: four orders of the streamed title"
 
 
 # ---- sung tunes are legato (owner: "every syllable is being enunciated robotically") -------------------------------
@@ -541,6 +542,9 @@ def test_the_tunes_are_the_specs_token_for_token():
     for name, (bars, chords) in specs.items():
         s = songs.SONGS[name]
         want = " ".join(spec_bars_for_the_game(name, bars)).split()
+        if name == "entertainer":      # the title is the whole piece now: its A and B strains are ENT_BARS (the spec's 32 bars)
+            assert [t.rstrip("!").split("/")[0] for t in " ".join(songs.ENT_BARS).split()] == want and songs.ENT_CHORDS == chords
+            s = dict(s, ch2=" ".join(songs.ENT_BARS), ch3=songs.oompah(songs.ENT_CHORDS, 8))
         assert [t.rstrip("!").split("/")[0] for t in s["ch2"].split()] == want, f"{name}: melody differs from docs/music_specs.md"
         per_bar = songs.BAR_ROWS[name]
         for ch in ("ch2", "ch3"):                       # every bar adds up (ties included), melody and bass
@@ -832,6 +836,8 @@ def test_all_tunes_have_a_tempo_that_fits_their_frames():
     assert len(frames) == TUNE_COUNT + 1, "the listed tunes, then the credits tune (src/music.h TUNE_CREDITS)"
     t = songs.SONGS["credits"]
     assert frames.pop() == gm.pass_frames(579, t["tempo"], 0, t["tempo_map"]) == 8732, "the credits tune: 146 s with its ritard, played once (tests/test_credits.py)"
+    assert frames[TUNE_TITLE] == gm.pass_frames(1216, 9, 0xAA) == 10336, "the title: the whole Entertainer, 173 s, looping (tests/test_music_batch1.py)"
+    frames[TUNE_TITLE] = 60
     assert all(60 <= f <= 2400 for f in frames), frames
     venue = frames[TUNE_VENUE0:]
     assert all(15 * 60 <= f <= 36 * 60 for f in venue), f"venue tunes loop for 15-36 s (the owner specs are up to 32 bars of a waltz): {venue}"

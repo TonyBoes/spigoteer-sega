@@ -51,10 +51,19 @@ def melody_spans(rows, tempo):
     return spans, n_frames
 
 
+def played_rows(b, channel=2, short=()):
+    """The rows a pass plays: the short orders (the streamed title's intro and bridge: 32 rows, then rests behind a pattern break) lose their
+    unplayed half."""
+    rows = [row for chunk in b["per"][channel] for row in chunk]
+    for o in sorted(short, reverse=True):
+        del rows[o * 64 + 32:(o + 1) * 64]
+    return rows[:b["total"]]
+
+
 def loop_silence(name, t, legacy):
     """Seconds of melody silence across the wrap from the last row back to row 0."""
     b = gm.build(name, t, legacy)
-    rows = [row for chunk in b["per"][2] for row in chunk][:b["total"]]
+    rows = played_rows(b, 2, t.get("short_orders") or ())
     spans, n = melody_spans(rows, b["tempo"])
     last_end = max(e for s, e in spans)
     first = spans[0][0] + n
@@ -97,16 +106,18 @@ def built_tunes():
 def test_a_tune_ending_inside_a_pattern_breaks_to_row_0_of_the_next_order():
     short = 0
     for name, b in built_tunes():
-        last = b["total"] - 1
+        last = b["total"] - 1 + 32 * len(songs.SONGS[name].get("short_orders", ()) if name in songs.SONGS else ())
         o, r = divmod(last, 64)
         effs = [b["per"][c][o][r][2] for c in (1, 2, 3, 4)]
-        if b["total"] % 64:
+        if last % 64 != 63:
             short += 1
             assert gm.BREAK_TO_ROW0 in effs, f"{name}: no pattern break on its last row"
         assert 0xD00 not in effs, f"{name}: D00 does not break in hUGEDriver"
         breaks = [(c, i, j) for c in (1, 2, 3, 4) for i, chunk in enumerate(b["per"][c]) for j, row in enumerate(chunk)
                   if (row[2] & 0xF00) == 0xD00]
-        assert len(breaks) <= 1, f"{name}: {breaks}"
+        shorts = songs.SONGS[name].get("short_orders", ()) if name in songs.SONGS else ()     # (the title's intro and bridge break after 32 rows)
+        assert len(breaks) <= 1 + len(shorts), f"{name}: {breaks}"
+        assert {(i, j) for c, i, j in breaks if (i, j) != (o, r)} == {(i, 31) for i in shorts}, f"{name}: {breaks}"
     assert short >= 4, "funicula, sakura, weasel and the jingles end inside a pattern"
 
 
