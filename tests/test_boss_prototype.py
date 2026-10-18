@@ -131,7 +131,6 @@ def test_the_fight_follows_the_last_call(model):
     frames, the marker and conveyor tiles), the meter of 12, GREEN (the solid lamp). Golden boss_prototype: GREEN, a
     battery on its way."""
     with fight(model, C, banner=True) as gb:
-        assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         skip_entrance(to_goal(gb))
         gb.run(2)
         check_start(gb, C, A, model)

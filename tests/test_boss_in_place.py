@@ -383,3 +383,53 @@ def test_arcade_shows_the_first_boss_card_too(model):
         boss_from_opening(gb)
         into_fight_start(gb)
         assert state(gb) == PAUSED
+
+
+# ---- performance: every boss fight's frames end no later than before the restructure -----------------------------------------------------------
+PERF_BEFORE = {   # (model, venue): (mean, p50, p99) of the frame's end line at 579e173 (the commit before the restructure), same scenario (tools/boss_perf.py --idle --frames 400)
+    ('cgb', 0): (51.2, 47, 106),
+    ('cgb', 1): (49.3, 44, 103),
+    ('cgb', 2): (49.5, 46, 105),
+    ('cgb', 3): (49.8, 45, 105),
+    ('cgb', 4): (48.6, 45, 103),
+    ('cgb', 5): (49.7, 46, 106),
+    ('cgb', 6): (53.1, 48, 105),
+    ('cgb', 7): (46.5, 42, 101),
+    ('cgb', 8): (50.6, 47, 107),
+    ('cgb', 9): (52.6, 48, 108),
+    ('dmg', 0): (51.0, 47, 102),
+    ('dmg', 1): (48.8, 44, 98),
+    ('dmg', 2): (49.1, 46, 100),
+    ('dmg', 3): (49.5, 45, 100),
+    ('dmg', 4): (48.3, 44, 98),
+    ('dmg', 5): (49.4, 46, 101),
+    ('dmg', 6): (52.8, 48, 100),
+    ('dmg', 7): (46.1, 41, 96),
+    ('dmg', 8): (50.2, 47, 102),
+    ('dmg', 9): (52.1, 48, 103),
+}
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", VENUES)
+def test_a_boss_fight_s_frames_end_no_later_than_at_579e173(model, c):
+    """Owner 2026-10-18: "boss mode performance was pretty bad". The boss alone (no regulars, no input; deterministic), 400 frames of the fight at once: the
+    mean, the median and the 99th percentile of the scanline the frame's work ended on (perf_helpers: logic + music tick) are no higher than the same
+    numbers at 579e173, the commit before the restructure (PERF_BEFORE). boss.c boss_draw scans only the OAM entries in use (boss_near), cap_draw is byte
+    arithmetic, and the fight no longer carries Last call's rounding (level.c level_pace_again: slower, more crowded regulars)."""
+    import perf_helpers as ph
+    from boss_common import fight
+    with fight(model, c) as gb:
+        gb.write("tip_chance", 0)
+        ph.perf_reset(gb)
+        for _ in range(400):
+            gb.run(1)
+            ph.sample(gb)
+            gb.write("lives", 3)
+            for q in range(16):
+                gb.write(gb.addr("patron_state") + q, 0)
+            gb.write("patrons_live", 0)
+        st = ph.perf_stats(gb)
+    mean, p50, p99 = PERF_BEFORE[model, c]
+    assert st["n"] > 300 and st["late"] == 0, st
+    assert st["mean"] <= mean and st["p50"] <= p50 and st["p99"] <= p99, f"{st} against mean {mean}, p50 {p50}, p99 {p99} at 579e173"

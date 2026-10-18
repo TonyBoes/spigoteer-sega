@@ -545,10 +545,6 @@ uint8_t mg_update(uint8_t pressed) BANKED;              // a GS_MINI frame; 1: i
 uint8_t mg_list_update(uint8_t pressed) BANKED;         // a GS_MGLIST frame (src/mg_list.c); 1: the screen changed
 void mg_abort(void) BANKED;                             // the pause menu's QUIT in a mini-game: mg.c's own leave (LCD off)
 // ---- pause.c (banked): the pause menu, every mode (state_timer: bit 0 cursor, bit 1 the question, bit 7 a mini-game)
-// HRAM 0xFFE0-0xFFE8: a CGB palette the VBlank interrupt writes (render.c bpal_write; a boss's palettes while the scene runs, src/boss.c ld_step): BPAL_REQ 0 none, else
-// 0x80 | obj << 3 | index; BPAL_COL its four colours (8 bytes). HRAM is not cleared at power-on: main() clears BPAL_REQ.
-#define BPAL_REQ ((*(volatile uint8_t *)0xFFE0))
-#define BPAL_COL ((volatile uint8_t *)0xFFE1)
 #define PAUSE_NR51 (*(volatile uint8_t *)0xFFF0)       // HRAM (the linker uses 0xFF80-0xFF92): while the menu is open, the NR51 to restore (never 0); else 0
 // ---- trans.c (banked): the scene transition, a fizzy drink filling the screen from the bottom and bubbling away (docs: batchEF g14)
 // HRAM 0xFFF1 TRANS: TR_WANT (a wired scene change says "the next DISPLAY_OFF is a transition": TRANS_WANT()), TR_PEND (the cover ran,
@@ -662,6 +658,7 @@ extern uint8_t boss_on, boss_id, boss_bar, boss_lim, boss_col, boss_pal, boss_co
 #define BOSS_MARK_BG     248
 uint8_t boss_catch(uint8_t i) BANKED;   // patrons.c catch_full: full mug i reached him with a hand free (mug_x < boss_lim)
 void boss_set(uint8_t id) BANKED;       // story step_start: venue id's boss fight is the next step (BOSS_NONE: none)
+void level_pace_again(void) BANKED;      // level.c: the running level's walk speeds and spawn interval back to the level row's (story.c boss_in_place)
 void boss_load(void) BANKED;            // enter_level_screen, LCD off, after start_level: his tiles and palettes
 void boss_reset(void) BANKED;           // reset_actors: the level's start and after a life (the meter is kept)
 void boss_goal(uint8_t *dst) BANKED;    // story shift_start: the fight's banner lines and pace (dst: a goal_t)

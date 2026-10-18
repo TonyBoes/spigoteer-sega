@@ -109,7 +109,6 @@ def test_the_fight_follows_the_last_call(model):
     """After the space lounge's Last call: BOSS and his lines; the saucer on bar 1 at x 16 (his tiles, palettes, the antenna in the
     same colours), the meter of 14, walking. Golden boss_mothership: hovering, a glass on its way."""
     with fight(model, C, banner=True) as gb:
-        assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         assert gb.mem("boss_id") == C
     with fight(model, C) as gb:
         until(gb, lambda: MS.get(gb, "ent") == 0 and gb.mem("intro_timer") < 89, 200)      # (the entrance first: its own tests below)

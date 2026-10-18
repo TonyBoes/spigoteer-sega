@@ -58,8 +58,6 @@ def test_the_fight_follows_the_last_call(model):
     x 16 (his tiles and palettes), the HUD's face and a meter of 12 (6 tiles), the crest over his head. Golden
     boss_sasquatch: mid-fight, one coffee down, its empty sliding back fast."""
     with fight(model, C, banner=True) as gb:
-        assert banner_text(gb, 1) == centred("BOSS")
-        assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         assert gb.mem("lives") == 3 and gb.mem("tip_chance") == 0
         from test_story import to_goal
         to_goal(gb)

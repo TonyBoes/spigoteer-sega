@@ -329,7 +329,7 @@ def story_boss(gb):
     """In a venue's Opening (STORY or ARCADE): the Opening won, Last call's quota met, his fight entered."""
     boss_from_opening(gb)
     assert gb.mem("boss_on") == 1
-    into_fight(gb)
+    to_goal(gb)                                           # (in place: no banner; his tiles streamed in, the fight started at once)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

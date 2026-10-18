@@ -89,8 +89,6 @@ def test_the_fight_follows_the_last_call(model):
     """After the biker bar's Last call: BOSS and his lines; Duke on bar 1 at x 16 (his tiles, palettes, the helmet in its own
     colours), the meter of 12, idling. The regulars come in the venue's chord on the three other bars, no mosh pit.
     Golden boss_duke: idling, a glass on its way."""
-    with fight(model, C, banner=True) as gb:
-        assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
     with fight(model, C) as gb:
         pat = list(gb.read("pat_buf", 8))              # (his chord is the fight's, after the warm-up: BEV_BEGIN at fight_start)
         assert gb.mem("pat_len") == 6
@@ -567,7 +565,7 @@ def fight_hard(model, c):
     to_boss_banner(gb, c)
     to_goal(gb, boss_start=False)
     gb.write("boss_hook", 5)                      # (the warm-up is over: the entrance)
-    until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+    until(gb, lambda: gb.mem("boss_state") != BS_WARM, 150)
     frames(gb, 3)                                 # (the tile pool's copy runs past a frame)
     return gb
 

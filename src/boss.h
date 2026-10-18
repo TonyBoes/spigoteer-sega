@@ -149,5 +149,6 @@ void boss_ld(uint8_t kind, uint8_t first, uint8_t n, const uint8_t *src, uint8_t
 void boss_ldpal(uint8_t obj, uint8_t idx, const uint16_t *p) BANKED;
 #define BOSS_BG(first, n, src)   boss_ld(0, first, n, src, CURRENT_BANK)
 #define BOSS_OBJ(first, n, src)  boss_ld(1, first, n, src, CURRENT_BANK)
+uint8_t boss_near(uint8_t t1, uint8_t span) BANKED;   // OAM entries in use with y - t1 < span (a window of lines starting 15 above t1), for a special that counts the lines it may fill
 void boss_hud_now(void) BANKED;           // the HUD's face and meter from boss_hp now (a special that changes boss_hp itself)
 #endif

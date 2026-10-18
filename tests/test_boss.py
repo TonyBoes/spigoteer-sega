@@ -14,7 +14,7 @@ from conftest import clear_regulars, GAME, ROOT, check_golden, venue
 from test_bonus import lines
 from test_flow import (lose_a_life, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, patron_group_tiles, run_until,
                        state, tilemap_row)
-from test_story import (BOSS_BUILT, SHIFT_STEP, SC, SHIFTS, STORY, banner_text, centred, post, pre, settle, skip_scene,
+from test_story import (boss_streamed, BOSS_BUILT, SHIFT_STEP, SC, SHIFTS, STORY, banner_text, centred, post, pre, settle, skip_scene,
                         to_boss_banner, to_chapter, to_goal, to_shift, try_again, win)
 from test_venues import cgb_palette
 
@@ -86,7 +86,7 @@ def until(gb, cond, limit=600):
 
 
 def to_fight(model, banner=False):
-    """The saloon's Last call won: the level turns into the boss fight in place, his banner (banner=True: still on it), or the fight."""
+    """The saloon's Last call won: the level turns into the boss fight in place (banner=True: just turned, his tiles streaming in), or the fight."""
     gb = to_shift(model, 0, 2)
     to_boss_banner(gb, 0)
     return gb if banner else skip_entrance(to_goal(gb))
@@ -214,17 +214,17 @@ def test_every_built_boss_has_its_row_its_hook_its_file_and_its_art():
 # ---- the fight -----------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_fight_follows_the_last_call(model):
-    """After the Last call: the fight's banner (BOSS and Tex's two lines), the lives carried, no tips, the
+    """After the Last call: the fight in place (no banner), the lives carried, no tips, the
     regulars' arrivals never on his bar; then Big Tex on bar 1 at x 16 (his WALK pose from VRAM ids 162.. / 216..,
     his tiles and palettes loaded), the topper over his head, the HUD's face and a full meter of 8."""
     with to_fight(model, banner=True) as gb:
-        assert banner_text(gb, 1) == centred("BOSS")
-        assert banner_text(gb, 2) == centred(LINE1) and banner_text(gb, 3) == centred(LINE2)
+        assert gb.mem("state_timer") is not None and gb.mem("game_state") == PLAYING, "no banner: he comes in on the level"
         assert gb.mem("story_step") == SHIFT_STEP[2] and gb.mem("story_reached") == SHIFT_STEP[2], "the fight is Last call's level: no step of its own"
         assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_bar"), gb.mem("boss_hp")) == (1, 0, ROW["bar"], 8)   # (his bar is his from the banner on: BOSS_NONE only in a warm-up, which the Last call has replaced)
         assert gb.mem("lives") == 3 and gb.mem("tip_chance") == 0
         assert gb.mem("pat_len") == 8      # (the warm-up's arrivals may go to any bar; the fight redraws them away from his: below)
         assert gb.mem16("spawn_interval") == 300 * SPAWN_PCT // 100, "the saloon's 300 frames x 1.5"
+        to_goal(gb)                                         # (his tiles and palettes stream in over the first frames; the fight is started once they are in)
         if model == "cgb":
             wall = cgb_palette(gb, 2)[0]                   # (the venue's wall: colour 0 of every patron palette)
             assert cgb_palette(gb, 4) == [wall] + TEX["pal"][1:], "BG 4: his colours over the venue's wall"

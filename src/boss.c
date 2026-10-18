@@ -253,8 +253,7 @@ void boss_set(uint8_t id) BANKED {
 //   - tiles: 4 a frame. The art is in the boss file's ROM bank and the VBlank copy queue (render.c vq_vbl) reads WRAM only, so each chunk is copied to
 //     STAGE first (far_copy), then queued as one entry (a 64 byte copy, ~7 lines of VBlank) to its VRAM place; the scene goes on meanwhile. They land
 //     on tile ids nothing on screen shows (variant C's and the back views: the bars are empty, he comes only then; OBJ 96-127: the show's, none runs).
-//   - CGB palettes: one a frame through the HRAM slot BPAL_REQ / BPAL_COL, written by the VBlank interrupt (render.c bpal_write): palette RAM only
-//     takes writes in VBlank, and the logic runs in the picture.
+//   - CGB palettes: written when their turn comes, after waiting for the next VBlank (palette RAM only takes writes there, and the logic runs in the picture).
 // job: tiles [n | LD_MASK?, dst lo, dst hi, src lo, src hi, bank] (6 bytes; src 0: the capacity row's dotted glass); palette [LD_PAL | obj << 3 | idx, 8 bytes of colours] (9).
 #define LD          (story_scratch + 70)
 #define LD_MAX      110
@@ -323,11 +322,11 @@ static uint8_t ld_step(void) {
     uint16_t d;
     const uint8_t *src;
     vq_entry_t *e;
-    if (!*j) return !BPAL_REQ && !vq_held;
-    if (*j & LD_PAL) {
-        if (BPAL_REQ) return 0;
-        for (i = 0; i != 8; i++) BPAL_COL[i] = j[1 + i];
-        BPAL_REQ = *j;
+    if (!*j) return !vq_held;
+    if (*j & LD_PAL) {                                 // a CGB palette: palette RAM takes writes in VBlank only and the logic runs in the picture, so wait for the next
+        while (LY_REG < 144 || LY_REG > 150) music_pump();   // VBlank (the tune pumped meanwhile: one frame's logic runs long, nothing is on the bars yet)
+        if (*j & 8) OCPS_REG = 0x80 | ((*j & 7) << 3); else BCPS_REG = 0x80 | ((*j & 7) << 3);
+        for (i = 1; i != 9; i++) { if (*j & 8) OCPD_REG = j[i]; else BCPD_REG = j[i]; }
         LD[0] += 9;
         return 0;
     }
@@ -672,7 +671,7 @@ static void boss_mugs(void) {
 uint8_t boss_frame(void) BANKED {
     uint8_t x = boss_x;
     if (boss_hook == HOOK_CARD) { boss_hook = HOOK_NONE; pause_boss_card(); return 0; }   // (the frame before's picture is whole: it fades out into the card)
-    if (boss_hook) boss_take_hook();
+    if (boss_hook && (boss_state != BS_WARM || !LD[1 + LD[0]])) boss_take_hook();   // (a test's hook waits for his tiles to be handed out: the fight / entrance it starts is on whole art)
     if (boss_state >= BS_WARM) { boss_pre(); return 0; }   // E9: the warm-up, his entrance
     if (!boss_hp) {
         if (boss_state != BS_OUTRO) {            // beaten now (boss_reset keeps BS_OUTRO after a life lost in the phase)
@@ -763,20 +762,33 @@ static const uint8_t *bands_intro(uint8_t top, uint8_t *n) {
     return n;
 }
 
-// After the intro the hat, the indicator and the hand mug add at most CAP_EXTRA entries (hat 1, 3 hands, mug 1) on the 28 lines from the topper's y
-// (OAM y `top`), so when no more than LINE_OBJ_MAX - CAP_EXTRA of the entries already in OAM touch those lines nothing can reach 11 on a line and
+// After the intro the hat, the indicator and the hand mug add at most `extra` entries (the hat 1, a glass for each of his hands, the mug while he gulps) on the 28 lines
+// from the topper's y (OAM y `top`), so when no more than LINE_OBJ_MAX - extra of the entries already in OAM touch those lines nothing can reach 11 on a line and
 // nothing more is counted (the usual case: a pass over OAM and nothing else; 0 is returned and fits() says yes). Otherwise each such entry is counted
 // in n[] on the seven 4-line bands it touches and n is returned.
-#define CAP_EXTRA 5
 #define BANDS 7
-static const uint8_t *bands(uint8_t top, uint8_t *n) {
-    OAM_item_t *o = shadow_OAM;
-    uint8_t k = 40, near = 0, d, lo, hi;
-    do {
-        if (o->y && (uint8_t)(o->y - top + 15) < 43) near++;     // (its lines overlap the 28 from top: its y from -15 to 27 on)
-        o++;
-    } while (--k);
-    if (near + CAP_EXTRA <= LINE_OBJ_MAX) return 0;
+// How many of the k entries from q (4 bytes apart: their y's) have y - t1 below span (the lines they touch overlap a window: its first line - 15 is t1)
+static uint8_t near_in(const uint8_t *q, uint8_t k, uint8_t t1, uint8_t span) {
+    uint8_t near = 0, y;
+    for (; k; k--, q += 4) {
+        y = *q;
+        if (y && (uint8_t)(y - t1) < span) near++;
+    }
+    return near;
+}
+
+// The OAM entries in use that touch a window of lines (t1, span as near_in). Only the entries in use are looked at (mirror.c does the same): 0..oam_used-1 are
+// the bartender, the fill glass and the mugs (draw_mugs hides the rest up to the lifted patrons), OAM_MUG_END - 2 * lift_total on the lifted patrons (they take the
+// top entries below OAM_MUG_END), then the cue, the coin and the effects up to the end. Everything between is 0.
+uint8_t boss_near(uint8_t t1, uint8_t span) BANKED {
+    uint8_t first = OAM_MUG_END - 2 * lift_total;
+    return near_in((const uint8_t *)shadow_OAM, oam_used, t1, span) + near_in((const uint8_t *)(shadow_OAM + first), 40 - first, t1, span);
+}
+
+static const uint8_t *bands(uint8_t top, uint8_t *n, uint8_t extra) {
+    OAM_item_t *o;
+    uint8_t k, d, lo, hi, near = boss_near(top - 15, 43);     // (its lines overlap the 28 from top: its y from -15 to 27 on)
+    if (near + extra <= LINE_OBJ_MAX) return 0;
     for (lo = 0; lo != BANDS; lo++) n[lo] = 0;
     o = shadow_OAM;
     k = 40;
@@ -836,19 +848,21 @@ static uint8_t room_free(void) {
 // bottoms are on his body's last row; they sway with him. OAM 39 down to 37 (Leo has 2 slots, Tex 3: Tex has no effect sprites).
 // n: the bands from the topper's y `top`; hat: 1 if the hat is drawn (its budget first). Returns the glasses drawn.
 static uint8_t cap_draw(const uint8_t *n, uint8_t hat) {
-    uint8_t *p = (uint8_t *)(shadow_OAM + OAM_CAP), f = room_free(), sl = boss_hands, tk, k, y;
-    int16_t x;
+    uint8_t *p = (uint8_t *)(shadow_OAM + OAM_CAP), f = room_free(), sl = boss_hands, tk, k, y, x;
     if (f == 255) return 0;
     if (f == 254) { f = 0; tk = boss_hold > sl ? sl : boss_hold; }
     else { if (f > sl) f = sl; tk = sl - f; }
     sl = tk + f;
     if (!sl || !fits(n, 2, 6, hat + sl)) return 0;
     y = bar_oam_y[boss_bar] + 1;                 // (its bottom row 14 on his body's row 15)
-    x = boss_x + 4 + (sip_beat() ? (br->sway == 2 ? -2 : 2) : 0);
-    for (k = 0; k != sl; k++, x -= 6) {
-        if (x < 1) return k;
+    x = boss_x + 4;                              // (>= 4 with the sway: a byte; the next glass is 6 px further left, none past x 1)
+    if (sip_beat()) x += br->sway == 2 ? -2 : 2;
+    for (k = 0; k != sl; k++) {
         p -= 4;
-        p[0] = y; p[1] = (uint8_t)x; p[2] = k < tk ? spr_empty_t : OBJ_CAP; p[3] = spr_empty_p;
+        p[0] = y; p[1] = x; p[3] = spr_empty_p;
+        p[2] = k < tk ? spr_empty_t : OBJ_CAP;
+        if (x < 7) return k + 1;
+        x -= 6;
     }
     return sl;
 }
@@ -877,7 +891,7 @@ void boss_draw(void) BANKED {
         return;
     }
     shadow_OAM[OAM_TOPPER].y = 0;   // (so the count skips it: it is set again below)
-    np = intro ? bands_intro(top, n) : bands(top, n);
+    np = intro ? bands_intro(top, n) : bands(top, n, 1 + boss_hands + (boss_state == BS_GULP));   // (the hat, a glass a hand, the hand mug while he gulps)
     o = shadow_OAM + OAM_TOPPER;
     hat = fits(np, 0, 3, 1);
     if (hat) {

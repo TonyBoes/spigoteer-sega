@@ -21,6 +21,8 @@ def main():
     ap.add_argument("--models", nargs="+", default=["dmg", "cgb"])
     ap.add_argument("--frames", type=int, default=900)
     ap.add_argument("--venues", type=int, nargs="*")
+    ap.add_argument("--seeds", type=int, nargs="*", default=[None], help="rng_state pokes at the fight's start (one run each; the numbers are pooled)")
+    ap.add_argument("--idle", action="store_true", help="the boss alone: no input, every regular removed every frame (deterministic: what tests/test_boss_in_place.py guards)")
     ap.add_argument("--json")
     a = ap.parse_args()
     root = os.path.abspath(a.tree)
@@ -32,13 +34,28 @@ def main():
     res = {}
     for model in a.models:
         for c in (a.venues if a.venues else sorted(BOSS_BUILT)):
-            with bc.fight(model, c) as gb:
-                gb.write("tip_chance", 0)
-                ph.perf_reset(gb)
-                ph.play_script(gb, a.frames, keep=lambda g, i: g.write("lives", 3))
-                st = ph.perf_stats(gb)
-                res[f"{model}/{c}"] = st
-                print(model, c, st, flush=True)
+            pool = []
+            for seed in a.seeds:
+                with bc.fight(model, c) as gb:
+                    gb.write("tip_chance", 0)
+                    if seed is not None:
+                        gb.write("rng_state", seed)
+                    ph.perf_reset(gb)
+                    if a.idle:
+                        for _ in range(a.frames):
+                            gb.run(1)
+                            ph.sample(gb)
+                            gb.write("lives", 3)
+                            for q in range(16):
+                                gb.write(gb.addr("patron_state") + q, 0)
+                            gb.write("patrons_live", 0)
+                    else:
+                        ph.play_script(gb, a.frames, keep=lambda g, i: g.write("lives", 3))
+                    pool += gb.perf_samples
+            gb.perf_samples = pool
+            st = ph.perf_stats(gb)
+            res[f"{model}/{c}"] = st
+            print(model, c, st, flush=True)
     if a.json:
         json.dump(res, open(a.json, "w"), indent=1)
 

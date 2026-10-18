@@ -147,10 +147,13 @@ def test_a_cut_off_note_does_not_move_the_pause_menu(cut_note, model):
 # ---- Last call turning into the boss fight, on SameBoy (owner 2026-10-17: the level is rebuilt mid-play behind the cover) ---------------------------------
 # src/story.c boss_in_place: LCD off behind the drink / white fade, his tiles and palettes loaded, the HUD columns rewritten, the tune restarted, then the banner, his
 # entrance and (first time) his HOW TO PLAY card by itself. A palette or VRAM write that PyBoy accepts but an accurate LCD drops would show only here.
-# -DAUTO_BOSS=n (src/debug.c auto_boss): boot -> STORY chapter 1's Last call -> quota poked met, bars poked empty -> the swap, banner, entrance -> (1: his card opens
-# by itself, A turns and closes it; 2: his card marked seen first) -> 120 game frames into the fight everything is frozen: the last frame (at 26 s) is a still picture
-# whatever the fades took. The run with no transition and the LCD-off card (-DAUTO_NOTRANS -DCARD_FADE=0) is the reference: the fades, the swap and the card's exit must
-# leave pixel for pixel the same picture, and so must the run that never showed the card.
+# -DAUTO_BOSS=n (src/debug.c auto_boss): boot -> STORY chapter 1's Last call -> quota poked met, bars poked empty -> he comes in IN PLACE (owner 2026-10-18: no cover, no
+# LCD-off swap, no banner: his tiles stream in through the VBlank queue, his entrance plays) -> (1: his card opens by itself the frame after the entrance, A turns and
+# closes it; 2: his card marked seen first) -> 120 game frames into the fight everything is frozen: the last frame (at 26 s) is a still picture whatever the fades took.
+# The run with no transition and the LCD-off card (-DAUTO_NOTRANS -DCARD_FADE=0) is the reference: the card's fades and its exit must leave pixel for pixel the same picture,
+# and so must the run that never showed the card.
+# The ROM reads a start delay in frames from its free byte 0x3FFF, so runs of whole seconds with different delays land on every frame of the entrance
+# (tools/boss_capture.py): in the run with no card (2) no frame from the level through his entrance may be white, flat or short of colours: the swap is invisible.
 BOSS_VARIANTS = {"ref": "-DAUTO_BOSS=1 -DAUTO_NOTRANS -DCARD_FADE=0", "fade": "-DAUTO_BOSS=1", "seen": "-DAUTO_BOSS=2", "white": "-DAUTO_BOSS=1 -DTRANS_DEFAULT=2"}
 
 
@@ -185,3 +188,36 @@ def test_the_boss_fight_after_the_swap_and_the_card_is_the_picture_without_them(
     # (a regular walking in at the left edge is a game frame or so apart between runs of different fades: the picture must be the same everywhere but that entry zone)
     box = Image.frombytes("L", a.size, bytes(abs(x - y) for x, y in zip(a.convert("L").tobytes(), b.convert("L").tobytes()))).getbbox()
     assert box is None or (box[0] >= 0 and box[2] <= 40 and box[1] >= 40), f"differs in {box}"
+
+
+
+def frame_at(rom_bytes, model, secs, delay):
+    """The SameBoy frame `secs` whole seconds into a run of the AUTO_BOSS ROM started `delay` frames late (byte 0x3FFF)."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        rom = Path(td) / "r.gb"
+        b = bytearray(rom_bytes)
+        b[0x3FFF] = delay if delay else 0xFF
+        rom.write_bytes(b)
+        subprocess.run(["sameboy_tester", f"--{model}", "--length", str(secs), str(rom)], capture_output=True, timeout=600)
+        return Image.open(rom.with_suffix(".bmp")).convert("RGB")
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_boss_comes_in_with_no_white_or_blank_frame(boss_shots, model):
+    """In-place entrance on SameBoy, frame by frame: every frame sampled from the level through his tiles streaming in and his entrance (seconds 7-9, a frame
+    in three) is a whole scene, never a white cover, a flat screen or a picture short of colours: nothing was written outside VBlank and nothing was faded."""
+    import numpy as np
+    rom = (OUT / "boss_seen.gb").read_bytes()
+    seen = 0
+    fin = np.asarray(boss_shots["seen", model])
+    base = float((fin == 255).all(axis=2).mean())         # (a DMG scene is mostly the lightest shade: a white frame is far above this)
+    for secs in (7, 8, 9):
+        for delay in range(0, 60, 3):
+            a = np.asarray(frame_at(rom, model, secs, delay))
+            white = float((a == 255).all(axis=2).mean())
+            colours = len({tuple(c) for c in a.reshape(-1, 3)})
+            assert white < base + 0.15, f"a white frame ({white:.2f}) at {secs} s, delay {delay}"
+            assert colours >= 4, f"a flat frame ({colours} colours) at {secs} s, delay {delay}"
+            seen += 1
+    assert seen == 60

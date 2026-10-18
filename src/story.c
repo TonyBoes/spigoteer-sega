@@ -800,8 +800,6 @@ static void shift_won(uint8_t clear) {
 //   - then boss_frame starts his entrance (BS_ENTER / BS_WALKIN; no warm-up: Last call was it), his meter and face come when he has entered (fight_start), and the
 //     first time he ever appears, his HOW TO PLAY card opens the frame after (HOOK_CARD), over a whole picture, and the game resumes by itself when it is left.
 static void boss_in_place(void) {
-    uint16_t v;
-    uint8_t w = story_goal.walk, sp = story_goal.spawn;
     uint8_t *hb = story_scratch + 190;           // (9 bytes of the backdrop buffer's free middle, kept until the queue has copied them; boss.c LD ends below it)
     add_score(1000);                             // (LEVEL_BONUS, main_cold.c: the clear bonus Last call's end gave before: the venue's score keeps its two bonuses, here and at his defeat)
     boss_set(story_chapter);
@@ -815,12 +813,9 @@ static void boss_in_place(void) {
     two_digits(hb + 7, level);
     vq_add(0, hb, HUD_GOAL_COL, HUD_ROW, 9);
     mosh_set(0, 0);
-    patron_speed = (uint8_t)(((uint16_t)patron_speed * 100) / w);        // (Last call's percentages off: the level row's own again)
-    if (hurry_speed) hurry_speed = patron_speed + (patron_speed >> 1);
-    v = (uint16_t)(((uint16_t)spawn_interval * 100) / sp);
-    spawn_interval = v + (v >> 1);               // (x 150 %: BOSS_SPAWN_PCT)
-    spawn_timer = spawn_interval;
-    quota = 255; level_clear = 0;
+    level_pace_again();                          // (Last call's percentages off: the level row's own speeds and spawn interval, exactly)
+    shift_pace();                                // (the fight's go on: his goal's walk and spawn percentages, a quota of 255, the arrival pattern; boss_begin redraws it)
+    level_clear = 0;
     served = spawned = 0;                        // (a fresh count for the fight, as a level load gives: a lost life's start patrons are placed from it, show.c)
     boss_begin();
     story_left = 0; st_secs = 0; story_timer = 0;

@@ -85,7 +85,6 @@ def test_the_fight_follows_the_last_call(model):
     """After the stadium's Last call: BOSS and his lines; the Mascot on bar 1 at x 16 (his tiles, palettes, the marker's
     tiles at BG 248-251), the meter of 10, the tuft as the topper. Golden boss_mascot: walking, a mug on its way."""
     with fight(model, C, banner=True) as gb:
-        assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         skip_entrance(to_goal(gb))
         gb.run(2)
         check_start(gb, C, A, model)

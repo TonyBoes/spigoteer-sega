@@ -609,10 +609,13 @@ def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(mod
         rom.press("a", 2)
         run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)
         win(rom, c, k)
-        if k == 2:                                       # (Last call's quota meets the boss: the bars empty, then his banner)
+        if k == 2:                                       # (Last call's quota meets the boss: the bars empty, then he comes in on the same level)
             rom.run(3)
-            clear_bars(rom)
-        run_until(rom, lambda: rom.mem("game_state") in (GS_GOAL, GS_STORY), 400)
+            if not rom.mem("boss_on"):
+                clear_bars(rom)
+            run_until(rom, lambda: rom.mem("boss_on") == 1, 400)
+        else:
+            run_until(rom, lambda: rom.mem("game_state") in (GS_GOAL, GS_STORY), 400)
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (1, 1), "the real progress untouched"
         assert rom.mem16("tune_unlocked") == 0x21, "no unlocks from a debug run"
         after = save_ram(rom)
@@ -747,7 +750,7 @@ def test_the_menu_goldens(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
     """The boss is no step of its own (owner 2026-10-17): the box offers LAST (Last call); A starts it, meeting its quota turns the level into
-    the boss fight (his banner, the fight); satisfied, CHAPTER CLEAR and the POST scene follow, and SRAM stays as it was."""
+    the boss fight (in place, no banner); satisfied, CHAPTER CLEAR and the POST scene follow, and SRAM stays as it was."""
     from test_flow import LEVEL_CLEAR, run_until
     from test_scores import booted, v7_image
     from test_sound import save_ram
@@ -774,9 +777,7 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
         rom.press("a", 2)
         run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)
         to_boss_banner(rom, c)
-        assert rom.mem("boss_on") == 1 and rom.mem("boss_id") == c and goal_text(rom, 1) == centred("BOSS")
-        rom.press("a", 2)
-        run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)
+        assert rom.mem("boss_on") == 1 and rom.mem("boss_id") == c and rom.mem("game_state") == PLAYING, "in place: no banner"
         rom.write("boss_hook", 3)                       # satisfied at once (tests/test_boss.py plays the fight)
         clear_regulars(rom)
         run_until(rom, lambda: rom.mem("game_state") == LEVEL_CLEAR, 200)

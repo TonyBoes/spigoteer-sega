@@ -477,14 +477,13 @@ def through_the_pouroff(gb):
 
 
 LD_AT = 70                                       # story_scratch offset of boss.c's job list (LD: [0] the head, jobs from 1)
-BPAL_REQ = 0xFFE0                                # HRAM: the palette slot of the VBlank interrupt
 
 
 def boss_streamed(gb):
-    """Every tile and palette of the boss's in-place load has gone out (boss.c ld_step: the job list is used up, the palette slot empty, no copy waiting)."""
+    """Every tile and palette of the boss's in-place load has gone out (boss.c ld_step: the job list is used up, palettes and tiles, no copy waiting)."""
     ld = gb.addr("story_scratch") + LD_AT
     head = gb.pb.memory[ld]
-    return gb.pb.memory[ld + 1 + head] == 0 and gb.pb.memory[BPAL_REQ] == 0 and gb.mem("vq_held") == 0
+    return gb.pb.memory[ld + 1 + head] == 0 and gb.mem("vq_held") == 0
 
 
 def to_goal(gb, boss_start=True):
@@ -493,9 +492,8 @@ def to_goal(gb, boss_start=True):
     if gb.mem("boss_on") and state(gb) == PLAYING:
         gb.write("tip_chance", 0)
         if boss_start:
-            run_until(gb, lambda: boss_streamed(gb), 120)
-            gb.write("boss_hook", 4)
-            gb.run(2)
+            gb.write("boss_hook", 4)             # (taken once his tiles have been handed out: boss.c boss_frame)
+            run_until(gb, lambda: gb.mem("boss_state") != 6, 150)
         return gb
     run_until(gb, lambda: state(gb) == GS_GOAL, 30)
     gb.write("tip_chance", 0)
@@ -1011,7 +1009,7 @@ def pace(gb):
 @pytest.mark.parametrize("c", range(10))
 def test_each_chapter_plays_its_shifts_in_order(model, c):
     """Opening -> SHIFT CLEAR -> Happy hour -> SHIFT CLEAR -> (the mini-game slot: built in every venue) Last call -> its quota met: the level
-    turns into the venue's boss fight (BOSS banner, nothing saved: the step stays Last call) -> CHAPTER CLEAR -> the POST scene; each
+    turns into the venue's boss fight (in place, no banner, nothing saved: the step stays Last call) -> CHAPTER CLEAR -> the POST scene; each
     shift's banner, goal and pace; the progress saved after each (tests/test_boss.py plays the fights)."""
     rows = gen_story().level_rows(ROOT / "src" / "level.c")
     paces = []
@@ -1055,10 +1053,12 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
         win(gb, c, 2)
         if c in BOSS_BUILT:
             gb.run(3)
-            clear_bars(gb)
-            run_until(gb, lambda: state(gb) == GS_GOAL, 60)
+            if not gb.mem("boss_on"):
+                clear_bars(gb)
+            run_until(gb, lambda: gb.mem("boss_on") == 1, 60)
             gb.run(3)
-            assert banner_text(gb, 1) == centred("BOSS") and gb.mem("story_step") == SHIFT_STEP[2] and gb.mem("story_shift") == 2
+            assert state(gb) == PLAYING, "no banner, no screen change: he comes in on the same level"
+            assert gb.mem("story_step") == SHIFT_STEP[2] and gb.mem("story_shift") == 2
             assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, SHIFT_STEP[2]), "Last call stays the step reached"
             to_goal(gb)
             gb.write("boss_hook", 3)

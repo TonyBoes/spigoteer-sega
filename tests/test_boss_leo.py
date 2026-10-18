@@ -79,7 +79,6 @@ def test_the_fight_follows_the_last_call(model):
     at x 16 (his tiles, palettes, the "!!" at BG 246-247, the wave and hoop sprites at OBJ 104+), the meter of 14 (all 7
     HUD tiles), his crown as the topper. Golden boss_leo: walking, a coconut on its way."""
     with fight(model, C, banner=True) as gb:
-        assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         start_entrance(to_goal(gb, boss_start=False))
         gb.run(2)
         assert LEO.get(gb, "ent") and gb.mem("boss_state") == BS_ENTER, "the entrance first"

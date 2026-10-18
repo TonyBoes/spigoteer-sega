@@ -37,9 +37,9 @@ def patrons_on(gb, b):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_fight_opens_with_his_entrance_at_once(model):
-    """Last call turned into the fight (owner 2026-10-17: no 20 s warm-up any more): on his banner he is not here yet (BS_WARM, hidden, no
-    topper, no HUD meter, his bar free of regulars); play starts and his entrance begins on the first frame (the bar already empty: it
-    does not wait), the bartender where he was."""
+    """Last call turned into the fight (owner 2026-10-17: no 20 s warm-up any more; 2026-10-18: no banner, no screen change): at the turn he is not here
+    yet (BS_WARM, hidden, no topper, no HUD meter, his bar free of regulars) while his tiles stream in; then his entrance begins (the bar already
+    empty: it does not wait), the bartender where he was."""
     with fight(model, C, banner=True) as gb:
         assert gb.mem("boss_on") == 1 and gb.mem("boss_state") == BS_WARM and gb.mem("boss_bar") == R["bar"]
         assert not patrons_on(gb, R["bar"]) and not mugs(gb)
@@ -48,9 +48,7 @@ def test_the_fight_opens_with_his_entrance_at_once(model):
         assert top == wall[:20] and bottom == wall[20:40], "no body on his bar"
         assert gb.oam()[28]["y"] == 0, "no topper"
         assert hud(gb) != meter_tiles(R["meter"], R["meter"]), "no meter yet"
-        gb.press("a", 2)
-        run_until(gb, lambda: state(gb) == PLAYING, 10)
-        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 150)   # (his tiles stream in first, a few frames; the entrance is on the frame after the last)
         assert gb.mem("boss_state") in (BS_ENTER, BS_WALKIN), "his entrance, straight away"
 
 
@@ -60,10 +58,8 @@ def test_the_entrance_ends_and_then_the_boss_rules_apply(model):
     his body comes in from the left edge column by column, steps on to x 16, then the intro's beat and the fight starts: meter, HUD face,
     hands rules; a full mug is only caught from then on."""
     with fight(model, C, banner=True) as gb:
-        gb.write("boss_hook", 6)                     # (every boss has an entrance of his own now: the walk-in is the safety net)
-        gb.press("a", 2)
-        run_until(gb, lambda: state(gb) == PLAYING, 10)
-        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+        gb.write("boss_hook", 6)                     # (every boss has an entrance of his own now: the walk-in is the safety net; the hook waits for his tiles)
+        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 150)
         still_regulars(gb)
         assert gb.mem("boss_state") == BS_WALKIN and gb.mem("boss_bar") == R["bar"] and gb.mem("intro_timer") >= INTRO - 1
         assert not mugs(gb), "the mugs are cleared"
@@ -103,7 +99,7 @@ def test_boss_rush_has_no_warm_up(model):
             tap(gb, "down")
         tap(gb, "a")
         into_fight(gb, entered=False)
-        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 150)
         assert gb.mem("boss_state") == BS_ENTER and gb.mem("boss_bar") == R["bar"]
         assert not patrons_on(gb, R["bar"])
         until(gb, lambda: gb.mem("boss_state") == BS_WALK, 260)
@@ -150,10 +146,9 @@ def test_an_entrance_holds_the_bartender_where_he_is(model):
     """Mid-fight entrance (E9, decision 6): the bartender is NOT sent to bar 0; his input is held (Down and A change nothing, no glass)
     and he is where he was when it ends."""
     with fight(model, C, banner=True) as gb:
+        until(gb, lambda: gb.mem("boss_state") in (BS_ENTER, BS_WALKIN), 150)   # (the player plays on while his tiles stream in; the entrance holds him)
         bar, x = gb.mem("bar"), gb.mem("bartender_x")
         launched = gb.read("sfx_count", 9)[2]
-        gb.press("a", 2)
-        run_until(gb, lambda: state(gb) == PLAYING, 10)
         still_regulars(gb)
         gb.hold("down")
         gb.hold("a")
