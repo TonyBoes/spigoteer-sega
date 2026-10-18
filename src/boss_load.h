@@ -25,21 +25,21 @@ static void boss_art_set(void) {
 // the body, OBJ palette 7 (lifted variant C's) for the topper. DMG: OBP1 is lift_level_init's 0xE4, the BG's shades.
 static void boss_art_load(void) {
     palette_t p;
-    set_bkg_data((uint8_t)BOSS_BG_A, (BOSS_ART_PAIRS > BOSS_PAIRS_A ? BOSS_PAIRS_A : BOSS_ART_PAIRS) << 1, boss_art_body);
+    BOSS_BG((uint8_t)BOSS_BG_A, (BOSS_ART_PAIRS > BOSS_PAIRS_A ? BOSS_PAIRS_A : BOSS_ART_PAIRS) << 1, boss_art_body);
 #if BOSS_ART_PAIRS > BOSS_PAIRS_A
-    set_bkg_data((uint8_t)BOSS_BG_B, (BOSS_ART_PAIRS - BOSS_PAIRS_A) << 1, boss_art_body + BOSS_PAIRS_A * 32);
+    BOSS_BG((uint8_t)BOSS_BG_B, (BOSS_ART_PAIRS - BOSS_PAIRS_A) << 1, boss_art_body + BOSS_PAIRS_A * 32);
 #endif
-    set_bkg_data(BOSS_HUD_BG, 1, boss_art_icon);
-    set_sprite_data(OBJ_TOPPER, BOSS_ART_HAT_TILES, boss_art_hat);   // HAT_STILL, HAT_BOB (and his `hats`)
+    BOSS_BG(BOSS_HUD_BG, 1, boss_art_icon);
+    BOSS_OBJ(OBJ_TOPPER, BOSS_ART_HAT_TILES, boss_art_hat);   // HAT_STILL, HAT_BOB (and his `hats`)
 #ifdef BOSS_ART_FX
-    set_bkg_data(BOSS_MARK_BG, BOSS_ART_FX, boss_art_fx);           // the landing marker (gen_boss `fx`)
+    BOSS_BG(BOSS_MARK_BG, BOSS_ART_FX, boss_art_fx);           // the landing marker (gen_boss `fx`)
 #endif
     if (!is_cgb) return;
     p[0] = venue.pal[VENUE_PAL_BAR][0];
     p[1] = boss_art_pal[1]; p[2] = boss_art_pal[2]; p[3] = boss_art_pal[3];
-    set_bkg_palette(BOSS_PAL, 1, p);
+    boss_ldpal(0, BOSS_PAL, p);
     p[0] = 0;
-    set_sprite_palette(OBJPAL_PATRON_C, 1, p);
+    boss_ldpal(1, OBJPAL_PATRON_C, p);
 }
 // The credits' cast card (src/credits.c) takes his body from his own art file, in his bank: one banked function per boss file, BOSS_CAST_FN(name).
 // cmd 0: body tile a (16 bytes) into dst, copied (a DMG card remaps it); 1: the tile pair of column b in pose a; 2: the topper's four tiles

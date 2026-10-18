@@ -209,7 +209,7 @@ uint8_t boss_mascot(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
-        set_sprite_data(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the ball (OBJ 108-111: the show's tiles, none in a fight)
+        BOSS_OBJ(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the ball (OBJ 108-111: the show's tiles, none in a fight)
         break;
     case BEV_ENTER:                                          // (E9: after the warm-up)
         mascot.ent = 1;

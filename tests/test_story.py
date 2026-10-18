@@ -476,9 +476,27 @@ def through_the_pouroff(gb):
     settle(gb)
 
 
+LD_AT = 70                                       # story_scratch offset of boss.c's job list (LD: [0] the head, jobs from 1)
+BPAL_REQ = 0xFFE0                                # HRAM: the palette slot of the VBlank interrupt
+
+
+def boss_streamed(gb):
+    """Every tile and palette of the boss's in-place load has gone out (boss.c ld_step: the job list is used up, the palette slot empty, no copy waiting)."""
+    ld = gb.addr("story_scratch") + LD_AT
+    head = gb.pb.memory[ld]
+    return gb.pb.memory[ld + 1 + head] == 0 and gb.pb.memory[BPAL_REQ] == 0 and gb.mem("vq_held") == 0
+
+
 def to_goal(gb, boss_start=True):
-    """Past the goal banner (A), into the shift's play (a boss fight: started at once, no warm-up or entrance, unless
-    boss_start=False)."""
+    """Past the goal banner (A), into the shift's play (a boss fight: started at once, no warm-up or entrance, unless boss_start=False). A fight that
+    started in place (Last call turned into it: no banner, the game never left PLAYING) has its tiles streamed in first (boss_start waits for that)."""
+    if gb.mem("boss_on") and state(gb) == PLAYING:
+        gb.write("tip_chance", 0)
+        if boss_start:
+            run_until(gb, lambda: boss_streamed(gb), 120)
+            gb.write("boss_hook", 4)
+            gb.run(2)
+        return gb
     run_until(gb, lambda: state(gb) == GS_GOAL, 30)
     gb.write("tip_chance", 0)
     if boss_start and gb.mem("boss_on"):
@@ -558,13 +576,15 @@ def past_mini(gb, limit=400):
 
 def to_boss_banner(gb, c):
     """Chapter c's Last call (in play) won: its serve quota met and the bars emptied (what the last serves do), so the level turns into the
-    boss fight in place (src/story.c boss_in_place): up to his banner (GS_GOAL, boss_on)."""
+    boss fight in place (src/story.c boss_in_place): there is no banner and no screen change; he is BS_WARM (his tiles streaming in), PLAYING,
+    boss_on. (The name is the old flow's: callers go on with to_goal.)"""
     win(gb, c, 2)
     gb.run(3)                                    # (the goal is seen met: arrivals stop, quota = spawned)
-    clear_bars(gb)
-    run_until(gb, lambda: state(gb) == GS_GOAL, 60)
-    gb.run(3)
-    assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c
+    if not gb.mem("boss_on"):                    # (a clear goal with the bars empty already: he is in; clear_bars would zero the fight's quota)
+        clear_bars(gb)
+    run_until(gb, lambda: gb.mem("boss_on") == 1, 60)
+    gb.run(1)
+    assert state(gb) == PLAYING and gb.mem("boss_id") == c
     return gb
 
 

@@ -148,7 +148,7 @@ uint8_t boss_critic(uint8_t ev, uint8_t arg) BANKED {
         if (is_cgb) {                    // the cloche's silver in OBJ 5 (no tips in a fight)
             palette_t p;
             p[0] = 0; p[1] = RGB(30, 31, 31); p[2] = RGB(15, 17, 21); p[3] = RGB(3, 4, 7);
-            set_sprite_palette(OBJPAL_COIN, 1, p);
+            boss_ldpal(1, OBJPAL_COIN, p);
         }
         break;
     case BEV_ENTER:                      // (E9: after the warm-up)

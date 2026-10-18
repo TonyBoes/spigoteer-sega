@@ -467,7 +467,7 @@ uint8_t auto_boss(void) BANKED {
     static uint8_t ab_p;
     uint8_t j = 0, p;
     if (game_state == GS_TITLE) {
-        if (frame_counter == 100) {
+        if (frame_counter == (uint8_t)(100 + (*(const volatile uint8_t *)0x3FFF == 0xFF ? 0 : *(const volatile uint8_t *)0x3FFF))) {   // (the byte at 0x3FFF, free ROM0 padding, is a start delay in frames: tests/boss_capture.py patches it to catch every frame of the entrance on a whole-second SameBoy run)
             score = 0; lives = START_LIVES; rng_state = 0xA7;
 #if AUTO_BOSS == 2
             boss_card_mark(0);
@@ -476,10 +476,6 @@ uint8_t auto_boss(void) BANKED {
         }
     } else if (game_state == GS_GOAL) {
         if (!(++ab_t & 15)) j = J_A;
-        if (boss_on) {                               // (his banner: the regulars' order and every draw after it the same in every run: the fades, the card and the cover
-            rng_state = 0x3D;                        // take different numbers of next_rand calls)
-            for (p = 0; p < STORY_PAT_MAX; p++) pat_buf[p] = p % 3 ? 2 + (p % 3 - 1) : 0;   // (bars 0, 2, 3: never Tex's, bar 1)
-        }
     } else if (game_state == GS_PAUSED) {            // (the card: A turns its page, A on the last one closes it)
         ab_p++;
         if (ab_p == 120 || ab_p == 240 || ab_p == 360) j = J_A;
@@ -491,6 +487,9 @@ uint8_t auto_boss(void) BANKED {
                 patrons_live = 0; lists_dirty = 1;
                 clear_mugs(); mugs_live = 0;
             }
+        } else if (boss_state >= 6) {                 // (BS_WARM / ENTER / WALKIN: the streaming of his tiles and his entrance: the regulars' order and every draw after it the same in every run, as the fades and the card take different numbers of next_rand calls)
+            rng_state = 0x3D;
+            for (p = 0; p < STORY_PAT_MAX; p++) pat_buf[p] = p % 3 ? 2 + (p % 3 - 1) : 0;   // (bars 0, 2, 3: never Tex's, bar 1)
         } else if (boss_state == 0 && boss_hp) {      // (BS_WALK: the fight itself is on)
             if (ab_f == 0) rng_state = 0x5C;               // (which regular comes where is random: the same draw in every run)
             if (++ab_f == 120) {

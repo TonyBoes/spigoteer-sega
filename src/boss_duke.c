@@ -271,9 +271,9 @@ uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED {
         if (is_cgb) {                    // the helmet's own colours (red shell, white stripe, dark outline) in OBJ 7
             palette_t p;
             p[0] = 0; p[1] = RGB(29, 7, 7); p[2] = RGB(31, 31, 31); p[3] = RGB(3, 2, 4);
-            set_sprite_palette(OBJPAL_PATRON_C, 1, p);
+            boss_ldpal(1, OBJPAL_PATRON_C, p);
             p[1] = boss_art_pal[1]; p[2] = boss_art_pal[2]; p[3] = boss_art_pal[3];   // the entrance's: his body's colours, OBJ 5
-            set_sprite_palette(OBJPAL_COIN, 1, p);
+            boss_ldpal(1, OBJPAL_COIN, p);
         }
         break;
     case BEV_ENTER:                      // E9: the warm-up is over (boss.c entrance_start): the tile pool borrows the drinks' tiles

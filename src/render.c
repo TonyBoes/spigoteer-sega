@@ -482,9 +482,19 @@ __endasm;
 }
 
 // VBL interrupt handler (registered in init()).
+// A palette the boss loader asked for (src/boss.c ld_step), through HRAM: written first thing in VBlank, one a frame.
+static void bpal_write(void) {
+    uint8_t r = BPAL_REQ, i;
+    volatile uint8_t *c = BPAL_COL;
+    if (r & 8) { OCPS_REG = 0x80 | ((r & 7) << 3); for (i = 0; i < 8; i++) OCPD_REG = c[i]; }
+    else { BCPS_REG = 0x80 | ((r & 7) << 3); for (i = 0; i < 8; i++) BCPD_REG = c[i]; }
+    BPAL_REQ = 0;
+}
+
 void vq_vbl(void) {
     uint8_t t0, t, ly, vbk;
     if (pal5_req) pal5_write();
+    if (BPAL_REQ) bpal_write();
     if (!vq_ready) return;
     ly = LY_REG;
     vq_drain_ly_last = ly;

@@ -140,5 +140,14 @@ uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED;        // src/boss_duke.c: Du
 uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED;         // src/boss_leo.c: Leo the Lion, the jungle zoo (3.11)
 uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED;  // src/boss_mothership.c: the Mothership, the space lounge (3.10)
 void boss_cap_stage(uint8_t *dst) BANKED;  // the free slot's glass, 4 tiles (BOSS_CAP_BYTES) to dst in WRAM, for a boss file that queues them to OBJ_CAP
+// His tiles and palettes, from his file's BEV_LOAD (src/boss_load.h): with the LCD off straight to VRAM / palette RAM; with the LCD on (Last call turning into his
+// fight, in place: no screen change) they are recorded as jobs in story_scratch and boss.c ld_step streams them in over the next frames, 4 tiles a frame through
+// the VBlank queue (the banked art is copied to WRAM first: the queue reads WRAM only) and a palette a frame through HRAM (render.c bpal_write).
+// kind 0: BG tiles, 1: OBJ tiles, 2: BG tiles with colours 1-2 forced to the band colour (the Sumo's one-pip tiles); n tiles at id `first` from src in ROM bank `bank`
+// (src 0 with kind 1: the capacity row's dotted glass, boss_cap_stage). obj 0 / 1: BG / OBJ palette idx from the four colours p.
+void boss_ld(uint8_t kind, uint8_t first, uint8_t n, const uint8_t *src, uint8_t bank) BANKED;
+void boss_ldpal(uint8_t obj, uint8_t idx, const uint16_t *p) BANKED;
+#define BOSS_BG(first, n, src)   boss_ld(0, first, n, src, CURRENT_BANK)
+#define BOSS_OBJ(first, n, src)  boss_ld(1, first, n, src, CURRENT_BANK)
 void boss_hud_now(void) BANKED;           // the HUD's face and meter from boss_hp now (a special that changes boss_hp itself)
 #endif

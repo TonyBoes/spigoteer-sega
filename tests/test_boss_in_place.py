@@ -3,6 +3,9 @@
 # entrance. The first time a boss appears in the game, the game pauses automatically and shows the instruction card for the boss. It unpauses
 # automatically when the instructions are exited. This changes in both story and arcade."): src/story.c shift_won / boss_in_place, src/boss.c
 # fight_start, src/pause.c pause_boss_card, src/save.c block "BK" (the boss cards seen).
+# Owner 2026-10-18: "I don't want to immediately switch to the next stage, I want the boss to come in at the end of the stage without any kind of screen transition.
+# After he comes in, and his animation is complete, if it is his first time appearing, the instruction card comes up." So there is no cover, no LCD-off swap and no
+# banner: the level stays on screen, his tiles and palettes stream in over a few frames (src/boss.c ld_step), his entrance plays, and the card opens the frame after it.
 import pytest
 from boss_common import BS_ENTER, BS_WALK, BS_WALKIN, BS_WARM, hud, meter_tiles, row
 from conftest import BK_AT, bk_block, clear_regulars
@@ -11,7 +14,7 @@ from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, run_until, state
 from test_pause import CARD_FRAMES, PAUSE_NR51, PAUSED, boss_cards, card_rows, tap
 from test_scores import booted, v7_image
 from test_sound import save_ram
-from test_story import (BOSS_BUILT, GAME_ART, SHIFT_STEP, SHIFTS, banner_text, centred, clear_bars, to_boss_banner, to_chapter, to_goal,
+from test_story import (BOSS_BUILT, GAME_ART, SHIFT_STEP, SHIFTS, banner_text, boss_streamed, centred, clear_bars, to_boss_banner, to_chapter, to_goal,
                         to_shift, win)
 
 pytestmark = pytest.mark.timeout(300)
@@ -37,9 +40,10 @@ def last_call(model, c, bk=None):
 # ---- the quota meets the boss ----------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", MODES)
 @pytest.mark.parametrize("c", VENUES)
-def test_the_quota_triggers_the_boss_in_the_same_level_with_no_shift_clear(model, c):
+def test_the_quota_triggers_the_boss_in_the_same_level_with_no_shift_clear_and_no_screen_change(model, c):
     """Last call's quota met: no SHIFT / CHAPTER CLEAR (the level never clears), arrivals stop, the patrons already in are served as ever; when
-    the bars are empty the level turns into his fight (his banner BOSS), the same venue, lives and score (plus the clear bonus)."""
+    the bars are empty the level turns into his fight in the same screen (no banner, no goal state: the game stays PLAYING), the same venue,
+    lives and score (plus the clear bonus)."""
     with last_call(model, c) as gb:
         lives, level, group = gb.mem("lives"), gb.mem("level"), gb.mem("cur_group")
         score = int.from_bytes(gb.read("score", 4), "little")
@@ -57,15 +61,19 @@ def test_the_quota_triggers_the_boss_in_the_same_level_with_no_shift_clear(model
                     break
                 if gb.mem("patrons_live"):
                     assert gb.mem("spawned") == spawned and gb.mem("boss_on") == 0
-        clear_bars(gb)
+        if not gb.mem("boss_on"):
+            clear_bars(gb)
         for _ in range(80):
             gb.run(1)
             states.add(state(gb))
-            if state(gb) == GS_GOAL:
+            if gb.mem("boss_on"):
                 break
-        assert state(gb) == GS_GOAL and LEVEL_CLEAR not in states, states
-        gb.run(3)
-        assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c and banner_text(gb, 1) == centred("BOSS")
+        assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c
+        for _ in range(60):                          # (and the screen stays the level: no banner, no goal state, no clear)
+            gb.run(1)
+            states.add(state(gb))
+        assert states == {PLAYING}, states
+        assert banner_text(gb, 1) != centred("BOSS") and gb.mem("overlay_on") == 0
         assert (gb.mem("lives"), gb.mem("level"), gb.mem("cur_group")) == (lives, level, group), "the same level"
         assert gb.mem("story_step") == SHIFT_STEP[2] and gb.mem("story_shift") == 2, "no step of his own"
         assert int.from_bytes(gb.read("score", 4), "little") >= score + 1000, "Last call's clear bonus (a caught empty or two on top)"
@@ -75,8 +83,8 @@ def test_the_quota_triggers_the_boss_in_the_same_level_with_no_shift_clear(model
 
 @pytest.mark.parametrize("model", MODES)
 def test_the_counter_stops_and_the_boss_meter_replaces_it(model):
-    """Meeting the quota freezes the HUD counter at 00 (more serves change nothing); at his banner the counter's columns are blank, and when he
-    has entered his face and meter are on the HUD at columns 12-19."""
+    """Meeting the quota freezes the HUD counter at 00 (more serves change nothing); when he comes in the counter's columns are blank, and when
+    he has entered his face and meter are on the HUD at columns 12-19."""
     c = 0
     with last_call(model, c) as gb:
         win(gb, c, 2)
@@ -88,26 +96,24 @@ def test_the_counter_stops_and_the_boss_meter_replaces_it(model):
         gb.run(20)
         assert gb.mem("story_left") == 0 and [gb.read(0x9800 + 11 + k, 1)[0] for k in range(3)] == counter, "it does not count any more"
         clear_bars(gb)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 80)
+        run_until(gb, lambda: gb.mem("boss_on") == 1, 80)
         gb.run(3)
         blank = GAME_ART["TILE_HUD_BLANK"]
-        assert [gb.read(0x9800 + 11 + k, 1)[0] for k in range(1)] == [blank], "the counter's icon is gone"
-        to_goal(gb)
-        run_until(gb, lambda: gb.mem("boss_state") == BS_WALK, 400)
+        assert [gb.read(0x9800 + 11 + k, 1)[0] for k in range(6)] == [blank] * 6, "the counter's icon and digits are gone"
+        assert gb.read(0x9800 + 17, 1)[0] == GAME_ART["TILE_HUD_FLAG"], "the level flag back"
+        run_until(gb, lambda: gb.mem("boss_state") == BS_WALK, 600)
         gb.run(2)
         assert hud(gb) == meter_tiles(row(c)["meter"], row(c)["meter"]), "his face and meter"
 
 
 @pytest.mark.parametrize("model", MODES)
-def test_the_boss_enters_after_the_banner_and_the_regulars_never_take_his_bar(model):
-    """After the banner his entrance starts at once (Last call was the warm-up); the fight then runs as it always did: regulars on the other bars
+def test_the_boss_enters_at_once_and_the_regulars_never_take_his_bar(model):
+    """Once his tiles are in his entrance starts (Last call was the warm-up); the fight then runs as it always did: regulars on the other bars
     only, his meter full."""
     c = 0
     with last_call(model, c) as gb:
         to_boss_banner(gb, c)
-        gb.press("a", 2)
-        run_until(gb, lambda: state(gb) == PLAYING, 10)
-        run_until(gb, lambda: gb.mem("boss_state") in (BS_ENTER, BS_WALKIN), 10)
+        run_until(gb, lambda: gb.mem("boss_state") in (BS_ENTER, BS_WALKIN), 120)
         run_until(gb, lambda: gb.mem("boss_state") == BS_WALK, 400)
         assert gb.mem("boss_hp") == row(c)["meter"] and gb.mem("boss_bar") == row(c)["bar"] and gb.mem("lives") == 3
         for _ in range(900):
@@ -118,15 +124,113 @@ def test_the_boss_enters_after_the_banner_and_the_regulars_never_take_his_bar(mo
                 break
 
 
+# ---- no screen change from the quota to the end of his entrance ----------------------------------------------------------------------------
+LCDC, BGP, OBP0, OBP1 = 0xFF40, 0xFF47, 0xFF48, 0xFF49
+BODY = {0: "big_tex", 1: "mascot", 2: "sasquatch", 3: "critic", 4: "yeti", 5: "prototype", 6: "duke", 7: "sumo", 8: "leo", 9: "mothership"}
+
+
+def sample(gb):
+    """(the share of the picture that is white, the DMG palette registers): a palette fade to white or a white cover moves both."""
+    im = gb.image().convert("RGB")
+    import numpy as np
+    white = float((np.asarray(im) == 255).all(axis=2).mean())
+    return white, tuple(gb.pb.memory[a] for a in (BGP, OBP0, OBP1))
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", VENUES)
+def test_no_lcd_off_and_no_palette_fade_from_the_quota_to_the_end_of_the_entrance(model, c):
+    """Owner 2026-10-18: no transition. From the quota being met to the last frame of his entrance (boss_state back to BS_WALK) the LCD stays on (LCDC bit 7
+    every frame), the palette registers never change (the Mothership's own light flicker aside) and the picture never goes white, the game stays PLAYING (no goal banner, no pause) and the
+    window is not up; his tiles are streamed in meanwhile (BS_WARM) and the entrance runs."""
+    with last_call(model, c) as gb:
+        base = sample(gb)
+        win(gb, c, 2)
+        seen = set()
+        for i in range(900):
+            gb.run(1)
+            if i == 3 and not gb.mem("boss_on"):     # (the goal is seen met; a serve goal's last patrons gone: a clear goal's win() emptied the bars already)
+                clear_bars(gb)
+            assert gb.pb.memory[LCDC] & 0x80, f"the LCD went off (frame {i}, boss_state {gb.mem('boss_state')})"
+            assert state(gb) == PLAYING and gb.mem("overlay_on") == 0, (i, state(gb))
+            if gb.mem("boss_on") and gb.mem("boss_state") == BS_WALK:
+                break                            # (his meter and face are the HUD's next change)
+            white, regs = sample(gb)
+            assert white < base[0] + 0.1, f"the picture went white (frame {i}, boss_state {gb.mem('boss_state')})"
+            assert c == 9 or regs == base[1], f"a palette changed (frame {i}, boss_state {gb.mem('boss_state')})"   # (the Mothership's own light flicker moves BGP / the bar palettes)
+            if gb.mem("boss_on"):
+                seen.add(gb.mem("boss_state"))
+        assert gb.mem("boss_state") == BS_WALK, "the entrance ends"
+        assert BS_WARM in seen and seen & {BS_ENTER, BS_WALKIN}, seen
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", VENUES)
+def test_his_tiles_stream_in_over_several_frames_and_arrive_intact(model, c):
+    """The in-place load: his body, face and topper tiles reach VRAM through the VBlank queue over a few frames (more than two, fewer than ~45), 4 tiles
+    a frame at most, and are byte for byte his art (the build's generated array) once the stream is done."""
+    import re
+    from conftest import ROOT
+    hdr = (ROOT / "build" / f"boss_{BODY[c]}_art.h").read_text()
+
+    def arr(name):
+        m = re.search(name + r"\[\d+\] = \{([^}]*)\}", hdr)
+        return bytes(int(x, 16) for x in m.group(1).replace("\n", " ").split(",") if x.strip())
+    body, hat, icon = arr("boss_art_body"), arr("boss_art_hat"), arr("boss_art_icon")
+    pairs_a = 21
+    with last_call(model, c) as gb:
+        to_boss_banner(gb, c)
+        n = 0
+        while not boss_streamed(gb) and n < 200:
+            gb.run(1)
+            n += 1
+        assert 2 < n < 45, f"the stream took {n} frames"
+        gb.run(2)
+        vram = lambda a, k: bytes(gb.pb.memory[a + i] for i in range(k))
+        na = min(len(body) // 32, pairs_a) * 32
+        assert vram(0x8000 + 162 * 16, na) == body[:na], "his body, first block (BG 162..)"
+        if len(body) // 32 > pairs_a:
+            assert vram(0x8000 + 216 * 16, len(body) - pairs_a * 32) == body[pairs_a * 32:], "his body, second block (BG 216..)"
+        assert vram(0x8000 + 252 * 16, len(icon)) == icon, "his face"
+        assert vram(0x8000 + 96 * 16, len(hat)) == hat, "his topper (OBJ 96..)"
+
+
 # ---- the first encounter's card ------------------------------------------------------------------------------------------------------------
 def into_fight_start(gb, limit=600):
-    """Past his banner, until the fight starts or the game pauses (the card)."""
-    gb.press("a", 2)
+    """His entrance is over (the fight has begun) and the frames after it have run: the card, when it is due, is open (the game paused)."""
     for _ in range(limit):
         gb.run(1)
         if state(gb) == PAUSED or gb.mem("boss_state") == BS_WALK:
+            gb.run(3)
             return
     raise AssertionError("neither the fight nor the card in %d frames (boss_state %d)" % (limit, gb.mem("boss_state")))
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", VENUES)
+def test_the_card_opens_only_after_his_entrance_ends_over_a_whole_picture(model, c):
+    """First time he appears: the card is not open while he is BS_WARM / BS_ENTER / BS_WALKIN (his entrance animation plays out first), it opens the frame
+    after the entrance ended (not in the middle of that frame: its sprites and bar rows were half done and the card's fade-out would have shown them), with
+    him on his bar (his columns stamped) and the LCD on until the card's own fade; on the LCD going off the game is paused."""
+    with last_call(model, c, bk_block(0)) as gb:
+        win(gb, c, 2)
+        history = []
+        for i in range(1500):
+            gb.run(1)
+            if i == 3 and not gb.mem("boss_on"):
+                clear_bars(gb)
+            history.append((state(gb), gb.mem("boss_on") and gb.mem("boss_state"), bool(gb.pb.memory[LCDC] & 0x80), any(gb.read("boss_cols", 5))))
+            if state(gb) == PAUSED:
+                break
+        assert state(gb) == PAUSED, "the card opened"
+        card_at = len(history) - 1
+        entrance = [k for k, h in enumerate(history) if h[1] in (BS_ENTER, BS_WALKIN)]
+        assert entrance and card_at > entrance[-1], "after his entrance"
+        assert all(h[0] == PLAYING for h in history[:card_at]), "playing until the card"
+        walk = [k for k, h in enumerate(history[:card_at]) if h[1] == BS_WALK]
+        assert len(walk) >= 1, "at least one whole frame of the fight (his body drawn) before the card's fade starts"
+        assert history[card_at - 1][3], "him on his bar in the frame the card fades out"
+        assert all(h[2] for h in history[:card_at]), "the LCD was on until the card"
 
 
 def card_pages(gb):
@@ -257,7 +361,7 @@ def test_arcade_turns_last_call_into_the_boss_and_the_venue_clear_follows_his_de
         to_goal(gb)
         from test_story import boss_from_opening
         boss_from_opening(gb)
-        assert gb.mem("story_arc") == 1 and gb.mem("boss_on") == 1 and gb.mem("boss_id") == 0 and banner_text(gb, 1) == centred("BOSS")
+        assert gb.mem("story_arc") == 1 and gb.mem("boss_on") == 1 and gb.mem("boss_id") == 0 and state(gb) == PLAYING
         to_goal(gb)
         gb.write("boss_hook", 3)
         clear_regulars(gb)

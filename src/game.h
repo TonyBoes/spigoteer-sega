@@ -545,6 +545,10 @@ uint8_t mg_update(uint8_t pressed) BANKED;              // a GS_MINI frame; 1: i
 uint8_t mg_list_update(uint8_t pressed) BANKED;         // a GS_MGLIST frame (src/mg_list.c); 1: the screen changed
 void mg_abort(void) BANKED;                             // the pause menu's QUIT in a mini-game: mg.c's own leave (LCD off)
 // ---- pause.c (banked): the pause menu, every mode (state_timer: bit 0 cursor, bit 1 the question, bit 7 a mini-game)
+// HRAM 0xFFE0-0xFFE8: a CGB palette the VBlank interrupt writes (render.c bpal_write; a boss's palettes while the scene runs, src/boss.c ld_step): BPAL_REQ 0 none, else
+// 0x80 | obj << 3 | index; BPAL_COL its four colours (8 bytes). HRAM is not cleared at power-on: main() clears BPAL_REQ.
+#define BPAL_REQ ((*(volatile uint8_t *)0xFFE0))
+#define BPAL_COL ((volatile uint8_t *)0xFFE1)
 #define PAUSE_NR51 (*(volatile uint8_t *)0xFFF0)       // HRAM (the linker uses 0xFF80-0xFF92): while the menu is open, the NR51 to restore (never 0); else 0
 // ---- trans.c (banked): the scene transition, a fizzy drink filling the screen from the bottom and bubbling away (docs: batchEF g14)
 // HRAM 0xFFF1 TRANS: TR_WANT (a wired scene change says "the next DISPLAY_OFF is a transition": TRANS_WANT()), TR_PEND (the cover ran,

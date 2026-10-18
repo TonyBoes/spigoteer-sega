@@ -437,7 +437,7 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
-        set_sprite_data(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the beam's two frames (OBJ 108-111: free in a fight)
+        BOSS_OBJ(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the beam's two frames (OBJ 108-111: free in a fight)
         break;
     case BEV_CATCH:                                       // (the common catch follows: this only starts the beam's show)
         if (ms.phase < MP_GONE && boss_xpose != BP_HIDE) { ms.bt = 1; ms.bx = mug_x[arg]; }

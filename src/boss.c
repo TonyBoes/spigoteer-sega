@@ -67,7 +67,8 @@ extern uint8_t overlay_on, save_lock;
 #define WARM_WAIT      180
 #define WALK_STEP        6        // the fallback entrance: frames per 8 px he walks in from the left edge
 
-enum { HOOK_NONE, HOOK_TELL, HOOK_METER_1, HOOK_DEFEAT, HOOK_FIGHT, HOOK_ENTER, HOOK_WALKIN };   // boss_hook (tests; any but HOOK_ENTER in the
+enum { HOOK_NONE, HOOK_TELL, HOOK_METER_1, HOOK_DEFEAT, HOOK_FIGHT, HOOK_ENTER, HOOK_WALKIN,
+       HOOK_CARD };   // HOOK_CARD (set by fight_start, never by a test): his first-appearance HOW TO PLAY card opens at the start of the next frame, with the picture whole   // boss_hook (tests; any but HOOK_ENTER in the
                                                                                     // warm-up / entrance = the fight starts now, no entrance)
 
 typedef struct {
@@ -245,13 +246,116 @@ void boss_set(uint8_t id) BANKED {
     boss_special_t = 1; boss_xpose = BP_HIDE; boss_look();
 }
 
-// enter_level_screen, LCD off, after start_level (which loaded every patron variant): his body over variant C's tiles
-// and the back views, the HUD's face and meter, the topper's frames; CGB his palettes (colour 0 the venue's wall).
+// ---- the loader: his tiles and palettes ----
+// With the LCD off (a level load: BOSS RUSH, a debug start) every tile and palette goes straight in. With the LCD on (Last call turning into his fight, in
+// place: no cover, no LCD-off swap, owner 2026-10-17) boss_ld / boss_ldpal only record jobs in story_scratch (LD: [0] the head's offset, then the jobs
+// from [1], a 0 byte after the last) and ld_step, one call a frame from boss_pre while he is BS_WARM, hands them out:
+//   - tiles: 4 a frame. The art is in the boss file's ROM bank and the VBlank copy queue (render.c vq_vbl) reads WRAM only, so each chunk is copied to
+//     STAGE first (far_copy), then queued as one entry (a 64 byte copy, ~7 lines of VBlank) to its VRAM place; the scene goes on meanwhile. They land
+//     on tile ids nothing on screen shows (variant C's and the back views: the bars are empty, he comes only then; OBJ 96-127: the show's, none runs).
+//   - CGB palettes: one a frame through the HRAM slot BPAL_REQ / BPAL_COL, written by the VBlank interrupt (render.c bpal_write): palette RAM only
+//     takes writes in VBlank, and the logic runs in the picture.
+// job: tiles [n | LD_MASK?, dst lo, dst hi, src lo, src hi, bank] (6 bytes; src 0: the capacity row's dotted glass); palette [LD_PAL | obj << 3 | idx, 8 bytes of colours] (9).
+#define LD          (story_scratch + 70)
+#define LD_MAX      110
+#define LD_PAL      0x80
+#define LD_MASK     0x40
+#define STAGE       BOSS_CAPBUF
+typedef struct { uint8_t n, bank; const uint8_t *src; uint8_t *dst; uint8_t pad[2]; } vq_entry_t;   // (render.c's list entry)
+extern vq_entry_t vq[];
+extern uint8_t vq_count;
+
+static uint8_t *ld_next(uint8_t *j) {
+    return j + ((*j & LD_PAL) ? 9 : 6);
+}
+
+// n tiles (up to 4) from src in `bank` to STAGE (mask: every byte & 0xF0 | 0x0F; src 0: the capacity row's glass)
+static void ld_fetch(uint8_t mask, const uint8_t *src, uint8_t n, uint8_t bank) {
+    uint8_t i;
+    if (!src) { boss_cap_stage(STAGE); return; }
+    far_copy(STAGE, src, (uint16_t)n << 4, bank);
+    if (mask)
+        for (i = 0; i != (uint8_t)(n << 4); i++) STAGE[i] = (STAGE[i] & 0xF0) | 0x0F;
+}
+
+void boss_ld(uint8_t kind, uint8_t first, uint8_t n, const uint8_t *src, uint8_t bank) BANKED {
+    uint8_t *j, c;
+    uint16_t dst;
+    if (!(LCDC_REG & LCDCF_ON)) {
+        while (n) {
+            c = n > 4 ? 4 : n;
+            ld_fetch(kind == 2, src, c, bank);
+            if (kind == 1) set_sprite_data(first, c, STAGE); else set_bkg_data(first, c, STAGE);
+            first += c; n -= c;
+            if (src) src += (uint16_t)c << 4;
+        }
+        return;
+    }
+    while (n) {
+        c = kind != 1 && first < 128 && (uint8_t)(first + n) > 128 ? 128 - first : n;   // (a BG run over id 128 changes its VRAM block: two jobs)
+        dst = (kind != 1 && first < 128 ? 0x9000 : 0x8000) + ((uint16_t)first << 4);
+        for (j = LD + 1; *j; j = ld_next(j)) ;
+        if (j > LD + LD_MAX) return;
+        j[0] = c | (kind == 2 ? LD_MASK : 0);
+        j[1] = (uint8_t)dst; j[2] = (uint8_t)(dst >> 8);
+        j[3] = (uint8_t)(uint16_t)src; j[4] = (uint8_t)((uint16_t)src >> 8);
+        j[5] = bank; j[6] = 0;
+        first += c; n -= c;
+        if (src) src += (uint16_t)c << 4;
+    }
+}
+
+void boss_ldpal(uint8_t obj, uint8_t idx, const uint16_t *p) BANKED {
+    uint8_t *j, code = LD_PAL | (obj << 3) | idx;
+    if (!(LCDC_REG & LCDCF_ON)) {
+        if (obj) set_sprite_palette(idx, 1, p); else set_bkg_palette(idx, 1, p);
+        return;
+    }
+    for (j = LD + 1; *j && *j != code; j = ld_next(j)) ;   // (the same slot again: the later colours replace the earlier)
+    if (!*j) { if (j > LD + LD_MAX) return; j[9] = 0; }
+    j[0] = code;
+    memcpy(j + 1, p, 8);
+}
+
+// One step of the stream: 1 = everything has gone out (the last tiles are in VRAM, the last palette written).
+static uint8_t ld_step(void) {
+    uint8_t *j = LD + 1 + LD[0], n, c, i;
+    uint16_t d;
+    const uint8_t *src;
+    vq_entry_t *e;
+    if (!*j) return !BPAL_REQ && !vq_held;
+    if (*j & LD_PAL) {
+        if (BPAL_REQ) return 0;
+        for (i = 0; i != 8; i++) BPAL_COL[i] = j[1 + i];
+        BPAL_REQ = *j;
+        LD[0] += 9;
+        return 0;
+    }
+    if (vq_held || vq_count > 16) return 0;            // (last frame's list has not gone out: STAGE is still to be read)
+    n = *j & 0x3F; c = n > 4 ? 4 : n;
+    d = j[1] | ((uint16_t)j[2] << 8);
+    src = (const uint8_t *)(j[3] | ((uint16_t)j[4] << 8));
+    ld_fetch(*j & LD_MASK, src, c, j[5]);
+    e = &vq[vq_count++];
+    e->n = c << 4; e->bank = 0; e->src = STAGE; e->dst = (uint8_t *)d;
+    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += (c << 4) + 3;
+    n -= c;
+    if (!n) { LD[0] += 6; return 0; }
+    d += (uint16_t)c << 4;
+    if (src) src += (uint16_t)c << 4;
+    j[0] = (j[0] & LD_MASK) | n;
+    j[1] = (uint8_t)d; j[2] = (uint8_t)(d >> 8);
+    j[3] = (uint8_t)(uint16_t)src; j[4] = (uint8_t)((uint16_t)src >> 8);
+    return 0;
+}
+
+// enter_level_screen, LCD off, after start_level (BOSS RUSH, a level that starts as a fight): his body over variant C's tiles and the back views, the HUD's
+// face and meter, the topper's frames; CGB his palettes (colour 0 the venue's wall). In place (LCD on, story.c boss_in_place): the same, recorded and streamed.
 void boss_load(void) BANKED {
-    boss_cap_stage(BOSS_CAPBUF);                 // the free slot's glass (first: a boss file's pool over 124-127 is then his own)
-    set_sprite_data(OBJ_CAP, 4, BOSS_CAPBUF);
+    LD[0] = 0; LD[1] = 0;
+    boss_ld(1, OBJ_CAP, 4, 0, 0);                // the free slot's glass (first: a boss file's pool over 124-127 is then his own)
     boss_call(BEV_LOAD, 0);                      // his body, face, topper and palettes (src/boss_load.h), his extras
-    set_bkg_data((uint8_t)(BOSS_HUD_BG + 1), 3, boss_meter_tiles);
+    boss_ld(0, BOSS_HUD_BG + 1, 3, boss_meter_tiles, CURRENT_BANK);
     boss_pal = BOSS_PAL;
 }
 
@@ -360,8 +464,8 @@ static void fight_start(uint8_t shown) {
     boss_call(BEV_BEGIN, 0);
     if (shown && !intro_timer) intro_timer = INTRO_FRAMES - 1;   // (the beat before the first drink: nothing moves)
     if (shown && save_lock != SAVE_LOCK_DEBUG && !boss_card_seen(boss_id)) {   // the first time he ever appears (per save): his HOW TO PLAY card, the game paused
-        boss_card_mark(boss_id);                 // behind it, and resumed by itself when the card is left (pause.c)
-        pause_boss_card();
+        boss_card_mark(boss_id);                 // behind it, and resumed by itself when the card is left (pause.c); not from here: this frame's OAM and bar rows are
+        boss_hook = HOOK_CARD;                   // half done (his entrance sprites gone, his body not yet drawn), and the card's fade would show that: the next frame opens it
     }
 }
 
@@ -385,6 +489,7 @@ static void entrance_start(void) {
 static void boss_pre(void) {
     uint8_t n, w = br->width >> 3, st = boss_state, k;
     if (st == BS_WARM) {
+        if (!ld_step()) return;                  // (in place: his tiles and palettes stream in first, a few frames; nothing to stream otherwise)
         if (boss_t < WARM_WAIT && (mugs_live || bar_busy())) boss_t++;
         else entrance_start();
         return;
@@ -566,6 +671,7 @@ static void boss_mugs(void) {
 // banner says what is left. BOSS RUSH plays the same path (story_play calls this for both). 1 = the bar is clear.
 uint8_t boss_frame(void) BANKED {
     uint8_t x = boss_x;
+    if (boss_hook == HOOK_CARD) { boss_hook = HOOK_NONE; pause_boss_card(); return 0; }   // (the frame before's picture is whole: it fades out into the card)
     if (boss_hook) boss_take_hook();
     if (boss_state >= BS_WARM) { boss_pre(); return 0; }   // E9: the warm-up, his entrance
     if (!boss_hp) {
