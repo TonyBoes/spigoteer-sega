@@ -189,7 +189,9 @@ def test_an_extra_life_plays_its_cue_over_the_music(model):
             assert gb.mem("cur_tune") != 255, "the music plays on"
         assert sum(on[:30]) >= 28 and not any(on[36:]), f"the cue sounds ~33 frames on channel 1: {on}"
         assert (0x40, 0xD2) in regs, "its 25% pulse and envelope"
-        assert all(b > a for a, b in zip(mf, mf[1:])), "the tune keeps ticking under the cue"
+        # (the level-clear jingle's patterns are copied to buffer A first, 1-4 frames of no tick since music batch 1: music_frames then restarts)
+        start = max((i for i in range(1, len(mf)) if mf[i] < mf[i - 1]), default=0)
+        assert start <= 6 and all(b > a for a, b in zip(mf[start:], mf[start + 1:])), f"the tune keeps ticking under the cue: {mf}"
         run_until(gb, lambda: state(gb) == GS_GOAL, 800)
         to_goal(gb)
         set_score(gb, 59_999)

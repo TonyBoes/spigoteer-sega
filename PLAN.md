@@ -383,6 +383,32 @@ Music step 5b (2026-10-12, the owner's picks from the harmony demos; tools/songs
   skaters, sakura, galop, sailor. Only harm_venue1/5/8/9 and (tempo: the note cuts) blob_venue3 changed. Bank 10 36 -> 40 B free,
   ROM0 and WRAM unchanged.
 
+## Music batch 1 and the whole-Entertainer title as built (owner-approved 2026-10-17)
+
+The audition branch is `promusic` (docs/proarr/BATCH_1.md, BATCH_TITLE_FULL.md, specs/title_full.md, tools/proarr.py); the data is ported into
+tools/songs.py (the title's sections from ENT_BARS and CR_MEL, ENT_*/SUS_*/TMO_* lines) and tools/harmony.py (expand, patch_bars, bars_of,
+bass_check).  tests/test_music_batch1.py pins the generated notes to proarr's by digest (instruments compared by definition).
+
+- **Tunes.** Title = the whole Entertainer, 152 bars, 1216 rows, 10336 frames (173 s), looping; B2 an octave up (the owner chose it); the intro
+  and the bridge are 4 bars.  Oh! Susanna and Take Me Out to the Ball Game: the batch-1 bass, drums and harmony.
+- **Streaming (src/music.c).** `tune_t.buf` 3 = a streamed tune in buffer A (always copied afresh).  Every streamed tune has its own bank for its
+  blob and harmony (title 23: 7680 + 1644 B; credits 22), so `harm_peek(bank, p)` takes the bank (`h_inst[4]`, the track's bank, set in
+  start_song) and the credits special cases are gone.  While order k plays, order k+2 (mod the order count when the tune loops, nothing past
+  the end for the credits) is copied over the slot of order k-2 in 8 slices of 48 B on rows 2-9, **on hUGE_tick 3**: tick 1 is the row tick's own
+  call and the copy put the title up to 24 lines (the credits' 19.6-line worst, 38 calls over 18, was the same flaw).  gen_music `short_orders`
+  pad the 4-bar orders (32 rows, a D01 break on row 31); `build()['total']` counts played rows.
+- **Jingles.** Their patterns (10 patterns, 1920 B) left bank 2 for bank 24 and are copied to buffer A like any tune's: a jingle starts 1-4 frames
+  later (its `frames` count from its first tick).  Grooves stay in bank 2 (the 4-bar groove rows are +42 B; bank 2 has about 1650 B more room
+  than before the move); the WRAM-blob proposal of BATCH_1.md is not needed.
+- **Banks (fixed music content).** Bank 2: music.c + music_data + hUGEDriver 8314 -> 6662 B.  Bank 10 (venue blobs + harmony) 14892 -> 13082 B.
+  Bank 23: 9324 B (new).  Bank 24: 1920 B (new).  Bank 22 unchanged.  ROM0: 115 -> 128 B free (harm_peek shrank).  WRAM: +1 B (`h_inst[5]`).
+- **CPU (tools/music_rig.py: per music_tick call over whole passes).**  Worst call in lines (114 M-cycles; limit 18): title 17.4 cold / 16.3
+  warm (3 passes, the loop seam included), clear 11.8, over 11.8, bonus 14.6, show 17.4, Susanna 17.4 (was 18.0), Ball Game 15.7, credits 14.6
+  warm / 16.3 cold (was 19.6).  Cold = the show tune not yet preloaded: only the title at power-on, and the show tune itself, meet that.
+  tests/test_music_cpu.py guards it.  The pattern copy's own frames (384 B a frame, no driver tick) are 3300-4900 M-cycles for every tune.
+- **Recordings** (`tools/rec_music.py`: the game ROM itself, full and pause mix, spectrum-matched against proarr's WAVs): title 0.994 / 0.989,
+  Susanna 0.991 / 0.970, Ball Game 0.993 / 0.991 (mean short-time spectrum cosine).
+
 ## M8b as built
 
 Approved art imported (assets/art is now the source of truth; tools/extract_art.py refuses to overwrite it

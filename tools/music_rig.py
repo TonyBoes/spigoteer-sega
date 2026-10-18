@@ -69,33 +69,36 @@ def boot():
 
 def cost_calls(name, warm=False, frames=None, passes=1):
     """Per CALL cost of music_tick over `passes` passes of tune `name`: aud_cyc_max is cleared every emulator frame, so a frame in which two
-    calls complete (the rig's frame boundary drifts through the tick) still shows its dearer call.  warm: the show tune is in buffer B first."""
+    calls complete (the rig's frame boundary drifts through the tick) still shows its dearer call.  warm: the show tune is in buffer B first
+    (as in the game: any tune's first frames start its preload, so every tune but the title at power-on has it).  'worst_*' and the counts are
+    the playing calls, from the tune's first tick; the frames from the request to it (the pattern copy, 384 bytes a frame, no driver tick:
+    every tune has them, the jingles since batch 1) are 'load_*'."""
     idx, pf = tune_table()[name]
     pb, addr = boot()
     mf = addr["music_frames"]
     if warm:
         pb.memory[addr["aud_req"]] = tune_table()["show"][0]
         pb.tick(120, False, False)
-    pb.memory[addr["aud_req"]] = idx
-    for _ in range(60):
-        pb.tick(1, False, False)
-        if pb.memory[addr["cur_tune"]] == idx and 0 < (pb.memory[mf] | (pb.memory[mf + 1] << 8)) < 3:
-            break
     frames = frames or pf * passes
-    lo, hi = addr["aud_cyc_sum"], addr["aud_cyc_sum"] + 1
-    per, total, prev = [], 0, pb.memory[lo] | (pb.memory[hi] << 8)
-    for _ in range(frames):
+    pb.memory[addr["aud_req"]] = idx
+    per, load = [], []
+    for f in range(frames + 60):
         pb.memory[addr["aud_cyc_max"]] = 0
         pb.tick(1, False, False)
-        per.append(pb.memory[addr["aud_cyc_max"]] * 64)
-        cur = pb.memory[lo] | (pb.memory[hi] << 8)
-        total += (cur - prev) & 0xFFFF
-        prev = cur
+        c = pb.memory[addr["aud_cyc_max"]] * 64
+        started = bool(per) or (pb.memory[addr["cur_tune"]] == idx and 0 < (pb.memory[mf] | (pb.memory[mf + 1] << 8)) < 3)
+        if not started:
+            load.append(c)
+        else:
+            per.append(c)
+            if len(per) >= frames:
+                break
     pb.stop(save=False)
     worst = max(per)
-    return dict(tune=name, warm=warm, frames=frames, mean_mcycles=round(total * 64 / frames), worst_mcycles=worst,
-                mean_lines=round(total * 64 / frames / LINE, 1), worst_lines=round(worst / LINE, 1), worst_frame=per.index(worst),
-                calls_over_16_lines=sum(1 for c in per if c > 16 * LINE), calls_over_18_lines=sum(1 for c in per if c > 18 * LINE))
+    return dict(tune=name, warm=warm, frames=len(per), mean_mcycles=round(sum(per) / len(per)), worst_mcycles=worst,
+                mean_lines=round(sum(per) / len(per) / LINE, 1), worst_lines=round(worst / LINE, 1), worst_frame=per.index(worst),
+                calls_over_16_lines=sum(1 for c in per if c > 16 * LINE), calls_over_18_lines=sum(1 for c in per if c > 18 * LINE),
+                load_frames=len(load), load_worst_mcycles=max(load, default=0))
 
 
 def main():
