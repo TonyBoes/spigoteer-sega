@@ -51,7 +51,7 @@ def perf_stats(gb):
     v = sorted(gb.perf_samples)
     n = len(v)
     return dict(n=n, mean=round(sum(v) / n, 1), p50=v[n // 2], p90=v[n * 9 // 10], p99=v[n * 99 // 100], worst=v[-1],
-                late=sum(x >= 144 for x in v))
+                late=sum(x >= 144 for x in v), late154=sum(x >= 154 for x in v))
 
 
 def perf_read(gb):

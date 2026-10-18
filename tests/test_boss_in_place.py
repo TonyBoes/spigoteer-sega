@@ -433,3 +433,40 @@ def test_a_boss_fight_s_frames_end_no_later_than_at_579e173(model, c):
     mean, p50, p99 = PERF_BEFORE[model, c]
     assert st["n"] > 300 and st["late"] == 0, st
     assert st["mean"] <= mean and st["p50"] <= p50 and st["p99"] <= p99, f"{st} against mean {mean}, p50 {p50}, p99 {p99} at 579e173"
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", VENUES)
+def test_a_boss_fight_with_regulars_is_late_on_hardly_any_frame(model, c):
+    """Owner 2026-10-18 (perf report, fix a): boss.c boss_draw counted the sprites on every line over his bar with a pass over all 40 OAM entries and a
+    loop of band increments (up to 55 lines a frame), so with the regulars' mugs and the glasses about him the fight ran late on 4-17% of its frames. Now only
+    the entries in use are scanned and the bands are a difference array. The level-8 script bot (perf_helpers.SCRIPT) against him for 600 frames: the frames
+    that end past line 154 are under 1.5% and the mean end line stays under 76 (it was 87-98 for the worst bosses, 72-80 for the rest)."""
+    import perf_helpers as ph
+    from boss_common import fight
+    with fight(model, c) as gb:
+        gb.write("tip_chance", 0)
+        gb.write("rng_state", 1)
+        ph.perf_reset(gb)
+        ph.play_script(gb, 600, keep=lambda g, i: g.write("lives", 3))
+        st = ph.perf_stats(gb)
+    assert st["n"] > 250, st
+    assert st["late154"] * 1000 <= st["n"] * 15 and st["mean"] <= 76, st
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", VENUES)
+def test_a_boss_entrance_has_no_late_frame_but_dukes_hand_over(model, c):
+    """The warm-up and the entrance of every boss, 320 frames: no frame ends past line 154. On the CGB the palettes of the boss tile stream (ld_step) waited for
+    the next VBlank in a spin (3-6 late frames at 167-176); they are written with set_*_palette now. Duke's entrance (20 sprites of its own, boss_duke.c ent_put)
+    still has the one frame where it hands over to the fight (boss_to_bar and boss_look in the same frame as the intro's last sprites)."""
+    import perf_helpers as ph
+    from boss_common import fight
+    with fight(model, c, warm=True) as gb:
+        ph.perf_reset(gb)
+        for _ in range(320):
+            gb.run(1)
+            ph.sample(gb)
+            gb.write("lives", 3)
+        st = ph.perf_stats(gb)
+    assert st["n"] > 300 and st["late154"] <= (1 if c == 6 else 0), st

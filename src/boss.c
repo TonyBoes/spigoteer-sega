@@ -318,15 +318,14 @@ void boss_ldpal(uint8_t obj, uint8_t idx, const uint16_t *p) BANKED {
 
 // One step of the stream: 1 = everything has gone out (the last tiles are in VRAM, the last palette written).
 static uint8_t ld_step(void) {
-    uint8_t *j = LD + 1 + LD[0], n, c, i;
+    uint8_t *j = LD + 1 + LD[0], n, c;
     uint16_t d;
     const uint8_t *src;
     vq_entry_t *e;
     if (!*j) return !vq_held;
-    if (*j & LD_PAL) {                                 // a CGB palette: palette RAM takes writes in VBlank only and the logic runs in the picture, so wait for the next
-        while (LY_REG < 144 || LY_REG > 150) music_pump();   // VBlank (the tune pumped meanwhile: one frame's logic runs long, nothing is on the bars yet)
-        if (*j & 8) OCPS_REG = 0x80 | ((*j & 7) << 3); else BCPS_REG = 0x80 | ((*j & 7) << 3);
-        for (i = 1; i != 9; i++) { if (*j & 8) OCPD_REG = j[i]; else BCPD_REG = j[i]; }
+    if (*j & LD_PAL) {                                 // a CGB palette: set_*_palette waits for the LCD's palette-RAM-safe mode before each colour (no spin to VBlank: the frame
+        if (*j & 8) set_sprite_palette(*j & 7, 1, (const uint16_t *)(j + 1));   // would end past its line 154: a late frame)
+        else set_bkg_palette(*j & 7, 1, (const uint16_t *)(j + 1));
         LD[0] += 9;
         return 0;
     }
@@ -738,30 +737,7 @@ uint8_t boss_outro(uint8_t t) BANKED {
     return t >= OUTRO_FRAMES;
 }
 
-// Sprites per line over his bar. The intro (Duke's entrance has 20 sprites) only has the hat: every entry within 15 lines of its y is counted on the
-// four 4-line bands of the topper's 16 lines it touches (an upper bound for each line: spec 3.1 counts the same bands), as ever.
-static void band_add(uint8_t d, uint8_t *n) {
-    int8_t r = (int8_t)d;
-    if (r >= 0) { if (r < 4) n[0]++; if (r < 8) n[1]++; if (r < 12) n[2]++; n[3]++; }
-    else { n[0]++; if (r >= -11) n[1]++; if (r >= -7) n[2]++; if (r >= -3) n[3]++; }
-}
-
-static const uint8_t *bands_intro(uint8_t top, uint8_t *n) {
-    OAM_item_t *o = shadow_OAM;
-    uint8_t k = 40;
-    n[0] = n[1] = n[2] = n[3] = 0;
-    do {
-        if (o->y) {
-            // (the bartender's 4 entries hang BT_DY lower than the bands were laid out for: counted as before, so his
-            // two pairs, which never share a line, are not both counted in the band that his top pair now just reaches)
-            uint8_t y = o < shadow_OAM + 4 ? (uint8_t)(o->y - BT_DY) : o->y;
-            if ((uint8_t)(y - top + 15) < 31) band_add(y - top, n);
-        }
-        o++;
-    } while (--k);
-    return n;
-}
-
+// Sprites per line over his bar: bands() and bands_intro() below.
 // After the intro the hat, the indicator and the hand mug add at most `extra` entries (the hat 1, a glass for each of his hands, the mug while he gulps) on the 28 lines
 // from the topper's y (OAM y `top`), so when no more than LINE_OBJ_MAX - extra of the entries already in OAM touch those lines nothing can reach 11 on a line and
 // nothing more is counted (the usual case: a pass over OAM and nothing else; 0 is returned and fits() says yes). Otherwise each such entry is counted
@@ -777,6 +753,17 @@ static uint8_t near_in(const uint8_t *q, uint8_t k, uint8_t t1, uint8_t span) {
     return near;
 }
 
+// How many of the k entries from q (k not 0) touch the 43 lines of the boss's bar window (t1 = top - 15: y from t1 on; near_in's span 43). The loop of every OAM entry in
+// use every frame: a constant span, and an empty entry (y 0) is never in the window (top - 15 is no more than 256 - 43: 0 - t1 is past the span), so no test of its own
+static uint8_t near_w(const uint8_t *q, uint8_t k, uint8_t t1) {
+    uint8_t near = 0;
+    do {
+        if ((uint8_t)(*q - t1) < 43) near++;
+        q += 4;
+    } while (--k);
+    return near;
+}
+
 // The OAM entries in use that touch a window of lines (t1, span as near_in). Only the entries in use are looked at (mirror.c does the same): 0..oam_used-1 are
 // the bartender, the fill glass and the mugs (draw_mugs hides the rest up to the lifted patrons), OAM_MUG_END - 2 * lift_total on the lifted patrons (they take the
 // top entries below OAM_MUG_END), then the cue, the coin and the effects up to the end. Everything between is 0.
@@ -785,22 +772,49 @@ uint8_t boss_near(uint8_t t1, uint8_t span) BANKED {
     return near_in((const uint8_t *)shadow_OAM, oam_used, t1, span) + near_in((const uint8_t *)(shadow_OAM + first), 40 - first, t1, span);
 }
 
-static const uint8_t *bands(uint8_t top, uint8_t *n, uint8_t extra) {
-    OAM_item_t *o;
-    uint8_t k, d, lo, hi, near = boss_near(top - 15, 43);     // (its lines overlap the 28 from top: its y from -15 to 27 on)
-    if (near + extra <= LINE_OBJ_MAX) return 0;
-    for (lo = 0; lo != BANDS; lo++) n[lo] = 0;
-    o = shadow_OAM;
-    k = 40;
+// For d (an entry's y - t1) from 0 to 42: the first band it touches and one past the last (its lines are d - 15 to d from the bar's first line: 4-line bands, the 28 lines from top)
+static const uint8_t band_span[43 * 2] = { 0, 1, 0, 1, 0, 1, 0, 1, 0, 2, 0, 2, 0, 2, 0, 2, 0, 3, 0, 3, 0, 3, 0, 3, 0, 4, 0, 4, 0, 4, 0, 4, 0, 5, 0, 5, 0, 5, 1, 5, 1, 6, 1, 6, 1, 6, 2, 6, 2, 7, 2, 7, 2, 7, 3, 7, 3, 7, 3, 7, 3, 7, 4, 7, 4, 7, 4, 7, 4, 7, 5, 7, 5, 7, 5, 7, 5, 7, 6, 7, 6, 7, 6, 7, 6, 7 };
+
+// Counts the entries of one range of OAM (k of them from q, 4 bytes apart) into the seven bands as a difference array (n[lo]++, n[hi]--: bands() adds them up):
+// t1 = top - 15, so d = y - t1 is 0 for the entry 15 lines above the first line (k not 0)
+static void band_count(const uint8_t *q, uint8_t k, uint8_t t1, uint8_t *n) {
+    uint8_t d;
+    const uint8_t *p;
     do {
-        d = o->y - top + 15;                     // (a byte: 0 is the entry 15 lines above the first line)
-        if (o->y && d < 43) {
-            lo = d < 15 ? 0 : (d - 15) >> 2;
-            hi = d >= 27 ? BANDS - 1 : d >> 2;   // (its last line is 15 on: d)
-            for (; lo <= hi; lo++) n[lo]++;
+        d = *q - t1;                         // (an empty entry is past the window: as near_w)
+        if (d < 43) {
+            p = band_span + d + d;
+            n[p[0]]++;
+            n[p[1]]--;
         }
-        o++;
+        q += 4;
     } while (--k);
+}
+
+static const uint8_t *bands(uint8_t top, uint8_t *n, uint8_t extra) {
+    uint8_t d = OAM_MUG_END - 2 * lift_total, lo;
+    lo = near_w((const uint8_t *)shadow_OAM, oam_used, top - 15) + near_w((const uint8_t *)(shadow_OAM + d), 40 - d, top - 15);   // (its lines overlap the 28 from top: its y from -15 to 27 on)
+    if (lo + extra <= LINE_OBJ_MAX) return 0;
+    memset(n, 0, BANDS + 1);
+    // Only the OAM entries in use are counted (the two ranges of boss_near; everything between is 0)
+    band_count((const uint8_t *)shadow_OAM, oam_used, top - 15, n);
+    band_count((const uint8_t *)(shadow_OAM + d), 40 - d, top - 15, n);
+    n[1] += n[0]; n[2] += n[1]; n[3] += n[2]; n[4] += n[3]; n[5] += n[4]; n[6] += n[5];
+    return n;
+}
+
+// The intro (Duke's entrance has 20 sprites of its own, anywhere in OAM: all 40 entries are looked at) only has the hat: every entry within 15 lines of its y counts
+// on the four 4-line bands of the topper's 16 lines it touches (the same bands as bands(): an upper bound for each line: spec 3.1 counts the same bands), as ever.
+// The bartender's 4 entries hang BT_DY lower than the bands were laid out for: counted as before (a y BT_DY lower), so his two pairs, which never share a line,
+// are not both counted in the band that his top pair now just reaches. Like bands(): 0 when no more than LINE_OBJ_MAX - 1 entries touch the 43 lines (fits() says yes).
+static const uint8_t *bands_intro(uint8_t top, uint8_t *n) {
+    uint8_t k = near_w((const uint8_t *)(shadow_OAM + 4), 36, top - 15), i;
+    for (i = 0; i != 4; i++) if (shadow_OAM[i].y && (uint8_t)(shadow_OAM[i].y - BT_DY - top + 15) < 43) k++;
+    if (k < LINE_OBJ_MAX) return 0;
+    memset(n, 0, BANDS + 1);
+    band_count((const uint8_t *)shadow_OAM, 4, top - 15 + BT_DY, n);
+    band_count((const uint8_t *)(shadow_OAM + 4), 36, top - 15, n);
+    n[1] += n[0]; n[2] += n[1]; n[3] += n[2];
     return n;
 }
 
@@ -873,7 +887,7 @@ static uint8_t cap_draw(const uint8_t *n, uint8_t hat) {
 // indicator and the mug likewise.
 void boss_draw(void) BANKED {
     uint8_t k, top = bar_oam_y[boss_bar] - 8, hat, intro;
-    uint8_t n[BANDS];
+    uint8_t n[BANDS + 1];
     const uint8_t *np;
     OAM_item_t *o;
     if (boss_state == BS_WARM) { shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_HAND].y = 0; return; }   // (E9: not here yet)
