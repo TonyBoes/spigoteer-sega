@@ -757,9 +757,9 @@ def test_two_patrons_finishing_at_once_send_empties_that_arrive_empty_gap_apart(
     freeze(gb)                                    # nobody walks; drinking and empties go on
     gap = gb.mem("empty_gap")
     assert gap == 120, "level 1"
-    near = drinker_with_mug(gb, 0, 70, 89)        # both finish on the next frame
+    near = drinker_with_mug(gb, 0, 70, 89)        # both finish within the next 2 frames
     far = drinker_with_mug(gb, 0, 20, 89)
-    gb.run(2)
+    gb.run(3)                                     # (drinkers are stepped every other frame: each gets one step in 2; the third is a frame of slack for a frame boundary)
     aux = gb.read("patron_aux", MAX_P)
     assert aux[near] == DRINK_WINDUP, "the one nearer the bartender winds up to send his empty at once (M8d)"
     assert aux[far] == DRINK_WAIT, "the other sips on: his empty would arrive too soon after the first"
@@ -799,9 +799,9 @@ def test_a_lone_patron_is_never_held_back(gb):
     clear_patrons(gb)
     freeze(gb)
     p = drinker_with_mug(gb, 1, 30, 89)
-    gb.run(2)
+    gb.run(3)                                     # (drinkers are stepped every other frame: his step comes within 2)
     assert gb.read("patron_aux", MAX_P)[p] == DRINK_WINDUP, "winds up at once (M8d)"
-    gb.run(WINDUP)
+    gb.run(WINDUP + 1)
     assert gb.read("patron_state", MAX_P)[p] == WALKING and [m["state"] for m in mugs(gb)] == [EMPTY]
 
 

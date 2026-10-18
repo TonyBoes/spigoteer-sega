@@ -535,15 +535,17 @@ static void finished_step(uint8_t p, uint8_t t) {
 }
 
 // Drinking: DRINK_FRAMES at least (DRINK_MIN), then finished_step (M8d). Redrawn only when the sway changes.
+// A drinker is stepped every other frame (update_patrons: the drinkers of the bars 0 and 2 on one frame, of 1 and 3 on the next), his timer counting 2 a step: the same pace, the poses
+// and the sway changing on the frame they did or one later, and the bartender's glass catch looking every other frame.
 static uint8_t drinking_step(uint8_t p) {
-    uint8_t t = patron_timer[p] + 1;
+    uint8_t t = patron_timer[p] + 2;
     if (patron_aux[p] == DRINK_MIN && t < DRINK_FRAMES) patron_timer[p] = t;
     else {
         finished_step(p, t);
         if (patron_state[p] != PATRON_DRINKING) { refresh_patron(p); return 1; }
         t = patron_timer[p];
     }
-    if (sway_tab[t] == sway_tab[(uint8_t)(t - 1)] && patron_draw[p] != 255) return 1;   // same sway: drawn as before
+    if (sway_tab[t] == sway_tab[(uint8_t)(t - 2)] && patron_draw[p] != 255) return 1;   // same sway: drawn as before
     refresh_patron(p);
     return 1;
 }
@@ -570,6 +572,7 @@ void update_patrons(void) {
         if (st == PATRON_WALKING) live += walking_step(p);
         else if (st == PATRON_PUSHED) live += pushed_step(p);
         else if (st == PATRON_LEAVING) live += leaving_step(p);
+        else if ((patron_bar[p] ^ frame_counter) & 1) live++;   // (a drinker whose bar's frame it is not waits a frame; one bar's drinkers keep their slot order)
         else live += drinking_step(p);
     }
     patrons_live = live;
