@@ -12,7 +12,7 @@
 // TUNE_COUNT: the tunes the soundtrack player lists and the save unlocks (bits of tune_unlocked); TUNE_CREDITS (the credits roll's
 // tune, src/credits.c) comes after them and is in neither; TUNE_ALL sizes the tune tables.
 enum { TUNE_TITLE, TUNE_CLEAR, TUNE_OVER, TUNE_BONUS, TUNE_SHOW, TUNE_VENUE0, TUNE_COUNT = TUNE_VENUE0 + 10, TUNE_CREDITS = TUNE_COUNT, TUNE_ALL, TUNE_NONE = 255 };
-enum { SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_EXTRA, SFX_DON, SFX_KA, SFX_REV, SFX_WHOOSH, SFX_SWISH, SFX_COUNT };   // (14 of the 16 request bits)
+enum { SFX_NONE, SFX_FILL, SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_COIN, SFX_LIFE, SFX_SHAKE, SFX_EXTRA, SFX_DON, SFX_KA, SFX_REV, SFX_WHOOSH, SFX_SWISH, SFX_PERFECT, SFX_COUNT };   // (15 of the 16 request bits)
 
 typedef struct {
     const hUGESong_t *song;

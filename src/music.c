@@ -86,6 +86,10 @@ static const sfx_step_t s_whoosh[] = { {0x53, 3, 0}, {0x33, 3, 0}, {0x13, 2, 0} 
 // The bar change's swish (src/pour.c bar_change; channel 4, 4 frames, envelope 0x41: volume 4 of 15, fading by 1 a step):
 // a short quiet high hiss, 15-bit noise clock at ~65 kHz / 2 (NR43 0x12). The whoosh stays for the bosses and the stories.
 static const sfx_step_t s_swish[]  = { {0x12, 4, 0} };
+// The perfect pour's chime (story; src/mugs.c launch_mug plays it INSTEAD of SFX_LAUNCH when the release is perfect; channel 1, 15 frames,
+// 50% pulse, envelope 0xA2: volume 10 of 15, a slow decay): a soft two-note "ting", G6 then D7 (a fifth up, ~1.57 kHz and ~2.35 kHz), the
+// second note ringing out. Gentler and lower than the catch's two high pings and the coin's ba-ding; short enough to land on the release.
+static const sfx_step_t s_perfect[] = { {1964, 3, 0}, {1992, 12, 0} };
 static const sfx_step_t s_rev[]    = { {0x4B, 10, 0}, {0x4A, 10, 0}, {0x3B, 10, 0}, {0x3A, 10, 0}, {0x39, 10, 0} };
 
 #define N(a) (sizeof(a) / sizeof((a)[0]))
@@ -105,6 +109,7 @@ static const sfx_def_t sfx_defs[SFX_COUNT] = {
     { 3, 0x00, 0xD0, N(s_rev),    s_rev },
     { 3, 0x00, 0xA1, N(s_whoosh), s_whoosh },
     { 3, 0x00, 0x41, N(s_swish),  s_swish },
+    { 0, 0x80, 0xA2, N(s_perfect), s_perfect },
 };
 
 typedef struct {
@@ -234,7 +239,7 @@ static void step_begin(voice_t *v) {
 static void sfx_start(uint8_t id) {
     voice_t *v = &voice[sfx_defs[id].ch ? 1 : 0];
     if (v->busy && v->def == &sfx_defs[SFX_EXTRA] && id != SFX_EXTRA) return;   // the extra life is not cut short
-    if (v->busy && id >= SFX_WHOOSH) return;     // the whoosh and the swish never cuts a crash or a drum off (channel 4)
+    if (v->busy && id >= SFX_WHOOSH && sfx_defs[id].ch) return;     // the whoosh and the swish never cuts a crash or a drum off (channel 4)
     v->def = &sfx_defs[id];
     v->step = 0;
     v->busy = 1;

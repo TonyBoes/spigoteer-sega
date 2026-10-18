@@ -26,7 +26,7 @@ QF_NONE, QF_TUMBLE, QF_CROW = range(3)
 KID_STAND, KID_DRAW, KID_CHEER = range(3)
 MEDAL_NONE, MEDAL_BRONZE, MEDAL_SILVER, MEDAL_GOLD = range(4)
 SFX_LAUNCH, SFX_CATCH, SFX_BREAK, SFX_SERVE, SFX_LIFE, SFX_SHAKE = 2, 3, 4, 5, 7, 8
-_TUNE = re.findall(r"\{ \{ ([\d, ]+) \}, (\d+), (\d+), (\d+) \},", QD_C)   # qd_tune rows: NORMAL, HARD, EASY
+_TUNE = re.findall(r"\{ \{ ([\d, ]+) \}, (\d+), (\d+) \},", QD_C)   # qd_tune rows: NORMAL, HARD, EASY
 KID_R = [int(v) for v in _TUNE[0][0].split(", ")]                 # NORMAL's (STORY / ARCADE / Practice NORMAL)
 (READY_LEN, WAIT_MIN, WAIT_SPAN, SHOW_LEN, FEINT_LEN, FEINT_GAP, ROUND_PTS, SPEED_PTS, MATCH_PTS, SIGN_COL,
  SIGN_ROW, SIGN_W, LET_COL, PIP_ROW, PIP_KID_COL, PIP_YOU_COL, KID_X, SPIG_X, DUEL_Y, TW_Y, CROW_X, CROW_Y) = (
@@ -475,13 +475,13 @@ def play(gb, seq):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("seq,medal", [("WWW", MEDAL_GOLD), ("WLWW", MEDAL_SILVER), ("LWLWW", MEDAL_SILVER),
-                                       ("WLLWL", MEDAL_BRONZE), ("LLWL", MEDAL_BRONZE), ("LLL", MEDAL_NONE)])
+@pytest.mark.parametrize("seq,medal", [("WWW", MEDAL_GOLD), ("WLWW", MEDAL_SILVER), ("LWLWW", MEDAL_BRONZE),
+                                       ("LLWWW", MEDAL_BRONZE), ("WLLWL", MEDAL_NONE), ("LLWL", MEDAL_NONE), ("LLL", MEDAL_NONE)])
 def test_best_of_five_stops_at_three_and_the_medal_is_the_rounds(model, seq, medal):
     """First to three ends the match on its round (never a 6th); YOU WIN / THE KID WINS and the score line; the
     match won +2000; the outro poses (YOU WIN: the Spigoteer aims, no stream, the Kid drips holding his bottle; THE KID
-    WINS: the Kid cheers, the Spigoteer drips holding his); the medal: GOLD 3-0, SILVER 3-1 / 3-2, BRONZE lost with a
-    round, else none."""
+    WINS: the Kid cheers, the Spigoteer drips holding his); the medal is the rounds lost: 0 GOLD, 1 SILVER, 2 BRONZE,
+    3 (the match lost) none."""
     with quickdraw(model) as gb:
         start, wall0 = score(gb), wall_row(gb)
         pts = play(gb, seq)

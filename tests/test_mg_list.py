@@ -334,7 +334,7 @@ def test_a_worse_medal_never_lowers_the_best(model):
     ram = with_block(v7_image(), pr_block(1, [MEDAL_SILVER]))
     with booted(model, ram) as rom:
         mg_enter(rom, MG_QUICKDRAW, MG_PRACTICE)
-        rom.write(rom.addr("story_scratch") + 2, 1)       # one round won: bronze
+        rom.write(rom.addr("story_scratch") + 2, 3); rom.write(rom.addr("story_scratch") + 3, 2)   # 3-2 won: bronze
         rom.write("mg_phase", MG_RESULT)
         run_until(rom, lambda: rom.mem("overlay_on") == 1, 10)
         frames(rom, 2)

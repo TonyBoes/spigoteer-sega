@@ -316,8 +316,8 @@ void debug_open(void) BANKED {
     overlay_on = 1;
     game_state = GS_DEBUG;
     debug_menu_open = 1;
+    SHOW_WIN;                                        // (before the LCD comes on: the quick fade's reveal runs inside DISPLAY_ON, and a window shown after it let it fade in the title's screen under the menu)
     DISPLAY_ON;
-    SHOW_WIN;
 }
 
 // everything the menu moved comes back: the button tiles, LYC and WY, the banner rows, the sprites

@@ -128,6 +128,81 @@ def test_a_release_in_the_window_is_perfect_and_scores_double(model, t):
         assert_cue(gb)
 
 
+SFX_LAUNCH, SFX_PERFECT, SFX_N = 2, 15, 16        # src/music.h
+
+
+def sfx(gb, i):
+    return gb.read("sfx_count", SFX_N)[i]
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_perfect_release_chimes_instead_of_the_launch_sound(model):
+    """Owner playtest 2026-10-18: a perfect pour plays a soft chime (SFX_PERFECT) INSTEAD of the launch's sweep; every other release (settling, the
+    overflow) still plays SFX_LAUNCH and no chime."""
+    with story(model) as gb:
+        n0 = first_launch(gb)
+        for n in range(n0, n0 + END - FILL_FRAMES + 4):
+            l0, p0 = sfx(gb, SFX_LAUNCH), sfx(gb, SFX_PERFECT)
+            q = hold_release(gb, n)
+            drop_mugs(gb)
+            assert q is not None
+            assert (sfx(gb, SFX_PERFECT) - p0, sfx(gb, SFX_LAUNCH) - l0) == ((1, 0) if q else (0, 1)), (n - n0, q)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_chime_request_bit_is_dispatched(model):
+    """SFX_PERFECT is request bit 14 (the high byte of sfx_req, the table's last row): the next music tick takes it (the sound itself: tests/test_sound.py)."""
+    with story(model) as gb:
+        gb.write(gb.addr("sfx_req") + 1, 1 << (SFX_PERFECT - 1 - 8))
+        gb.run(1)
+        assert gb.read("sfx_req", 2) == b"\0\0", "dispatched by the tick"
+
+
+def slide_tiles(gb, perfect, frames=40):
+    """Release a drink (perfect or settling-ordinary) and follow its OAM entry while it slides: [tile of the entry each frame], the entries in use."""
+    first_launch(gb)
+    n = first_launch(gb) + (WIN0 - FILL_FRAMES if perfect else 0)
+    q = hold_release(gb, n)
+    assert q == (1 if perfect else 0)
+    tiles, used, mug_t = [], [], gb.mem("spr_full_t")
+    for _ in range(frames):
+        gb.run(1)
+        if HELD in gb.read("mug_state", MAX_M):
+            break
+        oam = gb.oam()
+        used.append(sum(1 for e in oam if 0 < e["y"] < 160))
+        i = next((k for k in range(MAX_M) if gb.read("mug_state", MAX_M)[k] == FULL), None)
+        if i is None:
+            continue
+        mx = gb.read("mug_x", MAX_M)[i]
+        hit = [e for e in oam if 0 < e["y"] < 160 and abs(e["x"] - mx - 9) <= 1 and      # (the OAM shows the frame before: 2 px behind)
+                e["tile"] in (mug_t, OBJ_POUR)]
+        if hit:
+            tiles.append(hit[0]["tile"])
+    return tiles, used
+
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_perfect_mug_sparkles_while_it_slides_and_an_ordinary_one_does_not(model):
+    """Owner playtest 2026-10-18: the mug's entry swaps to the sparkle frame (OBJ_POUR) for 3 frames of 8; no entry is added, so no line gets a sprite."""
+    with story(model) as gb:
+        set_patron(gb, 0, 20)                         # (far away: the slide is long)
+        gb.run(2)
+        tiles, used_p = slide_tiles(gb, True)
+        assert len(tiles) >= 16
+        sparkle = tiles.count(OBJ_POUR)
+        assert 0.25 * len(tiles) <= sparkle <= 0.5 * len(tiles), (sparkle, len(tiles))
+        assert any(t != OBJ_POUR for t in tiles), "it is a plain mug in between"
+        runs = "".join("S" if t == OBJ_POUR else "." for t in tiles).split(".")
+        assert max(len(r) for r in runs) <= 3, "a twinkle is 3 frames of 8, never a steady sparkle"
+        drop_mugs(gb)
+        gb.write("pour_q", 0)
+        tiles, used_o = slide_tiles(gb, False)
+        assert len(tiles) >= 16 and OBJ_POUR not in tiles, "an ordinary mug never sparkles"
+        assert max(used_p) <= max(used_o) + 1, "the perfect mug is one entry like the other"
+
+
 def sweep(gb, k=16):
     """Qualities of the drinks released after first_launch .. + k - 1 frames of A."""
     n0, q = first_launch(gb), []
