@@ -25,7 +25,8 @@
 //     at all (the wall shows behind him), never dropped while any of him is off the screen; an entering one becomes
 //     LIFT_OBJ at ENTRY_X and then follows the usual rules.
 //   - the chooser runs for a bar only when ovl_touch (a patron who meets someone changed columns), a drop, the show or
-//     a waiting lift asks; at most one bar on a frame that is already late (CHOOSER_LY_*), the rest next frame.
+//     a waiting lift asks; at most one bar a frame (the start bar goes round: frame_counter), and none on a frame that
+//     is already late (CHOOSER_LY_LATE), the rest next frame.
 // Cost (M13b, measured; one line = 114 machine cycles): the per-frame loops (lifted_scan, est_mugs, draw_lifted_asm)
 // and the chooser's (gather_asm, choose_asm) are hand-written; the same loops in C cost 5-15 lines each.
 // Banked (bank 1 and 2 are full); lift_frame / draw_lifted are only called while someone is lifted, the chooser has
@@ -700,7 +701,6 @@ static uint8_t prio(uint8_t s) {
 static uint8_t ch_retry;              // this bar's lift has to wait: 2 next frame, 1 later (budgets; see lift_frame)
 static uint8_t ch_bit;                // the bar's bit
 #define RETRY_FRAMES 16
-#define CHOOSER_LY_MAX 48     // a frame that has reached this line looks at one dirty bar only (the rest next frame) ...
 #define CHOOSER_LY_LATE 80    // ... and one that has reached this one at none (an overloaded frame: next frame) ...
 #define CHOOSER_LATE_MAX 4    // ... but not for more than this many frames in a row
 static uint8_t ch_late;       // frames in a row the chooser left everything for later
@@ -969,7 +969,7 @@ static void choose_bar(uint8_t b) {
 
 // Every frame while someone is lifted, the chooser has work or the hook is set, after the rules and before queue_vram().
 void lift_frame(void) BANKED {
-    uint8_t p, b, w, r = 0, done = 0, first = 0;
+    uint8_t p, b, w, i, r = 0, done = 0, first = 0;
     est_ok = 0;
     if (lift_total) {                                     // (nobody lifted: only the chooser has work, keep it cheap)
         lifted_pass();
@@ -983,10 +983,11 @@ void lift_frame(void) BANKED {
     // The chooser, on the bars whose columns changed (ovl_dirty bits 0-3). A lift refused by the budgets is tried again
     // RETRY_FRAMES later (bits 4-7: waiting), one that only has to wait for this frame's copy list next frame.
     // It looks at one bar at least, unless the frame has already run into the next one (an overloaded frame), and at
-    // more only while the frame is early (CHOOSER_LY_MAX); bars it leaves stay dirty for the next frame.
+    // one only (the start bar goes round); bars it leaves stay dirty for the next frame.
     b = ovl_dirty;
     ovl_dirty = 0;
-    for (p = 0; p < NUM_BARS; p++) {
+    for (i = 0; i < NUM_BARS; i++) {
+        p = (i + frame_counter) & (NUM_BARS - 1);         // (round robin: the bar the frame starts at moves on every frame)
         w = bar_bit[p];
         if (!(b & w)) {
             if (!(b & (w << 4))) continue;
@@ -999,7 +1000,7 @@ void lift_frame(void) BANKED {
                 else ch_late = 0;
             } else ch_late = 0;
         }
-        if (first == 2 || (done && LY_REG < 144 && LY_REG >= CHOOSER_LY_MAX)) { r |= w; continue; }
+        if (first == 2 || done) { r |= w; continue; }       // (one bar a frame at most: the rest next frame)
         done = 1;
         SEC(SEC_P7);
         choose_bar(p);

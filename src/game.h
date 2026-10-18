@@ -368,6 +368,7 @@ extern uint8_t score_tiles[6], lives_tiles[2];   // score: HUD columns 0-5; live
 void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 void put_row(uint8_t y);
 void mark_dirty(uint8_t b, uint8_t x0, uint8_t x1);         // tile ids of columns x0..x1-1 changed
+extern uint8_t frame_counter;                                // (main.c) frames since the level began, mod 256
 extern uint8_t frame_t0;                                    // (main.c) the low byte of sys_time when the frame began
 void mark_dirty_attrs(uint8_t b, uint8_t x0, uint8_t x1);   // ... and their CGB attributes too
 void mark_quick(uint8_t p);                                 // patron p moved within his own 3 columns (tile ids only)
