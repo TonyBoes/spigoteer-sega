@@ -101,12 +101,13 @@ static uint8_t held_step(uint8_t i) {                   // its patron is gone (o
 }
 
 void update_mugs(void) {
-    uint8_t i, st, live = 0;
-    if (mugs_live == 0) return;
+    uint8_t i, st, live = 0, left = mugs_live;      // (mugs_live: the non-free slots, kept by spawn_mug / this loop: it stops after the last)
+    if (left == 0) return;
     begin_catch_frame();
-    for (i = 0; i != MAX_MUGS; i++) {
+    for (i = 0; left && i != MAX_MUGS; i++) {
         st = mug_state[i];
         if (st == MUG_FREE) continue;
+        left--;
         if (st == MUG_FULL) live += full_step(i);
         else if (st == MUG_EMPTY) live += empty_step(i);
         else if (st == MUG_BREAKING) live += glass_step(i);
