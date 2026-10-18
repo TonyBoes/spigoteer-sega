@@ -339,9 +339,9 @@ def test_the_saloon_keg_is_22_px_tall():
 
 
 def test_the_saloon_has_a_sheriff_star():
+    """The owner's own keg (2026-10-18, drawn in LibreSprite): a five-point star in light pixels, x 149-153, rows 11-14."""
     rows = _saloon_bar_rows()
-    star = {(x, y) for y in range(13, 19) for x in range(148, 155) if rows[y][x] == "-"}
-    assert len(star) >= 8, "the star's light pixels on the barrel body"
+    assert [rows[y][149:154] for y in range(11, 15)] == ["##-##", "-----", "#---#", "#-#-#"]
 
 
 @pytest.mark.parametrize("theme", THEMES)
