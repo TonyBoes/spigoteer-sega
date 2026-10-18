@@ -3,7 +3,8 @@
 //
 // ENTRANCE (E8, 2026-10-15; a PROPOSAL for the owner to judge, built like Duke's: BEV_INTRO + BEV_DRAW, the fight's first start
 // only): "the swagger". He walks in from the left edge of the screen, the spurs jingling (SFX_COIN every 16 frames), then stops
-// at his bar, bows and tips his ten-gallon hat (the hat lifts 6 px and back, the body bobs one row: his STOMP pose; SFX_SERVE
+// at his bar, bows and tips his ten-gallon hat (the WHOLE hat, crown and brim, pops 8-10 px up and drops back: four sprites over his BARE pose,
+// the STOMP body with a bare head, or, on a frame where a line has no room for nine, only the crown as before; the body bobs one row: his STOMP pose; SFX_SERVE
 // is the cheer; a thud as he settles on his bar). 138 frames: 12 of empty bar, 75 walking (0.75 px a frame, the bob every 8), 11 standing, 30 tipping, a pause.
 // He is drawn as sprites from his own body tiles (the BG's column pairs at BG 162.., which an 8x16 sprite can use as well: no
 // new tiles, no OAM beyond 6 entries, colours of OBJ palette 7 = BG palette 4's) in BS_JUMP + BP_HIDE (nothing of his on his
@@ -28,13 +29,15 @@ typedef struct {
 #define ENT_TIP      98                 // the hat tip: 15 steps of 2 frames
 #define ENT_LAND    138                 // the last frame: his BG body under the sprites
 #define ENT_OAM     (OAM_FILL + 1)      // the mugs' first entry: nothing is in the air during the entrance
-#define ENT_OAM_N     8
+#define ENT_OAM_N     9                 // the five body columns and the whole hat (4 sprites) while it is up
+#define HAT_POP       4                 // topper tile offset: HAT_POP0..3 (gen_boss `hats` after STILL, BOB), 2 tiles each
 #define TEX_HAT_DX   16                 // boss.c rows[0].hat_dx
 #if ENT_OAM + ENT_OAM_N > OAM_MUG_END || BOSS_ART_COLS != 5
 #error "Big Tex's entrance: the OAM entries or a 40 px body"
 #endif
 
-static const uint8_t tip_dy[15] = { 0, 2, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 4, 2, 0 };   // the hat's lift in px, per 2 frames
+static const uint8_t tip_dy[15] = { 0, 8, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 0 };   // the hat's lift in px, per 2 frames: it pops off 8 px at once (an 8x16 sprite's 16
+                                                                                             // lines then end above his head: the hat's four sprites never share a line with his five) and drops back
 
 static uint8_t pair_id(uint8_t p) {
     return p < BOSS_PAIRS_A ? BOSS_BG_A + (p << 1) : BOSS_BG_B + ((uint8_t)(p - BOSS_PAIRS_A) << 1);
@@ -45,9 +48,29 @@ static uint8_t ent_pose(uint8_t t) {
     uint8_t k;
     if (t >= ENT_TIP && t < ENT_TIP + 30) {
         k = (t - ENT_TIP) >> 1;
-        return k >= 2 && k <= 12 ? BP_STOMP : BP_WALK;      // (he bows over the tip)
+        return k >= 1 && k <= 13 ? BP_STOMP : BP_WALK;      // (he bows over the tip: while the hat is up)
     }
     return t >= ENT_START && t < ENT_WALKEND && (t & 8) ? BP_STOMP : BP_WALK;
+}
+
+// 1 if the whole hat may be drawn now (crown and brim: four sprites over the lines from its y `hy` down, the body's five from `y`): on each
+// of the eight 4-line bands from `hy` the hat's 4 and the body's 5 where they reach it, plus every other entry in OAM that touches
+// the band (an upper bound, as boss.c's bands), must stay within LINE_OBJ_MAX.
+static uint8_t pop_fits(uint8_t hy, uint8_t y) {
+    OAM_item_t *o = shadow_OAM;
+    uint8_t n[8], k = 40, j, r = y - hy;
+    for (j = 0; j != 8; j++) n[j] = (j < 4 ? 4 : 0) + ((uint8_t)(r - 4 * j + 15) < 19 ? BOSS_ART_COLS : 0);   // (the body touches the band: its lines r..r+15)
+    do {
+        if (o->y && (o < shadow_OAM + ENT_OAM || o >= shadow_OAM + ENT_OAM + ENT_OAM_N) && (uint8_t)(o->y - hy + 15) < 47) {
+            uint8_t d = o->y - hy;
+            for (j = 0; j != 8; j++)
+                if ((uint8_t)(d - 4 * j + 15) < 19) n[j]++;
+        }
+        o++;
+    } while (--k);
+    for (j = 0; j != 8; j++)
+        if (n[j] > LINE_OBJ_MAX) return 0;
+    return 1;
 }
 
 // BEV_DRAW: his sprites for the frame the logic just reached (boss_draw, after every other sprite)
@@ -60,15 +83,25 @@ static void ent_draw(void) {
     if (t >= ENT_START) {
         bx = t >= ENT_WALKEND ? 16 : -40 + ((((uint8_t)(t - ENT_START)) * 3) >> 2);
         pose = ent_pose(t);
+        if (t >= ENT_TIP && t < ENT_TIP + 30) lift = tip_dy[(t - ENT_TIP) >> 1];
+        if (lift && end - o >= BOSS_ART_COLS + 4 && pop_fits(y - 8 - lift, y)) {   // the whole hat is off: his bare head under it
+            pose = BP_EXTRA;
+            for (k = 0; k != 4; k++) {
+                cx = bx + (k << 3) + 8;
+                if ((uint16_t)(cx - 1) >= 167) continue;
+                o->y = y - 8 - lift; o->x = (uint8_t)cx; o->prop = pal; o->tile = OBJ_TOPPER + HAT_POP + (k << 1);
+                o++;
+            }
+            lift = 0;
+        }
         for (k = 0; k != BOSS_ART_COLS && o != end; k++) {
             cx = bx + (k << 3) + 8;
             if ((uint16_t)(cx - 1) >= 167) continue;      // (off the screen: left out; the hardware counts every entry on a line)
             o->y = y; o->x = (uint8_t)cx; o->tile = pair_id(boss_art_pose[pose][k]); o->prop = pal;
             o++;
         }
-        if (t >= ENT_TIP && t < ENT_TIP + 30) lift = tip_dy[(t - ENT_TIP) >> 1];
         cx = bx + TEX_HAT_DX + 8;
-        if (o != end && (uint16_t)(cx - 1) < 167) {       // his hat: the topper's tiles, a sprite of the entrance's own
+        if (pose != BP_EXTRA && o != end && (uint16_t)(cx - 1) < 167) {   // (no room for the whole hat: only its crown lifts, as it did)
             o->y = y - 8 - lift; o->x = (uint8_t)cx; o->prop = pal;
             o->tile = OBJ_TOPPER + (pose == BP_STOMP && !lift ? 2 : 0);
             o++;
