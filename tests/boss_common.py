@@ -50,7 +50,7 @@ def pair_id(p):
 
 def pose_cols(a, pose, hold=0):
     cols = [pair_id(p) for p in (a["sway_map"] if pose == "sway" else a["pose"][pose])]   # ("sway": his shifted GULP, BP_SWAY)
-    # (no hand column any more: the held empties are the capacity row of glasses, sprites; `hold` stays for the callers)
+    # (no hand column any more: the held empties are the capacity indicator, sprites; `hold` stays for the callers)
     return cols
 
 

@@ -249,13 +249,12 @@ Rules common to every boss:
   READY = a hand is free (a drink reaching him is caught), BUSY = hands full (a drink slides past and breaks), shaking = he sends what reaches him
   back (the Critic holding / tasting / queueing, Leo's roar), absent = no catching at all (the Mothership gone or split, the intro, the outro).
   The capacity indicator below carries the first two (free hands 0 = BUSY).
-- **Capacity row (owner 2026-10-17: "the player needs clear indication of how many more drinks they can serve them"; he picked the per-slot row, "in their
-  left hand")**: one glass per slot (`boss_hands`) at his LEFT hand (the side away from the tap), sprites at OAM 39 down to 37 (src/boss.c `cap_draw`). A
-  slot holding an empty is the venue's empty glass (mugs.c `spr_empty_t / _p`: the sliding empty's own tile and palette); a free slot is that glass dotted
-  (every other pixel dropped: `boss_cap_stage`, OBJ 124-125, built from the venue's drink tiles at each fight's load and again after Duke's entrance). It
-  replaces the generic held-empties hand column (HAND1..3) of the body art, which is no longer built: the poses are WALK, STOMP, ... only, and the pair
-  count is lower. Nearest the hand first; the row sways with him. The Sumo (no drink limit) shows only the glasses he holds; the Prototype's red light
-  likewise; the Critic's busy states fill his one slot; the Mothership shows none (below). Hidden in the intro, outro, away.
+- **Capacity indicator (owner 2026-10-17: "the player needs clear indication of how many more drinks they can serve them"; look approved 2026-10-18:
+  "the empty/full drink icons above and to the right of the boss")**: a row of mug icons above and to the right of him, one per hand (`boss_hands`):
+  a dark TAKEN mug for each empty he holds, then a bright ROOM mug for each free hand (assets/art/boss/tag.txt, OBJ 124-127, `boss_cap_stage`), sprites
+  at OAM 39 down to 37 (src/boss.c `cap_draw`), on his top line from his right edge, 8 px apart, with his drinking sway. The Sumo (no limit) and the
+  Prototype's red light show only the taken ones; the Mothership shows its slots too (2, 1 on HARD). Separately, **his art holds extra drinks in his
+  LEFT hand** (two mugs in a fist at the left of every full-body pose; the Mothership one mug on its rim): decoration, not the indicator.
 - **Hand mug (owner 2026-10-17: "the mugs they drink from should look more like the drink served to them")**: while he gulps, OAM 29 draws the sliding
   mug's own tile and palette (mugs.c `spr_full_t / spr_full_p`: the venue's drink art; DMG its OBP0 copy) over his right hand (`boss_x + width`, its bottom at
   the row `hand_base[]` of his body), moving with the sway; his GULP art has no mug of its own. None for the Sumo (he is hit, he does not drink) and the Mothership.

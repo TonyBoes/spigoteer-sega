@@ -6,7 +6,7 @@ own art, #included by its own src/boss_<name>.c and nowhere else, so it lands in
   assets/art/boss/<boss>.txt   per boss (BOSSES below): the body poses (WALK, STOMP, GULP, WINCE, HAPPY: W x 16, BG,
                                on his bar's two wall rows), then the boss's own extra poses in his `extra` list (the
                                tells: Yeti INHALE / BLOW, the Critic's TASTE; the engine's pose numbers 5, 6, ... in
-                               that order), (the old hand column with 1-3 held empties, HAND1..3, is no longer read: the capacity row of glasses is sprites, src/boss.c), the topper
+                               that order), (the old hand column with 1-3 held empties, HAND1..3, is no longer read: the capacity indicator is sprites, src/boss.c; but the art itself holds extra drinks in his left hand), the topper
                                (HAT_STILL, HAT_BOB: 8x16 OBJ) and the HUD face (ICON, 8x8), and his `tiles` (8x16 BG
                                blocks of his special's own, e.g. Leo's "!!": boss_art_tiles, loaded at BG 246..).
                                Other blocks in the file are not read.
@@ -386,6 +386,11 @@ def main():
     meter = [frame(mnamed, n, 8, 8, mpath) for n in ("EMPTY", "HALF", "FULL")]
     meter_bytes = [x for f in meter for x in tile_bytes(f, 0, 0)]
     png(meter, prev / "boss_meter_x8.png", 8)
+    tpath = ROOT / "assets/art/boss/tag.txt"          # the capacity indicator's mug row: ROOM, TAKEN (8x16 each, OBJ 124-127)
+    tnamed = dict(blocks(tpath, named=True))
+    cap = [frame(tnamed, n, 8, 16, tpath) for n in ("ROOM", "TAKEN")]
+    cap_bytes = [x for f in cap for x in tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)]
+    png(cap, prev / "boss_tag_x8.png", 8, transparent=True)
     names = [b["name"] for b in BOSSES]
     if len(set(names)) != len(names):
         fail("a boss is listed twice")
@@ -401,6 +406,9 @@ def main():
          f"#define BOSS_HATS_MAX {BOSS_HATS_MAX}",
          "#ifdef BOSS_WANT_METER   // (only src/boss.c and src/boss_sumo.c use it: a copy in every module that includes boss.h was 528 B)",
          carr("boss_meter_tiles", meter_bytes) + "   // EMPTY, HALF, FULL",
+         "#endif",
+         "#ifdef BOSS_WANT_CAP   // (src/boss.c only)",
+         carr("boss_cap_tiles", cap_bytes) + "   // ROOM, TAKEN: 8x16 each (OBJ 124-127)",
          "#endif"]
     (outdir / "boss_art.h").write_text("\n".join(h) + "\n")
     for a in arts:

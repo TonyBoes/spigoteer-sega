@@ -3578,7 +3578,7 @@ Per-boss detail is in docs/minigames_bosses.md section 10. Summary:
   **2026-10-17 (owner): the tag's arrow is gone**; `BEV_TAG` became `BEV_ROOM` and feeds a **capacity row**: a row of the venue's own glasses in the boss's left hand,
   one per slot (a held empty = the sliding empty's tile / palette, a free slot = the same glass dotted; OAM 39-37, OBJ 124), replacing the generic hand column of
   the body art; OAM 29 draws the served drink's own mug in his right hand while he gulps; the Mothership has no arm and tractor-beams its drinks in
-  (OAM 29 / 30). Tests: tests/test_boss_cap_ui.py. (Three looks of the indicator were built first as -DBOSS_CAP_UI=1|2|3; the owner chose the row, 1, redrawn.)
+  (OAM 29 / 30). Tests: tests/test_boss_cap_ui.py. **2026-10-18 (owner): the approved look was variant 1, the mug row of empty/full icons ABOVE AND TO THE RIGHT of the boss** (c6d6419 misread it as glasses in the left hand): cap_draw is that row again (ROOM = empty mug = free hand, TAKEN = full); the bosses' own art now holds extra drinks in the LEFT hand (assets/art/boss/*.txt, tests/test_boss_cap_ui.py section 5). (Three looks of the indicator were built first as -DBOSS_CAP_UI=1|2|3; the owner chose the row, 1, redrawn.)
 - **Gimmicks:** Sasquatch vanishes to the woods every 360 walking frames and pops up on another bar (his bar's footprints blink); Critic: every state
   readable, wine's perfect cue, "NO!" / "BAD" bubble (OAM 30-31); Yeti: the ice **freezes the tap on his bar** (BANNER TAP FROZEN); Sumo: a pushing match,
   ring-out, no drink limit, a shrinking fill meter 6,5,4,3,2,1,1; Leo: the roar is a **wind that blows full mugs back on every bar** (arcs on OAM 30-37);
