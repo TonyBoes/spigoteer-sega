@@ -40,7 +40,8 @@ def assert_music_every_frame(ticks):
         if m < m0 or (m == m0 == 0 and f != f0):
             f0, m0 = f, m                            # a tune restarted (or is still loading: 0 again, a frame later)
             continue
-        assert abs((m - m0) - ((f - f0) & 255)) <= 1 or (f - f0) & 255 > 200, (f0, f, m0, m)
+        d = ((m - m0) - (f - f0)) & 255                  # (mod 256 on both sides: a sample exactly 256 frames after a restart reads frame_counter 0 apart)
+        assert d <= 1 or d == 255 or (f - f0) & 255 > 200, (f0, f, m0, m)
         if (f - f0) & 255 > 200:
             f0, m0 = f, m
 
