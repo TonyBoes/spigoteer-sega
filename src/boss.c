@@ -713,13 +713,13 @@ static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
     o->y = d; o->x = boss_x + br->width + dx; o->tile = spr_full_t; o->prop = spr_full_p;
 }
 
-// The capacity row's slots: 255 none to show (BEV_ROOM: the Mothership, which holds nothing), 254 no limit (the Sumo's 250, the Prototype's red light:
+// The capacity row's slots: 255 none to show (BEV_ROOM), 254 no limit (the Sumo's 250, the Prototype's red light:
 // only the glasses he holds are shown), else the free slots now (0 while a drink would not be caught).
 static uint8_t room_free(void) {
     uint8_t f, k = 0;
     if (boss_cap > 9 || boss_row == 7) return 254;
     f = boss_lim && boss_hands > boss_hold ? boss_hands - boss_hold : 0;
-    if (boss_row == 3 || boss_row >= 8) k = boss_call(BEV_ROOM, f);
+    if (boss_row == 3 || boss_row == 8) k = boss_call(BEV_ROOM, f);
     return k ? (k == ROOM_OFF ? 255 : k - 2) : f;
 }
 

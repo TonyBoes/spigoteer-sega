@@ -5,7 +5,7 @@
 #      (mugs.c spr_full_t / spr_full_p: the venue's own drink art and palette) over his right hand, with his sway.
 #   3. The capacity is a ROW OF THE VENUE'S OWN GLASSES in his LEFT hand (cap_draw), one per slot: an empty held = the venue's empty glass (spr_empty,
 #      the sliding empty's tile and palette), a free slot = that glass dotted (OBJ_CAP, boss_cap_stage). It replaces the generic hand column of his
-#      body art. The Sumo (no limit) shows only the glasses he holds, the Mothership none: it beams its drinks up (boss_mothership.c beam_draw).
+#      body art. The Sumo (no limit) shows only the glasses he holds; the Mothership shows the row too (2 slots, 1 on HARD) and catches with a tractor beam (boss_mothership.c beam_draw).
 import re
 import sys
 
@@ -195,7 +195,7 @@ def test_the_held_empty_and_the_dotted_free_slot_are_the_venues_glass():
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("c", [c for c in range(10) if c not in (SUMO, SHIP)])
+@pytest.mark.parametrize("c", [c for c in range(10) if c != SUMO])
 def test_the_row_shows_a_glass_per_slot_held_or_free(model, c):
     hands = row(c)["hands"]
     glass = venue_tile(c, 1)
@@ -228,15 +228,6 @@ def test_the_sumo_shows_only_the_glasses_he_holds(model):
             check_row(gb, model, SUMO, want, 0)
 
 
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_mothership_has_no_row_and_no_stack(model):
-    with play_in(model, SHIP) as gb:
-        for hold in (0, 1, 2):
-            gb.write("boss_hold", hold)
-            frames(gb, 3)
-            assert glasses(gb, 3) == []
-
-
 def drinks_check(model, c, perfect=True):
     """Real drinks: after each catch the row shows the slots still free; empties going out give them back."""
     hands = row(c)["hands"]
@@ -257,7 +248,7 @@ def drinks_check(model, c, perfect=True):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("c", [0, 3, 4, 6])
+@pytest.mark.parametrize("c", [0, 3, 4, 6, 9])
 def test_the_row_follows_every_drink_and_every_empty(model, c):
     drinks_check(model, c)
 
@@ -318,7 +309,7 @@ def test_the_mothership_beams_a_drink_up_into_the_saucer(model):
         assert not any(b["y"] for b in beams[:2]) or True
         frames(gb, 3)
         assert gb.oam()[OAM_HAND]["y"] == 0 and gb.oam()[OAM_HAND + 1]["y"] == 0, "the beam and the mug are gone"
-        assert glasses(gb, 3) == []
+        check_row(gb, model, SHIP, 1, 1)                   # (he holds the drink: one glass solid, one dotted)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
