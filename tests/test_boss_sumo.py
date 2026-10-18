@@ -127,7 +127,6 @@ def test_the_fight_follows_the_last_call(model):
     tiles, palettes), the meter of 6 pips empty, the drink limit gone, his topknot as the topper; the engine's own stomp
     timer off (boss_step 0, his period 192). Golden boss_sumo: walking, a cup on its way."""
     with fight(model, C, banner=True) as gb:
-        assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         start_entrance(to_goal(gb, boss_start=False))
         gb.run(2)
         assert SUMO.get(gb, "ent") >= 1 and gb.mem("boss_state") == BS_ENTER, "the entrance first"

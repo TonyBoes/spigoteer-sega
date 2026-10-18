@@ -81,10 +81,11 @@ def scene_boss(model, variant, on):
     trans_enable(gb, on)
     if on:
         gb.pb.memory[TRANS_ADDR] = (gb.pb.memory[TRANS_ADDR] & ~0x60) | (variant << 5)
-    win(gb, c, 2)                                  # (Last call's quota met: the bars empty, then the level turns into the boss fight: the cover, his banner)
+    win(gb, c, 2)                                  # (Last call's quota met: the bars empty, then the level turns into the boss fight in place: no cover, no fade at all)
     gb.run(3)
-    clear_bars(gb)
-    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
+    if not gb.mem("boss_on"):
+        clear_bars(gb)
+    run_until(gb, lambda: gb.mem("boss_on") == 1, 800)
     gb.run(300)
     return gb
 

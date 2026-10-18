@@ -309,14 +309,8 @@ static void beam_draw(void) {
     b->y = 0;
     if (!t || boss_state == BS_JUMP || boss_xpose == BP_HIDE) return;
     {                                            // the line budget: both sprites cover the 34 lines y - 3 .. y + 30; with LINE_OBJ_MAX - 2 or fewer other entries
-        OAM_item_t *o = shadow_OAM;              // touching them no line can reach 11, else the beam is left out for the frame (as the hat)
-        uint8_t k = 40, near = 0;
-        m->y = 0;
-        do {
-            if (o->y && (uint8_t)(o->y - y + 3 + 15) < 49) near++;
-            o++;
-        } while (--k);
-        if (near + 2 > LINE_OBJ_MAX) return;
+        m->y = 0;                                // touching them no line can reach 11, else the beam is left out for the frame (as the hat)
+        if (boss_near(y - 18, 49) + 2 > LINE_OBJ_MAX) return;
     }
     if (t <= BEAM_SLIDE) x = (uint8_t)(t << 2) >= (uint8_t)(ms.bx - x) ? x : ms.bx - (uint8_t)(t << 2);   // (4 px a frame: no multiply or divide, they would be ROM0 library code)
     else { b->y = y + 15; b->x = x + 8; b->tile = BOSS_SPR_TILE0 + (t & 2); b->prop = !is_cgb ? S_PALETTE : OBJPAL_PATRON_C; }
@@ -437,7 +431,7 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
-        set_sprite_data(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the beam's two frames (OBJ 108-111: free in a fight)
+        BOSS_OBJ(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the beam's two frames (OBJ 108-111: free in a fight)
         break;
     case BEV_CATCH:                                       // (the common catch follows: this only starts the beam's show)
         if (ms.phase < MP_GONE && boss_xpose != BP_HIDE) { ms.bt = 1; ms.bx = mug_x[arg]; }

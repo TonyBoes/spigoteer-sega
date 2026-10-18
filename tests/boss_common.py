@@ -135,7 +135,7 @@ ENTRANCES = {0: ("big_tex", "ent", 1), 1: ("mascot", "ent", 1), 5: ("prototype",
 def start_entrance(gb):
     """The warm-up is over (boss_hook 5): his entrance begins (the logic can still be mid-frame: a few frames on)."""
     gb.write("boss_hook", 5)
-    until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+    until(gb, lambda: gb.mem("boss_state") != BS_WARM, 150)   # (in place: his tiles stream in first, a few frames; the hook waits for them)
     frames(gb, 3)
     return gb
 

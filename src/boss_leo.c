@@ -271,8 +271,8 @@ uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
-        set_bkg_data(BANG_BG, BOSS_ART_TILES * 2, boss_art_tiles);
-        set_sprite_data(LEO_FX_OBJ, LEO_FX_TILES, leo_fx_tiles);
+        BOSS_BG(BANG_BG, BOSS_ART_TILES * 2, boss_art_tiles);
+        BOSS_OBJ(LEO_FX_OBJ, LEO_FX_TILES, leo_fx_tiles);
         break;
     case BEV_ENTER:                                       // (E9: after the warm-up)
         leo.ent = 1;

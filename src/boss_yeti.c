@@ -217,8 +217,8 @@ uint8_t boss_yeti(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
-        set_bkg_data(BOSS_ICE_BG, BOSS_ART_ICE, boss_ice_tiles);
-        set_bkg_data(BOSS_MARK_BG, BOSS_ART_SPARK, boss_spark_tiles);
+        BOSS_BG(BOSS_ICE_BG, BOSS_ART_ICE, boss_ice_tiles);
+        BOSS_BG(BOSS_MARK_BG, BOSS_ART_SPARK, boss_spark_tiles);
         for (k = 0; k != ICE_COLS; k++) {
             uint8_t t = venue.bar_map[BAR_COUNTER_DROW * 20 + k], j;
             ice_row[k] = t;

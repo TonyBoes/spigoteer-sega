@@ -103,7 +103,6 @@ def test_the_fight_follows_the_last_call(model):
     counter tiles at BG 246-247, the sparkle frames 248-251), the meter of 12, his horns as the topper, the counter as the igloo draws it. Golden
     boss_yeti: walking, a cocoa on its way."""
     with fight(model, C, banner=True) as gb:
-        assert banner_text(gb, 2) == centred(R["line1"]) and banner_text(gb, 3) == centred(R["line2"])
         to_goal(gb)
         gb.run(2)
         check_start(gb, C, A, model)

@@ -788,48 +788,37 @@ static void shift_won(uint8_t clear) {
     if (!clear) quota = spawned;
 }
 
-// Last call turned into the boss fight (story_play: the bar is empty, quota met). The same venue and bars, bartender and score; what changes:
-//   - the cover (the drink or the fade: src/trans.c) hides the swap, LCD off: his tiles and palettes over variant C's (boss_load: no regular of
-//     variant C is on a bar, the bars are empty), the HUD's counter and clock gone, the mosh pit and the fast tune of Last call's twist off;
-//   - the pace: Last call's walk and spawn percentages come off, the fight's go on (a fight's walkers are the row's, the regulars' arrivals
-//     BOSS_SPAWN_PCT %: boss.c boss_goal / boss_begin), his banner (BOSS, his two lines) comes up as the standalone fight's does, GS_GOAL;
-//   - then play: no warm-up (Last call was it), so boss_frame starts his entrance on the first frame; his meter and face come
-//     when he has entered (boss.c fight_start), and the first time he ever appears, his HOW TO PLAY card after that.
+// Last call turned into the boss fight (story_play: the bar is empty, quota met), IN PLACE (owner 2026-10-17: "I want the boss to come in at the end of the stage
+// without any kind of screen transition"): no cover, no LCD-off swap, no banner. The same venue and bars, bartender and score, the game never leaves GS_PLAYING;
+// what changes, all while the scene keeps running:
+//   - the fight's state: boss_set (BS_WARM), his goal (a G_BOSS goal, no counter), the HUD's counter columns blanked and the flag and the level put back
+//     through the VBlank queue, the mosh pit and the fast tune of Last call's twist off, the venue's tune from its start (the Sumo's beat counts music_frames from it);
+//   - the pace: Last call's walk and spawn percentages come off, the fight's go on (a fight's walkers are the row's, the regulars' arrivals BOSS_SPAWN_PCT %: boss.c
+//     boss_goal / boss_begin);
+//   - his tiles and palettes: boss_load records them and boss.c ld_step streams them over the next frames (BS_WARM), 4 tiles a frame through the copy queue and a
+//     palette a frame through the VBlank interrupt, onto tile ids and palettes nothing on screen shows (the bars are empty);
+//   - then boss_frame starts his entrance (BS_ENTER / BS_WALKIN; no warm-up: Last call was it), his meter and face come when he has entered (fight_start), and the
+//     first time he ever appears, his HOW TO PLAY card opens the frame after (HOOK_CARD), over a whole picture, and the game resumes by itself when it is left.
 static void boss_in_place(void) {
-    uint16_t v;
-    uint8_t w = story_goal.walk, sp = story_goal.spawn;
-    TRANS_WANT();
-    TRANS_HOLD();                                // (the cover below; the drink drains at the end of this function)
+    uint8_t *hb = story_scratch + 190;           // (9 bytes of the backdrop buffer's free middle, kept until the queue has copied them; boss.c LD ends below it)
     add_score(1000);                             // (LEVEL_BONUS, main_cold.c: the clear bonus Last call's end gave before: the venue's score keeps its two bonuses, here and at his defeat)
     boss_set(story_chapter);
     boss_goal((uint8_t *)&story_goal);
     story_twist = 0;
-    DISPLAY_OFF;
-    banner_build();
-    boss_load();
+    boss_load();                                 // (LCD on: recorded, streamed by boss_frame)
     music_fast = 0;
-    music_play(TUNE_VENUE0 + story_chapter);     // the venue's tune from its start (the Sumo's beat counts music_frames from it; the cover ducks the volume)
-    fill(row_buf, TILE_HUD_BLANK, 20);           // the goal counter and the clock (columns 11-16, and the hourglass and digits over the level flag
-    vram_put(HUD_GOAL_COL, HUD_ROW, row_buf, 17 - HUD_GOAL_COL);   // at 17-19): blank, and the flag and the level back (draw_hud's), as in a fight that
-    hud_buf[0] = TILE_HUD_FLAG;                  // starts on a fresh level, until his face and meter come at 12-19
-    two_digits(hud_buf + 1, level);
-    vram_put(17, HUD_ROW, hud_buf, 3);
-    DISPLAY_ON;
+    music_play(TUNE_VENUE0 + story_chapter);     // (a no-op unless Last call's twist made the tune fast: then it restarts at the normal speed)
+    fill(hb, TILE_HUD_BLANK, 6);                 // the goal counter and the clock (columns 11-16, and the hourglass and digits over the level flag at 17-19): blank, and
+    hb[6] = TILE_HUD_FLAG;                       // the flag and the level back (draw_hud's), as in a fight that starts on a fresh level, until his face and meter come at 12-19
+    two_digits(hb + 7, level);
+    vq_add(0, hb, HUD_GOAL_COL, HUD_ROW, 9);
     mosh_set(0, 0);
-    patron_speed = (uint8_t)(((uint16_t)patron_speed * 100) / w);        // (Last call's percentages off: the level row's own again)
-    if (hurry_speed) hurry_speed = patron_speed + (patron_speed >> 1);
-    v = (uint16_t)(((uint16_t)spawn_interval * 100) / sp);
-    spawn_interval = v + (v >> 1);               // (x 150 %: BOSS_SPAWN_PCT)
-    spawn_timer = spawn_interval;
-    quota = 255; level_clear = 0;
+    level_pace_again();                          // (Last call's percentages off: the level row's own speeds and spawn interval, exactly)
+    shift_pace();                                // (the fight's go on: his goal's walk and spawn percentages, a quota of 255, the arrival pattern; boss_begin redraws it)
+    level_clear = 0;
     served = spawned = 0;                        // (a fresh count for the fight, as a level load gives: a lost life's start patrons are placed from it, show.c)
     boss_begin();
     story_left = 0; st_secs = 0; story_timer = 0;
-    overlay_on = 1;
-    LYC_REG = GOAL_LYC;
-    story_phase = SP_GOAL; story_t = 0;
-    game_state = GS_GOAL;
-    trans_reveal();
 }
 
 // Every GS_PLAYING frame in story mode, after the rules (main.c): the goal's counters, success and failure.

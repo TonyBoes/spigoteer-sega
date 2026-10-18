@@ -256,14 +256,14 @@ uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_LOAD:
         boss_art_load();
-        set_bkg_data(BOSS_ICE_BG, BOSS_ART_CONV, boss_conv_tiles);
-        set_sprite_data(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the entrance's crane and sparks (OBJ 108-117)
+        BOSS_BG(BOSS_ICE_BG, BOSS_ART_CONV, boss_conv_tiles);
+        BOSS_OBJ(BOSS_SPR_TILE0, BOSS_ART_SPR_PAIRS * 2, boss_spr_tiles);   // the entrance's crane and sparks (OBJ 108-117)
         if (is_cgb) {                    // the lamp's colour 2 per phase: palettes are written with the LCD off only
             palette_t p;                 // (the logic runs in the picture, not in VBlank), so one OBJ palette each
             p[0] = 0; p[1] = boss_art_pal[1]; p[3] = boss_art_pal[3];
-            p[2] = RGB(5, 27, 5); set_sprite_palette(OBJPAL_PATRON_C, 1, p);   // green: OBJ 7 (the engine's topper)
-            p[2] = RGB(31, 25, 0); set_sprite_palette(OBJPAL_COIN, 1, p);      // yellow: OBJ 5 (no coin / show in a fight)
-            p[2] = RGB(31, 3, 3); set_sprite_palette(OBJPAL_ENH, 1, p);        // red: OBJ 4 (an enhanced patron's; a fight
+            p[2] = RGB(5, 27, 5); boss_ldpal(1, OBJPAL_PATRON_C, p);   // green: OBJ 7 (the engine's topper)
+            p[2] = RGB(31, 25, 0); boss_ldpal(1, OBJPAL_COIN, p);      // yellow: OBJ 5 (no coin / show in a fight)
+            p[2] = RGB(31, 3, 3); boss_ldpal(1, OBJPAL_ENH, p);        // red: OBJ 4 (an enhanced patron's; a fight
         }                                                                       // only has variants A / B)
         break;
     case BEV_ENTER:                                          // (E9: after the warm-up)

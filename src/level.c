@@ -128,6 +128,29 @@ uint8_t push_for(uint8_t p) BANKED {
     return r;
 }
 
+// The row's walk speeds and spawn interval for loop k (ARCADE's repeats are a little faster): what start_level starts a level with, and
+// level_pace_again gives back to a level that is already running.
+static void level_pace(const level_cfg_t *c, uint8_t k) {
+    spawn_interval = c->spawn_interval;
+    spawn_interval -= (uint16_t)(spawn_interval * (uint8_t)(k * LOOP_SPAWN_PCT)) / 100;
+    // 8 px per step_frames in 1/256 px per frame (the old speed over a 120 px walk), scaled by the walk's new length:
+    // the level's speed starts at ENTRY_X (left of it a patron is entering, game.h), so (PATRON_FAR_X - ENTRY_X) /
+    // PATRON_FAR_X of the distance (13/15 = 104/120) at the same time to the tap (within 2%; 1/256 px resolution).
+    patron_speed = (uint8_t)((((2048u / c->step_frames) * (PATRON_FAR_X - ENTRY_X)) + PATRON_FAR_X / 2) / PATRON_FAR_X);
+    patron_speed += (uint8_t)((uint16_t)(patron_speed * (uint8_t)(k * LOOP_SPEED_PCT)) / 100);
+    // M13b: hurried walkers (patrons.c try_spawn, about 1 in 4) from level HURRY_FROM on, loops included, at 1.5x the
+    // speed above (so the loop's +10 % steps apply to them too)
+    hurry_speed = level >= HURRY_FROM ? patron_speed + (patron_speed >> 1) : 0;
+}
+
+// story.c boss_in_place: Last call turns into the boss fight on the running level, whose speeds and spawn interval carry Last call's percentages: back to
+// the row's own, exactly (dividing the percentages out again lost a unit here and there: slower walkers, more of them, more crowding and lifted patrons).
+void level_pace_again(void) BANKED {
+    uint8_t k = arcade_loop - 1;
+    if (k > LOOP_STEPS_MAX) k = LOOP_STEPS_MAX;
+    level_pace(&level_table[cur_group], k);
+}
+
 void start_level(void) BANKED {
     uint8_t idx = level - 1, k, g;
     const level_cfg_t *c;
@@ -140,17 +163,9 @@ void start_level(void) BANKED {
         k = arcade_loop - 1;
         if (k > LOOP_STEPS_MAX) k = LOOP_STEPS_MAX;
     }
-    quota = c->quota; spawn_interval = c->spawn_interval; step_frames = c->step_frames;
-    spawn_interval -= (uint16_t)(spawn_interval * (uint8_t)(k * LOOP_SPAWN_PCT)) / 100;
+    quota = c->quota; step_frames = c->step_frames;
+    level_pace(c, k);
     pushback_cols = c->pushback_cols; pushback_px = pushback_cols << 3;
-    // 8 px per step_frames in 1/256 px per frame (the old speed over a 120 px walk), scaled by the walk's new length:
-    // the level's speed starts at ENTRY_X (left of it a patron is entering, game.h), so (PATRON_FAR_X - ENTRY_X) /
-    // PATRON_FAR_X of the distance (13/15 = 104/120) at the same time to the tap (within 2%; 1/256 px resolution).
-    patron_speed = (uint8_t)((((2048u / step_frames) * (PATRON_FAR_X - ENTRY_X)) + PATRON_FAR_X / 2) / PATRON_FAR_X);
-    patron_speed += (uint8_t)((uint16_t)(patron_speed * (uint8_t)(k * LOOP_SPEED_PCT)) / 100);
-    // M13b: hurried walkers (patrons.c try_spawn, about 1 in 4) from level HURRY_FROM on, loops included, at 1.5x the
-    // speed above (so the loop's +10 % steps apply to them too)
-    hurry_speed = level >= HURRY_FROM ? patron_speed + (patron_speed >> 1) : 0;
     g = c->empty_gap; k *= LOOP_GAP_STEP;
     empty_gap = g >= EMPTY_GAP_FLOOR + k ? g - k : EMPTY_GAP_FLOOR;
     serve_score = c->serve_score; start_per_bar = c->start_per_bar;

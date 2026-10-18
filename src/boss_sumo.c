@@ -281,15 +281,8 @@ uint8_t boss_sumo(uint8_t ev, uint8_t arg) BANKED {
         beat_sync();
         break;
     case BEV_LOAD:
-        {
-            uint8_t t[32], i;
-            boss_art_load();
-            for (i = 0; i != 16; i++) {          // the one-pip tiles: the engine's EMPTY / HALF pint on the left, the band's colour on the right
-                t[i] = (boss_meter_tiles[i] & 0xF0) | 0x0F;
-                t[16 + i] = (boss_meter_tiles[16 + i] & 0xF0) | 0x0F;
-            }
-            set_bkg_data(SOLO_BG, 2, t);
-        }
+        boss_art_load();
+        boss_ld(2, SOLO_BG, 2, boss_meter_tiles, CURRENT_BANK);   // the one-pip tiles: the engine's EMPTY / HALF pint on the left, the band's colour on the right (kind 2: each byte & 0xF0 | 0x0F)
         break;
     case BEV_ENTER:                              // (E9: after the warm-up) the ritual
         sumo.ent = 1;

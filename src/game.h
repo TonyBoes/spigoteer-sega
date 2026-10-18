@@ -658,6 +658,7 @@ extern uint8_t boss_on, boss_id, boss_bar, boss_lim, boss_col, boss_pal, boss_co
 #define BOSS_MARK_BG     248
 uint8_t boss_catch(uint8_t i) BANKED;   // patrons.c catch_full: full mug i reached him with a hand free (mug_x < boss_lim)
 void boss_set(uint8_t id) BANKED;       // story step_start: venue id's boss fight is the next step (BOSS_NONE: none)
+void level_pace_again(void) BANKED;      // level.c: the running level's walk speeds and spawn interval back to the level row's (story.c boss_in_place)
 void boss_load(void) BANKED;            // enter_level_screen, LCD off, after start_level: his tiles and palettes
 void boss_reset(void) BANKED;           // reset_actors: the level's start and after a life (the meter is kept)
 void boss_goal(uint8_t *dst) BANKED;    // story shift_start: the fight's banner lines and pace (dst: a goal_t)
