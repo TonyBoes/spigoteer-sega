@@ -115,14 +115,15 @@ CONDITIONS = {
 }
 
 # ---- story shifts (src/story.c): each chapter plays its venue several times in a row ------------------------------
-# The chapter's sequence: Opening shift, Happy hour (the CHAPTERS goal above), the mini-game slot, Last call, the boss
-# slot. A step byte is kind << 4 | index (the shift 0-2, or the mini-game / boss id); STEP_SKIP marks a kind the engine
+# The chapter's sequence: Opening shift, Happy hour (the CHAPTERS goal above), the mini-game slot, Last call. The boss
+# is no step of its own (owner 2026-10-17): Last call's serve quota turns the level into the venue's boss fight in place
+# (src/story.c boss_in_place), so a venue has four rounds. A step byte is kind << 4 | index (the shift 0-2, or the mini-game / boss id); STEP_SKIP marks a kind the engine
 # cannot play yet (NOT_BUILT): it passes over that step. Adding the mini-games or bosses = their mode in the engine and
 # taking the kind out of NOT_BUILT, or one venue at a time into BUILT_SLOTS (a data change).
 SHIFT_NAMES = ["OPENING SHIFT", "HAPPY HOUR", "LAST CALL"]   # the goal banner's first line (no chapter number)
 STEP_KINDS = {"SHIFT": 0, "MINI": 1, "BOSS": 2}
 STEP_SKIP = 0x80
-SEQUENCE = [("SHIFT", 0), ("SHIFT", 1), ("MINI", 0), ("SHIFT", 2), ("BOSS", 0)]
+SEQUENCE = [("SHIFT", 0), ("SHIFT", 1), ("MINI", 0), ("SHIFT", 2)]
 NOT_BUILT = {"MINI", "BOSS"}
 # Slots of a NOT_BUILT kind that are built in some venues already (by chapter suffix): the boss engine (src/boss.c) has
 # Big Tex (the saloon), the Sasquatch (the lumber lodge), the Food Critic (the bistro) and the Yeti (the igloo) so far,
@@ -1680,6 +1681,7 @@ def main():
           f"#define STORY_STEPS {len(SEQUENCE)}    // " + ", ".join(f"{k} {i}" for k, i in SEQUENCE),
           f"#define STEP_SHIFT 0x{STEP_KINDS['SHIFT'] << 4:02X}", f"#define STEP_MINI 0x{STEP_KINDS['MINI'] << 4:02X}",
           f"#define STEP_BOSS 0x{STEP_KINDS['BOSS'] << 4:02X}", f"#define STEP_SKIP 0x{STEP_SKIP:02X}",
+          f"#define BOSS_BUILT_MASK 0x{sum(1 << i for i, c in enumerate(CHAPTERS) if c[0] in BUILT_SLOTS['BOSS']):03X}   // bit v: venue v's boss fight is built (it follows Last call; Boss Rush lists these)",
           "#define STEP_KIND 0x70", "#define STEP_INDEX 0x0F",
           f"#define STORY_PAT_MAX {PAT_MAX}   // arrival pattern entries: bar (bits 0-1) | wait code << 4",
           f"#define PAT_SHORT {PAT_SHORT}       // wait code 1 in frames (0: the interval, 2: twice it, 3: four times)", "",
@@ -1754,6 +1756,7 @@ def main():
           "shift_names": SHIFT_NAMES, "shifts": shifts,
           "sequence": [{"kind": k, "index": i, "built": k not in NOT_BUILT} for k, i in SEQUENCE],
           "built_slots": {k: sorted(v) for k, v in BUILT_SLOTS.items()},
+          "boss_built": [i for i, c in enumerate(CHAPTERS) if c[0] in BUILT_SLOTS["BOSS"]],
           "steps": [[{"kind": k, "index": i, "built": not slot_skipped(k, ch[0])} for k, i in SEQUENCE] for ch in CHAPTERS],
           "patterns": [{"name": n, "bars": [b for b, _ in e], "waits": [w for _, w in e]} for n, e in PATTERNS.items()],
           "pat_short": PAT_SHORT, "conditions": CONDITIONS,

@@ -14,8 +14,8 @@ from conftest import clear_regulars, GAME, ROOT, check_golden, venue
 from test_bonus import lines
 from test_flow import (lose_a_life, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, patron_group_tiles, run_until,
                        state, tilemap_row)
-from test_story import (BOSS_BUILT, BOSS_STEP, SC, SHIFTS, STORY, banner_text, centred, post, pre, settle, skip_scene,
-                        to_chapter, to_goal, to_shift, try_again, win)
+from test_story import (BOSS_BUILT, SHIFT_STEP, SC, SHIFTS, STORY, banner_text, centred, post, pre, settle, skip_scene,
+                        to_boss_banner, to_chapter, to_goal, to_shift, try_again, win)
 from test_venues import cgb_palette
 
 pytestmark = pytest.mark.timeout(300)
@@ -86,14 +86,9 @@ def until(gb, cond, limit=600):
 
 
 def to_fight(model, banner=False):
-    """The saloon's Last call won: SHIFT CLEAR, then the boss fight's banner (banner=True: still on it), or the fight."""
+    """The saloon's Last call won: the level turns into the boss fight in place, his banner (banner=True: still on it), or the fight."""
     gb = to_shift(model, 0, 2)
-    win(gb, 0, 2)
-    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-    gb.run(3)
-    assert banner_text(gb, 1) == centred("SHIFT CLEAR"), "the Last call is not the chapter's last step any more"
-    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
-    gb.run(3)
+    to_boss_banner(gb, 0)
     return gb if banner else skip_entrance(to_goal(gb))
 
 
@@ -173,7 +168,7 @@ def test_the_table_has_a_row_per_venue_and_the_built_bosses():
     assert "rows[BOSS_COUNT]" in BOSS_C
     assert ROW == dict(width=40, x=16, bar=1, step=120, push=16, gulp=58, hands=3, sip=60, meter=8, hat=16)
     assert (LINE1, LINE2) == ("BIG TEX RIDES IN", "QUENCH HIM 8 MUGS")
-    assert BOSS_BUILT == set(BUILT) and BOSS_STEP == 4
+    assert BOSS_BUILT == set(BUILT)
     assert {r: f[len("boss_"):] for r, f in boss_rows()[1].items()} == BUILT
     assert len(TEX["pairs"]) <= ART["pairs_max"] == 30 and TEX["cols"] == 5 and len(TEX["pose"]) == 5
     assert "; Art: approved design" in (ROOT / "assets/art/boss/meter.txt").read_text()
@@ -225,8 +220,8 @@ def test_the_fight_follows_the_last_call(model):
     with to_fight(model, banner=True) as gb:
         assert banner_text(gb, 1) == centred("BOSS")
         assert banner_text(gb, 2) == centred(LINE1) and banner_text(gb, 3) == centred(LINE2)
-        assert gb.mem("story_step") == BOSS_STEP and gb.mem("story_reached") == BOSS_STEP
-        assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_bar"), gb.mem("boss_hp")) == (1, 0, 255, 8)   # (bar 1 once he has entered: E9, BOSS_NONE meanwhile)
+        assert gb.mem("story_step") == SHIFT_STEP[2] and gb.mem("story_reached") == SHIFT_STEP[2], "the fight is Last call's level: no step of its own"
+        assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("boss_bar"), gb.mem("boss_hp")) == (1, 0, ROW["bar"], 8)   # (his bar is his from the banner on: BOSS_NONE only in a warm-up, which the Last call has replaced)
         assert gb.mem("lives") == 3 and gb.mem("tip_chance") == 0
         assert gb.mem("pat_len") == 8      # (the warm-up's arrivals may go to any bar; the fight redraws them away from his: below)
         assert gb.mem16("spawn_interval") == 300 * SPAWN_PCT // 100, "the saloon's 300 frames x 1.5"
@@ -576,8 +571,7 @@ def test_hard_stomps_faster_with_a_hand_fewer(model):
     gb = to_shift(model, 0, 2)
     with gb:
         gb.write("boss_hard", 1)
-        win(gb, 0, 2)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
+        to_boss_banner(gb, 0)
         assert (gb.mem("boss_step"), gb.mem("boss_hands")) == (90, 2)
 
 
@@ -588,7 +582,6 @@ def test_every_boss_slot_is_built_so_no_row_falls_back():
     left to mark; the NOT_BUILT mechanism itself stays covered by the mini-game slots, test_mg.py test_the_mini_slots_stay_not_built)."""
     rows, hooks = boss_rows()
     assert BOSS_BUILT == set(range(10)) and all(rows) and set(hooks) == set(range(10))
-    assert all(STORY["steps"][c][BOSS_STEP]["built"] for c in range(10))
     assert "BOSS" in STORY["built_slots"] and len(STORY["built_slots"]["BOSS"]) == 10
 
 
@@ -597,15 +590,16 @@ CLEAR_BANNER = "CLEAR THE BAR"
 CLEAR_BANNER_FRAMES = define("CLEAR_BANNER_FRAMES")
 
 
-def beaten_with_regulars(model, still=True):
-    """Tex's fight, the regulars standing still (or walking), the intro over; he is satisfied now with regulars on the
+def beaten_with_regulars(model, still=True, n=1):
+    """Tex's fight, the regulars standing still (or walking), the intro over; he is satisfied now with regulars (n or more) on the
     bars."""
     gb = to_fight(model)
+    gb.write("intro_timer", 0)
     if still:
         still_regulars(gb)
-    gb.write("intro_timer", 0)
-    frames(gb, 3)
-    assert gb.mem("patrons_live") > 0
+    until(gb, lambda: gb.mem("patrons_live") >= n, 2500)   # (the bars were empty when he came in: Last call's crowd is gone; the regulars come to them)
+    frames(gb, 40)                                         # (they walk in to the first stand)
+    assert gb.mem("patrons_live") >= n
     gb.write("boss_hook", 3)
     frames(gb, 3)
     return gb
@@ -711,7 +705,7 @@ def test_no_regulars_arrive_once_he_is_beaten(model):
 def test_the_fight_ends_when_the_last_regular_leaves(model):
     """The regulars are served one at a time (sliding out, LEAVING); the outro starts on the frame the last one is gone,
     not before."""
-    with beaten_with_regulars(model) as gb:
+    with beaten_with_regulars(model, n=2) as gb:
         live = [i for i, st in enumerate(gb.read("patron_state", 16)) if st]
         assert len(live) >= 2
         for i in live[:-1]:
@@ -739,6 +733,7 @@ def test_a_life_lost_in_the_clear_phase_costs_a_life_and_the_phase_goes_on(model
         lose_a_life(gb)
         assert gb.mem("lives") == lives - 1
         until(gb, lambda: state(gb) != LIFE_LOST, 200)
+        s0 = gb.mem("spawned")                               # (the start patrons placed again: served + placed, show.c)
         if state(gb) == PLAYING:
             assert gb.mem("boss_hp") == 0 and gb.mem("boss_state") == BS_OUTRO and gb.mem("story_phase") != SP_OUTRO
             frames(gb, 120)

@@ -74,15 +74,16 @@ def scene_mini(model, variant, on):
 
 
 def scene_boss(model, variant, on):
-    from test_story import BOSS_BUILT
+    from test_story import BOSS_BUILT, clear_bars
     from test_flow import GS_GOAL, LEVEL_CLEAR, run_until, state
     c = min(BOSS_BUILT)
     gb = to_shift(model, c, 2)
     trans_enable(gb, on)
     if on:
         gb.pb.memory[TRANS_ADDR] = (gb.pb.memory[TRANS_ADDR] & ~0x60) | (variant << 5)
-    win(gb, c, 2)
-    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
+    win(gb, c, 2)                                  # (Last call's quota met: the bars empty, then the level turns into the boss fight: the cover, his banner)
+    gb.run(3)
+    clear_bars(gb)
     run_until(gb, lambda: state(gb) == GS_GOAL, 800)
     gb.run(300)
     return gb

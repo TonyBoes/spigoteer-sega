@@ -895,7 +895,7 @@ def test_arcade_does_not_play_the_pour_off():
     with start_arcade("cgb") as gb:
         to_goal(gb)
         gb.write("story_chapter", 9)
-        gb.write("story_step", 4)
+        gb.write("story_step", 3)
         win(gb, 0, 0)
         seen = set()
         for _ in range(400):

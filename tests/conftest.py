@@ -9,6 +9,16 @@ ROOT = Path(__file__).resolve().parent.parent
 ROM = Path(os.environ.get("GB_ROM", ROOT / "build" / "game.gb"))
 GOLDEN = ROOT / "tests" / "golden"
 UPDATE = os.environ.get("GB_UPDATE_GOLDEN") == "1"
+GOLDEN_REPORT = os.environ.get("GB_GOLDEN_REPORT")   # a file: a golden that differs is listed there (name, model, the differing bounding box) and the test goes on; nothing under tests/golden is written
+
+
+def golden_report(name, model, actual):
+    """GB_GOLDEN_REPORT: one line per differing golden: its name, the model and the bounding box of the difference."""
+    from PIL import Image, ImageChops
+    ref = Image.open(GOLDEN / f"{name}.{model}.png").convert("RGB")
+    box = ImageChops.difference(ref, actual.convert("RGB")).getbbox() if ref.size == actual.size else "size"
+    with open(GOLDEN_REPORT, "a") as f:
+        f.write(f"{name}.{model} {box}\n")
 
 
 # ---- test hook: the game rebuilds its per-bar patron lists only when a patron arrives or leaves (M8a perf).
@@ -54,13 +64,25 @@ def bx_block(reached=0, medals=0, seen=0xFFFF):
     return bytes(b + bytes([c, c ^ 255]))
 
 
+BK_AT = 0x28
+
+
+def bk_block(seen=0x3FF):
+    """The save's "BK" block (src/save.c): the boss cards seen, bit v = venue v's boss (the first time a boss appears the game opens his card)."""
+    b = bytearray(b"BK" + seen.to_bytes(2, "little"))
+    c = (0x5A + sum(b)) & 255
+    return bytes(b + bytes([c, c ^ 255]))
+
+
 def with_cards(ram=None, seen=0xFFFF):
-    """A cartridge image (None: blank) with the bonus block in it, unless the image already carries one."""
+    """A cartridge image (None: blank) with the bonus block in it, unless the image already carries one; and the boss cards block "BK"
+    (every boss card seen: seen=0 leaves them all unseen), unless the image already carries one."""
     r = bytearray(ram) if ram is not None else bytearray(0x2000)
     if bytes(r[BX_AT:BX_AT + 4]) != b"MGB1":
         r[BX_AT:BX_AT + 10] = bx_block(seen=seen)
+    if bytes(r[BK_AT:BK_AT + 2]) != b"BK":
+        r[BK_AT:BK_AT + 6] = bk_block(0x3FF if seen else 0)
     return bytes(r)
-
 
 
 class logic_paused:
@@ -231,6 +253,10 @@ def gb(boot):
 def check_golden(gb, name):
     """Compare the screen with tests/golden/<name>.<model>.png; diffs land in out/diff/."""
     ok = gb.golden(GOLDEN / f"{name}.{gb.model_name}.png", update=UPDATE, diff_dir=ROOT / "out" / "diff")
+    if not ok and GOLDEN_REPORT:
+        from PIL import Image
+        golden_report(name, gb.model_name, Image.open(ROOT / "out" / "diff" / f"{name}.{gb.model_name}.actual.png"))
+        return
     assert ok, f"screen differs from golden {name}.{gb.model_name}.png (see out/diff/). Intentional? GB_UPDATE_GOLDEN=1 make test"
 
 
@@ -311,6 +337,9 @@ class GameClock:
             im.save(d / f"{path.stem}.actual.png")
             if ref.size == im.size:
                 ImageChops.difference(ref, im).point(lambda v: 255 if v else 0).save(d / f"{path.stem}.diff.png")
+            if GOLDEN_REPORT:
+                golden_report(name, gb.model_name, im)
+                return
         assert ok, f"screen differs from golden {name}.{gb.model_name}.png (see out/diff/). Intentional? GB_UPDATE_GOLDEN=1 make test"
 
 

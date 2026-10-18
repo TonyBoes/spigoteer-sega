@@ -43,6 +43,8 @@ def quiet(gb, calm=3):
     still_regulars(gb)
     until(gb, lambda: MS.get(gb, "ent") == 0 and gb.mem("intro_timer") == 0 and state(gb) == PLAYING, 400)
     MS.put(gb, "calm", calm)
+    if not gb.mem("patrons_live"):                   # (an empty screen calls the next regular soon, patrons.c pat_refill: the bars start empty now, so a sentinel stands in)
+        wipe(gb)
     gb.write("spawn_timer", 0xFF)
     gb.write(gb.addr("spawn_timer") + 1, 0x7F)
 
@@ -232,6 +234,7 @@ def test_the_eighth_drink_flashes_then_splits(model):
         assert hud(gb) == meter_tiles(6, 14)
         assert gb.mem("pushback_px") == 16 and gb.mem16("spawn_interval") == spawn * 2
         assert topper(gb)["y"] == 0
+        frames(gb, 9)                                         # (his bar's rows reach the screen through the VBlank queue: a few frames)
         top, bottom = rows_of(gb, dead)
         wall = venue("space")["bar_map"]
         assert top[0:5] == wall[0:5] and bottom[0:5] == wall[20:25]
@@ -427,6 +430,7 @@ def wipe(gb, sentinel=True):
             gb.write(gb.addr("patron_state") + 15, WALKING)
             gb.write(gb.addr("patron_bar") + 15, 0)
             gb.write(gb.addr("patron_x") + 15, 100)
+            gb.write("patrons_live", 1)                  # (the count the next frame's refill rule reads: still the old one until update_patrons runs)
         gb.write("lists_dirty", 1)
 
 

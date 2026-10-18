@@ -9,7 +9,7 @@ from boss_common import (BP_HAPPY, BP_WALK, BS_ENTER, BS_JUMP, BS_WALK, start_en
                          mugs, play, row, still_regulars, until)
 from conftest import check_golden
 from test_flow import GS_GOAL, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, state
-from test_story import BOSS_STEP, to_goal, to_shift, win
+from test_story import boss_from_opening, to_boss_banner, to_goal, to_shift, win
 
 pytestmark = pytest.mark.timeout(300)
 
@@ -207,11 +207,7 @@ def fight_hard(model, c):
     """The fight's play with Practice's HARD toggle set (boss_hard) before it starts."""
     gb = to_shift(model, c, 2)
     gb.write("boss_hard", 1)
-    win(gb, c, 2)
-    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-    gb.run(3)
-    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
-    gb.run(3)
+    to_boss_banner(gb, c)
     return start_entrance(to_goal(gb, boss_start=False))
 
 
@@ -232,13 +228,7 @@ def test_arcade_starts_the_boss_with_the_entrance_too(model, c):
     from test_arcade import start_arcade
     with start_arcade(model) as gb:
         to_goal(gb)
-        gb.write("story_chapter", c)
-        gb.write("story_step", BOSS_STEP - 1)
-        win(gb, 0, 0)
-        run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 40)
-        gb.run(3)
-        run_until(gb, lambda: state(gb) == GS_GOAL, 800)
-        gb.run(3)
+        boss_from_opening(gb, c)
         assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c and gb.mem("story_arc") == 1
         start_entrance(to_goal(gb, boss_start=False))
         assert entrance_running(gb) and gb.mem("boss_state") == BS_ENTER

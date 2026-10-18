@@ -98,12 +98,11 @@ def test_off_in_arcade_and_in_other_chapters(model):
 def test_off_in_a_boss_fight(model):
     """A boss fight plays by the same rules everywhere: boss_goal's twist is 0 (the saloon's, the one built so far,
     after The Chrome Cow's Last call turned it on)."""
-    from test_story import BOSS_STEP, beat_the_boss, to_goal, win
+    from test_story import beat_the_boss, to_boss_banner, to_goal, win
     with to_shift(model, BIKER, 2) as gb:
         assert gb.mem("mosh_on") == 1
     with to_shift(model, 0, 2) as gb:
-        win(gb, 0, 2)
-        run_until(gb, lambda: gb.mem("story_step") == BOSS_STEP and state(gb) != PLAYING, 400)
+        to_boss_banner(gb, 0)
         to_goal(gb)
         assert gb.mem("boss_on") == 1 and gb.mem("mosh_on") == 0 and gb.mem("music_fast") == 0
 

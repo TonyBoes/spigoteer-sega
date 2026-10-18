@@ -185,7 +185,12 @@ def test_win_the_fight_by_pouring(model):
                 continue
             to_bar(gb, bb)
             if gb.mem("boss_hold") + len(mugs(gb, bb, FULL)) < R["hands"]:
-                f += pour(gb)
+                try:
+                    f += pour(gb)
+                except AssertionError:                      # (one of his empties reached the tap and cut the fill: again)
+                    assert mugs(gb, bb, EMPTY), "a pour at the tap launches"
+                    frames(gb, 8)
+                    f += 8
             else:
                 frames(gb, 1)
                 f += 1
@@ -276,6 +281,8 @@ def test_the_vanish_cycle_tell_then_gone_then_pop(model):
         seen = set()
         while SQ.get(gb, "phase") == SQ_GONE:
             frames(gb, 1)
+            if SQ.get(gb, "phase") != SQ_GONE:               # (the pop came in that frame: he is on the target bar now)
+                break
             m = marks(gb, tgt)
             if m:
                 seen.add(tuple(m))
@@ -286,7 +293,7 @@ def test_the_vanish_cycle_tell_then_gone_then_pop(model):
         assert seen, "the footprints were shown"
         assert gb.mem("boss_bar") == tgt and gb.mem("boss_x") == land, "he is where the footprints were"
         assert SQ.get(gb, "phase") == SQ_POP and gb.mem("boss_hp") == hp and gb.mem("lives") == 3
-        frames(gb, 2)
+        until(gb, lambda: tilemap_row(gb, 5 + 3 * tgt, 0, 20)[land // 8] == pose_cols(A, BP_BURST2)[0], 12)   # (the bar's rows reach the screen through the VBlank queue: a few frames)
         assert_body_on(gb, tgt, land, BP_BURST2)
         assert marks(gb, tgt) == []
         until(gb, lambda: SQ.get(gb, "phase") == SQ_WALK, 40)

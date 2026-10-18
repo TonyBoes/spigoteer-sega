@@ -151,7 +151,7 @@ def reach_arcade_bonus(gb, rounds_before):
     gb.write("mg_phase", MG_RESULT)
     run_until(gb, lambda: gb.mem("overlay_on") == 1, 10)
     gb.run(70)
-    gb.write("story_step", 4)                      # (the venue's last step: the result's A ends the venue, ARCADE's bonus round follows)
+    gb.write("story_step", 3)                      # (the venue's last step: the result's A ends the venue, ARCADE's bonus round follows)
     gb.press("a", 2)
     run_until(gb, lambda: state(gb) == BONUS, 300)
 

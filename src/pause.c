@@ -207,12 +207,24 @@ static void card_open(void) {
     lcd_back(144);
 }
 
+static void put_back(void);
+
 static void card_close(void) {
     uint8_t s = state_timer;
     CARD_OFF();
     mg_card_win_close();
     WY_REG = BANNER_WY;
     if (s & PAUSE_OBJ) SHOW_SPRITES;
+    if (s & PAUSE_ASK) {                         // the first-encounter card (pause_boss_card): no menu behind it, the game goes on
+        put_back();                              // (the banner window hidden, the sound and the letters back; LYC at the banner's)
+#if CARD_FADE
+        trans_card_in();                         // (still paused while the screen fades in: the fade keeps the volume)
+#else
+        DISPLAY_ON;
+#endif
+        game_state = GS_PLAYING;
+        return;
+    }
     set_bkg_data(TILE_GLYPH_J, 1, qmark_tile);
     set_bkg_data(TILE_GLYPH_Z, 1, arrow_tile);
     fill_row(0, TILE_PANEL_TOP);
@@ -245,6 +257,22 @@ void pause_open(void) BANKED {
     }
     apply(state_timer, 1);                       // (Milk Run's handler walks LYC itself)
     overlay_on = 1;
+}
+
+// A boss's first appearance in a save (boss.c fight_start): the game pauses by itself on his HOW TO PLAY card, no menu drawn, and the card's
+// exit unpauses it (card_close). PAUSE_ASK together with PAUSE_CARD marks it: a question is never up while a card is. The music plays on
+// as the pause mix, as the menu's card does; main.c's update goes on with the rest of this frame paused.
+void pause_boss_card(void) BANKED {
+    uint8_t i;
+    end_note();
+    overlay_on = 0; HIDE_WIN;
+    state_timer = PAUSE_ASK;
+    game_state = GS_PAUSED;
+    i = NR51_REG;
+    TMA_REG |= 2;
+    PAUSE_NR51 = i ? i : 0xFF;
+    NR51_REG = boss_on && boss_id == SUMO_VENUE ? 0 : MENU_MIX;
+    card_open();
 }
 
 // the sound, the two letters' tiles and the banner window (panel, a blank text row, panel; its LYC) as they were

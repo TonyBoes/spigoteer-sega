@@ -15,7 +15,7 @@ from test_mg_list import (MEDAL_GOLD, MEDAL_SILVER, MG_PLANNED, MG_QUICKDRAW, PR
                           release_rom, with_block)
 from test_scores import booted, table, v7_image
 from test_sound import save_ram
-from test_story import BOSS_BUILT, BOSS_STEP, to_chapter, to_goal, win
+from test_story import BOSS_BUILT, SHIFT_STEP, boss_from_opening, to_chapter, to_goal, win
 from test_flow import lose_a_life
 from boss_common import frames, until
 
@@ -176,7 +176,9 @@ def rush_best(part, v):
 
 
 def outside_block(ram):
-    return ram[:PR_AT] + ram[PR_AT + 0x40:]
+    """The save but for the Practice region (0x40-0x7F: the practice block, the bonus rounds' cards seen, the EASY / HARD medals) and the boss
+    cards seen "BK" (0x28-0x2D: the tests' images carry it with every card seen, so a fight does not pause)."""
+    return ram[:0x28] + ram[0x2E:PR_AT] + ram[PR_AT + 0x40:]
 
 
 # ---- the menu path --------------------------------------------------------------------------------------------------
@@ -267,10 +269,10 @@ def test_no_list_row_touches_the_separator_for_any_number_of_bosses(model):
 
 
 def test_the_list_follows_the_story_data():
-    """No boss list of its own: the rush asks the story's step table (story_step_get) which bosses are built, so a boss
-    added to gen_story BUILT_SLOTS appears here with no edit to src/rush.c."""
+    """No boss list of its own: the rush asks the story data (build/story.h BOSS_BUILT_MASK, from gen_story BUILT_SLOTS: the boss has no step
+    of his own since he comes in Last call's level) which bosses are built, so a boss added to BUILT_SLOTS appears here with no edit to src/rush.c."""
     src = (ROOT / "src" / "rush.c").read_text()
-    assert "story_step_get" in src and "STEP_BOSS" in src and "STEP_SKIP" in src
+    assert "BOSS_BUILT_MASK" in src
     assert len(re.findall(r'"[A-Z ]+"', src.split("boss_name[BOSS_COUNT] = {")[1].split("};")[0])) == BOSS_COUNT
 
 
@@ -324,11 +326,8 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
 
 # ---- unlocks: a boss beaten in STORY or ARCADE ------------------------------------------------------------------------
 def story_boss(gb):
-    """In a venue's Opening (STORY or ARCADE): the step before the boss poked, the Opening won, his fight entered."""
-    gb.write("story_step", BOSS_STEP - 1)
-    win(gb, gb.mem("story_chapter"), 0)
-    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 30)
-    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
+    """In a venue's Opening (STORY or ARCADE): the Opening won, Last call's quota met, his fight entered."""
+    boss_from_opening(gb)
     assert gb.mem("boss_on") == 1
     into_fight(gb)
 
@@ -499,7 +498,7 @@ def test_choose_plays_one_fight_and_comes_back(model):
         run_until(gb, lambda: state(gb) == GS_GOAL, 60)
         gb.run(3)
         assert (gb.mem("boss_on"), gb.mem("boss_id"), gb.mem("play_mode"), gb.mem("story_on")) == (1, v, MODE_RUSH, 1)
-        assert gb.mem("lives") == 3 and gb.mem("story_step") == BOSS_STEP and gb.mem("save_lock") == 1
+        assert gb.mem("lives") == 3 and gb.mem("story_step") == SHIFT_STEP[2] and gb.mem("save_lock") == 1
         assert R(gb, SCR) == RS_FIGHT and R(gb, MODE) == RM_CHOOSE
         into_fight(gb)
         frames(gb, 100)

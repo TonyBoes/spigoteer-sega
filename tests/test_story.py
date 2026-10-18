@@ -31,8 +31,7 @@ SHIFTS = STORY["shifts"]                    # per chapter: opening, happy hour, 
 SHIFT_NAMES = STORY["shift_names"]
 SEQ = STORY["sequence"]
 SHIFT_STEP = [next(i for i, s in enumerate(SEQ) if s["kind"] == "SHIFT" and s["index"] == k) for k in range(3)]
-BOSS_STEP = next(i for i, s in enumerate(SEQ) if s["kind"] == "BOSS")
-BOSS_BUILT = {c for c, steps in enumerate(STORY["steps"]) if steps[BOSS_STEP]["built"]}   # chapters whose boss is in
+BOSS_BUILT = set(STORY["boss_built"])        # chapters whose boss is in (he follows Last call in the same level: no step of his own, owner 2026-10-17)
 MINI_STEP = next(i for i, s in enumerate(SEQ) if s["kind"] == "MINI")
 MINI_BUILT = {c for c, steps in enumerate(STORY["steps"]) if steps[MINI_STEP]["built"]}   # chapters whose mini-game is in
 GS_MINI, MG_RESULT, MG_RESULT_MIN = 13, 4, 63
@@ -557,12 +556,41 @@ def past_mini(gb, limit=400):
         run_until(gb, lambda: state(gb) == GS_GOAL, limit)
 
 
-def beat_the_boss(gb, c):
-    """After chapter c's Last call was won: its boss fight, when it is built (tests/test_boss.py plays them for
-    real), its banner passed and the boss satisfied at once (boss_hook 3), up to its CHAPTER CLEAR."""
-    if c not in BOSS_BUILT:
-        return
+def to_boss_banner(gb, c):
+    """Chapter c's Last call (in play) won: its serve quota met and the bars emptied (what the last serves do), so the level turns into the
+    boss fight in place (src/story.c boss_in_place): up to his banner (GS_GOAL, boss_on)."""
+    win(gb, c, 2)
+    gb.run(3)                                    # (the goal is seen met: arrivals stop, quota = spawned)
+    clear_bars(gb)
+    run_until(gb, lambda: state(gb) == GS_GOAL, 60)
+    gb.run(3)
+    assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c
+    return gb
+
+
+def boss_from_opening(gb, c=None):
+    """In a venue's Opening (STORY or ARCADE; chapter c: poked in before the next step starts): the mini-game slot poked as the step just done,
+    the Opening won, Last call entered and past its banner, its quota met: up to the boss's banner."""
+    cur = gb.mem("story_chapter")                # (the Opening being played is this chapter's)
+    gb.write("story_step", SHIFT_STEP[2] - 1)
+    if c is not None:
+        gb.write("story_chapter", c)
+    c = gb.mem("story_chapter")
+    win(gb, cur, 0)
+    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 40)
     run_until(gb, lambda: state(gb) == GS_GOAL, 800)
+    to_goal(gb)
+    return to_boss_banner(gb, c)
+
+
+def beat_the_boss(gb, c):
+    """After chapter c's Last call is in play: its quota met, the boss fight (tests/test_boss.py plays them for real), its banner passed
+    and the boss satisfied at once (boss_hook 3), up to its CHAPTER CLEAR."""
+    if c not in BOSS_BUILT:
+        win(gb, c, 2)
+        run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
+        return
+    to_boss_banner(gb, c)
     to_goal(gb)
     gb.write("boss_hook", 3)
     clear_regulars(gb)
@@ -870,10 +898,10 @@ def shift_title(c, k):
 
 def test_the_shift_data():
     """Opening about half the goal and slower, Happy hour the chapter goal as written, Last call faster with its own
-    arrival pattern (ten different ones); the mini-game and boss slots are in the sequence, skipped until built."""
+    arrival pattern (ten different ones); the mini-game slot is in the sequence, skipped until built."""
     assert SHIFT_NAMES == ["OPENING SHIFT", "HAPPY HOUR", "LAST CALL"]
     assert [(s["kind"], s["index"], s["built"]) for s in SEQ] == [
-        ("SHIFT", 0, True), ("SHIFT", 1, True), ("MINI", 0, False), ("SHIFT", 2, True), ("BOSS", 0, False)]
+        ("SHIFT", 0, True), ("SHIFT", 1, True), ("MINI", 0, False), ("SHIFT", 2, True)]   # (no boss step: he comes in Last call's level)
     assert SHIFT_STEP == [0, 1, 3]
     rows = gen_story().level_rows(ROOT / "src" / "level.c")
     for c, (op, happy, last) in enumerate(SHIFTS):
@@ -962,10 +990,9 @@ def pace(gb):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("c", range(10))
 def test_each_chapter_plays_its_shifts_in_order(model, c):
-    """Opening -> SHIFT CLEAR -> Happy hour -> SHIFT CLEAR -> (the mini-game slot: skipped, the saloon's Quick Draw) Last call -> CHAPTER CLEAR
-    -> (the boss slot, skipped) the POST scene; each shift's banner, goal and pace; the progress saved after each. A
-    chapter whose boss is built (the saloon): the Last call says SHIFT CLEAR, then the fight's banner (BOSS),
-    the boss step saved as reached, CHAPTER CLEAR after the fight (tests/test_boss.py plays it)."""
+    """Opening -> SHIFT CLEAR -> Happy hour -> SHIFT CLEAR -> (the mini-game slot: built in every venue) Last call -> its quota met: the level
+    turns into the venue's boss fight (BOSS banner, nothing saved: the step stays Last call) -> CHAPTER CLEAR -> the POST scene; each
+    shift's banner, goal and pace; the progress saved after each (tests/test_boss.py plays the fights)."""
     rows = gen_story().level_rows(ROOT / "src" / "level.c")
     paces = []
     with to_chapter(model, c) as gb:
@@ -985,33 +1012,42 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
                 assert gb.mem("pat_bar") == pat["bars"][0] and list(gb.read("pat_buf", len(pat["bars"]))) == [
                     b | "nsdb".index(w) << 4 for b, w in zip(pat["bars"], pat["waits"])]
             paces.append(pace(gb))
+            if k == 2:
+                break
             win(gb, c, k)
             run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
             gb.run(3)
-            assert banner_text(gb, 1) == centred("CHAPTER CLEAR" if k == 2 and c not in BOSS_BUILT else "SHIFT CLEAR")
-            if k < 2:
-                mini = k == 1 and c in MINI_BUILT
-                if mini:                                  # Quick Draw, Order Up!, Battery Sort (test_qd / test_ou / test_bs)
-                    run_until(gb, lambda: state(gb) == GS_MINI, 800)
-                    assert gb.mem("mg_id") == CHAPTERS[c]["venue"] and gb.mem("story_step") == MINI_STEP
-                    assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, MINI_STEP)
-                    finish_mini(gb)
-                run_until(gb, lambda: state(gb) == GS_GOAL, 800)
-                gb.run(3)
-                assert banner_text(gb, 1) == centred(shift_title(c, k + 1))
-                assert banner_text(gb, 2) == centred(SHIFTS[c][k + 1]["line1"])
-                # saved: the next step reached (after the happy hour the mini-game slot, built or skipped)
-                assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, (MINI_STEP if mini else SHIFT_STEP[k]) + 1)
-                to_goal(gb)
-        if c in BOSS_BUILT:
+            assert banner_text(gb, 1) == centred("SHIFT CLEAR")
+            mini = k == 1 and c in MINI_BUILT
+            if mini:                                  # Quick Draw, Order Up!, Battery Sort (test_qd / test_ou / test_bs)
+                run_until(gb, lambda: state(gb) == GS_MINI, 800)
+                assert gb.mem("mg_id") == CHAPTERS[c]["venue"] and gb.mem("story_step") == MINI_STEP
+                assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, MINI_STEP)
+                finish_mini(gb)
             run_until(gb, lambda: state(gb) == GS_GOAL, 800)
             gb.run(3)
-            assert banner_text(gb, 1) == centred("BOSS") and gb.mem("story_step") == BOSS_STEP
-            assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, BOSS_STEP)
+            assert banner_text(gb, 1) == centred(shift_title(c, k + 1))
+            assert banner_text(gb, 2) == centred(SHIFTS[c][k + 1]["line1"])
+            # saved: the next step reached (after the happy hour the mini-game slot, built or skipped)
+            assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, (MINI_STEP if mini else SHIFT_STEP[k]) + 1)
+            to_goal(gb)
+        # Last call: its quota met -> the boss, in the same level (no SHIFT CLEAR)
+        win(gb, c, 2)
+        if c in BOSS_BUILT:
+            gb.run(3)
+            clear_bars(gb)
+            run_until(gb, lambda: state(gb) == GS_GOAL, 60)
+            gb.run(3)
+            assert banner_text(gb, 1) == centred("BOSS") and gb.mem("story_step") == SHIFT_STEP[2] and gb.mem("story_shift") == 2
+            assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c, SHIFT_STEP[2]), "Last call stays the step reached"
             to_goal(gb)
             gb.write("boss_hook", 3)
             clear_regulars(gb)
             run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 200)
+            gb.run(3)
+            assert banner_text(gb, 1) == centred("CHAPTER CLEAR")
+        else:
+            run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
             gb.run(3)
             assert banner_text(gb, 1) == centred("CHAPTER CLEAR")
         run_until(gb, lambda: state(gb) == GS_STORY, 300)

@@ -8,7 +8,7 @@ import re
 from conftest import GAME, ROOT, logic_paused, venue
 from test_bonus import lines
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, inject_mug, run_until, state, tilemap_row
-from test_story import banner_text, centred, to_goal, to_shift, win
+from test_story import banner_text, centred, to_boss_banner, to_goal, to_shift, win
 from test_venues import cgb_palette
 
 BOSS_C = (ROOT / "src" / "boss.c").read_text() + (ROOT / "src" / "boss.h").read_text()
@@ -157,16 +157,11 @@ def skip_entrance(gb):
 
 
 def fight(model, c, banner=False, warm=False, entrance=False):
-    """Chapter c's Last call won: SHIFT CLEAR, then its boss fight's banner (banner=True: still on it), or the fight (started
-    at once: no warm-up, no entrance; warm=True: the warm-up runs; entrance=True: it is over and his entrance has begun)."""
+    """Chapter c's Last call won (its quota met, the bars empty): the level turns into his fight in place, up to his banner (banner=True:
+    still on it), or the fight (started at once: no entrance; warm=True / entrance=True: his entrance runs: Last call was the warm-up, so
+    it starts on the first frame, and `entrance` waits for it to be going)."""
     gb = to_shift(model, c, 2)
-    win(gb, c, 2)
-    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-    gb.run(3)
-    assert banner_text(gb, 1) == centred("SHIFT CLEAR"), "the Last call is not the chapter's last step any more"
-    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
-    gb.run(3)
-    assert gb.mem("boss_on") == 1 and gb.mem("boss_id") == c
+    to_boss_banner(gb, c)
     if banner:
         return gb
     to_goal(gb, boss_start=not (warm or entrance))

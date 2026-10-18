@@ -15,7 +15,7 @@ from boss_common import (BP_HAPPY, BP_WALK, BP_STOMP, BS_ENTER, BS_OUTRO, BS_WAR
 from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
 from test_bonus import lines
 from test_flow import GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, score, state
-from test_story import banner_text, centred, post, settle, to_goal, to_shift, win
+from test_story import banner_text, centred, post, settle, to_boss_banner, to_goal, to_shift, win
 
 pytestmark = pytest.mark.timeout(300)
 
@@ -564,11 +564,7 @@ def fight_hard(model, c):
     """The fight's play with Practice's HARD toggle set (boss_hard) before it starts."""
     gb = to_shift(model, c, 2)
     gb.write("boss_hard", 1)
-    win(gb, c, 2)
-    run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 20)
-    gb.run(3)
-    run_until(gb, lambda: state(gb) == GS_GOAL, 800)
-    gb.run(3)
+    to_boss_banner(gb, c)
     to_goal(gb, boss_start=False)
     gb.write("boss_hook", 5)                      # (the warm-up is over: the entrance)
     until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)

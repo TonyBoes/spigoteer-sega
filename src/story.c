@@ -1,8 +1,9 @@
 // Story mode (M11b): "The Golden Spigot" (docs/story.md). Cut-scenes, the chapter flow, the chapter goals.
 //
 // Flow: title STORY -> INTRO -> per chapter c (0..9): PRE scene -> the chapter's steps (build/story.h STORY_STEPS:
-// Opening shift, Happy hour, the mini-game slot, Last call, the boss slot; a step marked STEP_SKIP is not built yet
-// and passed over) -> the POST scene -> the next chapter; after chapter 10's POST scene FINALE_A, the Pour-Off (src/po.c, a mini-game on the framework, won to go on), FINALE_B, CREDITS, the title.
+// Opening shift, Happy hour, the mini-game slot, Last call; a step marked STEP_SKIP is not built yet and passed over) -> the
+// POST scene -> the next chapter. The boss is no step (owner 2026-10-17): Last call's serve quota turns that level into the venue's
+// boss fight in place (shift_won, boss_in_place), and his defeat is the venue's clear; after chapter 10's POST scene FINALE_A, the Pour-Off (src/po.c, a mini-game on the framework, won to go on), FINALE_B, CREDITS, the title.
 // A shift is the venue's level with that shift's goal, speeds and arrival pattern (a banner first, GS_GOAL); on
 // success SHIFT CLEAR (CHAPTER CLEAR after the last step), the progress saved (SRAM, save.c: chapters cleared + the
 // furthest step reached), the next step. Lives (owner's rule): 3 per venue, set when its Opening shift starts and
@@ -18,7 +19,7 @@
 //
 // ARCADE (the three modes, owner 2026-10-11: PLAY > ARCADE, story_arc = 1, play_mode MODE_ARCADE) runs this same
 // engine with arcade rules: no scene, no portrait, no story text, nothing saved or unlocked (save_lock); the venues in
-// story order, each its playable steps (shifts, the mini-game, the boss fight as they are built; STEP_SKIP passed over)
+// story order, each its playable steps (shifts, the mini-game; Last call goes on into the boss fight; STEP_SKIP passed over)
 // with the story's rules (goals, perfect pour, strict rules, the mosh pit, the fast band). Lives: 3 for the whole run
 // (venue_start leaves them), extra lives by score (main.c add_score: 20,000, then every 40,000; at most MAX_LIVES), a
 // gold medal +1 as in the story. Losing the last one is the normal GAME OVER -> initials -> the ARCADE top 5 (a timed
@@ -67,6 +68,7 @@ void dg_load(uint8_t *st, uint8_t v) BANKED;
 void dg_page(uint8_t *st, uint8_t scene, uint8_t prev, uint8_t spk) BANKED;
 void dg_frame(uint8_t *st) BANKED;
 
+#define G_BOSS           3         // story_goal.type of a boss fight (boss.c), and after Last call's quota while the bars empty (shift_won)
 #define SCENE_BAR        1         // the Spigoteer stands at this bar's tap during a cut-scene
 #define BOX_ROW         13         // the text box: panel row 13, text rows 14-16, panel row 17
 #define BOX_TEXT_ROW    14
@@ -542,16 +544,10 @@ void pat_refill(void) BANKED {
 static const char *const shift_name[STORY_SHIFTS] = STORY_SHIFT_NAMES;
 static const char boss_word[] = "BOSS";
 
-// One shift of the chapter: its goal banner over the venue's level (LCD off, then on), GS_GOAL.
-static void shift_start(void) {
+// The goal banner in the window (map rows 32-36, LCD off): panel, the shift's name alone (OPENING SHIFT, HAPPY HOUR, LAST CALL, or
+// BOSS; owner 2026-10-11: no chapter number), the two goal lines, panel. story_goal is the goal's.
+static void banner_build(void) {
     uint8_t i;
-    TRANS_HOLD();                                // (src/trans.c: the drink drains at the end of this function, when the scene is whole)
-    if (boss_on) boss_goal((uint8_t *)&story_goal);   // a boss fight: his banner lines, the regulars' pace (boss.c)
-    else story_goal_get(story_chapter, story_shift, (uint8_t *)&story_goal);
-    story_twist = story_goal.twist;
-    DISPLAY_OFF;
-    // the goal banner in the window (map rows 32-36): panel, the shift's name alone (OPENING SHIFT, HAPPY HOUR, LAST
-    // CALL, or BOSS; owner 2026-10-11: no chapter number), the two goal lines, panel
     fill(win_rows[0], TILE_PANEL_TOP, 20);
     centre(win_rows[1], boss_on ? boss_word : shift_name[story_shift]);
     centre(win_rows[2], story_goal.line1);
@@ -573,7 +569,17 @@ static void shift_start(void) {
         for (i = 0; i < 5; i++) vram_put(0, 32 + i, row_buf, 20);
         VBK_REG = VBK_BANK_0;
     }
-    level = story_chapter + 1;                   // (lives: set by venue_start, carried from shift to shift)
+}
+
+// One shift of the chapter: its goal banner over the venue's level (LCD off, then on), GS_GOAL.
+static void shift_start(void) {
+    TRANS_HOLD();                                // (src/trans.c: the drink drains at the end of this function, when the scene is whole)
+    if (boss_on) boss_goal((uint8_t *)&story_goal);   // a boss fight: his banner lines, the regulars' pace (boss.c)
+    else story_goal_get(story_chapter, story_shift, (uint8_t *)&story_goal);
+    story_twist = story_goal.twist;
+    DISPLAY_OFF;
+    banner_build();
+    level = story_chapter + 1;                  // (lives: set by venue_start, carried from shift to shift)
     if (story_arc & 1) level += (arc_loop > 9 ? 8 : arc_loop - 1) * 10;   // ARCADE: the loop's row (start_level's loop maths)
     if (story_goal.secs) mg_hourglass_load(SHIFT_HOURGLASS);   // a timed shift: its HUD's hourglass (LCD off)
     if (story_goal.type < G_CLEAR) hud_icon_load(HUD_GOAL_BG, story_goal.type == G_CATCH ? HUD_ICON_CATCH : HUD_ICON_MUGCHECK);   // the goal's icon
@@ -613,12 +619,12 @@ static uint8_t next_step(uint8_t s) {
 }
 
 // story_step (playable) begins, by kind: the chapter's mini-game (src/mg.c; its result goes on with story_level_done,
-// whatever the medal: mini-games never block the story), the venue's boss fight (src/boss.c: boss_set here, then the
-// level as a shift with his banner and pace; a lost fight restarts the venue as a shift does), or a shift. A slot not
-// built yet is STEP_SKIP in the data (gen_story NOT_BUILT / BOSSES_BUILT) and never reaches here.
+// whatever the medal: mini-games never block the story), or a shift. There is no boss step: Last call's serve quota turns
+// that level into the venue's boss fight in place (boss_in_place; src/boss.c). A slot not built yet is STEP_SKIP in the data
+// (gen_story NOT_BUILT) and never reaches here.
 static void step_start(void) {
     uint8_t s = story_step_get(story_chapter, story_step);
-    boss_set((s & STEP_KIND) == STEP_BOSS ? story_chapter : BOSS_NONE);   // the venue's boss fight (src/boss.c), or none
+    boss_set(BOSS_NONE);                         // (no fight until Last call's quota is met)
     if ((s & STEP_KIND) == STEP_MINI) { mg_enter(mg_of_venue(story_chapter), MG_STORY); return; }   // (the game id, not the venue)
     story_shift = s & STEP_INDEX;
     shift_start();
@@ -770,6 +776,62 @@ static void story_win(void) {
                  : next_step(story_step + 1) >= STORY_STEPS ? ((story_arc & 1) ? "VENUE CLEAR" : "CHAPTER CLEAR") : "SHIFT CLEAR");
 }
 
+// The shift's goal is met. A shift's clear is story_win's. Last call (in a venue whose boss is built: all ten) is not the end: the venue's
+// level goes on into his fight. G_SERVE / G_CATCH: arrivals stop (quota = what has come), the goal type G_BOSS says "boss next", the HUD
+// counter stays at 0 and stops counting, the clock stops; the patrons still on the bars are served (or cost lives) as ever, and story_play
+// brings the boss when the bar is empty. clear: a clear goal has met its quota with an empty bar already.
+static void shift_won(uint8_t clear) {
+    if (story_shift != STORY_SHIFTS - 1 || !((BOSS_BUILT_MASK >> story_chapter) & 1)) { story_win(); return; }
+    story_goal.type = G_BOSS;
+    story_timer = 0; st_secs = 0;
+    level_clear = 0;                             // (main.c would clear the level on it this frame; the next frame's update_patrons raises it again once the bars are empty)
+    if (!clear) quota = spawned;
+}
+
+// Last call turned into the boss fight (story_play: the bar is empty, quota met). The same venue and bars, bartender and score; what changes:
+//   - the cover (the drink or the fade: src/trans.c) hides the swap, LCD off: his tiles and palettes over variant C's (boss_load: no regular of
+//     variant C is on a bar, the bars are empty), the HUD's counter and clock gone, the mosh pit and the fast tune of Last call's twist off;
+//   - the pace: Last call's walk and spawn percentages come off, the fight's go on (a fight's walkers are the row's, the regulars' arrivals
+//     BOSS_SPAWN_PCT %: boss.c boss_goal / boss_begin), his banner (BOSS, his two lines) comes up as the standalone fight's does, GS_GOAL;
+//   - then play: no warm-up (Last call was it), so boss_frame starts his entrance on the first frame; his meter and face come
+//     when he has entered (boss.c fight_start), and the first time he ever appears, his HOW TO PLAY card after that.
+static void boss_in_place(void) {
+    uint16_t v;
+    uint8_t w = story_goal.walk, sp = story_goal.spawn;
+    TRANS_WANT();
+    TRANS_HOLD();                                // (the cover below; the drink drains at the end of this function)
+    add_score(1000);                             // (LEVEL_BONUS, main_cold.c: the clear bonus Last call's end gave before: the venue's score keeps its two bonuses, here and at his defeat)
+    boss_set(story_chapter);
+    boss_goal((uint8_t *)&story_goal);
+    story_twist = 0;
+    DISPLAY_OFF;
+    banner_build();
+    boss_load();
+    music_fast = 0;
+    music_play(TUNE_VENUE0 + story_chapter);     // the venue's tune from its start (the Sumo's beat counts music_frames from it; the cover ducks the volume)
+    fill(row_buf, TILE_HUD_BLANK, 20);           // the goal counter and the clock (columns 11-16, and the hourglass and digits over the level flag
+    vram_put(HUD_GOAL_COL, HUD_ROW, row_buf, 17 - HUD_GOAL_COL);   // at 17-19): blank, and the flag and the level back (draw_hud's), as in a fight that
+    hud_buf[0] = TILE_HUD_FLAG;                  // starts on a fresh level, until his face and meter come at 12-19
+    two_digits(hud_buf + 1, level);
+    vram_put(17, HUD_ROW, hud_buf, 3);
+    DISPLAY_ON;
+    mosh_set(0, 0);
+    patron_speed = (uint8_t)(((uint16_t)patron_speed * 100) / w);        // (Last call's percentages off: the level row's own again)
+    if (hurry_speed) hurry_speed = patron_speed + (patron_speed >> 1);
+    v = (uint16_t)(((uint16_t)spawn_interval * 100) / sp);
+    spawn_interval = v + (v >> 1);               // (x 150 %: BOSS_SPAWN_PCT)
+    spawn_timer = spawn_interval;
+    quota = 255; level_clear = 0;
+    served = spawned = 0;                        // (a fresh count for the fight, as a level load gives: a lost life's start patrons are placed from it, show.c)
+    boss_begin();
+    story_left = 0; st_secs = 0; story_timer = 0;
+    overlay_on = 1;
+    LYC_REG = GOAL_LYC;
+    story_phase = SP_GOAL; story_t = 0;
+    game_state = GS_GOAL;
+    trans_reveal();
+}
+
 // Every GS_PLAYING frame in story mode, after the rules (main.c): the goal's counters, success and failure.
 void story_play(void) BANKED {
     uint8_t c, b, left;
@@ -795,6 +857,13 @@ void story_play(void) BANKED {
         if (boss_frame()) { story_phase = SP_OUTRO; story_t = 0; game_state = GS_STORY; }
         return;
     }
+    if (story_goal.type == G_BOSS) {             // Last call's quota is met: no more arrivals (quota = spawned), the counter and the clock stand still;
+        if (level_clear) {                       // when the bar is empty (and no tip or show is on: boss_load takes their tiles) the boss comes
+            if (tip_timer | show_timer) level_clear = 0;   // (main.c would clear the level on it)
+            else boss_in_place();
+        }
+        return;
+    }
     if (story_timer && !intro_timer) {
         if (!--story_timer) {                    // time up: a life, and the shift again (the venue: it was the last)
             if (lives) lives--;
@@ -811,12 +880,12 @@ void story_play(void) BANKED {
     case G_SERVE: c = served; break;
     case G_CATCH: c = story_catches; break;
     default:
-        if (level_clear) story_win();
+        if (level_clear) shift_won(1);
         return;
     }
     left = c >= story_goal.count ? 0 : story_goal.count - c;
     if (left != story_left) { story_left = left; hud_goal(); }
-    if (!left) story_win();
+    if (!left) shift_won(0);
 }
 
 // ---- the picture switch (INTRO page 5: the explosion replaces the "before" picture behind a white flash) ----------
@@ -1004,13 +1073,12 @@ void story_bonus_life(void) BANKED {
 // (save_lock 1: no progress, no tune unlocks; title_enter clears it), no top 5, no extra lives by score. A win ends at
 // story_level_done -> rush_won, the last life at SP_FAIL -> rush_lost.
 void rush_fight(uint8_t v) BANKED {
-    uint8_t s;
     story_on = 1; story_arc = 0; play_mode = MODE_RUSH; save_lock = 1;
     extra_at = 0; bonus_round = 0; game_over = 0; story_conds = 0; story_pen = 0;
     story_chapter = v;
-    for (s = 0; s < STORY_STEPS && (story_step_get(v, s) & STEP_KIND) != STEP_BOSS; s++) ;
-    story_step = s;
-    step_start();
+    story_step = STORY_STEPS - 1; story_shift = STORY_SHIFTS - 1;   // (Last call's slot: the fight is the venue's level as Last call turns it, from the start)
+    boss_set(v);                                 // (his banner, the regulars, then his entrance)
+    shift_start();
 }
 
 // The debug select in story mode (src/debug.c): chapter ch at position pos (0 its PRE scene, 1..STORY_STEPS the step

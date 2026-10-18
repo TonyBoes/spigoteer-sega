@@ -22,7 +22,13 @@ for a 10th venue is docs/venue10_impact.md. Owner (2026-10-11): the name **The C
 
 Structure the owner approved, per chapter:
 
-    PRE scene -> Opening shift -> Happy hour (venue twist on) -> MINI-GAME -> Last call -> BOSS -> POST scene
+    PRE scene -> Opening shift -> Happy hour (venue twist on) -> MINI-GAME -> Last call (+ BOSS in the same level) -> POST scene
+
+**Restructured 2026-10-17 (owner):** a venue has four rounds, not five. When Last call's serve quota is met the level does not clear: arrivals stop,
+the patrons already in are served, and when the bars are empty the level turns into the venue's boss fight in place (the cover transition, his tiles over
+variant C's, his banner BOSS, then his entrance at once: Last call was the warm-up). The first time he ever appears in a save, the game pauses by itself
+on his HOW TO PLAY card (block "BK" in the save) and resumes when the card is left. STORY and ARCADE both. BOSS RUSH is unchanged: a fresh level, his
+banner, his entrance. See "Arrival after Last call" in 10.1.
 
 Losing retries only that shift. Practice mode (title menu) unlocks each shift, mini-game and boss as story mode
 reaches them. The finale adds a Pour-Off against Dregs.
@@ -2115,15 +2121,22 @@ cross-cutting parts (patron clearing, pause menu, difficulty, save map).
 - **Status tag** (removed 2026-10-17, see 3.x above): it was one 8x16 sprite (OAM 29, OBJ 124-127) above the hand column; READY / BUSY / RETURN from
   `boss_lim` and `BEV_TAG`. Now `BEV_ROOM` (arg = free hands; return 0 keep, `ROOM_OFF`, `ROOM_FREE(n)`) feeds the capacity indicator, and OAM 29 is the hand mug.
   tests/test_boss_tag.py (the shake) and tests/test_boss_cap_ui.py (the arrow, the mug, the indicator) cover every boss on both models.
-- **Arrival after warm-up (E9 + F12)**: a boss round opens as a **normal shift**: `BS_WARM`, `boss_bar = BOSS_NONE`, regulars on all four bars,
-  `boss_special_t` = 1200 frames counted after the level's 90-frame intro, no new regular for his bar in the last 300 frames. At 0 it waits up to 180
-  more frames for his bar to be empty and no mug in the air, clears the mugs and stragglers, holds the intro (90 frames) with a whoosh sting and calls
-  `BEV_ENTER`. `BEV_ENTER` returns 1 when the boss has his own entrance (all ten do), 0 for the fallback `BS_WALKIN` (his body slides in from the left
-  edge). Every entrance ends in `BS_ENTER -> BS_WALK`; the bartender is held where he is (main.c), not moved to bar 0; no post-entrance banner; the HUD face
-  and meter appear when he lands; then `fight_start` (banner over the intro's last beat). **BOSS RUSH** has no warm-up and enters on the first frame.
-  Test pokes: `boss_hook` 4 = fight now, 5 = warm-up over. The fights end only when the bar is clear (ff1d432: meter 0 beats him, the fight goes on in
-  PLAYING with no new regulars until `patrons_live` is 0, CLEAR THE BAR for 90 frames).
-- The CLASSIC end-of-level trick also runs at the clear of the Happy hour and Last call shifts in STORY and ARCADE (F12), with F11's 0.7 s beat, a drumroll
+- **Arrival after Last call (owner 2026-10-17; before: a 20 s warm-up round, E9)**: Last call's quota met (`story.c shift_won`): `story_goal.type`
+  becomes `G_BOSS` (3), `quota = spawned` (no more arrivals; a clear goal is already at its quota), the HUD counter stays at 00, the clock stops. Patrons on the
+  bars are served or cost lives as ever (`life lost`: the usual rules). When `level_clear` (no patron, no mug) and no tip or show is on, `boss_in_place`:
+  the clear bonus (1000), the cover (`TRANS_WANT`), LCD off: `boss_set`, `boss_goal`, the banner (BOSS and his two lines), `boss_load` (his tiles over
+  variant C's), the counter's HUD columns blank, the mosh pit and the fast tune off, Last call's walk / spawn percentages taken off and the fight's put on,
+  `served = spawned = 0`, GS_GOAL; the drink drains. After the banner (A or 3 s) `BS_WARM` ("not here yet": `boss_bar` is his bar, he is `BP_HIDE`)
+  lasts one frame: `entrance_start` clears the mugs, holds the intro (90 frames) with a whoosh and calls `BEV_ENTER`. `BEV_ENTER` returns 1 when the boss has
+  his own entrance (all ten do), 0 for the fallback `BS_WALKIN` (his body slides in from the left edge). Every entrance ends in `BS_ENTER -> BS_WALK`; the
+  bartender is held where he is (main.c), not moved to bar 0; no post-entrance banner; the HUD face and meter appear when he lands; then `fight_start`
+  (the intro's last beat) and, if `boss_card_seen(boss_id)` is 0, `boss_card_mark` and `pause_boss_card` (src/pause.c: the pause opens straight on his card,
+  state_timer PAUSE_ASK | PAUSE_CARD marks it, leaving the card closes the pause to the game with no menu). **BOSS RUSH** starts the fight from a fresh level
+  (`rush_fight`: `boss_set`, `shift_start`) and enters on the first frame. There is no boss step in the story data (`STORY_STEPS` 4); the save's step is
+  Last call's (an older save's 4 reads as 3); CONTINUE starts the venue over at its Opening as always. Test pokes: `boss_hook` 4 = fight now, 5 = enter now.
+  The fights end only when the bar is clear (ff1d432: meter 0 beats him, the fight goes on in PLAYING with no new regulars until `patrons_live` is 0, CLEAR THE
+  BAR for 90 frames). The end-of-level trick (below) no longer follows Last call: the boss's clear ends the venue.
+- The CLASSIC end-of-level trick also runs at the clear of the Happy hour in STORY and ARCADE (F12; Last call turns into the boss now), with F11's 0.7 s beat, a drumroll
   (18 noise hits) and a cymbal crash (PLAN.md "F11").
 
 ### 10.2 Each boss: gimmick and entrance (owner playtest 2026-10-14 / 15)

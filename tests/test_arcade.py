@@ -9,7 +9,7 @@ from test_flow import (GAME_OVER, GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLA
 from test_scores import (EMPTY, GS_INITIALS, GS_SCORES, MODE_ARCADE, MODE_STORY, booted, main_block, parse_save,
                          screen_text, set_score, table, v7_image)
 from test_sound import make_rom, save_ram
-from test_story import (CHAPTERS, SHIFTS, banner_text, centred, finish_mini, hud_lives, lives_hud, shift_title, to_goal,
+from test_story import (CHAPTERS, SHIFTS, banner_text, centred, finish_mini, hud_lives, lives_hud, shift_title, to_boss_banner, to_goal,
                         win)
 
 pytestmark = pytest.mark.timeout(240)
@@ -34,6 +34,9 @@ def start_arcade(model, ram=None):
 def finish_step(gb):
     """Past the goal banner, the step won at once (a shift's goal met, a boss satisfied); stops at LEVEL_CLEAR."""
     if state(gb) == GS_GOAL:
+        to_goal(gb)
+    if not gb.mem("boss_on") and gb.mem("story_shift") == 2:      # Last call: its quota meets the boss, in the same level (his banner, then the fight)
+        to_boss_banner(gb, gb.mem("story_chapter"))
         to_goal(gb)
     if gb.mem("boss_on"):
         gb.write("boss_hook", 3)
@@ -111,7 +114,7 @@ def test_after_the_space_lounge_loop_2_and_the_saloon_harder(model):
     with start_arcade(model) as gb:
         to_goal(gb)
         gb.write("story_chapter", 9)               # (the space lounge's last step: a VENUE CLEAR ends the venue)
-        gb.write("story_step", 4)
+        gb.write("story_step", 3)
         win(gb, 0, 0)
         run_until(gb, lambda: state(gb) == BONUS, 400)
         gb.write("bonus_phase", 4)

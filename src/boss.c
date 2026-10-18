@@ -1,8 +1,9 @@
 // The boss engine (docs/minigames_bosses.md 2.5, 3.1-3.3; step 2 of section 6): one engine, a parameter row per boss
 // and a per-boss special hook. Only Big Tex (the saloon) has his row so far; an id without one plays Tex's.
 //
-// A fight is the venue's level in story mode (story.c step_start -> boss_set, then shift_start as for a shift, with the
-// fight's banner and pace from boss_goal / boss_begin). The bar game runs as usual on the other bars (regulars, the
+// A fight is the venue's level in story mode: Last call's serve quota turns that level into it in place (story.c boss_in_place:
+// boss_set, then the cover, his tiles, the fight's banner and pace from boss_goal / boss_begin); BOSS RUSH starts it from a fresh level
+// (story.c rush_fight: boss_set, shift_start). The bar game runs as usual on the other bars (regulars, the
 // bartender, mugs, fair empties, lives); the boss is one more actor on his own bar:
 //   - He is a BG figure (no sprite on his lines): W x 16 px on his bar's two wall rows, behind the counter like a
 //     patron, stamped by render.c's compose_bar after the bar's patrons (boss_cols, from his pose). Only his topper
@@ -50,7 +51,7 @@
 
 extern uint8_t pat_pos, pat_buf[STORY_PAT_MAX];   // (story.c) the arrival pattern patrons.c follows while pat_len
 extern uint16_t pat_wait[4];
-extern uint8_t overlay_on;
+extern uint8_t overlay_on, save_lock;
 
 #define G_BOSS            3       // story_goal.type of a fight (story.h: G_SERVE 0, G_CATCH 1, G_CLEAR 2)
 #define BOSS_SPAWN_PCT  150       // the regulars' spawn interval in a fight (owner Q10: they keep coming, more slowly)
@@ -61,10 +62,9 @@ extern uint8_t overlay_on;
 #define OUTRO_FRAMES    120
 #define CLEAR_BANNER_FRAMES 90   // "CLEAR THE BAR" stays this long once he is beaten and regulars remain
 #define OAM_TOPPER      OAM_DANCERS   // (no show in a fight; OAM 26 is the perfect pour's cue)
-// E9: the fight opens as a normal shift (the warm-up), then the boss enters (docs/minigames_bosses.md 2.6)
-#define WARM_FRAMES   1200        // the warm-up: 20 s of play after the intro (Story and ARCADE; Boss Rush has none)
-#define WARM_AVOID     300        // the last 5 s: no new regular for his bar, so it empties before he comes
-#define WARM_WAIT      180        // after the warm-up: up to 3 s more for his bar to empty and the mugs to land
+// E9: the boss enters at once when the fight starts (docs/minigames_bosses.md 2.6); Last call is the warm-up (owner 2026-10-17: the 20 s
+// warm-up the boss round had is gone). WARM_WAIT: a test hook that clears boss_t may make the entrance wait for his bar to empty and the mugs to land.
+#define WARM_WAIT      180
 #define WALK_STEP        6        // the fallback entrance: frames per 8 px he walks in from the left edge
 
 enum { HOOK_NONE, HOOK_TELL, HOOK_METER_1, HOOK_DEFEAT, HOOK_FIGHT, HOOK_ENTER, HOOK_WALKIN };   // boss_hook (tests; any but HOOK_ENTER in the
@@ -239,12 +239,10 @@ void boss_set(uint8_t id) BANKED {
     boss_fast_full = boss_fast_empty = boss_returns = 0;
     BOSS_MARK_BAR = BOSS_NONE; BOSS_TOPPER_T = 0; BOSS_TOPPER_PAL = 0;   // (story_scratch: game.h BOSS_FX)
     boss_call(BEV_SET, 0);                       // his art's pose table, his own settings
-    // E9: the fight opens as a normal shift: BS_WARM, his bar is a bar like the others (BOSS_NONE: the ROM0 hooks see no
-    // boss) until he enters. Boss Rush skips the warm-up: his bar stays free of regulars but he is not on it (HIDE) and the
-    // entrance starts on the first frame.
-    boss_state = BS_WARM; boss_t = 0; boss_lim = 0;
-    if (play_mode == MODE_RUSH) { boss_special_t = 1; boss_t = WARM_WAIT; boss_xpose = BP_HIDE; boss_look(); }
-    else { boss_special_t = WARM_FRAMES; boss_look(); boss_bar = BOSS_NONE; }
+    // The entrance starts on the fight's first frame (Last call before it was the warm-up; BOSS RUSH has none): BS_WARM is "not here yet",
+    // his bar stays free of regulars but he is not on it (HIDE) until he walks in.
+    boss_state = BS_WARM; boss_t = WARM_WAIT; boss_lim = 0;
+    boss_special_t = 1; boss_xpose = BP_HIDE; boss_look();
 }
 
 // enter_level_screen, LCD off, after start_level (which loaded every patron variant): his body over variant C's tiles
@@ -329,13 +327,12 @@ uint8_t boss_catch(uint8_t i) BANKED {
     return 1;
 }
 
-// ---- E9: the warm-up and the entrance ----
-// The fight starts as the shift it is built on: BS_WARM, boss_special_t counts WARM_FRAMES down (after the level's intro),
-// the regulars come to every bar (boss_bar is BOSS_NONE: the ROM0 hooks, the render and the patrons see a plain bar). In the
-// last WARM_AVOID frames no new regular is bound for his bar; when the time is up the entrance waits (WARM_WAIT frames at the
-// most) until his bar is empty and no mug is in the air, then entrance_start: the world is cleared of mugs, any straggler on
-// his bar is gone, intro_timer freezes the bar (BEV_INTRO / BEV_DRAW run), his entrance plays (BEV_ENTER: his own, or the
-// fallback walk-in), and fight_start puts the banner up and the boss rules apply. Boss Rush: no warm-up (boss_set).
+// ---- E9: the entrance ----
+// The fight starts in BS_WARM ("not here yet"; the regulars are never bound for his bar): on the first frame entrance_start runs (when
+// boss_t is below WARM_WAIT, only a test hook, it waits until his bar is empty and no mug is in the air): the world is cleared of
+// mugs, any straggler on his bar is gone, intro_timer freezes the bar (BEV_INTRO / BEV_DRAW run), his entrance plays (BEV_ENTER: his
+// own, or the fallback walk-in), and fight_start puts the banner up and the boss rules apply (and, the first time he ever appears
+// in a save, the game pauses on his HOW TO PLAY card).
 static uint8_t bar_busy(void) {
     uint8_t p;
     for (p = 0; p != MAX_PATRONS; p++)
@@ -362,6 +359,10 @@ static void fight_start(uint8_t shown) {
     boss_hud();
     boss_call(BEV_BEGIN, 0);
     if (shown && !intro_timer) intro_timer = INTRO_FRAMES - 1;   // (the beat before the first drink: nothing moves)
+    if (shown && save_lock != SAVE_LOCK_DEBUG && !boss_card_seen(boss_id)) {   // the first time he ever appears (per save): his HOW TO PLAY card, the game paused
+        boss_card_mark(boss_id);                 // behind it, and resumed by itself when the card is left (pause.c)
+        pause_boss_card();
+    }
 }
 
 static void entrance_start(void) {
@@ -384,9 +385,7 @@ static void entrance_start(void) {
 static void boss_pre(void) {
     uint8_t n, w = br->width >> 3, st = boss_state, k;
     if (st == BS_WARM) {
-        if (boss_special_t > 1) {
-            if (!intro_timer && --boss_special_t == WARM_AVOID) boss_pattern(br->bar);
-        } else if (boss_t < WARM_WAIT && (mugs_live || bar_busy())) boss_t++;
+        if (boss_t < WARM_WAIT && (mugs_live || bar_busy())) boss_t++;
         else entrance_start();
         return;
     }
@@ -623,6 +622,8 @@ uint8_t boss_outro(uint8_t t) BANKED {
         n = OAM_MUG_END - 2 * lift_total;
         for (i = OAM_FILL; i < n; i++) shadow_OAM[i].y = 0;
         shadow_OAM[OAM_CUE].y = 0;
+        for (i = 0; i != 3; i++) shadow_OAM[OAM_CAP - 1 - i].y = 0;   // (the row of glasses and the hand mug are not drawn in the outro: when he is beaten with no regular left it begins
+        shadow_OAM[OAM_HAND].y = 0;                                    // at once, and the last frame's would stay)
         SFX(SFX_SERVE);
     }
     if (!(t & 15)) {

@@ -589,7 +589,7 @@ def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(mod
     from test_flow import run_until
     from test_scores import booted, v7_image
     from test_sound import save_ram
-    from test_story import SHIFT_STEP, SHIFTS, banner_text as goal_text, centred, shift_title, win
+    from test_story import SHIFT_STEP, SHIFTS, banner_text as goal_text, centred, clear_bars, shift_title, win
     ram = v7_image([("ABC", 500)], story=1, step=1, tunes=0x21)
     with booted(model, ram) as rom:
         open_on(rom, K_STORY)
@@ -609,6 +609,9 @@ def test_a_starts_the_chapter_s_shift_with_the_story_rules_and_saves_nothing(mod
         rom.press("a", 2)
         run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)
         win(rom, c, k)
+        if k == 2:                                       # (Last call's quota meets the boss: the bars empty, then his banner)
+            rom.run(3)
+            clear_bars(rom)
         run_until(rom, lambda: rom.mem("game_state") in (GS_GOAL, GS_STORY), 400)
         assert (rom.mem("story_progress"), rom.mem("story_reached")) == (1, 1), "the real progress untouched"
         assert rom.mem16("tune_unlocked") == 0x21, "no unlocks from a debug run"
@@ -743,12 +746,12 @@ def test_the_menu_goldens(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
-    """A chapter whose boss slot is built offers it ("BOSS"); A starts the fight through step_start (boss_set): its
-    banner, the fight; satisfied, CHAPTER CLEAR and the POST scene follow, and SRAM stays as it was."""
+    """The boss is no step of its own (owner 2026-10-17): the box offers LAST (Last call); A starts it, meeting its quota turns the level into
+    the boss fight (his banner, the fight); satisfied, CHAPTER CLEAR and the POST scene follow, and SRAM stays as it was."""
     from test_flow import LEVEL_CLEAR, run_until
     from test_scores import booted, v7_image
     from test_sound import save_ram
-    from test_story import BOSS_BUILT, BOSS_STEP, SC, banner_text as goal_text, centred
+    from test_story import BOSS_BUILT, SC, SHIFT_STEP, banner_text as goal_text, centred, to_boss_banner
     assert BOSS_BUILT, "no boss is built yet"
     c = min(BOSS_BUILT)
     ram = v7_image([("ABC", 500)], tunes=1)
@@ -756,19 +759,22 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
         open_on(rom, K_STORY)
         for _ in range(c):
             chap(rom, 1)
-        assert BOSS_STEP + 1 in playable(c)
-        while rom.mem("debug_pos") != BOSS_STEP + 1:
+        assert SHIFT_STEP[2] + 1 in playable(c)
+        while rom.mem("debug_pos") != SHIFT_STEP[2] + 1:
             pos(rom, 1)
         rom.run(3)
-        assert banner_is(rom, f"STORY {c + 1} BOSS")
+        assert banner_is(rom, f"STORY {c + 1} LAST")
         tap(rom, "a")
         run_until(rom, lambda: rom.mem("game_state") == GS_GOAL, 60)
         rom.run(3)
-        assert rom.mem("story_on") == 1 and rom.mem("boss_on") == 1 and rom.mem("boss_id") == c
-        assert (rom.mem("story_chapter"), rom.mem("story_step")) == (c, BOSS_STEP)
+        assert rom.mem("story_on") == 1 and rom.mem("boss_on") == 0
+        assert (rom.mem("story_chapter"), rom.mem("story_step")) == (c, SHIFT_STEP[2])
         assert rom.mem("lives") == 3 and rom.mem("save_lock") == SAVE_LOCK_DEBUG
-        assert goal_text(rom, 1) == centred("BOSS")
         rom.write("tip_chance", 0)
+        rom.press("a", 2)
+        run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)
+        to_boss_banner(rom, c)
+        assert rom.mem("boss_on") == 1 and rom.mem("boss_id") == c and goal_text(rom, 1) == centred("BOSS")
         rom.press("a", 2)
         run_until(rom, lambda: rom.mem("game_state") == PLAYING, 20)
         rom.write("boss_hook", 3)                       # satisfied at once (tests/test_boss.py plays the fight)
@@ -785,7 +791,7 @@ def test_a_starts_a_built_boss_fight_and_saves_nothing(model):
 # ---- the ARCADE box (the three modes): PLAY's ARCADE or ARCADE play; its steps only (no scenes) ----------------------
 def test_the_arcade_box_offers_the_steps_only_and_a_starts_an_arcade_run(boot):
     from test_flow import GS_GOAL, run_until
-    from test_story import STORY_STEPS, BOSS_BUILT, BOSS_STEP
+    from test_story import STORY_STEPS
     open_on(boot, K_ARCADE)
     release_combo(boot)
     assert boot.mem("debug_story") == 2 and boot.mem("debug_chapter") == 0 and boot.mem("debug_pos") == 1
@@ -795,7 +801,6 @@ def test_the_arcade_box_offers_the_steps_only_and_a_starts_an_arcade_run(boot):
         seen.append(boot.mem("debug_pos"))
         pos(boot, 1)
     assert 0 not in seen and STORY_STEPS + 1 not in seen, "no PRE / POST scene in ARCADE"
-    assert (BOSS_STEP + 1 in seen) == (0 in BOSS_BUILT)
     while boot.mem("debug_pos") != 2:
         pos(boot, 1)                                       # the Happy hour
     chap(boot, 1)                                          # chapter 2

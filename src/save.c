@@ -15,6 +15,9 @@
 //   0x18 the DEBUG MENU unlock "DU" (2026-10-16; SETTINGS > DEBUG MENU and the open gesture: src/debug.c): 0..1 magic, 2 the flag (1 unlocked, else
 //   locked), 3 checksum (0x5A + bytes 0..2), 4 its complement; no block, a bad checksum or any other flag reads as LOCKED. ERASE DATA (save_erase)
 //   zeroes the whole 8 KB, so it locks the menu again with everything else.
+//   0x28 the boss cards seen "BK" (2026-10-17: the first time a boss appears the game opens his HOW TO PLAY card, src/boss.c): 0..1 magic, 2..3 the
+//   venues whose boss card was shown (bit v, little endian; only bits below BOSS_COUNT), 4 the checksum (0x5A + bytes 0..3), 5 its complement; no
+//   block, a bad checksum or a bit at or above BOSS_COUNT reads as no card seen (every card shows once more). Nothing is written in a debug-select run.
 //   0x0A the venue-start score "SV" (owner 2026-10-14: CONTINUE returns to the venue's start with 3 lives and the score the player
 //   had when they entered it): 0..1 magic "SV"; 2 the chapter it belongs to; 3..5 the score (LE, <= 999999); 6 checksum (0x5A +
 //   bytes 0..5), 7 its complement. Written when a venue is entered (a PRE scene's end, a chapter cleared: story.c) and read by
@@ -111,6 +114,10 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define DU_AT    0x18               // the DEBUG MENU unlock "DU" (see the top): 0..1 magic, 2 the flag, 3 checksum, 4 complement
 #define DU_LEN   3
 #define V7_LEN   8                 // bytes covered by the main block's checksum
+#define STEP_SAVED (STORY_STEPS + 1)  // a saved step below this reads (before the boss joined Last call, 2026-10-17, a venue had a fifth step: 4); it is clamped to the last
+#define STEP_CLAMP(r) ((r) >= STORY_STEPS ? STORY_STEPS - 1 : (r))
+#define BK_AT    0x28               // the boss cards seen "BK": 0..1 magic, 2..3 bit v = venue v's boss card was shown (LE; bits below BOSS_COUNT), 4 checksum, 5 complement
+#define BK_LEN   4
 #define TBL_AT(t) (0x80 + (uint16_t)(t) * 0x40)
 #define TBL_LEN  (4 + TOP_N * 6)    // 34: bytes of a table block covered by its checksum
 #define V3_STORY 34                 // versions 3-6: the story progress
@@ -231,7 +238,7 @@ static uint8_t old_ok(uint8_t ver) {
     uint8_t max = ver == '6' ? STORY_MAX : OLD_STORY_MAX;
     if (!magic(ver)) return 0;
     if (ver >= '4') {
-        if (!sum_ok(SRAM, ver >= '5' ? V5_LEN : V3_LEN) || SRAM[V3_STORY] > max || SRAM[V4_STEP] >= STORY_STEPS) return 0;
+        if (!sum_ok(SRAM, ver >= '5' ? V5_LEN : V3_LEN) || SRAM[V3_STORY] > max || SRAM[V4_STEP] >= STEP_SAVED) return 0;
         if (SRAM[V3_STORY] == max && SRAM[V4_STEP]) return 0;
     } else if (!sum_ok(SRAM, V3_LEN) || SRAM[V3_STORY] > max) return 0;
     return 1;
@@ -240,7 +247,7 @@ static uint8_t old_ok(uint8_t ver) {
 // A version 3-5 save's progress (nine chapters, the old order) in today's chapters: see the top of the file.
 static void old_progress(uint8_t p, uint8_t r) {
     if (p >= OLD_KEPT) { p = OLD_KEPT; r = 0; }
-    story_progress = p; story_reached = r;
+    story_progress = p; story_reached = STEP_CLAMP(r);
 }
 
 // A version-5 save's unlocks (the old tune order: venues cowboys .. robots, ninjas, aliens, zoo) in today's order.
@@ -468,14 +475,14 @@ void hi_load(void) BANKED {
     tune_unlocked = 0;
     story_progress = 0; story_reached = 0;
     if (magic('7')) {
-        if (sum_ok(SRAM, V7_LEN) && (SRAM[V7_STORY] & PROG_MASK) <= STORY_MAX && SRAM[V7_STEP] < STORY_STEPS
+        if (sum_ok(SRAM, V7_LEN) && (SRAM[V7_STORY] & PROG_MASK) <= STORY_MAX && SRAM[V7_STEP] < STEP_SAVED
             && !((SRAM[V7_STORY] & PROG_MASK) == STORY_MAX && SRAM[V7_STEP])) {
-            story_progress = SRAM[V7_STORY] & PROG_MASK; story_reached = SRAM[V7_STEP];
+            story_progress = SRAM[V7_STORY] & PROG_MASK; story_reached = STEP_CLAMP(SRAM[V7_STEP]);
             tune_unlocked = SRAM[V7_TUNES] | ((uint16_t)SRAM[V7_TUNES + 1] << 8);
         }
         for (t = 0; t < TOP_TABLES; t++) load_tbl(t);   // each on its own (a bad main block keeps the tables)
     } else if (old_ok('6')) {
-        story_progress = SRAM[V3_STORY]; story_reached = SRAM[V4_STEP]; save_migrated = 6;
+        story_progress = SRAM[V3_STORY]; story_reached = STEP_CLAMP(SRAM[V4_STEP]); save_migrated = 6;
         old = SRAM[V5_TUNES] | ((uint16_t)SRAM[V5_TUNES + 1] << 8);
     } else if (old_ok('5')) {
         old_progress(SRAM[V3_STORY], SRAM[V4_STEP]); save_migrated = 5;
@@ -522,6 +529,37 @@ void debug_unlock(void) BANKED {
     SWITCH_RAM(0);
     b[0] = 'D'; b[1] = 'U'; b[2] = 1;
     sum_put(b, DU_LEN);
+    DISABLE_RAM;
+}
+
+// The boss cards seen (src/boss.c fight_start): has venue v's boss's HOW TO PLAY card been shown, and the mark that it was.
+static uint16_t bk_get(void) {
+    volatile uint8_t *b = SRAM + BK_AT;
+    uint16_t m = 0;
+    if (b[0] == 'B' && b[1] == 'K' && sum_ok(b, BK_LEN) && !(b[3] >> (BOSS_COUNT - 8))) m = b[2] | ((uint16_t)b[3] << 8);
+    return m;
+}
+
+uint8_t boss_card_seen(uint8_t v) BANKED {
+    uint16_t m;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    m = bk_get();
+    DISABLE_RAM;
+    while (v--) m >>= 1;
+    return (uint8_t)(m & 1);
+}
+
+void boss_card_mark(uint8_t v) BANKED {
+    volatile uint8_t *b = SRAM + BK_AT;
+    uint16_t m = 1;
+    if (save_lock == SAVE_LOCK_DEBUG) return;
+    while (v--) m <<= 1;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    m |= bk_get();
+    b[0] = 'B'; b[1] = 'K'; b[2] = (uint8_t)m; b[3] = (uint8_t)(m >> 8);
+    sum_put(b, BK_LEN);
     DISABLE_RAM;
 }
 

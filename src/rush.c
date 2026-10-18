@@ -75,13 +75,8 @@ static const char *const locked_info[INFO_LINES] = { locked_name, "LOCKED", "BEA
 // ---- the bosses -------------------------------------------------------------------------------------------------
 static uint8_t built(uint8_t v) { return (RUSH->built >> v) & 1; }   // (the mask: rush_enter)
 
-static uint8_t scan_built(uint8_t v) {           // venue v's boss step is played by the story (not STEP_SKIP)
-    uint8_t s, k;
-    for (s = 0; s < STORY_STEPS; s++) {
-        k = story_step_get(v, s);
-        if ((k & STEP_KIND) == STEP_BOSS) return !(k & STEP_SKIP);
-    }
-    return 0;
+static uint8_t scan_built(uint8_t v) {           // venue v's boss fight is built (it follows Last call: build/story.h BOSS_BUILT_MASK)
+    return (BOSS_BUILT_MASK >> v) & 1;
 }
 
 static uint8_t unlocked(uint8_t v) {

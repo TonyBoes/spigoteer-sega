@@ -598,6 +598,9 @@ void bonus_record(uint8_t k, uint8_t medal) BANKED;     // round k played (medal
 uint8_t bonus_best(uint8_t k, uint8_t diff) BANKED;     // round k's best medal in difficulty diff (mg.h MG_D_*)
 uint8_t card_seen(uint8_t id) BANKED;                   // the HOW TO PLAY card of mini-game id was shown before (src/mg.c)
 void card_mark(uint8_t id) BANKED;                      // ... it is now (nothing in a debug-select run)
+uint8_t boss_card_seen(uint8_t v) BANKED;                // venue v's boss's HOW TO PLAY card was shown before (src/save.c block "BK")
+void boss_card_mark(uint8_t v) BANKED;                   // ... it is now (nothing in a debug-select run)
+void pause_boss_card(void) BANKED;                       // src/pause.c: the pause opens straight on the boss's card and closes to the game when it is left
 #define DEBUG_RESUME    0x80                            // story_chapter bit 7 at the title: a quit debug-select run, CONTINUE resumes it (nothing saved)
 uint8_t can_continue(void) BANKED;                        // CONTINUE is offered (a saved story, or a debug-select run to resume)
 void story_debug_start(uint8_t ch, uint8_t pos, uint8_t arc) BANKED;   // src/story.c

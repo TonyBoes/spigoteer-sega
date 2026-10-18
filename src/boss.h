@@ -32,8 +32,8 @@ enum {
                   // drinks he can hold): `arg` is the engine's count of free hands (0..boss_hands: boss_lim says a drink
                   // reaching him is caught; 0 when it is not). Return 0 to keep it, ROOM_OFF for no indicator (a state with no
                   // limit or no catching at all), else ROOM_FREE(n): n free hands now (ROOM_FREE(0): he sends back / takes nothing)
-    BEV_ENTER,    // boss.c entrance_start (E9: the fight opens as a normal shift and the boss enters after the warm-up; Boss
-                  // Rush enters at once): his entrance starts NOW, mid-play, the world already cleared of mugs and his bar of
+    BEV_ENTER,    // boss.c entrance_start (E9: he enters on the fight's first frame: after Last call, which turned into his fight
+                  // in place, or in Boss Rush): his entrance starts NOW, mid-play, the world already cleared of mugs and his bar of
                   // regulars; boss_state is BS_ENTER, boss_xpose BP_HIDE, intro_timer held at INTRO_FRAMES. Return 1 = "I have
                   // an entrance": BEV_INTRO / BEV_DRAW follow every frame (he holds intro_timer, as Duke's does) and, when it is
                   // done, he sets boss_xpose 0 and boss_state out of BS_ENTER (BS_WALK) after boss_to_bar(bar, start x): the
@@ -57,7 +57,7 @@ enum {
 #define OAM_HAND       (OAM_DANCERS + 1)          // (the show's second dancer entry: no show in a fight)
 
 enum { BS_WALK, BS_GULP, BS_TELL, BS_SPECIAL, BS_JUMP, BS_OUTRO,   // boss_state (spec 2.5's test hook names)
-       BS_WARM,      // E9: the warm-up: a normal shift on every bar (boss_bar is BOSS_NONE, boss_special_t counts the frames down)
+       BS_WARM,      // E9: not here yet: his entrance starts on the fight's first frame (his bar is free of regulars, he is hidden)
        BS_ENTER,     // his own entrance (BEV_ENTER returned 1) runs: he is not on his bar yet, nothing is caught
        BS_WALKIN };  // the engine's fallback entrance: he walks in from the left edge (boss_special_t = its frame)
 // BS_JUMP: away from his bar (a leap, a ride): he catches nothing (a full mug on his bar slides past and breaks), sends

@@ -457,7 +457,7 @@ def test_menu_then_arcade_has_everything_back(model):
 
 # ---- the story's mini slot ---------------------------------------------------------------------------------------------
 def test_the_mini_slots_stay_not_built():
-    assert [s["kind"] for s in SEQ if not s["built"]] == ["MINI", "BOSS"]
+    assert [s["kind"] for s in SEQ if not s["built"]] == ["MINI"]            # (the boss has no step of his own: he comes in Last call's level)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

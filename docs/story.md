@@ -89,8 +89,8 @@ optional. Each one changes one existing parameter or adds one small behaviour.
 Each chapter plays its venue several times in a row, as shifts: **Opening shift** (about half the
 goal, walkers 15 % slower, patrons 15 % further apart), **Happy hour** (the chapter goal above, at
 the venue's normal pace; the chapter's twist will apply here), a mini-game slot, **Last call**
-(faster walkers, patrons closer together, and the venue's own arrival pattern), then a boss slot.
-The mini-game and boss slots are skipped until they are built. Lives: 3 per venue, carried from
+(faster walkers, patrons closer together, and the venue's own arrival pattern). The boss is no round of his own
+(owner 2026-10-17): when Last call's quota is met the level turns into his fight in place. The mini-game slot is skipped until it is built. Lives: 3 per venue, carried from
 shift to shift (a gold medal in the mini-game adds one, up to 4); losing the last one restarts the
 venue at its Opening shift. A strict rule (stadium: a fan at the tap; teahouse: a broken cup) costs
 2 lives instead of 1. Every shift keeps the chapter's kind of goal. Bars are numbered 1 (top) to 4 (bottom).

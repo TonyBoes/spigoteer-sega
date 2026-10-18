@@ -260,9 +260,11 @@ def test_red_turns_the_batteries_round_and_bounces_those_that_arrive(model):
         rs = mugs(gb, B, RETURN)
         assert len(rs) == 2 and not mugs(gb, B, FULL), "both batteries turned round"
         before = {i: bx for i, _, _, bx in rs}
+        fc = gb.mem("frame_counter")
         frames(gb, 10)
+        n = (gb.mem("frame_counter") - fc) & 255          # (game frames: one emulator frame may hold none when a frame ran long)
         after = {i: bx for i, _, _, bx in mugs(gb, B, RETURN)}
-        assert all(after[i] - before[i] == 10 for i in before), "1 px a frame to the right"
+        assert n >= 9 and all(after[i] - before[i] == n for i in before), "1 px a frame to the right"
         xs = sorted(after.values())
         assert xs[1] - xs[0] >= 32
         gap = gb.mem("empty_gap")

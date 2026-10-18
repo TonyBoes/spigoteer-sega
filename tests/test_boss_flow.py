@@ -1,4 +1,4 @@
-# E9: a boss round opens as a normal shift (the warm-up) and the boss enters after it; F12: the bartender's trick (CLASSIC's
+# E9 (the warm-up is gone, 2026-10-17: Last call turns into the fight and he enters at once); F12: the bartender's trick (CLASSIC's
 # end-of-level antics, src/antics.c) in Story after the Happy hour. src/boss.c (BS_WARM, entrance_start, boss_pre, fight_start),
 # src/main_cold.c enter_level_clear. Boss tests of the fights themselves start the fight at once (test_story.to_goal: boss_hook 4).
 import re
@@ -13,8 +13,7 @@ from test_story import banner_text, centred, to_chapter, to_shift, win
 pytestmark = pytest.mark.timeout(400)
 
 SRC = (ROOT / "src" / "boss.c").read_text()
-WARM_FRAMES, WARM_AVOID, WARM_WAIT, WALK_STEP = (int(re.search(rf"#define {n}\s+(\d+)", SRC).group(1)) for n in (
-    "WARM_FRAMES", "WARM_AVOID", "WARM_WAIT", "WALK_STEP"))
+WARM_WAIT, WALK_STEP = (int(re.search(rf"#define {n}\s+(\d+)", SRC).group(1)) for n in ("WARM_WAIT", "WALK_STEP"))
 BOSS_NONE = 255
 C = 0                                   # the saloon: Big Tex has no entrance of his own (the fallback walk-in)
 R = row(C)
@@ -37,44 +36,35 @@ def patrons_on(gb, b):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_round_opens_as_a_normal_shift(model):
-    """The fight's first frames: BS_WARM, his bar is a plain bar (boss_bar BOSS_NONE, no body on it, no topper, no HUD meter), the
-    warm-up counts WARM_FRAMES down only once the intro is over, and regulars come to EVERY bar, his included."""
-    with fight(model, C, warm=True) as gb:
-        assert gb.mem("boss_on") == 1 and gb.mem("boss_state") == BS_WARM and gb.mem("boss_bar") == BOSS_NONE
-        assert special_t(gb) == WARM_FRAMES
-        frames(gb, 5)
-        assert special_t(gb) == WARM_FRAMES, "not counted during the intro"
-        play(gb)
-        frames(gb, 30)
-        assert WARM_FRAMES - 32 <= special_t(gb) < WARM_FRAMES
+def test_the_fight_opens_with_his_entrance_at_once(model):
+    """Last call turned into the fight (owner 2026-10-17: no 20 s warm-up any more): on his banner he is not here yet (BS_WARM, hidden, no
+    topper, no HUD meter, his bar free of regulars); play starts and his entrance begins on the first frame (the bar already empty: it
+    does not wait), the bartender where he was."""
+    with fight(model, C, banner=True) as gb:
+        assert gb.mem("boss_on") == 1 and gb.mem("boss_state") == BS_WARM and gb.mem("boss_bar") == R["bar"]
+        assert not patrons_on(gb, R["bar"]) and not mugs(gb)
         top, bottom = body(gb, R)
         wall = venue("saloon")["bar_map"]
         assert top == wall[:20] and bottom == wall[20:40], "no body on his bar"
         assert gb.oam()[28]["y"] == 0, "no topper"
         assert hud(gb) != meter_tiles(R["meter"], R["meter"]), "no meter yet"
-        for i in range(8):                           # (the arrivals are drawn at random: send the next ones to his bar)
-            gb.write(gb.addr("pat_buf") + i, R["bar"])
-        gb.write("pat_bar", R["bar"])
-        for _ in range(1500):
-            frames(gb, 1)
-            if patrons_on(gb, R["bar"]) or state(gb) != PLAYING:
-                break
-        assert gb.mem("boss_state") == BS_WARM and patrons_on(gb, R["bar"]), "a regular on his bar, as on any"
+        gb.press("a", 2)
+        run_until(gb, lambda: state(gb) == PLAYING, 10)
+        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+        assert gb.mem("boss_state") in (BS_ENTER, BS_WALKIN), "his entrance, straight away"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_warm_up_ends_with_the_entrance_and_then_the_boss_rules_apply(model):
-    """Time up: the fallback entrance (BS_WALKIN: the engine's safety net, forced with boss_hook 6): the bar freezes (intro_timer held), mugs are cleared,
-    his body comes in from the left edge column by column, steps on to x 16, then the banner (his first line) stays through the
-    intro's beat and the fight starts: meter, HUD face, hands rules; a full mug is only caught from then on."""
-    with fight(model, C, warm=True) as gb:
-        play(gb)
-        still_regulars(gb)
-        throw(gb, 2, 100)
-        gb.write("boss_hook", 6)                     # the warm-up is over, and the engine's own walk-in whoever he is (every boss has an
-                                             # entrance of his own now: it is the safety net)
+def test_the_entrance_ends_and_then_the_boss_rules_apply(model):
+    """The fallback entrance (BS_WALKIN: the engine's safety net, forced with boss_hook 6): the bar freezes (intro_timer held), mugs are cleared,
+    his body comes in from the left edge column by column, steps on to x 16, then the intro's beat and the fight starts: meter, HUD face,
+    hands rules; a full mug is only caught from then on."""
+    with fight(model, C, banner=True) as gb:
+        gb.write("boss_hook", 6)                     # (every boss has an entrance of his own now: the walk-in is the safety net)
+        gb.press("a", 2)
+        run_until(gb, lambda: state(gb) == PLAYING, 10)
         until(gb, lambda: gb.mem("boss_state") != BS_WARM, 5)
+        still_regulars(gb)
         assert gb.mem("boss_state") == BS_WALKIN and gb.mem("boss_bar") == R["bar"] and gb.mem("intro_timer") >= INTRO - 1
         assert not mugs(gb), "the mugs are cleared"
         assert gb.mem("boss_lim") == 0 and gb.mem("boss_hp") == R["meter"]
@@ -100,40 +90,6 @@ def test_the_warm_up_ends_with_the_entrance_and_then_the_boss_rules_apply(model)
         throw(gb, R["bar"], 100)
         until(gb, lambda: gb.mem("boss_hits") == 1, 120)
         assert gb.mem("boss_hp") == R["meter"] - 1 and gb.mem("boss_hold") >= 1
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_entrance_waits_for_his_bar_to_empty(model):
-    """A regular standing on his bar when the time is up: the entrance waits (BS_WARM) up to WARM_WAIT frames, then he enters and the
-    straggler is gone."""
-    with fight(model, C, warm=True) as gb:
-        play(gb)
-        for i in range(8):
-            gb.write(gb.addr("pat_buf") + i, R["bar"])
-        gb.write("pat_bar", R["bar"])
-        for _ in range(3000):
-            frames(gb, 1)
-            if patrons_on(gb, R["bar"]) or state(gb) != PLAYING:
-                break
-        assert patrons_on(gb, R["bar"])
-        still_regulars(gb)
-        put_special_t(gb, 1)
-        gb.write("boss_t", 0)
-        frames(gb, WARM_WAIT - 20)
-        assert gb.mem("boss_state") == BS_WARM and patrons_on(gb, R["bar"]), "he waits"
-        until(gb, lambda: gb.mem("boss_state") != BS_WARM, 40)
-        assert not patrons_on(gb, R["bar"]), "his bar is empty when he comes in"
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_no_new_regular_for_his_bar_in_the_last_seconds(model):
-    with fight(model, C, warm=True) as gb:
-        play(gb)
-        put_special_t(gb, WARM_AVOID + 3)
-        frames(gb, 6)
-        assert special_t(gb) < WARM_AVOID
-        pb = gb.read("pat_buf", 8)
-        assert all(b & 3 != R["bar"] for b in pb), pb
 
 
 @pytest.mark.parametrize("model", ["cgb"])
@@ -174,9 +130,9 @@ def test_no_trick_after_the_opening_shift(model):
         run_until(gb, lambda: state(gb) == GS_GOAL, 250)
 
 
-@pytest.mark.parametrize("k", [1, 2])
+@pytest.mark.parametrize("k", [1])
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_trick_plays_after_the_happy_hour_and_the_last_call(model, k):
+def test_the_trick_plays_after_the_happy_hour(model, k):               # (Last call no longer clears the level: it turns into the boss fight)
     with to_shift(model, 0, k) as gb:
         clear_of(gb, 0, k)
         gb.run(20)
@@ -193,20 +149,18 @@ def test_the_trick_plays_after_the_happy_hour_and_the_last_call(model, k):
 def test_an_entrance_holds_the_bartender_where_he_is(model):
     """Mid-fight entrance (E9, decision 6): the bartender is NOT sent to bar 0; his input is held (Down and A change nothing, no glass)
     and he is where he was when it ends."""
-    from boss_common import start_entrance, to_bar
-    with fight(model, C, warm=True) as gb:
-        play(gb)
-        still_regulars(gb)
-        to_bar(gb, 2)
+    with fight(model, C, banner=True) as gb:
         bar, x = gb.mem("bar"), gb.mem("bartender_x")
         launched = gb.read("sfx_count", 9)[2]
-        start_entrance(gb)
+        gb.press("a", 2)
+        run_until(gb, lambda: state(gb) == PLAYING, 10)
+        still_regulars(gb)
         gb.hold("down")
         gb.hold("a")
         for _ in range(60):
             frames(gb, 1)
             with logic_paused(gb):                   # (the held input is undone later in the same frame's logic)
-                assert gb.mem("boss_state") in (BS_ENTER, BS_WALK) and gb.mem("bar") == bar and gb.mem("bartender_x") == x
+                assert gb.mem("boss_state") in (BS_ENTER, BS_WALKIN, BS_WALK) and gb.mem("bar") == bar and gb.mem("bartender_x") == x
                 assert not mugs(gb) and gb.read("sfx_count", 9)[2] == launched
         gb.release("down")
         gb.release("a")

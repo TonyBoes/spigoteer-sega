@@ -338,7 +338,9 @@ def test_win_the_fight_by_pouring(model):
                 except AssertionError:
                     # a pour that starts as the roar lands is cut by it (the frame the roar begins on moves with the code's timing); the
                     # bartender stays at the tap, so the pour is tried again once the roar is over
-                    assert phase(gb) != LP_WALK, "a pour at the tap in his walking phase launches"
+                    # (or by one of his own empties reaching the tap: catching it cuts the fill)
+                    assert phase(gb) != LP_WALK or mugs(gb, B, EMPTY), "a pour at the tap in his walking phase launches"
+                    frames(gb, 8)
                     while phase(gb) != LP_WALK:
                         frames(gb, 1)
                         phases.add(phase(gb))
