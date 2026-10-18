@@ -148,7 +148,7 @@ def test_the_start(intro):
     gb = intro
     assert state(gb) == GS_MINI and gb.mem("mg_id") == MG_POUROFF == 11 and gb.mem("mg_mode") == MG_STORY
     assert gb.mem("mg_phase") == MG_INTRO and gb.mem("lives") == START_LIVES and lives_hud(gb) == 3
-    assert text(gb, 2) == "THE POUR OFF" and text(gb, 3) == "FIRST TO 20 SERVES"
+    assert text(gb, 2) == "THE POUR OFF" and text(gb, 3) == "GET 20 SERVES FIRST"
     assert hud(gb) == "Y00 D00"
     s = po(gb)
     assert s["res"] == PR_PLAY and s["y"]["bar"] == 1 and s["y"]["x"] == TAP_X and s["d"]["bar"] == 2 and s["d"]["x"] == DREGS_X
@@ -807,7 +807,7 @@ def test_the_finale_flow_finale_a_the_pour_off_finale_b_and_the_credits(model):
         a = SCENES[SC["FINALE_A"]]
         assert [p["speaker"] for p in a["pages"]] == ["NARRATOR"] * 4 + ["SADIE", "DREGS", "SPIGOTEER", "NARRATOR"]
         assert a["pages"][5]["lines"] == ["HOLD IT! WHO", "POURS FIRST? I", "SAY: A POUR-OFF!"]
-        assert a["pages"][6]["lines"] == ["FIRST TO 20", "SERVES. YOU'RE ON,", "DREGS."]
+        assert a["pages"][6]["lines"] == ["GET 20 SERVES", "FIRST! YOU'RE ON,", "DREGS."]
         assert a["pages"][7]["lines"] == ["THE POUR-OFF WILL", "BE AT SADIE'S", "SALOON."]
         for k, p in enumerate(a["pages"]):
             if k:
@@ -819,7 +819,7 @@ def test_the_finale_flow_finale_a_the_pour_off_finale_b_and_the_credits(model):
         run_until(gb, lambda: gb.pb.memory[0xFF40] & 0x80, 10)
         assert gb.mem("mg_id") == MG_POUROFF and gb.mem("mg_mode") == MG_STORY and gb.mem("lives") == START_LIVES
         assert gb.mem("story_scene") == SC["FINALE_A"] and gb.mem("story_on") == 1
-        assert text(gb, 2) == "THE POUR OFF" and text(gb, 3) == "FIRST TO 20 SERVES"
+        assert text(gb, 2) == "THE POUR OFF" and text(gb, 3) == "GET 20 SERVES FIRST"
         to_play(gb)
         base = score(gb)
         bot = Bot(gb, **STEADY)

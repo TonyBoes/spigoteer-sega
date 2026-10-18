@@ -170,6 +170,8 @@ static void put_hud(void) {                      // "Y12 D10" into S.hud (HUD co
     S.hud[6] = TILE_GLYPH_0 + (b >= 20 ? b - 20 : b >= 10 ? b - 10 : b);
 }
 
+typedef char po_win_matches_its_texts[PO_WIN == 20 ? 1 : -1];   // ("GET 20 SERVES FIRST": src/mg.c mg_instr, mg_card.c, docs/story.md FINALE_A)
+
 void po_enter(void) BANKED {
     uint8_t *z = (uint8_t *)&S, r, b, c, k, n = 0, fs[12], fd[12];
     uint16_t zi;

@@ -6,7 +6,7 @@
 
 #define PO_SEATS       12       // 3 a bar: x 40, 72, 104
 #define PO_MUGS        16       // at most 4 a bar (both directions, sliding and held)
-#define PO_WIN         20       // the race: first to this
+#define PO_WIN         20       // the race: first to this (the texts say "GET 20 SERVES FIRST": src/mg.c, mg_card.c, docs/story.md FINALE_A; po.c checks it)
 #define PO_LIVES        3
 
 enum { PS_EMPTY, PS_THIRSTY, PS_DRINKING };                    // a seat
