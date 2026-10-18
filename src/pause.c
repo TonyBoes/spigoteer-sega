@@ -256,6 +256,7 @@ void pause_open(void) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     apply(state_timer, 1);                       // (Milk Run's handler walks LYC itself)
+    if (WY_REG == NOTE_WY) WY_REG = BANNER_WY;   // (a note cut off before this frame's update: the band starts on its line)
     overlay_on = 1;
 }
 

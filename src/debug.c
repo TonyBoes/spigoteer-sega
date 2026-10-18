@@ -271,6 +271,7 @@ void debug_open(void) BANKED {
         debug_level = k;
     } else debug_level = level < DEBUG_LEVELS ? level : DEBUG_LEVELS;
     end_note();                                      // (WY and LYC back where the menu saves them)
+    TRANS_MENU();                                    // (src/trans.c: the quick white fade)
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN;
     typedef char keys_in_9000_block[KEY_A + 3 <= 128 ? 1 : -1];   // BG ids 0-127: VRAM 0x9000 + id * 16
@@ -322,6 +323,7 @@ void debug_open(void) BANKED {
 // everything the menu moved comes back: the button tiles, LYC and WY, the banner rows, the sprites
 static void close_menu(void) {
     uint8_t i, k, b[20];
+    TRANS_MENU();                                    // (src/trans.c: the quick white fade)
     DISPLAY_OFF;                                     // (the tiles and palettes go back unseen: the game under the window shows them as soon as the window goes)
     overlay_on = 0; HIDE_WIN;
     debug_menu_open = 0;
@@ -450,6 +452,20 @@ uint8_t auto_card(void) BANKED {         // HOW TO PLAY card -> (AUTO_CARD 1: B,
 #if AUTO_CARD == 1
         if (ac_t == 440) j = J_B;
 #endif
+    }
+    return j;
+}
+#endif
+
+#ifdef AUTO_NOTE                        // test-only (tests/test_fade_hw.py, never in a release): a note shown at frame 100 of play is cut off at 110 the way a life lost or a scene change cuts it (overlay_on cleared, WY and LYC left on the note), START at 120. Returns joy.
+uint8_t auto_note(void) BANKED {
+    static uint8_t an_t;
+    uint8_t j = 0;
+    if (game_state == GS_PLAYING || game_state == GS_PAUSED) {
+        if (an_t < 121) an_t++;
+        if (an_t == 100) show_note("CLEAR THE BAR");
+        if (an_t == 110) { overlay_on = 0; HIDE_WIN; }
+        if (an_t == 120) j = J_START;
     }
     return j;
 }

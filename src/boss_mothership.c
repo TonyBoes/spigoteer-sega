@@ -451,8 +451,6 @@ uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED {
     case BEV_INTRO:
         if (ms.ent) ent_frame();
         break;
-    case BEV_ROOM:                                            // no row of glasses: he holds nothing, he beams his drinks in
-        return ROOM_OFF;
     case BEV_TELL:
         if (ms.phase == MP_WALK) { ray_off(); to_tell(); }
         break;

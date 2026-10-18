@@ -152,9 +152,9 @@ text as its page, and two variants with the same condition on one page.
 
 ### INTRO: "The Big Pour"
 
-Picture (pages 1-5): Fizzwater town square at night: the clock tower and houses at the left, the fountain right of centre. The whole Golden Spigot gleams on it, string lights hang across the square and a few townsfolk in hats wait in the foreground. The Spigoteer walks in from the right. (`assets/story/pictures/intro_before.txt`)
+Picture (pages 1-6): Fizzwater town square at night: the clock tower and houses at the left, the fountain right of centre. The whole Golden Spigot gleams on it, string lights hang across the square and a few townsfolk in hats wait in the foreground. The Spigoteer walks in from the right. (`assets/story/pictures/intro_before.txt`)
 
-Picture (page 6): the same square a moment later, after a white flash. The intact Golden Spigot bursts into its ten pieces, which fly outward and off the screen (a short animation, OBJ sprites), each leaving a trail of faded dots in the sky that fades away. Over the spigot's spot a gold burst star (BG tiles, two sizes) is up at the flash and pulses (big, small, big...) while the pieces fly, then dies down once they are gone and an electric crackle (two flickering bolt sprites, with a rattle sound) takes its place above the broken stub and keeps on through pages 7-9. What is left: an empty rim with a broken stub and a last drip, and the fountain stopped (no jets). Dregs stands on the cobbles, the Spigoteer shrugs, and the townsfolk duck or point. Pages 7-9 stay on it. (`assets/story/pictures/intro_a.txt`, the pieces `assets/story/pictures/intro_pieces.txt`)
+Picture (page 7): the same square a moment later, after a white flash. The intact Golden Spigot bursts into its ten pieces, which fly outward and off the screen (a short animation, OBJ sprites), each leaving a trail of faded dots in the sky that fades away. Over the spigot's spot a gold burst star (BG tiles, two sizes) is up at the flash and pulses (big, small, big...) while the pieces fly, then dies down once they are gone and an electric crackle (two flickering bolt sprites, with a rattle sound) takes its place above the broken stub and keeps on through pages 8-12. What is left: an empty rim with a broken stub and a last drip, and the fountain stopped (no jets). Dregs stands on the cobbles, the Spigoteer shrugs, and the townsfolk duck or point. Pages 8-12 stay on it. (`assets/story/pictures/intro_a.txt`, the pieces `assets/story/pictures/intro_pieces.txt`)
 
 ```
 NARRATOR
@@ -178,6 +178,11 @@ I'M SAL TAPLEY,
 THE SPIGOTEER,|
 REIGNING CHAMP!
 
+NARRATOR
+HE'S ALSO FAMOUS
+FOR HIS MUSTACHE:
+BIG, BOLD, TIDY.
+
 DREGS
 @beat 3
 MOVE IT, MUSTACHE!
@@ -193,6 +198,18 @@ NARRATOR
 THE SPIGOT BURST
 INTO TEN PIECES|
 AND FLEW AWAY!
+
+DREGS
+@beat 2
+OOPS.| FINDERS
+KEEPERS! I'LL GET
+ALL TEN FIRST!
+
+SPIGOTEER
+@beat 2
+I'LL WIN ALL TEN
+PIECES BACK AND
+FIX THE SPIGOT!
 
 NARRATOR
 @beat 3
@@ -298,6 +315,17 @@ COACH
 LET ONE FAN REACH
 YOUR TAP AND IT|
 COSTS TWO LIVES!
+
+NARRATOR
+@beat 2
+AFTER HAPPY HOUR,
+A BONUS GAME. WIN
+GOLD, GAIN A LIFE!
+
+NARRATOR
+ONCE LAST CALL IS
+SERVED, THE BOSS
+ENTERS. BEAT HIM!
 
 COACH
 THE SODA'S COLD,|
@@ -485,6 +513,11 @@ COLBY
 SAFE TRAVELS,
 FRIEND. AND STAY|
 GRATE!
+
+SPIGOTEER
+FOUR DOWN! NEXT:
+THE KNOB. IT'S ON
+AN IGLOO. BRRR!
 ```
 
 ---
@@ -551,6 +584,11 @@ SPIGOTEER
 FIVE DOWN!| AND MY
 MUSTACHE HAS NEVER
 BEEN SO TOASTY.
+
+SPIGOTEER
+NEXT: A GASKET.
+A ROBOT WEARS IT
+AS A HAT. ONWARD!
 ```
 
 ---
@@ -621,6 +659,11 @@ BOX 4: RETURNS.
 MANAGER-BOT
 STATUS: AMUSED.|
 HA.| HA.| HA.
+
+SPIGOTEER
+SIX DOWN! NEXT:
+THE DRIP TRAY. THE
+HOUSE BAND HAS IT.
 ```
 
 ---
@@ -1034,6 +1077,17 @@ THE GOLDEN SPIGOT
 SHONE ONCE MORE!|
 THE CROWD GASPED.
 
+NARRATOR
+@beat 2
+THE OWNERS CAME:
+SADIE, COACH, JUNE
+COLBY AND AURORA.
+
+NARRATOR
+MANAGER-BOT,
+GRANNY, HANA, KIKI
+AND ZIZZ.
+
 SADIE
 SIX TUMBLEWEEDS!|
 I DIDN'T KNOW I
@@ -1050,6 +1104,11 @@ SPIGOTEER
 FIRST TO 20
 SERVES. YOU'RE ON,
 DREGS.
+
+NARRATOR
+THE POUR-OFF WILL
+BE AT SADIE'S
+SALOON.
 ```
 
 ### FINALE_B: "The First Pour"

@@ -276,7 +276,8 @@ def test_the_picked_harmony_sections_use_their_voices(name):
 
 @pytest.mark.parametrize("name", sorted(PICKED_SECTIONS))
 def test_thirds_follow_every_melody_note_held_is_a_note_a_bar_and_stabs_are_four_a_bar(name):
-    """Thirds (grid 1, no merging): a note starts on every melody note start; held: one note a bar or less; stabs: four a 6/8 bar."""
+    """Thirds (grid 1, no merging): a note starts on every melody note start; pad: a moving inner voice, three notes a bar at most (batch 1;
+    it was one note a bar before); stabs: four a 6/8 bar."""
     t = songs.SONGS[name]
     tune = t["harm_tune"]
     starts = {s for s, n, p in H.timeline(t["ch1"]) if p is not None}
@@ -287,7 +288,7 @@ def test_thirds_follow_every_melody_note_held_is_a_note_a_bar_and_stabs_are_four
             missed = [r for r in rows if r in tune.onsets and tune.mel[r] is not None and r not in starts]
             assert not missed, f"{name} {a}-{b}: melody notes without a third: {missed[:6]}"
         elif inst == "pad":
-            assert 0 < len(have) <= (b - a + 1), f"{name} {a}-{b}: held, a note a bar or less"
+            assert 0 < len(have) <= 3 * (b - a + 1), f"{name} {a}-{b}: the pad's inner voice, three notes a bar at most (batch 1: it moves under the long notes)"
         else:
             assert len(have) == (b - a + 1) * 4, f"{name} {a}-{b}: stabs, four a 6/8 bar"
 

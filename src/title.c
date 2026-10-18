@@ -275,6 +275,7 @@ static void logo_put(uint8_t i) {               // letter i's current state into
 void title_enter(void) BANKED {
     uint8_t i, r;
     palette_t p;
+    TRANS_MENU();                                     // (src/trans.c: a way back to the title from a list / the scores: the quick white fade)
     DISPLAY_OFF;
     TUNE_FLUSH();                                     // (a tune unlock heard in the story and not saved yet: a quit, a game over)
     music_pump();                                     // (the tick this pass is due: the load below runs several frames)

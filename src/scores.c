@@ -70,6 +70,7 @@ static void six_digits(char *d, uint32_t v) {
 // LCD off: the dark band everywhere, a panel line at rows 1 and 16, the HUD palette
 static void screen_begin(void) {
     uint8_t y;
+    TRANS_MENU();                                    // (src/trans.c: the quick white fade: game over / the title -> the initials and the top 5)
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();

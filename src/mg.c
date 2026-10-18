@@ -204,6 +204,7 @@ static void attr_rows(uint8_t y, uint8_t n) {    // LCD off, CGB: rows y.. in th
 
 // The screen's first part, LCD off: everything of the last screen put away, the game chosen (also for the card). Returns the venue.
 static uint8_t prelude(uint8_t id, uint8_t mode) {
+    if (mode != MG_STORY) TRANS_MENU();          // (src/trans.c: Practice from the list: the quick white fade; a story's mini-game has the drink wanted already)
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC; SCX_REG = 0;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
@@ -379,7 +380,8 @@ static void result_row(uint8_t r) {             // queue window row r (0..5)
 // the window's rows as win_init left them, the banner's LYC; LCD off (the next screen turns it on)
 static void mg_leave(void) {
     if (mg_game == G_TK) tk_leave();
-    if (mg_mode == MG_STORY) TRANS_WANT();       // (src/trans.c: a story mini-game over -> the next screen behind the drink; Practice and the pause menu's QUIT: a plain cut)
+    if (mg_mode == MG_STORY) TRANS_WANT();       // (src/trans.c: a story mini-game over -> the next screen behind the drink; Practice: the quick white fade; the pause menu's QUIT: a plain cut)
+    else TRANS_MENU();
     DISPLAY_OFF;
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     SCX_REG = 0;                                 // (Milk Run's street)

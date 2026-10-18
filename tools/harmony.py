@@ -244,3 +244,108 @@ def check(t, ch1):
         if uni > 2 * t.beat:
             probs.append(f"row {s}: {name_of(p)} doubles the melody for {uni} rows")
     return probs
+
+
+# ---- arranging helpers for the pro arrangements (music batch 1 on: songs.py builds the bass, drum and harmony lines from bars) ----
+def merge_ties(text):
+    """'~:n' holds the previous note n more rows (the same fold as gen_music.merge_ties; the specs write rests as R)."""
+    toks = []
+    for tok in text.split():
+        if tok.startswith("R:"):
+            tok = "r" + tok[1:]
+        if tok.startswith("~:"):
+            m = re.fullmatch(r"([^:]+):(\d+)(.*)", toks[-1])
+            assert m and m.group(1) != "r", f"tie after {toks[-1]}"
+            toks[-1] = f"{m.group(1)}:{int(m.group(2)) + int(tok[2:])}{m.group(3)}"
+        else:
+            toks.append(tok)
+    return " ".join(toks)
+
+
+def nrows(text):
+    return sum(int(t.split(":")[1].rstrip("!").split("/")[0]) for t in merge_ties(text).split())
+
+
+def expand(bars, refs):
+    """bars: a list of token strings where an int refers to an earlier bar (1-based); `refs` bars in all."""
+    out = []
+    for b in bars:
+        out.append(out[b - 1] if isinstance(b, int) else b)
+    assert len(out) == refs, (len(out), refs)
+    return out
+
+
+def patch_bars(text, rows, edits):
+    """A token string with the bars in `edits` ({bar 1-based: tokens of `rows` rows}) replaced; a note of the original
+    that crosses into or out of an edited bar is cut at the bar line, every other token boundary is kept."""
+    ev = []                                   # per row: (pitch name or None, starts here?)
+    for tok in merge_ties(text).split():
+        nm, n = tok.split(":")
+        n = int(n.rstrip("!").split("/")[0])
+        suf = tok[len(nm) + 1 + len(str(n)):]
+        ev += [(nm + suf, k == 0) for k in range(n)]
+    for bar, toks in edits.items():
+        assert nrows(toks) == rows, (bar, toks)
+        r0 = (bar - 1) * rows
+        new = []
+        for tok in toks.split():
+            nm, n = tok.split(":")
+            n = int(n.rstrip("!").split("/")[0])
+            suf = tok[len(nm) + 1 + len(str(n)):]
+            new += [(nm + suf, k == 0) for k in range(n)]
+        ev[r0:r0 + rows] = new
+        if r0 + rows < len(ev):
+            ev[r0 + rows] = (ev[r0 + rows][0], True)
+    out = []
+    for nm, start in ev:
+        if start or not out or out[-1][0] != nm:
+            out.append([nm, 1])
+        else:
+            out[-1][1] += 1
+    return " ".join(f"{nm}:{n}" if "/" not in nm else f"{nm.split('/')[0]}:{n}/{nm.split('/')[1]}" for nm, n in out)
+
+
+def transpose(text, octaves):
+    out = []
+    for tok in text.split():
+        nm, rest = tok.split(":", 1)
+        if nm not in ("r", "R", "~"):
+            nm = nm[:-1] + str(int(nm[-1]) + octaves)
+        out.append(f"{nm}:{rest}")
+    return " ".join(out)
+
+
+def bars_of(text, first, last, bar_rows=8):
+    """Bars first..last (1-based) of a token string; no note may cross the cut (asserted)."""
+    a, b = (first - 1) * bar_rows, last * bar_rows
+    out, row = [], 0
+    for tok in merge_ties(text).split():
+        n = int(tok.split(":")[1].rstrip("!").split("/")[0])
+        if a <= row and row + n <= b:
+            out.append(tok)
+        else:
+            assert row + n <= a or row >= b, (first, last, tok, row)
+        row += n
+    assert nrows(" ".join(out)) == b - a
+    return " ".join(out)
+
+
+def bass_check(bass, chords, bar_rows):
+    """The bass line against the chords: every note is a chord tone of its bar's chord, or a short note (1-2 rows) that steps
+    (1-2 semitones) into the next bass note, or a short note on the last rows before a chord change that is a chord tone of the
+    next chord (an anticipation: the "E into A", "D C B into G" leads).  The line wraps (the last note leads into the first).
+    Returns (problems, anticipations)."""
+    tl = [(s, n, p) for s, n, p in timeline(bass) if p is not None]
+    crow = chord_rows(chords, bar_rows)
+    probs, antic = [], []
+    for i, (s, n, p) in enumerate(tl):
+        if p % 12 in chord_pcs(crow[s]):
+            continue
+        ns, nn, np_ = tl[(i + 1) % len(tl)]
+        if n <= 2 and 1 <= abs(np_ - p) <= 2:
+            continue
+        if n <= 2 and p % 12 in chord_pcs(crow[ns]) and crow[ns] != crow[s]:
+            antic.append(f"bar {s // bar_rows + 1}: {name_of(p)} ({crow[s]}) anticipates {crow[ns]}, then {name_of(np_)}")
+            continue
+        probs.append(f"bar {s // bar_rows + 1} row {s}: {name_of(p)} is not in {crow[s]} and does not step into {name_of(np_)}")
+    return probs, antic

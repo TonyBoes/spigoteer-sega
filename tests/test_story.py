@@ -866,7 +866,7 @@ def test_the_tour_covers_every_portrait_and_swap():
     toured = {"INTRO", "FINALE_A", "FINALE_B"} | {SCENES[pre(c)]["id"] for c in range(10)} | {SCENES[post(c)]["id"] for c in range(10)}
     assert {s["id"] for s in SCENES if s["spk"]} == toured
     assert {p["portrait"] for s in SCENES for p in s["pages"] if p["portrait"]} == set(PORTRAITS)
-    assert len(portrait_pairs()) == 29
+    assert len(portrait_pairs()) == 30
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

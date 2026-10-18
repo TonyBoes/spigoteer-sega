@@ -183,6 +183,7 @@ static uint8_t box_row(void) { return RUSH->scr == RS_LIST ? ROW_BOX_LIST : ROW_
 static uint8_t info_n(void) { return RUSH->scr == RS_LIST ? INFO_LIST : INFO_LINES; }
 
 static void frame_begin(uint8_t scr) {           // LCD off: a blank band with the title, its panels, HUD attributes
+    TRANS_MENU();                                // (src/trans.c: the quick white fade between the menu, the list and the result)
     DISPLAY_OFF;
     if (scr != RS_NEXT) {                        // the menu, the list and the result play the title tune (left alone when it
         music_play(TUNE_TITLE);                  // already plays; after a fight its patterns are copied back now and the

@@ -34,6 +34,14 @@ export TIP
 ifneq ($(TIP),)
 LCCFLAGS += -DTIP_VARIANT_$(TIP)
 endif
+# Playtest variants (owner 2026-10-17), off by default; each is built into its own directory so the default build is untouched:
+#   make BUILD=out/b_glowA OUT=out/o_glowA GLOW=A unlocked  GLOW=A: the bistro oven's CGB palette pulse (src/glow.c); GLOW=B: a halo in the BG tiles
+#                                                         around it and a flicker (assets/approved/venues/bistro_*_glowb.txt, tools/gen_art.py)
+GLOW     ?=
+export GLOW
+ifneq ($(GLOW),)
+LCCFLAGS += -DGLOW_$(GLOW)
+endif
 
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
@@ -43,7 +51,7 @@ VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
 # M11b story mode: the script (docs/story.md), the portraits and the story font -> two banked files (tools/gen_story.py)
 STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c $(BUILD)/story_pictures.c
-GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(STORY_C) $(BUILD)/credits_text.c
+GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(BUILD)/music_pat23.c $(BUILD)/music_pat24.c $(STORY_C) $(BUILD)/credits_text.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
 # rgb2sdas.py, placed in ROM bank 2 next to the order tables and src/music.c (all `#pragma bank 2`); the song patterns are
 # in bank 10 (build/music_pat10.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
@@ -181,6 +189,10 @@ $(BUILD)/music_pat10.c: $(BUILD)/music_data.c
 
 # build/music_pat22.c: the credits tune's pattern blob (bank 22, with its harmony; streamed into the buffer: src/music.c)
 $(BUILD)/music_pat22.c: $(BUILD)/music_data.c
+	@true
+
+# build/music_pat23.c: the title tune's blob and harmony (bank 23, streamed like the credits'); build/music_pat24.c: the jingles' patterns (bank 24)
+$(BUILD)/music_pat23.c $(BUILD)/music_pat24.c: $(BUILD)/music_data.c
 	@true
 
 # the soundtrack player's names (tools/songs.py SOUNDTRACK, in music.h's tune order) -> build/jukebox_names.h (src/jukebox.c)

@@ -543,17 +543,18 @@ def test_the_credits_tune_in_the_rom_is_the_generators_d3c(tmp_path, monkeypatch
     # build/ is what the generator makes from the sources now
     monkeypatch.setattr(sys, "argv", ["gen_music", str(tmp_path)])
     gm.main()
-    for f in ("music_data.c", "music_pat10.c", "music_pat22.c"):
+    for f in ("music_data.c", "music_pat10.c", "music_pat22.c", "music_pat23.c", "music_pat24.c"):
         assert filecmp.cmp(tmp_path / f, BUILD / f, shallow=False), f + " is stale"
     # the order tables: orders 0-3 use patterns 0-7 of the buffer, order j >= 4 sits over order j & 3
     data = (BUILD / "music_data.c").read_text()
     for c, name in ((2, "credits_order2"), (3, "credits_order3")):
         want = ", ".join("&mus_buf_a[%d]" % (((o & 3) * 2 + c - 2) * gm.SLOT_BYTES) for o in range(ORDERS))
         assert f"{name}[] = {{{want}}}" in data, name
-    assert "{&song_credits, 0, %d, 1, 22, blob_credits, 1536, NULL, 0}" % FRAMES in data, "a jingle (once), the real frames, 8 patterns first, bank 22"
+    assert "{&song_credits, 0, %d, 3, 22, blob_credits, 1536, NULL, 0}" % FRAMES in data, "a jingle (once), the real frames, 8 patterns first, bank 22, streamed (buf 3)"
     # the pattern data and the harmony are in ROM bank 22 (a bank of its own; the other tunes' harmony stays in bank 10)
     assert rom_bank("blob_credits") == rom_bank("harm_credits") == 22 == gm.CREDITS_BANK
-    assert rom_bank("harm_title") == gm.HARM_BANK == 10
+    assert rom_bank("harm_title") == rom_bank("blob_title") == gm.TITLE_BANK == 23, "the streamed title: its own bank too"
+    assert rom_bank("harm_venue0") == gm.HARM_BANK == 10
     assert rom_bytes("blob_credits", len(pats) * gm.SLOT_BYTES) == b"".join(dn(k) for k in pats)
     h = bytes(gm.harm_bytes(t, gm.harm_events("credits", t, b["total"])))
     assert len(h) == 762 and rom_bytes("harm_credits", len(h)) == h
@@ -572,7 +573,7 @@ def test_the_generator_stores_a_repeated_pattern_again(tmp_path, monkeypatch):
     blob = (tmp_path / "music_pat22.c").read_text()
     assert "blob_credits[] = {   // credits: 20 patterns" in blob and "harm_credits" not in blob
     assert blob.count("DN(") == 20 * 64, "all twenty slots are written out"
-    assert f"{{&song_credits, 0, {64 * 15 * ORDERS}, 1, 22, blob_credits, 1536, NULL, 0}}" in (tmp_path / "music_data.c").read_text()
+    assert f"{{&song_credits, 0, {64 * 15 * ORDERS}, 3, 22, blob_credits, 1536, NULL, 0}}" in (tmp_path / "music_data.c").read_text()
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

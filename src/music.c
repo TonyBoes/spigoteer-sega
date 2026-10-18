@@ -1,10 +1,10 @@
 // Music engine glue (hUGEDriver) and the sound-effect engine. ROM bank 2: the driver code, the order tables and
-// instruments (build/music_data.c), the jingles' patterns and this file. hUGEDriver reads patterns through plain
-// pointers, so it only sees data in the bank it runs from, or in WRAM. The title, show and venue tunes are too big
-// for bank 2: their patterns sit in ROM bank 10 and music_tick copies them into WRAM (mus_buf_a: the title or the
-// level's venue tune; mus_buf_b: the show tune, copied once and kept), a slice per frame, before a tune starts.
-// The credits tune (TUNE_CREDITS, bank CREDITS_BANK) has 20 patterns, the buffer 8: it starts with the first 8 and music_tick
-// copies each later order over the slot of the order two before it as it plays (see tick); its harmony is in the same bank.
+// instruments (build/music_data.c) and this file. hUGEDriver reads patterns through plain pointers, so it only sees data in
+// the bank it runs from, or in WRAM. Every tune's patterns sit in a ROM bank (the venue tunes' in bank 10, the jingles' in 24) and
+// music_tick copies them into WRAM (mus_buf_a: the jingle or the level's venue tune; mus_buf_b: the show tune, copied once and kept),
+// a slice per frame, before a tune starts. A streamed tune (tune_t.buf 3: the title, 20 orders and looping, bank 23; the credits tune,
+// 10 orders, bank 22) has more orders than the buffer's four: it starts with the first 8 patterns and music_tick copies each later
+// order over the slot of the order two before it as it plays (see tick); its harmony is in the same bank as its blob.
 // The music uses channels 2 and 3 (melody, bass) and 4 (percussion in most tunes) through the driver, and channel 1 for
 // a quieter harmony line that harm_tick plays itself (music step 5). Sound effects own channels 1 and 4: while one
 // plays, the driver is told to leave channel 4 alone (hUGE_mute_channel) and harm_tick writes nothing to channel 1;
@@ -25,6 +25,7 @@ uint16_t music_late;
 static uint8_t mus_active;       // the driver is running a tune: 1 a looping one, 2 a jingle (it stops after its frames)
 static uint8_t muted;            // bit n: driver channel n muted (cache of the driver's mask)
 static uint8_t loaded[3] = { TUNE_NONE, TUNE_NONE, TUNE_NONE };   // [buffer]: the tune whose patterns are in it
+#define BUFI(b) ((b) == 3 ? 1 : (b))   // a streamed tune (buf 3) is in buffer A
 static uint8_t ld_tune = TUNE_NONE;   // tune whose patterns are being copied (TUNE_NONE: no copy running)
 static uint8_t ld_play;               // start it when the copy is done (else it is a preload)
 static const uint8_t *groove;         // the running tune's drum loop (NULL: none)
@@ -36,9 +37,9 @@ uint8_t music_fast;                   // 1: a venue tune plays one frame a row f
 static uint8_t fast_now;              // the running tune plays fast
 static uint16_t ld_pos;               // bytes copied so far
 extern const uint16_t hUGE_note_table[];   // the driver's 72 periods (exported for this: CREDITS.md)
-static const uint8_t *harm;           // the running tune's channel-1 harmony track (bank HARM_BANK; the credits tune's: CREDITS_BANK), NULL: none
+static const uint8_t *harm;           // the running tune's channel-1 harmony track (bank HARM_BANK; a streamed tune's: its blob's bank), NULL: none
 static const uint8_t *h_ptr;          // its next event
-static uint8_t h_inst[4];             // duty A, envelope A, duty B, envelope B (the track's header)
+static uint8_t h_inst[5];             // duty A, envelope A, duty B, envelope B (the track's header), then the track's ROM bank
 static uint8_t h_note;                // the current event's note byte (HARM_REST: a rest)
 static uint8_t h_rows, h_cnt;         // rows left in the event, frames left in the row
 static uint8_t h_sound;               // 1: the current harmony note sounds on channel 1 (0: rest, or an effect took it)
@@ -169,15 +170,16 @@ static void start_song(uint8_t tune) {
     harm = harm_tab[tune]; h_rows = 0; h_cnt = 1;           // so does the harmony's first event
     if (harm) {
         uint8_t skip = tunes[tune].start;                   // a pickup: skip the events before the start row
-        mus_copy(tune == TUNE_CREDITS ? CREDITS_BANK : HARM_BANK, harm, h_inst, 4); h_ptr = harm + 4;
-        while (skip) { skip -= harm_peek(h_ptr) >> 8; h_ptr += 2; }   // (gen_music: the row is an event boundary)
+        h_inst[4] = tunes[tune].buf == 3 ? tunes[tune].bank : HARM_BANK;
+        mus_copy(h_inst[4], harm, h_inst, 4); h_ptr = harm + 4;
+        while (skip) { skip -= harm_peek(h_inst[4], h_ptr) >> 8; h_ptr += 2; }   // (gen_music: the row is an event boundary)
     }
     mute_unless_sfx(3, 1);          // a sound effect that is still sounding keeps channel 4
 }
 
 static void begin_load(uint8_t tune, uint8_t play) {
     ld_tune = tune; ld_pos = 0; ld_play = play;
-    loaded[tunes[tune].buf] = TUNE_NONE;
+    loaded[BUFI(tunes[tune].buf)] = TUNE_NONE;
 }
 
 extern uint8_t story_on;
@@ -188,7 +190,7 @@ void music_play(uint8_t tune) BANKED {
         && fast_now == (music_fast && FAST_TUNE(tune))) return;   // (a speed change restarts it)
     cur_tune = tune;
     if (!sound_on) return;
-    if (buf && (loaded[buf] != tune || tune == TUNE_CREDITS)) {      // (the credits tune overwrites its own buffer as it plays: always copied afresh)
+    if (loaded[BUFI(buf)] != tune || buf == 3) {      // (a streamed tune overwrites its own buffer as it plays: always copied afresh)
         if (ld_tune == tune) {                      // its preload is running: keep the bytes copied so far
             silence_music(); ld_tune = tune; ld_play = 1;
             return;
@@ -303,10 +305,10 @@ static void harm_tick(void) {
     if (--h_cnt == 0) {
         h_cnt = hUGE_ticks_per_row;
         if (h_rows == 0 || --h_rows == 0) {
-            ev = harm_peek(h_ptr);
+            ev = harm_peek(h_inst[4], h_ptr);
             if (!(ev >> 8)) {                            // the end of the track: from the top, as the driver loops
                 h_ptr = harm + 4;
-                ev = harm_peek(h_ptr);
+                ev = harm_peek(h_inst[4], h_ptr);
             }
             h_ptr += 2;
             h_note = (uint8_t)ev; h_rows = ev >> 8;
@@ -331,11 +333,11 @@ static uint8_t load_step(void) {
     uint16_t n = t->bytes - ld_pos;
     uint16_t cap = ld_play ? LOAD_PLAY_BYTES : LOAD_PRELOAD_BYTES;
     if (n > cap) n = cap;
-    mus_copy(t->bank, t->blob + ld_pos, (t->buf == 1 ? mus_buf_a : mus_buf_b) + ld_pos, n);
+    mus_copy(t->bank, t->blob + ld_pos, (t->buf == 2 ? mus_buf_b : mus_buf_a) + ld_pos, n);
     ld_pos += n;
     if (ld_pos >= t->bytes) {
         uint8_t done = ld_tune;
-        loaded[t->buf] = done;
+        loaded[BUFI(t->buf)] = done;
         ld_tune = TUNE_NONE;
         if (ld_play) { start_song(done); voice_tick(0); voice_tick(1); return 1; }
     }
@@ -356,13 +358,17 @@ static void tick(void) {
         if (swing && !hUGE_tick)        // a swung tune: this row's length (bit n of the mask: the rows n mod 8 are a frame shorter)
             hUGE_ticks_per_row = tunes[cur_tune].song->tempo - fast_now - ((swing >> (hUGE_row & 7)) & 1);
         hUGE_dosound();
-        if (cur_tune == TUNE_CREDITS && hUGE_tick == 1) {            // the credits tune: while order k plays (the driver counts orders by 2), order k+2 goes
-            uint8_t k = hUGE_current_order >> 1, r = hUGE_row - 2;    // over the buffer slot of order k-2, which is done: one slice on each of the order's
-            if (k >= 2 && k + 2 < CREDITS_ORDERS && r < CREDITS_COPY_ROWS) {    // rows 2 .. 2 + CREDITS_COPY_ROWS - 1
-                const tune_t *c = &tunes[TUNE_CREDITS];
-                uint16_t o = (uint16_t)r * CREDITS_SLICE;
-                mus_copy(c->bank, c->blob + (uint16_t)(k + 2) * CREDITS_ORDER_BYTES + o,
-                         mus_buf_a + (uint16_t)((k + 2) & 3) * CREDITS_ORDER_BYTES + o, CREDITS_SLICE);
+        if (hUGE_tick == STREAM_TICK && tunes[cur_tune].buf == 3) {  // a streamed tune: while order k plays (the driver counts orders by 2), order k+2 goes
+            uint8_t r = hUGE_row - 2;                                 // over the buffer slot of order k-2, which is done: one slice on each of the order's
+            if (r < STREAM_COPY_ROWS) {                               // rows 2 .. 2 + STREAM_COPY_ROWS - 1, on a plain tick (tick 1 is the row tick's own
+                const tune_t *c = &tunes[cur_tune];                   // call, the dearest one: the copy made it 24 lines)
+                uint8_t n = *c->song->order_cnt >> 1, k2 = (hUGE_current_order >> 1) + 2;
+                if (k2 >= n) { if (c->loop) k2 -= n; else r = STREAM_COPY_ROWS; }   // the end: a looping tune wraps (order 0 over slot 0, ...), a jingle stops copying
+                if (r < STREAM_COPY_ROWS) {
+                    uint16_t o = (uint16_t)r * STREAM_SLICE;
+                    mus_copy(c->bank, c->blob + (uint16_t)k2 * STREAM_ORDER_BYTES + o,
+                             mus_buf_a + (uint16_t)(k2 & 3) * STREAM_ORDER_BYTES + o, STREAM_SLICE);
+                }
             }
         }
         if (groove && !--g_cnt) groove_row();
