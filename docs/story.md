@@ -1062,6 +1062,8 @@ I'LL POUR YOU ONE.
 
 Picture: the same Fizzwater square by day, pennants among the string lights. The restored Golden Spigot gleams on its fountain, its water runs into the glass the Spigoteer (in his cozy) holds up to the jet, a sheepish Dregs stands by, and the ten owners are lined up along the bottom. (`assets/story/pictures/finale_a.txt`; FINALE_B shows it too.)
 
+Picture (page 4): the same square, now staged for the contest (owner Q56, 2026-10-18): the Spigoteer and Dregs stand facing each other in front of the fountain (their game sprites, the Golden Spigot untouched and not poured from), the ten owners watching along the bottom. It replaces the first-pour picture behind a white flash on page 4 (the last narrator page before Sadie's: a picture may only change on a narrator page) and stays through the challenge and the Pour-Off's lead-in. FINALE_B shows the first-pour picture again. (`assets/story/pictures/finale_contest.txt`, derived from `finale_a.txt` by `tools/gen_contest_pic.py`)
+
 The FINALE is split in two (the Pour-Off, docs/minigames_bosses.md section 5, plays between the halves: a SALOON race against Dregs, first to 20 serves, built into the story after this scene). The two new pages (DREGS, SPIGOTEER) are **proposed, pending owner approval** (docs/minigames_bosses.md section 7's suggested text); the other pages are the owner-approved script, moved unchanged.
 
 ```

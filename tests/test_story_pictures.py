@@ -61,9 +61,9 @@ def assert_picture(gb, name, skip=None):
 
 # ---- the build -----------------------------------------------------------------------------------------------
 def test_the_pictures_are_built_to_the_budget():
-    assert list(PICS) == ["intro_before", "intro_a", "finale_a", "credits_b"]
+    assert list(PICS) == ["intro_before", "intro_a", "finale_a", "finale_contest", "credits_b"]
     by_scene = {s["id"]: s for s in SCENES}
-    assert [(by_scene[i]["pic"], by_scene[i]["swpage"]) for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [(0, 7), (2, 0), (2, 0), (3, 0)]
+    assert [(by_scene[i]["pic"], by_scene[i]["swpage"]) for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [(0, 7), (2, 4), (2, 0), (4, 0)]   # (FINALE_A: the contest's set-up from page 4; FINALE_B shares the first-pour picture only)
     for name, p in PICS.items():
         sc = by_scene[p["scene"]]
         slot = sc["bg_tiles"]
@@ -75,8 +75,8 @@ def test_the_pictures_are_built_to_the_budget():
         assert all(a in (0, 5, 6, 7, 1) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
         assert p["tiles"] + p["extra"] <= 36 + 256 - p["base"], name
     # the numbers of the report (the picture tiles, the HUD palette cells of CREDITS)
-    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 113, "finale_a": 134, "credits_b": 132}
-    assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "credits_b": 12}
+    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 113, "finale_a": 134, "finale_contest": 131, "credits_b": 132}
+    assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "finale_contest": 0, "credits_b": 12}
     # the portrait slot sits below the picture's tiles in every scene
     assert all(max(i for i in PICS[n]["map"] if i >= 36) < 256 for n in PICS)
 
@@ -322,6 +322,7 @@ def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
         s = SCENES[SC[scene]]
         slot = list(range(SLOT_BASE, SLOT_BASE + s["bg_tiles"]))
         assert max(slot) < PICS["finale_a"]["base"] and s["bg_tiles"] == (49 if scene == "FINALE_A" else 45)
+        assert PICS["finale_contest"]["base"] == PICS["finale_a"]["base"]    # (the contest's picture loads over the first-pour one)
         page_ready(gb)
         assert_picture(gb, "finale_a", skip=None if s["pages"][0]["portrait"] is None else FRAME)
         if scene == "FINALE_A":
@@ -338,12 +339,13 @@ def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
                     gb.run(1)
             page_ready(gb)
             name = page["portrait"]
+            pic = "finale_contest" if scene == "FINALE_A" and k >= 3 else "finale_a"   # (FINALE_A page 4 on: the contest's set-up behind a flash; FINALE_B: the first pour)
             if name is None:
                 assert gb.mem("story_cur") == 255
-                assert_picture(gb, "finale_a")
+                assert_picture(gb, pic)
             else:
                 assert gb.mem("story_cur") == PORTRAITS[name]["pid"], (k, name)
-                assert_picture(gb, "finale_a", skip=FRAME)
+                assert_picture(gb, pic, skip=FRAME)
                 # the portrait's tiles in the slot, from its first tile on (the tile map says so)
                 p = PORTRAITS[name]
                 for r in range(p["h"]):
@@ -775,3 +777,22 @@ def test_the_credits_flags_match_the_finales_and_the_stand_and_legs_read():
     assert sign.count("Y") >= 60 and sign.count("y") >= 20
     window = "".join(stand[8:23])
     assert window.count("C") >= 30 and window.count("T") >= 30 and window.count("G") >= 60       # cup and steam, hand, fur
+
+
+def test_the_contest_picture_is_the_first_pour_courtyard_with_the_two_game_sprites_and_no_pour():
+    """finale_contest = finale_a outside the old Spigoteer / Dregs spot (x 112-159, y 58-87) and the two sprites' boxes: the Golden Spigot, the
+    fountain and the ten owners are untouched, nothing is held up to the jet, the Spigoteer and Dregs are the game's idle sprites facing each other."""
+    key, a = _pix("finale_a")
+    key2, b = _pix("finale_contest")
+    assert key == key2
+    for y in range(104):
+        for x in range(160):
+            in_spot = 112 <= x < 160 and 58 <= y < 88
+            in_sal = 56 <= x < 72 and 64 <= y < 88
+            if not (in_spot or in_sal):
+                assert a[y][x] == b[y][x], (x, y)
+    assert _region(a, 88, 6, 119, 40) == _region(b, 88, 6, 119, 40)             # the Golden Spigot, whole
+    assert _region(a, 0, 88, 160, 104) == _region(b, 0, 88, 160, 104)          # the owners
+    assert not any("S" in r[112:137] for r in b[58:80])                         # nobody holds a glass up to the right jet: the hand and the Spigoteer are gone from the basin
+    assert sum(c != "." for r in _region(b, 56, 64, 72, 88) for c in r) > 60      # the Spigoteer
+    assert sum(c != "." for r in _region(b, 137, 64, 153, 88) for c in r) > 60    # Dregs

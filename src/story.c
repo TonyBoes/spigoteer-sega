@@ -948,13 +948,15 @@ static uint8_t pic_fx(void) {
         story_hdr.pic++;                         // (the wipes of pages 6-8 restore this one: story_pic_row)
         story_pic_draw(story_hdr.pic, is_cgb);
         story_pic_pals(story_hdr.pic, PS_PALS);
-        story_burst_load(is_cgb);                // (the explosion's ten pieces: OBJ tiles and palette, flown by story_update)
+        if (story_hdr.pic == STORY_BURST_PIC) story_burst_load(is_cgb);   // (the INTRO's explosion: ten pieces' OBJ tiles and palette, flown by story_update; FINALE_A's second picture has none)
         page_begin(1);                           // the narrator's page: its box and tag, no portrait (story_cur 255)
         pic_calc(3);
         pic_put();
         pic_calc(2);
-        PB_T = 1;                                // the pieces sit where the spigot was (frame 0), flying from the next frame on
-        story_burst_step(0, 0);
+        if (story_hdr.pic == STORY_BURST_PIC) {
+            PB_T = 1;                            // the pieces sit where the spigot was (frame 0), flying from the next frame on
+            story_burst_step(0, 0);
+        }
         DISPLAY_ON;
         return 1;
     } else if (f > FX_RELOAD) {                  // the fade: w 2, 1, 0 two frames apart, each worked out a frame ahead
