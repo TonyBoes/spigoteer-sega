@@ -343,6 +343,12 @@ def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
             if name is None:
                 assert gb.mem("story_cur") == 255
                 assert_picture(gb, pic)
+                if scene == "FINALE_A" and k == 3:                    # (a new golden: the contest's set-up on its first page; written when missing)
+                    g = ROOT / "tests" / "golden" / f"story_pic_finale_contest.{gb.model_name}.png"
+                    if g.exists():
+                        check_golden(gb, "story_pic_finale_contest")
+                    else:
+                        gb.golden(g, update=True)
             else:
                 assert gb.mem("story_cur") == PORTRAITS[name]["pid"], (k, name)
                 assert_picture(gb, pic, skip=FRAME)
