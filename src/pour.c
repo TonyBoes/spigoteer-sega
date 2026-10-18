@@ -31,7 +31,8 @@
 #define CUE_FRAMES   48
 #define CUE_BLINK    16
 
-extern uint8_t frame_t0;      // main.c: (uint8_t)sys_time when this frame began
+extern uint8_t frame_counter; // main.c
+extern uint8_t frame_t0;     // main.c: (uint8_t)sys_time when this frame began
 uint8_t pour_q;               // the drink launched next is perfect (spawn_mug -> mug_timer)
 uint8_t pour_t;               // story: the fill frames counted past FILL_FRAMES (0 while not full)
 uint8_t pour_win;             // the sparkle window's length (pour_load: POUR_WIN_LEN; Practice HARD: POUR_WIN_HARD)
@@ -126,6 +127,32 @@ static void draw_cue(void) {
     o->y = 0;
 }
 
+// The perfect mug's sparkle (owner playtest 2026-10-18: "can perfect pour mugs be animated to sparkle a bit without too much cost?"). A mug let go in
+// the window slides with its mug_timer 1; its OAM entry (drawn by draw_mugs just before) swaps its tile for the SPARKLE frame of the hand (OBJ_POUR: the
+// same 8x16 mug, twinkles over the foam) for 3 frames of every 8, out of step between mugs (the slot adds 3 frames). It adds no sprite (so none on any
+// line) and no palette; DMG and CGB alike. The entry is found by counting, as draw_mugs_loop hands them out from OAM_FILL + 1 in slot order: a free
+// slot none, a breaking glass 2, any other mug 1 (and a swap only if the entry holds the full mug's tile). CPU: one pass over the live slots (it stops
+// at the last one); on a frame already past TWINKLE_LY (a crowded late frame: the particle survey's slack gate) the mugs stay plain.
+#define TWINKLE_LY   90
+static void twinkle(void) {
+    const uint8_t *st = mug_state, *tm = mug_timer;
+    uint8_t i = 0, n = 0, s, left = mugs_live, f = frame_counter, full = spr_full_t;   // (full: a local; the compiler wrote the new tile through the pointer it had just compared with spr_full_t)
+    OAM_item_t *o;
+    do {
+        s = *st++;
+        if (s) {
+            left--;
+            if (s == MUG_BREAKING) n++;
+            else if (s == MUG_FULL && *tm == 1 && ((uint8_t)(f + i + (i << 1)) & 7) < 3) {
+                o = shadow_OAM + OAM_FILL + 1 + n;
+                if (o->tile == full) o->tile = OBJ_POUR;
+            }
+            n++;
+        }
+        tm++; i++;
+    } while (left && i != MAX_MUGS);
+}
+
 void pour_frame(void) BANKED {
     OAM_item_t *o;
     uint8_t end = POUR_WIN_START + pour_win;                 // the first overflow frame
@@ -146,6 +173,7 @@ void pour_frame(void) BANKED {
         o->tile = pour_q ? OBJ_POUR : OBJ_POUR + 2;
         o->prop = is_cgb ? OBJPAL_MUG_FULL : S_PALETTE;
     }
+    if (mugs_live && LY_REG < TWINKLE_LY) twinkle();
     if (cue_t) draw_cue();
     if (boss_on) boss_draw();                                // a boss fight: his topper (last: it counts the lines)
 }
