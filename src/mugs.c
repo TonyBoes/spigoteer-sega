@@ -107,10 +107,10 @@ void update_mugs(void) {
     for (i = 0; i != MAX_MUGS; i++) {
         st = mug_state[i];
         if (st == MUG_FREE) continue;
-        if (st == MUG_FULL) live += full_step(i);
+        if (st == MUG_HELD) live += held_step(i);          // (the commonest first: a drinker's mug, 5-7 of a crowd's ~10)
         else if (st == MUG_EMPTY) live += empty_step(i);
+        else if (st == MUG_FULL) live += full_step(i);
         else if (st == MUG_BREAKING) live += glass_step(i);
-        else if (st == MUG_HELD) live += held_step(i);
         else live++;
     }
     mugs_live = live;

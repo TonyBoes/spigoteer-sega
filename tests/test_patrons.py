@@ -727,10 +727,13 @@ def test_empties_move_one_px_every_second_frame(gb):
     steps = [b - a for a, b in zip([40] + xs, xs)]
     assert steps == [0, 1] * 10, steps
     full = inject_mug(gb, 3, 100, FULL)
-    gb.run(1)
-    x0 = gb.read("mug_x", MAX_M)[full]
-    gb.run(5)
-    assert gb.read("mug_x", MAX_M)[full] == x0 - 10, "full mugs stay at 2 px per frame"
+    snaps = []                                    # (its x where each game frame's logic ends: an emulator frame's end can fall inside update_mugs, between two mugs, and move with the code's timing)
+    a = gb.addr("vq_frame_end")
+    gb.pb.hook_register(a >> 16, a & 0xFFFF, lambda _: snaps.append(gb.read("mug_x", MAX_M)[full]), None)
+    gb.run(8)
+    gb.pb.hook_deregister(a >> 16, a & 0xFFFF)
+    steps = [x - y for x, y in zip(snaps, snaps[1:])]
+    assert len(snaps) >= 7 and steps[1:6] == [2] * 5, "full mugs stay at 2 px per frame"
 
 
 def drinker_with_mug(gb, bar, x, timer):

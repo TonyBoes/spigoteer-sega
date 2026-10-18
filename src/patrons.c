@@ -574,10 +574,12 @@ void update_patrons(void) {
     for (p = 0; p != MAX_PATRONS; p++) {
         if ((st = patron_state[p]) == PATRON_NONE) continue;
         if (st == PATRON_WALKING) live += walking_step(p);
+        else if (st == PATRON_DRINKING) {
+            if (!((patron_bar[p] ^ frame_counter) & 1)) drinking_step(p);   // (a drinker whose bar's frame it is not waits a frame; one bar's drinkers keep their slot order)
+            live++;                                                          // (it always returns 1)
+        }
         else if (st == PATRON_PUSHED) live += pushed_step(p);
-        else if (st == PATRON_LEAVING) live += leaving_step(p);
-        else if ((patron_bar[p] ^ frame_counter) & 1) live++;   // (a drinker whose bar's frame it is not waits a frame; one bar's drinkers keep their slot order)
-        else live += drinking_step(p);
+        else live += leaving_step(p);
     }
     patrons_live = live;
     if (spawned >= quota && patrons_live == 0 && mugs_live == 0) level_clear = 1;
