@@ -73,6 +73,7 @@ extern uint8_t music_fast;      // 1: venue tunes play one frame a row faster (a
                                 // speeds up in The Chrome Cow's Last call); set before the music_play that starts it
 
 void music_init(void) BANKED;               // sound hardware on, no tune
+#define MUSIC_LATER 0x80                        // OR-ed into the tune: if it is already loaded, it starts one frame later (spreads a busy frame)
 void music_play(uint8_t tune) BANKED;       // start a tune (a looping tune already playing is left alone). A tune whose patterns
                                             // are not in WRAM yet starts a few frames later (music_tick copies them first)
 uint16_t music_tune_frames(uint8_t tune) BANKED;   // one pass of the tune, in frames (orders x 64 rows x its tempo)
