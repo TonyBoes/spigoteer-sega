@@ -138,6 +138,7 @@ static void harm_off(void) {          // the harmony lets go of channel 1 (volum
 }
 
 static void silence_music(void) {
+    if (ld_play > 1) ld_play = 0;
     harm_off(); harm = 0;
     mus_active = 0; ld_tune = TUNE_NONE;
     set_mute(0, 1); set_mute(1, 1); set_mute(2, 1); set_mute(3, 1);
@@ -205,10 +206,11 @@ void music_play(uint8_t tune) BANKED {
         return;
     }
     if (ld_tune != TUNE_NONE && ld_play) ld_tune = TUNE_NONE;       // a tune that was still loading is superseded
-    if (later && ld_tune == TUNE_NONE) {                            // a copy already done, a start after one idle tick (load_step): the frame of a show
-        ld_tune = tune; ld_play = 2; ld_pos = tunes[tune].bytes;    // starting or ending is already a busy one
-        return;
+    if (later && ld_tune == TUNE_NONE) {                            // a copy already done: the start waits one idle tick (tick(), ld_play 3 -> 2 -> start;
+        ld_play = 3;                                                // the frame of a show starting or ending is already a busy one). It lives in tick()'s
+        return;                                                     // no-load branch: the load frames (the dearest ones, test_music_cpu) pay nothing for it
     }
+    if (ld_play > 1) ld_play = 0;                                   // (a start now cancels a waiting one)
     start_song(tune);
 }
 
@@ -339,7 +341,6 @@ static void sfx_dispatch(uint16_t req) {
 // Copies the next slice of a tune's patterns to WRAM. Returns 1 when the tune started (this frame's tick is done).
 static uint8_t load_step(void) {
     const tune_t *t = &tunes[ld_tune];
-    if (ld_play == 2) { ld_play = 1; return 0; }                  // (music_play MUSIC_LATER: one idle tick first)
     uint16_t n = t->bytes - ld_pos;
     uint16_t cap = ld_play ? LOAD_PLAY_BYTES : LOAD_PRELOAD_BYTES;
     if (n > cap) n = cap;
@@ -362,6 +363,8 @@ static void tick(void) {
     if (req) sfx_dispatch(req);
     if (ld_tune != TUNE_NONE) {
         if (load_step()) return;
+    } else if (ld_play > 1) {
+        if (--ld_play == 1) { start_song(cur_tune); voice_tick(0); voice_tick(1); return; }   // MUSIC_LATER's start (cur_tune is the tune asked for)
     } else if (mus_active && loaded[2] != TUNE_SHOW && sound_on)
         begin_load(TUNE_SHOW, 0);                                   // the show tune is copied once, while a level plays
     if (mus_active) {

@@ -759,6 +759,8 @@ def test_the_venue_header_stays_through_its_three_cards_and_fades_once_each_way(
                         dim_in += 1                                  # (the fade in, seen)
                     continue
                 if f < end:
+                    if st[PHASE] in (1, 2, 3):
+                        continue                                     # (a card being built shows nothing at all, see the rows below; which emulator frame the build falls on moves with the code's timing)
                     assert list(hd.getdata()) == ref, ("the header changed within its venue", model, v, card, st[PHASE], f)
                 elif cols == 1:
                     seen_blank = True                                # (faded out to one colour after the boss)
