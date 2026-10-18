@@ -169,10 +169,8 @@ static void start_song(uint8_t tune) {
     harm_off();
     harm = harm_tab[tune]; h_rows = 0; h_cnt = 1;           // so does the harmony's first event
     if (harm) {
-        uint8_t skip = tunes[tune].start;                   // a pickup: skip the events before the start row
         h_inst[4] = tunes[tune].buf == 3 ? tunes[tune].bank : HARM_BANK;
-        mus_copy(h_inst[4], harm, h_inst, 4); h_ptr = harm + 4;
-        while (skip) { skip -= harm_peek(h_inst[4], h_ptr) >> 8; h_ptr += 2; }   // (gen_music: the row is an event boundary)
+        mus_copy(h_inst[4], harm, h_inst, 4); h_ptr = harm + 4;   // (a tune with a pickup, start: gen_music stores its track from that row on)
     }
     mute_unless_sfx(3, 1);          // a sound effect that is still sounding keeps channel 4
 }
@@ -333,9 +331,9 @@ static uint8_t load_step(void) {
     uint16_t n = t->bytes - ld_pos;
     uint16_t cap = ld_play ? LOAD_PLAY_BYTES : LOAD_PRELOAD_BYTES;
     if (n > cap) n = cap;
-    mus_copy(t->bank, t->blob + ld_pos, (t->buf == 2 ? mus_buf_b : mus_buf_a) + ld_pos, n);
+    if (n) mus_copy(t->bank, t->blob + ld_pos, (t->buf == 2 ? mus_buf_b : mus_buf_a) + ld_pos, n);
     ld_pos += n;
-    if (ld_pos >= t->bytes) {
+    if (ld_pos >= t->bytes && !(ld_play && t->start && n)) {      // (a pickup tune starts a frame after its last slice: its start tick, one more driver tick, would make that frame 5 400 M-cycles)
         uint8_t done = ld_tune;
         loaded[BUFI(t->buf)] = done;
         ld_tune = TUNE_NONE;

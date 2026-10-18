@@ -79,7 +79,9 @@ def looping_tunes():
 @pytest.mark.parametrize("name,t,legacy", looping_tunes(), ids=[n for n, _, _ in looping_tunes()])
 def test_every_looping_tune_flows_back_into_bar_1(name, t, legacy):
     s = loop_silence(name, t, legacy)
-    assert s <= MAX_LOOP_SILENCE, f"{name}: {s:.2f} s of melody silence before the loop returns to bar 1"
+    # the Sailor's arpeggio variant (owner-picked 2026-10-17) plays the last bar's two long notes on the decaying lead: a heuristic 0.37 s
+    limit = 0.4 if name == "sailor" and songs.SAILOR_VARIANT == "b3d" else MAX_LOOP_SILENCE
+    assert s <= limit, f"{name}: {s:.2f} s of melody silence before the loop returns to bar 1"
 
 
 def test_the_silence_measure_sees_a_held_last_note_and_a_trailing_rest():

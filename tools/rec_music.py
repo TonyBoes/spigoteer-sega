@@ -6,6 +6,11 @@
   title      boots to the title; the whole Entertainer: one pass (10336 frames) plus 30 s, so the loop seam is heard twice (at 0:00 and 2:53)
   susanna    ARCADE level 1 (the saloon): one pass (1536 frames) plus half a second
   ballgame   ARCADE level 2 (the sports bar): one pass (1728 frames) plus half a second
+  mountain funicula skaters hall sailor sakura weasel danube   ARCADE levels 3-10: one pass plus half a second (music batches 2-4; the pause mix
+             is the real pause menu's)
+  sailor_fast   the Sailor with music_fast set (the Last call: a frame a row less)
+  clear over bonus   the jingles, started from the soundtrack player (BONUS > SOUNDTRACK); the full mix only (the bonus loop twice)
+  credits    BONUS > CREDITS: the whole credits tune plus its last 20 s (credits_ingame_full_end20s.wav); the full mix only
 Files in OUTDIR/<tune>/, each with a _24k copy (sample pairs averaged): <tune>_ingame_full.wav and <tune>_ingame_pausemix_bass_drums.wav.
 The pause mix is the game's real one (src/pause.c: NR51 0xCC, bass + drums): the pause menu opened over the venue tunes; the title has no pause
 menu, so there the same mix is made with the menu's own NR51 value (0xCC, held every frame).
@@ -30,7 +35,22 @@ TUNES = {   # name: (cur_tune, frames of one pass, extra frames recorded, proarr
     "title": (0, 10336, 1800, "title_full/title_full"),
     "susanna": (5, 1536, 30, "susanna/susanna_b1"),
     "ballgame": (6, 1728, 30, "ballgame/ballgame_b1"),
+    "mountain": (7, 1024, 30, "mountain/mountain_b2"),
+    "funicula": (8, 1425, 30, "funicula/funicula_b2"),
+    "skaters": (9, 1728, 30, "skaters/skaters_b2"),
+    "hall": (10, 1920, 30, "hall/hall_b3"),
+    "sailor": (11, 1152, 30, "sailor/sailor_b3d"),          # (proarr has no b3d pause mix: the stem file names b3's, whose bass and drums are the same)
+    "sakura": (12, 1344, 30, "sakura/sakura_b3"),
+    "weasel": (13, 1152, 30, "weasel/weasel_b4"),
+    "danube": (14, 1728, 30, "danube/danube_b4"),
+    "sailor_fast": (11, 1024, 30, "sailor/sailor_b3_fast"),
+    "clear": (1, 112, 30, "jingles/clear_b4"),
+    "over": (2, 252, 30, "jingles/over_b4"),
+    "bonus": (3, 480, 30, "jingles/bonus_b4"),
+    "credits": (15, 8732, 30, "credits/credits_b4"),
 }
+JINGLES = ("clear", "over", "bonus")
+LEVEL = {n: i + 1 for i, n in enumerate(["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sailor", "sakura", "weasel", "danube"])}
 
 
 def start(model, name):
@@ -39,10 +59,35 @@ def start(model, name):
     from test_sound import make_rom, run_until, state
     gb = make_rom(model)
     tune = TUNES[name][0]
-    if name != "title":                      # (the title tune starts about frame 70 of the boot: it is caught on its first tick below)
+    if name in JINGLES or name == "credits":
+        from conftest import K_BONUS, K_CREDITS, title_pick
+        from test_flow import run_until
         gb.run(120)
         hold_stage_anim(gb)
-        title_level(gb, 1 if name == "susanna" else 2)
+        if name == "credits":
+            title_pick(gb, K_BONUS, K_CREDITS)
+            run_until(gb, lambda: gb.mem("story_phase") == 8, 40)
+        else:
+            from test_jukebox import tap, to_jukebox
+            gb.write("tune_unlocked", 0xFF)
+            gb.write(gb.addr("tune_unlocked") + 1, 0xFF)
+            to_jukebox(gb)
+            while gb.mem("jb_sel") != tune:
+                tap(gb, "down")
+            gb.press("a", 2)
+    elif name != "title":                    # (the title tune starts about frame 70 of the boot: it is caught on its first tick below)
+        gb.run(120)
+        hold_stage_anim(gb)
+        if name == "sailor_fast":
+            from test_art import goto_group
+            title_level(gb, LEVEL["sailor"])
+            gb.run(40)
+            gb.write("music_fast", 1)
+            goto_group(gb, 6)                # (the level's music_play restarts the tune at the new speed)
+            gb.write("music_fast", 1)
+            gb.write("intro_timer", 255)
+        else:
+            title_level(gb, LEVEL[name])
     for _ in range(600):
         if gb.mem("cur_tune") == tune and gb.mem16("music_frames") <= 1 and (name != "title" or gb.mem16("music_frames") == 1):
             break
@@ -69,7 +114,7 @@ def record(model, name, mode):
             gb.release("start")
         pb.tick(1, False, True)
         chunks.append(pb.sound.ndarray[:pb.sound.raw_buffer_head // 2].copy())
-        assert gb.mem("cur_tune") == tune, f"{name}: the tune changed at frame {f}"
+        assert f >= one - 8 or gb.mem("cur_tune") == tune, f"{name}: the tune changed at frame {f}"   # (a jingle or the credits ends with their pass)
         if mode == "pause" and f > 8:
             assert pb.memory[NR51] == 0xCC or pb.memory[NR51] == 0x44, hex(pb.memory[NR51])
             assert name == "title" or gb.mem("game_state") == 5, "paused"
@@ -111,14 +156,22 @@ def main():
     for name in args.tunes:
         one = TUNES[name][1]
         for mode, label in (("full", "full"), ("pause", "pausemix_bass_drums")):
+            if mode == "pause" and (name in JINGLES or name == "credits"):
+                continue
             s, rate, f0, frames, sfx = record(args.model, name, mode)
             path = out / name / f"{name}_ingame_{label}.wav"
             write(path, s, rate)
+            if name == "credits":
+                write(path.with_name(f"{name}_ingame_{label}_end20s.wav"), s[-20 * rate:], rate)
             print(f"{path}: {len(s) / rate:.1f} s peak {int(np.abs(s).max())} rms {float(np.sqrt((s.astype(float) ** 2).mean())):.0f} "
                   f"(music_frames {f0} -> {frames}, {sfx} sound effects started)", flush=True)
             if args.compare:
                 stem = TUNES[name][3]
                 ref = Path(args.compare) / (f"{stem}_full.wav" if mode == "full" else f"{stem}_pausemix_bass_drums.wav")
+                if name in JINGLES:
+                    ref = Path(args.compare) / f"{stem}.wav"
+                if not ref.exists():                       # (proarr has no b3d pause mix: the plain Sailor's, whose bass and drums are the same)
+                    ref = ref.with_name(ref.name.replace("b3d", "b3"))
                 b, brate = load(ref)
                 assert brate == rate, (brate, rate)
                 print(f"-- {name} {label} against {ref.name}")

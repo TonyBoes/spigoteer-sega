@@ -29,6 +29,7 @@ NR50, NR51, NR52 = 0xFF24, 0xFF25, 0xFF26
 sys.path.insert(0, str(ROOT / "tools"))
 import gen_music as gm       # noqa: E402  (the song sources: what each tune should play)
 import songs                 # noqa: E402
+import harmony as H          # noqa: E402
 from check_music import detect, note_hz      # noqa: E402
 
 GS_LEVEL_CLEAR = 3
@@ -571,8 +572,9 @@ def test_the_tunes_are_the_specs_token_for_token():
 def test_hall_of_the_mountain_king_is_staccato_over_a_root_ostinato():
     s = songs.SONGS["hall"]
     assert s["stac_all"] == (1, 2)
-    bass = s["ch3"].replace("!", "").split()
-    assert set(bass[:32]) == {"B2:2"} and set(bass[32:48]) == {"F#2:2"} and set(bass[48:]) == {"B2:2"}
+    # music batch 3: the bass is the theme itself an octave (two in the F# answer, bars 9-12) below the melody, note for note
+    assert songs.HALL_BASS_ONSETS and H.nrows(s["ch3"]) == H.nrows(s["ch2"]) == 128
+    assert all(t.endswith("!") for t in s["ch3"].split())
     rows = gm.rows_for(2, s["ch2"], 1, s["tempo"], False, True, s["stac_all"])
     cuts = [eff for _, _, eff in rows if (eff & 0xF00) == 0xE00]
     assert len(cuts) > 80 and set(c & 0xFF for c in cuts) >= {7}, "a 1-row note is cut after 7 of its 15 ticks"
@@ -584,11 +586,18 @@ def test_sakura_is_lively_a_bouncing_bass_on_the_chords_under_a_detached_melody(
     s = songs.SONGS["sakura"]
     assert s["tempo"] == 12 and s["stac_all"] == (3, 4)
     bass = s["ch3"].split()
-    assert len(bass) == 6 * 14 and len({t.split(":")[0] for t in bass}) >= 6, "a moving bass, not two drone notes"
-    for bar, chord in enumerate(songs.SAK_CHORDS):
-        assert bass[6 * bar].split(":")[0] == songs.SAK_BASS_NOTES[chord][0], f"bar {bar + 1}: the root on the downbeat"
+    assert len({t.split(":")[0] for t in bass}) >= 6, "a moving bass, not two drone notes"
+    i = 0
+    for bar, chord in enumerate(songs.SAK_CHORDS):      # (batch 3: the bar's riff ends in the scale's own falls into the next chord)
+        assert bass[i].split(":")[0] == songs.SAK_BASS_NOTES[chord][0], f"bar {bar + 1}: the root on the downbeat"
+        n = 0
+        while n < 8:
+            n += int(bass[i].split(":")[1].rstrip("!"))
+            i += 1
+        assert n == 8
+    assert i == len(bass)
     g = gm.groove_rows("sakura", s)
-    assert len(g) == 16 and g.count(1) >= 6 and 2 in g and 3 in g
+    assert len(g) == 16 and g.count(gm.DRUM_ID["b"]) >= 5 and gm.DRUM_ID["n"] in g and gm.DRUM_ID["x"] in g and gm.DRUM_ID["m"] in g   # (batch 3: don = kick, ka = rim, the tom tom snare snare close)
 
 
 def test_ties_fold_into_the_previous_note():

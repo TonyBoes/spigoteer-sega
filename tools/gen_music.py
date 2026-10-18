@@ -50,7 +50,7 @@ HARM_INST = {
     "ring50": (0x80, 0x97),   # 50% pulse, volume 9, slowest decay (1.0 s): the credits tune's final chord rings
 }
 HARM_REST = 0x7F
-HARM_BANK = 10              # src/music.h HARM_BANK (checked in main)
+HARM_BANK = 24              # src/music.h HARM_BANK (checked in main): the venue and show tunes' harmony shares bank 24 with the jingles' patterns (bank 10 was full)
 NOISE_NOTE = {}     # drum letter -> (note number, noise instrument), filled from KIT
 DRUM_ID = {}        # groove byte -> row of the kit (1-based; 0 = no hit)
 
@@ -312,14 +312,14 @@ def bass(bars, rows_per_bar=8):
 
 # LEVEL CLEAR: original rising C-major fanfare, about two seconds.  Tempo 4.
 tune("clear", 4, 0,
-     ch2="C5:2/3 E5:2/3 G5:2/3 C6:2/3 E6:2/3 G5:2/3 C6:2/3 E6:2/3 G6:10/1 r:2",
+     ch2="C5:2/3 E5:2/3 G5:2/3 C6:2/3 E6:2/3 G5:2/3 C6:2/3 E6:2/3 G6:10/6 r:2",   # (music batch 4: the fanfare ends on the brass lead, LEAD_PRO)
      ch3="C3:4! G3:4! C3:4! G3:4! C3:10 r:2",
      ch4="")
 
 # GAME OVER: original descending A-minor figure.  Tempo 6.
 tune("over", 6, 0,
      ch2="A5:3/2 G5:3/2 F5:3/2 E5:3/2 D5:3/2 C5:3/2 B4:3/2 A4:14/2 r:4",
-     ch3="A3:6 F3:6 D3:6 E3:6 A3:12 r:6",
+     ch3=songs.with_inst("A3:6 F3:6 D3:6 E3:6 A3:12 r:6", songs.BASS_HELD),   # (music batch 4: the held pro bass sustains to the end of its notes)
      ch4="")
 
 # BONUS: original tarantella-flavoured 6/8 loop in A minor, one row per eighth note.  Tempo 5.  It loops seamlessly:
@@ -398,7 +398,22 @@ def harm_starts(ev):
     return out
 
 
-def harm_bytes(t, ev):
+def rotated(ev, start):
+    """The events of a harmony track starting at song row `start` (an event boundary): a tune whose first play begins mid-song (songs.py start=, a
+    pickup) has its harmony track stored from that row on.  The track is a cycle (it restarts at its end, in step with the driver's loop), so it
+    plays the same rows; src/music.c then has nothing to walk through at the start (the walk over Mountain's 48 events cost 4 800 M-cycles)."""
+    if not start:
+        return ev
+    r = 0
+    for i, (n, _, _) in enumerate(ev):
+        if r == start:
+            return ev[i:] + ev[:i]
+        r += n
+    raise AssertionError(f"no harmony event starts on row {start}")
+
+
+def harm_bytes(t, ev, start=0):
+    ev = rotated(ev, start)
     a, b = (HARM_INST[k] for k in t["ch1_inst"])
     out = [a[0], a[1], b[0], b[1]]
     for n, note, inst in ev:
@@ -593,7 +608,7 @@ def main():
         t = songs.SONGS[SOURCE[name]]
         ev = harm_events(name, t, built[name]["total"])
         if ev:
-            harms[name] = harm_bytes(t, ev)
+            harms[name] = harm_bytes(t, ev, t.get("start", 0))
             if name in STREAMED:     # (src/music.c start_song: tunes[tune].buf == 3 ? tunes[tune].bank : HARM_BANK)
                 assert len(harms[name]) + len(slots[name]) * SLOT_BYTES <= 16384, f"the {name} bank"
             else:

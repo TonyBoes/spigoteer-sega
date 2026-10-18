@@ -22,7 +22,7 @@ import gen_music as gm      # noqa: E402
 
 RIG = ROOT / "out" / "rig"
 LINE = 114
-DEFAULT = ["title", "clear", "over", "bonus", "show", "venue0", "venue1", "credits"]
+DEFAULT = ["title", "clear", "over", "bonus", "show"] + [f"venue{i}" for i in range(10)] + ["credits"]
 
 
 def build():
@@ -56,7 +56,7 @@ def boot():
     from pyboy import PyBoy
     noi = (RIG / "aud.noi").read_text()
     addr = {k: int(re.search(rf"DEF _{k} (0x[0-9A-Fa-f]+)", noi).group(1), 16)
-            for k in ("aud_req", "aud_nr51", "cur_tune", "aud_cyc_sum", "aud_cyc_max", "aud_cyc_last", "music_frames")}
+            for k in ("aud_req", "aud_nr51", "cur_tune", "aud_cyc_sum", "aud_cyc_max", "aud_cyc_last", "music_frames", "music_fast")}
     pb = PyBoy(str(RIG / "aud.gb"), window="null", sound_emulated=False, log_level="ERROR")
     pb.set_emulation_speed(0)
     for _ in range(300):
@@ -67,7 +67,7 @@ def boot():
     return pb, addr
 
 
-def cost_calls(name, warm=False, frames=None, passes=1):
+def cost_calls(name, warm=False, frames=None, passes=1, fast=False):
     """Per CALL cost of music_tick over `passes` passes of tune `name`: aud_cyc_max is cleared every emulator frame, so a frame in which two
     calls complete (the rig's frame boundary drifts through the tick) still shows its dearer call.  warm: the show tune is in buffer B first
     (as in the game: any tune's first frames start its preload, so every tune but the title at power-on has it).  'worst_*' and the counts are
@@ -79,6 +79,9 @@ def cost_calls(name, warm=False, frames=None, passes=1):
     if warm:
         pb.memory[addr["aud_req"]] = tune_table()["show"][0]
         pb.tick(120, False, False)
+    if fast:                          # the Last call: venue tunes a frame a row faster (music_fast, set before the tune starts)
+        pb.memory[addr["music_fast"]] = 1
+        pf = pf * 8 // 9 if name == "sailor" or name == "venue6" else pf
     frames = frames or pf * passes
     pb.memory[addr["aud_req"]] = idx
     per, load = [], []
@@ -95,7 +98,7 @@ def cost_calls(name, warm=False, frames=None, passes=1):
                 break
     pb.stop(save=False)
     worst = max(per)
-    return dict(tune=name, warm=warm, frames=len(per), mean_mcycles=round(sum(per) / len(per)), worst_mcycles=worst,
+    return dict(tune=name, warm=warm, fast=fast, frames=len(per), mean_mcycles=round(sum(per) / len(per)), worst_mcycles=worst,
                 mean_lines=round(sum(per) / len(per) / LINE, 1), worst_lines=round(worst / LINE, 1), worst_frame=per.index(worst),
                 calls_over_16_lines=sum(1 for c in per if c > 16 * LINE), calls_over_18_lines=sum(1 for c in per if c > 18 * LINE),
                 load_frames=len(load), load_worst_mcycles=max(load, default=0))

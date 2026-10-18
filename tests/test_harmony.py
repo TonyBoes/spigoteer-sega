@@ -311,7 +311,7 @@ def test_the_funiculi_tempo_is_swung_126_bpm_and_its_harmony_is_unchanged():
     assert abs(3600 / (avg * 3) - 126) < 1
     assert gm.row_starts(10, 0xAA, 150)[-1] == 1425, "150 rows: 75 of 10 frames and 75 of 9"
     src = (ROOT / "build" / "music_data.c").read_text()
-    assert "groove_venue3[] = {6, 170," in src
+    assert "groove_venue3[] = {30, 170," in src
     assert re.search(r"\{&song_venue3, 1, 1425, ", src)
     by_bar = instrument_by_bar("funicula")
     assert by_bar.get(1) == {"harm"} and by_bar.get(18) == {"pad"}

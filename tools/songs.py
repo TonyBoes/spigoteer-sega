@@ -50,6 +50,18 @@ def rep(text, n):
     return " ".join([text] * n)
 
 
+def with_inst(text, inst):
+    """Every note token without an instrument gets /inst (rests, '~' ties and tokens that have one are untouched; a staccato '!' stays last)."""
+    out = []
+    for tok in text.split():
+        if tok.startswith(("r:", "R:", "~:")) or "/" in tok:
+            out.append(tok)
+        else:
+            nm, n = tok.split(":")
+            out.append(f"{nm}:{n.rstrip('!')}/{inst}{'!' if n.endswith('!') else ''}")
+    return " ".join(out)
+
+
 SONGS = {}
 DUTY_RING, LEAD_PRO, LEGATO_LEAD = 5, 6, 7   # gen_music.DUTY: the credits ring, the brass lead, its held-volume twin for the sung tunes (gen_music asserts)
 BASS_HELD = 2         # gen_music.WAVE: the bass without its pluck table (the default bass, 1, is plucked)
@@ -375,13 +387,45 @@ MTN_CHORDS = [
 # bar 1 as always.  (Rotating the tune instead cost a 9th WRAM pattern: the bass bars stop repeating.)
 MTN_PICKUP_ROW = 248
 MTN_TEMPO = 4
-song("mountain", MTN_TEMPO, "A", " ".join(MTN_BARS), oompah(MTN_CHORDS, 16),
-     " ".join(["b:2 r:2 n:2 r:2 b:2 r:2 n:2 r:2"] * 16), legato=SUNG_ARTIC, start=MTN_PICKUP_ROW)
+# Music batch 2 (owner-approved 2026-10-17, docs/proarr/BATCH_2.md and specs/mountain.md on branch promusic): the arrangement is ours, the melody
+# unchanged.  Bass: a country two-beat in quarters with a walk at every change (C# B down into A7, C# up into D, B C# up into the next verse
+# under the "she'll be" pickup, C B A down from D7 into G, G G# up into A7).  Bars 13-16 = 1-4, so order 4's bass is order 1's.
+MTN_BASS = " ".join(H.expand([
+    "D3:4 A2:4 D3:4 C#3:2 B2:2",       # 1  D -> A7
+    "A2:4 E3:4 A2:4 C#3:4",            # 2  A7 -> D
+    "D3:4 A2:4 F#3:4 A2:4",            # 3  D
+    "D3:4 F#3:4 A2:4 B2:2 C#3:2",      # 4  D: the walk-up under the pickup
+    3, 1,                              # 5, 6
+    "A2:4 E3:4 C#3:4 E3:4",            # 7  A7
+    2, 3,                              # 8, 9
+    "D3:4 A2:4 C3:4 B2:2 A2:2",        # 10 D7 -> G
+    "G2:4 D3:4 B2:4 G2:2 G#2:2",       # 11 G -> A7
+    2,                                 # 12
+    1, 2, 3, 4,                        # 13-16
+], 16))
+# Drums (a pattern, the same 4 bars in every order: one pattern): a train beat, kick 1 and 3, snare 2 and 4, hats on the "ands"; bar 4 of every
+# order fills the melody's half-bar rest: snare snare tom tom snare, open hat.
+MTN_DRUM_BAR = "b:2 t:2 n:2 t:2 b:2 t:2 n:2 t:2"
+MTN_DRUM_FILL = "b:2 t:2 n:2 t:2 n:1 n:1 m:1 m:1 n:2 o:2"
+MTN_DRUMS = " ".join([MTN_DRUM_BAR, MTN_DRUM_BAR, MTN_DRUM_BAR, MTN_DRUM_FILL] * 4)
+song("mountain", MTN_TEMPO, "A", " ".join(MTN_BARS), MTN_BASS, MTN_DRUMS, legato=SUNG_ARTIC, start=MTN_PICKUP_ROW)
 # Harmony (music step 6): the Susanna approach, a second voice in thirds and sixths under the whole verse in the melody's
 # own rhythm (it moves where the melody does, the 2/6 snap included; grid 2 = an eighth or finer), on the held 12.5% pad.
 # The pickup row is a note boundary of the line (gen_music asserts it), so the first play can start the line there.
 _t = H.Tune(" ".join(MTN_BARS), MTN_CHORDS, 16, 4, "D")
-harmony("mountain", _t, H.follow(_t, (1, 16), "A3", "F#5", grid=2), ("pad", "pad"))
+# Batch 2: where the melody holds, the voice walks under it, and "toot toot" in the rests (bars 3-4, 7-8, 15-16).
+MTN_HARM_BARS = {
+    3: "F#4:4 A4:4 B4:4 A4:4",
+    4: "D5:2 r:2 D5:2 r:2 F#4:4 A4:4",
+    7: "C#5:4 A4:4 G4:4 A4:4",
+    8: "E5:2 r:2 E5:2 r:2 C#5:4 E5:4",
+    15: "F#4:4 A4:4 B4:4 A4:4",
+    16: "D5:2 r:2 D5:2 r:2 F#4:8",
+}
+MTN_HARM = H.patch_bars(H.follow(_t, (1, 16), "A3", "F#5", grid=2), 16, MTN_HARM_BARS)
+harmony("mountain", _t, MTN_HARM, ("pad", "pad"))
+MTN_HARM_CHECK = H.check(_t, MTN_HARM)
+MTN_BASS_CHECK = H.bass_check(MTN_BASS, MTN_CHORDS, 16)
 
 # ---------------------------------------------------------------------------------------------
 # Bistro: "Funiculi, Funicula" (Luigi Denza, 1880), verse and chorus.  6/8, key F, dotted quarter = 92 is
@@ -404,15 +448,34 @@ FUN_CHORDS = [
     "F", "F", "F", "F", "C7", "F", "C7", "F", "F", "C7", "C7", "C7", "C7", "C7", "C7", "C7", "F",
     "A7", "Dm", "A7", "Dm", "Bb", "F", "C7", "F",
 ]
-song("funicula", 10, "A", " ".join(FUN_BARS), oompah(FUN_CHORDS, "c6"), groove="b:1 r:1 n:1 b:1 r:1 n:1", swing=0xAA)
+# Music batch 2 (specs/funicula.md): bass 6/8 oom-pah, root and a chord tone on the two dotted beats, the second ending with an eighth that
+# leads into the next chord.
+FUN_BASS = " ".join(H.expand([
+    "F2:3 C3:3", "F2:3 A2:3", 1, "F2:3 A2:2 B2:1",                 # 1-4   F F F F->C7
+    "C3:3 G2:2 E2:1", 4, 5, 1, 4,                                    # 5-9   C7 F C7 F F->C7
+    "C3:3 G2:3", "C3:3 E3:3", "C3:3 A#2:3", 10, 11, 12, 5,           # 10-16 C7 (16 -> F)
+    "F2:3 C3:2 G#2:1", "A2:3 E3:2 C#3:1", "D3:3 F3:2 E3:1", 18,      # 17-20 F A7 Dm A7
+    "D3:3 A2:3", "A#2:3 F2:2 E2:1", 4, 5, 1,                         # 21-25 Dm Bb F C7 F
+], 25))
+# Drums (a groove): kick on each dotted beat, snare on the last eighth of each, hats between; five bars with the fill (three snares and an
+# open hat) on the fifth (30 rows, 150 / 30 = 5 times a pass).  FUN_GROOVE_1BAR is the one-bar fallback (6 rows, no fill: 24 B less of bank 2).
+FUN_DRUM_BAR = "b:1 t:1 n:1 b:1 t:1 n:1"
+FUN_DRUM_FILL = "b:1 t:1 n:1 n:1 n:1 o:1"
+FUN_GROOVE = " ".join([FUN_DRUM_BAR] * 4 + [FUN_DRUM_FILL])
+FUN_GROOVE_1BAR = FUN_DRUM_BAR
+song("funicula", 10, "A", " ".join(FUN_BARS), FUN_BASS, groove=FUN_GROOVE, swing=0xAA)
 # Tempo (owner pick, harmony demos 2026-10-12): rows alternate 10 and 9 frames (swing 0xAA, as the Entertainer) = 9.5 on
 # average = 126 bpm for the dotted quarter; a 6-row bar has the same long-short pattern every time.  Harmony unchanged.
 # Harmony (music step 5): the verse in thirds and sixths under the melody, one note a dotted beat (the echoes "and so
 # do I" answered in thirds, B-flat and C under D and E); the chorus ("Funiculi, funicula") a slow line of held chord
 # tones under the repeated A, through the A7 / D minor turn (C#4 / D4).
 _t = H.Tune(" ".join(FUN_BARS), FUN_CHORDS, 6, 3, "F")
-harmony("funicula", _t, " ".join([H.follow(_t, (1, 16), "C4", "C5", grid=3), H.guide(_t, (17, 25), "C4", "G4", inst="/2")]),
-        ("harm", "pad"))
+# Batch 2: the chorus is a moving inner voice on the pad (/2), one note a dotted beat.
+FUN_CHORUS_HARM = "F4:3/2 C4:3/2 C#4:3/2 E4:3/2 D4:3/2 F4:3/2 E4:3/2 C#4:3/2 A4:3/2 D4:3/2 D4:3/2 F4:3/2 A4:3/2 F4:3/2 G4:3/2 E4:3/2 C4:3/2 r:2 A4:1/2"
+FUN_HARM = " ".join([H.follow(_t, (1, 16), "C4", "C5", grid=3), FUN_CHORUS_HARM])
+harmony("funicula", _t, FUN_HARM, ("harm", "pad"))
+FUN_HARM_CHECK = H.check(_t, FUN_HARM)
+FUN_BASS_CHECK = H.bass_check(FUN_BASS, FUN_CHORDS, 6)
 
 # ---------------------------------------------------------------------------------------------
 # Arctic: "The Skaters' Waltz" (Emile Waldteufel, 1882), main theme, an octave above the source.  3/4, key G,
@@ -436,12 +499,43 @@ SKT_CHORDS = [
     "G", "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "D7", "G",
     "G", "D7", "D7", "D7", "D7", "G", "G", "Em", "Em", "Am", "Am", "D", "D7", "G", "G",
 ]
-song("skaters", 9, "A", " ".join(SKT_BARS), oompah(SKT_CHORDS, 6), groove="b:1 r:1 t:1 r:1 t:1 r:1")
+# Music batch 2 (specs/skaters.md): a Viennese waltz bass: the root on 1, two chord tones on 2 and 3 that lead into the next bar (D C B into
+# G, C up into D, F# under into the loop's G).
+SKT_BASS = " ".join(H.expand([
+    "G2:2 B2:2 D3:2",          # 1  G
+    "G2:2 B2:2 C3:2",          # 2  G -> D7
+    "D3:2 F#3:2 A3:2",         # 3  D7
+    "D3:2 A2:2 C3:2",          # 4  D7
+    3,                         # 5
+    "D3:2 C3:2 B2:2",          # 6  D7 -> G: D C B
+    1, 1,                      # 7, 8 (8: D3 steps up to E3)
+    "E3:2 G3:2 B2:2",          # 9  Em
+    9,                         # 10 Em -> Am (B2 steps down to A2)
+    "A2:2 C3:2 E3:2",          # 11 Am
+    "A2:2 E3:2 C3:2",          # 12 Am -> D
+    3, 6, 2, 6,                # 13-16 D D7 G D7
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,   # 17-30 = 1-14
+    1,                         # 31 G
+    "G2:2 D3:2 F#2:2",         # 32 G: F# under into bar 1's G
+], 32))
+# Drums (a 4-bar groove, 24 rows): kick on 1, rim clicks on 2 and 3, closed hats between; the open hat ends every fourth bar.
+SKT_DRUM_BAR = "b:1 t:1 x:1 t:1 x:1 t:1"
+SKT_GROOVE = " ".join([SKT_DRUM_BAR] * 3 + ["b:1 t:1 x:1 t:1 x:1 o:1"])
+song("skaters", 9, "A", " ".join(SKT_BARS), SKT_BASS, groove=SKT_GROOVE)
 # Harmony (music step 5): the first strain holds one chord tone a bar on the pad (the waltz's sustained middle voice:
 # B, then C, the seventh of D7, back to B), the repeat a voice in thirds and sixths under the melody, one note a beat.
 _t = H.Tune(" ".join(SKT_BARS), SKT_CHORDS, 6, 2, "G")
-harmony("skaters", _t, " ".join([H.guide(_t, (1, 16), "D4", "D5", per_bar=True),
-                                 H.follow(_t, (17, 32), "D4", "E5", grid=2, inst="/2")]), ("pad", "harm"))
+# Batch 2: bars 1-16 a rocking inner voice on the pad under the held notes; 17-32 the thirds on "harm" (/2).
+SKT_HARM_1_16 = [
+    "D4:4 G4:2", "B4:4 C5:2", "C5:2 A4:2 C5:2", "A4:2 C5:2 A4:2",
+    "A4:2 F#4:2 A4:2", "C5:4 A4:2", "D5:2 B4:2 D5:2", "B4:2 D5:2 B4:2",
+    "E5:2 C5:2 E5:2", "E5:4 G4:2", "A4:2 F#4:2 A4:2", "A4:2 E4:2 G4:2",
+    "F#4:2 D4:2 F#4:2", "F#4:2 C4:2 F#4:2", "D4:2 C5:2 B4:2", "A4:2 G4:2 F#4:2",
+]
+SKT_HARM = " ".join(SKT_HARM_1_16) + " " + H.follow(_t, (17, 32), "D4", "E5", grid=2, inst="/2")
+harmony("skaters", _t, SKT_HARM, ("pad", "harm"))
+SKT_HARM_CHECK = H.check(_t, SKT_HARM)
+SKT_BASS_CHECK = H.bass_check(SKT_BASS, SKT_CHORDS, 6)
 
 # ---------------------------------------------------------------------------------------------
 # Robot factory: "In the Hall of the Mountain King" (Edvard Grieg, 1875).  4/4, key B minor, quarter = 120 =
@@ -466,14 +560,36 @@ HALL_CHORDS = [
     "Bm", "C#7/C", "Bm", "D", "Bm", "C#7/C", "Bm", "D", "F#", "F#", "F#", "F#", "Bm", "C#7/C", "Bm",
     "D",
 ]
-HALL_BASS = " ".join(("F#2:2! " if 9 <= i <= 12 else "B2:2! ") * 4 for i in range(1, 17))
-song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS,
-     " ".join(["b:1 r:3 n:1 r:3"] * 16), stac_all=(1, 2))
+# Music batch 3 (owner-approved 2026-10-17, docs/proarr/BATCH_3.md and specs/hall.md on branch promusic): the arrangement is ours, melody and
+# harmony unchanged.  Bass: THE THEME IN THE BASS (Grieg's cellos and basses): the melody an octave below in the A phrases, two octaves below
+# in the F# answer (bars 9-12), row for row, plucked and cut (!).
+HALL_BASS = " ".join(H.expand([
+    "B2:1! C#3:1! D3:1! E3:1! F#3:1! D3:1! F#3:2!",              # 1
+    "F3:1! C#3:1! F3:2! E3:1! C3:1! E3:2!",                       # 2 (E# = F)
+    "B2:1! C#3:1! D3:1! E3:1! F#3:1! D3:1! F#3:1! B3:1!",        # 3
+    "A3:1! F#3:1! D3:1! F#3:1! A3:4!",                            # 4
+    1, 2, 3, 4,                                                   # 5-8
+    "F#2:1! G#2:1! A#2:1! B2:1! C#3:1! A#2:1! C#3:2!",           # 9
+    "D3:1! A#2:1! D3:2! C#3:1! A#2:1! C#3:2!",                   # 10
+    9,                                                            # 11
+    "D3:1! A#2:1! D3:2! C#3:4!",                                  # 12
+    1, 2, 3,                                                      # 13-15
+    "A3:1! F#3:1! D3:1! F#3:1! A3:2! F#3:1! A#2:1!",              # 16: A# the leading tone into bar 1's B2
+], 16))
+# Drums (one pattern: bars 9-16 = 1-8): a ticking machine, kick 1, snare 3, hats on 2 and 4, rims on the off-eighths; four snares close bar 4,
+# snare snare tom tom snare and an open hat close bar 8.
+HALL_DRUM_BAR = "b:1 x:1 t:1 x:1 n:1 x:1 t:1 x:1"
+HALL_DRUMS = " ".join(H.expand([HALL_DRUM_BAR] * 3 + ["b:1 x:1 t:1 x:1 n:1 n:1 n:1 n:1"] + [HALL_DRUM_BAR] * 3 + ["b:1 x:1 n:1 n:1 m:1 m:1 n:1 o:1"]
+                                + list(range(1, 9)), 16))
+song("hall", 15, "A", " ".join(HALL_BARS), HALL_BASS, HALL_DRUMS, stac_all=(1, 2))
 # Harmony (music step 5): a voice in thirds and sixths UNDER the melody the whole way (G3 to B4, never crossing, one note
 # for each melody eighth, grid 1, no merging), a plucked "harm" voice.  The motif creeps down to B3 over the B2 bass, so
 # the line sits right above the bass: dark and a little thick there.  Owner's pick (harmony demos, 2026-10-12): thirds.
 _t = H.Tune(" ".join(HALL_BARS), HALL_CHORDS, 8, 2, "Bm")
 harmony("hall", _t, H.follow(_t, (1, 16), "G3", "B4", grid=1, merge=False), ("harm", "harm"))
+HALL_HARM_CHECK = H.check(_t, SONGS["hall"]["ch1"])
+HALL_BASS_ONSETS = ([s for s, n, p in H.timeline(HALL_BASS) if p is not None]
+                    == [s for s, n, p in H.timeline(SONGS["hall"]["ch2"]) if p is not None])      # the bass moves with the melody
 
 # ---------------------------------------------------------------------------------------------
 # Teahouse: "Sakura Sakura" (Japanese traditional).  4/4, key A minor (A B C E F), the spec's quarter = 72-100.
@@ -508,12 +624,33 @@ def sakura_bass(chords):
     return " ".join(out)
 
 
-song("sakura", 12, "A", " ".join(SAK_BARS), sakura_bass(SAK_CHORDS), "", gap=True, stac_all=(3, 4),
-     groove="b:1 r:1 t:1 b:1 b:1 r:1 t:1 t:1 b:1 r:1 t:1 b:1 b:1 r:1 n:1 n:1")
+# Music batch 3 (specs/sakura.md): the riff above with the scale's own falls at the changes (F E down into D, F down into E); length, tempo and
+# loop unchanged (the Sumo counts music_frames, Taiko Pour silences the groove).  The groove is the taiko figure on the kit, kick = don, rim =
+# ka; the second bar closes tom tom snare snare.
+SAK_RIFF = {
+    ("Am", "Am"): "A2:2! E3:1! A3:1! r:1 A2:1! E3:2!",
+    ("Am", "Dm"): "A2:2! E3:1! A3:1! r:1 A2:1! F2:1! E2:1!",
+    ("Am", "E"): "A2:2! E3:1! A3:1! r:1 A2:1! F2:2!",
+    ("Dm", "Am"): "D2:2! A2:1! D3:1! r:1 D2:1! A2:2!",
+    ("E", "Am"): "E2:2! B2:1! E3:1! r:1 E2:1! B2:2!",
+}
+SAK_BASS = " ".join(SAK_RIFF[(c, SAK_CHORDS[(i + 1) % 14])] for i, c in enumerate(SAK_CHORDS))
+SAK_GROOVE = "b:1 r:1 x:1 b:1 b:1 r:1 x:1 x:1 b:1 r:1 x:1 b:1 m:1 m:1 n:1 n:1"
+song("sakura", 12, "A", " ".join(SAK_BARS), SAK_BASS, "", gap=True, stac_all=(3, 4), groove=SAK_GROOVE)
 # Harmony (music step 5): a koto's second string, a fourth or fifth under the melody (E under A, E under B), one plucked
 # note per melody note on the beat, only the scale's notes (A B C E F: the E chord's G# is left out).
 _t = H.Tune(" ".join(SAK_BARS), SAK_CHORDS, 8, 2, "Asak", strict=True)
-harmony("sakura", _t, H.follow(_t, (1, 14), "E3", "A4", prefer=(5, 7, 3, 4, 8, 9), grid=2, merge=False), ("pluck", "pluck"))
+# Batch 3: the second string is struck again under the held melody notes.
+SAK_HARM_BARS = {
+    1: "E4:2 E4:2 E4:2 E4:2", 2: "E4:2 E4:2 E4:2 E4:2", 11: "E4:2 E4:2 E4:2 E4:2", 12: "E4:2 E4:2 E4:2 E4:2",
+    4: "F4:2 E4:2 A3:2 A3:2", 8: "F4:2 E4:2 A3:2 A3:2",
+    6: "B3:2 B3:2 E3:2 E3:2", 10: "B3:2 B3:2 E3:2 E3:2",
+    14: "A3:2 A3:2 A3:2 A3:2",
+}
+SAK_HARM = H.patch_bars(H.follow(_t, (1, 14), "E3", "A4", prefer=(5, 7, 3, 4, 8, 9), grid=2, merge=False), 8, SAK_HARM_BARS)
+harmony("sakura", _t, SAK_HARM, ("pluck", "pluck"))
+SAK_HARM_CHECK = H.check(_t, SAK_HARM)
+SAK_BASS_CHECK = H.bass_check(SAK_BASS, SAK_CHORDS, 8)
 
 # ---------------------------------------------------------------------------------------------
 # Space lounge: "The Blue Danube" (Johann Strauss II, 1867, Op. 314), first waltz theme.  3/4, quarter = 160: 11
@@ -538,14 +675,31 @@ DAN_CHORDS = [
     "C", "C", "C", "C", "C", "C", "G7", "G7", "G7", "G7", "G7", "G7", "G7", "G7", "C", "C", "C",
     "C", "C", "C", "C", "Dm", "Dm", "Dm", "Dm", "G7", "G7", "C", "C", "F", "G", "C",
 ]
-song("danube", 9, "A", " ".join(DAN_BARS), oompah(DAN_CHORDS, 6),
-     groove="b:1 r:1 t:1 r:1 t:1 r:1")
+# Music batch 4 (owner-approved 2026-10-17, docs/proarr/BATCH_4.md and specs/danube.md on branch promusic): a Viennese waltz bass, root on 1, two
+# chord tones that lead into every change (D into G, B into C, C into D, F into G, E into F); a soft kit (kick, rim clicks, an open hat every
+# fourth bar: a 4-bar groove, 24 rows; DAN_GROOVE_1BAR is the one-bar fallback, 18 B less of bank 2).
+DAN_BASS = " ".join(H.expand([
+    "C3:2 E3:2 G3:2", "C3:2 G2:2 E3:2", 1, 2, 1, "C3:2 E3:2 D3:2",                     # 1-6   C
+    "G2:2 D3:2 F3:2", "G2:2 B2:2 D3:2", 7, 8, 7, 8, 7, "G2:2 D3:2 B2:2",                # 7-14  G7
+    1, 2, 1, 2, 1, 2, "C3:2 G2:2 C3:2",                                                 # 15-21 C
+    "D3:2 A2:2 F3:2", "D3:2 F3:2 A3:2", 22, "D3:2 A2:2 F2:2",                           # 22-25 Dm
+    7, 14, 1, "C3:2 G2:2 E2:2", "F2:2 A2:2 F2:2", 14, "C3:2 G2:2 B2:2",                 # 26-32 G7 G7 C C F G C
+], 32))
+DAN_DRUM_BAR = "b:1 t:1 x:1 t:1 x:1 t:1"
+DAN_GROOVE = " ".join([DAN_DRUM_BAR] * 3 + ["b:1 t:1 x:1 t:1 x:1 o:1"])
+DAN_GROOVE_1BAR = DAN_DRUM_BAR
+song("danube", 9, "A", " ".join(DAN_BARS), DAN_BASS, groove=DAN_GROOVE)
 # Harmony (music step 5): a voice in thirds and sixths under the melody (G3 to A5, one note for each melody eighth, grid 1,
 # no merging) through bar 24, the closing phrase (bars 25-32) one held chord tone a bar on the pad, G3 to E5.  Owner's
 # pick (harmony demos, 2026-10-12): thirds, the last phrase held.
 _t = H.Tune(" ".join(DAN_BARS), DAN_CHORDS, 6, 2, "C")
-harmony("danube", _t, " ".join([H.follow(_t, (1, 24), "G3", "A5", grid=1, merge=False),
-                                H.guide(_t, (25, 32), "G3", "E5", inst="/2")]), ("harm", "pad"))
+# Batch 4: two held notes of the closing phrase rock gently (F D F, G C G) instead of holding.
+DAN_HARM_BARS = {26: "F4:2/2 D4:2/2 F4:2/2", 28: "G4:2/2 C5:2/2 G4:2/2"}
+DAN_HARM = H.patch_bars(" ".join([H.follow(_t, (1, 24), "G3", "A5", grid=1, merge=False),
+                                  H.guide(_t, (25, 32), "G3", "E5", inst="/2")]), 6, DAN_HARM_BARS)
+harmony("danube", _t, DAN_HARM, ("harm", "pad"))
+DAN_HARM_CHECK = H.check(_t, DAN_HARM)
+DAN_BASS_CHECK = H.bass_check(DAN_BASS, DAN_CHORDS, 6)
 
 # ---------------------------------------------------------------------------------------------
 # Zoo: "Pop Goes the Weasel" (English folk tune, c. 1850), verse and second strain.  6/8, key G, dotted
@@ -563,14 +717,31 @@ WEA_BARS[-1] = WEA_BARS[-1].replace("R:1", "D4:1")
 WEA_CHORDS = [
     "G", "G", "D7", "G", "G", "G", "Am", "G", "G", "D", "G", "D", "C", "G", "C/D7", "G",
 ]
-song("weasel", 12, "A", " ".join(WEA_BARS), oompah(WEA_CHORDS, "c6"),
-     " ".join(["b:1 r:2 n:1 r:2"] * 16))
+# Music batch 4 (specs/weasel.md): the bass keeps its 6/8 bounce but walks into every change (B C up into D, F# under into G, B down into A);
+# the drums are a kit: kick 1, snare 4, hats; three snares close bars 4 and 8, a tom tom leads into the C (12), the "Pop!" is a snare and an
+# open hat on bar 15's E5 (the beat stops for a crack, then picks up), and a fill leads into the loop (16).
+WEA_BASS = " ".join(H.expand([
+    "G2:3 D3:3", "G2:3 B2:2 C3:1", "D3:3 A2:2 F#2:1", 1,                  # 1-4   G G D7 G
+    "G2:3 B2:3", "G2:3 D3:2 B2:1", "A2:3 C3:2 A2:1", 1,                   # 5-8   G G Am G
+    "G2:3 B2:2 C3:1", "D3:3 A2:2 F#2:1", 9, "D3:3 A2:2 B2:1",            # 9-12  G D G D
+    "C3:3 E3:2 A2:1", "G2:3 B2:2 B2:1", "C3:3 D3:2 F#2:1", 1,             # 13-16 C G C,D7 G
+], 16))
+WEA_DRUM_BAR = "b:1 t:1 t:1 n:1 t:1 t:1"
+WEA_DRUMS = " ".join(H.expand([
+    WEA_DRUM_BAR, 1, 1, "b:1 t:1 t:1 n:1 n:1 n:1",
+    1, 1, 1, 4,
+    1, 1, 1, "b:1 t:1 t:1 n:1 m:1 m:1",
+    1, 1, "n:1 o:1 r:1 b:1 t:1 t:1", "b:1 t:1 t:1 n:1 n:1 o:1",
+], 16))
+song("weasel", 12, "A", " ".join(WEA_BARS), WEA_BASS, WEA_DRUMS)
 # Harmony (music step 5): the verse (bars 1-8) short dry stabs on the 6/8 off-beats (the bass plays the two dotted beats,
 # the stabs the two eighths after each: A3 to D5), the second strain (bars 9-16) a voice in thirds and sixths under the
 # melody, one note for each melody eighth (grid 1, no merging).  Owner's pick (harmony demos, 2026-10-12): stabs, then thirds.
 _t = H.Tune(" ".join(WEA_BARS), WEA_CHORDS, 6, 3, "G")
 harmony("weasel", _t, " ".join([H.stabs(_t, (1, 8), "A3", "D5", [(1, False), (1, True), (1, True)] * 2),
                                 H.follow(_t, (9, 16), "A3", "D5", grid=1, merge=False, inst="/2")]), ("stab", "harm"))
+WEA_HARM_CHECK = H.check(_t, SONGS["weasel"]["ch1"])
+WEA_BASS_CHECK = H.bass_check(WEA_BASS, WEA_CHORDS, 6)
 
 # ---------------------------------------------------------------------------------------------
 # The Chrome Cow: "Drunken Sailor" (traditional sea shanty), the owner's pick, played fast and punky (docs/music_specs.md
@@ -595,14 +766,62 @@ def punk_bass(chords):
     return " ".join(" ".join([f"{CHORD[c][0]}:1!"] * 6 + [f"{CHORD[c][1]}:1!"] * 2) for c in chords)
 
 
-song("sailor", 9, "A", " ".join(SAI_BARS), punk_bass(SAI_CHORDS), stac_all=(3, 4),
-     groove="b:1 t:1 n:1 t:1 b:1 b:1 n:1 t:1")
+# Music batch 3 (specs/sailor.md): a punk riff, root eighths with a two-note pickup into the next chord (F A when Dm stays, E D into C, E G when
+# C stays, G G B C walking back up into Dm).  The same 8 bar types in both orders: one bass pattern.  Drums (a groove): kick 1, snare 2, the
+# double kick on 3, snare 4, hats between; three snares and an open hat every fourth bar (32 rows; SAI_GROOVE_2BAR, an open hat every second
+# bar, is the 16-row fallback, 16 B less of bank 2).
+SAI_RIFF = {
+    ("Dm", "Dm"): "D3:1! D3:1! D3:1! D3:1! D3:1! D3:1! F3:1! A3:1!",
+    ("Dm", "C"): "D3:1! D3:1! D3:1! D3:1! D3:1! D3:1! E3:1! D3:1!",
+    ("C", "C"): "C3:1! C3:1! C3:1! C3:1! C3:1! C3:1! E3:1! G3:1!",
+    ("C", "Dm"): "C3:1! C3:1! C3:1! C3:1! G2:1! G2:1! B2:1! C3:1!",
+}
+SAI_BASS = " ".join(SAI_RIFF[(c, SAI_CHORDS[(i + 1) % 16])] for i, c in enumerate(SAI_CHORDS))
+SAI_DRUM_BAR = "b:1 t:1 n:1 t:1 b:1 b:1 n:1 t:1"
+SAI_GROOVE = " ".join([SAI_DRUM_BAR] * 3 + ["b:1 t:1 n:1 t:1 n:1 n:1 n:1 o:1"])
+SAI_GROOVE_2BAR = SAI_DRUM_BAR + " " + "b:1 t:1 n:1 t:1 b:1 b:1 n:1 o:1"
+
+# THE SAILOR'S ARPEGGIO VARIANT (owner-approved 2026-10-17): hardware chord arpeggios (hUGE 0xy, 20 Hz) on the shouted held notes, on the
+# table-less lead (instrument 1), the same at the Last call's tempo, 0 extra bytes (proarr's sailor_b3d: the spec's variant B on the bars
+# with 3-4 row notes only, each note's first row plain and the flutter from its second row, so no row tick carries both a new note and
+# the arpeggio's set-up: its CPU fix).  ONE LINE chooses: SAILOR_VARIANT = "b3d" (shipped: the owner picked it 2026-10-17) the arpeggios, None the plain riff (proarr's sailor_b3).
+SAILOR_VARIANT = "b3d"
+# CPU: at the Last call's tempo (music_fast: a row is 8 frames) the row tick of row 5 of bars 8 and 16 (the second long D4's second row: the
+# 0x37 arpeggio's set-up beside a groove hit and a harmony note) ran 18.5 lines, two calls over the 18-line budget (src/music.h MUSIC_LATEST_LY);
+# without that one effect it is 18.0 (the normal tempo 17.4 either way).  SAILOR_LASTCALL_SAFE = False restores proarr's b3d exactly.
+SAILOR_LASTCALL_SAFE = True
+SAI_ARP_BARS = {   # bar (1-based): (arpeggio, the token indexes of the bar that get the table-less lead /1, the bar rows that carry the effect)
+    8: (0x37, (0, 1), (1, 2, 5, 6)), 16: (0x37, (0, 1), (1, 2, 5, 6)),
+    9: (0x58, (0, 1), (1, 2, 5)), 13: (0x58, (0, 1), (1, 2, 5)), 11: (0x59, (0, 1), (1, 2, 5)),
+}
+
+
+def sailor_arp():
+    """(the Sailor melody with /1 on the arpeggiated tokens, fx_map {row: [(2, 0xy)]})."""
+    out, fx = [], {}
+    for i, bar in enumerate(SAI_BARS):
+        toks = bar.split()
+        if i + 1 in SAI_ARP_BARS:
+            arp, idx, rows = SAI_ARP_BARS[i + 1]
+            if SAILOR_LASTCALL_SAFE and arp == 0x37:
+                rows = tuple(r for r in rows if r != 5)
+            toks = [f"{tk}/1" if k in idx else tk for k, tk in enumerate(toks)]
+            for r in rows:
+                fx[i * 8 + r] = [(2, arp)]
+        out.append(" ".join(toks))
+    return " ".join(out), fx
+
+
+_sai_mel, _sai_fx = sailor_arp() if SAILOR_VARIANT == "b3d" else (" ".join(SAI_BARS), None)
+song("sailor", 9, "A", _sai_mel, SAI_BASS, stac_all=(3, 4), groove=SAI_GROOVE, fx_map=_sai_fx)
 # Harmony (music step 5): the verse gets punk off-beat upstrokes (a short chord tone on every second eighth: D or F for D
 # minor, C or E for C), the chorus ("Hur-ray and up she ri-ses") a voice in thirds under the melody, struck on each
 # eighth like a second shouting voice.
 _t = H.Tune(" ".join(SAI_BARS), SAI_CHORDS, 8, 2, "Ddor")
 harmony("sailor", _t, " ".join([H.stabs(_t, (1, 8), "C4", "A4", [(1, False), (1, True)] * 4),
                                 H.follow(_t, (9, 16), "A3", "A4", grid=2, merge=False, inst="/2")]), ("stab", "harm"))
+SAI_HARM_CHECK = H.check(_t, SONGS["sailor"]["ch1"])
+SAI_BASS_CHECK = H.bass_check(SAI_BASS, SAI_CHORDS, 8)
 
 # ---------------------------------------------------------------------------------------------
 # The credits tune (src/credits.c; owner picked draft "D3c", 2026-10-17): The Entertainer's intro, the A and B strains, the strains the
@@ -664,7 +883,12 @@ CR_HARM = (
 )
 CR_TEMPO_MAP = {568: 17, 570: 19, 572: 20}
 CR_FX_MAP = {574: [(3, 0xC05)], 576: [(3, 0xC02)]}   # the last bass chord: 50 %, then 25 % (the driver reads the LOW nibble of Cxy for the wave channel)
-song("credits", 15, "A", CR_MEL, CR_BASS, "", tempo_map=CR_TEMPO_MAP, fx_map=CR_FX_MAP)
+# Music batch 4 (specs/credits.md): the bass is the full held one (BASS_HELD: no pluck table, it sustains to the end of each note) all the way, not
+# only in the last chord; the lead is the brass one (the notes, the ending and the fade are untouched).  CREDITS_LEAD = LEAD_PRO is the owner's
+# brass lead; DUTY_SONG_LEAD (1) is the old song lead: if the brass version's streaming call ever goes over 18 lines, one line changes it.
+CREDITS_LEAD = LEAD_PRO
+CR_BASS_HELD = with_inst(CR_BASS, BASS_HELD)
+song("credits", 15, "A", CR_MEL, CR_BASS_HELD, "", inst=CREDITS_LEAD, tempo_map=CR_TEMPO_MAP, fx_map=CR_FX_MAP)
 SONGS["credits"].update(ch1=CR_HARM, ch1_inst=("harm50", "ring50"))
 
 # ---------------------------------------------------------------------------------------------
