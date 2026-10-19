@@ -19,7 +19,7 @@ g 0 #d0ecf8 window glass / lit highlight
 k 0 #d0ecf8 gold star
 m 2 #b0a0b8 stone (fountain, cobbles, Dregs's jacket)
 n 0 #d0ecf8 moon edge
-r 2 #d84860 rose (the cozy, a pennant)
+r 2 #d84860 rose (a pennant)
 y 2 #e8a828 gold
 @pixels
 ................................................................................................................................................................

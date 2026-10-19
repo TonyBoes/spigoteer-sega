@@ -47,8 +47,8 @@ Running gags:
    Igloo: slides the icy bar and rolls out the tunnel downhill. Factory: the conveyor carries him into a returns box. Chrome Cow: the chord's
    sound arcs (page 1), the blast (page 2). Teahouse: the beat, then he bounces out. Zoo: monkeys steal his boots and hat. Space: the tractor
    beam takes him up; the "came down" page sets him down in a pink-jacketed souvenir T-shirt (CGB).
-2. **The mustache.** Sadie rates it four tumbleweeds. Aurora knits it a **pink mustache cozy**,
-   which it wears for the rest of the game. Manager-Bot scans it, Zizz calls it a "face-broom",
+2. **The mustache.** Sadie rates it four tumbleweeds. Aurora knits him a **pink bobble hat**,
+   which he wears for the rest of the game. Manager-Bot scans it, Zizz calls it a "face-broom",
    and the credits confirm it's still on.
 3. **Where the pieces ended up.** Each one was being used for something silly: the handle was
    stuck in a piano, the nozzle piped frosting, the knob was on an igloo that has no door, the
@@ -535,7 +535,7 @@ LOOK FROZEN SOLID!
 AURORA
 HERE, I KNIT YOU
 SOMETHING: A|
-MUSTACHE COZY!
+BOBBLE HAT!
 
 SPIGOTEER
 IT'S...| VERY COZY.
@@ -555,7 +555,7 @@ BAR IS ICY!
 
 ### POST_IGLOO: "Warm and Fuzzy"
 
-Picture: the Spigoteer in his pink mustache cozy holds up the golden knob while the penguins wave goodbye.
+Picture: the Spigoteer in his pink bobble hat holds up the golden knob while the penguins wave goodbye.
 
 ```
 AURORA
@@ -582,7 +582,7 @@ TUNNEL, DOWNHILL.
 
 SPIGOTEER
 FIVE DOWN!| AND MY
-MUSTACHE HAS NEVER
+EARS HAVE NEVER
 BEEN SO TOASTY.
 
 SPIGOTEER
@@ -606,7 +606,7 @@ I AM MANAGER-BOT
 MANAGER-BOT
 SCANNING...|
 MUSTACHE DETECTED.
-ALSO A PINK COZY.
+ALSO A PINK HAT.
 
 SPIGOTEER
 @beat 2
@@ -968,7 +968,7 @@ ZIZZ, YOUR HOST!
 ZIZZ
 YOUR FACE-BROOM
 IS MOST HANDSOME!|
-ALSO VERY PINK.
+NICE PINK HAT TOO.
 
 SPIGOTEER
 THANKS. I'M HERE
@@ -1060,7 +1060,7 @@ I'LL POUR YOU ONE.
 
 ### FINALE_A: "The First Pour"
 
-Picture: the same Fizzwater square by day, pennants among the string lights. The restored Golden Spigot gleams on its fountain, its water runs into the glass the Spigoteer (in his cozy) holds up to the jet, a sheepish Dregs stands by, and the ten owners are lined up along the bottom. (`assets/story/pictures/finale_a.txt`; FINALE_B shows it too.)
+Picture: the same Fizzwater square by day, pennants among the string lights. The restored Golden Spigot gleams on its fountain, its water runs into the glass the Spigoteer (in his pink bobble hat) holds up to the jet, a sheepish Dregs stands by, and the ten owners are lined up along the bottom. (`assets/story/pictures/finale_a.txt`; FINALE_B shows it too.)
 
 Picture (page 4): the same square, now staged for the contest (owner Q56, 2026-10-18): the Spigoteer and Dregs stand facing each other in front of the fountain (their game sprites, the Golden Spigot untouched and not poured from), the ten owners watching along the bottom. It replaces the first-pour picture behind a white flash on page 4 (the last narrator page before Sadie's: a picture may only change on a narrator page) and stays through the challenge and the Pour-Off's lead-in. FINALE_B shows the first-pour picture again. (`assets/story/pictures/finale_contest.txt`, derived from `finale_a.txt` by `tools/gen_contest_pic.py`)
 
@@ -1174,7 +1174,7 @@ JUNE DOUBTS IT.
 NARRATOR
 @beat 2
 AND THE PINK
-MUSTACHE COZY?|
+BOBBLE HAT?|
 STILL WORN DAILY.
 
 NARRATOR
@@ -1219,13 +1219,13 @@ overlaps another variant of his or that no page uses):
 
 | Variant | Source | Pages |
 |---|---|---|
-| SPIGOTEER COZY | `spigoteer_cozy.txt` | From PRE_IGLOO page 3 (his "IT'S... VERY COZY." right after Aurora knits it on page 2) to the end of the game: every Spigoteer page of PRE_IGLOO through FINALE_B (CREDITS has none). |
+| SPIGOTEER COZY | `spigoteer_cozy.txt` | From PRE_IGLOO page 3 (his "IT'S... VERY COZY." right after Aurora knits him the bobble hat on page 2) to the end of the game: every Spigoteer page of PRE_IGLOO through FINALE_B (CREDITS has none). |
 | DREGS SORRY | `dregs_sorry.txt` | FINALE_B pages 1-2, his apology "SORRY I BROKE IT." and "YOU POUR FIRST." (his only FINALE_B pages; his FINALE_A challenge has the main portrait). |
 
 | Portrait | One line |
 |---|---|
 | SPIGOTEER | Big curled mustache, spigoteer's apron and bow tie, confident grin. |
-| SPIGOTEER (cozy) | The same with the pink knitted mustache cozy, from PRE_IGLOO page 3 onward. |
+| SPIGOTEER (cozy) | The same in the pink knitted bobble hat (the variant is still named COZY), from PRE_IGLOO page 3 onward. |
 | DREGS | Lanky rival with a scraggly little mustache and a crooked bow tie, sheepish. His FINALE_B apology has its own variant (hand behind his head). |
 | SADIE | Small saloon owner, huge hat, sheriff-style star badge, big laugh. |
 | COACH | Coach Blitz: ball cap, whistle in his teeth, clipboard. |
@@ -1253,7 +1253,7 @@ overlaps another variant of his or that no page uses):
 | PRE_BISTRO | Candlelit bistro, three chefs peeking through the kitchen pass. |
 | POST_BISTRO | Silver dome lifted to reveal the nozzle; plate spinner behind. |
 | PRE_IGLOO | Glowing igloo under the northern lights, Aurora knitting at the entrance. |
-| POST_IGLOO | Spigoteer in the pink cozy with the knob; penguins waving. |
+| POST_IGLOO | Spigoteer in the pink bobble hat with the knob; penguins waving. |
 | PRE_ROBOT | Conveyor belts, big lightning-bolt sign, Manager-Bot on its platform. |
 | POST_ROBOT | Breakdancing robot on its dome; Manager-Bot offers the gasket. |
 | PRE_BIKER | Motorcycles outside a black, studded bar under a neon cow in sunglasses; Granny in the doorway with cookies, the drummer bashing the drip tray inside. |
