@@ -258,7 +258,7 @@ def test_intro_before_then_flash_then_the_explosion(model):
         assert_picture(gb, "intro_a", skip=FRAME)
         gb.press("a", 2)
         gb.run(2)
-        assert gb.mem("story_scene") != SC["INTRO"], "the last page ends the scene"
+        run_until(gb, lambda: gb.mem("story_phase") == 9, 80)   # the last page ends the scene: the story map
         if golden_err:
             raise golden_err
 
@@ -287,7 +287,9 @@ def test_start_skips_the_intro_before_and_during_the_flash(model):
                     run_until(gb, lambda: gb.mem("story_scratch") >= lo and gb.pb.memory[0xFF40] & 0x80, 40)
                     assert gb.mem("story_scratch") != 0, "START comes mid-switch"
             gb.press("start", 10)                                 # (the game reads no keys while the LCD is off: hold it)
-            run_until(gb, lambda: gb.mem("story_scene") != SC["INTRO"], 30)
+            run_until(gb, lambda: gb.mem("story_phase") == 9, 80)      # INTRO -> the story map; A at the saloon: its PRE scene
+            from test_story import through_the_map
+            through_the_map(gb)
             settle(gb)
             page_ready(gb)
             assert gb.mem("story_scene") == SC["PRE_SALOON"]

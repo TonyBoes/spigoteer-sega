@@ -26,6 +26,7 @@
 #define MG_PRACTICE     1
 #define MG_HARD         2       // | MG_PRACTICE: difficulty code MG_D_HARD
 #define MG_EASY         4       // | MG_PRACTICE: difficulty code MG_D_EASY
+#define MG_MAP          8       // | MG_PRACTICE: started from the story map (src/smap.c): the result goes back to the map ("A CONTINUE"), the story's score and progress untouched (bits 1-2 stay the difficulty: NORMAL)
 #define MG_D_NORMAL     0
 #define MG_D_HARD       1
 #define MG_D_EASY       2
