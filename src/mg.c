@@ -436,6 +436,12 @@ static uint8_t result_frame(uint8_t pressed) {
 
 static uint8_t mg_frame(uint8_t pressed);
 
+static void card_back(void) {                    // B on a HOW TO PLAY card of Practice (the list) or a play from the story map (the map)
+    mg_leave();
+    if (mg_mode & MG_MAP) smap_back();
+    else mg_list_enter();
+}
+
 // One mini-game frame, with the VBlank OAM DMA off while it runs (as main.c does for GS_PLAYING): every game clears and
 // rewrites its sprite entries here, and a frame that runs past the start of VBlank would put a half-written list on the
 // screen (the flicker of Log Roll's late frames). The DMA is off only inside this call: the last complete list stays up.
@@ -454,7 +460,7 @@ static uint8_t mg_frame(uint8_t pressed) {
     switch (mg_phase) {
     case MG_CARD:                                // the full card: A starts the game (its screen is built now, the banner after it)
         s = mg_mode != MG_STORY;                 // from BONUS > MINI GAMES: B goes back to the list (as the pause menu QUIT), no medal
-        if ((pressed & J_B) && s) { mg_leave(); if (mg_mode & MG_MAP) smap_back(); else mg_list_enter(); return 1; }   // (a play from the story map: B returns to the map)
+        if ((pressed & J_B) && s) { card_back(); return 1; }   // (from the list: back to it; from the story map: back to the map)
         if (pressed & (J_A | J_B)) {             // A (B too where there is no list) turns the page, or starts the game after the last
             if ((uint8_t)mg_score + 1 < mg_card_pages(mg_game)) { mg_score++; mg_card_page(mg_game, (uint8_t)mg_score, s); mg_t = 0; }
             else mg_begin(mg_id, mg_mode);
