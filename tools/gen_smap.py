@@ -23,7 +23,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "assets" / "story_map"
 FONT_END = 93            # the first BG id after the generic tiles (36..76) and the story font (77..92)
-DIM_BASE = 240           # the greyed letters' ids (DIM_N of them)
+DIM_BASE = 233           # the greyed letters' ids (DIM_N of them): just above the picture's, below the transition drink's 248-251 (src/trans.c)
 DIM_N = 9
 TW, TH = 20, 18
 

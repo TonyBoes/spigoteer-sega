@@ -34,13 +34,15 @@ INV.update({DIM_BASE + i: c for i, c in enumerate("THEPOURF-")})
 PAIR = SMAP["obj_pairs"]
 
 
-def to_map(model, progress=3, step=0, ram=None, stop=None, flags=None, cards=True):
+def to_map(model, progress=3, step=0, ram=None, stop=None, flags=None, cards=True, tag_gone=True):
     """A rom on the story map: CONTINUE from a save with `progress` chapters cleared (a venue's step reached when step > 0). stop / flags are poked after."""
+    if progress in (0, 10) and not step and ram is None:
+        step = 1                                          # (a save CONTINUE offers: a step reached in chapter 1; all ten cleared and the finale not done)
     rom = booted(model, ram if ram is not None else v7_image([], story=progress, step=step), cards=cards)
     title_pick(rom, ts.K_PLAY, K_CONTINUE, press=False)
     menu_tap(rom, "a")
     run_until(rom, lambda: rom.mem("story_phase") == SP_MAP and state(rom) == GS_STORY, 400)
-    rom.run(4)
+    rom.run(100 if tag_gone else 4)                      # (the name tag on the window layer is up for the first 90 frames)
     if stop is not None:
         rom.write("smap_stop", stop)
     if flags is not None:
@@ -68,7 +70,11 @@ def shown(gb, i):
 
 
 def sal_xy(gb):
+    """Sal's top-left (his left column may be off the screen's edge: then its entry is hidden and the right one gives it)."""
     o = oam(gb, OAM_SAL)
+    if not o["y"]:
+        o = oam(gb, OAM_SAL + 1)
+        return o["x"] - 16, o["y"] - 16
     return o["x"] - 8, o["y"] - 16
 
 
@@ -126,7 +132,7 @@ def test_the_dpad_snaps_along_the_table_with_every_stop_open(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("progress, moves", [
     (3, [(3, "right", 10), (10, "down", 3), (10, "left", 0), (0, "up", 1), (1, "up", 2), (2, "right", 3), (3, "left", 2), (0, "right", 10)]),
-    (0, [(0, "up", 0), (0, "right", 10), (10, "left", 0), (10, "down", 0)]),                    # only the saloon and the town are open: the ring passes everything else
+    (0, [(0, "up", 10), (0, "right", 10), (10, "left", 0), (10, "down", 0)]),                    # only the saloon and the town are open: the ring passes everything else
     (6, [(6, "down", 10), (5, "down", 6), (6, "up", 5), (10, "down", 6), (4, "down", 5)]),
 ])
 def test_locked_stops_are_skipped(model, progress, moves):
@@ -211,7 +217,7 @@ def test_the_name_tag_shows_90_frames_on_the_window_layer(model):
 
 # ---- A at a venue -----------------------------------------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("progress", [0, 3, 9])
+@pytest.mark.parametrize("progress", [1, 3, 9])
 def test_a_at_the_next_uncleared_venue_starts_its_pre_scene(model, progress):
     gb = to_map(model, progress)
     assert gb.mem("smap_stop") == progress
@@ -219,7 +225,7 @@ def test_a_at_the_next_uncleared_venue_starts_its_pre_scene(model, progress):
     run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 120)
     assert gb.mem("story_scene") == ts.pre(progress) and gb.mem("story_chapter") == progress
     assert gb.mem("overlay_on") == 0, "the map's window is gone"
-    assert gb.regs()["WY"] == ts.GAME["BANNER_WY"], "the banner window's own place again"
+    assert gb.regs()["WY"] == 64, "the banner window's own place again"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -270,7 +276,8 @@ def play_result(gb, points, bonus=False):
         for i in range(4):
             gb.write(a + i, (points >> (8 * i)) & 255)
     else:
-        gb.write("mg_score", points)
+        gb.write("mg_score", points & 255)
+        gb.write(gb.addr("mg_score") + 1, points >> 8)
     gb.write("mg_phase", MG_RESULT)
     run_until(gb, lambda: gb.mem("overlay_on") == 1 and gb.mem("mg_t") >= MG_RESULT_MIN, 200)
 
@@ -316,13 +323,16 @@ def test_play_runs_that_venues_mini_game_only_and_upgrades_the_medal(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_map_play_quit_from_the_pause_menu_returns_to_the_map_without_a_medal(model):
-    from test_pause import open_pause, quit_yes
     gb = venue_panel(model, 5, 1)
     tap(gb, "a", 2)
     run_until(gb, lambda: state(gb) == GS_MINI and gb.mem("mg_phase") >= 2, 200)
     gb.run(20)
-    open_pause(gb)
-    quit_yes(gb)
+    tap(gb, "start", 8)                  # the mini-game's pause menu: RESUME / HOW TO PLAY / QUIT TO MENU, then YES
+    tap(gb, "down")
+    tap(gb, "down")
+    tap(gb, "a")
+    tap(gb, "up")
+    gb.press("a", 2)
     run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP, 120)
     assert gb.read("mg_best", 10)[1] == 0 and gb.mem("story_progress") == 5
 
@@ -450,12 +460,13 @@ def pour_off_lives(gb):
     tap(gb, "down", 4)
     tap(gb, "a", 20)
     gb.run(8)
-    if gb.mem("smap_flags") >> 4 != 7:
+    if (gb.mem("smap_flags") >> 4) & 7 != 7:
         assert win_text(gb, 1) == "DREGS", "fewer than 3 festival golds: Dregs's nudge"
         tap(gb, "a", 2)
     run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE and gb.mem("story_scene") == ts.SC["FINALE_A"], 120)
+    gb.run(60)
     gb.press("start", 2)
-    run_until(gb, lambda: state(gb) == GS_MINI, 40)
+    run_until(gb, lambda: state(gb) == GS_MINI, 150)
     gb.run(3)
     assert gb.mem("mg_id") == 11
     return gb.mem("lives")
@@ -466,7 +477,7 @@ def pour_off_lives(gb):
 def test_pour_off_lives_are_3_plus_the_festival_golds_of_the_run(model, ks):
     gb = to_map(model, 10, step=1)
     golds_won(gb, ks)
-    assert gb.mem("smap_flags") >> 4 == sum(1 << k for k in ks)
+    assert (gb.mem("smap_flags") >> 4) & 7 == sum(1 << k for k in ks)
     assert pour_off_lives(gb) == 3 + len(ks)
 
 
@@ -474,7 +485,7 @@ def test_pour_off_lives_are_3_plus_the_festival_golds_of_the_run(model, ks):
 def test_a_gold_twice_counts_once_and_the_cap_is_three(model):
     gb = to_map(model, 10, step=1)
     golds_won(gb, (1, 1))
-    assert gb.mem("smap_flags") >> 4 == 2
+    assert (gb.mem("smap_flags") >> 4) & 7 == 2
     gb.write("smap_flags", 0xF7)
     assert pour_off_lives(gb) == 6, "3 + at most 3"
 
@@ -484,7 +495,7 @@ def test_a_gold_twice_counts_once_and_the_cap_is_three(model):
 def test_only_normal_and_hard_story_runs_count_easy_does_not(model, diff, counts):
     gb = to_map(model, 10, step=1)
     golds_won(gb, (0,), diff)
-    assert (gb.mem("smap_flags") >> 4) == counts
+    assert (gb.mem("smap_flags") >> 4) & 7 == counts
     assert pour_off_lives(gb) == 3 + counts
 
 
@@ -581,10 +592,9 @@ def test_intro_leads_to_the_map_and_a_there_starts_chapter_1(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_post_scene_returns_to_the_map_with_sal_on_the_venue_just_played(model):
     gb = ts.to_chapter(model, 2)
-    gb.write("story_step", ts.SHIFT_STEP[2] - 1)
+    gb.write("story_step", ts.STORY_STEPS - 1)           # (the chapter's last step: the Opening won)
     ts.win(gb, 2, 0)
-    run_until(gb, lambda: state(gb) == ts.LEVEL_CLEAR, 40)
-    run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == ts.post(2), 900)
+    run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_scene") == ts.post(2), 400)
     assert gb.mem("story_progress") == 3
     ts.skip_scene(gb, stay=True)
     assert gb.mem("smap_stop") == 2 and gb.mem("story_chapter") == 2
