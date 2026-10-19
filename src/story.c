@@ -81,10 +81,10 @@ void dg_frame(uint8_t *st) BANKED;
 #define GOAL_LYC       (BANNER_WY + 38)
 #define HUD_GOAL_COL    11         // story HUD: the goal's icon + 2 digits (what is left) at 11-13, a timer's hourglass + 2 digits at 17-19
 
-enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO, SP_LOOP, SP_RUSH, SP_CREDITS };   // SP_OUTRO: a boss satisfied
+enum { SP_OFF, SP_SCENE, SP_GOAL, SP_PLAY, SP_FAIL, SP_OUTRO, SP_LOOP, SP_RUSH, SP_CREDITS, SP_MAP };   // SP_OUTRO: a boss satisfied
                                                      // (boss.c); SP_LOOP: ARCADE's "LOOP n" before a goal banner;
                                                      // SP_RUSH: a BOSS RUSH screen (src/rush.c rush_update)
-typedef char sp_rush_is_game_h[(SP_RUSH == STORY_PHASE_RUSH && SP_CREDITS == STORY_PHASE_CREDITS) ? 1 : -1];
+typedef char sp_rush_is_game_h[(SP_RUSH == STORY_PHASE_RUSH && SP_CREDITS == STORY_PHASE_CREDITS && SP_MAP == STORY_PHASE_MAP) ? 1 : -1];
 enum { SW_IDLE, SW_OUT, SW_PAL, SW_IN, SW_TILES };   // SW_TILES: picture scenes only (the portrait slot's tiles stream in)
 
 // vq_entry_t of src/render.c (the VBlank copy list): tile data goes to a raw VRAM address, which vq_add cannot express
@@ -418,6 +418,7 @@ static void read_rows(uint8_t *d) {              // LCD off: map rows 0..STORY_P
 
 static void screen_off(void) {
     DISPLAY_OFF;
+    smap_pal_back();                             // (from the story map: the HUD palette its picture borrowed)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();
     hide_all_sprites();
@@ -578,6 +579,7 @@ static void shift_start(void) {
     else story_goal_get(story_chapter, story_shift, (uint8_t *)&story_goal);
     story_twist = story_goal.twist;
     DISPLAY_OFF;
+    smap_pal_back();                             // (from the story map: the HUD palette its picture borrowed)
     banner_build();
     level = story_chapter + 1;                  // (lives: set by venue_start, carried from shift to shift)
     if (story_arc & 1) level += (arc_loop > 9 ? 8 : arc_loop - 1) * 10;   // ARCADE: the loop's row (start_level's loop maths)
@@ -641,7 +643,7 @@ static void venue_start(void) {
 
 static void chapter_done(void) {                 // every step done: saved as cleared, the POST scene
     if (story_arc & 1) { bonus_enter(); game_state = GS_BONUS; return; }   // ARCADE: the bonus round (then arcade_next)
-    story_save(story_chapter + 1, 0);
+    story_save(story_chapter + 1, story_chapter + 1 == STORY_CHAPTERS);   // (the last venue: step 1 = the finale is reached, not done: CONTINUE returns to the map, src/save.c)
     venue_score_put(story_chapter + 1, score);   // (the next venue's start score: what CONTINUE gives back)
     scene_enter(SC_POST_SALOON + 2 * story_chapter);
 }
@@ -671,15 +673,14 @@ void story_begin(uint8_t how) BANKED {
         return;
     }
     story_arc = cont ? story_diff_saved() << 1 : how & 6;   // the difficulty: the saved one, or the prompt's (bits 1-2, DIFF_*; the run's, game.h RUN_DIFF)
-    if (cont && (story_progress || story_reached) && story_progress < STORY_CHAPTERS) {
-        story_chapter = story_progress;
-        story_scene = SC_PRE_SALOON + 2 * story_chapter;
-        score = venue_score_get(story_chapter);  // the score the venue was entered with (owner 2026-10-14), lives 3 (run_begin)
+    if (cont && can_continue()) {                // a saved story, not one whose finale is done: the story map, Sal where he stood (src/smap.c)
+        story_chapter = story_progress < STORY_CHAPTERS ? story_progress : STORY_CHAPTERS - 1;
+        score = venue_score_get(story_progress); // the score the venue was entered with (owner 2026-10-14), lives 3 (run_begin); all ten cleared: the finale's
         split6(score_digits, score);
-        if (!story_reached) scene_enter(story_scene);
-        else venue_start();
+        smap_continue();                         // (A at the next venue: its Opening banner when a step of it was reached, else its PRE scene: story_map_venue)
     } else {
         story_chapter = 0;
+        smap_new_run();
         scene_enter(SC_INTRO);
     }
 }
@@ -717,6 +718,7 @@ void story_end(void) BANKED {
     uint8_t aaa[3];
     story_on = 0; story_phase = SP_OFF;
     if (save_lock) { title_enter(); return; }   // (a debug-select run: nothing saved)
+    story_save(STORY_CHAPTERS, 0);              // (the finale is done: CONTINUE is not offered again, src/save.c)
     score_tbl = MODE_STORY;
     aaa[0] = aaa[1] = aaa[2] = 'A';
     if (RUN_DIFF == DIFF_HARD) aaa[0] |= 0x80;             // the table's E / H mark (save.c)
@@ -733,12 +735,33 @@ static void scene_done(void) {
     if (s == SC_CREDITS) { credits_enter(1); return; }   // the end: the credits roll, then story_end
     if (s == SC_FINALE_A) { mg_enter(MG_POUROFF, MG_STORY); return; }   // Dregs challenges: the Pour-Off (src/po.c), then FINALE_B
     if (s == SC_FINALE_B) { scene_enter(SC_CREDITS); return; }
-    if (s == SC_INTRO) { scene_enter(SC_PRE_SALOON); return; }
+    if (s == SC_INTRO) {                         // the map; a debug-select run (nothing saved, no map) goes on to the first PRE
+        if (save_lock) { scene_enter(SC_PRE_SALOON); return; }
+        smap_stop = 0; smap_enter(0);
+        return;
+    }
     if (!((s - SC_PRE_SALOON) & 1)) { venue_score_put(story_chapter, score); venue_start(); return; }     // a PRE scene: the chapter
-    if (story_chapter + 1 < STORY_CHAPTERS) {                       // a POST scene: the next chapter's PRE
+    if (!save_lock) { smap_stop = story_chapter; smap_enter(0); return; }   // a POST scene: the map, Sal on the venue just played (A there: the next venue's PRE, or the Pour-Off at the town)
+    if (story_chapter + 1 < STORY_CHAPTERS) {                       // (a debug-select run: the next chapter's PRE as before)
         story_chapter++;
         scene_enter(SC_PRE_SALOON + 2 * story_chapter);
     } else scene_enter(SC_FINALE_A);
+}
+
+// The map's A on venue c, the next one not cleared (src/smap.c, whose screen is left): its PRE scene and the chapter as ever, or, with a step of it
+// reached before (CONTINUE), straight to its Opening banner (as CONTINUE always did)
+void story_map_venue(uint8_t c) BANKED {
+    TRANS_WANT();                                // (src/trans.c: the map -> the scene behind the fade)
+    story_chapter = c;
+    if (story_progress == c && story_reached) venue_start();
+    else scene_enter(SC_PRE_SALOON + 2 * c);
+}
+
+// The map's THE POUR-OFF (all ten venues cleared): FINALE_A, the Pour-Off, FINALE_B, the credits
+void story_map_pouroff(void) BANKED {
+    TRANS_WANT();
+    story_chapter = STORY_CHAPTERS - 1;
+    scene_enter(SC_FINALE_A);
 }
 
 // The Pour-Off is won (src/mg.c, its screen already left): the finale's second half
@@ -1022,6 +1045,8 @@ uint8_t story_update(uint8_t pressed) BANKED {
         return rush_update(pressed);
     case SP_CREDITS:                             // the credits roll (src/credits.c)
         return credits_update(pressed);
+    case SP_MAP:                                 // the story map between the chapters (src/smap.c)
+        return smap_update(pressed);
     case SP_SCENE:
         break;
     default:
