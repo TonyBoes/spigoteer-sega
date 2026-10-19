@@ -148,11 +148,16 @@ BONUS_H  += $(BUILD)/po_art.h
 $(BUILD)/po_art.h: tools/gen_po.py tools/gen_art.py $(wildcard assets/art/dregs/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_po.py $(BUILD) $(OUT)/preview
 
-BONUS_H  += $(BUILD)/dgag_art.h
+BONUS_H  += $(BUILD)/dgag_art.h $(BUILD)/smap_art.h
 # Dregs's late-arrival gags (src/dgag.c; docs/story.md "Dregs's exits"): new PROPOSAL art in assets/art/dgag plus the Pour-Off's Dregs, the
 # Monkey Business monkey and the dust puff -> build/dgag_art.h, build/dgag.json (tests), out/preview/dgag_x8.png
 $(BUILD)/dgag_art.h: tools/gen_dgag.py tools/gen_art.py $(wildcard assets/art/dgag/*.txt) assets/art/dregs/dregs.txt assets/art/monkey/monkey.txt assets/art/dust.txt | $(BUILD) $(OUT)/preview
 	python3 tools/gen_dgag.py $(BUILD) $(OUT)/preview
+
+# The story map (src/smap.c; the owner-approved v14 art, 2026-10-18): assets/story_map/*.png -> build/smap_art.h (BG tiles, map, attributes, palettes,
+# OBJ tiles), build/smap.json (tests), out/preview/smap_*_x4.png
+$(BUILD)/smap_art.h: tools/gen_smap.py $(wildcard assets/story_map/*.png) | $(BUILD) $(OUT)/preview
+	python3 tools/gen_smap.py $(BUILD) $(OUT)/preview
 
 preview: $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 
