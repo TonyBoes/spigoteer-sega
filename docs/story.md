@@ -1200,7 +1200,9 @@ panel), facing right toward the Spigoteer at his taps; light from the upper righ
   3 palettes whose slot k is the colour of shade k. Two colours on one shade in a tile cannot be shown: the build fails.
 * An `obj=` key is a CGB-only accent drawn by one 8x16 OBJ over the BG (Sadie's gold star); DMG shows the base key's
   shade underneath. At most one per portrait in this style (3 sprites on a line with the Spigoteer's 2).
-* Budget: at most 44 unique tiles a portrait (no flips), 3 CGB BG palettes (slots 2-4), the background shade 2 with a
+* Budget: at most 49 unique tiles a portrait (no flips; every square of the 7x7; owner 2026-10-18, was 44). Every dialogue scene fits even with all its
+  portraits at 49 (the busiest, POST_ROBOT, would need 162 of 163 with the name plates). A picture scene's speakers are limited by the picture's
+  room instead: the INTRO's burst picture leaves the main SPIGOTEER at most 45 and the main DREGS at most 43 (their name plates take 3 and 5); the build names the portrait, 3 CGB BG palettes (slots 2-4), the background shade 2 with a
   per-character CGB colour, skin and whites shade 0, outline shade 3.
 
 All done (approved art imported pixel-exact, 2026-10-10; GRANNY 2026-10-11): **SPIGOTEER, SADIE, DREGS, COACH, JUNE,
