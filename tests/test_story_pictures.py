@@ -759,7 +759,7 @@ def test_the_finale_shows_dregs_not_a_second_bartender():
     assert all(got[4 + i][:16] == sm(sprite[i]) for i in range(14)), "the head and neck are the sprite's (rows 0-13)"
     assert got[18][:16] == sprite[14].replace("-", "S").replace("+", "m"), "the sprite's collar"
     assert "W" not in "".join(_region(pix, 139, 60, 160, 89)), "no white shirt or apron on Dregs"
-    assert "r" in "".join(_region(pix, 126, 66, 139, 89)) and "r" not in "".join(got)       # the Spigoteer's rose cozy is not Dregs's
+    assert "r" in "".join(_region(pix, 126, 66, 139, 89)) and "r" not in "".join(got)       # the Spigoteer's rose bobble hat is not Dregs's
     assert key["m"]["hex"] == "#b0a0b8" and "".join(got).count("m") > 40                  # Dregs wears the grey jacket
 
 
@@ -802,3 +802,14 @@ def test_the_contest_picture_is_the_first_pour_courtyard_with_the_two_game_sprit
     assert not any("S" in r[112:137] for r in b[58:80])                         # nobody holds a glass up to the right jet: the hand and the Spigoteer are gone from the basin
     assert sum(c != "." for r in _region(b, 56, 64, 72, 88) for c in r) > 60      # the Spigoteer
     assert sum(c != "." for r in _region(b, 137, 64, 153, 88) for c in r) > 60    # Dregs
+
+
+def test_the_finale_spigoteer_wears_the_pink_bobble_hat_and_his_mustache_shows():
+    """Owner 2026-10-19: Aurora knits a pink bobble hat (not a mustache cozy). In finale_a the rose is a hat on his head
+    (rows 69-70, a rose pom-pom above, a white band) and the mustache rows are ink, not rose."""
+    key, pix = _pix("finale_a")
+    hat = _region(pix, 127, 65, 139, 72)
+    assert "".join(hat[4:6]).count("r") >= 14 and "".join(hat[1:3]).count("r") == 6 and "W" in hat[6]
+    face = _region(pix, 128, 72, 138, 82)
+    assert "r" not in "".join(face), "no rose over the mustache"
+    assert "#####" in face[5], "the mustache (ink) is uncovered"

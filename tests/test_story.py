@@ -210,7 +210,7 @@ def test_the_portrait_variants_follow_the_script():
     halves, FINALE_A's challenge has his main portrait). Data, not scene checks:
     portraits.json 'variants', resolved per page by gen_story."""
     knit = SCENES[SC["PRE_IGLOO"]]["pages"]
-    assert knit[1]["speaker"] == "AURORA" and knit[1]["lines"][-1] == "MUSTACHE COZY!"
+    assert knit[1]["speaker"] == "AURORA" and knit[1]["lines"][-1] == "BOBBLE HAT!"
     assert knit[2]["speaker"] == "SPIGOTEER" and knit[2]["lines"][0] == "IT'S... VERY COZY."
     seen = [(i, k, p["portrait"]) for i, s in enumerate(SCENES) for k, p in enumerate(s["pages"])
             if p["speaker"] == "SPIGOTEER"]
