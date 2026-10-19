@@ -301,6 +301,7 @@ static void quit(void) {
     put_back();                                  // (before the leave: Taiko's tk_leave sets its own NR51)
     if (state_timer & PAUSE_MINI) {
         mg_abort();                              // mg.c's normal leave: LCD off, OBP0, handlers, sprites, Taiko's mask
+        if (mg_mode & MG_MAP) { smap_back(); return; }          // a play from the story map: back to the map, no medal
         if (mg_mode != MG_STORY) { mg_list_enter(); return; }   // BONUS > MINI GAMES: back to the list, no medal
     } else if (play_mode == MODE_RUSH) {
         rush_quit();                             // the BOSS RUSH menu, no time recorded

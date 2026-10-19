@@ -206,6 +206,7 @@ static void attr_rows(uint8_t y, uint8_t n) {    // LCD off, CGB: rows y.. in th
 static uint8_t prelude(uint8_t id, uint8_t mode) {
     if (mode != MG_STORY) TRANS_MENU();          // (src/trans.c: Practice from the list: the quick white fade; a story's mini-game has the drink wanted already)
     DISPLAY_OFF;
+    smap_pal_back();                             // (from the story map: the HUD palette its picture borrowed)
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC; SCX_REG = 0;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();
@@ -250,8 +251,8 @@ void mg_enter(uint8_t id, uint8_t mode) BANKED {
 
 static void mg_begin(uint8_t id, uint8_t mode) {
     uint8_t v = prelude(id, mode), i;
-    if (mode == MG_STORY) mg_record(id, MEDAL_NONE);   // STORY or ARCADE reached it: Practice lists it (save.c)
-    else {                                       // practice: the score starts from 0 (story: it carries on)
+    if (mode == MG_STORY || (mode & MG_MAP)) mg_record(id, MEDAL_NONE);   // STORY or ARCADE (or the story map) reached it: Practice lists it (save.c)
+    if (mode != MG_STORY) {                      // practice, and the story map's plays (smap_back puts the story's score back): the score starts from 0 (story: it carries on)
         extra_at = 0;                            // (no extra lives by score here)
         score = 0;
         for (i = 0; i < 6; i++) score_digits[i] = 0;
@@ -346,6 +347,7 @@ static void result_begin(void) {
         SFX(SFX_COIN);
         if (m == MEDAL_GOLD && mg_mode == MG_STORY) story_bonus_life();       // owner: +1 life for the venue
     }
+    res_txt[0][13] = m == MEDAL_GOLD && (mg_mode & MG_MAP) && mg_id >= MG_SHAKEUP && mg_id < MG_SHAKEUP + MG_BONUS_N && smap_gold(mg_id - MG_SHAKEUP);   // a festival gold: a life for the Pour-Off (src/smap.c; its name line says so)
     d = res_txt[0];                              // "SCORE n"
     for (w = "SCORE "; *w; ) *d++ = *w++;
     mg_number(d, mg_score);
@@ -365,8 +367,8 @@ static void result_row(uint8_t r) {             // queue window row r (0..5)
         fill(res_buf, r ? TILE_PANEL_BOT : TILE_PANEL_TOP, 20);
         vq_add(0, res_buf, 0, RES_ROW + r, 20);
         return;
-    case 1: s = mg_game == G_AD ? "ASTEROIDS" : mg_name[mg_game]; break;   // (the window holds 16 letters: "ASTEROID DELIVERY" is 17)
-    case 4: s = mg_mode == MG_STORY ? "A CONTINUE" : "A RETRY B MENU"; break;
+    case 1: s = mg_game == G_AD ? "ASTEROIDS" : res_txt[0][13] ? "1 MORE LIFE" : mg_name[mg_game]; break;   // (the window holds 16 letters: "ASTEROID DELIVERY" is 17; a festival gold's prize replaces the name: the Pour-Off's extra life)
+    case 4: s = (mg_mode == MG_STORY || (mg_mode & MG_MAP)) ? "A CONTINUE" : "A RETRY B MENU"; break;
     default: s = res_txt[r - 2]; break;          // rows 2, 3: the score, the medal
     }
     b = mg_say(RES_ROW + r, s);                  // queued: the row is copied at VBlank, so it may still change here
@@ -415,6 +417,12 @@ static uint8_t result_frame(uint8_t pressed) {
         }
         return 0;
     }
+    if (mg_mode & MG_MAP) {                      // a play the story map started: back to the map
+        if (!(pressed & J_A) || mg_t < MG_RESULT_MIN) return 0;
+        mg_leave();
+        smap_back();
+        return 1;
+    }
     if (mg_mode == MG_STORY) {
         if (!(pressed & J_A) || mg_t < MG_RESULT_MIN) return 0;
         mg_leave();
@@ -446,7 +454,7 @@ static uint8_t mg_frame(uint8_t pressed) {
     switch (mg_phase) {
     case MG_CARD:                                // the full card: A starts the game (its screen is built now, the banner after it)
         s = mg_mode != MG_STORY;                 // from BONUS > MINI GAMES: B goes back to the list (as the pause menu QUIT), no medal
-        if ((pressed & J_B) && s) { mg_leave(); mg_list_enter(); return 1; }
+        if ((pressed & J_B) && s) { mg_leave(); if (mg_mode & MG_MAP) smap_back(); else mg_list_enter(); return 1; }   // (a play from the story map: B returns to the map)
         if (pressed & (J_A | J_B)) {             // A (B too where there is no list) turns the page, or starts the game after the last
             if ((uint8_t)mg_score + 1 < mg_card_pages(mg_game)) { mg_score++; mg_card_page(mg_game, (uint8_t)mg_score, s); mg_t = 0; }
             else mg_begin(mg_id, mg_mode);
