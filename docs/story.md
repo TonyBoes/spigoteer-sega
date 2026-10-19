@@ -1186,6 +1186,10 @@ LAST CALL!
 
 ---
 
+## The story map (owner 2026-10-18, src/smap.c; first build)
+
+Between the chapters the story shows one full-screen map (the approved v14 art, assets/story_map, tools/gen_smap.py): eleven stops on one ring, the ten venues and the town square. INTRO's last page, every POST scene and CONTINUE lead to it. The D-pad snaps Sal (a 16x16 map sprite) from stop to stop; stops of venues not yet reached are locked (a red hollow dot) and skipped, the town is always open; gold arrows show the open directions; a name tag ("CH4 THE BISTRO") shows for 90 frames on each arrival. A at the next uncleared venue starts its PRE scene as before. A at a cleared venue opens PLAY / BACK and its best medal: PLAY runs that venue's mini-game only (never the boss; the story's score and progress do not move; a better medal upgrades the venue's saved medal). A at the town opens FESTIVAL GAMES (Shake Up after chapter 2, Perfect Pour after 4, Tip Shower after 7, each with its medal; the gold "!" over the tent shows while a newly unlocked one is unplayed) and THE POUR-OFF (greyed until all ten venues are cleared; with fewer than 3 festival golds Dregs first nudges the player, text only, to warm up). The Pour-Off starts with 3 lives + the festival golds won in this story run (NORMAL or HARD only, at most 3 more). The map's B does nothing. The save keeps the stop and the festival flags in a 6-byte block ("SM", save.c); "all ten cleared, finale not done" is saved as progress 10, step 1. Dregs's nudge wording is proposed, pending the owner.
+
 ## Art list
 
 ### Portraits (56x56 busts, one per speaker; DMG 4 shades, CGB up to 3 BG palettes, an optional 1-OBJ accent)

@@ -424,6 +424,8 @@ def test_story_quit_goes_to_the_title_and_continue_starts_from_the_save_point(mo
         title_pick(gb, K_PLAY, K_CONTINUE, press=False)
         assert K_CONTINUE in menu_items(gb), "the save is still there"
         menu_tap(gb, "a")
+        from test_story import through_the_map
+        through_the_map(gb)                                   # (CONTINUE lands on the story map: A at the next venue)
         run_until(gb, lambda: state(gb) == GS_GOAL, 120)
         gb.run(3)
         assert gb.mem("story_on") == 1 and gb.mem("story_chapter") == c and gb.mem("lives") == 3

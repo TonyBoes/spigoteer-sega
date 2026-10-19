@@ -680,6 +680,7 @@ void story_begin(uint8_t how) BANKED {
         smap_continue();                         // (A at the next venue: its Opening banner when a step of it was reached, else its PRE scene: story_map_venue)
     } else {
         story_chapter = 0;
+        story_progress = 0; story_reached = 0;   // (a new story: the map opens its venues by the run's progress; the old save is replaced by this run's first save)
         smap_new_run();
         scene_enter(SC_INTRO);
     }
@@ -753,6 +754,7 @@ static void scene_done(void) {
 void story_map_venue(uint8_t c) BANKED {
     TRANS_WANT();                                // (src/trans.c: the map -> the scene behind the fade)
     story_chapter = c;
+    story_scene = SC_PRE_SALOON + 2 * c;
     if (story_progress == c && story_reached) venue_start();
     else scene_enter(SC_PRE_SALOON + 2 * c);
 }

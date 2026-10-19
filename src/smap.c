@@ -35,6 +35,7 @@ BANKREF_EXTERN(art_tiles)
 extern const uint8_t bar_tiles[];
 extern uint8_t overlay_on, story_phase, story_chapter, save_lock, score_digits[6], play_mode;
 extern uint32_t score;
+extern uint8_t win_rows[5][20];
 void story_map_venue(uint8_t c) BANKED;       // src/story.c
 void story_map_pouroff(void) BANKED;
 
@@ -421,6 +422,7 @@ void smap_enter(uint8_t quick) BANKED {
     clear_patrons(); clear_mugs();
     tip_timer = 0; show_timer = 0;
     hide_all_sprites();
+    win_rows[0][4] = 0;                            // (Dregs's gag state, src/dgag.c: a POST scene skipped mid-gag leaves none running)
     music_fast = 0;
     music_play(TUNE_TITLE);
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));
