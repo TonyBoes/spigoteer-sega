@@ -415,7 +415,7 @@ typedef struct {
 #define VQ_MAX        24
 #define VQ_BUDGET     64    // cost units (~40 cycles each) per frame, see queue_vram
 #define VQ_CHUNK       6    // widest span queued for one bar row at a time
-#define QUEUE_LY_LATE 72    // a frame this far on (what is left to build: ~60 lines) carries the bars' spans over to the next one, every other frame
+#define QUEUE_LY_LATE 72    // a frame this far on (what is left to build: ~60 lines) carries the bars' spans over to the next one, 3 frames out of 4
 #define VQ_LATEST_LY 147    // a full-budget drain (~7 lines, drain_ticks_max) that starts later could run into line 0
 // VQ_DRAIN_BUDGET (game.h): bytes + 3 per entry (~40 cycles each) one VBlank's drain may take, whoever queued them (queue_vram, or a
 // direct vq_add / vq[] writer): vq_frame_end hands over only the entries that fit, the rest wait at the head of the list for the
@@ -726,8 +726,9 @@ void queue_vram(void) {
         if (sa && sa_wait >= SA_MAX_WAIT) { queue_stage(); sa = 0; }
         if (quick_n) queue_quick();
         // The bars' spans (a compose is 5-15 lines on a crowded bar) wait for the next frame when this one is already deep in its
-        // budget (LY past QUEUE_LY_LATE, VBlank included); every other frame at most, so a span is never held for long.
-        if ((frame_counter & 1) && LY_REG >= QUEUE_LY_LATE) vram_pending = 1;
+        // budget (LY past QUEUE_LY_LATE, VBlank included); on 3 frames out of 4 at most (frame_counter & 3), so a span is held for
+        // 3 frames at the most (measured: peak 8 / 10 / 12 patrons 23.5 / 28.0 / 37.6 % late -> 19.6 / 23.6 / 28.5 %).
+        if ((frame_counter & 3) && LY_REG >= QUEUE_LY_LATE) vram_pending = 1;
         else if (queue_bar(0) && queue_bar(1) && queue_bar(2)) queue_bar(3);
         if (sa) { if ((uint8_t)(qv_cost + SA_COST) <= VQ_BUDGET) queue_stage(); else sa_wait++; }
     }
