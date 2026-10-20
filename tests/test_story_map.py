@@ -577,6 +577,46 @@ def test_dregs_nudges_with_fewer_than_three_golds_one_page_text_only(model):
         assert win_text(gb, 1) == "FESTIVAL GAMES", "B goes back to the town panel"
 
 
+# ---- START: RESUME / QUIT TO TITLE ---------------------------------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_start_opens_resume_and_quit_and_b_or_resume_closes_it_with_nothing_changed(model):
+    gb = to_map(model, 5, stop=2)
+    tap(gb, "start", 20)
+    gb.run(10)
+    assert gb.mem("overlay_on") == 3 and gb.mem("story_phase") == SP_MAP
+    assert [win_text(gb, r) for r in range(1, 3)] == ["RESUME", "QUIT TO TITLE"]
+    tap(gb, "down", 4)
+    tap(gb, "up", 4)
+    tap(gb, "b", 12)
+    assert gb.mem("overlay_on") == 0 and gb.mem("story_phase") == SP_MAP and gb.mem("smap_stop") == 2, "B closes it"
+    tap(gb, "start", 20)
+    gb.run(10)
+    tap(gb, "a", 12)                                  # RESUME
+    assert gb.mem("overlay_on") == 0 and gb.mem("story_phase") == SP_MAP and gb.mem("smap_stop") == 2
+    assert gb.mem("story_progress") == 5 and gb.mem("story_on") == 1
+    tap(gb, "start", 20)
+    gb.run(10)
+    tap(gb, "start", 12)                              # START again resumes
+    assert gb.mem("overlay_on") == 0 and gb.mem("story_phase") == SP_MAP
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_quit_to_title_and_continue_returns_to_the_map_at_the_same_stop(model):
+    gb = to_map(model, 6, stop=4, flags=0x13)
+    tap(gb, "start", 20)
+    gb.run(10)
+    tap(gb, "down", 4)
+    tap(gb, "a", 2)
+    run_until(gb, lambda: state(gb) == 0, 200)        # the title
+    gb.run(60)
+    assert gb.mem("story_on") == 0 and gb.mem("story_phase") == 0 and gb.mem("title_menu") == 0
+    ram = save_ram(gb)
+    blk = ram[SM_AT:SM_AT + 6]
+    assert blk[:2] == b"SM" and blk[2] == 4 and blk[3] == 0x13
+    gb = to_map(model, ram=ram, progress=6)
+    assert gb.mem("smap_stop") == 4 and gb.mem("smap_flags") & 0x7F == 0x13 and gb.mem("story_progress") == 6
+
+
 # ---- the flow and the save ------------------------------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_intro_leads_to_the_map_and_a_there_starts_chapter_1(model):

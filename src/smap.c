@@ -10,6 +10,7 @@
 //   A at the town                     a panel: FESTIVAL GAMES / THE POUR-OFF. FESTIVAL: Shake Up, Perfect Pour, Tip Shower with their medals, unlocked
 //                                     by chapters 2, 4 and 7; a new one not yet played shows the gold "!" over the tent. THE POUR-OFF is greyed until all ten
 //                                     venues are cleared, then FINALE_A and the Pour-Off (Dregs's one-page nudge first with fewer than 3 festival golds).
+//   START                             a panel: RESUME / QUIT TO TITLE (the map block is saved, CONTINUE returns to this stop); B or START resumes
 //   B                                 nothing
 //
 // Festival lives (owner Q59c-d): the Pour-Off starts with 3 + the festival GOLDS won in the current story run (NORMAL or HARD; at most 3 games, so at most
@@ -92,7 +93,7 @@ static const char dim_set[SMAP_DIM_N + 1] = "THEPOURF-";   // the letters of the
 #define TAGROW       (story_scratch + 180)
 #define V(n)         (story_scratch[400 + (n)])
 enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_WH, V_DONE, V_PREV };
-enum { P_NONE, P_TOWN, P_VENUE, P_FEST, P_NUDGE };
+enum { P_NONE, P_TOWN, P_VENUE, P_FEST, P_NUDGE, P_MENU };
 #define PAL_PANEL    5
 #define PAL_TAG      0
 
@@ -278,6 +279,11 @@ static void panel_rows(uint8_t kind) {             // compose the panel's rows i
         centre_text(blank_row(4), "GOLD: 1 LIFE");
         n = 6;
         break;
+    case P_MENU:                                   // START: RESUME / QUIT TO TITLE
+        put_text(blank_row(1), 3, "RESUME", 0);
+        put_text(blank_row(2), 3, "QUIT TO TITLE", 0);
+        n = 4;
+        break;
     default:                                       // P_NUDGE: Dregs, text only (wording: proposed, pending the owner)
         centre_text(blank_row(1), "DREGS");
         centre_text(blank_row(2), "WARM UP FIRST, KID!");
@@ -350,6 +356,15 @@ static uint8_t panel_a(void) {                     // A in a panel. 1: the scree
         return 1;
     }
     if (kind == P_NUDGE) { leave(); story_map_pouroff(); return 1; }
+    if (kind == P_MENU) {
+        if (!sel) { panel_close(); return 0; }
+        leave();                                   // (the map block is saved: CONTINUE comes back to this stop) then as pause.c's quit of a story run
+        story_phase = 0; story_on = 0; story_arc = 0;
+        smap_flags &= ~F_PALS;
+        hud_pal_reset();
+        title_enter();
+        return 1;
+    }
     if (kind == P_VENUE) {
         if (sel) { panel_close(); return 0; }
         leave();
@@ -365,7 +380,7 @@ static uint8_t panel_a(void) {                     // A in a panel. 1: the scree
 }
 
 static void panel_input(uint8_t pressed) {
-    uint8_t kind = V(V_PANEL), sel = V(V_SEL), n = kind == P_TOWN || kind == P_VENUE ? 2 : kind == P_FEST ? FEST_N : 1;
+    uint8_t kind = V(V_PANEL), sel = V(V_SEL), n = kind == P_TOWN || kind == P_VENUE || kind == P_MENU ? 2 : kind == P_FEST ? FEST_N : 1;
     if (!V(V_DONE)) return;
     if ((pressed & J_UP) && sel) V(V_SEL) = sel - 1;
     else if ((pressed & J_DOWN) && sel + 1 < n) V(V_SEL) = sel + 1;
@@ -380,7 +395,8 @@ uint8_t smap_update(uint8_t pressed) BANKED {
         panel_pump();
         panel_input(pressed);
         if (V(V_DONE) && (pressed & J_A) && panel_a()) return 1;
-        if (V(V_DONE) && (pressed & J_B)) {
+        if (V(V_DONE) && (pressed & J_START) && V(V_PANEL) == P_MENU) panel_close();
+        else if (V(V_DONE) && (pressed & J_B)) {
             if (V(V_PANEL) == P_FEST) panel_open(P_TOWN, 0);
             else if (V(V_PANEL) == P_NUDGE) panel_open(P_TOWN, 1);
             else panel_close();
@@ -395,6 +411,7 @@ uint8_t smap_update(uint8_t pressed) BANKED {
         t = hop(smap_stop, d);
         if (t != smap_stop) { smap_stop = t; tag_show(); SFX(SFX_DON); }
     } else if ((pressed & J_A) && press_a()) return 1;
+    else if (pressed & J_START) panel_open(P_MENU, 0);
     draw();
     return 0;
 }
