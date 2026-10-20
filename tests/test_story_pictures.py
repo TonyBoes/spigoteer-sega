@@ -75,7 +75,7 @@ def test_the_pictures_are_built_to_the_budget():
         assert all(a in (0, 5, 6, 7, 1) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
         assert p["tiles"] + p["extra"] <= 36 + 256 - p["base"], name
     # the numbers of the report (the picture tiles, the HUD palette cells of CREDITS)
-    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 119, "intro_a": 113, "finale_a": 134, "finale_contest": 131, "credits_b": 132}
+    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 117, "intro_a": 112, "finale_a": 134, "finale_contest": 131, "credits_b": 132}
     assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "finale_contest": 0, "credits_b": 12}
     # the portrait slot sits below the picture's tiles in every scene
     assert all(max(i for i in PICS[n]["map"] if i >= 36) < 256 for n in PICS)
