@@ -1224,24 +1224,23 @@ overlaps another variant of his or that no page uses):
 
 **The portrait art is the reference** (owner 2026-10-19): these lines describe what the approved portraits show. Props that older
 notes or the scenes' "Picture:" lines mention but the portraits don't (a whistle, an axe, knitting needles, a yarn ball, binoculars, a
-cookie) must not be added to a portrait unless the owner asks. The owner is redrawing the portraits; update these lines when his
-versions are imported.
+cookie) must not be added to a portrait unless the owner asks. These lines describe the owner's redrawn portraits (imported 2026-10-20).
 
 | Portrait | One line |
 |---|---|
-| SPIGOTEER | Big curled mustache, spigoteer's apron and bow tie, confident grin. |
+| SPIGOTEER | Three-quarter view: slicked black hair, a huge curled handlebar mustache, a cheeky smile, white shirt and black bow tie. |
 | SPIGOTEER (cozy) | The same in the cream knitted wooly cap (a newsboy cap; the variant is still named COZY), from PRE_IGLOO page 3 onward. |
-| DREGS | Lanky rival with a scraggly little mustache and a crooked bow tie, sheepish. His FINALE_B apology has its own variant (hand behind his head). |
-| SADIE | Sadie Spurs: copper hair under a huge cream cowboy hat, a gold sheriff star on her vest, a big laugh. |
-| COACH | Coach Blitz: red team cap with the logo, red team jacket, a big grin. (No whistle or clipboard in the portrait.) |
-| JUNE | Big June: red plaid, knit beanie with a pom-pom, cheerful. (No axe in the portrait.) |
-| COLBY | Chef Colby: tall toque, beard, gold neckerchief, wedge-of-cheese pin, twinkle in his eye. |
+| DREGS | Lanky rival, sidelong droopy-eyed look, long nose, a wisp of a mustache, slicked hair (in shadow), mauve jacket, crooked red bow tie. His FINALE_B apology has its own variant (raised, worried eyebrows). |
+| SADIE | Sadie Spurs: long flowing copper hair under a huge cream cowboy hat, a wink and a big laugh, a collar and vest with a gold sheriff star (CGB sprite accent). |
+| COACH | Coach Blitz: red team cap with the logo, red team jacket, a big grin; darker skin and hair. (No whistle or clipboard in the portrait.) |
+| JUNE | Big June: big curly hair, a cream knit beanie with a pom-pom, a confident smile, green lumberjack plaid. (No axe in the portrait.) |
+| COLBY | Chef Colby: three-quarter view, tall toque, stubbly beard, a sideways glance, gold neckerchief, wedge-of-cheese pin. |
 | AURORA | Aurora: warm smile, fur-trimmed snorkel-parka hood worn up, a knitted pink scarf (her knitting cue). (No needles and no yarn ball.) |
-| MANAGER-BOT | Manager-Bot 3000: boxy head, single screen-face showing a smile, antenna. |
-| HANA | Tea master: calm expression, hair up, simple kimono, holding a tea whisk. Dignified, not a caricature. |
-| ZIZZ | Zizz: round jelly-like alien with three eyes and a bow tie, glowing. |
-| KIKI | Keeper Kiki: safari pith helmet, short black pigtails, khaki safari shirt. (No binoculars or finger to the lips in the portrait.) |
-| GRANNY | Granny Throttle: silver curls under a red polka-dot bandana, glasses, a patch-covered leather jacket; a tough squint over a soft smile. (No cookie in the portrait.) |
+| MANAGER-BOT | Manager-Bot 3000: a tilted boxy metal head with an antenna and side panel, a glowing green smile on a dark screen, grey suit, red tie. |
+| HANA | Tea master: calm expression, hair up in a loose bun, indigo kimono, the tea whisk in her hand. Dignified, not a caricature. |
+| ZIZZ | Zizz: a glowing jelly-drop alien with three big eyes, an open smile with a little fang, a pink bow tie; the one portrait on a coloured (purple) background. |
+| KIKI | Keeper Kiki: a pith helmet at an angle, dark hair flicking out under the brim, a warm sideways smile (red lips: CGB sprite accent), khaki safari shirt. (No binoculars or finger to the lips in the portrait.) |
+| GRANNY | Granny Throttle: silver curls under a red polka-dot bandana, glasses, a patch-covered leather jacket; a tough squint over a soft smile (red lips: CGB sprite accent). (No cookie in the portrait.) |
 | NARRATOR | No portrait. The text box runs full width, or shows a small golden spigot icon. |
 
 ### Still pictures (one per scene, about 160x96 above the text box)

@@ -20,6 +20,11 @@ OPEN, HOLD = 48, 72        # src/dgag.c: the opening's frames, the beat after it
 LENGTHS = {}
 
 
+
+def accent_sprites(gb):
+    """The page's portrait accent (OAM 4..19: Sadie's star, Granny's and Kiki's lips on CGB), not part of the gag."""
+    return sum(1 for s in gb.oam()[4:20] if s["y"])
+
 def st_addr(gb):
     return gb.addr("win_rows")
 
@@ -136,7 +141,7 @@ def test_the_gag_plays_ends_cleanly_and_holds_the_page(model, c):
             assert rows(gb) == tiles, "no tile of the scene was touched"
             if gag_state(gb) == 0:
                 assert gag_sprites(gb) == [], f"{VENUES[c]}: nothing of the gag is left"
-                assert len(gb.visible_sprites()) == 4, "the Spigoteer alone is on the screen"
+                assert len(gb.visible_sprites()) == 4 + accent_sprites(gb), "the Spigoteer alone is on the screen (and the speaker's CGB accent)"
             else:
                 assert gag_sprites(gb), "a held gag leaves Dregs standing"
             assert LENGTH[0] <= total or (c == 6 and n == 1), (VENUES[c], total)
@@ -147,7 +152,7 @@ def test_the_gag_plays_ends_cleanly_and_holds_the_page(model, c):
                 continue                              # (the punks' blast page: its gag has started with the turn)
             page_ready(gb)
             assert gag_sprites(gb) == [] and gag_state(gb) == 0, "the next page starts with none of it"
-        assert len(gb.visible_sprites()) == 4
+        assert len(gb.visible_sprites()) == 4 + accent_sprites(gb)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

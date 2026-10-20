@@ -152,7 +152,9 @@ def test_the_cut_scene_budget():
         {"SPIGOTEER COZY": ("SPIGOTEER", "COZY"), "DREGS SORRY": ("DREGS", "SORRY")}
     for name, p in PORTRAITS.items():           # the approved 56x56 portraits (docs/story.md "Portraits")
         assert (p["w"], p["h"], p["x"], p["y"]) == (7, 7, 2, 5), f"{name}: 56x56, its frame's bottom row (the name plate) on the row above the box"
-        assert p["art_tiles"] <= 44 and p["tiles"] == p["art_tiles"] + len(set(p["plate"])) and 1 <= p["pals"] <= 3 and p["obj"] == (1 if name == "SADIE" else 0), name
+        cap = {"SPIGOTEER": 45, "DREGS": 43}.get(name, 49)   # 49 = every square; the INTRO's burst picture caps the main Spigoteer and Dregs
+        assert p["art_tiles"] <= cap and p["tiles"] == p["art_tiles"] + len(set(p["plate"])) and 1 <= p["pals"] <= 3, name
+        assert p["obj"] == (1 if name in ACCENTED else 0), f"{name}: the CGB accent sprite (Sadie's star, Granny's and Kiki's lips)"
     # a venue scene loads all its portraits together: the busiest is the saloon's POST scene (Sadie, Coach, ...)
     most = max(s["bg_tiles"] for s in SCENES if s["venue"] != 255)
     assert most <= STORY["bg_budget"]
@@ -162,7 +164,7 @@ def test_the_cut_scene_budget():
     for s in SCENES:
         if s["venue"] == 255:
             assert s["bg_tiles"] == max([PORTRAITS[PID_NAME[p]]["tiles"] for p in s["spk"]] or [0]), s["id"]
-    assert [SCENES[SC[i]]["bg_tiles"] for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [45, 49, 45, 0]   # (each portrait's art plus its name plate's letters)
+    assert [SCENES[SC[i]]["bg_tiles"] for i in ("INTRO", "FINALE_A", "FINALE_B", "CREDITS")] == [48, 53, 46, 0]   # (each portrait's art plus its name plate's letters)
 
 
 def portrait_cfg(name):
@@ -381,6 +383,9 @@ def assert_on_the_box(gb, p):
     assert all(x <= x + i < x + w for i in named)
     panel = tilemap_row(gb, BOX_ROW, 0, 20)
     assert len(set(panel)) == 1, "no name (or frame) tile on the text box's top panel"
+
+
+ACCENTED = ("SADIE", "GRANNY", "KIKI")         # the portraits with a CGB-only accent sprite (owner's redraws, 2026-10-20)
 
 
 def overlay_sprites(gb):
@@ -772,7 +777,7 @@ def test_a_speaker_change_swaps_the_portrait_and_the_narrator_wipes_it(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_coach_and_the_spigoteer_swap_cleanly(model):
     """PRE_STADIUM: COACH -> SPIGOTEER -> COACH, each the approved art pixel for pixel in the same framed slot on the
-    box, no overlay sprite (only Sadie has one)."""
+    box, no overlay sprite (Coach and the Spigoteer have none)."""
     with start_story(model, v7_image([], story=1), cont=True) as gb:
         assert gb.mem("story_scene") == SC["PRE_STADIUM"]
         page_ready(gb)
@@ -866,7 +871,7 @@ def tour_scene(gb, sid, seen):
             for r in range(p["h"]):
                 assert tilemap_row(gb, p["y"] + r, p["x"], p["w"]) == \
                     [b + t for t in p["map"][r * p["w"]:(r + 1) * p["w"]]], f"{sid} page {k + 1} row {r}"
-            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) - spigoteer == (1 if name == "SADIE" and gb.model_name == "cgb" else 0)
+            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) - spigoteer == (PORTRAITS[name]["obj"] if gb.model_name == "cgb" else 0)
             if cur and cur != name:
                 seen.add((cur, name))
         if (sid, k) in TOUR_GOLDENS:
