@@ -63,7 +63,6 @@ extern uint8_t overlay_on, joy, story_phase;
 #define OBJPAL_CAST    3      // Dregs's, the topper's
 #define BGPAL_BOSS     5
 #define BGPAL_HDR      6      // the venue header's BG palette (CGB): a copy of the HUD's, the fades leave it alone within a venue
-#define CR_BG_SHADE    2      // (the DMG shade of every story portrait's backdrop: assets/story/portraits)
 #define COL_BAND  0x2043      // RGB15(3, 2, 8): the band (colour 3 of the HUD palette), the bosses' colour 0
 #define DMG_HAT_OBP1  0x93    // the topper on the band: its three shades one step lighter (idx 1 white, 2 light, 3 dark; the DMG boss body is remapped the same way)
 
@@ -302,13 +301,14 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
     if (kd == CK_SPIGOTEER || kd == CK_DREGS || kd == CK_OWNER) {
         k = cr_spk(kd, v);
         if (i < 2) { portrait_part(k, i, pt); return 0; }   // the portrait: its header and map, its attributes (portrait_get pumps the timer for over a frame)
-        if (i == 2) {                              // its palettes (BG 2-4), the backdrop's colour (colour 2: the top-left tile is all backdrop) the band's
+        if (i == 2) {                              // its palettes (BG 2-4), the backdrop's colour (the slot of its DMG shade, portrait_backdrop: the top-left tile is all backdrop) the band's
             portrait_part(k, 2, pt);
             if (is_cgb) {
-                bg = pt->pal[4 * pt->attr[0] + 2];
+                nch = portrait_backdrop(k);           // (shade 3 backdrop: the outline's colour goes to the band's too, as the story scenes' black backdrop shows it)
+                bg = pt->pal[4 * pt->attr[0] + nch];
                 for (n = 0; n < pt->npal; n++) {
                     p[0] = pt->pal[4 * n]; p[1] = pt->pal[4 * n + 1]; p[2] = pt->pal[4 * n + 2]; p[3] = pt->pal[4 * n + 3];
-                    if (p[2] == bg) p[2] = COL_BAND;
+                    if (p[nch] == bg) p[nch] = COL_BAND;
                     cr_pal(0, BGPAL_PATRON + n, p);
                 }
             }
@@ -320,7 +320,9 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
             if (is_cgb) portrait_tile_set(k, i, STORY_PORTRAIT_BASE + i);
             else {
                 portrait_tile_copy(k, i, 1, buf);
-                for (n = 0; n < 16; n += 2) buf[n] ^= buf[n + 1];   // DMG: the backdrop's shade 2 and the outline's 3 change places (lo ^= hi): the backdrop is the band's shade 3
+                nch = portrait_backdrop(k);        // DMG: the backdrop becomes the band's shade 3: 3 stays, 2 and 3 change places (lo ^= hi), 1 and 3 (hi ^= lo); the generator refuses shade 0
+                if (nch == 2) for (n = 0; n < 16; n += 2) buf[n] ^= buf[n + 1];
+                else if (nch == 1) for (n = 0; n < 16; n += 2) buf[n + 1] ^= buf[n];
                 set_bkg_data(STORY_PORTRAIT_BASE + i, 1, buf);
             }
             return 0;
