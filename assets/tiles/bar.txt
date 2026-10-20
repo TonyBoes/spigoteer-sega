@@ -201,13 +201,13 @@
 ; Palette 1: '.' light, '-' sand, '+' gold, '#' band.
 @hud_head
 ########
-##----##
-#------#
+########
+##....##
 #.#..#.#
 #......#
 #.####.#
-##....##
-#--..--#
+##.--.##
+#--##--#
 
 ; ---- extra HUD-style letters for the overlays and title text ----
 @glyph_A
