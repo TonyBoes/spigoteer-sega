@@ -57,3 +57,15 @@
 ########
 ##..####
 ##..####
+
+; the pocketed tip (owner 2026-10-18): the tip coin's disc (assets/art/coin.txt) in the HUD palette; src/pocket.c loads it at BG id 255 (ARCADE and
+; STORY shifts: a boss fight's HUD takes 252-255 itself) and the HUD shows it at column 9 while a tip is pocketed
+@pocket
+########
+##.--.##
+#.++++-#
+#.+..+-#
+#.+..+-#
+#.++++-#
+##.--.##
+########

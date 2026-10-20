@@ -830,6 +830,7 @@ static void boss_in_place(void) {
     boss_set(story_chapter);
     boss_goal((uint8_t *)&story_goal);
     story_twist = 0;
+    pocket_clear();                              // (a pocketed tip: his tiles take 252-255, the icon's 255)
     boss_load();                                 // (LCD on: recorded, streamed by boss_frame)
     music_fast = 0;
     music_play(TUNE_VENUE0 + story_chapter);     // (a no-op unless Last call's twist made the tune fast: then it restarts at the normal speed)

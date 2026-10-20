@@ -50,6 +50,7 @@ static uint8_t near_watcher(uint8_t p) {
 // A distracted patron shuffles to the nearest multiple of 8 px and turns its back (watch_step).
 void start_show(void) BANKED {
     uint8_t p, any = 0, first = NO_SLOT, old = 0;
+    if (show_timer && tip_pocket == TILE_HUD_BLANK) { pocket_take(); return; }   // a tip during a show: into the pocket (pocket.c)
     show_timer = SHOW_FRAMES;
     music_play(TUNE_SHOW | MUSIC_LATER);              // "Galop infernal" for as long as the show runs
     dancer_frame = 0; dance_tick = 0;
