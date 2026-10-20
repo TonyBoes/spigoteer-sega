@@ -24,14 +24,16 @@ PLAYING = 1
 ALIGNMENTS = (0, 5, 11, 23, 2, 7, 17, 29)       # frames waited after the scene's start: a different place of the frame boundary against the logic
 FRAMES = 1800
 # (model, target patrons): (late share limit in %, mean end line limit). Measured pooled (the eight alignments), then the limits:
+#   with the asm catch scans too (src/patrons.c ASM_SCANS): dmg 8: 15.4 % / 119.3 (limits 21 / 124); cgb 8: 17.7 / 120.4 (23 / 125);
+#   dmg 10: 18.6 / 123.6 (24 / 128); cgb 10: 20.6 / 124.6 (26 / 129)  (12 patrons: dmg 27.5 / 129.8, cgb 34.8 / 135.2).
 #   with the asm mug code (Q63c, src/mugs.c ASM_DRAW_HELD / ASM_UPDATE_MUGS): dmg 8: 16.8 % / 121.2 (limits 22 / 125); cgb 8: 18.0 / 121.7
 #   (23 / 126); dmg 10: 19.5 / 124.4 (25 / 129); cgb 10: 23.0 / 126.7 (28 / 131).
 #   with the "fix b" C only: dmg 8: 24.4 / 127.5; cgb 8: 24.3 / 126.6; dmg 10: 33.1 / 135.1; cgb 10: 35.5 / 136.7 (12 patrons: 47 / 143 and 52 / 146).
 # The build before "fix b": dmg 8: 34.1 / 136.3; cgb 8: 34.4 / 136.6; dmg 10: 42.7 / 143.7; cgb 10: 45.7 / 146.8.
 # The owner's target for the 10-patron peak was 15-25 %; the asm pass's mug code brought it there (the catch scans of patrons.c and
 # the lift / patron drawing are the next costs).
-LIMITS = {("dmg", 8): (22, 125), ("cgb", 8): (23, 126),
-          ("dmg", 10): (25, 129), ("cgb", 10): (28, 131)}
+LIMITS = {("dmg", 8): (21, 124), ("cgb", 8): (23, 125),
+          ("dmg", 10): (24, 128), ("cgb", 10): (26, 129)}
 # The all-C ROM (`make cfall`, GB_ROM=build/game-c.gb, the owner's porting reference) is slower: the limits it had before the asm mug code.
 C_LIMITS = {("dmg", 8): (30, 132), ("cgb", 8): (32, 134), ("dmg", 10): (35, 138), ("cgb", 10): (41, 142)}
 if ROM.stem.endswith("-c"):
