@@ -28,7 +28,7 @@
 //     a waiting lift asks; at most one bar a frame (the start bar goes round: frame_counter), and none on a frame that
 //     is already late (CHOOSER_LY_LATE), the rest next frame.
 // Cost (M13b, measured; one line = 114 machine cycles): the per-frame loops (lifted_scan, est_mugs, draw_lifted_asm)
-// and the chooser's (gather_asm, choose_asm) are hand-written; the same loops in C cost 5-15 lines each.
+// and the chooser's (choose_bar; before ASM_CHOOSER gather_asm and choose_asm) are hand-written; the same loops in C cost 5-15 lines each.
 // Banked (bank 1 and 2 are full); lift_frame / draw_lifted are only called while someone is lifted, the chooser has
 // work (ovl_dirty) or the hook is set.
 #pragma bank 5
@@ -36,6 +36,7 @@
 #include <gb/cgb.h>
 #include <stdint.h>
 
+#include "asm_cfg.h"
 #include "game.h"
 #include "music.h"
 #include "palettes.h"
@@ -515,6 +516,7 @@ static uint8_t rec[MAX_PATRONS * 4];
 static uint8_t *rec_end;
 static uint8_t g_bar, g_c, g_d, g_o;  // gather_asm's bar, and the column / drawn x / old flags of the patron being filed
 
+#if !ASM_CHOOSER
 // Hand-written (the C version cost ~5 DIV ticks a patron, and the chooser runs whenever a patron changes columns):
 // for each live slot s in bar_list[g_bar]: patron_ovl[s] = 0; if drawn, file his record into rec[] (insertion sort by
 // column; see above), rec_end after the last one. bar_list must be current (gather() rebuilds it first).
@@ -687,6 +689,9 @@ static void gather(uint8_t b) {
     gather_asm();
 }
 
+#endif
+
+#if !ASM_CHOOSER
 // Who goes up first when two BG patrons share a column: pushed 4, hurried walker 3, walker 2, drinker 1; 0: may not be
 // lifted (watching the show or turning to it, in his back view, or being dropped).
 static uint8_t prio(uint8_t s) {
@@ -698,6 +703,7 @@ static uint8_t prio(uint8_t s) {
     return 1;
 }
 
+#endif
 static uint8_t ch_retry;              // this bar's lift has to wait: 2 next frame, 1 later (budgets; see lift_frame)
 static uint8_t ch_bit;                // the bar's bit
 #define RETRY_FRAMES 16
@@ -706,6 +712,7 @@ static uint8_t ch_bit;                // the bar's bit
 static uint8_t ch_late;       // frames in a row the chooser left everything for later
 static uint8_t retry_wait[NUM_BARS];  // frames until a budget-refused bar is looked at again
 
+#if !ASM_CHOOSER
 // Records a (left) and r share a real column: lift the one with the higher priority (ties: r, the one further right).
 // Returns the record that stays on the BG and goes on as "the last one", or 0 when both stay (the fallback).
 static uint8_t *conflict(uint8_t *a, uint8_t *r) {
@@ -726,18 +733,713 @@ static uint8_t *conflict(uint8_t *a, uint8_t *r) {
     return 0;
 }
 
+#endif
+
 // The chooser's loops, hand-written (in C they cost ~30 DIV ticks a bar). C helpers for the rare steps, called with
 // their arguments in globals.
 static uint8_t *ch_l, *ch_r, *ch_x;   // conflict(): the last BG record, this one, the one that stays (0: both)
 static uint8_t ch_b, s_r, s_x, md_x0, md_x1;
+#if !ASM_CHOOSER
 static void conflict_g(void) { ch_x = conflict(ch_l, ch_r); }
 static void shared_pair(void) {       // r and x share real columns (both on the BG): the covered one(s) lose quick redraws
     uint8_t a = patron_ovl[s_r], c = patron_ovl[s_x];
     if (!(a & OVL_TOP)) patron_ovl[s_r] = a | OVL_SHARED;
     if (!(c & OVL_TOP) || (a & OVL_TOP)) patron_ovl[s_x] = c | OVL_SHARED;
 }
+#endif
 static void md_g(void) { mark_dirty(ch_b, md_x0, md_x1); }
 
+// Bar b: lift so that the BG patrons are column-disjoint (greedy, left to right), flag the pairs that stay on the BG,
+// and note which lifted patrons still cover a BG one. ASM_CHOOSER (asm_cfg.h): the whole function is hand-written; the #else is the
+// version before it (the gather and the three steps of choose_asm were already asm, the busy loop and conflict() C), the reference and the
+// C build's. Both make the same decisions, whatever the state: the same changes to patron_ovl / patron_lift / lift_busy / lift_clear /
+// lift_n / lift_total / lift_lifts / ovl_bars / ch_retry and to the dirty spans (tests/test_chooser_trace.py runs ~700 states of crowded
+// scenes and random bars against the changes the old version made). The statics g_*, ch_*, s_*, md_* and rec are scratch, dead after the call.
+// Measured on 6000 calls from the ARCADE peaks and CLASSIC 16 (T-cycles, tests/asm_rig.py): the old version 9.7k a call, this asm 6.4k;
+// the cost is the gather (a patron: 4 array reads and his record, ~500 T), the passes over the records, the conflicts (~1.2k each, 3/4 of
+// the calls have one: a pair that stays) and the lifted ones' busy flags.
+#if ASM_CHOOSER
+#if MAX_PATRONS != 16 || NUM_BARS != 4 || DRAW_BACK != 0x80 || OVL_SHARED != 1 || OVL_TOP != 2 || OVL_TWO != 4 || LIFT_OBJ != 1 || LIFT_EDGE != 2 || LIFT_MAX != 4 || LIFT_PER_BAR != 2 || REC_OBJ != 0x80 || REC_SLOT != 0x0F || (MUG_OAM_ALL - OAM_SPARE) != 19
+#error "choose_bar: the constants written into the asm"
+#endif
+typedef char choose_enums[(PATRON_NONE == 0 && PATRON_WALKING == 1 && PATRON_PUSHED == 2) ? 1 : -1];
+// Records here are { f, c, e1, e2 } (the old version's, above: { c, e1, e2, f }): f = slot | his old flags << 4 | REC_OBJ, c his first column, e1 the end of his real columns,
+// e2 the end of his footprint; rec_end is only written once the bar is gathered. Scratch: g_bar (the list's end), g_o / g_c / g_d (an
+// insertion), md_x0 (the largest column filed so far, then the span for md_g), ch_x[0] (the bar has lifted patrons: their busy flags
+// are looked at), ch_x[1] (some patron_ovl was set this run: step 3 must read them; else they are all 0).
+static void choose_bar(uint8_t b) __naked {
+    (void)b;
+__asm
+    push bc
+    ld   (_ch_b), a
+    ld   c, a
+    ld   b, #0
+    ld   a, (_lists_ok)
+    or   a, a
+    jr   nz, 1$
+    push bc
+    call _build_lists
+    pop  bc
+1$:
+    ld   hl, #_bar_bit
+    add  hl, bc
+    ld   a, (hl)
+    ld   (_ch_bit), a
+    cpl
+    ld   hl, #_ovl_bars
+    and  a, (hl)
+    ld   (hl), a                ; ovl_bars &= ~bar_bit[b]
+    xor  a, a
+    ld   (_ch_retry), a
+    ld   (_md_x0), a
+    ld   (_ch_x + 1), a
+    ld   a, c
+    swap a                      ; 16 * b
+    add  a, #<(_bar_list)
+    ld   e, a
+    ld   a, #>(_bar_list)
+    adc  a, #0
+    ld   d, a
+    ld   hl, #_bar_n
+    add  hl, bc
+    ld   a, (hl)
+    add  a, e
+    ld   (_g_bar), a            ; where the list ends (low byte: 16 bytes, so it is unique)
+    push de                     ; the next list entry
+    ld   hl, #_rec_end
+    ld   a, #<(_rec)
+    ld   (hl+), a
+    ld   (hl), #>(_rec)
+2$:                             ; ---- gather: next slot of the list
+    pop  hl
+    ld   a, (_g_bar)
+    cp   a, l
+    jp   z, 20$
+    ld   a, (hl+)
+    push hl
+    ld   c, a                   ; c = s
+    ld   hl, #_patron_state
+    add  hl, bc
+    ld   a, (hl)
+    or   a, a
+    jr   z, 2$                  ; (PATRON_NONE)
+    ld   hl, #_patron_ovl
+    add  hl, bc
+    ld   a, (hl)
+    ld   (hl), b                ; patron_ovl[s] = 0
+    and  a, #7
+    swap a
+    or   a, c
+    ld   e, a                   ; e = s | his flags so far << 4
+    ld   hl, #_patron_draw
+    add  hl, bc
+    ld   a, (hl)
+    cp   a, #0xFF
+    jr   z, 2$                  ; (not drawn yet)
+    ld   d, a                   ; d = his drawn x
+    ld   hl, #_patron_lift
+    add  hl, bc
+    ld   a, (hl)
+    dec  a
+    cp   a, #2
+    jr   nc, 3$                 ; (LIFT_OFF_BG: 1 or 2: drawn as a sprite)
+    set  7, e                   ; REC_OBJ
+3$:
+    ld   a, d
+    rrca
+    rrca
+    rrca
+    and  a, #0x0F               ; his first column ((d & 0x7F) >> 3)
+    ld   c, a
+    ld   hl, #_md_x0
+    cp   a, (hl)
+    jr   c, 10$                 ; before the last one filed: insertion
+    ld   (hl), a
+    ld   hl, #_rec_end          ; at the end
+    ld   a, (hl+)
+    ld   h, (hl)
+    ld   l, a
+    ld   a, e
+    ld   (hl+), a               ; [0] f
+    ld   a, c
+    ld   (hl+), a               ; [1] c
+    ld   a, d
+    and  a, #7
+    ld   a, c
+    jr   z, 4$
+    inc  a
+4$:
+    add  a, #2
+    ld   (hl+), a               ; [2] e1: c + 2 (shift 0) or c + 3
+    ld   a, d
+    rlca
+    ld   a, c
+    jr   c, 5$
+    inc  a
+5$:
+    add  a, #2
+    ld   (hl+), a               ; [3] e2: c + 2 (back view) or c + 3
+    ld   a, l
+    ld   (_rec_end), a
+    ld   a, h
+    ld   (_rec_end + 1), a
+    jp   2$
+10$:                            ; insertion: the records with a bigger column move up by one place
+    ld   a, e
+    ld   (_g_o), a
+    ld   a, c
+    ld   (_g_c), a
+    ld   a, d
+    ld   (_g_d), a
+    ld   hl, #_rec_end
+    ld   a, (hl)
+    ld   e, a
+    add  a, #4
+    ld   (hl+), a
+    ld   d, (hl)
+    jr   nc, 11$
+    inc  (hl)
+11$:
+    ld   h, d
+    ld   l, e                   ; hl = r = the old end
+    ld   a, (_g_c)
+    ld   b, a                   ; b = c (b is 0 again below)
+12$:
+    ld   a, l
+    cp   a, #<(_rec)
+    jr   nz, 13$
+    ld   a, h
+    cp   a, #>(_rec)
+    jr   z, 15$                 ; at the start
+13$:
+    ld   d, h
+    ld   e, l                   ; de = r
+    dec  hl
+    dec  hl
+    dec  hl
+    dec  hl                     ; hl = r - 4
+    inc  hl
+    ld   a, b
+    cp   a, (hl)                ; c - r[-4].c
+    dec  hl
+    jr   nc, 14$                ; r[-4].c <= c: his place is r
+    ld   a, (hl+)               ; r[0..3] = r[-4..-1]
+    ld   (de), a
+    inc  de
+    ld   a, (hl+)
+    ld   (de), a
+    inc  de
+    ld   a, (hl+)
+    ld   (de), a
+    inc  de
+    ld   a, (hl)
+    ld   (de), a
+    dec  hl
+    dec  hl
+    dec  hl
+    jr   12$
+14$:
+    ld   h, d
+    ld   l, e
+15$:
+    ld   b, #0
+    ld   a, (_g_o)
+    ld   (hl+), a
+    ld   a, (_g_c)
+    ld   (hl+), a
+    ld   a, (_g_d)
+    and  a, #7
+    ld   a, (_g_c)
+    jr   z, 16$
+    inc  a
+16$:
+    add  a, #2
+    ld   (hl+), a
+    ld   a, (_g_d)
+    rlca
+    ld   a, (_g_c)
+    jr   c, 17$
+    inc  a
+17$:
+    add  a, #2
+    ld   (hl), a
+    jp   2$
+20$:                            ; ---- gathered: b = the number of records
+    ld   a, (_rec_end)
+    sub  a, #<(_rec)
+    srl  a
+    srl  a                      ; (the low byte of the difference is exact: at most 64)
+    jr   z, 29$
+    cp   a, #1
+    jr   z, 21$
+    ld   b, a
+    jp   30$
+21$:                            ; one patron: nothing to share
+    ld   a, (_rec)
+    bit  7, a
+    jr   z, 22$
+    and  a, #0x0F
+    add  a, #<(_lift_bp)
+    ld   l, a
+    ld   a, #>(_lift_bp)
+    adc  a, #0
+    ld   h, a
+    ld   (hl), #0               ; lift_busy[s] = 0
+    ld   a, (_rec)
+22$:
+    and  a, #0x70
+    jr   z, 29$
+    ld   a, (_rec + 1)
+    ld   (_md_x0), a
+    ld   a, (_rec + 3)
+    ld   (_md_x1), a
+    call _md_g                  ; (his old flags are gone: his columns are composed again)
+29$:
+    pop  bc
+    ret
+30$:                            ; ---- 1. greedy: hl = r, b = records left, de = l, c = where l's real columns end (0: no BG record yet)
+    ld   hl, #_rec
+    ld   c, #0
+31$:
+    ld   a, (hl)
+    bit  7, a
+    jr   nz, 38$                ; (lifted: not on the BG)
+    inc  hl
+    ld   a, (hl)                ; r.c
+    cp   a, c
+    jr   c, 35$                 ; r.c < l.e1: a real column is shared
+    ld   d, h                   ; l = r
+    ld   e, l
+    dec  de
+    inc  hl
+    ld   c, (hl)                ; c = r.e1
+    inc  hl
+    inc  hl                     ; the next record
+    dec  b
+    jr   nz, 31$
+    jr   40$
+38$:
+    inc  hl
+    inc  hl
+    inc  hl
+    inc  hl
+    dec  b
+    jr   nz, 31$
+    jr   40$
+35$:                            ; conflict(l, r)
+    dec  hl                     ; hl = r
+    push bc
+    push hl
+    push de
+    call _cb_conf               ; de = the one that stays on the BG, 0: both
+    pop  hl                     ; hl = l
+    ld   a, d
+    or   a, e
+    jr   z, 37$
+    pop  hl                     ; hl = r
+    pop  bc                     ; b = records left
+    inc  hl
+    inc  hl
+    inc  hl
+    inc  hl
+    inc  de
+    inc  de
+    ld   a, (de)
+    dec  de
+    dec  de
+    ld   c, a                   ; l = the one that stays: c = his e1
+    dec  b
+    jr   nz, 31$
+    jr   40$
+37$:                            ; both stay: go on from the one reaching further right
+    ld   d, h
+    ld   e, l                   ; de = l
+    pop  hl                     ; hl = r
+    pop  bc                     ; b = records left, c = l.e1
+    inc  hl
+    inc  hl
+    ld   a, (hl)                ; r.e1
+    dec  hl
+    dec  hl
+    cp   a, c
+    jr   c, 38$
+    jr   z, 38$                 ; r.e1 <= l.e1: l goes on
+    ld   c, a
+    ld   d, h
+    ld   e, l                   ; l = r
+    jr   38$
+40$:                            ; ---- 2. and 3.: hl = r, b = records left
+    ld   a, (_ch_b)
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_lift_n
+    add  hl, de
+    ld   a, (hl)
+    ld   (_ch_x), a             ; (someone of the bar is lifted: the busy flags are looked at)
+    ld   a, (_rec_end)
+    sub  a, #<(_rec)
+    srl  a
+    srl  a
+    ld   b, a
+    ld   hl, #_rec
+41$:
+    ld   a, (hl)
+    bit  7, a
+    jp   nz, 60$                ; (r lifted)
+    ld   a, b
+    cp   a, #1
+    jp   z, 55$                 ; (the last record: nobody after him)
+    push hl                     ; r
+    ld   a, (hl)
+    and  a, #0x0F
+    ld   (_s_r), a
+    inc  hl
+    inc  hl
+    ld   d, (hl)                ; d = r.e1
+    inc  hl
+    ld   e, (hl)                ; e = r.e2
+    inc  hl                     ; hl = x = r + 4
+    ld   a, b
+    dec  a
+    ld   c, a                   ; c = records after r
+42$:                            ; hl = x
+    inc  hl
+    ld   a, (hl)                ; x.c
+    cp   a, e
+    jr   nc, 54$                ; x.c >= r.e2: no later record meets r (sorted)
+    dec  hl
+    ld   a, (hl)                ; x.f
+    bit  7, a
+    jr   nz, 45$                ; (x lifted)
+    and  a, #0x0F
+    ld   (_s_x), a
+    inc  hl
+    ld   a, (hl)                ; x.c
+    dec  hl
+    cp   a, d                   ; x.c - r.e1
+    jr   nc, 46$                ; r.e1 <= x.c: only the empty column of r meets x
+    push hl                     ; shared_pair(s_r, s_x): the covered one(s) lose quick redraws
+    push de
+    push bc
+    ld   hl, #_patron_ovl
+    ld   a, (_s_r)
+    add  a, l
+    ld   l, a
+    jr   nc, 47$
+    inc  h
+47$:
+    ld   e, (hl)                ; e = a: patron_ovl[s_r]
+    push hl
+    ld   hl, #_patron_ovl
+    ld   a, (_s_x)
+    add  a, l
+    ld   l, a
+    jr   nc, 48$
+    inc  h
+48$:
+    ld   d, (hl)                ; d = c: patron_ovl[s_x]
+    bit  1, d
+    jr   z, 49$                 ; (c has no OVL_TOP)
+    bit  1, e
+    jr   z, 50$                 ; (c has it, a has not)
+49$:
+    ld   a, d
+    or   a, #1
+    ld   (hl), a                ; patron_ovl[s_x] = c | OVL_SHARED
+50$:
+    pop  hl
+    bit  1, e
+    jr   nz, 51$
+    ld   a, e
+    or   a, #1
+    ld   (hl), a                ; patron_ovl[s_r] = a | OVL_SHARED
+51$:
+    ld   a, #1
+    ld   (_ch_x + 1), a
+    pop  bc
+    pop  de
+    pop  hl
+    jr   45$
+46$:
+    push hl
+    ld   hl, #_patron_ovl
+    ld   a, (_s_r)
+    add  a, l
+    ld   l, a
+    jr   nc, 52$
+    inc  h
+52$:
+    ld   a, (hl)
+    or   a, #5                  ; OVL_SHARED | OVL_TWO
+    ld   (hl), a
+    ld   a, #1
+    ld   (_ch_x + 1), a
+    pop  hl
+45$:
+    inc  hl
+    inc  hl
+    inc  hl
+    inc  hl
+    dec  c
+    jr   nz, 42$
+54$:
+    pop  hl                     ; hl = r
+55$:                            ; 3. his flags changed? hl = r
+    ld   a, (_ch_x + 1)
+    or   a, a
+    ld   a, (hl)
+    jr   nz, 56$
+    and  a, #0x70               ; (no flag was set: patron_ovl are all 0)
+    jr   z, 59$
+    jr   57$
+56$:
+    ld   e, a                   ; e = f
+    swap a
+    and  a, #7
+    ld   d, a                   ; d = his flags before this pass
+    push hl
+    ld   hl, #_patron_ovl
+    ld   a, e
+    and  a, #0x0F
+    add  a, l
+    ld   l, a
+    jr   nc, 58$
+    inc  h
+58$:
+    ld   a, (hl)
+    pop  hl
+    cp   a, d
+    jr   z, 59$
+57$:
+    inc  hl
+    ld   a, (hl)                ; r.c
+    ld   (_md_x0), a
+    inc  hl
+    inc  hl
+    ld   a, (hl)                ; r.e2
+    ld   (_md_x1), a
+    dec  hl
+    dec  hl
+    dec  hl
+    push bc
+    push hl
+    call _md_g
+    pop  hl
+    pop  bc
+59$:
+    inc  hl
+    inc  hl
+    inc  hl
+    inc  hl
+    dec  b
+    jp   nz, 41$
+    jp   29$
+60$:                            ; r is lifted: still over a BG record? (only when the bar has lifted patrons)
+    ld   a, (_ch_x)
+    or   a, a
+    jr   z, 55$
+    push hl
+    push bc
+    inc  hl
+    ld   b, (hl)                ; b = r.c
+    inc  hl
+    ld   h, (hl)                ; h = r.e1
+    ld   a, (_rec_end)
+    sub  a, #<(_rec)
+    srl  a
+    srl  a
+    ld   c, a                   ; c = records
+    ld   de, #_rec
+62$:
+    ld   a, (de)
+    inc  de
+    bit  7, a
+    jr   nz, 64$                ; (x lifted)
+    ld   a, (de)                ; x.c
+    cp   a, h
+    jr   nc, 64$                ; x.c >= r.e1
+    inc  de
+    ld   a, (de)                ; x.e1
+    dec  de
+    cp   a, b
+    jr   c, 64$
+    jr   z, 64$                 ; x.e1 <= r.c
+    ld   a, #1                  ; busy
+    jr   68$
+64$:
+    inc  de
+    inc  de
+    inc  de
+    dec  c
+    jr   nz, 62$
+    xor  a, a
+68$:
+    ld   e, a                   ; e = busy
+    pop  bc
+    pop  hl
+    ld   a, (hl)
+    and  a, #0x0F
+    ld   d, a                   ; d = slot
+    push hl
+    add  a, #<(_lift_bp)
+    ld   l, a
+    ld   a, #>(_lift_bp)
+    adc  a, #0
+    ld   h, a
+    ld   (hl), e                ; lift_busy[s] = busy
+    ld   a, e
+    or   a, a
+    jr   z, 69$
+    ld   a, d
+    add  a, #<(_lift_clear)
+    ld   l, a
+    ld   a, #>(_lift_clear)
+    adc  a, #0
+    ld   h, a
+    ld   (hl), #0               ; lift_clear[s] = 0
+69$:
+    pop  hl
+    jp   55$
+; ---- the priority of slot e (d = 0) in a (pushed 4, hurried walker 3, walker 2, drinker 1; 0: may not be lifted); clobbers hl
+_cb_prio:
+    ld   hl, #_patron_lift
+    add  hl, de
+    ld   a, (hl)
+    or   a, a
+    jr   nz, 2$
+    ld   hl, #_patron_dist
+    add  hl, de
+    ld   a, (hl)
+    or   a, a
+    jr   nz, 2$
+    ld   hl, #_patron_draw
+    add  hl, de
+    bit  7, (hl)
+    jr   nz, 2$
+    ld   hl, #_patron_state
+    add  hl, de
+    ld   a, (hl)
+    cp   a, #2                  ; PATRON_PUSHED
+    jr   z, 3$
+    cp   a, #1                  ; PATRON_WALKING
+    ld   a, #1
+    ret  nz
+    ld   hl, #_patron_hurry
+    add  hl, de
+    ld   a, (hl)
+    add  a, #2
+    ret
+3$:
+    ld   a, #4
+    ret
+2$:
+    xor  a, a
+    ret
+; ---- conflict(l, r): hl = r, de = l (records); de = the record that stays on the BG, 0: both stay. As the C conflict().
+_cb_conf:
+    push hl
+    push de
+    ld   a, (de)
+    and  a, #0x0F
+    ld   e, a
+    ld   d, #0
+    call _cb_prio
+    ld   b, a                   ; b = pa
+    pop  de
+    pop  hl
+    push hl
+    push de
+    ld   a, (hl)
+    and  a, #0x0F
+    ld   e, a
+    ld   d, #0
+    call _cb_prio
+    ld   c, a                   ; c = pr
+    pop  de
+    pop  hl
+    ld   a, c
+    cp   a, b
+    jr   nc, 1$                 ; pr >= pa: x = r
+    ld   a, h                   ; else x = l: hl = l, de = r
+    ld   h, d
+    ld   d, a
+    ld   a, l
+    ld   l, e
+    ld   e, a
+1$:                             ; hl = x (the one to lift), de = the other
+    ld   a, b
+    or   a, c
+    jr   z, 5$                  ; (neither may be lifted)
+    ld   a, (_lift_total)       ; try_lift's first refusals, here: the budgets (a lift of x passes its other tests: prio > 0)
+    cp   a, #4                  ; LIFT_MAX
+    jr   nc, 4$
+    ld   a, (_ch_b)
+    ld   c, a
+    ld   b, #0
+    push hl
+    ld   hl, #_lift_n
+    add  hl, bc
+    ld   a, (hl)
+    pop  hl
+    cp   a, #2                  ; LIFT_PER_BAR
+    jr   nc, 4$
+    ld   a, (_lift_total)
+    inc  a
+    add  a, a
+    ld   c, a
+    ld   a, (_mugs_live)
+    add  a, c
+    jr   c, 4$
+    cp   a, #20                 ; mugs_live + ((lift_total + 1) << 1) > 19
+    jr   nc, 4$
+    push hl                     ; the rest of try_lift
+    push de
+    ld   a, (hl)
+    and  a, #0x0F
+    ld   e, #1                  ; LIFT_OBJ
+    call _try_lift
+    pop  de
+    pop  hl
+    cp   a, #1
+    jr   z, 6$
+    cp   a, #2
+    jr   nz, 4$
+    ld   a, #2                  ; (not this frame: the copy list / his BG copy)
+    ld   (_ch_retry), a
+    jr   5$
+4$:
+    ld   a, (_ch_retry)         ; (the budgets: later)
+    or   a, a
+    jr   nz, 5$
+    ld   a, #1
+    ld   (_ch_retry), a
+5$:                             ; both stay on the BG: the would-be lifted one covers the other
+    ld   a, (hl)
+    and  a, #0x0F
+    add  a, #<(_patron_ovl)
+    ld   l, a
+    ld   a, #>(_patron_ovl)
+    adc  a, #0
+    ld   h, a
+    ld   a, (hl)
+    or   a, #2                  ; OVL_TOP
+    ld   (hl), a
+    ld   a, (_ch_bit)
+    ld   hl, #_ovl_bars
+    or   a, (hl)
+    ld   (hl), a
+    ld   a, #1
+    ld   (_ch_x + 1), a
+    ld   de, #0
+    ret
+6$:                             ; lifted
+    set  7, (hl)                ; REC_OBJ
+    ld   hl, #_lift_lifts
+    inc  (hl)
+    ret
+__endasm;
+}
+#else
 // 1. Greedy, left to right: a BG record r sharing a real column with the last BG one l is a conflict (conflict()
 //    lifts one of them, or flags the pair). 2. BG footprints that meet (r left of x): the covered one of a pair loses
 //    quick redraws (shared_pair); when only r's empty 3rd column lies on x's figure, r gets OVL_SHARED | OVL_TWO.
@@ -966,6 +1668,8 @@ static void choose_bar(uint8_t b) {
         if (busy) lift_clear[s] = 0;
     }
 }
+
+#endif
 
 // Every frame while someone is lifted, the chooser has work or the hook is set, after the rules and before queue_vram().
 void lift_frame(void) BANKED {

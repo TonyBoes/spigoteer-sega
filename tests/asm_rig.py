@@ -168,12 +168,14 @@ class Rig:
                 setattr(rf, r, saved[r])
             m[0xFF40] = saved["LCDC"]
             m[0xFFFF] = saved["IE"]
+            m[0x2000] = saved["bank"]                         # (a banked function's bank goes back too)
             self.pending = None
         if not self.queue:
             return
         c = self.queue.pop(0)
         saved = {r: getattr(rf, r) for r in ("A", "B", "C", "D", "E", "HL", "SP")}
         saved["LCDC"], saved["IE"] = m[0xFF40], m[0xFFFF]
+        saved["bank"] = m[self.noi["__current_bank"] & 0xFFFF]   # GBDK's shadow of the ROM bank in HRAM
         saved["wram"], saved["hram"] = m[WRAM[0]:WRAM[1]], m[HRAM[0]:HRAM[1]]
         m[0xFFFF] = 0
         m[0xFF40] = saved["LCDC"] & 0x7F                      # no interrupts, LCD off (LY 0)
@@ -188,6 +190,9 @@ class Rig:
             else:
                 m[a:a + len(v)] = list(v)
         bank, fa = self.fn(c.fn)
+        if fa >= 0x4000:                                      # a function in a switchable bank (lift.c is bank 5): map it in
+            m[0x2000] = bank
+            m[self.noi["__current_bank"] & 0xFFFF] = bank
         sp = saved["SP"] - 2 - len(c.stack)
         m[sp:sp + 2 + len(c.stack)] = [self.sentinel & 0xFF, self.sentinel >> 8] + list(c.stack)
         rf.SP = sp

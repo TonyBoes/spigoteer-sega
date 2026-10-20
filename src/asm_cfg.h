@@ -51,5 +51,9 @@
 #ifndef ASM_LIFT_FRAME
 #define ASM_LIFT_FRAME ASM_PASS
 #endif
+// batch 12: the crowd chooser, choose_bar (lift.c): the bar's records, the greedy lift pass, the overlap flags, the lifted ones' busy flags
+#ifndef ASM_CHOOSER
+#define ASM_CHOOSER ASM_PASS
+#endif
 
 #endif
