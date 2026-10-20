@@ -6,7 +6,7 @@ own art, #included by its own src/boss_<name>.c and nowhere else, so it lands in
   assets/art/boss/<boss>.txt   per boss (BOSSES below): the body poses (WALK, STOMP, GULP, WINCE, HAPPY: W x 16, BG,
                                on his bar's two wall rows), then the boss's own extra poses in his `extra` list (the
                                tells: Yeti INHALE / BLOW, the Critic's TASTE; the engine's pose numbers 5, 6, ... in
-                               that order), (the old hand column with 1-3 held empties, HAND1..3, is no longer read: the capacity indicator is sprites, src/boss.c; but the art itself holds extra drinks in his left hand), the topper
+                               that order), (the old hand column with 1-3 held empties, HAND1..3, is no longer read: the capacity indicator is sprites, src/boss.c), the topper
                                (HAT_STILL, HAT_BOB: 8x16 OBJ) and the HUD face (ICON, 8x8), and his `tiles` (8x16 BG
                                blocks of his special's own, e.g. Leo's "!!": boss_art_tiles, loaded at BG 246..).
                                Other blocks in the file are not read.

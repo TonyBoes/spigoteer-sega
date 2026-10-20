@@ -253,8 +253,7 @@ Rules common to every boss:
   "the empty/full drink icons above and to the right of the boss")**: a row of mug icons above and to the right of him, one per hand (`boss_hands`):
   a dark TAKEN mug for each empty he holds, then a bright ROOM mug for each free hand (assets/art/boss/tag.txt, OBJ 124-127, `boss_cap_stage`), sprites
   at OAM 39 down to 37 (src/boss.c `cap_draw`), on his top line from his right edge, 8 px apart, with his drinking sway. The Sumo (no limit) and the
-  Prototype's red light show only the taken ones; the Mothership shows its slots too (2, 1 on HARD). Separately, **his art holds extra drinks in his
-  LEFT hand** (two mugs in a fist at the left of every full-body pose; the Mothership one mug on its rim): decoration, not the indicator.
+  Prototype's red light show only the taken ones; the Mothership shows its slots too (2, 1 on HARD). Owner 2026-10-19: the icons are the whole indicator (no drinks drawn in his hand).
 - **Hand mug (owner 2026-10-17: "the mugs they drink from should look more like the drink served to them")**: while he gulps, OAM 29 draws the sliding
   mug's own tile and palette (mugs.c `spr_full_t / spr_full_p`: the venue's drink art; DMG its OBP0 copy) over his right hand (`boss_x + width`, its bottom at
   the row `hand_base[]` of his body), moving with the sway; his GULP art has no mug of its own. None for the Sumo (he is hit, he does not drink) and the Mothership.

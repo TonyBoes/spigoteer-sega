@@ -6,7 +6,7 @@
 #   3. Owner 2026-10-18 (the approved look): the capacity is a ROW OF EMPTY / FULL DRINK ICONS ABOVE AND TO THE RIGHT of the boss (cap_draw), one per hand:
 #      a TAKEN (full, dark) mug for each empty he holds, then a ROOM (empty, bright) one for each free hand (OBJ_CAP, assets/art/boss/tag.txt). The Sumo
 #      (no limit) shows only the taken ones; the Mothership shows the row too (2 slots, 1 on HARD) and catches with a tractor beam (boss_mothership.c
-#      beam_draw). His art holds extra drinks in his LEFT hand (decoration of the body art, not the indicator).
+#      beam_draw).
 import re
 import sys
 
@@ -339,20 +339,3 @@ def test_the_beam_never_makes_an_11th_sprite_on_a_line_in_a_crowd(model):
                         pass
             frames(gb, 40)
 
-
-# ---- 5. his art holds extra drinks in his left hand --------------------------------------------------------------------
-LEFT_HAND = {"mothership": (0, 6, 7)}      # (first row, rows, columns) of the mug cluster in the art; the others hold two mugs on rows 7-12 (16 wide)
-
-
-@pytest.mark.parametrize("name", NAMES)
-def test_the_boss_art_holds_extra_drinks_in_his_left_hand(name):
-    """Decoration of the body art (not the indicator): the same mug cluster, outline colour 3, in the left tile column(s) of every full-body pose."""
-    y0, h, w = LEFT_HAND.get(name, (7, 6, 15))
-    named = dict(blocks(ROOT / "assets" / "art" / "boss" / f"{name}.txt", named=True))
-    mug = ["#####..", "#---###", "#+++#.#", "#+++#.#", "#+++###", "#####.."]
-    poses = [k for k, f in named.items() if len(f) == 16 and len(f[0]) >= 32 and not k.startswith(("HAND", "HAT", "BANG", "MARKER", "BEAM"))]
-    assert "WALK" in poses and "GULP" in poses
-    for k in poses:
-        f = named[k]
-        sh = 1 if name == "mothership" and k == "STOMP" else 0
-        assert [r[:7] for r in f[y0 + sh:y0 + sh + 6]] == mug, (name, k)
