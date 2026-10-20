@@ -42,6 +42,10 @@ uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
 
 void launch_mug(void) {
     spawn_mug(bar, tap_now + (SPOUT_X - TAP_X), MUG_FULL);   // (under his bar's spout: P6 slanted bars, game.h)
+#ifdef POUR_STREAK
+    if (pour_q) { if (pour_streak <= POUR_STREAK_MAX) pour_streak++; }   // (the chime's pitch climbs a whole tone per consecutive perfect pour; src/music.c)
+    else pour_streak = 0;
+#endif
     if (pour_q) SFX(SFX_PERFECT);                           // (a story perfect pour: the chime, not the launch's sweep; src/pour.c)
     else SFX(SFX_LAUNCH);
 }

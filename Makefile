@@ -43,6 +43,19 @@ ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
 
+# Playtest variants (owner 2026-10-19), the default is the soft two-note chime; each is built into its own directory like TIP / GLOW:
+#   make BUILD=out/b_pourA OUT=out/o_pourA POUR_SFX=A [POUR_STREAK=1] unlocked   POUR_SFX=A|B|C: the perfect pour's arpeggio / arpeggio + echo /
+#   arpeggio + noise shimmer (src/music.c s_perfect); POUR_STREAK=1: each consecutive perfect pour a whole tone higher (src/mugs.c launch_mug)
+POUR_SFX    ?=
+POUR_STREAK ?=
+export POUR_SFX POUR_STREAK
+ifneq ($(POUR_SFX),)
+LCCFLAGS += -DPOUR_SFX_$(POUR_SFX)
+endif
+ifneq ($(POUR_STREAK),)
+LCCFLAGS += -DPOUR_STREAK
+endif
+
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patron_load.c
