@@ -43,21 +43,6 @@ ifneq ($(GLOW),)
 LCCFLAGS += -DGLOW_$(GLOW)
 endif
 
-# The "x2" chime of the 3rd perfect pour in a row (owner 2026-10-20), two candidates until he picks: POUR_X2=1 (default: the chime at the top pitch +
-# shimmer) or 2 (a fuller level-up flourish); built into its own directory like TIP / GLOW (make BUILD=out/b_x2b OUT=out/o_x2b POUR_X2=2 unlocked)
-POUR_X2 ?=
-export POUR_X2
-ifneq ($(POUR_X2),)
-LCCFLAGS += -DPOUR_X2=$(POUR_X2)
-endif
-# Gentler candidate families (owner 2026-10-20), POUR_FAM=1 marimba (wave channel) / 2 soft chime / 3 twinkle; unset: the chime above (src/music.c)
-#   make BUILD=out/b_f1 OUT=out/o_f1 POUR_FAM=1 unlocked
-POUR_FAM ?=
-export POUR_FAM
-ifneq ($(POUR_FAM),)
-LCCFLAGS += -DPOUR_FAM=$(POUR_FAM)
-endif
-
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patron_load.c

@@ -211,99 +211,143 @@ def test_sfx_drive_channel_1_and_4_and_end(sgb):
     assert sgb.mem(NR52) & 8, "the break is a burst on the noise channel (4)"
 
 
-NR12, NR13, NR14, NR42, NR43 = 0xFF12, 0xFF13, 0xFF14, 0xFF21, 0xFF22
-SFX_PERFECT = 15
+NR12, NR32, NR42, NR43 = 0xFF12, 0xFF1C, 0xFF21, 0xFF22
+SFX_PERFECT, SFX_EXTRA_ID = 15, 9
+MUTE3 = 4                                   # hUGE_mute_mask bit 2: the driver leaves channel 3 alone
+NO_WAVE = 100                               # hUGE_current_wave after hUGE_reset_wave: the next bass note reloads its wave
+D5, FS5, A5, D6 = 587.33, 739.99, 880.0, 1174.66
+TONE = 2 ** (1 / 6)
 
 
 def request_perfect(sgb, streak):
-    """Ask for the perfect pour's chime with pour_streak `streak` (what launch_mug has just set) and let one music tick take it."""
+    """Ask for the perfect pour's marimba with pour_streak `streak` (what launch_mug has just set) and let one music tick take it."""
     sgb.write("pour_streak", streak)
     sgb.write(sgb.addr("sfx_req") + 1, 0x40)
     sgb.run(1)
 
 
-def chime_hz(sgb):
-    """The channel 1 pitch of the arpeggio's top note D7 (frames 10-12 of the chime: both x2 candidates hold it there), by FFT of what the speaker plays
-    (the period registers are write-only), in Hz."""
-    audio_frames(sgb, 9)
-    a = audio_frames(sgb, 3).astype(float).mean(axis=1)
-    return detect(a, sgb.pb.sound.sample_rate, 1600, 3600)
+def window_hz(sgb, frames, lo=500, hi=3000):
+    """The pitch of the next `frames` frames, by FFT of what the speaker plays (the period registers are write-only), in Hz."""
+    a = audio_frames(sgb, frames).astype(float).mean(axis=1)
+    return detect(a, sgb.pb.sound.sample_rate, lo, hi)
 
 
-def test_the_perfect_pour_chime_is_a_rising_d_major_arpeggio_with_an_echo_on_channel_1(sgb):
-    """SFX_PERFECT (15; owner 2026-10-20, variant B): D6 F#6 A6 D7 on channel 1 (12.5% pulse, volume 13) then D7 echoed twice quieter (0x82, 0x42),
-    25 frames, then the channel is let go (NR12 0x08 or the tune's harmony). Requested through sfx_req's bit 14 (the high byte)."""
+def notes_of(sgb, streak, windows):
+    """request the marimba, then the pitch of each (first frame, frames) window counted from the frame after the request."""
+    sgb.run(40)
+    request_perfect(sgb, streak)
+    out, at = [], 0
+    for f0, n, *lo in windows:
+        if f0 > at:
+            audio_frames(sgb, f0 - at)
+        out.append(window_hz(sgb, n, *lo))
+        at = f0 + n
+    return out
+
+
+PERFECT_WINDOWS = [(0, 3), (5, 3), (10, 2)]          # D5, F#5, A5 (the pour's notes: frames 0-2, 5-7, 10-11)
+X2_WINDOWS = [(0, 3, 650), (4, 3, 650), (8, 3, 650), (12, 2, 1100)]    # D5, F#5, A5, D6 (the x2 sound's notes; D6 is looked for above the bass)
+
+
+def near(hz, want, tol=0.03):
+    return abs(hz / want - 1) < tol
+
+
+def test_the_perfect_pour_is_a_soft_marimba_on_the_wave_channel(sgb):
+    """SFX_PERFECT (15; owner's pick 2026-10-20): D5 F#5 A5 on channel 3 (the wave channel), each note plucked by the wave volume stepping 100% 50% 25% (NR32
+    0x20 0x40 0x60), 20 frames, then the channel is let go (NR32 0). Nothing on channel 1: the tune's harmony is not played over by a sustained note."""
     sgb.write("intro_timer", 255)
-    sgb.run(30)
-    sgb.write("pour_streak", 1)
-    sgb.write(sgb.addr("sfx_req") + 1, 0x40)
-    sgb.run(1)
-    assert sgb.mem(NR52) & 1, "the chime sounds on channel 1"
-    env = [sgb.mem(NR12)]
-    for _ in range(26):
-        sgb.run(1)
-        env.append(sgb.mem(NR12))
-    assert env[0] == 0xD2 and 0x82 in env and 0x42 in env, f"volume 13, then the two echoes ({env})"
-    assert env.index(0x82) < env.index(0x42)
+    hz = notes_of(sgb, 1, PERFECT_WINDOWS)
+    assert all(near(h, w) for h, w in zip(hz, (D5, FS5, A5))), hz
     sgb.run(40)
     request_perfect(sgb, 1)
-    top = chime_hz(sgb)
-    assert 2250 < top < 2450, f"the arpeggio tops out at D7 ({top:.0f} Hz)"
+    vol = []
+    for _ in range(24):
+        vol.append(sgb.mem(NR32) & 0x60)
+        sgb.run(1)
+    assert vol[0] == 0x20 and 0x40 in vol and 0x60 in vol, vol
+    assert vol.index(0x40) < vol.index(0x60), "plucked"
+    assert sgb.mem("hUGE_mute_mask") & MUTE3 == 0, "then let go"
+
+
+def test_the_marimba_climbs_a_whole_tone_on_the_second_perfect_pour_and_the_x2_sound_is_the_same_every_time(sgb):
+    """Streak 1: the base pitch; 2: one whole tone up; 3: the x2 sound (D5 F#5 A5 D6, then a soft repeat), two whole tones up, and identical on every
+    later perfect pour (the streak stays at 3)."""
+    sgb.write("intro_timer", 255)
+    one = notes_of(sgb, 1, PERFECT_WINDOWS)
+    two = notes_of(sgb, 2, PERFECT_WINDOWS)
+    assert all(near(b / a, TONE, 0.02) for a, b in zip(one, two)), (one, two)
+    runs = [notes_of(sgb, 3, X2_WINDOWS) for _ in range(3)]
+    want = [D5 * TONE ** 2, FS5 * TONE ** 2, A5 * TONE ** 2, D6 * TONE ** 2]
+    for r in runs:
+        assert all(near(h, w, 0.04) for h, w in zip(r, want)), (r, want)
+        assert np.allclose(r, runs[0], rtol=0.01), "the x2 sound is identical every time (no further climbing)"
     sgb.run(40)
-    harm = {gm.HARM_INST[k][1] for k in songs.SONGS["susanna"]["ch1_inst"] or ()}
-    assert sgb.mem(NR12) in {0x08} | harm, f"the chime let go of channel 1 (NR12 {sgb.mem(NR12):#x})"
+    request_perfect(sgb, 3)
+    n = 0
+    while sgb.mem("hUGE_mute_mask") & MUTE3 and n < 40:
+        sgb.run(1)
+        n += 1
+    assert 24 <= n <= 30, f"the x2 sound lasts {n + 1} frames, under half a second"
 
 
-def test_the_chime_climbs_a_whole_tone_on_the_second_perfect_pour_and_the_x2_chime_is_the_same_every_time(sgb):
-    """Streak 1: the base pitch; 2: one whole tone up (x2^(1/6)); 3: the x2 chime, two whole tones up, and identical on every later perfect pour
-    (the streak stays at 3): the same SFX id, the same notes frame by frame."""
+def test_the_marimba_hands_channel_3_back_and_the_bass_reloads_its_wave(sgb):
+    """The wave channel is the tunes' bass: while the marimba sounds the driver is told to leave it alone (mute mask bit 2) and, when it ends, the mask clears
+    and the driver is made to reload its wave (hUGE_current_wave 100) at the next bass note, when the id is the bass's again."""
+    sgb.write("intro_timer", 255)
+    sgb.run(200)
+    bass = sgb.mem("hUGE_current_wave")
+    assert bass != NO_WAVE and sgb.mem("hUGE_mute_mask") & MUTE3 == 0
+    request_perfect(sgb, 3)
+    assert sgb.mem("hUGE_mute_mask") & MUTE3, "the driver leaves channel 3 alone while the marimba sounds"
+    sgb.run(40)
+    assert sgb.mem("hUGE_mute_mask") & MUTE3 == 0, "handed back"
+    assert sgb.mem("hUGE_current_wave") == NO_WAVE, "the driver reloads the bass wave"
+    sgb.run(300)
+    assert sgb.mem("hUGE_current_wave") == bass, "with the next bass note"
+
+
+def test_a_channel_1_effect_cuts_the_marimba_and_the_marimba_cuts_one(sgb):
+    """The marimba shares the channel-1 effect slot: a catch ping cutting it hands channel 3 back at once; the marimba starting over a ping lets channel 1
+    go (NR12 0x08); and the extra life's fanfare is never cut by it."""
     sgb.write("intro_timer", 255)
     sgb.run(30)
-    hz = []
-    for streak in (1, 2, 3):
-        sgb.run(40)
-        request_perfect(sgb, streak)
-        hz.append(chime_hz(sgb))
-    assert 1.10 < hz[1] / hz[0] < 1.14, f"streak 2 is a whole tone up ({hz})"
-    assert 1.23 < hz[2] / hz[0] < 1.29, f"the x2 chime is two whole tones up ({hz})"
-    traces = []
-    for _ in range(3):
-        sgb.run(40)
-        request_perfect(sgb, 3)
-        t = [sgb.pb.sound.ndarray[:-1].copy()]
-        for _ in range(29):
-            sgb.run(1)
-            t.append(sgb.pb.sound.ndarray[:-1].copy())
-        traces.append(np.concatenate(t))
-    rate = sgb.pb.sound.sample_rate
-    tracks = []
-    for t in traces:
-        m = t.astype(float).mean(axis=1)
-        w = len(m) // 10
-        tracks.append([detect(m[i * w:(i + 1) * w], rate, 1600, 3600) for i in range(7)])
-    for t in tracks[1:]:
-        assert np.allclose(t, tracks[0], rtol=0.02), f"the x2 chime is identical every time (no further climbing): {tracks}"
-
-
-def test_the_x2_chime_adds_a_quiet_noise_shimmer_that_never_cuts_a_channel_4_effect(sgb):
-    """Only the x2 chime starts the shimmer (channel 4: NR42 0x51, NR43 0x11 then 0x10, 6 frames); a sounding channel-4 effect (the break's burst) keeps its channel."""
-    sgb.write("intro_timer", 255)
-    sgb.run(40)
-    for streak in (1, 2):
-        request_perfect(sgb, streak)
-        assert (sgb.mem(NR42), sgb.mem(NR43)) != (0x51, 0x11), f"streak {streak}: no shimmer"
-        sgb.run(40)
-    request_perfect(sgb, 3)
-    assert (sgb.mem(NR42), sgb.mem(NR43)) == (0x51, 0x11), "the x2 chime: the shimmer starts with it"
-    sgb.run(4)
-    assert sgb.mem(NR43) == 0x10
-    sgb.run(40)
-    sgb.write(sgb.addr("sfx_req"), 1 << (SFX_BREAK - 1))
+    request_perfect(sgb, 1)
+    sgb.run(3)
+    assert sgb.mem("hUGE_mute_mask") & MUTE3
+    sgb.write(sgb.addr("sfx_req"), 1 << (SFX_CATCH - 1))
     sgb.run(1)
-    nr42, nr43 = sgb.mem(NR42), sgb.mem(NR43)
+    assert sgb.mem("hUGE_mute_mask") & MUTE3 == 0, "cut by the ping: channel 3 handed back"
+    assert sgb.mem("hUGE_current_wave") == NO_WAVE
+    sgb.run(40)
+    sgb.write(sgb.addr("sfx_req"), 1 << (SFX_CATCH - 1))
+    sgb.run(2)
+    assert sgb.mem(NR12) != 0x08 and sgb.mem(NR12) != 0
+    request_perfect(sgb, 1)
+    assert sgb.mem(NR12) == 0x08, "the marimba cut the ping: channel 1 let go"
+    assert sgb.mem("hUGE_mute_mask") & MUTE3 and sgb.mem(NR32) & 0x60 == 0x20
+    sgb.run(40)
+    sgb.write(sgb.addr("sfx_req") + 1, 1 << (SFX_EXTRA_ID - 1 - 8))
+    sgb.run(2)
+    nr12 = sgb.mem(NR12)
+    request_perfect(sgb, 1)
+    assert sgb.mem(NR12) == nr12 and nr12 != 0x08 and sgb.mem("hUGE_mute_mask") & MUTE3 == 0, "the extra life is not cut short, no marimba over it"
+
+
+def test_a_marimba_sounding_when_the_game_pauses_plays_out_on_the_pause_mix(sgb):
+    """Paused, NR51 is 0xCC (bass and drums: channels 3 and 4): the marimba, on channel 3, stays audible, runs out and hands the channel back as usual
+    (the pause keeps ticking the effects), and RESUME gives the full mix."""
+    from test_pause import PAUSED, tap
+    sgb.write("intro_timer", 255)
+    sgb.run(30)
     request_perfect(sgb, 3)
-    assert (sgb.mem(NR42), sgb.mem(NR43)) != (0x51, 0x11), "a sounding crash is not cut by the shimmer"
-    assert sgb.mem(NR42) == nr42
+    sgb.run(3)
+    tap(sgb, "start", 3)
+    assert state(sgb) == PAUSED and sgb.mem(0xFF25) == 0xCC
+    sgb.run(60)
+    assert sgb.mem(0xFF25) == 0xCC and sgb.mem("hUGE_mute_mask") & MUTE3 == 0, "ran out"
+    tap(sgb, "start", 3)
+    assert state(sgb) == PLAYING and sgb.mem(0xFF25) == 0xFF
 
 
 def test_music_yields_channel_4_to_an_effect_then_takes_it_back(sgb):

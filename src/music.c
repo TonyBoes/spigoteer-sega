@@ -86,102 +86,20 @@ static const sfx_step_t s_whoosh[] = { {0x53, 3, 0}, {0x33, 3, 0}, {0x13, 2, 0} 
 // The bar change's swish (src/pour.c bar_change; channel 4, 4 frames, envelope 0x41: volume 4 of 15, fading by 1 a step):
 // a short quiet high hiss, 15-bit noise clock at ~65 kHz / 2 (NR43 0x12). The whoosh stays for the bosses and the stories.
 static const sfx_step_t s_swish[]  = { {0x12, 4, 0} };
-// The perfect pour's chime (story and ARCADE shifts; src/mugs.c launch_mug plays it INSTEAD of SFX_LAUNCH when the release is perfect; channel 1, 12.5%
-// pulse, envelope 0xD2: volume 13, a slow decay; owner 2026-10-20, variant B of the playtest): D major, a rising arpeggio to the octave, D6 F#6 A6 D7,
-// the first note sweeping up into pitch over its 4 frames (the software slide: period +14 a frame), then D7 echoed twice at falling volume (0x82,
-// 0x42): 4+3+3+5+4+6 = 25 frames. Streak (pour_streak, src/mugs.c): the 2nd perfect pour in a row sounds a whole tone higher (pour_up).
+// The perfect pour's "marimba" (story and ARCADE shifts; src/mugs.c launch_mug plays it INSTEAD of SFX_LAUNCH when the release is perfect; owner's pick
+// 2026-10-20 of three gentle families after "a wake up beeper alarm"). Channel 3, the wave channel, which the tunes' bass uses: while it sounds the driver
+// is told to leave the channel alone (set_mute 2) and afterwards made to reload its wave with the next bass note (hUGE_reset_wave). The wave (s_wave) is a
+// soft sine with a little second harmonic; each note is plucked by stepping the wave volume 100% 50% 25% (NR32 0x20 0x40 0x60, the step's third field; a
+// step with no pitch only changes the volume). The chime takes voice[0] (channel 1's slot, so no new WRAM): the tune's channel-1 harmony is silent meanwhile.
+//   the perfect pour (the 1st in a row; the 2nd a whole tone higher, pour_up): D5 F#5 A5, 20 frames.
+//   the x2 sound (the 3rd in a row and every one after, the x2 bonus; always the same, two whole tones up): D5 F#5 A5 D6, then a soft repeat of D6 at
+//   25%: 29 frames.
 #define N_(a) (sizeof(a) / sizeof((a)[0]))
-// Gentler candidate families (owner 2026-10-20: "sounds like a wake up beeper alarm"; make POUR_FAM=1|2|3, 0 = the chime above, until he picks). Each family is
-// the perfect pour (the 1st in a row; the 2nd a whole tone up) and the x2 sound (always the same, two tones up). Channel 1 families are quieter (volume
-// 10-11), lower and use a rounder duty; family 1 is on the wave channel (below). Durations are video frames.
-#ifndef POUR_FAM
-#define POUR_FAM 0
-#endif
-#if POUR_FAM == 0
-#define PERF_CH 0
-#define PERF_CH_X 0
-static const sfx_step_t s_perfect[] = { {1895, 4, 14}, {1959, 3, 0}, {1973, 3, 0}, {1992, 5, 0}, {1992, 4, 0}, {1992, 6, 0} };
-#define PERFECT_ECHO 4              // the step the echoes start at
-#define PERF_E1 0x82
-#define PERF_E2 0x42
-#elif POUR_FAM == 1
-// F1 "marimba", channel 3 (the wave channel, which the tunes' bass uses: the driver is told to leave it alone meanwhile and made to reload its wave
-// afterwards, hUGE_reset_wave): a soft sine-and-a-little-second-harmonic wave (s_wave), D5 F#5 A5, each note plucked: the wave volume steps 100% 50% 25%
-// (NR32 0x20 0x40 0x60, the step's third field; a step with no pitch only changes the volume). 20 frames.
-// x2: D5 F#5 A5 D6, a soft repeat of D6 at 25%, 29 frames.
-#define WAVE_FAM
 static const uint8_t s_wave[16] = { 0x89, 0xBC, 0xEE, 0xEE, 0xED, 0xCB, 0xA9, 0x98, 0x87, 0x66, 0x54, 0x32, 0x21, 0x11, 0x13, 0x46 };
 static const sfx_step_t s_perfect[] = { {1936, 3, 0x20}, {0, 2, 0x40}, {1959, 3, 0x20}, {0, 2, 0x40}, {1974, 2, 0x20}, {0, 3, 0x40}, {0, 5, 0x60} };
 static const sfx_step_t s_x2[] = { {1936, 3, 0x20}, {0, 1, 0x40}, {1959, 3, 0x20}, {0, 1, 0x40}, {1974, 3, 0x20}, {0, 1, 0x40},
                                    {1992, 2, 0x20}, {0, 4, 0x40}, {0, 5, 0x60}, {1992, 2, 0x60}, {0, 4, 0x60} };
-#define PERF_CH 2
-#define PERF_CH_X 2
-#define PERF_DUTY 0
-#define PERF_ENV 0
-#define PERFECT_ECHO 99
-#define X2_ECHO 99
-#define PERF_E1 0
-#define PERF_E2 0
-#elif POUR_FAM == 2
-// F2 "soft chime", channel 1, 50% pulse, envelope 0xA2 (volume 10, a slow fade; 0xB2 measured a little louder than the coin): D5 then B5, a rising major sixth "ding-dong", 5+14 = 19 frames.
-// x2: the same, then a soft echo a minor third above (D6, volume 6), 5+10+9 = 24 frames.
-static const sfx_step_t s_perfect[] = { {1825, 5, 0}, {1915, 14, 0} };
-static const sfx_step_t s_x2[] = { {1825, 5, 0}, {1915, 10, 0}, {1936, 9, 0} };
-#define PERF_CH 0
-#define PERF_CH_X 0
-#define PERF_DUTY 0x80
-#define PERF_ENV 0xA2
-#define PERFECT_ECHO 99
-#define X2_ECHO 2
-#define PERF_E1 0x62
-#define PERF_E2 0x62
-#else
-// F3 "twinkle", channel 1, 25% pulse, envelope 0xA2 (volume 10): a quick soft glide up from D6 into one A6 bell note: 3+12 = 15 frames.
-// x2: a longer glide from G5 into A6, volume 11 (0xB2), then the very quiet noise shimmer of channel 4: 6+14 = 20 frames.
-static const sfx_step_t s_perfect[] = { {1936, 3, 13}, {1974, 12, 0} };
-static const sfx_step_t s_x2[] = { {1881, 6, 15}, {1974, 14, 0} };
-#define PERF_CH 0
-#define PERF_CH_X 0
-#define PERF_DUTY 0x40
-#define PERF_ENV 0xA2
-#define PERFECT_ECHO 99
-#define X2_ECHO 99
-#define PERF_E1 0
-#define PERF_E2 0
-#endif
-// The "x2" chime (the 3rd perfect pour in a row and every one after, the x2 bonus): the same chime two whole tones up, always the same, with a
-// quiet high noise shimmer on channel 4 under it (s_shimmer, never started over a channel-4 effect that is sounding). Two candidates for family 0
-// (owner 2026-10-20; make POUR_X2=1|2, default 1, until he picks):
-//   1: the chime itself at the top pitch, echo and shimmer: 25 frames.
-//   2: a fuller level-up (envelope 0xE2: volume 14): the arpeggio, then a resolving turn (the top note, a tone above, the top note again) and the echoes:
-//      4+3+3+3+2+3+4+5 = 27 frames.
-#ifndef POUR_X2
-#define POUR_X2 1
-#endif
-#if POUR_FAM == 0
-#if POUR_X2 == 2
-static const sfx_step_t s_x2[] = { {1895, 4, 14}, {1959, 3, 0}, {1973, 3, 0}, {1992, 3, 0}, {1998, 2, 0}, {1992, 3, 0}, {1992, 4, 0}, {1992, 5, 0} };
-#define X2_ECHO 6
-#define X2_ENV  0xE2
-#else
-#define s_x2 s_perfect
-#define X2_ECHO PERFECT_ECHO
-#define X2_ENV  0xD2
-#endif
-#define X2_DUTY 0x00
-#define X2_SHIMMER
-#else
-#define X2_DUTY PERF_DUTY
-#if POUR_FAM == 3
-#define X2_ENV 0xB2
-#define X2_SHIMMER
-#else
-#define X2_ENV PERF_ENV
-#endif
-#endif
-static const sfx_def_t d_x2 = { PERF_CH_X, X2_DUTY, X2_ENV, N_(s_x2), s_x2 };
-static const sfx_step_t s_shimmer[] = { {0x11, 3, 0}, {0x10, 3, 0} };           // channel 4: high bright noise, volume 5 fading out
-static const sfx_def_t d_shimmer = { 3, 0x00, 0x51, 2, s_shimmer };
+static const sfx_def_t d_x2 = { 2, 0, 0, N_(s_x2), s_x2 };
 uint8_t pour_streak;                 // perfect pours in a row, capped at 3 (src/mugs.c launch_mug; 0 after a non-perfect launch, a shift's start, a lost life)
 static uint16_t pour_up(uint16_t p, uint8_t n) {   // the period p raised n whole tones: the wave length x 0.8906 (2^-1/6 = 0.8909) each, kept to 1/16 so two steps do not compound the rounding
     uint16_t d = (2048 - p) << 4;
@@ -207,11 +125,7 @@ static const sfx_def_t sfx_defs[SFX_COUNT] = {
     { 3, 0x00, 0xD0, N(s_rev),    s_rev },
     { 3, 0x00, 0xA1, N(s_whoosh), s_whoosh },
     { 3, 0x00, 0x41, N(s_swish),  s_swish },
-#if POUR_FAM == 0
-    { 0, 0x00, 0xD2, N(s_perfect), s_perfect },
-#else
-    { PERF_CH, PERF_DUTY, PERF_ENV, N(s_perfect), s_perfect },
-#endif
+    { 2, 0x00, 0x00, N(s_perfect), s_perfect },
 };
 
 typedef struct {
@@ -329,19 +243,15 @@ void music_set_on(uint8_t on) BANKED {
     if (cur_tune != TUNE_NONE) music_play(cur_tune);
 }
 
-#ifdef WAVE_FAM
 static void wave_release(void) {      // the wave channel back to the tunes' bass: silent, the driver reloads its wave with the next note
     NR32_REG = 0;
     hUGE_reset_wave();
     set_mute(2, !mus_active);
 }
-#endif
 
 static void step_begin(voice_t *v) {
     const sfx_step_t *s = &v->def->steps[v->step];
-    uint8_t env = v->def->env;
     v->freq = s->freq; v->slide = s->slide; v->left = s->len;
-#ifdef WAVE_FAM
     if (v->def->ch == 2) {                                   // the wave channel: the step's third field is NR32 (volume), no slides
         uint8_t k;
         NR32_REG = (uint8_t)s->slide; v->slide = 0;
@@ -357,18 +267,10 @@ static void step_begin(voice_t *v) {
         NR34_REG = 0x80 | (v->freq >> 8);
         return;
     }
-#endif
-    if (v->def == &d_x2) {
-        v->freq = pour_up(v->freq, 2);                                       // always the top pitch
-        if (v->step >= X2_ECHO) env = (v->step == X2_ECHO) ? PERF_E1 : PERF_E2;   // the echoes
-    } else if (v->def == &sfx_defs[SFX_PERFECT]) {
-        if (pour_streak > 1) v->freq = pour_up(v->freq, 1);
-        if (v->step >= PERFECT_ECHO) env = (v->step == PERFECT_ECHO) ? PERF_E1 : PERF_E2;
-    }
     if (v->def->ch == 0) {
         NR10_REG = 0;
         NR11_REG = v->def->duty;
-        NR12_REG = env;
+        NR12_REG = v->def->env;
         NR13_REG = (uint8_t)v->freq;
         NR14_REG = 0x80 | (v->freq >> 8);
     } else {
@@ -379,30 +281,19 @@ static void step_begin(voice_t *v) {
     }
 }
 
-static void shimmer_start(void) {       // under the chime; never over a channel-4 effect that is sounding (a crash, a rev...)
-    voice_t *w = &voice[1];
-    if (w->busy) return;
-    w->def = &d_shimmer; w->step = 0; w->busy = 1;
-    set_mute(3, 1);
-    step_begin(w);
-}
-
 static void sfx_start(uint8_t id) {
     voice_t *v = &voice[sfx_defs[id].ch == 3];
-#ifdef WAVE_FAM
-    if (v == voice && v->busy && v->def->ch == 2) wave_release();      // (the chime is cut by another effect: the bass gets its channel back)
-    else if (v == voice && v->busy && sfx_defs[id].ch == 2) { NR12_REG = 0x08; NR14_REG = 0x80; }   // (the other way round: let go of channel 1)
-#endif
     if (v->busy && v->def == &sfx_defs[SFX_EXTRA] && id != SFX_EXTRA) return;   // the extra life is not cut short
-    if (v->busy && id >= SFX_WHOOSH && sfx_defs[id].ch) return;     // the whoosh and the swish never cuts a crash or a drum off (channel 4)
+    if (v->busy && id >= SFX_WHOOSH && sfx_defs[id].ch == 3) return;     // the whoosh and the swish never cuts a crash or a drum off (channel 4)
+    if (v == voice && v->busy) {                                    // (channel 1's slot is the marimba's too: the one cut hands its channel back)
+        if (v->def->ch == 2) wave_release();                        // the marimba cut by a channel-1 effect (or itself again): the bass gets channel 3 back
+        else if (sfx_defs[id].ch == 2) { NR12_REG = 0x08; NR14_REG = 0x80; }   // a channel-1 effect cut by the marimba: let go of channel 1
+    }
     v->def = (id == SFX_PERFECT && pour_streak > 2) ? &d_x2 : &sfx_defs[id];
     v->step = 0;
     v->busy = 1;
     set_mute(v->def->ch, 1);        // the driver lets go of the channel (and cuts its note) before we write
     step_begin(v);
-#ifdef X2_SHIMMER
-    if (v->def == &d_x2) shimmer_start();
-#endif
 }
 
 static void voice_tick(uint8_t i) {
@@ -410,9 +301,7 @@ static void voice_tick(uint8_t i) {
     if (!v->busy) return;
     if (--v->left == 0) {
         if (++v->step < v->def->nsteps) { step_begin(v); return; }
-#ifdef WAVE_FAM
         if (v->def->ch == 2) wave_release(); else
-#endif
         if (i == 0) { NR12_REG = 0x08; NR14_REG = 0x80; }   // channel 1: volume 0, the DAC stays on (the harmony comes
         else NR42_REG = 0;                                  // back on it without the click of a DAC switching); 4: DAC off
         v->busy = 0;
@@ -433,7 +322,6 @@ static void groove_row(void) {      // (tick calls it on the frame the row count
     g_cnt = hUGE_ticks_per_row;      // this row's length, as the driver has just set it
     d = groove[2 + g_pos];
     if (++g_pos == groove[0]) g_pos = 0;
-    if (d && voice[1].busy && voice[1].def == &d_shimmer) voice[1].busy = 0;   // a groove drum cuts the shimmer short
     if (d && !voice[1].busy && !(hUGE_mute_mask & TK_NOGROOVE)) {
         const uint8_t *k = drum_kit[d - 1];
         NR41_REG = k[0]; NR42_REG = k[1]; NR43_REG = k[2]; NR44_REG = k[3];
