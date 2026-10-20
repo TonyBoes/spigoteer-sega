@@ -1222,21 +1222,26 @@ overlaps another variant of his or that no page uses):
 | SPIGOTEER COZY | `spigoteer_cozy.txt` | From PRE_IGLOO page 3 (his "IT'S... VERY COZY." right after Aurora knits him the bobble hat on page 2) to the end of the game: every Spigoteer page of PRE_IGLOO through FINALE_B (CREDITS has none). |
 | DREGS SORRY | `dregs_sorry.txt` | FINALE_B pages 1-2, his apology "SORRY I BROKE IT." and "YOU POUR FIRST." (his only FINALE_B pages; his FINALE_A challenge has the main portrait). |
 
+**The portrait art is the reference** (owner 2026-10-19): these lines describe what the approved portraits show. Props that older
+notes or the scenes' "Picture:" lines mention but the portraits don't (a whistle, an axe, knitting needles, a yarn ball, binoculars, a
+cookie) must not be added to a portrait unless the owner asks. The owner is redrawing the portraits; update these lines when his
+versions are imported.
+
 | Portrait | One line |
 |---|---|
 | SPIGOTEER | Big curled mustache, spigoteer's apron and bow tie, confident grin. |
 | SPIGOTEER (cozy) | The same in the pink knitted bobble hat (the variant is still named COZY), from PRE_IGLOO page 3 onward. |
 | DREGS | Lanky rival with a scraggly little mustache and a crooked bow tie, sheepish. His FINALE_B apology has its own variant (hand behind his head). |
-| SADIE | Small saloon owner, huge hat, sheriff-style star badge, big laugh. |
-| COACH | Coach Blitz: ball cap, whistle in his teeth, clipboard. |
-| JUNE | Big June: red plaid, knit beanie, axe over her shoulder, cheerful. |
-| COLBY | Chef Colby: tall toque, wedge-of-cheese pin, twinkle in his eye. |
-| AURORA | Aurora: warm smile, fur-trimmed parka hood, knitting needles. |
+| SADIE | Sadie Spurs: copper hair under a huge cream cowboy hat, a gold sheriff star on her vest, a big laugh. |
+| COACH | Coach Blitz: red team cap with the logo, red team jacket, a big grin. (No whistle or clipboard in the portrait.) |
+| JUNE | Big June: red plaid, knit beanie with a pom-pom, cheerful. (No axe in the portrait.) |
+| COLBY | Chef Colby: tall toque, beard, gold neckerchief, wedge-of-cheese pin, twinkle in his eye. |
+| AURORA | Aurora: warm smile, fur-trimmed snorkel-parka hood worn up, a knitted pink scarf (her knitting cue). (No needles and no yarn ball.) |
 | MANAGER-BOT | Manager-Bot 3000: boxy head, single screen-face showing a smile, antenna. |
-| HANA | Tea master: calm expression, simple work kimono and apron, holding a tea whisk. Dignified, not a caricature. |
+| HANA | Tea master: calm expression, hair up, simple kimono, holding a tea whisk. Dignified, not a caricature. |
 | ZIZZ | Zizz: round jelly-like alien with three eyes and a bow tie, glowing. |
-| KIKI | Keeper Kiki: safari hat, binoculars, finger to her lips. |
-| GRANNY | Granny Throttle: grey bun under a bandana, round glasses, patch-covered leather jacket, a cookie in one hand; a tough squint over a soft smile. |
+| KIKI | Keeper Kiki: safari pith helmet, short black pigtails, khaki safari shirt. (No binoculars or finger to the lips in the portrait.) |
+| GRANNY | Granny Throttle: silver curls under a red polka-dot bandana, glasses, a patch-covered leather jacket; a tough squint over a soft smile. (No cookie in the portrait.) |
 | NARRATOR | No portrait. The text box runs full width, or shows a small golden spigot icon. |
 
 ### Still pictures (one per scene, about 160x96 above the text box)
