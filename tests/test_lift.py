@@ -191,6 +191,23 @@ def test_lifted_patrons_look_exactly_like_bg_ones(pair, group):
     assert a.bg_tilemap() == b.bg_tilemap(), "the BG is back exactly as it was"
 
 
+@pytest.mark.xfail(reason="known, rare (perf agent, 854c894): the 4th lift of a one-per-frame run lands on the frame a lifted drinker's 2 px sway crosses a column; "
+                          "its urgent span (48 of the 64-unit VBlank budget) defers the sway's footprint span (queue_vram, render.c) by a frame, so the sprite is "
+                          "at the new x while the plain-wall footprint is still the old one: 1 wall speck (or a 131 px figure, other phases) for one frame. "
+                          "Not easy: needs the budget's priorities changed (docs: report of 2026-10-19)", strict=False)
+def test_a_lift_on_the_frame_a_drinkers_sway_crosses_a_column_leaves_nothing_for_a_frame():
+    pair = (boot_play("dmg"), boot_play("dmg"))
+    try:
+        for g in pair:
+            slot = place(g, 0)
+        step_same(pair, 20)                         # (no timer change: the sway moves on the lifts' 4th frame)
+        run_hooks(pair, [(slot[k], HOOK_LIFT) for k in SET_A])
+        step_same(pair, 30)
+    finally:
+        for g in pair:
+            g.stop()
+
+
 def test_lift_and_drop_change_no_pixel_and_put_the_bg_back(gb):
     """One patron, alone: the picture never changes on any frame through a lift and the drop;
     his BG copy goes while he is a sprite and comes back after. Before/after x4 screenshots land in out/m13a/."""
