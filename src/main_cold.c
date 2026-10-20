@@ -210,6 +210,7 @@ void enter_level_screen(void) BANKED {
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0; life_lost = 0;
     state_timer = 0;                              // (the antics' 255 of the clear before)
     start_level();
+    pocket_level();                              // (ARCADE / STORY: the pocketed tip's slot and icon tile; src/pocket.c)
     dust_load();                                 // the bar-change puff's tiles (OBJ ids above the DMG copies)
     if (boss_on) boss_load();                    // a boss fight (story): his tiles over variant C's, his palettes
     init_scene();
@@ -280,6 +281,7 @@ void enter_game_over(void) BANKED {
 void enter_level_clear(void) BANKED {
     uint8_t i;
     tip_timer = 0; show_timer = 0;               // a tip is simply forgotten when the level ends
+    pocket_clear();                              // (a pocketed one too)
     for (i = OAM_COIN; i < 40; i++) shadow_OAM[i].y = 0;
     dancers_vis = 0; oam_touched();
     add_score(LEVEL_BONUS);

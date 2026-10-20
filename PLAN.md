@@ -3675,3 +3675,12 @@ HUD redesign (6df4965; row 0 only), pause and pause_menu, the Practice list set 
 patrons and stage_anim_zoo (the fixed push, bf5a155), the spigot stream and cowboy back hat (filling, spout_fill, patrons_cowboys, show_backs), Asteroid /
 Marshmallow / Log Roll / Tip Shower HUD and tuning shots, boss_critic_no / taste and boss_sasquatch (timing after the faster `boss_draw` and the save move).
 Each commit message names the golden, its diff box and the reason.
+
+## Pocketed tips (owner's playtest notes 2026-10-18; src/pocket.c, tests/test_pocket.py)
+- Before: a tip could never lie on the floor during a show (patrons.c maybe_tip refused while show_timer ran, and only a pickup starts a show), so "a tip picked up during a
+  show" did not exist. Now, in ARCADE and STORY, a patron served during a show may tip while the pocket is empty; picking that coin up pockets it (score as ever, the show is
+  not restarted). With the pocket full no tip drops during a show: as before.
+- B in play (GS_PLAYING, no show, not the clear, not a boss fight) starts a show from the pocket and empties it. B did nothing in play before; START still pauses.
+- HUD: the coin icon at row 0, column 9 (BG id 255, assets/art/hud_icons.txt POCKET). The byte `tip_pocket` is the tile id itself (0 off, TILE_HUD_BLANK empty, 255 held),
+  so the VBlank queue draws it as it is. The pocket empties at a level's end (and when a story boss comes in place), a lost life keeps it, a level's load resets it.
+- CLASSIC (authentic), the LEVEL harness and BOSS RUSH: tip_pocket 0, nothing changes. One WRAM byte (tip_pocket), ROM0 +14 B (952 free).

@@ -11,10 +11,11 @@
 
 #include "game.h"
 #include "palettes.h"
+#include "boss.h"
 
 uint8_t row_buf[20];
 uint8_t pal5_cur;                 // CGB OBJ palette 5 holds: 1 the coin, 2 the show (load_venue loads the show's); see pal5_check
-static volatile uint8_t pal5_req;
+volatile uint8_t pal5_req;        // bit 0: OBJ palette 5 (pal5_write); bit 1: the Mothership's lights (boss_mothership.c lights; pal5_other)
 static const uint16_t *pal5_src;
 static void pal5_write(void);
 uint8_t score_tiles[6];      // the HUD digits as BG tile ids, prepared outside VBlank
@@ -783,11 +784,23 @@ static void pal5_check(void) {
     pal5_req = 1;
 }
 
+static void pal5_other(void) {                    // (a lights request: off the coin's own path, VBlank cycles are tight; a fight has no coin, so none waits with it)
+    const uint8_t *l = (const uint8_t *)LIGHTS_BUF;
+    uint8_t i;
+    pal5_req = 0;
+    if (!is_cgb) { BGP_REG = l[0]; return; }      // the Mothership's lights (boss_mothership.c lights): DMG the BGP byte, CGB the bar palette, as it computed them
+    BCPS_REG = 0x80 | (BGPAL_BAR << 3);
+    i = 8;
+    do BCPD_REG = *l++; while (--i);
+}
+
 static void pal5_write(void) {
     const uint8_t *s = (const uint8_t *)pal5_src;
-    uint8_t i;
+    if (pal5_req != 1) { pal5_other(); return; }
     OCPS_REG = 0x80 | (OBJPAL_COIN << 3);
-    for (i = 0; i < 8; i++) OCPD_REG = s[i];
+    OCPD_REG = s[0]; OCPD_REG = s[1]; OCPD_REG = s[2]; OCPD_REG = s[3];     // (unrolled: the compare above is paid for; this runs in every frame the coin changes)
+    s += 4;
+    OCPD_REG = s[0]; OCPD_REG = s[1]; OCPD_REG = s[2]; OCPD_REG = s[3];
     pal5_req = 0;
 }
 

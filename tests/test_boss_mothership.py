@@ -761,6 +761,28 @@ def test_the_entrance_tractor_beam(model):
         assert gb.mem("boss_hp") == 14
 
 
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_entrance_lights_change_between_frames(model):
+    """The flickering lights (palette writes) land in VBlank, never mid-frame: every rendered frame of the entrance is lit uniformly. DMG: the
+    HUD's top rows and the bar band below are dimmed together or not at all (a write at some scanline would tear a frame: the HUD one way,
+    the rest the other, which also depended on how fast the build is); CGB: the wall of the four bars shares one colour in every frame.
+    So the entrance shows exactly two looks, lit and dim."""
+    with fight(model, C, entrance=True) as gb:
+        looks = set()
+        while ent_frame(gb) >= 0 and ent_frame(gb) < ENT_LAND:
+            gb.run(1, render=True)
+            im = gb.pb.screen.image.convert("L")
+            px = im.load()
+            if model == "dmg":
+                look = (max(px[x, y] for x in range(160) for y in range(0, 7)), max(px[x, y] for x in range(160) for y in range(8, 15)),
+                        max(px[x, y] for x in range(160) for y in range(137, 144)))
+            else:
+                look = tuple(px[1, y] for y in (48, 72, 100, 126))
+                assert len(set(look)) == 1, ("a frame torn between two lights", look)
+            looks.add(look)
+        assert len(looks) == 2, looks
+
+
 @pytest.mark.parametrize("model", ["cgb"])
 def test_no_entrance_after_a_lost_life(model):
     """A life lost in the fight: he comes back at his start at once (no entrance again)."""

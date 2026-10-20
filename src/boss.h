@@ -108,6 +108,7 @@ extern uint8_t  boss_returns;     // 1: MUG_RETURN mugs may be on his bar (the C
                                            // p * BOSS_W_MAX + k
 #define boss_hand       (BOSS_SCRATCH + (BOSS_POSES_MAX + 1) * BOSS_W_MAX)       // [4]: (was the hand column holding 0..3 empties; unused: BOSS_OWN stays where it was)
 #define BOSS_OWN        (boss_hand + 4)                                     // a boss file's own buffer (BOSS_OWN_N bytes)
+#define LIGHTS_BUF      (BOSS_SCRATCH - 8)                                 // the Mothership's lights for the VBlank write: 8 bytes (CGB the bar palette; DMG [0] the BGP), just below the fight's bytes (the cut-scene backdrop buffer: idle in a fight)
 #define BOSS_OWN_N      (BOSS_SCRATCH_N - (BOSS_POSES_MAX + 1) * BOSS_W_MAX - 4 - BOSS_FX_N)   // (then BOSS_FX: game.h)
 // The topper's look, for a special that changes it (boss_set: 0, 0; put them back at BEV_OUTRO): a tile offset from
 // OBJ_TOPPER (0: STILL, BOB on a stomp; else that frame, no bob: gen_boss `hats` from 4) and a CGB OBJ palette (0: OBJ 7)
