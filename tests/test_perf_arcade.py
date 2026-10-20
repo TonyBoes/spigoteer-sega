@@ -12,6 +12,7 @@
 #
 # The frame-time counter (main.c FRAME_STATS) is in the test build only (DEBUG_MENU), which is what this test runs.
 import pytest
+from conftest import ROM
 from gbtools import Rom
 import perf_helpers as ph
 from test_arcade import start_arcade
@@ -22,12 +23,19 @@ pytestmark = pytest.mark.timeout(300)
 PLAYING = 1
 ALIGNMENTS = (0, 5, 11, 23, 2, 7, 17, 29)       # frames waited after the scene's start: a different place of the frame boundary against the logic
 FRAMES = 1800
-# (model, target patrons): (late share limit in %, mean end line limit). Measured pooled with the "fix b" build, then the limits:
-#   dmg 8: 24.4 % / 127.5 (limits 30 / 132); cgb 8: 27.0 / 129.2 (32 / 134); dmg 10: 30.3 / 133.2 (35 / 138); cgb 10: 36.1 / 137.3 (41 / 142).
-# The build before it: dmg 8: 34.1 / 136.3; cgb 8: 34.4 / 136.6; dmg 10: 42.7 / 143.7; cgb 10: 45.7 / 146.8 (all four over the limits).
-# The owner's target for the 10-patron peak was 15-25 %; the rest is the asm pass (draw_held, draw_lifted, update_mugs ~ 35 lines).
-LIMITS = {("dmg", 8): (30, 132), ("cgb", 8): (32, 134),
-          ("dmg", 10): (35, 138), ("cgb", 10): (41, 142)}
+# (model, target patrons): (late share limit in %, mean end line limit). Measured pooled (the eight alignments), then the limits:
+#   with the asm mug code (Q63c, src/mugs.c ASM_DRAW_HELD / ASM_UPDATE_MUGS): dmg 8: 16.8 % / 121.2 (limits 22 / 125); cgb 8: 18.0 / 121.7
+#   (23 / 126); dmg 10: 19.5 / 124.4 (25 / 129); cgb 10: 23.0 / 126.7 (28 / 131).
+#   with the "fix b" C only: dmg 8: 24.4 / 127.5; cgb 8: 24.3 / 126.6; dmg 10: 33.1 / 135.1; cgb 10: 35.5 / 136.7 (12 patrons: 47 / 143 and 52 / 146).
+# The build before "fix b": dmg 8: 34.1 / 136.3; cgb 8: 34.4 / 136.6; dmg 10: 42.7 / 143.7; cgb 10: 45.7 / 146.8.
+# The owner's target for the 10-patron peak was 15-25 %; the asm pass's mug code brought it there (the catch scans of patrons.c and
+# the lift / patron drawing are the next costs).
+LIMITS = {("dmg", 8): (22, 125), ("cgb", 8): (23, 126),
+          ("dmg", 10): (25, 129), ("cgb", 10): (28, 131)}
+# The all-C ROM (`make cfall`, GB_ROM=build/game-c.gb, the owner's porting reference) is slower: the limits it had before the asm mug code.
+C_LIMITS = {("dmg", 8): (30, 132), ("cgb", 8): (32, 134), ("dmg", 10): (35, 138), ("cgb", 10): (41, 142)}
+if ROM.stem.endswith("-c"):
+    LIMITS = C_LIMITS
 
 
 def arcade_peak_gb(model):

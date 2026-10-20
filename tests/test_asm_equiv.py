@@ -137,10 +137,12 @@ def test_rig_leaves_the_game_running(model):
 # the rig on real calls: draw_held (mugs.c, static, a `uint8_t i` in A) captured from the realistic-peak scenario and replayed.
 # Structure of its effect (src/mugs.c): it writes mug_x[i] and ONE OAM entry (4 bytes) at oam_next, then oam_next += 4.
 def test_rig_replays_real_draw_held_calls(model):
-    gb = Rom(ROM, model)
+    if not C_ROM.exists():
+        pytest.skip("draw_held is asm in build/game.gb (ASM_DRAW_HELD): the C version is in build/game-c.gb (make cfall)")
+    gb = Rom(C_ROM, model)
     gb.run(120)
     gb.model_name = model
-    rig = Rig(ROM, model, gb=gb)
+    rig = Rig(C_ROM, model, gb=gb)
     caps = []
 
     def check(g, i):
