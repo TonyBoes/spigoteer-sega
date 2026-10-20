@@ -24,7 +24,7 @@
 #ifndef ASM_DRAW_HELD
 #define ASM_DRAW_HELD ASM_PASS
 #endif
-// batch 4: col_scan, find_catcher / catcher_candidate, scan_catcher, blocked_behind (patrons.c)
+// batch 4: find_catcher and scan_catcher behind catch_full (patrons.c; col_scan and blocked_behind stay C)
 #ifndef ASM_SCANS
 #define ASM_SCANS ASM_PASS
 #endif

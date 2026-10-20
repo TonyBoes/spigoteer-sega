@@ -17,6 +17,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "asm_cfg.h"
 #include "music.h"
 
 // patron pool
@@ -239,6 +240,198 @@ void begin_catch_frame(void) {
     catch_lim[0] = catch_lim[1] = catch_lim[2] = catch_lim[3] = 255;
 }
 
+#if ASM_SCANS
+// find_catcher and scan_catcher, hand-written (asm pass batch 4; the C versions are under #else, the reference). Both walk a bar's
+// list; the C pays a call (can_catch / catcher_candidate) and several 16-bit address sums per patron (~150 T), here ~90.
+// fc_best / fc_x are the walk's scratch (dead after the call; scan_catcher borrows them too). The test of "who catches" is the
+// C can_catch: a walker with dist | aux == 0, or a drinker with aux != DRINK_MIN; inlined in both loops.
+#if NUM_BARS != 4 || MAX_PATRONS != 16 || PATRON_W != 16 || NO_SLOT != 255
+#error "find_catcher / scan_catcher: the constants written into the asm"
+#endif
+typedef char catch_enums[(PATRON_WALKING == 1 && PATRON_DRINKING == 3 && DRINK_MIN == 0) ? 1 : -1];
+static uint8_t fc_best, fc_x;
+
+static void find_catcher(uint8_t b) __naked {
+    (void)b;
+__asm
+    ld   c, a               ; c = bar
+    ld   a, (_lists_ok)
+    or   a, a
+    jr   nz, 1$
+    push bc
+    call _build_lists
+    pop  bc
+1$:
+    push bc                 ; (the bar, kept for the stores below)
+    ld   b, #0
+    ld   hl, #_bar_n
+    add  hl, bc
+    ld   e, #255            ; e = best (NO_SLOT)
+    xor  a, a
+    ld   (_fc_x), a         ; fc_x = 0
+    ld   a, (hl)
+    or   a, a
+    jr   z, 9$
+    ld   d, a               ; d = patrons left
+    ld   a, c               ; hl = bar_list + 16 * bar
+    swap a
+    add  a, #<_bar_list
+    ld   l, a
+    ld   a, #>_bar_list
+    adc  a, #0
+    ld   h, a
+2$:
+    ld   a, (hl+)
+    push hl
+    ld   c, a               ; c = slot
+    ld   hl, #_patron_state ; (can_catch, inlined: a walker with dist | aux == 0, or a drinker past DRINK_MIN)
+    add  hl, bc
+    ld   a, (hl)
+    cp   a, #1
+    jr   nz, 6$
+    ld   hl, #_patron_dist
+    add  hl, bc
+    ld   a, (hl)
+    ld   hl, #_patron_aux
+    add  hl, bc
+    or   a, (hl)
+    jr   nz, 3$
+    jr   10$
+6$:
+    cp   a, #3
+    jr   nz, 3$
+    ld   hl, #_patron_aux
+    add  hl, bc
+    ld   a, (hl)
+    or   a, a
+    jr   z, 3$
+10$:
+    ld   hl, #_patron_x
+    add  hl, bc
+    ld   a, (hl)            ; a = his x
+    inc  e
+    jr   z, 4$              ; (no best yet: he is it)
+    dec  e
+    ld   hl, #_fc_x
+    cp   a, (hl)
+    jr   c, 3$
+    jr   z, 3$              ; (higher only: the lowest slot among equals)
+4$:
+    ld   e, c
+    ld   (_fc_x), a
+3$:
+    pop  hl
+    dec  d
+    jr   nz, 2$
+9$:
+    pop  bc                 ; c = bar
+    ld   b, #0
+    ld   hl, #_catch_p
+    add  hl, bc
+    ld   (hl), e
+    ld   a, (_fc_x)
+    ld   d, a
+    ld   hl, #_catch_x
+    add  hl, bc
+    ld   (hl), a
+    ld   a, e               ; lim: 0 with no catcher, 255 from x = 240, else x + 16
+    inc  a
+    ld   a, #0
+    jr   z, 5$
+    ld   a, d
+    add  a, #16
+    jr   nc, 5$
+    ld   a, #255
+5$:
+    ld   hl, #_catch_lim
+    add  hl, bc
+    ld   (hl), a
+    ld   hl, #_bar_bit
+    add  hl, bc
+    ld   a, (_catch_ok)
+    or   a, (hl)
+    ld   (_catch_ok), a
+    ret
+__endasm;
+}
+
+static uint8_t scan_catcher(uint8_t b, uint8_t x) __naked {
+    (void)b; (void)x;
+__asm
+    ld   c, a               ; c = bar, e = the mug's x
+    ld   b, #0
+    ld   hl, #_bar_n
+    add  hl, bc
+    ld   a, #255
+    ld   (_fc_best), a
+    ld   a, (hl)
+    or   a, a
+    jr   nz, 1$
+    ld   a, #255            ; (an empty bar: NO_SLOT)
+    ret
+1$:
+    ld   d, a               ; d = patrons left
+    ld   a, c
+    swap a
+    add  a, #<_bar_list
+    ld   l, a
+    ld   a, #>_bar_list
+    adc  a, #0
+    ld   h, a
+2$:
+    ld   a, (hl+)
+    push hl
+    ld   c, a
+    ld   hl, #_patron_state ; (can_catch, inlined: a walker with dist | aux == 0, or a drinker past DRINK_MIN)
+    add  hl, bc
+    ld   a, (hl)
+    cp   a, #1
+    jr   nz, 6$
+    ld   hl, #_patron_dist
+    add  hl, bc
+    ld   a, (hl)
+    ld   hl, #_patron_aux
+    add  hl, bc
+    or   a, (hl)
+    jr   nz, 3$
+    jr   10$
+6$:
+    cp   a, #3
+    jr   nz, 3$
+    ld   hl, #_patron_aux
+    add  hl, bc
+    ld   a, (hl)
+    or   a, a
+    jr   z, 3$
+10$:
+    ld   hl, #_patron_x
+    add  hl, bc
+    ld   l, (hl)            ; l = his x: it must be <= the mug's x < l + 16
+    ld   a, e
+    sub  a, l
+    jr   c, 3$
+    cp   a, #16
+    jr   nc, 3$
+    ld   a, (_fc_best)
+    inc  a
+    jr   z, 4$
+    ld   a, (_fc_x)
+    cp   a, l
+    jr   nc, 3$             ; (the best so far is at least as far right)
+4$:
+    ld   a, c
+    ld   (_fc_best), a
+    ld   a, l
+    ld   (_fc_x), a
+3$:
+    pop  hl
+    dec  d
+    jr   nz, 2$
+    ld   a, (_fc_best)
+    ret
+__endasm;
+}
+#else
 static uint8_t fc_best, fc_x;
 
 // Who catches a full mug: a walker not watching the show, or (M8d) a drinker who has finished and waits to send
@@ -282,6 +475,7 @@ static uint8_t scan_catcher(uint8_t b, uint8_t x) {
     }
     return best;
 }
+#endif
 
 static void send_empty(uint8_t p);
 static uint16_t empty_travel(uint8_t p);

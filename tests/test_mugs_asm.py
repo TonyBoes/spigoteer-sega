@@ -47,9 +47,9 @@ def capture(model, fns, frames, **kw):
 
 
 def compare_ignoring_scratch(ra, rc, calls):
-    """asm_rig.compare, except for mugs.c's static oam_next (2 bytes): the C draw_held keeps it in step, the asm loop keeps the entry
+    """asm_rig.compare, except for mugs.c's static oam_next (2 bytes; and patrons.c's fc_best / fc_x, the asm catch scans' dead scratch): the C draw_held keeps it in step, the asm loop keeps the entry
     pointer in DE and does not write it back; draw_mugs sets it before any use, so after the call it is dead."""
-    ign = {ra.addr("mugs:_oam_next"), ra.addr("mugs:_oam_next") + 1}
+    ign = {ra.addr("mugs:_oam_next"), ra.addr("mugs:_oam_next") + 1, ra.addr("patrons:_fc_best"), ra.addr("patrons:_fc_x")}   # (and the catch scans' scratch, patrons.c)
     xa, xc = ra.run(calls), rc.run(calls)
     bad = []
     for i, (x, y) in enumerate(zip(xa, xc)):
