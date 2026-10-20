@@ -78,8 +78,6 @@ extern uint8_t cur_group;
 #define BEAM_SLIDE      6
 // (the mug rises (t - BEAM_SLIDE) / 2 px, 7 at the end, behind the hull: the hull hides it, OBJ-behind-BG)
 #define BEAM_X         11                // the mug's left edge under the saucer: his hatch (GULP's rows 13-15) is its middle
-#define DIM_BGP      0xF9
-#define DIM_MASK   0x3DEF                // (c >> 1) & mask: each 5 bit channel halved
 #if BOSS_ART_COLS != 5 || BOSS_ART_FX != 4
 #error "Mothership: a 40 px body and the beam's two column pairs"
 #endif
@@ -258,29 +256,24 @@ static void drop_passengers(void) {
 
 // ---- the entrance ----
 // The room's lights: CGB the bar palette (its wall and counter) halved or back, DMG the BG's shades.
-static void lights(uint8_t dim) {
-    palette_t p;
-    uint8_t i;
-    if (!is_cgb) { BGP_REG = dim ? DIM_BGP : 0xE4; return; }
-    for (i = 0; i != 4; i++) p[i] = dim ? (venue.pal[VENUE_PAL_BAR][i] >> 1) & DIM_MASK : venue.pal[VENUE_PAL_BAR][i];
-    set_bkg_palette(BGPAL_BAR, 1, p);
-}
+static void lights(uint8_t dim) { lights_req(dim); }   // (written by the next VBlank, render.c)
 
 // BEV_INTRO every frame while intro_timer runs: the tractor beam's column on his bar, the lights flicker, a hum, he blinks into
 // the beam and lands. The bartender is held (idle) and the intro's clock waits until he has landed.
 static void ent_frame(void) {
-    uint8_t f = ms.ent - 1;
+    uint8_t f = ms.ent - 1, g;
     if (!f) { ms.sbar = bar; ms.sx = bartender_x; SFX(SFX_WHOOSH); boss_mark(boss_bar, (MS_X >> 3) + 2); }
     hold(BT_IDLE);
     if (f < ENT_LAND) intro_timer = INTRO_FRAMES;
     if (f == ENT_HUM) SFX(SFX_REV);
-    if (f < ENT_BLINK) { if (f >= 4 && !(f & 3)) lights((f >> 2) & 1); }
-    else if (f < ENT_LAND) {                                  // (the beam fades as he blinks in: it would hide half of him)
-        if (f == ENT_BLINK) { lights(0); boss_mark(BOSS_NONE, 0); }
+    g = f + 1;                                                // (the lights' request goes out a frame early: it is written by the next VBlank, so it shows in frame g)
+    if (g < ENT_BLINK) { if (g >= 4 && !(g & 3)) lights((g >> 2) & 1); }
+    else if (g == ENT_BLINK || g == ENT_LAND) lights(0);
+    if (f >= ENT_BLINK && f < ENT_LAND) {                                  // (the beam fades as he blinks in: it would hide half of him)
+        if (f == ENT_BLINK) boss_mark(BOSS_NONE, 0);
         boss_xpose = f & 2 ? BP_HAPPY : BP_HIDE;
     }
-    else {
-        lights(0);
+    else if (f >= ENT_LAND) {
         boss_mark(BOSS_NONE, 0);
         boss_xpose = 0; boss_state = BS_WALK;
         boss_to_bar(boss_bar, MS_X);

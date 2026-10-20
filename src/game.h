@@ -435,6 +435,8 @@ extern const uint8_t sway_tab[256];                 // (patrons.c, ROM0) (t / SW
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
 uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
 uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c-1..c+3 of bar b first thing this frame (0: not now)
+#define LIGHTS_DIM_BGP 0xF9                   // the Mothership entrance's dimmed lights (DMG BGP)
+void lights_req(uint8_t dim);                 // (render.c) the dim / normal BG palette, written by the next VBlank
 extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds: 1 the coin, 2 the show
 extern uint16_t coin_pal[4];                  // (main.c) PAL_COIN, copied out of the banked palette table at boot
 // ---- lift.c (banked, M13a lifted patrons) ------------------------------------------------------

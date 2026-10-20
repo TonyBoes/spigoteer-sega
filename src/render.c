@@ -14,7 +14,7 @@
 
 uint8_t row_buf[20];
 uint8_t pal5_cur;                 // CGB OBJ palette 5 holds: 1 the coin, 2 the show (load_venue loads the show's); see pal5_check
-static volatile uint8_t pal5_req;
+static volatile uint8_t pal5_req;   // bit 0: OBJ palette 5 (pal5_write); bit 1: the Mothership's lights (lights_req); bit 2: ... dimmed
 static const uint16_t *pal5_src;
 static void pal5_write(void);
 uint8_t score_tiles[6];      // the HUD digits as BG tile ids, prepared outside VBlank
@@ -780,15 +780,38 @@ static void pal5_check(void) {
     if (!want || want == pal5_cur || !is_cgb) return;
     pal5_src = want == 1 ? coin_pal : venue.pal[VENUE_PAL_SHOW];
     pal5_cur = want;
-    pal5_req = 1;
+    pal5_req |= 1;
+}
+
+static void pal5_other(void) {                    // (a lights request, maybe with the coin's: off the coin's own path, VBlank cycles are tight)
+    const uint8_t *s = (const uint8_t *)pal5_src;
+    uint8_t i, r = pal5_req;
+    pal5_req = 0;
+    if (r & 1) {
+        OCPS_REG = 0x80 | (OBJPAL_COIN << 3);
+        for (i = 0; i < 8; i++) OCPD_REG = s[i];
+    }
+    if (!is_cgb) { BGP_REG = r & 4 ? LIGHTS_DIM_BGP : 0xE4; return; }    // the Mothership's lights (boss_mothership.c): DMG the BG's shades,
+    BCPS_REG = 0x80 | (BGPAL_BAR << 3);                                   // CGB the bar palette halved or not
+    for (i = 0; i != 4; i++) {
+        uint16_t c = venue.pal[VENUE_PAL_BAR][i];
+        if (r & 4) c = (c >> 1) & 0x3DEF;         // (each 5 bit channel halved)
+        BCPD_REG = (uint8_t)c; BCPD_REG = (uint8_t)(c >> 8);
+    }
 }
 
 static void pal5_write(void) {
     const uint8_t *s = (const uint8_t *)pal5_src;
-    uint8_t i;
-    OCPS_REG = 0x80 | (OBJPAL_COIN << 3);
-    for (i = 0; i < 8; i++) OCPD_REG = s[i];
+    if (pal5_req != 1) { pal5_other(); return; }
+    OCPS_REG = 0x80 | (OBJPAL_COIN << 3);          // (unrolled: the compare above is paid for, this runs in every frame the coin changes)
+    OCPD_REG = s[0]; OCPD_REG = s[1]; OCPD_REG = s[2]; OCPD_REG = s[3];
+    OCPD_REG = s[4]; OCPD_REG = s[5]; OCPD_REG = s[6]; OCPD_REG = s[7];
     pal5_req = 0;
+}
+
+// The lights' change (dim 0 / 1) takes effect at the next VBlank, as pal5's: palette RAM and BGP are never written mid-frame.
+void lights_req(uint8_t dim) {
+    pal5_req = (pal5_req & 1) | (dim ? 6 : 2);
 }
 
 void draw_stage_fx(void) {
