@@ -330,7 +330,7 @@ def test_the_meter_counts_each_drink(model):
             throw(gb)
             if perfect:
                 m = list(gb.read("mug_state", 20)).index(FULL)
-                gb.write(gb.addr("mug_timer") + m, 1)
+                gb.write(gb.addr("mug_timer") + m, 3)
             until(gb, lambda: gb.mem("boss_hp") == hp, 30)
             frames(gb, 2)
             assert hud(gb) == meter_tiles(hp)

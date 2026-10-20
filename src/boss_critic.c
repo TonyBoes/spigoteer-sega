@@ -169,8 +169,8 @@ uint8_t boss_critic(uint8_t ev, uint8_t arg) BANKED {
         break;
     case BEV_CATCH:
         busy = boss_hold || crit_taste || boss_queue;
-        if (mug_timer[arg] == 1 && !busy) return 0;   // perfect, and free: the common catch
-        crit.bubk = mug_timer[arg] != 1;             // "BAD" for a sloppy drink, "NO!" for a perfect one that came too soon
+        if ((mug_timer[arg] & 1) && !busy) return 0;   // perfect, and free: the common catch
+        crit.bubk = !(mug_timer[arg] & 1);             // "BAD" for a sloppy drink, "NO!" for a perfect one that came too soon
         crit.bub = CRIT_BUB;
         mug_state[arg] = MUG_FREE;
         boss_queue++;

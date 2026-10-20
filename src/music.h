@@ -65,6 +65,7 @@ void mus_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n);   // 
 uint16_t harm_peek(uint8_t bank, const uint8_t *p);   // unbanked (src/musicload.c): p[0] | p[1] << 8 from the harmony's ROM bank (HARM_BANK, a streamed tune's: its blob's)
 
 extern uint8_t sound_on;        // music enabled (SELECT on the title toggles it)
+extern uint8_t pour_streak;     // perfect pours in a row, capped at 3 (0: none): src/mugs.c launch_mug sets it, src/music.c reads it (1: the chime, 2: a tone up, 3: the x2 chime)
 extern uint8_t last_sfx;        // id of the SFX started last (SFX_*), for tests
 extern uint8_t sfx_count[SFX_COUNT];   // how many times each SFX was started
 extern uint8_t cur_tune;        // TUNE_* playing (TUNE_NONE: silence)

@@ -11,7 +11,8 @@
 // unused while a full mug slides). A full drink carried to another bar (A held through Up/Down) jumps to the
 // overflow at once: ordinary. pour_win is set to POUR_WIN_LEN by pour_load (every shift start); Practice's HARD toggle
 // writes POUR_WIN_HARD after it (same start, a narrower window).
-// The catch: patrons.c caught() calls perfect_catch in story mode; a perfect drink scores PERFECT_MULT x the venue's
+// The streak (owner 2026-10-20; src/mugs.c launch_mug, src/music.c): only the 3rd perfect pour in a row and every later one earn the bonus and the
+// badge; the 1st and 2nd just chime (a whole tone higher the 2nd). A perfect drink of the streak scores PERFECT_MULT x the venue's
 // serve_score on the spot, counts in perfect_n, and the cue shows to the right of the caught mug for CUE_FRAMES,
 // blinking for the last CUE_BLINK. The serve (the patron pushed out) still scores serve_score as always; regulars
 // take any drink.
@@ -44,14 +45,17 @@ static uint8_t pour_bar;      // the bar of the last frame (a change while full 
 // LCD off (a story shift's start): venue t's sparkle + overflow to OBJ_POUR.., the cue to OBJ_POUR_CUE
 void pour_load(uint8_t t) BANKED {
     pour_win = POUR_WIN_LEN;
+    pour_streak = 0;                                         // a shift starts: no streak
     set_sprite_data(OBJ_POUR, 4, pour_venue_tiles[t]);
     set_sprite_data((uint8_t)OBJ_POUR_CUE, POUR_CUE_TILES, pour_cue_tiles);
 }
 
 void perfect_catch(uint8_t i) BANKED {
-    if (mug_timer[i] != 1) return;                           // an ordinary drink
-    add_score((uint16_t)serve_score * PERFECT_MULT);
+    uint8_t q = mug_timer[i];                                // 0 ordinary, 1 perfect, 3 perfect and the 3rd+ in a row (src/mugs.c launch_mug)
+    if (!(q & 1)) return;                                    // an ordinary drink
     perfect_n++;
+    if (q == 1) return;                                      // the 1st and 2nd perfect pour in a row: the chime only, no bonus and no badge
+    add_score((uint16_t)serve_score * PERFECT_MULT);         // the 3rd and every later one: the x2 bonus and its badge (owner 2026-10-20)
     cue_t = CUE_FRAMES;
     cue_y = bar_oam_y[mug_bar[i] & (NUM_BARS - 1)] + MUG_DY;
     cue_x = mug_x[i] + 16;                                   // right of the caught mug (OAM x = screen x + 8)
@@ -152,7 +156,7 @@ static void twinkle(void) {
         s = mug_state[i];
         if (s) {
             left--;
-            if (s == MUG_FULL && mug_timer[i] == 1 && ((uint8_t)(f + i + (i << 1)) & 7) < 3) twinkle_at(i);
+            if (s == MUG_FULL && (mug_timer[i] & 1) && ((uint8_t)(f + i + (i << 1)) & 7) < 3) twinkle_at(i);
         }
     } while (left && ++i != MAX_MUGS);
 }

@@ -1897,6 +1897,9 @@ same change when the segment flow is built.
   "PERFECT" cue); held past it the foam runs over (no bonus); a carried drink is never perfect. Regulars accept any
   drink; only the Food Critic sends a sloppy one back. Needs a sparkle and an overflow frame for each venue's drink
   (art proposals first). Build it after the story lives change (both touch main.c).
+  **Streak (owner 2026-10-20):** the bonus is earned by streaks of perfect pours. The 1st and 2nd perfect pour in a
+  row only chime (the 2nd a whole tone higher); the 3rd and every later one pay the x2 bonus (serve score x 2) with the
+  "x2" badge and a distinct x2 chime. Any non-perfect launch, a shift's start and a lost life reset the streak.
 
 1. **Do mini-games gate the story?** Recommendation: no. Any result continues; medals give points and a gold medal
    gives one extra life in that chapter's boss fight. (The alternative, retry until bronze, makes a weak mini-game
