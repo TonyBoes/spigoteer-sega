@@ -284,12 +284,13 @@ static void panel_rows(uint8_t kind) {             // compose the panel's rows i
         put_text(blank_row(2), 3, "QUIT TO TITLE", 0);
         n = 4;
         break;
-    default:                                       // P_NUDGE: Dregs, text only (wording: proposed, pending the owner)
+    default:                                       // P_NUDGE: Dregs, text only (the owner's wording)
         centre_text(blank_row(1), "DREGS");
-        centre_text(blank_row(2), "WARM UP FIRST, KID!");
-        centre_text(blank_row(3), "FESTIVAL GOLDS GIVE");
-        centre_text(blank_row(4), "YOU EXTRA LIVES.");
-        n = 6;
+        centre_text(blank_row(2), "YOU'LL HAVE TO");           // (the owner's line, Q71b: "You'll have to practice hard at the festival to have a hope of beating me")
+        centre_text(blank_row(3), "PRACTICE HARD AT THE");
+        centre_text(blank_row(4), "FESTIVAL TO HAVE A");
+        centre_text(blank_row(5), "HOPE OF BEATING ME!");
+        n = 7;
         break;
     }
     fill(ROWBUF(n - 1), TILE_PANEL_BOT, 20);

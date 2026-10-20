@@ -572,7 +572,7 @@ def test_dregs_nudges_with_fewer_than_three_golds_one_page_text_only(model):
         tap(gb, "a", 20)
         gb.run(8)
         assert gb.mem("story_phase") == SP_MAP and win_text(gb, 1) == "DREGS", f"golds {golds:03b}"
-        assert "FESTIVAL" in " ".join(win_text(gb, r) for r in (2, 3, 4))
+        assert [win_text(gb, r) for r in range(2, 6)] == ["YOU'LL HAVE TO", "PRACTICE HARD AT THE", "FESTIVAL TO HAVE A", "HOPE OF BEATING ME!"]
         tap(gb, "b", 12)
         assert win_text(gb, 1) == "FESTIVAL GAMES", "B goes back to the town panel"
 
