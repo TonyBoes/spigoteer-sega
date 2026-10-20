@@ -45,26 +45,27 @@ def fill_to(gb, t, key="pour_t"):
     run_until(gb, lambda: gb.mem(key) == t, 60)
 
 
-def launched(gb):
-    """The quality of the drink just launched (its mug_timer: 1 perfect, 0 ordinary), None if none was."""
+def launched(gb, raw=False):
+    """The quality of the drink just launched (its mug_timer: 1 perfect, 3 perfect and the 3rd+ in a row, 0 ordinary; raw=False: 1 / 0 only),
+    None if none was."""
     for _ in range(4):
         st, x, q = gb.read("mug_state", MAX_M), gb.read("mug_x", MAX_M), gb.read("mug_timer", MAX_M)
         new = [i for i in range(MAX_M) if st[i] == FULL and x[i] >= GAME["SPOUT_X"] - 8]
         if new:
             assert len(new) == 1
-            return q[new[0]]
+            return q[new[0]] if raw else q[new[0]] & 1
         gb.run(1)
     return None
 
 
-def hold_release(gb, n):
+def hold_release(gb, n, raw=False):
     """A held for n frames (a fresh press at the tap), then let go: the launched drink's quality (None: none)."""
     gb.write("intro_timer", 255)                  # (long sweeps: nobody walks to the tap meanwhile)
     gb.hold("a")
     gb.run(n)
     gb.release("a")
     gb.run(1)
-    return launched(gb)
+    return launched(gb, raw)
 
 
 def let_go(gb):
@@ -90,10 +91,10 @@ def first_launch(gb):
     raise AssertionError("never launched")
 
 
-def pour_at(gb, t):
+def pour_at(gb, t, raw=False):
     """Release A so that the last held frame has pour_t t (FILL_FRAMES..): the drink's quality."""
     n = first_launch(gb) + t - FILL_FRAMES
-    return hold_release(gb, n)
+    return hold_release(gb, n, raw)
 
 
 def catch_delta(gb):
@@ -345,3 +346,112 @@ def test_the_cue_golden(model):
         catch_delta(gb)
         gb.run(1)
         check_golden(gb, "pour_cue")
+
+
+# ---- the streak and the x2 bonus (owner 2026-10-20) --------------------------------------------------------------------
+def streak_of(gb):
+    return gb.mem("pour_streak")
+
+
+def test_the_streak_counts_perfect_pours_in_a_row_and_a_plain_release_resets_it():
+    """pour_streak: 1, 2, 3, then it stays at 3; a mug's quality: 1 for the first two, 3 (perfect and doubled) from the third; any other launch resets
+    it to 0 and the next perfect pour starts again at 1. The chime follows: SFX_PERFECT every time, never the launch's sweep."""
+    for model in ("dmg", "cgb"):
+        with story(model) as gb:
+            f0 = first_launch(gb)                  # (its trial launches are ordinary ones: measure once, so they do not break the streaks below)
+            fp = f0 + WIN0 - FILL_FRAMES
+            assert streak_of(gb) == 0
+            seen = []
+            for _ in range(5):
+                p0 = sfx(gb, SFX_PERFECT)
+                seen.append((hold_release(gb, fp, True), streak_of(gb), sfx(gb, SFX_PERFECT) - p0))
+                drop_mugs(gb)
+            assert seen == [(1, 1, 1), (1, 2, 1), (3, 3, 1), (3, 3, 1), (3, 3, 1)], seen
+            l0 = sfx(gb, SFX_LAUNCH)
+            assert hold_release(gb, f0, True) == 0 and streak_of(gb) == 0 and sfx(gb, SFX_LAUNCH) == l0 + 1
+            drop_mugs(gb)
+            assert hold_release(gb, fp, True) == 1 and streak_of(gb) == 1
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_streak_resets_when_a_shift_starts_and_when_a_life_is_lost(model):
+    with story(model) as gb:
+        gb.write("pour_streak", 2)
+        inject_mug(gb, 0, 17)                      # a full mug at the left end: it falls off and breaks
+        run_until(gb, lambda: state(gb) != PLAYING, 60)
+        assert streak_of(gb) == 0, "a lost life ends the streak"
+    with story(model, 1) as gb:
+        assert streak_of(gb) == 0, "a new shift starts with none"
+
+
+def bonus_run(model):
+    """Five perfect pours in a row, each caught by its own patron: [(the bonus scored at the catch, the cue's frames at the catch)] and the serve score."""
+    out = []
+    with story(model) as gb:
+        s = gb.mem("serve_score")
+        fp = first_launch(gb) + WIN0 - FILL_FRAMES
+        drop_mugs(gb)
+        for _ in range(5):
+            assert hold_release(gb, fp) == 1
+            n0 = gb.mem("perfect_n")
+            d = catch_delta(gb)
+            out.append((d, gb.mem("cue_t")))
+            gb.run(1)
+            assert_cue(gb)
+            assert gb.mem("perfect_n") == n0 + 1
+            run_until(gb, lambda: gb.mem("cue_t") == 0, 120)
+            drop_mugs(gb)
+            set_patron(gb, 0, 64)
+            gb.run(2)
+    return out, s
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_pours_one_and_two_score_the_normal_bonus_and_three_on_score_double_that(model):
+    """The perfect pour's bonus (PERFECT_MULT x the serve score) is doubled from the 3rd perfect pour in a row; the serve itself is not."""
+    out, s = bonus_run(model)
+    assert [d for d, _ in out] == [2 * s, 2 * s, 4 * s, 4 * s, 4 * s], (out, s)
+    cue = GAME.get("CUE_FRAMES", 48)
+    assert [t > 48 for _, t in out] == [False, False, True, True, True], "the doubled bonus's pop lasts longer"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_x2_pop_rises_a_little_then_holds_beside_the_mug_and_ends_within_a_second(model):
+    with story(model) as gb:
+        fp = first_launch(gb) + WIN0 - FILL_FRAMES
+        drop_mugs(gb)
+        for _ in range(3):
+            assert hold_release(gb, fp) == 1
+            ys = []
+            catch_delta(gb)
+            for _ in range(70):
+                gb.run(1)
+                o = gb.oam()[OAM_CUE]
+                ys.append(o["y"] if o["tile"] == OBJ_CUE else 0)
+            drop_mugs(gb)
+            set_patron(gb, 0, 64)
+            gb.run(2)
+            shown = [y for y in ys if y]
+            if _ < 2:
+                assert max(shown) - min(shown) == 0, "the plain cue holds still"
+        assert 3 <= max(shown) - min(shown) <= 4, f"the doubled pop rises a few px ({shown})"
+        assert ys.count(0) > 0 and ys[-1] == 0, "and is gone within 70 frames"
+        assert len(shown) <= 64
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_classic_has_no_perfect_pours_and_no_streak(model):
+    """CLASSIC stays as it was: a release at any frame is an ordinary launch, no chime, no streak, no bonus, no cue."""
+    from test_classic_mode import classic_at
+    from test_scores import booted
+    gb = booted(model)
+    classic_at(gb, 1)
+    gb.write("intro_timer", 255)
+    set_patron(gb, 0, 64)
+    gb.run(2)
+    p0 = sfx(gb, SFX_PERFECT)
+    for n in (FILL_FRAMES + 1, WIN0 - FILL_FRAMES + FILL_FRAMES, END - 1):
+        assert hold_release(gb, n, raw=True) in (0, None)
+        drop_mugs(gb)
+    assert streak_of(gb) == 0 and sfx(gb, SFX_PERFECT) == p0 and gb.mem("perfect_n") == 0
+    gb.stop()

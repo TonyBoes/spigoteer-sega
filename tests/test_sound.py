@@ -211,17 +211,99 @@ def test_sfx_drive_channel_1_and_4_and_end(sgb):
     assert sgb.mem(NR52) & 8, "the break is a burst on the noise channel (4)"
 
 
-def test_the_perfect_pour_chime_is_a_short_two_note_ting_on_channel_1(sgb):
-    """SFX_PERFECT (15; owner playtest 2026-10-18): two notes (G6, D7) on channel 1 lasting 15 frames, then the channel is let go (NR12 0x08 or the
-    tune's harmony). Requested through sfx_req's bit 14 (the high byte)."""
+NR12, NR13, NR14, NR42, NR43 = 0xFF12, 0xFF13, 0xFF14, 0xFF21, 0xFF22
+SFX_PERFECT = 15
+
+
+def request_perfect(sgb, streak):
+    """Ask for the perfect pour's chime with pour_streak `streak` (what launch_mug has just set) and let one music tick take it."""
+    sgb.write("pour_streak", streak)
+    sgb.write(sgb.addr("sfx_req") + 1, 0x40)
+    sgb.run(1)
+
+
+def chime_hz(sgb):
+    """The channel 1 pitch of the arpeggio's top note D7 (frames 10-12 of the chime: both x2 candidates hold it there), by FFT of what the speaker plays
+    (the period registers are write-only), in Hz."""
+    audio_frames(sgb, 9)
+    a = audio_frames(sgb, 3).astype(float).mean(axis=1)
+    return detect(a, sgb.pb.sound.sample_rate, 1600, 3600)
+
+
+def test_the_perfect_pour_chime_is_a_rising_d_major_arpeggio_with_an_echo_on_channel_1(sgb):
+    """SFX_PERFECT (15; owner 2026-10-20, variant B): D6 F#6 A6 D7 on channel 1 (12.5% pulse, volume 13) then D7 echoed twice quieter (0x82, 0x42),
+    25 frames, then the channel is let go (NR12 0x08 or the tune's harmony). Requested through sfx_req's bit 14 (the high byte)."""
     sgb.write("intro_timer", 255)
     sgb.run(30)
+    sgb.write("pour_streak", 1)
     sgb.write(sgb.addr("sfx_req") + 1, 0x40)
     sgb.run(1)
     assert sgb.mem(NR52) & 1, "the chime sounds on channel 1"
-    sgb.run(30)
+    env = [sgb.mem(NR12)]
+    for _ in range(26):
+        sgb.run(1)
+        env.append(sgb.mem(NR12))
+    assert env[0] == 0xD2 and 0x82 in env and 0x42 in env, f"volume 13, then the two echoes ({env})"
+    assert env.index(0x82) < env.index(0x42)
+    sgb.run(40)
+    request_perfect(sgb, 1)
+    top = chime_hz(sgb)
+    assert 2250 < top < 2450, f"the arpeggio tops out at D7 ({top:.0f} Hz)"
+    sgb.run(40)
     harm = {gm.HARM_INST[k][1] for k in songs.SONGS["susanna"]["ch1_inst"] or ()}
-    assert sgb.mem(0xFF12) in {0x08} | harm, f"the chime let go of channel 1 (NR12 {sgb.mem(0xFF12):#x})"
+    assert sgb.mem(NR12) in {0x08} | harm, f"the chime let go of channel 1 (NR12 {sgb.mem(NR12):#x})"
+
+
+def test_the_chime_climbs_a_whole_tone_on_the_second_perfect_pour_and_the_x2_chime_is_the_same_every_time(sgb):
+    """Streak 1: the base pitch; 2: one whole tone up (x2^(1/6)); 3: the x2 chime, two whole tones up, and identical on every later perfect pour
+    (the streak stays at 3): the same SFX id, the same notes frame by frame."""
+    sgb.write("intro_timer", 255)
+    sgb.run(30)
+    hz = []
+    for streak in (1, 2, 3):
+        sgb.run(40)
+        request_perfect(sgb, streak)
+        hz.append(chime_hz(sgb))
+    assert 1.10 < hz[1] / hz[0] < 1.14, f"streak 2 is a whole tone up ({hz})"
+    assert 1.23 < hz[2] / hz[0] < 1.29, f"the x2 chime is two whole tones up ({hz})"
+    traces = []
+    for _ in range(3):
+        sgb.run(40)
+        request_perfect(sgb, 3)
+        t = [sgb.pb.sound.ndarray[:-1].copy()]
+        for _ in range(29):
+            sgb.run(1)
+            t.append(sgb.pb.sound.ndarray[:-1].copy())
+        traces.append(np.concatenate(t))
+    rate = sgb.pb.sound.sample_rate
+    tracks = []
+    for t in traces:
+        m = t.astype(float).mean(axis=1)
+        w = len(m) // 10
+        tracks.append([detect(m[i * w:(i + 1) * w], rate, 1600, 3600) for i in range(7)])
+    for t in tracks[1:]:
+        assert np.allclose(t, tracks[0], rtol=0.02), f"the x2 chime is identical every time (no further climbing): {tracks}"
+
+
+def test_the_x2_chime_adds_a_quiet_noise_shimmer_that_never_cuts_a_channel_4_effect(sgb):
+    """Only the x2 chime starts the shimmer (channel 4: NR42 0x51, NR43 0x11 then 0x10, 6 frames); a sounding channel-4 effect (the break's burst) keeps its channel."""
+    sgb.write("intro_timer", 255)
+    sgb.run(40)
+    for streak in (1, 2):
+        request_perfect(sgb, streak)
+        assert (sgb.mem(NR42), sgb.mem(NR43)) != (0x51, 0x11), f"streak {streak}: no shimmer"
+        sgb.run(40)
+    request_perfect(sgb, 3)
+    assert (sgb.mem(NR42), sgb.mem(NR43)) == (0x51, 0x11), "the x2 chime: the shimmer starts with it"
+    sgb.run(4)
+    assert sgb.mem(NR43) == 0x10
+    sgb.run(40)
+    sgb.write(sgb.addr("sfx_req"), 1 << (SFX_BREAK - 1))
+    sgb.run(1)
+    nr42, nr43 = sgb.mem(NR42), sgb.mem(NR43)
+    request_perfect(sgb, 3)
+    assert (sgb.mem(NR42), sgb.mem(NR43)) != (0x51, 0x11), "a sounding crash is not cut by the shimmer"
+    assert sgb.mem(NR42) == nr42
 
 
 def test_music_yields_channel_4_to_an_effect_then_takes_it_back(sgb):

@@ -86,36 +86,40 @@ static const sfx_step_t s_whoosh[] = { {0x53, 3, 0}, {0x33, 3, 0}, {0x13, 2, 0} 
 // The bar change's swish (src/pour.c bar_change; channel 4, 4 frames, envelope 0x41: volume 4 of 15, fading by 1 a step):
 // a short quiet high hiss, 15-bit noise clock at ~65 kHz / 2 (NR43 0x12). The whoosh stays for the bosses and the stories.
 static const sfx_step_t s_swish[]  = { {0x12, 4, 0} };
-// The perfect pour's chime (story; src/mugs.c launch_mug plays it INSTEAD of SFX_LAUNCH when the release is perfect; channel 1, 15 frames,
-// 50% pulse, envelope 0xA2: volume 10 of 15, a slow decay): a soft two-note "ting", G6 then D7 (a fifth up, ~1.57 kHz and ~2.35 kHz), the
-// second note ringing out. Gentler and lower than the catch's two high pings and the coin's ba-ding; short enough to land on the release.
-#if defined(POUR_SFX_A) || defined(POUR_SFX_B) || defined(POUR_SFX_C)
-// Playtest candidates for a more celebratory perfect pour (owner 2026-10-19; make POUR_SFX=A|B|C). All channel 1, 12.5% pulse (the glassiest
-// duty), envelope 0xD2 (volume 13, a slow decay: a little above the serve's 10 and the coin's 12). D major, a rising arpeggio to the octave:
-// D6 F#6 A6 D7, the first note sweeping up into pitch over its 4 frames (the software slide: period +14 a frame).
-//   A: 4+3+3+9 = 19 frames.   B: A with the last note shortened to 5, then D7 echoed twice at falling volume (0x82, 0x42): 25 frames.
-//   C: A, plus a quiet 6-frame noise shimmer on channel 4 (s_shimmer, below), started with the first note.
-#ifdef POUR_SFX_B
+// The perfect pour's chime (story and ARCADE shifts; src/mugs.c launch_mug plays it INSTEAD of SFX_LAUNCH when the release is perfect; channel 1, 12.5%
+// pulse, envelope 0xD2: volume 13, a slow decay; owner 2026-10-20, variant B of the playtest): D major, a rising arpeggio to the octave, D6 F#6 A6 D7,
+// the first note sweeping up into pitch over its 4 frames (the software slide: period +14 a frame), then D7 echoed twice at falling volume (0x82,
+// 0x42): 4+3+3+5+4+6 = 25 frames. Streak (pour_streak, src/mugs.c): the 2nd perfect pour in a row sounds a whole tone higher (pour_up).
+#define N_(a) (sizeof(a) / sizeof((a)[0]))
 static const sfx_step_t s_perfect[] = { {1895, 4, 14}, {1959, 3, 0}, {1973, 3, 0}, {1992, 5, 0}, {1992, 4, 0}, {1992, 6, 0} };
-#else
-static const sfx_step_t s_perfect[] = { {1895, 4, 14}, {1959, 3, 0}, {1973, 3, 0}, {1992, 9, 0} };
+#define PERFECT_ECHO 4              // the step the echoes start at
+// The "x2" chime (the 3rd perfect pour in a row and every one after, the doubled bonus): the same chime two whole tones up, always the same, with a
+// quiet high noise shimmer on channel 4 under it (s_shimmer, never started over a channel-4 effect that is sounding). Two candidates (owner
+// 2026-10-20; make POUR_X2=1|2, default 1, until he picks):
+//   1: the chime itself at the top pitch, echo and shimmer: 25 frames.
+//   2: a fuller level-up (envelope 0xE2: volume 14): the arpeggio, then a resolving turn (the top note, a tone above, the top note again) and the echoes:
+//      4+3+3+3+2+3+4+5 = 27 frames.
+#ifndef POUR_X2
+#define POUR_X2 1
 #endif
+#if POUR_X2 == 2
+static const sfx_step_t s_x2[] = { {1895, 4, 14}, {1959, 3, 0}, {1973, 3, 0}, {1992, 3, 0}, {1998, 2, 0}, {1992, 3, 0}, {1992, 4, 0}, {1992, 5, 0} };
+#define X2_ECHO 6
+#define X2_ENV  0xE2
 #else
-static const sfx_step_t s_perfect[] = { {1964, 3, 0}, {1992, 12, 0} };
+#define s_x2 s_perfect
+#define X2_ECHO PERFECT_ECHO
+#define X2_ENV  0xD2
 #endif
-#ifdef POUR_SFX_C
+static const sfx_def_t d_x2 = { 0, 0x00, X2_ENV, N_(s_x2), s_x2 };
 static const sfx_step_t s_shimmer[] = { {0x11, 3, 0}, {0x10, 3, 0} };           // channel 4: high bright noise, volume 5 fading out
 static const sfx_def_t d_shimmer = { 3, 0x00, 0x51, 2, s_shimmer };
-#endif
-#ifdef POUR_STREAK
-uint8_t pour_streak;                 // consecutive perfect pours + 1 (0: the last pour was not perfect), capped at POUR_STREAK_MAX + 1; src/mugs.c launch_mug
-static uint16_t pour_up(uint16_t p) {   // the period p raised pour_streak-1 whole tones: the wave length x 0.8906 (2^-1/6 = 0.8909) each
-    uint16_t d = 2048 - p;
-    uint8_t n = pour_streak;
-    while (--n) d = d - (d >> 3) + (d >> 6);
-    return 2048 - d;
+uint8_t pour_streak;                 // perfect pours in a row, capped at 3 (src/mugs.c launch_mug; 0 after a non-perfect launch, a shift's start, a lost life)
+static uint16_t pour_up(uint16_t p, uint8_t n) {   // the period p raised n whole tones: the wave length x 0.8906 (2^-1/6 = 0.8909) each, kept to 1/16 so two steps do not compound the rounding
+    uint16_t d = (2048 - p) << 4;
+    while (n--) d = d - (d >> 3) + (d >> 6);
+    return 2048 - ((d + 8) >> 4);
 }
-#endif
 static const sfx_step_t s_rev[]    = { {0x4B, 10, 0}, {0x4A, 10, 0}, {0x3B, 10, 0}, {0x3A, 10, 0}, {0x39, 10, 0} };
 
 #define N(a) (sizeof(a) / sizeof((a)[0]))
@@ -135,11 +139,7 @@ static const sfx_def_t sfx_defs[SFX_COUNT] = {
     { 3, 0x00, 0xD0, N(s_rev),    s_rev },
     { 3, 0x00, 0xA1, N(s_whoosh), s_whoosh },
     { 3, 0x00, 0x41, N(s_swish),  s_swish },
-#if defined(POUR_SFX_A) || defined(POUR_SFX_B) || defined(POUR_SFX_C)
-    { 0, 0x00, 0xD2,  N(s_perfect), s_perfect },       // (the playtest candidate; two spaces so tests/test_harmony.py's row pattern sees only the shipped chime)
-#else
-    { 0, 0x80, 0xA2, N(s_perfect), s_perfect },
-#endif
+    { 0, 0x00, 0xD2, N(s_perfect), s_perfect },
 };
 
 typedef struct {
@@ -261,12 +261,13 @@ static void step_begin(voice_t *v) {
     const sfx_step_t *s = &v->def->steps[v->step];
     uint8_t env = v->def->env;
     v->freq = s->freq; v->slide = s->slide; v->left = s->len;
-#ifdef POUR_STREAK
-    if (v->def == &sfx_defs[SFX_PERFECT] && pour_streak > 1) v->freq = pour_up(v->freq);
-#endif
-#ifdef POUR_SFX_B
-    if (v->def == &sfx_defs[SFX_PERFECT] && v->step >= 4) env = (v->step == 4) ? 0x82 : 0x42;   // the echoes
-#endif
+    if (v->def == &d_x2) {
+        v->freq = pour_up(v->freq, 2);                                       // always the top pitch
+        if (v->step >= X2_ECHO) env = (v->step == X2_ECHO) ? 0x82 : 0x42;   // the echoes
+    } else if (v->def == &sfx_defs[SFX_PERFECT]) {
+        if (pour_streak > 1) v->freq = pour_up(v->freq, 1);
+        if (v->step >= PERFECT_ECHO) env = (v->step == PERFECT_ECHO) ? 0x82 : 0x42;
+    }
     if (v->def->ch == 0) {
         NR10_REG = 0;
         NR11_REG = v->def->duty;
@@ -281,7 +282,6 @@ static void step_begin(voice_t *v) {
     }
 }
 
-#ifdef POUR_SFX_C
 static void shimmer_start(void) {       // under the chime; never over a channel-4 effect that is sounding (a crash, a rev...)
     voice_t *w = &voice[1];
     if (w->busy) return;
@@ -289,20 +289,17 @@ static void shimmer_start(void) {       // under the chime; never over a channel
     set_mute(3, 1);
     step_begin(w);
 }
-#endif
 
 static void sfx_start(uint8_t id) {
     voice_t *v = &voice[sfx_defs[id].ch ? 1 : 0];
     if (v->busy && v->def == &sfx_defs[SFX_EXTRA] && id != SFX_EXTRA) return;   // the extra life is not cut short
     if (v->busy && id >= SFX_WHOOSH && sfx_defs[id].ch) return;     // the whoosh and the swish never cuts a crash or a drum off (channel 4)
-    v->def = &sfx_defs[id];
+    v->def = (id == SFX_PERFECT && pour_streak > 2) ? &d_x2 : &sfx_defs[id];
     v->step = 0;
     v->busy = 1;
     set_mute(v->def->ch, 1);        // the driver lets go of the channel (and cuts its note) before we write
     step_begin(v);
-#ifdef POUR_SFX_C
-    if (id == SFX_PERFECT) shimmer_start();
-#endif
+    if (v->def == &d_x2) shimmer_start();
 }
 
 static void voice_tick(uint8_t i) {
@@ -330,9 +327,7 @@ static void groove_row(void) {      // (tick calls it on the frame the row count
     g_cnt = hUGE_ticks_per_row;      // this row's length, as the driver has just set it
     d = groove[2 + g_pos];
     if (++g_pos == groove[0]) g_pos = 0;
-#ifdef POUR_SFX_C
     if (d && voice[1].busy && voice[1].def == &d_shimmer) voice[1].busy = 0;   // a groove drum cuts the shimmer short
-#endif
     if (d && !voice[1].busy && !(hUGE_mute_mask & TK_NOGROOVE)) {
         const uint8_t *k = drum_kit[d - 1];
         NR41_REG = k[0]; NR42_REG = k[1]; NR43_REG = k[2]; NR44_REG = k[3];

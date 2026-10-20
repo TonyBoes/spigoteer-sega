@@ -30,6 +30,7 @@
 #define PERFECT_MULT  2       // a perfect drink scores 2 x serve_score at the catch
 #define CUE_FRAMES   48
 #define CUE_BLINK    16
+#define CUE_POP      16       // a doubled bonus: the badge rises 1 px every 4th frame for this many frames, then holds like the plain cue
 
 extern uint8_t frame_counter; // main.c
 extern uint8_t frame_t0;     // main.c: (uint8_t)sys_time when this frame began
@@ -44,15 +45,19 @@ static uint8_t pour_bar;      // the bar of the last frame (a change while full 
 // LCD off (a story shift's start): venue t's sparkle + overflow to OBJ_POUR.., the cue to OBJ_POUR_CUE
 void pour_load(uint8_t t) BANKED {
     pour_win = POUR_WIN_LEN;
+    pour_streak = 0;                                         // a shift starts: no streak
     set_sprite_data(OBJ_POUR, 4, pour_venue_tiles[t]);
     set_sprite_data((uint8_t)OBJ_POUR_CUE, POUR_CUE_TILES, pour_cue_tiles);
 }
 
 void perfect_catch(uint8_t i) BANKED {
-    if (mug_timer[i] != 1) return;                           // an ordinary drink
-    add_score((uint16_t)serve_score * PERFECT_MULT);
+    uint8_t q = mug_timer[i];                                // 0 ordinary, 1 perfect, 3 perfect and the 3rd+ in a row (src/mugs.c launch_mug)
+    uint16_t bonus = (uint16_t)serve_score * PERFECT_MULT;
+    if (!(q & 1)) return;                                    // an ordinary drink
+    if (q > 1) bonus <<= 1;                                  // the streak: the perfect pour's bonus doubled (not the serve itself)
+    add_score(bonus);
     perfect_n++;
-    cue_t = CUE_FRAMES;
+    cue_t = q > 1 ? CUE_FRAMES + CUE_POP : CUE_FRAMES;       // (the doubled bonus's pop: the badge rises CUE_POP / 4 px, draw_cue)
     cue_y = bar_oam_y[mug_bar[i] & (NUM_BARS - 1)] + MUG_DY;
     cue_x = mug_x[i] + 16;                                   // right of the caught mug (OAM x = screen x + 8)
 }
@@ -116,7 +121,11 @@ static void draw_cue(void) {
         show = t != 0;                                       // (0: its entry goes this frame)
         cue_t = show ? cue_t - 1 : 0;
         if (LY_REG > DUST_LATEST_LY || (uint8_t)sys_time != frame_t0) show = 0;   // a frame that ran into the next VBlank: no puff (the line count costs ~10 lines)
-    } else show = --cue_t && (cue_t > CUE_BLINK || (cue_t & 4));
+    } else {
+        if (cue_t > CUE_FRAMES && !(cue_t & 3)) cue_y--;       // (a doubled bonus's pop rising)
+        y = cue_y;
+        show = --cue_t && (cue_t > CUE_BLINK || (cue_t & 4));
+    }
     if (show) {
         o->y = 0;                                            // (not counting its own entry)
         if (dust_count(y) < LINE_OBJ_MAX) {
@@ -152,7 +161,7 @@ static void twinkle(void) {
         s = mug_state[i];
         if (s) {
             left--;
-            if (s == MUG_FULL && mug_timer[i] == 1 && ((uint8_t)(f + i + (i << 1)) & 7) < 3) twinkle_at(i);
+            if (s == MUG_FULL && (mug_timer[i] & 1) && ((uint8_t)(f + i + (i << 1)) & 7) < 3) twinkle_at(i);
         }
     } while (left && ++i != MAX_MUGS);
 }

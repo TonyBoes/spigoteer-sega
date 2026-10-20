@@ -170,6 +170,7 @@ void lose_life(void) {
     hud_dirty |= HUD_LIVES;
     prep_hud();
     life_lost = 1;
+    pour_streak = 0;                // (a lost life ends the perfect-pour streak: src/mugs.c)
     if (lives == 0) game_over = 1;
 }
 
