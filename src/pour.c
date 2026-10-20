@@ -11,7 +11,8 @@
 // unused while a full mug slides). A full drink carried to another bar (A held through Up/Down) jumps to the
 // overflow at once: ordinary. pour_win is set to POUR_WIN_LEN by pour_load (every shift start); Practice's HARD toggle
 // writes POUR_WIN_HARD after it (same start, a narrower window).
-// The catch: patrons.c caught() calls perfect_catch in story mode; a perfect drink scores PERFECT_MULT x the venue's
+// The streak (owner 2026-10-20; src/mugs.c launch_mug, src/music.c): only the 3rd perfect pour in a row and every later one earn the bonus and the
+// badge; the 1st and 2nd just chime (a whole tone higher the 2nd). A perfect drink of the streak scores PERFECT_MULT x the venue's
 // serve_score on the spot, counts in perfect_n, and the cue shows to the right of the caught mug for CUE_FRAMES,
 // blinking for the last CUE_BLINK. The serve (the patron pushed out) still scores serve_score as always; regulars
 // take any drink.
@@ -30,7 +31,6 @@
 #define PERFECT_MULT  2       // a perfect drink scores 2 x serve_score at the catch
 #define CUE_FRAMES   48
 #define CUE_BLINK    16
-#define CUE_POP      16       // a doubled bonus: the badge rises 1 px every 4th frame for this many frames, then holds like the plain cue
 
 extern uint8_t frame_counter; // main.c
 extern uint8_t frame_t0;     // main.c: (uint8_t)sys_time when this frame began
@@ -52,12 +52,11 @@ void pour_load(uint8_t t) BANKED {
 
 void perfect_catch(uint8_t i) BANKED {
     uint8_t q = mug_timer[i];                                // 0 ordinary, 1 perfect, 3 perfect and the 3rd+ in a row (src/mugs.c launch_mug)
-    uint16_t bonus = (uint16_t)serve_score * PERFECT_MULT;
     if (!(q & 1)) return;                                    // an ordinary drink
-    if (q > 1) bonus <<= 1;                                  // the streak: the perfect pour's bonus doubled (not the serve itself)
-    add_score(bonus);
     perfect_n++;
-    cue_t = q > 1 ? CUE_FRAMES + CUE_POP : CUE_FRAMES;       // (the doubled bonus's pop: the badge rises CUE_POP / 4 px, draw_cue)
+    if (q == 1) return;                                      // the 1st and 2nd perfect pour in a row: the chime only, no bonus and no badge
+    add_score((uint16_t)serve_score * PERFECT_MULT);         // the 3rd and every later one: the x2 bonus and its badge (owner 2026-10-20)
+    cue_t = CUE_FRAMES;
     cue_y = bar_oam_y[mug_bar[i] & (NUM_BARS - 1)] + MUG_DY;
     cue_x = mug_x[i] + 16;                                   // right of the caught mug (OAM x = screen x + 8)
 }
@@ -121,11 +120,7 @@ static void draw_cue(void) {
         show = t != 0;                                       // (0: its entry goes this frame)
         cue_t = show ? cue_t - 1 : 0;
         if (LY_REG > DUST_LATEST_LY || (uint8_t)sys_time != frame_t0) show = 0;   // a frame that ran into the next VBlank: no puff (the line count costs ~10 lines)
-    } else {
-        if (cue_t > CUE_FRAMES && !(cue_t & 3)) cue_y--;       // (a doubled bonus's pop rising)
-        y = cue_y;
-        show = --cue_t && (cue_t > CUE_BLINK || (cue_t & 4));
-    }
+    } else show = --cue_t && (cue_t > CUE_BLINK || (cue_t & 4));
     if (show) {
         o->y = 0;                                            // (not counting its own entry)
         if (dust_count(y) < LINE_OBJ_MAX) {

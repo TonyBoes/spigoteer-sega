@@ -189,14 +189,14 @@ def mugs(gb, b=None, st=None):
 
 
 def throw(gb, b, x=72, perfect=False):
-    """A full mug on bar b at x (as if just launched and slid there); perfect: a story perfect pour (mug_timer 1). The
+    """A full mug on bar b at x (as if just launched and slid there); perfect: a story perfect pour that earns the x2 bonus and badge (mug_timer 3: the 3rd in a row; 1 is the chime-only 1st / 2nd). The
     pokes land between two game frames (logic_paused: a poke mid-frame could see update_mugs recount mugs_live to 0
     after it, and the mug would never move)."""
     with logic_paused(gb):
         inject_mug(gb, b, x)
         if perfect:
             m = [i for i, s, mb, mx in mugs(gb, b, FULL) if mx == x][-1]
-            gb.write(gb.addr("mug_timer") + m, 1)
+            gb.write(gb.addr("mug_timer") + m, 3)
 
 
 def block_empties(gb):

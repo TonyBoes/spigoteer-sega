@@ -43,9 +43,9 @@ uint8_t spawn_mug(uint8_t b, uint8_t x, uint8_t state) {
 
 void launch_mug(void) {
     uint8_t q = pour_q;
-    if (q) {                                                // a story perfect pour: the streak climbs to 3, from the 3rd on the mug is a "x2" one (mug_timer 3)
+    if (q) {                                                // a story perfect pour: the streak climbs to 3, from the 3rd on the mug is a bonus one (mug_timer 3)
         if (pour_streak < 3) pour_streak++;
-        if (pour_streak == 3) pour_q = 3;                   // (src/pour.c perfect_catch doubles its bonus; every test of "perfect" reads bit 0)
+        if (pour_streak == 3) pour_q = 3;                   // (src/pour.c perfect_catch pays the x2 bonus only for these; every test of "perfect" reads bit 0)
     } else pour_streak = 0;
     spawn_mug(bar, tap_now + (SPOUT_X - TAP_X), MUG_FULL);   // (under his bar's spout: P6 slanted bars, game.h)
     pour_q = q;

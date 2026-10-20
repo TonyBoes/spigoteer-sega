@@ -58,8 +58,11 @@ def launched(gb, raw=False):
     return None
 
 
-def hold_release(gb, n, raw=False):
-    """A held for n frames (a fresh press at the tap), then let go: the launched drink's quality (None: none)."""
+def hold_release(gb, n, raw=False, streak=None):
+    """A held for n frames (a fresh press at the tap), then let go: the launched drink's quality (None: none). streak: poke pour_streak first (2: a
+    perfect release is the 3rd in a row, which earns the x2 bonus and badge)."""
+    if streak is not None:
+        gb.write("pour_streak", streak)
     gb.write("intro_timer", 255)                  # (long sweeps: nobody walks to the tap meanwhile)
     gb.hold("a")
     gb.run(n)
@@ -91,10 +94,11 @@ def first_launch(gb):
     raise AssertionError("never launched")
 
 
-def pour_at(gb, t, raw=False):
-    """Release A so that the last held frame has pour_t t (FILL_FRAMES..): the drink's quality."""
+def pour_at(gb, t, raw=False, streak=2):
+    """Release A so that the last held frame has pour_t t (FILL_FRAMES..): the drink's quality. The streak is poked to 2 first (default): a perfect
+    release then earns the bonus and badge, as the 3rd in a row does."""
     n = first_launch(gb) + t - FILL_FRAMES
-    return hold_release(gb, n, raw)
+    return hold_release(gb, n, raw, streak)
 
 
 def catch_delta(gb):
@@ -385,58 +389,53 @@ def test_the_streak_resets_when_a_shift_starts_and_when_a_life_is_lost(model):
 
 
 def bonus_run(model):
-    """Five perfect pours in a row, each caught by its own patron: [(the bonus scored at the catch, the cue's frames at the catch)] and the serve score."""
+    """Five perfect pours in a row, each caught by its own patron: [(the bonus scored at the catch, whether the cue shows)], the serve score, and the
+    score gained over the whole run (the five serves and the bonuses)."""
     out = []
     with story(model) as gb:
         s = gb.mem("serve_score")
         fp = first_launch(gb) + WIN0 - FILL_FRAMES
         drop_mugs(gb)
+        gb.write("pour_streak", 0)
+        s0 = score(gb)
         for _ in range(5):
             assert hold_release(gb, fp) == 1
-            n0 = gb.mem("perfect_n")
             d = catch_delta(gb)
-            out.append((d, gb.mem("cue_t")))
-            gb.run(1)
-            assert_cue(gb)
-            assert gb.mem("perfect_n") == n0 + 1
-            run_until(gb, lambda: gb.mem("cue_t") == 0, 120)
+            gb.run(2)
+            out.append((d, gb.oam()[OAM_CUE]["tile"] == OBJ_CUE and gb.oam()[OAM_CUE]["y"] > 0))
+            gb.run(100)
             drop_mugs(gb)
             set_patron(gb, 0, 64)
             gb.run(2)
-    return out, s
+        return out, s, score(gb) - s0
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_pours_one_and_two_score_the_normal_bonus_and_three_on_score_double_that(model):
-    """The perfect pour's bonus (PERFECT_MULT x the serve score) is doubled from the 3rd perfect pour in a row; the serve itself is not."""
-    out, s = bonus_run(model)
-    assert [d for d, _ in out] == [2 * s, 2 * s, 4 * s, 4 * s, 4 * s], (out, s)
-    cue = GAME.get("CUE_FRAMES", 48)
-    assert [t > 48 for _, t in out] == [False, False, True, True, True], "the doubled bonus's pop lasts longer"
+def test_only_the_third_perfect_pour_in_a_row_and_later_ones_score_the_x2_bonus_with_its_badge(model):
+    """Owner 2026-10-20: the 1st and 2nd perfect pour in a row pay only the normal serve (no bonus, no badge); from the 3rd the x2 bonus
+    (PERFECT_MULT x the serve score, on top of the serve) and the "x2" badge."""
+    out, s, total = bonus_run(model)
+    assert out == [(0, False), (0, False), (2 * s, True), (2 * s, True), (2 * s, True)], (out, s)
+    assert gb_total_ok(total, s), (total, s)
+
+
+def gb_total_ok(total, s):
+    return total == 3 * 2 * s            # (the serves themselves score when the patron is pushed out, after this run's frames: only the bonuses so far)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_x2_pop_rises_a_little_then_holds_beside_the_mug_and_ends_within_a_second(model):
+def test_the_x2_badge_holds_beside_the_mug_and_ends_within_a_second(model):
     with story(model) as gb:
-        fp = first_launch(gb) + WIN0 - FILL_FRAMES
-        drop_mugs(gb)
-        for _ in range(3):
-            assert hold_release(gb, fp) == 1
-            ys = []
-            catch_delta(gb)
-            for _ in range(70):
-                gb.run(1)
-                o = gb.oam()[OAM_CUE]
-                ys.append(o["y"] if o["tile"] == OBJ_CUE else 0)
-            drop_mugs(gb)
-            set_patron(gb, 0, 64)
-            gb.run(2)
-            shown = [y for y in ys if y]
-            if _ < 2:
-                assert max(shown) - min(shown) == 0, "the plain cue holds still"
-        assert 3 <= max(shown) - min(shown) <= 4, f"the doubled pop rises a few px ({shown})"
-        assert ys.count(0) > 0 and ys[-1] == 0, "and is gone within 70 frames"
-        assert len(shown) <= 64
+        assert pour_at(gb, WIN0) == 1
+        catch_delta(gb)
+        ys = []
+        for _ in range(70):
+            gb.run(1)
+            o = gb.oam()[OAM_CUE]
+            ys.append(o["y"] if o["tile"] == OBJ_CUE else 0)
+        shown = [y for y in ys if y]
+        assert max(shown) == min(shown), "the badge holds still"
+        assert ys[-1] == 0 and len(shown) <= 48, "and is gone within a second"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
