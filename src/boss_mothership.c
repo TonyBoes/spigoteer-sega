@@ -108,6 +108,8 @@ typedef struct {
     uint8_t bx;         // the caught mug's x
 } mothership_t;
 #define ms (*(mothership_t *)BOSS_OWN)
+#define DIM_BGP    0xF9
+#define DIM_MASK   0x3DEF                // (c >> 1) & mask: each 5 bit channel halved
 #if 20 > BOSS_OWN_N
 #error "the Mothership's state: BOSS_OWN_N"
 #endif
@@ -256,7 +258,17 @@ static void drop_passengers(void) {
 
 // ---- the entrance ----
 // The room's lights: CGB the bar palette (its wall and counter) halved or back, DMG the BG's shades.
-static void lights(uint8_t dim) { lights_req(dim); }   // (written by the next VBlank, render.c)
+static void lights(uint8_t dim) {
+    uint8_t *b = (uint8_t *)LIGHTS_BUF, i;
+    uint16_t c;
+    if (!is_cgb) b[0] = dim ? DIM_BGP : 0xE4;
+    else for (i = 0; i != 4; i++) {
+        c = venue.pal[VENUE_PAL_BAR][i];
+        if (dim) c = (c >> 1) & DIM_MASK;
+        b[i << 1] = (uint8_t)c; b[(i << 1) | 1] = (uint8_t)(c >> 8);
+    }
+    pal5_req |= 2;                                 // (written by the next VBlank, render.c)
+}
 
 // BEV_INTRO every frame while intro_timer runs: the tractor beam's column on his bar, the lights flicker, a hum, he blinks into
 // the beam and lands. The bartender is held (idle) and the intro's clock waits until he has landed.
