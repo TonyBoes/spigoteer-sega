@@ -486,7 +486,7 @@ static void update(void) {
         frame_counter++;
         return;
     case GS_PLAYING:
-        if (pressed & J_START) { pause_open(); break; }   // the pause menu (src/pause.c)
+        if (pressed & (J_START | J_B) && pause_or_pocket(pressed)) break;   // START: the pause menu (src/pause.c); B: a show from the pocketed tip (src/pocket.c)
         play_frame(pressed);
         if (story_on) story_play();              // M11b: the chapter goal
         break;

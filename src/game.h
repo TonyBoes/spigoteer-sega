@@ -333,6 +333,16 @@ uint8_t catch_full(uint8_t i);                // mugs.c asks for every full mug
 void begin_catch_frame(void);
 extern uint8_t catch_lim[NUM_BARS];          // a full mug at x >= catch_lim[its bar] is caught by nobody (see patrons.c)
 void start_show(void) BANKED;                  // (show.c, bank 5)
+// The pocketed tip (owner 2026-10-18; src/pocket.c): a tip picked up while a show runs is kept (one slot) and B starts a show from it. tip_pocket
+// holds the HUD tile id itself, so the VBlank queue draws the byte as it is (vq_add): 0 off (CLASSIC and the other modes: nothing changes),
+// TILE_HUD_BLANK on and empty, POCKET_TILE (the coin icon's BG id) a tip held. Set at a level's load (ARCADE and STORY only), emptied at its end.
+#define POCKET_TILE 255
+#define POCKET_COL    9
+extern uint8_t tip_pocket;
+void pocket_level(void) BANKED;
+void pocket_take(void) BANKED;
+void pocket_clear(void) BANKED;
+uint8_t pause_or_pocket(uint8_t pressed) BANKED;
 void end_show(void) BANKED;
 void redraw_at(uint8_t p, uint8_t nd);        // p is now drawn at nd (| DRAW_BACK): marks the columns that change
 void ovl_touch(uint8_t p) BANKED;             // (lift.c) p changed columns: wake the chooser if he meets anyone
