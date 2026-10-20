@@ -100,7 +100,7 @@ static uint8_t dust_count(uint8_t y) {
     const OAM_item_t *o = shadow_OAM;
     uint8_t k = 29, n = 0;
     do {
-        if (o->y && (uint8_t)(o->y - y + 15) < 31) n++;
+        if (o->y && (uint8_t)(o->y - y + 15) < 31 && ++n >= LINE_OBJ_MAX) break;   // (only "fewer than LINE_OBJ_MAX" matters)
         o++;
     } while (--k);
     return n;
@@ -134,23 +134,27 @@ static void draw_cue(void) {
 // slot none, a breaking glass 2, any other mug 1 (and a swap only if the entry holds the full mug's tile). CPU: one pass over the live slots (it stops
 // at the last one); on a frame already past TWINKLE_LY (a crowded late frame: the particle survey's slack gate) the mugs stay plain.
 #define TWINKLE_LY   90
-static void twinkle(void) {
-    const uint8_t *st = mug_state, *tm = mug_timer;
-    uint8_t i = 0, n = 0, s, left = mugs_live, f = frame_counter, full = spr_full_t;   // (full: a local; the compiler wrote the new tile through the pointer it had just compared with spr_full_t)
+static void twinkle_at(uint8_t i) {                         // slot i is a perfect full mug in the lit phase: its entry (the entries before it counted, as draw_mugs_loop hands them out)
+    uint8_t j, n = 0, s, full = spr_full_t;                   // (full: a local; the compiler wrote the new tile through the pointer it had just compared with spr_full_t)
     OAM_item_t *o;
+    for (j = 0; j != i; j++) {
+        s = mug_state[j];
+        if (s) n += s == MUG_BREAKING ? 2 : 1;
+    }
+    o = shadow_OAM + OAM_FILL + 1 + n;
+    if (o->tile == full) o->tile = OBJ_POUR;
+}
+
+// (the pass stops at the last live slot, and counts the entries in front of a mug only when one sparkles, which is rare)
+static void twinkle(void) {
+    uint8_t i = 0, f = frame_counter, left = mugs_live, s;
     do {
-        s = *st++;
+        s = mug_state[i];
         if (s) {
             left--;
-            if (s == MUG_BREAKING) n++;
-            else if (s == MUG_FULL && *tm == 1 && ((uint8_t)(f + i + (i << 1)) & 7) < 3) {
-                o = shadow_OAM + OAM_FILL + 1 + n;
-                if (o->tile == full) o->tile = OBJ_POUR;
-            }
-            n++;
+            if (s == MUG_FULL && mug_timer[i] == 1 && ((uint8_t)(f + i + (i << 1)) & 7) < 3) twinkle_at(i);
         }
-        tm++; i++;
-    } while (left && i != MAX_MUGS);
+    } while (left && ++i != MAX_MUGS);
 }
 
 void pour_frame(void) BANKED {

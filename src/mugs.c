@@ -107,10 +107,10 @@ void update_mugs(void) {
     for (i = 0; i != MAX_MUGS; i++) {
         st = mug_state[i];
         if (st == MUG_FREE) continue;
-        if (st == MUG_FULL) live += full_step(i);
+        if (st == MUG_HELD) live += held_step(i);          // (the commonest first: a drinker's mug, 5-7 of a crowd's ~10)
         else if (st == MUG_EMPTY) live += empty_step(i);
+        else if (st == MUG_FULL) live += full_step(i);
         else if (st == MUG_BREAKING) live += glass_step(i);
-        else if (st == MUG_HELD) live += held_step(i);
         else live++;
     }
     mugs_live = live;
@@ -201,21 +201,24 @@ static void draw_glass(uint8_t i) {
 }
 
 static void draw_held(uint8_t i) {
-    uint8_t g = mug_patron[i], t, x;
+    uint8_t g = mug_patron[i], t, x, l = patron_lift[g], *o = oam_next;   // (the entry is written here, not through oam_put: a call is dear)
     t = patron_state[g] == PATRON_DRINKING ? patron_timer[g] >> 2 : 255;
     if (t >= POSE_CARRY) t = POSE_CARRY;                     // being carried back: upright, full, at the hand
     x = pose_dx[t];
     // M13b, DMG: between sprites the lower X wins, so a lifted holder's own entries would cover the mug wherever it
     // starts left of his right entry: dx 8 (level with it; the lower OAM index wins the tie), 16 for the last throw pose.
-    if (!is_cgb && patron_lift[g]) x = t == WINDUP_T0 / 4 + 7 ? 16 : 8;
+    if (!is_cgb && l) x = t == WINDUP_T0 / 4 + 7 ? 16 : 8;
     x += patron_draw[g];
-    if (patron_lift[g] == LIFT_EDGE) x -= patron_aux[g];     // (a served patron sliding out past the left edge takes it along)
+    if (l == LIFT_EDGE) x -= patron_aux[g];                  // (a served patron sliding out past the left edge takes it along)
     mug_x[i] = x;
     g = pose_tile[t];
+    *o++ = bar_oam_y[mug_bar[i]] + pose_dy[t];
+    *o++ = x + 8;
     // DMG: the held full mug uses OBP0 (beer light grey, foam white) like the fill glass so it shows on the
     // white wall; the empty one looks like every empty mug (spr_hempty_*). CGB: the full / empty OBJ palette.
-    if (g == TILE_DRINK_EMPTY) oam_put(bar_oam_y[mug_bar[i]] + pose_dy[t], x + 8, spr_hempty_t, spr_hempty_p);
-    else oam_put(bar_oam_y[mug_bar[i]] + pose_dy[t], x + 8, g, prop_full_held);
+    if (g == TILE_DRINK_EMPTY) { *o++ = spr_hempty_t; *o++ = spr_hempty_p; }
+    else { *o++ = g; *o++ = prop_full_held; }
+    oam_next = o;
 }
 
 // The per-slot loop of draw_mugs, hand-written (the C loop and writers cost ~25 DIV ticks a frame with a crowd): a full or an

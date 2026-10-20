@@ -368,6 +368,7 @@ extern uint8_t score_tiles[6], lives_tiles[2];   // score: HUD columns 0-5; live
 void vram_put(uint8_t x, uint8_t y, const uint8_t *src, uint8_t n);
 void put_row(uint8_t y);
 void mark_dirty(uint8_t b, uint8_t x0, uint8_t x1);         // tile ids of columns x0..x1-1 changed
+extern uint8_t frame_counter;                                // (main.c) frames since the level began, mod 256
 extern uint8_t frame_t0;                                    // (main.c) the low byte of sys_time when the frame began
 void mark_dirty_attrs(uint8_t b, uint8_t x0, uint8_t x1);   // ... and their CGB attributes too
 void mark_quick(uint8_t p);                                 // patron p moved within his own 3 columns (tile ids only)
@@ -630,6 +631,19 @@ uint8_t rush_update(uint8_t pressed) BANKED;            // a frame of a rush scr
 void rush_won(void) BANKED;                             // story_level_done in MODE_RUSH: the fight was won
 void rush_lost(void) BANKED;                            // story SP_FAIL in MODE_RUSH: out of lives
 void rush_fight(uint8_t venue) BANKED;                  // story.c: venue's boss fight alone (the story's step, rules)
+// ---- smap.c (banked: the story map between the chapters; runs as GS_STORY, story_phase STORY_PHASE_MAP) ----------------------------
+#define STORY_PHASE_MAP 9                               // story.c's SP_MAP: story_update hands the frame to smap_update
+extern uint8_t smap_stop, smap_flags;                   // the stop Sal stands at (0..9 a venue = a chapter, 10 the town); festival played / gold bits (src/smap.c)
+void smap_enter(uint8_t quick) BANKED;                  // LCD off: the map (quick 1: back from a mini-game it started)
+uint8_t smap_update(uint8_t pressed) BANKED;            // a frame of the map; 1: the screen changed
+void smap_back(void) BANKED;                            // a mini-game the map started is over: the map again, the story's score back
+void smap_new_run(void) BANKED;                         // a new story: Sal at the saloon, no festival game played or won
+void smap_continue(void) BANKED;                        // CONTINUE: the saved map block, then the map
+uint8_t smap_gold(uint8_t k) BANKED;                    // festival game k won GOLD in a map play: 1 when it is a new Pour-Off life
+uint8_t smap_po_lives(void) BANKED;                     // the festival golds of this story run (po.c adds them to the Pour-Off's 3 lives)
+void smap_pal_back(void) BANKED;                        // the screens after the map, LCD off: the HUD palette (BG 1) put back
+void sm_get(uint8_t *d) BANKED;                         // src/save.c: the map block's stop and flags into d[0], d[1] (255, 0 when none)
+void sm_put(uint8_t stop, uint8_t flags) BANKED;        // ... written (nothing in a debug-select run or ARCADE)
 // ---- credits.c (banked 20: the credits roll; runs as GS_STORY, story_phase STORY_PHASE_CREDITS) ----------------------------
 #define STORY_PHASE_CREDITS 8                           // story.c's SP_CREDITS: story_update hands the frame to credits_update
 void credits_enter(uint8_t from_story) BANKED;          // from_story 1: after the story's CREDITS pages (its end is story_end); 0: BONUS > CREDITS (B / the end: BONUS)

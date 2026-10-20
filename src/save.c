@@ -15,6 +15,10 @@
 //   0x18 the DEBUG MENU unlock "DU" (2026-10-16; SETTINGS > DEBUG MENU and the open gesture: src/debug.c): 0..1 magic, 2 the flag (1 unlocked, else
 //   locked), 3 checksum (0x5A + bytes 0..2), 4 its complement; no block, a bad checksum or any other flag reads as LOCKED. ERASE DATA (save_erase)
 //   zeroes the whole 8 KB, so it locks the menu again with everything else.
+//   0x1E the story map "SM" (2026-10-18: src/smap.c): 0..1 magic, 2 the stop Sal stands at (0..10: a venue = its chapter, 10 the town), 3 the flags (bits 0-2:
+//   festival game k played since it unlocked, so its "!" is gone; bits 4-6: it won GOLD in the current story run, each a life for the Pour-Off; the other bits must be
+//   0), 4 the checksum (0x5A + bytes 0..3), 5 its complement; no block or a bad one reads as no stop and no flags (CONTINUE puts Sal at the next venue).
+//   A new story starts the flags again. Written when the map is left and when a gold is counted; nothing in a debug-select run or ARCADE (save_lock).
 //   0x28 the boss cards seen "BK" (2026-10-17: the first time a boss appears the game opens his HOW TO PLAY card, src/boss.c): 0..1 magic, 2..3 the
 //   venues whose boss card was shown (bit v, little endian; only bits below BOSS_COUNT), 4 the checksum (0x5A + bytes 0..3), 5 its complement; no
 //   block, a bad checksum or a bit at or above BOSS_COUNT reads as no card seen (every card shows once more). Nothing is written in a debug-select run.
@@ -118,6 +122,11 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define STEP_CLAMP(r) ((r) >= STORY_STEPS ? STORY_STEPS - 1 : (r))
 #define BK_AT    0x28               // the boss cards seen "BK": 0..1 magic, 2..3 bit v = venue v's boss card was shown (LE; bits below BOSS_COUNT), 4 checksum, 5 complement
 #define BK_LEN   4
+#define SM_AT    0x1E               // the story map "SM": 0..1 magic, 2 the stop, 3 the flags, 4 checksum, 5 complement
+#define SM_LEN   4
+#if SM_AT + SM_LEN + 2 > BK_AT || DU_AT + DU_LEN + 2 > SM_AT
+#error "the map block overlaps its neighbours"
+#endif
 #define TBL_AT(t) (0x80 + (uint16_t)(t) * 0x40)
 #define TBL_LEN  (4 + TOP_N * 6)    // 34: bytes of a table block covered by its checksum
 #define V3_STORY 34                 // versions 3-6: the story progress
@@ -476,7 +485,7 @@ void hi_load(void) BANKED {
     story_progress = 0; story_reached = 0;
     if (magic('7')) {
         if (sum_ok(SRAM, V7_LEN) && (SRAM[V7_STORY] & PROG_MASK) <= STORY_MAX && SRAM[V7_STEP] < STEP_SAVED
-            && !((SRAM[V7_STORY] & PROG_MASK) == STORY_MAX && SRAM[V7_STEP])) {
+            && !((SRAM[V7_STORY] & PROG_MASK) == STORY_MAX && SRAM[V7_STEP] > 1)) {   // (chapter 10 cleared, step 1: the finale is not done yet; CONTINUE returns to the map)
             story_progress = SRAM[V7_STORY] & PROG_MASK; story_reached = STEP_CLAMP(SRAM[V7_STEP]);
             tune_unlocked = SRAM[V7_TUNES] | ((uint16_t)SRAM[V7_TUNES + 1] << 8);
         }
@@ -623,7 +632,8 @@ void story_save(uint8_t chapters, uint8_t step) BANKED {
 // (story_chapter | DEBUG_RESUME, set by pause.c's QUIT; main_cold.c clears it at start-up: WRAM is not zero on a real Game Boy)?
 extern uint8_t story_chapter;
 uint8_t can_continue(void) BANKED {
-    return ((story_progress || story_reached) && story_progress < STORY_CHAPTERS) || (story_chapter & DEBUG_RESUME);
+    return ((story_progress || story_reached) && story_progress < STORY_CHAPTERS) || (story_progress == STORY_CHAPTERS && story_reached)
+           || (story_chapter & DEBUG_RESUME);   // (all ten venues cleared, the finale not done: the map, for the Pour-Off)
 }
 
 // CONTINUE's difficulty: what the saved story was started in (an older save, a bad block, a bad code: NORMAL)
@@ -668,6 +678,26 @@ uint32_t venue_score_get(uint8_t ch) BANKED {
     }
     DISABLE_RAM;
     return s;
+}
+
+// The story map's block (src/smap.c): the stop and the festival flags into d[0], d[1]; 255 and 0 when the block does not check out
+void sm_get(uint8_t *d) BANKED {
+    volatile uint8_t *b = SRAM + SM_AT;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    if (b[0] == 'S' && b[1] == 'M' && sum_ok(b, SM_LEN) && b[2] <= 10 && !(b[3] & 0x88)) { d[0] = b[2]; d[1] = b[3]; }
+    else { d[0] = 255; d[1] = 0; }
+    DISABLE_RAM;
+}
+
+void sm_put(uint8_t stop, uint8_t flags) BANKED {
+    volatile uint8_t *b = SRAM + SM_AT;
+    if (save_lock) return;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    b[0] = 'S'; b[1] = 'M'; b[2] = stop; b[3] = flags;
+    sum_put(b, SM_LEN);
+    DISABLE_RAM;
 }
 
 // music_play, in story mode: tune t was heard. A new unlock heard in a shift (GS_PLAYING .. GS_LEVEL_CLEAR) is marked and saved at the next quiet moment (TUNE_FLUSH: a

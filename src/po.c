@@ -178,7 +178,7 @@ void po_enter(void) BANKED {
     uint8_t t[3][20], a[3][20], alt[5];
     for (zi = 0; zi < sizeof S; zi++) z[zi] = 0;
     for (k = 0; k < 8; k++) S.tune[k] = po_tune[k];
-    lives = PO_LIVES;
+    lives = PO_LIVES + smap_po_lives();          // (the story: + the festival golds won in this run, at most 3 more: src/smap.c)
     prep_hud();
     vram_put(7, HUD_ROW, lives_tiles, 2);
     Y.x = TAP_X; Y.bar = 1;

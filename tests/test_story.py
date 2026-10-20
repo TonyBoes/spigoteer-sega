@@ -210,7 +210,7 @@ def test_the_portrait_variants_follow_the_script():
     halves, FINALE_A's challenge has his main portrait). Data, not scene checks:
     portraits.json 'variants', resolved per page by gen_story."""
     knit = SCENES[SC["PRE_IGLOO"]]["pages"]
-    assert knit[1]["speaker"] == "AURORA" and knit[1]["lines"][-1] == "MUSTACHE COZY!"
+    assert knit[1]["speaker"] == "AURORA" and knit[1]["lines"][-1] == "BOBBLE HAT!"
     assert knit[2]["speaker"] == "SPIGOTEER" and knit[2]["lines"][0] == "IT'S... VERY COZY."
     seen = [(i, k, p["portrait"]) for i, s in enumerate(SCENES) for k, p in enumerate(s["pages"])
             if p["speaker"] == "SPIGOTEER"]
@@ -436,13 +436,32 @@ def play_items(rom):
     return menu_items(rom)
 
 
-def to_continue(rom):
-    """From the title's top level: PLAY > CONTINUE (first in PLAY when there is a story save)."""
+SP_MAP = 9
+
+
+def through_the_map(gb, limit=200):
+    """CONTINUE and every POST scene lead to the story map (src/smap.c, 2026-10-18): wait for it and press A at the stop Sal stands on (the next
+    venue: its PRE scene, or its Opening banner when a step of it was reached)."""
+    run_until(gb, lambda: state(gb) != TITLE and (gb.mem("story_phase") != 0 or state(gb) == GS_GOAL), limit)
+    if gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY:   # (a debug-select run quit and resumed goes straight in: no map)
+        gb.run(3)
+        gb.write("smap_stop", min(gb.mem("story_progress"), 9))   # (Sal on the next venue, wherever the saved map block left him)
+        gb.run(2)
+        gb.press("a", 2)
+        run_until(gb, lambda: gb.mem("story_phase") != SP_MAP, 60)
+    settle(gb)
+
+
+def to_continue(rom, via_map=True):
+    """From the title's top level: PLAY > CONTINUE (first in PLAY when there is a story save), then, as a story goes on from the map, A at the stop
+    (via_map=False: the map is left on screen)."""
     assert play_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE, K_CLASSIC], "CONTINUE, STORY, ARCADE, CLASSIC"
     for _ in range(4):                                    # (a key in the first frames of a freshly opened submenu is not taken: how many depends on the
         menu_tap(rom, "a")                                # code's timing; the first try is the frame count every golden was taken at)
         if state(rom) != TITLE:
             break
+    if via_map:
+        through_the_map(rom)
 
 
 def start_story(model, ram=None, cont=False):
@@ -457,10 +476,17 @@ def start_story(model, ram=None, cont=False):
     return rom
 
 
-def skip_scene(gb):
+def skip_scene(gb, stay=False):
     s = gb.mem("story_scene")
     gb.press("start", 2)
-    run_until(gb, lambda: gb.mem("story_scene") != s or state(gb) in (GS_GOAL, TITLE), 30)
+    run_until(gb, lambda: gb.mem("story_scene") != s or state(gb) in (GS_GOAL, TITLE) or (gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY), 30)
+    if gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY:   # (INTRO, a POST scene: the story map, src/smap.c)
+        if stay:
+            return
+        if s == SC["POST_SPACE"]:                         # the last POST scene: THE POUR-OFF at the town leads on to FINALE_A
+            map_to_finale(gb)
+            return
+        through_the_map(gb)                               # A at Sal's stop: the next venue's PRE scene, as the scenes used to follow each other
     settle(gb)
 
 
@@ -511,7 +537,7 @@ def to_chapter(model, c, banner=False):
         rom = start_story(model, v7_image([], story=c), cont=True)
     else:
         rom = start_story(model)
-        skip_scene(rom)                                   # INTRO
+        skip_scene(rom)                                   # INTRO (and the story map: A at the saloon)
     assert rom.mem("story_scene") == pre(c) and rom.mem("story_chapter") == c
     skip_scene(rom)                                       # the PRE scene
     if banner:
@@ -1072,10 +1098,10 @@ def test_each_chapter_plays_its_shifts_in_order(model, c):
             assert banner_text(gb, 1) == centred("CHAPTER CLEAR")
         run_until(gb, lambda: state(gb) == GS_STORY, 300)
         assert gb.mem("story_scene") == post(c)
-        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c + 1, 0)
+        assert (gb.mem("story_progress"), gb.mem("story_reached")) == (c + 1, int(c == 9)), "the last venue marks the finale reached (10, 1)"
         assert gb.mem("story_fails") == 0
         ram = save_ram(gb)
-    assert saved_story(ram) == (c + 1, 0), "the progress is in SRAM"
+    assert saved_story(ram) == (c + 1, int(c == 9)), "the progress is in SRAM"
     (o_spd, o_hur, _, _), (h_spd, h_hur, _, _), (l_spd, l_hur, _, _) = paces
     assert o_spd == h_spd * 85 // 100 and l_spd == h_spd * SHIFTS[c][2]["walk"] // 100
     assert o_spd < h_spd < l_spd
@@ -1413,7 +1439,8 @@ def test_each_last_call_pattern_sends_its_arrival_order(model, c):
             live = now
         want = bars + bars[:1]
         assert got == want, f"arrivals {got}, pattern {want}"
-        assert timers == [wait[w] for w in waits + waits[:1]]
+        want_t = [wait[w] for w in waits + waits[:1]]
+        assert len(timers) == len(want_t) and all(0 <= w - t <= 1 for t, w in zip(timers, want_t)), (timers, want_t)   # (read after the emulator's frame, which can end a few lines into the next game frame's logic: one decrement more, depending on the code's timing)
 
 
 # ---- (d) the whole run's end, save and continue -------------------------------------------------------------
@@ -1516,7 +1543,7 @@ def test_the_progress_survives_a_reset_and_continue_resumes(model):
         again.run(MENU_SETTLE)
         check_golden(again, "title_continue")                 # the PLAY submenu with a story save
         menu_tap(again, "a")
-        run_until(again, lambda: state(again) == GS_STORY, 30)
+        through_the_map(again)
         assert again.mem("story_scene") == SC["PRE_STADIUM"] and again.mem("story_chapter") == 1
 
 
@@ -1597,7 +1624,9 @@ def test_version_7_loads_its_progress_and_old_versions_reject_a_bad_one(model):
         assert table(rom) == EMPTY and rom.mem("save_migrated") == 6
     with booted(model, v7_image(story=10)) as rom:
         assert rom.mem("story_progress") == 10, "the story complete: 10 chapters"
-    for story, step in ((11, 0), (2, 5), (10, 1)):     # (well-formed checksums over a progress that cannot be)
+    with booted(model, v7_image(story=10, step=1)) as rom:
+        assert (rom.mem("story_progress"), rom.mem("story_reached")) == (10, 1), "all ten cleared, the finale not done: the story map's Pour-Off"
+    for story, step in ((11, 0), (2, 5), (10, 2)):     # (well-formed checksums over a progress that cannot be)
         with booted(model, v7_image([("ABC", 500)], story=story, step=step)) as rom:
             assert rom.mem("story_progress") == 0 and table(rom)[0] == ("ABC", 500), (story, step)
         with booted(model, v6_image([("ABC", 500)], story=story, step=step)) as rom:
@@ -1664,3 +1693,18 @@ def test_try_again_gives_the_venue_start_score(model):
         assert gb.mem("story_restarts") == 1 and gb.mem("lives") == 3 and gb.mem("story_step") == 0
         assert int.from_bytes(gb.read("score", 4), "little") == 12345
         assert gb.read("score_digits", 6) == bytes([0, 1, 2, 3, 4, 5])
+
+
+def map_to_finale(gb):
+    """From the story map with all ten venues cleared: THE POUR-OFF at the town (Dregs's nudge passed when fewer than 3 festival golds): FINALE_A's scene is up."""
+    run_until(gb, lambda: gb.mem("story_phase") == SP_MAP and state(gb) == GS_STORY, 200)
+    gb.run(4)
+    gb.write("smap_stop", 10)
+    gb.run(3)
+    for b, w in (("a", 25), ("down", 6), ("a", 25)):
+        gb.press(b, 2)
+        gb.run(w)
+    if gb.mem("story_phase") == SP_MAP:                   # (the nudge)
+        gb.press("a", 2)
+    run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE and gb.mem("story_scene") == SC["FINALE_A"], 60)
+    settle(gb)

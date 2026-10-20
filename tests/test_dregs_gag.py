@@ -172,7 +172,7 @@ def test_no_gag_on_the_other_pages_and_start_skips_one_cleanly(model, c):
             assert gag_state(gb2) == 1
             s = gb2.mem("story_scene")
             gb2.press("start", 2)
-            run_until(gb2, lambda: gb2.mem("story_scene") != s or state(gb2) != GS_STORY, 30)
+            run_until(gb2, lambda: gb2.mem("story_phase") == 9, 80)      # (the story map follows a POST scene)
             settle(gb2)
             assert gag_state(gb2) == 0 and gag_sprites(gb2) == []
 

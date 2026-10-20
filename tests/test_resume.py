@@ -27,6 +27,7 @@ def continue_(gb):
     title_pick(gb, ts.K_PLAY, K_CONTINUE, press=False)
     assert K_CONTINUE in menu_items(gb), "CONTINUE is offered"
     menu_tap(gb, "a")
+    ts.through_the_map(gb)                        # (CONTINUE lands on the story map: A there goes on, src/smap.c)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

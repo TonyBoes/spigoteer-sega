@@ -299,7 +299,7 @@ def test_fair_empties_count_the_bars_own_distance(boot):
         got.append(gb.mem16("next_arrival"))
     tap = taps(1)
     a0, a3 = got
-    assert a3 - a0 == (tap[3] - tap[0]) * 2, got
+    assert abs((a3 - a0) - (tap[3] - tap[0]) * 2) <= 1, got   # (+-1: bars 0 and 3 are stepped on different frames, drinkers every other frame)
 
 
 # ---- goldens: CLASSIC levels 13 (L R L R) and 23 (R R R R), slanted ------------------------------------------------------

@@ -166,6 +166,9 @@ def test_lifted_patrons_look_exactly_like_bg_ones(pair, group):
     for g in pair:
         slot = place(g, group)
     step_same(pair, 20)
+    for g in pair:                                  # (a lift on the very frame a drinker's sway changes leaves a pixel or a figure for a frame, with or without
+        for k in ((0, 70), (1, 93), (2, 100)):      # this change of timing (drinkers are stepped every other frame now): the lifts start 6 frames before the next change)
+            put(g, "patron_timer", slot[k], 30)
     run_hooks(pair, [(slot[k], HOOK_LIFT) for k in SET_A])
     assert b.mem("lift_total") == 4 and [b.read("lift_n", 4)[k] for k in range(4)] == [2, 2, 0, 0]
     assert len(lifted_sprites(b)) == 8

@@ -385,7 +385,11 @@ static uint8_t walker_pixel(uint8_t p, uint8_t f) {
 
 static uint8_t walking_step(uint8_t p) {
     uint8_t f, o;
-    if (patron_dist[p]) return watch_step(p);           // distracted by the show: no walking
+    if (patron_dist[p]) {                               // distracted by the show: no walking
+        f = patron_x[p] | DRAW_BACK;
+        if (patron_draw[p] == f) return 1;              // (already watching the stage, x a multiple of 8: watch_step would only say so, a banked call a frame)
+        return watch_step(p);
+    }
     if (mosh_on && (patron_shove[p] | patron_stag[p])) mosh_step(p);   // shoved or staggering (src/mosh.c)
     else if (go_now) {
         o = patron_frac[p];
@@ -535,15 +539,17 @@ static void finished_step(uint8_t p, uint8_t t) {
 }
 
 // Drinking: DRINK_FRAMES at least (DRINK_MIN), then finished_step (M8d). Redrawn only when the sway changes.
+// A drinker is stepped every other frame (update_patrons: the drinkers of the bars 0 and 2 on one frame, of 1 and 3 on the next), his timer counting 2 a step: the same pace, the poses
+// and the sway changing on the frame they did or one later, and the bartender's glass catch looking every other frame.
 static uint8_t drinking_step(uint8_t p) {
-    uint8_t t = patron_timer[p] + 1;
+    uint8_t t = patron_timer[p] + 2;
     if (patron_aux[p] == DRINK_MIN && t < DRINK_FRAMES) patron_timer[p] = t;
     else {
         finished_step(p, t);
         if (patron_state[p] != PATRON_DRINKING) { refresh_patron(p); return 1; }
         t = patron_timer[p];
     }
-    if (sway_tab[t] == sway_tab[(uint8_t)(t - 1)] && patron_draw[p] != 255) return 1;   // same sway: drawn as before
+    if (sway_tab[t] == sway_tab[(uint8_t)(t - 2)] && patron_draw[p] != 255) return 1;   // same sway: drawn as before
     refresh_patron(p);
     return 1;
 }
@@ -568,9 +574,12 @@ void update_patrons(void) {
     for (p = 0; p != MAX_PATRONS; p++) {
         if ((st = patron_state[p]) == PATRON_NONE) continue;
         if (st == PATRON_WALKING) live += walking_step(p);
+        else if (st == PATRON_DRINKING) {
+            if (!((patron_bar[p] ^ frame_counter) & 1)) drinking_step(p);   // (a drinker whose bar's frame it is not waits a frame; one bar's drinkers keep their slot order)
+            live++;                                                          // (it always returns 1)
+        }
         else if (st == PATRON_PUSHED) live += pushed_step(p);
-        else if (st == PATRON_LEAVING) live += leaving_step(p);
-        else live += drinking_step(p);
+        else live += leaving_step(p);
     }
     patrons_live = live;
     if (spawned >= quota && patrons_live == 0 && mugs_live == 0) level_clear = 1;

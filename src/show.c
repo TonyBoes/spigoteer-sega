@@ -15,7 +15,7 @@ void build_lists(void);
 void end_show(void) BANKED {
     uint8_t p;
     show_timer = 0;
-    music_play(TUNE_VENUE0 + cur_group);          // the venue's tune again, from its start
+    music_play((TUNE_VENUE0 + cur_group) | MUSIC_LATER);          // the venue's tune again, from its start
     for (p = 0; p < MAX_PATRONS; p++) {
         patron_dist[p] = 0;                      // (a drinker's timer is its drink / wind-up: left alone)
         if (patron_state[p] != PATRON_NONE && (patron_draw[p] & DRAW_BACK) && patron_draw[p] != 255)
@@ -51,7 +51,7 @@ static uint8_t near_watcher(uint8_t p) {
 void start_show(void) BANKED {
     uint8_t p, any = 0, first = NO_SLOT, old = 0;
     show_timer = SHOW_FRAMES;
-    music_play(TUNE_SHOW);                        // "Galop infernal" for as long as the show runs
+    music_play(TUNE_SHOW | MUSIC_LATER);              // "Galop infernal" for as long as the show runs
     dancer_frame = 0; dance_tick = 0;
     for (p = 0; p < MAX_PATRONS; p++) old |= patron_dist[p];
     for (p = 0; p < MAX_PATRONS; p++) {

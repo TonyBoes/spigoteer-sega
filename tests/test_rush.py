@@ -349,9 +349,9 @@ def test_a_story_boss_win_unlocks_him_and_it_survives_a_reset(model):
         menu_tap(gb, "a")                                 # (HOW HARD: NORMAL)
         run_until(gb, lambda: state(gb) == GS_STORY, 60)
         gb.write("story_step", 0)
-        while state(gb) != GS_GOAL:
-            gb.press("start", 2)
-            gb.run(3)
+        from test_story import skip_scene
+        skip_scene(gb)                                    # INTRO (and the story map: A at the saloon)
+        skip_scene(gb)                                    # PRE_SALOON
         to_goal(gb)
         assert gb.mem("story_chapter") == 0
         story_boss(gb)

@@ -196,6 +196,12 @@ def test_a_scene_leaves_for_the_next_behind_the_drink(title):
     title.press("start", 2)
     t.snap()
     t.until_done()
+    assert title.mem("story_phase") == 9 and t.fr[-1]["st"] == GS_STORY, "INTRO -> the story map (its name tag comes up on the window layer at once: the end state is not the drink's check)"
+    title.run(130)                                        # (the tag is gone)
+    t = Trace(title)
+    title.press("a", 2)                                   # A at the saloon: its PRE scene
+    t.snap()
+    t.until_done()
     check_drink(t)
     assert title.mem("story_scene") == pre(0) and t.fr[-1]["st"] == GS_STORY
     title.run(200)

@@ -47,8 +47,8 @@ Running gags:
    Igloo: slides the icy bar and rolls out the tunnel downhill. Factory: the conveyor carries him into a returns box. Chrome Cow: the chord's
    sound arcs (page 1), the blast (page 2). Teahouse: the beat, then he bounces out. Zoo: monkeys steal his boots and hat. Space: the tractor
    beam takes him up; the "came down" page sets him down in a pink-jacketed souvenir T-shirt (CGB).
-2. **The mustache.** Sadie rates it four tumbleweeds. Aurora knits it a **pink mustache cozy**,
-   which it wears for the rest of the game. Manager-Bot scans it, Zizz calls it a "face-broom",
+2. **The mustache.** Sadie rates it four tumbleweeds. Aurora knits him a **pink bobble hat**,
+   which he wears for the rest of the game. Manager-Bot scans it, Zizz calls it a "face-broom",
    and the credits confirm it's still on.
 3. **Where the pieces ended up.** Each one was being used for something silly: the handle was
    stuck in a piano, the nozzle piped frosting, the knob was on an igloo that has no door, the
@@ -535,7 +535,7 @@ LOOK FROZEN SOLID!
 AURORA
 HERE, I KNIT YOU
 SOMETHING: A|
-MUSTACHE COZY!
+BOBBLE HAT!
 
 SPIGOTEER
 IT'S...| VERY COZY.
@@ -555,7 +555,7 @@ BAR IS ICY!
 
 ### POST_IGLOO: "Warm and Fuzzy"
 
-Picture: the Spigoteer in his pink mustache cozy holds up the golden knob while the penguins wave goodbye.
+Picture: the Spigoteer in his pink bobble hat holds up the golden knob while the penguins wave goodbye.
 
 ```
 AURORA
@@ -582,7 +582,7 @@ TUNNEL, DOWNHILL.
 
 SPIGOTEER
 FIVE DOWN!| AND MY
-MUSTACHE HAS NEVER
+EARS HAVE NEVER
 BEEN SO TOASTY.
 
 SPIGOTEER
@@ -606,7 +606,7 @@ I AM MANAGER-BOT
 MANAGER-BOT
 SCANNING...|
 MUSTACHE DETECTED.
-ALSO A PINK COZY.
+ALSO A PINK HAT.
 
 SPIGOTEER
 @beat 2
@@ -968,7 +968,7 @@ ZIZZ, YOUR HOST!
 ZIZZ
 YOUR FACE-BROOM
 IS MOST HANDSOME!|
-ALSO VERY PINK.
+NICE PINK HAT TOO.
 
 SPIGOTEER
 THANKS. I'M HERE
@@ -1060,7 +1060,7 @@ I'LL POUR YOU ONE.
 
 ### FINALE_A: "The First Pour"
 
-Picture: the same Fizzwater square by day, pennants among the string lights. The restored Golden Spigot gleams on its fountain, its water runs into the glass the Spigoteer (in his cozy) holds up to the jet, a sheepish Dregs stands by, and the ten owners are lined up along the bottom. (`assets/story/pictures/finale_a.txt`; FINALE_B shows it too.)
+Picture: the same Fizzwater square by day, pennants among the string lights. The restored Golden Spigot gleams on its fountain, its water runs into the glass the Spigoteer (in his pink bobble hat) holds up to the jet, a sheepish Dregs stands by, and the ten owners are lined up along the bottom. (`assets/story/pictures/finale_a.txt`; FINALE_B shows it too.)
 
 Picture (page 4): the same square, now staged for the contest (owner Q56, 2026-10-18): the Spigoteer and Dregs stand facing each other in front of the fountain (their game sprites, the Golden Spigot untouched and not poured from), the ten owners watching along the bottom. It replaces the first-pour picture behind a white flash on page 4 (the last narrator page before Sadie's: a picture may only change on a narrator page) and stays through the challenge and the Pour-Off's lead-in. FINALE_B shows the first-pour picture again. (`assets/story/pictures/finale_contest.txt`, derived from `finale_a.txt` by `tools/gen_contest_pic.py`)
 
@@ -1174,7 +1174,7 @@ JUNE DOUBTS IT.
 NARRATOR
 @beat 2
 AND THE PINK
-MUSTACHE COZY?|
+BOBBLE HAT?|
 STILL WORN DAILY.
 
 NARRATOR
@@ -1185,6 +1185,10 @@ LAST CALL!
 ```
 
 ---
+
+## The story map (owner 2026-10-18, src/smap.c; first build)
+
+Between the chapters the story shows one full-screen map (the approved v14 art, assets/story_map, tools/gen_smap.py): eleven stops on one ring, the ten venues and the town square. INTRO's last page, every POST scene and CONTINUE lead to it. The D-pad snaps Sal (a 16x16 map sprite) from stop to stop; stops of venues not yet reached are locked (a red hollow dot) and skipped, the town is always open; gold arrows show the open directions; a name tag ("CH4 THE BISTRO") shows for 90 frames on each arrival. A at the next uncleared venue starts its PRE scene as before. A at a cleared venue opens PLAY / BACK and its best medal: PLAY runs that venue's mini-game only (never the boss; the story's score and progress do not move; a better medal upgrades the venue's saved medal). A at the town opens FESTIVAL GAMES (Shake Up after chapter 2, Perfect Pour after 4, Tip Shower after 7, each with its medal; the gold "!" over the tent shows while a newly unlocked one is unplayed) and THE POUR-OFF (greyed until all ten venues are cleared; with fewer than 3 festival golds Dregs first nudges the player, text only, to warm up). The Pour-Off starts with 3 lives + the festival golds won in this story run (NORMAL or HARD only, at most 3 more). The map's B does nothing. The save keeps the stop and the festival flags in a 6-byte block ("SM", save.c); "all ten cleared, finale not done" is saved as progress 10, step 1. Dregs's nudge wording is proposed, pending the owner.
 
 ## Art list
 
@@ -1200,7 +1204,9 @@ panel), facing right toward the Spigoteer at his taps; light from the upper righ
   3 palettes whose slot k is the colour of shade k. Two colours on one shade in a tile cannot be shown: the build fails.
 * An `obj=` key is a CGB-only accent drawn by one 8x16 OBJ over the BG (Sadie's gold star); DMG shows the base key's
   shade underneath. At most one per portrait in this style (3 sprites on a line with the Spigoteer's 2).
-* Budget: at most 44 unique tiles a portrait (no flips), 3 CGB BG palettes (slots 2-4), the background shade 2 with a
+* Budget: at most 49 unique tiles a portrait (no flips; every square of the 7x7; owner 2026-10-18, was 44). Every dialogue scene fits even with all its
+  portraits at 49 (the busiest, POST_ROBOT, would need 162 of 163 with the name plates). A picture scene's speakers are limited by the picture's
+  room instead: the INTRO's burst picture leaves the main SPIGOTEER at most 45 and the main DREGS at most 43 (their name plates take 3 and 5); the build names the portrait, 3 CGB BG palettes (slots 2-4), the background shade 2 with a
   per-character CGB colour, skin and whites shade 0, outline shade 3.
 
 All done (approved art imported pixel-exact, 2026-10-10; GRANNY 2026-10-11): **SPIGOTEER, SADIE, DREGS, COACH, JUNE,
@@ -1213,13 +1219,13 @@ overlaps another variant of his or that no page uses):
 
 | Variant | Source | Pages |
 |---|---|---|
-| SPIGOTEER COZY | `spigoteer_cozy.txt` | From PRE_IGLOO page 3 (his "IT'S... VERY COZY." right after Aurora knits it on page 2) to the end of the game: every Spigoteer page of PRE_IGLOO through FINALE_B (CREDITS has none). |
+| SPIGOTEER COZY | `spigoteer_cozy.txt` | From PRE_IGLOO page 3 (his "IT'S... VERY COZY." right after Aurora knits him the bobble hat on page 2) to the end of the game: every Spigoteer page of PRE_IGLOO through FINALE_B (CREDITS has none). |
 | DREGS SORRY | `dregs_sorry.txt` | FINALE_B pages 1-2, his apology "SORRY I BROKE IT." and "YOU POUR FIRST." (his only FINALE_B pages; his FINALE_A challenge has the main portrait). |
 
 | Portrait | One line |
 |---|---|
 | SPIGOTEER | Big curled mustache, spigoteer's apron and bow tie, confident grin. |
-| SPIGOTEER (cozy) | The same with the pink knitted mustache cozy, from PRE_IGLOO page 3 onward. |
+| SPIGOTEER (cozy) | The same in the pink knitted bobble hat (the variant is still named COZY), from PRE_IGLOO page 3 onward. |
 | DREGS | Lanky rival with a scraggly little mustache and a crooked bow tie, sheepish. His FINALE_B apology has its own variant (hand behind his head). |
 | SADIE | Small saloon owner, huge hat, sheriff-style star badge, big laugh. |
 | COACH | Coach Blitz: ball cap, whistle in his teeth, clipboard. |
@@ -1247,7 +1253,7 @@ overlaps another variant of his or that no page uses):
 | PRE_BISTRO | Candlelit bistro, three chefs peeking through the kitchen pass. |
 | POST_BISTRO | Silver dome lifted to reveal the nozzle; plate spinner behind. |
 | PRE_IGLOO | Glowing igloo under the northern lights, Aurora knitting at the entrance. |
-| POST_IGLOO | Spigoteer in the pink cozy with the knob; penguins waving. |
+| POST_IGLOO | Spigoteer in the pink bobble hat with the knob; penguins waving. |
 | PRE_ROBOT | Conveyor belts, big lightning-bolt sign, Manager-Bot on its platform. |
 | POST_ROBOT | Breakdancing robot on its dome; Manager-Bot offers the gasket. |
 | PRE_BIKER | Motorcycles outside a black, studded bar under a neon cow in sunglasses; Granny in the doorway with cookies, the drummer bashing the drip tray inside. |

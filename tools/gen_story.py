@@ -59,7 +59,8 @@ PUNCT = {".": "period", ",": "comma", "!": "excl", "?": "quest", "'": "apos", "-
 # and everything above it are free (no patrons on a cut-scene): the story font, then the scene's portraits.
 BG_END = 256
 MAX_W = MAX_H = 7                # portrait size in tiles (56x56)
-MAX_TILES = 44                   # unique BG tiles per portrait (docs/story.md "Portraits": the approved style's budget)
+MAX_TILES = 49                   # unique BG tiles per portrait: every square of 7x7 (owner 2026-10-18; was 44). The real limits are the
+                                 # scene budget (scene_budget) and, for a picture scene's speakers, the picture's room (see the pictures below)
 MAX_BG_PALS = 3                  # CGB BG palettes 2-4 (0 bar, 1 HUD / text box, 5-6 stage, 7 keg stay the venue's)
 MAX_OBJ_PALS = 4                 # CGB OBJ palettes 3-6 (0 the Spigoteer, 1-2 the drinks)
 OBJ_TILES = 32                   # OBJ ids of the show performers (OBJ_DANCER.. 127): the overlay tiles, all speakers
@@ -1392,7 +1393,10 @@ def main():
             n = len(p["tiles"]) + len(p.get("extra", []))
             room = PIC_POOL + BG_END - pbase
             if n > room:
-                fail(f"{name}: {n} unique tiles, {sid} has room for {room} (ids 0-{PIC_POOL - 1} and {pbase}-{BG_END - 1})")
+                big = max(sc["spk"], key=lambda q: len(ports[q]["tiles"]))
+                fail(f"{name}: {n} unique tiles, {sid} has room for {room} (ids 0-{PIC_POOL - 1} and {pbase}-{BG_END - 1}): "
+                     f"the scene's biggest portrait, {ports[big]['name']} ({len(ports[big]['tiles'])} tiles), may have at most "
+                     f"{len(ports[big]['tiles']) - (n - room)} unique tiles with this picture")
             pid = [i if i < PIC_POOL else pbase + i - PIC_POOL for i in range(n)]
             p.update(scene=sid, page=page, base=pbase, ids=pid, map=[pid[t] for t in p["tmap"]], n_extra=len(p.get("extra", [])),
                      cattr=[1 if a == "H" else PIC_SLOTS[a] for a in p["attr"]])

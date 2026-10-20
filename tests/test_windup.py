@@ -132,7 +132,7 @@ def test_next_arrival_counts_the_windup(gb):
     freeze(gb)
     gap = gb.mem("empty_gap")
     drinker_with_mug(gb, 2, 50, DRINK_FRAMES - 1)
-    gb.run(2)
+    gb.run(3)                                     # (drinkers are stepped every other frame: his step comes within 2)
     t = WINDUP + 2 * (TAP_X - (50 + 16))
     assert t + gap - 2 <= gb.mem16("next_arrival") <= t + gap
 

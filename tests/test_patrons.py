@@ -727,10 +727,13 @@ def test_empties_move_one_px_every_second_frame(gb):
     steps = [b - a for a, b in zip([40] + xs, xs)]
     assert steps == [0, 1] * 10, steps
     full = inject_mug(gb, 3, 100, FULL)
-    gb.run(1)
-    x0 = gb.read("mug_x", MAX_M)[full]
-    gb.run(5)
-    assert gb.read("mug_x", MAX_M)[full] == x0 - 10, "full mugs stay at 2 px per frame"
+    snaps = []                                    # (its x where each game frame's logic ends: an emulator frame's end can fall inside update_mugs, between two mugs, and move with the code's timing)
+    a = gb.addr("vq_frame_end")
+    gb.pb.hook_register(a >> 16, a & 0xFFFF, lambda _: snaps.append(gb.read("mug_x", MAX_M)[full]), None)
+    gb.run(8)
+    gb.pb.hook_deregister(a >> 16, a & 0xFFFF)
+    steps = [x - y for x, y in zip(snaps, snaps[1:])]
+    assert len(snaps) >= 7 and steps[1:6] == [2] * 5, "full mugs stay at 2 px per frame"
 
 
 def drinker_with_mug(gb, bar, x, timer):
@@ -757,9 +760,9 @@ def test_two_patrons_finishing_at_once_send_empties_that_arrive_empty_gap_apart(
     freeze(gb)                                    # nobody walks; drinking and empties go on
     gap = gb.mem("empty_gap")
     assert gap == 120, "level 1"
-    near = drinker_with_mug(gb, 0, 70, 89)        # both finish on the next frame
+    near = drinker_with_mug(gb, 0, 70, 89)        # both finish within the next 2 frames
     far = drinker_with_mug(gb, 0, 20, 89)
-    gb.run(2)
+    gb.run(3)                                     # (drinkers are stepped every other frame: each gets one step in 2; the third is a frame of slack for a frame boundary)
     aux = gb.read("patron_aux", MAX_P)
     assert aux[near] == DRINK_WINDUP, "the one nearer the bartender winds up to send his empty at once (M8d)"
     assert aux[far] == DRINK_WAIT, "the other sips on: his empty would arrive too soon after the first"
@@ -799,9 +802,9 @@ def test_a_lone_patron_is_never_held_back(gb):
     clear_patrons(gb)
     freeze(gb)
     p = drinker_with_mug(gb, 1, 30, 89)
-    gb.run(2)
+    gb.run(3)                                     # (drinkers are stepped every other frame: his step comes within 2)
     assert gb.read("patron_aux", MAX_P)[p] == DRINK_WINDUP, "winds up at once (M8d)"
-    gb.run(WINDUP)
+    gb.run(WINDUP + 1)
     assert gb.read("patron_state", MAX_P)[p] == WALKING and [m["state"] for m in mugs(gb)] == [EMPTY]
 
 
