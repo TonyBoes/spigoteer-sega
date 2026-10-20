@@ -237,6 +237,9 @@ void start_new_game(uint8_t lv) BANKED {
     uint8_t i;
     lives = START_LIVES; level = lv; score = 0; bonus_round = 0; story_on = 0; story_arc = 0;
     extra_at = play_mode == MODE_CLASSIC ? EXTRA_FIRST : 0;   // extra lives: CLASSIC, not the harness
+#ifdef POUR_STREAK
+    pour_streak = 0;
+#endif
     pour_q = 0;                                  // arcade: never a perfect pour (src/pour.c runs in story only)
     pat_len = 0;                                 // arcade: the normal random arrivals (a story shift sets a pattern)
     music_fast = 0; mosh_set(0, 0);              // arcade: no venue twists (a story shift sets them)

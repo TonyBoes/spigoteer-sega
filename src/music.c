@@ -89,7 +89,33 @@ static const sfx_step_t s_swish[]  = { {0x12, 4, 0} };
 // The perfect pour's chime (story; src/mugs.c launch_mug plays it INSTEAD of SFX_LAUNCH when the release is perfect; channel 1, 15 frames,
 // 50% pulse, envelope 0xA2: volume 10 of 15, a slow decay): a soft two-note "ting", G6 then D7 (a fifth up, ~1.57 kHz and ~2.35 kHz), the
 // second note ringing out. Gentler and lower than the catch's two high pings and the coin's ba-ding; short enough to land on the release.
+#if defined(POUR_SFX_A) || defined(POUR_SFX_B) || defined(POUR_SFX_C)
+// Playtest candidates for a more celebratory perfect pour (owner 2026-10-19; make POUR_SFX=A|B|C). All channel 1, 12.5% pulse (the glassiest
+// duty), envelope 0xD2 (volume 13, a slow decay: a little above the serve's 10 and the coin's 12). D major, a rising arpeggio to the octave:
+// D6 F#6 A6 D7, the first note sweeping up into pitch over its 4 frames (the software slide: period +14 a frame).
+//   A: 4+3+3+9 = 19 frames.   B: A with the last note shortened to 5, then D7 echoed twice at falling volume (0x82, 0x42): 25 frames.
+//   C: A, plus a quiet 6-frame noise shimmer on channel 4 (s_shimmer, below), started with the first note.
+#ifdef POUR_SFX_B
+static const sfx_step_t s_perfect[] = { {1895, 4, 14}, {1959, 3, 0}, {1973, 3, 0}, {1992, 5, 0}, {1992, 4, 0}, {1992, 6, 0} };
+#else
+static const sfx_step_t s_perfect[] = { {1895, 4, 14}, {1959, 3, 0}, {1973, 3, 0}, {1992, 9, 0} };
+#endif
+#else
 static const sfx_step_t s_perfect[] = { {1964, 3, 0}, {1992, 12, 0} };
+#endif
+#ifdef POUR_SFX_C
+static const sfx_step_t s_shimmer[] = { {0x11, 3, 0}, {0x10, 3, 0} };           // channel 4: high bright noise, volume 5 fading out
+static const sfx_def_t d_shimmer = { 3, 0x00, 0x51, 2, s_shimmer };
+#endif
+#ifdef POUR_STREAK
+uint8_t pour_streak;                 // consecutive perfect pours + 1 (0: the last pour was not perfect), capped at POUR_STREAK_MAX + 1; src/mugs.c launch_mug
+static uint16_t pour_up(uint16_t p) {   // the period p raised pour_streak-1 whole tones: the wave length x 0.8906 (2^-1/6 = 0.8909) each
+    uint16_t d = 2048 - p;
+    uint8_t n = pour_streak;
+    while (--n) d = d - (d >> 3) + (d >> 6);
+    return 2048 - d;
+}
+#endif
 static const sfx_step_t s_rev[]    = { {0x4B, 10, 0}, {0x4A, 10, 0}, {0x3B, 10, 0}, {0x3A, 10, 0}, {0x39, 10, 0} };
 
 #define N(a) (sizeof(a) / sizeof((a)[0]))
@@ -109,7 +135,11 @@ static const sfx_def_t sfx_defs[SFX_COUNT] = {
     { 3, 0x00, 0xD0, N(s_rev),    s_rev },
     { 3, 0x00, 0xA1, N(s_whoosh), s_whoosh },
     { 3, 0x00, 0x41, N(s_swish),  s_swish },
+#if defined(POUR_SFX_A) || defined(POUR_SFX_B) || defined(POUR_SFX_C)
+    { 0, 0x00, 0xD2,  N(s_perfect), s_perfect },       // (the playtest candidate; two spaces so tests/test_harmony.py's row pattern sees only the shipped chime)
+#else
     { 0, 0x80, 0xA2, N(s_perfect), s_perfect },
+#endif
 };
 
 typedef struct {
@@ -229,11 +259,18 @@ void music_set_on(uint8_t on) BANKED {
 
 static void step_begin(voice_t *v) {
     const sfx_step_t *s = &v->def->steps[v->step];
+    uint8_t env = v->def->env;
     v->freq = s->freq; v->slide = s->slide; v->left = s->len;
+#ifdef POUR_STREAK
+    if (v->def == &sfx_defs[SFX_PERFECT] && pour_streak > 1) v->freq = pour_up(v->freq);
+#endif
+#ifdef POUR_SFX_B
+    if (v->def == &sfx_defs[SFX_PERFECT] && v->step >= 4) env = (v->step == 4) ? 0x82 : 0x42;   // the echoes
+#endif
     if (v->def->ch == 0) {
         NR10_REG = 0;
         NR11_REG = v->def->duty;
-        NR12_REG = v->def->env;
+        NR12_REG = env;
         NR13_REG = (uint8_t)v->freq;
         NR14_REG = 0x80 | (v->freq >> 8);
     } else {
@@ -244,6 +281,16 @@ static void step_begin(voice_t *v) {
     }
 }
 
+#ifdef POUR_SFX_C
+static void shimmer_start(void) {       // under the chime; never over a channel-4 effect that is sounding (a crash, a rev...)
+    voice_t *w = &voice[1];
+    if (w->busy) return;
+    w->def = &d_shimmer; w->step = 0; w->busy = 1;
+    set_mute(3, 1);
+    step_begin(w);
+}
+#endif
+
 static void sfx_start(uint8_t id) {
     voice_t *v = &voice[sfx_defs[id].ch ? 1 : 0];
     if (v->busy && v->def == &sfx_defs[SFX_EXTRA] && id != SFX_EXTRA) return;   // the extra life is not cut short
@@ -253,6 +300,9 @@ static void sfx_start(uint8_t id) {
     v->busy = 1;
     set_mute(v->def->ch, 1);        // the driver lets go of the channel (and cuts its note) before we write
     step_begin(v);
+#ifdef POUR_SFX_C
+    if (id == SFX_PERFECT) shimmer_start();
+#endif
 }
 
 static void voice_tick(uint8_t i) {
@@ -280,6 +330,9 @@ static void groove_row(void) {      // (tick calls it on the frame the row count
     g_cnt = hUGE_ticks_per_row;      // this row's length, as the driver has just set it
     d = groove[2 + g_pos];
     if (++g_pos == groove[0]) g_pos = 0;
+#ifdef POUR_SFX_C
+    if (d && voice[1].busy && voice[1].def == &d_shimmer) voice[1].busy = 0;   // a groove drum cuts the shimmer short
+#endif
     if (d && !voice[1].busy && !(hUGE_mute_mask & TK_NOGROOVE)) {
         const uint8_t *k = drum_kit[d - 1];
         NR41_REG = k[0]; NR42_REG = k[1]; NR43_REG = k[2]; NR44_REG = k[3];
