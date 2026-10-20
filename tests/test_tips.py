@@ -17,7 +17,7 @@ def art(name):
     return int(re.search(rf"#define {name} (\d+)", _ART_H).group(1))
 
 
-OBJ_COIN = art("BARTENDER_FRAMES") * art("BARTENDER_TILES_PER_FRAME") + art("MUG_TILE_COUNT") + art("GLASS_TILE_COUNT") \
+OBJ_COIN = GAME["OBJ_BT_END"] + art("MUG_TILE_COUNT") + art("GLASS_TILE_COUNT") \
     + art("MUG_FILL_TILE_COUNT") + art("MUG_DRINK_TILE_COUNT")
 OBJ_DANCER = OBJ_COIN + art("COIN_TILE_COUNT")
 DANCER_TILES = art("DANCER_TILE_COUNT")

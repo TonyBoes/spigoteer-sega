@@ -748,7 +748,7 @@ void draw_bartender(void) {
     if (bt_drawn[0] == bar && bt_drawn[1] == bartender_x && bt_drawn[2] == bartender_frame && bt_drawn[3] == facing && bt_drawn[4] == bt_bob) return;
     bt_drawn[0] = bar; bt_drawn[1] = bartender_x; bt_drawn[2] = bartender_frame; bt_drawn[3] = facing; bt_drawn[4] = bt_bob;
     bt_new = 1;
-    base = OBJ_BARTENDER + bartender_frame * BARTENDER_TILES_PER_FRAME;
+    base = OBJ_BARTENDER + BT_PIC(bartender_frame) * BARTENDER_TILES_PER_FRAME;
     ytop = bar_oam_y[bar] + BT_DY - bt_bob;               // 24 px tall: feet BT_DY px past the bottom of the counter row
     ybot = ytop + 16;
     flags = (facing ? S_FLIPX : 0) | OBJPAL_BARTENDER;

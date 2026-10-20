@@ -222,7 +222,7 @@ def test_picking_another_can_shoots_a_geyser_then_rains_soda_over_the_screen(gb)
     before, picked = _lose_setup(gb)
     can_x = can_pos(gb)[picked]
     can_top = GAME["CAN_TOP"] if "CAN_TOP" in GAME else 72
-    bt_fail = 6 * art("BARTENDER_TILES_PER_FRAME")
+    bt_fail = 4 * art("BARTENDER_TILES_PER_FRAME")      # the fail PICTURE (5 pictures: idle, walk1, walk2, fill, fail)
     geyser_top, peak_t = 999, 0
     drops_seen, xs, ys, on_bartender = set(), set(), set(), 0
     worst = 0

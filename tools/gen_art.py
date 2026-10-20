@@ -3,7 +3,7 @@
 
   bar.txt        shared BG tiles (HUD glyphs, panel): '@name' blocks, cut into 8x8 tiles row-major, loaded after
                  the venue slots (TILE_GENERIC_BASE).
-  bartender.txt  7 frames 16x24 -> per frame 4 OAM entries of 8x16 (2 columns x
+  bartender.txt  5 frames 16x24 -> per frame 4 OAM entries of 8x16 (2 columns x
                  2 rows; the bottom row is 8 px of art + 8 px transparent pad),
                  8 tiles per frame: [c0 top, c0 top-low, c1 top, c1 top-low,
                  c0 bot, pad, c1 bot, pad].
@@ -1167,7 +1167,7 @@ def _main():
 
     # ---- bartender ----
     frames = [r for _, r in blocks(ROOT / "assets/art/bartender.txt")]
-    assert len(frames) == 7 and all(len(f) == 24 and len(f[0]) == 16 for f in frames)
+    assert len(frames) == 5 and all(len(f) == 24 and len(f[0]) == 16 for f in frames)
     bt, padded = [], []
     blank = ["." * 8] * 8
     for f in frames:
@@ -1177,7 +1177,7 @@ def _main():
             for cx in (0, 8):
                 bt += tile_bytes(pad, cx, ty) + tile_bytes(pad, cx, ty + 8)
         # reorder: entries must be c0top, c1top, c0bot, c1bot -> already (ty outer, cx inner)
-    h += ["#define BARTENDER_FRAMES 7", "#define BARTENDER_TILES_PER_FRAME 8",
+    h += ["#define BARTENDER_FRAMES 5", "#define BARTENDER_TILES_PER_FRAME 8",
           f"#define BARTENDER_TILE_COUNT {len(bt) // 16}", "extern const uint8_t bartender_tiles[];", ""]
     c.append(fmt("bartender_tiles", bt))
     png(padded, prev / "bartender_x8.png", 8, transparent=True)

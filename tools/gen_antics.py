@@ -20,7 +20,7 @@ from gen_art import blocks, png, tile_bytes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 ART = ROOT / "assets/art/antics"
-BT_IDLE, BT_FAIL = 0, 6
+BT_IDLE, BT_FAIL = 0, 4        # indices in bartender.txt (5 frames: idle, walk1, walk2, fill, fail)
 
 
 def frames(path, n, w, h):

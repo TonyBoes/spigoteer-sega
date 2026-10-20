@@ -482,6 +482,7 @@ def test_lost_life_freezes_then_restarts_the_bars(gb):
     assert gb.mem("lives") == 2
     gb.run(2)
     assert gb.mem("bartender_frame") == BT_FAIL
+    assert gb.oam()[0]["tile"] == 4 * 8, "the fail picture (picture 4 of the 5)"
     frozen = (patrons(gb), gb.mem("bartender_x"), gb.mem("bar"))
     gb.run(100)
     assert state(gb) == LIFE_LOST and (patrons(gb), gb.mem("bartender_x"), gb.mem("bar")) == frozen

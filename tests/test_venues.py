@@ -31,7 +31,7 @@ def art(name):
     return int(re.search(rf"#define {name} (\d+)", ART_H).group(1))
 
 
-OBJ_MUG = art("BARTENDER_TILE_COUNT")
+OBJ_MUG = GAME["OBJ_BT_END"]
 OBJ_MUG_FILL = OBJ_MUG + art("MUG_TILE_COUNT") + art("GLASS_TILE_COUNT")
 OBJ_MUG_DRINK = OBJ_MUG_FILL + art("MUG_FILL_TILE_COUNT")
 OBJ_DANCER = OBJ_MUG_DRINK + art("MUG_DRINK_TILE_COUNT") + art("COIN_TILE_COUNT")

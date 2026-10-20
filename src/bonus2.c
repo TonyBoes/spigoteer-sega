@@ -165,7 +165,7 @@ static void spr(uint8_t i, uint8_t x, uint8_t y, uint8_t tile, uint8_t prop) {
 static void hide(uint8_t i, uint8_t n) { while (n--) shadow_OAM[i++].y = 0; }
 
 static void draw_bt(uint8_t o, uint8_t x, uint8_t f, uint8_t left) {     // OAM o..o+3
-    uint8_t base = f * BARTENDER_TILES_PER_FRAME, xa = x + 8, xb = x + 16, fl = 0;
+    uint8_t base = BT_PIC(f) * BARTENDER_TILES_PER_FRAME, xa = x + 8, xb = x + 16, fl = 0;
     if (left) { xa = x + 16; xb = x + 8; fl = S_FLIPX; }
     spr(o, xa, (uint8_t)BT_OAM_Y,      base,     fl);
     spr(o + 1, xb, (uint8_t)BT_OAM_Y,      base + 2, fl);

@@ -55,6 +55,7 @@ def test_hold_then_release_launches_one_mug_that_slides_left(gb):
     gb.hold("a")
     gb.run(10)
     assert gb.mem("bartender_frame") == 3, "fill pose"
+    assert gb.oam()[0]["tile"] == 3 * 8, "the fill picture"
     assert gb.mem("mugs_live") == 0
     gb.run(20)
     gb.release("a")
@@ -63,6 +64,7 @@ def test_hold_then_release_launches_one_mug_that_slides_left(gb):
     (state, b, x0), = mugs(gb)
     assert (state, b) == (FULL, 0)
     assert gb.mem("bartender_frame") == 4, "slide pose after launch"
+    assert gb.oam()[0]["tile"] == 3 * 8, "the slide state shows the fill picture (5-frame art, owner decision)"
     for n in range(1, 6):
         gb.run(1)
         (_, _, x), = mugs(gb)
@@ -225,7 +227,7 @@ def _define(name):
     return int(__import__("re").search(rf"#define {name} (\d+)", ART_H).group(1))
 
 
-OBJ_MUG = _define("BARTENDER_TILE_COUNT")
+OBJ_MUG = GAME["OBJ_BT_END"]   # Sal ends at 40, the drink starts at 56
 OBJ_MUG_FILL = OBJ_MUG + _define("MUG_TILE_COUNT") + _define("GLASS_TILE_COUNT")
 FILL_OAM = 4
 FILL_FRAMES_N = GAME["FILL_FRAMES"]          # M8a: 16

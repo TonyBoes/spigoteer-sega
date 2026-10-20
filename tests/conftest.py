@@ -490,7 +490,14 @@ def _art(name):
     return int(_re.search(rf"#define {name} (\d+)", _ART).group(1))
 
 
-OBJ_MUG_ID = _art("BARTENDER_TILE_COUNT")
+OBJ_BT_END = GAME["OBJ_BT_END"]                       # Sal: 5 frames x 8 = OBJ 0..39, 40..55 free; the venue drink starts at 56
+OBJ_MUG_ID = OBJ_BT_END
+
+
+def bt_picture(state):
+    """Sal's logical state (BT_* in src/game.h, 0..6) -> his PICTURE index in assets/art/bartender.txt (idle, walk1, walk2,
+    fill, fail): SLIDE (4) and CATCH (5) show the fill picture (owner decision 2026-10-20), FAIL (6) is picture 4."""
+    return state if state <= 3 else 4 if state == 6 else 3
 OBJ_MUG_DRINK_ID = OBJ_MUG_ID + _art("MUG_TILE_COUNT") + _art("GLASS_TILE_COUNT") + _art("MUG_FILL_TILE_COUNT")
 OBJ_DMG_COPY = GAME["OBJ_DMG_COPY"]
 DMG_COPIES = {OBJ_DMG_COPY + k: OBJ_MUG_ID + k for k in range(4)}                     # sliding full, sliding empty

@@ -139,12 +139,17 @@ enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUS
        GS_JUKEBOX,                                      // the title's BONUS: the soundtrack player (src/jukebox.c)
        GS_MGLIST };                                     // BONUS > MINI GAMES: the list (src/mg_list.c)
 
-// bartender animation frames (order of assets/art/bartender.txt)
+// bartender animation states (logical: the code, the tests and Dregs's 7-frame set use these)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
+// Sal's art has 5 pictures (assets/art/bartender.txt: idle, walk1, walk2, fill, fail); BT_PIC(state) is the picture index.
+// SLIDE and CATCH show the FILL picture (owner decision 2026-10-20). Dregs (src/po.c) keeps his own 7 frames: no BT_PIC there.
+#define BT_PIC_FAIL     4
+#define BT_PIC(f)       ((f) <= BT_FILL ? (f) : (f) == BT_FAIL ? BT_PIC_FAIL : BT_FILL)
 
 // OBJ tile layout in VRAM
 #define OBJ_BARTENDER   0
-#define OBJ_MUG         (BARTENDER_FRAMES * BARTENDER_TILES_PER_FRAME)
+#define OBJ_BT_END      56    // Sal's 5 frames x 8 = OBJ 0..39; OBJ 40..55 are FREE (unused since the 5-frame art; do not renumber the world, use them)
+#define OBJ_MUG         OBJ_BT_END
 #define OBJ_GLASS       (OBJ_MUG + MUG_TILE_COUNT)
 #define OBJ_MUG_FILL    (OBJ_GLASS + GLASS_TILE_COUNT)
 #define OBJ_MUG_DRINK   (OBJ_MUG_FILL + MUG_FILL_TILE_COUNT)

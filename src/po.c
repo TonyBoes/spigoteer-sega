@@ -608,7 +608,7 @@ static void draw(void) {
     struct po_mug *m = S.mug;
     OAM_item_t *o = shadow_OAM + OAM_MUG0;
     struct po_seat *s;
-    put_bt(OAM_YOU, Y.x, BAR_TOP_Y(Y.bar) + BT_DY - Y.bob, OBJ_BARTENDER + Y.frame * BARTENDER_TILES_PER_FRAME, Y.facing, 0);
+    put_bt(OAM_YOU, Y.x, BAR_TOP_Y(Y.bar) + BT_DY - Y.bob, OBJ_BARTENDER + BT_PIC(Y.frame) * BARTENDER_TILES_PER_FRAME, Y.facing, 0);
     f = D.frame;
     put_bt(OAM_DREGS, D.x, BAR_TOP_Y(D.bar) + BT_DY, PO_DREGS + f * BARTENDER_TILES_PER_FRAME, f != BT_FILL, is_cgb ? PO_DREGS_PAL : S_PALETTE);
     // the glasses under the spouts

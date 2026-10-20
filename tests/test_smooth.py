@@ -19,7 +19,7 @@ def define(name):
     return int(re.search(rf"#define {name} (\d+)", ART_H).group(1))
 
 
-OBJ_DRINK = (define("BARTENDER_TILE_COUNT") + define("MUG_TILE_COUNT") + define("GLASS_TILE_COUNT")
+OBJ_DRINK = (GAME["OBJ_BT_END"] + define("MUG_TILE_COUNT") + define("GLASS_TILE_COUNT")
              + define("MUG_FILL_TILE_COUNT"))
 DRINK_TILES = range(OBJ_DRINK, OBJ_DRINK + define("MUG_DRINK_TILE_COUNT"))
 

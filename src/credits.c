@@ -240,7 +240,7 @@ static void cr_sprites(void) {                    // the roll's band
         cr_oam(5 + 2 * k, y + 8 - bob, 24 + 32 * k + 16, CR_T_P + 6 * k + 2, is_cgb ? OBJPAL_ROBOT + k : 0);
     }
     f = ((t >> 4) & 3) == 1 ? BT_CATCH : BT_IDLE;     // the Spigoteer: a hand up now and then
-    cr_fig(0, y, CR_BT_X, OBJ_BARTENDER + f * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
+    cr_fig(0, y, CR_BT_X, OBJ_BARTENDER + BT_PIC(f) * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
 }
 
 // ---- the cards ------------------------------------------------------------------------------------------------------------------------
@@ -474,7 +474,7 @@ static void cr_card_sprites(uint8_t c) {          // every frame a card is shown
     if (kd == CK_SPIGOTEER || kd == CK_DREGS) {    // his walk cycle (walk, idle, the other foot, idle: 16 frames each), at the text's left, level with it
         pose = cr_walk[(t >> 4) & 3];
         y = 8 * (CR->ky + CR_PT->h + 2) + 12;      // (OAM y: the sprite's top 4 px above the first text row's, so that it stands level with the two lines)
-        if (kd == CK_SPIGOTEER) cr_fig(0, y, CT_SAL_X, OBJ_BARTENDER + pose * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
+        if (kd == CK_SPIGOTEER) cr_fig(0, y, CT_SAL_X, OBJ_BARTENDER + BT_PIC(pose) * BARTENDER_TILES_PER_FRAME, OBJPAL_BARTENDER, 0);
         else cr_fig(0, y, CT_DREGS_X, CR_T_D + pose * 8, is_cgb ? OBJPAL_CAST : 0, 0);
     } else if (kd == CK_BOSS) {                    // his walk and gulp, the topper bobbing with the stomp
         pose = cr_seq[(t >> 4) & 7];

@@ -37,7 +37,7 @@ OFF = ART["off"]
 OBJ = ART["obj_at"]
 S_PALETTE = 0x10
 LANE_Y = (48, 72)
-BT_FILL, BT_FAIL, BT_TILES = 3, 6, 8            # the bartender's frames (src/game.h) and their OBJ tiles a frame
+BT_FILL, BT_FAIL, BT_TILES = 3, 4, 8            # Sal's PICTURES (bartender.txt: idle, walk1, walk2, fill, fail) and their OBJ tiles a frame
 
 
 def taiko(model, mode=MG_PRACTICE, seed=SEED, music=False):

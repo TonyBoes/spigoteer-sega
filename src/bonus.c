@@ -67,8 +67,8 @@ void venue_backdrop(uint8_t first, uint8_t counter_row) BANKED;   // venue.c
 #define CAT_TOP          73                 // level 3's bar cat 16x16 (feet row 14): its feet on the counter top (y 88) like the cans'
 #define CAT_END         176                 // the walk's clock / 4 when its tail has left the screen
 #define OBJPAL_CAT        5
-#define BT_CATCH_F        5
-#define BT_FAIL_F         6
+#define BT_CATCH_F        3                 // Sal's PICTURE index (bartender.txt: catch shows the fill picture)
+#define BT_FAIL_F         4                 // the fail picture
 #define NUM_CANS          6
 #define HOP_H            16
 

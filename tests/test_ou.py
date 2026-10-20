@@ -129,7 +129,7 @@ def colby(gb):
 
 
 def spig(gb):
-    return oam(gb, OAM_SPIG)["tile"] // 8                 # the bartender's frame (mg_spigoteer)
+    return oam(gb, OAM_SPIG)["tile"] // 8                 # the bartender's PICTURE index (mg_spigoteer): 0 idle, 3 fill (= slide and catch), 4 fail
 
 
 def sfx(gb):
@@ -336,7 +336,7 @@ def test_right_presses_serve_and_order_up(model):
             assert score(gb) == start + DISH_PTS * (i + 1), "the HUD score live"
             assert sfx(gb)[TONE[d]] == before[TONE[d]] + 1
             frames(gb, 1)
-            assert pips(gb) == (3, i + 1) and cell_tiles(gb, d) == dish_tiles(d, lit=True) and spig(gb) == 4
+            assert pips(gb) == (3, i + 1) and cell_tiles(gb, d) == dish_tiles(d, lit=True) and spig(gb) == 3
             if i == 1:
                 shot(gb, "turn")
                 check_golden(gb, "ou_turn")
@@ -350,7 +350,7 @@ def test_right_presses_serve_and_order_up(model):
         assert gb.mem16("mg_score") == 3 * DISH_PTS + ROUND_PTS and ou(gb)["cleared"] == 1
         c = OU_BG + OH["OUB_CLOCHE"] + 4
         assert cell_tiles(gb, CLOCHE) == [c, c + 1, c + 2, c + 3], "the cloche lifted"
-        assert colby(gb) == C_PLEASED and spig(gb) == 5 and pips(gb) == (3, 3)
+        assert colby(gb) == C_PLEASED and spig(gb) == 3 and pips(gb) == (3, 3)
         w = [oam(gb, OAM_WAITER + k) for k in range(4)]
         assert all(o["y"] for o in w) and (w[0]["x"], w[0]["y"]) == (WAITER_X + 8, WAITER_Y + 16)
         assert all(96 <= o["tile"] < 128 for o in w), "the bistro show's waiter (its tiles from the level load)"
@@ -391,7 +391,7 @@ def test_a_wrong_press_is_sent_back_and_the_same_order_called_again(model):
         assert (o["x"], o["y"], o["tile"]) == (x * 8 + 8, y * 8 + 16, OU_OBJ + OH["OUO_X"])
         assert o["prop"] & 7 == 6 if model == "cgb" else o["prop"] & 0x10, "the X: OBJ palette 6 / OBP1"
         assert cell_tiles(gb, bad) == dish_tiles(bad, lit=True)
-        assert colby(gb) == C_CROSS and spig(gb) == 6 and pips(gb) == (3, 1)
+        assert colby(gb) == C_CROSS and spig(gb) == 4 and pips(gb) == (3, 1)
         st = oam(gb, OAM_STEAM)
         assert (st["x"], st["y"]) == (COLBY_X - 1 + 8, COLBY_Y - 16 + 16)
         puffs = {oam(gb, OAM_STEAM)["tile"]}
@@ -472,7 +472,7 @@ def test_a_perfect_game(model):
         assert text(gb, 2) == "ALL ORDERS SERVED" and text(gb, 3) == "NO STRIKES 1000"
         total = 42 * DISH_PTS + ROUND_PTS * 28 + PERFECT
         assert gb.mem16("mg_score") == total == 8700 and score(gb) == total
-        assert colby(gb) == C_PLEASED and spig(gb) == 5 and oam(gb, OAM_WAITER)["y"]
+        assert colby(gb) == C_PLEASED and spig(gb) == 3 and oam(gb, OAM_WAITER)["y"]
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT and gb.mem("overlay_on") == 1, 100)
         frames(gb, 3, worst)
         assert gb.mem("mg_medal") == MEDAL_GOLD and score(gb) == total + MEDAL_PTS[MEDAL_GOLD]
@@ -498,7 +498,7 @@ def test_three_strikes_end_it_and_the_medal_is_the_rounds_served(model, cleared,
         s = ou(gb)
         assert s["st"] == OS_OVER and s["strikes"] == 3 and s["cleared"] == cleared and gb.mem("mg_phase") == MG_END
         assert text(gb, 2) == "THREE STRIKES" and text(gb, 3) == f"ORDERS SERVED {cleared}" and strikes_hud(gb) == 3
-        assert colby(gb) == C_CROSS and spig(gb) == 6
+        assert colby(gb) == C_CROSS and spig(gb) == 4
         dishes = sum(r + 2 for r in range(1, cleared + 1))
         assert gb.mem16("mg_score") == dishes * DISH_PTS + ROUND_PTS * cleared * (cleared + 1) // 2
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT and gb.mem("overlay_on") == 1, 100)

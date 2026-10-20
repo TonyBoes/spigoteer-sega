@@ -197,8 +197,8 @@ def test_dregs_has_his_own_art_and_palette_and_does_not_read_as_a_second_spigote
     gb = pour
     got = bytes(gb.read(0x8000 + OBJ_DREGS * 16, 56 * 16))
     assert got == bytes(ART["dregs"]) and ART["n"] == 56
-    spig = bytes(gb.read(0x8000, 56 * 16))
-    assert spig != got and sum(a != b for a, b in zip(spig, got)) > 400                 # nothing like it, byte for byte
+    spig = bytes(gb.read(0x8000, 40 * 16))                                              # Sal's 5 pictures
+    assert spig != got[:40 * 16] and sum(a != b for a, b in zip(spig, got)) > 400                 # nothing like it, byte for byte
     s = po(gb)
     d, y = [oam(gb, i) for i in range(4, 8)], [oam(gb, i) for i in range(4)]
     assert [e["tile"] for e in d] == [OBJ_DREGS + f for f in (0, 2, 4, 6)]            # his idle frame
@@ -210,7 +210,7 @@ def test_dregs_has_his_own_art_and_palette_and_does_not_read_as_a_second_spigote
         assert gb.mem(0xFF49) == 0xE4                                                     # OBP1
         assert [e["prop"] & S_PALETTE for e in d] == [S_PALETTE] * 4 and [e["prop"] & S_PALETTE for e in y] == [0] * 4
     assert d[0]["prop"] & S_FLIPX and not y[0]["prop"] & S_FLIPX                         # (idle: faces right, his art faces left)
-    # the frame art (the Spigoteer's 7 frames and Dregs's, 8 tiles each: entries top-left, top-right, bottom-left, bottom-right,
+    # the frame art (the Spigoteer's 5 pictures idle, walk1, walk2, fill, fail and Dregs's 7 frames, 8 tiles each: entries top-left, top-right, bottom-left, bottom-right,
     # each an 8x16 pair of tiles): the pixels as colour indices
     def grid(tiles, f):
         g = {}
@@ -224,8 +224,8 @@ def test_dregs_has_his_own_art_and_palette_and_does_not_read_as_a_second_spigote
                         if v:
                             g[(cx + x, ty + part * 8 + y)] = v
         return g
-    for f in range(7):
-        a, b = grid(spig, f), grid(got, f)
+    for f, df in enumerate((0, 1, 2, 3, 6)):             # Sal's pictures against Dregs's idle, walk1, walk2, fill and fail
+        a, b = grid(spig, f), grid(got, df)
         assert sum(a.get(k) != b.get(k) for k in set(a) | set(b)) > 150, f"frame {f}: a different picture"
         # the Spigoteer's white apron (colour 1 in his palette) is a big block; Dregs wears a grey jacket (colour 2) and no apron
         assert sum(v == 1 for v in a.values()) > 20 and sum(v == 2 for v in b.values()) > 25, f"frame {f}"

@@ -7,7 +7,7 @@ import json
 import re
 
 import pytest
-from conftest import ROOT, check_golden, hold_stage_anim, logic_paused, title_level
+from conftest import ROOT, bt_picture, check_golden, hold_stage_anim, logic_paused, title_level
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, run_until, state, tilemap_row
 from test_mg_list import release_built  # noqa: F401  (the fixture: `make release`)
 from test_mg import (BLANK, HOURGLASS, GS_MGLIST, GS_MINI, MEDAL_PTS, MG_COUNT, MG_END, MG_PLAY, MG_PRACTICE, MG_RESULT, MG_STORY,
@@ -539,7 +539,7 @@ def test_three_strikes_end_it(model):
         if model == "cgb":
             assert all(attr(gb, 2, c) == 1 for c in range(20)) and all(attr(gb, 3, c) == 0 for c in range(20))
         until(gb, lambda: gb.mem("mg_t") >= BAND_OFF + 3, 60)
-        assert bs(gb)["pose"] == BT_FAIL and oam(gb, OAM_SPIG)["tile"] == BT_FAIL * 8
+        assert bs(gb)["pose"] == BT_FAIL and oam(gb, OAM_SPIG)["tile"] == bt_picture(BT_FAIL) * 8
         assert tilemap_row(gb, 2, 0, 20) == tilemap_row(gb, 4, 0, 20)
         until(gb, lambda: gb.mem("mg_phase") == MG_RESULT, 60)
         frames(gb, 4)

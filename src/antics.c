@@ -43,7 +43,7 @@ static int16_t bx;                  // where he stands: bar-local x, screen y of
 static uint8_t by, an_r;            // an_r: his bar is R (drawn mirrored)
 
 #define A_T(n)   ((uint8_t)(OBJ_DANCER + (n)))
-#define BT_T(f)  ((uint8_t)(OBJ_BARTENDER + (f) * BARTENDER_TILES_PER_FRAME))
+#define BT_T(f)  ((uint8_t)(OBJ_BARTENDER + BT_PIC(f) * BARTENDER_TILES_PER_FRAME))
 #define FX       S_FLIPX
 #define FY       S_FLIPY
 
