@@ -635,8 +635,10 @@ def test_golden_classic_flip(boot):
 
 
 def test_golden_classic_split(boot):
-    """Classic level 6 (the punk bar, RRLL: the top half R) = the harness's Chrome Cow level."""
-    check_golden(golden_scene(boot, SPLIT, 7), "classic_split")
+    """Classic level 6 (the punk bar, RRLL: the top half R) = the harness's Chrome Cow level. Pinned to a game frame (as classic_alt)
+    so the asm and the all-C builds, whose frames cost differently, take the same picture."""
+    from conftest import check_golden_game
+    check_golden_game(golden_scene(boot, SPLIT, 7, game=True), "classic_split")
 
 
 def test_golden_classic_alt(boot):
