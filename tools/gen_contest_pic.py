@@ -36,7 +36,7 @@ def blocks(path):
 def main():
     lines = SRC.read_text().splitlines()
     i = lines.index("@pixels")
-    head = [l.replace("the Spigoteer's pink bobble hat, a pennant", "a pennant") for l in lines[:i] if not l.startswith(";")]
+    head = [l for l in lines[:i] if not l.startswith(";")]
     pix = [list(r) for r in lines[i + 1:i + 1 + 104]]
     src = [r[:] for r in pix]
     for y in range(58, 88):                       # the old Spigoteer / Dregs spot: the basin's right half (mirrored), else sky
