@@ -226,39 +226,42 @@ def request_perfect(sgb, streak):
     sgb.run(1)
 
 
-def window_hz(sgb, frames, lo=500, hi=3000):
-    """The pitch of the next `frames` frames, by FFT of what the speaker plays (the period registers are write-only), in Hz."""
-    a = audio_frames(sgb, frames).astype(float).mean(axis=1)
-    return detect(a, sgb.pb.sound.sample_rate, lo, hi)
-
-
-def notes_of(sgb, streak, windows):
-    """request the marimba, then the pitch of each (first frame, frames) window counted from the frame after the request."""
+def track(sgb, streak, frames):
+    """Request the marimba, then the pitch of each of the next `frames` frames (FFT of what the speaker plays: the period registers are write-only), Hz.
+    One frame's audio is the last frame's notes as much as this one's (where in the frame the music ticks decides, and it moves with the loop's work), so
+    the notes are looked for as runs of frames, never at fixed frames."""
     sgb.run(40)
-    request_perfect(sgb, streak)
-    out, at = [], 0
-    for f0, n, *lo in windows:
-        if f0 > at:
-            audio_frames(sgb, f0 - at)
-        out.append(window_hz(sgb, n, *lo))
-        at = f0 + n
-    return out
+    sgb.write("pour_streak", streak)
+    sgb.write(sgb.addr("sfx_req") + 1, 0x40)
+    rate = sgb.pb.sound.sample_rate
+    return [detect(audio_frames(sgb, 1).astype(float).mean(axis=1), rate, 500, 3000) for _ in range(frames)]
 
 
-PERFECT_WINDOWS = [(0, 3), (5, 3), (10, 2)]          # D5, F#5, A5 (the pour's notes: frames 0-2, 5-7, 10-11)
-X2_WINDOWS = [(0, 3, 650), (4, 3, 650), (8, 3, 650), (12, 2, 1100)]    # D5, F#5, A5, D6 (the x2 sound's notes; D6 is looked for above the bass)
+def labels(trk, notes, tol=0.04):
+    """Each frame's pitch as the index of the wanted note it is within tol of, -1 for a frame between two notes (or of a retrigger's click)."""
+    return [next((k for k, w in enumerate(notes) if abs(hz / w - 1) < tol), -1) for hz in trk]
 
 
-def near(hz, want, tol=0.03):
-    return abs(hz / want - 1) < tol
+def assert_notes(trk, notes, tol=0.04):
+    """Every wanted note is heard for at least 2 frames, and they come in order."""
+    lab = labels(trk, notes, tol)
+    firsts = []
+    for k in range(len(notes)):
+        assert lab.count(k) >= 2, (k, notes[k], lab, [round(h) for h in trk])
+        firsts.append(lab.index(k))
+    assert firsts == sorted(firsts), (lab, [round(h) for h in trk])
+    return lab
+
+
+PERFECT_NOTES = (D5, FS5, A5)
+X2_NOTES = tuple(n * TONE ** 2 for n in (D5, FS5, A5, D6))
 
 
 def test_the_perfect_pour_is_a_soft_marimba_on_the_wave_channel(sgb):
     """SFX_PERFECT (15; owner's pick 2026-10-20): D5 F#5 A5 on channel 3 (the wave channel), each note plucked by the wave volume stepping 100% 50% 25% (NR32
     0x20 0x40 0x60), 20 frames, then the channel is let go (NR32 0). Nothing on channel 1: the tune's harmony is not played over by a sustained note."""
     sgb.write("intro_timer", 255)
-    hz = notes_of(sgb, 1, PERFECT_WINDOWS)
-    assert all(near(h, w) for h, w in zip(hz, (D5, FS5, A5))), hz
+    assert_notes(track(sgb, 1, 22), PERFECT_NOTES)
     sgb.run(40)
     request_perfect(sgb, 1)
     vol = []
@@ -274,14 +277,15 @@ def test_the_marimba_climbs_a_whole_tone_on_the_second_perfect_pour_and_the_x2_s
     """Streak 1: the base pitch; 2: one whole tone up; 3: the x2 sound (D5 F#5 A5 D6, then a soft repeat), two whole tones up, and identical on every
     later perfect pour (the streak stays at 3)."""
     sgb.write("intro_timer", 255)
-    one = notes_of(sgb, 1, PERFECT_WINDOWS)
-    two = notes_of(sgb, 2, PERFECT_WINDOWS)
-    assert all(near(b / a, TONE, 0.02) for a, b in zip(one, two)), (one, two)
-    runs = [notes_of(sgb, 3, X2_WINDOWS) for _ in range(3)]
-    want = [D5 * TONE ** 2, FS5 * TONE ** 2, A5 * TONE ** 2, D6 * TONE ** 2]
-    for r in runs:
-        assert all(near(h, w, 0.04) for h, w in zip(r, want)), (r, want)
-        assert np.allclose(r, runs[0], rtol=0.01), "the x2 sound is identical every time (no further climbing)"
+    assert_notes(track(sgb, 1, 22), PERFECT_NOTES)
+    assert_notes(track(sgb, 2, 22), [n * TONE for n in PERFECT_NOTES])
+    trks = [track(sgb, 3, 30) for _ in range(3)]
+    means = []
+    for t in trks:
+        lab = assert_notes(t, X2_NOTES)
+        means.append([sum(h for h, k in zip(t, lab) if k == n) / lab.count(n) for n in range(4)])
+    for m in means[1:]:      # (the same four pitches every time, two whole tones up: no further climbing; the soft tail sinks under the tune, so only the notes are compared)
+        assert all(abs(x / y - 1) < 0.015 for x, y in zip(m, means[0])), means
     sgb.run(40)
     request_perfect(sgb, 3)
     n = 0
