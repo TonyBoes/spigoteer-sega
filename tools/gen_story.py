@@ -1685,6 +1685,18 @@ def main():
     P.insert(6, "// tiles per portrait id: BG, OBJ (the overlay)")
     P.insert(7, carr("pt_n", nt))
     P.insert(8, carr("pt_on", no))
+    bd = []
+    for i in range(npid):
+        if i in ports:
+            q = ports[i]["px"]
+            if q[0][0] == 0:
+                fail(f"{ports[i]['name']}: backdrop on DMG shade 0 (the credits' DMG cast cards can swap shades 1, 2 and 3 with the band's shade 3, not 0)")
+            bd.append(q[0][0])
+        else:
+            bd.append(0)
+    P.insert(9, "// per portrait id: the DMG shade of its backdrop (its top-left pixel; the credits' cast cards recolour it to the band)")
+    P.insert(10, carr("pt_bd", bd))
+    P += ["uint8_t portrait_backdrop(uint8_t spk) BANKED { return pt_bd[spk]; }", ""]
     (outdir / "story_portraits.c").write_text("\n".join(P))
 
     # ---- build/story.h ----
@@ -1764,6 +1776,7 @@ def main():
           "void story_burst_crackle(uint8_t t) BANKED;   // after the explosion: the sparks (one frame; t unused) (each frame, while INTRO A shows)",
           "uint8_t story_burst_step(uint8_t t, uint8_t ev) BANKED;  // frame t of their flight into shadow_OAM (+ up to ev trail map writes); 1 when done",
           "void portrait_tile_copy(uint8_t spk, uint8_t first, uint8_t n, uint8_t *dst) BANKED;   // BG tiles into WRAM",
+          "uint8_t portrait_backdrop(uint8_t spk) BANKED;   // the DMG shade (0-3) of the portrait's backdrop (its top-left tile)",
           "void portrait_tile_set(uint8_t spk, uint8_t tile, uint8_t to) BANKED;   // one BG tile straight to VRAM tile `to` (the credits' cast)",
           "void portrait_get(uint8_t spk, portrait_t *dst) BANKED;",
           "void portrait_part(uint8_t spk, uint8_t part, portrait_t *dst) BANKED;   // the credits' cast: 0 header and map, 1 attributes, 2 palettes (no timer pump inside)",
