@@ -259,7 +259,7 @@ CFALL := $(BUILD)/$(NAME)-c.gb
 cfall: $(CFALL)
 $(eval $(call rom_rule,$(NAME)-c,$(CFALL),$(LCCFLAGS) -DASM_PASS=0,@true))
 
-# The default build as a debug ROM for review (the bosses' capacity row of glasses, the hand mugs, the Mothership's beam):
+# The default build as a debug ROM for review (the bosses' capacity mug row above and to the right, the hand mugs, the Mothership's beam):
 # out/test_roms/spigoteer-bosscap-unlocked.gb with its .noi beside it (tests/test_boss_cap_ui.py needs no ROM of its own).
 .PHONY: bosscap
 bosscap: unlocked

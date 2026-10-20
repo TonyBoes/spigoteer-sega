@@ -41,13 +41,12 @@ enum {
                   // walks in from the left edge onto his bar
 };
 
-// The capacity row (owner 2026-10-17: the status tag's arrow is gone; "the player needs clear indication of how many more drinks they can serve
-// them"; he picked the per-slot row, drawn as "a row of their drinks in their left hand"): a row of the venue's own glasses at his left hand, one per
-// slot (boss_hands): an empty held = the venue's empty glass (spr_empty), a free slot = the same glass dotted (OBJ_CAP 124-125, boss_cap_stage
-// builds it from the venue's drink tiles). It replaces the old generic held-empties hand column of his body art. OAM 39 down to 37 (boss.c cap_draw).
+// The capacity indicator (owner 2026-10-18: "the empty/full drink icons above and to the right of the boss"): a row of mug icons above and to the
+// right of him, one per hand (boss_hands): a dark TAKEN mug for an empty held, a bright ROOM mug for a free hand (OBJ_CAP 124-127,
+// assets/art/boss/tag.txt, boss_cap_tiles via boss_cap_stage). OAM 39 down to 37 (boss.c cap_draw).
 #define ROOM_OFF       1                          // BEV_ROOM's return: no row (the Mothership holds nothing)
 #define ROOM_FREE(n)   ((n) + 2)                  // BEV_ROOM's return: n free slots
-#define OBJ_CAP        124                        // the dotted glass (a pair) and a pair free (OBJ 126-127: nobody's)
+#define OBJ_CAP        124                        // the ROOM mug (a pair) and the TAKEN mug (a pair)
 #define BOSS_CAP_BYTES 64
 #define BOSS_CAPBUF    (story_scratch + 300)      // boss_load's staging for it (Duke's entrance stages its own at the same place, later)
 #define OAM_CAP        40                         // the row's entries are OAM_CAP - 1 downward
@@ -139,12 +138,12 @@ uint8_t boss_prototype(uint8_t ev, uint8_t arg) BANKED;  // src/boss_prototype.c
 uint8_t boss_duke(uint8_t ev, uint8_t arg) BANKED;        // src/boss_duke.c: Duke, the biker bar (3.12)
 uint8_t boss_leo(uint8_t ev, uint8_t arg) BANKED;         // src/boss_leo.c: Leo the Lion, the jungle zoo (3.11)
 uint8_t boss_mothership(uint8_t ev, uint8_t arg) BANKED;  // src/boss_mothership.c: the Mothership, the space lounge (3.10)
-void boss_cap_stage(uint8_t *dst) BANKED;  // the free slot's glass, 4 tiles (BOSS_CAP_BYTES) to dst in WRAM, for a boss file that queues them to OBJ_CAP
+void boss_cap_stage(uint8_t *dst) BANKED;  // the indicator's ROOM and TAKEN mugs, 4 tiles (BOSS_CAP_BYTES) to dst in WRAM, for a boss file that queues them to OBJ_CAP
 // His tiles and palettes, from his file's BEV_LOAD (src/boss_load.h): with the LCD off straight to VRAM / palette RAM; with the LCD on (Last call turning into his
 // fight, in place: no screen change) they are recorded as jobs in story_scratch and boss.c ld_step streams them in over the next frames, 4 tiles a frame through
 // the VBlank queue (the banked art is copied to WRAM first: the queue reads WRAM only) and a palette a frame through HRAM (render.c bpal_write).
 // kind 0: BG tiles, 1: OBJ tiles, 2: BG tiles with colours 1-2 forced to the band colour (the Sumo's one-pip tiles); n tiles at id `first` from src in ROM bank `bank`
-// (src 0 with kind 1: the capacity row's dotted glass, boss_cap_stage). obj 0 / 1: BG / OBJ palette idx from the four colours p.
+// (src 0 with kind 1: the capacity indicator's mugs, boss_cap_stage). obj 0 / 1: BG / OBJ palette idx from the four colours p.
 void boss_ld(uint8_t kind, uint8_t first, uint8_t n, const uint8_t *src, uint8_t bank) BANKED;
 void boss_ldpal(uint8_t obj, uint8_t idx, const uint16_t *p) BANKED;
 #define BOSS_BG(first, n, src)   boss_ld(0, first, n, src, CURRENT_BANK)

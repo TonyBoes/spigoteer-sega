@@ -3,9 +3,10 @@
 #      every boss, both models. Every frame of these tests is checked at <= 10 sprites a line (boss_common.frames).
 #   2. "The mugs they drink from should look more like the drink served to them": while a boss gulps, OAM 29 draws the mug the player served
 #      (mugs.c spr_full_t / spr_full_p: the venue's own drink art and palette) over his right hand, with his sway.
-#   3. The capacity is a ROW OF THE VENUE'S OWN GLASSES in his LEFT hand (cap_draw), one per slot: an empty held = the venue's empty glass (spr_empty,
-#      the sliding empty's tile and palette), a free slot = that glass dotted (OBJ_CAP, boss_cap_stage). It replaces the generic hand column of his
-#      body art. The Sumo (no limit) shows only the glasses he holds; the Mothership shows the row too (2 slots, 1 on HARD) and catches with a tractor beam (boss_mothership.c beam_draw).
+#   3. Owner 2026-10-18 (the approved look): the capacity is a ROW OF EMPTY / FULL DRINK ICONS ABOVE AND TO THE RIGHT of the boss (cap_draw), one per hand:
+#      a TAKEN (full, dark) mug for each empty he holds, then a ROOM (empty, bright) one for each free hand (OBJ_CAP, assets/art/boss/tag.txt). The Sumo
+#      (no limit) shows only the taken ones; the Mothership shows the row too (2 slots, 1 on HARD) and catches with a tractor beam (boss_mothership.c
+#      beam_draw).
 import re
 import sys
 
@@ -165,9 +166,9 @@ def test_the_sumo_and_the_mothership_have_no_hand_mug():
     assert HAND_BASE[SUMO] == 255 and HAND_BASE[SHIP] == 255 and len(HAND_BASE) == 10
 
 
-# ---- 3. the row of glasses in his left hand -----------------------------------------------------------------------
+# ---- 3. the row of drink icons above and to the right ---------------------------------------------------------------
 def glasses(gb, hands=3):
-    """[(tile, flags, x, y)] of the row's entries drawn (OAM 39 down: the nearest the hand first), checked to be filled from 39."""
+    """[(tile, flags, x, y)] of the row's entries drawn (OAM 39 down: the nearest his hand first), checked to be filled from 39."""
     oam = gb.oam()
     shown = [oam[OAM_CAP - 1 - k] for k in range(hands)]
     on = [e["y"] != 0 for e in shown]
@@ -176,39 +177,41 @@ def glasses(gb, hands=3):
 
 
 def check_row(gb, model, c, taken, free):
-    """The row: `taken` glasses of the venue's empty (spr_empty_t / _p), then `free` dotted ones (OBJ_CAP, spr_empty_p), at his left hand."""
+    """The row: `taken` TAKEN icons (OBJ_CAP + 2), then `free` ROOM ones (OBJ_CAP), 8 px apart from his right edge, on his top line, with his sway."""
     r = row(c)
     g = glasses(gb, r["hands"])
     assert len(g) == taken + free, (NAMES[c], taken, free, g)
-    x0, y0 = gb.mem("boss_x") + 4, bar_oam_y(c) + 1
+    x0, y0 = gb.mem("boss_x") + r["width"], bar_oam_y(c) - 8
     dx = g[0][2] - x0 if g else 0
     assert dx in (0, 2, -2), "sways with him"
     for k, (tile, flags, x, y) in enumerate(g):
-        assert (x, y) == (x0 + dx - 6 * k, y0), (k, x, y)
-        assert tile == (gb.mem("spr_empty_t") if k < taken else OBJ_CAP) and flags == gb.mem("spr_empty_p"), (k, tile, flags)
+        assert (x, y) == (x0 + dx + 8 * k, y0), (k, x, y)
+        assert tile == OBJ_CAP + (2 if k < taken else 0) and flags == (2 if model == "cgb" else 0), (k, tile, flags)
 
 
-def test_the_held_empty_and_the_dotted_free_slot_are_the_venues_glass():
-    """tile bytes: the sliding empty's tile is the venue's empty glass; the free slot's is that with every other pixel dropped."""
-    for c in range(10):
-        assert dotted(venue_tile(c, 1)) != venue_tile(c, 1)
+def cap_art():
+    """tag.txt's ROOM and TAKEN as the 64 bytes of OBJ 124-127."""
+    named = dict(blocks(ROOT / "assets" / "art" / "boss" / "tag.txt", named=True))
+    return b"".join(bytes(tile_bytes(named[n], 0, 0) + tile_bytes(named[n], 0, 8)) for n in ("ROOM", "TAKEN"))
+
+
+def test_the_icons_are_an_empty_and_a_full_mug():
+    named = dict(blocks(ROOT / "assets" / "art" / "boss" / "tag.txt", named=True))
+    assert set(named) == {"ROOM", "TAKEN"} and named["ROOM"] != named["TAKEN"]
+    assert all(len(f) == 16 and all(len(r) == 8 for r in f) for f in named.values())
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("c", [c for c in range(10) if c != SUMO])
-def test_the_row_shows_a_glass_per_slot_held_or_free(model, c):
+def test_the_row_shows_an_icon_per_hand_taken_or_free(model, c):
     hands = row(c)["hands"]
-    glass = venue_tile(c, 1)
     with play_in(model, c) as gb:
         for taken in range(hands + 1):
             gb.write("boss_hold", taken)
             frames(gb, 3)
             check_row(gb, model, c, taken, hands - taken)
         # the tiles themselves
-        held = bytes(gb.read(0x8000 + gb.mem("spr_empty_t") * 16, 32))
-        free = bytes(gb.read(0x8000 + OBJ_CAP * 16, 32))
-        assert held == (glass if model == "cgb" else swapped(glass)), "the held empty: the venue's empty glass"
-        assert free == (dotted(glass) if model == "cgb" else swapped(dotted(glass))), "the free slot: the same glass dotted"
+        assert bytes(gb.read(0x8000 + OBJ_CAP * 16, 64)) == cap_art(), "ROOM and TAKEN at OBJ 124-127"
         if model == "cgb":
             from test_venues import cgb_palette
             assert gb.oam()[OAM_CAP - 1]["flags"] & 7 == 2 and cgb_palette(gb, 2, True) == venue_pal(c, "empty")
@@ -219,8 +222,8 @@ def test_the_row_shows_a_glass_per_slot_held_or_free(model, c):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_sumo_shows_only_the_glasses_he_holds(model):
-    """No drink limit: no free slots drawn; a glass per cup he holds, up to his 2 hands' worth."""
+def test_the_sumo_shows_only_the_icons_he_holds(model):
+    """No drink limit: no free slots drawn; an icon per cup he holds, up to his 2 hands' worth."""
     with play_in(model, SUMO) as gb:
         for hold, want in ((0, 0), (1, 1), (2, 2), (5, 2)):
             gb.write("boss_hold", hold)
@@ -282,7 +285,7 @@ def test_the_row_in_the_boss_rush(model):
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_mothership_beams_a_drink_up_into_the_saucer(model):
     """A drink that reaches him slides under the saucer (BEAM_SLIDE frames), a light column shines from his hatch and the served mug rises
-    behind the hull (OBJ behind BG), BEAM_N frames in all; then both sprites are gone. No hand mug, no glass row."""
+    behind the hull (OBJ behind BG), BEAM_N frames in all; then both sprites are gone. No hand mug."""
     src = (ROOT / "src" / "boss_mothership.c").read_text()
     n = int(re.search(r"#define BEAM_N\s+(\d+)", src).group(1))
     slide = int(re.search(r"#define BEAM_SLIDE\s+(\d+)", src).group(1))
@@ -309,7 +312,7 @@ def test_the_mothership_beams_a_drink_up_into_the_saucer(model):
         assert not any(b["y"] for b in beams[:2]) or True
         frames(gb, 3)
         assert gb.oam()[OAM_HAND]["y"] == 0 and gb.oam()[OAM_HAND + 1]["y"] == 0, "the beam and the mug are gone"
-        check_row(gb, model, SHIP, 1, 1)                   # (he holds the drink: one glass solid, one dotted)
+        check_row(gb, model, SHIP, 1, 1)                   # (he holds the drink: one TAKEN icon, one ROOM)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -335,3 +338,4 @@ def test_the_beam_never_makes_an_11th_sprite_on_a_line_in_a_crowd(model):
                     except ValueError:
                         pass
             frames(gb, 40)
+
