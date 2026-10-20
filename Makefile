@@ -50,6 +50,13 @@ export POUR_X2
 ifneq ($(POUR_X2),)
 LCCFLAGS += -DPOUR_X2=$(POUR_X2)
 endif
+# Gentler candidate families (owner 2026-10-20), POUR_FAM=1 marimba (wave channel) / 2 soft chime / 3 twinkle; unset: the chime above (src/music.c)
+#   make BUILD=out/b_f1 OUT=out/o_f1 POUR_FAM=1 unlocked
+POUR_FAM ?=
+export POUR_FAM
+ifneq ($(POUR_FAM),)
+LCCFLAGS += -DPOUR_FAM=$(POUR_FAM)
+endif
 
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
