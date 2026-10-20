@@ -701,7 +701,7 @@ static uint8_t prio(uint8_t s) {
 static uint8_t ch_retry;              // this bar's lift has to wait: 2 next frame, 1 later (budgets; see lift_frame)
 static uint8_t ch_bit;                // the bar's bit
 #define RETRY_FRAMES 16
-#define CHOOSER_LY_LATE 80    // ... and one that has reached this one at none (an overloaded frame: next frame) ...
+#define CHOOSER_LY_LATE 56    // ... and one that has reached this one at none (an overloaded frame: next frame) ...
 #define CHOOSER_LATE_MAX 4    // ... but not for more than this many frames in a row
 static uint8_t ch_late;       // frames in a row the chooser left everything for later
 static uint8_t retry_wait[NUM_BARS];  // frames until a budget-refused bar is looked at again
