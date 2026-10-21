@@ -14,8 +14,8 @@
 #include "boss.h"
 
 uint8_t row_buf[20];
-uint8_t pal5_cur;                 // CGB OBJ palette 5 holds: 1 the coin, 2 the show (load_venue loads the show's); see pal5_check
-volatile uint8_t pal5_req;        // bit 0: OBJ palette 5 (pal5_write); bit 1: the Mothership's lights (boss_mothership.c lights; pal5_other)
+uint8_t pal5_cur;                 // CGB OBJ palette 5 holds the show (2) or not (0, 1: something else) (load_venue loads the show's); see pal5_check
+volatile uint8_t pal5_req;        // bit 0: OBJ palette 5, the show's (pal5_write); bit 1: the Mothership's lights (boss_mothership.c lights; pal5_other)
 static const uint16_t *pal5_src;
 static void pal5_write(void);
 uint8_t score_tiles[6];      // the HUD digits as BG tile ids, prepared outside VBlank
@@ -772,16 +772,15 @@ static void draw_coin(void) {
     o->y = bar_oam_y[tip_bar] + MUG_DY;
     o->x = tip_x + 8;
     o->tile = OBJ_COIN + (((tip_timer >> 3) & 7) == 0 ? 2 : 0);
-    o->prop = is_cgb ? OBJPAL_COIN : 0;
+    o->prop = OBJPAL_BARTENDER;          // (owner Q37: Sal's palette reads as pale gold; OBJ 5 is the show's alone. DMG: palette 0 too)
 }
 
-// CGB OBJ palette 5 (M13a): the coin's or the show's, whichever is on screen. Asked for at the end of the frame's
+// CGB OBJ palette 5: the show's (the coin wears Sal's OBJ 0). Loaded with the venue; this reloads it if something else (a fight) had it. Asked for at the end of the frame's
 // drawing, written by the VBlank interrupt (vq_vbl) right after the OAM DMA that shows the frame.
 static void pal5_check(void) {
-    uint8_t want = show_timer ? 2 : tip_timer ? 1 : 0;
-    if (!want || want == pal5_cur || !is_cgb) return;
-    pal5_src = want == 1 ? coin_pal : venue.pal[VENUE_PAL_SHOW];
-    pal5_cur = want;
+    if (!show_timer || pal5_cur == 2 || !is_cgb) return;
+    pal5_src = venue.pal[VENUE_PAL_SHOW];
+    pal5_cur = 2;
     pal5_req = 1;
 }
 

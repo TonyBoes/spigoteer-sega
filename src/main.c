@@ -148,7 +148,6 @@ uint8_t  dancer_frame;      // 0 stand, 1 left kick, 2 arms up, 3 right kick
 uint8_t  dance_tick;        // frames in the current dance step
 
 // ---- palettes ----------------------------------------------------------------
-palette_t coin_pal;                 // PAL_COIN, copied out of the banked palette table at boot (CGB; main_cold.c)
 
 // ---- scene -------------------------------------------------------------------
 static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
