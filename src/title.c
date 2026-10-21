@@ -45,12 +45,12 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define ROW_HI          0       // the HI line (the HUD's row in play)
 // The menu column, one item every other row, centred on row 9: 1 item row 9, 2 rows 8-10, 3 rows 7-11, 4 rows 6-12.
 // K_*, TM_*: game.h.
-#define MENU_MAX        4
-#define MENU_ROW(n)   (10 - (n))
+#define MENU_MAX        5       // (five lines only in SETTINGS on a Color with the debug menu unlocked: the fifth line's buffer is row_buf, see MBUF)
+#define MENU_ROW(n)   ((n) == 5 ? 4 : 10 - (n))   // (five lines: rows 4, 6, 8, 10, 12)
 #define HARD_ROW        6       // the difficulty prompt: its lines on rows 6, 7, 8 and ONE caption on row 11 (rows 9-10 blank: the block, rows 6-11, is centred in rows 4-13)
 #define CAP_ROW        11
 #define HARD_STEP       1
-#define MENU_FIRST_ROW  5       // the rows a menu can use: 5..12
+#define MENU_FIRST_ROW  4       // the rows a menu can use: 4..12
 #define MENU_LAST_ROW  12
 #define MENU_COPIES_PER_FRAME 2 // a submenu's redraw: 20-byte rows (tiles or CGB attributes) queued per frame
 #define SCENE_BAR       3       // the scene stands on bar 3's rows (14-15 wall, 16 counter): draw_bartender() places him
@@ -121,7 +121,10 @@ static uint8_t t_rng = 0x5D;    // the title's own random numbers (the game's se
 static uint8_t logo_buf[LOGO_LETTERS][4];
 static uint8_t hi_buf[6];
 static const uint8_t attract_tbl[TOP_TABLES] = { MODE_ARCADE, MODE_STORY, MODE_CLASSIC };   // the idle title cycles them
-static uint8_t menu_buf[MENU_MAX][20], row_blank[20], attr_txt[20], attr_sel[20];
+static uint8_t menu_buf[4][20], row_blank[20], attr_txt[20], attr_sel[20];
+// The menu lines' 20-byte rows. A fifth line (SETTINGS: MUSIC, BAR, SCREEN, ERASE, DEBUG) takes row_buf: no title code that runs while a menu is up uses
+// it (title_enter does, after it has put the menu lines on screen; the VBlank queue reads these rows, so nothing else may write row_buf meanwhile) and no WRAM is added.
+#define MBUF(i) ((i) < 4 ? menu_buf[i] : row_buf)
 
 static uint8_t trand(void) {
     t_rng ^= t_rng << 7;
@@ -140,15 +143,19 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
                                          tt_soundtrack, tt_classic, tt_minigames, tt_bossrush, tt_erase, tt_debug, tt_erase_q, tt_no, tt_yes,
-                                         tt_bar_snap, tt_bar_keep, tt_credits, tt_easy, tt_normal, tt_hard, tt_cap_easy, tt_cap_normal, tt_cap_hard };
+                                         tt_bar_snap, tt_bar_keep, tt_credits, tt_easy, tt_normal, tt_hard, tt_cap_easy, tt_cap_normal, tt_cap_hard,
+                                         tt_scr_normal, tt_scr_bright };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
                                   TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH, TT_X_ERASE, TT_X_DEBUG, TT_X_ERASE_Q, TT_X_NO, TT_X_YES,
-                                  TT_X_BAR_SNAP, TT_X_BAR_KEEP, TT_X_CREDITS, TT_X_EASY, TT_X_NORMAL, TT_X_HARD, TT_X_CAP_EASY, TT_X_CAP_NORMAL, TT_X_CAP_HARD };
+                                  TT_X_BAR_SNAP, TT_X_BAR_KEEP, TT_X_CREDITS, TT_X_EASY, TT_X_NORMAL, TT_X_HARD, TT_X_CAP_EASY, TT_X_CAP_NORMAL, TT_X_CAP_HARD,
+                                  TT_X_SCR_NORMAL, TT_X_SCR_BRIGHT };
+#define IS_SCR(k) ((k) == K_SCR_NORMAL || (k) == K_SCR_BRIGHT)   // SETTINGS' SCREEN line (a Color only)
+#define ERASE_SEL (2 + is_cgb)                                   // SETTINGS' ERASE DATA line: after MUSIC, BAR and (a Color) SCREEN
 #define IS_BAR(k) ((k) == K_BARCHANGE || (k) == K_BARKEEP)   // SETTINGS' BAR line (the items after K_BARKEEP are the difficulty prompt's)
 
 static void build_item(uint8_t i) {
     uint8_t k = title_items[i];
-    build_row(menu_buf[i], k == K_MUSIC && !sound_on ? tt_music_off : k_text[k]);
+    build_row(MBUF(i), k == K_MUSIC && !sound_on ? tt_music_off : k_text[k]);
 }
 
 static uint8_t text_left(uint8_t i) {           // screen x of the first text pixel of menu line i 
@@ -198,6 +205,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
     default:
         title_items[title_n++] = K_MUSIC;
         title_items[title_n++] = K_BARCHANGE + (level_dirs >> 7);   // (two items, K_BARKEEP follows: the line's wording is its item)
+        if (is_cgb) title_items[title_n++] = K_SCR_NORMAL + (SCR_BRIGHT() ? 1 : 0);   // (a Color only: NORMAL / BRIGHT for a Game Boy Advance)
         title_items[title_n++] = K_ERASE;
         if (debug_unlocked()) title_items[title_n++] = K_DEBUG;     // (the debug menu, once unlocked: src/debug.c)
     }
@@ -232,7 +240,7 @@ static uint8_t menu_frame(void) {
         if (n + need > MENU_COPIES_PER_FRAME) continue;          // next frame (a cheaper row may still fit)
         title_dirty &= ~((uint16_t)1 << r);
         n += need;
-        vq_add(0, k == 255 ? row_blank : menu_buf[k], 0, r, 20);
+        vq_add(0, k == 255 ? row_blank : MBUF(k), 0, r, 20);
         if (need == 2) vq_add(1, k == title_sel ? attr_sel : attr_txt, 0, r, 20);
     }
     return n;
@@ -267,6 +275,39 @@ static void bar_mode_toggle(void) {
     bar_mode_save();
 }
 
+// The title's palettes (LCD off in title_enter; SETTINGS > SCREEN writes them again with the LCD on: GBDK waits for the safe mode before each colour)
+static void title_pals(void) {
+    palette_t p;
+    p[0] = WALL_RGB_T; p[1] = RGB15(31, 30, 24); p[2] = RGB15(29, 19, 4); p[3] = RGB15(10, 3, 2);   // logo: foam, beer, outline
+    set_bkg_palette(BGPAL_LOGO, 1, p);
+    p[1] = RGB15(2, 3, 8); p[2] = RGB15(22, 19, 12); p[3] = RGB15(31, 29, 22);   // text: shadow, muted (HI), cream
+    set_bkg_palette(BGPAL_TEXT, 1, p);
+    p[3] = RGB15(31, 25, 6);                                                     // the selected item: gold
+    set_bkg_palette(BGPAL_TEXT_SEL, 1, p);
+    patron_pal_get(0, 0, p);
+    p[0] = WALL_RGB_T;
+    set_bkg_palette(BGPAL_TPATRON, 1, p);
+    p[1] = RGB15(31, 31, 27); p[2] = RGB15(30, 20, 4); p[3] = RGB15(12, 5, 2);  // effects: foam, beer, dark
+    set_sprite_palette(OBJPAL_FX, 1, p);
+}
+
+// SCREEN's choice changed (SETTINGS' toggle, ERASE DATA): every palette on the title and the ones the game keeps from boot, written again
+static void screen_relight(void) {
+    if (!is_cgb) return;
+    venue_pals();                                     // (the saloon's: the mug cursor, the wall, the scene's patron)
+    title_pals();
+    screen_pal_reload();                              // (the HUD's, the bartender's, the coin's: made at boot)
+}
+
+// SETTINGS > SCREEN (A, START, LEFT or RIGHT on its line): NORMAL <-> BRIGHT, kept in the save; the picture changes at once
+static void screen_toggle(void) {
+    _is_GBA ^= 2;
+    title_items[title_sel] ^= K_SCR_NORMAL ^ K_SCR_BRIGHT;
+    build_item(title_sel); title_dirty |= (uint16_t)1 << title_rows[title_sel];
+    screen_save();
+    screen_relight();
+}
+
 static void logo_put(uint8_t i) {               // letter i's current state into its buffer (LCD off: straight to VRAM)
     const uint8_t *q = tt_logo[tt_word[i]][logo_state[i]];
     logo_buf[i][0] = q[0]; logo_buf[i][1] = q[1]; logo_buf[i][2] = q[2]; logo_buf[i][3] = q[3];
@@ -274,7 +315,6 @@ static void logo_put(uint8_t i) {               // letter i's current state into
 
 void title_enter(void) BANKED {
     uint8_t i, r;
-    palette_t p;
     TRANS_MENU();                                     // (src/trans.c: a way back to the title from a list / the scores: the quick white fade)
     DISPLAY_OFF;
     TUNE_FLUSH();                                     // (a tune unlock heard in the story and not saved yet: a quit, a game over)
@@ -305,19 +345,7 @@ void title_enter(void) BANKED {
             bkg_data_far(TT_PATRON_BASE + r * 2 + i, 1, patron_tiles_cowboys + (PATRON_SHIFT0_OFS + i * 2 + r) * 16, BANK(patron_tiles_cowboys));
     set_sprite_data(OBJ_FX, TT_FX_TILES, tt_fx_tiles);
     music_pump();
-    if (is_cgb) {
-        p[0] = WALL_RGB_T; p[1] = RGB15(31, 30, 24); p[2] = RGB15(29, 19, 4); p[3] = RGB15(10, 3, 2);   // logo: foam, beer, outline
-        set_bkg_palette(BGPAL_LOGO, 1, p);
-        p[1] = RGB15(2, 3, 8); p[2] = RGB15(22, 19, 12); p[3] = RGB15(31, 29, 22);   // text: shadow, muted (HI), cream
-        set_bkg_palette(BGPAL_TEXT, 1, p);
-        p[3] = RGB15(31, 25, 6);                                                     // the selected item: gold
-        set_bkg_palette(BGPAL_TEXT_SEL, 1, p);
-        patron_pal_get(0, 0, p);
-        p[0] = WALL_RGB_T;
-        set_bkg_palette(BGPAL_TPATRON, 1, p);
-        p[1] = RGB15(31, 31, 27); p[2] = RGB15(30, 20, 4); p[3] = RGB15(12, 5, 2);  // effects: foam, beer, dark
-        set_sprite_palette(OBJPAL_FX, 1, p);
-    }
+    if (is_cgb) title_pals();
     venue_backdrop(0, 16);                            // wall rows 0-15, counter row 16, floor 17 (tiles + attributes)
     music_pump();
 
@@ -341,7 +369,7 @@ void title_enter(void) BANKED {
     title_dirty = 0;                   // drawn here, with the LCD off
     for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++) {   // (the block's rows: a menu line, else the plain wall; a fourth line made the rebuild a tick late)
         for (i = 0; i < title_n && title_rows[i] != r; i++) ;
-        set_bkg_tiles(0, r, 20, 1, i < title_n ? menu_buf[i] : row_blank);
+        set_bkg_tiles(0, r, 20, 1, i < title_n ? MBUF(i) : row_blank);
     }
     music_pump();
     for (i = 0; i < 20; i++) row_buf[i] = TT_BLANK;
@@ -524,6 +552,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
             }
         }
         if ((pressed & (J_LEFT | J_RIGHT)) && IS_BAR(title_items[title_sel])) bar_mode_toggle();
+        if ((pressed & (J_LEFT | J_RIGHT)) && IS_SCR(title_items[title_sel])) screen_toggle();
     }
     else if (++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables
         score_tbl = attract_tbl[attract_n];
@@ -555,13 +584,13 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_BONUS: menu_open(TM_BONUS, 0); break;
         case K_SETTINGS: menu_open(TM_SETTINGS, 0); break;
         case K_ERASE: menu_open(TM_ERASE, 1); break;                           // ("ERASE ALL DATA", the cursor on NO)
-        case K_NO: menu_open(TM_SETTINGS, 2); break;
-        case K_YES: save_erase(); title_hi = 0xFF; menu_open(TM_TOP, 2); break;   // a blank cartridge; the title again (the HI line follows on a quiet frame)
+        case K_NO: menu_open(TM_SETTINGS, ERASE_SEL); break;
+        case K_YES: save_erase(); screen_relight(); title_hi = 0xFF; menu_open(TM_TOP, 2); break;   // a blank cartridge; the title again (the HI line follows on a quiet frame)
         case K_DEBUG: debug_open(); return 0;                                  // (full-screen over the title; B closes it)
-        default: if (IS_BAR(title_items[title_sel])) bar_mode_toggle(); else title_music_toggle();
+        default: if (IS_BAR(title_items[title_sel])) bar_mode_toggle(); else if (IS_SCR(title_items[title_sel])) screen_toggle(); else title_music_toggle();
         }
     } else if ((pressed & J_B) && title_menu != TM_TOP) {
-        if (title_menu == TM_ERASE) menu_open(TM_SETTINGS, 2);
+        if (title_menu == TM_ERASE) menu_open(TM_SETTINGS, ERASE_SEL);
         else if (title_menu == TM_HARD) menu_open(TM_PLAY, can_continue());   // (STORY's line: after CONTINUE when it is shown)
         else menu_open(TM_TOP, title_menu - 1);
     }

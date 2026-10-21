@@ -261,7 +261,7 @@ static void lights(uint8_t dim) {
     uint16_t c;
     if (!is_cgb) b[0] = dim ? DIM_BGP : 0xE4;
     else for (i = 0; i != 4; i++) {
-        c = venue.pal[VENUE_PAL_BAR][i];
+        c = BRIGHTEN(venue.pal[VENUE_PAL_BAR][i]);          // (SCREEN BRIGHT: lifted here, written raw by the VBlank: render.c pal5_other)
         if (dim) c = (c >> 1) & DIM_MASK;
         b[i << 1] = (uint8_t)c; b[(i << 1) | 1] = (uint8_t)(c >> 8);
     }

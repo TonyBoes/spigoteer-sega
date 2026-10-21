@@ -191,7 +191,7 @@ static void load_palettes(void) {
     p[3] = RGB8(40, 48, 64);
     set_bkg_palette(BPAL_GLASS, 1, p);
     pal_get(PAL_GLASS, p); set_sprite_palette(OPAL_TAP, 1, p);  // M13a: the game's slots 3 and 5 hold a patron and the show
-    set_sprite_palette(OBJPAL_COIN, 1, coin_pal);           // (the level load puts them back)
+    pal_get(PAL_COIN, p); set_sprite_palette(OBJPAL_COIN, 1, p);   // (the level load puts them back; coin_pal itself may hold the lifted show, render.c pal5_check)
     pal5_cur = 1;
 }
 

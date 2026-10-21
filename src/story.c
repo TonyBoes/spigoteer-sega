@@ -936,13 +936,14 @@ static void pic_calc(uint8_t w) {
         r = v & 31; g = (v >> 5) & 31; b = (v >> 10) & 31;
         if (w) { r += fade3[w - 1][31 - r]; g += fade3[w - 1][31 - g]; b += fade3[w - 1][31 - b]; }
         PS_OUT[k] = r | ((uint16_t)g << 5) | ((uint16_t)b << 10);
+        if (w != 3) PS_OUT[k] = BRIGHTEN(PS_OUT[k]);       // SCREEN BRIGHT: lifted here (white stays white); pic_put / pic_fx write PS_OUT raw
     }
 }
 
 static void pic_put(void) {
     uint8_t k;
     if (!is_cgb) { BGP_REG = PS_W == 3 ? 0x00 : PS_W == 2 ? 0x40 : PS_W == 1 ? 0x90 : 0xE4; return; }
-    for (k = 0; k < 5; k++) set_bkg_palette(pic_slot[k], 1, PS_OUT + k * 4);
+    for (k = 0; k < 5; k++) (set_bkg_palette)(pic_slot[k], 1, PS_OUT + k * 4);   // (raw: pic_calc lifted them)
 }
 
 // One step of the switch (PS_FX = the step, 1 on the page turn). 1: the LCD was off for it.
@@ -954,7 +955,7 @@ static uint8_t pic_fx(void) {
         if (!is_cgb) pic_put();
         else {                                   // (eight palette writes do not fit VBlank: LCD off, white at once)
             DISPLAY_OFF;
-            for (k = 0; k < 8; k++) set_bkg_palette(k, 1, PS_OUT);
+            for (k = 0; k < 8; k++) (set_bkg_palette)(k, 1, PS_OUT);
             DISPLAY_ON;
             return 1;
         }

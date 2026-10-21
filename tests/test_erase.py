@@ -5,7 +5,7 @@ import pytest
 from conftest import (check_golden, debug_unlocked, K_DEBUG, K_ERASE, K_ERASEQ, K_MUSIC, K_NO, K_PLAY, K_SETTINGS, K_YES, K_STORY, K_CONTINUE, K_ARCADE, K_BARCHANGE, K_BARKEEP, K_CLASSIC,
                       MENU_SETTLE, TM_ERASE, TM_PLAY, TM_SETTINGS, TM_TOP, menu_items, menu_tap, menu_to, sram_peek, title_pick, unlock_debug)
 from save_images import SIZE, all_views, full_image, observe, put
-from test_flow import cursor_on, expect_menu, menu_rows, settle_title, title_text_row, tilemap_row
+from test_flow import cursor_on, expect_menu, menu_rows, settings_items, settings_keys, settings_row, settle_title, title_text_row, tilemap_row
 from test_sound import make_rom, save_ram
 
 pytestmark = pytest.mark.timeout(240)
@@ -37,10 +37,10 @@ def test_erase_data_is_the_third_settings_line_and_asks_first(model):
     try:
         title_pick(rom, K_SETTINGS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_MUSIC, K_BARCHANGE, K_ERASE], "MUSIC, BAR CHANGE, ERASE DATA"
-        expect_menu(rom, ("music_on", "bar_snap", "erase"))
+        assert menu_items(rom) == settings_items(rom), "MUSIC, BAR CHANGE, (a Color: SCREEN,) ERASE DATA"
+        expect_menu(rom, settings_keys(rom))
         menu_to(rom, K_ERASE)
-        cursor_on(rom, "erase", 11)
+        cursor_on(rom, "erase", settings_row(rom, len(settings_items(rom)) - 1))
         menu_tap(rom, "a")
         rom.run(MENU_SETTLE)
         assert rom.mem("title_menu") == TM_ERASE and menu_items(rom) == [K_ERASEQ, K_NO, K_YES]
@@ -174,7 +174,7 @@ def test_after_the_erase_the_menus_are_the_new_game_s(model):
         assert tilemap_row(rom, 0, 8, 6) == hi_tiles("000000"), "the HI line is 000000"
         title_pick(rom, K_SETTINGS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_MUSIC, K_BARCHANGE, K_ERASE], "BAR SNAP, and no DEBUG MENU line"
+        assert menu_items(rom) == settings_items(rom), "BAR SNAP, and no DEBUG MENU line"
         assert menu_items(rom)[0] == K_MUSIC
     finally:
         rom.stop()
@@ -187,7 +187,7 @@ def test_erasing_locks_the_debug_menu_again(model):
         assert debug_unlocked(rom)
         title_pick(rom, K_SETTINGS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_MUSIC, K_BARKEEP, K_ERASE, K_DEBUG], "BAR KEEP is saved, DEBUG MENU is there"
+        assert menu_items(rom) == settings_items(rom, K_BARKEEP, debug=True), "BAR KEEP is saved, DEBUG MENU is there"
         menu_to(rom, K_ERASE)
         menu_tap(rom, "a")
         menu_tap(rom, "down")
@@ -196,7 +196,7 @@ def test_erasing_locks_the_debug_menu_again(model):
         assert not debug_unlocked(rom) and rom.mem("level_dirs") & 0x80 == 0
         title_pick(rom, K_SETTINGS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_MUSIC, K_BARCHANGE, K_ERASE]
+        assert menu_items(rom) == settings_items(rom)
         rom.hold("select")                                 # and the gesture no longer opens it
         rom.run(2)
         for _ in range(3):

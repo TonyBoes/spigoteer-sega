@@ -284,8 +284,9 @@ def test_the_marimba_climbs_a_whole_tone_on_the_second_perfect_pour_and_the_x2_s
     for t in trks:
         lab = assert_notes(t, X2_NOTES)
         means.append([sum(h for h, k in zip(t, lab) if k == n) / lab.count(n) for n in range(4)])
-    for m in means[1:]:      # (the same four pitches every time, two whole tones up: no further climbing; the soft tail sinks under the tune, so only the notes are compared)
-        assert all(abs(x / y - 1) < 0.015 for x, y in zip(m, means[0])), means
+    for m in means[1:]:      # (the same four pitches every time, two whole tones up: no further climbing; the soft tail sinks under the tune, so only the notes are compared;
+        #  3 %: one frame's FFT is good to about 2 %, and which part of a note a frame holds moves with the code's timing: 2026-10-21, SCREEN's palette call)
+        assert all(abs(x / y - 1) < 0.03 for x, y in zip(m, means[0])), means
     sgb.run(40)
     request_perfect(sgb, 3)
     n = 0

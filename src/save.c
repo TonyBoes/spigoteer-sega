@@ -22,6 +22,10 @@
 //   0x28 the boss cards seen "BK" (2026-10-17: the first time a boss appears the game opens his HOW TO PLAY card, src/boss.c): 0..1 magic, 2..3 the
 //   venues whose boss card was shown (bit v, little endian; only bits below BOSS_COUNT), 4 the checksum (0x5A + bytes 0..3), 5 its complement; no
 //   block, a bad checksum or a bit at or above BOSS_COUNT reads as no card seen (every card shows once more). Nothing is written in a debug-select run.
+//   0x30 the SCREEN setting "SC" (2026-10-21; SETTINGS > SCREEN NORMAL / BRIGHT, Color only: src/title.c, src/main_cold.c screen_load): 0..1 magic, 2 the choice
+//   (1 NORMAL, 2 BRIGHT), 3 checksum (0x5A + bytes 0..2), 4 its complement. No block, a bad checksum or any other value reads as NOT CHOSEN: the boot then
+//   picks BRIGHT on a Game Boy Advance and NORMAL on a Color (it is written only when the player changes the line, so a choice is never overwritten by
+//   a default). A DMG never reads or writes it. ERASE DATA clears it with the rest. Older saves have no block: they read as not chosen.
 //   0x0A the venue-start score "SV" (owner 2026-10-14: CONTINUE returns to the venue's start with 3 lives and the score the player
 //   had when they entered it): 0..1 magic "SV"; 2 the chapter it belongs to; 3..5 the score (LE, <= 999999); 6 checksum (0x5A +
 //   bytes 0..5), 7 its complement. Written when a venue is entered (a PRE scene's end, a chapter cleared: story.c) and read by
@@ -122,6 +126,11 @@ uint8_t  save_lock;                 // 1: a debug-select story run or ARCADE: st
 #define STEP_CLAMP(r) ((r) >= STORY_STEPS ? STORY_STEPS - 1 : (r))
 #define BK_AT    0x28               // the boss cards seen "BK": 0..1 magic, 2..3 bit v = venue v's boss card was shown (LE; bits below BOSS_COUNT), 4 checksum, 5 complement
 #define BK_LEN   4
+#define SC_AT    0x30               // the SCREEN setting "SC": 0..1 magic, 2 the choice (1 NORMAL, 2 BRIGHT), 3 checksum, 4 complement
+#define SC_LEN   3
+#if BK_AT + BK_LEN + 2 > SC_AT || SC_AT + SC_LEN + 2 > 0x40
+#error "the SCREEN block overlaps its neighbours"
+#endif
 #define SM_AT    0x1E               // the story map "SM": 0..1 magic, 2 the stop, 3 the flags, 4 checksum, 5 complement
 #define SM_LEN   4
 #if SM_AT + SM_LEN + 2 > BK_AT || DU_AT + DU_LEN + 2 > SM_AT
@@ -517,6 +526,26 @@ void bar_mode_save(void) BANKED {
     DISABLE_RAM;
 }
 
+// SETTINGS > SCREEN: 1 NORMAL / 2 BRIGHT as saved, 0 when the player never chose (the boot's default then follows the hardware: main_cold.c screen_load)
+uint8_t screen_saved(void) BANKED {
+    volatile uint8_t *b = SRAM + SC_AT;
+    uint8_t m = 0;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    if (b[0] == 'S' && b[1] == 'C' && (b[2] == 1 || b[2] == 2) && sum_ok(b, SC_LEN)) m = b[2];
+    DISABLE_RAM;
+    return m;
+}
+
+void screen_save(void) BANKED {                                // the choice now in _is_GBA bit 1
+    volatile uint8_t *b = SRAM + SC_AT;
+    ENABLE_RAM;
+    SWITCH_RAM(0);
+    b[0] = 'S'; b[1] = 'C'; b[2] = SCR_BRIGHT() ? 2 : 1;
+    sum_put(b, SC_LEN);
+    DISABLE_RAM;
+}
+
 // DEBUG MENU unlocked? (src/debug.c, SETTINGS' DEBUG line, the open gesture). A build with -DDEBUG_UNLOCKED is always unlocked.
 uint8_t debug_unlocked(void) BANKED {
 #ifdef DEBUG_UNLOCKED
@@ -585,6 +614,7 @@ void save_erase(void) BANKED {
     level_dirs &= ~KEEP_POS;
     save_lock = 0;
     hi_load();
+    screen_load();                               // (the SCREEN choice is gone with the rest: the hardware's default; the caller writes the palettes again: title.c)
 }
 
 // The save: the main block with the story's difficulty `d` (DIFF_*; 0xFF: the one the block holds now, NORMAL when there is none), the three tables

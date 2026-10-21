@@ -11,6 +11,7 @@
 #define GAME_H
 #include <gb/gb.h>
 #include "mpump.h"
+#include "bright.h"
 #include <stdint.h>
 #include "art.h"
 #include "layout.h"
@@ -457,6 +458,7 @@ void enhance_load(uint8_t g) BANKED;          // level load (LCD off), after lif
 extern uint8_t venue_id;
 void mug_cursor_load(void) BANKED;                      // the menus' mug cursor: OBJ_MUG.. tiles and OBJ palettes 1-2 (LCD off)
 void load_venue(uint8_t t) BANKED;                      // tiles, palettes, base_tile/base_attr of theme t
+void venue_pals(void) BANKED;                           // Color: the loaded venue's palettes written (load_venue's last step; SETTINGS > SCREEN on the title)
 void draw_venue(void) BANKED;                           // stage, counter rows, floor, HUD attributes
 // Stage animation (src/venue.c): a few stage tile ids get their pixels rewritten on a looped script, through the
 // VBlank copy queue (render.c queue_stage). sa_hold (tests) freezes it; vq_reset() stops it (sa_on = 0).
@@ -476,7 +478,8 @@ void title_music_toggle(void) BANKED;                   // music on/off and the 
 // [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS's SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS's MUSIC ON-OFF / BAR CHANGE SNAP-KEEP
 enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES,
        K_BOSSRUSH, K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP,
-       K_CREDITS, K_EASY, K_NORMAL, K_HARD, K_CAP_EASY, K_CAP_NORMAL, K_CAP_HARD };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
+       K_CREDITS, K_EASY, K_NORMAL, K_HARD, K_CAP_EASY, K_CAP_NORMAL, K_CAP_HARD,
+       K_SCR_NORMAL, K_SCR_BRIGHT };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
                                                                                          // DEBUG MENU (unlocked only); the confirm: the K_ERASEQ label, NO, YES;
                                                                                          // PLAY > STORY's difficulty prompt: EASY, NORMAL, HARD, each with its K_CAP_* caption (HALF / NORMAL / EXTRA POINTS) on the row below (no item: title.c menu_frame); K_BARCHANGE and K_BARKEEP are the bar toggles)
 enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD };   // title_menu: the top level or the submenu of top item n-1 (TM_ERASE: SETTINGS' ERASE ALL DATA? prompt; TM_HARD: PLAY > STORY's HOW HARD prompt)

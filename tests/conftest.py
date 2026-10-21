@@ -60,11 +60,29 @@ def _speed_off_copy(path):
     return out
 
 
+# ---- a Game Boy Advance (SETTINGS > SCREEN, src/bright.h): a GBA runs the cartridge in Color mode and hands it B = 1 (GBDK: _is_GBA, bit 0), a plain Color B = 0.
+# PyBoy's boot ROM leaves B = 0, so a hook on the cartridge's entry point (0x0100: nothing has run yet) sets B = 1. `with gba_hardware(): Rom(...)` makes every
+# PyBoy built inside the block a GBA; GB_GBA=1 does it for a whole run (then the goldens, which are the Color's, are expected to differ).
+_GBA = [bool(os.environ.get("GB_GBA"))]
+
+
+@contextlib.contextmanager
+def gba_hardware(on=True):
+    old, _GBA[0] = _GBA[0], on
+    try:
+        yield
+    finally:
+        _GBA[0] = old
+
+
 class _PyBoy(_pyboy_mod.PyBoy):
     def __init__(self, gamerom, *a, **kw):
         if not _DS[0] and kw.get("cgb") is not False and isinstance(gamerom, (str, os.PathLike)) and Path(gamerom).suffix in (".gb", ".gbc"):
             gamerom = _speed_off_copy(gamerom)
         super().__init__(gamerom, *a, **kw)
+        if _GBA[0]:
+            rf = self.register_file
+            self.hook_register(0, 0x0100, lambda ctx: setattr(rf, "B", 1), None)
 
 
 _pyboy_mod.PyBoy = _PyBoy
@@ -241,7 +259,8 @@ def hold_stage_anim(rom, hold=1):
 # ---- the title menu (src/title.c): the top level PLAY / BONUS / SETTINGS, each opening a submenu in the same place:
 # PLAY [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS MUSIC. K_* / TM_*: src/game.h.
 (K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES, K_BOSSRUSH,
- K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP, K_CREDITS, K_EASY, K_NORMAL, K_HARD, K_CAP_EASY, K_CAP_NORMAL, K_CAP_HARD) = range(25)
+ K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP, K_CREDITS, K_EASY, K_NORMAL, K_HARD, K_CAP_EASY, K_CAP_NORMAL, K_CAP_HARD,
+ K_SCR_NORMAL, K_SCR_BRIGHT) = range(27)
 TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD = range(6)
 MENU_SETTLE = 6          # frames for a submenu's lines to reach the screen (2-5: src/title.c menu_frame)
 

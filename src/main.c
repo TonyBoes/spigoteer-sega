@@ -24,6 +24,15 @@
 
 BANKREF_EXTERN(art_tiles)
 
+// ---- SETTINGS > SCREEN BRIGHT (bright.h): the palette writer every set_*_palette call goes through; ROM0 because its callers sit in every bank and pass pointers
+// into theirs (a banked function could not read them). NORMAL: GBDK's writer straight through (one extra call). BRIGHT: the palettes (8 at most: 64 bytes of
+// stack) are copied out, and src/bright.c lifts and writes them.
+void pal_put(uint8_t first, uint8_t n, const uint16_t *p) {
+    uint16_t q[32];
+    if (SCR_BRIGHT()) { memcpy(q, p, (uint8_t)(n << 3)); pal_put_b(first, n, q); return; }
+    if (first & 0x80) (set_sprite_palette)(first & 0x7F, n, p); else (set_bkg_palette)(first, n, p);
+}
+
 // Tile data lives in switchable banks (build/art.c, build/venue_*.c); these copy it to VRAM (LCD off or VBlank
 // only) or WRAM and switch back to the caller's bank, so banked code (venue.c) can use them too.
 void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank) {

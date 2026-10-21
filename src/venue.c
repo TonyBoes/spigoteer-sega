@@ -48,7 +48,10 @@ void load_venue(uint8_t t) BANKED {
         }
         music_pump();                           // (each row of the copy takes a sixth of a frame: the tune ticks between them)
     }
-    if (!is_cgb) return;                        // DMG: the fixed grey ramps (the art is luminance-ordered)
+    if (is_cgb) venue_pals();                   // (DMG: the fixed grey ramps, the art is luminance-ordered)
+}
+
+void venue_pals(void) BANKED {
     set_bkg_palette(BGPAL_STAGE, 1, venue.pal[VENUE_PAL_STAGE_A]);
     set_bkg_palette(BGPAL_STAGE_B, 1, venue.pal[VENUE_PAL_STAGE_B]);
     set_bkg_palette(BGPAL_BAR, 1, venue.pal[VENUE_PAL_BAR]);

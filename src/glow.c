@@ -26,7 +26,7 @@ void glow_tick(void) BANKED {
     if (ly < 144 || ly > 150) return;
     ph = (frame_counter >> 4) & 7;                         // 0..7: up 0 1 2 3 4, back 3 2 1
     if (ph > 4) ph = 8 - ph;
-    c0 = pulse0[ph]; c1 = pulse1[ph];
+    c0 = BRIGHTEN(pulse0[ph]); c1 = BRIGHTEN(pulse1[ph]);
     BCPS_REG = 0x80 | (BGPAL_STAGE_B << 3);
     BCPD_REG = (uint8_t)c0; BCPD_REG = (uint8_t)(c0 >> 8);
     BCPD_REG = (uint8_t)c1; BCPD_REG = (uint8_t)(c1 >> 8);

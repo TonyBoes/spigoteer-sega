@@ -780,7 +780,8 @@ static void draw_coin(void) {
 static void pal5_check(void) {
     uint8_t want = show_timer ? 2 : tip_timer ? 1 : 0;
     if (!want || want == pal5_cur || !is_cgb) return;
-    pal5_src = want == 1 ? coin_pal : venue.pal[VENUE_PAL_SHOW];
+    if (SCR_BRIGHT()) { pal5_lift(want); pal5_src = coin_pal; }   // SCREEN BRIGHT: the VBlank writes coin_pal raw, so the coin's or the show's colours are lifted into it here (src/bright.c)
+    else pal5_src = want == 1 ? coin_pal : venue.pal[VENUE_PAL_SHOW];
     pal5_cur = want;
     pal5_req = 1;
 }

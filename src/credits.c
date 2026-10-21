@@ -194,7 +194,7 @@ static uint16_t cr_share(uint16_t units) {        // units / 352 of the tune (16
 // ---- the card's colours: in RAM, faded to the hardware by trans.c ----------------------------------------------------------------------
 static void cr_pal(uint8_t obj, uint8_t i, const uint16_t *p) {   // CGB: palette i of the BG (obj 0) or OBJ (1) set
     uint16_t *q = (uint16_t *)(CR_PAL + (obj ? 64 : 0) + i * 8);
-    q[0] = p[0]; q[1] = p[1]; q[2] = p[2]; q[3] = p[3];
+    q[0] = BRIGHTEN(p[0]); q[1] = BRIGHTEN(p[1]); q[2] = BRIGHTEN(p[2]); q[3] = BRIGHTEN(p[3]);   // (SCREEN BRIGHT: lifted once, here; trans.c fades them in as they are)
 }
 
 // ---- the tune's time through a build: one tick a frame, the first call after line 18 (as the loop's and the fades': a unit is a fraction of a frame, so a
