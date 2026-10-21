@@ -318,6 +318,17 @@ def test_tray_moves_left_and_right(gb):
     assert len(t) == 4 and min(s["x"] - 8 for s in t) == 136 - 8, "the tray at his waist moves with him"
 
 
+def test_tip_shower_coins_use_sals_palette(gb):
+    """Owner Q37: the falling coins wear Sal's OBJ palette 0 (CGB; DMG has 0 anyway); a tomato keeps its red."""
+    enter_tips(gb)
+    clear_items(gb)
+    drop(gb, 0, 1, 40, 60)
+    gb.run(2)
+    from test_tips import OBJ_COIN
+    coins = [s for s in gb.visible_sprites() if abs(s["x"] - 8 - 40) <= 8 and s["tile"] in (OBJ_COIN, OBJ_COIN + 2)]
+    assert coins and all(s["flags"] & 7 == 0 for s in coins), [s for s in gb.visible_sprites()]
+
+
 def test_a_coin_on_the_tray_scores_100(gb):
     enter_tips(gb)
     clear_items(gb)

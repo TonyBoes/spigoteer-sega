@@ -114,7 +114,7 @@ def test_the_tip_is_dropped_under_the_patron_while_he_is_still_on_the_screen(gb)
     run_until(gb, lambda: gb.mem("served") == 1, 300)
     assert gb.mem("tip_x") == drop and 0 < gb.mem16("tip_timer") < TIP_FRAMES, "after he is gone it lies where he dropped it"
     if gb.model_name == "cgb":
-        assert coin_sprites(gb)[0]["flags"] & 7 == 5, "coin OBJ palette (M13a: slot 5, shared with the show)"
+        assert coin_sprites(gb)[0]["flags"] & 7 == 0, "coin OBJ palette (owner Q37: Sal's, slot 0)"
 
 
 def test_a_drinker_who_stops_on_the_bar_drops_no_tip(gb):
