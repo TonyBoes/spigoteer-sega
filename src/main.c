@@ -449,7 +449,7 @@ static void play_frame(uint8_t pressed) {
 
 
 static void update(void) {
-    uint8_t pressed;
+    uint8_t pressed, half_skip = 0;
 
     vq_frame_begin();                // the VBlank interrupt has drained last frame's copy list (or it waits)
 #ifdef GLOW_A
@@ -490,6 +490,10 @@ static void update(void) {
         if (pressed & (J_START | J_B) && pause_or_pocket(pressed)) break;   // START: the pause menu (src/pause.c); B: a show from the pocketed tip (src/pocket.c)
         play_frame(pressed);
         if (story_on) story_play();              // M11b: the chapter goal
+        // 30 fps (DMG, src/half.c): every second VBlank is a logic-only step, the next one is the same plus the picture (the dirty marks,
+        // the stage animation's steps and the HUD flags just accumulate until then). A step that ends the level or a life, or opens a
+        // fight, is drawn at once.
+        half_skip = (HALF & HALF_ON) && !(frame_counter & 1) && game_state == GS_PLAYING && !(life_lost | level_clear | boss_on);
         break;
     case GS_LIFE_LOST:
         update_glass();
@@ -553,11 +557,12 @@ static void update(void) {
     }
 
     SEC(SEC_REST);
-    if ((lift_total | lift_hook_op | ovl_dirty) && (game_state == GS_PLAYING || game_state == GS_LIFE_LOST)) lift_frame();   // M13a/b
+    if (!half_skip && (lift_total | lift_hook_op | ovl_dirty) && (game_state == GS_PLAYING || game_state == GS_LIFE_LOST)) lift_frame();   // M13a/b
     SEC(SEC_LIFT);
     // stage animation: on the level screen (sa_on), not frozen by a test (sa_hold), not while paused
     if (sa_on > sa_hold && game_state != GS_PAUSED && !--sa_timer) stage_anim_step();
     SEC(SEC_ANIM);
+    if (half_skip) { half_step(); frame_counter++; return; }   // (30 fps: no picture this VBlank)
     if (vram_pending | hud_dirty | sa_left) queue_vram();
     SEC(SEC_QUEUE);
     if (game_state == GS_PLAYING || game_state == GS_LIFE_LOST) {
@@ -727,7 +732,7 @@ void main(void) {
     perf_last_t = (uint8_t)sys_time;
 #endif
     while (1) {
-        frame_wait();
+        if (!((HALF & HALF_ON) && game_state == GS_PLAYING && (uint8_t)sys_time != frame_t0)) frame_wait();   // (30 fps: the last step ran past a VBlank: that one counts, the next step starts at once, not a frame later)
 #ifdef FRAME_STATS
         frame_t0 = t0 = (uint8_t)sys_time; ly0 = LY_REG; st0 = game_state;
 #else
