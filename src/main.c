@@ -767,7 +767,7 @@ void main(void) {
         perf_end_last = perf_ly(t0, snap_t, snap_ly);
         if (perf_logic_last >= 144) music_late++;               // the tick began only after the next VBlank had begun
         if (!ok) continue;
-        if (ly0 < 144 || d != 1) missed_frames++;
+        if ((ly0 < 144 && !(HALF & HALF_ON)) || d != 1) missed_frames++;   // (30 fps: a step that starts at once after one that ran past a VBlank is on time, src/half.c half_wait; only a VBlank nobody started a step in is missed)
         if (ly0 > frame_ly_max) frame_ly_max = ly0;
         if (perf_logic_last > perf_logic_max) perf_logic_max = perf_logic_last;
         if (perf_end_last > perf_end_max) perf_end_max = perf_end_last;
