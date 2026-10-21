@@ -630,8 +630,10 @@ def golden_scene(boot, dirs, lv, game=False):
 
 
 def test_golden_classic_flip(boot):
-    """Classic level 3 (sports, RRRR: the whole screen flips) = the harness's sports level with every bar R."""
-    check_golden(golden_scene(boot, ALL_R, 2), "classic_flip")
+    """Classic level 3 (sports, RRRR: the whole screen flips) = the harness's sports level with every bar R. Pinned to a game frame
+    (as classic_split): the emulator-frame shot moved with every change in frame cost (span deferral, double-speed boot)."""
+    from conftest import check_golden_game
+    check_golden_game(golden_scene(boot, ALL_R, 2, game=True), "classic_flip")
 
 
 def test_golden_classic_split(boot):

@@ -46,7 +46,13 @@ static uint8_t h_sound;               // 1: the current harmony note sounds on c
 #define LOAD_PLAY_BYTES    384     // per frame while the music waits for its patterns (no driver tick runs then)
 #define LOAD_PRELOAD_BYTES  96     // per frame while the driver also ticks
 #define FAST_TUNE(t) ((t) >= TUNE_VENUE0 && (t) < TUNE_COUNT)   // the tunes a story twist can speed up (not the credits tune)
-#define FRAME_TIMA          69     // one frame (1/59.73 s) in 4096 Hz timer counts (68.6)
+// The frame timer counts CPU clocks / 1024: 4096 Hz in normal speed (68.6 counts a frame), 8192 Hz in a Color's double speed (137.2; no slower
+// setting exists), where its 8 bits wrap every 1.87 frames, not 3.7. A wrap sets IF bit 2 (nothing is enabled to take it) and reloads TIMA from TMA:
+// the pumps read that flag and carry the lost 256 counts in a 16-bit sum, so a gap of up to ~3.7 frames costs no tick on either speed.
+// Normal speed never reads or clears the flag: its code runs as before. (DS_NOW / DS_SCALE: src/music.h; the title's and trans.c's waits scale likewise.)
+#define FRAME_TIMA          DS_SCALE(69)
+#define IF_TIMER            0x04
+static void timer_wrap_clear(void) { CRITICAL { IF_REG &= ~IF_TIMER; } }   // (double speed only; interrupts off so a VBlank / LYC flag set meanwhile is not written back)
 
 typedef struct { uint16_t freq; uint8_t len; int8_t slide; } sfx_step_t;   // CH1: 11-bit period; CH4: NR43
 typedef struct { uint8_t ch; uint8_t duty; uint8_t env; uint8_t nsteps; const sfx_step_t *steps; } sfx_def_t;
@@ -161,7 +167,7 @@ static void silence_music(void) {
 }
 
 void music_init(void) BANKED {
-    TMA_REG = 0; TIMA_REG = 0;
+    TMA_REG = 0; TIMA_REG = 0; IF_REG &= ~IF_TIMER;
     TAC_REG = TACF_START | TACF_4KHZ;   // the frame timer music_pump polls (no interrupt: IE leaves it out)
     NR52_REG = 0x80;           // sound on
     NR51_REG = 0xFF;           // every channel to both sides
@@ -465,7 +471,8 @@ void music_tick(void) BANKED {
         }
         if (f & 1) {
             TMA_REG = f & 2;
-            if (TIMA_REG < (f & 0xFC) + FRAME_TIMA / 2) return;   // (under half a frame since the pump's tick, that carried its lateness in TIMA: no tick, however it was timed)
+            if (TIMA_REG < (f & 0xFC) + FRAME_TIMA / 2 && !(DS_NOW && (IF_REG & IF_TIMER))) return;   // (under half a frame since the pump's tick, that carried its lateness in TIMA: no tick, however it was timed; a wrap of TIMA in double speed means well over a frame has passed)
+            if (DS_NOW) timer_wrap_clear();   // (the tick below zeroes TIMA: a wrap flag left over would add 256 counts to the next pump; the common path, TMA 0, leaves it to main.c frame_wait)
         }
     }
     TIMA_REG = 0;        // (zeroed before the tick, not after: the pump's clock then runs from this tick's START, as music_pump's own remainder does; a tick's cost, 8 to 20 lines by the row, no longer moves the next pumped tick)
@@ -477,15 +484,21 @@ void music_tick(void) BANKED {
 // Such loads call this between their steps: when a frame's time (the timer, FRAME_TIMA counts at 4096 Hz since the
 // last tick) has passed, the music ticks once and the remainder carries over. Polled, no timer interrupt.
 void music_pump(void) BANKED {
-    uint8_t t = TIMA_REG;
-    if (t < FRAME_TIMA) return;
+    uint8_t t = TIMA_REG, ds = DS_NOW, ft = ds ? 2 * 69 : 69;
+    uint16_t e = t;
+    if (ds && (IF_REG & IF_TIMER)) {                  // double speed: TIMA wrapped since the last tick and reloaded from TMA: the real count is 256 more than TIMA minus that
+        uint8_t m = TMA_REG;
+        e = t >= m ? 256 + t - m : 512 - m;           // (a second wrap, 3+ frames on, is not told apart: the sum is its floor)
+    } else if (t < ft) return;
     if (*(volatile uint8_t *)0xFFF0) {                // the pause menu: the tune stands still when NR51 is 0 (a game clocked by music_frames), else as music_tick
         if (!NR51_REG) return;
         sfx_req = 0;
         NR51_REG = voice[1].busy ? 0x44 : 0xCC;
     }
     tick();
-    t -= FRAME_TIMA;
+    e -= ft;
+    t = e > 255 ? 255 : (uint8_t)e;
+    if (ds) timer_wrap_clear();
     TIMA_REG = t;                                     // (the remainder carries over: it is how late this tick was)
     TMA_REG = (TMA_REG & 2) | 1 | (t & 0xFC);         // (bits 2-7: that lateness, rounded down to 4 counts: TIMA minus it is the real time since this tick, see music_tick)
 }

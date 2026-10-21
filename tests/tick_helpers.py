@@ -5,11 +5,12 @@
 #   - a stall (a tick that came late: the tune audibly hitches) is an interval over LATE frames between two ticks;
 #   - a bunch (a tick pump and the loop's own on one frame) is an interval under EARLY frames.
 # One frame is one tick, so a missed tick is an interval of ~2 frames and a doubled one ~0 to 0.5: LATE and EARLY sit between.
+import os
 import re
 
 from conftest import ROM
 
-FRAME = 70224                # T-cycles in a frame
+FRAME = 70224 * (2 if os.environ.get("GB_DOUBLE_SPEED") else 1)    # T-cycles in a frame (the emulator's count doubles in Color double speed: GB_DOUBLE_SPEED=1 pytest -k cgb; a DMG run of such a session is not meaningful)
 LATE, EARLY = 1.6, 0.3       # a tick interval over / under this many frames is a hitch / a bunched tick
 
 

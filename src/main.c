@@ -193,6 +193,7 @@ void cast_isr(void) {
 void mr_lcd_isr(void) {
     uint8_t ly;
     HIDE_WIN;                                    // (as lcd_isr: the banner window's end)
+    if (is_cgb && (KEY1_REG & 0x80)) while ((STAT_REG & 3) > 1) ;   // (Color double speed: the handler reaches its SCX write in half the dots, still inside the split line, so that line scrolled with the street; normal speed writes after the line's pixels (the stub's dispatch is 60+ cycles). Wait for HBlank (or VBlank: line 144) as that lands)
     if ((game_state == GS_MINI || game_state == GS_PAUSED) && mg_id == MG_MILKRUN) {
         ly = LYC_REG;
         if (ly == 144) { SCX_REG = 0; ly = MR_SPLIT_LY; }
@@ -475,6 +476,9 @@ static void update(void) {
 #ifdef AUTO_BOSS                       // test-only (tests/test_fade_hw.py): the hook is in src/debug.c
     joy = auto_boss();
 #endif
+#ifdef AUTO_MR                         // test-only (tests/test_double_speed.py): the hook is in src/debug.c
+    joy = auto_mr();
+#endif
 #ifdef AUTO_CARD                       // test-only (tests/test_fade_hw.py, never in a release): the hook is in src/debug.c (a banked file: ROM0 has no room)
     joy = auto_card();
 #endif
@@ -490,6 +494,15 @@ static void update(void) {
         if (pressed & (J_START | J_B) && pause_or_pocket(pressed)) break;   // START: the pause menu (src/pause.c); B: a show from the pocketed tip (src/pocket.c)
         play_frame(pressed);
         if (story_on) story_play();              // M11b: the chapter goal
+        // 30 fps (DMG, src/half.c): every second VBlank is a logic-only step, the next one is the same plus the picture (the dirty marks,
+        // the HUD flags and the chooser's dirty bits just accumulate until then). A step that ends the level or a life, or opens a fight,
+        // is drawn at once.
+        if (!(frame_counter & 1) && (HALF & HALF_ON) && game_state == GS_PLAYING && !(life_lost | level_clear | boss_on)) {
+            if (sa_on > sa_hold && !--sa_timer) stage_anim_step();   // (the frame's other work that is not drawing, as below)
+            half_step();
+            frame_counter++;
+            return;
+        }
         break;
     case GS_LIFE_LOST:
         update_glass();
@@ -690,12 +703,16 @@ static uint16_t perf_ly(uint8_t t0, uint8_t t, uint8_t ly) {
 
 #endif   // FRAME_STATS
 
+#ifndef DS_TICK_LY
+#define DS_TICK_LY 60                  // Color double speed: the line the loop's music tick waits for (a tick is up to 18 lines: MUSIC_LATEST_LY 120)
+#endif
+
 // Wait for the next VBlank (GBDK's vsync() without its race). vsync() clears the "VBlank done" flag and then halts: a
 // VBlank interrupt that lands between the two sets the flag before the halt, and the CPU then sleeps until the next
 // interrupt, the banner's LYC at line 86 or a whole frame later (M13b: the worst-case pile's 218/223 end LY was a frame
 // that ended at line 143 and slept until line 87). Here the flag is checked with interrupts off, and the halt (IME 0)
 // wakes on any pending interrupt, which is then taken after the ei.
-static void frame_wait(void) __naked {
+void frame_wait(void) __naked {   // (not static: src/half.c half_wait calls it)
 __asm
     ldh  a, (0x40)          ; LCD off: nothing to wait for (as vsync)
     and  a, #0x80
@@ -707,6 +724,12 @@ __asm
     ld   a, (__vbl_done)
     or   a, a
     jr   nz, 2$
+    ldh  a, (0x0F)          ; the music timer wrapped (IF bit 2; double speed only, nothing takes it): the tick just made zeroed TIMA, the flag is stale (music.c music_pump)
+    bit  2, a
+    jr   z, 3$
+    and  a, #0xFB
+    ldh  (0x0F), a          ; (interrupts are off: none is taken between the read and this write; a flag the hardware sets in those 3 cycles would be lost, on the rare frame that has a stale timer flag)
+3$:
     halt
     nop                     ; (if an interrupt was already pending, the halt bug only repeats this nop)
     ei
@@ -727,7 +750,7 @@ void main(void) {
     perf_last_t = (uint8_t)sys_time;
 #endif
     while (1) {
-        frame_wait();
+        if (HALF & (HALF_ON | HALF_OWED)) half_wait(); else frame_wait();   // (30 fps: src/half.c)
 #ifdef FRAME_STATS
         frame_t0 = t0 = (uint8_t)sys_time; ly0 = LY_REG; st0 = game_state;
 #else
@@ -740,6 +763,7 @@ void main(void) {
         perf_snap(); lt = snap_t; lly = snap_ly;
 #endif
         // Music and effects, every frame, after the logic (so they cannot delay the game's input-to-state latency).
+        if (is_cgb && (KEY1_REG & 0x80) && (LCDC_REG & LCDCF_ON)) while (LY_REG < DS_TICK_LY) ;   // (double speed: a frame's logic ends by line 20-60, a heavy pass's much later: the ticks would bunch up to 0.7 frame apart. The tick waits for a fixed line, as the credits' and the fades' do: the spare time is idle anyway)
         if (game_state != GS_PAUSED || !PAUSE_NR51 || NR51_REG) music_tick();   // (the pause menu: the bass and drums play on; NR51 0: a tune the game is clocked by stands still, pause.c)
         SEC(SEC_MUSIC);
 #ifdef FRAME_STATS
@@ -758,7 +782,7 @@ void main(void) {
         perf_end_last = perf_ly(t0, snap_t, snap_ly);
         if (perf_logic_last >= 144) music_late++;               // the tick began only after the next VBlank had begun
         if (!ok) continue;
-        if (ly0 < 144 || d != 1) missed_frames++;
+        if ((ly0 < 144 && !(HALF & HALF_ON)) || d != 1) missed_frames++;   // (30 fps: a step that starts at once after one that ran past a VBlank is on time, src/half.c half_wait; only a VBlank nobody started a step in is missed)
         if (ly0 > frame_ly_max) frame_ly_max = ly0;
         if (perf_logic_last > perf_logic_max) perf_logic_max = perf_logic_last;
         if (perf_end_last > perf_end_max) perf_end_max = perf_end_last;

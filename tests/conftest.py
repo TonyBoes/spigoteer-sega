@@ -12,6 +12,65 @@ UPDATE = os.environ.get("GB_UPDATE_GOLDEN") == "1"
 GOLDEN_REPORT = os.environ.get("GB_GOLDEN_REPORT")   # a file: a golden that differs is listed there (name, model, the differing bounding box) and the test goes on; nothing under tests/golden is written
 
 
+# ---- Color double speed (src/main_cold.c boot_init): the shipped ROM switches a Color to double speed at boot, unless its byte 0x3FFE is 0.
+# Every existing test was written (and every golden taken) at normal speed, so each PyBoy the tests make loads a copy of the ROM with that
+# byte patched to 0 (a ROM that is not this game, or without the byte, is untouched; a DMG never reads it). tests/test_double_speed.py
+# runs the ROM as built: `with double_speed(): Rom(...)`, or GB_DOUBLE_SPEED=1 for the whole run (then the old tests are not expected to pass).
+import contextlib
+import hashlib
+import pyboy as _pyboy_mod
+import gbtools.rom as _gbtools_rom
+
+SPEED_BYTE = 0x3FFE
+_DS = [bool(os.environ.get("GB_DOUBLE_SPEED"))]
+_patched_cache = {}
+
+
+@contextlib.contextmanager
+def double_speed():
+    """Inside the block a PyBoy made loads the ROM as built (double speed on a Color)."""
+    old, _DS[0] = _DS[0], True
+    try:
+        yield
+    finally:
+        _DS[0] = old
+
+
+def _speed_off_copy(path):
+    """The ROM at `path` with its speed-switch byte 0 (a temp copy under out/dsoff/), or `path` itself when it is not this game's ROM."""
+    key = str(path)
+    st = os.stat(key)
+    ck = (key, st.st_mtime_ns, st.st_size)
+    if ck in _patched_cache:
+        return _patched_cache[ck]
+    data = Path(key).read_bytes()
+    out = key
+    if len(data) > SPEED_BYTE and data[0x134:0x13D] == b"SPIGOTEER" and data[SPEED_BYTE] == 0xFF:
+        b = bytearray(data)
+        b[SPEED_BYTE] = 0
+        d = ROOT / "out" / "dsoff"
+        d.mkdir(parents=True, exist_ok=True)
+        p = d / (hashlib.sha1(bytes(b)).hexdigest()[:16] + ".gb")
+        if not p.is_file():
+            tmp = d / f".{os.getpid()}.{p.name}"
+            tmp.write_bytes(bytes(b))
+            os.replace(tmp, p)
+        out = str(p)
+    _patched_cache[ck] = out
+    return out
+
+
+class _PyBoy(_pyboy_mod.PyBoy):
+    def __init__(self, gamerom, *a, **kw):
+        if not _DS[0] and kw.get("cgb") is not False and isinstance(gamerom, (str, os.PathLike)) and Path(gamerom).suffix in (".gb", ".gbc"):
+            gamerom = _speed_off_copy(gamerom)
+        super().__init__(gamerom, *a, **kw)
+
+
+_pyboy_mod.PyBoy = _PyBoy
+_gbtools_rom.PyBoy = _PyBoy
+
+
 def golden_report(name, model, actual):
     """GB_GOLDEN_REPORT: one line per differing golden: its name, the model and the bounding box of the difference."""
     from PIL import Image, ImageChops
