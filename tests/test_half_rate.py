@@ -98,7 +98,8 @@ def level8(force, lv=8):
 def test_the_game_state_after_every_step_is_the_same_as_at_60_fps(lv):
     """Level 8 (its own spawns, the bartender on the level-8 script: fills, serves, bar changes), 900 frames, once at 60 fps and once forced to 30 fps:
     every game step ends in the same state (positions, timers, the score, the random generator): the logic runs in every VBlank with that
-    VBlank's input, whether the picture follows or not. Neither run is late at this level, so frame i is step i in both."""
+    VBlank's input, whether the picture follows or not. The script's key is fed by game step, not by emulator frame: a step that runs long (some do in both runs, not
+    always the same ones) would otherwise see its key a step apart, and the code path before the level (the title's) decides where those fall."""
     a, b = level8(FORCE_OFF, lv), level8(FORCE_ON, lv)
     assert not is_on(a) and is_on(b)
     steps = ([], [])
@@ -106,8 +107,8 @@ def test_the_game_state_after_every_step_is_the_same_as_at_60_fps(lv):
         addr = gb.addr("vq_frame_end")
         gb.pb.hook_register(addr >> 16, addr & 0xFFFF, lambda _, gb=gb, snaps=snaps: snaps.append(state(gb)), None)
     for i in range(900):
-        for gb in (a, b):
-            drive(gb, ph.SCRIPT, i)
+        for gb, snaps in zip((a, b), steps):
+            drive(gb, ph.SCRIPT, len(snaps))             # (the key of the step about to run; PyBoy takes no button change made inside the hook)
             gb.run(1)
     assert len(steps[0]) >= 850 and abs(len(steps[0]) - len(steps[1])) <= 2, (len(steps[0]), len(steps[1]))
     same = 0
