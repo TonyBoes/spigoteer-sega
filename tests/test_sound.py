@@ -273,19 +273,51 @@ def test_the_perfect_pour_is_a_soft_marimba_on_the_wave_channel(sgb):
     assert sgb.mem("hUGE_mute_mask") & MUTE3 == 0, "then let go"
 
 
+VOICE_FREQ, VOICE_STEP = 5, 3          # voice_t: busy, def (2), step, left, freq (2), slide
+
+
+def struck(sgb, streak, frames):
+    """Request the marimba and return the wave-channel periods the driver strikes (what it writes to NR33/NR34: those registers are write-only, so the
+    driver's own note state, voice[0], is read after every frame), one entry per note, in order. Exact, and independent of where in a frame the music
+    ticks and so of the code layout."""
+    sgb.run(40)
+    sgb.write("pour_streak", streak)
+    sgb.write(sgb.addr("sfx_req") + 1, 0x40)
+    notes, last = [], None
+    for _ in range(frames):
+        sgb.run(1)
+        v = sgb.read("voice", 7)
+        if v[0] and v[VOICE_STEP] != last:
+            last = v[VOICE_STEP]
+            if v[VOICE_FREQ] | v[VOICE_FREQ + 1] << 8:
+                notes.append(v[VOICE_FREQ] | v[VOICE_FREQ + 1] << 8)
+    return notes
+
+
+def wave_hz(period):
+    """The pitch of the wave channel's 32-sample wave at an 11-bit period."""
+    return 65536 / (2048 - period)
+
+
+def assert_pitches(periods, wanted):
+    """Each struck period is the wanted note to within the period's own step (the 11-bit period cannot hit a pitch exactly: 1.8% at D6, a semitone is 5.9%)."""
+    assert len(periods) == len(wanted), (periods, wanted)
+    for p, w in zip(periods, wanted):
+        assert abs(wave_hz(p) / w - 1) < 0.012, (periods, [round(wave_hz(q)) for q in periods], wanted)
+
+
 def test_the_marimba_climbs_a_whole_tone_on_the_second_perfect_pour_and_the_x2_sound_is_the_same_every_time(sgb):
     """Streak 1: the base pitch; 2: one whole tone up; 3: the x2 sound (D5 F#5 A5 D6, then a soft repeat), two whole tones up, and identical on every
-    later perfect pour (the streak stays at 3)."""
+    later perfect pour (the streak stays at 3). The pitches are the periods the driver writes to NR33/NR34 (exact, so a semitone's slip fails and the code
+    layout cannot); the speaker's FFT is only a coarse check that they are what is heard."""
     sgb.write("intro_timer", 255)
-    assert_notes(track(sgb, 1, 22), PERFECT_NOTES)
-    assert_notes(track(sgb, 2, 22), [n * TONE for n in PERFECT_NOTES])
-    trks = [track(sgb, 3, 30) for _ in range(3)]
-    means = []
-    for t in trks:
-        lab = assert_notes(t, X2_NOTES)
-        means.append([sum(h for h, k in zip(t, lab) if k == n) / lab.count(n) for n in range(4)])
-    for m in means[1:]:      # (the same four pitches every time, two whole tones up: no further climbing; the soft tail sinks under the tune, so only the notes are compared)
-        assert all(abs(x / y - 1) < 0.015 for x, y in zip(m, means[0])), means
+    assert_pitches(struck(sgb, 1, 22), PERFECT_NOTES)
+    assert_pitches(struck(sgb, 2, 22), [n * TONE for n in PERFECT_NOTES])
+    x2 = [struck(sgb, 3, 30) for _ in range(3)]
+    assert_pitches(x2[0], X2_NOTES + X2_NOTES[-1:])         # (D5 F#5 A5 D6, then the soft repeat of D6)
+    assert x2[1] == x2[2] == x2[0], x2                      # the same periods every time: no further climbing
+    heard = track(sgb, 3, 30)                               # the speaker agrees, coarsely
+    assert_notes(heard, X2_NOTES, tol=0.04)
     sgb.run(40)
     request_perfect(sgb, 3)
     n = 0
