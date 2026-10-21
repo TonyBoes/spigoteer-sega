@@ -330,7 +330,7 @@ void trans_card_out(void) BANKED {
 }
 
 static void tick_sync(void) {
-    if (NR51_REG) while (TIMA_REG > 23) music_pump();            // (the LCD comes on a third of a frame after a tick: the first fade-in tick follows ~1.3 frames later, not 1.9)
+    if (NR51_REG) while (TIMA_REG > DS_SCALE(23)) music_pump();            // (the LCD comes on a third of a frame after a tick: the first fade-in tick follows ~1.3 frames later, not 1.9)
 }
 
 // After the build, LCD still off, the window and registers set: the new screen's colours are read back at once (the LCD is off: no VBlank to wait for, no stash in VRAM),
@@ -517,6 +517,10 @@ static void group_t(const uint8_t *o, uint8_t k, uint8_t tick, uint8_t skip6) { 
             if (c) r += (w >> 3) & 0x0C63;
         }
         *q++ = r;
+    }
+    if (tick && LY_REG < 100) {                                        // (double speed: the 32 colours are done before line 18, the loop above never saw the window: the frame's tick, once the beam is there)
+        while (LY_REG < TICK_LY) ;
+        music_tick();
     }
 }
 

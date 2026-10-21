@@ -132,6 +132,10 @@ void boot_init(void) BANKED {
         OBP0_REG = 0xD0;   // bartender: idx1 white, idx2 light grey, idx3 black
         OBP1_REG = OBP1_MENU;   // title: mugs, sparkles: idx1 light grey, idx2 white, idx3 black; in play OBP1_PLAY (lift.c)
     }
+    // A Color runs in double speed (the crowded scenes then finish their frames in time). The switch stops the CPU for ~2050 machine cycles: the LCD
+    // is off here. ROM byte 0x3FFE (free ROM0 padding, 0xFF as built) is a test switch: tests/conftest.py patches it to 0 so the existing Color tests
+    // and goldens run at normal speed (tests/test_double_speed.py runs the ROM as built). A DMG never reads it.
+    if (is_cgb && *(const volatile uint8_t *)0x3FFE != 0) cpu_fast();
     music_init();
     story_chapter = 0;                          // (bit 7 would offer a debug-select resume: WRAM holds junk on a real Game Boy)
     hi_load();
