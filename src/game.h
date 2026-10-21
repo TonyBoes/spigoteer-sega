@@ -440,9 +440,8 @@ extern const uint8_t sway_tab[256];                 // (patrons.c, ROM0) (t / SW
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
 uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
 uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c-1..c+3 of bar b first thing this frame (0: not now)
-extern volatile uint8_t pal5_req;             // (render.c) VBlank palette requests: bit 0 the coin's OBJ 5, bit 1 the Mothership's lights, already in LIGHTS_BUF (boss.h)
-extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds: 1 the coin, 2 the show
-extern uint16_t coin_pal[4];                  // (main.c) PAL_COIN, copied out of the banked palette table at boot
+extern volatile uint8_t pal5_req;             // (render.c) VBlank palette requests: bit 0 the show's OBJ 5, bit 1 the Mothership's lights, already in LIGHTS_BUF (boss.h)
+extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds the show (2) or not
 // ---- lift.c (banked, M13a lifted patrons) ------------------------------------------------------
 void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palettes / DMG copies and looks, no one lifted
 void lift_frame(void) BANKED;                 // after the rules, before queue_vram: drops, forced drops, the test hook

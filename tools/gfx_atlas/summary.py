@@ -12,7 +12,7 @@ BG_ROLES = {0: "bar / counter (BGPAL_BAR)", 1: "HUD (BGPAL_HUD)", 2: "patron var
             5: "venue stage A (BGPAL_STAGE)", 6: "venue stage B (BGPAL_STAGE_B)", 7: "venue's second bar palette: keg / spout; enhanced row S (BGPAL_BAR_B)"}
 OBJ_ROLES = {0: "Sal, the bartender (OBJPAL_BARTENDER)", 1: "full mug (OBJPAL_MUG_FULL)", 2: "empty mug / breaking glass (OBJPAL_MUG_EMPTY)",
              3: "lifted patron A (OBJPAL_PATRON_A)", 4: "extra palette of an enhanced patron variant (OBJPAL_ENH)",
-             5: "tip coin (same every venue) \u21c4 show dancers (per venue): swapped in when a tip appears or a show starts; no tips or shows in boss fights (OBJPAL_COIN = OBJPAL_DANCER)", 6: "lifted patron B (OBJPAL_PATRON_B)", 7: "lifted patron C (OBJPAL_PATRON_C)"}
+             5: "show dancers (per venue), loaded with the venue; the tip coin wears Sal's OBJ 0 (OBJPAL_COIN = OBJPAL_DANCER); bosses load their own art here", 6: "lifted patron B (OBJPAL_PATRON_B)", 7: "lifted patron C (OBJPAL_PATRON_C)"}
 
 
 def roles():
