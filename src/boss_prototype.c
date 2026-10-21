@@ -76,9 +76,7 @@ typedef struct {
     uint8_t  row[CONV_COLS];             // the conveyor's counter row, as last written
 } prototype_t;
 #define proto (*(prototype_t *)BOSS_OWN)
-#if 2 + CONV_COLS > BOSS_OWN_N
-#error "the Prototype's state: BOSS_OWN_N"
-#endif
+typedef char prototype_own_fits[sizeof(prototype_t) <= BOSS_OWN_N ? 1 : -1];   // (his state is in BOSS_OWN: boss.h; sizeof, not a number typed twice)
 
 static uint8_t counter_y(void) {
     return BAR_COUNTER_ROW(boss_bar);
@@ -89,7 +87,10 @@ static uint8_t counter_y(void) {
 // (the queue is drained in VBlank, when another ROM bank is mapped): the belt's 7s are BELT_ATTR, 18 bytes of story_scratch
 // (free in a fight, no WRAM of their own), so they can wait in the queue beside proto.row's tiles: the belt's first tiles and
 // its palette go out in the same VBlank (to_red), never one frame apart.
-#define BELT_ATTR  (story_scratch + 200)
+#define BELT_ATTR  (story_scratch + SCR_BELT_AT)
+#if CONV_COLS > SCR_BELT_N
+#error "the belt's attributes: SCR_BELT_N (src/scratch.h)"
+#endif
 static void counter_attr(uint8_t belt) {
     const uint8_t *src = venue.bar_attr + BAR_COUNTER_DROW * 20;
     uint8_t k;

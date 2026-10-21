@@ -151,6 +151,7 @@ static void initials_enter(void) {
 
 // After the GAME OVER banner: the initials when the game made the top 5 (game over put it in as "AAA"), else the table.
 void scores_after_game(void) BANKED {
+    boss_set(BOSS_NONE);                         // (an ARCADE game over inside a boss fight left him on: the lists and mini-games after it reuse his bytes, story_scratch)
     if (new_rank < TOP_N) initials_enter(); else scores_table();
 }
 

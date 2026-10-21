@@ -70,9 +70,7 @@ typedef struct {
     uint8_t ent;        // the entrance: 0 none (or over), else the next frame's number + 1 (tests)
 } mascot_t;
 #define mascot (*(mascot_t *)BOSS_OWN)
-#if 7 > BOSS_OWN_N
-#error "the Mascot's state: BOSS_OWN_N"
-#endif
+typedef char mascot_own_fits[sizeof(mascot_t) <= BOSS_OWN_N ? 1 : -1];   // (his state is in BOSS_OWN: boss.h; sizeof, not a number typed twice)
 
 static const uint8_t land_x[3] = { 16, 32, 48 };
 

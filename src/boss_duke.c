@@ -67,9 +67,7 @@ typedef struct {
     uint8_t rl;         // the entrance's reloads done: the topper (1), then the drinks' chunks of 4 tiles
 } duke_t;
 #define duke (*(duke_t *)BOSS_OWN)
-#if 7 > BOSS_OWN_N
-#error "Duke's state: BOSS_OWN_N"
-#endif
+typedef char duke_own_fits[sizeof(duke_t) <= BOSS_OWN_N ? 1 : -1];   // (his state is in BOSS_OWN: boss.h; sizeof, not a number typed twice)
 
 static uint8_t idle_len(void) {
     return boss_hp >= 9 ? IDLE_HI : boss_hp >= 5 ? IDLE_MID : IDLE_LO;
@@ -110,11 +108,11 @@ static void chord(void) {
 #define ENT_LOW_N    18
 #define ENT_OAM      (OAM_FILL + 1)     // the mugs' first entry: nothing is in the air during the entrance
 #define ENT_OAM_N    20
-#define ENT_BUF      (story_scratch + 300)   // 64 B staging for the reloads (the queue copies from WRAM: banks are not mapped then)
+#define ENT_BUF      (story_scratch + SCR_CAP_AT)   // 64 B staging for the reloads (the queue copies from WRAM: banks are not mapped then)
 #define ENT_LOAD_N   ((BOSS_ART_ENT_PAIRS * 2 + 3) / 4)   // chunks of 4 tiles that bring the whole entrance pool in
 #define ENT_RELOADS  10                // (the 9 drink chunks, then the capacity indicator's 4 tiles: OBJ_CAP 124-127 lie in the pool)
 #if BOSS_ART_ENT_PAIRS > 34 || BOSS_ART_ENT_PAIRS < ENT_LOW_N || OBJ_COIN != 92 || OBJ_MUG != 56 || OBJ_GLASS != 60 || OBJ_MUG_FILL != 76 || OBJ_MUG_DRINK != 84 \
-    || OBJ_TOPPER != 96 || OBJ_DANCER != 96 || ENT_BUF + 64 > BOSS_SCRATCH || ENT_OAM + ENT_OAM_N > OAM_MUG_END
+    || OBJ_TOPPER != 96 || OBJ_DANCER != 96 || SCR_CAP_N < 64 || ENT_OAM + ENT_OAM_N > OAM_MUG_END
 #error "Duke's entrance: the OBJ tile pool (56-91, 96-127), the OAM entries or the staging buffer"
 #endif
 

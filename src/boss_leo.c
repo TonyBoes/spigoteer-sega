@@ -82,9 +82,7 @@ typedef struct {
     uint8_t  vis;        // 1: the wave is only a picture (the entrance's landing)
 } leo_t;
 #define leo (*(leo_t *)BOSS_OWN)
-#if 13 > BOSS_OWN_N
-#error "Leo's state: BOSS_OWN_N"
-#endif
+typedef char leo_own_fits[sizeof(leo_t) <= BOSS_OWN_N ? 1 : -1];   // (his state is in BOSS_OWN: boss.h; sizeof, not a number typed twice)
 
 // The "!!" at screen column c (BANG_NONE: off): the old and new columns recomposed (render.c stamps boss_cols[BANG_K]
 // at boss_col + BANG_K).

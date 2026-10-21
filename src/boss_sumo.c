@@ -57,7 +57,7 @@ BOSS_CAST_FN(boss_sumo_cast)   // the credits' cast card (src/credits.c)
 #define SUMO_HMPH      30            // the charge called off
 #define CAP_ANY       250            // boss_cap: no drink limit
 #define SOLO_BG       246            // the one-pip tiles: empty, full (BOSS_ICE_BG's: the Sumo has no ice)
-#define SUMO_HUD      (story_scratch + 300)   // the HUD row's 8 tiles (the queue copies from WRAM; Duke's staging buffer is here too)
+#define SUMO_HUD      (story_scratch + SCR_CAP_AT)   // the HUD row's 8 tiles (the queue copies from WRAM; Duke's staging buffer is here too)
 
 enum { SU_WALK, SU_TELL, SU_CHARGE, SU_HMPH, SU_KNOCK, SU_OUT };
 
@@ -80,10 +80,8 @@ typedef struct {
     uint8_t  shown;      // the HUD's key as last drawn (255: draw again)
 } sumo_t;
 #define sumo (*(sumo_t *)BOSS_OWN)
-#if 18 > BOSS_OWN_N
-#error "the Sumo's state: BOSS_OWN_N"
-#endif
-#if SUMO_HUD + 8 > BOSS_SCRATCH || SOLO_BG + 2 > BOSS_MARK_BG
+typedef char sumo_own_fits[sizeof(sumo_t) <= BOSS_OWN_N ? 1 : -1];   // (his state is in BOSS_OWN: boss.h; sizeof, not a number typed twice)
+#if 8 > SCR_CAP_N || SOLO_BG + 2 > BOSS_MARK_BG
 #error "the Sumo's HUD row buffer or its one-pip tiles"
 #endif
 

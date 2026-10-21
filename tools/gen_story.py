@@ -736,6 +736,9 @@ TRAIL_SCHED = 3                 # writes a frame the generator schedules at most
 BURST_FIRST_WRITE = 6           # the first frame the map can be written (the flash's fade-in has no room before)
 TRAIL_PER_FRAME = 5             # map bytes queued per frame at most (each costs ~6 lines of logic and ~0.7 DIV tick of VBlank),
                                 # and only while the list has room: an entry already in it counts 2 ticks, one trail byte 1 (of 10)
+# the burst's bytes in story_scratch, in order, none touching the next (cursor 2, trail stage TRAIL_PER_FRAME, the star row's index at +10,
+# its stage BURST_W, then the sparks' table, rng, timer, burst left); src/story.c checks all of it against the picture switch's and the buffer
+assert SCRATCH_CURSOR + 2 + TRAIL_PER_FRAME <= SCRATCH_CURSOR + 10 and SCRATCH_CURSOR + 11 + BURST_W <= SPARK_SCRATCH, "story_scratch: the burst's stages overlap"
 
 
 def read_pieces(burst_key=None):
@@ -1744,7 +1747,9 @@ def main():
           f"#define STORY_BURST_PIC {next(i for i, q in enumerate(pics) if q['name'] == BURST_PIC)}      // the picture (index) the crackle goes on showing",
           f"#define STORY_BURST_END {burst['end']}      // the last frame (after the flash) of the explosion",
           f"#define STORY_PLATE_FULL {int(PLATE_FULL)}   // 1: the name plate uses all the frame row's cells, 0: those between its corners",
-          f"#define STORY_BURST_PER {TRAIL_PER_FRAME}      // trail map writes a frame at most", "",
+          f"#define STORY_BURST_PER {TRAIL_PER_FRAME}      // trail map writes a frame at most",
+          f"#define STORY_STB_AT {SCRATCH_CURSOR}      // story_scratch: the INTRO burst's own bytes (cursor, stages, sparks) are [STORY_STB_AT, STORY_STB_END); src/story.c checks them against its picture switch's",
+          f"#define STORY_STB_END {SPARK_SCRATCH + 7 * SPARK_N + 3}", "",
           "typedef struct {",
           "    uint8_t w, h, x, y;          // tiles (w 0: no portrait); x, y the picture's top-left screen tile",
           "    uint8_t npal, ntiles, nobj, nobjpal, nobjtiles;",

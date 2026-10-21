@@ -93,6 +93,8 @@ static const char dim_set[SMAP_DIM_N + 1] = "THEPOURF-";   // the letters of the
 #define TAGROW       (story_scratch + 180)
 #define V(n)         (story_scratch[400 + (n)])
 enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_WH, V_DONE, V_PREV };
+// the map's bytes in order, none touching the next: the panel's rows, their attribute row, the tag's, the tag, then the variables
+typedef char smap_scratch_fits[(ROWS_MAX * 20 <= 140 && 140 + 20 <= 160 && 160 + 20 <= 180 && 180 + 20 <= 400 && 400 + V_PREV + 1 <= STORY_SCRATCH) ? 1 : -1];
 enum { P_NONE, P_TOWN, P_VENUE, P_FEST, P_NUDGE, P_MENU };
 #define PAL_PANEL    5
 #define PAL_TAG      0

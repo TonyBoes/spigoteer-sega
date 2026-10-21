@@ -256,8 +256,8 @@ void boss_set(uint8_t id) BANKED {
 //     on tile ids nothing on screen shows (variant C's and the back views: the bars are empty, he comes only then; OBJ 96-127: the show's, none runs).
 //   - CGB palettes: written when their turn comes, after waiting for the next VBlank (palette RAM only takes writes there, and the logic runs in the picture).
 // job: tiles [n | LD_MASK?, dst lo, dst hi, src lo, src hi, bank] (6 bytes; src 0: the capacity indicator's mugs); palette [LD_PAL | obj << 3 | idx, 8 bytes of colours] (9).
-#define LD          (story_scratch + 70)
-#define LD_MAX      110
+#define LD          (story_scratch + SCR_LD_AT)   // (src/scratch.h: a job at LD + LD_MAX ends below story.c's HUD bytes)
+#define LD_MAX      SCR_LD_MAX
 #define LD_PAL      0x80
 #define LD_MASK     0x40
 #define STAGE       BOSS_CAPBUF

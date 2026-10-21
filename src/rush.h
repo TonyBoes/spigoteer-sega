@@ -7,9 +7,10 @@
 #define RUSH_H
 #include <stdint.h>
 #include "game.h"
+#include "scratch.h"
 
-#define RUSH_AT        387        // offset in story_scratch (the list's row buffers: 14 x 20 = 280 bytes before it); the struct must end below boss.h LIGHTS_BUF (RUSH_TOP - 8): the Mothership's lights wrote over built / top / nlines
-#define RUSH_TOP       447        // boss.h BOSS_SCRATCH: STORY_SCRATCH - BOSS_SCRATCH_N (73)
+#define RUSH_AT        SCR_RUSH_AT   // 387 (src/scratch.h), offset in story_scratch (the list's row buffers: 14 x 20 = 280 bytes before it); the struct must end below boss.h LIGHTS_BUF (RUSH_TOP - 8): the Mothership's lights wrote over built / top / nlines
+#define RUSH_TOP       SCR_BOSS_AT   // 447: boss.h BOSS_SCRATCH, STORY_SCRATCH - BOSS_SCRATCH_N (73)
 
 enum { RS_MENU, RS_LIST, RS_NEXT, RS_RESULT, RS_FIGHT };   // rush_state.scr
 enum { RM_ALL, RM_CHOOSE };                                 // rush_state.mode
@@ -44,5 +45,6 @@ struct rush_state {               // offset
     uint8_t  nlines;              // 47 the built bosses counted (the list's lines; rush_enter): a count of `built` per call ran the frame long
 };
 #define RUSH ((struct rush_state *)(story_scratch + RUSH_AT))
-typedef char rush_fits[(RUSH_AT + sizeof(struct rush_state) <= RUSH_TOP - 8 && RUSH_TOP <= STORY_SCRATCH) ? 1 : -1];
+typedef char rush_fits[(sizeof(struct rush_state) <= SCR_RUSH_N && RUSH_AT + sizeof(struct rush_state) <= RUSH_TOP - SCR_LIGHTS_N && RUSH_TOP <= STORY_SCRATCH) ? 1 : -1];
+typedef char rush_rows_fit[(14 * 20 <= SCR_CAP_AT && 14 * 20 <= RUSH_AT) ? 1 : -1];   // (the list's row buffers, below everything a fight stages)
 #endif

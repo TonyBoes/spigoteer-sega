@@ -23,6 +23,7 @@ typedef struct {
     uint8_t ent;        // the entrance: 0 none (or over), else the next frame's number + 1 (tests)
 } big_tex_t;
 #define tex (*(big_tex_t *)BOSS_OWN)
+typedef char big_tex_own_fits[sizeof(big_tex_t) <= BOSS_OWN_N ? 1 : -1];   // (his state is in BOSS_OWN: boss.h)
 
 #define ENT_START    12                 // the first frame he is on screen (he is at x -40)
 #define ENT_WALKEND  87                 // he has reached x 16 (75 frames, 3 px every 4)

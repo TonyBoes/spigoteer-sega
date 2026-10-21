@@ -10,6 +10,7 @@
 #include <gb/gb.h>
 #include <stdint.h>
 #include "game.h"
+#include "scratch.h"          // where story_scratch is shared and with whom (every fight-time buffer takes its offset from there)
 #include "boss_art.h"        // BOSS_POSES_MAX, BOSS_PAIRS_MAX, BOSS_ICE_MAX, the meter (tools/gen_boss.py)
 
 // events (boss_call's ev)
@@ -48,7 +49,10 @@ enum {
 #define ROOM_FREE(n)   ((n) + 2)                  // BEV_ROOM's return: n free slots
 #define OBJ_CAP        124                        // the ROOM mug (a pair) and the TAKEN mug (a pair)
 #define BOSS_CAP_BYTES 64
-#define BOSS_CAPBUF    (story_scratch + 300)      // boss_load's staging for it (Duke's entrance stages its own at the same place, later)
+#if BOSS_CAP_BYTES > SCR_CAP_N
+#error "scratch.h SCR_CAP_N must hold the capacity indicator's tiles"
+#endif
+#define BOSS_CAPBUF    (story_scratch + SCR_CAP_AT)   // (src/scratch.h) boss_load's staging for it (Duke's entrance stages its own at the same place, later)
 #define OAM_CAP        40                         // the row's entries are OAM_CAP - 1 downward
 // The hand mug (owner 2026-10-17: "the mugs they drink from should look more like the drink served to them"): while he gulps, one OAM
 // entry (OAM 29) over his right hand column draws the mug the player served (mugs.c spr_full_t / spr_full_p: the venue's drink art and palette);
@@ -102,13 +106,14 @@ extern uint8_t  boss_returns;     // 1: MUG_RETURN mugs may be on his bar (the C
 // cut-scene, mini-game or title list runs during a fight; BEV_SET / BEV_LOAD fill them again for every fight). Not
 // in WRAM of their own: the stack sits right above the game's variables, and 62 more bytes there cost it the
 // headroom it needs (the GBDK library's __map_tile_offset, the last variable, was overwritten).
-#define BOSS_SCRATCH_N  73
-#define BOSS_SCRATCH    (story_scratch + STORY_SCRATCH - BOSS_SCRATCH_N)
+#define BOSS_SCRATCH_N  73             // (a number here: tests/boss_common.py reads it; src/scratch.h SCR_BOSS_N, the map of every share of story_scratch, must say the same)
+typedef char boss_scratch_n_is_the_maps[BOSS_SCRATCH_N == SCR_BOSS_N ? 1 : -1];
+#define BOSS_SCRATCH    (story_scratch + SCR_BOSS_AT)
 #define boss_map        BOSS_SCRATCH       // [(BOSS_POSES_MAX + 1) * BOSS_W_MAX]: his poses (the last: BP_SWAY), pose p's column k's pair at
                                            // p * BOSS_W_MAX + k
 #define boss_hand       (BOSS_SCRATCH + (BOSS_POSES_MAX + 1) * BOSS_W_MAX)       // [4]: (was the hand column holding 0..3 empties; unused: BOSS_OWN stays where it was)
 #define BOSS_OWN        (boss_hand + 4)                                     // a boss file's own buffer (BOSS_OWN_N bytes)
-#define LIGHTS_BUF      (BOSS_SCRATCH - 8)                                 // the Mothership's lights for the VBlank write: 8 bytes (CGB the bar palette; DMG [0] the BGP), just below the fight's bytes (the cut-scene backdrop buffer: idle in a fight)
+#define LIGHTS_BUF      (BOSS_SCRATCH - SCR_LIGHTS_N)                                 // the Mothership's lights for the VBlank write: 8 bytes (CGB the bar palette; DMG [0] the BGP), just below the fight's bytes (the cut-scene backdrop buffer: idle in a fight)
 #define BOSS_OWN_N      (BOSS_SCRATCH_N - (BOSS_POSES_MAX + 1) * BOSS_W_MAX - 4 - BOSS_FX_N)   // (then BOSS_FX: game.h)
 // The topper's look, for a special that changes it (boss_set: 0, 0; put them back at BEV_OUTRO): a tile offset from
 // OBJ_TOPPER (0: STILL, BOB on a stomp; else that frame, no bob: gen_boss `hats` from 4) and a CGB OBJ palette (0: OBJ 7)

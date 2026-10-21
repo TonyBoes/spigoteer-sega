@@ -53,6 +53,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "scratch.h"
 #include "music.h"
 #include "bonus.h"
 #include "story.h"
@@ -144,6 +145,8 @@ uint8_t story_scratch[STORY_SCRATCH];
 #define PS_OUT   ((uint16_t *)(story_scratch + 40 + PS_BURST * 16 + 40))   // the fade step to write next (20 words)
 #define PS_W     (story_scratch[1])                  // its w: 3 white .. 0 as drawn (also what DMG's BGP is set from)
 #define PB_T     (story_scratch[168])                // the INTRO's explosion: frames since the flash (255: none running)
+// a picture scene's bytes in order, none touching the next (and the INTRO burst's own, generated: gen_story.py, STORY_STB_AT..STORY_STB_END)
+typedef char ps_fits[(2 + SWAP_ROWS * 18 <= 40 && 40 + PS_BURST * 16 + 40 + 40 <= 168 && 168 + 1 <= STORY_STB_AT && STORY_STB_END <= STORY_SCRATCH) ? 1 : -1];
                                                      // (+170: the trail's cursor and stage, build/story_pictures.c)
 #define PIC_SCENE (story_hdr.venue == 255)
 uint8_t story_unskip;              // test hook: bit s set = step s of every chapter is played even if marked STEP_SKIP
@@ -825,7 +828,7 @@ static void shift_won(uint8_t clear) {
 //   - then boss_frame starts his entrance (BS_ENTER / BS_WALKIN; no warm-up: Last call was it), his meter and face come when he has entered (fight_start), and the
 //     first time he ever appears, his HOW TO PLAY card opens the frame after (HOOK_CARD), over a whole picture, and the game resumes by itself when it is left.
 static void boss_in_place(void) {
-    uint8_t *hb = story_scratch + 190;           // (9 bytes of the backdrop buffer's free middle, kept until the queue has copied them; boss.c LD ends below it)
+    uint8_t *hb = story_scratch + SCR_HB_AT;           // (9 bytes of the backdrop buffer's free middle, kept until the queue has copied them; boss.c LD ends below it)
     add_score(1000);                             // (LEVEL_BONUS, main_cold.c: the clear bonus Last call's end gave before: the venue's score keeps its two bonuses, here and at his defeat)
     boss_set(story_chapter);
     boss_goal((uint8_t *)&story_goal);

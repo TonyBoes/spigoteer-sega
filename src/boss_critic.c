@@ -60,9 +60,7 @@ typedef struct {
     uint8_t ent;       // the entrance: 0 none, else the next frame's number + 1 (tests)
 } critic_t;
 #define crit (*(critic_t *)BOSS_OWN)
-#if 6 > BOSS_OWN_N
-#error "the Critic's state: BOSS_OWN_N"
-#endif
+typedef char critic_own_fits[sizeof(critic_t) <= BOSS_OWN_N ? 1 : -1];   // (his state is in BOSS_OWN: boss.h; sizeof, not a number typed twice)
 
 uint8_t crit_taste;            // frames of tasting left (tests)
 uint8_t crit_sloppy, crit_waved;   // drinks tasted / waved back this fight (tests)

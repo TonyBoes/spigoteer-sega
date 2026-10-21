@@ -40,6 +40,7 @@ uint8_t jb_shown;                  // the tune whose playing icon is drawn (TUNE
 uint8_t jb_t;                      // frames on the screen
 static uint16_t jb_dirty;          // bit k < JB_VISIBLE: list line k; the next JB_INFO_LINES bits: the info lines
 #define JB_ROW(k) (story_scratch + (uint8_t)(k) * 20)   // row buffer k of JB_VISIBLE + JB_INFO_LINES
+typedef char jb_scratch_fits[((JB_VISIBLE + JB_INFO_LINES) * 20 <= STORY_SCRATCH) ? 1 : -1];
 
 static const char locked_name[] = "? ? ?";
 static const char *const locked_info[JB_INFO_LINES] = { locked_name, "", "LOCKED", "PLAY STORY MODE" };

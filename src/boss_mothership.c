@@ -110,9 +110,7 @@ typedef struct {
 #define ms (*(mothership_t *)BOSS_OWN)
 #define DIM_BGP    0xF9
 #define DIM_MASK   0x3DEF                // (c >> 1) & mask: each 5 bit channel halved
-#if 20 > BOSS_OWN_N
-#error "the Mothership's state: BOSS_OWN_N"
-#endif
+typedef char mothership_own_fits[sizeof(mothership_t) <= BOSS_OWN_N ? 1 : -1];   // (his state is in BOSS_OWN: boss.h; sizeof, not a number typed twice)
 
 static const uint8_t land_x[3] = { 16, 32, 48 };
 
