@@ -494,6 +494,15 @@ static void update(void) {
         if (pressed & (J_START | J_B) && pause_or_pocket(pressed)) break;   // START: the pause menu (src/pause.c); B: a show from the pocketed tip (src/pocket.c)
         play_frame(pressed);
         if (story_on) story_play();              // M11b: the chapter goal
+        // 30 fps (DMG, src/half.c): every second VBlank is a logic-only step, the next one is the same plus the picture (the dirty marks,
+        // the HUD flags and the chooser's dirty bits just accumulate until then). A step that ends the level or a life, or opens a fight,
+        // is drawn at once.
+        if (!(frame_counter & 1) && (HALF & HALF_ON) && game_state == GS_PLAYING && !(life_lost | level_clear | boss_on)) {
+            if (sa_on > sa_hold && !--sa_timer) stage_anim_step();   // (the frame's other work that is not drawing, as below)
+            half_step();
+            frame_counter++;
+            return;
+        }
         break;
     case GS_LIFE_LOST:
         update_glass();
@@ -703,7 +712,7 @@ static uint16_t perf_ly(uint8_t t0, uint8_t t, uint8_t ly) {
 // interrupt, the banner's LYC at line 86 or a whole frame later (M13b: the worst-case pile's 218/223 end LY was a frame
 // that ended at line 143 and slept until line 87). Here the flag is checked with interrupts off, and the halt (IME 0)
 // wakes on any pending interrupt, which is then taken after the ei.
-static void frame_wait(void) __naked {
+void frame_wait(void) __naked {   // (not static: src/half.c half_wait calls it)
 __asm
     ldh  a, (0x40)          ; LCD off: nothing to wait for (as vsync)
     and  a, #0x80
@@ -741,7 +750,7 @@ void main(void) {
     perf_last_t = (uint8_t)sys_time;
 #endif
     while (1) {
-        frame_wait();
+        if (HALF & (HALF_ON | HALF_OWED)) half_wait(); else frame_wait();   // (30 fps: src/half.c)
 #ifdef FRAME_STATS
         frame_t0 = t0 = (uint8_t)sys_time; ly0 = LY_REG; st0 = game_state;
 #else
@@ -773,7 +782,7 @@ void main(void) {
         perf_end_last = perf_ly(t0, snap_t, snap_ly);
         if (perf_logic_last >= 144) music_late++;               // the tick began only after the next VBlank had begun
         if (!ok) continue;
-        if (ly0 < 144 || d != 1) missed_frames++;
+        if ((ly0 < 144 && !(HALF & HALF_ON)) || d != 1) missed_frames++;   // (30 fps: a step that starts at once after one that ran past a VBlank is on time, src/half.c half_wait; only a VBlank nobody started a step in is missed)
         if (ly0 > frame_ly_max) frame_ly_max = ly0;
         if (perf_logic_last > perf_logic_max) perf_logic_max = perf_logic_last;
         if (perf_end_last > perf_end_max) perf_end_max = perf_end_last;

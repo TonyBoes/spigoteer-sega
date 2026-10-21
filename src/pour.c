@@ -161,13 +161,10 @@ static void twinkle(void) {
     } while (left && ++i != MAX_MUGS);
 }
 
-void pour_frame(void) BANKED {
-    OAM_item_t *o;
+// The perfect pour's rules (story only): pour_t, pour_q and the window's ding. One logic step's worth: pour_frame, or pour_skip in a
+// logic-only step of the 30 fps mode.
+static void pour_rules(void) {
     uint8_t end = POUR_WIN_START + pour_win;                 // the first overflow frame
-    if (!story_on) {                                         // (main.c: only the dust puff of a bar change)
-        draw_cue();
-        return;
-    }
     if (fill_timer < FILL_FRAMES) pour_t = 0;
     else if (bar != pour_bar) pour_t = end;                  // carried to another bar: never perfect
     else if (!pour_t) pour_t = FILL_FRAMES;
@@ -175,6 +172,22 @@ void pour_frame(void) BANKED {
     pour_bar = bar;
     if (pour_t == POUR_WIN_START && pour_win > POUR_WIN_LEN) SFX(SFX_COIN);   // the Critic's wide window opens: a ding
     pour_q = pour_t >= POUR_WIN_START && pour_t < end;
+}
+
+// A logic-only step (src/half.c, main.c half_skip): what pour_frame does besides drawing, so the window and the cue's timer run at the game's
+// speed. The cue's last step is left to pour_frame (it hides the entry).
+void pour_skip(void) BANKED {
+    if (story_on) pour_rules();
+    if ((cue_t & 0x7F) > 1) cue_t--;
+}
+
+void pour_frame(void) BANKED {
+    OAM_item_t *o;
+    if (!story_on) {                                         // (main.c: only the dust puff of a bar change)
+        draw_cue();
+        return;
+    }
+    pour_rules();
     if (pour_t >= POUR_WIN_START) {                          // over draw_fill's full drink (OAM_FILL): sparkle / overflow
         // DMG: OBP1 (the fill glass uses OBP0): the drink darkens in his hand, and the light shades show on the wall
         o = shadow_OAM + OAM_FILL;

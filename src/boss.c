@@ -230,6 +230,7 @@ void boss_set(uint8_t id) BANKED {
     boss_row = id < BOSS_COUNT && rows[id].width ? id : 0;
     br = &rows[boss_row];
     boss_on = 1; boss_bar = br->bar;
+    HALF &= ~HALF_ON;                            // (a fight is drawn every frame, at 60 fps: src/half.c; the level's next load decides again)
     boss_hp = br->meter; boss_hits = 0; boss_special_t = 0; boss_hook = HOOK_NONE;
     s = br->step; boss_hands = br->hands;
     if (boss_hard) { s -= s >> 2; if (boss_hands > 1) boss_hands--; }

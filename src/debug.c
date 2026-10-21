@@ -94,7 +94,7 @@ uint8_t debug_gesture(uint8_t pressed) BANKED {
 }
 
 // ---- the lines ----------------------------------------------------------------------------------------------------------------
-enum { DL_MODE, DL_LEVEL, DL_CHAPTER, DL_STEP, DL_BARS, DL_CHANGE };
+enum { DL_MODE, DL_LEVEL, DL_CHAPTER, DL_STEP, DL_BARS, DL_CHANGE, DL_FPS };
 enum { DM_LEVEL, DM_STORY, DM_ARCADE, DM_CLASSIC };
 
 static uint8_t dmode(void) { return debug_classic ? DM_CLASSIC : debug_story ? DM_STORY - 1 + debug_story : DM_LEVEL; }
@@ -106,6 +106,7 @@ static uint8_t lines(uint8_t *k) {
     if (debug_classic) k[n++] = DL_LEVEL;
     else if (debug_story) { k[n++] = DL_CHAPTER; k[n++] = DL_STEP; k[n++] = DL_CHANGE; }
     else { k[n++] = DL_LEVEL; k[n++] = DL_BARS; k[n++] = DL_CHANGE; }
+    k[n++] = DL_FPS;
     return n;
 }
 
@@ -191,6 +192,11 @@ static void line_row(uint8_t kind, uint8_t *r) {
     case DL_BARS:
         put(r, COL_LABEL, "BARS");
         for (i = 0; i < NUM_BARS; i++) r[COL_VALUE + i] = glyph((level_dirs >> i) & 1 ? 'R' : 'L');   // top bar first
+        break;
+    case DL_FPS:                                         // the DMG's 30 fps mode (src/half.c): AUTO (the levels measured too heavy), FORCE ON, FORCE OFF; the CGB never
+        put(r, COL_LABEL, "30 FPS");
+        k = (HALF >> HALF_FORCE_SHIFT) & 3;
+        put(r, COL_VALUE, is_cgb ? "NO CGB" : k == 1 ? "ON" : k == 2 ? "OFF" : "AUTO");
         break;
     default: put(r, COL_LABEL, "BAR CHANGE"); put(r, COL_VALUE + 1, (level_dirs & KEEP_POS) ? "KEEP" : "SNAP");
     }
@@ -414,6 +420,15 @@ uint8_t debug_step(uint8_t pressed) BANKED {
     case DL_BARS:
         bars_step(d == 2);                                           // (Left / Right: the layouts in order, as SELECT)
         draw_line(old);
+        break;
+    case DL_FPS:                                                     // AUTO -> ON -> OFF (Right), back (Left); at once for the level being played
+        if (!is_cgb) {
+            m = (HALF >> HALF_FORCE_SHIFT) & 3;
+            m = d == 1 ? (m == 2 ? 0 : m + 1) : (m == 0 ? 2 : m - 1);
+            HALF = (HALF & ~(3 << HALF_FORCE_SHIFT)) | (m << HALF_FORCE_SHIFT);
+            half_decide();
+            draw_line(old);
+        }
         break;
     default:                                                         // BAR CHANGE: SNAP <-> KEEP
         level_dirs ^= KEEP_POS;
