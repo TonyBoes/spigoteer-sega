@@ -7,6 +7,13 @@
 #include <stdint.h>
 #include "hUGEDriver.h"
 
+// Color double speed (src/main_cold.c boot_init switches once at boot): the CPU-clock timer (TAC 4096 Hz) then counts 8192 Hz. DS_NOW reads the
+// speed from KEY1 bit 7 (a DMG reads 0xFF there: is_cgb first), no variable; DS_SCALE(n) is a 4096 Hz count n as the running speed counts it.
+// Every use is the music's frame timer (music.c, title.c, trans.c): everything else waits on LY, which does not change with the CPU speed.
+extern uint8_t is_cgb;
+#define DS_NOW         (is_cgb && (KEY1_REG & 0x80))
+#define DS_SCALE(n)    (DS_NOW ? (n) * 2 : (n))
+
 // TUNE_VENUE0 + g is the gameplay tune of patron group g (cowboys, sports, lumberjacks, chefs, divers, robots, punks,
 // ninjas, zoo, aliens: tools/songs.py VENUES); TUNE_SHOW plays while a show runs.
 // TUNE_COUNT: the tunes the soundtrack player lists and the save unlocks (bits of tune_unlocked); TUNE_CREDITS (the credits roll's

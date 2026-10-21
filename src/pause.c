@@ -280,7 +280,7 @@ void pause_boss_card(void) BANKED {
 // the sound, the two letters' tiles and the banner window (panel, a blank text row, panel; its LYC) as they were
 static void put_back(void) {
     overlay_on = 0; HIDE_WIN;                    // (first: the window is gone before its rows change)
-    if (!NR51_REG) TIMA_REG = 0;                 // (the tune stood still, the timer ran on: no catch-up ticks from the pumps below; a clocked game's beat is the ticks)
+    if (!NR51_REG) { TIMA_REG = 0; if (DS_NOW) CRITICAL { IF_REG &= ~0x04; } }   // (the tune stood still, the timer ran on: no catch-up ticks from the pumps below; a clocked game's beat is the ticks)
     NR51_REG = PAUSE_NR51; PAUSE_NR51 = 0; TMA_REG &= ~2;
     glyphs_back();
     fill_row(0, TILE_PANEL_TOP);                 // (win_init's banner)

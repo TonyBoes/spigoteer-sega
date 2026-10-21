@@ -372,7 +372,7 @@ void title_enter(void) BANKED {
     bar = SCENE_BAR; bartender_x = BT_X; bt_bob = 0; facing = 0; bartender_frame = BT_IDLE;
     game_state = GS_TITLE;
     music_pump();
-    while (TIMA_REG < (TMA_REG & 0xFC) + 34) ;   // (the loop's tick, due as this pass ends, is refused until half a frame has passed since the pump's: wait that out here, LCD off, so the first title frame ticks)
+    while (TIMA_REG < (TMA_REG & 0xFC) + DS_SCALE(34)) ;   // (the loop's tick, due as this pass ends, is refused until half a frame has passed since the pump's: wait that out here, LCD off, so the first title frame ticks)
     DISPLAY_ON;
 }
 

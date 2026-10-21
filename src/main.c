@@ -193,6 +193,7 @@ void cast_isr(void) {
 void mr_lcd_isr(void) {
     uint8_t ly;
     HIDE_WIN;                                    // (as lcd_isr: the banner window's end)
+    if (is_cgb && (KEY1_REG & 0x80)) while ((STAT_REG & 3) > 1) ;   // (Color double speed: the handler reaches its SCX write in half the dots, still inside the split line, so that line scrolled with the street; normal speed writes after the line's pixels (the stub's dispatch is 60+ cycles). Wait for HBlank (or VBlank: line 144) as that lands)
     if ((game_state == GS_MINI || game_state == GS_PAUSED) && mg_id == MG_MILKRUN) {
         ly = LYC_REG;
         if (ly == 144) { SCX_REG = 0; ly = MR_SPLIT_LY; }
@@ -475,6 +476,9 @@ static void update(void) {
 #ifdef AUTO_BOSS                       // test-only (tests/test_fade_hw.py): the hook is in src/debug.c
     joy = auto_boss();
 #endif
+#ifdef AUTO_MR                         // test-only (tests/test_double_speed.py): the hook is in src/debug.c
+    joy = auto_mr();
+#endif
 #ifdef AUTO_CARD                       // test-only (tests/test_fade_hw.py, never in a release): the hook is in src/debug.c (a banked file: ROM0 has no room)
     joy = auto_card();
 #endif
@@ -690,6 +694,10 @@ static uint16_t perf_ly(uint8_t t0, uint8_t t, uint8_t ly) {
 
 #endif   // FRAME_STATS
 
+#ifndef DS_TICK_LY
+#define DS_TICK_LY 60                  // Color double speed: the line the loop's music tick waits for (a tick is up to 18 lines: MUSIC_LATEST_LY 120)
+#endif
+
 // Wait for the next VBlank (GBDK's vsync() without its race). vsync() clears the "VBlank done" flag and then halts: a
 // VBlank interrupt that lands between the two sets the flag before the halt, and the CPU then sleeps until the next
 // interrupt, the banner's LYC at line 86 or a whole frame later (M13b: the worst-case pile's 218/223 end LY was a frame
@@ -707,6 +715,12 @@ __asm
     ld   a, (__vbl_done)
     or   a, a
     jr   nz, 2$
+    ldh  a, (0x0F)          ; the music's frame timer wrapped (IF bit 2; double speed only, nothing takes it): the tick just made zeroed TIMA, the flag is stale (music.c music_pump)
+    bit  2, a
+    jr   z, 3$
+    and  a, #0xFB
+    ldh  (0x0F), a          ; (interrupts are off: none is taken between the read and this write; a flag the hardware sets in those 3 cycles would be lost, on the rare frame that has a stale timer flag)
+3$:
     halt
     nop                     ; (if an interrupt was already pending, the halt bug only repeats this nop)
     ei
@@ -740,6 +754,7 @@ void main(void) {
         perf_snap(); lt = snap_t; lly = snap_ly;
 #endif
         // Music and effects, every frame, after the logic (so they cannot delay the game's input-to-state latency).
+        if (is_cgb && (KEY1_REG & 0x80) && (LCDC_REG & LCDCF_ON)) while (LY_REG < DS_TICK_LY) ;   // (double speed: a frame's logic ends by line 20-60, a heavy pass's much later: the ticks would bunch up to 0.7 frame apart. The tick waits for a fixed line, as the credits' and the fades' do: the spare time is idle anyway)
         if (game_state != GS_PAUSED || !PAUSE_NR51 || NR51_REG) music_tick();   // (the pause menu: the bass and drums play on; NR51 0: a tune the game is clocked by stands still, pause.c)
         SEC(SEC_MUSIC);
 #ifdef FRAME_STATS
