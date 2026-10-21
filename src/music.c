@@ -141,7 +141,7 @@ typedef struct {
     uint16_t freq;
     int8_t slide;
 } voice_t;
-static voice_t voice[2];          // 0: channel 1, 1: channel 4
+voice_t voice[2];                 // 0: channel 1 (and 3, the marimba), 1: channel 4 (not static: tests/test_sound.py reads the notes the driver starts from it)
 
 static void set_mute(uint8_t ch, uint8_t m) {
     uint8_t bit = 1 << ch;
