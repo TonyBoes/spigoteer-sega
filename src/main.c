@@ -715,7 +715,7 @@ __asm
     ld   a, (__vbl_done)
     or   a, a
     jr   nz, 2$
-    ldh  a, (0x0F)          ; the music's frame timer wrapped (IF bit 2; double speed only, nothing takes it): the tick just made zeroed TIMA, the flag is stale (music.c music_pump)
+    ldh  a, (0x0F)          ; the music timer wrapped (IF bit 2; double speed only, nothing takes it): the tick just made zeroed TIMA, the flag is stale (music.c music_pump)
     bit  2, a
     jr   z, 3$
     and  a, #0xFB

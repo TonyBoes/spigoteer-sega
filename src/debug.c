@@ -458,6 +458,16 @@ uint8_t auto_card(void) BANKED {         // HOW TO PLAY card -> (AUTO_CARD 1: B,
 }
 #endif
 
+#ifdef AUTO_MR                          // test-only (tests/test_double_speed.py, never in a release): boot -> Milk Run's practice round at frame 100 (its card marked seen), no input after. Returns joy.
+extern uint8_t frame_counter;
+void card_mark(uint8_t id) BANKED;
+void mg_enter(uint8_t id, uint8_t mode) BANKED;
+uint8_t auto_mr(void) BANKED {
+    if (game_state == GS_TITLE && frame_counter == 100) { card_mark(6); mg_enter(6, 1); }
+    return 0;
+}
+#endif
+
 #ifdef AUTO_BOSS                        // test-only (tests/test_fade_hw.py, never in a release): boot -> STORY chapter 1's Last call (as the debug select starts it) -> its quota poked met at
 extern uint8_t frame_counter, boss_on, boss_state, boss_step, boss_hp;   // frame 60 of play -> the bars poked empty -> the level turns into Big Tex's fight (cover, banner, entrance) ->
 extern uint8_t story_goal[], rng_state, pat_buf[];             // (AUTO_BOSS 1: his first-encounter card opens by itself, A turns and closes it; 2: his card marked seen first: no card) -> 120 frames into the fight everything
