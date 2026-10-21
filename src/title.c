@@ -74,9 +74,9 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define OAM_SPARKLE     6
 #define OAM_DRIP        7
 #define OAM_BUBBLE      8
-#define OAM_DX         20       // the DX badge's three 8x16 entries 20-22 (CGB only; the in-play mug pool's ids, which the title never uses)
-#define DX_X          127       // screen x / y of its top left: under the logo's right end (the R's right edge is x 150)
-#define DX_Y           33
+#define OAM_DX         20       // the DX badge's four 8x16 entries 20-23 (CGB only; the in-play mug pool's ids, which the title never uses)
+#define DX_X          120       // screen x / y of its top left (32x16): under the logo's right end, the second E's and the R's cells (x 120..151)
+#define DX_Y           35       // (the owner's V1 mock-up had 33; 2 px more top margin)
 
 // ---- logo timing (frames since the title appeared) ----
 #define LOGO_T0         6       // first letter starts filling
@@ -100,74 +100,83 @@ enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
 
 // ---- state (globals => symbols the tests read) ----
 uint16_t title_t;               // frames since the title appeared
-// The DX badge's rainbow (owner: "animated with the drop shadows cycling through a rainbow of colors"; CGB only): OBJ palette 7's colours 2 (near
-// shadow: HSV s .55 v 1, hue h) and 3 (far shadow: s .75 v .75, hue h - .12) step through 48 hues, one every 2 frames (a 96-frame cycle); the
-// letters (colour 1) never change. Step 0 is the palette the title loads, and the cycle starts when the badge stamps on (DX_T0), so nothing jumps.
+// The DX badge's colour cycle (owner Q32, option D; CGB only): OBJ palette 7's colour 2 (the fill: HSV s .55 v .88, hue h) and colour 1 (the foam, a
+// pale highlight a step ahead: s .25 v 1, hue h + .08) step through 48 hues together, one every 2 frames (a 96-frame cycle, 1.6 s); the outline (colour 3,
+// #501810) never changes. Step 0 is the palette the title loads, and the cycle starts when the badge stamps on (DX_T0), so nothing jumps; the stamp's
+// first DX_FLASH frames show the foam and the fill white (a flash), then step 0 begins.
 // The write is VBlank only (as src/glow.c): title_update calls it first, right after the main loop's vsync, and gives up on a frame already past line
 // 150; it writes every frame (4 bytes), so a skipped frame is made good by the next. The palette fades never meet it: they run inside a screen change,
 // where no title frame runs, and read the colours as they stand.
 #define DX_STEPS 48
-static const uint16_t dx_rainbow[DX_STEPS][2] = {
-    { 0x39DF, 0x48D7 },
-    { 0x3A1F, 0x40D7 },
-    { 0x3A5F, 0x38D7 },
-    { 0x3A9F, 0x30D7 },
-    { 0x3ADF, 0x28D7 },
-    { 0x3B3F, 0x1CD7 },
-    { 0x3B7F, 0x18D7 },
-    { 0x3BBF, 0x1937 },
-    { 0x3BFF, 0x1977 },
-    { 0x3BFD, 0x19B7 },
-    { 0x3BFB, 0x19F7 },
-    { 0x3BF9, 0x1A37 },
-    { 0x3BF6, 0x1A77 },
-    { 0x3BF4, 0x1AD7 },
-    { 0x3BF2, 0x1AF7 },
-    { 0x3BF0, 0x1AF5 },
-    { 0x3BEE, 0x1AF2 },
-    { 0x43EE, 0x1AF0 },
-    { 0x4BEE, 0x1AEE },
-    { 0x53EE, 0x1AEC },
-    { 0x5BEE, 0x1AEA },
-    { 0x67EE, 0x1AE7 },
-    { 0x6FEE, 0x1AE6 },
-    { 0x77EE, 0x26E6 },
-    { 0x7FEE, 0x2EE6 },
-    { 0x7FAE, 0x36E6 },
-    { 0x7F6E, 0x3EE6 },
-    { 0x7F2E, 0x46E6 },
-    { 0x7ECE, 0x4EE6 },
-    { 0x7E8E, 0x5AE6 },
-    { 0x7E4E, 0x5EE6 },
-    { 0x7E0E, 0x5EA6 },
-    { 0x7DCE, 0x5E46 },
-    { 0x7DD0, 0x5E06 },
-    { 0x7DD2, 0x5DC6 },
-    { 0x7DD4, 0x5D86 },
-    { 0x7DD6, 0x5D46 },
-    { 0x7DD9, 0x5CE6 },
-    { 0x7DDB, 0x5CC6 },
-    { 0x7DDD, 0x5CC9 },
-    { 0x7DDF, 0x5CCB },
-    { 0x75DF, 0x5CCD },
-    { 0x6DDF, 0x5CCF },
-    { 0x65DF, 0x5CD1 },
-    { 0x59DF, 0x5CD3 },
-    { 0x51DF, 0x5CD6 },
-    { 0x49DF, 0x5CD7 },
-    { 0x41DF, 0x54D7 }
+#ifndef DX_SFX
+#define DX_SFX 1    // the stamp sound (make DX_SFX=1|2|3): 1 DON then COIN 6 frames later, 2 DON then PERFECT, 3 DON alone
+#endif
+#define DX_FLASH  2
+static const uint16_t dx_cycle[DX_STEPS][2] = {   // { foam (colour 1), fill (colour 2) }
+    { 0x5F7F, 0x319B },
+    { 0x5F9F, 0x31DB },
+    { 0x5FBF, 0x321B },
+    { 0x5FDF, 0x325B },
+    { 0x5FFF, 0x329B },
+    { 0x5FFE, 0x32DB },
+    { 0x5FFD, 0x331B },
+    { 0x5FFC, 0x333B },
+    { 0x5FFB, 0x337B },
+    { 0x5FFA, 0x3379 },
+    { 0x5FF9, 0x3378 },
+    { 0x5FF8, 0x3376 },
+    { 0x5FF7, 0x3374 },
+    { 0x63F7, 0x3372 },
+    { 0x67F7, 0x3370 },
+    { 0x6BF7, 0x336E },
+    { 0x6FF7, 0x336C },
+    { 0x73F7, 0x3B6C },
+    { 0x77F7, 0x436C },
+    { 0x7BF7, 0x4B6C },
+    { 0x7FF7, 0x536C },
+    { 0x7FD7, 0x5B6C },
+    { 0x7FB7, 0x636C },
+    { 0x7F97, 0x676C },
+    { 0x7F77, 0x6F6C },
+    { 0x7F57, 0x6F2C },
+    { 0x7F37, 0x6F0C },
+    { 0x7F17, 0x6ECC },
+    { 0x7EF7, 0x6E8C },
+    { 0x7EF8, 0x6E4C },
+    { 0x7EF9, 0x6E0C },
+    { 0x7EFA, 0x6DCC },
+    { 0x7EFB, 0x6D8C },
+    { 0x7EFC, 0x6D8E },
+    { 0x7EFD, 0x6D90 },
+    { 0x7EFE, 0x6D92 },
+    { 0x7EFF, 0x6D94 },
+    { 0x7AFF, 0x6D96 },
+    { 0x76FF, 0x6D98 },
+    { 0x72FF, 0x6D99 },
+    { 0x6EFF, 0x6D9B },
+    { 0x6AFF, 0x659B },
+    { 0x66FF, 0x619B },
+    { 0x62FF, 0x599B },
+    { 0x5EFF, 0x519B },
+    { 0x5F1F, 0x499B },
+    { 0x5F3F, 0x419B },
+    { 0x5F5F, 0x399B }
 };
 
-static void dx_rainbow_tick(void) {
+static void dx_cycle_tick(void) {
     uint16_t d = title_t - DX_T0;
-    const uint16_t *c;
+    uint16_t foam, fill;
     uint8_t ly = LY_REG;
     if (title_t < DX_T0 || ly < 144 || ly > 150) return;
-    while (d >= 2 * DX_STEPS) d -= 2 * DX_STEPS;
-    c = dx_rainbow[(uint8_t)d >> 1];
-    OCPS_REG = 0x80 | (OBJPAL_DX << 3) | 4;                  // colour 2 (byte 4), auto-increment into colour 3
-    OCPD_REG = (uint8_t)c[0]; OCPD_REG = (uint8_t)(c[0] >> 8);
-    OCPD_REG = (uint8_t)c[1]; OCPD_REG = (uint8_t)(c[1] >> 8);
+    if (d < DX_FLASH) foam = fill = 0x7FFF;
+    else {
+        d -= DX_FLASH;                                       // (step 0 starts right after the flash)
+        while (d >= 2 * DX_STEPS) d -= 2 * DX_STEPS;
+        foam = dx_cycle[(uint8_t)d >> 1][0]; fill = dx_cycle[(uint8_t)d >> 1][1];
+    }
+    OCPS_REG = 0x80 | (OBJPAL_DX << 3) | 2;                  // colour 1 (byte 2), auto-increment into colour 2
+    OCPD_REG = (uint8_t)foam; OCPD_REG = (uint8_t)(foam >> 8);
+    OCPD_REG = (uint8_t)fill; OCPD_REG = (uint8_t)(fill >> 8);
 }
 
 uint8_t  title_menu;            // TM_* (game.h): the top level, or the submenu of top item title_menu - 1
@@ -392,7 +401,7 @@ void title_enter(void) BANKED {
         set_bkg_palette(BGPAL_TPATRON, 1, p);
         p[1] = RGB15(31, 31, 27); p[2] = RGB15(30, 20, 4); p[3] = RGB15(12, 5, 2);  // effects: foam, beer, dark
         set_sprite_palette(OBJPAL_FX, 1, p);
-        p[1] = RGB15(31, 30, 24); p[2] = dx_rainbow[0][0]; p[3] = dx_rainbow[0][1];   // the DX badge: cream letters, then the two drop shadows at the rainbow's first step (dx_rainbow_tick)
+        p[1] = dx_cycle[0][0]; p[2] = dx_cycle[0][1]; p[3] = RGB15(10, 3, 2);   // the DX badge: foam and fill at the cycle's first step (dx_cycle_tick), the fixed brown outline
         set_sprite_palette(OBJPAL_DX, 1, p);
     }
     venue_backdrop(0, 16);                            // wall rows 0-15, counter row 16, floor 17 (tiles + attributes)
@@ -499,7 +508,7 @@ static void logo_frame(uint8_t letters) {
     }
     if (is_cgb && title_t >= DX_T0 && !shadow_OAM[OAM_DX].y) {      // the DX badge (CGB only) stamps on under the logo's right end
         o = shadow_OAM + OAM_DX;
-        for (i = 0; i < 3; i++, o++) { o->y = DX_Y + 16; o->x = DX_X + 8 + 8 * i; o->tile = OBJ_DX + 2 * i; o->prop = OBJPAL_DX; }
+        for (i = 0; i < 4; i++, o++) { o->y = DX_Y + 16; o->x = DX_X + 8 + 8 * i; o->tile = OBJ_DX + 2 * i; o->prop = OBJPAL_DX; }
     }
     if (title_t >= LOGO_DONE_T) logo_done = 1;
 }
@@ -515,7 +524,7 @@ static void bubbles_frame(void) {
         if (!bubble_y[i]) {
             bubble_y[i] = (LOGO_ROW + 2) * 8 + 16;                  // OAM y: just under the logo
             bubble_x[i] = 12 + (trand() & 127) + 8;
-            if (is_cgb && bubble_x[i] >= DX_X) bubble_x[i] -= 24;   // (CGB: not through the DX badge, screen x 127..150; the random draw above is the same on both models)
+            if (is_cgb && bubble_x[i] > DX_X) bubble_x[i] -= 40;   // (CGB: not through the DX badge, screen x 120..151; the random draw above is the same on both models)
         }
     }
     for (i = 0; i < 2; i++, o++) {
@@ -594,7 +603,15 @@ uint8_t title_update(uint8_t pressed) BANKED {
         return 0;
     }
     title_t++;
-    if (is_cgb) dx_rainbow_tick();
+    if (is_cgb) {
+        dx_cycle_tick();
+        if (title_t == DX_T0) SFX(SFX_DON);                  // the stamp: a thunk (DX_SFX, below, picks what follows it)
+#if DX_SFX == 1
+        if (title_t == DX_T0 + 6) SFX(SFX_COIN);             // ... and a sparkle 6 frames later
+#elif DX_SFX == 2
+        if (title_t == DX_T0 + 6) SFX(SFX_PERFECT);          // ... and the marimba chime 6 frames later
+#endif
+    }
     if (pressed) {
         title_idle = 0;
         title_back_sel = konami_step(title_back_sel, pressed);   // the debug unlock's trigger (src/debug.c konami_step: the one place to change it)

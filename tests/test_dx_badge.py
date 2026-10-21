@@ -1,4 +1,4 @@
-# The DX badge on the title (src/title.c, assets/art/dx_badge.txt): three 8x16 OBJ entries (OAM 20-22, OBJ tiles 40..45, OBJ palette 7) under the logo's
+# The DX badge on the title (src/title.c, assets/art/dx_badge.txt): four 8x16 OBJ entries (OAM 20-23, OBJ tiles 40..47, OBJ palette 7) under the logo's
 # right end, CGB only (a GBA in Color mode counts as a Color: is_cgb). It stamps on once the logo's last drip has fallen (DX_T0 title frames), and
 #   - shows on the Color title as exactly the art's pixels (OAM and screen), and never on the DMG;
 #   - is never crossed by the title's own sparkles, drips, bubbles or cursor;
@@ -13,9 +13,9 @@ from test_menu_music import lcd_on
 from test_sound import make_rom
 
 ART = [r.rstrip("\n") for r in (ROOT / "assets/art/dx_badge.txt").read_text().splitlines() if r.strip() and not r.startswith(";")]
-BOX = (127, 33)                      # the badge's top left on the screen (src/title.c DX_X, DX_Y)
-W, H = 24, 16
-BADGE_OAM = {(33 + 16, 127 + 8 + 8 * i, 40 + 2 * i) for i in range(3)}   # (y, x, tile) of the three entries
+BOX = (120, 35)                      # the badge's top left on the screen (src/title.c DX_X, DX_Y: the owner's V1 mock-up had y 33, then 2 px more top margin)
+W, H = 32, 16
+BADGE_OAM = {(35 + 16, 120 + 8 + 8 * i, 40 + 2 * i) for i in range(4)}   # (y, x, tile) of the four entries
 DX_T0 = 96                           # src/title.c DX_T0 at 9 letters, 5 fill states: 6 + 7 * 8 + 3 * 4 + 22
 WALL = (2, 40)                       # a plain wall pixel left of the badge, below the logo
 
@@ -66,13 +66,13 @@ def test_the_badge_stamps_on_after_the_logo_on_color_and_never_on_dmg(boot):
     boot.run(2)
     if boot.model_name == "cgb":
         got = badge_entries(boot)
-        assert len(got) == 3 and {(s["y"], s["x"], s["tile"]) for s in got} == BADGE_OAM
+        assert len(got) == 4 and {(s["y"], s["x"], s["tile"]) for s in got} == BADGE_OAM
         assert state(boot) == TITLE
     else:
         assert not badge_entries(boot)
         for _ in range(60):
             boot.run(5)
-            assert not badge_entries(boot) and all(s["y"] == 0 for s in boot.oam()[20:23])
+            assert not badge_entries(boot) and all(s["y"] == 0 for s in boot.oam()[20:24])
 
 
 def test_the_badge_pixels_are_the_art_on_color_and_absent_on_dmg(boot):
@@ -84,7 +84,7 @@ def test_the_badge_pixels_are_the_art_on_color_and_absent_on_dmg(boot):
         seen, wall = classes(im)
         assert wall not in (seen["-"], seen["+"], seen["#"])
         assert len(set(seen.values())) == 4
-        # cream is lighter than the red, the red lighter than the sign's dark body (the palette's order: 1, 2, 3)
+        # foam is lighter than the fill, the fill lighter than the brown outline (the palette's order: 1, 2, 3)
         lum = {k: sum(v) for k, v in seen.items()}
         assert lum["-"] > lum["+"] > lum["#"], lum
         n_art = sum(c != "." for row in ART for c in row)
@@ -174,7 +174,7 @@ def test_the_badge_is_gone_on_every_other_screen(name):
     gb.run(120)
     run_to_title_t(gb, DX_T0 + 5)
     gb.run(2)
-    assert len(badge_entries(gb)) == 3
+    assert len(badge_entries(gb)) == 4
     SCREENS[name](gb)
     gb.run(15)                                       # (CLASSIC's start takes a few frames to clear the title's sprites since main's 30 fps work)
     for _ in range(12):
@@ -188,7 +188,7 @@ def test_the_badge_is_gone_in_the_debug_menu_and_on_the_idle_table():
     gb = make_rom("cgb", with_unlock())
     gb.run(120)
     run_to_title_t(gb, DX_T0 + 5)
-    assert len(badge_entries(gb)) == 3
+    assert len(badge_entries(gb)) == 4
     gesture(gb)
     release_gesture(gb)
     gb.run(30)
@@ -221,7 +221,7 @@ def test_the_badge_stamps_on_again_when_the_title_comes_back():
     assert title_t(gb) < DX_T0 - 10 and not badge_entries(gb), "a fresh title: the logo fills again, the badge comes last"
     run_to_title_t(gb, DX_T0 + 5)
     gb.run(2)
-    assert len(badge_entries(gb)) == 3 and badge_is_there(gb.image())
+    assert len(badge_entries(gb)) == 4 and badge_is_there(gb.image())
     gb.pb.stop(save=False)
 
 
@@ -270,14 +270,18 @@ def test_the_badge_adds_no_more_than_ten_sprites_to_any_line():
         gb.run(1)
         worst = max(worst, most_per_scanline(gb))
     gb.pb.stop(save=False)
-    assert 3 <= worst <= 10, worst
+    assert 4 <= worst <= 10, worst
 
 
-# ---- the rainbow: OBJ palette 7's colours 2 (near shadow) and 3 (far shadow) cycle, 48 steps of 2 frames (96 frames); colour 1 (cream) never changes ----
+# ---- the colour cycle (owner Q32 option D): OBJ palette 7's colour 2 (fill, HSV s .55 v .88 hue h) and colour 1 (foam, s .25 v 1 hue h + .08) cycle together,
+# 48 steps of 2 frames (96 frames); colour 3 (the outline, #501810) is fixed. The first 2 frames of the stamp flash white. ----
+import colorsys
 from test_menu_music import obj_palette
 from conftest import check_golden
 
-CREAM = bytes([(31 | 30 << 5 | 24 << 10) & 255, (31 | 30 << 5 | 24 << 10) >> 8])
+OUTLINE = bytes([(10 | 3 << 5 | 2 << 10) & 255, (10 | 3 << 5 | 2 << 10) >> 8])
+SFX_DON, SFX_COIN, SFX_PERFECT = 10, 6, 15
+FLASH = 2
 
 
 def colours(gb):
@@ -285,47 +289,114 @@ def colours(gb):
     return p[2:4], p[4:6], p[6:8]
 
 
-def test_the_shadows_cycle_through_a_rainbow_on_color_and_the_letters_never_change():
+def rgb(c):
+    v = c[0] | c[1] << 8
+    return v & 31, v >> 5 & 31, v >> 10 & 31
+
+
+def c5(r, g, b):
+    return round(r * 31) | round(g * 31) << 5 | round(b * 31) << 10
+
+
+def want(step):
+    h = step / 48
+    return c5(*colorsys.hsv_to_rgb((h + .08) % 1, .25, 1.0)), c5(*colorsys.hsv_to_rgb(h, .55, .88))   # (foam, fill)
+
+
+def test_foam_and_fill_cycle_together_through_a_muted_rainbow_and_the_outline_never_changes():
     gb = make_rom("cgb")
     gb.run(120)
     if gb.model_name != "cgb":
         pytest.skip("CGB only")
     run_to_title_t(gb, DX_T0 - 2)
     first = colours(gb)
-    assert first[0] == CREAM
+    assert first[2] == OUTLINE
     seen = []
     for _ in range(DX_T0 - title_t(gb) + 3 + 300):
         gb.run(1)
         c = colours(gb)
-        assert c[0] == CREAM, "the letters (colour 1) never change"
-        if title_t(gb) >= DX_T0:
-            seen.append((title_t(gb), c[1], c[2]))
+        assert c[2] == OUTLINE, "the outline (colour 3) never changes"
+        if title_t(gb) >= DX_T0 + FLASH:
+            seen.append((title_t(gb), c[0], c[1]))
     gb.pb.stop(save=False)
-    near = {c[1] for c in seen}
-    far = {c[2] for c in seen}
-    assert len(near) >= 40 and len(far) >= 40, (len(near), len(far))
-    by_t = {t: (n, f) for t, n, f in seen}
-    assert by_t[DX_T0 + 1][0] == first[1] and by_t[DX_T0 + 1][1] == first[2], "the cycle starts from the palette the title loaded: no jump"
-    for t in range(DX_T0 + 2, DX_T0 + 150):
+    foam = {c[1] for c in seen}
+    fill = {c[2] for c in seen}
+    assert len(foam) >= 40 and len(fill) >= 40, (len(foam), len(fill))
+    by_t = {t: (f, n) for t, f, n in seen}
+    assert by_t[DX_T0 + FLASH] == (first[0], first[1]), "the cycle starts from the palette the title loaded: no jump after the flash"
+    for t in range(DX_T0 + FLASH, DX_T0 + 150):
         assert by_t[t] == by_t[t + 96], f"a full period is 96 frames (title_t {t})"
-    assert by_t[DX_T0 + 2] != by_t[DX_T0 + 50], "half a period on, the colours are different"
+    for k in range(48):
+        f, n = by_t[DX_T0 + FLASH + 2 * k]
+        assert by_t[DX_T0 + FLASH + 2 * k + 1] == (f, n), "one step every 2 frames"
+        wf, wn = want(k)
+        for got, w in ((f, wf), (n, wn)):
+            g, e = rgb(got), rgb((w & 255, w >> 8))
+            assert max(abs(a - b) for a, b in zip(g, e)) <= 1, (k, g, e)
+    assert by_t[DX_T0 + FLASH] != by_t[DX_T0 + FLASH + 48], "half a period on, the colours are different"
 
 
-def rgb(c):
-    v = c[0] | c[1] << 8
-    return v & 31, v >> 5 & 31, v >> 10 & 31
-
-
-def test_the_far_shadow_is_darker_than_the_near_one_in_every_step():
+def test_the_foam_is_lighter_than_the_fill_and_the_fill_lighter_than_the_outline_in_every_step():
     gb = make_rom("cgb")
     gb.run(120)
-    run_to_title_t(gb, DX_T0)
+    run_to_title_t(gb, DX_T0 + FLASH)
     for _ in range(100):
         gb.run(1)
-        _, near, far = colours(gb)
-        assert sum(rgb(far)) < sum(rgb(near)), (rgb(near), rgb(far))
-        assert near != far
+        foam, fill, out = colours(gb)
+        assert sum(rgb(foam)) > sum(rgb(fill)) > sum(rgb(out)), (rgb(foam), rgb(fill), rgb(out))
     gb.pb.stop(save=False)
+
+
+def test_the_stamp_flashes_white_for_two_frames():
+    gb = make_rom("cgb")
+    gb.run(120)
+    if gb.model_name != "cgb":
+        pytest.skip("CGB only")
+    run_to_title_t(gb, DX_T0 - 2)
+    assert title_t(gb) == DX_T0 - 2
+    got = {}
+    for _ in range(5):
+        gb.run(1)
+        got[title_t(gb)] = colours(gb)
+    gb.pb.stop(save=False)
+    white_word = bytes([0xFF, 0x7F])
+    assert got[DX_T0][:2] == (white_word, white_word) and got[DX_T0 + 1][:2] == (white_word, white_word)
+    assert got[DX_T0 + 2][0] != white_word and got[DX_T0 + 2][1] != white_word
+    assert got[DX_T0 - 1][0] != white_word
+
+
+def test_the_stamp_asks_for_its_sound_at_the_stamp_and_not_before():
+    """DON on the frame the badge stamps on (title_t == DX_T0); then, per DX_SFX (default 1), COIN 6 frames later."""
+    gb = make_rom("cgb")
+    gb.run(120)
+    if gb.model_name != "cgb":
+        pytest.skip("CGB only")
+    run_to_title_t(gb, DX_T0 - 2)
+    assert title_t(gb) == DX_T0 - 2
+    base = gb.read("sfx_count", 16)
+    stamp = {}
+    for _ in range(12):
+        gb.run(1)
+        stamp[title_t(gb)] = (gb.read("sfx_count", 16), bool(badge_entries(gb)))
+    gb.pb.stop(save=False)
+    assert stamp[DX_T0 - 0][0][SFX_DON] == base[SFX_DON] + 1, "DON on the stamp frame"
+    assert stamp[DX_T0 + 1][1], "the badge is on the screen from the next frame (the OAM copy)"
+    assert stamp[DX_T0 - 0][0][SFX_COIN] == base[SFX_COIN], "no sparkle yet"
+    assert stamp[DX_T0 + 5][0][SFX_COIN] == base[SFX_COIN]
+    assert stamp[DX_T0 + 6][0][SFX_COIN] == base[SFX_COIN] + 1, "the sparkle 6 frames later (default DX_SFX=1)"
+    assert stamp[DX_T0 + 10][0][SFX_DON] == base[SFX_DON] + 1 and stamp[DX_T0 + 10][0][SFX_PERFECT] == base[SFX_PERFECT]
+
+
+def test_no_stamp_sound_on_the_dmg():
+    gb = make_rom("dmg")
+    gb.run(120)
+    if gb.model_name != "dmg":
+        pytest.skip("DMG only")
+    base = gb.read("sfx_count", 16)
+    run_to_title_t(gb, DX_T0 + 20)
+    now = gb.read("sfx_count", 16)
+    gb.pb.stop(save=False)
+    assert now[SFX_DON] == base[SFX_DON] and now[SFX_COIN] == base[SFX_COIN]
 
 
 def test_the_palette_is_written_in_vblank_only():
@@ -364,11 +435,11 @@ def test_the_dmg_badge_area_does_not_animate():
     gb.pb.stop(save=False)
 
 
-def test_golden_the_badge_at_one_rainbow_phase(boot):
-    """One fixed phase (title_t DX_T0 + 2 * 12, 12 steps = a quarter turn), CGB only (the DMG has no badge and no animation)."""
+def test_golden_the_badge_at_one_cycle_phase(boot):
+    """One fixed phase (title_t DX_T0 + 2 + 2 * 12, 12 steps = a quarter turn), CGB only (the DMG has no badge and no animation)."""
     if boot.model_name != "cgb":
         pytest.skip("CGB only")
-    run_to_title_t(boot, DX_T0 + 24)
-    assert title_t(boot) == DX_T0 + 24
+    run_to_title_t(boot, DX_T0 + FLASH + 24)
+    assert title_t(boot) == DX_T0 + FLASH + 24
     boot.run(0)
-    check_golden(boot, "dx_rainbow_phase")
+    check_golden(boot, "dx_final_phase")

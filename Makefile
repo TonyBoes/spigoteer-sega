@@ -34,6 +34,13 @@ export TIP
 ifneq ($(TIP),)
 LCCFLAGS += -DTIP_VARIANT_$(TIP)
 endif
+# The DX badge's stamp sound on the CGB title (src/title.c): DX_SFX=1 DON then COIN 6 frames later (default), 2 DON then PERFECT, 3 DON alone.
+#   make BUILD=out/b_dx2 OUT=out/o_dx2 DX_SFX=2 unlocked
+DX_SFX   ?=
+export DX_SFX
+ifneq ($(DX_SFX),)
+LCCFLAGS += -DDX_SFX=$(DX_SFX)
+endif
 # Playtest variants (owner 2026-10-17), off by default; each is built into its own directory so the default build is untouched:
 #   make BUILD=out/b_glowA OUT=out/o_glowA GLOW=A unlocked  GLOW=A: the bistro oven's CGB palette pulse (src/glow.c); GLOW=B: a halo in the BG tiles
 #                                                         around it and a flicker (assets/approved/venues/bistro_*_glowb.txt, tools/gen_art.py)

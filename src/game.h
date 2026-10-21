@@ -149,7 +149,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // OBJ tile layout in VRAM
 #define OBJ_BARTENDER   0
 #define OBJ_BT_END      56    // Sal's 5 frames x 8 = OBJ 0..39; OBJ 40..55 are FREE (unused since the 5-frame art; do not renumber the world, use them)
-#define OBJ_DX          40    // the CGB title's DX badge: 6 tiles, OBJ 40..45 (src/title.c; Sal's pictures end at 39, OBJ_MUG starts at 56)
+#define OBJ_DX          40    // the CGB title's DX badge: 8 tiles, OBJ 40..47 (src/title.c; Sal's pictures end at 39, OBJ_MUG starts at 56)
 #define OBJ_MUG         OBJ_BT_END
 #define OBJ_GLASS       (OBJ_MUG + MUG_TILE_COUNT)
 #define OBJ_MUG_FILL    (OBJ_GLASS + GLASS_TILE_COUNT)

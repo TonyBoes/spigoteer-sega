@@ -781,11 +781,11 @@ def title_art(outdir, prev, base, ttiles, bg):
     for f in fx:
         fxt += tile_bytes(f + ["." * 8] * 8, 0, 0) + tile_bytes(f + ["." * 8] * 8, 0, 8)
 
-    # the CGB DX badge (assets/art/dx_badge.txt): 24x16, three 8x16 columns (top, bottom tile of each), OBJ palette 7 ('-' cream, '+' red, '#' dark)
+    # the CGB DX badge (assets/art/dx_badge.txt): 32x16, four 8x16 columns (top, bottom tile of each), OBJ palette 7 ('-' foam, '+' fill, '#' outline)
     dx = plain_rows(ROOT / "assets/art/dx_badge.txt")
-    assert len(dx) == 16 and all(len(r) == 24 for r in dx), "dx_badge.txt: 24x16"
+    assert len(dx) == 16 and all(len(r) == 32 for r in dx), "dx_badge.txt: 32x16"
     dxt = []
-    for c in range(3):
+    for c in range(4):
         dxt += tile_bytes(dx, 8 * c, 0) + tile_bytes(dx, 8 * c, 8)
 
     def carr(name, vals):
