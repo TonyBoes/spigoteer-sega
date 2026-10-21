@@ -4,6 +4,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import analyze as A
+import freepal
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -34,7 +35,35 @@ def show_pairs(screens):
     return [(s["id"], "show_" + s["id"][len("level_"):]) for s in screens if s["group"].startswith("Levels (ARCADE") and "show_" + s["id"][len("level_"):] in ids]
 
 
-def build(screens, side, models):
+SUM_SPR_CAP = 32      # sprites shown per palette slot in the summary
+
+
+def sprite_union(screens, side, model, out):
+    """The sprites of every level screen (and each venue's show screen) per palette slot, de-duplicated by look, most widespread first;
+    writes img/summary_spr_<model>.png (row per slot, 8x16 cells) and returns its description."""
+    from PIL import Image
+    ids = [s["id"] for s in screens if (s["id"], model) in side and (is_level(s) or s["id"].startswith("show_"))]
+    u = {}
+    for i in ids:
+        for slot, lst in side[(i, model)]["spr"].items():
+            for e in lst:
+                d = u.setdefault(e["key"], dict(e=e, screens=set(), n=0, first=len(u)))
+                d["screens"].add(i)
+                d["n"] += e["n"]
+    nslots = 8 if model == "cgb" else 2
+    im = Image.new("RGBA", (SUM_SPR_CAP * 8, nslots * 16), (0, 0, 0, 0))
+    groups = []
+    for slot in range(nslots):
+        lst = sorted((d for d in u.values() if d["e"]["slot"] == slot), key=lambda d: (-len(d["screens"]), -d["n"], d["first"]))
+        for k, d in enumerate(lst[:SUM_SPR_CAP]):
+            im.paste(d["e"]["img"], (k * 8, slot * 16))
+        groups.append(dict(slot=slot, total=len(lst), items=[d["e"]["meta"] + [len(d["screens"])] for d in lst[:SUM_SPR_CAP]]))
+    rel = "img/summary_spr_%s.png" % model
+    A.save_png(im, out / rel)
+    return dict(png=rel, w=im.width, h=im.height, n_screens=len(ids), cap=SUM_SPR_CAP, groups=groups)
+
+
+def build(screens, side, models, outdir):
     out = {}
     all_ids = [s["id"] for s in screens]
     arcade = [s["id"] for s in screens if s["group"].startswith("Levels (ARCADE")]
@@ -44,6 +73,8 @@ def build(screens, side, models):
     out["n_screens"] = len(all_ids)
     pairs = show_pairs(screens)
     out["show_pairs"] = pairs
+    if "cgb" in models:
+        out["free"] = freepal.build(screens, side)
     for model in models:
         mo = {}
         have = [i for i in all_ids if (i, model) in side]
@@ -127,5 +158,6 @@ def build(screens, side, models):
                 distinct.append(len({side[(i, model)]["tilehash"][b][s] for i in have}))
             banks.append(dict(bank=b, cls="".join(cls), regions=regs, distinct_all=distinct))
         mo["tiles"] = banks
+        mo["spr"] = sprite_union(screens, side, model, outdir)
         out[model] = mo
     return out

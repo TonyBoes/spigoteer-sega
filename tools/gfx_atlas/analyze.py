@@ -80,8 +80,20 @@ def tile_pixels(data16):
 
 
 def save_png(im, path):
-    """Smallest lossless PNG: palette mode when the picture has 256 colours or fewer."""
+    """Smallest lossless PNG: palette mode when the picture has 256 colours or fewer (an RGBA picture keeps its transparency as a tRNS table)."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    if im.mode == "RGBA":
+        cols = im.getcolors(1 << 16)
+        if cols is not None and len(cols) <= 256:
+            pal = sorted(c for _, c in cols)
+            idx = {c: i for i, c in enumerate(pal)}
+            out = Image.new("P", im.size)
+            out.putpalette([v for c in pal for v in c[:3]])
+            out.putdata([idx[p] for p in im.getdata()])
+            out.info["transparency"] = bytes(c[3] for c in pal)
+            im = out
+        im.save(path, optimize=True)
+        return
     cols = im.convert("RGB").getcolors(1 << 16)
     if cols is not None and len(cols) <= 256:
         pal = sorted(c for _, c in cols)
@@ -111,6 +123,50 @@ def sheet_image(vram, shades, tint=None):
 def dmg_palette(reg):
     """BGP / OBP value -> the 4 shade indices (colour index 0..3 -> shade 0..3)."""
     return [(reg >> (2 * i)) & 3 for i in range(4)]
+
+
+SPR_CAP = 24          # sprites shown per palette on a screen ("+N more" beyond)
+
+
+def collect_sprites(samples, per, cgb):
+    """Every distinct visible sprite (OAM entry) of the window, rendered with its own palette and flip flags on a transparent ground.
+    Returns {palette slot: [dict(img RGBA, meta [tile, bank, xflip, yflip, h], n samples it was seen in)]}, most frequent first.
+    The slot is the OBJ palette (CGB) or OBP0 / OBP1 (DMG). Entries are de-duplicated by what they look like (slot + pixels)."""
+    found = {}
+    order = 0
+    for s, P in zip(samples, per):
+        seen = set()
+        for o in P["vis"]:
+            slot = o["pal"] if cgb else o["dmgpal"]
+            h = P["h"]
+            v = s.vram[o["bank"] if cgb else 0]
+            rows = []
+            for t in o["slots"]:
+                rows += tile_pixels(v[t * 16:t * 16 + 16])
+            if o["yflip"]:
+                rows.reverse()
+            if o["xflip"]:
+                rows = [r[::-1] for r in rows]
+            if cgb:
+                cols = [rgb(c) for c in s.objpal[o["pal"]]]
+            else:
+                cols = [C.DMG_SHADES[x] for x in dmg_palette(s.regs["OBP1" if o["dmgpal"] else "OBP0"])]
+            if not any(p for r in rows for p in r):
+                continue
+            im = Image.new("RGBA", (8, h))
+            im.putdata([(0, 0, 0, 0) if p == 0 else cols[p] + (255,) for r in rows for p in r])
+            key = (slot, h, im.tobytes())
+            e = found.get(key)
+            if e is None:
+                e = found[key] = dict(img=im, meta=[o["tile"], o["bank"] if cgb else 0, o["xflip"], o["yflip"], h], n=0, order=order, slot=slot, key=key)
+                order += 1
+            if key not in seen:
+                seen.add(key)
+                e["n"] += 1
+    by = {}
+    for e in sorted(found.values(), key=lambda e: (-e["n"], e["order"])):
+        by.setdefault(e["slot"], []).append(e)
+    return by
 
 
 def analyze(samples, model, assets, rel, key, step):
@@ -276,6 +332,10 @@ def analyze(samples, model, assets, rel, key, step):
         peak_line_y=pl.index(max(pl)), peak_sample_t=samples[peak_i].t, lines_over_10=max(sum(1 for c in P["lines"] if c > 10) for P in per),
         peak_series=[P["peak"] for P in per], visible_series=[len(P["vis"]) for P in per], rep_lines=RP["lines"], size=RP["h"])
 
+    sprs = collect_sprites(samples, per, cgb)
+    rec["spr"] = dict(cap=SPR_CAP, groups=[dict(slot=k, total=len(sprs.get(k, [])), items=[e["meta"] + [e["n"]] for e in sprs.get(k, [])[:SPR_CAP]])
+                                          for k in range(8 if cgb else 2)])
+
     # ---- the screenshot and the animation ---------------------------------------------------------------------------------------
     rec["still"] = None
     imgs = [s.image for s in samples]
@@ -311,5 +371,5 @@ def analyze(samples, model, assets, rel, key, step):
         objpal_used=[x["used_frames"] > 0 for x in rec["pal"]["obj"]] if cgb else None,
         dmg={k: R.regs[k] for k in ("BGP", "OBP0", "OBP1")}, tilehash=side_hash, use=use,
         loaded=[b["loaded"] for b in banks], changed=[set(b["changed"]) for b in banks],
-        still_img=R.image, sheet_imgs=sheet_imgs)
+        still_img=R.image, sheet_imgs=sheet_imgs, spr=sprs)
     return rec, side

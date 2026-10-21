@@ -57,13 +57,15 @@ def run_screen(scr, model, assets, window, step):
 
 
 PACK_X = 168        # packed image: the still at x 0, then the tile sheets (bank 0 grey, bank 0 colour, bank 1 grey, bank 1 colour) 136 px apart
+SPR_X = PACK_X + 4 * 136   # the sprite cells (transparent ground): one row of 8x16 cells per palette, 16 px apart
 PACK_ROW = 200      # a model's row of the packed image: DMG at y 0, CGB at y 200
 
 
 def pack(out, sid, recs, side):
     """One PNG per screen holding both models' still and tile sheets (a published version may hold only ~500 files)."""
     from PIL import Image
-    im = Image.new("RGB", (PACK_X + 4 * 136, 2 * PACK_ROW), (0, 0, 0))
+    im = Image.new("RGBA", (SPR_X + A.SPR_CAP * 8, 2 * PACK_ROW), (0, 0, 0, 255))
+    im.paste((0, 0, 0, 0), (SPR_X, 0, im.width, im.height))
     for model, rec in recs.items():
         y0 = PACK_ROW if model == "cgb" else 0
         sd = side[(sid, model)]
@@ -74,6 +76,10 @@ def pack(out, sid, recs, side):
             im.paste(g, (gx, y0))
             im.paste(c, (cx, y0))
             sheets.append(dict(gray=[gx, y0], colour=[cx, y0]))
+        for g in rec["spr"]["groups"]:
+            for i, e in enumerate(side[(sid, model)]["spr"].get(g["slot"], [])[:A.SPR_CAP]):
+                im.paste(e["img"], (SPR_X + i * 8, y0 + g["slot"] * 16))
+        rec["spr"]["at"] = [SPR_X, y0]
         rec["pack"] = dict(png="img/%s.png" % sid, still=[0, y0], sheets=sheets, w=im.width, h=im.height)
     A.save_png(im, out / "img" / ("%s.png" % sid))
 
@@ -127,8 +133,10 @@ def main():
         index.append(entry)
         print("  ok   %-22s %s" % (scr["id"], ",".join(m for m in models if entry["models"].get(m))), flush=True)
     import summary
-    summ = summary.build(screens, side, models)
+    summ = summary.build(screens, side, models, out)
     h, d = git_info()
+    for w in summ.get("free", {}).get("warnings", []):
+        print("  WARNING free-palette table: " + w)
     (out / "data" / "summary.js").write_text(js("summary", summ))
     (out / "data" / "index.js").write_text(js("index", dict(screens=index, commit=h, date=d, regions=A.REGIONS,
                                                            roles=summary.roles())))
