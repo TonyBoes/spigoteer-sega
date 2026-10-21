@@ -366,7 +366,7 @@ def test_the_stamp_flashes_white_for_two_frames():
 
 
 def test_the_stamp_asks_for_its_sound_at_the_stamp_and_not_before():
-    """DON on the frame the badge stamps on (title_t == DX_T0); then, per DX_SFX (default 1), COIN 6 frames later."""
+    """DON on the frame the badge stamps on (title_t == DX_T0) and nothing after it (the default DX_SFX=3; 1 and 2 add a COIN / PERFECT 6 frames later)."""
     gb = make_rom("cgb")
     gb.run(120)
     if gb.model_name != "cgb":
@@ -381,10 +381,9 @@ def test_the_stamp_asks_for_its_sound_at_the_stamp_and_not_before():
     gb.pb.stop(save=False)
     assert stamp[DX_T0 - 0][0][SFX_DON] == base[SFX_DON] + 1, "DON on the stamp frame"
     assert stamp[DX_T0 + 1][1], "the badge is on the screen from the next frame (the OAM copy)"
-    assert stamp[DX_T0 - 0][0][SFX_COIN] == base[SFX_COIN], "no sparkle yet"
-    assert stamp[DX_T0 + 5][0][SFX_COIN] == base[SFX_COIN]
-    assert stamp[DX_T0 + 6][0][SFX_COIN] == base[SFX_COIN] + 1, "the sparkle 6 frames later (default DX_SFX=1)"
-    assert stamp[DX_T0 + 10][0][SFX_DON] == base[SFX_DON] + 1 and stamp[DX_T0 + 10][0][SFX_PERFECT] == base[SFX_PERFECT]
+    for k in range(DX_T0 + 1, DX_T0 + 11):
+        assert stamp[k][0][SFX_DON] == base[SFX_DON] + 1 and stamp[k][0][SFX_COIN] == base[SFX_COIN] and stamp[k][0][SFX_PERFECT] == base[SFX_PERFECT], k
+    assert stamp[DX_T0 - 1][0][SFX_DON] == base[SFX_DON], "not before the stamp"
 
 
 def test_no_stamp_sound_on_the_dmg():

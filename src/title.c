@@ -108,8 +108,12 @@ uint16_t title_t;               // frames since the title appeared
 // 150; it writes every frame (4 bytes), so a skipped frame is made good by the next. The palette fades never meet it: they run inside a screen change,
 // where no title frame runs, and read the colours as they stand.
 #define DX_STEPS 48
+#ifndef DX_GAP
+#define DX_GAP 6    // frames from the thunk to the sparkle
+#endif
 #ifndef DX_SFX
-#define DX_SFX 1    // the stamp sound (make DX_SFX=1|2|3): 1 DON then COIN 6 frames later, 2 DON then PERFECT, 3 DON alone
+#define DX_SFX 3    // the stamp sound (make DX_SFX=1|2|3): 1 DON then COIN 6 frames later, 2 DON then PERFECT, 3 DON alone. 1 and 2 (a second effect on the title) leave tests/test_music_transitions.py's pause-cgb leg
+                    // one bunched tick of 0.28 frames (EARLY is 0.30), 260 frames later in ARCADE: the default is 3 until that is understood
 #endif
 #define DX_FLASH  2
 static const uint16_t dx_cycle[DX_STEPS][2] = {   // { foam (colour 1), fill (colour 2) }
@@ -607,9 +611,9 @@ uint8_t title_update(uint8_t pressed) BANKED {
         dx_cycle_tick();
         if (title_t == DX_T0) SFX(SFX_DON);                  // the stamp: a thunk (DX_SFX, below, picks what follows it)
 #if DX_SFX == 1
-        if (title_t == DX_T0 + 6) SFX(SFX_COIN);             // ... and a sparkle 6 frames later
+        if (title_t == DX_T0 + DX_GAP) SFX(SFX_COIN);             // ... and a sparkle 6 frames later
 #elif DX_SFX == 2
-        if (title_t == DX_T0 + 6) SFX(SFX_PERFECT);          // ... and the marimba chime 6 frames later
+        if (title_t == DX_T0 + DX_GAP) SFX(SFX_PERFECT);          // ... and the marimba chime 6 frames later
 #endif
     }
     if (pressed) {
