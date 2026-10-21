@@ -161,6 +161,7 @@ def analyze(samples, model, assets, rel, key, step):
                 pal_cells[e[2]] += 1
     for o in RP["vis"]:
         pal_objs[o["pal"]] += 1
+    pal_seen = {"bg": [], "obj": []}                 # per slot: every distinct value held during the window (the summary needs more than the last one)
     if cgb:
         pals = {}
         for kind in ("bg", "obj"):
@@ -173,6 +174,7 @@ def analyze(samples, model, assets, rel, key, step):
                     if v != last:
                         changes.append([s.t, list(v)])
                         last = v
+                pal_seen[kind].append(sorted(set(ser)))
                 varying = sorted({c for v in ser for c in range(4) if v[c] != ser[0][c]})
                 lst.append(dict(slot=p, unset=all(v == (0x1CE7, 0x1E19, 0x7E31, 0x217B) for v in ser), rep=list(getattr(R, "bgpal" if kind == "bg" else "objpal")[p]), first=list(ser[0]),
                                 changes=changes if len(changes) > 1 else [], n_distinct=len(set(ser)), varying_colours=varying,
@@ -304,6 +306,7 @@ def analyze(samples, model, assets, rel, key, step):
         bgpal=[tuple(p) for p in R.bgpal] if cgb else None, objpal=[tuple(p) for p in R.objpal] if cgb else None,
         bgpal_changes=[bool(x["changes"]) for x in rec["pal"]["bg"]] if cgb else None,
         objpal_changes=[bool(x["changes"]) for x in rec["pal"]["obj"]] if cgb else None,
+        bgpal_seen=pal_seen["bg"] if cgb else None, objpal_seen=pal_seen["obj"] if cgb else None,
         bgpal_used=[x["used_frames"] > 0 for x in rec["pal"]["bg"]] if cgb else None,
         objpal_used=[x["used_frames"] > 0 for x in rec["pal"]["obj"]] if cgb else None,
         dmg={k: R.regs[k] for k in ("BGP", "OBP0", "OBP1")}, tilehash=side_hash, use=use,

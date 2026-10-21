@@ -412,8 +412,9 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     var S = A.summary && A.summary[state.model] && A.summary[state.model].pal ? A.summary[state.model].pal[kind][slot] : null;
     if (rec.unset) f.appendChild(chip("never written", "off", "palette RAM still holds the emulator's power-on colours: the game does not set this slot here"));
     if (S) {
-      if (S.cls.indexOf("permanent") === 0) f.appendChild(chip("same on every level", "perm", "identical on all " + S.n_levels + " level screens"));
-      else if (S.cls.indexOf("not used") === 0) f.appendChild(chip("not on level screens", "off", "no level screen references this slot in its sampled window"));
+      if (S.cls.indexOf("swapped") === 0) f.appendChild(chip("swapped during play", "anim", "a level's normal screen and its show screen hold different colours here: a game event (a tip appears, a show starts) rewrites the slot"));
+      else if (S.cls.indexOf("permanent") === 0) f.appendChild(chip("same on every level", "perm", "identical on all " + S.n_levels + " level screens, and no show changes it"));
+      else if (S.cls.indexOf("not seen") === 0) f.appendChild(chip("not seen on level screens", "off", "no level screen references this slot in its sampled window (an event may still use it: see the slot's role)"));
       else if (S.cls.indexOf("per venue") === 0 || S.cls.indexOf("per level") >= 0) f.appendChild(chip("per venue (" + S.distinct_levels + " looks)", "venue", S.distinct_levels + " different palettes over " + S.n_levels + " level screens"));
       if (S.cls.indexOf("animates") >= 0) f.appendChild(chip("animates on levels", "anim"));
     }
@@ -657,11 +658,14 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     var S = A.summary;
     if (!S) { main.appendChild(h("p", { class: "muted", text: "Loading the summary..." })); load("summary", function () { if (state.summary) render(); }); return; }
     var m = state.model, M = S[m], n = S.level_screens.length;
-    main.appendChild(h("p", { class: "note", text: "Level screens: the " + S.venue_screens.length + " ARCADE venues plus the CLASSIC levels (" + n + " in all). \"Permanent\" means the identical value on every one of them and no change inside the sampled window. " + S.n_screens + " screens in the atlas; the model toggle above switches DMG / CGB." }));
+    main.appendChild(h("p", { class: "note", text: "Level screens: the " + S.venue_screens.length + " ARCADE venues plus the CLASSIC levels (" + n + " in all). \"Permanent\" means the identical value on every one of them, on each venue's show screen too, and no change inside the sampled window. \"Swapped during play\" means a game event rewrites the slot (the show screen of a venue is counted as part of its level). A window is only 3 s, so events that did not happen in it (a breaking glass, a lifted patron) show as \"not seen\". " + S.n_screens + " screens in the atlas; the model toggle above switches DMG / CGB." }));
     if (m === "cgb") {
-      var perm = [];
-      ["bg", "obj"].forEach(function (k) { M.pal[k].forEach(function (q) { if (q.cls.indexOf("permanent") === 0) perm.push((k === "bg" ? "BG " : "OBJ ") + q.slot); }); });
-      main.appendChild(h("p", null, h("b", { text: "Permanent across all level screens: " }), perm.length ? perm.join(", ") : "none"));
+      var cats = [["permanent", "Permanent: "], ["swapped", "Swapped during play: "], ["per venue", "Per venue: "], ["same start", "Same start colours, animates: "], ["not seen", "Not seen in the sampled level windows: "]];
+      cats.forEach(function (c) {
+        var l = [];
+        ["bg", "obj"].forEach(function (k) { M.pal[k].forEach(function (q) { if (q.cls.indexOf(c[0]) === 0) l.push((k === "bg" ? "BG " : "OBJ ") + q.slot); }); });
+        main.appendChild(h("p", null, h("b", { text: c[1] }), l.length ? l.join(", ") : "none"));
+      });
       ["bg", "obj"].forEach(function (k) { main.appendChild(sumPal(k, M.pal[k])); });
     } else {
       main.appendChild(sumDmg(M.dmg));
@@ -679,7 +683,7 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
       var tr = h("tr");
       tr.appendChild(h("td", null, h("b", { text: (kind === "bg" ? "BG " : "OBJ ") + q.slot }), h("div", { class: "muted", text: roleOf(kind, q.slot) })));
       var td = h("td");
-      var cls = q.cls.indexOf("permanent") === 0 ? "perm" : q.cls.indexOf("not used") === 0 ? "off" : "venue";
+      var cls = q.cls.indexOf("permanent") === 0 ? "perm" : q.cls.indexOf("not seen") === 0 ? "off" : q.cls.indexOf("swapped") === 0 ? "anim" : "venue";
       td.appendChild(chip(q.cls, cls));
       if (q.cls.indexOf("animates") >= 0) td.appendChild(chip("animates", "anim"));
       var gr = {};
@@ -689,6 +693,12 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
         gl.appendChild(h("span", { class: "grp", title: gr[k].ids.map(nameOf).join("\n") }, swatch(gr[k].cols, "mini"), String(gr[k].ids.length)));
       });
       td.appendChild(gl);
+      if (q.swapped_cols && q.swapped_cols.length) {
+        var sw2 = h("div", { class: "groups", style: "margin-top:6px" });
+        q.swapped_cols.forEach(function (c) { sw2.appendChild(h("span", { class: "grp" }, swatch(c, "mini"))); });
+        td.appendChild(h("div", { class: "muted", text: "swapped in during a show (" + q.swapped_cols.length + " other palettes on " + q.swapped_levels.length + " venues):" }));
+        td.appendChild(sw2);
+      }
       if (q.unused_levels.length && q.unused_levels.length < q.n_levels) td.appendChild(h("div", { class: "muted", text: "not referenced on " + q.unused_levels.length + " of " + q.n_levels + " level screens" }));
       tr.appendChild(td);
       var ta = h("td", { text: q.used_all + " of " + q.n_all + " screens, " + q.distinct_all + " distinct palettes" });

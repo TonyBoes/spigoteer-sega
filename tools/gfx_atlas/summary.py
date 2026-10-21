@@ -11,7 +11,7 @@ BG_ROLES = {0: "bar / counter (BGPAL_BAR)", 1: "HUD (BGPAL_HUD)", 2: "patron var
             5: "venue stage A (BGPAL_STAGE)", 6: "venue stage B (BGPAL_STAGE_B)", 7: "venue's second bar palette: keg / spout; enhanced row S (BGPAL_BAR_B)"}
 OBJ_ROLES = {0: "Sal, the bartender (OBJPAL_BARTENDER)", 1: "full mug (OBJPAL_MUG_FULL)", 2: "empty mug / breaking glass (OBJPAL_MUG_EMPTY)",
              3: "lifted patron A (OBJPAL_PATRON_A)", 4: "extra palette of an enhanced patron variant (OBJPAL_ENH)",
-             5: "tip coin / show dancers, swapped (OBJPAL_COIN = OBJPAL_DANCER)", 6: "lifted patron B (OBJPAL_PATRON_B)", 7: "lifted patron C (OBJPAL_PATRON_C)"}
+             5: "tip coin (same every venue) \u21c4 show dancers (per venue): swapped in when a tip appears or a show starts; no tips or shows in boss fights (OBJPAL_COIN = OBJPAL_DANCER)", 6: "lifted patron B (OBJPAL_PATRON_B)", 7: "lifted patron C (OBJPAL_PATRON_C)"}
 
 
 def roles():
@@ -28,6 +28,12 @@ def is_level(scr):
     return scr["group"].startswith("Levels (ARCADE") or scr["group"].startswith("Levels (CLASSIC")
 
 
+def show_pairs(screens):
+    """(level id, show id) for each ARCADE venue: a show runs inside its level, so the two screens are one level for the summary."""
+    ids = {s["id"] for s in screens}
+    return [(s["id"], "show_" + s["id"][len("level_"):]) for s in screens if s["group"].startswith("Levels (ARCADE") and "show_" + s["id"][len("level_"):] in ids]
+
+
 def build(screens, side, models):
     out = {}
     all_ids = [s["id"] for s in screens]
@@ -36,6 +42,8 @@ def build(screens, side, models):
     out["level_screens"] = levels
     out["venue_screens"] = arcade
     out["n_screens"] = len(all_ids)
+    pairs = show_pairs(screens)
+    out["show_pairs"] = pairs
     for model in models:
         mo = {}
         have = [i for i in all_ids if (i, model) in side]
@@ -56,8 +64,16 @@ def build(screens, side, models):
                     lchg = [i for i in lv if side[(i, model)][chg][p]]
                     achg = [i for i in have if side[(i, model)][chg][p]]
                     lunused = [i for i in lv if not side[(i, model)][used][p]]
-                    if len(lunused) == len(lv):
-                        cls = "not used on level screens"
+                    # swapped by an event: a venue's show screen holds a value its level screen never does (or the reverse), and the slot is drawn on one of them
+                    seen = key + "_seen"
+                    swapped = [lid for lid, sid in pairs if (lid, model) in side and (sid, model) in side
+                               and set(side[(lid, model)][seen][p]) != set(side[(sid, model)][seen][p])
+                               and (side[(lid, model)][used][p] or side[(sid, model)][used][p])]
+                    show_vals = sorted({v for lid, sid in pairs if lid in swapped for v in set(side[(sid, model)][seen][p]) - set(side[(lid, model)][seen][p])})
+                    if swapped:
+                        cls = "swapped during play (by a show / tip)"
+                    elif len(lunused) == len(lv):
+                        cls = "not seen in the sampled level windows"
                     elif lchg and len(lvals) == 1:
                         cls = "same start colours on every level, animates"
                     elif lchg:
@@ -70,6 +86,7 @@ def build(screens, side, models):
                                      used_all=sum(len(g) for g in groups.values()), n_all=len(have),
                                      levels=[dict(id=i, cols=list(vals[i]), used=bool(side[(i, model)][used][p])) for i in lv],
                                      groups=[dict(cols=list(c), screens=ids) for c, ids in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))],
+                                     swapped_levels=swapped, swapped_cols=[list(v) for v in show_vals], distinct_swapped=len(show_vals),
                                      changing_levels=lchg, changing_all=achg, unused_levels=lunused))
                 pal[kind] = recs
             mo["pal"] = pal
