@@ -430,8 +430,10 @@ def test_settings_lists_debug_menu_only_when_unlocked(boot):
     title_pick(boot, K_SETTINGS)
     boot.run(MENU_SETTLE)
     assert menu_items(boot) == settings_items(boot, debug=True)
-    keys = settings_keys(boot, debug=True)         # (a Color has five lines then: rows 4, 6, 8, 10, 12)
+    keys = settings_keys(boot, debug=True)         # (MUSIC, BAR CHANGE, ERASE DATA, DEBUG MENU: ERASE and DEBUG on adjacent rows)
     assert [title_text_row(k) for k in keys] == [menu_block_rows(boot)[settings_row(boot, i, debug=True) - 4] for i in range(len(keys))]
+    from test_flow import expect_settings
+    expect_settings(boot, debug=True)
 
 
 def test_the_settings_line_opens_the_menu_and_b_comes_back_to_it(boot):
@@ -486,7 +488,7 @@ def test_the_gesture_works_from_any_menu_item_and_the_menu_survives(boot):
     boot.run(3)
     boot.run(MENU_SETTLE)
     assert boot.mem("game_state") == TITLE and boot.mem("title_menu") == TM_SETTINGS and boot.mem("title_sel") == 0
-    assert music_line(boot) == title_text_row("music_on" if s0 else "music_off")
+    assert music_line(boot) == title_text_row("on" if s0 else "off")
     menu_tap(boot, "b")                                   # the top level
     title_level(boot)
     boot.run(20)

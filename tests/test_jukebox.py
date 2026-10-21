@@ -212,7 +212,7 @@ def test_music_off_still_plays_here_and_stays_off_after(boot):
     title_pick(boot, K_SETTINGS)
     boot.run(MENU_SETTLE)
     from test_flow import settings_row
-    assert tilemap_row(boot, settings_row(boot, 0), 0, 20) == title_text_row("music_off")
+    assert tilemap_row(boot, settings_row(boot, 0), 0, 20) == title_text_row("off")
 
 
 def test_no_more_than_ten_sprites_a_line(boot):

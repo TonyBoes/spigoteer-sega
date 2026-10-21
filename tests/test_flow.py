@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import (GAME, K_DEBUG, K_SCR, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_ERASE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
+from conftest import (GAME, K_DEBUG, K_SET_GBA, K_SET_STD, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_ERASE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
                       ROOT, TM_BONUS, TM_PLAY, TM_SETTINGS, TM_TOP, bar_top_row, check_golden, menu_items, menu_tap,
                       title_arcade, title_level, title_pick)
 
@@ -119,24 +119,59 @@ SEL_PLAY, SEL_BONUS, SEL_SETTINGS = range(3)
 
 
 def menu_rows(n):
-    return tuple((4 if n == 5 else 10 - n) + 2 * i for i in range(n))      # (five lines, a Color's SETTINGS with the debug line: rows 4-12)
+    return tuple(10 - n + 2 * i for i in range(n))      # (the top level and the submenus: one line every other row, centred on row 9)
 
 
-# SETTINGS on a Color has one more line than on a DMG (2026-10-21, GBA COLOR MODE, src/title.c): MUSIC, BAR, [GBA COLOR MODE], ERASE DATA, [DEBUG MENU].
-# The helpers say the lines, items and rows for the model of `gb`; the GBA COLOR MODE line ("scr") reads the same whatever the choice (A opens the two choices).
-def settings_keys(gb, music="music_on", bar="bar_snap", debug=False):
-    scr = ("scr",) if gb.model_name == "cgb" else ()
-    return (music, bar) + scr + ("erase",) + (("debug",) if debug else ())
+# SETTINGS (2026-10-21, owner): every setting is TWO rows, its NAME and under it its STATUS (the line the mug stands on), a blank row after it; ERASE DATA and DEBUG MENU are
+# one-row actions. MUSIC, BAR CHANGE, [GBA COLOR MODE: only on a GBA, _is_GBA bit 0], ERASE DATA, [DEBUG MENU]. Centred in rows 4-13; with all five lines (eleven rows) the
+# gap under the last setting goes. The helpers say the lines, items and rows for the model of `gb`.
+def settings_entries(gb, music="on", bar="snap", debug=False):
+    """[(name key or None, status key)] of SETTINGS as `gb` shows it; the COLOR status is the choice in _is_GBA bit 1."""
+    out = [("name_music", music), ("name_bar", bar)]
+    if gb.model_name == "cgb" and gb.mem("_is_GBA") & 1:
+        out.append(("scr", "scr_bright" if gb.mem("_is_GBA") & 2 else "scr_normal"))
+    return out + [(None, "erase")] + ([(None, "debug")] if debug else [])
+
+
+def settings_layout(gb, **kw):
+    """{screen row: text key} of every text row of SETTINGS, and [status row of each entry]."""
+    ents = settings_entries(gb, **kw)
+    t = sum(1 if n is None else 3 for n, _ in ents)
+    skip = t > 10
+    t -= skip
+    row, rows, status = 4 + (10 - t) // 2, {}, []
+    last = max(i for i, (n, _) in enumerate(ents) if n)
+    for i, (n, k) in enumerate(ents):
+        if n is None:
+            rows[row] = k; status.append(row); row += 1
+        else:
+            rows[row] = n; rows[row + 1] = k; status.append(row + 1); row += 2 if (skip and i == last) else 3
+    return rows, status
+
+
+def settings_keys(gb, **kw):
+    """The status keys, one per selectable line, in order."""
+    return tuple(k for _, k in settings_entries(gb, **kw))
 
 
 def settings_items(gb, bar=K_BARCHANGE, music=K_MUSIC, debug=False):
-    scr = [K_SCR] if gb.model_name == "cgb" else []
+    scr = [K_SET_GBA if gb.mem("_is_GBA") & 2 else K_SET_STD] if gb.model_name == "cgb" and gb.mem("_is_GBA") & 1 else []
     return [music, bar] + scr + [K_ERASE] + ([K_DEBUG] if debug else [])
 
 
 def settings_row(gb, i, debug=False):
-    """Screen row of SETTINGS' line i."""
-    return menu_rows(len(settings_keys(gb, debug=debug)))[i]
+    """Screen row of the status (or action) line of SETTINGS' selectable line i."""
+    return settings_layout(gb, debug=debug)[1][i]
+
+
+def expect_settings(gb, **kw):
+    """The menu block shows exactly SETTINGS' rows as the layout says, and the plain wall around them."""
+    blank = TITLE_ART["blank"]
+    rows, _ = settings_layout(gb, **kw)
+    want = [title_text_row(rows[y]) if y in rows else [blank] * 20 for y in range(LOGO_ROW + 2, 14)]
+    assert menu_block_rows(gb) == want, rows
+
+
 LOGO_STATES = 5
 OAM_TMUG, OAM_CURSOR = 4, 5
 SCENE_TOP, SCENE_BOTTOM = 14 * 8, 17 * 8          # the bar scene: wall rows 14-15, counter row 16
@@ -159,7 +194,7 @@ def hi_shown(gb):
 
 
 def music_line(gb):
-    """The MUSIC line (SETTINGS first line: row 7 on a DMG, 6 on a Color)."""
+    """The MUSIC status row (ON / OFF, under its name)."""
     return tilemap_row(gb, settings_row(gb, 0), 0, 20)
 
 
@@ -218,7 +253,7 @@ def test_title_menu_is_centred_without_bands(boot):
     assert tilemap_row(boot, ROW_HI, 0, 20) == [blank] * 6 + [TITLE_ART["hi"], blank] + hi_tiles("000000") + [blank] * 3 + [TITLE_ART["digits"][0], TITLE_ART["dot"], TITLE_ART["digits"][9]]   # (+ the version, 0.9, top right)
     # every line centred to the pixel: as many px left of the text as right of it. An odd-length line is drawn
     # 4 px right inside one more tile, so its tiles are an even count with as many blank columns either side.
-    for key, s in (("arcade", "ARCADE"), ("story", "STORY"), ("music_on", "MUSIC ON"), ("music_off", "MUSIC OFF"),
+    for key, s in (("arcade", "ARCADE"), ("story", "STORY"), ("name_bar", "BAR CHANGE"), ("scr", "GBA COLOR MODE"), ("snap", "SNAP"), ("keep", "KEEP"), ("on", "ON"), ("off", "OFF"), ("name_music", "MUSIC"),
                    ("continue", "CONTINUE"), ("bonus", "BONUS"), ("play", "PLAY"), ("settings", "SETTINGS"),
                    ("soundtrack", "SOUNDTRACK"), ("minigames", "MINI GAMES")):
         t = TITLE_ART["text"][key]
@@ -245,7 +280,7 @@ def test_up_down_move_the_mug_cursor_and_wrap(boot):
 
 # (top item, its submenu, the submenu's lines without a story save)
 SUBMENUS = [(K_PLAY, TM_PLAY, ("story", "arcade", "classic")), (K_BONUS, TM_BONUS, ("credits", "soundtrack", "minigames", "bossrush")),
-            (K_SETTINGS, TM_SETTINGS, ("music_on", "bar_snap", "erase"))]
+            (K_SETTINGS, TM_SETTINGS, ("on", "snap", "erase"))]
 
 
 @pytest.mark.parametrize("top,menu,keys", SUBMENUS, ids=["play", "bonus", "settings"])
@@ -255,13 +290,19 @@ def test_each_submenu_opens_in_place_and_b_comes_back_to_its_item(boot, top, men
     boot.run(MENU_SETTLE)
     if top == K_SETTINGS:
         keys = settings_keys(boot)
+        rows = settings_layout(boot)[1]
+    else:
+        rows = menu_rows(len(keys))
     assert state(boot) == TITLE and boot.mem("title_menu") == menu and boot.mem("title_sel") == 0
-    expect_menu(boot, keys)
-    cursor_on(boot, keys[0], menu_rows(len(keys))[0])
+    if top == K_SETTINGS:
+        expect_settings(boot)
+    else:
+        expect_menu(boot, keys)
+    cursor_on(boot, keys[0], rows[0])
     if len(keys) > 1:                           # Up / Down move and wrap in a submenu too
         menu_tap(boot, "up")
         assert boot.mem("title_sel") == len(keys) - 1
-        cursor_on(boot, keys[-1], menu_rows(len(keys))[-1])
+        cursor_on(boot, keys[-1], rows[-1])
     check_golden(boot, "title_" + TOP_KEYS[menu - 1])
     menu_tap(boot, "b")
     boot.run(MENU_SETTLE)
@@ -368,14 +409,14 @@ def test_story_starts_the_story_mode(boot):
 def test_music_toggles_from_the_settings(boot):
     title_pick(boot, K_SETTINGS)
     boot.run(MENU_SETTLE)
-    assert menu_items(boot) == settings_items(boot) and music_line(boot) == title_text_row("music_on")
+    assert menu_items(boot) == settings_items(boot) and music_line(boot) == title_text_row("on")
     menu_tap(boot, "a")
     boot.run(2)
-    assert boot.mem("sound_on") == 0 and music_line(boot) == title_text_row("music_off")
-    cursor_on(boot, "music_off", settings_row(boot, 0))
+    assert boot.mem("sound_on") == 0 and music_line(boot) == title_text_row("off")
+    cursor_on(boot, "off", settings_row(boot, 0))
     boot.press("start", 2)
     boot.run(2)
-    assert boot.mem("sound_on") == 1 and music_line(boot) == title_text_row("music_on")
+    assert boot.mem("sound_on") == 1 and music_line(boot) == title_text_row("on")
     assert state(boot) == TITLE and boot.mem("title_menu") == TM_SETTINGS
 
 
@@ -394,10 +435,10 @@ def test_select_toggles_the_music_on_any_menu_level(boot):
     assert boot.mem("sound_on") == 0, "the top level (no MUSIC line shown)"
     title_pick(boot, K_SETTINGS)
     boot.run(MENU_SETTLE)
-    assert music_line(boot) == title_text_row("music_off"), "SETTINGS opens on the current setting"
+    assert music_line(boot) == title_text_row("off"), "SETTINGS opens on the current setting"
     menu_tap(boot, "select")
     boot.run(2)
-    assert boot.mem("sound_on") == 1 and music_line(boot) == title_text_row("music_on")
+    assert boot.mem("sound_on") == 1 and music_line(boot) == title_text_row("on")
 
 
 def test_title_ignores_other_buttons(boot):
@@ -670,3 +711,25 @@ def test_level_clear_counts_patrons_pushed_out_from_mid_bar(gb):
     assert gb.mem("served") == 0 and state(gb) == PLAYING, "(nothing counts until they are off the screen)"
     run_until(gb, lambda: state(gb) == LEVEL_CLEAR, 120)
     assert gb.mem("served") == 2 and score(gb) == 2 * 50 + 1000
+
+
+def test_a_setting_shows_a_blinking_arrow_and_the_a_button_beside_its_status_and_an_action_does_not(boot):
+    """SETTINGS (owner 2026-10-21): next to the selected setting's status, a blinking arrow and the A button (OAM 10, 11); ERASE DATA is an action: neither."""
+    from conftest import menu_to
+    title_pick(boot, K_SETTINGS)
+    boot.run(MENU_SETTLE)
+    for key, item in (("on", K_MUSIC), ("snap", K_BARCHANGE)):
+        menu_to(boot, item)
+        arrow_seen = []
+        for _ in range(70):
+            boot.run(1)
+            o = boot.oam()
+            arrow_seen.append(o[10]["y"] != 0)
+            assert o[11]["y"] == settings_row(boot, settings_items(boot).index(item)) * 8 + 16, "the A button on the status row"
+            assert o[11]["x"] - 8 > TITLE_ART["text"][key]["r"] and o[11]["x"] > o[10]["x"], "right of the status text, the A button after the arrow"
+        assert True in arrow_seen and False in arrow_seen, "the arrow blinks"
+        assert arrow_seen.count(True) > 15 and arrow_seen.count(False) > 15, "on the cursor's 16-frame beat"
+    menu_to(boot, K_ERASE)
+    boot.run(40)
+    o = boot.oam()
+    assert o[10]["y"] == 0 and o[11]["y"] == 0, "an action has no cue"

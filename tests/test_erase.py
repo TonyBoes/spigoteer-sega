@@ -5,7 +5,7 @@ import pytest
 from conftest import (check_golden, debug_unlocked, K_DEBUG, K_ERASE, K_ERASEQ, K_MUSIC, K_NO, K_PLAY, K_SETTINGS, K_YES, K_STORY, K_CONTINUE, K_ARCADE, K_BARCHANGE, K_BARKEEP, K_CLASSIC,
                       MENU_SETTLE, TM_ERASE, TM_PLAY, TM_SETTINGS, TM_TOP, menu_items, menu_tap, menu_to, sram_peek, title_pick, unlock_debug)
 from save_images import SIZE, all_views, full_image, observe, put
-from test_flow import cursor_on, expect_menu, menu_rows, settings_items, settings_keys, settings_row, settle_title, title_text_row, tilemap_row
+from test_flow import cursor_on, expect_menu, expect_settings, menu_rows, settings_items, settings_keys, settings_row, settle_title, title_text_row, tilemap_row
 from test_sound import make_rom, save_ram
 
 pytestmark = pytest.mark.timeout(240)
@@ -37,8 +37,8 @@ def test_erase_data_is_the_third_settings_line_and_asks_first(model):
     try:
         title_pick(rom, K_SETTINGS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == settings_items(rom), "MUSIC, BAR CHANGE, (a Color: GBA COLOR MODE,) ERASE DATA"
-        expect_menu(rom, settings_keys(rom))
+        assert menu_items(rom) == settings_items(rom), "MUSIC, BAR CHANGE, (a GBA: COLOR,) ERASE DATA"
+        expect_settings(rom)
         menu_to(rom, K_ERASE)
         cursor_on(rom, "erase", settings_row(rom, len(settings_items(rom)) - 1))
         menu_tap(rom, "a")

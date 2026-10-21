@@ -5,7 +5,7 @@
 # A GBA is simulated as in tests/test_bright.py (conftest.gba_hardware): no choice given = a cartridge with nothing saved.
 import pytest
 
-from conftest import (K_ERASE, K_PLAY, K_SCR, K_SCR_BRIGHT, K_SCR_NORMAL, K_SETTINGS, K_YES, MENU_SETTLE, TM_SCR, TM_TOP,
+from conftest import (K_ERASE, K_PLAY, K_SCR, K_SCR_BRIGHT, K_SCR_NORMAL, K_SET_GBA, K_SET_STD, K_SETTINGS, K_YES, MENU_SETTLE, TM_SCR, TM_TOP,
                       check_golden, gba_hardware, hold_stage_anim, menu_items, menu_tap, menu_to, title_pick, du_block, DU_AT)
 from test_bright import SC_AT, flag, lift_written, pal_ram, ram_with, sc_block, settings_items
 from test_sound import make_rom, save_ram
@@ -114,16 +114,11 @@ def test_the_choice_is_changeable_in_settings_afterwards():
     menu_tap(r, "a")                                         # STANDARD
     r.run(MENU_SETTLE + 20)
     items = settings_items(r)
-    assert K_SCR in items
-    menu_to(r, K_SCR)
-    menu_tap(r, "a")                                         # the two choices, the cursor on STANDARD
-    r.run(MENU_SETTLE)
-    assert menu_items(r) == [K_SCR, K_SCR_NORMAL, K_SCR_BRIGHT] and r.mem("title_sel") == 1
-    menu_tap(r, "down")
+    assert K_SET_STD in items
+    menu_to(r, K_SET_STD)
+    menu_tap(r, "a")                                         # COLOR: STANDARD -> COLOR: GBA at once
     r.run(12)
-    menu_tap(r, "a")
-    r.run(MENU_SETTLE + 12)
-    assert flag(r) == 3 and r.mem("title_menu") != TM_SCR
+    assert flag(r) == 3 and K_SET_GBA in menu_items(r)
     assert saved(r) == sc_block(2)
     r2 = boot("cgb", True, ram_with((SC_AT, sc_block(2))))
     assert not asking(r2) and flag(r2) == 3, "BRIGHT stays across a power cycle, with no prompt"

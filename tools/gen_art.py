@@ -614,7 +614,10 @@ def venues(outdir, prev):
 TITLE_WORD = "SPIGOTEER"
 TITLE_LETTERS = "SPIGOTER"            # the order of the @title_* blocks in title.txt
 LOGO_FILL = [0, 4, 8, 12]             # px of beer in the fill states before the final art (5 steps per letter)
-MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "music_off": "MUSIC OFF",
+MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY",
+                # SETTINGS (owner 2026-10-21): every setting is two rows, its NAME and under it its STATUS; the status is the one the cursor's line shows, with the arrow and the A button beside it
+                "name_music": "MUSIC", "on": "ON", "off": "OFF",
+                "name_bar": "BAR CHANGE", "snap": "SNAP", "keep": "KEEP",
                 "continue": "CONTINUE",       # M11b: CONTINUE (story save) replaced M10a's "COMING SOON"
                 "bonus": "BONUS",             # the top level's BONUS submenu
                 "play": "PLAY", "settings": "SETTINGS",   # the top level: PLAY / BONUS / SETTINGS (owner 2026-10-11)
@@ -622,9 +625,7 @@ MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "m
                 "classic": "CLASSIC",         # PLAY's fourth mode (the three modes, owner 2026-10-11)
                 "minigames": "MINI GAMES",  # BONUS's second item, the Practice list (src/mg_list.c)
                 "bossrush": "BOSS RUSH",
-                "bar_snap": "BAR SNAP",  # SETTINGS' second line (src/title.c K_BARCHANGE; SNAP is the default)
-                "bar_keep": "BAR KEEP",     # BONUS's third item (src/rush.c)
-                "erase": "ERASE DATA",      # SETTINGS' third line (K_ERASE): even lengths reuse the other lines' glyph tiles
+                "erase": "ERASE DATA",      # SETTINGS' action line (K_ERASE): even lengths reuse the other lines' glyph tiles
                 "debug": "DEBUG MENU",      # SETTINGS' DEBUG line (K_DEBUG, unlocked only)
                 "erase_q": "ERASE ALL DATA",  # the confirm prompt's label line (K_ERASEQ)
                 "no": "NO", "yes": "YES ",
@@ -633,7 +634,8 @@ MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "m
                 "cap_easy": "HALF POINTS ", "cap_normal": "NORMAL POINTS ", "cap_hard": "EXTRA POINTS",   # ... and the caption under each (K_CAP_*)
                 # GBA COLOR MODE (owner 2026-10-21, Q34): SETTINGS' line (K_SCR) opens, and the first-boot prompt on a Game Boy Advance (TM_SCR) uses as its label, the two choices
                 # STANDARD / ORIGINAL GBA (K_SCR_NORMAL / K_SCR_BRIGHT; even lengths, like the others, so their glyph tiles are shared). No caption lines.
-                "scr": "GBA COLOR MODE", "scr_normal": "STANDARD", "scr_bright": "ORIGINAL GBA"}
+                "scr": "GBA COLOR MODE", "scr_normal": "STANDARD", "scr_bright": "ORIGINAL GBA",   # (also SETTINGS' COLOR name and its two statuses)
+                }
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 # ... and past it the perfect pour's OBJ ids 234-239 (loaded at a story shift's start, never shown on the title: its
 # sprites are the bartender, the mug, the drink frames and the effects, all below 128); the DMG copies start at 240
@@ -718,8 +720,10 @@ def title_art(outdir, prev, base, ttiles, bg):
     n_fill = len(pool_px)
 
     # menu text: the HUD glyphs of bar.txt ('.' = text) at rows 0-6, columns 1-5 of the cell, 1 px drop shadow (colour 1)
+    colon = dict(blocks(ROOT / "assets/tiles/story.txt", named=True))["glyph_colon"]   # (the HUD font has no colon: the story font's)
+
     def glyph(ch):
-        g = bg["glyph_" + ch]
+        g = bg["glyph_" + ch] if ch != ":" else colon
         return [[1 if g[y][x] == "." else 0 for x in range(8)] for y in range(1, 8)]
 
     def render(s, col=3, centre=True):
@@ -748,7 +752,8 @@ def title_art(outdir, prev, base, ttiles, bg):
     for k2, s in MENU_STRINGS.items():
         px, nt = render(s)
         text[k2] = {"col": (20 - nt) // 2, "tiles": [tid([r[t * 8:t * 8 + 8] for r in px], True) for t in range(nt)],
-                    "x": (20 - nt) // 2 * 8 + (4 if len(s) & 1 else 0) + 1}   # screen x of the first text pixel
+                    "x": (20 - nt) // 2 * 8 + (4 if len(s) & 1 else 0) + 1,   # screen x of the first text pixel
+                    "r": (20 - nt) // 2 * 8 + (4 if len(s) & 1 else 0) + 8 * len(s)}   # screen x just past its last glyph cell
         strip_prev.append(px)
     digits = [tid(render(d, 2, False)[0], True) for d in "0123456789"]
     dot_px = [[0] * 8 for _ in range(8)]   # the version's full stop ("0.9": col 18 of the HI row): 2x2 px, muted like the digits, with their shadow
@@ -779,7 +784,7 @@ def title_art(outdir, prev, base, ttiles, bg):
 
     # effect sprites: 8x8 frames in the top half of 8x16 entries
     fx = [r for _, r in blocks(ROOT / "assets/art/title_fx.txt")]
-    assert len(fx) == 6 and all(len(f) == 8 and all(len(r) == 8 for r in f) for f in fx), "title_fx.txt: 6 frames 8x8"
+    assert len(fx) == 8 and all(len(f) == 8 and all(len(r) == 8 for r in f) for f in fx), "title_fx.txt: 8 frames 8x8 (6 effects, the arrow, the A button)"
     fxt = []
     for f in fx:
         fxt += tile_bytes(f + ["." * 8] * 8, 0, 0) + tile_bytes(f + ["." * 8] * 8, 0, 8)
@@ -808,6 +813,7 @@ def title_art(outdir, prev, base, ttiles, bg):
     for k2, t in text.items():
         out.append(carr(f"tt_{k2}", [t["col"], len(t["tiles"])] + t["tiles"]) + "   // column, count, tile ids")
         out.append(f"#define TT_X_{k2.upper()} {t['x']}   // screen x of its first text pixel")
+        out.append(f"#define TT_R_{k2.upper()} {t['r']}   // screen x just past its last glyph cell")
     out += [carr("tt_digit", digits), ""]
     (outdir / "title_art.h").write_text("\n".join(out))
     (outdir / "title.json").write_text(json.dumps({

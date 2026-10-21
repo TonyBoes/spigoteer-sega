@@ -463,7 +463,7 @@ def test_a_boss_fight_shows_no_puff_over_its_own_tiles(model):
 # (K_BARCHANGE while SNAP, K_BARKEEP while KEEP), A / START / LEFT / RIGHT flip it, saved in SRAM 0x12 "BC". An older save, a
 # corrupt block or any other mode reads as SNAP. CLASSIC snaps whatever it says. The debug box's START still flips the bit for the session.
 from conftest import K_BARCHANGE, K_BARKEEP, K_ERASE, K_MUSIC, K_SETTINGS, MENU_SETTLE, menu_items, menu_tap, menu_to
-from test_flow import cursor_on, expect_menu, settings_items, settings_keys, settings_row
+from test_flow import cursor_on, expect_settings, settings_items, settings_keys, settings_row
 
 
 def settings_open(gb):
@@ -488,23 +488,23 @@ def test_settings_has_the_bar_line_second_and_snap_by_default(boot):
     assert boot.mem("level_dirs") & KEEP_POS == 0
     settings_open(boot)
     assert menu_items(boot) == settings_items(boot) and boot.mem("title_sel") == 0
-    expect_menu(boot, settings_keys(boot))
+    expect_settings(boot)
 
 
 @pytest.mark.parametrize("key", ["a", "start", "left", "right"])
 def test_the_bar_line_flips_with_a_start_left_right_and_back(boot, key):
     settings_open(boot)
     menu_to(boot, K_BARCHANGE)
-    cursor_on(boot, "bar_snap", settings_row(boot, 1))
+    cursor_on(boot, "snap", settings_row(boot, 1))
     menu_tap(boot, key)
     boot.run(MENU_SETTLE)
     assert boot.mem("level_dirs") & KEEP_POS and menu_items(boot) == settings_items(boot, K_BARKEEP)
-    expect_menu(boot, settings_keys(boot, bar="bar_keep"))
-    cursor_on(boot, "bar_keep", settings_row(boot, 1))
+    expect_settings(boot, bar="keep")
+    cursor_on(boot, "keep", settings_row(boot, 1))
     menu_tap(boot, key)
     boot.run(MENU_SETTLE)
     assert boot.mem("level_dirs") & KEEP_POS == 0 and menu_items(boot) == settings_items(boot)
-    expect_menu(boot, settings_keys(boot))
+    expect_settings(boot)
 
 
 def test_left_and_right_do_nothing_on_the_music_line(boot):
@@ -513,7 +513,7 @@ def test_left_and_right_do_nothing_on_the_music_line(boot):
         menu_tap(boot, key)
     boot.run(MENU_SETTLE)
     assert boot.mem("level_dirs") & KEEP_POS == 0 and boot.mem("sound_on") == 1
-    expect_menu(boot, settings_keys(boot))
+    expect_settings(boot)
 
 
 def test_the_setting_is_what_the_game_plays_and_classic_still_snaps(boot):
@@ -555,6 +555,6 @@ def test_the_setting_is_saved_and_a_bad_block_reads_as_snap(model):
             assert r.mem("level_dirs") & KEEP_POS == want, image and image[0x12:0x17].hex()
             hold_stage_anim(r)
             settings_open(r)
-            expect_menu(r, settings_keys(r, bar="bar_keep" if want else "bar_snap"))
+            expect_settings(r, bar="keep" if want else "snap")
         finally:
             r.stop()
