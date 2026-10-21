@@ -18,7 +18,7 @@
 // lettering, its fill states and the scene's patron over the patron range (72..227). OBJ: the effects over the
 // show performers' tiles (OBJ_DANCER, reloaded by load_venue); the bartender (permanent) and the saloon's drink
 // frames (load_venue(0)).
-// OAM: bartender 0-3, scene mug 4, cursor 5, sparkle 6, drip 7, bubbles 8-9. Per scanline at most 4 (scene 3).
+// OAM: bartender 0-3, scene mug 4, cursor 5, sparkle 6, drip 7, bubbles 8-9, the CGB DX badge 20-22. Per scanline at most 4 (scene 3; the badge adds 3 under the logo).
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -74,6 +74,9 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define OAM_SPARKLE     6
 #define OAM_DRIP        7
 #define OAM_BUBBLE      8
+#define OAM_DX         20       // the DX badge's three 8x16 entries 20-22 (CGB only; the in-play mug pool's ids, which the title never uses)
+#define DX_X          127       // screen x / y of its top left: under the logo's right end (the R's right edge is x 150)
+#define DX_Y           33
 
 // ---- logo timing (frames since the title appeared) ----
 #define LOGO_T0         6       // first letter starts filling
@@ -85,6 +88,7 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define SPARKLE_EACH    6       // frames on each letter
 #define LOGO_DONE_T   (SPARKLE_T0 + LOGO_LETTERS * SPARKLE_EACH)
 #define DRIP_LEN       22
+#define DX_T0         (LOGO_T0 + (LOGO_LETTERS - 2) * LOGO_STAGGER + (TT_LOGO_STATES - 2) * LOGO_STEP + DRIP_LEN)   // the badge stamps on once the last drip (next to it, under the second E) has fallen
 #define TITLE_IDLE_FRAMES 1200  // 20 s
 
 enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
@@ -304,6 +308,7 @@ void title_enter(void) BANKED {
         for (i = 0; i < 2; i++)                       // (M13a: stored column by column, the shift-0 poses at PATRON_SHIFT0_OFS)
             bkg_data_far(TT_PATRON_BASE + r * 2 + i, 1, patron_tiles_cowboys + (PATRON_SHIFT0_OFS + i * 2 + r) * 16, BANK(patron_tiles_cowboys));
     set_sprite_data(OBJ_FX, TT_FX_TILES, tt_fx_tiles);
+    if (is_cgb) set_sprite_data(OBJ_DX, TT_DX_TILES, tt_dx_tiles);
     music_pump();
     if (is_cgb) {
         p[0] = WALL_RGB_T; p[1] = RGB15(31, 30, 24); p[2] = RGB15(29, 19, 4); p[3] = RGB15(10, 3, 2);   // logo: foam, beer, outline
@@ -317,6 +322,8 @@ void title_enter(void) BANKED {
         set_bkg_palette(BGPAL_TPATRON, 1, p);
         p[1] = RGB15(31, 31, 27); p[2] = RGB15(30, 20, 4); p[3] = RGB15(12, 5, 2);  // effects: foam, beer, dark
         set_sprite_palette(OBJPAL_FX, 1, p);
+        p[1] = RGB15(31, 30, 24); p[2] = RGB15(26, 5, 4); p[3] = RGB15(10, 3, 2);   // the DX badge: cream letters, neon-red rim, the logo's outline brown (colour 3, the sign's body)
+        set_sprite_palette(OBJPAL_DX, 1, p);
     }
     venue_backdrop(0, 16);                            // wall rows 0-15, counter row 16, floor 17 (tiles + attributes)
     music_pump();
@@ -420,6 +427,10 @@ static void logo_frame(uint8_t letters) {
             o->prop = is_cgb ? OBJPAL_FX : S_PALETTE;
         }
     }
+    if (is_cgb && title_t >= DX_T0 && !shadow_OAM[OAM_DX].y) {      // the DX badge (CGB only) stamps on under the logo's right end
+        o = shadow_OAM + OAM_DX;
+        for (i = 0; i < 3; i++, o++) { o->y = DX_Y + 16; o->x = DX_X + 8 + 8 * i; o->tile = OBJ_DX + 2 * i; o->prop = OBJPAL_DX; }
+    }
     if (title_t >= LOGO_DONE_T) logo_done = 1;
 }
 
@@ -434,6 +445,7 @@ static void bubbles_frame(void) {
         if (!bubble_y[i]) {
             bubble_y[i] = (LOGO_ROW + 2) * 8 + 16;                  // OAM y: just under the logo
             bubble_x[i] = 12 + (trand() & 127) + 8;
+            if (is_cgb && bubble_x[i] >= DX_X) bubble_x[i] -= 24;   // (CGB: not through the DX badge, screen x 127..150; the random draw above is the same on both models)
         }
     }
     for (i = 0; i < 2; i++, o++) {

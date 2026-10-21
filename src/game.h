@@ -149,6 +149,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // OBJ tile layout in VRAM
 #define OBJ_BARTENDER   0
 #define OBJ_BT_END      56    // Sal's 5 frames x 8 = OBJ 0..39; OBJ 40..55 are FREE (unused since the 5-frame art; do not renumber the world, use them)
+#define OBJ_DX          40    // the CGB title's DX badge: 6 tiles, OBJ 40..45 (src/title.c; Sal's pictures end at 39, OBJ_MUG starts at 56)
 #define OBJ_MUG         OBJ_BT_END
 #define OBJ_GLASS       (OBJ_MUG + MUG_TILE_COUNT)
 #define OBJ_MUG_FILL    (OBJ_GLASS + GLASS_TILE_COUNT)
@@ -181,6 +182,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define OBJPAL_DANCER    5
 #define OBJPAL_PATRON_B  6
 #define OBJPAL_PATRON_C  7
+#define OBJPAL_DX        7   // (the CGB title's DX badge; the title has no lifted patrons, whose C look is a play palette)
 // DMG (M13a): OBP1 = 0xE4 in play (lifted patrons, the BG's shades); what used OBP1 (0xC4) before draws with OBP0 (0xD0)
 // from copies of its tiles with the two bit planes swapped (colours 1 and 2 trade places), made at level load
 #define OBP1_PLAY        0xE4
