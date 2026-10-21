@@ -63,7 +63,7 @@ BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_arrows.h $(BUILD)/list_keys.h $(B
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
-.PHONY: all test check preview clean assets release dist unlocked cfall
+.PHONY: all test check preview clean assets release dist unlocked cfall atlas
 
 all: $(ROM)
 
@@ -290,6 +290,11 @@ check: $(ROM)
 
 preview: $(GEN) $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/boss_art.h $(BUILD)/antics_art.h $(BUILD)/trans_art.h
 	@ls -1 $(OUT)/preview/
+
+# The graphics atlas (tools/gfx_atlas): every screen on DMG and CGB, palettes / tiles / attributes / sprites -> out/atlas/index.html (+ data/, img/).
+# One command, deterministic; reads build/game.gb (run `make` first). Open out/atlas/standalone.html locally.
+atlas: $(ROM)
+	python3 tools/gfx_atlas/build.py
 
 clean:
 	rm -rf $(BUILD) $(OUT)
