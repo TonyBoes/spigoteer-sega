@@ -78,12 +78,16 @@ def build(screens, side):
             else:
                 st, lab = kind, label
             seen = [i for i in ids if (i, "cgb") in side and side[(i, "cgb")]["objpal_used"][slot]]
-            obs = ("sampled sprites used it on: " + ", ".join(seen)) if seen else "no sampled sprite used it"
+            evl = sorted({l for i in ids if (i, "cgb") in side for l in side[(i, "cgb")].get("ev_objpal_used", {}).get(slot, [])})
+            have_ev = any("ev_objpal_used" in side[(i, "cgb")] for i in ids if (i, "cgb") in side)
+            obs = ("drawn in the complete event capture by: " + ", ".join(evl)) if evl else ("no sprite of any captured event used it" if have_ev else "no sampled sprite used it")
             warn = None
-            if st == "free" and seen:
-                warn = "slot %d is declared free in %s but sprites used it on %s" % (slot, sid, ", ".join(seen))
-            elif st == "always" and not any(i == ids[0] for i in seen):
-                warn = "slot %d is declared always-used in %s but no sampled level frame drew it" % (slot, sid)
+            if st == "free" and (seen or evl):
+                warn = "slot %d is declared free in %s but sprites used it (%s)" % (slot, sid, ", ".join(evl or seen))
+            elif st == "always" and not any(i == ids[0] for i in seen) and not evl:
+                warn = "slot %d is declared always-used in %s but no captured frame drew it" % (slot, sid)
+            elif st == "event" and have_ev and not evl:
+                warn = "slot %d (%s) is declared used by an event in %s but no captured event drew it" % (slot, label, sid)
             cells.append(dict(slot=slot, state=st, label=lab, notes=notes, observed=obs, warn=warn))
         levels.append(dict(id=sid, name=s["name"], group=s["group"], screens=ids, cells=cells))
     warnings = [c["warn"] for lv in levels for c in lv["cells"] if c["warn"]]

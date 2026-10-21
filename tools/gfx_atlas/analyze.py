@@ -176,7 +176,7 @@ def analyze(samples, model, assets, rel, key, step):
     # ---- per-sample reductions -------------------------------------------------------------------------------------------------
     per = []
     for s in samples:
-        grid, used = C.screen_cells(s)
+        grid, used, _ = C.screen_cells(s)
         objs, lines, h = C.oam_objects(s)
         vis = [o for o in objs if o["visible"]]
         per.append(dict(grid=grid, used=used, objs=objs, vis=vis, lines=lines, h=h, peak=max(lines)))
