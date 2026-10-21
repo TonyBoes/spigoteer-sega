@@ -56,12 +56,13 @@ static void load_cgb_palettes(void) {
     // M13a: the glass shares the venue's empty-drink palette, the coin slot 5 (render.c), patrons 3/6/7 (lift.c)
 }
 
-// SETTINGS > SCREEN (game.h bright.h): the choice into _is_GBA's bit 1. A Color only; the saved choice, else on for a GBA (bit 0) and off for a plain Color.
+// SETTINGS > SCREEN (game.h bright.h): the choice into _is_GBA's bit 1, a Color only. The saved choice; none saved: NORMAL, and on a GBA (bit 0) the title's
+// first-boot prompt is asked for (bit 2).
 void screen_load(void) BANKED {
     uint8_t m;
     if (!is_cgb) return;
     m = screen_saved();                                       // 0 nothing saved, 1 NORMAL, 2 BRIGHT
-    _is_GBA = (_is_GBA & 1) | ((m ? m == 2 : (_is_GBA & 1)) << 1);
+    _is_GBA = (_is_GBA & 1) | ((m == 2) << 1) | (m ? 0 : (_is_GBA & 1) << 2);
 }
 
 void screen_pal_reload(void) BANKED {                         // (SETTINGS changed the choice: the palettes made at boot, written again; the title's own: title.c)

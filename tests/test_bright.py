@@ -2,8 +2,10 @@
 # Game Boy Advance, whose Color-mode screen shows GBC colours much darker.
 #
 # A GBA is simulated by conftest.gba_hardware(): PyBoy's boot ROM leaves B = 0 (a plain Color); a hook on the cartridge's entry point sets B = 1, which GBDK
-# crt0 stores in _is_GBA (GB_GBA=1 does it for a whole run). The game keeps its choice in bit 1 of that same byte (no new WRAM): 0 NORMAL on a Color, 1 on a GBA
-# that chose NORMAL, 2 BRIGHT on a Color that chose it, 3 BRIGHT on a GBA (the default there).
+# crt0 stores in _is_GBA (GB_GBA=1 does it for a whole run). The game keeps its choice in bits 1-2 of that same byte (no new WRAM): bit 0 the hardware, bit 1
+# BRIGHT, bit 2 "not chosen yet, ask" (a GBA with nothing saved: the title opens its first-boot SCREEN prompt, tests/test_screen_prompt.py). So 0 NORMAL on a
+# Color, 1 on a GBA that chose NORMAL, 2 BRIGHT on a Color that chose it, 3 BRIGHT on a GBA, 5 a GBA that has not chosen. gba_hardware(True, 2) is a GBA
+# that chose BRIGHT (the cartridge RAM gets the save block), which is what every lift test below runs.
 #
 # The lift is read off palette RAM: a BRIGHT run and a NORMAL run, driven the same way to the same frame, differ exactly by the 32-entry table on every colour
 # (title, level, a tip's coin and the show, a story picture, a credits card, a boss fight, a scene change's fades and the pause's).
@@ -59,8 +61,9 @@ def ram_with(*blocks):
     return bytes(r)
 
 
-def rom_at(model="cgb", gba=False, ram=None):
-    with gba_hardware(gba):
+def rom_at(model="cgb", gba=False, ram=None, choice=2):
+    """gba: a GBA that has chosen `choice` (2 BRIGHT; None: it has not chosen, the prompt is up); an image that has its own SC block keeps it."""
+    with gba_hardware(gba, choice):
         rom = make_rom(model, ram, sound=False)
     rom.run(120)
     hold_stage_anim(rom)
@@ -99,11 +102,11 @@ def test_the_line_is_on_a_color_and_never_on_a_dmg(gba):
         assert flag(d) & 2 == 0, "BRIGHT is never on in a DMG"
 
 
-def test_the_default_follows_the_hardware():
+def test_the_default_is_normal_and_a_gba_that_has_not_chosen_asks():
     with rom_at("cgb", False) as c:
         assert flag(c) == 0 and K_SCR_NORMAL in settings_items(c), "a plain Color: NORMAL"
-    with rom_at("cgb", True) as g:
-        assert flag(g) == 3 and K_SCR_BRIGHT in settings_items(g), "a GBA: BRIGHT (bit 0 the hardware, bit 1 the choice)"
+    with rom_at("cgb", True, choice=None) as g:
+        assert flag(g) == 5, "a GBA, nothing saved: NORMAL (bit 1 clear), the prompt asked for (bit 2)"
 
 
 def test_a_saved_choice_beats_the_default():
@@ -119,8 +122,8 @@ def test_a_choice_that_does_not_check_out_reads_as_not_chosen():
     bad[3] ^= 1                                           # checksum
     odd = bytearray(sc_block(7))                           # a value the game never writes (valid checksum)
     for blk in (bytes(bad), bytes(odd)):
-        with rom_at("cgb", True, ram_with((SC_AT, blk))) as r:
-            assert flag(r) == 3, "a GBA: the default, whatever the broken block says"
+        with rom_at("cgb", True, ram_with((SC_AT, blk)), choice=None) as r:
+            assert flag(r) == 5, "a GBA: not chosen, it asks again, whatever the broken block says"
         with rom_at("cgb", False, ram_with((SC_AT, blk))) as r:
             assert flag(r) == 0
 
@@ -149,7 +152,7 @@ def test_the_choice_is_written_when_it_changes_and_survives_a_power_cycle():
     r3 = rom_at("cgb", True, sav2)
     assert flag(r3) == 1, "a GBA that went back to NORMAL stays there"
     r3.stop()
-    r4 = rom_at("cgb", True)
+    r4 = rom_at("cgb", True, ram_with((SC_AT, sc_block(2))))
     settings_items(r4)
     toggle(r4, "left")
     assert flag(r4) == 1 and save_ram(r4)[SC_AT:SC_AT + 5] == sc_block(1)
@@ -159,17 +162,17 @@ def test_an_older_save_without_the_block_loads_cleanly_and_the_other_blocks_are_
     from save_images import full_image, without, observe, SIZE
     img = full_image()
     assert img[SC_AT:SC_AT + 5] == bytes(5), "no save of any older version has anything at 0x30"
-    for gba, want in ((False, 0), (True, 3)):
+    for gba, want in ((False, 0), (True, 5)):
         with gba_hardware(gba):
             r = make_rom("cgb", img, sound=False)
         r.run(120)
-        assert flag(r) == want, "not chosen: the hardware's default"
+        assert flag(r) == want, "not chosen: NORMAL, and a GBA asks"
         o = observe(r)
         assert o["progress"] == 2 and o["tunes"] == 0x2345 | 1 and o["keep"] == 0x80, "the other blocks read as written"
         r.stop()
 
 
-def test_erase_data_clears_the_choice_and_the_default_comes_back():
+def test_erase_data_clears_the_choice_and_a_gba_is_asked_again():
     ram = ram_with((SC_AT, sc_block(1)), (DU_AT, du_block(0)))
     r = rom_at("cgb", True, ram)
     assert flag(r) == 1
@@ -180,7 +183,7 @@ def test_erase_data_clears_the_choice_and_the_default_comes_back():
     menu_to(r, K_YES)
     menu_tap(r, "a")
     r.run(20)
-    assert flag(r) == 3, "a GBA with nothing saved: BRIGHT again"
+    assert flag(r) == 5, "a GBA with nothing saved: NORMAL and the prompt again (tests/test_screen_prompt.py)"
     assert save_ram(r)[SC_AT:SC_AT + 5] == bytes(5), "ERASE DATA wrote the whole cartridge zero"
 
 
@@ -244,21 +247,21 @@ def shot_show(gba):
 
 def shot_story(gba):
     from test_story import page_ready, start_story
-    with gba_hardware(gba), start_story("cgb") as gb:
+    with gba_hardware(gba, 2), start_story("cgb") as gb:
         page_ready(gb)
         return pal_ram(gb), gb.image()
 
 
 def shot_credits(gba):
     from test_credits import CARD_START, at, roll_from_bonus
-    with gba_hardware(gba), roll_from_bonus("cgb", sound=False) as gb:
+    with gba_hardware(gba, 2), roll_from_bonus("cgb", sound=False) as gb:
         at(gb, CARD_START[3] + 5)
         return pal_ram(gb), gb.image()
 
 
 def shot_boss(gba):
     from boss_common import fight, play
-    with gba_hardware(gba):
+    with gba_hardware(gba, 2):
         gb = fight("cgb", 5)                                  # the robot factory's Prototype: his palettes stream in through the boss loader's queue (boss.c)
         play(gb)
         gb.run(30)

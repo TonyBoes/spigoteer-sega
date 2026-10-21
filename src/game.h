@@ -479,10 +479,10 @@ void title_music_toggle(void) BANKED;                   // music on/off and the 
 enum { K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES,
        K_BOSSRUSH, K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP,
        K_CREDITS, K_EASY, K_NORMAL, K_HARD, K_CAP_EASY, K_CAP_NORMAL, K_CAP_HARD,
-       K_SCR_NORMAL, K_SCR_BRIGHT };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
+       K_SCR_NORMAL, K_SCR_BRIGHT, K_CAP_SCR_NORMAL, K_CAP_SCR_BRIGHT };   // (SETTINGS' BAR line is K_BARCHANGE while SNAP, K_BARKEEP while KEEP; ERASE DATA,
                                                                                          // DEBUG MENU (unlocked only); the confirm: the K_ERASEQ label, NO, YES;
                                                                                          // PLAY > STORY's difficulty prompt: EASY, NORMAL, HARD, each with its K_CAP_* caption (HALF / NORMAL / EXTRA POINTS) on the row below (no item: title.c menu_frame); K_BARCHANGE and K_BARKEEP are the bar toggles)
-enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD };   // title_menu: the top level or the submenu of top item n-1 (TM_ERASE: SETTINGS' ERASE ALL DATA? prompt; TM_HARD: PLAY > STORY's HOW HARD prompt)
+enum { TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD, TM_SCR };   // title_menu: the top level or the submenu of top item n-1 (TM_ERASE: SETTINGS' ERASE ALL DATA? prompt; TM_HARD: PLAY > STORY's HOW HARD prompt)
 extern uint8_t title_items[], title_sel;                // the shown menu's items in screen order, the selected line
 extern uint8_t title_back;                              // the menu title_enter opens (TM_*; it resets it to TM_TOP)
 extern uint8_t title_back_sel;                          // the line its cursor starts on (then 0); on the title, the debug unlock code's progress

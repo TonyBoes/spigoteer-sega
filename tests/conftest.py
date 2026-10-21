@@ -16,6 +16,7 @@ GOLDEN_REPORT = os.environ.get("GB_GOLDEN_REPORT")   # a file: a golden that dif
 # Every existing test was written (and every golden taken) at normal speed, so each PyBoy the tests make loads a copy of the ROM with that
 # byte patched to 0 (a ROM that is not this game, or without the byte, is untouched; a DMG never reads it). tests/test_double_speed.py
 # runs the ROM as built: `with double_speed(): Rom(...)`, or GB_DOUBLE_SPEED=1 for the whole run (then the old tests are not expected to pass).
+from io import BytesIO
 import contextlib
 import hashlib
 import pyboy as _pyboy_mod
@@ -63,22 +64,36 @@ def _speed_off_copy(path):
 # ---- a Game Boy Advance (SETTINGS > SCREEN, src/bright.h): a GBA runs the cartridge in Color mode and hands it B = 1 (GBDK: _is_GBA, bit 0), a plain Color B = 0.
 # PyBoy's boot ROM leaves B = 0, so a hook on the cartridge's entry point (0x0100: nothing has run yet) sets B = 1. `with gba_hardware(): Rom(...)` makes every
 # PyBoy built inside the block a GBA; GB_GBA=1 does it for a whole run (then the goldens, which are the Color's, are expected to differ).
+# A GBA with nothing saved asks for its SCREEN choice at the title (title.c TM_SCR). `gba_hardware(True, choice=2)` also puts that choice in the cartridge RAM
+# ("SC" block at 0x30: 1 NORMAL, 2 BRIGHT; an image that already holds a block keeps its own), so the run starts as a GBA that has chosen: no prompt.
 _GBA = [bool(os.environ.get("GB_GBA"))]
+_SC = [int(os.environ.get("GB_GBA_SC", "0")) or None]
 
 
 @contextlib.contextmanager
-def gba_hardware(on=True):
+def gba_hardware(on=True, choice=None):
     old, _GBA[0] = _GBA[0], on
+    old_sc, _SC[0] = _SC[0], choice
     try:
         yield
     finally:
-        _GBA[0] = old
+        _GBA[0], _SC[0] = old, old_sc
+
+
+def _with_choice(ram, choice):
+    r = bytearray(ram) if ram is not None else bytearray(0x2000)
+    if bytes(r[0x30:0x32]) != b"SC":
+        r[0x30:0x35] = bytes([ord("S"), ord("C"), choice, (0x5A + 0x53 + 0x43 + choice) & 255, ~(0x5A + 0x53 + 0x43 + choice) & 255])
+    return bytes(r)
 
 
 class _PyBoy(_pyboy_mod.PyBoy):
     def __init__(self, gamerom, *a, **kw):
         if not _DS[0] and kw.get("cgb") is not False and isinstance(gamerom, (str, os.PathLike)) and Path(gamerom).suffix in (".gb", ".gbc"):
             gamerom = _speed_off_copy(gamerom)
+        if _GBA[0] and _SC[0]:
+            rf = kw.get("ram_file")
+            kw["ram_file"] = BytesIO(_with_choice(rf.getvalue() if rf is not None else None, _SC[0]))
         super().__init__(gamerom, *a, **kw)
         if _GBA[0]:
             rf = self.register_file
@@ -260,8 +275,8 @@ def hold_stage_anim(rom, hold=1):
 # PLAY [CONTINUE] / STORY / ARCADE / CLASSIC, BONUS SOUNDTRACK / MINI GAMES / BOSS RUSH, SETTINGS MUSIC. K_* / TM_*: src/game.h.
 (K_ARCADE, K_STORY, K_MUSIC, K_CONTINUE, K_BONUS, K_PLAY, K_SETTINGS, K_SOUNDTRACK, K_CLASSIC, K_MINIGAMES, K_BOSSRUSH,
  K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP, K_CREDITS, K_EASY, K_NORMAL, K_HARD, K_CAP_EASY, K_CAP_NORMAL, K_CAP_HARD,
- K_SCR_NORMAL, K_SCR_BRIGHT) = range(27)
-TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD = range(6)
+ K_SCR_NORMAL, K_SCR_BRIGHT, K_CAP_SCR_NORMAL, K_CAP_SCR_BRIGHT) = range(29)
+TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD, TM_SCR = range(7)
 MENU_SETTLE = 6          # frames for a submenu's lines to reach the screen (2-5: src/title.c menu_frame)
 
 

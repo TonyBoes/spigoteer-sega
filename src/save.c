@@ -24,8 +24,8 @@
 //   block, a bad checksum or a bit at or above BOSS_COUNT reads as no card seen (every card shows once more). Nothing is written in a debug-select run.
 //   0x30 the SCREEN setting "SC" (2026-10-21; SETTINGS > SCREEN NORMAL / BRIGHT, Color only: src/title.c, src/main_cold.c screen_load): 0..1 magic, 2 the choice
 //   (1 NORMAL, 2 BRIGHT), 3 checksum (0x5A + bytes 0..2), 4 its complement. No block, a bad checksum or any other value reads as NOT CHOSEN: the boot then
-//   picks BRIGHT on a Game Boy Advance and NORMAL on a Color (it is written only when the player changes the line, so a choice is never overwritten by
-//   a default). A DMG never reads or writes it. ERASE DATA clears it with the rest. Older saves have no block: they read as not chosen.
+//   is NORMAL, and a Game Boy Advance asks once at the title (title.c TM_SCR; the pick is written here, and so is every later change in SETTINGS: a choice is never
+//   overwritten by a default). A DMG never reads or writes it. ERASE DATA clears it with the rest (a GBA asks again). Older saves have no block: they read as not chosen.
 //   0x0A the venue-start score "SV" (owner 2026-10-14: CONTINUE returns to the venue's start with 3 lives and the score the player
 //   had when they entered it): 0..1 magic "SV"; 2 the chapter it belongs to; 3..5 the score (LE, <= 999999); 6 checksum (0x5A +
 //   bytes 0..5), 7 its complement. Written when a venue is entered (a PRE scene's end, a chapter cleared: story.c) and read by
@@ -526,7 +526,7 @@ void bar_mode_save(void) BANKED {
     DISABLE_RAM;
 }
 
-// SETTINGS > SCREEN: 1 NORMAL / 2 BRIGHT as saved, 0 when the player never chose (the boot's default then follows the hardware: main_cold.c screen_load)
+// SETTINGS > SCREEN: 1 NORMAL / 2 BRIGHT as saved, 0 when the player never chose (NORMAL; a GBA asks: main_cold.c screen_load)
 uint8_t screen_saved(void) BANKED {
     volatile uint8_t *b = SRAM + SC_AT;
     uint8_t m = 0;
