@@ -2,7 +2,7 @@
 import re
 
 import pytest
-from conftest import (GAME, K_DEBUG, K_SCR_BRIGHT, K_SCR_NORMAL, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_ERASE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
+from conftest import (GAME, K_DEBUG, K_SCR, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_ERASE, K_MUSIC, K_PLAY, K_SETTINGS, K_STORY, LAYOUT, MENU_SETTLE,
                       ROOT, TM_BONUS, TM_PLAY, TM_SETTINGS, TM_TOP, bar_top_row, check_golden, menu_items, menu_tap,
                       title_arcade, title_level, title_pick)
 
@@ -122,15 +122,15 @@ def menu_rows(n):
     return tuple((4 if n == 5 else 10 - n) + 2 * i for i in range(n))      # (five lines, a Color's SETTINGS with the debug line: rows 4-12)
 
 
-# SETTINGS on a Color has one more line than on a DMG (2026-10-21, SCREEN NORMAL / BRIGHT, src/title.c): MUSIC, BAR, [SCREEN], ERASE DATA, [DEBUG MENU].
-# The helpers say the lines, items and rows for the model of `gb`; the SCREEN line is "scr_normal" unless the choice in _is_GBA bit 1 is BRIGHT.
+# SETTINGS on a Color has one more line than on a DMG (2026-10-21, GBA COLOR MODE, src/title.c): MUSIC, BAR, [GBA COLOR MODE], ERASE DATA, [DEBUG MENU].
+# The helpers say the lines, items and rows for the model of `gb`; the GBA COLOR MODE line ("scr") reads the same whatever the choice (A opens the two choices).
 def settings_keys(gb, music="music_on", bar="bar_snap", debug=False):
-    scr = ("scr_bright" if gb.mem("_is_GBA") & 2 else "scr_normal",) if gb.model_name == "cgb" else ()
+    scr = ("scr",) if gb.model_name == "cgb" else ()
     return (music, bar) + scr + ("erase",) + (("debug",) if debug else ())
 
 
 def settings_items(gb, bar=K_BARCHANGE, music=K_MUSIC, debug=False):
-    scr = [K_SCR_BRIGHT if gb.mem("_is_GBA") & 2 else K_SCR_NORMAL] if gb.model_name == "cgb" else []
+    scr = [K_SCR] if gb.model_name == "cgb" else []
     return [music, bar] + scr + [K_ERASE] + ([K_DEBUG] if debug else [])
 
 

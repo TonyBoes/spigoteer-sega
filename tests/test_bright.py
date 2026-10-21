@@ -1,4 +1,4 @@
-# SETTINGS > SCREEN NORMAL / BRIGHT (Color only; src/bright.h, src/bright.c, main.c pal_put, title.c, save.c "SC" block): a gamma lift on every palette colour for a
+# SETTINGS > GBA COLOR MODE, STANDARD / ORIGINAL GBA (code: NORMAL / BRIGHT; Color only; src/bright.h, src/bright.c, main.c pal_put, title.c, save.c "SC" block): a gamma lift on every palette colour for a
 # Game Boy Advance, whose Color-mode screen shows GBC colours much darker.
 #
 # A GBA is simulated by conftest.gba_hardware(): PyBoy's boot ROM leaves B = 0 (a plain Color); a hook on the cartridge's entry point sets B = 1, which GBDK
@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from conftest import (K_BARCHANGE, K_DEBUG, K_ERASE, K_NO, K_PLAY, K_SCR_BRIGHT, K_SCR_NORMAL, K_SETTINGS, K_YES, MENU_SETTLE, ROM, check_golden, gba_hardware,
+from conftest import (K_BARCHANGE, K_DEBUG, K_ERASE, K_NO, K_PLAY, K_SCR, K_SCR_BRIGHT, K_SCR_NORMAL, K_SETTINGS, K_YES, MENU_SETTLE, ROM, TM_SCR, TM_SETTINGS, check_golden, gba_hardware,
                       hold_stage_anim, menu_items, menu_tap, menu_to, title_level, title_pick, trans_enable, du_block, DU_AT)
 from test_sound import make_rom, save_ram
 
@@ -94,17 +94,16 @@ def settings_items(rom):
 def test_the_line_is_on_a_color_and_never_on_a_dmg(gba):
     with rom_at("cgb", gba) as c:
         items = settings_items(c)
-        assert (K_SCR_NORMAL in items) != (K_SCR_BRIGHT in items), items
-        assert items[:2] == [2, K_BARCHANGE] and items.index(K_ERASE) == 3, "MUSIC, BAR, SCREEN, ERASE DATA"
+        assert items[:3] == [2, K_BARCHANGE, K_SCR] and items.index(K_ERASE) == 3, "MUSIC, BAR, GBA COLOR MODE, ERASE DATA"
     with rom_at("dmg", gba) as d:       # (a DMG with B = 1 is no GBA: the register means nothing there)
         items = settings_items(d)
-        assert K_SCR_NORMAL not in items and K_SCR_BRIGHT not in items and items == [2, K_BARCHANGE, K_ERASE], items
+        assert K_SCR not in items and items == [2, K_BARCHANGE, K_ERASE], items
         assert flag(d) & 2 == 0, "BRIGHT is never on in a DMG"
 
 
 def test_the_default_is_normal_and_a_gba_that_has_not_chosen_asks():
     with rom_at("cgb", False) as c:
-        assert flag(c) == 0 and K_SCR_NORMAL in settings_items(c), "a plain Color: NORMAL"
+        assert flag(c) == 0 and K_SCR in settings_items(c), "a plain Color: NORMAL"
     with rom_at("cgb", True, choice=None) as g:
         assert flag(g) == 5, "a GBA, nothing saved: NORMAL (bit 1 clear), the prompt asked for (bit 2)"
 
@@ -112,9 +111,9 @@ def test_the_default_is_normal_and_a_gba_that_has_not_chosen_asks():
 def test_a_saved_choice_beats_the_default():
     normal, bright = ram_with((SC_AT, sc_block(1))), ram_with((SC_AT, sc_block(2)))
     with rom_at("cgb", True, normal) as r:
-        assert flag(r) == 1 and K_SCR_NORMAL in settings_items(r), "a GBA that chose NORMAL"
+        assert flag(r) == 1 and K_SCR in settings_items(r), "a GBA that chose NORMAL"
     with rom_at("cgb", False, bright) as r:
-        assert flag(r) == 2 and K_SCR_BRIGHT in settings_items(r), "a Color that chose BRIGHT"
+        assert flag(r) == 2 and K_SCR in settings_items(r), "a Color that chose BRIGHT"
 
 
 def test_a_choice_that_does_not_check_out_reads_as_not_chosen():
@@ -130,22 +129,31 @@ def test_a_choice_that_does_not_check_out_reads_as_not_chosen():
 
 # ---- the save: round trip and upgrade -------------------------------------------------------------------------------------------------
 def toggle(rom, press="a"):
-    menu_to(rom, K_SCR_NORMAL if K_SCR_NORMAL in menu_items(rom) else K_SCR_BRIGHT)
-    menu_tap(rom, press)
+    """SETTINGS' GBA COLOR MODE line opens the two choices (the cursor on the one in use); take the other one with `press`."""
+    menu_to(rom, K_SCR)
+    menu_tap(rom, "a")
+    rom.run(MENU_SETTLE)
+    assert rom.mem("title_menu") == TM_SCR and menu_items(rom) == [K_SCR, K_SCR_NORMAL, K_SCR_BRIGHT]
+    use = K_SCR_BRIGHT if flag(rom) & 2 else K_SCR_NORMAL
+    assert menu_items(rom)[rom.mem("title_sel")] == use, "the cursor starts on the choice in use"
+    menu_tap(rom, "down")
     rom.run(12)
+    menu_tap(rom, press)
+    rom.run(MENU_SETTLE + 12)
+    assert rom.mem("title_menu") == TM_SETTINGS and menu_items(rom)[rom.mem("title_sel")] == K_SCR, "back on SETTINGS, on the line"
 
 
 def test_the_choice_is_written_when_it_changes_and_survives_a_power_cycle():
     r = rom_at("cgb", False)
     settings_items(r)
     toggle(r)
-    assert flag(r) == 2 and K_SCR_BRIGHT in menu_items(r)
+    assert flag(r) == 2
     sav = save_ram(r)
     assert sav[SC_AT:SC_AT + 5] == sc_block(2)
     r2 = rom_at("cgb", False, sav)
     assert flag(r2) == 2, "power-cycled: still BRIGHT"
     settings_items(r2)
-    toggle(r2, "right")
+    toggle(r2, "start")
     assert flag(r2) == 0
     sav2 = save_ram(r2)
     assert sav2[SC_AT:SC_AT + 5] == sc_block(1), "NORMAL written explicitly (a default must not come back on a GBA)"
@@ -154,7 +162,7 @@ def test_the_choice_is_written_when_it_changes_and_survives_a_power_cycle():
     r3.stop()
     r4 = rom_at("cgb", True, ram_with((SC_AT, sc_block(2))))
     settings_items(r4)
-    toggle(r4, "left")
+    toggle(r4, "start")
     assert flag(r4) == 1 and save_ram(r4)[SC_AT:SC_AT + 5] == sc_block(1)
 
 
@@ -368,3 +376,19 @@ def test_bright_goldens(name, fn):
             ref = Image.open(path).convert("RGB")
             return ref.size == img.size and ImageChops.difference(ref, img).getbbox() is None
     check_golden(G(), name)
+
+
+def test_b_in_the_sub_choice_keeps_the_saved_choice():
+    r = rom_at("cgb", False, ram_with((SC_AT, sc_block(1))), choice=None)
+    settings_items(r)
+    menu_to(r, K_SCR)
+    menu_tap(r, "a")
+    r.run(MENU_SETTLE)
+    menu_tap(r, "down")
+    r.run(12)
+    assert flag(r) & 2, "the highlighted choice is previewed"
+    menu_tap(r, "b")
+    r.run(MENU_SETTLE + 12)
+    assert r.mem("title_menu") == TM_SETTINGS and menu_items(r)[r.mem("title_sel")] == K_SCR
+    assert flag(r) & 2 == 0 and save_ram(r)[SC_AT:SC_AT + 5] == sc_block(1), "B: the saved STANDARD is back and nothing was written"
+    r.stop()

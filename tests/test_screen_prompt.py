@@ -1,11 +1,11 @@
-# The first-boot SCREEN prompt (owner 2026-10-21, src/title.c TM_SCR): a Game Boy Advance that has not chosen between SCREEN NORMAL and BRIGHT is asked once, on
-# the title (the whole picture is the preview: the cursor on a line shows that choice at once), with NORMAL highlighted. A saves the choice (the "SC" block,
-# the one SETTINGS > SCREEN writes) and the prompt never comes back until ERASE DATA clears it. A plain Color and a DMG are never asked.
+# The first-boot GBA COLOR MODE prompt (owner 2026-10-21, Q34, src/title.c TM_SCR): a Game Boy Advance that has not chosen between STANDARD and ORIGINAL GBA (code: NORMAL /
+# BRIGHT) is asked once, on the title (a label, two lines, no caption; the whole picture is the preview: the cursor on a line shows that choice at once), with STANDARD
+# highlighted. A saves the choice (the "SC" block, the one SETTINGS > GBA COLOR MODE writes) and the prompt never comes back until ERASE DATA clears it. A plain Color and a DMG are never asked.
 #
 # A GBA is simulated as in tests/test_bright.py (conftest.gba_hardware): no choice given = a cartridge with nothing saved.
 import pytest
 
-from conftest import (K_ERASE, K_PLAY, K_SCR_BRIGHT, K_SCR_NORMAL, K_SETTINGS, K_YES, MENU_SETTLE, TM_SCR, TM_TOP,
+from conftest import (K_ERASE, K_PLAY, K_SCR, K_SCR_BRIGHT, K_SCR_NORMAL, K_SETTINGS, K_YES, MENU_SETTLE, TM_SCR, TM_TOP,
                       check_golden, gba_hardware, hold_stage_anim, menu_items, menu_tap, menu_to, title_pick, du_block, DU_AT)
 from test_bright import SC_AT, flag, lift_written, pal_ram, ram_with, sc_block, settings_items
 from test_sound import make_rom, save_ram
@@ -35,10 +35,10 @@ def saved(rom):
 
 
 # ---- who is asked --------------------------------------------------------------------------------------------------------------------
-def test_a_gba_with_nothing_saved_is_asked_before_anything_else_with_normal_highlighted():
+def test_a_gba_with_nothing_saved_is_asked_before_anything_else_with_standard_highlighted():
     r = boot()
     assert asking(r), "the prompt, not PLAY / BONUS / SETTINGS"
-    assert menu_items(r) == [K_SCR_NORMAL, K_SCR_BRIGHT] and r.mem("title_sel") == 0, "NORMAL under the cursor"
+    assert menu_items(r) == [K_SCR, K_SCR_NORMAL, K_SCR_BRIGHT] and r.mem("title_sel") == 1, "the label, STANDARD under the cursor"
     assert flag(r) == 5, "NORMAL (bit 1 clear) and asking (bit 2)"
     assert r.mem("game_state") == 0, "on the title"
     assert saved(r) == bytes(5), "looking at it saves nothing"
@@ -60,22 +60,25 @@ def test_the_picture_follows_the_cursor_normal_is_a_colors_and_bright_is_the_tab
     r = boot()
     normal = pal_ram(r)
     move(r, "down")
-    assert r.mem("title_sel") == 1 and flag(r) == 7, "BRIGHT under the cursor: bit 1 set, still asking"
+    assert r.mem("title_sel") == 2 and flag(r) == 7, "ORIGINAL GBA under the cursor: bit 1 set, still asking"
     assert pal_ram(r) == lift_written(normal), "the whole title through the table (the same one SETTINGS > SCREEN writes)"
     move(r, "up")
     assert flag(r) == 5 and pal_ram(r) == normal, "and back"
     assert saved(r) == bytes(5), "nothing saved by moving"
 
 
-def test_the_caption_under_the_cursors_line_follows_it():
+def test_the_label_is_on_top_and_there_is_no_caption():
+    from test_flow import title_text_row, tilemap_row
     r = boot()
-    rows = []
-    for _ in range(3):
-        rows.append(r.image().crop((0, 11 * 8, 160, 12 * 8)).tobytes())
+    for want in (2, 1, 2):                                      # (down, up wrap: the label is skipped by the cursor)
+        for key, row in (("scr", 7), ("scr_normal", 9), ("scr_bright", 11)):
+            assert tilemap_row(r, row, 0, 20) == title_text_row(key), (key, "on its row")
+        assert not any(r.image().crop((0, y * 8, 160, y * 8 + 8)).getcolors().__len__() > 1 for y in (12, 13)), "nothing under the lines: no caption"
         move(r, "down")
-    assert rows[0] != rows[1], "BRIGHT's caption is not NORMAL's"
-    assert rows[0] == rows[2], "DOWN wraps: back on NORMAL, its caption again"
-    assert len(r.image().crop((0, 11 * 8, 160, 12 * 8)).getcolors()) > 1, "a caption is drawn on its row (more than the bare wall)"
+        assert r.mem("title_sel") == want
+    move(r, "up")
+    move(r, "up")
+    assert r.mem("title_sel") == 2, "UP from STANDARD skips the label to the bottom line"
 
 
 def test_left_right_b_and_waiting_leave_the_prompt_up():
@@ -108,14 +111,19 @@ def test_a_saves_the_choice_and_the_title_goes_on_and_it_is_never_asked_again(do
 
 def test_the_choice_is_changeable_in_settings_afterwards():
     r = boot()
-    menu_tap(r, "a")                                         # NORMAL
+    menu_tap(r, "a")                                         # STANDARD
     r.run(MENU_SETTLE + 20)
     items = settings_items(r)
-    assert K_SCR_NORMAL in items
-    menu_to(r, K_SCR_NORMAL)
-    menu_tap(r, "a")
+    assert K_SCR in items
+    menu_to(r, K_SCR)
+    menu_tap(r, "a")                                         # the two choices, the cursor on STANDARD
+    r.run(MENU_SETTLE)
+    assert menu_items(r) == [K_SCR, K_SCR_NORMAL, K_SCR_BRIGHT] and r.mem("title_sel") == 1
+    menu_tap(r, "down")
     r.run(12)
-    assert flag(r) == 3 and K_SCR_BRIGHT in menu_items(r)
+    menu_tap(r, "a")
+    r.run(MENU_SETTLE + 12)
+    assert flag(r) == 3 and r.mem("title_menu") != TM_SCR
     assert saved(r) == sc_block(2)
     r2 = boot("cgb", True, ram_with((SC_AT, sc_block(2))))
     assert not asking(r2) and flag(r2) == 3, "BRIGHT stays across a power cycle, with no prompt"
@@ -149,7 +157,7 @@ def test_erase_data_brings_the_prompt_back():
     menu_to(r, K_YES)
     menu_tap(r, "a")
     r.run(MENU_SETTLE + 20)
-    assert asking(r) and r.mem("title_sel") == 0 and flag(r) == 5, "a blank cartridge asks again, NORMAL highlighted"
+    assert asking(r) and r.mem("title_sel") == 1 and flag(r) == 5, "a blank cartridge asks again, STANDARD highlighted"
     sav = save_ram(r)
     assert sav[SC_AT:SC_AT + 5] == bytes(5)
     r2 = boot("cgb", True, sav)                              # (and the next power-on, if it is not answered)

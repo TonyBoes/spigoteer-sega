@@ -631,9 +631,9 @@ MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY", "music_on": "MUSIC ON", "m
                 "credits": "CREDITS ",      # BONUS's fourth item: the credits roll (src/credits.c)
                 "easy": "EASY", "normal": "NORMAL", "hard": "HARD",   # PLAY > STORY (new): the difficulty prompt (K_EASY, K_NORMAL, K_HARD) ...
                 "cap_easy": "HALF POINTS ", "cap_normal": "NORMAL POINTS ", "cap_hard": "EXTRA POINTS",   # ... and the caption under each (K_CAP_*)
-                "scr_normal": "SCREEN NORMAL ", "scr_bright": "SCREEN BRIGHT ",
-                # the first-boot SCREEN prompt on a Game Boy Advance (TM_SCR): a caption under the two lines above (K_CAP_SCR_*; even lengths, like the others, so their glyph tiles are shared)
-                "cap_scr_normal": "MODERN OR BACKLIT ", "cap_scr_bright": "FOR THE GBA SCREEN"}   # SETTINGS' SCREEN line on a Color (K_SCR_NORMAL / K_SCR_BRIGHT; 2026-10-21)
+                # GBA COLOR MODE (owner 2026-10-21, Q34): SETTINGS' line (K_SCR) opens, and the first-boot prompt on a Game Boy Advance (TM_SCR) uses as its label, the two choices
+                # STANDARD / ORIGINAL GBA (K_SCR_NORMAL / K_SCR_BRIGHT; even lengths, like the others, so their glyph tiles are shared). No caption lines.
+                "scr": "GBA COLOR MODE", "scr_normal": "STANDARD", "scr_bright": "ORIGINAL GBA"}
 PATRON_RANGE = 156                    # BG ids of the patron range (8 shifts x 3 variants x 6 + 12 back views) the title may use
 # ... and past it the perfect pour's OBJ ids 234-239 (loaded at a story shift's start, never shown on the title: its
 # sprites are the bartender, the mug, the drink frames and the effects, all below 128); the DMG copies start at 240

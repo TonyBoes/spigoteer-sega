@@ -144,15 +144,15 @@ static void build_row(uint8_t *row, const uint8_t *s) {
 static const uint8_t *const k_text[] = { tt_arcade, tt_story, tt_music_on, tt_continue, tt_bonus, tt_play, tt_settings,
                                          tt_soundtrack, tt_classic, tt_minigames, tt_bossrush, tt_erase, tt_debug, tt_erase_q, tt_no, tt_yes,
                                          tt_bar_snap, tt_bar_keep, tt_credits, tt_easy, tt_normal, tt_hard, tt_cap_easy, tt_cap_normal, tt_cap_hard,
-                                         tt_scr_normal, tt_scr_bright, tt_cap_scr_normal, tt_cap_scr_bright };
+                                         tt_scr_normal, tt_scr_bright, tt_scr };
 static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_MUSIC_ON, TT_X_CONTINUE, TT_X_BONUS, TT_X_PLAY,
                                   TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH, TT_X_ERASE, TT_X_DEBUG, TT_X_ERASE_Q, TT_X_NO, TT_X_YES,
                                   TT_X_BAR_SNAP, TT_X_BAR_KEEP, TT_X_CREDITS, TT_X_EASY, TT_X_NORMAL, TT_X_HARD, TT_X_CAP_EASY, TT_X_CAP_NORMAL, TT_X_CAP_HARD,
-                                  TT_X_SCR_NORMAL, TT_X_SCR_BRIGHT, TT_X_CAP_SCR_NORMAL, TT_X_CAP_SCR_BRIGHT };
-#define IS_SCR(k) ((k) == K_SCR_NORMAL || (k) == K_SCR_BRIGHT)   // SETTINGS' SCREEN line (a Color only)
-#define IS_ASK(m) ((m) == TM_HARD || (m) == TM_SCR)              // the prompts with a caption row under their lines (CAP_ROW)
-#define CAP_K(k) ((k) + (IS_SCR(k) ? 2 : 3))                     // the line's caption: K_CAP_* sit after the lines (SCREEN's two, EASY / NORMAL / HARD's three)
-#define ERASE_SEL (2 + is_cgb)                                   // SETTINGS' ERASE DATA line: after MUSIC, BAR and (a Color) SCREEN
+                                  TT_X_SCR_NORMAL, TT_X_SCR_BRIGHT, TT_X_SCR };
+#define IS_SCR(k) ((k) == K_SCR_NORMAL || (k) == K_SCR_BRIGHT)   // GBA COLOR MODE's two choices (the TM_SCR prompt)
+#define IS_ASK(m) ((m) == TM_HARD)                               // the prompt with a caption row under its lines (CAP_ROW)
+#define CAP_K(k) ((k) + 3)                                       // the line's caption: K_CAP_* sit after the lines (EASY / NORMAL / HARD's three)
+#define ERASE_SEL (2 + is_cgb)                                   // SETTINGS' ERASE DATA line: after MUSIC, BAR and (a Color) GBA COLOR MODE
 #define IS_BAR(k) ((k) == K_BARCHANGE || (k) == K_BARKEEP)   // SETTINGS' BAR line (the items after K_BARKEEP are the difficulty prompt's)
 
 static void build_item(uint8_t i) {
@@ -204,19 +204,20 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_items[title_n++] = K_NORMAL;
         title_items[title_n++] = K_HARD;
         break;
-    case TM_SCR:      // a GBA's first boot: SCREEN NORMAL / BRIGHT and a caption; the cursor starts on NORMAL, the picture follows it (screen_look)
+    case TM_SCR:      // GBA COLOR MODE (a GBA's first boot, or SETTINGS' line): the label (the cursor skips it), STANDARD, ORIGINAL GBA; the picture follows the cursor (screen_look)
+        title_items[title_n++] = K_SCR;
         title_items[title_n++] = K_SCR_NORMAL;
         title_items[title_n++] = K_SCR_BRIGHT;
         break;
     default:
         title_items[title_n++] = K_MUSIC;
         title_items[title_n++] = K_BARCHANGE + (level_dirs >> 7);   // (two items, K_BARKEEP follows: the line's wording is its item)
-        if (is_cgb) title_items[title_n++] = K_SCR_NORMAL + (SCR_BRIGHT() ? 1 : 0);   // (a Color only: NORMAL / BRIGHT for a Game Boy Advance)
+        if (is_cgb) title_items[title_n++] = K_SCR;   // (a Color only: GBA COLOR MODE, A opens the two choices)
         title_items[title_n++] = K_ERASE;
         if (debug_unlocked()) title_items[title_n++] = K_DEBUG;     // (the debug menu, once unlocked: src/debug.c)
     }
     for (i = 0; i < title_n; i++) {
-        title_rows[i] = IS_ASK(m) ? HARD_ROW + (m == TM_SCR) + HARD_STEP * i : MENU_ROW(title_n) + 2 * i;   // (SCREEN's two lines: rows 7-8)
+        title_rows[i] = IS_ASK(m) ? HARD_ROW + HARD_STEP * i : MENU_ROW(title_n) + 2 * i;   // (GBA COLOR MODE: label and two choices on rows 7, 9, 11, like ERASE ALL DATA)
         title_dirty |= (uint16_t)1 << title_rows[i] | (IS_ASK(m) ? (uint16_t)1 << CAP_ROW : 0);
         build_item(i);
     }
@@ -305,26 +306,26 @@ static void screen_relight(void) {
     screen_pal_reload();                              // (the HUD's, the bartender's, the coin's: made at boot)
 }
 
-// SETTINGS > SCREEN (A, START, LEFT or RIGHT on its line): NORMAL <-> BRIGHT, kept in the save; the picture changes at once
-static void screen_toggle(void) {
-    _is_GBA ^= 2;
-    title_items[title_sel] ^= K_SCR_NORMAL ^ K_SCR_BRIGHT;
-    build_item(title_sel); title_dirty |= (uint16_t)1 << title_rows[title_sel];
-    screen_save();
-    screen_relight();
-}
-
-// The first-boot prompt (TM_SCR) on a GBA: the cursor on a line shows that choice on the whole picture at once (the cursor's line is the choice)...
+// GBA COLOR MODE's prompt (TM_SCR): the cursor on a choice shows it on the whole picture at once (the cursor's line is the choice)...
 static void screen_look(void) {
     _is_GBA = (_is_GBA & ~2) | ((title_items[title_sel] == K_SCR_BRIGHT) << 1);
     screen_relight();
 }
 
-// ... and A takes it: saved (the prompt is not asked again), the title's top level follows. ERASE DATA brings the prompt back (save_erase: screen_load).
+// ... and A takes it: saved (the first-boot prompt is not asked again; its top level follows, SETTINGS' sub-choice goes back to SETTINGS, the cursor on its line).
+// ERASE DATA brings the first-boot prompt back (save_erase: screen_load).
 static void screen_pick(void) {
+    uint8_t ask = SCR_ASK();
     _is_GBA &= ~4;
     screen_save();
-    menu_open(TM_TOP, 0);
+    if (ask) menu_open(TM_TOP, 0); else menu_open(TM_SETTINGS, 2);
+}
+
+// B on SETTINGS' sub-choice: back to SETTINGS with the saved choice (the highlighted one may have been previewed only)
+static void screen_back(void) {
+    _is_GBA = (_is_GBA & ~2) | ((screen_saved() == 2) << 1);
+    screen_relight();
+    menu_open(TM_SETTINGS, 2);
 }
 
 static void logo_put(uint8_t i) {               // letter i's current state into its buffer (LCD off: straight to VRAM)
@@ -382,7 +383,7 @@ void title_enter(void) BANKED {
     music_pump();
     save_lock = 0;                     // (a debug-select story run ends here: save.c)
     title_n = 0;
-    if (SCR_ASK()) { title_back = TM_SCR; title_back_sel = 0; }   // (a GBA that has not chosen: the SCREEN prompt first, whatever brought us here)
+    if (SCR_ASK()) { title_back = TM_SCR; title_back_sel = 1; }   // (a GBA that has not chosen: the GBA COLOR MODE prompt first, whatever brought us here; the cursor on STANDARD)
     menu_open(title_back, title_back_sel);   // the top level (or the submenu the soundtrack / the list was opened from)
     music_pump();
     title_back = TM_TOP; title_back_sel = 0;
@@ -572,7 +573,6 @@ uint8_t title_update(uint8_t pressed) BANKED {
             }
         }
         if ((pressed & (J_LEFT | J_RIGHT)) && IS_BAR(title_items[title_sel])) bar_mode_toggle();
-        if ((pressed & (J_LEFT | J_RIGHT)) && IS_SCR(title_items[title_sel]) && title_menu != TM_SCR) screen_toggle();
     }
     else if (title_menu != TM_SCR && ++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables
         score_tbl = attract_tbl[attract_n];
@@ -582,7 +582,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
     if (pressed & J_SELECT) title_music_toggle();
     if (pressed & J_UP) title_sel = title_sel ? title_sel - 1 : last;
     else if (pressed & J_DOWN) title_sel = title_sel == last ? 0 : title_sel + 1;
-    if (title_items[title_sel] == K_ERASEQ) title_sel = (pressed & J_UP) ? last : 1;   // (a prompt's label is no choice)
+    if (title_items[title_sel] == K_ERASEQ || (title_menu == TM_SCR && title_items[title_sel] == K_SCR)) title_sel = (pressed & J_UP) ? last : 1;   // (a prompt's label is no choice)
     if (title_sel != old) {
         set_sel_attr(old, 0); set_sel_attr(title_sel, 1);
         if (IS_ASK(title_menu)) title_dirty |= (uint16_t)1 << CAP_ROW;   // (the caption follows: drawn next frame, the queue is full this one)
@@ -604,14 +604,16 @@ uint8_t title_update(uint8_t pressed) BANKED {
         case K_PLAY: menu_open(TM_PLAY, 0); break;
         case K_BONUS: menu_open(TM_BONUS, 0); break;
         case K_SETTINGS: menu_open(TM_SETTINGS, 0); break;
+        case K_SCR: menu_open(TM_SCR, 1 + (SCR_BRIGHT() ? 1 : 0)); break;       // (SETTINGS' GBA COLOR MODE line: the two choices, the cursor on the one in use)
         case K_ERASE: menu_open(TM_ERASE, 1); break;                           // ("ERASE ALL DATA", the cursor on NO)
         case K_NO: menu_open(TM_SETTINGS, ERASE_SEL); break;
-        case K_YES: save_erase(); screen_relight(); title_hi = 0xFF; menu_open(SCR_ASK() ? TM_SCR : TM_TOP, SCR_ASK() ? 0 : 2); break;   // a blank cartridge; the title again (the HI line follows on a quiet frame)
+        case K_YES: save_erase(); screen_relight(); title_hi = 0xFF; menu_open(SCR_ASK() ? TM_SCR : TM_TOP, SCR_ASK() ? 1 : 2); break;   // a blank cartridge; the title again (the HI line follows on a quiet frame)
         case K_DEBUG: debug_open(); return 0;                                  // (full-screen over the title; B closes it)
-        default: if (IS_BAR(title_items[title_sel])) bar_mode_toggle(); else if (IS_SCR(title_items[title_sel])) { if (title_menu == TM_SCR) screen_pick(); else screen_toggle(); } else title_music_toggle();
+        default: if (IS_BAR(title_items[title_sel])) bar_mode_toggle(); else if (IS_SCR(title_items[title_sel])) screen_pick(); else title_music_toggle();
         }
-    } else if ((pressed & J_B) && title_menu != TM_TOP && title_menu != TM_SCR) {   // (the SCREEN prompt has no way back: it is the first thing a GBA shows)
-        if (title_menu == TM_ERASE) menu_open(TM_SETTINGS, ERASE_SEL);
+    } else if ((pressed & J_B) && title_menu != TM_TOP && !(title_menu == TM_SCR && SCR_ASK())) {   // (the first-boot prompt has no way back: it is the first thing a GBA shows)
+        if (title_menu == TM_SCR) screen_back();
+        else if (title_menu == TM_ERASE) menu_open(TM_SETTINGS, ERASE_SEL);
         else if (title_menu == TM_HARD) menu_open(TM_PLAY, can_continue());   // (STORY's line: after CONTINUE when it is shown)
         else menu_open(TM_TOP, title_menu - 1);
     }
