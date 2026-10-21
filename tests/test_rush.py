@@ -24,7 +24,7 @@ __all__ = ["release_built"]
 
 SP_RUSH = 7
 MODE_RUSH = 4
-RUSH_AT = 395
+RUSH_AT = 387
 RS_MENU, RS_LIST, RS_NEXT, RS_RESULT, RS_FIGHT = range(5)
 RM_ALL, RM_CHOOSE = range(2)
 # struct rush_state (src/rush.h)
@@ -682,3 +682,49 @@ def test_the_rush_list_scrolls_with_the_shared_arrows(model):
         gb.run(4)
         o = gb.read(0xFE00, 12)
         assert R(gb, LIST_SEL) == 9 and 23 <= o[4] <= 24 and o[8] == 0, "the end: the up arrow"
+
+
+# ---- the list after the Mothership (the lights buffer used to overlap the struct's built / top / nlines) -------------------------
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("route", ["win", "lose", "quit"])
+def test_the_list_is_intact_after_the_mothership(model, route):
+    """CHOOSE on the last boss (the Mothership; the window scrolled to the end), played through his entrance (the lights flicker: 8 bytes
+    written to LIGHTS_BUF) and left by a win, out of lives or QUIT TO MENU: the struct's built / top / nlines are as before and the list
+    shows the same window, with the cursor able to climb to the first boss."""
+    import test_pause as tp
+    with booted(model) as gb:
+        to_list(gb)
+        tap(gb, "up")                                     # (wraps to the last line)
+        assert R(gb, LIST_SEL) == len(BUILT) - 1 and BUILT[-1] == 9
+        before = bytes(gb.read(gb.addr("story_scratch") + RUSH_AT, 48))
+        names = window(gb)
+        tap(gb, "a")
+        into_fight(gb, entered=False)
+        frames(gb, 240)                                   # (the entrance's lights)
+        if route == "quit":
+            tp.tap(gb, "start", 3)
+            tp.quit_yes(gb)
+            run_until(gb, lambda: on_rush(gb, RS_MENU), 60)
+            gb.run(5)
+            tap(gb, "down")
+            tap(gb, "a")                                  # CHOOSE: the list
+        elif route == "lose":
+            for k in range(3):
+                lose_life(gb)
+            run_until(gb, lambda: on_rush(gb, RS_RESULT), 300)
+            gb.run(5)
+            tap(gb, "b")
+        else:
+            until(gb, lambda: gb.mem("intro_timer") == 0 and state(gb) == PLAYING, 700)
+            beat(gb)
+            tap(gb, "b")
+        run_until(gb, lambda: on_rush(gb, RS_LIST), 60)
+        gb.run(12)
+        after = bytes(gb.read(gb.addr("story_scratch") + RUSH_AT, 48))
+        assert after[44:] == before[44:], (before[44:].hex(), after[44:].hex())   # built, top, nlines
+        assert [w[:14].strip() for w in window(gb)] == [w[:14].strip() for w in names] and "" not in names   # (a win adds his best time)
+        for _ in range(len(BUILT) - 1):
+            tap(gb, "up")
+        gb.run(10)
+        assert R(gb, LIST_SEL) == 0 and R(gb, 46) == 0
+        assert [w[:14].strip() for w in window(gb)] == [NAMES[v] for v in BUILT][:RVIS]
