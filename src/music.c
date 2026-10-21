@@ -462,6 +462,17 @@ void music_load_now(void) BANKED {
 // menu is open (pause.c, as
 // PAUSE_NR51): with the tune playing, bass and drums (channels 3, 4) are on the mix, the effects held: a request is dropped,
 // and while an effect still owns channel 4 it stays off it (the bass alone; channel 1 is never on the pause mix).
+// The pump's tick under half a frame ago: music_tick skips its own. Under three quarters of a frame AND late in the frame (line 100 on): the next pass's own tick
+// follows within ~0.4 frame, so ticking now would bunch the two (the pause card's open: 0.50 then 0.28 frames, when the pump's tick landed at 0.49: a count of
+// margin that any code-size change flipped); skipping leaves one gap of at most 1.2 frames. (A wrap of TIMA in double speed means well over a frame has passed.)
+// Its own function: a local in music_tick itself costs every call (the common path) a stack frame (tests/test_music_cpu.py: 18 lines).
+static uint8_t tick_refused(uint8_t f) {
+    uint16_t d;
+    if (DS_NOW && (IF_REG & IF_TIMER)) return 0;
+    d = (f & 0xFC) + FRAME_TIMA / 2;
+    return TIMA_REG < d || (TIMA_REG < d + FRAME_TIMA / 4 && LY_REG >= 100 && LY_REG < 144);
+}
+
 void music_tick(void) BANKED {
     uint8_t f = TMA_REG;
     if (f) {
@@ -471,7 +482,7 @@ void music_tick(void) BANKED {
         }
         if (f & 1) {
             TMA_REG = f & 2;
-            if (TIMA_REG < (f & 0xFC) + FRAME_TIMA / 2 && !(DS_NOW && (IF_REG & IF_TIMER))) return;   // (under half a frame since the pump's tick, that carried its lateness in TIMA: no tick, however it was timed; a wrap of TIMA in double speed means well over a frame has passed)
+            if (tick_refused(f)) return;
             if (DS_NOW) timer_wrap_clear();   // (the tick below zeroes TIMA: a wrap flag left over would add 256 counts to the next pump; the common path, TMA 0, leaves it to main.c frame_wait)
         }
     }

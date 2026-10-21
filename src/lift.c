@@ -97,6 +97,7 @@ void lift_level_init(uint8_t g) BANKED {
             patron_pal_get(g, v, p);
             p[0] = 0;
             set_sprite_palette(lift_pal[v], 1, p);
+            music_pump();                         // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
         }
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;

@@ -8,6 +8,7 @@
 
 #include "game.h"
 #include "palettes.h"
+#include "music.h"
 
 extern uint8_t level, cur_group, arcade_loop, served, step_frames, pushback_cols;
 #define WALL_RGB    (venue.pal[VENUE_PAL_BAR][0])   // the venue's wall: colour 0 of the bar and of the patron palettes
@@ -74,6 +75,7 @@ static void load_patron_group(uint8_t g) {
         patron_pal_get(g, v, p);
         p[0] = WALL_RGB;
         set_bkg_palette(BGPAL_PATRON + v, 1, p);
+        music_pump();                            // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
     }
 }
 

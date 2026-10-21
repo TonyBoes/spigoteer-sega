@@ -52,13 +52,22 @@ void load_venue(uint8_t t) BANKED {
 }
 
 void venue_pals(void) BANKED {
+    // (SETTINGS > SCREEN BRIGHT: each palette's lift costs ~0.1 frame, and the level load's palette runs together were ~0.9 frame without a tick: the pump between them, LCD off only)
+    uint8_t off = !(LCDC_REG & LCDCF_ON);
     set_bkg_palette(BGPAL_STAGE, 1, venue.pal[VENUE_PAL_STAGE_A]);
+    if (off) music_pump();
     set_bkg_palette(BGPAL_STAGE_B, 1, venue.pal[VENUE_PAL_STAGE_B]);
+    if (off) music_pump();
     set_bkg_palette(BGPAL_BAR, 1, venue.pal[VENUE_PAL_BAR]);
+    if (off) music_pump();
     set_bkg_palette(BGPAL_BAR_B, 1, venue.pal[VENUE_PAL_BAR_B]);
+    if (off) music_pump();
     set_sprite_palette(OBJPAL_MUG_FULL, 1, venue.pal[VENUE_PAL_DRINK_FULL]);
+    if (off) music_pump();
     set_sprite_palette(OBJPAL_MUG_EMPTY, 1, venue.pal[VENUE_PAL_DRINK_EMPTY]);
+    if (off) music_pump();
     set_sprite_palette(OBJPAL_DANCER, 1, venue.pal[VENUE_PAL_SHOW]);
+    if (off) music_pump();
 }
 
 // The mug cursor of a menu (the title's, BONUS > MINI GAMES, the soundtrack, the boss rush): its pictures (OBJ_MUG..) and
