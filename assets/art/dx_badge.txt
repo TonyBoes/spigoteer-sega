@@ -1,18 +1,18 @@
-; DX badge (CGB title only): a dark sign with a red neon rim and cream DX, 24x16 = three 8x16 OBJ columns (src/title.c: OBJ tiles 40..45, OBJ palette 7).
-; '-' cream (colour 1, the logo's foam), '+' sign red (colour 2), '#' dark brown (colour 3, the logo's outline brown); '.' transparent. Drawn by hand.
-.++++++++++++++++++++++.
-+##------------------##+
-+######################+
-+##------###--#####--##+
-+##-------###--###--++#+
-+##--+++---###--#--++##+
-+##--+###--+###---++###+
-+##--+###--+####-++####+
-+##--+###--+###---#####+
-+##--+##---+##--+--####+
-+##-------++#--++#--###+
-+##------++#--++###--##+
-+###++++++###++#####++#+
-+######################+
-+######################+
-.++++++++++++++++++++++.
+; DX badge (CGB title only): the owner's own pixel art (owner_dx_v4.png), exactly as drawn. 24x16 = three 8x16 OBJ columns (src/title.c: OBJ tiles 40..45, OBJ palette 7).
+; '-' cream (colour 1, the letters), '+' near drop shadow (colour 2), '#' far drop shadow (colour 3); '.' transparent. The two shadow colours cycle through a rainbow (src/title.c).
+........................
+........................
+...------...--.....--...
+...-------..---...---+..
+...--+++---..---.---++#.
+...--+###--+..-----++##.
+...--+#..--+#..---++##..
+...--+#..--+#..---+##...
+...--+#..--+#.-----#....
+...--+#.---+#---+---....
+...-------++---++#---...
+...------++#--++##.--+..
+....++++++#..++##...++#.
+.....#####....##.....##.
+........................
+........................

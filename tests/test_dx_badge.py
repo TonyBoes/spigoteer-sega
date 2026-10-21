@@ -176,6 +176,7 @@ def test_the_badge_is_gone_on_every_other_screen(name):
     gb.run(2)
     assert len(badge_entries(gb)) == 3
     SCREENS[name](gb)
+    gb.run(15)                                       # (CLASSIC's start takes a few frames to clear the title's sprites since main's 30 fps work)
     for _ in range(12):
         gb.run(10)
         assert not badge_entries(gb), name
@@ -270,3 +271,104 @@ def test_the_badge_adds_no_more_than_ten_sprites_to_any_line():
         worst = max(worst, most_per_scanline(gb))
     gb.pb.stop(save=False)
     assert 3 <= worst <= 10, worst
+
+
+# ---- the rainbow: OBJ palette 7's colours 2 (near shadow) and 3 (far shadow) cycle, 48 steps of 2 frames (96 frames); colour 1 (cream) never changes ----
+from test_menu_music import obj_palette
+from conftest import check_golden
+
+CREAM = bytes([(31 | 30 << 5 | 24 << 10) & 255, (31 | 30 << 5 | 24 << 10) >> 8])
+
+
+def colours(gb):
+    p = obj_palette(gb, 7)
+    return p[2:4], p[4:6], p[6:8]
+
+
+def test_the_shadows_cycle_through_a_rainbow_on_color_and_the_letters_never_change():
+    gb = make_rom("cgb")
+    gb.run(120)
+    if gb.model_name != "cgb":
+        pytest.skip("CGB only")
+    run_to_title_t(gb, DX_T0 - 2)
+    first = colours(gb)
+    assert first[0] == CREAM
+    seen = []
+    for _ in range(DX_T0 - title_t(gb) + 3 + 300):
+        gb.run(1)
+        c = colours(gb)
+        assert c[0] == CREAM, "the letters (colour 1) never change"
+        if title_t(gb) >= DX_T0:
+            seen.append((title_t(gb), c[1], c[2]))
+    gb.pb.stop(save=False)
+    near = {c[1] for c in seen}
+    far = {c[2] for c in seen}
+    assert len(near) >= 40 and len(far) >= 40, (len(near), len(far))
+    by_t = {t: (n, f) for t, n, f in seen}
+    assert by_t[DX_T0 + 1][0] == first[1] and by_t[DX_T0 + 1][1] == first[2], "the cycle starts from the palette the title loaded: no jump"
+    for t in range(DX_T0 + 2, DX_T0 + 150):
+        assert by_t[t] == by_t[t + 96], f"a full period is 96 frames (title_t {t})"
+    assert by_t[DX_T0 + 2] != by_t[DX_T0 + 50], "half a period on, the colours are different"
+
+
+def rgb(c):
+    v = c[0] | c[1] << 8
+    return v & 31, v >> 5 & 31, v >> 10 & 31
+
+
+def test_the_far_shadow_is_darker_than_the_near_one_in_every_step():
+    gb = make_rom("cgb")
+    gb.run(120)
+    run_to_title_t(gb, DX_T0)
+    for _ in range(100):
+        gb.run(1)
+        _, near, far = colours(gb)
+        assert sum(rgb(far)) < sum(rgb(near)), (rgb(near), rgb(far))
+        assert near != far
+    gb.pb.stop(save=False)
+
+
+def test_the_palette_is_written_in_vblank_only():
+    """title_update (which writes the two colours first thing, behind an LY 144..150 gate) is entered in VBlank on every title frame, and every frame
+    in which palette 7 changed was one the gate let through."""
+    gb = make_rom("cgb")
+    gb.run(120)
+    bank, addr = gb.symbols["title_update"]
+    lys = []
+    gb.pb.hook_register(bank, addr, lambda _: lys.append(gb.pb.memory[0xFF44]), None)
+    run_to_title_t(gb, DX_T0 - 2)
+    changed = frames = 0
+    prev = colours(gb)
+    for _ in range(250):
+        n = len(lys)
+        gb.run(1)
+        c = colours(gb)
+        for ly in lys[n:]:
+            frames += 1
+            assert 144 <= ly <= 153, f"a title frame entered at LY {ly}: its logic is not in VBlank"
+            if c != prev and title_t(gb) >= DX_T0:
+                changed += 1
+                assert ly <= 150, f"palette 7 changed on a frame entered at LY {ly}, past the gate"
+        prev = c
+    gb.pb.stop(save=False)
+    assert frames >= 240 and changed >= 100, (frames, changed)
+
+
+def test_the_dmg_badge_area_does_not_animate():
+    gb = make_rom("dmg")
+    gb.run(120)
+    if gb.model_name != "dmg":
+        pytest.skip("DMG only")
+    run_to_title_t(gb, DX_T0 + 3)
+    assert not badge_entries(gb) and obj_palette(gb, 7) is None
+    gb.pb.stop(save=False)
+
+
+def test_golden_the_badge_at_one_rainbow_phase(boot):
+    """One fixed phase (title_t DX_T0 + 2 * 12, 12 steps = a quarter turn), CGB only (the DMG has no badge and no animation)."""
+    if boot.model_name != "cgb":
+        pytest.skip("CGB only")
+    run_to_title_t(boot, DX_T0 + 24)
+    assert title_t(boot) == DX_T0 + 24
+    boot.run(0)
+    check_golden(boot, "dx_rainbow_phase")

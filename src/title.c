@@ -100,6 +100,76 @@ enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
 
 // ---- state (globals => symbols the tests read) ----
 uint16_t title_t;               // frames since the title appeared
+// The DX badge's rainbow (owner: "animated with the drop shadows cycling through a rainbow of colors"; CGB only): OBJ palette 7's colours 2 (near
+// shadow: HSV s .55 v 1, hue h) and 3 (far shadow: s .75 v .75, hue h - .12) step through 48 hues, one every 2 frames (a 96-frame cycle); the
+// letters (colour 1) never change. Step 0 is the palette the title loads, and the cycle starts when the badge stamps on (DX_T0), so nothing jumps.
+// The write is VBlank only (as src/glow.c): title_update calls it first, right after the main loop's vsync, and gives up on a frame already past line
+// 150; it writes every frame (4 bytes), so a skipped frame is made good by the next. The palette fades never meet it: they run inside a screen change,
+// where no title frame runs, and read the colours as they stand.
+#define DX_STEPS 48
+static const uint16_t dx_rainbow[DX_STEPS][2] = {
+    { 0x39DF, 0x48D7 },
+    { 0x3A1F, 0x40D7 },
+    { 0x3A5F, 0x38D7 },
+    { 0x3A9F, 0x30D7 },
+    { 0x3ADF, 0x28D7 },
+    { 0x3B3F, 0x1CD7 },
+    { 0x3B7F, 0x18D7 },
+    { 0x3BBF, 0x1937 },
+    { 0x3BFF, 0x1977 },
+    { 0x3BFD, 0x19B7 },
+    { 0x3BFB, 0x19F7 },
+    { 0x3BF9, 0x1A37 },
+    { 0x3BF6, 0x1A77 },
+    { 0x3BF4, 0x1AD7 },
+    { 0x3BF2, 0x1AF7 },
+    { 0x3BF0, 0x1AF5 },
+    { 0x3BEE, 0x1AF2 },
+    { 0x43EE, 0x1AF0 },
+    { 0x4BEE, 0x1AEE },
+    { 0x53EE, 0x1AEC },
+    { 0x5BEE, 0x1AEA },
+    { 0x67EE, 0x1AE7 },
+    { 0x6FEE, 0x1AE6 },
+    { 0x77EE, 0x26E6 },
+    { 0x7FEE, 0x2EE6 },
+    { 0x7FAE, 0x36E6 },
+    { 0x7F6E, 0x3EE6 },
+    { 0x7F2E, 0x46E6 },
+    { 0x7ECE, 0x4EE6 },
+    { 0x7E8E, 0x5AE6 },
+    { 0x7E4E, 0x5EE6 },
+    { 0x7E0E, 0x5EA6 },
+    { 0x7DCE, 0x5E46 },
+    { 0x7DD0, 0x5E06 },
+    { 0x7DD2, 0x5DC6 },
+    { 0x7DD4, 0x5D86 },
+    { 0x7DD6, 0x5D46 },
+    { 0x7DD9, 0x5CE6 },
+    { 0x7DDB, 0x5CC6 },
+    { 0x7DDD, 0x5CC9 },
+    { 0x7DDF, 0x5CCB },
+    { 0x75DF, 0x5CCD },
+    { 0x6DDF, 0x5CCF },
+    { 0x65DF, 0x5CD1 },
+    { 0x59DF, 0x5CD3 },
+    { 0x51DF, 0x5CD6 },
+    { 0x49DF, 0x5CD7 },
+    { 0x41DF, 0x54D7 }
+};
+
+static void dx_rainbow_tick(void) {
+    uint16_t d = title_t - DX_T0;
+    const uint16_t *c;
+    uint8_t ly = LY_REG;
+    if (title_t < DX_T0 || ly < 144 || ly > 150) return;
+    while (d >= 2 * DX_STEPS) d -= 2 * DX_STEPS;
+    c = dx_rainbow[(uint8_t)d >> 1];
+    OCPS_REG = 0x80 | (OBJPAL_DX << 3) | 4;                  // colour 2 (byte 4), auto-increment into colour 3
+    OCPD_REG = (uint8_t)c[0]; OCPD_REG = (uint8_t)(c[0] >> 8);
+    OCPD_REG = (uint8_t)c[1]; OCPD_REG = (uint8_t)(c[1] >> 8);
+}
+
 uint8_t  title_menu;            // TM_* (game.h): the top level, or the submenu of top item title_menu - 1
 uint8_t  title_back;            // the menu title_enter opens (the soundtrack player goes back to BONUS); then TM_TOP
 uint8_t  title_back_sel;        // ... and the line its cursor starts on (then 0)
@@ -322,7 +392,7 @@ void title_enter(void) BANKED {
         set_bkg_palette(BGPAL_TPATRON, 1, p);
         p[1] = RGB15(31, 31, 27); p[2] = RGB15(30, 20, 4); p[3] = RGB15(12, 5, 2);  // effects: foam, beer, dark
         set_sprite_palette(OBJPAL_FX, 1, p);
-        p[1] = RGB15(31, 30, 24); p[2] = RGB15(26, 5, 4); p[3] = RGB15(10, 3, 2);   // the DX badge: cream letters, neon-red rim, the logo's outline brown (colour 3, the sign's body)
+        p[1] = RGB15(31, 30, 24); p[2] = dx_rainbow[0][0]; p[3] = dx_rainbow[0][1];   // the DX badge: cream letters, then the two drop shadows at the rainbow's first step (dx_rainbow_tick)
         set_sprite_palette(OBJPAL_DX, 1, p);
     }
     venue_backdrop(0, 16);                            // wall rows 0-15, counter row 16, floor 17 (tiles + attributes)
@@ -524,6 +594,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
         return 0;
     }
     title_t++;
+    if (is_cgb) dx_rainbow_tick();
     if (pressed) {
         title_idle = 0;
         title_back_sel = konami_step(title_back_sel, pressed);   // the debug unlock's trigger (src/debug.c konami_step: the one place to change it)
