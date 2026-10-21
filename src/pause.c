@@ -203,6 +203,7 @@ static void card_open(void) {
     HIDE_SPRITES;
     WY_REG = 0;                                  // the window over the whole screen: no LYC end
     mg_card_win_open(pause_card(s));
+    overlay_on = 1;                              // (the card is the window: main.c's update shows it every frame while this is set; the boss's first-appearance card came here with it 0, and the next frame's update hid the card, the paused game staying up behind a dead screen. The menu's card has it set already)
     if (!(mg_id == MG_MILKRUN)) LYC_REG = 255;   // (Milk Run's handler: main.c mr_lcd_isr takes PAUSE_CARD into account)
     lcd_back(144);
 }

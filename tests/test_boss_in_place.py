@@ -267,6 +267,33 @@ def test_the_first_time_a_boss_appears_the_game_pauses_on_his_card_and_resumes_w
 
 
 @pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", VENUES)
+def test_his_card_is_on_the_screen_while_it_is_open_not_the_paused_game_behind_it(model, c):
+    """Owner 2026-10-20: "the boss menu card goes blank and seems to freeze the game". The card is the window (LCDC bit 5, over the whole screen) and main.c's
+    update hides the window every frame unless overlay_on is set: the first-appearance card was opened with it clear, so after its fade-in the next frame's
+    update hid the card and the paused game stood on screen, frozen and unexplained. The tilemap rows were right, so only the picture shows it: the window
+    is on for every frame the card is open, and the picture is the card (the frame's top row of tiles, the page's text), never the level; A leaves it."""
+    from PIL import ImageChops
+    with last_call(model, c, bk_block(0)) as gb:
+        to_boss_banner(gb, c)
+        into_fight_start(gb)
+        assert state(gb) == PAUSED
+        level = gb.image().convert("RGB")
+        gb.run(CARD_FRAMES)
+        for _ in range(30):                           # (the card stands: every frame has the window on, over the whole screen, with the card's own rows)
+            gb.run(1)
+            assert state(gb) == PAUSED and gb.pb.memory[LCDC] & 0x20, "the window (the card) is on screen"
+            assert gb.mem("overlay_on") == 1 and gb.mem(0xFF4A) == 0
+        card = gb.image().convert("RGB")
+        diff = sum(1 for p in ImageChops.difference(level, card).convert("L").getdata() if p)
+        assert diff > 160 * 144 * 0.5, "the picture is the card, not the level (%d of %d pixels differ)" % (diff, 160 * 144)
+        pages = card_pages(gb)
+        assert pages[0][1] == "HOW TO PLAY"
+        tap(gb, "a", CARD_FRAMES)
+        assert state(gb) == PLAYING and not gb.pb.memory[LCDC] & 0x20 and gb.mem("overlay_on") == 0, "the level is back, no window"
+
+
+@pytest.mark.parametrize("model", MODES)
 def test_the_card_comes_once_per_boss_and_is_saved(model):
     """Per save: the saloon's boss shows his card the first time only; the next boss still shows his; BACK (B) closes it as A does."""
     with last_call(model, 0, bk_block(0)) as gb:
