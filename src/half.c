@@ -48,3 +48,16 @@ void half_decide(void) BANKED {
 void half_step(void) BANKED {
     if (story_on | cue_t) pour_skip();
 }
+
+// The main loop's wait for the next step while HALF_ON (or HALF_OWED is left over). A step that ran past a VBlank has used that VBlank's
+// time, so the next step starts at once, not a whole frame later (the drawn step is the long one, the logic-only step after it the short one,
+// so the pair fits two VBlanks). A step that ends just before a VBlank and is overtaken between the check and frame_wait's flag clear loses
+// that VBlank: the next step starts at once, too (HALF_OWED). Only while playing: the other states wait as ever.
+extern uint8_t frame_t0;
+void half_wait(void) BANKED {
+    if (HALF & HALF_OWED) { HALF &= ~HALF_OWED; return; }
+    if (game_state != GS_PLAYING || !(HALF & HALF_ON)) { frame_wait(); return; }
+    if ((uint8_t)sys_time != frame_t0) return;                    // (the last step ran past a VBlank)
+    frame_wait();
+    if ((uint8_t)((uint8_t)sys_time - frame_t0) > 1) HALF |= HALF_OWED;
+}

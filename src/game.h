@@ -573,6 +573,8 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #define HALF_OWED  0x10                                 // a VBlank was lost to a race at the wait: the next step starts without waiting (main.c)
 void half_decide(void) BANKED;                          // the level just loaded (or the debug menu's choice): is HALF_ON (never on a CGB)
 void half_step(void) BANKED;                            // a logic-only step: the drawing code's own timers and rules (the perfect pour, the cue)
+void half_wait(void) BANKED;                            // main loop in 30 fps: the wait for the next step (frame_wait, or none when a VBlank is owed)
+void frame_wait(void);                                  // main.c: wait for the next VBlank
 void pour_skip(void) BANKED;                            // src/pour.c
 // ---- trans.c (banked): the scene transition, a fizzy drink filling the screen from the bottom and bubbling away (docs: batchEF g14)
 // HRAM 0xFFF1 TRANS: TR_WANT (a wired scene change says "the next DISPLAY_OFF is a transition": TRANS_WANT()), TR_PEND (the cover ran,

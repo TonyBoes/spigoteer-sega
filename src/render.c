@@ -728,7 +728,7 @@ void queue_vram(void) {
         // The bars' spans (a compose is 5-15 lines on a crowded bar) wait for the next frame when this one is already deep in its
         // budget (LY past QUEUE_LY_LATE, VBlank included); on 3 frames out of 4 at most (frame_counter & 3), so a span is held for
         // 3 frames at the most (measured: peak 8 / 10 / 12 patrons 23.5 / 28.0 / 37.6 % late -> 19.6 / 23.6 / 28.5 %).
-        if (!(HALF & HALF_ON) && (frame_counter & 3) && LY_REG >= QUEUE_LY_LATE) vram_pending = 1;
+        if ((frame_counter & 3) && LY_REG >= QUEUE_LY_LATE && !(HALF & HALF_ON)) vram_pending = 1;
         else if (queue_bar(0) && queue_bar(1) && queue_bar(2)) queue_bar(3);
         if (sa) { if ((uint8_t)(qv_cost + SA_COST) <= VQ_BUDGET) queue_stage(); else sa_wait++; }
     }
