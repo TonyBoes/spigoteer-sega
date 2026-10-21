@@ -5,7 +5,14 @@
 // both steps' changes together. Music and effects tick once a VBlank as ever. The picture is chosen from the state after the second
 // step, so everything it shows is as consistent as a normal frame's; a patron simply moves 2 px between pictures.
 // A step that ends the level or a life, or opens a fight, is drawn at once; the fight itself runs every frame at full rate.
-// A drawn step that overruns its VBlank is not lost: the next, short step starts at once (main.c: HALF_OWED) and the pair still fits two VBlanks.
+// A drawn step that overruns its VBlank is not lost: the next, short step starts at once (main.c main(): the pair still fits two VBlanks; a
+// VBlank lost to the race between the check and frame_wait's flag is made up the same way, HALF_OWED). So the drawn step's own lateness
+// gates are off in this mode (the chooser's CHOOSER_LY_LATE in lift.c, the bars' QUEUE_LY_LATE in render.c): a long picture is paid for by
+// the short step after it, and the chooser then runs for one bar in every picture, which at 60 fps it could not (9-40 % of the pictures
+// had a BG pair sharing a column without its flags; 2-4 % at 30 fps). Rules that live in the drawing code (src/pour.c) have a logic-only
+// half (half_step below), and the round robin of bars counts pictures (lift.c: frame_counter >> 1).
+// What is not the same: a served patron sliding out stands still until his BG copy is off the screen (patrons.c leaving_step looks at the
+// copy list, which goes out with the picture), up to a step longer.
 // On when HALF_ON (game.h) is set by half_decide(), called at a level's load (level.c start_level) and by the debug menu's line (src/debug.c):
 // the DMG only, and there either the menu's FORCE ON / FORCE OFF or AUTO: the levels the measurements below found too heavy for 60 fps.
 #pragma bank 255

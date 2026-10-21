@@ -1691,7 +1691,7 @@ void lift_frame(void) BANKED {
     b = ovl_dirty;
     ovl_dirty = 0;
     for (i = b ? 0 : NUM_BARS; i < NUM_BARS; i++) {      // (nothing dirty or waiting: no pass over the bars)
-        p = (i + frame_counter) & (NUM_BARS - 1);         // (round robin: the bar the frame starts at moves on every frame)
+        p = (i + (frame_counter >> (HALF & HALF_ON))) & (NUM_BARS - 1);         // (round robin: the bar the frame starts at moves on every frame)
         w = bar_bit[p];
         if (!(b & w)) {
             if (!(b & (w << 4))) continue;
@@ -1699,7 +1699,7 @@ void lift_frame(void) BANKED {
         }
         if (!done && !first) {                            // the first bar of this frame: is the frame late already?
             first = 1;
-            if ((uint8_t)sys_time != frame_t0 || (LY_REG < 144 && LY_REG >= CHOOSER_LY_LATE)) {
+            if (!(HALF & HALF_ON) && ((uint8_t)sys_time != frame_t0 || (LY_REG < 144 && LY_REG >= CHOOSER_LY_LATE))) {   // (30 fps: the next step is the short one, a long picture is paid for there)
                 if (++ch_late < CHOOSER_LATE_MAX) first = 2;   // (later; but at least every CHOOSER_LATE_MAX frames)
                 else ch_late = 0;
             } else ch_late = 0;

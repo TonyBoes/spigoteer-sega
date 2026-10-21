@@ -565,11 +565,12 @@ void mg_abort(void) BANKED;                             // the pause menu's QUIT
 #define PAUSE_NR51 (*(volatile uint8_t *)0xFFF0)       // HRAM (the linker uses 0xFF80-0xFF92): while the menu is open, the NR51 to restore (never 0); else 0
 // ---- half.c (banked): 30 fps on the DMG (owner 2026-10-21). HRAM 0xFFF4 (the linker uses 0xFF80-0xFF92, the scene change 0xFF94-0xFFD3 and 0xFFF1-3, the pause menu 0xFFF0):
 // bit 0 HALF_ON: this level runs at 30 fps (the logic every VBlank, the picture every second one); bits 1-2 the debug menu's choice
-// (0 AUTO, 1 FORCE ON, 2 FORCE OFF: HALF_FORCE).
+// (0 AUTO, 1 FORCE ON, 2 FORCE OFF: HALF_FORCE), bit 4 HALF_OWED.
 // Cleared at boot (main_cold.c boot_init), set at a level's load (level.c start_level).
 #define HALF       (*(volatile uint8_t *)0xFFF4)
 #define HALF_ON    1
 #define HALF_FORCE_SHIFT 1
+#define HALF_OWED  0x10                                 // a VBlank was lost to a race at the wait: the next step starts without waiting (main.c)
 void half_decide(void) BANKED;                          // the level just loaded (or the debug menu's choice): is HALF_ON (never on a CGB)
 void half_step(void) BANKED;                            // a logic-only step: the drawing code's own timers and rules (the perfect pour, the cue)
 void pour_skip(void) BANKED;                            // src/pour.c
