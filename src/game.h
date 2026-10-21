@@ -566,6 +566,19 @@ uint8_t mg_list_update(uint8_t pressed) BANKED;         // a GS_MGLIST frame (sr
 void mg_abort(void) BANKED;                             // the pause menu's QUIT in a mini-game: mg.c's own leave (LCD off)
 // ---- pause.c (banked): the pause menu, every mode (state_timer: bit 0 cursor, bit 1 the question, bit 7 a mini-game)
 #define PAUSE_NR51 (*(volatile uint8_t *)0xFFF0)       // HRAM (the linker uses 0xFF80-0xFF92): while the menu is open, the NR51 to restore (never 0); else 0
+// ---- half.c (banked): 30 fps on the DMG (owner 2026-10-21). HRAM 0xFFF4 (the linker uses 0xFF80-0xFF92, the scene change 0xFF94-0xFFD3 and 0xFFF1-3, the pause menu 0xFFF0):
+// bit 0 HALF_ON: this level runs at 30 fps (the logic every VBlank, the picture every second one); bits 1-2 the debug menu's choice
+// (0 AUTO, 1 FORCE ON, 2 FORCE OFF: HALF_FORCE), bit 4 HALF_OWED.
+// Cleared at boot (main_cold.c boot_init), set at a level's load (level.c start_level).
+#define HALF       (*(volatile uint8_t *)0xFFF4)
+#define HALF_ON    1
+#define HALF_FORCE_SHIFT 1
+#define HALF_OWED  0x10                                 // a VBlank was lost to a race at the wait: the next step starts without waiting (main.c)
+void half_decide(void) BANKED;                          // the level just loaded (or the debug menu's choice): is HALF_ON (never on a CGB)
+void half_step(void) BANKED;                            // a logic-only step: the drawing code's own timers and rules (the perfect pour, the cue)
+void half_wait(void) BANKED;                            // main loop in 30 fps: the wait for the next step (frame_wait, or none when a VBlank is owed)
+void frame_wait(void);                                  // main.c: wait for the next VBlank
+void pour_skip(void) BANKED;                            // src/pour.c
 // ---- trans.c (banked): the scene transition, a fizzy drink filling the screen from the bottom and bubbling away (docs: batchEF g14)
 // HRAM 0xFFF1 TRANS: TR_WANT (a wired scene change says "the next DISPLAY_OFF is a transition": TRANS_WANT()), TR_PEND (the cover ran,
 // the reveal is owed: main.c lcd_on_p runs it as the LCD comes on, or the caller does when it holds TR_HOLD), TR_OFF (a test hook: no transitions). 0xFFF2 / 0xFFF3: the
