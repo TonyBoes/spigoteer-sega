@@ -239,10 +239,16 @@ def expect_menu(gb, keys):
     assert menu_block_rows(gb) == want, keys
 
 
+SETTINGS_NAME = {"on": "name_music", "off": "name_music", "snap": "name_bar", "keep": "name_bar", "scr_normal": "scr", "scr_bright": "scr"}
+
+
 def cursor_on(gb, key, row):
     c = gb.oam()[OAM_CURSOR]
     assert c["y"] - 16 + 7 == row * 8, "the mug stands on the selected line"
-    assert TITLE_ART["text"][key]["x"] - 14 <= c["x"] - 8 <= TITLE_ART["text"][key]["x"] - 12, "just left of it"
+    x = TITLE_ART["text"][key]["x"]
+    if gb.mem("title_menu") == TM_SETTINGS and key in SETTINGS_NAME:          # (the name above a status may reach further left: the mug stands left of both)
+        x = min(x, TITLE_ART["text"][SETTINGS_NAME[key]]["x"])
+    assert x - 14 <= c["x"] - 8 <= x - 12, "just left of it"
 
 
 def test_title_menu_is_centred_without_bands(boot):

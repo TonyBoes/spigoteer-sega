@@ -167,6 +167,13 @@ static const uint8_t k_right[] = { 0, 0, TT_R_ON, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 // The text of SETTINGS' status line k (MUSIC: by sound_on), the screen x of its first pixel, and just past its last
 static const uint8_t *item_str(uint8_t k) { return k == K_MUSIC && !sound_on ? tt_off : k_text[k]; }
 static uint8_t item_left(uint8_t k) { return k == K_MUSIC && !sound_on ? TT_X_OFF : k_left[k]; }
+// the mug stands left of the whole entry: in SETTINGS the name above the status may start further left than the status
+static uint8_t cursor_left(uint8_t k) {
+    uint8_t x = item_left(k), n;
+    if (title_menu != TM_SETTINGS || IS_ACT(k)) return x;
+    n = k == K_MUSIC ? TT_X_NAME_MUSIC : IS_BAR(k) ? TT_X_NAME_BAR : TT_X_SCR;
+    return n < x ? n : x;
+}
 static uint8_t item_right(uint8_t k) { return k == K_MUSIC && !sound_on ? TT_R_OFF : k_right[k]; }
 
 // The text on screen row r of the shown menu: the line of the item on it, in SETTINGS a setting's NAME on the row above its status; 0: nothing (the plain wall)
@@ -597,7 +604,7 @@ static void scene_frame(void) {
 static void cursor_frame(void) {
     OAM_item_t *o = shadow_OAM + OAM_CURSOR;
     o->y = title_rows[title_sel] * 8 - 7 + 16;
-    o->x = item_left(title_items[title_sel]) - 13 - ((title_t >> 4) & 1) + 8;
+    o->x = cursor_left(title_items[title_sel]) - 13 - ((title_t >> 4) & 1) + 8;
     o->tile = OBJ_MUG; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;     // DMG: OBP0 like the held mug (shows on the white wall)
     o = shadow_OAM + OAM_ARROW;                                     // SETTINGS: next to the selected setting's status, an arrow (it blinks on the cursor's 16-frame beat)
     if (title_menu != TM_SETTINGS || IS_ACT(title_items[title_sel])) { o[0].y = o[1].y = 0; return; }   // and the A button: this one changes (an action does not)
