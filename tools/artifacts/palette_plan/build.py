@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-22", "Saloon: the Outlaw is named REDD."),
     ("2026-10-22", "Saloon: OBJ 4 (ROSIE, Outlaw) is ROSIE's skin #F8D0B0, the Outlaw file's red #BB2F32, ROSIE's outline #202030."),
     ("2026-10-22", "Saloon: the Outlaw (owner's recolour, red and navy) shares ROSIE's OBJ 4 / BG 4; OBJ 7 keeps his former palette for the Prospector and Big Tex."),
     ("2026-10-21", "Saloon: ARTIE (owner set 2 C, the bald old prospector) shares MABEL's palette on OBJ 6 / BG 6."),
@@ -165,7 +166,7 @@ PLANS = {
         add={("OBJ", 7): ("Prospector", ["#D8C098", "#B85838", "#281810"]),   # the Outlaw's former palette, kept by the Prospector; Big Tex takes it too
              ("OBJ", 4): ("ROSIE, the singer", ["#F8D0B0", "#BB2F32", "#202030"]),   # owner 2026-10-22: ROSIE's skin and outline, the Outlaw file's red   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
              ("OBJ", 5): ("Brown-haired singer", ["#F8D0B0", "#805838", "#202030"])},   # owner's concept, her own palette
-        join={("OBJ", 4): ["Outlaw"],                                          # owner 2026-10-22: the Outlaw (owner's recolour) shares ROSIE's palette
+        join={("OBJ", 4): ["REDD, the outlaw"],                                          # owner 2026-10-22: the Outlaw (owner's recolour) shares ROSIE's palette
               ("OBJ", 6): ["ARTIE, the old prospector"]},                       # owner set 2 C (bald, grey beard) shares MABEL's palette
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
     ),
