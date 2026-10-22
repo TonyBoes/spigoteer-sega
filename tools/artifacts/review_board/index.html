@@ -1,0 +1,104 @@
+<title>Spigoteer Review Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column of review cards, newest open question first; each card holds the moving picture and the question. */
+:root {
+  --ground: #f3efe6;
+  --card: #fffdf8;
+  --ink: #23201b;
+  --muted: #6c655a;
+  --rule: #ddd5c6;
+  --amber: #b5701c;
+  --stage: #2c5060;
+  --display: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17181b; --card: #202227; --ink: #ece6da; --muted: #a49d90; --rule: #34363c; --amber: #e7a54a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17181b; --card: #202227; --ink: #ece6da; --muted: #a49d90; --rule: #34363c; --amber: #e7a54a;
+}
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.55; padding: 24px 16px 48px; }
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 22px; }
+h1 { font-family: var(--display); font-size: 26px; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.lede { margin: 4px 0 0; color: var(--muted); max-width: 64ch; }
+.stamp { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: grid; gap: 12px; }
+.tag { font-family: var(--display); font-size: 13px; color: var(--amber); letter-spacing: .06em; }
+.card h2 { margin: 0; font-size: 18px; text-wrap: balance; }
+.card p { margin: 0; max-width: 66ch; }
+.ask { font-weight: 600; }
+.media { background: var(--stage); border-radius: 8px; padding: 12px; overflow-x: auto; }
+.media img { display: block; max-width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; margin: 0 auto; }
+.note { font-size: 13px; color: var(--muted); }
+.ref .tag { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .media img { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Spigoteer review board</h1>
+    <p class="lede">Moving pictures for the questions I ask you. Cards marked with a Q number need an answer. The others are reference.</p>
+    <p class="stamp">Updated 2026-10-21 · main a39c7d3 · graphics atlas: claude.ai/artifact/RLQysU9fNNbcZR2TS8x5XZ</p>
+  </header>
+
+  <section class="card ref">
+    <span class="tag">Answered: Q27</span>
+    <h2>Sound meters in the soundtrack player (Color only)</h2>
+    <div class="media"><img src="media/q27_meters.gif" alt="The soundtrack screen on Game Boy Color, with four small level meters bouncing in the header corners while a tune plays, then falling to rest in silence" width="640" height="576"></div>
+    <p>Four small level bars sit in the top band. The left pair is labelled 1 and 2, the two square-wave channels. The right pair is W and N, the wave and noise channels. They jump with the music, fall one step per frame, and rest when the music stops.</p>
+    <p class="note">You liked them, and are thinking about a menu change that would give a visualiser more room.</p>
+  </section>
+
+  <section class="card">
+    <span class="tag">Q34</span>
+    <h2>The GBA's first-boot screen choice</h2>
+    <div class="media"><img src="media/q34_screen_prompt.gif" alt="The title screen on a GBA, first boot: two lines read SCREEN NORMAL and SCREEN BRIGHT with a caption under the highlighted one, and the whole title brightens and darkens as the cursor moves between them" width="640" height="576"></div>
+    <p>On a GBA with no saved choice, the title asks once before its menu. NORMAL is highlighted first. Moving the cursor re-lights the whole title, so the title itself is the preview. A or START saves the choice, and SETTINGS &gt; SCREEN can still change it later. A Game Boy Color or DMG is never asked.</p>
+    <p>The full captions did not fit the 20-column text grid, so the agent shortened them. Under NORMAL: "MODERN OR BACKLIT". Under BRIGHT: "FOR THE GBA SCREEN".</p>
+    <p class="ask">Does the prompt look and read right, and is the wording OK?</p>
+  </section>
+
+  <section class="card">
+    <span class="tag">Q32</span>
+    <h2>A softer rainbow on the logo-style DX (V1)</h2>
+    <p>Same letters and placement as V1. Only palette colours change, so any of these costs nothing extra in the game. Each cycle takes about 1.6 seconds here, and the speed is easy to change.</p>
+    <p><strong>A, muted fill:</strong> the orange body cycles through softer rainbow colours. The brown outline and cream foam stay.</p>
+    <div class="media"><img src="media/q29_v1_A_muted_fill.gif" alt="The logo-style DX whose orange body cycles through muted rainbow colours, with the outline and foam unchanged" width="640" height="192"></div>
+    <p><strong>B, pastel fill:</strong> like A, but paler and gentler.</p>
+    <div class="media"><img src="media/q29_v1_B_pastel_fill.gif" alt="The logo-style DX whose body cycles through pale pastel colours" width="640" height="192"></div>
+    <p><strong>C, rainbow foam:</strong> the body stays the logo's orange. Only the cream highlight along the top and left edges shimmers through colours.</p>
+    <div class="media"><img src="media/q29_v1_C_rainbow_foam.gif" alt="The logo-style DX in the logo's orange, with only its top and left highlight cycling through colours" width="640" height="192"></div>
+    <p><strong>D, fill and foam together:</strong> the body cycles muted colours and the highlight follows a step ahead, very pale.</p>
+    <div class="media"><img src="media/q29_v1_D_fill_and_foam.gif" alt="The logo-style DX with both its body and its highlight cycling through soft colours" width="640" height="192"></div>
+    <p class="ask">Which rainbow effect: A, B, C or D? Should the cycle be slower or faster?</p>
+  </section>
+
+  <section class="card ref">
+    <span class="tag">Answered: Q29</span>
+    <h2>DX at the logo's letter size, in its style</h2>
+    <div class="media"><img src="media/q29_compare.png" alt="Logo letters O, P, E and R beside the new D and X: version 1 in the logo's orange, brown outline and cream foam; version 2 in cream with pink and purple drop shadows" width="552" height="308"></div>
+    <p>Each letter is 16 by 16, like the logo's letters, with 4 px strokes and a small rectangular counter. The D's right corners are cut at 45 degrees, because a square D read as an O. The pair sits under the logo's last two letters and lines up with the R's right edge. It takes 4 sprites instead of 3.</p>
+    <p><strong>V1, logo look:</strong> the logo's own orange, brown outline and cream foam. No rainbow.</p>
+    <div class="media"><img src="media/q29_dx_v1.png" alt="The Game Boy Color title with the version 1 DX in the logo's orange and brown under the logo's right end" width="640" height="576"></div>
+    <p><strong>V2, your scheme:</strong> cream letters with the rainbow drop shadows. To fit three colours, it drops the logo's brown outline. The far shadow gives the dark edge on the lower right only.</p>
+    <div class="media"><img src="media/q29_dx_v2_rainbow.gif" alt="The Game Boy Color title with the version 2 DX: cream letters whose two drop shadows cycle through the rainbow" width="640" height="576"></div>
+    <p class="note">You chose V1's larger letters and placement, with a softer rainbow than V2. See Q32 above.</p>
+  </section>
+
+  <section class="card ref">
+    <span class="tag">Reference</span>
+    <h2>Your small v4 DX with rainbow shadows, from the game</h2>
+    <div class="media"><img src="media/ref_dx_rainbow_v4.gif" alt="The SPIGOTEER logo on the Game Boy Color title with the owner's small DX badge below its right end, the drop shadows cycling through the rainbow" width="640" height="224"></div>
+    <p class="note">Captured from the game on Color at its real frame rate. One rainbow cycle takes about 1.6 seconds.</p>
+  </section>
+</div>
