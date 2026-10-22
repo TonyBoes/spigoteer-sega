@@ -43,6 +43,14 @@ li.open { font-style: italic; }
 .stat b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
 .stat span { color: var(--muted); font-size: 13px; }
 .sw { width: 20px; height: 20px; border: 1px solid rgba(0,0,0,.35); border-radius: 3px; padding: 0; margin-left: 2px; cursor: pointer; }
+.tbl { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; }
+table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
+.pt th, .pt td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+.pt th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.pt tr:last-child td { border-bottom: 0; }
+.pt td.now { color: var(--now); font-weight: 600; } .pt td.plan { color: var(--plan); font-weight: 600; }
+.pt td.slotc { font-family: var(--mono); white-space: nowrap; }
+.muted { color: var(--muted); font-style: italic; }
 .foot { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 13px var(--mono); padding: 6px 12px; border-radius: 6px; }
 </style>
@@ -60,10 +68,16 @@ li.open { font-style: italic; }
 </div>
 <section class="panel" role="tabpanel" id="p-cowboys" aria-labelledby="t-cowboys">
 <h1>The Saloon</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>0</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
 <div class="stat"><b>1</b><span>free sprite palettes: OBJ 4</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="now">DUSTY, the cowboy</td><td><button type="button" class="sw" style="background:#FFCD9C" data-hex="#FFCD9C" title="#FFCD9C"></button><button type="button" class="sw" style="background:#A46231" data-hex="#A46231" title="#A46231"></button><button type="button" class="sw" style="background:#311808" data-hex="#311808" title="#311808"></button></td><td class="slotc">OBJ 3</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">ROSIE, the cowgirl</td><td><button type="button" class="sw" style="background:#F6BD94" data-hex="#F6BD94" title="#F6BD94"></button><button type="button" class="sw" style="background:#DE629C" data-hex="#DE629C" title="#DE629C"></button><button type="button" class="sw" style="background:#291808" data-hex="#291808" title="#291808"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="now">HANK, the ranch hand</td><td><button type="button" class="sw" style="background:#EEE6CD" data-hex="#EEE6CD" title="#EEE6CD"></button><button type="button" class="sw" style="background:#8B5231" data-hex="#8B5231" title="#8B5231"></button><button type="button" class="sw" style="background:#392918" data-hex="#392918" title="#392918"></button></td><td class="slotc">OBJ 7</td><td class="slotc">BG 4</td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw" style="background:#FFF6D5" data-hex="#FFF6D5" title="#FFF6D5"></button><button type="button" class="sw" style="background:#EE9C20" data-hex="#EE9C20" title="#EE9C20"></button><button type="button" class="sw" style="background:#392010" data-hex="#392010" title="#392010"></button></span></div><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li></ul></div>
@@ -89,14 +103,21 @@ li.open { font-style: italic; }
 </div></section>
 <section class="panel" role="tabpanel" id="p-sports" aria-labelledby="t-sports" hidden>
 <h1>The Stadium</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
-<div class="stat"><b>5</b><span>free sprite palettes: OBJ 3, OBJ 4, OBJ 5, OBJ 7, OBJ 2 (shared)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>1</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
+<div class="stat"><b>4</b><span>free sprite palettes: OBJ 3, OBJ 4, OBJ 5, OBJ 7</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="plan">NORM, the ref</td><td><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></td><td class="slotc">OBJ 0</td><td class="slotc">BG 4</td></tr>
+<tr><td class="plan">PETE, the cap fan</td><td><button type="button" class="sw chg" style="background:#FFE6CD" data-hex="#FFE6CD" title="#FFE6CD"></button><button type="button" class="sw" style="background:#E63931" data-hex="#E63931" title="#E63931"></button><button type="button" class="sw" style="background:#311818" data-hex="#311818" title="#311818"></button></td><td class="slotc">OBJ 1</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">SERENA, the band fan</td><td><button type="button" class="sw" style="background:#B47B52" data-hex="#B47B52" title="#B47B52"></button><button type="button" class="sw" style="background:#295ADE" data-hex="#295ADE" title="#295ADE"></button><button type="button" class="sw" style="background:#000000" data-hex="#000000" title="#000000"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="plan">Reserved patron</td><td><button type="button" class="sw chg" style="background:#FFE6CD" data-hex="#FFE6CD" title="#FFE6CD"></button><button type="button" class="sw" style="background:#ACCDF6" data-hex="#ACCDF6" title="#ACCDF6"></button><button type="button" class="sw" style="background:#29314A" data-hex="#29314A" title="#29314A"></button></td><td class="slotc">OBJ 2</td><td class="slotc"><span class="muted">to assign</span></td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="pat"><li class="plan">NORM, the ref</li></ul><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw chg" style="background:#FFE6CD" data-hex="#FFE6CD" title="was #FFFFFF, planned #FFE6CD"></button><button type="button" class="sw" style="background:#E63931" data-hex="#E63931" title="#E63931"></button><button type="button" class="sw" style="background:#311818" data-hex="#311818" title="#311818"></button></span></div><ul class="pat"><li class="plan">PETE, the cap fan</li></ul><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li><li class="plan">Show dancers (cheerleaders)</li></ul><p class="chgp">colour 1: #FFFFFF &rarr; #FFE6CD</p></div>
-<div class="pal"><div class="ph"><span class="slot">OBJ 2</span><span class="sws"><button type="button" class="sw chg" style="background:#FFE6CD" data-hex="#FFE6CD" title="was #FFFFFF, planned #FFE6CD"></button><button type="button" class="sw" style="background:#ACCDF6" data-hex="#ACCDF6" title="#ACCDF6"></button><button type="button" class="sw" style="background:#29314A" data-hex="#29314A" title="#29314A"></button></span></div><ul class="pat"><li class="plan open">New patron</li></ul><ul class="oth"><li>Empty mug</li><li>Breaking glass</li><li>Boss: capacity mugs</li></ul><p class="chgp">colour 1: #FFFFFF &rarr; #FFE6CD</p></div>
+<div class="pal"><div class="ph"><span class="slot">OBJ 2</span><span class="sws"><button type="button" class="sw chg" style="background:#FFE6CD" data-hex="#FFE6CD" title="was #FFFFFF, planned #FFE6CD"></button><button type="button" class="sw" style="background:#ACCDF6" data-hex="#ACCDF6" title="#ACCDF6"></button><button type="button" class="sw" style="background:#29314A" data-hex="#29314A" title="#29314A"></button></span></div><ul class="pat"><li class="plan open">Reserved patron</li></ul><ul class="oth"><li>Empty mug</li><li>Breaking glass</li><li>Boss: capacity mugs</li></ul><p class="chgp">colour 1: #FFFFFF &rarr; #FFE6CD</p></div>
 <div class="pal free"><div class="ph"><span class="slot">OBJ 3</span><span class="sws"></span></div><p class="freep plan">Free</p></div>
 <div class="pal free"><div class="ph"><span class="slot">OBJ 4</span><span class="sws"><button type="button" class="sw" style="background:#DE629C" data-hex="#DE629C" title="#DE629C"></button><button type="button" class="sw" style="background:#9C5A31" data-hex="#9C5A31" title="#9C5A31"></button><button type="button" class="sw" style="background:#291808" data-hex="#291808" title="#291808"></button></span></div><p class="freep">Free</p></div>
 <div class="pal free"><div class="ph"><span class="slot">OBJ 5</span><span class="sws"></span></div><p class="freep plan">Free</p></div>
@@ -118,10 +139,16 @@ li.open { font-style: italic; }
 </div></section>
 <section class="panel" role="tabpanel" id="p-lumberjacks" aria-labelledby="t-lumberjacks" hidden>
 <h1>The Lumber Lodge</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>0</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
 <div class="stat"><b>1</b><span>free sprite palettes: OBJ 4</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="now">CEDAR, in the cap</td><td><button type="button" class="sw" style="background:#FFC594" data-hex="#FFC594" title="#FFC594"></button><button type="button" class="sw" style="background:#D53129" data-hex="#D53129" title="#D53129"></button><button type="button" class="sw" style="background:#291820" data-hex="#291820" title="#291820"></button></td><td class="slotc">OBJ 3</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">WILLOW, red hair</td><td><button type="button" class="sw" style="background:#EEBD94" data-hex="#EEBD94" title="#EEBD94"></button><button type="button" class="sw" style="background:#D53929" data-hex="#D53929" title="#D53929"></button><button type="button" class="sw" style="background:#18204A" data-hex="#18204A" title="#18204A"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="now">ASH, in the green hat</td><td><button type="button" class="sw" style="background:#BD7B52" data-hex="#BD7B52" title="#BD7B52"></button><button type="button" class="sw" style="background:#399441" data-hex="#399441" title="#399441"></button><button type="button" class="sw" style="background:#102910" data-hex="#102910" title="#102910"></button></td><td class="slotc">OBJ 7</td><td class="slotc">BG 4</td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw" style="background:#F6F6EE" data-hex="#F6F6EE" title="#F6F6EE"></button><button type="button" class="sw" style="background:#733918" data-hex="#733918" title="#733918"></button><button type="button" class="sw" style="background:#201810" data-hex="#201810" title="#201810"></button></span></div><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li></ul></div>
@@ -147,10 +174,16 @@ li.open { font-style: italic; }
 </div></section>
 <section class="panel" role="tabpanel" id="p-chefs" aria-labelledby="t-chefs" hidden>
 <h1>The Bistro</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>0</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
 <div class="stat"><b>1</b><span>free sprite palettes: OBJ 4</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="now">PIERRE</td><td><button type="button" class="sw" style="background:#FFFFFF" data-hex="#FFFFFF" title="#FFFFFF"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#312018" data-hex="#312018" title="#312018"></button></td><td class="slotc">OBJ 3</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">BRIE</td><td><button type="button" class="sw" style="background:#FFF6F6" data-hex="#FFF6F6" title="#FFF6F6"></button><button type="button" class="sw" style="background:#EEAC8B" data-hex="#EEAC8B" title="#EEAC8B"></button><button type="button" class="sw" style="background:#201831" data-hex="#201831" title="#201831"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="now">BASIL</td><td><button type="button" class="sw" style="background:#F6F6EE" data-hex="#F6F6EE" title="#F6F6EE"></button><button type="button" class="sw" style="background:#CD8B5A" data-hex="#CD8B5A" title="#CD8B5A"></button><button type="button" class="sw" style="background:#411820" data-hex="#411820" title="#411820"></button></td><td class="slotc">OBJ 7</td><td class="slotc">BG 4</td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw" style="background:#FFF6F6" data-hex="#FFF6F6" title="#FFF6F6"></button><button type="button" class="sw" style="background:#B41841" data-hex="#B41841" title="#B41841"></button><button type="button" class="sw" style="background:#311020" data-hex="#311020" title="#311020"></button></span></div><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li></ul></div>
@@ -176,10 +209,16 @@ li.open { font-style: italic; }
 </div></section>
 <section class="panel" role="tabpanel" id="p-divers" aria-labelledby="t-divers" hidden>
 <h1>The Igloo</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>0</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
 <div class="stat"><b>1</b><span>free sprite palettes: OBJ 4</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="now">IGGY, the parka man</td><td><button type="button" class="sw" style="background:#E6AC7B" data-hex="#E6AC7B" title="#E6AC7B"></button><button type="button" class="sw" style="background:#5ABDFF" data-hex="#5ABDFF" title="#5ABDFF"></button><button type="button" class="sw" style="background:#101829" data-hex="#101829" title="#101829"></button></td><td class="slotc">OBJ 3</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">POLLY, the parka girl</td><td><button type="button" class="sw" style="background:#D59C7B" data-hex="#D59C7B" title="#D59C7B"></button><button type="button" class="sw" style="background:#318B7B" data-hex="#318B7B" title="#318B7B"></button><button type="button" class="sw" style="background:#102929" data-hex="#102929" title="#102929"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="now">MOOSE, the big parka</td><td><button type="button" class="sw" style="background:#B4734A" data-hex="#B4734A" title="#B4734A"></button><button type="button" class="sw" style="background:#627B39" data-hex="#627B39" title="#627B39"></button><button type="button" class="sw" style="background:#101808" data-hex="#101808" title="#101808"></button></td><td class="slotc">OBJ 7</td><td class="slotc">BG 4</td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw" style="background:#FFF6EE" data-hex="#FFF6EE" title="#FFF6EE"></button><button type="button" class="sw" style="background:#7B4129" data-hex="#7B4129" title="#7B4129"></button><button type="button" class="sw" style="background:#291010" data-hex="#291010" title="#291010"></button></span></div><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li></ul></div>
@@ -205,10 +244,16 @@ li.open { font-style: italic; }
 </div></section>
 <section class="panel" role="tabpanel" id="p-robots" aria-labelledby="t-robots" hidden>
 <h1>The Robot Factory</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>0</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
 <div class="stat"><b>1</b><span>free sprite palettes: OBJ 4</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="now">BOXY</td><td><button type="button" class="sw" style="background:#5AF6FF" data-hex="#5AF6FF" title="#5AF6FF"></button><button type="button" class="sw" style="background:#7B8BA4" data-hex="#7B8BA4" title="#7B8BA4"></button><button type="button" class="sw" style="background:#101829" data-hex="#101829" title="#101829"></button></td><td class="slotc">OBJ 3</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">VOLTA</td><td><button type="button" class="sw" style="background:#FFD55A" data-hex="#FFD55A" title="#FFD55A"></button><button type="button" class="sw" style="background:#BD8B4A" data-hex="#BD8B4A" title="#BD8B4A"></button><button type="button" class="sw" style="background:#181829" data-hex="#181829" title="#181829"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="now">BLIP</td><td><button type="button" class="sw" style="background:#CDFFCD" data-hex="#CDFFCD" title="#CDFFCD"></button><button type="button" class="sw" style="background:#5AA46A" data-hex="#5AA46A" title="#5AA46A"></button><button type="button" class="sw" style="background:#102010" data-hex="#102010" title="#102010"></button></td><td class="slotc">OBJ 7</td><td class="slotc">BG 4</td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw" style="background:#A4FF62" data-hex="#A4FF62" title="#A4FF62"></button><button type="button" class="sw" style="background:#E68B29" data-hex="#E68B29" title="#E68B29"></button><button type="button" class="sw" style="background:#181010" data-hex="#181010" title="#181010"></button></span></div><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li></ul></div>
@@ -234,10 +279,16 @@ li.open { font-style: italic; }
 </div></section>
 <section class="panel" role="tabpanel" id="p-punks" aria-labelledby="t-punks" hidden>
 <h1>The Chrome Cow</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>0</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
 <div class="stat"><b>1</b><span>free sprite palettes: OBJ 4</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="now">SPIKE, pink mohawk</td><td><button type="button" class="sw" style="background:#FFCDA4" data-hex="#FFCDA4" title="#FFCDA4"></button><button type="button" class="sw" style="background:#F64AA4" data-hex="#F64AA4" title="#F64AA4"></button><button type="button" class="sw" style="background:#180818" data-hex="#180818" title="#180818"></button></td><td class="slotc">OBJ 3</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">BANDIT, green bandana</td><td><button type="button" class="sw" style="background:#E6AC7B" data-hex="#E6AC7B" title="#E6AC7B"></button><button type="button" class="sw" style="background:#39C552" data-hex="#39C552" title="#39C552"></button><button type="button" class="sw" style="background:#101810" data-hex="#101810" title="#101810"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="now">SLICK, blue quiff</td><td><button type="button" class="sw" style="background:#FFDEC5" data-hex="#FFDEC5" title="#FFDEC5"></button><button type="button" class="sw" style="background:#397BFF" data-hex="#397BFF" title="#397BFF"></button><button type="button" class="sw" style="background:#100829" data-hex="#100829" title="#100829"></button></td><td class="slotc">OBJ 7</td><td class="slotc">BG 4</td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw" style="background:#ACDEFF" data-hex="#ACDEFF" title="#ACDEFF"></button><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#20294A" data-hex="#20294A" title="#20294A"></button></span></div><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li></ul></div>
@@ -263,10 +314,16 @@ li.open { font-style: italic; }
 </div></section>
 <section class="panel" role="tabpanel" id="p-ninjas" aria-labelledby="t-ninjas" hidden>
 <h1>The Teahouse</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>0</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
 <div class="stat"><b>1</b><span>free sprite palettes: OBJ 4</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="now">KAGE</td><td><button type="button" class="sw" style="background:#FFCDA4" data-hex="#FFCDA4" title="#FFCDA4"></button><button type="button" class="sw" style="background:#29396A" data-hex="#29396A" title="#29396A"></button><button type="button" class="sw" style="background:#080810" data-hex="#080810" title="#080810"></button></td><td class="slotc">OBJ 3</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">SAKURA</td><td><button type="button" class="sw" style="background:#FFF6EE" data-hex="#FFF6EE" title="#FFF6EE"></button><button type="button" class="sw" style="background:#CD2939" data-hex="#CD2939" title="#CD2939"></button><button type="button" class="sw" style="background:#180810" data-hex="#180810" title="#180810"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="now">RONIN</td><td><button type="button" class="sw" style="background:#EEBD7B" data-hex="#EEBD7B" title="#EEBD7B"></button><button type="button" class="sw" style="background:#AC2931" data-hex="#AC2931" title="#AC2931"></button><button type="button" class="sw" style="background:#201018" data-hex="#201018" title="#201018"></button></td><td class="slotc">OBJ 7</td><td class="slotc">BG 4</td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw" style="background:#EEF6C5" data-hex="#EEF6C5" title="#EEF6C5"></button><button type="button" class="sw" style="background:#6AA429" data-hex="#6AA429" title="#6AA429"></button><button type="button" class="sw" style="background:#203110" data-hex="#203110" title="#203110"></button></span></div><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li></ul></div>
@@ -292,10 +349,16 @@ li.open { font-style: italic; }
 </div></section>
 <section class="panel" role="tabpanel" id="p-zoo" aria-labelledby="t-zoo" hidden>
 <h1>The Jungle Zoo</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>0</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
 <div class="stat"><b>1</b><span>free sprite palettes: OBJ 4</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="now">COCO, the monkey</td><td><button type="button" class="sw" style="background:#EEC594" data-hex="#EEC594" title="#EEC594"></button><button type="button" class="sw" style="background:#8B5229" data-hex="#8B5229" title="#8B5229"></button><button type="button" class="sw" style="background:#291808" data-hex="#291808" title="#291808"></button></td><td class="slotc">OBJ 3</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">BAMBOO, the panda</td><td><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#A4A4B4" data-hex="#A4A4B4" title="#A4A4B4"></button><button type="button" class="sw" style="background:#101010" data-hex="#101010" title="#101010"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="now">MUDDY, the hippo</td><td><button type="button" class="sw" style="background:#F6B4C5" data-hex="#F6B4C5" title="#F6B4C5"></button><button type="button" class="sw" style="background:#947BAC" data-hex="#947BAC" title="#947BAC"></button><button type="button" class="sw" style="background:#201029" data-hex="#201029" title="#201029"></button></td><td class="slotc">OBJ 7</td><td class="slotc">BG 4</td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw" style="background:#FFF6D5" data-hex="#FFF6D5" title="#FFF6D5"></button><button type="button" class="sw" style="background:#8B5A29" data-hex="#8B5A29" title="#8B5A29"></button><button type="button" class="sw" style="background:#291808" data-hex="#291808" title="#291808"></button></span></div><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li></ul></div>
@@ -321,10 +384,16 @@ li.open { font-style: italic; }
 </div></section>
 <section class="panel" role="tabpanel" id="p-aliens" aria-labelledby="t-aliens" hidden>
 <h1>The Space Lounge</h1><div class="stats">
-<div class="stat"><b>3</b><span>patrons</span></div>
-<div class="stat"><b>6</b><span>patrons wanted (Q11)</span></div>
+<div class="stat"><b>3</b><span>identified patrons</span></div>
+<div class="stat"><b>0</b><span>reserved patrons (palette set aside, no concept yet)</span></div>
 <div class="stat"><b>1</b><span>free sprite palettes: OBJ 4</span></div>
 <div class="stat"><b>3</b><span>free background palettes in the playfield: BG 1, BG 5, BG 6</span></div>
+</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>
+<tr><td class="now">ZORP, eye stalks</td><td><button type="button" class="sw" style="background:#FFFF7B" data-hex="#FFFF7B" title="#FFFF7B"></button><button type="button" class="sw" style="background:#5AC54A" data-hex="#5AC54A" title="#5AC54A"></button><button type="button" class="sw" style="background:#102010" data-hex="#102010" title="#102010"></button></td><td class="slotc">OBJ 3</td><td class="slotc">BG 2</td></tr>
+<tr><td class="now">XENO, the grey one</td><td><button type="button" class="sw" style="background:#DEDEDE" data-hex="#DEDEDE" title="#DEDEDE"></button><button type="button" class="sw" style="background:#9CA4A4" data-hex="#9CA4A4" title="#9CA4A4"></button><button type="button" class="sw" style="background:#080810" data-hex="#080810" title="#080810"></button></td><td class="slotc">OBJ 6</td><td class="slotc">BG 3</td></tr>
+<tr><td class="now">GLORP, the squid</td><td><button type="button" class="sw" style="background:#8BFFF6" data-hex="#8BFFF6" title="#8BFFF6"></button><button type="button" class="sw" style="background:#EE7B31" data-hex="#EE7B31" title="#EE7B31"></button><button type="button" class="sw" style="background:#311008" data-hex="#311008" title="#311008"></button></td><td class="slotc">OBJ 7</td><td class="slotc">BG 4</td></tr>
+</tbody></table></div>
+<div>
 </div><h2>Sprite palettes</h2><div class="grid">
 <div class="pal"><div class="ph"><span class="slot">OBJ 0</span><span class="sws"><button type="button" class="sw" style="background:#FFFFF6" data-hex="#FFFFF6" title="#FFFFF6"></button><button type="button" class="sw" style="background:#F6BD8B" data-hex="#F6BD8B" title="#F6BD8B"></button><button type="button" class="sw" style="background:#202031" data-hex="#202031" title="#202031"></button></span></div><ul class="oth"><li>Sal</li><li>Tip coin</li><li>Pour sparkle</li><li>PERFECT cue</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">OBJ 1</span><span class="sws"><button type="button" class="sw" style="background:#EEFFBD" data-hex="#EEFFBD" title="#EEFFBD"></button><button type="button" class="sw" style="background:#31D57B" data-hex="#31D57B" title="#31D57B"></button><button type="button" class="sw" style="background:#102931" data-hex="#102931" title="#102931"></button></span></div><ul class="oth"><li>Full mug</li><li>Fill glass</li><li>Breaking glass</li></ul></div>
@@ -348,7 +417,7 @@ li.open { font-style: italic; }
 <div class="pal"><div class="ph"><span class="slot">BG 5</span><span class="sws"><button type="button" class="sw" style="background:#E6EEFF" data-hex="#E6EEFF" title="#E6EEFF"></button><button type="button" class="sw" style="background:#5A73C5" data-hex="#5A73C5" title="#5A73C5"></button><button type="button" class="sw" style="background:#18206A" data-hex="#18206A" title="#18206A"></button><button type="button" class="sw" style="background:#080818" data-hex="#080818" title="#080818"></button></span></div><ul class="oth"><li>Stage</li></ul></div>
 <div class="pal"><div class="ph"><span class="slot">BG 6</span><span class="sws"><button type="button" class="sw" style="background:#FFEEA4" data-hex="#FFEEA4" title="#FFEEA4"></button><button type="button" class="sw" style="background:#E67339" data-hex="#E67339" title="#E67339"></button><button type="button" class="sw" style="background:#18206A" data-hex="#18206A" title="#18206A"></button><button type="button" class="sw" style="background:#080818" data-hex="#080818" title="#080818"></button></span></div><ul class="oth"><li>Stage</li></ul></div>
 </div></section>
-<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. From the atlas, main 3410d50, 2026-10-21.</p>
+<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. From the atlas, main f6cf494, 2026-10-21.</p>
 </div><div id="toast" role="status" aria-live="polite" hidden></div>
 <script>
 (function () {

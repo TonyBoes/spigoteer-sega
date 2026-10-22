@@ -139,7 +139,7 @@ PLANS = {
         moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Show dancers (cheerleaders)"),
                ("NORM", "OBJ", 7, 0, "NORM, the ref")],
         recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 4): "OBJ 0"},
-        open={("OBJ", 2): "New patron"},
+        open={("OBJ", 2): "Reserved patron"},
         why="Owner 2026-10-21: OBJ 1's white pushed toward tan serves PETE and the cheerleaders; NORM uses Sal's OBJ 0; OBJ 2 gets the same push and becomes a patron palette.",
     ),
 }
@@ -288,6 +288,14 @@ li.open { font-style: italic; }
 .stat b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
 .stat span { color: var(--muted); font-size: 13px; }
 .sw { width: 20px; height: 20px; border: 1px solid rgba(0,0,0,.35); border-radius: 3px; padding: 0; margin-left: 2px; cursor: pointer; }
+.tbl { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; }
+table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
+.pt th, .pt td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+.pt th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.pt tr:last-child td { border-bottom: 0; }
+.pt td.now { color: var(--now); font-weight: 600; } .pt td.plan { color: var(--plan); font-weight: 600; }
+.pt td.slotc { font-family: var(--mono); white-space: nowrap; }
+.muted { color: var(--muted); font-style: italic; }
 .foot { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 13px var(--mono); padding: 6px 12px; border-radius: 6px; }
 </style>""")
@@ -303,11 +311,35 @@ for i, v in enumerate(venues):
     bfree = [sl for sl in v["above"] if sl not in v["field"]]
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
     w('<h1>%s</h1><div class="stats">' % esc(v["name"]))
-    w('<div class="stat"><b>3</b><span>patrons</span></div>')
-    w('<div class="stat"><b>%d</b><span>patrons wanted (Q11)</span></div>' % TARGET_LOOKS)
-    w('<div class="stat"><b>%d</b><span>free sprite palettes%s</span></div>' % (len(ofree) + len(opens),
-      (": " + ", ".join(["OBJ %d" % x for x in ofree] + ["OBJ %d (shared)" % x for x in opens])) if ofree or opens else ""))
+    ident, reserved = [], []
+    for sl in range(8):
+        d = m[("OBJ", sl)]
+        for t, planned in d["pat"]:
+            ident.append(dict(name=t, obj=sl, planned=planned))
+        if d["open"]:
+            reserved.append(dict(name=d["open"], obj=sl, planned=True))
+    for sl in range(8):
+        for t, planned in m[("BG", sl)]["pat"]:
+            for r in ident:
+                if r["name"] == t:
+                    r["bg"] = sl
+    w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % len(ident))
+    w('<div class="stat"><b>%d</b><span>reserved patrons (palette set aside, no concept yet)</span></div>' % len(reserved))
+    w('<div class="stat"><b>%d</b><span>free sprite palettes%s</span></div>' % (len(ofree),
+      (": " + ", ".join("OBJ %d" % x for x in ofree)) if ofree else ""))
     w('<div class="stat"><b>%d</b><span>free background palettes in the playfield: %s</span></div>' % (len(bfree), ", ".join("BG %d" % x for x in bfree)))
+    w('</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>')
+    for r in ident + reserved:
+        d = m[("OBJ", r["obj"])]
+        sw = "".join('<button type="button" class="sw%s" style="background:%s" data-hex="%s" title="%s"></button>'
+                     % (" chg" if i in d["new"] else "", d["new"].get(i, d["cols"][i]), d["new"].get(i, d["cols"][i]), d["new"].get(i, d["cols"][i]))
+                     for i in (1, 2, 3))
+        cls = "plan" if r["planned"] or d["new"] else "now"
+        bg = ("BG %d" % r["bg"]) if "bg" in r else '<span class="muted">to assign</span>'
+        w('<tr><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td></tr>'
+          % ("plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg))
+    w('</tbody></table></div>')
+    w('<div>')
     w('</div><h2>Sprite palettes</h2><div class="grid">')
     for sl in range(8):
         w(card("OBJ", sl, m[("OBJ", sl)], True))
