@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Fix: the Saloon's keg / spout already use the bar palette (BG 0), so they do not move to BG 1 there; BG 1 is free in the Saloon's playfield."),
     ("2026-10-21", "Owner: where possible a patron's BG palette number matches its OBJ number (A 3/3, B 6/6, C 7/7; Stadium PETE 1/1, SERENA 6/6, reserved 2/2). The boss body pairs with the topper's OBJ 7 in BG 7."),
     ("2026-10-21", "Stadium: BG 0 takes BG 1's palette (the keg / spout's; only its darkest colour differs) and the keg / spout share BG 0; BG 1 free in the playfield."),
     ("2026-10-21", "Every venue: the keg / spout palette moves from BG 7 to BG 1 in the playfield; BG 7 is free there."),
@@ -115,7 +116,8 @@ for key, name in VENUES:
     rows = c["attr"]["pal"]
     above = sorted({int(ch) for r in rows[:5] for ch in r})          # layout.h: HUD_ROW 0, stage rows 1-4, BAR_FIRST_ROW 5
     field = sorted({int(ch) for r in rows[5:] for ch in r})
-    venues.append(dict(key=key, name=name, pal=pal, bg=bgp, used=used, looks=looks, free=free, above=above, field=field))
+    keg7 = any(r[x] == "7" for r in rows[5:] for x in (17, 18, 19))   # the keg / spout columns on BG 7 (the Saloon's are on BG 0)
+    venues.append(dict(key=key, name=name, pal=pal, bg=bgp, used=used, looks=looks, free=free, above=above, field=field, keg7=keg7))
 
 commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
 
@@ -180,7 +182,8 @@ def users(kind, v, s):
         pat = [n[BG_PATRON[s]]] if s in BG_PATRON else []
         if s == 7 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (top row)"]
-        other = {0: ["Bar, wall"], 1: ["HUD (score, lives)"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"], 7: ["Keg, spout"]}.get(s, [])
+        other = {0: ["Bar, wall"] + ([] if v["keg7"] else ["Keg, spout"]), 1: ["HUD (score, lives)"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"],
+                 7: ["Keg, spout"] if v["keg7"] else []}.get(s, [])
     return pat, other
 
 
@@ -333,6 +336,8 @@ def field_model(v, m):
             field[sl] = dict(pat=[], oth=[], cols=field[sl]["cols"], new={}, freed=True, open=None)
     for item, fr, to in FIELD_MOVES:
         src = field[fr]; c = eff(src)
+        if not any(x[0].startswith(item) for x in src["oth"]):
+            continue
         src["oth"] = [x for x in src["oth"] if not x[0].startswith(item)]
         if empty(src):
             src.update(freed=True, new={})
