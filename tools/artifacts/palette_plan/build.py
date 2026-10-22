@@ -72,6 +72,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-22", "Saloon: palette variants per patron (30 recolours; GUS never on his own OBJ 7). HANK's art and OBJ 3 have colours 1 and 2 swapped."),
     ("2026-10-22", "Saloon: OBJ 6 (MABEL, ARTIE) outline darker, #303038 to #1A1A20."),
     ("2026-10-22", "Saloon names: the Prospector is GUS, the prospector; ARTIE is a priest."),
     ("2026-10-22", "Saloon: DUSTY and EMMA share OBJ 5 / BG 5 on #FFD5BD #8B5231 #221B1A; HANK keeps OBJ 3 / BG 3 alone."),
@@ -165,7 +166,7 @@ PLANS = {
     "cowboys": dict(
         moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand"), ("Show dancers", "OBJ", 5, 1, "Show dancers"),
                ("DUSTY", "OBJ", 3, 5, "DUSTY, the cowboy")],                   # owner 2026-10-22: DUSTY joins EMMA
-        recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
+        recolour={("OBJ", 3): {1: "#8B5231", 2: "#FFE6CD", 3: "#392918"},   # HANK's art and palette with colours 1 and 2 swapped (he looks the same)   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
                   ("OBJ", 1): {1: "#FFE6CD"},                               # the full mug's cream to the tan; the dancers share it
                   ("OBJ", 6): {1: "#FFCEAD", 2: "#ADADAD", 3: "#1A1A20"},  # MABEL (was ROSIE), redrawn by the owner: grey hair, black lace shawl                               # ROSIE's hair (and outline) dark grey; her shawl and dress stay pink
                   },
@@ -173,6 +174,9 @@ PLANS = {
         add={("OBJ", 7): ("GUS, the prospector", ["#D8C098", "#B85838", "#281810"]),   # the Outlaw's former palette, kept by the Prospector; Big Tex takes it too
              ("OBJ", 4): ("ROSIE, the singer", ["#F8D0B0", "#BB2F32", "#202030"]),   # owner 2026-10-22: ROSIE's skin and outline, the Outlaw file's red   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
              ("OBJ", 5): ("EMMA, the singer", ["#FFD5BD", "#8B5231", "#221B1A"])},   # owner 2026-10-22: shared with DUSTY
+        # owner 2026-10-22: the palettes each patron may spawn in (recolours of the same tiles; HANK's art has colours 1 and 2 swapped).
+        variants={"HANK": [3, 5, 6], "ROSIE": [3, 4, 5, 7], "REDD": [3, 4, 5, 6, 7], "DUSTY": [3, 5], "EMMA": [4, 5, 7],
+                  "MABEL": [3, 4, 5, 6, 7], "ARTIE": [3, 4, 5, 6, 7], "GUS": [3, 5, 6]},
         join={("OBJ", 4): ["REDD, the outlaw"],                                          # owner 2026-10-22: the Outlaw (owner's recolour) shares ROSIE's palette
               ("OBJ", 6): ["ARTIE, the priest"]},                       # owner set 2 C (bald, grey beard) shares MABEL's palette
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
@@ -523,7 +527,7 @@ for i, v in enumerate(venues):
             if field[b]["new"] or b != r["obj"]:
                 r["planned"] = r["planned"] or bool(field[b]["new"])
     rows = []
-    md = "### %s: patron palettes (plan, %s)\n\n| Patron | Palette colours (1, 2, 3) | OBJ | BG |\n|---|---|---|---|\n" % (v["name"], LOG[0][0])
+    md = "### %s: patron palettes (plan, %s)\n\n| Patron | Palette colours (1, 2, 3) | OBJ | BG | Spawns in OBJ (and matching BG) |\n|---|---|---|---|---|\n" % (v["name"], LOG[0][0])
     for r in ident + reserved:
         d = m[("OBJ", r["obj"])]
         cols = [d["new"].get(k, d["cols"][k]) for k in (1, 2, 3)]
@@ -532,8 +536,11 @@ for i, v in enumerate(venues):
         ar = art_rows(v, r["name"])
         img = ('<img class="pimg" alt="%s" width="48" height="48" src="%s">' % (esc(r["name"]), thumb(ar, cols, v["bg"][0][0]))) if ar else ""
         rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg)))
-        md += "| %s%s | %s | OBJ %d | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), r["obj"],
-                                                ("BG %d" % r["bg"]) if "bg" in r else "to assign")
+        var = PLANS.get(v["key"], {}).get("variants", {}).get(r["name"].split(",")[0].strip())
+        vtxt = ", ".join(str(x) for x in var) if var else str(r["obj"])
+        rows[-1]["html"] = rows[-1]["html"] + (vtxt,)
+        md += "| %s%s | %s | OBJ %d | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), r["obj"],
+                                                ("BG %d" % r["bg"]) if "bg" in r else "to assign", vtxt)
     w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % len(ident))
     w('<div class="stat"><b>%d</b><span>reserved patrons</span></div>' % len(reserved))
     w('<div class="stat"><b>%d</b><span>free OBJ palettes</span></div>' % len(ofree))
@@ -549,9 +556,9 @@ for i, v in enumerate(venues):
         d = dict(m[("BG", sl)]); d["pat"] = []
         w(card("BG", sl, d, False))
     w('</div><div class="ph2"><h2>Patrons</h2><button type="button" class="copymd" data-md="%s">Copy table as Markdown</button></div>' % esc(md))
-    w('<div class="tbl"><table class="pt"><thead><tr><th></th><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>')
+    w('<div class="tbl"><table class="pt"><thead><tr><th></th><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th><th>Spawns in</th></tr></thead><tbody>')
     for r in rows:
-        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td></tr>' % r["html"])
+        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
     w('</tbody></table></div>')
     w('</section>')
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
