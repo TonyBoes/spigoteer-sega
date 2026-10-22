@@ -127,19 +127,6 @@ def test_a_boss_fight_keeps_its_face_and_meter_and_the_head(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_soundtracks_playing_marker_is_still_the_mug(model):
-    """The jukebox loads the old lives mug over the head's tile while it is open."""
-    with booted(model) as gb:
-        hold_stage_anim(gb)
-        title_pick(gb, K_BONUS)
-        gb.run(MENU_SETTLE)
-        menu_to(gb, K_SOUNDTRACK)
-        gb.press("a", 2)
-        gb.run(40)
-        assert vram_tile(gb, HEAD) == art_bytes("assets/art/hud_icons.txt", "playing")
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_a_lost_life_changes_the_digit(model):
     from test_flow import lose_a_life
     with booted(model) as gb:

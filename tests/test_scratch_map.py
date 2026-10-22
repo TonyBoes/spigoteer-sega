@@ -46,15 +46,15 @@ USERS = {
     "fight.OWN": (B0 + (POSES_MAX + 1) * 5 + 4, B0 + (POSES_MAX + 1) * 5 + 4 + BOSS_OWN_N, "boss.h BOSS_OWN: a boss file's state"),
     "fight.FX": (N - 4, N, "game.h BOSS_FX: the landing marker, the topper's look"),
     # the Boss Rush screens (menu, list, NEXT, RESULT): the struct above and the row buffers
-    "rush.ROWS": (0, 14 * 20, "rush.c ROW(k): the screens' row buffers"),
+    "rush.ROWS": (0, 14 * 20, "rush.c ROW(k): the menu's and the list's row buffers"),
+    "ol.STATE": (H["SCR_OL_AT"], H["SCR_OL_AT"] + H["SCR_OL_N"], "oneline.h struct ol_state: the arrows' bob and the key repeat (SOUNDTRACK, MINI GAMES, the Boss Rush list)"),
     # the story map
     "smap.ROWS": (0, 140, "smap.c ROWBUF"), "smap.ATTR_PANEL": (140, 160, "smap.c"), "smap.ATTR_TAG": (160, 180, "smap.c"),
     "smap.TAGROW": (180, 200, "smap.c"), "smap.V": (400, 412, "smap.c V(n)"),
     # the Practice list
-    "mglist.ROWS": (0, 180, "mg_list.c ML_ROW(k) (rows 0..8, the header last)"), "mglist.STATE": (180, 183, "ml_top, ml_wd, ml_t"),
-    "mglist.ATTR": (184, 204, "ml_attr"),
+    "mglist.ROWS": (0, 220, "mg_list.c ML_ROW(k) (11 rows)"), "mglist.STATE": (220, 222, "ml_d: the rows to redraw"),
     # the soundtrack
-    "jukebox.ROWS": (0, 9 * 20, "jukebox.c JB_ROW(k)"),
+    "jukebox.ROWS": (0, 9 * 20, "jukebox.c JB_ROW(k)"), "jukebox.METER": (180, 190, "jukebox.c struct jb_meter: the bars' levels and the DMG note-start state"),
     # the credits: CR (struct cr_state), the DMG header's two BGPs (main.c cast_isr), the card's colours, the owner's portrait, a staging buffer
     "credits.CR": (0, 68, "credits.c struct cr_state"), "credits.BGP": (68, 70, "cast_isr: header BGP, card BGP"),
     "credits.PAL": (72, 200, "CR_PAL: 128 bytes"), "credits.PT": (200, 427, "CR_PT: portrait_t (227 bytes, credits.c cr_fits)"),
@@ -74,10 +74,10 @@ USERS = {
 GROUPS = {
     "a boss fight, in a BOSS RUSH run (the struct is alive through every fight)":
         ["fight.LD", "fight.HB", "fight.BELT", "fight.CAP", "rush.STRUCT", "fight.LIGHTS", "fight.MAP", "fight.HAND", "fight.OWN", "fight.FX"],
-    "a Boss Rush screen": ["rush.ROWS", "rush.STRUCT"],
+    "a Boss Rush screen": ["rush.ROWS", "rush.STRUCT", "ol.STATE"],
     "the story map": ["smap.ROWS", "smap.ATTR_PANEL", "smap.ATTR_TAG", "smap.TAGROW", "smap.V"],
-    "the Practice list": ["mglist.ROWS", "mglist.STATE", "mglist.ATTR"],
-    "the soundtrack": ["jukebox.ROWS"],
+    "the Practice list": ["mglist.ROWS", "mglist.STATE", "ol.STATE"],
+    "the soundtrack": ["jukebox.ROWS", "jukebox.METER", "ol.STATE"],
     "the credits": ["credits.CR", "credits.BGP", "credits.PAL", "credits.PT", "credits.BUF"],
     "a picture scene": ["pic.FX_W", "pic.ROWS", "pic.TILES", "pic.PALS", "pic.OUT", "pic.PB_T", "pic.CURSOR", "pic.STAGE", "pic.RCUR", "pic.RSTAGE", "pic.SPARKS"],
     "a venue scene": ["scene.BD_MAP", "scene.BD_ATTR"],
@@ -85,8 +85,8 @@ GROUPS = {
 
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
-        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 5, "src/jukebox.c": 2, "src/main.c": 5, "src/mg.h": 3, "src/mg_list.c": 6,
-        "src/mk.c": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 2, "src/smap.c": 6,
+        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 5, "src/jukebox.c": 3, "src/main.c": 5, "src/mg.h": 3, "src/mg_list.c": 3,
+        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 2, "src/smap.c": 6,
         "src/story.c": 16, "src/tk.c": 1, "src/trans.c": 3, "src/ts.c": 1}
 
 # the numbers each source must still contain (a literal moved there without the table moving fails here)
@@ -95,9 +95,9 @@ SOURCE_HAS = {
                     r"story_scratch \+ STORY_PIC_ROWS \* 20", r"#define PS_BURST 3", r"story_scratch \+ 40 \+ PS_BURST \* 16\)\)",
                     r"story_scratch \+ 40 \+ PS_BURST \* 16 \+ 40\)\)", r"story_scratch \+ SCR_HB_AT"],
     "src/smap.c": [r"story_scratch \+ 140\)", r"story_scratch \+ 160\)", r"story_scratch \+ 180\)", r"story_scratch\[400 \+ \(n\)\]", r"#define ROWS_MAX\s+7"],
-    "src/mg_list.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"\(ML_HEAD_K \+ 1\) \* 20\]", r"\(ML_HEAD_K \+ 1\) \* 20 \+ 1\]", r"\(ML_HEAD_K \+ 1\) \* 20 \+ 2\]",
-                      r"\(ML_HEAD_K \+ 1\) \* 20 \+ 4\)"],
-    "src/jukebox.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"#define JB_VISIBLE\s+5\b", r"#define JB_INFO_LINES\s+4\b"],
+    "src/mg_list.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ ML_ROWS \* 20\)\)", r"#define ML_ROWS\s+11\b"],
+    "src/jukebox.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ JB_ROWS \* 20\)\)", r"#define JB_ROWS\s+9\b"],
+    "src/oneline.h": [r"story_scratch \+ SCR_OL_AT\)\)"],
     "src/credits.c": [r"story_scratch \+ 72\)", r"story_scratch \+ 200\)\)", r"story_scratch \+ 200 \+ sizeof\(portrait_t\)", r"sizeof\(struct cr_state\) <= 68"],
     "src/main.c": [r"story_scratch\[69\]", r"story_scratch\[68\]"],
     "src/rush.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20"],
@@ -160,20 +160,20 @@ def test_the_fight_chain_is_the_rush_structs_neighbours():
 # ---- the dynamic ones -------------------------------------------------------------------------------------------------------------------
 from test_rush import BUILT, RS_LIST, RUSH_AT, beat, booted, into_fight, on_rush, tap, to_list  # noqa: E402
 
-# struct rush_state (src/rush.h) bytes a fight must not change: the menu line, the list line, built (2), top, nlines (mode and n are the
+# struct rush_state (src/rush.h) bytes a fight must not change: the menu line, the list line, built (2), nlines (mode and n are the
 # run's own: CHOOSE sets them)
-KEPT = {"sel": 2, "list_sel": 3, "built": 44, "built_hi": 45, "top": 46, "nlines": 47}
+KEPT = {"sel": 2, "list_sel": 3, "built": 44, "built_hi": 45, "nlines": 47}
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("boss", BUILT)
 def test_a_boss_rush_fight_keeps_the_lists_state(model, boss):
-    """Every boss, played through his entrance to BOSS BEATEN: the struct's menu / list / built / top / nlines bytes are as they were
+    """Every boss, played through his entrance to BOSS BEATEN: the struct's menu / list / built / nlines bytes are as they were
     (his bytes, the staging and the Mothership's lights are all over this buffer: a share between them shows up here)."""
     with booted(model) as gb:
         to_list(gb)
         for _ in range(BUILT.index(boss)):
-            tap(gb, "down")
+            tap(gb, "right")
         base = gb.addr("story_scratch") + RUSH_AT
         before = bytes(gb.read(base, H["SCR_RUSH_N"]))
         tap(gb, "a")
