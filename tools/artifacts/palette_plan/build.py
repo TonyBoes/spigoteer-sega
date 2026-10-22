@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-22", "Saloon: DUSTY and EMMA share OBJ 5 / BG 5 on #FFD5BD #8B5231 #221B1A; HANK keeps OBJ 3 / BG 3 alone."),
     ("2026-10-22", "Saloon: the brown-haired singer is named EMMA."),
     ("2026-10-22", "Saloon: the Outlaw is named REDD."),
     ("2026-10-22", "Saloon: OBJ 4 (ROSIE, Outlaw) is ROSIE's skin #F8D0B0, the Outlaw file's red #BB2F32, ROSIE's outline #202030."),
@@ -158,7 +159,8 @@ PLANNED = {}
 TAN = "#FFE6CD"   # the Stadium's white push (owner 2026-10-21: the lighter tan, over #FFD5AC: "a better balance")
 PLANS = {
     "cowboys": dict(
-        moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand"), ("Show dancers", "OBJ", 5, 1, "Show dancers")],
+        moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand"), ("Show dancers", "OBJ", 5, 1, "Show dancers"),
+               ("DUSTY", "OBJ", 3, 5, "DUSTY, the cowboy")],                   # owner 2026-10-22: DUSTY joins EMMA
         recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
                   ("OBJ", 1): {1: "#FFE6CD"},                               # the full mug's cream to the tan; the dancers share it
                   ("OBJ", 6): {1: "#FFCEAD", 2: "#ADADAD", 3: "#303038"},  # MABEL (was ROSIE), redrawn by the owner: grey hair, black lace shawl                               # ROSIE's hair (and outline) dark grey; her shawl and dress stay pink
@@ -166,7 +168,7 @@ PLANS = {
         open={},
         add={("OBJ", 7): ("Prospector", ["#D8C098", "#B85838", "#281810"]),   # the Outlaw's former palette, kept by the Prospector; Big Tex takes it too
              ("OBJ", 4): ("ROSIE, the singer", ["#F8D0B0", "#BB2F32", "#202030"]),   # owner 2026-10-22: ROSIE's skin and outline, the Outlaw file's red   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
-             ("OBJ", 5): ("EMMA, the singer", ["#F8D0B0", "#805838", "#202030"])},   # owner's concept, her own palette
+             ("OBJ", 5): ("EMMA, the singer", ["#FFD5BD", "#8B5231", "#221B1A"])},   # owner 2026-10-22: shared with DUSTY
         join={("OBJ", 4): ["REDD, the outlaw"],                                          # owner 2026-10-22: the Outlaw (owner's recolour) shares ROSIE's palette
               ("OBJ", 6): ["ARTIE, the old prospector"]},                       # owner set 2 C (bald, grey beard) shares MABEL's palette
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
