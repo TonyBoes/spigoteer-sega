@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Every venue: the keg / spout palette moves from BG 7 to BG 1 in the playfield; BG 7 is free there."),
     ("2026-10-21", "Stadium: the tan is the lighter #FFE6CD (owner pick over #FFD5AC), for OBJ 1 and OBJ 2."),
     ("2026-10-21", "Stadium: OBJ 1 and OBJ 2 white pushed toward tan; PETE and the cheerleaders share OBJ 1, NORM uses OBJ 0, OBJ 2 open for a new patron. Frees OBJ 3, 5, 7."),
     ("2026-10-21", "Owner: background palettes used above the playfield (HUD BG 1, stage BG 5, 6) are reloaded where the playfield starts; in the playfield they are free for patrons."),
@@ -148,6 +149,8 @@ DROP_ENHANCED = True
 # Owner 2026-10-21: the BG palettes used above the playfield are reloaded where the playfield starts (row 5), so in the playfield
 # they are free for patrons. The above-the-playfield palettes are listed in their own section.
 SPLIT_PLAYFIELD = True
+# Every venue (owner 2026-10-21): in the playfield the keg / spout palette moves from BG 7 to BG 1 (BG 1 is the HUD's above the playfield).
+FIELD_MOVES = [("Keg, spout", 7, 1)]
 PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
 BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
 
@@ -235,7 +238,7 @@ def card(kind, sl, d, skip0, hide_cols=False):
                         ("was " + cols[i] + ", planned " + d["new"][i]) if i in d["new"] else cols[i])
                      for i in range(1 if skip0 else 0, 4))
     if d["new"]:
-        note = ("colours as %s" % d["match"]) if d.get("match") else ", ".join("colour %d: %s &rarr; %s" % (i, cols[i], d["new"][i]) for i in sorted(d["new"]))
+        note = ("colours moved from %s" % d["match"]) if d.get("match", "").startswith("BG") and len(d["new"]) == 4 else ("colours as %s" % d["match"]) if d.get("match") else ", ".join("colour %d: %s &rarr; %s" % (i, cols[i], d["new"][i]) for i in sorted(d["new"]))
         body += '<p class="chgp">%s</p>' % note
     return ('<div class="pal%s"><div class="ph"><span class="slot">%s %d</span><span class="sws">%s</span></div>%s</div>'
             % (" free" if free else "", kind, sl, sw, body))
@@ -311,7 +314,7 @@ for i, v in enumerate(venues):
     m = model(v)
     ofree = [sl for sl in range(8) if card("OBJ", sl, m[("OBJ", sl)], True).find('class="pal free"') >= 0]
     opens = [sl for sl in range(8) if m[("OBJ", sl)]["open"]]
-    bfree = [sl for sl in v["above"] if sl not in v["field"]]
+    bfree = sorted([sl for sl in v["above"] if sl not in v["field"] and sl not in [t for _, _, t in FIELD_MOVES]] + [f for _, f, _ in FIELD_MOVES])
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
     w('<h1>%s</h1><div class="stats">' % esc(v["name"]))
     ident, reserved = [], []
@@ -346,8 +349,18 @@ for i, v in enumerate(venues):
     for sl in range(8):
         w(card("OBJ", sl, m[("OBJ", sl)], True))
     w('</div><h2>Background palettes, playfield</h2><div class="grid">')
+    field = {sl: dict(m[("BG", sl)]) for sl in range(8)}
+    taken = set()
+    for item, fr, to in FIELD_MOVES:
+        src = field[fr]
+        src["oth"] = [x for x in src["oth"] if not x[0].startswith(item)]
+        if not src["pat"] and not src["oth"]:
+            src["freed"] = True
+        field[to] = dict(pat=[], oth=[(item, True)], cols=src["cols"], new={i: src["cols"][i] for i in range(4)}, freed=False, open=None,
+                         match="BG %d" % fr)
+        taken.add(to)
     for sl in range(8):
-        w(card("BG", sl, m[("BG", sl)], False, hide_cols=(sl in v["above"] and sl not in v["field"])))
+        w(card("BG", sl, field[sl], False, hide_cols=(sl in v["above"] and sl not in v["field"] and sl not in taken)))
     w('</div><h2>Background palettes, above the playfield (HUD and stage)</h2><div class="grid">')
     for sl in v["above"]:
         d = dict(m[("BG", sl)]); d["pat"] = []
