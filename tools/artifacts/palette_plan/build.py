@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Saloon: HANK's hat to #FFE6CD and DUSTY shares HANK's palette, in slot 3 (OBJ 3 / BG 3) so neither sits out boss fights; OBJ 7 and BG 7 are the boss's alone."),
     ("2026-10-21", "Fix: the Saloon's keg / spout already use the bar palette (BG 0), so they do not move to BG 1 there; BG 1 is free in the Saloon's playfield."),
     ("2026-10-21", "Owner: where possible a patron's BG palette number matches its OBJ number (A 3/3, B 6/6, C 7/7; Stadium PETE 1/1, SERENA 6/6, reserved 2/2). The boss body pairs with the topper's OBJ 7 in BG 7."),
     ("2026-10-21", "Stadium: BG 0 takes BG 1's palette (the keg / spout's; only its darkest colour differs) and the keg / spout share BG 0; BG 1 free in the playfield."),
@@ -140,6 +141,12 @@ PLANNED = {}
 # open: {(kind, slot): label} a palette offered to a new patron. Planned items and colours are drawn in yellow.
 TAN = "#FFE6CD"   # the Stadium's white push (owner 2026-10-21: the lighter tan, over #FFD5AC: "a better balance")
 PLANS = {
+    "cowboys": dict(
+        moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand")],
+        recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"}},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
+        open={},
+        why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
+    ),
     "sports": dict(
         moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Show dancers (cheerleaders)"),
                ("NORM", "OBJ", 7, 0, "NORM, the ref")],
@@ -367,7 +374,13 @@ def field_model(v, m):
     for _ in range(4):
         for name, o in pats:
             b = next((sl for sl in range(8) if any(x[0] == name for x in field[sl]["pat"])), None)
-            if b == o or not empty(field[o]):
+            if b == o:
+                continue
+            if not empty(field[o]):
+                mates = {t for t, so in pats if so == o and t != name}
+                if b is not None and field[o]["pat"] and all(x[0] in mates for x in field[o]["pat"]):
+                    field[o]["pat"] = field[o]["pat"] + [(name, True)]
+                    take(b, name)
                 continue
             if b is None:          # a reserved patron: its OBJ colours, the wall's colour 0
                 oc = eff(m[("OBJ", o)])
@@ -376,6 +389,19 @@ def field_model(v, m):
                 d = field[b]
                 put(o, (name, True), eff(d), d.get("match") if str(d.get("match", "")).startswith("OBJ") else None)
                 take(b, name)
+    objof = {t: so for t, so in pats}
+    for sl in range(8):
+        names = [x[0] for x in field[sl]["pat"]]
+        if not names or names[0] not in objof:
+            continue
+        o = objof[names[0]]
+        if m[("OBJ", o)]["new"]:
+            oc = eff(m[("OBJ", o)]); d = field[sl]
+            want = [eff(d)[0]] + oc[1:]
+            d["new"] = {k: want[k] for k in range(4) if want[k] != d["cols"][k]}
+            d["match"] = "OBJ %d" % o
+            if not d.get("quiet"):
+                d["quiet"] = True
     bb = next((sl for sl in range(8) if any(x[0] == "Boss body" for x in field[sl]["oth"])), None)
     if bb is not None and bb != 7:                 # the boss's body pairs with his topper's OBJ 7
         if empty(field[7]) or (field[7]["pat"] and not field[7]["oth"]):
