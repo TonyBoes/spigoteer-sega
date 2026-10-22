@@ -1,0 +1,17 @@
+SELF-AUDIT (SKILL.md section 9) - Cardsharp, slot B
+| Check | Result | Evidence |
+| Hand-placed: what wrote pixels to the delivered file? | PASS | My typed grids (cardsharp.txt, cardsharp_back.txt). Scripts: tools/render.py (grid to PNG, previews), tools/check_back.py and tools/orphans.py (report only), tools/install_trio.py (splices my text into cowboys.txt on the throwaway branch). None outlines, mirrors, fills or shades. |
+| Clean-up pass done by hand | PASS | cleanup_log.txt in this folder (pixel coordinates, before/after). |
+| 1x comparison with the quality bar | PASS | preview_x1.png / preview_x4.png and ../combined/all8_compare_x1/x4.png beside the committed trio A, B, C in DMG and CGB-corrected; in-game ingame_*_x4.png. Reworked after the comparison: see the log. |
+| Required references read before drawing | PASS | Read before the first figure and re-applied: SKILL.md, sprites.md, linework.md, light-and-form.md, portraits.md, briefs.md, PATRON_SPEC.md, figures 03 11 12 15 18 19 20. Rules used: faces and beards that share a shade need separation; round the jaw, no V chin; nothing computed. |
+| Lint | PASS | gb_art_lint RESULT PASS on both views; notes: L-doubles in solid black hair; back view V-points between shine pixels; palette moved onto the grid (#f8d0b0). |
+| Colours per tile, palettes, tile count | PASS | 3 colours + wall, 1 palette, 4 unique tiles per view; palette entries on the RGB555 grid, ordered light to dark (see palette.json). |
+| Scanline budget | PASS | lifted: 2 objects per line (+1 for the held mug); not an art issue. |
+| Squint test at 1x, DMG and CGB-corrected | PASS | see preview_x1.png: the three masses read separately; eyes visible with the mug over x 8-15 (near eye at col 7). |
+| No banding, squares, stray pixels, L-doubles, V-point chins | PASS with notes | by eye and tools/orphans.py; lint notes above. No V-point chin on any face. |
+| Light direction consistent; flipped sprites still correct | PASS | top / top-front highlights only; no lettering; nothing depends on facing right. |
+| Tiles / Animation | n/a | one picture, no frames. |
+| 3/4 turn to the right clear (coordinator note) | PASS | nose bump past the face edge, far side of the head narrower or hidden, near ear / hair / knot on the left; hat or brim asymmetric where it applies. |
+| Face shade on DMG | PASS | skin = index 1 = light grey on DMG (see palette.json) unless the log says otherwise. |
+| Files indexed, ordered, grid-aligned, named | PASS | cardsharp.png / cardsharp_back.png (palette wall + 3) and *_dmg.png copies. |
+| Engine questions | PASS | same four as prospector 1 (row 15 counter line full width like the trio; nose bump 1-2 px inside the 16 px; unenhanced; row 0 of the picture at the bar top for the mug). |

@@ -18,7 +18,7 @@
 // lettering, its fill states and the scene's patron over the patron range (72..227). OBJ: the effects over the
 // show performers' tiles (OBJ_DANCER, reloaded by load_venue); the bartender (permanent) and the saloon's drink
 // frames (load_venue(0)).
-// OAM: bartender 0-3, scene mug 4, cursor 5, sparkle 6, drip 7, bubbles 8-9. Per scanline at most 4 (scene 3).
+// OAM: bartender 0-3, scene mug 4, cursor 5, sparkle 6, drip 7, bubbles 8-9, the CGB DX badge 20-22. Per scanline at most 4 (scene 3; the badge adds 3 under the logo).
 #pragma bank 255
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -85,6 +85,9 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define ROW_STATE       8
 #define ROW_HINT       10
 #define SET_ROWS      (((uint16_t)1 << ROW_NAME) | ((uint16_t)1 << ROW_STATE) | ((uint16_t)1 << ROW_HINT))
+#define OAM_DX         20       // the DX badge's four 8x16 entries 20-23 (CGB only; the in-play mug pool's ids, which the title never uses)
+#define DX_X          120       // screen x / y of its top left (32x16): under the logo's right end, the second E's and the R's cells (x 120..151)
+#define DX_Y           35       // (the owner's V1 mock-up had 33; 2 px more top margin)
 
 // ---- logo timing (frames since the title appeared) ----
 #define LOGO_T0         6       // first letter starts filling
@@ -96,6 +99,7 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define SPARKLE_EACH    6       // frames on each letter
 #define LOGO_DONE_T   (SPARKLE_T0 + LOGO_LETTERS * SPARKLE_EACH)
 #define DRIP_LEN       22
+#define DX_T0         (LOGO_T0 + (LOGO_LETTERS - 2) * LOGO_STAGGER + (TT_LOGO_STATES - 2) * LOGO_STEP + DRIP_LEN)   // the badge stamps on once the last drip (next to it, under the second E) has fallen
 #define TITLE_IDLE_FRAMES 1200  // 20 s
 
 enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
@@ -107,6 +111,82 @@ enum { SC_IDLE, SC_SLIDE, SC_DRINK, SC_WINDUP, SC_RETURN, SC_CATCH };
 
 // ---- state (globals => symbols the tests read) ----
 uint16_t title_t;               // frames since the title appeared
+// The DX badge's colour cycle (owner Q32, option D; CGB only): OBJ palette 7's colour 2 (the fill: HSV s .55 v .88, hue h) and colour 1 (the foam, a
+// pale highlight a step ahead: s .25 v 1, hue h + .08) step through 48 hues together, one every 2 frames (a 96-frame cycle, 1.6 s); the outline (colour 3,
+// #501810) never changes. Step 0 is the palette the title loads, and the cycle starts when the badge stamps on (DX_T0), so nothing jumps; the stamp's
+// first DX_FLASH frames show the foam and the fill white (a flash), then step 0 begins.
+// The write is VBlank only (as src/glow.c): title_update calls it first, right after the main loop's vsync, and gives up on a frame already past line
+// 150; it writes every frame (4 bytes), so a skipped frame is made good by the next. The palette fades never meet it: they run inside a screen change,
+// where no title frame runs, and read the colours as they stand.
+#define DX_STEPS 48
+#define DX_FLASH  2
+static const uint16_t dx_cycle[DX_STEPS][2] = {   // { foam (colour 1), fill (colour 2) }
+    { 0x5F7F, 0x319B },
+    { 0x5F9F, 0x31DB },
+    { 0x5FBF, 0x321B },
+    { 0x5FDF, 0x325B },
+    { 0x5FFF, 0x329B },
+    { 0x5FFE, 0x32DB },
+    { 0x5FFD, 0x331B },
+    { 0x5FFC, 0x333B },
+    { 0x5FFB, 0x337B },
+    { 0x5FFA, 0x3379 },
+    { 0x5FF9, 0x3378 },
+    { 0x5FF8, 0x3376 },
+    { 0x5FF7, 0x3374 },
+    { 0x63F7, 0x3372 },
+    { 0x67F7, 0x3370 },
+    { 0x6BF7, 0x336E },
+    { 0x6FF7, 0x336C },
+    { 0x73F7, 0x3B6C },
+    { 0x77F7, 0x436C },
+    { 0x7BF7, 0x4B6C },
+    { 0x7FF7, 0x536C },
+    { 0x7FD7, 0x5B6C },
+    { 0x7FB7, 0x636C },
+    { 0x7F97, 0x676C },
+    { 0x7F77, 0x6F6C },
+    { 0x7F57, 0x6F2C },
+    { 0x7F37, 0x6F0C },
+    { 0x7F17, 0x6ECC },
+    { 0x7EF7, 0x6E8C },
+    { 0x7EF8, 0x6E4C },
+    { 0x7EF9, 0x6E0C },
+    { 0x7EFA, 0x6DCC },
+    { 0x7EFB, 0x6D8C },
+    { 0x7EFC, 0x6D8E },
+    { 0x7EFD, 0x6D90 },
+    { 0x7EFE, 0x6D92 },
+    { 0x7EFF, 0x6D94 },
+    { 0x7AFF, 0x6D96 },
+    { 0x76FF, 0x6D98 },
+    { 0x72FF, 0x6D99 },
+    { 0x6EFF, 0x6D9B },
+    { 0x6AFF, 0x659B },
+    { 0x66FF, 0x619B },
+    { 0x62FF, 0x599B },
+    { 0x5EFF, 0x519B },
+    { 0x5F1F, 0x499B },
+    { 0x5F3F, 0x419B },
+    { 0x5F5F, 0x399B }
+};
+
+static void dx_cycle_tick(void) {
+    uint16_t d = title_t - DX_T0;
+    uint16_t foam, fill;
+    uint8_t ly = LY_REG;
+    if (title_t < DX_T0 || ly < 144 || ly > 150) return;
+    if (d < DX_FLASH) foam = fill = 0x7FFF;
+    else {
+        d -= DX_FLASH;                                       // (step 0 starts right after the flash)
+        while (d >= 2 * DX_STEPS) d -= 2 * DX_STEPS;
+        foam = dx_cycle[(uint8_t)d >> 1][0]; fill = dx_cycle[(uint8_t)d >> 1][1];
+    }
+    OCPS_REG = 0x80 | (OBJPAL_DX << 3) | 2;                  // colour 1 (byte 2), auto-increment into colour 2
+    OCPD_REG = (uint8_t)foam; OCPD_REG = (uint8_t)(foam >> 8);
+    OCPD_REG = (uint8_t)fill; OCPD_REG = (uint8_t)(fill >> 8);
+}
+
 uint8_t  title_menu;            // TM_* (game.h): the top level, or the submenu of top item title_menu - 1
 uint8_t  title_back;            // the menu title_enter opens (the soundtrack player goes back to BONUS); then TM_TOP
 uint8_t  title_back_sel;        // ... and the line its cursor starts on (then 0)
@@ -342,6 +422,8 @@ static void title_pals(void) {
     set_bkg_palette(BGPAL_TPATRON, 1, p);
     p[1] = RGB15(31, 31, 27); p[2] = RGB15(30, 20, 4); p[3] = RGB15(12, 5, 2);  // effects: foam, beer, dark
     set_sprite_palette(OBJPAL_FX, 1, p);
+    p[1] = dx_cycle[0][0]; p[2] = dx_cycle[0][1]; p[3] = RGB15(10, 3, 2);   // the DX badge: foam and fill at the cycle's first step (dx_cycle_tick), the fixed brown outline
+    set_sprite_palette(OBJPAL_DX, 1, p);
 }
 
 // SCREEN's choice changed (SETTINGS' toggle, ERASE DATA): every palette on the title and the ones the game keeps from boot, written again
@@ -410,6 +492,7 @@ void title_enter(void) BANKED {
         for (i = 0; i < 2; i++)                       // (M13a: stored column by column, the shift-0 poses at PATRON_SHIFT0_OFS)
             bkg_data_far(TT_PATRON_BASE + r * 2 + i, 1, patron_tiles_cowboys + (PATRON_SHIFT0_OFS + i * 2 + r) * 16, BANK(patron_tiles_cowboys));
     set_sprite_data(OBJ_FX, TT_FX_TILES, tt_fx_tiles);
+    if (is_cgb) set_sprite_data(OBJ_DX, TT_DX_TILES, tt_dx_tiles);
     music_pump();
     if (is_cgb) title_pals();
     venue_backdrop(0, 16);                            // wall rows 0-15, counter row 16, floor 17 (tiles + attributes)
@@ -522,6 +605,10 @@ static void logo_frame(uint8_t letters) {
             o->prop = is_cgb ? OBJPAL_FX : S_PALETTE;
         }
     }
+    if (is_cgb && title_t >= DX_T0 && !shadow_OAM[OAM_DX].y) {      // the DX badge (CGB only) stamps on under the logo's right end
+        o = shadow_OAM + OAM_DX;
+        for (i = 0; i < 4; i++, o++) { o->y = DX_Y + 16; o->x = DX_X + 8 + 8 * i; o->tile = OBJ_DX + 2 * i; o->prop = OBJPAL_DX; }
+    }
     if (title_t >= LOGO_DONE_T) logo_done = 1;
 }
 
@@ -536,6 +623,7 @@ static void bubbles_frame(void) {
         if (!bubble_y[i]) {
             bubble_y[i] = (LOGO_ROW + 2) * 8 + 16;                  // OAM y: just under the logo
             bubble_x[i] = 12 + (trand() & 127) + 8;
+            if (is_cgb && bubble_x[i] > DX_X) bubble_x[i] -= 40;   // (CGB: not through the DX badge, screen x 120..151; the random draw above is the same on both models)
         }
     }
     for (i = 0; i < 2; i++, o++) {
@@ -645,6 +733,15 @@ uint8_t title_update(uint8_t pressed) BANKED {
         return 0;
     }
     title_t++;
+    if (is_cgb) {
+        dx_cycle_tick();
+        if (title_t == DX_T0) {                              // the stamp's sound (owner Q46): the marimba run, picked by pour_streak 4 (music.c sfx_start; the tick takes the request
+            pour_streak = 4;                                 // within a frame), over SFX_BREAK's crash
+            SFX(SFX_PERFECT);
+            SFX(SFX_BREAK);
+        }
+        if (title_t == DX_T0 + 3) pour_streak = 0;
+    }
     if (pressed) {
         title_idle = 0;
         title_back_sel = konami_step(title_back_sel, pressed);   // the debug unlock's trigger (src/debug.c konami_step: the one place to change it)

@@ -499,19 +499,29 @@ def test_patron_obj_palettes_and_dmg_copies(gb):
         assert cgb_obj_palette(gb, LIFT_PAL[v])[1:] == cgb_bg_palette(gb, 2 + v)[1:], f"variant {v}"
 
 
-def test_coin_and_show_share_obj_palette_5(gb):
-    if gb.model_name != "cgb":
-        pytest.skip("CGB palettes")
+def test_the_coin_wears_sals_palette_and_slot_5_is_the_shows_alone(gb):
+    """Owner Q37: the tip coin uses Sal's OBJ palette 0 (pale gold on the coin shape), with or without a show; OBJ 5 holds the venue's
+    show palette and a coin never swaps it (it used to take the dancers' colours when a tip dropped during a show)."""
     from conftest import venue
+    from test_tips import coin_sprites
     show = venue(0)["pal"][6]
-    assert cgb_obj_palette(gb, 5)[1:] == show[1:], "the level starts with the show's colours in slot 5"
+    cgb = gb.model_name == "cgb"
+    if cgb:
+        assert cgb_obj_palette(gb, 5)[1:] == show[1:], "the level starts with the show's colours in slot 5"
     gb.write("tip_timer", 200)
     gb.write("tip_bar", 1)
     gb.write("tip_x", 60)
     gb.run(2)
-    coin = cgb_obj_palette(gb, 5)
-    assert coin[1:] != show[1:] and gb.mem("pal5_cur") == 1, "a tip: the coin's colours"
-    gb.write("tip_timer", 0)
+    cs = coin_sprites(gb)
+    assert len(cs) == 1 and cs[0]["flags"] & 7 == 0, "a tip, no show: Sal's palette"
+    if cgb:
+        assert cgb_obj_palette(gb, 5)[1:] == show[1:], "slot 5 untouched by the coin"
+        assert cgb_obj_palette(gb, 0)[1:] != show[1:]
     gb.write("show_timer", 100)
-    gb.run(2)
-    assert cgb_obj_palette(gb, 5)[1:] == show[1:] and gb.mem("pal5_cur") == 2, "the show: its colours again"
+    gb.run(3)
+    cs = coin_sprites(gb)
+    assert len(cs) == 1 and cs[0]["flags"] & 7 == 0, "a tip during a show: still Sal's palette"
+    if cgb:
+        assert cgb_obj_palette(gb, 5)[1:] == show[1:] and gb.mem("pal5_cur") == 2, "the show: its colours"
+    gb.write("show_timer", 0)
+    gb.write("tip_timer", 0)

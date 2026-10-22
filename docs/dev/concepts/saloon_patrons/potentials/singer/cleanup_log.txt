@@ -1,0 +1,11 @@
+SINGER - CLEAN-UP LOG (hand pass). (x,y) = column,row.
+Silhouette decision first: v1-v6 were long-hair / bob / mushroom shapes that were too close to the current cowgirl (hair hanging at the left) and to each other; thrown away. Final silhouette: tall leaning plume (8-12,0-2), chignon bun at the back-left (1-4,6-8), bare shoulders and a choker, no hanging hair.
+PASS A (v7 -> v8): hair cap was a thin band (2 rows) so the head read as bald: cap deepened to rows 3-5 (2-13), bun added at (1-4,6-8) with a 1-px outline gap, face columns kept at 5-12.
+PASS B (v8 -> v9): features.
+  B1  smiley problem (two pupils + centred mouth): mouth moved right to (9-10,9), 2 px in the hair colour (red lips, not an outline cut); near brow (6-7,6) and far brow (10-11,6) in the hair colour.
+  B2  choker: row 12 cols 6-11 dark, replaces the neck (a neck would be a 4-px stub): the face now stops at a flat 6-px chin (6-11,11) after jaw steps 8 -> 6 (no V: cheeks full to row 9, runs 1, 2).
+  B3  nose bump 1 px past the face outline at (14,8): the 3/4 turn; near ear hidden by the bun, far ear hidden.
+  B4  palette: hair from gold to copper so the lips and brows read red.
+PASS C (plume): 3 rows of a 3-px-wide leaf, leaning 1 px right per row (7,8,9..) with a 1-px midrib; deleted the hat-like cone of v3 (it read as a witch hat).
+PASS D (back view, by hand, symmetric about col 8, tools/check_back.py): v1 had an outlined bun that read as a mouth (a face on the back of her head): replaced by plain hair with 2 pairs of 1-px highlights (5,4),(11,4),(6,6),(10,6),(7,8),(9,8) - highlights are 2-px clusters (5-6,4),(10-11,4),(6-7,6),(9-10,6): paired 1-px dots were lint orphans and were merged into 2-px clusters.
+FINAL: lint V-points / L-doubles are in the solid dark bun/choker areas; no V chin; orphans: none on the front.

@@ -1,0 +1,40 @@
+### gb_art_lint.py front_dmg.png --mode dmg --kind bg
+out/saloon_patrons/d2_dusty/front_dmg.png: 48x16, 4 colours, 12 unique tiles exact, 12 with flips merged (BG flips not available on DMG)
+  WARN  4 orphan pixel(s) - check each is intentional (eyes, sparkles) not noise
+  RESULT PASS
+### gb_art_lint.py front_dmg.png --mode dmg --kind sprite
+out/saloon_patrons/d2_dusty/front_dmg.png: 48x16, 3 colours, 12 unique tiles exact, 12 with flips merged
+  WARN  4 orphan pixel(s) - check each is intentional (eyes, sparkles) not noise
+  RESULT PASS
+### gb_art_lint.py front_cgb.png --mode cgb --kind bg
+out/saloon_patrons/d2_dusty/front_cgb.png: 48x16, 11 colours, 12 unique tiles exact, 12 with flips merged
+  WARN  palettes needed (greedy estimate): 4 of 8
+  WARN  palette group 0: entries not ordered light -> dark (dual-mode art should keep idx0 lightest ... idx3 darkest)
+  WARN  palette group 1: entries not ordered light -> dark (dual-mode art should keep idx0 lightest ... idx3 darkest)
+  WARN  palette group 2: entries not ordered light -> dark (dual-mode art should keep idx0 lightest ... idx3 darkest)
+  WARN  palette group 4: entries not ordered light -> dark (dual-mode art should keep idx0 lightest ... idx3 darkest)
+  WARN  4 orphan pixel(s) - check each is intentional (eyes, sparkles) not noise
+  RESULT PASS
+### gb_art_lint.py front_cgb.png --mode cgb --kind sprite
+out/saloon_patrons/d2_dusty/front_cgb.png: 48x16, 10 colours, 12 unique tiles exact, 12 with flips merged
+  WARN  palettes needed (greedy estimate): 4 of 8
+  WARN  4 orphan pixel(s) - check each is intentional (eyes, sparkles) not noise
+  RESULT PASS
+### gb_art_lint.py back_dmg.png --mode dmg --kind bg
+out/saloon_patrons/d2_dusty/back_dmg.png: 48x16, 4 colours, 12 unique tiles exact, 6 with flips merged (BG flips not available on DMG)
+  RESULT PASS
+### gb_art_lint.py back_dmg.png --mode dmg --kind sprite
+out/saloon_patrons/d2_dusty/back_dmg.png: 48x16, 3 colours, 12 unique tiles exact, 6 with flips merged
+  RESULT PASS
+### gb_art_lint.py back_cgb.png --mode cgb --kind bg
+out/saloon_patrons/d2_dusty/back_cgb.png: 48x16, 10 colours, 12 unique tiles exact, 6 with flips merged
+  WARN  palettes needed (greedy estimate): 3 of 8
+  WARN  palette group 0: entries not ordered light -> dark (dual-mode art should keep idx0 lightest ... idx3 darkest)
+  WARN  palette group 1: entries not ordered light -> dark (dual-mode art should keep idx0 lightest ... idx3 darkest)
+  WARN  palette group 2: entries not ordered light -> dark (dual-mode art should keep idx0 lightest ... idx3 darkest)
+  WARN  palette group 4: entries not ordered light -> dark (dual-mode art should keep idx0 lightest ... idx3 darkest)
+  RESULT PASS
+### gb_art_lint.py back_cgb.png --mode cgb --kind sprite
+out/saloon_patrons/d2_dusty/back_cgb.png: 48x16, 9 colours, 12 unique tiles exact, 6 with flips merged
+  WARN  palettes needed (greedy estimate): 3 of 8
+  RESULT PASS

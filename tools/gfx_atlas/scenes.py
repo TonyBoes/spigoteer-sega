@@ -649,3 +649,34 @@ def story_level(c):
 
 screen("story_level_saloon", "Story", "Story level: the saloon's Opening (goal in the HUD)")(story_level(0))
 screen("story_level_bistro", "Story", "Story level: the bistro's Opening (goal in the HUD)")(story_level(3))
+
+
+# ---- the menu structure: a screen that is really a state or event of another is a CHILD of it (the picker lists parents only; the parent's page shows the
+# child as a card, and an old #anchor of a child lands on the parent). Each venue's show, boss entrance, boss fight, pause menus, life lost and level
+# clear belong to the level page; the bosses have no entry of their own.
+PARENT = {}
+for _g in range(10):
+    PARENT["show_" + GROUPS[_g]] = "level_" + GROUPS[_g]
+    PARENT["bossin_%d" % (_g + 1)] = "level_" + GROUPS[_g]
+    PARENT["boss_%d" % (_g + 1)] = "level_" + GROUPS[_g]
+for _c in ("pause_level", "life_lost", "level_clear"):
+    PARENT[_c] = "level_cowboys"
+for _c in ("pause_boss", "pause_boss_card"):
+    PARENT[_c] = "level_cowboys"
+for _c in ("title_play", "title_bonus", "title_settings", "mg_list", "rush_menu", "rush_list", "soundtrack"):
+    PARENT[_c] = "title"
+for _c in ("pause_minigame", "mg_intro", "mg_result", "card_quickdraw"):
+    PARENT[_c] = "mg_quickdraw"
+for _c in ("card_milkrun", "card_milkrun_3"):
+    PARENT[_c] = "mg_milkrun"
+for _c in ("high_scores", "initials"):
+    PARENT[_c] = "game_over"
+for _c in ("credits_spigoteer", "credits_dregs", "credits_owner", "credits_patrons", "credits_boss", "credits_roll", "credits_roll_robots", "credits_last"):
+    PARENT[_c] = "credits_title"
+for _c in ("story_map_venue", "story_map_town"):
+    PARENT[_c] = "story_map"
+for _c in ("story_intro_after", "story_pre_igloo", "story_pre_zoo", "story_finale_a", "story_finale_b"):
+    PARENT[_c] = "story_intro_before"
+for _c in ("story_level_saloon", "story_level_bistro"):
+    PARENT[_c] = "story_goal"
+PARENT["pouroff_intro"] = "pouroff"

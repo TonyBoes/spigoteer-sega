@@ -31,7 +31,7 @@ static uint8_t ld_play;               // start it when the copy is done (else it
 static const uint8_t *groove;         // the running tune's drum loop (NULL: none)
 static uint8_t swing;                 // the running tune's swing mask (0 none): src/music.h tune_t.groove
 static uint8_t g_pos, g_cnt;          // groove row, frames until it advances
-static uint8_t g_step;                // the groove drum struck last, its NR43 steps still to follow: drum id (1-6) << 2 | frames since the hit (1, 2); 0: none (one byte)
+uint8_t g_step;                       // (read by the soundtrack's DMG meter, src/jukebox.c) the groove drum struck last, its NR43 steps still to follow: drum id (1-6) << 2 | frames since the hit (1, 2); 0: none (one byte)
 extern unsigned char hUGE_ticks_per_row, hUGE_tick, hUGE_row, hUGE_row_break, hUGE_next_order, hUGE_current_order;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
 uint8_t music_fast;                   // 1: a venue tune plays one frame a row faster (story: TWIST_FAST_TUNE)
 static uint8_t fast_now;              // the running tune plays fast
@@ -106,6 +106,10 @@ static const sfx_step_t s_perfect[] = { {1936, 3, 0x20}, {0, 2, 0x40}, {1959, 3,
 static const sfx_step_t s_x2[] = { {1936, 3, 0x20}, {0, 1, 0x40}, {1959, 3, 0x20}, {0, 1, 0x40}, {1974, 3, 0x20}, {0, 1, 0x40},
                                    {1992, 2, 0x20}, {0, 4, 0x40}, {0, 5, 0x60}, {1992, 2, 0x60}, {0, 4, 0x60} };
 static const sfx_def_t d_x2 = { 2, 0, 0, N_(s_x2), s_x2 };
+// The title's DX stamp (src/title.c; requested as SFX_PERFECT with pour_streak 4, which mugs.c never reaches: it caps at 3), in the title tune's key (C major:
+// periods C5 1923, E5 1949, G5 1964, C6 1985, E6 1998): a marimba run of five up to E6, held (0.8 s); the title plays SFX_BREAK's crash under it (owner Q46).
+static const sfx_step_t s_st[] = { {1923, 3, 0x20}, {0, 1, 0x40}, {1949, 3, 0x20}, {0, 1, 0x40}, {1964, 3, 0x20}, {0, 1, 0x40}, {1985, 3, 0x20}, {0, 1, 0x40}, {1998, 5, 0x20}, {0, 28, 0x40}, {0, 18, 0x60} };
+static const sfx_def_t d_st = { 2, 0, 0, N_(s_st), s_st };
 uint8_t pour_streak;                 // perfect pours in a row, capped at 3 (src/mugs.c launch_mug; 0 after a non-perfect launch, a shift's start, a lost life)
 static uint16_t pour_up(uint16_t p, uint8_t n) {   // the period p raised n whole tones: the wave length x 0.8906 (2^-1/6 = 0.8909) each, kept to 1/16 so two steps do not compound the rounding
     uint16_t d = (2048 - p) << 4;
@@ -263,7 +267,7 @@ static void step_begin(voice_t *v) {
         NR32_REG = (uint8_t)s->slide; v->slide = 0;
         if (!s->freq) return;                                // (a volume step only)
         if (v->def == &d_x2) v->freq = pour_up(v->freq, 2);
-        else if (pour_streak > 1) v->freq = pour_up(v->freq, 1);
+        else if (pour_streak > 1 && pour_streak < 4) v->freq = pour_up(v->freq, 1);
         if (!v->step) {                                      // the note's wave, with the DAC off
             NR30_REG = 0;
             for (k = 0; k != 16; k++) ((volatile uint8_t *)0xFF30)[k] = s_wave[k];
@@ -295,7 +299,7 @@ static void sfx_start(uint8_t id) {
         if (v->def->ch == 2) wave_release();                        // the marimba cut by a channel-1 effect (or itself again): the bass gets channel 3 back
         else if (sfx_defs[id].ch == 2) { NR12_REG = 0x08; NR14_REG = 0x80; }   // a channel-1 effect cut by the marimba: let go of channel 1
     }
-    v->def = (id == SFX_PERFECT && pour_streak > 2) ? &d_x2 : &sfx_defs[id];
+    v->def = (id == SFX_PERFECT && pour_streak > 2) ? (pour_streak > 3 ? &d_st : &d_x2) : &sfx_defs[id];
     v->step = 0;
     v->busy = 1;
     set_mute(v->def->ch, 1);        // the driver lets go of the channel (and cuts its note) before we write

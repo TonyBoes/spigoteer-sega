@@ -850,13 +850,11 @@ def test_arcade_plays_it_in_chapter_10(model):
 def test_bonus_mini_games_lists_and_plays_it(model):
     """BONUS > MINI GAMES (the debug build: all unlocked): ASTEROIDS on the tenth line (chapter order), its details THE
     SPACE LOUNGE; A plays it in practice (score from 0); the result's B comes back to the list on it."""
-    from test_mg_list import line, tap as list_tap, to_list
+    from test_mg_list import line, medal_word, selection, tap as list_tap, to_game, to_list
     from test_scores import booted
     with to_list(booted(model)) as gb:
-        for _ in range(9):
-            list_tap(gb, "down")
+        to_game(gb, 9)
         assert gb.mem("ml_sel") == 9
-        assert line(gb, 15).strip() == "NORMAL NO MEDAL YET"
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_ASTEROID and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
@@ -867,23 +865,21 @@ def test_bonus_mini_games_lists_and_plays_it(model):
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(3)
-        assert gb.mem("ml_sel") == 9 and line(gb, 12).strip() == "ASTEROIDS"
+        assert gb.mem("ml_sel") == 9 and selection(gb) == "ASTEROIDS"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_release_list_unlocks_it_when_reached(model, release_built):
-    from test_mg_list import MG_PLANNED, line, pr_block, release_rom, tap as list_tap, to_list, with_block
+    from test_mg_list import MG_PLANNED, line, pr_block, release_rom, medal_word, selection, tap as list_tap, to_game, to_list, with_block
     from test_scores import v7_image
     best = [0] * MG_PLANNED
     best[MG_ASTEROID] = MEDAL_SILVER
     ram = with_block(v7_image(), pr_block(1 << MG_ASTEROID, best))
     with release_rom(model, ram) as gb:
         to_list(gb)
-        assert [line(gb, r).strip() for r in range(2, 13, 2)] == ["? ? ?"] * 6
-        for _ in range(9):
-            list_tap(gb, "down")
-        assert line(gb, 12) == " ASTEROIDS    SILVER"
-        assert line(gb, 15).strip() == "NORMAL BEST SILVER"
+        assert selection(gb) == "? ? ?"
+        to_game(gb, 9)
+        assert (selection(gb), medal_word(gb)) == ("ASTEROIDS", "SILVER")
         list_tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI, 30)
         assert gb.mem("mg_id") == MG_ASTEROID and gb.mem("mg_mode") == MG_PRACTICE

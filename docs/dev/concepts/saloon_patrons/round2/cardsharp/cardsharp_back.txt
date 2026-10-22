@@ -1,0 +1,17 @@
+; Spigoteer saloon patron: THE CARDSHARP, back view, 16x16, hand-drawn, symmetric about col 8, col 0 empty (rows 0-14): black bob with a shine band, the visor strap, green vest back with a seam, pale shirt sleeves.
+................
+....#########...
+...####+++####..
+..#############.
+..#+++++++++++#.
+..#############.
+..####+++++####.
+..#############.
+..#############.
+...###########..
+.....#######....
+.##-#+++++++#-##
+.#--#+++++++#--#
+.#--#+++#+++#--#
+.#--#+++#+++#--#
+################

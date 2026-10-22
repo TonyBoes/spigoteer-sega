@@ -206,7 +206,7 @@ def test_mountains_harmony_starts_in_step_with_the_melody_at_the_pickup(srom):
     srom.write(srom.addr("tune_unlocked") + 1, 0xFF)
     to_jukebox(srom)
     while srom.mem("jb_sel") != tune:
-        tap(srom, "down")
+        tap(srom, "right")
     srom.press("a", 2)
     assert srom.mem("cur_tune") == tune
     srom.write("music_frames", 0)

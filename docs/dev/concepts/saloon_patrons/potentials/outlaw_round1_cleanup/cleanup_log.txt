@@ -1,0 +1,65 @@
+THE OUTLAW (slot C, round 1 d2_dusty variant C) - CLEAN-UP LOG (hand pass, SKILL.md step 9 / linework.md section 6)
+Coordinates are (x,y): x = column 0-15, y = row 0-15. Every change was typed by hand into outlaw.txt; the scripts (tools/render.py,
+tools/compare2.py, tools/orphans.py, the lint) only transcribe, render and report. No script placed or changed a pixel.
+This is a clean-up, not a redraw: his silhouette, proportions, palette, hat, bandana, poncho stripes and eyes are kept.
+
+SUMMARY: front 2 pixels changed (1 wall -> outline, 1 skin -> outline). Back 0 pixels changed. 3 proposals listed, NOT applied.
+The figure is mostly solid-filled masses (a flat black hat, a rust poncho), so the script outline left few faults; I checked
+every run before deciding to leave it, and the "kept" list says why.
+
+APPLIED (front, outlaw.txt)
+  1  (13,6)  wall (.) -> outline (#).
+     Rule: linework.md section 1, "irregular run lengths" / uneven steps. The right edge ran 15,14,12,13,13,13 down rows 4-9:
+     a 2-pixel jump (14,5)->(12,6) followed by a 1-pixel step back out to (13,7). That left a one-pixel wall nick between the
+     brim and the cheek (a white speck on DMG, an "ear" on CGB). Filled, the edge runs 15,14,13,13,13,13: one 1:1 step off the
+     brim tip, then a straight cheek. The face stays 3/4 (right cheek reaches x13 a row earlier than the left reaches x3).
+  2  (5,6)   skin (-) -> outline (#).
+     Rule: linework.md section 3, stray ("orphan") pixels: a lone skin pixel in the black brim shadow, touching nothing (lint: orphan).
+     It is not an eye (his eyes are the dark dots on the bandana). Deleted rather than grown, so the skin glint under the brim stays
+     the clean 5-pixel U at (7,5) (9,5) (7-9,6) that the owner knows. The mug still leaves (7,5) (7,6) and the left eye (7,8) visible.
+  Row 6 before: ..###-#---###...   after: ..#####---####..    (one change per half, items 1 and 2)
+
+CHECKED AND KEPT (front), with the reason
+  K1  Lint "L-shaped doubles" (1,4) (2,5) (4,1) (10,1) (14,4): all are convex corners of the solid-black hat (crown corners, brim tips and
+      the brim's underside). The pixels inside them are filled with the same shade, so the visible silhouette steps diagonally
+      (4,0)-(3,1), (11,1)... and the brim tips (0,4) / (15,4) are deliberate sharp points. Nothing to remove.
+  K2  Crown edge 4,3,3 / 10,11,11 then brim 1,0 / 14,15: runs 1,0,2,1 and 1,0,3,1: the left and right steps land on different rows, no
+      mirrored staircase, and the 3-pixel right brim run is the 3/4 view. Kept.
+  K3  Lint "V-point" (3,7): not a chin. It is the left cheek, a sideways notch between the brim tip and the shoulder. The apex is already a flat
+      2-pixel run ((3,7) (3,8)), the way in is a 1:1 diagonal (0,4)-(3,7) and the way out a 1:1 diagonal (3,8)-(0,11). A rounder apex
+      would move the shoulder line or widen his face, so it is not changed.
+  K4  Jaw ticks (2-4,9) and (12-13,9): they look like an L at (3,9)/(13,9) but they are what separates the bandana from the poncho on
+      DMG, where both are shade 2. I tried removing them in a throwaway render (not kept): the bandana melted into the poncho and
+      the head lost its shape on DMG. Kept; the stronger fix is proposal P1.
+  K5  Eyes (7,8) (11,8): single dark pixels (lint orphan (7,8)); deliberate eyes, one pixel of bandana between eye and outline on the near side.
+      Two-pixel eyes would change his look: proposal P2.
+  K6  Poncho stripes (2,10)-(5,14), (7,10)-(10,14), (13,10)-(12,12): a repeated pattern of 1:1 diagonals ending in a 2-pixel vertical. The two
+      long stripes are parallel on purpose (a poncho weave); varying them would be a redesign. Light stripes sit on shade-2, so the
+      internal borders are lighter than the outline (rule 5).
+  K7  Rows 13-14 have the poncho (shade 2) reaching x0 and x15 with no dark edge, unlike rows 11-12. Kept on purpose: on the CGB wall
+      (#2c5060) a dark edge would sink into it (PATRON_SPEC section 11), and the rust edge keeps his silhouette readable there. The
+      figure is cut by the counter row, as in the approved trio.
+  K8  No 2x2 squares of skin; poncho/bandana fills are large flat areas (lint reports no square warnings). No banding found beyond K6.
+  K9  Hat band (4-10,3): one flat 7-pixel run inset one pixel from the crown on both sides. Kept.
+
+BACK (outlaw_back.txt): unchanged, as the brief asks for a slot-C back that needs no rule fix.
+  Lint L-doubles (1,4) (2,5) (4,1) (11,1) (13,5) (14,4) are the same hat corners as K1. Rows 6 and 9 form boxy stubs at x2-4 / x11-13; they read as
+  hair/collar under the brim and are consistent with the front. Symmetry: columns 4-11 about 7.5 (not about column 8), column 0 empty on rows 0-14.
+  If he ever goes into slot A the back needs a shift/redraw for the column-8 rule (tools/check_back.py reports 19 asymmetric rows now).
+
+PROPOSALS (not applied; each needs the owner's eye because it changes his look). Image: proposals_x8.png / proposals_x4.png
+  P1  Bandana underline: the jaw ticks extended inward: (5,9) + -> #, (11,9) + -> #. Row 9 becomes ..####+++++###..
+      Why: bandana and poncho are both shade 2 and touch along row 9/10 (PATRON_SPEC section 4: neighbouring masses must differ in value;
+      linework: a dark line along the front part's edge). Effect: the bandana gets a clearer "bib" shape on DMG. Cost: 2 more black pixels beside
+      the eyes' row; (11,9) sits under the right eye (11,8) and can merge with it.
+  P2  Two-pixel eyes: (7,7) + -> #, (11,7) + -> #. Rows 7-8 become ...#+++#+++#+#.. Why: sprites.md 3a, eyes 2 px tall (1 px reads sleepy). Effect:
+      wider, angrier eyes; the mug hides the right one anyway. Changes his expression, so it is the owner's call.
+  P3  Back nape corners: (5,9) - -> #, (10,9) - -> #. Row 9 becomes ..####----####.. Why: the bare 6x4 skin block has hard right-angle bottom corners;
+      stepping them in by one (runs 1 then a flat 4) makes it read as a nape (figure 20 idea). Effect: tiny.
+
+FINAL CHECKS (step 9 items 8-9)
+  - proportion: hat rows 0-5, face slit rows 5-6, bandana rows 7-9, poncho rows 10-14, counter row 15 as before.
+  - light: top / top-front only (hat band, skin glint, stripes): flip-safe; nothing asymmetric to read wrong when flipped (no lettering).
+  - mug (rows 5-12, cols 8-15): left eye (7,8), the skin glint at (7,5)-(7,6), the whole hat and the left bandana stay visible; he still reads as a masked outlaw
+    (ingame_dmg_x4.png / ingame_cgb_x4.png, third bar).
+  - lint: see the self-audit table in REPORT.txt.

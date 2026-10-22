@@ -88,17 +88,16 @@ def debug_line(rom):
 
 
 def bonus_view(rom):
-    """The three bonus rounds' first line in BONUS > MINI GAMES, in each mode: the medal word shown (NORMAL, HARD, EASY): the saved bonus medals as read."""
+    """The first bonus round in BONUS > MINI GAMES, in each mode: the medal word shown (NORMAL, HARD, EASY): the saved bonus medals as read."""
     import test_mg_list as ml
     from test_difficulty import BONUS_FIRST, EASY, HARD, NORMAL, goto_mode
     ml.to_list(rom)
-    for _ in range(BONUS_FIRST):
-        ml.tap(rom, "down")
+    ml.tap(rom, "down")                          # (the first bonus round)
     rom.run(4)
     out = []
     for mode in (NORMAL, HARD, EASY):
         goto_mode(rom, mode)
-        out.append(ml.line(rom, 12).split()[-1])
+        out.append(ml.medal_word(rom))
     return out
 
 

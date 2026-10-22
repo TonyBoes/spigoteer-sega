@@ -35,7 +35,10 @@ def leave(gb, screen):
 
 
 def screen_text(gb):
-    return [tuple(tilemap_row(gb, y, 0, 20)) for y in range(18)]
+    """The whole tilemap but the selection line's two arrows (row 3, columns 0 and 19: they bob with the time on the screen)."""
+    rows = [list(tilemap_row(gb, y, 0, 20)) for y in range(18)]
+    rows[3][0] = rows[3][19] = 0
+    return [tuple(r) for r in rows]
 
 
 def mash(gb, key, period, seconds=SECONDS):
@@ -58,7 +61,7 @@ def mash(gb, key, period, seconds=SECONDS):
 @pytest.mark.parametrize("period", [2, 3, 4])
 def test_mashing_a_list_never_runs_a_frame_late(boot, screen, period):
     open_screen(boot, screen)
-    for key in ("down", "up"):                  # (down wraps past the last line, up past the first: the whole window rebuilds)
+    for key in ("down", "up", "right", "left"):   # (the jumps and the steps wrap past either end)
         worst, late = mash(boot, key, period)
         assert late == 0, (screen, key, period, worst)
         assert worst <= LATE
@@ -79,3 +82,16 @@ def test_a_mashed_list_settles_to_the_same_screen_as_a_calm_one(boot, screen):
         boot.hold("down"); boot.run(1); boot.release("down"); boot.run(12)
     boot.run(20)
     assert screen_text(boot) == fast
+
+
+@pytest.mark.parametrize("period", [2, 4])
+def test_mashing_the_soundtrack_while_a_tune_plays_never_runs_a_frame_late(boot, period):
+    """The bars move every frame while a tune plays (up to four 15-tile runs through the VBlank queue): selecting at full speed on top of that is
+    still on time."""
+    open_screen(boot, "soundtrack")
+    menu_tap(boot, "a")                         # (the title tune, the only one unlocked on a fresh cartridge)
+    boot.run(20)
+    assert boot.mem("cur_tune") == 0
+    for key in ("right", "down", "left", "up"):
+        worst, late = mash(boot, key, period)
+        assert late == 0, (key, period, worst)

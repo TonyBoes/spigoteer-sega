@@ -28,127 +28,190 @@
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding-inline: 16px; }
-:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
-h1 { font-size: 20px; margin: 0; }
-h2 { font-size: 16px; margin: 0 0 8px; }
-h3 { font-size: 14px; margin: 14px 0 6px; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding-inline: 16px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+h2 { font-size: 20px; margin: 0 0 2px; font-weight: 650; }
+h3 { font-size: 13px; margin: 18px 0 6px; color: var(--muted); font-weight: 600; letter-spacing: .01em; }
 small, .muted { color: var(--muted); }
 code, .mono { font-family: var(--mono); font-size: 12px; }
-button, select, input { font: inherit; color: var(--ink); }
-button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+button, input { font: inherit; color: var(--ink); }
+button { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 11px; cursor: pointer; }
 button:hover { border-color: var(--accent); }
 button[aria-pressed="true"], button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-block: 12px; border-bottom: 1px solid var(--line); }
-header.top .gen { color: var(--muted); font-size: 12px; flex: 1 1 260px; }
-.seg { display: inline-flex; }
-.seg button { border-radius: 0; margin-left: -1px; }
-.seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
-.seg button:last-child { border-radius: 0 6px 6px 0; }
-.layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 20px; padding-block: 16px 40px; align-items: start; }
-nav.picker { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* top bar: the picker button, the model toggle, the commit line */
+header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-block: 10px; max-width: 1240px; margin-inline: auto; }
+header.top .gen { color: var(--muted); font-size: 11.5px; flex: 1 1 200px; min-width: 0; }
+.pick-wrap { position: relative; }
+#pick-btn { display: inline-flex; align-items: center; gap: 8px; max-width: min(78vw, 420px); font-weight: 600; padding: 7px 12px; }
+#pick-btn .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+nav.picker { position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: min(440px, calc(100vw - 32px)); max-height: min(72vh, 640px); overflow: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.22); }
 nav.picker details { margin-block: 2px; }
-nav.picker summary { cursor: pointer; font-weight: 600; padding: 4px 6px; border-radius: 4px; }
+nav.picker summary { cursor: pointer; font-weight: 600; padding: 6px 8px; border-radius: 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
 nav.picker summary:hover { background: var(--soft); }
-nav.picker a { display: block; padding: 3px 8px 3px 16px; color: var(--ink); text-decoration: none; border-radius: 4px; font-size: 13px; }
+nav.picker a { display: block; padding: 6px 12px; color: var(--ink); text-decoration: none; border-radius: 6px; }
 nav.picker a:hover { background: var(--soft); }
 nav.picker a[aria-current="true"] { background: var(--accent); color: var(--accent-ink); }
 nav.picker a.nomodel { color: var(--muted); }
-.picker-select { display: none; width: 100%; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 16px; min-width: 0; }
+nav.picker a.top1 { font-weight: 600; }
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; margin-left: -1px; padding-inline: 12px; }
+.seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+.seg button:last-child { border-radius: 0 8px 8px 0; }
+
+main { max-width: 1240px; margin-inline: auto; padding-block: 8px 56px; display: block; min-width: 0; }
+.crumb { margin: 0 0 4px; }
+.sel-id { font-family: var(--mono); font-size: 11px; color: var(--muted); margin: 0 0 14px; }
 .scroll { overflow-x: auto; max-width: 100%; }
 .pix { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
-.row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-.stage { position: relative; display: inline-block; line-height: 0; background: #000; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.err { color: var(--bad); }
+.note { color: var(--muted); font-size: 13px; margin: 6px 0 10px; max-width: 80ch; }
+
+/* sections: a button-like header (chevron, name, one-line budget) that opens its content */
+details.sec { background: var(--panel); border-radius: 12px; margin-bottom: 10px; }
+details.sec > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 20px minmax(0, 1fr); column-gap: 10px; align-items: baseline; padding: 14px 16px; border-radius: 12px; }
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary:hover { background: var(--soft); }
+details.sec > summary .st { font-weight: 650; font-size: 15px; }
+details.sec > summary .sum { grid-column: 2; color: var(--muted); font-size: 13px; }
+.chev { grid-row: 1; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); margin-left: 4px; align-self: center; transition: transform .15s; }
+details[open] > summary > .chev { transform: rotate(45deg); }
+details.sec > summary .st { grid-column: 2; grid-row: 1; }
+details.sec[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.sbody { padding: 4px 16px 18px 46px; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+
+details.info, details.more { margin: 8px 0; }
+details.info > summary, details.more > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; display: inline-block; padding: 3px 9px; border-radius: 14px; background: var(--soft); list-style: none; }
+details.info > summary::-webkit-details-marker, details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::before { content: "+ "; }
+details.more[open] > summary::before { content: "\2212 "; }
+details.info > summary:hover, details.more > summary:hover { color: var(--ink); }
+details.info[open] > summary, details.more[open] > summary { margin-bottom: 8px; }
+details.more > .mbody { padding-left: 2px; }
+
+/* the still and its overlay */
+.stage { position: relative; display: inline-block; line-height: 0; background: #000; border-radius: 6px; overflow: hidden; }
 .stage canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
 .stage canvas.hit { pointer-events: auto; }
-.chip { display: inline-block; font-size: 11px; line-height: 1.5; padding: 0 7px; border-radius: 10px; margin-left: 4px; white-space: nowrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; margin: 6px 0; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend b { display: inline-block; width: 12px; height: 12px; border: 1px solid var(--line); }
+.readout { font-family: var(--mono); font-size: 12px; min-height: 2.8em; margin-top: 6px; color: var(--muted); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 13px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: var(--mono); font-size: 12px; }
+
+/* constructed objects */
+.ocards { display: grid; gap: 22px; }
+.ocard .oname { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin-bottom: 8px; }
+.ocard .ometa { color: var(--muted); font-size: 12.5px; }
+.figs { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: flex-end; }
+figure.fig { margin: 0; text-align: center; max-width: 140px; }
+figure.fig figcaption { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.3; }
+.spr { flex: none; background-repeat: no-repeat; image-rendering: pixelated; image-rendering: crisp-edges; background-color: var(--soft); border-radius: 3px; }
+.sprs { display: flex; flex-wrap: wrap; gap: 4px; align-items: flex-start; }
+.sprs .more { align-self: center; font-size: 12px; color: var(--muted); padding-inline: 4px; }
+.pieces-row { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 6px 0 10px; align-items: flex-end; }
+.pieces-row .lab { font-size: 11.5px; color: var(--muted); width: 100%; }
+.piece { text-align: center; font-size: 10.5px; color: var(--muted); line-height: 1.3; }
+
+/* palettes */
+.pgrid { display: grid; }
+.prow { display: grid; grid-template-columns: minmax(150px, 230px) max-content minmax(0, 1fr); gap: 6px 22px; align-items: center; padding: 10px 0; }
+.prow + .prow { border-top: 1px solid var(--soft); }
+.prow .pname b { font-size: 14px; }
+.prow .pname .rl { color: var(--muted); font-size: 12.5px; display: block; }
+.prow.unused .pname, .prow.unused .sw { opacity: .55; }
+.prow .tag { font-size: 11px; padding: 0 8px; border-radius: 10px; background: var(--chip-anim); color: var(--chip-anim-ink); margin-left: 6px; font-weight: 600; vertical-align: 1px; }
+.prow > div { min-width: 0; }
+.sw { display: inline-flex; vertical-align: middle; }
+.sw button.c { display: block; width: 28px; height: 24px; padding: 0; margin: 0; border: 1px solid var(--line); border-left-width: 0; border-radius: 0; cursor: copy; position: relative; }
+.sw button.c:first-child { border-left-width: 1px; border-radius: 5px 0 0 5px; }
+.sw button.c:last-child { border-radius: 0 5px 5px 0; }
+.sw button.c:hover { border-color: var(--accent); z-index: 1; }
+.sw button.c:focus-visible { z-index: 2; outline-offset: 1px; }
+.sw.mini button.c { width: 10px; height: 12px; }
+.sw.mini button.c:first-child { border-radius: 3px 0 0 3px; } .sw.mini button.c:last-child { border-radius: 0 3px 3px 0; }
+.chip { display: inline-block; font-size: 11px; line-height: 1.5; padding: 0 7px; border-radius: 10px; margin-right: 4px; white-space: nowrap; }
 .chip.perm { background: var(--chip-perm); color: var(--chip-perm-ink); }
 .chip.venue { background: var(--chip-venue); color: var(--chip-venue-ink); }
 .chip.anim { background: var(--chip-anim); color: var(--chip-anim-ink); }
 .chip.off { background: var(--chip-off); color: var(--chip-off-ink); }
-.pal { border-collapse: collapse; width: 100%; }
-.pal td, .pal th { padding: 4px 6px; border-top: 1px solid var(--line); vertical-align: middle; text-align: left; }
-.pal th { font-weight: 600; font-size: 12px; color: var(--muted); }
-.pal tr.unused { opacity: .45; }
-.sw { display: inline-flex; gap: 0; vertical-align: middle; }
-.sw button.c { display: block; width: 26px; height: 22px; padding: 0; margin: 0; border: 1px solid var(--line); border-left-width: 0; border-radius: 0; cursor: copy; position: relative; }
-.sw button.c:first-child { border-left-width: 1px; border-radius: 3px 0 0 3px; }
-.sw button.c:last-child { border-radius: 0 3px 3px 0; }
-.sw button.c:hover { border-color: var(--accent); z-index: 1; }
-.sw button.c:focus-visible { z-index: 2; outline-offset: 1px; }
-.sw.big button.c { width: 34px; height: 28px; }
-.sw.mini button.c { width: 10px; height: 12px; }
-.pgrid { display: block; }
-.prow { display: grid; grid-template-columns: minmax(150px, 1fr) max-content minmax(150px, 1.1fr) minmax(0, 2.6fr); gap: 6px 16px; align-items: center; padding: 8px 6px; border-top: 1px solid var(--line); }
-.pgrid.nospr .prow { grid-template-columns: minmax(150px, 1fr) max-content minmax(150px, 1.6fr); }
-.prow.head { border-top: 0; padding-block: 2px; font-weight: 600; font-size: 12px; color: var(--muted); }
-.prow.unused > :not(.pspr) { opacity: .5; }
-.prow > div { min-width: 0; }
-.sprs { display: flex; flex-wrap: wrap; gap: 3px; align-items: flex-start; }
-.spr { flex: none; background-color: var(--soft); border: 1px solid var(--line); background-repeat: no-repeat; image-rendering: pixelated; image-rendering: crisp-edges; }
-.sprs .more { align-self: center; font-size: 12px; color: var(--muted); padding-inline: 4px; }
-#tip, #toast { position: fixed; z-index: 50; max-width: min(92vw, 360px); font-size: 12px; line-height: 1.4; padding: 5px 9px; border-radius: 6px; background: var(--ink); color: var(--bg); box-shadow: 0 2px 8px rgba(0,0,0,.3); pointer-events: none; }
-#toast { pointer-events: auto; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
-#toast input { display: block; width: 100%; margin-top: 4px; font: 12px var(--mono); padding: 3px 5px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; }
-#toast.fail { background: var(--warn); color: var(--bg); }
-.strip { display: block; image-rendering: pixelated; border: 1px solid var(--line); }
-table.data { border-collapse: collapse; width: 100%; font-size: 12px; }
-table.data th, table.data td { border-top: 1px solid var(--line); padding: 3px 8px; text-align: left; white-space: nowrap; }
-table.data th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+.strip { display: block; image-rendering: pixelated; border: 1px solid var(--line); margin-top: 4px; }
+.groups { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.grp { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: default; }
+
+/* tiles */
+.rbars { display: grid; gap: 9px; }
+.rbar { display: grid; grid-template-columns: minmax(120px, 300px) minmax(120px, 1fr) 76px; gap: 4px 14px; align-items: center; }
+.rbar .rl { font-size: 13px; display: flex; align-items: center; gap: 7px; min-width: 0; }
+.rbar .rl i { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.rbar .n { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.track { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--soft); }
+.track span { display: block; height: 100%; }
+.track .u { background: var(--accent); } .track .l { background: var(--warn); opacity: .55; }
+.track .S { background: #2a9d6f; } .track .V { background: #e08a2c; } .track .A { background: #c43db0; }
+.gutter { display: grid; grid-template-columns: 34px max-content; align-items: start; }
+.gutter .rows { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.gutter .rows div { text-align: right; padding-right: 4px; }
+table.data { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+table.data th, table.data td { border-top: 1px solid var(--soft); padding: 5px 10px; text-align: left; white-space: nowrap; vertical-align: top; }
+table.data th { color: var(--muted); font-weight: 600; }
 table.data td.num, table.data th.num { text-align: right; font-family: var(--mono); }
 table.data tr.sel td { background: var(--soft); }
-.kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 13px; }
-.kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: var(--mono); font-size: 12px; }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; margin: 6px 0; }
-.legend span { display: inline-flex; align-items: center; gap: 5px; }
-.legend b { display: inline-block; width: 12px; height: 12px; border: 1px solid var(--line); }
-.note { color: var(--muted); font-size: 12px; margin: 4px 0 8px; }
-.err { color: var(--bad); }
-table.free td.fp { white-space: normal; min-width: 96px; font-size: 12px; vertical-align: top; border-left: 1px solid var(--line); }
+table.data.wrap td { white-space: normal; }
+table.pal { border-collapse: collapse; width: 100%; }
+table.pal td, table.pal th { padding: 8px 10px; border-top: 1px solid var(--soft); vertical-align: top; text-align: left; }
+table.pal th { font-size: 12px; color: var(--muted); }
+table.free td.fp { white-space: normal; min-width: 84px; font-size: 12.5px; text-align: center; }
 table.free td.fp.always { background: var(--chip-perm); color: var(--chip-perm-ink); }
 table.free td.fp.event { background: var(--chip-venue); color: var(--chip-venue-ink); }
 table.free td.fp.free { background: var(--chip-anim); color: var(--chip-anim-ink); font-weight: 700; }
-table.free th[scope=row] { white-space: normal; min-width: 120px; position: sticky; left: 0; background: var(--panel); }
-.cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
-.readout { font-family: var(--mono); font-size: 12px; min-height: 2.8em; margin-top: 6px; color: var(--muted); }
-.gutter { display: grid; grid-template-columns: 34px max-content; gap: 0; align-items: start; }
-.gutter .rows { font-family: var(--mono); font-size: 10px; color: var(--muted); }
-.gutter .rows div { text-align: right; padding-right: 4px; }
-.groups { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.grp { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: default; }
-details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px; margin: 4px 0; }
-.sel-id { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-@media (max-width: 760px) {
-  .prow, .pgrid.nospr .prow { grid-template-columns: minmax(0, 1fr) max-content; }
-  .prow.head { display: none; }
-  .prow .pstat, .prow .pspr { grid-column: 1 / -1; }
+table.free th[scope=row] { white-space: normal; min-width: 110px; position: sticky; left: 0; background: var(--panel); }
+.bossline { font-size: 15px; margin: 4px 0 8px; }
+
+/* events table (More information of the objects section) */
+.evrow { display: grid; grid-template-columns: minmax(180px, 1fr) max-content minmax(0, 1.4fr); gap: 6px 16px; align-items: start; padding: 10px 0; }
+.evrow + .evrow { border-top: 1px solid var(--soft); }
+.evrow > div { min-width: 0; }
+.evstills { display: flex; gap: 3px; }
+.evpal { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 3px 10px; }
+.kids { display: flex; flex-wrap: wrap; gap: 14px; }
+.kid { flex: 0 0 auto; max-width: 100%; font-size: 12.5px; }
+.klist { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0; padding: 0; list-style: none; }
+#tip, #toast { position: fixed; z-index: 60; max-width: min(92vw, 360px); font-size: 12px; line-height: 1.4; padding: 5px 9px; border-radius: 6px; background: var(--ink); color: var(--bg); box-shadow: 0 2px 8px rgba(0,0,0,.3); pointer-events: none; }
+#toast { pointer-events: auto; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+#toast input { display: block; width: 100%; margin-top: 4px; font: 12px var(--mono); padding: 3px 5px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; }
+#toast.fail { background: var(--warn); color: var(--bg); }
+@media (max-width: 860px) { .evrow { grid-template-columns: minmax(0, 1fr); } .evstills { flex-wrap: wrap; } }
+@media (max-width: 600px) {
+  .sbody { padding-left: 16px; padding-right: 12px; }
+  .prow { grid-template-columns: minmax(0, 1fr) max-content; }
+  .prow .pthumbs { grid-column: 1 / -1; }
+  .rbar { grid-template-columns: minmax(0, 1fr) 70px; }
+  .rbar .track { grid-column: 1 / -1; grid-row: 2; }
+  details.sec > summary { padding: 12px; }
 }
-@media (prefers-reduced-motion: reduce) { #tip, #toast { transition: none; } }
-@media (max-width: 860px) {
-  .layout { grid-template-columns: minmax(0, 1fr); }
-  nav.picker { display: none; }
-  .picker-select { display: block; }
-}
+
 </style>
 
 <header class="top">
-  <h1>Spigoteer Graphics Atlas</h1>
+  <h1 class="vh">Spigoteer Graphics Atlas</h1>
+  <div class="pick-wrap">
+    <button id="pick-btn" type="button" aria-expanded="false" aria-controls="picker" aria-haspopup="true"><span aria-hidden="true">&#9776;</span><span class="nm" id="pick-name">Screens</span><span aria-hidden="true">&#9662;</span></button>
+    <nav class="picker" id="picker" aria-label="Screens" hidden></nav>
+  </div>
   <div class="seg" role="group" aria-label="Game Boy model">
     <button id="m-dmg" type="button" aria-pressed="false">DMG</button>
     <button id="m-cgb" type="button" aria-pressed="true">CGB</button>
   </div>
-  <button id="motion" type="button" aria-pressed="true" title="Animated swatches and the animation preview">Animation: playing</button>
   <div class="gen" id="gen">loading...</div>
 </header>
 
-<div class="layout">
-  <div>
-    <select id="pick-select" class="picker-select" aria-label="Screen"></select>
-    <nav class="picker" id="picker" aria-label="Screens"></nav>
-  </div>
-  <main id="main" tabindex="-1"><p class="muted">Loading the atlas data...</p></main>
-</div>
+<main id="main" tabindex="-1"><p class="muted">Loading the atlas data...</p></main>
 
 <script src="data/index.js"></script>
 <script>
@@ -173,18 +236,126 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     }
     return e;
   }
+
   var mobile = window.matchMedia("(max-width: 560px)");
   function scale() { return mobile.matches ? 2 : 3; }
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-  var GROUP_ORDER = ["Menus", "Levels (ARCADE, by venue)", "Levels (CLASSIC, mirrored)", "Dancers' show (by venue)", "Bosses", "Boss entrances",
+  var GROUP_ORDER = ["Menus", "Levels (ARCADE, by venue)", "Levels (CLASSIC, mirrored)",
                      "Mini-games", "Story", "Credits", "Pause and cards", "Other"];
-  var state = { id: null, model: "cgb", motion: !window.matchMedia("(prefers-reduced-motion: reduce)").matches, bank: 0,
-                tiles: { used: true, colour: false, regions: false, region: -1 }, ov: { attr: false, spr: false, grid: false }, summary: false, free: false };
+  var state = { id: null, model: "cgb", motion: !reduce.matches, bank: 0, open: {}, lastPage: null,
+                tiles: { used: true, colour: false, regions: false, region: -1, boss: false }, ov: { attr: false, spr: false, grid: false }, summary: false, free: false };
   var animSwatches = [];     // {cells:[i,i,i,i], changes:[[t,[c..]]], frames}
   var clock0 = performance.now();
   var BAND = { obj: "#e08a2c", pool: "#3a7bd5", shared: "#2a9d6f", patron: "#b04fb0", free: "#8a8a84" };
   var PALCOL = ["#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6"];
   var SCOPE = { perm: "permanent", venue: "reloaded per venue", free: "free" };
+
+  // ---- small page parts: sections, info and more toggles -----------------------------------------------------------------------
+  function plural(n, a, b) { return n + " " + (n === 1 ? a : (b || a + "s")); }
+  function shortRole(t) { return String(t || "").replace(/\s*\(.*$/, "").replace(/[;,].*$/, "").trim(); }
+  function list(a, pre) { return a.map(function (x) { return (pre || "") + x; }).join(", "); }
+  // A section is a <details>: its summary button shows a chevron, the name and a one-line budget; the body is built when it is first opened.
+  function section(key, title, summary, build) {
+    var d = h("details", { class: "sec", id: "sec-" + key });
+    d.appendChild(h("summary", null, h("span", { class: "chev", "aria-hidden": "true" }), h("span", { class: "st", text: title }), h("span", { class: "sum", text: summary })));
+    var body = h("div", { class: "sbody" }), built = false;
+    d.appendChild(body);
+    function fill() { if (built) return; built = true; build(body); }
+    d.addEventListener("toggle", function () { state.open[key] = d.open; if (d.open) fill(); });
+    if (state.open[key]) { d.open = true; fill(); }
+    return d;
+  }
+  function info(text) {
+    return h("details", { class: "info" }, h("summary", { text: "ⓘ info" }), h("p", { class: "note", text: text }));
+  }
+  // a toggle named plainly ("More information", "Details", "show tile sheet"); the content is built on first open
+  function more(label, build, onopen) {
+    var d = h("details", { class: "more" }, h("summary", { text: label })), body = h("div", { class: "mbody" }), built = false;
+    d.appendChild(body);
+    d.addEventListener("toggle", function () { if (d.open) { if (!built) { built = true; build(body); } if (onopen) onopen(true, d); } else if (onopen) onopen(false, d); });
+    return d;
+  }
+  function sprIcon(png, W, H, x, y, w, hh, S, label) {
+    var e = sprBox(png, W, H, x, y, w, hh, S, label);
+    e.className = "spr obj";
+    e.style.backgroundColor = "transparent";
+    return e;
+  }
+
+  // ---- picker: a button in the top bar that opens the grouped list as a popover --------------------------------------------------
+  var pickOpen = false;
+  function setPick(on, back) {
+    pickOpen = on;
+    var nav = $("#picker"), b = $("#pick-btn");
+    nav.hidden = !on;
+    b.setAttribute("aria-expanded", on ? "true" : "false");
+    if (on) { var cur = nav.querySelector('[aria-current="true"]') || nav.querySelector("a"); if (cur) { cur.focus({ preventScroll: true }); cur.scrollIntoView({ block: "nearest" }); } }
+    else if (back) b.focus();
+  }
+  function buildPicker() {
+    var nav = $("#picker");
+    nav.textContent = "";
+    var by = {};
+    idx().screens.forEach(function (s) { if (!s.parent) (by[s.group] = by[s.group] || []).push(s); });
+    var order = GROUP_ORDER.filter(function (g) { return by[g]; }).concat(Object.keys(by).filter(function (g) { return GROUP_ORDER.indexOf(g) < 0; }));
+    nav.appendChild(h("a", { href: "#summary", text: "Summary: permanent vs swapped", "data-id": "summary", class: "top1" }));
+    nav.appendChild(h("a", { href: "#free", text: "Free sprite palettes", "data-id": "free", class: "top1" }));
+    order.forEach(function (g) {
+      var d = h("details", { open: "" }, h("summary", { text: g + " (" + by[g].length + ")" }));
+      by[g].forEach(function (s) { d.appendChild(h("a", { href: "#" + s.id, text: s.name, "data-id": s.id })); });
+      nav.appendChild(d);
+    });
+    nav.addEventListener("click", function (e) { if (e.target.closest && e.target.closest("a")) setPick(false); });
+    $("#pick-btn").addEventListener("click", function () { setPick(!pickOpen); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && pickOpen) { setPick(false, true); } });
+    document.addEventListener("pointerdown", function (e) { if (pickOpen && !$(".pick-wrap").contains(e.target)) setPick(false); });
+  }
+  function curId() { return state.free ? "free" : state.summary ? "summary" : state.id; }
+  function markPicker() {
+    var cur = curId();
+    Array.prototype.forEach.call(document.querySelectorAll("#picker a"), function (a) {
+      var id = a.getAttribute("data-id");
+      if (id === cur) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+      var s = scrById(id);
+      a.className = (a.classList.contains("top1") ? "top1 " : "") + (s && !s.models[state.model] ? "nomodel" : "");
+    });
+    $("#pick-name").textContent = cur === "free" ? "Free sprite palettes" : cur === "summary" ? "Summary: permanent vs swapped" : nameOf(cur);
+  }
+
+  // ---- routing -------------------------------------------------------------------------------------------------------------------
+  function go(id, model) {
+    var hsh = "#" + id + (model && model !== "cgb" ? "/" + model : "");
+    if (location.hash !== hsh) location.hash = hsh; else route();
+  }
+  function route() {
+    var m = /^#([\w-]+)(?:\/(dmg|cgb))?(\+full)?$/.exec(location.hash);
+    var id = m ? m[1] : defId();
+    state.full = !!(m && m[3]);
+    var sc0 = scrById(id);
+    state.focus = null;
+    if (sc0 && sc0.parent && !state.full) { state.focus = id; id = sc0.parent; }          // an old anchor of a state / event lands on its parent page
+    state.model = m && m[2] ? m[2] : (state.model || "cgb");
+    if (id !== state.lastPage) { state.open = {}; state.lastPage = id; }                  // a new page starts with every section collapsed
+    state.free = id === "free";
+    if (id === "free") { state.summary = false; render(); return; }
+    if (id === "summary") { state.summary = true; render(); return; }
+    if (!scrById(id)) id = defId();
+    state.summary = false; state.id = id; state.bank = 0; state.tiles.region = -1;
+    load(id, render);
+  }
+  function setModel(m) {
+    state.model = m;
+    var hsh = "#" + curId() + (m === "dmg" ? "/dmg" : "") + (state.full ? "+full" : "");
+    if (location.hash !== hsh) location.hash = hsh; else render();
+  }
+  function tick() {
+    if (state.motion && animSwatches.length) {
+      animSwatches.forEach(function (a) { paintSwatch(a, (((performance.now() - clock0) / 1000) * 60) % a.frames); });
+    }
+    requestAnimationFrame(tick);
+  }
+
 
   // ---- helpers -------------------------------------------------------------------------------------------------------------------
   function rgb(c) { return [(c & 31) << 3, ((c >> 5) & 31) << 3, ((c >> 10) & 31) << 3]; }
@@ -317,72 +488,6 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     document.head.appendChild(s);
   }
 
-  // ---- picker --------------------------------------------------------------------------------------------------------------------
-  function buildPicker() {
-    var nav = $("#picker"), sel = $("#pick-select");
-    nav.textContent = ""; sel.textContent = "";
-    var by = {};
-    idx().screens.forEach(function (s) { (by[s.group] = by[s.group] || []).push(s); });
-    var order = GROUP_ORDER.filter(function (g) { return by[g]; }).concat(Object.keys(by).filter(function (g) { return GROUP_ORDER.indexOf(g) < 0; }));
-    var top = h("a", { href: "#summary", text: "Summary: permanent vs swapped", "data-id": "summary" });
-    nav.appendChild(top);
-    nav.appendChild(h("a", { href: "#free", text: "Free sprite palettes", "data-id": "free" }));
-    sel.appendChild(h("option", { value: "free", text: "Free sprite palettes" }));
-    sel.appendChild(h("option", { value: "summary", text: "Summary: permanent vs swapped" }));
-    order.forEach(function (g) {
-      var d = h("details", { open: "" }, h("summary", { text: g + " (" + by[g].length + ")" }));
-      var og = h("optgroup", { label: g });
-      by[g].forEach(function (s) {
-        d.appendChild(h("a", { href: "#" + s.id, text: s.name, "data-id": s.id }));
-        og.appendChild(h("option", { value: s.id, text: s.name }));
-      });
-      nav.appendChild(d);
-      sel.appendChild(og);
-    });
-    sel.addEventListener("change", function () { go(sel.value, state.model); });
-  }
-  function markPicker() {
-    var cur = state.free ? "free" : state.summary ? "summary" : state.id;
-    Array.prototype.forEach.call(document.querySelectorAll("#picker a"), function (a) {
-      if (a.getAttribute("data-id") === cur) { a.setAttribute("aria-current", "true"); } else a.removeAttribute("aria-current");
-      var s = scrById(a.getAttribute("data-id"));
-      a.className = s && !s.models[state.model] ? "nomodel" : "";
-    });
-    $("#pick-select").value = cur;
-  }
-
-  // ---- routing -------------------------------------------------------------------------------------------------------------------
-  function go(id, model) {
-    var hsh = "#" + id + (model && model !== "cgb" ? "/" + model : "");
-    if (location.hash !== hsh) location.hash = hsh; else route();
-  }
-  function route() {
-    var m = /^#([\w-]+)(?:\/(dmg|cgb))?$/.exec(location.hash);
-    var id = m ? m[1] : defId();
-    state.model = m && m[2] ? m[2] : (state.model || "cgb");
-    state.free = id === "free";
-    if (id === "free") { state.summary = false; render(); return; }
-    if (id === "summary") { state.summary = true; render(); return; }
-    if (!scrById(id)) id = defId();
-    state.summary = false; state.id = id; state.bank = 0; state.tiles.region = -1;
-    load(id, render);
-  }
-  function setModel(m) {
-    state.model = m;
-    var id = state.free ? "free" : state.summary ? "summary" : state.id;
-    var hsh = "#" + id + (m === "dmg" ? "/dmg" : "");
-    if (location.hash !== hsh) location.hash = hsh; else render();
-  }
-  function setMotion(on) {
-    state.motion = on;
-    var b = $("#motion");
-    b.setAttribute("aria-pressed", on ? "true" : "false");
-    b.textContent = "Animation: " + (on ? "playing" : "paused");
-    var gif = $("#shot-gif");
-    if (gif) { if (on) { gif.src = gif.getAttribute("data-src"); gif.hidden = false; } else gif.hidden = true; }
-    if (!on) animSwatches.forEach(function (a) { paintSwatch(a, 0); });
-  }
-
   // ---- animated swatches -------------------------------------------------------------------------------------------------------
   function paintSwatch(a, t) {
     var cols = a.changes[0][1];
@@ -410,7 +515,53 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     return c;
   }
 
-  // ---- render: a screen --------------------------------------------------------------------------------------------------------
+  function paintTiles(cv, im, r, T, S, sp) {
+    var g = cv.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, cv.width, cv.height);
+    g.drawImage(im, sp[0], sp[1], 128, 192, 0, 0, 128 * S, 192 * S);
+    var C = 8 * S, R = idx().regions;
+    for (var s = 0; s < 384; s++) {
+      var x = (s % 16) * C, y = Math.floor(s / 16) * C, u = parseInt(T.use[s], 16), loaded = T.loaded[s] === "1";
+      if (state.tiles.used) {
+        if (!u && r.ev && r.ev.use[state.bank] && r.ev.use[state.bank][s] === "1") {
+          g.fillStyle = "#2fb34f"; g.fillRect(x + 1, y + 1, S + 1, S + 1); g.strokeStyle = "#2fb34f"; g.strokeRect(x + .5, y + .5, C - 1, C - 1);
+        } else if (u) {
+          var dots = [[1, "#3a7bd5"], [2, "#b04fb0"], [4, "#e08a2c"]], n = 0;
+          dots.forEach(function (d) { if (u & d[0]) { g.fillStyle = d[1]; g.fillRect(x + 1 + n * (S + 2), y + 1, S + 1, S + 1); n++; } });
+        } else if (loaded) {
+          g.strokeStyle = "#e0322a"; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, C - 1, C - 1);
+        } else {
+          g.fillStyle = "rgba(128,128,124,.45)"; g.fillRect(x, y, C, C);
+          g.strokeStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.moveTo(x, y + C); g.lineTo(x + C, y); g.stroke();
+        }
+      }
+    }
+    if (state.tiles.boss && r.boss && r.boss.tiles[state.bank]) {
+      var bm = r.boss.tiles[state.bank].mask;
+      g.fillStyle = "rgba(224,50,42,.45)";
+      for (var bs = 0; bs < 384; bs++) if (bm[bs] === "1") g.fillRect((bs % 16) * C, Math.floor(bs / 16) * C, C, C);
+    }
+    if (state.tiles.regions) {
+      R.forEach(function (rg) {
+        g.fillStyle = BAND[rg.kind];
+        for (var s = rg.lo; s <= rg.hi; s++) g.fillRect((s % 16) * C, Math.floor(s / 16) * C + C - 3, C, 3);
+      });
+    }
+    if (state.tiles.region >= 0) {
+      var rg = R[state.tiles.region];
+      g.strokeStyle = "#ffd400"; g.lineWidth = 2;
+      for (var q = rg.lo; q <= rg.hi; q++) {
+        var qx = (q % 16) * C, qy = Math.floor(q / 16) * C;
+        if (q - 16 < rg.lo) { g.beginPath(); g.moveTo(qx, qy + 1); g.lineTo(qx + C, qy + 1); g.stroke(); }
+        if (q + 16 > rg.hi) { g.beginPath(); g.moveTo(qx, qy + C - 1); g.lineTo(qx + C, qy + C - 1); g.stroke(); }
+        if (q % 16 === 0 || q === rg.lo) { g.beginPath(); g.moveTo(qx + 1, qy); g.lineTo(qx + 1, qy + C); g.stroke(); }
+        if (q % 16 === 15 || q === rg.hi) { g.beginPath(); g.moveTo(qx + C - 1, qy); g.lineTo(qx + C - 1, qy + C); g.stroke(); }
+      }
+    }
+  }
+
+  // ---- render: a screen page --------------------------------------------------------------------------------------------------
   function render() {
     $("#m-dmg").setAttribute("aria-pressed", state.model === "dmg" ? "true" : "false");
     $("#m-cgb").setAttribute("aria-pressed", state.model === "cgb" ? "true" : "false");
@@ -422,66 +573,77 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     if (state.summary) { renderSummary(main); return; }
     if (!state.id || !A[state.id]) return;
     var d = A[state.id], r = d && d[state.model];
+    state.curData = d;
+    if (state.full && d.parent) main.appendChild(h("p", { class: "crumb" }, h("a", { href: "#" + d.parent + (state.model === "dmg" ? "/dmg" : ""), text: "‹ back to " + nameOf(d.parent) })));
     main.appendChild(h("h2", { text: d.name }));
-    main.appendChild(h("p", { class: "sel-id", text: d.group + "  |  id " + d.id + "  |  " + state.model.toUpperCase() }));
-    if (d.note) main.appendChild(h("p", { class: "note", text: d.note }));
+    main.appendChild(h("p", { class: "sel-id", text: d.group + "  ·  " + state.model.toUpperCase() }));
     if (!r) { main.appendChild(h("p", { class: "err", text: "This screen was not reached on " + state.model.toUpperCase() + " (see the generator's report)." })); return; }
-    main.appendChild(screenPanel(d, r));
-    palettePanels(d, r).forEach(function (x) { main.appendChild(x); });
-    main.appendChild(tilePanel(d, r));
-    main.appendChild(oamPanel(d, r));
+    main.appendChild(screenSection(d, r));
+    main.appendChild(objectsSection(d, r));
+    main.appendChild(lineSection(d, r));
+    var pp = palSections(d, r);
+    pp.forEach(function (x) { main.appendChild(x); });
+    main.appendChild(tileSection(d, r));
+    if (r.boss) main.appendChild(bossSection(d, r));
+    var kids = childrenSection(d);
+    if (kids) main.appendChild(kids);
+    if (state.focus) setTimeout(function () {
+      var e = document.getElementById("child-" + state.focus);
+      if (!e) { var k = document.getElementById("sec-states"); if (k) { k.open = true; } e = document.getElementById("child-" + state.focus); }
+      if (e) { window.scrollTo(0, e.getBoundingClientRect().top + window.pageYOffset - 120); e.style.outline = "3px solid var(--accent)"; }
+    }, 120);
   }
 
-  function screenPanel(d, r) {
-    var S = scale(), p = h("section", { class: "panel" });
-    p.appendChild(h("h2", { text: "Screen" }));
+  // ---- screen -----------------------------------------------------------------------------------------------------------------
+  function screenSection(d, r) {
     var win = r.samples * r.step;
-    p.appendChild(h("p", { class: "note", text: "Sampled " + r.samples + " frames over " + win + " game frames (" + (win / 60).toFixed(1) + " s, one sample every " + r.step +
-      "); the still, tile marks, attribute map and sprite table are from frame " + r.rep_frame + ", the sample with the most sprites." }));
-    var row = h("div", { class: "row" });
-    var stage = h("div", { class: "stage", style: "width:" + 160 * S + "px;height:" + 144 * S + "px" });
-    var pk = r.pack, bgsize = (pk.w * S) + "px " + (pk.h * S) + "px";
-    var still = h("div", { id: "shot-still", role: "img", "aria-label": "Screenshot of " + d.name, class: "pix",
-      style: "width:" + 160 * S + "px;height:" + 144 * S + "px;background:url(" + pk.png + ") " + (-pk.still[0] * S) + "px " + (-pk.still[1] * S) + "px/" + bgsize + " no-repeat;image-rendering:pixelated" });
-    stage.appendChild(still);
-    if (r.anim) {
-      var gif = h("img", { id: "shot-gif", class: "pix", width: 160 * S, height: 144 * S, alt: "Animation of " + d.name, "data-src": r.anim, style: "position:absolute;left:0;top:0" });
-      stage.appendChild(gif);
-      if (state.motion) gif.src = r.anim; else gif.hidden = true;
-    }
-    var cv = h("canvas", { class: "hit", width: 160 * S, height: 144 * S });
-    stage.appendChild(cv);
-    row.appendChild(stage);
-    var side = h("div", { style: "flex:1 1 260px;min-width:0" });
-    var ctl = h("div", { class: "legend" });
-    function toggle(key, label, off) {
-      var b = h("button", { type: "button", "aria-pressed": state.ov[key] ? "true" : "false", text: label });
-      if (off) b.disabled = true;
-      b.addEventListener("click", function () { state.ov[key] = !state.ov[key]; b.setAttribute("aria-pressed", state.ov[key] ? "true" : "false"); paintOverlay(cv, r, S); });
-      return b;
-    }
-    ctl.appendChild(toggle("attr", state.model === "cgb" ? "Palette per tile" : "BG / window layers", false));
-    ctl.appendChild(toggle("spr", "Sprite boxes", false));
-    ctl.appendChild(toggle("grid", "8 px grid", false));
-    side.appendChild(ctl);
-    var ro = h("div", { class: "readout", id: "readout", text: "Hover the picture: the tile, palette and flags under the pointer." });
-    side.appendChild(ro);
-    side.appendChild(h("p", { class: "note", text: r.animated ? "Animated: the preview loops the sampled window (every second sample). Use the Animation button above to pause." : "Nothing on this screen moved during the window." }));
-    var kv = h("dl", { class: "kv" });
-    function kvp(k, v) { kv.appendChild(h("dt", { text: k })); kv.appendChild(h("dd", { text: v })); }
-    kvp("LCDC", "0x" + r.lcdc.toString(16).toUpperCase() + (r.signed_bg ? " (BG tiles signed, 0x8800 mode)" : " (BG tiles 0x8000 mode)"));
-    kvp("sprites", (r.obj_h === 16 ? "8x16" : "8x8") + " mode");
-    kvp("BG map", "0x" + r.bg_map.toString(16).toUpperCase() + (r.window_on ? ", window on" : ", window off"));
-    ["SCX", "SCY", "WX", "WY"].forEach(function (k) { var g = r.regs[k]; kvp(k, g.n_values > 1 ? "changes: " + g.values.join(", ") + (g.n_values > 12 ? ", ..." : "") : String(g.first)); });
-    side.appendChild(kv);
-    row.appendChild(side);
-    p.appendChild(row);
-    cv.addEventListener("mousemove", function (e) { hover(e, cv, r, S); });
-    cv.addEventListener("mouseleave", function () { $("#readout").textContent = "Hover the picture: the tile, palette and flags under the pointer."; });
-    paintOverlay(cv, r, S);
-    return p;
+    return section("screen", "Screen", (r.animated ? "Animated" : "Still") + " · " + (r.obj_h === 16 ? "8x16" : "8x8") + " sprites · sampled over " + (win / 60).toFixed(1) + " s", function (body) {
+      var S = scale(), pk = r.pack, bgsize = (pk.w * S) + "px " + (pk.h * S) + "px";
+      body.appendChild(info("Sampled " + r.samples + " frames over " + win + " game frames (one sample every " + r.step + "); the still, tile marks, attribute map and sprite table are from frame " + r.rep_frame + ", the sample with the most sprites."));
+      var stage = h("div", { class: "stage", style: "width:" + 160 * S + "px;max-width:100%;height:" + 144 * S + "px" });
+      stage.appendChild(h("div", { role: "img", "aria-label": "Screenshot of " + d.name, class: "pix",
+        style: "width:" + 160 * S + "px;height:" + 144 * S + "px;background:url(" + pk.png + ") " + (-pk.still[0] * S) + "px " + (-pk.still[1] * S) + "px/" + bgsize + " no-repeat;image-rendering:pixelated" }));
+      var cv = h("canvas", { class: "hit", width: 160 * S, height: 144 * S });
+      stage.appendChild(cv);
+      body.appendChild(stage);
+      body.appendChild(more("More information", function (mb) {
+        var ctl = h("div", { class: "legend" });
+        function toggle(key, label) {
+          var b = h("button", { type: "button", "aria-pressed": state.ov[key] ? "true" : "false", text: label });
+          b.addEventListener("click", function () { state.ov[key] = !state.ov[key]; b.setAttribute("aria-pressed", state.ov[key] ? "true" : "false"); paintOverlay(cv, r, S); });
+          return b;
+        }
+        ctl.appendChild(toggle("attr", state.model === "cgb" ? "Palette per tile" : "BG / window layers"));
+        ctl.appendChild(toggle("spr", "Sprite boxes"));
+        ctl.appendChild(toggle("grid", "8 px grid"));
+        mb.appendChild(ctl);
+        mb.appendChild(h("div", { class: "readout", id: "readout", text: "Hover the picture above: the tile, palette and flags under the pointer." }));
+        var kv = h("dl", { class: "kv" });
+        function kvp(k, v) { kv.appendChild(h("dt", { text: k })); kv.appendChild(h("dd", { text: v })); }
+        kvp("LCDC", "0x" + r.lcdc.toString(16).toUpperCase() + (r.signed_bg ? " (BG tiles signed, 0x8800 mode)" : " (BG tiles 0x8000 mode)"));
+        kvp("sprites", (r.obj_h === 16 ? "8x16" : "8x8") + " mode");
+        kvp("BG map", "0x" + r.bg_map.toString(16).toUpperCase() + (r.window_on ? ", window on" : ", window off"));
+        ["SCX", "SCY", "WX", "WY"].forEach(function (k) { var g = r.regs[k]; kvp(k, g.n_values > 1 ? "changes: " + g.values.join(", ") + (g.n_values > 12 ? ", ..." : "") : String(g.first)); });
+        mb.appendChild(kv);
+        if (r.anim) {
+          mb.appendChild(h("h3", { text: "Animation" }));
+          var holder = h("div");
+          function play() {
+            holder.textContent = "";
+            holder.appendChild(h("img", { class: "pix", width: 160 * S, height: 144 * S, alt: "Animation of " + d.name, src: r.anim, style: "max-width:100%;height:auto;border-radius:6px" }));
+          }
+          if (state.motion) play();
+          else {
+            holder.appendChild(h("button", { type: "button", text: "Play animation", onclick: function () { play(); } }));
+          }
+          mb.appendChild(holder);
+        }
+      }));
+      cv.addEventListener("mousemove", function (e) { hover(e, cv, r, S); });
+      cv.addEventListener("mouseleave", function () { var ro = $("#readout"); if (ro) ro.textContent = "Hover the picture above: the tile, palette and flags under the pointer."; });
+      paintOverlay(cv, r, S);
+    });
   }
-
   function paintOverlay(cv, r, S) {
     var g = cv.getContext("2d");
     g.clearRect(0, 0, cv.width, cv.height);
@@ -518,7 +680,8 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     }
   }
   function hover(e, cv, r, S) {
-    var b = cv.getBoundingClientRect(), x = Math.floor((e.clientX - b.left) / (8 * S)), y = Math.floor((e.clientY - b.top) / (8 * S));
+    var ro = $("#readout"); if (!ro) return;
+    var b = cv.getBoundingClientRect(), k = cv.width / b.width, x = Math.floor((e.clientX - b.left) * k / (8 * S)), y = Math.floor((e.clientY - b.top) * k / (8 * S));
     if (x < 0 || y < 0 || x > 19 || y > 17) return;
     var slot = r.attr.slot[y][x], lay = r.attr.layer[y][x];
     var txt = "cell " + x + "," + y + "  " + (lay === "w" ? "window" : lay === "b" ? "background" : "BG off");
@@ -531,7 +694,7 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     }
     var spr = r.oam.table.filter(function (o) { return x * 8 + 4 >= o.x && x * 8 + 4 < o.x + 8 && y * 8 + 4 >= o.y && y * 8 + 4 < o.y + r.obj_h; }).map(function (o) { return "#" + o.i; });
     if (spr.length) txt += "\nsprites here: " + spr.join(" ");
-    $("#readout").textContent = txt; $("#readout").style.whiteSpace = "pre-line";
+    ro.textContent = txt; ro.style.whiteSpace = "pre-line";
   }
   function regionOf(slot) {
     var R = idx().regions;
@@ -539,124 +702,359 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     return "?";
   }
 
-  // ---- render: palettes --------------------------------------------------------------------------------------------------------
+  // ---- constructed objects ----------------------------------------------------------------------------------------------------
+  function objKinds(r) {
+    var kinds = [], by = {};
+    (r.objs || []).forEach(function (o, i) {
+      if (!by[o.kind]) { by[o.kind] = { kind: o.kind, list: [] }; kinds.push(by[o.kind]); }
+      by[o.kind].list.push({ o: o, i: i });
+    });
+    return kinds;
+  }
+  function slotName(s) { return state.model === "cgb" ? "OBJ " + s : (s ? "OBP1" : "OBP0"); }
+  function kindFacts(k) {
+    var slots = {}, ent = 0, tiles = {}, hgt = 16;
+    k.list.forEach(function (x) {
+      x.o.slots.forEach(function (s) { slots[s] = 1; });
+      ent = Math.max(ent, x.o.entries);
+      hgt = x.o.h;
+      var t = {};
+      x.o.pieces.forEach(function (p) { t[p[3] + ":" + (hgt === 16 ? p[2] & 254 : p[2])] = 1; });
+      var n = Object.keys(t).length * (hgt === 16 ? 2 : 1);
+      if (n > (tiles.n || 0)) tiles.n = n;
+    });
+    var all = {};
+    k.list.forEach(function (x) { x.o.pieces.forEach(function (p) { all[p[3] + ":" + (hgt === 16 ? p[2] & 254 : p[2])] = 1; }); });
+    var sl = Object.keys(slots).map(Number).sort();
+    var pal = state.model === "cgb" ? "palette OBJ " + sl.join(" + ") : "palette " + sl.map(slotName).join(" + ");
+    return pal + " · " + plural(ent, "sprite") + " (" + (hgt === 16 ? "8x16" : "8x8") + ") · " + plural(Object.keys(all).length * (hgt === 16 ? 2 : 1), "tile");
+  }
+  function objectsSection(d, r) {
+    var kinds = objKinds(r), nlook = (r.objs || []).length;
+    var title = r.ev ? "Everything this level can draw" : "Sprite objects";
+    var sum = nlook ? plural(kinds.length, "object") + " · " + plural(nlook, "look") + (r.ev ? " across every event" : "") + " · up to " + r.oam.max_visible + " of 40 sprite entries on screen" : "No sprites on this screen";
+    return section("objects", title, sum, function (body) {
+      var pk = r.pack, op = r.objpack, S = scale();
+      body.appendChild(info(r.ev
+        ? "Each picture is an object the game builds from one or more 8x16 sprite entries, drawn with the palette it really had. This level was driven through every sprite-producing event with the tests' own hooks (" + r.ev.frames + " sampled frames), so the objects cover everything it can draw, not just the screenshot. Each distinct look is shown once. \"pieces\" shows the 8x16 entries an object is made of."
+        : "Each picture is an object the game builds from one or more sprite entries, drawn with the palette it really had, from the sampled window. Each distinct look is shown once. \"pieces\" shows the entries an object is made of."));
+      if (!nlook) { body.appendChild(h("p", { class: "muted", text: "No sprite is drawn on this screen." })); }
+      var cards = h("div", { class: "ocards" });
+      kinds.forEach(function (k) {
+        var card = h("div", { class: "ocard" });
+        card.appendChild(h("div", { class: "oname" }, h("b", { text: k.kind }), h("span", { class: "ometa", text: kindFacts(k) })));
+        var figs = h("div", { class: "figs" });
+        k.list.forEach(function (x) {
+          var o = x.o, at = op.objs[x.i];
+          var f = h("figure", { class: "fig" }, sprIcon(pk.png, pk.w, pk.h, at[0], at[1], o.w, o.hh, S, o.name));
+          if (o.pose) f.appendChild(h("figcaption", { text: o.pose }));
+          figs.appendChild(f);
+        });
+        card.appendChild(figs);
+        card.appendChild(more("pieces", function (pb) {
+          k.list.forEach(function (x) {
+            var o = x.o, row = h("div", { class: "pieces-row" });
+            row.appendChild(h("div", { class: "lab", text: (o.pose || o.kind) + ": " + plural(o.pieces.length, "entry", "entries") }));
+            o.pieces.forEach(function (p) {
+              var at = op.pool[p[8]];
+              row.appendChild(h("div", { class: "piece" }, sprIcon(pk.png, pk.w, pk.h, at[0], at[1], 8, o.h, S, "OAM " + p[7]), h("div", { text: "OAM " + p[7] + " · tile " + p[2] + (p[3] ? " b1" : "") })));
+            });
+            pb.appendChild(row);
+          });
+        }));
+        cards.appendChild(card);
+      });
+      body.appendChild(cards);
+      if (r.ev) body.appendChild(more("More information", function (mb) { eventsDetail(mb, d, r); }));
+    });
+  }
+  // events: the screenshots and the per-event sprite lists (formerly the first thing on the page)
+  function eventsDetail(mb, d, r) {
+    var E = r.ev, pk = r.pack, at = E.at, S = mobile.matches ? 1 : 1.5, SS = scale();
+    mb.appendChild(h("p", { class: "note", text: "Each row is one kind of sprite entry, found by its tile id: what it is, a few stills of it in the game, the raw 8x16 entries with their real palette, and the OBJ palette colours it used. Frames per phase: " + Object.keys(E.phases).map(function (k) { return k + " " + E.phases[k]; }).join(", ") + "." }));
+    if (E.notes.length) mb.appendChild(h("p", { class: "err", text: "Not captured: " + E.notes.join("; ") }));
+    E.events.forEach(function (e, i) {
+      var row = h("div", { class: "evrow" });
+      var head = h("div", null, h("b", { text: e.label }), h("div", { class: "muted", text: e.desc }),
+        h("div", { class: "muted", text: "seen in " + e.n + " frames; OAM entr" + (e.oam.length === 1 ? "y " : "ies ") + e.oam.join(", ") + "; " + plural(e.tiles.length, "sprite tile") }));
+      var pals = h("div", { class: "evpal" });
+      e.slots.forEach(function (sl) {
+        sl.values.forEach(function (v) {
+          if (state.model === "cgb") pals.appendChild(h("span", { class: "grp" }, h("span", { text: "OBJ " + sl.slot }), swatch(v, "mini", { what: "OBJ " + sl.slot + " (" + e.label + ")" })));
+          else pals.appendChild(h("span", { class: "grp", text: (sl.slot ? "OBP1" : "OBP0") + " = 0x" + v.toString(16).toUpperCase() }));
+        });
+      });
+      var stills = h("div", { class: "evstills" });
+      for (var j = 0; j < e.n_stills; j++) stills.appendChild(sprBox(pk.png, pk.w, pk.h, at.x + j * E.cell[0], at.y + i * at.row, E.cell[0], E.cell[1], S, "Still of " + e.label));
+      var spr = h("div", { class: "sprs" });
+      e.sprites.forEach(function (it, k) { spr.appendChild(sprBox(pk.png, pk.w, pk.h, at.spr_x + k * 8, at.y + i * at.row, 8, it[4], SS, e.label + ", OBJ palette " + it[6])); });
+      if (e.n_sprites > e.sprites.length) spr.appendChild(h("span", { class: "more", text: "+" + (e.n_sprites - e.sprites.length) + " more" }));
+      row.appendChild(head); row.appendChild(stills); row.appendChild(h("div", null, spr, pals));
+      mb.appendChild(row);
+    });
+  }
+
+  // ---- sprites per scanline ---------------------------------------------------------------------------------------------------
+  function lineSection(d, r) {
+    var o = r.oam;
+    var sum = "Peak sprites per line: " + o.peak_line + " of 10" + (o.peak_line > 10 ? " (over the limit)" : "") + " · " + o.max_visible + " of 40 entries at most";
+    return section("lines", "Sprites per scanline", sum, function (body) {
+      body.appendChild(info("The hardware draws at most 10 sprites on one scanline; more vanish. Bars show how many sprites touch each screen line of the still (red line: the limit of 10). Sampled over the whole window the worst line holds " + o.peak_line + (o.lines_over_10 === 0 ? ", and no line is ever over 10." : "; " + o.lines_over_10 + " lines are over 10 in the worst sample.")));
+      var W = 144 * 3, H = Math.max(12, o.peak_line + 2) * 8;
+      var cv = h("canvas", { width: W, height: H, style: "max-width:100%", "aria-label": "Sprites per scanline, the still" });
+      var g = cv.getContext("2d");
+      for (var y = 0; y < 144; y++) {
+        var n = o.rep_lines[y];
+        g.fillStyle = n > 10 ? "#e0322a" : n >= 10 ? "#e08a2c" : "#3a7bd5";
+        if (n) g.fillRect(y * 3, H - n * 8, 3, n * 8);
+      }
+      g.fillStyle = "#e0322a"; g.fillRect(0, H - 10 * 8 - 1, W, 1);
+      body.appendChild(h("div", { class: "scroll" }, cv));
+      body.appendChild(more("More information", function (mb) {
+        var kv = h("dl", { class: "kv" });
+        function kvp(k, v) { kv.appendChild(h("dt", { text: k })); kv.appendChild(h("dd", { text: v })); }
+        kvp("on the still", o.visible + " of 40 entries visible");
+        kvp("most in any sample", o.max_visible + " of 40");
+        kvp("peak on one scanline", o.peak_line + " of 10 (line " + o.peak_line_y + ", sample at frame " + o.peak_sample_t + ")");
+        kvp("lines over 10", o.lines_over_10 === 0 ? "none in any sample" : o.lines_over_10 + " lines in the worst sample");
+        mb.appendChild(kv);
+        mb.appendChild(h("h3", { text: "Peak per scanline and visible sprites, every sample" }));
+        var sc = h("canvas", { width: o.peak_series.length * 4, height: 56, style: "max-width:100%" });
+        var g2 = sc.getContext("2d");
+        o.visible_series.forEach(function (v, i) { g2.fillStyle = "#9a9a94"; g2.fillRect(i * 4, 56 - v * 1.4, 3, v * 1.4); });
+        o.peak_series.forEach(function (v, i) { g2.fillStyle = v > 10 ? "#e0322a" : "#3a7bd5"; g2.fillRect(i * 4, 56 - v * 5, 3, 3); });
+        g2.fillStyle = "#e0322a"; g2.fillRect(0, 56 - 50, sc.width, 1);
+        mb.appendChild(h("div", { class: "scroll" }, sc));
+        mb.appendChild(h("p", { class: "note", text: "grey: sprites visible (scale: 40 = 56 px); blue dots: the peak per scanline (red line = 10)." }));
+        mb.appendChild(h("h3", { text: "OAM table, the still" }));
+        var t = h("table", { class: "data" }), cgb = state.model === "cgb";
+        t.appendChild(h("tr", null, ["#", "x", "y", "tile", cgb ? "OBJ pal" : "palette", cgb ? "bank" : "", "flipX", "flipY", "behind BG"].filter(function (x) { return x !== ""; }).map(function (x, i) { return h("th", { class: i < 4 ? "num" : "", text: x }); })));
+        o.table.forEach(function (s) {
+          var tr = h("tr");
+          [s.i, s.x, s.y, s.tile].forEach(function (v) { tr.appendChild(h("td", { class: "num", text: String(v) })); });
+          tr.appendChild(h("td", { text: cgb ? s.pal + "  " + shortRole(roleOf("obj", s.pal)) : (s.dmgpal ? "OBP1" : "OBP0") }));
+          if (cgb) tr.appendChild(h("td", { text: String(s.bank) }));
+          tr.appendChild(h("td", { text: s.xflip ? "yes" : "" })); tr.appendChild(h("td", { text: s.yflip ? "yes" : "" })); tr.appendChild(h("td", { text: s.prio ? "yes" : "" }));
+          t.appendChild(tr);
+        });
+        mb.appendChild(h("div", { class: "scroll", style: "max-height:340px;overflow-y:auto" }, t));
+      }));
+    });
+  }
+
+  // ---- palettes ---------------------------------------------------------------------------------------------------------------
+  function objUsedSlots(r) {
+    var u = {};
+    (r.objs || []).forEach(function (o) { o.slots.forEach(function (s) { u[s] = 1; }); });
+    if (state.model === "cgb") r.pal.obj.forEach(function (q) { if (q.used_frames > 0) u[q.slot] = 1; });
+    else ["OBP0", "OBP1"].forEach(function (k, i) { if (r.dmgpal[k].used_frames > 0) u[i] = 1; });
+    if (r.ev) Object.keys(r.ev.by_slot).forEach(function (s) { u[s] = 1; });
+    return u;
+  }
+  function bgUsedSlots(r) {
+    var u = {};
+    if (state.model === "cgb") r.pal.bg.forEach(function (q) { if (q.used_frames > 0 || (r.ev && ((r.ev.bg_by_pal || {})[String(q.slot)] || []).length)) u[q.slot] = 1; });
+    return u;
+  }
+  function budget(label, used, total, pre) {
+    var free = [], n = 0;
+    for (var i = 0; i < total; i++) { if (used[i]) n++; else free.push(i); }
+    return label + ": " + n + " of " + total + " used · " + (free.length ? free.length + " free (" + free.map(function (s) { return pre + s; }).join(", ") + ")" : "none free");
+  }
+  // the objects drawn with a palette slot, as small thumbnails: one picture per object kind
+  function objThumbs(r, slot) {
+    var wrap = h("div", { class: "sprs pthumbs" }), pk = r.pack, op = r.objpack, any = false, S = mobile.matches ? 1 : 2;
+    objKinds(r).forEach(function (k) {
+      var best = null;
+      k.list.forEach(function (x) { if (x.o.slots.indexOf(slot) >= 0 && (!best || x.o.seen > best.o.seen)) best = x; });
+      if (!best) return;
+      any = true;
+      var at = op.objs[best.i];
+      wrap.appendChild(sprIcon(pk.png, pk.w, pk.h, at[0], at[1], best.o.w, best.o.hh, S, k.kind));
+    });
+    if (!any) wrap.appendChild(h("span", { class: "muted", text: "no sprite uses it" }));
+    return wrap;
+  }
+  function palRow(name, role, free, sw, third) {
+    var nm = h("div", { class: "pname" }, h("b", { text: name }), free ? h("span", { class: "tag", text: "free" }) : null, h("span", { class: "rl", text: role }));
+    var row = h("div", { class: "prow" + (free ? " unused" : "") }, nm, h("div", null, sw));
+    row.appendChild(third || h("div"));
+    return row;
+  }
+  function palSections(d, r) {
+    var cgb = state.model === "cgb", S = [];
+    var ou = objUsedSlots(r), bu = bgUsedSlots(r);
+    // sprite palettes
+    var osum = cgb ? budget("Sprite palettes", ou, 8, "OBJ ") : "Sprite palettes: " + (ou[0] && ou[1] ? "OBP0 and OBP1 both used" : ou[0] ? "OBP0 used · OBP1 free" : ou[1] ? "OBP1 used · OBP0 free" : "none used");
+    S.push(section("objpal", "Sprite palettes", osum, function (body) {
+      body.appendChild(info(cgb
+        ? "OBJ palettes 0-7 colour the sprites. Colours are 15-bit RGB, shown as PyBoy draws them. Click or tap a swatch to copy its #RRGGBB; hover or focus it for the hex and the RGB555 word. Colour 0 is on the left (transparent for sprites). A dimmed row is not used by anything this page captured: it is free. The thumbnails are the objects drawn with that palette."
+        : "On the DMG sprites use two palette registers, OBP0 and OBP1 (OAM flag bit 4 picks one). Each maps colour index 1-3 to one of four shades (index 0 is transparent). Click a swatch to copy its colour."));
+      var grid = h("div", { class: "pgrid" });
+      if (cgb) {
+        r.pal.obj.forEach(function (q) {
+          var animated = q.changes.length > 1, sw = swatch(animated ? q.changes[0][1] : q.rep, "", { what: "OBJ " + q.slot });
+          if (animated) animSwatches.push({ cells: sw.cells, changes: q.changes, frames: r.samples * r.step });
+          grid.appendChild(palRow("OBJ " + q.slot, shortRole(roleOf("obj", q.slot)), !ou[q.slot], sw, h("div", null, objThumbs(r, q.slot))));
+        });
+      } else {
+        [["OBP0", 0, "sprites with palette flag 0"], ["OBP1", 1, "sprites with palette flag 1"]].forEach(function (k) {
+          grid.appendChild(palRow(k[0], k[2], !ou[k[1]], dmgSwatch(r, k[0]), h("div", null, objThumbs(r, k[1]))));
+        });
+      }
+      body.appendChild(grid);
+      body.appendChild(more("More information", function (mb) { palDetails(mb, r, "obj"); }));
+    }));
+    // background palettes
+    var bsum = cgb ? budget("Background palettes", bu, 8, "BG ") : "Background palette: BGP";
+    S.push(section("bgpal", "Background palettes", bsum, function (body) {
+      body.appendChild(info(cgb ? "BG palettes 0-7 colour the background and window tiles (one palette per 8x8 tile, set in the attribute map). Same controls as the sprite palettes. A dimmed row is free." : "BGP colours the background and the window. Click a swatch to copy its colour."));
+      var grid = h("div", { class: "pgrid" });
+      if (cgb) {
+        r.pal.bg.forEach(function (q) {
+          var animated = q.changes.length > 1, sw = swatch(animated ? q.changes[0][1] : q.rep, "", { what: "BG " + q.slot });
+          if (animated) animSwatches.push({ cells: sw.cells, changes: q.changes, frames: r.samples * r.step });
+          grid.appendChild(palRow("BG " + q.slot, shortRole(roleOf("bg", q.slot)), !bu[q.slot], sw));
+        });
+      } else grid.appendChild(palRow("BGP", "background and window", false, dmgSwatch(r, "BGP")));
+      body.appendChild(grid);
+      body.appendChild(more("More information", function (mb) { palDetails(mb, r, "bg"); }));
+    }));
+    return S;
+  }
+  function dmgSwatch(r, k) {
+    var q = r.dmgpal[k], first = q.changes.length > 1 ? q.changes[0][1] : q.rep;
+    var sw = swatch(q.shades.map(function (_, i) { return (first >> (2 * i)) & 3; }), "", { dmg: k, reg: first, what: k });
+    if (q.changes.length > 1) animSwatches.push({ cells: sw.cells, changes: q.changes, frames: r.samples * r.step, dmg: true });
+    return sw;
+  }
+  // per-slot detail: full role, status, counts and the colour strips
+  function palDetails(mb, r, kind) {
+    var t = h("table", { class: "pal" }), cgb = state.model === "cgb";
+    t.appendChild(h("tr", null, h("th", { text: "slot and role" }), h("th", { text: "status" }), h("th", { text: "used" })));
+    if (cgb) r.pal[kind].forEach(function (q) {
+      var used = q.used_frames > 0, name = (kind === "bg" ? "BG " : "OBJ ") + q.slot;
+      var st = h("td", null, slotChips(kind, q.slot, q));
+      if (q.changes.length > 1) st.appendChild(h("div", null, strip(q.changes, r.samples, r.step, false)));
+      t.appendChild(h("tr", null, h("td", null, h("b", { text: name }), h("div", { class: "muted", text: roleOf(kind, q.slot) })), st,
+        h("td", { text: used ? (kind === "bg" ? q.cells + " cells on the still; " : q.objs + " sprites on the still; ") + q.used_frames + "/" + r.samples + " samples" : "unused in the sampled window" })));
+    });
+    else (kind === "bg" ? ["BGP"] : ["OBP0", "OBP1"]).forEach(function (k) {
+      var q = r.dmgpal[k], st = h("td");
+      if (q.changes.length > 1) { st.appendChild(chip("changes: " + q.n_distinct + " values", "anim")); st.appendChild(strip(q.changes, r.samples, r.step, true)); }
+      t.appendChild(h("tr", null, h("td", null, h("b", { text: k }), h("div", { class: "muted", text: "0x" + q.rep.toString(16).toUpperCase() })), st,
+        h("td", { text: q.used_frames > 0 ? (k === "BGP" ? "in use" : q.objs + " sprites on the still") : "unused here" })));
+    });
+    mb.appendChild(h("div", { class: "scroll" }, t));
+    if (!cgb && A.summary && A.summary.dmg) {
+      var sm = A.summary.dmg.dmg;
+      mb.appendChild(h("p", { class: "note", text: "Across all screens BGP takes " + sm.BGP.groups.length + " values, OBP0 " + sm.OBP0.groups.length + ", OBP1 " + sm.OBP1.groups.length + "; level screens: BGP " + sm.BGP.levels.length + ", OBP0 " + sm.OBP0.levels.length + ", OBP1 " + sm.OBP1.levels.length + " (see Summary)." }));
+    }
+    if (kind === "bg" && r.ev && cgb) {
+      mb.appendChild(h("h3", { text: "Tiles drawn with each BG palette (all events)" }));
+      r.pal.bg.forEach(function (q) { var l = (r.ev.bg_by_pal || {})[String(q.slot)] || []; if (l.length) { mb.appendChild(h("div", { class: "muted", text: "BG " + q.slot + ": " + plural(l.length, "tile") })); mb.appendChild(bgTiles(r, q.slot)); } });
+    }
+  }
   function slotChips(kind, slot, rec) {
     var f = document.createDocumentFragment();
     var S = A.summary && A.summary[state.model] && A.summary[state.model].pal ? A.summary[state.model].pal[kind][slot] : null;
     if (rec.unset) f.appendChild(chip("never written", "off", "palette RAM still holds the emulator's power-on colours: the game does not set this slot here"));
     if (S) {
-      if (S.cls.indexOf("swapped") === 0) f.appendChild(chip("swapped during play", "anim", "a level's normal screen and its show screen hold different colours here: a game event (a tip appears, a show starts) rewrites the slot"));
+      if (S.cls.indexOf("swapped") === 0) f.appendChild(chip("swapped during play", "anim", "a level's normal screen and its show screen hold different colours here"));
       else if (S.cls.indexOf("permanent") === 0) f.appendChild(chip("same on every level", "perm", "identical on all " + S.n_levels + " level screens, and no show changes it"));
-      else if (S.cls.indexOf("not seen") === 0) f.appendChild(chip("not seen on level screens", "off", "no level screen references this slot in its sampled window (an event may still use it: see the slot's role)"));
+      else if (S.cls.indexOf("not seen") === 0) f.appendChild(chip("not seen on level screens", "off", "no level screen references this slot in its sampled window"));
       else if (S.cls.indexOf("per venue") === 0 || S.cls.indexOf("per level") >= 0) f.appendChild(chip("per venue (" + S.distinct_levels + " looks)", "venue", S.distinct_levels + " different palettes over " + S.n_levels + " level screens"));
       if (S.cls.indexOf("animates") >= 0) f.appendChild(chip("animates on levels", "anim"));
     }
     if (rec.changes.length > 1) f.appendChild(chip("changes here: " + rec.n_distinct + " values, colour" + (rec.varying_colours.length > 1 ? "s " : " ") + rec.varying_colours.join(","), "anim"));
     return f;
   }
-
-  function prow(cls, cells) {
-    var row = h("div", { class: "prow " + cls });
-    cells.forEach(function (c) { row.appendChild(c); });
-    return row;
-  }
-  function headRow(withSpr, first) {
-    var cells = [h("div", { text: first }), h("div", { text: "colours (click to copy)" }), h("div", { text: "status" })];
-    if (withSpr) cells.push(h("div", { text: "Sprites using it" }));
-    return prow("head", cells);
-  }
-  function sprSheet(r) { return { png: r.pack.png, w: r.pack.w, h: r.pack.h, x: r.spr.at[0], y: r.spr.at[1] }; }
-
-  function palettePanels(d, r) {
-    var out = [];
-    var objP = h("section", { class: "panel", "aria-labelledby": "h-obj" });
-    var bgP = h("section", { class: "panel", "aria-labelledby": "h-bg" });
-    objP.appendChild(h("h2", { id: "h-obj", text: "Sprite (OBJ) palettes" }));
-    bgP.appendChild(h("h2", { id: "h-bg", text: "Background (tile) palettes" }));
-    var gO = h("div", { class: "pgrid", role: "list" }), gB = h("div", { class: "pgrid nospr", role: "list" });
-    var sheet = sprSheet(r);
-    if (state.model === "dmg") {
-      objP.appendChild(h("p", { class: "note", text: "On the DMG sprites use two palette registers, OBP0 and OBP1 (OAM flag bit 4 picks one). Each maps colour index 1-3 to one of four shades (index 0 is transparent). Click a swatch to copy its colour. \"Sprites using it\" shows every sprite seen during the sampled window, with the palette it was drawn in." }));
-      bgP.appendChild(h("p", { class: "note", text: "BGP colours the background and the window." }));
-      gO.appendChild(headRow(true, "register"));
-      gB.appendChild(headRow(false, "register"));
-      [["BGP", "background and window", gB], ["OBP0", "sprites with palette flag 0", gO], ["OBP1", "sprites with palette flag 1", gO]].forEach(function (k, ki) {
-        var q = r.dmgpal[k[0]], used = q.used_frames > 0, obj = k[0] !== "BGP";
-        var first = q.changes.length > 1 ? q.changes[0][1] : q.rep;
-        var sw = swatch(q.shades.map(function (_, i) { return (first >> (2 * i)) & 3; }), "big", { dmg: k[0], reg: first, what: k[0] });
-        var cs = [h("div", null, h("b", { text: k[0] }), h("div", { class: "muted", text: k[1] }))];
-        var tdc = h("div", null, sw);
-        if (q.changes.length > 1) {
-          animSwatches.push({ cells: sw.cells, changes: q.changes, frames: r.samples * r.step, dmg: true });
-          tdc.appendChild(h("div", null, strip(q.changes, r.samples, r.step, true)));
-        }
-        cs.push(tdc);
-        var tdu = h("div", { class: "pstat" });
-        tdu.appendChild(h("span", { text: used ? (obj ? q.objs + " sprites on the still" : "in use") : "unused here" }));
-        if (q.changes.length > 1) tdu.appendChild(chip("changes: " + q.n_distinct + " values", "anim"));
-        cs.push(tdu);
-        if (obj) cs.push(h("div", { class: "pspr" }, sprites(r.spr.groups[k[0] === "OBP0" ? 0 : 1], sheet, "samples")));
-        k[2].appendChild(prow(used ? "" : "unused", cs));
-      });
-      objP.appendChild(gO); bgP.appendChild(gB);
-      var sm = A.summary && A.summary.dmg && A.summary.dmg.dmg;
-      if (sm) bgP.appendChild(h("p", { class: "note", text: "Across all screens BGP takes " + sm.BGP.groups.length + " values, OBP0 " + sm.OBP0.groups.length + ", OBP1 " + sm.OBP1.groups.length + "; level screens: BGP " + sm.BGP.levels.length + ", OBP0 " + sm.OBP0.levels.length + ", OBP1 " + sm.OBP1.levels.length + " (see Summary)." }));
-      return [objP, bgP];
-    }
-    var note = " Colours are 15-bit RGB, shown as PyBoy draws them (each 5-bit channel shifted left 3). Click or tap a swatch to copy its #RRGGBB; hover or focus it to see the hex and the RGB555 word the game writes. Colour 0 is on the left (transparent for sprites). A greyed row is not referenced by any tile or sprite in the sampled frames; an animated swatch cycles through the values the slot took, with its strip (rows are colours 0-3, one column per sample) beside it.";
-    objP.appendChild(h("p", { class: "note", text: "OBJ palettes 0-7 colour the sprites." + note + " \"Sprites using it\" shows every sprite (OAM entry) seen with that palette during the sampled window, drawn with its real palette and flip flags (up to " + r.spr.cap + " per palette)." }));
-    bgP.appendChild(h("p", { class: "note", text: "BG palettes 0-7 colour the background and window tiles (one palette per 8x8 tile, set in the attribute map)." + " " + "Same controls as above." }));
-    ["obj", "bg"].forEach(function (kind) {
-      var grid = kind === "obj" ? gO : gB, withSpr = kind === "obj";
-      grid.appendChild(headRow(withSpr, kind === "bg" ? "BG palette" : "OBJ palette"));
-      r.pal[kind].forEach(function (q) {
-        var used = q.used_frames > 0, animated = q.changes.length > 1, name = (kind === "bg" ? "BG " : "OBJ ") + q.slot;
-        var sw = swatch(animated ? q.changes[0][1] : q.rep, "big", { what: name });
-        var cs = [h("div", null, h("b", { text: name }), h("div", { class: "muted", text: roleOf(kind, q.slot) }))];
-        var td = h("div", null, sw);
-        if (animated) {
-          animSwatches.push({ cells: sw.cells, changes: q.changes, frames: r.samples * r.step });
-          td.appendChild(h("div", null, strip(q.changes, r.samples, r.step, false)));
-        }
-        cs.push(td);
-        var st = h("div", { class: "pstat" });
-        st.appendChild(h("span", { text: used ? (kind === "bg" ? q.cells + " cells on the still; " : q.objs + " sprites on the still; ") + q.used_frames + "/" + r.samples + " samples" : "unused here" }));
-        st.appendChild(h("div", null, slotChips(kind, q.slot, q)));
-        cs.push(st);
-        if (withSpr) cs.push(h("div", { class: "pspr" }, sprites(r.spr.groups[q.slot], sheet, "samples")));
-        grid.appendChild(prow(used ? "" : "unused", cs));
-      });
+  // BG tiles drawn with palette `pal` (screen, window and every event), as little thumbnails of the grey tile sheet
+  function bgTiles(r, pal) {
+    var lst = (r.ev.bg_by_pal || {})[String(pal)] || [], wrap = h("div", { class: "sprs" }), pk = r.pack, S = 2, CAP = 40;
+    lst.slice(0, CAP).forEach(function (t) {
+      var sh = pk.sheets[t[0]]; if (!sh) return;
+      var s = t[1];
+      wrap.appendChild(sprBox(pk.png, pk.w, pk.h, sh.gray[0] + (s % 16) * 8, sh.gray[1] + Math.floor(s / 16) * 8, 8, 8, S, "BG tile slot " + s + (t[0] ? ", bank 1" : "") + " (" + regionOf(s) + ")"));
     });
-    objP.appendChild(gO); bgP.appendChild(gB);
-    return [objP, bgP];
+    if (lst.length > CAP) wrap.appendChild(h("span", { class: "more", text: "first " + CAP + " shown" }));
+    return wrap;
   }
 
-  // ---- render: tiles -----------------------------------------------------------------------------------------------------------
-  function tilePanel(d, r) {
-    var S = scale(), p = h("section", { class: "panel" });
-    p.appendChild(h("h2", { text: "Tiles" }));
-    var banks = r.tiles;
-    if (state.bank >= banks.length) state.bank = 0;
-    var T = banks[state.bank];
-    p.appendChild(h("p", { class: "note", text: "VRAM tile data, 384 slots a bank, 16 to a row (row labels are the first slot). Slots 0-127 are the OBJ-only block, 128-255 are shared by BG ids 128-255 and OBJ ids 128-255, 256-383 are BG ids 0-127 in signed mode. Region labels are the level screens' documented layout; other screens reuse the slots differently, so read their regions as slot ranges only." }));
-    var ctl = h("div", { class: "legend" });
-    if (banks.length > 1) {
-      var seg = h("span", { class: "seg" });
-      banks.forEach(function (b, i) {
-        var bt = h("button", { type: "button", "aria-pressed": i === state.bank ? "true" : "false", text: "Bank " + i, onclick: function () { state.bank = i; render(); } });
-        seg.appendChild(bt);
-      });
-      ctl.appendChild(seg);
+  // ---- tiles ------------------------------------------------------------------------------------------------------------------
+  function tileMasks(r, b) {
+    var T = r.tiles[b], ev = r.ev, bgset = {}, bg = [], ob = [], used = [], loaded = [];
+    if (ev) (ev.bg_tiles || []).forEach(function (x) { bgset[x[0] + ":" + x[1]] = 1; });
+    for (var s = 0; s < 384; s++) {
+      var u = parseInt(T.use[s], 16);
+      bg.push(!!((u & 3) || bgset[b + ":" + s]));
+      ob.push(!!((u & 4) || (ev && ev.obj_tiles[b + ":" + s])));
+      used.push(!!(u || (ev && ev.use[b] && ev.use[b][s] === "1")));
+      loaded.push(T.loaded[s] === "1");
     }
-    [["used", "Mark used / free"], ["colour", "Colour by palette"], ["regions", "Region bands"]].forEach(function (k) {
-      ctl.appendChild(h("button", { type: "button", "aria-pressed": state.tiles[k[0]] ? "true" : "false", text: k[1], onclick: function () { state.tiles[k[0]] = !state.tiles[k[0]]; render(); } }));
+    return { bg: bg, obj: ob, used: used, loaded: loaded };
+  }
+  function tileSection(d, r) {
+    var parts = [], nb = r.tiles.length;
+    var bgn = [], obn = [];
+    r.tiles.forEach(function (T, b) {
+      var m = tileMasks(r, b), a = 0, o = 0;
+      for (var s = 128; s < 384; s++) if (m.bg[s]) a++;
+      for (var q = 0; q < 256; q++) if (m.obj[q]) o++;
+      bgn.push(a); obn.push(o);
+    });
+    var sum = "BG tiles: " + bgn[0] + " of 256 used" + (nb > 1 ? " (bank 1: " + bgn[1] + ")" : "") + " · Sprite tiles: " + obn[0] + " of 256 used" + (nb > 1 ? " (bank 1: " + obn[1] + ")" : "");
+    return section("tiles", "Tiles", sum, function (body) {
+      body.appendChild(info("VRAM holds 384 tile slots per bank. Slots 0-127 are the OBJ-only block, 128-255 are shared by BG ids 128-255 and OBJ ids 128-255, 256-383 are BG ids 0-127 (signed mode). A BG tile can use slots 128-383 (256), a sprite slots 0-255 (256). \"Used\" means a tile map entry or a sprite entry refers to it" + (r.ev ? " on this screen or in any event" : " in the sampled window") + ". The regions are the level screens' documented layout; other screens reuse the slots differently, so read their regions as slot ranges only."));
+      var bank = state.bank < nb ? state.bank : 0;
+      if (nb > 1) {
+        var seg = h("div", { class: "seg", style: "margin-bottom:10px" });
+        r.tiles.forEach(function (T, b) { seg.appendChild(h("button", { type: "button", "aria-pressed": b === bank ? "true" : "false", text: "Bank " + b, onclick: function () { state.bank = b; state.open.tiles = true; render(); } })); });
+        body.appendChild(seg);
+      }
+      var T = r.tiles[bank], m = tileMasks(r, bank), bars = h("div", { class: "rbars" });
+      idx().regions.forEach(function (rg, i) {
+        var used = 0, lu = 0, tot = rg.hi - rg.lo + 1;
+        for (var s = rg.lo; s <= rg.hi; s++) { if (m.used[s]) used++; else if (m.loaded[s]) lu++; }
+        var tr = h("div", { class: "track", role: "img", "aria-label": rg.label + ": " + used + " of " + tot + " used, " + lu + " loaded but unused, " + (tot - used - lu) + " free" },
+          h("span", { class: "u", style: "width:" + (100 * used / tot) + "%" }), h("span", { class: "l", style: "width:" + (100 * lu / tot) + "%" }));
+        bars.appendChild(h("div", { class: "rbar" }, h("div", { class: "rl", title: rg.label }, h("i", { style: "background:" + BAND[rg.kind] }), h("span", { text: shortRegion(rg.label) })), tr, h("div", { class: "n", text: used + " / " + tot })));
+      });
+      body.appendChild(bars);
+      body.appendChild(h("div", { class: "legend" }, h("span", null, h("b", { style: "background:var(--accent)" }), "used"), h("span", null, h("b", { style: "background:var(--warn);opacity:.55" }), "loaded, not used"), h("span", null, h("b", { style: "background:var(--soft)" }), "free")));
+      body.appendChild(more("show tile sheet", function (mb) { sheetBody(mb, r); }));
+      body.appendChild(more("More information", function (mb) {
+        var c = T.counts;
+        mb.appendChild(h("p", { text: "Bank " + bank + ": " + c.ref + " slots referenced by the still, " + c.loaded_unused + " loaded but not on screen, " + c.empty + " empty (of 384)." }));
+        var tb = h("table", { class: "data" });
+        tb.appendChild(h("tr", null, h("th", { text: "region (slots)" }), h("th", { text: "scope" }), h("th", { class: "num", text: "slots" }), h("th", { class: "num", text: "used" }), h("th", { class: "num", text: "loaded, unused" }), h("th", { class: "num", text: "free" })));
+        idx().regions.forEach(function (rg) {
+          var used = 0, lu = 0, tot = rg.hi - rg.lo + 1;
+          for (var s = rg.lo; s <= rg.hi; s++) { if (m.used[s]) used++; else if (m.loaded[s]) lu++; }
+          var tr = h("tr");
+          tr.appendChild(h("td", null, h("b", { style: "display:inline-block;width:10px;height:10px;margin-right:6px;background:" + BAND[rg.kind] }), rg.label + "  [" + rg.lo + "-" + rg.hi + "]"));
+          tr.appendChild(h("td", { text: SCOPE[rg.scope] }));
+          [tot, used, lu, tot - used - lu].forEach(function (v) { tr.appendChild(h("td", { class: "num", text: String(v) })); });
+          tb.appendChild(tr);
+        });
+        mb.appendChild(h("div", { class: "scroll" }, tb));
+      }));
+    });
+  }
+  function shortRegion(l) { return l.replace(/^OBJ ids [\d-]+: /, "OBJ: ").replace(/ \(.*$/, "").replace(/^ids [\d-]+: /, "").replace(/^BG ids? [\d-]+: /, "BG: "); }
+  // the full tile sheet with its overlays
+  function sheetBody(p, r) {
+    p.textContent = "";
+    var S = scale(), banks = r.tiles, bank = state.bank < banks.length ? state.bank : 0, T = banks[bank];
+    var ctl = h("div", { class: "legend" });
+    [["used", "Mark used / free"], ["colour", "Colour by palette"], ["regions", "Region bands"]].concat(r.boss ? [["boss", "Boss fight replaces"]] : []).forEach(function (k) {
+      ctl.appendChild(h("button", { type: "button", "aria-pressed": state.tiles[k[0]] ? "true" : "false", text: k[1], onclick: function () { state.tiles[k[0]] = !state.tiles[k[0]]; sheetBody(p, r); } }));
     });
     p.appendChild(ctl);
     var row = h("div", { class: "row" });
     var wrap = h("div", { class: "scroll" });
-    var cv = h("canvas", { class: "pix", width: 128 * S, height: 192 * S, "aria-label": "Tile sheet, bank " + state.bank });
-    var gut = h("div", { class: "gutter" });
-    var rows = h("div", { class: "rows" });
+    var cv = h("canvas", { class: "pix", width: 128 * S, height: 192 * S, "aria-label": "Tile sheet, bank " + bank });
+    var gut = h("div", { class: "gutter" }), rows = h("div", { class: "rows" });
     for (var i = 0; i < 24; i++) rows.appendChild(h("div", { text: String(i * 16), style: "height:" + 8 * S + "px;line-height:" + 8 * S + "px" }));
     gut.appendChild(rows); gut.appendChild(cv);
     wrap.appendChild(gut);
@@ -664,212 +1062,268 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     var side = h("div", { style: "flex:1 1 300px;min-width:0" });
     side.appendChild(h("div", { class: "legend" },
       h("span", null, h("b", { style: "background:#3a7bd5" }), "BG"), h("span", null, h("b", { style: "background:#b04fb0" }), "window"), h("span", null, h("b", { style: "background:#e08a2c" }), "sprite"),
+      r.ev ? h("span", null, h("b", { style: "background:#2fb34f" }), "used only in an event") : null,
+      r.boss && state.tiles.boss ? h("span", null, h("b", { style: "background:#e0322a" }), "replaced during the boss fight") : null,
       h("span", null, h("b", { style: "border-color:#e0322a;border-width:2px" }), "loaded, not referenced"), h("span", null, h("b", { style: "background:repeating-linear-gradient(45deg,#8885,#8885 2px,transparent 2px,transparent 4px)" }), "empty and free")));
     var c = T.counts;
     side.appendChild(h("p", { text: c.ref + " referenced, " + c.loaded_unused + " loaded but not on screen, " + c.empty + " empty and free (of 384)." }));
-    var info = h("div", { class: "readout", id: "tileinfo", text: "Hover or click a tile." });
-    side.appendChild(info);
-    var big = h("canvas", { class: "pix", width: 64, height: 64, style: "border:1px solid var(--line)" });
+    var info1 = h("div", { class: "readout", id: "tileinfo", text: "Hover or click a tile." });
+    side.appendChild(info1);
+    var big = h("canvas", { class: "pix", width: 64, height: 64 });
     side.appendChild(big);
     row.appendChild(side);
     p.appendChild(row);
-
     var im = new Image();
-    var sp = r.pack.sheets[state.bank][state.tiles.colour ? "colour" : "gray"];
+    var sp = r.pack.sheets[bank][state.tiles.colour ? "colour" : "gray"];
     im.onload = function () { paintTiles(cv, im, r, T, S, sp); };
     im.src = r.pack.png;
     function show(e) {
       var b = cv.getBoundingClientRect(), x = Math.floor((e.clientX - b.left) / (8 * S)), y = Math.floor((e.clientY - b.top) / (8 * S));
       if (x < 0 || x > 15 || y < 0 || y > 23) return;
       var s = y * 16 + x, u = parseInt(T.use[s], 16);
-      var bgid = s >= 256 ? s - 256 : s >= 128 ? s : null;
+      var evl = r.ev && r.ev.obj_tiles[bank + ":" + s];
       var lines = ["slot " + s + (s < 128 ? "  OBJ id " + s : s < 256 ? "  BG id / OBJ id " + s : "  BG id " + (s - 256)), regionOf(s)];
       lines.push((u ? "referenced by: " + [u & 1 ? "BG" : "", u & 2 ? "window" : "", u & 4 ? "sprites" : ""].filter(Boolean).join(", ") : T.loaded[s] === "1" ? "loaded, not referenced in the window" : "empty, not referenced (free)") + (T.changed.indexOf(s) >= 0 ? "; data changes over the window" : ""));
-      info.textContent = lines.join("\n"); info.style.whiteSpace = "pre-line";
+      if (evl) lines.push("sprite tile of: " + evl.join(", "));
+      if (r.ev && r.ev.use[bank] && r.ev.use[bank][s] === "1" && !u) lines.push("used only in an event");
+      if (r.boss && r.boss.tiles[bank] && r.boss.tiles[bank].mask[s] === "1") lines.push("replaced during the boss fight (" + r.boss.name + ")");
+      info1.textContent = lines.join("\n"); info1.style.whiteSpace = "pre-line";
       var g = big.getContext("2d"); g.imageSmoothingEnabled = false;
       g.clearRect(0, 0, 64, 64); g.drawImage(im, sp[0] + x * 8, sp[1] + y * 8, 8, 8, 0, 0, 64, 64);
     }
     cv.addEventListener("mousemove", show); cv.addEventListener("click", show);
-    // the region table
-    var tb = h("table", { class: "data" });
-    tb.appendChild(h("tr", null, h("th", { text: "region (slots)" }), h("th", { text: "scope" }), h("th", { class: "num", text: "slots" }), h("th", { class: "num", text: "referenced" }), h("th", { class: "num", text: "loaded, unused" }), h("th", { class: "num", text: "empty" })));
+    var tb = h("table", { class: "data", style: "margin-top:10px" });
+    tb.appendChild(h("tr", null, h("th", { text: "region (click to outline on the sheet)" })));
     idx().regions.forEach(function (rg, i) {
-      var k = T.regions[i];
       var tr = h("tr", { class: state.tiles.region === i ? "sel" : "", tabindex: "0", style: "cursor:pointer" });
-      tr.appendChild(h("td", null, h("b", { class: "", style: "display:inline-block;width:10px;height:10px;margin-right:6px;background:" + BAND[rg.kind] }), rg.label + "  [" + rg.lo + "-" + rg.hi + "]"));
-      tr.appendChild(h("td", { text: SCOPE[rg.scope] }));
-      [k.total, k.ref, k.loaded_unused, k.empty].forEach(function (v) { tr.appendChild(h("td", { class: "num", text: String(v) })); });
+      tr.appendChild(h("td", null, h("b", { style: "display:inline-block;width:10px;height:10px;margin-right:6px;background:" + BAND[rg.kind] }), rg.label + "  [" + rg.lo + "-" + rg.hi + "]"));
       function pick() { state.tiles.region = state.tiles.region === i ? -1 : i; paintTiles(cv, im, r, T, S, sp); Array.prototype.forEach.call(tb.querySelectorAll("tr"), function (x, n) { x.className = n - 1 === state.tiles.region ? "sel" : ""; }); }
       tr.addEventListener("click", pick);
       tr.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
       tb.appendChild(tr);
     });
-    p.appendChild(h("h3", { text: "Region counts (click a row to outline it on the sheet)" }));
     p.appendChild(h("div", { class: "scroll" }, tb));
-    return p;
   }
-  function paintTiles(cv, im, r, T, S, sp) {
-    var g = cv.getContext("2d");
-    g.imageSmoothingEnabled = false;
-    g.clearRect(0, 0, cv.width, cv.height);
-    g.drawImage(im, sp[0], sp[1], 128, 192, 0, 0, 128 * S, 192 * S);
-    var C = 8 * S, R = idx().regions;
-    for (var s = 0; s < 384; s++) {
-      var x = (s % 16) * C, y = Math.floor(s / 16) * C, u = parseInt(T.use[s], 16), loaded = T.loaded[s] === "1";
-      if (state.tiles.used) {
-        if (u) {
-          var dots = [[1, "#3a7bd5"], [2, "#b04fb0"], [4, "#e08a2c"]], n = 0;
-          dots.forEach(function (d) { if (u & d[0]) { g.fillStyle = d[1]; g.fillRect(x + 1 + n * (S + 2), y + 1, S + 1, S + 1); n++; } });
-        } else if (loaded) {
-          g.strokeStyle = "#e0322a"; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, C - 1, C - 1);
+
+  // ---- boss fight ----------------------------------------------------------------------------------------------------------------
+  function bossTake(r) {
+    var B = r.boss, pal = B.pal, o = [], bg = [], n = state.model === "cgb";
+    if (n) {
+      pal.obj.forEach(function (q) { if (q.replaced && q.used) o.push(q.slot); });
+      pal.bg.forEach(function (q) { if (q.replaced && q.used) bg.push(q.slot); });
+      var parts = [];
+      if (o.length) parts.push("OBJ " + o.join(", "));
+      if (bg.length) parts.push("BG " + bg.join(", "));
+      return parts.length ? "Boss fight takes over " + parts.join(" and ") : "Boss fight keeps every palette slot";
+    }
+    var rep = ["BGP", "OBP0", "OBP1"].filter(function (k) { return pal[k].replaced; });
+    return rep.length ? "Boss fight replaces " + rep.join(", ") : "Boss fight keeps every palette register";
+  }
+  function bossSection(d, r) {
+    var B = r.boss, line = bossTake(r);
+    return section("boss", "Boss fight: " + B.name, line, function (body) {
+      body.appendChild(info("The boss walks into this venue's level in place. He borrows patron C's tiles, BG palette 4 and OBJ palette 7, and some bosses load slot 5 (src/boss.c). Compared with the level's own frame, the fight REPLACES the palettes and tile slots listed under More information. OBJ 5 can also differ only because the level frame holds the tip coin or the show palette there. Boss Rush reuses this fight."));
+      body.appendChild(h("p", { class: "bossline", text: line + "." }));
+      body.appendChild(h("p", { class: "muted", text: B.tiles.map(function (t) { return (B.tiles.length > 1 ? "Bank " + t.bank + ": " : "") + plural(t.n, "tile slot") + " replaced"; }).join(" · ") }));
+      body.appendChild(more("More information", function (mb) {
+        var pal = B.pal, rows = [];
+        if (state.model === "cgb") {
+          [["obj", "OBJ"], ["bg", "BG"]].forEach(function (k) {
+            pal[k[0]].forEach(function (q) {
+              if (!q.replaced) return;
+              rows.push(h("tr", null, h("td", { text: k[1] + " " + q.slot }), h("td", { text: roleOf(k[0], q.slot) }), h("td", null, swatch(q.level, "mini", { what: k[1] + " " + q.slot + " (level)" })),
+                h("td", null, swatch(q.boss, "mini", { what: k[1] + " " + q.slot + " (boss fight)" })), h("td", { text: q.used ? "used in the fight" : "set, not drawn in the sampled fight" })));
+            });
+          });
         } else {
-          g.fillStyle = "rgba(128,128,124,.45)"; g.fillRect(x, y, C, C);
-          g.strokeStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.moveTo(x, y + C); g.lineTo(x + C, y); g.stroke();
+          ["BGP", "OBP0", "OBP1"].forEach(function (k) {
+            var q = pal[k]; if (!q.replaced) return;
+            rows.push(h("tr", null, h("td", { text: k }), h("td", { text: "" }), h("td", { text: "0x" + q.level.toString(16).toUpperCase() }), h("td", { text: "0x" + q.boss.toString(16).toUpperCase() }), h("td", { text: "" })));
+          });
         }
-      }
-    }
-    if (state.tiles.regions) {
-      R.forEach(function (rg) {
-        g.fillStyle = BAND[rg.kind];
-        for (var s = rg.lo; s <= rg.hi; s++) g.fillRect((s % 16) * C, Math.floor(s / 16) * C + C - 3, C, 3);
-      });
-    }
-    if (state.tiles.region >= 0) {
-      var rg = R[state.tiles.region];
-      g.strokeStyle = "#ffd400"; g.lineWidth = 2;
-      for (var q = rg.lo; q <= rg.hi; q++) {
-        var qx = (q % 16) * C, qy = Math.floor(q / 16) * C;
-        if (q - 16 < rg.lo) { g.beginPath(); g.moveTo(qx, qy + 1); g.lineTo(qx + C, qy + 1); g.stroke(); }
-        if (q + 16 > rg.hi) { g.beginPath(); g.moveTo(qx, qy + C - 1); g.lineTo(qx + C, qy + C - 1); g.stroke(); }
-        if (q % 16 === 0 || q === rg.lo) { g.beginPath(); g.moveTo(qx + 1, qy); g.lineTo(qx + 1, qy + C); g.stroke(); }
-        if (q % 16 === 15 || q === rg.hi) { g.beginPath(); g.moveTo(qx + C - 1, qy); g.lineTo(qx + C - 1, qy + C); g.stroke(); }
-      }
-    }
-  }
-
-  // ---- render: sprites -----------------------------------------------------------------------------------------------------------
-  function oamPanel(d, r) {
-    var o = r.oam, p = h("section", { class: "panel" });
-    p.appendChild(h("h2", { text: "Sprites (OAM)" }));
-    var kv = h("dl", { class: "kv" });
-    function kvp(k, v) { kv.appendChild(h("dt", { text: k })); kv.appendChild(h("dd", { text: v })); }
-    kvp("on the still", o.visible + " of 40 entries visible");
-    kvp("most in any sample", o.max_visible + " of 40");
-    kvp("peak on one scanline", o.peak_line + " of 10 (line " + o.peak_line_y + ", sample at frame " + o.peak_sample_t + ")" + (o.peak_line > 10 ? "  OVER THE LIMIT" : ""));
-    kvp("lines over 10", o.lines_over_10 === 0 ? "none in any sample" : o.lines_over_10 + " lines in the worst sample");
-    p.appendChild(kv);
-    var row = h("div", { class: "row", style: "margin-top:10px" });
-    var left = h("div", { style: "min-width:0" });
-    left.appendChild(h("h3", { text: "Sprites per scanline, the still (limit 10)" }));
-    var W = 144 * 3, H = Math.max(12, o.peak_line + 2) * 8;
-    var cv = h("canvas", { width: W, height: H, style: "max-width:100%;border:1px solid var(--line)", "aria-label": "Sprites per scanline" });
-    var g = cv.getContext("2d");
-    for (var y = 0; y < 144; y++) {
-      var n = o.rep_lines[y];
-      g.fillStyle = n > 10 ? "#e0322a" : n >= 10 ? "#e08a2c" : "#3a7bd5";
-      if (n) g.fillRect(y * 3, H - n * 8, 3, n * 8);
-    }
-    g.fillStyle = "#e0322a"; g.fillRect(0, H - 10 * 8 - 1, W, 1);
-    left.appendChild(h("div", { class: "scroll" }, cv));
-    left.appendChild(h("p", { class: "note", text: "x: screen line 0-143; bars: sprites touching the line; red line: the hardware's limit of 10." }));
-    left.appendChild(h("h3", { text: "Peak per scanline and visible sprites, every sample" }));
-    var sc = h("canvas", { width: o.peak_series.length * 4, height: 56, style: "border:1px solid var(--line);max-width:100%" });
-    var g2 = sc.getContext("2d");
-    o.visible_series.forEach(function (v, i) { g2.fillStyle = "#9a9a94"; g2.fillRect(i * 4, 56 - v * 1.4, 3, v * 1.4); });
-    o.peak_series.forEach(function (v, i) { g2.fillStyle = v > 10 ? "#e0322a" : "#3a7bd5"; g2.fillRect(i * 4, 56 - v * 5, 3, 3); });
-    g2.fillStyle = "#e0322a"; g2.fillRect(0, 56 - 50, sc.width, 1);
-    left.appendChild(h("div", { class: "scroll" }, sc));
-    left.appendChild(h("p", { class: "note", text: "grey: sprites visible (scale: 40 = 56 px); blue dots: the peak per scanline (red line = 10)." }));
-    row.appendChild(left);
-    var right = h("div", { style: "flex:1 1 380px;min-width:0" });
-    right.appendChild(h("h3", { text: "OAM table, the still" }));
-    var t = h("table", { class: "data" });
-    var cgb = state.model === "cgb";
-    t.appendChild(h("tr", null, ["#", "x", "y", "tile", cgb ? "OBJ pal" : "palette", cgb ? "bank" : "", "flipX", "flipY", "behind BG"].filter(function (x) { return x !== ""; }).map(function (x, i) { return h("th", { class: i < 4 ? "num" : "", text: x }); })));
-    o.table.forEach(function (s) {
-      var cells = [s.i, s.x, s.y, s.tile];
-      var tr = h("tr");
-      cells.forEach(function (v) { tr.appendChild(h("td", { class: "num", text: String(v) })); });
-      tr.appendChild(h("td", { text: cgb ? s.pal + "  " + roleOf("obj", s.pal) : (s.dmgpal ? "OBP1" : "OBP0") }));
-      if (cgb) tr.appendChild(h("td", { text: String(s.bank) }));
-      tr.appendChild(h("td", { text: s.xflip ? "yes" : "" })); tr.appendChild(h("td", { text: s.yflip ? "yes" : "" })); tr.appendChild(h("td", { text: s.prio ? "yes" : "" }));
-      t.appendChild(tr);
+        var tb = h("table", { class: "data wrap" });
+        tb.appendChild(h("tr", null, h("th", { text: "palette" }), h("th", { text: "role in the level" }), h("th", { text: "level" }), h("th", { text: "boss fight" }), h("th", { text: "" })));
+        rows.forEach(function (x) { tb.appendChild(x); });
+        mb.appendChild(h("h3", { text: "Palettes replaced" }));
+        mb.appendChild(rows.length ? h("div", { class: "scroll" }, tb) : h("p", { class: "muted", text: "none" }));
+        mb.appendChild(h("h3", { text: "Tile slots replaced" }));
+        B.tiles.forEach(function (t) {
+          mb.appendChild(h("p", { text: (B.tiles.length > 1 ? "Bank " + t.bank + ": " : "") + t.n + " slots differ (" + t.boss_uses + " slots drawn in the fight): " + (t.replaced.length ? t.replaced.map(function (q) { return q[0] === q[1] ? String(q[0]) : q[0] + "-" + q[1]; }).join(", ") : "none") }));
+        });
+      }));
     });
-    right.appendChild(h("div", { class: "scroll", style: "max-height:340px;overflow-y:auto" }, t));
-    row.appendChild(right);
-    p.appendChild(row);
-    return p;
   }
 
-  // ---- render: free sprite palettes ----------------------------------------------------------------------------------------------
+  // ---- states and events of this screen ----------------------------------------------------------------------------------------
+  function loadKids(d, cb) {
+    var need = idx().screens.filter(function (s) { return s.parent === d.id && !A[s.id]; }), left = need.length;
+    if (!left) { cb(); return; }
+    need.forEach(function (s) { load(s.id, function () { if (--left === 0) cb(); }); });
+  }
+  function childrenSection(d) {
+    var kids = idx().screens.filter(function (s) { return s.parent === d.id; });
+    if (!kids.length) return null;
+    var sum = plural(kids.length, "state and event", "states and events") + ": " + kids.slice(0, 4).map(function (s) { return s.name.replace(/\s*\(.*$/, ""); }).join(", ") + (kids.length > 4 ? ", ..." : "");
+    return section("states", "States and events", sum, function (body) {
+      body.appendChild(info("Screens that belong to this one (the show, the boss entrance and fight, pause menus, and so on). Each link opens that screen's own page (palettes, tiles, sprites); the screenshots are under More information."));
+      var ul = h("ul", { class: "klist" });
+      kids.forEach(function (s) { ul.appendChild(h("li", { id: "child-" + s.id }, h("a", { href: "#" + s.id + (state.model === "dmg" ? "/dmg" : "") + "+full", text: s.name }))); });
+      body.appendChild(ul);
+      body.appendChild(more("More information", function (mb) {
+        mb.appendChild(h("p", { class: "muted", text: "Loading screenshots..." }));
+        loadKids(d, function () {
+          mb.textContent = "";
+          var grid = h("div", { class: "kids" });
+          kids.forEach(function (s) {
+            var c = h("div", { class: "kid" }), cd = A[s.id], cr = cd && cd[state.model];
+            c.appendChild(h("div", null, h("b", { text: s.name })));
+            if (!cr) c.appendChild(h("div", { class: "muted", text: "not reached on " + state.model.toUpperCase() }));
+            else {
+              var S = 2, pk = cr.pack;
+              var st = h("div", { class: "stage", style: "width:" + 160 * S + "px;height:" + 144 * S + "px" });
+              st.appendChild(h("div", { class: "pix", role: "img", "aria-label": s.name, style: "width:" + 160 * S + "px;height:" + 144 * S + "px;background:url(" + pk.png + ") " + (-pk.still[0] * S) + "px " + (-pk.still[1] * S) + "px/" + (pk.w * S) + "px " + (pk.h * S) + "px no-repeat;image-rendering:pixelated" }));
+              if (cr.anim && state.motion) st.appendChild(h("img", { class: "pix", width: 160 * S, height: 144 * S, alt: "Animation of " + s.name, src: cr.anim, style: "position:absolute;left:0;top:0" }));
+              c.appendChild(st);
+            }
+            grid.appendChild(c);
+          });
+          mb.appendChild(grid);
+        });
+      }));
+    });
+  }
+
+
+  // ---- free sprite palettes ----------------------------------------------------------------------------------------------------
   function renderFree(main) {
     main.appendChild(h("h2", { text: "Free sprite palettes, level by level" }));
+    main.appendChild(h("p", { class: "sel-id", text: "CGB sprite palettes 0-7, 10 ARCADE venues and 3 CLASSIC levels" }));
     var S = A.summary;
     if (!S) { main.appendChild(h("p", { class: "muted", text: "Loading..." })); load("summary", function () { if (state.free) render(); }); return; }
     var F = S.free;
     if (!F) { main.appendChild(h("p", { class: "err", text: "No CGB data in this atlas." })); return; }
-    main.appendChild(h("p", { class: "note", text: "CGB sprite (OBJ) palettes 0-7 per level: the 10 ARCADE venues and 3 CLASSIC levels, each venue's show screen counted as part of its level. The verdict comes from the source code (every OBJPAL_* use, set_sprite_palette and OCPS write), not from the sampled frames alone: a short sample cannot prove a slot free, because events may not happen in it. The sampled frames only cross-check it. The DMG has no per-slot palettes (two registers, OBP0 and OBP1)." }));
-    main.appendChild(h("p", { class: "note", text: F.legend }));
-    main.appendChild(h("p", { class: "note" }, h("b", { text: F.planned })));
-    if (F.warnings.length) main.appendChild(h("p", { class: "err", text: "Check: " + F.warnings.join("; ") }));
-    var p = h("section", { class: "panel" });
-    var t = h("table", { class: "data free" });
-    var head = h("tr", null, h("th", { text: "level" }));
-    for (var k = 0; k < 8; k++) head.appendChild(h("th", { text: "OBJ " + k, title: roleOf("obj", k) }));
-    t.appendChild(head);
-    var nfree = [0, 0, 0, 0, 0, 0, 0, 0];
-    F.levels.forEach(function (lv) {
-      var tr = h("tr", null, h("th", { scope: "row", text: lv.name, title: lv.screens.map(nameOf).join("\n") }));
-      lv.cells.forEach(function (c) {
-        if (c.state === "free") nfree[c.slot]++;
-        var tip = "OBJ " + c.slot + " in " + lv.name + ": " + (c.state === "free" ? "FREE in this level" : c.state === "always" ? "in use (always): " + c.label : "event only: " + c.label) + "\nSources: " + c.notes.join("; ") + "\n" + c.observed;
-        var td = h("td", { class: "fp " + c.state }, h("span", { tabindex: "0", title: tip, "aria-label": tip.replace(/\n/g, ". "), text: c.state === "free" ? "FREE" : c.state === "always" ? "in use: " + c.label : "event: " + c.label }));
-        tr.appendChild(td);
+    var nfree = [0, 0, 0, 0, 0, 0, 0, 0], N = F.levels.length;
+    F.levels.forEach(function (lv) { lv.cells.forEach(function (c) { if (c.state === "free") nfree[c.slot]++; }); });
+    var always = [], some = [];
+    nfree.forEach(function (n, s) { if (n === N) always.push("OBJ " + s); else if (n) some.push("OBJ " + s + " (" + n + " of " + N + ")"); });
+    var sum = (always.length ? "Free in every level: " + always.join(", ") : "No slot is free in every level") + (some.length ? " · free in some: " + some.join(", ") : "");
+    main.appendChild(section("freetab", "Free palettes by level", sum, function (body) {
+      body.appendChild(info("CGB sprite (OBJ) palettes 0-7 per level: the 10 ARCADE venues and 3 CLASSIC levels, each venue's show screen counted as part of its level. The verdict comes from the source code (every OBJPAL_* use, set_sprite_palette and OCPS write), not from the sampled frames alone: a short sample cannot prove a slot free, because events may not happen in it. The sampled frames only cross-check it. The DMG has no per-slot palettes (two registers, OBP0 and OBP1). " + F.legend + " " + F.planned));
+      var t = h("table", { class: "data free" });
+      var head = h("tr", null, h("th", { text: "level" }));
+      for (var k = 0; k < 8; k++) head.appendChild(h("th", { text: "OBJ " + k, title: roleOf("obj", k) }));
+      t.appendChild(head);
+      F.levels.forEach(function (lv) {
+        var tr = h("tr", null, h("th", { scope: "row", text: lv.name, title: lv.screens.map(nameOf).join("\n") }));
+        lv.cells.forEach(function (c) {
+          var tip = "OBJ " + c.slot + " in " + lv.name + ": " + (c.state === "free" ? "FREE in this level" : c.state === "always" ? "in use (always): " + c.label : "event only: " + c.label);
+          tr.appendChild(h("td", { class: "fp " + c.state }, h("span", { tabindex: "0", title: tip, "aria-label": tip, text: c.state === "free" ? "free" : c.state === "always" ? "in use" : "event only" })));
+        });
+        t.appendChild(tr);
       });
-      t.appendChild(tr);
-    });
-    var foot = h("tr", null, h("th", { text: "levels where free" }));
-    nfree.forEach(function (n) { foot.appendChild(h("td", { class: "num", text: n + " of " + F.levels.length })); });
-    t.appendChild(foot);
-    p.appendChild(h("div", { class: "scroll" }, t));
-    main.appendChild(p);
-    var src = h("section", { class: "panel" });
-    src.appendChild(h("h3", { text: "Where each slot is used (file:line)" }));
-    var dl = h("dl", { class: "kv" });
-    var first = F.levels[0];
-    first.cells.forEach(function (c) { dl.appendChild(h("dt", { text: "OBJ " + c.slot })); dl.appendChild(h("dd", { text: roleOf("obj", c.slot) + " | " + c.notes.slice(0, c.slot === 4 ? 3 : 9).join("  ") })); });
-    src.appendChild(dl);
-    main.appendChild(src);
+      var foot = h("tr", null, h("th", { text: "levels where free" }));
+      nfree.forEach(function (n) { foot.appendChild(h("td", { class: "num", text: n + " of " + N })); });
+      t.appendChild(foot);
+      body.appendChild(h("div", { class: "scroll" }, t));
+      body.appendChild(more("More information", function (mb) {
+        mb.appendChild(h("p", { class: "note", text: "Hover or focus a cell for what uses the slot there. Where each slot is used in the source (file:line):" }));
+        var dl = h("dl", { class: "kv" });
+        F.levels[0].cells.forEach(function (c) { dl.appendChild(h("dt", { text: "OBJ " + c.slot })); dl.appendChild(h("dd", { text: roleOf("obj", c.slot) + " | " + c.notes.slice(0, c.slot === 4 ? 3 : 9).join("  ") })); });
+        mb.appendChild(dl);
+        mb.appendChild(h("h3", { text: "What each cell is" }));
+        var t2 = h("table", { class: "data wrap" });
+        t2.appendChild(h("tr", null, h("th", { text: "level" }), h("th", { text: "OBJ" }), h("th", { text: "state" }), h("th", { text: "what / sources" })));
+        F.levels.forEach(function (lv) { lv.cells.forEach(function (c) { if (c.state !== "free") t2.appendChild(h("tr", null, h("td", { text: lv.name }), h("td", { text: String(c.slot) }), h("td", { text: c.state }), h("td", { text: c.label + " | " + c.notes.join("; ") }))); }); });
+        mb.appendChild(h("div", { class: "scroll", style: "max-height:360px;overflow-y:auto" }, t2));
+        if (F.warnings.length) { mb.appendChild(h("h3", { text: "Cross-check warnings" })); mb.appendChild(h("p", { class: "err", text: F.warnings.join("; ") })); }
+      }));
+    }));
+    var bk = F.boss && Object.keys(F.boss).length ? Object.keys(F.boss) : [];
+    var bo = {}, bb = {};
+    bk.forEach(function (k) { F.boss[k].obj.forEach(function (s) { bo[s] = 1; }); F.boss[k].bg.forEach(function (s) { bb[s] = 1; }); });
+    var line = bk.length ? "Boss fights take over " + ["OBJ " + Object.keys(bo).join(", "), "BG " + Object.keys(bb).join(", ")].filter(function (x) { return x.length > 4; }).join(" and ") : "No boss fight takes over a slot";
+    main.appendChild(section("freeboss", "Boss fights", line, function (body) {
+      body.appendChild(info("During a venue's boss fight (and Boss Rush) some slots are taken over, so a slot that is free or event-only in the level may be in use then. Listed: slots whose colours differ from the level's and that the fight draws. OBJ 7 and BG 4 are patron C's, borrowed by every boss. The venue's page has the full Boss fight section."));
+      body.appendChild(h("p", { class: "bossline", text: line + "." }));
+      body.appendChild(more("More information", function (mb) {
+        var dl = h("dl", { class: "kv" });
+        bk.forEach(function (k) { var b = F.boss[k]; dl.appendChild(h("dt", { text: b.name })); dl.appendChild(h("dd", { text: (b.obj.length ? "OBJ " + b.obj.join(", ") : "no OBJ") + "; " + (b.bg.length ? "BG " + b.bg.join(", ") : "no BG") })); });
+        mb.appendChild(dl);
+      }));
+    }));
   }
 
-  // ---- render: summary -----------------------------------------------------------------------------------------------------------
+  // ---- summary -------------------------------------------------------------------------------------------------------------------
   function renderSummary(main) {
     main.appendChild(h("h2", { text: "Summary: what stays and what is swapped" }));
+    main.appendChild(h("p", { class: "sel-id", text: state.model.toUpperCase() }));
     var S = A.summary;
     if (!S) { main.appendChild(h("p", { class: "muted", text: "Loading the summary..." })); load("summary", function () { if (state.summary) render(); }); return; }
     var m = state.model, M = S[m], n = S.level_screens.length;
-    main.appendChild(h("p", { class: "note", text: "Level screens: the " + S.venue_screens.length + " ARCADE venues plus the CLASSIC levels (" + n + " in all). \"Permanent\" means the identical value on every one of them, on each venue's show screen too, and no change inside the sampled window. \"Swapped during play\" means a game event rewrites the slot (the show screen of a venue is counted as part of its level). A window is only 3 s, so events that did not happen in it (a breaking glass, a lifted patron) show as \"not seen\". " + S.n_screens + " screens in the atlas; the model toggle above switches DMG / CGB." }));
-    if (m === "cgb") {
-      var cats = [["permanent", "Permanent: "], ["swapped", "Swapped during play: "], ["per venue", "Per venue: "], ["same start", "Same start colours, animates: "], ["not seen", "Not seen in the sampled level windows: "]];
-      cats.forEach(function (c) {
-        var l = [];
-        ["obj", "bg"].forEach(function (k) { M.pal[k].forEach(function (q) { if (q.cls.indexOf(c[0]) === 0) l.push((k === "bg" ? "BG " : "OBJ ") + q.slot); }); });
-        main.appendChild(h("p", null, h("b", { text: c[1] }), l.length ? l.join(", ") : "none"));
-      });
-      ["obj", "bg"].forEach(function (k) { main.appendChild(sumPal(k, M.pal[k], M.spr)); });
-    } else {
-      sumDmg(M.dmg, M.spr).forEach(function (x) { main.appendChild(x); });
+    var intro = "Level screens: the " + S.venue_screens.length + " ARCADE venues plus the CLASSIC levels (" + n + " in all). \"Permanent\" means the identical value on every one of them, on each venue's show screen too, and no change inside the sampled window. \"Swapped during play\" means a game event rewrites the slot. A window is only 3 s, so events that did not happen in it (a breaking glass, a lifted patron) show as \"not seen\". " + S.n_screens + " screens in the atlas.";
+    var cats = [["permanent", "permanent"], ["swapped", "swapped during play"], ["per venue", "per venue"], ["same start", "animated"], ["not seen", "not seen"]];
+    function catLine(kind) {
+      return cats.map(function (c) {
+        var l = M.pal[kind].filter(function (q) { return q.cls.indexOf(c[0]) === 0; });
+        return l.length ? l.length + " " + c[1] : null;
+      }).filter(Boolean).join(" · ");
     }
-    main.appendChild(sumTiles(M));
-    main.appendChild(sumDefines());
+    if (m === "cgb") {
+      [["obj", "Sprite (OBJ) palette slots"], ["bg", "Background (BG) palette slots"]].forEach(function (k) {
+        main.appendChild(section("s" + k[0], k[1], catLine(k[0]), function (body) {
+          body.appendChild(info(intro + " Each mini swatch is one distinct palette seen on the level screens, with how many of them have it (hover for their names). Click a swatch to copy its colour."));
+          cats.forEach(function (c) {
+            var l = M.pal[k[0]].filter(function (q) { return q.cls.indexOf(c[0]) === 0; }).map(function (q) { return (k[0] === "bg" ? "BG " : "OBJ ") + q.slot; });
+            if (l.length) body.appendChild(h("p", { style: "margin:2px 0" }, h("b", { text: c[1] + ": " }), l.join(", ")));
+          });
+          body.appendChild(sumPalLite(k[0], M.pal[k[0]]));
+          body.appendChild(more("More information", function (mb) { mb.appendChild(sumPal(k[0], M.pal[k[0]], M.spr)); }));
+        }));
+      });
+    } else {
+      var D = M.dmg;
+      main.appendChild(section("sdmgo", "Sprite palette registers (OBP0, OBP1)", "OBP0: " + plural(D.OBP0.groups.length, "value") + " · OBP1: " + plural(D.OBP1.groups.length, "value"), function (body) {
+        body.appendChild(info("Click a swatch to copy its colour. Values seen across every screen; hover for the screens."));
+        ["OBP0", "OBP1"].forEach(function (k) { body.appendChild(dmgGroups(k, D[k])); });
+        body.appendChild(more("More information", function (mb) { ["OBP0", "OBP1"].forEach(function (k) { mb.appendChild(h("div", { class: "muted", text: "Sprites using " + k + " (union over the level and show screens, " + M.spr.n_screens + "):" })); mb.appendChild(sprites(M.spr.groups[k === "OBP0" ? 0 : 1], sumSheet(M.spr), "screens")); }); }));
+      }));
+      main.appendChild(section("sdmgb", "Background palette register (BGP)", "BGP: " + plural(D.BGP.groups.length, "value") + ", " + D.BGP.levels.length + " on level screens", function (body) {
+        body.appendChild(info("Click a swatch to copy its colour."));
+        body.appendChild(dmgGroups("BGP", D.BGP));
+      }));
+    }
+    main.appendChild(sumTilesSection(M));
+    main.appendChild(section("sdef", "Palette slot names", plural(idx().roles.defines.length, "name") + " in src/game.h", function (body) { body.appendChild(sumDefinesTable()); }));
+  }
+  function dmgGroups(k, g) {
+    var gl = h("div", null, h("h3", { text: k + ": " + g.groups.length + " values; " + g.levels.length + " on level screens" }));
+    var wrap = h("div", { class: "groups" });
+    g.groups.forEach(function (x) {
+      wrap.appendChild(h("span", { class: "grp", title: "0x" + x.value.toString(16).toUpperCase() + "\n" + x.screens.map(nameOf).join("\n") }, swatch(x.shades, "mini", { dmg: k, reg: x.value, what: k }), "0x" + x.value.toString(16).toUpperCase() + " x" + x.screens.length));
+    });
+    gl.appendChild(wrap);
+    return gl;
   }
   function sumSheet(spr) { return { png: spr.png, w: spr.w, h: spr.h, x: 0, y: 0 }; }
+  // first glance: one row per slot (role, verdict, the palettes seen on level screens)
+  function sumPalLite(kind, recs) {
+    var grid = h("div", { class: "pgrid", style: "margin-top:8px" });
+    recs.forEach(function (q) {
+      var cls = q.cls.indexOf("permanent") === 0 ? "perm" : q.cls.indexOf("not seen") === 0 ? "off" : q.cls.indexOf("swapped") === 0 ? "anim" : "venue";
+      var gr = {};
+      q.levels.forEach(function (l) { if (!l.used) return; var k = l.cols.join(","); (gr[k] = gr[k] || { cols: l.cols, ids: [] }).ids.push(l.id); });
+      var gl = h("div", { class: "groups" });
+      Object.keys(gr).forEach(function (k) { gl.appendChild(h("span", { class: "grp", title: gr[k].ids.map(nameOf).join("\n") }, swatch(gr[k].cols, "mini", { what: (kind === "bg" ? "BG " : "OBJ ") + q.slot }), String(gr[k].ids.length))); });
+      var row = h("div", { class: "prow", style: "grid-template-columns:minmax(150px,230px) minmax(0,1fr) minmax(0,1fr)" },
+        h("div", { class: "pname" }, h("b", { text: (kind === "bg" ? "BG " : "OBJ ") + q.slot }), h("span", { class: "rl", text: shortRole(roleOf(kind, q.slot)) })),
+        h("div", null, chip(q.cls, cls)), gl);
+      grid.appendChild(row);
+    });
+    return grid;
+  }
   function sumPal(kind, recs, spr) {
-    var p = h("section", { class: "panel" });
-    p.appendChild(h("h2", { text: kind === "bg" ? "Background (tile) palette slots: role, and what was observed" : "Sprite (OBJ) palette slots: role, and what was observed" }));
-    p.appendChild(h("p", { class: "note", text: "Each mini swatch is one distinct palette seen on the level screens, with how many of them have it (hover for their names). \"All screens\" counts every screen in the atlas that references the slot. Click a swatch to copy its colour." + (kind === "obj" ? " \"Sprites using it\" is the union of the sprites drawn with that slot on the level screens and the venues' show screens (" + spr.n_screens + " in all), de-duplicated by look, the most widespread first, up to " + spr.cap + " a slot." : "") }));
     var t = h("table", { class: "pal" });
-    t.appendChild(h("tr", null, h("th", { text: "slot and role" }), h("th", { text: "observed on level screens" }), h("th", { text: "all screens" }), kind === "obj" ? h("th", { text: "Sprites using it" }) : null));
+    t.appendChild(h("tr", null, h("th", { text: "slot and role" }), h("th", { text: "observed on level screens" }), h("th", { text: "all screens" }), kind === "obj" ? h("th", { text: "Sprites using it (union, " + spr.n_screens + " screens)" }) : null));
     recs.forEach(function (q) {
       var tr = h("tr");
       tr.appendChild(h("td", null, h("b", { text: (kind === "bg" ? "BG " : "OBJ ") + q.slot }), h("div", { class: "muted", text: roleOf(kind, q.slot) })));
@@ -877,13 +1331,6 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
       var cls = q.cls.indexOf("permanent") === 0 ? "perm" : q.cls.indexOf("not seen") === 0 ? "off" : q.cls.indexOf("swapped") === 0 ? "anim" : "venue";
       td.appendChild(chip(q.cls, cls));
       if (q.cls.indexOf("animates") >= 0) td.appendChild(chip("animates", "anim"));
-      var gr = {};
-      q.levels.forEach(function (l) { if (!l.used) return; var k = l.cols.join(","); (gr[k] = gr[k] || { cols: l.cols, ids: [] }).ids.push(l.id); });
-      var gl = h("div", { class: "groups", style: "margin-top:6px" });
-      Object.keys(gr).forEach(function (k) {
-        gl.appendChild(h("span", { class: "grp", title: gr[k].ids.map(nameOf).join("\n") }, swatch(gr[k].cols, "mini", { what: (kind === "bg" ? "BG " : "OBJ ") + q.slot }), String(gr[k].ids.length)));
-      });
-      td.appendChild(gl);
       if (q.swapped_cols && q.swapped_cols.length) {
         var sw2 = h("div", { class: "groups", style: "margin-top:6px" });
         q.swapped_cols.forEach(function (c) { sw2.appendChild(h("span", { class: "grp" }, swatch(c, "mini", { what: (kind === "bg" ? "BG " : "OBJ ") + q.slot + " (swapped in)" }))); });
@@ -893,93 +1340,81 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
       if (q.unused_levels.length && q.unused_levels.length < q.n_levels) td.appendChild(h("div", { class: "muted", text: "not referenced on " + q.unused_levels.length + " of " + q.n_levels + " level screens" }));
       tr.appendChild(td);
       var ta = h("td", { text: q.used_all + " of " + q.n_all + " screens, " + q.distinct_all + " distinct palettes" });
-      var det = h("details", { class: "more" }, h("summary", { text: "list" }));
-      var gl2 = h("div", { class: "groups" });
+      var gl2 = h("div", { class: "groups", style: "margin-top:4px" });
       q.groups.forEach(function (g) { gl2.appendChild(h("span", { class: "grp", title: g.screens.map(nameOf).join("\n") }, swatch(g.cols, "mini", { what: (kind === "bg" ? "BG " : "OBJ ") + q.slot }), String(g.screens.length))); });
-      det.appendChild(gl2);
-      ta.appendChild(det);
+      ta.appendChild(gl2);
       if (q.changing_all.length) ta.appendChild(h("div", null, chip("animates on " + q.changing_all.length + " screens", "anim", q.changing_all.map(nameOf).join("\n"))));
       tr.appendChild(ta);
       if (kind === "obj") tr.appendChild(h("td", { style: "min-width:230px" }, sprites(spr.groups[q.slot], sumSheet(spr), "screens")));
       t.appendChild(tr);
     });
-    p.appendChild(h("div", { class: "scroll" }, t));
-    return p;
+    return h("div", { class: "scroll" }, t);
   }
-  function sumDmg(D, spr) {
-    var out = [];
-    [["Sprite palette registers across screens (OBP0, OBP1)", ["OBP0", "OBP1"]], ["Background palette register across screens (BGP)", ["BGP"]]].forEach(function (sec) {
-      var p = h("section", { class: "panel" });
-      p.appendChild(h("h2", { text: sec[0] }));
-      p.appendChild(h("p", { class: "note", text: "Click a swatch to copy its colour." + (sec[1].length > 1 ? " \"Sprites using it\" is the union over the level screens and the venues' show screens (" + spr.n_screens + "), de-duplicated by look, up to " + spr.cap + " each." : "") }));
-      sec[1].forEach(function (k) {
-        p.appendChild(h("h3", { text: k + ": " + D[k].groups.length + " values; " + D[k].levels.length + " on level screens" }));
-        var gl = h("div", { class: "groups" });
-        D[k].groups.forEach(function (g) {
-          var sw = swatch(g.shades, "mini", { dmg: k, reg: g.value, what: k });
-          gl.appendChild(h("span", { class: "grp", title: "0x" + g.value.toString(16).toUpperCase() + "\n" + g.screens.map(nameOf).join("\n") }, sw, "0x" + g.value.toString(16).toUpperCase() + " x" + g.screens.length));
+  function sumTilesSection(M) {
+    var T0 = M.tiles[0], cnt = { S: 0, V: 0, A: 0, E: 0 };
+    T0.regions.forEach(function (k) { cnt.S += k.S; cnt.V += k.V; cnt.A += k.A; cnt.E += k.E; });
+    var sum = "Bank 0: " + cnt.S + " shared · " + cnt.V + " per venue · " + cnt.A + " animated · " + cnt.E + " empty (of 384)";
+    return section("stiles", "Tiles across the level screens", sum, function (body) {
+      body.appendChild(info("Per VRAM slot, compared across the level screens at their still frame: shared = the same tile data on all of them; per venue = differs from screen to screen (reloaded); animated = changes while a level runs; empty = zero on every level screen."));
+      M.tiles.forEach(function (T) {
+        if (T.cls.replace(/\./g, "") === "") { body.appendChild(h("p", { class: "muted", text: "Bank " + T.bank + ": empty on every level screen." })); return; }
+        if (M.tiles.length > 1) body.appendChild(h("h3", { text: "Bank " + T.bank }));
+        var bars = h("div", { class: "rbars" });
+        idx().regions.forEach(function (rg, i) {
+          var k = T.regions[i], tot = k.total;
+          bars.appendChild(h("div", { class: "rbar" }, h("div", { class: "rl", title: rg.label }, h("i", { style: "background:" + BAND[rg.kind] }), h("span", { text: shortRegion(rg.label) })),
+            h("div", { class: "track", role: "img", "aria-label": rg.label + ": " + k.S + " shared, " + k.V + " per venue, " + k.A + " animated, " + k.E + " empty" },
+              h("span", { class: "S", style: "width:" + (100 * k.S / tot) + "%" }), h("span", { class: "V", style: "width:" + (100 * k.V / tot) + "%" }), h("span", { class: "A", style: "width:" + (100 * k.A / tot) + "%" })),
+            h("div", { class: "n", text: (tot - k.E) + " / " + tot })));
         });
-        p.appendChild(gl);
-        if (k !== "BGP") { p.appendChild(h("div", { class: "muted", style: "margin-top:8px", text: "Sprites using " + k + ":" })); p.appendChild(sprites(spr.groups[k === "OBP0" ? 0 : 1], sumSheet(spr), "screens")); }
+        body.appendChild(bars);
       });
-      out.push(p);
+      body.appendChild(h("div", { class: "legend" }, h("span", null, h("b", { style: "background:#2a9d6f" }), "shared"), h("span", null, h("b", { style: "background:#e08a2c" }), "per venue"), h("span", null, h("b", { style: "background:#c43db0" }), "animated"), h("span", null, h("b", { style: "background:var(--soft)" }), "empty")));
+      body.appendChild(more("More information", function (mb) { sumTilesDetail(mb, M); }));
     });
-    return out;
   }
-  function sumTiles(M) {
-    var p = h("section", { class: "panel" });
-    p.appendChild(h("h2", { text: "Tiles across the level screens" }));
-    p.appendChild(h("p", { class: "note", text: "Per VRAM slot, compared across the level screens at their still frame: shared = the same tile data on all of them; per venue = differs from screen to screen (reloaded); animated = changes while a level runs; empty = zero on every level screen. Hover a cell for its slot and region." }));
+  function sumTilesDetail(p, M) {
     var colours = { S: "#2a9d6f", V: "#e08a2c", A: "#c43db0", ".": "#c9c9c2" };
     M.tiles.forEach(function (T) {
-      if (T.cls.replace(/\./g, "") === "") { p.appendChild(h("p", { class: "muted", text: "Bank " + T.bank + ": empty on every level screen." })); return; }
+      if (T.cls.replace(/\./g, "") === "") return;
       p.appendChild(h("h3", { text: "Bank " + T.bank }));
-      var C = mobile.matches ? 10 : 14, cv = h("canvas", { width: 16 * C, height: 24 * C, style: "border:1px solid var(--line)", "aria-label": "Tile slot classes, bank " + T.bank });
+      var C = mobile.matches ? 10 : 14, cv = h("canvas", { width: 16 * C, height: 24 * C, "aria-label": "Tile slot classes, bank " + T.bank });
       var g = cv.getContext("2d");
       for (var s = 0; s < 384; s++) { g.fillStyle = colours[T.cls[s]]; g.fillRect((s % 16) * C + 1, Math.floor(s / 16) * C + 1, C - 1, C - 1); }
-      var info = h("div", { class: "readout", text: "Hover a cell." });
+      var info1 = h("div", { class: "readout", text: "Hover a cell." });
       cv.addEventListener("mousemove", function (e) {
         var b = cv.getBoundingClientRect(), x = Math.floor((e.clientX - b.left) / C), y = Math.floor((e.clientY - b.top) / C);
         if (x < 0 || x > 15 || y < 0 || y > 23) return;
         var s = y * 16 + x, c = T.cls[s];
-        info.textContent = "slot " + s + ": " + (c === "S" ? "shared on every level screen" : c === "V" ? "per venue / per level" : c === "A" ? "animated on levels" : "empty on every level screen") + "; " + T.distinct_all[s] + " distinct contents over all screens\n" + regionOf(s);
-        info.style.whiteSpace = "pre-line";
+        info1.textContent = "slot " + s + ": " + (c === "S" ? "shared on every level screen" : c === "V" ? "per venue / per level" : c === "A" ? "animated on levels" : "empty on every level screen") + "; " + T.distinct_all[s] + " distinct contents over all screens\n" + regionOf(s);
+        info1.style.whiteSpace = "pre-line";
       });
       var wrap = h("div", { class: "row" });
-      wrap.appendChild(h("div", { class: "scroll" }, cv, info));
-      var lg = h("div", { style: "flex:1 1 300px;min-width:0" });
-      lg.appendChild(h("div", { class: "legend" }, h("span", null, h("b", { style: "background:" + colours.S }), "shared"), h("span", null, h("b", { style: "background:" + colours.V }), "per venue"), h("span", null, h("b", { style: "background:" + colours.A }), "animated"), h("span", null, h("b", { style: "background:" + colours["."] }), "empty")));
+      wrap.appendChild(h("div", { class: "scroll" }, cv, info1));
       var tb = h("table", { class: "data" });
       tb.appendChild(h("tr", null, h("th", { text: "region" }), h("th", { class: "num", text: "shared" }), h("th", { class: "num", text: "per venue" }), h("th", { class: "num", text: "animated" }), h("th", { class: "num", text: "empty" })));
       idx().regions.forEach(function (rg, i) {
         var k = T.regions[i];
         tb.appendChild(h("tr", null, h("td", { text: rg.label + " (designed: " + SCOPE[rg.scope] + ")" }), h("td", { class: "num", text: String(k.S) }), h("td", { class: "num", text: String(k.V) }), h("td", { class: "num", text: String(k.A) }), h("td", { class: "num", text: String(k.E) })));
       });
-      lg.appendChild(h("div", { class: "scroll" }, tb));
-      wrap.appendChild(lg);
+      wrap.appendChild(h("div", { class: "scroll", style: "flex:1 1 300px;min-width:0" }, tb));
       p.appendChild(wrap);
     });
-    return p;
   }
-  function sumDefines() {
-    var p = h("section", { class: "panel" });
-    p.appendChild(h("h2", { text: "Palette slot names in src/game.h" }));
+  function sumDefinesTable() {
     var t = h("table", { class: "data" });
     t.appendChild(h("tr", null, h("th", { text: "define" }), h("th", { class: "num", text: "slot" }), h("th", { text: "comment in the source" })));
     idx().roles.defines.forEach(function (d) { t.appendChild(h("tr", null, h("td", { text: d.name }), h("td", { class: "num", text: String(d.slot) }), h("td", { text: d.comment }))); });
-    p.appendChild(h("div", { class: "scroll" }, t));
-    return p;
+    return h("div", { class: "scroll" }, t);
   }
 
   // ---- start ---------------------------------------------------------------------------------------------------------------------
   function start() {
     if (!A.index) { $("#main").textContent = "data/index.js did not load: run `make atlas` and open out/atlas/index.html."; return; }
-    $("#gen").textContent = "Generated from commit " + idx().commit + (idx().date ? ", " + idx().date : "") + " | " + idx().screens.length + " screens on DMG and CGB | colours as PyBoy draws them";
+    $("#gen").textContent = "Generated from commit " + idx().commit + (idx().date ? ", " + idx().date : "");
     buildPicker();
     $("#m-dmg").addEventListener("click", function () { setModel("dmg"); });
     $("#m-cgb").addEventListener("click", function () { setModel("cgb"); });
-    $("#motion").addEventListener("click", function () { setMotion(!state.motion); });
-    setMotion(state.motion);
     window.addEventListener("hashchange", route);
     mobile.addEventListener ? mobile.addEventListener("change", render) : null;
     load("summary", function () { if (state.summary || state.id) render(); });
@@ -989,3 +1424,4 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
   start();
 })();
 </script>
+

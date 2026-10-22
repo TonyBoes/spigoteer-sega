@@ -1,0 +1,5 @@
+{
+ "outlaw1": {"kind": "man", "cols": ["#d8c098", "#b85838", "#281810"]},
+ "prospector2": {"kind": "man", "cols": ["#f0d0b0", "#b8a060", "#201810"]},
+ "prospector1": {"kind": "man", "cols": ["#ece4d4", "#c08c58", "#2c1c10"]}
+}

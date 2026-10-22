@@ -7,6 +7,7 @@ import json
 import re
 
 import pytest
+from ol_helpers import BLANK, FILL, ICON, attr, header, header_text, hint, selection, text
 from conftest import (K_BONUS, K_BOSSRUSH, K_CREDITS, K_MINIGAMES, K_PLAY, K_SETTINGS, K_SOUNDTRACK, MENU_SETTLE, ROOT, TM_BONUS, TM_TOP, check_golden,
                       hold_stage_anim, menu_items, title_pick)
 from test_flow import (GS_GOAL, GS_STORY, TITLE, most_per_scanline, run_until, settle_title, state, tilemap_row,
@@ -27,21 +28,7 @@ ART = {m[0]: int(m[1]) for m in re.findall(r"#define (TILE_\w+) (\d+)", (ROOT / 
 _H = (ROOT / "build" / "jukebox_names.h").read_text()
 NAMES = re.findall(r'^    "([^"]*)",   //', _H, re.M)
 INFO = [re.findall(r'"([^"]*)"', l) for l in re.findall(r"^    \{ (.*) \},$", _H, re.M)]
-ROW_LIST, VISIBLE, ROW_INFO, COL_PLAY = 2, 5, 13, 19         # five tunes on rows 2, 4 .. 10 (a blank row between them: owner 2026-10-15)
-
-
-def row_text(s, x=1):
-    r = [ART["TILE_HUD_BLANK"]] * 20
-    if x == 255:
-        x = (20 - len(s)) // 2
-    for i, c in enumerate(s):
-        r[x + i] = GLYPH[c]
-    return r
-
-
-def list_row(gb, k):
-    """List line k without the playing icon's column."""
-    return tilemap_row(gb, ROW_LIST + 2 * k, 0, 19)
+BAR_ROW = 10                                                  # the bars: rows 10-13 (src/jukebox.c)
 
 
 def tap(rom, b):
@@ -107,91 +94,116 @@ def test_soundtrack_opens_the_player_and_b_comes_back_to_bonus(boot):
     assert boot.mem("title_back") == TM_TOP, "used once: the next title (a game over, the table) is the top level"
 
 
-def test_up_down_select_and_wrap(boot):
+def tap_n(rom, b, n):
+    for _ in range(n):
+        tap(rom, b)
+
+
+def goto_tune(rom, t):
+    """Select tune t with RIGHT taps (nothing plays)."""
+    while rom.mem("jb_sel") != t:
+        tap(rom, "right")
+
+
+def levels(gb):
+    """The four bars' lengths in px, as the screen shows them (the tiles of rows 10-13, columns 4-18)."""
+    out = []
+    for i in range(4):
+        px = 0
+        for t in tilemap_row(gb, BAR_ROW + i, 4, 15):
+            assert FILL <= t <= FILL + 8, t
+            px += t - FILL
+        out.append(px)
+    return out
+
+
+def test_selecting_moves_through_the_tunes_and_never_plays(boot):
     to_jukebox(boot)
-    assert boot.mem("jb_sel") == 0 and boot.mem("jb_top") == 0 and boot.mem("cur_tune") == TUNE_NONE, "silence"
-    tap(boot, "up")
-    assert boot.mem("jb_sel") == TUNE_COUNT - 1 and boot.mem("jb_top") == TUNE_COUNT - VISIBLE, "wraps, scrolls"
+    assert boot.mem("jb_sel") == 0 and boot.mem("cur_tune") == TUNE_NONE, "silence"
+    boot.write("tune_unlocked", 0xFF)
+    boot.write(boot.addr("tune_unlocked") + 1, 0xFF)
+    tap(boot, "left")
+    assert boot.mem("jb_sel") == TUNE_COUNT - 1
     tap(boot, "down")
-    assert boot.mem("jb_sel") == 0 and boot.mem("jb_top") == 0
-    for i in range(1, TUNE_COUNT):
-        tap(boot, "down")
-        assert boot.mem("jb_sel") == i and boot.mem("jb_top") == max(0, i - VISIBLE + 1)
-        c = boot.oam()[0]
-        assert c["y"] - 16 + 7 == (ROW_LIST + 2 * (i - boot.mem("jb_top"))) * 8 and c["x"] == 8, "the mug on the line"
-    assert state(boot) == GS_JUKEBOX
+    assert boot.mem("jb_sel") == 4
+    for b in ("right", "right", "up", "left"):
+        tap(boot, b)
+    boot.run(10)
+    assert boot.mem("cur_tune") == TUNE_NONE, "moving never starts a tune"
+    assert state(boot) == GS_JUKEBOX and not boot.visible_sprites()
 
 
 def test_a_fresh_cartridge_has_only_the_title_tune(boot):
     to_jukebox(boot)
     settle_rows(boot)
     assert boot.mem16("tune_unlocked") == 1
-    assert tilemap_row(boot, 0, 0, 20) == row_text("SOUNDTRACK", 255)
-    assert list_row(boot, 0) == row_text(NAMES[0])[:19]
-    for k in range(1, VISIBLE):
-        assert list_row(boot, k) == row_text("? ? ?")[:19], k
-    assert tilemap_row(boot, ROW_INFO, 0, 20) == row_text("THE ENTERTAINER", 255)
-    assert tilemap_row(boot, ROW_INFO + 2, 0, 20) == row_text("SCOTT JOPLIN, 1902", 255)
-    tap(boot, "down")
+    assert header(boot) == header_text("SOUNDTRACK", "1 / 15")
+    assert selection(boot) == "THE ENTERTAINER"
+    assert text(boot, 6).strip() == "SCOTT JOPLIN, 1902" and text(boot, 7).strip() == "THE TITLE SCREEN"
+    assert hint(boot) == "@ PLAY   $ BACK"
+    tap(boot, "right")
     settle_rows(boot)
-    assert tilemap_row(boot, ROW_INFO, 0, 20) == row_text("? ? ?", 255)
-    assert tilemap_row(boot, ROW_INFO + 2, 0, 20) == row_text("LOCKED", 255)
+    assert selection(boot) == "? ? ?" and text(boot, 6).strip() == "LOCKED" and text(boot, 7).strip() == "PLAY STORY MODE"
+    assert hint(boot) == "$ BACK", "a locked tune has no A"
     tap(boot, "a")
     boot.run(3)
     assert boot.mem("cur_tune") == TUNE_NONE, "a locked tune does not play"
+    assert header(boot).endswith("2 / 15")
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_every_name_shows_once_unlocked_and_the_list_scrolls(model):
+def test_every_tune_shows_its_name_credit_and_place(model):
     with booted(model, v7_image([], tunes=ALL)) as rom:
         to_jukebox(rom)
-        settle_rows(rom)
-        for k in range(VISIBLE):
-            assert list_row(rom, k) == row_text(NAMES[k])[:19], k
-        for _ in range(TUNE_COUNT - 1):
-            tap(rom, "down")
-        settle_rows(rom)
-        top = TUNE_COUNT - VISIBLE
-        assert rom.mem("jb_top") == top
-        for k in range(VISIBLE):
-            assert list_row(rom, k) == row_text(NAMES[top + k])[:19], k
-        assert [tilemap_row(rom, ROW_INFO + i, 0, 20) for i in range(4)] == [row_text(s, 255) for s in INFO[-1]]
+        for k in range(TUNE_COUNT):
+            settle_rows(rom)
+            assert selection(rom) == NAMES[k] and text(rom, 6).strip() == INFO[k][2] and text(rom, 7).strip() == INFO[k][3], k
+            assert header(rom).endswith(f"{k + 1} / 15")
+            tap(rom, "right")
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_a_plays_b_stops_then_b_goes_back(model):
+def test_a_plays_the_selected_tune_a_again_stops_it_and_b_always_leaves(model):
     with booted(model, v7_image([], tunes=ALL)) as rom:
         to_jukebox(rom)
-        for t in (0, TUNE_VENUE0 + 3, 2):
-            while rom.mem("jb_sel") != t:
-                tap(rom, "down")
+        for t in (0, TUNE_VENUE0 + 3, 4):
+            goto_tune(rom, t)
+            settle_rows(rom)
+            assert hint(rom) == "@ PLAY   $ BACK"
             tap(rom, "a")
             assert rom.mem("cur_tune") == t, t
-            seen = set()
-            for _ in range(40):
-                rom.run(1)
-                seen.add(tilemap_row(rom, ROW_LIST + 2 * (t - rom.mem("jb_top")), COL_PLAY, 1)[0])
-            if t != 2:                                          # (the GAME OVER jingle may end within the 40 frames)
-                assert seen == {ART["TILE_HUD_HEAD"], ART["TILE_HUD_BLANK"]}, "the playing icon blinks"
-        tap(rom, "b")
-        assert rom.mem("cur_tune") == TUNE_NONE and state(rom) == GS_JUKEBOX, "B stops the tune"
-        rom.run(3)
-        assert tilemap_row(rom, ROW_LIST + 2 * (2 - rom.mem("jb_top")), COL_PLAY, 1)[0] == ART["TILE_HUD_BLANK"]
+            settle_rows(rom)
+            assert hint(rom) == "@ STOP   $ BACK", "A reads STOP while the selected tune plays"
+            tap(rom, "right")
+            settle_rows(rom)
+            assert rom.mem("cur_tune") == t, "moving leaves the tune playing"
+            assert hint(rom) == "@ PLAY   $ BACK", "another tune selected: PLAY"
+            tap(rom, "left")
+            settle_rows(rom)
+            assert hint(rom) == "@ STOP   $ BACK"
+            tap(rom, "a")
+            assert rom.mem("cur_tune") == TUNE_NONE, "A on the playing tune stops it"
+            settle_rows(rom)
+            assert hint(rom) == "@ PLAY   $ BACK"
+        goto_tune(rom, TUNE_VENUE0 + 1)
+        tap(rom, "a")
+        assert rom.mem("cur_tune") == TUNE_VENUE0 + 1
         tap(rom, "b")
         run_until(rom, lambda: state(rom) == TITLE, 30)
-        assert rom.mem("cur_tune") == 0 and rom.mem("sound_on") == 1, "the title and its tune"
+        assert rom.mem("cur_tune") == 0 and rom.mem("sound_on") == 1, "B leaves with a tune playing: the title and its tune"
 
 
-def test_a_jingle_stops_by_itself_and_its_icon_goes(boot):
+def test_a_jingle_stops_by_itself_and_the_hint_follows(boot):
     to_jukebox(boot)
     boot.write("tune_unlocked", 0xFF)
-    tap(boot, "down")
+    tap(boot, "right")
     tap(boot, "a")
     assert boot.mem("cur_tune") == 1
+    boot.run(4)
+    assert hint(boot) == "@ STOP   $ BACK"
     run_until(boot, lambda: boot.mem("cur_tune") == TUNE_NONE, 200)
-    boot.run(3)
-    assert boot.mem("jb_shown") == TUNE_NONE
-    assert tilemap_row(boot, ROW_LIST + 2, COL_PLAY, 1)[0] == ART["TILE_HUD_BLANK"]
+    boot.run(6)
+    assert boot.mem("jb_shown") == TUNE_NONE and hint(boot) == "@ PLAY   $ BACK"
 
 
 def test_music_off_still_plays_here_and_stays_off_after(boot):
@@ -204,7 +216,6 @@ def test_music_off_still_plays_here_and_stays_off_after(boot):
     boot.run(20)
     assert boot.mem16("music_frames") > 0, "the driver ticks: the tune really plays"
     tap(boot, "b")
-    tap(boot, "b")
     run_until(boot, lambda: state(boot) == TITLE, 30)
     boot.run(3)
     assert boot.mem("sound_on") == 0
@@ -215,32 +226,100 @@ def test_music_off_still_plays_here_and_stays_off_after(boot):
     assert tilemap_row(boot, settings_row(boot, 0), 0, 20) == title_text_row("off")
 
 
-def test_no_more_than_ten_sprites_a_line(boot):
+def test_no_sprite_on_the_screen(boot):
     to_jukebox(boot)
     boot.write("tune_unlocked", 0xFF)
     tap(boot, "a")
-    for b in ["down"] * 15 + ["up"] * 3:
+    for b in ["down", "right", "up", "left"] * 3:
         boot.press(b, 2)
-        assert most_per_scanline(boot) <= 10
-    for b in ["up"] * 6:                                      # (15 taps wrap past the last tune and 3 more go up: the window is at the end;
-        boot.press(b, 2)                                      # a frame no longer drops a tap, so go up to the middle of the list)
-        assert most_per_scanline(boot) <= 10
-    boot.run(2)
-    assert len(boot.visible_sprites()) == 3, "the cursor and the two scroll arrows (mid-list)"
+        assert not boot.visible_sprites() and most_per_scanline(boot) == 0
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_soundtrack_screen_golden(model):
+def test_the_bars_are_four_stacked_strips_with_their_channel_icons(model):
+    with booted(model) as rom:
+        to_jukebox(rom)
+        settle_rows(rom)
+        for i in range(4):
+            row = tilemap_row(rom, BAR_ROW + i, 0, 20)
+            assert row[2] == ICON + i and row[4:19] == [FILL] * 15, i
+            assert set(row[:2] + row[3:4] + row[19:]) == {BLANK}, "nothing else on the row"
+            if model == "cgb":
+                assert {attr(rom, BAR_ROW + i, c) for c in [2] + list(range(4, 19))} == {(0, 1, 3, 4)[i]}, "icon and bar share the channel's palette"
+        assert BAR_ROW + 4 == 14 and set(tilemap_row(rom, 14, 0, 20)) == {BLANK}, "rows 10-13 are the bars, no gap between them"
+
+
+def test_the_dmg_meter_follows_the_notes_and_costs_the_driver_nothing(model="dmg"):
+    """DMG: a note start sends a channel's bar to full, falling 8 px a frame; silent without a tune; the driver's pattern pointers (the 8 bytes before
+    hUGE_ticks_per_row) are what it reads (a WRAM address, so a rewrite of the driver's variables breaks this test, not the screen)."""
+    from test_sound import make_rom
+    rom = make_rom("dmg", v7_image([], tunes=ALL))          # (sound on: PyBoy reads the sound registers as 0 without it, and channel 1's bar reads NR12)
+    rom.run(120)
+    try:
+        to_jukebox(rom)
+        rom.run(20)
+        assert levels(rom) == [0, 0, 0, 0], "no tune, no bars"
+        goto_tune(rom, 4)                                         # GALOP INFERNAL: a busy tune
+        tap(rom, "a")
+        seen, prev, falls = set(), None, []
+        for _ in range(240):
+            rom.run(1)
+            lv = levels(rom)
+            seen.update(i for i, v in enumerate(lv) if v)
+            if prev:
+                falls += [p - v for p, v in zip(prev, lv) if 0 < v < p]
+            prev = lv
+        assert {0, 1, 2} <= seen, f"bars that moved: {sorted(seen)}"       # (channel 1 from NR12, the harmony voice's volume; 2-4 from the driver's patterns)
+        assert falls and 8 in falls and all(f % 8 == 0 for f in falls), "they fall 8 px a game frame (two when an emulator frame holds two)"
+        pat = rom.addr("hUGE_ticks_per_row") - 8
+        ptrs = [rom.mem16(pat + 2 * k) for k in range(4)]
+        assert all(0xC000 <= p < 0xE000 for p in ptrs[1:]), [hex(p) for p in ptrs]      # (channel 2-4's patterns are in WRAM; channel 1's never plays)
+        tap(rom, "a")                                             # A on the playing tune: silence, the bars fall away
+        rom.run(30)
+        assert levels(rom) == [0, 0, 0, 0]
+    finally:
+        rom.stop()
+
+
+def test_the_color_bars_follow_the_pcm_registers():
+    from test_sound import make_rom
+    rom = make_rom("cgb", v7_image([], tunes=ALL))
+    rom.run(120)
+    try:
+        to_jukebox(rom)
+        rom.run(20)
+        assert levels(rom) == [0, 0, 0, 0]
+        goto_tune(rom, 4)
+        tap(rom, "a")
+        seen = set()
+        for _ in range(240):
+            rom.run(1)
+            seen.update(i for i, v in enumerate(levels(rom)) if v)
+        assert len(seen) >= 3, f"bars that moved: {sorted(seen)}"
+        tap(rom, "a")
+        rom.run(60)
+        assert levels(rom) == [0, 0, 0, 0]
+    finally:
+        rom.stop()
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_soundtrack_screen_goldens(model):
     tunes = 1 | (1 << 1) | (1 << 2) | (1 << TUNE_VENUE0) | (1 << (TUNE_VENUE0 + 1))
     with booted(model, v7_image([], story=1, step=1, tunes=tunes)) as rom:
         to_jukebox(rom)
-        for _ in range(TUNE_VENUE0):
-            tap(rom, "down")
+        rom.run(10)
+        check_golden(rom, "ol_soundtrack")                        # the first tune, nothing playing
+        tap(rom, "down")
+        tap(rom, "down")
+        tap(rom, "right")                                         # selection 12 of 15: a locked one
+        rom.run(10)
+        check_golden(rom, "ol_soundtrack_locked")
+        goto_tune(rom, TUNE_VENUE0)
         tap(rom, "a")
-        run_until(rom, lambda: rom.mem("jb_t") & 31 == 4, 40)     # the icon's "on" half
-        settle_rows(rom)
+        rom.run(8)
         assert rom.mem("cur_tune") == TUNE_VENUE0
-        check_golden(rom, "jukebox")
+        check_golden(rom, "jukebox")                              # (the old golden's scene: the saloon tune playing)
 
 
 # ---- the unlocks -------------------------------------------------------------------------------------------------
@@ -300,13 +379,12 @@ def test_unlocks_survive_a_new_story(model):
     with booted(model, ram) as again:
         assert again.mem16("tune_unlocked") == tunes
         to_jukebox(again)
-        for _ in range(TUNE_VENUE0 + 6):
-            tap(again, "down")
+        goto_tune(again, TUNE_VENUE0 + 5)
         settle_rows(again)
-        top = again.mem("jb_top")
-        assert top == TUNE_VENUE0 + 6 - (VISIBLE - 1)
-        assert list_row(again, TUNE_VENUE0 + 5 - top) == row_text(NAMES[TUNE_VENUE0 + 5])[:19], "chapter 6: reached"
-        assert list_row(again, TUNE_VENUE0 + 6 - top) == row_text("? ? ?")[:19]
+        assert selection(again) == NAMES[TUNE_VENUE0 + 5], "chapter 6: reached"
+        tap(again, "right")
+        settle_rows(again)
+        assert selection(again) == "? ? ?"
 
 
 # ---- SRAM version 7 (the three modes) and the migrations from versions 4 and 5 -----------------------------------------
@@ -398,8 +476,7 @@ def test_mountain_starts_on_its_pickup_and_the_loop_is_unchanged(srom):
     srom.write("tune_unlocked", 0xFF)
     srom.write(srom.addr("tune_unlocked") + 1, 0xFF)
     to_jukebox(srom)
-    while srom.mem("jb_sel") != tune:
-        tap(srom, "down")
+    goto_tune(srom, tune)
     srom.press("a", 2)
     assert srom.mem("cur_tune") == tune
     srom.write("music_frames", 0)
@@ -429,38 +506,3 @@ def test_mountain_starts_on_its_pickup_and_the_loop_is_unchanged(srom):
     assert (srom.mem("hUGE_current_order"), srom.mem("hUGE_row")) == (6, 63)
 
 
-def test_scroll_arrows_show_only_where_tunes_are_hidden(boot):
-    """The Practice list's arrows (OAM 1 up, 2 down): the top of the soundtrack shows only the down arrow (on the blank row 11), the middle both,
-    the end only the up arrow."""
-    to_jukebox(boot)
-    settle_rows(boot)
-    o = boot.read(0xFE00, 12)
-    assert o[4] == 0 and 96 <= o[8] <= 97 and o[5] == o[9] == 160, "the top: the down arrow"
-    for _ in range(6):
-        tap(boot, "down")
-    boot.run(4)
-    o = boot.read(0xFE00, 12)
-    assert 23 <= o[4] <= 24 and 96 <= o[8] <= 97, "the middle: both"
-    for _ in range(TUNE_COUNT):
-        tap(boot, "down")
-        if boot.mem("jb_sel") == TUNE_COUNT - 1:
-            break
-    boot.run(4)
-    o = boot.read(0xFE00, 12)
-    assert boot.mem("jb_sel") == TUNE_COUNT - 1 and 23 <= o[4] <= 24 and o[8] == 0, "the end: the up arrow"
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_down_arrow_stays_clear_of_the_bottom_divider(model):
-    """The divider (panel row 12, lines 96-103) is the same at the arrow's columns (152-159) as just left of them, on both bob frames."""
-    with booted(model) as rom:
-        to_jukebox(rom)
-        settle_rows(rom)
-        seen = set()
-        for _ in range(40):
-            rom.run(1, True)
-            im = rom.image()
-            seen.add(rom.read(0xFE00, 12)[8])
-            for y in range(96, 104):
-                assert [im.getpixel((x, y)) for x in range(152, 160)] == [im.getpixel((x, y)) for x in range(144, 152)], (y, rom.read(0xFE00, 12)[8])
-        assert len(seen) == 2, "both bob positions were checked"

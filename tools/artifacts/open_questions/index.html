@@ -1,0 +1,91 @@
+<title>Spigoteer Open Questions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a short index of open questions at the top, then one card per question in number order: the ask first, the context, then the pictures. */
+:root {
+  --ground: #f2efe7;
+  --card: #fffdf8;
+  --ink: #22201c;
+  --muted: #6b6459;
+  --rule: #dcd4c5;
+  --amber: #a9661a;
+  --ask: #fbf1df;
+  --stage: #2c5060;
+  --display: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #16171a; --card: #1f2125; --ink: #ebe5d9; --muted: #a39b8e; --rule: #33363b; --amber: #e6a44c; --ask: #2b261d;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #16171a; --card: #1f2125; --ink: #ebe5d9; --muted: #a39b8e; --rule: #33363b; --amber: #e6a44c; --ask: #2b261d;
+}
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.55; padding: 24px 16px 48px; }
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 20px; }
+h1 { font-family: var(--display); font-size: 26px; margin: 0; text-wrap: balance; }
+.lede { margin: 4px 0 0; color: var(--muted); max-width: 64ch; }
+.stamp { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+nav ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+nav a { color: var(--ink); text-decoration: none; display: grid; grid-template-columns: 3.4em 1fr; gap: 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--rule); background: var(--card); }
+nav a:hover, nav a:focus-visible { border-color: var(--amber); outline: none; }
+nav .n { font-family: var(--display); color: var(--amber); }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: grid; gap: 12px; scroll-margin-top: 12px; }
+.tag { font-family: var(--display); font-size: 14px; color: var(--amber); letter-spacing: .06em; }
+.card h2 { margin: 0; font-size: 18px; text-wrap: balance; }
+.ask { background: var(--ask); border-radius: 8px; padding: 10px 12px; font-weight: 600; margin: 0; }
+.card p { margin: 0; max-width: 68ch; }
+.card ul { margin: 0; padding-left: 1.2em; max-width: 68ch; display: grid; gap: 4px; }
+.media { background: var(--stage); border-radius: 8px; padding: 10px; overflow-x: auto; }
+audio { width: 100%; max-width: 420px; }
+.media img { display: block; max-width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; margin: 0 auto; }
+.cap { font-size: 13px; color: var(--muted); margin-top: -4px; }
+.files { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Open questions</h1>
+    <p class="lede">Every question waiting on your answer, with its pictures. Answered questions come off this list. Reply in chat with the number, e.g. "Q12: shared".</p>
+    <p class="stamp">1 open · updated 2026-10-21 · main 4e5c0c9</p>
+  </header>
+
+  <nav aria-label="Open questions">
+    <ol>
+      <li><a href="#q49"><span class="n">Q49</span><span>SETTINGS, one setting at a time: does it look right?</span></a></li>
+    </ol>
+  </nav>
+
+  <section class="card" id="q49">
+    <span class="tag">Q49</span>
+    <h2>SETTINGS, one setting at a time: does it look right?</h2>
+    <p class="ask">Is this SETTINGS screen what you meant? Anything to change before it goes in?</p>
+    <ul>
+      <li>One setting at a time: <code>◀ NAME ▶</code>, the state under it in gold, then <code>(A) CHANGE (B) BACK</code> in a dimmer colour.</li>
+      <li>LEFT/RIGHT go through MUSIC, BAR CHANGE, GBA COLOR MODE (GBA only), ERASE DATA, and DEBUG MENU when unlocked. The list wraps around.</li>
+      <li>A changes the state. ERASE DATA and DEBUG MENU say <code>(A) OPEN</code> instead. B goes back to the title menu.</li>
+      <li>The arrows blink. START does what A does, and SELECT still toggles the music.</li>
+      <li>Try it in Pocket Player: ROM "Q49 test: SETTINGS…". Pocket Player is a Game Boy Color, so there's no GBA COLOR MODE page there.</li>
+    </ul>
+    <div class="media"><img src="media/q49_browse.gif" alt="Browsing SETTINGS with left and right, then pressing A" width="640" height="576"></div>
+    <p class="cap">Browsing with LEFT/RIGHT, then an A press.</p>
+    <div class="grid2">
+      <div class="media"><img src="media/q49_gba_music.png" alt="MUSIC page" width="640" height="576"></div>
+      <div class="media"><img src="media/q49_gba_color.png" alt="GBA COLOR MODE page" width="640" height="576"></div>
+      <div class="media"><img src="media/q49_gba_erase.png" alt="ERASE DATA page" width="640" height="576"></div>
+      <div class="media"><img src="media/q49_dmg_music.png" alt="MUSIC page on DMG" width="640" height="576"></div>
+    </div>
+    <p class="cap">MUSIC and GBA COLOR MODE (arrows mid-blink) on a GBA, ERASE DATA, and MUSIC on a DMG.</p>
+  </section>
+
+
+</div>

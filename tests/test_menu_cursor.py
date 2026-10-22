@@ -1,10 +1,11 @@
 # Backing out to a menu: the mug cursor and the highlighted line must agree (owner 2026-10-15: "When backing out to the menu, the
 # word highlight is not always in the same position as the mug"). The title's highlight is the gold text row (CGB: the BG attribute
 # of the selected line, src/title.c title_enter / menu_frame); the lists (BONUS > MINI GAMES, BOSS RUSH) and the soundtrack
-# player have the mug alone, so there the line under the mug must be the selected game / boss and the details below must be
-# its own. Every way back is driven: B on each screen, a game's HOW TO PLAY card (B), a game's result window (B), the pause
+# player are one-line screens now (src/oneline.h: no mug, the selection line names the selected game / boss and the counter agrees).
+# Every way back is driven: B on each screen, a game's HOW TO PLAY card (B), a game's result window (B), the pause
 # menu's QUIT TO MENU, the boss rush's quit and its result.
 import pytest
+import ol_helpers as oh
 import test_mg_list as ml
 import test_pause as tp
 import test_rush as tr
@@ -33,34 +34,29 @@ def title_ok(gb, menu, sel):
         assert pals == [BGPAL_TEXT_SEL if k == sel else BGPAL_TEXT for k in range(n)], ("the gold line is the mug's line", pals, sel)
 
 
-NAMES = [n for n, _ in ml.LIST] + ["GREEN LIGHT"]
-WHERE = [w for _, w in ml.LIST] + ["THE TEST STUB"]
+NAMES = ml.NAMES
 
 
 def list_ok(gb, sel):
-    """BONUS > MINI GAMES on game `sel`: the mug (OAM 0) stands on the line that names it, and the details below are its own."""
+    """BONUS > MINI GAMES on game `sel`: the selection line names it, the counter agrees, nothing else is drawn as a cursor."""
     run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 60)
     gb.run(8)
     assert gb.mem("ml_sel") == sel
-    y = gb.mem(0xFE00)
-    row = (y - 16 + 7) // 8
-    assert 2 <= row <= 12 and row % 2 == 0 and (y - 16 + 7) % 8 == 0, "a game's row (every other row)"
-    assert ml.line(gb, row).split("  ")[0].strip() == NAMES[sel], (row, ml.line(gb, row))
-    assert ml.line(gb, 16).strip() == ml.KEYS
-    assert gb.mem(0xFE00 + 1) == 8
+    assert oh.selection(gb) == NAMES[sel] and ml.counter(gb) == f"{sel + 1} / 14"
+    assert oh.hint(gb) == "@ PLAY   $ BACK" and not gb.visible_sprites()
 
 
 def rush_ok(gb, scr, sel):
     """The boss rush's menu (ALL / CHOOSE) or list: the line under the mug is the selected one."""
     run_until(gb, lambda: tr.on_rush(gb, scr), 60)
     gb.run(8)
-    y = gb.mem(0xFE00)
-    row = (y - 16 + 7) // 8
-    text = tr.line(gb, row)
     if scr == tr.RS_MENU:
+        y = gb.mem(0xFE00)
+        row = (y - 16 + 7) // 8
+        text = tr.line(gb, row)
         assert text.strip().split(" ")[0] == ("CHOOSE" if sel else "ALL"), text
     else:
-        assert text.strip().startswith(tr.NAMES[tr.BUILT[sel]]), (text, sel)
+        assert oh.selection(gb) == tr.NAMES[tr.BUILT[sel]], (oh.selection(gb), sel)
 
 
 # ---- the title's own submenus (B goes back to the top level, the cursor on the item it came from) -------------------
@@ -113,8 +109,7 @@ def test_b_from_the_soundtrack_the_list_and_the_rush_menu(model):
 def test_the_list_keeps_its_selection_through_b_and_back_in(model, sel):
     """The list on game `sel` (scrolled when it is past the tenth), B to the title, A to come back in: the same game, the mug on its line."""
     with ml.to_list(booted(model)) as gb:
-        for _ in range(sel):
-            ml.tap(gb, "down")
+        ml.to_game(gb, sel)
         gb.run(4)
         list_ok(gb, sel)
         gb.press("b", 2)
@@ -128,8 +123,7 @@ def test_the_list_keeps_its_selection_through_b_and_back_in(model, sel):
 @pytest.mark.parametrize("sel", [0, 6, 12])
 def test_the_list_after_the_card_b_the_result_b_and_quit(model, sel):
     with ml.to_list(booted(model, cards=False)) as gb:
-        for _ in range(sel):
-            ml.tap(gb, "down")
+        ml.to_game(gb, sel)
         gb.run(4)
         gb.press("a", 2)                                  # the HOW TO PLAY card (first play of the game)
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 60)
@@ -142,8 +136,7 @@ def test_the_list_after_the_card_b_the_result_b_and_quit(model, sel):
         list_ok(gb, sel)
     with tp.rom_s(model) as gb:                           # (cards seen: the game plays at once)
         ml.to_list(gb)
-        for _ in range(sel):
-            ml.tap(gb, "down")
+        ml.to_game(gb, sel)
         for how in (tp.finish_it, tp.quit_it):
             gb.press("a", 2)
             run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 60)
@@ -161,7 +154,7 @@ def test_the_list_after_the_card_b_the_result_b_and_quit(model, sel):
 def test_the_boss_rush_menu_and_list_after_b_and_after_a_quit(model):
     with tp.rom_s(model) as gb:
         tr.to_list(gb)
-        tr.tap(gb, "down")
+        tr.tap(gb, "right")
         rush_ok(gb, tr.RS_LIST, 1)
         tr.tap(gb, "b")                                   # the list's B: the menu, the cursor on CHOOSE... (menu_open(1))
         rush_ok(gb, tr.RS_MENU, 1)

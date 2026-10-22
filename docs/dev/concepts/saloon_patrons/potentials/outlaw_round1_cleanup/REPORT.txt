@@ -1,0 +1,35 @@
+THE OUTLAW (slot C) - self-audit (SKILL.md section 9), palette table and engine questions
+
+PLACEHOLDER INVENTORY: two 16x16 pictures (front 3/4 right, back), index art . - + # (0 wall/transparent, 1-3 light to dark), one palette, no animation.
+Footprint unchanged: same size, same index roles, same palette, same 4 tiles per picture.
+PALETTE (index 1..3; index 0 = saloon wall #2c5060 = 0x3145):
+  1 #d8c098 skin / glint / stripes   RGB555 0x4F1B
+  2 #b85838 rust poncho, bandana, hat band   RGB555 0x1D77
+  3 #281810 near-black hat, outline, shade   RGB555 0x0865
+
+| Check | PASS/FAIL | Evidence |
+| --- | --- | --- |
+| Hand-placed: what wrote pixels to the delivered file? | PASS | My grid, transcribed: outlaw.txt / outlaw_back.txt are text files I edited by hand (2 characters changed on row 6 of the front, via the editor); tools/render.py only maps characters to PNG pixels. The starting grid was his script-outlined round-1 grid; nothing generated, mirrored, filled or outlined by code. |
+| Clean-up pass done by hand | PASS | cleanup_log.txt: 2 applied changes with coordinates and rule, 9 "checked and kept" entries with reasons, 3 proposals not applied. |
+| 1x comparison with the quality bar | PASS | bar_compare_x1.png / x4: old outlaw, new outlaw, Prospector 1 and trio A/B/C, DMG and CGB, front/back/mug. Prospector 1 is richer (beard, light/mid/dark faces); the outlaw is a simpler mass figure by design (flat hat, bandana mask) and now has no stray pixel and no wall nick. I did not redesign him to match: that would drift from his design; the remaining gap is listed as P1/P2. Changed after the comparison: the (5,6) speck (it read as noise at 1x). |
+| Required references read before drawing | PASS | SKILL.md (all), sprites.md, linework.md, light-and-form.md, portraits.md; figures 03, 11, 12, 15, 18, 19, 20; PATRON_SPEC.md (all 12 sections); headers of cowboys.txt / cowboys_back.txt. Quotes are in the first message of the run (see the report text). |
+| Lint (and portrait check) | PASS | gb_art_lint (cgb and dmg, sprite, 16): front RESULT PASS; warnings: V-point (3,7) = left cheek notch, kept (log K3); 5 L-doubles = hat corners/brim tips, kept (K1); 1 orphan = eye (7,8), deliberate (K5); "palettes needed 1 of 8". Back RESULT PASS; 6 L-doubles = hat corners (K1). portrait_check not applicable (not a portrait). Before the clean-up the front also had orphan (5,6): fixed. |
+| Colours per tile, palettes, tile count | PASS | 3 colours + wall index 0, 1 palette; 4 unique 8x8 tiles per picture (exact), 4 with flips merged (front), 2 (back). Same as before. |
+| Scanline budget (sprites) | PASS | Lifted he is two 8x16 sprites: 2 objects on every row 0-15 (worst row = 2). Unchanged. |
+| Squint test at 1x, DMG and CGB-corrected | PASS | At 1x the black flat hat with its band reads first, then the rust bandana/poncho mass; the small skin glint between brim and bandana is the face. DMG: shade-3 hat against the white wall pops; poncho/bandana are both mid-grey (the weakest point, P1). CGB: hat is near-black on dark teal but the rust mass and the cream stripes carry the silhouette. In-game screenshots show him distinct from A (cream hat) and B (hair). |
+| No banding, squares, stray pixels, L-doubles, V-point chins | PASS | Stray pixel (5,6) removed; wall nick (13,6) filled. No isolated 2x2 squares (lint). L-doubles are hat corners (K1). No chin: face is a bandana cut flat by the poncho; no V-point (lint V is the cheek notch, K3). Parallel poncho stripes (K6) are a deliberate pattern. |
+| Light direction consistent; flipped sprites still correct | PASS | Only top/top-front shading (band, glint, stripes); no lettering or one-sided item; checked mentally and in the previews that a flip changes nothing but the facing (his 3/4 right cheek becomes left). |
+| Tiles: tiled preview clean | N/A | Not a tile. |
+| Animation | N/A | No frames (spec section 1). |
+| Placeholder footprint kept, or changes explained | PASS | 16x16, same palette indices, same colours, same silhouette except one wall pixel (13,6) now outline. |
+| Files indexed, ordered, grid-aligned, named | PASS | outlaw.png / outlaw_back.png: 16x16 indexed, palette entries wall + 3 light to dark; outlaw_dmg.png / outlaw_back_dmg.png the same in DMG greys. |
+| Engine questions listed with working assumptions | PASS | Below. |
+
+WALL CHECK (spec section 11): DMG white wall: the whole hat is shade 3 and the poncho shade 2, so the outline-heavy hat separates well. CGB #2c5060:
+hat #281810 is dark on dark, the rust poncho and cream stripes keep the shape; hat band (#b85838) and skin glint (#d8c098) are the lit parts. No colour near the wall.
+MUG CHECK (spec section 8, rows 5-12 x cols 8-15): with the mug he is still a hat, a bandana and one eye; see ingame_*_x4.png (third bar) and bar_compare mug rows.
+
+QUESTIONS FOR THE PROGRAMMER (assumptions stated)
+1. Outlaw (slot C), lifted form: is he still lifted as two 8x16 sprites from the front at shift 0, with index 0 transparent? Assumed yes, no holes: the clean-up added no index-0 pixel inside him (the (13,6) change turns a wall pixel on his outer edge into outline, not a hole).
+2. Outlaw back, DMG mixed-direction levels: is the same non-mirrored back used for both directions? Assumed yes; his back is not symmetric about column 8, which only slot A requires.
+3. Goldens: any screen showing C changes by two pixels in the front (rows 6, x5 and x13). Assumed the supervisor replaces those goldens after checking bounding boxes (x5,y6) and (x13,y6) of the figure.

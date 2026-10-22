@@ -12,7 +12,7 @@ from conftest import BX_AT
 pytestmark = pytest.mark.timeout(600)
 
 MODELS = ["dmg", "cgb"]
-NONE_WORD = "SHAKE-UP"           # the bonus line with no medal: the game's name for it
+NONE_WORD = "NO MEDAL"           # the bonus round with no medal: the word the list shows
 
 
 def bonus_expect(normal, hard, easy):

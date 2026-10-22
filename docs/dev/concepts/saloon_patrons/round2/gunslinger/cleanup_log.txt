@@ -1,0 +1,7 @@
+GUNSLINGER - CLEAN-UP LOG (hand pass). (x,y) = column,row.
+Silhouette: very low crown (rows 1-2), brim cols 1-14 row 3, then ANGULAR: the duster collar stands up on both sides of the face as wings (1-4,7-10) and (12-14,8-10); nothing hangs loose, no head scarf, no long hair.
+PASS A (v1 -> v2): collars were black strips with a 1-px blue sliver (they read as hair): rebuilt as 4-px wings, outline 3 + 2-px blue fill (2-3,7-10), right wing 3 px (13,8-10); lips changed from blue-grey (looked like a cut) to a dark 2-px mouth (9-10,8).
+PASS B (v2 -> v3): face was an egg/ghost (7 rows tall): chin row removed; jaw now 7 -> 5 px wide (runs 1, then flat 5-px chin at row 9), neck 5 px, then the shirt V (7-9,12) which opens onto the tie (8,13)-(8,14): the V points at the chest, not at a chin.
+PASS C: nose bump (14,7) 1 px beyond the face edge = the 3/4 turn; bob hair on the near side (2-4,4-6) is black, the far side hidden by the collar; brim shadow row (5-11,4) in coat blue.
+PASS D (back view, by hand, symmetric, checked): crown highlight 3 px centred (7-9,2), bob 5 rows (4-7) with a 3-px sheen (7-9,5), collar band rows 8-10 stepping out 1 px per row, vent (8,11)-(8,14).
+FINAL: lint V-points are the shirt V and the dark gaps in the collar; no orphans.

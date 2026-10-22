@@ -638,7 +638,7 @@ def test_boss_rush_starts_with_the_entrance_too(model):
     with booted(model, ram0) as gb:
         to_list(gb)
         for _ in range(BUILT.index(C)):
-            tap(gb, "down")
+            tap(gb, "right")
         tap(gb, "a")
         into_fight(gb, entered=False)
         frames(gb, 4)

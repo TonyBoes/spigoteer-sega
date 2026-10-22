@@ -1,0 +1,10 @@
+RANCHER - CLEAN-UP LOG (hand pass). (x,y) = column,row.
+Silhouette: not a head scarf, not hair hanging loose: a dead-flat wide brim (0-15,4-5) over a low flat crown, and one 4-px plait on the near shoulder.
+PASS A (v1 -> v2): plait and shirt.
+  A1  v1 braid was three 1-px lines (read as rain): rebuilt as a 4-px-wide plait (cols 1-4, rows 8-14) with alternating 2/3 pixels so it zigzags like a plait; ends tied at the counter row.
+  A2  an enclosed wall gap at (5-6,11) between plait and neck (an index-0 hole when lifted) was filled with the shoulder outline (5-6,11).
+  A3  brows added in the hat colour (6-7,6) and (10-11,6): the face reads female/alive instead of a blank mask; lips 2 px (9-10,9).
+  A4  plaid shirt: vertical 1-px lines at cols 8 and 12 and one horizontal line (5-14,13): thin lines (no 2x2 squares), replaced a first attempt with 2-px stripes.
+PASS B (hat): crown 3 rows with a 2-px highlight (5-6,2), black band row 3, tan brim top (3-12,4), black underside row 5 spanning the full width; 3/4 turn comes from the nose bump (14,8), the plait on the near side and the far side of the face ending at col 12.
+PASS C (back view, by hand, symmetric about col 8, checked): crown highlight pairs (5-6,2)/(10-11,2), black hair r6-r8 with a 3-px sheen (7-9,7), plait is 5 px wide centred on col 8 (cols 6-10) with a chevron (alternating '+#+' / '#+#' rows), plaid lines at cols 4 and 12.
+FINAL: no V-chin (jaw runs 8 -> 7 then the plait/neck rows); orphan reported at (13,12) is a plaid pixel pair end: acceptable as a pattern; lint stair warnings are in solid dark areas.

@@ -96,7 +96,7 @@ def test_boss_rush_has_no_warm_up(model):
     with booted(model, ram0) as gb:
         to_list(gb)
         for _ in range(BUILT.index(C)):
-            tap(gb, "down")
+            tap(gb, "right")
         tap(gb, "a")
         into_fight(gb, entered=False)
         until(gb, lambda: gb.mem("boss_state") != BS_WARM, 150)

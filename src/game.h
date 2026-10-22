@@ -150,6 +150,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // OBJ tile layout in VRAM
 #define OBJ_BARTENDER   0
 #define OBJ_BT_END      56    // Sal's 5 frames x 8 = OBJ 0..39; OBJ 40..55 are FREE (unused since the 5-frame art; do not renumber the world, use them)
+#define OBJ_DX          40    // the CGB title's DX badge: 8 tiles, OBJ 40..47 (src/title.c; Sal's pictures end at 39, OBJ_MUG starts at 56)
 #define OBJ_MUG         OBJ_BT_END
 #define OBJ_GLASS       (OBJ_MUG + MUG_TILE_COUNT)
 #define OBJ_MUG_FILL    (OBJ_GLASS + GLASS_TILE_COUNT)
@@ -182,6 +183,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define OBJPAL_DANCER    5
 #define OBJPAL_PATRON_B  6
 #define OBJPAL_PATRON_C  7
+#define OBJPAL_DX        7   // (the CGB title's DX badge; the title has no lifted patrons, whose C look is a play palette)
 // DMG (M13a): OBP1 = 0xE4 in play (lifted patrons, the BG's shades); what used OBP1 (0xC4) before draws with OBP0 (0xD0)
 // from copies of its tiles with the two bit planes swapped (colours 1 and 2 trade places), made at level load
 #define OBP1_PLAY        0xE4
@@ -441,9 +443,8 @@ extern const uint8_t sway_tab[256];                 // (patrons.c, ROM0) (t / SW
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
 uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
 uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c-1..c+3 of bar b first thing this frame (0: not now)
-extern volatile uint8_t pal5_req;             // (render.c) VBlank palette requests: bit 0 the coin's OBJ 5, bit 1 the Mothership's lights, already in LIGHTS_BUF (boss.h)
-extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds: 1 the coin, 2 the show
-extern uint16_t coin_pal[4];                  // (main.c) PAL_COIN, copied out of the banked palette table at boot
+extern volatile uint8_t pal5_req;             // (render.c) VBlank palette requests: bit 0 the show's OBJ 5, bit 1 the Mothership's lights, already in LIGHTS_BUF (boss.h)
+extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds the show (2) or not
 // ---- lift.c (banked, M13a lifted patrons) ------------------------------------------------------
 void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palettes / DMG copies and looks, no one lifted
 void lift_frame(void) BANKED;                 // after the rules, before queue_vram: drops, forced drops, the test hook
@@ -634,8 +635,6 @@ void mg_list_enter(void) BANKED;                        // LCD off: BONUS > MINI
 #define SKIN_PAL_EDGE     7                      // the row under the header text
 void list_skin_load(void) BANKED;                       // LCD off: the tiles over the stage ids 0-4 and the CGB palettes 2-7
 void list_frame(uint8_t sep) BANKED;   // LCD off: the 18 rows (tiles and CGB attributes): the panel's top line on row `sep`, its bottom on 17
-void list_arrows_load(void) BANKED;                        // the list scroll arrows (src/mg_list.c; the boss rush list shares them)
-void list_arrows_show(uint8_t up, uint8_t down, uint8_t t) BANKED;   // OAM 1 / 2: which show, the bob frame count
 // save.c: Practice's block at SRAM 0x40 (the mini-games reached in STORY / ARCADE and the best medal of each)
 extern uint16_t mg_unlocked;                            // bit g = mini-game g (MG_* of src/mg.h) reached
 extern uint8_t  mg_best[];                              // the best medal (MEDAL_*) per mini-game

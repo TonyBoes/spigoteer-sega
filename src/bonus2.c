@@ -191,8 +191,6 @@ static void load_palettes(void) {
     p[3] = RGB8(40, 48, 64);
     set_bkg_palette(BPAL_GLASS, 1, p);
     pal_get(PAL_GLASS, p); set_sprite_palette(OPAL_TAP, 1, p);  // M13a: the game's slots 3 and 5 hold a patron and the show
-    pal_get(PAL_COIN, p); set_sprite_palette(OBJPAL_COIN, 1, p);   // (the level load puts them back; coin_pal itself may hold the lifted show, render.c pal5_check)
-    pal5_cur = 1;
 }
 
 static void banner(const char *a, const char *b) {   // LCD off: the two text rows in the HUD colours
@@ -439,7 +437,7 @@ static void draw_tips(void) {
     for (k = 0; k < 4; k++) spr(OAM_TRAY + k, tray_x + 8 * k, (uint8_t)TRAY_OAM_Y, TTL(f + k), pal);   // (x - 8 + 8 on the OAM's offset)
     for (i = 0; i < TS_ITEMS; i++, o++) {
         switch (ts_type[i]) {
-        case TS_COIN:   spr(o, ts_x[i] + 8, (uint8_t)(ts_y[i] >> 4) + 8, OBJ_COIN + ((ts_v[i] + (bonus_timer >> 3)) & 2), is_cgb ? OBJPAL_COIN : 0); break;
+        case TS_COIN:   spr(o, ts_x[i] + 8, (uint8_t)(ts_y[i] >> 4) + 8, OBJ_COIN + ((ts_v[i] + (bonus_timer >> 3)) & 2), OBJPAL_BARTENDER); break;   // Sal's palette (owner Q37)
         case TS_TOMATO: spr(o, ts_x[i] + 8, (uint8_t)(ts_y[i] >> 4) + 16, TTL(TT_TOMATO), is_cgb ? OPAL_RED : S_PALETTE); break;
         case TS_SPLAT:  spr(o, ts_x[i] + 8, (uint8_t)(ts_y[i] >> 4) + 16, TTL(TT_SPLAT), is_cgb ? OPAL_RED : S_PALETTE); break;
         default:        shadow_OAM[o].y = 0;

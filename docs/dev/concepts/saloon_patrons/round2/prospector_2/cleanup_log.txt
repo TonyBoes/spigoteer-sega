@@ -1,0 +1,18 @@
+PROSPECTOR 2 - CLEAN-UP LOG (hand pass). (x,y) = column,row. All pixels typed by hand; tools only render / check.
+Concept: prospector 1 solved face-vs-beard with a silver beard on a mid face; this one inverts it: BLACK beard on a PALE face and pale shirt, khaki hat.
+
+PASS A (v1 -> v2): the face was a mask.
+  A1  moustache bar (6-12,8) swallowed the whole lower face: cut to (7-10,8) with skin cheeks (4-6,8) and (11,8) left open.
+  A2  added a 2-px light mouth (8-9,9) under the moustache: the face now reads as a face, not a hole.
+  A3  deleted the beard spatter (nine isolated '+' dots in rows 10-13): replaced by lit top-plane pairs (4-5,9) and (11-12,9) and two 2-px locks (6,11)-(6,12), (10,13)-(10,14).
+PASS B (v2 -> v3): 3/4 turn (review note: P1 read near front-on).
+  B1  the far side of the head was as wide as the near side: face now ends at col 12 (outline) and the NOSE juts 2 px past it at (13,7)-(14,7).
+  B2  brim made asymmetric: droops on the near (left) side with outline stubs (1-3,5), tip lifted on the right (2-14,3): the hat is turned with the head.
+  B3  near ear (4,6)-(4,7) shown (shade 2) and the far ear hidden; far brow shortened to cols 10-11.
+  B4  deleted a stray gap pixel (15,14) that left a notch in the coat outline.
+PASS C (v3 -> v4): in-game value check (CGB shot: a khaki blob, beard lost against a khaki coat).
+  C1  coat khaki -> pale shirt (1) with black braces/outline: black beard now sits on a light mass (DMG: light grey shirt, black beard, light face).
+  C2  shoulders redrawn (r11-r14): 2-px shirt shoulders (1-2) and (13-14), outline col 0 / 15, beard locks kept.
+PASS D (hat, all passes): crown 3 rows, black band row (3,2)-(13,2), khaki brim top (3-13,3), black underside row 4; crown highlight (5-7,1) 3 px (was a 1-px orphan at (5,1) + 2 px: merged into one cluster).
+PASS E (back view, by hand, symmetric about col 8, checked by tools/check_back.py): black hair r5-r8 with a centred 3-px highlight (7-9,7), pale ears (3,6)-(3,7) and (13,6)-(13,7), pale neck (6-10,9), shirt shoulders with 1-px black braces at cols 5 and 11. v1 had khaki coat and no hair highlight: both changed.
+FINAL: no V-chin (beard bottom is cut flat by the counter; lint 'V-points' are black between two sheen pixels inside the beard); lint L-doubles are solid-black stair corners; no orphans left.

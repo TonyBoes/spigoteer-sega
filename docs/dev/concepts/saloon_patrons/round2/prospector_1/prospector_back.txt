@@ -1,0 +1,18 @@
+; Spigoteer saloon patron: THE PROSPECTOR, variant 1. Back view, 16x16 (hand-drawn, no mirroring pass), symmetric about column 8, column 0 empty (rows 0-14).
+; same index roles as the front: 1 silver (hair), 2 ruddy (ears, neck, hat band, straps), 3 dark (hat, coat, outline)
+.....###.###....
+....###+++###...
+...###########..
+...#+++++++++#..
+.###############
+.#..#-------#..#
+..#+#-------#+#.
+..#+#-------#+#.
+.....#-+++-#....
+.....##+++##....
+....###+++###...
+..###+#####+###.
+.#++#+#####+#++#
+.####+#####+####
+.####+#####+####
+################

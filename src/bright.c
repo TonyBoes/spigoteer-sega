@@ -24,10 +24,8 @@ void pal_put_b(uint8_t first, uint8_t n, uint16_t *q) BANKED {   // (first | 0x8
     if (first & 0x80) (set_sprite_palette)(first & 0x7F, n, q); else (set_bkg_palette)(first, n, q);
 }
 
-// BRIGHT: OBJ palette 5's next colours, lifted into coin_pal (the VBlank writes it raw: render.c pal5_write): the coin's (want 1, from its table) or the show's.
-void pal5_lift(uint8_t want) BANKED {
-    palette_t p;
+// BRIGHT: the show's colours (OBJ palette 5) lifted into pal5_lifted (the VBlank writes it raw: render.c pal5_write).
+void pal5_lift(void) BANKED {
     uint8_t i;
-    if (want == 1) pal_get(PAL_COIN, p); else for (i = 0; i < 4; i++) p[i] = venue.pal[VENUE_PAL_SHOW][i];
-    for (i = 0; i < 4; i++) coin_pal[i] = bright_col(p[i]);
+    for (i = 0; i < 4; i++) pal5_lifted[i] = bright_col(venue.pal[VENUE_PAL_SHOW][i]);
 }

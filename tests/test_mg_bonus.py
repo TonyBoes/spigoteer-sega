@@ -14,7 +14,7 @@ from test_classic_mode import classic_at, clear_now
 from test_flow import BONUS, GS_GOAL, LEVEL_CLEAR, run_until, state
 from test_mg import GS_MGLIST, GS_MINI, MG_PLAY, MG_PRACTICE, MG_RESULT, MG_STORY, MG_H, frames, mg_enter, score, text
 from test_mg_list import (MG_QUICKDRAW, MEDAL_BRONZE, MEDAL_GOLD, MEDAL_NONE, MEDAL_SILVER, MG_FILLLINE, MG_SHAKEUP, MG_TIPS, PR2_LEN,
-                          VIS, line, no_row_touches_the_separator, pr_block, release_built, release_rom, tap, to_list, with_block)  # noqa: F401
+                          hint, line, medal_word, pr_block, release_built, release_rom, selection, tap, to_game, to_list, with_block)  # noqa: F401
 from test_scores import booted, set_score, v7_image
 from test_sound import save_ram
 from test_story import to_goal, win
@@ -81,35 +81,34 @@ def test_a_bad_bonus_block_reads_as_nothing_and_the_rest_survives(model, release
     ram[BX_AT:BX_AT + 10] = good
     with release_rom(model, bytes(ram)) as gb:
         to_list(gb)
-        for _ in range(12):
-            tap(gb, "down")
-        assert line(gb, 8).split() == ["CAN", "SHAKE-UP", "GOLD"] and line(gb, 10).split() == ["PERFECT", "POUR", "GOLD"] and line(gb, 12).split() == ["TIP", "SHOWER", "GOLD"]
+        for k, name in ((10, "CAN SHAKE-UP"), (11, "PERFECT POUR"), (12, "TIP SHOWER")):
+            to_game(gb, k)
+            assert (selection(gb), medal_word(gb)) == (name, "GOLD")
     for name, blk in bad.items():
         ram = bytearray(base)
         ram[BX_AT:BX_AT + 10] = blk
         with release_rom(model, bytes(ram)) as gb:
             to_list(gb)
-            assert line(gb, 2) == " QUICK DRAW   SILVER", name
-            for _ in range(12):
-                tap(gb, "down")
-            assert [line(gb, r).strip() for r in (8, 10, 12)] == ["? ? ?"] * 3, name
+            assert (selection(gb), medal_word(gb)) == ("QUICK DRAW", "SILVER"), name
+            for k in (10, 11, 12):
+                to_game(gb, k)
+                assert (selection(gb), medal_word(gb)) == ("? ? ?", "LOCKED"), name
 
 
 # ---- the unlock rule -------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_release_list_locks_the_bonus_rounds_until_played(model, release_built):
-    """`make release` on a fresh cartridge: scrolled to the bonus rounds each is "? ? ?", the details say LOCKED / PLAY IT IN ARCADE / OR
-    CLASSIC and A does nothing. With the shake-up and Tip Shower played (MGB1) and the shake-up at SILVER they list by name and play;
+    """`make release` on a fresh cartridge: on the bonus rounds each is "? ? ?", the screen says LOCKED and A does nothing (no A on the hint row). With the shake-up and Tip Shower played (MGB1) and the shake-up at SILVER they list by name and play;
     Perfect Pour stays locked."""
     with release_rom(model, with_cards()) as gb:
         to_list(gb)
         assert gb.mem("ml_n") == 13
-        for _ in range(10):
-            tap(gb, "down")
+        tap(gb, "down")                                   # (the first bonus round)
         gb.run(4)
-        assert gb.mem("ml_sel") == 10 and [line(gb, r).strip() for r in range(2, 13, 2)] == ["? ? ?"] * 6
-        assert [line(gb, r).strip() for r in range(15, 17)] == ["PLAY IT IN ARCADE", "OR CLASSIC"]
-        no_row_touches_the_separator(gb, VIS)
+        for k in (10, 11, 12):
+            to_game(gb, k)
+            assert selection(gb) == "? ? ?" and medal_word(gb) == "LOCKED" and hint(gb) == "$ BACK", k
+        to_game(gb, 10)
         tap(gb, "a")
         gb.run(5)
         assert state(gb) == GS_MGLIST, "a locked round does not play"
@@ -117,22 +116,19 @@ def test_the_release_list_locks_the_bonus_rounds_until_played(model, release_bui
     ram[BX_AT:BX_AT + 10] = bx_block(0b101, MEDAL_SILVER | MEDAL_BRONZE << 4)
     with release_rom(model, bytes(ram)) as gb:
         to_list(gb)
-        for _ in range(12):
-            tap(gb, "down")
+        rows = []
+        for k in (10, 11, 12):
+            to_game(gb, k)
+            rows.append((selection(gb), medal_word(gb)))
+        assert rows == [("CAN SHAKE-UP", "SILVER"), ("? ? ?", "LOCKED"), ("TIP SHOWER", "BRONZE")], rows
+        check_golden(gb, "mg_list_bonus_release")                  # (on Tip Shower)
+        tap(gb, "left")
         gb.run(4)
-        assert gb.mem("ml_sel") == 12
-        rows = [line(gb, r) for r in (8, 10, 12)]
-        assert rows[0].split() == ["CAN", "SHAKE-UP", "SILVER"], rows
-        assert rows[1].strip() == "? ? ?" and rows[2].split() == ["TIP", "SHOWER", "BRONZE"], rows
-        assert [line(gb, r).strip() for r in (15, 16)] == ["NORMAL BEST BRONZE", "@ GO $ BACK > MODE"]
-        check_golden(gb, "mg_list_bonus_release")
-        tap(gb, "up")
-        gb.run(4)
-        assert [line(gb, r).strip() for r in range(15, 17)] == ["PLAY IT IN ARCADE", "OR CLASSIC"]
+        assert medal_word(gb) == "LOCKED" and gb.mem("ml_sel") == 11
         tap(gb, "a")
         gb.run(5)
         assert state(gb) == GS_MGLIST
-        tap(gb, "up")
+        tap(gb, "left")
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
         assert gb.mem("mg_id") == MG_SHAKEUP and gb.mem("mg_mode") == MG_PRACTICE
@@ -243,14 +239,10 @@ def test_a_bonus_round_plays_in_the_framework_and_earns_its_medal(model, gid, ki
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
         gb.run(3)
-        for _ in range(gid - MG_SHAKEUP + 10):
-            tap(gb, "down")
-        gb.run(4)
         sel = 10 + gid - MG_SHAKEUP
-        row = 2 + 2 * (sel - max(0, sel - VIS + 1))
-        assert gb.mem("ml_sel") == sel and line(gb, row).split()[-1] == ["NO", "BRONZE", "SILVER", "GOLD"][best] or best == 0
-        if best:
-            assert line(gb, 15).strip() == "NORMAL BEST " + ["", "BRONZE", "SILVER", "GOLD"][best]
+        to_game(gb, sel)
+        gb.run(4)
+        assert gb.mem("ml_sel") == sel and medal_word(gb) == ["NO MEDAL", "BRONZE", "SILVER", "GOLD"][best]
         out = save_ram(gb)
     played, medals, _ = parse_bx(out)
     assert played == 1 << (gid - MG_SHAKEUP) and medal_of(medals, gid - MG_SHAKEUP) == best

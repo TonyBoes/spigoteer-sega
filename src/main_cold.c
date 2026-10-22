@@ -52,7 +52,6 @@ static void load_cgb_palettes(void) {
 
     pal_get(PAL_BARTENDER, p);
     set_sprite_palette(OBJPAL_BARTENDER, 1, p);
-    pal_get(PAL_COIN, coin_pal);               // render.c's slot-5 switch reads it every frame (the table is banked)
     // M13a: the glass shares the venue's empty-drink palette, the coin slot 5 (render.c), patrons 3/6/7 (lift.c)
 }
 

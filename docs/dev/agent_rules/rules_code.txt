@@ -1,0 +1,12 @@
+RULES (owner):
+- Only do things that are easy to reverse at review, meaning new commits on your own branch. Never amend, rebase, reset, stash or force, and never run `checkout -- .` or `git rm`. Run git commands one at a time.
+- Keep scratch files inside your worktree's out/. Reading the scratchpad is fine; writing previews there is fine too (if writing is denied, use out/ and say so).
+- If any command is DENIED for permission, do NOT retry it or work around it, and do not ask me to run it: stop and report. A refusal that only says a command is "too complex to verify" (long heredocs, compound commands) is NOT a denial: write files with the Write/Edit tools and run plain, single commands instead, and carry on.
+- Kill any pytest you start. Other agents are working in parallel on other features in their own worktrees; touch only what your task needs.
+- Commit with `git add <files>` (never -a). Write the message to a file and use `git commit -F`; it must end exactly with:
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01QspqgFa7YnrtQctAF74vNT
+- Done means `make test` and `make check` pass on DMG and CGB. GOLDENS (owner 2026-10-15): you may ADD new goldens, but never replace an existing one. When a golden differs, list it in your report with its diff bounding box (computed by a read-only script that writes nothing under tests/golden/) and the reason; the supervisor checks and replaces it. Commit your code with the golden failures left, and say so.
+- WRAM is nearly exhausted (new globals once overwrote GBDK's __map_tile_offset): add NO new WRAM globals; use the existing unions / story_scratch / BOSS_OWN. Report WRAM_LO / WRAM_HI_0 and romusage before and after. ROM0 has ~745 B free; keep it. No perf guard may be raised; if one fails, stop and report.
+- Stop when it is committed and green. Report the commits, the goldens, the numbers, the preview paths and anything you are unsure about.
+- NO ASSEMBLY REWRITES (owner 2026-10-14): performance work uses C logic improvements only (fewer passes, early-outs, caching, spreading work over frames, cheaper maths). Do not write or convert code to assembly; if a gain truly needs asm, report it instead.
