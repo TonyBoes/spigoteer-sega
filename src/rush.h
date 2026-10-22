@@ -41,7 +41,7 @@ struct rush_state {               // offset
     uint16_t dirty;               // 14 row buffers to redraw (menu / list)
     uint8_t  save[RUSH_SAVE_N];   // 16 the save part as loaded (rush_load) and as written (rush_store)
     uint16_t built;               // 44 bit v = venue v's boss is built (rush_enter reads the story's step table once)
-    uint8_t  top;                 // 46 the list's first line shown (the window scrolls: src/rush.c RVIS)
+    uint8_t  pal_for;             // 46 the list: the boss whose palette is written next frame (the body rows queued this one are on screen then; 0xFF none)
     uint8_t  nlines;              // 47 the built bosses counted (the list's lines; rush_enter): a count of `built` per call ran the frame long
 };
 #define RUSH ((struct rush_state *)(story_scratch + RUSH_AT))

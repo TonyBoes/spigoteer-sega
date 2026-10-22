@@ -31,7 +31,7 @@ static uint8_t ld_play;               // start it when the copy is done (else it
 static const uint8_t *groove;         // the running tune's drum loop (NULL: none)
 static uint8_t swing;                 // the running tune's swing mask (0 none): src/music.h tune_t.groove
 static uint8_t g_pos, g_cnt;          // groove row, frames until it advances
-static uint8_t g_step;                // the groove drum struck last, its NR43 steps still to follow: drum id (1-6) << 2 | frames since the hit (1, 2); 0: none (one byte)
+uint8_t g_step;                       // (read by the soundtrack's DMG meter, src/jukebox.c) the groove drum struck last, its NR43 steps still to follow: drum id (1-6) << 2 | frames since the hit (1, 2); 0: none (one byte)
 extern unsigned char hUGE_ticks_per_row, hUGE_tick, hUGE_row, hUGE_row_break, hUGE_next_order, hUGE_current_order;   // the driver's tempo, as hUGE_init set it (exported for this: CREDITS.md)
 uint8_t music_fast;                   // 1: a venue tune plays one frame a row faster (story: TWIST_FAST_TUNE)
 static uint8_t fast_now;              // the running tune plays fast

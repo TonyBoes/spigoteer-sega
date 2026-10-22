@@ -1,0 +1,47 @@
+; ol_icons: the soundtrack visualiser's four channel icons (src/jukebox.c; the one-line menus share their other tiles through assets/art/ol_tiles.txt). Four BG tiles, 8x8, drawn on each channel's own palette on the
+; wood wall: '.' 0 the channel's bright colour, '#' 3 the wall; '-' 1 and '+' 2 are not used (the bar tiles use them for highlight and shade).
+; Hand drawn, every pixel placed here by hand and typed into this grid (tools/gen_ol_tiles.py only transcribes the grid to 2 bpp; no mirroring, no fill, no generator).
+; Order: SQUARE 1 (a wide pulse, 50% duty), SQUARE 2 (a pulse train, narrow 25% duty), WAVE (one period of a sine), NOISE (jagged static).
+; Clean-up log:
+;  1. Draft 1 of all four drawn straight into this grid. Check at x8: SQUARE 1 reads as a pulse (a 3 px high run, verticals the full height, feet on row 6); SQUARE 2 as a
+;     comb of two 2 px pulses on a baseline, clearly not the same shape; the two are different enough to tell apart at 1x and on a DMG. No change.
+;  2. WAVE: the steps connect diagonally only (no L-shaped doubles), crest on columns 1-2, trough on columns 5-6; at x8 it reads as a sine, at 1x as a "~". The one weak spot
+;     is the vertical 2 px run at column 3 (rows 2-3) and column 7 (rows 4-5), the steepest parts; left as is (a curve's steepest point, linework.md section 1).
+;  3. NOISE: the dashes are 2-3 px clusters, one in every column, no orphan single pixels and no 2x2 block; the staggering is the "static". Left as is.
+;  4. All four keep rows 0 and 7 as the wall, the same margin the bar tiles beside them leave.
+; Palette note: on a DMG the fill is the lightest shade on the wall's darkest, like the text.
+########
+##...###
+##.#.###
+##.#.###
+##.#.###
+##.#.###
+...#....
+########
+
+########
+#..##..#
+#..##..#
+#..##..#
+#..##..#
+#..##..#
+........
+########
+
+########
+#..#####
+#.#.####
+.##.####
+####.##.
+#####.#.
+#####..#
+########
+
+########
+##.###.#
+##.#.#.#
+.#.#.###
+.##.###.
+#.#.#.#.
+#.###.##
+########
