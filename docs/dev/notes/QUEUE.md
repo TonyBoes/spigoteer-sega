@@ -100,3 +100,8 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
     - That frees 12 shared-block tiles in bank 0, which can hold 3 back views of the new looks, taking the bank-1 margin from 6 to about 18.
   - Boss sprite parts: the atlas says every boss's sprite tiles are already sprite-only (6-10 tiles each). Their shared-block tiles (234-255) are body BG tiles and cannot move. Nothing to gain there.
   - 15-px-wide new looks would add 10 more.
+- Owner 2026-10-22, DMG: the DMG keeps the original palettes (they all collapse to shades anyway). For the Saloon, the DMG's three are DUSTY, ROSIE (the SINGER) and GUS.
+  - These are the bank-0 looks on BOTH systems (one layout). GUS takes the slot the boss overwrites, so he sits out boss fights on both.
+  - HANK goes to bank 1 and is Color only.
+  - Variants and new looks are Color only.
+  - Check the DMG renders: ROSIE's see-through pupils come out white on DMG. HANK's colour-slot swap doesn't matter on DMG, since he isn't on DMG.

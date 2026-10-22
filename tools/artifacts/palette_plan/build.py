@@ -72,6 +72,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-22", "Saloon DMG: DUSTY, ROSIE (the singer) and GUS are the bank-0 looks on both systems; GUS takes the boss-overwritten slot. HANK goes to bank 1 (Color only). The DMG keeps its original palettes."),
     ("2026-10-22", "Saloon: palette variants per patron (30 recolours; correction: GUS keeps his own OBJ 7, his OBJ 6 is cut). HANK's art and OBJ 3 have colours 1 and 2 swapped."),
     ("2026-10-22", "Saloon: OBJ 6 (MABEL, ARTIE) outline darker, #303038 to #1A1A20."),
     ("2026-10-22", "Saloon names: the Prospector is GUS, the prospector; ARTIE is a priest."),
@@ -174,6 +175,7 @@ PLANS = {
         add={("OBJ", 7): ("GUS, the prospector", ["#D8C098", "#B85838", "#281810"]),   # the Outlaw's former palette, kept by the Prospector; Big Tex takes it too
              ("OBJ", 4): ("ROSIE, the singer", ["#F8D0B0", "#BB2F32", "#202030"]),   # owner 2026-10-22: ROSIE's skin and outline, the Outlaw file's red   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
              ("OBJ", 5): ("EMMA, the singer", ["#FFD5BD", "#8B5231", "#221B1A"])},   # owner 2026-10-22: shared with DUSTY
+        dmg=["DUSTY", "ROSIE", "GUS"],          # owner 2026-10-22: the DMG's three (bank 0, both systems); GUS in the boss-overwritten slot
         # owner 2026-10-22: the palettes each patron may spawn in (recolours of the same tiles; HANK's art has colours 1 and 2 swapped).
         variants={"HANK": [3, 5, 6], "ROSIE": [3, 4, 5, 7], "REDD": [3, 4, 5, 6, 7], "DUSTY": [3, 5], "EMMA": [4, 5, 7],
                   "MABEL": [3, 4, 5, 6, 7], "ARTIE": [3, 4, 5, 6, 7], "GUS": [3, 5, 7]},
@@ -527,7 +529,7 @@ for i, v in enumerate(venues):
             if field[b]["new"] or b != r["obj"]:
                 r["planned"] = r["planned"] or bool(field[b]["new"])
     rows = []
-    md = "### %s: patron palettes (plan, %s)\n\n| Patron | Palette colours (1, 2, 3) | OBJ | BG | Spawns in OBJ (and matching BG) |\n|---|---|---|---|---|\n" % (v["name"], LOG[0][0])
+    md = "### %s: patron palettes (plan, %s)\n\n| Patron | Palette colours (1, 2, 3) | OBJ | BG | Spawns in OBJ (and matching BG) | DMG |\n|---|---|---|---|---|---|\n" % (v["name"], LOG[0][0])
     for r in ident + reserved:
         d = m[("OBJ", r["obj"])]
         cols = [d["new"].get(k, d["cols"][k]) for k in (1, 2, 3)]
@@ -538,9 +540,11 @@ for i, v in enumerate(venues):
         rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg)))
         var = PLANS.get(v["key"], {}).get("variants", {}).get(r["name"].split(",")[0].strip())
         vtxt = ", ".join(str(x) for x in var) if var else str(r["obj"])
-        rows[-1]["html"] = rows[-1]["html"] + (vtxt,)
-        md += "| %s%s | %s | OBJ %d | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), r["obj"],
-                                                ("BG %d" % r["bg"]) if "bg" in r else "to assign", vtxt)
+        dm = PLANS.get(v["key"], {}).get("dmg")
+        dtxt = ("DMG" if r["name"].split(",")[0].strip() in dm else "") if dm else "DMG"
+        rows[-1]["html"] = rows[-1]["html"] + (vtxt, dtxt)
+        md += "| %s%s | %s | OBJ %d | %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), r["obj"],
+                                                ("BG %d" % r["bg"]) if "bg" in r else "to assign", vtxt, dtxt or "Color only")
     w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % len(ident))
     w('<div class="stat"><b>%d</b><span>reserved patrons</span></div>' % len(reserved))
     w('<div class="stat"><b>%d</b><span>free OBJ palettes</span></div>' % len(ofree))
@@ -556,9 +560,9 @@ for i, v in enumerate(venues):
         d = dict(m[("BG", sl)]); d["pat"] = []
         w(card("BG", sl, d, False))
     w('</div><div class="ph2"><h2>Patrons</h2><button type="button" class="copymd" data-md="%s">Copy table as Markdown</button></div>' % esc(md))
-    w('<div class="tbl"><table class="pt"><thead><tr><th></th><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th><th>Spawns in</th></tr></thead><tbody>')
+    w('<div class="tbl"><table class="pt"><thead><tr><th></th><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th><th>Spawns in</th><th>Also on</th></tr></thead><tbody>')
     for r in rows:
-        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
+        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
     w('</tbody></table></div>')
     w('</section>')
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
