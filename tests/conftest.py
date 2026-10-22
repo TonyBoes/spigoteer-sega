@@ -277,7 +277,8 @@ def hold_stage_anim(rom, hold=1):
  K_ERASE, K_DEBUG, K_ERASEQ, K_NO, K_YES, K_BARCHANGE, K_BARKEEP, K_CREDITS, K_EASY, K_NORMAL, K_HARD, K_CAP_EASY, K_CAP_NORMAL, K_CAP_HARD,
  K_SCR_NORMAL, K_SCR_BRIGHT, K_SCR, K_SET_STD, K_SET_GBA) = range(30)
 TM_TOP, TM_PLAY, TM_BONUS, TM_SETTINGS, TM_ERASE, TM_HARD, TM_SCR = range(7)
-MENU_SETTLE = 12         # frames for a submenu's lines to reach the screen (2-5; SETTINGS: up to 10 rows, one a frame on a Color: src/title.c menu_frame)
+MENU_SETTLE = 6          # frames for a submenu's lines to reach the screen (2-5: src/title.c menu_frame)
+SETTINGS_SETTLE = 8      # ... and the rest of SETTINGS' (up to ten rows, one a frame on a Color), waited by title_pick when it opens SETTINGS
 
 
 def menu_items(rom):
@@ -303,6 +304,8 @@ def title_pick(rom, top, item=None, press=True):
     assert rom.mem("title_menu") == TM_TOP
     menu_to(rom, top)
     menu_tap(rom, "a")
+    if top == K_SETTINGS:
+        rom.run(SETTINGS_SETTLE)
     if item is not None:
         menu_to(rom, item)
         if press:

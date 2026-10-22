@@ -23,6 +23,7 @@
 #include <gb/gb.h>
 #include <gb/cgb.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "game.h"
 #include "palettes.h"
@@ -125,7 +126,8 @@ static uint8_t logo_buf[LOGO_LETTERS][4];
 static uint8_t hi_buf[6];
 static const uint8_t attract_tbl[TOP_TABLES] = { MODE_ARCADE, MODE_STORY, MODE_CLASSIC };   // the idle title cycles them
 static uint8_t menu_buf[4][20], row_blank[20], attr_txt[20], attr_sel[20];
-// A menu line's 20-byte row is built when it is drawn (title_enter: row_buf, LCD off; menu_frame: menu_buf[0..1] for the VBlank queue, which drains them before the next frame).
+// The menus of up to four lines keep each line's 20-byte row in menu_buf[i], built when the menu opens (build_item). SETTINGS (up to five lines, two rows each) builds its rows
+// when they are drawn (row_str: title_enter into row_buf, LCD off; menu_frame into menu_buf[0..1] for the VBlank queue, which drains them before the next frame).
 
 static uint8_t trand(void) {
     t_rng ^= t_rng << 7;
@@ -136,9 +138,8 @@ static uint8_t trand(void) {
 
 // a 20-wide row: blank, then the string (column, count, ids) at its column
 static void build_row(uint8_t *row, const uint8_t *s) {
-    uint8_t i;
-    for (i = 0; i < 20; i++) row[i] = TT_BLANK;
-    if (s) for (i = 0; i < s[1]; i++) row[s[0] + i] = s[2 + i];
+    memset(row, TT_BLANK, 20);                    // (memset / memcpy: rows are built a frame at a time while the logo may be filling)
+    if (s) memcpy(row + s[0], s + 2, s[1]);
 }
 
 // per K_* (game.h order): the line's text and the screen x of its first text pixel (MUSIC: by sound_on)
@@ -181,6 +182,7 @@ static const uint8_t *row_str(uint8_t r) {
 }
 
 #define row_name_of(i) (title_rows[i] - 1)
+static void build_item(uint8_t i) { build_row(menu_buf[i], k_text[title_items[i]]); }   // (not SETTINGS)
 static void row_dirty(uint8_t i) { title_dirty |= (uint16_t)1 << title_rows[i]; }   // (the status or action line only: a name never changes)
 
 static void set_sel_attr(uint8_t sel, uint8_t on) {
@@ -238,6 +240,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
     for (i = 0; i < title_n; i++) {
         title_rows[i] = IS_ASK(m) ? HARD_ROW + HARD_STEP * i : MENU_ROW(title_n) + 2 * i;   // (GBA COLOR MODE: label and two choices on rows 7, 9, 11, like ERASE ALL DATA)
         title_dirty |= (uint16_t)1 << title_rows[i] | (IS_ASK(m) ? (uint16_t)1 << CAP_ROW : 0);
+        if (m != TM_SETTINGS) build_item(i);
     }
     if (m == TM_SETTINGS) {       // two rows a setting (name, status) and a blank row after it; an action is one row. Centred in rows 4-13; with all five lines (eleven rows) the last gap goes
         uint8_t row, t = 0, last = 0, skip;
@@ -272,6 +275,15 @@ static uint8_t menu_frame(void) {
             vq_add(0, menu_buf[3], 0, r, 20);
             if (is_cgb) vq_add(1, attr_txt, 0, r, 20);
             n = MENU_COPIES_PER_FRAME;
+            continue;
+        }
+        if (title_menu != TM_SETTINGS) {                         // the other menus: the lines built at open
+            need = (is_cgb && k != 255) ? 2 : 1;
+            if (n + need > MENU_COPIES_PER_FRAME) continue;
+            title_dirty &= ~((uint16_t)1 << r);
+            n += need;
+            vq_add(0, k == 255 ? row_blank : menu_buf[k], 0, r, 20);
+            if (need == 2) vq_add(1, k == title_sel ? attr_sel : attr_txt, 0, r, 20);
             continue;
         }
         txt = row_str(r);
@@ -422,8 +434,11 @@ void title_enter(void) BANKED {
     title_back = TM_TOP; title_back_sel = 0;
     title_dirty = IS_ASK(title_menu) ? (uint16_t)1 << CAP_ROW : 0;   // drawn here, with the LCD off (a prompt's caption row: the queue draws it)
     for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++) {   // (the block's rows: a menu line, else the plain wall; a fourth line made the rebuild a tick late)
-        build_row(row_buf, row_str(r));
-        set_bkg_tiles(0, r, 20, 1, row_buf);
+        if (title_menu == TM_SETTINGS) { build_row(row_buf, row_str(r)); set_bkg_tiles(0, r, 20, 1, row_buf); }
+        else {
+            for (i = 0; i < title_n && title_rows[i] != r; i++) ;
+            set_bkg_tiles(0, r, 20, 1, i < title_n ? menu_buf[i] : row_blank);
+        }
     }
     music_pump();
     for (i = 0; i < 20; i++) row_buf[i] = TT_BLANK;
@@ -441,8 +456,11 @@ void title_enter(void) BANKED {
         VBK_REG = VBK_BANK_1;
         for (i = 0; i < 20; i++) row_buf[i] = BGPAL_LOGO;
         set_bkg_tiles(1, LOGO_ROW, 18, 1, row_buf); set_bkg_tiles(1, LOGO_ROW + 1, 18, 1, row_buf);
-        for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++)     // (the gold line is the cursor's: it may come back on any line; a setting's name is a text line too)
-            if (row_str(r)) set_bkg_tiles(0, r, 20, 1, r == title_rows[title_sel] ? attr_sel : attr_txt);
+        if (title_menu == TM_SETTINGS) {
+            for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++)     // (the gold line is the cursor's; a setting's name is a text line too)
+                if (row_str(r)) set_bkg_tiles(0, r, 20, 1, r == title_rows[title_sel] ? attr_sel : attr_txt);
+        } else
+            for (i = 0; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, i == title_sel ? attr_sel : attr_txt);   // (the gold line is the cursor's: it may come back on line 1 or 2)
         set_bkg_tiles(0, ROW_HI, 20, 1, attr_txt);
         for (i = 0; i < 2; i++) row_buf[i] = BGPAL_TPATRON;
         set_bkg_tiles(PATRON_COL, BAR_TOP_ROW(SCENE_BAR), 2, 1, row_buf);
