@@ -119,6 +119,17 @@ table.free th[scope=row] { white-space: normal; min-width: 120px; position: stic
 .grp { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: default; }
 details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px; margin: 4px 0; }
 .sel-id { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+table.data.wrap td { white-space: normal; }
+.evtable { display: block; }
+.evrow { display: grid; grid-template-columns: minmax(180px, 1fr) max-content minmax(0, 1.4fr); gap: 6px 16px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
+.evrow > div { min-width: 0; }
+.evstills { display: flex; gap: 3px; }
+.evpal { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 3px 10px; }
+.evg { margin-bottom: 4px; }
+.evl { display: block; font-size: 11px; color: var(--muted); }
+.kids { display: flex; flex-wrap: wrap; gap: 14px; }
+.kid { flex: 0 0 auto; max-width: 100%; font-size: 12px; padding: 4px; border-radius: 6px; }
+@media (max-width: 860px) { .evrow { grid-template-columns: minmax(0, 1fr); } .evstills { flex-wrap: wrap; } }
 @media (max-width: 760px) {
   .prow, .pgrid.nospr .prow { grid-template-columns: minmax(0, 1fr) max-content; }
   .prow.head { display: none; }
@@ -176,10 +187,10 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
   var mobile = window.matchMedia("(max-width: 560px)");
   function scale() { return mobile.matches ? 2 : 3; }
 
-  var GROUP_ORDER = ["Menus", "Levels (ARCADE, by venue)", "Levels (CLASSIC, mirrored)", "Dancers' show (by venue)", "Bosses", "Boss entrances",
+  var GROUP_ORDER = ["Menus", "Levels (ARCADE, by venue)", "Levels (CLASSIC, mirrored)",
                      "Mini-games", "Story", "Credits", "Pause and cards", "Other"];
   var state = { id: null, model: "cgb", motion: !window.matchMedia("(prefers-reduced-motion: reduce)").matches, bank: 0,
-                tiles: { used: true, colour: false, regions: false, region: -1 }, ov: { attr: false, spr: false, grid: false }, summary: false, free: false };
+                tiles: { used: true, colour: false, regions: false, region: -1, boss: false }, ov: { attr: false, spr: false, grid: false }, summary: false, free: false };
   var animSwatches = [];     // {cells:[i,i,i,i], changes:[[t,[c..]]], frames}
   var clock0 = performance.now();
   var BAND = { obj: "#e08a2c", pool: "#3a7bd5", shared: "#2a9d6f", patron: "#b04fb0", free: "#8a8a84" };
@@ -322,7 +333,7 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     var nav = $("#picker"), sel = $("#pick-select");
     nav.textContent = ""; sel.textContent = "";
     var by = {};
-    idx().screens.forEach(function (s) { (by[s.group] = by[s.group] || []).push(s); });
+    idx().screens.forEach(function (s) { if (!s.parent) (by[s.group] = by[s.group] || []).push(s); });
     var order = GROUP_ORDER.filter(function (g) { return by[g]; }).concat(Object.keys(by).filter(function (g) { return GROUP_ORDER.indexOf(g) < 0; }));
     var top = h("a", { href: "#summary", text: "Summary: permanent vs swapped", "data-id": "summary" });
     nav.appendChild(top);
@@ -357,8 +368,12 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     if (location.hash !== hsh) location.hash = hsh; else route();
   }
   function route() {
-    var m = /^#([\w-]+)(?:\/(dmg|cgb))?$/.exec(location.hash);
+    var m = /^#([\w-]+)(?:\/(dmg|cgb))?(\+full)?$/.exec(location.hash);
     var id = m ? m[1] : defId();
+    state.full = !!(m && m[3]);
+    var sc0 = scrById(id);
+    state.focus = null;
+    if (sc0 && sc0.parent && !state.full) { state.focus = id; id = sc0.parent; }          // an old anchor of a state / event lands on its parent page
     state.model = m && m[2] ? m[2] : (state.model || "cgb");
     state.free = id === "free";
     if (id === "free") { state.summary = false; render(); return; }
@@ -370,7 +385,7 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
   function setModel(m) {
     state.model = m;
     var id = state.free ? "free" : state.summary ? "summary" : state.id;
-    var hsh = "#" + id + (m === "dmg" ? "/dmg" : "");
+    var hsh = "#" + id + (m === "dmg" ? "/dmg" : "") + (state.full ? "+full" : "");
     if (location.hash !== hsh) location.hash = hsh; else render();
   }
   function setMotion(on) {
@@ -422,14 +437,21 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     if (state.summary) { renderSummary(main); return; }
     if (!state.id || !A[state.id]) return;
     var d = A[state.id], r = d && d[state.model];
+    state.curData = d;
     main.appendChild(h("h2", { text: d.name }));
     main.appendChild(h("p", { class: "sel-id", text: d.group + "  |  id " + d.id + "  |  " + state.model.toUpperCase() }));
     if (d.note) main.appendChild(h("p", { class: "note", text: d.note }));
     if (!r) { main.appendChild(h("p", { class: "err", text: "This screen was not reached on " + state.model.toUpperCase() + " (see the generator's report)." })); return; }
+    if (state.full && d.parent) main.insertBefore(h("p", null, h("a", { href: "#" + d.parent + (state.model === "dmg" ? "/dmg" : ""), text: "< back to " + nameOf(d.parent) })), main.firstChild);
     main.appendChild(screenPanel(d, r));
+    if (r.ev) main.appendChild(eventsPanel(d, r));
+    if (r.boss) main.appendChild(bossPanel(d, r));
     palettePanels(d, r).forEach(function (x) { main.appendChild(x); });
     main.appendChild(tilePanel(d, r));
     main.appendChild(oamPanel(d, r));
+    var kids = childrenPanel(d);
+    if (kids) main.appendChild(kids);
+    if (state.focus) setTimeout(function () { var e = document.getElementById("child-" + state.focus); if (e) { window.scrollTo(0, e.getBoundingClientRect().top + window.pageYOffset - 120); e.style.outline = "3px solid var(--accent)"; } }, 50);
   }
 
   function screenPanel(d, r) {
@@ -560,9 +582,9 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     cells.forEach(function (c) { row.appendChild(c); });
     return row;
   }
-  function headRow(withSpr, first) {
+  function headRow(withSpr, first, lastName) {
     var cells = [h("div", { text: first }), h("div", { text: "colours (click to copy)" }), h("div", { text: "status" })];
-    if (withSpr) cells.push(h("div", { text: "Sprites using it" }));
+    if (withSpr) cells.push(h("div", { text: lastName || (state.curData && state.curData[state.model] && state.curData[state.model].ev ? "Sprites using it, by event (all events)" : "Sprites using it") }));
     return prow("head", cells);
   }
   function sprSheet(r) { return { png: r.pack.png, w: r.pack.w, h: r.pack.h, x: r.spr.at[0], y: r.spr.at[1] }; }
@@ -573,7 +595,7 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     var bgP = h("section", { class: "panel", "aria-labelledby": "h-bg" });
     objP.appendChild(h("h2", { id: "h-obj", text: "Sprite (OBJ) palettes" }));
     bgP.appendChild(h("h2", { id: "h-bg", text: "Background (tile) palettes" }));
-    var gO = h("div", { class: "pgrid", role: "list" }), gB = h("div", { class: "pgrid nospr", role: "list" });
+    var gO = h("div", { class: "pgrid", role: "list" }), gB = h("div", { class: r.ev ? "pgrid" : "pgrid nospr", role: "list" });
     var sheet = sprSheet(r);
     if (state.model === "dmg") {
       objP.appendChild(h("p", { class: "note", text: "On the DMG sprites use two palette registers, OBP0 and OBP1 (OAM flag bit 4 picks one). Each maps colour index 1-3 to one of four shades (index 0 is transparent). Click a swatch to copy its colour. \"Sprites using it\" shows every sprite seen during the sampled window, with the palette it was drawn in." }));
@@ -595,7 +617,7 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
         tdu.appendChild(h("span", { text: used ? (obj ? q.objs + " sprites on the still" : "in use") : "unused here" }));
         if (q.changes.length > 1) tdu.appendChild(chip("changes: " + q.n_distinct + " values", "anim"));
         cs.push(tdu);
-        if (obj) cs.push(h("div", { class: "pspr" }, sprites(r.spr.groups[k[0] === "OBP0" ? 0 : 1], sheet, "samples")));
+        if (obj) cs.push(h("div", { class: "pspr" }, r.ev ? evSprites(r, k[0] === "OBP0" ? 0 : 1) : sprites(r.spr.groups[k[0] === "OBP0" ? 0 : 1], sheet, "samples")));
         k[2].appendChild(prow(used ? "" : "unused", cs));
       });
       objP.appendChild(gO); bgP.appendChild(gB);
@@ -608,7 +630,7 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     bgP.appendChild(h("p", { class: "note", text: "BG palettes 0-7 colour the background and window tiles (one palette per 8x8 tile, set in the attribute map)." + " " + "Same controls as above." }));
     ["obj", "bg"].forEach(function (kind) {
       var grid = kind === "obj" ? gO : gB, withSpr = kind === "obj";
-      grid.appendChild(headRow(withSpr, kind === "bg" ? "BG palette" : "OBJ palette"));
+      grid.appendChild(headRow(withSpr || !!r.ev, kind === "bg" ? "BG palette" : "OBJ palette", kind === "bg" ? "Tiles using it (all events)" : null));
       r.pal[kind].forEach(function (q) {
         var used = q.used_frames > 0, animated = q.changes.length > 1, name = (kind === "bg" ? "BG " : "OBJ ") + q.slot;
         var sw = swatch(animated ? q.changes[0][1] : q.rep, "big", { what: name });
@@ -623,12 +645,149 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
         st.appendChild(h("span", { text: used ? (kind === "bg" ? q.cells + " cells on the still; " : q.objs + " sprites on the still; ") + q.used_frames + "/" + r.samples + " samples" : "unused here" }));
         st.appendChild(h("div", null, slotChips(kind, q.slot, q)));
         cs.push(st);
-        if (withSpr) cs.push(h("div", { class: "pspr" }, sprites(r.spr.groups[q.slot], sheet, "samples")));
+        if (kind === "obj") cs.push(h("div", { class: "pspr" }, r.ev ? evSprites(r, q.slot) : sprites(r.spr.groups[q.slot], sheet, "samples")));
+        else if (r.ev) cs.push(h("div", { class: "pspr" }, bgTiles(r, q.slot)));
         grid.appendChild(prow(used ? "" : "unused", cs));
       });
     });
     objP.appendChild(gO); bgP.appendChild(gB);
     return [objP, bgP];
+  }
+
+
+  // ---- everything a level can draw (all events) ----------------------------------------------------------------------------------
+  function bossRec() {
+    var r = state.curData && state.curData[state.model], b = r && r.boss;
+    return b && A[b.id] && A[b.id][state.model] ? A[b.id][state.model] : null;
+  }
+  function loadKids(d) {
+    idx().screens.forEach(function (s) { if (s.parent === d.id && !A[s.id]) load(s.id, function () { if (state.id === d.id && !state.free && !state.summary) render(); }); });
+  }
+  // the sprites of palette slot `slot` in every event, grouped by event (cells of the event block of the packed image), then the boss fight's
+  function evSprites(r, slot) {
+    var S = mobile.matches ? 2 : 3, wrap = h("div", { class: "evgroups" }), at = r.ev.at, pk = r.pack, any = false;
+    r.ev.events.forEach(function (e, i) {
+      var cells = [];
+      e.sprites.forEach(function (it, k) { if (it[6] === slot) cells.push([it, k]); });
+      if (!cells.length) return;
+      any = true;
+      var g = h("div", { class: "evg" }, h("span", { class: "evl", text: e.label, title: e.desc }));
+      var box = h("span", { class: "sprs" });
+      cells.forEach(function (c) {
+        var it = c[0], lab = e.label + ": tile 0x" + ("0" + it[0].toString(16)).slice(-2).toUpperCase() + (it[1] ? ", bank 1" : "") + (it[2] ? ", flip X" : "") + (it[3] ? ", flip Y" : "") + ", " + it[4] + " px tall";
+        box.appendChild(sprBox(pk.png, pk.w, pk.h, at.spr_x + c[1] * 8, at.y + i * at.row, 8, it[4], S, lab));
+      });
+      if (e.n_sprites > e.sprites.length) box.appendChild(h("span", { class: "more", text: "+" + (e.n_sprites - e.sprites.length) }));
+      g.appendChild(box);
+      wrap.appendChild(g);
+    });
+    var b = bossRec();
+    if (b && r.boss && b.spr.groups[slot] && b.spr.groups[slot].total) {
+      any = true;
+      var bs = sprSheet(b), g2 = h("div", { class: "evg" }, h("span", { class: "evl", text: "boss fight: " + r.boss.name, title: "the venue's boss fight (also Boss Rush)" }));
+      g2.appendChild(sprites(b.spr.groups[slot], bs, "samples"));
+      wrap.appendChild(g2);
+    }
+    if (!any) wrap.appendChild(h("span", { class: "muted", text: "no sprite uses it in any event" }));
+    return wrap;
+  }
+  // BG tiles drawn with palette `pal` (screen, window and every event), as little thumbnails of the grey tile sheet
+  function bgTiles(r, pal) {
+    var lst = (r.ev.bg_by_pal || {})[String(pal)] || [], wrap = h("div", { class: "sprs" }), pk = r.pack, S = 2, CAP = 40;
+    if (!lst.length) { wrap.appendChild(h("span", { class: "muted", text: "no tile uses it" })); return wrap; }
+    lst.slice(0, CAP).forEach(function (t) {
+      var sh = pk.sheets[t[0]]; if (!sh) return;
+      var s = t[1], lab = "BG tile slot " + s + (t[0] ? ", bank 1" : "") + " (" + regionOf(s) + ")";
+      wrap.appendChild(sprBox(pk.png, pk.w, pk.h, sh.gray[0] + (s % 16) * 8, sh.gray[1] + Math.floor(s / 16) * 8, 8, 8, S, lab));
+    });
+    wrap.appendChild(h("span", { class: "more", text: lst.length + " tile" + (lst.length === 1 ? "" : "s") + (lst.length > CAP ? ", first " + CAP + " shown" : "") }));
+    return wrap;
+  }
+  function eventsPanel(d, r) {
+    var E = r.ev, pk = r.pack, at = E.at, S = mobile.matches ? 1 : 1.5, SS = mobile.matches ? 2 : 3;
+    var p = h("section", { class: "panel" });
+    p.appendChild(h("h2", { text: "Everything this level can draw (all events)" }));
+    p.appendChild(h("p", { class: "note", text: "The panels below (palettes, tiles, sprites) cover everything this level can use, not just the screenshot above: the level was driven through every sprite-producing event with the tests' own hooks (" + E.frames + " sampled frames). Each row is one kind of sprite, found by its tile id: what it is, a few stills of it in the game, every sprite image drawn (with the palette it really had), and the OBJ palette colours it used. Click a swatch to copy a colour. Frames per phase: " + Object.keys(E.phases).map(function (k) { return k + " " + E.phases[k]; }).join(", ") + "." }));
+    if (E.notes.length) p.appendChild(h("p", { class: "err", text: "Not captured: " + E.notes.join("; ") }));
+    var t = h("div", { class: "evtable" });
+    E.events.forEach(function (e, i) {
+      var row = h("div", { class: "evrow" });
+      var head = h("div", { class: "evhead" }, h("b", { text: e.label }), h("div", { class: "muted", text: e.desc }),
+        h("div", { class: "muted", text: "seen in " + e.n + " frames; OAM entr" + (e.oam.length === 1 ? "y " : "ies ") + e.oam.join(", ") + "; " + e.tiles.length + " sprite tile" + (e.tiles.length === 1 ? "" : "s") }));
+      var pals = h("div", { class: "evpal" });
+      e.slots.forEach(function (sl) {
+        sl.values.forEach(function (v) {
+          if (state.model === "cgb") pals.appendChild(h("span", { class: "grp" }, h("span", { text: "OBJ " + sl.slot }), swatch(v, "mini", { what: "OBJ " + sl.slot + " (" + e.label + ")" })));
+          else pals.appendChild(h("span", { class: "grp", text: (sl.slot ? "OBP1" : "OBP0") + " = 0x" + v.toString(16).toUpperCase() }));
+        });
+      });
+      var stills = h("div", { class: "evstills" });
+      for (var j = 0; j < e.n_stills; j++) stills.appendChild(sprBox(pk.png, pk.w, pk.h, at.x + j * E.cell[0], at.y + i * at.row, E.cell[0], E.cell[1], S, "Still of " + e.label));
+      var spr = h("div", { class: "sprs" });
+      e.sprites.forEach(function (it, k) { spr.appendChild(sprBox(pk.png, pk.w, pk.h, at.spr_x + k * 8, at.y + i * at.row, 8, it[4], SS, e.label + ", OBJ palette " + it[6])); });
+      if (e.n_sprites > e.sprites.length) spr.appendChild(h("span", { class: "more", text: "+" + (e.n_sprites - e.sprites.length) + " more" }));
+      row.appendChild(head); row.appendChild(stills); row.appendChild(h("div", null, spr, pals));
+      t.appendChild(row);
+    });
+    p.appendChild(t);
+    return p;
+  }
+  function bossPanel(d, r) {
+    var B = r.boss, p = h("section", { class: "panel" });
+    p.appendChild(h("h2", { text: "Boss fight: " + B.name + " (this venue's Last call; Boss Rush reuses it)" }));
+    p.appendChild(h("p", { class: "note", text: "The boss walks into this venue's level in place. He borrows patron C's tiles, BG palette 4 and OBJ palette 7, and some bosses load slot 5 (src/boss.c). Compared with the level's own frame (the screenshot above), the fight REPLACES the palettes and tile slots below. Use \"Boss fight replaces\" in the Tiles panel to see the slots on the sheet. OBJ 5 can also differ only because the level frame holds the tip coin or the show palette there. The fight and its entrance are in \"States and events\" at the bottom." }));
+    var pal = B.pal, rows = [];
+    if (state.model === "cgb") {
+      [["obj", "OBJ"], ["bg", "BG"]].forEach(function (k) {
+        pal[k[0]].forEach(function (q) {
+          if (!q.replaced) return;
+          rows.push(h("tr", null, h("td", { text: k[1] + " " + q.slot }), h("td", { text: roleOf(k[0], q.slot) }), h("td", null, swatch(q.level, "mini", { what: k[1] + " " + q.slot + " (level)" })),
+            h("td", null, swatch(q.boss, "mini", { what: k[1] + " " + q.slot + " (boss fight)" })), h("td", { text: q.used ? "used in the fight" : "set, not drawn in the sampled fight" })));
+        });
+      });
+    } else {
+      ["BGP", "OBP0", "OBP1"].forEach(function (k) {
+        var q = pal[k]; if (!q.replaced) return;
+        rows.push(h("tr", null, h("td", { text: k }), h("td", { text: "" }), h("td", { text: "0x" + q.level.toString(16).toUpperCase() }), h("td", { text: "0x" + q.boss.toString(16).toUpperCase() }), h("td", { text: "" })));
+      });
+    }
+    var tb = h("table", { class: "data wrap" });
+    tb.appendChild(h("tr", null, h("th", { text: "palette" }), h("th", { text: "role in the level" }), h("th", { text: "level" }), h("th", { text: "boss fight" }), h("th", { text: "" })));
+    rows.forEach(function (x) { tb.appendChild(x); });
+    p.appendChild(h("h3", { text: "Palettes replaced" }));
+    p.appendChild(rows.length ? h("div", { class: "scroll" }, tb) : h("p", { class: "muted", text: "none" }));
+    p.appendChild(h("h3", { text: "Tile slots replaced" }));
+    B.tiles.forEach(function (t) {
+      p.appendChild(h("p", { text: (B.tiles.length > 1 ? "Bank " + t.bank + ": " : "") + t.n + " slots differ (" + t.boss_uses + " slots drawn in the fight): " + (t.replaced.length ? t.replaced.map(function (q) { return q[0] === q[1] ? String(q[0]) : q[0] + "-" + q[1]; }).join(", ") : "none") }));
+    });
+    return p;
+  }
+  function childrenPanel(d) {
+    var kids = idx().screens.filter(function (s) { return s.parent === d.id; });
+    if (!kids.length) return null;
+    loadKids(d);
+    var p = h("section", { class: "panel" });
+    p.appendChild(h("h2", { text: "States and events of this screen" }));
+    p.appendChild(h("p", { class: "note", text: "Screens that belong to this one (the show, the boss entrance and fight, pause menus, and so on). Each is a still or the animation of its sampled window; \"details\" opens its full page (palettes, tiles, sprites)." }));
+    var grid = h("div", { class: "kids" });
+    kids.forEach(function (s) {
+      var c = h("div", { class: "kid", id: "child-" + s.id });
+      c.appendChild(h("div", null, h("b", { text: s.name })));
+      var cd = A[s.id], cr = cd && cd[state.model];
+      if (!cd) c.appendChild(h("div", { class: "muted", text: "loading..." }));
+      else if (!cr) c.appendChild(h("div", { class: "muted", text: "not reached on " + state.model.toUpperCase() }));
+      else {
+        var S = 2, pk = cr.pack;
+        var st = h("div", { class: "stage", style: "width:" + 160 * S + "px;height:" + 144 * S + "px" });
+        st.appendChild(h("div", { class: "pix", role: "img", "aria-label": s.name, style: "width:" + 160 * S + "px;height:" + 144 * S + "px;background:url(" + pk.png + ") " + (-pk.still[0] * S) + "px " + (-pk.still[1] * S) + "px/" + (pk.w * S) + "px " + (pk.h * S) + "px no-repeat;image-rendering:pixelated" }));
+        if (cr.anim && state.motion) st.appendChild(h("img", { class: "pix", width: 160 * S, height: 144 * S, alt: "Animation of " + s.name, src: cr.anim, style: "position:absolute;left:0;top:0" }));
+        c.appendChild(st);
+        c.appendChild(h("div", null, h("a", { href: "#" + s.id + (state.model === "dmg" ? "/dmg" : "") + "+full", text: "details" })));
+      }
+      grid.appendChild(c);
+    });
+    p.appendChild(grid);
+    return p;
   }
 
   // ---- render: tiles -----------------------------------------------------------------------------------------------------------
@@ -648,7 +807,7 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
       });
       ctl.appendChild(seg);
     }
-    [["used", "Mark used / free"], ["colour", "Colour by palette"], ["regions", "Region bands"]].forEach(function (k) {
+    [["used", "Mark used / free"], ["colour", "Colour by palette"], ["regions", "Region bands"]].concat(r.boss ? [["boss", "Boss fight replaces"]] : []).forEach(function (k) {
       ctl.appendChild(h("button", { type: "button", "aria-pressed": state.tiles[k[0]] ? "true" : "false", text: k[1], onclick: function () { state.tiles[k[0]] = !state.tiles[k[0]]; render(); } }));
     });
     p.appendChild(ctl);
@@ -664,6 +823,8 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     var side = h("div", { style: "flex:1 1 300px;min-width:0" });
     side.appendChild(h("div", { class: "legend" },
       h("span", null, h("b", { style: "background:#3a7bd5" }), "BG"), h("span", null, h("b", { style: "background:#b04fb0" }), "window"), h("span", null, h("b", { style: "background:#e08a2c" }), "sprite"),
+      r.ev ? h("span", null, h("b", { style: "background:#2fb34f" }), "used only in an event (lift, show, ...)") : null,
+      r.boss && state.tiles.boss ? h("span", null, h("b", { style: "background:#e0322a" }), "replaced during the boss fight") : null,
       h("span", null, h("b", { style: "border-color:#e0322a;border-width:2px" }), "loaded, not referenced"), h("span", null, h("b", { style: "background:repeating-linear-gradient(45deg,#8885,#8885 2px,transparent 2px,transparent 4px)" }), "empty and free")));
     var c = T.counts;
     side.appendChild(h("p", { text: c.ref + " referenced, " + c.loaded_unused + " loaded but not on screen, " + c.empty + " empty and free (of 384)." }));
@@ -683,8 +844,12 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
       if (x < 0 || x > 15 || y < 0 || y > 23) return;
       var s = y * 16 + x, u = parseInt(T.use[s], 16);
       var bgid = s >= 256 ? s - 256 : s >= 128 ? s : null;
+      var evl = r.ev && r.ev.obj_tiles[state.bank + ":" + s];
       var lines = ["slot " + s + (s < 128 ? "  OBJ id " + s : s < 256 ? "  BG id / OBJ id " + s : "  BG id " + (s - 256)), regionOf(s)];
       lines.push((u ? "referenced by: " + [u & 1 ? "BG" : "", u & 2 ? "window" : "", u & 4 ? "sprites" : ""].filter(Boolean).join(", ") : T.loaded[s] === "1" ? "loaded, not referenced in the window" : "empty, not referenced (free)") + (T.changed.indexOf(s) >= 0 ? "; data changes over the window" : ""));
+      if (evl) lines.push("sprite tile of: " + evl.join(", "));
+      if (r.ev && r.ev.use[state.bank] && r.ev.use[state.bank][s] === "1" && !u) lines.push("used only in an event");
+      if (r.boss && r.boss.tiles[state.bank] && r.boss.tiles[state.bank].mask[s] === "1") lines.push("replaced during the boss fight (" + r.boss.name + ")");
       info.textContent = lines.join("\n"); info.style.whiteSpace = "pre-line";
       var g = big.getContext("2d"); g.imageSmoothingEnabled = false;
       g.clearRect(0, 0, 64, 64); g.drawImage(im, sp[0] + x * 8, sp[1] + y * 8, 8, 8, 0, 0, 64, 64);
@@ -717,7 +882,9 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     for (var s = 0; s < 384; s++) {
       var x = (s % 16) * C, y = Math.floor(s / 16) * C, u = parseInt(T.use[s], 16), loaded = T.loaded[s] === "1";
       if (state.tiles.used) {
-        if (u) {
+        if (!u && r.ev && r.ev.use[state.bank] && r.ev.use[state.bank][s] === "1") {
+          g.fillStyle = "#2fb34f"; g.fillRect(x + 1, y + 1, S + 1, S + 1); g.strokeStyle = "#2fb34f"; g.strokeRect(x + .5, y + .5, C - 1, C - 1);
+        } else if (u) {
           var dots = [[1, "#3a7bd5"], [2, "#b04fb0"], [4, "#e08a2c"]], n = 0;
           dots.forEach(function (d) { if (u & d[0]) { g.fillStyle = d[1]; g.fillRect(x + 1 + n * (S + 2), y + 1, S + 1, S + 1); n++; } });
         } else if (loaded) {
@@ -727,6 +894,11 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
           g.strokeStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.moveTo(x, y + C); g.lineTo(x + C, y); g.stroke();
         }
       }
+    }
+    if (state.tiles.boss && r.boss && r.boss.tiles[state.bank]) {
+      var bm = r.boss.tiles[state.bank].mask;
+      g.fillStyle = "rgba(224,50,42,.45)";
+      for (var bs = 0; bs < 384; bs++) if (bm[bs] === "1") g.fillRect((bs % 16) * C, Math.floor(bs / 16) * C, C, C);
     }
     if (state.tiles.regions) {
       R.forEach(function (rg) {
@@ -811,6 +983,10 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
     main.appendChild(h("p", { class: "note", text: "CGB sprite (OBJ) palettes 0-7 per level: the 10 ARCADE venues and 3 CLASSIC levels, each venue's show screen counted as part of its level. The verdict comes from the source code (every OBJPAL_* use, set_sprite_palette and OCPS write), not from the sampled frames alone: a short sample cannot prove a slot free, because events may not happen in it. The sampled frames only cross-check it. The DMG has no per-slot palettes (two registers, OBP0 and OBP1)." }));
     main.appendChild(h("p", { class: "note", text: F.legend }));
     main.appendChild(h("p", { class: "note" }, h("b", { text: F.planned })));
+    if (F.boss && Object.keys(F.boss).length) {
+      var bl = Object.keys(F.boss).map(function (k) { var b = F.boss[k]; return b.name + ": " + (b.obj.length ? "OBJ " + b.obj.join(", ") : "no OBJ") + "; " + (b.bg.length ? "BG " + b.bg.join(", ") : "no BG"); });
+      main.appendChild(h("p", { class: "note" }, h("b", { text: "During the venue's boss fight (and Boss Rush) some slots are taken over, so a slot that is FREE or event-only in the level may be in use then: " }), bl.join(" | ") + ". (Slots whose colours differ from the level's and that the fight draws; OBJ 7 and BG 4 are patron C's, borrowed by every boss. Details: the venue's page, Boss fight panel.)"));
+    }
     if (F.warnings.length) main.appendChild(h("p", { class: "err", text: "Check: " + F.warnings.join("; ") }));
     var p = h("section", { class: "panel" });
     var t = h("table", { class: "data free" });
@@ -974,7 +1150,7 @@ details.more > summary { cursor: pointer; color: var(--accent); font-size: 12px;
   // ---- start ---------------------------------------------------------------------------------------------------------------------
   function start() {
     if (!A.index) { $("#main").textContent = "data/index.js did not load: run `make atlas` and open out/atlas/index.html."; return; }
-    $("#gen").textContent = "Generated from commit " + idx().commit + (idx().date ? ", " + idx().date : "") + " | " + idx().screens.length + " screens on DMG and CGB | colours as PyBoy draws them";
+    $("#gen").textContent = "Generated from commit " + idx().commit + (idx().date ? ", " + idx().date : "") + " | " + idx().screens.filter(function (s) { return !s.parent; }).length + " screens (" + idx().screens.length + " with their states and events) on DMG and CGB | colours as PyBoy draws them";
     buildPicker();
     $("#m-dmg").addEventListener("click", function () { setModel("dmg"); });
     $("#m-cgb").addEventListener("click", function () { setModel("cgb"); });

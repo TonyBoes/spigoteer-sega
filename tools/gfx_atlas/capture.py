@@ -80,7 +80,8 @@ def _entry(s, mp, mx, my, layer):
 def screen_cells(s):
     """(grid, used): the 18x20 grid of what sits under each 8x8 screen cell's centre pixel, as (slot, bank, pal, xflip, yflip, prio, layer)
     tuples (layer "b" background, "w" window; None where the BG is off on a DMG), and `used`, the set of (layer, bank, slot) of every map
-    entry that shows at least one pixel (BG tiles partly scrolled in count; BG tiles wholly under the window do not)."""
+    entry that shows at least one pixel (BG tiles partly scrolled in count; BG tiles wholly under the window do not). A third value, `usedpal`,
+    is the set of (bank, slot, palette) of the same entries (the palette each tile is drawn with)."""
     r = s.regs
     lcdc = r["LCDC"]
     bgmap = 1 if lcdc & 0x08 else 0
@@ -91,6 +92,7 @@ def screen_cells(s):
     cgb = s.bgpal is not None
     bg_on = cgb or bool(lcdc & 0x01)
     used = set()
+    usedpal = set()
 
     def in_win(px, py):
         return win_on and py >= wy and px >= wx
@@ -117,12 +119,14 @@ def screen_cells(s):
                     continue                                         # wholly under the window
                 e = _entry(s, bgmap, (scx >> 3) + tx, (scy >> 3) + ty, "b")
                 used.add((e[6], e[1], e[0]))
+                usedpal.add((e[1], e[0], e[2]))
     if win_on:
         for ty in range(((SH - wy) + 7) // 8):
             for tx in range(((SW - wx) + 7) // 8):
                 e = _entry(s, winmap, tx, ty, "w")
                 used.add((e[6], e[1], e[0]))
-    return grid, used
+                usedpal.add((e[1], e[0], e[2]))
+    return grid, used, usedpal
 
 
 def oam_objects(s):

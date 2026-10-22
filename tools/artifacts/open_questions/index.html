@@ -1,0 +1,97 @@
+<title>Spigoteer Open Questions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a short index of open questions at the top, then one card per question in number order: the ask first, the context, then the pictures. */
+:root {
+  --ground: #f2efe7;
+  --card: #fffdf8;
+  --ink: #22201c;
+  --muted: #6b6459;
+  --rule: #dcd4c5;
+  --amber: #a9661a;
+  --ask: #fbf1df;
+  --stage: #2c5060;
+  --display: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #16171a; --card: #1f2125; --ink: #ebe5d9; --muted: #a39b8e; --rule: #33363b; --amber: #e6a44c; --ask: #2b261d;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #16171a; --card: #1f2125; --ink: #ebe5d9; --muted: #a39b8e; --rule: #33363b; --amber: #e6a44c; --ask: #2b261d;
+}
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.55; padding: 24px 16px 48px; }
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 20px; }
+h1 { font-family: var(--display); font-size: 26px; margin: 0; text-wrap: balance; }
+.lede { margin: 4px 0 0; color: var(--muted); max-width: 64ch; }
+.stamp { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+nav ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+nav a { color: var(--ink); text-decoration: none; display: grid; grid-template-columns: 3.4em 1fr; gap: 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--rule); background: var(--card); }
+nav a:hover, nav a:focus-visible { border-color: var(--amber); outline: none; }
+nav .n { font-family: var(--display); color: var(--amber); }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 18px; display: grid; gap: 12px; scroll-margin-top: 12px; }
+.tag { font-family: var(--display); font-size: 14px; color: var(--amber); letter-spacing: .06em; }
+.card h2 { margin: 0; font-size: 18px; text-wrap: balance; }
+.ask { background: var(--ask); border-radius: 8px; padding: 10px 12px; font-weight: 600; margin: 0; }
+.card p { margin: 0; max-width: 68ch; }
+.card ul { margin: 0; padding-left: 1.2em; max-width: 68ch; display: grid; gap: 4px; }
+.media { background: var(--stage); border-radius: 8px; padding: 10px; overflow-x: auto; }
+audio { width: 100%; max-width: 420px; }
+.media img { display: block; max-width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; margin: 0 auto; }
+.cap { font-size: 13px; color: var(--muted); margin-top: -4px; }
+.files { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Open questions</h1>
+    <p class="lede">Every question waiting on your answer, with its pictures. Answered questions come off this list. Reply in chat with the number, e.g. "Q12: shared".</p>
+    <p class="stamp">1 open · updated 2026-10-21 · main 94e9e25</p>
+  </header>
+
+  <nav aria-label="Open questions">
+    <ol>
+      <li><a href="#q46"><span class="n">Q46</span><span>The DX stamp sound, all with the crash: 1, 2 or 3</span></a></li>
+    </ol>
+  </nav>
+
+  <section class="card" id="q46">
+    <span class="tag">Q46</span>
+    <h2>The DX stamp sound: 1, 2 or 3</h2>
+    <p class="ask">Which stamp sound should the DX use? All three now have the crash from sound 3 under the first note, as you asked.</p>
+    <ul>
+      <li>All three are marimba, in the title tune's key. Each comes twice: with the title music, and alone.</li>
+      <li>The versions without the crash are still at the bottom, in case you want to compare.</li>
+    </ul>
+    <p><strong>1 + crash:</strong> a rising run C E G C; the last note rings almost a second.</p>
+    <audio controls preload="none" src="media/q46_v1c_music.mp3"></audio>
+    <audio controls preload="none" src="media/q46_v1c_solo.mp3"></audio>
+    <p><strong>2 + crash:</strong> the chime C E G, with two echoes of the top note.</p>
+    <audio controls preload="none" src="media/q46_v2c_music.mp3"></audio>
+    <audio controls preload="none" src="media/q46_v2c_solo.mp3"></audio>
+    <p><strong>3 (already had the crash):</strong> a five-note run, held. This is the loudest.</p>
+    <audio controls preload="none" src="media/q46_v3_music.mp3"></audio>
+    <audio controls preload="none" src="media/q46_v3_solo.mp3"></audio>
+    <p class="cap">In each pair the first clip has the music and the second is the sound alone.</p>
+    <details><summary>1 and 2 without the crash</summary>
+    <p><strong>1:</strong></p>
+    <audio controls preload="none" src="media/q46_v1_music.mp3"></audio>
+    <audio controls preload="none" src="media/q46_v1_solo.mp3"></audio>
+    <p><strong>2:</strong></p>
+    <audio controls preload="none" src="media/q46_v2_music.mp3"></audio>
+    <audio controls preload="none" src="media/q46_v2_solo.mp3"></audio>
+    </details>
+  </section>
+
+
+</div>
