@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Saloon: the Saloon singer (owner's concept, v3) on OBJ 4 / BG 4 with her own palette; the wall colour shows through at her eyes."),
     ("2026-10-21", "Saloon: the Prospector shares the Outlaw's palette on OBJ 7 / BG 7 (was his own on OBJ 4); OBJ 4 and BG 4 free."),
     ("2026-10-21", "Saloon: the Outlaw (original round 1) on OBJ 7 / BG 7 with his own palette; Big Tex's body and hat take the Outlaw's palette (replaces the reserved Big Tex-coloured patron)."),
     ("2026-10-21", "Saloon: the Prospector (saved candidate Prospector 1) on OBJ 4 / BG 4 with his own palette."),
@@ -150,7 +151,8 @@ PLANS = {
         recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
                   },
         open={},
-        add={("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"])},      # the original round-1 outlaw, his own palette; Big Tex takes it too
+        add={("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"]),       # the original round-1 outlaw, his own palette; Big Tex takes it too
+             ("OBJ", 4): ("Saloon singer", ["#F8D0B0", "#B84058", "#202030"])},  # owner's concept (set 2 B, v3: the wall shows through at her eyes)
         join={("OBJ", 7): ["Prospector"]},                                     # saved candidate Prospector 1 shares the Outlaw's palette
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
     ),
