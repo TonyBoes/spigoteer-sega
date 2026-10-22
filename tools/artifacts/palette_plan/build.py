@@ -283,7 +283,7 @@ h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 li.now { color: var(--now); } li.plan { color: var(--plan); }
 .freep { margin: 0; color: var(--free); font-weight: 600; font-size: 13px; }
 .freep.plan { color: var(--plan); }
-.sw.chg { outline: 2px solid var(--plan); outline-offset: 1px; }
+
 .chgp { margin: 0; color: var(--plan); font-size: 12px; }
 li.open { font-style: italic; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
