@@ -108,8 +108,40 @@ for key, name in VENUES:
     venues.append(dict(key=key, name=name, pal=pal, bg=bgp, used=used, looks=looks, free=free))
 
 commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
-free_now = sum(1 for v in venues for s in v["free"] if s == 4)
-planned_free = sum(1 for p in PLAN if p["status"] == "free")
+
+BG_USE = {0: ["Bar: counter, wall"], 1: ["HUD: score, lives, meters"], 2: ["Patron A, walking"], 3: ["Patron B, walking"],
+          4: ["Patron C, walking", "Boss body, in boss fights"], 5: ["Stage"], 6: ["Stage"], 7: ["Bar: keg, spout"]}
+OBJ_FIXED = {0: ["Sal", "Tip coin", "Perfect-pour sparkle", "PERFECT cue"], 1: ["Full mug", "Fill glass", "Breaking glass"],
+             2: ["Empty mug", "Breaking glass", "Boss sprite parts, in boss fights"], 5: ["Show dancers (only during the show)"]}
+PATRON_SLOT = {3: "A", 6: "B", 7: "C"}
+BG_OF = {3: 2, 6: 3, 7: 4}
+
+
+def obj_users(v, s):
+    if s in PATRON_SLOT:
+        out = ["Patron %s, lifted (walks in BG %d)" % (PATRON_SLOT[s], BG_OF[s])]
+        if s == 7:
+            out.append("Boss topper, in boss fights")
+        return out
+    if s == 4:
+        enh = sorted(k for k in v["used"].get(4, ()))
+        return ["Patron %s's enhanced look (extra palette)" % ("B" if any("B" in k for k in enh) else "A")] if enh else []
+    return OBJ_FIXED.get(s, [])
+
+
+def bg_users(v, s):
+    out = list(BG_USE[s])
+    if s == 7 and v["used"].get(4):
+        out.append("Enhanced patron's row")
+    return out
+
+
+def pal_row(kind, s, cols, users, skip0):
+    free = not users
+    lis = "".join("<li>%s</li>" % esc(u) for u in users) if users else '<li class="freeli">Free</li>'
+    return ('<div class="pal%s"><div class="ph"><span class="slot">%s %d</span><span class="sws">%s</span></div><ul>%s</ul></div>'
+            % (" free" if free else "", kind, s, swatches(cols, skip0), lis))
+
 
 S = []
 w = S.append
@@ -117,127 +149,82 @@ w('<title>OBJ Palette Plan</title>')
 w('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>')
 w('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">')
 w("""<style>
-/* Layout: summary numbers, then the slot-by-slot plan (the working table), the background side, the ideas, the venue swatches, the log. */
+/* Layout: venue tabs, then that venue's sprite palettes (swatches + who uses them), then its background palettes. */
 :root {
-  --ground: #eef0f2; --card: #fbfcfd; --ink: #1d2126; --muted: #5d6670; --rule: #d3d9df; --accent: #1f6f8b;
-  --fixed: #6c7480; --patron: #2f7d4f; --free: #b26a00; --idea: #6a4fb0;
+  --ground: #eef0f2; --card: #fbfcfd; --ink: #1d2126; --muted: #5d6670; --rule: #d3d9df; --accent: #1f6f8b; --free: #b26a00;
   --display: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark;
-  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4;
-  --fixed: #9aa4ae; --patron: #6cc68f; --free: #f0a944; --idea: #b39cf0; } }
+  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; } }
 :root[data-theme="dark"] { color-scheme: dark;
-  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4;
-  --fixed: #9aa4ae; --patron: #6cc68f; --free: #f0a944; --idea: #b39cf0; }
+  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; }
 html, body { background: var(--ground); color: var(--ink); }
-body { font-family: var(--body); font-size: 15px; line-height: 1.5; padding-inline: 16px; padding-block: 24px 48px; }
-.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 22px; }
-h1 { font-family: var(--display); font-size: 26px; margin: 0; text-wrap: balance; }
-h2 { font-family: var(--display); font-size: 16px; margin: 0; letter-spacing: .04em; text-wrap: balance; }
-.lede { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
-.stamp { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 6px 0 0; }
-section { display: grid; gap: 10px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
-.stat { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; }
-.stat b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
-.stat span { color: var(--muted); font-size: 13px; }
-.rule { background: var(--card); border-left: 4px solid var(--accent); border-radius: 6px; padding: 10px 14px; margin: 0; max-width: 80ch; }
-.tbl { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; white-space: nowrap; }
-tr:last-child td { border-bottom: 0; }
-td.slot { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
-td.num { font-variant-numeric: tabular-nums; text-align: center; }
-td .note { color: var(--muted); font-size: 13px; display: block; margin-top: 3px; }
-.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
-.s-fixed { color: var(--fixed); } .s-patron { color: var(--patron); } .s-free { color: var(--free); } .s-idea { color: var(--idea); }
-.sw { width: 18px; height: 18px; border: 1px solid rgba(0,0,0,.35); border-radius: 3px; padding: 0; margin: 0 2px 0 0; cursor: pointer; vertical-align: middle; }
-.sw:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.venue td.vn { white-space: nowrap; font-weight: 600; }
-.cell { display: grid; gap: 3px; min-width: 64px; }
-.cell small { color: var(--muted); font-size: 11px; line-height: 1.25; }
-.cell.unused small { color: var(--free); font-weight: 600; }
-.ideas { display: grid; gap: 10px; }
-.idea { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
-.idea h3 { margin: 0; font-size: 15px; }
-.idea dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 13px; }
-.idea dt { color: var(--muted); } .idea dd { margin: 0; }
-.log li { font-size: 14px; } .log { margin: 0; padding-left: 1.2em; }
-#toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font-family: var(--mono); font-size: 13px; padding: 6px 12px; border-radius: 6px; }
-@media (prefers-reduced-motion: no-preference) { #toast { transition: opacity .2s; } }
+body { font-family: var(--body); font-size: 15px; line-height: 1.45; padding-inline: 16px; padding-block: 16px 40px; }
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 14px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab { font: 600 13px var(--body); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--rule); background: var(--card); color: var(--ink); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--card); }
+.tab:focus-visible, .sw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1 { font-family: var(--display); font-size: 22px; margin: 4px 0 0; text-wrap: balance; }
+.sum { margin: 0; color: var(--muted); font-size: 14px; }
+.sum b { color: var(--ink); }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 8px 0 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.pal { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; display: grid; gap: 4px; }
+.pal.free { border-color: var(--free); border-style: dashed; }
+.ph { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.slot { font: 600 14px var(--mono); }
+.pal ul { margin: 0; padding-left: 1.1em; font-size: 13px; }
+.freeli { color: var(--free); font-weight: 600; }
+.sw { width: 20px; height: 20px; border: 1px solid rgba(0,0,0,.35); border-radius: 3px; padding: 0; margin-left: 2px; cursor: pointer; }
+.foot { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+#toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 13px var(--mono); padding: 6px 12px; border-radius: 6px; }
 </style>""")
-w('<div class="wrap">')
-w('<header><h1>OBJ palette plan</h1><p class="lede">Planning sheet for freeing Color sprite palettes so new patrons can get their own. '
-  'Tell me a decision in chat and I update the plan, the counts and the log. Click any colour to copy its hex.</p>'
-  '<p class="stamp">Colours from the atlas, main %s · updated %s</p></header>' % (esc(commit), LOG[-1][0]))
-
-w('<section aria-label="Summary"><div class="stats">')
-w('<div class="stat"><b>%d</b><span>patron looks per venue now (OBJ 3, 6, 7), plus an enhanced look in 2 venues</span></div>' % 3)
-w('<div class="stat"><b>%d</b><span>looks per venue wanted (Q11)</span></div>' % TARGET_LOOKS)
-w('<div class="stat"><b>%d of 10</b><span>venues with a sprite palette free now (OBJ 4)</span></div>' % free_now)
-w('<div class="stat"><b>0</b><span>background palettes free in any venue</span></div>')
-w('</div></section>')
-
-w('<p class="rule"><strong>The catch:</strong> a patron walking along the bar is drawn in the <em>background</em>, and only becomes a sprite when '
-  'it is lifted over another patron. So every patron look needs <strong>one sprite palette and one background palette</strong> with the same three colours. '
-  'Freeing sprite palettes alone does not add a patron; the background side has to free one too, or the new look has to share a background palette that already has its colours.</p>')
-
-w('<section><h2>The plan, slot by slot</h2><div class="tbl"><table><thead><tr><th>Slot</th><th>Used now</th><th>Planned</th>'
-  '<th>Patron looks</th><th>BG partner</th><th>Status</th></tr></thead><tbody>')
-labels = dict(fixed="Fixed", patron="Patron", free="Free / partly free", idea="Candidate")
-for p in PLAN:
-    w('<tr><td class="slot">OBJ %d</td><td>%s%s</td><td>%s</td><td class="num">%s</td><td>%s</td><td><span class="pill s-%s">%s</span></td></tr>' % (
-        p["slot"], esc(p["now"]), ('<span class="note">%s</span>' % esc(p["note"])) if p["note"] else "", esc(p["planned"]),
-        p["looks"], esc(p["bg"]), p["status"], labels[p["status"]]))
-tot = sum(p["looks"] for p in PLAN)
-w('<tr><td class="slot">Total</td><td colspan="2">Patron looks in the plan, per venue</td><td class="num"><strong>%d</strong></td>'
-  '<td colspan="2">%d more needed for %d looks</td></tr>' % (tot, TARGET_LOOKS - tot, TARGET_LOOKS))
-w('</tbody></table></div></section>')
-
-w('<section><h2>Background palettes (each new patron needs one)</h2><div class="tbl"><table><thead><tr><th>Slot</th><th>Used for</th><th>Notes</th></tr></thead><tbody>')
-for s, n, d in BG:
-    w('<tr><td class="slot">BG %d</td><td>%s</td><td>%s</td></tr>' % (s, esc(n), esc(d)))
-w('</tbody></table></div></section>')
-
-w('<section><h2>Ways to free palettes</h2><p class="lede" style="margin:0">Options, not decisions. Each says what it frees on each side and what it costs.</p><div class="ideas">')
-for i in IDEAS:
-    w('<article class="idea"><h3>%d. %s</h3><dl><dt>Sprite side</dt><dd>%s</dd><dt>Background side</dt><dd>%s</dd><dt>Cost</dt><dd>%s</dd><dt>To check</dt><dd>%s</dd></dl></article>' % (
-        i["n"], esc(i["title"]), esc(i["obj"]), esc(i["bg"]), esc(i["cost"]), esc(i["verify"])))
-w('</div></section>')
-
-w('<section><h2>Every venue, OBJ 0–7 now</h2><p class="lede" style="margin:0">Colours 1–3 of each palette (colour 0 is see-through). '
-  'Orange label: nothing uses that slot during play.</p><div class="tbl"><table class="venue"><thead><tr><th>Venue</th>')
-for s in range(8):
-    w('<th>OBJ %d</th>' % s)
-w('</tr></thead><tbody>')
-short = {"Patron A (entering / leaving)": "Patron A", "Patron A (lifted)": "Patron A", "Patron A (lifted, enhanced)": "Patron A+",
-         "Patron B (entering / leaving)": "Patron B", "Patron B (lifted)": "Patron B", "Patron B (lifted, enhanced)": "Patron B+",
-         "Patron C (entering / leaving)": "Patron C", "Patron C (lifted)": "Patron C", "Mug: full": "full mug", "Mug: empty": "empty mug",
-         "Fill glass": "fill glass", "Breaking glass": "glass", "Mug: drinking": "", "Perfect-pour sparkle": "", "PERFECT cue": "",
-         "Tip coin": "coin", "Sal": "Sal", "Dancers": "dancers"}
-for v in venues:
-    w('<tr><td class="vn">%s</td>' % esc(v["name"]))
+w('<div class="wrap"><div class="tabs" role="tablist" aria-label="Venues">')
+for i, v in enumerate(venues):
+    w('<button type="button" class="tab" role="tab" id="t-%s" aria-controls="p-%s" aria-selected="%s">%s</button>'
+      % (v["key"], v["key"], "true" if i == 0 else "false", esc(v["name"].replace("The ", ""))))
+w('</div>')
+for i, v in enumerate(venues):
+    nfree = [s for s in range(8) if not obj_users(v, s)]
+    looks = 3 + (1 if v["used"].get(4) else 0)
+    w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
+    w('<h1>%s</h1>' % esc(v["name"]))
+    w('<p class="sum">Patron looks: <b>%d</b> of %d wanted · Free sprite palettes: <b>%s</b> · Free background palettes: <b>none</b></p>'
+      % (looks, TARGET_LOOKS, ", ".join("OBJ %d" % s for s in nfree) or "none"))
+    w('<h2>Sprite palettes</h2><div class="grid">')
     for s in range(8):
-        u = v["used"].get(s)
-        lab = ", ".join(sorted({short.get(k, k) for k in u} - {""})) if u else "unused"
-        w('<td><div class="cell%s">%s<small>%s</small></div></td>' % ("" if u else " unused", swatches(v["pal"].get(s, ["#000000"] * 4)), esc(lab)))
-    w('</tr>')
-w('</tbody></table></div></section>')
-
-w('<section><h2>Log</h2><ul class="log">')
-for d, t in reversed(LOG):
-    w('<li><strong>%s</strong> %s</li>' % (esc(d), esc(t.format(commit=commit))))
-w('</ul></section></div><div id="toast" role="status" aria-live="polite" hidden></div>')
+        w(pal_row("OBJ", s, v["pal"].get(s, ["#000000"] * 4), obj_users(v, s), True))
+    w('</div><h2>Background palettes</h2><div class="grid">')
+    for s in range(8):
+        w(pal_row("BG", s, v["bg"].get(s, ["#000000"] * 4), bg_users(v, s), False))
+    w('</div></section>')
+w('<p class="foot">Each patron look needs a sprite palette and a background palette with the same colours. Click a colour to copy it. '
+  'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
+w('</div><div id="toast" role="status" aria-live="polite" hidden></div>')
 w("""<script>
 (function () {
-  var toast = document.getElementById("toast"), timer;
+  var tabs = [].slice.call(document.querySelectorAll(".tab")), toast = document.getElementById("toast"), timer;
+  function pick(t, focus) {
+    tabs.forEach(function (x) { var on = x === t; x.setAttribute("aria-selected", on); x.tabIndex = on ? 0 : -1;
+      document.getElementById(x.getAttribute("aria-controls")).hidden = !on; });
+    if (focus) t.focus();
+    try { localStorage.setItem("venue", t.id); } catch (e) {}
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener("click", function () { pick(t); });
+    t.addEventListener("keydown", function (e) {
+      var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (d) { e.preventDefault(); pick(tabs[(i + d + tabs.length) % tabs.length], true); }
+    });
+  });
+  try { var s = localStorage.getItem("venue"); var t = s && document.getElementById(s); if (t) pick(t); else pick(tabs[0]); } catch (e) { pick(tabs[0]); }
   document.addEventListener("click", function (e) {
     var b = e.target.closest(".sw"); if (!b) return;
     var hex = b.getAttribute("data-hex");
-    function shown(msg) { toast.textContent = msg; toast.hidden = false; clearTimeout(timer); timer = setTimeout(function () { toast.hidden = true; }, 1400); }
+    function shown(m) { toast.textContent = m; toast.hidden = false; clearTimeout(timer); timer = setTimeout(function () { toast.hidden = true; }, 1400); }
     try { navigator.clipboard.writeText(hex).then(function () { shown("Copied " + hex); }, function () { shown(hex); }); } catch (err) { shown(hex); }
   });
 })();
