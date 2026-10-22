@@ -109,38 +109,65 @@ for key, name in VENUES:
 
 commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
 
-BG_USE = {0: ["Bar: counter, wall"], 1: ["HUD: score, lives, meters"], 2: ["Patron A, walking"], 3: ["Patron B, walking"],
-          4: ["Patron C, walking", "Boss body, in boss fights"], 5: ["Stage"], 6: ["Stage"], 7: ["Bar: keg, spout"]}
-OBJ_FIXED = {0: ["Sal", "Tip coin", "Perfect-pour sparkle", "PERFECT cue"], 1: ["Full mug", "Fill glass", "Breaking glass"],
-             2: ["Empty mug", "Breaking glass", "Boss sprite parts, in boss fights"], 5: ["Show dancers (only during the show)"]}
-PATRON_SLOT = {3: "A", 6: "B", 7: "C"}
-BG_OF = {3: 2, 6: 3, 7: 4}
+# Patron names (tools/gen_credits.py PATRONS, art order A, B, C) and short descriptions where the art notes give one.
+NAMES = {
+    "cowboys": ["DUSTY, the cowboy", "ROSIE, the cowgirl", "HANK, the ranch hand"],
+    "sports": ["PETE, the cap fan", "SERENA, the band fan", "NORM, the ref"],
+    "lumberjacks": ["CEDAR, in the cap", "WILLOW, red hair", "ASH, in the green hat"],
+    "chefs": ["PIERRE", "BRIE", "BASIL"],
+    "divers": ["IGGY, the parka man", "POLLY, the parka girl", "MOOSE, the big parka"],
+    "robots": ["BOXY", "VOLTA", "BLIP"],
+    "punks": ["SPIKE, pink mohawk", "BANDIT, green bandana", "SLICK, blue quiff"],
+    "ninjas": ["KAGE", "SAKURA", "RONIN"],
+    "zoo": ["COCO, the monkey", "BAMBOO, the panda", "MUDDY, the hippo"],
+    "aliens": ["ZORP, eye stalks", "XENO, the grey one", "GLORP, the squid"],
+}
+# Planned changes (owner decisions), per venue: {("OBJ"|"BG", slot): ["patron name", ...]} drawn in yellow.
+PLANNED = {}
+PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
+BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
 
 
-def obj_users(v, s):
-    if s in PATRON_SLOT:
-        out = ["Patron %s, lifted (walks in BG %d)" % (PATRON_SLOT[s], BG_OF[s])]
-        if s == 7:
-            out.append("Boss topper, in boss fights")
-        return out
-    if s == 4:
-        enh = sorted(k for k in v["used"].get(4, ()))
-        return ["Patron %s's enhanced look (extra palette)" % ("B" if any("B" in k for k in enh) else "A")] if enh else []
-    return OBJ_FIXED.get(s, [])
+def enh_variant(v):
+    """The art variant (0 A, 1 B) of the venue's enhanced look, or None."""
+    u = v["used"].get(4)
+    if not u:
+        return None
+    return 1 if any("Patron B" in k for k in u) else 0
 
 
-def bg_users(v, s):
-    out = list(BG_USE[s])
-    if s == 7 and v["used"].get(4):
-        out.append("Enhanced patron's row")
-    return out
+def users(kind, v, s):
+    """(patrons now, non-patrons) for one palette."""
+    n = NAMES[v["key"]]
+    e = enh_variant(v)
+    if kind == "OBJ":
+        pat = [n[PATRON_SLOT[s]]] if s in PATRON_SLOT else []
+        if s == 4 and e is not None:
+            pat = [n[e] + " (left half, lifted)"]
+        other = {0: ["Sal", "Tip coin", "Pour sparkle", "PERFECT cue"], 1: ["Full mug", "Fill glass", "Breaking glass"],
+                 2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 5: ["Show dancers"], 7: ["Boss: hat (topper)"]}.get(s, [])
+    else:
+        pat = [n[BG_PATRON[s]]] if s in BG_PATRON else []
+        if s == 7 and e is not None:
+            pat = [n[e] + " (top row)"]
+        other = {0: ["Bar, wall"], 1: ["HUD"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"], 7: ["Keg, spout"]}.get(s, [])
+    return pat, other
 
 
-def pal_row(kind, s, cols, users, skip0):
-    free = not users
-    lis = "".join("<li>%s</li>" % esc(u) for u in users) if users else '<li class="freeli">Free</li>'
-    return ('<div class="pal%s"><div class="ph"><span class="slot">%s %d</span><span class="sws">%s</span></div><ul>%s</ul></div>'
-            % (" free" if free else "", kind, s, swatches(cols, skip0), lis))
+def pal_card(kind, v, s, cols, skip0):
+    pat, other = users(kind, v, s)
+    plan = PLANNED.get(v["key"], {}).get((kind, s), [])
+    free = not (pat or other or plan)
+    body = ""
+    if pat or plan:
+        body += '<ul class="pat">%s%s</ul>' % ("".join('<li class="now">%s</li>' % esc(x) for x in pat),
+                                              "".join('<li class="plan">%s</li>' % esc(x) for x in plan))
+    if other:
+        body += '<ul class="oth">%s</ul>' % "".join("<li>%s</li>" % esc(x) for x in other)
+    if free:
+        body = '<p class="freep">Free</p>'
+    return ('<div class="pal%s"><div class="ph"><span class="slot">%s %d</span><span class="sws">%s</span></div>%s</div>'
+            % (" free" if free else "", kind, s, swatches(cols, skip0), body))
 
 
 S = []
@@ -151,15 +178,15 @@ w('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscr
 w("""<style>
 /* Layout: venue tabs, then that venue's sprite palettes (swatches + who uses them), then its background palettes. */
 :root {
-  --ground: #eef0f2; --card: #fbfcfd; --ink: #1d2126; --muted: #5d6670; --rule: #d3d9df; --accent: #1f6f8b; --free: #b26a00;
+  --ground: #eef0f2; --card: #fbfcfd; --ink: #1d2126; --muted: #5d6670; --rule: #d3d9df; --accent: #1f6f8b; --free: #b26a00; --now: #23824a; --plan: #9a7400;
   --display: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark;
-  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; } }
+  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; --now: #6cd18f; --plan: #f2d24b; } }
 :root[data-theme="dark"] { color-scheme: dark;
-  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; }
+  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; --now: #6cd18f; --plan: #f2d24b; }
 html, body { background: var(--ground); color: var(--ink); }
 body { font-family: var(--body); font-size: 15px; line-height: 1.45; padding-inline: 16px; padding-block: 16px 40px; }
 .wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 14px; }
@@ -177,7 +204,14 @@ h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .ph { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .slot { font: 600 14px var(--mono); }
 .pal ul { margin: 0; padding-left: 1.1em; font-size: 13px; }
-.freeli { color: var(--free); font-weight: 600; }
+.pal ul.pat { font-weight: 600; }
+.pal ul + ul { border-top: 1px solid var(--rule); padding-top: 3px; margin-top: 2px; }
+li.now { color: var(--now); } li.plan { color: var(--plan); }
+.freep { margin: 0; color: var(--free); font-weight: 600; font-size: 13px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.stat { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; }
+.stat b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; }
 .sw { width: 20px; height: 20px; border: 1px solid rgba(0,0,0,.35); border-radius: 3px; padding: 0; margin-left: 2px; cursor: pointer; }
 .foot { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 13px var(--mono); padding: 6px 12px; border-radius: 6px; }
@@ -188,20 +222,23 @@ for i, v in enumerate(venues):
       % (v["key"], v["key"], "true" if i == 0 else "false", esc(v["name"].replace("The ", ""))))
 w('</div>')
 for i, v in enumerate(venues):
-    nfree = [s for s in range(8) if not obj_users(v, s)]
-    looks = 3 + (1 if v["used"].get(4) else 0)
+    ofree = [s for s in range(8) if not any(users("OBJ", v, s))]
+    bfree = [s for s in range(8) if not any(users("BG", v, s))]
+    looks = 3
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
-    w('<h1>%s</h1>' % esc(v["name"]))
-    w('<p class="sum">Patron looks: <b>%d</b> of %d wanted · Free sprite palettes: <b>%s</b> · Free background palettes: <b>none</b></p>'
-      % (looks, TARGET_LOOKS, ", ".join("OBJ %d" % s for s in nfree) or "none"))
-    w('<h2>Sprite palettes</h2><div class="grid">')
+    w('<h1>%s</h1><div class="stats">' % esc(v["name"]))
+    w('<div class="stat"><b>%d</b><span>patrons now%s</span></div>' % (looks, " (one has an enhanced look)" if enh_variant(v) is not None else ""))
+    w('<div class="stat"><b>%d</b><span>patrons wanted (Q11)</span></div>' % TARGET_LOOKS)
+    w('<div class="stat"><b>%d</b><span>free sprite palettes%s</span></div>' % (len(ofree), (": " + ", ".join("OBJ %d" % x for x in ofree)) if ofree else ""))
+    w('<div class="stat"><b>%d</b><span>free background palettes</span></div>' % len(bfree))
+    w('</div><h2>Sprite palettes</h2><div class="grid">')
     for s in range(8):
-        w(pal_row("OBJ", s, v["pal"].get(s, ["#000000"] * 4), obj_users(v, s), True))
+        w(pal_card("OBJ", v, s, v["pal"].get(s, ["#000000"] * 4), True))
     w('</div><h2>Background palettes</h2><div class="grid">')
     for s in range(8):
-        w(pal_row("BG", s, v["bg"].get(s, ["#000000"] * 4), bg_users(v, s), False))
+        w(pal_card("BG", v, s, v["bg"].get(s, ["#000000"] * 4), False))
     w('</div></section>')
-w('<p class="foot">Each patron look needs a sprite palette and a background palette with the same colours. Click a colour to copy it. '
+w('<p class="foot"><span style="color:var(--now)">Green</span>: patrons now. <span style="color:var(--plan)">Yellow</span>: planned. Click a colour to copy it. '
   'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
 w('</div><div id="toast" role="status" aria-live="polite" hidden></div>')
 w("""<script>
