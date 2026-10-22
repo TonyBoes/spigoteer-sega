@@ -14,21 +14,21 @@ CLASSIC_GROUP = {"classic_3": "sports", "classic_6": "punks", "classic_12": "ali
 
 # slot -> (always | event | enh, label, [(file, regex of the line)])
 SLOTS = {
-    0: ("always", "Sal, the bartender", [("src/render.c", r"\| OBJPAL_BARTENDER;"), ("src/main_cold.c", r"set_sprite_palette\(OBJPAL_BARTENDER"), ("src/antics.c", r"pr = OBJPAL_BARTENDER")]),
+    0: ("always", "Sal, the bartender; the tip coin", [("src/render.c", r"o->prop = OBJPAL_BARTENDER;"), ("src/render.c", r"\| OBJPAL_BARTENDER;"), ("src/main_cold.c", r"set_sprite_palette\(OBJPAL_BARTENDER"), ("src/antics.c", r"pr = OBJPAL_BARTENDER")]),
     1: ("always", "full mug (venue colours)", [("src/mugs.c", r"o->prop = is_cgb \? OBJPAL_MUG_FULL"), ("src/lift.c", r"spr_full_p = S_PALETTE \| OBJPAL_MUG_FULL"),
                                                ("src/venue.c", r"set_sprite_palette\(OBJPAL_MUG_FULL"), ("src/pour.c", r"pal = OBJPAL_MUG_FULL")]),
     2: ("event", "empty mug coming back, breaking glass (tap end)", [("src/lift.c", r"spr_empty_p = S_PALETTE \| OBJPAL_MUG_EMPTY"), ("src/venue.c", r"set_sprite_palette\(OBJPAL_MUG_EMPTY"),
                                                                     ("src/mugs.c", r"p = spr_empty_p \| S_FLIPX")]),
     3: ("event", "lifted patron A (variants 0 and 3)", [("src/lift.c", r"lift_pal\[4\] = \{ OBJPAL_PATRON_A"), ("src/lift.c", r"set_sprite_palette\(lift_pal\[v\]")]),
     4: ("enh", "enhanced patron variant, when lifted", [("src/enhance.c", r"set_sprite_palette\(OBJPAL_ENH"), ("build/palettes.h", r"#define PATRON_X_IDS"), ("build/patron_enh.h", r"enh_tab\[10\]\[24\]")]),
-    5: ("event", "tip coin; show dancers", [("src/render.c", r"o->prop = is_cgb \? OBJPAL_COIN"), ("src/render.c", r"OCPS_REG = 0x80 \| \(OBJPAL_COIN"), ("src/lr.c", r"uint8_t pal = \(is_cgb \? OBJPAL_DANCER"),
-                                         ("src/rom0_relief.c", r"flags = is_cgb \? OBJPAL_DANCER"), ("src/venue.c", r"set_sprite_palette\(OBJPAL_DANCER"), ("src/classic.c", r"tip_timer = TIP_FRAMES")]),
+    5: ("event", "show dancers", [("src/lr.c", r"uint8_t pal = \(is_cgb \? OBJPAL_DANCER"), ("src/rom0_relief.c", r"flags = is_cgb \? OBJPAL_DANCER"),
+                                  ("src/venue.c", r"set_sprite_palette\(OBJPAL_DANCER"), ("src/render.c", r"pal5_src = venue.pal\[VENUE_PAL_SHOW\]")]),
     6: ("event", "lifted patron B (variant 1)", [("src/lift.c", r"lift_pal\[4\] = \{ OBJPAL_PATRON_A"), ("src/lift.c", r"set_sprite_palette\(lift_pal\[v\]")]),
     7: ("event", "lifted patron C (variant 2)", [("src/lift.c", r"lift_pal\[4\] = \{ OBJPAL_PATRON_A"), ("src/lift.c", r"set_sprite_palette\(lift_pal\[v\]")]),
 }
 LEGEND = ("In use (always): drawn in the level's normal play. Event only: drawn only when its event happens (the event is named). "
           "FREE in this level: no code path of the level, its tips, its show or its lifted patrons uses the slot. Hover or focus a cell for the sources.")
-PLANNED = "Planned: the tip coin moves to Sal's palette (OBJ 0); then OBJ 5 is used only by the show dancers. That change is not in the ROM yet; the table shows the ROM as built."
+PLANNED = "During a venue's boss fight some slots are taken over (patron C's OBJ 7 and BG 4, and slot-5 loads for some bosses): see the line below the legend and the venue's Boss fight panel."
 
 
 def _line(src, rx):

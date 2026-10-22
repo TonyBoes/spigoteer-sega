@@ -451,7 +451,7 @@ table.data.wrap td { white-space: normal; }
     main.appendChild(oamPanel(d, r));
     var kids = childrenPanel(d);
     if (kids) main.appendChild(kids);
-    if (state.focus) setTimeout(function () { var e = document.getElementById("child-" + state.focus); if (e) { e.scrollIntoView({ block: "center" }); e.style.outline = "3px solid var(--accent)"; } }, 50);
+    if (state.focus) setTimeout(function () { var e = document.getElementById("child-" + state.focus); if (e) { window.scrollTo(0, e.getBoundingClientRect().top + window.pageYOffset - 120); e.style.outline = "3px solid var(--accent)"; } }, 50);
   }
 
   function screenPanel(d, r) {

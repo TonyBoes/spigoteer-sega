@@ -91,7 +91,7 @@ def label_of(o, cgb, enh, edge_x):
         v = (t - O_PATRON) // 6
         if v < 3:
             en = cgb and v in enh
-            if o["x"] < edge_x:
+            if o["x"] < edge_x or o["x"] > 136:
                 return (2, 3 + v), "patron %s entering / leaving (left edge)" % VARIANT[v], "edge"
             return (2, v), "lifted patron %s%s" % (VARIANT[v], " (enhanced variant)" if en else ""), "lift"
     if O_POUR <= t < O_CUE:
@@ -338,17 +338,17 @@ def phase_edge(D, notes):
     """A patron entering from the left edge, once per variant (his variant poked once he is on screen: the sprite follows it), and a served one leaving."""
     rom = D.rom
     D.unfreeze()
-    for v in range(3):
+    for v in (1, 2, 0):
         known = {p["i"] for p in patrons(rom)}
         rom.write("spawn_timer", 0)
         rom.write(rom.addr("spawn_timer") + 1, 0)
         got = None
-        for k in range(300):
+        for k in range(500):
             if k % 10 == 0:
                 rom.write("spawn_timer", 0)
                 rom.write(rom.addr("spawn_timer") + 1, 0)
             D.frames(1, "edge", drive=False, every=1)
-            new = [p for p in patrons(rom) if p["i"] not in known and p["x"] < D.G["ENTRY_X"]]
+            new = [p for p in patrons(rom) if p["x"] < D.G["ENTRY_X"] - 4 and (p["i"] not in known or k > 100)]
             if new:
                 got = new[0]
                 break
