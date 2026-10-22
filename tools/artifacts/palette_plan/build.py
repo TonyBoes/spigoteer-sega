@@ -272,7 +272,9 @@ body { font-family: var(--body); font-size: 15px; line-height: 1.45; padding-inl
 h1 { font-family: var(--display); font-size: 22px; margin: 4px 0 0; text-wrap: balance; }
 .sum { margin: 0; color: var(--muted); font-size: 14px; }
 .sum b { color: var(--ink); }
-h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 8px 0 0; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 28px 0 0; }
+.ph2 h2 { margin-top: 28px; }
+.panel > .stats { margin-top: 4px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
 .pal { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; display: grid; gap: 4px; }
 .pal.free { border-color: var(--free); border-style: dashed; }
