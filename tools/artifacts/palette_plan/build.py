@@ -72,6 +72,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-22", "Saloon DMG: EMMA replaces ROSIE (see-through pupils look wrong on DMG). EMMA's pupils are now her outline colour."),
     ("2026-10-22", "Saloon DMG: DUSTY, ROSIE (the singer) and GUS are the bank-0 looks on both systems; GUS takes the boss-overwritten slot. HANK goes to bank 1 (Color only). The DMG keeps its original palettes."),
     ("2026-10-22", "Saloon: palette variants per patron (30 recolours; correction: GUS keeps his own OBJ 7, his OBJ 6 is cut). HANK's art and OBJ 3 have colours 1 and 2 swapped."),
     ("2026-10-22", "Saloon: OBJ 6 (MABEL, ARTIE) outline darker, #303038 to #1A1A20."),
@@ -175,7 +176,7 @@ PLANS = {
         add={("OBJ", 7): ("GUS, the prospector", ["#D8C098", "#B85838", "#281810"]),   # the Outlaw's former palette, kept by the Prospector; Big Tex takes it too
              ("OBJ", 4): ("ROSIE, the singer", ["#F8D0B0", "#BB2F32", "#202030"]),   # owner 2026-10-22: ROSIE's skin and outline, the Outlaw file's red   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
              ("OBJ", 5): ("EMMA, the singer", ["#FFD5BD", "#8B5231", "#221B1A"])},   # owner 2026-10-22: shared with DUSTY
-        dmg=["DUSTY", "ROSIE", "GUS"],          # owner 2026-10-22: the DMG's three (bank 0, both systems); GUS in the boss-overwritten slot
+        dmg=["DUSTY", "EMMA", "GUS"],          # owner 2026-10-22: the DMG's three (bank 0, both systems); GUS in the boss-overwritten slot
         # owner 2026-10-22: the palettes each patron may spawn in (recolours of the same tiles; HANK's art has colours 1 and 2 swapped).
         variants={"HANK": [3, 5, 6], "ROSIE": [3, 4, 5, 7], "REDD": [3, 4, 5, 6, 7], "DUSTY": [3, 5], "EMMA": [4, 5, 7],
                   "MABEL": [3, 4, 5, 6, 7], "ARTIE": [3, 4, 5, 6, 7], "GUS": [3, 5, 7]},
