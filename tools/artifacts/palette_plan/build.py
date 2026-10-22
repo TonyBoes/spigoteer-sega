@@ -296,6 +296,9 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pt td.now { color: var(--now); font-weight: 600; } .pt td.plan { color: var(--plan); font-weight: 600; }
 .pt td.slotc { font-family: var(--mono); white-space: nowrap; }
 .muted { color: var(--muted); font-style: italic; }
+.ph2 { display: flex; align-items: end; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.copymd { font: 600 13px var(--body); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }
+.copymd:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .foot { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 13px var(--mono); padding: 6px 12px; border-radius: 6px; }
 </style>""")
@@ -323,23 +326,22 @@ for i, v in enumerate(venues):
             for r in ident:
                 if r["name"] == t:
                     r["bg"] = sl
+    rows = []
+    md = "### %s: patron palettes (plan, %s)\n\n| Patron | Palette colours (1, 2, 3) | OBJ | BG |\n|---|---|---|---|\n" % (v["name"], LOG[0][0])
+    for r in ident + reserved:
+        d = m[("OBJ", r["obj"])]
+        cols = [d["new"].get(i, d["cols"][i]) for i in (1, 2, 3)]
+        sw = "".join('<button type="button" class="sw%s" style="background:%s" data-hex="%s" title="%s"></button>'
+                     % (" chg" if i in d["new"] else "", c, c, c) for i, c in zip((1, 2, 3), cols))
+        bg = ("BG %d" % r["bg"]) if "bg" in r else '<span class="muted">to assign</span>'
+        rows.append(dict(html=("plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg)))
+        md += "| %s%s | %s | OBJ %d | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), r["obj"],
+                                                ("BG %d" % r["bg"]) if "bg" in r else "to assign")
     w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % len(ident))
     w('<div class="stat"><b>%d</b><span>reserved patrons (palette set aside, no concept yet)</span></div>' % len(reserved))
     w('<div class="stat"><b>%d</b><span>free sprite palettes%s</span></div>' % (len(ofree),
       (": " + ", ".join("OBJ %d" % x for x in ofree)) if ofree else ""))
     w('<div class="stat"><b>%d</b><span>free background palettes in the playfield: %s</span></div>' % (len(bfree), ", ".join("BG %d" % x for x in bfree)))
-    w('</div><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>')
-    for r in ident + reserved:
-        d = m[("OBJ", r["obj"])]
-        sw = "".join('<button type="button" class="sw%s" style="background:%s" data-hex="%s" title="%s"></button>'
-                     % (" chg" if i in d["new"] else "", d["new"].get(i, d["cols"][i]), d["new"].get(i, d["cols"][i]), d["new"].get(i, d["cols"][i]))
-                     for i in (1, 2, 3))
-        cls = "plan" if r["planned"] or d["new"] else "now"
-        bg = ("BG %d" % r["bg"]) if "bg" in r else '<span class="muted">to assign</span>'
-        w('<tr><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td></tr>'
-          % ("plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg))
-    w('</tbody></table></div>')
-    w('<div>')
     w('</div><h2>Sprite palettes</h2><div class="grid">')
     for sl in range(8):
         w(card("OBJ", sl, m[("OBJ", sl)], True))
@@ -350,7 +352,12 @@ for i, v in enumerate(venues):
     for sl in v["above"]:
         d = dict(m[("BG", sl)]); d["pat"] = []
         w(card("BG", sl, d, False))
-    w('</div></section>')
+    w('</div><div class="ph2"><h2>Patrons</h2><button type="button" class="copymd" data-md="%s">Copy table as Markdown</button></div>' % esc(md))
+    w('<div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>')
+    for r in rows:
+        w('<tr><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td></tr>' % r["html"])
+    w('</tbody></table></div>')
+    w('</section>')
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
 w('</div><div id="toast" role="status" aria-live="polite" hidden></div>')
@@ -372,6 +379,16 @@ w("""<script>
   });
   try { var s = localStorage.getItem("venue"); var t = s && document.getElementById(s); if (t) pick(t); else pick(tabs[0]); } catch (e) { pick(tabs[0]); }
   document.addEventListener("click", function (e) {
+    var m = e.target.closest(".copymd");
+    if (m) {
+      var md = m.getAttribute("data-md");
+      var done = function () { toast.textContent = "Table copied as Markdown"; toast.hidden = false; clearTimeout(timer); timer = setTimeout(function () { toast.hidden = true; }, 1600); };
+      var fallback = function () { var t = document.createElement("textarea"); t.value = md; t.style.position = "fixed"; t.style.opacity = "0"; document.body.appendChild(t); t.select();
+        var ok = false; try { ok = document.execCommand("copy"); } catch (x) {} document.body.removeChild(t);
+        if (ok) done(); else { toast.textContent = "Copy blocked here: select the table instead"; toast.hidden = false; clearTimeout(timer); timer = setTimeout(function () { toast.hidden = true; }, 2400); } };
+      try { navigator.clipboard.writeText(md).then(done, fallback); } catch (x) { fallback(); }
+      return;
+    }
     var b = e.target.closest(".sw"); if (!b) return;
     var hex = b.getAttribute("data-hex");
     function shown(m) { toast.textContent = m; toast.hidden = false; clearTimeout(timer); timer = setTimeout(function () { toast.hidden = true; }, 1400); }
