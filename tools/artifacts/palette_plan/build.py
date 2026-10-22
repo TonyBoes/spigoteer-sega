@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Saloon: ROSIE's grey is the darker #303038."),
     ("2026-10-21", "Saloon: ROSIE's colour 3 to dark grey #4C4C58, so her hair is grey (her outline too); her pink shawl and dress stay."),
     ("2026-10-21", "Saloon: the brown-haired singer (owner's concept) on OBJ 5 / BG 5 with her own palette."),
     ("2026-10-21", "Saloon: OBJ 1 colour 1 to #FFE6CD and the show dancers share OBJ 1; OBJ 5 free."),
@@ -153,7 +154,7 @@ PLANS = {
         moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand"), ("Show dancers", "OBJ", 5, 1, "Show dancers")],
         recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
                   ("OBJ", 1): {1: "#FFE6CD"},                               # the full mug's cream to the tan; the dancers share it
-                  ("OBJ", 6): {3: "#4C4C58"},                               # ROSIE's hair (and outline) dark grey; her shawl and dress stay pink
+                  ("OBJ", 6): {3: "#303038"},                               # ROSIE's hair (and outline) dark grey; her shawl and dress stay pink
                   },
         open={},
         add={("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"]),       # the original round-1 outlaw, his own palette; Big Tex takes it too
