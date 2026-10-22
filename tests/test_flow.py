@@ -774,8 +774,18 @@ def test_the_arrows_blink_and_the_buttons_stay(boot):
         assert o[OAM_CURSOR]["y"] == 0, "no mug"
         if o[10]["y"]:
             assert o[10]["y"] == ROW_NAME * 8 + 16 and o[10]["x"] - 8 < name["x"] < o[11]["x"] - 8, "the arrows either side of the name"
+            assert name["x"] - 1 - (o[10]["x"] - 8 + 8) == 8 and o[11]["x"] - 8 - name["r"] == 8, "one empty cell between each arrow and the name"
     assert seen.count(True) > 15 and seen.count(False) > 15, "the arrows blink on the 16-frame beat"
-    menu_tap(boot, "right")
+    hc = TITLE_ART["text"]["hint_change"]["col"]
+    o = boot.oam()
+    assert (o[12]["x"] - 8, o[13]["x"] - 8) == (hc * 8, (hc + 10) * 8), "the buttons one cell before CHANGE and before BACK (a blank cell between each and its word)"
+    from conftest import menu_to
+    menu_to(boot, K_ERASE)
+    boot.run(MENU_SETTLE + 4)
+    ho = TITLE_ART["text"]["hint_open"]["col"]
+    o = boot.oam()
+    assert (o[12]["x"] - 8, o[13]["x"] - 8) == (ho * 8, (ho + 8) * 8), "the same for OPEN"
+    menu_to(boot, K_BARCHANGE)
     boot.run(MENU_SETTLE)
     bar = TITLE_ART["text"]["name_bar"]
     o = boot.oam()

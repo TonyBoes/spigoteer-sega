@@ -617,7 +617,7 @@ LOGO_FILL = [0, 4, 8, 12]             # px of beer in the fill states before the
 MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY",
                 # SETTINGS (owner 2026-10-21): one setting at a time: its NAME between two arrows, its STATE under it, and the hint row
                 "name_music": "MUSIC", "on": "ON", "off": "OFF",
-                "hint_change": "  CHANGE    BACK", "hint_open": "  OPEN      BACK",   # SETTINGS' hint row: the A button sprite sits in cell 1, the B button in cell 11
+                "hint_change": "  CHANGE    BACK", "hint_open": "  OPEN    BACK",   # SETTINGS' hint row, centred as a group: the A button sprite sits in the first blank cell, the B button in the blank cell before BACK (title.c cursor_frame)
                 "name_bar": "BAR CHANGE", "snap": "SNAP", "keep": "KEEP",
                 "continue": "CONTINUE",       # M11b: CONTINUE (story save) replaced M10a's "COMING SOON"
                 "bonus": "BONUS",             # the top level's BONUS submenu

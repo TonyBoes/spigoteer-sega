@@ -335,7 +335,7 @@ static void title_pals(void) {
     set_bkg_palette(BGPAL_TEXT, 1, p);
     p[3] = RGB15(31, 25, 6);                                                     // the selected item: gold
     set_bkg_palette(BGPAL_TEXT_SEL, 1, p);
-    p[3] = RGB15(22, 19, 12);                                                    // the names: muted too (SETTINGS)
+    p[3] = RGB15(19, 19, 17);                                                    // SETTINGS' hint: clearly dimmer than the HI line's muted colour
     set_bkg_palette(BGPAL_TEXT_NAME, 1, p);
     patron_pal_get(0, 0, p);
     p[0] = WALL_RGB_T;
@@ -604,11 +604,11 @@ static void cursor_frame(void) {
         kd = NAME_KIND(title_items[title_sel]);
         y = ROW_NAME * 8 + 16;
         a[0].y = a[1].y = (title_t >> 4) & 1 ? 0 : y;
-        a[0].x = name_x0[kd] - 3;      a[0].tile = FX_ARROW; a[0].prop = (is_cgb ? OBJPAL_FX : S_PALETTE) | S_FLIPX;
-        a[1].x = name_x1[kd] + 10;     a[1].tile = FX_ARROW; a[1].prop = is_cgb ? OBJPAL_FX : S_PALETTE;
+        a[0].x = name_x0[kd] - 9;      a[0].tile = FX_ARROW; a[0].prop = (is_cgb ? OBJPAL_FX : S_PALETTE) | S_FLIPX;
+        a[1].x = name_x1[kd] + 16;     a[1].tile = FX_ARROW; a[1].prop = is_cgb ? OBJPAL_FX : S_PALETTE;
         a[2].y = a[3].y = ROW_HINT * 8 + 16;
-        a[2].x = 32;                   a[2].tile = FX_KEYA;  a[2].prop = a[1].prop;
-        a[3].x = 112;                  a[3].tile = FX_KEYB;  a[3].prop = a[1].prop;
+        a[2].x = IS_ACT(title_items[title_sel]) ? 32 : 24;                  a[2].tile = FX_KEYA;  a[2].prop = a[1].prop;
+        a[3].x = IS_ACT(title_items[title_sel]) ? 96 : 104;                  a[3].tile = FX_KEYB;  a[3].prop = a[1].prop;
         return;
     }
     o->y = title_rows[title_sel] * 8 - 7 + 16;
