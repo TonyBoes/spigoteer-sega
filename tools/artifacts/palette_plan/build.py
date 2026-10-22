@@ -237,7 +237,8 @@ def card(kind, sl, d, skip0, hide_cols=False):
                      % (" chg" if i in d["new"] else "", d["new"].get(i, cols[i]), d["new"].get(i, cols[i]),
                         ("was " + cols[i] + ", planned " + d["new"][i]) if i in d["new"] else cols[i])
                      for i in range(1 if skip0 else 0, 4))
-    if d["new"]:
+    moved = d.get("match", "").startswith("BG") and len(d["new"]) == 4
+    if d["new"] and not moved:
         note = ("colours moved from %s" % d["match"]) if d.get("match", "").startswith("BG") and len(d["new"]) == 4 else ("colours as %s" % d["match"]) if d.get("match") else ", ".join("colour %d: %s &rarr; %s" % (i, cols[i], d["new"][i]) for i in sorted(d["new"]))
         body += '<p class="chgp">%s</p>' % note
     return ('<div class="pal%s"><div class="ph"><span class="slot">%s %d</span><span class="sws">%s</span></div>%s</div>'
