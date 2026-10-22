@@ -1,0 +1,17 @@
+; Spigoteer saloon patron: THE RANCHER, back view, 16x16, hand-drawn, symmetric about col 8, col 0 empty (rows 0-14): straw hat, dark hair, one plait down the centre of the back over the plaid shirt.
+....#########...
+...#+++++++++#..
+...#+--+++--+#..
+...###########..
+.##+++++++++++##
+.###############
+....#########...
+....###+++###...
+....#########...
+.....##+#+##....
+..#####+#+#####.
+.#----#+#+#----#
+.#--+-##+##-+--#
+.#+++-#+#+#-+++#
+.#--+-##+##-+--#
+################

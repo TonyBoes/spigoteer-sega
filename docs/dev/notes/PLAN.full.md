@@ -1,0 +1,1254 @@
+# Spigoteer: plan
+
+(Working title was "Tapper GB". The owner named the game **Spigoteer**; "Tapper" is a Bally Midway
+trademark and must not appear in the shipped game.)
+
+A Game Boy / Game Boy Color clone of the arcade game *Tapper*, written in C on
+GBDK-2020. It runs on both DMG and CGB, and CGB gets the full-colour art from
+`upload/`.
+
+Done for every milestone means `make && make test && make check` pass on DMG
+and CGB, and the new behaviour has a test.
+
+## Game rules (from `upload/tapper.txt`)
+
+- There are 4 bars. The bartender stands at the tap on the **right** end.
+  Patrons enter on the **left** and walk right.
+- **Up/Down** moves the bartender to the tap of the next bar, and wraps from
+  the top bar to the bottom one. **Left/Right** walks along the bar.
+- **Hold A** at the tap to fill a mug. When it is full, it slides left.
+- When a full mug reaches a patron who is paying attention, the patron
+  catches it and is pushed back toward the left. A patron pushed back to the
+  left end leaves (served; no doors since 2026-10-09: he slides off the screen's left edge). A patron who stays drinks for a while, then sends the
+  empty mug sliding right.
+- You lose a life when:
+  - a full mug reaches the left end without anyone catching it,
+  - an empty mug passes the right end before the bartender catches it, or
+  - a patron reaches the right end.
+- Catching an empty means the bartender's position overlaps the mug on the
+  same bar.
+- A level is cleared when every bar is empty. New patrons keep arriving on a
+  timer until each level's quota has been spawned.
+- After a full row is cleared, a patron sometimes leaves a tip. Picking it up
+  starts the dancers, and patrons who are distracted ignore mugs and stop
+  walking for a while.
+- Scoring: serve 50/75/100/150 (depends on the theme), empty caught 100,
+  tip 1500, screen clear 1000, bonus win 3000.
+- Bonus round: a shell game with 6 cans, one of them unshaken.
+
+## Screen layout (160x144 = 20x18 tiles)
+
+Revised after the owner's first playtest (M4.5–M4.7):
+
+| rows | content |
+|---|---|
+| 0 | HUD: score, lives, level (one row) |
+| 1–4 | stage: back wall with our own bar sign; dancers perform here (M5) |
+| 5+3b … 7+3b | bar `b` (0..3): 2 rows of back wall where patrons stand, 1 combined counter row (top + front) where mugs slide |
+| 17 | floor |
+
+- Columns 0–17 are the counter (0–1 were the door until 2026-10-09; the wall now runs to the left edge), and columns 18–19 the tap.
+- **Patrons are background tiles** (16x16 on a 3x2-tile footprint), pre-drawn
+  shifted by 0..7 px (M8b; was 0/2/4/6) so they move in 1 px steps by swapping
+  tilemap entries only. This keeps them out of the 10-sprites-per-line budget.
+  Colour 0 of each patron BG palette is the wall colour, so the tiles need no
+  transparency. Drinking is a mug sprite raised to the patron's face.
+- **Tap grace:** A within 16 px of the tap snaps the bartender to it and starts
+  a fill; the mug fills visibly in his hand.
+- **Sprites** use 8x16 OBJ mode:
+  - bartender, 16x24: 4 entries
+  - mugs: **1 entry each**. The 16 px mugs in the upload are redrawn 8 px
+    wide, so one bar line can hold the bartender plus 8 mugs.
+  - breaking glass, tip coin, sparkles
+- The global cap is 40 OAM entries: bartender 4, mugs 24 (6 per bar), and
+  the rest for effects.
+- **CGB palettes:**
+  - BG: wall/counter, HUD, 3 patron variants of the current theme, tip.
+    That is at most 7 of 8.
+  - OBJ: bartender, full mug, empty mug/glass, coin, sparkle. That is 5 of 8.
+- On **DMG**, the colour indices are ordered by brightness, so the art reads
+  correctly on the grey ramp.
+
+## Themes and levels
+
+The levels use the patron groups from the sprite sheet: cowboys, sports fans,
+lumberjacks, chefs, divers, robots, ninjas, aliens, and zoo animals (finale).
+Each level is a row in a const table with these fields:
+
+- patron group
+- patrons at the start of each bar
+- quota
+- spawn interval
+- walk speed
+- push-back distance
+- serve score
+
+## Milestones
+
+| # | milestone | proof |
+|---|---|---|
+| M0 ✅ | GBDK skeleton in place; art from `upload/` extracted to ASCII sources and palettes | `make test check` green; `out/preview/art/*` looks right |
+| M1 ✅ | Bar scene: HUD frame, 4 bars, bartender at a tap; moves up/down with wrap and walks left/right; CGB palettes and DMG greys | tests on `bar`, `bartender_x`; goldens `scene` |
+| M2 ✅ | Mugs: hold A to fill, release when full to slide; break at the left end; lives decrement; glass animation | tests on `mug_*`, `lives` |
+| M3 ✅ | Patrons: spawn, walk, catch, push-back, leave, drink, return empty; bartender catches empties; patron at the end costs a life | tests per rule above |
+| M4 ✅ | Game flow: score + HUD digits, death pause and bar reset, level clear, title, game over, level table and themes | tests on `game_state`, `level`, `score` |
+| M4.5 | Owner feedback: easier start, tap grace + snap, fill animation | tests, golden `filling` |
+| M4.6 | Re-layout: 1-row HUD, stage, 3-row bars | all goldens replaced on purpose |
+| M4.7 | Smooth patrons (pre-shifted tiles), drinking animation | tests |
+| M5 | Tips and dancers on the stage | tests |
+| M6 | Bonus round (can shell game) | tests |
+| M7 | Sound effects + music (hUGEDriver, reuse/MIT, attributed), polish | `make check` |
+
+The ROM stays 32 KB with no MBC until it no longer fits. When it outgrows
+that, switch to MBC5 (`-Wm-yt0x19`, `-autobank`).
+
+## Owner playtest 2 (queued as M8, after M7)
+
+- Tap grace 16 -> 32 px.
+- Bartender faces the tap (right) while filling, holding the mug under a spout that reaches left from the keg; he turns left as he slides it (owner's choice).
+- Empties slide back slower: 1 -> 0.5 px/frame (full mugs stay 2).
+- Bartender walks slower (2 -> 1.5 px/frame) with a calmer cycle: walk1, idle, walk2, idle.
+- Counter runs all the way to the door (cols 0-1); the door shrinks to the wall rows, so patrons never show their missing legs.
+- Patrons pre-shifted at every pixel (8 shifts, 144 BG tiles per group) instead of 2 px steps.
+- Art (proposals for approval first): bartender mustache; patrons in 3/4 view facing right.
+
+## Owner playtest 2b (also M8)
+
+- Spout from the keg pouring into the mug while it fills.
+- A full mug (A still held) can be carried to another bar with Up/Down; releasing A there slides it.
+- Faster fill: 24 -> 16 frames.
+- Art round 3 (proposals in the session scratchpad, owner approves before import): balanced mustache; cowboy without far ear; sports fan redesigned (the foam finger was later removed by the owner); slot B of every group except zoo is a woman; all patrons 3/4 view facing right.
+
+## Owner music notes (queued after the perf pass)
+
+- Gameplay track: "Oh! Susanna" (Foster, 1848, PD) per the owner's spec (key C, 2/4, ~120 bpm,
+  pickup + A A' A A' + chorus + ending; boom-chick bass on ch3; kick/snare verses, hats in chorus).
+  Melody on ch2 because ch1 carries SFX.
+- Title track: "The Entertainer" (Joplin, 1902, PD), opening A theme, ragtime bass.
+- Show music: "Galop Infernal" (Offenbach, 1858, PD, the can-can) plays during the dancers' show,
+  then the gameplay track resumes.
+
+## Dancers turn heads (M8)
+
+Distracted patrons turn toward the stage: on show start each distracted patron shuffles (<= 4 px)
+to the nearest 8 px column and switches to a back-view frame (only stationary, so only shift 0 is
+needed: 3 variants x 4 tiles = 12 BG tiles per group). Back-view art: <group>_back.txt.
+
+## Fair empties (M8, owner request)
+
+Never make it impossible to catch every returning empty. A patron who has finished drinking
+holds the empty until sending it keeps arrivals at the tap spaced apart: its predicted arrival
+time ((tap_x - x) / empty speed, in frames) must be >= last scheduled arrival + EMPTY_GAP.
+EMPTY_GAP comes from the level table, shrinking with level (about 120 frames at L1 to a floor of
+~45 frames), never below what an instant bar switch plus a short walk needs. Spacing by arrival,
+not by throw, because a patron near the tap throws later but arrives sooner.
+
+## Themed venues (owner request; art in progress, wired in M9 after M8)
+
+Per level theme: a stage (20x4 tiles, <= 20 unique tiles loaded over the stage tile ids at level
+start, <= 2 CGB palettes), a bar palette (wall/counter, no door: the wall's speck pattern runs to the left edge; wall = colour 0 behind patrons), and
+a drink replacing the mug (10 OBJ frames: full, empty, 4 fill, 4 drink poses, loaded over the mug
+tile ids; own full/empty OBJ palettes). Saloon/beer (original TAPS stage + curtains), stadium concession/soda, lumber lodge/coffee,
+bistro/wine, igloo/cocoa, robot factory/oil can, teahouse/green tea, space lounge/glowing
+beaker, jungle zoo/coconut.
+Themed shows: the dancers' 32 OBJ tiles are reloaded per theme (3 performers, 16x24, 4 frames):
+can-can (saloon), cheerleaders (sports), Sasquatch (lumber), plate-spinning waiters (bistro),
+penguins (igloo), breakdancing robots (factory), taiko drummers (teahouse), alien band (space),
+flamingo chorus line (zoo).
+Show music per theme (all public domain): teahouse "Sakura Sakura" (traditional), igloo "The Skaters'
+Waltz" (Waldteufel, 1882), sports bar "Take Me Out to the Ball Game" (Von Tilzer, 1908); every
+other theme plays the "Galop Infernal". Show tunes are short loops (~8-12 s) for the 6 s show.
+REVISED (owner chose venue theme songs): each venue has its own public-domain gameplay tune;
+every show plays the "Galop Infernal". Saloon "Oh! Susanna" (owner's spec); sports bar "Take Me Out
+to the Ball Game"; lumber lodge "She'll Be Coming 'Round the Mountain"; bistro "Funiculi,
+Funicula"; igloo "The Skaters' Waltz"; robot factory "In the Hall of the Mountain King"; teahouse
+"Sakura Sakura"; space lounge "The Blue Danube"; jungle zoo "Pop Goes the Weasel"; title "The
+Entertainer". (Proposed to the owner; non-owner picks may still change.)
+
+## Rename (done in M8c)
+
+Title screen logo "SPIGOTEER" (own lettering, wider than today's TAPPER: 9 letters), cartridge
+header title SPIGOTEER, credits/README text. The saloon's TAPS stage sign stays (it's the
+bar's name, not the game's). Idea: bartender pouring from a spigot under the logo.
+
+## Music as built (M7 revisit)
+
+Done: title "The Entertainer", "Galop infernal" for every show, nine venue tunes (table in CREDITS.md; tune
+index TUNE_VENUE0 + patron group), jingles unchanged. hUGEDriver only reads patterns through plain pointers in
+the bank it runs from, so song patterns live in ROM bank 3 and src/music.c copies a song into WRAM (buffer A:
+title or venue tune; buffer B: the show tune, copied once in the background) a slice per frame before it
+starts; bank 2 keeps the driver, order tables, instruments and jingles. Sources: tools/songs.py; pitch check:
+tools/check_music.py (routes one channel to the output and prints expected vs detected pitch).
+Caveat: the melodies were written from memory and nobody has listened to them; the owner's Oh! Susanna and the
+given Entertainer note list are exact, the rest (especially the Galop, Funiculi, the later phrases of the
+ball-game and mountain tunes, Skaters' Waltz, Blue Danube) are best-effort and need an ear check.
+
+Drums and game tempos (after M9): owner-approved game tempos (tools/songs.py GAME_BPM; spec tempo stays in docs/music_specs.md):
+entertainer 8 frames/row = 112.5 bpm, sakura 15 = 120, funicula 11 = 109 (dotted quarter), skaters/danube/ballgame 9 = 200.
+Drums for the title, ballgame, funicula, skaters, sakura and danube are a `groove` (songs.py song(..., groove=)): a 6-8
+row loop in bank 2 that src/music.c's groove_tick plays on channel 4 in step with the driver's rows (kit registers derived
+from the quiet kit in gen_music.drum_kit); a sound effect on channel 4 wins. A shared hUGEDriver pattern would not do: 64
+rows is not a whole number of 3/4 or 6/8 bars, so the beat would shift at each order, and the 32-bar tunes fill the
+6-pattern buffer A. WRAM cost 4 bytes; the jingles now share empty_pat (bank 2 gained ~130 bytes net free).
+
+Mix (owner: the melody drowned the bass and drums): bass wave NR32 0x40 -> 0x20 (100% output) with the triangle's samples
+scaled to half range (gen_music.BASS_AMP 0.5, 4..11) so it stays smooth; song lead 0xA5 -> 0x85, lead 0xA3 -> 0x83, soft lead
+0x93 -> 0x73, plink 0xC1 -> 0xA1; thin stays 0xC1 (was 0x91, raised so the bonus melody leads the louder bass); quiet drum kit
+6/5/4 -> 8/7/6 (the groove kit follows). Measured per channel with PyBoy (RMS, int8 scale): melody 4.3 -> 3.4, bass 2.5 -> 3.8,
+drums 0.9 -> 1.5. tests/test_sound.py pins the registers. Effects (channel 1 volume 8-12, noise 9-13) stay above the melody.
+
+## M8b as built
+
+Approved art imported (assets/art is now the source of truth; tools/extract_art.py refuses to overwrite it
+without --force). Patrons: 8 shifts x 3 variants x 6 tiles = 144 BG tiles + 12 back-view tiles per group,
+one generated file per group (build/patrons_<g>.c, autobanked; build/patron_load.c switches banks). BG ids:
+scene 0-89, patrons 90-233, back views 234-245 (246 of 256; BG in the signed 0x8800 mode, OBJ ids < 128,
+both checked by #error in game.h). A 1 px step within a patron's own 3 columns is a "quick" redraw (6 tile
+ids copied from a ROM0 id table, no compose) — walking at every pixel would otherwise have cost ~6 lines
+of frame time. Distracted patrons shuffle (<= 4 px, 1 px/frame, never into PATRON_SPACING, never onto the
+tap end) to a multiple of 8 and show their back view (patron_draw bit 7 = DRAW_BACK, mirrored in
+patron_facing[]); a patron who cannot get there keeps facing the bar until the show ends.
+
+## Owner playtest 3 (M8c, after M8b)
+
+- Show lasts one Galop loop (~576 frames, 9.6 s) instead of 360.
+- Thirst: each patron counts drinks; push-back distance = pushback_px x (drinks so far, starting at
+  1), so the 2nd drink pushes twice as far and the 3rd three times; clumps break up.
+
+As built (M8c): SHOW_FRAMES 576; patron_drinks[] (reset in add_patron) scales the push-back (pushback_px x drinks,
+capped at 255 px). Title logo SPIGOTEER: assets/tiles/title.txt, 8 letters x 4 tiles generated from stroke shapes,
+loaded over the patron tile ids by enter_title (the level load's load_patron_tiles restores them); BAR_TILE_COUNT
+dropped by the 20 old title tiles, so BG ids in use are now 70 scene + 156 patron = 226 of 256. Header title SPIGOTEER.
+
+## M9 as built (themed venues)
+
+Art: assets/approved/venues/<theme>_* (owner-approved). tools/gen_art.py cuts each theme into build/venue_<theme>.c
+(one autobanked file: stage/bar tiles, 20x4 stage map + attributes, 20x3 bar map + attributes, floor id, 20 drink OBJ
+tiles, 32 show OBJ tiles, 7 palettes), build/venue_load.c (venue_fetch: far_copy of the theme's venue_t into WRAM) and
+build/venues.json (the tests' reference); the build fails if a theme's stage needs more than 20 tiles or its bar +
+floor more than 16. Theme index = patron group (saloon 0 ... zoo 8). BG ids: venue stage slot 0-19, venue bar slot
+20-35 (since the graphics overhaul one pool 0-35, see "Graphics overhaul as built"), shared HUD tiles 36-71, patrons 72-215, back views 216-227 (228 of 256); title lettering still loads over the
+patron range on the title only. OBJ: the drink loads over the mug ids (56-59 full/empty, 76-83 fill, 84-91 drink),
+the performers over the dancer ids (96-127). CGB BG palettes: 0 bar, 1 HUD, 2-4 patrons (colour 0 = the venue's wall),
+5/6 stage A/B, 7 bar B (keg/spout). src/venue.c (banked): load_venue (tiles, palettes, base_tile/base_attr that
+render.c restores under patrons), draw_venue (stage, counters, floor), venue_backdrop (title in the saloon, bonus
+round in the venue just played). The breaking-glass shards stay the generic ones in every venue.
+
+## Owner playtest 4 (queued)
+
+- Difficulty: flatter curve. Level 6 should play like the old level 3, level 9 like the old
+  level 5; speed plateaus there. Ramp spawn rate, start patrons, push-back and empty_gap gently too.
+  (After M8d, which touches the same code.)
+- Music: game tempos (Entertainer 112, Sakura 120, Funiculi 112 dotted q, Skaters 192, Danube 192,
+  Ball Game 192) and drums back on every tune (shared drum pattern). Galop: waiting for the
+  owner's spec; the current one was written from memory and sounds wrong.
+
+## Door fix (queued after the difficulty pass)
+
+Patrons spawn at x = 16 (right of the 16 px door) and leave (served) when pushed back past x = 16,
+so they never overlap the door tiles. Door swings: a short open/shut tile swap per venue if the
+bar tile slot has room, otherwise a small dust-puff sprite at the doorway on enter/leave. Walk
+speeds rescaled so crossing times are unchanged (level-1 crossing still >= 15 s).
+
+## Modes, title, story, bonus rounds (owner, 2026-10-09)
+
+Owner's picks: story premise "The Golden Spigot"; new bonus rounds Perfect Pour and Tip Shower;
+title animation = logo fills with foam, then a bar-scene loop below it; arcade extras = top-5
+table with initials + loop banner/harder loops.
+
+| # | milestone |
+|---|---|
+| M10a | Title menu: no stripe bands, all text centred; ARCADE / STORY / MUSIC ON-OFF with a mug cursor. Animation: logo fills with foam letter by letter (drips, bubbles), then a loop below it: bartender slides a mug to a patron who drinks and sends it back. |
+| M10b | Arcade mode: endless loop of the nine venues; "LOOP n" banner; each loop a bit harder up to a ceiling; top-5 high scores with 3-letter initials in SRAM (replaces the single hi score). Done (see M10b as built). |
+| M11a | Story script: "The Golden Spigot" - the legendary spigot that pours any drink shattered into 9 pieces; each venue owner gives one to a bartender who keeps their crowd happy. Written as docs/story.md for owner approval before any code. |
+| M11b | Text engine + full font + cut-scene system (still picture + portrait + text box, A to advance), chapter goals per venue (serve N, no broken glass...), venue twists, save/continue in SRAM. ROM likely grows to 256 KB. Part 1 done (see M11b story engine as built); the twists are part 2. |
+| M11c | Story art: portraits (Spigoteer, nine venue owners, villain if any), cut-scene pictures. Owner approves. |
+| M11d | Story shifts: each chapter plays its venue as Opening shift, Happy hour, [mini-game slot], Last call, [boss slot]; per-shift goals, speeds and arrival patterns; retry one shift; SRAM v4 with the step reached. Done (see Story shifts as built). Then the owner's lives rule: 3 lives per venue, a venue restart, strict rules cost 2, the gold-medal life API (see Story lives as built). |
+| M11e (in progress) | The story's mini-games and bosses (filling the two slots of every chapter's sequence), a Practice mode (replay any reached shift / mini-game / boss, with best scores), and the Pour-Off. Design in docs/minigames_bosses.md. Step 1, the mini-game framework with a stub game, is done (see Mini-game framework as built); the slots stay NOT_BUILT until real games exist. Next: step 2, the boss engine + Big Tex. |
+| M12 | Bonus rounds: Perfect Pour (hold A to fill to the line; foam keeps rising) and Tip Shower (catch coins in a tray, dodge tomatoes); rotate with the shake-up. Shake-up lose result: soda geyser up, droplets everywhere. Done (see M12 as built). |
+
+## M12 as built (bonus rounds)
+
+- Rotation: `bonus_kind = (bonus_round - 1) % 3`: 1st shake-up, 2nd Perfect Pour, 3rd Tip Shower, again. The shake-up's
+  swaps and speed count shake-ups ((bonus_round + 2) / 3), not rounds. The new rounds are `src/bonus2.c` (banked);
+  `bonus.c` hands over. Every round ends in `bonus_phase` 4 for 130 frames, so one poke ends any round in the tests.
+- Both use the venue backdrop, a two-row banner (rows 2-3, HUD colours) with the name and "FILL TO THE LINE" /
+  "CATCH THE TIPS" for 1.5 s, OBJ tiles 96-127 (performers), BG ids from 72 and BG palette 2 (patrons), OBJ palettes
+  6-7; the level load restores all of them. DMG: Tip Shower sets OBP1 to 0xE0 and puts 0xC4 back at the end.
+- Perfect Pour: a 16x40 glass on the BG (interior colour 0, solid 8 px base); the beer and foam are sprites drawn behind
+  BG colours 1-3, so they show only inside the glass, and the 1 px fill line (BG colour 2) stays visible over them.
+  Hold A: 1 px of beer every 4 frames with a 3 px head; release: the head rises 4 px more (1 px / 8 frames). Final
+  level vs the line: +-1 PERFECT 3000, +-4 GOOD 1500, past the 32 px rim SPILL (foam heap over the rim, streaks down
+  the outside), else TOO LOW / TOO HIGH. Three glasses, each line different (six heights, 12-27 px). Max 9 sprites a line.
+- Tip Shower: tray (24 px, 3 entries) over the bartender's head, 1.75 px per frame; at most 7 falling items (coins
+  25% tomatoes, 0.75-1.75 px per frame, new one every 14-29 frames) so no line passes 10. Coin on a clean tray +100;
+  a tomato dirties the tray for 60 frames (no catches, no life lost). 20 s timer, "TIME UP / BONUS nnnn". No counter row.
+
+## M10b as built (arcade mode)
+
+- Loops: after level 9 the venues come round again; level L plays venue (L - 1) % 9 with that row of the level table,
+  in loop `arcade_loop` = (L - 1) / 9 + 1 (level 10 = saloon, loop 2; 19 = loop 3; the HUD keeps counting L10, L11...;
+  the level number still stops at 99). Before the first level of loop 2, 3, ... the window banner "LOOP n" shows for
+  120 frames in its own state (GS_LOOP = 8): the level is drawn, nothing moves, then the level's usual 90-frame intro.
+  Bonus rounds keep their rule (after every even level) and rotation.
+- Difficulty per loop k = min(loop - 1, 3) on top of the row (main.c start_level): walk speed + 10 % per loop (cap +30 %,
+  patron_speed; step_frames stays the row's), spawn interval - 8 % per loop (cap -24 %), empty gap - 5 frames per loop
+  but never below 80. Quota, start patrons, push-back and serve score stay the row's. So level 10 (cowboys, loop 2) is
+  easier than level 9 again, arcade style; loop 4 and later play the same (the ceiling). Before M10b, levels past 9
+  used the level-9 row's speeds; tests/test_art.py goto_group now reaches even groups as level g + 1 (from the bonus
+  round's last frame) instead of g + 10.
+- Top 5 (src/save.c, now autobanked): SRAM version 2 = "TPR2", 5 x (3 initials A-Z / space, 3-byte LE score <= 999999),
+  best first, checksum (0x5A + bytes 0..33) and complement at 34/35. Loading checks signature, checksum, letters,
+  range and order; anything else is an empty table. A valid version-1 save ("TPR1") becomes entry 1 as "SPG" and is
+  written back as version 2 at boot (`save_migrated` = 1). WRAM working copy: top_names[15] + top_scores[5] (35 B);
+  hi_score / hi_digits mirror entry 1 (the title's HI line). A tie goes below the older entry; 0 never enters.
+- Game over: the score goes into the table at once as "AAA" and is saved (`new_rank`, 5 = no entry); the GAME OVER
+  banner goes on after START / A or 240 frames: to the initials (GS_INITIALS = 9) if it made the top 5, else the table
+  (GS_SCORES = 10). Initials: Up / Down step A..Z, space (wrapping), Left / Right move (wrapping), A or START saves and
+  shows the table. The table: 5 s or A / B / START, then the title.
+- From the title: 20 s (1200 frames) without a key shows the table (attract style; the M10a menu is unchanged), then
+  the title again (the logo animates afresh, the title tune plays on).
+- Screens (src/scores.c, banked): the HUD style, full screen: the dark band, a panel line at rows 1 and 16, HUD glyphs
+  centred ("HIGH SCORES" row 3, entries "1 ABC 012345" rows 6-14; "NEW HIGH SCORE" row 3, the score row 5,
+  "ENTER INITIALS" row 8, the letters at columns 8/10/12 of row 11, a cursor bar under the current one on row 12).
+  bar.txt gained J, Q, X, Z and the cursor bar (BAR_TILE_COUNT 72 -> 77: the patron range is 77-232, the title's
+  limit follows it, the puff's OBJ tiles moved to 234).
+
+## M10a as built (title screen)
+
+- `src/title.c` (banked, own bank with its art from `build/title_art.h`); `main.c` only calls `title_enter()` /
+  `title_update()` / `title_music_toggle()`. ROM_0 went from 640 to ~1.3 KB free.
+- Layout: logo rows 2-3; menu ARCADE row 6, STORY row 8, MUSIC ON/OFF row 10, HI row 12; the bar scene on bar 3's
+  rows (14-15 wall, 16 counter). Rows 4-13 are the plain wall colour (no specks, no bands).
+- Text: `tools/gen_art.py title_art()` pre-renders each menu string from the HUD glyphs with a 1 px drop shadow; an
+  odd-length string is drawn 4 px right inside one more tile, so every line is centred to the pixel (STORY,
+  MUSIC OFF, COMING SOON included). The HI line is a small two-letter "HI" tile + space + 6 muted digits (8 tiles).
+  CGB: own text palette (cream on the saloon wall, dark shadow), the selected line gold; DMG: black text, grey shadow.
+- Logo: 5 fill states per letter (empty outline, 4 / 8 / 12 px of beer with a foam band and a frothy head, final
+  art); letters start 8 frames apart, 4 frames per state; drips under P, O and the second E; one sparkle sweep.
+- Scene: the bartender (sprites, bar 3) slides a saloon mug to a cowboy patron (BG tiles), who drinks, winds up and
+  sends the empty back; ~4 s loop. Bubbles rise past the logo every 1-2 s. At most 4 sprites on any line.
+- BG ids on the title: menu text over the venue stage slot (0-19) and after the fill states; lettering, fill states
+  and patron over the patron range (72-225). OBJ effects over the show performers' tiles. The level load restores all.
+- Story: "COMING SOON" over the STORY line for 60 frames (the story mode is M11).
+
+## Story art decision (owner): hybrid
+
+FULL custom pictures only for the intro (KA-SPLOOSH), the finale (first pour) and the credits gag;
+every other scene uses the LIGHTER style (the venue's in-game stage + bar as the backdrop, the
+Spigoteer's normal sprite, a framed speaker portrait above a full-width 3x18 text box; 56x56 since the portrait study,
+see "Story portraits as built"). Portraits for every speaker (assets/story/portraits/*.txt).
+
+## Overlapping patrons (M13, owner 2026-10-09)
+Patrons must overlap and pass, as in arcade Tapper; one patron shoving another is rejected (the interim
+"chain shove" stall fix was dropped). Design, measurements and owner decisions: docs/overlap_design.md.
+Owner decisions: occasional hurried patron (~1 in 4 from L3, ~1.5x); redraw the igloo door for the door
+entrance; CGB frees palettes both ways (coin shares with the show AND glass/puff use the drink palette);
+DMG glass shards may swap light/white. Steps: M13a plumbing (pixel-identical lift), M13b rules, M13c door.
+
+## M13a as built (lifted-patron plumbing; no rule changes)
+- Tiles (Option A): each patron group is stored column by column from PATRON_FIRST_TILE = 78 (BAR_TILE_COUNT rounded up
+  to even; id 77 is unused in play), shifts 1-7 first (v * 42 + (s - 1) * 6), the shift-0 poses last at 204/210/216
+  (PATRON_SHIFT0_OFS 126), back views 222-233 as before. render.c stamp3 / put_col / id_seq / stamp_tile and title.c's
+  scene patron follow the layout; the puff stays at OBJ 234.
+- State (src/lift.c, bank 5): patron_lift[16] (0 BG, 1 OBJ, 2 OBJ behind BG, | 0x80 dropping), lift_n[4], lift_total;
+  test hook lift_hook_p / lift_hook_op (1 lift, 2 lift behind BG, 3 drop) / lift_hook_res (1 done, 2 refused).
+  lift_frame() runs only while someone is lifted or the hook is set; draw_lifted() fills OAM 25 down; draw_mugs ends at
+  26 - 2 * lift_total. A lifted patron's BG footprint is plain wall drawn with his own palette's colour 0 (PATRON_BLANK,
+  the 3rd column of his shift-0 pose), so the wall's specks stay hidden and the picture does not change.
+- Ordering: a lift writes the sprite and queues the BG erase at the head of the frame's copy list (bg_urgent: up to two
+  3-column spans outside the budget), so both reach the screen in the same VBlank; never while vq_held or his BG copy
+  is pending. A drop queues the BG stamp first and keeps the sprite until it is out (>= 1 frame). A forced drop (more
+  than 10 objects estimated on the bar's patron lines, or mugs + lifted entries > 19 of 21) swaps BG copy and sprite
+  in one VBlank when this frame's list can take it, else it is an ordinary drop.
+- Palettes: CGB OBJ 2 = glass + puff (the venue's empty drink), 3/6/7 = patron variants, 5 = show or coin (render.c
+  pal5_check asks, the VBlank handler writes), 4 spare; bonus2 loads its tap palette into 3 and the coin into 5.
+  DMG: OBP1 = 0xE4 in play (0xC4 on the title / bonus), sliding mugs, held empty and puff on OBP0 from bit-plane-swapped
+  copies at OBJ 240-251 made at level load; glass shards on OBP0 with light grey and white swapped (accepted).
+- start_level() and the level table moved from main.c to src/level.c (bank 5): ROM0 had no room for M13a.
+- Known for M13b: on DMG the lower X wins between sprites, so a lifted patron covers a mug / the bartender to his right
+  where both are opaque; on CGB the coin (OAM 27) and puff (26) are behind lifted patrons.
+
+## M13b as built (the overlap rules)
+- Rules (src/patrons.c): `push_px` no longer stops behind anyone: every caught mug moves the catcher back his full
+  push-back (pushback_px x drinks) unless he goes out through the door (the owner's stalled clump). Walkers pass slower
+  walkers and drinkers: `walker_pixel` waits only when the step from a multiple of 8 would take him into a tile column
+  two other patrons already cover (`col_scan`). Real columns: c = draw >> 3, c + 1, and c + 2 unless at shift 0 or in a
+  back view. Spacing rules reviewed: blocked_ahead is gone; the spawn check keeps PATRON_SPACING clear of the door
+  (M13c changes it); the show shuffle (`watch_step`, now in src/show.c) may land next to or on walkers but never on
+  another watcher (neither can be lifted) nor make three in a column; `start_show` does not distract a walker who shares
+  a column with a watcher already.
+- Speeds: `patron_hurry[16]`, `hurry_speed` = patron_speed x 1.5 (after the arcade loop's +10 %/loop, so loops and
+  caps apply). From level 3 (loops included) `try_spawn` makes 1 in 4 spawns hurried (`next_rand() & 3`, drawn only
+  when hurry_speed != 0: levels 1-2 keep their random sequence). Start patrons never hurry.
+- Retune (src/level.c): the step column of levels 3-9 is x 12/11 so the average door-to-tap time is unchanged
+  (3/4 at v and 1/4 at 1.5 v average 11/12 of a v walker's time): 59 58 57 56 53 51 48 -> 64 63 62 61 58 56 52; a hurried
+  walker then walks like step 43 (L3) .. 35 (L9). Levels 1-2, quota, spawn, push-back and the empty gap are unchanged.
+  Not compensated (playtest): passing (a walker no longer queues behind a slow one) makes a crowded bar a little harder.
+- Chooser (src/lift.c, bank 5): runs for a bar when `ovl_touch` (a patron whose footprint meets another's changed
+  columns or grew from 2 to 3 real columns), a drop, the show or a waiting lift asks (ovl_dirty). Greedy left to
+  right over the BG patrons sorted by column; a pair sharing a real column lifts the higher priority one (pushed 4 >
+  hurried walker 3 > walker 2 > drinker 1; never a watcher, a back view or one being dropped; ties: the right one).
+  Lifted patrons stay up while they cover a BG patron and drop after LIFT_CLEAR_FRAMES (8) clear frames (and x >=
+  DOOR_X). A lift now also works on the frame the patron moved: the urgent span is c-1..c+3.
+- Fallback (budgets: LIFT_MAX 4, LIFT_PER_BAR 2, mugs + lifted entries <= 19, <= 10 objects on the bar's lines; or this
+  frame's copy list): the pair stays on the BG, the would-be lifted one has OVL_TOP (drawn last; the bar is composed in
+  two passes), the covered one OVL_SHARED (no quick redraw), a shift-0 patron whose empty 3rd column lies on another's
+  figure OVL_TWO (stamps 2 columns, no quick redraw); a TOP patron at shift 0 also stamps 2 columns. Retried next frame
+  (copy list) or 16 frames later (budgets). Flags that change make their columns composed again.
+- DMG held-mug clamp (src/mugs.c `draw_held`): a lifted holder's mug at dx 8 (16 in the last throw pose) on DMG.
+- Catching unchanged (rightmost catcher whose 16 px contain the mug); fair empties unchanged.
+- Cost: on the Game Boy one line is 114 machine cycles, and an SDCC loop over 16-20 slots costs 5-15 lines whatever it
+  does, so the per-frame loops are hand-written: `lifted_scan`, `est_mugs` (cached until mugs_live / mug_events move),
+  `draw_lifted_asm`, the chooser's `gather_asm` / `choose_asm`. The chooser looks at one bar only on a frame past line
+  48, at none past line 80 (at least every 4th frame), the rest next frame. `queue_bar` charges 8 more units per patron
+  beyond 2 on a bar (composing stamps them all). ROM: show.c (start/end_show, watch_step, place_start_patrons) moved out
+  of ROM0 (autobanked); ovl_touch is banked; ROM0 ends at 0x3E18 (488 B free by the map; romusage says 829), bank 5 ~80 B free.
+- GBDK vsync race (the M13a worst-case-pile spike, 182/187 -> 218/223): not M13a's code. GBDK's wait_vbl_done clears
+  its flag then halts; a VBlank interrupt between the two sets the flag before the halt and the CPU sleeps until the
+  next interrupt (the banner LYC at line 86). M13a's pile had one frame ending at line 143, which slept until line 87
+  and then ran ~130 lines of logic (end LY 217/223). main.c `frame_wait()` checks the flag with interrupts off and
+  halts with IME 0 (wakes on any pending interrupt, which is taken after the ei).
+- Perf (PyBoy, end LY / missed): level 8 script DMG 90 / 0, CGB 100 / 0 (M13a 94 / 95); worst-case pile DMG 208, CGB
+  206 (M13a 218/223), but 205 / 212 of 600 frames late (M13a 44 / 50; guard now end <= 220, late <= 230, see the
+  review note below); level 9 script (2400 frames) DMG 100, CGB 108, 0 missed; NEW level-9 overlap
+  scenario (perf_helpers.OverlapCase: pushes through pairs on every bar, 4 mugs per bar): DMG 175 / 229 late of 1200,
+  CGB 180 / 264 late, <= 9 objects per line, <= 24 entries. The owner's target for it (0 missed, end LY <= 118) is NOT met:
+  with the chooser and lifts switched off the same load already runs median 84, worst 134 (12 patrons and 16 mugs:
+  update_patrons ~25 lines, draw_mugs ~25, update_mugs ~13); with them median ~117. test_perf asserts the object
+  budgets every frame and a regression guard (end <= 200, missed <= 320).
+- Tests: tests/test_overlap.py (slide-through and pass with a structural picture check every frame: BG ids per
+  column, empty columns, lifted sprites; drop after clear; hurried 1 in 4 from L3 at 1.5x; the three-in-a-column wait;
+  the budget fallback; three in a column by a push; priorities; catch order; empties from an overlapped drinker; DMG
+  dx); test_patrons (clump repro: served over and over, the row clears; slide through; rewritten waiting tests);
+  test_tips (shuffle rules); test_perf (overlap scenario); test_smooth's every-pixel test samples at vq_frame_end.
+  Screenshots: out/m13b/slide_through.*.png, pass.*.png.
+- Known compromises: DMG lower X wins between sprites, so a lifted patron covers mugs / the bartender / the held mug of
+  a BG patron to his right (only his own mug is clamped); CGB coin and puff are behind lifted patrons; in the fallback a
+  TOP patron at shift 0 leaves his 3rd column as venue wall (its specks show) instead of his own wall colour; on a
+  frame past line 80 the chooser waits (up to 4 frames) and a new overlap is drawn by the old flags meanwhile.
+- Review (worst-case pile, missed frames): M13a 44 / 50 late of 600, M13b 205 / 212, median logic LY 109 -> 130.
+  Where it goes (PERF_SECTIONS, DIV ticks a frame; ~1.8 ticks a line): mugs 45 -> 49, patrons 67 -> 64, lift_frame
+  0 -> 25 (chooser ~13: one bar every ~4 frames at ~50 ticks, gather + conflicts + loops; the call and bookkeeping ~7),
+  queue 14 -> 31, mug drawing 61 -> 68. Not frame_wait (vsync instead: 205 / 213). With the chooser off (no flags,
+  plain BG compose) the pile still runs 113 / 117 late: in M13a the pile's walkers stood blocked, in M13b they pass, so
+  far more patrons move and are redrawn (queue 14 -> 27 even without flags) and catch more mugs. Tried and measured
+  without effect: deferring the chooser on late frames down to line 40, skipping it while vq_held, skipping try_lift
+  when OAM is full, charging more queue budget to crowded / two-pass bars (all 190-213 late). Getting back to ~60
+  would need the per-patron and per-mug frame work itself cheaper (update_patrons, update_mugs / catch, draw_mugs,
+  the BG compose: a hand-written rewrite of those paths), not more overlap tuning. Real play is unaffected (level 8 / 9
+  scripts 0 late). The pile guard is tightened to the M13b level.
+
+## M13c as built (door entrance) and the realistic-peak perf test
+- Spawn (src/patrons.c try_spawn): blocked_behind(b, SPAWN_X + PATRON_SPACING); the patron is added at SPAWN_X = 0 and
+  lifted at once behind the BG (lift.c `lift_spawn`: try_lift with LIFT_BEHIND, OAM X 8, counted in every budget); if the
+  lift is refused (LIFT_MAX / LIFT_PER_BAR / OAM / 10 per line / this frame's copy list) he is taken back and the spawn
+  retried SPAWN_RETRY frames later. No entry puff. He walks EMERGE_SPEED (64/256 px) while x < DOOR_X, then the level's
+  (or hurried) speed: door-to-tap time from x 16 unchanged. At x == DOOR_X LIFT_BEHIND becomes LIFT_OBJ (in front); the
+  M13b drop rules then apply (clear 8 frames, x >= DOOR_X). He may catch a mug while emerging (served out at once; his
+  sprite goes the frame the puff starts). start_show never distracts a patron in the doorway.
+- The door is never drawn over: render.c put_col / stamp3 never stamp columns < DOOR_COLS, and a patron with draw < DOOR_X
+  gets no quick redraw. A BG patron in the doorway (only after a forced drop) is therefore clipped at the door, which is
+  pixel-identical to the behind-BG sprite because no door has colour 0. try_lift lifts anyone with x < DOOR_X as LIFT_BEHIND.
+- Igloo door redrawn (owner decision): its 82 colour-0 pixels (wall purple around the dome) became colour 3 (dark blue),
+  nothing else changed; bar tiles still 16. Previews out/m13c/igloo_door_{before,after}.{cgb,dmg}.png. Every venue's door
+  has no colour 0 (test). LCDC bit 0 is on in play and the door attributes have bit 7 clear (test).
+- Forced drop on a held frame (vq_held): the sprite now goes at once and the BG copy follows with the next list (he is
+  missing a frame or two) instead of an ordinary drop that kept 11 objects on a line for a frame.
+- main.c: OAM DMA is disabled while the sprites are redrawn (DISABLE_OAM_DMA / ENABLE_OAM_DMA around the draw calls): a
+  frame that overran into VBlank DMA'd a half-drawn OAM (the realistic peak showed 11 objects on a line that way).
+- Perf (PyBoy, end LY / missed): level 8 script DMG 91 / 0, CGB 101 / 0; level 9 script (2400) DMG 100 / 0, CGB 109 / 0;
+  REALISTIC PEAK (new, perf_helpers.RealisticPeak: ~7.5 patrons, <= 3 full, <= 3 empty, up to 7 held, tip or show,
+  emergence, lifts) DMG 190 / 65 of 1200, CGB 208 / 88: the owner target (0 missed, end <= 118) is NOT met; asserted
+  as a strict xfail plus a regression guard; budgets (<= 10 per line, <= 40) and the music hold. Where it goes (sections
+  build, median DIV ticks, ~1.8 a line): update_patrons ~36, draw_mugs + draw_lifted ~43, lift_frame ~29, update_mugs ~23,
+  queue_vram ~15, music ~14. Stress tests: level-9 overlap DMG 171 / 259, CGB 176 / 299; pile DMG 220 / 229, CGB 221 / 232
+  (guard 230 / 245: its replacement walkers at x 0 are now doorway patrons, composed at every pixel).
+- Known: on CGB (always) and DMG (x < 4) an emerging patron's sprite masks the serve-out puff of another patron on the same
+  bar where his pixels are; an emerging patron overlapping a BG patron at columns 2-3 is behind him, then in front at x 16.
+
+## No doors (owner 2026-10-09) as built, and a taller saloon keg
+- Art: every venue's bar has no door; columns 0-1 of the wall rows continue the wall's 64 px speck pattern (tiles the wall
+  already used), the counter row was already full width. Bar + floor tiles per venue: 12 of 16 in every venue (saloon 14,
+  space 15, the rest 16 before). The igloo's M13c door redraw went with its door. gen_art checks the wall rows from column 0.
+  The door puff is gone (assets/art/puff.txt, OBJ 234-239, DMG copies 246-251, OAM 26 now unused, puff_bar / puff_timer).
+- Entering (src/patrons.c, src/lift.c): a new patron spawns at SPAWN_X 0 with patron_aux = 16 px of him beyond the left edge,
+  lifted at once as LIFT_EDGE (replaces LIFT_BEHIND: a sprite in front of the BG drawn patron_aux px left of patron_x, OAM X
+  wrapping below 8 so the screen edge clips him; no BG footprint at all, so columns 0-2 keep the venue's tiles; never
+  dropped while any of him is off screen). He walks EMERGE_SPEED 128/256 px a frame (32 px in 64 frames, the door's
+  emergence time) until ENTRY_X 16 (was DOOR_X), where he becomes LIFT_OBJ and drops to the BG by the M13b rules; the
+  level's speed and the level table are unchanged (entry-to-tap time as before, L1 >= 15 s). No catch while patron_aux > 0.
+  Spawn check, sprite budgets and SPAWN_RETRY as in M13c (the copy list no longer refuses an EDGE lift: he has no BG copy).
+- Leaving: pushed back to ENTRY_X he is served at once (score, tip, served count: PATRON_LEAVING), lifted as LIFT_EDGE (a BG
+  one waits in place until his BG copy is off screen, which the sprite covers exactly; an already lifted one keeps his
+  sprite), slides out at PUSH_SPEED with his mug in his hand past x 0 (patron_aux counts the px gone) and is removed 32
+  frames later. No sprite room: he goes at once (as before, without the puff). Level clear waits for him to be gone.
+- Forced drops pick an EDGE patron last; one partly off screen cannot drop: an entering one is taken back (spawned again
+  later), a leaving one goes. An entering one wholly on screen (x 0-15) drops like anyone (render.c no longer clips
+  columns 0-1). LCDC bit 0 / OAM priority are no longer used by the patrons.
+- Saloon keg: 20 px tall (rows 4-23 of the bar, was 8-23): rim moved up 4 px, 3 more stave rows; spout, pipe and nozzle
+  unchanged (nozzle over SPOUT_X, the fill glass). Previews out/doors/keg_{before,after}.png (CGB left, DMG right).
+- Cost: lift_leave runs the chooser only if he had overlap flags, lift_spawn never; draw_lifted_asm stops after lift_total
+  patrons. Perf (PyBoy, end LY / missed): level 8 script DMG 107 / 0, CGB 111 / 0 (M13c 91 / 101: a served patron is now a
+  sprite for 32 frames and the serve frame lifts him); level 9 overlap DMG 175 / 268, CGB 179 / 299; realistic peak DMG
+  187 / 59, CGB 193 / 99 (strict xfail stays); pile DMG 278 / 244, CGB 278 / 245 (same distribution as M13c, guard 290 / 260).
+
+## Patron review decisions (owner, 2026-10-09)
+Review: session scratchpad patron_review/REVIEW.md. Owner approved the redraw order (alien A; wall-contrast palette
+fixes; zoo trio to 3/4 (the 3/4 rule applies to the zoo) and the samurai; own silhouettes for cowboy C and
+lumberjack C; small pixel fixes; outline pass to <= ~45% dark). Lion: must not read as "a bald man with a shawl";
+no protruding forehead, a mane framing the whole head, ears, a cat muzzle. Eskimos: the lighter re-indexed
+redraw; the third Eskimo gets a beard. Round 6 is proposals first; the owner approves before import.
+Still open: the enhanced-variant engine work (one 4-colour-plus patron per group) and keg recolours outside the saloon.
+Owner (later, same day): keg recolours outside the saloon are OK, to make room for enhanced patrons. All art is done by
+our own agents; the external artist hand-off package is no longer in use.
+
+## M14a as built (enhanced patron variants: engine + the cowgirl)
+- Rule (patron review rec. 7): an ENHANCED variant draws its top tile row with one BG palette and its bottom row with
+  another (holds at every pre-shift: rows never move), and lifted its left 8x16 column with one OBJ palette and its right
+  column with another; every quadrant's colours are in its row palette and its column palette, so lifted == BG pixel for
+  pixel. Columns whose colours sit at other indices in their OBJ palette draw re-indexed copies of their two tiles from
+  CGB VRAM bank 1 (same ids, OAM attribute bit 3). DMG: unchanged (bank-0 tiles, greys by index, BG / OBP1 E4).
+- Slots: row palette S = the venue's bar_b (BG 7: the keg / spout palette where a venue has one; a venue without one
+  gets one). Extra OBJ palette X = palettes.json <group>_x in OBJ 4 (OBJPAL_ENH, was the spare). Title, bonus rounds:
+  nothing uses BG 7 attributes in the saloon or OBJ 4 / VRAM bank-1 tile data; every level load sets them again (tests).
+  | venue | BG 7 | OBJ 4 |
+  |---|---|---|
+  | saloon | bar_b NEW = S of the cowgirl: wall / skin #f0b890 / hair #985830 / dark #2c1808 (no keg uses it: attrs all 0) | cowboys_x rose #d86098 / hair / dark |
+  | the 8 others | their bar_b (keg / spout), unchanged | unused (no enhanced variant yet) |
+  No keg colour changed in M14a (the saloon keg is on the bar palette; no other group is enhanced yet). Keg recolours
+  come with the other groups' picks (owner approved), each shown before / after.
+- Art: '; @rows <a|b|c> <own|S> <own|S>' in assets/art/patrons/<g>.txt and <g>_back.txt marks the enhanced variant and its
+  top / bottom row palettes. tools/gen_art.py enhanced_group validates every variant of every group (each lifted column
+  <= 3 colours, all in one OBJ palette of A / B / C / X; for enhanced frames: a colour in both rows keeps its index, rows
+  light to dark, no index 0 inside the figure; S needs a venue bar_b; cowboys A, the title's patron, cannot be enhanced),
+  refuses art that breaks it with the reason, and writes build/patron_enh.h (tables + bank-1 tiles, src/enhance.c's bank)
+  and build/patron_enh.json (tests); preview out/preview/patrons_<g>_<v>_enhanced_x8.png (shifts 0-7, lifted, back, DMG).
+  palettes2c: PATRON_X_IDS.
+- Engine: src/enhance.c (bank 6) enhance_load(g) at level load (LCD off, after lift_level_init): pat_row[8] / back_row[8]
+  (top [v], bottom [4 + v]), lift_prop[8] (left [v], right [4 + v]), OBJ 4, the bank-1 tiles. render.c stamp_look /
+  stamp_back set cz_pal (top) and cz_palb (bottom); stamp3 / put_col / put_back_col write them per row; stamp_blank uses
+  the own palette for both (colour 0 only). lift.c draw_lifted_asm reads the right entry's attributes from lift_prop[4 + v]
+  (4 instructions). level.c calls enhance_load.
+- Cowgirl (cowboys B) = review mock-up 4.1, re-indexed (skin 1, hair / rose 2, dark 3): cowboys_b is now skin #f0b890 /
+  rose #d86098 / dark #2c1808 (BG 3, bottom row; OBJ 6, right column, bank 0); top row S; left column X from bank 1.
+  Back view: the review's cowgirl_back (top S brown hair, bottom her own palette).
+- Tests: tests/test_enhanced.py (all 8 shifts lifted while swaying == BG, CGB + DMG; zero changed pixels through lift /
+  drop; row attributes front + back; OAM attributes / bank bit CGB, never on DMG; bank-1 tiles and OBJ 4 / BG 7 after the
+  title and after each of the three bonus rounds; validator accepts the cowgirl, rejects a bad quadrant, a column no OBJ
+  palette holds, a shared colour at another index and an index-0 hole). test_lift's per-group M13a equivalence runs for
+  every group (enhanced or not); its OAM check reads the per-column attributes. Note: four BG patrons swaying on one frame
+  make the copy list spill into the next VBlank in one game and not the other (a frame's lag, any variant), so the new
+  test staggers their sway timers.
+- Perf (PyBoy, end LY / missed): level 8 script DMG 107 / 0, CGB 111 / 0 (unchanged); realistic peak DMG 188 / 56, CGB
+  194 / 99 (was 187 / 59, 193 / 99); level 9 overlap DMG 172 / 279, CGB 188 / 294 (was 175 / 268, 179 / 299); pile DMG
+  278 / 244, CGB 279 / 245. ROM0 573 -> 526 free by romusage (render.c per-row attributes, X palette); enhance.c in bank 6.
+
+## Stage animation as built (owner decisions 2026-10-10)
+- Proposal: session scratchpad stage_anim/PROPOSAL.md. Owner: stadium keeps ONE scoreboard, option A1 (a cheering section,
+  four fans A/B/A/B, stage_b) replaces the second board; stadium animates BOTH the scoreboard bulbs (2-phase chase, then a
+  "goal" flash) and the crowd's cheer (the two fan tiles swap), on alternating cycles (bulbs 192 frames, cheer 96). Lodge
+  log fire (always moving), bistro oven flame, igloo aurora, factory gear, teahouse lanterns, space porthole, zoo
+  parrot as proposed. Saloon: no animation (neon S rejected); adding `saloon_anim.txt` later is a data-only change.
+- Source: assets/approved/venues/<t>_anim.txt (optional per venue): `!slots c,r ...` (every animated map position),
+  `!script name:hold ...` (looped, holds 6..255 frames), `@name` frames of 8 rows, one 8-px column per distinct slot
+  tile. tools/gen_art.py stage_anim() checks @base == the stage at the slots, no static position repeats an animated
+  tile, every frame used, <= 6 animated tiles, <= 4 tiles changed per step, the stage still <= 20 tiles; it gives the
+  animated tiles their own ids, LAST and contiguous (static 0..s-1, animated s..s+k-1), and compiles each step to
+  (frame * k, lo, hi, hold): the tile range that differs from the previous step's frame (step 0 also vs the stage).
+  Output: venue_t gains anim_frames / anim_script / sizes / anim_first / anim_k; art.h SA_BUF (400, sports: 5 frames x 5
+  tiles) and SA_SCRIPT (108); venues.json "anim"; preview out/preview/venue_<t>_anim_x3.gif.
+- Engine (src/venue.c, banked): stage_anim_start() from init_scene (LCD off, every level screen) far_copies the frames
+  and script into WRAM (sa_frames, the drain runs from the VBlank interrupt with any bank mapped) and starts at step 0;
+  vq_reset() (every screen change: title, bonus, scores, level load) clears sa_on, so the title's text tiles over stage
+  ids 0.. and the bonus rounds are never touched. main.c, once per frame unless PAUSED: `sa_on > sa_hold && !--sa_timer`
+  -> stage_anim_step() (banked): the new step's tile range is merged with a still-pending one (copied from the new
+  frame), so a late update is never lost or queued twice. render.c queue_stage (ROM0): one queue entry of <= 2 tiles
+  (32 B, cost n + 3 = 35 units) from sa_frames to 0x9000 + 16 * id; a 3-tile change goes out over 2 frames. Priority:
+  urgent spans first; with nothing else pending it always goes; else after the bars if qv_cost + 35 <= VQ_BUDGET, else
+  sa_wait++; after SA_MAX_WAIT (3) refusals it goes before the quick redraws and bars. Nothing in vq_vbl / vq_exec changed.
+- `sa_hold` (WRAM): tests freeze the stage on its current frame. conftest's boot fixture (and test_lift's boot_play) set
+  it, so every existing golden keeps the stage's frame 0; tests/test_stage_anim.py turns it off. test_perf runs with the
+  animation ON.
+- ROM0: the debug level select's box (debug_open / debug_step / debug_show) moved to src/debug.c (bank 255) to make room;
+  debug_watch stays in main.c. romusage ROM0 526 -> 503 "free" (romusage overstates ROM0 by ~380 B: the real margin is
+  ~120 B; a build at 341 by romusage overflowed into bank 1). Bank 6 1316 -> 3781 used (autobank moved files around).
+- Goldens replaced (stadium art: one scoreboard, crowd in the second one's place, owner request): venue_sports, level2,
+  patrons_sports (dmg + cgb); each differs only at x 88-119, y 16-31. New: stage_anim_<venue> (8 venues x 2 models).
+- Tests: tests/test_stage_anim.py: gen_art invariants; per venue 2 script periods (max 1100 frames) in play: only the
+  animated ids change, each tile always matches the script within SA_MAX_WAIT + 3 frames, every frame shows, tilemap and
+  attributes unchanged, no late drain; sa_hold freezes and releases; the saloon never animates (sa_on 0); pause freezes;
+  bonus round: sa_on 0 and stage ids unchanged, the next level starts on frame 0; title text untouched; one scoreboard.
+- Perf (PyBoy, test_perf, end LY / missed, before -> after): level 8 script DMG 107 / 0 -> 108 / 0, CGB 111 / 0 -> 115 / 0;
+  level 9 overlap DMG 172 / 279 -> 182 / 284, CGB 188 / 294 -> 189 / 293; realistic peak DMG 188 / 56 -> 191 / 69, CGB
+  194 / 99 -> 194 / 127. The realistic peak is chaotic (frame timing feeds back into lifts and redraws): over 6 RNG seeds
+  the mean missed frames are DMG 27.5 base / 30.0 new with sa_hold / 32.3 animating, CGB 40.2 / 43.5 / 46.8 (seed spread
+  CGB 22-81), so the animation costs a few late frames per 1200 at the peak and the fixed-seed jump is mostly noise.
+  Guards unchanged and passing.
+
+## ROM0 cleanup as built (2026-10-10)
+- Measuring ROM0: do NOT trust romusage's ROM_0 "free" column; it overstates ROM0 by ~341 B here (its own accounting of
+  the 0x0000-0x01FF header area and areas differs from the linker). The real margin is 0x4000 minus the end of the last relocatable area the linker
+  places in ROM0 (_CODE from 0x0200, then _HOME, _INITIALIZER, _GSINIT, _GSFINAL) in build/game.map. `make` now prints it
+  (tools/rom0free.py) after romusage, for game.gb and release.gb. Cross-checked by padding: a ROM0 const array of exactly
+  the reported size links clean, one byte more gives the linker's "Possible overflow from Bank 0 into Bank 1". That is only
+  a WARNING (the ROM is built, bank 1 silently corrupted: the 44b9bed overflow); the Makefile now fails the build on it.
+- Real ROM0 free: 162 B before (romusage said 503), 1827 B after (romusage 2168); release.gb 1939 B.
+- Moved: build/palettes.c is `#pragma bank 255` (autobanked); its table and patron_pal_ids are static and read only
+  through the BANKED pal_get(id, dst) / patron_pal_get(g, v, dst) in the same file, which copy one palette into a WRAM
+  buffer (tools/palettes2c.py generates them). Callers (main_cold, level, lift, enhance, title, bonus2) use those; the
+  per-frame slot-5 switch in render.c reads `coin_pal` (WRAM, copied at boot) instead of the table. New palettes cost
+  ROM0 nothing. src/main_cold.c (bank 255): boot_init (was main.c init), load_cgb_palettes, win_init, draw_hud,
+  init_scene, glyph_for, reset_actors, enter_level_screen, start_new_game, resume_after_life, enter_game_over,
+  enter_level_clear. Declared BANKED in game.h. Stays in ROM0 (main.c): the far-copy helpers (they switch banks), lcd_isr
+  (LCD interrupt), show_overlay (callers pass strings from their own bank) + hide_banner_sprites (per frame with a
+  banner), prep_hud / add_score / lose_life (mid-frame), the frame loop. enter_game_over passes the "AAA" initials to
+  top_insert (another bank) from the stack, not as a literal. Banked code must never pass a pointer to its own ROM data
+  to a function in another switchable bank.
+- Not moved (hot or bank-switching): render.c, patrons.c, mugs.c, build/patron_load.c, musicload.c; write_all_bars shares
+  render.c's static compose code. Bank 6 holds main_cold (now 4456 used); banks 1, 4, 5 are near full after autobanking.
+- Perf (PyBoy, scratchpad perf.py = test_perf scenarios; end LY / missed, before = after, identical to the frame):
+  level 8 script DMG 108 / 0, CGB 115 / 0; level 9 overlap DMG 182 / 284, CGB 189 / 293; realistic peak DMG 191 / 69,
+  CGB 194 / 127; realistic peak over 7 RNG seeds, mean missed DMG 70.1 / 70.1, CGB 95.4 / 95.4.
+- Goldens: none changed.
+
+## Patron round 7 decisions (owner, 2026-10-10)
+
+Proposals in scratchpad patron_round7 (round 6 is the base). Import waits until every patron is approved: one big
+graphics overhaul. Picks: lion face L2 (broad muzzle); cowboy C thin-brim hat with face F2 (jaw beard + moustache);
+lumberjack C face G3 (default); Eskimo ruff dots tan; Eskimo A sky-blue parka; Eskimo C olive parka; headband fan
+ponytail option. Alien A and the darker-than-45% patrons stay as they are. Enhanced (round 8b, owner 2026-10-10): robot A as
+drawn; lumberjack A axe, chef C towel, geisha pins as props only on the round-7 look; headband fan gets an accessory;
+no enhanced Eskimo, referee, alien or panda (their kegs stay). Then the import. Saloon stage: no neon; owner picked the ginger bar cat (scratchpad saloon_cat/B_ginger: tail
+swings over the stage lip, blink, ear flick; curtains become one repeated fold tile; stage_b colour 0 -> #f09848),
+imported with the graphics overhaul. Story mode and portraits on hold until the owner reviews
+docs/story.md. Music mix on hold. No speed milestone unless the owner sees slowdown.
+
+## Graphics overhaul as built (2026-10-10)
+Owner-approved import of the final patron set, the tile-pool change it needed and the saloon bar cat. Three commits:
+- Venue tile pool, option A (owner approved; its own commit, zero golden changes): BG ids 0-35 are one pool per venue.
+  The stage takes ids from 0 up (animated tiles last and contiguous, as before); the bar + floor pack at the top of the
+  pool, venue.bar_base = 36 - bar_n .. 35, so bar ids never fall in 0-19, which the title's menu text overwrites while it
+  shows the saloon's bar. gen_art fails a venue with stage_n + bar_n > 36 or bar_base < 20 (TITLE_TEXT_SLOT). Every bar
+  uses 12 tiles today, so a stage may use up to 24. tools/gen_art.py VENUE_POOL / TITLE_TEXT_SLOT replace STAGE_SLOT /
+  BAR_SLOT; venue_t gains bar_base; load_venue loads the bar at venue.bar_base; art.h VENUE_POOL, TITLE_TEXT_SLOT
+  (TILE_BAR_BASE, STAGE_TILE_SLOT, BAR_TILE_SLOT removed; TILE_GENERIC_BASE still 36); venues.json "pool",
+  "title_text_slot", per venue "bar_base". render.c's bar maps already held absolute ids. Tests: test_venues (pool
+  layout, bar ids at the top and >= 20: the title-safety assert), bar VRAM at bar_base (test_venues, test_bonus),
+  test_bartender, test_stage_anim reads the whole pool (0-35).
+- Patrons (scratchpad patron_round8/r8b/final/assets, the drop-in set): all nine groups' fronts and backs (round 6
+  redraws / outline pass, the round 7 owner picks), palettes.json, factory_pal.json. Diffed against the repo first: the
+  repo's assets had not changed since the proposal's base (94c39cd) and the other 8 venue palettes were identical, so
+  nothing newer was reverted and no hand merge was needed. Enhanced set: the cowgirl (unchanged) and robot A (hazard
+  stripes on the left arm, top row own / bottom row S, robots_x in OBJ 4, no bank-1 tiles). The factory keg is steel
+  (bar_b #f8d848 / #7888a0 / #101828; the old yellow / blue under _was); no other keg changed. Lumberjack A axe, chef C
+  towel, geisha pins and the headband fan's accessory were not done (the quadrant rule would change faces; r8b
+  CHANGES.md part 2). test_enhanced: "only the cowboys are enhanced" became test_the_enhanced_set_is_the_cowgirl_and_robot_a,
+  plus r8b's generalised lift tests for every enhanced variant other than the cowgirl (who keeps her own).
+- Saloon bar cat (owner pick B_ginger): saloon_anim.txt (tail swing over the stage lip, blink, ear flick; slots (14,1)
+  (13,3), 7 frames, 392-frame loop), saloon_attr.txt (the cat's 4 tiles on stage_b), saloon_pal.json (stage_b colour 0
+  -> #f09848, the ginger coat; 1-3 = stage_a's). With option A the curtains keep their ORIGINAL four tiles (cols 0, 1,
+  18, 19, rows 0-2), not B_ginger's single repeated fold: the saloon stage is 23 tiles (21 static + 2 animated), the bar
+  12 at 24-35. test_stage_anim: the saloon joined the animated set; test_the_saloon_does_not_animate became
+  test_the_saloon_bar_cat (slots, stage_b attributes, own colour 0, four different curtain tiles, <= 24 tiles, level 1
+  animates). New golden stage_anim_saloon.
+- Goldens replaced, every one viewed (old vs new sheets): patron commit (dmg + cgb, differences only in the bar rows
+  y 40-135, the factory also in the keg): patrons, patrons_<9 groups>, venue_<9>, stage_anim_<8 animated before>, show,
+  show_backs, title, title_anim, level2, gameover, loop_banner, bonus_after. Cat commit (dmg + cgb, differences only
+  at x 106-119, y 17-38, the cat and its tail): drinking, filling, gameover, loop_banner, mug_sliding, patrons,
+  patrons_cowboys, pause, scene, served, show, show_backs, spout_fill, stage, venue_saloon, walking; new
+  stage_anim_saloon. Option A commit: none.
+- ROM: real ROM0 free 1827 B (game.gb) / 1939 B (release.gb), unchanged. Banks after: 1 51, 2 93, 3 155, 4 236, 5 383
+  free (romusage; bank 5 was 45, autobank moved data), 6 11123 free. WRAM unchanged (SA_BUF still 400: the saloon's
+  frames are 224 B).
+- Perf (PyBoy, scratchpad perf.py; end LY / missed): level 8 script DMG 108 / 0, CGB 115 / 0; level 9 overlap DMG
+  182 / 284, CGB 189 / 293; realistic peak DMG 191 / 69, CGB 194 / 127; over 7 seeds mean missed DMG 70.1, CGB 95.4.
+  Identical to the ROM0 cleanup numbers.
+
+## Crash at the drink's scale as built (owner pick option 1, 2026-10-10)
+- Owner: the crashing mug was too wide next to the sliding one. Each venue's breaking drink is now generated by
+  tools/gen_art.py crash_frames() from its own <t>_drink.txt: tip = frame 8 (the drinking pose, 8x16), fall = frame 1
+  (full, left end, OBJ 1, four drops) or frame 2 (empty, right end, OBJ 2, drawn mirrored with S_FLIPX) turned 90
+  degrees (16x16, 2 entries), then the shared assets/art/glass_shards.txt (shatter, settle; '+' = the drink's colour).
+  assets/art/glass.txt retired. 16 tiles appended to each venue_<t>_drink (36), loaded by load_venue at the same
+  OBJ 60-75 (GLASS_TIP/FALL_FULL/FALL_EMPTY/SHATTER/SETTLE ids in art.h); main_cold no longer loads glass tiles.
+  DMG: lift_level_init plane-swaps OBJ 60-75 in place, so the crash shades match the sliding drinks on OBP0 (the old
+  "shards light/white swapped" compromise is gone; OBJPAL_GLASS / spr_glass_p removed). A breaking glass still
+  reserves 2 OAM entries (the second hidden on 1-entry frames). Any new drink gets its crash for free.
+- Tests: test_venues checks every venue's crash tiles in VRAM (plane-swapped on DMG); new test_crash_golden (fall
+  frame, both ends) with new goldens crash_saloon, crash_factory (dmg + cgb). No existing golden changed.
+- ROM: real ROM0 free 1827 -> 1757 B (game.gb), release.gb 1869 B; +256 B per venue bank. Banks free (romusage):
+  1 51, 2 105, 3 155, 4 14, 5 199, 6 9457.
+- Perf (scratchpad perf.py): level 8 DMG 108 / 0, CGB 115 / 0; level 9 DMG 182 / 284, CGB 189 / 293; realistic peak
+  7-seed mean missed DMG 70.3, CGB 95.1 (was 70.1 / 95.4): unchanged within noise.
+
+## Factory battery as built (owner pick variant A, AA cell + charging station, 2026-10-10)
+- Drop-ins from scratchpad factory_battery/A_aa: factory_drink.txt (AA cell 6x15: charging lights 4 lime bars bottom
+  up; empty = dark body, one red bar; frames 7-8 sideways, nub at the robot's face), factory_drink_pal.json (full lime
+  #a0f860 / copper #e08828 / dark #181410; empty red #f85838 / grey #a0a8b0 / dark #201c20), factory_bar.txt +
+  factory_bar_attr.txt (the keg becomes a charging station at cols 18-19, BG 7 = bar_b only: bolt screen, lamps; a
+  plug on col 17 row 0; col 17 row 1 plain wall). factory_pal.json kept as main has it (the drop-in differed only in
+  its _note). Diffed against main first: the bar art had not changed since the proposal's base; with the option-A pool
+  the factory is stage 16 + bar 12 = 28 <= 36, bar_base 24.
+- With the generated crash the battery crashes as a battery (tip = the sideways cell, fall = the cell on its side).
+  The empty battery's crash at the right end is dark on the dark station (reads, but low contrast).
+- Goldens replaced (dmg + cgb, all differences in the bar rows y 40-127): venue_factory, stage_anim_factory,
+  patrons_robots (the station replaces the keg; venue_factory also the sliding battery), crash_factory (the crash is
+  now a battery).
+- ROM / perf: identical to the crash commit (ROM0 1757 B free, release 1869 B; drink data only changes in the factory
+  bank).
+
+## M11b story engine as built (part 1, 2026-10-10)
+The story mode of docs/story.md: script pipeline, story font, cut-scenes, chapter goals, save / continue. The optional
+per-chapter twists are part 2 (hook below). Portraits and pictures are placeholders until the M11c art study.
+- Script pipeline: tools/gen_story.py parses docs/story.md (scene headings, the script blocks, the chapters table) into
+  build/story_data.c (script, scene table, names, goals, story font, picture slots) and build/story_portraits.c, both
+  `#pragma bank 255` with static data read only through BANKED accessors in the same file (copy into WRAM, or write VRAM
+  with the LCD off), plus build/story.h (SC_* scene ids, ST_* font ids, the budget, portrait_t / scene_hdr_t / goal_t)
+  and build/story.json (tests). The build fails on: a line over 18 characters, more than 3 lines a page, a character
+  outside A-Z 0-9 . , ! ? ' - : space, an unknown speaker, a scene title over 20, scene order, a chapter goal in
+  gen_story's CHAPTERS that disagrees with the table's engine column, a goal banner line outside the HUD glyphs, any
+  portrait / scene over the budget below. Size: 21 scenes, 123 pages, 5451 characters = 5943 B of script (length-
+  prefixed lines, speaker byte per page) + 609 B scene table / scene titles + 450 B goals; uncompressed (ROM is not
+  short: compression was not needed).
+- Font: the HUD glyphs are the font (A-Z 0-9, space = TILE_HUD_BLANK, light text on the dark band, BG palette 1). The 7
+  missing glyphs (. , ! ? ' - :) are assets/tiles/story.txt in the same style (1 px strokes, columns 1-5, rows 1-7), with
+  the portrait frame (8 tiles, a gold moulding) and the narrator's spigot icon: 16 tiles loaded at BAR_TILE_COUNT (77)
+  only while a cut-scene shows (ids the patrons use in play; every level load puts the patrons back).
+- Cut-scene ("hybrid lighter"): load_venue + draw_venue + write_all_bars with nobody on the bars, the scene title on the
+  HUD row, the Spigoteer's normal sprite (OAM 0-3, BT_IDLE, facing the bar) at bar 1's tap, the stage animation running;
+  a framed portrait (default: picture at column 2, frame bottom on row 12); the text box rows 13-17: the top panel
+  carries the speaker's name (the narrator: the spigot icon), 3 lines x 18 at columns 1-18 of rows 14-16, bottom panel.
+  INTRO / FINALE / CREDITS: a picture slot (rows 0-12, its own tiles at ids 0..35, palettes 0/5-7 free there; now a
+  generated placeholder card: frame, spigot, the scene title, its id, "PICTURE SLOT") instead of the venue, no sprite.
+  Buttons: the page types on, one character a frame (spaces free); A or B shows the rest of the page at once, then the
+  next page; START skips the rest of the scene. Music: the venue's tune (the title tune on picture scenes).
+- Portrait slot parameters (build time, assets/story/portraits.json -> portrait_t; nothing hard-coded in src/story.c):
+  size w x h tiles up to 7x7 (56x56), the picture's screen tile x, y (the frame takes one tile around it, all inside
+  rows 0-12), 1-3 CGB BG palettes (slots 2, 3, 4) with a per-tile palette map ('attr'), an optional OBJ overlay layer
+  (8x16 cells, '.' transparent, px offset from the picture, up to 16 entries, at most 8 on a line, CGB OBJ palettes
+  3, 4, 6, 7 = up to 4, DMG OBP0/OBP1). The two approved 32x32 portraits (Spigoteer, Sadie) use one palette each; the
+  other nine speakers get generated placeholders: a hatched 32x32 background with a silhouette and a rim light (one
+  tinted palette each) and the speaker's name as a 4-sprite OBJ overlay tag (so the overlay path is exercised;
+  MANAGER-BOT shows MGR-BOT). out/preview/story_portrait_*.png.
+- Cut-scene budget (a venue backdrop on screen):
+  BG tile ids: 0-35 the venue pool (stage + bar), 36-76 HUD glyphs / panels, 77-92 the story font, 93-255 free for the
+  scene's portraits = 163 tiles for all its portrait speakers together (at most 3 per scene: every scene's speakers are
+  loaded when it starts, LCD off). 3 x 49 (three 56x56) = 147 fits; today's scenes use at most 33. BG 128-255 share VRAM
+  with OBJ 128-255, but a cut-scene's OBJ ids all stay below 128. CGB VRAM bank 1 is untouched (another 384 tiles: room
+  for richer portraits / pictures).
+  OBJ tile ids: 0-55 the Spigoteer, 56-95 drinks / coin (unused on a cut-scene, not reclaimed), 96-127 = 32 tiles for the
+  scene's overlays (the show performers' slot; load_venue puts them back).
+  CGB BG palettes: 0 wall / counter, 1 HUD / text box / frame, 5-6 stage, 7 keg stay the venue's: 3 free (2, 3, 4), so a
+  portrait has at most 3 BG palettes; a 4th colour set has to come from the OBJ overlay. CGB OBJ palettes: 0 the
+  Spigoteer; 3, 4, 6, 7 free = up to 4 overlay palettes (1, 2 the drinks could be freed too; 5 stays the coin / show's,
+  render.c tracks it). Picture scenes have BG palettes 0, 5, 6, 7 free as well (4 for the picture).
+  OAM: 0-3 the Spigoteer, 4-19 the overlay; per line at most 8 overlay sprites + the Spigoteer's 2.
+  Speaker change (LCD on): the old frame is wiped back to the backdrop (a WRAM copy of rows 0-12 read with the LCD off),
+  2 rows a frame through the VBlank queue; then at the top of the next frame (VBlank) the new palettes, then the new
+  frame 2 rows a frame (a 56x56 framed portrait: 5 + 5 frames). The text types on meanwhile; the page can only be
+  turned once the swap is done.
+  WRAM: story.c ~1.3 KB (backdrop copy 520 B, portrait struct 227 B, composed frame 162 B, page / box / banner buffers).
+- Story flow (src/story.c, banked; GS_STORY = 11 cut-scene or TRY AGAIN, GS_GOAL = 12): title STORY -> INTRO -> per
+  chapter c: PRE scene -> the venue's level (level = c + 1: the arcade level row c, no loop difficulty, no bonus
+  rounds) with a goal banner first (window rows 0-4: panel, CHAPTER n, two goal lines, panel; LYC moved to BANNER_WY + 38
+  while it shows; 3 s or A / START) -> on success CHAPTER CLEAR (enter_level_clear + its 1000 bonus) -> progress saved ->
+  POST scene -> chapter c + 1. After chapter 9's POST: FINALE, CREDITS, the title.
+  Goals (gen_story CHAPTERS, checked against the chapters table): 1 serve 15; 2 serve 20 and no patron reaches the tap;
+  3 serve 18; 4 serve 20 within 120 s; 5 serve 20 within 120 s; 6 catch 25 empties (a glass taken from a patron counts,
+  it scores as a caught empty); 7 clear the level (the row's quota) with no broken glass; 8 serve 25; 9 serve 30.
+  Serve / catch chapters set quota 255, so patrons keep coming until the goal is met. Counters: `served` (the engine's);
+  catches and breaks are deltas of sfx_count[SFX_CATCH] / sfx_count[SFX_BREAK] (no change to the hot code); a life lost
+  with no glass broken that frame is a patron at the tap. The timer runs only in play, not during the level's intro
+  freeze. HUD in story: columns 12-14 the goal letter (S serve, C catch) and what is left, 16-19 'T' + seconds on timed
+  chapters (over L0n). Main loop hooks (ROM0): story_play() after play_frame when story_on, GS_LEVEL_CLEAR's end calls
+  story_level_done(), GS_STORY / GS_GOAL call story_update(); enter_game_over (banked) calls story_fail() in story mode.
+  Failure (superseded by "Story lives as built"): lives work as in arcade (3 per attempt, lose_life as always); losing the last one, breaking the chapter's
+  rule (2: a patron at the tap, 7: a broken glass: lives forced to 0, the freeze plays out) or the timer running out shows
+  TRY AGAIN (2.5 s or A / START), then the chapter restarts at its goal banner (no PRE scene) with 3 lives. The score
+  carries on through the story and never enters the top 5.
+  Twists hook: goal_t.twist (0 for all nine now) is copied to story_twist at chapter start; part 2 applies it there and in
+  story_play.
+- Save (src/save.c): SRAM version 3 "TPR3" = version 2's table at 4..33, 34 story progress (chapters cleared 0..9), 35
+  reserved 0, checksum 0x5A + bytes 0..35 at 36, complement 37; progress > 9 is invalid. Migration at boot, written back
+  at once: version 2 keeps its table, progress 0 (save_migrated = 2); version 1 as before (SPG, save_migrated = 1). The
+  progress is saved when a chapter's clear is over (before its POST scene). Title: CONTINUE when 1 <= progress <= 8: the
+  menu becomes ARCADE / STORY / CONTINUE / MUSIC at rows 5 / 7 / 9 / 11, HI on row 13 (without a save the title is
+  unchanged: rows 6 / 8 / 10, HI 12). CONTINUE starts at the PRE scene of the first chapter not cleared; STORY always
+  starts over at the INTRO (the save then follows the new run). A finished story (progress 9) shows no CONTINUE.
+  "CONTINUE" took the place of "COMING SOON" in gen_art's MENU_STRINGS (the M10a message is gone).
+- Story text (owner change, factory battery): chapter 6 goal "Recycle 25 batteries" (twist: full batteries), PRE_ROBOT
+  picture / art list: a big lightning-bolt sign, page 4: MY WORKERS NEED / POWER. RECYCLE 25 / EMPTY BATTERIES.
+- ROM: 128 KB (banks 0-7; -Wm-yoA sizes it, no flag change). Autobank packs the story data + portraits into bank 1,
+  story.c next to title.c in bank 2, main_cold moved to bank 7. Free after (romusage): 1 132, 2 38, 3 15, 4 39, 5 47,
+  6 262, 7 5819 B. Real ROM0 free 1757 -> 1708 B (game.gb), 1869 -> 1821 B (release.gb): the main.c hooks.
+- Perf (scratchpad perf.py, arcade, unchanged): level 8 DMG 108 / 0, CGB 115 / 0; level 9 overlap DMG 182 / 284, CGB
+  189 / 293; realistic peak 7-seed mean missed DMG 70.1, CGB 95.0.
+- Tests: tests/test_story.py (script build: lengths, charset, speakers, the md table, failing builds; the budget; the
+  intro from the title; typing, A / B / START; the venue scene, portrait and frame; the speaker swap and the narrator's
+  wipe; the goal banner and HUD counter; every chapter's success and failure (and the restart); real catches; the
+  clock; finale / credits / title; save across a reset and CONTINUE; v2 -> v3 migration, v3 loading). test_flow:
+  the COMING SOON test became test_story_starts_the_story_mode; test_scores / test_sound read version 3.
+  New goldens (dmg + cgb): story_portrait (PRE_SALOON, Sadie), story_placeholder (POST_SALOON, Dregs with its
+  overlay tag), story_narrator (INTRO, the picture slot), story_goal (chapter 1's banner), title_continue. No existing
+  golden changed.
+
+## Story shifts as built (M11d, owner-approved, 2026-10-10)
+Each chapter plays its venue several times in a row, as shifts with rising difficulty and their own arrival patterns.
+- Chapter flow: PRE scene -> Opening shift -> Happy hour -> [mini-game slot] -> Last call -> [boss slot] -> POST scene.
+  The sequence is data (tools/gen_story.py SEQUENCE -> build/story_data.c st_seq, 5 steps per chapter, one byte each:
+  kind << 4 | index, kinds SHIFT 0 / MINI 1 / BOSS 2; STEP_SKIP 0x80 = not built yet, from gen_story's NOT_BUILT). The
+  engine (src/story.c next_step) passes over a skipped step. Adding the mini-games / bosses = their mode in story.c
+  step_start (dispatch on the step's kind; today every playable step is a shift) + taking the kind out of NOT_BUILT.
+- Shift goals (gen_story SHIFTS: Opening and Last call per chapter; the Happy hour is the CHAPTERS row, unchanged):
+  goal_t (52 B, one per chapter x shift = 27, 1404 B) = type, count, flags, secs, twist, pattern, walk %, spawn %,
+  quota (G_CLEAR: patrons in the shift, 0 the row's), pad, two banner lines. Validated at build time (check_shifts):
+  banner lines <= 20 in the HUD glyphs, "CHAPTER n " + the shift's name <= 20, counts 1-99 (two HUD digits), walk
+  70-130 %, spawn 70-150 %, Opening slower (walk < 100 < spawn) at 40-60 % of the Happy hour's goal size, Last call
+  faster (walk > 100 > spawn) with a goal no smaller and its own pattern, the nine Last call patterns all different,
+  every shift the chapter's kind of goal (type + flags), a timed goal that enough patrons reach in time (the row's
+  start patrons + spawns in the timer >= 1.3 x the goal; the rows parsed from src/level.c), every pattern within
+  0.9-1.15 patrons per interval. docs/story.md has a "Shifts" table (in-world / engine per shift, the Last call's
+  arrivals); gen_story fails when an engine cell or a pattern disagrees with the data.
+
+  | # | Opening (walk 85 %, spawn 115 %) | Happy hour (row) | Last call | walk / spawn | arrivals |
+  |---|---|---|---|---|---|
+  | 1 | serve 8 | serve 15 | serve 18 | 110 / 90 | stairs down 1, 2, 3, 4 |
+  | 2 | serve 10, none at the tap | serve 20, none at the tap | serve 22, none at the tap | 105 / 95 | all bars at once (4 x 12 frames, then 4 I) |
+  | 3 | serve 9 | serve 18 | serve 20 | 115 / 85 | flood bar 2 (2, 1, 2, 3, 2, 4) |
+  | 4 | serve 10 in 75 s | serve 20 in 120 s | serve 22 in 120 s | 115 / 85 | pairs (1+3, 2 I, 2+4, 2 I) |
+  | 5 | serve 10 in 75 s | serve 20 in 120 s | serve 22 in 120 s | 115 / 85 | zigzag 1, 3, 2, 4, 3, 1, 4, 2 |
+  | 6 | catch 12 | catch 25 | catch 28 | 115 / 85 | stairs up 4, 3, 2, 1 |
+  | 7 | 7 guests, no break | the row's 13, no break | 15 guests, no break | 115 / 85 | flood bar 4 (4, 1, 4, 2, 4, 3) |
+  | 8 | serve 12 | serve 25 | serve 28 | 120 / 80 | inside out (2+3, 2 I, 1+4, 2 I) |
+  | 9 | serve 15 | serve 30 | serve 32 | 120 / 80 | stampede (1-4 at once, 4 I, 4-1 at once, 4 I) |
+
+  (Bars numbered 1 top .. 4 bottom here; 0-3 in the data.) The Happy hour keeps the row's speeds and normal arrivals.
+- Pace (story.c shift_pace, after enter_level_screen): patron_speed x walk / 100, hurry_speed re-derived (1.5x, from
+  level 3 as in level.c), spawn_interval x spawn / 100 (and spawn_timer), a clear goal's quota. resume_after_life keeps
+  them (it does not reload the row).
+- Arrival patterns (patrons.c try_spawn / update_patrons, ROM0): pat_len 0 = today's random bar every spawn_interval
+  (the arcade's RNG sequence is unchanged); else the next patron goes to pat_bar, and after each spawn the BANKED
+  pat_done() (story.c) moves the pattern on, sets the next pat_bar and returns the entry's wait (code n the interval
+  I, s PAT_SHORT = 12 frames, d 2 I, b 4 I; pat_wait[4] computed per shift). A blocked spawn (crowded left end, no
+  lift room) retries SPAWN_RETRY later with the same entry, so the order holds. Patterns are data (gen_story
+  PATTERNS: <= 8 entries of bar | wait << 4, read with story_pattern_get into story.c's pat_buf). start_new_game
+  clears pat_len (arcade, debug menu). Per-frame cost: none (only a spawn frame tests pat_len).
+- Banner: the existing 5-row layout; row 1 is now "CHAPTER n " + the shift (OPENING / HAPPY HOUR / LAST CALL, from
+  STORY_SHIFT_NAMES in build/story.h), centred; "CHAPTER 1 OPENING SHIFT" would be 23 characters, so the word SHIFT is
+  left out. A won shift shows SHIFT CLEAR (CHAPTER CLEAR when no playable step is left), with the level bonus.
+- Retry (superseded by "Story lives as built": lives per venue, a venue restart): a failed goal shows TRY AGAIN, then
+  the same shift's banner with 3 lives (no PRE scene, no earlier shift); served / catches / timer start over; the score
+  carries on. The twist hook is per shift now (goal_t.twist -> story_twist
+  at every shift start; 0 everywhere).
+- Save (src/save.c), SRAM version 4 "TPR4": 0-3 magic, 4-33 the top 5 (as v2 / v3), 34 chapters cleared (0-9), 35 the
+  step reached in the next chapter (0-4; must be 0 when 9 chapters are cleared), 36 checksum 0x5A + bytes 0-35, 37 its
+  complement. The progress is saved when a shift's clear is over: (chapter, the next step in the raw sequence, even a
+  skipped slot: when the mini-games ship, such a save resumes at the mini-game), or (chapter + 1, 0) after the last.
+  CONTINUE (title) shows when chapters 1-8 are cleared or a step is reached in chapter 1; it resumes at the first
+  playable step from the one reached (straight to its goal banner), or at the PRE scene when the step is 0. Reached
+  (for a later Practice mode): step s of chapter k when k < chapters cleared, or k == chapters cleared and s <= the step
+  reached. Migration at boot, written back at once: version 3 keeps its table and chapters, step 0 (save_migrated = 3;
+  CONTINUE still opens the PRE scene of the first chapter not cleared); version 2 / 1 as before. Practice best scores
+  are not stored yet: they go in their own block from 0x40 with its own magic and checksum (no version bump, and a bad
+  block loses only the bests); 45 steps x 3 B = 135 B.
+  Superseded by SRAM version 5 "TPR5" (the soundtrack's unlocks at 36-37, checksum at 38): see "Bonus menu and
+  soundtrack as built".
+- Tuning (scratchpad bot.py: a greedy bartender playing each shift through the real inputs, the game deterministic):
+  an instant server (serves walkers as they enter) wins the 24 serve / clear shifts without losing a life (on the
+  factory's catch goal it never gets an empty back: a patron served at the left end leaves); a late server (serves only
+  walkers past x 48, re-plans every 30 frames) wins all 27, loses a life only in chapter 9's Last call; the latest one
+  (x 56) loses no life in any Opening or Happy hour, but loses lives in 5 of the 9 Last calls and fails two (2 and 9).
+  Pressure for the late server, Happy hour -> Last call: busy 58 -> 64 % (ch 1) .. 80 -> 77 % (ch 9), the furthest
+  walker x 76 -> 76 (1), 117 -> 114 (3), 94 -> 119 (4), 98 -> 119 (5), 95 -> 119 (6), 97 -> 117 (7), 110 -> 119 (9).
+  Chapter 2's Last call was 110 / 90 at first: the x 48 server failed it in 24 s (a burst of four plus the no-tap rule),
+  so it plays at 105 / 95.
+- ROM: real ROM0 free 1708 -> 1671 B (game.gb), 1821 -> 1784 B (release.gb): 37 B for the pattern test in try_spawn and
+  the pat_done call (the first version kept the pattern in ROM0: 87 B). Banks after (romusage): 1 97, 2 50, 3 45, 4 54,
+  5 47, 6 121, 7 4102 B free.
+- Perf (scratchpad perf.py, PyBoy; end LY / missed): arcade unchanged to the frame, old = new: level 8 script DMG 108 / 0,
+  CGB 115 / 0; realistic peak (1200 frames) DMG 168 / 43, CGB 176 / 49. Story with the x 48 bot: chapter 9 Happy hour
+  DMG 170 / 3, CGB 177 / 3 (4000 frames); its Last call DMG 159 / 7, CGB 168 / 17 (1720 frames): no higher peak, a few
+  more missed frames from the burstier crowds (fewer per frame than the arcade's realistic peak).
+- Tests (tests/test_story.py): the shift data (half / as written / harder, nine patterns, the sequence with its skipped
+  slots); failing builds (a shifts-table mismatch, a last call not harder, shared patterns, a timer too short); the
+  opening banner and HUD (golden story_goal); a Last call banner (new golden story_last_call, chapter 9); every chapter
+  plays Opening -> Happy hour -> Last call -> POST with each banner, goal, quota, timer, interval, pattern and walking
+  speed, SHIFT CLEAR / CHAPTER CLEAR, the save after each shift; a failed Last call (every chapter) and a failed Opening
+  retry only that shift; every Last call's pattern spawns its bars in order with its waits; CONTINUE at a shift after a
+  reset, from the mini-game slot (to the Last call), after a cleared chapter (golden title_continue unchanged); STORY
+  starts over from the INTRO; v2 -> v4, v3 -> v4 (CONTINUE at the PRE scene), v4 loading and rejecting a bad step.
+  test_scores / test_sound read version 4 (v4_image, parse_save). Golden changed on purpose: story_goal (dmg + cgb),
+  the banner now says CHAPTER 1 OPENING and the opening's goal SERVE 8 COWBOYS (HUD S08).
+
+## Story portraits as built (approved style S3, 2026-10-10)
+The owner approved the portrait study's style S3: 56x56 busts (7x7 tiles), up to 3 CGB BG palettes, an optional 1-OBJ
+accent. The final cast is imported pixel-exact: all 11 speakers and two variants (13 portraits); no placeholders left.
+- Sources: assets/story/portraits/<name>.txt, the approved final set (portraits/final/src/portrait_<name>.txt) byte for
+  byte: spigoteer, spigoteer_cozy, sadie, dregs, dregs_sorry, managerbot, coach, june, colby, aurora, hana, zizz, kiki.
+  Spigoteer, Sadie and Manager-Bot were already in the game and are unchanged (identical files). dregs.txt is now the
+  "sheepish" drawing (owner's choice for his main portrait; it replaced the round 3b Dregs). Owner's final picks
+  (re-imported): Aurora's snorkel parka + scarf, Colby's neckerchief, Dregs's slimmer shoulders, the sorry Dregs's arm
+  connected; Coach, June, Hana and Kiki enlarged to the cast's scale with skin shading, Kiki's textured helmet and hair
+  edge. Format: portrait-v2
+  (docs/story.md "Portraits": `@size`, `@maxpal`, `@key` = char, DMG shade, #rrggbb, name, optional `obj=<base>`; then
+  the pixels). assets/story/portraits.json points every speaker at his art with x 2, y 6.
+- Variants (data, not scene checks): portraits.json `"variants": {NAME: {art, from, to}}` on a speaker; `from` / `to` are
+  'SCENE' or 'SCENE:page' (pages from 1, inclusive, script order; no `to`: the end of the game). gen_story
+  assign_portraits resolves each page's portrait id; the build fails on a range naming no scene / page, a given page
+  that is not the speaker's, two variants on one page, a variant no page uses. As built:
+  SPIGOTEER COZY from PRE_IGLOO:3 (his "IT'S... VERY COZY." right after Aurora knits it on page 2) to the end: every
+  Spigoteer page of PRE_IGLOO .. FINALE (he has no CREDITS page). DREGS SORRY FINALE:4 .. FINALE:4, his apology "SORRY I
+  BROKE IT." (his only FINALE page, so "the apology" and "all his FINALE pages" are the same page).
+- Portrait ids: a speaker's index = his main portrait; variants after the speakers (12 SPIGOTEER COZY, 13 DREGS SORRY;
+  11 NARRATOR has none). The script stores the portrait id per page (no extra byte); story_page_get returns the speaker
+  (st_pid_spk, for the name tag) in dst[0] and the portrait id in dst[55]. story.c: story_pid (the page's portrait),
+  story_cur = the portrait id on screen; a page whose portrait differs (another speaker or the same speaker's variant)
+  swaps. Scene headers list portrait ids (at most 3 a scene: a variant is one more).
+- Placeholders removed: gen_story's placeholder() / FONT3 / "tint" and the old repo-format art path (palettes / attr /
+  overlay in the json) are gone; a speaker without portrait-v2 art fails the build ("no art for X"), so do the old keys.
+  The INTRO / FINALE / CREDITS picture-slot placeholders are a different thing and stay.
+- Converter (tools/gen_story.py parse_v2 / read_v2): the DMG shade of each key is its BG colour index (one tile set for
+  both models); per tile the shade -> colour map, packed into the fewest CGB palettes by an exact search; the obj= keys
+  become a CGB-only overlay (colours 1-3 of one OBJ palette, greedy 8x16 cells). The build fails on two colours on one
+  shade in a tile, more palettes than @maxpal / 3, more than 3 overlay colours, more than 44 unique tiles (new).
+- Engine (src/story.c, banked; ROM0 untouched): a picture whose bottom row is 12 stands on the text box: the frame has
+  no bottom row, so it is cols 1-9, rows 5-12 and the wipe / swap covers those 8 rows. CGB BG palettes 2-4.
+- Budget (build/story.json; scene_budget fails the build on any overflow): unique tiles (exact, no flips) Spigoteer 42,
+  cozy 42, Sadie 44, Dregs 34, sorry 38, Coach 38, June 38, Colby 37, Aurora 42, Manager-Bot 37, Hana 39, Zizz 35, Kiki 38
+  (<= 44); 3 CGB BG palettes each (Zizz 2). Per scene (all its portraits loaded at its start, then swapped by tile map)
+  at most 124 BG tiles of the 163 free (ids 93-255): FINALE (Sadie 44 + sorry Dregs 38 + cozy Spigoteer 42); next
+  POST_SALOON 120, POST_IGLOO 118, POST_TEAHOUSE 115; a PRE scene 77-86. OBJ: Sadie's star only (2 OBJ tiles). 27 different direct swaps in
+  the script (no narrator between).
+- ROM: real ROM0 free 1641 -> 1641 B (game.gb), 1754 -> 1754 B (release.gb). The ROM grew from 128 KB to 256 KB
+  (-Wm-yoA: 9 banks used, bank 8 new); autobank repacked: banks free after (game.gb, romusage) 1 137, 2 116, 3 15,
+  4 159, 5 47, 6 40, 7 112, 8 14304 B (before: 1 93, 2 195, 3 116, 4 51, 5 68, 6 187, 7 2006). The portraits
+  (story_portraits.c) are in bank 1.
+- Tests (tests/test_story.py): test_every_page_shows_its_portrait walks every page of INTRO, all PRE / POST scenes and
+  the FINALE on DMG and CGB (a POST scene: the Opening won as the chapter's last step): each page's portrait pixel for
+  pixel from its source (DMG shade / CGB RGB15 colour, so the palettes in force), its frame on the box, its tile map the
+  scene's own copy (nothing of the previous portrait left), the name tag, the overlay count; a narrator page wipes the
+  frame back to the backdrop (the venue, or the picture slot); the swaps seen are every direct pair of those scenes (27
+  in all). Also: the variant rules from the script, bad variant ranges fail, no art fails, the scene budget fails at one
+  tile less than the busiest scene, the converter round trip for all 13.
+  Goldens: story_placeholder (POST_SALOON page 3, Dregs) is renamed story_dregs and changed: Dregs's portrait replaced
+  by the owner's choice (the sheepish drawing). New: story_aurora (PRE_IGLOO p1), story_spigoteer_cozy (PRE_IGLOO p3),
+  story_zizz (PRE_SPACE p3), story_dregs_sorry (FINALE p4). story_portrait, story_spigoteer, story_managerbot,
+  story_narrator unchanged.
+
+## Story lives as built (owner's rule, 2026-10-10)
+The owner's lives rule (docs/minigames_bosses.md section 8) replaces "retry only the failed shift". Arcade is unchanged.
+- Lives: 3 per venue (chapter). story.c venue_start sets them when the chapter's first playable step (Opening) starts;
+  shift_start no longer touches them, so they carry Opening -> Happy hour -> [mini-game] -> Last call -> [boss] and
+  are never refilled between shifts.
+- The last life lost (enter_game_over -> story_fail, as before) shows TRY AGAIN, then the venue restarts at the
+  Opening's goal banner with 3 lives (no PRE scene; story_restarts counts them for tests). The score carries on, as it
+  did on a retry: story scores never enter the top 5, so restoring the venue's start score would buy nothing, and a
+  score that never goes back is easier to read.
+- The clock (chapters 4, 5): the time running out costs a life (story.c's choice; the owner's rule does not cover it)
+  and that shift is played again from its banner with the lives left; when it was the last life, the venue restarts.
+  So a timed shift can no longer be retried for free.
+- Strict rules (chapter 2: a patron at the tap, F_NO_TAP; chapter 7: a broken glass, F_NO_BREAK) no longer fail the
+  shift. story_play sees the life lost that frame (life_lost, plus a break that frame or not) and takes a second one
+  (only one when one was left; 0 sets game_over and the venue restarts after the freeze). The cue: show_overlay("2 LIVES
+  LOST") in the banner window over the freeze (resume_after_life now clears overlay_on, so it goes with the freeze), and
+  the lost mugs (story_pen: 2, or 1) blink together, 8 frames on / 8 off, through the 120-frame freeze
+  (story_life_frame, banked, called from main.c's GS_LIFE_LOST case only in story mode; its last frame puts the HUD
+  back). The other way to lose a life in those chapters (a break in 2, a patron at the tap in 7) costs 1 as usual.
+  New golden story_two_lives (chapter 2's Happy hour, the frame the two lost mugs light up).
+- Banners (gen_story SHIFTS / CHAPTERS, docs/story.md tables, every shift of the two chapters): line 2 states the cost,
+  "FAN AT TAP COSTS TWO" (chapter 2) and "BROKEN CUP COSTS TWO" (chapter 7), line 1 keeps the goal (SERVE 10 FANS /
+  SERVE 20 FANS / 22 FANS RUSH IN; SERVE 7 GUESTS / SERVE EVERY GUEST / SERVE 15 GUESTS). The banner has no story font
+  (HUD glyphs only: no '-' or ':'), so "-2 LIVES" could not be written. The tables' engine cells now read "..., a fan
+  at the tap costs 2 lives" / "..., a broken glass costs 2 lives" (gen_story's md-table check follows). Owner-approved
+  script change: COACH's page in PRE_STADIUM is now LET ONE FAN REACH / YOUR TAP AND IT / COSTS TWO LIVES!, HANA's in
+  PRE_TEAHOUSE SERVE WITH CARE. / ONE BROKEN CUP / COSTS TWO LIVES. (POST_TEAHOUSE said NOT ONE CUP BROKEN, which was
+  no longer always true: decided, see "Story page text variants as built".)
+- Gold medal: story_bonus_life() (BANKED, story.c) adds a life up to MAX_LIVES 4 and redraws the HUD; the mini-game
+  framework calls it on a gold medal. Tests call it directly (test_story.call_banked: a stub below SP that calls
+  ___sdcc_bcall_ehl and returns to the interrupted PC).
+- HUD: lives_tiles is 4 tiles at columns 8-11 (render.c queues 4, main_cold draw_lives draws 4). Columns 9-11 are lives
+  1-3 exactly as before; column 8 (blank in every HUD so far, between the score and the mugs) holds the 4th, bonus,
+  mug, which is the first to go. Arcade never has more than 3, so its HUD and every golden are unchanged; the story
+  goal counter keeps columns 12-14. New golden story_bonus_life (4 mugs, chapter 1's Opening).
+- Save / CONTINUE: lives are not saved. Byte 35 keeps its version-4 meaning and values (a step of the chapter not yet
+  cleared, 0-4) but is now the furthest step reached there: story_level_done saves max(reached, the next step) while
+  the chapter is the saved one, so a venue restart and the shifts won again never lower it (Practice unlocks from it).
+  CONTINUE starts the first chapter not cleared over: its Opening banner with 3 lives when a step of it was reached
+  (byte 35 > 0; the PRE scene was seen), else its PRE scene. No SRAM version bump: the bytes, their ranges and the
+  checks are unchanged and a version-3 migration (step 0) still means "the PRE scene"; an old v4 save with a step
+  simply resumes at the venue's start, which is the new rule.
+- Boss engine (not built, for M11e): a boss keeps his damage after a lost life (the meter is not refilled by
+  resume_after_life); only a venue restart (lives 0) starts him over, with the venue. The boss fight uses the venue's
+  lives (no refill on entering it), the gold-medal life included.
+- ROM: real ROM0 free 1671 -> 1641 B (game.gb), 1784 -> 1754 B (release.gb), 30 B: prep_hud's 4th tile, the 4-tile
+  HUD queue and the story_life_frame call in GS_LIFE_LOST. Banks after (romusage, game.gb): 1 93, 2 195, 3 116, 4 51,
+  5 68, 6 187, 7 2006 B free.
+- Tests (tests/test_story.py): lives carry across shifts; the last life lost in every chapter's Last call restarts the
+  venue at its Opening with 3 lives, keeps the step reached (also after winning the Opening again) and the score; three
+  lives lost in the Opening; time up costs a life and retries the shift, the last one the venue; chapters 2 and 7, every
+  shift: the banner line, 2 lives, "2 LIVES LOST", the blink, the shift going on with 1, the next break restarting the
+  venue; the other cause costs 1; story_bonus_life gives 4 (HUD 4 mugs), capped at 4, carried into the next shift, the
+  bonus mug lost first; CONTINUE mid-venue starts at the Opening with 3 lives; CONTINUE from step 2 / 3 keeps the step
+  reached; arcade keeps 3 lives for the run (not refilled at level 2, column 8 empty). to_shift now reaches a shift
+  through CONTINUE (the Opening) and one SHIFT CLEAR. The retry-only-the-shift tests and the CONTINUE-at-a-shift tests
+  were replaced. New goldens story_two_lives and story_bonus_life (dmg + cgb). Golden changed on purpose:
+  story_last_call (dmg + cgb): the banner is the same, but the test now reaches chapter 9's Last call by winning its
+  Opening first (CONTINUE starts the venue over), so the HUD score shows the Opening's 1000 clear bonus and one patron
+  sprite differs (the arrivals moved on).
+
+## Story page text variants as built (owner's decision, 2026-10-10)
+Hana's POST_TEAHOUSE page 1 depends on the teahouse run: NOT ONE CUP / BROKEN. THAT IS / RARE. THANK YOU. when no cup
+broke, SO FEW CUPS / BROKEN. THAT IS / RARE. THANK YOU. otherwise (both fit: no rewrap).
+- Data, not a strcmp: docs/story.md writes a variant as a block "SPEAKER IF CONDITION" right after the page it replaces
+  ("Script format" there). gen_story CONDITIONS names the conditions (ids 1-8; only GLASS_BROKEN = 1 so far); the
+  script stores a variant before its page as portrait id | 0x80, the condition id (one byte), its 3 lines. The page's
+  speaker and portrait stay the page's. Fails the build: an unknown condition, a variant with no page above it or of
+  another speaker, the same text as its page, two variants with one condition on a page (and the usual line checks).
+  build/story.h has COND_GLASS_BROKEN 0x01; build/story.json gives each page its "variants" and the "conditions".
+- Engine (src/story.c, banked): story_conds (1 byte WRAM) holds a bit per condition; story_page_get(s, p, conds, dst)
+  returns the first variant whose bit is set, else the page. GLASS_BROKEN is set in story_play on exactly the strict
+  rule's event (a life lost with a glass broken that frame: the code path that charges chapter 7's two lives; in any
+  shift of any venue) and cleared by venue_start, i.e. the start of every venue attempt: the first entry from its PRE
+  scene, the restart after the last life, CONTINUE. So POST_TEAHOUSE sees the attempt that ended in it.
+- ROM: real ROM0 free 1605 -> 1605 B (game.gb), 1718 -> 1718 B (release.gb). Bank 4 (story.c, story_data.c) 144 -> 24 B
+  free: the script 5947 -> 5994 B (the variant page, 47 B), the rest the variant walk in story_page_get and the flag.
+- Tests (tests/test_story.py): the variant data and docs/story.md agree; six bad variants fail the build; chapter 7
+  cleanly (Opening won, then the venue) -> NOT ONE (new goldens story_hana_not_one, dmg + cgb); a cup broken in the
+  Opening, kept through the Happy hour -> SO FEW (new goldens story_hana_so_few); cups broken in an attempt that lost
+  its last life are forgotten by the restart -> NOT ONE.
+
+## Perfect pour as built (owner Q6, 2026-10-10; art is a PROPOSAL until the owner approves it)
+Part of pouring in every story shift (later every boss; the mini-games are excepted). Arcade is unchanged: none of the
+new code runs there (pour_frame / perfect_catch are called only when story_on, pour_q stays 0), its fill_timer, fill
+frames, scores and VRAM are as before, and no existing golden changed.
+- Window (owner, four rounds: 16..27 "too easy" (opened the moment the drink was full); 24..29 "still a bit too
+  easy"; 32..36 "length right, should happen sooner"; now 27..31): fill_timer (main.c) still stops at FILL_FRAMES
+  16. src/pour.c pour_frame (banked, called from main.c's draw block in story mode, after every other sprite) keeps
+  pour_t: 16 on the frame the drink is full, +1 a frame while A is held, up to the window's end. A release launches
+  with the last held frame's pour_t:
+    16..26  full, settling (11 frames, 183 ms, the plain full drink): ordinary, no bonus, no overflow
+    27..31  the sparkle window, POUR_WIN_START 27, pour_win POUR_WIN_LEN 5 (83 ms): PERFECT
+    32..    the overflow: ordinary
+  The press-to-release time for a perfect drink is 27-31 frames (450-517 ms). Releasing on the first full frame, or
+  while it settles, is never perfect (the scripted sweep checks every release frame). Note: a reaction to "full" of
+  11-15 frames (183-250 ms) lands in the window; the owner chose this start by playing (24 too easy, 32 too late).
+  Practice HARD hook: pour_win is WRAM, set to POUR_WIN_LEN by pour_load at every shift start; HARD writes
+  POUR_WIN_HARD 3 after it (same start, 27..29; tested). A full drink carried to another bar (A held through Up/Down)
+  jumps to the overflow at once: ordinary.
+- Look: pour_t 16..26 the plain full drink (draw_fill's, unchanged), 27..31 the venue's SPARKLE frame in his hand, 32+
+  its OVERFLOW frame (OAM 4 over draw_fill's full drink; CGB the full-drink palette 1; DMG OBP1, so the drink also
+  darkens in his hand when the window opens and the light foam shows on the white wall).
+- Quality: pour_q (WRAM) -> spawn_mug writes it into the new full mug's mug_timer (0 before: mug_timer is unused while a
+  full mug slides; it becomes the empty's step phase / the glass timer later, both reset as before). No new array.
+  WRAM: pour_q, pour_t, pour_win, cue_t / x / y, perfect_n, pour_bar: 8 B.
+- Score: patrons.c caught() calls perfect_catch(i) in story mode; a mug_timer of 1 scores 2 x serve_score on the spot
+  (saloon 50 -> +100). The serve (the patron pushed out) still scores serve_score as always; regulars take any drink.
+  perfect_n counts perfect catches (tests; a later results screen).
+- Cue (the owner's pick after four tries: round 1's twinkle over x2, a redrawn dark-on-light x2, a 4-sprite PERFECT
+  word over x2, round 1's again; final: "the x2 by itself"): assets/art/pour_cue.txt, one 8x16 OBJ: the "x2" badge
+  alone (dark badge, light text) in its lower half, where it always was (rows 8-14: at the caught drink's height on
+  the counter, which reads better than the twinkle's spot at face height; the top half is blank), OAM 26 (unused since the door puff), the full-drink palette (DMG OBP0), 16 px right of the caught mug
+  on its 16 lines, 48 frames, blinking the last 16. Sprites per line: pour_frame counts every other OAM entry
+  touching any of those 16 lines (an upper bound per line) and leaves the cue out on a frame where that is 10 or
+  more, so it is never an 11th object (test: bartender 4 + held drink + 6 empties on the bar: the cue goes, no line
+  passes 10). The lift estimate (lift.c) is untouched: the cue gives way, never a patron. The show's OAM 28-39 are
+  not used.
+- Tiles: the drink's own OBJ slots (56-59, 60-75 crash, 76-83 fill, 84-91 drink) are full, so the 2 new frames + the
+  cue sit at OBJ 234-239 (sparkle 234-235, overflow 236-237, cue 238-239): OBJ ids >= 128 share VRAM with BG ids >= 128,
+  the patrons use BG 78-233 and the DMG copies OBJ 240-245 (246-255 free); game.h fails the build on an overlap. A
+  cut-scene's portraits overwrite that range, so story.c shift_start loads them (pour_load(chapter), LCD off) at every
+  shift start; arcade never loads them.
+- Art (easy to swap): assets/art/pour/<venue>.txt, 2 frames 8x16 each (SPARKLE, OVERFLOW) in the venue's full-drink
+  colours, drawn over its full frame (round 2: the lumber lodge's twinkles are cream; the brown ones vanished on its
+  brown wall), and assets/art/pour_cue.txt; tools/gen_pour.py -> build/pour_art.h (src/pour.c's bank), build/pour.json
+  (tests), out/preview/pour_<venue>_x8.png. Replacing the files and running make is the whole swap. Proposal sheets
+  (scratchpad perfect_pour/): proposal.png (round 1), proposal2.png (round 2), proposal3.png (the PERFECT word, not
+  taken).
+- ROM: real ROM0 free 1641 -> 1605 B (game.gb), 1754 -> 1718 B (release.gb): 36 B for the three hooks (spawn_mug's
+  pour_q, caught's story test + call, the draw block's story test + call); the later rounds cost ROM0 nothing.
+  pour.c + its 608 B of tiles autobank to bank 7 (2006 -> 1039 B free). Perf: arcade runs the same code paths (one
+  story_on test per frame and per catch); story adds a banked call per frame and the cue's 40-entry count while it
+  shows.
+- Tests (tests/test_pour.py, DMG + CGB): every release frame swept: the first launching release (the first full
+  frame) and the 10 settling ones ordinary, the next 5 perfect, then ordinary; HARD (pour_win 3) 3 perfect at the same
+  start; releases at pour_t 27 and 31 score 2 x serve_score at the catch with the cue; past the window it runs over
+  (overflow frame, stays there) and scores nothing extra, no cue; the frames in his hand: fill, plain full x11, sparkle
+  x5, then the overflow, palette 1 / OBP1; carried -> ordinary; the venue's frames and the cue in VRAM (chapters 1,
+  6); arcade: no pour_t, the old full fill frame on OBP0, no bonus, no cue, no perfect release frame; the 10-per-line
+  limit with the cue. Goldens pour_sparkle, pour_cue (dmg + cgb, new with this feature; pour_cue shows the x2 alone,
+  the owner's final pick). No golden from before the perfect pour changed.
+
+## Mini-game framework as built (M11e step 1, docs/minigames_bosses.md 2.1, 2026-10-10)
+The framework every story mini-game will run in, with one stub game that proves it. The story's mini slots stay
+NOT_BUILT (gen_story) until real games exist; the story side is ready for them.
+- Already there (M11d / story lives): the segment flow PRE -> Opening -> Happy hour -> [mini] -> Last call -> [boss] ->
+  POST (story.c step_start / next_step), SRAM v4 with byte 35 the furthest step reached. Not redone.
+- GS_MINI (13): main.c's switch calls the banked mg_update(pressed); 1 = it left (the next screen is up), as GS_STORY.
+- src/mg.c (bank 255; autobank put it in bank 6 with the stub): mg_enter(id, mode) with the LCD off: everything hidden,
+  patrons / mugs / tip / show cleared, the venue loaded (id = the venue / chapter; MG_STUB 9 uses the saloon), the HUD
+  glyphs, the medal icon at BG MG_BG 77..88, the HUD (score; columns 16-19 the timer or blank, no level number), the
+  venue's plain backdrop (counter row 11), the CGB attributes of the HUD row, the banner rows 2-3 and the result window,
+  the game's enter (its BG from MG_GAME_BG 89), the banner (name, instruction), the venue's tune, GS_MINI.
+  Phases (mg_phase): MG_INTRO 90 frames (the banner) -> MG_COUNT 60 (READY, GO at 30; A skips it in practice only) ->
+  MG_PLAY (the game's update; the timer counts mg_timer down, the HUD 'T' + 3 digits on each new second, story.c
+  hud_goal's format; at 0 "TIME UP" and MG_END) -> MG_END 60 frames (the game's update still runs: its outro) ->
+  MG_RESULT: the window rows 32-37 (panel, name, SCORE n, the medal word + its points with the 2x2 icon at columns 2-3,
+  the prompt, panel), queued 2 rows a frame (40 B, the bonus rounds' per-frame size), then shown (overlay_on, LYC at
+  BANNER_WY + 46 for its 48 px). Story: "A CONTINUE", A taken once it has shown 60 frames (mg_t >= 63), then
+  story_level_done: the next step (Last call), the save, whatever the medal (owner: mini-games never block the story).
+  Practice: "A RETRY  B MENU", A = mg_enter again (score from 0), B = the title for now (the practice menu is step 10).
+  Leaving puts back the window's rows 32-34 (panel, blank, panel) and their attributes, and LYC = BANNER_LYC; nothing
+  else: the next level load restores the rest, as after a bonus round.
+- Modes: MG_STORY 0, MG_PRACTICE 1, | MG_HARD 2 (owner Q7's HARD toggle: the flag the games read; the stub's HARD has
+  shorter waits and steeper points). Practice starts the score from 0; the story's carries on.
+- Medals: per game three thresholds on mg_score (medal_at[game]; the stub 1500 / 3000 / 4000). The result adds the
+  medal's points to the score (bronze 500, silver 1500, gold 3000, spec 2.2) and, in the story, a gold medal calls
+  story_bonus_life() (owner: +1 life for the venue, at most 4; no boss-only life). The icon: assets/art/mg_medal.txt,
+  3 looks of 16x16 (a ribbon and a disc numbered 1 / 2 / 3; PLACEHOLDER, a proposal for the owner) on the HUD band; CGB
+  BG palette 4 = the medal's metal (gold, silver, bronze; the HUD's own colours for no medal), written at the top of
+  the result's first frame; DMG: the BG greys. tools/gen_mg.py -> build/mg_art.h, out/preview/mg_medal_x8.png.
+- Helpers for the games (BANKED, mg.c): mg_points(n) (mg_score + add_score: the HUD stays live), mg_finish() (-> END),
+  mg_rand() (16-bit xorshift on mg_seed; the bar's RNG untouched), mg_spigoteer(x, y, frame, left) (OAM 0-3),
+  mg_number(dst, n). RNG: mg_seed = mg_seed_force when non-zero (tests), else two next_rand() bytes at entry. Each game
+  is xx_enter() / xx_update(pressed) in its own file, dispatched by a switch on mg_game (no banked function pointers);
+  until a venue's own game is built its id plays the stub. Per-game tables in mg.c: name, instruction, medal_at.
+- mg_say(row, s) (ROM0, main.c, ~150 B): a string centred in HUD glyphs into one of 4 WRAM row buffers (round robin:
+  at most 4 lines a frame), queued, or written at once while the LCD is off; it returns the buffer (the result patches
+  the icon in). ROM0 because the strings stay in each caller's own bank (the rule: no pointer to banked ROM data into
+  another switchable bank; a ROM0 callee keeps the caller's bank mapped): it holds. show_overlay is now mg_say(33, s) +
+  its flags. bonus.c (make_text / say) and bonus2.c (text / sayA / sayB / banner's text) use it; their buffers are gone
+  (WRAM: show_overlay's 20, bonus2's 40, bonus.c's 20). bonus2's '!' comes from say_bang (main_cold.c glyph_for, set
+  by bonus2_enter to its own tile, 0 = blank); glyph_for also maps J Q X Z now. Bonus-round goldens unchanged.
+- WRAM union (src/mg.h): story.c's bd_map + bd_attr are now one exported story_scratch[STORY_SCRATCH] (520 B, game.h;
+  story.c checks STORY_PIC_ROWS * 40 == STORY_SCRATCH); union mg_ram { struct stub_state stub; } over it through
+  MG = (union mg_ram *)story_scratch, with a static size assert (a negative array size on overflow). Safe: no cut-scene
+  runs during a mini-game, and every scene_enter rewrites the buffer.
+- Story side (story.c): step_start dispatches on the step's kind: STEP_MINI -> mg_enter(story_chapter, MG_STORY), else
+  a shift. next_step also plays a STEP_SKIP step whose bit is set in story_unskip (1 B WRAM, a test hook; 0 in play),
+  which is how the test marks the mini slot built. Nothing else changes until gen_story takes MINI out of NOT_BUILT.
+- The stub game, GREEN LIGHT (src/mg_stub.c, bank 6): a lamp (BG 2x2 at columns 9-10, rows 6-7, CGB BG palette 2;
+  assets/art/mg_lamp.txt, placeholder) shows red 45-108 frames (HARD 30-93), then green; A on green scores
+  1000 - 20 x the reaction frames (HARD 30), at least 100 ("920 POINTS"); A on red TOO SOON, none within 60 frames TOO
+  SLOW (0 each). 5 rounds, a 30 s timer. The Spigoteer stands at x 72 (catch pose on a hit, fail pose on a miss).
+  State: struct stub_state, 20 B of the union (tests read story_scratch + 0..4: state, round, t, wait, react).
+- Test hooks: mg_id, mg_mode, mg_phase, mg_t, mg_timer, mg_score, mg_medal, mg_seed, mg_seed_force, story_unskip;
+  poking mg_phase = MG_RESULT ends any game (the bonus rounds' phase-4 convention).
+- ROM: real ROM0 free 1605 -> 1548 B (game.gb), 1718 -> 1661 B (release.gb): 57 B = mg_say over the old show_overlay
+  (~40 B net) and the GS_MINI case. mg.c + mg_stub.c (+ the 2 art headers) ~3.1 KB in bank 6; autobank repacked:
+  banks free after (game.gb, romusage) 1 205, 2 116, 3 232, 4 298, 5 47, 6 11, 7 195, 8 9480 B.
+- WRAM: +72 B (_DATA 6183 -> 6255): mg_say's 4 x 20 + its index, say_bang, the mg_* hooks (14), the result's buffers
+  (55: score / medal text, a panel row, the timer row), story_unskip; minus the 80 B of text buffers it replaced. The
+  games' own state costs nothing (the union).
+- Perf: arcade untouched (one more case label in the state switch; show_overlay does what it did); a mini-game frame is
+  light (the stub: a few compares, at most 2 text rows + a lamp row queued).
+- Tests (tests/test_mg.py, DMG + CGB; every frame checked at <= 10 sprites a line with test_bonus.lines): the whole flow
+  in practice (banner, READY / GO, five rounds, the points rule, the timer counting, WELL DONE, the result window's rows,
+  gold, score + 3000, no life in practice); RETRY (score from 0) and MENU (the title); A skips the count in practice,
+  not in story; TOO SOON / TOO SLOW; HARD; mg_seed_force repeats a game; the timer ends the play (TIME UP, T000); the
+  medal thresholds at 0 / 1499 / 1500 / 2999 / 3000 / 3999 / 4000 / 5000 (word, points, icon tiles in VRAM, CGB
+  palette 4 and its attributes, the HUD colours with no medal); mg_say in ROM0 and the bonus rounds on it; the union
+  over story_scratch; MENU then arcade with everything back (venue rows, show OBJ tiles, patron tiles, window rows, LYC,
+  OBP1 0xE4, the saloon's bank-1 tiles and extra palettes); the mini slots still NOT_BUILT; a built mini slot (story_unskip)
+  plays after the Happy hour (mg_enter(0, MG_STORY)), A CONTINUE only after 60 frames, gold = 4 lives (and none = 3: the
+  story goes on either way), then the Last call's banner with the lives carried, step 3 saved as reached, and the
+  restore checks after the Last call's level load. tests call mg_enter through a PyBoy hook on vq_frame_end that diverts
+  the CPU once into a stub (the two byte arguments on the stack, ___sdcc_bcall_ehl) between two frames.
+  New goldens (dmg + cgb): mg_intro (the banner), mg_result (practice, gold), mg_story_gold (story, gold, 4 mugs). No
+  existing golden changed. Screens of each phase: out/mg/{intro,count,play,result,result_gold,story_intro,
+  story_result}.{dmg,cgb}.png.
+
+## Mode-aware debug select as built (owner request, 2026-10-10)
+
+The START + SELECT debug select (DEBUG_MENU builds only; `make release` still has none: build/release.noi names no
+debug symbol) now selects in the mode it was opened in. src/debug.c (banked) does it all; main.c's combo watch is
+unchanged; src/story.c gains one function at its end under `#ifdef DEBUG_MENU` (story_debug_start).
+- Which mode: in story play (story_on) -> story; on the title the item under the cursor decides: STORY or CONTINUE ->
+  story, any other item (ARCADE, BONUS, MUSIC) -> arcade; in arcade play -> arcade, as before ("LEVEL nn", 1..18,
+  Left/Down and Right/Up, A = start_new_game).
+- Story positions: a chapter's PRE scene, then the steps of the story's sequence the engine can play (story_step_get;
+  a STEP_SKIP step only when story_unskip has its bit, so the mini-game slot appears once mini-games are built or the
+  test hook names it, and the boss slot likewise), then its POST scene. Banner "STORY c LABEL" in HUD glyphs: PRE, OPEN,
+  HAPPY, MINI, LAST, BOSS, POST (e.g. "STORY 3 HAPPY"). Left/Right change the chapter (1-9, wrapping; the position
+  kept, or the next playable one), Up/Down the position (wrapping). Starting points: STORY -> chapter 1 PRE; CONTINUE ->
+  the saved chapter at its first playable step when a step was reached, else its PRE scene (as CONTINUE itself); in
+  story play -> the chapter and step being played.
+- A starts it with the story's rules (story_debug_start): story_on, a fresh score, story_conds cleared, the venue's 3
+  lives (from any step: as venue_start), the step itself through step_start (a shift: its goal banner, speeds,
+  patterns, perfect pour; a mini-game slot: mg_enter), or the PRE / POST scene through scene_enter; afterwards the
+  story runs on as usual (a lost venue restarts at its Opening, a POST scene leads to the next chapter's PRE).
+- Decision: a story run started from the debug select writes NOTHING to SRAM. save.c's save_lock (set by debug.c on
+  A, cleared by title_enter) makes story_save and tune_heard return at once: no chapters cleared or step reached, no
+  soundtrack unlocks. The owner's real progress (CONTINUE) survives a playtest jump, and the jukebox never unlocks
+  a song that was not earned. (An arcade start from the box is unaffected: the top 5 saves as always.)
+- B closes the box as before. GS_DEBUG is opened from GS_TITLE / GS_PLAYING / GS_PAUSED only (a cut-scene's START
+  skips it, so the combo cannot start there).
+- Tests (tests/test_debug.py, the old arcade tests unchanged): positions and wrapping from STORY (the unbuilt slots
+  passed over), an unskipped MINI offered, A on chapter 3 Happy hour / chapter 7 Last call / chapter 1 Opening lands
+  on that shift's goal banner with the story's rules (venue, 3 lives, score 0, goal type) and winning it leaves SRAM
+  byte for byte as it was (progress and unlocks untouched); A on PRE / POST plays that scene; CONTINUE starts at the
+  saved chapter; in story play it opens at the current chapter and step and B resumes the shift; on BONUS it is the
+  arcade box. New golden: debug_story (dmg + cgb: the title with "STORY 3 HAPPY").
+- Cost: ROM0 none (all banked); WRAM +3 B (debug_story / debug_chapter / debug_pos, debug builds only) + save_lock.
+
+## Bonus menu and soundtrack as built (owner request, 2026-10-10)
+
+- Title menu: ARCADE / STORY / [CONTINUE] / BONUS / MUSIC ON-OFF. BONUS always shows (owner's recommendation taken):
+  every song but the title tune is locked at first. The HI line moved to row 0 (where the game's own score sits in
+  play): a column of five items needs rows 5-13. Rows: 4 items 6/8/10/12, 5 items (with CONTINUE) 5/7/9/11/13
+  (title.c MENU_ROW: centred on row 9, every other row). Room for one more: PRACTICE as a 6th item starts the column
+  at row 4 (right under the logo) and ends it on row 14, above the counter between the scene's patron and the
+  bartender (the same rows docs/minigames_bosses.md 2.3 planned); with CONTINUE absent it is a 5th item and fits rows
+  5-13. The menu's text tiles: BONUS costs 5 tiles of the title's pool; 5 ids are left below the scene patron
+  (TT_PATRON_BASE 224 of 233), enough for PRACTICE (its letters but P are already aligned tiles). K_* moved to game.h
+  (debug.c reads the item under the cursor). Goldens replaced on purpose: title, title_anim, title_continue.
+- BONUS goes straight to the soundtrack (decision: a one-item submenu is a press for nothing; when a second extra
+  exists, BONUS becomes a list with SOUNDTRACK first). src/jukebox.c, its own autobanked file; GS_JUKEBOX (main.c: one
+  case line).
+- The screen, scores-table style (light HUD glyphs + the story font's punctuation on the dark band, HUD palette): row 0
+  SOUNDTRACK, row 1 a panel line; rows 2-11 the list, 10 lines visible, scrolling to keep the selection on screen
+  (14 tunes today); the name at columns 1-18, the mug cursor (OAM 0, as the title's) left of it, the playing tune's mug
+  icon at column 19, blinking (16 frames on, 16 off); rows 12 / 17 panel lines around the selected tune's details,
+  rows 13-16: its full title (word-wrapped to two lines), the credit (composer, year), where the game plays it. A
+  locked tune lists as "? ? ?" and its details read "? ? ?", LOCKED, PLAY STORY MODE. Rows are rebuilt into
+  story_scratch (no cut-scene runs here) and queued 4 a frame.
+- Names: tools/songs.py SOUNDTRACK, keyed by song (entertainer, galop, susanna, ...) and the three jingles, so the 10th
+  venue tune inserted before the teahouse needs one entry there and in VENUES: gen_music.py writes
+  build/jukebox_names.h in its ORDER (music.h's tune order), checks 18-character lines and the charset, and the header
+  fails the compile unless its count equals TUNE_COUNT. The list is sized by TUNE_COUNT everywhere.
+- Keys: Up/Down select (wrapping), A or START plays the selected tune from its start (a locked one: nothing), B stops
+  the playing tune, or with nothing playing goes back to the title (title_enter: the title tune again). Entering the
+  screen stops the title tune, so the first B leaves. cur_tune is the tune playing (a jingle clears it when it ends,
+  and its icon goes).
+- MUSIC OFF (decision): a tune chosen in the player plays anyway (the player sets sound_on and remembers it,
+  jb_forced); leaving puts the music off again (music_set_on(0)), so the title stays silent and still reads MUSIC OFF.
+- Unlock rule as built (save.c): the title tune always; any tune once it plays in story mode (music_play calls
+  tune_heard when story_on: a venue tune at its PRE scene, or on CONTINUE straight into the venue; LEVEL CLEAR at the
+  first shift won; GAME OVER at the first TRY AGAIN); clearing chapter 1 also unlocks all four jingles (BONUS and the
+  SHOW galop never play in a story: no bonus rounds, and a show only after a tip); story_save also ORs in what the
+  progress implies (progress_unlocks: the cleared chapters' venues, the next one's when a step was reached, the
+  jingles from chapter 1). A new unlock is saved at once. Unlocks are permanent: a new story resets bytes 34-35 at its
+  first save, never 36-37. Debug-select story runs unlock nothing (save_lock).
+- SRAM version 5 "TPR5" (src/save.c): 0-3 magic, 4-33 the top 5 (as v2-v4), 34 chapters cleared (0-9), 35 the step
+  reached in the next chapter (0-4; 0 when 9 are cleared), 36-37 the unlocked tunes (16-bit LE, bit t = TUNE_t; bit 0
+  forced on at load; bits above TUNE_COUNT kept: room for the 10th venue tune), 38 checksum 0x5A + bytes 0-37, 39 its
+  complement. Migration at boot, written back at once: version 4 keeps everything and gets progress_unlocks(progress,
+  step reached) (save_migrated = 4); version 3 / 2 / 1 as before (save_migrated 3 / 2 / 1) with the unlocks their
+  progress implies (none but the title for 2 and 1). Anything that does not check out (magic, checksum over 0-37,
+  progress range, the table) is an empty save with only the title tune.
+- Hooks: music.c music_play (bank 2) gained one line (`if (story_on) tune_heard(tune);`, before the MUSIC OFF check so
+  a muted story unlocks too); title.c's title_enter clears save_lock.
+- Cost: ROM0 -18 B (the GS_JUKEBOX case): 1548 -> 1530 B free (game.gb), 1661 -> 1643 B (release.gb). WRAM +17 B
+  (_DATA 6255 -> 6272; release 6250 -> 6264): tune_unlocked 2, save_lock 1, the jukebox's 7 (jb_sel, jb_top,
+  jb_forced, jb_shown, jb_t, jb_dirty), title_items / title_rows 4 -> 6 each (+4), debug.c's 3 (debug builds). SRAM +2 B
+  (40 B used). jukebox.c + the names header ~2.1 KB banked (autobank).
+- Tests (tests/test_jukebox.py, DMG + CGB): the names follow music.h / songs.py; BONUS on the menu with and without a
+  save; Up/Down select, wrap and scroll (cursor on the line); a fresh cartridge lists only THE ENTERTAINER, the rest
+  "? ? ?" and a locked tune does not play; every name once unlocked, the details of the last; A plays (cur_tune), the
+  icon blinks, B stops, B returns to the title; a jingle stops by itself and its icon goes; MUSIC OFF plays here and is
+  off again after; <= 10 sprites a line; a venue unlocks at its PRE scene and is saved at once; LEVEL CLEAR unlocks at
+  the first win; clearing chapter 1 unlocks the jingles; unlocks survive a new story's first save and a reset; v4 ->
+  v5 migration at five progress points; the progress rule; v5 loads its mask and rejects a bad checksum / mask outside
+  it / bad progress. tests/test_scores.py has v5_image / progress_unlocks / saved_tunes; the older SRAM tests now
+  expect version 5 written back. New golden: jukebox (dmg + cgb: OH! SUSANNA playing, some tunes locked).
+

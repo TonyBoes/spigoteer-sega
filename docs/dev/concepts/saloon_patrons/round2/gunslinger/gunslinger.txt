@@ -1,0 +1,18 @@
+; Spigoteer saloon patron: THE GUNSLINGER (woman, slot B). Front, 16x16, 3/4 facing right. Hand-drawn, round 2. Silhouette: low black hat with a drooping brim + tall popped duster collar wings + steel-blue coat with a white shirt V.
+; palette light to dark: 1 #f0d0b8 pale skin and shirt  2 #7890a8 steel-blue duster, brim shadow  3 #201828 black hat, bob, tie, outline. One palette, not enhanced.
+................
+....########....
+...##+++#####...
+.##############.
+..###+++++++#...
+..###--#--#-#...
+..###--#--#--#..
+.#++#---------#.
+.#++#----##-#+#.
+.#++##-----#++#.
+.#+++#-----#+++#
+.#++++#---#++++#
+#+++++##-##++++#
+#++++++#-#+++++#
+#++++++#-#+++++#
+################

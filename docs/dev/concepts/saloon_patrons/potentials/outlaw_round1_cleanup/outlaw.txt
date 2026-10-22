@@ -1,0 +1,19 @@
+; Spigoteer saloon patron: THE OUTLAW (slot C), front view, 16x16, 3/4 facing right. Round 1 d2_dusty variant C, HAND CLEAN-UP (2 pixels changed, see cleanup_log.txt).
+; house format: . 0 (wall / transparent)   - 1   + 2   # 3 (darkest: outline, hat, shade)
+; palette (light to dark): 1 #d8c098 skin   2 #b85838 rust poncho, bandana, hat band   3 #281810 near-black hat, outline
+....#######.....
+...#########....
+...#########....
+.###+++++++####.
+################
+.######-#-#####.
+..#####---####..
+...#+++++++++#..
+...#+++#+++#+#..
+..###+++++++##..
+.#-++++-+++++-#.
+#++-++++-+++-++#
+#+++-++++-++-++#
++++++-++++-+++++
++++++-++++-+++++
+################

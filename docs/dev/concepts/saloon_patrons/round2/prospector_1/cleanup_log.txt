@@ -1,0 +1,45 @@
+PROSPECTOR 1 - CLEAN-UP LOG (hand pass, SKILL.md step 9 / linework.md section 6)
+Coordinates are (x,y), x = column 0-15, y = row 0-15. Every change was typed by hand in the grid; the tools only rendered and checked.
+Drafts v1..v11 are the working history; the numbered passes below are what each look at 8x-12x and 1x made me change.
+
+PASS A (v2 -> v3): value plan. Beard and skin merged because both were mid-rust (v1/v2 looked like one brown mass).
+  A1  swapped roles: beard 2 -> 1 (silver), skin 1 -> 2 (ruddy). Beard and face now differ by a full DMG step (light grey vs dark grey).
+  A2  hat and coat stay 3, so hat / face / beard are three different values; the hat band (2) is the only hat detail.
+
+PASS B (v5 -> v6): hat.
+  B1  v5 crown had two highlight lobes at (5-6,1) and (9-10,1): read as goggles / ears. Replaced by one 3-px lit patch (6-8,1) under the 1-px dent notch (7,0).
+  B2  crown 3 rows -> 4 rows (r0-r3) so the hat is a slouch hat, not a bowler: band (4-11,3), brim (1-14,4), drooping brim stubs (1,5) and (14,5).
+  B3  removed the brim-tip highlights (2-3,3) and (12-13,3): they made the brim look like a flat bar.
+
+PASS C (v6 -> v7): beard texture and shoulders.
+  C1  deleted the five 1-px strand dots (8,10) (11,10) (7,11) (12,11) (7,12): they read as spatter / orphans.
+  C2  replaced by two clean 3-px vertical locks, staggered one row: (6,11)-(6,13) and (10,12)-(10,14).
+  C3  deleted the two 2x2 '+' blocks at (1-2,13-14) and (13-14,13-14) (accidental squares, read as buttons). Shoulders are now solid 3 below a 2x1 highlight at (1-2,12) and (13-14,12), one row inside the outline (the top outline stays 3).
+  C4  beard no longer hugs the head outline with a parallel shade band: sideburn is a 1-px cream column (4,6)-(4,8) only.
+
+PASS D (v8 -> v9): crown edge stairs (lint L-double at (11,1)).
+  D1  (11,0) deleted, (12,1) deleted: the crown's right edge now steps 1,1,1 diagonally (cols 10, 11, 12 on rows 0, 1, 2) instead of a doubled corner.
+  D2  left edge: rows 0-1 start at col 4, row 2 at col 3 (one step), so the two sides step at different rows: no mirrored staircase.
+
+PASS E (v9 -> v10 -> v11): beard locks tried and reverted.
+  E1  tried slanting the locks to (6,11)(7,12)(7,13) and (10,12)(10,13)(11,14): ragged, and (11,14) bled into the coat outline. Reverted to the vertical locks of C2.
+
+PASS F (face, kept from v3, rechecked each pass): eyes, nose, jaw.
+  F1  eyes: near eye (6-7,6-7) = white (6,6) + 2-px pupil (7,6)-(7,7); far eye (10-11,6-7) the same, 1 px narrower in effect because the nose bridge sits next to it. 2 px tall (1 px reads as sleepy). The two white pixels are the only orphans the lint reports: deliberate.
+  F2  nose: a 1-px bump of the face outline at (14,7), tip in the skin colour (13,7): no outlined nose, no cut.
+  F3  moustache = cream row (6-10,8) over a 2-shade shadow row (5-9,9): mouth and moustache without a black cut.
+  F4  NO V-CHIN: the face has no chin; the beard's lower edge is cut flat by the counter row. No outline row of the beard closes into a point.
+
+PASS G (back view, v1 -> v5, by hand, no mirror pass; symmetry about col 8 verified by tools/check_back.py, which only reports).
+  G1  v1 head was a 4-row cream block with a skin patch under it: read as a white mask. Cut to hair rows 5-7 + a 3-px nape shadow (7-9,8) + a 3-px neck (7-9,9-10).
+  G2  v4 had two vertical hair locks at cols 6 and 10: with the ears they made a face (eye slits). Deleted.
+  G3  crown highlight is one centred 3-px patch (7-9,1) under the notch (8,0), same idea as the front's, symmetric by drawing, not by mirroring.
+  G4  suspender straps: two 1-px vertical lines (5,11)-(5,14) and (11,11)-(11,14), shoulder highlights (2-3,12) and (13-14,12).
+  G5  rows 0-9 symmetric about col 8, col 0 empty on rows 0-14; the neck rows 10-11 centred (tests/test_cowboy_back.py passes).
+
+FINAL CHECKS (step 9 items 8-9)
+  - proportion: hat 5 rows, face 4 rows (r5-r8), beard 6 rows (r9-r14), counter row 15 as in the trio.
+  - light: top / top-front only (crown patch, band, shoulder tops, nose tip): flip-safe.
+  - lint: front L-double (10,1) (11,2) = convex corners of the solid-black crown (the owner-approved trio shows the same warning class);
+    back L-doubles likewise; back 'V-points' (8,12) (8,13) (4,15) (11,15) are the dark coat between two strap lines, not a jaw.
+  - at 1x: hat / face / beard read as three shapes on DMG and CGB, eyes visible with the mug over x 8-15.

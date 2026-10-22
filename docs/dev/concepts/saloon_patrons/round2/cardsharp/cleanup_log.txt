@@ -1,0 +1,10 @@
+CARDSHARP - CLEAN-UP LOG (hand pass). (x,y) = column,row.
+Concept history: the 4th woman was drawn first as a BONNET (poke bonnet, ribbon strings, round halo silhouette; out/bonnet/, v1-v2). At 1x it read as a hooded cloak with prison-bar strings and its back view as a frog; I stopped and drew the cardsharp instead rather than deliver it. Nothing from the bonnet grid was kept except the face-kit rows.
+PASS A (v3 -> v4):
+  A1  index-0 hole at (5-6,11) (wall pixels enclosed by bob, chin and vest) filled: bob tips (3-5,11), chin (6-10,11).
+  A2  visor highlight was a 1-px orphan (5,4): now a 2-px shine (5-6,4); visor brim runs to col 14 with an end outline at col 15 (it points where she faces).
+  A3  messy lower rows replaced: bow tie = two black wings (5-6,12) and (10-11,12) round a knot (8,12); green vest panels (1-4,12-14) and (12-14,12-14) over a pale shirt V (6-10,13-14). The V opens onto the chest, below a flat 5-px chin (6-10,11): not a face point.
+  A4  3/4 turn: bob thick on the near side (2-4,6-10), far side only a 1-px edge (12,6-7); nose bump (13,8); mouth 2 px dark (9-10,9).
+  A5  jaw: cheeks full down to row 9, then 7 px, 5 px: flat chin.
+PASS B (back view, by hand, symmetric about col 8): bob rows 1-9 with a 3-px crown highlight (7-9,2) and a 5-px shine band (6-10,6) (both centred, so symmetric by drawing); visor strap row 4 (3-13); vest back rows 11-14 with a centre seam (8,13)-(8,14); sleeves (2-3,11-14) and (13-14,11-14) in the shirt colour. Checked by tools/check_back.py.
+FINAL: lint stair warnings sit in solid black hair; no V chin; orphans none.

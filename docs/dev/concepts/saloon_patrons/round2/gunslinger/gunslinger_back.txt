@@ -1,0 +1,17 @@
+; Spigoteer saloon patron: THE GUNSLINGER, back view, 16x16, hand-drawn, symmetric about col 8, col 0 empty (rows 0-14): black hat and bob, popped collar from behind, duster with a centre vent.
+................
+....#########...
+...####+++####..
+.###############
+....#########...
+...####+++####..
+...###########..
+....#########...
+..##+++###+++##.
+.#++++#####++++#
+.#+++++###+++++#
+.#++++++#++++++#
+.#++++++#++++++#
+.#++++++#++++++#
+.#++++++#++++++#
+################
