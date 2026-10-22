@@ -760,22 +760,22 @@ def test_a_changes_the_state_b_goes_back_and_an_action_opens(boot):
     assert boot.mem("title_menu") == TM_TOP and boot.mem("title_sel") == SEL_SETTINGS
 
 
-def test_the_arrows_blink_and_the_buttons_stay(boot):
-    """SETTINGS (owner 2026-10-21): two arrows either side of the name that blink on the cursor's 16-frame beat (OAM 10 left, 11 right), the A and B buttons of the hint (OAM 12, 13)."""
+def test_the_arrows_nudge_in_and_out_and_the_buttons_stay(boot):
+    """SETTINGS: two arrows either side of the name that nudge out by a pixel for 16 frames and in for 16, never blinking (the one-line menus' bob; OAM 10 left, 11
+    right), the A and B buttons of the hint (OAM 12, 13: the one-line menus' own button art, converted to sprites)."""
     settings_open(boot)
     name = TITLE_ART["text"]["name_music"]
-    seen = []
+    gaps = set()
     for _ in range(70):
         boot.run(1)
         o = boot.oam()
-        seen.append(o[10]["y"] != 0)
-        assert o[11]["y"] == o[10]["y"] or 0 in (o[10]["y"], o[11]["y"])
+        assert o[10]["y"] == o[11]["y"] == ROW_NAME * 8 + 16, "both arrows are always there (no blink)"
         assert o[12]["y"] == ROW_HINT * 8 + 16 and o[13]["y"] == o[12]["y"] and o[12]["x"] < o[13]["x"], "the buttons on the hint row, A before B"
         assert o[OAM_CURSOR]["y"] == 0, "no mug"
-        if o[10]["y"]:
-            assert o[10]["y"] == ROW_NAME * 8 + 16 and o[10]["x"] - 8 < name["x"] < o[11]["x"] - 8, "the arrows either side of the name"
-            assert name["x"] - 1 - (o[10]["x"] - 8 + 8) == 8 and o[11]["x"] - 8 - name["r"] == 8, "one empty cell between each arrow and the name"
-    assert seen.count(True) > 15 and seen.count(False) > 15, "the arrows blink on the 16-frame beat"
+        gl, gr = name["x"] - 1 - (o[10]["x"] - 8 + 8), o[11]["x"] - 8 - name["r"]
+        assert gl == gr and gl in (8, 9), "an empty cell between each arrow and the name, out by a pixel at the nudge"
+        gaps.add(gl)
+    assert gaps == {8, 9}, "the arrows nudge out and in"
     hc = TITLE_ART["text"]["hint_change"]["col"]
     o = boot.oam()
     assert (o[12]["x"] - 8, o[13]["x"] - 8) == (hc * 8, (hc + 10) * 8), "the buttons one cell before CHANGE and before BACK (a blank cell between each and its word)"
@@ -788,10 +788,25 @@ def test_the_arrows_blink_and_the_buttons_stay(boot):
     menu_to(boot, K_BARCHANGE)
     boot.run(MENU_SETTLE)
     bar = TITLE_ART["text"]["name_bar"]
-    o = boot.oam()
     seen = [boot.run(1) or boot.oam() for _ in range(40)]
-    lit = [x for x in seen if x[10]["y"]]
-    assert lit and all(x[10]["x"] - 8 < bar["x"] < x[11]["x"] - 8 for x in lit), "the arrows follow the name"
+    assert all(x[10]["x"] - 8 < bar["x"] < x[11]["x"] - 8 for x in seen), "the arrows follow the name"
+
+
+def test_the_buttons_are_the_one_line_menus_art(boot):
+    """The A and B of SETTINGS' hint are tools/gen_art.py's conversion of assets/art/list_keys.txt (the hint rows of SOUNDTRACK, MINI GAMES, BOSS RUSH): same pixels."""
+    from pathlib import Path
+    rows = [l for l in (ROOT / "assets/art/list_keys.txt").read_text().splitlines() if l and not l.startswith(";")]
+    glyphs = [rows[i * 8:(i + 1) * 8] for i in range(2)]
+    settings_open(boot)
+    tiles = {t["tile"] for t in boot.oam()[12:14]}
+    for g, o in zip(glyphs, boot.oam()[12:14]):
+        base = 0x8000 + o["tile"] * 16
+        vram = [boot.pb.memory[base + k] for k in range(16)]
+        px = []
+        for y in range(8):
+            lo, hi = vram[2 * y], vram[2 * y + 1]
+            px.append("".join("." if not ((lo >> (7 - x)) & 1 or (hi >> (7 - x)) & 1) else "-" for x in range(8)))
+        assert px == ["".join("-" if ch == "." else "." for ch in row) for row in g], "pixel for pixel (the shape the menus draw)"
 
 
 def test_the_gba_line_is_a_page_on_a_gba_only(boot):

@@ -583,3 +583,77 @@ def test_the_title_hi_line_is_the_top_score_and_the_table_shows_the_save(model):
         gb.run(2)
         assert screen_text(gb, ROW_FIRST) == "    1 ZED 098765    "
         assert screen_text(gb, ROW_FIRST + 2) == "    2 QUA 004321    "
+
+
+# ---- the attract (owner 2026-10-22): the title's idle high scores keep the music going and never come from a submenu ----------------------------------
+GS_SCORES = 10
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_title_music_keeps_playing_through_the_attract_high_scores(model):
+    import numpy as np
+    rom = make_rom(model, None, sound=True)
+    try:
+        rom.run(300)
+        idle_title(rom)
+        snd, silent, run, seen_scores = rom.pb.sound, 0, 0, False
+        t0 = rom.mem("cur_tune")
+        for i in range(700):                        # (the table shows, then the title comes back)
+            rom.run(1)
+            a = np.array(snd.ndarray[:snd.raw_buffer_head // 2], dtype=float)
+            run = run + 1 if len(a) and not np.abs(a).max() else 0
+            silent = max(silent, run)
+            seen_scores |= state(rom) == GS_SCORES
+            assert rom.mem("cur_tune") == t0 == TUNE_TITLE, "the title tune stays the tune"
+        assert seen_scores and state(rom) == TITLE, "the table came and went"
+        assert silent < 30, f"{silent} silent frames in a row: the music stopped"
+    finally:
+        rom.stop()
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("top", ["PLAY", "BONUS", "SETTINGS"])
+def test_no_high_scores_from_a_submenu(model, top):
+    from conftest import K_BONUS, K_PLAY, K_SETTINGS, MENU_SETTLE, hold_stage_anim, title_pick
+    rom = make_rom(model, None, sound=False)
+    try:
+        rom.run(120)
+        hold_stage_anim(rom)
+        title_pick(rom, {"PLAY": K_PLAY, "BONUS": K_BONUS, "SETTINGS": K_SETTINGS}[top])
+        rom.run(MENU_SETTLE)
+        menu = rom.mem("title_menu")
+        assert menu != 0
+        rom.run(1500)                               # (past the 1200-frame idle)
+        assert state(rom) == TITLE and rom.mem("title_menu") == menu, "still the submenu: no table"
+    finally:
+        rom.stop()
+
+
+def test_no_high_scores_from_the_gba_prompt():
+    from conftest import TM_SCR, gba_hardware, hold_stage_anim
+    with gba_hardware(True):
+        rom = make_rom("cgb", None, sound=False)
+    try:
+        rom.run(120)
+        hold_stage_anim(rom)
+        assert rom.mem("title_menu") == TM_SCR
+        rom.run(1500)
+        assert state(rom) == TITLE and rom.mem("title_menu") == TM_SCR
+    finally:
+        rom.stop()
+
+
+def test_a_submenu_restarts_the_attract_clock():
+    from conftest import K_PLAY, MENU_SETTLE, hold_stage_anim, title_pick
+    rom = make_rom("cgb", None, sound=False)
+    try:
+        rom.run(120)
+        hold_stage_anim(rom)
+        a = rom.addr("title_idle")
+        rom.write(a, 1100 & 255)
+        rom.write(a + 1, 1100 >> 8)
+        title_pick(rom, K_PLAY)
+        rom.run(MENU_SETTLE)
+        assert rom.mem16("title_idle") < 100, "entering a menu starts the clock over"
+    finally:
+        rom.stop()

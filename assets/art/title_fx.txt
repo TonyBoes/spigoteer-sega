@@ -58,7 +58,7 @@
 ........
 
 ; SETTINGS' change cue (owner 2026-10-21): the blinking arrow and the A button next to the selected setting's status. CGB OBJ 6: '-' foam white, '#' dark brown;
-; DMG OBP1: '-' light grey, '#' black. Order: arrow right, A button.
+; DMG OBP1: '-' light grey, '#' black. Order: arrow right (the A and B buttons are the one-line menus' own, assets/art/list_keys.txt, converted by tools/gen_art.py).
 ##......
 #-#.....
 #--#....
@@ -67,21 +67,3 @@
 #-#.....
 ##......
 ........
-
-..####..
-.#----#.
-#--##--#
-#-#--#-#
-#-####-#
-#-#--#-#
-.#----#.
-..####..
-
-..####..
-.#----#.
-#-###--#
-#-#--#-#
-#-###--#
-#-#--#-#
-.#-###-.
-..####..

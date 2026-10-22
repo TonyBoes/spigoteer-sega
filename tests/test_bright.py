@@ -45,6 +45,7 @@ def pal_ram(gb):
         for i in range(64):
             m[idx] = i
             out.append(m[data])
+    out[120:128] = bytes(8)             # (OBJ palette 7 is the title's DX badge, whose colours cycle with time: not part of the comparison)
     return bytes(out)
 
 

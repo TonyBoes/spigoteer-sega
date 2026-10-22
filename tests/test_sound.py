@@ -867,6 +867,7 @@ def music_text(gb):
 
 
 def test_select_toggles_the_music(srom):
+    srom.run(200)                  # (past the DX badge's stamp sound on a Color, SFX that the music switch does not silence)
     title_pick(srom, K_SETTINGS)   # (SELECT works on any menu level; SETTINGS shows the line)
     srom.run(MENU_SETTLE)
     assert srom.mem("sound_on") == 1 and music_text(srom) == title_text_row("on")

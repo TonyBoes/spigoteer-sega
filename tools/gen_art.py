@@ -785,7 +785,10 @@ def title_art(outdir, prev, base, ttiles, bg):
 
     # effect sprites: 8x8 frames in the top half of 8x16 entries
     fx = [r for _, r in blocks(ROOT / "assets/art/title_fx.txt")]
-    assert len(fx) == 9 and all(len(f) == 8 and all(len(r) == 8 for r in f) for f in fx), "title_fx.txt: 9 frames 8x8 (6 effects, the arrow, the A button, the B button)"
+    assert len(fx) == 7 and all(len(f) == 8 and all(len(r) == 8 for r in f) for f in fx), "title_fx.txt: 7 frames 8x8 (6 effects, the arrow)"
+    # the A and B buttons of the one-line menus (assets/art/list_keys.txt, BG tiles there), as sprites: the light shape '.' is colour 1, the band '#' is transparent
+    keys = [r for _, r in blocks(ROOT / "assets/art/list_keys.txt")][:2]
+    fx += [["".join("-" if ch == "." else "+" if ch == "+" else "." for ch in row) for row in k] for k in keys]
     fxt = []
     for f in fx:
         fxt += tile_bytes(f + ["." * 8] * 8, 0, 0) + tile_bytes(f + ["." * 8] * 8, 0, 8)

@@ -281,6 +281,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
     if (title_menu == TM_SETTINGS) title_dirty |= SET_ROWS;
     title_menu = m;
     title_n = 0;
+    title_idle = 0;                                   // (the attract's clock starts over with every menu)
     switch (m) {
     case TM_TOP:
         title_items[title_n++] = K_PLAY;
@@ -691,9 +692,9 @@ static void cursor_frame(void) {
         a = shadow_OAM + OAM_ARROW;
         kd = NAME_KIND(title_items[title_sel]);
         y = ROW_NAME * 8 + 16;
-        a[0].y = a[1].y = (title_t >> 4) & 1 ? 0 : y;
-        a[0].x = name_x0[kd] - 9;      a[0].tile = FX_ARROW; a[0].prop = (is_cgb ? OBJPAL_FX : S_PALETTE) | S_FLIPX;
-        a[1].x = name_x1[kd] + 16;     a[1].tile = FX_ARROW; a[1].prop = is_cgb ? OBJPAL_FX : S_PALETTE;
+        a[0].y = a[1].y = y;
+        a[0].x = name_x0[kd] - 9 - ((title_t >> 4) & 1);      a[0].tile = FX_ARROW; a[0].prop = (is_cgb ? OBJPAL_FX : S_PALETTE) | S_FLIPX;
+        a[1].x = name_x1[kd] + 16 + ((title_t >> 4) & 1);     a[1].tile = FX_ARROW; a[1].prop = is_cgb ? OBJPAL_FX : S_PALETTE;
         a[2].y = a[3].y = ROW_HINT * 8 + 16;
         a[2].x = IS_ACT(title_items[title_sel]) ? 32 : 24;                  a[2].tile = FX_KEYA;  a[2].prop = a[1].prop;
         a[3].x = IS_ACT(title_items[title_sel]) ? 96 : 104;                  a[3].tile = FX_KEYB;  a[3].prop = a[1].prop;
@@ -754,7 +755,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
             }
         }
     }
-    else if (title_menu != TM_SCR && ++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables
+    else if (title_menu == TM_TOP && ++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables (the top level only: a submenu or a prompt is in use)
         score_tbl = attract_tbl[attract_n];
         if (++attract_n == TOP_TABLES) attract_n = 0;
         return 2;
