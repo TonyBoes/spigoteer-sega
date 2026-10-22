@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Stadium: BG 0 takes BG 1's palette (the keg / spout's; only its darkest colour differs) and the keg / spout share BG 0; BG 1 free in the playfield."),
     ("2026-10-21", "Every venue: the keg / spout palette moves from BG 7 to BG 1 in the playfield; BG 7 is free there."),
     ("2026-10-21", "Stadium: the tan is the lighter #FFE6CD (owner pick over #FFD5AC), for OBJ 1 and OBJ 2."),
     ("2026-10-21", "Stadium: OBJ 1 and OBJ 2 white pushed toward tan; PETE and the cheerleaders share OBJ 1, NORM uses OBJ 0, OBJ 2 open for a new patron. Frees OBJ 3, 5, 7."),
@@ -141,6 +142,7 @@ PLANS = {
                ("NORM", "OBJ", 7, 0, "NORM, the ref")],
         recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 4): "OBJ 0"},
         open={("OBJ", 2): "Reserved patron"},
+        field_moves=[("Keg, spout", 1, 0)],          # playfield: BG 0 takes BG 1's (keg / spout) palette and the keg / spout share it
         why="Owner 2026-10-21: OBJ 1's white pushed toward tan serves PETE and the cheerleaders; NORM uses Sal's OBJ 0; OBJ 2 gets the same push and becomes a patron palette.",
     ),
 }
@@ -319,6 +321,7 @@ for i, v in enumerate(venues):
     ofree = [sl for sl in range(8) if card("OBJ", sl, m[("OBJ", sl)], True).find('class="pal free"') >= 0]
     opens = [sl for sl in range(8) if m[("OBJ", sl)]["open"]]
     bfree = sorted([sl for sl in v["above"] if sl not in v["field"] and sl not in [t for _, _, t in FIELD_MOVES]] + [f for _, f, _ in FIELD_MOVES])
+    bfree = sorted(set(bfree) | {fr for _, fr, _ in PLANS.get(v["key"], {}).get("field_moves", [])})
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
     w('<h1>%s</h1><div class="stats">' % esc(v["name"]))
     ident, reserved = [], []
@@ -362,6 +365,17 @@ for i, v in enumerate(venues):
         field[to] = dict(pat=[], oth=[(item, True)], cols=src["cols"], new={i: src["cols"][i] for i in range(4)}, freed=False, open=None,
                          match="BG %d" % fr)
         taken.add(to)
+    for item, fr, to in (PLANS.get(v["key"], {}).get("field_moves", [])):
+        src = field[fr]
+        hit = [x for x in src["oth"] if x[0].startswith(item)]
+        src["oth"] = [x for x in src["oth"] if x not in hit]
+        dst = dict(field[to]); cols = src["cols"]
+        newc = {i: src["new"].get(i, cols[i]) for i in range(4)}
+        dst["new"] = {i: c for i, c in newc.items() if c != dst["cols"][i]}
+        dst["oth"] = dst["oth"] + [(item, True)]
+        field[to] = dst
+        field[fr] = dict(pat=[], oth=[], cols=cols, new={}, freed=True, open=None)
+        taken.discard(fr)
     for sl in range(8):
         w(card("BG", sl, field[sl], False, hide_cols=(sl in v["above"] and sl not in v["field"] and sl not in taken)))
     w('</div><h2>Background palettes, above the playfield (HUD and stage)</h2><div class="grid">')
