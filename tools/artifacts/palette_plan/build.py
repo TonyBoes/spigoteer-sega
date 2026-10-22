@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-22", "Saloon: the Outlaw (owner's recolour, red and navy) shares ROSIE's OBJ 4 / BG 4; OBJ 7 keeps his former palette for the Prospector and Big Tex."),
     ("2026-10-21", "Saloon: ARTIE (owner set 2 C, the bald old prospector) shares MABEL's palette on OBJ 6 / BG 6."),
     ("2026-10-21", "Saloon names: patron B is now MABEL (grey hair, black lace shawl); ROSIE is now the red-dress singer on OBJ 4."),
     ("2026-10-21", "Saloon: ROSIE redrawn by the owner (grey hair, dark dress): skin #FFCCAA, grey #A9A9A9, dark #303038 (stored as #FFCEAD, #ADADAD in 15-bit)."),
@@ -160,10 +161,10 @@ PLANS = {
                   ("OBJ", 6): {1: "#FFCEAD", 2: "#ADADAD", 3: "#303038"},  # MABEL (was ROSIE), redrawn by the owner: grey hair, black lace shawl                               # ROSIE's hair (and outline) dark grey; her shawl and dress stay pink
                   },
         open={},
-        add={("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"]),       # the original round-1 outlaw, his own palette; Big Tex takes it too
+        add={("OBJ", 7): ("Prospector", ["#D8C098", "#B85838", "#281810"]),   # the Outlaw's former palette, kept by the Prospector; Big Tex takes it too
              ("OBJ", 4): ("ROSIE, the singer", ["#F8D0B0", "#B84058", "#202030"]),   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
              ("OBJ", 5): ("Brown-haired singer", ["#F8D0B0", "#805838", "#202030"])},   # owner's concept, her own palette
-        join={("OBJ", 7): ["Prospector"],                                      # saved candidate Prospector 1 shares the Outlaw's palette
+        join={("OBJ", 4): ["Outlaw"],                                          # owner 2026-10-22: the Outlaw (owner's recolour) shares ROSIE's palette
               ("OBJ", 6): ["ARTIE, the old prospector"]},                       # owner set 2 C (bald, grey beard) shares MABEL's palette
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
     ),
