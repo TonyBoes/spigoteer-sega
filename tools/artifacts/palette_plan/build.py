@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Saloon: the Outlaw (original round 1) on OBJ 7 / BG 7 with his own palette; Big Tex's body and hat take the Outlaw's palette (replaces the reserved Big Tex-coloured patron)."),
     ("2026-10-21", "Saloon: the Prospector (saved candidate Prospector 1) on OBJ 4 / BG 4 with his own palette."),
     ("2026-10-21", "Saloon: a reserved patron in Big Tex's body colours on OBJ 7 / BG 7 (his fight loads the same colours there, so this patron can stay in it)."),
     ("2026-10-21", "Saloon: HANK's hat to #FFE6CD and DUSTY shares HANK's palette, in slot 3 (OBJ 3 / BG 3) so neither sits out boss fights; OBJ 7 and BG 7 are the boss's alone."),
@@ -146,9 +147,10 @@ PLANS = {
     "cowboys": dict(
         moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand")],
         recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
-                  ("OBJ", 7): {1: "#F6BD8B", 2: "#CD3120", 3: "#5A3118"}},  # Big Tex's body (= his hat's) colours
-        open={("OBJ", 7): "Reserved patron"},
-        add={("OBJ", 4): ("Prospector", ["#E8E0D0", "#C87848", "#301808"])},   # saved candidate Prospector 1, his own palette
+                  },
+        open={},
+        add={("OBJ", 4): ("Prospector", ["#E8E0D0", "#C87848", "#301808"]),    # saved candidate Prospector 1, his own palette
+             ("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"])},      # the original round-1 outlaw, his own palette; Big Tex takes it too
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
     ),
     "sports": dict(
