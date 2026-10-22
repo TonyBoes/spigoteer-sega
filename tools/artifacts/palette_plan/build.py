@@ -344,10 +344,9 @@ for i, v in enumerate(venues):
         md += "| %s%s | %s | OBJ %d | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), r["obj"],
                                                 ("BG %d" % r["bg"]) if "bg" in r else "to assign")
     w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % len(ident))
-    w('<div class="stat"><b>%d</b><span>reserved patrons (palette set aside, no concept yet)</span></div>' % len(reserved))
-    w('<div class="stat"><b>%d</b><span>free sprite palettes%s</span></div>' % (len(ofree),
-      (": " + ", ".join("OBJ %d" % x for x in ofree)) if ofree else ""))
-    w('<div class="stat"><b>%d</b><span>free background palettes in the playfield: %s</span></div>' % (len(bfree), ", ".join("BG %d" % x for x in bfree)))
+    w('<div class="stat"><b>%d</b><span>reserved patrons</span></div>' % len(reserved))
+    w('<div class="stat"><b>%d</b><span>free OBJ palettes</span></div>' % len(ofree))
+    w('<div class="stat"><b>%d</b><span>free BG palettes</span></div>' % len(bfree))
     w('</div><h2>Sprite palettes</h2><div class="grid">')
     for sl in range(8):
         w(card("OBJ", sl, m[("OBJ", sl)], True))
