@@ -106,14 +106,10 @@ static const sfx_step_t s_perfect[] = { {1936, 3, 0x20}, {0, 2, 0x40}, {1959, 3,
 static const sfx_step_t s_x2[] = { {1936, 3, 0x20}, {0, 1, 0x40}, {1959, 3, 0x20}, {0, 1, 0x40}, {1974, 3, 0x20}, {0, 1, 0x40},
                                    {1992, 2, 0x20}, {0, 4, 0x40}, {0, 5, 0x60}, {1992, 2, 0x60}, {0, 4, 0x60} };
 static const sfx_def_t d_x2 = { 2, 0, 0, N_(s_x2), s_x2 };
-// The title's DX stamp (src/title.c DX_SFX; requested as SFX_PERFECT with pour_streak 4..6, which mugs.c never reaches: it caps at 3), in the title tune's key (C major:
-// periods C5 1923, E5 1949, G5 1964, C6 1985, E6 1998). 1: a rising run C E G C, the last note rings out (0.85 s, mostly at 50%); 2: the chime C E G and its echo, G at 50% then 25%;
-// 3: a run of five up to E6, held (0.8 s; the title also plays SFX_BREAK under it).
-static const sfx_step_t s_st1[] = { {1923, 3, 0x20}, {0, 2, 0x40}, {1949, 3, 0x20}, {0, 2, 0x40}, {1964, 3, 0x20}, {0, 2, 0x40}, {1985, 5, 0x20}, {0, 28, 0x40}, {0, 18, 0x60} };
-static const sfx_step_t s_st2[] = { {1923, 3, 0x20}, {0, 2, 0x40}, {1949, 3, 0x20}, {0, 2, 0x40}, {1964, 4, 0x20}, {0, 9, 0x40}, {0, 5, 0x60},
-                                    {1964, 3, 0x40}, {0, 8, 0x40}, {1964, 3, 0x60}, {0, 20, 0x60} };
-static const sfx_step_t s_st3[] = { {1923, 3, 0x20}, {0, 1, 0x40}, {1949, 3, 0x20}, {0, 1, 0x40}, {1964, 3, 0x20}, {0, 1, 0x40}, {1985, 3, 0x20}, {0, 1, 0x40}, {1998, 5, 0x20}, {0, 28, 0x40}, {0, 18, 0x60} };
-static const sfx_def_t d_st[3] = { { 2, 0, 0, N_(s_st1), s_st1 }, { 2, 0, 0, N_(s_st2), s_st2 }, { 2, 0, 0, N_(s_st3), s_st3 } };
+// The title's DX stamp (src/title.c; requested as SFX_PERFECT with pour_streak 4, which mugs.c never reaches: it caps at 3), in the title tune's key (C major:
+// periods C5 1923, E5 1949, G5 1964, C6 1985, E6 1998): a marimba run of five up to E6, held (0.8 s); the title plays SFX_BREAK's crash under it (owner Q46).
+static const sfx_step_t s_st[] = { {1923, 3, 0x20}, {0, 1, 0x40}, {1949, 3, 0x20}, {0, 1, 0x40}, {1964, 3, 0x20}, {0, 1, 0x40}, {1985, 3, 0x20}, {0, 1, 0x40}, {1998, 5, 0x20}, {0, 28, 0x40}, {0, 18, 0x60} };
+static const sfx_def_t d_st = { 2, 0, 0, N_(s_st), s_st };
 uint8_t pour_streak;                 // perfect pours in a row, capped at 3 (src/mugs.c launch_mug; 0 after a non-perfect launch, a shift's start, a lost life)
 static uint16_t pour_up(uint16_t p, uint8_t n) {   // the period p raised n whole tones: the wave length x 0.8906 (2^-1/6 = 0.8909) each, kept to 1/16 so two steps do not compound the rounding
     uint16_t d = (2048 - p) << 4;
@@ -303,7 +299,7 @@ static void sfx_start(uint8_t id) {
         if (v->def->ch == 2) wave_release();                        // the marimba cut by a channel-1 effect (or itself again): the bass gets channel 3 back
         else if (sfx_defs[id].ch == 2) { NR12_REG = 0x08; NR14_REG = 0x80; }   // a channel-1 effect cut by the marimba: let go of channel 1
     }
-    v->def = (id == SFX_PERFECT && pour_streak > 2) ? (pour_streak > 3 ? &d_st[pour_streak - 4] : &d_x2) : &sfx_defs[id];
+    v->def = (id == SFX_PERFECT && pour_streak > 2) ? (pour_streak > 3 ? &d_st : &d_x2) : &sfx_defs[id];
     v->step = 0;
     v->busy = 1;
     set_mute(v->def->ch, 1);        // the driver lets go of the channel (and cuts its note) before we write
