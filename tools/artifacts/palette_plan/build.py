@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Saloon: the Prospector shares the Outlaw's palette on OBJ 7 / BG 7 (was his own on OBJ 4); OBJ 4 and BG 4 free."),
     ("2026-10-21", "Saloon: the Outlaw (original round 1) on OBJ 7 / BG 7 with his own palette; Big Tex's body and hat take the Outlaw's palette (replaces the reserved Big Tex-coloured patron)."),
     ("2026-10-21", "Saloon: the Prospector (saved candidate Prospector 1) on OBJ 4 / BG 4 with his own palette."),
     ("2026-10-21", "Saloon: a reserved patron in Big Tex's body colours on OBJ 7 / BG 7 (his fight loads the same colours there, so this patron can stay in it)."),
@@ -149,8 +150,8 @@ PLANS = {
         recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
                   },
         open={},
-        add={("OBJ", 4): ("Prospector", ["#E8E0D0", "#C87848", "#301808"]),    # saved candidate Prospector 1, his own palette
-             ("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"])},      # the original round-1 outlaw, his own palette; Big Tex takes it too
+        add={("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"])},      # the original round-1 outlaw, his own palette; Big Tex takes it too
+        join={("OBJ", 7): ["Prospector"]},                                     # saved candidate Prospector 1 shares the Outlaw's palette
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
     ),
     "sports": dict(
@@ -236,6 +237,9 @@ def model(v):
             m[key]["new"] = {i + 1: h for i, h in enumerate(hexes) if h != m[key]["cols"][i + 1]}
             m[key]["freed"] = False
             m[key]["quiet"] = True                  # a new palette: no "was" note
+        for key, names in pl.get("join", {}).items():
+            for nm in names:
+                m[key]["pat"].append((nm, True))
     return m
 
 
@@ -390,9 +394,10 @@ def field_model(v, m):
                 continue
             if field[o]["pat"] or [x for x in field[o]["oth"] if not x[0].startswith("Boss")] or field[o].get("open"):
                 mates = {t for t, so in pats if so == o and t != name}
-                if b is not None and field[o]["pat"] and all(x[0] in mates for x in field[o]["pat"]):
+                if field[o]["pat"] and all(x[0] in mates for x in field[o]["pat"]):
                     field[o]["pat"] = field[o]["pat"] + [(name, True)]
-                    take(b, name)
+                    if b is not None:
+                        take(b, name)
                 continue
             if b is None:          # a reserved patron: its OBJ colours, the wall's colour 0
                 oc = eff(m[("OBJ", o)])
