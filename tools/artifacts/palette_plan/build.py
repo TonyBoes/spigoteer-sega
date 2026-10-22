@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Owner: background palettes used above the playfield (HUD BG 1, stage BG 5, 6) are reloaded where the playfield starts; in the playfield they are free for patrons."),
     ("2026-10-21", "Owner: drop the enhanced looks (Saloon ROSIE, Robot Factory BOXY) after the next patron revision; frees OBJ 4 there."),
     ("2026-10-21", "Page started from main {commit}. Plan = current use; nothing decided yet."),
 ]
@@ -106,7 +107,10 @@ for key, name in VENUES:
             used.setdefault(s, set()).add(o["kind"])
     looks = 3 + (1 if used.get(4) else 0)
     free = [s for s in range(8) if not used.get(s)]
-    venues.append(dict(key=key, name=name, pal=pal, bg=bgp, used=used, looks=looks, free=free))
+    rows = c["attr"]["pal"]
+    above = sorted({int(ch) for r in rows[:5] for ch in r})          # layout.h: HUD_ROW 0, stage rows 1-4, BAR_FIRST_ROW 5
+    field = sorted({int(ch) for r in rows[5:] for ch in r})
+    venues.append(dict(key=key, name=name, pal=pal, bg=bgp, used=used, looks=looks, free=free, above=above, field=field))
 
 commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
 
@@ -127,6 +131,9 @@ NAMES = {
 PLANNED = {}
 # Planned removals (struck through, yellow). Owner 2026-10-21: drop the enhanced looks (M14a) after the next patron revision.
 DROP_ENHANCED = True
+# Owner 2026-10-21: the BG palettes used above the playfield are reloaded where the playfield starts (row 5), so in the playfield
+# they are free for patrons. The above-the-playfield palettes are listed in their own section.
+SPLIT_PLAYFIELD = True
 PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
 BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
 
@@ -153,15 +160,19 @@ def users(kind, v, s):
         pat = [n[BG_PATRON[s]]] if s in BG_PATRON else []
         if s == 7 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (top row)"]
-        other = {0: ["Bar, wall"], 1: ["HUD"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"], 7: ["Keg, spout"]}.get(s, [])
+        other = {0: ["Bar, wall"], 1: ["HUD (score, lives)"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"], 7: ["Keg, spout"]}.get(s, [])
     return pat, other
 
 
-def pal_card(kind, v, s, cols, skip0):
+def pal_card(kind, v, s, cols, skip0, section=None):
     pat, other = users(kind, v, s)
+    if section == "above":
+        pat, other = [], [x for x in other]
+    elif section == "field" and s in v["above"] and s not in v["field"]:
+        pat, other, cols = [], [], None
     plan = PLANNED.get(v["key"], {}).get((kind, s), [])
     free = not (pat or other or plan)
-    changed = DROP_ENHANCED and enh_variant(v) is not None and (kind, s) == ("OBJ", 4)
+    changed = (DROP_ENHANCED and enh_variant(v) is not None and (kind, s) == ("OBJ", 4)) or cols is None
     body = ""
     if pat or plan:
         body += '<ul class="pat">%s%s</ul>' % ("".join('<li class="now">%s</li>' % esc(x) for x in pat),
@@ -171,7 +182,7 @@ def pal_card(kind, v, s, cols, skip0):
     if free:
         body = '<p class="freep%s">Free</p>' % (" plan" if changed else "")
     return ('<div class="pal%s"><div class="ph"><span class="slot">%s %d</span><span class="sws">%s</span></div>%s</div>'
-            % (" free" if free else "", kind, s, swatches(cols, skip0), body))
+            % (" free" if free else "", kind, s, swatches(cols, skip0) if cols else "", body))
 
 
 S = []
@@ -228,20 +239,23 @@ for i, v in enumerate(venues):
 w('</div>')
 for i, v in enumerate(venues):
     ofree = [s for s in range(8) if not any(users("OBJ", v, s))]
-    bfree = [s for s in range(8) if not any(users("BG", v, s))]
+    bfree = [s for s in v["above"] if s not in v["field"]]
     looks = 3
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
     w('<h1>%s</h1><div class="stats">' % esc(v["name"]))
     w('<div class="stat"><b>%d</b><span>patrons</span></div>' % looks)
     w('<div class="stat"><b>%d</b><span>patrons wanted (Q11)</span></div>' % TARGET_LOOKS)
     w('<div class="stat"><b>%d</b><span>free sprite palettes%s</span></div>' % (len(ofree), (": " + ", ".join("OBJ %d" % x for x in ofree)) if ofree else ""))
-    w('<div class="stat"><b>%d</b><span>free background palettes</span></div>' % len(bfree))
+    w('<div class="stat"><b>%d</b><span>free background palettes in the playfield: %s</span></div>' % (len(bfree), ", ".join("BG %d" % x for x in bfree)))
     w('</div><h2>Sprite palettes</h2><div class="grid">')
     for s in range(8):
         w(pal_card("OBJ", v, s, v["pal"].get(s, ["#000000"] * 4), True))
-    w('</div><h2>Background palettes</h2><div class="grid">')
+    w('</div><h2>Background palettes, playfield</h2><div class="grid">')
     for s in range(8):
-        w(pal_card("BG", v, s, v["bg"].get(s, ["#000000"] * 4), False))
+        w(pal_card("BG", v, s, v["bg"].get(s, ["#000000"] * 4), False, "field"))
+    w('</div><h2>Background palettes, above the playfield (HUD and stage)</h2><div class="grid">')
+    for s in v["above"]:
+        w(pal_card("BG", v, s, v["bg"].get(s, ["#000000"] * 4), False, "above"))
     w('</div></section>')
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
