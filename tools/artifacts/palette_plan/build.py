@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Saloon: the brown-haired singer (owner's concept) on OBJ 5 / BG 5 with her own palette."),
     ("2026-10-21", "Saloon: OBJ 1 colour 1 to #FFE6CD and the show dancers share OBJ 1; OBJ 5 free."),
     ("2026-10-21", "Saloon: the Saloon singer (owner's concept, v3) on OBJ 4 / BG 4 with her own palette; the wall colour shows through at her eyes."),
     ("2026-10-21", "Saloon: the Prospector shares the Outlaw's palette on OBJ 7 / BG 7 (was his own on OBJ 4); OBJ 4 and BG 4 free."),
@@ -154,7 +155,8 @@ PLANS = {
                   },
         open={},
         add={("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"]),       # the original round-1 outlaw, his own palette; Big Tex takes it too
-             ("OBJ", 4): ("Saloon singer", ["#F8D0B0", "#B84058", "#202030"])},  # owner's concept (set 2 B, v3: the wall shows through at her eyes)
+             ("OBJ", 4): ("Saloon singer", ["#F8D0B0", "#B84058", "#202030"]),   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
+             ("OBJ", 5): ("Brown-haired singer", ["#F8D0B0", "#805838", "#202030"])},   # owner's concept, her own palette
         join={("OBJ", 7): ["Prospector"]},                                     # saved candidate Prospector 1 shares the Outlaw's palette
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
     ),
