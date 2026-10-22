@@ -47,11 +47,12 @@ def run_screen(scr, model, assets, window, step):
             if sampling:
                 img = rom.pb.screen.image.convert("RGB").copy()
                 samples.append(C.take(rom, cgb, i, img))
-        rec, side = A.analyze(samples, model, assets, "img/%s.%s" % (scr["id"], model), scr["id"], step)
+        rec, side = A.analyze(samples, model, assets, "img/%s.%s" % (scr["id"], model), scr["id"], step, E.classifier_for(scr["id"], cgb, CF.GAME))
         if E.level_group(scr["id"]) and driver is not None:           # a level: everything it can draw, not just this window
             try:
                 acc, notes = E.capture(rom, model, scr["id"], samples, driver.__self__, CF.GAME)
-                rec["ev"], side["ev_imgs"] = E.record(acc, notes, cgb)
+                rec["ev"], side["ev_imgs"], side["obj_imgs"] = E.record(acc, notes, cgb)
+                rec["objs"] = rec["ev"].pop("objs")
                 side["ev_objpal_used"] = {sl: sorted(l) for sl, l in acc.objpal_used.items()}
                 side["ev_acc"] = acc
             except Exception:
@@ -73,12 +74,34 @@ SPR_X = PACK_X + 4 * 136   # the sprite cells (transparent ground): one row of 8
 PACK_ROW = 200      # a model's row of the packed image: DMG at y 0, CGB at y 200
 
 
+def shelf(oi, width, gap=2):
+    """Shelf-pack the object images then the piece images into `width`: ([(x, y)], [(x, y)], height). Deterministic, in list order."""
+    if not oi:
+        return [], [], 0
+    x = y = rowh = 0
+    pos = []
+    for g in list(oi["objs"]) + list(oi["pool"]):
+        if x and x + g.width > width:
+            x, y, rowh = 0, y + rowh + gap, 0
+        pos.append((x, y))
+        x += g.width + gap
+        rowh = max(rowh, g.height)
+    n = len(oi["objs"])
+    return pos[:n], pos[n:], y + rowh
+
+
 def pack(out, sid, recs, side):
     """One PNG per screen holding both models' still and tile sheets (a published version may hold only ~500 files)."""
     from PIL import Image
     nev = max([len((side[(sid, m)].get("ev_imgs") or [])) for m in recs] + [0])
     EV_Y = 2 * PACK_ROW                                     # the event block (levels): per model nev rows of E.ROW_H: stills, then sprite cells
-    im = Image.new("RGBA", (SPR_X + A.SPR_CAP * 8, 2 * PACK_ROW + 2 * nev * E.ROW_H), (0, 0, 0, 255))
+    W = SPR_X + A.SPR_CAP * 8
+    lay = {m: shelf(side[(sid, m)].get("obj_imgs"), W) for m in recs}          # the constructed objects: a shelf-packed block per model
+    OBJ_Y = 2 * PACK_ROW + 2 * nev * E.ROW_H
+    obj_y = {"dmg": OBJ_Y, "cgb": OBJ_Y + lay.get("dmg", ([], [], 0))[2]}
+    im = Image.new("RGBA", (W, OBJ_Y + sum(l[2] for l in lay.values())), (0, 0, 0, 255))
+    for m, (po, pp, hh) in lay.items():
+        im.paste((0, 0, 0, 0), (0, obj_y[m], W, obj_y[m] + hh))
     im.paste((0, 0, 0, 0), (SPR_X, 0, im.width, 2 * PACK_ROW))
     for model, rec in recs.items():
         y0 = PACK_ROW if model == "cgb" else 0
@@ -105,6 +128,13 @@ def pack(out, sid, recs, side):
                     im.paste(sp, (sx + k * 8, ey + i * E.ROW_H))
                 rec["ev"]["events"][i]["n_stills"] = len(ei["stills"])
             rec["ev"]["at"] = dict(x=0, y=ey, row=E.ROW_H, spr_x=sx)
+        po, pp, _ = lay[model]
+        oi = side[(sid, model)].get("obj_imgs") or dict(objs=[], pool=[])
+        for (x, y), g in zip(po, oi["objs"]):
+            im.paste(g, (x, obj_y[model] + y))
+        for (x, y), g in zip(pp, oi["pool"]):
+            im.paste(g, (x, obj_y[model] + y))
+        rec["objpack"] = dict(objs=[[x, obj_y[model] + y] for x, y in po], pool=[[x, obj_y[model] + y] for x, y in pp])
         rec["pack"] = dict(png="img/%s.png" % sid, still=[0, y0], sheets=sheets, w=im.width, h=im.height)
     A.save_png(im, out / "img" / ("%s.png" % sid))
 
