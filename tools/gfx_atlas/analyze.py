@@ -169,7 +169,7 @@ def collect_sprites(samples, per, cgb):
     return by
 
 
-def analyze(samples, model, assets, rel, key, step):
+def analyze(samples, model, assets, rel, key, step, objclass=None):
     """samples: list of capture.Sample. assets: Path of the output dir. rel: "img/<key>" stem. Returns (record, sidecar)."""
     cgb = model == "cgb"
     n = len(samples)
@@ -332,6 +332,12 @@ def analyze(samples, model, assets, rel, key, step):
         peak_line_y=pl.index(max(pl)), peak_sample_t=samples[peak_i].t, lines_over_10=max(sum(1 for c in P["lines"] if c > 10) for P in per),
         peak_series=[P["peak"] for P in per], visible_series=[len(P["vis"]) for P in per], rep_lines=RP["lines"], size=RP["h"])
 
+    import objects as OB
+    oa = OB.ObjAcc(cgb, objclass or OB.generic)
+    for s, P in zip(samples, per):
+        oa.add(s, P["objs"], P["h"])
+    rec["objs"], obj_imgs = oa.record()
+
     sprs = collect_sprites(samples, per, cgb)
     rec["spr"] = dict(cap=SPR_CAP, groups=[dict(slot=k, total=len(sprs.get(k, [])), items=[e["meta"] + [e["n"]] for e in sprs.get(k, [])[:SPR_CAP]])
                                           for k in range(8 if cgb else 2)])
@@ -371,5 +377,5 @@ def analyze(samples, model, assets, rel, key, step):
         objpal_used=[x["used_frames"] > 0 for x in rec["pal"]["obj"]] if cgb else None,
         dmg={k: R.regs[k] for k in ("BGP", "OBP0", "OBP1")}, tilehash=side_hash, use=use,
         loaded=[b["loaded"] for b in banks], changed=[set(b["changed"]) for b in banks],
-        still_img=R.image, sheet_imgs=sheet_imgs, spr=sprs)
+        still_img=R.image, sheet_imgs=sheet_imgs, spr=sprs, obj_imgs=obj_imgs)
     return rec, side
