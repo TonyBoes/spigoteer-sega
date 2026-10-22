@@ -136,16 +136,21 @@ def settings_entries(gb, music="on", bar="snap", debug=False):
 def settings_layout(gb, **kw):
     """{screen row: text key} of every text row of SETTINGS, and [status row of each entry]."""
     ents = settings_entries(gb, **kw)
-    t = sum(1 if n is None else 3 for n, _ in ents)
-    skip = t > 10
-    t -= skip
-    row, rows, status = 4 + (10 - t) // 2, {}, []
-    last = max(i for i, (n, _) in enumerate(ents) if n)
+    ns = sum(1 for n, _ in ents if n)
+    g = len(ents) > ns
+    t = 3 * ns - 1 + (len(ents) - ns) + g          # rows 5-13 hold nine: the gap before the actions goes first, then one gap between settings
+    d = 0
+    if t > 9 and g:
+        g, t = 0, t - 1
+    if t > 9:
+        d, t = 1, t - 1
+    row, rows, status = 5 + (9 - t) // 2, {}, []
     for i, (n, k) in enumerate(ents):
         if n is None:
             rows[row] = k; status.append(row); row += 1
         else:
-            rows[row] = n; rows[row + 1] = k; status.append(row + 1); row += 2 if (skip and i == last) else 3
+            rows[row] = n; rows[row + 1] = k; status.append(row + 1); row += 2
+            row += g if i == ns - 1 else (0 if (d and i == ns - 2) else 1)
     return rows, status
 
 

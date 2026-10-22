@@ -64,6 +64,7 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define BGPAL_LOGO      BGPAL_PATRON       // 2
 #define BGPAL_TEXT      3
 #define BGPAL_TEXT_SEL  4
+#define BGPAL_TEXT_NAME BGPAL_STAGE_B     // 6 (no stage on the title): SETTINGS' names, the muted shade
 #define BGPAL_TPATRON   BGPAL_STAGE        // 5 (no stage on the title)
 #define OBJPAL_FX       6
 #define OBJ_FX          OBJ_DANCER
@@ -190,6 +191,12 @@ static const uint8_t *row_str(uint8_t r) {
 
 #define row_name_of(i) (title_rows[i] - 1)
 static void build_item(uint8_t i) { build_row(menu_buf[i], k_text[title_items[i]]); }   // (not SETTINGS)
+// the attribute row of SETTINGS' text row r: the cursor's status gold, another status cream, a name muted
+static const uint8_t *row_attr(uint8_t r) {
+    uint8_t i;
+    for (i = 0; i < title_n; i++) if (title_rows[i] == r) return i == title_sel ? attr_sel : attr_txt;
+    return menu_buf[3];
+}
 static void row_dirty(uint8_t i) { title_dirty |= (uint16_t)1 << title_rows[i]; }   // (the status or action line only: a name never changes)
 
 static void set_sel_attr(uint8_t sel, uint8_t on) {
@@ -249,15 +256,22 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_dirty |= (uint16_t)1 << title_rows[i] | (IS_ASK(m) ? (uint16_t)1 << CAP_ROW : 0);
         if (m != TM_SETTINGS) build_item(i);
     }
-    if (m == TM_SETTINGS) {       // two rows a setting (name, status) and a blank row after it; an action is one row. Centred in rows 4-13; with all five lines (eleven rows) the last gap goes
-        uint8_t row, t = 0, last = 0, skip;
-        for (i = 0; i < title_n; i++) { if (IS_ACT(title_items[i])) t++; else { t += 3; last = i; } }
-        skip = t > 10;
-        if (skip) t--;
-        row = MENU_FIRST_ROW + (10 - t) / 2;
+    if (m == TM_SETTINGS) {       // two rows a setting (name, status) and a blank row between settings; an action is one row. Rows 5-13 (row 4 stays blank under the logo), centred
+        uint8_t row, t, ns = 0, g, d = 0;     // t: rows used; the gap before the actions (g) goes first when they run out, then (d) one gap between settings
+        for (i = 0; i < title_n; i++) if (!IS_ACT(title_items[i])) ns++;
+        g = title_n > ns;
+        t = 3 * ns - 1 + (title_n - ns) + g;
+        if (t > 9 && g) { g = 0; t--; }
+        if (t > 9) { d = 1; t--; }
+        row = MENU_FIRST_ROW + 1 + (9 - t) / 2;
         for (i = 0; i < title_n; i++) {
             if (IS_ACT(title_items[i])) { title_rows[i] = row++; }
-            else { title_rows[i] = row + 1; row += (skip && i == last) ? 2 : 3; title_dirty |= (uint16_t)1 << row_name_of(i); }
+            else {
+                title_rows[i] = row + 1; row += 2;
+                row += i == ns - 1 ? g : (d && i == ns - 2) ? 0 : 1;
+                title_dirty |= (uint16_t)1 << row_name_of(i);
+                if (is_cgb) memset(menu_buf[3], BGPAL_TEXT_NAME, 20);   // (the names' attribute row, kept here: nothing else of SETTINGS uses menu_buf[3])
+            }
             title_dirty |= (uint16_t)1 << title_rows[i];
         }
     }
@@ -300,7 +314,7 @@ static uint8_t menu_frame(void) {
         if (txt) { build_row(menu_buf[n], txt); vq_add(0, menu_buf[n], 0, r, 20); }
         else vq_add(0, row_blank, 0, r, 20);
         n += need;
-        if (need == 2) vq_add(1, k == title_sel ? attr_sel : attr_txt, 0, r, 20);
+        if (need == 2) vq_add(1, row_attr(r), 0, r, 20);
     }
     return n;
 }
@@ -343,6 +357,8 @@ static void title_pals(void) {
     set_bkg_palette(BGPAL_TEXT, 1, p);
     p[3] = RGB15(31, 25, 6);                                                     // the selected item: gold
     set_bkg_palette(BGPAL_TEXT_SEL, 1, p);
+    p[3] = RGB15(22, 19, 12);                                                    // the names: muted too (SETTINGS)
+    set_bkg_palette(BGPAL_TEXT_NAME, 1, p);
     patron_pal_get(0, 0, p);
     p[0] = WALL_RGB_T;
     set_bkg_palette(BGPAL_TPATRON, 1, p);
@@ -465,7 +481,7 @@ void title_enter(void) BANKED {
         set_bkg_tiles(1, LOGO_ROW, 18, 1, row_buf); set_bkg_tiles(1, LOGO_ROW + 1, 18, 1, row_buf);
         if (title_menu == TM_SETTINGS) {
             for (r = LOGO_ROW + 2; r < BAR_TOP_ROW(SCENE_BAR); r++)     // (the gold line is the cursor's; a setting's name is a text line too)
-                if (row_str(r)) set_bkg_tiles(0, r, 20, 1, r == title_rows[title_sel] ? attr_sel : attr_txt);
+                if (row_str(r)) set_bkg_tiles(0, r, 20, 1, row_attr(r));
         } else
             for (i = 0; i < title_n; i++) set_bkg_tiles(0, title_rows[i], 20, 1, i == title_sel ? attr_sel : attr_txt);   // (the gold line is the cursor's: it may come back on line 1 or 2)
         set_bkg_tiles(0, ROW_HI, 20, 1, attr_txt);
