@@ -422,7 +422,7 @@ def test_the_code_is_remembered_after_a_reset(boot):
 
 
 def test_settings_lists_debug_menu_only_when_unlocked(boot):
-    from test_flow import settings_items, settings_keys, settings_row, title_text_row, menu_block_rows
+    from test_flow import settings_items
     title_pick(boot, K_SETTINGS)
     assert menu_items(boot) == settings_items(boot)
     menu_tap(boot, "b")
@@ -430,9 +430,9 @@ def test_settings_lists_debug_menu_only_when_unlocked(boot):
     title_pick(boot, K_SETTINGS)
     boot.run(MENU_SETTLE)
     assert menu_items(boot) == settings_items(boot, debug=True)
-    keys = settings_keys(boot, debug=True)         # (MUSIC, BAR CHANGE, ERASE DATA, DEBUG MENU: ERASE and DEBUG on adjacent rows)
-    assert [title_text_row(k) for k in keys] == [menu_block_rows(boot)[settings_row(boot, i, debug=True) - 4] for i in range(len(keys))]
     from test_flow import expect_settings
+    menu_to(boot, K_DEBUG)                         # (MUSIC, BAR CHANGE, ERASE DATA, DEBUG MENU: the last page)
+    boot.run(MENU_SETTLE)
     expect_settings(boot, debug=True)
 
 

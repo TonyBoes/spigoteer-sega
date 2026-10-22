@@ -615,8 +615,9 @@ TITLE_WORD = "SPIGOTEER"
 TITLE_LETTERS = "SPIGOTER"            # the order of the @title_* blocks in title.txt
 LOGO_FILL = [0, 4, 8, 12]             # px of beer in the fill states before the final art (5 steps per letter)
 MENU_STRINGS = {"arcade": "ARCADE", "story": "STORY",
-                # SETTINGS (owner 2026-10-21): every setting is two rows, its NAME and under it its STATUS; the status is the one the cursor's line shows, with the arrow and the A button beside it
+                # SETTINGS (owner 2026-10-21): one setting at a time: its NAME between two arrows, its STATE under it, and the hint row
                 "name_music": "MUSIC", "on": "ON", "off": "OFF",
+                "hint_change": "  CHANGE    BACK", "hint_open": "  OPEN      BACK",   # SETTINGS' hint row: the A button sprite sits in cell 1, the B button in cell 11
                 "name_bar": "BAR CHANGE", "snap": "SNAP", "keep": "KEEP",
                 "continue": "CONTINUE",       # M11b: CONTINUE (story save) replaced M10a's "COMING SOON"
                 "bonus": "BONUS",             # the top level's BONUS submenu
@@ -784,7 +785,7 @@ def title_art(outdir, prev, base, ttiles, bg):
 
     # effect sprites: 8x8 frames in the top half of 8x16 entries
     fx = [r for _, r in blocks(ROOT / "assets/art/title_fx.txt")]
-    assert len(fx) == 8 and all(len(f) == 8 and all(len(r) == 8 for r in f) for f in fx), "title_fx.txt: 8 frames 8x8 (6 effects, the arrow, the A button)"
+    assert len(fx) == 9 and all(len(f) == 8 and all(len(r) == 8 for r in f) for f in fx), "title_fx.txt: 9 frames 8x8 (6 effects, the arrow, the A button, the B button)"
     fxt = []
     for f in fx:
         fxt += tile_bytes(f + ["." * 8] * 8, 0, 0) + tile_bytes(f + ["." * 8] * 8, 0, 8)

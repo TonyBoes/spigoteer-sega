@@ -160,7 +160,7 @@ def test_the_choice_is_written_when_it_changes_and_survives_a_power_cycle():
     r3.stop()
     r4 = rom_at("cgb", True, ram_with((SC_AT, sc_block(2))))
     settings_items(r4)
-    toggle(r4, "left")
+    toggle(r4, "a")
     assert flag(r4) == 1 and save_ram(r4)[SC_AT:SC_AT + 5] == sc_block(1)
 
 

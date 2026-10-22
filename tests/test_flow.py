@@ -122,41 +122,23 @@ def menu_rows(n):
     return tuple(10 - n + 2 * i for i in range(n))      # (the top level and the submenus: one line every other row, centred on row 9)
 
 
-# SETTINGS (2026-10-21, owner): every setting is TWO rows, its NAME and under it its STATUS (the line the mug stands on), a blank row after it; ERASE DATA and DEBUG MENU are
-# one-row actions. MUSIC, BAR CHANGE, [GBA COLOR MODE: only on a GBA, _is_GBA bit 0], ERASE DATA, [DEBUG MENU]. Centred in rows 4-13; with all five lines (eleven rows) the
-# gap under the last setting goes. The helpers say the lines, items and rows for the model of `gb`.
+# SETTINGS (2026-10-21, owner): ONE setting at a time. Its NAME on row 7 between two blinking arrows (sprites), its STATE on row 8 (none for the actions), a blank row,
+# the hint on row 10 ("(A) CHANGE  (B) BACK", or "(A) OPEN  (B) BACK" for an action; the buttons are sprites). LEFT / RIGHT browse in the order MUSIC, BAR CHANGE,
+# [GBA COLOR MODE: only on a GBA, _is_GBA bit 0], ERASE DATA, [DEBUG MENU: unlocked], wrapping; A / START change the state or open the action; B goes back.
+ROW_NAME, ROW_STATE, ROW_HINT = 7, 8, 10
+
+
 def settings_entries(gb, music="on", bar="snap", debug=False):
-    """[(name key or None, status key)] of SETTINGS as `gb` shows it; the COLOR status is the choice in _is_GBA bit 1."""
+    """[(name key, state key or None)] of SETTINGS' pages as `gb` shows them; the COLOR state is the choice in _is_GBA bit 1."""
     out = [("name_music", music), ("name_bar", bar)]
     if gb.model_name == "cgb" and gb.mem("_is_GBA") & 1:
         out.append(("scr", "scr_bright" if gb.mem("_is_GBA") & 2 else "scr_normal"))
-    return out + [(None, "erase")] + ([(None, "debug")] if debug else [])
-
-
-def settings_layout(gb, **kw):
-    """{screen row: text key} of every text row of SETTINGS, and [status row of each entry]."""
-    ents = settings_entries(gb, **kw)
-    ns = sum(1 for n, _ in ents if n)
-    g = len(ents) > ns
-    t = 3 * ns - 1 + (len(ents) - ns) + g          # rows 5-13 hold nine: the gap before the actions goes first, then one gap between settings
-    d = 0
-    if t > 9 and g:
-        g, t = 0, t - 1
-    if t > 9:
-        d, t = 1, t - 1
-    row, rows, status = 5 + (9 - t) // 2, {}, []
-    for i, (n, k) in enumerate(ents):
-        if n is None:
-            rows[row] = k; status.append(row); row += 1
-        else:
-            rows[row] = n; rows[row + 1] = k; status.append(row + 1); row += 2
-            row += g if i == ns - 1 else (0 if (d and i == ns - 2) else 1)
-    return rows, status
+    return out + [("erase", None)] + ([("debug", None)] if debug else [])
 
 
 def settings_keys(gb, **kw):
-    """The status keys, one per selectable line, in order."""
-    return tuple(k for _, k in settings_entries(gb, **kw))
+    """One key per page: its state's, or the action's name."""
+    return tuple(st or n for n, st in settings_entries(gb, **kw))
 
 
 def settings_items(gb, bar=K_BARCHANGE, music=K_MUSIC, debug=False):
@@ -164,15 +146,23 @@ def settings_items(gb, bar=K_BARCHANGE, music=K_MUSIC, debug=False):
     return [music, bar] + scr + [K_ERASE] + ([K_DEBUG] if debug else [])
 
 
-def settings_row(gb, i, debug=False):
-    """Screen row of the status (or action) line of SETTINGS' selectable line i."""
-    return settings_layout(gb, debug=debug)[1][i]
+def settings_row(gb, i=0, debug=False):
+    """The screen row of every setting's state (they all share it)."""
+    return ROW_STATE
 
 
-def expect_settings(gb, **kw):
-    """The menu block shows exactly SETTINGS' rows as the layout says, and the plain wall around them."""
+def settings_page_rows(gb, page, **kw):
+    n, st = settings_entries(gb, **kw)[page]
+    rows = {ROW_NAME: n, ROW_HINT: "hint_change" if st else "hint_open"}
+    if st:
+        rows[ROW_STATE] = st
+    return rows
+
+
+def expect_settings(gb, page=None, **kw):
+    """The menu block shows exactly page `page` (default: the one title_sel is on) and the plain wall around it."""
     blank = TITLE_ART["blank"]
-    rows, _ = settings_layout(gb, **kw)
+    rows = settings_page_rows(gb, gb.mem("title_sel") if page is None else page, **kw)
     want = [title_text_row(rows[y]) if y in rows else [blank] * 20 for y in range(LOGO_ROW + 2, 14)]
     assert menu_block_rows(gb) == want, rows
 
@@ -200,7 +190,7 @@ def hi_shown(gb):
 
 def music_line(gb):
     """The MUSIC status row (ON / OFF, under its name)."""
-    return tilemap_row(gb, settings_row(gb, 0), 0, 20)
+    return tilemap_row(gb, ROW_STATE, 0, 20)
 
 
 def settle_title(gb):
@@ -300,15 +290,17 @@ def test_each_submenu_opens_in_place_and_b_comes_back_to_its_item(boot, top, men
     title_pick(boot, top)
     boot.run(MENU_SETTLE)
     if top == K_SETTINGS:
-        keys = settings_keys(boot)
-        rows = settings_layout(boot)[1]
-    else:
-        rows = menu_rows(len(keys))
-    assert state(boot) == TITLE and boot.mem("title_menu") == menu and boot.mem("title_sel") == 0
-    if top == K_SETTINGS:
+        assert state(boot) == TITLE and boot.mem("title_menu") == menu and boot.mem("title_sel") == 0
         expect_settings(boot)
-    else:
-        expect_menu(boot, keys)
+        assert boot.oam()[OAM_CURSOR]["y"] == 0, "no mug in SETTINGS"
+        check_golden(boot, "title_settings")
+        menu_tap(boot, "b")
+        boot.run(MENU_SETTLE)
+        assert boot.mem("title_menu") == TM_TOP and boot.mem("title_sel") == SEL_SETTINGS
+        return
+    rows = menu_rows(len(keys))
+    assert state(boot) == TITLE and boot.mem("title_menu") == menu and boot.mem("title_sel") == 0
+    expect_menu(boot, keys)
     cursor_on(boot, keys[0], rows[0])
     if len(keys) > 1:                           # Up / Down move and wrap in a submenu too
         menu_tap(boot, "up")
@@ -424,7 +416,6 @@ def test_music_toggles_from_the_settings(boot):
     menu_tap(boot, "a")
     boot.run(2)
     assert boot.mem("sound_on") == 0 and music_line(boot) == title_text_row("off")
-    cursor_on(boot, "off", settings_row(boot, 0))
     boot.press("start", 2)
     boot.run(2)
     assert boot.mem("sound_on") == 1 and music_line(boot) == title_text_row("on")
@@ -724,23 +715,77 @@ def test_level_clear_counts_patrons_pushed_out_from_mid_bar(gb):
     assert gb.mem("served") == 2 and score(gb) == 2 * 50 + 1000
 
 
-def test_a_setting_shows_a_blinking_arrow_and_the_a_button_beside_its_status_and_an_action_does_not(boot):
-    """SETTINGS (owner 2026-10-21): next to the selected setting's status, a blinking arrow and the A button (OAM 10, 11); ERASE DATA is an action: neither."""
+def settings_open(gb, **kw):
+    title_pick(gb, K_SETTINGS)
+    gb.run(MENU_SETTLE)
+
+
+def test_left_and_right_browse_the_settings_in_order_and_wrap(boot):
     from conftest import menu_to
-    title_pick(boot, K_SETTINGS)
-    boot.run(MENU_SETTLE)
-    for key, item in (("on", K_MUSIC), ("snap", K_BARCHANGE)):
-        menu_to(boot, item)
-        arrow_seen = []
-        for _ in range(70):
-            boot.run(1)
-            o = boot.oam()
-            arrow_seen.append(o[10]["y"] != 0)
-            assert o[11]["y"] == settings_row(boot, settings_items(boot).index(item)) * 8 + 16, "the A button on the status row"
-            assert o[11]["x"] - 8 > TITLE_ART["text"][key]["r"] and o[11]["x"] > o[10]["x"], "right of the status text, the A button after the arrow"
-        assert True in arrow_seen and False in arrow_seen, "the arrow blinks"
-        assert arrow_seen.count(True) > 15 and arrow_seen.count(False) > 15, "on the cursor's 16-frame beat"
+    settings_open(boot)
+    n = len(settings_items(boot))
+    assert boot.mem("title_n") == n and boot.mem("title_sel") == 0
+    for page in list(range(n)) + [0]:
+        boot.run(MENU_SETTLE)
+        expect_settings(boot, page)
+        assert menu_items(boot)[boot.mem("title_sel")] == settings_items(boot)[page % n]
+        menu_tap(boot, "right")
+    for page in [0, n - 1, n - 2]:                 # LEFT from the first wraps to the last
+        menu_tap(boot, "left")
+        boot.run(MENU_SETTLE)
+        assert boot.mem("title_sel") == page % n
+        expect_settings(boot, page)
+    boot.press("up", 2); boot.run(MENU_SETTLE)
+    boot.press("down", 2); boot.run(MENU_SETTLE)
+    assert boot.mem("title_sel") == n - 2, "UP and DOWN do nothing here"
+
+
+def test_a_changes_the_state_b_goes_back_and_an_action_opens(boot):
+    from conftest import menu_to, TM_ERASE
+    settings_open(boot)
+    assert boot.mem("sound_on") == 1
+    menu_tap(boot, "a"); boot.run(MENU_SETTLE)
+    assert boot.mem("sound_on") == 0 and boot.mem("title_menu") == TM_SETTINGS
+    expect_settings(boot, 0, music="off")
+    boot.press("start", 2); boot.run(MENU_SETTLE)
+    assert boot.mem("sound_on") == 1
     menu_to(boot, K_ERASE)
-    boot.run(40)
+    boot.run(MENU_SETTLE)
+    expect_settings(boot)                          # no state row; the hint says OPEN
+    menu_tap(boot, "a"); boot.run(MENU_SETTLE)
+    assert boot.mem("title_menu") == TM_ERASE
+    menu_tap(boot, "b"); boot.run(MENU_SETTLE)
+    assert boot.mem("title_menu") == TM_SETTINGS and menu_items(boot)[boot.mem("title_sel")] == K_ERASE, "back on the ERASE DATA page"
+    menu_tap(boot, "b"); boot.run(MENU_SETTLE)
+    assert boot.mem("title_menu") == TM_TOP and boot.mem("title_sel") == SEL_SETTINGS
+
+
+def test_the_arrows_blink_and_the_buttons_stay(boot):
+    """SETTINGS (owner 2026-10-21): two arrows either side of the name that blink on the cursor's 16-frame beat (OAM 10 left, 11 right), the A and B buttons of the hint (OAM 12, 13)."""
+    settings_open(boot)
+    name = TITLE_ART["text"]["name_music"]
+    seen = []
+    for _ in range(70):
+        boot.run(1)
+        o = boot.oam()
+        seen.append(o[10]["y"] != 0)
+        assert o[11]["y"] == o[10]["y"] or 0 in (o[10]["y"], o[11]["y"])
+        assert o[12]["y"] == ROW_HINT * 8 + 16 and o[13]["y"] == o[12]["y"] and o[12]["x"] < o[13]["x"], "the buttons on the hint row, A before B"
+        assert o[OAM_CURSOR]["y"] == 0, "no mug"
+        if o[10]["y"]:
+            assert o[10]["y"] == ROW_NAME * 8 + 16 and o[10]["x"] - 8 < name["x"] < o[11]["x"] - 8, "the arrows either side of the name"
+    assert seen.count(True) > 15 and seen.count(False) > 15, "the arrows blink on the 16-frame beat"
+    menu_tap(boot, "right")
+    boot.run(MENU_SETTLE)
+    bar = TITLE_ART["text"]["name_bar"]
     o = boot.oam()
-    assert o[10]["y"] == 0 and o[11]["y"] == 0, "an action has no cue"
+    seen = [boot.run(1) or boot.oam() for _ in range(40)]
+    lit = [x for x in seen if x[10]["y"]]
+    assert lit and all(x[10]["x"] - 8 < bar["x"] < x[11]["x"] - 8 for x in lit), "the arrows follow the name"
+
+
+def test_the_gba_line_is_a_page_on_a_gba_only(boot):
+    settings_open(boot)
+    items = settings_items(boot)
+    assert (K_SET_STD in items or K_SET_GBA in items) == (boot.model_name == "cgb" and bool(boot.mem("_is_GBA") & 1))
+

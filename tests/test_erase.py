@@ -40,7 +40,8 @@ def test_erase_data_is_the_third_settings_line_and_asks_first(model):
         assert menu_items(rom) == settings_items(rom), "MUSIC, BAR CHANGE, (a GBA: COLOR,) ERASE DATA"
         expect_settings(rom)
         menu_to(rom, K_ERASE)
-        cursor_on(rom, "erase", settings_row(rom, len(settings_items(rom)) - 1))
+        rom.run(MENU_SETTLE)
+        expect_settings(rom)                   # (the ERASE DATA page: no state, the hint says OPEN)
         menu_tap(rom, "a")
         rom.run(MENU_SETTLE)
         assert rom.mem("title_menu") == TM_ERASE and menu_items(rom) == [K_ERASEQ, K_NO, K_YES]

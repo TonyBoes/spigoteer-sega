@@ -51,8 +51,8 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define HARD_ROW        6       // the difficulty prompt: its lines on rows 6, 7, 8 and ONE caption on row 11 (rows 9-10 blank: the block, rows 6-11, is centred in rows 4-13)
 #define CAP_ROW        11
 #define HARD_STEP       1
-#define MENU_FIRST_ROW  4       // the rows a menu can use: 4..13
-#define MENU_LAST_ROW  13
+#define MENU_FIRST_ROW  4       // the rows a menu can use: 4..12
+#define MENU_LAST_ROW  12
 #define MENU_COPIES_PER_FRAME 2 // a submenu's redraw: 20-byte rows (tiles or CGB attributes) queued per frame
 #define SCENE_BAR       3       // the scene stands on bar 3's rows (14-15 wall, 16 counter): draw_bartender() places him
 #define SCENE_TOP_Y   (BAR_TOP_Y(SCENE_BAR) + 16)   // OAM y of the scene's wall top
@@ -79,6 +79,12 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define OAM_ARROW      10          // SETTINGS' change cue: the arrow, then the A button (OAM_ARROW + 1)
 #define FX_ARROW        (OBJ_FX + 12)
 #define FX_KEYA         (OBJ_FX + 14)
+#define FX_KEYB         (OBJ_FX + 16)
+// SETTINGS shows ONE setting at a time (owner 2026-10-21): its name on ROW_NAME between two blinking arrows, its state on ROW_STATE (gold), a blank row, the hint on ROW_HINT
+#define ROW_NAME        7
+#define ROW_STATE       8
+#define ROW_HINT       10
+#define SET_ROWS      (((uint16_t)1 << ROW_NAME) | ((uint16_t)1 << ROW_STATE) | ((uint16_t)1 << ROW_HINT))
 
 // ---- logo timing (frames since the title appeared) ----
 #define LOGO_T0         6       // first letter starts filling
@@ -152,52 +158,36 @@ static const uint8_t k_left[] = { TT_X_ARCADE, TT_X_STORY, TT_X_ON, TT_X_CONTINU
                                   TT_X_SETTINGS, TT_X_SOUNDTRACK, TT_X_CLASSIC, TT_X_MINIGAMES, TT_X_BOSSRUSH, TT_X_ERASE, TT_X_DEBUG, TT_X_ERASE_Q, TT_X_NO, TT_X_YES,
                                   TT_X_SNAP, TT_X_KEEP, TT_X_CREDITS, TT_X_EASY, TT_X_NORMAL, TT_X_HARD, TT_X_CAP_EASY, TT_X_CAP_NORMAL, TT_X_CAP_HARD,
                                   TT_X_SCR_NORMAL, TT_X_SCR_BRIGHT, TT_X_SCR, TT_X_SCR_NORMAL, TT_X_SCR_BRIGHT };
-// ... and the screen x just past the glyphs of a status line (SETTINGS' change cue sits there)
-static const uint8_t k_right[] = { 0, 0, TT_R_ON, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                   TT_R_SNAP, TT_R_KEEP, 0, 0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, TT_R_SCR_NORMAL, TT_R_SCR_BRIGHT };
 #define IS_SCR(k) ((k) == K_SCR_NORMAL || (k) == K_SCR_BRIGHT)   // GBA COLOR MODE's two choices (the TM_SCR prompt)
 #define IS_ASK(m) ((m) == TM_HARD)                               // the prompt with a caption row under its lines (CAP_ROW)
 #define CAP_K(k) ((k) + 3)                                       // the line's caption: K_CAP_* sit after the lines (EASY / NORMAL / HARD's three)
 #define IS_SET(k) ((k) == K_SET_STD || (k) == K_SET_GBA)         // SETTINGS' COLOR line
-#define IS_ACT(k) ((k) == K_ERASE || (k) == K_DEBUG)             // SETTINGS' action lines: one row, no name above, no status
+#define IS_ACT(k) ((k) == K_ERASE || (k) == K_DEBUG)             // SETTINGS' action pages: no state, the hint says OPEN
 #define GBA_LINE (is_cgb && (_is_GBA & 1))                       // ... which only a Game Boy Advance has (a plain Color and a DMG: MUSIC, BAR, ERASE DATA)
 #define ERASE_SEL (2 + GBA_LINE)                                 // SETTINGS' ERASE DATA line: after MUSIC, BAR and (a GBA) COLOR
 #define IS_BAR(k) ((k) == K_BARCHANGE || (k) == K_BARKEEP)   // SETTINGS' BAR line (the items after K_BARKEEP are the difficulty prompt's)
 
-// The text of SETTINGS' status line k (MUSIC: by sound_on), the screen x of its first pixel, and just past its last
-static const uint8_t *item_str(uint8_t k) { return k == K_MUSIC && !sound_on ? tt_off : k_text[k]; }
-static uint8_t item_left(uint8_t k) { return k == K_MUSIC && !sound_on ? TT_X_OFF : k_left[k]; }
-// the mug stands left of the whole entry: in SETTINGS the name above the status may start further left than the status
-static uint8_t cursor_left(uint8_t k) {
-    uint8_t x = item_left(k), n;
-    if (title_menu != TM_SETTINGS || IS_ACT(k)) return x;
-    n = k == K_MUSIC ? TT_X_NAME_MUSIC : IS_BAR(k) ? TT_X_NAME_BAR : TT_X_SCR;
-    return n < x ? n : x;
-}
-static uint8_t item_right(uint8_t k) { return k == K_MUSIC && !sound_on ? TT_R_OFF : k_right[k]; }
+// SETTINGS' page for item k: which name (MUSIC, BAR CHANGE, GBA COLOR MODE, ERASE DATA, DEBUG MENU), and the screen x of its first pixel / just past its last
+#define NAME_KIND(k) ((k) == K_MUSIC ? 0 : IS_BAR(k) ? 1 : IS_SET(k) ? 2 : (k) == K_ERASE ? 3 : 4)
+static const uint8_t *const name_tbl[] = { tt_name_music, tt_name_bar, tt_scr, tt_erase, tt_debug };
+static const uint8_t name_x0[] = { TT_X_NAME_MUSIC, TT_X_NAME_BAR, TT_X_SCR, TT_X_ERASE, TT_X_DEBUG };
+static const uint8_t name_x1[] = { TT_R_NAME_MUSIC, TT_R_NAME_BAR, TT_R_SCR, TT_R_ERASE, TT_R_DEBUG };
 
-// The text on screen row r of the shown menu: the line of the item on it, in SETTINGS a setting's NAME on the row above its status; 0: nothing (the plain wall)
+// The text on screen row r of SETTINGS' page (the item under title_sel); 0: nothing (the plain wall)
 static const uint8_t *row_str(uint8_t r) {
-    uint8_t i, k;
-    for (i = 0; i < title_n; i++) {
-        k = title_items[i];
-        if (title_rows[i] == r) return item_str(k);
-        if (title_menu == TM_SETTINGS && title_rows[i] == r + 1 && !IS_ACT(k))
-            return k == K_MUSIC ? tt_name_music : IS_BAR(k) ? tt_name_bar : tt_scr;
-    }
+    uint8_t k = title_items[title_sel];
+    if (r == ROW_NAME) return name_tbl[NAME_KIND(k)];
+    if (r == ROW_STATE) return IS_ACT(k) ? 0 : (k == K_MUSIC && !sound_on) ? tt_off : k_text[k];
+    if (r == ROW_HINT) return IS_ACT(k) ? tt_hint_open : tt_hint_change;
     return 0;
 }
 
-#define row_name_of(i) (title_rows[i] - 1)
 static void build_item(uint8_t i) { build_row(menu_buf[i], k_text[title_items[i]]); }   // (not SETTINGS)
-// the attribute row of SETTINGS' text row r: the cursor's status gold, another status cream, a name muted
+// the attribute row of SETTINGS' text row r: the state gold, the name cream, the hint muted (menu_buf[3], filled when SETTINGS opens)
 static const uint8_t *row_attr(uint8_t r) {
-    uint8_t i;
-    for (i = 0; i < title_n; i++) if (title_rows[i] == r) return i == title_sel ? attr_sel : attr_txt;
-    return menu_buf[3];
+    return r == ROW_STATE ? attr_sel : r == ROW_NAME ? attr_txt : menu_buf[3];
 }
-static void row_dirty(uint8_t i) { title_dirty |= (uint16_t)1 << title_rows[i]; }   // (the status or action line only: a name never changes)
+static void row_dirty(uint8_t i) { title_dirty |= (uint16_t)1 << title_rows[i]; }   // (a setting changed its state: the state row; every settings item sits on it)
 
 static void set_sel_attr(uint8_t sel, uint8_t on) {
     if (is_cgb) vq_add(1, on ? attr_sel : attr_txt, 0, title_rows[sel], 20);
@@ -207,8 +197,8 @@ static void set_sel_attr(uint8_t sel, uint8_t on) {
 // old and the new menu are marked for the redraw (menu_frame; title_enter draws them at once with the LCD off).
 static void menu_open(uint8_t m, uint8_t sel) {
     uint8_t i;
-    for (i = 0; i < title_n; i++) title_dirty |= (uint16_t)1 << title_rows[i] | (IS_ASK(title_menu) ? (uint16_t)1 << CAP_ROW : 0)   // (the prompt's caption too)
-                                                | (title_menu == TM_SETTINGS && !IS_ACT(title_items[i]) ? (uint16_t)1 << (title_rows[i] - 1) : 0);   // (SETTINGS' names)
+    for (i = 0; i < title_n; i++) title_dirty |= (uint16_t)1 << title_rows[i] | (IS_ASK(title_menu) ? (uint16_t)1 << CAP_ROW : 0);   // (the prompt's caption too)
+    if (title_menu == TM_SETTINGS) title_dirty |= SET_ROWS;
     title_menu = m;
     title_n = 0;
     switch (m) {
@@ -256,24 +246,12 @@ static void menu_open(uint8_t m, uint8_t sel) {
         title_dirty |= (uint16_t)1 << title_rows[i] | (IS_ASK(m) ? (uint16_t)1 << CAP_ROW : 0);
         if (m != TM_SETTINGS) build_item(i);
     }
-    if (m == TM_SETTINGS) {       // two rows a setting (name, status) and a blank row between settings; an action is one row. Rows 5-13 (row 4 stays blank under the logo), centred
-        uint8_t row, t, ns = 0, g, d = 0;     // t: rows used; the gap before the actions (g) goes first when they run out, then (d) one gap between settings
-        for (i = 0; i < title_n; i++) if (!IS_ACT(title_items[i])) ns++;
-        g = title_n > ns;
-        t = 3 * ns - 1 + (title_n - ns) + g;
-        if (t > 9 && g) { g = 0; t--; }
-        if (t > 9) { d = 1; t--; }
-        row = MENU_FIRST_ROW + 1 + (9 - t) / 2;
-        for (i = 0; i < title_n; i++) {
-            if (IS_ACT(title_items[i])) { title_rows[i] = row++; }
-            else {
-                title_rows[i] = row + 1; row += 2;
-                row += i == ns - 1 ? g : (d && i == ns - 2) ? 0 : 1;
-                title_dirty |= (uint16_t)1 << row_name_of(i);
-                if (is_cgb) memset(menu_buf[3], BGPAL_TEXT_NAME, 20);   // (the names' attribute row, kept here: nothing else of SETTINGS uses menu_buf[3])
-            }
-            title_dirty |= (uint16_t)1 << title_rows[i];
-        }
+    if (m == TM_SETTINGS) {       // one page per setting: every item sits on the state row, the page on three rows
+        for (i = 0; i < title_n; i++) title_rows[i] = ROW_STATE;
+        title_dirty |= SET_ROWS;
+        if (is_cgb) memset(menu_buf[3], BGPAL_TEXT_NAME, 20);   // (the hint's attribute row: nothing else of SETTINGS uses menu_buf[3])
+    } else {
+        shadow_OAM[OAM_ARROW].y = shadow_OAM[OAM_ARROW + 1].y = shadow_OAM[OAM_ARROW + 2].y = shadow_OAM[OAM_ARROW + 3].y = 0;   // (SETTINGS' arrows and button icons)
     }
     title_sel = sel;
 }
@@ -618,18 +596,41 @@ static void scene_frame(void) {
 
 // ---- the menu ---------------------------------------------------------------------------------
 static void cursor_frame(void) {
-    OAM_item_t *o = shadow_OAM + OAM_CURSOR;
+    OAM_item_t *o = shadow_OAM + OAM_CURSOR, *a;
+    uint8_t kd, y;
+    if (title_menu == TM_SETTINGS) {                  // no mug: the arrows either side of the name (they blink on a 16-frame beat) and the A and B buttons of the hint
+        o->y = 0;
+        a = shadow_OAM + OAM_ARROW;
+        kd = NAME_KIND(title_items[title_sel]);
+        y = ROW_NAME * 8 + 16;
+        a[0].y = a[1].y = (title_t >> 4) & 1 ? 0 : y;
+        a[0].x = name_x0[kd] - 3;      a[0].tile = FX_ARROW; a[0].prop = (is_cgb ? OBJPAL_FX : S_PALETTE) | S_FLIPX;
+        a[1].x = name_x1[kd] + 10;     a[1].tile = FX_ARROW; a[1].prop = is_cgb ? OBJPAL_FX : S_PALETTE;
+        a[2].y = a[3].y = ROW_HINT * 8 + 16;
+        a[2].x = 32;                   a[2].tile = FX_KEYA;  a[2].prop = a[1].prop;
+        a[3].x = 112;                  a[3].tile = FX_KEYB;  a[3].prop = a[1].prop;
+        return;
+    }
     o->y = title_rows[title_sel] * 8 - 7 + 16;
-    o->x = cursor_left(title_items[title_sel]) - 13 - ((title_t >> 4) & 1) + 8;
+    o->x = k_left[title_items[title_sel]] - 13 - ((title_t >> 4) & 1) + 8;
     o->tile = OBJ_MUG; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;     // DMG: OBP0 like the held mug (shows on the white wall)
-    o = shadow_OAM + OAM_ARROW;                                     // SETTINGS: next to the selected setting's status, an arrow (it blinks on the cursor's 16-frame beat)
-    if (title_menu != TM_SETTINGS || IS_ACT(title_items[title_sel])) { o[0].y = o[1].y = 0; return; }   // and the A button: this one changes (an action does not)
-    o[0].y = o[1].y = title_rows[title_sel] * 8 + 16;
-    o[0].x = item_right(title_items[title_sel]) + 4 + 8;
-    o[1].x = o[0].x + 11;
-    o[0].tile = FX_ARROW; o[1].tile = FX_KEYA;
-    o[0].prop = o[1].prop = is_cgb ? OBJPAL_FX : S_PALETTE;
-    if ((title_t >> 4) & 1) o[0].y = 0;
+}
+
+// SETTINGS' keys (the page of the item under title_sel). 1: the debug menu opened over the title.
+static uint8_t settings_input(uint8_t pressed) {
+    uint8_t k = title_items[title_sel];
+    if (pressed & J_SELECT) title_music_toggle();
+    if (pressed & (J_LEFT | J_RIGHT)) {
+        title_sel = (pressed & J_LEFT) ? (title_sel ? title_sel - 1 : title_n - 1) : (title_sel == title_n - 1 ? 0 : title_sel + 1);
+        title_dirty |= SET_ROWS;
+    } else if (pressed & (J_A | J_START)) {
+        if (k == K_ERASE) menu_open(TM_ERASE, 1);                         // ("ERASE ALL DATA", the cursor on NO)
+        else if (k == K_DEBUG) { debug_open(); return 1; }                // (full-screen over the title; B closes it)
+        else if (IS_BAR(k)) bar_mode_toggle();
+        else if (IS_SET(k)) screen_toggle();
+        else title_music_toggle();
+    } else if (pressed & J_B) menu_open(TM_TOP, 2);                       // (the title's menu, on SETTINGS)
+    return 0;
 }
 
 // One title frame. 2: no key for TITLE_IDLE_FRAMES (the table).
@@ -655,13 +656,16 @@ uint8_t title_update(uint8_t pressed) BANKED {
                 SFX(SFX_EXTRA);                      // (the code's B left any submenu: SETTINGS lists DEBUG MENU when it is opened next)
             }
         }
-        if ((pressed & (J_LEFT | J_RIGHT)) && IS_BAR(title_items[title_sel])) bar_mode_toggle();
-        if ((pressed & (J_LEFT | J_RIGHT)) && IS_SET(title_items[title_sel])) screen_toggle();
     }
     else if (title_menu != TM_SCR && ++title_idle >= TITLE_IDLE_FRAMES) {    // the attract: the next of the three tables
         score_tbl = attract_tbl[attract_n];
         if (++attract_n == TOP_TABLES) attract_n = 0;
         return 2;
+    }
+    if (title_menu == TM_SETTINGS) {               // one setting at a time: LEFT / RIGHT browse (wrapping), A / START change or open, B back
+        if (settings_input(pressed)) return 0;
+        old = title_sel;                           // (the new page's rows are dirty: drawn below)
+        goto draw;
     }
     if (pressed & J_SELECT) title_music_toggle();
     if (pressed & J_UP) title_sel = title_sel ? title_sel - 1 : last;
@@ -699,6 +703,7 @@ uint8_t title_update(uint8_t pressed) BANKED {
         else if (title_menu == TM_HARD) menu_open(TM_PLAY, can_continue());   // (STORY's line: after CONTINUE when it is shown)
         else menu_open(TM_TOP, title_menu - 1);
     }
+draw:
     if (title_sel == old) {                        // (a cursor move already queued its two attribute rows)
         full = menu_frame() == MENU_COPIES_PER_FRAME;
         if (!title_dirty && hi_want() != title_hi) {   // a quiet frame: the HI line follows the cursor's mode

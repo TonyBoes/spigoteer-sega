@@ -491,27 +491,26 @@ def test_settings_has_the_bar_line_second_and_snap_by_default(boot):
     expect_settings(boot)
 
 
-@pytest.mark.parametrize("key", ["a", "start", "left", "right"])
-def test_the_bar_line_flips_with_a_start_left_right_and_back(boot, key):
+@pytest.mark.parametrize("key", ["a", "start"])
+def test_the_bar_line_flips_with_a_start_and_back(boot, key):
     settings_open(boot)
     menu_to(boot, K_BARCHANGE)
-    cursor_on(boot, "snap", settings_row(boot, 1))
+    expect_settings(boot)
     menu_tap(boot, key)
     boot.run(MENU_SETTLE)
     assert boot.mem("level_dirs") & KEEP_POS and menu_items(boot) == settings_items(boot, K_BARKEEP)
     expect_settings(boot, bar="keep")
-    cursor_on(boot, "keep", settings_row(boot, 1))
     menu_tap(boot, key)
     boot.run(MENU_SETTLE)
     assert boot.mem("level_dirs") & KEEP_POS == 0 and menu_items(boot) == settings_items(boot)
     expect_settings(boot)
 
 
-def test_left_and_right_do_nothing_on_the_music_line(boot):
+def test_left_and_right_browse_and_change_no_value(boot):
     settings_open(boot)
-    for key in ("left", "right"):
+    for key in ("right", "left"):
         menu_tap(boot, key)
-    boot.run(MENU_SETTLE)
+        boot.run(MENU_SETTLE)
     assert boot.mem("level_dirs") & KEEP_POS == 0 and boot.mem("sound_on") == 1
     expect_settings(boot)
 

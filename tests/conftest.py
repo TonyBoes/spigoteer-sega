@@ -294,8 +294,9 @@ def menu_to(rom, k):
     """Move the title's cursor down to item k of the menu shown."""
     items = menu_items(rom)
     assert k in items, (k, items)
+    key = "right" if rom.mem("title_menu") == TM_SETTINGS else "down"      # (SETTINGS shows one setting at a time: LEFT / RIGHT browse)
     while items[rom.mem("title_sel")] != k:
-        menu_tap(rom, "down")
+        menu_tap(rom, key)
 
 
 def title_pick(rom, top, item=None, press=True):
