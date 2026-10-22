@@ -632,8 +632,6 @@ void mg_list_enter(void) BANKED;                        // LCD off: BONUS > MINI
 #define SKIN_PAL_EDGE     7                      // the row under the header text
 void list_skin_load(void) BANKED;                       // LCD off: the tiles over the stage ids 0-4 and the CGB palettes 2-7
 void list_frame(uint8_t sep) BANKED;   // LCD off: the 18 rows (tiles and CGB attributes): the panel's top line on row `sep`, its bottom on 17
-void list_arrows_load(void) BANKED;                        // the list scroll arrows (src/mg_list.c; the boss rush list shares them)
-void list_arrows_show(uint8_t up, uint8_t down, uint8_t t) BANKED;   // OAM 1 / 2: which show, the bob frame count
 // save.c: Practice's block at SRAM 0x40 (the mini-games reached in STORY / ARCADE and the best medal of each)
 extern uint16_t mg_unlocked;                            // bit g = mini-game g (MG_* of src/mg.h) reached
 extern uint8_t  mg_best[];                              // the best medal (MEDAL_*) per mini-game

@@ -11,6 +11,7 @@ from conftest import (clear_regulars, K_BONUS, K_BOSSRUSH, K_CREDITS, K_MINIGAME
                       check_golden, hold_stage_anim, menu_items, title_pick)
 from test_flow import GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, run_until, state, tilemap_row
 from test_mg import GLYPH_CH
+from ol_helpers import BLANK, band_rows_ok, header, header_text, hint, selection, text
 from test_mg_list import (MEDAL_GOLD, MEDAL_SILVER, MG_PLANNED, MG_QUICKDRAW, PR_AT, QUEST, pr_block, release_built,
                           release_rom, with_block)
 from test_scores import booted, table, v7_image
@@ -50,23 +51,14 @@ SPOUT_X = 136
 
 
 def line(gb, row):
-    """A row of a rush screen as text ('?' and ':' from the story font)."""
-    out = ""
-    for t in tilemap_row(gb, row, 0, 20):
-        out += GLYPH_CH.get(t, "?" if t == QUEST else ":" if t == COLON else " ")
-    return out.rstrip()
+    """A row of a rush screen as text (ol_helpers: '?', '-' and ':' from the story font, '@' and '$' the A and B buttons)."""
+    return text(gb, row)
 
 
 def lines(gb, rows):
     return [line(gb, r).strip() for r in rows]
 
 
-RVIS = 6                                       # the list's window: six bosses on rows 2, 4 .. 12 (src/rush.c RVIS)
-
-
-def window(gb, n=BOSS_COUNT):
-    """The list's names: the window's lines on every other row (a blank row between the bosses)."""
-    return [line(gb, 2 + 2 * i).strip() for i in range(min(n, RVIS))]
 
 
 def R(gb, off, n=1):
@@ -219,25 +211,27 @@ def test_bonus_gains_boss_rush_and_its_menu(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_debug_list_has_every_built_boss_unlocked(model):
-    """The DEBUG_MENU build: CHOOSE lists every built boss (the story's step table: gen_story BUILT_SLOTS["BOSS"]) in
-    chapter order, all playable on a fresh cartridge; the details below; B goes back to the menu, on CHOOSE."""
+    """The DEBUG_MENU build: CHOOSE lists every built boss (the story's step table: gen_story BUILT_SLOTS["BOSS"]) in chapter order in the one-line style,
+    all playable on a fresh cartridge: "< NAME >" on the selection line, his fight sprite in the window, his venue, "BEST --:--", the counter "n / N";
+    LEFT / RIGHT walk the list with wrap; B goes back to the menu, on CHOOSE."""
     with to_list(booted(model)) as gb:
         hold_stage_anim(gb)
+        gb.run(10)
         assert BUILT[0] == 0 and {0, 2, 3, 4} <= set(BUILT) == set(BOSS_BUILT), "Big Tex first; the first four built at least"
         n = len(BUILT)
-        assert window(gb, n) == [NAMES[v] for v in BUILT][:RVIS] and line(gb, 13) == ""
-        assert [line(gb, r) for r in (3, 5, 7, 9, 11)] == [""] * 5, "a blank row between the bosses"
-        assert lines(gb, range(15, 17)) == ["NOT BEATEN YET", "A PLAY  B BACK"] and not any("THE " in line(gb, r) for r in range(14, 18)), "no venue line"
-        assert list(gb.read(0xFE00, 2)) == [2 * 8 - 7 + 16, 8]
+        assert header(gb) == header_text("BOSS RUSH", f"1 / {n}") and band_rows_ok(gb)
+        assert selection(gb) == NAMES[BUILT[0]] and line(gb, 12).strip() == VENUES[BUILT[0]] and line(gb, 13).strip() == "BEST --:--"
+        assert hint(gb) == "@ PLAY   $ BACK"
+        assert not gb.visible_sprites()
+        assert set(tilemap_row(gb, 5, 0, 20)) == {54}, "a blank row under the band"
         check_golden(gb, "rush_list")
         for k in range(1, n):
-            tap(gb, "down")
-            gb.run(4)
-            top = max(0, k - RVIS + 1)
-            assert R(gb, LIST_SEL) == k and R(gb, 46) == top
-            assert window(gb, n) == [NAMES[v] for v in BUILT][top:top + RVIS], k
-            assert gb.read(0xFE00, 1)[0] == (2 + 2 * (k - top)) * 8 - 7 + 16, "the mug on the selected line"
-        tap(gb, "down")
+            tap(gb, "right")
+            gb.run(6)
+            v = BUILT[k]
+            assert R(gb, LIST_SEL) == k and selection(gb) == NAMES[v] and line(gb, 12).strip() == VENUES[v], k
+            assert header(gb).endswith(f"{k + 1} / {n}")
+        tap(gb, "right")
         assert R(gb, LIST_SEL) == 0, "wraps"
         tap(gb, "b")
         run_until(gb, lambda: on_rush(gb, RS_MENU), 30)
@@ -245,27 +239,61 @@ def test_the_debug_list_has_every_built_boss_unlocked(model):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_no_list_row_touches_the_separator_for_any_number_of_bosses(model):
-    """CHOOSE with 1..10 built bosses (the mask rewritten in RAM, the list reopened): the names sit on every other row from row 2 (six at
-    most: the window scrolls), a blank row stays above the separator (row 14), and the details (15-16) are intact."""
+def test_the_list_works_for_any_number_of_built_bosses(model):
+    """CHOOSE with 1..10 built bosses (the mask rewritten in RAM, the list reopened): each boss's baked tiles are found by his rank among the built,
+    the counter says n, the names and the windows are right."""
     BUILT_AT = 44                                         # struct rush_state.built
     with to_list(booted(model)) as gb:
         for n in range(1, BOSS_COUNT + 1):
             tap(gb, "b")
             run_until(gb, lambda: on_rush(gb, RS_MENU), 30)
             gb.run(3)
-            a = gb.addr("story_scratch") + RUSH_AT + BUILT_AT
-            gb.write(a, ((1 << n) - 1) & 255)
-            gb.write(a + 1, (1 << n) - 1 >> 8)
+            a = gb.addr("story_scratch") + RUSH_AT
+            gb.write(a + BUILT_AT, ((1 << n) - 1) & 255)
+            gb.write(a + BUILT_AT + 1, (1 << n) - 1 >> 8)
+            gb.write(a + 47, n)                           # nlines
+            gb.write(a + LIST_SEL, 0)
             tap(gb, "a")                                  # (the menu is on CHOOSE after B)
-            run_until(gb, lambda: on_rush(gb, RS_LIST), 30)
+            run_until(gb, lambda: on_rush(gb, RS_LIST), 60)
             gb.run(8)
-            assert window(gb, n) == [NAMES[v] for v in range(n)][:RVIS], n
-            sep, blank = tilemap_row(gb, 14, 0, 20), tilemap_row(gb, 13, 0, 20)
-            assert len(set(sep)) == 1 and set(blank) <= {54} and sep[0] != blank[0], n
-            assert all(set(tilemap_row(gb, r, 0, 20)) <= {54} for r in range(3 + 2 * min(n, RVIS) - 2, 14)), n
-            assert all(set(tilemap_row(gb, 3 + 2 * i, 0, 20)) <= {54} for i in range(min(n, RVIS) - 1)), n
-            assert lines(gb, (15, 16)) == ["NOT BEATEN YET", "A PLAY  B BACK"], n
+            assert header(gb).endswith(f"1 / {n}") and selection(gb) == NAMES[0], n
+            for k in range(1, n):
+                tap(gb, "right")
+                gb.run(4)
+                assert selection(gb) == NAMES[k], (n, k)
+                body = tilemap_row(gb, 8, 7, 6)
+                assert body == [136 + 12 * k + 2 * i for i in range(6)], (n, k, body)
+
+
+WIN = (56, 56, 104, 88)                                   # the window's interior in pixels: columns 7-12, rows 7-10
+
+
+def drawn_centre(gb):
+    """The middle of what is drawn in the window's interior (the pixels that are not the backdrop's colour), in pixels: (x, y)."""
+    im = gb.image().convert("RGB")
+    x0, y0, x1, y1 = WIN
+    back = im.getpixel((x0, y0))
+    xs, ys = [], []
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            if im.getpixel((x, y)) != back:
+                xs.append(x)
+                ys.append(y)
+    assert xs, "something is drawn"
+    return (min(xs) + max(xs) + 1) / 2, (min(ys) + max(ys) + 1) / 2
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_every_boss_is_centred_by_his_drawn_pixels(model):
+    """The window's middle is (80, 72): each built boss's fight sprite, measured on the picture, lands within half a pixel of it both ways."""
+    with to_list(booted(model)) as gb:
+        for k, v in enumerate(BUILT):
+            to_game = k
+            while R(gb, LIST_SEL) != to_game:
+                tap(gb, "right")
+            gb.run(8)
+            cx, cy = drawn_centre(gb)
+            assert abs(cx - 80) <= 0.5 and abs(cy - 72) <= 0.5, (NAMES[v], cx, cy)
 
 
 def test_the_list_follows_the_story_data():
@@ -279,8 +307,8 @@ def test_the_list_follows_the_story_data():
 # ---- the release build: the unlock rule -------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_release_list_is_locked_until_beaten(model, release_built):
-    """`make release`: on a fresh cartridge every built boss lists as "? ? ?" (LOCKED details, A does nothing) and ALL
-    is LOCKED; one boss beaten: his name, A plays him, ALL still locked; two: ALL opens."""
+    """`make release`: on a fresh cartridge every built boss is "? ? ?" (a silhouette on Color, "??" on a DMG, both centred; LOCKED, STORY OR ARCADE; no A on
+    the hint row; A does nothing) and ALL is LOCKED; one boss beaten: his name, venue and sprite, A plays him, ALL still locked; two: ALL opens."""
     with release_rom(model) as gb:
         to_rush(gb)
         assert line(gb, 4).strip() == "ALL LOCKED"
@@ -291,11 +319,18 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
         tap(gb, "down")
         tap(gb, "a")
         run_until(gb, lambda: on_rush(gb, RS_LIST), 30)
-        gb.run(3)
+        gb.run(8)
         n = len(BUILT)
-        assert window(gb, n) == ["? ? ?"] * RVIS
-        assert lines(gb, range(15, 17)) == ["BEAT HIM IN STORY", "OR ARCADE"]
-        check_golden(gb, "rush_list_locked")
+        for k in range(n):
+            assert selection(gb) == "? ? ?" and line(gb, 12).strip() == "LOCKED" and line(gb, 13).strip() == "STORY OR ARCADE", k
+            assert hint(gb) == "$ BACK"
+            cx, cy = drawn_centre(gb)
+            assert abs(cx - 80) <= 0.5 and abs(cy - 72) <= 0.5, ("locked", k, cx, cy)
+            if k == 2:
+                check_golden(gb, "rush_list_locked")
+            tap(gb, "right")
+            gb.run(8)
+        assert R(gb, LIST_SEL) == 0
         tap(gb, "a")
         gb.run(5)
         assert on_rush(gb, RS_LIST), "a locked boss does not play"
@@ -306,12 +341,19 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
         tap(gb, "down")
         tap(gb, "a")
         run_until(gb, lambda: on_rush(gb, RS_LIST), 30)
-        gb.run(3)
+        gb.run(8)
         i = BUILT.index(2)                                # the Sasquatch
-        assert window(gb).count("? ? ?") == RVIS - 1 and line(gb, 2 + 2 * i) == " SASQUATCH     1:01"
         for _ in range(i):
-            tap(gb, "down")
-        assert lines(gb, range(15, 17)) == ["BEST 1:01", "A PLAY  B BACK"]
+            tap(gb, "right")
+        gb.run(8)
+        assert selection(gb) == "SASQUATCH" and line(gb, 12).strip() == "THE LUMBER LODGE" and line(gb, 13).strip() == "BEST 1:01"
+        assert hint(gb) == "@ PLAY   $ BACK"
+        check_golden(gb, "ol_rush_unlocked")
+        tap(gb, "left")
+        gb.run(8)
+        assert selection(gb) == "? ? ?" and hint(gb) == "$ BACK", "the neighbour is still locked"
+        tap(gb, "right")
+        gb.run(8)
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_GOAL, 60)
         assert gb.mem("boss_id") == 2 and gb.mem("play_mode") == MODE_RUSH
@@ -322,6 +364,20 @@ def test_the_release_list_is_locked_until_beaten(model, release_built):
         tap(gb, "a")
         run_until(gb, lambda: on_rush(gb, RS_NEXT), 30)
         assert R(gb, N) == 2 and R(gb, BOSS) == 2, "ALL: the two unlocked bosses, from the Sasquatch"
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_a_locked_boss_is_a_silhouette_on_color_and_question_marks_on_a_dmg(model, release_built):
+    with release_rom(model) as gb:
+        to_list(gb)
+        cx, cy = drawn_centre(gb)
+        im = gb.image().convert("RGB")
+        colours = {im.getpixel((x, y)) for x in range(56, 104) for y in range(56, 88)}
+        if model == "cgb":
+            assert len(colours) == 2, "one backdrop colour and one silhouette colour"
+        else:
+            assert len(colours) == 2, "white and black"
+            assert [t for t in tilemap_row(gb, 8, 7, 6)] != [BLANK] * 6
 
 
 # ---- unlocks: a boss beaten in STORY or ARCADE ------------------------------------------------------------------------
@@ -492,7 +548,7 @@ def test_choose_plays_one_fight_and_comes_back(model):
     ram0 = v7_image([("ABC", 500)], story=2, step=1, story_tbl=[("STO", 900)])
     with booted(model, ram0) as gb:
         to_list(gb)
-        tap(gb, "down")                                   # the second built boss
+        tap(gb, "right")                                  # the second built boss
         v = BUILT[1]
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_GOAL, 60)
@@ -535,7 +591,7 @@ def test_choose_plays_one_fight_and_comes_back(model):
         tap(gb, "b")
         run_until(gb, lambda: on_rush(gb, RS_LIST), 30)
         gb.run(3)
-        assert R(gb, LIST_SEL) == 1 and line(gb, 4) == f" {NAMES[v]:<14}{mmss(t)}"
+        assert R(gb, LIST_SEL) == 1 and selection(gb) == NAMES[v] and line(gb, 13).strip() == "BEST " + mmss(t)
         ram = save_ram(gb)
     assert outside_block(ram) == outside_block(ram0), "no story progress, tunes or tables written"
     assert rush_best(parse2(ram)[2], v) == t
@@ -664,27 +720,7 @@ def test_all_out_of_lives_ends_the_run(model):
         assert save_part(gb)[RSV_ALL_N] == 1
 
 
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_rush_list_scrolls_with_the_shared_arrows(model):
-    """The list shows six bosses a window (owner 2026-10-15: a blank row between them), the MINI GAMES list's scroll arrows (OAM 1 up, 2 down)
-    show where bosses are hidden: only the down arrow at the top, both in the middle, only the up arrow at the end."""
-    with to_list(booted(model)) as gb:
-        hold_stage_anim(gb)
-        o = gb.read(0xFE00, 12)
-        assert o[4] == 0 and 112 <= o[8] <= 113 and o[5] == o[9] == 160, "the top: the down arrow"
-        for _ in range(7):
-            tap(gb, "down")
-        gb.run(4)
-        o = gb.read(0xFE00, 12)
-        assert 23 <= o[4] <= 24 and 112 <= o[8] <= 113, "the middle: both"
-        for _ in range(2):
-            tap(gb, "down")
-        gb.run(4)
-        o = gb.read(0xFE00, 12)
-        assert R(gb, LIST_SEL) == 9 and 23 <= o[4] <= 24 and o[8] == 0, "the end: the up arrow"
-
-
-# ---- the list after the Mothership (the lights buffer used to overlap the struct's built / top / nlines) -------------------------
+# ---- the list after the Mothership (the lights buffer used to overlap the struct's built / nlines and the list's selection) -------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("route", ["win", "lose", "quit"])
 def test_the_list_is_intact_after_the_mothership(model, route):
@@ -694,10 +730,10 @@ def test_the_list_is_intact_after_the_mothership(model, route):
     import test_pause as tp
     with booted(model) as gb:
         to_list(gb)
-        tap(gb, "up")                                     # (wraps to the last line)
+        tap(gb, "left")                                   # (wraps to the last line)
         assert R(gb, LIST_SEL) == len(BUILT) - 1 and BUILT[-1] == 9
         before = bytes(gb.read(gb.addr("story_scratch") + RUSH_AT, 48))
-        names = window(gb)
+        name, centre = selection(gb), drawn_centre(gb)
         tap(gb, "a")
         into_fight(gb, entered=False)
         frames(gb, 240)                                   # (the entrance's lights)
@@ -721,10 +757,10 @@ def test_the_list_is_intact_after_the_mothership(model, route):
         run_until(gb, lambda: on_rush(gb, RS_LIST), 60)
         gb.run(12)
         after = bytes(gb.read(gb.addr("story_scratch") + RUSH_AT, 48))
-        assert after[44:] == before[44:], (before[44:].hex(), after[44:].hex())   # built, top, nlines
-        assert [w[:14].strip() for w in window(gb)] == [w[:14].strip() for w in names] and "" not in names   # (a win adds his best time)
+        for off in (2, 3, 44, 45, 47):                     # sel, list_sel, built (2), nlines (the palette byte 46 is the list's own)
+            assert after[off] == before[off], (off, before.hex(), after.hex())
+        assert selection(gb) == name == "MOTHERSHIP" and drawn_centre(gb) == centre, "the same list, the same picture"
         for _ in range(len(BUILT) - 1):
-            tap(gb, "up")
+            tap(gb, "left")
         gb.run(10)
-        assert R(gb, LIST_SEL) == 0 and R(gb, 46) == 0
-        assert [w[:14].strip() for w in window(gb)] == [NAMES[v] for v in BUILT][:RVIS]
+        assert R(gb, LIST_SEL) == 0 and selection(gb) == NAMES[BUILT[0]]

@@ -1,4 +1,4 @@
-# Menu transitions keep the music ticking and the mug cursor is the mug (src/mg_list.c, jukebox.c, rush.c, title.c).
+# Menu transitions keep the music ticking, and the one-line lists come back clean from a game (src/mg_list.c, jukebox.c, rush.c, title.c).
 # A screen rebuilt with the LCD off is one main-loop pass of several frames and the music ticks once per pass, so
 # each such rebuild calls music_pump (src/music.c) between its steps and loads the title tune's patterns in one go
 # (music_load_now) instead of 384 bytes a frame. The tick is seen from outside as music_frames changing (it counts up
@@ -9,6 +9,8 @@ import pytest
 from conftest import clear_regulars, K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, MENU_SETTLE, hold_stage_anim, menu_to, title_pick
 from test_flow import LEVEL_CLEAR, TITLE, run_until, state
 from test_mg import GS_MGLIST, GS_MINI, MG_RESULT
+import ol_helpers as oh
+import test_mg_list as ml
 from test_mg_list import MG_PLANNED
 from test_scores import booted
 from test_rush import RS_LIST, RS_MENU, into_fight, on_rush
@@ -115,9 +117,9 @@ def to_list(gb):
 
 
 def to_result(gb, game):
-    """From the list: play game `game` (its line), jump to its result window."""
+    """From the list: play game `game` (selected with RIGHT), jump to its result window."""
     for _ in range(game):
-        tap(gb, "down")
+        tap(gb, "right")
     gb.run(2)
     tap(gb, "a")
     run_until(gb, lambda: state(gb) == GS_MINI and lcd_on(gb), 40)
@@ -129,22 +131,20 @@ def to_result(gb, game):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("game", range(MG_PLANNED))
-def test_the_list_cursor_is_the_mug_after_every_game(model, game):
-    """After a game and B on its result the list's cursor is the mug: its sprite entry (tile 56, the mug's palette) and the
-    pictures behind it (OBJ tiles 56.., OBJ palettes 1-2) are what the list showed the first time."""
+def test_the_list_is_clean_after_every_game(model, game):
+    """After a game and B on its result the list is what it was: the one-line screen on that game with no sprite left over (the games borrow the
+    sprite tiles and palettes the old list's mug cursor used) and the same band, counter and hint."""
     with booted(model) as gb:
         hold_stage_anim(gb)
         to_list(gb)
-        tiles0, pal1, pal2, oam0 = mug_tiles(gb), obj_palette(gb, 1), obj_palette(gb, 2), cursor_oam(gb)
-        assert oam0[2] == OBJ_MUG
+        assert not gb.visible_sprites()
         to_result(gb, game)
         gb.press("b", 2)
         run_until(gb, lambda: state(gb) == GS_MGLIST and lcd_on(gb), 60)
-        gb.run(3)
-        o = cursor_oam(gb)
-        assert o[2] == OBJ_MUG and o[3] == oam0[3], o
-        assert mug_tiles(gb) == tiles0, "the mug's pictures"
-        assert obj_palette(gb, 1) == pal1 and obj_palette(gb, 2) == pal2, "the mug's palettes"
+        gb.run(8)
+        assert gb.mem("ml_sel") == game and not gb.visible_sprites()
+        assert oh.selection(gb) == ml.NAMES[game] and ml.counter(gb) == f"{game + 1} / 14"
+        assert oh.hint(gb) == "@ PLAY   $ BACK" and oh.band_rows_ok(gb)
 
 
 def transitions(gb):

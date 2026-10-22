@@ -1,0 +1,236 @@
+; ol_tiles: the BG tiles the three one-line menus share (src/oneline.c; BONUS > SOUNDTRACK, MINI GAMES, BOSS RUSH), 8x8 each, one grid per tile, in this order
+; (tools/gen_ol_tiles.py transcribes them to 2 bpp, build/ol_tiles.h; the four channel icons that follow them are assets/art/ol_icons.txt). Every pixel is placed here.
+; Colour indices as in every list screen: '.' 0 (cream text), '-' 1, '+' 2, '#' 3 (the wall).
+; Order (OL_T + n, src/oneline.h): 0-3 the selection line's arrows (left, right, then each pushed 1 px out: the bob and the key kick), 4-12 the visualiser's bar
+; with 0 to 8 px filled (8 px tall, a light top line and a dark bottom line, so four rows stacked with no gap read as four strips; the unfilled part is a thin
+; groove on the wall), 13-20 the illustration frame's eight edge tiles, 21 a plain backdrop, 22 a slash (for "5 / 15").
+
+; left arrow
+########
+#####..#
+####...#
+###....#
+###....#
+####...#
+#####..#
+########
+
+; right arrow
+########
+#..#####
+#...####
+#....###
+#....###
+#...####
+#..#####
+########
+
+; left arrow, pressed (1 px out)
+########
+####..##
+###...##
+##....##
+##....##
+###...##
+####..##
+########
+
+; right arrow, pressed (1 px out)
+########
+##..####
+##...###
+##....##
+##....##
+##...###
+##..####
+########
+
+; bar fill 0 px
+########
+########
+########
+++++++++
+++++++++
+########
+########
+########
+
+; bar fill 1 px
+-#######
+.#######
+.#######
+.+++++++
+.+++++++
+.#######
+.#######
++#######
+
+; bar fill 2 px
+--######
+..######
+..######
+..++++++
+..++++++
+..######
+..######
+++######
+
+; bar fill 3 px
+---#####
+...#####
+...#####
+...+++++
+...+++++
+...#####
+...#####
++++#####
+
+; bar fill 4 px
+----####
+....####
+....####
+....++++
+....++++
+....####
+....####
+++++####
+
+; bar fill 5 px
+-----###
+.....###
+.....###
+.....+++
+.....+++
+.....###
+.....###
++++++###
+
+; bar fill 6 px
+------##
+......##
+......##
+......++
+......++
+......##
+......##
+++++++##
+
+; bar fill 7 px
+-------#
+.......#
+.......#
+.......+
+.......+
+.......#
+.......#
++++++++#
+
+; bar fill 8 px
+--------
+........
+........
+........
+........
+........
+........
+++++++++
+
+; box top-left
+#.......
+........
+..######
+..######
+..######
+..######
+..######
+..######
+
+; box top
+........
+........
+########
+########
+########
+########
+########
+########
+
+; box top-right
+.......#
+........
+######..
+######..
+######..
+######..
+######..
+######..
+
+; box left
+..######
+..######
+..######
+..######
+..######
+..######
+..######
+..######
+
+; box right
+######..
+######..
+######..
+######..
+######..
+######..
+######..
+######..
+
+; box bottom-left
+..######
+..######
+..######
+..######
+..######
+..######
+........
+#.......
+
+; box bottom
+########
+########
+########
+########
+########
+########
+........
+........
+
+; box bottom-right
+######..
+######..
+######..
+######..
+######..
+######..
+........
+.......#
+
+; backdrop
+........
+........
+........
+........
+........
+........
+........
+........
+
+; slash
+########
+######.#
+#####..#
+####..##
+###..###
+##..####
+#..#####
+########

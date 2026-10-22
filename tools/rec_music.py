@@ -73,7 +73,7 @@ def start(model, name):
             gb.write(gb.addr("tune_unlocked") + 1, 0xFF)
             to_jukebox(gb)
             while gb.mem("jb_sel") != tune:
-                tap(gb, "down")
+                tap(gb, "right")
             gb.press("a", 2)
     elif name != "title":                    # (the title tune starts about frame 70 of the boot: it is caught on its first tick below)
         gb.run(120)

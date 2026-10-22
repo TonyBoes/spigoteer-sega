@@ -1,5 +1,5 @@
 # Practice's difficulty (owner 2026-10-15: "put in the selection but make every difficulty level the same right now"): BONUS > MINI GAMES
-# offers EASY / NORMAL / HARD for every game (LEFT / RIGHT cycle, the header names the mode, the info lines show that mode's medal);
+# offers EASY / NORMAL / HARD for every game (SELECT cycles, the header names the mode, the medal icon and word show that mode's medal);
 # a medal is saved per game per mode (mg_best bits 0-1 / 2-3 / 4-5, the bonus rounds' EASY and HARD medals in "MD" at 0x7A, NORMAL in
 # MGB1); STORY and ARCADE always play NORMAL; every game plays exactly the same in the three modes for now.
 import re
@@ -32,11 +32,11 @@ def header(gb):
 
 
 def goto_mode(gb, want):
-    """Press RIGHT until the header says `want` (at most three presses)."""
+    """Press SELECT until the header says `want` (at most three presses)."""
     for _ in range(3):
         if header(gb) == "MINI GAMES  " + WORD[want]:
             return
-        ml.tap(gb, "right")
+        ml.tap(gb, "select")
         gb.run(4)
     assert header(gb) == "MINI GAMES  " + WORD[want]
 
@@ -97,32 +97,24 @@ def play_from_list(gb, rounds=None, score=None):
 
 # ---- the selection ------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_left_right_cycle_the_mode_on_every_entry_and_the_header_and_info_lines_follow(model):
-    """On every one of the 14 lines: RIGHT goes NORMAL > HARD > EASY > NORMAL (EASY, NORMAL, HARD is the order on the screen, so RIGHT from
-    HARD wraps to EASY), LEFT goes back, SELECT goes forward; the header names the mode, the "<MODE> ..." info line follows, the keys line
-    says the right arrow, MODE; the mug stays on the line of the selected game."""
+def test_select_cycles_the_mode_on_every_entry_and_the_header_and_medal_follow(model):
+    """On every one of the 14 entries: SELECT goes NORMAL > HARD > EASY > NORMAL (EASY, NORMAL, HARD is the order on the screen), the header names
+    the mode, the medal word is NO MEDAL, the selection line stays on the entry; LEFT and RIGHT do not touch the mode."""
     with ml.to_list(booted(model)) as gb:
         for k in range(GAMES):
-            assert gb.mem("ml_sel") == k
+            assert gb.mem("ml_sel") == k and ml.selection(gb) == ml.NAMES[k]
             for mode in (NORMAL, HARD, EASY):
                 assert header(gb) == "MINI GAMES  " + WORD[mode], (k, mode)
-                assert ml.line(gb, 15).strip() == WORD[mode] + " NO MEDAL YET"
-                assert ml.line(gb, 16).strip() == ml.KEYS
-                mc.list_ok(gb, k)
-                ml.tap(gb, "right")
+                assert ml.medal_word(gb) == "NO MEDAL"
+                assert ml.hint(gb) == "@ PLAY   $ BACK"
+                ml.tap(gb, "select")
                 gb.run(4)
-            for mode in (EASY, HARD, NORMAL):         # LEFT: the other way round
-                ml.tap(gb, "left")
-                gb.run(4)
-                assert header(gb) == "MINI GAMES  " + WORD[mode], (k, mode)
-            ml.tap(gb, "select")
-            gb.run(4)
-            assert header(gb) == "MINI GAMES  HARD"
-            ml.tap(gb, "left")
-            gb.run(4)
             assert header(gb) == "MINI GAMES  NORMAL"
-            ml.tap(gb, "down")
+            ml.tap(gb, "right")
             gb.run(4)
+            assert header(gb) == "MINI GAMES  NORMAL" or k == GAMES - 1
+            if k == GAMES - 1:
+                assert gb.mem("ml_sel") == 0
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -138,7 +130,7 @@ def test_the_mode_outlasts_a_game_and_the_title_and_reaches_the_game(model):
                 assert got == MG_PRACTICE | MODE_BITS[mode], (k, mode, got)
                 mc.list_ok(gb, k)
                 assert header(gb) == "MINI GAMES  " + WORD[mode]
-                ml.tap(gb, "down")
+                ml.tap(gb, "right")
                 gb.run(4)
             assert gb.mem("ml_sel") == 0
         goto_mode(gb, EASY)
@@ -161,13 +153,12 @@ def test_a_medal_earned_in_one_mode_shows_only_in_that_mode(model):
             _, medal = play_from_list(gb, rounds=rounds)
             assert medal and header(gb) == "MINI GAMES  " + WORD[mode]
             want[mode] = medal
-            assert ml.line(gb, 2).split()[-1] == ["", "BRONZE", "SILVER", "GOLD"][medal]
-            assert ml.line(gb, 15).strip() == f"{WORD[mode]} BEST {['', 'BRONZE', 'SILVER', 'GOLD'][medal]}"
+            assert ml.medal_word(gb) == ["NO MEDAL", "BRONZE", "SILVER", "GOLD"][medal]
         assert len(set(want.values())) == 3
         assert mini_best(gb, 0) == sum(want[m] << SHIFT[m] for m in want)
         for mode in (NORMAL, HARD, EASY):
             goto_mode(gb, mode)
-            assert ml.line(gb, 2).split()[-1] == ["", "BRONZE", "SILVER", "GOLD"][want[mode]]
+            assert ml.medal_word(gb) == ["NO MEDAL", "BRONZE", "SILVER", "GOLD"][want[mode]]
         goto_mode(gb, HARD)
         play_from_list(gb, rounds=(3, 2))  # a worse HARD medal: the gold stays
         assert (mini_best(gb, 0) >> 2) & 3 == want[HARD]
@@ -179,10 +170,10 @@ def test_a_medal_in_hard_is_not_in_normal_or_easy(model):
         goto_mode(gb, HARD)
         _, medal = play_from_list(gb, rounds=3)
         assert medal == 3 and mini_best(gb, 0) == 3 << 2
-        assert ml.line(gb, 2).split()[-1] == "GOLD" and ml.line(gb, 15).strip() == "HARD BEST GOLD"
+        assert ml.medal_word(gb) == "GOLD"
         for mode in (EASY, NORMAL):
             goto_mode(gb, mode)
-            assert ml.line(gb, 2).strip() == "QUICK DRAW" and ml.line(gb, 15).strip() == WORD[mode] + " NO MEDAL YET"
+            assert ml.selection(gb) == "QUICK DRAW" and ml.medal_word(gb) == "NO MEDAL"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -205,8 +196,7 @@ def test_a_bonus_round_keeps_a_medal_per_mode(model):
     """Can Shake-Up (line 10): bronze in EASY, gold in HARD, silver in NORMAL (1000 / 3000 / 2000 points): NORMAL's is in MGB1 byte 5 as before,
     EASY's and HARD's in the "MD" block; each shows only under its own header; the save round-trips them."""
     with ml.to_list(booted(model)) as gb:
-        for _ in range(BONUS_FIRST):
-            ml.tap(gb, "down")
+        ml.tap(gb, "down")                                # (the first bonus round)
         gb.run(4)
         for mode, pts, medal in ((EASY, 1000, 1), (HARD, 3000, 3), (NORMAL, 2000, 2)):
             goto_mode(gb, mode)
@@ -214,20 +204,18 @@ def test_a_bonus_round_keeps_a_medal_per_mode(model):
             assert got == medal, (mode, got)
         for mode, medal in ((NORMAL, 2), (HARD, 3), (EASY, 1)):
             goto_mode(gb, mode)
-            assert ml.line(gb, 12).split()[-1] == ["", "BRONZE", "SILVER", "GOLD"][medal]
-            assert ml.line(gb, 15).strip() == f"{WORD[mode]} BEST {['', 'BRONZE', 'SILVER', 'GOLD'][medal]}"
+            assert ml.medal_word(gb) == ["NO MEDAL", "BRONZE", "SILVER", "GOLD"][medal]
         ram = save_ram(gb)
     _, medals, _ = parse_bx(ram)
     assert medal_of(medals, 0) == 2, "NORMAL stays in MGB1"
     assert dx_parse(ram) == (1, 3), "EASY, HARD"
     with booted(model, ram) as gb:
         ml.to_list(gb)
-        for _ in range(BONUS_FIRST):
-            ml.tap(gb, "down")
+        ml.tap(gb, "down")                                # (the first bonus round)
         gb.run(4)
         for mode, medal in ((NORMAL, 2), (HARD, 3), (EASY, 1)):
             goto_mode(gb, mode)
-            assert ml.line(gb, 12).split()[-1] == ["", "BRONZE", "SILVER", "GOLD"][medal], mode
+            assert ml.medal_word(gb) == ["NO MEDAL", "BRONZE", "SILVER", "GOLD"][medal], mode
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -261,20 +249,23 @@ def test_an_old_save_keeps_its_medals_as_normal_and_has_none_for_easy_and_hard(m
     ram = with_bytes(ram, BX_AT, bytes(bx))
     with ml.to_list(booted(model, ram)) as gb:
         assert list(gb.read("mg_best", 3)) == [3, 2, 1]
-        assert ml.line(gb, 2).split()[-1] == "GOLD" and ml.line(gb, 15).strip() == "NORMAL BEST GOLD"
-        for _ in range(BONUS_FIRST):
-            ml.tap(gb, "down")
+        assert ml.medal_word(gb) == "GOLD"
+        ml.tap(gb, "down")                                # (the first bonus round)
         gb.run(4)
-        assert ml.line(gb, 12).split()[-1] == "GOLD"
+        assert ml.medal_word(gb) == "GOLD"
         for mode in (HARD, EASY):
             goto_mode(gb, mode)
-            assert ml.line(gb, 12).split()[-1] == "SHAKE-UP" and ml.line(gb, 15).strip() == WORD[mode] + " NO MEDAL YET"
-        for _ in range(BONUS_FIRST):
-            ml.tap(gb, "up")
+            assert ml.selection(gb) == "CAN SHAKE-UP" and ml.medal_word(gb) == "NO MEDAL"
+        ml.tap(gb, "up")                                  # (the venue games' first)
         gb.run(4)
         for mode in (HARD, EASY):
             goto_mode(gb, mode)
-            assert ml.line(gb, 2).strip() == "QUICK DRAW" and ml.line(gb, 4).strip() == "SHIRT CANNON"
+            assert ml.selection(gb) == "QUICK DRAW"
+            ml.tap(gb, "right")
+            gb.run(4)
+            assert ml.selection(gb) == "SHIRT CANNON"
+            ml.tap(gb, "left")
+            gb.run(4)
         _, m = play_from_list(gb, rounds=(3, 2))         # EASY (the last goto): a bronze
         assert m == 1 and mini_best(gb, 0) == 3 | 1 << 4
         ram = save_ram(gb)
@@ -308,14 +299,13 @@ def test_a_bad_md_block_reads_as_no_easy_or_hard_bonus_medals_and_leaves_mgb1_al
     for name, (blk, ok) in cases.items():
         with booted(model, with_bytes(base, DX_AT, blk)) as gb:
             ml.to_list(gb)
-            for _ in range(BONUS_FIRST):
-                ml.tap(gb, "down")
+            ml.tap(gb, "down")
             gb.run(4)
-            assert ml.line(gb, 12).split()[-1] == "SILVER", name          # NORMAL, from MGB1
+            assert ml.medal_word(gb) == "SILVER", name          # NORMAL, from MGB1
             goto_mode(gb, EASY)
-            assert (ml.line(gb, 12).split()[-1] == "BRONZE") == ok, name
+            assert (ml.medal_word(gb) == "BRONZE") == ok, name
             goto_mode(gb, HARD)
-            assert (ml.line(gb, 12).split()[-1] == "GOLD") == ok, name
+            assert (ml.medal_word(gb) == "GOLD") == ok, name
 
 
 # ---- every game plays each mode its own way ------------------------------------------------------------------------
@@ -362,8 +352,7 @@ def shown_list(model, mode, sel):
     gb = booted(model, ram)
     ml.to_list(gb)
     gb.write("sa_hold", 1)
-    for _ in range(sel):
-        ml.tap(gb, "down")
+    ml.to_game(gb, sel)
     goto_mode(gb, mode)
     gb.run(6)
     return gb
@@ -375,12 +364,11 @@ def test_the_list_in_each_mode_with_medals_goldens(model):
     mg_list_normal_medals (new): the header, the medal column and the "<MODE> BEST" line follow the mode."""
     from conftest import check_golden
     with shown_list(model, HARD, 6) as gb:
-        assert header(gb) == "MINI GAMES  HARD" and ml.line(gb, 12).split()[-1] == "SILVER" and ml.line(gb, 4).split()[-1] == "BRONZE"
-        assert ml.line(gb, 15).strip() == "HARD BEST SILVER"
+        assert header(gb) == "MINI GAMES  HARD" and ml.medal_word(gb) == "SILVER" and ml.selection(gb) == "MILK RUN"
         check_golden(gb, "mg_list_hard")
     with shown_list(model, EASY, 0) as gb:
-        assert header(gb) == "MINI GAMES  EASY" and ml.line(gb, 2).split()[-1] == "BRONZE" and ml.line(gb, 4).split()[-1] == "GOLD"
+        assert header(gb) == "MINI GAMES  EASY" and ml.medal_word(gb) == "BRONZE" and ml.selection(gb) == "QUICK DRAW"
         check_golden(gb, "mg_list_easy")
     with shown_list(model, NORMAL, 1) as gb:
-        assert header(gb) == "MINI GAMES  NORMAL" and ml.line(gb, 2).split()[-1] == "SILVER" and ml.line(gb, 4).split()[-1] == "BRONZE"
+        assert header(gb) == "MINI GAMES  NORMAL" and ml.medal_word(gb) == "BRONZE" and ml.selection(gb) == "SHIRT CANNON"
         check_golden(gb, "mg_list_normal_medals")
