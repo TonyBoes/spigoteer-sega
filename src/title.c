@@ -109,7 +109,7 @@ uint16_t title_t;               // frames since the title appeared
 // where no title frame runs, and read the colours as they stand.
 #define DX_STEPS 48
 #ifndef DX_SFX
-#define DX_SFX 1    // the stamp sound (make DX_SFX=0..3): 0 none, 1 a rising marimba run C E G C whose last note rings 0.8 s, 2 the chime C E G and its echo,
+#define DX_SFX 1    // the stamp sound (make DX_SFX=0..5; 4 and 5 are 1 and 2 with 3's crash under them): 0 none, 1 a rising marimba run C E G C whose last note rings 0.8 s, 2 the chime C E G and its echo,
                     // 3 a run of five up to E6 with SFX_BREAK's noise under it (src/music.c d_st). (The DON alone, the first try, is a 3-frame noise layer: inaudible.)
 #endif
 #define DX_FLASH  2
@@ -608,9 +608,9 @@ uint8_t title_update(uint8_t pressed) BANKED {
         dx_cycle_tick();
 #if DX_SFX
         if (title_t == DX_T0) {                              // the stamp's sound: the marimba, picked by pour_streak 4..6 (music.c sfx_start; the tick takes the request within a frame)
-            pour_streak = 3 + DX_SFX;
+            pour_streak = DX_SFX > 3 ? DX_SFX : 3 + DX_SFX;   // 1..3 the d_st tune; 4, 5: tune 1, 2 plus the crash
             SFX(SFX_PERFECT);
-#if DX_SFX == 3
+#if DX_SFX >= 3
             SFX(SFX_BREAK);
 #endif
         }
