@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Saloon: OBJ 1 colour 1 to #FFE6CD and the show dancers share OBJ 1; OBJ 5 free."),
     ("2026-10-21", "Saloon: the Saloon singer (owner's concept, v3) on OBJ 4 / BG 4 with her own palette; the wall colour shows through at her eyes."),
     ("2026-10-21", "Saloon: the Prospector shares the Outlaw's palette on OBJ 7 / BG 7 (was his own on OBJ 4); OBJ 4 and BG 4 free."),
     ("2026-10-21", "Saloon: the Outlaw (original round 1) on OBJ 7 / BG 7 with his own palette; Big Tex's body and hat take the Outlaw's palette (replaces the reserved Big Tex-coloured patron)."),
@@ -147,8 +148,9 @@ PLANNED = {}
 TAN = "#FFE6CD"   # the Stadium's white push (owner 2026-10-21: the lighter tan, over #FFD5AC: "a better balance")
 PLANS = {
     "cowboys": dict(
-        moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand")],
+        moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand"), ("Show dancers", "OBJ", 5, 1, "Show dancers")],
         recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
+                  ("OBJ", 1): {1: "#FFE6CD"},                               # the full mug's cream to the tan; the dancers share it
                   },
         open={},
         add={("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"]),       # the original round-1 outlaw, his own palette; Big Tex takes it too
