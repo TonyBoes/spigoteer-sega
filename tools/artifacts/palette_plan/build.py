@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Saloon names: patron B is now MABEL (grey hair, black lace shawl); ROSIE is now the red-dress singer on OBJ 4."),
     ("2026-10-21", "Saloon: ROSIE redrawn by the owner (grey hair, dark dress): skin #FFCCAA, grey #A9A9A9, dark #303038 (stored as #FFCEAD, #ADADAD in 15-bit)."),
     ("2026-10-21", "Saloon: ROSIE's grey is the darker #303038."),
     ("2026-10-21", "Saloon: ROSIE's colour 3 to dark grey #4C4C58, so her hair is grey (her outline too); her pink shawl and dress stay."),
@@ -134,7 +135,7 @@ commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], cap
 
 # Patron names (tools/gen_credits.py PATRONS, art order A, B, C) and short descriptions where the art notes give one.
 NAMES = {
-    "cowboys": ["DUSTY, the cowboy", "ROSIE, the cowgirl", "HANK, the ranch hand"],
+    "cowboys": ["DUSTY, the cowboy", "MABEL, the lace shawl", "HANK, the ranch hand"],   # owner 2026-10-21: variant B renamed MABEL
     "sports": ["PETE, the cap fan", "SERENA, the band fan", "NORM, the ref"],
     "lumberjacks": ["CEDAR, in the cap", "WILLOW, red hair", "ASH, in the green hat"],
     "chefs": ["PIERRE", "BRIE", "BASIL"],
@@ -155,11 +156,11 @@ PLANS = {
         moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand"), ("Show dancers", "OBJ", 5, 1, "Show dancers")],
         recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
                   ("OBJ", 1): {1: "#FFE6CD"},                               # the full mug's cream to the tan; the dancers share it
-                  ("OBJ", 6): {1: "#FFCEAD", 2: "#ADADAD", 3: "#303038"},  # ROSIE redrawn by the owner: grey hair and shawl                               # ROSIE's hair (and outline) dark grey; her shawl and dress stay pink
+                  ("OBJ", 6): {1: "#FFCEAD", 2: "#ADADAD", 3: "#303038"},  # MABEL (was ROSIE), redrawn by the owner: grey hair, black lace shawl                               # ROSIE's hair (and outline) dark grey; her shawl and dress stay pink
                   },
         open={},
         add={("OBJ", 7): ("Outlaw", ["#D8C098", "#B85838", "#281810"]),       # the original round-1 outlaw, his own palette; Big Tex takes it too
-             ("OBJ", 4): ("Saloon singer", ["#F8D0B0", "#B84058", "#202030"]),   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
+             ("OBJ", 4): ("ROSIE, the singer", ["#F8D0B0", "#B84058", "#202030"]),   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
              ("OBJ", 5): ("Brown-haired singer", ["#F8D0B0", "#805838", "#202030"])},   # owner's concept, her own palette
         join={("OBJ", 7): ["Prospector"]},                                     # saved candidate Prospector 1 shares the Outlaw's palette
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
