@@ -7,7 +7,9 @@ The per-venue colours come from the graphics atlas data (`make atlas` writes out
 use per slot, the ideas list, the log) is hand-kept in PLAN below: edit it when the owner decides something, rebuild,
 republish (see tools/artifacts/README.md).
 """
+import base64
 import html
+import io
 import json
 import os
 import subprocess
@@ -349,6 +351,8 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pt tr:last-child td { border-bottom: 0; }
 .pt td.now { color: var(--now); font-weight: 600; } .pt td.plan { color: var(--plan); font-weight: 600; }
 .pt td.slotc { font-family: var(--mono); white-space: nowrap; }
+.pimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; border-radius: 3px; }
+.pt td.pic { width: 56px; padding-block: 4px; }
 .muted { color: var(--muted); font-style: italic; }
 .ph2 { display: flex; align-items: end; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .copymd { font: 600 13px var(--body); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }
@@ -361,6 +365,52 @@ for i, v in enumerate(venues):
     w('<button type="button" class="tab" role="tab" id="t-%s" aria-controls="p-%s" aria-selected="%s">%s</button>'
       % (v["key"], v["key"], "true" if i == 0 else "false", esc(v["name"].replace("The ", ""))))
 w('</div>')
+ART = os.path.join(os.path.dirname(os.path.abspath(__file__)), "art")
+
+
+def frames(path):
+    out, cur = [], []
+    for l in open(path).read().splitlines():
+        if l.startswith(";"):
+            continue
+        if not l.strip():
+            if cur:
+                out.append(cur); cur = []
+        else:
+            cur.append(l)
+    if cur:
+        out.append(cur)
+    return out
+
+
+def art_rows(v, name):
+    """The patron's front view as house ASCII: the planned art in art/<venue>_<name>.txt, else the game's assets/art/patrons."""
+    first = name.split(",")[0].strip().lower()
+    f = os.path.join(ART, "%s_%s.txt" % (v["key"], first))
+    if os.path.exists(f):
+        return frames(f)[0]
+    names = [n.split(",")[0].strip().lower() for n in NAMES[v["key"]]]
+    if first in names:
+        return frames(os.path.join(ROOT, "assets/art/patrons/%s.txt" % v["key"]))[names.index(first)]
+    return None
+
+
+def thumb(rows, cols, wall):
+    """A data: URI PNG of a 16x16 front view, x4, in the given colours."""
+    from PIL import Image
+    im = Image.new("RGB", (16, 16), hex2(wall))
+    for y, r in enumerate(rows[:16]):
+        for x, ch in enumerate(r[:16]):
+            if ch in "-+#":
+                im.putpixel((x, y), hex2(cols["-+#".index(ch)]))
+    b = io.BytesIO(); im.resize((64, 64), Image.NEAREST).save(b, "PNG")
+    return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
+
+
+def hex2(h):
+    return (int(h[1:3], 16), int(h[3:5], 16), int(h[5:7], 16))
+
+
 def eff(d):
     return [d["new"].get(i, d["cols"][i]) for i in range(4)]
 
@@ -477,7 +527,9 @@ for i, v in enumerate(venues):
         cols = [d["new"].get(k, d["cols"][k]) for k in (1, 2, 3)]
         sw = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
         bg = ("BG %d" % r["bg"]) if "bg" in r else '<span class="muted">to assign</span>'
-        rows.append(dict(html=("plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg)))
+        ar = art_rows(v, r["name"])
+        img = ('<img class="pimg" alt="%s" width="48" height="48" src="%s">' % (esc(r["name"]), thumb(ar, cols, v["bg"][0][0]))) if ar else ""
+        rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg)))
         md += "| %s%s | %s | OBJ %d | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), r["obj"],
                                                 ("BG %d" % r["bg"]) if "bg" in r else "to assign")
     w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % len(ident))
@@ -495,9 +547,9 @@ for i, v in enumerate(venues):
         d = dict(m[("BG", sl)]); d["pat"] = []
         w(card("BG", sl, d, False))
     w('</div><div class="ph2"><h2>Patrons</h2><button type="button" class="copymd" data-md="%s">Copy table as Markdown</button></div>' % esc(md))
-    w('<div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>')
+    w('<div class="tbl"><table class="pt"><thead><tr><th></th><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th></tr></thead><tbody>')
     for r in rows:
-        w('<tr><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td></tr>' % r["html"])
+        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td></tr>' % r["html"])
     w('</tbody></table></div>')
     w('</section>')
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
