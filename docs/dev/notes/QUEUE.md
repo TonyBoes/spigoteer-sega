@@ -116,4 +116,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - Owner 2026-10-22: GUS ALWAYS TIPS, in ARCADE and STORY only; CLASSIC is unchanged. (He is "the rarest patron"; a prospector with gold.)
   - In src/patrons.c maybe_tip, skip the tip_chance roll for GUS. Ideally draw no random number either, to keep the other patrons' sequences stable. Check whether goldens move.
   - The existing limits still apply (one tip on the counter at a time, none during the show). The proposed default is A: if a coin is already there, he simply doesn't tip that time. B (wait until clear) and C (replace the coin) are alternatives; the owner hasn't answered.
-  - Rarity: the proposed default is a spawn weight of half any other look (DMG too, where he is one of 3). Not yet confirmed.
+  - Rarity (owner 2026-10-22): NO extra weighting. On Color, spawns pick uniformly among the allowed (look, palette) combinations, so GUS (2 of 29) is naturally rare. On DMG, 3 equal looks.
