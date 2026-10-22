@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Saloon: a reserved patron in Big Tex's body colours on OBJ 7 / BG 7 (his fight loads the same colours there, so this patron can stay in it)."),
     ("2026-10-21", "Saloon: HANK's hat to #FFE6CD and DUSTY shares HANK's palette, in slot 3 (OBJ 3 / BG 3) so neither sits out boss fights; OBJ 7 and BG 7 are the boss's alone."),
     ("2026-10-21", "Fix: the Saloon's keg / spout already use the bar palette (BG 0), so they do not move to BG 1 there; BG 1 is free in the Saloon's playfield."),
     ("2026-10-21", "Owner: where possible a patron's BG palette number matches its OBJ number (A 3/3, B 6/6, C 7/7; Stadium PETE 1/1, SERENA 6/6, reserved 2/2). The boss body pairs with the topper's OBJ 7 in BG 7."),
@@ -143,8 +144,9 @@ TAN = "#FFE6CD"   # the Stadium's white push (owner 2026-10-21: the lighter tan,
 PLANS = {
     "cowboys": dict(
         moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand")],
-        recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"}},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
-        open={},
+        recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
+                  ("OBJ", 7): {1: "#F6BD8B", 2: "#CD3120", 3: "#5A3118"}},  # Big Tex's body (= his hat's) colours
+        open={("OBJ", 7): "Reserved patron (Big Tex's colours)"},
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
     ),
     "sports": dict(
@@ -361,7 +363,8 @@ def field_model(v, m):
 
     def put(to, entry, colours, match, other=None):
         d = field[to]
-        field[to] = dict(pat=[entry] if entry else [], oth=other or [], cols=d["cols"],
+        other = (other or []) + [x for x in d["oth"] if x[0].startswith("Boss")]
+        field[to] = dict(pat=[entry] if entry else [], oth=other, cols=d["cols"],
                          new={i: colours[i] for i in range(4) if colours[i] != d["cols"][i]}, freed=False, open=None, quiet=True, match=match)
 
     def take(fr, name):
@@ -376,7 +379,7 @@ def field_model(v, m):
             b = next((sl for sl in range(8) if any(x[0] == name for x in field[sl]["pat"])), None)
             if b == o:
                 continue
-            if not empty(field[o]):
+            if field[o]["pat"] or [x for x in field[o]["oth"] if not x[0].startswith("Boss")] or field[o].get("open"):
                 mates = {t for t, so in pats if so == o and t != name}
                 if b is not None and field[o]["pat"] and all(x[0] in mates for x in field[o]["pat"]):
                     field[o]["pat"] = field[o]["pat"] + [(name, True)]
