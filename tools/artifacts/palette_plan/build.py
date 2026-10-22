@@ -146,11 +146,11 @@ PLANS = {
         moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand")],
         recolour={("OBJ", 3): {1: "#FFE6CD", 2: "#8B5231", 3: "#392918"},   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
                   ("OBJ", 7): {1: "#F6BD8B", 2: "#CD3120", 3: "#5A3118"}},  # Big Tex's body (= his hat's) colours
-        open={("OBJ", 7): "Reserved patron (Big Tex's colours)"},
+        open={("OBJ", 7): "Reserved patron"},
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
     ),
     "sports": dict(
-        moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Show dancers (cheerleaders)"),
+        moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Cheerleaders"),
                ("NORM", "OBJ", 7, 0, "NORM, the ref")],
         recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 4): "OBJ 0"},
         open={("OBJ", 2): "Reserved patron"},
@@ -186,12 +186,12 @@ def users(kind, v, s):
         if s == 4 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (left half, lifted)"]
         other = {0: ["Sal", "Tip coin", "Pour sparkle", "PERFECT cue"], 1: ["Full mug", "Fill glass", "Breaking glass"],
-                 2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 5: ["Show dancers"], 7: ["Boss: hat (topper)"]}.get(s, [])
+                 2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 5: ["Show dancers"], 7: ["Boss: hat"]}.get(s, [])
     else:
         pat = [n[BG_PATRON[s]]] if s in BG_PATRON else []
         if s == 7 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (top row)"]
-        other = {0: ["Bar, wall"] + ([] if v["keg7"] else ["Keg, spout"]), 1: ["HUD (score, lives)"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"],
+        other = {0: ["Bar, wall"] + ([] if v["keg7"] else ["Keg, spout"]), 1: ["HUD"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"],
                  7: ["Keg, spout"] if v["keg7"] else []}.get(s, [])
     return pat, other
 
