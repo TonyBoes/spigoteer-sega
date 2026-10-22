@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Owner: where possible a patron's BG palette number matches its OBJ number (A 3/3, B 6/6, C 7/7; Stadium PETE 1/1, SERENA 6/6, reserved 2/2). The boss body pairs with the topper's OBJ 7 in BG 7."),
     ("2026-10-21", "Stadium: BG 0 takes BG 1's palette (the keg / spout's; only its darkest colour differs) and the keg / spout share BG 0; BG 1 free in the playfield."),
     ("2026-10-21", "Every venue: the keg / spout palette moves from BG 7 to BG 1 in the playfield; BG 7 is free there."),
     ("2026-10-21", "Stadium: the tan is the lighter #FFE6CD (owner pick over #FFD5AC), for OBJ 1 and OBJ 2."),
@@ -239,9 +240,9 @@ def card(kind, sl, d, skip0, hide_cols=False):
                      % (" chg" if i in d["new"] else "", d["new"].get(i, cols[i]), d["new"].get(i, cols[i]),
                         ("was " + cols[i] + ", planned " + d["new"][i]) if i in d["new"] else cols[i])
                      for i in range(1 if skip0 else 0, 4))
-    moved = d.get("match", "").startswith("BG") and len(d["new"]) == 4
+    moved = (d.get("quiet") and not str(d.get("match") or "").startswith("OBJ")) or (str(d.get("match") or "").startswith("BG") and len(d["new"]) == 4)
     if d["new"] and not moved:
-        note = ("colours moved from %s" % d["match"]) if d.get("match", "").startswith("BG") and len(d["new"]) == 4 else ("colours as %s" % d["match"]) if d.get("match") else ", ".join("colour %d: %s &rarr; %s" % (i, cols[i], d["new"][i]) for i in sorted(d["new"]))
+        note = ("colours as %s" % d["match"]) if d.get("match") else ", ".join("colour %d: %s &rarr; %s" % (i, cols[i], d["new"][i]) for i in sorted(d["new"]))
         body += '<p class="chgp">%s</p>' % note
     return ('<div class="pal%s"><div class="ph"><span class="slot">%s %d</span><span class="sws">%s</span></div>%s</div>'
             % (" free" if free else "", kind, sl, sw, body))
@@ -316,12 +317,77 @@ for i, v in enumerate(venues):
     w('<button type="button" class="tab" role="tab" id="t-%s" aria-controls="p-%s" aria-selected="%s">%s</button>'
       % (v["key"], v["key"], "true" if i == 0 else "false", esc(v["name"].replace("The ", ""))))
 w('</div>')
+def eff(d):
+    return [d["new"].get(i, d["cols"][i]) for i in range(4)]
+
+
+def empty(d):
+    return not d["pat"] and not d["oth"] and not d.get("open")
+
+
+def field_model(v, m):
+    """The playfield's BG slots under the plan: global and per-venue moves, then patrons renumbered so BG n matches OBJ n where it can."""
+    field = {sl: dict(m[("BG", sl)]) for sl in range(8)}
+    for sl in v["above"]:
+        if sl not in v["field"]:
+            field[sl] = dict(pat=[], oth=[], cols=field[sl]["cols"], new={}, freed=True, open=None)
+    for item, fr, to in FIELD_MOVES:
+        src = field[fr]; c = eff(src)
+        src["oth"] = [x for x in src["oth"] if not x[0].startswith(item)]
+        if empty(src):
+            src.update(freed=True, new={})
+        field[to] = dict(pat=[], oth=[(item, True)], cols=field[to]["cols"], new={i: c[i] for i in range(4)}, freed=False, open=None, quiet=True)
+    for item, fr, to in PLANS.get(v["key"], {}).get("field_moves", []):
+        src = field[fr]; c = eff(src)
+        src["oth"] = [x for x in src["oth"] if not x[0].startswith(item)]
+        dst = dict(field[to])
+        dst["new"] = {i: c[i] for i in range(4) if c[i] != dst["cols"][i]}
+        dst["oth"] = dst["oth"] + [(item, True)]
+        field[to] = dst
+        if empty(src):
+            field[fr] = dict(pat=[], oth=[], cols=src["cols"], new={}, freed=True, open=None)
+
+    def put(to, entry, colours, match, other=None):
+        d = field[to]
+        field[to] = dict(pat=[entry] if entry else [], oth=other or [], cols=d["cols"],
+                         new={i: colours[i] for i in range(4) if colours[i] != d["cols"][i]}, freed=False, open=None, quiet=True, match=match)
+
+    def take(fr, name):
+        d = field[fr]
+        d["pat"] = [x for x in d["pat"] if x[0] != name]
+        if empty(d):
+            field[fr] = dict(pat=[], oth=[], cols=d["cols"], new={}, freed=True, open=None)
+
+    pats = [(t, sl) for sl in range(8) for t, _ in m[("OBJ", sl)]["pat"]] + [(m[("OBJ", sl)]["open"], sl) for sl in range(8) if m[("OBJ", sl)]["open"]]
+    for _ in range(4):
+        for name, o in pats:
+            b = next((sl for sl in range(8) if any(x[0] == name for x in field[sl]["pat"])), None)
+            if b == o or not empty(field[o]):
+                continue
+            if b is None:          # a reserved patron: its OBJ colours, the wall's colour 0
+                oc = eff(m[("OBJ", o)])
+                put(o, (name, True), [eff(field[0])[0]] + oc[1:], "OBJ %d" % o)
+            else:
+                d = field[b]
+                put(o, (name, True), eff(d), d.get("match") if str(d.get("match", "")).startswith("OBJ") else None)
+                take(b, name)
+    bb = next((sl for sl in range(8) if any(x[0] == "Boss body" for x in field[sl]["oth"])), None)
+    if bb is not None and bb != 7:                 # the boss's body pairs with his topper's OBJ 7
+        if empty(field[7]) or (field[7]["pat"] and not field[7]["oth"]):
+            field[7]["oth"] = field[7]["oth"] + [("Boss body", True)]
+            if not field[7]["pat"]:
+                field[7].update(freed=True, new={})
+            field[bb]["oth"] = [x for x in field[bb]["oth"] if x[0] != "Boss body"]
+            if empty(field[bb]):
+                field[bb] = dict(pat=[], oth=[], cols=field[bb]["cols"], new={}, freed=True, open=None)
+    return field
+
+
 for i, v in enumerate(venues):
     m = model(v)
+    field = field_model(v, m)
     ofree = [sl for sl in range(8) if card("OBJ", sl, m[("OBJ", sl)], True).find('class="pal free"') >= 0]
-    opens = [sl for sl in range(8) if m[("OBJ", sl)]["open"]]
-    bfree = sorted([sl for sl in v["above"] if sl not in v["field"] and sl not in [t for _, _, t in FIELD_MOVES]] + [f for _, f, _ in FIELD_MOVES])
-    bfree = sorted(set(bfree) | {fr for _, fr, _ in PLANS.get(v["key"], {}).get("field_moves", [])})
+    bfree = [sl for sl in range(8) if not field[sl]["pat"] and not field[sl].get("open") and not [x for x in field[sl]["oth"] if not x[0].startswith("Boss")]]
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
     w('<h1>%s</h1><div class="stats">' % esc(v["name"]))
     ident, reserved = [], []
@@ -331,18 +397,18 @@ for i, v in enumerate(venues):
             ident.append(dict(name=t, obj=sl, planned=planned))
         if d["open"]:
             reserved.append(dict(name=d["open"], obj=sl, planned=True))
-    for sl in range(8):
-        for t, planned in m[("BG", sl)]["pat"]:
-            for r in ident:
-                if r["name"] == t:
-                    r["bg"] = sl
+    for r in ident + reserved:
+        b = next((sl for sl in range(8) if any(x[0] == r["name"] for x in field[sl]["pat"])), None)
+        if b is not None:
+            r["bg"] = b
+            if field[b]["new"] or b != r["obj"]:
+                r["planned"] = r["planned"] or bool(field[b]["new"])
     rows = []
     md = "### %s: patron palettes (plan, %s)\n\n| Patron | Palette colours (1, 2, 3) | OBJ | BG |\n|---|---|---|---|\n" % (v["name"], LOG[0][0])
     for r in ident + reserved:
         d = m[("OBJ", r["obj"])]
-        cols = [d["new"].get(i, d["cols"][i]) for i in (1, 2, 3)]
-        sw = "".join('<button type="button" class="sw%s" style="background:%s" data-hex="%s" title="%s"></button>'
-                     % (" chg" if i in d["new"] else "", c, c, c) for i, c in zip((1, 2, 3), cols))
+        cols = [d["new"].get(k, d["cols"][k]) for k in (1, 2, 3)]
+        sw = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
         bg = ("BG %d" % r["bg"]) if "bg" in r else '<span class="muted">to assign</span>'
         rows.append(dict(html=("plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg)))
         md += "| %s%s | %s | OBJ %d | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), r["obj"],
@@ -355,29 +421,8 @@ for i, v in enumerate(venues):
     for sl in range(8):
         w(card("OBJ", sl, m[("OBJ", sl)], True))
     w('</div><h2>Background palettes, playfield</h2><div class="grid">')
-    field = {sl: dict(m[("BG", sl)]) for sl in range(8)}
-    taken = set()
-    for item, fr, to in FIELD_MOVES:
-        src = field[fr]
-        src["oth"] = [x for x in src["oth"] if not x[0].startswith(item)]
-        if not src["pat"] and not src["oth"]:
-            src["freed"] = True
-        field[to] = dict(pat=[], oth=[(item, True)], cols=src["cols"], new={i: src["cols"][i] for i in range(4)}, freed=False, open=None,
-                         match="BG %d" % fr)
-        taken.add(to)
-    for item, fr, to in (PLANS.get(v["key"], {}).get("field_moves", [])):
-        src = field[fr]
-        hit = [x for x in src["oth"] if x[0].startswith(item)]
-        src["oth"] = [x for x in src["oth"] if x not in hit]
-        dst = dict(field[to]); cols = src["cols"]
-        newc = {i: src["new"].get(i, cols[i]) for i in range(4)}
-        dst["new"] = {i: c for i, c in newc.items() if c != dst["cols"][i]}
-        dst["oth"] = dst["oth"] + [(item, True)]
-        field[to] = dst
-        field[fr] = dict(pat=[], oth=[], cols=cols, new={}, freed=True, open=None)
-        taken.discard(fr)
     for sl in range(8):
-        w(card("BG", sl, field[sl], False, hide_cols=(sl in v["above"] and sl not in v["field"] and sl not in taken)))
+        w(card("BG", sl, field[sl], False))
     w('</div><h2>Background palettes, above the playfield (HUD and stage)</h2><div class="grid">')
     for sl in v["above"]:
         d = dict(m[("BG", sl)]); d["pat"] = []
