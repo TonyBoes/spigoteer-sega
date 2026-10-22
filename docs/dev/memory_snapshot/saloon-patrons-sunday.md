@@ -18,4 +18,6 @@ Owner 2026-10-22: DO option 2 (the unshifted pose's empty 3rd column shares the 
 
 DMG (owner 2026-10-22): original palettes. The Saloon DMG three are DUSTY, EMMA and GUS (not ROSIE: her see-through pupils look possessed on DMG). EMMA pupils are in the outline colour. They are the bank-0 looks on both systems; GUS is in the boss-overwritten slot. HANK is Color only (bank 1).
 
+GUS (owner 2026-10-22): the rarest patron, and he ALWAYS tips, in ARCADE and STORY only. Proposed and unconfirmed: half spawn weight; if a coin is already on the counter, no tip (option A).
+
 Related: [[palette-plan-artifact]], [[gbc-enhanced-direction]], [[token-budget-saturday]].
