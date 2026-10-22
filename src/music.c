@@ -106,6 +106,10 @@ static const sfx_step_t s_perfect[] = { {1936, 3, 0x20}, {0, 2, 0x40}, {1959, 3,
 static const sfx_step_t s_x2[] = { {1936, 3, 0x20}, {0, 1, 0x40}, {1959, 3, 0x20}, {0, 1, 0x40}, {1974, 3, 0x20}, {0, 1, 0x40},
                                    {1992, 2, 0x20}, {0, 4, 0x40}, {0, 5, 0x60}, {1992, 2, 0x60}, {0, 4, 0x60} };
 static const sfx_def_t d_x2 = { 2, 0, 0, N_(s_x2), s_x2 };
+// The title's DX stamp (src/title.c; requested as SFX_PERFECT with pour_streak 4, which mugs.c never reaches: it caps at 3), in the title tune's key (C major:
+// periods C5 1923, E5 1949, G5 1964, C6 1985, E6 1998): a marimba run of five up to E6, held (0.8 s); the title plays SFX_BREAK's crash under it (owner Q46).
+static const sfx_step_t s_st[] = { {1923, 3, 0x20}, {0, 1, 0x40}, {1949, 3, 0x20}, {0, 1, 0x40}, {1964, 3, 0x20}, {0, 1, 0x40}, {1985, 3, 0x20}, {0, 1, 0x40}, {1998, 5, 0x20}, {0, 28, 0x40}, {0, 18, 0x60} };
+static const sfx_def_t d_st = { 2, 0, 0, N_(s_st), s_st };
 uint8_t pour_streak;                 // perfect pours in a row, capped at 3 (src/mugs.c launch_mug; 0 after a non-perfect launch, a shift's start, a lost life)
 static uint16_t pour_up(uint16_t p, uint8_t n) {   // the period p raised n whole tones: the wave length x 0.8906 (2^-1/6 = 0.8909) each, kept to 1/16 so two steps do not compound the rounding
     uint16_t d = (2048 - p) << 4;
@@ -263,7 +267,7 @@ static void step_begin(voice_t *v) {
         NR32_REG = (uint8_t)s->slide; v->slide = 0;
         if (!s->freq) return;                                // (a volume step only)
         if (v->def == &d_x2) v->freq = pour_up(v->freq, 2);
-        else if (pour_streak > 1) v->freq = pour_up(v->freq, 1);
+        else if (pour_streak > 1 && pour_streak < 4) v->freq = pour_up(v->freq, 1);
         if (!v->step) {                                      // the note's wave, with the DAC off
             NR30_REG = 0;
             for (k = 0; k != 16; k++) ((volatile uint8_t *)0xFF30)[k] = s_wave[k];
@@ -295,7 +299,7 @@ static void sfx_start(uint8_t id) {
         if (v->def->ch == 2) wave_release();                        // the marimba cut by a channel-1 effect (or itself again): the bass gets channel 3 back
         else if (sfx_defs[id].ch == 2) { NR12_REG = 0x08; NR14_REG = 0x80; }   // a channel-1 effect cut by the marimba: let go of channel 1
     }
-    v->def = (id == SFX_PERFECT && pour_streak > 2) ? &d_x2 : &sfx_defs[id];
+    v->def = (id == SFX_PERFECT && pour_streak > 2) ? (pour_streak > 3 ? &d_st : &d_x2) : &sfx_defs[id];
     v->step = 0;
     v->busy = 1;
     set_mute(v->def->ch, 1);        // the driver lets go of the channel (and cuts its note) before we write
@@ -462,6 +466,17 @@ void music_load_now(void) BANKED {
 // menu is open (pause.c, as
 // PAUSE_NR51): with the tune playing, bass and drums (channels 3, 4) are on the mix, the effects held: a request is dropped,
 // and while an effect still owns channel 4 it stays off it (the bass alone; channel 1 is never on the pause mix).
+// The pump's tick under half a frame ago: music_tick skips its own. Under three quarters of a frame AND late in the frame (line 100 on): the next pass's own tick
+// follows within ~0.4 frame, so ticking now would bunch the two (the pause card's open: 0.50 then 0.28 frames, when the pump's tick landed at 0.49: a count of
+// margin that any code-size change flipped); skipping leaves one gap of at most 1.2 frames. (A wrap of TIMA in double speed means well over a frame has passed.)
+// Its own function: a local in music_tick itself costs every call (the common path) a stack frame (tests/test_music_cpu.py: 18 lines).
+static uint8_t tick_refused(uint8_t f) {
+    uint16_t d;
+    if (DS_NOW && (IF_REG & IF_TIMER)) return 0;
+    d = (f & 0xFC) + FRAME_TIMA / 2;
+    return TIMA_REG < d || (TIMA_REG < d + FRAME_TIMA / 4 && LY_REG >= 100 && LY_REG < 144);
+}
+
 void music_tick(void) BANKED {
     uint8_t f = TMA_REG;
     if (f) {
@@ -471,7 +486,7 @@ void music_tick(void) BANKED {
         }
         if (f & 1) {
             TMA_REG = f & 2;
-            if (TIMA_REG < (f & 0xFC) + FRAME_TIMA / 2 && !(DS_NOW && (IF_REG & IF_TIMER))) return;   // (under half a frame since the pump's tick, that carried its lateness in TIMA: no tick, however it was timed; a wrap of TIMA in double speed means well over a frame has passed)
+            if (tick_refused(f)) return;
             if (DS_NOW) timer_wrap_clear();   // (the tick below zeroes TIMA: a wrap flag left over would add 256 counts to the next pump; the common path, TMA 0, leaves it to main.c frame_wait)
         }
     }

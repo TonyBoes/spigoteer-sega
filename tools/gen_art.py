@@ -781,6 +781,13 @@ def title_art(outdir, prev, base, ttiles, bg):
     for f in fx:
         fxt += tile_bytes(f + ["." * 8] * 8, 0, 0) + tile_bytes(f + ["." * 8] * 8, 0, 8)
 
+    # the CGB DX badge (assets/art/dx_badge.txt): 32x16, four 8x16 columns (top, bottom tile of each), OBJ palette 7 ('-' foam, '+' fill, '#' outline)
+    dx = plain_rows(ROOT / "assets/art/dx_badge.txt")
+    assert len(dx) == 16 and all(len(r) == 32 for r in dx), "dx_badge.txt: 32x16"
+    dxt = []
+    for c in range(4):
+        dxt += tile_bytes(dx, 8 * c, 0) + tile_bytes(dx, 8 * c, 8)
+
     def carr(name, vals):
         return f"static const uint8_t {name}[{len(vals)}] = {{ " + ", ".join(str(v) for v in vals) + " };"
     ext, low = [], []
@@ -797,6 +804,8 @@ def title_art(outdir, prev, base, ttiles, bg):
            fmt("tt_extra_tiles", ext).replace("const uint8_t", "static const uint8_t"),
            fmt("tt_low_tiles", low).replace("const uint8_t", "static const uint8_t"),
            fmt("tt_fx_tiles", fxt).replace("const uint8_t", "static const uint8_t"),
+           f"#define TT_DX_TILES {len(dxt) // 16}",
+           fmt("tt_dx_tiles", dxt).replace("const uint8_t", "static const uint8_t"),
            carr("tt_word", [TITLE_LETTERS.index(ch) for ch in TITLE_WORD]) + "   // SPIGOTEER -> tt_logo index",
            f"static const uint8_t tt_logo[{len(TITLE_LETTERS)}][{len(LOGO_FILL) + 1}][4] = {{"]
     for st in fill_map:
@@ -827,6 +836,7 @@ def title_art(outdir, prev, base, ttiles, bg):
                 im.putpixel((x, i * 9 + y), GREY[px[y][x]])
     im.resize((im.width * 8, im.height * 8), Image.NEAREST).save(prev / "title_menu_x8.png")
     png(fx, prev / "title_fx_x8.png", 8, transparent=True)
+    png([dx], prev / "dx_badge_x8.png", 8, transparent=True)
 
 
 # ---- M12 bonus rounds Perfect Pour and Tip Shower: build/bonus2_art.h, #included by src/bonus2.c (its bank) ----
