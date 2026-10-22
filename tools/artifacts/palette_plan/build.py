@@ -145,13 +145,13 @@ def users(kind, v, s):
     e = enh_variant(v)
     if kind == "OBJ":
         pat = [n[PATRON_SLOT[s]]] if s in PATRON_SLOT else []
-        if s == 4 and e is not None:
+        if s == 4 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (left half, lifted)"]
         other = {0: ["Sal", "Tip coin", "Pour sparkle", "PERFECT cue"], 1: ["Full mug", "Fill glass", "Breaking glass"],
                  2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 5: ["Show dancers"], 7: ["Boss: hat (topper)"]}.get(s, [])
     else:
         pat = [n[BG_PATRON[s]]] if s in BG_PATRON else []
-        if s == 7 and e is not None:
+        if s == 7 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (top row)"]
         other = {0: ["Bar, wall"], 1: ["HUD"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"], 7: ["Keg, spout"]}.get(s, [])
     return pat, other
@@ -160,19 +160,16 @@ def users(kind, v, s):
 def pal_card(kind, v, s, cols, skip0):
     pat, other = users(kind, v, s)
     plan = PLANNED.get(v["key"], {}).get((kind, s), [])
-    drop = [x for x in pat if DROP_ENHANCED and ("(left half, lifted)" in x or "(top row)" in x)]
     free = not (pat or other or plan)
-    freed = not free and not [x for x in pat if x not in drop] and not other and not plan
+    changed = DROP_ENHANCED and enh_variant(v) is not None and (kind, s) == ("OBJ", 4)
     body = ""
     if pat or plan:
-        body += '<ul class="pat">%s%s</ul>' % ("".join(('<li class="plan"><s>%s</s> (dropping)</li>' if x in drop else '<li class="now">%s</li>') % esc(x) for x in pat),
+        body += '<ul class="pat">%s%s</ul>' % ("".join('<li class="now">%s</li>' % esc(x) for x in pat),
                                               "".join('<li class="plan">%s</li>' % esc(x) for x in plan))
     if other:
         body += '<ul class="oth">%s</ul>' % "".join("<li>%s</li>" % esc(x) for x in other)
     if free:
-        body = '<p class="freep">Free</p>'
-    if freed:
-        body += '<p class="freep plan">Free once the enhanced look is dropped</p>'
+        body = '<p class="freep%s">Free</p>' % (" plan" if changed else "")
     return ('<div class="pal%s"><div class="ph"><span class="slot">%s %d</span><span class="sws">%s</span></div>%s</div>'
             % (" free" if free else "", kind, s, swatches(cols, skip0), body))
 
@@ -235,12 +232,9 @@ for i, v in enumerate(venues):
     looks = 3
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
     w('<h1>%s</h1><div class="stats">' % esc(v["name"]))
-    w('<div class="stat"><b>%d</b><span>patrons now%s</span></div>' % (looks, " (one has an enhanced look, dropping)" if enh_variant(v) is not None else ""))
+    w('<div class="stat"><b>%d</b><span>patrons</span></div>' % looks)
     w('<div class="stat"><b>%d</b><span>patrons wanted (Q11)</span></div>' % TARGET_LOOKS)
-    pfree = ofree + ([4] if DROP_ENHANCED and enh_variant(v) is not None else [])
-    w('<div class="stat"><b>%s</b><span>free sprite palettes%s</span></div>' % (
-        ("%d &rarr; <span style=\"color:var(--plan)\">%d</span>" % (len(ofree), len(pfree))) if len(pfree) != len(ofree) else str(len(ofree)),
-        (": " + ", ".join("OBJ %d" % x for x in pfree)) if pfree else ""))
+    w('<div class="stat"><b>%d</b><span>free sprite palettes%s</span></div>' % (len(ofree), (": " + ", ".join("OBJ %d" % x for x in ofree)) if ofree else ""))
     w('<div class="stat"><b>%d</b><span>free background palettes</span></div>' % len(bfree))
     w('</div><h2>Sprite palettes</h2><div class="grid">')
     for s in range(8):
@@ -249,7 +243,7 @@ for i, v in enumerate(venues):
     for s in range(8):
         w(pal_card("BG", v, s, v["bg"].get(s, ["#000000"] * 4), False))
     w('</div></section>')
-w('<p class="foot"><span style="color:var(--now)">Green</span>: patrons now. <span style="color:var(--plan)">Yellow</span>: planned. Click a colour to copy it. '
+w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
 w('</div><div id="toast" role="status" aria-live="polite" hidden></div>')
 w("""<script>
