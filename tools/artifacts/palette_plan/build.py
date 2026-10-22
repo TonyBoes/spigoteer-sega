@@ -70,6 +70,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-21", "Owner: drop the enhanced looks (Saloon ROSIE, Robot Factory BOXY) after the next patron revision; frees OBJ 4 there."),
     ("2026-10-21", "Page started from main {commit}. Plan = current use; nothing decided yet."),
 ]
 
@@ -124,6 +125,8 @@ NAMES = {
 }
 # Planned changes (owner decisions), per venue: {("OBJ"|"BG", slot): ["patron name", ...]} drawn in yellow.
 PLANNED = {}
+# Planned removals (struck through, yellow). Owner 2026-10-21: drop the enhanced looks (M14a) after the next patron revision.
+DROP_ENHANCED = True
 PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
 BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
 
@@ -157,15 +160,19 @@ def users(kind, v, s):
 def pal_card(kind, v, s, cols, skip0):
     pat, other = users(kind, v, s)
     plan = PLANNED.get(v["key"], {}).get((kind, s), [])
+    drop = [x for x in pat if DROP_ENHANCED and ("(left half, lifted)" in x or "(top row)" in x)]
     free = not (pat or other or plan)
+    freed = not free and not [x for x in pat if x not in drop] and not other and not plan
     body = ""
     if pat or plan:
-        body += '<ul class="pat">%s%s</ul>' % ("".join('<li class="now">%s</li>' % esc(x) for x in pat),
+        body += '<ul class="pat">%s%s</ul>' % ("".join(('<li class="plan"><s>%s</s> (dropping)</li>' if x in drop else '<li class="now">%s</li>') % esc(x) for x in pat),
                                               "".join('<li class="plan">%s</li>' % esc(x) for x in plan))
     if other:
         body += '<ul class="oth">%s</ul>' % "".join("<li>%s</li>" % esc(x) for x in other)
     if free:
         body = '<p class="freep">Free</p>'
+    if freed:
+        body += '<p class="freep plan">Free once the enhanced look is dropped</p>'
     return ('<div class="pal%s"><div class="ph"><span class="slot">%s %d</span><span class="sws">%s</span></div>%s</div>'
             % (" free" if free else "", kind, s, swatches(cols, skip0), body))
 
@@ -208,6 +215,7 @@ h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .pal ul + ul { border-top: 1px solid var(--rule); padding-top: 3px; margin-top: 2px; }
 li.now { color: var(--now); } li.plan { color: var(--plan); }
 .freep { margin: 0; color: var(--free); font-weight: 600; font-size: 13px; }
+.freep.plan { color: var(--plan); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .stat { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; }
 .stat b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
@@ -227,9 +235,12 @@ for i, v in enumerate(venues):
     looks = 3
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
     w('<h1>%s</h1><div class="stats">' % esc(v["name"]))
-    w('<div class="stat"><b>%d</b><span>patrons now%s</span></div>' % (looks, " (one has an enhanced look)" if enh_variant(v) is not None else ""))
+    w('<div class="stat"><b>%d</b><span>patrons now%s</span></div>' % (looks, " (one has an enhanced look, dropping)" if enh_variant(v) is not None else ""))
     w('<div class="stat"><b>%d</b><span>patrons wanted (Q11)</span></div>' % TARGET_LOOKS)
-    w('<div class="stat"><b>%d</b><span>free sprite palettes%s</span></div>' % (len(ofree), (": " + ", ".join("OBJ %d" % x for x in ofree)) if ofree else ""))
+    pfree = ofree + ([4] if DROP_ENHANCED and enh_variant(v) is not None else [])
+    w('<div class="stat"><b>%s</b><span>free sprite palettes%s</span></div>' % (
+        ("%d &rarr; <span style=\"color:var(--plan)\">%d</span>" % (len(ofree), len(pfree))) if len(pfree) != len(ofree) else str(len(ofree)),
+        (": " + ", ".join("OBJ %d" % x for x in pfree)) if pfree else ""))
     w('<div class="stat"><b>%d</b><span>free background palettes</span></div>' % len(bfree))
     w('</div><h2>Sprite palettes</h2><div class="grid">')
     for s in range(8):
