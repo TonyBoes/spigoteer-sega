@@ -1,0 +1,460 @@
+<title>Spigoteer Pocket Player</title>
+<style>
+:root {
+  --bg: #f3f1ec; --fg: #1d1c1a; --muted: #6a665e; --card: #ffffff; --line: #d8d4ca;
+  --accent: #b8452b; --btn: #e4dfd3; --btn-on: #b8452b; --btn-fg: #1d1c1a; --btn-on-fg: #fff;
+  --screen-edge: #2a2926;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17161a; --fg: #ece9e2; --muted: #9a958a; --card: #222127; --line: #3a3840;
+    --accent: #e07a5f; --btn: #34323a; --btn-on: #e07a5f; --btn-fg: #ece9e2; --btn-on-fg: #17161a;
+    --screen-edge: #000;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17161a; --fg: #ece9e2; --muted: #9a958a; --card: #222127; --line: #3a3840;
+  --accent: #e07a5f; --btn: #34323a; --btn-on: #e07a5f; --btn-fg: #ece9e2; --btn-on-fg: #17161a;
+  --screen-edge: #000;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); padding-inline: 16px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+main { max-width: 560px; margin: 0 auto; padding-block: 12px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+#screenwrap { background: var(--screen-edge); padding: 8px; border-radius: 8px; line-height: 0; max-width: 100%; }
+#lcd { image-rendering: pixelated; image-rendering: crisp-edges; display: block; width: 320px; height: 288px; background: #000; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; width: 100%; }
+button, .seg label { font: inherit; }
+.tool { background: var(--btn); color: var(--btn-fg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; min-height: 36px; cursor: pointer; }
+.tool[aria-pressed="true"] { background: var(--accent); color: var(--btn-on-fg); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: var(--btn); color: var(--btn-fg); padding: 8px 12px; min-height: 36px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--btn-on-fg); }
+#pad { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 0; margin-block: 22px 8px; touch-action: none; }
+#dpad { position: relative; width: 150px; height: 150px; touch-action: none; flex: none; }
+#dpad .arm { position: absolute; background: var(--btn); border: 1px solid var(--line); }
+#dpad .h { left: 0; top: 50px; width: 150px; height: 50px; border-radius: 8px; }
+#dpad .v { left: 50px; top: 0; width: 50px; height: 150px; border-radius: 8px; }
+#dpad .hit { position: absolute; inset: 0; touch-action: none; }
+#dpad .lit { position: absolute; background: var(--btn-on); opacity: 0; width: 44px; height: 44px; border-radius: 6px; }
+#dpad .lit.on { opacity: .9; }
+#dpad .lit.u { left: 53px; top: 3px; } #dpad .lit.d { left: 53px; top: 103px; }
+#dpad .lit.l { left: 3px; top: 53px; } #dpad .lit.r { left: 103px; top: 53px; }
+#ab { position: relative; width: 150px; height: 120px; flex: none; }
+.pbtn { position: absolute; width: 68px; height: 68px; border-radius: 50%; background: var(--btn); color: var(--btn-fg); border: 1px solid var(--line); font-weight: 700; font-size: 20px; touch-action: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pbtn.on { background: var(--btn-on); color: var(--btn-on-fg); }
+#bB { left: 0; top: 46px; } #bA { left: 80px; top: 8px; }
+#ss { display: flex; gap: 20px; justify-content: center; margin-block: 30px 22px; }
+.pill { width: 84px; height: 34px; border-radius: 17px; background: var(--btn); color: var(--btn-fg); border: 1px solid var(--line); font-size: 12px; font-weight: 700; letter-spacing: .06em; touch-action: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pill.on { background: var(--btn-on); color: var(--btn-on-fg); }
+.meta { font-size: 12px; color: var(--muted); text-align: center; width: 100%; }
+#romline { font-weight: 600; color: var(--fg); }
+#status { min-height: 1.3em; }
+@media (max-width: 380px) { #dpad { transform: scale(.9); transform-origin: left center; } #ab { transform: scale(.9); transform-origin: right center; } }
+#quick { width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+#quick select { width: 100%; max-width: 420px; }
+#screenwrap { cursor: pointer; }
+#menu { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-start; justify-content: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px; z-index: 10; }
+#menubox { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; padding: 14px; max-width: 520px; width: 100%; display: flex; flex-direction: column; gap: 10px; max-height: 90%; overflow: auto; }
+.menuhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#menubox .meta { text-align: left; }
+</style>
+
+<main>
+  <div id="screenwrap" title="Tap the screen for the menu"><canvas id="lcd" width="160" height="144"></canvas></div>
+  <div id="quick">
+    <select id="romsel" class="tool" aria-label="ROM"></select>
+    <div class="row">
+      <div class="seg" role="group" aria-label="Model">
+        <button id="mCGB" aria-pressed="true">GBC</button>
+        <button id="mDMG" aria-pressed="false">DMG</button>
+      </div>
+      <button class="tool" id="reset">Reset</button>
+    </div>
+  </div>
+
+  <div id="pad">
+    <div id="dpad" aria-label="D-pad">
+      <div class="arm h"></div><div class="arm v"></div>
+      <div class="lit u"></div><div class="lit d"></div><div class="lit l"></div><div class="lit r"></div>
+      <div class="hit" id="dhit"></div>
+    </div>
+    <div id="ab">
+      <div class="pbtn" id="bB" data-k="b">B</div>
+      <div class="pbtn" id="bA" data-k="a">A</div>
+    </div>
+  </div>
+  <div id="ss">
+    <div class="pill" data-k="select">SELECT</div>
+    <div class="pill" data-k="start">START</div>
+  </div>
+
+  <div class="meta"><span id="romline">ROM: ...</span><br>
+    Keys: arrows, X = A, Z = B, Enter = START, Shift = SELECT. Tap the screen for the menu.</div>
+</main>
+
+<div id="menu" hidden>
+  <div id="menubox" role="dialog" aria-modal="true" aria-label="Pocket Player menu">
+    <div class="menuhead"><strong>Spigoteer Pocket Player</strong><button class="tool" id="menuclose">Close</button></div>
+    <div class="meta" id="status">Loading emulator core...</div>
+    <div class="row">
+      <button class="tool" id="mute" aria-pressed="false">Sound on</button>
+      <button class="tool" id="tone">Test tone</button>
+      <label class="tool" for="romfile" style="cursor:pointer">Open .gb file…</label>
+      <input type="file" id="romfile" accept=".gb,.gbc" hidden>
+    </div>
+    <div class="meta" id="audiostat">Sound: tap any control to start it.</div>
+    <div class="meta">The save (cartridge battery) is kept in this browser, per ROM build.</div>
+    <div class="meta">Quick-test emulator. Timing and graphics may differ from real hardware; SameBoy and a real Game Boy are the reference.</div>
+    <div class="meta">Emulation by <a href="https://github.com/torch2424/wasmboy" style="color:inherit">WasmBoy</a> 0.7.1 (TypeScript core), GPL-3.0, with two small fixes (CPL masks A to 8 bits; Color registers VBK and palette data read back); the modified core is wasmboy-ts-core.patched.js, published with this page.</div>
+  </div>
+</div>
+
+<script src="wasmboy-ts-core.patched.js"></script>
+<script>
+// The bundled ROMs (roms/<id>.js each set window.ROMS[id] = {label, b64}); loaded on demand, the first is the default.
+var ROM_LIST = [
+  {"id": "main", "label": "Main (latest, final DX badge)"},
+  {"id": "meters", "label": "Sound meters in the soundtrack player (Color)"},
+  {"id": "menu_mockup", "label": "One-line menus mock-up, round 3 (BONUS menu)"},
+  {"id": "settings", "label": "Q49 test: SETTINGS one page at a time (TITLE > SETTINGS)"}
+];
+</script>
+<script>
+(function () {
+  "use strict";
+  var FRAME_MS = 1000 / 59.7275;
+  var $ = function (id) { return document.getElementById(id); };
+  var lcd = $("lcd"), ctx = lcd.getContext("2d"), img = ctx.createImageData(160, 144);
+  var statusEl = $("status");
+  var core = null, ex = null, mem = null;
+  var romBytes = null, romKey = "";
+  var running = false, frames = 0, acc = 0, lastT = 0;
+  var model = "cgb", muted = false;
+  var audioCtx = null, nextAudio = 0, gainNode = null;
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+
+  function b64ToBytes(s) {
+    var bin = atob(s), n = bin.length, a = new Uint8Array(n);
+    for (var i = 0; i < n; i++) a[i] = bin.charCodeAt(i);
+    return a;
+  }
+  function bytesToB64(a) {
+    var s = "", CH = 0x2000;
+    for (var i = 0; i < a.length; i += CH) s += String.fromCharCode.apply(null, a.subarray(i, i + CH));
+    return btoa(s);
+  }
+  function hash(a) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < a.length; i++) { h ^= a[i]; h = Math.imul(h, 16777619) >>> 0; }
+    return h.toString(16);
+  }
+
+  // ---- scaling -------------------------------------------------------
+  function fit() {
+    var avail = Math.min(document.documentElement.clientWidth - 32, 560) - 16;
+    var n = Math.max(1, Math.min(4, Math.floor(avail / 160)));
+    lcd.style.width = 160 * n + "px";
+    lcd.style.height = 144 * n + "px";
+  }
+  window.addEventListener("resize", fit);
+
+  // ---- joypad --------------------------------------------------------
+  var latch = {};
+  function applyPad() {
+    if (!ex) return;
+    var s = keys, l = latch;
+    ex.setJoypadState(s.up || l.up ? 1 : 0, s.right || l.right ? 1 : 0, s.down || l.down ? 1 : 0, s.left || l.left ? 1 : 0,
+      s.a || l.a ? 1 : 0, s.b || l.b ? 1 : 0, s.select || l.select ? 1 : 0, s.start || l.start ? 1 : 0);
+  }
+  var keys = { up: 0, right: 0, down: 0, left: 0, a: 0, b: 0, select: 0, start: 0 };
+  var ptrs = {};   // pointerId -> {dir:{...}, btn:name}
+  var kbd = {};    // key -> button
+  function pushPad() {
+    var s = { up: 0, right: 0, down: 0, left: 0, a: 0, b: 0, select: 0, start: 0 }, id, p, k;
+    for (id in ptrs) { p = ptrs[id]; if (p.btn) s[p.btn] = 1; if (p.dir) for (k in p.dir) if (p.dir[k]) s[k] = 1; }
+    for (k in kbd) if (kbd[k]) s[kbd[k]] = 1;
+    keys = s;
+    for (k in s) if (s[k]) latch[k] = 1;                 // a tap shorter than one emulated frame still counts
+    applyPad();
+    ["u", "d", "l", "r"].forEach(function (c) {
+      var name = { u: "up", d: "down", l: "left", r: "right" }[c];
+      document.querySelector("#dpad .lit." + c).classList.toggle("on", !!s[name]);
+    });
+    document.querySelectorAll("[data-k]").forEach(function (el) { el.classList.toggle("on", !!s[el.getAttribute("data-k")]); });
+  }
+  function bindButton(el) {
+    var name = el.getAttribute("data-k");
+    el.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); wakeAudio();
+      try { el.setPointerCapture(e.pointerId); } catch (x) {}
+      ptrs[e.pointerId] = { btn: name }; pushPad();
+    });
+    var up = function (e) { delete ptrs[e.pointerId]; pushPad(); };
+    el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+    el.addEventListener("lostpointercapture", up);
+    el.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  }
+  document.querySelectorAll("[data-k]").forEach(bindButton);
+
+  var dhit = $("dhit");
+  function dirFor(e) {
+    var r = dhit.getBoundingClientRect();
+    var x = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+    var y = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+    var d = { up: 0, right: 0, down: 0, left: 0 };
+    if (Math.hypot(x, y) < 0.18) return d;
+    var ang = Math.atan2(y, x);                  // 0 = right, +pi/2 = down
+    var t = 0.3827;                              // sin(22.5deg): diagonals in the 45 degree wedges
+    if (Math.cos(ang) > t) d.right = 1;
+    if (Math.cos(ang) < -t) d.left = 1;
+    if (Math.sin(ang) > t) d.down = 1;
+    if (Math.sin(ang) < -t) d.up = 1;
+    return d;
+  }
+  dhit.addEventListener("pointerdown", function (e) {
+    e.preventDefault(); wakeAudio();
+    try { dhit.setPointerCapture(e.pointerId); } catch (x) {}
+    ptrs[e.pointerId] = { dir: dirFor(e) }; pushPad();
+  });
+  dhit.addEventListener("pointermove", function (e) {
+    if (ptrs[e.pointerId] && ptrs[e.pointerId].dir) { ptrs[e.pointerId].dir = dirFor(e); pushPad(); }
+  });
+  var dup = function (e) { delete ptrs[e.pointerId]; pushPad(); };
+  dhit.addEventListener("pointerup", dup); dhit.addEventListener("pointercancel", dup);
+  dhit.addEventListener("lostpointercapture", dup);
+  dhit.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
+  var KEYMAP = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+    x: "a", X: "a", z: "b", Z: "b", Enter: "start", Shift: "select" };
+  window.addEventListener("keydown", function (e) {
+    var b = KEYMAP[e.key]; if (!b) return;
+    e.preventDefault(); wakeAudio(); kbd[e.key] = b; pushPad();
+  });
+  window.addEventListener("keyup", function (e) {
+    if (!KEYMAP[e.key]) return;
+    e.preventDefault(); delete kbd[e.key];
+    // letter keys may change case when Shift is released: clear both
+    if (e.key.length === 1) { delete kbd[e.key.toLowerCase()]; delete kbd[e.key.toUpperCase()]; }
+    pushPad();
+  });
+  window.addEventListener("blur", function () { kbd = {}; ptrs = {}; pushPad(); });
+
+  // ---- audio ---------------------------------------------------------
+  var audioStat = $("audiostat"), samplesSeen = 0;
+  function showAudio() {
+    var s = !audioCtx ? "not started (tap a control)" : audioCtx.state;
+    audioStat.textContent = "Sound: " + s + (audioCtx ? ", " + audioCtx.sampleRate + " Hz" : "") +
+      ", game samples so far: " + samplesSeen + (muted ? " (muted)" : "");
+  }
+  setInterval(showAudio, 1000);
+  function wakeAudio() {
+    try {
+      // iPhone / iPad: route Web Audio as media playback, so the ring/silent switch does not mute it (Safari 16.4+)
+      if (navigator.audioSession && navigator.audioSession.type !== "playback") navigator.audioSession.type = "playback";
+    } catch (e) {}
+    try {
+      if (!audioCtx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        audioCtx = new AC();
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = muted ? 0 : 1;
+        gainNode.connect(audioCtx.destination);
+      }
+      if (audioCtx.state !== "running") {
+        // Safari / iOS ("suspended" or "interrupted"): resume AND play a sound inside a real tap. A pointerdown does not
+        // count as a tap there, so this is retried on every event until the context really runs (touchend / click do).
+        audioCtx.resume();
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain(), t = audioCtx.currentTime;
+        g.gain.value = 0.0001;                            // inaudible, but a real sound being played
+        o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + 0.05);
+      }
+    } catch (e) {}
+  }
+  document.addEventListener("click", wakeAudio, true);
+  document.addEventListener("keydown", wakeAudio, true);
+  function pushAudio() {
+    var n = ex.getNumberOfSamplesInAudioBuffer();
+    if (n <= 0) return;
+    samplesSeen += n;
+    if (audioCtx && audioCtx.state === "running" && !muted) {
+      var src = mem.subarray(ex.AUDIO_BUFFER_LOCATION, ex.AUDIO_BUFFER_LOCATION + n * 2);
+      var buf = audioCtx.createBuffer(2, n, 44100);
+      var L = buf.getChannelData(0), R = buf.getChannelData(1), i, v;
+      for (i = 0; i < n; i++) {
+        v = (src[2 * i] - 1) / 127 - 1; L[i] = Math.abs(v) < 0.008 ? 0 : v / 2.5;
+        v = (src[2 * i + 1] - 1) / 127 - 1; R[i] = Math.abs(v) < 0.008 ? 0 : v / 2.5;
+      }
+      var now = audioCtx.currentTime;
+      if (nextAudio < now + 0.01 || nextAudio > now + 0.25) nextAudio = now + 0.06;
+      var s = audioCtx.createBufferSource();
+      s.buffer = buf; s.connect(gainNode); s.start(nextAudio);
+      nextAudio += n / 44100;
+    }
+    ex.clearAudioBuffer();
+  }
+
+  // ---- cartridge RAM -------------------------------------------------
+  var RAM_SIZES = [0, 0x800, 0x2000, 0x8000, 0x20000, 0x10000];
+  var ramSize = 0, lastSaved = "";
+  function ramKey() { return "spigoteer.sav." + romKey; }
+  function loadSave() {
+    var s = lsGet(ramKey());
+    if (!s || !ramSize) return;
+    try {
+      var a = b64ToBytes(s);
+      if (a.length === ramSize) { mem.set(a, ex.CARTRIDGE_RAM_LOCATION); lastSaved = s; }
+    } catch (e) {}
+  }
+  function saveRam() {
+    if (!ramSize || !ex) return;
+    var s = bytesToB64(mem.slice(ex.CARTRIDGE_RAM_LOCATION, ex.CARTRIDGE_RAM_LOCATION + ramSize));
+    if (s !== lastSaved && lsSet(ramKey(), s)) lastSaved = s;
+  }
+  setInterval(saveRam, 2000);
+  window.addEventListener("pagehide", saveRam);
+  document.addEventListener("visibilitychange", function () { if (document.hidden) saveRam(); });
+
+  // ---- core ----------------------------------------------------------
+  function boot() {
+    mem.fill(0, 0, ex.CARTRIDGE_ROM_LOCATION);          // clear everything before the ROM
+    mem.set(romBytes, ex.CARTRIDGE_ROM_LOCATION);
+    // enableBootRom, useGbcWhenAvailable, audio/graphics/timers batch, noScanline, accumulate, tile, cache, audioDebug
+    ex.config(0, model === "cgb" ? 1 : 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    ramSize = RAM_SIZES[romBytes[0x149]] || 0;
+    loadSave();
+    ex.clearAudioBuffer();
+    frames = 0; acc = 0; lastT = 0; nextAudio = 0;
+    pushPad();
+    statusEl.textContent = (model === "cgb" ? "Game Boy Color" : "DMG") + " mode" + (ex.isGBC() ? " (colour)" : " (4 shades)");
+  }
+  function drawFrame() {
+    var o = ex.FRAME_LOCATION, d = img.data, i, j = 0;
+    for (i = 0; i < 160 * 144; i++) {
+      d[j] = mem[o]; d[j + 1] = mem[o + 1]; d[j + 2] = mem[o + 2]; d[j + 3] = 255;
+      j += 4; o += 3;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  var fpsCount = 0, fpsT = 0;
+  function tick(t) {
+    requestAnimationFrame(tick);
+    if (!running) return;
+    if (!lastT) { lastT = t; fpsT = t; }
+    acc += t - lastT; lastT = t;
+    if (acc > FRAME_MS * 5) acc = FRAME_MS;           // tab was away: do not fast-forward
+    var ran = 0;
+    while (acc >= FRAME_MS - 0.5 && ran < 4) {        // 0.5 ms slack so 60 Hz screens do not drop a frame
+      if (ex.executeFrame() < 0) { running = false; statusEl.textContent = "Emulator core stopped (crash)."; return; }
+      pushAudio();
+      if (ran === 0) { latch = {}; applyPad(); }         // the latched taps have lived one frame
+      acc -= FRAME_MS; ran++; frames++; fpsCount++;
+    }
+    if (acc < 0) acc = 0;
+    if (ran) drawFrame();
+    if (t - fpsT >= 1000) {
+      window.__emu.fps = Math.round(fpsCount * 1000 / (t - fpsT) * 10) / 10;
+      fpsCount = 0; fpsT = t;
+    }
+    window.__emu.frames = frames;
+  }
+  window.__emu = { frames: 0, fps: 0, get keys() { return keys; }, get ex() { return ex; }, get mem() { return mem; } };
+
+  // ---- controls ------------------------------------------------------
+  function setModel(m) {
+    model = m;
+    $("mCGB").setAttribute("aria-pressed", String(m === "cgb"));
+    $("mDMG").setAttribute("aria-pressed", String(m === "dmg"));
+    lsSet("spigoteer.model", m);
+    if (ex) { saveRam(); boot(); }
+  }
+  $("mCGB").addEventListener("click", function () { wakeAudio(); setModel("cgb"); });
+  $("mDMG").addEventListener("click", function () { wakeAudio(); setModel("dmg"); });
+  $("reset").addEventListener("click", function () { wakeAudio(); if (ex) { saveRam(); boot(); } });
+  $("mute").addEventListener("click", function () {
+    wakeAudio(); muted = !muted;
+    $("mute").setAttribute("aria-pressed", String(muted));
+    $("mute").textContent = muted ? "Sound off" : "Sound on";
+    if (gainNode) gainNode.gain.value = muted ? 0 : 1;
+    lsSet("spigoteer.muted", muted ? "1" : "0");
+  });
+  document.addEventListener("pointerdown", wakeAudio, { passive: true });
+  document.addEventListener("touchend", wakeAudio, { passive: true, capture: true });   // (iOS counts touchend, not pointerdown, as the tap)
+  document.addEventListener("pointerup", wakeAudio, { passive: true, capture: true });
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && audioCtx && audioCtx.state !== "running") { try { audioCtx.resume(); } catch (e) {} } });
+  $("tone").addEventListener("click", function () {
+    wakeAudio();
+    try {
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain(), t = audioCtx.currentTime;
+      o.type = "square"; o.frequency.value = 523.25;               // a short C5 beep, straight to the speakers
+      g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + 0.42);
+    } catch (e) { audioStat.textContent = "Sound: test tone failed (" + e + ")"; }
+  });
+
+
+  // ---- menu: tap the screen ---------------------------------------------
+  var menu = $("menu");
+  function openMenu() { menu.hidden = false; $("menuclose").focus(); }
+  function closeMenu() { menu.hidden = true; }
+  $("screenwrap").addEventListener("click", function () { wakeAudio(); openMenu(); });
+  $("menuclose").addEventListener("click", closeMenu);
+  menu.addEventListener("click", function (e) { if (e.target === menu) closeMenu(); });
+  window.addEventListener("keydown", function (e) { if (e.key === "Escape" && !menu.hidden) closeMenu(); });
+
+  // ---- start ---------------------------------------------------------
+  fit();
+  if (lsGet("spigoteer.model") === "dmg") setModel("dmg");
+  if (lsGet("spigoteer.muted") === "1") { muted = true; $("mute").setAttribute("aria-pressed", "true"); $("mute").textContent = "Sound off"; }
+
+  // ---- ROM choice ------------------------------------------------------
+  var sel = $("romsel");
+  ROM_LIST.forEach(function (r) { var o = document.createElement("option"); o.value = r.id; o.textContent = r.label; sel.appendChild(o); });
+  function useRom(bytes, label) {
+    if (ex) saveRam();
+    romBytes = bytes; romKey = hash(romBytes);
+    $("romline").textContent = "ROM: " + label;
+    if (ex) { boot(); running = true; }
+  }
+  function loadBundled(id) {
+    var done = function () {
+      var r = window.ROMS && window.ROMS[id];
+      if (!r) { statusEl.textContent = "Could not load that ROM (blocked script?)."; return; }
+      useRom(b64ToBytes(r.b64), r.label);
+    };
+    if (window.ROMS && window.ROMS[id]) { done(); return; }
+    statusEl.textContent = "Loading ROM...";
+    var s = document.createElement("script");
+    s.src = "roms/" + id + ".js";
+    s.onload = done;
+    s.onerror = function () { statusEl.textContent = "Could not load that ROM file."; };
+    document.head.appendChild(s);
+  }
+  var saved = lsGet("spigoteer.rom");
+  if (saved && ROM_LIST.some(function (r) { return r.id === saved; })) sel.value = saved;
+  sel.addEventListener("change", function () { wakeAudio(); lsSet("spigoteer.rom", sel.value); loadBundled(sel.value); });
+  $("romfile").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () { useRom(new Uint8Array(rd.result), "your file: " + f.name); };
+    rd.onerror = function () { statusEl.textContent = "Could not read that file."; };
+    rd.readAsArrayBuffer(f);
+  });
+
+  if (typeof WasmBoyTsCore !== "function") {
+    statusEl.textContent = "Could not load the emulator core (blocked script?).";
+  } else {
+    WasmBoyTsCore().then(function (r) {
+      core = r; ex = r.instance.exports; mem = r.byteMemory;
+      if (romBytes) { boot(); running = true; }
+    }, function (e) { statusEl.textContent = "Core failed to start: " + e; });
+    loadBundled(sel.value);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>

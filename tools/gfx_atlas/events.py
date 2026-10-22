@@ -24,6 +24,7 @@ from PIL import Image
 import analyze as A
 import capture as C
 import freepal
+import objects as OB
 
 MAX_P, MAX_M = 16, 20
 WALKING, DRINKING = 1, 3
@@ -103,11 +104,63 @@ def label_of(o, cgb, enh, edge_x):
     return (5, 1), "mirrored copies / dust puff (tile %d)" % t, "mirror"
 
 
+SAL_POSES = ["idle", "walk 1", "walk 2", "fill (also slide/catch)", "fail"]
+
+
+def level_classifier(cgb, enh, edge_x, boss=None):
+    """Entry -> (sort key, kind, pose or None, group key) from the game's OAM layout (src/game.h): Sal OAM 0-3 (2x2 of 8x16), the fill glass OAM 4,
+    mugs single entries, lifted patrons pairs counting down from 25, the cue 26, the coin 27, the dancers 28-39 in fours (a boss fight's topper is OAM 28)."""
+    def cls(o):
+        key, label, dk = label_of(o, cgb, enh, edge_x)
+        i, t = o["i"], o["tile"] & 0xFE
+        if dk == "bt":
+            if t < 40:
+                return (0, 0), "Sal", SAL_POSES[t // 8], ("sal",)
+            return (9, 0), "Sprite group", None, ("g",)
+        if dk == "fill":
+            return (1, 0), "Fill glass", None, ("fill", i)
+        if dk == "full":
+            return (1, 1), "Mug: full", None, ("m", i)
+        if dk == "empty":
+            return (1, 2), "Mug: empty", None, ("m", i)
+        if dk == "held":
+            return (1, 3), "Mug: drinking", None, ("m", i)
+        if dk == "glass":
+            return (1, 4), "Breaking glass", None, ("m", i)
+        if dk == "coin":
+            return (3, 0), "Tip coin", None, ("m", i)
+        if dk == "dancers":
+            if boss:
+                return (6, 0), "Boss: " + boss, "topper" if i == 28 else None, ("b", i) if i == 28 else ("b",)
+            return (3, 1), "Dancers", None, ("d", (i - 28) // 4) if i >= 28 else ("m", i)
+        if dk in ("lift", "edge"):
+            v = min(2, (t - O_PATRON) // 6)
+            kind = "Patron %s (%s)" % (VARIANT[v], "lifted" if dk == "lift" else "entering / leaving")
+            if dk == "lift" and "enhanced" in label:
+                kind = "Patron %s (lifted, enhanced)" % VARIANT[v]
+            return key, kind, None, ("p", (25 - i) // 2)
+        names = {"pour": "Perfect-pour sparkle", "cue": "PERFECT cue", "dmg": "DMG mug copy", "mirror": "Mirrored copy / dust puff"}
+        return key, names.get(dk, "Sprite group"), None, ("m", i)
+    return cls
+
+
+def classifier_for(sid, cgb, GAME):
+    """The classifier of a screen id: the level layout for levels, shows, boss fights and entrances; the proximity grouping for every other screen."""
+    boss = None
+    if sid.startswith("boss_") or sid.startswith("bossin_"):
+        import scenes
+        boss = scenes.BOSS_NAMES[int(sid.split("_")[1]) - 1]
+    if sid.startswith(("level_", "show_", "boss_", "bossin_")):
+        return level_classifier(cgb, set(), GAME["ENTRY_X"], boss if sid.startswith("boss_") else None)
+    return OB.generic
+
+
 class Acc:
     """Accumulates the reduced samples of one level screen and model."""
 
     def __init__(self, cgb, enh, edge_x):
         self.cgb, self.enh, self.edge_x = cgb, enh, edge_x
+        self.objs = OB.ObjAcc(cgb, level_classifier(cgb, enh, edge_x))
         self.ev = {}                     # label -> dict
         self.sprs = {}                   # (label, slot, h, bytes) -> entry
         self.objtile = defaultdict(set)  # (bank, slot) -> labels
@@ -133,6 +186,7 @@ class Acc:
                     self.bgpal_used.add(e[2])
                     self.bgpal[e[2]].add((e[1], e[0]))
         objs, _, h = C.oam_objects(s)
+        self.objs.add(s, objs, h)
         boxes = {}
         for o in objs:
             if not o["visible"]:
@@ -557,6 +611,7 @@ def merge(a, b):
     for k, v in b.phase_frames.items():
         a.phase_frames[k] += v
     a.n += b.n
+    a.objs.merge(b.objs)
 
 
 def record(acc, notes, cgb):
@@ -582,8 +637,9 @@ def record(acc, notes, cgb):
         objtiles["%d:%d" % (b, t)] = sorted(labs)
     nb = 2 if cgb else 1
     use = ["".join("1" if ((b, t) in acc.objtile or (b, t) in acc.bgtiles) else "0" for t in range(384)) for b in range(nb)]
-    rec = dict(events=out, use=use, by_slot=by_slot, notes=notes, frames=acc.n, phases=dict(acc.phase_frames),
+    rec_objs, obj_imgs = acc.objs.record()
+    rec = dict(events=out, objs=rec_objs, use=use, by_slot=by_slot, notes=notes, frames=acc.n, phases=dict(acc.phase_frames),
                bg_by_pal={str(p): sorted([list(x) for x in v]) for p, v in acc.bgpal.items()},
                obj_tiles=objtiles, bg_tiles=sorted([list(x) for x in acc.bgtiles]),
                cell=[CELL_W, CELL_H], stills=STILLS, cap=EV_CAP)
-    return rec, imgs
+    return rec, imgs, obj_imgs
