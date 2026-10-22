@@ -26,9 +26,10 @@
 - [Pocket Player artifact](pocket-player-artifact.md) — browser emulator page; refresh rom.js + republish same URL after merges
 - [Open Questions artifact](open-questions-artifact.md) — canonical list of open Qn with media; update + republish on every new/answered question
 - [Tokens reset Saturday](token-budget-saturday.md) — menu illustrations queued until 2026-10-24; keep heavy art work light till then
-- [Artifact sources in repo](artifact-sources-in-repo.md) — tools/artifacts/ holds every page; sync after each republish
+- [Artifact sources in repo](artifact-sources-in-repo.md) — tools/artifacts/ pages + docs/dev/ notes (queue, briefs, concepts, memory, LESSONS.md); sync each session
 - [Palette Plan artifact](palette-plan-artifact.md) — OBJ/BG palette planning for extra patrons; edit PLAN/LOG in build.py, republish same URL
 - [Palette labels follow the plan](palette-labels-follow-plan.md) — 'BG1', 'OBJ2' mean the slot as the Palette Plan shows it now, not the game
 - [Labels, no explanations](labels-no-explanations.md) — bare labels on owner pages; no parentheses/captions in stats, items, names
 - [Saloon patrons Sunday](saloon-patrons-sunday.md) — 8 CGB-only looks planned; build Sun 2026-10-25+, likely option 2 (shared blank column); brief in QUEUE.md
 - [Say DMG or Color](say-dmg-or-color.md) — every feature ask: say if it fits DMG or only Color; keep tile margin for late DX decorations
+- [Credits deferred](credits-deferred.md) — no credits remake until all patrons + boss art are in AND owner confirms locked; then own palettes from the plan

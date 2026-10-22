@@ -105,3 +105,11 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
   - HANK goes to bank 1 and is Color only.
   - Variants and new looks are Color only.
   - Check the DMG renders: ROSIE's see-through pupils come out white on DMG. HANK's colour-slot swap doesn't matter on DMG, since he isn't on DMG.
+
+## Credits remake: DEFERRED (owner 2026-10-22)
+- Do not touch the credits until EVERY patron is in, the boss graphics changes are done, and the owner confirms both are LOCKED.
+- When the credits are remade:
+  - Patrons appear in their own (original) palettes, as listed in the Palette Plan, not in variant recolours.
+  - The names follow the plan (Saloon: DUSTY, HANK, ROSIE the singer, REDD, EMMA, MABEL, ARTIE, GUS).
+  - tools/gen_credits.py PATRONS and the credits' patron band change with it.
+- The earlier "Saloon credits (when imported)" notes in this queue belong to this deferred task.
