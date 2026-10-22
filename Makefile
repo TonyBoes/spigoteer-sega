@@ -34,7 +34,8 @@ export TIP
 ifneq ($(TIP),)
 LCCFLAGS += -DTIP_VARIANT_$(TIP)
 endif
-# The DX badge's stamp sound on the CGB title (src/title.c): DX_SFX=1 DON then COIN 6 frames later (default), 2 DON then PERFECT, 3 DON alone.
+# The DX badge's stamp sound on the CGB title (src/title.c, src/music.c d_st): DX_SFX=1 marimba run C E G C ringing 0.85 s (default), 2 the chime C E G and its echo,
+# 3 a run of five up to E6 with a noise crash under it, 0 none.
 #   make BUILD=out/b_dx2 OUT=out/o_dx2 DX_SFX=2 unlocked
 DX_SFX   ?=
 export DX_SFX

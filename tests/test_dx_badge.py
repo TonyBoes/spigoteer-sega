@@ -365,8 +365,9 @@ def test_the_stamp_flashes_white_for_two_frames():
     assert got[DX_T0 - 1][0] != white_word
 
 
-def test_the_stamp_asks_for_its_sound_at_the_stamp_and_not_before():
-    """DON on the frame the badge stamps on (title_t == DX_T0) and nothing after it (the default DX_SFX=3; 1 and 2 add a COIN / PERFECT 6 frames later)."""
+def test_the_stamp_asks_for_its_marimba_at_the_stamp_and_not_before():
+    """The marimba (SFX_PERFECT, a variant picked by pour_streak 4..6: src/music.c d_st) on the frame the badge stamps on (title_t == DX_T0), once; pour_streak is
+    0 again a few frames later; no DON."""
     gb = make_rom("cgb")
     gb.run(120)
     if gb.model_name != "cgb":
@@ -375,15 +376,16 @@ def test_the_stamp_asks_for_its_sound_at_the_stamp_and_not_before():
     assert title_t(gb) == DX_T0 - 2
     base = gb.read("sfx_count", 16)
     stamp = {}
-    for _ in range(12):
+    for _ in range(14):
         gb.run(1)
-        stamp[title_t(gb)] = (gb.read("sfx_count", 16), bool(badge_entries(gb)))
+        stamp[title_t(gb)] = (gb.read("sfx_count", 16), gb.mem("pour_streak"), gb.mem("voice"))
     gb.pb.stop(save=False)
-    assert stamp[DX_T0 - 0][0][SFX_DON] == base[SFX_DON] + 1, "DON on the stamp frame"
-    assert stamp[DX_T0 + 1][1], "the badge is on the screen from the next frame (the OAM copy)"
-    for k in range(DX_T0 + 1, DX_T0 + 11):
-        assert stamp[k][0][SFX_DON] == base[SFX_DON] + 1 and stamp[k][0][SFX_COIN] == base[SFX_COIN] and stamp[k][0][SFX_PERFECT] == base[SFX_PERFECT], k
-    assert stamp[DX_T0 - 1][0][SFX_DON] == base[SFX_DON], "not before the stamp"
+    assert stamp[DX_T0 - 1][0][SFX_PERFECT] == base[SFX_PERFECT], "not before the stamp"
+    for k in range(DX_T0, DX_T0 + 12):
+        assert stamp[k][0][SFX_PERFECT] == base[SFX_PERFECT] + 1 and stamp[k][0][SFX_DON] == base[SFX_DON], k
+    assert 4 <= stamp[DX_T0][1] <= 6
+    assert stamp[DX_T0 + 5][1] == 0, "pour_streak is back to 0"
+    assert stamp[DX_T0 + 2][2] == 1, "the marimba is sounding (voice[0].busy)"
 
 
 def test_no_stamp_sound_on_the_dmg():
@@ -395,7 +397,7 @@ def test_no_stamp_sound_on_the_dmg():
     run_to_title_t(gb, DX_T0 + 20)
     now = gb.read("sfx_count", 16)
     gb.pb.stop(save=False)
-    assert now[SFX_DON] == base[SFX_DON] and now[SFX_COIN] == base[SFX_COIN]
+    assert now[SFX_PERFECT] == base[SFX_PERFECT] and now[SFX_DON] == base[SFX_DON]
 
 
 def test_the_palette_is_written_in_vblank_only():
