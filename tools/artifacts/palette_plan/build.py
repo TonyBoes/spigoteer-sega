@@ -72,6 +72,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-22", "Saloon: GUS's OBJ 3 variant cut; he spawns in OBJ 5 and 7."),
     ("2026-10-22", "Saloon DMG: EMMA replaces ROSIE (see-through pupils look wrong on DMG). EMMA's pupils are now her outline colour."),
     ("2026-10-22", "Saloon DMG: DUSTY, ROSIE (the singer) and GUS are the bank-0 looks on both systems; GUS takes the boss-overwritten slot. HANK goes to bank 1 (Color only). The DMG keeps its original palettes."),
     ("2026-10-22", "Saloon: palette variants per patron (30 recolours; correction: GUS keeps his own OBJ 7, his OBJ 6 is cut). HANK's art and OBJ 3 have colours 1 and 2 swapped."),
@@ -179,7 +180,7 @@ PLANS = {
         dmg=["DUSTY", "EMMA", "GUS"],          # owner 2026-10-22: the DMG's three (bank 0, both systems); GUS in the boss-overwritten slot
         # owner 2026-10-22: the palettes each patron may spawn in (recolours of the same tiles; HANK's art has colours 1 and 2 swapped).
         variants={"HANK": [3, 5, 6], "ROSIE": [3, 4, 5, 7], "REDD": [3, 4, 5, 6, 7], "DUSTY": [3, 5], "EMMA": [4, 5, 7],
-                  "MABEL": [3, 4, 5, 6, 7], "ARTIE": [3, 4, 5, 6, 7], "GUS": [3, 5, 7]},
+                  "MABEL": [3, 4, 5, 6, 7], "ARTIE": [3, 4, 5, 6, 7], "GUS": [5, 7]},
         join={("OBJ", 4): ["REDD, the outlaw"],                                          # owner 2026-10-22: the Outlaw (owner's recolour) shares ROSIE's palette
               ("OBJ", 6): ["ARTIE, the priest"]},                       # owner set 2 C (bald, grey beard) shares MABEL's palette
         why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",

@@ -89,7 +89,7 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
     - With 15-px art: bank 1 16, bank 0 about 29.
   - Measure all of these in the build.
 - Owner 2026-10-22: Saloon palette VARIANTS, i.e. recolours of the same tiles chosen per patron at spawn. The allowed OBJ (and matching BG) slots are in PLANS["cowboys"]["variants"] in build.py.
-  - 30 combinations; GUS keeps his own OBJ 7 and his OBJ 6 variant is cut.
+  - 30 combinations; GUS spawns in OBJ 5 and 7 only (his OBJ 3, 4 and 6 variants are cut). 29 combinations.
   - Needs HANK's art and OBJ 3 with colours 1 and 2 swapped (done in palette_plan/art/cowboys_hank.txt).
   - Code: a per-patron-instance palette (lift OBJ attribute and BG row attributes), not per look.
   - Reference grid: tools/artifacts/palette_plan/saloon_variants_grid.png.
