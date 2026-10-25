@@ -302,7 +302,9 @@ static void pa_enter(void) {
     if (p == PA_EMPTY) return;                  // (the empty frame is on the map already)
     while (!pa_stream(p, 0)) music_pump();
     a->held[0] = p; a->ld_n = 0;
+    music_pump();                               // (the last chunk returned without one)
     pa_rows(p, 0, 1);
+    music_pump();
 }
 
 // Each frame, after the keys: the picture the selection wants goes on screen once it is in a buffer; else it is streamed into a buffer (any but the one on screen);
@@ -409,6 +411,7 @@ void mg_list_enter(void) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     game_state = GS_MGLIST;
+    if (NR51_REG) while (TIMA_REG > DS_SCALE(23)) music_pump();   // (as trans.c tick_sync: the LCD comes on just after a tick; the picture's load moved the phase)
     DISPLAY_ON;
 }
 
