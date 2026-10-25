@@ -126,5 +126,7 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
   asteroids, shakeup, perfectpour, tipshower); scratchpad practice_art/set1, set2.
 - MERGED 2026-10-24 (4b618dd): the Practice art generator + streaming loader (assets/art/practice/<game>.png drops in).
 - STILL HELD: all patron work (the Saloon 8 looks build, renames, enhanced removal, back views), and the credits (deferred until locked).
-- WAITING ON THE OWNER: Q49 round 2 (SETTINGS v5, in Pocket Player); GUS's tip when a coin is already out (option A proposed); Big Tex on DUSTY/EMMA's palette?
+- 2026-10-25 Q49 answered: SETTINGS v5 approved; move it, and every other title menu/prompt, down one row. RUNNING on gba-final; then replace the shifted
+  goldens (bbox check), verify, merge gba-final, refresh Pocket Player main and retire the settings ROM. Music-stop: owner did not follow up (not reproducible).
+- WAITING ON THE OWNER: GUS's tip when a coin is already out (option A proposed); Big Tex on DUSTY/EMMA's palette?
 - OPTIONAL, NOT STARTED: Boss Rush busts (64x40), unless the owner wants them.
