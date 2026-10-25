@@ -1,16 +1,17 @@
-- [Agent stall watchdog](agent-stall-watchdog.md) — monitor subagent transcripts for inactivity
+- [Agent stall watchdog](agent-stall-watchdog.md) — run tools/dev/watch_agents.sh in the background; it wakes the session only on a real stall
 - [No throwaway fixes](no-throwaway-fixes.md) — skip stopgaps a planned redesign replaces; patrons overlap, never shove
 - [Art in-house](art-in-house.md) — owner dropped the external artist; our agents do all art, proposals first
 - [No long perf loops](perf-no-long-loops.md) — small tweaks ok; optimize only on a reported slowdown
 - [Wait loops and pgrep](wait-loop-pgrep.md) — pgrep -f self-matches its own loop; wait on a PID or a log marker
-- [Subagent model choice](subagent-model-choice.md) — default ALL agents to Sonnet, Opus only by exception; ~3 at once (owner tokens)
+- [Subagent model choice](subagent-model-choice.md) — spawn by type: gb-worker/gb-artist/gb-golden-check (Sonnet), gb-runner (Haiku); Opus/Fable only when named; ~3 at once
+- [Context hygiene](context-hygiene.md) — supervisor context drives cost: helpers do mechanics, handoff then /clear or /compact at milestones, contact sheets
 - [Three modes decisions](three-modes-decisions.md) — owner answers for STORY/ARCADE/CLASSIC (lives, scores, DMG steps, slanted bars)
 - [Owner tests judgement only](owner-testing-judgement-only.md) — test lists hold look/sound/feel calls only; verify mechanics ourselves
 - [Agents: reversible actions only](agents-reversible-actions.md) — new commits/branches only; no amend/rebase/reset by agents
 - [Numbered questions only](batched-numbered-questions.md) — Qn ONLY on direct questions/decisions (restarted at Q1 2026-10-21); batch them, images under each
 - [PyBoy audio stale row](pyboy-audio-stale-row.md) — slice ndarray[:raw_buffer_head//2] per frame or mp3s crackle; rebuild after merges
 - [PyBoy zeroed RAM](pyboy-zeroed-ram.md) — real hardware leaves HRAM junk; clear hand-placed bytes in main(), test with a junk poke
-- [Goldens: supervisor only](goldens-supervisor-only.md) — I replace goldens after checking diffs; agents only list them with bboxes
+- [Goldens: supervisor only](goldens-supervisor-only.md) — I replace goldens one by one; gb-golden-check's verdict table first, pictures for UNEXPECTED/UNSURE rows
 - [Branch cleanup: list first](branch-cleanup-list-first.md) — delete only this session's branches by exact name; old tips saved in refs/recovered/
 - [Music stems with drafts](music-stems-with-drafts.md) — every music draft goes out with labelled per-channel solo WAVs + STEMS.md
 - [Asm pass, keep C](asm-pass-keep-c.md) — asm pass authorised 10-17; every asm routine keeps its C version buildable (porting reference)

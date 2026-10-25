@@ -1,10 +1,13 @@
 ---
 name: agent-stall-watchdog
-description: Always arm a stall watchdog on background subagents; the user has caught stuck agents several times
+description: Arm tools/dev/watch_agents.sh for background subagents; it wakes the session only on a real stall
 metadata:
   type: feedback
+  modified: 2026-10-25
 ---
-When launching a background subagent, arm a Monitor that alerts if its transcript (~/.claude/projects/-workspace/<session>/subagents/agent-<id>.jsonl) has no activity for ~15 min, and re-arm it every 30 min.
+When launching background subagents, run `tools/dev/watch_agents.sh 15 <agent-id>...` with the Bash tool in the background. It stays silent and exits (waking the session) only when an agent's transcript (~/.claude/projects/-workspace/<session>/subagents/agent-<id>.jsonl) has had no activity for 15 min. Restart it with the current list whenever an agent starts or finishes; it stops the previous copy through out/watchdog.pid.
 
-**Why:** the user had to ask about stuck agents four times; once an agent hung for 5.5 h on a single tool call after a permission denial.
-**How to apply:** brief agents not to retry denied commands, and give each one an explicit stopping point. Check the watchdog rather than waiting for the user to notice.
+Replaced 2026-10-25: re-arming a Monitor every 30 min. Each re-arm and each check was a full supervisor turn, re-reading about 500k tokens of context.
+
+**Why:** the owner had to ask about stuck agents four times; once an agent hung for 5.5 h on a single tool call after a permission denial. He also pays for every supervisor turn.
+**How to apply:** brief agents not to retry denied commands, and give each one an explicit stopping point. Trust the watchdog rather than polling.
