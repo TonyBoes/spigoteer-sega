@@ -16,7 +16,7 @@ import re
 import shlex
 import sys
 
-SHORT = 120          # print the whole log if it is this short
+SHORT = 30           # print the whole log if it is this short
 MAX_MATCHES = 120    # cap on matched lines in a long log
 TAIL = 15            # last lines of a long log (pytest summary, romusage, gbcheck verdicts)
 
