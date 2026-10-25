@@ -31,6 +31,8 @@ INTERESTING = re.compile(
     r"\[(dmg|cgb)\]|WRAM|ROM0|romusage|warning:|Timeout|Killed",
     re.IGNORECASE,
 )
+WARNINGS_START = re.compile(r"^=+ warnings summary =+$")
+WARNINGS_END = re.compile(r"^-- Docs: |^=+ ")
 
 
 def summarize(path):
@@ -43,7 +45,14 @@ def summarize(path):
     if len(lines) <= SHORT:
         print("\n".join(lines))
         return
-    hits = [l for l in lines[:-TAIL] if INTERESTING.search(l)]
+    hits, in_warnings = [], False
+    for l in lines[:-TAIL]:
+        if WARNINGS_START.match(l):     # pytest's warnings summary: noise, and its test IDs match [dmg]/[cgb]
+            in_warnings = True
+        elif in_warnings and WARNINGS_END.match(l):
+            in_warnings = False
+        elif not in_warnings and "DeprecationWarning" not in l and INTERESTING.search(l):
+            hits.append(l)
     if len(hits) > MAX_MATCHES:
         hits = hits[:MAX_MATCHES] + [f"... {len(hits) - MAX_MATCHES} more matching lines in the full log"]
     print(f"[filter] {len(lines)} lines of output; showing {len(hits)} matching lines and the last {TAIL}.")
