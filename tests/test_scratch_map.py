@@ -53,6 +53,8 @@ USERS = {
     "smap.TAGROW": (180, 200, "smap.c"), "smap.V": (400, 412, "smap.c V(n)"),
     # the Practice list
     "mglist.ROWS": (0, 220, "mg_list.c ML_ROW(k) (11 rows)"), "mglist.STATE": (220, 222, "ml_d: the rows to redraw"),
+    "mglist.ART": (222, 244, "mg_list.c struct pa: the illustration loader's state (222 + 22: ML_PA_AT, ML_STAGE_AT)"),
+    "mglist.STAGE": (244, 244 + 80, "mg_list.c PA_STAGE: a stream chunk (5 tiles) / the map rows on their way through the copy queue"),
     # the soundtrack
     "jukebox.ROWS": (0, 9 * 20, "jukebox.c JB_ROW(k)"), "jukebox.METER": (180, 190, "jukebox.c struct jb_meter: the bars' levels and the DMG note-start state"),
     # the credits: CR (struct cr_state), the DMG header's two BGPs (main.c cast_isr), the card's colours, the owner's portrait, a staging buffer
@@ -76,7 +78,7 @@ GROUPS = {
         ["fight.LD", "fight.HB", "fight.BELT", "fight.CAP", "rush.STRUCT", "fight.LIGHTS", "fight.MAP", "fight.HAND", "fight.OWN", "fight.FX"],
     "a Boss Rush screen": ["rush.ROWS", "rush.STRUCT", "ol.STATE"],
     "the story map": ["smap.ROWS", "smap.ATTR_PANEL", "smap.ATTR_TAG", "smap.TAGROW", "smap.V"],
-    "the Practice list": ["mglist.ROWS", "mglist.STATE", "ol.STATE"],
+    "the Practice list": ["mglist.ROWS", "mglist.STATE", "mglist.ART", "mglist.STAGE", "ol.STATE"],
     "the soundtrack": ["jukebox.ROWS", "jukebox.METER", "ol.STATE"],
     "the credits": ["credits.CR", "credits.BGP", "credits.PAL", "credits.PT", "credits.BUF"],
     "a picture scene": ["pic.FX_W", "pic.ROWS", "pic.TILES", "pic.PALS", "pic.OUT", "pic.PB_T", "pic.CURSOR", "pic.STAGE", "pic.RCUR", "pic.RSTAGE", "pic.SPARKS"],
@@ -85,7 +87,7 @@ GROUPS = {
 
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
-        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 5, "src/jukebox.c": 3, "src/main.c": 5, "src/mg.h": 3, "src/mg_list.c": 3,
+        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 5, "src/jukebox.c": 3, "src/main.c": 5, "src/mg.h": 3, "src/mg_list.c": 5,
         "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 2, "src/smap.c": 6,
         "src/story.c": 16, "src/tk.c": 1, "src/trans.c": 3, "src/ts.c": 1}
 
@@ -95,7 +97,7 @@ SOURCE_HAS = {
                     r"story_scratch \+ STORY_PIC_ROWS \* 20", r"#define PS_BURST 3", r"story_scratch \+ 40 \+ PS_BURST \* 16\)\)",
                     r"story_scratch \+ 40 \+ PS_BURST \* 16 \+ 40\)\)", r"story_scratch \+ SCR_HB_AT"],
     "src/smap.c": [r"story_scratch \+ 140\)", r"story_scratch \+ 160\)", r"story_scratch \+ 180\)", r"story_scratch\[400 \+ \(n\)\]", r"#define ROWS_MAX\s+7"],
-    "src/mg_list.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ ML_ROWS \* 20\)\)", r"#define ML_ROWS\s+11\b"],
+    "src/mg_list.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ ML_ROWS \* 20\)\)", r"#define ML_ROWS\s+11\b", r"#define ML_PA_AT\s+\(ML_ROWS \* 20 \+ 2\)", r"#define ML_STAGE_AT\s+\(ML_PA_AT \+ 22\)"],
     "src/jukebox.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ JB_ROWS \* 20\)\)", r"#define JB_ROWS\s+9\b"],
     "src/oneline.h": [r"story_scratch \+ SCR_OL_AT\)\)"],
     "src/credits.c": [r"story_scratch \+ 72\)", r"story_scratch \+ 200\)\)", r"story_scratch \+ 200 \+ sizeof\(portrait_t\)", r"sizeof\(struct cr_state\) <= 68"],
