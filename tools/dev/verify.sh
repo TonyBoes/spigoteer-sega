@@ -47,11 +47,23 @@ GB_ROM=build/game-c.gb $PYTEST tests --timeout=180 --timeout-method=thread 2>&1 
 step "slow: double speed + half rate"
 RUN_SLOW=1 $PYTEST tests/test_double_speed.py tests/test_half_rate.py 2>&1 | tail -1 >> "$L"
 
-# Verdict: any failure word anywhere fails the run. make check lines are kept for a human read as well.
-# ("3 xfailed" is in every pytest summary: match FAILED/ERROR test lines, BUILD_/CFALL_FAIL and "N failed", not "xfailed")
-BAD='^(FAILED|ERROR)\b|_FAIL\b|(^|[ ,])[0-9]+ (failed|errors?)\b|crash|hang|timeout'
-if grep -qiE "$BAD" "$L"; then
-  echo "RESULT: FAIL ($(grep -ciE "$BAD" "$L") flagged lines)" >> "$L"
+# Verdict. Precise patterns only: pytest prints "N xfailed" / "N xpassed" on green runs, so a bare FAIL match is wrong.
+#  - BUILD_FAIL / CFALL_FAIL markers
+#  - pytest short-summary lines that start with FAILED or ERROR
+#  - pytest totals with "N failed" or "N error(s)" as whole words (not "xfailed")
+#  - make check lines whose verdict word is FAIL, FAILED, CRASH or HANG
+#  - all four pytest steps must have printed a total with "passed" (a missing total = pytest died)
+#  - make check must print both "[dmg] OK" and "[cgb] OK" (gbtools/check.py prints exactly "[model] OK" or "[model] FAIL";
+#    a missing line = gbcheck died)
+FLAGS=$(grep -nE '^(BUILD_FAIL|CFALL_FAIL)$|^(FAILED|ERROR) |(^|[^a-z])[0-9]+ (failed|errors?)([^a-z]|$)' "$L")
+FLAGS="$FLAGS
+$(grep -niE '^\[(dmg|cgb)\].*(^|[^a-z])(fail|failed|crash|hang)([^a-z]|$)' "$L")"
+SUITES=$(grep -cE '(^|[^a-z])[0-9]+ passed' "$L")
+CHECKS=$(grep -cE '^\[(dmg|cgb)\] OK$' "$L")
+FLAGS=$(printf '%s\n' "$FLAGS" | grep .)
+if [ -n "$FLAGS" ] || [ "$SUITES" -lt 4 ] || [ "$CHECKS" -lt 2 ]; then
+  N=$(printf '%s\n' "$FLAGS" | grep -c .)
+  echo "RESULT: FAIL ($N flagged lines; $SUITES of 4 pytest totals; $CHECKS of 2 make check OKs)" >> "$L"
 else
   echo "RESULT: PASS" >> "$L"
 fi
