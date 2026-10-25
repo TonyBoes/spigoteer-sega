@@ -1,0 +1,8 @@
+Taiko Pour CGB BG palette (index 0 lightest .. 3 darkest):
+  idx0  #f8f0d8  RGB555 word 0x6FDF  (R31 G30 B27)
+  idx1  #f0a898  RGB555 word 0x4EBE  (R30 G21 B19)
+  idx2  #409078  RGB555 word 0x3E48  (R8 G18 B15)
+  idx3  #282838  RGB555 word 0x1CA5  (R5 G5 B7)
+DMG: idx0..3 = BGP 0xE4 shades (white, light grey, dark grey, black)
+Unique 8x8 tiles, art only (64x48): 42 exact, 40 with flips merged
+Unique 8x8 tiles, with own frame ring (80x64): 50 exact, 48 with flips merged
