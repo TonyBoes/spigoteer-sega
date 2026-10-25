@@ -5,11 +5,10 @@
 
 The per-venue colours come from the graphics atlas data (`make atlas` writes out/atlas/data/). The plan itself (planned
 use per slot, the ideas list, the log) is hand-kept in PLAN below: edit it when the owner decides something, rebuild,
-republish (see tools/artifacts/README.md).
+republish (see tools/artifacts/README.md). The patron thumbnails go to img/ next to OUT_HTML and are published with the
+page as files (the artifact viewer does not show data: images).
 """
-import base64
 import html
-import io
 import json
 import os
 import subprocess
@@ -405,16 +404,19 @@ def art_rows(v, name):
     return None
 
 
-def thumb(rows, cols, wall):
-    """A data: URI PNG of a 16x16 front view, x4, in the given colours."""
+def thumb(rows, cols, wall, name):
+    """img/<name>.png beside OUT: a 16x16 front view, x4, in the given colours. Returns its relative path."""
     from PIL import Image
     im = Image.new("RGB", (16, 16), hex2(wall))
     for y, r in enumerate(rows[:16]):
         for x, ch in enumerate(r[:16]):
             if ch in "-+#":
                 im.putpixel((x, y), hex2(cols["-+#".index(ch)]))
-    b = io.BytesIO(); im.resize((64, 64), Image.NEAREST).save(b, "PNG")
-    return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
+    rel = "img/%s.png" % name
+    path = os.path.join(os.path.dirname(OUT), rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    im.resize((64, 64), Image.NEAREST).save(path, "PNG")
+    return rel
 
 
 def hex2(h):
@@ -538,7 +540,7 @@ for i, v in enumerate(venues):
         sw = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
         bg = ("BG %d" % r["bg"]) if "bg" in r else '<span class="muted">to assign</span>'
         ar = art_rows(v, r["name"])
-        img = ('<img class="pimg" alt="%s" width="48" height="48" src="%s">' % (esc(r["name"]), thumb(ar, cols, v["bg"][0][0]))) if ar else ""
+        img = ('<img class="pimg" alt="%s" width="48" height="48" src="%s">' % (esc(r["name"]), thumb(ar, cols, v["bg"][0][0], "%s_%s" % (v["key"], r["name"].split(",")[0].strip().lower())))) if ar else ""
         rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg)))
         var = PLANS.get(v["key"], {}).get("variants", {}).get(r["name"].split(",")[0].strip())
         vtxt = ", ".join(str(x) for x in var) if var else str(r["obj"])
