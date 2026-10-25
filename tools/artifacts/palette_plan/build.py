@@ -6,7 +6,8 @@
 The per-venue colours come from the graphics atlas data (`make atlas` writes out/atlas/data/). The plan itself (planned
 use per slot, the ideas list, the log) is hand-kept in PLAN below: edit it when the owner decides something, rebuild,
 republish (see tools/artifacts/README.md). The patron thumbnails go to img/ next to OUT_HTML and are published with the
-page as files (the artifact viewer does not show data: images).
+page as files. The published page is wrapped in a skeleton with img{max-width:100%}, which shrinks an image in an
+auto-width table cell to nothing: .pimg keeps a fixed 48 px size and max-width: none.
 """
 import html
 import json
@@ -360,8 +361,8 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pt tr:last-child td { border-bottom: 0; }
 .pt td.now { color: var(--now); font-weight: 600; } .pt td.plan { color: var(--plan); font-weight: 600; }
 .pt td.slotc { font-family: var(--mono); white-space: nowrap; }
-.pimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; border-radius: 3px; }
-.pt td.pic { width: 56px; padding-block: 4px; }
+.pimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; border-radius: 3px; width: 48px; height: 48px; max-width: none; }
+.pt td.pic { width: 48px; min-width: 48px; padding-block: 4px; }
 .muted { color: var(--muted); font-style: italic; }
 .ph2 { display: flex; align-items: end; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .copymd { font: 600 13px var(--body); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }

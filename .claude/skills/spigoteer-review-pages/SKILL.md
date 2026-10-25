@@ -19,7 +19,7 @@ report the exact list of files to publish.
    Publish `out/atlas/index.html` with every other file there, about 390 files, in two batches of at most 255; the
    second publish adds to the first. The page shows the commit it was built from.
 3. **Palette Plan** (if palettes or patrons changed): after `make atlas`, run
-   `python3 tools/artifacts/palette_plan/build.py`; publish `index.html` with `img/*.png` as files (inline `data:` images do not show). Owner decisions go into PLAN and a
+   `python3 tools/artifacts/palette_plan/build.py`; publish `index.html` with `img/*.png` as files. Owner decisions go into PLAN and a
    LOG line in `build.py`.
 4. **Open Questions** (if a question was asked or answered): update the cards, the count and the stamp.
 5. Copy every changed page source and its media into `tools/artifacts/` and commit (sources must survive a lost
