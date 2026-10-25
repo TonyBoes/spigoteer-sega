@@ -117,3 +117,10 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
   - In src/patrons.c maybe_tip, skip the tip_chance roll for GUS. Ideally draw no random number either, to keep the other patrons' sequences stable. Check whether goldens move.
   - The existing limits still apply (one tip on the counter at a time, none during the show). The proposed default is A: if a coin is already there, he simply doesn't tip that time. B (wait until clear) and C (replace the coin) are alternatives; the owner hasn't answered.
   - Rarity (owner 2026-10-22): NO extra weighting. On Color, spawns pick uniformly among the allowed (look, palette) combinations, so GUS (2 of 29) is naturally rare. On DMG, 3 equal looks.
+
+## 2026-10-24 (the owner's tokens reset): "Hold off on patron changes still, but resume other things we're holding on."
+- RUNNING: Practice illustrations. 3 style proposals (Quick Draw, Milk Run, Taiko Pour) via the gb-pixel-art skill; the other 10 after the owner reviews them.
+- RUNNING: the Practice art generator + streaming loader against placeholders (assets/art/practice/<game>.png drops in).
+- STILL HELD: all patron work (the Saloon 8 looks build, renames, enhanced removal, back views), and the credits (deferred until locked).
+- WAITING ON THE OWNER: Q49 round 2 (SETTINGS v5, in Pocket Player); GUS's tip when a coin is already out (option A proposed); Big Tex on DUSTY/EMMA's palette?
+- OPTIONAL, NOT STARTED: Boss Rush busts (64x40), unless the owner wants them.
