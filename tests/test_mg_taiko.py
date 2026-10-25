@@ -510,7 +510,7 @@ def test_a_hit_pours_flashes_and_sounds(model):
             st = oam(gb, OAM_STREAM)
             streams.append(bool(st["y"]))
             if st["y"]:
-                assert st["x"] == 108 + 8 and st["tile"] in (TK_OBJ + OBJ["stream"][0], TK_OBJ + OBJ["stream"][1])
+                assert st["x"] == 107 + 8 and st["tile"] in (TK_OBJ + OBJ["stream"][0], TK_OBJ + OBJ["stream"][1])
             frames(gb, 1)
         tilt, pour, level = (TK_OBJ + OBJ["pot"][i] for i in (1, 2, 0))
         assert pots[0] == tilt and pour in pots and pots[-1] == level and tilt in pots[pots.index(pour):]

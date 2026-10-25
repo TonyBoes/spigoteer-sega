@@ -173,7 +173,7 @@ def test_the_debug_list_has_every_built_game_unlocked_in_the_one_line_style(mode
         assert selection(gb) == NAMES[0] and band_rows_ok(gb)
         assert counter(gb) == "1 / 14" and medal_icon(gb) == BLANK and medal_word(gb) == "NO MEDAL"
         assert hint(gb) == "@ PLAY   $ BACK"
-        frame_is_an_empty_frame(gb)
+        # (the frame holds Quick Draw's picture now: the empty frame is pinned on GREEN LIGHT below, which has none)
         for r in (1, 5, 14):
             assert set(tilemap_row(gb, r, 1, 10)) <= {BLANK, 0}, "blank rows round the frame"
         assert not gb.visible_sprites()
@@ -188,6 +188,7 @@ def test_the_debug_list_has_every_built_game_unlocked_in_the_one_line_style(mode
         tap(gb, "left")
         gb.run(6)
         assert gb.mem("ml_sel") == 13 and selection(gb) == "GREEN LIGHT"
+        frame_is_an_empty_frame(gb)
         check_golden(gb, "ol_practice_last")
         tap(gb, "a")
         run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
@@ -345,7 +346,7 @@ def test_a_medal_icon_has_its_own_palette_and_the_frame_the_walls(model):
         assert medal_icon(gb) == SKIN_MEDAL + 2
         if model == "cgb":
             assert attr(gb, 9, 12) == 3, "the medal palette"
-            assert {attr(gb, r, c) for r in ART_ROWS for c in range(1, 11)} == {2}, "the frame is on the wall's palette"
+            assert {attr(gb, r, c) for r in ART_ROWS for c in range(1, 11)} == {0}, "the frame is on the picture's palette (Quick Draw has art; the empty frame would be the wall's)"
             assert [attr(gb, r, 3) for r in (0, 1, 5, 14, 15, 16, 17)] == [5, 7, 2, 2, 6, 6, 6]
             assert [attr(gb, 16, c) for c in range(20)] == [6] * 20
 

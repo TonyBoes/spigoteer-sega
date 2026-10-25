@@ -15,5 +15,8 @@ One picture per mini-game, shown in the empty frame left of the medal on the Pra
   `build/practice_art.h`; a game with no PNG shows the empty frame. `src/mg_list.c` (the `pa_` functions) streams the selected game's tiles five a frame through the
   VBlank queue and switches the picture on only when it is complete (a 2-3 frame wipe of whole rows), prefetching the neighbours. A picture is looked for in
   `assets/art/practice/` only; drop the PNGs in and rebuild. `make preview` / any build writes `out/preview/practice_<game>_x4.png`: LOOK at them.
+- Status: the art is in (owner approved 2026-10-25): all 13 pictures, `<game>.png` (the build input) with its editable ASCII source `<game>.txt` beside it
+  (house ASCII, `.` `-` `+` `#` = indices 0-3; edit the `.txt`, regenerate the PNG from it, rebuild). Taiko Pour's teapot is the redrawn pour pose B
+  (`assets/art/taiko/teapot.txt` frame 2, approved the same day), its spout tip feeding the stream.
 - The 80-tile cap cannot be exceeded by a correctly sized PNG (a 10 x 8 picture has 80 cells); the real budget is the stream: n tiles take n / 5 frames (a locked game shows the
   empty frame, like its name "? ? ?").

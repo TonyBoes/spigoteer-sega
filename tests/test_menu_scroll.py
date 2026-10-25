@@ -38,6 +38,8 @@ def screen_text(gb):
     """The whole tilemap but the selection line's two arrows (row 3, columns 0 and 19: they bob with the time on the screen)."""
     rows = [list(tilemap_row(gb, y, 0, 20)) for y in range(18)]
     rows[3][0] = rows[3][19] = 0
+    for y in range(6, 14):                      # the illustration: the same picture sits in either of two tile buffers (ids 176.. or 96..); compare the slot, not the buffer
+        rows[y][1:11] = [t - 80 if t >= 176 else t for t in rows[y][1:11]]
     return [tuple(r) for r in rows]
 
 

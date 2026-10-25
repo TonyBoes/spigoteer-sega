@@ -94,8 +94,8 @@ static const struct tk_tune tk_tune[MG_DIFFS] = {
 #define SPIG_Y        112
 #define POT_X          94
 #define POT_Y         118
-#define STREAM_X      108
-#define STREAM_Y      120
+#define STREAM_X      107
+#define STREAM_Y      122
 #define STEAM_X       108
 #define STEAM_Y       104
 #define SPILL_X       124
