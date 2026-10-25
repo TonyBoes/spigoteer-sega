@@ -51,7 +51,8 @@ VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
 # M11b story mode: the script (docs/story.md), the portraits and the story font -> two banked files (tools/gen_story.py)
 STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c $(BUILD)/story_pictures.c
-GEN      := $(BUILD)/art.c $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(BUILD)/music_pat23.c $(BUILD)/music_pat24.c $(STORY_C) $(BUILD)/credits_text.c
+PRACTICE_C := $(BUILD)/practice_art_a.c $(BUILD)/practice_art_b.c
+GEN      := $(BUILD)/art.c $(PRACTICE_C) $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(BUILD)/music_pat23.c $(BUILD)/music_pat24.c $(STORY_C) $(BUILD)/credits_text.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
 # rgb2sdas.py, placed in ROM bank 2 next to the order tables and src/music.c (all `#pragma bank 2`); the song patterns are
 # in bank 10 (build/music_pat10.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
@@ -60,6 +61,7 @@ HUGE_OBJ := $(BUILD)/hUGEDriver.o
 # each boss's own art header (tools/gen_boss.py: build/boss_<name>_art.h, #included by src/boss_<name>.c only)
 BOSS_H   := $(foreach b,$(filter-out meter tag,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
 BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_keys.h $(BUILD)/list_skin.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_card_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/leo_fx_art.h $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h $(BUILD)/trans_art.h $(BUILD)/credits_text.h
+BONUS_H  += $(BUILD)/practice_art.h
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
@@ -152,6 +154,14 @@ $(BUILD)/po_art.h: tools/gen_po.py tools/gen_art.py $(wildcard assets/art/dregs/
 BONUS_H  += $(BUILD)/ol_tiles.h
 $(BUILD)/ol_tiles.h: tools/gen_ol_tiles.py assets/art/ol_tiles.txt assets/art/ol_icons.txt | $(BUILD)
 	python3 tools/gen_ol_tiles.py $(BUILD)
+
+# The Practice screen's illustrations (src/mg_list.c; assets/art/practice/README.md): one 80 x 64 indexed PNG a game -> de-duplicated tiles, a 10 x 8 map and a CGB palette
+# in two banked data files + build/practice_art.h, build/practice_art.json (tests), out/preview/practice_<game>_x4.png. A game without a PNG shows the empty frame.
+# PRACTICE_ART_DIRS: where the PNGs are looked for, first hit wins. The default is the real art alone; the tests build a ROM of their own from the placeholder
+# cards (make BUILD=out/b_pa OUT=out/o_pa PRACTICE_ART_DIRS=tests/data/practice_art out/b_pa/game.gb), so placeholders never ship.
+PRACTICE_ART_DIRS ?= assets/art/practice
+$(BUILD)/practice_art_a.c $(BUILD)/practice_art_b.c $(BUILD)/practice_art.h $(BUILD)/practice_art.json &: tools/gen_practice_art.py $(foreach d,$(PRACTICE_ART_DIRS),$(wildcard $(d)/*.png)) | $(BUILD) $(OUT)/preview
+	python3 tools/gen_practice_art.py $(BUILD) $(OUT)/preview --dirs $(PRACTICE_ART_DIRS)
 
 # The Boss Rush list's portraits (src/rush.c): each boss's sprite centred by its drawn pixels -> build/rush_portraits.h (tools/gen_rush_portraits.py)
 BONUS_H  += $(BUILD)/rush_portraits.h

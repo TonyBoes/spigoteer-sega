@@ -117,3 +117,16 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
   - In src/patrons.c maybe_tip, skip the tip_chance roll for GUS. Ideally draw no random number either, to keep the other patrons' sequences stable. Check whether goldens move.
   - The existing limits still apply (one tip on the counter at a time, none during the show). The proposed default is A: if a coin is already there, he simply doesn't tip that time. B (wait until clear) and C (replace the coin) are alternatives; the owner hasn't answered.
   - Rarity (owner 2026-10-22): NO extra weighting. On Color, spawns pick uniformly among the allowed (look, palette) combinations, so GUS (2 of 29) is naturally rare. On DMG, 3 equal looks.
+
+## 2026-10-24 (the owner's tokens reset): "Hold off on patron changes still, but resume other things we're holding on."
+- 2026-10-25 Q52 answered: the 3 Practice pictures' style is approved ("these all look great"). The teapot in Taiko Pour needs work, and so does the in-game
+  pouring teapot (assets/art/taiko/teapot.txt frames 1-2 read as a round blob; the level frame 0 stays as is). Own 1-tile frame assumed (not answered).
+- RUNNING: teapot tilt/pour redraw proposals (2 options; scratchpad teapot/proposals/). Then the Taiko picture uses the new pour frame.
+- RUNNING: Practice pictures set 1 (shirtcannon, logroll, orderup, marshmallows, batterysort + Milk Run quality pass) and set 2 (monkeybusiness,
+  asteroids, shakeup, perfectpour, tipshower); scratchpad practice_art/set1, set2.
+- MERGED 2026-10-24 (4b618dd): the Practice art generator + streaming loader (assets/art/practice/<game>.png drops in).
+- STILL HELD: all patron work (the Saloon 8 looks build, renames, enhanced removal, back views), and the credits (deferred until locked).
+- 2026-10-25 Q49 answered: SETTINGS v5 approved; move it, and every other title menu/prompt, down one row. RUNNING on gba-final; then replace the shifted
+  goldens (bbox check), verify, merge gba-final, refresh Pocket Player main and retire the settings ROM. Music-stop: owner did not follow up (not reproducible).
+- WAITING ON THE OWNER: GUS's tip when a coin is already out (option A proposed); Big Tex on DUSTY/EMMA's palette?
+- OPTIONAL, NOT STARTED: Boss Rush busts (64x40), unless the owner wants them.
