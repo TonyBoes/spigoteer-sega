@@ -12,3 +12,6 @@ Sources live on main in tools/artifacts/ (pocket_player, open_questions, review_
 **How to apply:** whenever a page is republished from scratchpad, copy the changed html/media into tools/artifacts/ and commit (Opus trailer). New artifact → add a README row with its URL. ROM packs (make_roms.py) and atlas output stay uncommitted.
 
 Related: [[gfx-atlas-artifact]].
+
+
+Owner 2026-10-22: also keep DEV NOTES in the repo, in docs/dev/. That folder holds the queue, briefs, agent rules, concepts and a memory snapshot, plus LESSONS.md (best practices and tools for future Game Boy games). Whenever the scratchpad QUEUE, briefs or concepts or the memory files change, copy them there in the same session. Add new lessons to LESSONS.md as they are found.

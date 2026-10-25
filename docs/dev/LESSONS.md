@@ -24,6 +24,8 @@ Boy project. Kept up to date during development; the newest items are added unde
   something the owner said they liked. Ask how the owner reads a figure before touching it.
 - **For every feature request, say whether it fits the DMG too or only Color**, and which budget it uses.
 - **The owner tests judgement only** (look, sound, feel). Verify mechanics ourselves before asking.
+- **Subagents may not be able to load a skill by name** ("Unknown skill"). Give the skill's path in the brief, so they
+  can read SKILL.md and its references directly.
 
 ## Verification
 
@@ -38,6 +40,11 @@ Boy project. Kept up to date during development; the newest items are added unde
   hogs behind, so check `ps` after agent batches.
 - **Fragile tests:** assert on driver or game state (variables by name) rather than on audio FFTs or exact frame
   timing, and feed input by game step rather than by frame.
+- **Checking a layout-shift golden:** compare the new picture with the old golden moved by the intended offset. What is
+  left over should be only animated sprites (sparkles, the logo drip). It turned 24 goldens into a two-minute check.
+- **Show art in the real engine, not pasted into a screenshot.** Agents' pastes went onto stale list layouts twice. A
+  build flag that points the generator at a scratch folder (`make BUILD=out/b_real PRACTICE_ART_DIRS=...`) gives true
+  screenshots without touching assets/.
 
 ## Game Boy / Game Boy Color techniques that paid off
 
