@@ -47,7 +47,7 @@ def test_erase_data_is_the_third_settings_line_and_asks_first(model):
         assert rom.mem("title_menu") == TM_ERASE and menu_items(rom) == [K_ERASEQ, K_NO, K_YES]
         assert rom.mem("title_sel") == 1, "the cursor starts on NO"
         expect_menu(rom, ("erase_q", "no", "yes"))
-        cursor_on(rom, "no", 9)
+        cursor_on(rom, "no", 10)
         assert sram_peek(rom, 0, SIZE) == bytes(SIZE), "asking changes nothing"
     finally:
         rom.stop()

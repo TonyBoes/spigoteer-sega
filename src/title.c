@@ -44,15 +44,15 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 // ---- layout ----
 #define LOGO_ROW        2       // the logo: rows 2-3, columns 1..18
 #define ROW_HI          0       // the HI line (the HUD's row in play)
-// The menu column, one item every other row, centred on row 9: 1 item row 9, 2 rows 8-10, 3 rows 7-11, 4 rows 6-12.
+// The menu column, one item every other row, centred on row 10: 1 item row 10, 2 rows 9-11, 3 rows 8-12, 4 rows 7-13.
 // K_*, TM_*: game.h.
 #define MENU_MAX        5       // (five lines only in SETTINGS on a GBA with the debug menu unlocked)
-#define MENU_ROW(n)   ((n) == 5 ? 4 : 10 - (n))   // (five lines: rows 4, 6, 8, 10, 12)
-#define HARD_ROW        6       // the difficulty prompt: its lines on rows 6, 7, 8 and ONE caption on row 11 (rows 9-10 blank: the block, rows 6-11, is centred in rows 4-13)
-#define CAP_ROW        11
+#define MENU_ROW(n)   ((n) == 5 ? 5 : 11 - (n))   // (five lines: rows 5, 7, 9, 11, 13)
+#define HARD_ROW        7       // the difficulty prompt: its lines on rows 7, 8, 9 and ONE caption on row 12 (rows 10-11 blank: the block, rows 7-12, is centred in rows 5-14)
+#define CAP_ROW        12
 #define HARD_STEP       1
-#define MENU_FIRST_ROW  4       // the rows a menu can use: 4..12
-#define MENU_LAST_ROW  12
+#define MENU_FIRST_ROW  5       // the rows a menu can use: 5..13
+#define MENU_LAST_ROW  13
 #define MENU_COPIES_PER_FRAME 2 // a submenu's redraw: 20-byte rows (tiles or CGB attributes) queued per frame
 #define SCENE_BAR       3       // the scene stands on bar 3's rows (14-15 wall, 16 counter): draw_bartender() places him
 #define SCENE_TOP_Y   (BAR_TOP_Y(SCENE_BAR) + 16)   // OAM y of the scene's wall top
@@ -81,9 +81,9 @@ void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
 #define FX_KEYA         (OBJ_FX + 14)
 #define FX_KEYB         (OBJ_FX + 16)
 // SETTINGS shows ONE setting at a time (owner 2026-10-21): its name on ROW_NAME between two blinking arrows, its state on ROW_STATE (gold), a blank row, the hint on ROW_HINT
-#define ROW_NAME        7
-#define ROW_STATE       8
-#define ROW_HINT       10
+#define ROW_NAME        8
+#define ROW_STATE       9
+#define ROW_HINT       11
 #define SET_ROWS      (((uint16_t)1 << ROW_NAME) | ((uint16_t)1 << ROW_STATE) | ((uint16_t)1 << ROW_HINT))
 #define OAM_DX         20       // the DX badge's four 8x16 entries 20-23 (CGB only; the in-play mug pool's ids, which the title never uses)
 #define DX_X          120       // screen x / y of its top left (32x16): under the logo's right end, the second E's and the R's cells (x 120..151)
@@ -323,7 +323,7 @@ static void menu_open(uint8_t m, uint8_t sel) {
         if (debug_unlocked()) title_items[title_n++] = K_DEBUG;     // (the debug menu, once unlocked: src/debug.c)
     }
     for (i = 0; i < title_n; i++) {
-        title_rows[i] = IS_ASK(m) ? HARD_ROW + HARD_STEP * i : MENU_ROW(title_n) + 2 * i;   // (GBA COLOR MODE: label and two choices on rows 7, 9, 11, like ERASE ALL DATA)
+        title_rows[i] = IS_ASK(m) ? HARD_ROW + HARD_STEP * i : MENU_ROW(title_n) + 2 * i;   // (GBA COLOR MODE: label and two choices on rows 8, 10, 12, like ERASE ALL DATA)
         title_dirty |= (uint16_t)1 << title_rows[i] | (IS_ASK(m) ? (uint16_t)1 << CAP_ROW : 0);
         if (m != TM_SETTINGS) build_item(i);
     }

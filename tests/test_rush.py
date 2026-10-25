@@ -182,7 +182,7 @@ def test_bonus_gains_boss_rush_and_its_menu(model):
         title_pick(gb, K_BONUS)
         gb.run(MENU_SETTLE)
         assert menu_items(gb) == [K_CREDITS, K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH]
-        assert list(gb.read("title_rows", 4)) == [6, 8, 10, 12]
+        assert list(gb.read("title_rows", 4)) == [7, 9, 11, 13]
         tap(gb, "b")
         gb.run(MENU_SETTLE)
         to_rush(gb)

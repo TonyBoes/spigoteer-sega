@@ -1544,7 +1544,7 @@ def test_the_progress_survives_a_reset_and_continue_resumes(model):
         assert again.mem("story_progress") == 1
         settle_title(again)
         assert play_items(again) == [K_CONTINUE, K_STORY, K_ARCADE, K_CLASSIC], "PLAY: CONTINUE, STORY, ARCADE, CLASSIC"
-        assert list(again.read("title_rows", 4)) == [6, 8, 10, 12]
+        assert list(again.read("title_rows", 4)) == [7, 9, 11, 13]
         again.run(MENU_SETTLE)
         check_golden(again, "title_continue")                 # the PLAY submenu with a story save
         menu_tap(again, "a")

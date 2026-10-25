@@ -113,19 +113,19 @@ TITLE_ART = _json.loads((ROOT / "build" / "title.json").read_text())   # tools/g
 # place, its lines centred on row 9 (1 line: row 9; 2: rows 8, 10; 3: rows 7, 9, 11). PLAY: [CONTINUE] / STORY /
 # ARCADE, BONUS: SOUNDTRACK, SETTINGS: MUSIC ON-OFF (row 7), BAR SNAP-KEEP (row 9), ERASE DATA (row 11), DEBUG MENU (row 12 of four: unlocked only). The HI line on row 0 (the in-game HUD's row).
 LOGO_ROW, ROW_MUSIC, ROW_BAR, ROW_HI = 2, 7, 9, 0
-TOP_ROWS = (7, 9, 11)
+TOP_ROWS = (8, 10, 12)
 TOP_KEYS = ("play", "bonus", "settings")
 SEL_PLAY, SEL_BONUS, SEL_SETTINGS = range(3)
 
 
 def menu_rows(n):
-    return tuple(10 - n + 2 * i for i in range(n))      # (the top level and the submenus: one line every other row, centred on row 9)
+    return tuple(11 - n + 2 * i for i in range(n))      # (the top level and the submenus: one line every other row, centred on row 10)
 
 
-# SETTINGS (2026-10-21, owner): ONE setting at a time. Its NAME on row 7 between two blinking arrows (sprites), its STATE on row 8 (none for the actions), a blank row,
-# the hint on row 10 ("(A) CHANGE  (B) BACK", or "(A) OPEN  (B) BACK" for an action; the buttons are sprites). LEFT / RIGHT browse in the order MUSIC, BAR CHANGE,
+# SETTINGS (2026-10-21, owner): ONE setting at a time. Its NAME on row 8 between two blinking arrows (sprites), its STATE on row 9 (none for the actions), a blank row,
+# the hint on row 11 ("(A) CHANGE  (B) BACK", or "(A) OPEN  (B) BACK" for an action; the buttons are sprites). LEFT / RIGHT browse in the order MUSIC, BAR CHANGE,
 # [GBA COLOR MODE: only on a GBA, _is_GBA bit 0], ERASE DATA, [DEBUG MENU: unlocked], wrapping; A / START change the state or open the action; B goes back.
-ROW_NAME, ROW_STATE, ROW_HINT = 7, 8, 10
+ROW_NAME, ROW_STATE, ROW_HINT = 8, 9, 11
 
 
 def settings_entries(gb, music="on", bar="snap", debug=False):
@@ -350,7 +350,7 @@ def test_continue_shows_only_with_a_story_save(boot):
         rom.run(MENU_SETTLE)
         assert menu_items(rom) == [K_CONTINUE, K_STORY, K_ARCADE, K_CLASSIC], "CONTINUE first, then STORY, ARCADE"
         expect_menu(rom, ("continue", "story", "arcade", "classic"))
-        cursor_on(rom, "continue", 6)                    # (the golden title_continue: tests/test_story.py)
+        cursor_on(rom, "continue", 7)                    # (the golden title_continue: tests/test_story.py)
     with booted(boot.model_name, v7_image([], story=10)) as rom:    # the story finished: nothing to continue
         title_pick(rom, K_PLAY)
         assert menu_items(rom) == [K_STORY, K_ARCADE, K_CLASSIC]

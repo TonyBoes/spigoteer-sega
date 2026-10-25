@@ -71,9 +71,9 @@ def test_the_label_is_on_top_and_there_is_no_caption():
     from test_flow import title_text_row, tilemap_row
     r = boot()
     for want in (2, 1, 2):                                      # (down, up wrap: the label is skipped by the cursor)
-        for key, row in (("scr", 7), ("scr_normal", 9), ("scr_bright", 11)):
+        for key, row in (("scr", 8), ("scr_normal", 10), ("scr_bright", 12)):
             assert tilemap_row(r, row, 0, 20) == title_text_row(key), (key, "on its row")
-        assert not any(r.image().crop((0, y * 8, 160, y * 8 + 8)).getcolors().__len__() > 1 for y in (12, 13)), "nothing under the lines: no caption"
+        assert not any(r.image().crop((0, y * 8, 160, y * 8 + 8)).getcolors().__len__() > 1 for y in (13,)), "nothing under the lines: no caption"
         move(r, "down")
         assert r.mem("title_sel") == want
     move(r, "up")
