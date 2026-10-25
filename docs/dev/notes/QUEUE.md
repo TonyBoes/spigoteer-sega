@@ -119,8 +119,12 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
   - Rarity (owner 2026-10-22): NO extra weighting. On Color, spawns pick uniformly among the allowed (look, palette) combinations, so GUS (2 of 29) is naturally rare. On DMG, 3 equal looks.
 
 ## 2026-10-24 (the owner's tokens reset): "Hold off on patron changes still, but resume other things we're holding on."
-- RUNNING: Practice illustrations. 3 style proposals (Quick Draw, Milk Run, Taiko Pour) via the gb-pixel-art skill; the other 10 after the owner reviews them.
-- RUNNING: the Practice art generator + streaming loader against placeholders (assets/art/practice/<game>.png drops in).
+- 2026-10-25 Q52 answered: the 3 Practice pictures' style is approved ("these all look great"). The teapot in Taiko Pour needs work, and so does the in-game
+  pouring teapot (assets/art/taiko/teapot.txt frames 1-2 read as a round blob; the level frame 0 stays as is). Own 1-tile frame assumed (not answered).
+- RUNNING: teapot tilt/pour redraw proposals (2 options; scratchpad teapot/proposals/). Then the Taiko picture uses the new pour frame.
+- RUNNING: Practice pictures set 1 (shirtcannon, logroll, orderup, marshmallows, batterysort + Milk Run quality pass) and set 2 (monkeybusiness,
+  asteroids, shakeup, perfectpour, tipshower); scratchpad practice_art/set1, set2.
+- MERGED 2026-10-24 (4b618dd): the Practice art generator + streaming loader (assets/art/practice/<game>.png drops in).
 - STILL HELD: all patron work (the Saloon 8 looks build, renames, enhanced removal, back views), and the credits (deferred until locked).
 - WAITING ON THE OWNER: Q49 round 2 (SETTINGS v5, in Pocket Player); GUS's tip when a coin is already out (option A proposed); Big Tex on DUSTY/EMMA's palette?
 - OPTIONAL, NOT STARTED: Boss Rush busts (64x40), unless the owner wants them.
