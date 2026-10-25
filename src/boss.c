@@ -316,6 +316,7 @@ void boss_ldpal(uint8_t obj, uint8_t idx, const uint16_t *p) BANKED {
     if (!*j) { if (j > LD + LD_MAX) return; j[9] = 0; }
     j[0] = code;
     memcpy(j + 1, p, 8);
+    if (SCR_BRIGHT()) pal_lift((uint16_t *)(j + 1));   // SCREEN BRIGHT: lifted here, in the main loop; ld_step writes the queued colours raw
 }
 
 // One step of the stream: 1 = everything has gone out (the last tiles are in VRAM, the last palette written).
@@ -326,8 +327,8 @@ static uint8_t ld_step(void) {
     vq_entry_t *e;
     if (!*j) return !vq_held;
     if (*j & LD_PAL) {                                 // a CGB palette: set_*_palette waits for the LCD's palette-RAM-safe mode before each colour (no spin to VBlank: the frame
-        if (*j & 8) set_sprite_palette(*j & 7, 1, (const uint16_t *)(j + 1));   // would end past its line 154: a late frame)
-        else set_bkg_palette(*j & 7, 1, (const uint16_t *)(j + 1));
+        if (*j & 8) (set_sprite_palette)(*j & 7, 1, (const uint16_t *)(j + 1));   // would end past its line 154: a late frame)
+        else (set_bkg_palette)(*j & 7, 1, (const uint16_t *)(j + 1));   // (raw: boss_ldpal lifted them when it queued them)
         LD[0] += 9;
         return 0;
     }

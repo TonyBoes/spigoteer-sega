@@ -68,15 +68,15 @@ def test_the_names_follow_music_h_and_songs_py():
 # ---- the menu --------------------------------------------------------------------------------------------------
 def test_bonus_is_always_on_the_menu(boot):
     assert menu_items(boot) == [K_PLAY, K_BONUS, K_SETTINGS], "PLAY, BONUS, SETTINGS"
-    assert tilemap_row(boot, 9, 0, 20) == title_text_row("bonus")
+    assert tilemap_row(boot, 10, 0, 20) == title_text_row("bonus")
     with booted(boot.model_name, v7_image([], story=3, step=1, tunes=ALL)) as rom:
         assert menu_items(rom) == [K_PLAY, K_BONUS, K_SETTINGS], "the same with a story save"
         title_pick(rom, K_BONUS)
         rom.run(MENU_SETTLE)
-        assert menu_items(rom) == [K_CREDITS, K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH] and tilemap_row(rom, 6, 0, 20) == title_text_row("credits") and tilemap_row(rom, 8, 0, 20) == title_text_row("soundtrack")
-        assert tilemap_row(rom, 10, 0, 20) == title_text_row("minigames"), "MINI GAMES third (tests/test_mg_list.py)"
-        assert tilemap_row(rom, 12, 0, 20) == title_text_row("bossrush"), "BOSS RUSH fourth (tests/test_rush.py)"
-        assert tilemap_row(rom, 6, 0, 20) == title_text_row("credits"), "CREDITS first (tests/test_credits.py)"
+        assert menu_items(rom) == [K_CREDITS, K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH] and tilemap_row(rom, 7, 0, 20) == title_text_row("credits") and tilemap_row(rom, 9, 0, 20) == title_text_row("soundtrack")
+        assert tilemap_row(rom, 11, 0, 20) == title_text_row("minigames"), "MINI GAMES third (tests/test_mg_list.py)"
+        assert tilemap_row(rom, 13, 0, 20) == title_text_row("bossrush"), "BOSS RUSH fourth (tests/test_rush.py)"
+        assert tilemap_row(rom, 7, 0, 20) == title_text_row("credits"), "CREDITS first (tests/test_credits.py)"
 
 
 def test_soundtrack_opens_the_player_and_b_comes_back_to_bonus(boot):
@@ -87,7 +87,7 @@ def test_soundtrack_opens_the_player_and_b_comes_back_to_bonus(boot):
     boot.run(MENU_SETTLE)
     assert boot.mem("title_menu") == TM_BONUS and menu_items(boot) == [K_CREDITS, K_SOUNDTRACK, K_MINIGAMES, K_BOSSRUSH]
     assert boot.mem("title_sel") == 1
-    assert tilemap_row(boot, 8, 0, 20) == title_text_row("soundtrack"), "the BONUS submenu, where it was opened"
+    assert tilemap_row(boot, 9, 0, 20) == title_text_row("soundtrack"), "the BONUS submenu, where it was opened"
     tap(boot, "b")
     boot.run(MENU_SETTLE)
     assert boot.mem("title_menu") == TM_TOP and boot.mem("title_sel") == 1, "then the top level, on BONUS"
@@ -222,7 +222,8 @@ def test_music_off_still_plays_here_and_stays_off_after(boot):
     tap(boot, "b")                                            # BONUS -> the top level
     title_pick(boot, K_SETTINGS)
     boot.run(MENU_SETTLE)
-    assert tilemap_row(boot, 7, 0, 20) == title_text_row("music_off")
+    from test_flow import settings_row
+    assert tilemap_row(boot, settings_row(boot, 0), 0, 20) == title_text_row("off")
 
 
 def test_no_sprite_on_the_screen(boot):

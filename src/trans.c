@@ -107,6 +107,7 @@ static void keep_win(void) { if (game_state == GS_PAUSED && overlay_on) SHOW_WIN
 #define V_AMBER    2
 #define COL_W      0x7FFF
 #define COL_A      0x0E7F                        // amber: R 31 G 19 B 3
+#define COL_AB     BRIGHTEN(COL_A)               // (SCREEN BRIGHT lifts the drink's amber too: the fade out to it and back to white run on lifted colours)
 #define FADE_STEP  3                              // frames a CGB step takes (at least: compute + the two bursts)
 #define FADE_DMG   6
 #define STASH      ((volatile uint8_t *)0x8F80)
@@ -248,11 +249,11 @@ static uint8_t dstep(const uint8_t *o, uint8_t k, uint8_t fr, uint8_t f0, uint8_
 
 static void cgb_cover(uint8_t v) {
     uint8_t s, f, fast = FAST_ON, n = fast ? 4 + 2 * 2 : 4 + 6 * FADE_STEP + (v == V_AMBER ? 3 * FADE_STEP : 0), o[128];
-    uint16_t t = v == V_AMBER ? COL_A : COL_W;
+    uint16_t t = v == V_AMBER ? COL_AB : COL_W;
     f = pal_in(o, 0, n, 0);
     if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_out[s], t, 0, 2, f, n, 0);
     else for (s = 0; s < 6; s++) f += cstep(o, k_out[s], t, 0, FADE_STEP, f, n, 0);
-    if (v == V_AMBER) for (s = 0; s < 3; s++) f += cstep(0, k_amb[s], COL_W, COL_A, FADE_STEP, f, n, 0);
+    if (v == V_AMBER) for (s = 0; s < 3; s++) f += cstep(0, k_amb[s], COL_W, COL_AB, FADE_STEP, f, n, 0);
     volume(0);
     lcd_off_p();                                                 // (TR_WANT is already clear: the plain way) the LCD goes off in the white
     if (game_state != GS_PAUSED) music_pump();                   // (the tick that fell due while the LCD went off)

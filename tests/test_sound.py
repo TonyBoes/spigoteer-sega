@@ -867,19 +867,20 @@ def music_text(gb):
 
 
 def test_select_toggles_the_music(srom):
+    srom.run(200)                  # (past the DX badge's stamp sound on a Color, SFX that the music switch does not silence)
     title_pick(srom, K_SETTINGS)   # (SELECT works on any menu level; SETTINGS shows the line)
     srom.run(MENU_SETTLE)
-    assert srom.mem("sound_on") == 1 and music_text(srom) == title_text_row("music_on")
+    assert srom.mem("sound_on") == 1 and music_text(srom) == title_text_row("on")
     srom.press("select", 2)
     srom.run(2)
-    assert srom.mem("sound_on") == 0 and music_text(srom) == title_text_row("music_off")
+    assert srom.mem("sound_on") == 0 and music_text(srom) == title_text_row("off")
     f = srom.mem16("music_frames")
     srom.run(30)
     assert srom.mem16("music_frames") == f, "the driver is not ticking while the music is off"
     assert silent(audio_frames(srom, 10)), "silent (the driver cuts the notes)"
     srom.press("select", 2)
     srom.run(2)
-    assert srom.mem("sound_on") == 1 and music_text(srom) == title_text_row("music_on")
+    assert srom.mem("sound_on") == 1 and music_text(srom) == title_text_row("on")
     srom.run(30)
     assert srom.mem(NR52) & 0x06, "the title tune is back"
 

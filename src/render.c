@@ -17,6 +17,7 @@ uint8_t row_buf[20];
 uint8_t pal5_cur;                 // CGB OBJ palette 5 holds the show (2) or not (0, 1: something else) (load_venue loads the show's); see pal5_check
 volatile uint8_t pal5_req;        // bit 0: OBJ palette 5, the show's (pal5_write); bit 1: the Mothership's lights (boss_mothership.c lights; pal5_other)
 static const uint16_t *pal5_src;
+uint16_t pal5_lifted[4];       // SCREEN BRIGHT: the show's colours lifted, written raw by the VBlank (bright.c pal5_lift)
 static void pal5_write(void);
 uint8_t score_tiles[6];      // the HUD digits as BG tile ids, prepared outside VBlank
 uint8_t lives_tiles[2];
@@ -779,7 +780,8 @@ static void draw_coin(void) {
 // drawing, written by the VBlank interrupt (vq_vbl) right after the OAM DMA that shows the frame.
 static void pal5_check(void) {
     if (!show_timer || pal5_cur == 2 || !is_cgb) return;
-    pal5_src = venue.pal[VENUE_PAL_SHOW];
+    if (SCR_BRIGHT()) { pal5_lift(); pal5_src = pal5_lifted; }   // SCREEN BRIGHT: the VBlank writes pal5_lifted raw, so the show's colours are lifted into it here (src/bright.c)
+    else pal5_src = venue.pal[VENUE_PAL_SHOW];
     pal5_cur = 2;
     pal5_req = 1;
 }

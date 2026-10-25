@@ -55,6 +55,19 @@ static void load_cgb_palettes(void) {
     // M13a: the glass shares the venue's empty-drink palette, the coin slot 5 (render.c), patrons 3/6/7 (lift.c)
 }
 
+// SETTINGS > SCREEN (game.h bright.h): the choice into _is_GBA's bit 1, a Color only. The saved choice; none saved: NORMAL, and on a GBA (bit 0) the title's
+// first-boot prompt is asked for (bit 2).
+void screen_load(void) BANKED {
+    uint8_t m;
+    if (!is_cgb) return;
+    m = screen_saved();                                       // 0 nothing saved, 1 NORMAL, 2 BRIGHT
+    _is_GBA = (_is_GBA & 1) | ((m == 2) << 1) | (m ? 0 : (_is_GBA & 1) << 2);
+}
+
+void screen_pal_reload(void) BANKED {                         // (SETTINGS changed the choice: the palettes made at boot, written again; the title's own: title.c)
+    if (is_cgb) load_cgb_palettes();
+}
+
 // ---- scene -------------------------------------------------------------------
 static void glyph_row(uint8_t y, uint8_t x, const uint8_t *tiles, uint8_t n) {
     vram_put(x, y, tiles, n);
@@ -125,6 +138,8 @@ void boot_init(void) BANKED {
     // already fails the _cpu test, so the pair is right on all three.
     VBK_REG = VBK_BANK_0;
     is_cgb = (_cpu == CGB_TYPE) && ((VBK_REG & 0xFE) == 0xFE);
+    _is_GBA &= 1;                                // (bit 1 is this game's SCREEN BRIGHT: bright.h)
+    screen_load();
     if (is_cgb) {
         load_cgb_palettes();
     } else {

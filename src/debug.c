@@ -350,7 +350,7 @@ static void close_menu(void) {
             VBK_REG = VBK_BANK_1;
             for (k = 0; k < 8; k++) b[k] = vget(r + k);
             VBK_REG = VBK_BANK_0;
-            set_bkg_palette(SKIN_PAL_WALL + i, 1, (uint16_t *)b);
+            (set_bkg_palette)(SKIN_PAL_WALL + i, 1, (uint16_t *)b);   // (raw: b was read back from palette RAM, already lifted when SCREEN is BRIGHT)
         }
     }
     LYC_REG = vget((const volatile uint8_t *)(0x9C00 + (DBG_SAVE_ROW + 3) * 32));
