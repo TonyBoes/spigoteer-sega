@@ -128,5 +128,7 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - STILL HELD: all patron work (the Saloon 8 looks build, renames, enhanced removal, back views), and the credits (deferred until locked).
 - 2026-10-25 Q49 answered: SETTINGS v5 approved; move it, and every other title menu/prompt, down one row. RUNNING on gba-final; then replace the shifted
   goldens (bbox check), verify, merge gba-final, refresh Pocket Player main and retire the settings ROM. Music-stop: owner did not follow up (not reproducible).
+- 2026-10-25 Q53: teapot B approved. Q54: all 13 Practice pictures approved. RUNNING: import (teapot B + stream 107/122, 13 PNGs + .txt sources,
+  Taiko picture's teapot redrawn to B), new goldens.
 - WAITING ON THE OWNER: GUS's tip when a coin is already out (option A proposed); Big Tex on DUSTY/EMMA's palette?
 - OPTIONAL, NOT STARTED: Boss Rush busts (64x40), unless the owner wants them.
