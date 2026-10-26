@@ -127,6 +127,21 @@ def _table(name):
 HAND_DX, HAND_DY, HAND_INV = _table("hand_dx"), _table("hand_dy"), _table("hand_inv")
 OBJ_GLASS = 60                                 # (src/game.h: OBJ_MUG 56 + 4; the crash's tiles: fall full at +2, its right half at +4)
 PROTO = 5
+HAND_TILT = _table("hand_tilt")
+BOSS_FILES = ["big_tex", "mascot", "sasquatch", "critic", "yeti", "prototype", "duke", "sumo", "leo", "mothership"]
+
+
+def _tilt_art(c):
+    h = (ROOT / "build" / f"boss_{BOSS_FILES[c]}_art.h").read_text()
+    m = re.search(r"boss_art_tilt\[64\] = \{([^}]*)\}", h)
+    if not m:
+        assert not HAND_TILT[c]
+        return None
+    assert int(re.search(r"BOSS_ART_TILT_T (\d+)", h).group(1)) == HAND_TILT[c], "hand_tilt and the loader's tile id agree"
+    return bytes(int(x, 16) for x in m.group(1).split(","))
+
+
+TILT_ART = [_tilt_art(c) for c in range(10)]
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -167,11 +182,13 @@ def test_the_hand_mug_is_the_drink_that_was_served(model, c):
                 k = 4
                 assert o["flags"] == gb.mem("spr_empty_p")
             else:
-                assert o["tile"] == OBJ_GLASS + 2 and o["flags"] == gb.mem("spr_full_p"), o
-                k = 2
+                assert o["tile"] in (OBJ_GLASS + 2, HAND_TILT[c]) and o["flags"] == gb.mem("spr_full_p"), o
+                k = 1 if o["tile"] == HAND_TILT[c] else 2
                 s2 = oam[o2]
-                assert (s2["tile"], s2["y"], s2["x"], s2["flags"]) == (OBJ_GLASS + 4, o["y"], o["x"] + 8, o["flags"]), (s2, o)
-                assert any(bytes(gb.read(0x8000 + (OBJ_GLASS + 2) * 16, 64))), "the crash's tiles are loaded"
+                assert (s2["tile"], s2["y"], s2["x"], s2["flags"]) == (o["tile"] + 2, o["y"], o["x"] + 8, o["flags"]), (s2, o)
+                assert any(bytes(gb.read(0x8000 + o["tile"] * 16, 64))), "the 45 degree tilt's or the crash's tiles are loaded"
+                if k == 1:
+                    assert bytes(gb.read(0x8000 + o["tile"] * 16, 64)) == TILT_ART[c], "his venue's tilt (mirrored), loaded for the fight"
             if not order or order[-1] != k:
                 order.append(k)
             if c == PROTO:
@@ -180,9 +197,9 @@ def test_the_hand_mug_is_the_drink_that_was_served(model, c):
             assert order == [0] and len(pals) == 2, (order, pals)    # (the full and the empty palette: DMG OBP0 / OBP1)
             assert len(ys) == 1
         else:
-            assert order == sorted(order) and set(order) >= {2, 4}, order        # (upright, on its side, empty: never back up)
+            assert order == sorted(order) and set(order) >= ({1, 2, 4} if HAND_TILT[c] else {2, 4}), order        # (upright, on its side, empty: never back up)
             lo = min(xs)
-            assert lo in (HAND_DX[c] - 4, HAND_DX[c] - 2, HAND_DX[c], HAND_DX[c] + 2) or (r["sway"] == 0 and lo >= HAND_DX[c] - 4), (lo, HAND_DX[c], xs)
+            assert HAND_DX[c] - 6 <= lo <= HAND_DX[c] + 2, (lo, HAND_DX[c], xs)
             assert max(xs) <= 2 if r["sway"] else max(xs) == 0, "it never wanders right of his hand"
         frames(gb, 2)
         assert gb.oam()[OAM_HAND]["y"] == 0, "the mug goes when the gulp is over"

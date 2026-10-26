@@ -844,7 +844,7 @@ static const int8_t  hand_dx[BOSS_COUNT]  = { -12, -12, -12, -12, -16, -13, -11,
 static const int8_t  hand_dy[BOSS_COUNT]  = {   3,   3,   3,   6,   0,   7,   6, 0,  3, 0 };
 static const uint8_t hand_end[BOSS_COUNT] = {  57,  33,  11,  83,  43,  29,  29, 0,  43, 0 };   // (his gulp - 1; the Sasquatch's 11: his mug-down beat is 12 on)
 static const uint16_t hand_inv[BOSS_COUNT] = {  73, 133, 549,  49,  99, 154, 154, 0,  99, 0 };   // (4096 / (E - HOP_FRAMES) up; tests/test_boss_cap_ui.py checks them)
-static const uint8_t hand_tilt[BOSS_COUNT] = {   0,   0,   0,   0,   0,   0,   0, 0,   0, 0 };   // (the tilt frame's first tile, OBJ ids 120-123 (Leo 100-103): none yet)
+static const uint8_t hand_tilt[BOSS_COUNT] = { 120, 120, 120, 120, 120,   0, 120, 0, 100, 0 };   // (the 45 degree tilt's first tile, gen_boss `tilt`: OBJ 120-123, Leo 100-103; the Prototype has none)
 #define HAND_PROTO 5
 
 // The hand mug's entries off (the second only if it is ours: Leo's waves, the Critic's cloche may be in the slot)
@@ -881,10 +881,10 @@ static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
         else two = 1;
     }
     d = bar_oam_y[boss_bar] + hand_base[boss_row] - 14 + (hand_dy[boss_row] * w >> 3);   // its y; from top: -8..4, so bands 0..6 (28 lines on at most)
-    if (two) d -= 7;
+    if (two) d -= f == 1 ? 0 : 7;               // (the 45 degree tilt is centred on the upright mug; the one on its side sits 7 up)
     if (!fits(n, (uint8_t)(d - top) >> 2, (uint8_t)(d - top + 15) >> 2, extra + 1 + two)) return;
     if (boss_row == HAND_PROTO && (boss_t & 8)) p ^= is_cgb ? OBJPAL_MUG_FULL ^ OBJPAL_MUG_EMPTY : S_PALETTE;   // (the battery's two palettes: in use. DMG OBP0 / OBP1)
-    o->y = d; o->x = boss_x + br->width + dx + (hand_dx[boss_row] * w >> 3) - 2 * two; o->tile = t; o->prop = p;
+    o->y = d; o->x = boss_x + br->width + dx + (hand_dx[boss_row] * w >> 3) - (f == 1 ? 4 : 2) * two; o->tile = t; o->prop = p;
     if (two) { o2->y = d; o2->x = o->x + 8; o2->tile = t + 2; o2->prop = p; }
 }
 

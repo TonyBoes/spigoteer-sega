@@ -31,6 +31,9 @@ static void boss_art_load(void) {
 #endif
     BOSS_BG(BOSS_HUD_BG, 1, boss_art_icon);
     BOSS_OBJ(OBJ_TOPPER, BOSS_ART_HAT_TILES, boss_art_hat);   // HAT_STILL, HAT_BOB (and his `hats`)
+#ifdef BOSS_ART_TILT_T
+    BOSS_OBJ(BOSS_ART_TILT_T, 4, boss_art_tilt);               // his hand mug's 45 degree tilt (gen_boss `tilt`; boss.c hand_tilt)
+#endif
 #ifdef BOSS_ART_FX
     BOSS_BG(BOSS_MARK_BG, BOSS_ART_FX, boss_art_fx);           // the landing marker (gen_boss `fx`)
 #endif
