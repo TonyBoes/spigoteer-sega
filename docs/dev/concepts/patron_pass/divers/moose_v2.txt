@@ -1,0 +1,20 @@
+; MOOSE front (frame C), round 2 (v2), 2026-10-26. Starts from the OLD sprite assets/art/patrons/divers.txt frame C. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #B4734A (skin, hood fur) 2 #627B39 (olive parka) 3 #101808 (dark: beard, eyes, outline); igloo wall #4A417B. Hand-drawn grid, edited from the old rows.
+; kept from the old: 3/4 turn with the nose bump, hood with the dotted fur ring, 1 px eyes under the heavy hood brim, sideburn, moustache and the strands of the beard, ruff band.
+; changed: zip runs rows 12-14 with a toggle on its left (IGGY's is on the right); 2 px right body edge thinned to 1 px. 2 px eyes were tried and joined the moustache into one dark U, so the eyes stay as the old.
+....#######.....
+..##+++++++##...
+.#++-+-+-+-+-#..
+.#+-+#######+#..
+#+-+#-------#...
+#++#---#---#-#..
+#+-#-#--------#.
+#++#-#-#####-#..
+#+-+##-#--#-#...
+#++++#######+#..
+.#++++++++++++#.
+.#-#-#-#-#-#-#+#
+#+++++++#++++++#
+#++++++-#++++++#
+#+++++++#++++++#
+################

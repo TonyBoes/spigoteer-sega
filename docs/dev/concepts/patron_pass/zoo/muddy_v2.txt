@@ -1,0 +1,20 @@
+; MUDDY front (frame C), round 2 (v2), 2026-10-26. Starts from the OLD sprite assets/art/patrons/zoo.txt frame C (hippo). 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #F6B4C5 (pink: muzzle, ears, belly) 2 #947BAC (purple skin) 3 #201029 (dark: eyes, outline); zoo wall #204A5A. Hand-drawn grid, edited from the old rows.
+; kept from the old: ears with pink linings, purple head with 2 px eyes, wide pink muzzle, nostrils, mouth, and the whole belly: the pink patch (6-9, 13-14) and every dark mark in rows 12-14, untouched.
+; changed: nostrils 1 px -> 2 px tall. Nothing else; the old drawing already follows the rules (lint: 2 orphans = the nostrils' neighbours).
+.##.#######.##..
+#--#+++++++#--#.
+.##+++++++++##..
+..#+++++++++#...
+..#++#+++#++#...
+..#++#+++#++#...
+.#+++--------#..
+.#++----------#.
+.#++---#---#---#
+..#+---#---#---#
+...#-----------#
+....##--###--##.
+.##+++##+++##++#
+#+++++----+++++#
+#+++++----+++++#
+################

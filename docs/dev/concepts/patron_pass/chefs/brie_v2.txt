@@ -1,0 +1,21 @@
+; BRIE front (frame B), round 2 v2, 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette (Sal's) 1 #FFFFF6 (white: toque, coat) 2 #F6BD8B (skin) 3 #202031 (dark: hair, toque ribs, eyes, mouth, tie, outline); bistro wall #295A5A
+; start: assets/art/patrons/chefs.txt frame B (the old drawing): same dark side hair, ribbed toque, face, mouth, collar and bow tie.
+; clean-up log: (5-12,0) toque top outlined and (4,1) left edge closed (the old toque had no top or left outline); (8,7)-(8,8),(11,7)-(11,8) eyes 1 -> 2 px tall;
+; (12,8) nose line removed so the eye is not doubled (nose is skin to the outline (14,8)); everything else kept pixel for pixel
+.....########...
+....#-#-#-#--#..
+..###-#-#-#--#..
+..####--------#.
+..####-------#..
+...###########..
+....##+++++++#..
+....##++#++#+#..
+....##++#++#++#.
+....+++++##+#...
+....+++++++#....
+...-##-#-#-#-#..
+..-----###-----#
+..------#------#
+..-------------#
+################

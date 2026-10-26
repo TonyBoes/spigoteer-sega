@@ -1,0 +1,19 @@
+; MOOSE back (frame C), round 2 (v2), 2026-10-26. Starts from the OLD sprite assets/art/patrons/divers_back.txt frame C. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; same palette as the front. Kept: hood with the zigzag back seam, dotted hood-edge trim, dotted hem band. Not symmetric (the old one is not).
+; changed: right-edge L-doubles at (13,9) and (14,13) removed; shoulder seams added at cols 4 and 11 (IGGY's are at 3 and 12), rows 11-12.
+....########....
+..##++++++++##..
+.#++++++++++++#.
+.#++++++#+++++#.
+.#+++++++#++++#.
+.#++++++#+++++#.
+.#+++++++#++++#.
+.#++++++#+++++#.
+.#++++++++++++#.
+.#+-+-+-+-+-++#.
+..#++++++++++#..
+.#++#++++++#++#.
+#+++#++++++#+++#
+#-#-#-#-#-#-#-+#
+#++++++++++++++#
+################

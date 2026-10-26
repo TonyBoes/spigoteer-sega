@@ -1,0 +1,19 @@
+; POLLY back (frame B), round 2 (v2), 2026-10-26. Starts from the OLD sprite assets/art/patrons/divers_back.txt frame B. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; same palette as the front. Kept: hood with the zigzag back seam, dotted hood-edge trim, two braids with ties, hem dots. Not symmetric (the old one is not).
+; changed: braids plaited like the front (replaces two solid 2x2 blocks the lint flagged); right-edge L-doubles at (13,9) and (14,13) removed.
+....########....
+..##++++++++##..
+.#++++++++++++#.
+.#++++++#+++++#.
+.#+++++++#++++#.
+.#++++++#+++++#.
+.#+++++++#++++#.
+.#++++++#+++++#.
+.#++++++++++++#.
+.#+-+-+-+-+-++#.
+..#+##++++##+#..
+.#++#++++++#++#.
+#+++--++++--+++#
+#+-++#-+-+#+-++#
+#+++##++++##+++#
+################

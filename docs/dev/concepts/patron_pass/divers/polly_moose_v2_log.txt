@@ -1,0 +1,18 @@
+POLLY v2 clean-up log (x,y). Start: assets/art/patrons/divers.txt frame B, divers_back.txt frame B.
+FRONT
+(7,6), (11,6) '-' -> '#': eyes 1 px -> 2 px tall (sprites.md 3a). Columns and 3/4 turn kept.
+(14,14) '#' -> '+': 2 px thick body edge thinned to 1 px.
+(6,11), (10,11) '#' -> '+' ... braids plaited: row 11 dark only at (5,11) and (11,11); row 13 dark only at (6,13) and (10,13). Replaces two solid 2x2 dark blocks by a zigzag; ties (row 12) unchanged.
+Left alone: fringe strand (6,4) under the brim (lint L-double at (6,3), deliberate hair); plait corners at (5,10), (11,10) (lint L-doubles, the plait's diagonal links).
+BACK
+(13,9) '#' -> '+', (14,13) '#' -> '+': right-edge L-doubles removed.
+Braids plaited like the front: (5,11), (10,11) '#' -> '+'; (4,13) '#' -> '+', (11,13) '#' -> '+'. Replaces the two 2x2 squares the lint flagged on the old.
+Left alone: zigzag hood seam, dotted bands, ties; lint L-doubles at the braid corners (4,10), (11,10), (5,14), (10,14) are the plait's diagonal links.
+
+MOOSE v2 clean-up log. Start: divers.txt frame C, divers_back.txt frame C.
+FRONT
+(8,12) '+' -> '#': zip rows 12-14. (7,13) '+' -> '-': toggle on the LEFT of the zip (IGGY's is on the right). (14,13), (14,14) '#' -> '+': 2 px body edge thinned.
+Tried and rejected: 2 px eyes. (7,6)/(11,6) join the moustache (row 7) into one dark U; the eyes stay 1 px under the heavy brim, as the old.
+Left alone: beard and moustache strands; lint L-double at (5,8) is the sideburn corner, deliberate (turning (5,8) light would cut the beard's link to the sideburn).
+BACK
+(13,9), (14,13) '#' -> '+': L-doubles removed. (4,11), (4,12), (11,11), (11,12) '+' -> '#': shoulder seams (IGGY's are at cols 3 and 12).

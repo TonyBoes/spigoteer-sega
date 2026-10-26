@@ -1,0 +1,21 @@
+; PIERRE front (frame A), round 2 v2, 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette (Sal's) 1 #FFFFF6 (white: toque, coat) 2 #F6BD8B (skin: face, toque pleats) 3 #202031 (dark: band, eyes, moustache, outline); bistro wall #295A5A
+; start: assets/art/patrons/chefs.txt frame A (the old drawing): same toque with two pleats, dark band, moustache, nose, striped chef coat.
+; clean-up log: toque outlined (4-11,0),(3,1),(12,1),(2,2-3),(13,2-3),(3,4),(12,4), the old toque had only a right edge and so vanished on the white DMG wall; its top row of white became the outline, toque still rows 0-4;
+; (8,5)-(8,6),(11,5)-(11,6) eyes 1 -> 2 px tall by letting them hang from the band (see doubt); (8,9) moustache 3 -> 4 px; (4,10) jaw outline closed so (4,9) is not an orphan
+....########....
+...#--+--+--#...
+..#---+--+---#..
+..#---+--+---#..
+...#--------#...
+....###########.
+....++++#++#+#..
+....++++#++#+#..
+....++++++++#+#.
+....#+++####++#.
+....#+++++++#...
+...--##-##-##-#.
+..---#--##--#--#
+..---#--##--#--#
+..---#--##--#--#
+################

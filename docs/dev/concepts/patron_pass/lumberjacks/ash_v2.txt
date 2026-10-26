@@ -1,0 +1,24 @@
+; ASH front (frame C), round 2 v2, 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #BD7B52 (skin) 2 #399441 (green: beanie, plaid) 3 #102910 (dark: eyes, moustache, outline); lodge wall #6A4A31
+; start: assets/art/patrons/lumberjacks.txt frame C (the old drawing). Same beanie with tuft, ribbed cuff, moustache, nose, plaid jacket.
+; clean-up log (x,y): face now 5 rows (rows 6-10), jacket 4 rows (12-15), head height and beanie unchanged
+; (4-5,5) cuff left end '#+' -> '##' (orphan pixel removed); cuff ribs period 3 so cols 6 and 9 stay green above the eyes
+; (6,6)-(6,7), (9,6)-(9,7) eyes 1 px -> 2 px tall; (3,6),(3,7) open left cheek closed with outline; (14,7),(14,9) nose outline closed (nose was open top and bottom)
+; (6,10)... chin steps 1,1 then flat 6 px, closed by dark row 11 as the old; (8-11,9) moustache 3 -> 4 px; (7-10,12) skin V of an open collar (V 4 -> 2 px), collar flaps replace the old solid dark block
+; plaid: even stripes -> stripes jogged on row 14, V tip closed under (8-9,14)
+.......##.......
+......#++#......
+.....++##+#.....
+.....+++++++#...
+....+++++++++#..
+....##+#++#++#..
+...#--#--#---#..
+...#--#--#---##.
+....#----------#
+....#---####-##.
+.....#------#...
+......######....
+..++++#----#++#.
+.+#++++#--#++#+#
+.+#+#+++##+++#+#
+################

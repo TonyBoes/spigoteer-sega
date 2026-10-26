@@ -1,0 +1,21 @@
+; BRIE back (frame B), round 2 v2, 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette (Sal's) 1 #FFFFF6 (white) 2 #F6BD8B (skin) 3 #202031 (dark); bistro wall #295A5A. Not symmetric, as the old one.
+; start: assets/art/patrons/chefs_back.txt frame B: same dark bun, ribbed white toque band, long dark hair, neck, white coat with the dark tie mark.
+; clean-up log: ears (1,6),(1,7),(14,6),(14,7) added beside the hair so it reads as the back of a head, not a face (the old dark block with a white rim read as a mask);
+; nape rounded in steps (3,8),(12,8) / (4,9),(11,9) as the old; everything else kept
+......####......
+.....######.....
+...-#########...
+..--#-#--#-#-#..
+..-----------#..
+..############..
+.+############+.
+.+############+.
+...##########...
+....########....
+.....+++++#.....
+...--#--------#.
+..------##-----#
+..------##-----#
+..-------------#
+################

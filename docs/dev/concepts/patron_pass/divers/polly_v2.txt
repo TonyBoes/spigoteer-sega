@@ -1,0 +1,20 @@
+; POLLY front (frame B), round 2 (v2), 2026-10-26. Starts from the OLD sprite assets/art/patrons/divers.txt frame B. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #D59C7B (skin, hood fur, hair ties) 2 #318B7B (teal parka) 3 #102929 (dark: hair, eyes); igloo wall #4A417B. Hand-drawn grid, edited from the old rows.
+; kept from the old: 3/4 turn with the nose bump, hood with the dotted fur ring, dark fringe, two braids with light ties, mouth.
+; changed: eyes 1 px -> 2 px tall; braids plaited (alternating dark and teal on the rows beside the ties, replaces two solid 2x2 blocks); 2 px right body edge thinned to 1 px.
+....#######.....
+..##+++++++##...
+.#++-+-+-+-+-#..
+.#+-+#######+#..
+#+-+#-#-##-#-#..
+#++#---#---#-#..
+#+-#---#---#--#.
+#++#------#--#..
+#+-+#-------#...
+#++++#######+#..
+.#+++##+++##++#.
+.#+++#+++++#++#.
+#++++--+++--+++#
+#+++++#+++#++++#
+#++++++++++++++#
+################

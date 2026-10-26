@@ -1,0 +1,21 @@
+; SERENA front (frame B), round 2 v2, 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #B47B52 (skin, jersey trim) 2 #295ADE (blue: headband, ribbon, jersey) 3 #000000 (hair, outline); sports wall #39415A
+; start: assets/art/patrons/sports.txt frame B (the old drawing): same ponytail ribbon, hair gloss, headband, brows and eyes, mouth, jersey with two trim bars.
+; clean-up log: (0-2,13) and (13-14,13) sleeve stripe in skin colour added (jersey trim); (12,13) trim bar kept; everything else of the old drawing kept pixel for pixel
+; (the old face, jaw and collar V already follow the skill: eyes 2 px tall, jaw steps 1,1, chin opens onto the neck)
+......#####.....
+....###++###....
+.##.#++######...
+#++##########...
+#+#.#++++++++#..
+#+#.#++++++++#..
+#+#.#-##--##-#..
+.#..#--#---#-#..
+....#---------#.
+....+----##--#..
+....+#------#...
+.+++###----#++#.
++++#+++##+++#++#
+---#++-+-+++#--#
++++#++-+-+++#++#
+################

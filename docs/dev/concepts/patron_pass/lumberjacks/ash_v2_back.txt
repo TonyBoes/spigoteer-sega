@@ -1,0 +1,21 @@
+; ASH back (frame C), round 2 v2, 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #BD7B52 (skin) 2 #399441 (green) 3 #102910; lodge wall #6A4A31. Symmetric about column 8 in the head, as the old one; column 0 empty.
+; start: assets/art/patrons/lumberjacks_back.txt frame C. Same beanie with tuft and ribbed cuff, dark hair, ears, neck, plaid jacket.
+; clean-up log: cuff ribs period 3 as the front; ears 1 -> 2 px tall (3,7)-(3,8),(13,7)-(13,8); hair 3 rows -> 2 rows plus nape corners (5-6,9),(10-11,9); neck 1 -> 2 rows (7-9,9-10);
+; plaid row 13 stripes jogged one column (broken check). Lint L-doubles at (5,8),(11,8) are convex corners of the solid dark hair mass, kept (same as the old).
+.......##.......
+......#++#......
+......+##+#.....
+.....+++++++#...
+....+++++++++#..
+....+++++++++#..
+....#++#++#++#..
+...-#########-..
+...-#########-..
+.....##---##....
+......#---#.....
+..++++#####+++#.
+.+#++#++++#++#+#
+.+#+#++++++#+#+#
+.+#++#++++#++#+#
+################

@@ -49,8 +49,8 @@ PROJECT CONSTRAINTS (PATRON_SPEC.md has the details)
 - 16x16; front in 3/4 view facing right; back 16x16. The whole picture is flipped on mirrored levels.
 - Index 0 is the wall, transparent when lifted; no index-0 holes. Indices 1-3 light to dark; keep each figure's
   colour-slot use (skin stays in the same index), because palettes are shared between patrons.
-- Variant A's back view must be symmetric about column 8 with column 0 empty (as tests/test_cowboy_back.py checks the
-  Saloon's). B and C: keep the back's symmetry as it is.
+- Backs: keep each back's symmetry as it is. Only the Saloon's variant A must be symmetric (PATRON_SPEC section 9;
+  tests/test_cowboy_back.py); these venues' A backs need not be.
 - The held mug covers his right half at face height (spec section 8): the face must still read with it there.
 - Preview colours: the PLANNED palettes from the Palette Plan (python3 tools/artifacts/palette_plan/build.py writes a
   Markdown table per venue; the planned colours are also in its PLANS), on the venue's CGB wall:

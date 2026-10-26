@@ -1,0 +1,19 @@
+; IGGY back (frame A), round 2 (v2), 2026-10-26. Starts from the OLD sprite assets/art/patrons/divers_back.txt frame A. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; same palette as the front. Kept: hood with the zigzag back seam, dotted hood-edge trim, dotted hem band. Not symmetric (the old one is not; see report).
+; changed: shoulder seams added (rows 11-12, cols 3 and 12); double outline on the right at rows 9 and 13 thinned to 1 px (step now diagonal).
+....########....
+..##++++++++##..
+.#++++++++++++#.
+.#++++++#+++++#.
+.#+++++++#++++#.
+.#++++++#+++++#.
+.#+++++++#++++#.
+.#++++++#+++++#.
+.#++++++++++++#.
+.#+-+-+-+-+-++#.
+..#++++++++++#..
+.#+#++++++++#+#.
+#++#++++++++#++#
+#-#-#-#-#-#-#-+#
+#++++++++++++++#
+################

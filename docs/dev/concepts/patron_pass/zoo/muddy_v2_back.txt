@@ -1,0 +1,19 @@
+; MUDDY back (frame C), round 2 (v2), 2026-10-26. Starts from the OLD sprite assets/art/patrons/zoo_back.txt frame C. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; same palette as the front. Kept: round purple head, pink ear linings, neck line, body. Not symmetric rule: the old is symmetric about column 7.5 already; kept so.
+; changed: shoulder seams at (3,13), (3,14), (12,13), (12,14), so the bust has arms instead of one flat block. Ear corner L-doubles at (2,2), (13,2) kept: they are the ear base outline.
+.##.########.##.
+#--#++++++++#--#
+.##++++++++++##.
+..#++++++++++#..
+.#++++++++++++#.
+#++++++++++++++#
+#++++++++++++++#
+#++++++++++++++#
+#++++++++++++++#
+.#++++++++++++#.
+..#++++++++++#..
+...##########...
+.##++++++++++##.
+#++#++++++++#++#
+#++#++++++++#++#
+################

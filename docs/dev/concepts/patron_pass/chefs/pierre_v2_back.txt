@@ -1,0 +1,20 @@
+; PIERRE back (frame A), round 2 v2, 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette (Sal's) 1 #FFFFF6 (white) 2 #F6BD8B (skin) 3 #202031 (dark); bistro wall #295A5A. Not symmetric, as the old one (the spec's symmetry rule is the Saloon's A only).
+; start: assets/art/patrons/chefs_back.txt frame A: same toque with pleats, dark band and dark hair, ears, neck, chef coat. Round 1's white hair read as Santa; hair stays dark.
+; clean-up log: ears stay 1 px (3,8),(14,8) as the old; toque outlined as the front v2 (top row (4-11,0), left (2-3,1-4)); neck 7 -> 5 px (6-10,10) so the dark head reads wider than the neck
+....########....
+...#--+--+--#...
+..#---+--+---#..
+..#---+--+---#..
+...#--------#...
+....###########.
+....##########..
+....##########..
+...+##########+.
+....##########..
+......+++++#....
+...--##----##-#.
+..------##-----#
+..------##-----#
+..---########--#
+################

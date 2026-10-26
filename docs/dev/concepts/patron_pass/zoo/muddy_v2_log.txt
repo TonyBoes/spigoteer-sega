@@ -1,0 +1,8 @@
+MUDDY v2 clean-up log (x,y). Start: assets/art/patrons/zoo.txt frame C (hippo), zoo_back.txt frame C.
+FRONT
+(7,9), (11,9) '-' -> '#': nostrils 1 px -> 2 px tall so they read as nostrils, not dots.
+Everything else untouched on purpose: the belly (pink patch cols 6-9 rows 13-14 and every dark mark in rows 12-14: the owner kept these), ears, mouth, 3/4 turn. The lint finds no L-doubles or squares on the old front.
+BACK
+(3,13), (3,14), (12,13), (12,14) '+' -> '#': shoulder seams, so the bust has arms instead of a flat block.
+Left alone: lint L-doubles at (2,2), (13,2): the ear base outline, deliberate (opening it would leave the pink ear without an outline).
+OPTION S (front): (5,2), (6,2) '+' -> '-': 2 px pink sheen on the crown.

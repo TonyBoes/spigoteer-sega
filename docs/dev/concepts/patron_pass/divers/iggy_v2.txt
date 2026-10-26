@@ -1,0 +1,20 @@
+; IGGY front (frame A), round 2 (v2), 2026-10-26. Starts from the OLD sprite assets/art/patrons/divers.txt frame A. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #E6AC7B (skin, hood fur) 2 #5ABDFF (parka blue) 3 #101829 (dark); igloo wall #4A417B. Hand-drawn grid, edited from the old rows.
+; kept from the old: 3/4 turn to the right with the nose bump, hood with the dotted fur ring, flat dark hood brim, bare face, mouth, ruff band, zip.
+; changed: eyes 1 px -> 2 px tall; zip runs rows 12-14 with a toggle; 2 px right body edge thinned to 1 px. (Outer brows tried: see iggy_v2_optB.txt, lint L-double.)
+....#######.....
+..##+++++++##...
+.#++-+-+-+-+-#..
+.#+-+#######+#..
+#+-+#-------#...
+#++#---#---#-#..
+#+-#---#---#--#.
+#++#-----##--#..
+#+-+#-------#...
+#++++#######+#..
+.#++++++++++++#.
+.#-#-#-#-#-#-#+#
+#+++++++#++++++#
+#+++++++#-+++++#
+#+++++++#++++++#
+################

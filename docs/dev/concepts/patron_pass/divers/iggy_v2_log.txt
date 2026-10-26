@@ -1,0 +1,13 @@
+IGGY v2 clean-up log (x,y; origin top-left). Start: assets/art/patrons/divers.txt frame A and divers_back.txt frame A.
+FRONT
+(7,6) '-' -> '#', (11,6) '-' -> '#': eyes 1 px -> 2 px tall (sprites.md 3a: a 1 px eye reads closed or sleepy). Eye columns and the 3/4 turn kept.
+(14,13), (14,14) '#' -> '+': 2 px thick body edge on the right thinned to 1 px (SKILL step 9: thin accidental 2 px lines).
+(8,12) '+' -> '#': zip now runs rows 12-14 and meets the ruff band instead of floating (sprites.md 4: complete the line the eye expects).
+(9,13) '+' -> '-': zip toggle in the light colour, a deliberate single detail pixel.
+Tried and not used: outer brows at (6,4), (10,4) (iggy_v2_optB.txt): they touch the hood brim, lint L-doubles at (6,3), (10,3).
+Not touched on purpose: dotted fur ring and ruff band (owner-approved, read as fur; lint orphans are these dots and the eyes), face width and jaw (steps 1,1 on both sides), nose bump at (13,6)-(14,6).
+BACK
+(13,9) '#' -> '+': L-double at the hood-edge step removed; the outline now steps (14,9) -> (13,10) diagonally.
+(14,13) '#' -> '+': L-double at the hem band's right end removed (matches the front ruff end).
+(3,11), (3,12), (12,11), (12,12) '+' -> '#': shoulder seams, give the back bust arms and form instead of one flat blue block.
+Not touched on purpose: zigzag hood seam (8,3)-(8,7), dotted bands at rows 9 and 13, asymmetric layout of the old.
