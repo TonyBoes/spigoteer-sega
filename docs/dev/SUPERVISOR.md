@@ -69,7 +69,7 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
    pytest on `build/game-c.gb`, and the `RUN_SLOW` double-speed and half-rate tests, and ends with a RESULT line.
 7. **Fast-forward main.** Then, through `gb-runner` where possible:
    - refresh Pocket Player's ROMs and republish;
-   - `make atlas` and republish after art changes;
+   - `make atlas`, rebuild the Graphics Atlas (palette_plan/build.py) and republish after art changes;
    - update the Open Questions page;
    - sync `docs/dev/`;
    - add any lesson to `LESSONS.md`.

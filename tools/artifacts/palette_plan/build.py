@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the OBJ Palette Plan page (tools/artifacts/palette_plan/index.html).
+"""Build the Graphics Atlas page (formerly the OBJ Palette Plan) (tools/artifacts/palette_plan/index.html).
 
     python3 tools/artifacts/palette_plan/build.py [ATLAS_DATA_DIR] [OUT_HTML]
 
@@ -76,6 +76,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-26", "This page is now the Graphics Atlas; the old atlas page is retired."),
     ("2026-10-26", "OBJ 7: \"Boss: hat\" was in every venue; now each lists its own boss's topper (crest, horns, lamp...), reloaded in his colours for the fight."),
     ("2026-10-26", "Tile grid sorted by what the tiles are: every frame assembled as drawn (Sal, mugs, glass, coin, dancers, sparkle), patron poses and back per look, the screen as drawn, digits and letters in order; the VRAM order behind a toggle."),
     ("2026-10-26", "Tile grid per venue: the atlas tile sheets with repeated pairs, tiles and blanks outlined."),
@@ -380,7 +381,7 @@ def card(kind, sl, d, skip0, hide_cols=False):
 
 S = []
 w = S.append
-w('<title>OBJ Palette Plan</title>')
+w('<title>Graphics Atlas</title>')
 w('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>')
 w('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">')
 w("""<style>
