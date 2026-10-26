@@ -1,4 +1,4 @@
-# The drink borrows BG tile ids 248-251, which are also the story bar-change puff's OBJ tiles 246-251 (src/game.h OBJ_DUST): the first puff after a transition
+# The drink borrows BG tile ids 248-251, which were once the story bar-change puff's OBJ tiles 246-251 (the puff is at sprite-only OBJ 46-51 since Q61; src/game.h OBJ_DUST): the first puff after a transition
 # was the drink's amber tile (owner 2026-10-17: "the puff is an amber box like sprites from the transition"). Transitions ON (conftest turns them off elsewhere):
 # the puff's tiles after a title -> ARCADE and after a level -> level are those of a run without the transition, for every variant (TRANS bits 5-6).
 import pytest
@@ -25,7 +25,7 @@ def boot(model, variant, on=True):
 
 def puff_tiles(gb):
     m = gb.pb.memory
-    return bytes(m[0x8000 + 246 * 16 + i] for i in range(6 * 16))
+    return bytes(m[0x8000 + 46 * 16 + i] for i in range(6 * 16))
 
 
 def to_arcade(gb):

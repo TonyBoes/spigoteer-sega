@@ -60,7 +60,7 @@
 #define LR_OBJ_HI_A     ((MG_HOURGLASS - LR_OBJ_HI) / 2)   // the first run of those entries ends below the HUD hourglass (BG 220 is OBJ 220's memory)
 #define LR_OBJ_HI_B     (MG_HOURGLASS + 2)                 // the rest start past it (hourglass 220, 221 left empty)
 typedef char lr_fits[(LR_BG + LR_ROLL_AT >= 128 && LR_BG + LR_BG_TILES <= 256 && OBJ_MUG + 2 * LR_SLOT_ENTRIES <= OBJ_COIN
-                      && LR_OBJ_HI_A > 0 && LR_OBJ_HI_A < LR_OBJ_HI_N && LR_OBJ_HI_B + 2 * (LR_OBJ_HI_N - LR_OBJ_HI_A) <= OBJ_POUR && LR_ENTRIES > LR_SLOT_ENTRIES) ? 1 : -1];
+                      && LR_OBJ_HI_A > 0 && LR_OBJ_HI_A < LR_OBJ_HI_N && LR_OBJ_HI_B + 2 * (LR_OBJ_HI_N - LR_OBJ_HI_A) <= OBJ_SHARED_TOP && LR_ENTRIES > LR_SLOT_ENTRIES) ? 1 : -1];
 #define LR_TIME_S       40
 #define LR_ONE          65536L                  // 1 px (1.0 px a frame for a press)
 #define LR_FALL_PX      64

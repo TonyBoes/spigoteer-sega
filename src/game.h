@@ -150,6 +150,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // OBJ tile layout in VRAM
 #define OBJ_BARTENDER   0
 #define OBJ_BT_END      56    // Sal's 5 frames x 8 = OBJ 0..39; OBJ 40..55 are FREE (unused since the 5-frame art; do not renumber the world, use them)
+#define OBJ_DX_END_SAL  40    // first id after Sal's 5 pictures
 #define OBJ_DX          40    // the CGB title's DX badge: 8 tiles, OBJ 40..47 (src/title.c; Sal's pictures end at 39, OBJ_MUG starts at 56)
 #define OBJ_MUG         OBJ_BT_END
 #define OBJ_GLASS       (OBJ_MUG + MUG_TILE_COUNT)
@@ -188,21 +189,24 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // from copies of its tiles with the two bit planes swapped (colours 1 and 2 trade places), made at level load
 #define OBP1_PLAY        0xE4
 #define OBP1_MENU        0xC4   // the title / bonus OBP1 (mugs, sparkles)
-// the bar-change dust puff, 3 frames x 2 tiles (assets/art/dust.txt, tools/gen_pour.py), in ids other things also borrow, never
-// at the same time: CLASSIC's DMG flipped copies take 246..251, 77, 252..255 (11 at most; mirror.c free_ids), the story's
-// perfect pour 234..239 and neither does the other's work. So the puff sits at 234 (CLASSIC, the harness) or 246 (story, ARCADE).
-#define OBJ_DUST         (story_on ? 246 : 234)
+// the bar-change dust puff, 3 frames x 2 tiles (assets/art/dust.txt, tools/gen_pour.py): sprite-only OBJ ids 46..51 (Q61: it
+// used to borrow shared ids 234 / 246, which stay free now). 40..55 are free of Sal; the CGB title's DX badge (40..47) is the
+// only other user and never shows with a level, which reloads these (main_cold, trans.c dust_load; pour_load at a shift's start)
+#define OBJ_DUST         46
 #define KEEP_POS         0x80   // level_dirs bit 7: mode A, the bartender keeps his x on a bar change (debug box, START);
                                 // clear (the default, and always in CLASSIC): mode B, he snaps to the tap with a dust puff
 #define OBJ_DMG_COPY     240    // sliding full mug 240, sliding empty 242, held empty 244
-// Perfect pour (story): sparkle 234-235, overflow 236-237 (the venue's), the cue 238-239 (tools/gen_pour.py,
-// src/pour.c pour_load at a shift's start). OBJ ids >= 128 share VRAM with BG ids >= 128: these sit above the patron
-// tiles (PATRON_FIRST_TILE .. + PATRON_GROUP_TILES - 1) and below the DMG copies (240-245); 246-255 are mirror.c's flipped copies (and, in a story, the dust puff).
-#define OBJ_POUR         234
+// Perfect pour (story): sparkle 40-41, overflow 42-43 (the venue's), the cue 44-45 (tools/gen_pour.py, src/pour.c pour_load
+// at a shift's start): sprite-only ids below the mugs (Q61: they used to sit at 234-239, shared with the patron BG tiles).
+#define OBJ_POUR         40
 #define OBJ_POUR_CUE     (OBJ_POUR + 4)
 #define POUR_CUE_TILES    2
-#if PATRON_FIRST_TILE + PATRON_GROUP_TILES > OBJ_POUR || OBJ_POUR_CUE + POUR_CUE_TILES > OBJ_DMG_COPY
-#error "perfect pour OBJ tiles 234-239 overlap the patron tiles or the DMG copies"
+// Shared ids 234-239 and 246-251 are FREE (Q61: margin for late decorations; mirror.c's CLASSIC flipped copies and the boss
+// extras 246-251 may still borrow them): OBJ_SHARED_TOP is the first id above the patron tiles, the limit mini-games keep below.
+#define OBJ_SHARED_TOP   234
+#if PATRON_FIRST_TILE + PATRON_GROUP_TILES > OBJ_SHARED_TOP || OBJ_POUR < OBJ_DX_END_SAL || OBJ_DUST < OBJ_POUR_CUE + POUR_CUE_TILES \
+    || OBJ_DUST + 6 > OBJ_BT_END
+#error "perfect pour / dust OBJ tiles must sit in the sprite-only ids 40-55, and the patron tiles must end below OBJ_SHARED_TOP"
 #endif
 // CGB BG palette slots (2..7 are free for patrons)
 #define BGPAL_BAR        0
