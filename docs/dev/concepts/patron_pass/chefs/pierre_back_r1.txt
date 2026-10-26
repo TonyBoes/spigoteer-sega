@@ -1,0 +1,18 @@
+; PIERRE back (patron pass 2026-10-25, proposal v3). variant A: symmetric about column 8, column 0 empty, drawn by hand. white hair (no dark block), skin ears and neck.
+; 16x16: . colour 0 (wall)   - colour 1   + colour 2   # colour 3
+.....#######....
+...##---+---##..
+..#--+--+--+--#.
+...#-+--+--+-#..
+...###########..
+...#----+----#..
+..#+----+----+#.
+..#+---------+#.
+...#---------#..
+....#-------#...
+.....#+++++#....
+...#--#+++#--#..
+..#---#####---#.
+.#-------------#
+.#-----###-----#
+################

@@ -1,0 +1,18 @@
+; BRIE back (patron pass 2026-10-25, proposal v4). dotted scarf, a dark ponytail hanging on her left (the side it has in the front view), skin nape. drawn by hand.
+; 16x16: . colour 0 (wall)   - colour 1   + colour 2   # colour 3
+.....#######....
+...##-------##..
+...#-#---#---#..
+...#---#---#-#..
+...#---------#..
+...#---------#..
+...###########..
+...###+++++++#..
+...###+++++++#..
+...###+++++##...
+.....##+++#.....
+...#-##+++#--#..
+..#--##-------#.
+.#+-----------+#
+.#+-----------+#
+################
