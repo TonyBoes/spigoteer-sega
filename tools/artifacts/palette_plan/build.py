@@ -127,6 +127,12 @@ def load(name):
     return json.loads(t[i:t.rindex("}") + 1])
 
 
+def regions(rec):
+    """(sprite-only 0-127, shared 128-255, BG-only 256-383) empty tiles (not loaded, not referenced) of one atlas tile record."""
+    lo, use = rec["loaded"], rec["use"]
+    return tuple(sum(1 for i in range(a, a + 128) if lo[i] == "0" and use[i] == "0") for a in (0, 128, 256))
+
+
 def hexc(c):
     r, g, b = c & 31, (c >> 5) & 31, (c >> 10) & 31
     return "#%02X%02X%02X" % (r * 255 // 31, g * 255 // 31, b * 255 // 31)
@@ -145,8 +151,8 @@ venues = []
 for key, name in VENUES:
     lv = load("level_" + key)
     c = lv["cgb"]
-    t0, t1, d0 = c["tiles"][0]["counts"], c["tiles"][1]["counts"], lv["dmg"]["tiles"][0]["counts"]
-    tiles = dict(used=384 - t0["empty"], free=t0["empty"], free1=t1["empty"], dused=384 - d0["empty"], dfree=d0["empty"])
+    bs = load("boss_%d" % (len(venues) + 1))                    # the same venue's boss fight (boss_N = VENUES order)
+    tiles = dict(b0=regions(c["tiles"][0]), b1=regions(c["tiles"][1]), d=regions(lv["dmg"]["tiles"][0]), bb=regions(bs["cgb"]["tiles"][0]))
     pal = {p["slot"]: [hexc(x) for x in p["rep"]] for p in c["pal"]["obj"]}
     bgp = {p["slot"]: [hexc(x) for x in p["rep"]] for p in c["pal"]["bg"]}
     used = {}
@@ -430,6 +436,7 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pt td.pic { width: 100px; min-width: 100px; padding-block: 4px; }
 .pics { display: flex; gap: 4px; }
 .bimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: none; border-radius: 4px; }
+.bdesc { margin: 0 0 8px; padding-left: 1.1em; font-size: 13px; } .bdesc b { font-family: var(--mono); font-size: 12px; }
 .poses { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 .poses figure { margin: 0; }
 .poses figcaption { font: 600 11px var(--body); color: var(--muted); margin-top: 3px; letter-spacing: .04em; }
@@ -441,6 +448,7 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .ph2 { display: flex; align-items: end; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .copymd { font: 600 13px var(--body); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }
 .copymd:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tdet { font-size: 13px; color: var(--muted); margin: 8px 0 0; } .tdet summary { cursor: pointer; font-weight: 600; } .tdet ul { margin: 4px 0 0; padding-left: 1.2em; }
 .foot { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 13px var(--mono); padding: 6px 12px; border-radius: 6px; }
 </style>""")
@@ -537,10 +545,10 @@ BOSS_PAL = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)
 SHEET_W, GAP = 168, 8                         # the editable sheet: blocks in file order, rows of at most 168 px, 8 px apart
 
 
-def boss_blocks(name):
-    """[(block name, rows)] of assets/art/boss/<name>.txt in file order."""
+def boss_blocks(name, path=None):
+    """[(block name, rows)] of assets/art/boss/<name>.txt (or of `path`) in file order."""
     out, cur = [], None
-    for l in open(os.path.join(ROOT, "assets/art/boss/%s.txt" % name)).read().splitlines():
+    for l in open(path or os.path.join(ROOT, "assets/art/boss/%s.txt" % name)).read().splitlines():
         if l.startswith("@"):
             cur = (l[1:].split()[0], []); out.append(cur)
         elif cur is not None and l and not l.startswith(";"):
@@ -574,28 +582,92 @@ def boss_section(v, m, field):
     blocks = dict(boss_blocks(name))
     allb = boss_blocks(name)
     tops = {"HAT_STILL", "HAT_BOB", "HAT_POP0", "HAT_POP1", "HAT_POP2", "HAT_POP3", "HAT_DUCK", "LAMP_RING", "LAMP_X"}
-    # every body pose as built: the body on the bar, the topper over it (its frame per pose), fight colours
-    hatof = dict(STOMP="HAT_BOB", DUCK="HAT_DUCK", RED="LAMP_X", BARE=None)
-    red = next((p["colours"] for p in parts if p.get("kind") == "OBJ" and p.get("slot") == 4 and p.get("colours")), top)
+    # every body pose as the game shows it: the body on the bar plus every sprite drawn in that pose (src/boss.c boss_draw: the topper, the
+    # capacity mugs, the hand mug; the boss files: tell effects), fight colours (the planned ones for the venue's slots). boss_notes.py has the data.
+    import boss_notes as BN
+
+    def planned(kind, slot, prefix=None):
+        for q in parts:
+            if q.get("kind") == kind and q.get("slot") == slot and q.get("colours") and (prefix is None or q["part"].startswith(prefix)):
+                return q["colours"]
+        return eff(m[("OBJ", slot)] if kind == "OBJ" else field[slot])[1:]
+    red = next((q["colours"] for q in parts if q.get("kind") == "OBJ" and q.get("slot") == 4 and q.get("colours")), top)
+    CK = dict(body=body, top=top, red=red, ring=planned("OBJ", 5, "Topper"), mug=planned("OBJ", 1), cap=planned("OBJ", 2))
+    wall4 = lambda k: eff(field[0] if k == "bar" else field[7])
+    files = {name: dict(allb), "leo_fx": dict(boss_blocks("", os.path.join(ROOT, "assets/art/leo_fx.txt"))),
+             "mascot": dict(boss_blocks("mascot")), "tag": dict(boss_blocks("", os.path.join(ROOT, "assets/art/boss/tag.txt")))}
+    for k in ("mascot", "critic", "yeti", "prototype", "mothership", "sasquatch", "leo"):
+        files.setdefault(k, dict(boss_blocks(k)))
+    drink = frames(os.path.join(VD, "%s_drink.txt" % SCENE[v["key"]]))[0]          # the venue's drink art, frame 1: the sliding full mug
+
+    def rows_of(f, bn):
+        return drink if f == "mug" else files[f][bn]
+
+    def bbox(rows):
+        ys = [y for y, r in enumerate(rows) if any(c in "-+#" for c in r)]
+        xs = [x for r in rows for x, c in enumerate(r) if c in "-+#"]
+        return (min(xs), min(ys), max(xs) + 1, max(ys) + 1) if xs else (0, 0, 1, 1)
+
+    def pic(label, pose, o):
+        """item list of one picture: (rows, x, y, colour key, behind). Body first."""
+        o = dict(BN.OVR.get(name, {}).get(pose, {}), **o)
+        rows = blocks[pose]
+        bw = max(len(r) for r in rows)
+        items = [(rows, (width - bw) // 2, 0, "body", False)]
+        hand = HAND_BASE_ = BN.HAND_BASE[name]
+        hat = o.get("hat", ("HAT_BOB" if pose == "STOMP" else "HAT_STILL", "top"))
+        if hat and hat[0] in blocks:
+            items.append((blocks[hat[0]], hat_dx, -8, hat[1], False))
+        h = BN.HANDS[name]
+        caps = o.get("caps", None if pose == "HAPPY" else ((h - 1, 1) if h > 1 else (0, 1)))
+        for k in range((caps[0] + caps[1]) if caps else 0):
+            items.append((files["tag"]["TAKEN" if k < caps[0] else "ROOM"], width - 8 + 8 * k, -8, "cap", False))
+        if pose == "GULP" and HAND_BASE_ is not None and o.get("hand", True):
+            items.append((drink, width - 8, HAND_BASE_ - 14, "mug", False))
+        for f, bn, x, y, ck, behind in o.get("add", []):
+            items.append((rows_of(f, bn) if f == "mug" else files[f][bn], x, y, ck, behind))
+        return label, items
+
+    pics = [pic(pn, pn, {}) for pn in ["WALK", "STOMP", "GULP", "WINCE", "HAPPY"] + BN.EXTRA[name]]
+    pics += [pic(lb, base, o) for lb, base, o in BN.ADD.get(name, [])]
+    x0 = y0 = 0; x1, y1 = width, 16
+    y0 = -8
+    for lb, items in pics:
+        for rows, x, y, ck, behind in items:
+            bx0, by0, bx1, by1 = bbox(rows)
+            x0, y0, x1, y1 = min(x0, x + bx0), min(y0, y + by0), max(x1, x + bx1), max(y1, y + by1)
+    cw, ch = x1 - x0, y1 - y0
+    sc = 3
+
+    def paint(im, rows, x, y, cols, ox, oy):
+        for yy, r in enumerate(rows):
+            for xx, c in enumerate(r):
+                if c in "-+#" and 0 <= x - ox + xx < im.width and 0 <= y - oy + yy < im.height:
+                    im.putpixel((x - ox + xx, y - oy + yy), hex2(cols["-+#".index(c)]))
     poses = []
-    for bn, rows in allb:
-        if len(rows) != 16 or max(len(r) for r in rows) != width:
-            continue
-        im = Image.new("RGB", (width, 24), hex2(wall))
-        for y, r in enumerate(rows):
-            for x, ch in enumerate(r):
-                if ch in "-+#":
-                    im.putpixel((x, y + 8), hex2(body["-+#".index(ch)]))
-        hb = hatof.get(bn, "HAT_STILL")
-        if hb in blocks:
-            tc = red if hb == "LAMP_X" else top
-            for y, r in enumerate(blocks[hb][:16]):
-                for x, ch in enumerate(r[:8]):
-                    if ch in "-+#" and 0 <= hat_dx + x < width:
-                        im.putpixel((hat_dx + x, y), hex2(tc["-+#".index(ch)]))
-        rel = "img/boss_%s_%s.png" % (name, bn.lower())
-        im.resize((width * 3, 72), Image.NEAREST).save(os.path.join(os.path.dirname(OUT), rel), "PNG")
-        poses.append((bn, rel))
+    for lb, items in pics:
+        im = Image.new("RGB", (cw, ch), hex2(wall))
+        for rows, x, y, ck, behind in sorted(items, key=lambda it: not it[4]):
+            if behind:                                  # drawn behind the body: paint it first, the body's pixels go over it
+                paint(im, rows, x, y, CK[ck], x0, y0)
+        for rows, x, y, ck, behind in items:
+            if not behind:
+                paint(im, rows, x, y, CK[ck], x0, y0)
+        rel = "img/boss_%s_%s.png" % (name, lb.lower().replace(" ", "_"))
+        im.resize((cw * sc, ch * sc), Image.NEAREST).save(os.path.join(os.path.dirname(OUT), rel), "PNG")
+        poses.append((lb, rel, cw * sc, ch * sc, True))
+    for lb, tiles, ck, sw_ in BN.SIDE.get(name, []):    # what lives on another bar or on the counter: its own small picture
+        if ck in ("bar", "bg7"):
+            c4 = wall4(ck); bgc, cols = c4[0], c4[1:]
+        else:
+            bgc, cols = wall, CK[ck]
+        th = max(len(files[f][bn]) for f, bn, _, _ in tiles)
+        im = Image.new("RGB", (sw_, th), hex2(bgc))
+        for f, bn, x, y in tiles:
+            paint(im, files[f][bn], x, y, cols, 0, 0)
+        rel = "img/boss_%s_side_%s.png" % (name, lb.lower())
+        im.resize((sw_ * sc, th * sc), Image.NEAREST).save(os.path.join(os.path.dirname(OUT), rel), "PNG")
+        poses.append((lb, rel, sw_ * sc, th * sc, False))
     # the editable sheet: every block, indexed; colour 0 the wall, 1-3 the body, 4-6 the topper's own colours if different
     pos, (sw, sh) = boss_layout(allb)
     sheet = Image.new("P", (sw, sh), 0)
@@ -610,11 +682,15 @@ def boss_section(v, m, field):
     dl = "img/boss_%s_sheet.png" % name
     sheet.save(os.path.join(os.path.dirname(OUT), dl), "PNG", transparency=0)
     h = ['<div class="ph2"><h2>Boss: %s</h2></div>' % esc(info.get("boss", name))]
+    h.append('<ul class="bdesc">%s</ul>' % "".join("<li><b>%s</b> %s</li>" % (esc(l), esc(t)) for l, t in BN.DESC.get(name, [])))
+    h.append('<p class="foot">Each picture is the game\'s own frame: BG body, with every sprite shown in that pose in fight colours. Capacity mugs show the usual state (hands - 1 TAKEN, 1 ROOM).</p>')
     h.append('<div class="poses">')
-    for bn, rel in poses:
-        h.append('<figure><a class="dl" href="%s" download="boss_%s_sheet.png" data-file="boss_%s_sheet.png" title="Download every %s block, editable">'
-                 '<img class="bimg" alt="%s %s" width="%d" height="72" src="%s"></a><figcaption>%s</figcaption></figure>'
-                 % (dl, name, name, esc(info.get("boss", name)), esc(info.get("boss", name)), bn.lower(), width * 3, rel, bn))
+    for lb, rel, pw, ph, isdl in poses:
+        img = '<img class="bimg" alt="%s %s" width="%d" height="%d" src="%s">' % (esc(info.get("boss", name)), esc(lb.lower()), pw, ph, rel)
+        if isdl:
+            img = ('<a class="dl" href="%s" download="boss_%s_sheet.png" data-file="boss_%s_sheet.png" title="Download every %s block, editable">%s</a>'
+                   % (dl, name, name, esc(info.get("boss", name)), img))
+        h.append('<figure>%s<figcaption>%s</figcaption></figure>' % (img, esc(lb)))
     h.append('</div>')
     h.append('<div class="tbl"><table class="pt"><thead><tr><th>Part</th><th>Palette</th><th>Colours</th><th>When</th><th>Tiles</th></tr></thead><tbody>')
     for p in parts:
@@ -997,6 +1073,57 @@ def scene_sections(v, m, field):
     return "".join(h)
 
 
+# ---- Planned tile counts (owner 2026-10-26: "the amount of tiles represented by the plan, not current") ----
+# Starts from the atlas capture (the game now), then the plan's tile deltas. Sources: QUEUE.md "Saloon 8 patron looks" (52 tiles a look;
+# option 2, the shared blank column: 50; looks A-C bank 0, D-H bank 1, one back view at bank-0 ids 242-245), PATRON_SPEC.md (48 shifted + 4 back).
+LOOK_NOW, LOOK_OPT2 = 52, 50        # tiles per look: now, option 2
+LOOKS_NOW = 3                       # looks every venue has in the game today (the enhanced ROSIE / BOXY are palettes, not looks)
+BACK_B0 = 4                         # the one back view at bank-0 ids 242-245 once there are looks in bank 1
+FIGHT_LOOKS = 2                     # looks A and B stay loaded in a boss fight; the boss borrows look C's tiles (boss.h BOSS_BG_A / BOSS_BG_B)
+
+
+def planned_tiles(v, n):
+    """Planned tile counts of venue v with n looks in the plan, split by VRAM region (sprite-only 0-127; BG-reachable 128-383 = shared + BG-only).
+    Patron looks are BG tiles, so only BG-reachable ids can take them."""
+    t = v["tiles"]; sal = v["key"] == "cowboys"
+    q = "" if sal else " ?"                                   # the Saloon's numbers are decided in QUEUE; elsewhere the same rule is assumed
+    n = max(n, LOOKS_NOW); extra = n - LOOKS_NOW
+    save = LOOKS_NOW * (LOOK_NOW - LOOK_OPT2)                 # option 2 on looks A-C
+    fsave = FIGHT_LOOKS * (LOOK_NOW - LOOK_OPT2)
+    b0 = BACK_B0 if extra else 0
+    b1 = extra * LOOK_OPT2
+    enh = 2 if v["key"] in ("cowboys", "robots") else 0         # the dropped enhanced look's 2 bank-1 lift tiles (ids 210, 211: enhance.c enh_b1)
+    sp = lambda r: r[0]
+    bg = lambda r: r[1] + r[2]
+    o = dict(sp=sp(t["b0"]), bg=bg(t["b0"]) + save - b0, sp1=sp(t["b1"]), bg1=bg(t["b1"]) - b1 + enh,
+             fbg=bg(t["bb"]) + fsave - b0, dbg=bg(t["d"]) + save)
+    o["used"] = 384 - o["sp"] - o["bg"]
+    o["dused"] = 384 - t["d"][0] - o["dbg"]
+    nowtxt = "Game now: bank 0 free %d sprite-only + %d BG (used %d); bank 1 free %d sprite-only + %d BG; boss fight free BG %d; DMG free BG %d (used %d)." % (
+        sp(t["b0"]), bg(t["b0"]), 384 - sum(t["b0"]), sp(t["b1"]), bg(t["b1"]), bg(t["bb"]), bg(t["d"]), 384 - sum(t["d"]))
+    L = [nowtxt,
+         "Free means empty (not loaded, not referenced in the capture) and reachable: sprite-only ids 0-127, BG ids 128-383 (shared 128-255 + BG-only 256-383). Looks are BG tiles, so only BG counts for them.",
+         "Looks in the plan: %d (now %d)%s." % (n, LOOKS_NOW, "" if n != LOOKS_NOW else "; no more are planned here ?"),
+         "-%d per look, option 2, x %d looks (A-C): +%d free BG in bank 0 and on DMG%s." % (LOOK_NOW - LOOK_OPT2, LOOKS_NOW, save, "" if sal else " ?")]
+    if extra:
+        L.append("+%d looks x %d in bank 1 (BG ids): bank 1 free BG -%d%s." % (extra, LOOK_OPT2, b1, q))
+        L.append("One back view in bank 0 (ids 242-245): bank 0 free BG -%d, boss fight -%d%s." % (b0, b0, q))
+        L.append("Back views of the other new looks share that one ?")
+        L.append("New looks are Color only: DMG unchanged.")
+    L.append("Boss fight: the capture, +%d for option 2 on the two looks that stay loaded (A, B; the boss borrows C's tiles), -%d back view%s." % (fsave, b0, q))
+    if sal:
+        L.append("QUEUE fit-check (Saloon, 16-px art): normal play bank 0 about 23, bank 1 6. Here: bank 0 %d = %d now + %d option 2 - %d back view: matches. Bank 1 %d = %d now - %d looks + %d lift tiles of the dropped ROSIE: matches." % (
+            o["bg"], bg(t["b0"]), save, b0, o["bg1"], bg(t["b1"]), b1, enh))
+        L.append("QUEUE fit-check: Big Tex fight bank 0 about 6, bank 1 6. Here: bank 0 %d = %d in the capture + %d - %d; bank 1 %d. Bank 1 matches. Bank 0 is %d above the estimate: the capture already has the boss in look C's place, and no sprite-only tile is counted, so it is none of the three suspects; the source of the 6 is not recorded ?" % (
+            o["fbg"], bg(t["bb"]), fsave, b0, o["bg1"], o["fbg"] - 6))
+        L.append("The first version of this page counted sprite-only ids as free (that was the whole gap: bank 0 showed 41 = 18 sprite-only + 23 BG).")
+    if v["key"] in ("cowboys", "robots"):
+        L.append("Enhanced look dropped (%s): its 2 bank-1 lift tiles (ids 210, 211, loaded by enhance_load) are freed: bank 1 free BG +%d%s." % ("ROSIE" if sal else "BOXY", enh, q))
+    L.append("Dancers moved to other palettes and palette variants: 0 tiles.")
+    o["lines"] = L
+    return o
+
+
 for i, v in enumerate(venues):
     m = model(v)
     field = field_model(v, m)
@@ -1048,14 +1175,17 @@ for i, v in enumerate(venues):
     w('<div class="stat"><b>%d</b><span>reserved patrons</span></div>' % len(reserved))
     w('<div class="stat"><b>%d</b><span>free OBJ palettes</span></div>' % len(ofree))
     w('<div class="stat"><b>%d</b><span>free BG palettes</span></div>' % len(bfree))
-    tl = v["tiles"]
+    tl = planned_tiles(v, len(ident) + len(reserved))
     w('<div class="stat"><b>%d</b><span>tiles used</span></div>' % tl["used"])
-    w('<div class="stat"><b>%d</b><span>free tiles</span></div>' % tl["free"])
-    w('<div class="stat"><b>%d</b><span>free tiles bank 1</span></div>' % tl["free1"])
-    if tl["dfree"] != tl["free"]:
-        w('<div class="stat"><b>%d</b><span>tiles used DMG</span></div>' % tl["dused"])
-        w('<div class="stat"><b>%d</b><span>free tiles DMG</span></div>' % tl["dfree"])
-    w('</div><h2>Sprite palettes</h2><div class="grid">')
+    w('<div class="stat"><b>%d</b><span>free BG</span></div>' % tl["bg"])
+    w('<div class="stat"><b>%d</b><span>free sprite-only</span></div>' % tl["sp"])
+    w('<div class="stat"><b>%d</b><span>free bank 1 BG</span></div>' % tl["bg1"])
+    w('<div class="stat"><b>%d</b><span>free bank 1 sprite-only</span></div>' % tl["sp1"])
+    w('<div class="stat"><b>%d</b><span>boss fight free BG</span></div>' % tl["fbg"])
+    w('<div class="stat"><b>%d</b><span>tiles used DMG</span></div>' % tl["dused"])
+    w('<div class="stat"><b>%d</b><span>free BG DMG</span></div>' % tl["dbg"])
+    w('</div><details class="tdet"><summary>Tile breakdown, planned</summary><ul>%s</ul></details>' % "".join("<li>%s</li>" % esc(x) for x in tl["lines"]))
+    w('<h2>Sprite palettes</h2><div class="grid">')
     for sl in range(8):
         w(card("OBJ", sl, m[("OBJ", sl)], True))
     w('</div><h2>Background palettes, playfield</h2><div class="grid">')
