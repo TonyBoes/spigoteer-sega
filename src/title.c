@@ -474,7 +474,7 @@ void title_enter(void) BANKED {
     music_load_now();                                 // overwrote them, are copied at once and the pumps below tick the tune)
     music_pump();
     hide_all_sprites();
-    mirror_load(0); level_dirs &= KEEP_POS;                   // every bar L (the scene's bartender; P3: CLASSIC may mirror bars)
+    mirror_load(0); level_dirs &= KEEP_POS | MIXED_B;                   // every bar L (the scene's bartender; P3: CLASSIC may mirror bars)
     if (!is_cgb) OBP1_REG = OBP1_MENU;               // (play used OBP1_PLAY)
     // (music_pump between the steps: this load takes several frames and the title tune plays on through it)
     bkg_data_far(TILE_GENERIC_BASE, GENERIC_TILE_COUNT, bar_tiles, BANK(art_tiles));

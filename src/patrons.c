@@ -135,6 +135,8 @@ uint8_t add_patron(uint8_t b, uint8_t x, uint8_t variant) {
         s++;
         if (++p == MAX_PATRONS) return 0;
     }
+    if (mir_bswap & MIX_B)                            // DMG mixed level, option (b): C only on an R bar, A / B only on an L bar (mirror.c)
+        variant = (bar_dirs & bar_bit[b]) ? 2 : variant == 2 ? next_rand() & 1 : variant;
     np_b = b; np_x = x; np_v = variant;
     init_patron(p);
     return 1;

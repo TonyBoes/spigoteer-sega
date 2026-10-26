@@ -10,8 +10,11 @@
 //     steps), so each direction needs shifts 0, 2, 4, 6. The L set keeps its ids; the R set (flipped copies of the even
 //     shifts) goes into the odd shifts' slots (R shift s at the slot of L shift s + 1). Back views are shared, drawn
 //     unmirrored on an R bar (mir_bswap). A lifted patron on an R bar is the L shift-0 pose with the OAM flip.
-//     Option (b) (1 px steps, the looks split 2 / 1 between the directions) would change only dmg_tables / dmg_mixed
-//     below (which pose goes to which slot, st_tab's R half) and the spawn's choice of variant per direction.
+//   - mixed, option (b) (level_dirs bit 6, MIXED_B: the debug box's MIXED line; DMG only; option (a) is the default): 1 px
+//     steps (draw_mask 0xFF). The looks are split between the directions: variants A and B only on L bars (tiles as
+//     loaded), variant C only on R bars (add_patron picks it; its 42 shifted tiles, its shift-0 pose and its back view
+//     are bit-reversed in place, so a lifted C needs no OAM flip and its back view no swap). No tile is added.
+//     (mixed_b sets it up after option (a)'s tables: the CGB's and the title's loads, whose pumps are timed, run as before.)
 //   - any R bar: the keg, spout and counter tiles of the bar rows get flipped copies in free BG ids (FREE_IDS); a tile
 //     that is its own mirror image keeps its id. mir_short counts tiles left unflipped for want of an id (tests: 0).
 // CGB: the X-flip attribute does all of it (tiles, keg, patrons, back views), and the OAM flip the sprites.
@@ -55,6 +58,21 @@ static uint8_t pose(uint8_t v, uint8_t s) {
 }
 
 // DMG mixed level (option (a)): R shift s (even) = L shift s flipped, in the slot of shift s + 1
+// DMG mixed level, option (b): all of variant C's tiles flipped in place (42 shifted, 6 shift-0, 4 back); st_tab the same for
+// both directions at every shift; lifted patrons need no OAM flip
+static void mixed_b(void) {
+    uint8_t k, v, s;
+    for (k = 0; k < 42; k++) flip_copy(pose(2, 1) + k, pose(2, 1) + k);
+    for (k = 0; k < 6; k++) flip_copy(pose(2, 0) + k, pose(2, 0) + k);
+    for (k = 0; k < 4; k++) flip_copy(PATRON_BACK_BASE + 8 + k, PATRON_BACK_BASE + 8 + k);
+    for (v = 0; v < 4; v++)
+        for (s = 0; s < 8; s++) st_tab[32 | (v << 3) | s] = st_tab[(v << 3) | s] = pose(v == 3 ? 0 : v, s);
+    for (v = 0; v < NUM_BARS; v++) bar_sfp[NUM_BARS + v] = 0;
+    for (v = 0; v < 16; v++) mo_tp[v] &= 0x80;
+    mir_bswap = MIX_B;
+    draw_mask = 0xFF;
+}
+
 static void dmg_mixed(void) {
     uint8_t v, s, k, a, d;
     for (v = 0; v < 3; v++)
@@ -142,7 +160,7 @@ void mirror_load(uint8_t dirs) BANKED {
     mir_short = 0;
     if (!dirs) return;
     if (!is_cgb) {
-        if (mixed) dmg_mixed();
+        if (mixed) { if (level_dirs & MIXED_B) mixed_b(); else dmg_mixed(); }
         else for (s = 0; s < PATRON_GROUP_TILES; s++) flip_copy(PATRON_TILE_BASE + s, PATRON_TILE_BASE + s);
         fm_n = fm_used = 0;
     }

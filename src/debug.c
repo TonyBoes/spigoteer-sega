@@ -26,6 +26,7 @@
 //            chapter as usual). Opened in story (ARCADE) play, or on the title with PLAY's cursor on STORY / CONTINUE (the saved chapter) / ARCADE.
 //            Such a run writes nothing to SRAM (save.c save_lock, cleared by the title): no progress, no unlocks, so a playtest never unlocks what was not earned.
 //   CLASSIC  "LEVEL nn" (1..CLASSIC_ROWS, wrapping): A starts a CLASSIC game there (3 lives, a fresh score, the table's directions); no BARS or BAR CHANGE.
+//   MIXED (LEVEL and CLASSIC): A or B, the DMG's mixed levels (level_dirs bit 6, MIXED_B; session only): A 2 px steps, B 1 px steps, variant C on R bars only.
 //   BAR CHANGE (every mode but CLASSIC): SNAP (default: Up/Down snaps the bartender to the tap with a dust puff and a soft swish; CLASSIC always) or
 //            KEEP (he keeps his x): level_dirs bit 7, KEEP_POS, the bit SETTINGS > BAR CHANGE (src/title.c) sets and saves; here it is for the session only.
 // Up / Down move the cursor, Left / Right change the line's value, A or START starts, B closes (back to the title, or into the game).
@@ -94,7 +95,7 @@ uint8_t debug_gesture(uint8_t pressed) BANKED {
 }
 
 // ---- the lines ----------------------------------------------------------------------------------------------------------------
-enum { DL_MODE, DL_LEVEL, DL_CHAPTER, DL_STEP, DL_BARS, DL_CHANGE, DL_FPS };
+enum { DL_MODE, DL_LEVEL, DL_CHAPTER, DL_STEP, DL_BARS, DL_CHANGE, DL_FPS, DL_MIXED };
 enum { DM_LEVEL, DM_STORY, DM_ARCADE, DM_CLASSIC };
 
 static uint8_t dmode(void) { return debug_classic ? DM_CLASSIC : debug_story ? DM_STORY - 1 + debug_story : DM_LEVEL; }
@@ -107,6 +108,7 @@ static uint8_t lines(uint8_t *k) {
     else if (debug_story) { k[n++] = DL_CHAPTER; k[n++] = DL_STEP; k[n++] = DL_CHANGE; }
     else { k[n++] = DL_LEVEL; k[n++] = DL_BARS; k[n++] = DL_CHANGE; }
     k[n++] = DL_FPS;
+    if (!debug_story) k[n++] = DL_MIXED;
     return n;
 }
 
@@ -198,6 +200,9 @@ static void line_row(uint8_t kind, uint8_t *r) {
         k = (HALF >> HALF_FORCE_SHIFT) & 3;
         put(r, COL_VALUE, is_cgb ? "NO CGB" : k == 1 ? "ON" : k == 2 ? "OFF" : "AUTO");
         break;
+    case DL_MIXED:                                       // the DMG's mixed levels: A (2 px steps, both directions at even shifts) or B (1 px, looks split by direction)
+        put(r, COL_LABEL, "MIXED"); put(r, COL_VALUE + 1, is_cgb ? "NO CGB" : (level_dirs & MIXED_B) ? "B" : "A");
+        break;
     default: put(r, COL_LABEL, "BAR CHANGE"); put(r, COL_VALUE + 1, (level_dirs & KEEP_POS) ? "KEEP" : "SNAP");
     }
 }
@@ -214,7 +219,7 @@ static void fill_win(uint8_t y, uint8_t t) {
 
 
 static void draw_line(uint8_t i) {                       // line slot i (0..5): its row, or a blank one past the last line
-    uint8_t k[5], r[20], n = lines(k);
+    uint8_t k[6], r[20], n = lines(k);
     if (i < n) line_row(k[i], r); else blank(r);
     win_row(ROW_LINE0 + 2 * i, r);
 }
@@ -367,7 +372,7 @@ static void bars_step(uint8_t back) {
     uint8_t j = 0, e = level_dirs & 0x3F;        // (e in a local: SDCC 4.5 kept j in L and loaded HL with &level_dirs inside the loop)
     for (; j < DIR_LAYOUTS - 1; j++) if (dir_layout[j] == e) break;
     j = back ? (j ? j - 1 : DIR_LAYOUTS - 1) : (j == DIR_LAYOUTS - 1 ? 0 : j + 1);   // (a layout not in the table counts as the last: the first follows)
-    level_dirs = dir_layout[j] | (level_dirs & KEEP_POS);
+    level_dirs = dir_layout[j] | (level_dirs & (KEEP_POS | MIXED_B));
 }
 
 // ---- a frame ------------------------------------------------------------------------------------------------------------------
@@ -385,7 +390,7 @@ static void set_mode(uint8_t m) {
 
 // 1: A started a game (the frame is over)
 uint8_t debug_step(uint8_t pressed) BANKED {
-    uint8_t k[5], n = lines(k), d = 0, c = debug_chapter, p = debug_pos, l = debug_level, top = debug_classic ? CLASSIC_ROWS : DEBUG_LEVELS, old = debug_sel, kind, m;
+    uint8_t k[6], n = lines(k), d = 0, c = debug_chapter, p = debug_pos, l = debug_level, top = debug_classic ? CLASSIC_ROWS : DEBUG_LEVELS, old = debug_sel, kind, m;
     if (pressed & J_UP) debug_sel = debug_sel ? debug_sel - 1 : n - 1;
     else if (pressed & J_DOWN) debug_sel = debug_sel == n - 1 ? 0 : debug_sel + 1;
     if (pressed & J_RIGHT) d = 1;
@@ -429,6 +434,10 @@ uint8_t debug_step(uint8_t pressed) BANKED {
             half_decide();
             draw_line(old);
         }
+        break;
+    case DL_MIXED:                                                   // A <-> B (for the next mirror_load)
+        level_dirs ^= MIXED_B;
+        draw_line(old);
         break;
     default:                                                         // BAR CHANGE: SNAP <-> KEEP
         level_dirs ^= KEEP_POS;

@@ -192,6 +192,9 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // at the same time: CLASSIC's DMG flipped copies take 246..251, 77, 252..255 (11 at most; mirror.c free_ids), the story's
 // perfect pour 234..239 and neither does the other's work. So the puff sits at 234 (CLASSIC, the harness) or 246 (story, ARCADE).
 #define OBJ_DUST         (story_on ? 246 : 234)
+#define MIXED_B          0x40   // level_dirs bit 6: the DMG's mixed levels use option (b), 1 px steps and the looks split by direction (mirror.c; debug box MIXED)
+#define MIX_A            1      // mir_bswap: the DMG mixed level's option (a) / (b)
+#define MIX_B            2
 #define KEEP_POS         0x80   // level_dirs bit 7: mode A, the bartender keeps his x on a bar change (debug box, START);
                                 // clear (the default, and always in CLASSIC): mode B, he snaps to the tap with a dust puff
 #define OBJ_DMG_COPY     240    // sliding full mug 240, sliding empty 242, held empty 244

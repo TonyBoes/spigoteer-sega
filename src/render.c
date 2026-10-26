@@ -171,7 +171,7 @@ static const uint8_t *cz_base;            // its window into base_all (P6: bar_b
 // coin are drawn at bar-local X and moved afterwards (mirror.c mirror_oam). Tables set at level load (mirror.c).
 uint8_t bar_dirs;                         // bit b: bar b is R
 uint8_t mir_attr;                         // CGB: the BG attribute bit of an R bar (S_FLIPX); DMG 0
-uint8_t mir_bswap;                        // DMG mixed level: back views are not mirrored (drawn as they are on an R bar)
+uint8_t mir_bswap;                        // DMG mixed level: MIX_A (option (a)): back views are not mirrored (drawn as they are on an R bar); MIX_B (option (b)): looks split by direction (add_patron)
 // First tile of variant v pre-shifted by s px, [dir << 5 | v << 3 | s] (dir 1: an R bar). M13a layout (column-major:
 // column k is tiles + 2k (top) and + 2k + 1 (bottom); shifts 1..7 first, the shift-0 poses last, so they double as 8x16
 // OBJ tiles for a lifted patron). Filled by mirror.c: L and R the same unless the DMG holds two tile sets (a mixed level).
@@ -322,7 +322,7 @@ static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1
     cz_tile = sh_tile[b << 1];
     cz_base = &base_all[0][0][0] + bar_bofs[b];
     cz_dir = cz_sto = cz_flip = cz_bswap = 0;
-    if (bar_dirs & bar_bit[b]) { cz_dir = 1; cz_sto = 32; cz_flip = mir_attr; cz_bswap = mir_bswap; }
+    if (bar_dirs & bar_bit[b]) { cz_dir = 1; cz_sto = 32; cz_flip = mir_attr; cz_bswap = mir_bswap & MIX_A; }
     restore_base();
     stamp_bar(b);
     if (boss_on) stamp_fight(b);
