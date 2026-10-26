@@ -115,6 +115,9 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - The earlier "Saloon credits (when imported)" notes in this queue belong to this deferred task.
 - Owner 2026-10-22: GUS ALWAYS TIPS, in ARCADE and STORY only; CLASSIC is unchanged. (He is "the rarest patron"; a prospector with gold.)
   - In src/patrons.c maybe_tip, skip the tip_chance roll for GUS. Ideally draw no random number either, to keep the other patrons' sequences stable. Check whether goldens move.
+- Owner 2026-10-25: AT MOST TWO TIPS AT ONCE (was one). "We should probably make it the rule that there can only be two tips at a time no more than that."
+  - Build with the patron revision (the coin moves to OBJ 0 with Sal, so the show no longer blocks it). A second coin slot; its state goes in an existing union, no new WRAM global.
+  - GUS's always-tip then only misses when two coins are already out.
   - The existing limits still apply (one tip on the counter at a time, none during the show). The proposed default is A: if a coin is already there, he simply doesn't tip that time. B (wait until clear) and C (replace the coin) are alternatives; the owner hasn't answered.
   - Rarity (owner 2026-10-22): NO extra weighting. On Color, spawns pick uniformly among the allowed (look, palette) combinations, so GUS (2 of 29) is naturally rare. On DMG, 3 equal looks.
 
@@ -128,5 +131,5 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - STILL HELD: all patron work (the Saloon 8 looks build, renames, enhanced removal, back views), and the credits (deferred until locked).
 - 2026-10-25 MERGED (95f3705): SETTINGS v5 + every title menu one row down (Q49); teapot B (Q53, stream 107/122); all 13 Practice pictures (Q54) with
   .txt sources; the list turns the LCD on just after a music tick (the picture load had moved the phase). Pocket Player main refreshed, settings ROM retired.
-- WAITING ON THE OWNER: GUS's tip when a coin is already out (option A proposed); Big Tex on DUSTY/EMMA's palette?
+- WAITING ON THE OWNER: Big Tex on DUSTY/EMMA's palette? (GUS's tip: answered 2026-10-25, two tips at once, see the Saloon section.)
 - ON HOLD (owner 2026-10-25): Boss Rush busts (64x40). "I don't want to do any boss rush busts until I finish the patron planning. I will look at the boss graphics then."
