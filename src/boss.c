@@ -824,10 +824,25 @@ static uint8_t fits(const uint8_t *n, uint8_t k0, uint8_t k1, uint8_t c) {
 // drink art, mugs.c), its bottom at row hand_base of his 16 body rows. 255: none (the Sumo is hit, the Mothership beams its drinks up).
 static const uint8_t hand_base[BOSS_COUNT] = { 15, 15, 15, 12, 15, 11, 12, 255, 15, 255 };   // (rows[] order: Tex, Mascot, Sasquatch, Critic, Yeti, Prototype, Duke, Sumo, Leo, Mothership)
 
+// The mug follows the patrons' drink (mugs.c pose_*): over his gulp it rises from the hand to his mouth, tilts, tips and is lowered empty, in 16 steps
+// that END with the gulp: he is pushed back first (HOP_FRAMES, hidden), so the steps count from the end, E - boss_t frames before it (hand_end: the
+// last frame he holds the mug up, one before his gulp is over; the Sasquatch's arm goes down at 12), at hand_inv per frame: 4096 / (the frames from
+// boss_t HOP_FRAMES to E, less one), rounded up, so (E - boss_t) * hand_inv >> 8 is 15 on the first (0..15; before it the mug waits at his hand).
+// Each step: its frame (high nibble: 0..3 the venue's drink art, OBJ_MUG_DRINK upright / tilted / tipped / empty as the patrons hold it, 4 the sliding
+// mug as he took it) and how far along the way to his mouth, in eighths (low nibble). hand_dx, hand_dy: that way from the hand (px, the drink frames'
+// sprite). The rim of a tilted mug is at its sprite's (2, 4): the mouth of each boss (assets/art/boss/*.txt, his gulp pose) minus that; no lower than
+// row 4 of his body, so the sprite stays inside the 28 lines the bands count.
+static const uint8_t hand_seq[16] = { 0x40, 0x42, 0x05, 0x08, 0x18, 0x18, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x38, 0x35, 0x32, 0x30 };
+static const int8_t  hand_dx[BOSS_COUNT]  = { -12, -12, -12, -12, -16, -13, -11, 0, -9, 0 };
+static const int8_t  hand_dy[BOSS_COUNT]  = {   0,   0,   0,   3,  -3,   4,   3, 0,  0, 0 };
+static const uint8_t  hand_end[BOSS_COUNT] = {  57,  33,  11,  83,  43,  29,  29, 0,  43, 0 };   // (his gulp - 1; the Sasquatch's 11: his mug-down beat is 12 on)
+static const uint16_t hand_inv[BOSS_COUNT] = {  73, 133, 549,  49,  99, 154, 154, 0,  99, 0 };   // (4096 / (E - HOP_FRAMES) up; tests/test_boss_cap_ui.py checks them)
+
 // n: the bands from the topper's y; extra: the entries drawn over them already (the hat, the mug row)
 static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
     OAM_item_t *o = shadow_OAM + OAM_HAND;
-    uint8_t d, dx = 0;
+    uint8_t d, dx = 0, e;
+    int8_t w;
     o->y = 0;
     if (boss_row == 9) boss_call(BEV_DRAW, 1);   // (the Mothership's own: a drink lifted into the saucer on a beam, OAM 29 and 30)
     if (boss_state != BS_GULP || boss_push || boss_xpose || hand_base[boss_row] == 255) return;   // (the common gulp only: the pose shows his hand up)
@@ -835,9 +850,16 @@ static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
         if (!br->sway) return;                   // (the mug-down beat of a boss with no shifted pose: the Sasquatch)
         dx = br->sway == 2 ? -2 : 2;
     }
-    d = bar_oam_y[boss_bar] + hand_base[boss_row] - 14;   // its y; from top: 5..9, so bands 1..6 (24 lines on at most)
+    e = hand_end[boss_row];
+    e = e > boss_t ? (uint16_t)(e - boss_t) * hand_inv[boss_row] >> 8 : 0;   // (frames to the end, in steps)
+    e = hand_seq[e > 15 ? 0 : 15 - e];
+    w = e & 15;
+    d = bar_oam_y[boss_bar] + hand_base[boss_row] - (e >= 0x40 ? 14 : 11) + (hand_dy[boss_row] * w >> 3);   // its y; from top: 0..12, so bands 0..6 (28 lines on at most)
     if (!fits(n, (uint8_t)(d - top) >> 2, (uint8_t)(d - top + 15) >> 2, extra + 1)) return;
-    o->y = d; o->x = boss_x + br->width + dx; o->tile = spr_full_t; o->prop = spr_full_p;
+    o->y = d; o->x = boss_x + br->width + dx + (hand_dx[boss_row] * w >> 3);
+    e >>= 4;
+    if (e == 3) { o->tile = spr_hempty_t; o->prop = spr_hempty_p; }
+    else { o->tile = e == 4 ? spr_full_t : OBJ_MUG_DRINK + e * 2; o->prop = spr_full_p; }
 }
 
 // The capacity indicator's slots: 255 none to show (BEV_ROOM), 254 no limit (the Sumo's 250, the Prototype's red light:
