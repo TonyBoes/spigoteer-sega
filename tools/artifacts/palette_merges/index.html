@@ -1,0 +1,169 @@
+<title>Spigoteer Palette Merges</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: summary table first, then one card per merge (before | after, side by side; stacked on a phone). Same look as the other review pages. */
+:root {
+  --ground: #f2efe7; --card: #fffdf8; --ink: #22201c; --muted: #6b6459; --rule: #dcd4c5; --amber: #a9661a;
+  --good: #3f7a3a; --opt: #8a6a1c; --stage: #2a2a2e;
+  --display: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark;
+    --ground: #16171a; --card: #1f2125; --ink: #ebe5d9; --muted: #a39b8e; --rule: #33363b; --amber: #e6a44c; --good: #7cc274; --opt: #e0bd62; }
+}
+:root[data-theme="dark"] { color-scheme: dark;
+  --ground: #16171a; --card: #1f2125; --ink: #ebe5d9; --muted: #a39b8e; --rule: #33363b; --amber: #e6a44c; --good: #7cc274; --opt: #e0bd62; }
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.55; padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 20px; }
+h1 { font-family: var(--display); font-size: 26px; margin: 0; text-wrap: balance; }
+.lede { margin: 4px 0 0; color: var(--muted); max-width: 66ch; }
+.stamp { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+h2 { margin: 0; font-size: 18px; text-wrap: balance; }
+.sum { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 14px; width: 100%; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+td.n, th.n { text-align: center; font-variant-numeric: tabular-nums; }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.venue { font-family: var(--display); font-size: 13px; color: var(--amber); letter-spacing: .06em; }
+.rank { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; border: 1px solid currentColor; }
+.rank.recommended { color: var(--good); }
+.rank.optional { color: var(--opt); }
+.frees { margin: 0; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.frees b { color: var(--ink); }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+figure { margin: 0; display: grid; gap: 6px; min-width: 0; }
+figcaption { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.stage { background: var(--stage); border-radius: 8px; padding: 6px; overflow-x: auto; }
+.stage img { display: block; max-width: none; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+.pals { display: flex; flex-wrap: wrap; gap: 6px 12px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.pal { display: inline-flex; align-items: center; gap: 6px; }
+.pal b { font-weight: 600; }
+.sw { display: inline-flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+.sw i { width: 16px; height: 16px; display: block; }
+.card ul, .sum ul { margin: 0; padding-left: 1.2em; display: grid; gap: 3px; max-width: 70ch; }
+.sum p { margin: 0; max-width: 70ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Palette merges</h1>
+    <p class="lede">Your Saloon and Stadium moves, tried on the other eight venues: a patron into Sal's or a mug's palette, the show into a patron's, two patrons into one. Color only; the DMG keeps its palettes.</p>
+    <p class="stamp">2026-10-25 · main e600bb1</p>
+  </header>
+
+  <section class="sum">
+    <h2>Free OBJ palettes for new looks</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Venue</th><th class="n">Today</th><th class="n">Recommended</th><th class="n">Optional</th></tr></thead>
+      <tbody><tr><td>Lumber Lodge</td><td class="n">1</td><td class="n">+1</td><td class="n">+1</td></tr><tr><td>Bistro</td><td class="n">1</td><td class="n">+3</td><td class="n">–</td></tr><tr><td>Igloo</td><td class="n">1</td><td class="n">–</td><td class="n">+1</td></tr><tr><td>Robot Factory</td><td class="n">1</td><td class="n">–</td><td class="n">–</td></tr><tr><td>Chrome Cow</td><td class="n">1</td><td class="n">+1</td><td class="n">–</td></tr><tr><td>Teahouse</td><td class="n">1</td><td class="n">+1</td><td class="n">–</td></tr><tr><td>Jungle Zoo</td><td class="n">1</td><td class="n">+1</td><td class="n">–</td></tr><tr><td>Space Lounge</td><td class="n">1</td><td class="n">+2</td><td class="n">–</td></tr></tbody>
+    </table></div>
+    <p>Each venue has 3 looks now. Today's free palette is OBJ 4 (at the Robot Factory, once BOXY's enhanced look is dropped). In the playfield BG 5, 6 and 7 are free, so the BG side has room for 6 looks.</p>
+  </section>
+
+<article class="card" id="bistro_sal">
+  <div class="head"><span class="venue">Bistro</span><span class="rank recommended">Recommended</span></div>
+  <h2>PIERRE, BRIE and the waiter into Sal&#x27;s palette</h2>
+  <p class="frees">Frees <b>OBJ 3, 5, 6 · BG 3</b></p>
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><div class="stage"><img src="img/bistro_sal_before.png" width="252" height="96" alt="Before"></div><div class="pals"><span class="pal"><b>OBJ 0</b><span class="sw"><i style="background:#FFFFF6" title="#FFFFF6"></i><i style="background:#F6BD8B" title="#F6BD8B"></i><i style="background:#202031" title="#202031"></i></span></span><span class="pal"><b>OBJ 3</b><span class="sw"><i style="background:#FFFFFF" title="#FFFFFF"></i><i style="background:#F6BD8B" title="#F6BD8B"></i><i style="background:#312018" title="#312018"></i></span></span><span class="pal"><b>OBJ 6</b><span class="sw"><i style="background:#FFF6F6" title="#FFF6F6"></i><i style="background:#EEAC8B" title="#EEAC8B"></i><i style="background:#201831" title="#201831"></i></span></span><span class="pal"><b>OBJ 5</b><span class="sw"><i style="background:#FFFFFF" title="#FFFFFF"></i><i style="background:#E6AC7B" title="#E6AC7B"></i><i style="background:#181820" title="#181820"></i></span></span></div></figure>
+    <figure><figcaption>After</figcaption><div class="stage"><img src="img/bistro_sal_after.png" width="252" height="96" alt="After"></div><div class="pals"><span class="pal"><b>Shared</b><span class="sw"><i style="background:#FFFFF6" title="#FFFFF6"></i><i style="background:#F6BD8B" title="#F6BD8B"></i><i style="background:#202031" title="#202031"></i></span></span></div></figure>
+  </div>
+  <ul><li>Like NORM at the Stadium. Their palettes are already almost Sal&#x27;s.</li><li>PIERRE and BRIE walk in one BG palette in Sal&#x27;s colours.</li><li>BRIE&#x27;s skin gets a shade lighter.</li></ul>
+</article>
+<article class="card" id="tea_show">
+  <div class="head"><span class="venue">Teahouse</span><span class="rank recommended">Recommended</span></div>
+  <h2>Taiko drummer shares SAKURA&#x27;s palette</h2>
+  <p class="frees">Frees <b>OBJ 5</b></p>
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><div class="stage"><img src="img/tea_show_before.png" width="132" height="96" alt="Before"></div><div class="pals"><span class="pal"><b>OBJ 5</b><span class="sw"><i style="background:#F6E6C5" title="#F6E6C5"></i><i style="background:#CD3131" title="#CD3131"></i><i style="background:#181010" title="#181010"></i></span></span><span class="pal"><b>OBJ 6</b><span class="sw"><i style="background:#FFF6EE" title="#FFF6EE"></i><i style="background:#CD2939" title="#CD2939"></i><i style="background:#180810" title="#180810"></i></span></span></div></figure>
+    <figure><figcaption>After</figcaption><div class="stage"><img src="img/tea_show_after.png" width="132" height="96" alt="After"></div><div class="pals"><span class="pal"><b>Shared</b><span class="sw"><i style="background:#FFEEDE" title="#FFEEDE"></i><i style="background:#CD2939" title="#CD2939"></i><i style="background:#181010" title="#181010"></i></span></span></div></figure>
+  </div>
+  <ul><li>Like the Saloon dancers. Same red and outline; the cream and white meet in the middle.</li></ul>
+</article>
+<article class="card" id="biker_show">
+  <div class="head"><span class="venue">Chrome Cow</span><span class="rank recommended">Recommended</span></div>
+  <h2>The band shares BANDIT&#x27;s palette</h2>
+  <p class="frees">Frees <b>OBJ 5</b></p>
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><div class="stage"><img src="img/biker_show_before.png" width="252" height="96" alt="Before"></div><div class="pals"><span class="pal"><b>OBJ 5</b><span class="sw"><i style="background:#FFCDA4" title="#FFCDA4"></i><i style="background:#5AD541" title="#5AD541"></i><i style="background:#100810" title="#100810"></i></span></span><span class="pal"><b>OBJ 6</b><span class="sw"><i style="background:#E6AC7B" title="#E6AC7B"></i><i style="background:#39C552" title="#39C552"></i><i style="background:#101810" title="#101810"></i></span></span></div></figure>
+    <figure><figcaption>After</figcaption><div class="stage"><img src="img/biker_show_after.png" width="252" height="96" alt="After"></div><div class="pals"><span class="pal"><b>Shared</b><span class="sw"><i style="background:#F6BD94" title="#F6BD94"></i><i style="background:#4ACD4A" title="#4ACD4A"></i><i style="background:#100810" title="#100810"></i></span></span></div></figure>
+  </div>
+  <ul><li>Both are skin, green and near-black already.</li></ul>
+</article>
+<article class="card" id="lodge_show">
+  <div class="head"><span class="venue">Lumber Lodge</span><span class="rank recommended">Recommended</span></div>
+  <h2>Sasquatch shares the full mug&#x27;s palette</h2>
+  <p class="frees">Frees <b>OBJ 5</b></p>
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><div class="stage"><img src="img/lodge_show_before.png" width="108" height="96" alt="Before"></div><div class="pals"><span class="pal"><b>OBJ 5</b><span class="sw"><i style="background:#EECDA4" title="#EECDA4"></i><i style="background:#8B5A31" title="#8B5A31"></i><i style="background:#291808" title="#291808"></i></span></span><span class="pal"><b>OBJ 1</b><span class="sw"><i style="background:#F6F6EE" title="#F6F6EE"></i><i style="background:#733918" title="#733918"></i><i style="background:#201810" title="#201810"></i></span></span></div></figure>
+    <figure><figcaption>After</figcaption><div class="stage"><img src="img/lodge_show_after.png" width="108" height="96" alt="After"></div><div class="pals"><span class="pal"><b>Shared</b><span class="sw"><i style="background:#F6E6C5" title="#F6E6C5"></i><i style="background:#834A29" title="#834A29"></i><i style="background:#291010" title="#291010"></i></span></span></div></figure>
+  </div>
+  <ul><li>Like the Saloon: the foam goes cream, the beer a touch lighter.</li><li>The fill glass, breaking glass and sparkle use the same palette.</li></ul>
+</article>
+<article class="card" id="space_xeno">
+  <div class="head"><span class="venue">Space Lounge</span><span class="rank recommended">Recommended</span></div>
+  <h2>XENO shares the empty mug&#x27;s palette</h2>
+  <p class="frees">Frees <b>OBJ 6</b></p>
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><div class="stage"><img src="img/space_xeno_before.png" width="108" height="72" alt="Before"></div><div class="pals"><span class="pal"><b>OBJ 6</b><span class="sw"><i style="background:#DEDEDE" title="#DEDEDE"></i><i style="background:#9CA4A4" title="#9CA4A4"></i><i style="background:#080810" title="#080810"></i></span></span><span class="pal"><b>OBJ 2</b><span class="sw"><i style="background:#E6EEFF" title="#E6EEFF"></i><i style="background:#9CACCD" title="#9CACCD"></i><i style="background:#202939" title="#202939"></i></span></span></div></figure>
+    <figure><figcaption>After</figcaption><div class="stage"><img src="img/space_xeno_after.png" width="108" height="72" alt="After"></div><div class="pals"><span class="pal"><b>Shared</b><span class="sw"><i style="background:#E6E6EE" title="#E6E6EE"></i><i style="background:#9CA4B4" title="#9CA4B4"></i><i style="background:#101018" title="#101018"></i></span></span></div></figure>
+  </div>
+  <ul><li>Like OBJ 2 at the Stadium. Both are greys already.</li><li>He still walks in his own BG palette.</li><li>Check: the Space boss also uses OBJ 2.</li></ul>
+</article>
+<article class="card" id="zoo_coco">
+  <div class="head"><span class="venue">Jungle Zoo</span><span class="rank recommended">Recommended</span></div>
+  <h2>COCO shares the full mug&#x27;s palette</h2>
+  <p class="frees">Frees <b>OBJ 3</b></p>
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><div class="stage"><img src="img/zoo_coco_before.png" width="108" height="72" alt="Before"></div><div class="pals"><span class="pal"><b>OBJ 3</b><span class="sw"><i style="background:#EEC594" title="#EEC594"></i><i style="background:#8B5229" title="#8B5229"></i><i style="background:#291808" title="#291808"></i></span></span><span class="pal"><b>OBJ 1</b><span class="sw"><i style="background:#FFF6D5" title="#FFF6D5"></i><i style="background:#8B5A29" title="#8B5A29"></i><i style="background:#291808" title="#291808"></i></span></span></div></figure>
+    <figure><figcaption>After</figcaption><div class="stage"><img src="img/zoo_coco_after.png" width="108" height="72" alt="After"></div><div class="pals"><span class="pal"><b>Shared</b><span class="sw"><i style="background:#F6D5A4" title="#F6D5A4"></i><i style="background:#8B5229" title="#8B5229"></i><i style="background:#291808" title="#291808"></i></span></span></div></figure>
+  </div>
+  <ul><li>Like PETE at the Stadium. Same brown and outline; the foam goes tan.</li><li>He still walks in his own BG palette.</li></ul>
+</article>
+<article class="card" id="space_zorp">
+  <div class="head"><span class="venue">Space Lounge</span><span class="rank recommended">Recommended</span></div>
+  <h2>ZORP shares the full mug&#x27;s palette</h2>
+  <p class="frees">Frees <b>OBJ 3</b></p>
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><div class="stage"><img src="img/space_zorp_before.png" width="108" height="72" alt="Before"></div><div class="pals"><span class="pal"><b>OBJ 3</b><span class="sw"><i style="background:#FFFF7B" title="#FFFF7B"></i><i style="background:#5AC54A" title="#5AC54A"></i><i style="background:#102010" title="#102010"></i></span></span><span class="pal"><b>OBJ 1</b><span class="sw"><i style="background:#EEFFBD" title="#EEFFBD"></i><i style="background:#31D57B" title="#31D57B"></i><i style="background:#102931" title="#102931"></i></span></span></div></figure>
+    <figure><figcaption>After</figcaption><div class="stage"><img src="img/space_zorp_after.png" width="108" height="72" alt="After"></div><div class="pals"><span class="pal"><b>Shared</b><span class="sw"><i style="background:#F6FF9C" title="#F6FF9C"></i><i style="background:#4ACD62" title="#4ACD62"></i><i style="background:#102020" title="#102020"></i></span></span></div></figure>
+  </div>
+  <ul><li>Same green family. ZORP gets a little paler, the drink a little yellower.</li><li>He still walks in his own BG palette.</li></ul>
+</article>
+<article class="card" id="lodge_ab">
+  <div class="head"><span class="venue">Lumber Lodge</span><span class="rank optional">Optional</span></div>
+  <h2>CEDAR and WILLOW share one palette</h2>
+  <p class="frees">Frees <b>OBJ 6 · BG 3</b></p>
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><div class="stage"><img src="img/lodge_ab_before.png" width="132" height="72" alt="Before"></div><div class="pals"><span class="pal"><b>OBJ 3</b><span class="sw"><i style="background:#FFC594" title="#FFC594"></i><i style="background:#D53129" title="#D53129"></i><i style="background:#291820" title="#291820"></i></span></span><span class="pal"><b>OBJ 6</b><span class="sw"><i style="background:#EEBD94" title="#EEBD94"></i><i style="background:#D53929" title="#D53929"></i><i style="background:#18204A" title="#18204A"></i></span></span></div></figure>
+    <figure><figcaption>After</figcaption><div class="stage"><img src="img/lodge_ab_after.png" width="132" height="72" alt="After"></div><div class="pals"><span class="pal"><b>Shared</b><span class="sw"><i style="background:#FFC594" title="#FFC594"></i><i style="background:#D53129" title="#D53129"></i><i style="background:#291820" title="#291820"></i></span></span></div></figure>
+  </div>
+  <ul><li>Like DUSTY and EMMA. Same skin and red.</li><li>WILLOW loses her navy: her dress turns near-black.</li></ul>
+</article>
+<article class="card" id="igloo_show">
+  <div class="head"><span class="venue">Igloo</span><span class="rank optional">Optional</span></div>
+  <h2>Penguin into Sal&#x27;s palette</h2>
+  <p class="frees">Frees <b>OBJ 5</b></p>
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><div class="stage"><img src="img/igloo_show_before.png" width="132" height="96" alt="Before"></div><div class="pals"><span class="pal"><b>OBJ 0</b><span class="sw"><i style="background:#FFFFF6" title="#FFFFF6"></i><i style="background:#F6BD8B" title="#F6BD8B"></i><i style="background:#202031" title="#202031"></i></span></span><span class="pal"><b>OBJ 5</b><span class="sw"><i style="background:#FFFFFF" title="#FFFFFF"></i><i style="background:#FF9420" title="#FF9420"></i><i style="background:#101829" title="#101829"></i></span></span></div></figure>
+    <figure><figcaption>After</figcaption><div class="stage"><img src="img/igloo_show_after.png" width="132" height="96" alt="After"></div><div class="pals"><span class="pal"><b>Shared</b><span class="sw"><i style="background:#FFFFF6" title="#FFFFF6"></i><i style="background:#F6BD8B" title="#F6BD8B"></i><i style="background:#202031" title="#202031"></i></span></span></div></figure>
+  </div>
+  <ul><li>White and navy match. The orange beak and feet turn peach.</li></ul>
+</article>
+
+  <section class="sum">
+    <h2>Looked at, not recommended</h2>
+    <ul><li><b>Igloo</b> IGGY and POLLY: the two parkas become the same blue.</li><li><b>Robot Factory</b> The dancing robot and the full mug: the robot turns lime green. Dropping BOXY&#x27;s enhanced look already frees OBJ 4 there.</li><li><b>Teahouse</b> RONIN with SAKURA: his face turns white.</li><li><b>Chrome Cow</b> The full and empty mugs hold the same three colours in a different order. Sharing would need the mug art redrawn.</li></ul>
+  </section>
+</div>
