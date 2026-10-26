@@ -72,6 +72,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-26", "OBJ 7: \"Boss: hat\" was in every venue; now each lists its own boss's topper (crest, horns, lamp...), reloaded in his colours for the fight."),
     ("2026-10-25", "Lumber Lodge: the Sasquatch shares the full mug (OBJ 1: #F6E6C5 #834A29 #291010); WILLOW shares CEDAR's palette (OBJ 3)."),
     ("2026-10-25", "Bistro: PIERRE, BRIE and the waiter use Sal's OBJ 0; PIERRE and BRIE walk in BG 2 in Sal's colours."),
     ("2026-10-25", "Igloo: the penguin uses Sal's OBJ 0."),
@@ -265,6 +266,11 @@ def enh_variant(v):
     return 1 if any("Patron B" in k for k in u) else 0
 
 
+# What each boss's topper sprite (OBJ 7, reloaded with his colours for the fight) is: assets/art/boss/<boss>.txt
+TOPPER = dict(cowboys="hat crown", sports="forelock", lumberjacks="crest", chefs="beret stalk", divers="horns",
+              robots="beacon lamp", punks="helmet", ninjas="topknot", zoo="crown", aliens="antenna")
+
+
 def users(kind, v, s):
     """(patrons now, non-patrons) for one palette."""
     n = NAMES[v["key"]]
@@ -274,7 +280,7 @@ def users(kind, v, s):
         if s == 4 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (left half, lifted)"]
         other = {0: ["Sal", "Tip coin", "Pour sparkle", "PERFECT cue"], 1: ["Full mug", "Fill glass", "Breaking glass"],
-                 2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 5: ["Show dancers"], 7: ["Boss: hat"]}.get(s, [])
+                 2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 5: ["Show dancers"], 7: ["Boss fight: " + TOPPER[v["key"]]]}.get(s, [])
     else:
         pat = [n[BG_PATRON[s]]] if s in BG_PATRON else []
         if s == 7 and e is not None and not DROP_ENHANCED:
