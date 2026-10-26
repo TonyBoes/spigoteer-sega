@@ -133,3 +133,8 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
   .txt sources; the list turns the LCD on just after a music tick (the picture load had moved the phase). Pocket Player main refreshed, settings ROM retired.
 - WAITING ON THE OWNER: Big Tex on DUSTY/EMMA's palette? (GUS's tip: answered 2026-10-25, two tips at once, see the Saloon section.)
 - ON HOLD (owner 2026-10-25): Boss Rush busts (64x40). "I don't want to do any boss rush busts until I finish the patron planning. I will look at the boss graphics then."
+- Owner 2026-10-25: PALETTE MERGES for the other 8 venues, all 7 recommended + both optional (Palette Merges page,
+  tools/artifacts/palette_merges/build.py MERGES; now in the Palette Plan PLANS + LOG). Color only; DMG unchanged.
+  Part of the patron revision (still held): Bistro PIERRE/BRIE/waiter -> Sal's OBJ 0; Teahouse drummer -> SAKURA OBJ 6;
+  Chrome Cow band -> BANDIT OBJ 6; Lodge Sasquatch -> full mug OBJ 1, WILLOW -> CEDAR OBJ 3; Zoo COCO -> OBJ 1;
+  Space ZORP -> OBJ 1, XENO -> OBJ 2 (check the Space boss's OBJ 2); Igloo penguin -> Sal's OBJ 0.

@@ -72,6 +72,14 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-25", "Lumber Lodge: the Sasquatch shares the full mug (OBJ 1: #F6E6C5 #834A29 #291010); WILLOW shares CEDAR's palette (OBJ 3)."),
+    ("2026-10-25", "Bistro: PIERRE, BRIE and the waiter use Sal's OBJ 0; PIERRE and BRIE walk in BG 2 in Sal's colours."),
+    ("2026-10-25", "Igloo: the penguin uses Sal's OBJ 0."),
+    ("2026-10-25", "Chrome Cow: the band shares BANDIT's OBJ 6 (#F6BD94 #4ACD4A #100810)."),
+    ("2026-10-25", "Teahouse: the taiko drummer shares SAKURA's OBJ 6 (#FFEEDE #CD2939 #181010)."),
+    ("2026-10-25", "Jungle Zoo: COCO shares the full mug, OBJ 1 (#F6D5A4 #8B5229 #291808)."),
+    ("2026-10-25", "Space Lounge: ZORP shares the full mug, OBJ 1 (#F6FF9C #4ACD62 #102020); XENO the empty mug, OBJ 2 (#E6E6EE #9CA4B4 #101018)."),
+    ("2026-10-25", "Owner: take every recommended and optional merge on the Palette Merges page."),
     ("2026-10-22", "Saloon: GUS's OBJ 3 variant cut; he spawns in OBJ 5 and 7."),
     ("2026-10-22", "Saloon DMG: EMMA replaces ROSIE (see-through pupils look wrong on DMG). EMMA's pupils are now her outline colour."),
     ("2026-10-22", "Saloon DMG: DUSTY, ROSIE (the singer) and GUS are the bank-0 looks on both systems; GUS takes the boss-overwritten slot. HANK goes to bank 1 (Color only). The DMG keeps its original palettes."),
@@ -192,6 +200,50 @@ PLANS = {
         open={("OBJ", 2): "Reserved patron"},
         field_moves=[("Keg, spout", 1, 0)],          # playfield: BG 0 takes BG 1's (keg / spout) palette and the keg / spout share it
         why="Owner 2026-10-21: OBJ 1's white pushed toward tan serves PETE and the cheerleaders; NORM uses Sal's OBJ 0; OBJ 2 gets the same push and becomes a patron palette.",
+    ),
+    # owner 2026-10-25: every recommended and optional merge on the Palette Merges page (tools/artifacts/palette_merges/build.py MERGES)
+    "lumberjacks": dict(
+        moves=[("Show dancers", "OBJ", 5, 1, "Sasquatch"), ("WILLOW", "OBJ", 6, 3, "WILLOW, red hair"), ("WILLOW", "BG", 3, 2, "WILLOW, red hair")],
+        recolour={("OBJ", 1): {1: "#F6E6C5", 2: "#834A29", 3: "#291010"}},
+        open={},
+        why="Owner 2026-10-25: the Sasquatch shares the full mug (foam to cream); CEDAR and WILLOW share CEDAR's palette (WILLOW's navy goes).",
+    ),
+    "chefs": dict(
+        moves=[("PIERRE", "OBJ", 3, 0, "PIERRE"), ("BRIE", "OBJ", 6, 0, "BRIE"), ("Show dancers", "OBJ", 5, 0, "Waiter"),
+               ("BRIE", "BG", 3, 2, "BRIE")],
+        recolour={("BG", 2): "OBJ 0"},
+        open={},
+        why="Owner 2026-10-25: PIERRE, BRIE and the waiter use Sal's OBJ 0; PIERRE and BRIE walk in BG 2 in Sal's colours.",
+    ),
+    "divers": dict(
+        moves=[("Show dancers", "OBJ", 5, 0, "Penguin")],
+        recolour={}, open={},
+        why="Owner 2026-10-25: the penguin uses Sal's OBJ 0 (its orange beak and feet turn peach).",
+    ),
+    "punks": dict(
+        moves=[("Show dancers", "OBJ", 5, 6, "The band")],
+        recolour={("OBJ", 6): {1: "#F6BD94", 2: "#4ACD4A", 3: "#100810"}, ("BG", 3): "OBJ 6"},
+        open={},
+        why="Owner 2026-10-25: the band shares BANDIT's palette.",
+    ),
+    "ninjas": dict(
+        moves=[("Show dancers", "OBJ", 5, 6, "Taiko drummer")],
+        recolour={("OBJ", 6): {1: "#FFEEDE", 2: "#CD2939", 3: "#181010"}, ("BG", 3): "OBJ 6"},
+        open={},
+        why="Owner 2026-10-25: the taiko drummer shares SAKURA's palette.",
+    ),
+    "zoo": dict(
+        moves=[("COCO", "OBJ", 3, 1, "COCO, the monkey")],
+        recolour={("OBJ", 1): {1: "#F6D5A4", 2: "#8B5229", 3: "#291808"}, ("BG", 2): "OBJ 1"},
+        open={},
+        why="Owner 2026-10-25: COCO shares the full mug's palette (foam to tan).",
+    ),
+    "aliens": dict(
+        moves=[("ZORP", "OBJ", 3, 1, "ZORP, eye stalks"), ("XENO", "OBJ", 6, 2, "XENO, the grey one")],
+        recolour={("OBJ", 1): {1: "#F6FF9C", 2: "#4ACD62", 3: "#102020"}, ("OBJ", 2): {1: "#E6E6EE", 2: "#9CA4B4", 3: "#101018"},
+                  ("BG", 2): "OBJ 1", ("BG", 3): "OBJ 2"},
+        open={},
+        why="Owner 2026-10-25: ZORP shares the full mug's palette, XENO the empty mug's. Check the Space boss's OBJ 2 use.",
     ),
 }
 # Planned removals (struck through, yellow). Owner 2026-10-21: drop the enhanced looks (M14a) after the next patron revision.

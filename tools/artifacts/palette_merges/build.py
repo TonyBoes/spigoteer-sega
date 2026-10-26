@@ -227,7 +227,7 @@ figcaption { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-tran
   <header>
     <h1>Palette merges</h1>
     <p class="lede">Your Saloon and Stadium moves, tried on the other eight venues: a patron into Sal's or a mug's palette, the show into a patron's, two patrons into one. Color only; the DMG keeps its palettes.</p>
-    <p class="stamp">2026-10-25 · main {COMMIT}</p>
+    <p class="stamp">All nine taken (owner 2026-10-25); now in the Palette Plan · main {COMMIT}</p>
   </header>
 
   <section class="sum">
