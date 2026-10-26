@@ -77,6 +77,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-26", "OBJ 7: \"Boss: hat\" was in every venue; now each lists its own boss's topper (crest, horns, lamp...), reloaded in his colours for the fight."),
+    ("2026-10-26", "Tile grid per venue: the atlas tile sheets with repeated pairs, tiles and blanks outlined."),
     ("2026-10-26", "Boss notes cut to two sentences on his actions and a list of which poses use sprites."),
     ("2026-10-25", "Lumber Lodge: the Sasquatch shares the full mug (OBJ 1: #F6E6C5 #834A29 #291010); WILLOW shares CEDAR's palette (OBJ 3)."),
     ("2026-10-25", "Bistro: PIERRE, BRIE and the waiter use Sal's OBJ 0; PIERRE and BRIE walk in BG 2 in Sal's colours."),
@@ -450,6 +451,8 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .ph2 { display: flex; align-items: end; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .copymd { font: 600 13px var(--body); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }
 .copymd:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tgrid { display: flex; flex-wrap: wrap; gap: 12px; } .tgrid figure { margin: 0; max-width: 100%; } .tgrid figcaption { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.tgimg { display: block; max-width: 100%; height: auto; image-rendering: pixelated; }
 .tdet { font-size: 13px; color: var(--muted); margin: 8px 0 0; } .tdet summary { cursor: pointer; font-weight: 600; } .tdet ul { margin: 4px 0 0; padding-left: 1.2em; }
 .foot { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 13px var(--mono); padding: 6px 12px; border-radius: 6px; }
@@ -1039,6 +1042,61 @@ def piece_display(p, wall):
     return im.resize((w * p["sc"], h * p["sc"]), Image.NEAREST)
 
 
+# ---- Tile grid (owner 2026-10-26: "the same kind of tile grid" as the atlas): the VRAM tile sheets as loaded now, ids 0-383
+# per bank, 16 a row, region lines at 128 and 256; pink = a repeated 8x16 sprite pair (ids 0-127, pairs only), red = a repeated
+# tile, yellow = an extra blank tile (the first copy of each is not marked). Colour bank 0, Colour bank 1, DMG.
+def tile_grid(v):
+    from PIL import Image, ImageDraw
+    lv = load("level_" + v["key"])
+    G = {(255, 255, 255): 0, (170, 170, 170): 1, (85, 85, 85): 2, (0, 0, 0): 3}
+    blank = tuple(tuple([0] * 8) for _ in range(8))
+    S, GUT = 3, 30
+    out = []
+    for model, b, label in (("cgb", 0, "Color bank 0"), ("cgb", 1, "Color bank 1"), ("dmg", 0, "DMG")):
+        if b >= len(lv[model]["tiles"]):
+            continue
+        tb, pk = lv[model]["tiles"][b], lv[model]["pack"]
+        src = Image.open(os.path.join(os.path.dirname(DATA), pk["png"])).convert("RGB")
+        gx, gy = pk["sheets"][b]["gray"]
+        cx, cy = pk["sheets"][b]["colour" if model == "cgb" else "gray"]
+        T = [tuple(tuple(G.get(src.getpixel((gx + (t % 16) * 8 + x, gy + (t // 16) * 8 + y)), 0) for x in range(8)) for y in range(8))
+             for t in range(384)]
+        im = Image.new("RGB", (GUT + 128 * S, 192 * S), (40, 40, 40))
+        im.paste(src.crop((cx, cy, cx + 128, cy + 192)).resize((128 * S, 192 * S), Image.NEAREST), (GUT, 0))
+        dr = ImageDraw.Draw(im)
+        for r in range(24):
+            dr.text((2, r * 8 * S + 6), str(r * 16), fill=(220, 220, 220))
+        live = lambda t: tb["use"][t] != "0" or tb["loaded"][t] == "1"
+        box = lambda t, n, c: dr.rectangle((GUT + (t % 16) * 8 * S, (t // 16) * 8 * S, GUT + (t % 16 + n) * 8 * S - 1, (t // 16 + 1) * 8 * S - 1), outline=c, width=2)
+        seen = set()
+        for t in range(384):
+            if not live(t):
+                continue
+            if t < 128:
+                if t % 2:
+                    continue
+                k = ("p", T[t], T[t + 1])
+                if k in seen:
+                    box(t, 2, (255, 60, 200))
+            else:
+                k = ("t", T[t])
+                if k in seen:
+                    box(t, 1, (255, 210, 0) if T[t] == blank else (255, 60, 60))
+            seen.add(k)
+        for y in (128, 256):
+            dr.line((GUT, y // 16 * 8 * S, GUT + 128 * S, y // 16 * 8 * S), fill=(255, 255, 255), width=2)
+        rel = "img/tiles_%s_%s%d.png" % (v["key"], model, b)
+        im.save(os.path.join(os.path.dirname(OUT), rel), "PNG")
+        out.append((label, rel, im.size))
+    h = ['<div class="ph2"><h2>Tile grid</h2></div><p class="foot"><span style="color:#ff3cc8">Pink</span> repeated sprite pair · '
+         '<span style="color:#ff3c3c">Red</span> repeated tile · <span style="color:#e0b000">Yellow</span> extra blank</p><div class="tgrid">']
+    for label, rel, (w_, h_) in out:
+        h.append('<figure><figcaption>%s</figcaption><img class="tgimg" src="%s" width="%d" height="%d" alt="%s %s tiles"></figure>'
+                 % (label, rel, w_, h_, esc(v["name"]), label))
+    h.append("</div>")
+    return "".join(h)
+
+
 def scene_sections(v, m, field):
     pieces = scene_pieces(v, m, field)
     wall = v["bg"][0][0]
@@ -1204,6 +1262,7 @@ for i, v in enumerate(venues):
     w('</tbody></table></div>')
     w(boss_section(v, m, field))
     w(scene_sections(v, m, field))
+    w(tile_grid(v))
     w('</section>')
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
