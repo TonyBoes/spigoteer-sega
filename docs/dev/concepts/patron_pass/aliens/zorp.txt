@@ -1,0 +1,18 @@
+; ZORP, group aliens frame A, front, patron pass 2026-10-26 (proposal). 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #F6FF9C (eyes, grin, shoulders) 2 #4ACD62 (skin) 3 #102020; space wall #20295A. Shares the full mug's palette.
+...###.....####.
+..#---#...#----#
+..#-#-#...#--#-#
+..#-#-#...#--#-#
+..#---#...#----#
+...###.....####.
+...#+#.....#+#..
+..##+#######+##.
+.#++++---++++++#
+.#++++--+++++++#
+.#++-++++++-+++#
+..#++------+++#.
+...#+++++++++#..
+.#--#++++++#--#.
+#----#----#----#
+################
