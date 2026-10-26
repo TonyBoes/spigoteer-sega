@@ -6,7 +6,11 @@ OPEN QUESTIONS TO THE OWNER:
 - Sal: investigate a second CGB sprite palette (top/bottom split)? (asked)
 
 OWED / LATER:
-- Patron design pass (held; proposals only): CLOSED for agents 2026-10-26. Picks from rounds 1-2 recorded; the rest stay old and the owner edits them by hand. Brief and list: docs/dev/queue_briefs/patron_pass_2026-10-25.md.
+- PATRON HOLD LIFTED 2026-10-26: "Let's just go ahead and implement what patron changes we have so far so we can get everything current."
+  - Batch 1 RUNNING (patron-rev-1): accepted art for 8 venues (ACCEPTED in palette_plan/build.py) + the Color palette merges.
+  - Batch 2 NEXT, after q61-shared-tiles and dmg-mixed-b merge: Saloon 8 looks (option 2, variants, GUS in the C slot), renames,
+    drop the enhanced looks. Saloon backs: drafts in docs/dev/concepts/{dusty_hank,rosie,outlaw}_sprite; EMMA, ARTIE, GUS have none (stand-ins, listed).
+- Patron design pass: CLOSED for agents 2026-10-26. Picks from rounds 1-2 recorded; the rest stay old and the owner edits them by hand. Brief and list: docs/dev/queue_briefs/patron_pass_2026-10-25.md.
 - Medal-points value proposal (Q59e).
 - Map critique round after his playtest (left lane, parallel town legs, cow, lodge, menu text spacing incl. Dregs's 20-wide lines, arrow direction).
 - Palette audit leftovers: boss.c ld_step CGB palette stream mid-frame; smap_pal_back and dgag pats not verified with the LCD off.
