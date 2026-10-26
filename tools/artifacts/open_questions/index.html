@@ -56,10 +56,25 @@ audio { width: 100%; max-width: 420px; }
   <header>
     <h1>Open questions</h1>
     <p class="lede">Every question waiting on your answer, with its pictures. Answered questions come off this list. Reply in chat with the number, e.g. "Q12: shared".</p>
-    <p class="stamp">0 open · updated 2026-10-26 · main 5b0fa00</p>
+    <p class="stamp">1 open · updated 2026-10-26 · main b41b7b1</p>
   </header>
 
-  <p class="lede">No open questions.</p>
+  <nav aria-label="Open questions"><ol>
+    <li><a href="#q61"><span class="n">Q61</span><span>Duplicate tiles: which consolidation?</span></a></li>
+  </ol></nav>
+
+  <article class="card" id="q61">
+    <span class="tag">Q61</span>
+    <h2>Duplicate tiles: which consolidation?</h2>
+    <p class="ask">A (Sal + move sparkle/dust), B (patron tile table), both, or neither?</p>
+    <ul>
+      <li>A: Sal has 9 repeated sprite pairs on every stage. Sharing them makes room to move the pour sparkle and dust puff out of the shared block: up to 12 background tiles back on every stage, DMG and Color.</li>
+      <li>B: the patrons' shifted poses hold the rest: 7-16 extra blank tiles per stage plus 0-6 copies (Igloo 33). Reusing them needs a lookup table in the patron drawing code. Patron code, so held; speed to be measured.</li>
+      <li>Stage, bar and floor art: no duplicates; the build already merges them.</li>
+    </ul>
+    <p class="files">Pink: repeated sprite pairs. Red: repeated tiles. Yellow: extra blank tiles.</p>
+    <div class="media"><img src="media/q61_duplicate_tiles.png" width="1060" height="800" alt="Igloo and Saloon tile sheets with duplicates outlined"></div>
+  </article>
 
 
 
