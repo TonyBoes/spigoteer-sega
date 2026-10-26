@@ -77,6 +77,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-26", "OBJ 7: \"Boss: hat\" was in every venue; now each lists its own boss's topper (crest, horns, lamp...), reloaded in his colours for the fight."),
+    ("2026-10-26", "Boss notes cut to two sentences on his actions and a list of which poses use sprites."),
     ("2026-10-25", "Lumber Lodge: the Sasquatch shares the full mug (OBJ 1: #F6E6C5 #834A29 #291010); WILLOW shares CEDAR's palette (OBJ 3)."),
     ("2026-10-25", "Bistro: PIERRE, BRIE and the waiter use Sal's OBJ 0; PIERRE and BRIE walk in BG 2 in Sal's colours."),
     ("2026-10-25", "Igloo: the penguin uses Sal's OBJ 0."),
@@ -437,6 +438,7 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pics { display: flex; gap: 4px; }
 .bimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: none; border-radius: 4px; }
 .bdesc { margin: 0 0 8px; padding-left: 1.1em; font-size: 13px; } .bdesc b { font-family: var(--mono); font-size: 12px; }
+.bact { margin: 0 0 6px; max-width: 68ch; font-size: 14px; }
 .poses { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 .poses figure { margin: 0; }
 .poses figcaption { font: 600 11px var(--body); color: var(--muted); margin-top: 3px; letter-spacing: .04em; }
@@ -682,8 +684,8 @@ def boss_section(v, m, field):
     dl = "img/boss_%s_sheet.png" % name
     sheet.save(os.path.join(os.path.dirname(OUT), dl), "PNG", transparency=0)
     h = ['<div class="ph2"><h2>Boss: %s</h2></div>' % esc(info.get("boss", name))]
-    h.append('<ul class="bdesc">%s</ul>' % "".join("<li><b>%s</b> %s</li>" % (esc(l), esc(t)) for l, t in BN.DESC.get(name, [])))
-    h.append('<p class="foot">Each picture is the game\'s own frame: BG body, with every sprite shown in that pose in fight colours. Capacity mugs show the usual state (hands - 1 TAKEN, 1 ROOM).</p>')
+    h.append('<p class="bact">%s</p>' % esc(BN.ACTS.get(name, "")))
+    h.append('<ul class="bdesc">%s</ul>' % "".join("<li><b>%s</b> %s</li>" % (esc(l), esc(t)) for l, t in BN.SPR.get(name, [])))
     h.append('<div class="poses">')
     for lb, rel, pw, ph, isdl in poses:
         img = '<img class="bimg" alt="%s %s" width="%d" height="%d" src="%s">' % (esc(info.get("boss", name)), esc(lb.lower()), pw, ph, rel)
