@@ -423,7 +423,9 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pt td.pic { width: 100px; min-width: 100px; padding-block: 4px; }
 .pics { display: flex; gap: 4px; }
 .bimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: none; border-radius: 4px; }
-.dl.boss { display: inline-block; margin-bottom: 10px; }
+.poses { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.poses figure { margin: 0; }
+.poses figcaption { font: 600 11px var(--body); color: var(--muted); margin-top: 3px; letter-spacing: .04em; }
 .dl { display: block; border-radius: 3px; }
 .dl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pimg.none { display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--rule, #888); box-sizing: border-box; }
@@ -564,18 +566,28 @@ def boss_section(v, m, field):
     blocks = dict(boss_blocks(name))
     allb = boss_blocks(name)
     tops = {"HAT_STILL", "HAT_BOB", "HAT_POP0", "HAT_POP1", "HAT_POP2", "HAT_POP3", "HAT_DUCK", "LAMP_RING", "LAMP_X"}
-    # the fight as built: WALK on the bar, the topper's upper 8 rows above it
-    im = Image.new("RGB", (width, 24), hex2(wall))
-    for y, r in enumerate(blocks["WALK"][:16]):
-        for x, ch in enumerate(r[:width]):
-            if ch in "-+#":
-                im.putpixel((x, y + 8), hex2(body["-+#".index(ch)]))
-    for y, r in enumerate(blocks["HAT_STILL"][:16]):
-        for x, ch in enumerate(r[:8]):
-            if ch in "-+#" and 0 <= hat_dx + x < width:
-                im.putpixel((hat_dx + x, y), hex2(top["-+#".index(ch)]))
-    rel = "img/boss_%s.png" % name
-    im.resize((width * 4, 96), Image.NEAREST).save(os.path.join(os.path.dirname(OUT), rel), "PNG")
+    # every body pose as built: the body on the bar, the topper over it (its frame per pose), fight colours
+    hatof = dict(STOMP="HAT_BOB", DUCK="HAT_DUCK", RED="LAMP_X", BARE=None)
+    red = next((p["colours"] for p in parts if p.get("kind") == "OBJ" and p.get("slot") == 4 and p.get("colours")), top)
+    poses = []
+    for bn, rows in allb:
+        if len(rows) != 16 or max(len(r) for r in rows) != width:
+            continue
+        im = Image.new("RGB", (width, 24), hex2(wall))
+        for y, r in enumerate(rows):
+            for x, ch in enumerate(r):
+                if ch in "-+#":
+                    im.putpixel((x, y + 8), hex2(body["-+#".index(ch)]))
+        hb = hatof.get(bn, "HAT_STILL")
+        if hb in blocks:
+            tc = red if hb == "LAMP_X" else top
+            for y, r in enumerate(blocks[hb][:16]):
+                for x, ch in enumerate(r[:8]):
+                    if ch in "-+#" and 0 <= hat_dx + x < width:
+                        im.putpixel((hat_dx + x, y), hex2(tc["-+#".index(ch)]))
+        rel = "img/boss_%s_%s.png" % (name, bn.lower())
+        im.resize((width * 3, 72), Image.NEAREST).save(os.path.join(os.path.dirname(OUT), rel), "PNG")
+        poses.append((bn, rel))
     # the editable sheet: every block, indexed; colour 0 the wall, 1-3 the body, 4-6 the topper's own colours if different
     pos, (sw, sh) = boss_layout(allb)
     sheet = Image.new("P", (sw, sh), 0)
@@ -590,8 +602,12 @@ def boss_section(v, m, field):
     dl = "img/boss_%s_sheet.png" % name
     sheet.save(os.path.join(os.path.dirname(OUT), dl), "PNG", transparency=0)
     h = ['<div class="ph2"><h2>Boss: %s</h2></div>' % esc(info.get("boss", name))]
-    h.append('<a class="dl boss" href="%s" download="boss_%s_sheet.png" data-file="boss_%s_sheet.png" title="Download every %s block, editable">'
-             '<img class="bimg" alt="%s as built" width="%d" height="96" src="%s"></a>' % (dl, name, name, esc(info.get("boss", name)), esc(info.get("boss", name)), width * 4, rel))
+    h.append('<div class="poses">')
+    for bn, rel in poses:
+        h.append('<figure><a class="dl" href="%s" download="boss_%s_sheet.png" data-file="boss_%s_sheet.png" title="Download every %s block, editable">'
+                 '<img class="bimg" alt="%s %s" width="%d" height="72" src="%s"></a><figcaption>%s</figcaption></figure>'
+                 % (dl, name, name, esc(info.get("boss", name)), esc(info.get("boss", name)), bn.lower(), width * 3, rel, bn))
+    h.append('</div>')
     h.append('<div class="tbl"><table class="pt"><thead><tr><th>Part</th><th>Palette</th><th>Colours</th><th>When</th><th>Tiles</th></tr></thead><tbody>')
     for p in parts:
         cols = p.get("colours")
