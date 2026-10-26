@@ -6,7 +6,7 @@ OPEN QUESTIONS TO THE OWNER:
 - Sal: investigate a second CGB sprite palette (top/bottom split)? (asked)
 
 OWED / LATER:
-- Patron design pass (held; proposals only): owner picked 13 of 27 on 2026-10-26 (Q56-Q58); 14 go to round 2 from the old sprites. Brief and list: docs/dev/queue_briefs/patron_pass_2026-10-25.md.
+- Patron design pass (held; proposals only): CLOSED for agents 2026-10-26. Picks from rounds 1-2 recorded; the rest stay old and the owner edits them by hand. Brief and list: docs/dev/queue_briefs/patron_pass_2026-10-25.md.
 - Medal-points value proposal (Q59e).
 - Map critique round after his playtest (left lane, parallel town legs, cow, lodge, menu text spacing incl. Dregs's 20-wide lines, arrow direction).
 - Palette audit leftovers: boss.c ld_step CGB palette stream mid-frame; smap_pal_back and dgag pats not verified with the LCD off.

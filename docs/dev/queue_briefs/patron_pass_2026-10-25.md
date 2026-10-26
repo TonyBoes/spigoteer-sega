@@ -101,3 +101,8 @@ and glorp. v2 fronts on glorp"
 - NOT KEPT: every other v2 front (ASH, SERENA, NORM, PIERRE, BRIE, IGGY, POLLY, MOOSE, MUDDY, KAGE, RONIN, ZORP, XENO)
   and the backs of PIERRE, IGGY, POLLY, MOOSE, MUDDY, KAGE.
 - Match check: serena_v2_back has a sleeve stripe and ronin_v2_back gold chevrons that their OLD fronts lack.
+
+OWNER 2026-10-26 (Q60): "Old version will stand. I'm going to edit them manually."
+- Every drawing not kept in round 1 or 2 stays the OLD one (assets/art/patrons/). No round 3; no agent redraws these.
+- The owner edits them by hand himself (the SERENA sleeve stripe / RONIN chevron mismatch with kept backs is his call).
+- The pass is closed for agents. Final set per patron = round-1 picks + round-2 picks + old for the rest + his edits.
