@@ -1,0 +1,18 @@
+; KAGE front, v2 option W: v2 plus diagonal bandage wraps on the mask (owner: read as scratches/stubble in the main version). 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #FFCDA4 (skin) 2 #29396A (navy) 3 #080810 (dark); teahouse wall #4A6A5A
+................
+.....########...
+....#+++#++++#..
+...#+++++##+++#.
+.###++#########.
+#..#++#------+#.
+#..#++#-#--#-+#.
+...#++#-#--#-+#.
+...#++++#++#++#.
+....#++++#++#+#.
+.....#++++#+#...
+..#####++++####.
+.#+++++#++#+++#.
+#+++#+++##++#++#
+#+++#++#++#+#++#
+################
