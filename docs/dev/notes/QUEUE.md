@@ -129,4 +129,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-10-25 MERGED (95f3705): SETTINGS v5 + every title menu one row down (Q49); teapot B (Q53, stream 107/122); all 13 Practice pictures (Q54) with
   .txt sources; the list turns the LCD on just after a music tick (the picture load had moved the phase). Pocket Player main refreshed, settings ROM retired.
 - WAITING ON THE OWNER: GUS's tip when a coin is already out (option A proposed); Big Tex on DUSTY/EMMA's palette?
-- OPTIONAL, NOT STARTED: Boss Rush busts (64x40), unless the owner wants them.
+- ON HOLD (owner 2026-10-25): Boss Rush busts (64x40). "I don't want to do any boss rush busts until I finish the patron planning. I will look at the boss graphics then."
