@@ -249,11 +249,36 @@ var ROM_LIST = [
       ", game samples so far: " + samplesSeen + (muted ? " (muted)" : "");
   }
   setInterval(showAudio, 1000);
+  // iPhone silent switch: Web Audio alone is muted by it even with audioSession "playback" (owner's phone, 2026-10-25).
+  // A looping silent <audio> element started inside a tap puts the page in the media category, which the switch leaves alone.
+  var unmuteEl = null;
+  function silentWavUrl() {
+    var n = 4000, b = new ArrayBuffer(44 + n), v = new DataView(b), i;   // 0.5 s, 8 kHz, 8-bit mono, all 0x80 (silence)
+    function str(o, s) { for (var k = 0; k < s.length; k++) v.setUint8(o + k, s.charCodeAt(k)); }
+    str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+    v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true);
+    v.setUint16(34, 8, true); str(36, "data"); v.setUint32(40, n, true);
+    for (i = 0; i < n; i++) v.setUint8(44 + i, 0x80);
+    return URL.createObjectURL(new Blob([b], { type: "audio/wav" }));
+  }
+  function wakeUnmute() {
+    try {
+      if (!unmuteEl) {
+        unmuteEl = document.createElement("audio");
+        unmuteEl.src = silentWavUrl(); unmuteEl.loop = true;
+        unmuteEl.setAttribute("playsinline", ""); unmuteEl.setAttribute("x-webkit-airplay", "deny");
+      }
+      if (unmuteEl.paused && !document.hidden) { var p = unmuteEl.play(); if (p && p.catch) p.catch(function () {}); }
+    } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", function () { if (document.hidden && unmuteEl) unmuteEl.pause(); });
+
   function wakeAudio() {
     try {
       // iPhone / iPad: route Web Audio as media playback, so the ring/silent switch does not mute it (Safari 16.4+)
       if (navigator.audioSession && navigator.audioSession.type !== "playback") navigator.audioSession.type = "playback";
     } catch (e) {}
+    wakeUnmute();
     try {
       if (!audioCtx) {
         var AC = window.AudioContext || window.webkitAudioContext;
