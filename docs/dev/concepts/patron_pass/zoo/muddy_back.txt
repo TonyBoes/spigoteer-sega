@@ -1,0 +1,19 @@
+; MUDDY back (frame C), design pass 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; same palette as the front. Keeps the old back's symmetry (mirror about the middle of the 16 columns).
+; head from behind: round purple head with two outlined ears, pink crown sheen, wide jowls at the sides, head-bottom line, thick neck, broad shoulders
+..##.######.##..
+.#++#++++++#++#.
+..##++++++++##..
+..#++++--++++#..
+..#++++++++++#..
+..#++++++++++#..
+.#++++++++++++#.
+.#++++++++++++#.
+.#++++++++++++#.
+..#++++++++++#..
+...#++++++++#...
+....########....
+....#++++++#....
+..###++++++###..
+.#++++++++++++#.
+################

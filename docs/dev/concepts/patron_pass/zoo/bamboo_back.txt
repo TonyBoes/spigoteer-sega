@@ -1,0 +1,19 @@
+; BAMBOO back (frame B), design pass 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; same palette as the front. Keeps the old back's symmetry (mirror about the middle of the 16 columns).
+; head from behind: round white head shaded grey at the sides, black ears, grey shadow where the ears meet the head, head-bottom line, grey neck, black shoulders
+..##........##..
+.####......####.
+.##############.
+.##++------++##.
+.#------------#.
+.#------------#.
+.#+----------+#.
+.#+----------+#.
+.#++--------++#.
+.#+++------+++#.
+..#++++++++++#..
+...##########...
+....#++++++#....
+..####----####..
+.#####----#####.
+################

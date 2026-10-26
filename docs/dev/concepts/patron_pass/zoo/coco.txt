@@ -1,0 +1,19 @@
+; COCO front (frame A), design pass 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #F6D5A4 (face, ear, chest) 2 #8B5229 (fur) 3 #291808 (dark: eyes, outline); zoo wall #204A5A. Shares the full mug's palette.
+; kept: brown monkey, cream face with a fur widow's peak, one round ear, cream chest V. new: 3/4 face turned right with the cheek as the silhouette, 2 px eyes, smile in the fur colour, rounded jaw, fur collar under the chin, sloped shoulders, fur sheen on the crown
+.....######.....
+...##+--+++##...
+..#++--++++++#..
+..#+++++++++++#.
+.###+++---++--#.
+#-+#++--------#.
+#-+#++---#--#-#.
+.###++---#--#--#
+...#++---+---+-#
+...#++----+++-#.
+....#+-------#..
+....#++++++++#..
+...#+++-----++#.
+..#+++++---++++#
+.#+++++++-+++++#
+################

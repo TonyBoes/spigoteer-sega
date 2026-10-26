@@ -1,0 +1,19 @@
+; MUDDY front (frame C), design pass 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #F6B4C5 (pink: muzzle, ears, belly) 2 #947BAC (purple skin) 3 #201029 (dark: eyes, outline); zoo wall #204A5A.
+; kept: the hippo with pink-lined ears, narrow head over a wide pink muzzle, pink belly. new: face and muzzle turned right (wide purple cheek behind, snout to the right edge), nostrils and a long mouth in the skin colour, 2 px eyes, skin-colour neck row under the chin, sloped shoulders. no mud marks: any mark on the pink belly read as a pocket or a symbol
+..##.#######.##.
+.#--#+++++++#--#
+..##+++++++++##.
+...#++++++++++#.
+...#++++#+++#+#.
+...#++++#+++#+#.
+..#++----------#
+.#++-------+-+-#
+.#++-----------#
+..#+---+++++++-#
+...#----------#.
+....#++++++++#..
+...#+++-----++#.
+..#++++----++++#
+.#+++++----++++#
+################

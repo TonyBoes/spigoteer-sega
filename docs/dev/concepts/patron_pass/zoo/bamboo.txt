@@ -1,0 +1,19 @@
+; BAMBOO front (frame B), design pass 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #FFFFF6 (white fur) 2 #A4A4B4 (grey) 3 #101010 (black); zoo wall #204A5A.
+; kept: the panda: black ears, black eye patches, black arms and shoulders, white chest. new: 3/4 head turned right (wide white far cheek, near patch meeting the edge), slanted patches with 2 px white eyes, black nose and grey mouth, grey inner ears, grey chin shadow that separates the head from the chest
+..##.........##.
+.#++#.......#++#
+.###############
+.##-----------##
+.#------##--##-#
+.#-----#-#--#-##
+.#-----#-#--#-##
+.#-----##----###
+..#-------##---#
+...#-----++++--#
+....#---------#.
+....#+++++++++#.
+..####-----####.
+.#####-----#####
+#####-------####
+################
