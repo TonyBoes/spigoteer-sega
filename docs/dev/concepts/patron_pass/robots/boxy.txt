@@ -1,0 +1,18 @@
+; BOXY, the box robot, front. Proposal 2026-10-26 (draft 1). 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #5AF6FF (screen, lamps, hazard stripes) 2 #7B8BA4 (steel) 3 #101829 (dark); factory wall #523129. One palette, no enhanced look.
+.......##.......
+......#--#......
+..############..
+..#--#+++++++#..
+..#++#+-----+#..
+..#++#-#--##-#..
+..#++#-#--##-#..
+..#++#-------#..
+..#++#+-+++-+#..
+...##########...
+......#++++#....
+.--##+#+++++--#.
+--##--#++++++++#
+-##--##+-+#+#++#
+##--##-++++++++#
+################
