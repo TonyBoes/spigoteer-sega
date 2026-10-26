@@ -21,3 +21,5 @@ Since 2026-10-21 the page has a ROM menu. Bundled ROMs are roms/<id>.js, each se
 **How to apply:** after merges that change gameplay, regenerate rom.js from the unlocked ROM and republish the same file path or URL.
 
 Related: [[gfx-atlas-artifact]], [[review-board-artifact]].
+
+2026-10-25: the iPhone silent switch muted the player (audioSession "playback" was not enough on his phone). wakeUnmute() now starts a looping silent <audio> WAV in each tap. Keep it. Waiting on his test.
