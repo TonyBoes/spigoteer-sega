@@ -1,0 +1,19 @@
+; MOOSE front (frame C), design pass 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #B4734A (skin, hood fur) 2 #627B39 (parka green) 3 #101808 (dark: eyes, brows, moustache); igloo wall #4A417B
+; kept: the big parka man with a bushy moustache, hood with a fur ring, big ruff. new: walrus moustache with drooping ends on a clean skin face, 2 px eyes, brows, 2 px thick ruff
+....#######.....
+..##-#--#---##..
+.#+-########-+#.
+#+-++-------++#.
+#+-+--##--##-+#.
+#+-+---#--#--+#.
+#+-+---#--#---#.
+#+-+---------+#.
+#+-+---#####-+#.
+#+-++--#---#+#..
+.#+-+#######+#..
+.#++---------+#.
+#++--+---+--+++#
+#++#++++#++++#+#
+#++#++++#++++#+#
+################

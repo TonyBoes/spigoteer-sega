@@ -1,0 +1,18 @@
+; MOOSE back (frame C), design pass 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; same palette as the front. Symmetric about column 8, column 0 empty (C has no such rule; drawn so anyway, checked by script, not generated).
+.....#######....
+....#+++++++#...
+...#++++#++++#..
+..#+++++#+++++#.
+..#+++++#+++++#.
+..#+++++#+++++#.
+..#+++++#+++++#.
+..#+++++#+++++#.
+..#+++++++++++#.
+...#+++++++++#..
+....#-------#...
+.##+---------+##
+.#+++++++++++++#
+.#+#+++++++++#+#
+.#+#+++++++++#+#
+.###############

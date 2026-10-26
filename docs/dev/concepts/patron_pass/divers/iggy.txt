@@ -1,0 +1,19 @@
+; IGGY front (frame A), design pass 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #E6AC7B (skin, hood fur) 2 #5ABDFF (parka blue) 3 #101829 (dark: eyes, brows, hood brim); igloo wall #4A417B
+; kept: parka hood with a fur ring, hood opening, ruff, zip. new: 2 px eyes, brows, smile, nose bump, dark hood brim over a clean skin face
+....#######.....
+..##---#--#-##..
+.#+-########-+#.
+#+-++-------++#.
+#+-+--##--##-+#.
+#+-+---------+#.
+#+++---#--#--+#.
+#+-+---#--#---#.
+#+-++---+--+-+#.
+#+-+++---++-++#.
+.#+-+#######+#..
+.#++---------+#.
+#++++++++++++++#
+#+++#+++#++++#+#
+#+++#+++#++++#+#
+################

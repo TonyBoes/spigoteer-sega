@@ -1,0 +1,19 @@
+; POLLY front (frame B), design pass 2026-10-26. 16x16: . colour 0 (wall)  - colour 1  + colour 2  # colour 3
+; planned CGB palette 1 #D59C7B (skin, hood fur, hair ties) 2 #318B7B (teal parka) 3 #102929 (dark: hair, eyes, brows); igloo wall #4A417B
+; kept: the parka girl, hood with a fur ring, two braids with light ties. new: hair locks at the temples instead of a dark fringe, 2 px eyes, brows, nose bump, clean skin face
+....#######.....
+..##-#--#---##..
+.#+-########-+#.
+#+-++-------++#.
+#+-+--##--##-+#.
+#+-+---------+#.
+#+++#--#--#-#+#.
+#+-+#--#--#-#-#.
+#+-+#----++--+#.
+#+-+++------++#.
+.#+-+#######+#..
+.#+++##+++##++#.
+.#+++##+++##++#.
+#++++--+++--+++#
+#++++##+++##+++#
+################
