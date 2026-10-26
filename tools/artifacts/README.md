@@ -14,7 +14,7 @@ publish with that page's URL as `url`.
 
 ## Retired: the old Graphics Atlas page
 
-Owner, 2026-10-26: the page at https://claude.ai/artifact/RLQysU9fNNbcZR2TS8x5XZ is no longer published; the
+Owner, 2026-10-26: the page at https://claude.ai/artifact/RLQysU9fNNbcZR2TS8x5XZ, renamed "Old Atlas", is no longer updated; the
 Palette Plan page took its name. `make atlas` (`tools/gfx_atlas/`) still runs, because the Graphics Atlas and Palette
 Merges builds read its `out/atlas/data`.
 
