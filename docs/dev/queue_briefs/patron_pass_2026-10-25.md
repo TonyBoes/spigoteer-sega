@@ -84,3 +84,12 @@ PLANNED PALETTES (colours 1-3; the Palette Plan, owner merges 2026-10-25). Share
 - ninjas (#4A6A5A): KAGE #FFCDA4 #29396A #080810; SAKURA #FFEEDE #CD2939 #181010 (shares the drummer's); RONIN #EEBD7B #AC2931 #201018
 - zoo (#204A5A): COCO #F6D5A4 #8B5229 #291808 (shares the full mug); BAMBOO #FFFFF6 #A4A4B4 #101010; MUDDY #F6B4C5 #947BAC #201029
 - aliens (#20295A): ZORP #F6FF9C #4ACD62 #102020 (full mug); XENO #E6E6EE #9CA4B4 #101018 (empty mug); GLORP #8BFFF6 #EE7B31 #311008
+
+OWNER 2026-10-26 (Q56-Q58 answered, in order of presentation): "Where I kept the old versions try again."
+- Lodge: new, new, old. Stadium: new, old, old. Bistro: old, old, new. Factory: new, new, new. Igloo: old, old, old.
+  Cow: new, new, new. Tea house: old, new, old. Zoo: new, new, old. UFO: old, old, old.
+- ACCEPTED (round 1 pass, front + back; a quality pass before import stays the default): CEDAR (owner's), WILLOW, PETE,
+  BASIL, BOXY, VOLTA, BLIP, SPIKE, BANDIT, SLICK, SAKURA, COCO, BAMBOO.
+- ROUND 2 (he preferred the old drawing; no reason given): ASH, SERENA, NORM, PIERRE, BRIE, IGGY, POLLY, MOOSE, KAGE,
+  RONIN, MUDDY, ZORP, XENO, GLORP. Start from the OLD sprite (assets/art/patrons/), not the round-1 draft. Files:
+  <name>_v2.txt and <name>_v2_back.txt; round-1 files stay as the record.
