@@ -6,7 +6,11 @@ OPEN QUESTIONS TO THE OWNER:
 - Sal: investigate a second CGB sprite palette (top/bottom split)? (asked)
 
 OWED / LATER:
-- Patron design pass (held; proposals only): CLOSED for agents 2026-10-26. Picks from rounds 1-2 recorded; the rest stay old and the owner edits them by hand. Brief and list: docs/dev/queue_briefs/patron_pass_2026-10-25.md.
+- PATRON HOLD LIFTED 2026-10-26: "Let's just go ahead and implement what patron changes we have so far so we can get everything current."
+  - Batch 1 RUNNING (patron-rev-1): accepted art for 8 venues (ACCEPTED in palette_plan/build.py) + the Color palette merges.
+  - Batch 2 NEXT, after q61-shared-tiles and dmg-mixed-b merge: Saloon 8 looks (option 2, variants, GUS in the C slot), renames,
+    drop the enhanced looks. Saloon backs: drafts in docs/dev/concepts/{dusty_hank,rosie,outlaw}_sprite; EMMA, ARTIE, GUS have none (stand-ins, listed).
+- Patron design pass: CLOSED for agents 2026-10-26. Picks from rounds 1-2 recorded; the rest stay old and the owner edits them by hand. Brief and list: docs/dev/queue_briefs/patron_pass_2026-10-25.md.
 - Medal-points value proposal (Q59e).
 - Map critique round after his playtest (left lane, parallel town legs, cow, lodge, menu text spacing incl. Dregs's 20-wide lines, arrow direction).
 - Palette audit leftovers: boss.c ld_step CGB palette stream mid-frame; smap_pal_back and dgag pats not verified with the LCD off.
@@ -101,6 +105,8 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
     - That frees 12 shared-block tiles in bank 0, which can hold 3 back views of the new looks, taking the bank-1 margin from 6 to about 18.
   - Boss sprite parts: the atlas says every boss's sprite tiles are already sprite-only (6-10 tiles each). Their shared-block tiles (234-255) are body BG tiles and cannot move. Nothing to gain there.
   - 15-px-wide new looks would add 10 more.
+- Owner 2026-10-26, Q62: DMG mixed-direction levels switch to mirror.c option (b): 1 px steps, A and B on L bars, C on R bars (branch dmg-mixed-b). Q61: option A MERGED 0943d35 (pour 40-45, dust 46-51; shared 234-239, 246-251 free; Sal pairs not shared, ROM cost); B waits for the patron revision.
+- Owner 2026-10-26, Q63: "the 45 degree tilt is enough. But looks good." boss-mug-tilt approved minus the on-its-side frame (agent aaa34daeb5d66de8b removing it); then supervisor replaces boss_critic goldens, verifies, merges.
 - Owner 2026-10-22, DMG: the DMG keeps the original palettes (they all collapse to shades anyway). For the Saloon, the DMG three are DUSTY, EMMA and GUS (EMMA replaced ROSIE: her see-through pupils looked possessed on DMG).
   - These are the bank-0 looks on BOTH systems (one layout). GUS takes the slot the boss overwrites, so he sits out boss fights on both.
   - HANK goes to bank 1 and is Color only.
