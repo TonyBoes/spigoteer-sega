@@ -45,7 +45,7 @@ O_COIN = O_DRINK + _d["MUG_DRINK_TILE_COUNT"]
 O_DANCER = O_COIN + _d["COIN_TILE_COUNT"]
 O_DANCER_END = O_DANCER + _d["DANCER_TILE_COUNT"]
 O_PATRON = _d["PATRON_FIRST_TILE"] + _d["PATRON_SHIFT0_OFS"]       # shift-0 pose of variant v: + 6 v
-O_POUR, O_CUE, O_DMG, O_MIRROR = 234, 238, 240, 246
+O_POUR, O_CUE, O_DMG, O_MIRROR = 40, 44, 240, 246   # (Q61: the pour and the dust puff are sprite-only ids 40-51)
 VARIANT = "ABC"
 BT_NAMES = ["Sal: standing", "Sal: walking (step 1)", "Sal: walking (step 2)", "Sal: filling, sliding, catching", "Sal: fail (a patron reached the tap)"]
 
@@ -72,8 +72,14 @@ def label_of(o, cgb, enh, edge_x):
     t = o["tile"] & 0xFE
     if t < 40:
         return (0, t // 8), BT_NAMES[t // 8], "bt"
+    if t < O_CUE:
+        return (4, 0), "perfect pour: sparkle and overflow", "pour"
+    if t < O_CUE + 2:
+        return (4, 1), "PERFECT cue", "cue"
+    if t < 52:
+        return (5, 1), "dust puff (tile %d)" % t, "mirror"
     if t < 56:
-        return (0, 9), "OBJ ids 40-55 (unused)", "bt"
+        return (0, 9), "OBJ ids 52-55 (unused)", "bt"
     if t < O_MUG + 2:
         return (1, 0), "full mug", "full"
     if t < O_GLASS:
@@ -95,10 +101,6 @@ def label_of(o, cgb, enh, edge_x):
             if o["x"] < edge_x or o["x"] > 136:
                 return (2, 3 + v), "patron %s entering / leaving (left edge)" % VARIANT[v], "edge"
             return (2, v), "lifted patron %s%s" % (VARIANT[v], " (enhanced variant)" if en else ""), "lift"
-    if O_POUR <= t < O_CUE:
-        return (4, 0), "perfect pour: sparkle and overflow", "pour"
-    if O_CUE <= t < O_DMG:
-        return (4, 1), "PERFECT cue", "cue"
     if O_DMG <= t < O_MIRROR:
         return (5, 0), "DMG mug copies", "dmg"
     return (5, 1), "mirrored copies / dust puff (tile %d)" % t, "mirror"

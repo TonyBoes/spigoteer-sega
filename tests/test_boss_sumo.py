@@ -575,7 +575,7 @@ def test_the_salt_flies_and_the_dust_rises(model):
         assert salt_oam(gb) == []
         to_frame(gb, SE_SALT + 10)
         salt = salt_oam(gb)
-        assert len(salt) == 2 and all(t == 246 + 4 for _, _, t, _ in salt), salt
+        assert len(salt) == 2 and all(t == 46 + 4 for _, _, t, _ in salt), salt
         assert all(x >= 24 + 40 + 8 for _, x, _, _ in salt), "right of him"
         ys = [o[0] for o in salt]
         top = 5 * 8 + 3 * B * 8 + 16

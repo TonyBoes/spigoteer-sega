@@ -26,7 +26,9 @@ def regions():
     o = bt
     reg = [
         (0, bt - 17, "OBJ ids 0-39: Sal, the bartender (5 frames x 8)", "obj", "perm"),
-        (bt - 16, bt - 1, "OBJ ids 40-55: free", "free", "free"),
+        (bt - 16, bt - 11, "OBJ ids 40-45: perfect-pour sparkle / overflow / cue (story)", "obj", "venue"),
+        (bt - 10, bt - 5, "OBJ ids 46-51: bar-change dust puff", "obj", "venue"),
+        (bt - 4, bt - 1, "OBJ ids 52-55: free", "free", "free"),
     ]
     reg[0] = (0, 39, reg[0][2], "obj", "perm")
     for n, label, kind in ((mug, "mug (full, empty)", "venue"), (glass, "breaking glass", "venue"), (fill, "fill glass (4 frames)", "venue"),
@@ -39,9 +41,9 @@ def regions():
     reg += [
         (128, back - 1, "ids 128-%d: patrons, shifted poses (BG; shift-0 poses double as lifted-patron OBJ)" % (back - 1), "patron", "venue"),
         (back, pend, "ids %d-%d: patrons, back views (BG)" % (back, pend), "patron", "venue"),
-        (pend + 1, 239, "ids %d-239: perfect-pour sparkle / overflow / cue (OBJ, story)" % (pend + 1), "obj", "venue"),
+        (pend + 1, 239, "ids %d-239: free (Q61; was the perfect pour)" % (pend + 1), "free", "free"),
         (240, 245, "OBJ ids 240-245: DMG bit-plane copies of the mugs", "obj", "venue"),
-        (246, 255, "ids 246-255: mirror copies (CLASSIC), dust puff", "obj", "venue"),
+        (246, 255, "ids 246-255: mirror copies (CLASSIC DMG), boss extras; 246-251 free otherwise (Q61)", "obj", "venue"),
         (256, 256 + d["VENUE_POOL"] - 1, "BG ids 0-%d: venue pool (stage from 0 up, bar + floor packed at the top)" % (d["VENUE_POOL"] - 1), "pool", "venue"),
         (256 + d["TILE_GENERIC_BASE"], 256 + d["BAR_TILE_COUNT"] - 1,
          "BG ids %d-%d: shared HUD, glyphs, panels" % (d["TILE_GENERIC_BASE"], d["BAR_TILE_COUNT"] - 1), "shared", "perm"),

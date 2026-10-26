@@ -44,7 +44,7 @@
 #define S               (MG->ou)
 #define OU_BG           MG_GAME_BG
 #define OU_OBJ          OBJ_MUG             // 56..87 (the drink frames: the level load puts them back)
-typedef char ou_fits[(OU_OBJ + OU_OBJ_TILES <= OBJ_COIN && OU_BG + OU_BG_TILES <= OBJ_POUR
+typedef char ou_fits[(OU_OBJ + OU_OBJ_TILES <= OBJ_COIN && OU_BG + OU_BG_TILES <= OBJ_SHARED_TOP
                       && sizeof(struct ou_state) <= STORY_SCRATCH) ? 1 : -1];
 #define OU_ROUNDS       7
 #define OU_FIRST_LEN    3                   // round r: r + 2 dishes

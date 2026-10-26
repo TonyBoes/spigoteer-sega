@@ -1,7 +1,8 @@
 import json, sys
 from PIL import Image
 from collections import defaultdict
-R = "/workspace/out/atlas/"
+import os
+R = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "out", "atlas") + "/"
 G = {(255,255,255):0, (170,170,170):1, (85,85,85):2, (0,0,0):3}
 def rec(name):
     t = open(R + "data/%s.js" % name).read()
@@ -41,7 +42,7 @@ for v in "cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
     print(f"{v:12} live {len(live)} exact-dup {ex} (blank {max(nb-1,0)}) +flips {fl-ex}  by region {dict(exr)}")
 
 print("\n--- by owner region, excluding blanks and tiles that changed during the capture ---")
-sys.path.insert(0, "/workspace/tools/gfx_atlas"); import analyze as A
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "gfx_atlas")); import analyze as A
 def rname(s):
     for r in A.REGIONS:
         if r["lo"] <= s <= r["hi"]: return r["label"].split(":")[1].split("(")[0].strip()[:28]
