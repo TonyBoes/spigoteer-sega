@@ -17,3 +17,5 @@ I recovered by saving every unreachable commit tip under hidden `refs/recovered/
 - Delete only branches I created or merged in this session, by exact name.
 - Print the list before deleting.
 - To get something back: `git for-each-ref refs/recovered`, then `git branch <name> refs/recovered/<ref>`.
+
+Owner 2026-10-25: "Just delete them all, I know of nothing not on main that we need to keep." All 144 worktrees and 196 branches were removed. The branch tips are kept under `refs/recovered/1025-cleanup/<branch>`. The 17 worktrees with uncommitted files were saved as tgz and diff files in that session's scratchpad (not durable).
