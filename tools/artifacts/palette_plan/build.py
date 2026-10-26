@@ -420,7 +420,13 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pt td.now { color: var(--now); font-weight: 600; } .pt td.plan { color: var(--plan); font-weight: 600; }
 .pt td.slotc { font-family: var(--mono); white-space: nowrap; }
 .pimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; border-radius: 3px; width: 48px; height: 48px; max-width: none; }
-.pt td.pic { width: 48px; min-width: 48px; padding-block: 4px; }
+.pt td.pic { width: 100px; min-width: 100px; padding-block: 4px; }
+.pics { display: flex; gap: 4px; }
+.bimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: none; border-radius: 4px; }
+.dl.boss { display: inline-block; margin-bottom: 10px; }
+.dl { display: block; border-radius: 3px; }
+.dl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pimg.none { display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--rule, #888); box-sizing: border-box; }
 .muted { color: var(--muted); font-style: italic; }
 .ph2 { display: flex; align-items: end; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .copymd { font: 600 13px var(--body); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }
@@ -463,6 +469,34 @@ def art_rows(v, name):
     return None
 
 
+# The latest accepted art per patron (owner picks 2026-10-26, Q56-Q59): (front, back) files under the patron pass folder,
+# "old" = the game's frame. The Saloon: art/ fronts; backs the game's for its 3 looks, the others still to draw.
+PASS = os.path.join(ROOT, "docs/dev/concepts/patron_pass")
+ACCEPTED = {
+    "lumberjacks": {"cedar": ("cedar_owner", "cedar_back"), "willow": ("willow", "willow_back"), "ash": ("old", "ash_v2_back")},
+    "sports": {"pete": ("pete", "pete_back"), "serena": ("old", "serena_v2_back"), "norm": ("old", "norm_v2_back")},
+    "chefs": {"pierre": ("old", "old"), "brie": ("old", "brie_v2_back"), "basil": ("basil", "basil_back")},
+    "robots": {"boxy": ("boxy", "boxy_back"), "volta": ("volta", "volta_back"), "blip": ("blip", "blip_back")},
+    "punks": {"spike": ("spike", "spike_back"), "bandit": ("bandit", "bandit_back"), "slick": ("slick", "slick_back")},
+    "ninjas": {"kage": ("old", "old"), "sakura": ("sakura", "sakura_back"), "ronin": ("old", "ronin_v2_back")},
+    "zoo": {"coco": ("coco", "coco_back"), "bamboo": ("bamboo", "bamboo_back"), "muddy": ("old", "old")},
+    "aliens": {"zorp": ("old", "zorp_v2_back"), "xeno": ("old", "xeno_v2_back"), "glorp": ("glorp_v2", "glorp_v2_back")},
+}
+
+
+def accepted(v, name):
+    """(front rows, back rows or None) of the patron's latest accepted art."""
+    first = name.split(",")[0].strip().lower()
+    names = [n.split(",")[0].strip().lower() for n in NAMES[v["key"]]]
+    old = lambda suf: frames(os.path.join(ROOT, "assets/art/patrons/%s%s.txt" % (v["key"], suf)))[names.index(first)]
+    pick = ACCEPTED.get(v["key"], {}).get(first)
+    if pick:
+        get = lambda f, suf: old(suf) if f == "old" else frames(os.path.join(PASS, v["key"], f + ".txt"))[0]
+        return get(pick[0], ""), get(pick[1], "_back")
+    front = art_rows(v, name)
+    back = old("_back") if first in names else None
+    return front, back
+
 def thumb(rows, cols, wall, name):
     """img/<name>.png beside OUT: a 16x16 front view, x4, in the given colours. Returns its relative path."""
     from PIL import Image
@@ -475,8 +509,102 @@ def thumb(rows, cols, wall, name):
     path = os.path.join(os.path.dirname(OUT), rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.resize((64, 64), Image.NEAREST).save(path, "PNG")
+    one = Image.new("P", (16, 16), 0)                 # the 1x download: indexed, colour 0 the wall, 1-3 light to dark
+    one.putpalette(sum((list(hex2(c)) for c in [wall] + list(cols)), []))
+    for y, r in enumerate(rows[:16]):
+        for x, ch in enumerate(r[:16]):
+            if ch in "-+#":
+                one.putpixel((x, y), "-+#".index(ch) + 1)
+    one.save(path[:-4] + "_1x.png", "PNG", transparency=0)
     return rel
 
+
+# Bosses: venue -> (art file, body width, topper x). The fight's palette map is boss_palettes.json (from src/boss*.c).
+BOSS = dict(cowboys=("big_tex", 40, 16), sports=("mascot", 32, 8), lumberjacks=("sasquatch", 32, 12), chefs=("critic", 32, 9),
+            divers=("yeti", 32, 9), robots=("prototype", 32, 8), punks=("duke", 40, 16), ninjas=("sumo", 40, 16),
+            zoo=("leo", 32, 6), aliens=("mothership", 40, 12))
+BOSS_PAL = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "boss_palettes.json")))
+SHEET_W, GAP = 168, 8                         # the editable sheet: blocks in file order, rows of at most 168 px, 8 px apart
+
+
+def boss_blocks(name):
+    """[(block name, rows)] of assets/art/boss/<name>.txt in file order."""
+    out, cur = [], None
+    for l in open(os.path.join(ROOT, "assets/art/boss/%s.txt" % name)).read().splitlines():
+        if l.startswith("@"):
+            cur = (l[1:].split()[0], []); out.append(cur)
+        elif cur is not None and l and not l.startswith(";"):
+            cur[1].append(l)
+        elif not l.strip():
+            cur = None
+    return out
+
+
+def boss_layout(blocks):
+    """[(x, y)] of each block on the editable sheet, and the sheet's size. Deterministic: the split reads it back."""
+    pos, x, y, rh, w = [], 0, 0, 0, 0
+    for _, rows in blocks:
+        bw, bh = max(len(r) for r in rows), len(rows)
+        if x and x + bw > SHEET_W:
+            x, y, rh = 0, y + rh + GAP, 0
+        pos.append((x, y)); x += bw + GAP; rh = max(rh, bh); w = max(w, x - GAP)
+    return pos, (w, y + rh)
+
+
+def boss_section(v, m, field):
+    from PIL import Image
+    if v["key"] not in BOSS:
+        return ""
+    name, width, hat_dx = BOSS[v["key"]]
+    info = BOSS_PAL.get(v["key"], {})
+    wall = v["bg"][0][0]
+    parts = info.get("parts", [])
+    body = next((p["colours"] for p in parts if p.get("kind") == "BG" and p.get("slot") == 4 and p.get("colours")), None)
+    top = next((p["colours"] for p in parts if p.get("kind") == "OBJ" and p.get("slot") == 7 and p.get("colours")), None) or body
+    blocks = dict(boss_blocks(name))
+    allb = boss_blocks(name)
+    tops = {"HAT_STILL", "HAT_BOB", "HAT_POP0", "HAT_POP1", "HAT_POP2", "HAT_POP3", "HAT_DUCK", "LAMP_RING", "LAMP_X"}
+    # the fight as built: WALK on the bar, the topper's upper 8 rows above it
+    im = Image.new("RGB", (width, 24), hex2(wall))
+    for y, r in enumerate(blocks["WALK"][:16]):
+        for x, ch in enumerate(r[:width]):
+            if ch in "-+#":
+                im.putpixel((x, y + 8), hex2(body["-+#".index(ch)]))
+    for y, r in enumerate(blocks["HAT_STILL"][:16]):
+        for x, ch in enumerate(r[:8]):
+            if ch in "-+#" and 0 <= hat_dx + x < width:
+                im.putpixel((hat_dx + x, y), hex2(top["-+#".index(ch)]))
+    rel = "img/boss_%s.png" % name
+    im.resize((width * 4, 96), Image.NEAREST).save(os.path.join(os.path.dirname(OUT), rel), "PNG")
+    # the editable sheet: every block, indexed; colour 0 the wall, 1-3 the body, 4-6 the topper's own colours if different
+    pos, (sw, sh) = boss_layout(allb)
+    sheet = Image.new("P", (sw, sh), 0)
+    pal = [wall] + body + (top if top != body else [])
+    sheet.putpalette(sum((list(hex2(c)) for c in pal), []))
+    for (bn, rows), (bx, by) in zip(allb, pos):
+        off = 4 if (bn in tops and top != body) else 1
+        for y, r in enumerate(rows):
+            for x, ch in enumerate(r):
+                if ch in "-+#":
+                    sheet.putpixel((bx + x, by + y), "-+#".index(ch) + off)
+    dl = "img/boss_%s_sheet.png" % name
+    sheet.save(os.path.join(os.path.dirname(OUT), dl), "PNG", transparency=0)
+    h = ['<div class="ph2"><h2>Boss: %s</h2></div>' % esc(info.get("boss", name))]
+    h.append('<a class="dl boss" href="%s" download="boss_%s_sheet.png" data-file="boss_%s_sheet.png" title="Download every %s block, editable">'
+             '<img class="bimg" alt="%s as built" width="%d" height="96" src="%s"></a>' % (dl, name, name, esc(info.get("boss", name)), esc(info.get("boss", name)), width * 4, rel))
+    h.append('<div class="tbl"><table class="pt"><thead><tr><th>Part</th><th>Palette</th><th>Colours</th><th>When</th><th>Tiles</th></tr></thead><tbody>')
+    for p in parts:
+        cols = p.get("colours")
+        if p["part"].startswith("Topper") and p["slot"] == 7 and v["key"] != "robots":
+            p = dict(p, part="Topper: " + TOPPER[v["key"]])
+        if not cols:                              # the venue's own slot: its planned colours, as the cards above show them
+            d = m[("OBJ", p["slot"])] if p["kind"] == "OBJ" else field[p["slot"]]
+            cols = eff(d)[1:]
+        sw_ = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols) if cols else esc(p.get("note", ""))
+        h.append('<tr><td>%s</td><td class="slotc">%s %s</td><td>%s</td><td>%s</td><td>%s</td></tr>'
+                 % (esc(p["part"]) + (" ?" if p.get("unsure") else ""), p["kind"], p["slot"], sw_, esc(p.get("when", "")), esc(str(p.get("tiles", "")))))
+    h.append('</tbody></table></div>')
+    return "".join(h)
 
 def hex2(h):
     return (int(h[1:3], 16), int(h[3:5], 16), int(h[5:7], 16))
@@ -598,8 +726,18 @@ for i, v in enumerate(venues):
         cols = [d["new"].get(k, d["cols"][k]) for k in (1, 2, 3)]
         sw = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
         bg = ("BG %d" % r["bg"]) if "bg" in r else '<span class="muted">to assign</span>'
-        ar = art_rows(v, r["name"])
-        img = ('<img class="pimg" alt="%s" width="48" height="48" src="%s">' % (esc(r["name"]), thumb(ar, cols, v["bg"][0][0], "%s_%s" % (v["key"], r["name"].split(",")[0].strip().lower())))) if ar else ""
+        fr, bk = accepted(v, r["name"])
+        first = r["name"].split(",")[0].strip().lower()
+        img = ""
+        for rows_, side in ((fr, "front"), (bk, "back")):
+            if rows_:
+                rel = thumb(rows_, cols, v["bg"][0][0], "%s_%s_%s" % (v["key"], first, side))
+                img += ('<a class="dl" href="%s" download="%s_%s.png" data-file="%s_%s.png" title="Download %s %s (16x16)">'
+                        '<img class="pimg" alt="%s %s" width="48" height="48" src="%s"></a>'
+                        % (rel[:-4] + "_1x.png", first, side, first, side, esc(first.upper()), side, esc(r["name"]), side, rel))
+            else:
+                img += '<span class="pimg none">-</span>'
+        img = '<div class="pics">%s</div>' % img
         rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg)))
         var = PLANS.get(v["key"], {}).get("variants", {}).get(r["name"].split(",")[0].strip())
         vtxt = ", ".join(str(x) for x in var) if var else str(r["obj"])
@@ -627,6 +765,7 @@ for i, v in enumerate(venues):
     for r in rows:
         w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
     w('</tbody></table></div>')
+    w(boss_section(v, m, field))
     w('</section>')
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
@@ -657,6 +796,18 @@ w("""<script>
         var ok = false; try { ok = document.execCommand("copy"); } catch (x) {} document.body.removeChild(t);
         if (ok) done(); else { toast.textContent = "Copy blocked here: select the table instead"; toast.hidden = false; clearTimeout(timer); timer = setTimeout(function () { toast.hidden = true; }, 2400); } };
       try { navigator.clipboard.writeText(md).then(done, fallback); } catch (x) { fallback(); }
+      return;
+    }
+    var a = e.target.closest(".dl");
+    if (a) {
+      e.preventDefault();
+      var say = function (m) { toast.textContent = m; toast.hidden = false; clearTimeout(timer); timer = setTimeout(function () { toast.hidden = true; }, 2000); };
+      var dl = window.claude && window.claude.use ? window.claude.use("downloads") : Promise.resolve(null);
+      Promise.all([dl, fetch(a.getAttribute("href")).then(function (r) { return r.blob(); })]).then(function (x) {
+        if (!x[0]) { window.open(a.getAttribute("href"), "_blank"); return; }
+        return x[0].save({ filename: a.getAttribute("data-file"), data: x[1] }).then(function () { say("Saved " + a.getAttribute("data-file")); },
+          function (err) { if (err && err.code !== "declined") say("Download unavailable here"); });
+      }).catch(function () { say("Download unavailable here"); });
       return;
     }
     var b = e.target.closest(".sw"); if (!b) return;

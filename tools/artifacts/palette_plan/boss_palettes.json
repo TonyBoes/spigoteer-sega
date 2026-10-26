@@ -1,0 +1,1107 @@
+{
+ "cowboys": {
+  "boss": "Big Tex",
+  "file": "assets/art/boss/big_tex.txt",
+  "body_w": 40,
+  "hat_dx": 16,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#F0B888",
+     "#C83020",
+     "#583018"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #2c5060",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: hat",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#F0B888",
+     "#C83020",
+     "#583018"
+    ],
+    "when": "whole fight",
+    "note": "crown; HAT_POP0-3 = whole hat for the tip",
+    "src": "src/boss_load.h:41, src/boss.c:905"
+   },
+   {
+    "part": "Hand mug while gulping",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "OBJ_MUG venue drink art, OAM 29",
+    "colours": null,
+    "when": "BS_GULP",
+    "note": "venue full-drink slot, colours 1-3 #f8f0d0 #e89820 #382010",
+    "src": "src/boss.c:844, src/lift.c:102"
+   },
+   {
+    "part": "Capacity mugs (ROOM / TAKEN)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #f8f8f8 #a8c8e0 #283040",
+    "src": "src/boss.c:857"
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "Entrance: hat pop (crown + brim)",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. HAT_POP0-3",
+    "colours": [
+     "#F0B888",
+     "#C83020",
+     "#583018"
+    ],
+    "when": "entrance only",
+    "note": "",
+    "src": "src/boss_big_tex.c:93-100"
+   },
+   {
+    "part": "Entrance: body as sprites",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "body pairs BG 162.. used as OBJ",
+    "colours": [
+     "#F0B888",
+     "#C83020",
+     "#583018"
+    ],
+    "when": "entrance only (walk-in, bow)",
+    "note": "same tiles as BG body",
+    "src": "src/boss_big_tex.c:9-10,111"
+   }
+  ]
+ },
+ "sports": {
+  "boss": "The Mascot",
+  "file": "assets/art/boss/mascot.txt",
+  "body_w": 32,
+  "hat_dx": 8,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#F8E8C8",
+     "#D02828",
+     "#201018"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #384058",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: hat",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#F8E8C8",
+     "#D02828",
+     "#201018"
+    ],
+    "when": "whole fight",
+    "note": "forelock tuft; HAT_CROUCH in the leap tell",
+    "src": "src/boss_load.h:41, src/boss.c:905"
+   },
+   {
+    "part": "Hand mug while gulping",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "OBJ_MUG venue drink art, OAM 29",
+    "colours": null,
+    "when": "BS_GULP",
+    "note": "venue full-drink slot, colours 1-3 #f8f8f8 #e03830 #301818",
+    "src": "src/boss.c:844, src/lift.c:102"
+   },
+   {
+    "part": "Capacity mugs (ROOM / TAKEN)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #f8f8f8 #a8c8f0 #283048",
+    "src": "src/boss.c:857"
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "Landing marker (dust)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 248-251 (MARKER) on target bar",
+    "colours": [
+     "#F8E8C8",
+     "#D02828",
+     "#201018"
+    ],
+    "when": "leap tell + entrance",
+    "note": "stamped with boss_pal",
+    "src": "src/render.c:310-318, src/boss_mascot.c:96,175"
+   },
+   {
+    "part": "Entrance: T-shirt-cannon ball",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 108-111 (BALL, 2 pairs)",
+    "colours": [
+     "#F8E8C8",
+     "#D02828",
+     "#201018"
+    ],
+    "when": "entrance only",
+    "note": "spins",
+    "src": "src/boss_mascot.c:155,161"
+   }
+  ]
+ },
+ "lumberjacks": {
+  "boss": "The Sasquatch",
+  "file": "assets/art/boss/sasquatch.txt",
+  "body_w": 32,
+  "hat_dx": 12,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#E8B878",
+     "#5C2C14",
+     "#140804"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #6a4a30",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: hat",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#E8B878",
+     "#5C2C14",
+     "#140804"
+    ],
+    "when": "whole fight",
+    "note": "crest; HAT_DUCK when ducking",
+    "src": "src/boss_load.h:41, src/boss.c:905"
+   },
+   {
+    "part": "Hand mug while gulping",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "OBJ_MUG venue drink art, OAM 29",
+    "colours": null,
+    "when": "BS_GULP",
+    "note": "venue full-drink slot, colours 1-3 #f0f0e8 #703c18 #201810",
+    "src": "src/boss.c:844, src/lift.c:102"
+   },
+   {
+    "part": "Capacity mugs (ROOM / TAKEN)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #f0f0f0 #a8a8b0 #303038",
+    "src": "src/boss.c:857"
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "Footprints marker (blinking)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 248-251 (MARKER)",
+    "colours": [
+     "#E8B878",
+     "#5C2C14",
+     "#140804"
+    ],
+    "when": "duck / target-bar tell",
+    "note": "blinks",
+    "src": "src/boss_sasquatch.c:103,185; src/render.c:314-318"
+   }
+  ]
+ },
+ "chefs": {
+  "boss": "The Food Critic",
+  "file": "assets/art/boss/critic.txt",
+  "body_w": 32,
+  "hat_dx": 9,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#F8D0A8",
+     "#A03070",
+     "#201018"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #2a5a58",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: beret stalk",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#F8D0A8",
+     "#A03070",
+     "#201018"
+    ],
+    "when": "whole fight",
+    "note": "the beret itself is BG body; HAT frames also hold cloche, glint, bubbles",
+    "src": "src/boss_load.h:41, src/boss.c:905"
+   },
+   {
+    "part": "Hand mug while gulping",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "OBJ_MUG venue drink art, OAM 29",
+    "colours": null,
+    "when": "BS_GULP",
+    "note": "venue full-drink slot, colours 1-3 #f8f0f0 #b01840 #301020",
+    "src": "src/boss.c:844, src/lift.c:102"
+   },
+   {
+    "part": "Capacity mugs (ROOM / TAKEN)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #f0f0f8 #c8d0e0 #303048",
+    "src": "src/boss.c:857"
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "Speech bubbles NO! / BAD",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. NO_L/NO_R, BAD_L/BAD_R, OAM 30-31",
+    "colours": [
+     "#F8D0A8",
+     "#A03070",
+     "#201018"
+    ],
+    "when": "when a drink is waved back",
+    "note": "",
+    "src": "src/boss_critic.c:83"
+   },
+   {
+    "part": "Entrance: silver cloche",
+    "kind": "OBJ",
+    "slot": 5,
+    "tiles": "OBJ 96.. CLOCHE_END, CLOCHE_MID, OAM 30-33",
+    "colours": [
+     "#F7FFFF",
+     "#7B8CAD",
+     "#19213A"
+    ],
+    "when": "entrance only",
+    "note": "OBJ 5 rewritten at load",
+    "src": "src/boss_critic.c:94,145-149"
+   },
+   {
+    "part": "Entrance: glint",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. GLINT",
+    "colours": [
+     "#F8D0A8",
+     "#A03070",
+     "#201018"
+    ],
+    "when": "entrance only",
+    "note": "",
+    "src": "src/boss_critic.c:107"
+   }
+  ]
+ },
+ "divers": {
+  "boss": "The Yeti",
+  "file": "assets/art/boss/yeti.txt",
+  "body_w": 32,
+  "hat_dx": 9,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#F8F8F8",
+     "#80B0E8",
+     "#182040"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #4a4078",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: hat",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#F8F8F8",
+     "#80B0E8",
+     "#182040"
+    ],
+    "when": "whole fight",
+    "note": "CGB OBJ 7 takes the body's colours 1-3",
+    "src": "src/boss_load.h:41, src/boss.c:905"
+   },
+   {
+    "part": "Hand mug while gulping",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "OBJ_MUG venue drink art, OAM 29",
+    "colours": null,
+    "when": "BS_GULP",
+    "note": "venue full-drink slot, colours 1-3 #fff4ec #7a4228 #2a1410",
+    "src": "src/boss.c:844, src/lift.c:102"
+   },
+   {
+    "part": "Capacity mugs (ROOM / TAKEN)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #f0f8ff #a8c8e0 #284060",
+    "src": "src/boss.c:857"
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "Icy counter tiles (ICE_A even, ICE_B odd cols)",
+    "kind": "BG",
+    "slot": 0,
+    "tiles": "BG 246-247, counter cols 0-17",
+    "colours": [
+     "#f0fcff",
+     "#90c8e8",
+     "#285080"
+    ],
+    "when": "ice phase (180 frames)",
+    "note": "venue bar palette; colour 0 = gap between icicles (stage)",
+    "src": "src/boss_yeti.c:7,52; assets/art/boss/yeti.txt:11"
+   },
+   {
+    "part": "Ice sparkles (SPARK1-4)",
+    "kind": "BG",
+    "slot": 0,
+    "tiles": "BG 248-251 on counter",
+    "colours": [
+     "#f0fcff",
+     "#90c8e8",
+     "#285080"
+    ],
+    "when": "during ice, 2 at a time",
+    "note": "",
+    "src": "src/boss_yeti.c:12-15"
+   }
+  ]
+ },
+ "robots": {
+  "boss": "The Prototype",
+  "file": "assets/art/boss/prototype.txt",
+  "body_w": 32,
+  "hat_dx": 8,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#E8F0F8",
+     "#F87818",
+     "#182030"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #503028",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: lamp GREEN",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#E8F0F8",
+     "#29DE29",
+     "#182030"
+    ],
+    "when": "whole fight",
+    "note": "colour 2 green; 1 and 3 = body's",
+    "src": "src/boss_prototype.c:264-265"
+   },
+   {
+    "part": "Topper: lamp YELLOW ring (tell)",
+    "kind": "OBJ",
+    "slot": 5,
+    "tiles": "OBJ 96.. HAT_RING",
+    "colours": [
+     "#E8F0F8",
+     "#FFCE00",
+     "#182030"
+    ],
+    "when": "tell, frames 240-299",
+    "note": "BOSS_TOPPER_PAL = OBJ 5",
+    "src": "src/boss_prototype.c:266,295"
+   },
+   {
+    "part": "Topper: lamp RED X (stop)",
+    "kind": "OBJ",
+    "slot": 4,
+    "tiles": "OBJ 96.. HAT_X",
+    "colours": [
+     "#E8F0F8",
+     "#FF1919",
+     "#182030"
+    ],
+    "when": "RED phase, frames 300-449",
+    "note": "OBJ 4 (OBJPAL_ENH)",
+    "src": "src/boss_prototype.c:153,267"
+   },
+   {
+    "part": "Hand mug while gulping",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "OBJ_MUG venue drink art, OAM 29",
+    "colours": null,
+    "when": "BS_GULP",
+    "note": "venue full-drink slot, colours 1-3 #a0f860 #e08828 #181410",
+    "src": "src/boss.c:844, src/lift.c:102"
+   },
+   {
+    "part": "Capacity mugs (ROOM / TAKEN)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #f85838 #a0a8b0 #201c20",
+    "src": "src/boss.c:857"
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "Body RED pose (X on screen)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#E8F0F8",
+     "#F87818",
+     "#182030"
+    ],
+    "when": "RED phase",
+    "note": "same body palette",
+    "src": "src/boss_prototype.c:151"
+   },
+   {
+    "part": "Conveyor stripes + arrows (CONV_A/B)",
+    "kind": "BG",
+    "slot": 7,
+    "tiles": "BG 246-247 on counter cols 0-17",
+    "colours": [
+     "#f8d848",
+     "#7888a0",
+     "#101828"
+    ],
+    "when": "RED phase only",
+    "note": "counter attrs -> BG 7 (keg palette); colour 0 wall #503028",
+    "src": "src/boss_prototype.c:7-8,85-100"
+   },
+   {
+    "part": "Landing marker (Mascot's MARKER)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 248-251",
+    "colours": [
+     "#E8F0F8",
+     "#F87818",
+     "#182030"
+    ],
+    "when": "RIDE tell, target bar",
+    "note": "",
+    "src": "src/boss_prototype.c:299"
+   },
+   {
+    "part": "Entrance: body as sprites",
+    "kind": "OBJ",
+    "slot": 5,
+    "tiles": "body pairs used as OBJ",
+    "colours": [
+     "#E8F0F8",
+     "#FFCE00",
+     "#182030"
+    ],
+    "when": "entrance only",
+    "note": "yellow-lamp palette: orange panels show yellow-orange",
+    "src": "src/boss_prototype.c:34-35,192,200"
+   },
+   {
+    "part": "Entrance: crane yoke (HOOK) + chain (CHAIN)",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 108-117 (with sparks)",
+    "colours": [
+     "#E8F0F8",
+     "#29DE29",
+     "#182030"
+    ],
+    "when": "entrance only",
+    "note": "only colours 1 and 3 used",
+    "src": "src/boss_prototype.c:35,192,212-213"
+   },
+   {
+    "part": "Entrance: sparks (SPARK1/2)",
+    "kind": "OBJ",
+    "slot": 5,
+    "tiles": "OBJ 108-117",
+    "colours": [
+     "#E8F0F8",
+     "#FFCE00",
+     "#182030"
+    ],
+    "when": "entrance frames 84-110",
+    "note": "",
+    "src": "src/boss_prototype.c:216-217"
+   },
+   {
+    "part": "Entrance: lamp",
+    "kind": "OBJ",
+    "slot": 4,
+    "tiles": "HAT_X / HAT_RING",
+    "colours": [
+     "#E8F0F8",
+     "#FF1919",
+     "#182030"
+    ],
+    "when": "entrance: OBJ 4 red X (0-83), OBJ 5 ring (84-95), OBJ 7 green (96+)",
+    "note": "",
+    "src": "src/boss_prototype.c:203-206"
+   }
+  ]
+ },
+ "punks": {
+  "boss": "Duke",
+  "file": "assets/art/boss/duke.txt",
+  "body_w": 40,
+  "hat_dx": 16,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#F8E0C8",
+     "#D06030",
+     "#201018"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #3a2a48",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: helmet",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#EF3A3A",
+     "#FFFFFF",
+     "#191021"
+    ],
+    "when": "whole fight",
+    "note": "red shell, white stripe: own colours",
+    "src": "src/boss_duke.c:269-272"
+   },
+   {
+    "part": "Hand mug while gulping",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "OBJ_MUG venue drink art, OAM 29",
+    "colours": null,
+    "when": "BS_GULP",
+    "note": "venue full-drink slot, colours 1-3 #a8d8f8 #f8f8f0 #202c48",
+    "src": "src/boss.c:844, src/lift.c:102"
+   },
+   {
+    "part": "Capacity mugs (ROOM / TAKEN)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #f8f8f8 #a8c8e0 #283040",
+    "src": "src/boss.c:857"
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "Entrance: bike, rider, smoke, dust (ENT_*)",
+    "kind": "OBJ",
+    "slot": 5,
+    "tiles": "OBJ 56-91 + 96-127 pool",
+    "colours": [
+     "#F8E0C8",
+     "#D06030",
+     "#201018"
+    ],
+    "when": "entrance only",
+    "note": "OBJ 5 = his body colours",
+    "src": "src/boss_duke.c:171,273-274"
+   },
+   {
+    "part": "Entrance: helmet on the rider",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "ENT_HELM",
+    "colours": [
+     "#EF3A3A",
+     "#FFFFFF",
+     "#191021"
+    ],
+    "when": "entrance only",
+    "note": "",
+    "src": "src/boss_duke.c:171,181,192"
+   }
+  ]
+ },
+ "ninjas": {
+  "boss": "The Sumo",
+  "file": "assets/art/boss/sumo.txt",
+  "body_w": 40,
+  "hat_dx": 16,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#F0A878",
+     "#F0F0E0",
+     "#282048"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #4a6a58",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: topknot",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#F0A878",
+     "#F0F0E0",
+     "#282048"
+    ],
+    "when": "whole fight",
+    "note": "CGB OBJ 7 takes the body's colours 1-3",
+    "src": "src/boss_load.h:41, src/boss.c:905"
+   },
+   {
+    "part": "Capacity mugs: TAKEN only (no limit)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #f0ecd8 #b8c8a0 #303828",
+    "src": "src/boss.c:850-852",
+    "unsure": true
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "One-pip meter tiles",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "SOLO_BG, 2 tiles",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "right half = band colour",
+    "src": "src/boss_sumo.c:283"
+   },
+   {
+    "part": "Entrance: salt grains + stamp dust",
+    "kind": "OBJ",
+    "slot": 0,
+    "tiles": "OBJ_DUST (story 246, else 234), OAM CUE + COIN",
+    "colours": null,
+    "when": "entrance only",
+    "note": "bartender slot OBJ 0",
+    "src": "src/boss_sumo.c:240,248-257"
+   }
+  ],
+  "note": "no hand mug (hand_base 255)"
+ },
+ "zoo": {
+  "boss": "Leo the Lion",
+  "file": "assets/art/boss/leo.txt",
+  "body_w": 32,
+  "hat_dx": 6,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#F8D060",
+     "#C86018",
+     "#301808"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #234e5c",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: crown",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#F8D060",
+     "#C86018",
+     "#301808"
+    ],
+    "when": "whole fight",
+    "note": "CGB OBJ 7 takes the body's colours 1-3",
+    "src": "src/boss_load.h:41, src/boss.c:905"
+   },
+   {
+    "part": "Hand mug while gulping",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "OBJ_MUG venue drink art, OAM 29",
+    "colours": null,
+    "when": "BS_GULP",
+    "note": "venue full-drink slot, colours 1-3 #fff0d0 #8a5a2c #2c1808",
+    "src": "src/boss.c:844, src/lift.c:102"
+   },
+   {
+    "part": "Capacity mugs (ROOM / TAKEN)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #e8e0d0 #a08060 #281808",
+    "src": "src/boss.c:857"
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "\"!!\" tell column (BANG)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 246-247 (boss_cols[4])",
+    "colours": [
+     "#F8D060",
+     "#C86018",
+     "#301808"
+    ],
+    "when": "roar tell",
+    "note": "5th column right of him",
+    "src": "src/boss_leo.c:5-7,45-46,92"
+   },
+   {
+    "part": "Shockwave arcs, entrance leap body, flaming hoop (leo_fx)",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 104.. (LEO_FX), OAM 30-37",
+    "colours": [
+     "#F8D060",
+     "#C86018",
+     "#301808"
+    ],
+    "when": "roar, entrance",
+    "note": "",
+    "src": "src/boss_leo.c:120-121,152,217-229; assets/art/leo_fx.txt:3"
+   }
+  ]
+ },
+ "aliens": {
+  "boss": "The Mothership",
+  "file": "assets/art/boss/mothership.txt",
+  "body_w": 40,
+  "hat_dx": 12,
+  "parts": [
+   {
+    "part": "Body (all poses)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 162-203 + 216-233 (column pairs)",
+    "colours": [
+     "#E8F0F8",
+     "#E040B0",
+     "#200828"
+    ],
+    "when": "whole fight",
+    "note": "colour 0 = venue wall #202a58",
+    "src": "src/boss_load.h:35-39"
+   },
+   {
+    "part": "Topper: antenna + dome cap",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 96.. (HAT_STILL, HAT_BOB)",
+    "colours": [
+     "#E8F0F8",
+     "#E040B0",
+     "#200828"
+    ],
+    "when": "whole fight",
+    "note": "CGB OBJ 7 takes the body's colours 1-3",
+    "src": "src/boss_load.h:41, src/boss.c:905"
+   },
+   {
+    "part": "Hand mug while gulping",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "OBJ_MUG venue drink art, OAM 29",
+    "colours": null,
+    "when": "BS_GULP",
+    "note": "venue full-drink slot, colours 1-3 #e8ffb8 #34d078 #102830",
+    "src": "src/boss.c:844, src/lift.c:102"
+   },
+   {
+    "part": "Capacity mugs (ROOM / TAKEN)",
+    "kind": "OBJ",
+    "slot": 2,
+    "tiles": "OBJ 124-127, OAM 37-39",
+    "colours": null,
+    "when": "on his bar, intro over",
+    "note": "venue empty-glass slot (CAP_PROP), colours 1-3 #e0e8f8 #98a8c8 #202838; boss.c never returns ROOM_OFF for him",
+    "src": "src/boss.c:857",
+    "unsure": true
+   },
+   {
+    "part": "HUD face + meter",
+    "kind": "BG",
+    "slot": 1,
+    "tiles": "BG 252-255",
+    "colours": [
+     "#C5A552",
+     "#EFA521",
+     "#191042"
+    ],
+    "when": "whole fight",
+    "note": "HUD band palette",
+    "src": "src/boss.h:129, src/main_cold.c:32-41"
+   },
+   {
+    "part": "Beam column marker (BEAM)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "BG 248-251 on a bar",
+    "colours": [
+     "#E8F0F8",
+     "#E040B0",
+     "#200828"
+    ],
+    "when": "teleport tell, stun ray, entrance",
+    "note": "",
+    "src": "src/boss_mothership.c:7,186-190"
+   },
+   {
+    "part": "Tractor beam light (BEAM1/BEAM2)",
+    "kind": "OBJ",
+    "slot": 7,
+    "tiles": "OBJ 108-111, OAM 30",
+    "colours": [
+     "#E8F0F8",
+     "#E040B0",
+     "#200828"
+    ],
+    "when": "while a caught drink is lifted",
+    "note": "",
+    "src": "src/boss_mothership.c:319"
+   },
+   {
+    "part": "Lifted drink (behind hull)",
+    "kind": "OBJ",
+    "slot": 1,
+    "tiles": "spr_full_t, OAM 29, priority bit",
+    "colours": null,
+    "when": "drink beam",
+    "note": "venue full-drink slot, colours 1-3 #e8ffb8 #34d078 #102830",
+    "src": "src/boss_mothership.c:321"
+   },
+   {
+    "part": "Entrance lights flicker: bar palette dimmed",
+    "kind": "BG",
+    "slot": 0,
+    "tiles": "whole bar palette",
+    "colours": [
+     "#e0f8ff",
+     "#6c80a8",
+     "#1c2038"
+    ],
+    "when": "entrance only",
+    "note": "wall + counter; colour 0 #202a58",
+    "src": "src/boss_mothership.c:258-268"
+   },
+   {
+    "part": "Phase 2: mini aliens (patron tiles over saucer)",
+    "kind": "BG",
+    "slot": 4,
+    "tiles": "patron tiles reloaded",
+    "colours": [
+     "#88f8f0",
+     "#e87830",
+     "#301008"
+    ],
+    "when": "after the split",
+    "note": "aliens variant C palette; OBJ 7 rewritten likewise",
+    "src": "src/boss_mothership.c:349-364"
+   }
+  ]
+ }
+}
