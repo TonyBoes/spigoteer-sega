@@ -826,20 +826,18 @@ static uint8_t fits(const uint8_t *n, uint8_t k0, uint8_t k1, uint8_t c) {
 // drink art, mugs.c), its bottom at row hand_base of his 16 body rows. 255: none (the Sumo is hit, the Mothership beams its drinks up).
 static const uint8_t hand_base[BOSS_COUNT] = { 15, 15, 15, 12, 15, 11, 12, 255, 15, 255 };   // (rows[] order: Tex, Mascot, Sasquatch, Critic, Yeti, Prototype, Duke, Sumo, Leo, Mothership)
 
-// The mug follows the patrons' drink (mugs.c pose_*) at full size: over his gulp it rises from the hand to his mouth, tilts, lies on its side (the
-// crash's on-its-side frame, OBJ_GLASS: the full mug turned 90 degrees, 16x16, two entries) and is lowered empty (the sliding empty mug). Not the
+// The mug follows the patrons' drink (mugs.c pose_*) at full size: over his gulp it rises from the hand to his mouth, tilts 45 degrees (held through the drink) and is lowered empty (the sliding empty mug). Not the
 // patrons' small drink frames: they shrink the mug. The steps are 16 and END with his gulp: he is pushed back first (HOP_FRAMES, hidden), so they
 // count from the end, E - boss_t frames before it (hand_end: the last frame he holds the mug up, one before his gulp is over; the Sasquatch's
 // arm goes down at 12), at hand_inv per frame: 4096 / (the frames from boss_t HOP_FRAMES to E, less one), rounded up, so (E - boss_t) * hand_inv >> 8
 // is 15 on the first (0..15; before it the mug waits at his hand). Each step: its frame (high nibble: 0 the served mug upright, 1 the 45 degree
-// tilt of his venue (hand_tilt: its tile, 16x16 two entries; 0 while there is none: the mug stays upright), 2 on its side, 3 the empty upright) and how
+// tilt of his venue (hand_tilt: its tile, 16x16 two entries; 0 while there is none: the mug stays upright), 3 the empty upright) and how
 // far along the way to his mouth, in eighths (low nibble). hand_dx, hand_dy: that way from the hand (px, the upright mug's sprite, its rim at its
 // (2, 4)): the mouth of each boss (assets/art/boss/*.txt, his gulp pose); no lower than row 4 of his body, so the sprite stays inside the 28
-// lines the bands count. Lying on its side (a 16x16 sprite, mouth at its left, 11 down) it sits 2 left and 7 up of that.
+// lines the bands count.
 // The second entry of the two: the first free one below the capacity row (Leo's waves or the Critic's cloche may be there: then it stays upright).
 // The Prototype's battery stays upright at his hand and pulses (its full and empty colours, boss_t & 8): it is "in use".
-#define HAND_T2   (OBJ_GLASS + GLASS_FALL_FULL + 2)   // the right half of the on-its-side mug (its left is the tile before)
-static const uint8_t hand_seq[16] = { 0x00, 0x02, 0x05, 0x08, 0x18, 0x18, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x38, 0x35, 0x32, 0x30 };
+static const uint8_t hand_seq[16] = { 0x00, 0x02, 0x05, 0x08, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x38, 0x35, 0x32, 0x30 };
 static const int8_t  hand_dx[BOSS_COUNT]  = { -12, -12, -12, -12, -16, -13, -11, 0, -9, 0 };
 static const int8_t  hand_dy[BOSS_COUNT]  = {   3,   3,   3,   6,   0,   7,   6, 0,  3, 0 };
 static const uint8_t hand_end[BOSS_COUNT] = {  57,  33,  11,  83,  43,  29,  29, 0,  43, 0 };   // (his gulp - 1; the Sasquatch's 11: his mug-down beat is 12 on)
@@ -851,7 +849,7 @@ static const uint8_t hand_tilt[BOSS_COUNT] = { 120, 120, 120, 120, 120,   0, 120
 static void hand_hide(void) {
     OAM_item_t *o = shadow_OAM + OAM_CAP - 1 - boss_hands;
     shadow_OAM[OAM_HAND].y = 0;
-    if (o->tile == HAND_T2 || (hand_tilt[boss_row] && o->tile == hand_tilt[boss_row] + 2)) o->y = 0;
+    if (hand_tilt[boss_row] && o->tile == hand_tilt[boss_row] + 2) o->y = 0;
 }
 
 // n: the bands from the topper's y; extra: the entries drawn over them already (the hat, the mug row)
@@ -875,16 +873,14 @@ static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
     t = spr_full_t; p = spr_full_p;
     if (f == 3) { t = spr_empty_t; p = spr_empty_p; }
     else if (f == 1 && hand_tilt[boss_row]) t = hand_tilt[boss_row];
-    else if (f == 2) t = OBJ_GLASS + GLASS_FALL_FULL;
     if (t != spr_full_t && t != spr_empty_t) {
         if (o2->y) t = spr_full_t;               // (the second entry's slot is taken: the mug stays upright)
         else two = 1;
     }
     d = bar_oam_y[boss_bar] + hand_base[boss_row] - 14 + (hand_dy[boss_row] * w >> 3);   // its y; from top: -8..4, so bands 0..6 (28 lines on at most)
-    if (two) d -= f == 1 ? 0 : 7;               // (the 45 degree tilt is centred on the upright mug; the one on its side sits 7 up)
     if (!fits(n, (uint8_t)(d - top) >> 2, (uint8_t)(d - top + 15) >> 2, extra + 1 + two)) return;
     if (boss_row == HAND_PROTO && (boss_t & 8)) p ^= is_cgb ? OBJPAL_MUG_FULL ^ OBJPAL_MUG_EMPTY : S_PALETTE;   // (the battery's two palettes: in use. DMG OBP0 / OBP1)
-    o->y = d; o->x = boss_x + br->width + dx + (hand_dx[boss_row] * w >> 3) - (f == 1 ? 4 : 2) * two; o->tile = t; o->prop = p;
+    o->y = d; o->x = boss_x + br->width + dx + (hand_dx[boss_row] * w >> 3) - 4 * two; o->tile = t; o->prop = p;
     if (two) { o2->y = d; o2->x = o->x + 8; o2->tile = t + 2; o2->prop = p; }
 }
 
@@ -944,7 +940,7 @@ void boss_draw(void) BANKED {
         return;
     }
     shadow_OAM[OAM_TOPPER].y = 0;   // (so the count skips it: it is set again below)
-    np = intro ? bands_intro(top, n) : bands(top, n, 1 + boss_hands + 2 * (boss_state == BS_GULP));   // (the hat, a glass a hand, the hand mug while he gulps: two entries when it lies on its side)
+    np = intro ? bands_intro(top, n) : bands(top, n, 1 + boss_hands + 2 * (boss_state == BS_GULP));   // (the hat, a glass a hand, the hand mug while he gulps: two entries when it is tilted)
     o = shadow_OAM + OAM_TOPPER;
     hat = fits(np, 0, 3, 1);
     if (hat) {

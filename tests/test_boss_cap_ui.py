@@ -148,7 +148,7 @@ TILT_ART = [_tilt_art(c) for c in range(10)]
 @pytest.mark.parametrize("c", [c for c in range(10) if c not in (SUMO, SHIP)])
 def test_the_hand_mug_is_the_drink_that_was_served(model, c):
     """Per venue boss: no mug in his hand until he drinks; then OAM 29 is the served mug at full size (the sliding mug's tile and palette: the venue's
-    drink art) and over the gulp it is lifted to his mouth (hand_dx), lies on its side (the crash's on-its-side frame, OBJ_GLASS +2 and +4: two
+    drink art) and over the gulp it is lifted to his mouth (hand_dx), is tilted 45 degrees, held (the venue's tilt art: two
     entries, the second below the capacity row), and is lowered as the sliding empty; gone when the gulp is over. The Prototype's battery stays at his
     hand and pulses between the full and the empty palette."""
     r = row(c)
@@ -182,7 +182,7 @@ def test_the_hand_mug_is_the_drink_that_was_served(model, c):
                 k = 4
                 assert o["flags"] == gb.mem("spr_empty_p")
             else:
-                assert o["tile"] in (OBJ_GLASS + 2, HAND_TILT[c]) and o["flags"] == gb.mem("spr_full_p"), o
+                assert o["tile"] == HAND_TILT[c] and o["flags"] == gb.mem("spr_full_p"), o
                 k = 1 if o["tile"] == HAND_TILT[c] else 2
                 s2 = oam[o2]
                 assert (s2["tile"], s2["y"], s2["x"], s2["flags"]) == (o["tile"] + 2, o["y"], o["x"] + 8, o["flags"]), (s2, o)
@@ -197,7 +197,7 @@ def test_the_hand_mug_is_the_drink_that_was_served(model, c):
             assert order == [0] and len(pals) == 2, (order, pals)    # (the full and the empty palette: DMG OBP0 / OBP1)
             assert len(ys) == 1
         else:
-            assert order == sorted(order) and set(order) >= ({1, 2, 4} if HAND_TILT[c] else {2, 4}), order        # (upright, on its side, empty: never back up)
+            assert order == sorted(order) and set(order) >= {1, 4} and 2 not in order, order        # (upright, the 45 degree tilt, empty: never back up, never on its side)
             lo = min(xs)
             assert HAND_DX[c] - 6 <= lo <= HAND_DX[c] + 2, (lo, HAND_DX[c], xs)
             assert max(xs) <= 2 if r["sway"] else max(xs) == 0, "it never wanders right of his hand"
