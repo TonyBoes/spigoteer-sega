@@ -93,3 +93,11 @@ OWNER 2026-10-26 (Q56-Q58 answered, in order of presentation): "Where I kept the
 - ROUND 2 (he preferred the old drawing; no reason given): ASH, SERENA, NORM, PIERRE, BRIE, IGGY, POLLY, MOOSE, KAGE,
   RONIN, MUDDY, ZORP, XENO, GLORP. Start from the OLD sprite (assets/art/patrons/), not the round-1 draft. Files:
   <name>_v2.txt and <name>_v2_back.txt; round-1 files stay as the record.
+
+OWNER 2026-10-26 (Q59, round 2): "Ok, things you can keep: v2 backs on ash, serena, norm, brie, ronin, zorp, xeno,
+and glorp. v2 fronts on glorp"
+- KEPT FROM ROUND 2: backs ash_v2_back, serena_v2_back, norm_v2_back, brie_v2_back, ronin_v2_back, zorp_v2_back,
+  xeno_v2_back, glorp_v2_back; front glorp_v2. No options taken.
+- NOT KEPT: every other v2 front (ASH, SERENA, NORM, PIERRE, BRIE, IGGY, POLLY, MOOSE, MUDDY, KAGE, RONIN, ZORP, XENO)
+  and the backs of PIERRE, IGGY, POLLY, MOOSE, MUDDY, KAGE.
+- Match check: serena_v2_back has a sleeve stripe and ronin_v2_back gold chevrons that their OLD fronts lack.
