@@ -30,7 +30,7 @@ HARD RULES (from the gb-pixel-art skill)
   hand-placed. Back views are drawn, not mirrored by script.
 - Do the clean-up pass by hand and include the clean-up log (pixel, before -> after, the rule).
 - Lint PASS is not a quality judgement.
-- Repository: read docs/dev/agent_rules/rules_code.txt. Work only in your worktree's out/patron_pass/. No commits.
+- Repository: read docs/dev/agent_rules/rules_code.txt. Work only in your worktree's docs/dev/concepts/patron_pass/<group>/ (NOT out/: out/ is git-ignored, and a worktree with only ignored changes is deleted when the agent finishes; CEDAR's first run was lost that way). No commits.
 
 REQUIRED READING BEFORE THE FIRST PIXEL
 - ~/.claude/skills/gb-pixel-art/SKILL.md in full.
@@ -57,7 +57,7 @@ PROJECT CONSTRAINTS (PATRON_SPEC.md has the details)
   sports #39415A, lodge #6A4A31, bistro #295A5A, igloo #4A417B, factory #523129, biker #39294A, teahouse #4A6A5A,
   zoo #204A5A, space #20295A. DMG: shades 0-3 on white. All 27 are DMG looks too, so both must read.
 
-DELIVERABLES (in out/patron_pass/<group>/ in your worktree)
+DELIVERABLES (in docs/dev/concepts/patron_pass/<group>/ in your worktree)
 - <name>.txt (front) and <name>_back.txt in the house format.
 - One contact sheet per patron with tools/dev/contact_sheet.py: before | after, front and back, DMG and CGB, x4, plus
   the 1x comparison beside the quality bar.
