@@ -10,7 +10,7 @@ publish with that page's URL as `url`.
 | Pocket Player (browser emulator) | https://claude.ai/artifact/HepE9Kkxm3sLz8HYeuEQo2 | `tools/artifacts/pocket_player/` | Pack the ROMs with `make_roms.py` (see its header) into an output folder next to a copy of `index.html` and `wasmboy-ts-core.patched.js`, then publish `index.html` with `wasmboy-ts-core.patched.js` and `roms/*.js` as files. The ROM menu is the `ROM_LIST` array in `index.html`. |
 | Open Questions | https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d | `tools/artifacts/open_questions/` | A hand-kept page: one card per open question, with its media in `media/`. Publish `index.html` with the media files. |
 | OBJ Palette Plan | https://claude.ai/artifact/Ekc9oYWEQb4APdLTaqXG4H | `tools/artifacts/palette_plan/` | `python3 tools/artifacts/palette_plan/build.py` (after `make atlas`) rebuilds `index.html`. The plan, ideas and log are hand-kept in `PLAN` / `IDEAS` / `LOG` in build.py; the venue colours come from the atlas data. `build.py` also writes the patron sprites to `img/`. Publish `index.html` with `img/*.png` as files. |
-| Review Board (reference animations) | https://claude.ai/artifact/SHg2h5cuTDMN5qrKfiFRho | `tools/artifacts/review_board/` | Hand-kept, like Open Questions. |
+| Review Board (an open question's items too big for Open Questions; empty when none) | https://claude.ai/artifact/SHg2h5cuTDMN5qrKfiFRho | `tools/artifacts/review_board/` | Hand-kept, like Open Questions. |
 
 ## Pocket Player notes
 

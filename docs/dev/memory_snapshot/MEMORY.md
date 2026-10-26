@@ -23,7 +23,7 @@
 - [GBC enhanced direction](gbc-enhanced-direction.md) — DMG compatible + GBC enhanced (gated features, DX icon); 1 px patron steps stay
 - [Art: another pass by default](art-another-pass-default.md) — picked art gets a quality pass before import unless owner says locked
 - [Graphics atlas artifact](gfx-atlas-artifact.md) — per-screen palettes/tiles/OAM page; make atlas + republish same URL after art merges
-- [Review Board artifact](review-board-artifact.md) — reference animations only now; questions live on the Open Questions page
+- [Review Board artifact](review-board-artifact.md) — only for an open question's item too big for Open Questions; cleared once answered
 - [Pocket Player artifact](pocket-player-artifact.md) — browser emulator page; refresh rom.js + republish same URL after merges
 - [Open Questions artifact](open-questions-artifact.md) — canonical list of open Qn with media; update + republish on every new/answered question
 - [Tokens reset Saturday](token-budget-saturday.md) — menu illustrations queued until 2026-10-24; keep heavy art work light till then
