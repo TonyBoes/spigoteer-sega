@@ -8,6 +8,10 @@ use per slot, the ideas list, the log) is hand-kept in PLAN below: edit it when 
 republish (see tools/artifacts/README.md). The patron thumbnails go to img/ next to OUT_HTML and are published with the
 page as files. The published page is wrapped in a skeleton with img{max-width:100%}, which shrinks an image in an
 auto-width table cell to nothing: .pimg keeps a fixed 48 px size and max-width: none.
+
+Per venue, after the boss: Dancers, Kegs, Stage, Floor (scene_pieces / scene_sections: assets/approved/venues/<prefix>_*, in the planned
+colours). Each picture downloads its piece as an editable indexed PNG (img/scene_<venue>_<piece>_1x.png); scene_split.py reads an
+edited one back (see its docstring for the palette index rule). boss_split.py does the same for the boss sheets.
 """
 import html
 import json
@@ -139,7 +143,10 @@ def swatches(cols, skip0=True):
 
 venues = []
 for key, name in VENUES:
-    c = load("level_" + key)["cgb"]
+    lv = load("level_" + key)
+    c = lv["cgb"]
+    t0, t1, d0 = c["tiles"][0]["counts"], c["tiles"][1]["counts"], lv["dmg"]["tiles"][0]["counts"]
+    tiles = dict(used=384 - t0["empty"], free=t0["empty"], free1=t1["empty"], dused=384 - d0["empty"], dfree=d0["empty"])
     pal = {p["slot"]: [hexc(x) for x in p["rep"]] for p in c["pal"]["obj"]}
     bgp = {p["slot"]: [hexc(x) for x in p["rep"]] for p in c["pal"]["bg"]}
     used = {}
@@ -152,7 +159,7 @@ for key, name in VENUES:
     above = sorted({int(ch) for r in rows[:5] for ch in r})          # layout.h: HUD_ROW 0, stage rows 1-4, BAR_FIRST_ROW 5
     field = sorted({int(ch) for r in rows[5:] for ch in r})
     keg7 = any(r[x] == "7" for r in rows[5:] for x in (17, 18, 19))   # the keg / spout columns on BG 7 (the Saloon's are on BG 0)
-    venues.append(dict(key=key, name=name, pal=pal, bg=bgp, used=used, looks=looks, free=free, above=above, field=field, keg7=keg7))
+    venues.append(dict(key=key, name=name, pal=pal, bg=bgp, used=used, looks=looks, free=free, above=above, field=field, keg7=keg7, tiles=tiles))
 
 commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
 
@@ -427,6 +434,7 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .poses figure { margin: 0; }
 .poses figcaption { font: 600 11px var(--body); color: var(--muted); margin-top: 3px; letter-spacing: .04em; }
 .dl { display: block; border-radius: 3px; }
+.crop { display: block; max-width: none; border-radius: 3px; background-repeat: no-repeat; image-rendering: pixelated; image-rendering: crisp-edges; }
 .dl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pimg.none { display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--rule, #888); box-sizing: border-box; }
 .muted { color: var(--muted); font-style: italic; }
@@ -715,6 +723,280 @@ def field_model(v, m):
     return field
 
 
+# ---- Scene pieces: the show dancers, the keg, the stage and the floor (assets/approved/venues/<prefix>_*; tools/gen_art.py venues()) ----
+# Venue key -> file prefix (= gen_art THEMES). Each piece is shown in the PLANNED colours the cards show (model m / field_model).
+SCENE = dict(cowboys="saloon", sports="sports", lumberjacks="lodge", chefs="bistro", divers="igloo", robots="factory",
+             punks="biker", ninjas="teahouse", zoo="zoo", aliens="space")
+VD = os.path.join(ROOT, "assets/approved/venues")
+POOL = 36                                     # gen_art VENUE_POOL: the stage's ids from 0 up, the bar + floor at the top
+SCENE_ORDER = [("dancers", "Dancers"), ("kegs", "Kegs"), ("stage", "Stage"), ("floor", "Floor")]
+
+
+def src_lines(path):
+    """[(line number, text)] of a plain art file: no blank lines, no ';' comments."""
+    return [(n, l.rstrip()) for n, l in enumerate(open(path).read().splitlines(), 1) if l.strip() and not l.startswith(";")]
+
+
+def src_blocks(path):
+    """[(first line number, rows)] of a file of blank-line separated blocks (';' comments skipped), like gen_art blocks()."""
+    out, cur, n0 = [], [], 0
+    for n, l in enumerate(open(path).read().splitlines() + [""], 1):
+        l = l.rstrip()
+        if l.startswith(";"):
+            continue
+        if not l:
+            if cur:
+                out.append((n0, cur)); cur = []
+            continue
+        if not cur:
+            n0 = n
+        cur.append(l)
+    return out
+
+
+def src_anim(path):
+    """<prefix>_anim.txt -> (slots [(col,row)], frames [[name, first line, [8 rows, each a list of 8-px columns]]]), file order."""
+    slots, frames = [], []
+    for n, l in enumerate(open(path).read().splitlines(), 1):
+        l = l.rstrip()
+        if not l or l.startswith(";"):
+            continue
+        if l.startswith("!slots"):
+            slots = [tuple(int(a) for a in p.split(",")) for p in l.split()[1:]]
+        elif l.startswith("!"):
+            continue
+        elif l.startswith("@"):
+            frames.append([l[1:], n, []])
+        elif frames:
+            frames[-1][2].append(l.split())
+    return slots, frames
+
+
+def cut_tiles(rows, w, h):
+    return [[tuple(rows[ty * 8 + y][tx * 8:tx * 8 + 8] for y in range(8)) for tx in range(w)] for ty in range(h)]
+
+
+def id_ranges(ids):
+    ids = sorted(set(ids)); out = []
+    for i in ids:
+        if out and out[-1][1] == i - 1:
+            out[-1][1] = i
+        else:
+            out.append([i, i])
+    return ", ".join(str(a) if a == b else "%d-%d" % (a, b) for a, b in out)
+
+
+def find_slot(field, item, default):
+    for sl in range(8):
+        if any(x[0].startswith(item) for x in field[sl]["oth"]):
+            return sl
+    return default
+
+
+def dancer_slot(v):
+    for start, kind, fr, to, label in PLANS.get(v["key"], {}).get("moves", []):
+        if start == "Show dancers":
+            return to
+    return 5
+
+
+def piece_layout(p):
+    """([(x, y)] of each block on the editable sheet, (w, h)): blocks in file order in rows of at most p['width'] px, GAP px apart."""
+    pos, x, y, rh, w = [], 0, 0, 0, 0
+    for b in p["blocks"]:
+        bw, bh = len(b["rows"][0]), len(b["rows"])
+        if x and x + bw > p["width"]:
+            x, y, rh = 0, y + rh + GAP, 0
+        pos.append((x, y)); x += bw + GAP; rh = max(rh, bh); w = max(w, x - GAP)
+    return pos, (w, y + rh)
+
+
+def scene_pieces(v, m, field):
+    """{piece: dict} for one venue. A piece: blocks [dict(label, rows, grid (slot per 8x8 tile), line)], pal {slot: 4 hex},
+    multi (PNG index = slot*4 + colour, else the colour), trans, width (sheet flow width), sc (sheet scale), ds (shown scale),
+    attr_of_slot {slot: source attribute value}, parts (the table rows)."""
+    key, t = v["key"], SCENE[v["key"]]
+    P = lambda s: os.path.join(VD, "%s_%s" % (t, s))
+    wall = v["bg"][0][0]
+    out = {}
+
+    def part(label, ids, kind, sl, cols):
+        return dict(part=label, n=len(set(ids)), ids=id_ranges(ids), kind=kind, slot=sl, cols=cols)
+
+    # Dancers: <t>_show.txt, 4 frames (one dance) or 6 (a band), 16x24, OBJ palette, colour 0 transparent. 32 OBJ tiles.
+    ds = dancer_slot(v)
+    oc = eff(m[("OBJ", ds)])
+    fr = src_blocks(P("show.txt"))
+    quarters = []
+    if len(fr) != 4:                                            # a band: 8x16 quarters, deduplicated (gen_art show_tiles)
+        for _, f in fr:
+            f = list(f) + ["." * 16] * 8
+            for y0, x0 in ((0, 0), (0, 8), (16, 0), (16, 8)):
+                q = tuple(r[x0:x0 + 8] for r in f[y0:y0 + 16])
+                if q not in quarters:
+                    quarters.append(q)
+    ntiles = 32 if len(fr) == 4 else 2 * len(quarters)
+    out["dancers"] = dict(
+        file=P("show.txt"), multi=False, trans=True, width=200, sc=4, ds=4, pal={ds: [wall] + oc[1:]}, attr_of_slot={},
+        blocks=[dict(label="pose %d" % (i + 1), rows=rows, grid=[[ds] * 2] * 3, line=n) for i, (n, rows) in enumerate(fr)],
+        parts=[dict(part="Dancers", n=ntiles, ids="0-%d" % (ntiles - 1), kind="OBJ", slot=ds, cols=oc[1:])])
+
+    # Stage: <t>_stage.txt 160x32 + <t>_attr.txt (0 BG 5, 1 BG 6) + the animation frames of <t>_anim.txt (one 8-px column per distinct slot tile).
+    sattr = [[int(ch) for ch in r] for _, r in src_lines(P("attr.txt"))]
+    srows = [r for _, r in src_lines(P("stage.txt"))]
+    sg = cut_tiles(srows, 20, 4)
+    grid = [[5 + a for a in r] for r in sattr]
+    slots, frames = src_anim(P("anim.txt"))
+    keys = []
+    for c, r in slots:
+        if sg[r][c] not in keys:
+            keys.append(sg[r][c])
+    suniq, sid = [], [[None] * 20 for _ in range(4)]
+    for r in range(4):
+        for c in range(20):
+            if sg[r][c] not in keys:
+                if sg[r][c] not in suniq:
+                    suniq.append(sg[r][c])
+                sid[r][c] = suniq.index(sg[r][c])
+    a_first = len(suniq)
+    for r in range(4):
+        for c in range(20):
+            if sg[r][c] in keys:
+                sid[r][c] = a_first + keys.index(sg[r][c])
+    colslot = []
+    for k in keys:
+        c, r = next((c, r) for c, r in slots if sg[r][c] == k)
+        colslot.append(grid[r][c])
+    blocks = [dict(label="stage", rows=srows, grid=grid, line=0, ds=2)]
+    for i, (name, n, rows) in enumerate(frames):
+        blocks.append(dict(label="frame %d" % (i + 1), rows=["".join(cs) for cs in rows], grid=[colslot], line=n, name=name))
+    parts = []
+    for anim in (False, True):
+        for sl in (5, 6):
+            ids = [sid[r][c] for r in range(4) for c in range(20) if grid[r][c] == sl and (sg[r][c] in keys) == anim]
+            if ids:
+                parts.append(part("Stage, animated" if anim else "Stage", ids, "BG", sl, eff(m[("BG", sl)])))
+    out["stage"] = dict(file=P("stage.txt"), multi=True, trans=False, width=160, sc=4, ds=4,
+                        pal={5: eff(m[("BG", 5)]), 6: eff(m[("BG", 6)])}, attr_of_slot={5: 0, 6: 1}, blocks=blocks, parts=parts,
+                        anim=P("anim.txt"), attr=P("attr.txt"))
+
+    # Keg: the bar piece that holds it, bar columns 17-19 (pixels 136-159, the spout and the keg), all 3 rows, with <t>_bar_attr.txt.
+    bar = [r for _, r in src_lines(P("bar.txt"))]
+    battr = [[int(ch) for ch in r] for _, r in src_lines(P("bar_attr.txt"))]
+    wslot = find_slot(field, "Bar, wall", 0)
+    kslot = find_slot(field, "Keg, spout", wslot)
+    amap = {0: wslot, 1: kslot}
+    bg_ = cut_tiles(bar, 20, 3)
+    floor = tuple(r for _, r in src_lines(P("floor.txt")))
+    buniq = []
+    for row in bg_:
+        for tl in row:
+            if tl not in buniq:
+                buniq.append(tl)
+    if floor not in buniq:
+        buniq.append(floor)
+    sp = os.path.join(ROOT, "assets/art/splash/%s.txt" % t)
+    if os.path.exists(sp):
+        spl = tuple(r for _, r in src_lines(sp))
+        if spl not in buniq:
+            buniq.append(spl)
+    base = POOL - len(buniq)
+    kgrid = [[amap[battr[y][c]] for c in (17, 18, 19)] for y in range(3)]
+    kparts = []
+    has1 = any(battr[y][c] for y in range(3) for c in (17, 18, 19))
+    for a, label in ((1, "Keg, spout"), (0, "Counter, wall" if has1 else "Keg, spout")):   # the Saloon's keg is on the bar's palette
+        ids = [base + buniq.index(bg_[y][c]) for y in range(3) for c in (17, 18, 19) if battr[y][c] == a]
+        if ids:
+            kparts.append(part(label, ids, "BG", amap[a], eff(field[amap[a]])))
+    pal = {wslot: eff(field[wslot]), kslot: eff(field[kslot])}
+    out["kegs"] = dict(file=P("bar.txt"), multi=len(pal) > 1, trans=False, width=200, sc=6, ds=6, pal=pal,
+                       attr_of_slot={kslot: 1, wslot: 0} if kslot != wslot else {},
+                       blocks=[dict(label="keg", rows=[r[136:160] for r in bar], grid=kgrid, line=0)],
+                       parts=kparts, attr=P("bar_attr.txt"))
+
+    # Floor: <t>_floor.txt 8x8, drawn across the floor row in the bar palette.
+    out["floor"] = dict(file=P("floor.txt"), multi=False, trans=False, width=200, sc=8, ds=8, pal={wslot: eff(field[wslot])}, attr_of_slot={},
+                        blocks=[dict(label="tile", rows=list(floor), grid=[[wslot]], line=0)],
+                        parts=[part("Floor", [base + buniq.index(floor)], "BG", wslot, eff(field[wslot]))])
+    for p in out.values():
+        p["pos"], p["size"] = piece_layout(p)
+    return out
+
+
+def piece_pixel(b, x, y):
+    """(slot, colour 0-3) of a block's pixel."""
+    return b["grid"][y // 8][x // 8], ".-+#".index(b["rows"][y][x])
+
+
+def piece_png(p):
+    """The editable indexed PNG of a piece: index = slot*4 + colour when the piece uses several palettes, else the colour."""
+    from PIL import Image
+    (w, h), pos = p["size"], p["pos"]
+    gap = min(p["pal"]) * 4 if p["multi"] else 0
+    im = Image.new("P", (w, h), gap)
+    pl = [0] * (3 * (32 if p["multi"] else 4))
+    for sl, cols in p["pal"].items():
+        for c in range(4):
+            o = 3 * ((sl * 4 if p["multi"] else 0) + c)
+            pl[o:o + 3] = list(hex2(cols[c]))
+    im.putpalette(pl)
+    for b, (bx, by) in zip(p["blocks"], pos):
+        for y, r in enumerate(b["rows"]):
+            for x in range(len(r)):
+                sl, c = piece_pixel(b, x, y)
+                im.putpixel((bx + x, by + y), (sl * 4 if p["multi"] else 0) + c)
+    return im
+
+
+def piece_display(p, wall):
+    """The same sheet in plain RGB, x p['sc'], gaps (and a dancer's colour 0) in the wall colour."""
+    from PIL import Image
+    (w, h), pos = p["size"], p["pos"]
+    im = Image.new("RGB", (w, h), hex2(wall))
+    for b, (bx, by) in zip(p["blocks"], pos):
+        for y, r in enumerate(b["rows"]):
+            for x in range(len(r)):
+                sl, c = piece_pixel(b, x, y)
+                im.putpixel((bx + x, by + y), hex2(p["pal"][sl][c]))
+    return im.resize((w * p["sc"], h * p["sc"]), Image.NEAREST)
+
+
+def scene_sections(v, m, field):
+    pieces = scene_pieces(v, m, field)
+    wall = v["bg"][0][0]
+    odir = os.path.dirname(OUT)
+    os.makedirs(os.path.join(odir, "img"), exist_ok=True)
+    h = []
+    for name, title in SCENE_ORDER:
+        p = pieces[name]
+        stem = "img/scene_%s_%s" % (v["key"], name)
+        piece_display(p, wall).save(os.path.join(odir, stem + ".png"), "PNG")
+        piece_png(p).save(os.path.join(odir, stem + "_1x.png"), "PNG", **({"transparency": 0} if p["trans"] else {}))
+        fname = "%s_%s.png" % (v["key"], name)
+        w_, h_ = p["size"]
+        h.append('<div class="ph2"><h2>%s</h2></div><div class="poses">' % title)
+        figs = []
+        for b, (bx, by) in zip(p["blocks"], p["pos"]):
+            ds = b.get("ds", p["ds"])
+            figs.append((b["label"], len(b["rows"][0]) * ds, len(b["rows"]) * ds,
+                         "background-size:%dpx %dpx;background-position:-%dpx -%dpx" % (w_ * ds, h_ * ds, bx * ds, by * ds)))
+        if name == "floor":
+            figs.append(("row", 160 * 2, 16, "background-size:%dpx %dpx;background-position:0 0;background-repeat:repeat-x" % (8 * 2, 8 * 2)))
+        for label, bw, bh, st in figs:
+            h.append('<figure><a class="dl" href="%s_1x.png" download="%s" data-file="%s" title="Download %s, editable">'
+                     '<span class="crop" role="img" aria-label="%s %s %s" style="width:%dpx;height:%dpx;background-image:url(%s.png);%s"></span></a>'
+                     '<figcaption>%s</figcaption></figure>'
+                     % (stem, fname, fname, esc(title.lower()), esc(v["name"]), esc(title.lower()), esc(label), bw, bh, stem, st, esc(label)))
+        h.append('</div><div class="tbl"><table class="pt"><thead><tr><th>Part</th><th>Tiles</th><th>Ids</th><th>Palette</th><th>Colours</th></tr></thead><tbody>')
+        for q in p["parts"]:
+            cols = q["cols"] if q["kind"] == "BG" else q["cols"][-3:]
+            sw_ = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
+            h.append('<tr><td>%s</td><td class="slotc">%d</td><td class="slotc">%s</td><td class="slotc">%s %d</td><td>%s</td></tr>'
+                     % (esc(q["part"]), q["n"], esc(q["ids"]), q["kind"], q["slot"], sw_))
+        h.append('</tbody></table></div>')
+    return "".join(h)
+
+
 for i, v in enumerate(venues):
     m = model(v)
     field = field_model(v, m)
@@ -766,6 +1048,13 @@ for i, v in enumerate(venues):
     w('<div class="stat"><b>%d</b><span>reserved patrons</span></div>' % len(reserved))
     w('<div class="stat"><b>%d</b><span>free OBJ palettes</span></div>' % len(ofree))
     w('<div class="stat"><b>%d</b><span>free BG palettes</span></div>' % len(bfree))
+    tl = v["tiles"]
+    w('<div class="stat"><b>%d</b><span>tiles used</span></div>' % tl["used"])
+    w('<div class="stat"><b>%d</b><span>free tiles</span></div>' % tl["free"])
+    w('<div class="stat"><b>%d</b><span>free tiles bank 1</span></div>' % tl["free1"])
+    if tl["dfree"] != tl["free"]:
+        w('<div class="stat"><b>%d</b><span>tiles used DMG</span></div>' % tl["dused"])
+        w('<div class="stat"><b>%d</b><span>free tiles DMG</span></div>' % tl["dfree"])
     w('</div><h2>Sprite palettes</h2><div class="grid">')
     for sl in range(8):
         w(card("OBJ", sl, m[("OBJ", sl)], True))
@@ -782,6 +1071,7 @@ for i, v in enumerate(venues):
         w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
     w('</tbody></table></div>')
     w(boss_section(v, m, field))
+    w(scene_sections(v, m, field))
     w('</section>')
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
