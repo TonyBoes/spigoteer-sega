@@ -7,8 +7,7 @@ x8 previews in out/preview/.
                             drink's full palette. Swapping the art = editing these files; nothing else changes.
   assets/art/pour_cue.txt   the PERFECT cue at the catch: 1 frame 8x16 (the x2 badge in its lower half).
 
-VRAM: OBJ_POUR (234) .. +5 = sparkle (2 tiles), overflow (2), cue (2): above the patron BG tiles (78..233, OBJ ids >= 128
-share VRAM with them) and below the DMG copies (OBJ_DMG_COPY 240..245). src/pour.c pour_load() writes them at a story
+VRAM: OBJ_POUR (40) .. +5 = sparkle (2 tiles), overflow (2), cue (2): sprite-only ids 40..45, between Sal's pictures and the mugs (Q61; they used to take the shared ids 234..239). src/pour.c pour_load() writes them at a story
 shift's start (LCD off); arcade never loads them.
 Usage: gen_pour.py outdir previewdir
 """
@@ -20,10 +19,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gen_art import THEMES, blocks, obj_tiles, png  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-OBJ_POUR = 234
+OBJ_POUR = 40
 OBJ_POUR_CUE = OBJ_POUR + 4
 CUE_TILES = 2
-OBJ_DUST = 234      # the dust puff of a bar change (3 frames x 2 tiles; src/game.h OBJ_DUST: 234 outside a story, 246 in one)
+OBJ_DUST = 46      # the dust puff of a bar change (3 frames x 2 tiles; src/game.h OBJ_DUST: sprite-only 46..51)
 DUST_FRAMES = 3
 
 

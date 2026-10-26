@@ -1,6 +1,6 @@
 ---
 name: palette-plan-artifact
-description: Owner's OBJ Palette Plan page (freeing CGB sprite palettes for extra patrons); update PLAN/LOG in its build.py on every palette decision
+description: Graphics Atlas page (formerly OBJ Palette Plan; renamed 2026-10-26) (freeing CGB sprite palettes for extra patrons); update PLAN/LOG in its build.py on every palette decision
 metadata:
   type: project
 ---
