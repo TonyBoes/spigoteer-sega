@@ -17,6 +17,8 @@ On 2026-10-15 the owner said: "I don't care if you as a supervisor change golden
 - New goldens are still fine for agents to add.
 - This supersedes asking the owner before each replacement. CLAUDE.md's rule still stands: never regenerate all goldens.
 
+Repeated 2026-10-26, after an auto-mode denial stalled three branches: "You are always ok to update the goldens. Just not the agents." Standing permission: copy checked goldens without asking; a classifier denial of a golden copy is not a reason to wait on him.
+
 Related: [[agents-reversible-actions]].
 
 Method from 2026-10-25 (owner approved): brief `gb-golden-check` (read-only, Sonnet) with the worktree, the failing goldens and the intended change. It runs `tools/dev/golden_bbox.py` and returns a table marking each golden EXPECTED, UNEXPECTED or UNSURE, plus an old/new/diff sheet. I still copy every golden myself and name it in the commit; I open the pictures for the UNEXPECTED and UNSURE rows and decide those.
