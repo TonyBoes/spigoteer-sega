@@ -32,9 +32,12 @@ def build():
     for f in ("music.c", "musicload.c"):
         shutil.copy(ROOT / "src" / f, RIG / f)
     shutil.copy(ROOT / "build" / "hUGEDriver.o", RIG / "hUGEDriver.o")      # (bankpack rewrites its inputs in place)
-    for f in ["music_data.c"] + sorted(p.name for p in (ROOT / "build").glob("music_pat*.c")):
+    pats = [f"music_pat{b}.c" for b in gm.PAT_BANKS]       # only the banks gen_music writes: a stale build/music_pat*.c would link twice
+    for p in RIG.glob("music_pat*.c"):
+        p.unlink()
+    for f in ["music_data.c"] + pats:
         shutil.copy(ROOT / "build" / f, RIG / f)
-    files = ["main.c", "stubs.c", "music.c", "musicload.c", "music_data.c"] + sorted(p.name for p in RIG.glob("music_pat*.c"))
+    files = ["main.c", "stubs.c", "music.c", "musicload.c", "music_data.c"] + pats
     cmd = ["lcc", "-Wa-l", "-Wl-m", "-Wl-j", "-Wm-yt0x19", "-Wm-yo32", "-autobank", f"-I{ROOT / 'src'}", f"-I{RIG}",
            f"-I{ROOT}/third_party/hugedriver/include", "-o", str(RIG / "aud.gb")] + [str(RIG / f) for f in files] + [str(RIG / "hUGEDriver.o")]
     r = subprocess.run(cmd, capture_output=True, text=True)
