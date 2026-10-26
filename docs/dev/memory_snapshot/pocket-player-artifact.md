@@ -22,4 +22,4 @@ Since 2026-10-21 the page has a ROM menu. Bundled ROMs are roms/<id>.js, each se
 
 Related: [[gfx-atlas-artifact]], [[review-board-artifact]].
 
-2026-10-25: the iPhone silent switch muted the player (audioSession "playback" was not enough on his phone). wakeUnmute() now starts a looping silent <audio> WAV in each tap. Keep it. Waiting on his test.
+2026-10-25: the iPhone silent switch muted the player (audioSession "playback" was not enough on his phone). wakeUnmute() now starts a looping silent <audio> WAV in each tap. Keep it. Owner confirmed it works, 2026-10-25.
