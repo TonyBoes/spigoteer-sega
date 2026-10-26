@@ -64,3 +64,23 @@ DELIVERABLES (in docs/dev/concepts/patron_pass/<group>/ in your worktree)
 - The clean-up log, the self-audit table (SKILL.md section 9), and questions about any detail you were unsure of.
 - Report: the files, what changed per patron in one or two lines, the self-audit rows 1-3, any deviation from the
   skill quoted exactly.
+
+OWNER 2026-10-25 (Q55, answer 1): CEDAR IS DONE, AS THE OWNER DREW HIM. HIS CEDAR IS THE QUALITY BAR AND STYLE GUIDE.
+- File: docs/dev/concepts/patron_pass/lumberjacks/cedar_owner.txt (front). His changes to the old CEDAR show the level of
+  change he wants: a patterned cap (red/black check), dark hair showing under it, brows over the eyes, an open collar
+  with a V of skin, a broken buffalo-check plaid instead of even stripes. More character, same person.
+- So this is more than a clean-up: give each patron that kind of character detail, keeping who he is (costume idea,
+  colours, silhouette). Bolder changes than his are options beside the main version, not the main version.
+- Put cedar_owner.txt FIRST in the quality bar, before the Saloon four. Compare every figure with it at 1x.
+
+PLANNED PALETTES (colours 1-3; the Palette Plan, owner merges 2026-10-25). Shared palettes: check every patron that shares.
+- sports (#39415A): PETE #FFE6CD #E63931 #311818 (shares the full mug); SERENA #B47B52 #295ADE #000000;
+  NORM #FFFFF6 #F6BD8B #202031 (Sal's)
+- lumberjacks (#6A4A31): CEDAR and WILLOW #FFC594 #D53129 #291820 (shared); ASH #BD7B52 #399441 #102910
+- chefs (#295A5A): PIERRE and BRIE #FFFFF6 #F6BD8B #202031 (Sal's); BASIL #F6F6EE #CD8B5A #411820
+- divers (#4A417B): IGGY #E6AC7B #5ABDFF #101829; POLLY #D59C7B #318B7B #102929; MOOSE #B4734A #627B39 #101808
+- robots (#523129): BOXY #5AF6FF #7B8BA4 #101829; VOLTA #FFD55A #BD8B4A #181829; BLIP #CDFFCD #5AA46A #102010
+- punks (#39294A): SPIKE #FFCDA4 #F64AA4 #180818; BANDIT #F6BD94 #4ACD4A #100810 (shares the band's); SLICK #FFDEC5 #397BFF #100829
+- ninjas (#4A6A5A): KAGE #FFCDA4 #29396A #080810; SAKURA #FFEEDE #CD2939 #181010 (shares the drummer's); RONIN #EEBD7B #AC2931 #201018
+- zoo (#204A5A): COCO #F6D5A4 #8B5229 #291808 (shares the full mug); BAMBOO #FFFFF6 #A4A4B4 #101010; MUDDY #F6B4C5 #947BAC #201029
+- aliens (#20295A): ZORP #F6FF9C #4ACD62 #102020 (full mug); XENO #E6E6EE #9CA4B4 #101018 (empty mug); GLORP #8BFFF6 #EE7B31 #311008
