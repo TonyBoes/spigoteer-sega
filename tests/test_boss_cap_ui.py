@@ -125,19 +125,19 @@ def _table(name):
 
 
 HAND_DX, HAND_DY, HAND_INV = _table("hand_dx"), _table("hand_dy"), _table("hand_inv")
-OBJ_MUG_DRINK = GAME["OBJ_MUG_DRINK"] if "OBJ_MUG_DRINK" in GAME else 84
+OBJ_GLASS = 60                                 # (src/game.h: OBJ_MUG 56 + 4; the crash's tiles: fall full at +2, its right half at +4)
+PROTO = 5
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("c", [c for c in range(10) if c not in (SUMO, SHIP)])
 def test_the_hand_mug_is_the_drink_that_was_served(model, c):
-    """Per venue boss: no mug in his hand until he drinks; then OAM 29 starts as the sliding mug's own tile and palette (the venue's drink art), its
-    bottom at his hand_base row over his right hand, and over the gulp follows the patrons' drink (mugs.c): lifted to his mouth (hand_dx), tilted,
-    tipped, then lowered empty; the venue's own drink frames (OBJ_MUG_DRINK), the served palette; gone when the gulp is over."""
+    """Per venue boss: no mug in his hand until he drinks; then OAM 29 is the served mug at full size (the sliding mug's tile and palette: the venue's
+    drink art) and over the gulp it is lifted to his mouth (hand_dx), lies on its side (the crash's on-its-side frame, OBJ_GLASS +2 and +4: two
+    entries, the second below the capacity row), and is lowered as the sliding empty; gone when the gulp is over. The Prototype's battery stays at his
+    hand and pulses between the full and the empty palette."""
     r = row(c)
     mug, pal = venue_tile(c, 0), venue_pal(c, "full")
-    drink = [bytes(tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8)) for f in
-             (blocks(VENUES / f"{THEMES[c]}_drink.txt")[k][1] for k in range(6, 10))]
     with play_in(model, c) as gb:
         assert gb.oam()[OAM_HAND]["y"] == 0, "nothing in his hand before he drinks"
         catch_one(gb, c)
@@ -148,35 +148,45 @@ def test_the_hand_mug_is_the_drink_that_was_served(model, c):
             assert cgb_palette(gb, 1, True) == pal, "the served palette"
         else:
             assert gb.mem("spr_full_p") == 0 and bytes(gb.read(0x8000 + gb.mem("spr_full_t") * 16, 32)) == swapped(mug), "DMG: the mug's own copy (bit planes swapped, OBP0)"
-        seen, xs, order = set(), set(), []
+        o2 = OAM_CAP - 1 - gb.mem("boss_hands")
+        xs, order, pals, ys = set(), [], set(), set()
         while gb.mem("boss_state") == BS_GULP:
             frames(gb, 1)
-            o = gb.oam()[OAM_HAND]
+            oam = gb.oam()
+            o = oam[OAM_HAND]
             if not o["y"]:
                 continue
             dx = o["x"] - (gb.mem("boss_x") + r["width"])
-            seen.add(dx)
-            data = bytes(gb.read(0x8000 + o["tile"] * 16, 32))
+            xs.add(dx)
+            ys.add(o["y"])
+            pals.add(o["flags"])
             if o["tile"] == gb.mem("spr_full_t"):
                 k = 0
-                assert o["flags"] == gb.mem("spr_full_p") and bytes(gb.read(0x8000 + o["tile"] * 16, 32)) in (mug, swapped(mug))
-                assert o["y"] in range(bar_oam_y(c) + HAND_BASE[c] - 18, bar_oam_y(c) + HAND_BASE[c] - 10), "at his hand, a little up or down"
-            elif o["tile"] == gb.mem("spr_hempty_t"):
+                assert bytes(gb.read(0x8000 + o["tile"] * 16, 32)) in (mug, swapped(mug))
+            elif o["tile"] == gb.mem("spr_empty_t"):
                 k = 4
-                assert o["flags"] == gb.mem("spr_hempty_p")
+                assert o["flags"] == gb.mem("spr_empty_p")
             else:
-                assert o["tile"] in (OBJ_MUG_DRINK, OBJ_MUG_DRINK + 2, OBJ_MUG_DRINK + 4), o
-                k = (o["tile"] - OBJ_MUG_DRINK) // 2 + 1
-                assert data == drink[k - 1] and o["flags"] == gb.mem("spr_full_p"), "the venue's own drink frame, the served palette"
+                assert o["tile"] == OBJ_GLASS + 2 and o["flags"] == gb.mem("spr_full_p"), o
+                k = 2
+                s2 = oam[o2]
+                assert (s2["tile"], s2["y"], s2["x"], s2["flags"]) == (OBJ_GLASS + 4, o["y"], o["x"] + 8, o["flags"]), (s2, o)
+                assert any(bytes(gb.read(0x8000 + (OBJ_GLASS + 2) * 16, 64))), "the crash's tiles are loaded"
             if not order or order[-1] != k:
                 order.append(k)
-            xs.add(dx)
-        assert order == sorted(order) and set(order) >= {2, 3, 4}, order      # (full, lifted, tilted, tipped, empty: never back up)
-        lo = min(xs)
-        assert lo in (HAND_DX[c] - 2, HAND_DX[c], HAND_DX[c] + 2) or (r["sway"] == 0 and lo == HAND_DX[c]), (lo, HAND_DX[c], xs)
-        assert max(xs) <= 2 if r["sway"] else max(xs) == 0, "it never wanders right of his hand"
+            if c == PROTO:
+                assert k == 0 and dx in (0, 2), "the battery stays upright at his hand"
+        if c == PROTO:
+            assert order == [0] and len(pals) == 2, (order, pals)    # (the full and the empty palette: DMG OBP0 / OBP1)
+            assert len(ys) == 1
+        else:
+            assert order == sorted(order) and set(order) >= {2, 4}, order        # (upright, on its side, empty: never back up)
+            lo = min(xs)
+            assert lo in (HAND_DX[c] - 4, HAND_DX[c] - 2, HAND_DX[c], HAND_DX[c] + 2) or (r["sway"] == 0 and lo >= HAND_DX[c] - 4), (lo, HAND_DX[c], xs)
+            assert max(xs) <= 2 if r["sway"] else max(xs) == 0, "it never wanders right of his hand"
         frames(gb, 2)
         assert gb.oam()[OAM_HAND]["y"] == 0, "the mug goes when the gulp is over"
+        assert gb.oam()[o2]["y"] == 0, "and its second entry"
 
 
 HAND_END = _table("hand_end")
