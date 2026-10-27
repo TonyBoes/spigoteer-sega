@@ -1,0 +1,12 @@
+PROPOSAL palettes for assets/palettes.json (colours 1-3, light to dark; the owner's colours rounded to RGB555, rgb15 = r | g<<5 | b<<10)
+DMG greys: index 1 = light grey (170), 2 = dark grey (85), 3 = black. Wall = white. Lodge wall on Color: #6a4a30.
+
+"lumberjacks_b" (WILLOW): UNCHANGED, same as lumberjacks_a (CEDAR). Her PNG colours (#ffc594 skin, #d53129 red, #291820 dark) round to exactly #f8c090 #d03028 #281820, rgb15 [19231, 5338, 4197]. Confirmed: she keeps CEDAR's palette.
+  DMG: skin light grey, red hair/mouth/plaid dark grey, outline and plaid black.
+
+"lumberjacks_c" (ASH): hex ["#389040", "#906800", "#102810"], rgb15 [8775, 434, 2210]   green / skin / near-black green
+  His PNG: #399441 -> #389040, #926d00 -> #906800, #102910 -> #102810. Green and dark are the same values as the current lumberjacks_c; only the skin changes (was #b87850, index 1 -> now index 2).
+  DMG: hat and jacket light grey (index 1), face + ears + neck dark grey (index 2), hair/beard/eyes/outline black.
+  Order check (gen_art c_lum): green 14.9 > skin 13.1 > dark 4.1, passes, but green and skin differ by only 1.8 in luminance, so on Color the hat/face split is by hue plus the dark cuff and hair lines, not brightness.
+  Face on the Color wall (#6a4a30, luminance 9.6): ASH's skin (13.1) is brighter than the wall and never touches it (the face is enclosed by the cuff, dark hair and green); the figure's edge against the wall is green and near-black. Fine.
+  Face on the DMG: dark grey face against black eyes/hair (85 vs 0) with a light-grey hat above: readable, eyes are the least contrasty feature.
