@@ -1,0 +1,55 @@
+; PROPOSAL v2 (not imported): Stadium back views redrawn from the owner's fronts (docs/dev/concepts/stadium_owner/proposal/sports.txt). index 0 = wall, 1-3 light to dark, same roles as each front
+; frames: sports_back_a, sports_back_b, sports_back_c
+; A: red cap from behind (centre seam, no brim), short dark hair, skin ears, narrow neck, dark collar, red jersey with a light number 7.
+; B: black cap from behind pulled down to the ears (no white band), sheen top left, skin ears and narrow neck, stripes continue across the back in the front's phase.
+; C: blue cap, black hair across the nape and a lock hanging each side (blue ribbon on the left lock as in the front), narrow brown neck, blue shirt with a back seam.
+....########....
+...#-++##+++#...
+..#-+++##++++#..
+..#++++##++++#..
+..#++++++++++#..
+..############..
+.#-##########-#.
+.#-##########-#.
+..#-########-#..
+....########....
+.....#----#.....
+..#++#----#++#..
+.#+++######+++#.
+.#++++----++++#.
+.#++++++--++++#.
+.#+++++--+++++#.
+
+................
+....########....
+...###--#####...
+..###-########..
+..############..
+..############..
+.#+##########+#.
+.#+##########+#.
+...##########...
+.....#++++#.....
+.....#++++#.....
+..#-#######-#...
+..#-#-#-#-#-#...
+#-#-#-#-#-#-#-#.
+#-#-#-#-#-#-#-#.
+#-#-#-#-#-#-#-#.
+
+.....######.....
+...#++++++++#...
+..#++++++++++#..
+..#++++++++++#..
+..############..
+.#+############.
+.#+############.
+.#+############.
+.##############.
+.#####----#####.
+..####----####..
+.....#----#.....
+...#++####++#...
+..#++++++++++#..
+.#++++++##++++#.
+.#++++++##++++#.
