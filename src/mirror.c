@@ -287,15 +287,15 @@ static const uint8_t sal_combo[29] = {
     V(6, 0), V(6, 3), V(6, 1), V(6, 4), V(6, 2),        // MABEL: 3-7
     V(7, 0), V(7, 3), V(7, 1), V(7, 4), V(7, 2),        // ARTIE: 3-7
 };
-// A boss fight leaves out GUS (look 2: the C slot's tiles are the boss's) and the instances on OBJ 7 and 5 (pi 2 and 4: the boss's palettes).
+// A boss fight leaves out GUS (look 2: the C slot's tiles are the boss's) and the instances on OBJ 7 and 5 (pi 2 and 4: the boss's palettes): the other 18, one draw
+// (no rejection loop: a spawn frame is the fight's slowest, tests/test_boss_in_place.py).
+static const uint8_t sal_boss[18] = {
+    V(0, 0), V(0, 1), V(1, 3), V(1, 1), V(3, 0), V(3, 1), V(4, 0), V(4, 3), V(4, 1),
+    V(5, 0), V(5, 3), V(5, 1), V(6, 0), V(6, 3), V(6, 1), V(7, 0), V(7, 3), V(7, 1),
+};
 uint8_t saloon_variant(uint8_t r) BANKED {
-    uint8_t v = sal_combo[((uint16_t)r * 29) >> 8], pi;
-    while (boss_on) {
-        pi = (v ^ (v >> 3)) & 7;
-        if ((v & 7) != 2 && pi != 2 && pi != 4) break;
-        v = sal_combo[((uint16_t)next_rand() * 29) >> 8];
-    }
-    return v;
+    if (boss_on) return sal_boss[(uint8_t)((((uint16_t)r << 4) + ((uint16_t)r << 1)) >> 8)];   // r * 18 / 256
+    return sal_combo[(uint8_t)((((uint16_t)r << 5) - ((uint16_t)r << 1) - r) >> 8)];            // r * 29 / 256 (29 = 32 - 2 - 1: no multiply call)
 }
 
 uint8_t spawn_variant(uint8_t r) BANKED {

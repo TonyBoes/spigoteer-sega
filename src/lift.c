@@ -427,9 +427,18 @@ static void forced_drops(void) {
         force_out(p);
 }
 
+// Palette instance 4 (patron_variant, render.c patron_attr) is OBJ 5 as a sprite: the show's colours (the dancers) take that slot while a show runs.
+#define PI4(v) ((((v) ^ ((v) >> 3)) & 7) == 4)
+uint8_t lift_pi4(void) BANKED {
+    uint8_t p;
+    for (p = 0; p != MAX_PATRONS; p++) if (patron_lift[p] && PI4(patron_variant[p])) return 1;
+    return 0;
+}
+
 // The hook's lift: 0 refused, 1 done, 2 not this frame.
 static uint8_t try_lift(uint8_t p, uint8_t mode) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1), d = patron_draw[p];
+    if (show_timer && PI4(patron_variant[p])) return 0;   // (Color Saloon only: instance 4 never exists elsewhere; during a show OBJ 5 is the dancers')
     if (patron_state[p] == PATRON_NONE || patron_lift[p] || d == 255 || (d & DRAW_BACK) || patron_dist[p]) return 0;
     if (lift_total >= LIFT_MAX || lift_n[b] >= LIFT_PER_BAR) return 0;
     if (mugs_live + ((lift_total + 1) << 1) > MUG_OAM_ALL - OAM_SPARE) return 0;   // (cheap first: mugs_live <= their entries)
@@ -1735,24 +1744,30 @@ void lift_frame(void) BANKED {
 static uint8_t dl_n, dl_v, dl_x, dl_y, dl_t, dl_p;
 static uint8_t *dl_o;
 #if !ASM_LIFT_DRAW
+static void dl_one(uint8_t p, uint8_t l) {                // one lifted patron's two entries at dl_o (its own function: the scan below stays tiny)
+    uint8_t x = (uint8_t)((patron_draw[p] & 0x7F) + 8), t, a;
+    OAM_item_t *e = (OAM_item_t *)dl_o;                   // (struct fields: SDCC writes them through one pointer; indexed bytes cost it 16-bit adds)
+    if (l == LIFT_EDGE) x = (uint8_t)(x - patron_aux[p]);
+    l = patron_variant[p];
+    t = lift_tile[l & 7]; a = lift_obj[(l ^ (l >> 3)) & 7] | lift_prop[0] | ((l >> 3) & 8);
+    e->y = bar_oam_y[patron_bar[p] & 3]; e->x = x; e->tile = t; e->prop = a;                    // his left half
+    e--;
+    e->y = (e + 1)->y; e->x = (uint8_t)(x + 8); e->tile = (uint8_t)(t + 2); e->prop = a;       // his right half: the entry below
+    dl_o = (uint8_t *)(e - 1);
+}
 static void draw_lifted_asm(void) {
-    uint8_t p, v, n = 0, *o;
+    uint8_t n = 0, p;
+    const uint8_t *q = patron_lift;
     dl_o = (uint8_t *)shadow_OAM + 100;                   // OAM 25 (OAM_LIFT_TOP)
-    for (p = 0; p != MAX_PATRONS; p++) {
-        dl_v = patron_lift[p] & 3;
-        if (!dl_v || patron_draw[p] == 0xFF) continue;
-        dl_x = (uint8_t)((patron_draw[p] & 0x7F) + 8);
-        if (dl_v == LIFT_EDGE) dl_x = (uint8_t)(dl_x - patron_aux[p]);
-        dl_y = bar_oam_y[patron_bar[p] & 3];
-        v = patron_variant[p];
-        dl_t = lift_tile[v & 7]; dl_p = lift_obj[(v ^ (v >> 3)) & 7] | lift_prop[0] | ((v >> 3) & 8);
-        o = dl_o;
-        o[0] = dl_y; o[1] = dl_x; o[2] = dl_t; o[3] = dl_p;              // his left half
-        o[-4] = dl_y; o[-3] = (uint8_t)(dl_x + 8); o[-2] = (uint8_t)(dl_t + 2); o[-1] = dl_p;   // his right half: the entry below
-        dl_o -= 8;
-        n++;
-        if (n == 4 || n >= lift_total) break;               // LIFT_MAX; all lift_total of them written
-    }
+    do {
+        if (*q & 3) {                                     // (the scan is the cost: one test and one pointer step per patron)
+            p = (uint8_t)(q - patron_lift);
+            if (patron_draw[p] != 0xFF) {
+                dl_one(p, *q & 3);
+                if (++n == 4 || n >= lift_total) break;   // LIFT_MAX; all lift_total of them written
+            }
+        }
+    } while (++q != patron_lift + MAX_PATRONS);
     dl_n = n;
 }
 #else

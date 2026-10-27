@@ -188,7 +188,8 @@ static uint8_t cz_dir, cz_sto, cz_flip, cz_bswap;   // the bar being composed is
 // patron_variant: bits 0-2 the look, bits 3-5 (palette instance ^ look): 0 is the look's own palette (A, B, C = BG 2, 3, 4), bit 6 a
 // Color-only look drawn from VRAM bank 1 (its BG attribute and OAM bit 3 = bit 6 >> 3). game.h PATRON_BANK1.
 static void patron_attr(uint8_t v) {                     // cz_pal of a patron with variant byte v
-    cz_pal = pal_bg[(v ^ (v >> 3)) & 7] | ((v >> 3) & 8) | cz_flip;
+    uint8_t i = v >> 3;
+    cz_pal = pal_bg[(v ^ i) & 7] | (i & 8) | cz_flip;
 }
 
 static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal for patron s drawn at x d (front view)
@@ -801,7 +802,7 @@ static void pal5_check(void) {
         if (pal5_cur == 2 && SPLIT_ON) { pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (SPLIT_PAL: that instance, already lifted for SCREEN BRIGHT)
         return;
     }
-    if (pal5_cur == 2) return;
+    if (pal5_cur == 2 || (SPLIT_ON && lift_pi4())) return;   // (the Saloon, Color: a lifted patron wearing the 5th instance keeps OBJ 5 until he is gone: no new lift of one during a show, lift.c try_lift)
     if (SCR_BRIGHT()) { pal5_lift(); pal5_src = pal5_lifted; }   // SCREEN BRIGHT: the VBlank writes pal5_lifted raw, so the show's colours are lifted into it here (src/bright.c)
     else pal5_src = venue.pal[VENUE_PAL_SHOW];
     pal5_cur = 2;
@@ -833,7 +834,7 @@ void draw_stage_fx(void) {
     draw_coin();
     if (shadow_OAM[OAM_COIN - 1].y || (tip_timer && tip_pocket && TIP2->t)) tip_draw2();   // (the second coin, OAM 26: src/tip.c, banked, so only when it shows or must be hidden)
     pal5_check();
-    if (!show_timer) {
+    if (!show_timer || (is_cgb && pal5_cur != 2)) {                // (Color: the dancers wait for their colours, pal5_check)
         if (dancers_vis) {
             OAM_item_t *o = shadow_OAM + OAM_DANCERS;
             for (k = 0; k < NUM_DANCERS * 4; k++) o[k].y = 0;

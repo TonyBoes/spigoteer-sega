@@ -533,3 +533,40 @@ def test_the_coin_wears_sals_palette_and_slot_5_is_the_shows_alone(gb):
     if cgb and show5:                        # the show ended: the Saloon's 5th palette instance is back in slot 5
         gb.run(3)
         assert cgb_obj_palette(gb, 5)[1:] == show5[1:] and gb.mem("pal5_cur") == 0, "slot 5 given back after the show"
+
+
+def test_a_lifted_5th_instance_patron_keeps_his_colours_through_a_show_and_none_is_lifted_during_one():
+    """Color Saloon: palette instance 4 (MABEL, ARTIE) is OBJ 5 as a sprite, the slot the show's dancers use. A show starting
+    while one is lifted waits (no dancers, slot 5 his) until he is dropped; during a show none is lifted at all."""
+    from test_venues import cgb_palette
+    g = boot_play("cgb")
+    try:
+        assert g.mem("cur_group") == 0
+        freeze(g)
+        slot = {k: v[0] for k, v in lineup(g, {0: [(20, 0, 0), (60, 1, 0)], 2: [(24, 2, 0), (64, 0, 0)]}).items()}
+        g.run(10)
+        p4, p3 = slot[(0, 20)], slot[(0, 60)]
+        g.write(g.addr("patron_variant") + p4, 4 << 3)      # look 0, palette instance 4
+        g.write(g.addr("patron_variant") + p3, 0)
+        mine = cgb_palette(g, 5, obj=True)
+        hook(g, p4, HOOK_LIFT)
+        g.run(4)
+        assert g.mem("lift_hook_res") == 1 and g.read("patron_lift", MAX_P)[p4], "lifted before the show"
+        g.write("show_timer", 200)
+        g.write(g.addr("show_timer") + 1, 0)
+        g.run(12)
+        assert g.mem("pal5_cur") == 0 and cgb_palette(g, 5, obj=True) == mine, "slot 5 stays his"
+        assert not any(s["y"] for s in g.oam()[OAM_DANCERS:]), "no dancers in his colours"
+        hook(g, p4, HOOK_DROP)
+        g.run(40)
+        assert not g.read("patron_lift", MAX_P)[p4]
+        assert g.mem("pal5_cur") == 2 and cgb_palette(g, 5, obj=True) != mine, "the show's colours once he is down"
+        assert any(s["y"] for s in g.oam()[OAM_DANCERS:]), "dancers"
+        hook(g, p4, HOOK_LIFT)                               # a lift of his during the show: refused
+        g.run(4)
+        assert not g.read("patron_lift", MAX_P)[p4]
+        hook(g, p3, HOOK_LIFT)                               # any other look lifts as before
+        g.run(4)
+        assert g.read("patron_lift", MAX_P)[p3]
+    finally:
+        g.stop()

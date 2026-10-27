@@ -215,9 +215,9 @@ __endasm;
 }
 #else
 void split_pal_put(const volatile uint8_t *src) {
+    uint8_t i;                                  // (cold, LCD off: a loop; the hot callers write the bytes themselves, split_line / split_vbl)
     BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
-    BCPD_REG = src[0]; BCPD_REG = src[1]; BCPD_REG = src[2]; BCPD_REG = src[3];     // (unrolled: it must finish inside the HBlank)
-    BCPD_REG = src[4]; BCPD_REG = src[5]; BCPD_REG = src[6]; BCPD_REG = src[7];
+    for (i = 0; i != 8; i++) BCPD_REG = src[i];
 }
 #endif
 
@@ -258,13 +258,11 @@ __endasm;
 }
 #else
 static void split_line(void) {  // (the split's own line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
-    // (C is slow at 8 pointer reads: they happen BEFORE the HBlank wait, in the mode-3 time that is spent waiting anyway)
-    uint8_t c0 = SPLIT_PAL[0], c1 = SPLIT_PAL[1], c2 = SPLIT_PAL[2], c3 = SPLIT_PAL[3];
-    uint8_t c4 = SPLIT_PAL[4], c5 = SPLIT_PAL[5], c6 = SPLIT_PAL[6], c7 = SPLIT_PAL[7];
+    // (the 8 bytes are read from their fixed HRAM addresses as they go out, `ldh a, (n)` then `ldh (c), a`: no pre-read into locals, whose spills ended after the line did)
     while (STAT_REG & 3) ;                     // (HBlank: palette RAM is open; the line's pixels are out)
     BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
-    BCPD_REG = c0; BCPD_REG = c1; BCPD_REG = c2; BCPD_REG = c3;
-    BCPD_REG = c4; BCPD_REG = c5; BCPD_REG = c6; BCPD_REG = c7;
+    BCPD_REG = SPLIT_PAL[0]; BCPD_REG = SPLIT_PAL[1]; BCPD_REG = SPLIT_PAL[2]; BCPD_REG = SPLIT_PAL[3];
+    BCPD_REG = SPLIT_PAL[4]; BCPD_REG = SPLIT_PAL[5]; BCPD_REG = SPLIT_PAL[6]; BCPD_REG = SPLIT_PAL[7];
     LYC_REG = SPLIT_WANT;
 }
 
@@ -281,7 +279,13 @@ void split_isr(void) {        // (the C twin; hides the window FIRST, as the asm
 #endif
 
 void split_vbl(void) {        // vq_vbl's place while the split is armed (the VBlank chain keeps its one entry)
+#if ASM_SPLIT_PAL
     split_pal_put(SPLIT_STG);
+#else
+    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);      // (the C twin: fixed HRAM addresses, `ldh a, (n)`: through a pointer parameter SDCC spends 4 lines of a frame here)
+    BCPD_REG = SPLIT_STG[0]; BCPD_REG = SPLIT_STG[1]; BCPD_REG = SPLIT_STG[2]; BCPD_REG = SPLIT_STG[3];
+    BCPD_REG = SPLIT_STG[4]; BCPD_REG = SPLIT_STG[5]; BCPD_REG = SPLIT_STG[6]; BCPD_REG = SPLIT_STG[7];
+#endif
     vq_vbl();
 }
 

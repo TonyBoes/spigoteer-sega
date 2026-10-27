@@ -483,6 +483,7 @@ void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palet
 void lift_frame(void) BANKED;                 // after the rules, before queue_vram: drops, forced drops, the test hook
 void draw_lifted(void) BANKED;                // OAM 25 down, after draw_mugs
 uint8_t lift_spawn(uint8_t p) BANKED;         // lift a new patron at the left edge now (1), or not (0: no room)
+uint8_t lift_pi4(void) BANKED;                // 1 if a lifted patron wears palette instance 4 (OBJ 5: the show's colours take it; render.c pal5_check)
 uint8_t lift_leave(uint8_t p) BANKED;         // a served patron slides out as a sprite: 1 done, 2 done (wait for his BG copy to go), 0 no room
 extern uint8_t lift_prop[4];                  // (lift.c) OAM attributes of variant v's lifted entries (CGB OBJ palette, DMG OBP1)
 // ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
