@@ -193,6 +193,9 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // used to borrow shared ids 234 / 246, which stay free now). 40..55 are free of Sal; the CGB title's DX badge (40..47) is the
 // only other user and never shows with a level, which reloads these (main_cold, trans.c dust_load; pour_load at a shift's start)
 #define OBJ_DUST         46
+#define MIXED_B          0x40   // level_dirs bit 6: the DMG's mixed levels use option (b), 1 px steps and the looks split by direction (mirror.c; debug box MIXED)
+#define MIX_A            1      // mir_bswap: the DMG mixed level's option (a) / (b)
+#define MIX_B            2
 #define KEEP_POS         0x80   // level_dirs bit 7: mode A, the bartender keeps his x on a bar change (debug box, START);
                                 // clear (the default, and always in CLASSIC): mode B, he snaps to the tap with a dust puff
 #define OBJ_DMG_COPY     240    // sliding full mug 240, sliding empty 242, held empty 244
