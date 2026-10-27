@@ -1,0 +1,8 @@
+PROPOSAL palettes for assets/palettes.json (colours 1-3, light to dark; the owner's colours rounded to RGB555, rgb15 = r | g<<5 | b<<10)
+DMG greys: index 1 = light grey (170), 2 = dark grey (85), 3 = black. Wall = white.
+Venue wall on Color stays #384058 (assets/approved/venues/sports_pal.json, bar[0]); his navy and blue backgrounds are only his drawing backgrounds.
+
+"sports_a": hex ["#f8e0c8", "#e03830", "#301818"], rgb15 [26527, 6396, 3174]   skin / red / dark brown   DMG: skin light grey, red dark grey, hair+outline black
+"sports_b": hex ["#f8f8f0", "#f0b888", "#202030"], rgb15 [31743, 18174, 6276]   white / skin / near-black   DMG: stripes+band light grey, FACE DARK GREY, cap+outline black
+"sports_c": hex ["#b07850", "#2858d8", "#000000"], rgb15 [10742, 28005, 0]      skin / blue / black   DMG: skin light grey, cap+jersey dark grey, hair+outline black
+(Note: proposed sports_c is the same three colours as the current sports_b entry in palettes.json; both are rewritten on import.)
