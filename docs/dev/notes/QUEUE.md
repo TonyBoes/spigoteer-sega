@@ -8,7 +8,7 @@ OPEN QUESTIONS TO THE OWNER:
 OWED / LATER:
 - PATRON HOLD LIFTED 2026-10-26: "Let's just go ahead and implement what patron changes we have so far so we can get everything current."
   - Batch 1 MERGED a60033f (with dmg-mixed-b).
-  - Batch 2 RUNNING 2026-10-26 (branch patron-rev-2; split clean at 0791845, Color-only, Saloon only; steps 3-6 agent abe02cc24d30eb47b): Saloon 8 looks (option 2, variants, GUS in the C slot), renames,
+  - Batch 2 RUNNING 2026-10-26 (branch patron-rev-2; split clean at 0791845, Color-only, Saloon only; step 3 done f242c5d on worktree-agent-abe02cc24d30eb47b; steps 4-6 agent a5774f77ba8c5fc67; DMG three DUSTY, EMMA, GUS per line 112): Saloon 8 looks (option 2, variants, GUS in the C slot), renames,
     drop the enhanced looks. Saloon backs: drafts in docs/dev/concepts/{dusty_hank,rosie,outlaw}_sprite; EMMA, ARTIE, GUS have none (stand-ins, listed).
   - Batch 3 AFTER batch 2 merges: Q61 B approved 2026-10-26 ("61b) Do it"): patron tile lookup table, blank/duplicate pre-shifted tiles share slots (shift-0 sprite step only in whole pairs); measure ROM and the per-draw speed (perf guards untouched); tools/dev/tile_dups.py counts; DMG and Color.
   - Stadium looks (owner art 2026-10-26, "They are replacements for stadium patrons."): docs/dev/concepts/stadium_owner/sports_a/b/c.png replace Stadium A, B, C on DMG and Color, with his colours as sports_a/b/c palettes. Back views: proposals d305603 (docs/dev/concepts/stadium_owner/proposal/), Q65 open; referee DMG brim edge Q66 open. Q64 answered 2026-10-26: "Use as drawn for now." (fronts as drawn, not locked). Import after batch 2 merges.
