@@ -1,0 +1,8 @@
+PROPOSAL palette for assets/palettes.json (colours 1-3, light to dark; the owner's colours rounded to RGB555, rgb15 = r | g<<5 | b<<10)
+
+"aliens_d" (4th Space Lounge look, Color only): hex ["#f8e0c8", "#e03830", "#301818"], rgb15 [26527, 6396, 3174]   cream (face, helmet shell, suit) / red (hair, suit trim) / dark (helmet rim, eyes, pack)
+  His PNG: #FFE6CD -> #f8e0c8, #E63931 -> #e03830, #311818 -> #301818.
+  These are EXACTLY the same three colours as the proposed "sports_a" (docs/dev/concepts/stadium_owner/proposal/sports_palettes.txt) and the Stadium's OBJ 1 / BG 1 plan entry (TAN #FFE6CD, red, dark brown): the Space Lounge's 4th look can share that palette slot's colours (still one OBJ + one matching BG palette in this venue, because palettes are per screen).
+  Order check (luminance): cream 224 > red 87 > dark 27: light to dark, passes.
+DMG greys (if it ever showed there): index 1 = light grey (170), 2 = dark grey (85), 3 = black, wall white: cream skin/shell light grey, hair and suit trim dark grey, rim, eyes and pack black. Color-only, so this is shown for completeness.
+Wall: Space Lounge bar wall = colour 0 of "bar" / "bar_b" in assets/approved/venues/space_pal.json = #202a58 (his navy drawing background #1D2B53 stands for it). Cream vs wall: high contrast; red vs wall (87 vs 40): readable thanks to the cream shell and dark rim around it; the dark rim (27) is darker than the wall (40) only slightly, the cream ring carries the silhouette.

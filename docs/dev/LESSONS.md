@@ -97,3 +97,7 @@ See `tools/artifacts/README.md` for the review pages' links and how to republish
   them to make decisions.
 - Keep notes in the repo (`docs/dev/`), not only in a session's scratch space. Session files are lost with the session.
 - Agents with `isolation: worktree` must write deliverables to a path git does not ignore (e.g. `docs/dev/concepts/...`), never only `out/`: a worktree whose only changes are ignored files is deleted when the agent finishes. CEDAR's first pass (2026-10-25) was lost that way and recovered from the agent's transcript.
+- Handing a half-done branch to a fresh agent (2026-10-26): `gb-worker` always runs in its own worktree and is denied
+  git in another agent's tree. Commit the old tree's work as a WIP commit (say NOT GREEN, list the failures, add a
+  handoff under `docs/dev/handoffs/`), then tell the new agent to merge that branch into its own.
+- Long-running agents that keep stopping mid-test (context past ~150k) waste turns: stop them, WIP-commit, start fresh.
