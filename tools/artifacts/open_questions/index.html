@@ -56,12 +56,25 @@ audio { width: 100%; max-width: 420px; }
   <header>
     <h1>Open questions</h1>
     <p class="lede">Every question waiting on your answer, with its pictures. Answered questions come off this list. Reply in chat with the number, e.g. "Q12: shared".</p>
-    <p class="stamp">0 open · updated 2026-10-26 · main d03756d</p>
+    <p class="stamp">1 open · updated 2026-10-26 · main 2a5ba71</p>
   </header>
 
   <nav aria-label="Open questions"><ol>
+    <li><a href="#q61b"><span class="n">Q61 B</span><span>Patron tile sharing</span></a></li>
   </ol></nav>
 
 
 
+  <article class="card" id="q61b">
+    <span class="tag">Q61 B</span>
+    <h2>Patron tile sharing</h2>
+    <p class="ask">Add the patron tile lookup table?</p>
+    <ul>
+      <li>Each look is stored at 8 one-pixel steps; many of those tiles are blank or exact copies. A small table lets matching tiles share one slot.</li>
+      <li>Gain: about 8–20 tiles per stage, about 40 at the Igloo. DMG and Color.</li>
+      <li>Cost: a little ROM and a lookup on every patron draw, measured before keeping it. The sprite step shares only in whole pairs.</li>
+    </ul>
+    <p class="files">Igloo and Saloon tile sheets: red repeated tiles, yellow extra blanks, pink repeated sprite pairs.</p>
+    <div class="media"><img src="media/q61_duplicate_tiles.png" width="1060" height="800" alt="Repeated tiles, Igloo and Saloon"></div>
+  </article>
 </div>
