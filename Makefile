@@ -302,8 +302,14 @@ dist:
 	cp CREDITS.md $(DIST)/CREDITS.md
 	@ls -l $(DIST)
 
+# JOBS=1 is the old serial run; otherwise tools/dev/ptest.py shards the tests over JOBS pytest processes (same results, see its docstring)
+JOBS ?= 8
 test: $(ROM)
+ifeq ($(JOBS),1)
 	python3 -m pytest -q tests
+else
+	python3 tools/dev/ptest.py -j $(JOBS) tests
+endif
 
 check: $(ROM)
 	gbcheck $(ROM) --length 10 --out $(OUT)/check
