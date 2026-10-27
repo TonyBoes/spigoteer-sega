@@ -11,7 +11,7 @@ OWED / LATER:
   - Batch 2 RUNNING 2026-10-26 (branch patron-rev-2; split clean at 0791845, Color-only, Saloon only; steps 3-6 agent abe02cc24d30eb47b): Saloon 8 looks (option 2, variants, GUS in the C slot), renames,
     drop the enhanced looks. Saloon backs: drafts in docs/dev/concepts/{dusty_hank,rosie,outlaw}_sprite; EMMA, ARTIE, GUS have none (stand-ins, listed).
   - Batch 3 AFTER batch 2 merges: Q61 B approved 2026-10-26 ("61b) Do it"): patron tile lookup table, blank/duplicate pre-shifted tiles share slots (shift-0 sprite step only in whole pairs); measure ROM and the per-draw speed (perf guards untouched); tools/dev/tile_dups.py counts; DMG and Color.
-  - Stadium looks (owner art 2026-10-26, "They are replacements for stadium patrons."): docs/dev/concepts/stadium_owner/sports_a/b/c.png replace Stadium A, B, C on DMG and Color, with his colours as sports_a/b/c palettes. Back views: gb-artist proposals (running). Q64: as drawn or tidy-up pass. Import after batch 2 merges.
+  - Stadium looks (owner art 2026-10-26, "They are replacements for stadium patrons."): docs/dev/concepts/stadium_owner/sports_a/b/c.png replace Stadium A, B, C on DMG and Color, with his colours as sports_a/b/c palettes. Back views: gb-artist proposals (running). Q64 answered 2026-10-26: "Use as drawn for now." (fronts as drawn, not locked). Import after batch 2 merges.
 - Patron design pass: CLOSED for agents 2026-10-26. Picks from rounds 1-2 recorded; the rest stay old and the owner edits them by hand. Brief and list: docs/dev/queue_briefs/patron_pass_2026-10-25.md.
 - Medal-points value proposal (Q59e).
 - Map critique round after his playtest (left lane, parallel town legs, cow, lodge, menu text spacing incl. Dregs's 20-wide lines, arrow direction).
