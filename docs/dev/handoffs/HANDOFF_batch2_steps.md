@@ -52,3 +52,12 @@ colour 0), the three shift-0 poses of 4 tiles at PATRON_SHIFT0_OFS 128 + v*4 (co
   supervisor call) + 5 CGB `palettes(gb) == pals` fails at OBJ palette 4 (test_bs x2, test_pause quits_with_boss_gone, mini_game pause 3):
   most likely step-1 fallout (OBJ 4 no longer loaded in the Saloon), unchecked on the baseline. make check green. ROM0 free 515 B, WRAM unchanged.
 - Steps 4, 5, 6 not started; design above stands.
+
+## Status after step 6 (branch worktree-agent-a5774f77ba8c5fc67: 1b6c1e5 step 4, e619fa4 step 5, step 6 commit after it)
+- Steps 4-6 done. patron_variant byte: bits 0-2 look, 3-5 (palette instance ^ look), bit 6 PATRON_BANK1. Instances: pi0 BG2/OBJ3 (A), pi1 BG3/OBJ6 (C), pi2 BG4/OBJ7 (E),
+  pi3 BG7/OBJ4 (B), pi4 BG5 via SPLIT_PAL / OBJ5 (D). Slot moves vs the plan: plan OBJ5 (C) built as OBJ6, plan OBJ6 (D) built as OBJ5.
+- Step 5: mirror.c sal_combo[29], uniform pick from the one spawn byte (boss fights drop GUS and pi 2, 4). Step 6: src/tip.c (maybe_tip banked; GUS always tips in
+  ARCADE/STORY via tip_pocket != 0), second coin in story_scratch at SCR_TIP2_AT (tip2.h), OAM 26. One-coin code stays in ROM0 (banked per-frame calls broke test_boss_in_place's guards).
+- ROM0 free 481 B, _DATA 7547 B unchanged. Goldens failing: all Saloon/title/menu pictures (art changed on purpose) plus inherited step-1 CGB factory/robots ones; none replaced.
+- C ROM (make cfall): extra failures vs f242c5d's C ROM are timing-only (boss_in_place cgb x2, classic mixed_levels cgb x2, debug cgb-1, perf_arcade [10-dmg]); asm ROM green.
+- Open: EMMA, ARTIE, GUS backs are stand-ins; during a show a lifted pi4 patron shows the dancers' colours (OBJ 5).
