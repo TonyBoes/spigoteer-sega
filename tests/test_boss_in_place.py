@@ -7,6 +7,7 @@
 # After he comes in, and his animation is complete, if it is his first time appearing, the instruction card comes up." So there is no cover, no LCD-off swap and no
 # banner: the level stays on screen, his tiles and palettes stream in over a few frames (src/boss.c ld_step), his entrance plays, and the card opens the frame after it.
 import pytest
+from split_helpers import win_lyc
 from boss_common import BS_ENTER, BS_WALK, BS_WALKIN, BS_WARM, hud, meter_tiles, row
 from conftest import BK_AT, bk_block, clear_regulars
 from save_images import put
@@ -259,7 +260,7 @@ def test_the_first_time_a_boss_appears_the_game_pauses_on_his_card_and_resumes_w
         hp, lives = gb.mem("boss_hp"), gb.mem("lives")
         tap(gb, "a", CARD_FRAMES)                   # (A on the last page leaves the card: no menu comes back)
         assert state(gb) == PLAYING and gb.mem(PAUSE_NR51) == 0, "unpaused by itself"
-        assert gb.mem("overlay_on") == 0 and gb.mem(0xFF45) == gb.mem(0xFF4A) + 22, "the banner window's place again"
+        assert gb.mem("overlay_on") == 0 and win_lyc(gb.mem) == gb.mem(0xFF4A) + 22, "the banner window's place again"
         assert banner_text(gb, 1) == [GAME_ART["TILE_HUD_BLANK"]] * 20 and banner_text(gb, 0) == [GAME_ART["TILE_PANEL_TOP"]] * 20, "no menu left on screen"
         assert gb.mem("boss_hp") == hp and gb.mem("lives") == lives
         gb.run(60)

@@ -4,6 +4,7 @@
 # top 5, else the title; mini-games: the list (practice, no medal) or as the run they are part of; BOSS RUSH: its menu, no time.
 # Every mini-game's quit leaves what its normal leave leaves (OBP0, the LCD handler, the mute mask, OBJ / BG tiles, palettes).
 import pytest
+from split_helpers import win_lyc
 from tick_helpers import FRAME
 from conftest import unlock_debug
 from conftest import K_ARCADE, K_CLASSIC, K_CONTINUE, K_PLAY, MENU_SETTLE, check_golden, hold_stage_anim, menu_items, \
@@ -131,7 +132,7 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         assert tilemap_row(gb, 0, 0, 20, True) == [63] * 20 and tilemap_row(gb, 5, 0, 20, True) == [64] * 20   # the panels
         assert gb.mem(NR51) == BASS, "only the bass and the drums (channels 3 and 4) are on"
         assert gb.mem(PAUSE_NR51) == 0xFF
-        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 46 and gb.mem(0xFF40) & 0x20, "the 48 px window"
+        assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 46 and gb.mem(0xFF40) & 0x20, "the 48 px window"
         assert tile(gb, GLYPH_J) != glyphs[0] and tile(gb, GLYPH_Z) != glyphs[1], "the '?' and the arrow are loaded"
         assert max(lines(gb)) <= 10
         frozen = (gb.read("patron_state", 16), gb.read("mug_state", 12), gb.mem("bartender_x"), gb.mem16("score"),
@@ -150,7 +151,7 @@ def test_pause_freezes_the_game_mutes_the_music_and_resumes_it(model):
         check_golden(gb, "pause_menu")
         tap(gb, "start", 3)
         assert state(gb) == PLAYING and gb.mem("overlay_on") == 0 and gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0
-        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22, "the banner's LYC again"
+        assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 22, "the banner's LYC again"
         assert tilemap_row(gb, 0, 0, 20, True) == [63] * 20 and tilemap_row(gb, 1, 0, 20, True) == [54] * 20
         assert tilemap_row(gb, 2, 0, 20, True) == [64] * 20, "the banner's rows as win_init left them"
         assert (tile(gb, GLYPH_J), tile(gb, GLYPH_Z)) == glyphs, "the two letters are back"
@@ -310,11 +311,11 @@ def test_menu_keys_resume_cancel_and_the_question(model):
         assert menu_rows(gb)[2].startswith(">"), "wraps"
         tap(gb, "a")                                      # QUIT TO MENU: asks
         assert menu_rows(gb) == ["ARE YOU SURE?", "", "YES", "> NO"], "the question and its answers fill the four text rows"
-        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 46, "the 48 px window"
+        assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 46, "the 48 px window"
         for key in ("a", "b", "start"):                   # NO, B and START all go back to the menu (the cursor on QUIT)
             tap(gb, key)
             assert state(gb) == PAUSED and menu_rows(gb) == ["", "RESUME", "> QUIT TO MENU", ""], key
-            assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 46, "the 48 px window"
+            assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 46, "the 48 px window"
             tap(gb, "a")                                  # the question again
             assert win_text(gb, 1) == "ARE YOU SURE?"
         tap(gb, "b")
@@ -344,7 +345,7 @@ def test_arcade_quit_without_a_score_goes_to_the_title_with_everything_back(mode
         assert gb.mem("story_on") == 0 and gb.mem("overlay_on") == 0 and gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0
         assert table(gb, 0) == old_table, "no score, no entry"
         assert gb.mem("cur_tune") == 0, "the title tune"
-        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22
+        assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 22
         title_pick(gb, K_PLAY, K_ARCADE)
         run_until(gb, lambda: state(gb) == PLAYING, 120)
         gb.run(60)
@@ -621,7 +622,7 @@ def test_every_mini_game_pauses_resumes_and_quits_to_the_list_with_everything_ba
         assert gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0 and gb.mem("overlay_on") == 0
         assert gb.mem("hUGE_mute_mask") & 0x72 == 0, "Taiko's mute mask is gone"
         assert gb.mem("mg_phase") != MG_RESULT, "no result window: no medal"
-        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22, "the banner's LYC"
+        assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 22, "the banner's LYC"
         assert gb.mem(0xFF43) == 0, "no street scroll"
         if model == "dmg":
             assert gb.mem(0xFF48) == 0xD0, "OBP0 as the boot sets it"
@@ -735,7 +736,7 @@ def test_a_story_mini_game_quits_to_the_title(model, gid):
         quit_yes(gb)
         settled(gb, TITLE)
         assert gb.mem("story_on") == 0 and gb.mem(PAUSE_NR51) == 0 and gb.mem("hUGE_mute_mask") & 0x72 == 0
-        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22
+        assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 22
         if model == "dmg":
             assert gb.mem(0xFF48) == 0xD0
         assert (gb.mem("story_progress"), gb.mem("story_reached")) == saved
@@ -787,10 +788,10 @@ def test_the_debug_box_from_a_level_s_pause_puts_the_window_and_sound_back(model
         gb.release("select")
         gb.run(6)                                         # (the menu comes up with the LCD off for a few frames)
         assert state(gb) == 7, "GS_DEBUG"
-        assert gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0 and gb.mem(0xFF45) == 255, "the pause is closed (sound back), the menu's window covers the screen"
+        assert gb.mem(NR51) == 0xFF and gb.mem(PAUSE_NR51) == 0 and win_lyc(gb.mem) == 255, "the pause is closed (sound back), the menu's window covers the screen"
         tap(gb, "b", 3)
         assert state(gb) == PLAYING and gb.mem("overlay_on") == 0
-        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22, "the banner window's LYC is back"
+        assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 22, "the banner window's LYC is back"
 
 
 # ---- (g) HOW TO PLAY from the pause menu (mini-games: the card over the whole screen, the game as it was after it) ----------------------
@@ -821,7 +822,7 @@ def test_a_mini_game_pause_menu_has_three_rows_and_the_level_two(model):
         tap(gb, "start", 3)
         assert state(gb) == PAUSED
         assert menu_rows(gb) == ["> RESUME", "HOW TO PLAY", "QUIT TO MENU", ""], "three items, centred in the three rows of the 5-row window"
-        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 38 and tilemap_row(gb, 4, 0, 20, True) == [64] * 20, "the 40 px window, its panel on row 4"
+        assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 38 and tilemap_row(gb, 4, 0, 20, True) == [64] * 20, "the 40 px window, its panel on row 4"
         check_golden(gb, "pause_menu_mini")
         tap(gb, "up")
         assert win_text(gb, 3).startswith(">"), "up wraps to QUIT"
@@ -1044,7 +1045,7 @@ def test_a_boss_fight_pause_menu_opens_his_hint_card(model, c):
         tap(gb, "start", 3)
         gb.run(1, True)
         assert state(gb) == PAUSED and menu_rows(gb) == ["> RESUME", "HOW TO PLAY", "QUIT TO MENU", ""], menu_rows(gb)
-        assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 46 and tilemap_row(gb, 5, 0, 20, True) == [64] * 20, "the 6-row window, its panel on row 5"
+        assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 46 and tilemap_row(gb, 5, 0, 20, True) == [64] * 20, "the 6-row window, its panel on row 5"
         if c == 0:
             check_golden(gb, "pause_menu_boss")
         tap(gb, "down")

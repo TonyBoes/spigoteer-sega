@@ -379,7 +379,7 @@ void trans_cover(void) BANKED {
 #endif
     music_tick();                                                // (this frame's tick: the logic that called us never reaches the main loop's)
     if (v) { fade_cover(v); return; }
-    HR_LYC = LYC_REG;                                            // (back after the cover: the rebuild leaves LYC and WY to the scene's own setting)
+    HR_LYC = WIN_LYC_NOW;                                        // (back after the cover: the rebuild leaves LYC and WY to the scene's own setting)
     if (in_milkrun()) plain_isr();
     load_tiles(0);
     WX_REG = 7; SET_LYC(255); WY_REG = 144; SHOW_WIN;
@@ -421,7 +421,7 @@ void trans_arm(void) BANKED {
     if (LCDC_REG & LCDCF_ON) return;
     if (FADING) { fade_arm(); music_load_now(); volume(0); TRANS |= TR_ARMED; return; }
     if (!(TRANS & TR_ARMED)) {                                   // (a second arm before the reveal keeps the first's copy)
-        HR_LCDC = LCDC_REG; HR_LYC = LYC_REG;
+        HR_LCDC = LCDC_REG; HR_LYC = WIN_LYC_NOW;
         for (r = 0; r < 3; r++, m += 32)                         // the scene's banner rows 33-35 (LCD off: VRAM can be read)
             for (c = 0; c < 20; c++) *s++ = m[c];
         TRANS |= TR_ARMED;
@@ -440,7 +440,7 @@ void trans_reveal(void) BANKED {
     if (!(TRANS & TR_PEND) || !(LCDC_REG & LCDCF_ON)) return;
     if (FADING) { fade_reveal(); return; }
     lcdc = HR_LCDC;
-    lyc = LYC_REG;
+    lyc = WIN_LYC_NOW;
     if (lyc == 255) lyc = HR_LYC;                                // (the scene may have set its own after lcd_on_p)
     TRANS &= ~(TR_PEND | TR_ARMED);
     if (in_milkrun()) plain_isr();

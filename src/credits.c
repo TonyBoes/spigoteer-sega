@@ -524,7 +524,7 @@ void credits_enter(uint8_t from_story) BANKED {
     CR->lr = 255;
     music_play(TUNE_CREDITS);                         // (BONUS' or the story's tune stops here; copied while the screen is built: music_load_now below finishes it)
     music_pump();
-    overlay_on = 0; HIDE_WIN; SET_LYC(BANNER_LYC);
+    overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     vq_reset(); hud_dirty = 0; vram_pending = 0;
     hide_all_sprites();
     story_font_load();                                // the punctuation (over the patron range: the next screen's load puts it back)
@@ -542,7 +542,7 @@ void credits_enter(uint8_t from_story) BANKED {
         o[0] = BGP_REG; o[1] = OBP0_REG; o[2] = o[3] = OBP1_REG;
         story_scratch[68] = story_scratch[69] = 0;      // (white: the first card fades in)
         CRITICAL { remove_LCD(lcd_isr); add_LCD(cast_isr); }   // the header split, to cr_leave
-        SET_LYC(16);
+        LYC_REG = 16;
     }
     cr_white();                                       // (the screen white until the first card fades in)
     music_pump();
@@ -569,7 +569,7 @@ static void cr_leave(void) {
     if (!is_cgb) {
         CR_PAL[2] = CR_PAL[3];                        // (OBP1 as it was)
         CRITICAL { remove_LCD(cast_isr); add_LCD(lcd_isr); }
-        SET_LYC(BANNER_LYC);
+        LYC_REG = BANNER_LYC;
     }
     trans_cast_set(CR_PAL);                           // the card's own colours, whatever the fade was doing
     SCY_REG = 0;

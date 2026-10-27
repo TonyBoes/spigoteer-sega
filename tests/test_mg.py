@@ -7,6 +7,7 @@ import json
 import re
 
 import pytest
+from split_helpers import win_lyc
 from conftest import ROM, ROOT, check_golden, hold_stage_anim, title_level, venue
 from test_bonus import lines
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, patron_group_tiles, run_until, state, tilemap_row
@@ -424,7 +425,7 @@ def restored(gb, theme):
     assert bg == patron_group_tiles(g)[:n * 16], "the patron tiles are back over the medal icon and the lamp"
     assert tilemap_row(gb, 0, 0, 20, True) == [PANEL_TOP] * 20, "the window's rows as win_init left them"
     assert tilemap_row(gb, 2, 0, 20, True) == [PANEL_BOT] * 20
-    assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22, "LYC is the banner's (BANNER_LYC) again"
+    assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 22, "LYC is the banner's (BANNER_LYC) again"
     if gb.model_name == "dmg":
         assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's (0xE4 in play)"
         return

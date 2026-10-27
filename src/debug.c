@@ -291,7 +291,7 @@ void debug_open(void) BANKED {
         for (k = 0; k < 16; k++) b[k] = vget(t + k);
         set_win_tiles(0, DBG_SAVE_ROW + i, 16, 1, b);
     }
-    b[0] = LYC_REG;
+    b[0] = WIN_LYC_NOW;
     set_win_tiles(0, DBG_SAVE_ROW + 3, 1, 1, b);
     for (i = 0; i < SKIN_SAVE_N; i++) {              // the wood wall's four tiles (over the stage ids 0-4) and, CGB, its six palettes: kept in the window map's off-screen rows
         const volatile uint8_t *t = (const volatile uint8_t *)(0x9000 + (uint16_t)i * 16);

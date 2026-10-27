@@ -1,7 +1,7 @@
 # M3: patrons (background tiles), full-mug catches, empty mugs, lives, level clear.
 # Situations are set up by poking state through symbol addresses, as in test_mugs.
 import pytest
-from conftest import GAME, bar_top_row, bar_top_y, check_golden
+from conftest import GAME, bar_top_row, bar_top_y, check_golden, logic_paused
 
 pytestmark = pytest.mark.timeout(60)
 
@@ -760,8 +760,9 @@ def test_two_patrons_finishing_at_once_send_empties_that_arrive_empty_gap_apart(
     freeze(gb)                                    # nobody walks; drinking and empties go on
     gap = gb.mem("empty_gap")
     assert gap == 120, "level 1"
-    near = drinker_with_mug(gb, 0, 70, 89)        # both finish within the next 2 frames
-    far = drinker_with_mug(gb, 0, 20, 89)
+    with logic_paused(gb):                        # (both drinkers start on the same game frame whatever the code layout: the Color Saloon's palette split moved it)
+        near = drinker_with_mug(gb, 0, 70, 89)    # both finish within the next 2 frames
+        far = drinker_with_mug(gb, 0, 20, 89)
     gb.run(3)                                     # (drinkers are stepped every other frame: each gets one step in 2; the third is a frame of slack for a frame boundary)
     aux = gb.read("patron_aux", MAX_P)
     assert aux[near] == DRINK_WINDUP, "the one nearer the bartender winds up to send his empty at once (M8d)"

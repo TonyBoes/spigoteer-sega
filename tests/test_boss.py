@@ -9,6 +9,7 @@ import json
 import re
 
 import pytest
+from split_helpers import win_lyc
 from boss_common import skip_entrance
 from conftest import clear_regulars, GAME, ROOT, check_golden, venue
 from test_bonus import lines
@@ -491,7 +492,7 @@ def restored(gb, theme):
     assert tilemap_row(gb, 17, 0, 20) == [v["floor_tile"]] * 20
     assert bytes(gb.read(0x8000 + 96 * 16, 32 * 16)) == bytes(v["show"]), "the performer tiles are back"
     assert tilemap_row(gb, 0, 0, 20, True) == [PANEL_TOP] * 20 and tilemap_row(gb, 2, 0, 20, True) == [PANEL_BOT] * 20
-    assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22, "LYC is the banner's (BANNER_LYC)"
+    assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 22, "LYC is the banner's (BANNER_LYC)"
     if gb.model_name == "dmg":
         assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's (0xE4 in play)"
     g = gb.mem("cur_group")
@@ -653,7 +654,7 @@ def test_clear_the_bar_note_ends_and_returns_the_banner_window(model):
         assert gb.mem("overlay_on") == 2
         frames(gb, CLEAR_BANNER_FRAMES + 5)
         r = gb.regs()
-        assert gb.mem("overlay_on") == 0 and r["WY"] == 64 and gb.pb.memory[0xFF45] == 86
+        assert gb.mem("overlay_on") == 0 and r["WY"] == 64 and win_lyc(lambda a: gb.pb.memory[a]) == 86
         assert banner_text(gb, 0) == [int(re.search(r"#define TILE_PANEL_TOP (\d+)", ART_H).group(1))] * 20
 
 

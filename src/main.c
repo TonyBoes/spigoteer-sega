@@ -60,12 +60,11 @@ void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank) {
 void lcd_off_p(void) {
     uint8_t w = TRANS;
     TRANS = w & ~TR_WANT;
-    if (LCDC_REG & LCDCF_ON) {
-        if ((w & (TR_WANT | TR_OFF)) == TR_WANT && game_state != GS_PAUSED) { trans_cover(); return; }   // (a scene change: the drink fills the screen, then the LCD goes off)
-        while (LY_REG >= 0x92) music_pump();    // (display_off's own two waits: the LCD goes off at line 145)
-        while (LY_REG < 0x91) music_pump();
-        LCDC_REG &= ~LCDCF_ON;
-    }
+    if (!(LCDC_REG & LCDCF_ON)) return;
+    if ((w & (TR_WANT | TR_OFF)) == TR_WANT && game_state != GS_PAUSED) { trans_cover(); return; }   // (a scene change: the drink fills the screen, then the LCD goes off)
+    while (LY_REG >= 0x92) music_pump();        // (display_off's own two waits: the LCD goes off at line 145)
+    while (LY_REG < 0x91) music_pump();
+    LCDC_REG &= ~LCDCF_ON;
     if (SPLIT_ON) split_off();                  // (the Color level screen's palette split: the stage's palette back; banked, level.c)
 }
 
@@ -221,21 +220,58 @@ void split_pal_put(const volatile uint8_t *src) {
 }
 #endif
 
-void lcd_isr(void) {          // LYC: switch the banner window off below the banner; Color's level screen: the palette split too (game.h)
-    uint8_t ly;
-    if (SPLIT_ON) {
-        ly = LYC_REG;
-        if (ly == SPLIT_LY) {
-            while (STAT_REG & 3) ;                 // (HBlank: palette RAM is open; the line's pixels are out)
-            split_pal_put(SPLIT_PAL);
-            LYC_REG = SPLIT_WANT;
-            return;
-        }
-        HIDE_WIN;
-        SPLIT_WANT = ly; LYC_REG = SPLIT_LY;
+void lcd_isr(void) {          // LYC: switch the banner window off below the banner
+    HIDE_WIN;
+}
+
+#if ASM_SPLIT_PAL
+// (asm: the window's end must be hidden as early as lcd_isr does, a few cycles late and a 48 px menu shows one line more; the split's own
+// line gives the window back before the line's pixels start)
+typedef char split_ly_is_39[(SPLIT_LY == 39) ? 1 : -1];
+void split_isr(void) __naked {
+__asm
+    ldh  a, (0x40)                  ; LCDC
+    ld   c, a
+    res  5, a
+    ldh  (0x40), a                  ; HIDE_WIN
+    ldh  a, (0x45)                  ; LYC
+    cp   a, #39                     ; SPLIT_LY
+    jr   z, 9100$
+    ldh  (0xD5), a                  ; SPLIT_WANT = the window's line
+    ld   a, #39
+    ldh  (0x45), a
+    ret
+9100$:
+    ld   a, c
+    ldh  (0x40), a                  ; the window as it was
+9101$:
+    ldh  a, (0x41)                  ; STAT: HBlank, palette RAM is open; the line's pixels are out
+    and  a, #3
+    jr   nz, 9101$
+    ld   de, #0xFFD6                ; SPLIT_PAL
+    call _split_pal_put
+    ldh  a, (0xD5)
+    ldh  (0x45), a                  ; LYC = SPLIT_WANT
+    ret
+__endasm;
+}
+#else
+void split_isr(void) {        // (the C twin)
+    uint8_t ly = LYC_REG;
+    if (ly == SPLIT_LY) {
+        while (STAT_REG & 3) ;                 // (HBlank: palette RAM is open; the line's pixels are out)
+        split_pal_put(SPLIT_PAL);
+        LYC_REG = SPLIT_WANT;
         return;
     }
     HIDE_WIN;
+    SPLIT_WANT = ly; LYC_REG = SPLIT_LY;
+}
+#endif
+
+void split_vbl(void) {        // vq_vbl's place while the split is armed (the VBlank chain keeps its one entry)
+    split_pal_put(SPLIT_STG);
+    vq_vbl();
 }
 
 void set_lyc(uint8_t x) {

@@ -160,7 +160,7 @@ static void frame_begin(uint8_t scr) {           // LCD off: a blank band with t
     }
     music_pump();
     RUSH->scr = scr;
-    overlay_on = 0; HIDE_WIN; SET_LYC(BANNER_LYC);
+    overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();
     clear_patrons(); clear_mugs();
