@@ -30,7 +30,7 @@ MS = Own("mothership")
 HAT_STILL, HAT_BOB = OBJ_TOPPER, OBJ_TOPPER + 2
 BP_HIDE = 14
 NONE, WALKING, PUSHED, DRINKING, LEAVING = range(5)
-PATRON_BASE, PATRON_TILES = 78, 156     # the group's patron tiles (BG 78-233): build/art.h PATRON_FIRST_TILE, PATRON_GROUP_TILES
+PATRON_BASE, PATRON_TILES = 78, 152     # the group's patron tiles (BG 78-229): build/art.h PATRON_FIRST_TILE, PATRON_GROUP_TILES
 LAND_X = (16, 32, 48)
 
 

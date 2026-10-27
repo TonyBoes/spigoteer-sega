@@ -68,7 +68,7 @@ enum { RES_NONE, RES_DONE, RES_REFUSED };
 #define OAM_SPARE      2                                  // kept free for this frame's new mug / breaking glass
 
 static const uint8_t lift_pal[4] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_A };
-static const uint8_t lift_tile[4] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON_OBJ_BASE + 6), (uint8_t)(PATRON_OBJ_BASE + 12), (uint8_t)PATRON_OBJ_BASE };
+static const uint8_t lift_tile[4] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON_OBJ_BASE + 4), (uint8_t)(PATRON_OBJ_BASE + 8), (uint8_t)PATRON_OBJ_BASE };
 uint8_t lift_prop[4];                 // OAM attributes of variant v's lifted entries (CGB its OBJ palette; DMG OBP1), set at level load
 static uint8_t mg_live;
 

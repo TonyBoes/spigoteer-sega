@@ -51,7 +51,7 @@ FULL, EMPTY = 1, 2
 
 
 def pair_id(p):
-    return 162 + 2 * p if p < 21 else 216 + 2 * (p - 21)
+    return 162 + 2 * p if p < 21 else 214 + 2 * (p - 21)
 
 
 def pose_cols(pose, hold=0):
@@ -171,7 +171,7 @@ def test_the_table_has_a_row_per_venue_and_the_built_bosses():
     assert (LINE1, LINE2) == ("BIG TEX RIDES IN", "QUENCH HIM 8 MUGS")
     assert BOSS_BUILT == set(BUILT)
     assert {r: f[len("boss_"):] for r, f in boss_rows()[1].items()} == BUILT
-    assert len(TEX["pairs"]) <= ART["pairs_max"] == 30 and TEX["cols"] == 5 and len(TEX["pose"]) == 6   # (5 + BARE, the bare head under the entrance's hat tip)
+    assert len(TEX["pairs"]) <= ART["pairs_max"] == 29 and TEX["cols"] == 5 and len(TEX["pose"]) == 6   # (5 + BARE, the bare head under the entrance's hat tip)
     assert "; Art: approved design" in (ROOT / "assets/art/boss/meter.txt").read_text()
     assert "; Art: approved design" in (ROOT / "assets/art/boss/big_tex.txt").read_text()
 
@@ -496,7 +496,7 @@ def restored(gb, theme):
     if gb.model_name == "dmg":
         assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's (0xE4 in play)"
     g = gb.mem("cur_group")
-    bg = bytes(gb.read(0x9000 + 78 * 16, 50 * 16)) + bytes(gb.read(0x8800, 106 * 16))
+    bg = bytes(gb.read(0x9000 + 78 * 16, 50 * 16)) + bytes(gb.read(0x8800, 102 * 16))
     assert bg == patron_group_tiles(g), "every patron tile is back (variant C, the back views)"
     assert HUD_BG not in tilemap_row(gb, 0, 0, 20), "no boss face on the HUD"
 

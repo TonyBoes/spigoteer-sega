@@ -19,8 +19,8 @@ pytestmark = pytest.mark.timeout(240)
 
 HOOK_LIFT, HOOK_DROP = 1, 3                  # (2, the M13c door's lift behind the BG, is gone)
 LIFT_DROP = 0x80
-OBJ_BASE = BASE + SHIFT0_OFS                 # shift-0 pose of variant v: OBJ_BASE + 6 v (tiles t, t + 2 as 8x16 entries)
-BLANK = OBJ_BASE + 4                         # its 3rd column: plain colour 0, what a lifted patron leaves on the BG
+OBJ_BASE = BASE + SHIFT0_OFS                 # shift-0 pose of variant v: OBJ_BASE + 4 v (tiles t, t + 2 as 8x16 entries)
+BLANK = OBJ_BASE - 2                         # its 3rd column: plain colour 0, what a lifted patron leaves on the BG
 OAM_LIFT_TOP = GAME["OAM_MUG_END"] - 1       # 25: lifted patrons count down from here
 OAM_DANCERS = GAME["OAM_DANCERS"]
 LIFT_PAL = [3, 6, 7]                          # CGB OBJ palettes of variants A, B, C
@@ -225,7 +225,7 @@ def test_lift_and_drop_change_no_pixel_and_put_the_bg_back(gb):
             assert (screen(gb) == ref).all(), f"lift frame {i}"
         assert gb.mem("lift_hook_res") == 1 and lift_state(gb)[p] == op
         spr = lifted_sprites(gb)
-        assert sorted((s["x"] - 8, s["tile"]) for s in spr) == [(x, OBJ_BASE + 6 * v), (x + 8, OBJ_BASE + 6 * v + 2)]
+        assert sorted((s["x"] - 8, s["tile"]) for s in spr) == [(x, OBJ_BASE + 4 * v), (x + 8, OBJ_BASE + 4 * v + 2)]
         assert all(s["y"] - 16 == bar_top_y(b) for s in spr)
         assert all(not s["flags"] & 0x80 for s in spr), "in front of the BG"
         if gb.model_name == "cgb":
@@ -457,7 +457,7 @@ def test_forty_entries_with_the_show_running(pair):
         oam = b.oam()
         live = [i for i, s in enumerate(oam) if s["y"]]
         mug_idx = [i for i in live if logical_tile(oam[i]["tile"]) in (OBJ_MUG_ID, OBJ_MUG_ID + 2)]
-        lift_idx = [i for i in live if OBJ_BASE <= oam[i]["tile"] < OBJ_BASE + 18]
+        lift_idx = [i for i in live if OBJ_BASE <= oam[i]["tile"] < OBJ_BASE + 12]
         dancers = [i for i in live if i >= OAM_DANCERS]
         assert len(mug_idx) == 12 or b.mem("game_state") != PLAYING
         assert len(lift_idx) == 2 * b.mem("lift_total") and (not lift_idx or max(mug_idx) < min(lift_idx))

@@ -191,7 +191,7 @@ def test_his_tiles_stream_in_over_several_frames_and_arrive_intact(model, c):
         na = min(len(body) // 32, pairs_a) * 32
         assert vram(0x8000 + 162 * 16, na) == body[:na], "his body, first block (BG 162..)"
         if len(body) // 32 > pairs_a:
-            assert vram(0x8000 + 216 * 16, len(body) - pairs_a * 32) == body[pairs_a * 32:], "his body, second block (BG 216..)"
+            assert vram(0x8000 + 214 * 16, len(body) - pairs_a * 32) == body[pairs_a * 32:], "his body, second block (BG 214..)"
         assert vram(0x8000 + 252 * 16, len(icon)) == icon, "his face"
         assert vram(0x8000 + 96 * 16, len(hat)) == hat, "his topper (OBJ 96..)"
 

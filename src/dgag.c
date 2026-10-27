@@ -406,8 +406,15 @@ static const uint16_t pal_monkey[4] = { 0, RGB15(29, 24, 18), RGB15(17, 10, 5), 
 static void pats(uint8_t g, uint8_t n) {           // the group's n variants' shift-0 poses to OBJ T_P.., their palettes to OBJ 5..
     uint16_t p[4];
     uint8_t v;
-    if (g) spr_data_far(T_P, n * 6, patron_tiles_sports + PATRON_SHIFT0_OFS * 16, BANK(patron_tiles_sports));
-    else   spr_data_far(T_P, n * 6, patron_tiles_cowboys + PATRON_SHIFT0_OFS * 16, BANK(patron_tiles_cowboys));
+    for (v = 0; v < n; v++) {                      // (option 2: 4 own tiles per pose, its 3rd column is the group's blank pair)
+        if (g) {
+            spr_data_far(T_P + v * 6, 4, patron_tiles_sports + (PATRON_SHIFT0_OFS + v * 4) * 16, BANK(patron_tiles_sports));
+            spr_data_far(T_P + v * 6 + 4, 2, patron_tiles_sports + PATRON_BLANK_OFS * 16, BANK(patron_tiles_sports));
+        } else {
+            spr_data_far(T_P + v * 6, 4, patron_tiles_cowboys + (PATRON_SHIFT0_OFS + v * 4) * 16, BANK(patron_tiles_cowboys));
+            spr_data_far(T_P + v * 6 + 4, 2, patron_tiles_cowboys + PATRON_BLANK_OFS * 16, BANK(patron_tiles_cowboys));
+        }
+    }
     for (v = 0; v < n && is_cgb; v++) { patron_pal_get(g, v, p); p[0] = 0; set_sprite_palette(5 + v, 1, p); }
 }
 

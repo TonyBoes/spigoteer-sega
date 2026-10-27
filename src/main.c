@@ -256,16 +256,26 @@ __asm
 __endasm;
 }
 #else
-void split_isr(void) {        // (the C twin)
-    uint8_t ly = LYC_REG;
-    if (ly == SPLIT_LY) {
-        while (STAT_REG & 3) ;                 // (HBlank: palette RAM is open; the line's pixels are out)
-        split_pal_put(SPLIT_PAL);
-        LYC_REG = SPLIT_WANT;
+static void split_line(void) {  // (the split's own line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
+    // (C is slow at 8 pointer reads: they happen BEFORE the HBlank wait, in the mode-3 time that is spent waiting anyway)
+    uint8_t c0 = SPLIT_PAL[0], c1 = SPLIT_PAL[1], c2 = SPLIT_PAL[2], c3 = SPLIT_PAL[3];
+    uint8_t c4 = SPLIT_PAL[4], c5 = SPLIT_PAL[5], c6 = SPLIT_PAL[6], c7 = SPLIT_PAL[7];
+    while (STAT_REG & 3) ;                     // (HBlank: palette RAM is open; the line's pixels are out)
+    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
+    BCPD_REG = c0; BCPD_REG = c1; BCPD_REG = c2; BCPD_REG = c3;
+    BCPD_REG = c4; BCPD_REG = c5; BCPD_REG = c6; BCPD_REG = c7;
+    LYC_REG = SPLIT_WANT;
+}
+
+void split_isr(void) {        // (the C twin; hides the window FIRST, as the asm does: a window's end on its own line must be as early as lcd_isr's)
+    uint8_t lcdc = LCDC_REG;
+    LCDC_REG = lcdc & ~0x20;                   // (HIDE_WIN, from the one read)
+    if (LYC_REG == SPLIT_LY) {
+        LCDC_REG = lcdc;                       // (the window as it was)
+        split_line();
         return;
     }
-    HIDE_WIN;
-    SPLIT_WANT = ly; LYC_REG = SPLIT_LY;
+    SPLIT_WANT = LYC_REG; LYC_REG = SPLIT_LY;
 }
 #endif
 

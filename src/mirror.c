@@ -4,7 +4,7 @@
 //
 // DMG tile schemes (an R bar draws every tile flipped, so the DMG needs the flipped pixels in VRAM):
 //   - every bar L: nothing (the tiles as loaded).
-//   - every bar R (the whole screen flips): the group's 156 patron tiles are bit-reversed in place; the shift-0 poses are
+//   - every bar R (the whole screen flips): the group's 152 patron tiles are bit-reversed in place; the shift-0 poses are
 //     then flipped as OBJ tiles too, so a lifted patron needs no OAM flip there (bar_pf 0).
 //   - mixed (both directions on screen): owner option (a): patrons are drawn at even x only (draw_mask 0xFE: 2 px
 //     steps), so each direction needs shifts 0, 2, 4, 6. The L set keeps its ids; the R set (flipped copies of the even
@@ -54,16 +54,16 @@ static void flip_copy(uint8_t src, uint8_t dst) {   // tile src mirrored into ti
 
 // first tile of variant v's pose at shift s (the M13a layout; render.c / gen_art.py)
 static uint8_t pose(uint8_t v, uint8_t s) {
-    return s ? PATRON_TILE_BASE + v * 42u + (s - 1u) * 6u : PATRON_OBJ_BASE + v * 6u;
+    return s ? PATRON_TILE_BASE + v * 42u + (s - 1u) * 6u : PATRON_OBJ_BASE + v * 4u;
 }
 
 // DMG mixed level (option (a)): R shift s (even) = L shift s flipped, in the slot of shift s + 1
-// DMG mixed level, option (b): all of variant C's tiles flipped in place (42 shifted, 6 shift-0, 4 back); st_tab the same for
+// DMG mixed level, option (b): all of variant C's tiles flipped in place (42 shifted, 4 shift-0, 4 back); st_tab the same for
 // both directions at every shift; lifted patrons need no OAM flip
 static void mixed_b(void) {
     uint8_t k, v, s;
     for (k = 0; k < 42; k++) flip_copy(pose(2, 1) + k, pose(2, 1) + k);
-    for (k = 0; k < 6; k++) flip_copy(pose(2, 0) + k, pose(2, 0) + k);
+    for (k = 0; k < 4; k++) flip_copy(pose(2, 0) + k, pose(2, 0) + k);
     for (k = 0; k < 4; k++) flip_copy(PATRON_BACK_BASE + 8 + k, PATRON_BACK_BASE + 8 + k);
     for (v = 0; v < 4; v++)
         for (s = 0; s < 8; s++) st_tab[32 | (v << 3) | s] = st_tab[(v << 3) | s] = pose(v == 3 ? 0 : v, s);
@@ -78,7 +78,7 @@ static void dmg_mixed(void) {
     for (v = 0; v < 3; v++)
         for (s = 0; s < 8; s += 2) {
             a = pose(v, s); d = pose(v, s + 1);
-            for (k = 0; k < 6; k++) flip_copy(a + k, d + k);
+            for (k = 0; k < (s ? 6 : 4); k++) flip_copy(a + k, d + k);   // (shift 0: 2 columns; its 3rd is the blank pair, never read for a shift-0 draw)
         }
 }
 
@@ -266,10 +266,10 @@ void mirror_oam(void) BANKED {
 // shadow rows (they hold the screen picture), local columns c..c+2 at screen columns 19-c..17-c. Returns 17 - c, the
 // first screen column; render.c queues the two rows from the shadow.
 uint8_t quick_mirror(uint8_t p, uint8_t d) BANKED {
-    uint8_t t = st_tab[32 | ((patron_variant[p] & 3) << 3) | (d & 7)], *r;
+    uint8_t t = st_tab[32 | ((patron_variant[p] & 3) << 3) | (d & 7)], *r, t3 = (d & 7) ? t + 4 : PATRON_BLANK;   // (shift 0: the shared blank pair is its 3rd column)
     d = 17 - (d >> 3);
     r = &sh_rows[0][(patron_bar[p] & (NUM_BARS - 1)) << 1][d];
-    r[0] = t + 4; r[1] = t + 2; r[2] = t;
-    r[32] = t + 5; r[33] = t + 3; r[34] = t + 1;
+    r[0] = t3; r[1] = t + 2; r[2] = t;
+    r[32] = t3 + 1; r[33] = t + 3; r[34] = t + 1;
     return d;
 }

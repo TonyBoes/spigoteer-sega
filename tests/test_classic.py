@@ -12,7 +12,7 @@ from PIL import Image, ImageChops, ImageOps
 
 from conftest import (GAME, LAYOUT, ROM, bar_counter_row, bar_top_row, bar_top_y, check_golden, hold_stage_anim, logic_paused,
                       title_level, venue, venue_rows)
-from test_patrons import (BASE, BACK_BASE, DRINKING, EMPTY, FULL, HELD, MAX_M, MAX_P, PUSHED, SHIFT0_OFS, WALKING,
+from test_patrons import (BASE, BACK_BASE, BLANK, DRINKING, EMPTY, FULL, HELD, MAX_M, MAX_P, PUSHED, SHIFT0_OFS, WALKING,
                           clear_patrons, freeze, hold_mug, inject_mug, pose_first, put, score, set_patron)
 
 pytestmark = pytest.mark.timeout(120)
@@ -341,7 +341,8 @@ def test_a_patron_at_local_x_is_drawn_at_screen_columns_19_minus_c(boot, dirs):
             else:
                 assert t == pose_first(v, s)
             for k in range(3):
-                assert rows[0][19 - c - k] == t + 2 * k and rows[1][19 - c - k] == t + 2 * k + 1, (b, k, rows)
+                tk = BLANK if k == 2 and not s else t + 2 * k      # (option 2: shift 0's 3rd column is the shared blank pair)
+                assert rows[0][19 - c - k] == tk and rows[1][19 - c - k] == tk + 1, (b, k, rows)
             if gb.model_name == "cgb":
                 for r in range(2):
                     for k in range(3):
@@ -349,7 +350,8 @@ def test_a_patron_at_local_x_is_drawn_at_screen_columns_19_minus_c(boot, dirs):
                         assert attr & S_FLIPX, (b, r, k, attr)
         else:
             t = pose_first(v, s & 6 if mixed_dmg else s)
-            assert rows[0][c:c + 3] == [t, t + 2, t + 4] and rows[1][c:c + 3] == [t + 1, t + 3, t + 5], (b, rows)
+            t4 = t + 4 if s else BLANK        # (option 2: shift 0's 3rd column is the shared blank pair)
+            assert rows[0][c:c + 3] == [t, t + 2, t4] and rows[1][c:c + 3] == [t + 1, t + 3, t4 + 1], (b, rows)
 
 
 def test_dmg_whole_screen_flip_flips_the_patron_tiles_in_place(boot):
@@ -374,7 +376,7 @@ def test_dmg_mixed_level_holds_both_directions_at_even_shifts(boot):
     for v in range(3):
         for s in (0, 2, 4, 6):
             l, r = pose_first(v, s), pose_first(v, s + 1)
-            for k in range(6):
+            for k in range(6 if s else 4):               # (option 2: shift 0 has 2 columns of its own)
                 assert tile_data(gb, l + k) == rom_tile(l + k), (v, s, k, "L kept")
                 assert tile_data(gb, r + k) == flipped(rom_tile(l + k)), (v, s, k, "R = L flipped")
     for t in range(BACK_BASE, BACK_BASE + 12):
@@ -410,9 +412,9 @@ def test_dmg_mixed_option_b_flips_only_variant_c_in_place(boot):
     gb = start(boot, SPLIT, 2, mixb=True)
     data = patron_group_tiles(1)
     rom_tile = lambda t: data[(t - BASE) * 16:(t - BASE + 1) * 16]
-    c_tiles = set(range(pose_first(2, 1), pose_first(2, 1) + 42)) | set(range(pose_first(2, 0), pose_first(2, 0) + 6)) \
+    c_tiles = set(range(pose_first(2, 1), pose_first(2, 1) + 42)) | set(range(pose_first(2, 0), pose_first(2, 0) + 4)) \
         | set(range(BACK_BASE + 8, BACK_BASE + 12))
-    assert len(c_tiles) == 52
+    assert len(c_tiles) == 50
     for t in range(BASE, BACK_BASE + 12):
         want = flipped(rom_tile(t)) if t in c_tiles else rom_tile(t)
         assert tile_data(gb, t) == want, (t, t in c_tiles)
@@ -558,7 +560,7 @@ def test_a_lifted_patron_on_an_r_bar_is_two_mirrored_entries(boot):
     for s, b in ((p, 0), (q, 1)):
         d = gb.read("patron_draw", MAX_P)[s]
         mine = sorted((o["x"], o["tile"], o["flags"]) for o in oam if o["y"] == bar_top_y(b) + 16 and o["tile"] >= OBJ_BASE)
-        t = OBJ_BASE + 6
+        t = OBJ_BASE + 4
         if is_r(ALT, b):
             assert [(x, tt) for x, tt, _ in mine] == [(152 - d, t + 2), (160 - d, t)], mine     # right column on the left
             flip = gb.model_name == "cgb" or True                                               # (ALT is mixed: OAM flip on both)

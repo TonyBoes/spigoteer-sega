@@ -273,10 +273,10 @@ def test_tile_ids_for_an_odd_x(gb):
 
 
 def test_bg_tile_budget(gb):
-    """Scene tiles + 144 shifted + 12 back-view patron tiles fit the 256 BG ids; the BG uses the signed 0x8800
+    """Scene tiles + 140 shifted + 12 back-view patron tiles fit the 256 BG ids; the BG uses the signed 0x8800
     mode, so BG ids 128+ share VRAM with OBJ ids 128+, which no sprite uses (OBJ ids stay below 128)."""
-    assert BG_TILES_TOTAL == BASE + 144 + 12 and BG_TILES_TOTAL <= 256, BG_TILES_TOTAL
-    assert BACK_BASE == BASE + 144
+    assert BG_TILES_TOTAL == BASE + 140 + 12 and BG_TILES_TOTAL <= 256, BG_TILES_TOTAL
+    assert BACK_BASE == BASE + 140
     assert gb.regs()["LCDC"] & 0x10 == 0, "BG/window tile data at 0x8800 (signed ids)"
     clear_patrons(gb)
     freeze(gb)

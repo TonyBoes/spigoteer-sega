@@ -187,11 +187,11 @@ static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal for 
     st_t = st_tab[cz_sto | (v << 3) | (d & 7)];
 }
 
-static void stamp3(uint8_t c) {                          // the whole 3x2 footprint at column c (not on an R bar)
+static void stamp3(uint8_t c, uint8_t t3) {              // the whole 3x2 footprint at column c (not on an R bar); t3: the 3rd column's top tile (option 2: the shared blank pair at shift 0)
     uint8_t *r = cz_tile + c, t = st_t;
-    r[0] = t; r[1] = t + 2; r[2] = t + 4;
+    r[0] = t; r[1] = t + 2; r[2] = t3;
     r += 32;
-    r[0] = t + 1; r[1] = t + 3; r[2] = t + 5;
+    r[0] = t + 1; r[1] = t + 3; r[2] = t3 + 1;
     if (!cz_attr) return;
     r = cz_attr + c; t = cz_pal;
     r[0] = t; r[1] = t; r[2] = t;
@@ -240,8 +240,9 @@ static void stamp(uint8_t s) {
     if (d & DRAW_BACK) { stamp_back(s, c); return; }
     stamp_look(s, d);
     if (!(d & 7) && (patron_ovl[s] & (OVL_TWO | OVL_TOP))) { put_col(c, st_t); put_col(c + 1, st_t + 2); return; }   // (M13b)
-    if (c >= cz_x0 && c + 3 <= cz_x1 && !cz_dir) { stamp3(c); return; }   // (an R bar: put_col mirrors)
-    put_col(c, st_t); put_col(c + 1, st_t + 2); put_col(c + 2, st_t + 4);
+    d = (d & 7) ? st_t + 4 : PATRON_BLANK;                // (the 3rd column: option 2, shift 0 has no tiles of its own there)
+    if (c >= cz_x0 && c + 3 <= cz_x1 && !cz_dir) { stamp3(c, d); return; }   // (an R bar: put_col mirrors)
+    put_col(c, st_t); put_col(c + 1, st_t + 2); put_col(c + 2, d);
 }
 
 // M13a: a lifted patron (a sprite) leaves his BG footprint as plain wall: colour 0 of his own palette, as his BG copy
@@ -632,8 +633,15 @@ static uint8_t queue_bar(uint8_t b) {
 #define QI(n)   (uint8_t)(PATRON_TILE_BASE + (n))
 #define QI6(n)  QI(n), QI((n) + 2), QI((n) + 4), QI((n) + 1), QI((n) + 3), QI((n) + 5)
 #define QI48(n) QI6(n), QI6((n) + 6), QI6((n) + 12), QI6((n) + 18), QI6((n) + 24), QI6((n) + 30), QI6((n) + 36), QI6((n) + 42)
-static const uint8_t id_seq[PATRON_TILES_PER_GROUP] = { QI48(0), QI48(48), QI48(96) };
+#define QS0(n)  QI(n), QI((n) + 2), (uint8_t)PATRON_BLANK, QI((n) + 1), QI((n) + 3), (uint8_t)(PATRON_BLANK + 1)   // a shift-0 pose (option 2): its 3rd column is the shared blank pair
+static const uint8_t id_seq[PATRON_BLANK_OFS + 18] = { QI48(0), QI48(48), QI6(96), QI6(102), QI6(108), QI6(114), QI6(120),   // the shifted poses, at their own offsets
+    QS0(PATRON_SHIFT0_OFS), QS0(PATRON_SHIFT0_OFS + 4), QS0(PATRON_SHIFT0_OFS + 8) };   // then the shift-0 poses, 6 ids each (j = 126 + 6 v)
 #define QUICK_COST 16          // logic time like 2/3 of a 3-column span (measured); the drain is half a span's
+static uint8_t seq_ofs(uint8_t t) {      // a pose's first tile -> its index in id_seq (a shift-0 pose: 4 tiles apart, its 6 ids 6 apart)
+    t -= PATRON_TILE_BASE;
+    if (t >= PATRON_BLANK_OFS) { t -= PATRON_SHIFT0_OFS; t = PATRON_BLANK_OFS + t + (t >> 1); }
+    return t;
+}
 // The two entries of a quick redraw: patron p, front view, drawn at d. (Its own small function: SDCC keeps p and d
 // in registers here; inside the loop it spilled them.)
 static void quick_entries(uint8_t p, uint8_t d) {
@@ -644,7 +652,7 @@ static void quick_entries(uint8_t p, uint8_t d) {
         qv_dst = (uint16_t)bar_map[b] + d;
         k = 32;
     } else {
-        qv_src = (uint16_t)(id_seq - PATRON_TILE_BASE) + st_tab[((patron_variant[p] & 3) << 3) | (d & 7)];
+        qv_src = (uint16_t)id_seq + seq_ofs(st_tab[((patron_variant[p] & 3) << 3) | (d & 7)]);
         qv_dst = (uint16_t)bar_map[b] + (d >> 3);
     }
     qv_w = 3;

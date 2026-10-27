@@ -1056,7 +1056,7 @@ def piece_display(p, wall):
 # patrons per look as their 8 shifted 24x16 poses and the 16x16 back view, BG art in rows of 16. The raw grids (ids 0-383 per
 # bank, 16 a row) sit behind a toggle. Pink = a repeated 8x16 sprite pair (ids 0-127, pairs only), red = a repeated tile,
 # yellow = an extra blank (the first copy of each is not marked).
-PAT_FIRST, PAT_S0, PAT_BACK = 78, 126, 144     # build/art.h PATRON_FIRST_TILE, PATRON_SHIFT0_OFS, PATRON_TILES_PER_GROUP (BG ids)
+PAT_FIRST, PAT_S0, PAT_BACK = 78, 128, 140     # build/art.h PATRON_FIRST_TILE, PATRON_SHIFT0_OFS, PATRON_TILES_PER_GROUP (BG ids; option 2: the blank pair at 126)
 
 
 def bgslot(t):
@@ -1152,8 +1152,8 @@ def tile_groups(v, model, live):
     for vi, nm in enumerate("ABC"):
         figs = []
         for sh in range(8):
-            t0 = PAT_FIRST + (PAT_S0 + vi * 6 if sh == 0 else vi * 42 + (sh - 1) * 6)
-            figs.append([(bgslot(t0 + k), k // 2, k % 2, 0, 0) for k in range(6)])
+            t0 = PAT_FIRST + (PAT_S0 + vi * 4 if sh == 0 else vi * 42 + (sh - 1) * 6)
+            figs.append([(bgslot(t0 + k if sh or k < 4 else PAT_FIRST + PAT_S0 - 2 + k - 4), k // 2, k % 2, 0, 0) for k in range(6)])   # (shift 0: its 3rd column is the shared blank pair)
             if sh == 3:
                 figs.append(None)
         t0 = PAT_FIRST + PAT_BACK + vi * 4

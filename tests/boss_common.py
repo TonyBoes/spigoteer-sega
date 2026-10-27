@@ -45,7 +45,7 @@ def art(name):
 
 
 def pair_id(p):
-    return 162 + 2 * p if p < 21 else 216 + 2 * (p - 21)
+    return 162 + 2 * p if p < 21 else 214 + 2 * (p - 21)
 
 
 def pose_cols(a, pose, hold=0):
