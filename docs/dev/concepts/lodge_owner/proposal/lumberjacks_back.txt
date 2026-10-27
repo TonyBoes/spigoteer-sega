@@ -1,7 +1,7 @@
 ; PROPOSAL (not imported): Lumber Lodge backs. A (CEDAR) is the current game art, unchanged. B (WILLOW) and C (ASH) are hand-drawn from the owner's fronts.
 ; frames: lumberjacks_back_a, lumberjacks_back_b, lumberjacks_back_c
 ; B WILLOW back: the front's red hair stays dominant (dome top, long fall to the shoulders, a little fuller on the left as the front), plaid jacket rows 14-15 repeated from the front. No skin, no face marks (strand streaks run diagonally, never as paired dashes).
-; C ASH back: the front's hat (top and knit marks as his, ribbed cuff period 2), dark hair where his dark hair/beard mass is, two small ear bumps and a 4 px neck (the only skin), green plaid jacket continued from the front. Index 1 green, 2 skin, 3 dark (the new C palette).
+; C ASH back: the front's hat (top and knit marks as his, ribbed cuff period 2), pass 2: short dark hair 2 rows under the cuff tapering to the nape, two small 1x2 ears, a 2 px neck straight into a dark collar line across the shoulders, green plaid jacket continued from the front. Index 1 green, 2 skin, 3 dark (the new C palette).
 ......+++++.....
 ....#+++++++#...
 ...#+++++++++#..
@@ -42,13 +42,13 @@
 ...#--------#...
 ..#----------#..
 .#-#-#-#--#-#-#.
-..#+########+#..
-..#+########+#..
-...##########...
-....##++++##....
-.....#++++#.....
-...#--######--#.
-..#------#----#.
+..+##########+..
+..+##########+..
+....########....
+.....##++##.....
+......#++#......
+..############..
+.#------##----#.
 .#---#--###---#.
 .#--#----#--#-#.
 .#---#--###---#.
