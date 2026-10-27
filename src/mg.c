@@ -207,7 +207,7 @@ static uint8_t prelude(uint8_t id, uint8_t mode) {
     if (mode != MG_STORY) TRANS_MENU();          // (src/trans.c: Practice from the list: the quick white fade; a story's mini-game has the drink wanted already)
     DISPLAY_OFF;
     smap_pal_back();                             // (from the story map: the HUD palette its picture borrowed)
-    overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC; SCX_REG = 0;
+    overlay_on = 0; HIDE_WIN; SET_LYC(BANNER_LYC); SCX_REG = 0;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();
     clear_patrons(); clear_mugs();
@@ -385,7 +385,7 @@ static void mg_leave(void) {
     if (mg_mode == MG_STORY) TRANS_WANT();       // (src/trans.c: a story mini-game over -> the next screen behind the drink; Practice: the quick white fade; the pause menu's QUIT: a plain cut)
     else TRANS_MENU();
     DISPLAY_OFF;
-    overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC;
+    overlay_on = 0; HIDE_WIN; SET_LYC(BANNER_LYC);
     SCX_REG = 0;                                 // (Milk Run's street)
     if (!is_cgb) OBP0_REG = OBP0_BOOT;           // (Milk Run's rider)
     lcd_normal();
@@ -413,7 +413,7 @@ static uint8_t result_frame(uint8_t pressed) {
         result_row(res_row++);
         if (res_row == RES_ROWS) {
             overlay_on = 1;
-            if (mg_game != G_MR) LYC_REG = RES_LYC;      // (Milk Run's lcd_isr walks LYC itself and picks RES_LYC)
+            if (mg_game != G_MR) SET_LYC(RES_LYC);      // (Milk Run's lcd_isr walks LYC itself and picks RES_LYC)
         }
         return 0;
     }

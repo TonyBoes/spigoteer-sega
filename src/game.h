@@ -303,6 +303,21 @@ void show_overlay(const char *s);             // the banner's text (ROM0: caller
 uint8_t *mg_say(uint8_t row, const char *s);  // a centred line of HUD glyphs on map row `row` (queued; LCD off: written)
 extern uint8_t say_bang;                      // (main_cold.c glyph_for) the tile drawn for '!' (bonus2's own, else blank)
 void lcd_isr(void);                           // LYC handler: the banner window off below the banner
+// ---- the mid-frame palette split (Color only, the Saloon's level screen; patron-rev-2) ------------------------------------------------
+// BG slots 2, 3, 4, 7 are the patrons', 5 and 6 the stage's; the Saloon's five looks need a fifth patron palette below the stage. lcd_isr
+// (main.c) runs at line SPLIT_LY (the stage's last pixel line, STAGE_LAST_ROW * 8 + 7), waits for HBlank and rewrites BG palette BGPAL_STAGE
+// with the patron palette in SPLIT_PAL; the VBlank (render.c vq_vbl) puts the stage's back from SPLIT_STG. The window's own LYC (banner, note,
+// goal, pause) is kept in SPLIT_WANT and comes back after the split: writers use SET_LYC. HRAM 0xFFD4-0xFFE5 (free: the linker uses
+// 0xFF80-0xFF92, the scene change 0xFF94-0xFFD3, 0xFFF0-4 are the pause menu, TRANS and HALF); cleared at boot, armed by start_level, off at lcd_off_p.
+#define SPLIT_ON    (*(volatile uint8_t *)0xFFD4)
+#define SPLIT_WANT  (*(volatile uint8_t *)0xFFD5)
+#define SPLIT_PAL   ((volatile uint8_t *)0xFFD6)      // 8 bytes: the patron palette for BG BGPAL_STAGE below the stage
+#define SPLIT_STG   ((volatile uint8_t *)0xFFDE)      // 8 bytes: the stage's own (read back from palette RAM at arm time: SCREEN BRIGHT is in it)
+#define SPLIT_LY    ((STAGE_LAST_ROW + 1) * 8 - 1)
+void set_lyc(uint8_t x);                      // main.c: LYC_REG = x, kept as the window's own line while the split runs
+#define SET_LYC(x)  set_lyc(x)
+void split_off(void) BANKED;                  // level.c: the screen goes away: the stage's palette back, the split stops
+void split_pal_put(const volatile uint8_t *src);   // main.c: BG BGPAL_STAGE <- 8 bytes (HBlank, VBlank or LCD off)
 // ROM0 helpers: copy out of another ROM bank and come back to the caller's
 void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
 void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);

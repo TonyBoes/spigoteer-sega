@@ -487,6 +487,7 @@ __endasm;
 void vq_vbl(void) {
     uint8_t t0, t, ly, vbk;
     if (pal5_req) pal5_write();
+    if (SPLIT_ON) split_pal_put(SPLIT_STG);      // (Color's level screen: the stage's palette back after the split)
     if (!vq_ready) return;
     ly = LY_REG;
     vq_drain_ly_last = ly;

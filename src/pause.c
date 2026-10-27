@@ -158,7 +158,7 @@ static void apply(uint8_t s, uint8_t hidden) {
         }
     }
     state_timer = s;
-    if (!((s & PAUSE_MINI) && mg_id == MG_MILKRUN)) LYC_REG = WIN_LYC(s);   // (Milk Run's handler: main.c mr_lcd_isr)
+    if (!((s & PAUSE_MINI) && mg_id == MG_MILKRUN)) SET_LYC(WIN_LYC(s));   // (Milk Run's handler: main.c mr_lcd_isr)
 }
 
 // the cursor moves within the menu (or YES / NO): only the two mark tiles change
@@ -179,7 +179,7 @@ static void glyphs_back(void) {
 // with the music pumped, and the LCD comes on with the window already covering what it covers: no frame shows the game in between.
 // (Milk Run's handler: LYC at 144 / the menu's end and SCX 0 as the frame before its split would have them.)
 static void lcd_back(uint8_t lyc) {
-    if (mg_id == MG_MILKRUN) { SCX_REG = 0; LYC_REG = lyc; }
+    if (mg_id == MG_MILKRUN) { SCX_REG = 0; SET_LYC(lyc); }
     SHOW_WIN;                                    // (lcd_isr hid it at the menu's last line; main.c's update shows it from the next frame)
 #if CARD_FADE
     trans_card_in();                             // (the new screen's palettes kept, the screen white, the LCD on, and faded in)
@@ -204,7 +204,7 @@ static void card_open(void) {
     WY_REG = 0;                                  // the window over the whole screen: no LYC end
     mg_card_win_open(pause_card(s));
     overlay_on = 1;                              // (the card is the window: main.c's update shows it every frame while this is set; the boss's first-appearance card came here with it 0, and the next frame's update hid the card, the paused game staying up behind a dead screen. The menu's card has it set already)
-    if (!(mg_id == MG_MILKRUN)) LYC_REG = 255;   // (Milk Run's handler: main.c mr_lcd_isr takes PAUSE_CARD into account)
+    if (!(mg_id == MG_MILKRUN)) SET_LYC(255);   // (Milk Run's handler: main.c mr_lcd_isr takes PAUSE_CARD into account)
     lcd_back(144);
 }
 
@@ -286,7 +286,7 @@ static void put_back(void) {
     fill_row(0, TILE_PANEL_TOP);                 // (win_init's banner)
     fill_row(1, TILE_HUD_BLANK);
     fill_row(2, TILE_PANEL_BOT);
-    if (!((state_timer & PAUSE_MINI) && mg_id == MG_MILKRUN)) LYC_REG = BANNER_LYC;
+    if (!((state_timer & PAUSE_MINI) && mg_id == MG_MILKRUN)) SET_LYC(BANNER_LYC);
 }
 
 // RESUME (and the debug box, main.c's combo): everything as it was, back to the game

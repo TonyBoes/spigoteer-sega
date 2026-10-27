@@ -214,14 +214,14 @@ static void draw(void) {
 
 // ---- the window layer -----------------------------------------------------------------------------------------------------------------------------------------
 static void win_show(uint8_t y, uint8_t h, uint8_t lyc) {   // the window over lines y .. y + h - 1; lyc: where the LCD interrupt cuts it (LYC_NONE: at the screen's end)
-    WX_REG = 7; WY_REG = y; LYC_REG = lyc;
+    WX_REG = 7; WY_REG = y; SET_LYC(lyc);
     V(V_WY) = y; V(V_WH) = h;
     overlay_on = 3;                                // (1 would hide the sprites over the banner, 2 is a note: main.c)
 }
 
 static void win_hide(void) {
     overlay_on = 0; HIDE_WIN;
-    WY_REG = BANNER_WY; LYC_REG = BANNER_LYC;      // (the banner window's own place again)
+    WY_REG = BANNER_WY; SET_LYC(BANNER_LYC);      // (the banner window's own place again)
     V(V_WH) = 0; V(V_TAG) = 0;
 }
 
@@ -436,7 +436,7 @@ void smap_enter(uint8_t quick) BANKED {
     uint8_t r;
     if (quick) TRANS_MENU(); else TRANS_WANT();
     DISPLAY_OFF;
-    overlay_on = 0; HIDE_WIN; WY_REG = BANNER_WY; LYC_REG = BANNER_LYC; SCX_REG = 0; SCY_REG = 0;
+    overlay_on = 0; HIDE_WIN; WY_REG = BANNER_WY; SET_LYC(BANNER_LYC); SCX_REG = 0; SCY_REG = 0;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();
     clear_patrons(); clear_mugs();

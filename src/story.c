@@ -602,7 +602,7 @@ static void shift_start(void) {
     story_timer = (uint16_t)story_goal.secs * 60;
     hud_goal();
     overlay_on = 1;
-    LYC_REG = GOAL_LYC;
+    SET_LYC(GOAL_LYC);
     story_phase = arc_banner ? SP_LOOP : SP_GOAL; story_t = 0;
     arc_banner = 0;
     game_state = GS_GOAL;
@@ -612,7 +612,7 @@ static void shift_start(void) {
 static void goal_banner_off(void) {
     fill(win_rows[2], TILE_PANEL_BOT, 20);       // map row 34 is the normal banner's bottom panel again
     vq_add(0, win_rows[2], 0, 34, 20);
-    LYC_REG = BANNER_LYC;
+    SET_LYC(BANNER_LYC);
     overlay_on = 0;
 }
 

@@ -60,11 +60,13 @@ void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank) {
 void lcd_off_p(void) {
     uint8_t w = TRANS;
     TRANS = w & ~TR_WANT;
-    if (!(LCDC_REG & LCDCF_ON)) return;
-    if ((w & (TR_WANT | TR_OFF)) == TR_WANT && game_state != GS_PAUSED) { trans_cover(); return; }   // (a scene change: the drink fills the screen, then the LCD goes off)
-    while (LY_REG >= 0x92) music_pump();        // (display_off's own two waits: the LCD goes off at line 145)
-    while (LY_REG < 0x91) music_pump();
-    LCDC_REG &= ~LCDCF_ON;
+    if (LCDC_REG & LCDCF_ON) {
+        if ((w & (TR_WANT | TR_OFF)) == TR_WANT && game_state != GS_PAUSED) { trans_cover(); return; }   // (a scene change: the drink fills the screen, then the LCD goes off)
+        while (LY_REG >= 0x92) music_pump();    // (display_off's own two waits: the LCD goes off at line 145)
+        while (LY_REG < 0x91) music_pump();
+        LCDC_REG &= ~LCDCF_ON;
+    }
+    if (SPLIT_ON) split_off();                  // (the Color level screen's palette split: the stage's palette back; banked, level.c)
 }
 
 void lcd_on_p(void) {
@@ -182,9 +184,65 @@ void lose_life(void) {
     if (lives == 0) game_over = 1;
 }
 
-void lcd_isr(void) {          // LYC: switch the banner window off below the banner
+// The mid-frame palette split (game.h SPLIT_*): BG palette BGPAL_STAGE is rewritten from `src` (8 bytes; HBlank, VBlank or LCD off).
+#if ASM_SPLIT_PAL
+void split_pal_put(const volatile uint8_t *src) __naked {
+    (void)src;
+__asm
+    ld   a, #(0x80 | (5 << 3))      ; BCPS: BGPAL_STAGE, auto-increment
+    ldh  (0x68), a
+    ld   h, d
+    ld   l, e
+    ld   c, #0x69                   ; BCPD
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl)
+    ldh  (c), a
+    ret
+__endasm;
+}
+#else
+void split_pal_put(const volatile uint8_t *src) {
+    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
+    BCPD_REG = src[0]; BCPD_REG = src[1]; BCPD_REG = src[2]; BCPD_REG = src[3];     // (unrolled: it must finish inside the HBlank)
+    BCPD_REG = src[4]; BCPD_REG = src[5]; BCPD_REG = src[6]; BCPD_REG = src[7];
+}
+#endif
+
+void lcd_isr(void) {          // LYC: switch the banner window off below the banner; Color's level screen: the palette split too (game.h)
+    uint8_t ly;
+    if (SPLIT_ON) {
+        ly = LYC_REG;
+        if (ly == SPLIT_LY) {
+            while (STAT_REG & 3) ;                 // (HBlank: palette RAM is open; the line's pixels are out)
+            split_pal_put(SPLIT_PAL);
+            LYC_REG = SPLIT_WANT;
+            return;
+        }
+        HIDE_WIN;
+        SPLIT_WANT = ly; LYC_REG = SPLIT_LY;
+        return;
+    }
     HIDE_WIN;
 }
+
+void set_lyc(uint8_t x) {
+    if (SPLIT_ON) { SPLIT_WANT = x; if (LYC_REG == SPLIT_LY) return; }
+    LYC_REG = x;
+}
+
 
 // The credits' cast cards on a DMG (src/credits.c): BGP is one palette for the whole background, but a venue's name stays at the top through the
 // fades of its three cards, so the frame is split: lines 0-15 (the header) with the header's BGP, then the card's (story_scratch + 68 / + 69: both
@@ -325,7 +383,7 @@ uint8_t *mg_say(uint8_t row, const char *s) {
 // frame, put back by end_note), WY and LYC moved to it. Nothing plays there, so a message can show while the game runs.
 void show_note(const char *s) {
     mg_say(32, s);
-    WY_REG = NOTE_WY; LYC_REG = NOTE_LYC;
+    WY_REG = NOTE_WY; SET_LYC(NOTE_LYC);
     overlay_on = 2;
 }
 
@@ -334,7 +392,7 @@ void end_note(void) {
     if (overlay_on != 2) return;
     b = mg_say(32, "");
     while (n) b[--n] = TILE_PANEL_TOP;
-    WY_REG = BANNER_WY; LYC_REG = BANNER_LYC;
+    WY_REG = BANNER_WY; SET_LYC(BANNER_LYC);
     overlay_on = 0; HIDE_WIN;
 }
 
@@ -469,7 +527,7 @@ static void update(void) {
     if (overlay_on) SHOW_WIN;
     else {
         HIDE_WIN;
-        if (WY_REG == NOTE_WY) { WY_REG = BANNER_WY; LYC_REG = BANNER_LYC; }   // (a note cut off by a life lost or a scene change: overlay_on 0 without end_note; the next window would start on the note's line)
+        if (WY_REG == NOTE_WY) { WY_REG = BANNER_WY; SET_LYC(BANNER_LYC); }   // (a note cut off by a life lost or a scene change: overlay_on 0 without end_note; the next window would start on the note's line)
     }
 
     joy_prev = joy;

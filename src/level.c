@@ -153,6 +153,23 @@ void level_pace_again(void) BANKED {
     level_pace(&level_table[cur_group], k);
 }
 
+void split_off(void) BANKED {   // (the LCD is off) the stage's palette back, the split stops
+    SPLIT_ON = 0;
+    if (!(LCDC_REG & LCDCF_ON)) split_pal_put(SPLIT_STG);
+}
+
+static void split_arm(void) {        // (LCD off) the stage's palette is read back into SPLIT_STG; the patron palette starts as the same (the caller sets it)
+    uint8_t k, v;
+    for (k = 0; k < 8; k++) {
+        BCPS_REG = (BGPAL_STAGE << 3) | k;
+        v = BCPD_REG;
+        SPLIT_STG[k] = v; SPLIT_PAL[k] = v;
+    }
+    SPLIT_WANT = LYC_REG;
+    SPLIT_ON = 1;
+}
+
+
 void start_level(void) BANKED {
     uint8_t idx = level - 1, k, g;
     const level_cfg_t *c;
@@ -177,6 +194,7 @@ void start_level(void) BANKED {
     clear_dirty();
     load_venue(cur_group);                      // M9: the venue of the level's theme (theme index = patron group)
     load_patron_group(cur_group);
+    if (is_cgb && cur_group == 0) split_arm();  // patron-rev-2: the Saloon's mid-frame palette split (game.h)
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
     mirror_load(play_mode == MODE_LEVEL ? level_dirs : classic_dirs);   // P3: bars from the right (the harness, CLASSIC)
     place_start_patrons();

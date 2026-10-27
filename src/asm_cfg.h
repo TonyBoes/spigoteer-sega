@@ -56,4 +56,9 @@
 #define ASM_CHOOSER ASM_PASS
 #endif
 
+// patron-rev-2: the mid-frame palette split's 8-byte palette write (main.c split_pal_put)
+#ifndef ASM_SPLIT_PAL
+#define ASM_SPLIT_PAL ASM_PASS
+#endif
+
 #endif
