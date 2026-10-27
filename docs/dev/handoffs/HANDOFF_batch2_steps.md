@@ -61,3 +61,14 @@ colour 0), the three shift-0 poses of 4 tiles at PATRON_SHIFT0_OFS 128 + v*4 (co
 - ROM0 free 481 B, _DATA 7547 B unchanged. Goldens failing: all Saloon/title/menu pictures (art changed on purpose) plus inherited step-1 CGB factory/robots ones; none replaced.
 - C ROM (make cfall): extra failures vs f242c5d's C ROM are timing-only (boss_in_place cgb x2, classic mixed_levels cgb x2, debug cgb-1, perf_arcade [10-dmg]); asm ROM green.
 - Open: EMMA, ARTIE, GUS backs are stand-ins; during a show a lifted pi4 patron shows the dancers' colours (OBJ 5).
+
+## Status after the final fixes (commit 5fc6f5d on worktree-agent-aafb5b291e60306f2, main merged in)
+- Show colours: lift.c try_lift refuses a palette-instance-4 patron while show_timer is set; lift_pi4() (banked, game.h); render.c pal5_check loads the
+  show palette only when no lifted pi4 patron exists; draw_stage_fx hides the dancers until pal5_cur == 2 on Color. Test: test_lift.py
+  test_a_lifted_5th_instance_patron_keeps_his_colours_through_a_show_and_none_is_lifted_during_one. DMG unchanged.
+- C twins made cheaper: draw_lifted (OAM struct fields), split_line / split_vbl (no 8-byte pre-read; writes straight from HRAM), saloon_variant (tables,
+  no rejection loop; boss-fight RNG stream changed), tile_copy twin unrolled (gen_art.py). split_line writes ~48 M-cycles in HBlank: check SameBoy if the stage palette flickers on a busy line.
+- Asm: same 103 golden-type failures, nothing else. C ROM: fixed boss_in_place, debug cgb-1, mixed_levels, split, drink_early, empties, mugs, arcade 10-cgb.
+  Still failing on the C ROM only (edge of its limits, guards untouched): perf_arcade[10-dmg] 37.1 vs 35 (mean 138.8 vs 138), pause_card_fade[0-cgb] 1.65 vs 1.6,
+  test_perf classic_peak_real_rows[dmg-12] (music blind spot, also on asm earlier), test_half_rate classic25 1439 vs 1440.
+- ROM0 free: asm 453 B (481 before), C 70 B (69 before).
