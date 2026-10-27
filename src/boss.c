@@ -178,6 +178,8 @@ static uint8_t sip_beat(void) {
     return boss_state == BS_GULP && !boss_push && !boss_xpose && sway_tab[boss_t];   // (boss_t < gulp: the table is (t / SWAY_FRAMES) & 1, no divide)
 }
 
+static void hand_hide(void);                 // (below: the hand mug's two entries off)
+
 // His pose from his state: the body's columns (boss_cols) and, when they changed, their tiles queued.
 static void boss_look(void) {
     uint8_t p = BP_WALK, k, w = br->width >> 3;
@@ -372,7 +374,7 @@ void boss_reset(void) BANKED {
     boss_look();
     mark_dirty_attrs(boss_bar, 0, 20);
     boss_limit();
-    shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_HAND].y = 0;
+    shadow_OAM[OAM_TOPPER].y = 0; hand_hide();
 }
 
 // The capacity indicator's two mugs (assets/art/boss/tag.txt: ROOM, TAKEN, 8x16 each), 64 bytes to dst: OBJ_CAP.
@@ -721,7 +723,7 @@ uint8_t boss_outro(uint8_t t) BANKED {
         for (i = OAM_FILL; i < n; i++) shadow_OAM[i].y = 0;
         shadow_OAM[OAM_CUE].y = 0;
         for (i = 0; i != 3; i++) shadow_OAM[OAM_CAP - 1 - i].y = 0;   // (the mug row and the hand mug are not drawn in the outro: when he is beaten with no regular left it begins
-        shadow_OAM[OAM_HAND].y = 0;                                    // at once, and the last frame's would stay)
+        hand_hide();                                    // at once, and the last frame's would stay)
         SFX(SFX_SERVE);
     }
     if (!(t & 15)) {
@@ -824,20 +826,64 @@ static uint8_t fits(const uint8_t *n, uint8_t k0, uint8_t k1, uint8_t c) {
 // drink art, mugs.c), its bottom at row hand_base of his 16 body rows. 255: none (the Sumo is hit, the Mothership beams its drinks up).
 static const uint8_t hand_base[BOSS_COUNT] = { 15, 15, 15, 12, 15, 11, 12, 255, 15, 255 };   // (rows[] order: Tex, Mascot, Sasquatch, Critic, Yeti, Prototype, Duke, Sumo, Leo, Mothership)
 
+// The mug follows the patrons' drink (mugs.c pose_*) at full size: over his gulp it rises from the hand to his mouth, tilts 45 degrees (held through the drink) and is lowered empty (the sliding empty mug). Not the
+// patrons' small drink frames: they shrink the mug. The steps are 16 and END with his gulp: he is pushed back first (HOP_FRAMES, hidden), so they
+// count from the end, E - boss_t frames before it (hand_end: the last frame he holds the mug up, one before his gulp is over; the Sasquatch's
+// arm goes down at 12), at hand_inv per frame: 4096 / (the frames from boss_t HOP_FRAMES to E, less one), rounded up, so (E - boss_t) * hand_inv >> 8
+// is 15 on the first (0..15; before it the mug waits at his hand). Each step: its frame (high nibble: 0 the served mug upright, 1 the 45 degree
+// tilt of his venue (hand_tilt: its tile, 16x16 two entries; 0 while there is none: the mug stays upright), 3 the empty upright) and how
+// far along the way to his mouth, in eighths (low nibble). hand_dx, hand_dy: that way from the hand (px, the upright mug's sprite, its rim at its
+// (2, 4)): the mouth of each boss (assets/art/boss/*.txt, his gulp pose); no lower than row 4 of his body, so the sprite stays inside the 28
+// lines the bands count.
+// The second entry of the two: the first free one below the capacity row (Leo's waves or the Critic's cloche may be there: then it stays upright).
+// The Prototype's battery stays upright at his hand and pulses (its full and empty colours, boss_t & 8): it is "in use".
+static const uint8_t hand_seq[16] = { 0x00, 0x02, 0x05, 0x08, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x38, 0x35, 0x32, 0x30 };
+static const int8_t  hand_dx[BOSS_COUNT]  = { -12, -12, -12, -12, -16, -13, -11, 0, -9, 0 };
+static const int8_t  hand_dy[BOSS_COUNT]  = {   3,   3,   3,   6,   0,   7,   6, 0,  3, 0 };
+static const uint8_t hand_end[BOSS_COUNT] = {  57,  33,  11,  83,  43,  29,  29, 0,  43, 0 };   // (his gulp - 1; the Sasquatch's 11: his mug-down beat is 12 on)
+static const uint16_t hand_inv[BOSS_COUNT] = {  73, 133, 549,  49,  99, 154, 154, 0,  99, 0 };   // (4096 / (E - HOP_FRAMES) up; tests/test_boss_cap_ui.py checks them)
+static const uint8_t hand_tilt[BOSS_COUNT] = { 120, 120, 120, 120, 120,   0, 120, 0, 100, 0 };   // (the 45 degree tilt's first tile, gen_boss `tilt`: OBJ 120-123, Leo 100-103; the Prototype has none)
+#define HAND_PROTO 5
+
+// The hand mug's entries off (the second only if it is ours: Leo's waves, the Critic's cloche may be in the slot)
+static void hand_hide(void) {
+    OAM_item_t *o;
+    if (!shadow_OAM[OAM_HAND].y) return;              // (nothing drawn: its second entry went with it. The common case: most frames)
+    shadow_OAM[OAM_HAND].y = 0;
+    o = shadow_OAM + OAM_CAP - 1 - boss_hands;
+    if (hand_tilt[boss_row] && o->tile == hand_tilt[boss_row] + 2) o->y = 0;
+}
+
 // n: the bands from the topper's y; extra: the entries drawn over them already (the hat, the mug row)
 static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
-    OAM_item_t *o = shadow_OAM + OAM_HAND;
-    uint8_t d, dx = 0;
-    o->y = 0;
-    if (boss_row == 9) boss_call(BEV_DRAW, 1);   // (the Mothership's own: a drink lifted into the saucer on a beam, OAM 29 and 30)
+    OAM_item_t *o = shadow_OAM + OAM_HAND, *o2 = shadow_OAM + OAM_CAP - 1 - boss_hands;
+    uint8_t d, dx = 0, e, f, w, t, p, two = 0;
+    if (boss_row == 9) { shadow_OAM[OAM_HAND].y = 0; boss_call(BEV_DRAW, 1); return; }   // (the Mothership's own: a drink lifted into the saucer on a beam, OAM 29 and 30: no hand mug)
+    hand_hide();
     if (boss_state != BS_GULP || boss_push || boss_xpose || hand_base[boss_row] == 255) return;   // (the common gulp only: the pose shows his hand up)
     if (sip_beat()) {
         if (!br->sway) return;                   // (the mug-down beat of a boss with no shifted pose: the Sasquatch)
         dx = br->sway == 2 ? -2 : 2;
     }
-    d = bar_oam_y[boss_bar] + hand_base[boss_row] - 14;   // its y; from top: 5..9, so bands 1..6 (24 lines on at most)
-    if (!fits(n, (uint8_t)(d - top) >> 2, (uint8_t)(d - top + 15) >> 2, extra + 1)) return;
-    o->y = d; o->x = boss_x + br->width + dx; o->tile = spr_full_t; o->prop = spr_full_p;
+    e = 0;
+    if (boss_row != HAND_PROTO) {
+        e = hand_end[boss_row];
+        e = e > boss_t ? (uint16_t)(e - boss_t) * hand_inv[boss_row] >> 8 : 0;   // (frames to the end, in steps)
+        e = hand_seq[e > 15 ? 0 : 15 - e];
+    }
+    f = e >> 4; w = e & 15;
+    t = spr_full_t; p = spr_full_p;
+    if (f == 3) { t = spr_empty_t; p = spr_empty_p; }
+    else if (f == 1 && hand_tilt[boss_row]) t = hand_tilt[boss_row];
+    if (t != spr_full_t && t != spr_empty_t) {
+        if (o2->y) t = spr_full_t;               // (the second entry's slot is taken: the mug stays upright)
+        else two = 1;
+    }
+    d = bar_oam_y[boss_bar] + hand_base[boss_row] - 14 + (hand_dy[boss_row] * w >> 3);   // its y; from top: -8..4, so bands 0..6 (28 lines on at most)
+    if (!fits(n, (uint8_t)(d - top) >> 2, (uint8_t)(d - top + 15) >> 2, extra + 1 + two)) return;
+    if (boss_row == HAND_PROTO && (boss_t & 8)) p ^= is_cgb ? OBJPAL_MUG_FULL ^ OBJPAL_MUG_EMPTY : S_PALETTE;   // (the battery's two palettes: in use. DMG OBP0 / OBP1)
+    o->y = d; o->x = boss_x + br->width + dx + (hand_dx[boss_row] * w >> 3) - 4 * two; o->tile = t; o->prop = p;
+    if (two) { o2->y = d; o2->x = o->x + 8; o2->tile = t + 2; o2->prop = p; }
 }
 
 // The capacity indicator's slots: 255 none to show (BEV_ROOM), 254 no limit (the Sumo's 250, the Prototype's red light:
@@ -881,7 +927,7 @@ void boss_draw(void) BANKED {
     uint8_t n[BANDS + 1];
     const uint8_t *np;
     OAM_item_t *o;
-    if (boss_state == BS_WARM) { shadow_OAM[OAM_TOPPER].y = 0; shadow_OAM[OAM_HAND].y = 0; return; }   // (E9: not here yet)
+    if (boss_state == BS_WARM) { shadow_OAM[OAM_TOPPER].y = 0; hand_hide(); return; }   // (E9: not here yet)
     intro = intro_timer;
     if (intro) {                                 // the intro: a special's own sprites (Duke's entrance) before the lines are counted
         boss_call(BEV_DRAW, 0);
@@ -889,14 +935,14 @@ void boss_draw(void) BANKED {
         shadow_OAM[OAM_CAP - 2].y = 0;
     } else {
         for (k = 0; k != boss_hands; k++) shadow_OAM[OAM_CAP - 1 - k].y = 0;   // (the glasses: set again below)
-        shadow_OAM[OAM_HAND].y = 0;
+        hand_hide();
     }
     if (boss_state == BS_JUMP || boss_xpose == BP_HIDE) {   // (away: no hat in the air)
         shadow_OAM[OAM_TOPPER].y = 0;
         return;
     }
     shadow_OAM[OAM_TOPPER].y = 0;   // (so the count skips it: it is set again below)
-    np = intro ? bands_intro(top, n) : bands(top, n, 1 + boss_hands + (boss_state == BS_GULP));   // (the hat, a glass a hand, the hand mug while he gulps)
+    np = intro ? bands_intro(top, n) : bands(top, n, 1 + boss_hands + 2 * (boss_state == BS_GULP));   // (the hat, a glass a hand, the hand mug while he gulps: two entries when it is tilted)
     o = shadow_OAM + OAM_TOPPER;
     hat = fits(np, 0, 3, 1);
     if (hat) {

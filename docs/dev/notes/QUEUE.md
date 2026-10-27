@@ -7,9 +7,10 @@ OPEN QUESTIONS TO THE OWNER:
 
 OWED / LATER:
 - PATRON HOLD LIFTED 2026-10-26: "Let's just go ahead and implement what patron changes we have so far so we can get everything current."
-  - Batch 1 RUNNING (patron-rev-1): accepted art for 8 venues (ACCEPTED in palette_plan/build.py) + the Color palette merges.
-  - Batch 2 NEXT, after q61-shared-tiles and dmg-mixed-b merge: Saloon 8 looks (option 2, variants, GUS in the C slot), renames,
+  - Batch 1 MERGED a60033f (with dmg-mixed-b).
+  - Batch 2 RUNNING 2026-10-26 (agent ae175bbfbeda4049c, branch patron-rev-2): Saloon 8 looks (option 2, variants, GUS in the C slot), renames,
     drop the enhanced looks. Saloon backs: drafts in docs/dev/concepts/{dusty_hank,rosie,outlaw}_sprite; EMMA, ARTIE, GUS have none (stand-ins, listed).
+  - Batch 3 AFTER batch 2 merges: Q61 B approved 2026-10-26 ("61b) Do it"): patron tile lookup table, blank/duplicate pre-shifted tiles share slots (shift-0 sprite step only in whole pairs); measure ROM and the per-draw speed (perf guards untouched); tools/dev/tile_dups.py counts; DMG and Color.
 - Patron design pass: CLOSED for agents 2026-10-26. Picks from rounds 1-2 recorded; the rest stay old and the owner edits them by hand. Brief and list: docs/dev/queue_briefs/patron_pass_2026-10-25.md.
 - Medal-points value proposal (Q59e).
 - Map critique round after his playtest (left lane, parallel town legs, cow, lodge, menu text spacing incl. Dregs's 20-wide lines, arrow direction).

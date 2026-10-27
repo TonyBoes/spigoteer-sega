@@ -58,23 +58,23 @@ BOSS_HATS_MAX = 10           # topper frames (8x16) at OBJ 96..115 (the Critic: 
 # (src/boss_<name>.c), its body width (px), colours 1-3 (CGB), its extra poses (tells), and "ice": a venue whose
 # counter tiles get icy copies.
 BOSSES = [
-    {"name": "big_tex", "width": 40, "pal": ["#F0B888", "#C83020", "#583018"], "extra": ["BARE"],
+    {"name": "big_tex", "tilt": "saloon", "width": 40, "pal": ["#F0B888", "#C83020", "#583018"], "extra": ["BARE"],
      "hats": ["HAT_POP0", "HAT_POP1", "HAT_POP2", "HAT_POP3"]},
-    {"name": "sasquatch", "width": 32, "pal": ["#E8B878", "#5C2C14", "#140804"], "extra": ["DUCK", "BURST1", "BURST2"],
+    {"name": "sasquatch", "tilt": "lodge", "width": 32, "pal": ["#E8B878", "#5C2C14", "#140804"], "extra": ["DUCK", "BURST1", "BURST2"],
      "hats": ["HAT_DUCK"], "fx": [("MARKER", "sasquatch")], "nosway": True},   # (29 pairs of 30: a shifted GULP needs 4 more)
-    {"name": "critic", "width": 32, "pal": ["#F8D0A8", "#A03070", "#201018"], "extra": ["TASTE", "HOLD", "HOLDHOP"],
+    {"name": "critic", "tilt": "bistro", "width": 32, "pal": ["#F8D0A8", "#A03070", "#201018"], "extra": ["TASTE", "HOLD", "HOLDHOP"],
      "hats": ["CLOCHE_END", "CLOCHE_MID", "GLINT", "NO_L", "NO_R", "BAD_L", "BAD_R"]},
-    {"name": "yeti", "width": 32, "pal": ["#F8F8F8", "#80B0E8", "#182040"], "extra": ["INHALE", "BLOW"],
+    {"name": "yeti", "tilt": "igloo", "width": 32, "pal": ["#F8F8F8", "#80B0E8", "#182040"], "extra": ["INHALE", "BLOW"],
      "ice": "igloo"},
     {"name": "sumo", "width": 40, "pal": ["#F0A878", "#F0F0E0", "#282048"], "extra": ["SHIKO", "HMPH"], "nosway": True},
-    {"name": "leo", "width": 32, "pal": ["#F8D060", "#C86018", "#301808"], "extra": ["INHALE", "ROAR"],
+    {"name": "leo", "tilt": "zoo", "width": 32, "pal": ["#F8D060", "#C86018", "#301808"], "extra": ["INHALE", "ROAR"],
      "tiles": ["BANG"]},
-    {"name": "mascot", "width": 32, "pal": ["#F8E8C8", "#D02828", "#201018"], "extra": ["CROUCH", "PUFF1", "PUFF2"],
+    {"name": "mascot", "tilt": "sports", "width": 32, "pal": ["#F8E8C8", "#D02828", "#201018"], "extra": ["CROUCH", "PUFF1", "PUFF2"],
      "fx": [("MARKER", "mascot")], "spr": [("BALL", 16, 16)]},
     {"name": "prototype", "width": 32, "pal": ["#E8F0F8", "#F87818", "#182030"], "extra": ["RED"],
      "hats": ["LAMP_RING", "LAMP_X"], "fx": [("MARKER", "mascot")], "conveyor": "factory",
      "spr": [("CHAIN", 8, 16), ("HOOK", 16, 16), ("SPARK1", 8, 16), ("SPARK2", 8, 16)]},
-    {"name": "duke", "width": 40, "pal": ["#F8E0C8", "#D06030", "#201018"], "extra": ["TELL1", "TELL2"],
+    {"name": "duke", "tilt": "biker", "width": 40, "pal": ["#F8E0C8", "#D06030", "#201018"], "extra": ["TELL1", "TELL2"],
      "entrance": "duke_entrance", "sway_dir": 2},
     {"name": "mothership", "width": 40, "pal": ["#E8F0F8", "#E040B0", "#200828"], "extra": [], "fx": [("BEAM", "mothership")], "spr": [("BEAM1", 8, 16), ("BEAM2", 8, 16)]},
 ]
@@ -107,6 +107,17 @@ def padded(f, w):
     fw = len(f[0])
     left = ((w - fw) // 2) // 8 * 8
     return ["." * left + r + "." * (w - fw - left) for r in f]
+
+
+def tilt_tiles(theme):
+    """His venue's 45 degree drink (assets/approved/venues/<theme>_tilt.txt, 16x16, mouth up-right) mirrored, so the mouth faces his face:
+    two 8x16 sprites, left then right (top, bottom each): 4 tiles."""
+    path = ROOT / "assets/approved/venues" / f"{theme}_tilt.txt"
+    rows = [r.strip() for r in path.read_text().splitlines() if r.strip() and not r.startswith(";")]
+    if len(rows) != 16 or not all(len(r) == 16 and set(r) <= set(".-+#") for r in rows):
+        fail(f"{path.relative_to(ROOT)}: must be 16x16 in . - + #")
+    rows = [r[::-1] for r in rows]
+    return [x for c in (0, 8) for x in tile_bytes(rows, c, 0) + tile_bytes(rows, c, 8)]
 
 
 def conveyor_tiles(theme, prev, name, named, path):
@@ -186,6 +197,7 @@ def boss_art(b, prev):
     if len(hat) > BOSS_HATS_MAX:
         fail(f"{b['name']}: {len(hat)} topper frames, room for {BOSS_HATS_MAX}")
     icon = frame(named, "ICON", 8, 8, path)
+    tilt = tilt_tiles(b["tilt"]) if "tilt" in b else None
     pairs, index = [], {}
 
     def pair(col):
@@ -207,7 +219,7 @@ def boss_art(b, prev):
     png([icon], prev / f"boss_{b['name']}_icon_x8.png", 8)
     a = {"name": b["name"], "width": w, "cols": w // 8, "pairs": [list(p) for p in pairs], "poses": names,
          "pose": pose_map, "hat": hat_tiles, "icon": tile_bytes(icon, 0, 0),
-         "pal": rgb15(["#000000"] + b["pal"]), "art": {n: p for n, p in zip(names, poses)},
+         "pal": rgb15(["#000000"] + b["pal"]), "tilt": tilt, "art": {n: p for n, p in zip(names, poses)},
          "sway": sway[0] if sway else 0, "sway_map": sway_map, "sway_art": sway[1] if sway else None}
     if "ice" in b:
         if "fx" in b:
@@ -332,6 +344,9 @@ def header(a):
          carr("boss_art_hat", a["hat"]) + "   // STILL top, bottom, BOB top, bottom (then his `hats`)",
          carr("boss_art_icon", a["icon"]),
          carr("boss_art_pal", a["pal"], "uint16_t") + "   // colour 0: the venue's wall, set at the load"]
+    if a["tilt"]:
+        h += [f"#define BOSS_ART_TILT_T {100 if a['name'] == 'leo' else 120}   // OBJ ids of his hand mug's 45 degree tilt (src/boss.c hand_tilt): 4 tiles, free in a fight (Leo's fx take 104-123)",
+              carr("boss_art_tilt", a["tilt"])]
     if "ice" in a:
         h += [f"#define BOSS_ART_ICE {len(a['ice_src'])}",
               carr("boss_ice_src", a["ice_src"]) + "   // the venue's counter tile ids",
