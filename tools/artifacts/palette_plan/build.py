@@ -13,9 +13,11 @@ Per venue, after the boss: Dancers, Kegs, Stage, Floor (scene_pieces / scene_sec
 colours). Each picture downloads its piece as an editable indexed PNG (img/scene_<venue>_<piece>_1x.png); scene_split.py reads an
 edited one back (see its docstring for the palette index rule). boss_split.py does the same for the boss sheets.
 """
+import hashlib
 import html
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -76,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-26", "Tile pictures: hover or tap a tile for its outline and number."),
     ("2026-10-26", "Patron revision batch 1 in the game: the accepted art for 8 venues and the palette merges (colours shared; no slots freed yet)."),
     ("2026-10-26", "This page is now the Graphics Atlas; the old atlas page is retired."),
     ("2026-10-26", "OBJ 7: \"Boss: hat\" was in every venue; now each lists its own boss's topper (crest, horns, lamp...), reloaded in his colours for the fight."),
@@ -456,6 +459,8 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .copymd:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tgrid { display: flex; flex-wrap: wrap; gap: 12px; } .tgrid figure { margin: 0; max-width: 100%; } .tgrid figcaption { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
 .tgimg { display: block; max-width: 100%; height: auto; image-rendering: pixelated; }
+#tout { position: absolute; z-index: 50; pointer-events: none; box-sizing: border-box; border: 2px solid #fff; outline: 1px solid #000; }
+#ttip { position: absolute; z-index: 60; pointer-events: none; font-size: 12px; line-height: 1.4; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--ground); white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
 .tdet { font-size: 13px; color: var(--muted); margin: 8px 0 0; } .tdet summary { cursor: pointer; font-weight: 600; } .tdet ul { margin: 4px 0 0; padding-left: 1.2em; }
 .foot { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 13px var(--mono); padding: 6px 12px; border-radius: 6px; }
@@ -1073,7 +1078,7 @@ def tile_sheets(v, model, b):
     sheet = src.crop((cx, cy, cx + 128, cy + 192))
     live = [tb["use"][t] != "0" or tb["loaded"][t] == "1" for t in range(384)]
     blank = tuple(tuple([0] * 8) for _ in range(8))
-    mark, seen = {}, set()                     # slot -> outline colour (a pair marks both its tiles)
+    mark, seen, part = {}, {}, {}              # slot -> outline colour (a pair marks both its tiles); slot -> the slot it repeats
     for t in range(384):
         if not live[t] or (t < 128 and t % 2):
             continue
@@ -1081,10 +1086,12 @@ def tile_sheets(v, model, b):
         if k in seen:
             if t < 128:
                 mark[t] = mark[t + 1] = (255, 60, 200)
+                part[t], part[t + 1] = seen[k], seen[k] + 1
             else:
                 mark[t] = (255, 210, 0) if T[t] == blank else (255, 60, 60)
-        seen.add(k)
-    return sheet, live, mark
+                part[t] = seen[k]
+        seen.setdefault(k, t)
+    return sheet, live, mark, part
 
 
 GLYPH_DIGITS = list(range(36, 46))            # BG ids, build/art.h TILE_GLYPH_*: 0-9
@@ -1177,6 +1184,17 @@ def _flip(im, xf, yf):
     return im
 
 
+def ver(m):
+    f = os.path.join(os.path.dirname(OUT), m.group(0))
+    try:
+        return "%s?v=%s" % (m.group(0), hashlib.sha1(open(f, "rb").read()).hexdigest()[:10])
+    except OSError:
+        return m.group(0)
+
+
+TILEMAP = {}      # image path -> {"b": VRAM bank, "r": [[x, y, slot, repeated slot or -1]]}: every 24x24 tile square in natural pixels
+
+
 def tile_grid(v):
     from PIL import Image, ImageDraw, ImageFont
     S = 3
@@ -1185,7 +1203,7 @@ def tile_grid(v):
     for model, b, label in (("cgb", 0, "Color bank 0"), ("cgb", 1, "Color bank 1"), ("dmg", 0, "DMG")):
         if b >= len(lv[model]["tiles"]):
             continue
-        sheet, live, mark = tile_sheets(v, model, b)
+        sheet, live, mark, part = tile_sheets(v, model, b)
         # the raw grid
         GUT = 30
         im = Image.new("RGB", (GUT + 128 * S, 192 * S), (40, 40, 40))
@@ -1198,6 +1216,7 @@ def tile_grid(v):
         for y in (128, 256):
             dr.line((GUT, y // 16 * 8 * S, GUT + 128 * S, y // 16 * 8 * S), fill=(255, 255, 255), width=2)
         rel = "img/tiles_%s_%s%d.png" % (v["key"], model, b)
+        TILEMAP[rel] = {"b": b, "r": [[GUT + (t % 16) * 8 * S, (t // 16) * 8 * S, t, part.get(t, -1)] for t in range(384)]}
         im.save(os.path.join(os.path.dirname(OUT), rel), "PNG")
         # the sorted view (bank 0 only: bank 1 holds no venue tiles yet)
         srel = None
@@ -1221,6 +1240,7 @@ def tile_grid(v):
                     placed.append((f, x, y)); x += fw + pad * S; rh = max(rh, fh)
                 rows.append((glabel, placed, y + rh, gmarks))
             H = sum(18 + h + 8 for _, _, h, _ in rows)
+            rects = []
             im = Image.new("RGB", (W, H), (40, 40, 40))
             dr = ImageDraw.Draw(im)
             y0 = 0
@@ -1231,12 +1251,14 @@ def tile_grid(v):
                     for t, c, r, xf, yf in f:
                         px, py = fx + c * 8 * S, y0 + fy + r * 8 * S
                         im.paste(tile(t, xf, yf), (px, py))
+                        rects.append([px, py, t, part.get(t, -1)])
                         if not live[t]:
                             dr.rectangle((px, py, px + 8 * S - 1, py + 8 * S - 1), fill=(60, 60, 60))
                         if gmarks and t in mark:
                             dr.rectangle((px, py, px + 8 * S - 1, py + 8 * S - 1), outline=mark[t], width=2)
                 y0 += h + 8
             srel = "img/tiles_%s_%s_sorted.png" % (v["key"], model)
+            TILEMAP[srel] = {"b": 0, "r": rects}
             im.save(os.path.join(os.path.dirname(OUT), srel), "PNG")
         out.append((label, rel, srel))
     fig = lambda label, rel: ('<figure><figcaption>%s</figcaption><img class="tgimg" src="%s" alt="%s %s tiles"></figure>'
@@ -1420,6 +1442,7 @@ for i, v in enumerate(venues):
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
 w('</div><div id="toast" role="status" aria-live="polite" hidden></div>')
+w('<script type="application/json" id="tmap">%s</script>' % json.dumps(TILEMAP, separators=(",", ":")).replace("</", "<\\/"))
 w("""<script>
 (function () {
   var tabs = [].slice.call(document.querySelectorAll(".tab")), toast = document.getElementById("toast"), timer;
@@ -1467,5 +1490,42 @@ w("""<script>
   });
 })();
 </script>""")
+w("""<script>
+(function () {
+  var map = {}, out, tip, cur = null;
+  try { map = JSON.parse(document.getElementById("tmap").textContent); } catch (e) {}
+  function name(m, s) {
+    if (m.b) return "bank 1 \u00b7 " + s;
+    return s < 128 ? "OBJ " + s : s < 256 ? "Tile " + s : "BG " + s + " \u00b7 " + (s - 256);
+  }
+  function hide() { cur = null; if (out) out.hidden = true; if (tip) tip.hidden = true; }
+  function show(img, e) {
+    var m = map[(img.getAttribute("src") || "").split("?")[0]];
+    if (!m || !img.naturalWidth) return hide();
+    var b = img.getBoundingClientRect(), k = b.width / img.naturalWidth, x = (e.clientX - b.left) / k, y = (e.clientY - b.top) / k, r = null, i;
+    for (i = 0; i < m.r.length; i++) { var q = m.r[i]; if (x >= q[0] && x < q[0] + 24 && y >= q[1] && y < q[1] + 24) { r = q; break; } }
+    if (!r) return hide();
+    if (!out) {
+      out = document.createElement("div"); out.id = "tout"; document.body.appendChild(out);
+      tip = document.createElement("div"); tip.id = "ttip"; tip.setAttribute("role", "tooltip"); document.body.appendChild(tip);
+    }
+    var sx = window.pageXOffset, sy = window.pageYOffset;
+    out.hidden = tip.hidden = false;
+    out.style.left = (b.left + sx + r[0] * k) + "px"; out.style.top = (b.top + sy + r[1] * k) + "px";
+    out.style.width = out.style.height = (24 * k) + "px";
+    tip.textContent = name(m, r[2]) + (r[3] >= 0 ? " = " + r[3] : "");
+    var w = tip.offsetWidth, l = Math.min(Math.max(4, b.left + r[0] * k), document.documentElement.clientWidth - w - 4), t = b.top + r[1] * k - tip.offsetHeight - 6;
+    if (t < 4) t = b.top + (r[1] + 24) * k + 6;
+    tip.style.left = (l + sx) + "px"; tip.style.top = (t + sy) + "px";
+    cur = img;
+  }
+  document.addEventListener("pointermove", function (e) { var i = e.target.closest && e.target.closest("img.tgimg"); if (i && e.pointerType === "mouse") show(i, e); else if (cur && e.pointerType === "mouse") hide(); });
+  document.addEventListener("pointerdown", function (e) { var i = e.target.closest && e.target.closest("img.tgimg"); if (i) show(i, e); else hide(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") hide(); });
+})();
+</script>""")
+for i, x in enumerate(S):         # a changed picture gets a new URL: img/<file>.png -> img/<file>.png?v=<first 10 hex of its sha1>
+    if "id=\"tmap\"" not in x:
+        S[i] = re.sub(r'img/[A-Za-z0-9_.-]+\.png(?![?\w])', ver, x)
 open(OUT, "w").write("\n".join(S) + "\n")
 print("wrote", OUT)
