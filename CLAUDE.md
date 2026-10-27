@@ -54,7 +54,7 @@ everything you need is local. The owner pushes to GitHub himself.
 ## The loop
 
     make            # assets -> data, compile, link, bank usage
-    make test       # pytest on DMG and CGB; goldens in tests/golden/
+    make test       # pytest on DMG and CGB, 8 shards via tools/dev/ptest.py (~1.5 min); JOBS=1 for the old serial run
     make check      # SameBoy, DMG + CGB, screenshots in out/check/
     make preview    # every asset as an x8 PNG in out/preview/ (look at them)
     make cfall      # the C reference build of every asm routine
