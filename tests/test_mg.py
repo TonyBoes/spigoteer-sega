@@ -412,7 +412,6 @@ def test_the_union_fits_story_scratch():
 # ---- back to the bar: everything borrowed is put back by the next level load -----------------------------------------
 def restored(gb, theme):
     """The level's screen and VRAM as a level load leaves them (test_bonus2 / test_enhanced after a bonus round)."""
-    from test_enhanced import bank1_ok, palettes_ok
     v = venue(theme)
     assert tilemap_row(gb, 7, 0, 20) == v["bar_map"][40:60]
     assert tilemap_row(gb, 17, 0, 20) == [v["floor_tile"]] * 20
@@ -430,9 +429,6 @@ def restored(gb, theme):
         assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's (0xE4 in play)"
         return
     assert [gb.pb.memory[1, 0x9C00 + r * 32 + c] & 7 for r in range(6) for c in range(20)] == [1] * 120
-    if theme == "saloon":
-        bank1_ok(gb)
-        palettes_ok(gb)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

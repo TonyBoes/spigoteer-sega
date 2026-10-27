@@ -178,7 +178,6 @@ void start_level(void) BANKED {
     load_venue(cur_group);                      // M9: the venue of the level's theme (theme index = patron group)
     load_patron_group(cur_group);
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
-    enhance_load(cur_group);                    // M14a: row palettes, lifted columns' attributes, OBJ 4, bank-1 lift tiles
     mirror_load(play_mode == MODE_LEVEL ? level_dirs : classic_dirs);   // P3: bars from the right (the harness, CLASSIC)
     place_start_patrons();
     half_decide();                              // 30 fps on the DMG for the heavy levels (src/half.c)

@@ -455,30 +455,5 @@
    29493,
    8389
   ]
- },
- "cowboys_x": {
-  "hex": [
-   "#d86098",
-   "#985830",
-   "#2c1808"
-  ],
-  "rgb15": [
-   19867,
-   6515,
-   1125
-  ]
- },
- "robots_x": {
-  "hex": [
-   "#f8d848",
-   "#7888a0",
-   "#101828"
-  ],
-  "rgb15": [
-   10111,
-   21039,
-   5218
-  ]
- },
- "_note_enhanced": "M14a enhanced variants: <group>_x is the group's extra OBJ palette (CGB OBJ 4) for the lifted column of its enhanced variant that its own palette cannot show; the extra BG palette S is the venue's bar_b (BG 7). The index order of an _x palette is free (its lifted tiles are re-indexed copies in VRAM bank 1)."
+ }
 }

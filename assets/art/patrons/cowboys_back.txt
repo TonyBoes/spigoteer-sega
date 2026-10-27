@@ -1,8 +1,7 @@
 ; owner-approved art (playtest 2 art rounds), imported in M8b from assets/approved/; hand-made, assets/art is the source of truth
 ; was: PROPOSAL: back view (looking up at stage), slot order A B C; same index roles as front
 ; frames: cowboys_back_a, cowboys_back_b, cowboys_back_c
-; M14a: the cowgirl's back view: top tile row S (brown hair), bottom row her own palette (rose top); never lifted
-; @rows b S own
+; M14a: the cowgirl was an enhanced variant; dropped 2026-10-26 (patron-rev-2).
 ; round 6 (owner-approved, imported in the graphics overhaul 2026-10-10): variant(s) a, c redrawn / outline pass; see CHANGES.md
 ; round 7 (owner-approved, imported in the graphics overhaul 2026-10-10): variant(s) c revised; see CHANGES.md
 ; cowboy A redrawn (owner pick 2026-10-11): hat pushed back (brim tilted up at the front, creased crown), clean face, light neckerchief

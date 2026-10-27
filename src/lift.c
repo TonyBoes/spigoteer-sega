@@ -69,8 +69,7 @@ enum { RES_NONE, RES_DONE, RES_REFUSED };
 
 static const uint8_t lift_pal[4] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_A };
 static const uint8_t lift_tile[4] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON_OBJ_BASE + 6), (uint8_t)(PATRON_OBJ_BASE + 12), (uint8_t)PATRON_OBJ_BASE };
-uint8_t lift_prop[8];                 // OAM attributes of variant v's left column [v] and right column [4 + v] (CGB its
-                                      // palettes and bit 3 VRAM bank 1, M14a; DMG OBP1), set at level load (enhance.c)
+uint8_t lift_prop[4];                 // OAM attributes of variant v's lifted entries (CGB its OBJ palette; DMG OBP1), set at level load
 static uint8_t mg_live;
 
 // n OBJ tiles src -> dst with the two bit planes swapped (colours 1 and 2 trade places). LCD off.
@@ -96,15 +95,18 @@ void lift_level_init(uint8_t g) BANKED {
         for (v = 0; v < 3; v++) {
             patron_pal_get(g, v, p);
             p[0] = 0;
+            lift_prop[v] = lift_pal[v];
             set_sprite_palette(lift_pal[v], 1, p);
             music_pump();                         // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
         }
+        lift_prop[3] = lift_pal[3];
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         spr_hempty_t = OBJ_MUG_DRINK + 6;    spr_hempty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         return;
     }
     OBP1_REG = OBP1_PLAY;
+    for (v = 0; v < 4; v++) lift_prop[v] = S_PALETTE;
     swap_copy(OBJ_MUG, OBJ_DMG_COPY, 4);                 // sliding full, sliding empty
     swap_copy((uint8_t)(OBJ_MUG_DRINK + 6), (uint8_t)(OBJ_DMG_COPY + 4), 2);   // the empty in a patron's hand
     spr_full_t = OBJ_DMG_COPY;      spr_full_p = 0;
@@ -1719,12 +1721,34 @@ void lift_frame(void) BANKED {
 
 // OAM 25 down: two 8x16 entries per patron drawn as a sprite (his shift-0 pose; OAM x gives every pixel position and
 // the sway). Entries used last frame but not now are hidden unless the mugs took them this frame.
-// (hand-written: the C loop cost ~10 lines a frame) dl_n patrons written, OAM 25 down, two entries each. In C, per lifted
+// (hand-written: the C loop cost ~10 lines a frame) dl_n patrons written, OAM 25 down, two entries each. Per lifted
 // patron p: x = (patron_draw[p] & 0x7F) + 8 - (patron_lift[p] == LIFT_EDGE ? patron_aux[p] : 0) (uint8_t: wraps past the
-// left edge); entries { bar_oam_y[bar], x, lift_tile[v], lift_prop[v] } and { .., x + 8, lift_tile[v] + 2, lift_prop[4 + v] }
-// (M14a: each column its own attributes); it stops after lift_total patrons.
-static uint8_t dl_n, dl_v, dl_x, dl_y, dl_t, dl_p, dl_q;
+// left edge); entries { bar_oam_y[bar], x, lift_tile[v], lift_prop[v] } and { .., x + 8, lift_tile[v] + 2, lift_prop[v] };
+// it stops after lift_total patrons. The C version (draw_lifted_c, ASM_LIFT_DRAW 0, make cfall) is the reference.
+static uint8_t dl_n, dl_v, dl_x, dl_y, dl_t, dl_p;
 static uint8_t *dl_o;
+#if !ASM_LIFT_DRAW
+static void draw_lifted_asm(void) {
+    uint8_t p, v, n = 0, *o;
+    dl_o = (uint8_t *)shadow_OAM + 100;                   // OAM 25 (OAM_LIFT_TOP)
+    for (p = 0; p != MAX_PATRONS; p++) {
+        dl_v = patron_lift[p] & 3;
+        if (!dl_v || patron_draw[p] == 0xFF) continue;
+        dl_x = (uint8_t)((patron_draw[p] & 0x7F) + 8);
+        if (dl_v == LIFT_EDGE) dl_x = (uint8_t)(dl_x - patron_aux[p]);
+        dl_y = bar_oam_y[patron_bar[p] & 3];
+        v = patron_variant[p] & 3;
+        dl_t = lift_tile[v]; dl_p = lift_prop[v];
+        o = dl_o;
+        o[0] = dl_y; o[1] = dl_x; o[2] = dl_t; o[3] = dl_p;              // his left half
+        o[-4] = dl_y; o[-3] = (uint8_t)(dl_x + 8); o[-2] = (uint8_t)(dl_t + 2); o[-1] = dl_p;   // his right half: the entry below
+        dl_o -= 8;
+        n++;
+        if (n == 4 || n >= lift_total) break;               // LIFT_MAX; all lift_total of them written
+    }
+    dl_n = n;
+}
+#else
 static void draw_lifted_asm(void) __naked {
 __asm
     push bc
@@ -1802,10 +1826,6 @@ __asm
     add  hl, de
     ld   a, (hl)
     ld   (_dl_p), a
-    ld   de, #4             ; (M14a) dl_q = lift_prop[4 + v]: the attributes of the right column
-    add  hl, de
-    ld   a, (hl)
-    ld   (_dl_q), a
     ld   a, (_dl_o)
     ld   l, a
     ld   a, (_dl_o + 1)
@@ -1828,7 +1848,7 @@ __asm
     ld   a, (_dl_t)
     add  a, #2
     ld   (hl+), a
-    ld   a, (_dl_q)
+    ld   a, (_dl_p)
     ld   (hl), a
     add  hl, de             ; the next one down
     ld   a, l
@@ -1854,6 +1874,7 @@ __asm
     ret
 __endasm;
 }
+#endif
 
 void draw_lifted(void) BANKED {
     uint8_t i, n;

@@ -598,11 +598,9 @@ def test_story_plays_it_in_the_bistro_and_the_last_call_has_everything_back(mode
         diff = [k for k in range(len(a)) if a[k] != f[k]]
         assert not diff, f"VRAM tiles as a fresh Last call's: {len(diff)} bytes differ from {hex(0x8000 + diff[0])}"
         assert after[1] == fresh[1], "BG palettes (DMG: BGP, OBP0, OBP1) as a fresh Last call's"
-        x_ids = (ROOT / "build" / "palettes.h").read_text().split("#define PATRON_X_IDS {")[1].split("}")[0]
-        assert x_ids.split(",")[gb.mem("cur_group")].strip() == "255", "the chefs: no extra OBJ palette"
         if model == "cgb":                               # (OBJ 4: Colby's jacket stays; the chefs have no extra OBJ
-            for k in (0, 1, 2, 3, 5, 6, 7):              # palette, so no bistro sprite uses 4: enhance.c sets it only
-                assert after[2][k] == fresh[2][k], k     # for a group with one, as the saloon's after Quick Draw)
+            for k in (0, 1, 2, 3, 5, 6, 7):              # palette, so no bistro sprite uses 4)
+                assert after[2][k] == fresh[2][k], k
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

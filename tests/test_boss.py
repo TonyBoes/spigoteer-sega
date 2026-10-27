@@ -485,7 +485,6 @@ def restored(gb, theme):
     rows a mini-game uses): the venue's rows, the performers' OBJ tiles, every patron tile (the fight borrows variant C,
     its shift-0 pose and the back views), the banner window, LYC, DMG OBP1, the saloon's bank-1 tiles and extra
     palettes; no boss face on the HUD."""
-    from test_enhanced import bank1_ok, palettes_ok
     from test_mg import PANEL_BOT, PANEL_TOP
     v = venue(theme)
     assert tilemap_row(gb, 7, 0, 20) == v["bar_map"][40:60]
@@ -495,9 +494,6 @@ def restored(gb, theme):
     assert gb.mem(0xFF45) == gb.mem(0xFF4A) + 22, "LYC is the banner's (BANNER_LYC)"
     if gb.model_name == "dmg":
         assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's (0xE4 in play)"
-    elif theme == "saloon":
-        bank1_ok(gb)
-        palettes_ok(gb)
     g = gb.mem("cur_group")
     bg = bytes(gb.read(0x9000 + 78 * 16, 50 * 16)) + bytes(gb.read(0x8800, 106 * 16))
     assert bg == patron_group_tiles(g), "every patron tile is back (variant C, the back views)"
