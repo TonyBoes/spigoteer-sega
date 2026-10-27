@@ -76,6 +76,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-26", "Patron revision batch 1 in the game: the accepted art for 8 venues and the palette merges (colours shared; no slots freed yet)."),
     ("2026-10-26", "This page is now the Graphics Atlas; the old atlas page is retired."),
     ("2026-10-26", "OBJ 7: \"Boss: hat\" was in every venue; now each lists its own boss's topper (crest, horns, lamp...), reloaded in his colours for the fight."),
     ("2026-10-26", "Tile grid sorted by what the tiles are: every frame assembled as drawn (Sal, mugs, glass, coin, dancers, sparkle), patron poses and back per look, the screen as drawn, digits and letters in order; the VRAM order behind a toggle."),
