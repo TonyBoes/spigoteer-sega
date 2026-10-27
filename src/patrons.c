@@ -180,16 +180,7 @@ void clear_patrons(void) {
     lists_ok = 0;
 }
 
-// A patron whose mug is going to serve him (the push carries him off the left edge) may tip: the coin drops under him where he
-// stands as the mug lands and the push takes him away, so it is his and shows while he is still on the screen (owner 2026-10-17: it
-// used to appear after he was gone). Not while a tip lies there, nor while a show runs, unless the pocket is on and empty (pocket.c).
-void maybe_tip(uint8_t p) {              // (level.c push_for: the push that serves him)
-    if (tip_timer || tip_first || (show_timer && tip_pocket != TILE_HUD_BLANK)) return;   // (CLASSIC: not before the level's first tip, send_empty)
-    if (!tip_chance || (tip_chance != 255 && next_rand() >= tip_chance)) return;   // 0 never (and draws no random number)
-    tip_timer = TIP_FRAMES;
-    tip_bar = patron_bar[p];
-    tip_x = patron_x[p] + 4;                            // (centred under him, as classic_tip puts the first one)
-}
+// (maybe_tip, the tip a served patron may drop, is src/tip.c now: banked)
 
 // M13b: patrons overlap. A patron's real columns are c = draw >> 3 (without DRAW_BACK) and c + 1, and c + 2 unless he
 // stands on a multiple of 8 (shift 0, or his back view). col_scan(b, k, p): how many patrons of bar b other than p

@@ -32,6 +32,10 @@
 #define SCR_BOSS_AT      (STORY_SCRATCH - SCR_BOSS_N)
 #define SCR_LIGHTS_AT    (SCR_BOSS_AT - SCR_LIGHTS_N)
 
+// ---- the second tip coin (src/tip2.h): alive with the fight and with every level; 218..299 is nobody's there
+#define SCR_TIP2_AT      230     // struct tip2 (4 bytes): only means something while the first coin (tip_timer) is out
+#define SCR_TIP2_N       4
+
 // ---- the one-line menus (src/oneline.h: SOUNDTRACK, MINI GAMES, BOSS RUSH's list): alive only while one of them shows, with that screen's row buffers ------------
 #define SCR_OL_AT        364     // struct ol_state: the arrows' bob and the key repeat (right after the fight's staging; below the Boss Rush struct)
 #define SCR_OL_N         5       // sizeof(struct ol_state), asserted in oneline.c
@@ -46,5 +50,7 @@ typedef char scr_fight_rush_lights[SCR_RUSH_AT + SCR_RUSH_N <= SCR_LIGHTS_AT ? 1
 typedef char scr_fight_lights_boss[SCR_LIGHTS_AT + SCR_LIGHTS_N <= SCR_BOSS_AT ? 1 : -1];
 typedef char scr_ol_below_rush[SCR_OL_AT + SCR_OL_N <= SCR_RUSH_AT ? 1 : -1];
 typedef char scr_ol_above_cap[SCR_OL_AT >= SCR_CAP_AT + SCR_CAP_N ? 1 : -1];
+typedef char scr_tip2_above_belt[SCR_BELT_AT + SCR_BELT_N <= SCR_TIP2_AT ? 1 : -1];
+typedef char scr_tip2_below_cap[SCR_TIP2_AT + SCR_TIP2_N <= SCR_CAP_AT ? 1 : -1];
 typedef char scr_fight_in_buffer[SCR_BOSS_AT + SCR_BOSS_N <= STORY_SCRATCH ? 1 : -1];
 #endif

@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "tip2.h"
 #include "palettes.h"
 #include "boss.h"
 
@@ -782,7 +783,7 @@ void draw_bartender(void) {
 uint8_t dancers_vis;              // dancer OAM entries written (and so to be hidden again)
 uint8_t dancer_sig;               // what the dancer entries show (0x80 | frame << 3 | visible mask); 0: rewrite them
 
-// OAM 27: the tip coin on its bar's counter (blinks in its last second, glints every half second).
+// OAM 27: the tip coin on its bar's counter (blinks in its last second, glints every half second). The second coin is OAM 26 (src/tip.c).
 static void draw_coin(void) {
     OAM_item_t *o = shadow_OAM + OAM_COIN;
     if (!tip_timer || (tip_timer < TIP_BLINK && (tip_timer & 4))) { o->y = 0; return; }
@@ -830,6 +831,7 @@ static void pal5_write(void) {
 void draw_stage_fx(void) {
     uint8_t k;
     draw_coin();
+    if (shadow_OAM[OAM_COIN - 1].y || (tip_timer && tip_pocket && TIP2->t)) tip_draw2();   // (the second coin, OAM 26: src/tip.c, banked, so only when it shows or must be hidden)
     pal5_check();
     if (!show_timer) {
         if (dancers_vis) {

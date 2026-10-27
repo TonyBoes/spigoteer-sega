@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "game.h"
+#include "tip2.h"
 #include "palettes.h"
 #include "bonus.h"
 #include "music.h"
@@ -540,12 +541,15 @@ static void play_frame(uint8_t pressed) {
 
     // tip: counts down, and is picked up by standing on it (16 px span overlapping its 8 px)
     if (tip_timer) {
-        tip_timer--;
-        if (tip_timer && bar == tip_bar && bartender_x < (uint8_t)(tip_x + 8) && (uint8_t)(bartender_x + 16) > tip_x) {
-            tip_timer = 0;
-            add_score(TIP_SCORE);
-            SFX(SFX_COIN);
-            start_show();
+        if (tip_pocket && TIP2->t) tip_step();   // two coins (ARCADE, STORY): src/tip.c counts both down, one pick-up a frame
+        else {
+            tip_timer--;
+            if (tip_timer && bar == tip_bar && bartender_x < (uint8_t)(tip_x + 8) && (uint8_t)(bartender_x + 16) > tip_x) {
+                tip_timer = 0;
+                add_score(TIP_SCORE);
+                SFX(SFX_COIN);
+                start_show();
+            }
         }
     }
     if (show_timer) {

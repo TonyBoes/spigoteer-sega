@@ -371,6 +371,9 @@ uint8_t catch_full(uint8_t i);                // mugs.c asks for every full mug
 void begin_catch_frame(void);
 extern uint8_t catch_lim[NUM_BARS];          // a full mug at x >= catch_lim[its bar] is caught by nobody (see patrons.c)
 void start_show(void) BANKED;                  // (show.c, bank 5)
+void maybe_tip(uint8_t p) BANKED;               // (tip.c: a served patron's tip; the second coin: tip2.h)
+void tip_step(void) BANKED;                     // (tip.c, main.c: two coins count down and are picked up)
+void tip_draw2(void) BANKED;                    // (tip.c, render.c: the second coin, OAM 26)
 // The pocketed tip (owner 2026-10-18; src/pocket.c): a tip picked up while a show runs is kept (one slot) and B starts a show from it. tip_pocket
 // holds the HUD tile id itself, so the VBlank queue draws the byte as it is (vq_add): 0 off (CLASSIC and the other modes: nothing changes),
 // TILE_HUD_BLANK on and empty, POCKET_TILE (the coin icon's BG id) a tip held. Set at a level's load (ARCADE and STORY only), emptied at its end.

@@ -40,6 +40,7 @@
 #include "game.h"
 #include "music.h"
 #include "palettes.h"
+#include "tip2.h"
 
 uint8_t patron_lift[MAX_PATRONS];   // LIFT_BG / LIFT_OBJ / LIFT_EDGE, | LIFT_DROP while dropping
 uint8_t lift_n[NUM_BARS];           // patrons of the bar drawn as sprites (lifted or dropping)
@@ -230,7 +231,10 @@ static void estimate(void) {
     b = bar & (NUM_BARS - 1);
     ld[b] += fill_timer ? 3 : 2;
     if (b < NUM_BARS - 1) ld[b + 1] += 2;
-    if (tip_timer) ld[tip_bar & (NUM_BARS - 1)]++;
+    if (tip_timer) {
+        ld[tip_bar & (NUM_BARS - 1)]++;
+        if (tip_pocket && TIP2->t) ld[TIP2->bar & (NUM_BARS - 1)]++;    // (the second coin: tip2.h)
+    }
 }
 
 static uint8_t est_ok;                // the estimate is this frame's (lift_frame computes it only when someone needs it)

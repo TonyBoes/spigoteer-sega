@@ -267,7 +267,7 @@ void mirror_oam(void) BANKED {
         f = OAM_MUG_END - (lift_oam_n << 1);
         mo_t = mo_tp; mo_p = (uint8_t *)(shadow_OAM + f); mo_n = lift_oam_n << 1; mo_range();
     }
-    mo_t = mo_tm; mo_p = (uint8_t *)(shadow_OAM + OAM_COIN); mo_n = 1; mo_range();
+    mo_t = mo_tm; mo_p = (uint8_t *)(shadow_OAM + OAM_COIN - 1); mo_n = 2; mo_range();    // (the two tip coins, OAM 26 and 27: tip.c)
 }
 
 // A quick redraw (render.c queue_quick) of patron p, front view at d, on an R bar: his 6 tile ids mirrored into the

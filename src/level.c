@@ -9,6 +9,7 @@
 #include "game.h"
 #include "palettes.h"
 #include "music.h"
+#include "tip2.h"
 
 extern uint8_t level, cur_group, arcade_loop, served, step_frames, pushback_cols;
 #define WALL_RGB    (venue.pal[VENUE_PAL_BAR][0])   // the venue's wall: colour 0 of the bar and of the patron palettes
@@ -128,7 +129,6 @@ static uint8_t push_calc(uint8_t p) {
 
 // push_calc, and a patron it serves may tip (patrons.c maybe_tip: the coin drops under him as the mug lands and the push takes him away,
 // so it is his and shows while he is still on the screen; owner 2026-10-17). A drinker's push is d < x - ENTRY_X.
-extern void maybe_tip(uint8_t p);
 uint8_t push_for(uint8_t p) BANKED {
     uint8_t r = push_calc(p);
     if (r + ENTRY_X > patron_x[p]) maybe_tip(p);
@@ -182,6 +182,7 @@ void start_level(void) BANKED {
     uint8_t idx = level - 1, k, g;
     const level_cfg_t *c;
     level_cfg_t row;
+    TIP2->t = 0;                                    // (the second tip coin lives in story_scratch, which the last screen left junk in: tip2.h)
     if ((k = classic_row(&row)) != 255) c = &row;   // P5: CLASSIC's table (classic.c), its repeats as the loops
     else {
         cur_group = idx % LEVEL_ROWS;

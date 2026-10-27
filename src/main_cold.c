@@ -302,7 +302,7 @@ void enter_level_clear(void) BANKED {
     uint8_t i;
     tip_timer = 0; show_timer = 0;               // a tip is simply forgotten when the level ends
     pocket_clear();                              // (a pocketed one too)
-    for (i = OAM_COIN; i < 40; i++) shadow_OAM[i].y = 0;
+    for (i = OAM_COIN - 1; i < 40; i++) shadow_OAM[i].y = 0;
     dancers_vis = 0; oam_touched();
     add_score(LEVEL_BONUS);
     state_timer = 0;
