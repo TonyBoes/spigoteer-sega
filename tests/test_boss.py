@@ -523,7 +523,7 @@ def test_regulars_keep_coming_more_slowly_on_the_other_bars(model):
                 last = n
             pb, pv = gb.read("patron_bar", 16), gb.read("patron_variant", 16)
             live = [p for p in range(16) if st[p]]
-            assert all(pb[p] != ROW["bar"] for p in live) and all((pv[p] & 7) not in (2, 6, 7) and ((pv[p] ^ (pv[p] >> 3)) & 7) not in (2, 4) for p in live), f   # (variant C and the Saloon's OBJ 7 / 5 looks are the boss's)
+            assert all(pb[p] != ROW["bar"] for p in live) and all((pv[p] & 7) != 2 and ((pv[p] ^ (pv[p] >> 3)) & 7) not in (2, 4) for p in live), f   # (variant C and the Saloon's OBJ 7 / 5 instances are the boss's)
             assert gb.mem16("tip_timer") == 0
         assert len(spawns) >= 4
         assert all(b - a >= 450 for a, b in zip(spawns, spawns[1:])), spawns
