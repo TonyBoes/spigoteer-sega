@@ -1,0 +1,22 @@
+; PROPOSAL: back view of the Space Lounge 4th look, drawn from the front by hand (not mirrored). index 0 = wall, 1 cream, 2 red, 3 dark
+; frames: aliens_d_back
+; Same helmet ring (cream shell, dark inner rim 3 px each side as in the front, same top band, the glass glint at (4,2) and (3,3)), the face replaced
+; by the back of her red hair seen through the glass (a plain rounded dome), a narrow cream neck (3 px) at the nape, the front's neck
+; ring and cream suit shoulders with red trim, and a dark air pack with two red valves where the front has the chest panel with three red lights.
+; No eyes, mouth or visor shape faces the viewer.
+...---------....
+..-#########-...
+.-##-#++++###-..
+.-#-#++++++##-..
+-###+++++++###-.
+-###+++++++###-.
+-###+++++++###-.
+-###+++++++###-.
+-###+++++++###-.
+-###+++++++###-.
+#-###+++++###-#.
+.#+###---###+#..
+..#+++###+++#...
+.#+---------+#..
+#+--#######--+#.
+#+--#+###+#--+#.
