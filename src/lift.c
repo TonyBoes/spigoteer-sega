@@ -67,9 +67,12 @@ enum { RES_NONE, RES_DONE, RES_REFUSED };
 #define MUG_OAM_ALL    (OAM_MUG_END - (OAM_FILL + 1))     // 21 entries for mugs and lifted patrons together
 #define OAM_SPARE      2                                  // kept free for this frame's new mug / breaking glass
 
-static const uint8_t lift_pal[4] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_A };
-static const uint8_t lift_tile[4] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON_OBJ_BASE + 4), (uint8_t)(PATRON_OBJ_BASE + 8), (uint8_t)PATRON_OBJ_BASE };
-uint8_t lift_prop[4];                 // OAM attributes of variant v's lifted entries (CGB its OBJ palette; DMG OBP1), set at level load
+// OBJ palette of palette instance pi (patron_variant, render.c patron_attr): the legacy A, B, C, then the Saloon's two extra sets (OBJPAL_PATRON_D, _E)
+static const uint8_t lift_obj[5] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_D, OBJPAL_PATRON_E };
+// shift-0 OBJ tile of look v: 0-2 the group's, 3-7 the Saloon's Color-only looks (VRAM bank 1: OAM bit 3 from patron_variant bit 6)
+static const uint8_t lift_tile[8] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON_OBJ_BASE + 4), (uint8_t)(PATRON_OBJ_BASE + 8),
+    SALOON_X_S0, SALOON_X_S0 + 4, SALOON_X_S0 + 8, SALOON_X_S0 + 12, SALOON_X_S0 + 16 };
+uint8_t lift_prop[4];                 // [0]: the OAM attribute bits every lifted patron has (CGB 0; DMG OBP1: S_PALETTE); the OBJ palette and the bank bit come from his variant byte (draw_lifted_asm)
 static uint8_t mg_live;
 
 // n OBJ tiles src -> dst with the two bit planes swapped (colours 1 and 2 trade places). LCD off.
@@ -91,22 +94,22 @@ void lift_level_init(uint8_t g) BANKED {
     for (v = 0; v < NUM_BARS; v++) lift_n[v] = 0;
     lift_total = 0; lift_oam_n = 0; lift_hook_op = HOOK_NONE;
     pal5_cur = 2;                                 // load_venue put the show's palette in slot 5
+    lift_prop[0] = S_PALETTE;
     if (is_cgb) {
-        for (v = 0; v < 3; v++) {
+        lift_prop[0] = 0;
+        for (v = 0; v < (g ? 3 : 5); v++) {       // (the Saloon: 5 palette instances; the 5th is OBJ 5, which the show takes from it and gives back, render.c pal5_check)
             patron_pal_get(g, v, p);
             p[0] = 0;
-            lift_prop[v] = lift_pal[v];
-            set_sprite_palette(lift_pal[v], 1, p);
+            set_sprite_palette(lift_obj[v], 1, p);
             music_pump();                         // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
         }
-        lift_prop[3] = lift_pal[3];
+        if (!g) pal5_cur = 0;
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         spr_hempty_t = OBJ_MUG_DRINK + 6;    spr_hempty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         return;
     }
     OBP1_REG = OBP1_PLAY;
-    for (v = 0; v < 4; v++) lift_prop[v] = S_PALETTE;
     swap_copy(OBJ_MUG, OBJ_DMG_COPY, 4);                 // sliding full, sliding empty
     swap_copy((uint8_t)(OBJ_MUG_DRINK + 6), (uint8_t)(OBJ_DMG_COPY + 4), 2);   // the empty in a patron's hand
     spr_full_t = OBJ_DMG_COPY;      spr_full_p = 0;
@@ -1737,8 +1740,8 @@ static void draw_lifted_asm(void) {
         dl_x = (uint8_t)((patron_draw[p] & 0x7F) + 8);
         if (dl_v == LIFT_EDGE) dl_x = (uint8_t)(dl_x - patron_aux[p]);
         dl_y = bar_oam_y[patron_bar[p] & 3];
-        v = patron_variant[p] & 3;
-        dl_t = lift_tile[v]; dl_p = lift_prop[v];
+        v = patron_variant[p];
+        dl_t = lift_tile[v & 7]; dl_p = lift_obj[(v ^ (v >> 3)) & 7] | lift_prop[0] | ((v >> 3) & 8);
         o = dl_o;
         o[0] = dl_y; o[1] = dl_x; o[2] = dl_t; o[3] = dl_p;              // his left half
         o[-4] = dl_y; o[-3] = (uint8_t)(dl_x + 8); o[-2] = (uint8_t)(dl_t + 2); o[-1] = dl_p;   // his right half: the entry below
@@ -1814,17 +1817,35 @@ __asm
     ld   a, #0
     adc  a, #>(_patron_variant)
     ld   h, a
-    ld   a, (hl)
-    and  a, #3
+    ld   a, (hl)            ; the variant byte: look bits 0-2, (palette instance ^ look) bits 3-5, the bank-1 flag bit 6
+    ld   (_dl_v), a
+    and  a, #7
     ld   e, a
     ld   d, #0
     ld   hl, #_lift_tile
     add  hl, de
     ld   a, (hl)
     ld   (_dl_t), a
+    ld   a, (_dl_v)
+    ld   e, a
+    rrca
+    rrca
+    rrca                    ; v >> 3 in bits 0-5 (bit 6 -> bit 3)
+    ld   d, a
+    xor  a, e
+    and  a, #7              ; the palette instance
+    add  a, #<(_lift_obj)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_lift_obj)
+    ld   h, a
+    ld   a, (hl)            ; its OBJ palette
+    ld   e, a
+    ld   a, d
+    and  a, #8              ; VRAM bank 1 (OAM bit 3)
+    or   a, e
     ld   hl, #_lift_prop
-    add  hl, de
-    ld   a, (hl)
+    or   a, (hl)            ; DMG: OBP1
     ld   (_dl_p), a
     ld   a, (_dl_o)
     ld   l, a

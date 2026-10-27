@@ -176,15 +176,24 @@ uint8_t mir_bswap;                        // DMG mixed level: MIX_A (option (a))
 // OBJ tiles for a lifted patron). Filled by mirror.c: L and R the same unless the DMG holds two tile sets (a mixed level).
 uint8_t st_tab[64];
 #define SB(v) ((uint8_t)(PATRON_BACK_BASE + (v) * 4u))                     // first back-view tile of variant v
-static const uint8_t back_tile[4] = { SB(0), SB(1), SB(2), SB(0) };
+#define SX(k) ((uint8_t)(SALOON_X_BACK + (k) * 4u))                         // first back-view tile of the Saloon's look 3 + k (VRAM bank 1)
+static const uint8_t back_tile[8] = { SB(0), SB(1), SB(2), SX(0), SX(1), SX(2), SX(3), SX(4) };   // by look (3-7: the Color-only ones)
+// BG palette slot of palette instance pi (patron_variant): 0-2 the legacy A, B, C; 3 and 4 the Saloon's extra sets (7: the keg's, free in the Saloon's playfield; 5: the stage's, below the split line)
+static const uint8_t pal_bg[5] = { BGPAL_PATRON, BGPAL_PATRON + 1, BGPAL_PATRON + 2, BGPAL_BAR_B, BGPAL_STAGE };
 
 static uint8_t st_t;                      // first tile of the patron being stamped
 static uint8_t cz_dir, cz_sto, cz_flip, cz_bswap;   // the bar being composed is R; its st_tab offset, attribute bit, back-view swap
 
+// patron_variant: bits 0-2 the look, bits 3-5 (palette instance ^ look): 0 is the look's own palette (A, B, C = BG 2, 3, 4), bit 6 a
+// Color-only look drawn from VRAM bank 1 (its BG attribute and OAM bit 3 = bit 6 >> 3). game.h PATRON_BANK1.
+static void patron_attr(uint8_t v) {                     // cz_pal of a patron with variant byte v
+    cz_pal = pal_bg[(v ^ (v >> 3)) & 7] | ((v >> 3) & 8) | cz_flip;
+}
+
 static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal for patron s drawn at x d (front view)
-    uint8_t v = patron_variant[s] & 3;
-    cz_pal = (BGPAL_PATRON + v) | cz_flip;
-    st_t = st_tab[cz_sto | (v << 3) | (d & 7)];
+    uint8_t v = patron_variant[s];
+    patron_attr(v);
+    st_t = st_tab[cz_sto | ((v & 7) << 3) | (d & 7)];
 }
 
 static void stamp3(uint8_t c, uint8_t t3) {              // the whole 3x2 footprint at column c (not on an R bar); t3: the 3rd column's top tile (option 2: the shared blank pair at shift 0)
@@ -224,9 +233,9 @@ static void put_back_col(uint8_t c, uint8_t t) {         // one 1x2 column of a 
 // Patron s, watching the show, in its back view at column c (on a multiple of 8 px: 2 columns; the 3rd column of
 // its footprint stays wall).
 static void stamp_back(uint8_t s, uint8_t c) {
-    uint8_t v = patron_variant[s] & 3;
-    cz_pal = (BGPAL_PATRON + v) | cz_flip;
-    v = back_tile[v];
+    uint8_t v = patron_variant[s];
+    patron_attr(v);
+    v = back_tile[v & 7];
     if (cz_bswap) { put_back_col(c, v + 1); put_back_col(c + 1, v); return; }   // (DMG mixed: drawn unmirrored on an R bar)
     put_back_col(c, v); put_back_col(c + 1, v + 1);
 }
@@ -253,7 +262,7 @@ static void stamp_blank(uint8_t s) {
     if (d == 255 || (d & DRAW_BACK)) return;              // (a back view covers its own 2 columns; the 3rd stays wall)
     c = (d & ~DRAW_BACK) >> 3;
     if (c + 3 <= cz_x0 || c >= cz_x1) return;
-    cz_pal = BGPAL_PATRON + (patron_variant[s] & 3);   // (colour 0 only: the wall in every patron palette)
+    patron_attr(patron_variant[s]);                    // (colour 0 only: the wall in every patron palette)
     put_col(c, (uint8_t)PATRON_BLANK); put_col(c + 1, (uint8_t)PATRON_BLANK); put_col(c + 2, (uint8_t)PATRON_BLANK);
 }
 
@@ -322,7 +331,7 @@ static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1
     cz_tile = sh_tile[b << 1];
     cz_base = &base_all[0][0][0] + bar_bofs[b];
     cz_dir = cz_sto = cz_flip = cz_bswap = 0;
-    if (bar_dirs & bar_bit[b]) { cz_dir = 1; cz_sto = 32; cz_flip = mir_attr; cz_bswap = mir_bswap & MIX_A; }
+    if (bar_dirs & bar_bit[b]) { cz_dir = 1; cz_sto = mir_attr ^ 32; cz_flip = mir_attr; cz_bswap = mir_bswap & MIX_A; }
     restore_base();
     stamp_bar(b);
     if (boss_on) stamp_fight(b);
@@ -646,13 +655,13 @@ static uint8_t seq_ofs(uint8_t t) {      // a pose's first tile -> its index in 
 // in registers here; inside the loop it spilled them.)
 static void quick_entries(uint8_t p, uint8_t d) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1), k = 3;          // (k: from the top row's ids to the bottom row's)
-    if (bar_dirs & bar_bit[b]) {          // R bar: his 6 ids mirrored into the shadow rows (the screen picture), queued from there
+    if ((bar_dirs & bar_bit[b]) || (patron_variant[p] & PATRON_BANK1)) {   // R bar, or a bank-1 look: his 6 ids (mirrored) into the shadow rows (the screen picture), queued from there
         d = quick_mirror(p, d);
         qv_src = (uint16_t)&sh_tile[b << 1][d];
         qv_dst = (uint16_t)bar_map[b] + d;
         k = 32;
     } else {
-        qv_src = (uint16_t)id_seq + seq_ofs(st_tab[((patron_variant[p] & 3) << 3) | (d & 7)]);
+        qv_src = (uint16_t)id_seq + seq_ofs(st_tab[((patron_variant[p] & 7) << 3) | (d & 7)]);
         qv_dst = (uint16_t)bar_map[b] + (d >> 3);
     }
     qv_w = 3;
@@ -786,7 +795,12 @@ static void draw_coin(void) {
 // CGB OBJ palette 5: the show's (the coin wears Sal's OBJ 0). Loaded with the venue; this reloads it if something else (a fight) had it. Asked for at the end of the frame's
 // drawing, written by the VBlank interrupt (vq_vbl) right after the OAM DMA that shows the frame.
 static void pal5_check(void) {
-    if (!show_timer || pal5_cur == 2 || !is_cgb) return;
+    if (!is_cgb) return;
+    if (!show_timer) {                            // the Saloon (Color) keeps its 5th palette instance in OBJ 5 (lift.c): back from the show's colours when the show ends
+        if (pal5_cur == 2 && SPLIT_ON) { pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (SPLIT_PAL: that instance, already lifted for SCREEN BRIGHT)
+        return;
+    }
+    if (pal5_cur == 2) return;
     if (SCR_BRIGHT()) { pal5_lift(); pal5_src = pal5_lifted; }   // SCREEN BRIGHT: the VBlank writes pal5_lifted raw, so the show's colours are lifted into it here (src/bright.c)
     else pal5_src = venue.pal[VENUE_PAL_SHOW];
     pal5_cur = 2;

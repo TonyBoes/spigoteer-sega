@@ -541,12 +541,7 @@ static uint8_t try_spawn(void) {
         if (!--v) return 0;
     }
     if (blocked_behind(b, SPAWN_X + PATRON_SPACING)) return 0;   // someone within PATRON_SPACING px of the spawn point
-    v = next_rand();                              // v % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
-    v = (v >> 4) + (v & 15);
-    v = (v >> 2) + (v & 3);
-    v = (v >> 2) + (v & 3);
-    if (v >= 3) v -= 3;
-    if (v == 2 && boss_on) v = rng_state & 1;     // a boss fight: variant C's tiles are the boss's (src/boss.c)
+    v = spawn_variant(next_rand());               // (mirror.c: banked, ROM0 is tight)
     if (hurry_speed && !(next_rand() & 3)) np_h = 1;   // M13b: about 1 in 4 hurries (from level 3; level.c)
     if (!add_patron(b, SPAWN_X, v)) { np_h = 0; return 0; }
     patron_aux[np_p] = PATRON_W;

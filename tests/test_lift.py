@@ -23,7 +23,12 @@ OBJ_BASE = BASE + SHIFT0_OFS                 # shift-0 pose of variant v: OBJ_BA
 BLANK = OBJ_BASE - 2                         # its 3rd column: plain colour 0, what a lifted patron leaves on the BG
 OAM_LIFT_TOP = GAME["OAM_MUG_END"] - 1       # 25: lifted patrons count down from here
 OAM_DANCERS = GAME["OAM_DANCERS"]
-LIFT_PAL = [3, 6, 7]                          # CGB OBJ palettes of variants A, B, C
+LIFT_PAL = [3, 6, 7, 4, 5]                    # CGB OBJ palettes of palette instances 0-4 (patron-rev-2: A, B, C, then the Saloon's two extra sets)
+from test_patrons import X_S0 as _X_S0
+
+
+def obj_tile_of(look):                        # shift-0 OBJ tile of a look (3-7: the Saloon's Color-only ones, VRAM bank 1)
+    return OBJ_BASE + 4 * look if look < 3 else _X_S0 + 4 * (look - 3)
 OUT = ROOT / "out" / "m13a"
 import json as _json
 
@@ -216,6 +221,7 @@ def test_lift_and_drop_change_no_pixel_and_put_the_bg_back(gb):
     tm0 = gb.bg_tilemap()
     p = list(gb.read("patron_state", MAX_P)).index(WALKING)
     b, x, v = gb.read("patron_bar", MAX_P)[p], gb.read("patron_x", MAX_P)[p], gb.read("patron_variant", MAX_P)[p]
+    pi, bank1, v = (v ^ (v >> 3)) & 7, (v >> 6) & 1, v & 7
     OUT.mkdir(parents=True, exist_ok=True)
     gb.screenshot(OUT / f"before_bg.{gb.model_name}.png", 4)
     for op in (HOOK_LIFT,):
@@ -225,11 +231,11 @@ def test_lift_and_drop_change_no_pixel_and_put_the_bg_back(gb):
             assert (screen(gb) == ref).all(), f"lift frame {i}"
         assert gb.mem("lift_hook_res") == 1 and lift_state(gb)[p] == op
         spr = lifted_sprites(gb)
-        assert sorted((s["x"] - 8, s["tile"]) for s in spr) == [(x, OBJ_BASE + 4 * v), (x + 8, OBJ_BASE + 4 * v + 2)]
+        assert sorted((s["x"] - 8, s["tile"]) for s in spr) == [(x, obj_tile_of(v)), (x + 8, obj_tile_of(v) + 2)]
         assert all(s["y"] - 16 == bar_top_y(b) for s in spr)
         assert all(not s["flags"] & 0x80 for s in spr), "in front of the BG"
         if gb.model_name == "cgb":
-            assert all(s["flags"] & 0x0F == LIFT_PAL[v] for s in spr)      # (both halves: his OBJ palette)
+            assert all(s["flags"] & 0x0F == LIFT_PAL[pi] | bank1 << 3 for s in spr)      # (both halves: his OBJ palette, and VRAM bank 1 for the Color-only looks)
         else:
             assert all(s["flags"] & 0x10 for s in spr), "DMG: OBP1"
         assert all(t in (BLANK, BLANK + 1) for r in map_ids(gb, b, x >> 3) for t in r), "BG: plain wall under him"
@@ -501,7 +507,12 @@ def test_the_coin_wears_sals_palette_and_slot_5_is_the_shows_alone(gb):
     show = venue(0)["pal"][6]
     cgb = gb.model_name == "cgb"
     if cgb:
-        assert cgb_obj_palette(gb, 5)[1:] == show[1:], "the level starts with the show's colours in slot 5"
+        if gb.mem("cur_group") == 0:         # the Saloon: slot 5 holds the 5th palette instance (MABEL, ARTIE) until a show takes it (render.c pal5_check)
+            assert gb.mem("pal5_cur") == 0 and cgb_obj_palette(gb, 5)[1:] != show[1:]
+            show5 = cgb_obj_palette(gb, 5)
+        else:
+            assert cgb_obj_palette(gb, 5)[1:] == show[1:], "the level starts with the show's colours in slot 5"
+            show5 = None
     gb.write("tip_timer", 200)
     gb.write("tip_bar", 1)
     gb.write("tip_x", 60)
@@ -509,7 +520,7 @@ def test_the_coin_wears_sals_palette_and_slot_5_is_the_shows_alone(gb):
     cs = coin_sprites(gb)
     assert len(cs) == 1 and cs[0]["flags"] & 7 == 0, "a tip, no show: Sal's palette"
     if cgb:
-        assert cgb_obj_palette(gb, 5)[1:] == show[1:], "slot 5 untouched by the coin"
+        assert (cgb_obj_palette(gb, 5)[1:] == show5[1:]) if show5 else (cgb_obj_palette(gb, 5)[1:] == show[1:]), "slot 5 untouched by the coin"
         assert cgb_obj_palette(gb, 0)[1:] != show[1:]
     gb.write("show_timer", 100)
     gb.run(3)
@@ -519,3 +530,6 @@ def test_the_coin_wears_sals_palette_and_slot_5_is_the_shows_alone(gb):
         assert cgb_obj_palette(gb, 5)[1:] == show[1:] and gb.mem("pal5_cur") == 2, "the show: its colours"
     gb.write("show_timer", 0)
     gb.write("tip_timer", 0)
+    if cgb and show5:                        # the show ended: the Saloon's 5th palette instance is back in slot 5
+        gb.run(3)
+        assert cgb_obj_palette(gb, 5)[1:] == show5[1:] and gb.mem("pal5_cur") == 0, "slot 5 given back after the show"

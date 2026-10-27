@@ -1139,6 +1139,98 @@ def _main():
         png(vs + bs, prev / f"patrons_{g}_x8.png", 8)
         if g == PATRON_GROUPS[0]:
             png(shifted_rows[:PATRON_SHIFTS], prev / "patrons_shifted_x8.png", 8)
+    # ---- patron-rev-2 step 4: the Saloon's five Color-only looks (HANK, ROSIE, REDD, MABEL, ARTIE) in VRAM bank 1 ----
+    # BG ids of bank 1 (all free there): the 35 shifted poses of 6 tiles (look k, shift s: pose q = 7 k + s - 1) at 6 q for q < 34, the
+    # blank pair at PATRON_BLANK (so a bank-1 look's shift-0 3rd column is the same id as bank 0's), the five shift-0 poses (4 tiles,
+    # OBJ-able: even, >= 128) from X_S0, the five back views (4 tiles) from X_BACK, and the last pose (q = 34) at X_LAST.
+    xs = [r for _, r in blocks(ROOT / "assets/art/patrons/saloon_x.txt")]
+    xb = [r for _, r in blocks(ROOT / "assets/art/patrons/saloon_x_back.txt")]
+    assert len(xs) == 5 and len(xb) == 5 and all(len(v) == 16 and all(len(r) == 16 for r in v) for v in xs + xb)
+    x_blank = patron_first + blank_ofs
+    x_s0, x_back, x_last = x_blank + 2, x_blank + 22, x_blank + 42
+    assert x_blank == 204 and x_s0 % 2 == 0 and x_s0 >= 128 and x_last + 6 == 252
+    xt = [None] * 252
+    xt[x_blank] = xt[x_blank + 1] = tile_bytes(["." * 8] * 8, 0, 0)
+    for k, v in enumerate(xs):
+        for s in range(PATRON_SHIFTS):
+            canvas = ["." * s + v[y] + "." * (24 - 16 - s) for y in range(16)]
+            q = k * 7 + s - 1
+            o = x_s0 + 4 * k if s == 0 else 6 * q if q < 34 else x_last
+            for cx, tx in enumerate((0, 8, 16)):
+                if s == 0 and cx == 2:
+                    assert all(set(r[16:]) <= {"."} for r in canvas)
+                    continue
+                xt[o + 2 * cx] = tile_bytes(canvas, tx, 0)
+                xt[o + 2 * cx + 1] = tile_bytes(canvas, tx, 8)
+    for k, v in enumerate(xb):
+        for r, ty in enumerate((0, 8)):
+            for cx, tx in enumerate((0, 8)):
+                xt[x_back + 4 * k + r * 2 + cx] = tile_bytes(v, tx, ty)
+    assert all(t is not None for t in xt)
+    xsym = "patron_tiles_saloon_x"
+    # The loader sits in the blob's own bank (no bank switch to make while it runs) and
+    # leaves the music to the caller's pump between its 8 parts (32 tiles each, the last 28).
+    xload = ["// LCD off only: part 0..7 of the Saloon's Color-only looks into VRAM bank 1 (BG ids 0..251: ids 0..127 at 0x9000, 128..251 at 0x8800; the caller pumps the tune between the parts)",
+             "// part p: 32 tiles (the last 28) from blob + 512 p to 0x9000 + 512 p (p < 4) or 0x8000 + 512 p (p >= 4)",
+             "#if ASM_TILE_COPY",
+             "// (asm: GBDK's set_bkg_data waits on STAT for every byte, and a C copy loop is not much better: either cost 4 frames of the level load; this is 18 cycles a byte)",
+             "static void tile_copy(uint8_t part) __naked {",
+             "    (void)part;",
+             "__asm",
+             "    ld   c, a",
+             "    add  a, a                       ; 512 p",
+             "    ld   hl, #_" + xsym,
+             "    add  a, h",
+             "    ld   h, a                       ; hl = the part's first tile",
+             "    ld   a, c",
+             "    cp   a, #4                      ; parts 0-3 go to 0x9000 + 512 p, 4-7 to 0x8000 + 512 p (= 0x8800 + 512 (p - 4))",
+             "    ld   d, #0x90",
+             "    jr   c, 1$",
+             "    ld   d, #0x80",
+             "1$:",
+             "    ld   a, c",
+             "    add  a, a                       ; 512 p = 2 p in the high byte",
+             "    add  a, d",
+             "    ld   d, a",
+             "    ld   e, #0",
+             "    ld   b, #32",
+             "    ld   a, c",
+             "    cp   a, #7",
+             "    jr   nz, 2$",
+             "    ld   b, #28",
+             "2$:",
+             "    ld   a, #1",
+             "    ldh  (0x4F), a                  ; VBK = 1",
+             "3$:",
+             *["    ld   a, (hl+)\n    ld   (de), a\n    inc  e" for _ in range(15)],
+             "    ld   a, (hl+)",
+             "    ld   (de), a",
+             "    inc  de",
+             "    dec  b",
+             "    jr   nz, 3$",
+             "    xor  a, a",
+             "    ldh  (0x4F), a                  ; VBK = 0",
+             "    ret",
+             "__endasm;",
+             "}",
+             "#else",
+             "static void tile_copy(uint8_t part) {   // (the C twin)",
+             f"    const uint8_t *s = {xsym} + (uint16_t)part * 512;",
+             "    uint8_t *d = (uint8_t *)(part < 4 ? 0x9000 + (uint16_t)part * 512 : 0x8000 + (uint16_t)part * 512);",
+             "    uint8_t n = part == 7 ? 28 : 32, k;",
+             "    VBK_REG = VBK_BANK_1;",
+             "    do {",
+             "        k = 16;",
+             "        do *d++ = *s++; while (--k);",
+             "    } while (--n);",
+             "    VBK_REG = VBK_BANK_0;",
+             "}",
+             "#endif",
+             "",
+             "void load_saloon_x(uint8_t part) BANKED { tile_copy(part); }", ""]
+    (outdir / "patrons_saloon_x.c").write_text("\n".join(["// generated by tools/gen_art.py -- do not edit", "#include <gb/gb.h>", '#include "art.h"', '#include "asm_cfg.h"',
+                                                          "#pragma bank 255", f"BANKREF({xsym})", "", fmt(xsym, [b for t in xt for b in t]), *xload]))
+    png(xs + xb, prev / "patrons_saloon_x_x8.png", 8)
     load += ["", "// LCD off (or VBlank) only: the group's 152 BG tiles to ids first..first+151",
              "// (a switchable bank of its own: bkg_data_far, in ROM0, maps the group's bank while it copies)",
              "void load_patron_tiles(uint8_t g, uint8_t first) BANKED {", "    switch (g) {"]
@@ -1154,10 +1246,14 @@ def _main():
                 f"#define PATRON_TILES_PER_GROUP {per_group}   // 3 variants x 7 shifts x 6 tiles (3x2), the blank pair, 3 x 4 tiles shift 0",
                 f"#define PATRON_BACK_TILES {back_tiles}   // then 3 back views x 4 tiles (2x2), shift 0 only",
                 f"#define PATRON_GROUP_TILES {per_group + back_tiles}",
+                f"#define SALOON_X_S0 {x_s0}   // bank 1 (Color only): the Saloon's looks 3-7: BG id of look 3 + k's shift-0 pose (4 tiles: + 4 k); the blank pair is PATRON_BLANK there too",
+                f"#define SALOON_X_BACK {x_back}   // their back views (4 tiles: + 4 k)",
+                f"#define SALOON_X_LAST {x_last}   // pose 34 (look 7, shift 7); poses q < 34 (q = 7 k + shift - 1) are at 6 q",
                 "// tile of (variant v, shift s, row r, column k), column-major: pose + k * 2 + r, pose = s ? v * 42 + (s - 1) * 6 : 128 + v * 4 (its 3rd column is the blank pair at 126);",
                 "// back view of v: PATRON_TILES_PER_GROUP + v * 4 + r * 2 + k",
                 "// group order: " + ", ".join(PATRON_GROUPS),
                 "void load_patron_tiles(uint8_t g, uint8_t first) BANKED;   // build/patron_load.c",
+                "void load_saloon_x(uint8_t part) BANKED;   // build/patrons_saloon_x.c: part 0..7 of the Saloon's Color-only looks into VRAM bank 1 (LCD off)",
                 "void load_patron_pose0(uint8_t g, uint8_t first, uint8_t v, uint8_t t) BANKED;   // build/patron_load.c: tile t (0-5) of variant v's shift-0 pose as OBJ tile first + t (the credits cast)", ""]
 
     (outdir / "art.h").write_text("\n".join(h))

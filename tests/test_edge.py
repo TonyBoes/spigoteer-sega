@@ -212,7 +212,7 @@ def test_he_slides_in_from_the_left_edge(gb, group):
 
 def test_he_drops_to_the_bg_at_entry_x_when_clear(gb):
     p, b = spawn_one(gb)
-    v = gb.read("patron_variant", MAX_P)[p]
+    v = gb.read("patron_variant", MAX_P)[p] & 7
     while px(gb, p) < ENTRY_X:
         gb.run(1)
     assert lift_of(gb, p) == LIFT_OBJ, "on the screen: an ordinary lifted patron"

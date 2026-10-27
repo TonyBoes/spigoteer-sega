@@ -315,8 +315,8 @@ def test_mixed_levels_option_b_mirror_only_their_r_bars(model, dirs):
 
 # ---- BG geometry: a patron at local x on an R bar --------------------------------------------------------------------
 def r_tiles(gb, dirs, v, s):
-    """First tile of variant v at shift s on an R bar (st_tab's R half)."""
-    return gb.read("st_tab", 64)[32 | (v << 3) | s]
+    """First tile of variant v at shift s on an R bar (st_tab's R half; Color has none: the flip attribute mirrors, one table of 8 looks)."""
+    return gb.read("st_tab", 64)[(0 if gb.model_name == "cgb" else 32) | (v << 3) | s]
 
 
 @pytest.mark.parametrize("dirs", [ALL_R, ALT])

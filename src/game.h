@@ -92,6 +92,9 @@ void sec_mark(uint8_t i);
 #error "patron tile layout (tools/gen_art.py): shift-0 poses must be even OBJ ids >= 128"
 #endif
 #define PATRON_BACK_BASE (PATRON_TILE_BASE + PATRON_TILES_PER_GROUP)   // the 12 back-view tiles follow the 126 shifted ones, the blank pair and the 12 shift-0 ones
+#define PATRON_BANK1     0x40 // patron_variant bit 6: one of the Saloon's Color-only looks (3-7), its tiles in VRAM bank 1 (render.c patron_attr, mirror.c pose)
+uint8_t spawn_variant(uint8_t r) BANKED;    // mirror.c: a new patron's patron_variant byte from a random byte (the Saloon on Color: 8 looks and their palettes)
+uint8_t saloon_variant(uint8_t r) BANKED;
 #define DRAW_BACK        0x80 // patron_draw bit 7: drawn in its back view (x < 128, so the bit is free)
 #define SHUFFLE_MAX         4 // a patron turning to watch the show shuffles at most this far to a multiple of 8 px
 // BG tile budget (signed 0x8800 mode, LCDC bit 4 clear): ids 0..255. OBJ tiles stay below 128, so BG ids 128+
@@ -184,6 +187,8 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define OBJPAL_DANCER    5
 #define OBJPAL_PATRON_B  6
 #define OBJPAL_PATRON_C  7
+#define OBJPAL_PATRON_D  4   // the Saloon's 4th and 5th patron palettes (Color-only looks; 5 is the show's while one plays, render.c pal5_check)
+#define OBJPAL_PATRON_E  5
 #define OBJPAL_DX        7   // (the CGB title's DX badge; the title has no lifted patrons, whose C look is a play palette)
 // DMG (M13a): OBP1 = 0xE4 in play (lifted patrons, the BG's shades); what used OBP1 (0xC4) before draws with OBP0 (0xD0)
 // from copies of its tiles with the two bit planes swapped (colours 1 and 2 trade places), made at level load

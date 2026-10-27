@@ -26,6 +26,7 @@
 
 #include "game.h"
 #include "music.h"
+extern uint8_t cur_group, rng_state;
 
 uint8_t level_dirs;                 // the LEVEL harness's directions for its next level load (test hook, debug box)
 uint8_t draw_mask;                  // patron_draw = x & draw_mask (0xFE: a DMG mixed level)
@@ -53,7 +54,14 @@ static void flip_copy(uint8_t src, uint8_t dst) {   // tile src mirrored into ti
 }
 
 // first tile of variant v's pose at shift s (the M13a layout; render.c / gen_art.py)
+// The Saloon's Color-only looks 3-7 (VRAM bank 1; gen_art.py): shift 0 at SALOON_X_S0 + 4 k, the others at 6 (7 k + s - 1), the last one apart.
 static uint8_t pose(uint8_t v, uint8_t s) {
+    if (v > 2) {
+        v -= 3;
+        if (!s) return SALOON_X_S0 + v * 4u;
+        s = v * 7u + s - 1u;
+        return s < 34 ? s * 6u : SALOON_X_LAST;
+    }
     return s ? PATRON_TILE_BASE + v * 42u + (s - 1u) * 6u : PATRON_OBJ_BASE + v * 4u;
 }
 
@@ -148,12 +156,12 @@ void mirror_load(uint8_t dirs) BANKED {
     mixed = mixed && !is_cgb;                     // from here: the DMG's mixed scheme
     mir_bswap = mixed;
     draw_mask = mixed ? 0xFE : 0xFF;
-    for (v = 0; v < 4; v++) {
+    for (v = 0; v < (is_cgb ? 8 : 4); v++) {     // (Color: one table of 8 looks, no R half: the flip attribute does the mirroring, render.c cz_sto)
         for (s = 0; s < 8; s++) {
             se = mixed ? s & 6 : s;
-            l = pose(v == 3 ? 0 : v, se);
+            l = pose(v == 3 && !is_cgb ? 0 : v, se);
             st_tab[(v << 3) | s] = l;
-            st_tab[32 | (v << 3) | s] = mixed ? pose(v == 3 ? 0 : v, se + 1) : l;
+            if (!is_cgb) st_tab[32 | (v << 3) | s] = mixed ? pose(v == 3 ? 0 : v, se + 1) : l;
         }
         music_pump();                             // (the pose maths takes half a frame in all, LCD off in a screen's load: the tune ticks between its rows)
     }
@@ -265,11 +273,32 @@ void mirror_oam(void) BANKED {
 // A quick redraw (render.c queue_quick) of patron p, front view at d, on an R bar: his 6 tile ids mirrored into the
 // shadow rows (they hold the screen picture), local columns c..c+2 at screen columns 19-c..17-c. Returns 17 - c, the
 // first screen column; render.c queues the two rows from the shadow.
+// The Saloon's pick on Color (r = a random byte): a look 0-7, each with its home palette instance (bits 3-5 = instance ^ look), bit 6 for the bank-1 looks.
+// A boss fight keeps look 2 (GUS) and the looks on instances 2 and 4 (OBJ 7 and 5: the boss's) out.
+static const uint8_t sal_pi[8] = { 0, 1, 2, 0, 3, 3, 4, 4 };
+uint8_t saloon_variant(uint8_t r) BANKED {
+    uint8_t k = r >> 5;
+    while (boss_on && ((1 << k) & 0xC4)) k = next_rand() >> 5;
+    return k | ((sal_pi[k] ^ k) << 3) | (k > 2 ? PATRON_BANK1 : 0);
+}
+
+uint8_t spawn_variant(uint8_t r) BANKED {
+    if (is_cgb && !cur_group) return saloon_variant(r);
+    r = (r >> 4) + (r & 15);                      // r % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
+    r = (r >> 2) + (r & 3);
+    r = (r >> 2) + (r & 3);
+    if (r >= 3) r -= 3;
+    if (r == 2 && boss_on) r = rng_state & 1;     // a boss fight: variant C's tiles are the boss's (src/boss.c)
+    return r;
+}
+
 uint8_t quick_mirror(uint8_t p, uint8_t d) BANKED {
-    uint8_t t = st_tab[32 | ((patron_variant[p] & 3) << 3) | (d & 7)], *r, t3 = (d & 7) ? t + 4 : PATRON_BLANK;   // (shift 0: the shared blank pair is its 3rd column)
-    d = 17 - (d >> 3);
-    r = &sh_rows[0][(patron_bar[p] & (NUM_BARS - 1)) << 1][d];
-    r[0] = t3; r[1] = t + 2; r[2] = t;
-    r[32] = t3 + 1; r[33] = t + 3; r[34] = t + 1;
+    uint8_t b = patron_bar[p] & (NUM_BARS - 1), rb = bar_dirs & bar_bit[b], *r, t, t3;
+    t = st_tab[(rb ? mir_attr ^ 32 : 0) | ((patron_variant[p] & 7) << 3) | (d & 7)];
+    t3 = (d & 7) ? t + 4 : PATRON_BLANK;                   // (shift 0: the shared blank pair is its 3rd column, in both VRAM banks)
+    d >>= 3;
+    r = &sh_rows[0][b << 1][rb ? d = 17 - d : d];
+    if (rb) { r[0] = t3; r[1] = t + 2; r[2] = t; r[32] = t3 + 1; r[33] = t + 3; r[34] = t + 1; }
+    else    { r[0] = t; r[1] = t + 2; r[2] = t3; r[32] = t + 1; r[33] = t + 3; r[34] = t3 + 1; }   // (a bank-1 look on an L bar)
     return d;
 }

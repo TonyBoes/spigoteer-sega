@@ -523,7 +523,7 @@ def test_regulars_keep_coming_more_slowly_on_the_other_bars(model):
                 last = n
             pb, pv = gb.read("patron_bar", 16), gb.read("patron_variant", 16)
             live = [p for p in range(16) if st[p]]
-            assert all(pb[p] != ROW["bar"] for p in live) and all(pv[p] < 2 for p in live), f
+            assert all(pb[p] != ROW["bar"] for p in live) and all((pv[p] & 7) not in (2, 6, 7) and ((pv[p] ^ (pv[p] >> 3)) & 7) not in (2, 4) for p in live), f   # (variant C and the Saloon's OBJ 7 / 5 looks are the boss's)
             assert gb.mem16("tip_timer") == 0
         assert len(spawns) >= 4
         assert all(b - a >= 450 for a, b in zip(spawns, spawns[1:])), spawns
@@ -638,7 +638,7 @@ def test_clear_the_bar_note_covers_no_bar(model):
         assert banner_text(gb, 0) == centred(CLEAR_BANNER)
         on = gb.image()
         gb.write("overlay_on", 0)                         # (the same frame without the note: the window hides)
-        frames(gb, 1)
+        frames(gb, 3)                                     # (not 1: a hand-cleared note puts the window and the split back over a frame or two, main.c line 576; a Color Saloon patron on the 5th palette instance shows that frame)
         off = gb.image()
         bars = (0, 40, 160, 144)
         assert ImageChops.difference(on.crop(bars), off.crop(bars)).getbbox() is None, "the bars' rows show no window ink"

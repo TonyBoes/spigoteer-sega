@@ -77,6 +77,11 @@ static void load_patron_group(uint8_t g) {
         set_bkg_palette(BGPAL_PATRON + v, 1, p);
         music_pump();                            // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
     }
+    if (g) return;
+    for (v = 0; v < 8; v++) { load_saloon_x(v); music_pump(); }   // the Saloon's Color-only looks 3-7: tiles in VRAM bank 1
+    patron_pal_get(0, 3, p);                     // palette instance 3 (ROSIE, REDD): the keg's BG slot, free in the Saloon's playfield
+    p[0] = WALL_RGB;
+    set_bkg_palette(BGPAL_BAR_B, 1, p);
 }
 
 // M10b arcade loops: after level 10 the venues come round again (level 11 = venue 0 = loop 2, level 21 = loop 3, ...),
@@ -197,7 +202,13 @@ void start_level(void) BANKED {
     clear_dirty();
     load_venue(cur_group);                      // M9: the venue of the level's theme (theme index = patron group)
     load_patron_group(cur_group);
-    if (is_cgb && cur_group == 0) split_arm();  // patron-rev-2: the Saloon's mid-frame palette split (game.h)
+    if (is_cgb && cur_group == 0) {             // patron-rev-2: the Saloon's mid-frame palette split (game.h)
+        palette_t q;
+        split_arm();
+        patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others
+        q[0] = WALL_RGB;
+        for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
+    }
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
     mirror_load(play_mode == MODE_LEVEL ? level_dirs : classic_dirs);   // P3: bars from the right (the harness, CLASSIC)
     place_start_patrons();

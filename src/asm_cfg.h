@@ -61,4 +61,9 @@
 #define ASM_SPLIT_PAL ASM_PASS
 #endif
 
+// patron-rev-2: the Saloon's bank-1 tile copy (build/patrons_saloon_x.c, written by tools/gen_art.py)
+#ifndef ASM_TILE_COPY
+#define ASM_TILE_COPY ASM_PASS
+#endif
+
 #endif

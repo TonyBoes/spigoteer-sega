@@ -26,6 +26,8 @@ BASE = int(_re.search(r"#define PATRON_FIRST_TILE (\d+)", _ART_H).group(1))     
 SHIFT0_OFS = int(_re.search(r"#define PATRON_SHIFT0_OFS (\d+)", _ART_H).group(1))     # the shift-0 poses come last (OBJ-able)
 BLANK_OFS = int(_re.search(r"#define PATRON_BLANK_OFS (\d+)", _ART_H).group(1))       # option 2: the shared blank pair (the shift-0 poses' 3rd column)
 BLANK = BASE + BLANK_OFS
+X_S0 = int(_re.search(r"#define SALOON_X_S0 (\d+)", _ART_H).group(1))                # the Saloon's Color-only looks 3-7: VRAM bank 1 (ids from 0, no BASE)
+X_LAST = int(_re.search(r"#define SALOON_X_LAST (\d+)", _ART_H).group(1))
 SHIFTED = int(_re.search(r"#define PATRON_TILES_PER_GROUP (\d+)", _ART_H).group(1))     # M8b: 3 x 8 shifts x 6 = 144
 BACK_BASE = BASE + SHIFTED                                                                # then 3 back views x 4 tiles
 BG_TILES_TOTAL = BASE + int(_re.search(r"#define PATRON_GROUP_TILES (\d+)", _ART_H).group(1))
@@ -38,7 +40,7 @@ def put(gb, name, i, v):
 def patrons(gb):
     st = gb.read("patron_state", MAX_P)
     return [dict(i=i, state=st[i], bar=gb.read("patron_bar", MAX_P)[i], x=gb.read("patron_x", MAX_P)[i],
-                 variant=gb.read("patron_variant", MAX_P)[i], timer=gb.read("patron_timer", MAX_P)[i])
+                 variant=gb.read("patron_variant", MAX_P)[i] & 7, timer=gb.read("patron_timer", MAX_P)[i])
             for i in range(MAX_P) if st[i]]
 
 
@@ -54,6 +56,10 @@ def drawn_tiles(variant, x, bar):
 def pose_first(variant, shift):
     """M13a (Option A): first tile id of a pose; stored column by column (column k: + 2k top, + 2k + 1 bottom), shifts
     1..7 first (variant * 42 + (shift - 1) * 6), the three shift-0 poses last (SHIFT0_OFS + variant * 4)."""
+    if variant > 2:                                  # patron-rev-2 step 4: look 3-7 (bank 1): 7 k + shift - 1 poses of 6 tiles, the last apart
+        k = variant - 3
+        q = k * 7 + shift - 1
+        return X_S0 + k * 4 if shift == 0 else q * 6 if q < 34 else X_LAST
     return BASE + (SHIFT0_OFS + variant * 4 if shift == 0 else variant * 42 + (shift - 1) * 6)
 
 

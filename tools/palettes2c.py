@@ -46,6 +46,7 @@ c += ["};", "",
       "    dst[0] = s[0]; dst[1] = s[1]; dst[2] = s[2]; dst[3] = s[3];",
       "}", "",
       "void patron_pal_get(uint8_t g, uint8_t v, uint16_t *dst) BANKED {",
+      "    if (v > 2) { pal_get(v == 3 ? PAL_COWBOYS_D : PAL_COWBOYS_E, dst); return; }   // the Saloon's 4th and 5th palettes (Color-only looks; patron-rev-2)",
       "    pal_get(patron_pal_ids[g][v], dst);",
       "}", ""]
 outdir.mkdir(parents=True, exist_ok=True)
