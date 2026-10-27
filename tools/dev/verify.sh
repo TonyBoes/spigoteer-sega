@@ -20,6 +20,8 @@ L=$LOGDIR/$NAME.log
 cd "$WT" || { echo "BAD_WORKTREE $WT" >> "$L"; echo "RESULT: FAIL (bad worktree)" >> "$L"; echo END >> "$L"; exit 1; }
 
 PYTEST="python3 -m pytest -q -p no:cacheprovider"
+# the parallel runner (tools/dev/ptest.py; --timeout=180 per test is its default); JOBS=1 gives the serial reference. Its last line has "N passed"/"N failed", and it prints FAILED/ERROR lines.
+PTEST="python3 tools/dev/ptest.py -j ${JOBS:-8}"
 step() { echo "== $1 ($(date +%H:%M:%S))" >> "$L"; }
 
 echo "worktree $WT" >> "$L"
@@ -33,7 +35,7 @@ step "make cfall"
 make cfall > /dev/null 2>&1 && echo CFALL_OK >> "$L" || echo CFALL_FAIL >> "$L"
 
 step "pytest (asm build)"
-$PYTEST tests --timeout=180 --timeout-method=thread 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed" >> "$L"
+$PTEST tests 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed" >> "$L"
 
 step "make check"
 make check 2>&1 | grep -E "\[(dmg|cgb)\]" >> "$L"
@@ -42,7 +44,7 @@ step "slow: fade"
 RUN_SLOW=1 $PYTEST tests/test_fade_hw.py 2>&1 | tail -1 >> "$L"
 
 step "pytest (C build)"
-GB_ROM=build/game-c.gb $PYTEST tests --timeout=180 --timeout-method=thread 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed" >> "$L"
+GB_ROM=build/game-c.gb $PTEST tests 2>&1 | grep -E "^(FAILED|ERROR)|passed|failed" >> "$L"
 
 step "slow: double speed + half rate"
 RUN_SLOW=1 $PYTEST tests/test_double_speed.py tests/test_half_rate.py 2>&1 | tail -1 >> "$L"

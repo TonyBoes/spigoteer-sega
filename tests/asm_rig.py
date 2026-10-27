@@ -88,9 +88,14 @@ def stack_floor(map_path):
 def load_symtab(rom: Path):
     out = ROOT / "out" / "symtab" / rom.stem
     sj = out / "symtab.json"
-    if not sj.exists() or sj.stat().st_mtime < rom.stat().st_mtime:
-        subprocess.run([sys.executable, str(ROOT / "tools" / "asm_symtab.py"), str(rom)], check=True, capture_output=True)
-    return json.loads(sj.read_text()), json.loads((out / "data.json").read_text())
+    # parallel shards (tools/dev/ptest.py): one regenerates under the lock, the others wait and then find it fresh (the two json files are written one after the other)
+    import fcntl
+    out.mkdir(parents=True, exist_ok=True)
+    with open(out / ".lock", "w") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        if not sj.exists() or sj.stat().st_mtime < rom.stat().st_mtime:
+            subprocess.run([sys.executable, str(ROOT / "tools" / "asm_symtab.py"), str(rom)], check=True, capture_output=True)
+        return json.loads(sj.read_text()), json.loads((out / "data.json").read_text())
 
 
 class Rig:
