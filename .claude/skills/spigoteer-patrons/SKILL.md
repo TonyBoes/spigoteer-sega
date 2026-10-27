@@ -61,6 +61,16 @@ the sections your task touches. The essentials:
 - Patrons overlap and pass each other; never one shoving another along the bar.
 - No credits changes during patron or boss work: the credits remake waits until patrons and bosses are LOCKED.
 
+## Back views (owner, 2026-10-27: "Some of the backs don't seem to understand concepts of what makes a good back sprite. They don't seem to match the characters well.")
+- Same person from behind: someone seeing the front and back side by side must match them at once. Build the back
+  from the front: keep the head and shoulder outline (hair length, hat or cap shape, ponytail, width) and the colour
+  masses (the front's dominant head colour stays dominant).
+- Replace the face with what is behind it: hair, or the cap's crown from behind (seam, strap gap), hair down to the
+  nape. Skin only as small ear bumps and a narrow neck. No eyes, mouth or brim facing the viewer, and nothing that
+  reads as a face, mask, visor or blindfold.
+- Clothes carry on from the front: same colours and patterns (stripes, jersey), plus back details (collar, number).
+- Judge each back next to its front at 1x and x8 before showing the owner.
+
 ## Files
 `assets/art/patrons/<group>.txt` and `<group>_back.txt`; `assets/palettes.json` (`<group>_a/_b/_c`);
 `tools/gen_art.py` (validates); `src/render.c`, `lift.c`, `mirror.c`, `mugs.c`, `enhance.c`, `patrons.c`;
