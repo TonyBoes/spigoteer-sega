@@ -22,13 +22,13 @@
 - [Orphan processes](orphan-processes.md) — finished agents leave CPU hogs (14 profilers ran 30 h); check ps when slow / after agents
 - [GBC enhanced direction](gbc-enhanced-direction.md) — DMG compatible + GBC enhanced (gated features, DX icon); 1 px patron steps stay
 - [Art: another pass by default](art-another-pass-default.md) — picked art gets a quality pass before import unless owner says locked
-- [Graphics atlas artifact](gfx-atlas-artifact.md) — per-screen palettes/tiles/OAM page; make atlas + republish same URL after art merges
+- [Graphics atlas artifact](gfx-atlas-artifact.md) — old atlas page retired 2026-10-26; Palette Plan page is now the Graphics Atlas
 - [Review Board artifact](review-board-artifact.md) — only for an open question's item too big for Open Questions; cleared once answered
 - [Pocket Player artifact](pocket-player-artifact.md) — browser emulator page; refresh rom.js + republish same URL after merges
 - [Open Questions artifact](open-questions-artifact.md) — canonical list of open Qn with media; update + republish on every new/answered question
 - [Tokens reset Saturday](token-budget-saturday.md) — menu illustrations queued until 2026-10-24; keep heavy art work light till then
 - [Artifact sources in repo](artifact-sources-in-repo.md) — tools/artifacts/ pages + docs/dev/ notes (queue, briefs, concepts, memory, LESSONS.md); sync each session
-- [Palette Plan artifact](palette-plan-artifact.md) — OBJ/BG palette planning for extra patrons; edit PLAN/LOG in build.py, republish same URL
+- [Palette Plan artifact](palette-plan-artifact.md) — now titled Graphics Atlas; OBJ/BG palette planning for extra patrons; edit PLAN/LOG in build.py, republish same URL
 - [Palette labels follow the plan](palette-labels-follow-plan.md) — 'BG1', 'OBJ2' mean the slot as the Palette Plan shows it now, not the game
 - [Labels, no explanations](labels-no-explanations.md) — bare labels on owner pages; no parentheses/captions in stats, items, names
 - [Saloon patrons Sunday](saloon-patrons-sunday.md) — 8 CGB-only looks planned; build Sun 2026-10-25+, likely option 2 (shared blank column); brief in QUEUE.md

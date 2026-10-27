@@ -44,9 +44,12 @@ def is_r(dirs, b):
     return (dirs >> b) & 1
 
 
-def start(gb, dirs, lv=1):
-    """The LEVEL harness at level lv with the bars' directions `dirs` (bit b: bar b is R)."""
-    gb.write("level_dirs", dirs)
+MIXED_B = 0x40                             # level_dirs bit 6: the DMG's mixed levels, option (b) (src/game.h)
+
+
+def start(gb, dirs, lv=1, mixb=False):
+    """The LEVEL harness at level lv with the bars' directions `dirs` (bit b: bar b is R). mixb: option (b) for a DMG mixed level."""
+    gb.write("level_dirs", dirs | (MIXED_B if mixb else 0))
     title_level(gb, lv)
     for _ in range(80):
         if gb.mem("game_state") == PLAYING:
@@ -67,9 +70,9 @@ def new_rom(model):
     return gb
 
 
-def pair(model, dirs, lv=1):
+def pair(model, dirs, lv=1, mixb=False):
     """Two runs of level lv: every bar L, and `dirs`; their intro timers in step."""
-    a, b = start(new_rom(model), 0, lv), start(new_rom(model), dirs, lv)
+    a, b = start(new_rom(model), 0, lv), start(new_rom(model), dirs, lv, mixb)
     for x, y in ((a, b), (b, a)):
         while x.mem("intro_timer") > y.mem("intro_timer"):
             x.run(1)
@@ -94,11 +97,19 @@ def walker(gb, spare, b, x, v):
     return p
 
 
-def scene(gb, even=False, lifted=True, watcher_bar=1, pushed=True):
+def scene(gb, even=False, lifted=True, watcher_bar=1, pushed=True, rdirs=None):
     """Walkers at several shifts, drinkers holding mugs, a watcher in his back view, a lifted patron, a pushed one sliding
     back, full and empty mugs, the tip coin, the bartender on bar 1 left of the tap. even: every x even (a DMG mixed level
-    draws patrons at even x only) and nobody moves."""
+    draws patrons at even x only) and nobody moves. rdirs: option (b) (the looks are split by direction): variant C on the
+    bars R in rdirs, A / B on the others (the same in both runs of a pair)."""
     o = 0 if even else 1
+    V = (lambda b, v: v) if rdirs is None else (lambda b, v: 2 if is_r(rdirs, b) else v & 1)
+    if rdirs is not None:                                           # (the level's start crowd shows the same looks in both runs of a pair: the game
+        for q in range(MAX_P):                                      # does not clear the columns a start patron was drawn in before the scene moves him)
+            if gb.read("patron_state", MAX_P)[q]:
+                put(gb, "patron_variant", q, V(gb.read("patron_bar", MAX_P)[q] & 3, 0))
+                put(gb, "patron_draw", q, 255)
+        gb.run(4)
     with logic_paused(gb):
         st, br = gb.read("patron_state", MAX_P), gb.read("patron_bar", MAX_P)
         spare = {}                                  # (the start patrons stay live until their slots are used: set_patron
@@ -109,20 +120,20 @@ def scene(gb, even=False, lifted=True, watcher_bar=1, pushed=True):
             put(gb, "mug_state", m, 0)
         gb.write("mugs_live", 0)
         freeze(gb)
-        walker(gb, spare, 0, 20 + o, 0)                            # walkers: shift 5 (4 when even), and 4
-        walker(gb, spare, 0, 60, 2)
-        w = walker(gb, spare, watcher_bar, 48, 1)                   # turns to watch the show (a multiple of 8)
+        walker(gb, spare, 0, 20 + o, V(0, 0))                          # walkers: shift 5 (4 when even), and 4
+        walker(gb, spare, 0, 60, V(0, 2))
+        w = walker(gb, spare, watcher_bar, 48, V(watcher_bar, 1))                  # turns to watch the show (a multiple of 8)
         put(gb, "patron_dist", w, 1)
-        lp = walker(gb, spare, 1, 96 + o * 2, 2)                    # lifted by the test hook
-        walker(gb, spare, 2, 30, 1)
-        walker(gb, spare, 3, 74 + o * 3, 0)
+        lp = walker(gb, spare, 1, 96 + o * 2, V(1, 2))                    # lifted by the test hook
+        walker(gb, spare, 2, 30, V(2, 1))
+        walker(gb, spare, 3, 74 + o * 3, V(3, 0))
         assert not any(spare.values()), spare
-        d = set_patron(gb, 0, 92, state=DRINKING, timer=40, variant=1)
+        d = set_patron(gb, 0, 92, state=DRINKING, timer=40, variant=V(0, 1))
         hold_mug(gb, d, 0)
         if pushed:
-            p = set_patron(gb, 2, 70, state=PUSHED, aux=24, variant=0)
+            p = set_patron(gb, 2, 70, state=PUSHED, aux=24, variant=V(2, 0))
             hold_mug(gb, p, 2)
-        d3 = set_patron(gb, 3, 26, state=DRINKING, timer=0, variant=2)
+        d3 = set_patron(gb, 3, 26, state=DRINKING, timer=0, variant=V(3, 2))
         hold_mug(gb, d3, 3)
         gb.write("patrons_live", sum(1 for v in gb.read("patron_state", MAX_P) if v))
         if not even:
@@ -278,6 +289,30 @@ def test_mixed_levels_mirror_only_their_r_bars(model, dirs):
         close(a, b)
 
 
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("dirs", [SPLIT, 0xC, ALT, 0xA, 0x9, 0x6])
+def test_mixed_levels_option_b_mirror_only_their_r_bars(model, dirs):
+    """Option (b) (level_dirs MIXED_B; the DMG only, the CGB ignores it): 1 px steps (odd x, a pushed patron, a watcher on any
+    bar, even on an R one) with variant C on the R bars and A / B on the L ones: every R bar is the all-L picture of the same
+    scene mirrored, pixel for pixel."""
+    a, b = pair(model, dirs, mixb=True)
+    try:
+        lp = scene(a, rdirs=dirs)
+        assert scene(b, rdirs=dirs) == lp
+        run_both(a, b, 6)
+        assert b.mem("draw_mask") == 0xFF and b.mem("mir_bswap") == (2 if model == "dmg" else 0)
+        assert a.mem("lift_hook_res") == 1 and b.mem("lift_hook_res") == 1
+        mi = Mirror(a, b, dirs)
+        mi.check()
+        for f in range(30):
+            run_both(a, b, 1)
+            bad = mi.check()
+            assert not bad, (f, bad)
+        assert b.mem("mir_short") == 0
+    finally:
+        close(a, b)
+
+
 # ---- BG geometry: a patron at local x on an R bar --------------------------------------------------------------------
 def r_tiles(gb, dirs, v, s):
     """First tile of variant v at shift s on an R bar (st_tab's R half)."""
@@ -364,6 +399,66 @@ def test_dmg_mixed_back_view_on_an_r_bar_is_drawn_unmirrored(boot):
     rows = [[x & 0xFF for x in tm[bar_top_row(0) + r][:20]] for r in range(2)]
     c = 48 >> 3
     assert rows[0][18 - c:20 - c] == [t, t + 1] and rows[1][18 - c:20 - c] == [t + 2, t + 3], rows
+
+
+def test_dmg_mixed_option_b_flips_only_variant_c_in_place(boot):
+    """Option (b): variants A and B as loaded, all of variant C's tiles (42 shifted, the shift-0 pose, the 4 back-view tiles)
+    flipped in place, st_tab's two halves the same, the lifted patron needs no OAM flip, no tile moved."""
+    if boot.model_name != "dmg":
+        pytest.skip("DMG only")
+    from test_flow import patron_group_tiles
+    gb = start(boot, SPLIT, 2, mixb=True)
+    data = patron_group_tiles(1)
+    rom_tile = lambda t: data[(t - BASE) * 16:(t - BASE + 1) * 16]
+    c_tiles = set(range(pose_first(2, 1), pose_first(2, 1) + 42)) | set(range(pose_first(2, 0), pose_first(2, 0) + 6)) \
+        | set(range(BACK_BASE + 8, BACK_BASE + 12))
+    assert len(c_tiles) == 52
+    for t in range(BASE, BACK_BASE + 12):
+        want = flipped(rom_tile(t)) if t in c_tiles else rom_tile(t)
+        assert tile_data(gb, t) == want, (t, t in c_tiles)
+    st = gb.read("st_tab", 64)
+    assert list(st[:32]) == list(st[32:]) and st[2 << 3 | 3] == pose_first(2, 3)
+    assert gb.mem("draw_mask") == 0xFF and gb.mem("mir_bswap") == 2
+    assert list(gb.read("bar_sfp", 8)) == [S_FLIPX, S_FLIPX, 0, 0] + [0] * 4, "lifted: no OAM flip, C's pose is flipped already"
+
+
+def test_dmg_mixed_option_b_spawns_c_on_r_bars_only(boot):
+    """Every patron of an option (b) level (the start crowd and the spawns): variant C on an R bar, A or B on an L bar."""
+    if boot.model_name != "dmg":
+        pytest.skip("DMG only")
+    gb = start(boot, ALT, 2, mixb=True)
+    seen = set()
+    for _ in range(40):
+        gb.run(30)
+        st, br, va = (gb.read(n, MAX_P) for n in ("patron_state", "patron_bar", "patron_variant"))
+        for p in range(MAX_P):
+            if st[p]:
+                assert (va[p] == 2) == bool(is_r(ALT, br[p] & 3)), (p, br[p], va[p])
+                seen.add((is_r(ALT, br[p] & 3), va[p]))
+    assert (1, 2) in seen and any(not r for r, v in seen), seen
+
+
+def test_option_a_stays_the_default_and_the_debug_box_flips_it(boot):
+    """The debug box's MIXED line (LEVEL and CLASSIC): A (level_dirs bit 6 clear) or B; the bit survives the BARS line and the title."""
+    from test_debug import combo, goto, line, release_combo, tap
+    combo(boot)
+    release_combo(boot)
+    boot.run(3)
+    assert line(boot, 12) == ("MIXED", "NO CGB" if boot.model_name == "cgb" else "A") and boot.mem("level_dirs") & MIXED_B == 0
+    goto(boot, 5)
+    tap(boot, "right")
+    boot.run(3)
+    assert boot.mem("level_dirs") & MIXED_B == MIXED_B
+    if boot.model_name == "dmg":
+        assert line(boot, 12)[1] == "B"
+    goto(boot, 2)
+    tap(boot, "right")
+    boot.run(3)
+    assert boot.mem("level_dirs") & MIXED_B == MIXED_B and boot.mem("level_dirs") & 0xF == 0xF, "the BARS line keeps it"
+    goto(boot, 5)
+    tap(boot, "left")
+    boot.run(3)
+    assert boot.mem("level_dirs") & MIXED_B == 0
 
 
 @pytest.mark.parametrize("theme", range(10))

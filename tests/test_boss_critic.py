@@ -288,7 +288,7 @@ def test_a_sloppy_drink_when_free_says_bad(model):
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_perfect_window_shows_a_sparkle_and_dings(model):
-    """Wine's perfect moment is unmistakable: the glass in his hand turns to the SPARKLE frame (OBJ 234, the bistro's
+    """Wine's perfect moment is unmistakable: the glass in his hand turns to the SPARKLE frame (OBJ 40, the bistro's
     redrawn one: a glowing bowl and glints) for exactly the window's 12 frames and SFX_COIN rings once when it opens."""
     with fight(model, C, entrance=True) as gb:
         quiet(gb)
@@ -302,11 +302,11 @@ def test_the_perfect_window_shows_a_sparkle_and_dings(model):
             seen.append((t, gb.oam()[GAME["OAM_FILL"]]["tile"]))
             dings.append(gb.read("sfx_count", 14)[SFX_COIN] - coin0)
         gb.release("a")
-        spark = [t for t, tile in seen if tile == 234]
+        spark = [t for t, tile in seen if tile == 40]
         assert sorted(set(spark)) == list(range(WIN0, WIN0 + CRIT_WIN)), spark
         assert dings[-1] == 1, "one ding"
         assert dings[[t for t, _ in seen].index(WIN0)] == 1, "it rings as the window opens"
-        tiles = bytes(gb.read(0x8000 + 234 * 16, 32))
+        tiles = bytes(gb.read(0x8000 + 40 * 16, 32))
         assert tiles.count(0xFF) >= 6 or any(b for b in tiles), "the sparkle is drawn"
 
 

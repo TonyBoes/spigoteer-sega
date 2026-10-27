@@ -56,7 +56,7 @@
 #define QD_CROW        (QD_BG + QD_BG_TILES)   // 164..167: the crow (OBJ = BG ids 128+: past the sign's BG tiles)
 #define QD_SODA        (QD_CROW + QDO_CROW_N)  // 168..210: the soda duel; its stream tiles are BG ids (QDS_STREAM..)
 typedef char qd_obj_fits[(QD_OBJ + QDO_RUN_A <= OBJ_COIN && QD_OBJ == OBJ_BT_END
-                          && QDO_KID_N <= DANCER_TILE_COUNT && QD_CROW + QDO_RUN_C <= OBJ_POUR) ? 1 : -1];
+                          && QDO_KID_N <= DANCER_TILE_COUNT && QD_CROW + QDO_RUN_C <= OBJ_SHARED_TOP) ? 1 : -1];
 #define QD_ROUNDS       5
 #define QD_TO_WIN       3
 #define QD_READY_LEN    60

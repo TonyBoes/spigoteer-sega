@@ -115,9 +115,10 @@ def test_it_is_a_full_screen_menu(boot):
     from test_flow import tile_id
     assert win_row(boot, 1) == [0] * 20 and win_row(boot, 14) == [tile_id("PANEL_TOP")] * 20 and win_row(boot, 17) == [tile_id("PANEL_BOT")] * 20
     assert row_text(boot, 16).strip() == "@ GO $ BACK > EDIT"
-    assert [line(boot, y) for y in (2, 4, 6, 8, 10)] == [("MODE", "LEVEL"), ("LEVEL", "01"), ("BARS", "LLLL"), ("BAR CHANGE", "SNAP"),
-                                                         ("30 FPS", "NO CGB" if boot.model_name == "cgb" else "AUTO")]   # (the last line: src/half.c, tests/test_half_rate.py)
-    assert all(row_text(boot, y).strip() == "" for y in (3, 5, 7, 9, 11, 12, 13))   # (the blank rows hold the wall's board seams, tile 0)
+    assert [line(boot, y) for y in (2, 4, 6, 8, 10, 12)] == [("MODE", "LEVEL"), ("LEVEL", "01"), ("BARS", "LLLL"), ("BAR CHANGE", "SNAP"),
+                                                             ("30 FPS", "NO CGB" if boot.model_name == "cgb" else "AUTO"),   # (src/half.c, tests/test_half_rate.py)
+                                                             ("MIXED", "NO CGB" if boot.model_name == "cgb" else "A")]   # (the DMG's mixed levels: A or B, mirror.c)
+    assert all(row_text(boot, y).strip() == "" for y in (3, 5, 7, 9, 11, 13))   # (the blank rows hold the wall's board seams, tile 0)
     ys = [boot.pb.memory[0xFE00 + 4 * i] for i in range(40)]
     assert sum(1 for y in ys if y) == 1, "the mug cursor only"
     assert boot.pb.memory[0xFE00] == (4 * 8 - 7 + 16) and boot.pb.memory[0xFE01] == 8
@@ -288,7 +289,7 @@ def test_the_mode_line_switches_between_the_four_runs(boot):
     assert seen == [("STORY", 1, 0), ("ARCADE", 2, 0), ("CLASSIC", 0, 1), ("LEVEL", 0, 0)]
     tap(boot, "left")
     boot.run(6)
-    assert line(boot, 2)[1] == "CLASSIC" and [line(boot, y)[0] for y in (2, 4, 6, 8)] == ["MODE", "LEVEL", "30 FPS", ""]
+    assert line(boot, 2)[1] == "CLASSIC" and [line(boot, y)[0] for y in (2, 4, 6, 8, 10)] == ["MODE", "LEVEL", "30 FPS", "MIXED", ""]
     tap(boot, "left")
     boot.run(6)                                           # (a mode change rebuilds the screen with the LCD off: a few frames)
     tap(boot, "left")

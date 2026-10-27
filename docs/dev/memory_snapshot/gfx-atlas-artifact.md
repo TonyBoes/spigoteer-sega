@@ -1,31 +1,17 @@
 ---
 name: gfx-atlas-artifact
-description: "Owner wants a kept-up-to-date \"graphics atlas\" artifact (per-screen palettes/tiles/OAM/animations); regenerate + republish after merges"
+description: Old Graphics Atlas page retired 2026-10-26; the Palette Plan page (Ekc9oYWEQb4APdLTaqXG4H) is now the Graphics Atlas; make atlas still feeds it
 metadata:
-  node_type: memory
   type: project
-  originSessionId: 14228534-aec7-4761-a172-2f78e37cb357
-  modified: 2026-10-21T19:25:00.100Z
 ---
 
-Owner, 2026-10-21: an artifact that lets him pick any screen (level per venue, menus, the map, bosses, mini-games, story, credits) and see its graphics usage, kept updated as graphics change. It shows:
-- palettes in use and their colours, which change or swap, and which are permanent across levels;
-- tiles used and free, by region;
-- the attribute map;
-- OAM and per-line sprite counts;
-- animation examples.
+Owner, 2026-10-26: "At this point we can drop the graphics atlas. I think I have all I need in the palette plan. Let's make it the new graphics atlas."
 
-It is built by tools/gfx_atlas/build.py (`make atlas` writes out/atlas/), generated from the real ROM in PyBoy on DMG and CGB. It is published as a multi-file artifact: index.html, data/*.js, PNGs.
+- The old atlas page (https://claude.ai/artifact/RLQysU9fNNbcZR2TS8x5XZ) is no longer republished.
+- The Palette Plan page, same URL https://claude.ai/artifact/Ekc9oYWEQb4APdLTaqXG4H, is titled "Graphics Atlas" now.
+- `make atlas` (tools/gfx_atlas/) still runs: it writes out/atlas/data, which the new page's build.py reads.
 
-Owner, 2026-10-21: the atlas is for strategy and design decisions (budgets), not technical documentation.
-- Sections start collapsed, each with a one-line budget summary.
-- Show constructed objects (Sal's poses and so on), with their pieces on request.
-- Explanations go under info toggles. OAM tables, screenshots, counts and sources go behind "more information".
-- Keep it uncluttered. Apply the same rule to any future page for him: summary first, detail on demand.
+**Why:** the Palette Plan grew boss, scene and tile-grid sections and covers what he uses.
+**How to apply:** after merges touching art, palettes, patrons or screens: `make atlas`, then `python3 tools/artifacts/palette_plan/build.py`, republish to Ekc9… only. Keep the old atlas's rule on the new page: summary first, detail behind toggles.
 
-**Why:** he is revising graphics and needs one place to see the hardware budgets per screen.
-**How to apply:**
-- After every merge that touches art, palettes or screens, run `make atlas` on main and republish to the SAME artifact URL (same file path in this session; from a new session, find it with Artifact list and pass `url`).
-- The page shows the commit it was generated from, so a stale page is visible.
-
-Related: [[gb-pixel-art-skill]], [[gbc-enhanced-direction]].
+Related: [[palette-plan-artifact]].

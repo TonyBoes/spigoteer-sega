@@ -15,14 +15,14 @@ pytestmark = pytest.mark.timeout(240)
 
 TAP_X, LEFT_LIMIT, TAP_GRACE = GAME["TAP_X"], GAME["LEFT_LIMIT"], GAME["TAP_GRACE"]
 SFX_SWISH = 14
-OBJ_DUST = 234                    # (a story's: 246; tiles are shared with mirror.c / pour.c, never in use together)
+OBJ_DUST = 46                     # (sprite-only ids 46..51 since Q61)
 KEEP_POS = 0x80
 DUST_LEN = 12
 
 
 def dust(gb):
     """The puff's sprite (tile 246..251), or None."""
-    d = [s for s in gb.visible_sprites() if OBJ_DUST <= s["tile"] <= OBJ_DUST + 5 or 246 <= s["tile"] <= 251]
+    d = [s for s in gb.visible_sprites() if OBJ_DUST <= s["tile"] <= OBJ_DUST + 5]
     assert len(d) <= 1
     return d[0] if d else None
 
@@ -386,7 +386,7 @@ def test_the_pour_off_keeps_its_own_rules_in_both_modes(model):
 def puff_pictures(gb):
     """Press Down (a bar change) and return one (tile offset, the tile pair's 32 bytes, OBJ palette) per frame the puff shows."""
     gb.press("down", 1)
-    base = 246 if gb.mem("story_on") else 234
+    base = OBJ_DUST
     out = []
     for _ in range(DUST_LEN + 3):
         gb.run(1)

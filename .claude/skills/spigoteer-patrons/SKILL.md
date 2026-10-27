@@ -42,7 +42,7 @@ the sections your task touches. The essentials:
   share palettes; swap a figure's colour slots if needed.
 - **Palette labels follow the plan:** "BG1" or "OBJ 2" means that slot as the Palette Plan page shows it now, not
   the shipped game. Look it up in `tools/artifacts/palette_plan/build.py` (PLANS, FIELD_MOVES) before acting.
-- The Palette Plan page: edit PLAN / IDEAS / LOG in `build.py`, add a LOG line for each owner decision, run it after
+- The Graphics Atlas page (formerly the Palette Plan; same URL and build.py): edit PLAN / IDEAS / LOG in `build.py`, add a LOG line for each owner decision, run it after
   `make atlas`, republish (see `spigoteer-review-pages`), commit.
 
 ## Color and DMG (owner, 2026-10-21 and 10-22)
