@@ -847,8 +847,10 @@ static const uint8_t hand_tilt[BOSS_COUNT] = { 120, 120, 120, 120, 120,   0, 120
 
 // The hand mug's entries off (the second only if it is ours: Leo's waves, the Critic's cloche may be in the slot)
 static void hand_hide(void) {
-    OAM_item_t *o = shadow_OAM + OAM_CAP - 1 - boss_hands;
+    OAM_item_t *o;
+    if (!shadow_OAM[OAM_HAND].y) return;              // (nothing drawn: its second entry went with it. The common case: most frames)
     shadow_OAM[OAM_HAND].y = 0;
+    o = shadow_OAM + OAM_CAP - 1 - boss_hands;
     if (hand_tilt[boss_row] && o->tile == hand_tilt[boss_row] + 2) o->y = 0;
 }
 
@@ -856,8 +858,8 @@ static void hand_hide(void) {
 static void hand_draw(uint8_t top, const uint8_t *n, uint8_t extra) {
     OAM_item_t *o = shadow_OAM + OAM_HAND, *o2 = shadow_OAM + OAM_CAP - 1 - boss_hands;
     uint8_t d, dx = 0, e, f, w, t, p, two = 0;
+    if (boss_row == 9) { shadow_OAM[OAM_HAND].y = 0; boss_call(BEV_DRAW, 1); return; }   // (the Mothership's own: a drink lifted into the saucer on a beam, OAM 29 and 30: no hand mug)
     hand_hide();
-    if (boss_row == 9) boss_call(BEV_DRAW, 1);   // (the Mothership's own: a drink lifted into the saucer on a beam, OAM 29 and 30)
     if (boss_state != BS_GULP || boss_push || boss_xpose || hand_base[boss_row] == 255) return;   // (the common gulp only: the pose shows his hand up)
     if (sip_beat()) {
         if (!br->sway) return;                   // (the mug-down beat of a boss with no shifted pose: the Sasquatch)
