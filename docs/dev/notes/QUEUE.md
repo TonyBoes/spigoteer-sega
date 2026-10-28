@@ -8,6 +8,7 @@ Saloon backs proposal 2026-10-28 (owner: "Fix all the saloon backs that you thin
 MAIN at 9a17af9 has: the owner's 14 portraits; the wooly cap (text + finale picture); the credits backdrop by shade; the marimba perfect-pour sound with the streak (x2 bonus from the 3rd); pocketed tips (B); the Mothership VBlank palette fix; the asm catch scans; the boss icons; map START menu; Dregs line; asm draw_held/update_mugs.
 
 OPEN QUESTIONS TO THE OWNER:
+- GUS back = bedroll pack (proposal_gus B, owner 2026-10-28 "Just go back to the one with a backpack."), 675390b; Saloon backs complete. Atlas v69, Pocket Player refreshed. Q7 closed; 0 open.
 - Sal: investigate a second CGB sprite palette (top/bottom split)? (asked)
 
 OWED / LATER:
