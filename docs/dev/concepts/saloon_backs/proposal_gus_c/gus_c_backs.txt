@@ -1,0 +1,64 @@
+; GUS back-view proposals, take 3: three redraws of option C, the pickaxe (owner 2026-10-28: "the pickaxe version seems promising, but it
+; looks like a red scribble not a pickaxe."). Proposal only: nothing is imported. Hand-drawn grids; scripts only transcribe and preview.
+; . wall   - 1 tan   + 2 red-brown   # 3 dark   (cowboys_c: #d8c098 #b85838 #281810; same indices as the front, cowboys.txt look C)
+; Hat, hair, shoulders, sleeves, hands and belt are as in C (rows 0-4 and 15 untouched). The old red squiggle is gone: the shirt is plain
+; tan, so the pickaxe is the only straight line and the only arc. It lies on the back, where there is room (the hat leaves only a 5x3
+; corner above the shoulder, too small for a head that reads): the haft runs down-left from the right shoulder, the head is an arc over
+; its top end with both tips drawn, in a value the tan shirt separates from. No new index-0 holes (checked with gen_art's index0_holes).
+
+; C1
+; iron head = thin dark arc (index 3), wooden haft = red-brown (index 2), 1 px pommel at the shoulder. The clean read.
+....#######.....
+....###+--##....
+...###++--###...
+..############..
+.##############.
+...#--------#...
+..#----###-+-#..
+..#---#---#--#..
+..#------+-#-#..
+.##-----+--#-##.
+.##----+---#-##.
+.##---+---#--##.
+#-##-+------##-#
++-##+-------##-+
+#-##--------##-#
++-############-+
+
+; C2
+; values swapped: a thick red-brown head (index 2, 2 px at the top) with dark points, and a dark haft. The bold read.
+....#######.....
+....###+--##....
+...###++--###...
+..############..
+.##############.
+...#---++---#...
+..#---+++++#-#..
+..#--#---++--#..
+..#-----#-++-#..
+.##----#--++-##.
+.##---#---+--##.
+.##--#---#---##.
+#-###-------##-#
++-##--------##-+
+#-##--------##-#
++-############-+
+
+; C3
+; C1's arc with both tips hooked down toward the grip, as on a real pick, and a 2 px haft (red-brown with a dark shadow side). The long read.
+....#######.....
+....###+--##....
+...###++--###...
+..############..
+.##############.
+...#--------#...
+..#----###-+-#..
+..#---#---#--#..
+..#--#---+-#-#..
+.##-----+#-#-##.
+.##----+#--#-##.
+.##---+#--#--##.
+#-##-+#--#--##-#
++-##+#------##-+
+#-##--------##-#
++-############-+
