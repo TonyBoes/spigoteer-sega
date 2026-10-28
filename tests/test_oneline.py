@@ -174,10 +174,9 @@ def test_a_press_kicks_its_arrow_out_for_7_frames(gb, screen):
     assert not any(r for _, r in seen) and 5 <= sum(l for l, _ in seen) <= 9, seen
 
 
+@pytest.mark.parametrize("screen", [s for s in sorted(SCREENS) if s != "practice"])   # (Practice jumps between its two groups: tests/test_mg_list.py)
 def test_up_and_down_jump(gb, screen):
     n, jump = entries(gb, screen), SCREENS[screen][3]
-    if screen == "practice":
-        pytest.skip("Practice jumps between its two groups (tests/test_mg_list.py)")
     tap(gb, "down")
     assert sel(gb, screen) == jump % n
     tap(gb, "down")

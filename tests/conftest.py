@@ -679,3 +679,17 @@ def konami(gb, keys=KONAMI):
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: builds the ROM variants from scratch (tests/test_build.py)")
+    config.addinivalue_line("markers", "only_model(name): the test applies to one hardware model ('dmg' or 'cgb'); the other "
+                            "model's case is deselected at collection (so it never shows as a skip)")
+
+
+def pytest_collection_modifyitems(config, items):
+    keep, drop = [], []
+    for it in items:
+        mk = it.get_closest_marker("only_model")
+        cs = getattr(it, "callspec", None)
+        models = [v for v in cs.params.values() if v in ("dmg", "cgb")] if cs else []
+        (drop if mk and models and models[0] != mk.args[0] else keep).append(it)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep

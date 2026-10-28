@@ -18,6 +18,11 @@ def bg_tile(gb, t):
     return bytes(gb.read((0x9000 if t < 128 else 0x8000) + t * 16, 16))
 
 
+# The games whose Practice HUD shows no timer (found by booting each once: row[1] is not the hourglass). The test asserts
+# both ways, so a game that gains or loses a timer fails here and the list is updated, instead of a silent skip.
+NO_TIMER = {0, 3, 7, 11, 12, 13, 14}
+
+
 @pytest.mark.parametrize("model", MODES)
 @pytest.mark.parametrize("gid", GAMES)
 def test_the_hud_hourglass_tile_is_the_hourglass_art_in_every_game_with_a_timer(model, gid):
@@ -26,6 +31,7 @@ def test_the_hud_hourglass_tile_is_the_hourglass_art_in_every_game_with_a_timer(
         until(gb, lambda: gb.mem("mg_phase") == MG_PLAY, 400)
         frames(gb, 20)
         row = tilemap_row(gb, 0, 16, 4)
-        if row[1] != HOURGLASS:
-            pytest.skip(f"game {gid} shows no timer ({row})")
+        assert (row[1] == HOURGLASS) == (gid not in NO_TIMER), f"game {gid}: timer shown is {row[1] == HOURGLASS} ({row})"
+        if gid in NO_TIMER:
+            return
         assert bg_tile(gb, HOURGLASS) == HOURGLASS_BYTES

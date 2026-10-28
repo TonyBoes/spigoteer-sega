@@ -17,9 +17,8 @@ def blob():
     return bytes(int(h, 16) for h in re.findall(r"0x([0-9A-F]{2})", body))
 
 
+@pytest.mark.only_model("cgb")
 def test_the_color_only_looks_are_in_vram_bank_1(gb):
-    if gb.model_name != "cgb":
-        pytest.skip("Color only")
     b = blob()
     assert len(b) == 252 * 16
     vram = gb.pb.memory
@@ -27,9 +26,8 @@ def test_the_color_only_looks_are_in_vram_bank_1(gb):
     assert got == b, "BG ids 0..127 at 0x9000, 128..251 at 0x8800, all from the one blob (the asm copy and its C twin alike)"
 
 
+@pytest.mark.only_model("dmg")
 def test_the_dmg_keeps_the_three_looks(gb):
-    if gb.model_name != "dmg":
-        pytest.skip("DMG only")
     for _ in range(60):
         gb.run(20)
         assert all(v < 3 for v in gb.read("patron_variant", MAX_P)), "variant bytes 0-2 only"
@@ -39,9 +37,8 @@ def test_the_dmg_keeps_the_three_looks(gb):
 COMBOS = {0: [0, 1], 1: [3, 1, 2], 2: [1, 2], 3: [0, 1, 4], 4: [0, 3, 1, 2], 5: [0, 3, 1, 4, 2], 6: [0, 3, 1, 4, 2], 7: [0, 3, 1, 4, 2]}
 
 
+@pytest.mark.only_model("cgb")
 def test_the_color_saloon_spawns_only_the_29_planned_combinations_and_all_of_them(gb):
-    if gb.model_name != "cgb":
-        pytest.skip("Color only")
     assert sum(len(v) for v in COMBOS.values()) == 29
     seen = set()
     for _ in range(6000):
@@ -59,9 +56,8 @@ def test_the_color_saloon_spawns_only_the_29_planned_combinations_and_all_of_the
     assert len(seen) == 29, sorted(set((l, p) for l, ps in COMBOS.items() for p in ps) - seen)
 
 
+@pytest.mark.only_model("cgb")
 def test_the_color_saloon_spawns_all_eight_looks(gb):
-    if gb.model_name != "cgb":
-        pytest.skip("Color only")
     seen = set()
     for _ in range(3000):
         gb.write("lives", 3)                 # (a long game of the one level: nobody is served, patrons walk to the stop and back)
