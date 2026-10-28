@@ -1,0 +1,18 @@
+; Factory 5th look (Color-only), the owner's drawing docs/dev/concepts/factory_owner/new_robot_2.png converted AS DRAWN, palette own: mint #59ffa1 -> 1 (-), grey #5f574f -> 2 (+), dark green #153822 -> 3 (#), transparent -> 0. No pixel changed. Pixel (2,1) is an enclosed index-0 gap in the owner's drawing, left as drawn (question pending).
+; frames: robots_e
+..#+............
+#+.#+.#++++++...
+.#+.##+######+..
+..#+#+########+.
+...#++##-##-##+.
+..#+++##-##-##+.
+..#+++########+.
+...#++#-####-#+.
+....#+##----##+.
+.....#+######+..
+......#++++++...
+..###+#----#....
+.#+++#+##--###..
+#+--++#+#-#-++-.
+#+++++#++#+#++#.
+#+--++#+++++++-.

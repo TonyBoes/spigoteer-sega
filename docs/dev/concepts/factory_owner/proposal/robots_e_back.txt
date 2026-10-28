@@ -1,0 +1,19 @@
+; PROPOSAL: back view of the Factory 5th look, drawn by hand from the front (not mirrored). index 0 = wall, 1 mint, 2 grey, 3 dark green
+; frames: robots_e_back
+; Same antenna, arm, shoulder, left cheek panel, head outline and feet as the front, same index-0 pixels (the (2,1) gap stays). The face (dark screen, mint eyes and mouth) is replaced by grey casing plates inside the front's dark inner rim, split by a dark centre seam, with one small mint bolt at the lower right. The mint collar and chest lights become grey with a dark seam and two mint vent slits flanking it. Arm lights carry on from the front. No eye, screen or mouth faces the viewer.
+..#+............
+#+.#+.#++++++...
+.#+.##+######+..
+..#+#+#++++++#+.
+...#++#++#+++#+.
+..#+++#++#+++#+.
+..#+++#++#+++#+.
+...#++#++#+-+#+.
+....#+##+#++##+.
+.....#+######+..
+......#++++++...
+..###+#++#+#....
+.#+++#+++#+###..
+#+--++#+-#-#++-.
+#+++++#++#+#++#.
+#+--++#++#++++-.
