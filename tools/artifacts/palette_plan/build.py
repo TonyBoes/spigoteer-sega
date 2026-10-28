@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-27", "Saloon looks in the game (batch 2, Color): the 8 looks; built with EMMA on OBJ 6 and MABEL/ARTIE on OBJ 5 (the plan's 5 and 6 swapped)."),
+    ("2026-10-27", "Factory: BOXY yellow on Color; the cyan palette goes to NEKA, a Color-only 4th robot (owner art)."),
     ("2026-10-26", "Tile pictures: hover or tap a tile for its outline and number."),
     ("2026-10-26", "Patron revision batch 1 in the game: the accepted art for 8 venues and the palette merges (colours shared; no slots freed yet)."),
     ("2026-10-26", "This page is now the Graphics Atlas; the old atlas page is retired."),
