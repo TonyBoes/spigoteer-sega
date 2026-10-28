@@ -1,0 +1,39 @@
+; PROPOSAL v7: TOOB back, C2 balanced arms (owner 2026-10-28: "c2 is fine, but even out the arms a bit. He looks hump backed.").
+; Head rows 0-10 unchanged (antenna included). Only body rows 11-15 redrawn: same shoulder top row both sides (11),
+; arms 4 px wide both sides (cols 1-4 / 12-15), torso cols 5-11, body centred on col 8 like the head (cols 3-13).
+
+; C2a: mirrored arms, mint end dashes both sides, centred hatch
+........-.......
+....----#----...
+...+----#----#..
+...++---#---##..
+...+++#+#++###..
+...+++#++++###..
+...+++#++-+###..
+...+++#++++###..
+...++######+##..
+...+########+#..
+....#########...
+...##+++++++##..
+..###+++++++###.
+.-++#+++++++#++-
+.#++#++###++#++#
+.-++#+++++++#++-
+
+; C2b: as C2a, but the right arm carries the striped item (mint stripe down it, outlined), left arm unchanged
+........-.......
+....----#----...
+...+----#----#..
+...++---#---##..
+...+++#+#++###..
+...+++#++++###..
+...+++#++-+###..
+...+++#++++###..
+...++######+##..
+...+########+#..
+....#########...
+...##+++++++##..
+..###+++++++###.
+.-++#+++++++#+-#
+.#++#++###++#+-#
+.-++#+++++++#+-#
