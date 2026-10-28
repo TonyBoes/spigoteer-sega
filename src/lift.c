@@ -104,6 +104,7 @@ void lift_level_init(uint8_t g) BANKED {
             set_sprite_palette(lift_obj[v], 1, p);
             music_pump();                         // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
         }
+        if (g) set_sprite_palette(OBJPAL_PATRON_D, 1, p);   // (OBJ 4 is no patron's outside the Saloon: a level start sets it, so no mini-game's or story scene's colours stay in it)
         if (!g) pal5_cur = 0;
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
