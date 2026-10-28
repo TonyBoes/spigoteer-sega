@@ -70,6 +70,13 @@ the sections your task touches. The essentials:
   reads as a face, mask, visor or blindfold.
 - Clothes carry on from the front: same colours and patterns (stripes, jersey), plus back details (collar, number).
 - Judge each back next to its front at 1x and x8 before showing the owner.
+- **A back is not the front with the face removed** (owner, 2026-10-27, on robot backs that traced the front's outline
+  and blanked the screen: "They are just the sprite with the face removed."). Design what is actually behind the
+  figure: rear-only features (for robots: a hatch or access panel, battery pack, wind-up key, cable, exhaust, fins,
+  handle; for people: hair, collar, back of the clothes), seen from behind (one-sided details such as an arm stripe
+  show on the side they would be on from behind). The silhouette may change where a rear feature sticks out; keep
+  the size, head shape and colour masses so the pair still matches. Ask "what would I see walking round him?", not
+  "what do I erase?".
 
 ## Files
 `assets/art/patrons/<group>.txt` and `<group>_back.txt`; `assets/palettes.json` (`<group>_a/_b/_c`);
