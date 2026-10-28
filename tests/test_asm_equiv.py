@@ -55,7 +55,8 @@ def _gen_perf_snap(rnd, rig):
     return Call("main:_perf_snap", poke={"main:_snap_t": rnd.randrange(256), "main:_snap_ly": rnd.randrange(256)})
 
 
-# batch 2 .. 11 add their @candidate generators here.
+# (only perf_ly and perf_snap are registered here; the other routines' twins live in test_catch_asm.py, test_mugs_asm.py,
+# test_chooser_trace.py and test_asm_twins.py)
 
 
 @pytest.mark.skipif(not C_ROM.exists() or not CANDIDATES, reason="needs build/game-c.gb (make cfall) and a registered candidate")

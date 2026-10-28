@@ -598,8 +598,8 @@ def test_story_plays_it_in_the_bistro_and_the_last_call_has_everything_back(mode
         diff = [k for k in range(len(a)) if a[k] != f[k]]
         assert not diff, f"VRAM tiles as a fresh Last call's: {len(diff)} bytes differ from {hex(0x8000 + diff[0])}"
         assert after[1] == fresh[1], "BG palettes (DMG: BGP, OBP0, OBP1) as a fresh Last call's"
-        if model == "cgb":                               # (OBJ 4: Colby's jacket stays; the chefs have no extra OBJ
-            for k in (0, 1, 2, 3, 5, 6, 7):              # palette, so no bistro sprite uses 4)
+        if model == "cgb":                               # all 8 OBJ palettes: OBJ 4 is no patron's outside the Saloon and a level
+            for k in range(8):                           # start sets it (lift.c lift_level_init), so the mini-game's colours are gone
                 assert after[2][k] == fresh[2][k], k
 
 

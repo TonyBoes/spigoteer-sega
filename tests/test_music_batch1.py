@@ -1,6 +1,6 @@
 # Music batch 1 and the whole-Entertainer title (owner-approved 2026-10-17; docs/proarr/BATCH_1.md, BATCH_TITLE_FULL.md and specs/title_full.md on
 # branch promusic): the title, Oh! Susanna and Take Me Out to the Ball Game are the pro arrangements; the title is the full 173 s looping piece,
-# streamed through buffer A like the credits tune.  The generated notes equal tools/proarr.py's (promusic), pinned by digest below.
+# streamed through buffer A like the credits tune.  The generated notes equal a pinned digest (taken from the arrangement tool tools/proarr.py, since removed: re-pin to change them).
 import hashlib
 import json
 import re
@@ -23,7 +23,7 @@ ORDER_BYTES = 2 * gm.SLOT_BYTES
 ORDERS = 20
 FRAMES = 10336               # 1216 rows: 608 of 9 frames and 608 of 8 (swing 0xAA): 173 s
 
-# sha256 of {rows (channels 2, 3, 4 per order, every instrument resolved to its definition), harmony bytes, groove letters} as proarr.py
+# Pinned digest: sha256 of {rows (channels 2, 3, 4 per order, every instrument resolved to its definition), harmony bytes, groove letters} as proarr.py
 # (promusic, TITLE_B2_8VA=1) built them: gen_music's output for the same tune must be the same notes (tools/music_rig.py dumps are in the commit message)
 PROARR_DIGEST = {
     "susanna": "a00922535b9bc85bddfc06ba4f6d8aea0665829a8ea6b0a996cba66c0fd7e06b",

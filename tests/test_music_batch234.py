@@ -1,6 +1,6 @@
 # Music batches 2-4 (owner-approved 2026-10-17; docs/proarr/BATCH_2.md, BATCH_3.md, BATCH_4.md and specs/ on branch promusic): the pro arrangements of
 # the lodge, the bistro, the igloo, the factory, the Chrome Cow, the teahouse, the zoo and the space lounge, the three jingles' instruments and the
-# credits tune's held bass.  The generated notes equal tools/proarr.py's (promusic), pinned by digest below (the format of test_music_batch1.py;
+# credits tune's held bass.  The generated notes equal a pinned digest (taken from tools/proarr.py, since removed; re-pin to change them; the format of test_music_batch1.py;
 # a wave instrument's definition is compared without an empty subpattern: proarr's held bass has one, ours has none).
 import hashlib
 import json

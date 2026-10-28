@@ -1,5 +1,5 @@
 # EASY / NORMAL / HARD for the ten venue games and the three bonus rounds (2026-10-17, TUNING.md): each game copies the row of its difficulty (a `struct xx_tune`
-# in src/mg.h, the const table in src/xx.c, indexed by MG_DIFF: NORMAL, HARD, EASY) into the last field of its state at entry. Here: the row each mode
+# in src/mg.h, the const table in src/<game>.c, indexed by MG_DIFF: NORMAL, HARD, EASY) into the last field of its state at entry. Here: the row each mode
 # gets (the whole row, against the values the design table lists), STORY and Practice NORMAL playing the same row, the key values showing in play
 # (the first Kid's draw frame, the order's length and the press time, D and the belt, the meter step and the timer, the fish, the speed and the crates, the
 # supply, the pop interval, the shake-up's swaps, Perfect Pour's windows, Tip Shower's tomatoes), and the medals of each mode at their thresholds.

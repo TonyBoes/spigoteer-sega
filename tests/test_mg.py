@@ -412,7 +412,7 @@ def test_the_union_fits_story_scratch():
 
 # ---- back to the bar: everything borrowed is put back by the next level load -----------------------------------------
 def restored(gb, theme):
-    """The level's screen and VRAM as a level load leaves them (test_bonus2 / test_enhanced after a bonus round)."""
+    """The level's screen and VRAM as a level load leaves them (test_bonus2 after a bonus round)."""
     v = venue(theme)
     assert tilemap_row(gb, 7, 0, 20) == v["bar_map"][40:60]
     assert tilemap_row(gb, 17, 0, 20) == [v["floor_tile"]] * 20
