@@ -1,0 +1,20 @@
+; PROPOSAL v9: TOOB back, C2b with two antennas (owner 2026-10-28: "C2b, but one more thing. He has two antenna. Not one.").
+; Two dark rods (cols 6 and 10, rows 1-3) rising over the mint top slope to mint tips on row 0, like the single rod before; the old centre rod (col 8) is gone (mint slope, grey face).
+; Otherwise C2b pixel for pixel.
+
+......-...-.....
+....--#---#--...
+...+--#---#--#..
+...++-#---#-##..
+...+++#++++###..
+...+++#++++###..
+...+++#++-+###..
+...+++#++++###..
+...++######+##..
+...+########+#..
+....#########...
+...##+++++++##..
+..###+++++++###.
+.-++#+++++++#+-#
+.#++#++###++#+-#
+.-++#+++++++#+-#
