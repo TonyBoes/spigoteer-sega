@@ -103,12 +103,6 @@ def release_rom(model, ram=None):
     return rom
 
 
-@pytest.fixture(scope="module")
-def release_built():
-    subprocess.run(["make", "release"], cwd=ROOT, check=True, capture_output=True)
-    return RELEASE
-
-
 # ---- the menu --------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_bonus_offers_soundtrack_and_mini_games(model):

@@ -198,10 +198,9 @@ def test_each_level_loads_its_venue(gb, group):
 
 
 @pytest.mark.parametrize("group", range(len(GROUPS)), ids=[GROUP_THEME[g] for g in GROUPS])
+@pytest.mark.only_model("cgb")
 def test_patron_palettes_take_the_venue_wall_colour(gb, group):
     v = at_theme(gb, group)
-    if gb.model_name != "cgb":
-        pytest.skip("CGB palettes")
     wall = v["pal"][2][0]
     assert cgb_palette(gb, BGPAL_BAR)[0] == wall
     for k in range(3):

@@ -57,12 +57,12 @@ def test_the_stadiums_last_call_never_leaves_the_bar_empty_for_long(model):
         assert idle_gaps(gb, 1, 2) <= IDLE_MAX
 
 
+SERVE_SHIFTS = [(c, k) for c in range(10) for k in range(3) if ts.SHIFTS[c][k]["type"] == ts.G_SERVE]   # only serve goals count patrons served
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("c", range(10))
-@pytest.mark.parametrize("k", range(3))
+@pytest.mark.parametrize("c,k", SERVE_SHIFTS, ids=[f"{k}-{c}" for c, k in SERVE_SHIFTS])
 def test_no_shift_leaves_the_bar_empty_for_long(model, c, k):
-    if ts.SHIFTS[c][k]["type"] != ts.G_SERVE:
-        pytest.skip("only serve goals count patrons served")
     with ts.to_shift(model, c, k) as gb:
         w = idle_gaps(gb, c, k)
         print(c, k, "worst idle", w)

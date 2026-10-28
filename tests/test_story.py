@@ -1013,7 +1013,7 @@ def test_the_goal_banner_names_the_shift_and_the_hud_counts(model):
         assert gb.mem("story_step") == 0 and gb.mem("story_shift") == 0
         # the HUD: the mug-check icon + what is left (8) at columns 11-13
         assert tilemap_row(gb, 0, 11, 3) == [GOAL_BG, GLYPH["0"], GLYPH["8"]]
-        check_golden(gb, "story_goal")
+        check_golden(gb, "arcade_start")  # (the same picture as test_arcade.py)
         run_until(gb, lambda: state(gb) == PLAYING, 200)      # 3 s, then the level
         gb.write("served", 5)
         gb.run(3)

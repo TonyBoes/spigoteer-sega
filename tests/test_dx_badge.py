@@ -306,8 +306,6 @@ def want(step):
 def test_foam_and_fill_cycle_together_through_a_muted_rainbow_and_the_outline_never_changes():
     gb = make_rom("cgb")
     gb.run(120)
-    if gb.model_name != "cgb":
-        pytest.skip("CGB only")
     run_to_title_t(gb, DX_T0 - 2)
     first = colours(gb)
     assert first[2] == OUTLINE
@@ -350,8 +348,6 @@ def test_the_foam_is_lighter_than_the_fill_and_the_fill_lighter_than_the_outline
 def test_the_stamp_flashes_white_for_two_frames():
     gb = make_rom("cgb")
     gb.run(120)
-    if gb.model_name != "cgb":
-        pytest.skip("CGB only")
     run_to_title_t(gb, DX_T0 - 2)
     assert title_t(gb) == DX_T0 - 2
     got = {}
@@ -370,8 +366,6 @@ def test_the_stamp_asks_for_its_marimba_at_the_stamp_and_not_before():
     0 again a few frames later; no DON."""
     gb = make_rom("cgb")
     gb.run(120)
-    if gb.model_name != "cgb":
-        pytest.skip("CGB only")
     run_to_title_t(gb, DX_T0 - 2)
     assert title_t(gb) == DX_T0 - 2
     base = gb.read("sfx_count", 16)
@@ -391,8 +385,6 @@ def test_the_stamp_asks_for_its_marimba_at_the_stamp_and_not_before():
 def test_no_stamp_sound_on_the_dmg():
     gb = make_rom("dmg")
     gb.run(120)
-    if gb.model_name != "dmg":
-        pytest.skip("DMG only")
     base = gb.read("sfx_count", 16)
     run_to_title_t(gb, DX_T0 + 20)
     now = gb.read("sfx_count", 16)
@@ -429,17 +421,14 @@ def test_the_palette_is_written_in_vblank_only():
 def test_the_dmg_badge_area_does_not_animate():
     gb = make_rom("dmg")
     gb.run(120)
-    if gb.model_name != "dmg":
-        pytest.skip("DMG only")
     run_to_title_t(gb, DX_T0 + 3)
     assert not badge_entries(gb) and obj_palette(gb, 7) is None
     gb.pb.stop(save=False)
 
 
+@pytest.mark.only_model("cgb")
 def test_golden_the_badge_at_one_cycle_phase(boot):
     """One fixed phase (title_t DX_T0 + 2 + 2 * 12, 12 steps = a quarter turn), CGB only (the DMG has no badge and no animation)."""
-    if boot.model_name != "cgb":
-        pytest.skip("CGB only")
     run_to_title_t(boot, DX_T0 + FLASH + 24)
     assert title_t(boot) == DX_T0 + FLASH + 24
     boot.run(0)

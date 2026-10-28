@@ -97,13 +97,15 @@ def walker(gb, spare, b, x, v):
     return p
 
 
-def scene(gb, even=False, lifted=True, watcher_bar=1, pushed=True, rdirs=None):
+def scene(gb, even=False, lifted=True, watcher_bar=1, pushed=True, rdirs=None, looks=None):
     """Walkers at several shifts, drinkers holding mugs, a watcher in his back view, a lifted patron, a pushed one sliding
     back, full and empty mugs, the tip coin, the bartender on bar 1 left of the tap. even: every x even (a DMG mixed level
     draws patrons at even x only) and nobody moves. rdirs: option (b) (the looks are split by direction): variant C on the
     bars R in rdirs, A / B on the others (the same in both runs of a pair)."""
     o = 0 if even else 1
     V = (lambda b, v: v) if rdirs is None else (lambda b, v: 2 if is_r(rdirs, b) else v & 1)
+    if looks is not None:                                           # looks: {0, 1, 2: the scene's three looks} -> the variant bytes to put instead (test_saloon_looks_lift_mirror)
+        V = lambda b, v: looks[v]       # noqa: E731
     if rdirs is not None:                                           # (the level's start crowd shows the same looks in both runs of a pair: the game
         for q in range(MAX_P):                                      # does not clear the columns a start patron was drawn in before the scene moves him)
             if gb.read("patron_state", MAX_P)[q]:
@@ -354,9 +356,8 @@ def test_a_patron_at_local_x_is_drawn_at_screen_columns_19_minus_c(boot, dirs):
             assert rows[0][c:c + 3] == [t, t + 2, t4] and rows[1][c:c + 3] == [t + 1, t + 3, t4 + 1], (b, rows)
 
 
+@pytest.mark.only_model("dmg")
 def test_dmg_whole_screen_flip_flips_the_patron_tiles_in_place(boot):
-    if boot.model_name != "dmg":
-        pytest.skip("DMG only (CGB flips by attribute)")
     from test_flow import patron_group_tiles
     gb = start(boot, ALL_R, 2)                        # the sports group
     data = patron_group_tiles(1)
@@ -366,9 +367,8 @@ def test_dmg_whole_screen_flip_flips_the_patron_tiles_in_place(boot):
     assert list(gb.read("bar_sfp", 8)) == [S_FLIPX] * 4 + [0] * 4, "lifted patrons: the tiles are flipped already"
 
 
+@pytest.mark.only_model("dmg")
 def test_dmg_mixed_level_holds_both_directions_at_even_shifts(boot):
-    if boot.model_name != "dmg":
-        pytest.skip("DMG only")
     from test_flow import patron_group_tiles
     gb = start(boot, SPLIT, 2)
     data = patron_group_tiles(1)
@@ -385,9 +385,8 @@ def test_dmg_mixed_level_holds_both_directions_at_even_shifts(boot):
     assert list(gb.read("bar_sfp", 8)) == [S_FLIPX, S_FLIPX, 0, 0] * 2, "lifted: the L pose with the OAM flip"
 
 
+@pytest.mark.only_model("dmg")
 def test_dmg_mixed_back_view_on_an_r_bar_is_drawn_unmirrored(boot):
-    if boot.model_name != "dmg":
-        pytest.skip("DMG only")
     gb = start(boot, SPLIT)
     with logic_paused(gb):
         clear_patrons(gb)
@@ -403,11 +402,10 @@ def test_dmg_mixed_back_view_on_an_r_bar_is_drawn_unmirrored(boot):
     assert rows[0][18 - c:20 - c] == [t, t + 1] and rows[1][18 - c:20 - c] == [t + 2, t + 3], rows
 
 
+@pytest.mark.only_model("dmg")
 def test_dmg_mixed_option_b_flips_only_variant_c_in_place(boot):
     """Option (b): variants A and B as loaded, all of variant C's tiles (42 shifted, the shift-0 pose, the 4 back-view tiles)
     flipped in place, st_tab's two halves the same, the lifted patron needs no OAM flip, no tile moved."""
-    if boot.model_name != "dmg":
-        pytest.skip("DMG only")
     from test_flow import patron_group_tiles
     gb = start(boot, SPLIT, 2, mixb=True)
     data = patron_group_tiles(1)
@@ -424,10 +422,9 @@ def test_dmg_mixed_option_b_flips_only_variant_c_in_place(boot):
     assert list(gb.read("bar_sfp", 8)) == [S_FLIPX, S_FLIPX, 0, 0] + [0] * 4, "lifted: no OAM flip, C's pose is flipped already"
 
 
+@pytest.mark.only_model("dmg")
 def test_dmg_mixed_option_b_spawns_c_on_r_bars_only(boot):
     """Every patron of an option (b) level (the start crowd and the spawns): variant C on an R bar, A or B on an L bar."""
-    if boot.model_name != "dmg":
-        pytest.skip("DMG only")
     gb = start(boot, ALT, 2, mixb=True)
     seen = set()
     for _ in range(40):
@@ -464,11 +461,10 @@ def test_option_a_stays_the_default_and_the_debug_box_flips_it(boot):
 
 
 @pytest.mark.parametrize("theme", range(10))
+@pytest.mark.only_model("dmg")
 def test_dmg_every_venue_gets_flipped_keg_and_counter_tiles(boot, theme):
     """DMG, an R bar: every bar-row tile that is not its own mirror image gets a flipped copy in a free id (none is left
     unflipped); the wall rows and the counter row are the venue's, reversed, with those ids."""
-    if boot.model_name != "dmg":
-        pytest.skip("DMG only")
     gb = start(boot, ALL_R, theme + 1)
     assert gb.mem("cur_group") == theme and gb.mem("mir_short") == 0
     m = venue_rows(theme, "bar_map")
@@ -491,9 +487,8 @@ def test_dmg_every_venue_gets_flipped_keg_and_counter_tiles(boot, theme):
                 assert got in FREE_IDS and tile_data(gb, got) == flipped(tile_data(gb, src)), (r, c, src, got)
 
 
+@pytest.mark.only_model("cgb")
 def test_cgb_r_bar_rows_carry_the_flip_attribute(boot):
-    if boot.model_name != "cgb":
-        pytest.skip("CGB only")
     gb = start(boot, SPLIT)
     m, at = venue_rows(0, "bar_map"), venue_rows(0, "bar_attr")
     tm = gb.bg_tilemap()

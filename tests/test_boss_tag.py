@@ -39,14 +39,12 @@ def play_in(model, c):
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
-@pytest.mark.parametrize("c", range(10))
+@pytest.mark.parametrize("c", [c for c in range(10) if row(c)["gulp"] > SWAY])     # (the others have no second beat in his gulp)
 def test_the_drinking_shake(model, c):
     """He gulps (boss_state GULP, no push-back, no special pose): GULP while (boss_t / SWAY) is even, his shifted GULP while
     odd (Sasquatch: WALK); the topper moves 2 px with it on the odd beats, as a patron's sway."""
     r, a = row(c), art(NAMES[c])
     with play_in(model, c) as gb:
-        if r["gulp"] <= SWAY:
-            pytest.skip("no second beat in his gulp")
         gb.write("boss_xpose", 0)
         gb.write("boss_hold", 0)
         gb.write("boss_state", BS_GULP)

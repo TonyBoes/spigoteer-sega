@@ -677,5 +677,62 @@ def konami(gb, keys=KONAMI):
         gb.run(2)
 
 
+@pytest.fixture(scope="session")
+def release_built():
+    """`make release`, once per pytest process, under a file lock so that several processes (the shards, or a plain
+    `pytest` run in two terminals) never run make on build/ together; ptest has built it already, so this is a no-op there."""
+    import fcntl
+    import subprocess
+    lock = ROOT / "out" / "release.lock"
+    lock.parent.mkdir(exist_ok=True)
+    with open(lock, "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            subprocess.run(["make", "release"], cwd=ROOT, check=True, capture_output=True)
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+    return ROOT / "build" / "release.gb"
+
+
+def newest_source():
+    """(mtime, path) of the newest file under src/ and assets/ (plus the Makefile): what a ROM build reads."""
+    best = (0.0, None)
+    for top in ("src", "assets"):
+        for p in (ROOT / top).rglob("*"):
+            if p.is_file() and p.suffix in (".c", ".h", ".s", ".asm", ".inc", ".json", ".txt", ".png", ".gbsprite", ".tmx", ".md"):
+                best = max(best, (p.stat().st_mtime, str(p)))
+    mk = ROOT / "Makefile"
+    return max(best, (mk.stat().st_mtime, str(mk)))
+
+
+@pytest.fixture(scope="session")
+def c_rom_fresh():
+    """The asm-twin tests compare build/game.gb with build/game-c.gb. An old game-c.gb has another memory layout and fails
+    in confusing ways (or, worse, compares the wrong code), so a game-c.gb older than the sources FAILS here and says what to run.
+    No game-c.gb at all stays a skip in the tests that need it (a tree where `make cfall` was never run)."""
+    c = ROOT / "build" / "game-c.gb"
+    if not c.exists():
+        return None
+    t, src = newest_source()
+    if c.stat().st_mtime < t:
+        pytest.fail(f"build/game-c.gb is older than the sources ({Path(src).relative_to(ROOT)} is newer): run `make cfall`, "
+                    "then these asm-twin tests compare the current code", pytrace=False)
+    return c
+
+
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: builds the ROM variants from scratch (tests/test_build.py)")
+    config.addinivalue_line("markers", "only_model(name): the test applies to one hardware model ('dmg' or 'cgb'); the other "
+                            "model's case is deselected at collection (so it never shows as a skip)")
+
+
+def pytest_collection_modifyitems(config, items):
+    keep, drop = [], []
+    for it in items:
+        mk = it.get_closest_marker("only_model")
+        cs = getattr(it, "callspec", None)
+        models = [v for v in cs.params.values() if v in ("dmg", "cgb")] if cs else []
+        (drop if mk and models and models[0] != mk.args[0] else keep).append(it)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep

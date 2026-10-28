@@ -912,7 +912,7 @@ def test_the_card_in_the_pause_menu_turns_pages_and_a_on_the_last_comes_back(mod
         from test_mg_card import FONT_BASE
         assert tilemap_row(gb, 0, 0, 20, window=True)[0] == FONT_BASE + 7 and tilemap_row(gb, 3, 0, 20, window=True)[9] == FONT_BASE + 15, "frame and icon"
         assert not gb.mem(0xFF40) & 2, "sprites off on the card"
-        check_golden(gb, "pause_card_stub_p1")
+        check_golden(gb, "card_stub_page1")  # (the same picture as test_mg_card.py)
         tap(gb, "a", CARD_FRAMES)
         rows = card_rows(gb)
         assert rows[5] == "GREEN LIGHT" and rows[7] == "EARLY IS A MISS" and rows[16] == "A BACK", rows

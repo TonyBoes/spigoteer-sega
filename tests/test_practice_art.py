@@ -215,9 +215,8 @@ def test_a_steady_walk_finds_the_next_picture_prefetched(gb):
         assert n is not None and n <= 6, (game, n)
 
 
+@pytest.mark.only_model("cgb")
 def test_a_color_walks_both_ways_without_a_stream(gb):
-    if gb.model_name != "cgb":
-        pytest.skip("four buffers are a Color's")
     for _ in range(3):
         tap(gb, "right", 100)
     for game in ("logroll", "shirtcannon", "quickdraw"):    # (back through the pictures the walk left in the buffers or prefetched)

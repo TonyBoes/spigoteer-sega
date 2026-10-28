@@ -15,7 +15,7 @@ from conftest import ROM, ROOT
 
 import chooser_trace_lib as L
 
-pytestmark = pytest.mark.timeout(900)
+pytestmark = [pytest.mark.timeout(900), pytest.mark.usefixtures("c_rom_fresh")]
 
 
 @pytest.fixture(scope="module")

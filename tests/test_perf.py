@@ -278,10 +278,10 @@ def test_realistic_peak(rom):
     assert_typical(rom, mean=141, p90=178, p99=212)
 
 
-@pytest.mark.xfail(strict=True, reason="owner target NOT met at the realistic peak (PyBoy; no doors): DMG end LY ~187, "
-                   "~59 of 1200 frames missed; CGB end LY ~193, ~99 missed. Per frame (M13c) (median, DIV ticks, ~1.8 a line): "
-                   "update_patrons ~35, draw_mugs + draw_lifted ~43, lift_frame ~29, update_mugs ~22, queue_vram ~15. "
-                   "Meeting it needs those paths cheaper, not tuning; this test turns XPASS (fails) once it is met.")
+@pytest.mark.xfail(strict=False, reason="owner target NOT met at the realistic peak (PyBoy; no doors). Re-measured 2026-10-28 on main "
+                   "(asm pass, patron revision 2): DMG end LY 216, 119 of 1200 frames missed; CGB end LY 201, 150 missed "
+                   "(the target is 0 missed and end LY <= END_LY_TARGET). Meeting it needs the per-frame paths cheaper, not "
+                   "tuning. strict=False: the numbers move with every code change; a pass is welcome, not a failure.")
 def test_realistic_peak_frame_time_target(rom):
     r = realistic(rom)[0]
     assert r["missed"] == 0 and r["end"] <= END_LY_TARGET, r

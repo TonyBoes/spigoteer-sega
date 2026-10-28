@@ -16,7 +16,7 @@ from test_mugs_asm import rnd_image
 
 SLOW = bool(os.environ.get("RUN_SLOW"))
 ASM_ROM, C_ROM = ROOT / "build" / "game.gb", ROOT / "build" / "game-c.gb"
-pytestmark = [pytest.mark.timeout(1200),
+pytestmark = [pytest.mark.timeout(1200), pytest.mark.usefixtures("c_rom_fresh"),
               pytest.mark.skipif(not C_ROM.exists(), reason="needs build/game-c.gb (make cfall)")]
 N_REAL, N_RANDOM = (400, 6000) if SLOW else (150, 1500)
 SCENES = [dict(), dict(target=16, cls=ph.ClassicPeak, classic=25)]
