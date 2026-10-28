@@ -1,5 +1,5 @@
-; back views of cowboys.txt: A DUSTY (docs/dev/concepts/dusty_hank_sprite/dusty_back.png), B EMMA and C GUS: STAND-INS (no back drawn yet):
-; EMMA wears ROSIE's back draft, GUS HANK's. Saloon A's back view must be symmetric (tests/test_cowboy_back.py).
+; back views of cowboys.txt: A DUSTY (docs/dev/concepts/dusty_hank_sprite/dusty_back.png), B EMMA (docs/dev/concepts/saloon_backs/proposal, owner 2026-10-28), C GUS: STAND-IN (HANK's draft).
+; Saloon A's back view must be symmetric (tests/test_cowboy_back.py).
 ; A DUSTY
 .....#######....
 ....#---#---#...
@@ -18,22 +18,22 @@
 .#---#######---#
 ################
 
-; B EMMA (stand-in: ROSIE's draft)
-................
-.....######.....
-....#++++++#....
-...#++++++++#...
-...#+++++++++#..
-..#+++++++#++#..
-..#++#+++++#+#..
-..#+++#++++++#..
-..############..
-..############..
-..###########...
-.#############..
-#++##########++#
-#+++########+++#
-#+++++####+++++#
+; B EMMA (owner 2026-10-28, proposal look B)
+..............#.
+.........#...###
+........#-#.#-##
+.....++++#++-##.
+....++++++++++#.
+...+++++++++++..
+...++++++++++++.
+...++++++++++++.
+...++++++++++++.
+..+++++++++++++.
+.++++#++++#++++.
+.++++#++++#++++.
+#+++#++++++#+++#
+##++#++++++#++##
+###+#++++++#+###
 ################
 
 ; C GUS (stand-in: HANK's draft)
