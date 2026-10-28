@@ -1,0 +1,58 @@
+; PROPOSAL v4: TOOB back views (Factory 5th look, Color-only). index 0 = wall, '-' 1 mint, '+' 2 grey, '#' 3 dark green. Nothing imported.
+; Hand-drawn. Layout is the front pose turned round (robot facing away, same side toward us): antenna and the side wedge are on the RIGHT, the striped item on the right, the arm on the left. The engine mirrors on right-to-left bars.
+; Common to A, B and C: 16x16, same head rows 1-10, same antenna and side wedge as the front (its two enclosed wall gaps kept, now at (13,1) and (12,2)), same torso and arm width. The dark screen is gone: the head is grey casing (index 2); dark (3) only in slots, shadows and cable; mint (1) is the lit top edge and small lights.
+; Torso: no collar or chest lights; the neck is grey. The arm keeps its two end lights.
+
+; A: REAR HOUSING. Three long dark vent slits across the casing, a mint lit top edge, a power cable out of the bottom of the casing down the back into a socket (one mint plug light). The striped item keeps its two mint stripes (a cell clipped on his side, stripes wrap round it).
+............+#..
+...----++#.+#.+#
+..++++++++##.+#.
+.++######++#+#..
+.+++++++++++#...
+.++######++++#..
+.++++++++++++#..
+.++######+++#...
+.++++++-+++#....
+..++++#+++#.....
+...+++#++#......
+....#+#++#+###..
+..###+#+++#+++#.
+.-++#+#++#++--+#
+.#++#+-++#+++++#
+.-++#++++#++--+#
+
+; B: TUBE BULGE. A round bulge on the casing, lit from the top left (mint arc) and shadowed bottom right (dark arc), a carrying-handle hump on top, a back panel on the torso with two mint charge bars, and the striped item seen from behind as a strapped canister (dark strap, no stripes).
+....#++#....+#..
+...++++++#.+#.+#
+..++++++++##.+#.
+.+++--##+++#+#..
+.++-++++#+++#...
+.++-++++#++++#..
+.+++++++#++++#..
+.+++++++#+++#...
+.+++#####++#....
+..++++++++#.....
+...++++++#......
+....#++++#+###..
+..###+++++#+++#.
+.-++#+--+#+++++#
+.#++#++++#######
+.-++#++++#+++++#
+
+; C: BOX BULGE. A raised box on the casing (mint lit top face, dark right side and bottom), a port slit and one mint light on its face, plain neck. Torso: a socket plate. The striped item is seen end-on: one vertical mint stripe.
+............+#..
+...++++++#.+#.+#
+..++++++++##.+#.
+.++-----#++#+#..
+.+++++++#+++#...
+.++++++-#++++#..
+.+++++++#++++#..
+.++####+#+++#...
+.+++++++#++#....
+..+######+#.....
+...++++++#......
+....#++++#+###..
+..###+++++#+++#.
+.-++#++++#++-++#
+.#++#+##+#++-++#
+.-++#++++#++-++#
