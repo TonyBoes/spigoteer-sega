@@ -97,13 +97,15 @@ def walker(gb, spare, b, x, v):
     return p
 
 
-def scene(gb, even=False, lifted=True, watcher_bar=1, pushed=True, rdirs=None):
+def scene(gb, even=False, lifted=True, watcher_bar=1, pushed=True, rdirs=None, looks=None):
     """Walkers at several shifts, drinkers holding mugs, a watcher in his back view, a lifted patron, a pushed one sliding
     back, full and empty mugs, the tip coin, the bartender on bar 1 left of the tap. even: every x even (a DMG mixed level
     draws patrons at even x only) and nobody moves. rdirs: option (b) (the looks are split by direction): variant C on the
     bars R in rdirs, A / B on the others (the same in both runs of a pair)."""
     o = 0 if even else 1
     V = (lambda b, v: v) if rdirs is None else (lambda b, v: 2 if is_r(rdirs, b) else v & 1)
+    if looks is not None:                                           # looks: {0, 1, 2: the scene's three looks} -> the variant bytes to put instead (test_saloon_looks_lift_mirror)
+        V = lambda b, v: looks[v]       # noqa: E731
     if rdirs is not None:                                           # (the level's start crowd shows the same looks in both runs of a pair: the game
         for q in range(MAX_P):                                      # does not clear the columns a start patron was drawn in before the scene moves him)
             if gb.read("patron_state", MAX_P)[q]:

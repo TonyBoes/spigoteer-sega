@@ -694,6 +694,32 @@ def release_built():
     return ROOT / "build" / "release.gb"
 
 
+def newest_source():
+    """(mtime, path) of the newest file under src/ and assets/ (plus the Makefile): what a ROM build reads."""
+    best = (0.0, None)
+    for top in ("src", "assets"):
+        for p in (ROOT / top).rglob("*"):
+            if p.is_file() and p.suffix in (".c", ".h", ".s", ".asm", ".inc", ".json", ".txt", ".png", ".gbsprite", ".tmx", ".md"):
+                best = max(best, (p.stat().st_mtime, str(p)))
+    mk = ROOT / "Makefile"
+    return max(best, (mk.stat().st_mtime, str(mk)))
+
+
+@pytest.fixture(scope="session")
+def c_rom_fresh():
+    """The asm-twin tests compare build/game.gb with build/game-c.gb. An old game-c.gb has another memory layout and fails
+    in confusing ways (or, worse, compares the wrong code), so a game-c.gb older than the sources FAILS here and says what to run.
+    No game-c.gb at all stays a skip in the tests that need it (a tree where `make cfall` was never run)."""
+    c = ROOT / "build" / "game-c.gb"
+    if not c.exists():
+        return None
+    t, src = newest_source()
+    if c.stat().st_mtime < t:
+        pytest.fail(f"build/game-c.gb is older than the sources ({Path(src).relative_to(ROOT)} is newer): run `make cfall`, "
+                    "then these asm-twin tests compare the current code", pytrace=False)
+    return c
+
+
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: builds the ROM variants from scratch (tests/test_build.py)")
     config.addinivalue_line("markers", "only_model(name): the test applies to one hardware model ('dmg' or 'cgb'); the other "

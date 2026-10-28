@@ -128,6 +128,9 @@ class Rig:
             if k in self.funcs:
                 b, a, _ = self.funcs[k]
                 return b, a
+        v = self.noi.get("_" + name)                          # a generated function (build/*.c) is not in the symtab: the .noi has it
+        if v is not None:
+            return (v >> 16) or self.noi.get("b_" + name, 0), v & 0xFFFF
         raise KeyError(name)
 
     def has_fn(self, name):
@@ -146,6 +149,8 @@ class Rig:
             n += 1
         if self.queue or self.pending:
             raise RuntimeError("rig: calls did not come back (the function never returned to the sentinel)")
+        if len(self.results) != len(calls):                   # (a hook that raised, e.g. an unknown function name, was swallowed by PyBoy)
+            raise RuntimeError(f"rig: {len(calls)} calls, {len(self.results)} results (a call's setup failed)")
         return self.results
 
     def _snapshot(self):

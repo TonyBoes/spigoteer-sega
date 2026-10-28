@@ -10,6 +10,19 @@ WALKING, PUSHED, DRINKING = 1, 2, 3
 FULL, EMPTY, BREAKING, HELD = 1, 2, 3, 4
 
 
+SALOON_LOOKS = False       # test_perf_saloon sets it: the scenarios then give patrons all 8 Saloon looks (3-7 are Color-only, VRAM bank 1)
+_SALOON_INSTANCES = {0: 0, 1: 3, 2: 1, 3: 0, 4: 0, 5: 0, 6: 3, 7: 4}   # one real (look, palette instance) pair each (COMBOS of test_saloon_looks)
+
+
+def variant_for(p):
+    """The patron_variant the scenarios give patron/bar number p: looks 0-2 (all models) by default; with SALOON_LOOKS all eight looks,
+    the variant byte as the game builds it: look | ((look ^ instance) & 7) << 3 | bank 1 (bit 6) for the Color-only looks 3-7."""
+    if not SALOON_LOOKS:
+        return p % 3
+    look = p % 8
+    return look | (((look ^ _SALOON_INSTANCES[look]) & 7) << 3) | (0x40 if look > 2 else 0)
+
+
 def put(gb, name, i, v):
     gb.write(gb.addr(name) + i, v)
 
@@ -130,7 +143,7 @@ class WorstCase:
         put(gb, "patron_x", p, x)
         put(gb, "patron_frac", p, (p * 37) & 255)
         put(gb, "patron_draw", p, x)
-        put(gb, "patron_variant", p, p % 3)
+        put(gb, "patron_variant", p, variant_for(p))
         put(gb, "patron_timer", p, (p * 11) % 80)
         put(gb, "patron_aux", p, (8 + p) if state == PUSHED else 0)
         put(gb, "patron_mug", p, 255)
@@ -249,7 +262,7 @@ class OverlapCase:
         put(gb, "patron_x", p, x)
         put(gb, "patron_frac", p, 0)
         put(gb, "patron_draw", p, 255)
-        put(gb, "patron_variant", p, p % 3)
+        put(gb, "patron_variant", p, variant_for(p))
         put(gb, "patron_timer", p, 0)
         put(gb, "patron_aux", p, 0)
         put(gb, "patron_mug", p, 255)
@@ -360,7 +373,7 @@ class RealisticPeak:
                 p = slot
                 slot += 1
                 for n, v in (("patron_state", st), ("patron_bar", b), ("patron_x", x), ("patron_frac", 0),
-                             ("patron_draw", 255), ("patron_variant", p % 3), ("patron_timer", (p * 13) % 60),
+                             ("patron_draw", 255), ("patron_variant", variant_for(p)), ("patron_timer", (p * 13) % 60),
                              ("patron_aux", 0), ("patron_mug", 255), ("patron_dist", 0), ("patron_drinks", 1),
                              ("patron_hurry", 1 if p in (1, 6) else 0), ("patron_catchx", x)):
                     put(gb, n, p, v)
@@ -497,14 +510,14 @@ class ClassicPeak(RealisticPeak):
         for b in range(4):
             p, x = 8 + b, 92 - 6 * b
             for n, v in (("patron_state", WALKING), ("patron_bar", b), ("patron_x", x), ("patron_frac", 0),
-                         ("patron_draw", 255), ("patron_variant", b % 3), ("patron_timer", 0), ("patron_aux", 0),
+                         ("patron_draw", 255), ("patron_variant", variant_for(b)), ("patron_timer", 0), ("patron_aux", 0),
                          ("patron_mug", 255), ("patron_dist", 0), ("patron_drinks", 0), ("patron_hurry", b & 1),
                          ("patron_catchx", x)):
                 put(gb, n, p, v)
         gb.write("patrons_live", 12)
 
 
-def realistic_run(gb, frames, check=None, target=10, dirs=0, cls=None, classic=0):
+def realistic_run(gb, frames, check=None, target=10, dirs=0, cls=None, classic=0, level=0):
     """The RealisticPeak scenario at level 10 (the fastest row) for `frames` frames (the bartender on the level-8 script); check(gb, i)
     after each; dirs: the bars' directions (P4 ClassicPeak; 0 every bar L). Returns (perf_read, the scenario's stats,
     lifts by the chooser in the run)."""
@@ -514,8 +527,17 @@ def realistic_run(gb, frames, check=None, target=10, dirs=0, cls=None, classic=0
     else:
         if dirs:
             gb.write("level_dirs", dirs)
-        start_game(gb)
-        goto_fastest(gb)
+        if level:                                        # (a LEVEL-harness start at that level: 11 = the Saloon, loop 2)
+            from conftest import title_level
+            title_level(gb, level)
+            for _ in range(400):                    # (a venue card first)
+                if gb.mem("game_state") == PLAYING:
+                    break
+                gb.run(1)
+            assert gb.mem("game_state") == PLAYING
+        else:
+            start_game(gb)
+            goto_fastest(gb)
     gb.write("intro_timer", 0)
     gb.write("tip_chance", 0)
     rp = (cls or RealisticPeak)(gb, target)

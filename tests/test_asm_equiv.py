@@ -21,7 +21,7 @@ SLOW = bool(os.environ.get("RUN_SLOW"))
 FAST, FULL = 2000, 20000
 ASM_ROM, C_ROM = ROOT / "build" / "game.gb", ROOT / "build" / "game-c.gb"
 MODELS = ["dmg", "cgb"]
-pytestmark = pytest.mark.timeout(1200)
+pytestmark = [pytest.mark.timeout(1200), pytest.mark.usefixtures("c_rom_fresh")]
 
 
 @pytest.fixture(params=MODELS)
