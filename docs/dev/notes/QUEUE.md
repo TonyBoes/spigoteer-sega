@@ -2,6 +2,7 @@
 
 Question numbering reset (owner 2026-10-28, after Q78: "Also, reset question numbering."): the next question is Q1. Q-numbers below up to Q78 are the old series.
 Test review MERGED 2026-10-28 (docs/dev/handoffs/TEST_REVIEW.md; cleanup 98a691e f59dbb6 a867560 9217c7c): 5665 passed, 29 skipped, 72 s; new test_budget (floors WRAM_LO 160, WRAM_HI_0 445, ROM0 421), c_rom_fresh (run make cfall), test_asm_twins, Saloon looks 3-7 perf/lift/mirror, import palette/tile tests; 15 goldens removed (12 duplicates, 3 orphans). Open: realistic-peak frame target (0 missed, LY<=118) not met (xfail non-strict: DMG 216/119, CGB 201/150); ASM_PATRON_LOOP/STEPS/BOSS_HATS/LIFT_FRAME gate no code.
+STRESS debug mode MERGED 2026-10-28 (e7880bd): debug menu MODE STRESS, PEAK SPACE (level 10, 10 patrons) / CLASSIC (level 12, 16) / ARCADE (level 40, 10); crowd held via story.c pat_done under DEBUG_MENU; release byte-identical; no on-screen late counter (timing/HUD cost). Idle PyBoy late frames: SPACE 0/0, CLASSIC 2/56, ARCADE 5/13 (DMG/CGB). Pocket Player v25.
 
 MAIN at 9a17af9 has: the owner's 14 portraits; the wooly cap (text + finale picture); the credits backdrop by shade; the marimba perfect-pour sound with the streak (x2 bonus from the 3rd); pocketed tips (B); the Mothership VBlank palette fix; the asm catch scans; the boss icons; map START menu; Dregs line; asm draw_held/update_mugs.
 
