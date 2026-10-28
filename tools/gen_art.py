@@ -914,6 +914,34 @@ class ArtError(Exception):
     pass
 
 
+def index0_holes(art):
+    """Index-0 pixels a 16x16 figure encloses (not reachable from its border through index 0)."""
+    todo = [(x, y) for y in range(16) for x in range(16) if (x in (0, 15) or y in (0, 15)) and art[y][x] == "."]
+    seen = set(todo)
+    while todo:
+        x, y = todo.pop()
+        for xx, yy in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= xx < 16 and 0 <= yy < 16 and (xx, yy) not in seen and art[yy][xx] == ".":
+                seen.add((xx, yy))
+                todo.append((xx, yy))
+    return {(x, y) for y in range(16) for x in range(16) if art[y][x] == "." and (x, y) not in seen}
+
+
+# Gaps the owner drew on purpose (2026-10-27: "Gaps are intentional. Meant to be transparent. Should be color of the
+# background."): enclosed index-0 pixels, per figure, as (x, y); wall on the BG, see-through when lifted, never filled.
+# Any other enclosed index-0 pixel fails the build. Key: (group, "front" | "back", variant 0-2).
+DRAWN_GAPS = {("robots", "front", 1): {(8, 1), (9, 1)},      # VOLTA's crest
+              ("robots", "back", 1): {(8, 1), (9, 1)},
+              ("cowboys", "front", 1): {(6, 13), (7, 14), (9, 14), (11, 13)}}   # existing art (diagonal leg gaps), listed so the check passes
+
+
+def check_holes(g, kind, vi, art):
+    extra = index0_holes(art) - DRAWN_GAPS.get((g, kind, vi), set())
+    if extra:
+        raise ArtError(f"{g} {kind} {'abc'[vi]}: index 0 inside the figure at (x, y) {sorted(extra)[:6]}: a lifted patron "
+                       "would be see-through there (list it in DRAWN_GAPS only if the owner drew it)")
+
+
 def main():
     try:
         _main()
@@ -1109,6 +1137,9 @@ def _main():
         assert len(vs) == 3 and all(len(v) == 16 and all(len(r) == 16 for r in v) for v in vs), g
         bs = [r for _, r in blocks(ROOT / f"assets/art/patrons/{g}_back.txt")]
         assert len(bs) == 3 and all(len(v) == 16 and all(len(r) == 16 for r in v) for v in bs), g + "_back"
+        for vi in range(3):
+            check_holes(g, "front", vi, vs[vi])
+            check_holes(g, "back", vi, bs[vi])
         poses, shifted_rows = [None] * per_group, []
         poses[blank_ofs] = poses[blank_ofs + 1] = tile_bytes(["." * 8] * 8, 0, 0)
         for vi, v in enumerate(vs):
