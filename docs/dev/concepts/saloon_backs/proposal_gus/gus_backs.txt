@@ -1,0 +1,64 @@
+; GUS back-view proposals, take 2 (owner 2026-10-28: "Q5 look good except for gus."). Proposal only: nothing is imported.
+; . wall   - 1 tan   + 2 red-brown   # 3 dark   (cowboys_c: #d8c098 #b85838 #281810; same indices as the front, cowboys.txt look C)
+; All three keep the front's hat (same crown, same 14 px brim), the 14 px shoulders, tan sleeves with dark edges and hands.
+; No paired marks in the hair (they read as eyes) and no red band right under the head (it read as a mouth).
+
+; A
+; behind: hat crown, long grey-white hair hanging from under the brim to the beard's length (row 10), hair over the nape, dark coat back
+; with a centre seam, tan sleeves. No braces, no beard wings: the hair is one block, the coat is plain.
+....#######.....
+....###+--##....
+...###++--###...
+..############..
+.##############.
+...#--------#...
+..#--+-------#..
+..#--+----+--#..
+..#--+----+--#..
+..#--------+-#..
+.##--######--##.
+.##############.
+#-#####+######-#
++-#####+######-+
+#-#####+######-#
++-############-+
+
+; B
+; behind: hat crown, short grey hair over the nape, tan shirt back; a red-brown bedroll lashed across the shoulder blades with
+; tan end caps (spiral dot) and dark ties, two dark straps running down the back to the belt.
+....#######.....
+....###+--##....
+...###++--###...
+..############..
+.##############.
+...#--------#...
+..#----------#..
+..#----------#..
+.##############.
+#--#-+++++++#--#
+#-+#++++++++#+-#
+#--#++++++++#--#
+.##############.
+#-##-#----#-##-#
++-##-#----#-##-+
+#-############-#
+
+; C
+; behind: hat crown, short grey hair over the nape, tan shirt back; a pickaxe carried over the right shoulder: wooden shaft
+; slanting down across the back to the belt, the iron head standing up beside the hat.
+....#######.....
+....###+--##....
+...###++--###...
+..############..
+.##############.
+...#--------#.##
+..#----------#-#
+..#-----+----###
+..#---++++---#++
+.##-------++++#.
+.##-----++---##.
+.##----++----##.
+#-##-++-----##-#
++-##++------##-+
+#-##+-------##-#
++-############-+
