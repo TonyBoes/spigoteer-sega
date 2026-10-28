@@ -12,6 +12,23 @@ publish with that page's URL as `url`.
 | Palette Merges | https://claude.ai/artifact/5N6u6w7ir7y3dosAMdPH43 | `tools/artifacts/palette_merges/` | `python3 tools/artifacts/palette_merges/build.py` (after `make atlas`) writes `index.html` and `img/`. The proposed merges are hand-kept in `MERGES` in build.py. Publish `index.html` with `img/*.png` as files. |
 | Review Board (an open question's items too big for Open Questions; empty when none) | https://claude.ai/artifact/SHg2h5cuTDMN5qrKfiFRho | `tools/artifacts/review_board/` | Hand-kept, like Open Questions. |
 
+## Page rules (every page, every update; owner reads on a phone)
+
+Check these before each publish:
+1. **No sideways scroll at 360 px wide.** Nothing wider than the screen: images get `max-width: 100%; height: auto`
+   (pixel art keeps `image-rendering: pixelated`); a fixed-size crop or picture is at most 320 px. Tables with more than
+   3 columns turn into stacked cards under 640 px (each cell labelled with its column name), never an inner scroll box.
+   Long ids and hex wrap (`overflow-wrap: anywhere`). Tooltips are clamped to the screen. 16 px side gutter.
+2. **Colour has a meaning, and it is the same everywhere.** green = in the game now, amber/yellow = planned, orange
+   dashed = free slot, accent blue = links and selected tabs. Nothing else gets a colour. Bullet markers stay neutral
+   (muted); only the text of a now/planned item is coloured.
+3. **Contrast:** text at least 4.5:1 against its card and the page ground, in light AND dark mode (check the token
+   pairs with a contrast script when a colour changes).
+4. **Bare labels** ("HUD", not "HUD (score, lives)"); explanations in chat or behind a toggle; summary first, detail
+   collapsed.
+5. **Tap targets** at least 32 px; nothing that only works on hover (hover info also opens on tap).
+6. Every colour is a `:root` token, redefined for dark mode (both the media query and `[data-theme="dark"]`).
+
 ## Retired: the old Graphics Atlas page
 
 Owner, 2026-10-26: the page at https://claude.ai/artifact/RLQysU9fNNbcZR2TS8x5XZ, renamed "Old Atlas", is no longer updated; the

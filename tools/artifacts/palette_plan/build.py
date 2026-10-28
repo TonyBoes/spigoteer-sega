@@ -394,7 +394,7 @@ w('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscr
 w("""<style>
 /* Layout: venue tabs, then that venue's sprite palettes (swatches + who uses them), then its background palettes. */
 :root {
-  --ground: #eef0f2; --card: #fbfcfd; --ink: #1d2126; --muted: #5d6670; --rule: #d3d9df; --accent: #1f6f8b; --free: #b26a00; --now: #23824a; --plan: #9a7400;
+  --ground: #eef0f2; --card: #fbfcfd; --ink: #1d2126; --muted: #5d6670; --rule: #d3d9df; --accent: #1f6f8b; --free: #985a00; --now: #23824a; --plan: #7f6200;
   --display: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -426,6 +426,7 @@ h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .pal ul.pat { font-weight: 600; }
 .pal ul + ul { border-top: 1px solid var(--rule); padding-top: 3px; margin-top: 2px; }
 li.now { color: var(--now); } li.plan { color: var(--plan); }
+li::marker { color: var(--muted); }
 .freep { margin: 0; color: var(--free); font-weight: 600; font-size: 13px; }
 .freep.plan { color: var(--plan); }
 
@@ -446,7 +447,7 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; border-radius: 3px; width: 48px; height: 48px; max-width: none; }
 .pt td.pic { width: 100px; min-width: 100px; padding-block: 4px; }
 .pics { display: flex; gap: 4px; }
-.bimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: none; border-radius: 4px; }
+.bimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: 100%; height: auto; border-radius: 4px; }
 .bdesc { margin: 0 0 8px; padding-left: 1.1em; font-size: 13px; } .bdesc b { font-family: var(--mono); font-size: 12px; }
 .bact { margin: 0 0 6px; max-width: 68ch; font-size: 14px; }
 .poses { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
@@ -466,6 +467,19 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 #ttip { position: absolute; z-index: 60; pointer-events: none; font-size: 12px; line-height: 1.4; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--ground); white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
 .tdet { font-size: 13px; color: var(--muted); margin: 8px 0 0; } .tdet summary { cursor: pointer; font-weight: 600; } .tdet ul { margin: 4px 0 0; padding-left: 1.2em; }
 .foot { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+html, body { overflow-x: clip; }
+.wrap > *, .panel { min-width: 0; }
+@media (max-width: 640px) {
+  .tbl { overflow-x: visible; }
+  table.pt, .pt thead, .pt tbody, .pt tr, .pt td { display: block; width: auto; }
+  .pt thead { display: none; }
+  .pt tr { padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+  .pt tr:last-child { border-bottom: 0; }
+  .pt td { border: 0; padding: 2px 0; overflow-wrap: anywhere; }
+  .pt td[data-label]:not([data-label=""])::before { content: attr(data-label); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .pt td.pic { width: auto; min-width: 0; }
+  .pt td.slotc { white-space: normal; }
+}
 #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 13px var(--mono); padding: 6px 12px; border-radius: 6px; }
 </style>""")
 w('<div class="wrap"><div class="tabs" role="tablist" aria-label="Venues">')
@@ -1490,6 +1504,14 @@ w("""<script>
     var hex = b.getAttribute("data-hex");
     function shown(m) { toast.textContent = m; toast.hidden = false; clearTimeout(timer); timer = setTimeout(function () { toast.hidden = true; }, 1400); }
     try { navigator.clipboard.writeText(hex).then(function () { shown("Copied " + hex); }, function () { shown(hex); }); } catch (err) { shown(hex); }
+  });
+})();
+</script>""")
+w("""<script>
+(function () {
+  document.querySelectorAll("table.pt").forEach(function (t) {
+    var hs = Array.prototype.map.call(t.querySelectorAll("thead th"), function (h) { return h.textContent.trim(); });
+    t.querySelectorAll("tbody tr").forEach(function (r) { Array.prototype.forEach.call(r.children, function (c, i) { if (hs[i]) c.setAttribute("data-label", hs[i]); }); });
   });
 })();
 </script>""")

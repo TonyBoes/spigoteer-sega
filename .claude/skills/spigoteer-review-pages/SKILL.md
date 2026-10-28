@@ -23,6 +23,10 @@ report the exact list of files to publish.
 4. Copy every changed page source and its media into `tools/artifacts/` and commit (sources must survive a lost
    session). ROM packs and atlas output are generated and not committed.
 
+## Page rules
+Before every publish, check the "Page rules" list in `tools/artifacts/README.md` (no sideways scroll at 360 px,
+stacked tables on phones, one colour meaning per colour, 4.5:1 contrast in light and dark, bare labels, tap targets).
+
 ## Keep these behaviours when editing pages
 - Pocket Player is WasmBoy 0.7.1's TypeScript core (GPL-3.0) with two fixes (CPL masks A to 8 bits; VBK, BCPD and OCPD
   read back). Keep them. iPhone sound: `wakeAudio()` retries inside every finished tap (touchend, click, pointerup)
