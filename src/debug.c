@@ -51,10 +51,10 @@
 extern uint8_t overlay_on, level, story_chapter, story_step, state_timer;
 uint8_t debug_menu_open;
 uint8_t debug_level;               // LEVEL's / CLASSIC's level
-uint8_t debug_from_title;
+uint8_t debug_from_title;          // bit 0: opened on the title. DEBUG_MENU builds: bits 1-2 the STRESS run in play (1 SPACE, 2 CLASSIC, 3 ARCADE; 0 none), kept while the menu is closed
 uint8_t debug_sel;                 // open: the cursor's line. Before it: bit 0 the title's SELECT toggled the music, bits 1-2 the START taps so far
 uint8_t debug_timer;               // the gesture's frames left
-uint8_t debug_story;               // 1: the menu selects a story position, 2: an ARCADE one (0: a level)
+uint8_t debug_story;               // 1: the menu selects a story position, 2: an ARCADE one, 3 (DEBUG_MENU builds): a STRESS case in debug_pos (0: a level)
 uint8_t debug_chapter;             // its chapter (0..STORY_CHAPTERS-1)
 uint8_t debug_pos;                 // its position (0 PRE, 1..STORY_STEPS step pos-1, POS_POST)
 uint8_t debug_classic;             // 1: the menu is CLASSIC's (debug_level is its level, 1..CLASSIC_ROWS)
@@ -95,16 +95,35 @@ uint8_t debug_gesture(uint8_t pressed) BANKED {
 }
 
 // ---- the lines ----------------------------------------------------------------------------------------------------------------
-enum { DL_MODE, DL_LEVEL, DL_CHAPTER, DL_STEP, DL_BARS, DL_CHANGE, DL_FPS, DL_MIXED };
-enum { DM_LEVEL, DM_STORY, DM_ARCADE, DM_CLASSIC };
+enum { DL_MODE, DL_LEVEL, DL_CHAPTER, DL_STEP, DL_BARS, DL_CHANGE, DL_FPS, DL_MIXED, DL_PEAK };
+enum { DM_LEVEL, DM_STORY, DM_ARCADE, DM_CLASSIC, DM_STRESS };
+#ifdef DEBUG_MENU
+#define DM_LAST DM_STRESS                                // the playtest builds add STRESS: the automated perf scenarios' crowds (below)
+#define FROM_TITLE (debug_from_title & 1)
+#define STRESS_MENU (debug_story == 3)
+#else
+#define DM_LAST DM_CLASSIC
+#define FROM_TITLE debug_from_title
+#define STRESS_MENU 0
+#endif
 
+#ifdef DEBUG_MENU
+static uint8_t dmode(void) {
+    if (STRESS_MENU) return DM_STRESS;
+    return debug_classic ? DM_CLASSIC : debug_story ? DM_STORY - 1 + debug_story : DM_LEVEL;
+}
+#else
 static uint8_t dmode(void) { return debug_classic ? DM_CLASSIC : debug_story ? DM_STORY - 1 + debug_story : DM_LEVEL; }
+#endif
 
 // the kind of each line of the mode shown into k[]; the number of lines
 static uint8_t lines(uint8_t *k) {
     uint8_t n = 0;
     k[n++] = DL_MODE;
     if (debug_classic) k[n++] = DL_LEVEL;
+#ifdef DEBUG_MENU
+    else if (STRESS_MENU) k[n++] = DL_PEAK;
+#endif
     else if (debug_story) { k[n++] = DL_CHAPTER; k[n++] = DL_STEP; k[n++] = DL_CHANGE; }
     else { k[n++] = DL_LEVEL; k[n++] = DL_BARS; k[n++] = DL_CHANGE; }
     k[n++] = DL_FPS;
@@ -113,8 +132,14 @@ static uint8_t lines(uint8_t *k) {
 }
 
 static const char *const step_label[4] = { "OPEN", "HAPPY", "LAST", "" };   // a shift's index (STEP_INDEX)
+#ifdef DEBUG_MENU
+static const char *const mode_name[5] = { "LEVEL", "STORY", "ARCADE", "CLASSIC", "STRESS" };
+static const char *const info_text[5] = { "LEVEL TEST RUN", "NOTHING IS SAVED", "NOTHING IS SAVED", "CLASSIC 1983 RUN", "WORST CASE CROWD" };
+static const char *const peak_name[3] = { "SPACE", "CLASSIC", "ARCADE" };
+#else
 static const char *const mode_name[4] = { "LEVEL", "STORY", "ARCADE", "CLASSIC" };
 static const char *const info_text[4] = { "LEVEL TEST RUN", "NOTHING IS SAVED", "NOTHING IS SAVED", "CLASSIC 1983 RUN" };
+#endif
 
 // 1: position p of chapter ch can be started
 static uint8_t pos_ok(uint8_t ch, uint8_t p) {
@@ -174,6 +199,9 @@ static void line_row(uint8_t kind, uint8_t *r) {
     switch (kind) {
     case DL_MODE: put(r, COL_LABEL, "MODE"); put(r, COL_VALUE, mode_name[dmode()]); break;
     case DL_LEVEL: put(r, COL_LABEL, "LEVEL"); put2(r, COL_VALUE, debug_level); break;
+#ifdef DEBUG_MENU
+    case DL_PEAK: put(r, COL_LABEL, "PEAK"); put(r, COL_VALUE, peak_name[debug_pos]); break;
+#endif
     case DL_CHAPTER:
         put(r, COL_LABEL, "CHAPTER");
         if (debug_chapter >= 9) { r[COL_VALUE] = glyph('1'); r[COL_VALUE + 1] = glyph('0' + debug_chapter - 9); }   // chapter 10
@@ -258,7 +286,11 @@ static uint8_t vget(const volatile uint8_t *a) {
 void debug_open(void) BANKED {
     uint8_t k, i, b[20];
     if (game_state == GS_PAUSED) pause_close();      // opened from the pause menu: its window and the sound go back first
+#ifdef DEBUG_MENU
+    debug_from_title = (debug_from_title & 6) | (game_state == GS_TITLE);
+#else
     debug_from_title = game_state == GS_TITLE;
+#endif
     debug_story = 0; debug_classic = 0;
     if (debug_from_title) {
         debug_level = 1;
@@ -377,7 +409,11 @@ static void bars_step(uint8_t back) {
 
 // ---- a frame ------------------------------------------------------------------------------------------------------------------
 static void set_mode(uint8_t m) {
+#ifdef DEBUG_MENU
+    debug_story = m == DM_STORY ? 1 : m == DM_ARCADE ? 2 : m == DM_STRESS ? 3 : 0;
+#else
     debug_story = m == DM_STORY ? 1 : m == DM_ARCADE ? 2 : 0;
+#endif
     debug_classic = m == DM_CLASSIC;
     debug_level = 1;
     debug_chapter = 0;
@@ -387,6 +423,33 @@ static void set_mode(uint8_t m) {
     DISPLAY_ON;
     SHOW_WIN;
 }
+
+#ifdef DEBUG_MENU
+// ---- STRESS (owner 2026-10-28; DEBUG_MENU builds only): the automated perf scenarios' worst cases, to feel on a phone or a cart ------------------------------
+// The scenarios (tests/perf_helpers.py RealisticPeak / ClassicPeak, test_perf.py, test_perf_arcade.py) start a level and keep its crowd at a target by
+// making the next arrival due at once; this does the same with the game's own spawn code (patrons.c try_spawn: its bar caps, its 1-in-4 hurried
+// share): src/story.c pat_done, which patrons.c calls after each arrival while an arrival pattern runs (pat_len), sets the bars' caps (the crowd's size),
+// a short wait to the next arrival and a quota that never ends the level, and costs the normal play not one cycle. The player plays normally and can lose (the scenarios top up lives and push walkers back; this does not, and has no second bartender's mugs:
+// the player's own pours and the drinkers' empties are the mugs). The run lives in debug_from_title's bits 1-2 (no WRAM global); the title clears it.
+//   SPACE    LEVEL 10, the space lounge (the fastest row), every bar L: 10 patrons
+//   CLASSIC  CLASSIC level 12 (R L R L, every bar's cap 4): 16 patrons
+//   ARCADE   ARCADE chapter 10, loop 4, Last call (level 40): 10 patrons
+void story_stress_start(void) BANKED;                            // src/story.c
+extern uint8_t pat_pos, pat_buf[STORY_PAT_MAX];                // (story.c)
+static void stress_start(uint8_t c) {
+    uint8_t arc = c == 2;
+    save_lock = SAVE_LOCK_DEBUG;
+    if (arc) story_stress_start();
+    else {
+        level_dirs &= KEEP_POS;                                  // (every bar L, no mixed levels)
+        play_mode = c ? MODE_CLASSIC : MODE_LEVEL;
+        start_new_game(c ? 12 : 10);
+        pat_len = 1; pat_pos = 0; pat_buf[0] = 0;               // a pattern of one entry: patrons.c then calls story.c pat_done after every arrival (ARCADE: the shift's own pattern runs, pat_done is the hook too)
+        spawn_timer = 1;
+    }
+    debug_from_title = (c + 1) << 1;
+}
+#endif
 
 // 1: A started a game (the frame is over)
 uint8_t debug_step(uint8_t pressed) BANKED {
@@ -403,7 +466,7 @@ uint8_t debug_step(uint8_t pressed) BANKED {
     if (d) switch (kind) {
     case DL_MODE:
         m = dmode();
-        m = d == 1 ? (m == DM_CLASSIC ? DM_LEVEL : m + 1) : (m == DM_LEVEL ? DM_CLASSIC : m - 1);
+        m = d == 1 ? (m == DM_LAST ? DM_LEVEL : m + 1) : (m == DM_LEVEL ? DM_LAST : m - 1);
         set_mode(m);
         if (debug_sel >= lines(k)) debug_sel = 0;
         break;
@@ -412,6 +475,12 @@ uint8_t debug_step(uint8_t pressed) BANKED {
         debug_level = l;
         draw_line(old);
         break;
+#ifdef DEBUG_MENU
+    case DL_PEAK:
+        debug_pos = d == 1 ? (p == 2 ? 0 : p + 1) : (p == 0 ? 2 : p - 1);
+        draw_line(old);
+        break;
+#endif
     case DL_CHAPTER:
         c = d == 1 ? (c == STORY_CHAPTERS - 1 ? 0 : c + 1) : (c == 0 ? STORY_CHAPTERS - 1 : c - 1);
         if (!pos_ok(c, p)) p = pos_next(c, p, 1);
@@ -446,13 +515,17 @@ uint8_t debug_step(uint8_t pressed) BANKED {
     if (debug_sel != old) cursor();
     if (pressed & (J_A | J_START)) {
         close_menu();
+#ifdef DEBUG_MENU
+        debug_from_title &= 1;                                       // (a plain start ends a STRESS run)
+        if (STRESS_MENU) { stress_start(debug_pos); return 1; }
+#endif
         if (debug_story) { save_lock = SAVE_LOCK_DEBUG; story_debug_start(debug_chapter, debug_pos, debug_story == 2); }
         else { play_mode = debug_classic ? MODE_CLASSIC : MODE_LEVEL; start_new_game(debug_level); }
         return 1;
     }
     if (pressed & J_B) {
         close_menu();
-        game_state = debug_from_title ? GS_TITLE : GS_PLAYING;
+        game_state = FROM_TITLE ? GS_TITLE : GS_PLAYING;
         DISPLAY_ON;
     }
     return 0;

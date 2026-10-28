@@ -467,6 +467,9 @@ void title_enter(void) BANKED {
     TRANS_MENU();                                     // (src/trans.c: a way back to the title from a list / the scores: the quick white fade)
     DISPLAY_OFF;
     TUNE_FLUSH();                                     // (a tune unlock heard in the story and not saved yet: a quit, a game over)
+#ifdef DEBUG_MENU
+    debug_from_title &= 1;                            // (a STRESS run ends here: src/debug.c)
+#endif
     music_pump();                                     // (the tick this pass is due: the load below runs several frames)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0;
     music_fast = 0;                                   // (the jukebox plays every tune at its own pace)

@@ -523,6 +523,9 @@ extern uint8_t title_back_sel;                          // the line its cursor s
 uint8_t konami_step(uint8_t i, uint8_t pressed) BANKED; // the code's progress after a frame's new presses; KONAMI_DONE: complete
 uint8_t debug_gesture(uint8_t pressed) BANKED;          // SELECT held: SELECT + three START taps open the menu; `pressed` back without the taps
 void debug_open(void) BANKED;                           // the full-screen menu (GS_DEBUG)
+#ifdef DEBUG_MENU
+extern uint8_t debug_from_title;                      // bit 0 opened on the title; bits 1-2 a STRESS run (src/debug.c; story.c pat_done holds its crowd)
+#endif
 uint8_t debug_step(uint8_t pressed) BANKED;             // one GS_DEBUG frame; 1: a game started
 extern uint8_t debug_menu_open;
 // ---- jukebox.c (banked: the title's BONUS, the soundtrack player) ---------------------------------

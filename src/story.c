@@ -532,6 +532,15 @@ static void shift_pace(void) {
 // wait code), the pattern's next bar.
 uint16_t pat_done(void) BANKED {
     uint8_t e = pat_buf[pat_pos];
+#ifdef DEBUG_MENU
+    if (debug_from_title & 6) {                  // the debug menu's STRESS run (src/debug.c): the crowd held at its target by the bars' caps, a short wait, no end by the quota
+        quota = 255;
+        if (spawned > 200) spawned = 100;
+        pat_bar = (pat_bar + 1) & 3;
+        if ((debug_from_title & 6) != 4) { bar_cap[0] = bar_cap[1] = 3; bar_cap[2] = bar_cap[3] = 2; }   // (SPACE, ARCADE: 10 patrons; CLASSIC's own caps are 4 a bar: 16)
+        return (debug_from_title & 6) == 4 ? 6 : 24;
+    }
+#endif
     if (++pat_pos == pat_len) pat_pos = 0;
     pat_bar = pat_buf[pat_pos] & 3;
     return pat_wait[e >> 4];
@@ -1108,6 +1117,18 @@ void rush_fight(uint8_t v) BANKED {
 // pos - 1, STORY_STEPS + 1 its POST scene) with the story's rules: a fresh score, the venue's lives as venue_start sets
 // them (from any step), its goals. arc 1 (the ARCADE box: a step only): the same as an ARCADE run from there (loop 1).
 // debug.c has set save.c's save_lock: nothing of the run is saved.
+#ifdef DEBUG_MENU
+// the debug menu's STRESS > ARCADE (src/debug.c): ARCADE from the space lounge's (chapter 10) Last call in loop 4, level 40, tests/test_perf_arcade.py's scene
+void story_stress_start(void) BANKED {
+    run_begin(1);
+    story_conds = 0;
+    story_chapter = STORY_CHAPTERS - 1;
+    arc_loop = 4;
+    story_step = 3;
+    step_start();
+}
+#endif
+
 void story_debug_start(uint8_t ch, uint8_t pos, uint8_t arc) BANKED {
     run_begin(arc);                              // (arc: the ARCADE box, its run as ARCADE plays it from that step)
     story_conds = 0;
