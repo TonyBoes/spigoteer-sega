@@ -15,7 +15,8 @@ the sections your task touches. The essentials:
 - A group is 3 variants A, B, C. Each has a **16x16 front view** (3/4, facing right) and a **16x16 back view**. No
   animation frames: walking, pushing and leaving slide the same picture; drinking is the mug sprite plus a 2 px sway.
 - 4 indices `.`/`-`/`+`/`#`. **Index 0 is the venue wall**, transparent when lifted: never enclosed inside the figure
-  (no holes). Indices 1-3 ordered light to dark. The build checks size, holes, order and lifted columns.
+  (no holes). Exception (owner, 2026-10-27: "Gaps are intentional. Meant to be transparent. Should be color of the
+  background."): gaps the owner draws inside a figure stay index 0 (wall on the BG, see-through when lifted); never fill them. Indices 1-3 ordered light to dark. The build checks size, holes, order and lifted columns.
 - Read at a glance by silhouette and value, on the DMG against white and on the CGB against the venue's dark wall
   (table in the spec, section 11). Neighbouring features differ in value. No "arrowhead" faces.
 - Pictures are mirrored on right-to-left bars: nothing may depend on facing right. On the DMG with mixed directions,
