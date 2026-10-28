@@ -1,0 +1,54 @@
+; PROPOSAL v2: backs for the redrawn fronts, drawn by hand from each front's outline and colour masses (not mirrored). frames: robots_back_a, _b, _c
+; BOXY: same antenna, head outline, side panel, neck and hazard stripes as the front; the head back is mid casing with a dark centre seam and one small light bolt; the chest lights become vent flanks of a back seam.
+; VOLTA: same crest, head, collar and arm patch; the head back is mid casing with a dark centre seam and one light bolt; the chest lights become a back seam with two small vents.
+; BLIP: same dome, its top-left highlight and left panel; the dome back is mid green with a dark centre seam, no light plate; the chest buttons become a seam with two vents.
+.......##.......
+......#--#......
+..############..
+..#--#+++++++#..
+..#++#+++#+++#..
+..#++#+++#+++#..
+..#++#+++#+++#..
+..#++#+++#+++#..
+..#++#+++#-++#..
+...##########...
+....#++++++#....
+.--##+++++++-#..
+--##--##+#++#+#.
+-##--##-+#+-#+#.
+##--##--+#++#+#.
+#--##--++#++#+#.
+
+.....#-+--+-#...
+.....#-#..#-#...
+.....########...
+....##+++++++#..
+...#+#+++#+++#..
+..#++#+++#+++#..
+..#++#+++#+++#..
+..#++#+++#+++#..
+..#++#+++#-++#..
+..#++#+++++++#..
+...#++#######...
+..###+++---#....
+.#-++#+++#++##..
+#+++++#++#++++#.
+#+--++#+-#-+++#.
+#+--++#++#++++#.
+
+......####......
+....##++++##....
+...#+---++++#...
+..#+-++++++++#..
+..#++++++#+++#..
+..#++++++#+++#..
+..#++++++#+++#..
+..#++++++#+++#..
+...#+++++#++#...
+....##+++++#....
+.....######.....
+.###+++++++###..
+#-++#-+++++--+#.
+#+++#++++#++++#.
+#+-+#+++-#-+++#.
+#-++#++++#++++#.
