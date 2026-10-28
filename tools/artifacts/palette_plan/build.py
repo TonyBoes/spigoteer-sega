@@ -1108,7 +1108,81 @@ def tile_sheets(v, model, b):
                 mark[t] = (255, 210, 0) if T[t] == blank else (255, 60, 60)
                 part[t] = seen[k]
         seen.setdefault(k, t)
-    return sheet, live, mark, part
+    return sheet, live, mark, part, T
+
+
+def rgb15(c):
+    """The colour the game screenshots show for a 15-bit word (PyBoy: each 5-bit channel << 3)."""
+    return ((c & 31) << 3, ((c >> 5) & 31) << 3, ((c >> 10) & 31) << 3)
+
+
+GREY = [(255, 255, 255), (170, 170, 170), (85, 85, 85), (0, 0, 0)]
+_TD = {}
+
+
+def tile_data(v, model):
+    """{bank: (sheet, live, mark, part, T)} of a venue's captured VRAM, cached."""
+    k = (v["key"], model)
+    if k not in _TD:
+        lv = load("level_" + v["key"])
+        _TD[k] = {b: tile_sheets(v, model, b) for b in range(len(lv[model]["tiles"]))}
+    return _TD[k]
+
+
+def bg_pals(v):
+    """[8 palettes of 4 RGB] of the Color capture's BG palette RAM (the representative frame the screen map comes from)."""
+    lv = load("level_" + v["key"])["cgb"]
+    return [[rgb15(c) for c in p["rep"]] for p in lv["pal"]["bg"]]
+
+
+def pal_map(v):
+    """{(bank, slot): sorted BG palettes it was drawn with anywhere in the Color capture}."""
+    ev = load("level_" + v["key"])["cgb"].get("ev") or {}
+    out = {}
+    for p, lst in (ev.get("bg_by_pal") or {}).items():
+        for b, t in lst:
+            out.setdefault((b, t), set()).add(int(p))
+    return out
+
+
+def render_tile(v, model, bank, slot, xf=0, yf=0, pal=None):
+    """One 8x8 RGB tile. pal: None (grey), (4 RGB colours, is_obj); an OBJ palette's colour 0 shows the venue's wall."""
+    from PIL import Image
+    sheet, live, mark, part, T = tile_data(v, model)[bank]
+    if model == "dmg" or pal is None:
+        if model == "dmg":
+            im = sheet.crop(((slot % 16) * 8, (slot // 16) * 8, (slot % 16) * 8 + 8, (slot // 16) * 8 + 8))
+        else:
+            im = Image.new("RGB", (8, 8))
+            im.putdata([GREY[i] for row in T[slot] for i in row])
+    else:
+        cols, obj = pal
+        if obj:
+            cols = [bg_pals(v)[0][0]] + list(cols[1:])
+        im = Image.new("RGB", (8, 8))
+        im.putdata([cols[i] for row in T[slot] for i in row])
+    return _flip(im, xf, yf)
+
+
+def screen_composite(v, model):
+    """The 160x144 background layer as the capture's attribute map and VRAM draw it (bank, palette, flips honoured; no sprites)."""
+    from PIL import Image
+    lv = load("level_" + v["key"])[model]
+    A = lv["attr"]
+    pals = bg_pals(v) if model == "cgb" else None
+    im = Image.new("RGB", (160, 144))
+    for r in range(18):
+        for c in range(20):
+            sl = A["slot"][r][c]
+            if sl < 0:
+                continue
+            if model == "cgb":
+                f = int(A["flags"][r][c], 16)
+                t = render_tile(v, model, (f >> 2) & 1, sl, f & 1, (f >> 1) & 1, (pals[int(A["pal"][r][c])], False))
+            else:
+                t = render_tile(v, model, 0, sl)
+            im.paste(t, (c * 8, r * 8))
+    return im
 
 
 GLYPH_DIGITS = list(range(36, 46))            # BG ids, build/art.h TILE_GLYPH_*: 0-9
@@ -1122,16 +1196,26 @@ def obj_figures(v, model):
     kind. A pose whose tiles are all in a shown pose already (the mirrored copy of it) is left out. -> {label: [figure]}"""
     lv = load("level_" + v["key"])[model]
     groups, shown = {}, {}
+    opal = [[rgb15(c) for c in p["rep"]] for p in lv["pal"]["obj"]] if model == "cgb" else None
+    evs = {e["label"].lower(): e for e in ((load("level_" + v["key"])["cgb"].get("ev") or {}).get("events") or [])} if model == "cgb" else {}
     for o in lv["objs"]:
         if o["kind"].startswith("Patron"):
             continue
         lab = OBJ_LABEL.get(o["kind"], o["kind"])
         fig, slots = [], set()
+        cols = None
+        if opal:                                   # the object's own OBJ palette (a captured event's values where it has them: the show's dancers)
+            cols = list(opal[o["slots"][0]])
+            ev = evs.get(o["kind"].lower())
+            for sv in (ev["slots"] if ev else []):
+                if sv["slot"] == o["slots"][0] and len(sv["values"]) == 1:
+                    cols = [rgb15(c) for c in sv["values"][0]]
+        pl_ = (cols, True) if cols else None
         for x, y, t, bank, xf, yf in [pc[:6] for pc in o["pieces"]]:
             if bank:
                 continue
             top, bot = (t + 1, t) if yf else (t, t + 1)
-            fig += [(top, x // 8, y // 8, xf, yf), (bot, x // 8, y // 8 + 1, xf, yf)]
+            fig += [(top, x // 8, y // 8, xf, yf, 0, pl_), (bot, x // 8, y // 8 + 1, xf, yf, 0, pl_)]
             slots |= {t, t + 1}
         if not fig or slots <= shown.setdefault(lab, set()):
             continue
@@ -1140,7 +1224,7 @@ def obj_figures(v, model):
     return groups
 
 
-def tile_groups(v, model, live):
+def tile_groups(v, model, live, b=0):
     """[(label, [figure or None for a line break], pad)]; a figure is [(slot, col, row, xflip, yflip)]. Order: sprites, patrons,
     the screen and the BG tiles, the HUD and the glyphs, then whatever is still loaded and not placed."""
     lv = load("level_" + v["key"])[model]
@@ -1156,37 +1240,73 @@ def tile_groups(v, model, live):
         if not figs:
             return
         for f in figs:
-            placed.update(t for t, *_ in (f or []))
+            placed.update(e[0] for e in (f or []) if len(e) < 6 or e[5] == b)
         out.append(((label + " " + rng(figs)) if ids else label, figs, pad, marks))
 
     pair = lambda t: [(t, 0, 0, 0, 0), (t + 1, 0, 1, 0, 0)]
-    og = obj_figures(v, model)
-    for lab, figs in sorted(og.items(), key=lambda kv: min(t for f in kv[1] for t, *_ in f)):
-        add(lab, figs)
-    add("Dust puff", [pair(t) for t in (246, 248, 250)])
-    add("Boss HUD", [[(t, 0, 0, 0, 0)] for t in range(252, 256)], 2)
-    # patrons: per look, the 8 shifted 24x16 poses (3 wide, 2 tall, column-major) in two lines, then the 16x16 back view
-    for vi, nm in enumerate("ABC"):
+    if b == 0:
+        og = obj_figures(v, model)
+        for lab, figs in sorted(og.items(), key=lambda kv: min(t for f in kv[1] for t, *_ in f)):
+            add(lab, figs)
+        add("Dust puff", [pair(t) for t in (246, 248, 250)])
+        add("Boss HUD", [[(t, 0, 0, 0, 0)] for t in range(252, 256)], 2)
+    # patrons: per look, the 8 shifted 24x16 poses (3 wide, 2 tall, column-major) in two lines, then the 16x16 back view (2x2, ROW-major:
+    # render.c put_back_col: column c is tiles t, t + 2 and column c + 1 is t + 1, t + 3). Bank 0 holds looks A-C; the Saloon's Color-only
+    # looks D-H are in bank 1 (art.h SALOON_X_S0 / SALOON_X_BACK / SALOON_X_LAST).
+    last_pref = []
+
+    def look(label, pref, shifted, s0, back):
         figs = []
+        votes = {}                                  # the look's palette: the one most of its tiles were drawn with in the capture
+        for t in [shifted(sh) + k for sh in range(1, 8) for k in range(6)] + [s0 + k for k in range(4)] + [back + k for k in range(4)]:
+            for p_ in pal_map(v).get((b, bgslot(t)), ()):
+                votes[p_] = votes.get(p_, 0) + 1
+        if votes:
+            pref = max(votes, key=lambda p_: (votes[p_], -p_))
+        elif pref is None and last_pref:                # not drawn in the capture (ARTIE, look H): he shares MABEL's (look G's) palette in the game
+            pref = last_pref[-1]
+        last_pref.append(pref)
         for sh in range(8):
-            t0 = PAT_FIRST + (PAT_S0 + vi * 4 if sh == 0 else vi * 42 + (sh - 1) * 6)
-            figs.append([(bgslot(t0 + k if sh or k < 4 else PAT_FIRST + PAT_S0 - 2 + k - 4), k // 2, k % 2, 0, 0) for k in range(6)])   # (shift 0: its 3rd column is the shared blank pair)
+            if sh == 0:
+                ids = [s0 + k for k in range(4)] + [PAT_FIRST + PAT_S0 - 2 + k for k in range(2)]
+            else:
+                ids = [shifted(sh) + k for k in range(6)]
+            figs.append([(bgslot(t), k // 2, k % 2, 0, 0, b, ("bgpref", pref)) for k, t in enumerate(ids)])
             if sh == 3:
                 figs.append(None)
-        t0 = PAT_FIRST + PAT_BACK + vi * 4
-        figs.append([(bgslot(t0 + k), k // 2, k % 2, 0, 0) for k in range(4)])
-        add("Patron " + nm, figs)
-    # the screen as drawn (a representative frame's BG map), then the venue pool tiles it does not use
-    scr = lv["attr"]["slot"]
-    fig = [(sl, c, r, 0, 0) for r, row in enumerate(scr) for c, sl in enumerate(row)]
-    add("Screen", [fig], 0, ids=False, marks=False)
-    add("Pool, not on screen", [[(256 + t, 0, 0, 0, 0)] for t in range(36) if live[256 + t] and 256 + t not in placed], 2)
-    add("Digits", [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_DIGITS], 2)
-    add("Letters", [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_LETTERS[:13]] + [None] + [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_LETTERS[13:]], 2)
-    add("HUD, panels", [[(256 + t, 0, 0, 0, 0)] for t in (54, 55)] + [[(256 + 63, 0, 0, 0, 0), (256 + 64, 0, 1, 0, 0)], [(256 + 76, 0, 0, 0, 0)]], 2)
+        figs.append([(bgslot(back + k), k % 2, k // 2, 0, 0, b, ("bgpref", pref)) for k in range(4)])
+        add(label, figs)
+    if b == 0:
+        for vi, nm in enumerate("ABC"):
+            look("Patron " + nm, 2 + vi, lambda sh, vi=vi: PAT_FIRST + vi * 42 + (sh - 1) * 6, PAT_FIRST + PAT_S0 + vi * 4,
+                 PAT_FIRST + PAT_BACK + vi * 4)
+    elif v["key"] == "cowboys":
+        for k, nm in enumerate("DEFGH"):
+            look("Patron " + nm, None, lambda sh, k=k: ((7 * k + sh - 1) * 6) if 7 * k + sh - 1 < 34 else 246, 206 + 4 * k, 226 + 4 * k)
+    # the screen as drawn (a representative frame's BG map: bank, palette and flips as the attribute map has them), then the pool tiles
+    if b == 0:
+        A = lv["attr"]
+        pals = bg_pals(v) if model == "cgb" else None
+        fig = []
+        for r, row in enumerate(A["slot"]):
+            for c, sl in enumerate(row):
+                if sl < 0:
+                    continue
+                if model == "cgb":
+                    f = int(A["flags"][r][c], 16)
+                    fig.append((sl, c, r, f & 1, (f >> 1) & 1, (f >> 2) & 1, (pals[int(A["pal"][r][c])], False)))
+                else:
+                    fig.append((sl, c, r, 0, 0))
+        add("Screen", [fig], 0, ids=False, marks=False)
+    if b == 0:
+        add("Pool, not on screen", [[(256 + t, 0, 0, 0, 0)] for t in range(36) if live[256 + t] and 256 + t not in placed], 2)
+        add("Digits", [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_DIGITS], 2)
+        add("Letters", [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_LETTERS[:13]] + [None] + [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_LETTERS[13:]], 2)
+        add("HUD, panels", [[(256 + t, 0, 0, 0, 0)] for t in (54, 55)] + [[(256 + 63, 0, 0, 0, 0), (256 + 64, 0, 1, 0, 0)], [(256 + 76, 0, 0, 0, 0)]], 2)
     # whatever is loaded and still not placed
     rest = [pair(t) for t in list(range(0, 128, 2)) + list(range(234, 256, 2)) if (live[t] or live[t + 1]) and t not in placed and t + 1 not in placed]
-    add("Other sprites", rest)
+    if b == 0:
+        add("Other sprites", rest)
     rest = [[(t, 0, 0, 0, 0)] for t in range(128, 384) if live[t] and t not in placed]
     add("Other BG", rest, 2)
     return out
@@ -1220,7 +1340,7 @@ def tile_grid(v):
     for model, b, label in (("cgb", 0, "Color bank 0"), ("cgb", 1, "Color bank 1"), ("dmg", 0, "DMG")):
         if b >= len(lv[model]["tiles"]):
             continue
-        sheet, live, mark, part = tile_sheets(v, model, b)
+        sheet, live, mark, part, _T = tile_sheets(v, model, b)
         # the raw grid
         GUT = 30
         im = Image.new("RGB", (GUT + 128 * S, 192 * S), (40, 40, 40))
@@ -1237,11 +1357,25 @@ def tile_grid(v):
         im.save(os.path.join(os.path.dirname(OUT), rel), "PNG")
         # the sorted view (bank 0 only: bank 1 holds no venue tiles yet)
         srel = None
-        if b == 0:
+        if b == 0 or any(c != "0" for c in lv[model]["tiles"][b]["use"]):      # bank 1: only where the game draws from it (elsewhere it holds junk)
             W = 160 * S
             fnt = ImageFont.load_default(size=12)
-            groups = tile_groups(v, model, live)
-            tile = lambda t, xf, yf: _flip(sheet.crop(((t % 16) * 8, (t // 16) * 8, (t % 16) * 8 + 8, (t // 16) * 8 + 8)), xf, yf).resize((8 * S, 8 * S), Image.NEAREST)
+            groups = tile_groups(v, model, live, b)
+            pm = pal_map(v) if model == "cgb" else {}
+            pals = bg_pals(v) if model == "cgb" else None
+
+            def tile(e):
+                t, _c, _r, xf, yf = e[:5]
+                bank = e[5] if len(e) > 5 else b
+                pal = e[6] if len(e) > 6 else None
+                if model == "cgb":
+                    if isinstance(pal, tuple) and pal and pal[0] == "bgpref":       # a patron look: its own BG palette where it was drawn with it
+                        ps = pm.get((bank, t), set())
+                        n = pal[1] if pal[1] is not None else (min(ps) if ps else None)
+                        pal = (pals[n], False) if n is not None else None
+                    elif pal is None and (bank, t) in pm:
+                        pal = (pals[min(pm[(bank, t)])], False)
+                return render_tile(v, model, bank, t, xf, yf, pal).resize((8 * S, 8 * S), Image.NEAREST)
             rows = []
             for glabel, figs, pad, gmarks in groups:
                 x = y = rh = 0
@@ -1250,8 +1384,8 @@ def tile_grid(v):
                     if f is None:
                         x, y, rh = 0, y + rh + max(pad, 2) * S, 0
                         continue
-                    fw = (max(c for _, c, _, _, _ in f) + 1) * 8 * S
-                    fh = (max(r for _, _, r, _, _ in f) + 1) * 8 * S
+                    fw = (max(e[1] for e in f) + 1) * 8 * S
+                    fh = (max(e[2] for e in f) + 1) * 8 * S
                     if x and x + fw > W:
                         x, y, rh = 0, y + rh + max(pad, 2) * S, 0
                     placed.append((f, x, y)); x += fw + pad * S; rh = max(rh, fh)
@@ -1265,17 +1399,20 @@ def tile_grid(v):
                 dr.text((0, y0 + 1), glabel, fill=(150, 150, 150), font=fnt)
                 y0 += 18
                 for f, fx, fy in placed:
-                    for t, c, r, xf, yf in f:
+                    for e in f:
+                        t, c, r = e[:3]
+                        own = len(e) < 6 or e[5] == b                 # a Screen cell from the other VRAM bank has no entry in this sheet
                         px, py = fx + c * 8 * S, y0 + fy + r * 8 * S
-                        im.paste(tile(t, xf, yf), (px, py))
-                        rects.append([px, py, t, part.get(t, -1)])
-                        if not live[t]:
+                        im.paste(tile(e), (px, py))
+                        if own:
+                            rects.append([px, py, t, part.get(t, -1)])
+                        if own and not live[t]:
                             dr.rectangle((px, py, px + 8 * S - 1, py + 8 * S - 1), fill=(60, 60, 60))
-                        if gmarks and t in mark:
+                        if own and gmarks and t in mark:
                             dr.rectangle((px, py, px + 8 * S - 1, py + 8 * S - 1), outline=mark[t], width=2)
                 y0 += h + 8
-            srel = "img/tiles_%s_%s_sorted.png" % (v["key"], model)
-            TILEMAP[srel] = {"b": 0, "r": rects}
+            srel = "img/tiles_%s_%s%s_sorted.png" % (v["key"], model, "" if b == 0 else b)
+            TILEMAP[srel] = {"b": b, "r": rects}
             im.save(os.path.join(os.path.dirname(OUT), srel), "PNG")
         out.append((label, rel, srel))
     fig = lambda label, rel: ('<figure><figcaption>%s</figcaption><img class="tgimg" src="%s" alt="%s %s tiles"></figure>'
