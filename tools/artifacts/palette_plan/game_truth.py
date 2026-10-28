@@ -79,3 +79,27 @@ def backs(key):
         assert len(frames) == len(notes), (p, len(frames), len(notes))
         res += [(n[0], rows, n[1]) for n, rows in zip(notes, frames)]
     return res
+
+
+def ordered_instances(look, ps):
+    """A look's palette instances, its own first (the art was drawn for it: looks 0-2 = A, B, C = instance = look; the Color-only looks 3-7 have
+    no stated one, so the lowest OBJ slot), then by OBJ slot."""
+    obj_of = truth()["obj_of"]
+    ps = sorted(ps, key=lambda p: obj_of[p])
+    if look < 3 and look in ps:
+        ps.remove(look)
+        ps.insert(0, look)
+    return ps
+
+
+def spawn_combos():
+    """{venue key: {look: set of palette instances}} the game can spawn: the Saloon from sal_combo (Color), every other venue one palette per look
+    (src/mirror.c spawn_variant: r % 3, instance = look)."""
+    T = truth()
+    out = {}
+    for k in T["inst"]:
+        if k == "cowboys":
+            out[k] = {i: set(ps) for i, (_, ps) in enumerate(T["saloon"])}
+        else:
+            out[k] = {i: {i} for i in range(3)}
+    return out
