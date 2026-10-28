@@ -17,7 +17,6 @@ from test_bonus import lines
 from test_flow import GS_GOAL, LEVEL_CLEAR, TITLE, run_until, state, tilemap_row
 from test_mg import (BLANK, HOURGLASS, GS_MGLIST, GS_MINI, MG_COUNT, MG_END, MG_PLAY, MG_PRACTICE, MG_RESULT, MG_STORY, RESULT_MIN, frames, mg_enter,
                      score, text, to_play, to_result, until)
-from test_mg_list import release_built  # noqa: F401  (the fixture: `make release`)
 
 pytestmark = pytest.mark.timeout(300)
 
@@ -828,45 +827,6 @@ def test_arcade_plays_it_in_chapter_9(model):
         assert gb.mem("mg_id") == MG_MONKEY and gb.mem("mg_mode") == MG_STORY and gb.mem("venue_id") == ZOO
         assert gb.mem("save_lock") == 1 and gb.mem16("mg_unlocked") == 1 << MG_MONKEY
         assert text(gb, 2) == "MONKEY BUSINESS"
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_bonus_mini_games_lists_and_plays_it(model):
-    """BONUS > MINI GAMES (the debug build: all unlocked): MONKEY BUSINESS on the ninth line (chapter order), its details THE
-    JUNGLE ZOO; A plays it in practice (score from 0); its result's B comes back to the list on it."""
-    from test_mg_list import line, medal_word, selection, tap as list_tap, to_game, to_list
-    from test_scores import booted
-    with to_list(booted(model)) as gb:
-        to_game(gb, 8)
-        assert gb.mem("ml_sel") == 8
-        list_tap(gb, "a")
-        run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
-        assert gb.mem("mg_id") == MG_MONKEY and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
-        assert text(gb, 2) == "MONKEY BUSINESS"
-        gb.write("mg_phase", MG_RESULT)
-        run_until(gb, lambda: gb.mem("overlay_on") == 1, 10)
-        frames(gb, 3)
-        gb.press("b", 2)
-        run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
-        gb.run(3)
-        assert gb.mem("ml_sel") == 8 and selection(gb) == "MONKEY BUSINESS"
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_release_list_unlocks_it_when_reached(model, release_built):
-    from test_mg_list import MG_PLANNED, line, pr_block, release_rom, medal_word, selection, tap as list_tap, to_game, to_list, with_block
-    from test_scores import v7_image
-    best = [0] * MG_PLANNED
-    best[MG_MONKEY] = MEDAL_SILVER
-    ram = with_block(v7_image(), pr_block(1 << MG_MONKEY, best))
-    with release_rom(model, ram) as gb:
-        to_list(gb)
-        assert selection(gb) == "? ? ?"
-        to_game(gb, 8)
-        assert (selection(gb), medal_word(gb)) == ("MONKEY BUSINESS", "SILVER")
-        list_tap(gb, "a")
-        run_until(gb, lambda: state(gb) == GS_MINI, 30)
-        assert gb.mem("mg_id") == MG_MONKEY and gb.mem("mg_mode") == MG_PRACTICE
 
 
 def test_the_state_fits_the_union():

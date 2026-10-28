@@ -18,7 +18,7 @@ def test_version_on_title(boot):
     row = tilemap_row(boot, 0, 0, 20)
     d = TITLE["digits"]
     assert [row[17], row[18], row[19]] == [d[int(VERSION[0])], TITLE["dot"], d[int(VERSION[1])]], "major, the dot, minor in the top-right corner (0.9)"
-    check_golden(boot, "title_version")
+    check_golden(boot, "title")  # (the same picture as test_flow.py: the title with the version line)
 
 
 @pytest.mark.parametrize("name", ["game.gb", "release.gb"])

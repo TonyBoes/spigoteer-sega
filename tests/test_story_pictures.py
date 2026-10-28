@@ -212,7 +212,7 @@ def test_intro_before_then_flash_then_the_explosion(model):
         assert gb.mem("story_scene") == SC["INTRO"]
         page_ready(gb)
         assert_picture(gb, "intro_before")                       # page 1: no Dregs, the whole spigot, the fountain running
-        check_golden(gb, "story_pic_intro_before")
+        check_golden(gb, "story_narrator")  # (the same picture as test_story.py)
         for k in (1, 2, 3, 4):                                    # pages 2-5: the picture stays (3: the festival, 4: the Spigoteer's frame, 5: the mustache)
             gb.press("a", 2)
             page_ready(gb)

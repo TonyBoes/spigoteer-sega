@@ -14,7 +14,7 @@ from test_classic_mode import classic_at, clear_now
 from test_flow import BONUS, GS_GOAL, LEVEL_CLEAR, run_until, state
 from test_mg import GS_MGLIST, GS_MINI, MG_PLAY, MG_PRACTICE, MG_RESULT, MG_STORY, MG_H, frames, mg_enter, score, text
 from test_mg_list import (MG_QUICKDRAW, MEDAL_BRONZE, MEDAL_GOLD, MEDAL_NONE, MEDAL_SILVER, MG_FILLLINE, MG_SHAKEUP, MG_TIPS, PR2_LEN,
-                          hint, line, medal_word, pr_block, release_built, release_rom, selection, tap, to_game, to_list, with_block)  # noqa: F401
+                          hint, line, medal_word, pr_block, release_rom, selection, tap, to_game, to_list, with_block)  # noqa: F401
 from test_scores import booted, set_score, v7_image
 from test_sound import save_ram
 from test_story import to_goal, win

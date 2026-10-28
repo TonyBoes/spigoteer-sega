@@ -197,7 +197,7 @@ def test_no_sprites_on_the_stage_rows_during_play(gb):
 
 def test_stage_golden(gb):
     gb.run(30)
-    check_golden(gb, "stage")
+    check_golden(gb, "scene")  # (the same picture as the first golden above)
 
 
 # ---- M8a: the counter to the left edge (no door, owner 2026-10-09), the spout, walking speed --------------------

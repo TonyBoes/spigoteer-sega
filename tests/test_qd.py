@@ -279,7 +279,7 @@ def test_the_screen(model):
             assert oam(gb, OAM_SPIG)["prop"] & 0x10 == 0, "the Spigoteer on OBP0"
             assert oam(gb, OAM_HAND_KID)["prop"] & 0x10 == 0, "the bottles on OBP0"
         shot(gb, "intro")
-        check_golden(gb, "qd_intro")
+        check_golden(gb, "card_short_qd")  # (the same picture as test_mg_card.py)
 
 
 # ---- a round ---------------------------------------------------------------------------------------------------------------

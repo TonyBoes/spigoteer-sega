@@ -677,6 +677,23 @@ def konami(gb, keys=KONAMI):
         gb.run(2)
 
 
+@pytest.fixture(scope="session")
+def release_built():
+    """`make release`, once per pytest process, under a file lock so that several processes (the shards, or a plain
+    `pytest` run in two terminals) never run make on build/ together; ptest has built it already, so this is a no-op there."""
+    import fcntl
+    import subprocess
+    lock = ROOT / "out" / "release.lock"
+    lock.parent.mkdir(exist_ok=True)
+    with open(lock, "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            subprocess.run(["make", "release"], cwd=ROOT, check=True, capture_output=True)
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+    return ROOT / "build" / "release.gb"
+
+
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: builds the ROM variants from scratch (tests/test_build.py)")
     config.addinivalue_line("markers", "only_model(name): the test applies to one hardware model ('dmg' or 'cgb'); the other "

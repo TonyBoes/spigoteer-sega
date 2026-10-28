@@ -12,7 +12,7 @@ from conftest import (clear_regulars, K_BONUS, K_BOSSRUSH, K_CREDITS, K_MINIGAME
 from test_flow import GS_GOAL, GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, TITLE, run_until, state, tilemap_row
 from test_mg import GLYPH_CH
 from ol_helpers import BLANK, band_rows_ok, header, header_text, hint, selection, text
-from test_mg_list import (MEDAL_GOLD, MEDAL_SILVER, MG_PLANNED, MG_QUICKDRAW, PR_AT, QUEST, pr_block, release_built,
+from test_mg_list import (MEDAL_GOLD, MEDAL_SILVER, MG_PLANNED, MG_QUICKDRAW, PR_AT, QUEST, pr_block,
                           release_rom, with_block)
 from test_scores import booted, table, v7_image
 from test_sound import save_ram
@@ -21,7 +21,6 @@ from test_flow import lose_a_life
 from boss_common import frames, until
 
 pytestmark = pytest.mark.timeout(600)
-__all__ = ["release_built"]
 
 SP_RUSH = 7
 MODE_RUSH = 4

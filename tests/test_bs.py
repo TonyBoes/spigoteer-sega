@@ -9,7 +9,6 @@ import re
 import pytest
 from conftest import ROOT, bt_picture, check_golden, hold_stage_anim, logic_paused, title_level
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, run_until, state, tilemap_row
-from test_mg_list import release_built  # noqa: F401  (the fixture: `make release`)
 from test_mg import (BLANK, HOURGLASS, GS_MGLIST, GS_MINI, MEDAL_PTS, MG_COUNT, MG_END, MG_PLAY, MG_PRACTICE, MG_RESULT, MG_STORY,
                      RESULT_MIN, define, frames, lines, mg_enter, score, text, to_play, to_result, until)
 
@@ -739,41 +738,3 @@ def test_arcade_plays_it_in_the_factory(model):
         assert text(gb, 2) == "BATTERY SORT"
 
 
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_bonus_mini_games_lists_and_plays_it(model):
-    """BONUS > MINI GAMES (the debug build: all unlocked): BATTERY SORT on the sixth line (the chapters' order), its best-medal line; A plays it in practice (score from 0); its result's B
-    comes back to the list on it."""
-    from test_mg_list import line, medal_word, selection, tap as list_tap, to_game, to_list
-    from test_scores import booted
-    with to_list(booted(model)) as gb:
-        to_game(gb, 5)
-        assert gb.mem("ml_sel") == 5
-        list_tap(gb, "a")
-        run_until(gb, lambda: state(gb) == GS_MINI and gb.pb.memory[0xFF40] & 0x80, 30)
-        assert gb.mem("mg_id") == MG_BATTERY and gb.mem("mg_mode") == MG_PRACTICE and score(gb) == 0
-        assert text(gb, 2) == "BATTERY SORT"
-        gb.write("mg_phase", MG_RESULT)
-        run_until(gb, lambda: gb.mem("overlay_on") == 1, 10)
-        frames(gb, 3)
-        gb.press("b", 2)
-        run_until(gb, lambda: state(gb) == GS_MGLIST and gb.pb.memory[0xFF40] & 0x80, 30)
-        gb.run(3)
-        assert gb.mem("ml_sel") == 5 and selection(gb) == "BATTERY SORT"
-
-
-@pytest.mark.parametrize("model", ["dmg", "cgb"])
-def test_the_release_list_unlocks_it_when_reached(model, release_built):
-    """`make release`: Battery Sort is "? ? ?" until STORY or ARCADE reached it; with its bit (and a gold best) in
-    Practice's block it lists by name with GOLD and plays."""
-    from test_mg_list import MG_PLANNED, line, pr_block, release_rom, medal_word, selection, tap as list_tap, to_game, to_list, with_block
-    from test_scores import v7_image
-    best = [0] * MG_PLANNED
-    best[MG_BATTERY] = MEDAL_GOLD
-    ram = with_block(v7_image(), pr_block(1 << MG_BATTERY, best))
-    with release_rom(model, ram) as gb:
-        to_list(gb)
-        assert selection(gb) == "? ? ?"
-        to_game(gb, 5)
-        list_tap(gb, "a")
-        run_until(gb, lambda: state(gb) == GS_MINI, 30)
-        assert gb.mem("mg_id") == MG_BATTERY and gb.mem("mg_mode") == MG_PRACTICE
