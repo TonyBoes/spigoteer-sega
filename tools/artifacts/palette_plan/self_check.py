@@ -122,3 +122,16 @@ def verify_now(ns):
         for e in errs:
             print("  - " + e, file=sys.stderr)
         sys.exit(1)
+
+
+def verify_shown(ns):
+    """Every (look, palette) combination the game can spawn has its front/back pair on the Patrons table (build.py SHOWN); else the build fails."""
+    want = {(k, l, p) for k, looks in game_truth.spawn_combos().items() for l, ps in looks.items() for p in ps}
+    seen = ns["SHOWN"]
+    errs = ["%s look %d in palette instance %d (OBJ %d) is not on the Patrons table" % (k, l, p, ns["INST_OBJ"][p]) for k, l, p in sorted(want - seen)]
+    errs += ["%s look %d in palette instance %d is on the Patrons table, the game never spawns it" % x for x in sorted(seen - want)]
+    if errs:
+        print("\nATLAS SELF-CHECK FAILED (patron palettes shown):", file=sys.stderr)
+        for e in errs:
+            print("  - " + e, file=sys.stderr)
+        sys.exit(1)

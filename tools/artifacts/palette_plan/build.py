@@ -440,7 +440,10 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pt td.slotc { font-family: var(--mono); white-space: nowrap; }
 .pimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; border-radius: 3px; width: 48px; height: 48px; max-width: none; }
 .pt td.pic { width: 100px; min-width: 100px; padding-block: 4px; }
-.pics { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.pt td.pic:has(.pp:nth-child(2)) { width: 340px; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.pics { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pp { display: flex; gap: 2px; flex-wrap: wrap; align-items: center; max-width: 100%; }
+.plab { flex-basis: 100%; font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .btag { font-size: 12px; font-style: italic; }
 .btag.plan { color: var(--plan); }
 .swg { display: inline-flex; margin-right: 6px; }
@@ -1534,6 +1537,7 @@ def back_rows_by_look(v):
     return [back_info(v, i)[0] for i in range(n)]
 
 
+SHOWN = set()                      # (venue, look, palette instance) of every thumbnail pair written below
 self_check.verify_now(globals())
 
 for i, v in enumerate(venues):
@@ -1566,7 +1570,7 @@ for i, v in enumerate(venues):
     for r in ident + reserved:
         d = m[("OBJ", r["obj"])] if not sal else None
         if sal:
-            ps = SALOON_LOOKS[r["look"]][1]
+            ps = game_truth.ordered_instances(r["look"], SALOON_LOOKS[r["look"]][1])        # the look's own palette first
             groups = [[hexc(c) for c in GT["inst"]["cowboys"][p]] for p in ps]
             cols = groups[0]
             sw = "".join('<span class="swg">%s</span>' % "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in g_) for g_ in groups)
@@ -1593,18 +1597,29 @@ for i, v in enumerate(venues):
         else:
             fr = game_front(v, idx) if sal else accepted(v, r["name"])[0]
             bk, btag = back_info(v, idx)
+        combos = [(cols, "")]                              # (colours, file suffix) per palette the game spawns the look in; the own palette first
+        if sal:
+            combos = [([hexc(c) for c in GT["inst"]["cowboys"][p]], "" if n_ == 0 else "_o%d" % INST_OBJ[p]) for n_, p in enumerate(ps)]
         img = ""
-        for rows_, side in ((fr, "front"), (bk, "back")):
-            if rows_:
-                rel = thumb(rows_, cols, v["bg"][0][0], "%s_%s_%s" % (v["key"], first, side))
-                img += ('<a class="dl" href="%s" download="%s_%s.png" data-file="%s_%s.png" title="Download %s %s (16x16)">'
-                        '<img class="pimg" alt="%s %s" width="48" height="48" src="%s"></a>'
-                        % (rel[:-4] + "_1x.png", first, side, first, side, esc(first.upper()), side, esc(r["name"]), side, rel))
-            else:
-                img += '<span class="pimg none">-</span>'
+        for n_, (ccols, suf) in enumerate(combos):
+            pair = ""
+            for rows_, side in ((fr, "front"), (bk, "back")):
+                if rows_:
+                    rel = thumb(rows_, ccols, v["bg"][0][0], "%s_%s%s_%s" % (v["key"], first, suf, side))
+                    pair += ('<a class="dl" href="%s" download="%s_%s.png" data-file="%s_%s.png" title="Download %s %s (16x16)">'
+                             '<img class="pimg" alt="%s %s" width="48" height="48" src="%s"></a>'
+                             % (rel[:-4] + "_1x.png", first + suf, side, first + suf, side, esc(first.upper()), side, esc(r["name"]), side, rel))
+                else:
+                    pair += '<span class="pimg none">-</span>'
+            if sal:
+                SHOWN.add((v["key"], r["look"], ps[n_]))
+                pair += '<span class="plab">OBJ %d</span>' % INST_OBJ[ps[n_]]
+            img += '<div class="pp">%s</div>' % pair
         if btag:
             img += '<span class="btag %s">%s</span>' % ("plan" if btag == "planned" else "muted", btag)
         img = '<div class="pics">%s</div>' % img
+        if not sal and idx is not None:
+            SHOWN.add((v["key"], idx, idx))
         rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, obj_txt, bg if sal is False else bg, vtxt, dtxt)))
         md += "| %s%s | %s | OBJ %s | %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), obj_txt,
                                                 ("BG %s" % bg) if (sal or "bg" in r) else "to assign", vtxt, dtxt or "Color only")
@@ -1641,6 +1656,7 @@ for i, v in enumerate(venues):
     w(scene_sections(v, m, field))
     w(tile_grid(v))
     w('</section>')
+self_check.verify_shown(globals())
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'From the atlas, main %s, %s.</p>' % (esc(commit), LOG[-1][0]))
 w('</div><div id="toast" role="status" aria-live="polite" hidden></div>')
