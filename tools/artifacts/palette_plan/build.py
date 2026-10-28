@@ -32,7 +32,7 @@ TARGET_LOOKS = 6   # owner Q11: 6 looks per venue on Color (at least 5)
 
 # ---- The plan (hand-kept). status: fixed | patron | free | idea ----
 PLAN = [
-    dict(slot=0, now="Sal, tip coin, sparkle, PERFECT cue", planned="Same", looks=0, bg="-", status="fixed",
+    dict(slot=0, now="Sal, tip coin", planned="Same", looks=0, bg="-", status="fixed",
          note="Same colours in every venue. A new patron drawn in Sal's colours could share it at no cost (idea 4)."),
     dict(slot=1, now="Full mug, fill glass, breaking glass, sparkle", planned="Same", looks=0, bg="-", status="fixed",
          note="The venue's drink colours. Could merge with OBJ 2 (idea 3)."),
@@ -182,7 +182,8 @@ commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], cap
 
 # Patron names (tools/gen_credits.py PATRONS, art order A, B, C) and short descriptions where the art notes give one.
 NAMES = {
-    "cowboys": ["DUSTY, the cowboy", "MABEL, the lace shawl", "HANK, the ranch hand"],   # owner 2026-10-21: variant B renamed MABEL
+    "cowboys": ["DUSTY, the cowboy", "EMMA, the singer", "GUS, the prospector", "HANK, the ranch hand", "ROSIE, the singer", "REDD, the outlaw",
+                "MABEL, the lace shawl", "ARTIE, the priest"],   # the game's 8 looks in order (look 0-2 bank 0, 3-7 Color only); patron palettes below
     "sports": ["PETE, the cap fan", "SERENA, the band fan", "NORM, the ref"],
     "lumberjacks": ["CEDAR, in the cap", "WILLOW, red hair", "ASH, in the green hat"],
     "chefs": ["PIERRE", "BRIE", "BASIL"],
@@ -200,23 +201,10 @@ PLANNED = {}
 TAN = "#FFE6CD"   # the Stadium's white push (owner 2026-10-21: the lighter tan, over #FFD5AC: "a better balance")
 PLANS = {
     "cowboys": dict(
-        moves=[("HANK", "OBJ", 7, 3, "HANK, the ranch hand"), ("Show dancers", "OBJ", 5, 1, "Show dancers"),
-               ("DUSTY", "OBJ", 3, 5, "DUSTY, the cowboy")],                   # owner 2026-10-22: DUSTY joins EMMA
-        recolour={("OBJ", 3): {1: "#8B5231", 2: "#FFE6CD", 3: "#392918"},   # HANK's art and palette with colours 1 and 2 swapped (he looks the same)   # HANK's palette, his hat (colour 1) in the cheerleaders' tan
-                  ("OBJ", 1): {1: "#FFE6CD"},                               # the full mug's cream to the tan; the dancers share it
-                  ("OBJ", 6): {1: "#FFCEAD", 2: "#ADADAD", 3: "#1A1A20"},  # MABEL (was ROSIE), redrawn by the owner: grey hair, black lace shawl                               # ROSIE's hair (and outline) dark grey; her shawl and dress stay pink
-                  },
+        moves=[("Show dancers", "OBJ", 5, 1, "Show dancers")],
+        recolour={("OBJ", 1): {1: "#FFE6CD"}},                               # the full mug's cream to the tan; the dancers share it
         open={},
-        add={("OBJ", 7): ("GUS, the prospector", ["#D8C098", "#B85838", "#281810"]),   # the Outlaw's former palette, kept by the Prospector; Big Tex takes it too
-             ("OBJ", 4): ("ROSIE, the singer", ["#F8D0B0", "#BB2F32", "#202030"]),   # owner 2026-10-22: ROSIE's skin and outline, the Outlaw file's red   # owner's concept (set 2 B, v3: the wall shows through at her eyes)
-             ("OBJ", 5): ("EMMA, the singer", ["#FFD5BD", "#8B5231", "#221B1A"])},   # owner 2026-10-22: shared with DUSTY
-        dmg=["DUSTY", "EMMA", "GUS"],          # owner 2026-10-22: the DMG's three (bank 0, both systems); GUS in the boss-overwritten slot
-        # owner 2026-10-22: the palettes each patron may spawn in (recolours of the same tiles; HANK's art has colours 1 and 2 swapped).
-        variants={"HANK": [3, 5, 6], "ROSIE": [3, 4, 5, 7], "REDD": [3, 4, 5, 6, 7], "DUSTY": [3, 5], "EMMA": [4, 5, 7],
-                  "MABEL": [3, 4, 5, 6, 7], "ARTIE": [3, 4, 5, 6, 7], "GUS": [5, 7]},
-        join={("OBJ", 4): ["REDD, the outlaw"],                                          # owner 2026-10-22: the Outlaw (owner's recolour) shares ROSIE's palette
-              ("OBJ", 6): ["ARTIE, the priest"]},                       # owner set 2 C (bald, grey beard) shares MABEL's palette
-        why="Owner 2026-10-21: HANK's hat to the cheerleaders' skin (#FFE6CD); DUSTY uses HANK's palette. Kept in slot 3 so both stay in boss fights (the boss takes 7).",
+        why="Owner 2026-10-21: the dancers share the full mug's palette (OBJ 1) in the tan. The 8 looks, their palettes and variants are in the game (batch 2).",
     ),
     "sports": dict(
         moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Cheerleaders"),
@@ -229,7 +217,7 @@ PLANS = {
     # owner 2026-10-25: every recommended and optional merge on the Palette Merges page (tools/artifacts/palette_merges/build.py MERGES)
     "lumberjacks": dict(
         moves=[("Show dancers", "OBJ", 5, 1, "Sasquatch"), ("WILLOW", "OBJ", 6, 3, "WILLOW, red hair"), ("WILLOW", "BG", 3, 2, "WILLOW, red hair")],
-        recolour={("OBJ", 1): {1: "#F6E6C5", 2: "#834A29", 3: "#291010"}},
+        recolour={},
         open={},
         why="Owner 2026-10-25: the Sasquatch shares the full mug (foam to cream); CEDAR and WILLOW share CEDAR's palette (WILLOW's navy goes).",
     ),
@@ -247,26 +235,25 @@ PLANS = {
     ),
     "punks": dict(
         moves=[("Show dancers", "OBJ", 5, 6, "The band")],
-        recolour={("OBJ", 6): {1: "#F6BD94", 2: "#4ACD4A", 3: "#100810"}, ("BG", 3): "OBJ 6"},
+        recolour={("BG", 3): "OBJ 6"},
         open={},
         why="Owner 2026-10-25: the band shares BANDIT's palette.",
     ),
     "ninjas": dict(
         moves=[("Show dancers", "OBJ", 5, 6, "Taiko drummer")],
-        recolour={("OBJ", 6): {1: "#FFEEDE", 2: "#CD2939", 3: "#181010"}, ("BG", 3): "OBJ 6"},
+        recolour={("BG", 3): "OBJ 6"},
         open={},
         why="Owner 2026-10-25: the taiko drummer shares SAKURA's palette.",
     ),
     "zoo": dict(
         moves=[("COCO", "OBJ", 3, 1, "COCO, the monkey")],
-        recolour={("OBJ", 1): {1: "#F6D5A4", 2: "#8B5229", 3: "#291808"}, ("BG", 2): "OBJ 1"},
+        recolour={("BG", 2): "OBJ 1"},
         open={},
         why="Owner 2026-10-25: COCO shares the full mug's palette (foam to tan).",
     ),
     "aliens": dict(
         moves=[("ZORP", "OBJ", 3, 1, "ZORP, eye stalks"), ("XENO", "OBJ", 6, 2, "XENO, the grey one")],
-        recolour={("OBJ", 1): {1: "#F6FF9C", 2: "#4ACD62", 3: "#102020"}, ("OBJ", 2): {1: "#E6E6EE", 2: "#9CA4B4", 3: "#101018"},
-                  ("BG", 2): "OBJ 1", ("BG", 3): "OBJ 2"},
+        recolour={("BG", 2): "OBJ 1", ("BG", 3): "OBJ 2"},
         open={},
         why="Owner 2026-10-25: ZORP shares the full mug's palette, XENO the empty mug's. Check the Space boss's OBJ 2 use.",
     ),
@@ -278,6 +265,9 @@ DROP_ENHANCED = True
 SPLIT_PLAYFIELD = True
 # Every venue (owner 2026-10-21): in the playfield the keg / spout palette moves from BG 7 to BG 1 (BG 1 is the HUD's above the playfield).
 FIELD_MOVES = [("Keg, spout", 7, 1)]
+SALOON_LOOKS = [("DUSTY", [0, 1]), ("EMMA", [3, 1, 2]), ("GUS", [1, 2]), ("HANK", [0, 1, 4]), ("ROSIE", [0, 3, 1, 2]),
+                ("REDD", [0, 3, 1, 4, 2]), ("MABEL", [0, 3, 1, 4, 2]), ("ARTIE", [0, 3, 1, 4, 2])]   # now: palette instances per look
+INST_OBJ, INST_BG = [3, 6, 7, 4, 5], [2, 3, 4, 7, 5]      # palette instance 0-4 -> OBJ slot, BG slot (the Saloon has all 5)
 PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
 BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
 
@@ -301,12 +291,16 @@ def users(kind, v, s):
     e = enh_variant(v)
     if kind == "OBJ":
         pat = [n[PATRON_SLOT[s]]] if s in PATRON_SLOT else []
+        if v["key"] == "cowboys":
+            pat = [n[i] for i, (_, ps) in enumerate(SALOON_LOOKS) if any(INST_OBJ[p] == s for p in ps)]
         if s == 4 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (left half, lifted)"]
-        other = {0: ["Sal", "Tip coin", "Pour sparkle", "PERFECT cue"], 1: ["Full mug", "Fill glass", "Breaking glass"],
+        other = {0: ["Sal", "Tip coin"], 1: ["Full mug", "Fill glass", "Breaking glass", "Pour sparkle"],
                  2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 5: ["Show dancers"], 7: ["Boss fight: " + TOPPER[v["key"]]]}.get(s, [])
     else:
         pat = [n[BG_PATRON[s]]] if s in BG_PATRON else []
+        if v["key"] == "cowboys":
+            pat = [n[i] for i, (_, ps) in enumerate(SALOON_LOOKS) if any(INST_BG[p] == s for p in ps)]
         if s == 7 and e is not None and not DROP_ENHANCED:
             pat = [n[e] + " (top row)"]
         other = {0: ["Bar, wall"] + ([] if v["keg7"] else ["Keg, spout"]), 1: ["HUD"], 4: ["Boss body"], 5: ["Stage"], 6: ["Stage"],
@@ -446,7 +440,10 @@ table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
 .pt td.slotc { font-family: var(--mono); white-space: nowrap; }
 .pimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; border-radius: 3px; width: 48px; height: 48px; max-width: none; }
 .pt td.pic { width: 100px; min-width: 100px; padding-block: 4px; }
-.pics { display: flex; gap: 4px; }
+.pics { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.btag { font-size: 12px; font-style: italic; }
+.btag.plan { color: var(--plan); }
+.swg { display: inline-flex; margin-right: 6px; }
 .bimg { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: 100%; height: auto; border-radius: 4px; }
 .bdesc { margin: 0 0 8px; padding-left: 1.1em; font-size: 13px; } .bdesc b { font-family: var(--mono); font-size: 12px; }
 .bact { margin: 0 0 6px; max-width: 68ch; font-size: 14px; }
@@ -521,10 +518,8 @@ def art_rows(v, name):
 # "old" = the game's frame. The Saloon: art/ fronts; backs the game's for its 3 looks, the others still to draw.
 PASS = os.path.join(ROOT, "docs/dev/concepts/patron_pass")
 ACCEPTED = {
-    "lumberjacks": {"cedar": ("cedar_owner", "cedar_back"), "willow": ("willow", "willow_back"), "ash": ("old", "ash_v2_back")},
-    "sports": {"pete": ("pete", "pete_back"), "serena": ("old", "serena_v2_back"), "norm": ("old", "norm_v2_back")},
+    # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
     "chefs": {"pierre": ("old", "old"), "brie": ("old", "brie_v2_back"), "basil": ("basil", "basil_back")},
-    "robots": {"boxy": ("boxy", "boxy_back"), "volta": ("volta", "volta_back"), "blip": ("blip", "blip_back")},
     "punks": {"spike": ("spike", "spike_back"), "bandit": ("bandit", "bandit_back"), "slick": ("slick", "slick_back")},
     "ninjas": {"kage": ("old", "old"), "sakura": ("sakura", "sakura_back"), "ronin": ("old", "ronin_v2_back")},
     "zoo": {"coco": ("coco", "coco_back"), "bamboo": ("bamboo", "bamboo_back"), "muddy": ("old", "old")},
@@ -785,6 +780,8 @@ def field_model(v, m):
             field[fr] = dict(pat=[], oth=[], cols=d["cols"], new={}, freed=True, open=None)
 
     pats = [(t, sl) for sl in range(8) for t, _ in m[("OBJ", sl)]["pat"]] + [(m[("OBJ", sl)]["open"], sl) for sl in range(8) if m[("OBJ", sl)]["open"]]
+    if v["key"] == "cowboys":
+        pats = []                                   # the game's own BG slots (users(), SALOON_LOOKS): nothing to renumber
     for _ in range(4):
         for name, o in pats:
             b = next((sl for sl in range(8) if any(x[0] == name for x in field[sl]["pat"])), None)
@@ -1108,7 +1105,81 @@ def tile_sheets(v, model, b):
                 mark[t] = (255, 210, 0) if T[t] == blank else (255, 60, 60)
                 part[t] = seen[k]
         seen.setdefault(k, t)
-    return sheet, live, mark, part
+    return sheet, live, mark, part, T
+
+
+def rgb15(c):
+    """The colour the game screenshots show for a 15-bit word (PyBoy: each 5-bit channel << 3)."""
+    return ((c & 31) << 3, ((c >> 5) & 31) << 3, ((c >> 10) & 31) << 3)
+
+
+GREY = [(255, 255, 255), (170, 170, 170), (85, 85, 85), (0, 0, 0)]
+_TD = {}
+
+
+def tile_data(v, model):
+    """{bank: (sheet, live, mark, part, T)} of a venue's captured VRAM, cached."""
+    k = (v["key"], model)
+    if k not in _TD:
+        lv = load("level_" + v["key"])
+        _TD[k] = {b: tile_sheets(v, model, b) for b in range(len(lv[model]["tiles"]))}
+    return _TD[k]
+
+
+def bg_pals(v):
+    """[8 palettes of 4 RGB] of the Color capture's BG palette RAM (the representative frame the screen map comes from)."""
+    lv = load("level_" + v["key"])["cgb"]
+    return [[rgb15(c) for c in p["rep"]] for p in lv["pal"]["bg"]]
+
+
+def pal_map(v):
+    """{(bank, slot): sorted BG palettes it was drawn with anywhere in the Color capture}."""
+    ev = load("level_" + v["key"])["cgb"].get("ev") or {}
+    out = {}
+    for p, lst in (ev.get("bg_by_pal") or {}).items():
+        for b, t in lst:
+            out.setdefault((b, t), set()).add(int(p))
+    return out
+
+
+def render_tile(v, model, bank, slot, xf=0, yf=0, pal=None):
+    """One 8x8 RGB tile. pal: None (grey), (4 RGB colours, is_obj); an OBJ palette's colour 0 shows the venue's wall."""
+    from PIL import Image
+    sheet, live, mark, part, T = tile_data(v, model)[bank]
+    if model == "dmg" or pal is None:
+        if model == "dmg":
+            im = sheet.crop(((slot % 16) * 8, (slot // 16) * 8, (slot % 16) * 8 + 8, (slot // 16) * 8 + 8))
+        else:
+            im = Image.new("RGB", (8, 8))
+            im.putdata([GREY[i] for row in T[slot] for i in row])
+    else:
+        cols, obj = pal
+        if obj:
+            cols = [bg_pals(v)[0][0]] + list(cols[1:])
+        im = Image.new("RGB", (8, 8))
+        im.putdata([cols[i] for row in T[slot] for i in row])
+    return _flip(im, xf, yf)
+
+
+def screen_composite(v, model):
+    """The 160x144 background layer as the capture's attribute map and VRAM draw it (bank, palette, flips honoured; no sprites)."""
+    from PIL import Image
+    lv = load("level_" + v["key"])[model]
+    A = lv["attr"]
+    pals = bg_pals(v) if model == "cgb" else None
+    im = Image.new("RGB", (160, 144))
+    for r in range(18):
+        for c in range(20):
+            sl = A["slot"][r][c]
+            if sl < 0:
+                continue
+            if model == "cgb":
+                f = int(A["flags"][r][c], 16)
+                t = render_tile(v, model, (f >> 2) & 1, sl, f & 1, (f >> 1) & 1, (pals[int(A["pal"][r][c])], False))
+            else:
+                t = render_tile(v, model, 0, sl)
+            im.paste(t, (c * 8, r * 8))
+    return im
 
 
 GLYPH_DIGITS = list(range(36, 46))            # BG ids, build/art.h TILE_GLYPH_*: 0-9
@@ -1122,16 +1193,26 @@ def obj_figures(v, model):
     kind. A pose whose tiles are all in a shown pose already (the mirrored copy of it) is left out. -> {label: [figure]}"""
     lv = load("level_" + v["key"])[model]
     groups, shown = {}, {}
+    opal = [[rgb15(c) for c in p["rep"]] for p in lv["pal"]["obj"]] if model == "cgb" else None
+    evs = {e["label"].lower(): e for e in ((load("level_" + v["key"])["cgb"].get("ev") or {}).get("events") or [])} if model == "cgb" else {}
     for o in lv["objs"]:
         if o["kind"].startswith("Patron"):
             continue
         lab = OBJ_LABEL.get(o["kind"], o["kind"])
         fig, slots = [], set()
+        cols = None
+        if opal:                                   # the object's own OBJ palette (a captured event's values where it has them: the show's dancers)
+            cols = list(opal[o["slots"][0]])
+            ev = evs.get(o["kind"].lower())
+            for sv in (ev["slots"] if ev else []):
+                if sv["slot"] == o["slots"][0] and len(sv["values"]) == 1:
+                    cols = [rgb15(c) for c in sv["values"][0]]
+        pl_ = (cols, True) if cols else None
         for x, y, t, bank, xf, yf in [pc[:6] for pc in o["pieces"]]:
             if bank:
                 continue
             top, bot = (t + 1, t) if yf else (t, t + 1)
-            fig += [(top, x // 8, y // 8, xf, yf), (bot, x // 8, y // 8 + 1, xf, yf)]
+            fig += [(top, x // 8, y // 8, xf, yf, 0, pl_), (bot, x // 8, y // 8 + 1, xf, yf, 0, pl_)]
             slots |= {t, t + 1}
         if not fig or slots <= shown.setdefault(lab, set()):
             continue
@@ -1140,7 +1221,7 @@ def obj_figures(v, model):
     return groups
 
 
-def tile_groups(v, model, live):
+def tile_groups(v, model, live, b=0):
     """[(label, [figure or None for a line break], pad)]; a figure is [(slot, col, row, xflip, yflip)]. Order: sprites, patrons,
     the screen and the BG tiles, the HUD and the glyphs, then whatever is still loaded and not placed."""
     lv = load("level_" + v["key"])[model]
@@ -1156,37 +1237,73 @@ def tile_groups(v, model, live):
         if not figs:
             return
         for f in figs:
-            placed.update(t for t, *_ in (f or []))
+            placed.update(e[0] for e in (f or []) if len(e) < 6 or e[5] == b)
         out.append(((label + " " + rng(figs)) if ids else label, figs, pad, marks))
 
     pair = lambda t: [(t, 0, 0, 0, 0), (t + 1, 0, 1, 0, 0)]
-    og = obj_figures(v, model)
-    for lab, figs in sorted(og.items(), key=lambda kv: min(t for f in kv[1] for t, *_ in f)):
-        add(lab, figs)
-    add("Dust puff", [pair(t) for t in (246, 248, 250)])
-    add("Boss HUD", [[(t, 0, 0, 0, 0)] for t in range(252, 256)], 2)
-    # patrons: per look, the 8 shifted 24x16 poses (3 wide, 2 tall, column-major) in two lines, then the 16x16 back view
-    for vi, nm in enumerate("ABC"):
+    if b == 0:
+        og = obj_figures(v, model)
+        for lab, figs in sorted(og.items(), key=lambda kv: min(t for f in kv[1] for t, *_ in f)):
+            add(lab, figs)
+        add("Dust puff", [pair(t) for t in (246, 248, 250)])
+        add("Boss HUD", [[(t, 0, 0, 0, 0)] for t in range(252, 256)], 2)
+    # patrons: per look, the 8 shifted 24x16 poses (3 wide, 2 tall, column-major) in two lines, then the 16x16 back view (2x2, ROW-major:
+    # render.c put_back_col: column c is tiles t, t + 2 and column c + 1 is t + 1, t + 3). Bank 0 holds looks A-C; the Saloon's Color-only
+    # looks D-H are in bank 1 (art.h SALOON_X_S0 / SALOON_X_BACK / SALOON_X_LAST).
+    last_pref = []
+
+    def look(label, pref, shifted, s0, back):
         figs = []
+        votes = {}                                  # the look's palette: the one most of its tiles were drawn with in the capture
+        for t in [shifted(sh) + k for sh in range(1, 8) for k in range(6)] + [s0 + k for k in range(4)] + [back + k for k in range(4)]:
+            for p_ in pal_map(v).get((b, bgslot(t)), ()):
+                votes[p_] = votes.get(p_, 0) + 1
+        if votes:
+            pref = max(votes, key=lambda p_: (votes[p_], -p_))
+        elif pref is None and last_pref:                # not drawn in the capture (ARTIE, look H): he shares MABEL's (look G's) palette in the game
+            pref = last_pref[-1]
+        last_pref.append(pref)
         for sh in range(8):
-            t0 = PAT_FIRST + (PAT_S0 + vi * 4 if sh == 0 else vi * 42 + (sh - 1) * 6)
-            figs.append([(bgslot(t0 + k if sh or k < 4 else PAT_FIRST + PAT_S0 - 2 + k - 4), k // 2, k % 2, 0, 0) for k in range(6)])   # (shift 0: its 3rd column is the shared blank pair)
+            if sh == 0:
+                ids = [s0 + k for k in range(4)] + [PAT_FIRST + PAT_S0 - 2 + k for k in range(2)]
+            else:
+                ids = [shifted(sh) + k for k in range(6)]
+            figs.append([(bgslot(t), k // 2, k % 2, 0, 0, b, ("bgpref", pref)) for k, t in enumerate(ids)])
             if sh == 3:
                 figs.append(None)
-        t0 = PAT_FIRST + PAT_BACK + vi * 4
-        figs.append([(bgslot(t0 + k), k // 2, k % 2, 0, 0) for k in range(4)])
-        add("Patron " + nm, figs)
-    # the screen as drawn (a representative frame's BG map), then the venue pool tiles it does not use
-    scr = lv["attr"]["slot"]
-    fig = [(sl, c, r, 0, 0) for r, row in enumerate(scr) for c, sl in enumerate(row)]
-    add("Screen", [fig], 0, ids=False, marks=False)
-    add("Pool, not on screen", [[(256 + t, 0, 0, 0, 0)] for t in range(36) if live[256 + t] and 256 + t not in placed], 2)
-    add("Digits", [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_DIGITS], 2)
-    add("Letters", [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_LETTERS[:13]] + [None] + [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_LETTERS[13:]], 2)
-    add("HUD, panels", [[(256 + t, 0, 0, 0, 0)] for t in (54, 55)] + [[(256 + 63, 0, 0, 0, 0), (256 + 64, 0, 1, 0, 0)], [(256 + 76, 0, 0, 0, 0)]], 2)
+        figs.append([(bgslot(back + k), k % 2, k // 2, 0, 0, b, ("bgpref", pref)) for k in range(4)])
+        add(label, figs)
+    if b == 0:
+        for vi, nm in enumerate("ABC"):
+            look("Patron " + nm, 2 + vi, lambda sh, vi=vi: PAT_FIRST + vi * 42 + (sh - 1) * 6, PAT_FIRST + PAT_S0 + vi * 4,
+                 PAT_FIRST + PAT_BACK + vi * 4)
+    elif v["key"] == "cowboys":
+        for k, nm in enumerate("DEFGH"):
+            look("Patron " + nm, None, lambda sh, k=k: ((7 * k + sh - 1) * 6) if 7 * k + sh - 1 < 34 else 246, 206 + 4 * k, 226 + 4 * k)
+    # the screen as drawn (a representative frame's BG map: bank, palette and flips as the attribute map has them), then the pool tiles
+    if b == 0:
+        A = lv["attr"]
+        pals = bg_pals(v) if model == "cgb" else None
+        fig = []
+        for r, row in enumerate(A["slot"]):
+            for c, sl in enumerate(row):
+                if sl < 0:
+                    continue
+                if model == "cgb":
+                    f = int(A["flags"][r][c], 16)
+                    fig.append((sl, c, r, f & 1, (f >> 1) & 1, (f >> 2) & 1, (pals[int(A["pal"][r][c])], False)))
+                else:
+                    fig.append((sl, c, r, 0, 0))
+        add("Screen", [fig], 0, ids=False, marks=False)
+    if b == 0:
+        add("Pool, not on screen", [[(256 + t, 0, 0, 0, 0)] for t in range(36) if live[256 + t] and 256 + t not in placed], 2)
+        add("Digits", [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_DIGITS], 2)
+        add("Letters", [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_LETTERS[:13]] + [None] + [[(256 + t, 0, 0, 0, 0)] for t in GLYPH_LETTERS[13:]], 2)
+        add("HUD, panels", [[(256 + t, 0, 0, 0, 0)] for t in (54, 55)] + [[(256 + 63, 0, 0, 0, 0), (256 + 64, 0, 1, 0, 0)], [(256 + 76, 0, 0, 0, 0)]], 2)
     # whatever is loaded and still not placed
     rest = [pair(t) for t in list(range(0, 128, 2)) + list(range(234, 256, 2)) if (live[t] or live[t + 1]) and t not in placed and t + 1 not in placed]
-    add("Other sprites", rest)
+    if b == 0:
+        add("Other sprites", rest)
     rest = [[(t, 0, 0, 0, 0)] for t in range(128, 384) if live[t] and t not in placed]
     add("Other BG", rest, 2)
     return out
@@ -1220,7 +1337,7 @@ def tile_grid(v):
     for model, b, label in (("cgb", 0, "Color bank 0"), ("cgb", 1, "Color bank 1"), ("dmg", 0, "DMG")):
         if b >= len(lv[model]["tiles"]):
             continue
-        sheet, live, mark, part = tile_sheets(v, model, b)
+        sheet, live, mark, part, _T = tile_sheets(v, model, b)
         # the raw grid
         GUT = 30
         im = Image.new("RGB", (GUT + 128 * S, 192 * S), (40, 40, 40))
@@ -1237,11 +1354,25 @@ def tile_grid(v):
         im.save(os.path.join(os.path.dirname(OUT), rel), "PNG")
         # the sorted view (bank 0 only: bank 1 holds no venue tiles yet)
         srel = None
-        if b == 0:
+        if b == 0 or any(c != "0" for c in lv[model]["tiles"][b]["use"]):      # bank 1: only where the game draws from it (elsewhere it holds junk)
             W = 160 * S
             fnt = ImageFont.load_default(size=12)
-            groups = tile_groups(v, model, live)
-            tile = lambda t, xf, yf: _flip(sheet.crop(((t % 16) * 8, (t // 16) * 8, (t % 16) * 8 + 8, (t // 16) * 8 + 8)), xf, yf).resize((8 * S, 8 * S), Image.NEAREST)
+            groups = tile_groups(v, model, live, b)
+            pm = pal_map(v) if model == "cgb" else {}
+            pals = bg_pals(v) if model == "cgb" else None
+
+            def tile(e):
+                t, _c, _r, xf, yf = e[:5]
+                bank = e[5] if len(e) > 5 else b
+                pal = e[6] if len(e) > 6 else None
+                if model == "cgb":
+                    if isinstance(pal, tuple) and pal and pal[0] == "bgpref":       # a patron look: its own BG palette where it was drawn with it
+                        ps = pm.get((bank, t), set())
+                        n = pal[1] if pal[1] is not None else (min(ps) if ps else None)
+                        pal = (pals[n], False) if n is not None else None
+                    elif pal is None and (bank, t) in pm:
+                        pal = (pals[min(pm[(bank, t)])], False)
+                return render_tile(v, model, bank, t, xf, yf, pal).resize((8 * S, 8 * S), Image.NEAREST)
             rows = []
             for glabel, figs, pad, gmarks in groups:
                 x = y = rh = 0
@@ -1250,8 +1381,8 @@ def tile_grid(v):
                     if f is None:
                         x, y, rh = 0, y + rh + max(pad, 2) * S, 0
                         continue
-                    fw = (max(c for _, c, _, _, _ in f) + 1) * 8 * S
-                    fh = (max(r for _, _, r, _, _ in f) + 1) * 8 * S
+                    fw = (max(e[1] for e in f) + 1) * 8 * S
+                    fh = (max(e[2] for e in f) + 1) * 8 * S
                     if x and x + fw > W:
                         x, y, rh = 0, y + rh + max(pad, 2) * S, 0
                     placed.append((f, x, y)); x += fw + pad * S; rh = max(rh, fh)
@@ -1265,17 +1396,20 @@ def tile_grid(v):
                 dr.text((0, y0 + 1), glabel, fill=(150, 150, 150), font=fnt)
                 y0 += 18
                 for f, fx, fy in placed:
-                    for t, c, r, xf, yf in f:
+                    for e in f:
+                        t, c, r = e[:3]
+                        own = len(e) < 6 or e[5] == b                 # a Screen cell from the other VRAM bank has no entry in this sheet
                         px, py = fx + c * 8 * S, y0 + fy + r * 8 * S
-                        im.paste(tile(t, xf, yf), (px, py))
-                        rects.append([px, py, t, part.get(t, -1)])
-                        if not live[t]:
+                        im.paste(tile(e), (px, py))
+                        if own:
+                            rects.append([px, py, t, part.get(t, -1)])
+                        if own and not live[t]:
                             dr.rectangle((px, py, px + 8 * S - 1, py + 8 * S - 1), fill=(60, 60, 60))
-                        if gmarks and t in mark:
+                        if own and gmarks and t in mark:
                             dr.rectangle((px, py, px + 8 * S - 1, py + 8 * S - 1), outline=mark[t], width=2)
                 y0 += h + 8
-            srel = "img/tiles_%s_%s_sorted.png" % (v["key"], model)
-            TILEMAP[srel] = {"b": 0, "r": rects}
+            srel = "img/tiles_%s_%s%s_sorted.png" % (v["key"], model, "" if b == 0 else b)
+            TILEMAP[srel] = {"b": b, "r": rects}
             im.save(os.path.join(os.path.dirname(OUT), srel), "PNG")
         out.append((label, rel, srel))
     fig = lambda label, rel: ('<figure><figcaption>%s</figcaption><img class="tgimg" src="%s" alt="%s %s tiles"></figure>'
@@ -1329,6 +1463,7 @@ def scene_sections(v, m, field):
 # Starts from the atlas capture (the game now), then the plan's tile deltas. Sources: QUEUE.md "Saloon 8 patron looks" (52 tiles a look;
 # option 2, the shared blank column: 50; looks A-C bank 0, D-H bank 1, one back view at bank-0 ids 242-245), PATRON_SPEC.md (48 shifted + 4 back).
 LOOK_NOW, LOOK_OPT2 = 52, 50        # tiles per look: now, option 2
+SALOON_NOW = 8                      # the Saloon's looks in the game (src/mirror.c sal_combo)
 LOOKS_NOW = 3                       # looks every venue has in the game today (the enhanced ROSIE / BOXY are palettes, not looks)
 BACK_B0 = 4                         # the one back view at bank-0 ids 242-245 once there are looks in bank 1
 FIGHT_LOOKS = 2                     # looks A and B stay loaded in a boss fight; the boss borrows look C's tiles (boss.h BOSS_BG_A / BOSS_BG_B)
@@ -1339,12 +1474,13 @@ def planned_tiles(v, n):
     Patron looks are BG tiles, so only BG-reachable ids can take them."""
     t = v["tiles"]; sal = v["key"] == "cowboys"
     q = "" if sal else " ?"                                   # the Saloon's numbers are decided in QUEUE; elsewhere the same rule is assumed
-    n = max(n, LOOKS_NOW); extra = n - LOOKS_NOW
+    lnow = SALOON_NOW if sal else LOOKS_NOW                   # looks in the game today (the Saloon has all 8 since batch 2)
+    n = max(n, lnow); extra = n - lnow
     save = LOOKS_NOW * (LOOK_NOW - LOOK_OPT2)                 # option 2 on looks A-C
     fsave = FIGHT_LOOKS * (LOOK_NOW - LOOK_OPT2)
     b0 = BACK_B0 if extra else 0
     b1 = extra * LOOK_OPT2
-    enh = 2 if v["key"] in ("cowboys", "robots") else 0         # the dropped enhanced look's 2 bank-1 lift tiles (ids 210, 211: enhance.c enh_b1)
+    enh = 2 if v["key"] == "robots" else 0         # the dropped enhanced look's 2 bank-1 lift tiles (ids 210, 211: enhance.c enh_b1)
     sp = lambda r: r[0]
     bg = lambda r: r[1] + r[2]
     o = dict(sp=sp(t["b0"]), bg=bg(t["b0"]) + save - b0, sp1=sp(t["b1"]), bg1=bg(t["b1"]) - b1 + enh,
@@ -1355,7 +1491,7 @@ def planned_tiles(v, n):
         sp(t["b0"]), bg(t["b0"]), 384 - sum(t["b0"]), sp(t["b1"]), bg(t["b1"]), bg(t["bb"]), bg(t["d"]), 384 - sum(t["d"]))
     L = [nowtxt,
          "Free means empty (not loaded, not referenced in the capture) and reachable: sprite-only ids 0-127, BG ids 128-383 (shared 128-255 + BG-only 256-383). Looks are BG tiles, so only BG counts for them.",
-         "Looks in the plan: %d (now %d)%s." % (n, LOOKS_NOW, "" if n != LOOKS_NOW else "; no more are planned here ?"),
+         "Looks in the plan: %d (now %d)%s." % (n, lnow, "" if n != lnow else "; no more are planned here ?"),
          "-%d per look, option 2, x %d looks (A-C): +%d free BG in bank 0 and on DMG%s." % (LOOK_NOW - LOOK_OPT2, LOOKS_NOW, save, "" if sal else " ?")]
     if extra:
         L.append("+%d looks x %d in bank 1 (BG ids): bank 1 free BG -%d%s." % (extra, LOOK_OPT2, b1, q))
@@ -1363,18 +1499,42 @@ def planned_tiles(v, n):
         L.append("Back views of the other new looks share that one ?")
         L.append("New looks are Color only: DMG unchanged.")
     L.append("Boss fight: the capture, +%d for option 2 on the two looks that stay loaded (A, B; the boss borrows C's tiles), -%d back view%s." % (fsave, b0, q))
-    if sal:
-        L.append("QUEUE fit-check (Saloon, 16-px art): normal play bank 0 about 23, bank 1 6. Here: bank 0 %d = %d now + %d option 2 - %d back view: matches. Bank 1 %d = %d now - %d looks + %d lift tiles of the dropped ROSIE: matches." % (
-            o["bg"], bg(t["b0"]), save, b0, o["bg1"], bg(t["b1"]), b1, enh))
-        L.append("QUEUE fit-check: Big Tex fight bank 0 about 6, bank 1 6. Here: bank 0 %d = %d in the capture + %d - %d; bank 1 %d. Bank 1 matches. Bank 0 is %d above the estimate: the capture already has the boss in look C's place, and no sprite-only tile is counted, so it is none of the three suspects; the source of the 6 is not recorded ?" % (
-            o["fbg"], bg(t["bb"]), fsave, b0, o["bg1"], o["fbg"] - 6))
-        L.append("The first version of this page counted sprite-only ids as free (that was the whole gap: bank 0 showed 41 = 18 sprite-only + 23 BG).")
-    if v["key"] in ("cowboys", "robots"):
-        L.append("Enhanced look dropped (%s): its 2 bank-1 lift tiles (ids 210, 211, loaded by enhance_load) are freed: bank 1 free BG +%d%s." % ("ROSIE" if sal else "BOXY", enh, q))
+    if v["key"] == "robots":
+        L.append("Enhanced look dropped (BOXY): its 2 bank-1 lift tiles (ids 210, 211, loaded by enhance_load) are freed: bank 1 free BG +%d%s." % (enh, q))
     L.append("Dancers moved to other palettes and palette variants: 0 tiles.")
     o["lines"] = L
     return o
 
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import game_truth  # noqa: E402
+import self_check  # noqa: E402
+
+def game_front(v, i):
+    """Look i's front as in the game (cowboys.txt 0-2, saloon_x.txt 0-4 for the Saloon)."""
+    if v["key"] == "cowboys":
+        return frames(os.path.join(ROOT, "assets/art/patrons/%s.txt" % ("cowboys" if i < 3 else "saloon_x")))[i if i < 3 else i - 3]
+    return accepted(v, NAMES[v["key"]][i])[0]
+
+
+def back_info(v, i):
+    """(rows, tag) of look i's back view: the game's current back (tag "stand-in" if it is one), or the owner-picked back
+    not yet imported (tag "planned"), which replaces it."""
+    label, rows, standin = game_truth.backs(v["key"])[i]
+    pick = ACCEPTED.get(v["key"], {}).get(NAMES[v["key"]][i].split(",")[0].strip().lower())
+    if pick and pick[1] != "old":
+        prows = frames(os.path.join(PASS, v["key"], pick[1] + ".txt"))[0]
+        if prows != rows:
+            return prows, "planned"
+    return rows, ("stand-in" if standin else "")
+
+
+def back_rows_by_look(v):
+    n = len(game_truth.truth()["saloon"]) if v["key"] == "cowboys" else 3
+    return [back_info(v, i)[0] for i in range(n)]
+
+
+self_check.verify_now(globals())
 
 for i, v in enumerate(venues):
     m = model(v)
@@ -1398,13 +1558,41 @@ for i, v in enumerate(venues):
                 r["planned"] = r["planned"] or bool(field[b]["new"])
     rows = []
     md = "### %s: patron palettes (plan, %s)\n\n| Patron | Palette colours (1, 2, 3) | OBJ | BG | Spawns in OBJ (and matching BG) | DMG |\n|---|---|---|---|---|---|\n" % (v["name"], LOG[0][0])
+    sal = v["key"] == "cowboys"
+    GT = game_truth.truth()
+    if sal:                         # the game's looks, one row each: palette instances from src/mirror.c, not the OBJ slots of the plan
+        ident = [dict(name=NAMES["cowboys"][i], look=i, planned=False) for i in range(len(SALOON_LOOKS))]
+        reserved = []
     for r in ident + reserved:
-        d = m[("OBJ", r["obj"])]
-        cols = [d["new"].get(k, d["cols"][k]) for k in (1, 2, 3)]
-        sw = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
-        bg = ("BG %d" % r["bg"]) if "bg" in r else '<span class="muted">to assign</span>'
-        fr, bk = accepted(v, r["name"])
+        d = m[("OBJ", r["obj"])] if not sal else None
+        if sal:
+            ps = SALOON_LOOKS[r["look"]][1]
+            groups = [[hexc(c) for c in GT["inst"]["cowboys"][p]] for p in ps]
+            cols = groups[0]
+            sw = "".join('<span class="swg">%s</span>' % "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in g_) for g_ in groups)
+            objs = sorted({INST_OBJ[p] for p in ps})
+            bgs = sorted({INST_BG[p] for p in ps})
+            bg = ", ".join(str(x) for x in bgs)
+            obj_txt = ", ".join(str(x) for x in objs)
+            vtxt = obj_txt
+            dtxt = "DMG" if r["look"] < 3 else ""
+        else:
+            cols = [d["new"].get(k, d["cols"][k]) for k in (1, 2, 3)]
+            sw = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
+            bg = ("BG %d" % r["bg"]) if "bg" in r else '<span class="muted">to assign</span>'
+            obj_txt = str(r["obj"])
+            var = PLANS.get(v["key"], {}).get("variants", {}).get(r["name"].split(",")[0].strip())
+            vtxt = ", ".join(str(x) for x in var) if var else str(r["obj"])
+            dm = PLANS.get(v["key"], {}).get("dmg")
+            dtxt = ("DMG" if r["name"].split(",")[0].strip() in dm else "") if dm else "DMG"
         first = r["name"].split(",")[0].strip().lower()
+        idx = r["look"] if sal else next((k_ for k_, n_ in enumerate(NAMES[v["key"]]) if n_.split(",")[0].strip().lower() == first), None)
+        if idx is None:                                   # a reserved patron: not in the game yet, its art is the plan's
+            fr, bk = accepted(v, r["name"])
+            btag = "planned" if bk else ""
+        else:
+            fr = game_front(v, idx) if sal else accepted(v, r["name"])[0]
+            bk, btag = back_info(v, idx)
         img = ""
         for rows_, side in ((fr, "front"), (bk, "back")):
             if rows_:
@@ -1414,15 +1602,12 @@ for i, v in enumerate(venues):
                         % (rel[:-4] + "_1x.png", first, side, first, side, esc(first.upper()), side, esc(r["name"]), side, rel))
             else:
                 img += '<span class="pimg none">-</span>'
+        if btag:
+            img += '<span class="btag %s">%s</span>' % ("plan" if btag == "planned" else "muted", btag)
         img = '<div class="pics">%s</div>' % img
-        rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, r["obj"], bg)))
-        var = PLANS.get(v["key"], {}).get("variants", {}).get(r["name"].split(",")[0].strip())
-        vtxt = ", ".join(str(x) for x in var) if var else str(r["obj"])
-        dm = PLANS.get(v["key"], {}).get("dmg")
-        dtxt = ("DMG" if r["name"].split(",")[0].strip() in dm else "") if dm else "DMG"
-        rows[-1]["html"] = rows[-1]["html"] + (vtxt, dtxt)
-        md += "| %s%s | %s | OBJ %d | %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), r["obj"],
-                                                ("BG %d" % r["bg"]) if "bg" in r else "to assign", vtxt, dtxt or "Color only")
+        rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, obj_txt, bg if sal is False else bg, vtxt, dtxt)))
+        md += "| %s%s | %s | OBJ %s | %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), obj_txt,
+                                                ("BG %s" % bg) if (sal or "bg" in r) else "to assign", vtxt, dtxt or "Color only")
     w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % len(ident))
     w('<div class="stat"><b>%d</b><span>reserved patrons</span></div>' % len(reserved))
     w('<div class="stat"><b>%d</b><span>free OBJ palettes</span></div>' % len(ofree))
@@ -1450,7 +1635,7 @@ for i, v in enumerate(venues):
     w('</div><div class="ph2"><h2>Patrons</h2><button type="button" class="copymd" data-md="%s">Copy table as Markdown</button></div>' % esc(md))
     w('<div class="tbl"><table class="pt"><thead><tr><th></th><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th><th>Spawns in</th><th>Also on</th></tr></thead><tbody>')
     for r in rows:
-        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %d</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
+        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %s</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
     w('</tbody></table></div>')
     w(boss_section(v, m, field))
     w(scene_sections(v, m, field))
