@@ -4,6 +4,7 @@
 import subprocess
 
 import pytest
+from split_helpers import win_lyc
 from conftest import (clear_regulars, debug_unlocked, du_block, gesture, K_ARCADE, K_BARCHANGE, K_BONUS, K_CLASSIC, K_CONTINUE, K_DEBUG, K_ERASE, K_MUSIC, K_PLAY,
                       K_SETTINGS, K_SOUNDTRACK, K_STORY, KONAMI, MENU_SETTLE, ROOT, TM_PLAY, TM_SETTINGS, TM_TOP, konami, menu_items, menu_tap, menu_to,
                       release_gesture, title_arcade, title_level, title_pick, unlock_debug, with_unlock)
@@ -318,12 +319,12 @@ def test_the_gesture_in_play_opens_the_menu_then_a_starts_a_level_fresh(gb):
 def test_b_closes_and_play_resumes_as_it_was(gb):
     from test_flow import tile_id
     fc = gb.mem("intro_timer")
-    lyc, wy = gb.mem(0xFF45), gb.regs()["WY"]
+    lyc, wy = win_lyc(gb.mem), gb.regs()["WY"]
     combo(gb)
     release_combo(gb)
     gb.press("b", 2); gb.run(1)   # (closing takes a frame more: the LCD goes off while the wall's tiles and palettes go back)
     assert gb.mem("debug_menu_open") == 0 and gb.mem("game_state") == PLAYING and gb.mem("overlay_on") == 0
-    assert gb.mem(0xFF45) == lyc and gb.regs()["WY"] == wy, "the banner window's LYC and WY"
+    assert win_lyc(gb.mem) == lyc and gb.regs()["WY"] == wy, "the banner window's LYC and WY"
     assert win_row(gb, 0) == [tile_id("PANEL_TOP")] * 20 and win_row(gb, 2) == [tile_id("PANEL_BOT")] * 20
     gb.run(10)
     assert gb.mem("game_state") == PLAYING and gb.mem("level") == 1

@@ -3,6 +3,7 @@
 # scene change: overlay_on = 0) left WY and LYC on the note. main.c update() puts them back, and the pause menu is the band at WY 64 again.
 import pytest
 
+from split_helpers import win_lyc
 from test_flow import state
 from test_pause import MODES, PAUSED, rom_s, start_classic, tap
 
@@ -17,7 +18,7 @@ def regs_ok(gb, paused):
     assert m[STAT] & 0x40, "STAT: the LYC interrupt is enabled"
     assert m[IE] & 3 == 3, "IE: VBlank and LCD STAT"
     assert m[WXR] == 7 and m[WYR] == WY, (m[WXR], m[WYR])
-    assert m[LYC] == (MENU_LYC if paused else PLAY_LYC), m[LYC]
+    assert win_lyc(m.__getitem__) == (MENU_LYC if paused else PLAY_LYC), win_lyc(m.__getitem__)
     assert m[LCDC] & 0x80 and m[LCDC] & 0x40, hex(m[LCDC])
 
 
@@ -26,7 +27,7 @@ def test_the_window_registers_after_a_note_is_cut_off(model):
     with rom_s(model) as gb:
         start_classic(gb)
         gb.pb.memory[WYR] = 24
-        gb.pb.memory[LYC] = 31
+        gb.pb.memory[0xFFD5 if gb.pb.memory[0xFFD4] else LYC] = 31   # (the window's own LYC: the split's HRAM copy while it runs, split_helpers.py)
         gb.write("overlay_on", 0)
         gb.run(3)
         regs_ok(gb, False)

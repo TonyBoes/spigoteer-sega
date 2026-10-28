@@ -56,4 +56,14 @@
 #define ASM_CHOOSER ASM_PASS
 #endif
 
+// patron-rev-2: the mid-frame palette split's 8-byte palette write (main.c split_pal_put)
+#ifndef ASM_SPLIT_PAL
+#define ASM_SPLIT_PAL ASM_PASS
+#endif
+
+// patron-rev-2: the Saloon's bank-1 tile copy (build/patrons_saloon_x.c, written by tools/gen_art.py)
+#ifndef ASM_TILE_COPY
+#define ASM_TILE_COPY ASM_PASS
+#endif
+
 #endif

@@ -43,7 +43,7 @@ class Frames:
 
 
 def blank_ids():
-    return {OBJ_BASE + 6 * v + 4 for v in range(3)}, {OBJ_BASE + 6 * v + 5 for v in range(3)}
+    return {OBJ_BASE - 2}, {OBJ_BASE - 1}
 
 
 def expected_cols(s, p):
@@ -89,7 +89,7 @@ def picture_problems(gb, s, b):
     for p in lifted:
         d, v = s["patron_draw"][p], s["patron_variant"][p] % 3
         y = bar_top_y(b) + 16
-        for dx, t in ((0, OBJ_BASE + 6 * v), (8, OBJ_BASE + 6 * v + 2)):
+        for dx, t in ((0, OBJ_BASE + 4 * v), (8, OBJ_BASE + 4 * v + 2)):
             if not any(o["y"] == y and o["x"] == d + 8 + dx and o["tile"] == t for o in oam):
                 problems.append(("lifted", p, d, dx, "sprite missing"))
     return problems

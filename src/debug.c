@@ -291,7 +291,7 @@ void debug_open(void) BANKED {
         for (k = 0; k < 16; k++) b[k] = vget(t + k);
         set_win_tiles(0, DBG_SAVE_ROW + i, 16, 1, b);
     }
-    b[0] = LYC_REG;
+    b[0] = WIN_LYC_NOW;
     set_win_tiles(0, DBG_SAVE_ROW + 3, 1, 1, b);
     for (i = 0; i < SKIN_SAVE_N; i++) {              // the wood wall's four tiles (over the stage ids 0-4) and, CGB, its six palettes: kept in the window map's off-screen rows
         const volatile uint8_t *t = (const volatile uint8_t *)(0x9000 + (uint16_t)i * 16);
@@ -323,7 +323,7 @@ void debug_open(void) BANKED {
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
     cursor();
     oam_touched();
-    WY_REG = 0; LYC_REG = 255;
+    WY_REG = 0; SET_LYC(255);
     overlay_on = 1;
     game_state = GS_DEBUG;
     debug_menu_open = 1;
@@ -358,7 +358,7 @@ static void close_menu(void) {
             (set_bkg_palette)(SKIN_PAL_WALL + i, 1, (uint16_t *)b);   // (raw: b was read back from palette RAM, already lifted when SCREEN is BRIGHT)
         }
     }
-    LYC_REG = vget((const volatile uint8_t *)(0x9C00 + (DBG_SAVE_ROW + 3) * 32));
+    SET_LYC(vget((const volatile uint8_t *)(0x9C00 + (DBG_SAVE_ROW + 3) * 32)));
     WY_REG = BANNER_WY;
     fill_win(0, TILE_PANEL_TOP);                     // (win_init's banner: panel, a blank text row, panel)
     fill_win(1, TILE_HUD_BLANK);

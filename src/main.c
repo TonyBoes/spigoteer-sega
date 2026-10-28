@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "game.h"
+#include "tip2.h"
 #include "palettes.h"
 #include "bonus.h"
 #include "music.h"
@@ -65,6 +66,7 @@ void lcd_off_p(void) {
     while (LY_REG >= 0x92) music_pump();        // (display_off's own two waits: the LCD goes off at line 145)
     while (LY_REG < 0x91) music_pump();
     LCDC_REG &= ~LCDCF_ON;
+    if (SPLIT_ON) split_off();                  // (the Color level screen's palette split: the stage's palette back; banked, level.c)
 }
 
 void lcd_on_p(void) {
@@ -182,9 +184,116 @@ void lose_life(void) {
     if (lives == 0) game_over = 1;
 }
 
+// The mid-frame palette split (game.h SPLIT_*): BG palette BGPAL_STAGE is rewritten from `src` (8 bytes; HBlank, VBlank or LCD off).
+#if ASM_SPLIT_PAL
+void split_pal_put(const volatile uint8_t *src) __naked {
+    (void)src;
+__asm
+    ld   a, #(0x80 | (5 << 3))      ; BCPS: BGPAL_STAGE, auto-increment
+    ldh  (0x68), a
+    ld   h, d
+    ld   l, e
+    ld   c, #0x69                   ; BCPD
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl)
+    ldh  (c), a
+    ret
+__endasm;
+}
+#else
+void split_pal_put(const volatile uint8_t *src) {
+    uint8_t i;                                  // (cold, LCD off: a loop; the hot callers write the bytes themselves, split_line / split_vbl)
+    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
+    for (i = 0; i != 8; i++) BCPD_REG = src[i];
+}
+#endif
+
 void lcd_isr(void) {          // LYC: switch the banner window off below the banner
     HIDE_WIN;
 }
+
+#if ASM_SPLIT_PAL
+// (asm: the window's end must be hidden as early as lcd_isr does, a few cycles late and a 48 px menu shows one line more; the split's own
+// line gives the window back before the line's pixels start)
+typedef char split_ly_is_39[(SPLIT_LY == 39) ? 1 : -1];
+void split_isr(void) __naked {
+__asm
+    ldh  a, (0x40)                  ; LCDC
+    ld   c, a
+    res  5, a
+    ldh  (0x40), a                  ; HIDE_WIN
+    ldh  a, (0x45)                  ; LYC
+    cp   a, #39                     ; SPLIT_LY
+    jr   z, 9100$
+    ldh  (0xD5), a                  ; SPLIT_WANT = the window's line
+    ld   a, #39
+    ldh  (0x45), a
+    ret
+9100$:
+    ld   a, c
+    ldh  (0x40), a                  ; the window as it was
+9101$:
+    ldh  a, (0x41)                  ; STAT: HBlank, palette RAM is open; the line's pixels are out
+    and  a, #3
+    jr   nz, 9101$
+    ld   de, #0xFFD6                ; SPLIT_PAL
+    call _split_pal_put
+    ldh  a, (0xD5)
+    ldh  (0x45), a                  ; LYC = SPLIT_WANT
+    ret
+__endasm;
+}
+#else
+static void split_line(void) {  // (the split's own line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
+    // (the 8 bytes are read from their fixed HRAM addresses as they go out, `ldh a, (n)` then `ldh (c), a`: no pre-read into locals, whose spills ended after the line did)
+    while (STAT_REG & 3) ;                     // (HBlank: palette RAM is open; the line's pixels are out)
+    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
+    BCPD_REG = SPLIT_PAL[0]; BCPD_REG = SPLIT_PAL[1]; BCPD_REG = SPLIT_PAL[2]; BCPD_REG = SPLIT_PAL[3];
+    BCPD_REG = SPLIT_PAL[4]; BCPD_REG = SPLIT_PAL[5]; BCPD_REG = SPLIT_PAL[6]; BCPD_REG = SPLIT_PAL[7];
+    LYC_REG = SPLIT_WANT;
+}
+
+void split_isr(void) {        // (the C twin; hides the window FIRST, as the asm does: a window's end on its own line must be as early as lcd_isr's)
+    uint8_t lcdc = LCDC_REG;
+    LCDC_REG = lcdc & ~0x20;                   // (HIDE_WIN, from the one read)
+    if (LYC_REG == SPLIT_LY) {
+        LCDC_REG = lcdc;                       // (the window as it was)
+        split_line();
+        return;
+    }
+    SPLIT_WANT = LYC_REG; LYC_REG = SPLIT_LY;
+}
+#endif
+
+void split_vbl(void) {        // vq_vbl's place while the split is armed (the VBlank chain keeps its one entry)
+#if ASM_SPLIT_PAL
+    split_pal_put(SPLIT_STG);
+#else
+    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);      // (the C twin: fixed HRAM addresses, `ldh a, (n)`: through a pointer parameter SDCC spends 4 lines of a frame here)
+    BCPD_REG = SPLIT_STG[0]; BCPD_REG = SPLIT_STG[1]; BCPD_REG = SPLIT_STG[2]; BCPD_REG = SPLIT_STG[3];
+    BCPD_REG = SPLIT_STG[4]; BCPD_REG = SPLIT_STG[5]; BCPD_REG = SPLIT_STG[6]; BCPD_REG = SPLIT_STG[7];
+#endif
+    vq_vbl();
+}
+
+void set_lyc(uint8_t x) {
+    if (SPLIT_ON) { SPLIT_WANT = x; if (LYC_REG == SPLIT_LY) return; }
+    LYC_REG = x;
+}
+
 
 // The credits' cast cards on a DMG (src/credits.c): BGP is one palette for the whole background, but a venue's name stays at the top through the
 // fades of its three cards, so the frame is split: lines 0-15 (the header) with the header's BGP, then the card's (story_scratch + 68 / + 69: both
@@ -325,7 +434,7 @@ uint8_t *mg_say(uint8_t row, const char *s) {
 // frame, put back by end_note), WY and LYC moved to it. Nothing plays there, so a message can show while the game runs.
 void show_note(const char *s) {
     mg_say(32, s);
-    WY_REG = NOTE_WY; LYC_REG = NOTE_LYC;
+    WY_REG = NOTE_WY; SET_LYC(NOTE_LYC);
     overlay_on = 2;
 }
 
@@ -334,7 +443,7 @@ void end_note(void) {
     if (overlay_on != 2) return;
     b = mg_say(32, "");
     while (n) b[--n] = TILE_PANEL_TOP;
-    WY_REG = BANNER_WY; LYC_REG = BANNER_LYC;
+    WY_REG = BANNER_WY; SET_LYC(BANNER_LYC);
     overlay_on = 0; HIDE_WIN;
 }
 
@@ -436,12 +545,15 @@ static void play_frame(uint8_t pressed) {
 
     // tip: counts down, and is picked up by standing on it (16 px span overlapping its 8 px)
     if (tip_timer) {
-        tip_timer--;
-        if (tip_timer && bar == tip_bar && bartender_x < (uint8_t)(tip_x + 8) && (uint8_t)(bartender_x + 16) > tip_x) {
-            tip_timer = 0;
-            add_score(TIP_SCORE);
-            SFX(SFX_COIN);
-            start_show();
+        if (tip_pocket && TIP2->t) tip_step();   // two coins (ARCADE, STORY): src/tip.c counts both down, one pick-up a frame
+        else {
+            tip_timer--;
+            if (tip_timer && bar == tip_bar && bartender_x < (uint8_t)(tip_x + 8) && (uint8_t)(bartender_x + 16) > tip_x) {
+                tip_timer = 0;
+                add_score(TIP_SCORE);
+                SFX(SFX_COIN);
+                start_show();
+            }
         }
     }
     if (show_timer) {
@@ -469,7 +581,7 @@ static void update(void) {
     if (overlay_on) SHOW_WIN;
     else {
         HIDE_WIN;
-        if (WY_REG == NOTE_WY) { WY_REG = BANNER_WY; LYC_REG = BANNER_LYC; }   // (a note cut off by a life lost or a scene change: overlay_on 0 without end_note; the next window would start on the note's line)
+        if (WY_REG == NOTE_WY) { WY_REG = BANNER_WY; SET_LYC(BANNER_LYC); }   // (a note cut off by a life lost or a scene change: overlay_on 0 without end_note; the next window would start on the note's line)
     }
 
     joy_prev = joy;

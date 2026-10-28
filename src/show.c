@@ -74,8 +74,9 @@ void place_start_patrons(void) BANKED {
     for (k = 0; k < start_per_bar; k++)
         for (b = 0; b < NUM_BARS; b++)
             if ((start_mask & bar_bit[b]) && placed < remaining && b != boss_bar) {
-                uint8_t v = next_rand() % 3;
-                if (v == 2 && boss_on) v = next_rand() & 1;   // a boss fight: variant C's tiles are the boss's (boss.c)
+                uint8_t r = next_rand(), v = r % 3;
+                if (is_cgb && !cur_group) v = saloon_variant(r);   // the Saloon on Color: 8 looks (mirror.c; the same one random byte, so the stream is the old one)
+                else if (v == 2 && boss_on) v = next_rand() & 1;   // a boss fight: variant C's tiles are the boss's (boss.c)
                 add_patron(b, ENTRY_X + PATRON_SPACING * k, v);
                 placed++;
             }

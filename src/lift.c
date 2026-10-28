@@ -40,6 +40,7 @@
 #include "game.h"
 #include "music.h"
 #include "palettes.h"
+#include "tip2.h"
 
 uint8_t patron_lift[MAX_PATRONS];   // LIFT_BG / LIFT_OBJ / LIFT_EDGE, | LIFT_DROP while dropping
 uint8_t lift_n[NUM_BARS];           // patrons of the bar drawn as sprites (lifted or dropping)
@@ -67,10 +68,12 @@ enum { RES_NONE, RES_DONE, RES_REFUSED };
 #define MUG_OAM_ALL    (OAM_MUG_END - (OAM_FILL + 1))     // 21 entries for mugs and lifted patrons together
 #define OAM_SPARE      2                                  // kept free for this frame's new mug / breaking glass
 
-static const uint8_t lift_pal[4] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_A };
-static const uint8_t lift_tile[4] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON_OBJ_BASE + 6), (uint8_t)(PATRON_OBJ_BASE + 12), (uint8_t)PATRON_OBJ_BASE };
-uint8_t lift_prop[8];                 // OAM attributes of variant v's left column [v] and right column [4 + v] (CGB its
-                                      // palettes and bit 3 VRAM bank 1, M14a; DMG OBP1), set at level load (enhance.c)
+// OBJ palette of palette instance pi (patron_variant, render.c patron_attr): the legacy A, B, C, then the Saloon's two extra sets (OBJPAL_PATRON_D, _E)
+static const uint8_t lift_obj[5] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_D, OBJPAL_PATRON_E };
+// shift-0 OBJ tile of look v: 0-2 the group's, 3-7 the Saloon's Color-only looks (VRAM bank 1: OAM bit 3 from patron_variant bit 6)
+static const uint8_t lift_tile[8] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON_OBJ_BASE + 4), (uint8_t)(PATRON_OBJ_BASE + 8),
+    SALOON_X_S0, SALOON_X_S0 + 4, SALOON_X_S0 + 8, SALOON_X_S0 + 12, SALOON_X_S0 + 16 };
+uint8_t lift_prop[4];                 // [0]: the OAM attribute bits every lifted patron has (CGB 0; DMG OBP1: S_PALETTE); the OBJ palette and the bank bit come from his variant byte (draw_lifted_asm)
 static uint8_t mg_live;
 
 // n OBJ tiles src -> dst with the two bit planes swapped (colours 1 and 2 trade places). LCD off.
@@ -92,13 +95,17 @@ void lift_level_init(uint8_t g) BANKED {
     for (v = 0; v < NUM_BARS; v++) lift_n[v] = 0;
     lift_total = 0; lift_oam_n = 0; lift_hook_op = HOOK_NONE;
     pal5_cur = 2;                                 // load_venue put the show's palette in slot 5
+    lift_prop[0] = S_PALETTE;
     if (is_cgb) {
-        for (v = 0; v < 3; v++) {
+        lift_prop[0] = 0;
+        for (v = 0; v < (g ? 3 : 5); v++) {       // (the Saloon: 5 palette instances; the 5th is OBJ 5, which the show takes from it and gives back, render.c pal5_check)
             patron_pal_get(g, v, p);
             p[0] = 0;
-            set_sprite_palette(lift_pal[v], 1, p);
+            set_sprite_palette(lift_obj[v], 1, p);
             music_pump();                         // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
         }
+        if (g) set_sprite_palette(OBJPAL_PATRON_D, 1, p);   // (OBJ 4 is no patron's outside the Saloon: a level start sets it, so no mini-game's or story scene's colours stay in it)
+        if (!g) pal5_cur = 0;
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         spr_hempty_t = OBJ_MUG_DRINK + 6;    spr_hempty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
@@ -225,7 +232,10 @@ static void estimate(void) {
     b = bar & (NUM_BARS - 1);
     ld[b] += fill_timer ? 3 : 2;
     if (b < NUM_BARS - 1) ld[b + 1] += 2;
-    if (tip_timer) ld[tip_bar & (NUM_BARS - 1)]++;
+    if (tip_timer) {
+        ld[tip_bar & (NUM_BARS - 1)]++;
+        if (tip_pocket && TIP2->t) ld[TIP2->bar & (NUM_BARS - 1)]++;    // (the second coin: tip2.h)
+    }
 }
 
 static uint8_t est_ok;                // the estimate is this frame's (lift_frame computes it only when someone needs it)
@@ -418,9 +428,18 @@ static void forced_drops(void) {
         force_out(p);
 }
 
+// Palette instance 4 (patron_variant, render.c patron_attr) is OBJ 5 as a sprite: the show's colours (the dancers) take that slot while a show runs.
+#define PI4(v) ((((v) ^ ((v) >> 3)) & 7) == 4)
+uint8_t lift_pi4(void) BANKED {
+    uint8_t p;
+    for (p = 0; p != MAX_PATRONS; p++) if (patron_lift[p] && PI4(patron_variant[p])) return 1;
+    return 0;
+}
+
 // The hook's lift: 0 refused, 1 done, 2 not this frame.
 static uint8_t try_lift(uint8_t p, uint8_t mode) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1), d = patron_draw[p];
+    if (show_timer && PI4(patron_variant[p])) return 0;   // (Color Saloon only: instance 4 never exists elsewhere; during a show OBJ 5 is the dancers')
     if (patron_state[p] == PATRON_NONE || patron_lift[p] || d == 255 || (d & DRAW_BACK) || patron_dist[p]) return 0;
     if (lift_total >= LIFT_MAX || lift_n[b] >= LIFT_PER_BAR) return 0;
     if (mugs_live + ((lift_total + 1) << 1) > MUG_OAM_ALL - OAM_SPARE) return 0;   // (cheap first: mugs_live <= their entries)
@@ -1719,12 +1738,40 @@ void lift_frame(void) BANKED {
 
 // OAM 25 down: two 8x16 entries per patron drawn as a sprite (his shift-0 pose; OAM x gives every pixel position and
 // the sway). Entries used last frame but not now are hidden unless the mugs took them this frame.
-// (hand-written: the C loop cost ~10 lines a frame) dl_n patrons written, OAM 25 down, two entries each. In C, per lifted
+// (hand-written: the C loop cost ~10 lines a frame) dl_n patrons written, OAM 25 down, two entries each. Per lifted
 // patron p: x = (patron_draw[p] & 0x7F) + 8 - (patron_lift[p] == LIFT_EDGE ? patron_aux[p] : 0) (uint8_t: wraps past the
-// left edge); entries { bar_oam_y[bar], x, lift_tile[v], lift_prop[v] } and { .., x + 8, lift_tile[v] + 2, lift_prop[4 + v] }
-// (M14a: each column its own attributes); it stops after lift_total patrons.
-static uint8_t dl_n, dl_v, dl_x, dl_y, dl_t, dl_p, dl_q;
+// left edge); entries { bar_oam_y[bar], x, lift_tile[v], lift_prop[v] } and { .., x + 8, lift_tile[v] + 2, lift_prop[v] };
+// it stops after lift_total patrons. The C version (draw_lifted_c, ASM_LIFT_DRAW 0, make cfall) is the reference.
+static uint8_t dl_n, dl_v, dl_x, dl_y, dl_t, dl_p;
 static uint8_t *dl_o;
+#if !ASM_LIFT_DRAW
+static void dl_one(uint8_t p, uint8_t l) {                // one lifted patron's two entries at dl_o (its own function: the scan below stays tiny)
+    uint8_t x = (uint8_t)((patron_draw[p] & 0x7F) + 8), t, a;
+    OAM_item_t *e = (OAM_item_t *)dl_o;                   // (struct fields: SDCC writes them through one pointer; indexed bytes cost it 16-bit adds)
+    if (l == LIFT_EDGE) x = (uint8_t)(x - patron_aux[p]);
+    l = patron_variant[p];
+    t = lift_tile[l & 7]; a = lift_obj[(l ^ (l >> 3)) & 7] | lift_prop[0] | ((l >> 3) & 8);
+    e->y = bar_oam_y[patron_bar[p] & 3]; e->x = x; e->tile = t; e->prop = a;                    // his left half
+    e--;
+    e->y = (e + 1)->y; e->x = (uint8_t)(x + 8); e->tile = (uint8_t)(t + 2); e->prop = a;       // his right half: the entry below
+    dl_o = (uint8_t *)(e - 1);
+}
+static void draw_lifted_asm(void) {
+    uint8_t n = 0, p;
+    const uint8_t *q = patron_lift;
+    dl_o = (uint8_t *)shadow_OAM + 100;                   // OAM 25 (OAM_LIFT_TOP)
+    do {
+        if (*q & 3) {                                     // (the scan is the cost: one test and one pointer step per patron)
+            p = (uint8_t)(q - patron_lift);
+            if (patron_draw[p] != 0xFF) {
+                dl_one(p, *q & 3);
+                if (++n == 4 || n >= lift_total) break;   // LIFT_MAX; all lift_total of them written
+            }
+        }
+    } while (++q != patron_lift + MAX_PATRONS);
+    dl_n = n;
+}
+#else
 static void draw_lifted_asm(void) __naked {
 __asm
     push bc
@@ -1790,22 +1837,36 @@ __asm
     ld   a, #0
     adc  a, #>(_patron_variant)
     ld   h, a
-    ld   a, (hl)
-    and  a, #3
+    ld   a, (hl)            ; the variant byte: look bits 0-2, (palette instance ^ look) bits 3-5, the bank-1 flag bit 6
+    ld   (_dl_v), a
+    and  a, #7
     ld   e, a
     ld   d, #0
     ld   hl, #_lift_tile
     add  hl, de
     ld   a, (hl)
     ld   (_dl_t), a
+    ld   a, (_dl_v)
+    ld   e, a
+    rrca
+    rrca
+    rrca                    ; v >> 3 in bits 0-5 (bit 6 -> bit 3)
+    ld   d, a
+    xor  a, e
+    and  a, #7              ; the palette instance
+    add  a, #<(_lift_obj)
+    ld   l, a
+    ld   a, #0
+    adc  a, #>(_lift_obj)
+    ld   h, a
+    ld   a, (hl)            ; its OBJ palette
+    ld   e, a
+    ld   a, d
+    and  a, #8              ; VRAM bank 1 (OAM bit 3)
+    or   a, e
     ld   hl, #_lift_prop
-    add  hl, de
-    ld   a, (hl)
+    or   a, (hl)            ; DMG: OBP1
     ld   (_dl_p), a
-    ld   de, #4             ; (M14a) dl_q = lift_prop[4 + v]: the attributes of the right column
-    add  hl, de
-    ld   a, (hl)
-    ld   (_dl_q), a
     ld   a, (_dl_o)
     ld   l, a
     ld   a, (_dl_o + 1)
@@ -1828,7 +1889,7 @@ __asm
     ld   a, (_dl_t)
     add  a, #2
     ld   (hl+), a
-    ld   a, (_dl_q)
+    ld   a, (_dl_p)
     ld   (hl), a
     add  hl, de             ; the next one down
     ld   a, l
@@ -1854,6 +1915,7 @@ __asm
     ret
 __endasm;
 }
+#endif
 
 void draw_lifted(void) BANKED {
     uint8_t i, n;

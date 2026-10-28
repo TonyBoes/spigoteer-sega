@@ -627,6 +627,7 @@ def test_a_whole_game_keeps_to_10_sprites_a_line(model):
 def level_vram(gb):
     """OBJ / BG 0-255 at 0x8000 and BG 78-127 (77, MG_BG, is no level's tile: the medal icon's first stays there)."""
     v = bytearray(gb.read(0x8000, 0x1000)) + bytearray(gb.read(0x9000 + 78 * 16, (128 - 78) * 16))
+    v[230 * 16:234 * 16] = bytes(4 * 16)    # (ids 230-233: the mini-games' own tiles, past the patron group's 152 since option 2)
     v[40 * 16:46 * 16] = bytes(6 * 16)      # (OBJ 40-45: the Pour-Off's perfect-pour frames stay in VRAM after it; no level but a story shift shows them; Q61)
     return bytes(v)
 

@@ -86,12 +86,15 @@ void sec_mark(uint8_t i);
 #define INTRO_FRAMES     90   // nothing moves or spawns for this long after a level starts
 #define SPAWN_RETRY      20   // frames before trying again when the bar's left end is crowded
 #define PATRON_TILE_BASE PATRON_FIRST_TILE   // M13a: BAR_TILE_COUNT rounded up to even (the shift-0 poses double as 8x16 OBJ tiles)
-#define PATRON_OBJ_BASE  (PATRON_TILE_BASE + PATRON_SHIFT0_OFS)   // shift-0 pose of variant v: + v * 6, column-major (OBJ tiles t, t + 2)
-#define PATRON_BLANK     (PATRON_OBJ_BASE + 4)   // its 3rd column: plain colour 0 (the wall), what a lifted patron leaves on the BG
+#define PATRON_OBJ_BASE  (PATRON_TILE_BASE + PATRON_SHIFT0_OFS)   // shift-0 pose of variant v: + v * 4 (2 columns), column-major (OBJ tiles t, t + 2)
+#define PATRON_BLANK     (PATRON_TILE_BASE + PATRON_BLANK_OFS)   // the shared blank pair: the 3rd column of every shift-0 pose (option 2), plain colour 0 (the wall), what a lifted patron leaves on the BG
 #if PATRON_FIRST_TILE != ((BAR_TILE_COUNT + 1) & ~1) || PATRON_OBJ_BASE < 128 || (PATRON_OBJ_BASE & 1)
 #error "patron tile layout (tools/gen_art.py): shift-0 poses must be even OBJ ids >= 128"
 #endif
-#define PATRON_BACK_BASE (PATRON_TILE_BASE + PATRON_TILES_PER_GROUP)   // the 12 back-view tiles follow the 144 shifted ones
+#define PATRON_BACK_BASE (PATRON_TILE_BASE + PATRON_TILES_PER_GROUP)   // the 12 back-view tiles follow the 126 shifted ones, the blank pair and the 12 shift-0 ones
+#define PATRON_BANK1     0x40 // patron_variant bit 6: one of the Saloon's Color-only looks (3-7), its tiles in VRAM bank 1 (render.c patron_attr, mirror.c pose)
+uint8_t spawn_variant(uint8_t r) BANKED;    // mirror.c: a new patron's patron_variant byte from a random byte (the Saloon on Color: 8 looks and their palettes)
+uint8_t saloon_variant(uint8_t r) BANKED;
 #define DRAW_BACK        0x80 // patron_draw bit 7: drawn in its back view (x < 128, so the bit is free)
 #define SHUFFLE_MAX         4 // a patron turning to watch the show shuffles at most this far to a multiple of 8 px
 // BG tile budget (signed 0x8800 mode, LCDC bit 4 clear): ids 0..255. OBJ tiles stay below 128, so BG ids 128+
@@ -173,17 +176,19 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 
 // CGB OBJ palette slots (M13a): the breaking glass uses the venue's empty-drink palette (2); the tip
 // coin shares slot 5 with the show (never on screen together: render.c rewrites it in VBlank when one appears);
-// lifted patrons use 3, 6, 7 (variants A, B, C; colours 1-3 of their BG palettes); M14a: 4 is the group's extra palette
-// <group>_x for one lifted column of its enhanced variant (src/enhance.c).
+// lifted patrons use 3, 6, 7 (variants A, B, C; colours 1-3 of their BG palettes); 4 is free (a boss fight may load it:
+// the Prototype's red lamp; the enhanced looks that used it were dropped, patron-rev-2).
 #define OBJPAL_BARTENDER 0
 #define OBJPAL_MUG_FULL  1
 #define OBJPAL_MUG_EMPTY 2
 #define OBJPAL_PATRON_A  3
-#define OBJPAL_ENH       4   // (M14a; was OBJPAL_SPARE)
+#define OBJPAL_ENH       4   // (was an enhanced patron's palette, M14a; now the Prototype boss's red lamp, loaded by his fight)
 #define OBJPAL_COIN      5
 #define OBJPAL_DANCER    5
 #define OBJPAL_PATRON_B  6
 #define OBJPAL_PATRON_C  7
+#define OBJPAL_PATRON_D  4   // the Saloon's 4th and 5th patron palettes (Color-only looks; 5 is the show's while one plays, render.c pal5_check)
+#define OBJPAL_PATRON_E  5
 #define OBJPAL_DX        7   // (the CGB title's DX badge; the title has no lifted patrons, whose C look is a play palette)
 // DMG (M13a): OBP1 = 0xE4 in play (lifted patrons, the BG's shades); what used OBP1 (0xC4) before draws with OBP0 (0xD0)
 // from copies of its tiles with the two bit planes swapped (colours 1 and 2 trade places), made at level load
@@ -217,7 +222,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define BGPAL_PATRON     2   // 2, 3, 4 = patron variants A, B, C
 #define BGPAL_STAGE      5   // the venue's stage palettes A and B (M9)
 #define BGPAL_STAGE_B    6
-#define BGPAL_BAR_B      7   // the venue's second bar palette (keg / spout); M14a: also an enhanced variant's row palette S
+#define BGPAL_BAR_B      7   // the venue's second bar palette (keg / spout)
 #if BGPAL_STAGE != VENUE_BGPAL_STAGE_A || BGPAL_STAGE_B != VENUE_BGPAL_STAGE_B || BGPAL_BAR != VENUE_BGPAL_BAR || BGPAL_BAR_B != VENUE_BGPAL_BAR_B
 #error "tools/gen_art.py PAL_* must match the BGPAL_* slots"
 #endif
@@ -303,6 +308,24 @@ void show_overlay(const char *s);             // the banner's text (ROM0: caller
 uint8_t *mg_say(uint8_t row, const char *s);  // a centred line of HUD glyphs on map row `row` (queued; LCD off: written)
 extern uint8_t say_bang;                      // (main_cold.c glyph_for) the tile drawn for '!' (bonus2's own, else blank)
 void lcd_isr(void);                           // LYC handler: the banner window off below the banner
+// ---- the mid-frame palette split (Color only, the Saloon's level screen; patron-rev-2) ------------------------------------------------
+// BG slots 2, 3, 4, 7 are the patrons', 5 and 6 the stage's; the Saloon's five looks need a fifth patron palette below the stage. split_isr
+// (main.c) runs at line SPLIT_LY (the stage's last pixel line, STAGE_LAST_ROW * 8 + 7), waits for HBlank and rewrites BG palette BGPAL_STAGE
+// with the patron palette in SPLIT_PAL; split_vbl (vq_vbl's place in the VBlank chain while armed) puts the stage's back from SPLIT_STG first. Armed, split_isr and split_vbl replace lcd_isr and vq_vbl (level.c split_arm / split_off): the DMG and every other screen run the original handlers, not a cycle more. The window's own LYC (banner, note,
+// goal, pause) is kept in SPLIT_WANT and comes back after the split: level-screen writers use SET_LYC; readers WIN_LYC_NOW (the other screens are never armed: LCD off disarms). HRAM 0xFFD4-0xFFE5 (free: the linker uses
+// 0xFF80-0xFF92, the scene change 0xFF94-0xFFD3, 0xFFF0-4 are the pause menu, TRANS and HALF); cleared at boot, armed by start_level, off at lcd_off_p.
+#define SPLIT_ON    (*(volatile uint8_t *)0xFFD4)
+#define SPLIT_WANT  (*(volatile uint8_t *)0xFFD5)
+#define SPLIT_PAL   ((volatile uint8_t *)0xFFD6)      // 8 bytes: the patron palette for BG BGPAL_STAGE below the stage
+#define SPLIT_STG   ((volatile uint8_t *)0xFFDE)      // 8 bytes: the stage's own (read back from palette RAM at arm time: SCREEN BRIGHT is in it)
+#define SPLIT_LY    ((STAGE_LAST_ROW + 1) * 8 - 1)
+#define WIN_LYC_NOW (SPLIT_ON ? SPLIT_WANT : LYC_REG)   // the window's own LYC (LYC_REG itself is the split's line half the frame)
+void set_lyc(uint8_t x);                      // main.c: LYC_REG = x, kept as the window's own line while the split runs
+#define SET_LYC(x)  do { if (SPLIT_ON) set_lyc(x); else LYC_REG = (x); } while (0)   // (inline: the DMG and every other screen pay a test, no call)
+void split_isr(void);                         // main.c: lcd_isr's twin while the split is armed (swapped in by level.c split_arm, out by split_off)
+void split_vbl(void);                         // main.c: the VBlank handler of the split (the stage's palette back)
+void split_off(void) BANKED;                  // level.c: the screen goes away: the stage's palette back, the split stops
+void split_pal_put(const volatile uint8_t *src);   // main.c: BG BGPAL_STAGE <- 8 bytes (HBlank, VBlank or LCD off)
 // ROM0 helpers: copy out of another ROM bank and come back to the caller's
 void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
 void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
@@ -348,6 +371,9 @@ uint8_t catch_full(uint8_t i);                // mugs.c asks for every full mug
 void begin_catch_frame(void);
 extern uint8_t catch_lim[NUM_BARS];          // a full mug at x >= catch_lim[its bar] is caught by nobody (see patrons.c)
 void start_show(void) BANKED;                  // (show.c, bank 5)
+void maybe_tip(uint8_t p) BANKED;               // (tip.c: a served patron's tip; the second coin: tip2.h)
+void tip_step(void) BANKED;                     // (tip.c, main.c: two coins count down and are picked up)
+void tip_draw2(void) BANKED;                    // (tip.c, render.c: the second coin, OAM 26)
 // The pocketed tip (owner 2026-10-18; src/pocket.c): a tip picked up while a show runs is kept (one slot) and B starts a show from it. tip_pocket
 // holds the HUD tile id itself, so the VBlank queue draws the byte as it is (vq_add): 0 off (CLASSIC and the other modes: nothing changes),
 // TILE_HUD_BLANK on and empty, POCKET_TILE (the coin icon's BG id) a tip held. Set at a level's load (ARCADE and STORY only), emptied at its end.
@@ -457,11 +483,9 @@ void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palet
 void lift_frame(void) BANKED;                 // after the rules, before queue_vram: drops, forced drops, the test hook
 void draw_lifted(void) BANKED;                // OAM 25 down, after draw_mugs
 uint8_t lift_spawn(uint8_t p) BANKED;         // lift a new patron at the left edge now (1), or not (0: no room)
+uint8_t lift_pi4(void) BANKED;                // 1 if a lifted patron wears palette instance 4 (OBJ 5: the show's colours take it; render.c pal5_check)
 uint8_t lift_leave(uint8_t p) BANKED;         // a served patron slides out as a sprite: 1 done, 2 done (wait for his BG copy to go), 0 no room
-// ---- enhance.c (banked, M14a enhanced patron variants) ------------------------------------------
-extern uint8_t pat_row[8], back_row[8];       // BG palette of variant v's top tile row [v] and bottom row [4 + v] (front / back view)
-extern uint8_t lift_prop[8];                  // (lift.c) OAM attributes of variant v's lifted left column [v] and right column [4 + v]
-void enhance_load(uint8_t g) BANKED;          // level load (LCD off), after lift_level_init: the tables, OBJ 4, the bank-1 lift tiles
+extern uint8_t lift_prop[4];                  // (lift.c) OAM attributes of variant v's lifted entries (CGB OBJ palette, DMG OBP1)
 // ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
 extern uint8_t venue_id;
 void mug_cursor_load(void) BANKED;                      // the menus' mug cursor: OBJ_MUG.. tiles and OBJ palettes 1-2 (LCD off)

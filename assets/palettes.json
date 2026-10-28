@@ -38,12 +38,12 @@
  },
  "robots_a": {
   "hex": [
-   "#58f0f8",
+   "#f8d848",
    "#7888a0",
    "#101828"
   ],
   "rgb15": [
-   32715,
+   10111,
    21039,
    5218
   ]
@@ -146,38 +146,62 @@
  },
  "cowboys_a": {
   "hex": [
-   "#f8c898",
-   "#a06030",
-   "#301808"
+   "#8b5231",
+   "#ffe6cd",
+   "#392918"
   ],
   "rgb15": [
-   20287,
-   6548,
-   1126
+   6481,
+   26527,
+   3239
   ]
  },
  "cowboys_b": {
   "hex": [
-   "#f0b890",
-   "#d86098",
-   "#2c1808"
+   "#ffd5bd",
+   "#8b5231",
+   "#221b1a"
   ],
   "rgb15": [
-   19198,
-   19867,
-   1125
+   24415,
+   6481,
+   3172
   ]
  },
  "cowboys_c": {
   "hex": [
-   "#e8e0c8",
-   "#885030",
-   "#382818"
+   "#d8c098",
+   "#b85838",
+   "#281810"
   ],
   "rgb15": [
-   26525,
-   6481,
-   3239
+   20251,
+   7543,
+   2149
+  ]
+ },
+ "cowboys_d": {
+  "hex": [
+   "#f8d0b0",
+   "#bb2f32",
+   "#202030"
+  ],
+  "rgb15": [
+   23391,
+   6327,
+   6276
+  ]
+ },
+ "cowboys_e": {
+  "hex": [
+   "#ffcead",
+   "#adadad",
+   "#1a1a20"
+  ],
+  "rgb15": [
+   22335,
+   22197,
+   4195
   ]
  },
  "aliens_a": {
@@ -455,30 +479,5 @@
    29493,
    8389
   ]
- },
- "cowboys_x": {
-  "hex": [
-   "#d86098",
-   "#985830",
-   "#2c1808"
-  ],
-  "rgb15": [
-   19867,
-   6515,
-   1125
-  ]
- },
- "robots_x": {
-  "hex": [
-   "#f8d848",
-   "#7888a0",
-   "#101828"
-  ],
-  "rgb15": [
-   10111,
-   21039,
-   5218
-  ]
- },
- "_note_enhanced": "M14a enhanced variants: <group>_x is the group's extra OBJ palette (CGB OBJ 4) for the lifted column of its enhanced variant that its own palette cannot show; the extra BG palette S is the venue's bar_b (BG 7). The index order of an _x palette is free (its lifted tiles are re-indexed copies in VRAM bank 1)."
+ }
 }

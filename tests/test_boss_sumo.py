@@ -137,7 +137,7 @@ def test_the_fight_follows_the_last_call(model):
         assert_body(gb, C, A, START_X, BP_WALK)
         assert hud(gb) == pints(6, 0)
         for p, data in enumerate(A["pairs"]):
-            t = 162 + 2 * p if p < 21 else 216 + 2 * (p - 21)
+            t = 162 + 2 * p if p < 21 else 214 + 2 * (p - 21)
             assert bytes(gb.read((0x9000 if t < 128 else 0x8000) + t * 16, 32)) == bytes(data), f"body column {p}"
         o = gb.oam()[OAM_TOPPER]
         assert (o["y"], o["x"], o["tile"]) == (5 * 8 + 3 * B * 8 + 8, START_X + R["hat"] + 8, OBJ_TOPPER)

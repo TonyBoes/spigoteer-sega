@@ -42,13 +42,8 @@ def _line(src, rx):
 
 
 def _enh():
-    """(x_ids, lifted_attr_rows): the group's extra OBJ palette (255 none) and the 8 lifted-column OAM attributes of each group, from the generated headers."""
-    x = re.search(r"#define PATRON_X_IDS \{([^}]*)\}", (ROOT / "build" / "palettes.h").read_text())
-    x_ids = [int(v) for v in x.group(1).split(",")]
-    tab = (ROOT / "build" / "patron_enh.h").read_text()
-    rows = re.findall(r"\{((?:\s*\d+,){23}\s*\d+)\s*\},\s*//\s*(\w+)", tab)
-    attrs = {name: [int(v) for v in r.split(",")][16:24] for r, name in rows}
-    return x_ids, attrs
+    """(x_ids, lifted_attr_rows): the enhanced patron looks are dropped (patron-rev-2): no group has an extra OBJ palette or per-column attributes."""
+    return [255] * len(GROUPS), {g: [] for g in GROUPS}
 
 
 def build(screens, side):

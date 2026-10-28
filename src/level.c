@@ -9,6 +9,7 @@
 #include "game.h"
 #include "palettes.h"
 #include "music.h"
+#include "tip2.h"
 
 extern uint8_t level, cur_group, arcade_loop, served, step_frames, pushback_cols;
 #define WALL_RGB    (venue.pal[VENUE_PAL_BAR][0])   // the venue's wall: colour 0 of the bar and of the patron palettes
@@ -77,6 +78,11 @@ static void load_patron_group(uint8_t g) {
         set_bkg_palette(BGPAL_PATRON + v, 1, p);
         music_pump();                            // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
     }
+    if (g) return;
+    for (v = 0; v < 8; v++) { load_saloon_x(v); music_pump(); }   // the Saloon's Color-only looks 3-7: tiles in VRAM bank 1
+    patron_pal_get(0, 3, p);                     // palette instance 3 (ROSIE, REDD): the keg's BG slot, free in the Saloon's playfield
+    p[0] = WALL_RGB;
+    set_bkg_palette(BGPAL_BAR_B, 1, p);
 }
 
 // M10b arcade loops: after level 10 the venues come round again (level 11 = venue 0 = loop 2, level 21 = loop 3, ...),
@@ -123,7 +129,6 @@ static uint8_t push_calc(uint8_t p) {
 
 // push_calc, and a patron it serves may tip (patrons.c maybe_tip: the coin drops under him as the mug lands and the push takes him away,
 // so it is his and shows while he is still on the screen; owner 2026-10-17). A drinker's push is d < x - ENTRY_X.
-extern void maybe_tip(uint8_t p);
 uint8_t push_for(uint8_t p) BANKED {
     uint8_t r = push_calc(p);
     if (r + ENTRY_X > patron_x[p]) maybe_tip(p);
@@ -153,10 +158,31 @@ void level_pace_again(void) BANKED {
     level_pace(&level_table[cur_group], k);
 }
 
+void split_off(void) BANKED {   // (the LCD is off) the stage's palette back, the split stops
+    SPLIT_ON = 0;
+    LYC_REG = SPLIT_WANT;                          // (the window's own line back: the ISR may have left the split's)
+    CRITICAL { remove_VBL(split_vbl); remove_VBL(vq_vbl); add_VBL(vq_vbl); remove_LCD(split_isr); remove_LCD(lcd_isr); add_LCD(lcd_isr); }
+    if (!(LCDC_REG & LCDCF_ON)) split_pal_put(SPLIT_STG);
+}
+
+static void split_arm(void) {        // (LCD off) the stage's palette is read back into SPLIT_STG; the patron palette starts as the same (the caller sets it)
+    uint8_t k, v;
+    for (k = 0; k < 8; k++) {
+        BCPS_REG = (BGPAL_STAGE << 3) | k;
+        v = BCPD_REG;
+        SPLIT_STG[k] = v; SPLIT_PAL[k] = v;
+    }
+    SPLIT_WANT = LYC_REG;
+    SPLIT_ON = 1;
+    CRITICAL { remove_VBL(vq_vbl); remove_VBL(split_vbl); add_VBL(split_vbl); remove_LCD(lcd_isr); remove_LCD(split_isr); add_LCD(split_isr); }   // (split_vbl is vq_vbl with the stage's palette put back first: early in the VBlank)
+}
+
+
 void start_level(void) BANKED {
     uint8_t idx = level - 1, k, g;
     const level_cfg_t *c;
     level_cfg_t row;
+    TIP2->t = 0;                                    // (the second tip coin lives in story_scratch, which the last screen left junk in: tip2.h)
     if ((k = classic_row(&row)) != 255) c = &row;   // P5: CLASSIC's table (classic.c), its repeats as the loops
     else {
         cur_group = idx % LEVEL_ROWS;
@@ -177,8 +203,14 @@ void start_level(void) BANKED {
     clear_dirty();
     load_venue(cur_group);                      // M9: the venue of the level's theme (theme index = patron group)
     load_patron_group(cur_group);
+    if (is_cgb && cur_group == 0) {             // patron-rev-2: the Saloon's mid-frame palette split (game.h)
+        palette_t q;
+        split_arm();
+        patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others
+        q[0] = WALL_RGB;
+        for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
+    }
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
-    enhance_load(cur_group);                    // M14a: row palettes, lifted columns' attributes, OBJ 4, bank-1 lift tiles
     mirror_load(play_mode == MODE_LEVEL ? level_dirs : classic_dirs);   // P3: bars from the right (the harness, CLASSIC)
     place_start_patrons();
     half_decide();                              // 30 fps on the DMG for the heavy levels (src/half.c)

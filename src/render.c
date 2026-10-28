@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "tip2.h"
 #include "palettes.h"
 #include "boss.h"
 
@@ -158,8 +159,7 @@ void build_lists(void);
 // Compose columns cz_x0..cz_x1-1 of a bar: the wall restored over the span, then each patron of the bar stamped
 // over it in slot order. Split into small functions on purpose: SDCC keeps their few values in registers; one
 // big function spends most of its time moving spilled values to and from the stack.
-static uint8_t cz_x0, cz_x1, cz_pal;      // span of the bar being composed, palette of the patron being stamped (top row)
-static uint8_t cz_palb;                   // ... and of his bottom tile row (M14a: an enhanced variant's differs; enhance.c)
+static uint8_t cz_x0, cz_x1, cz_pal;      // span of the bar being composed, palette of the patron being stamped
 static uint8_t *cz_tile, *cz_attr;        // its first wall row in sh_tile / sh_attr (cz_attr 0 on DMG)
 static const uint8_t *cz_base;            // its window into base_all (P6: bar_bofs)
 
@@ -177,26 +177,36 @@ uint8_t mir_bswap;                        // DMG mixed level: MIX_A (option (a))
 // OBJ tiles for a lifted patron). Filled by mirror.c: L and R the same unless the DMG holds two tile sets (a mixed level).
 uint8_t st_tab[64];
 #define SB(v) ((uint8_t)(PATRON_BACK_BASE + (v) * 4u))                     // first back-view tile of variant v
-static const uint8_t back_tile[4] = { SB(0), SB(1), SB(2), SB(0) };
+#define SX(k) ((uint8_t)(SALOON_X_BACK + (k) * 4u))                         // first back-view tile of the Saloon's look 3 + k (VRAM bank 1)
+static const uint8_t back_tile[8] = { SB(0), SB(1), SB(2), SX(0), SX(1), SX(2), SX(3), SX(4) };   // by look (3-7: the Color-only ones)
+// BG palette slot of palette instance pi (patron_variant): 0-2 the legacy A, B, C; 3 and 4 the Saloon's extra sets (7: the keg's, free in the Saloon's playfield; 5: the stage's, below the split line)
+static const uint8_t pal_bg[5] = { BGPAL_PATRON, BGPAL_PATRON + 1, BGPAL_PATRON + 2, BGPAL_BAR_B, BGPAL_STAGE };
 
 static uint8_t st_t;                      // first tile of the patron being stamped
 static uint8_t cz_dir, cz_sto, cz_flip, cz_bswap;   // the bar being composed is R; its st_tab offset, attribute bit, back-view swap
 
-static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal / cz_palb for patron s drawn at x d (front view)
-    uint8_t v = patron_variant[s] & 3;
-    cz_pal = pat_row[v] | cz_flip; cz_palb = pat_row[4 + v] | cz_flip;
-    st_t = st_tab[cz_sto | (v << 3) | (d & 7)];
+// patron_variant: bits 0-2 the look, bits 3-5 (palette instance ^ look): 0 is the look's own palette (A, B, C = BG 2, 3, 4), bit 6 a
+// Color-only look drawn from VRAM bank 1 (its BG attribute and OAM bit 3 = bit 6 >> 3). game.h PATRON_BANK1.
+static void patron_attr(uint8_t v) {                     // cz_pal of a patron with variant byte v
+    uint8_t i = v >> 3;
+    cz_pal = pal_bg[(v ^ i) & 7] | (i & 8) | cz_flip;
 }
 
-static void stamp3(uint8_t c) {                          // the whole 3x2 footprint at column c (not on an R bar)
+static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal for patron s drawn at x d (front view)
+    uint8_t v = patron_variant[s];
+    patron_attr(v);
+    st_t = st_tab[cz_sto | ((v & 7) << 3) | (d & 7)];
+}
+
+static void stamp3(uint8_t c, uint8_t t3) {              // the whole 3x2 footprint at column c (not on an R bar); t3: the 3rd column's top tile (option 2: the shared blank pair at shift 0)
     uint8_t *r = cz_tile + c, t = st_t;
-    r[0] = t; r[1] = t + 2; r[2] = t + 4;
+    r[0] = t; r[1] = t + 2; r[2] = t3;
     r += 32;
-    r[0] = t + 1; r[1] = t + 3; r[2] = t + 5;
+    r[0] = t + 1; r[1] = t + 3; r[2] = t3 + 1;
     if (!cz_attr) return;
     r = cz_attr + c; t = cz_pal;
     r[0] = t; r[1] = t; r[2] = t;
-    r += 32; t = cz_palb;
+    r += 32;
     r[0] = t; r[1] = t; r[2] = t;
 }
 
@@ -208,7 +218,7 @@ static void put_col(uint8_t c, uint8_t t) {              // one 1x2 column, if i
     r[0] = t; r[32] = t + 1;
     if (!cz_attr) return;
     r = cz_attr + c;
-    r[0] = cz_pal; r[32] = cz_palb;
+    r[0] = cz_pal; r[32] = cz_pal;
 }
 
 static void put_back_col(uint8_t c, uint8_t t) {         // one 1x2 column of a back view (2x2 tiles), if inside the span
@@ -219,15 +229,15 @@ static void put_back_col(uint8_t c, uint8_t t) {         // one 1x2 column of a 
     r[0] = t; r[32] = t + 2;
     if (!cz_attr) return;
     r = cz_attr + c;
-    r[0] = cz_pal; r[32] = cz_palb;
+    r[0] = cz_pal; r[32] = cz_pal;
 }
 
 // Patron s, watching the show, in its back view at column c (on a multiple of 8 px: 2 columns; the 3rd column of
 // its footprint stays wall).
 static void stamp_back(uint8_t s, uint8_t c) {
-    uint8_t v = patron_variant[s] & 3;
-    cz_pal = back_row[v] | cz_flip; cz_palb = back_row[4 + v] | cz_flip;
-    v = back_tile[v];
+    uint8_t v = patron_variant[s];
+    patron_attr(v);
+    v = back_tile[v & 7];
     if (cz_bswap) { put_back_col(c, v + 1); put_back_col(c + 1, v); return; }   // (DMG mixed: drawn unmirrored on an R bar)
     put_back_col(c, v); put_back_col(c + 1, v + 1);
 }
@@ -241,8 +251,9 @@ static void stamp(uint8_t s) {
     if (d & DRAW_BACK) { stamp_back(s, c); return; }
     stamp_look(s, d);
     if (!(d & 7) && (patron_ovl[s] & (OVL_TWO | OVL_TOP))) { put_col(c, st_t); put_col(c + 1, st_t + 2); return; }   // (M13b)
-    if (c >= cz_x0 && c + 3 <= cz_x1 && !cz_dir) { stamp3(c); return; }   // (an R bar: put_col mirrors)
-    put_col(c, st_t); put_col(c + 1, st_t + 2); put_col(c + 2, st_t + 4);
+    d = (d & 7) ? st_t + 4 : PATRON_BLANK;                // (the 3rd column: option 2, shift 0 has no tiles of its own there)
+    if (c >= cz_x0 && c + 3 <= cz_x1 && !cz_dir) { stamp3(c, d); return; }   // (an R bar: put_col mirrors)
+    put_col(c, st_t); put_col(c + 1, st_t + 2); put_col(c + 2, d);
 }
 
 // M13a: a lifted patron (a sprite) leaves his BG footprint as plain wall: colour 0 of his own palette, as his BG copy
@@ -253,7 +264,7 @@ static void stamp_blank(uint8_t s) {
     if (d == 255 || (d & DRAW_BACK)) return;              // (a back view covers its own 2 columns; the 3rd stays wall)
     c = (d & ~DRAW_BACK) >> 3;
     if (c + 3 <= cz_x0 || c >= cz_x1) return;
-    cz_pal = cz_palb = BGPAL_PATRON + (patron_variant[s] & 3);   // (colour 0 only: the wall in every patron palette)
+    patron_attr(patron_variant[s]);                    // (colour 0 only: the wall in every patron palette)
     put_col(c, (uint8_t)PATRON_BLANK); put_col(c + 1, (uint8_t)PATRON_BLANK); put_col(c + 2, (uint8_t)PATRON_BLANK);
 }
 
@@ -303,7 +314,7 @@ static void stamp_bar(uint8_t b) {
 // pair (top t, bottom t + 1) per boss_cols entry, in BG palette boss_pal.
 static void stamp_boss(void) {
     uint8_t k, t;
-    cz_pal = cz_palb = boss_pal;
+    cz_pal = boss_pal;
     for (k = 0; k != BOSS_W_MAX; k++) if ((t = boss_cols[k])) put_col(boss_col + k, t);
 }
 
@@ -312,7 +323,7 @@ static void stamp_boss(void) {
 static void stamp_fight(uint8_t b) {
     if (b == boss_bar) stamp_boss();                     // (the Mothership's ray and entrance beam fall on his own bar too: over him)
     if (b != BOSS_MARK_BAR) return;
-    cz_pal = cz_palb = boss_pal;
+    cz_pal = boss_pal;
     put_col(BOSS_MARK_COL, BOSS_MARK_BG);
     put_col(BOSS_MARK_COL + 1, (uint8_t)(BOSS_MARK_BG + 2));
 }
@@ -322,7 +333,7 @@ static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1
     cz_tile = sh_tile[b << 1];
     cz_base = &base_all[0][0][0] + bar_bofs[b];
     cz_dir = cz_sto = cz_flip = cz_bswap = 0;
-    if (bar_dirs & bar_bit[b]) { cz_dir = 1; cz_sto = 32; cz_flip = mir_attr; cz_bswap = mir_bswap & MIX_A; }
+    if (bar_dirs & bar_bit[b]) { cz_dir = 1; cz_sto = mir_attr ^ 32; cz_flip = mir_attr; cz_bswap = mir_bswap & MIX_A; }
     restore_base();
     stamp_bar(b);
     if (boss_on) stamp_fight(b);
@@ -633,19 +644,26 @@ static uint8_t queue_bar(uint8_t b) {
 #define QI(n)   (uint8_t)(PATRON_TILE_BASE + (n))
 #define QI6(n)  QI(n), QI((n) + 2), QI((n) + 4), QI((n) + 1), QI((n) + 3), QI((n) + 5)
 #define QI48(n) QI6(n), QI6((n) + 6), QI6((n) + 12), QI6((n) + 18), QI6((n) + 24), QI6((n) + 30), QI6((n) + 36), QI6((n) + 42)
-static const uint8_t id_seq[PATRON_TILES_PER_GROUP] = { QI48(0), QI48(48), QI48(96) };
+#define QS0(n)  QI(n), QI((n) + 2), (uint8_t)PATRON_BLANK, QI((n) + 1), QI((n) + 3), (uint8_t)(PATRON_BLANK + 1)   // a shift-0 pose (option 2): its 3rd column is the shared blank pair
+static const uint8_t id_seq[PATRON_BLANK_OFS + 18] = { QI48(0), QI48(48), QI6(96), QI6(102), QI6(108), QI6(114), QI6(120),   // the shifted poses, at their own offsets
+    QS0(PATRON_SHIFT0_OFS), QS0(PATRON_SHIFT0_OFS + 4), QS0(PATRON_SHIFT0_OFS + 8) };   // then the shift-0 poses, 6 ids each (j = 126 + 6 v)
 #define QUICK_COST 16          // logic time like 2/3 of a 3-column span (measured); the drain is half a span's
+static uint8_t seq_ofs(uint8_t t) {      // a pose's first tile -> its index in id_seq (a shift-0 pose: 4 tiles apart, its 6 ids 6 apart)
+    t -= PATRON_TILE_BASE;
+    if (t >= PATRON_BLANK_OFS) { t -= PATRON_SHIFT0_OFS; t = PATRON_BLANK_OFS + t + (t >> 1); }
+    return t;
+}
 // The two entries of a quick redraw: patron p, front view, drawn at d. (Its own small function: SDCC keeps p and d
 // in registers here; inside the loop it spilled them.)
 static void quick_entries(uint8_t p, uint8_t d) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1), k = 3;          // (k: from the top row's ids to the bottom row's)
-    if (bar_dirs & bar_bit[b]) {          // R bar: his 6 ids mirrored into the shadow rows (the screen picture), queued from there
+    if ((bar_dirs & bar_bit[b]) || (patron_variant[p] & PATRON_BANK1)) {   // R bar, or a bank-1 look: his 6 ids (mirrored) into the shadow rows (the screen picture), queued from there
         d = quick_mirror(p, d);
         qv_src = (uint16_t)&sh_tile[b << 1][d];
         qv_dst = (uint16_t)bar_map[b] + d;
         k = 32;
     } else {
-        qv_src = (uint16_t)(id_seq - PATRON_TILE_BASE) + st_tab[((patron_variant[p] & 3) << 3) | (d & 7)];
+        qv_src = (uint16_t)id_seq + seq_ofs(st_tab[((patron_variant[p] & 7) << 3) | (d & 7)]);
         qv_dst = (uint16_t)bar_map[b] + (d >> 3);
     }
     qv_w = 3;
@@ -766,7 +784,7 @@ void draw_bartender(void) {
 uint8_t dancers_vis;              // dancer OAM entries written (and so to be hidden again)
 uint8_t dancer_sig;               // what the dancer entries show (0x80 | frame << 3 | visible mask); 0: rewrite them
 
-// OAM 27: the tip coin on its bar's counter (blinks in its last second, glints every half second).
+// OAM 27: the tip coin on its bar's counter (blinks in its last second, glints every half second). The second coin is OAM 26 (src/tip.c).
 static void draw_coin(void) {
     OAM_item_t *o = shadow_OAM + OAM_COIN;
     if (!tip_timer || (tip_timer < TIP_BLINK && (tip_timer & 4))) { o->y = 0; return; }
@@ -779,7 +797,12 @@ static void draw_coin(void) {
 // CGB OBJ palette 5: the show's (the coin wears Sal's OBJ 0). Loaded with the venue; this reloads it if something else (a fight) had it. Asked for at the end of the frame's
 // drawing, written by the VBlank interrupt (vq_vbl) right after the OAM DMA that shows the frame.
 static void pal5_check(void) {
-    if (!show_timer || pal5_cur == 2 || !is_cgb) return;
+    if (!is_cgb) return;
+    if (!show_timer) {                            // the Saloon (Color) keeps its 5th palette instance in OBJ 5 (lift.c): back from the show's colours when the show ends
+        if (pal5_cur == 2 && SPLIT_ON) { pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (SPLIT_PAL: that instance, already lifted for SCREEN BRIGHT)
+        return;
+    }
+    if (pal5_cur == 2 || (SPLIT_ON && lift_pi4())) return;   // (the Saloon, Color: a lifted patron wearing the 5th instance keeps OBJ 5 until he is gone: no new lift of one during a show, lift.c try_lift)
     if (SCR_BRIGHT()) { pal5_lift(); pal5_src = pal5_lifted; }   // SCREEN BRIGHT: the VBlank writes pal5_lifted raw, so the show's colours are lifted into it here (src/bright.c)
     else pal5_src = venue.pal[VENUE_PAL_SHOW];
     pal5_cur = 2;
@@ -809,8 +832,9 @@ static void pal5_write(void) {
 void draw_stage_fx(void) {
     uint8_t k;
     draw_coin();
+    if (shadow_OAM[OAM_COIN - 1].y || (tip_timer && tip_pocket && TIP2->t)) tip_draw2();   // (the second coin, OAM 26: src/tip.c, banked, so only when it shows or must be hidden)
     pal5_check();
-    if (!show_timer) {
+    if (!show_timer || (is_cgb && pal5_cur != 2)) {                // (Color: the dancers wait for their colours, pal5_check)
         if (dancers_vis) {
             OAM_item_t *o = shadow_OAM + OAM_DANCERS;
             for (k = 0; k < NUM_DANCERS * 4; k++) o[k].y = 0;

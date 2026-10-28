@@ -1,6 +1,7 @@
 # The pause menu's HOW TO PLAY card opens and closes through the white fade (src/pause.c CARD_FADE, src/trans.c): the pause mix loses no tick through
 # it, and the menu's registers (WY, LYC, STAT, IE, the LCDC window bits) are exactly as before once the card has closed.
 import pytest
+from split_helpers import win_lyc
 
 from boss_common import fight, play
 from tick_helpers import FRAME, LATE, tick_log
@@ -12,7 +13,7 @@ pytestmark = pytest.mark.timeout(600)
 def regs(gb):
     """WY, LYC, STAT's interrupt-enable bits, IE, and the LCDC bits of the window (enable 5, map 6) and the sprites (1), the frame's start."""
     gb.run(1)
-    return dict(wy=gb.mem(0xFF4A), wx=gb.mem(0xFF4B), lyc=gb.mem(0xFF45), stat=gb.mem(0xFF41) & 0x78, ie=gb.mem(0xFFFF),
+    return dict(wy=gb.mem(0xFF4A), wx=gb.mem(0xFF4B), lyc=win_lyc(gb.mem), stat=gb.mem(0xFF41) & 0x78, ie=gb.mem(0xFFFF),
                 lcdc_win=gb.mem(0xFF40) & 0x60, lcdc_obj=gb.mem(0xFF40) & 0x02, lcdc_on=gb.mem(0xFF40) & 0x80, nr51=gb.mem(0xFF25), nr50=gb.mem(0xFF24))
 
 

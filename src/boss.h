@@ -73,18 +73,18 @@ enum { BP_WALK, BP_STOMP, BP_GULP, BP_WINCE, BP_HAPPY, BP_EXTRA };
 
 // Resources a fight borrows (the next level load puts every one back)
 #define BOSS_BG_A       (PATRON_TILE_BASE + 84)   // variant C's 42 shifted tiles: 21 column pairs
-#define BOSS_BG_B       (PATRON_OBJ_BASE + 12)    // variant C's shift-0 pose + the 12 back views: 9 pairs
+#define BOSS_BG_B       (PATRON_OBJ_BASE + 8)     // variant C's shift-0 pose (4) + the 12 back views: 8 pairs
 #define BOSS_PAIRS_A    21
 #define BOSS_HUD_BG     252                       // the face, then the meter's EMPTY, HALF, FULL
 #define BOSS_ICE_BG     246                       // extra BG tiles (the Yeti's icy counter, the Prototype's conveyor):
                                                   // 246-251 are free in the story; 248-251 the landing marker (game.h)
 #define BOSS_PAL        (BGPAL_PATRON + 2)
 #define OBJ_TOPPER      OBJ_DANCER                // 4 tiles: STILL, BOB (8x16 each)
-#if BOSS_BG_A + 2 * BOSS_PAIRS_A != PATRON_OBJ_BASE || BOSS_BG_B + 18 != PATRON_BACK_BASE + 12 \
-    || BOSS_PAIRS_A + 9 != BOSS_PAIRS_MAX || PATRON_BACK_BASE + 12 > OBJ_SHARED_TOP || BOSS_HUD_BG < OBJ_DMG_COPY + 6 \
+#if BOSS_BG_A + 2 * BOSS_PAIRS_A != PATRON_BLANK || BOSS_BG_B + 16 != PATRON_BACK_BASE + 12 \
+    || BOSS_PAIRS_A + 8 != BOSS_PAIRS_MAX || PATRON_BACK_BASE + 12 > OBJ_SHARED_TOP || BOSS_HUD_BG < OBJ_DMG_COPY + 6 \
     || BOSS_ICE_BG < OBJ_DMG_COPY + 6 || BOSS_ICE_BG + BOSS_ICE_MAX > BOSS_MARK_BG || BOSS_MARK_BG + BOSS_FX_MAX > BOSS_HUD_BG \
     || OBJ_TOPPER + 2 * BOSS_HATS_MAX > OBJ_DANCER + DANCER_TILE_COUNT
-#error "boss tiles: variant C's 162-203, its shift-0 pose and the back views 216-233, extra 246-251, the HUD 252-255"
+#error "boss tiles: variant C's 162-203, its shift-0 pose and the back views 214-229, extra 246-251, the HUD 252-255"
 #endif
 
 // ---- the engine's state (src/boss.c; the test hooks of spec 2.5 among them) ----

@@ -151,7 +151,8 @@ static void load_crowd(uint8_t i) {
     palette_t p;
     if (g == 3) { a = patron_tiles_chefs; bank = BANK(patron_tiles_chefs); }
     else        { a = patron_tiles_cowboys; bank = BANK(patron_tiles_cowboys); }
-    bkg_data_far(PO_PAT + i * 12, 6, a + (PATRON_SHIFT0_OFS + v * 6) * 16, bank);        // shift 0 (3 x 2 tiles, column by column)
+    bkg_data_far(PO_PAT + i * 12, 4, a + (PATRON_SHIFT0_OFS + v * 4) * 16, bank);        // shift 0 (3 x 2 tiles, column by column; option 2: the 3rd column is the blank pair)
+    bkg_data_far(PO_PAT + i * 12 + 4, 2, a + PATRON_BLANK_OFS * 16, bank);
     bkg_data_far(PO_PAT + i * 12 + 6, 6, a + (v * 42 + 6) * 16, bank);                   // shift 2
     if (!is_cgb) return;
     patron_pal_get(g, v, p);

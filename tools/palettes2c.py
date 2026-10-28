@@ -33,13 +33,8 @@ ids = []
 for g in groups:
     names = ["zoo_monkey", "zoo_panda", "zoo_hippo"] if g == "zoo" else [f"{g}_{v}" for v in "abc"]
     ids.append([keys.index(n) for n in names])
-# M14a enhanced variants: <group>_x is the group's extra OBJ palette (CGB OBJ 4, the lifted column of its enhanced variant
-# that no patron palette shows; tools/gen_art.py validates the art against it). 255: the group has none.
-xids = [keys.index(f"{g}_x") if f"{g}_x" in keys else 255 for g in groups]
 h += ["", "// patron palettes per group (same order as the art): PAL_* ids of variants A, B, C",
-      f"#define PATRON_PAL_GROUPS {len(groups)}", "void patron_pal_get(uint8_t g, uint8_t v, uint16_t *dst) BANKED;   // dst[0..3] = palette of group g's variant v",
-      "// M14a: per group the PAL_* id of its extra OBJ palette <group>_x (255: none); an initializer for src/enhance.c's bank",
-      "#define PATRON_X_IDS { " + ", ".join(map(str, xids)) + " }"]
+      f"#define PATRON_PAL_GROUPS {len(groups)}", "void patron_pal_get(uint8_t g, uint8_t v, uint16_t *dst) BANKED;   // dst[0..3] = palette of group g's variant v",]
 c += []
 h += ["", f"#define PAL_COUNT {len(keys)}", "// the table is in a switchable bank: copy one palette (4 RGB15 values) into dst (WRAM)",
       "void pal_get(uint8_t id, uint16_t *dst) BANKED;", "", "#endif", ""]
@@ -51,6 +46,7 @@ c += ["};", "",
       "    dst[0] = s[0]; dst[1] = s[1]; dst[2] = s[2]; dst[3] = s[3];",
       "}", "",
       "void patron_pal_get(uint8_t g, uint8_t v, uint16_t *dst) BANKED {",
+      "    if (v > 2) { pal_get(v == 3 ? PAL_COWBOYS_D : PAL_COWBOYS_E, dst); return; }   // the Saloon's 4th and 5th palettes (Color-only looks; patron-rev-2)",
       "    pal_get(patron_pal_ids[g][v], dst);",
       "}", ""]
 outdir.mkdir(parents=True, exist_ok=True)

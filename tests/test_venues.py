@@ -186,10 +186,13 @@ def test_each_level_loads_its_venue(gb, group):
             assert attr_row(gb, bar_counter_row(b)) == v["bar_attr"][40:60]
             assert attr_row(gb, bar_top_row(b) + 1)[17:20] == v["bar_attr"][37:40], "spout and keg"
         assert cgb_palette(gb, 5) == v["pal"][0] and cgb_palette(gb, 6) == v["pal"][1]
-        assert cgb_palette(gb, BGPAL_BAR) == v["pal"][2] and cgb_palette(gb, 7) == v["pal"][3]
+        assert cgb_palette(gb, BGPAL_BAR) == v["pal"][2]
+        # (the Saloon's BG 7 holds its palette instance 3, ROSIE and REDD: the keg's slot is free there; its colour 0 is the wall, below)
+        assert cgb_palette(gb, 7) == v["pal"][3] if group else cgb_palette(gb, 7)[0] == v["pal"][2][0]
         assert cgb_palette(gb, OBJPAL_MUG_FULL, obj=True)[1:] == v["pal"][4][1:]
         assert cgb_palette(gb, OBJPAL_MUG_EMPTY, obj=True)[1:] == v["pal"][5][1:]
-        assert cgb_palette(gb, OBJPAL_DANCER, obj=True)[1:] == v["pal"][6][1:]
+        if group:                            # (the Saloon on Color keeps its 5th palette instance in OBJ 5 until a show takes it: render.c pal5_check)
+            assert cgb_palette(gb, OBJPAL_DANCER, obj=True)[1:] == v["pal"][6][1:]
     else:
         assert gb.read(0xFF47, 1)[0] == 0xE4, "DMG: the fixed grey ramp (the venue art is luminance-ordered)"
 
@@ -203,6 +206,8 @@ def test_patron_palettes_take_the_venue_wall_colour(gb, group):
     assert cgb_palette(gb, BGPAL_BAR)[0] == wall
     for k in range(3):
         assert cgb_palette(gb, BGPAL_PATRON + k)[0] == wall, f"patron palette {k}: colour 0 is the wall"
+    if group == 0:                       # patron-rev-2: the Saloon's palette instances 3 and 4 (BG 7; BG 5 below the split line, SPLIT_PAL)
+        assert cgb_palette(gb, 7)[0] == wall
 
 
 @pytest.mark.parametrize("group", [0, 1, 4, 6, 9], ids=["saloon", "sports", "igloo", "biker", "space"])

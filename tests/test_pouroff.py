@@ -238,7 +238,7 @@ def test_the_crowd_is_three_looks_loaded_per_variant_from_their_groups(pour):
     gb = pour
     for i, (g, v, pal) in enumerate(CROWD):
         data = patron_group_tiles(g)
-        shift0 = data[(126 + v * 6) * 16:(126 + v * 6 + 6) * 16]
+        shift0 = data[(128 + v * 4) * 16:(128 + v * 4 + 4) * 16] + data[126 * 16:128 * 16]     # (option 2: 2 columns of its own, then the shared blank pair)
         shift2 = data[(v * 42 + 6) * 16:(v * 42 + 12) * 16]
         got = b"".join(vram_bg(gb, BG_PAT + i * 12 + k) for k in range(12))
         assert got == shift0 + shift2, (i, pal)

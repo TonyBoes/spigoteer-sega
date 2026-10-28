@@ -4,7 +4,7 @@
 //
 // DMG tile schemes (an R bar draws every tile flipped, so the DMG needs the flipped pixels in VRAM):
 //   - every bar L: nothing (the tiles as loaded).
-//   - every bar R (the whole screen flips): the group's 156 patron tiles are bit-reversed in place; the shift-0 poses are
+//   - every bar R (the whole screen flips): the group's 152 patron tiles are bit-reversed in place; the shift-0 poses are
 //     then flipped as OBJ tiles too, so a lifted patron needs no OAM flip there (bar_pf 0).
 //   - mixed (both directions on screen): owner option (a): patrons are drawn at even x only (draw_mask 0xFE: 2 px
 //     steps), so each direction needs shifts 0, 2, 4, 6. The L set keeps its ids; the R set (flipped copies of the even
@@ -26,6 +26,7 @@
 
 #include "game.h"
 #include "music.h"
+extern uint8_t cur_group, rng_state;
 
 uint8_t level_dirs;                 // the LEVEL harness's directions for its next level load (test hook, debug box)
 uint8_t draw_mask;                  // patron_draw = x & draw_mask (0xFE: a DMG mixed level)
@@ -53,17 +54,24 @@ static void flip_copy(uint8_t src, uint8_t dst) {   // tile src mirrored into ti
 }
 
 // first tile of variant v's pose at shift s (the M13a layout; render.c / gen_art.py)
+// The Saloon's Color-only looks 3-7 (VRAM bank 1; gen_art.py): shift 0 at SALOON_X_S0 + 4 k, the others at 6 (7 k + s - 1), the last one apart.
 static uint8_t pose(uint8_t v, uint8_t s) {
-    return s ? PATRON_TILE_BASE + v * 42u + (s - 1u) * 6u : PATRON_OBJ_BASE + v * 6u;
+    if (v > 2) {
+        v -= 3;
+        if (!s) return SALOON_X_S0 + v * 4u;
+        s = v * 7u + s - 1u;
+        return s < 34 ? s * 6u : SALOON_X_LAST;
+    }
+    return s ? PATRON_TILE_BASE + v * 42u + (s - 1u) * 6u : PATRON_OBJ_BASE + v * 4u;
 }
 
 // DMG mixed level (option (a)): R shift s (even) = L shift s flipped, in the slot of shift s + 1
-// DMG mixed level, option (b): all of variant C's tiles flipped in place (42 shifted, 6 shift-0, 4 back); st_tab the same for
+// DMG mixed level, option (b): all of variant C's tiles flipped in place (42 shifted, 4 shift-0, 4 back); st_tab the same for
 // both directions at every shift; lifted patrons need no OAM flip
 static void mixed_b(void) {
     uint8_t k, v, s;
     for (k = 0; k < 42; k++) flip_copy(pose(2, 1) + k, pose(2, 1) + k);
-    for (k = 0; k < 6; k++) flip_copy(pose(2, 0) + k, pose(2, 0) + k);
+    for (k = 0; k < 4; k++) flip_copy(pose(2, 0) + k, pose(2, 0) + k);
     for (k = 0; k < 4; k++) flip_copy(PATRON_BACK_BASE + 8 + k, PATRON_BACK_BASE + 8 + k);
     for (v = 0; v < 4; v++)
         for (s = 0; s < 8; s++) st_tab[32 | (v << 3) | s] = st_tab[(v << 3) | s] = pose(v == 3 ? 0 : v, s);
@@ -78,7 +86,7 @@ static void dmg_mixed(void) {
     for (v = 0; v < 3; v++)
         for (s = 0; s < 8; s += 2) {
             a = pose(v, s); d = pose(v, s + 1);
-            for (k = 0; k < 6; k++) flip_copy(a + k, d + k);
+            for (k = 0; k < (s ? 6 : 4); k++) flip_copy(a + k, d + k);   // (shift 0: 2 columns; its 3rd is the blank pair, never read for a shift-0 draw)
         }
 }
 
@@ -148,12 +156,12 @@ void mirror_load(uint8_t dirs) BANKED {
     mixed = mixed && !is_cgb;                     // from here: the DMG's mixed scheme
     mir_bswap = mixed;
     draw_mask = mixed ? 0xFE : 0xFF;
-    for (v = 0; v < 4; v++) {
+    for (v = 0; v < (is_cgb ? 8 : 4); v++) {     // (Color: one table of 8 looks, no R half: the flip attribute does the mirroring, render.c cz_sto)
         for (s = 0; s < 8; s++) {
             se = mixed ? s & 6 : s;
-            l = pose(v == 3 ? 0 : v, se);
+            l = pose(v == 3 && !is_cgb ? 0 : v, se);
             st_tab[(v << 3) | s] = l;
-            st_tab[32 | (v << 3) | s] = mixed ? pose(v == 3 ? 0 : v, se + 1) : l;
+            if (!is_cgb) st_tab[32 | (v << 3) | s] = mixed ? pose(v == 3 ? 0 : v, se + 1) : l;
         }
         music_pump();                             // (the pose maths takes half a frame in all, LCD off in a screen's load: the tune ticks between its rows)
     }
@@ -259,17 +267,54 @@ void mirror_oam(void) BANKED {
         f = OAM_MUG_END - (lift_oam_n << 1);
         mo_t = mo_tp; mo_p = (uint8_t *)(shadow_OAM + f); mo_n = lift_oam_n << 1; mo_range();
     }
-    mo_t = mo_tm; mo_p = (uint8_t *)(shadow_OAM + OAM_COIN); mo_n = 1; mo_range();
+    mo_t = mo_tm; mo_p = (uint8_t *)(shadow_OAM + OAM_COIN - 1); mo_n = 2; mo_range();    // (the two tip coins, OAM 26 and 27: tip.c)
 }
 
 // A quick redraw (render.c queue_quick) of patron p, front view at d, on an R bar: his 6 tile ids mirrored into the
 // shadow rows (they hold the screen picture), local columns c..c+2 at screen columns 19-c..17-c. Returns 17 - c, the
 // first screen column; render.c queues the two rows from the shadow.
+// The Saloon's pick on Color (r = a random byte): one of 29 (look, palette instance) combinations, each equally likely (owner: no weighting).
+// V(look, pi): patron_variant byte = look | (pi ^ look) << 3 | PATRON_BANK1 for the Color-only looks 3-7. Per look, the OBJ slots the Palette Plan gives it
+// (PLANS["cowboys"]) mapped to instances: plan 3 = pi 0 (the A set), 4 = pi 3 (B), 5 = pi 1 (C), 6 = pi 4 (D), 7 = pi 2 (E).
+#define V(l, p) ((l) | (((p) ^ (l)) << 3) | ((l) > 2 ? PATRON_BANK1 : 0))
+static const uint8_t sal_combo[29] = {
+    V(0, 0), V(0, 1),                                   // DUSTY: 3 5
+    V(1, 3), V(1, 1), V(1, 2),                          // EMMA: 4 5 7
+    V(2, 1), V(2, 2),                                   // GUS: 5 7
+    V(3, 0), V(3, 1), V(3, 4),                          // HANK: 3 5 6
+    V(4, 0), V(4, 3), V(4, 1), V(4, 2),                 // ROSIE: 3 4 5 7
+    V(5, 0), V(5, 3), V(5, 1), V(5, 4), V(5, 2),        // REDD: 3 4 5 6 7
+    V(6, 0), V(6, 3), V(6, 1), V(6, 4), V(6, 2),        // MABEL: 3-7
+    V(7, 0), V(7, 3), V(7, 1), V(7, 4), V(7, 2),        // ARTIE: 3-7
+};
+// A boss fight leaves out GUS (look 2: the C slot's tiles are the boss's) and the instances on OBJ 7 and 5 (pi 2 and 4: the boss's palettes): the other 18, one draw
+// (no rejection loop: a spawn frame is the fight's slowest, tests/test_boss_in_place.py).
+static const uint8_t sal_boss[18] = {
+    V(0, 0), V(0, 1), V(1, 3), V(1, 1), V(3, 0), V(3, 1), V(4, 0), V(4, 3), V(4, 1),
+    V(5, 0), V(5, 3), V(5, 1), V(6, 0), V(6, 3), V(6, 1), V(7, 0), V(7, 3), V(7, 1),
+};
+uint8_t saloon_variant(uint8_t r) BANKED {
+    if (boss_on) return sal_boss[(uint8_t)((((uint16_t)r << 4) + ((uint16_t)r << 1)) >> 8)];   // r * 18 / 256
+    return sal_combo[(uint8_t)((((uint16_t)r << 5) - ((uint16_t)r << 1) - r) >> 8)];            // r * 29 / 256 (29 = 32 - 2 - 1: no multiply call)
+}
+
+uint8_t spawn_variant(uint8_t r) BANKED {
+    if (is_cgb && !cur_group) return saloon_variant(r);
+    r = (r >> 4) + (r & 15);                      // r % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
+    r = (r >> 2) + (r & 3);
+    r = (r >> 2) + (r & 3);
+    if (r >= 3) r -= 3;
+    if (r == 2 && boss_on) r = rng_state & 1;     // a boss fight: variant C's tiles are the boss's (src/boss.c)
+    return r;
+}
+
 uint8_t quick_mirror(uint8_t p, uint8_t d) BANKED {
-    uint8_t t = st_tab[32 | ((patron_variant[p] & 3) << 3) | (d & 7)], *r;
-    d = 17 - (d >> 3);
-    r = &sh_rows[0][(patron_bar[p] & (NUM_BARS - 1)) << 1][d];
-    r[0] = t + 4; r[1] = t + 2; r[2] = t;
-    r[32] = t + 5; r[33] = t + 3; r[34] = t + 1;
+    uint8_t b = patron_bar[p] & (NUM_BARS - 1), rb = bar_dirs & bar_bit[b], *r, t, t3;
+    t = st_tab[(rb ? mir_attr ^ 32 : 0) | ((patron_variant[p] & 7) << 3) | (d & 7)];
+    t3 = (d & 7) ? t + 4 : PATRON_BLANK;                   // (shift 0: the shared blank pair is its 3rd column, in both VRAM banks)
+    d >>= 3;
+    r = &sh_rows[0][b << 1][rb ? d = 17 - d : d];
+    if (rb) { r[0] = t3; r[1] = t + 2; r[2] = t; r[32] = t3 + 1; r[33] = t + 3; r[34] = t + 1; }
+    else    { r[0] = t; r[1] = t + 2; r[2] = t3; r[32] = t + 1; r[33] = t + 3; r[34] = t3 + 1; }   // (a bank-1 look on an L bar)
     return d;
 }

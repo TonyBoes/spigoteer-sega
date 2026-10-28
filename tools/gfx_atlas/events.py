@@ -44,7 +44,7 @@ O_DRINK = O_FILL + _d["MUG_FILL_TILE_COUNT"]
 O_COIN = O_DRINK + _d["MUG_DRINK_TILE_COUNT"]
 O_DANCER = O_COIN + _d["COIN_TILE_COUNT"]
 O_DANCER_END = O_DANCER + _d["DANCER_TILE_COUNT"]
-O_PATRON = _d["PATRON_FIRST_TILE"] + _d["PATRON_SHIFT0_OFS"]       # shift-0 pose of variant v: + 6 v
+O_PATRON = _d["PATRON_FIRST_TILE"] + _d["PATRON_SHIFT0_OFS"]       # shift-0 pose of variant v: + 4 v (option 2)
 O_POUR, O_CUE, O_DMG, O_MIRROR = 40, 44, 240, 246   # (Q61: the pour and the dust puff are sprite-only ids 40-51)
 VARIANT = "ABC"
 BT_NAMES = ["Sal: standing", "Sal: walking (step 1)", "Sal: walking (step 2)", "Sal: filling, sliding, catching", "Sal: fail (a patron reached the tap)"]
@@ -94,8 +94,8 @@ def label_of(o, cgb, enh, edge_x):
         return (3, 0), "tip coin", "coin"
     if t < O_DANCER_END:
         return (3, 1), "show dancers", "dancers"
-    if t >= O_PATRON and t < O_PATRON + 18 + 6:
-        v = (t - O_PATRON) // 6
+    if t >= O_PATRON and t < O_PATRON + 12 + 6:
+        v = (t - O_PATRON) // 4
         if v < 3:
             en = cgb and v in enh
             if o["x"] < edge_x or o["x"] > 136:
@@ -136,7 +136,7 @@ def level_classifier(cgb, enh, edge_x, boss=None):
                 return (6, 0), "Boss: " + boss, "topper" if i == 28 else None, ("b", i) if i == 28 else ("b",)
             return (3, 1), "Dancers", None, ("d", (i - 28) // 4) if i >= 28 else ("m", i)
         if dk in ("lift", "edge"):
-            v = min(2, (t - O_PATRON) // 6)
+            v = min(2, (t - O_PATRON) // 4)
             kind = "Patron %s (%s)" % (VARIANT[v], "lifted" if dk == "lift" else "entering / leaving")
             if dk == "lift" and "enhanced" in label:
                 kind = "Patron %s (lifted, enhanced)" % VARIANT[v]

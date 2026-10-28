@@ -45,7 +45,7 @@ endif
 
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
-PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patron_load.c
+PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patrons_saloon_x.c $(BUILD)/patron_load.c
 # M9 themed venues (theme index = patron group): stage, bar, floor, drink, show and palettes per theme, one banked file each
 VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
@@ -60,7 +60,7 @@ HUGE     := third_party/hugedriver
 HUGE_OBJ := $(BUILD)/hUGEDriver.o
 # each boss's own art header (tools/gen_boss.py: build/boss_<name>_art.h, #included by src/boss_<name>.c only)
 BOSS_H   := $(foreach b,$(filter-out meter tag,$(basename $(notdir $(wildcard assets/art/boss/*.txt)))),$(BUILD)/boss_$(b)_art.h)
-BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_keys.h $(BUILD)/list_skin.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_card_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/leo_fx_art.h $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h $(BUILD)/trans_art.h $(BUILD)/credits_text.h
+BONUS_H  := $(BUILD)/can_tiles.h $(BUILD)/list_keys.h $(BUILD)/list_skin.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/story.h $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/mg_card_art.h $(BUILD)/mg_stub_art.h $(BUILD)/qd_art.h $(BUILD)/ou_art.h $(BUILD)/boss_art.h $(BOSS_H) $(BUILD)/leo_fx_art.h $(BUILD)/jukebox_names.h $(BUILD)/antics_art.h $(BUILD)/trans_art.h $(BUILD)/credits_text.h
 BONUS_H  += $(BUILD)/practice_art.h
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
@@ -80,7 +80,7 @@ $(BUILD) $(OUT)/preview:
 $(BUILD)/art.c $(BUILD)/art.h: tools/gen_art.py assets/tiles/bar.txt assets/tiles/title.txt assets/art/bartender.txt assets/art/glass_shards.txt assets/art/coin.txt assets/art/can.txt assets/art/geyser.txt assets/art/cat_walk.txt assets/art/droplets.txt assets/art/cursor.txt assets/art/title_fx.txt assets/art/dx_badge.txt assets/art/pour.txt assets/art/tap.txt assets/art/pour_glass.txt assets/art/tips.txt assets/art/hud_icons.txt assets/art/list_keys.txt assets/art/list_skin.txt $(wildcard assets/art/tip/*.txt) $(wildcard assets/art/patrons/*.txt) $(wildcard assets/art/splash/*.txt) $(wildcard assets/approved/venues/*) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_art.py $(BUILD) $(OUT)/preview
 
-$(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h $(BUILD)/list_keys.h $(BUILD)/list_skin.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h $(BUILD)/patron_enh.h: $(BUILD)/art.c
+$(PATRON_C) $(VENUE_C) $(BUILD)/can_tiles.h $(BUILD)/list_keys.h $(BUILD)/list_skin.h $(BUILD)/title_art.h $(BUILD)/bonus2_art.h: $(BUILD)/art.c
 	@test -f $@
 
 # Story mode (M11b): the script is validated here (line length, charset, speakers, the chapter goals, the cut-scene

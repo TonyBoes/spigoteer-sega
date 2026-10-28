@@ -14,7 +14,7 @@ own art, #included by its own src/boss_<name>.c and nowhere else, so it lands in
 
 The body is stored as column pairs (a column's top tile, then its bottom tile, at consecutive ids: render.c's put_col
 stamps a column as t, t + 1), identical columns shared. A fight borrows variant C's BG ids and the back views for them
-(src/boss.h: 162-203 and 216-233, BOSS_PAIRS_MAX 30 pairs); the build fails on more. The palette is colour 0 = the
+(src/boss.h: 162-203 and 214-229, BOSS_PAIRS_MAX 29 pairs); the build fails on more. The palette is colour 0 = the
 venue's wall (set at the load), then the art's colours 1-3 (CGB BG palette 4; the topper OBJ palette 7 takes the same
 1-3). Replacing a file and running make is the swap.
 
@@ -49,7 +49,7 @@ ROOT = Path(__file__).resolve().parent.parent
 POSES = ["WALK", "STOMP", "GULP", "WINCE", "HAPPY"]   # every boss's, the engine's pose numbers 0-4 (src/boss.h BP_*)
 BOSS_POSES_MAX = 8           # src/boss.h: the 5 common poses + up to 3 extra (tells) per boss
 SWAY_PX = 2                  # the drinking sway's shift: the patrons' (src/patrons.c drawn_x: +2 px on alternate beats)
-BOSS_PAIRS_MAX = 30         # src/boss.h: 21 pairs at 162-203 + 9 at 216-233
+BOSS_PAIRS_MAX = 29         # src/boss.h: 21 pairs at 162-203 + 8 at 214-229 (option 2 shortened the patron tiles by 4; the blank pair sits between)
 BOSS_SPARK_N = 4             # the sparkle frames (BG 248-251: the Yeti has no landing marker)
 BOSS_ICE_MAX = 2             # src/boss.h: icy counter tiles at BG 246.. (free in the story)
 BOSS_FX_MAX = 4              # src/boss.h: the landing marker's 2 column pairs at BG 248-251 (BOSS_MARK_BG)

@@ -2,9 +2,7 @@
 ; was: PROPOSAL (artist B): 3/4 view facing right, slot B is a woman
 ; frames: robots_a, robots_b, robots_c
 ; round 6 (owner-approved, imported in the graphics overhaul 2026-10-10): variant(s) a, c redrawn / outline pass; see CHANGES.md
-; round 8b (owner-approved, imported in the graphics overhaul 2026-10-10): robots A is the group's ENHANCED variant (M14a): yellow-and-black hazard stripes on his left arm (bottom-left quadrant, S idx1).
-;   top tile row own, bottom row S (the venue bar_b, BG 7); lifted: one column on its own OBJ palette, the other on robots_x (OBJ 4).
-; @rows a own S
+; round 8b (owner-approved, 2026-10-10): robots A has yellow-and-black hazard stripes on his left arm; the enhanced (two-palette) look was dropped 2026-10-26 (patron-rev-2): one palette.
 ; 2026-10-26 patron revision batch 1: accepted art from docs/dev/concepts/patron_pass/robots (boxy, volta, blip)
 ........##......
 ........--......

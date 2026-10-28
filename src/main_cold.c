@@ -125,6 +125,7 @@ static void win_init(void);
 void boot_init(void) BANKED {
     uint8_t i;
 
+    SPLIT_ON = 0;                                                        // (the palette split, game.h: HRAM is junk at power-on)
     HALF = 0;                                                            // (30 fps off, the debug menu's choice AUTO)
     TRANS = TRANS_DEFAULT << TR_VSHIFT;                                  // (HRAM is not cleared at power-on: first, DISPLAY_OFF reads it)
 #ifdef AUTO_NOTRANS                                                      // test-only (tests/test_fade_hw.py): the reference ROM, no transition at all
@@ -301,7 +302,7 @@ void enter_level_clear(void) BANKED {
     uint8_t i;
     tip_timer = 0; show_timer = 0;               // a tip is simply forgotten when the level ends
     pocket_clear();                              // (a pocketed one too)
-    for (i = OAM_COIN; i < 40; i++) shadow_OAM[i].y = 0;
+    for (i = OAM_COIN - 1; i < 40; i++) shadow_OAM[i].y = 0;
     dancers_vis = 0; oam_touched();
     add_score(LEVEL_BONUS);
     state_timer = 0;

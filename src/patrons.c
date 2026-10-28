@@ -180,16 +180,7 @@ void clear_patrons(void) {
     lists_ok = 0;
 }
 
-// A patron whose mug is going to serve him (the push carries him off the left edge) may tip: the coin drops under him where he
-// stands as the mug lands and the push takes him away, so it is his and shows while he is still on the screen (owner 2026-10-17: it
-// used to appear after he was gone). Not while a tip lies there, nor while a show runs, unless the pocket is on and empty (pocket.c).
-void maybe_tip(uint8_t p) {              // (level.c push_for: the push that serves him)
-    if (tip_timer || tip_first || (show_timer && tip_pocket != TILE_HUD_BLANK)) return;   // (CLASSIC: not before the level's first tip, send_empty)
-    if (!tip_chance || (tip_chance != 255 && next_rand() >= tip_chance)) return;   // 0 never (and draws no random number)
-    tip_timer = TIP_FRAMES;
-    tip_bar = patron_bar[p];
-    tip_x = patron_x[p] + 4;                            // (centred under him, as classic_tip puts the first one)
-}
+// (maybe_tip, the tip a served patron may drop, is src/tip.c now: banked)
 
 // M13b: patrons overlap. A patron's real columns are c = draw >> 3 (without DRAW_BACK) and c + 1, and c + 2 unless he
 // stands on a multiple of 8 (shift 0, or his back view). col_scan(b, k, p): how many patrons of bar b other than p
@@ -541,12 +532,7 @@ static uint8_t try_spawn(void) {
         if (!--v) return 0;
     }
     if (blocked_behind(b, SPAWN_X + PATRON_SPACING)) return 0;   // someone within PATRON_SPACING px of the spawn point
-    v = next_rand();                              // v % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
-    v = (v >> 4) + (v & 15);
-    v = (v >> 2) + (v & 3);
-    v = (v >> 2) + (v & 3);
-    if (v >= 3) v -= 3;
-    if (v == 2 && boss_on) v = rng_state & 1;     // a boss fight: variant C's tiles are the boss's (src/boss.c)
+    v = spawn_variant(next_rand());               // (mirror.c: banked, ROM0 is tight)
     if (hurry_speed && !(next_rand() & 3)) np_h = 1;   // M13b: about 1 in 4 hurries (from level 3; level.c)
     if (!add_patron(b, SPAWN_X, v)) { np_h = 0; return 0; }
     patron_aux[np_p] = PATRON_W;
