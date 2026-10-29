@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PATRON_GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]
 PATRON_SHIFTS = 8
 # M9 themed venues, one per patron group, in PATRON_GROUPS order (theme index = group index; saloon = theme 0)
+FESTIVAL = "festival"      # the Pour-Off's room (owner Q20-Q40, assets/approved/venues/festival_*): an overlay venue, not a theme (index VENUES, not in THEMES)
 THEMES = ["saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "teahouse", "zoo", "space"]
 # BG ids 0..VENUE_POOL-1: one pool for a venue's stage and bar tiles (option A, owner 2026-10-10). The stage takes ids
 # from 0 up (animated tiles last), the bar + floor pack at the top (VENUE_POOL - bar_n ..), so stage_n + bar_n <= the
@@ -384,7 +385,7 @@ def venues(outdir, prev):
     vd = ROOT / "assets/approved/venues"
     shards = load_shards()
     h = ["// ---- M9 themed venues (tools/gen_art.py venues()): theme index = patron group index ----",
-         f"#define VENUES {len(THEMES)}", "// venue order: " + ", ".join(THEMES),
+         f"#define VENUES {len(THEMES)}", f"#define VENUE_FESTIVAL {len(THEMES)}   // venue_fetch(VENUE_FESTIVAL): the Pour-Off's room (src/po.c)", "// venue order: " + ", ".join(THEMES),
          "#define VENUE_PAL_STAGE_A 0", "#define VENUE_PAL_STAGE_B 1", "#define VENUE_PAL_BAR 2",
          "#define VENUE_PAL_BAR_B 3", "#define VENUE_PAL_DRINK_FULL 4", "#define VENUE_PAL_DRINK_EMPTY 5",
          "#define VENUE_PAL_SHOW 6", f"#define VENUE_PALS {len(VENUE_PALS)}",
@@ -413,7 +414,8 @@ def venues(outdir, prev):
     cases, info = [], {"pool": VENUE_POOL, "title_text_slot": TITLE_TEXT_SLOT, "tile_stage_base": 0,
                        "themes": THEMES, "venues": {}}
     sa_buf, sa_scr = 16, 4
-    for ti, t in enumerate(THEMES):
+    for ti, t in enumerate(THEMES + [FESTIVAL]):
+        ds = "saloon" if t == FESTIVAL else t       # drink / show files: the festival room borrows the saloon's (src/po.c po_enter)
         gb_ = "_glowb" if (t == "bistro" and os.environ.get("GLOW") == "B") else ""     # GLOW=B (make GLOW=B): the bistro oven's halo tiles, tools/gen_glowb.py
         stage = plain_rows(vd / f"{t}_stage{gb_}.txt")
         bar = plain_rows(vd / f"{t}_bar.txt")
@@ -433,8 +435,8 @@ def venues(outdir, prev):
         for r in range(2):
             assert all(battr[r][c] == 0 for c in range(0, 17)), f"{t}_bar_attr.txt: wall columns 0-16 must use the bar palette"
         pal = json.loads((vd / f"{t}_pal.json").read_text())
-        dpal = json.loads((vd / f"{t}_drink_pal.json").read_text())
-        spal = json.loads((vd / f"{t}_show_pal.json").read_text())
+        dpal = json.loads((vd / f"{ds}_drink_pal.json").read_text())
+        spal = json.loads((vd / f"{ds}_show_pal.json").read_text())
         pals = [pal["stage_a"]["hex"], pal["stage_b"]["hex"], pal["bar"]["hex"], pal.get("bar_b", pal["bar"])["hex"]]
         assert all(len(x) == 4 for x in pals), f"{t}_pal.json: BG palettes need 4 colours"
         assert pals[3][0].lower() == pals[2][0].lower(), f"{t}_pal.json: bar_b colour 0 must be the wall colour"
@@ -459,7 +461,7 @@ def venues(outdir, prev):
         a_first = len(suniq)
         smap = [a_first - 1 - i if i < 0 else i for i in smap]
         suniq += akeys
-        fdy = FILL_DY[t]
+        fdy = FILL_DY[ds]
         mug_dy = int(re.search(r"#define MUG_DY\s+(\d+)", (ROOT / "src" / "layout.h").read_text()).group(1))
         tip = max((y for y in range(16) for x in range(136, 144) if bar[y][x] != "."), default=-1)
         if not 0 <= fdy <= 3 or not 0 <= tip < mug_dy + fdy + 4:
@@ -516,9 +518,9 @@ def venues(outdir, prev):
         btrail = [len(alt)] + [bar_base + a for a, _ in alt] + [0] * (4 - len(alt))
         for _, rt in alt:
             btrail += tile_bytes(list(rt), 0, 0)
-        drinks = [r for _, r in blocks(vd / f"{t}_drink.txt")]
+        drinks = [r for _, r in blocks(vd / f"{ds}_drink.txt")]
         assert len(drinks) == 10 and all(len(f) == 16 and all(len(r) == 8 for r in f) for f in drinks), f"{t}_drink.txt: 10 frames 8x16"
-        shows = [r for _, r in blocks(vd / f"{t}_show.txt")]
+        shows = [r for _, r in blocks(vd / f"{ds}_show.txt")]
         assert len(shows) in (DANCE_FRAMES, BAND_FRAMES) and all(len(f) == 24 and all(len(r) == 16 for r in f) for f in shows), \
             f"{t}_show.txt: {DANCE_FRAMES} frames 16x24 (one dancer, all three dance it) or {BAND_FRAMES} (a band of three)"
         dtile = obj_tiles(pour_stream(drinks, bar, fdy, mug_dy), 8) + crash_tiles(drinks, shards)
@@ -556,7 +558,7 @@ def venues(outdir, prev):
         (outdir / f"{sym}.c").write_text("\n".join(vc))
         load += [f"BANKREF_EXTERN({sym})", f"extern const venue_t {sym};"]
         cases.append(f"    case {ti}: far_copy(&venue, &{sym}, sizeof venue, BANK({sym})); venue_bank = BANK({sym}); break;")
-        info["venues"][t] = {"stage_n": len(suniq), "bar_n": len(buniq), "bar_base": bar_base, "floor_tile": bar_base + fid,
+        (info["venues"] if t in THEMES else info.setdefault("extra", {}))[t] = {"stage_n": len(suniq), "bar_n": len(buniq), "bar_base": bar_base, "floor_tile": bar_base + fid,
                              "splash_tile": bar_base + sid if sid is not None else 0,
                              "stage_map": abs_smap, "stage_attr": abs_sattr, "bar_map": abs_bmap, "bar_attr": abs_battr,
                              "pal": pal15, "drink": dtile[:20 * 16], "crash": dtile[20 * 16:], "show": stiles,

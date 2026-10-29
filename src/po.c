@@ -33,9 +33,13 @@
 // left ones mirrored copies in BG ids MG_BG.., DMG cannot flip BG tiles), the patrons' footprints on the wall rows, the HUD with
 // the lives and "Y12 D10" (columns 13-19). The banner rows 2-3 (the framework's text, THANKS and the outro) cover the stage and
 // are put back as it was (saved: no VRAM read).
-// Crowd: three looks, a table (po_crowd: patron group, variant), each loaded as its shift-0 pose and one sway pose (2 px): the
-// saloon's cowboy and cowgirl and one guest from the bistro (a chef), a mixed finale crowd: "the whole tour came".
-// BG ids: MG_BG .. the flipped keg tiles (<= 9), then PO_PAT 12 a look. CGB BG palettes 2-4 the three looks (colour 0 the wall).
+// The room is the festival (assets/approved/venues/festival_*, owner Q20-Q40): po_enter loads venue VENUE_FESTIVAL over the saloon the
+// framework loaded (stage, bar, floor, palettes: BG 5 and 6 the stage's two, 0 the bar's orange).
+// Crowd: PO_LOOKS_DMG (6) looks on the DMG, PO_LOOKS_CGB (4) on Color (a BG palette each: 2, 3, 4 and the free bar slot 7), each loaded as its
+// shift-0 pose and one sway pose (2 px), 12 BG tiles at po_base[look]. Look 0 is the clown (assets/art/pouroff/bigwig.txt, a Pour-Off-only
+// pack, in every game); the others are variant A of the next groups from a random start in the ten venues' order (DUSTY, PETE, CEDAR, PIERRE,
+// IGGY, BOXY, SPIKE, KAGE, COCO, ZORP): "the whole tour came", a different mix each game.
+// BG ids: MG_BG .. the flipped keg tiles (<= 9), then the looks (po_base: 86, 98, 110, then the free ids 190, 202, 221).
 // OBJ: ids 0.. the Spigoteer, the venue's drink at 56.., the pour tiles 234.., Dregs 128-167 (168-183 free), the DMG mug copies 184-189;
 // CGB OBJ palette 3 Dregs; DMG OBP0 the Spigoteer, OBP1 (0xE4) Dregs and the sparkle. OAM: 0-3 the Spigoteer, 4-7 Dregs,
 // 8-9 the fill glasses, 10-25 the mugs, 26 the cue ("x2", left of the patron who took a PERFECT drink; the Spigoteer stands to his
@@ -52,16 +56,19 @@
 #include "palettes.h"
 #include "po_art.h"         // this bank's own art (assets/art/dregs/dregs.txt): Dregs's OBJ tiles
 
-BANKREF_EXTERN(patron_tiles_cowboys)
-BANKREF_EXTERN(patron_tiles_chefs)
-extern const uint8_t patron_tiles_cowboys[], patron_tiles_chefs[];
+#define PO_GROUPS(X) X(0, cowboys) X(1, sports) X(2, lumberjacks) X(3, chefs) X(4, divers) X(5, robots) X(6, punks) X(7, ninjas) X(8, zoo) X(9, aliens)
+#define PO_REF(n, nm) BANKREF_EXTERN(patron_tiles_##nm) extern const uint8_t patron_tiles_##nm[];
+PO_GROUPS(PO_REF)
 extern uint8_t joy;
 
 #define S               (MG->po)
 #define Y               (S.y)
 #define D               (S.d)
 #define PO_FLIP         MG_BG                       // the left keg's flipped tiles (<= 9)
-#define PO_PAT          (MG_BG + 9)                 // 3 looks x 12 tiles (shift-0 pose, shift-2 pose)
+#define PO_PAT          (MG_BG + 9)                 // the first 3 looks x 12 tiles (shift-0 pose, blank pair, shift-2 pose)
+#define PO_LOOKS_DMG    6
+#define PO_LOOKS_CGB    4
+#define PO_LOOKS        (is_cgb ? PO_LOOKS_CGB : PO_LOOKS_DMG)
 #define PO_DREGS        128                         // OBJ ids of Dregs's 5 pictures x 8 (BT_PIC maps his 7 states)
 #define PO_DMG          (PO_DREGS + 56)             // (ids 168-183, Dregs's old frames 5-6, stay free) DMG: the mug tiles with the bit planes swapped (full, empty, held empty)
 #define PO_OBP1         0xE4                        // DMG: OBP1 (Dregs: idx1 light grey, idx2 dark grey, idx3 black; the sparkle)
@@ -85,6 +92,7 @@ extern uint8_t joy;
 #define OAM_MUG0        10
 #define OAM_CUE_PO      26
 typedef char po_fits[(sizeof(struct po_state) <= STORY_SCRATCH && PO_PAT + 36 <= MG_GAME_BG + 3
+                      && 190 + 24 <= MG_HOURGLASS && 221 + 12 <= 234    // (looks 4-6: free BG ids, below the hourglass / the pour's OBJ ids)
                       && PO_DMG + 6 <= 234 && PO_DREGS >= 128) ? 1 : -1];
 // the offsets tests/po_helpers.py reads
 typedef char po_off_a[(offsetof(struct po_state, y) == 29 && offsetof(struct po_state, d) == 46 && offsetof(struct po_state, seat) == 58
@@ -94,8 +102,9 @@ static const uint8_t seat_x[3] = { 40, 72, 104 };
 // the knobs, in PT_* order (po.h): think 27 frames at 0 points, 16 at 15 (the spec's 30 and 18, tuned with tests/po_helpers.py's bots:
 // see PLAN.md), +8 leading by 4, -6 trailing by 4, 10 frames' reaction, 40 frames ahead, one pick in 8 comic, 60 frames' slip
 static const uint8_t po_tune[8] = { 27, 16, 8, 6, 10, 40, 8, 60 };
-// the crowd: the patron group (level.c's order: 0 cowboys .. 3 chefs) and its variant
-static const uint8_t po_crowd[3][2] = { { 0, 0 }, { 0, 1 }, { 3, 0 } };
+// the crowd: each look's first BG id (12 tiles), and its BG palette slot on Color
+static const uint8_t po_base[PO_LOOKS_DMG] = { PO_PAT, PO_PAT + 12, PO_PAT + 24, 190, 202, 221 };
+static const uint8_t po_slot[PO_LOOKS_CGB] = { BGPAL_PATRON, BGPAL_PATRON + 1, BGPAL_PATRON + 2, BGPAL_BAR_B };   // (the festival bar never uses BAR_B: bar_attr is all 0)
 static const uint8_t walk_cycle[4] = { BT_WALK1, BT_IDLE, BT_WALK2, BT_IDLE };
 #define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
 static const uint16_t dregs_pal[4] = { 0, RGB15(30, 27, 20), RGB15(22, 20, 23), RGB15(4, 3, 5) };   // J2: skin (his story-scene cream), grey jacket, ink
@@ -145,19 +154,32 @@ static void swap_copy(uint8_t src, uint8_t dst, uint8_t n) {   // n OBJ tiles wi
     for (k = n * 8; k; k--) { a = s[0]; d[0] = s[1]; d[1] = a; s += 2; d += 2; }
 }
 
-static void load_crowd(uint8_t i) {
-    uint8_t g = po_crowd[i][0], v = po_crowd[i][1], bank;
+static const uint8_t *group_tiles(uint8_t g, uint8_t *bank) {
+    switch (g) {
+#define PO_CASE(n, nm) case n: *bank = BANK(patron_tiles_##nm); return patron_tiles_##nm;
+        PO_GROUPS(PO_CASE)
+    }
+    return 0;
+}
+
+// look i: i 0 the clown, else variant A of group g (the first look's patron_pal_get / patron_tiles of that group)
+static void load_crowd(uint8_t i, uint8_t g) {
+    uint8_t bank, f = po_base[i];
     const uint8_t *a;
     palette_t p;
-    if (g == 3) { a = patron_tiles_chefs; bank = BANK(patron_tiles_chefs); }
-    else        { a = patron_tiles_cowboys; bank = BANK(patron_tiles_cowboys); }
-    bkg_data_far(PO_PAT + i * 12, 4, a + (PATRON_SHIFT0_OFS + v * 4) * 16, bank);        // shift 0 (3 x 2 tiles, column by column; option 2: the 3rd column is the blank pair)
-    bkg_data_far(PO_PAT + i * 12 + 4, 2, a + PATRON_BLANK_OFS * 16, bank);
-    bkg_data_far(PO_PAT + i * 12 + 6, 6, a + (v * 42 + 6) * 16, bank);                   // shift 2
+    if (i == 0) {
+        set_bkg_data(f, 12, po_clown_tiles);
+        if (is_cgb) pal_get(PAL_POUROFF_BIGWIG, p);
+    } else {
+        a = group_tiles(g, &bank);
+        bkg_data_far(f, 4, a + PATRON_SHIFT0_OFS * 16, bank);        // shift 0 (3 x 2 tiles, column by column; option 2: the 3rd column is the blank pair)
+        bkg_data_far(f + 4, 2, a + PATRON_BLANK_OFS * 16, bank);
+        bkg_data_far(f + 6, 6, a + 6 * 16, bank);                    // shift 2
+        if (is_cgb) patron_pal_get(g, 0, p);
+    }
     if (!is_cgb) return;
-    patron_pal_get(g, v, p);
     p[0] = venue.pal[VENUE_PAL_BAR][0];          // colour 0 = the wall, so the art needs no transparency
-    set_bkg_palette(BGPAL_PATRON + i, 1, p);
+    set_bkg_palette(po_slot[i], 1, p);
 }
 
 static void put_hud(void) {                      // "Y12 D10" into S.hud (HUD columns 13-19)
@@ -178,6 +200,8 @@ void po_enter(void) BANKED {
     uint16_t zi;
     uint8_t t[3][20], a[3][20], alt[5];
     for (zi = 0; zi < sizeof S; zi++) z[zi] = 0;
+    load_venue(VENUE_FESTIVAL);                  // (LCD off: the festival room over the saloon mg_begin loaded; BG 0 5 6 7 palettes, the stage, the bar, the saloon's drink)
+    venue_backdrop(FLOOR_ROW, 0);                // (the floor row: the festival's floor tile)
     for (k = 0; k < 8; k++) S.tune[k] = po_tune[k];
     lives = PO_LIVES + smap_po_lives();          // (the story: + the festival golds won in this run, at most 3 more: src/smap.c)
     prep_hud();
@@ -206,7 +230,8 @@ void po_enter(void) BANKED {
     }
     for (k = 0; k < 20; k++)                     // stage rows 1-3: what they are
         for (r = 0; r < 3; r++) { S.wall[r][k] = venue.stage_map[r * 20 + k]; S.wattr[r][k] = venue.stage_attr[r * 20 + k]; }
-    for (k = 0; k < 3; k++) load_crowd(k);
+    k = (uint8_t)(mg_seed >> 8) % 10;            // (this game's mix: a window over the ten venues' first looks, from the game's seed; mg_rand's stream is left alone)
+    for (r = 0; r < PO_LOOKS; r++) load_crowd(r, (k + r) % 10);
     // sprites: Dregs, the drink, the pour (sparkle, overflow, cue)
     set_sprite_data(PO_DREGS, PO_DREGS_TILES, po_dregs_tiles);
     pour_load(0);
@@ -270,9 +295,9 @@ static void seat_draw(uint8_t i) {               // its footprint (3 x 2 tiles) 
             S.sattr[i][k] = base_attr[0][c + k]; S.sattr[i][3 + k] = base_attr[1][c + k];
         }
     } else {
-        p = PO_PAT + s->v * 12 + (s->sh ? 6 : 0);
+        p = po_base[s->v] + (s->sh ? 6 : 0);
         tb[0] = p; tb[1] = p + 2; tb[2] = p + 4; tb[3] = p + 1; tb[4] = p + 3; tb[5] = p + 5;
-        for (k = 0; k < 6; k++) S.sattr[i][k] = BGPAL_PATRON + s->v;
+        for (k = 0; k < 6; k++) S.sattr[i][k] = po_slot[s->v & 3];
     }
     vq_add(0, tb, c, r, 3);
     vq_add(0, tb + 3, c, r + 1, 3);
@@ -580,7 +605,7 @@ static void seats_step(void) {
         i = mg_rand() % 3;
         while (s[i].st != PS_EMPTY) i = i == 2 ? 0 : i + 1;
         s += i;
-        s->st = PS_THIRSTY; s->t = PO_PATIENCE; s->v = mg_rand() % 3; s->sh = 0; s->dirty = 1;
+        s->st = PS_THIRSTY; s->t = PO_PATIENCE; s->v = mg_rand() % PO_LOOKS; s->sh = 0; s->dirty = 1;
         return;
     }
     S.spawn_t = 10;                                      // (no room anywhere: try again soon)

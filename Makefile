@@ -47,7 +47,7 @@ SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
 PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patrons_saloon_x.c $(BUILD)/patron_load.c
 # M9 themed venues (theme index = patron group): stage, bar, floor, drink, show and palettes per theme, one banked file each
-VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space
+VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space festival
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
 # M11b story mode: the script (docs/story.md), the portraits and the story font -> two banked files (tools/gen_story.py)
 STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c $(BUILD)/story_pictures.c
@@ -147,7 +147,7 @@ $(BUILD)/ts_art.h: tools/gen_ts.py tools/cannon_table.py tools/gen_art.py $(wild
 BONUS_H  += $(BUILD)/po_art.h
 # The Pour-Off (src/po.c; docs/minigames_bosses.md section 5): Dregs's bartender frames (a PROPOSAL, pending owner approval)
 # -> build/po_art.h, build/po.json (tests), out/preview/po_dregs_x8.png
-$(BUILD)/po_art.h: tools/gen_po.py tools/gen_art.py $(wildcard assets/art/dregs/*.txt) | $(BUILD) $(OUT)/preview
+$(BUILD)/po_art.h: tools/gen_po.py tools/gen_art.py $(wildcard assets/art/dregs/*.txt) $(wildcard assets/art/pouroff/*.txt) | $(BUILD) $(OUT)/preview
 	python3 tools/gen_po.py $(BUILD) $(OUT)/preview
 
 # The one-line menus' shared tiles (src/oneline.c; SOUNDTRACK, MINI GAMES, BOSS RUSH): the hand-placed grids in assets/art -> build/ol_tiles.h
