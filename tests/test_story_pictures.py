@@ -807,11 +807,13 @@ def test_the_contest_picture_is_the_first_pour_courtyard_with_the_two_game_sprit
 
 
 def test_the_finale_spigoteer_wears_the_cream_wooly_cap_and_his_mustache_shows():
-    """Owner 2026-10-20: Aurora knits a cream wooly (newsboy) cap. In finale_a it sits on his head (rows 68-70 in the cream
-    key Y, an ink top edge and an ink brim line at row 71), no pink on him, and the mustache rows are ink."""
+    """Owner 2026-10-20: Aurora knits a cream wooly (newsboy) cap. The owner redrew it 2026-10-29 (Q42: shading in gold
+    y, since skin and cream share a DMG shade): cream Y with gold shading, an ink brim line at row 71, no pink on him,
+    and the mustache rows are ink."""
     key, pix = _pix("finale_a")
     hat = _region(pix, 127, 65, 139, 72)
-    assert "".join(hat).count("Y") >= 25 and "#" * 6 in hat[2] and "#" * 12 == hat[6][:12]
+    cap = "".join(hat)
+    assert cap.count("Y") >= 15 and cap.count("y") >= 4 and "#" * 10 in hat[6]
     assert "r" not in "".join(_region(pix, 124, 64, 142, 90)), "no pink on the Spigoteer"
     face = _region(pix, 128, 72, 138, 82)
     assert "r" not in "".join(face) and "#####" in face[5], "the mustache (ink) is uncovered"
