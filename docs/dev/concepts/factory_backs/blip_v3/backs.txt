@@ -1,0 +1,60 @@
+; BLIP (Factory look C) back-view proposals v3. Owner 2026-10-28: "Redo blip cedar and ash's backs." Proposal only: nothing imported.
+; . wall   - 1 (light)   + 2 (mid)   # 3 (dark). Same dome head (rows 0-10 outline as the front), same 15 px width, same colour masses as the front in assets/art/patrons/robots.txt (C).
+; Both arms show from behind (the front hides the far one), each 2 px wide inside its outline. Each back carries one rear feature.
+
+; BLIP A
+; behind: smooth dome, shoulders and arms as the front; a battery pack on his back: light cell, dark case, one terminal nub on top
+......####......
+....##++++##....
+...#++----++#...
+..#++++++++++#..
+..#++++++++++#..
+..#++++++++++#..
+..#++++++++++#..
+..#++++++++++#..
+...#++++++++#...
+....#++++++#....
+.....######.....
+.###+++++++###..
+#-+#+##-##+#+-#.
+#-+#+#---#+#+-#.
+#++#+#-+-#+#++#.
+#-+#+#---#+#+-#.
+
+; BLIP B
+; behind: the same dome with a wind-up key between his shoulders: round light bow in a dark ring, short stem
+......####......
+....##++++##....
+...#++----++#...
+..#++++++++++#..
+..#++++++++++#..
+..#++++++++++#..
+..#++++++++++#..
+..#++++++++++#..
+...#++++++++#...
+....#++++++#....
+.....######.....
+.###+++++++###..
+#-+#++###++#+-#.
+#-+#+#+++#+#+-#.
+#++#++###++#++#.
+#-+#+++#+++#+-#.
+
+; BLIP C
+; behind: the same dome; a vent grille across his back: two dark slats on the body
+......####......
+....##++++##....
+...#++----++#...
+..#++++++++++#..
+..#++++++++++#..
+..#++++++++++#..
+..#++++++++++#..
+..#++++++++++#..
+...#++++++++#...
+....#++++++#....
+.....######.....
+.###+++++++###..
+#-+#+#####+#+-#.
+#-+#+++++++#+-#.
+#++#+#####+#++#.
+#-+#+++++++#+-#.
