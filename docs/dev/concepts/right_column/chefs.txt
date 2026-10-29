@@ -16,7 +16,7 @@
 ..---#--##--#-#.
 ..---#--##--#-#.
 ..---#--##--#-#.
-###############.
+..---#--##--#-#.
 
 ; CHEFS B: x15 gone: one - dropped from the right of the apron rows 12-14, edge # now x14; row 15 is the counter line.
 ................
@@ -34,7 +34,7 @@
 ..-----###----#.
 ..------#-----#.
 ..------------#.
-###############.
+..------------#.
 
 ; CHEFS C: x15 gone: one # dropped from the apron centre of row 13 and one - from row 14, keeping the +- sleeve highlights on both sides; right edge now x14.
 ....########....
@@ -52,4 +52,4 @@
 ..#--#######--#.
 .#+-########-+#.
 .#+-##----##-+#.
-###############.
+.#+-##----##-+#.

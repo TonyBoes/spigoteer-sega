@@ -20,7 +20,7 @@
 ....##---##.....
 .##--#---#--##..
 #+++-#---#-+++#.
-#++++-#-#-++++#.
+#++++-----++++#.
 
 ; @fig COACH #f8e0c8 #e0a020 #282018
 ; COACH (Stadium): gold ball cap with dark brim, headset (gold ear cup, gold mic at the mouth), gold windbreaker, whistle on a cord. New palette.
@@ -77,7 +77,7 @@
 .#--+-------+-#.
 #---+--+---+--#.
 #------+------#.
-###############.
+#------+------#.
 
 ; @fig SKATER #f8d8c0 #30a8a0 #182030
 ; SKATER (Igloo): figure skater, dark hair in a high bun with a teal scrunchie, teal high-collar top with light sparkles. New palette.
@@ -96,7 +96,7 @@
 .....#+++++#....
 ...##+-+++-+##..
 ..#++++++-++++#.
-#+-++++++++++-#.
+.+-++++++++++-#.
 
 ; @fig MUSHER #f0f0f8 #c08050 #281818
 ; MUSHER (Igloo): dog-sled driver, white fur-ruff hood, frosty white beard over a tan parka, tan mittens with white cuffs. New palette.

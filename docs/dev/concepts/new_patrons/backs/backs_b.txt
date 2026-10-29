@@ -19,7 +19,7 @@
 .#------------#.
 #-+--+---+---+#.
 #-+--+---+---+#.
-###############.
+#-+--+---+---+#.
 
 ; @fig DJ #f8d8c0 #3878f8 #100c28
 ; DJ back: dark short hair, the blue headband arching over the crown into both ear cups, nape, blue shirt with a dark collar.
@@ -38,7 +38,7 @@
 .######--######.
 #++++######++++#
 #++++++++++++++#
-################
+#++++++++++++++#
 
 ; @fig RAVEN #f0e0f0 #9048c0 #180818
 ; RAVEN back: cat ears (backs, no light inside) on the dark headband, long purple hair falling in two hanks with a crown shine, purple top at the shoulders.
@@ -57,7 +57,7 @@
 ##++#++++++#++##
 #+#++++++++++#+#
 #++#++++++++#++#
-################
+#++#++++++++#++#
 
 ; @fig BIKER #f0b890 #b04828 #181018
 ; BIKER back: rust do-rag covering the head to the nape, its knot with two tails hanging over the collar, ears, the ginger beard showing at both sides of the jaw, black leather jacket.
@@ -114,7 +114,7 @@
 .#++-######-++#.
 .#+++-####-+++#.
 #++++-####-++++#
-################
+#++++-####-++++#
 
 ; @fig MONK #e8b878 #e07820 #301810
 ; MONK back: shaved head, ears, neck; the orange robe crosses the back from his right shoulder, the other shoulder bare.
@@ -133,7 +133,7 @@
 ..###-----+###..
 .#-------++++++#
 #------++++++++#
-################
+#------++++++++#
 
 ; @fig POET #f8e0c0 #c89838 #100810
 ; POET back: dark topknot with the ochre pin through it, hair combed up from a nape hairline, ears, ochre robe with a dark collar and the centre-back seam.
@@ -152,7 +152,7 @@
 .#++++####++++#.
 #++++++#+++++++#
 #++++++#+++++++#
-################
+#++++++#+++++++#
 
 ; @fig SKATER #f8d8c0 #30a8a0 #182030
 ; SKATER back: high dark bun with the teal scrunchie, hair pulled up tight, ears, nape, teal high-collar top with light sparkles (palette kept from v3).
@@ -171,7 +171,7 @@
 ....#++++++#....
 ..##++-++++-##..
 .#+-+++++-++++#.
-#++++-+++++++-+#
+.++++-+++++++-+.
 
 ; @fig TUCO #f8f8e8 #f89820 #101018
 ; TUCO back: round black head turned a little, the banana beak's tip and a bit of white cheek peeking out on the beak side (as the front), black back and folded wings.
@@ -209,7 +209,7 @@
 .###++++++++###.
 #++++++++++++++#
 #++++++++++++++#
-################
+#++++++++++++++#
 
 ; @fig ZIGGY #f8f8f0 #a0a0b0 #101010
 ; ZIGGY back: two pointed ears (grey backs), the grey-and-white mane from the poll down the middle of the neck, black stripes curving round the neck, muzzle hidden.
@@ -228,7 +228,7 @@
 #---###++###---#
 #------##------#
 ####---##---####
-################
+####---##---####
 
 ; @fig PINKY #f8b0c8 #e04880 #301020
 ; PINKY back: round pink head with the beak's dark hooked tip peeking out on the beak side (as the front), the S neck as the front, folded hot-pink wings with dark flight-feather tips crossing at the tail.
@@ -247,4 +247,4 @@
 .....#---##.....
 ..###++--+++##..
 .#+++++##+++++#.
-###############.
+.#+++++##+++++#.

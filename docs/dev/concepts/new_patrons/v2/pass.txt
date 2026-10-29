@@ -18,7 +18,7 @@
 .##############.
 #--###---###--#.
 ++++#+++++#++++.
-#--###---###--#.
++--+#+---+#+--+.
 
 ; @fig RANGER #f8c090 #988838 #283018
 ; lodge: hat and brim kept; lidded eyes, khaki chin strap, light badge on chest
@@ -37,7 +37,7 @@
 ..####+++++####.
 .#+-+##---##++#.
 #+---#+++++#++#.
-###############.
+#+---#+++++#++#.
 
 ; @fig ANGLER #f8c090 #488878 #182028
 ; lodge: bucket hat kept; one light lure with a dark hook; moustache is a drooping bar, not a mouth
@@ -56,7 +56,7 @@
 ..###+#---#+##..
 .#+++++###++-+#.
 #+#+++++#+++-+#.
-###############.
+#+#+++++#+++-+#.
 
 ; @fig SOMMELIER #f0f0e8 #c88858 #401820
 ; bistro: face kept; shine line in the hair, dark bow tie on white shirt, silver cup on the lapel
@@ -75,7 +75,7 @@
 .##-##-##-#####.
 ###-#####-#---#.
 ###-##-##-##-##.
-###############.
+###-##-##-##-##.
 
 ; @fig NONNA #f8f8f0 #f0b888 #202030
 ; bistro: all kept; bun parted from the hair, smile, white shawl over the shoulders
@@ -94,7 +94,7 @@
 ..##--#++++#--#.
 .#-#--#####-#-#.
 #--#--##-##-#-#.
-###############.
+#--#--##-##-#-#.
 
 ; @fig MIME #f8f8f8 #d83040 #181828
 ; bistro: all kept; eye marks thinner and taller (1x4)
@@ -113,7 +113,7 @@
 .#---##+++##--#.
 #######++######.
 #-------+-----#.
-###############.
+#-------+-----#.
 
 ; @fig MUFFY #e0a878 #e85898 #301030
 ; igloo: earmuffs kept; smaller eyes closer together, scarf end hangs down the chest
@@ -151,7 +151,7 @@
 ..#---------#...
 .#--#-----#--#..
 #---#-----#---#.
-###############.
+#---#-----#---#.
 
 ; @fig DJ #f8d8c0 #3878f8 #100c28
 ; chromecow: all kept; smile added, light stripes on the tee; head 1 px left for x=15
@@ -170,7 +170,7 @@
 ....#---#.......
 ###+##---##+##..
 #+--+#---#+--+#.
-###############.
+#+--+#---#+--+#.
 
 ; @fig RAVEN #f0e0f0 #9048c0 #180818
 ; chromecow: pigtails and face kept; pale 3 px ties that read as bands, not horns
@@ -189,7 +189,7 @@
 .#++##-----##...
 .#+++##---##++#.
 #++++#-----#++#.
-###############.
+#++++#-----#++#.
 
 ; @fig SENSEI #f8f8f0 #d8a070 #302018
 ; teahouse: all kept; eyes closer, white hair at both sides of the head
@@ -208,7 +208,7 @@
 ....#--------#..
 ..##-#------#-#.
 ###-##-----##-#.
-###############.
+###-##-----##-#.
 
 ; @fig MONK #e8b878 #e07820 #301810
 ; teahouse: face and robe kept; robe over one shoulder, beads as a V of light dots
@@ -227,7 +227,7 @@
 ..##+-+++-+#--#.
 .#++++-+-++#--#.
 #++++++-++++###.
-###############.
+#++++++-++++###.
 
 ; @fig TUCO #f8f8e8 #f89820 #101018
 ; zoo: beak colour kept; big banana beak, orange ring round the eye, black crown
@@ -246,7 +246,7 @@
 .###-----###....
 ####-----#####..
 #####---######..
-###############.
+#####---######..
 
 ; @fig ELLIE #f8f8f0 #a0a0b0 #101010
 ; zoo: trunk kept; ear joined to the head, grey with a lighter inside; clear eye, small tusk
@@ -265,7 +265,7 @@
 ..#####-#+++#+#.
 .#+++++##+++++#.
 #+++++++#####+#.
-###############.
+#+++++++#####+#.
 
 ; @fig ZIGGY #f8f8f0 #a0a0b0 #101010
 ; zoo: mane kept; fewer face stripes, bigger ear, clear eye
@@ -284,7 +284,7 @@
 .#---##---#.....
 .#####--###.....
 #----##----##-#.
-###############.
+#----##----##-#.
 
 ; @fig PINKY #f8b0c8 #e04880 #301020
 ; zoo: all kept; sharper beak bend, eye added
@@ -303,4 +303,4 @@
 ....#---####....
 ..###----++++#..
 .#------++++++#.
-###############.
+.#------++++++#.

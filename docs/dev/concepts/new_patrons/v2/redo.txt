@@ -20,7 +20,7 @@
 ....##----#.....
 .###++#--#++##..
 #++++++#-#++++#.
-###############.
+#++++++#-#++++#.
 
 ; @fig BUGLE #f0c098 #d8a028 #182058
 ; BUGLE (Stadium, wall #384058): band member, tall navy shako with a cream plume, gold shield badge and gold band, peaked visor, gold chin strap, brass bell ring beside the face with the mouthpiece at the lips, navy jacket with gold buttons and epaulette. NEW palette skin #f0c098 / brass #d8a028 / navy #182058.
@@ -39,7 +39,7 @@
 ..#+-----+++#+#.
 ...#+++++##+++#.
 #++###+####+#...
-#+####+####++#..
+#++###+####++...
 
 ; @fig CHEER #f8e0c8 #e05030 #301828
 ; CHEER (Stadium, wall #384058): cheerleader (woman), red hair with a high ponytail and a cream bow, eyes and a big red smile, red top, cream pom-poms with red strands raised at both shoulders. NEW palette pale skin #f8e0c8 / red #e05030 / dark #301828.
@@ -58,7 +58,7 @@
 #-+-#-++++-#-+#.
 #+--#+----+#+-#.
 #--+#+#--#+#-+#.
-.###++++++++##..
+.--+++++++++-+..
 
 ; @fig TRAPPER #f0b888 #a8a098 #302820
 ; TRAPPER (Lodge, wall #6a4a30): grey coonskin cap with fur tufts and a ringed tail hanging behind to the shoulder, full grey beard with a moustache, tan fur collar. NEW palette skin #f0b888 / grey fur #a8a098 / dark #302820.
@@ -77,7 +77,7 @@
 #++#++++++++#...
 .##-#++++++#--#.
 #----#++++#---#.
-#-----####----#.
+#-----++++----#.
 
 ; @fig SHRED #e0a878 #f07828 #201028
 ; SHRED (Igloo, wall #4a4078): snowboarder, orange beanie with a cream pom-pom, big goggles worn over the eyes (dark tinted lens with a glint, orange frame, strap round the back, nose notch), orange neck gaiter pulled over the chin, dark jacket. Palette as v1 SHRED (new): skin #e0a878 / orange #f07828 / dark #201028.
@@ -96,7 +96,7 @@
 ..#++++++++++#..
 .###++++++++###.
 #++#########++#.
-###############.
+#++#########++#.
 
 ; @fig BIKER #f0b890 #b04828 #181018
 ; BIKER (Chrome Cow, wall #3a2a48): no helmet; rust bandana do-rag knotted at the back, dark sunglasses (two lenses, glints, bridge), full ginger beard with a mouth, black leather jacket with collar and zip. NEW palette skin #f0b890 / rust #b04828 / dark #181018.
@@ -115,7 +115,7 @@
 .###+++++++++#..
 #####+++++####..
 #######-######..
-#######-#######.
+#######-######..
 
 ; @fig KITSUNE #f8e8d8 #c82838 #181010
 ; KITSUNE (Teahouse, wall #4a6a58): white fox mask worn on the face, pointed ears with red insides, red marks over the eyes and on the brow, dark nose and red mouth on the snout, dark hair framing it, red kimono with a cream collar. Reuses ninjas_b (cream / red / dark).
@@ -134,7 +134,7 @@
 .##++-####-++##.
 .#+++-#--#-+++#.
 #++++-#--#-+++#.
-###############.
+#++++-#--#-+++#.
 
 ; @fig POET #f8e0c0 #c89838 #100810
 ; POET (Teahouse, wall #4a6a58): scholar, no hat; dark topknot with an ochre pin, long thin drooping moustache, ochre robe, an open scroll held in front (cream paper, ochre rollers, dark text strokes). Palette as v1 POET (new) with a paler skin that doubles as the paper: skin/paper #f8e0c0 / ochre #c89838 / dark #100810.

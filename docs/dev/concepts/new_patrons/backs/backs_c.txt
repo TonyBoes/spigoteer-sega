@@ -19,10 +19,10 @@
 #+--+#+-+#+--+#.
 #+-++#+++#++-+#.
 #++++#+++#++++#.
-#++#+#+++#+#++#.
+#++++#+++#++++#.
 
 ; @fig BLOB #d0f0f8 #58a0f0 #081828
-; BLOB back: the same jelly dome from behind, no face; a light fish skeleton (skull, spine, ribs, forked tail) and the bubble seen through the jelly, a gloss mark, wide puddle.
+; BLOB back: the same jelly dome from behind, no face; a light fish skeleton (head with an eye hole, spine, chevron ribs, forked tail) and the bubble seen through the jelly, a gloss mark, wide puddle.
 ................
 ....#######.....
 ..##+++++++##...
@@ -30,15 +30,15 @@
 .#+-++++++-++#..
 .#+++++++-+-+#..
 .#++++++++-++#..
-.#+++++++++++#..
-.#++---+-++-+#..
-.#++-+-----++#..
-.#++---+-++-+#..
-.#+++++++++++#..
+.#++++-+-++++#..
+.#++--+-+-++-#..
+.#+-+-------+#..
+.#++--+-+-++-#..
+.#++++-+-++++#..
 #+++++++++++++#.
 #+++++++++++++#.
 #+++++++++++++#.
-###############.
+#+++++++++++++#.
 
 ; @fig VIXEN_B #f0f0f8 #40b8a8 #100820
 ; VIXEN_B back: the sleek glossy black bob from behind (gloss band on the crown, strand lines), the two antennae with light bobbles, a teal nape, high silver collar, silver dress with a dark seam, wide shoulders.
@@ -57,7 +57,7 @@
 .....#+++#......
 ....#-----#.....
 .##----#----##..
-#-----#-#-----#.
+.-------------..
 
 ; @fig VIXEN_D #c8f8f0 #6058e0 #180828
 ; VIXEN_D back: the long voluminous hair from behind, centre parting, strands and a light sheen, the ends tapering to a point between bare silver-light shoulders.
@@ -76,7 +76,7 @@
 .#++#+++++#++#..
 ..#+#+++++#+#...
 .#---##+##---#..
-#-----#+#-----#.
+.-----#+#-----..
 
 ; @fig CLANK #f8e8b8 #e07838 #201008
 ; CLANK back: the same rusty box head from behind, a flat back plate with a bevelled top, four rivets, a flat plate with four bolts, the bent antenna wire, a wide shoulder box with rust streaks.

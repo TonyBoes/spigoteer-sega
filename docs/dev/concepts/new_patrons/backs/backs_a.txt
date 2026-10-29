@@ -34,7 +34,7 @@
 ....##----##....
 ..##++++++++##..
 .#++########++#.
-.#+##########+#.
+.#++########++#.
 
 ; @fig SLUGGER #f0c8a0 #389850 #101828
 ; back: green helmet with the ear flap on one side, dark hair, one ear; jersey with a light 11
@@ -53,7 +53,7 @@
 ....##----####..
 ..##+######+##..
 .#++++-++-++++#.
-.#+#++-++-++#+#.
+.#++++-++-++++#.
 
 ; @fig GRIDIRON #e8b080 #9050d0 #180c28
 ; back: purple helmet with the light centre stripe; shoulder pads with light trim
@@ -110,7 +110,7 @@
 ..####+++####...
 .#+++++#+++++#..
 #++++++#++++++#.
-###############.
+#++++++#++++++#.
 
 ; @fig ANGLER #f8c090 #488878 #182028
 ; back: bucket hat with a lure on the back of the crown, dark band, brim; dark hair, ears; vest with a back pouch
@@ -129,7 +129,7 @@
 ..##+++++++##...
 .#+++#####+++#..
 #++++#+++#++++#.
-###############.
+#++++#+++#++++#.
 
 ; @fig SOMMELIER #f0f0e8 #c88858 #401820
 ; back: slicked dark hair with a shine arc, tan ears and neck; white collar, dark jacket
@@ -167,7 +167,7 @@
 .#------------#.
 .##----------##.
 .###--------###.
-.####------####.
+.###--------###.
 
 ; @fig MIME #f8f8f8 #d83040 #181828
 ; back: red beret with its stem, dark hair, white ears and neck; red scarf, striped shirt
@@ -186,7 +186,7 @@
 .#-----------#..
 ###############.
 #-------------#.
-###############.
+#-------------#.
 
 ; @fig MUFFY #e0a878 #e85898 #301030
 ; back: pink headband over dark hair, both earmuffs; pink scarf with its end down the back, dark coat
@@ -224,7 +224,7 @@
 ..##########....
 .#-#------#-#...
 #--#------#--#..
-##############..
+#--#------#--#..
 
 ; @fig MUSHER #f0f0f8 #c08050 #281818
 ; back: tan parka hood with a centre seam, the white fur ruff peeking round the sides; tan parka
