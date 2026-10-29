@@ -1,0 +1,6 @@
+{
+ "stage_a": {"hex": ["#f08828", "#b8dcf4", "#a090b0", "#201828"], "_note": "ONE stage palette: index 0 is now the bar's orange (was cream) -> pennants, balloons, banners, lit windows"},
+ "stage_b": {"hex": ["#f08828", "#b8dcf4", "#a090b0", "#201828"], "_note": "unused: ONE stage palette (attr all 0); BG slot 6 stays free for a crowd look"},
+ "bar": {"hex": ["#4a2a24", "#ffe8b8", "#f08828", "#2a1410"], "_note": "index 0 = wall colour behind patrons"},
+ "bar_b": {"hex": ["#4a2a24", "#ffe8b8", "#f08828", "#2a1410"], "_note": "unused (bar_attr all 0): BG slot 7 stays free for a crowd look"}
+}
