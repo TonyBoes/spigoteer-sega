@@ -67,11 +67,28 @@ static const level_cfg_t level_table[LEVEL_ROWS] = {
     { 9, 0xF, 1, 16, 210, 52, PUSH_COLS_HARD, 150,  80 },   // 10 aliens: plays like the old level 5; level 11 is row 1 again (loop 2)
 };
 
+// Color, the Saloon: GUS (look 2, variant C) is drawn with his skin in colour 2 and his beard in 1, every other look the other way round, so his
+// tiles get their two bitplanes swapped (1 <-> 2; 0 and 3 stay) and palette instance 0 (HANK's) is his own (owner Q46 2026-10-29). LCD off.
+// Tiles: the 42 shifted ones, the shift-0 pose and the back view (the credits load pose 0 from ROM unswapped, with EMMA's palette: the same picture).
+static void swap_tiles(uint8_t id, uint8_t n) {
+    uint8_t *q, a, t;
+    for (; n; n--, id++) {
+        q = (uint8_t *)(id < 128 ? 0x9000 + ((uint16_t)id << 4) : 0x8800 + ((uint16_t)(id - 128) << 4));
+        for (a = 8; a; a--, q += 2) { t = q[0]; q[0] = q[1]; q[1] = t; }
+    }
+}
+static void swap_gus(void) {
+    swap_tiles(PATRON_TILE_BASE + 84, 42);
+    swap_tiles(PATRON_OBJ_BASE + 8, 4);
+    swap_tiles(PATRON_BACK_BASE + 8, 4);
+}
+
 static void load_patron_group(uint8_t g) {
     palette_t p;
     uint8_t v;
     load_patron_tiles(g, PATRON_TILE_BASE);      // 144 pre-shifted + 12 back-view tiles, from the group's bank (LCD is off)
     if (!is_cgb) return;
+    if (!g) swap_gus();
     for (v = 0; v < 3; v++) {                    // colour 0 = the wall, so the art needs no transparency
         patron_pal_get(g, v, p);
         p[0] = WALL_RGB;

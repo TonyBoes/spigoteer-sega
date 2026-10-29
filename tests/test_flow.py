@@ -32,11 +32,19 @@ PATRON_TILES = int(re.search(r"#define PATRON_GROUP_TILES (\d+)", ART_H).group(1
 PATRON_GROUP_NAMES = re.search(r"// group order: (.*)", ART_H).group(1).split(", ")
 
 
-def patron_group_tiles(g):
-    """Bytes of patron group g as generated (the ROM keeps them in a switchable bank, so read build/patrons_<g>.c)."""
+def patron_group_tiles(g, gb=None):
+    """Bytes of patron group g as generated (the ROM keeps them in a switchable bank, so read build/patrons_<g>.c). With gb on Color, the Saloon's
+    GUS (variant C: the 42 shifted tiles 84.., the shift-0 pose and the back view, tiles 136-139 and 148-151) comes plane-swapped, as the level load leaves him."""
     src = (ROOT / "build" / f"patrons_{PATRON_GROUP_NAMES[g]}.c").read_text()
     data = bytes(int(h, 16) for h in re.findall(r"0x([0-9A-F]{2})", src))
     assert len(data) == PATRON_TILES * 16
+    if gb is not None and gb.model_name == "cgb" and g == 0:
+        b = bytearray(data)
+        for t in [*range(84, 126), *range(136, 140), *range(148, 152)]:
+            for r in range(8):
+                i = t * 16 + 2 * r
+                b[i], b[i + 1] = b[i + 1], b[i]
+        data = bytes(b)
     return data
 
 

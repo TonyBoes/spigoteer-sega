@@ -422,7 +422,7 @@ def restored(gb, theme):
     n = MG_GAME_BG + max(len(ART["lamp"]), len(ART["qd_bg"])) // 16 - 78   # patron ids 78.. up to the games' own tiles
     # (MG_BG = 77 is no patron's)
     bg = b"".join(bytes(gb.read((0x9000 if t < 128 else 0x8000) + t * 16, 16)) for t in range(78, 78 + n))
-    assert bg == patron_group_tiles(g)[:n * 16], "the patron tiles are back over the medal icon and the lamp"
+    assert bg == patron_group_tiles(g, gb)[:n * 16], "the patron tiles are back over the medal icon and the lamp"
     assert tilemap_row(gb, 0, 0, 20, True) == [PANEL_TOP] * 20, "the window's rows as win_init left them"
     assert tilemap_row(gb, 2, 0, 20, True) == [PANEL_BOT] * 20
     assert win_lyc(gb.mem) == gb.mem(0xFF4A) + 22, "LYC is the banner's (BANNER_LYC) again"
