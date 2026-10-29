@@ -39,4 +39,4 @@ Owner: "trims ok, keep slugger, gridiron, musher, and yeti. Move skater to teaho
 | Teahouse | SENSEI v1 trimmed, KITSUNE v2, MONK v2, POET v2, SKATER v3 (moved from the Igloo: 5 new) |
 | Zoo | TUCO v2, ELLIE v2, ZIGGY v2, PINKY v2 |
 
-Trims: v3/trims.txt. New: v3/new.txt. Next: back views for all 27.
+Trims: v3/trims.txt. New: v3/new.txt. Next: back views for all 26.
