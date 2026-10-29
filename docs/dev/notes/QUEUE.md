@@ -35,6 +35,10 @@ NEXT AFTER THE SAL IMPORT MERGES (owner approved 2026-10-20):
 - Match Sal's other art to the owner's new sprite (sal_pack_owner/): Lift Rush (assets/art/logroll/spigoteer.txt, 24x24), Quick Draw (assets/art/quickdraw/spig.txt), CLASSIC antics (assets/art/antics/antics.txt, the 4 poses' non-copied rows).
 - Use the gb-pixel-art skill. Previews first, plus editable PNGs; the owner approves before the build.
 
+## Patron art notes (owner 2026-10-29)
+- Lodge new woman: concept B "ROSA" picked, named INES (OBJ 6 / BG 3, purple). The woodcarver concept (old "C INES", docs/dev/concepts/new_patrons/lodge_pass/ines.txt from the first pass) "might work for harley if I don't like harley's rework": keep it as a HARLEY fallback.
+- Face passes: face pixels only (memory face-pass-minimal). SMITH/ROD first pass rejected; redo from the originals.
+
 ## Agent queue (2026-10-21; start each as a slot frees, ~3 agents at once)
 Running: double speed (real, for main) | scratch-memory audit | 6-looks prototype ROMs (shared vs own colours)
 Queued, in order:
