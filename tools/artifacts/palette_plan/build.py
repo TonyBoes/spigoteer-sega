@@ -79,6 +79,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
+    ("2026-10-29", "Owner: \"Vixen D: Use Obj 5. Blob: Use Vixen B palette.\" Space: OBJ 4 / BG 4 is VIXEN_B's palette with BLOB; VIXEN_D shares the show dancers' OBJ 5 (no BG free yet)."),
     ("2026-10-29", "Q43 (owner): \"Musher, none--instead move cub to musher's palette. Yeti: a. Clank: B. Bubble: A. Sensei & poet -- blend colors so closer together but matching neither. Rest: I will look at palettes myself. Leave them unassigned.\" Igloo OBJ 5 is MUSHER's palette with CUB; YETI in the empty mug's OBJ 2 / BG 2. Factory CLANK in the full mug's OBJ 1 / BG 2, BUBBLE with NEKA. Teahouse SENSEI and POET share a blend on OBJ 5. MONK, VIXEN_B, VIXEN_D unassigned."),
     ("2026-10-29", "Owner: \"Auto assigned palettes to new patrons where available make suggestions for palette merges.\" Own palettes: Stadium BUGLE 4, GRIDIRON 5; Lodge RANGER 4, ANGLER 5; Bistro MIME 3; Igloo MUFFY 4, CUB 5; Chrome Cow RAVEN 4, BIKER 5; Teahouse SKATER 4, POET 5; Zoo TUCO 3, PINKY 4; Space MOTH OBJ 3 / BG 5, BLOB 4. Same colours, shared: NONNA with PIERRE, SOMMELIER with BASIL, DJ with SLICK, KITSUNE with SAKURA, ELLIE and ZIGGY with BAMBOO. TRAPPER's BG on BG 2. Merges suggested (Q43) for MUSHER, YETI, CLANK, BUBBLE, SENSEI, MONK, VIXEN_B, VIXEN_D."),
     ("2026-10-29", "Owner: \"Trapper can use Sasquatch palette\" Lumber Lodge: TRAPPER in OBJ 1 with the Sasquatch and the full mug."),
@@ -301,11 +302,12 @@ AUTO_OWN = {
     "punks": [(4, 4, "RAVEN"), (5, 5, "BIKER")],
     "ninjas": [(4, 4, "SKATER"), (5, 5, "POET")],
     "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
-    "aliens": [(3, 5, "MOTH"), (4, 4, "BLOB")],
+    "aliens": [(3, 5, "MOTH"), (4, 4, "VIXEN_B")],
 }
 # Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
 AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["SOMMELIER"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KITSUNE"], 5: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
-              "divers": {5: ["CUB"], 2: ["YETI"]}, "robots": {1: ["CLANK"], 4: ["BUBBLE"]}}       # Q43 (owner 2026-10-29)
+              "divers": {5: ["CUB"], 2: ["YETI"]}, "robots": {1: ["CLANK"], 4: ["BUBBLE"]},       # Q43 (owner 2026-10-29)
+              "aliens": {4: ["BLOB"], 5: ["VIXEN_D"]}}          # owner 2026-10-29: BLOB in VIXEN_B's palette; VIXEN_D on OBJ 5
 # Q43: "Sensei & poet -- blend colors so closer together but matching neither." Their shared OBJ 5 palette, halfway between.
 _NP_BLEND = {"POET": ["#F8ECD8", "#D09C54", "#201410"]}
 _NP = {n: c for _l in NEW_PATRONS.values() for n, c in _l}
@@ -847,6 +849,9 @@ def field_model(v, m):
         if empty(d):
             field[fr] = dict(pat=[], oth=[], cols=d["cols"], new={}, freed=True, open=None)
 
+    for name, to in PLANS.get(v["key"], {}).get("bg", {}).items():          # held for that patron while the others are renumbered
+        if empty(field[to]):
+            field[to] = dict(field[to], open="(held)")
     pats = [(t, sl) for sl in range(8) for t, _ in m[("OBJ", sl)]["pat"]] + [(m[("OBJ", sl)]["open"], sl) for sl in range(8) if m[("OBJ", sl)]["open"]]
     if v["key"] == "cowboys":
         pats = []                                   # the game's own BG slots (users(), SALOON_LOOKS): nothing to renumber
@@ -872,6 +877,8 @@ def field_model(v, m):
     for name, to in PLANS.get(v["key"], {}).get("bg", {}).items():          # a patron's BG away from its OBJ number
         o = next(sl for sl in range(8) if any(x[0] == name for x in m[("OBJ", sl)]["pat"]))
         oc = eff(m[("OBJ", o)])
+        if field[to].get("open") == "(held)":
+            field[to]["open"] = None
         if field[to]["pat"]:
             field[to]["pat"] = field[to]["pat"] + [(name, True)]
         else:
