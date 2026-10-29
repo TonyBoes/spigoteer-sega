@@ -143,10 +143,10 @@ enum { GS_TITLE, GS_PLAYING, GS_LIFE_LOST, GS_LEVEL_CLEAR, GS_GAME_OVER, GS_PAUS
        GS_JUKEBOX,                                      // the title's BONUS: the soundtrack player (src/jukebox.c)
        GS_MGLIST };                                     // BONUS > MINI GAMES: the list (src/mg_list.c)
 
-// bartender animation states (logical: the code, the tests and Dregs's 7-frame set use these)
+// bartender animation states (logical: the code and the tests use these; both bartenders' art is 5 pictures via BT_PIC)
 enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 // Sal's art has 5 pictures (assets/art/bartender.txt: idle, walk1, walk2, fill, fail); BT_PIC(state) is the picture index.
-// SLIDE and CATCH show the FILL picture (owner decision 2026-10-20). Dregs (src/po.c) keeps his own 7 frames: no BT_PIC there.
+// SLIDE and CATCH show the FILL picture (owner decision 2026-10-20). Dregs (src/po.c) uses the same BT_PIC with his own 5 pictures.
 #define BT_PIC_FAIL     4
 #define BT_PIC(f)       ((f) <= BT_FILL ? (f) : (f) == BT_FAIL ? BT_PIC_FAIL : BT_FILL)
 
