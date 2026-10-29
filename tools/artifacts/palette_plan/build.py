@@ -79,6 +79,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
+    ("2026-10-29", "Owner: \"TOOB looks good in blips colors. Lets make that change.\" Factory: TOOB shares BLIP's OBJ 7 / BG 7; owner: \"With the freed up slot, lets make Bubble Purple again.\" BUBBLE back in his own purple on OBJ 5 / BG 5. Space BLOB front: the fish bones one pixel row lower (owner)."),
     ("2026-10-29", "Owner: \"Vixen D: Use Obj 5. Blob: Use Vixen B palette.\" Space: OBJ 4 / BG 4 is VIXEN_B's palette with BLOB; VIXEN_D shares the show dancers' OBJ 5 (no BG free yet)."),
     ("2026-10-29", "Q43 (owner): \"Musher, none--instead move cub to musher's palette. Yeti: a. Clank: B. Bubble: A. Sensei & poet -- blend colors so closer together but matching neither. Rest: I will look at palettes myself. Leave them unassigned.\" Igloo OBJ 5 is MUSHER's palette with CUB; YETI in the empty mug's OBJ 2 / BG 2. Factory CLANK in the full mug's OBJ 1 / BG 2, BUBBLE with NEKA. Teahouse SENSEI and POET share a blend on OBJ 5. MONK, VIXEN_B, VIXEN_D unassigned."),
     ("2026-10-29", "Owner: \"Auto assigned palettes to new patrons where available make suggestions for palette merges.\" Own palettes: Stadium BUGLE 4, GRIDIRON 5; Lodge RANGER 4, ANGLER 5; Bistro MIME 3; Igloo MUFFY 4, CUB 5; Chrome Cow RAVEN 4, BIKER 5; Teahouse SKATER 4, POET 5; Zoo TUCO 3, PINKY 4; Space MOTH OBJ 3 / BG 5, BLOB 4. Same colours, shared: NONNA with PIERRE, SOMMELIER with BASIL, DJ with SLICK, KITSUNE with SAKURA, ELLIE and ZIGGY with BAMBOO. TRAPPER's BG on BG 2. Merges suggested (Q43) for MUSHER, YETI, CLANK, BUBBLE, SENSEI, MONK, VIXEN_B, VIXEN_D."),
@@ -264,8 +265,8 @@ PLANS = {
     ),
     "robots": dict(
         moves=[("Show dancers", "OBJ", 5, 0, "Show dancers")], recolour={}, open={},
-        add={("OBJ", 4): ("NEKA", ["#58F0F8", "#7888A0", "#101828"]),           # Color-only 4th look on the cyan pair (the one BOXY gave up)
-             ("OBJ", 5): ("TOOB", ["#58F8A0", "#585048", "#103820"])},          # Color-only 5th look, own mint palette, in the slot the dancers free (Q13)
+        add={("OBJ", 4): ("NEKA", ["#58F0F8", "#7888A0", "#101828"])},          # Color-only 4th look on the cyan pair (the one BOXY gave up)
+        join={("OBJ", 7): ["TOOB"]},                                            # owner 2026-10-29: TOOB in BLIP's colours (was his own mint OBJ 5)
         why="Owner 2026-10-27/28: NEKA takes the cyan palette; TOOB is a mint robot with its own palette. Both Color only. Q13: the dancers share Sal's OBJ 0, freeing OBJ 5 for TOOB.",
     ),
     "aliens": dict(
@@ -303,10 +304,11 @@ AUTO_OWN = {
     "ninjas": [(4, 4, "SKATER"), (5, 5, "POET")],
     "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
     "aliens": [(3, 5, "MOTH"), (4, 4, "VIXEN_B")],
+    "robots": [(5, 5, "BUBBLE")],                 # owner 2026-10-29: "With the freed up slot, lets make Bubble Purple again."
 }
 # Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
 AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["SOMMELIER"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KITSUNE"], 5: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
-              "divers": {5: ["CUB"], 2: ["YETI"]}, "robots": {1: ["CLANK"], 4: ["BUBBLE"]},       # Q43 (owner 2026-10-29)
+              "divers": {5: ["CUB"], 2: ["YETI"]}, "robots": {1: ["CLANK"]},       # Q43 (owner 2026-10-29)
               "aliens": {4: ["BLOB"], 5: ["VIXEN_D"]}}          # owner 2026-10-29: BLOB in VIXEN_B's palette; VIXEN_D on OBJ 5
 # Q43: "Sensei & poet -- blend colors so closer together but matching neither." Their shared OBJ 5 palette, halfway between.
 _NP_BLEND = {"POET": ["#F8ECD8", "#D09C54", "#201410"]}
