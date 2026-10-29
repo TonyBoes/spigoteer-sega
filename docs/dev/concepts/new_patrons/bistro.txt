@@ -1,0 +1,59 @@
+; Bistro (group chefs, CGB wall #2a5a58) - new Color-only patron concepts, owner Q8 2026-10-28. CONCEPTS, not imported.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark). Hand-placed.
+; Each figure: a "; @fig NAME c1 c2 c3" line (indices 1-3, light to dark, RGB555-safe) and a comment line.
+; @fig SOMMELIER #f0f0e8 #c88858 #401820
+; SOMMELIER: slicked-back hair with a shine, pencil moustache, dark suit, wing collar and bow tie, silver tasting cup on a chain. Reuses chefs_c (stored #f4f0e8 is off the RGB555 grid; it lands on #f0f0e8 in hardware, written here as such).
+................
+....#######.....
+...#--#######...
+..##-#####++#...
+..######+++++#..
+..##+#+++#++#+#.
+..##+#+++#++#+#.
+...###++++++++#.
+....#+++####++#.
+....#++++++++#..
+.....#++++++#...
+...###-++-###...
+.###-#-##-#####.
+#----##--#######
+##--####-#######
+################
+
+; @fig NONNA #f8f8f0 #f0b888 #202030
+; NONNA: grandmother (woman), grey bun and hair, round glasses with glints, smile, dark dress with a white collar. Reuses chefs_a / chefs_b (white / skin / dark).
+....####........
+...#----#.......
+...#----######..
+..#-##--------#.
+..#-----------#.
+..#----+++++++#.
+..#---###+###+#.
+..#--##-###-#+#.
+..#---###+###+#.
+..##-++++++++#..
+...#+++++##++#..
+....#++++++++#..
+...###++++++###.
+.###---##---###.
+#####--##--#####
+################
+
+; @fig MIME #f8f8f8 #d83040 #181828
+; MIME: white face, tall drawn eyes, red lips, red beret, black-and-white striped shirt with a red neckerchief. NEW palette white #f8f8f8 / red #d83040 / dark #181828.
+.......#........
+....#######.....
+..##+++++++##...
+.#+++++++++++#..
+..###########...
+...#---------#..
+...#---#---#-#..
+...#---#---#-#..
+...#---#---#-#..
+...#----------#.
+....#----++--#..
+.....##-----#...
+.#---##+++##---#
+#######++#######
+#-------+------#
+################
