@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner: \"I don't need tiles used in atlas. Only those free.\" The two tiles-used stats are gone."),
+    ("2026-10-29", "Owner: \"I want gus to share emma's palette. And I want hank's palette to be emma's palette, but with the color for emma's skin in the spot where [hank's jacket] is, and the color of emma's hair where [hank's] skin is.\" GUS's own palette is EMMA's OBJ 6 (his OBJ 7 stays a swap and Big Tex's); HANK's OBJ 3 / BG 2 = #8B5231 #FFD5BD #221B1A (was #8B5231 #FFE6CD #392918), in the game."),
     ("2026-10-29", "Fix: outside the Saloon, Color bank 1 holds only another screen's leftover tiles (level.c loads the Saloon's looks there only in the Saloon); the atlas counted them as used. They are free: about 254 bank-1 BG tiles per venue."),
     ("2026-10-29", "Owner: \"Having all of the first row of pixels cleared in the patrons should free up some tiles.\" (the right column, x=15). Tile stats count 2 fewer per look: the shift-1 pose fits 2 tile columns (engine change needed)."),
     ("2026-10-29", "Owner: \"with the saloon, and the ones to come when I get there, only show the primary patron palettes up top. Have a second section for approved palette swaps somewhere below.\" Cards and the Patrons table show each look's own palette (the plan's: HANK OBJ 3, DUSTY and EMMA OBJ 6, GUS OBJ 7, ROSIE and REDD OBJ 4, MABEL and ARTIE OBJ 5, in the game's numbers); the other sal_combo palettes are in Palette swaps. Fixes ARTIE's back showing his beard and skin swapped (it was drawn in HANK's swapped palette)."),
@@ -351,8 +353,8 @@ FIELD_MOVES = [("Keg, spout", 7, 1)]
 SALOON_LOOKS = [("DUSTY", [0, 1]), ("EMMA", [3, 1, 2]), ("GUS", [1, 2]), ("HANK", [0, 1, 4]), ("ROSIE", [0, 3, 1, 2]),
                 ("REDD", [0, 3, 1, 4, 2]), ("MABEL", [0, 3, 1, 4, 2]), ("ARTIE", [0, 3, 1, 4, 2])]   # now: palette instances per look
 # Each Saloon look's own (primary) palette instance, from the plan (owner 2026-10-22): HANK's (colours 1 and 2 swapped), DUSTY with EMMA,
-# GUS, ROSIE with REDD, MABEL with ARTIE. The others in sal_combo are approved palette swaps (owner 2026-10-29: shown in their own section).
-SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 2, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
+# GUS with EMMA too (owner 2026-10-29), ROSIE with REDD, MABEL with ARTIE. The others in sal_combo are approved palette swaps (owner 2026-10-29: shown in their own section).
+SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 1, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
 INST_OBJ, INST_BG = [3, 6, 7, 4, 5], [2, 3, 4, 7, 5]      # palette instance 0-4 -> OBJ slot, BG slot (the Saloon has all 5)
 PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
 BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
@@ -1773,10 +1775,8 @@ for i, v in enumerate(venues):
     stat(len(ofree) - need_o, "free OBJ palettes", len(ofree) < need_o)
     stat(len(bfree) - need_b, "free BG palettes", len(bfree) < need_b)
     tl = planned_tiles(v, len(ident) + len(reserved))
-    stat(tl["used"], "tiles used", tl["used"] > 384)
     for k, label in (("bg", "free BG"), ("sp", "free sprite-only"), ("bg1", "free bank 1 BG"), ("sp1", "free bank 1 sprite-only"), ("fbg", "boss fight free BG")):
         stat(tl[k], label, tl[k] < 0)
-    stat(tl["dused"], "tiles used DMG", tl["dused"] > 384)
     stat(tl["dbg"], "free BG DMG", tl["dbg"] < 0)
     w('</div><details class="tdet"><summary>Tile breakdown, planned</summary><ul>%s</ul></details>' % "".join("<li>%s</li>" % esc(x) for x in tl["lines"]))
     w('<h2>Sprite palettes</h2><div class="grid">')
