@@ -40,3 +40,10 @@ Owner: "trims ok, keep slugger, gridiron, musher, and yeti. Move skater to teaho
 | Zoo | TUCO v2, ELLIE v2, ZIGGY v2, PINKY v2 |
 
 Trims: v3/trims.txt. New: v3/new.txt. Next: back views for all 26.
+
+## Backs and the Space Lounge / Factory (owner 2026-10-29)
+
+- Q23: "Backs are good in all." All 26 backs accepted: backs/backs_a.txt, backs/backs_b.txt.
+- Q24: "bubble and clank, but need 3/4 perspective. Keep moth and blob. Redo brainiac." Space Lounge: MOTH, BLOB (v4),
+  BRAINIAC redo (v5), with the planned Astronaut. Factory: BUBBLE, CLANK redrawn in 3/4 (v5), with NEKA and TOOB.
+  Dropped: CYCLOPS, STARPILOT, TELLY, WELDER. Backs for these follow once the fronts are picked.
