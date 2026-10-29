@@ -56,3 +56,4 @@ Trims: v3/trims.txt. New: v3/new.txt. Next: back views for all 26.
 - Owner 10-29: "Vixen d just needed to be mirrored. Not whatever this new one is." VIXEN_D is now VIXEN_D_OLD mirrored
   (1 px left so x=15 stays clear); the redraw is dropped. Q37 asks to confirm.
 - Q37 (owner 10-29): "Mirrored d is good." Space Lounge fronts final: MOTH, BLOB, VIXEN_B, VIXEN_D (mirrored). Backs next.
+- Q39 (owner 10-29): "backs are ok, except the blob fix you're doing." backs_c accepted; BLOB back fish bones being redrawn (read as "OK").
