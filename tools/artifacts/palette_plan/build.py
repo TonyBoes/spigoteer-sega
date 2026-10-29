@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner: stats tiles at the top turn red when the planned patrons and content do not fit a limit (palettes still to assign count against the free ones; tiles below 0 free). GLOP's back fish mirrored (owner)."),
     ("2026-10-29", "Owner renamed patrons: TOOB -> TELLY, BUBBLE -> TOOB, MUSHER -> MUSH, YETI -> FROSTI, TRAPPER -> BOONE, RANGER -> SMITH, ANGLER -> ROD, SOMMELIER -> PINOT, SLICK -> BABY, SPIKE -> PUNK, BIKER -> ROADY, BANDIT -> HARLEY, SKATER -> HANA, KITSUNE -> KON, MOTH -> MOTHMA, Astronaut -> DASH, BLOB -> GLOP, VIXEN_B -> LUNA, VIXEN_D -> VENUS, SLUGGER -> LOUIS, BUGLE -> PIPER, GRIDIRON -> TOM. Older log lines keep the old names."),
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
     ("2026-10-29", "Owner: \"Put blip in neka's palette by default.\" Factory: BLIP moves to NEKA's OBJ 4 / BG 4 (Color only); TOOB keeps the green OBJ 7 / BG 7 with the boss."),
@@ -463,15 +464,15 @@ w('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscr
 w("""<style>
 /* Layout: venue tabs, then that venue's sprite palettes (swatches + who uses them), then its background palettes. */
 :root {
-  --ground: #eef0f2; --card: #fbfcfd; --ink: #1d2126; --muted: #5d6670; --rule: #d3d9df; --accent: #1f6f8b; --free: #985a00; --now: #23824a; --plan: #7f6200;
+  --ground: #eef0f2; --card: #fbfcfd; --ink: #1d2126; --muted: #5d6670; --rule: #d3d9df; --accent: #1f6f8b; --free: #985a00; --now: #23824a; --plan: #7f6200; --over: #c0362c;
   --display: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark;
-  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; --now: #6cd18f; --plan: #f2d24b; } }
+  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; --now: #6cd18f; --plan: #f2d24b; --over: #ff7b6e; } }
 :root[data-theme="dark"] { color-scheme: dark;
-  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; --now: #6cd18f; --plan: #f2d24b; }
+  --ground: #14171b; --card: #1c2026; --ink: #e6eaee; --muted: #9aa4ae; --rule: #313840; --accent: #5fb6d4; --free: #f0a944; --now: #6cd18f; --plan: #f2d24b; --over: #ff7b6e; }
 html, body { background: var(--ground); color: var(--ink); }
 body { font-family: var(--body); font-size: 15px; line-height: 1.45; padding-inline: 16px; padding-block: 16px 40px; }
 .wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 14px; }
@@ -506,6 +507,8 @@ li.open { font-style: italic; }
 .stat b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
 .stat span { color: var(--muted); font-size: 13px; }
 .stat.plan b { color: var(--plan); }
+.stat.over { border-color: var(--over); }
+.stat.over b, .stat.over span { color: var(--over); }
 .sw { width: 20px; height: 20px; border: 1px solid rgba(0,0,0,.35); border-radius: 3px; padding: 0; margin-left: 2px; cursor: pointer; }
 .tbl { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; }
 table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
@@ -1742,17 +1745,19 @@ for i, v in enumerate(venues):
     if nx:
         w('<div class="stat plan"><b>%d</b><span>planned extra looks, Color only</span></div>' % nx)
     w('<div class="stat"><b>%d</b><span>reserved patrons</span></div>' % len(reserved))
-    w('<div class="stat"><b>%d</b><span>free OBJ palettes</span></div>' % len(ofree))
-    w('<div class="stat"><b>%d</b><span>free BG palettes</span></div>' % len(bfree))
+    # Owner 2026-10-29: a tile turns red when the plan does not fit the limit. Patrons still "to assign" take a free palette each.
+    need_o = 0 if sal else sum(1 for r in ident + reserved if r.get("obj") is None)
+    need_b = 0 if sal else sum(1 for r in ident + reserved if "bg" not in r)
+    def stat(n, label, over=False):
+        w('<div class="stat%s"><b>%d</b><span>%s</span></div>' % (" over" if over else "", n, label))
+    stat(len(ofree) - need_o, "free OBJ palettes", len(ofree) < need_o)
+    stat(len(bfree) - need_b, "free BG palettes", len(bfree) < need_b)
     tl = planned_tiles(v, len(ident) + len(reserved))
-    w('<div class="stat"><b>%d</b><span>tiles used</span></div>' % tl["used"])
-    w('<div class="stat"><b>%d</b><span>free BG</span></div>' % tl["bg"])
-    w('<div class="stat"><b>%d</b><span>free sprite-only</span></div>' % tl["sp"])
-    w('<div class="stat"><b>%d</b><span>free bank 1 BG</span></div>' % tl["bg1"])
-    w('<div class="stat"><b>%d</b><span>free bank 1 sprite-only</span></div>' % tl["sp1"])
-    w('<div class="stat"><b>%d</b><span>boss fight free BG</span></div>' % tl["fbg"])
-    w('<div class="stat"><b>%d</b><span>tiles used DMG</span></div>' % tl["dused"])
-    w('<div class="stat"><b>%d</b><span>free BG DMG</span></div>' % tl["dbg"])
+    stat(tl["used"], "tiles used", tl["used"] > 384)
+    for k, label in (("bg", "free BG"), ("sp", "free sprite-only"), ("bg1", "free bank 1 BG"), ("sp1", "free bank 1 sprite-only"), ("fbg", "boss fight free BG")):
+        stat(tl[k], label, tl[k] < 0)
+    stat(tl["dused"], "tiles used DMG", tl["dused"] > 384)
+    stat(tl["dbg"], "free BG DMG", tl["dbg"] < 0)
     w('</div><details class="tdet"><summary>Tile breakdown, planned</summary><ul>%s</ul></details>' % "".join("<li>%s</li>" % esc(x) for x in tl["lines"]))
     w('<h2>Sprite palettes</h2><div class="grid">')
     for sl in range(8):

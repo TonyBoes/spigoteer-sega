@@ -19,7 +19,7 @@ Check these before each publish:
    3 columns turn into stacked cards under 640 px (each cell labelled with its column name), never an inner scroll box.
    Long ids and hex wrap (`overflow-wrap: anywhere`). Tooltips are clamped to the screen. 16 px side gutter.
 2. **Colour has a meaning, and it is the same everywhere.** green = in the game now, amber/yellow = planned, orange
-   dashed = free slot, accent blue = links and selected tabs. Nothing else gets a colour. Bullet markers stay neutral
+   dashed = free slot, red = over a limit (Atlas stats tiles, owner 2026-10-29), accent blue = links and selected tabs. Nothing else gets a colour. Bullet markers stay neutral
    (muted); only the text of a now/planned item is coloured.
 3. **Contrast:** text at least 4.5:1 against its card and the page ground, in light AND dark mode (check the token
    pairs with a contrast script when a colour changes).
