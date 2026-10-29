@@ -79,6 +79,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
+    ("2026-10-29", "Owner: \"Put blip in neka's palette by default.\" Factory: BLIP moves to NEKA's OBJ 4 / BG 4 (Color only); TOOB keeps the green OBJ 7 / BG 7 with the boss."),
     ("2026-10-29", "Owner: \"TOOB looks good in blips colors. Lets make that change.\" Factory: TOOB shares BLIP's OBJ 7 / BG 7; owner: \"With the freed up slot, lets make Bubble Purple again.\" BUBBLE back in his own purple on OBJ 5 / BG 5. Space BLOB front: the fish bones one pixel row lower (owner)."),
     ("2026-10-29", "Owner: \"Vixen D: Use Obj 5. Blob: Use Vixen B palette.\" Space: OBJ 4 / BG 4 is VIXEN_B's palette with BLOB; VIXEN_D shares the show dancers' OBJ 5 (no BG free yet)."),
     ("2026-10-29", "Q43 (owner): \"Musher, none--instead move cub to musher's palette. Yeti: a. Clank: B. Bubble: A. Sensei & poet -- blend colors so closer together but matching neither. Rest: I will look at palettes myself. Leave them unassigned.\" Igloo OBJ 5 is MUSHER's palette with CUB; YETI in the empty mug's OBJ 2 / BG 2. Factory CLANK in the full mug's OBJ 1 / BG 2, BUBBLE with NEKA. Teahouse SENSEI and POET share a blend on OBJ 5. MONK, VIXEN_B, VIXEN_D unassigned."),
@@ -264,7 +265,9 @@ PLANS = {
         why="Owner 2026-10-25: COCO shares the full mug's palette (foam to tan).",
     ),
     "robots": dict(
-        moves=[("Show dancers", "OBJ", 5, 0, "Show dancers")], recolour={}, open={},
+        moves=[("Show dancers", "OBJ", 5, 0, "Show dancers"),
+               ("BLIP", "OBJ", 7, 4, "BLIP"), ("BLIP", "BG", 7, 4, "BLIP")],   # owner 2026-10-29: "Put blip in neka's palette by default."
+        recolour={}, open={},
         add={("OBJ", 4): ("NEKA", ["#58F0F8", "#7888A0", "#101828"])},          # Color-only 4th look on the cyan pair (the one BOXY gave up)
         join={("OBJ", 7): ["TOOB"]},                                            # owner 2026-10-29: TOOB in BLIP's colours (was his own mint OBJ 5)
         why="Owner 2026-10-27/28: NEKA takes the cyan palette; TOOB is a mint robot with its own palette. Both Color only. Q13: the dancers share Sal's OBJ 0, freeing OBJ 5 for TOOB.",
