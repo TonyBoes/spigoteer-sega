@@ -79,17 +79,17 @@
 #-----#+#-----#.
 
 ; @fig CLANK #f8e8b8 #e07838 #201008
-; CLANK back: the same rusty box head from behind, a flat back plate with a bevelled top, four rivets, a bolted hatch, the bent antenna wire, a wide shoulder box with rust streaks.
+; CLANK back: the same rusty box head from behind, a flat back plate with a bevelled top, four rivets, a flat plate with four bolts, the bent antenna wire, a wide shoulder box with rust streaks.
 ....+++.........
 ......-.........
 .......-........
 .#############..
 .#-----------#..
 .#+-+++++++-+#..
-.#++#######++#..
-.#++#-+++-#++#..
-.#++#++-++#++#..
-.#++#######++#..
+.#++-+++++-++#..
+.#+++++++++++#..
+.#+++++++++++#..
+.#++-+++++-++#..
 .#+-+++++++-+#..
 .#+++++++++++#..
 .#############..
@@ -98,19 +98,19 @@
 #+++++++++++++#.
 
 ; @fig BUBBLE #e8f0f8 #9068d8 #180830
-; BUBBLE back: the same glass dome and glowing tube from behind, collar ring, an ear disc on each side, a wind-up key in the middle of the tin back, rivets.
+; BUBBLE back: the same glass dome and glowing tube from behind, collar ring, an ear disc at each edge, a light wind-up key (ring bow and stem) on the tin back, rivets, no face.
 .....#####......
 ....#-----#.....
 ...#--+-+--#....
 ...#--+-+--#....
 ...#--+-+--#....
-...#--###--#....
+...#--+-+--#....
 .#############..
 .##+++++++++##..
-#-#++##+##++#-#.
-#-#++#-#-#++#-#.
-#-#+++###+++#-#.
-.##+++++++++##..
+#-#++-----++#-#.
+#-#++-+++-++#-#.
+#-#++-----++#-#.
+.##++++-++++##..
 .#############..
 #++++++#++++++#.
 #+-+++++++++-+#.
