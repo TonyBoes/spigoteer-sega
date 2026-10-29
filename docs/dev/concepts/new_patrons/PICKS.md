@@ -50,3 +50,4 @@ Trims: v3/trims.txt. New: v3/new.txt. Next: back views for all 26.
 - 2026-10-29: "Make blob and moth 3/4 too." Then "Drop brainiac. Give me a space vixen in his place." BRAINIAC dropped;
   SPACE VIXEN options in v5/space.txt.
 - Q28 (2026-10-29): "others look good." MOTH and BLOB 3/4, CLANK and BUBBLE 3/4 accepted (v5). Vixen pending.
+- Q31: "b is closer, refine. But give me two more variants as well." VIXEN_B2, C, D.

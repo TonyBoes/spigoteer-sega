@@ -74,3 +74,5 @@ Open owner questions (not asked here): is the clown on DMG too; what the finale 
   less like stadium." A2 in docs/dev/concepts/festival_room/A2/.
 - Q29: "make theme orange, only one set of buildings. Not the whole town. Bring back old flag and balloons." A3.
 - Dregs Q30: "h2, fuller with fewer highlights." (docs/dev/concepts/dregs_sprite_v7/a2h2b.txt)
+- Dregs Q32: "better, give me the sprite for corrections": h2b sent as a 1x PNG; owner edits it by hand.
+- Q33: "layout good but sky should be blue and buildings old color." A4 = A3 layout, A2 stage colours.
