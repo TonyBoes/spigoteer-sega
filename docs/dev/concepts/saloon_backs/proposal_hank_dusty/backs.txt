@@ -1,0 +1,117 @@
+; Back-view proposals for DUSTY (Saloon look A, DMG + Color) and HANK (Color-only look). Owner 2026-10-28: "Redo Hank and dustys back."
+; Proposal only: nothing is imported. . wall   - 1   + 2   # 3 (indices as in cowboys_back.txt / saloon_x_back.txt).
+; DUSTY must stay left-right symmetric in rows 0-11 (tests/test_cowboy_back.py): hat, head, neck.
+
+; DUSTY A
+; behind: the same cream hat as the front (the old back had a brown one), crown crease, brown band, brim; brown hair, ear bumps, neck, cream shirt with a centre seam
+.....#######....
+....#+++#+++#...
+....#+++#+++#...
+....#+++++++#...
+....#-------#...
+.###############
+.#+++++++++++++#
+..#############.
+....#-------#...
+..#-#-------#-#.
+..#-#-------#-#.
+.....#-----#....
+..#+++#-#+++#...
+.#++++#+#++++#..
+.#+++++#+++++#..
+++++++++++++++++
+
+; DUSTY B
+; behind: same hat with a dark band, his dark hair and sideburns carrying down over the collar, cream shirt with crossed suspenders
+.....#######....
+....#+++#+++#...
+....#+++#+++#...
+....#+++++++#...
+....#########...
+.###############
+.#+++++++++++++#
+..#############.
+...###########..
+..#-#########-#.
+..#-#########-#.
+....#########...
+..#+++#####+++#.
+.#++++#+#+#++++#
+.#+++++#+#+++++#
+++++++++++++++++
+
+; DUSTY C
+; behind: cream hat with a brown band, brown hair, ear bumps; a dark vest across the back with cream sleeves and a brown yoke at the collar
+.....#######....
+....#+++#+++#...
+....#+++#+++#...
+....#+++++++#...
+....#-------#...
+.###############
+.#+++++++++++++#
+..#############.
+....#-------#...
+..#-#-------#-#.
+..#-#-------#-#.
+.....#-----#....
+..#++#-----#++#.
+.#+++#######+++#
+.#+++#######+++#
+++++++++++++++++
+
+; HANK A
+; behind: the same wide cream hat with its feather (now on the right), brown hair, ear bumps, neck, cream shirt with a centre seam
+................
+......######..+-
+.....#++++++#+-.
+.....#------#-..
++++###########++
+#++++++++++++++#
+.###############
+...##########...
+...#--------#...
+..#-#------#-#..
+..#-#------#-#..
+....#------#....
+..#+++#--#+++#..
+#++++++##++++++#
+#++++++##++++++#
+++++++++++++++++
+
+; HANK B
+; behind: same hat and feather; his long dark hair and beard-side locks carry down over the collar, with a brown tie, dark vest back and cream sleeves
+................
+......######..+-
+.....#++++++#+-.
+.....#------#-..
++++###########++
+#++++++++++++++#
+.###############
+..############..
+..############..
+..############..
+..############..
+...##------##...
+..#+########+#..
+#+++########+++#
+#+++########+++#
+++++++++++++++++
+
+; HANK C
+; behind: same hat and feather; short brown hair and ear bumps, and a ponytail hanging down his back, tied with a cream knot, over a cream shirt
+................
+......######..+-
+.....#++++++#+-.
+.....#------#-..
++++###########++
+#++++++++++++++#
+.###############
+...##########...
+...#--------#...
+..#-#------#-#..
+..#-#------#-#..
+....##----##....
+..#+++#--#+++#..
+#+++++#--#++++++
+#++++++##+++++++
+++++++++++++++++
