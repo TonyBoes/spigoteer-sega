@@ -497,7 +497,7 @@ def restored(gb, theme):
         assert gb.mem(0xFF49) == 0xE4, "OBP1 is the game's (0xE4 in play)"
     g = gb.mem("cur_group")
     bg = bytes(gb.read(0x9000 + 78 * 16, 50 * 16)) + bytes(gb.read(0x8800, 102 * 16))
-    assert bg == patron_group_tiles(g), "every patron tile is back (variant C, the back views)"
+    assert bg == patron_group_tiles(g, gb), "every patron tile is back (variant C, the back views)"
     assert HUD_BG not in tilemap_row(gb, 0, 0, 20), "no boss face on the HUD"
 
 
