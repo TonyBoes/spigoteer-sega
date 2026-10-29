@@ -351,7 +351,7 @@ DROP_ENHANCED = True
 SPLIT_PLAYFIELD = True
 # Every venue (owner 2026-10-21): in the playfield the keg / spout palette moves from BG 7 to BG 1 (BG 1 is the HUD's above the playfield).
 FIELD_MOVES = [("Keg, spout", 7, 1)]
-SALOON_LOOKS = [("DUSTY", [0, 1]), ("EMMA", [3, 1, 2]), ("GUS", [1, 2]), ("HANK", [0, 1, 4]), ("ROSIE", [0, 3, 1, 2]),
+SALOON_LOOKS = [("DUSTY", [0, 1, 2]), ("EMMA", [3, 1, 2]), ("GUS", [1]), ("HANK", [0, 1, 4, 2]), ("ROSIE", [0, 3, 1, 2]),
                 ("REDD", [0, 3, 1, 4, 2]), ("MABEL", [0, 3, 1, 4, 2]), ("ARTIE", [0, 3, 1, 4, 2])]   # now: palette instances per look
 # Each Saloon look's own (primary) palette instance, from the plan (owner 2026-10-22): HANK's (colours 1 and 2 swapped), DUSTY with EMMA,
 # GUS with EMMA too (owner 2026-10-29), ROSIE with REDD, MABEL with ARTIE. The others in sal_combo are approved palette swaps (owner 2026-10-29: shown in their own section).
