@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
     ("2026-10-28", "Planned Color-only extra looks added (amber): Space Lounge Astronaut (Stadium A colours), Robot Factory NEKA (cyan) and TOOB (mint); front and back as accepted by the owner."),
     ("2026-10-27", "Saloon looks in the game (batch 2, Color): the 8 looks; built with EMMA on OBJ 6 and MABEL/ARTIE on OBJ 5 (the plan's 5 and 6 swapped)."),
     ("2026-10-27", "Factory: BOXY yellow on Color; the cyan palette goes to NEKA, a Color-only 4th robot (owner art)."),
@@ -1535,6 +1536,20 @@ def game_front(v, i):
     return accepted(v, NAMES[v["key"]][i])[0]
 
 
+# Planned fronts with column x=15 cleared (owner Q16/Q17 2026-10-29), not imported yet: docs/dev/concepts/right_column/
+TRIM = os.path.join(ROOT, "docs/dev/concepts/right_column")
+
+
+def trimmed_front(v, i, cur):
+    """Look i's planned x=15-cleared front, or None when there is none or it equals the current front."""
+    g, k = ("saloon_x", i - 3) if v["key"] == "cowboys" and i >= 3 else (v["key"], i)
+    f = os.path.join(TRIM, g + ".txt")
+    if not os.path.exists(f):
+        return None
+    rows = frames(f)[k]
+    return rows if rows != cur else None
+
+
 def back_info(v, i):
     """(rows, tag) of look i's back view: the game's current back (tag "stand-in" if it is one), or the owner-picked back
     not yet imported (tag "planned"), which replaces it."""
@@ -1613,12 +1628,16 @@ for i, v in enumerate(venues):
             dtxt = ("DMG" if r["name"].split(",")[0].strip() in dm else "") if dm else "DMG"
         first = r["name"].split(",")[0].strip().lower()
         idx = r["look"] if sal else next((k_ for k_, n_ in enumerate(NAMES[v["key"]]) if n_.split(",")[0].strip().lower() == first), None)
+        ftag = ""
         if idx is None:                                   # a reserved patron: not in the game yet, its art is the plan's
             fr, bk = accepted(v, r["name"])
             btag = "planned" if bk else ""
         else:
             fr = game_front(v, idx) if sal else accepted(v, r["name"])[0]
             bk, btag = back_info(v, idx)
+            tr = trimmed_front(v, idx, fr)
+            if tr:
+                fr, ftag = tr, "planned front"
         combos = [(cols, "")]                              # (colours, file suffix) per palette the game spawns the look in; the own palette first
         if sal:
             combos = [([hexc(c) for c in GT["inst"]["cowboys"][p]], "" if n_ == 0 else "_o%d" % INST_OBJ[p]) for n_, p in enumerate(ps)]
@@ -1637,6 +1656,8 @@ for i, v in enumerate(venues):
                 SHOWN.add((v["key"], r["look"], ps[n_]))
                 pair += '<span class="plab">OBJ %d</span>' % INST_OBJ[ps[n_]]
             img += '<div class="pp">%s</div>' % pair
+        if ftag:
+            img += '<span class="btag plan">%s</span>' % ftag
         if btag:
             img += '<span class="btag %s">%s</span>' % ("plan" if btag == "planned" else "muted", btag)
         img = '<div class="pics">%s</div>' % img
