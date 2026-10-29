@@ -79,3 +79,4 @@ Open owner questions (not asked here): is the clown on DMG too; what the finale 
 
 - 2026-10-29 (on A4): "I want orange balloons and flags in the festival stage." Variants A5a (cream slot -> orange, one palette) and A5b (second stage palette, Color crowd 5 -> 4) requested.
 - Q34 (owner 10-29): "last one, but put back in the white flags and balloons alternating with orange." A5b picked; A6 = A5b with white and orange alternating. Color crowd 4 looks, DMG 6.
+- Q40 (owner 10-29): "good." A6 is final (docs/dev/concepts/festival_room/A6/). Build next, after the Dregs import (both touch src/po.c).
