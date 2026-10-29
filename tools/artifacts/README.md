@@ -10,7 +10,6 @@ publish with that page's URL as `url`.
 | Open Questions | https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d | `tools/artifacts/open_questions/` | A hand-kept page: one card per open question, with its media in `media/`. Publish `index.html` with the media files. |
 | Graphics Atlas (formerly OBJ Palette Plan) | https://claude.ai/artifact/Ekc9oYWEQb4APdLTaqXG4H | `tools/artifacts/palette_plan/` | `python3 tools/artifacts/palette_plan/build.py` (after `make atlas`) rebuilds `index.html`. The plan, ideas and log are hand-kept in `PLAN` / `IDEAS` / `LOG` in build.py; the venue colours come from the atlas data. `build.py` also writes the patron sprites to `img/`. Publish `index.html` with `img/*.png` as files. |
 | Palette Merges | https://claude.ai/artifact/5N6u6w7ir7y3dosAMdPH43 | `tools/artifacts/palette_merges/` | `python3 tools/artifacts/palette_merges/build.py` (after `make atlas`) writes `index.html` and `img/`. The proposed merges are hand-kept in `MERGES` in build.py. Publish `index.html` with `img/*.png` as files. |
-| Review Board (an open question's items too big for Open Questions; empty when none) | https://claude.ai/artifact/SHg2h5cuTDMN5qrKfiFRho | `tools/artifacts/review_board/` | Hand-kept, like Open Questions. |
 
 ## Page rules (every page, every update; owner reads on a phone)
 
@@ -29,10 +28,14 @@ Check these before each publish:
 5. **Tap targets** at least 32 px; nothing that only works on hover (hover info also opens on tap).
 6. Every colour is a `:root` token, redefined for dark mode (both the media query and `[data-theme="dark"]`).
 
-## Retired: the old Graphics Atlas page
+## Deleted pages: the Old Atlas and the Review Board
 
-Owner, 2026-10-26: the page at https://claude.ai/artifact/RLQysU9fNNbcZR2TS8x5XZ, renamed "Old Atlas", is no longer updated; the
-Palette Plan page took its name. `make atlas` (`tools/gfx_atlas/`) still runs, because the Graphics Atlas and Palette
+Both pages were deleted from the owner's account on 2026-10-29. Their links no longer work; do not republish them.
+- Old Atlas (was https://claude.ai/artifact/RLQysU9fNNbcZR2TS8x5XZ): retired 2026-10-26, when the Palette Plan page took
+  the name Graphics Atlas.
+- Review Board (was https://claude.ai/artifact/SHg2h5cuTDMN5qrKfiFRho): its old source stays in `tools/artifacts/review_board/`.
+  Large items for an open question (animations, big sheets) now go on that question's Open Questions card.
+ `make atlas` (`tools/gfx_atlas/`) still runs, because the Graphics Atlas and Palette
 Merges builds read its `out/atlas/data`.
 
 ## Pocket Player notes

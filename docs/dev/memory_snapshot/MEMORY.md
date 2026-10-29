@@ -8,7 +8,7 @@
 - [Three modes decisions](three-modes-decisions.md) — owner answers for STORY/ARCADE/CLASSIC (lives, scores, DMG steps, slanted bars)
 - [Owner tests judgement only](owner-testing-judgement-only.md) — test lists hold look/sound/feel calls only; verify mechanics ourselves
 - [Agents: reversible actions only](agents-reversible-actions.md) — new commits/branches only; no amend/rebase/reset by agents
-- [Numbered questions only](batched-numbered-questions.md) — Qn ONLY on direct questions/decisions (restarted at Q1 2026-10-21); batch them, images under each
+- [Numbered questions only](batched-numbered-questions.md) — Qn ONLY on direct questions/decisions (restarted at Q1 2026-10-28, after Q78); batch them, images under each
 - [PyBoy audio stale row](pyboy-audio-stale-row.md) — slice ndarray[:raw_buffer_head//2] per frame or mp3s crackle; rebuild after merges
 - [PyBoy zeroed RAM](pyboy-zeroed-ram.md) — real hardware leaves HRAM junk; clear hand-placed bytes in main(), test with a junk poke
 - [Goldens: supervisor only](goldens-supervisor-only.md) — I replace goldens one by one; gb-golden-check's verdict table first, pictures for UNEXPECTED/UNSURE rows
@@ -22,8 +22,8 @@
 - [Orphan processes](orphan-processes.md) — finished agents leave CPU hogs (14 profilers ran 30 h); check ps when slow / after agents
 - [GBC enhanced direction](gbc-enhanced-direction.md) — DMG compatible + GBC enhanced (gated features, DX icon); 1 px patron steps stay
 - [Art: another pass by default](art-another-pass-default.md) — picked art gets a quality pass before import unless owner says locked
-- [Graphics atlas artifact](gfx-atlas-artifact.md) — old atlas page retired 2026-10-26; Palette Plan page is now the Graphics Atlas
-- [Review Board artifact](review-board-artifact.md) — only for an open question's item too big for Open Questions; cleared once answered
+- [Graphics atlas artifact](gfx-atlas-artifact.md) — old atlas page deleted 2026-10-29; Palette Plan page is now the Graphics Atlas
+- [Review Board artifact](review-board-artifact.md) — deleted 2026-10-29; big items for a question go on its Open Questions card
 - [Pocket Player artifact](pocket-player-artifact.md) — browser emulator page; refresh rom.js + republish same URL after merges
 - [Open Questions artifact](open-questions-artifact.md) — canonical list of open Qn with media; update + republish on every new/answered question
 - [Tokens reset Saturday](token-budget-saturday.md) — menu illustrations queued until 2026-10-24; keep heavy art work light till then
@@ -34,3 +34,7 @@
 - [Saloon patrons Sunday](saloon-patrons-sunday.md) — 8 CGB-only looks planned; build Sun 2026-10-25+, likely option 2 (shared blank column); brief in QUEUE.md
 - [Say DMG or Color](say-dmg-or-color.md) — every feature ask: say if it fits DMG or only Color; keep tile margin for late DX decorations
 - [Credits deferred](credits-deferred.md) — no credits remake until all patrons + boss art are in AND owner confirms locked; then own palettes from the plan
+- [Commits: count only](commits-count-only.md) — end replies with the number of commits to push, not hashes
+- [Worktree base stale](worktree-base-stale.md) — agent worktrees start at the pushed commit; brief them to ff-merge main first
+- [Patron right column clear](patron-right-column-clear.md) — patron fronts keep x=15 empty (owner 10-28); put it in every patron art brief
+- [Patron bottom no outline](patron-bottom-no-outline.md) — no ink line on patrons' bottom row (owner 10-29); the bar top has one

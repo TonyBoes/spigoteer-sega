@@ -1,13 +1,13 @@
 ---
 name: gfx-atlas-artifact
-description: Old Graphics Atlas page retired 2026-10-26; the Palette Plan page (Ekc9oYWEQb4APdLTaqXG4H) is now the Graphics Atlas; make atlas still feeds it
+description: Old Graphics Atlas page retired 2026-10-26, deleted 2026-10-29; the Palette Plan page (Ekc9oYWEQb4APdLTaqXG4H) is now the Graphics Atlas; make atlas still feeds it
 metadata:
   type: project
 ---
 
 Owner, 2026-10-26: "At this point we can drop the graphics atlas. I think I have all I need in the palette plan. Let's make it the new graphics atlas."
 
-- The old atlas page (https://claude.ai/artifact/RLQysU9fNNbcZR2TS8x5XZ) is no longer republished.
+- The old atlas page (was https://claude.ai/artifact/RLQysU9fNNbcZR2TS8x5XZ) was deleted 2026-10-29.
 - The Palette Plan page, same URL https://claude.ai/artifact/Ekc9oYWEQb4APdLTaqXG4H, is titled "Graphics Atlas" now.
 - `make atlas` (tools/gfx_atlas/) still runs: it writes out/atlas/data, which the new page's build.py reads.
 

@@ -1,6 +1,6 @@
 ---
 name: spigoteer-review-pages
-description: How to rebuild, update and republish Spigoteer's review pages for the owner (Graphics Atlas, formerly the Palette Plan; Pocket Player browser emulator; Open Questions; Review Board), keep their sources in the repo, and present questions and pictures the way the owner wants. Use it after any merge that changes art, palettes, screens or gameplay, whenever a numbered question is asked or answered, and whenever something must be shown to the owner, even if the brief only says "update the page".
+description: How to rebuild, update and republish Spigoteer's review pages for the owner (Graphics Atlas, formerly the Palette Plan; Pocket Player browser emulator; Open Questions), keep their sources in the repo, and present questions and pictures the way the owner wants. Use it after any merge that changes art, palettes, screens or gameplay, whenever a numbered question is asked or answered, and whenever something must be shown to the owner, even if the brief only says "update the page".
 ---
 
 # Spigoteer review pages
@@ -41,7 +41,7 @@ stacked tables on phones, one colour meaning per colour, 4.5:1 contrast in light
   Remove the card when he answers. In chat, state the question briefly and point to the page.
 - GIFs do not animate in chat: motion goes on a page. Files such as ROMs cannot be downloaded from a page: send them
   in chat, and name them on the card.
-- The Review Board is only for an open question's animation or large item that will not fit on its Open Questions card. Remove the card when the question is answered; keep no answered or reference cards (owner 2026-10-25).
+- The Review Board and the Old Atlas were deleted 2026-10-29. An open question's animations and large items go on its Open Questions card.
 - He reads on a phone: compact grids (before | after side by side, x3), never long thin strips. Build them with
   `tools/dev/contact_sheet.py`. Pictures go right under the question they belong to.
 - Bare labels on his pages: "HUD", not "HUD (score, lives)". Explanations go in chat or behind a toggle.

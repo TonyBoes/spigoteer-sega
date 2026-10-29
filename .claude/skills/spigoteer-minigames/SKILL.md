@@ -51,4 +51,4 @@ their bounding boxes (`tools/dev/golden_bbox.py`).
 
 ## Deliver for the owner
 Key screens as one contact sheet (CGB over DMG, x3) via `tools/dev/contact_sheet.py`, and a short gameplay GIF
-(under about 2 MB) for the Review Board or Open Questions page.
+(under about 2 MB) for the Open Questions page.

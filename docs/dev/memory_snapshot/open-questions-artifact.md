@@ -14,6 +14,6 @@ The Open Questions page is at https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d.
 **How to apply:**
 - Whenever I ask a new Qn or he answers one, update the page: add or remove the card, update the count and the stamp, and republish the same file path or URL.
 - In chat, still state new questions briefly and point to the page.
-- The Review Board (https://claude.ai/artifact/SHg2h5cuTDMN5qrKfiFRho) is now only for reference animations. Questions live here.
+- The Review Board was deleted 2026-10-29: animations and large items for a question go on its card here.
 
 Related: [[batched-numbered-questions]], [[review-board-artifact]].
