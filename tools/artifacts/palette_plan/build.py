@@ -81,6 +81,7 @@ LOG = [
     ("2026-10-28", "Planned Color-only extra looks added (amber): Space Lounge Astronaut (Stadium A colours), Robot Factory NEKA (cyan) and TOOB (mint); front and back as accepted by the owner."),
     ("2026-10-27", "Saloon looks in the game (batch 2, Color): the 8 looks; built with EMMA on OBJ 6 and MABEL/ARTIE on OBJ 5 (the plan's 5 and 6 swapped)."),
     ("2026-10-27", "Factory: BOXY yellow on Color; the cyan palette goes to NEKA, a Color-only 4th robot (owner art)."),
+    ("2026-10-28", "Q13 Owner: \"Dancers share.\" Factory dancers share Sal's OBJ 0; TOOB takes OBJ 5 / BG 5."),
     ("2026-10-28", "Factory: the mint robot is TOOB, a Color-only extra robot with its own palette (owner art)."),
     ("2026-10-26", "Tile pictures: hover or tap a tile for its outline and number."),
     ("2026-10-26", "Patron revision batch 1 in the game: the accepted art for 8 venues and the palette merges (colours shared; no slots freed yet)."),
@@ -253,10 +254,10 @@ PLANS = {
         why="Owner 2026-10-25: COCO shares the full mug's palette (foam to tan).",
     ),
     "robots": dict(
-        moves=[], recolour={}, open={},
-        add={("OBJ", 4): ("NEKA", ["#58F0F8", "#7888A0", "#101828"])},          # Color-only 4th look on the cyan pair (the one BOXY gave up)
-        extras=[dict(name="TOOB", cols=["#58F8A0", "#585048", "#103820"])],     # Color-only 5th look, own mint palette: no OBJ slot is free after NEKA (the dancers hold OBJ 5)
-        why="Owner 2026-10-27/28: NEKA takes the cyan palette; TOOB is a mint robot with its own palette. Both Color only.",
+        moves=[("Show dancers", "OBJ", 5, 0, "Show dancers")], recolour={}, open={},
+        add={("OBJ", 4): ("NEKA", ["#58F0F8", "#7888A0", "#101828"]),           # Color-only 4th look on the cyan pair (the one BOXY gave up)
+             ("OBJ", 5): ("TOOB", ["#58F8A0", "#585048", "#103820"])},          # Color-only 5th look, own mint palette, in the slot the dancers free (Q13)
+        why="Owner 2026-10-27/28: NEKA takes the cyan palette; TOOB is a mint robot with its own palette. Both Color only. Q13: the dancers share Sal's OBJ 0, freeing OBJ 5 for TOOB.",
     ),
     "aliens": dict(
         add={("OBJ", 6): ("Astronaut", ["#F8E0C8", "#E03830", "#301818"])},     # Color-only 4th look (Q68/Q69), Stadium A's colours (assets/palettes.json sports_a); OBJ 3 or 6 is free: OBJ 6 (BG 3 is XENO's)
