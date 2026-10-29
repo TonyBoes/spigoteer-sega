@@ -2,7 +2,7 @@
 """Dregs's late-arrival gags' art (src/dgag.c, docs/story.md running gag 1; design in docs/story.md "Dregs's exits") ->
 build/dgag_art.h (src/dgag.c's bank), build/dgag.json (tests) and the x8 sheet out/preview/dgag_x8.png.
 
-  assets/art/dregs/dregs.txt     existing (Pour-Off, PROPOSAL): frame 0 (upright) and 5 (reaching arm), 16x24 in the Spigoteer's layout
+  assets/art/dregs/dregs.txt     existing (Pour-Off, PROPOSAL): frame 0 (upright) and 3 (fill: the reaching arm), 16x24 in the Spigoteer's layout
   assets/art/monkey/monkey.txt   existing (approved): frames 1, 2, the running monkey
   assets/art/dust.txt            existing (approved): the dust puff, 3 frames of 8x16
   assets/art/dgag/*.txt          new PROPOSALS (first line says so): lying 24x16, ball 16x16, boots, hat, plate, arc, crate, saucer, beam, cooler, soda
@@ -59,7 +59,7 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
     prev.mkdir(parents=True, exist_ok=True)
     dg = ROOT / "assets/art/dgag"
-    dregs = grab(ROOT / "assets/art/dregs/dregs.txt", 7, 16, 24)
+    dregs = grab(ROOT / "assets/art/dregs/dregs.txt", 5, 16, 24)
     monkey = grab(ROOT / "assets/art/monkey/monkey.txt", 3, 16, 16)
     dust = grab(ROOT / "assets/art/dust.txt", 3, 8, 16)
     lying = grab(dg / "lying.txt", 1, 24, 16, HEADER)[0]
@@ -76,7 +76,7 @@ def main():
     arrays = {
         # set A, OBJ 56..87: dust 3 x 2, ball 4, lying 6, upright 8, reaching 8 (offsets DG_* in src/dgag.c)
         "dg_a": sum((tile_bytes(f, 0, 0) + tile_bytes(f, 0, 8) for f in dust), []) + entries(ball, 16) + entries(lying, 24)
-                + bartender_layout(dregs[0]) + bartender_layout(dregs[5]),
+                + bartender_layout(dregs[0]) + bartender_layout(dregs[3]),
         "dg_boots": pair(boots), "dg_hat": pair(hat), "dg_plate": pair(plate),
         "dg_arc": tile_bytes(arc, 0, 0) + tile_bytes(arc, 0, 8),
         "dg_crate": entries(crate, 16), "dg_saucer": entries(saucer, 16),
@@ -93,7 +93,7 @@ def main():
         lines.append("static const uint8_t %s[%d] = { %s };" % (k, len(v), ", ".join(f"0x{b:02X}" for b in v)))
     (outdir / "dgag_art.h").write_text("\n".join(lines) + "\n")
     (outdir / "dgag.json").write_text(json.dumps({k: v for k, v in arrays.items()}))
-    sheet = [dregs[0], dregs[5], lying, ball, crate, saucer, monkey[1], monkey[2]] + \
+    sheet = [dregs[0], dregs[3], lying, ball, crate, saucer, monkey[1], monkey[2]] + \
             [list(b) + ["." * 8] * 8 for b in (boots, hat, plate)] + [arc] + beam + cooler + soda
     png(sheet, prev / "dgag_x8.png", 8, transparent=True)
     print("gen_dgag: set A %d tiles, props %d" % (len(arrays["dg_a"]) // 16, sum(len(v) for k, v in arrays.items() if k != "dg_a") // 16))

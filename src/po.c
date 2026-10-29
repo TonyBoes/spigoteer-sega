@@ -36,7 +36,7 @@
 // Crowd: three looks, a table (po_crowd: patron group, variant), each loaded as its shift-0 pose and one sway pose (2 px): the
 // saloon's cowboy and cowgirl and one guest from the bistro (a chef), a mixed finale crowd: "the whole tour came".
 // BG ids: MG_BG .. the flipped keg tiles (<= 9), then PO_PAT 12 a look. CGB BG palettes 2-4 the three looks (colour 0 the wall).
-// OBJ: ids 0.. the Spigoteer, the venue's drink at 56.., the pour tiles 234.., Dregs 128-183, the DMG mug copies 184-189;
+// OBJ: ids 0.. the Spigoteer, the venue's drink at 56.., the pour tiles 234.., Dregs 128-167 (168-183 free), the DMG mug copies 184-189;
 // CGB OBJ palette 3 Dregs; DMG OBP0 the Spigoteer, OBP1 (0xE4) Dregs and the sparkle. OAM: 0-3 the Spigoteer, 4-7 Dregs,
 // 8-9 the fill glasses, 10-25 the mugs, 26 the cue ("x2", left of the patron who took a PERFECT drink; the Spigoteer stands to his
 // right). Sprites on a line: at most 10 (two bartenders 4, two glasses 2, 4 mugs a bar); the cue is left out when its lines are full.
@@ -62,8 +62,8 @@ extern uint8_t joy;
 #define D               (S.d)
 #define PO_FLIP         MG_BG                       // the left keg's flipped tiles (<= 9)
 #define PO_PAT          (MG_BG + 9)                 // 3 looks x 12 tiles (shift-0 pose, shift-2 pose)
-#define PO_DREGS        128                         // OBJ ids of Dregs's 7 frames x 8
-#define PO_DMG          (PO_DREGS + PO_DREGS_TILES) // DMG: the mug tiles with the bit planes swapped (full, empty, held empty)
+#define PO_DREGS        128                         // OBJ ids of Dregs's 5 pictures x 8 (BT_PIC maps his 7 states)
+#define PO_DMG          (PO_DREGS + 56)             // (ids 168-183, Dregs's old frames 5-6, stay free) DMG: the mug tiles with the bit planes swapped (full, empty, held empty)
 #define PO_OBP1         0xE4                        // DMG: OBP1 (Dregs: idx1 light grey, idx2 dark grey, idx3 black; the sparkle)
 #define PO_LEFT         44                          // how far left the Spigoteer may walk (Dregs stands at x 24..40)
 #define PO_DX           24                          // Dregs's x (the mirror of TAP_X: 160 - 16 - 120)
@@ -611,7 +611,7 @@ static void draw(void) {
     struct po_seat *s;
     put_bt(OAM_YOU, Y.x, BAR_TOP_Y(Y.bar) + BT_DY - Y.bob, OBJ_BARTENDER + BT_PIC(Y.frame) * BARTENDER_TILES_PER_FRAME, Y.facing, 0);
     f = D.frame;
-    put_bt(OAM_DREGS, D.x, BAR_TOP_Y(D.bar) + BT_DY, PO_DREGS + f * BARTENDER_TILES_PER_FRAME, f != BT_FILL, is_cgb ? PO_DREGS_PAL : S_PALETTE);
+    put_bt(OAM_DREGS, D.x, BAR_TOP_Y(D.bar) + BT_DY, PO_DREGS + BT_PIC(f) * BARTENDER_TILES_PER_FRAME, BT_PIC(f) != BT_FILL, is_cgb ? PO_DREGS_PAL : S_PALETTE);
     // the glasses under the spouts
     if (Y.fill || Y.hold) {
         k = Y.hold || Y.fill >= FILL_FRAMES ? 3 : Y.fill >= 2 * FILL_FRAMES / 3 ? 2 : Y.fill >= FILL_FRAMES / 3 ? 1 : 0;

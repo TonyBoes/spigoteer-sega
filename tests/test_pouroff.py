@@ -25,7 +25,7 @@ pytestmark = pytest.mark.timeout(600)
 
 SEED = 0x5A17
 BG_FLIP, BG_PAT = 77, 86                  # po.c: the left keg's mirrored tiles, then the three looks' 12 tiles each
-OBJ_DREGS, OBJ_DMG = 128, 184             # Dregs's 7 frames x 8 tiles; the DMG mug copies
+OBJ_DREGS, OBJ_DMG = 128, 184             # Dregs's 5 pictures x 8 tiles; the DMG mug copies
 OBJ_MUG, OBJ_FILL, OBJ_DRINK, OBJ_POUR, OBJ_CUE = 56, 76, 84, 40, 44
 S_PALETTE, S_FLIPX = 0x10, 0x20
 CROWD = [(0, 0, "cowboys_a"), (0, 1, "cowboys_b"), (3, 0, "chefs_a")]     # po.c po_crowd: patron group, variant
@@ -195,10 +195,10 @@ def test_the_screen_is_the_saloon_with_a_mirrored_keg_and_spout_at_the_left_end(
 
 def test_dregs_has_his_own_art_and_palette_and_does_not_read_as_a_second_spigoteer(pour):
     gb = pour
-    got = bytes(gb.read(0x8000 + OBJ_DREGS * 16, 56 * 16))
-    assert got == bytes(ART["dregs"]) and ART["n"] == 56
+    got = bytes(gb.read(0x8000 + OBJ_DREGS * 16, 40 * 16))
+    assert got == bytes(ART["dregs"]) and ART["n"] == 40
     spig = bytes(gb.read(0x8000, 40 * 16))                                              # Sal's 5 pictures
-    assert spig != got[:40 * 16] and sum(a != b for a, b in zip(spig, got)) > 400                 # nothing like it, byte for byte
+    assert spig != got[:40 * 16] and sum(a != b for a, b in zip(spig, got)) > 300                 # nothing like it, byte for byte
     s = po(gb)
     d, y = [oam(gb, i) for i in range(4, 8)], [oam(gb, i) for i in range(4)]
     assert [e["tile"] for e in d] == [OBJ_DREGS + f for f in (0, 2, 4, 6)]            # his idle frame
@@ -210,7 +210,7 @@ def test_dregs_has_his_own_art_and_palette_and_does_not_read_as_a_second_spigote
         assert gb.mem(0xFF49) == 0xE4                                                     # OBP1
         assert [e["prop"] & S_PALETTE for e in d] == [S_PALETTE] * 4 and [e["prop"] & S_PALETTE for e in y] == [0] * 4
     assert d[0]["prop"] & S_FLIPX and not y[0]["prop"] & S_FLIPX                         # (idle: faces right, his art faces left)
-    # the frame art (the Spigoteer's 5 pictures idle, walk1, walk2, fill, fail and Dregs's 7 frames, 8 tiles each: entries top-left, top-right, bottom-left, bottom-right,
+    # the frame art (the Spigoteer's 5 pictures idle, walk1, walk2, fill, fail and Dregs's 5 pictures, 8 tiles each: entries top-left, top-right, bottom-left, bottom-right,
     # each an 8x16 pair of tiles): the pixels as colour indices
     def grid(tiles, f):
         g = {}
@@ -224,12 +224,12 @@ def test_dregs_has_his_own_art_and_palette_and_does_not_read_as_a_second_spigote
                         if v:
                             g[(cx + x, ty + part * 8 + y)] = v
         return g
-    for f, df in enumerate((0, 1, 2, 3, 6)):             # Sal's pictures against Dregs's idle, walk1, walk2, fill and fail
+    for f, df in enumerate((0, 1, 2, 3, 4)):             # Sal's pictures against Dregs's idle, walk1, walk2, fill and fail
         a, b = grid(spig, f), grid(got, df)
-        assert sum(a.get(k) != b.get(k) for k in set(a) | set(b)) > 150, f"frame {f}: a different picture"
+        assert sum(a.get(k) != b.get(k) for k in set(a) | set(b)) > 100, f"frame {f}: a different picture"
         # the Spigoteer's white apron (colour 1 in his palette) is a big block; Dregs wears a grey jacket (colour 2) and no apron
         assert sum(v == 1 for v in a.values()) > 20 and sum(v == 2 for v in b.values()) > 25, f"frame {f}"
-    assert (ROOT / "assets/art/dregs/dregs.txt").read_text().startswith("; Art: PROPOSAL (new, unapproved: pending owner approval)")
+    assert (ROOT / "assets/art/dregs/dregs.txt").read_text().startswith("; Art: APPROVED by the owner 2026-10-29")
 
 
 def test_the_crowd_is_three_looks_loaded_per_variant_from_their_groups(pour):

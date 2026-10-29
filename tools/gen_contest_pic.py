@@ -4,7 +4,7 @@
 Derived from finale_a.txt (its key, its tiles) with no new art: the picture's own Spigoteer and Dregs (the first pour) are repainted away -- the
 fountain basin's right end is the left half mirrored about the pillar (x = 104) and the rest is sky, which also takes the raised hand and the
 stream's end -- and the game's own idle sprites stand there instead, facing each other: the Spigoteer (assets/art/bartender.txt, frame 1,
-flipped) and Dregs (assets/art/dregs/dregs.txt, frame 1). The Golden Spigot is not poured from; the ten owners' heads along the bottom stay.
+flipped) and Dregs (assets/art/dregs/dregs.txt, frame 0). The Golden Spigot is not poured from; the ten owners' heads along the bottom stay.
 The sprites' colours are the picture's own keys: white = the sky's colour 'W', skin 'S', grey 'm', ink '#'.
 
     python3 tools/gen_contest_pic.py          rewrites assets/story/pictures/finale_contest.txt
