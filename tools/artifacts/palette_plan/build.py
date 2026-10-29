@@ -79,6 +79,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
+    ("2026-10-29", "Owner: \"Put slugger in the reserved patron color slot in stadium. Frank shares Pete's palette.\" Stadium: SLUGGER in OBJ 2, FRANK in OBJ 1 with PETE."),
     ("2026-10-29", "Owner: \"None of my new patrons are in the atlas.\" The 32 picked Color-only patrons (Stadium 4, Lodge 3, Bistro 3, Igloo 4, Chrome Cow 3, Teahouse 5, Zoo 4, Space 4, Factory 2) added as planned looks with their backs; palettes to assign."),
     ("2026-10-28", "Planned Color-only extra looks added (amber): Space Lounge Astronaut (Stadium A colours), Robot Factory NEKA (cyan) and TOOB (mint); front and back as accepted by the owner."),
     ("2026-10-27", "Saloon looks in the game (batch 2, Color): the 8 looks; built with EMMA on OBJ 6 and MABEL/ARTIE on OBJ 5 (the plan's 5 and 6 swapped)."),
@@ -214,7 +215,8 @@ PLANS = {
         moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Cheerleaders"),
                ("NORM", "OBJ", 6, 0, "NORM, the ref")],
         recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 4): "OBJ 0"},
-        open={("OBJ", 2): "Reserved patron"},
+        open={},
+        join={("OBJ", 2): ["SLUGGER"], ("OBJ", 1): ["FRANK"]},   # owner 2026-10-29: SLUGGER takes the reserved patron slot; FRANK shares PETE's
         field_moves=[("Keg, spout", 1, 0)],          # playfield: BG 0 takes BG 1's (keg / spout) palette and the keg / spout share it
         why="Owner 2026-10-21: OBJ 1's white pushed toward tan serves PETE and the cheerleaders; NORM uses Sal's OBJ 0; OBJ 2 gets the same push and becomes a patron palette.",
     ),
@@ -287,7 +289,8 @@ NEW_PATRONS = {
 }
 for _v, _l in NEW_PATRONS.items():
     EXTRA_LOOKS.setdefault(_v, []).extend(n for n, _ in _l)
-    PLANS[_v].setdefault("extras", []).extend(dict(name=n, cols=c) for n, c in _l)
+    _joined = [n for ns in PLANS[_v].get("join", {}).values() for n in ns]          # given a palette slot: listed there, not as an extra
+    PLANS[_v].setdefault("extras", []).extend(dict(name=n, cols=c) for n, c in _l if n not in _joined)
 # Planned removals (struck through, yellow). Owner 2026-10-21: drop the enhanced looks (M14a) after the next patron revision.
 DROP_ENHANCED = True
 # Owner 2026-10-21: the BG palettes used above the playfield are reloaded where the playfield starts (row 5), so in the playfield
