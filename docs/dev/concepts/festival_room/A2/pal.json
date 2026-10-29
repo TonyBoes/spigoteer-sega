@@ -1,0 +1,6 @@
+{
+ "stage_a": {"hex": ["#d0ecf8", "#f0c048", "#a090b0", "#201828"]},
+ "stage_b": {"hex": ["#d0ecf8", "#f0c048", "#a090b0", "#201828"], "_note": "unused: ONE stage palette (attr all 0); BG slot 6 stays free for a crowd look"},
+ "bar": {"hex": ["#3c3454", "#f8ecc0", "#e8a828", "#201828"], "_note": "index 0 = wall colour behind patrons"},
+ "bar_b": {"hex": ["#3c3454", "#f8ecc0", "#e8a828", "#201828"], "_note": "unused (bar_attr all 0): BG slot 7 stays free for a crowd look"}
+}
