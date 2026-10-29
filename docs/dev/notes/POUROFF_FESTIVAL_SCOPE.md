@@ -72,3 +72,5 @@ Open owner questions (not asked here): is the clown on DMG too; what the finale 
   festival room (story_pic_finale goldens move then).
 - Q26: "a is better, but include background buildings from the story scenes. Don't need giant booth. Change color so
   less like stadium." A2 in docs/dev/concepts/festival_room/A2/.
+- Q29: "make theme orange, only one set of buildings. Not the whole town. Bring back old flag and balloons." A3.
+- Dregs Q30: "h2, fuller with fewer highlights." (docs/dev/concepts/dregs_sprite_v7/a2h2b.txt)
