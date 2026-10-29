@@ -451,7 +451,7 @@ def card(kind, sl, d, skip0, hide_cols=False):
 
 S = []
 w = S.append
-w('<title>Graphics Atlas</title>')
+w('<title>Atlas</title>')
 w('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>')
 w('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">')
 w("""<style>
