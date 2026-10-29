@@ -1,0 +1,19 @@
+; POLLY front (Igloo B), face pass in the PETE/NORM/SERENA style (proposal 2026-10-29); hood, fur trim and parka kept pixel for pixel
+; changed: rows 4-8 inside the hood ring only (noisy row-4 marks -> one short dark fringe at the hood's top left; eyes 1x2 at x8/x11;
+; nose bump x14 removed; dark mouth -> mid '+' on row 8)
+....#######.....
+..##+++++++##...
+.#++-+-+-+-+-#..
+.#+-+#######+#..
+#+-+###------#..
+#++##---#--#-#..
+#+-#----#--#-#..
+#++#---------#..
+#+-+#----++-#...
+#++++#######+#..
+.#+++##+++##++#.
+.#+++##+++##++#.
+#++++--+++--+++#
+#++++##+++##+++#
+#+++++++++++++##
+#+++++++++++++##

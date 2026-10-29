@@ -1,0 +1,18 @@
+; MUSH front (Igloo, Color-only), face pass in the PETE/NORM/SERENA style (proposal 2026-10-29); fur hood, white beard and coat kept
+; changed: row 6 only (white brows over the eyes removed: no brows); eyes, beard and the tan mouth in the beard already fit
+...######.......
+..#++++++##.....
+.#+++-+--+-#....
+.#++--------#...
+#++----------#..
+#++---+++++--#..
+#++--+++++++-#..
+#++--++#++#+-#..
+#++--++#++#+-#..
+#++--+++++++-#..
+#+++#-------##..
+.#++#---++--#...
+.###+#-----###..
+#+++#++---+#++#.
+#++++#+++++#++#.
+#----#+++++#--#.
