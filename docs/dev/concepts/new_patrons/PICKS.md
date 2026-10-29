@@ -47,3 +47,5 @@ Trims: v3/trims.txt. New: v3/new.txt. Next: back views for all 26.
 - Q24: "bubble and clank, but need 3/4 perspective. Keep moth and blob. Redo brainiac." Space Lounge: MOTH, BLOB (v4),
   BRAINIAC redo (v5), with the planned Astronaut. Factory: BUBBLE, CLANK redrawn in 3/4 (v5), with NEKA and TOOB.
   Dropped: CYCLOPS, STARPILOT, TELLY, WELDER. Backs for these follow once the fronts are picked.
+- 2026-10-29: "Make blob and moth 3/4 too." Then "Drop brainiac. Give me a space vixen in his place." BRAINIAC dropped;
+  SPACE VIXEN options in v5/space.txt.
