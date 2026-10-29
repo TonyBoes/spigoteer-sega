@@ -79,6 +79,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
+    ("2026-10-29", "Q43 (owner): \"Musher, none--instead move cub to musher's palette. Yeti: a. Clank: B. Bubble: A. Sensei & poet -- blend colors so closer together but matching neither. Rest: I will look at palettes myself. Leave them unassigned.\" Igloo OBJ 5 is MUSHER's palette with CUB; YETI in the empty mug's OBJ 2 / BG 2. Factory CLANK in the full mug's OBJ 1 / BG 2, BUBBLE with NEKA. Teahouse SENSEI and POET share a blend on OBJ 5. MONK, VIXEN_B, VIXEN_D unassigned."),
     ("2026-10-29", "Owner: \"Auto assigned palettes to new patrons where available make suggestions for palette merges.\" Own palettes: Stadium BUGLE 4, GRIDIRON 5; Lodge RANGER 4, ANGLER 5; Bistro MIME 3; Igloo MUFFY 4, CUB 5; Chrome Cow RAVEN 4, BIKER 5; Teahouse SKATER 4, POET 5; Zoo TUCO 3, PINKY 4; Space MOTH OBJ 3 / BG 5, BLOB 4. Same colours, shared: NONNA with PIERRE, SOMMELIER with BASIL, DJ with SLICK, KITSUNE with SAKURA, ELLIE and ZIGGY with BAMBOO. TRAPPER's BG on BG 2. Merges suggested (Q43) for MUSHER, YETI, CLANK, BUBBLE, SENSEI, MONK, VIXEN_B, VIXEN_D."),
     ("2026-10-29", "Owner: \"Trapper can use Sasquatch palette\" Lumber Lodge: TRAPPER in OBJ 1 with the Sasquatch and the full mug."),
     ("2026-10-29", "Owner: \"Put slugger in the reserved patron color slot in stadium. Frank shares Pete's palette.\" Stadium: SLUGGER in OBJ 2, FRANK in OBJ 1 with PETE."),
@@ -296,15 +297,19 @@ AUTO_OWN = {
     "sports": [(4, 4, "BUGLE"), (5, 5, "GRIDIRON")],
     "lumberjacks": [(4, 4, "RANGER"), (5, 5, "ANGLER")],
     "chefs": [(3, 3, "MIME")],
-    "divers": [(4, 4, "MUFFY"), (5, 5, "CUB")],
+    "divers": [(4, 4, "MUFFY"), (5, 5, "MUSHER")],
     "punks": [(4, 4, "RAVEN"), (5, 5, "BIKER")],
     "ninjas": [(4, 4, "SKATER"), (5, 5, "POET")],
     "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
     "aliens": [(3, 5, "MOTH"), (4, 4, "BLOB")],
 }
 # Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
-AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["SOMMELIER"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KITSUNE"]}, "zoo": {6: ["ELLIE", "ZIGGY"]}}
+AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["SOMMELIER"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KITSUNE"], 5: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
+              "divers": {5: ["CUB"], 2: ["YETI"]}, "robots": {1: ["CLANK"], 4: ["BUBBLE"]}}       # Q43 (owner 2026-10-29)
+# Q43: "Sensei & poet -- blend colors so closer together but matching neither." Their shared OBJ 5 palette, halfway between.
+_NP_BLEND = {"POET": ["#F8ECD8", "#D09C54", "#201410"]}
 _NP = {n: c for _l in NEW_PATRONS.values() for n, c in _l}
+_NP.update(_NP_BLEND)
 for _v, _l in AUTO_OWN.items():
     for _o, _b, _n in _l:
         PLANS[_v].setdefault("add", {})[("OBJ", _o)] = (_n, _NP[_n])
@@ -315,6 +320,7 @@ for _v, _d in AUTO_SHARE.items():
         PLANS[_v].setdefault("join", {}).setdefault(("OBJ", _o), []).extend(_ns)
 PLANS["chefs"].setdefault("bg", {})["NONNA"] = 2                  # PIERRE and BRIE's BG 2 (OBJ 0 is Sal's)
 PLANS["lumberjacks"].setdefault("bg", {})["TRAPPER"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
+PLANS["robots"].setdefault("bg", {})["CLANK"] = 2                 # Q43 B: the full mug's OBJ 1; BG 1 is the keg's
 for _v, _l in NEW_PATRONS.items():
     EXTRA_LOOKS.setdefault(_v, []).extend(n for n, _ in _l)
     _joined = [n for ns in PLANS[_v].get("join", {}).values() for n in ns] + [a[0] for a in PLANS[_v].get("add", {}).values()]   # given a palette slot: listed there, not as an extra
