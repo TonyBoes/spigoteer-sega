@@ -1,0 +1,55 @@
+; PROPOSAL (owner rule 2026-10-28, Q16 2026-10-29): chefs fronts with the rightmost column x=15 empty (index 0).
+; Same format as assets/art/patrons/chefs.txt (front grids only, a..); copy over when the owner picks. Palettes and index roles unchanged.
+; CHEFS A: x15 gone: the right cuff section of the jacket (rows 12-14) narrowed from 2 - to 1, the seam # now x14; row 15 is the counter line.
+....--------#...
+...---+--+---#..
+...---+--+---#..
+...#--+--+---#..
+....--------#...
+....###########.
+....+++++++++#..
+....++++#++#+#..
+....++++++++#+#.
+....#++++###++#.
+.....+++++++#...
+...--##-##-##-#.
+..---#--##--#-#.
+..---#--##--#-#.
+..---#--##--#-#.
+###############.
+
+; CHEFS B: x15 gone: one - dropped from the right of the apron rows 12-14, edge # now x14; row 15 is the counter line.
+................
+.....-#-#-#--#..
+..###-#-#-#--#..
+..####--------#.
+..####-------#..
+...###########..
+....##+++++++#..
+....##++#++#+#..
+....##++++++++#.
+....+++++##+#...
+....+++++++#....
+...-##-#-#-#-#..
+..-----###----#.
+..------#-----#.
+..------------#.
+###############.
+
+; CHEFS C: x15 gone: one # dropped from the apron centre of row 13 and one - from row 14, keeping the +- sleeve highlights on both sides; right edge now x14.
+....########....
+...#--------#...
+..#---------+#..
+..#--------++#..
+..############..
+...##++++++++#..
+...##+#+++#++#..
+...#++#+++#++#..
+...#+++++++++#..
+...#++#--#+++#..
+....#+++++++#...
+...#-##+++##-#..
+..#--#######--#.
+.#+-########-+#.
+.#+-##----##-+#.
+###############.

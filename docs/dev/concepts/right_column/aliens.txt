@@ -1,0 +1,55 @@
+; PROPOSAL (owner rule 2026-10-28, Q16 2026-10-29): aliens fronts with the rightmost column x=15 empty (index 0).
+; Same format as assets/art/patrons/aliens.txt (front grids only, a..); copy over when the owner picks. Palettes and index roles unchanged.
+; ALIENS A: x15 gone: the right shoulder (rows 14-15) tucked in 1 px; row 14 loses one - from the last block, row 15 is the counter line x0..x14.
+.###.....###....
+#---#...#---#...
+#--##...#--##...
+#---#...#---#...
+.#+#.....#+#....
+..#+#...#+#.....
+..##+####+##....
+.#++++++++++#...
+#++++++++++++#..
+#+++++++++++++#.
+#+++++#+++++#+#.
+.#+++++######-#.
+..##++++++++##..
+.#--#++++++#--#.
+#----#----#---#.
+###############.
+
+; ALIENS B: x15 gone: the right shoulder outline steps in 1 px (row 13 ## becomes #, row 14 gets a # edge at x14 where it used to run off the canvas), row 15 is the counter line.
+.....##+++##....
+....#+++++++#...
+...#-----++++#..
+..#+-----+++++#.
+..##----++++++#.
+...###++++++++#.
+..#+####++++##..
+..#++####++##+#.
+...#+++##+##+#..
+....#++++++++#..
+.....#+++++++#..
+......#+++###...
+....###++++###..
+..##++++++++++#.
+.#++++++++++++#.
+###############.
+
+; ALIENS C: x15 gone: the 15-px head box becomes 14 px (one + dropped from the left fill of rows 4-8 so the visor frame and the right edge move in together, now x1..x14 like rows 3 and 9); the stub of a 4th leg at x15 (rows 14-15) and the lone + at x14 of rows 11-12 removed; row 13 hem ends x14 (a 1 px flare either side of the body, as before).
+................
+....#########...
+..###+++++++###.
+.#++--++++++++#.
+.#+-++######++#.
+.#+++#------#+#.
+.#+++#---##-#+#.
+.#+++#---##-#+#.
+.#++++######++#.
+..#+++++++++++#.
+..#++++++++++#..
+.#++#++#++#++#..
+.#++#++#++#++#..
+#+-+#+-+#+-+#+#.
+#++#.#++#.#++#..
+.##...##...##...
