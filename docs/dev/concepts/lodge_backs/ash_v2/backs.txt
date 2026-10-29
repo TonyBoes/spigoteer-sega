@@ -1,0 +1,62 @@
+; ASH back, round 2 (owner 2026-10-28: "ash redo with shorter neck and non triangle hat."). PROPOSALS ONLY, nothing imported.
+; Symbols: . wall (index 0)   - index 1 green   + index 2 skin   # index 3 dark.  Palette lumberjacks_c (#389040 #906800 #102810).
+; Hand-placed grids; scripts only render and check. Order: A, B, C.
+; Hat: 12 px wide (x2-x13), the same width as the front's brim row (12 px); crown has a flat top and rounded corners (no point); checker band on the brim row, as the front.
+; Head symmetric about the gap between columns 7 and 8; ears at x2 and x13 in skin; hair dark; jacket green with arm seams.
+; Neck: A none (collar meets the hair), B one row, C one row.
+; clean-up log: (A) top run 6 then steps 2,1 then straight (was +1 per row to the brim); band gap pixels centred (x7,x8);
+;   nape row 9 6 wide between collar greens (hair meets collar). (B) top run 8, chamfer 1,1; neck 4 px skin, one row.
+;   (C) top run 6 like A, panel ribs at x5 and x10 instead of a seam; hair 3 rows, neck 2 px one row, dark collar row.
+; A: dome, centre seam, hair straight onto the collar, no neck
+.....######.....
+...##---#--##...
+..#-----#----#..
+..#-----#----#..
+..#-----#----#..
+..#-#-#--#-#-#..
+..+##########+..
+..+##########+..
+....########....
+..#--######--#..
+.#------------#.
+.#-#--------#-#.
+.#-#---#----#-#.
+.#-#--------#-#.
+.#-#--------#-#.
+.##############.
+
+; B: flat crown with chamfered corners, plain, one row of neck
+....########....
+...#--------#...
+..#----------#..
+..#----------#..
+..#----------#..
+..#-#-#--#-#-#..
+..+##########+..
+..+##########+..
+....########....
+.....#++++#.....
+..#---####---#..
+.#------------#.
+.#-#--------#-#.
+.#-#--------#-#.
+.#-#--------#-#.
+.##############.
+
+; C: dome with two ribs, longer hair, one narrow neck row, dark collar
+.....######.....
+...##------##...
+..#--#----#--#..
+..#--#----#--#..
+..#--#----#--#..
+..#-#-#--#-#-#..
+..+##########+..
+..+##########+..
+...##########...
+....########....
+......#++#......
+..#--######--#..
+.#------------#.
+.#-#--------#-#.
+.#-#--------#-#.
+.##############.
