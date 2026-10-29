@@ -132,6 +132,8 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
   - Patrons appear in their own (original) palettes, as listed in the Palette Plan, not in variant recolours.
   - The names follow the plan (Saloon: DUSTY, HANK, ROSIE the singer, REDD, EMMA, MABEL, ARTIE, GUS).
   - tools/gen_credits.py PATRONS and the credits' patron band change with it.
+  - Owner 2026-10-29 renames in the game: Chrome Cow SPIKE -> PUNK, BANDIT -> HARLEY, SLICK -> BABY (tools/gen_credits.py PATRONS,
+    the src/po.c comment). The new patrons' names are in docs/dev/concepts/new_patrons/PICKS.md ("Names").
 - The earlier "Saloon credits (when imported)" notes in this queue belong to this deferred task.
 - Owner 2026-10-22: GUS ALWAYS TIPS, in ARCADE and STORY only; CLASSIC is unchanged. (He is "the rarest patron"; a prospector with gold.)
   - In src/patrons.c maybe_tip, skip the tip_chance roll for GUS. Ideally draw no random number either, to keep the other patrons' sequences stable. Check whether goldens move.

@@ -57,3 +57,11 @@ Trims: v3/trims.txt. New: v3/new.txt. Next: back views for all 26.
   (1 px left so x=15 stays clear); the redraw is dropped. Q37 asks to confirm.
 - Q37 (owner 10-29): "Mirrored d is good." Space Lounge fronts final: MOTH, BLOB, VIXEN_B, VIXEN_D (mirrored). Backs next.
 - Q39 (owner 10-29): "backs are ok, except the blob fix you're doing." backs_c accepted; BLOB back fish bones being redrawn (read as "OK").
+
+## Names (owner 2026-10-29)
+
+TOOB -> TELLY, BUBBLE -> TOOB, MUSHER -> MUSH, YETI -> FROSTI, TRAPPER -> BOONE, RANGER -> SMITH, ANGLER -> ROD,
+SOMMELIER -> PINOT, SLICK -> BABY, SPIKE -> PUNK, BIKER -> ROADY, BANDIT -> HARLEY, SKATER -> HANA, KITSUNE -> KON,
+MOTH -> MOTHMA, ASTRONAUT -> DASH, BLOB -> GLOP, VIXEN_B -> LUNA, VIXEN_D -> VENUS, SLUGGER -> LOUIS, BUGLE -> PIPER,
+GRIDIRON -> TOM. The concept files above keep the old names; the Atlas plan (tools/artifacts/palette_plan) uses the new ones.
+GLOP's back: the fish redrawn to match his front (rows 11-13), owner 10-29.

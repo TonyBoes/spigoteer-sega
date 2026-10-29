@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner renamed patrons: TOOB -> TELLY, BUBBLE -> TOOB, MUSHER -> MUSH, YETI -> FROSTI, TRAPPER -> BOONE, RANGER -> SMITH, ANGLER -> ROD, SOMMELIER -> PINOT, SLICK -> BABY, SPIKE -> PUNK, BIKER -> ROADY, BANDIT -> HARLEY, SKATER -> HANA, KITSUNE -> KON, MOTH -> MOTHMA, Astronaut -> DASH, BLOB -> GLOP, VIXEN_B -> LUNA, VIXEN_D -> VENUS, SLUGGER -> LOUIS, BUGLE -> PIPER, GRIDIRON -> TOM. Older log lines keep the old names."),
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
     ("2026-10-29", "Owner: \"Put blip in neka's palette by default.\" Factory: BLIP moves to NEKA's OBJ 4 / BG 4 (Color only); TOOB keeps the green OBJ 7 / BG 7 with the boss."),
     ("2026-10-29", "Owner: \"TOOB looks good in blips colors. Lets make that change.\" Factory: TOOB shares BLIP's OBJ 7 / BG 7; owner: \"With the freed up slot, lets make Bubble Purple again.\" BUBBLE back in his own purple on OBJ 5 / BG 5. Space BLOB front: the fish bones one pixel row lower (owner)."),
@@ -200,7 +201,7 @@ NAMES = {
     "chefs": ["PIERRE", "BRIE", "BASIL"],
     "divers": ["IGGY, the parka man", "POLLY, the parka girl", "MOOSE, the big parka"],
     "robots": ["BOXY", "VOLTA", "BLIP"],
-    "punks": ["SPIKE, pink mohawk", "BANDIT, green bandana", "SLICK, blue quiff"],
+    "punks": ["PUNK, pink mohawk", "HARLEY, green bandana", "BABY, blue quiff"],
     "ninjas": ["KAGE", "SAKURA", "RONIN"],
     "zoo": ["COCO, the monkey", "BAMBOO, the panda", "MUDDY, the hippo"],
     "aliens": ["ZORP, eye stalks", "XENO, the grey one", "GLORP, the squid"],
@@ -222,7 +223,7 @@ PLANS = {
                ("NORM", "OBJ", 6, 0, "NORM, the ref")],
         recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 4): "OBJ 0"},
         open={},
-        join={("OBJ", 2): ["SLUGGER"], ("OBJ", 1): ["FRANK"]},   # owner 2026-10-29: SLUGGER takes the reserved patron slot; FRANK shares PETE's
+        join={("OBJ", 2): ["LOUIS"], ("OBJ", 1): ["FRANK"]},   # owner 2026-10-29: LOUIS takes the reserved patron slot; FRANK shares PETE's
         field_moves=[("Keg, spout", 1, 0)],          # playfield: BG 0 takes BG 1's (keg / spout) palette and the keg / spout share it
         why="Owner 2026-10-21: OBJ 1's white pushed toward tan serves PETE and the cheerleaders; NORM uses Sal's OBJ 0; OBJ 2 gets the same push and becomes a patron palette.",
     ),
@@ -231,7 +232,7 @@ PLANS = {
         moves=[("Show dancers", "OBJ", 5, 1, "Sasquatch"), ("WILLOW", "OBJ", 6, 3, "WILLOW, red hair"), ("WILLOW", "BG", 3, 2, "WILLOW, red hair")],
         recolour={},
         open={},
-        join={("OBJ", 1): ["TRAPPER"]},   # owner 2026-10-29: TRAPPER shares the Sasquatch's palette
+        join={("OBJ", 1): ["BOONE"]},   # owner 2026-10-29: BOONE shares the Sasquatch's palette
         why="Owner 2026-10-25: the Sasquatch shares the full mug (foam to cream); CEDAR and WILLOW share CEDAR's palette (WILLOW's navy goes).",
     ),
     "chefs": dict(
@@ -250,7 +251,7 @@ PLANS = {
         moves=[("Show dancers", "OBJ", 5, 6, "The band")],
         recolour={("BG", 3): "OBJ 6"},
         open={},
-        why="Owner 2026-10-25: the band shares BANDIT's palette.",
+        why="Owner 2026-10-25: the band shares HARLEY's palette.",
     ),
     "ninjas": dict(
         moves=[("Show dancers", "OBJ", 5, 6, "Taiko drummer")],
@@ -269,11 +270,11 @@ PLANS = {
                ("BLIP", "OBJ", 7, 4, "BLIP"), ("BLIP", "BG", 7, 4, "BLIP")],   # owner 2026-10-29: "Put blip in neka's palette by default."
         recolour={}, open={},
         add={("OBJ", 4): ("NEKA", ["#58F0F8", "#7888A0", "#101828"])},          # Color-only 4th look on the cyan pair (the one BOXY gave up)
-        join={("OBJ", 7): ["TOOB"]},                                            # owner 2026-10-29: TOOB in BLIP's colours (was his own mint OBJ 5)
-        why="Owner 2026-10-27/28: NEKA takes the cyan palette; TOOB is a mint robot with its own palette. Both Color only. Q13: the dancers share Sal's OBJ 0, freeing OBJ 5 for TOOB.",
+        join={("OBJ", 7): ["TELLY"]},                                            # owner 2026-10-29: TELLY in BLIP's colours (was his own mint OBJ 5)
+        why="Owner 2026-10-27/28: NEKA takes the cyan palette; TELLY is a mint robot with its own palette. Both Color only. Q13: the dancers share Sal's OBJ 0, freeing OBJ 5 for TELLY.",
     ),
     "aliens": dict(
-        add={("OBJ", 6): ("Astronaut", ["#F8E0C8", "#E03830", "#301818"])},     # Color-only 4th look (Q68/Q69), Stadium A's colours (assets/palettes.json sports_a); OBJ 3 or 6 is free: OBJ 6 (BG 3 is XENO's)
+        add={("OBJ", 6): ("DASH", ["#F8E0C8", "#E03830", "#301818"])},     # Color-only 4th look (Q68/Q69), Stadium A's colours (assets/palettes.json sports_a); OBJ 3 or 6 is free: OBJ 6 (BG 3 is XENO's)
         moves=[("ZORP", "OBJ", 3, 1, "ZORP, eye stalks"), ("XENO", "OBJ", 6, 2, "XENO, the grey one")],
         recolour={("BG", 2): "OBJ 1", ("BG", 3): "OBJ 2"},
         open={},
@@ -282,37 +283,37 @@ PLANS = {
 }
 # Color-only extra looks that are PLANNED, not in the game (Q68-Q78): listed in amber and counted as planned. Their art is art/<venue>_<name>.txt
 # (+ _back.txt), copied from docs/dev/concepts. The game_truth / self_check "now" checks never see them: they are not in NAMES, users() or the capture.
-EXTRA_LOOKS = {"aliens": ["Astronaut"], "robots": ["NEKA", "TOOB"]}
+EXTRA_LOOKS = {"aliens": ["DASH"], "robots": ["NEKA", "TELLY"]}
 # The owner's new Color-only patrons (picks 2026-10-29, docs/dev/concepts/new_patrons/PICKS.md), not imported yet: planned, no OBJ slot
 # yet. Fronts and backs copied into art/<venue>_<name>(_back).txt; colours are each concept's own palette.
 NEW_PATRONS = {
-    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("BUGLE", ["#F0C098", "#D8A028", "#182058"]), ("SLUGGER", ["#F0C8A0", "#389850", "#101828"]), ("GRIDIRON", ["#E8B080", "#9050D0", "#180C28"])],
-    "lumberjacks": [("TRAPPER", ["#F0B888", "#A8A098", "#302820"]), ("RANGER", ["#F8C090", "#988838", "#283018"]), ("ANGLER", ["#F8C090", "#488878", "#182028"])],
-    "chefs": [("SOMMELIER", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
-    "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSHER", ["#F0F0F8", "#C08050", "#281818"]), ("YETI", ["#F0F0F8", "#78A8C8", "#182038"])],
-    "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("BIKER", ["#F0B890", "#B04828", "#181018"])],
-    "ninjas": [("SENSEI", ["#F8F8F0", "#D8A070", "#302018"]), ("KITSUNE", ["#F8E8D8", "#C82838", "#181010"]), ("MONK", ["#E8B878", "#E07820", "#301810"]), ("POET", ["#F8E0C0", "#C89838", "#100810"]), ("SKATER", ["#F8D8C0", "#30A8A0", "#182030"])],
+    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D8A028", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#E8B080", "#9050D0", "#180C28"])],
+    "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"])],
+    "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
+    "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"])],
+    "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("ROADY", ["#F0B890", "#B04828", "#181018"])],
+    "ninjas": [("SENSEI", ["#F8F8F0", "#D8A070", "#302018"]), ("KON", ["#F8E8D8", "#C82838", "#181010"]), ("MONK", ["#E8B878", "#E07820", "#301810"]), ("POET", ["#F8E0C0", "#C89838", "#100810"]), ("HANA", ["#F8D8C0", "#30A8A0", "#182030"])],
     "zoo": [("TUCO", ["#F8F8E8", "#F89820", "#101018"]), ("ELLIE", ["#F8F8F0", "#A0A0B0", "#101010"]), ("ZIGGY", ["#F8F8F0", "#A0A0B0", "#101010"]), ("PINKY", ["#F8B0C8", "#E04880", "#301020"])],
-    "aliens": [("MOTH", ["#F8F0D0", "#C8A068", "#382010"]), ("BLOB", ["#D0F0F8", "#58A0F0", "#081828"]), ("VIXEN_B", ["#F0F0F8", "#40B8A8", "#100820"]), ("VIXEN_D", ["#C8F8F0", "#6058E0", "#180828"])],
-    "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("BUBBLE", ["#E8F0F8", "#9068D8", "#180830"])],
+    "aliens": [("MOTHMA", ["#F8F0D0", "#C8A068", "#382010"]), ("GLOP", ["#D0F0F8", "#58A0F0", "#081828"]), ("LUNA", ["#F0F0F8", "#40B8A8", "#100820"]), ("VENUS", ["#C8F8F0", "#6058E0", "#180828"])],
+    "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("TOOB", ["#E8F0F8", "#9068D8", "#180830"])],
 }
 # Owner 2026-10-29: "Auto assigned palettes to new patrons where available make suggestions for palette merges."
 # Own palette where an OBJ slot and a playfield BG slot are free: (OBJ, BG, name), the concept's colours.
 AUTO_OWN = {
-    "sports": [(4, 4, "BUGLE"), (5, 5, "GRIDIRON")],
-    "lumberjacks": [(4, 4, "RANGER"), (5, 5, "ANGLER")],
+    "sports": [(4, 4, "PIPER"), (5, 5, "TOM")],
+    "lumberjacks": [(4, 4, "SMITH"), (5, 5, "ROD")],
     "chefs": [(3, 3, "MIME")],
-    "divers": [(4, 4, "MUFFY"), (5, 5, "MUSHER")],
-    "punks": [(4, 4, "RAVEN"), (5, 5, "BIKER")],
-    "ninjas": [(4, 4, "SKATER"), (5, 5, "POET")],
+    "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
+    "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY")],
+    "ninjas": [(4, 4, "HANA"), (5, 5, "POET")],
     "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
-    "aliens": [(3, 5, "MOTH"), (4, 4, "VIXEN_B")],
-    "robots": [(5, 5, "BUBBLE")],                 # owner 2026-10-29: "With the freed up slot, lets make Bubble Purple again."
+    "aliens": [(3, 5, "MOTHMA"), (4, 4, "LUNA")],
+    "robots": [(5, 5, "TOOB")],                 # owner 2026-10-29: "With the freed up slot, lets make Bubble Purple again."
 }
 # Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
-AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["SOMMELIER"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KITSUNE"], 5: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
-              "divers": {5: ["CUB"], 2: ["YETI"]}, "robots": {1: ["CLANK"]},       # Q43 (owner 2026-10-29)
-              "aliens": {4: ["BLOB"], 5: ["VIXEN_D"]}}          # owner 2026-10-29: BLOB in VIXEN_B's palette; VIXEN_D on OBJ 5
+AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KON"], 5: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
+              "divers": {5: ["CUB"], 2: ["FROSTI"]}, "robots": {1: ["CLANK"]},       # Q43 (owner 2026-10-29)
+              "aliens": {4: ["GLOP"], 5: ["VENUS"]}}          # owner 2026-10-29: GLOP in LUNA's palette; VENUS on OBJ 5
 # Q43: "Sensei & poet -- blend colors so closer together but matching neither." Their shared OBJ 5 palette, halfway between.
 _NP_BLEND = {"POET": ["#F8ECD8", "#D09C54", "#201410"]}
 _NP = {n: c for _l in NEW_PATRONS.values() for n, c in _l}
@@ -326,7 +327,7 @@ for _v, _d in AUTO_SHARE.items():
     for _o, _ns in _d.items():
         PLANS[_v].setdefault("join", {}).setdefault(("OBJ", _o), []).extend(_ns)
 PLANS["chefs"].setdefault("bg", {})["NONNA"] = 2                  # PIERRE and BRIE's BG 2 (OBJ 0 is Sal's)
-PLANS["lumberjacks"].setdefault("bg", {})["TRAPPER"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
+PLANS["lumberjacks"].setdefault("bg", {})["BOONE"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
 PLANS["robots"].setdefault("bg", {})["CLANK"] = 2                 # Q43 B: the full mug's OBJ 1; BG 1 is the keg's
 for _v, _l in NEW_PATRONS.items():
     EXTRA_LOOKS.setdefault(_v, []).extend(n for n, _ in _l)
@@ -598,7 +599,7 @@ PASS = os.path.join(ROOT, "docs/dev/concepts/patron_pass")
 ACCEPTED = {
     # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
     "chefs": {"pierre": ("old", "old"), "brie": ("old", "brie_v2_back"), "basil": ("basil", "basil_back")},
-    "punks": {"spike": ("spike", "spike_back"), "bandit": ("bandit", "bandit_back"), "slick": ("slick", "slick_back")},
+    "punks": {"punk": ("spike", "spike_back"), "harley": ("bandit", "bandit_back"), "baby": ("slick", "slick_back")},
     "ninjas": {"kage": ("old", "old"), "sakura": ("sakura", "sakura_back"), "ronin": ("old", "ronin_v2_back")},
     "zoo": {"coco": ("coco", "coco_back"), "bamboo": ("bamboo", "bamboo_back"), "muddy": ("old", "old")},
     "aliens": {"zorp": ("old", "zorp_v2_back"), "xeno": ("old", "xeno_v2_back"), "glorp": ("glorp_v2", "glorp_v2_back")},
