@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner picks: FRANK (apron, hot-dog logo) and LOUIS (batting helmet, face A) (Q49), PIPER (band uniform) (Q45), POET's face pass (Q51), MUFFY's face (Q55; the other Igloo faces discarded). Plan art updated."),
+    ("2026-10-29", "Owner (Q53): \"It works. Use it to free the slot.\" Space Lounge: the bar takes XENO's colours, XENO walks in BG 0; BG 3 is freed for VENUS (game change in progress)."),
     ("2026-10-29", "Owner (Q48), on the every-look-every-palette sheet: moss off EMMA, MABEL, ARTIE (and GUS); added DUSTY in ROSIE's and MABEL's, EMMA in HANK's and MABEL's, GUS in ROSIE's and MABEL's, HANK in ROSIE's, ROSIE in MABEL's. 36 combinations in the game."),
     ("2026-10-29", "Owner (Q46): \"Swap gus.\" On Color GUS's colours 1 and 2 are swapped (skin in colour 1, like every Saloon look); his own palette is HANK's, EMMA's is a swap. ROSIE's red a little more orange (#C04A2C), owner: \"So the hair color looks more natural.\""),
     ("2026-10-29", "Owner (Q44): \"Moss, keep all except gus.\" GUS's old palette (OBJ 7 / BG 4) is now moss #F6BD94 #5A7B4A #182018, in the game; every Saloon look but GUS may spawn in it (DUSTY and HANK added, GUS dropped). The credits draw GUS in his own palette, EMMA's."),
