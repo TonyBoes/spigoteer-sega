@@ -1,0 +1,18 @@
+; PIERRE front v2 (Bistro, proposal 2026-10-29): v1 face pass plus a nose; the facing-side outline steps out one
+; pixel under the eyes (nose bump, outline at col 14) and closes under it; rest of v1 kept
+....--------#...
+...---+--+---#..
+...---+--+---#..
+...#--+--+---#..
+....--------#...
+...############.
+..###++++++++#..
+..#+#+++#++#+#..
+..#+#+++#++#+#..
+..##++++++++++#.
+...##++####+##..
+..--##++++#-#-#.
+.---#--##--#--#.
+.---#--##--#--#.
+.---#--##--#--#.
+.---#--##--#--#.
