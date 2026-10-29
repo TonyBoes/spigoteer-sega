@@ -76,3 +76,5 @@ Open owner questions (not asked here): is the clown on DMG too; what the finale 
 - Dregs Q30: "h2, fuller with fewer highlights." (docs/dev/concepts/dregs_sprite_v7/a2h2b.txt)
 - Dregs Q32: "better, give me the sprite for corrections": h2b sent as a 1x PNG; owner edits it by hand.
 - Q33: "layout good but sky should be blue and buildings old color." A4 = A3 layout, A2 stage colours.
+
+- 2026-10-29 (on A4): "I want orange balloons and flags in the festival stage." Variants A5a (cream slot -> orange, one palette) and A5b (second stage palette, Color crowd 5 -> 4) requested.
