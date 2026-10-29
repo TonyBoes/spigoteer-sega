@@ -24,3 +24,19 @@ possible use elsewhere."
 
 The v1 picks (CUB, DJ, RAVEN, SENSEI) touch column x=15 (owner rule 10-28: keep it clear); a minimal trim is in
 round 3. New concepts in round 3: two for the Stadium (CHEER's and BIGWIG's slots), one for the Igloo (SHRED's).
+
+## Round 3 (owner 2026-10-29, Q15)
+
+Owner: "trims ok, keep slugger, gridiron, musher, and yeti. Move skater to teahouse."
+
+| Venue | New patrons (final fronts) |
+|---|---|
+| Stadium | FRANK v2, BUGLE v2, SLUGGER v3, GRIDIRON v3 (BIGWIG v2 held as "clown") |
+| Lumber Lodge | TRAPPER v2, RANGER v2, ANGLER v2 |
+| Bistro | SOMMELIER v2, NONNA v2, MIME v2 |
+| Igloo | MUFFY v2, CUB v1 trimmed, MUSHER v3, YETI v3 |
+| Chrome Cow | DJ v1 trimmed, RAVEN v1 trimmed, BIKER v2 |
+| Teahouse | SENSEI v1 trimmed, KITSUNE v2, MONK v2, POET v2, SKATER v3 (moved from the Igloo: 5 new) |
+| Zoo | TUCO v2, ELLIE v2, ZIGGY v2, PINKY v2 |
+
+Trims: v3/trims.txt. New: v3/new.txt. Next: back views for all 27.
