@@ -1,0 +1,78 @@
+; New patrons round 5 (owner Q24, 2026-10-29). CONCEPTS, not imported. Color-only looks, 3/4 view facing right.
+; MOTH and BLOB kept unchanged from v4 (owner: "Keep moth and blob"). BRAINIAC redone from scratch. Column x=15 empty.
+
+; @fig MOTH #f8f0d0 #c8a068 #382010
+; MOTH: round tan fuzzy head with big round black eyes, two feathered antennae (dark stem, tan barbs), cream fur ruff with tufts, wing tips with light spots at the shoulders. New palette. (v4, unchanged)
+.+...........+..
+.##+.......+##..
+.+.##.....##.+..
+...+#######+....
+...##+---+##....
+..#+++++++++#...
+..#++##+##++#...
+..#+#-#+#-#+#...
+..#+###+###+#...
+...#+##+##+#....
+#.#--+++++--#.#.
+###---------###.
+#+#---------#+#.
+#-#---------#-#.
+#+###-#-#-###+#.
+#+++#+++++#+++#.
+
+; @fig BLOB #d0f0f8 #58a0f0 #081828
+; BLOB: blue jelly dome slumping into a wide puddle on the counter, light eyes on top, little smile, a light fish skeleton floating inside, one bubble. New palette. (v4, unchanged)
+................
+.....#####......
+...##+---+##....
+..#++++++++++#..
+..#+--+++--++#..
+.#++-#+++-#++#..
+.#++-#+++-#++#..
+.#+++#+++#+++#..
+.#++++###++++#..
+.#+++++++++-+#..
+.#+-+-+-+--++#..
+.#++------#-+#..
+#++-+-+-+--+++#.
+#+++++++++++++#.
+#+++++++++++++#.
+###############.
+
+; @fig BRAINIAC_A #d0f8e8 #e870a0 #281840
+; BRAINIAC A (redo 2): no dome. A huge bare pink brain (three lobes, grooves), bulging back to the left, sits on a tiny pale alien face (big black almond eyes) turned right; thin neck, small pink suit.
+...###.###.##...
+..#-+##-+##-#...
+.#-+++#+++#++#..
+#-++#+++++#+++#.
+#+++#++#++#+++#.
+#++#++++#++++#..
+#++#+++++++++#..
+.#+++#++++#++#..
+..##+++######...
+...###-------#..
+.....#-##-##-#..
+.....#-##--#-#..
+......#-----#...
+.......##-##....
+.....##++-++#...
+...#+++++#++#...
+
+; @fig BRAINIAC_B #d0f8e8 #e870a0 #281840
+; BRAINIAC B (redo 2): a glass jar worn as a head, dark screw lid with a knob; the pink brain floats in pale liquid, its own two eyes looking right, a wire stem below; tiny robot collar, small suit.
+.......##.......
+...###########..
+..#-###########.
+...#---------#..
+...#--##-##--#..
+...#-#-+#-+#-#..
+...#-#+++#+#-#..
+...#-#-#+-##-#..
+...#--#+++#--#..
+...#---###---#..
+...#----#----#..
+...###########..
+....##+-+##.....
+..##+++#++++##..
+.#++++#++-+++#..
+#+++++#+++++++#.
