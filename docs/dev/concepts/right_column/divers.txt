@@ -1,0 +1,55 @@
+; PROPOSAL (owner rule 2026-10-28, Q16 2026-10-29): divers fronts with the rightmost column x=15 empty (index 0).
+; Same format as assets/art/patrons/divers.txt (front grids only, a..); copy over when the owner picks. Palettes and index roles unchanged.
+; DIVERS A: x15 gone: the shoulders (rows 11-14) are one + narrower on the right (the tan + at x14 of row 11 is dropped), right edge # now x14; row 15 is the counter line.
+....#######.....
+..##+++++++##...
+.#++-+-+-+-+-#..
+.#+-+#######+#..
+#+-+#-------#...
+#++#---#---#-#..
+#+-#----------#.
+#++#-----##--#..
+#+-+#-------#...
+#++++#######+#..
+.#++++++++++++#.
+.#-#-#-#-#-#-##.
+#+++++++++++++#.
+#+++++++#+++++#.
+#+++++++#+++++#.
+###############.
+
+; DIVERS B: x15 gone: one + dropped from the right arm of rows 12-13, the ## corner of row 14 becomes #; row 15 is the counter line.
+....#######.....
+..##+++++++##...
+.#++-+-+-+-+-#..
+.#+-+#######+#..
+#+-+#-#-##-#-#..
+#++#---#---#-#..
+#+-#----------#.
+#++#------#--#..
+#+-+#-------#...
+#++++#######+#..
+.#+++##+++##++#.
+.#+++##+++##++#.
+#++++--+++--++#.
+#++++##+++##++#.
+#+++++++++++++#.
+###############.
+
+; DIVERS C: x15 gone: same shoulder trim as diver A (rows 11-14), head untouched.
+....#######.....
+..##+++++++##...
+.#++-+-+-+-+-#..
+.#+-+#######+#..
+#+-+#-------#...
+#++#---#---#-#..
+#+-#-#--------#.
+#++#-#-#####-#..
+#+-+##-#--#-#...
+#++++#######+#..
+.#++++++++++++#.
+.#-#-#-#-#-#-##.
+#+++++++++++++#.
+#+++++++#+++++#.
+#+++++++#+++++#.
+###############.

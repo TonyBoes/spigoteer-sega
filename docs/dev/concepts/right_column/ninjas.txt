@@ -1,0 +1,55 @@
+; PROPOSAL (owner rule 2026-10-28, Q16 2026-10-29): ninjas fronts with the rightmost column x=15 empty (index 0).
+; Same format as assets/art/patrons/ninjas.txt (front grids only, a..); copy over when the owner picks. Palettes and index roles unchanged.
+; NINJAS A: x15 gone: one + dropped from the right of the body rows 13-14, edge # now x14; row 15 is the counter line.
+................
+.....########...
+....#++++++++#..
+...#++++++++++#.
+####++#########.
+##.#++#------+#.
+.#.#++#-#--#-+#.
+...#++#------+#.
+...#++++++++++#.
+....#+++++++++#.
+.....#++++++#...
+..#####++++####.
+.#+++++#++#+++#.
+#+++++++##++++#.
+#++++++#++#+++#.
+###############.
+
+; NINJAS B: unchanged: x15 is already empty (copied for completeness).
+................
+....####....-+..
+...##++##---....
+..############..
+.#############..
+.######------##.
+.####---#--#-##.
+.####---#--#-##.
+.####--------##.
+.#####----++-##.
+..####------##..
+...####----##...
+.#++++#----#++#.
+.#+-+++#--#+++#.
+.#++++++##++--#.
+.#--++++-++++-#.
+
+; NINJAS C: x15 gone: the hat brim loses its 1 px right overhang (row 5), the face box row 9 loses one - (flush with row 7), one + dropped from the right of rows 13-14; row 15 is the counter line.
+........-....-..
+.........-..-...
+.....#####--##..
+....#++++#++++#.
+...#+++++#++++#.
+..#+++++++++++#.
+.#++###########.
+#++#+#--------#.
+#+++##--#---#-#.
+#++#+#--------#.
+.#+++#--####-#..
+..#+++##---##...
+.#+++++#####++#.
+#++-+-++#+-+-+#.
+#+++++++#+++++#.
+###############.

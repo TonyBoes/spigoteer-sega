@@ -1,0 +1,55 @@
+; PROPOSAL (owner rule 2026-10-28, Q16 2026-10-29): zoo fronts with the rightmost column x=15 empty (index 0).
+; Same format as assets/art/patrons/zoo.txt (front grids only, a..); copy over when the owner picks. Palettes and index roles unchanged.
+; MONKEY: monkey. x15 gone: one - dropped from the right of the face rows 7-8 and one + from rows 13-14, edge # now x14; row 15 is the counter line.
+.....######.....
+...##+--+++##...
+..#++--++++++#..
+..#+++++++++++#.
+.###+++---++--#.
+#-+#++--------#.
+#-+#++---#--#-#.
+.###++---#--#-#.
+...#++---+--+-#.
+...#++----+++-#.
+....#+-------#..
+....#++++++++#..
+...#+++-----++#.
+..#+++++---+++#.
+.#+++++++-++++#.
+###############.
+
+; PANDA: panda. x15 gone: the head is a full 15 px wide with x0 empty down to row 13, so rows 0-13 shift 1 px left as a block (nothing inside changes) and row 14 loses one - so the shoulders step 1 px; row 15 is the counter line. The face/eyes sit 1 px further from the mug.
+.##.........##..
+#++#.......#++#.
+###############.
+##-----------##.
+#------##--##-#.
+#-----#-#--#-##.
+#-----#-#--#-##.
+#-----##----###.
+.#-------##---#.
+..#-----++++--#.
+...#---------#..
+...#+++++++++#..
+.####-----####..
+#####-----#####.
+#####------####.
+###############.
+
+; HIPPO: hippo. x15 gone: the snout/jaw (rows 8-10) loses one - on the right, rows 12-14 lose one +, edge # now x14; row 15 is the counter line.
+.##.#######.##..
+#--#+++++++#--#.
+.##+++++++++##..
+..#+++++++++#...
+..#++#+++#++#...
+..#++#+++#++#...
+.#+++--------#..
+.#++----------#.
+.#++---#---#--#.
+..#+----------#.
+...#----------#.
+....##--###--##.
+.##+++##+++##+#.
+#+++++----++++#.
+#+++++----++++#.
+###############.
