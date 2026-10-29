@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-28", "Planned Color-only extra looks added (amber): Space Lounge Astronaut (Stadium A colours), Robot Factory NEKA (cyan) and TOOB (mint); front and back as accepted by the owner."),
     ("2026-10-27", "Saloon looks in the game (batch 2, Color): the 8 looks; built with EMMA on OBJ 6 and MABEL/ARTIE on OBJ 5 (the plan's 5 and 6 swapped)."),
     ("2026-10-27", "Factory: BOXY yellow on Color; the cyan palette goes to NEKA, a Color-only 4th robot (owner art)."),
     ("2026-10-28", "Factory: the mint robot is TOOB, a Color-only extra robot with its own palette (owner art)."),
@@ -251,13 +252,23 @@ PLANS = {
         open={},
         why="Owner 2026-10-25: COCO shares the full mug's palette (foam to tan).",
     ),
+    "robots": dict(
+        moves=[], recolour={}, open={},
+        add={("OBJ", 4): ("NEKA", ["#58F0F8", "#7888A0", "#101828"])},          # Color-only 4th look on the cyan pair (the one BOXY gave up)
+        extras=[dict(name="TOOB", cols=["#58F8A0", "#585048", "#103820"])],     # Color-only 5th look, own mint palette: no OBJ slot is free after NEKA (the dancers hold OBJ 5)
+        why="Owner 2026-10-27/28: NEKA takes the cyan palette; TOOB is a mint robot with its own palette. Both Color only.",
+    ),
     "aliens": dict(
+        add={("OBJ", 6): ("Astronaut", ["#F8E0C8", "#E03830", "#301818"])},     # Color-only 4th look (Q68/Q69), Stadium A's colours (assets/palettes.json sports_a); OBJ 3 or 6 is free: OBJ 6 (BG 3 is XENO's)
         moves=[("ZORP", "OBJ", 3, 1, "ZORP, eye stalks"), ("XENO", "OBJ", 6, 2, "XENO, the grey one")],
         recolour={("BG", 2): "OBJ 1", ("BG", 3): "OBJ 2"},
         open={},
         why="Owner 2026-10-25: ZORP shares the full mug's palette, XENO the empty mug's. Check the Space boss's OBJ 2 use.",
     ),
 }
+# Color-only extra looks that are PLANNED, not in the game (Q68-Q78): listed in amber and counted as planned. Their art is art/<venue>_<name>.txt
+# (+ _back.txt), copied from docs/dev/concepts. The game_truth / self_check "now" checks never see them: they are not in NAMES, users() or the capture.
+EXTRA_LOOKS = {"aliens": ["Astronaut"], "robots": ["NEKA", "TOOB"]}
 # Planned removals (struck through, yellow). Owner 2026-10-21: drop the enhanced looks (M14a) after the next patron revision.
 DROP_ENHANCED = True
 # Owner 2026-10-21: the BG palettes used above the playfield are reloaded where the playfield starts (row 5), so in the playfield
@@ -430,6 +441,7 @@ li.open { font-style: italic; }
 .stat { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; }
 .stat b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
 .stat span { color: var(--muted); font-size: 13px; }
+.stat.plan b { color: var(--plan); }
 .sw { width: 20px; height: 20px; border: 1px solid rgba(0,0,0,.35); border-radius: 3px; padding: 0; margin-left: 2px; cursor: pointer; }
 .tbl { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; }
 table.pt { border-collapse: collapse; width: 100%; font-size: 14px; }
@@ -535,6 +547,8 @@ def accepted(v, name):
     first = name.split(",")[0].strip().lower()
     names = [n.split(",")[0].strip().lower() for n in NAMES[v["key"]]]
     old = lambda suf: frames(os.path.join(ROOT, "assets/art/patrons/%s%s.txt" % (v["key"], suf)))[names.index(first)]
+    if name in EXTRA_LOOKS.get(v["key"], []):
+        return art_rows(v, name), frames(os.path.join(ART, "%s_%s_back.txt" % (v["key"], first)))[0]
     pick = ACCEPTED.get(v["key"], {}).get(first)
     if pick:
         get = lambda f, suf: old(suf) if f == "old" else frames(os.path.join(PASS, v["key"], f + ".txt"))[0]
@@ -1567,8 +1581,9 @@ for i, v in enumerate(venues):
     if sal:                         # the game's looks, one row each: palette instances from src/mirror.c, not the OBJ slots of the plan
         ident = [dict(name=NAMES["cowboys"][i], look=i, planned=False) for i in range(len(SALOON_LOOKS))]
         reserved = []
+    ident += [dict(name=x["name"], planned=True, obj=None, cols=x["cols"]) for x in PLANS.get(v["key"], {}).get("extras", [])]
     for r in ident + reserved:
-        d = m[("OBJ", r["obj"])] if not sal else None
+        d = m[("OBJ", r["obj"])] if not sal and r["obj"] is not None else None
         if sal:
             ps = game_truth.ordered_instances(r["look"], SALOON_LOOKS[r["look"]][1])        # the look's own palette first
             groups = [[hexc(c) for c in GT["inst"]["cowboys"][p]] for p in ps]
@@ -1580,6 +1595,12 @@ for i, v in enumerate(venues):
             obj_txt = ", ".join(str(x) for x in objs)
             vtxt = obj_txt
             dtxt = "DMG" if r["look"] < 3 else ""
+        elif d is None:                                   # a planned extra look with no OBJ slot yet
+            cols = r["cols"]
+            sw = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
+            bg = '<span class="muted">to assign</span>'
+            obj_txt = vtxt = '<span class="muted">to assign</span>'
+            dtxt = ""
         else:
             cols = [d["new"].get(k, d["cols"][k]) for k in (1, 2, 3)]
             sw = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
@@ -1620,10 +1641,15 @@ for i, v in enumerate(venues):
         img = '<div class="pics">%s</div>' % img
         if not sal and idx is not None:
             SHOWN.add((v["key"], idx, idx))
-        rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, obj_txt, bg if sal is False else bg, vtxt, dtxt)))
-        md += "| %s%s | %s | OBJ %s | %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), obj_txt,
-                                                ("BG %s" % bg) if (sal or "bg" in r) else "to assign", vtxt, dtxt or "Color only")
-    w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % len(ident))
+        if r["name"] in EXTRA_LOOKS.get(v["key"], []):
+            dtxt = "Color only"
+        rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, obj_txt if obj_txt.startswith("<") else "OBJ " + obj_txt, bg, vtxt, dtxt)))
+        md += "| %s%s | %s | OBJ %s | %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), re.sub("<[^>]+>", "", obj_txt),
+                                                ("BG %s" % bg) if (sal or "bg" in r) else "to assign", re.sub("<[^>]+>", "", vtxt), dtxt or "Color only")
+    nx = len(EXTRA_LOOKS.get(v["key"], []))
+    w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % (len(ident) - nx))
+    if nx:
+        w('<div class="stat plan"><b>%d</b><span>planned extra looks, Color only</span></div>' % nx)
     w('<div class="stat"><b>%d</b><span>reserved patrons</span></div>' % len(reserved))
     w('<div class="stat"><b>%d</b><span>free OBJ palettes</span></div>' % len(ofree))
     w('<div class="stat"><b>%d</b><span>free BG palettes</span></div>' % len(bfree))
@@ -1650,7 +1676,7 @@ for i, v in enumerate(venues):
     w('</div><div class="ph2"><h2>Patrons</h2><button type="button" class="copymd" data-md="%s">Copy table as Markdown</button></div>' % esc(md))
     w('<div class="tbl"><table class="pt"><thead><tr><th></th><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th><th>Spawns in</th><th>Also on</th></tr></thead><tbody>')
     for r in rows:
-        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">OBJ %s</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
+        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
     w('</tbody></table></div>')
     w(boss_section(v, m, field))
     w(scene_sections(v, m, field))
