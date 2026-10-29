@@ -1,0 +1,40 @@
+; New patrons round 5 (owner Q24, 2026-10-29). CONCEPTS, not imported. Color-only looks, 3/4 view facing right.
+; BUBBLE and CLANK redrawn in 3/4 view (owner: "bubble and clank, but need 3/4 perspective"): same idea, palette and character as v4. Column x=15 empty.
+
+; @fig CLANK #f8e8b8 #e07838 #201008
+; CLANK (3/4): rusty riveted box head turned right (narrow side plane on the left behind a dark corner edge), dent in the top, loose crooked bolt, big lamp eye near, squint slit far, toothy grille shifted right, near shoulder wider.
+..+++...........
+....-...........
+.....-..........
+.#######..####..
+.#+#++++##+++#..
+.#-#+-++-++-+#..
+.#+#+###+++++#..
+.#+#+---#+##+#..
+.#+#+-#-#++++#..
+.#+#+###+++++#..
+.#+#+++++++++#..
+.#+#++#-#-##+#..
+.#############..
+#+++++#++++#+#..
+#+-+++#++-+#+#..
+#+++++#++++#+#..
+
+; @fig BUBBLE #e8f0f8 #9068d8 #180830
+; BUBBLE (3/4): violet 50s tin robot turned right; glass dome with the glowing tube off-centre, collar ring, side band and big near ear disc on the left, far ear a nub, lamp eyes and slot mouth shifted right, chest lights on the front plane.
+......#####.....
+.....#-----#....
+....#----+--#...
+...#----+-+--#..
+...#----+-+--#..
+...#----###--#..
+.#############..
+.#++#++++++++#..
+#-#+#+--++--+##.
+#-#+#+-#++-#+##.
+.#++#++++++++#..
+..#+#++#####+#..
+..############..
+#+++#+++++++++#.
+#+++#+-++-++-+#.
+#+++#+++++++++#.
