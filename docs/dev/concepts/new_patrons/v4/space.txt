@@ -1,0 +1,94 @@
+; @fig CYCLOPS #f8f0e0 #c050b8 #300830
+; CYCLOPS: round magenta blob, one huge eye under a heavy lid, stubby horn, open grin with one tooth, mitt hands on the counter. New palette.
+.......#........
+......#-#.......
+....###+###.....
+..##+--++++##...
+.#++######+++#..
+.#+#------#++#..
+#++-----#--+++#.
+#++----##--+++#.
+#+++---##-++++#.
+#++++----+++++#.
+#+++++++++++++#.
+#+++#+++++#+++#.
+.#+++#-###+++#..
+#-#+++###+++#-#.
+#--#+++++++#--#.
+###############.
+
+; @fig BRAINIAC #d0f8e8 #e870a0 #281840
+; BRAINIAC: round glass dome over a two-lobed brain (scalloped top, light curls), dark rim, small pale face framed by a high collar. New palette.
+.....#####......
+...##-----##....
+..#--##-##--#...
+.#--#-+#-+#--#..
+.#-#+++#+++#-#..
+#--#+--#+++#--#.
+#--#-++++--#--#.
+#---#+++++#---#.
+#----#####----#.
+###############.
+#++#-------#++#.
+#++#-#--#--#++#.
+#++#-#--#--#++#.
+#++#--++---#++#.
+#+++#-----#+++#.
+#++++#---#++++#.
+
+; @fig MOTH #f8f0d0 #c8a068 #382010
+; MOTH: round tan fuzzy head with big round black eyes, two feathered antennae (dark stem, tan barbs), cream fur ruff with tufts, wing tips with light spots at the shoulders. New palette.
+.+...........+..
+.##+.......+##..
+.+.##.....##.+..
+...+#######+....
+...##+---+##....
+..#+++++++++#...
+..#++##+##++#...
+..#+#-#+#-#+#...
+..#+###+###+#...
+...#+##+##+#....
+#.#--+++++--#.#.
+###---------###.
+#+#---------#+#.
+#-#---------#-#.
+#+###-#-#-###+#.
+#+++#+++++#+++#.
+
+; @fig BLOB #d0f0f8 #58a0f0 #081828
+; BLOB: blue jelly dome slumping into a wide puddle on the counter, light eyes on top, little smile, a light fish skeleton floating inside, one bubble. New palette.
+................
+.....#####......
+...##+---+##....
+..#++++++++++#..
+..#+--+++--++#..
+.#++-#+++-#++#..
+.#++-#+++-#++#..
+.#+++#+++#+++#..
+.#++++###++++#..
+.#+++++++++-+#..
+.#+-+-+-+--++#..
+.#++------#-+#..
+#++-+-+-+--+++#.
+#+++++++++++++#.
+#+++++++++++++#.
+###############.
+
+; @fig STARPILOT #c0f8a8 #a87048 #201010
+; STARPILOT: mint-skinned alien in a brown leather flight helmet with ear flaps, goggle visor pushed up (light lenses), antenna through the top, white scarf knotted at the throat with two short ends. New palette.
+......#-#.......
+.......#........
+....#######.....
+...#++--+++#....
+..#+++++++++#...
+..#+#--#--#+#...
+..#+#######+#...
+.#+#-------#+#..
+.#+#-#--#--#+#..
+.#+#-#--#--#+#..
+.#+#---++--#+#..
+..#+#-----#+#...
+..###########...
+.#---+-----+-#..
+#+++#---#+++++#.
+#+++#-#--#++++#.
