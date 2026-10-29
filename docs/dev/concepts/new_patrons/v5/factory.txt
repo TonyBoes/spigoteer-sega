@@ -2,39 +2,39 @@
 ; BUBBLE and CLANK redrawn in 3/4 view (owner: "bubble and clank, but need 3/4 perspective"): same idea, palette and character as v4. Column x=15 empty.
 
 ; @fig CLANK #f8e8b8 #e07838 #201008
-; CLANK (3/4): rusty riveted box head turned right (narrow side plane on the left behind a dark corner edge), dent in the top, loose crooked bolt, big lamp eye near, squint slit far, toothy grille shifted right, near shoulder wider.
-..+++...........
-....-...........
-.....-..........
-.#######..####..
-.#+#++++##+++#..
-.#-#+-++-++-+#..
-.#+#+###+++++#..
-.#+#+---#+##+#..
-.#+#+-#-#++++#..
-.#+#+###+++++#..
-.#+#+++++++++#..
-.#+#++#-#-##+#..
-.#############..
-#+++++#++++#+#..
-#+-+++#++-+#+#..
-#+++++#++++#+#..
+; CLANK (3/4, pass 2): rusty box head turned right; a wide side plane on the left (4 px with its far edge, rivets) whose top steps down away from the dark corner edge, lit top bevel with the dent, crooked bolt, big lamp eye near, squint slit far, toothy grille shifted right, wide near shoulder.
+....+++.........
+......-.........
+.......-........
+....######..##..
+..###-----##-#..
+##++#++++++++#..
+#+-+#+###++++#..
+#+++#+#-#+##+#..
+#+++#+###++++#..
+#+++#++++++++#..
+#+-+#++#-#-#+#..
+##++#++#####+#..
+..############..
+#++++#+++++++#..
+#+-++#++-+-++#..
+#++++#+++++++#..
 
 ; @fig BUBBLE #e8f0f8 #9068d8 #180830
-; BUBBLE (3/4): violet 50s tin robot turned right; glass dome with the glowing tube off-centre, collar ring, side band and big near ear disc on the left, far ear a nub, lamp eyes and slot mouth shifted right, chest lights on the front plane.
+; BUBBLE (3/4, pass 2): violet 50s tin robot turned right; glass dome with the glowing tube, collar ring; a wide side plane on the left with the big ear disc sticking out, lamp eyes looking right, slot mouth shifted right, chest lights, wide near shoulder.
 ......#####.....
 .....#-----#....
 ....#----+--#...
-...#----+-+--#..
-...#----+-+--#..
-...#----###--#..
-.#############..
-.#++#++++++++#..
-#-#+#+--++--+##.
-#-#+#+-#++-#+##.
-.#++#++++++++#..
-..#+#++#####+#..
-..############..
-#+++#+++++++++#.
-#+++#+-++-++-+#.
-#+++#+++++++++#.
+....#---+-+-#...
+....#---+-+-#...
+....#---###-#...
+..#############.
+.##++#++++++++#.
+#-#++#--++--++#.
+#-#++#-#++-#++#.
+#-#++#++++++++#.
+.##++#++#####+#.
+..#############.
+#++++#++++++++#.
+#++++#+-++-++-#.
+#++++#++++++++#.
