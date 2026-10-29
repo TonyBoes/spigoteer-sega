@@ -1,0 +1,18 @@
+; FROSTI front (Igloo, Color-only yeti), face pass in the PETE/NORM/SERENA style (proposal 2026-10-29); fur, horns and body kept
+; changed: rows 9-10 only (dark open mouth with fang -> a 2-px light '-' grin at x8-9); eyes already fit
+.....##.##......
+...##--#--##....
+..#----------#..
+.#-----------#..
+.#-----------#..
+#-----+++++---#.
+#----++#++#+--#.
+#----++#++#+-#..
+.#---+++++++--#.
+#-+--+++--++--#.
+#-+--++++++---#.
+#-----+++---+#..
+.#--+-------+-#.
+#---+--+---+--#.
+#------+------#.
+#------+------#.

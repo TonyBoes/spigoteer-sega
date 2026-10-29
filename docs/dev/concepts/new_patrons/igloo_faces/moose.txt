@@ -1,0 +1,19 @@
+; MOOSE front (Igloo C), face pass in the PETE/NORM/SERENA style (proposal 2026-10-29); hood, fur trim and parka kept pixel for pixel
+; changed: rows 5-8 inside the hood ring only (eyes 1x2 at x8/x11; nose bump removed; the jaw stripe and 5-px moustache bar ->
+; a 2-px walrus moustache drooping at x8/x11 over a mid '+' mouth)
+....#######.....
+..##+++++++##...
+.#++-+-+-+-+-#..
+.#+-+#######+#..
+#+-+#-------#...
+#++#----#--#-#..
+#+-#----#--#-#..
+#++#-----##--#..
+#+-+#---#++##...
+#++++#######+#..
+.#++++++++++++#.
+.#-#-#-#-#-#-#+#
+#++++++++++++++#
+#+++++++#+++++##
+#+++++++#+++++##
+#+++++++#+++++##

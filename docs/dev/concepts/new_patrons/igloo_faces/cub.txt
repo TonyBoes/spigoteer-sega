@@ -1,0 +1,18 @@
+; CUB front (Igloo, Color-only), face pass in the PETE/NORM/SERENA style (proposal 2026-10-29); bear-suit hood, ears and suit kept
+; changed: row 9 only (dark mouth -> light '-' at x7-8: the skin is the mid '+' here, so the mouth takes the other non-dark colour, as BASIL/PINOT)
+..##......##....
+.#+-#....#-+#...
+.#+-######-+#...
+#------------#..
+#----#####---#..
+#---#+++++#--#..
+#--#++#++#+#-#..
+#--#++#++#+#-#..
+#--#+++++++#-#..
+#--#+++--++#-#..
+#---#+++++#--#..
+.#---#####---#..
+..#---------#...
+.#--#-----#--#..
+#---#-----#---#.
+#---#-----#---#.

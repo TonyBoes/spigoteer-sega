@@ -1,0 +1,18 @@
+; IGGY front (Igloo A), face pass in the PETE/NORM/SERENA style (proposal 2026-10-29); hood, fur trim and parka kept pixel for pixel
+; changed: rows 5-8 inside the hood ring only (eyes 1x2 at x8/x11, nose bump x14 removed, dark mouth -> mid '+' on row 8)
+....#######.....
+..##+++++++##...
+.#++-+-+-+-+-#..
+.#+-+#######+#..
+#+-+#-------#...
+#++#----#--#-#..
+#+-#----#--#-#..
+#++#---------#..
+#+-+#----++-#...
+#++++#######+#..
+.#++++++++++++#.
+.#-#-#-#-#-#-#+#
+#++++++++++++++#
+#+++++++#+++++##
+#+++++++#+++++##
+#+++++++#+++++##
