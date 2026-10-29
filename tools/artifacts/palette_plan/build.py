@@ -79,6 +79,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
+    ("2026-10-29", "Owner: \"None of my new patrons are in the atlas.\" The 32 picked Color-only patrons (Stadium 4, Lodge 3, Bistro 3, Igloo 4, Chrome Cow 3, Teahouse 5, Zoo 4, Space 4, Factory 2) added as planned looks with their backs; palettes to assign."),
     ("2026-10-28", "Planned Color-only extra looks added (amber): Space Lounge Astronaut (Stadium A colours), Robot Factory NEKA (cyan) and TOOB (mint); front and back as accepted by the owner."),
     ("2026-10-27", "Saloon looks in the game (batch 2, Color): the 8 looks; built with EMMA on OBJ 6 and MABEL/ARTIE on OBJ 5 (the plan's 5 and 6 swapped)."),
     ("2026-10-27", "Factory: BOXY yellow on Color; the cyan palette goes to NEKA, a Color-only 4th robot (owner art)."),
@@ -271,6 +272,22 @@ PLANS = {
 # Color-only extra looks that are PLANNED, not in the game (Q68-Q78): listed in amber and counted as planned. Their art is art/<venue>_<name>.txt
 # (+ _back.txt), copied from docs/dev/concepts. The game_truth / self_check "now" checks never see them: they are not in NAMES, users() or the capture.
 EXTRA_LOOKS = {"aliens": ["Astronaut"], "robots": ["NEKA", "TOOB"]}
+# The owner's new Color-only patrons (picks 2026-10-29, docs/dev/concepts/new_patrons/PICKS.md), not imported yet: planned, no OBJ slot
+# yet. Fronts and backs copied into art/<venue>_<name>(_back).txt; colours are each concept's own palette.
+NEW_PATRONS = {
+    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("BUGLE", ["#F0C098", "#D8A028", "#182058"]), ("SLUGGER", ["#F0C8A0", "#389850", "#101828"]), ("GRIDIRON", ["#E8B080", "#9050D0", "#180C28"])],
+    "lumberjacks": [("TRAPPER", ["#F0B888", "#A8A098", "#302820"]), ("RANGER", ["#F8C090", "#988838", "#283018"]), ("ANGLER", ["#F8C090", "#488878", "#182028"])],
+    "chefs": [("SOMMELIER", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
+    "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSHER", ["#F0F0F8", "#C08050", "#281818"]), ("YETI", ["#F0F0F8", "#78A8C8", "#182038"])],
+    "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("BIKER", ["#F0B890", "#B04828", "#181018"])],
+    "ninjas": [("SENSEI", ["#F8F8F0", "#D8A070", "#302018"]), ("KITSUNE", ["#F8E8D8", "#C82838", "#181010"]), ("MONK", ["#E8B878", "#E07820", "#301810"]), ("POET", ["#F8E0C0", "#C89838", "#100810"]), ("SKATER", ["#F8D8C0", "#30A8A0", "#182030"])],
+    "zoo": [("TUCO", ["#F8F8E8", "#F89820", "#101018"]), ("ELLIE", ["#F8F8F0", "#A0A0B0", "#101010"]), ("ZIGGY", ["#F8F8F0", "#A0A0B0", "#101010"]), ("PINKY", ["#F8B0C8", "#E04880", "#301020"])],
+    "aliens": [("MOTH", ["#F8F0D0", "#C8A068", "#382010"]), ("BLOB", ["#D0F0F8", "#58A0F0", "#081828"]), ("VIXEN_B", ["#F0F0F8", "#40B8A8", "#100820"]), ("VIXEN_D", ["#C8F8F0", "#6058E0", "#180828"])],
+    "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("BUBBLE", ["#E8F0F8", "#9068D8", "#180830"])],
+}
+for _v, _l in NEW_PATRONS.items():
+    EXTRA_LOOKS.setdefault(_v, []).extend(n for n, _ in _l)
+    PLANS[_v].setdefault("extras", []).extend(dict(name=n, cols=c) for n, c in _l)
 # Planned removals (struck through, yellow). Owner 2026-10-21: drop the enhanced looks (M14a) after the next patron revision.
 DROP_ENHANCED = True
 # Owner 2026-10-21: the BG palettes used above the playfield are reloaded where the playfield starts (row 5), so in the playfield
@@ -560,17 +577,12 @@ def accepted(v, name):
     return front, back
 
 def thumb(rows, cols, wall, name):
-    """img/<name>.png beside OUT: a 16x16 front view, x4, in the given colours. Returns its relative path."""
+    """img/<name>_1x.png beside OUT: a 16x16 view, indexed (colour 0 the wall, transparent), shown x3 by CSS and downloaded
+    as is (one file per picture: the artifact holds at most 512 files). Returns its relative path."""
     from PIL import Image
-    im = Image.new("RGB", (16, 16), hex2(wall))
-    for y, r in enumerate(rows[:16]):
-        for x, ch in enumerate(r[:16]):
-            if ch in "-+#":
-                im.putpixel((x, y), hex2(cols["-+#".index(ch)]))
-    rel = "img/%s.png" % name
-    path = os.path.join(os.path.dirname(OUT), rel)
+    rel = "img/%s_1x.png" % name
+    path = os.path.join(os.path.dirname(OUT), "img/%s.png" % name)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    im.resize((64, 64), Image.NEAREST).save(path, "PNG")
     one = Image.new("P", (16, 16), 0)                 # the 1x download: indexed, colour 0 the wall, 1-3 light to dark
     one.putpalette(sum((list(hex2(c)) for c in [wall] + list(cols)), []))
     for y, r in enumerate(rows[:16]):
@@ -1648,8 +1660,8 @@ for i, v in enumerate(venues):
                 if rows_:
                     rel = thumb(rows_, ccols, v["bg"][0][0], "%s_%s%s_%s" % (v["key"], first, suf, side))
                     pair += ('<a class="dl" href="%s" download="%s_%s.png" data-file="%s_%s.png" title="Download %s %s (16x16)">'
-                             '<img class="pimg" alt="%s %s" width="48" height="48" src="%s"></a>'
-                             % (rel[:-4] + "_1x.png", first + suf, side, first + suf, side, esc(first.upper()), side, esc(r["name"]), side, rel))
+                             '<img class="pimg" alt="%s %s" width="48" height="48" style="background:%s" src="%s"></a>'
+                             % (rel, first + suf, side, first + suf, side, esc(first.upper()), side, esc(r["name"]), side, v["bg"][0][0], rel))
                 else:
                     pair += '<span class="pimg none">-</span>'
             if sal:
