@@ -78,6 +78,9 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Fix: outside the Saloon, Color bank 1 holds only another screen's leftover tiles (level.c loads the Saloon's looks there only in the Saloon); the atlas counted them as used. They are free: about 254 bank-1 BG tiles per venue."),
+    ("2026-10-29", "Owner: \"Having all of the first row of pixels cleared in the patrons should free up some tiles.\" (the right column, x=15). Tile stats count 2 fewer per look: the shift-1 pose fits 2 tile columns (engine change needed)."),
+    ("2026-10-29", "Owner: \"with the saloon, and the ones to come when I get there, only show the primary patron palettes up top. Have a second section for approved palette swaps somewhere below.\" Cards and the Patrons table show each look's own palette (the plan's: HANK OBJ 3, DUSTY and EMMA OBJ 6, GUS OBJ 7, ROSIE and REDD OBJ 4, MABEL and ARTIE OBJ 5, in the game's numbers); the other sal_combo palettes are in Palette swaps. Fixes ARTIE's back showing his beard and skin swapped (it was drawn in HANK's swapped palette)."),
     ("2026-10-29", "Owner: \"Make sure all of the backs in the atlas are current.\" 11 backs (BRIE, BASIL, PUNK, HARLEY, BABY, RONIN, COCO, BAMBOO, ZORP, XENO, GLORP) showed the old pass files with the bottom outline; they now show the game's. NEKA, TELLY and DASH lose the bottom outline like the rest (front and back). MABEL's back is the game's, kept."),
     ("2026-10-29", "Owner: stats tiles at the top turn red when the planned patrons and content do not fit a limit (palettes still to assign count against the free ones; tiles below 0 free). GLOP's back fish mirrored (owner)."),
     ("2026-10-29", "Owner renamed patrons: TOOB -> TELLY, BUBBLE -> TOOB, MUSHER -> MUSH, YETI -> FROSTI, TRAPPER -> BOONE, RANGER -> SMITH, ANGLER -> ROD, SOMMELIER -> PINOT, SLICK -> BABY, SPIKE -> PUNK, BIKER -> ROADY, BANDIT -> HARLEY, SKATER -> HANA, KITSUNE -> KON, MOTH -> MOTHMA, Astronaut -> DASH, BLOB -> GLOP, VIXEN_B -> LUNA, VIXEN_D -> VENUS, SLUGGER -> LOUIS, BUGLE -> PIPER, GRIDIRON -> TOM. Older log lines keep the old names."),
@@ -178,6 +181,9 @@ for key, name in VENUES:
     c = lv["cgb"]
     bs = load("boss_%d" % (len(venues) + 1))                    # the same venue's boss fight (boss_N = VENUES order)
     tiles = dict(b0=regions(c["tiles"][0]), b1=regions(c["tiles"][1]), d=regions(lv["dmg"]["tiles"][0]), bb=regions(bs["cgb"]["tiles"][0]))
+    if key != "cowboys":       # bank 1 outside the Saloon: level.c loads nothing there, so tiles loaded but unused are another screen's leftovers: free
+        u1 = c["tiles"][1]["use"]
+        tiles["b1"] = tuple(sum(1 for i in range(a_, a_ + 128) if u1[i] == "0") for a_ in (0, 128, 256))
     pal = {p["slot"]: [hexc(x) for x in p["rep"]] for p in c["pal"]["obj"]}
     bgp = {p["slot"]: [hexc(x) for x in p["rep"]] for p in c["pal"]["bg"]}
     used = {}
@@ -344,6 +350,9 @@ SPLIT_PLAYFIELD = True
 FIELD_MOVES = [("Keg, spout", 7, 1)]
 SALOON_LOOKS = [("DUSTY", [0, 1]), ("EMMA", [3, 1, 2]), ("GUS", [1, 2]), ("HANK", [0, 1, 4]), ("ROSIE", [0, 3, 1, 2]),
                 ("REDD", [0, 3, 1, 4, 2]), ("MABEL", [0, 3, 1, 4, 2]), ("ARTIE", [0, 3, 1, 4, 2])]   # now: palette instances per look
+# Each Saloon look's own (primary) palette instance, from the plan (owner 2026-10-22): HANK's (colours 1 and 2 swapped), DUSTY with EMMA,
+# GUS, ROSIE with REDD, MABEL with ARTIE. The others in sal_combo are approved palette swaps (owner 2026-10-29: shown in their own section).
+SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 2, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
 INST_OBJ, INST_BG = [3, 6, 7, 4, 5], [2, 3, 4, 7, 5]      # palette instance 0-4 -> OBJ slot, BG slot (the Saloon has all 5)
 PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
 BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
@@ -431,11 +440,13 @@ def card(kind, sl, d, skip0, hide_cols=False):
     pat, oth = d["pat"], d["oth"]
     if hide_cols:
         pat, oth = [], []
-    free = not pat and not [x for x in oth if not x[0].startswith("Boss")] and not d["open"]
+    free = not pat and not [x for x in oth if not x[0].startswith("Boss")] and not d["open"] and not d.get("swaps")
     body = ""
     if pat or d["open"]:
         body += '<ul class="pat">%s%s</ul>' % ("".join('<li class="%s">%s</li>' % ("plan" if p else "now", esc(t)) for t, p in pat),
                                               ('<li class="plan open">%s</li>' % esc(d["open"])) if d["open"] else "")
+    if d.get("swaps") and not hide_cols:
+        body += '<p class="swp">%d swap%s</p>' % (d["swaps"], "" if d["swaps"] == 1 else "s")
     if oth and not free:
         body += '<ul class="oth">%s</ul>' % "".join('<li%s>%s</li>' % (' class="plan"' if p else "", esc(t)) for t, p in oth)
     if free:
@@ -509,6 +520,7 @@ li.open { font-style: italic; }
 .stat span { color: var(--muted); font-size: 13px; }
 .stat.plan b { color: var(--plan); }
 .stat.over { border-color: var(--over); }
+.swp { margin: 0; color: var(--muted); font-size: 12px; }
 .stat.over b, .stat.over span { color: var(--over); }
 .sw { width: 20px; height: 20px; border: 1px solid rgba(0,0,0,.35); border-radius: 3px; padding: 0; margin-left: 2px; cursor: pointer; }
 .tbl { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; }
@@ -1555,6 +1567,7 @@ def scene_sections(v, m, field):
 # Starts from the atlas capture (the game now), then the plan's tile deltas. Sources: QUEUE.md "Saloon 8 patron looks" (52 tiles a look;
 # option 2, the shared blank column: 50; looks A-C bank 0, D-H bank 1, one back view at bank-0 ids 242-245), PATRON_SPEC.md (48 shifted + 4 back).
 LOOK_NOW, LOOK_OPT2 = 52, 50        # tiles per look: now, option 2
+X15 = 2                             # owner 2026-10-29: column x=15 clear on every patron: the shift-1 pose fits 2 tile columns too (its 3rd = the shared blank)
 SALOON_NOW = 8                      # the Saloon's looks in the game (src/mirror.c sal_combo)
 LOOKS_NOW = 3                       # looks every venue has in the game today (the enhanced ROSIE / BOXY are palettes, not looks)
 BACK_B0 = 4                         # the one back view at bank-0 ids 242-245 once there are looks in bank 1
@@ -1571,12 +1584,14 @@ def planned_tiles(v, n):
     save = LOOKS_NOW * (LOOK_NOW - LOOK_OPT2)                 # option 2 on looks A-C
     fsave = FIGHT_LOOKS * (LOOK_NOW - LOOK_OPT2)
     b0 = BACK_B0 if extra else 0
-    b1 = extra * LOOK_OPT2
+    b1 = extra * (LOOK_OPT2 - X15)
+    xs0 = LOOKS_NOW * X15                                   # the cleared right column on looks A-C (bank 0, DMG)
+    xs1 = (SALOON_NOW - LOOKS_NOW) * X15 if sal else 0      # and on the Saloon's 5 bank-1 looks
     enh = 2 if v["key"] == "robots" else 0         # the dropped enhanced look's 2 bank-1 lift tiles (ids 210, 211: enhance.c enh_b1)
     sp = lambda r: r[0]
     bg = lambda r: r[1] + r[2]
-    o = dict(sp=sp(t["b0"]), bg=bg(t["b0"]) + save - b0, sp1=sp(t["b1"]), bg1=bg(t["b1"]) - b1 + enh,
-             fbg=bg(t["bb"]) + fsave - b0, dbg=bg(t["d"]) + save)
+    o = dict(sp=sp(t["b0"]), bg=bg(t["b0"]) + save + xs0 - b0, sp1=sp(t["b1"]), bg1=bg(t["b1"]) - b1 + enh + xs1,
+             fbg=bg(t["bb"]) + fsave + FIGHT_LOOKS * X15 - b0, dbg=bg(t["d"]) + save + xs0)
     o["used"] = 384 - o["sp"] - o["bg"]
     o["dused"] = 384 - t["d"][0] - o["dbg"]
     nowtxt = "Game now: bank 0 free %d sprite-only + %d BG (used %d); bank 1 free %d sprite-only + %d BG; boss fight free BG %d; DMG free BG %d (used %d)." % (
@@ -1585,8 +1600,10 @@ def planned_tiles(v, n):
          "Free means empty (not loaded, not referenced in the capture) and reachable: sprite-only ids 0-127, BG ids 128-383 (shared 128-255 + BG-only 256-383). Looks are BG tiles, so only BG counts for them.",
          "Looks in the plan: %d (now %d)%s." % (n, lnow, "" if n != lnow else "; no more are planned here ?"),
          "-%d per look, option 2, x %d looks (A-C): +%d free BG in bank 0 and on DMG%s." % (LOOK_NOW - LOOK_OPT2, LOOKS_NOW, save, "" if sal else " ?")]
+    L.append("-%d per look, right column x=15 clear (the shift-1 pose's 3rd tile column is the shared blank too): +%d free BG in bank 0 and on DMG, +%d in a boss fight%s ?"
+             % (X15, xs0, FIGHT_LOOKS * X15, (", +%d in bank 1" % xs1) if xs1 else ""))
     if extra:
-        L.append("+%d looks x %d in bank 1 (BG ids): bank 1 free BG -%d%s." % (extra, LOOK_OPT2, b1, q))
+        L.append("+%d looks x %d in bank 1 (BG ids): bank 1 free BG -%d%s." % (extra, LOOK_OPT2 - X15, b1, q))
         L.append("One back view in bank 0 (ids 242-245): bank 0 free BG -%d, boss fight -%d%s." % (b0, b0, q))
         L.append("Back views of the other new looks share that one ?")
         L.append("New looks are Color only: DMG unchanged.")
@@ -1663,8 +1680,8 @@ for i, v in enumerate(venues):
             r["bg"] = b
             if field[b]["new"] or b != r["obj"]:
                 r["planned"] = r["planned"] or bool(field[b]["new"])
-    rows = []
-    md = "### %s: patron palettes (plan, %s)\n\n| Patron | Palette colours (1, 2, 3) | OBJ | BG | Spawns in OBJ (and matching BG) | DMG |\n|---|---|---|---|---|---|\n" % (v["name"], LOG[0][0])
+    rows, swaps = [], []
+    md = "### %s: patron palettes (plan, %s)\n\n| Patron | Palette colours (1, 2, 3) | OBJ | BG | DMG |\n|---|---|---|---|---|\n" % (v["name"], LOG[0][0])
     sal = v["key"] == "cowboys"
     GT = game_truth.truth()
     if sal:                         # the game's looks, one row each: palette instances from src/mirror.c, not the OBJ slots of the plan
@@ -1674,15 +1691,15 @@ for i, v in enumerate(venues):
     for r in ident + reserved:
         d = m[("OBJ", r["obj"])] if not sal and r["obj"] is not None else None
         if sal:
-            ps = game_truth.ordered_instances(r["look"], SALOON_LOOKS[r["look"]][1])        # the look's own palette first
+            ps = game_truth.ordered_instances(r["look"], SALOON_LOOKS[r["look"]][1])
+            prim = SALOON_PRIMARY[r["name"].split(",")[0].strip()]
+            ps = [prim] + [p_ for p_ in ps if p_ != prim]                                # the look's own palette first
             groups = [[hexc(c) for c in GT["inst"]["cowboys"][p]] for p in ps]
             cols = groups[0]
-            sw = "".join('<span class="swg">%s</span>' % "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in g_) for g_ in groups)
-            objs = sorted({INST_OBJ[p] for p in ps})
-            bgs = sorted({INST_BG[p] for p in ps})
-            bg = ", ".join(str(x) for x in bgs)
-            obj_txt = ", ".join(str(x) for x in objs)
-            vtxt = obj_txt
+            sw = "".join('<button type="button" class="sw" style="background:%s" data-hex="%s" title="%s"></button>' % (c, c, c) for c in cols)
+            bg = str(INST_BG[ps[0]])
+            obj_txt = str(INST_OBJ[ps[0]])
+            vtxt = ", ".join(str(x) for x in sorted({INST_OBJ[p] for p in ps}))
             dtxt = "DMG" if r["look"] < 3 else ""
         elif d is None:                                   # a planned extra look with no OBJ slot yet
             cols = r["cols"]
@@ -1715,7 +1732,9 @@ for i, v in enumerate(venues):
         if sal:
             combos = [([hexc(c) for c in GT["inst"]["cowboys"][p]], "" if n_ == 0 else "_o%d" % INST_OBJ[p]) for n_, p in enumerate(ps)]
         img = ""
-        for n_, (ccols, suf) in enumerate(combos):
+        if len(combos) > 1:
+            swaps.append((r["name"], first, fr, bk, combos[1:], ps[1:] if sal else [None] * (len(combos) - 1)))
+        for n_, (ccols, suf) in enumerate(combos[:1]):
             pair = ""
             for rows_, side in ((fr, "front"), (bk, "back")):
                 if rows_:
@@ -1739,8 +1758,8 @@ for i, v in enumerate(venues):
         if r["name"] in EXTRA_LOOKS.get(v["key"], []):
             dtxt = "Color only"
         rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, obj_txt if obj_txt.startswith("<") else "OBJ " + obj_txt, bg, vtxt, dtxt)))
-        md += "| %s%s | %s | OBJ %s | %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), re.sub("<[^>]+>", "", obj_txt),
-                                                ("BG %s" % bg) if (sal or "bg" in r) else "to assign", re.sub("<[^>]+>", "", vtxt), dtxt or "Color only")
+        md += "| %s%s | %s | OBJ %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), re.sub("<[^>]+>", "", obj_txt),
+                                                ("BG %s" % bg) if (sal or "bg" in r) else "to assign", dtxt or "Color only")
     nx = len(EXTRA_LOOKS.get(v["key"], []))
     w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % (len(ident) - nx))
     if nx:
@@ -1761,6 +1780,14 @@ for i, v in enumerate(venues):
     stat(tl["dbg"], "free BG DMG", tl["dbg"] < 0)
     w('</div><details class="tdet"><summary>Tile breakdown, planned</summary><ul>%s</ul></details>' % "".join("<li>%s</li>" % esc(x) for x in tl["lines"]))
     w('<h2>Sprite palettes</h2><div class="grid">')
+    if sal:                                        # the cards list each look on its own palette only; swaps are counted
+        prim = {nm.split(",")[0]: (INST_OBJ[SALOON_PRIMARY[nm.split(",")[0]]], INST_BG[SALOON_PRIMARY[nm.split(",")[0]]]) for nm in NAMES["cowboys"]}
+        for kind, src in (("OBJ", lambda sl: m[("OBJ", sl)]), ("BG", lambda sl: field[sl])):
+            for sl in range(8):
+                d = src(sl)
+                keep = [x for x in d["pat"] if prim.get(x[0].split(",")[0], (sl, sl))[0 if kind == "OBJ" else 1] == sl]
+                d["swaps"] = len(d["pat"]) - len(keep)
+                d["pat"] = keep
     for sl in range(8):
         w(card("OBJ", sl, m[("OBJ", sl)], True))
     w('</div><h2>Background palettes, playfield</h2><div class="grid">')
@@ -1771,10 +1798,27 @@ for i, v in enumerate(venues):
         d = dict(m[("BG", sl)]); d["pat"] = []
         w(card("BG", sl, d, False))
     w('</div><div class="ph2"><h2>Patrons</h2><button type="button" class="copymd" data-md="%s">Copy table as Markdown</button></div>' % esc(md))
-    w('<div class="tbl"><table class="pt"><thead><tr><th></th><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th><th>Spawns in</th><th>Also on</th></tr></thead><tbody>')
+    w('<div class="tbl"><table class="pt"><thead><tr><th></th><th>Patron</th><th>Palette colours</th><th>OBJ</th><th>BG</th><th>Also on</th></tr></thead><tbody>')
     for r in rows:
-        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % r["html"])
+        h = r["html"]
+        w('<tr><td class="pic">%s</td><td class="%s">%s</td><td>%s</td><td class="slotc">%s</td><td class="slotc">%s</td><td class="slotc">%s</td></tr>' % (h[:6] + h[7:]))
     w('</tbody></table></div>')
+    if swaps:                                      # owner 2026-10-29: approved palette swaps in their own section, below the primaries
+        w('<h2>Palette swaps</h2><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Swaps</th></tr></thead><tbody>')
+        for name, first_, fr_, bk_, cmb, pis in swaps:
+            cells = ""
+            for (ccols, suf), pi in zip(cmb, pis):
+                pair = ""
+                for rows_, side in ((fr_, "front"), (bk_, "back")):
+                    if rows_:
+                        rel = thumb(rows_, ccols, v["bg"][0][0], "%s_%s%s_%s" % (v["key"], first_, suf, side))
+                        pair += '<img class="pimg" alt="%s %s" width="48" height="48" style="background:%s" src="%s">' % (esc(name), side, v["bg"][0][0], rel)
+                if pi is not None:
+                    SHOWN.add((v["key"], NAMES["cowboys"].index(name), pi))
+                    pair += '<span class="plab">OBJ %d / BG %d</span>' % (INST_OBJ[pi], INST_BG[pi])
+                cells += '<div class="pp">%s</div>' % pair
+            w('<tr><td class="now">%s</td><td class="pic"><div class="pics">%s</div></td></tr>' % (esc(name), cells))
+        w('</tbody></table></div>')
     w(boss_section(v, m, field))
     w(scene_sections(v, m, field))
     w(tile_grid(v))
