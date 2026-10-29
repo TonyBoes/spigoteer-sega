@@ -1,4 +1,4 @@
-; FRANK front, head/face pass in the PETE/NORM/SERENA style (proposal 2026-10-29); cap and body as picked
+; FRANK front v2 (owner Q45 2026-10-29): head from v1 kept; body redrawn as a cream apron over a red shirt, hot-dog logo (red bun, dark sausage)
 ...####.........
 ..#----###......
 ..#-------####..
@@ -11,7 +11,7 @@
 ..##----+++-#...
 ...##-------#...
 .....#-----#....
-.##############.
-#--###---###--#.
-++++#+++++#++++.
-+--+#+---+#+--+.
+.#++-######-++#.
+#+++---+++--++#.
+#+++--#####-++#.
+#+++---+++--++#.
