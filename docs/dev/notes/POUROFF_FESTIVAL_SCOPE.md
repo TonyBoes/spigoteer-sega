@@ -70,3 +70,5 @@ Open owner questions (not asked here): is the clown on DMG too; what the finale 
   CEDAR, PIERRE, IGGY, BOXY, SPIKE, KAGE, COCO, ZORP (6 looks per game on DMG, 4-5 on Color).
 - Q22: yes, the finale line becomes "THE POUR-OFF WILL BE AT FESTIVAL SQUARE." Change it in the same build as the
   festival room (story_pic_finale goldens move then).
+- Q26: "a is better, but include background buildings from the story scenes. Don't need giant booth. Change color so
+  less like stadium." A2 in docs/dev/concepts/festival_room/A2/.
