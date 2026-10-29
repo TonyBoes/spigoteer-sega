@@ -1,0 +1,80 @@
+; New patrons round 3: x=15 trims of the owner's v1 picks (owner 2026-10-29). CONCEPTS, not imported. Color-only looks.
+; Each grid is its v1 grid with only the listed pixels changed; everything else is v1 exactly. Palettes unchanged.
+; Column x=15 is empty in every figure (owner rule 2026-10-28). House format (. wall / - light / + mid / # dark).
+
+; @fig CUB #f0f8f8 #e0a878 #283050
+; CUB (Igloo, from igloo.txt v1): 1 pixel. Row 15 x=15 dark -> wall (the suit's outline already closes at x=14 on row 14).
+..##......##....
+.#+-#....#-+#...
+.#+-######-+#...
+#------------#..
+#----#####---#..
+#---#+++++#--#..
+#--#++#++#+#-#..
+#--#++#++#+#-#..
+#--#+++++++#-#..
+#--#+++##++#-#..
+#---#+++++#--#..
+.#---#####---#..
+..#---------#...
+.#--#-----#--#..
+#---#-----#---#.
+###############.
+
+; @fig DJ #f8d8c0 #3878f8 #100c28
+; DJ (Chrome Cow, from chromecow.txt v1): 11 pixels. Right-hand headphone cup rows 4-7: outline moves in from x=15 to x=14 (x=14 blue -> dark, x=15 -> wall), so that cup is 1 px of blue between outlines.
+; Rows 14-15: shoulder outline moves in to x=14 (row 14 x=14 blue -> dark; x=15 -> wall on both rows).
+....#######.....
+..##+++++++##...
+.#++#######++#..
+.#+#########++#.
+#+++#-------#+#.
+#+-+#-------#+#.
+#+-+#-#---#-#+#.
+#+++#-#---#-#+#.
+#+++#--------#..
+.###-----++--#..
+...#--------#...
+....##-----#....
+.....#---#......
+.###+##---##+##.
+#+++++#---#+++#.
+###############.
+
+; @fig RAVEN #f0e0f0 #9048c0 #180818
+; RAVEN (Chrome Cow, from chromecow.txt v1): 3 pixels. Row 14 x=14 purple -> dark, x=15 -> wall; row 15 x=15 -> wall.
+.###.......###..
+#+++#.....#+++#.
+#+++#.....#+++#.
+.#--#.....#--#..
+..#+#######+#...
+.#+++++++++++#..
+.#++++++++++++#.
+.#++#--------#..
+.#++#-##--##-#..
+.#++#--#--#--#..
+.#++#--------#..
+.#++#---++---#..
+.#++##-----##...
+.#+++##---##++#.
+#++++#-----#++#.
+###############.
+
+; @fig SENSEI #f8f8f0 #d8a070 #302018
+; SENSEI (Teahouse, from teahouse.txt v1): 3 pixels. Rows 13-15 x=15 dark -> wall (robe and outline are both dark, so x=14 closes the shoulder).
+................
+.....######.....
+....#+-+++++#...
+...#+--++++++#..
+...#++++++++++#.
+...#++--++--++#.
+..#+#++#+++#++#.
+..#+#++#+++#++#.
+...#--++++++--#.
+...#----++----#.
+...#----------#.
+...#----------#.
+....#--------#..
+..##-#------#-#.
+###-##-----##-#.
+###############.
