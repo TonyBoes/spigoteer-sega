@@ -79,6 +79,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
+    ("2026-10-29", "Owner: \"Auto assigned palettes to new patrons where available make suggestions for palette merges.\" Own palettes: Stadium BUGLE 4, GRIDIRON 5; Lodge RANGER 4, ANGLER 5; Bistro MIME 3; Igloo MUFFY 4, CUB 5; Chrome Cow RAVEN 4, BIKER 5; Teahouse SKATER 4, POET 5; Zoo TUCO 3, PINKY 4; Space MOTH OBJ 3 / BG 5, BLOB 4. Same colours, shared: NONNA with PIERRE, SOMMELIER with BASIL, DJ with SLICK, KITSUNE with SAKURA, ELLIE and ZIGGY with BAMBOO. TRAPPER's BG on BG 2. Merges suggested (Q43) for MUSHER, YETI, CLANK, BUBBLE, SENSEI, MONK, VIXEN_B, VIXEN_D."),
     ("2026-10-29", "Owner: \"Trapper can use Sasquatch palette\" Lumber Lodge: TRAPPER in OBJ 1 with the Sasquatch and the full mug."),
     ("2026-10-29", "Owner: \"Put slugger in the reserved patron color slot in stadium. Frank shares Pete's palette.\" Stadium: SLUGGER in OBJ 2, FRANK in OBJ 1 with PETE."),
     ("2026-10-29", "Owner: \"None of my new patrons are in the atlas.\" The 32 picked Color-only patrons (Stadium 4, Lodge 3, Bistro 3, Igloo 4, Chrome Cow 3, Teahouse 5, Zoo 4, Space 4, Factory 2) added as planned looks with their backs; palettes to assign."),
@@ -289,9 +290,34 @@ NEW_PATRONS = {
     "aliens": [("MOTH", ["#F8F0D0", "#C8A068", "#382010"]), ("BLOB", ["#D0F0F8", "#58A0F0", "#081828"]), ("VIXEN_B", ["#F0F0F8", "#40B8A8", "#100820"]), ("VIXEN_D", ["#C8F8F0", "#6058E0", "#180828"])],
     "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("BUBBLE", ["#E8F0F8", "#9068D8", "#180830"])],
 }
+# Owner 2026-10-29: "Auto assigned palettes to new patrons where available make suggestions for palette merges."
+# Own palette where an OBJ slot and a playfield BG slot are free: (OBJ, BG, name), the concept's colours.
+AUTO_OWN = {
+    "sports": [(4, 4, "BUGLE"), (5, 5, "GRIDIRON")],
+    "lumberjacks": [(4, 4, "RANGER"), (5, 5, "ANGLER")],
+    "chefs": [(3, 3, "MIME")],
+    "divers": [(4, 4, "MUFFY"), (5, 5, "CUB")],
+    "punks": [(4, 4, "RAVEN"), (5, 5, "BIKER")],
+    "ninjas": [(4, 4, "SKATER"), (5, 5, "POET")],
+    "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
+    "aliens": [(3, 5, "MOTH"), (4, 4, "BLOB")],
+}
+# Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
+AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["SOMMELIER"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KITSUNE"]}, "zoo": {6: ["ELLIE", "ZIGGY"]}}
+_NP = {n: c for _l in NEW_PATRONS.values() for n, c in _l}
+for _v, _l in AUTO_OWN.items():
+    for _o, _b, _n in _l:
+        PLANS[_v].setdefault("add", {})[("OBJ", _o)] = (_n, _NP[_n])
+        if _b != _o:
+            PLANS[_v].setdefault("bg", {})[_n] = _b
+for _v, _d in AUTO_SHARE.items():
+    for _o, _ns in _d.items():
+        PLANS[_v].setdefault("join", {}).setdefault(("OBJ", _o), []).extend(_ns)
+PLANS["chefs"].setdefault("bg", {})["NONNA"] = 2                  # PIERRE and BRIE's BG 2 (OBJ 0 is Sal's)
+PLANS["lumberjacks"].setdefault("bg", {})["TRAPPER"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
 for _v, _l in NEW_PATRONS.items():
     EXTRA_LOOKS.setdefault(_v, []).extend(n for n, _ in _l)
-    _joined = [n for ns in PLANS[_v].get("join", {}).values() for n in ns]          # given a palette slot: listed there, not as an extra
+    _joined = [n for ns in PLANS[_v].get("join", {}).values() for n in ns] + [a[0] for a in PLANS[_v].get("add", {}).values()]   # given a palette slot: listed there, not as an extra
     PLANS[_v].setdefault("extras", []).extend(dict(name=n, cols=c) for n, c in _l if n not in _joined)
 # Planned removals (struck through, yellow). Owner 2026-10-21: drop the enhanced looks (M14a) after the next patron revision.
 DROP_ENHANCED = True
@@ -837,6 +863,13 @@ def field_model(v, m):
                 d = field[b]
                 put(o, (name, True), eff(d), d.get("match") if str(d.get("match", "")).startswith("OBJ") else None)
                 take(b, name)
+    for name, to in PLANS.get(v["key"], {}).get("bg", {}).items():          # a patron's BG away from its OBJ number
+        o = next(sl for sl in range(8) if any(x[0] == name for x in m[("OBJ", sl)]["pat"]))
+        oc = eff(m[("OBJ", o)])
+        if field[to]["pat"]:
+            field[to]["pat"] = field[to]["pat"] + [(name, True)]
+        else:
+            put(to, (name, True), [eff(field[0])[0]] + oc[1:], "OBJ %d" % o)
     objof = {t: so for t, so in pats}
     for sl in range(8):
         names = [x[0] for x in field[sl]["pat"]]
