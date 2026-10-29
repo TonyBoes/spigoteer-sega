@@ -1,0 +1,59 @@
+; Chrome Cow (group punks, CGB wall #3a2a48) - new Color-only patron concepts, owner Q8 2026-10-28. CONCEPTS, not imported.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark). Hand-placed.
+; Each figure: a "; @fig NAME c1 c2 c3" line (indices 1-3, light to dark, RGB555-safe) and a comment line.
+; @fig DJ #f8d8c0 #3878f8 #100c28
+; DJ: big blue headphones on (band over the head, far cup with a glint, near cup), short dark hair, tee. Reuses punks_c (skin / blue / dark; #100c28 is off the RGB555 grid in the shipped palette).
+....#######.....
+..##+++++++##...
+.#++#######++#..
+.#+#########++#.
+#+++#-------#++#
+#+-+#-------#++#
+#+-+#-#---#-#++#
+#+++#-#---#-#++#
+#+++#--------#..
+.###-----++--#..
+...#--------#...
+....##-----#....
+.....#---#......
+.###+##---##+##.
+#+++++#---#++++#
+################
+
+; @fig BIKER #f8c8a0 #d83030 #181018
+; BIKER: round red open-face helmet with a shine, goggles pushed up on it, handlebar moustache, leather jacket. NEW palette skin #f8c8a0 / red #d83030 / dark #181018.
+.....######.....
+...##++++++##...
+..#+-++++++++#..
+.#+-++###+###+#.
+.#++++#-###-#+#.
+.#++++#######+#.
+.#+++#--------#.
+.#+++#-#---#--#.
+..#+#--#---#--#.
+...#--######--#.
+...#-#------#-#.
+....#--+++---#..
+.....#------#...
+.####+#---#+###.
+#++###+---+##++#
+################
+
+; @fig RAVEN #f0e0f0 #9048c0 #180818
+; RAVEN: goth woman, two tall purple pigtails with pale ties, pale skin, winged dark eyes, purple lips, dark top. NEW palette pale #f0e0f0 / purple #9048c0 / dark #180818.
+.###.......###..
+#+++#.....#+++#.
+#+++#.....#+++#.
+.#--#.....#--#..
+..#+#######+#...
+.#+++++++++++#..
+.#++++++++++++#.
+.#++#--------#..
+.#++#-##--##-#..
+.#++#--#--#--#..
+.#++#--------#..
+.#++#---++---#..
+.#++##-----##...
+.#+++##---##++#.
+#++++#-----#+++#
+################

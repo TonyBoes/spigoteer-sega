@@ -1,0 +1,59 @@
+; Lodge (group lumberjacks, CGB wall #6a4a30) - new Color-only patron concepts, owner Q8 2026-10-28. CONCEPTS, not imported.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark). Hand-placed.
+; Each figure: a "; @fig NAME c1 c2 c3" line (indices 1-3, light to dark, RGB555-safe) and a comment line.
+; @fig TRAPPER #f8c090 #d03028 #281820
+; TRAPPER: red trapper hat with a fur front and ear flaps (fur tips), moustache, red coat with fur collar. Reuses lumberjacks_a (skin / red / dark).
+....#######.....
+..##+++#+++##...
+.#++++#++++++#..
+.#-----------#..
+#-############..
+#+#--------#+#..
+#+#---#--#-#+#..
+#+#---#--#-#+#..
+#+#---------#+#.
+#-#-#####---#-#.
+#-#---------#-#.
+.###--+++--####.
+.#--##---##--#..
+#+++-#####-+++#.
+#++#+++#+++#++#.
+################
+
+; @fig RANGER #f8c090 #988838 #283018
+; RANGER: flat-brim campaign hat with a pinched crown and dark band, khaki shirt, badge. NEW palette skin #f8c090 / khaki #988838 / dark green #283018.
+......####......
+.....#++#+#.....
+....#+++#++#....
+....########....
+..############..
+#++++++++++++++#
+.##############.
+...#-#-------#..
+...#-#--#--#-#..
+...#-#--#--#-#..
+....#--------#..
+.....#--++--#...
+..####-----####.
+.#+-+##---##+++#
+#++-+#+++++#+++#
+################
+
+; @fig ANGLER #f8c090 #488878 #182028
+; ANGLER: drooping bucket hat with two lures on it, fishing vest with a pocket. NEW palette skin #f8c090 / teal #488878 / dark #182028.
+....#######.....
+...#+-++++++#...
+...#+-++++++#...
+..#++++++--++#..
+.#++++++++++++#.
+#++##########++#
+###-#--------###
+...#-#--#--#-#..
+...#-#--#--#-#..
+....#--------#..
+....#---++---#..
+.....#------#...
+..###+#---#+###.
+.#+++++###+++-+#
+#+#+++++#++++-+#
+################
