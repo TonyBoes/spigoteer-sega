@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner: \"Make sure all of the backs in the atlas are current.\" 11 backs (BRIE, BASIL, PUNK, HARLEY, BABY, RONIN, COCO, BAMBOO, ZORP, XENO, GLORP) showed the old pass files with the bottom outline; they now show the game's. NEKA, TELLY and DASH lose the bottom outline like the rest (front and back). MABEL's back is the game's, kept."),
     ("2026-10-29", "Owner: stats tiles at the top turn red when the planned patrons and content do not fit a limit (palettes still to assign count against the free ones; tiles below 0 free). GLOP's back fish mirrored (owner)."),
     ("2026-10-29", "Owner renamed patrons: TOOB -> TELLY, BUBBLE -> TOOB, MUSHER -> MUSH, YETI -> FROSTI, TRAPPER -> BOONE, RANGER -> SMITH, ANGLER -> ROD, SOMMELIER -> PINOT, SLICK -> BABY, SPIKE -> PUNK, BIKER -> ROADY, BANDIT -> HARLEY, SKATER -> HANA, KITSUNE -> KON, MOTH -> MOTHMA, Astronaut -> DASH, BLOB -> GLOP, VIXEN_B -> LUNA, VIXEN_D -> VENUS, SLUGGER -> LOUIS, BUGLE -> PIPER, GRIDIRON -> TOM. Older log lines keep the old names."),
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
@@ -1629,7 +1630,7 @@ def back_info(v, i):
     pick = ACCEPTED.get(v["key"], {}).get(NAMES[v["key"]][i].split(",")[0].strip().lower())
     if pick and pick[1] != "old":
         prows = frames(os.path.join(PASS, v["key"], pick[1] + ".txt"))[0]
-        if prows != rows:
+        if prows[:15] != rows[:15]:            # row 15 only: the pick is in the game, with the 10-29 bottom outline dropped
             return prows, "planned"
     return rows, ("stand-in" if standin else "")
 
