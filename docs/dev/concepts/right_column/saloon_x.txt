@@ -16,7 +16,7 @@
 ..###+##--####..
 ..#+-+######+-#.
 .#++-++####+-+#.
-#+-++-+++-++-+#.
+.+-++-+++-++-+#.
 
 ; ROSIE: ROSIE. x15 gone: one - or + dropped from the right of rows 13-15, edge # now x14.
 .#..............
@@ -70,7 +70,7 @@
 .#++####+---+##.
 .#+######+-+###.
 #+########+##+#.
-#+######+####+#.
+#+######+#+##+#.
 
 ; ARTIE: ARTIE. x15 gone: one # dropped from the right black skirt of rows 11-15, so the right side now matches the left in width (rows 13-14: 5 # each side).
 ................
@@ -88,4 +88,4 @@
 #++#+++++++####.
 #####+++++#####.
 #####+++++#####.
-######+++######.
+#####+++++#####.

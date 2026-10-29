@@ -37,7 +37,7 @@
 #++-+-+-+--++#..
 #+++++++++++++#.
 #+++++++++++++#.
-###############.
+#+++++++++++++#.
 
 ; @fig VIXEN_A #e0c8f8 #e83890 #280830
 ; VIXEN A: lavender-skinned alien lounge singer turned right; tall magenta beehive leaning back with a dark swirl, long winged lashes, little magenta ear fin, beauty mark, magenta lips, pale high collar, magenta gown, wide near shoulder. New palette.
@@ -56,7 +56,7 @@
 ...#-##---##-#..
 ..#---#####---#.
 #+++++#++-+++#..
-#++++++#++++++#.
+#+++++++++++++..
 
 ; @fig VIXEN_B #f0f0f8 #40b8a8 #100820
 ; VIXEN B: teal-skinned alien with a sleek glossy black bob (straight bangs, the mass on the near side, a thin far edge, a light gloss line), two antennae with light bobbles, heavy-lashed eyes looking right, beauty mark, pale frosted lips, high silver space-age collar and dress, wide near shoulder. New palette.
@@ -75,7 +75,7 @@
 ..#-#+++++####..
 ...####+++#.....
 #-----#+#----#..
-#------#-----#..
+#------+-----#..
 
 ; @fig VIXEN_B2 #f0f0f8 #40b8a8 #100820
 ; VIXEN B2 (refine of B): same black bob, teal skin, antennae and silver collar; a silver sheen on the crown, a rim light on both top shoulders and the back edge so the bob reads on the navy wall; small dark lips instead of pale ones.
@@ -94,7 +94,7 @@
 ..-##+++++####..
 ...####+++#.....
 #-----#+#----#..
-#------#-----#..
+#------+-----#..
 
 ; @fig VIXEN_C #f8f0d8 #9870e0 #200830
 ; VIXEN C: lilac-skinned alien with a high sleek platinum ponytail fountaining up and falling down her back, hair slicked back, a dark visor band across the forehead with a light gem, lashed eyes looking right, beauty mark, small dark lips, silver collar, lilac gown. New palette.
@@ -113,7 +113,7 @@
 .#-#+++++#......
 ..####++##......
 #-----#+#----#..
-#+++++##+++++#..
+#+++++#++++++#..
 
 ; @fig VIXEN_D #c8f8f0 #6058e0 #180828
 ; VIXEN D (Q35, owner 10-29: "just needed to be mirrored"): VIXEN D OLD mirrored to face right, moved 1 px left so x=15 stays clear. Same palette.
@@ -132,7 +132,7 @@
 .....#-----#---.
 ......#---###-..
 ..#+++#---#+++#.
-.#+++++#-#++++#.
+..+++++---++++#.
 
 ; @fig VIXEN_D_OLD #c8f8f0 #6058e0 #180828
 ; VIXEN D OLD (superseded, owner Q35: read as facing left; kept for the comparison): pale-aqua alien with a violet side-parted swoop that sweeps over and hides her far eye, short on the near side with the ear showing and a pale star earring hanging below it, cat-eye flick, beauty mark, violet lips, violet gown. New palette.
@@ -151,5 +151,5 @@
 ---#-----#......
 .-###---#.......
 #+++#---#+++#...
-#++++#-#+++++#..
+#++++---+++++...
 

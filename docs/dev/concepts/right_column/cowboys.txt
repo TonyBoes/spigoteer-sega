@@ -16,7 +16,7 @@
 .##++-##----#+#.
 #++#++##--+-#+#.
 ++++#++#++++#++.
-+++++#+++++#+++.
++++++++++++++++.
 
 ; B EMMA: EMMA. x15 gone: the lowest rows (14-15) end at x14, one # dropped from each run; the hat/head are untouched.
 .#..............
@@ -34,7 +34,7 @@
 ..++++#----#+++.
 .++++-.####.--+.
 ##++++-.-.---##.
-###++++---#####.
+##+++++------##.
 
 ; C GUS: GUS. x15 gone: the torso is one column narrower (one - or + dropped from the left of the centre details in rows 12-15, so the buttons/belt shift 1 px left); both sleeves and the x0 side are unchanged.
 ....#######.....
@@ -52,4 +52,4 @@
 #-##-------##-#.
 +-#+---#---+#-+.
 #-##--###--##-#.
-+-#+###+###+#-+.
++-#+--#+#--+#-+.
