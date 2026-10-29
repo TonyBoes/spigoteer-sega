@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner (Q48), on the every-look-every-palette sheet: moss off EMMA, MABEL, ARTIE (and GUS); added DUSTY in ROSIE's and MABEL's, EMMA in HANK's and MABEL's, GUS in ROSIE's and MABEL's, HANK in ROSIE's, ROSIE in MABEL's. 36 combinations in the game."),
+    ("2026-10-29", "Owner (Q46): \"Swap gus.\" On Color GUS's colours 1 and 2 are swapped (skin in colour 1, like every Saloon look); his own palette is HANK's, EMMA's is a swap. ROSIE's red a little more orange (#C04A2C), owner: \"So the hair color looks more natural.\""),
     ("2026-10-29", "Owner (Q44): \"Moss, keep all except gus.\" GUS's old palette (OBJ 7 / BG 4) is now moss #F6BD94 #5A7B4A #182018, in the game; every Saloon look but GUS may spawn in it (DUSTY and HANK added, GUS dropped). The credits draw GUS in his own palette, EMMA's."),
     ("2026-10-29", "Owner: \"I don't need tiles used in atlas. Only those free.\" The two tiles-used stats are gone."),
     ("2026-10-29", "Owner: \"I want gus to share emma's palette. And I want hank's palette to be emma's palette, but with the color for emma's skin in the spot where [hank's jacket] is, and the color of emma's hair where [hank's] skin is.\" GUS's own palette is EMMA's OBJ 6 (his OBJ 7 stays a swap and Big Tex's); HANK's OBJ 3 / BG 2 = #8B5231 #FFD5BD #221B1A (was #8B5231 #FFE6CD #392918), in the game."),
@@ -351,11 +353,11 @@ DROP_ENHANCED = True
 SPLIT_PLAYFIELD = True
 # Every venue (owner 2026-10-21): in the playfield the keg / spout palette moves from BG 7 to BG 1 (BG 1 is the HUD's above the playfield).
 FIELD_MOVES = [("Keg, spout", 7, 1)]
-SALOON_LOOKS = [("DUSTY", [0, 1, 2]), ("EMMA", [3, 1, 2]), ("GUS", [1]), ("HANK", [0, 1, 4, 2]), ("ROSIE", [0, 3, 1, 2]),
-                ("REDD", [0, 3, 1, 4, 2]), ("MABEL", [0, 3, 1, 4, 2]), ("ARTIE", [0, 3, 1, 4, 2])]   # now: palette instances per look
+SALOON_LOOKS = [("DUSTY", [0, 1, 2, 3, 4]), ("EMMA", [3, 1, 0, 4]), ("GUS", [0, 1, 3, 4]), ("HANK", [0, 1, 4, 2, 3]), ("ROSIE", [0, 3, 1, 2, 4]),
+                ("REDD", [0, 3, 1, 4, 2]), ("MABEL", [0, 3, 1, 4]), ("ARTIE", [0, 3, 1, 4])]   # now: palette instances per look
 # Each Saloon look's own (primary) palette instance, from the plan (owner 2026-10-22): HANK's (colours 1 and 2 swapped), DUSTY with EMMA,
 # GUS with EMMA too (owner 2026-10-29), ROSIE with REDD, MABEL with ARTIE. The others in sal_combo are approved palette swaps (owner 2026-10-29: shown in their own section).
-SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 1, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
+SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 0, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
 INST_OBJ, INST_BG = [3, 6, 7, 4, 5], [2, 3, 4, 7, 5]      # palette instance 0-4 -> OBJ slot, BG slot (the Saloon has all 5)
 PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
 BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
@@ -1728,6 +1730,9 @@ for i, v in enumerate(venues):
         else:
             fr = game_front(v, idx) if sal else accepted(v, r["name"])[0]
             bk, btag = back_info(v, idx)
+            if sal and idx == 2:                          # the Color Saloon swaps GUS's colours 1 and 2 (owner Q46 2026-10-29, src/level.c swap_gus)
+                sw = lambda g: [x.translate(str.maketrans("-+", "+-")) for x in g] if g else g
+                fr, bk = sw(fr), sw(bk)
             tr = trimmed_front(v, idx, fr)
             if tr:
                 fr, ftag = tr, "planned front"
