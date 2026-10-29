@@ -79,6 +79,7 @@ IDEAS = [
 
 LOG = [
     ("2026-10-29", "Q16/Q17 Owner: \"Q17 looks good. Put in atlas as planned.\" 25 fronts with the right pixel column cleared shown as planned fronts (amber); not in the game yet."),
+    ("2026-10-29", "Owner: \"Trapper can use Sasquatch palette\" Lumber Lodge: TRAPPER in OBJ 1 with the Sasquatch and the full mug."),
     ("2026-10-29", "Owner: \"Put slugger in the reserved patron color slot in stadium. Frank shares Pete's palette.\" Stadium: SLUGGER in OBJ 2, FRANK in OBJ 1 with PETE."),
     ("2026-10-29", "Owner: \"None of my new patrons are in the atlas.\" The 32 picked Color-only patrons (Stadium 4, Lodge 3, Bistro 3, Igloo 4, Chrome Cow 3, Teahouse 5, Zoo 4, Space 4, Factory 2) added as planned looks with their backs; palettes to assign."),
     ("2026-10-28", "Planned Color-only extra looks added (amber): Space Lounge Astronaut (Stadium A colours), Robot Factory NEKA (cyan) and TOOB (mint); front and back as accepted by the owner."),
@@ -225,6 +226,7 @@ PLANS = {
         moves=[("Show dancers", "OBJ", 5, 1, "Sasquatch"), ("WILLOW", "OBJ", 6, 3, "WILLOW, red hair"), ("WILLOW", "BG", 3, 2, "WILLOW, red hair")],
         recolour={},
         open={},
+        join={("OBJ", 1): ["TRAPPER"]},   # owner 2026-10-29: TRAPPER shares the Sasquatch's palette
         why="Owner 2026-10-25: the Sasquatch shares the full mug (foam to cream); CEDAR and WILLOW share CEDAR's palette (WILLOW's navy goes).",
     ),
     "chefs": dict(
