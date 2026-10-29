@@ -62,3 +62,11 @@ No new globals. `po_state` is 514 B of the 520 B `story_scratch` (`STORY_SCRATCH
 | 6 | Tests: rewrite the crowd/stage asserts in `test_pouroff.py`, add a test for each look's tiles/palette and a junk-poke check; list the 12 changed goldens with `tools/dev/golden_bbox.py` for the supervisor; update story text only if the owner agrees. `make test`, `make check`, `make cfall` (no asm touched). | both | |
 
 Open owner questions (not asked here): is the clown on DMG too; what the finale text should say if the venue is no longer Sadie's saloon; which three other stages' patrons.
+
+## Owner decisions (2026-10-29)
+
+- Q20: the festival is a whole room (stage, wall, bar, colours), not just the stage.
+- Q21: "you suggest": the clown in every game (DMG and Color, a Pour-Off-only pack) plus a rotating mix from DUSTY, PETE,
+  CEDAR, PIERRE, IGGY, BOXY, SPIKE, KAGE, COCO, ZORP (6 looks per game on DMG, 4-5 on Color).
+- Q22: yes, the finale line becomes "THE POUR-OFF WILL BE AT FESTIVAL SQUARE." Change it in the same build as the
+  festival room (story_pic_finale goldens move then).
