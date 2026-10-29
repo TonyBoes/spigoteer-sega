@@ -45,6 +45,8 @@ PATRONS = [
 ]
 SLOT = [[0, 1, 2]] * 10
 SLOT[2] = [0, 2, 1]
+PAL = [list(s) for s in SLOT]             # the palette instance of each slot (Color): the variant's, but the Saloon's C (GUS) wears his own palette,
+PAL[0] = [0, 1, 1]                        # EMMA's (owner 2026-10-29); instance 2 is the moss swap he never spawns in
 
 # the roll: one string a tilemap ROW, centred; "" is a blank row. A sentence's lines are on consecutive rows, a list's items have two blank rows
 # between them, a section gap is four or five. (Owner's lines 2026-10-17: "Game Design, Media, and Story by Tony and his tireless team of robot
@@ -243,6 +245,7 @@ def main():
           f"#define CT_ROLL_N {len(ROLL)}   // the roll's rows", f"#define CT_RING {ROLL_POOL}   // BG tiles for the roll's text at once (peak {peak})", "",
           "static const uint8_t ct_roll[CT_ROLL_N] = { " + ", ".join(str(r) for r in roll_ids) + " };   // each roll row's text row, 255: blank",
           "static const uint8_t ct_slot[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in s) + " }" for s in SLOT) + " };   // the patron art variant in each slot",
+          "static const uint8_t ct_pal[10][3] = { " + ", ".join("{ " + ", ".join(str(x) for x in s) + " }" for s in PAL) + " };   // the palette instance in each slot (Color)",
           "void credits_tile_put(uint16_t idx, uint8_t to) BANKED;", "uint8_t credits_row_get(uint8_t r, uint8_t *dst) BANKED;", "#endif", ""]
     (out / "credits_text.h").write_text("\n".join(h))
     js = {"rows": INFO, "ids": ids, "roll": ROLL, "roll_ids": roll_ids, "venues": VENUES, "owners": OWNERS, "bosses": BOSSES, "patrons": PATRONS,

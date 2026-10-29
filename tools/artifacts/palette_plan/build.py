@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner (Q44): \"Moss, keep all except gus.\" GUS's old palette (OBJ 7 / BG 4) is now moss #F6BD94 #5A7B4A #182018, in the game; every Saloon look but GUS may spawn in it (DUSTY and HANK added, GUS dropped). The credits draw GUS in his own palette, EMMA's."),
     ("2026-10-29", "Owner: \"I don't need tiles used in atlas. Only those free.\" The two tiles-used stats are gone."),
     ("2026-10-29", "Owner: \"I want gus to share emma's palette. And I want hank's palette to be emma's palette, but with the color for emma's skin in the spot where [hank's jacket] is, and the color of emma's hair where [hank's] skin is.\" GUS's own palette is EMMA's OBJ 6 (his OBJ 7 stays a swap and Big Tex's); HANK's OBJ 3 / BG 2 = #8B5231 #FFD5BD #221B1A (was #8B5231 #FFE6CD #392918), in the game."),
     ("2026-10-29", "Fix: outside the Saloon, Color bank 1 holds only another screen's leftover tiles (level.c loads the Saloon's looks there only in the Saloon); the atlas counted them as used. They are free: about 254 bank-1 BG tiles per venue."),

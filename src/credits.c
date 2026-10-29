@@ -359,7 +359,7 @@ static uint8_t cr_load_unit(uint8_t c, uint8_t i) {   // unit i of card c's load
     } else if (kd == CK_PATRONS) {
         if (i > 18) return 1;
         if (i < 18) load_patron_pose0(v, CR_T_P + 6 * (i / 6), ct_slot[v][i / 6], i % 6);      // (a tile at a time: with the LCD on a byte takes two scanlines; the variant in slot k)
-        else if (is_cgb) for (k = 0; k < 3; k++) { patron_pal_get(v, ct_slot[v][k], p); p[0] = 0; cr_pal(1, OBJPAL_ROBOT + k, p); }
+        else if (is_cgb) for (k = 0; k < 3; k++) { patron_pal_get(v, ct_pal[v][k], p); p[0] = 0; cr_pal(1, OBJPAL_ROBOT + k, p); }
         return 0;
     }
     return 1;
