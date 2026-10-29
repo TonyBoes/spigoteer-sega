@@ -273,29 +273,29 @@ void mirror_oam(void) BANKED {
 // A quick redraw (render.c queue_quick) of patron p, front view at d, on an R bar: his 6 tile ids mirrored into the
 // shadow rows (they hold the screen picture), local columns c..c+2 at screen columns 19-c..17-c. Returns 17 - c, the
 // first screen column; render.c queues the two rows from the shadow.
-// The Saloon's pick on Color (r = a random byte): one of 31 (look, palette instance) combinations, each equally likely (owner: no weighting).
+// The Saloon's pick on Color (r = a random byte): one of 36 (look, palette instance) combinations, each equally likely (owner: no weighting).
 // V(look, pi): patron_variant byte = look | (pi ^ look) << 3 | PATRON_BANK1 for the Color-only looks 3-7. Per look, the OBJ slots the Palette Plan gives it
 // (PLANS["cowboys"]) mapped to instances: plan 3 = pi 0 (the A set), 4 = pi 3 (B), 5 = pi 1 (C), 6 = pi 4 (D), 7 = pi 2 (E).
 #define V(l, p) ((l) | (((p) ^ (l)) << 3) | ((l) > 2 ? PATRON_BANK1 : 0))
-static const uint8_t sal_combo[31] = {
-    V(0, 0), V(0, 1), V(0, 2),                          // DUSTY: 3 5 7
-    V(1, 3), V(1, 1), V(1, 2),                          // EMMA: 4 5 7
-    V(2, 0), V(2, 1),                                   // GUS (tiles plane-swapped, level.c swap_gus): 3 5
-    V(3, 0), V(3, 1), V(3, 4), V(3, 2),                 // HANK: 3 5 6 7
-    V(4, 0), V(4, 3), V(4, 1), V(4, 2),                 // ROSIE: 3 4 5 7
-    V(5, 0), V(5, 3), V(5, 1), V(5, 4), V(5, 2),        // REDD: 3 4 5 6 7
-    V(6, 0), V(6, 3), V(6, 1), V(6, 4), V(6, 2),        // MABEL: 3-7
-    V(7, 0), V(7, 3), V(7, 1), V(7, 4), V(7, 2),        // ARTIE: 3-7
+static const uint8_t sal_combo[36] = {          // owner Q48 2026-10-29: moss (OBJ 7) only for DUSTY, HANK, ROSIE, REDD
+    V(0, 0), V(0, 1), V(0, 2), V(0, 3), V(0, 4),        // DUSTY: 3-7
+    V(1, 3), V(1, 1), V(1, 0), V(1, 4),                 // EMMA: 3 4 5 6
+    V(2, 0), V(2, 1), V(2, 3), V(2, 4),                 // GUS (tiles plane-swapped, level.c swap_gus): 3 4 5 6
+    V(3, 0), V(3, 1), V(3, 4), V(3, 2), V(3, 3),        // HANK: 3-7
+    V(4, 0), V(4, 3), V(4, 1), V(4, 2), V(4, 4),        // ROSIE: 3-7
+    V(5, 0), V(5, 3), V(5, 1), V(5, 4), V(5, 2),        // REDD: 3-7
+    V(6, 0), V(6, 3), V(6, 1), V(6, 4),                 // MABEL: 3 4 5 6
+    V(7, 0), V(7, 3), V(7, 1), V(7, 4),                 // ARTIE: 3 4 5 6
 };
-// A boss fight leaves out GUS (look 2: the C slot's tiles are the boss's) and the instances on OBJ 7 and 5 (pi 2 and 4: the boss's palettes): the other 18, one draw
+// A boss fight leaves out GUS (look 2: the C slot's tiles are the boss's) and the instances on OBJ 7 and 5 (pi 2 and 4: the boss's palettes): the other 21, one draw
 // (no rejection loop: a spawn frame is the fight's slowest, tests/test_boss_in_place.py).
-static const uint8_t sal_boss[18] = {
-    V(0, 0), V(0, 1), V(1, 3), V(1, 1), V(3, 0), V(3, 1), V(4, 0), V(4, 3), V(4, 1),
+static const uint8_t sal_boss[21] = {
+    V(0, 0), V(0, 1), V(0, 3), V(1, 3), V(1, 1), V(1, 0), V(3, 0), V(3, 1), V(3, 3), V(4, 0), V(4, 3), V(4, 1),
     V(5, 0), V(5, 3), V(5, 1), V(6, 0), V(6, 3), V(6, 1), V(7, 0), V(7, 3), V(7, 1),
 };
 uint8_t saloon_variant(uint8_t r) BANKED {
-    if (boss_on) return sal_boss[(uint8_t)((((uint16_t)r << 4) + ((uint16_t)r << 1)) >> 8)];   // r * 18 / 256
-    return sal_combo[(uint8_t)((((uint16_t)r << 5) - r) >> 8)];                            // r * 31 / 256 (31 = 32 - 1: no multiply call)
+    if (boss_on) return sal_boss[(uint8_t)((((uint16_t)r << 4) + ((uint16_t)r << 2) + r) >> 8)];   // r * 21 / 256
+    return sal_combo[(uint8_t)((((uint16_t)r << 5) + ((uint16_t)r << 2)) >> 8)];                // r * 36 / 256 (36 = 32 + 4: no multiply call)
 }
 
 uint8_t spawn_variant(uint8_t r) BANKED {
