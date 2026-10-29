@@ -184,7 +184,7 @@ commit = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"], cap
 NAMES = {
     "cowboys": ["DUSTY, the cowboy", "EMMA, the singer", "GUS, the prospector", "HANK, the ranch hand", "ROSIE, the singer", "REDD, the outlaw",
                 "MABEL, the lace shawl", "ARTIE, the priest"],   # the game's 8 looks in order (look 0-2 bank 0, 3-7 Color only); patron palettes below
-    "sports": ["PETE, the cap fan", "SERENA, the band fan", "NORM, the ref"],
+    "sports": ["PETE, the cap fan", "NORM, the ref", "SERENA, the band fan"],
     "lumberjacks": ["CEDAR, in the cap", "WILLOW, red hair", "ASH, in the green hat"],
     "chefs": ["PIERRE", "BRIE", "BASIL"],
     "divers": ["IGGY, the parka man", "POLLY, the parka girl", "MOOSE, the big parka"],
@@ -208,7 +208,7 @@ PLANS = {
     ),
     "sports": dict(
         moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Cheerleaders"),
-               ("NORM", "OBJ", 7, 0, "NORM, the ref")],
+               ("NORM", "OBJ", 6, 0, "NORM, the ref")],
         recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 4): "OBJ 0"},
         open={("OBJ", 2): "Reserved patron"},
         field_moves=[("Keg, spout", 1, 0)],          # playfield: BG 0 takes BG 1's (keg / spout) palette and the keg / spout share it
