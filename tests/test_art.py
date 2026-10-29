@@ -52,9 +52,13 @@ def test_patrons_golden_per_group(gb, group):
     gb.write("intro_timer", 255)                 # nobody walks
     gb.write("quota", 200)
     w16(gb, "spawn_timer", 0xFFFF)
-    slots = lineup(gb, LINEUP)
+    spec = LINEUP
+    if group == 0 and gb.model_name == "cgb":    # the Color Saloon's GUS wears his own palette, instance 0 (his tiles' colours 1 and 2 are swapped)
+        spec = {b: [(x, 2 | 2 << 3 if v == 2 else v, d) for x, v, d in row] for b, row in LINEUP.items()}
+    slots = lineup(gb, spec)
     gb.run(30)                                   # 12 redraws: the VBlank budget spreads them over a few frames
     for (b, x), (i, v, d) in slots.items():
+        v &= 7
         if d:
             assert gb.read("patron_facing", MAX_P)[i] == 1
             t = BACK_BASE + v * 4

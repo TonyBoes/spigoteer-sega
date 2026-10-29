@@ -464,7 +464,8 @@ def test_show_backs_golden(gb):
     """Mid-show: three watchers in their back views (A, B, C) on bars 0, 1 and 3, a front-facing walker on bar 2."""
     gb.write("intro_timer", 255)
     gb.write("quota", 200)
-    slots = lineup(gb, {0: [(30, 0, 1)], 1: [(75, 1, 1)], 2: [(45, 1, 0)], 3: [(52, 2, 1)]})   # (the start patrons are moved)
+    gus = 2 | 2 << 3 if gb.model_name == "cgb" else 2      # (the Color Saloon's GUS in his own palette, instance 0)
+    slots = lineup(gb, {0: [(30, 0, 1)], 1: [(75, 1, 1)], 2: [(45, 1, 0)], 3: [(52, gus, 1)]})   # (the start patrons are moved)
     # (PyBoy's frame boundary falls inside the game's update: a poke can land after the frame's list check, and a new
     # patron composed that frame from stale bar lists misses his CGB attributes, which a turn (tiles only) never rewrites.
     # One frame later, with the lists rebuilt, everyone placed is drawn afresh from column 0: tiles and attributes.)
