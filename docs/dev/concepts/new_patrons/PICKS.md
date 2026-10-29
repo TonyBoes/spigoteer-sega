@@ -53,3 +53,5 @@ Trims: v3/trims.txt. New: v3/new.txt. Next: back views for all 26.
 - Q31: "b is closer, refine. But give me two more variants as well." VIXEN_B2, C, D.
 - Q35: "Give me both vixen B1 and D, but face D the right direction." Space Lounge keeps VIXEN_B (original) and VIXEN_D
   (redrawn facing right): with MOTH, BLOB and the Astronaut that is 5 extras, 8 looks in all.
+- Owner 10-29: "Vixen d just needed to be mirrored. Not whatever this new one is." VIXEN_D is now VIXEN_D_OLD mirrored
+  (1 px left so x=15 stays clear); the redraw is dropped. Q37 asks to confirm.
