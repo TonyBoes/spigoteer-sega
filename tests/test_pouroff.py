@@ -9,7 +9,7 @@
 import json
 
 import pytest
-from conftest import GAME, ROM, ROOT, check_golden, hold_stage_anim, venue
+from conftest import GAME, ROM, ROOT, VENUES, check_golden, hold_stage_anim
 from po_helpers import (BT_CATCH, BT_FAIL, BT_FILL, BT_IDLE, BT_SLIDE, DREGS_X, MG_POUROFF, MUGS, PD_FILL, PD_IDLE, PD_SLIDE,
                         PD_THINK, PD_WAIT, PM_BREAK, PM_EMPTY, PM_FREE, PM_FULL, PM_HELD, PR_DREGS, PR_LIVES, PR_PLAY, PR_WIN,
                         PS_DRINKING, PS_EMPTY, PS_THIRSTY, PT_AHEAD, PT_COMIC, PT_REACT, PT_SLIP, PT_THINK0, PT_THINK15,
@@ -24,11 +24,14 @@ from test_venues import attr_row, cgb_palette
 pytestmark = pytest.mark.timeout(600)
 
 SEED = 0x5A17
-BG_FLIP, BG_PAT = 77, 86                  # po.c: the left keg's mirrored tiles, then the three looks' 12 tiles each
+BG_FLIP = 77                              # po.c: the left keg's mirrored tiles; the looks follow (BASES)
+BASES = [86, 98, 110, 190, 202, 221]      # po.c po_base: each look's 12 BG tiles (shift 0: 4, the blank pair: 2, the 2 px sway pose: 6)
+SLOTS = [2, 3, 4, 7]                      # po.c po_slot: the Color looks' BG palettes (7 = the festival bar's unused second palette)
+GROUP_PAL = ["cowboys_a", "sports_a", "lumberjacks_a", "chefs_a", "divers_a", "robots_a", "punks_a", "ninjas_a", "zoo_monkey", "aliens_a"]
+GROUP_NAMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]   # (DUSTY PETE CEDAR PIERRE IGGY BOXY SPIKE KAGE COCO ZORP)
 OBJ_DREGS, OBJ_DMG = 128, 184             # Dregs's 5 pictures x 8 tiles; the DMG mug copies
 OBJ_MUG, OBJ_FILL, OBJ_DRINK, OBJ_POUR, OBJ_CUE = 56, 76, 84, 40, 44
 S_PALETTE, S_FLIPX = 0x10, 0x20
-CROWD = [(0, 0, "cowboys_a"), (0, 1, "cowboys_b"), (3, 0, "chefs_a")]     # po.c po_crowd: patron group, variant
 OUT = ROOT / "out" / "po"
 SFX_BREAK = 4
 START_LIVES = 3
@@ -36,7 +39,7 @@ CATCH_POSE = 8
 PO_C = (ROOT / "src" / "po.c").read_text()
 ART = json.loads((ROOT / "build" / "po.json").read_text())
 PALS = json.loads((ROOT / "assets" / "palettes.json").read_text())
-SALOON = venue("saloon")
+FEST = VENUES["extra"]["festival"]         # the Pour-Off's room (assets/approved/venues/festival_*), an overlay venue: not one of the ten themes
 
 
 # ---- driving -------------------------------------------------------------------------------------------------------------
@@ -159,18 +162,18 @@ def test_the_start(intro):
     check_golden(gb, "po_intro")
     to_play(gb)
     frames(gb, 6)
-    st = SALOON["stage_map"]
+    st = FEST["stage_map"]
     for r in (0, 1, 2):                               # the banner's rows 1-3 (row 1 is blank under it) are the stage again, a row a frame
         assert tilemap_row(gb, 1 + r, 0, 20) == st[r * 20:(r + 1) * 20], r
     assert gb.mem("overlay_on") == 0 and gb.mem16("mg_timer") == 0
 
 
-def test_the_screen_is_the_saloon_with_a_mirrored_keg_and_spout_at_the_left_end(pour):
-    """Four bars (wall, wall, counter) under the saloon's stage; the keg and the spout at the right as ever and their mirror
+def test_the_screen_is_the_festival_room_with_a_mirrored_keg_and_spout_at_the_left_end(pour):
+    """Four bars (wall, wall, counter) under the festival's stage; the keg and the spout at the right as ever and their mirror
     images at the left, tile by tile (DMG cannot flip BG tiles: copies in free ids), in the same colours."""
     gb = pour
-    bar = SALOON["bar_map"]
-    attr = SALOON["bar_attr"]
+    bar = FEST["bar_map"]
+    attr = FEST["bar_attr"]
     for b in range(4):
         for r in range(3):
             row = 5 + 3 * b + r
@@ -185,10 +188,10 @@ def test_the_screen_is_the_saloon_with_a_mirrored_keg_and_spout_at_the_left_end(
                 a = attr_row(gb, row)
                 assert a[17:20] == attr[r * 20 + 17:r * 20 + 20] and a[0:3] == a[::-1][0:3] == attr[r * 20 + 17:r * 20 + 20][::-1]
     for r in range(4):
-        want = SALOON["stage_map"][r * 20:(r + 1) * 20]
+        want = FEST["stage_map"][r * 20:(r + 1) * 20]
         if r not in (1, 2):
             assert tilemap_row(gb, 1 + r, 0, 20) == want
-    assert tilemap_row(gb, 17, 0, 20) == [SALOON["floor_tile"]] * 20
+    assert tilemap_row(gb, 17, 0, 20) == [FEST["floor_tile"]] * 20
     assert vram_bg(gb, BG_FLIP) != bytes(16)
     shot(gb, "start")
 
@@ -232,20 +235,138 @@ def test_dregs_has_his_own_art_and_palette_and_does_not_read_as_a_second_spigote
     assert (ROOT / "assets/art/dregs/dregs.txt").read_text().startswith("; Art: APPROVED by the owner 2026-10-29")
 
 
-def test_the_crowd_is_three_looks_loaded_per_variant_from_their_groups(pour):
-    """po_crowd: the saloon's cowboy and cowgirl and a chef (the finale crowd): each look's shift-0 pose and its 2 px sway pose
-    (12 tiles) from its group's own bank, and on CGB the group's palette over the wall colour."""
-    gb = pour
-    for i, (g, v, pal) in enumerate(CROWD):
-        data = patron_group_tiles(g)
-        shift0 = data[(128 + v * 4) * 16:(128 + v * 4 + 4) * 16] + data[126 * 16:128 * 16]     # (option 2: 2 columns of its own, then the shared blank pair)
-        shift2 = data[(v * 42 + 6) * 16:(v * 42 + 12) * 16]
-        got = b"".join(vram_bg(gb, BG_PAT + i * 12 + k) for k in range(12))
-        assert got == shift0 + shift2, (i, pal)
-        if gb.model_name == "cgb":
-            want = [SALOON["pal"][2][0]] + [int(c) for c in PALS[pal]["rgb15"]]
-            assert cgb_palette(gb, 2 + i) == want, pal
-    assert [c[2] for c in CROWD] == ["cowboys_a", "cowboys_b", "chefs_a"]
+def look_tiles(gb, i):
+    return b"".join(vram_bg(gb, BASES[i] + k) for k in range(12))
+
+
+def group_look(g):
+    """A group's variant A as po.c loads it: shift 0 (2 columns), the shared blank pair, the shift-2 sway pose."""
+    data = patron_group_tiles(g)
+    return data[128 * 16:132 * 16] + data[126 * 16:128 * 16] + data[6 * 16:12 * 16]
+
+
+def seed_for(k):
+    """A game seed whose po_enter mix starts at venue k: (mg_seed >> 8) % 10."""
+    return ((90 + k) << 8) | 0x17
+
+
+def crowd_checks(gb, k):
+    n = 4 if gb.model_name == "cgb" else 6
+    assert gb.mem("mg_phase") in (MG_INTRO, MG_PLAY)
+    assert look_tiles(gb, 0) == bytes(ART["clown"]), "look 0 is the clown, in every game"
+    seen = {look_tiles(gb, 0)}
+    for i in range(1, n):
+        g = (k + i) % 10
+        assert look_tiles(gb, i) == group_look(g), (k, i, GROUP_NAMES[g])
+        seen.add(look_tiles(gb, i))
+    assert len(seen) == n, "every look is a different picture"
+    if gb.model_name == "cgb":
+        wall = FEST["pal"][2][0]
+        assert cgb_palette(gb, SLOTS[0]) == [wall] + [int(c) for c in PALS["pouroff_bigwig"]["rgb15"]]
+        for i in range(1, n):
+            assert cgb_palette(gb, SLOTS[i]) == [wall] + [int(c) for c in PALS[GROUP_PAL[(k + i) % 10]]["rgb15"]], (k, i)
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("k", range(10))
+def test_the_crowd_is_the_clown_and_a_rotating_mix_loaded_from_their_groups(model, k):
+    """po.c load_crowd: look 0 the clown (a Pour-Off-only pack) and variant A of the next groups from the game's seed (venue k + i):
+    6 looks on the DMG, 4 on Color, each its shift-0 pose, the blank pair and its 2 px sway pose (12 tiles) at po_base, and on Color
+    the group's palette (BG 2, 3, 4 and 7) over the festival wall colour."""
+    gb = start(model, seed_for(k))
+    crowd_checks(gb, k)
+    gb.stop()
+
+
+def test_the_clown_is_in_every_game_and_the_mix_rotates():
+    """Across seeds: the clown always, the other looks follow the seed (every venue's look comes up as the first guest)."""
+    firsts = set()
+    for model in ("dmg", "cgb"):
+        for seed in (0x0101, 0x7F40, 0xC0DE, 0x1234):
+            gb = enter(model, seed)
+            assert look_tiles(gb, 0) == bytes(ART["clown"]), (model, seed)
+            firsts.add(look_tiles(gb, 1))
+            gb.stop()
+    assert len(firsts) >= 3
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_every_look_appears_at_a_seat_in_its_own_tiles_and_palette(model):
+    """A patron of look v: its seat's 3 x 2 footprint is the look's tiles (shift 0, then the sway pose) and, on Color, its slot."""
+    gb = start(model)
+    n = 4 if model == "cgb" else 6
+    for v in range(n):
+        seat_set(gb, 0, 0, st=PS_THIRSTY, v=v)
+        frames(gb, 3)
+        top = tilemap_row(gb, 5, 5, 8)[:3]
+        bot = tilemap_row(gb, 6, 5, 8)[:3]
+        b = BASES[v]
+        assert top == [b, b + 2, b + 4] and bot == [b + 1, b + 3, b + 5], (model, v)
+        if model == "cgb":
+            assert attr_row(gb, 5)[5:8] == [SLOTS[v]] * 3 and attr_row(gb, 6)[5:8] == [SLOTS[v]] * 3, v
+        poke(gb, "seat.0.st", PS_EMPTY)
+        frames(gb, 3)
+    gb.stop()
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_patrons_spawn_as_every_look_through_a_game(model):
+    gb = start(model, 7)
+    n = 4 if model == "cgb" else 6
+    poke(gb, "spawn_t", 0)
+    seen = set()
+    for _ in range(1500):
+        frames(gb, 1)
+        s = po(gb)
+        seen |= {q["v"] for q in s["seat"] if q["st"]}
+        if len(seen) == n:
+            break
+        if s["res"]:
+            break
+    assert seen == set(range(n)), (model, seen)
+    gb.stop()
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_junk_in_ram_and_vram_before_the_pour_off_changes_nothing(model):
+    """PyBoy zeroes RAM that the real console leaves as junk: the mini-game scratch, the crowd's free BG ids and the venue copy
+    hold 0xA5 when the Pour-Off is entered; the crowd, the screen and the state are as from a clean start."""
+    rom = booted(model)
+    hold_stage_anim(rom)
+    rom.model_name = model
+    a = rom.addr("story_scratch")
+    for k in range(520):
+        rom.write(a + k, 0xA5)
+    for t in list(range(86, 128)) + list(range(190, 234)):
+        for k in range(16):
+            rom.write((0x9000 + t * 16 if t < 128 else 0x8000 + t * 16) + k, 0xA5)
+    mg_enter(rom, MG_POUROFF, MG_STORY, seed_for(3))
+    to_play(rom)
+    frames(rom, 2)
+    crowd_checks(rom, 3)
+    s = po(rom)
+    assert s["res"] == PR_PLAY and not any(q["st"] for q in s["seat"])
+    assert s["y"]["score"] == 0 and s["d"]["score"] == 0 and not live_mugs(s)
+    assert tilemap_row(rom, 17, 0, 20) == [FEST["floor_tile"]] * 20
+    rom.stop()
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_festival_room_is_on_screen_stage_tiles_bar_tiles_and_palettes(model):
+    gb = start(model)
+    for t in range(FEST["stage_n"]):
+        assert vram_bg(gb, t) == bytes(FEST["stage_tiles"][t * 16:(t + 1) * 16]), ("stage tile", t)
+    for t in range(FEST["bar_n"]):
+        assert vram_bg(gb, FEST["bar_base"] + t) == bytes(FEST["bar_tiles"][t * 16:(t + 1) * 16]), ("bar tile", t)
+    assert FEST["stage_n"] <= 23 and FEST["bar_n"] == 13
+    assert tilemap_row(gb, 4, 0, 20) == FEST["stage_map"][60:80]
+    if model == "cgb":
+        for slot, name in ((5, "stage_a"), (6, "stage_b"), (0, "bar")):
+            want = FEST["pal"][("stage_a", "stage_b", "bar").index(name)]
+            assert cgb_palette(gb, slot) == want, name
+        assert attr_row(gb, 4) == FEST["stage_attr"][60:80]
+        assert 6 in FEST["stage_attr"] and 5 in FEST["stage_attr"], "both stage palettes are used"
+    gb.stop()
 
 
 def test_the_state_fits_the_mini_game_union():
@@ -377,7 +498,7 @@ def test_a_contested_seat_goes_to_the_drink_that_arrives_first(pour):
 def test_a_drink_that_meets_no_thirsty_patron_reaches_the_far_end_and_is_taken_with_a_thanks(pour):
     gb = pour
     calm(gb)
-    stage2 = SALOON["stage_map"][20:40]
+    stage2 = FEST["stage_map"][20:40]
     for own, x0, end in ((0, SPOUT_X, SPOUT_D), (1, SPOUT_D, SPOUT_X)):
         pokes(gb, {"mug.0.st": PM_FREE, "d.score": 0})
         mug_set(gb, 0, PM_FULL, x0, 3, own)
@@ -808,7 +929,7 @@ def test_the_finale_flow_finale_a_the_pour_off_finale_b_and_the_credits(model):
         assert [p["speaker"] for p in a["pages"]] == ["NARRATOR"] * 4 + ["SADIE", "DREGS", "SPIGOTEER", "NARRATOR"]
         assert a["pages"][5]["lines"] == ["HOLD IT! WHO", "POURS FIRST? I", "SAY: A POUR-OFF!"]
         assert a["pages"][6]["lines"] == ["GET 20 SERVES", "FIRST! YOU'RE ON,", "DREGS."]
-        assert a["pages"][7]["lines"] == ["THE POUR-OFF WILL", "BE AT SADIE'S", "SALOON."]
+        assert a["pages"][7]["lines"] == ["THE POUR-OFF WILL", "BE AT FESTIVAL", "SQUARE."]
         for k, p in enumerate(a["pages"]):
             if k:
                 gb.press("a", 2)

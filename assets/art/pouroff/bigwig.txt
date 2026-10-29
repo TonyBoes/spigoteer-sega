@@ -1,0 +1,18 @@
+; Art: BIGWIG v2 (docs/dev/concepts/new_patrons/v2/redo.txt), the Pour-Off's clown: a Pour-Off-only pack (tools/gen_po.py: shift-0 pose + 2 px sway pose, no back view).
+; Palette (assets/palettes.json pouroff_bigwig): 1 skin #f8c8a0, 2 red #e04040, 3 blue #2838a0. Owner Q21 (2026-10-29): the clown in every game, DMG and Color.
+...####..####...
+.##++++##++++##.
+#+++++++++++++#.
+#+++########++#.
+#++#--------#+#.
+.#+#--------#+#.
+.#+#---#--#-#+#.
+#++#---#--#-#+#.
+#++#-++---++##..
+#++#----###-#...
+.#+#----#+#-#...
+..##-------#....
+....##----#.....
+.###++#--#++##..
+#++++++#-#++++#.
+#++++++#-#++++#.
