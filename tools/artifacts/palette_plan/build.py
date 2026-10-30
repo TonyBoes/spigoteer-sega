@@ -1520,6 +1520,8 @@ def trimmed_front(v, i, cur):
     pick = PATRON_ART.get(v["key"], {}).get(NAMES[v["key"]][i].split(",")[0].strip().lower())
     if pick and pick[0].endswith("_face"):          # a later face pass (x=15 already clear) supersedes the trimmed front (owner Q57 2026-10-29)
         return None
+    if cur and all(r[15] == "." for r in cur):      # the game's front already keeps x=15 clear (e.g. the owner's RONIN 2026-10-30): a trim is stale
+        return None
     f = os.path.join(TRIM, g + ".txt")
     if not os.path.exists(f):
         return None
