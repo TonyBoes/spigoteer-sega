@@ -1,0 +1,37 @@
+; Bistro (group chefs, CGB wall #295a5a) - QUALITY PASS 8 of the owner's picks ARTISTE_1 and TRENCHER_2. Hand-placed. Not imported.
+; @fig ARTISTE #f0d0b0 #d04858 #283868
+; ARTISTE (pass of ARTISTE_1): beret, bob outline, smock unchanged; face turned to 3/4 right: eyes, lips and chin shifted right, far cheek covered by hair, near cheek narrow.
+.......##.......
+...##########...
+..#+--++++++++#.
+..#++++++++++##.
+...############.
+...####-------#.
+...####--#--#-#.
+...####--#--#-#.
+...####-------#.
+...#####---++-#.
+...+####-----#..
+.....###----#...
+....#++---++#...
+.#++-++++-++++#.
+.#++++#++++--+#.
+.#++-+++++++-+#.
+; @fig CRITIC #f8f8f0 #e88890 #582040
+; CRITIC (pass of TRENCHER_2): face, glasses, bow tie unchanged; far shoulder slimmed and sloped so the dark jacket is lighter; notepad now has two clear 3 px ruled lines.
+....########....
+...##########...
+...###+++++###..
+...#+++++++++#..
+...#+###+###+#..
+...#+-#-+-#-+#..
+...#+++++++++#..
+...#+++++++++#..
+...#+++++##++#..
+....#++++++++#..
+.....#+++++##...
+....##-#+#-##...
+...###---#####..
+..####--#-+++-#.
+..####--#-----#.
+..#++--#--+++--.

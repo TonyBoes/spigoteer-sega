@@ -1,0 +1,54 @@
+; @fig DENALI #f0f0f8 #c08050 #281818
+; DENALI (DENALI_B quality pass): same St Bernard; the ear/head outline is opened to mid at the eye rows so the near mask no longer fuses with the ear, and the far eye is a dark pair with its glint and a mid pixel before the far edge. shares MUSH
+....#########...
+..##+++++++++##.
+.#++#+++++++#+#.
+#+++#+++--++#+#.
+#+++#+++--++#+#.
+#++++#-#--#-++#.
+#++++###--##++#.
+#+++#++-----+#..
+#+++#++---####..
+.#++#+----##-#..
+.####---------#.
+..#############.
+#----#--+#++#-#.
+#----#+-+#++#-#.
+#----#+++#++#-#.
+#-------------#.
+; @fig RAJA #f8f8e8 #f89820 #101018
+; RAJA (RAJA_B quality pass): same bold tiger; the two mid pixels trapped between the thick cheek stripes are now light so each stripe bar reads on its own. shares TUCO
+..###.....###...
+.#+-+#####+-+#..
+.#+-++#+#++-+#..
+.###+++++#++###.
+.#---##-+-##--#.
+.####---+---###.
+.#-----###----#.
+.####---#--###..
+..#----------#..
+...##-------#...
+..#++#-----#++#.
+.#++#+-----+#+#.
+.###++#---#++##.
+.#+++#+---+#++#.
+.#++++#+-+#++#..
+..++++++++++++..
+; @fig PEPPER #f8e8b8 #e07838 #201008
+; PEPPER (quality pass): same pepper-pot robot; the dome top is rounded (4-wide crown, 2-px shoulder step) so it reads as a dome, not a helmet; the skirt's bottom row now carries its side ink at both edges. shares CLANK
+....####........
+..##+--+##......
+.#+-++++-+#.###.
+.#+-++++-+#+#-#.
+.#+-++++-+#.###.
+..#########.....
+..#+#+#+#+#.....
+.#+++++++++#.##.
+.#++#++++#+#+#+.
+.#+++####++#+##.
+#++-++-++-++#...
+#+++++++++++#...
+#++-++-++-++#...
+#+++++++++++#...
+#++-++-++-++#...
+#+++++++++++#...
