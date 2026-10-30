@@ -196,7 +196,7 @@ PATRON_ART = {
     # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
     "chefs": {"pierre": ("pierre_face", "pierre_face_back", ART_PICKS_Q), "brie": ("brie_face", "brie_face_back", ART_PICKS_Q), "basil": ("basil_face", "basil_back", ART_PICKS_Q)},
     "punks": {"punk": ("spike", "spike_back", ART_PICKS_Q), "harley": ("bandit", "bandit_back", ART_PICKS_Q), "baby": ("slick", "slick_back", ART_PICKS_Q)},
-    "ninjas": {"kage": ("old", "old", ART_PICKS_Q), "sakura": ("sakura", "sakura_back", ART_PICKS_Q), "ronin": ("old", "ronin_v2_back", ART_PICKS_Q)},
+    "ninjas": {"kage": ("old", "old", ART_PICKS_Q), "sakura": ("old", "sakura_back", ART_PICKS_Q), "ronin": ("old", "ronin_v2_back", ART_PICKS_Q)},
     "zoo": {"coco": ("coco", "coco_back", ART_PICKS_Q), "bamboo": ("bamboo", "bamboo_back", ART_PICKS_Q), "muddy": ("old", "old", ART_PICKS_Q)},
     "aliens": {"zorp": ("old", "zorp_v2_back", ART_PICKS_Q), "xeno": ("old", "xeno_v2_back", ART_PICKS_Q), "glorp": ("glorp_v2", "glorp_v2_back", ART_PICKS_Q)},
 }

@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-30", "Owner: \"Replacements\" (5 fronts drawn by the owner): KAGE, SAKURA, RONIN in the game (DMG and Color); SENSEI and MONK in the plan art. Backs unchanged."),
     ("2026-10-30", "Owner: \"Change the whole picture. not just the color.\" RONIN's front is the owner's drawing (second version), in the game for DMG and Color; the back is unchanged."),
     ("2026-10-30", "Owner sent RONIN recoloured: OBJ 7 colour 2 #A82830 -> #902000 (rust). In the game (ninjas_c)."),
     ("2026-10-30", "Owner (Q64): \"The Atlas says BG2 is free.\" MONK gets his own orange palette (concept colours #E8B878 #E07820 #301810) on OBJ 5 and BG 2."),
