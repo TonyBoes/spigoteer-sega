@@ -1,0 +1,17 @@
+; A (3/4, faces right): tall near ear + smaller far ear, slanted near eye slit and narrow far slit, red brow tick and under-eye sweep, snout pointing right with ink nose tip. Rows 11-15 unchanged.
+...#............
+..#+#.....#.....
+..#++#...#+#....
+..#+++####++#...
+..#-+------##...
+..#--##---#-##..
+..#---##--#--##.
+..#--++---+--##.
+..#-+---------#.
+..#---------###.
+..###--++--###..
+.#####----#####.
+.##++-####-++##.
+.#+++-#--#-+++#.
+#++++-#--#-+++#.
+#++++-#--#-+++#.

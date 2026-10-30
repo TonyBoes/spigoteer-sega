@@ -1,0 +1,17 @@
+; C (3/4, faces right): red face with cream blaze running toward a cream snout pointing right, cream-inner ears (near larger), slanted ink eye slits (far narrower), red mouth. Rows 11-15 unchanged.
+...#............
+..#-#.....#.....
+..#--#...#-#....
+..#+++####++#...
+..#+++--+++##...
+..#++##--+#+##..
+..#+++##--#++##.
+..#++++---+++##.
+..#+++--------#.
+..#+--------###.
+..###--++--###..
+.#####----#####.
+.##++-####-++##.
+.#+++-#--#-+++#.
+#++++-#--#-+++#.
+#++++-#--#-+++#.
