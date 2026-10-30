@@ -107,7 +107,7 @@ EXTRA_LOOKS = {"aliens": ["DASH"], "robots": ["NEKA", "TELLY"]}
 # The owner's new Color-only patrons (picks 2026-10-29, docs/dev/concepts/new_patrons/PICKS.md), not imported yet: planned, no OBJ slot
 # yet. Fronts and backs copied into art/<venue>_<name>(_back).txt; colours are each concept's own palette.
 NEW_PATRONS = {
-    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D8A028", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#A87050", "#7040B0", "#100818"]), ("MIKE", ["#A87050", "#186030", "#081008"])],
+    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D09850", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#A87050", "#7040B0", "#100818"]), ("MIKE", ["#A87050", "#186030", "#081008"])],
     "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"]), ("INES", ["#E0A878", "#A050C0", "#281830"])],
     "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
     "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"])],
@@ -117,6 +117,8 @@ NEW_PATRONS = {
     "aliens": [("MOTHMA", ["#F8F0D0", "#C8A068", "#382010"]), ("GLOP", ["#D0F0F8", "#58A0F0", "#081828"]), ("LUNA", ["#F0F0F8", "#40B8A8", "#100820"]), ("VENUS", ["#C8F8F0", "#6058E0", "#180828"])],
     "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("TOOB", ["#E8F0F8", "#9068D8", "#180830"])],
 }
+# Palette-swap picks (Q62): the OBJ slots the owner crossed out per look; every other patron OBJ slot of the venue is allowed (Color only).
+VARIANT_CUTS = {"sports": {"NORM": [1, 2, 5, 6, 7], "FRANK": [2]}}
 # Owner 2026-10-29: "Auto assigned palettes to new patrons where available make suggestions for palette merges."
 # Own palette where an OBJ slot and a playfield BG slot are free: (OBJ, BG, name), the concept's colours.
 AUTO_OWN = {

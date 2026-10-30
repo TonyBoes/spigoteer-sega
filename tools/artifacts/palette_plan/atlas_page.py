@@ -10,6 +10,7 @@
    published.json (image refs as published; HEAD's index.html if it is missing).
 After publishing: `python3 tools/artifacts/palette_plan/atlas_page.py --mark-published` and commit published.json.
 """
+import hashlib
 import json
 import os
 import re
@@ -59,14 +60,24 @@ def capture_stale():
     return False, "the capture (%s) is current" % c
 
 
-def img_refs(html):
-    return {m.group(1): m.group(2) or "" for m in IMG_RE.finditer(html)}
+def img_refs(html, files=True):
+    """Image path -> content hash. With files, hash the file on disk (some refs, e.g. the tile sheets in the page's JS data,
+    carry no ?v=); otherwise take any ?v= the page gives the path."""
+    refs = {}
+    for m in IMG_RE.finditer(html):
+        refs[m.group(1)] = refs.get(m.group(1)) or m.group(2) or ""
+    if files:
+        for p in refs:
+            f = os.path.join(HERE, p)
+            if os.path.exists(f):
+                refs[p] = hashlib.sha1(open(f, "rb").read()).hexdigest()[:10]
+    return refs
 
 
 def publish_list(new_html, old_html, old=None):
     new = img_refs(new_html)
     if old is None:
-        old = img_refs(old_html)
+        old = img_refs(old_html, files=False)
     changed = sorted(p for p, h in new.items() if old.get(p) != h)
     removed = sorted(p for p in old if p not in new)
     return new, changed, removed
