@@ -1,0 +1,38 @@
+; Jungle Zoo (group zoo, CGB wall #234e5c) - RAJA quality passes (owner picked RAJA). CONCEPTS, not imported.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark). Hand-placed.
+; @fig RAJA_A #f8f8e8 #f89820 #101018
+; RAJA_A (lighter touch): the picked tiger with the same cream face, round ears and striped orange shoulders; ear/head borders removed, three dripping forehead stripes, cheek stripes drawn as separate bars into the cream, round chin, clean shoulder stripes. palette: shares TUCO OBJ 3
+..###.....###...
+.#+-+#####+-+#..
+.#+-++#+#+#-+#..
+.#++++++#++++#..
+.#+--##-+-##-+#.
+.###----+----##.
+.#-----###----#.
+.###----#---##..
+..#----------#..
+...##-------#...
+..#++#-----#++#.
+.#++#+-----+#+#.
+.#+#++#---#+#+#.
+.#+++#+---+#++#.
+.#++++#+-+#++#..
+..++++++++++++..
+; @fig RAJA_B #f8f8e8 #f89820 #101018
+; RAJA_B (bolder): same tiger, heavier markings: thick temple stripes on the forehead and cheeks (3-4 px, so they stay black on the DMG greys), three forehead ticks, thick shoulder stripes. palette: shares TUCO OBJ 3
+..###.....###...
+.#+-+#####+-+#..
+.#+-++#+#++-+#..
+.###+++++#++###.
+.#+--##-+-##-+#.
+.####---+---###.
+.#-----###----#.
+.####---#--###..
+..#----------#..
+...##-------#...
+..#++#-----#++#.
+.#++#+-----+#+#.
+.###++#---#++##.
+.#+++#+---+#++#.
+.#++++#+-+#++#..
+..++++++++++++..

@@ -1,0 +1,57 @@
+; Igloo (group divers, CGB wall #4a4078) - Color-only dog concepts ROUND 2 for slot 8. CONCEPTS, not imported.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark). Hand-placed.
+; @fig NOME #f0f0f8 #c08050 #281818
+; NOME: sitting sled-dog husky in three-quarter view, erect ears, tan cap, white blaze and a long white muzzle ending in a dark nose, tan tongue, white chest with a dark sled harness, tan haunch. palette: shares MUSH/CUB OBJ 5
+.......##...##..
+......#++#.#++#.
+......#++###++#.
+.....#++++++++#.
+.....#++-----+#.
+.....#+-#--#-+#.
+.....#+-#--#-+#.
+.....#+------##.
+.....#-----#++#.
+......#-----#+#.
+....#++#-----#..
+..###+++#-#--#..
+.#++++++#--#-#..
+.#++++++#--#--#.
+.#++++++#--#--#.
+.#++++++#--#--#.
+; @fig DENALI #f0f0f8 #c08050 #281818
+; DENALI: big fluffy malamute, wide shaggy head with a ragged tuft outline, small round ears, tan cheeks flanking a white muzzle with a big dark nose and a lolling tongue, white ruff. palette: shares MUSH/CUB OBJ 5
+....##....##....
+...#++#..#++#...
+..#+++####+++#..
+.#++++++++++++#.
+#++++++--+++++#.
+#+++#++--++#++#.
+.#++#++--++#+#..
+#++++------+++#.
+.#++---###---+#.
+.#+----#-#----#.
+.#+----#+#---#..
+.##-----+----##.
+#--#-------#--#.
+#-+#-------#+-#.
+.#-#--------#-#.
+.#--#------#-#..
+; @fig PUFF #f0f0f8 #c08050 #281818
+; PUFF: white beagle-type pup with long dark floppy ears, in a tan knit hat with a cream bobble and a tan scarf, upturned dark smile, dark nose and eyes. palette: shares MUSH/CUB OBJ 5
+......####......
+.....#----#.....
+...##++++++##...
+..#++++++++++#..
+..#++++++++++#..
+..#+#+#+#+#+##..
+####--#--#--###.
+#+##--#--#--#+#.
+#+##---##---#+#.
+####-#----#-###.
+####--####--###.
+.###++++++++###.
+..#+-++-++-+++#.
+..#++++++++-+#..
+..#--#-----#--#.
+...#-#-----#-#..
+

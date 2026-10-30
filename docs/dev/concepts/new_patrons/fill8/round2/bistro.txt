@@ -1,0 +1,73 @@
+; Bistro (group chefs, CGB wall #295a5a) - quality passes on ARTISTE and TRENCHER. PROPOSALS, not imported. Hand-placed.
+; @fig ARTISTE_A #f0f0f8 #e09870 #283868
+; ARTISTE A: lighter touch. Same palette. Navy beret now sits on a ginger (mid) bob so beret and hair split by value; cream face, eyes shifted right, orange neckerchief, Breton stripes. NEW palette.
+.......##.......
+....#########...
+..###--########.
+..#############.
+...#+++++++++#..
+...#++-------+#.
+...#++--#--#-+#.
+...#++--#--#-+#.
+...#++-------+#.
+...#++----++-+#.
+....#++-----+#..
+.....#######....
+....#+++++++#...
+.#------+-----#.
+.##############.
+.#------------#.
+; @fig ARTISTE_B #f0d0b0 #d04858 #283868
+; ARTISTE B: bolder. Palette adjusted (skin / red / navy). Red beret with shine and stalk, navy bob frames a skin face, red neckerchief, navy and cream stripes. NEW palette.
+.......##.......
+...##########...
+..#+--++++++++#.
+..#++++++++++##.
+...############.
+...###-------##.
+...###--#--#-##.
+...###--#--#-##.
+...###-------##.
+...###----++-##.
+....##------##..
+.....#######....
+....#+++++++#...
+.#-----++-----#.
+.##############.
+.#------------#.
+; @fig TRENCHER_A #f8f8f0 #e88890 #582040
+; TRENCHER A: lighter touch. Same palette. Jowls widen below the mouth (pear, not the boss's ball), dome shine, cleaner moustache lobes and napkin. NEW palette.
+......####......
+....##+--+##....
+...#++--+++++#..
+..#+++++++++++#.
+..#++++#+++#++#.
+..#++++#+++#++#.
+..#++++++-++++#.
+..#++###++###+#.
+..#+++++++++++#.
+..#++++----+++#.
+.#++++++++++++#.
+...##++++++##...
+..####-----####.
+.###-------####.
+.##---------###.
+.#-------------.
+; @fig TRENCHER_B #f8f8f0 #e88890 #582040
+; TRENCHER B: bolder. Same palette. Blocky flat-topped head (not round) with jowls, bold moustache and nose, wide collar, plum button on a big napkin. NEW palette.
+....########....
+...#+--++++++#..
+..#+++++++++++#.
+..#+++++++++++#.
+..#+++#+++#+++#.
+..#+++#+++#+++#.
+..#++++--+++++#.
+..#+++###+++###.
+..#++++---++++#.
+.#++++++++++++#.
+..#+++++++++++#.
+...###+++++###..
+..####-----####.
+.###---------##.
+.##-----#----##.
+.#-----------#..

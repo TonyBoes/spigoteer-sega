@@ -1,0 +1,73 @@
+; Chrome Cow (group punks, CGB wall #39294a) - quality passes on STUNT and ANVIL. PROPOSALS, not imported. Hand-placed.
+; @fig STUNT_A #f0e0f0 #9048c0 #180818
+; STUNT A: lighter touch. shares RAVEN OBJ 4 / BG 4. Purple shade on the far cheek and purple lips so the pale face has form; helmet stripe straight, chin strap, purple tee, studded jacket.
+................
+.....#######....
+...##++-++++##..
+..#++++-++++++#.
+..#++++-++++++#.
+..#############.
+..#----------#..
+..#---#---#-+#..
+..#---#---#-+#..
+..#-----++--+#..
+...#--------+#..
+....##------##..
+..####++++####..
+.####+++++#####.
+.#-#++++++++#-#.
+.#-#++++++++#-#.
+; @fig STUNT_B #f0e0f0 #9048c0 #180818
+; STUNT B: bolder. shares RAVEN OBJ 4 / BG 4. Dark racing visor with two pale glints hides most of the pale skin; only the jaw and purple lips show, helmet taller, strap and studs.
+................
+.....#######....
+...##++-++++##..
+..#++++-++++++#.
+..#++++-++++++#.
+..#++++-++++++#.
+..#############.
+..####--##--###.
+..#----------#..
+..#-----++--+#..
+...#--------+#..
+....##------##..
+..####++++####..
+.####+++++#####.
+.#-#++++++++#-#.
+.#-#++++++++#-#.
+; @fig ANVIL_A #f0b890 #b04828 #181018
+; ANVIL A: lighter touch. shares ROADY OBJ 5 / BG 5. Same brute: strap now a clean diagonal from the eyepatch over the dome, scar kept as a short rust slash, open black vest with metal studs and shoulder spikes.
+................
+.....######.....
+...##-#----##...
+..#----#------#.
+..#-----#-----#.
+..#--#---###--#.
+..#--#---###--#.
+..#-------+---#.
+..#--------+--#.
+..#--++++-----#.
+...#---------#..
+...##-------##..
+..-##########-..
+.#-####--####-#.
+.#-###----###-#.
+.#-##--++--##-#.
+; @fig ANVIL_B #f0b890 #b04828 #181018
+; ANVIL B: bolder. shares ROADY OBJ 5 / BG 5. Wider jaw, heavier eyepatch and strap, longer rust scar across the cheek, tall shoulder spikes, studded vest.
+................
+.....######.....
+...##-#----##...
+..#----#------#.
+..#-----#-----#.
+..#--#---###--#.
+..#--#---###--#.
+..#-------+---#.
+.#--------+---#.
+.#--++++----+-#.
+..#--------+-#..
+...#-------##...
+.-############-.
+.#-####--####-#.
+.#-###----###-#.
+.#-##--++--##-#.
