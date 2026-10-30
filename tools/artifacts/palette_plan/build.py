@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-30", "Owner: \"monk skin less orange?\" MONK colour 1 (skin) #E8B878 -> #F0C8A0 (Color only)."),
+    ("2026-10-30", "Owner: \"ronin to sakua's palette.  Give poet his own with brown shirt.\" RONIN moves to SAKURA's OBJ 6 / BG 6 (Color only; the DMG is unchanged); POET leaves Sal's OBJ 0 for his own OBJ 7 / BG 7, colour 2 brown #905830."),
     ("2026-10-30", "Owner: \"Replacements\" (5 fronts drawn by the owner): KAGE, SAKURA, RONIN in the game (DMG and Color); SENSEI and MONK in the plan art. Backs unchanged."),
     ("2026-10-30", "Owner: \"Change the whole picture. not just the color.\" RONIN's front is the owner's drawing (second version), in the game for DMG and Color; the back is unchanged."),
     ("2026-10-30", "Owner sent RONIN recoloured: OBJ 7 colour 2 #A82830 -> #902000 (rust). In the game (ninjas_c)."),

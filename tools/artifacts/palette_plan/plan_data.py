@@ -70,10 +70,11 @@ PLANS = {
     ),
     "ninjas": dict(
         q=["Q43","Q51","2026-10-25","2026-10-30"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
-        moves=[("Show dancers", "OBJ", 5, 6, "Taiko drummer")],
+        moves=[("Show dancers", "OBJ", 5, 6, "Taiko drummer"),
+               ("RONIN", "OBJ", 7, 6, "RONIN"), ("RONIN", "BG", 7, 6, "RONIN")],   # owner 2026-10-30: "ronin to sakua's palette."
         recolour={("BG", 3): "OBJ 6"},
         open={},
-        why="Owner 2026-10-25: the taiko drummer shares SAKURA's palette. 2026-10-30: \"Poet and sensei to sals palette.\" (OBJ 0; BG 5 takes its colours, OBJ 5 is free)",
+        why="Owner 2026-10-25: the taiko drummer shares SAKURA's palette. 2026-10-30: \"Poet and sensei to sals palette.\" (OBJ 0; BG 5 takes its colours); then RONIN to SAKURA's OBJ 6 / BG 6 and POET his own brown-shirt palette on the freed OBJ 7 / BG 7.",
     ),
     "zoo": dict(
         q=["Q43","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
@@ -112,7 +113,7 @@ NEW_PATRONS = {
     "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
     "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"])],
     "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("ROADY", ["#F0B890", "#B04828", "#181018"])],
-    "ninjas": [("SENSEI", ["#F8F8F0", "#D8A070", "#302018"]), ("KON", ["#F8E8D8", "#C82838", "#181010"]), ("MONK", ["#E8B878", "#E07820", "#301810"]), ("POET", ["#F8E0C0", "#C89838", "#100810"]), ("HANA", ["#F8D8C0", "#30A8A0", "#182030"])],
+    "ninjas": [("SENSEI", ["#F8F8F0", "#D8A070", "#302018"]), ("KON", ["#F8E8D8", "#C82838", "#181010"]), ("MONK", ["#F0C8A0", "#E07820", "#301810"]), ("POET", ["#F8E0C0", "#C89838", "#100810"]), ("HANA", ["#F8D8C0", "#30A8A0", "#182030"])],
     "zoo": [("TUCO", ["#F8F8E8", "#F89820", "#101018"]), ("ELLIE", ["#F8F8F0", "#A0A0B0", "#101010"]), ("ZIGGY", ["#F8F8F0", "#A0A0B0", "#101010"]), ("PINKY", ["#F8B0C8", "#E04880", "#301020"])],
     "aliens": [("MOTHMA", ["#F8F0D0", "#C8A068", "#382010"]), ("GLOP", ["#D0F0F8", "#58A0F0", "#081828"]), ("LUNA", ["#F0F0F8", "#40B8A8", "#100820"]), ("VENUS", ["#C8F8F0", "#6058E0", "#180828"])],
     "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("TOOB", ["#E8F0F8", "#9068D8", "#180830"])],
@@ -127,17 +128,17 @@ AUTO_OWN = {
     "chefs": [(3, 3, "MIME")],
     "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
     "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY")],
-    "ninjas": [(4, 4, "HANA"), (5, 2, "MONK")],   # owner 2026-10-30: MONK in his orange concept colours on the freed OBJ 5 and the free BG 2
+    "ninjas": [(4, 4, "HANA"), (5, 2, "MONK"), (7, 7, "POET")],   # owner 2026-10-30: MONK in his orange concept colours on the freed OBJ 5 and the free BG 2
     "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
     "aliens": [(3, 5, "MOTHMA"), (4, 4, "LUNA")],
     "robots": [(5, 5, "TOOB")],                 # owner 2026-10-29: "With the freed up slot, lets make Bubble Purple again."
 }
 # Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
-AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KON"], 0: ["SENSEI", "POET"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
+AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KON"], 0: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
               "divers": {5: ["CUB"], 2: ["FROSTI"]}, "robots": {1: ["CLANK"]},       # Q43 (owner 2026-10-29)
               "aliens": {4: ["GLOP"], 5: ["VENUS"]}}          # owner 2026-10-29: GLOP in LUNA's palette; VENUS on OBJ 5
 # Q43: "Sensei & poet -- blend colors so closer together but matching neither." Their shared OBJ 5 palette, halfway between.
-_NP_BLEND = {"POET": ["#F8ECD8", "#D09C54", "#201410"]}
+_NP_BLEND = {"POET": ["#F8E0C0", "#905830", "#100810"]}   # owner 2026-10-30: "Give poet his own with brown shirt." (colour 2: sleeves, hat brim)
 _NP = {n: c for _l in NEW_PATRONS.values() for n, c in _l}
 _NP.update(_NP_BLEND)
 for _v, _l in AUTO_OWN.items():
@@ -148,7 +149,7 @@ for _v, _l in AUTO_OWN.items():
 for _v, _d in AUTO_SHARE.items():
     for _o, _ns in _d.items():
         PLANS[_v].setdefault("join", {}).setdefault(("OBJ", _o), []).extend(_ns)
-PLANS["ninjas"].setdefault("bg", {}).update(SENSEI=5, POET=5)    # owner 2026-10-30: Sal's OBJ 0, its colours on BG 5
+PLANS["ninjas"].setdefault("bg", {}).update(SENSEI=5)    # owner 2026-10-30: Sal's OBJ 0, its colours on BG 5
 PLANS["chefs"].setdefault("bg", {})["NONNA"] = 2                  # PIERRE and BRIE's BG 2 (OBJ 0 is Sal's)
 PLANS["lumberjacks"].setdefault("bg", {})["BOONE"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
 PLANS["robots"].setdefault("bg", {})["CLANK"] = 2                 # Q43 B: the full mug's OBJ 1; BG 1 is the keg's
