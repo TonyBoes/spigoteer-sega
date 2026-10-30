@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-30", "Q65 (owner): \"New Kon\", drawn by the owner: KON's front replaced in the plan art (Color only); the mask proposals A, B, C are set aside. Back unchanged."),
     ("2026-10-30", "Owner: \"Poet replacement\" (drawn by the owner): POET's front replaced in the plan art (Color only). Back unchanged."),
     ("2026-10-30", "Q62 Space (owner's marked grid): swaps cut: ZORP OBJ 3, 6; XENO 5, 6, 7; MOTHMA 1, 5, 6; LUNA 3, 6, 7; VENUS 3; DASH 1, 3. GLOP and GLORP keep all. Color only."),
     ("2026-10-30", "Owner: \"make his skin the same as hanas.\" POET colour 1 (skin) #F4D0A8 -> #F8D8C0, HANA's (Color only)."),
