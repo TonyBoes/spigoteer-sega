@@ -1,0 +1,37 @@
+; Igloo (group divers, CGB wall #4a4078) - DENALI_B redrawn in 3/4 view facing right, 2 versions. CONCEPTS, not imported.
+; @fig DENALI_A #f0f0f8 #c08050 #281818
+; DENALI A: owner's DENALI_B turned slightly right: tan mask, white blaze, heavy hanging near ear with a sliver of far ear, big jowls, dark nose just past centre, dark collar and a larger two-hoop brandy barrel on a white chest. shares MUSH
+...########.....
+..#++++++++#.##.
+.#++++++++++#+#.
+#++#+++--+++#+#.
+#++#+++---++#+#.
+#++#+#+--+#+#+#.
+#++#+#+---#+#+#.
+#++#++------##..
+#++#+------###..
+.#+#+---++---#..
+.###---------#..
+...###########..
+.#---#+#-+#+#-#.
+.#---#+#++#+#-#.
+.#---########-#.
+.#------------#.
+; @fig DENALI_B #f0f0f8 #c08050 #281818
+; DENALI B: fuller 3/4 to the right: wide near ear, far ear only a tip above the skull, blaze running down to a long white muzzle that juts out past the cheek with the nose at the tip, heavy jowls, dark collar and the two-hoop brandy barrel. shares MUSH
+...#######......
+..#++++++#.##...
+.#+++++++++#+#..
+#+++#+++--++#...
+#+++#+++---+#...
+#+++#+#+---#+#..
+#+++#+#+---#+#..
+#+++#++------##.
+#+++#+------###.
+.#++#-----++--#.
+.####---------#.
+...############.
+.#---#+#-+#+#-#.
+.#---#+#++#+#-#.
+.#---########-#.
+.#------------#.

@@ -1,0 +1,72 @@
+; @fig MOSH #f0e0f0 #9048c0 #180818
+; MOSH: headbanger in a thick purple mane that swallows the head down to the shoulders, face only a small window with a dark open shout, studded leather jacket over a purple band tee. Silhouette: wide hair bell. shares RAVEN
+................
+....########....
+..###++++++###..
+.#+++++++++++#..
+.#++++++++++++#.
+.#++#########+#.
+.#++#-------#+#.
+.#++#--#--#-#+#.
+.#++#--#--#-#+#.
+.#++#-------#+#.
+.#++#-#++#-#++#.
+.#+++##---##++#.
+.#++##-+++-##+#.
+.#+##-++++-##+#.
+.#+#-#++++#-#+#.
+.#+#++++++++#+#.
+; @fig VIXEN #f8d8c0 #3878f8 #100c28
+; VIXEN: goth girl, blunt black bob with one blue streak, dark lipstick, spiked blue choker, black top and fishnet sleeves. Silhouette: sleek square bob. shares DJ
+................
+....########....
+...##########...
+..###+########..
+..############..
+..##--------##..
+..##--#--#--##..
+..##--#--#--##..
+..##--------##..
+..##---##---##..
+...##------##...
+....##----##....
+....#+#+#+#+#...
+..#-########-#..
+.#-#-#+##+#-#-#.
+.#-#-#+##+#-#-#.
+; @fig BRAID #f0e0f0 #9048c0 #180818
+; BRAID: lady biker, purple hair pulled back with a long braid hanging over the shoulder, strong jaw, dark leather vest on bare arms. Silhouette: braid hanging down one side. shares RAVEN
+................
+....########....
+...#++++++++#...
+...#+-+++++++#..
+...#+######++#..
+...#+-------#+#.
+...#+--#--#-#-#.
+...#+--#--#-#+#.
+...#+---++--#-#.
+....##-----##+#.
+.....##---###-#.
+..#####---###+#.
+.#-##########-#.
+.#--##+++####+#.
+.#--##+++####-#.
+.#--#++++++##+#.
+; @fig ROADIE #f8d8c0 #3878f8 #100c28
+; ROADIE: grizzled old roadie, bald dome with long blue hair hanging at the sides, round dark shades, drooping moustache and goatee, vest over a band tee. Silhouette: bald dome with side curtains. shares DJ
+................
+.....#######....
+....#-------#...
+...#---------#..
+..#+#-++-++-#+#.
+..#+#-##-##-#+#.
+..#+#-##-##-#+#.
+..#+#-------#+#.
+..#+#--++++-#+#.
+..#++#-+--+#++#.
+..#++##-+-##++#.
+..#+++#####+++#.
+.#++###---###+#.
+.#+###-+++-##+#.
+.#+##-+++++-#+#.
+.#+#+-+++++-#+#.
