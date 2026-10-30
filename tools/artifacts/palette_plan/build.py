@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner (Q58): approved. Stadium: a basketball player (BALLER, working name) on OBJ 6 / BG 6 in forest #A87050 #186030 #081008; TOM's own palette is now purple #A87050 #7040B0 #100818 (Black, no pixel change). Approved swaps: BALLER in TOM's purple, TOM in BALLER's forest."),
+    ("2026-10-29", "Owner (Q57): Bistro noses \"Better\": PIERRE, BRIE, BASIL take the face pass with noses. PINOT \"started looking like a referee\": back to the artist."),
     ("2026-10-29", "Owner picks: FRANK (apron, hot-dog logo) and LOUIS (batting helmet, face A) (Q49), PIPER (band uniform) (Q45), POET's face pass (Q51), MUFFY's face (Q55; the other Igloo faces discarded). Plan art updated."),
     ("2026-10-29", "Owner (Q53): \"It works. Use it to free the slot.\" Space Lounge: the bar takes XENO's colours, XENO walks in BG 0; BG 3 is freed for VENUS (game change in progress)."),
     ("2026-10-29", "Owner (Q48), on the every-look-every-palette sheet: moss off EMMA, MABEL, ARTIE (and GUS); added DUSTY in ROSIE's and MABEL's, EMMA in HANK's and MABEL's, GUS in ROSIE's and MABEL's, HANK in ROSIE's, ROSIE in MABEL's. 36 combinations in the game."),
@@ -302,7 +304,7 @@ EXTRA_LOOKS = {"aliens": ["DASH"], "robots": ["NEKA", "TELLY"]}
 # The owner's new Color-only patrons (picks 2026-10-29, docs/dev/concepts/new_patrons/PICKS.md), not imported yet: planned, no OBJ slot
 # yet. Fronts and backs copied into art/<venue>_<name>(_back).txt; colours are each concept's own palette.
 NEW_PATRONS = {
-    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D8A028", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#E8B080", "#9050D0", "#180C28"])],
+    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D8A028", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#A87050", "#7040B0", "#100818"]), ("BALLER", ["#A87050", "#186030", "#081008"])],
     "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"])],
     "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
     "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"])],
@@ -315,7 +317,7 @@ NEW_PATRONS = {
 # Owner 2026-10-29: "Auto assigned palettes to new patrons where available make suggestions for palette merges."
 # Own palette where an OBJ slot and a playfield BG slot are free: (OBJ, BG, name), the concept's colours.
 AUTO_OWN = {
-    "sports": [(4, 4, "PIPER"), (5, 5, "TOM")],
+    "sports": [(4, 4, "PIPER"), (5, 5, "TOM"), (6, 6, "BALLER")],
     "lumberjacks": [(4, 4, "SMITH"), (5, 5, "ROD")],
     "chefs": [(3, 3, "MIME")],
     "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
@@ -621,7 +623,7 @@ def art_rows(v, name):
 PASS = os.path.join(ROOT, "docs/dev/concepts/patron_pass")
 ACCEPTED = {
     # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
-    "chefs": {"pierre": ("old", "old"), "brie": ("old", "brie_v2_back"), "basil": ("basil", "basil_back")},
+    "chefs": {"pierre": ("pierre_face", "pierre_face_back"), "brie": ("brie_face", "brie_face_back"), "basil": ("basil_face", "basil_back")},
     "punks": {"punk": ("spike", "spike_back"), "harley": ("bandit", "bandit_back"), "baby": ("slick", "slick_back")},
     "ninjas": {"kage": ("old", "old"), "sakura": ("sakura", "sakura_back"), "ronin": ("old", "ronin_v2_back")},
     "zoo": {"coco": ("coco", "coco_back"), "bamboo": ("bamboo", "bamboo_back"), "muddy": ("old", "old")},
@@ -1640,6 +1642,9 @@ TRIM = os.path.join(ROOT, "docs/dev/concepts/right_column")
 def trimmed_front(v, i, cur):
     """Look i's planned x=15-cleared front, or None when there is none or it equals the current front."""
     g, k = ("saloon_x", i - 3) if v["key"] == "cowboys" and i >= 3 else (v["key"], i)
+    pick = ACCEPTED.get(v["key"], {}).get(NAMES[v["key"]][i].split(",")[0].strip().lower())
+    if pick and pick[0].endswith("_face"):          # a later face pass (x=15 already clear) supersedes the trimmed front (owner Q57 2026-10-29)
+        return None
     f = os.path.join(TRIM, g + ".txt")
     if not os.path.exists(f):
         return None
