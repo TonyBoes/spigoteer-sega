@@ -1,0 +1,38 @@
+; Chrome Cow (group punks, CGB wall #39294a) - fill-to-8 concepts, 2 open slots, shared palettes. CONCEPTS, not imported.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark). Hand-placed.
+; @fig STUNT #f0e0f0 #9048c0 #180818
+; STUNT: stunt rider, round purple helmet with a pale racing stripe and a dark brow rim, chin straps, purple lips, black leather jacket with studs and a purple tee. Palette: shares RAVEN OBJ 4 / BG 4 (skin light, accent purple, dark).
+................
+.....#######....
+....#++-+++++#..
+...#++-++++++##.
+...#++-++++++##.
+..#############.
+..#---#---#--#..
+..#---#---#--#..
+..#----------#..
+..#-----++---#..
+...##-------##..
+...###-----###..
+..####--+--####.
+.####+++++#####.
+.#-##++++++##-#.
+.#-#++++++++#-#.
+; @fig ANVIL #f0b890 #b04828 #181018
+; ANVIL: bald hulking brute, eyepatch with a strap over the dome, scarred cheek, no beard, studded shoulder spikes, black vest. Palette: shares ROADY OBJ 5 / BG 5 (skin light, rust accent, dark).
+................
+.....######.....
+...##---#--##...
+..#------#---#..
+..#-++++++#++#..
+..#---#--#####..
+..#---#--#####..
+..#-+-----####..
+..#--+--------#.
+..#---+####--#..
+....#--------#..
+..+.####--####+.
+.##############.
+.#+####--####+#.
+.#+###----###+#.
+.#+#+#+--+#+#+#.

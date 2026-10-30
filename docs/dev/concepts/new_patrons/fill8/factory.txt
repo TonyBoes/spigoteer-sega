@@ -1,0 +1,38 @@
+; Robot Factory (group robots, CGB wall #503028) - Color-only patron concepts to fill slot 8. CONCEPTS, not imported.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark). Hand-placed.
+; @fig ROTOR #a4ff60 #e88828 #181010
+; ROTOR: flying drone, orange propeller blades on a mast, round lime body with one big orange eye in a dark ring, vent slats, two landing legs. The only robot with a wide flat top and open legs. palette: shares CLANK OBJ 1
+.############...
+#++++++#++++++#.
+.##....#....##..
+.......#........
+...#########....
+..#----------#..
+..#---#####--#..
+..#---#+++#--#..
+..#---#+++#--#..
+..#---#####--#..
+..#-+-+-+-+--#..
+...#--------#...
+...##++++++##...
+...#+#....#+#...
+..#++#....#++#..
+..+++......+++..
+; @fig DOZER #ffde48 #7888a0 #101828
+; DOZER: bulldozer bot, yellow hard hat, dark visor with two yellow eyes, steel face plates, yellow chest with two dark vents, wide steel tracks along the bottom. A wide heavy-machine body. palette: shares BOXY OBJ 3
+....#######.....
+...#--------#...
+..#----------#..
+.#############..
+..#++++++++++#..
+..#+########+#..
+..#+#--##--#+#..
+..#+#--##--#+#..
+..#+########+#..
+..#++++++++++#..
+.#------------#.
+.#--##----##--#.
+.#------------#.
+#+++++++++++++#.
+#+#+#+#+#+#+#+#.
+.+++++++++++++..

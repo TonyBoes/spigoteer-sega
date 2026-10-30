@@ -1,0 +1,38 @@
+; Lumber Lodge (group lumberjacks, CGB wall #6a4a31) - fill-to-8 concepts, 1 open slot, shared palettes. CONCEPTS, not imported.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark). Hand-placed.
+; @fig FOREMAN #f8c090 #988838 #283018
+; FOREMAN: site foreman, mustard hard hat with a centre ridge, a peak and a headlamp, thick moustache, dark work shirt with hi-vis stripes. Palette: shares SMITH OBJ / BG 4 (skin light, mustard, dark).
+................
+.....######.....
+....#++#++++#...
+...#+++#++++--#.
+...############.
+...#---------#..
+...#--#---#--#..
+...#--#---#--#..
+...#-#######-#..
+...#-#-----#-#..
+....#-------#...
+....##-----##...
+..####-----####.
+.#++###---###++.
+.#++#########++.
+.#++#+#---#+#++.
+; @fig SKILLET #f8c090 #488878 #182028
+; SKILLET: round bald lodge cook, shiny dome with dark side tufts, a wide grin and chubby cheeks, teal apron straps and bib over a dark shirt. Palette: shares ROD OBJ / BG 5 (skin light, teal, dark).
+................
+.....#######....
+...##-------##..
+..#-----------#.
+.##-----------#.
+.##----#---#--#.
+.##----#---#--#.
+..#-----------#.
+..#---#-----#-#.
+..#----#####--#.
+...#---------#..
+....##-----##...
+..####-----####.
+.###+##---##+##.
+.#++++++++++++#.
+.#++++++++++++#.
