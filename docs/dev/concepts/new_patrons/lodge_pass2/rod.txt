@@ -1,0 +1,19 @@
+; ROD front (Lumber Lodge), lodge pass 2 (proposal 2026-10-29), from tools/artifacts/palette_plan/art/lumberjacks_rod.txt
+; cap, moustache, chin-strap beard, sideburn, eyes and body pixel-identical; one change: a 1 px mouth in the mid colour
+; under the moustache, toward the facing side (9,11); the skin below it is a flat chin closed by the collar on row 13
+....#######.....
+...#++++-+++#...
+...#+++---++#...
+..#++++++#+++#..
+.#++++++++#+++#.
+#++##########+#.
+###-#--------##.
+...#-#--#--#-#..
+...#-#--#--#-#..
+....#--------#..
+....#-######-#..
+.....##--+-##...
+..###+#---#+##..
+.#+++++###++-+#.
+#+#+++++#+++-+#.
+#+#+++++#+++-+#.
