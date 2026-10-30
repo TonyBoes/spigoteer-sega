@@ -1,0 +1,199 @@
+"""The Graphics Atlas's hand-kept plan data (owner decisions), as plain data: no atlas capture, no ROM needed, so tests can import it.
+build.py does `from plan_data import *`. Everything the game already says (the Saloon's looks and palette instances, slot numbers) is checked against
+game_truth by self_check.py."""
+# Patron names (tools/gen_credits.py PATRONS, art order A, B, C) and short descriptions where the art notes give one.
+NAMES = {
+    "cowboys": ["DUSTY, the cowboy", "EMMA, the singer", "GUS, the prospector", "HANK, the ranch hand", "ROSIE, the singer", "REDD, the outlaw",
+                "MABEL, the lace shawl", "ARTIE, the priest"],   # the game's 8 looks in order (look 0-2 bank 0, 3-7 Color only); patron palettes below
+    "sports": ["PETE, the cap fan", "NORM, the ref", "SERENA, the band fan"],
+    "lumberjacks": ["CEDAR, in the cap", "WILLOW, red hair", "ASH, in the green hat"],
+    "chefs": ["PIERRE", "BRIE", "BASIL"],
+    "divers": ["IGGY, the parka man", "POLLY, the parka girl", "MOOSE, the big parka"],
+    "robots": ["BOXY", "VOLTA", "BLIP"],
+    "punks": ["PUNK, pink mohawk", "HARLEY, green bandana", "BABY, blue quiff"],
+    "ninjas": ["KAGE", "SAKURA", "RONIN"],
+    "zoo": ["COCO, the monkey", "BAMBOO, the panda", "MUDDY, the hippo"],
+    "aliens": ["ZORP, eye stalks", "XENO, the grey one", "GLORP, the squid"],
+}
+# Planned changes (owner decisions), per venue: {("OBJ"|"BG", slot): ["patron name", ...]} drawn in yellow.
+PLANNED = {}
+# Owner plans per venue. moves: (text the item starts with, kind, from slot, to slot, shown as); recolour: {(kind, slot): {index: hex}};
+# open: {(kind, slot): label} a palette offered to a new patron. Planned items and colours are drawn in yellow.
+TAN = "#FFE6CD"   # the Stadium's white push (owner 2026-10-21: the lighter tan, over #FFD5AC: "a better balance")
+PLANS = {
+    "cowboys": dict(
+        q=["Q44","Q46","Q48","2026-10-21"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        moves=[("Show dancers", "OBJ", 5, 1, "Show dancers")],
+        recolour={("OBJ", 1): {1: "#FFE6CD"}},                               # the full mug's cream to the tan; the dancers share it
+        open={},
+        why="Owner 2026-10-21: the dancers share the full mug's palette (OBJ 1) in the tan. The 8 looks, their palettes and variants are in the game (batch 2).",
+    ),
+    "sports": dict(
+        q=["Q16","Q45","Q49","Q58","2026-10-21","2026-10-29"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Cheerleaders"),
+               ("NORM", "OBJ", 6, 0, "NORM, the ref")],
+        recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 4): "OBJ 0"},
+        open={},
+        join={("OBJ", 2): ["LOUIS"], ("OBJ", 1): ["FRANK"]},   # owner 2026-10-29: LOUIS takes the reserved patron slot; FRANK shares PETE's
+        field_moves=[("Keg, spout", 1, 0)],          # playfield: BG 0 takes BG 1's (keg / spout) palette and the keg / spout share it
+        why="Owner 2026-10-21: OBJ 1's white pushed toward tan serves PETE and the cheerleaders; NORM uses Sal's OBJ 0; OBJ 2 gets the same push and becomes a patron palette.",
+    ),
+    # owner 2026-10-25: every recommended and optional merge on the Palette Merges page (tools/artifacts/palette_merges/build.py MERGES)
+    "lumberjacks": dict(
+        q=["Q59","Q60","2026-10-25","2026-10-29"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        moves=[("Show dancers", "OBJ", 5, 1, "Sasquatch"), ("WILLOW", "OBJ", 6, 3, "WILLOW, red hair"), ("WILLOW", "BG", 3, 2, "WILLOW, red hair")],
+        recolour={},
+        open={},
+        join={("OBJ", 1): ["BOONE"]},   # owner 2026-10-29: BOONE shares the Sasquatch's palette
+        why="Owner 2026-10-25: the Sasquatch shares the full mug (foam to cream); CEDAR and WILLOW share CEDAR's palette (WILLOW's navy goes).",
+    ),
+    "chefs": dict(
+        q=["Q57","Q59","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        moves=[("PIERRE", "OBJ", 3, 0, "PIERRE"), ("BRIE", "OBJ", 6, 0, "BRIE"), ("Show dancers", "OBJ", 5, 0, "Waiter"),
+               ("BRIE", "BG", 3, 2, "BRIE")],
+        recolour={("BG", 2): "OBJ 0"},
+        open={},
+        why="Owner 2026-10-25: PIERRE, BRIE and the waiter use Sal's OBJ 0; PIERRE and BRIE walk in BG 2 in Sal's colours.",
+    ),
+    "divers": dict(
+        q=["Q43","Q55","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        moves=[("Show dancers", "OBJ", 5, 0, "Penguin")],
+        recolour={}, open={},
+        why="Owner 2026-10-25: the penguin uses Sal's OBJ 0 (its orange beak and feet turn peach).",
+    ),
+    "punks": dict(
+        q=["Q43","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        moves=[("Show dancers", "OBJ", 5, 6, "The band")],
+        recolour={("BG", 3): "OBJ 6"},
+        open={},
+        why="Owner 2026-10-25: the band shares HARLEY's palette.",
+    ),
+    "ninjas": dict(
+        q=["Q43","Q51","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        moves=[("Show dancers", "OBJ", 5, 6, "Taiko drummer")],
+        recolour={("BG", 3): "OBJ 6"},
+        open={},
+        why="Owner 2026-10-25: the taiko drummer shares SAKURA's palette.",
+    ),
+    "zoo": dict(
+        q=["Q43","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        moves=[("COCO", "OBJ", 3, 1, "COCO, the monkey")],
+        recolour={("BG", 2): "OBJ 1"},
+        open={},
+        why="Owner 2026-10-25: COCO shares the full mug's palette (foam to tan).",
+    ),
+    "robots": dict(
+        q=["Q13","Q43","2026-10-29"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        moves=[("Show dancers", "OBJ", 5, 0, "Show dancers"),
+               ("BLIP", "OBJ", 7, 4, "BLIP"), ("BLIP", "BG", 7, 4, "BLIP")],   # owner 2026-10-29: "Put blip in neka's palette by default."
+        recolour={}, open={},
+        add={("OBJ", 4): ("NEKA", ["#58F0F8", "#7888A0", "#101828"])},          # Color-only 4th look on the cyan pair (the one BOXY gave up)
+        join={("OBJ", 7): ["TELLY"]},                                            # owner 2026-10-29: TELLY in BLIP's colours (was his own mint OBJ 5)
+        why="Owner 2026-10-27/28: NEKA takes the cyan palette; TELLY is a mint robot with its own palette. Both Color only. Q13: the dancers share Sal's OBJ 0, freeing OBJ 5 for TELLY.",
+    ),
+    "aliens": dict(
+        q=["Q35","Q37","Q43","Q53","Q68","Q69","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        add={("OBJ", 6): ("DASH", ["#F8E0C8", "#E03830", "#301818"])},     # Color-only 4th look (Q68/Q69), Stadium A's colours (assets/palettes.json sports_a); OBJ 3 or 6 is free: OBJ 6 (BG 3 is XENO's)
+        moves=[("ZORP", "OBJ", 3, 1, "ZORP, eye stalks"), ("XENO", "OBJ", 6, 2, "XENO, the grey one")],
+        recolour={("BG", 2): "OBJ 1"},
+        open={},
+        bg={"VENUS": 3},   # owner Q53 2026-10-29: the bar (BG 0) takes XENO's colours and XENO walks in it, freeing BG 3
+        why="Owner 2026-10-25: ZORP shares the full mug's palette, XENO the empty mug's. Check the Space boss's OBJ 2 use. 2026-10-29: XENO walks in the bar's BG 0.",
+    ),
+}
+# Color-only extra looks that are PLANNED, not in the game (Q68-Q78): listed in amber and counted as planned. Their art is art/<venue>_<name>.txt
+# (+ _back.txt), copied from docs/dev/concepts. The game_truth / self_check "now" checks never see them: they are not in NAMES, users() or the capture.
+EXTRA_LOOKS = {"aliens": ["DASH"], "robots": ["NEKA", "TELLY"]}
+# The owner's new Color-only patrons (picks 2026-10-29, docs/dev/concepts/new_patrons/PICKS.md), not imported yet: planned, no OBJ slot
+# yet. Fronts and backs copied into art/<venue>_<name>(_back).txt; colours are each concept's own palette.
+NEW_PATRONS = {
+    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D8A028", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#A87050", "#7040B0", "#100818"]), ("MIKE", ["#A87050", "#186030", "#081008"])],
+    "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"]), ("INES", ["#E0A878", "#A050C0", "#281830"])],
+    "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
+    "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"])],
+    "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("ROADY", ["#F0B890", "#B04828", "#181018"])],
+    "ninjas": [("SENSEI", ["#F8F8F0", "#D8A070", "#302018"]), ("KON", ["#F8E8D8", "#C82838", "#181010"]), ("MONK", ["#E8B878", "#E07820", "#301810"]), ("POET", ["#F8E0C0", "#C89838", "#100810"]), ("HANA", ["#F8D8C0", "#30A8A0", "#182030"])],
+    "zoo": [("TUCO", ["#F8F8E8", "#F89820", "#101018"]), ("ELLIE", ["#F8F8F0", "#A0A0B0", "#101010"]), ("ZIGGY", ["#F8F8F0", "#A0A0B0", "#101010"]), ("PINKY", ["#F8B0C8", "#E04880", "#301020"])],
+    "aliens": [("MOTHMA", ["#F8F0D0", "#C8A068", "#382010"]), ("GLOP", ["#D0F0F8", "#58A0F0", "#081828"]), ("LUNA", ["#F0F0F8", "#40B8A8", "#100820"]), ("VENUS", ["#C8F8F0", "#6058E0", "#180828"])],
+    "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("TOOB", ["#E8F0F8", "#9068D8", "#180830"])],
+}
+# Owner 2026-10-29: "Auto assigned palettes to new patrons where available make suggestions for palette merges."
+# Own palette where an OBJ slot and a playfield BG slot are free: (OBJ, BG, name), the concept's colours.
+AUTO_OWN = {
+    "sports": [(4, 4, "PIPER"), (5, 5, "TOM"), (6, 6, "MIKE")],
+    "lumberjacks": [(4, 4, "SMITH"), (5, 5, "ROD"), (6, 3, "INES")],
+    "chefs": [(3, 3, "MIME")],
+    "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
+    "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY")],
+    "ninjas": [(4, 4, "HANA"), (5, 5, "POET")],
+    "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
+    "aliens": [(3, 5, "MOTHMA"), (4, 4, "LUNA")],
+    "robots": [(5, 5, "TOOB")],                 # owner 2026-10-29: "With the freed up slot, lets make Bubble Purple again."
+}
+# Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
+AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KON"], 5: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
+              "divers": {5: ["CUB"], 2: ["FROSTI"]}, "robots": {1: ["CLANK"]},       # Q43 (owner 2026-10-29)
+              "aliens": {4: ["GLOP"], 5: ["VENUS"]}}          # owner 2026-10-29: GLOP in LUNA's palette; VENUS on OBJ 5
+# Q43: "Sensei & poet -- blend colors so closer together but matching neither." Their shared OBJ 5 palette, halfway between.
+_NP_BLEND = {"POET": ["#F8ECD8", "#D09C54", "#201410"]}
+_NP = {n: c for _l in NEW_PATRONS.values() for n, c in _l}
+_NP.update(_NP_BLEND)
+for _v, _l in AUTO_OWN.items():
+    for _o, _b, _n in _l:
+        PLANS[_v].setdefault("add", {})[("OBJ", _o)] = (_n, _NP[_n])
+        if _b != _o:
+            PLANS[_v].setdefault("bg", {})[_n] = _b
+for _v, _d in AUTO_SHARE.items():
+    for _o, _ns in _d.items():
+        PLANS[_v].setdefault("join", {}).setdefault(("OBJ", _o), []).extend(_ns)
+PLANS["chefs"].setdefault("bg", {})["NONNA"] = 2                  # PIERRE and BRIE's BG 2 (OBJ 0 is Sal's)
+PLANS["lumberjacks"].setdefault("bg", {})["BOONE"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
+PLANS["robots"].setdefault("bg", {})["CLANK"] = 2                 # Q43 B: the full mug's OBJ 1; BG 1 is the keg's
+for _v, _l in NEW_PATRONS.items():
+    EXTRA_LOOKS.setdefault(_v, []).extend(n for n, _ in _l)
+    _joined = [n for ns in PLANS[_v].get("join", {}).values() for n in ns] + [a[0] for a in PLANS[_v].get("add", {}).values()]   # given a palette slot: listed there, not as an extra
+    PLANS[_v].setdefault("extras", []).extend(dict(name=n, cols=c) for n, c in _l if n not in _joined)
+# Planned removals (struck through, yellow). Owner 2026-10-21: drop the enhanced looks (M14a) after the next patron revision.
+DROP_ENHANCED = True
+# Owner 2026-10-21: the BG palettes used above the playfield are reloaded where the playfield starts (row 5), so in the playfield
+# they are free for patrons. The above-the-playfield palettes are listed in their own section.
+SPLIT_PLAYFIELD = True
+# Every venue (owner 2026-10-21): in the playfield the keg / spout palette moves from BG 7 to BG 1 (BG 1 is the HUD's above the playfield).
+FIELD_MOVES = [("Keg, spout", 7, 1)]
+import game_truth as _game_truth  # noqa: E402
+
+SALOON_LOOKS = _game_truth.truth()["saloon"]   # the game's looks and palette instances, read from src/mirror.c sal_combo (never typed here)
+# Each Saloon look's own (primary) palette instance, from the plan (owner 2026-10-22): HANK's (colours 1 and 2 swapped), DUSTY with EMMA,
+# GUS with EMMA too (owner 2026-10-29), ROSIE with REDD, MABEL with ARTIE. The others in sal_combo are approved palette swaps (owner 2026-10-29: shown in their own section).
+SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 0, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
+INST_OBJ, INST_BG = [3, 6, 7, 4, 5], [2, 3, 4, 7, 5]      # palette instance 0-4 -> OBJ slot, BG slot (the Saloon has all 5)
+PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
+BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
+
+
+# Planned art that breaks a patron rule and is shown anyway, until the artist's next pass: (venue, NAME, "front" | "back", "bottom" | "holes" | "x15").
+# self_check.verify_pictures lists every other violation as an error and refuses an entry that is no longer needed. Each is a question for the owner
+# or the artist, not a decision: bottom = a dark pixel on row 15 under a lighter one on row 14 (read as the old bottom outline, owner 10-29);
+# holes = index 0 enclosed by the figure (a lifted patron is see-through there, unless the owner drew the gap: PLANNED_GAPS).
+ART_RULE_EXCEPTIONS = {
+    ("lumberjacks", "INES", "front", "bottom"): "row 15 x=14",
+    ("chefs", "PINOT", "front", "bottom"): "row 15 x=4, 6, 7",
+    ("chefs", "PINOT", "back", "bottom"): "row 15 x=6, 8",
+    ("robots", "TELLY", "front", "holes"): "(2, 1) and (3, 2) enclosed; the owner has not said it is a gap",
+}
+# Index-0 gaps the owner drew on purpose in planned art: (venue, NAME, side) -> {(x, y)}.
+PLANNED_GAPS = {}
+
+# PATRON_ART, the one art table: patron -> (front file, back file, source) under docs/dev/concepts/patron_pass/<venue>/ ("old" = the game's frame).
+# Beyond it: art/<venue>_<name>.txt (the extras' own art) and the right-column trims; build.py art_rows / accepted / trimmed_front / back_info
+# read this and nothing else for owner picks. self_check.check_art refuses a file that is missing and an entry without a source.
+ART_PICKS_Q = "Q56-Q59 (owner picks 2026-10-26)"
+PATRON_ART = {
+
+    # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
+    "chefs": {"pierre": ("pierre_face", "pierre_face_back", ART_PICKS_Q), "brie": ("brie_face", "brie_face_back", ART_PICKS_Q), "basil": ("basil_face", "basil_back", ART_PICKS_Q)},
+    "punks": {"punk": ("spike", "spike_back", ART_PICKS_Q), "harley": ("bandit", "bandit_back", ART_PICKS_Q), "baby": ("slick", "slick_back", ART_PICKS_Q)},
+    "ninjas": {"kage": ("old", "old", ART_PICKS_Q), "sakura": ("sakura", "sakura_back", ART_PICKS_Q), "ronin": ("old", "ronin_v2_back", ART_PICKS_Q)},
+    "zoo": {"coco": ("coco", "coco_back", ART_PICKS_Q), "bamboo": ("bamboo", "bamboo_back", ART_PICKS_Q), "muddy": ("old", "old", ART_PICKS_Q)},
+    "aliens": {"zorp": ("old", "zorp_v2_back", ART_PICKS_Q), "xeno": ("old", "xeno_v2_back", ART_PICKS_Q), "glorp": ("glorp_v2", "glorp_v2_back", ART_PICKS_Q)},
+}

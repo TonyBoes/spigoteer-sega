@@ -8,7 +8,7 @@ publish with that page's URL as `url`.
 |---|---|---|---|
 | Pocket Player (browser emulator) | https://claude.ai/artifact/HepE9Kkxm3sLz8HYeuEQo2 | `tools/artifacts/pocket_player/` | Pack the ROMs with `make_roms.py` (see its header) into an output folder next to a copy of `index.html` and `wasmboy-ts-core.patched.js`, then publish `index.html` with `wasmboy-ts-core.patched.js` and `roms/*.js` as files. The ROM menu is the `ROM_LIST` array in `index.html`. |
 | Open Questions | https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d | `tools/artifacts/open_questions/` | A hand-kept page: one card per open question, with its media in `media/`. Publish `index.html` with the media files. |
-| Graphics Atlas (formerly OBJ Palette Plan) | https://claude.ai/artifact/Ekc9oYWEQb4APdLTaqXG4H | `tools/artifacts/palette_plan/` | `python3 tools/artifacts/palette_plan/build.py` (after `make atlas`) rebuilds `index.html`. The plan, ideas and log are hand-kept in `PLAN` / `IDEAS` / `LOG` in build.py; the venue colours come from the atlas data. `build.py` also writes the patron sprites to `img/`. Publish `index.html` with `img/*.png` as files. |
+| Graphics Atlas (formerly OBJ Palette Plan) | https://claude.ai/artifact/Ekc9oYWEQb4APdLTaqXG4H | `tools/artifacts/palette_plan/` | `make atlas-page` (re-runs `make atlas` only if `src/` or `assets/` changed since the capture, then build.py, the self-check and the 360 px check) rebuilds `index.html` and writes `out/atlas_page/pub.json`: the files to publish (`index.html` plus the `img/*.png` whose `?v=` hash differs from HEAD's page) and the ones removed; publish those, nothing else, and check the 512-file limit it prints. The plan is hand-kept in `tools/artifacts/palette_plan/plan_data.py` (PLANS with their Qn, PATRON_ART, the Saloon's primary palettes, ART_RULE_EXCEPTIONS); the log and ideas in `LOG` / `IDEAS` in build.py; the venue colours come from the atlas data. `build.py` also writes the patron sprites to `img/`. Publish `index.html` with `img/*.png` as files. |
 | Palette Merges | https://claude.ai/artifact/5N6u6w7ir7y3dosAMdPH43 | `tools/artifacts/palette_merges/` | `python3 tools/artifacts/palette_merges/build.py` (after `make atlas`) writes `index.html` and `img/`. The proposed merges are hand-kept in `MERGES` in build.py. Publish `index.html` with `img/*.png` as files. |
 
 ## Page rules (every page, every update; owner reads on a phone)
@@ -27,6 +27,11 @@ Check these before each publish:
    collapsed.
 5. **Tap targets** at least 32 px; nothing that only works on hover (hover info also opens on tap).
 6. Every colour is a `:root` token, redefined for dark mode (both the media query and `[data-theme="dark"]`).
+7. **Free tiles only**, no tiles-used stats; no new visible clutter. The page shows the plan; anything that is the game's state carries
+   a NOW label, and where the plan moves a slot both numbers show ("plan OBJ 5 / game OBJ 6").
+8. A picture is the game's real tiles in its real palette, or the plan's art with a "planned" tag: never a redrawn game look.
+9. Before a publish: `make atlas-page` reports 0 self-check errors, look at a `tools/dev/contact_sheet.py` sheet of the changed
+   thumbnails, read the live page's title (never overwrite a title you have not read), and after a delete or rename confirm it with `list`.
 
 ## Deleted pages: the Old Atlas and the Review Board
 

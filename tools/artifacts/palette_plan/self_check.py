@@ -5,6 +5,7 @@ users(), PLANS) say what the game does now or what is planned. verify_now(ns) (n
 where the capture (out/atlas/data) or the game's own tables (game_truth.py: build/palettes.c, src/game.h, src/mirror.c) disagree with a "now"
 claim, where a planned item is already in the game, and where a look has no back view to show.
 """
+import os
 import re
 import sys
 
@@ -135,3 +136,218 @@ def verify_shown(ns):
         for e in errs:
             print("  - " + e, file=sys.stderr)
         sys.exit(1)
+
+
+# ---- checks that need no capture and no ROM (tests/test_atlas_page.py runs these in `make test`) ----
+PICKS_GLOB = "docs/dev/concepts/*/PICKS.md"
+Q_RE = re.compile(r"^(Q\d+|\d{4}-\d\d-\d\d)$")
+# Patrons the PICKS notes accept in prose (Q24-Q37), not in the round tables; names as the notes spell them (renames applied after).
+PICKS_PROSE = ["MOTH", "BLOB", "VIXEN_B", "VIXEN_D", "ASTRONAUT", "CLANK", "BUBBLE"]
+
+
+def picks_names(root):
+    """{accepted patron name: PICKS file} from every docs/dev/concepts/*/PICKS.md: the final-fronts table rows (Round 3) and the prose accepts,
+    with the owner's renames applied (the 'Names' paragraph). A patron marked held is not accepted."""
+    import glob
+    import os
+    res = {}
+    for f in sorted(glob.glob(os.path.join(root, PICKS_GLOB))):
+        t = open(f).read()
+        ren = {}
+        m = re.search(r"## Names.*?\n\n(.*?)(?:\n\n|\Z)", t, re.S)
+        if m:
+            for a, b in re.findall(r"([A-Z_]+) -> ([A-Z_]+)", m.group(1).replace("\n", " ")):
+                ren[a] = b
+        m = re.search(r"## Round 3.*?\n(.*?)\n\n(?:Trims|## )", t, re.S)
+        names = []
+        if m:
+            for row in m.group(1).splitlines():
+                cells = [c.strip() for c in row.strip().strip("|").split("|")]
+                if len(cells) != 2 or cells[0] in ("Venue", "---"):
+                    continue
+                txt = re.sub(r"\([^)]*held[^)]*\)", "", cells[1])
+                names += re.findall(r"\b([A-Z]{2,})\b", txt)
+            names += PICKS_PROSE
+        for n in names:
+            res[ren.get(n, n)] = os.path.relpath(f, root)
+    return res
+
+
+def plan_names(P):
+    """Every patron name the plan carries a row for: the game's looks, EXTRA_LOOKS, NEW_PATRONS, PLANS add / join / extras."""
+    out = {x.split(",")[0].strip().upper() for v in P.NAMES.values() for x in v}
+    out |= {n.upper() for v in P.EXTRA_LOOKS.values() for n in v}
+    out |= {n for v in P.NEW_PATRONS.values() for n, _ in v}
+    for pl in P.PLANS.values():
+        out |= {a[0] for a in pl.get("add", {}).values()}
+        out |= {n for ns in pl.get("join", {}).values() for n in ns}
+        out |= {e["name"] for e in pl.get("extras", [])}
+    return out
+
+
+def check_plan(P, root):
+    """Errors in the hand-kept plan alone (plan_data module P): every PLANS entry carries its Qn, every accepted pick has a row."""
+    errs = []
+    for k, d in getattr(P, "PATRON_ART", {}).items():                    # the one art table: known patron, files on disk, a source
+        for first, (fr, bk, src) in d.items():
+            if first not in [n.split(",")[0].strip().lower() for n in P.NAMES.get(k, [])]:
+                errs.append("PATRON_ART %s/%s: not a patron of that venue" % (k, first))
+            if not re.search(r"Q\d+|\d{4}-\d\d-\d\d", src or ""):
+                errs.append("PATRON_ART %s/%s: no Qn or dated source" % (k, first))
+            for f in (fr, bk):
+                if f != "old" and not os.path.exists(os.path.join(root, "docs/dev/concepts/patron_pass", k, f + ".txt")):
+                    errs.append("PATRON_ART %s/%s: file %s.txt is missing" % (k, first, f))
+    for k in P.NAMES:
+        pl = P.PLANS.get(k)
+        if pl is None:
+            errs.append("%s: no PLANS entry" % k)
+            continue
+        q = pl.get("q")
+        if not q or not all(Q_RE.match(x) for x in q):
+            errs.append("PLANS[%s] carries no Qn / dated owner statement (q=%r)" % (k, q))
+    have = plan_names(P)
+    for n, f in sorted(picks_names(root).items()):
+        if n not in have:
+            errs.append("accepted in %s but has no plan row: %s" % (f, n))
+    return errs
+
+
+def verify_plan(P, root):
+    errs = check_plan(P, root)
+    if errs:
+        print("\nATLAS SELF-CHECK FAILED (plan data):", file=sys.stderr)
+        for e in errs:
+            print("  - " + e, file=sys.stderr)
+        sys.exit(1)
+
+
+# ---- picture level: the page's thumbnails against the capture (what the ROM really draws) and the patron rules ----
+def swap12(rows):
+    return [x.translate(str.maketrans("-+", "+-")) for x in rows]
+
+
+def patron_rule_errors(rows, gaps=(), side="front"):
+    """Owner's patron rules for art not in the game yet: column x=15 clear (10-28), no ink line on the bottom row (10-29: no run of two or more
+    darkest pixels on row 15), no index-0 pixel enclosed by the figure (gen_art index0_holes; gaps the owner drew are listed)."""
+    import os
+    sys.path.insert(0, os.path.join(game_truth.ROOT, "tools"))
+    import gen_art
+    errs = []
+    if len(rows) != 16 or any(len(r) != 16 for r in rows):
+        return ["not 16x16"]
+    if side == "front" and any(r[15] != "." for r in rows):          # the owner's x=15 rule is for the fronts (10-28); backs may use it
+        errs.append("column x=15 is not clear (rows %s)" % [y for y, r in enumerate(rows) if r[15] != "."])
+    ink = [x for x in range(16) if rows[15][x] == "#" and rows[14][x] != "#"]
+    if ink:
+        errs.append("bottom row has an ink line under the body at x %s: %s" % (ink, rows[15]))
+    holes = gen_art.index0_holes(rows) - set(gaps)
+    if holes:
+        errs.append("index 0 enclosed at (x, y) %s" % sorted(holes)[:6])
+    return errs
+
+
+def verify_pictures(ns):
+    """a. the game's text art (assets/art/patrons, GUS swapped as the Color game does) equals the capture's VRAM tiles for every look;
+    b. every thumbnail from the game is, pixel for pixel and colour for colour, the captured tiles with the captured palette RAM (re-read from the
+       PNG that is published); c. every thumbnail from the plan passes the patron rules (x=15, bottom row, holes)."""
+    import os
+    from PIL import Image
+    T = game_truth.truth()
+    load, hexc, venues, OUT = ns["load"], ns["hexc"], ns["venues"], ns["OUT"]
+    vkey = {v["key"]: v for v in venues}
+    gaps_plan = ns.get("PLANNED_GAPS", {})
+    exc = set(ns.get("ART_RULE_EXCEPTIONS", {}))
+    used_exc = set()
+    errs = []
+    for k, idx, gf, gb, cf, cb in ns["GAME_ART"]:
+        sw = (lambda r: swap12(r)) if (k == "cowboys" and idx == 2) else (lambda r: r)
+        for side, txt, cap in (("front", gf, cf), ("back", gb, cb)):
+            if cap is None:
+                errs.append("%s look %d %s: its tiles are not loaded in the capture" % (k, idx, side))
+            elif sw(txt) != cap:
+                n = sum(a != b for r1, r2 in zip(sw(txt), cap) for a, b in zip(r1, r2))
+                errs.append("%s look %d %s: assets/art/patrons text differs from the capture's tiles in %d pixels (stale capture, or a transform the page does not know)" % (k, idx, side, n))
+    for pic in ns["PICS"]:
+        k, name, idx, side, inst = pic["who"]
+        where = "%s %s %s" % (k, name.split(",")[0], side)
+        im = Image.open(os.path.join(os.path.dirname(OUT), pic["rel"]))
+        if im.size != (16, 16) or im.mode != "P":
+            errs.append("%s: %s is %s %s, not a 16x16 indexed picture" % (where, pic["rel"], im.size, im.mode))
+            continue
+        pal = im.getpalette()
+        got_cols = ["#%02X%02X%02X" % tuple(pal[3 * i:3 * i + 3]) for i in range(4)]
+        got = ["".join(".-+#"[im.getpixel((x, y))] for x in range(16)) for y in range(16)]
+        if got != pic["rows"]:
+            errs.append("%s: the published PNG is not the picture the page means to show" % where)
+        if pic["src"] == "game":
+            cf, cb = ns["captured_look"](vkey[k], idx)
+            cap = cf if side == "front" else cb
+            if got != cap:
+                errs.append("%s: the thumbnail is not the capture's tiles (%d pixels differ)" % (where, sum(a != b for r1, r2 in zip(got, cap or ["?" * 16] * 16) for a, b in zip(r1, r2))))
+            lv = load("level_" + k)["cgb"]["pal"]
+            slot = T["obj_of"][inst] if inst is not None and inst < 5 else None
+            if slot is None:
+                errs.append("%s: no palette instance" % where)
+                continue
+            want = [hexc(lv["bg"][0]["rep"][0])] + [hexc(c) for c in lv["obj"][slot]["rep"][1:]]
+            if not pic.get("palplan") and [c.upper() for c in got_cols] != [c.upper() for c in want]:
+                errs.append("%s: thumbnail colours %s, the capture's palette RAM (OBJ %d) has %s" % (where, got_cols, slot, want))
+        else:
+            nm = name.split(",")[0].strip().upper()
+            g = set(gaps_plan.get((k, nm, side), ()))
+            if idx is not None:                       # a look the game ships: gaps its art already has stay
+                import os as _os
+                sys.path.insert(0, _os.path.join(game_truth.ROOT, "tools"))
+                import gen_art
+                cf, cb = ns["captured_look"](vkey[k], idx)
+                g |= gen_art.index0_holes(cf if side == "front" else cb) if (cf if side == "front" else cb) else set()
+            found = patron_rule_errors(pic["rows"], g, side)
+            for e in found:
+                rule = "bottom" if e.startswith("bottom") else "holes" if e.startswith("index 0") else "x15"
+                if (k, nm, side, rule) in exc:
+                    used_exc.add((k, nm, side, rule))
+                else:
+                    errs.append("%s (planned art): %s" % (where, e))
+    for x in sorted(exc - used_exc):
+        errs.append("ART_RULE_EXCEPTIONS %s is no longer needed (the art passes or is not shown): remove it" % (x,))
+    if errs:
+        print("\nATLAS SELF-CHECK FAILED (pictures): %d problems" % len(errs), file=sys.stderr)
+        for e in errs:
+            print("  - " + e, file=sys.stderr)
+        sys.exit(1)
+
+
+def verify_primary(ns):
+    """Every Saloon look has a plan primary palette, and it is one of the instances the game gives that look."""
+    errs = []
+    for n, ps in ns["SALOON_LOOKS"]:
+        pr = ns["SALOON_PRIMARY"].get(n)
+        if pr is None:
+            errs.append("Saloon look %s has no SALOON_PRIMARY entry" % n)
+        elif pr not in ps:
+            errs.append("SALOON_PRIMARY[%s] = %d, but sal_combo gives %s only %s" % (n, pr, n, ps))
+    for n in ns["SALOON_PRIMARY"]:
+        if n not in [x for x, _ in ns["SALOON_LOOKS"]]:
+            errs.append("SALOON_PRIMARY has %s, which is not a look in sal_combo" % n)
+    if errs:
+        print("\nATLAS SELF-CHECK FAILED (primary)\n  " + "\n  ".join(errs))
+        raise SystemExit(1)
+
+
+def verify_slots(ns):
+    """Plan slots are unique per venue: two looks may share a plan OBJ slot only with the same colours (a shared palette), and the
+    page's dual 'plan OBJ n / game OBJ m' numbers must differ; the NOW line is labelled."""
+    errs = []
+    use = {}
+    for key, sl, name, cols in ns["SLOTS"]:
+        use.setdefault((key, sl), {}).setdefault(cols, []).append(name)
+    for (key, sl), d in sorted(use.items()):
+        if len(d) > 1:
+            errs.append("%s: plan OBJ %d is given to looks with different colours: %s" % (key, sl, "; ".join("%s %s" % (", ".join(n), c) for c, n in d.items())))
+    for key, name, kind, a, b in ns["DUAL"]:
+        if a == b:
+            errs.append("%s %s: dual %s numbers are the same (%d)" % (key, name, kind, a))
+    if errs:
+        print("\nATLAS SELF-CHECK FAILED (slots)\n  " + "\n  ".join(errs))
+        raise SystemExit(1)
+    print("self-check: plan slots unique per venue (%d looks, %d dual numbers)" % (len(ns["SLOTS"]), len(ns["DUAL"])))

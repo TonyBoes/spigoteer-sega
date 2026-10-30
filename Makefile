@@ -65,7 +65,7 @@ BONUS_H  += $(BUILD)/practice_art.h
 BONUS_H  += $(BUILD)/bs_art.h $(BUILD)/mr_art.h $(BUILD)/lr_art.h $(BUILD)/ad_art.h $(BUILD)/tk_art.h $(BUILD)/mm_art.h $(BUILD)/mk_art.h $(BUILD)/ts_art.h
 ROM      := $(BUILD)/$(NAME).gb
 
-.PHONY: all test check preview clean assets release dist unlocked cfall atlas
+.PHONY: all test check preview clean assets release dist unlocked cfall atlas atlas-page
 
 all: $(ROM)
 
@@ -321,6 +321,11 @@ preview: $(GEN) $(BUILD)/pour_art.h $(BUILD)/mg_art.h $(BUILD)/boss_art.h $(BUIL
 # One command, deterministic; reads build/game.gb (run `make` first). Open out/atlas/standalone.html locally.
 atlas: $(ROM)
 	python3 tools/gfx_atlas/build.py
+
+# The Graphics Atlas page, publishable: rebuilds the capture only when src/ or assets/ changed since its commit, runs build.py + the self-check
+# + the 360 px page check, writes out/atlas_page/pub.json (the files to publish). Fails on any self-check error. Needs a built ROM for `make atlas`.
+atlas-page:
+	python3 tools/artifacts/palette_plan/atlas_page.py
 
 clean:
 	rm -rf $(BUILD) $(OUT)
