@@ -1741,12 +1741,12 @@ for i, v in enumerate(venues):
         else:
             fr = game_front(v, idx) if sal else accepted(v, r["name"])[0]
             bk, btag = back_info(v, idx)
-            if sal and idx == 2:                          # the Color Saloon swaps GUS's colours 1 and 2 (owner Q46 2026-10-29, src/level.c swap_gus)
-                sw = lambda g: [x.translate(str.maketrans("-+", "+-")) for x in g] if g else g
-                fr, bk = sw(fr), sw(bk)
             tr = trimmed_front(v, idx, fr)
             if tr:
                 fr, ftag = tr, "planned front"
+            if sal and idx == 2:                          # the Color Saloon swaps GUS's colours 1 and 2 (owner Q46 2026-10-29, src/level.c swap_gus)
+                swap12 = lambda g: [x.translate(str.maketrans("-+", "+-")) for x in g] if g else g
+                fr, bk = swap12(fr), swap12(bk)
         combos = [(cols, "")]                              # (colours, file suffix) per palette the game spawns the look in; the own palette first
         if sal:
             combos = [([hexc(c) for c in GT["inst"]["cowboys"][p]], "" if n_ == 0 else "_o%d" % INST_OBJ[p]) for n_, p in enumerate(ps)]
