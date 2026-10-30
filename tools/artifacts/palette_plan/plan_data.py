@@ -127,7 +127,7 @@ AUTO_OWN = {
     "chefs": [(3, 3, "MIME")],
     "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
     "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY")],
-    "ninjas": [(4, 4, "HANA")],
+    "ninjas": [(4, 4, "HANA"), (5, 2, "MONK")],   # owner 2026-10-30: MONK in his orange concept colours on the freed OBJ 5 and the free BG 2
     "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
     "aliens": [(3, 5, "MOTHMA"), (4, 4, "LUNA")],
     "robots": [(5, 5, "TOOB")],                 # owner 2026-10-29: "With the freed up slot, lets make Bubble Purple again."

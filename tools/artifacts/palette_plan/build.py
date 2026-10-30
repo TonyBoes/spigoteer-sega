@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-30", "Owner (Q64): \"The Atlas says BG2 is free.\" MONK gets his own orange palette (concept colours #E8B878 #E07820 #301810) on OBJ 5 and BG 2."),
     ("2026-10-30", "Owner: \"Poet and sensei to sals palette.\" Teahouse: POET and SENSEI share Sal's OBJ 0 (BG 5 takes its colours); their blended OBJ 5 is free."),
     ("2026-10-30", "Owner (Q63): \"No sensei swap.\" SENSEI keeps his colour order."),
     ("2026-10-30", "Owner (Q62, Stadium): crossed out NORM in OBJ 1, 2, 5, 6, 7 (keeps OBJ 0 and 4) and FRANK in OBJ 2; every other Stadium swap kept (VARIANT_CUTS). \"Shift pipers gold a bit more skin toned\": OBJ 4 colour 2 #D8A028 -> #D09850."),
