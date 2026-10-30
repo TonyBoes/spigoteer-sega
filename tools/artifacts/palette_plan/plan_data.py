@@ -138,7 +138,7 @@ AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT"]}, "punks": {7: ["DJ"]}, "ninj
               "divers": {5: ["CUB"], 2: ["FROSTI"]}, "robots": {1: ["CLANK"]},       # Q43 (owner 2026-10-29)
               "aliens": {4: ["GLOP"], 5: ["VENUS"]}}          # owner 2026-10-29: GLOP in LUNA's palette; VENUS on OBJ 5
 # Q43: "Sensei & poet -- blend colors so closer together but matching neither." Their shared OBJ 5 palette, halfway between.
-_NP_BLEND = {"POET": ["#F0C090", "#905830", "#100810"]}   # owner 2026-10-30: "Give poet his own with brown shirt." (colour 2: sleeves, hat brim)
+_NP_BLEND = {"POET": ["#F4D0A8", "#905830", "#100810"]}   # owner 2026-10-30: "Give poet his own with brown shirt." (colour 2: sleeves, hat brim)
 _NP = {n: c for _l in NEW_PATRONS.values() for n, c in _l}
 _NP.update(_NP_BLEND)
 for _v, _l in AUTO_OWN.items():
