@@ -488,17 +488,9 @@ def art_rows(v, name):
     return None
 
 
-# The latest accepted art per patron (owner picks 2026-10-26, Q56-Q59): (front, back) files under the patron pass folder,
-# "old" = the game's frame. The Saloon: art/ fronts; backs the game's for its 3 looks, the others still to draw.
+# The art precedence, in one place (plan_data.ART, then art/<venue>_<name>.txt, then the game): ART picks (files under PASS), the right-column
+# trim (docs/dev/concepts/right_column, unless the pick is a later _face pass), the game's own art. GUS's Color plane swap comes after all of them.
 PASS = os.path.join(ROOT, "docs/dev/concepts/patron_pass")
-ACCEPTED = {
-    # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
-    "chefs": {"pierre": ("pierre_face", "pierre_face_back"), "brie": ("brie_face", "brie_face_back"), "basil": ("basil_face", "basil_back")},
-    "punks": {"punk": ("spike", "spike_back"), "harley": ("bandit", "bandit_back"), "baby": ("slick", "slick_back")},
-    "ninjas": {"kage": ("old", "old"), "sakura": ("sakura", "sakura_back"), "ronin": ("old", "ronin_v2_back")},
-    "zoo": {"coco": ("coco", "coco_back"), "bamboo": ("bamboo", "bamboo_back"), "muddy": ("old", "old")},
-    "aliens": {"zorp": ("old", "zorp_v2_back"), "xeno": ("old", "xeno_v2_back"), "glorp": ("glorp_v2", "glorp_v2_back")},
-}
 
 
 def accepted(v, name):
@@ -508,7 +500,7 @@ def accepted(v, name):
     old = lambda suf: frames(os.path.join(ROOT, "assets/art/patrons/%s%s.txt" % (v["key"], suf)))[names.index(first)]
     if name in EXTRA_LOOKS.get(v["key"], []):
         return art_rows(v, name), frames(os.path.join(ART, "%s_%s_back.txt" % (v["key"], first)))[0]
-    pick = ACCEPTED.get(v["key"], {}).get(first)
+    pick = PATRON_ART.get(v["key"], {}).get(first)
     if pick:
         get = lambda f, suf: old(suf) if f == "old" else frames(os.path.join(PASS, v["key"], f + ".txt"))[0]
         return get(pick[0], ""), get(pick[1], "_back")
@@ -1517,7 +1509,7 @@ TRIM = os.path.join(ROOT, "docs/dev/concepts/right_column")
 def trimmed_front(v, i, cur):
     """Look i's planned x=15-cleared front, or None when there is none or it equals the current front."""
     g, k = ("saloon_x", i - 3) if v["key"] == "cowboys" and i >= 3 else (v["key"], i)
-    pick = ACCEPTED.get(v["key"], {}).get(NAMES[v["key"]][i].split(",")[0].strip().lower())
+    pick = PATRON_ART.get(v["key"], {}).get(NAMES[v["key"]][i].split(",")[0].strip().lower())
     if pick and pick[0].endswith("_face"):          # a later face pass (x=15 already clear) supersedes the trimmed front (owner Q57 2026-10-29)
         return None
     f = os.path.join(TRIM, g + ".txt")
@@ -1531,7 +1523,7 @@ def back_info(v, i):
     """(rows, tag) of look i's back view: the game's current back (tag "stand-in" if it is one), or the owner-picked back
     not yet imported (tag "planned"), which replaces it."""
     label, rows, standin = game_truth.backs(v["key"])[i]
-    pick = ACCEPTED.get(v["key"], {}).get(NAMES[v["key"]][i].split(",")[0].strip().lower())
+    pick = PATRON_ART.get(v["key"], {}).get(NAMES[v["key"]][i].split(",")[0].strip().lower())
     if pick and pick[1] != "old":
         prows = frames(os.path.join(PASS, v["key"], pick[1] + ".txt"))[0]
         if prows[:15] != rows[:15]:            # row 15 only: the pick is in the game, with the 10-29 bottom outline dropped
@@ -1766,6 +1758,7 @@ for i, v in enumerate(venues):
     w('</section>')
 self_check.verify_shown(globals())
 self_check.verify_slots(globals())
+self_check.verify_primary(globals())
 self_check.verify_pictures(globals())
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'Game %s, plan %s, %s.</p>' % (esc(commit), esc(plan_commit), LOG[-1][0]))

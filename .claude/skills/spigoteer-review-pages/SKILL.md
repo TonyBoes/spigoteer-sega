@@ -15,10 +15,13 @@ report the exact list of files to publish.
    header) next to copies of `index.html` and `wasmboy-ts-core.patched.js`. The ROM menu is `ROM_LIST` in
    `index.html`; bundled ROMs are `roms/<id>.js`. Keep "main" as the latest main unlocked build; add test ROMs when a
    question opens and remove them when it closes. Publish `index.html` with the core and `roms/*.js` as files.
-2. **Graphics Atlas** (the former Palette Plan page; if art, palettes, patrons or screens changed): `make atlas` on
-   main (about 2 min) writes the data to `out/atlas/` (the old atlas page itself is retired, never publish it); then run
-   `python3 tools/artifacts/palette_plan/build.py`; publish `index.html` with `img/*.png` as files. Owner decisions go into PLAN and a
-   LOG line in `build.py`.
+2. **Graphics Atlas** (the former Palette Plan page; if art, palettes, patrons or screens changed): run `make atlas-page` on main. It
+   re-runs `make atlas` (about 70 s) only when `src/` or `assets/` changed since the capture, builds the page, runs the self-check (it fails on
+   any mismatch between page, plan, game sources and capture) and the 360 px check, and writes `out/atlas_page/pub.json`. Then:
+   - look at a `tools/dev/contact_sheet.py` sheet of the thumbnails that changed (the changed `img/` paths in pub.json);
+   - read the live page's title with `Artifact read` before publishing; republish to the same URL;
+   - publish exactly pub.json's `publish` list as files and check the file count (limit 512); verify any deletes or renames with `list`;
+   - owner decisions go into `plan_data.py` (PLANS with their Qn) and a LOG line in `build.py`; commit the page and `img/`.
 3. **Open Questions** (if a question was asked or answered): update the cards, the count and the stamp.
 4. Copy every changed page source and its media into `tools/artifacts/` and commit (sources must survive a lost
    session). ROM packs and atlas output are generated and not committed.

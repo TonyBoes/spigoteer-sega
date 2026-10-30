@@ -160,8 +160,9 @@ DROP_ENHANCED = True
 SPLIT_PLAYFIELD = True
 # Every venue (owner 2026-10-21): in the playfield the keg / spout palette moves from BG 7 to BG 1 (BG 1 is the HUD's above the playfield).
 FIELD_MOVES = [("Keg, spout", 7, 1)]
-SALOON_LOOKS = [("DUSTY", [0, 1, 2, 3, 4]), ("EMMA", [3, 1, 0, 4]), ("GUS", [0, 1, 3, 4]), ("HANK", [0, 1, 4, 2, 3]), ("ROSIE", [0, 3, 1, 2, 4]),
-                ("REDD", [0, 3, 1, 4, 2]), ("MABEL", [0, 3, 1, 4]), ("ARTIE", [0, 3, 1, 4])]   # now: palette instances per look
+import game_truth as _game_truth  # noqa: E402
+
+SALOON_LOOKS = _game_truth.truth()["saloon"]   # the game's looks and palette instances, read from src/mirror.c sal_combo (never typed here)
 # Each Saloon look's own (primary) palette instance, from the plan (owner 2026-10-22): HANK's (colours 1 and 2 swapped), DUSTY with EMMA,
 # GUS with EMMA too (owner 2026-10-29), ROSIE with REDD, MABEL with ARTIE. The others in sal_combo are approved palette swaps (owner 2026-10-29: shown in their own section).
 SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 0, "HANK": 0, "ROSIE": 3, "REDD": 3, "MABEL": 4, "ARTIE": 4}
@@ -182,3 +183,17 @@ ART_RULE_EXCEPTIONS = {
 }
 # Index-0 gaps the owner drew on purpose in planned art: (venue, NAME, side) -> {(x, y)}.
 PLANNED_GAPS = {}
+
+# PATRON_ART, the one art table: patron -> (front file, back file, source) under docs/dev/concepts/patron_pass/<venue>/ ("old" = the game's frame).
+# Beyond it: art/<venue>_<name>.txt (the extras' own art) and the right-column trims; build.py art_rows / accepted / trimmed_front / back_info
+# read this and nothing else for owner picks. self_check.check_art refuses a file that is missing and an entry without a source.
+ART_PICKS_Q = "Q56-Q59 (owner picks 2026-10-26)"
+PATRON_ART = {
+
+    # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
+    "chefs": {"pierre": ("pierre_face", "pierre_face_back", ART_PICKS_Q), "brie": ("brie_face", "brie_face_back", ART_PICKS_Q), "basil": ("basil_face", "basil_back", ART_PICKS_Q)},
+    "punks": {"punk": ("spike", "spike_back", ART_PICKS_Q), "harley": ("bandit", "bandit_back", ART_PICKS_Q), "baby": ("slick", "slick_back", ART_PICKS_Q)},
+    "ninjas": {"kage": ("old", "old", ART_PICKS_Q), "sakura": ("sakura", "sakura_back", ART_PICKS_Q), "ronin": ("old", "ronin_v2_back", ART_PICKS_Q)},
+    "zoo": {"coco": ("coco", "coco_back", ART_PICKS_Q), "bamboo": ("bamboo", "bamboo_back", ART_PICKS_Q), "muddy": ("old", "old", ART_PICKS_Q)},
+    "aliens": {"zorp": ("old", "zorp_v2_back", ART_PICKS_Q), "xeno": ("old", "xeno_v2_back", ART_PICKS_Q), "glorp": ("glorp_v2", "glorp_v2_back", ART_PICKS_Q)},
+}

@@ -5,6 +5,7 @@ users(), PLANS) say what the game does now or what is planned. verify_now(ns) (n
 where the capture (out/atlas/data) or the game's own tables (game_truth.py: build/palettes.c, src/game.h, src/mirror.c) disagree with a "now"
 claim, where a planned item is already in the game, and where a look has no back view to show.
 """
+import os
 import re
 import sys
 
@@ -187,6 +188,15 @@ def plan_names(P):
 def check_plan(P, root):
     """Errors in the hand-kept plan alone (plan_data module P): every PLANS entry carries its Qn, every accepted pick has a row."""
     errs = []
+    for k, d in getattr(P, "PATRON_ART", {}).items():                    # the one art table: known patron, files on disk, a source
+        for first, (fr, bk, src) in d.items():
+            if first not in [n.split(",")[0].strip().lower() for n in P.NAMES.get(k, [])]:
+                errs.append("PATRON_ART %s/%s: not a patron of that venue" % (k, first))
+            if not re.search(r"Q\d+|\d{4}-\d\d-\d\d", src or ""):
+                errs.append("PATRON_ART %s/%s: no Qn or dated source" % (k, first))
+            for f in (fr, bk):
+                if f != "old" and not os.path.exists(os.path.join(root, "docs/dev/concepts/patron_pass", k, f + ".txt")):
+                    errs.append("PATRON_ART %s/%s: file %s.txt is missing" % (k, first, f))
     for k in P.NAMES:
         pl = P.PLANS.get(k)
         if pl is None:
@@ -305,6 +315,23 @@ def verify_pictures(ns):
         for e in errs:
             print("  - " + e, file=sys.stderr)
         sys.exit(1)
+
+
+def verify_primary(ns):
+    """Every Saloon look has a plan primary palette, and it is one of the instances the game gives that look."""
+    errs = []
+    for n, ps in ns["SALOON_LOOKS"]:
+        pr = ns["SALOON_PRIMARY"].get(n)
+        if pr is None:
+            errs.append("Saloon look %s has no SALOON_PRIMARY entry" % n)
+        elif pr not in ps:
+            errs.append("SALOON_PRIMARY[%s] = %d, but sal_combo gives %s only %s" % (n, pr, n, ps))
+    for n in ns["SALOON_PRIMARY"]:
+        if n not in [x for x, _ in ns["SALOON_LOOKS"]]:
+            errs.append("SALOON_PRIMARY has %s, which is not a look in sal_combo" % n)
+    if errs:
+        print("\nATLAS SELF-CHECK FAILED (primary)\n  " + "\n  ".join(errs))
+        raise SystemExit(1)
 
 
 def verify_slots(ns):
