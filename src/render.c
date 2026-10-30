@@ -182,14 +182,17 @@ static const uint8_t back_tile[8] = { SB(0), SB(1), SB(2), SX(0), SX(1), SX(2), 
 // BG palette slot of palette instance pi (patron_variant): 0-2 the legacy A, B, C; 3 and 4 the Saloon's extra sets (7: the keg's, free in the Saloon's playfield; 5: the stage's, below the split line)
 static const uint8_t pal_bg[5] = { BGPAL_PATRON, BGPAL_PATRON + 1, BGPAL_PATRON + 2, BGPAL_BAR_B, BGPAL_STAGE };
 
+extern uint8_t cur_group;
+#define SPACE_GROUP 9                       // the Space Lounge's patron group (the aliens)
 static uint8_t st_t;                      // first tile of the patron being stamped
 static uint8_t cz_dir, cz_sto, cz_flip, cz_bswap;   // the bar being composed is R; its st_tab offset, attribute bit, back-view swap
 
 // patron_variant: bits 0-2 the look, bits 3-5 (palette instance ^ look): 0 is the look's own palette (A, B, C = BG 2, 3, 4), bit 6 a
 // Color-only look drawn from VRAM bank 1 (its BG attribute and OAM bit 3 = bit 6 >> 3). game.h PATRON_BANK1.
 static void patron_attr(uint8_t v) {                     // cz_pal of a patron with variant byte v
-    uint8_t i = v >> 3;
-    cz_pal = pal_bg[(v ^ i) & 7] | (i & 8) | cz_flip;
+    uint8_t i = v >> 3, b = pal_bg[(v ^ i) & 7];
+    if (b == BGPAL_PATRON + 1 && cur_group == SPACE_GROUP) b = BGPAL_BAR;   // XENO: the Space Lounge's bar palette is his colours (BG 3 is free)
+    cz_pal = b | (i & 8) | cz_flip;
 }
 
 static void stamp_look(uint8_t s, uint8_t d) {           // st_t and cz_pal for patron s drawn at x d (front view)
