@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner (Q59): PINOT \"fix b is good\": white shirt and dark bib apron (no stripes). (Q60): \"I don't love them, But I'll just work on them manually from here. Smith b. Boon's suspenders were great. Willows back hair looked better, but needed another pass. Ines back is great.\" SMITH B, BOONE's suspenders and INES (front + back, OBJ 6 / BG 3, purple) in the plan; ROD and WILLOW left to the owner."),
+    ("2026-10-29", "Q53 in the game: the Space Lounge bar (BG 0) has XENO's colours and XENO walks in BG 0; BG 3 is free (planned for VENUS)."),
     ("2026-10-29", "Owner (Q58): approved. Stadium: a basketball player (BALLER, working name) on OBJ 6 / BG 6 in forest #A87050 #186030 #081008; TOM's own palette is now purple #A87050 #7040B0 #100818 (Black, no pixel change). Approved swaps: BALLER in TOM's purple, TOM in BALLER's forest."),
     ("2026-10-29", "Owner (Q57): Bistro noses \"Better\": PIERRE, BRIE, BASIL take the face pass with noses. PINOT \"started looking like a referee\": back to the artist."),
     ("2026-10-29", "Owner picks: FRANK (apron, hot-dog logo) and LOUIS (batting helmet, face A) (Q49), PIPER (band uniform) (Q45), POET's face pass (Q51), MUFFY's face (Q55; the other Igloo faces discarded). Plan art updated."),
@@ -293,9 +295,10 @@ PLANS = {
     "aliens": dict(
         add={("OBJ", 6): ("DASH", ["#F8E0C8", "#E03830", "#301818"])},     # Color-only 4th look (Q68/Q69), Stadium A's colours (assets/palettes.json sports_a); OBJ 3 or 6 is free: OBJ 6 (BG 3 is XENO's)
         moves=[("ZORP", "OBJ", 3, 1, "ZORP, eye stalks"), ("XENO", "OBJ", 6, 2, "XENO, the grey one")],
-        recolour={("BG", 2): "OBJ 1", ("BG", 3): "OBJ 2"},
+        recolour={("BG", 2): "OBJ 1"},
         open={},
-        why="Owner 2026-10-25: ZORP shares the full mug's palette, XENO the empty mug's. Check the Space boss's OBJ 2 use.",
+        bg={"VENUS": 3},   # owner Q53 2026-10-29: the bar (BG 0) takes XENO's colours and XENO walks in it, freeing BG 3
+        why="Owner 2026-10-25: ZORP shares the full mug's palette, XENO the empty mug's. Check the Space boss's OBJ 2 use. 2026-10-29: XENO walks in the bar's BG 0.",
     ),
 }
 # Color-only extra looks that are PLANNED, not in the game (Q68-Q78): listed in amber and counted as planned. Their art is art/<venue>_<name>.txt
@@ -305,7 +308,7 @@ EXTRA_LOOKS = {"aliens": ["DASH"], "robots": ["NEKA", "TELLY"]}
 # yet. Fronts and backs copied into art/<venue>_<name>(_back).txt; colours are each concept's own palette.
 NEW_PATRONS = {
     "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D8A028", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#A87050", "#7040B0", "#100818"]), ("BALLER", ["#A87050", "#186030", "#081008"])],
-    "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"])],
+    "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"]), ("INES", ["#E0A878", "#A050C0", "#281830"])],
     "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
     "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"])],
     "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("ROADY", ["#F0B890", "#B04828", "#181018"])],
@@ -318,7 +321,7 @@ NEW_PATRONS = {
 # Own palette where an OBJ slot and a playfield BG slot are free: (OBJ, BG, name), the concept's colours.
 AUTO_OWN = {
     "sports": [(4, 4, "PIPER"), (5, 5, "TOM"), (6, 6, "BALLER")],
-    "lumberjacks": [(4, 4, "SMITH"), (5, 5, "ROD")],
+    "lumberjacks": [(4, 4, "SMITH"), (5, 5, "ROD"), (6, 3, "INES")],
     "chefs": [(3, 3, "MIME")],
     "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
     "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY")],
