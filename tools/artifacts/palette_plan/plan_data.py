@@ -69,11 +69,11 @@ PLANS = {
         why="Owner 2026-10-25: the band shares HARLEY's palette.",
     ),
     "ninjas": dict(
-        q=["Q43","Q51","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        q=["Q43","Q51","2026-10-25","2026-10-30"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
         moves=[("Show dancers", "OBJ", 5, 6, "Taiko drummer")],
         recolour={("BG", 3): "OBJ 6"},
         open={},
-        why="Owner 2026-10-25: the taiko drummer shares SAKURA's palette.",
+        why="Owner 2026-10-25: the taiko drummer shares SAKURA's palette. 2026-10-30: \"Poet and sensei to sals palette.\" (OBJ 0; BG 5 takes its colours, OBJ 5 is free)",
     ),
     "zoo": dict(
         q=["Q43","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
@@ -127,13 +127,13 @@ AUTO_OWN = {
     "chefs": [(3, 3, "MIME")],
     "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
     "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY")],
-    "ninjas": [(4, 4, "HANA"), (5, 5, "POET")],
+    "ninjas": [(4, 4, "HANA")],
     "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
     "aliens": [(3, 5, "MOTHMA"), (4, 4, "LUNA")],
     "robots": [(5, 5, "TOOB")],                 # owner 2026-10-29: "With the freed up slot, lets make Bubble Purple again."
 }
 # Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
-AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KON"], 5: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
+AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KON"], 0: ["SENSEI", "POET"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
               "divers": {5: ["CUB"], 2: ["FROSTI"]}, "robots": {1: ["CLANK"]},       # Q43 (owner 2026-10-29)
               "aliens": {4: ["GLOP"], 5: ["VENUS"]}}          # owner 2026-10-29: GLOP in LUNA's palette; VENUS on OBJ 5
 # Q43: "Sensei & poet -- blend colors so closer together but matching neither." Their shared OBJ 5 palette, halfway between.
@@ -148,6 +148,7 @@ for _v, _l in AUTO_OWN.items():
 for _v, _d in AUTO_SHARE.items():
     for _o, _ns in _d.items():
         PLANS[_v].setdefault("join", {}).setdefault(("OBJ", _o), []).extend(_ns)
+PLANS["ninjas"].setdefault("bg", {}).update(SENSEI=5, POET=5)    # owner 2026-10-30: Sal's OBJ 0, its colours on BG 5
 PLANS["chefs"].setdefault("bg", {})["NONNA"] = 2                  # PIERRE and BRIE's BG 2 (OBJ 0 is Sal's)
 PLANS["lumberjacks"].setdefault("bg", {})["BOONE"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
 PLANS["robots"].setdefault("bg", {})["CLANK"] = 2                 # Q43 B: the full mug's OBJ 1; BG 1 is the keg's
