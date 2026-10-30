@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-29", "Owner: \"Name him Mike.\" The Stadium basketball player (working name BALLER) is MIKE."),
     ("2026-10-29", "Owner (Q59): PINOT \"fix b is good\": white shirt and dark bib apron (no stripes). (Q60): \"I don't love them, But I'll just work on them manually from here. Smith b. Boon's suspenders were great. Willows back hair looked better, but needed another pass. Ines back is great.\" SMITH B, BOONE's suspenders and INES (front + back, OBJ 6 / BG 3, purple) in the plan; ROD and WILLOW left to the owner."),
     ("2026-10-29", "Q53 in the game: the Space Lounge bar (BG 0) has XENO's colours and XENO walks in BG 0; BG 3 is free (planned for VENUS)."),
     ("2026-10-29", "Owner (Q58): approved. Stadium: a basketball player (BALLER, working name) on OBJ 6 / BG 6 in forest #A87050 #186030 #081008; TOM's own palette is now purple #A87050 #7040B0 #100818 (Black, no pixel change). Approved swaps: BALLER in TOM's purple, TOM in BALLER's forest."),
@@ -307,7 +308,7 @@ EXTRA_LOOKS = {"aliens": ["DASH"], "robots": ["NEKA", "TELLY"]}
 # The owner's new Color-only patrons (picks 2026-10-29, docs/dev/concepts/new_patrons/PICKS.md), not imported yet: planned, no OBJ slot
 # yet. Fronts and backs copied into art/<venue>_<name>(_back).txt; colours are each concept's own palette.
 NEW_PATRONS = {
-    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D8A028", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#A87050", "#7040B0", "#100818"]), ("BALLER", ["#A87050", "#186030", "#081008"])],
+    "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D8A028", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#A87050", "#7040B0", "#100818"]), ("MIKE", ["#A87050", "#186030", "#081008"])],
     "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"]), ("INES", ["#E0A878", "#A050C0", "#281830"])],
     "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
     "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"])],
@@ -320,7 +321,7 @@ NEW_PATRONS = {
 # Owner 2026-10-29: "Auto assigned palettes to new patrons where available make suggestions for palette merges."
 # Own palette where an OBJ slot and a playfield BG slot are free: (OBJ, BG, name), the concept's colours.
 AUTO_OWN = {
-    "sports": [(4, 4, "PIPER"), (5, 5, "TOM"), (6, 6, "BALLER")],
+    "sports": [(4, 4, "PIPER"), (5, 5, "TOM"), (6, 6, "MIKE")],
     "lumberjacks": [(4, 4, "SMITH"), (5, 5, "ROD"), (6, 3, "INES")],
     "chefs": [(3, 3, "MIME")],
     "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
