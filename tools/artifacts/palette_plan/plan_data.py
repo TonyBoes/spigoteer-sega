@@ -184,6 +184,7 @@ ART_RULE_EXCEPTIONS = {
     ("lumberjacks", "INES", "front", "bottom"): "row 15 x=14",
     ("chefs", "PINOT", "front", "bottom"): "row 15 x=4, 6, 7",
     ("chefs", "PINOT", "back", "bottom"): "row 15 x=6, 8",
+    ("ninjas", "POET", "front", "bottom"): "row 15 x=12",          # the owner's drawing 2026-10-30
     ("robots", "TELLY", "front", "holes"): "(2, 1) and (3, 2) enclosed; the owner has not said it is a gap",
 }
 # Index-0 gaps the owner drew on purpose in planned art: (venue, NAME, side) -> {(x, y)}.
