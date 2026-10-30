@@ -119,7 +119,8 @@ NEW_PATRONS = {
     "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("TOOB", ["#E8F0F8", "#9068D8", "#180830"])],
 }
 # Palette-swap picks (Q62): the OBJ slots the owner crossed out per look; every other patron OBJ slot of the venue is allowed (Color only).
-VARIANT_CUTS = {"sports": {"NORM": [1, 2, 5, 6, 7], "FRANK": [2]}}
+VARIANT_CUTS = {"sports": {"NORM": [1, 2, 5, 6, 7], "FRANK": [2]},
+                "aliens": {"ZORP": [3, 6], "XENO": [5, 6, 7], "MOTHMA": [1, 5, 6], "LUNA": [3, 6, 7], "VENUS": [3], "DASH": [1, 3]}}   # owner 2026-10-30 (Q62 Space)
 # Owner 2026-10-29: "Auto assigned palettes to new patrons where available make suggestions for palette merges."
 # Own palette where an OBJ slot and a playfield BG slot are free: (OBJ, BG, name), the concept's colours.
 AUTO_OWN = {
