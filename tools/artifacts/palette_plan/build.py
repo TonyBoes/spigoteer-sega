@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-30", "Owner (Q63): \"Norm swap doesn't work if I want him to actually be a referee.\" NORM keeps his own palette (OBJ 0) only: no colour swap, no palette variants."),
     ("2026-10-30", "Owner: \"Make zorp and glorps light colors a bit more white.\" ZORP colour 1 #F0F898 -> #F8F8C0 (the full mug shares it), GLORP colour 1 #88F8F0 -> #B8F8F0 (the boss fight's mini aliens too)."),
     ("2026-10-29", "Owner: \"Name him Mike.\" The Stadium basketball player (working name BALLER) is MIKE."),
     ("2026-10-29", "Owner (Q59): PINOT \"fix b is good\": white shirt and dark bib apron (no stripes). (Q60): \"I don't love them, But I'll just work on them manually from here. Smith b. Boon's suspenders were great. Willows back hair looked better, but needed another pass. Ines back is great.\" SMITH B, BOONE's suspenders and INES (front + back, OBJ 6 / BG 3, purple) in the plan; ROD and WILLOW left to the owner."),
