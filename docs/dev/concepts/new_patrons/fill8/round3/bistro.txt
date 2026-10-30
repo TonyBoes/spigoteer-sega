@@ -1,0 +1,109 @@
+; Bistro (group chefs, CGB wall #295a5a) - round 3: ARTISTE variations and slot-2 options. PROPOSALS, not imported. Hand-placed.
+; @fig ARTISTE_1 #f0d0b0 #d04858 #283868
+; ARTISTE 1: B's red beret and navy bob kept; Breton stripes replaced by a red paint smock with cream smears and a navy dab, V neck, red earring, red lips.
+.......##.......
+...##########...
+..#+--++++++++#.
+..#++++++++++##.
+...############.
+...###-------##.
+...###--#--#-##.
+...###--#--#-##.
+...###-------##.
+...###----++-##.
+...+##------##..
+.....##-----#...
+....#++---++#...
+.#++-++++-++++#.
+.#++++#++++--+#.
+.#++-+++++++-+#.
+; @fig ARTISTE_2 #f0d0b0 #d04858 #283868
+; ARTISTE 2: no beret. Navy hair up in a bun with a paintbrush through it (red bristles, light handle), long hair over the near shoulder, red wrap top crossed at the chest.
+......####......
+..+--######---#.
+..#############.
+..###--------##.
+..###--#--#--##.
+..###--#--#--##.
+..###--------##.
+..###-----++-##.
+..####------##..
+..####-----###..
+..####---##.....
+.####+--+++++#..
+.####+#++++++#..
+.####++#+++-++#.
+.###++++++++-+#.
+.##+++++++++++#.
+; @fig ARTISTE_3 #f0d0b0 #d04858 #283868
+; ARTISTE 3: big wavy navy hair framing the face on both sides, small red beret perched on top, cream painter's apron over red sleeves with a red and a navy paint dab.
+......#####.....
+....#+--++++##..
+..#############.
+.####-------###.
+.####--#--#--##.
+.####--#--#--##.
+.####--------##.
+.####-----++-##.
+.####------###..
+.#####----##....
+.#####---#####..
+.####+-----+###.
+.###+--+---+-#..
+.###+---#--+--#.
+.##+----+---#-+.
+.##+----------+.
+; @fig TRENCHER_1 #f8f8f0 #e88890 #582040
+; TRENCHER 1 (revision of TRENCHER A): same jowly diner, bigger napkin tucked in the collar with a gingham check so it reads as a napkin, not a shirt.
+......####......
+....##+--+##....
+...#++--+++++#..
+..#+++++++++++#.
+..#++++#+++#++#.
+..#++++#+++#++#.
+..#++++++-++++#.
+..#++###++###+#.
+..#+++++++++++#.
+..#++++----+++#.
+.#++++++++++++#.
+...##++++++##...
+..####-----####.
+.###-+-+-+--###.
+.##-+-+-+-+-###.
+.#-+-+-+-+-----.
+; @fig TRENCHER_2 #f8f8f0 #e88890 #582040
+; TRENCHER 2: food critic. Slicked dark hair, browline spectacles, bow tie, ruled notepad held at the chest.
+....########....
+...##########...
+...###+++++###..
+...#+++++++++#..
+...#+###+###+#..
+...#+-#-+-#-+#..
+...#+++++++++#..
+...#+++++++++#..
+...#+++++##++#..
+....#++++++++#..
+.....#+++++##...
+....##-#+#-##...
+..####---#####..
+.#####--#-+-+-#.
+.#####--#-----#.
+.##++--#+-+----.
+; @fig TRENCHER_3 #f8f8f0 #e88890 #582040
+; TRENCHER 3: dapper old gent. Tall top hat with a pink band, light diamond monocle, white walrus moustache, bow tie, pink tailcoat over a white shirt front.
+.....######.....
+.....######.....
+.....#+++++#....
+..############..
+....#+++++++#...
+....#++++---+#..
+....#++#+-#-+#..
+....#++++++++#..
+....#+-----+#...
+.....#+++++#....
+....##-#+#-##...
+..###--#--#-###.
+..#+##--#--##+#.
+.#++#---#---#++.
+.#++#--#----#++.
+.#+++++++++++++.

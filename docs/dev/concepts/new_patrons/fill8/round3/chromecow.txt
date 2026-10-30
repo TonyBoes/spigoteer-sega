@@ -1,0 +1,56 @@
+; Chrome Cow (group punks, CGB wall #39294a) - ROUND 3, 1 open slot, three NEW concepts (no STUNT revision). CONCEPTS, not imported. Hand-placed.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark).
+; @fig GRIZZ #f8d8c0 #3878f8 #100c28
+; GRIZZ: big bearded biker, small blue cap, huge dark beard to the chest with a pale mouth slit and one blue bead, blue vest over bare arms. Silhouette: round head sinking into a wide beard. palette: shares DJ OBJ 7 / BG 7
+................
+.....######.....
+...##++++++##...
+..#++++-+++++#..
+..#++++++++++#..
+..##--------##..
+..#--#---#---#..
+..#--#---#---#..
+..#-#########-#.
+.##-###--###-##.
+..#############.
+..#####++#####..
+..####++++####..
+.#-##++++++##-#.
+.#-#++++++++#-#.
+.#-#++++++++#-#.
+; @fig CHIEF #f0e0f0 #9048c0 #180818
+; CHIEF: road-captain in a flat peaked cap with a wide brim, purple band and pale badge, mirror aviators, handlebar moustache, purple leather jacket with pale lapels. Silhouette: wide flat brim. palette: shares RAVEN OBJ 4 / BG 4
+................
+...##########...
+..############..
+..#++++-+++++#..
+.##############.
+...#--------#...
+...#-###-###-#..
+...#--#---#--#..
+...#-#######-#..
+...#---++---#...
+....##------##..
+..####-+-####...
+.###++#-#++###..
+.#+++#---#+++#..
+.#+++#-+-#+++#..
+.#++++-+-++++#..
+; @fig DOLLY #f8d8c0 #3878f8 #100c28
+; DOLLY: rockabilly biker girl, tall blue beehive with a swooping fringe and side curls, cat-eye wings, blue lips, studded jacket. Silhouette: tall narrow beehive on a small face. palette: shares DJ OBJ 7 / BG 7
+......####......
+.....#++++#.....
+....#+-++++#....
+...#++-+++++#...
+..#++++++++++#..
+..#+++++++++#+#.
+..#+#-++++--#+#.
+..#+#-##-##-#+#.
+..#+#-#--#--#+#.
+..#+#---++--#+#.
+...#+#-----#+#..
+....#+#---#+#...
+..####-----####.
+.#+###---###+#..
+.#-####---###-#.
+.#-##+++++++#-#.

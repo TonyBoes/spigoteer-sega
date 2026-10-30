@@ -1,0 +1,38 @@
+; Igloo (group divers, CGB wall #4a4078) - ROUND 3 DENALI rescue-dog revisions for slot 8. CONCEPTS, not imported.
+; Front views only, 16x16, 3/4 facing right, house format (. wall / - light / + mid / # dark). Hand-placed.
+; @fig DENALI_A #f0f0f8 #c08050 #281818
+; DENALI A: owner's DENALI kept (shaggy head, tan cheeks, white muzzle, big dark nose, tongue) now with a dark collar and a small brandy barrel hung under the chin on a white chest. palette: shares MUSH/CUB OBJ 5
+....##....##....
+...#++#..#++#...
+..#+++####+++#..
+.#++++++++++++#.
+#++++++--+++++#.
+#+++#++--++#++#.
+.#++#++--++#+#..
+#++++------+++#.
+.#++---###---+#.
+.#+----#-#----#.
+.#+----#+#---#..
+.##-----+----##.
+#--#########--#.
+#----#+-++#---#.
+#----######---#.
+#-----++++----#.
+; @fig DENALI_B #f0f0f8 #c08050 #281818
+; DENALI B: more St Bernard. tan mask and heavy droopy ears, white blaze between the eyes, wide white muzzle with big dark nose, heavy jowls, dark collar with a small brandy barrel under the chin. palette: shares MUSH/CUB OBJ 5
+.....######.....
+...##++--++##...
+..#++++--++++#..
+.#+#+++--+++#+#.
+.#+#+#+--+#+#+#.
+.#+#+#+--+#+#+#.
+.#+#++----++#+#.
+.#+#+-####-+#+#.
+.#+#+--##--+#+#.
+.#+#+-------+##.
+..#+#------#+#..
+...##------##...
+.#---######---#.
+.#---#+-++#---#.
+.#---######---#.
+.#----++++----#.
