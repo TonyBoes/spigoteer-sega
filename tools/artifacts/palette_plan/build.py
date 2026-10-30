@@ -258,6 +258,15 @@ def users(kind, v, s):
     return pat, other
 
 
+def event_swapped(key):
+    """OBJ slots whose colours differ between the capture's events (the Saloon's OBJ 5: patron B, then the show dancers)."""
+    vals = {}
+    for e in load("level_" + key)["cgb"]["ev"]["events"]:
+        for sp in e["slots"]:
+            vals.setdefault(sp["slot"], set()).add(json.dumps(sp["values"]))
+    return {sl for sl, x in vals.items() if len(x) > 1}
+
+
 def model(v):
     """slot -> dict(pat=[(text, planned)], oth=[...], cols, new={i: hex}, freed) for ("OBJ"|"BG", s); the plan applied."""
     m = {}
@@ -266,6 +275,8 @@ def model(v):
             pat, oth = users(kind, v, sl)
             m[(kind, sl)] = dict(pat=[(x, False) for x in pat], oth=[(x, False) for x in oth],
                                  cols=(v["pal"] if kind == "OBJ" else v["bg"]).get(sl, ["#000000"] * 4), new={}, freed=False, open=None)
+    for sl in event_swapped(v["key"]):
+        m[("OBJ", sl)]["evswap"] = True
     if DROP_ENHANCED and enh_variant(v) is not None and not m[("OBJ", 4)]["pat"]:
         m[("OBJ", 4)]["freed"] = True
     pl = PLANS.get(v["key"])
@@ -309,6 +320,8 @@ def card(kind, sl, d, skip0, hide_cols=False):
     if pat or d["open"]:
         body += '<ul class="pat">%s%s</ul>' % ("".join('<li class="%s">%s</li>' % ("plan" if p else "now", esc(t)) for t, p in pat),
                                               ('<li class="plan open">%s</li>' % esc(d["open"])) if d["open"] else "")
+    if d.get("evswap") and not hide_cols:
+        body += '<p class="swp">event swap</p>'
     if d.get("swaps") and not hide_cols:
         body += '<p class="swp">%d swap%s</p>' % (d["swaps"], "" if d["swaps"] == 1 else "s")
     if oth and not free:
@@ -332,6 +345,8 @@ def card(kind, sl, d, skip0, hide_cols=False):
             % (" free" if free else "", kind, sl, sw, body))
 
 
+SLOTS = []                      # (venue, plan OBJ slot, patron, colours) for the unique-slot check
+DUAL = []                       # (venue, patron, "OBJ"|"BG", plan slot, game slot) where the page shows both numbers
 S = []
 w = S.append
 w('<title>Atlas</title>')
@@ -1463,7 +1478,7 @@ def planned_tiles(v, n):
              fbg=bg(t["bb"]) + fsave + FIGHT_LOOKS * X15 - b0, dbg=bg(t["d"]) + save + xs0)
     o["used"] = 384 - o["sp"] - o["bg"]
     o["dused"] = 384 - t["d"][0] - o["dbg"]
-    nowtxt = "Game now: bank 0 free %d sprite-only + %d BG (used %d); bank 1 free %d sprite-only + %d BG; boss fight free BG %d; DMG free BG %d (used %d)." % (
+    nowtxt = "NOW: bank 0 free %d sprite-only + %d BG (used %d); bank 1 free %d sprite-only + %d BG; boss fight free BG %d; DMG free BG %d (used %d)." % (
         sp(t["b0"]), bg(t["b0"]), 384 - sum(t["b0"]), sp(t["b1"]), bg(t["b1"]), bg(t["bb"]), bg(t["d"]), 384 - sum(t["d"]))
     L = [nowtxt,
          "Free means empty (not loaded, not referenced in the capture) and reachable: sprite-only ids 0-127, BG ids 128-383 (shared 128-255 + BG-only 256-383). Looks are BG tiles, so only BG counts for them.",
@@ -1674,7 +1689,18 @@ for i, v in enumerate(venues):
             SHOWN.add((v["key"], idx, idx))
         if r["name"] in EXTRA_LOOKS.get(v["key"], []):
             dtxt = "Color only"
-        rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, obj_txt if obj_txt.startswith("<") else "OBJ " + obj_txt, bg, vtxt, dtxt)))
+        if not sal and r["obj"] is not None:
+            SLOTS.append((v["key"], r["obj"], r["name"], tuple(c.upper() for c in cols)))
+        obj_cell = obj_txt if obj_txt.startswith("<") else "OBJ " + obj_txt
+        if not sal and idx is not None and idx < len(GT["obj_of"]) and d is not None:      # the plan moves it: both numbers, plan first
+            gobj, gbg = GT["obj_of"][idx], GT["bg_of"][idx]
+            if r["obj"] != gobj:
+                obj_cell = "plan OBJ %s / game OBJ %d" % (obj_txt, gobj)
+                DUAL.append((v["key"], r["name"], "OBJ", r["obj"], gobj))
+            if "bg" in r and r["bg"] != gbg:
+                bg = "plan BG %s / game BG %d" % (r["bg"], gbg)
+                DUAL.append((v["key"], r["name"], "BG", r["bg"], gbg))
+        rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, obj_cell, bg, vtxt, dtxt)))
         md += "| %s%s | %s | OBJ %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), re.sub("<[^>]+>", "", obj_txt),
                                                 ("BG %s" % bg) if (sal or "bg" in r) else "to assign", dtxt or "Color only")
     nx = len(EXTRA_LOOKS.get(v["key"], []))
@@ -1739,6 +1765,7 @@ for i, v in enumerate(venues):
     w(tile_grid(v))
     w('</section>')
 self_check.verify_shown(globals())
+self_check.verify_slots(globals())
 self_check.verify_pictures(globals())
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'Game %s, plan %s, %s.</p>' % (esc(commit), esc(plan_commit), LOG[-1][0]))

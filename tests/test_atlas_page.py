@@ -101,3 +101,13 @@ def test_patron_rules_catch_x15_bottom_outline_and_holes():
 
 def test_gus_plane_swap_helper():
     assert self_check.swap12(["-+#."]) == ["+-#."]
+
+
+def test_verify_slots_unique_and_dual():
+    ns = {"SLOTS": [("v", 5, "A", ("#1", "#2", "#3")), ("v", 5, "B", ("#1", "#2", "#3"))], "DUAL": [("v", "A", "OBJ", 5, 6)]}
+    self_check.verify_slots(ns)                       # the same colours may share a slot
+    ns["SLOTS"].append(("v", 5, "C", ("#9", "#2", "#3")))
+    with pytest.raises(SystemExit):
+        self_check.verify_slots(ns)
+    with pytest.raises(SystemExit):
+        self_check.verify_slots({"SLOTS": [], "DUAL": [("v", "A", "OBJ", 6, 6)]})

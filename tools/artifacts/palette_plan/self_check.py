@@ -305,3 +305,22 @@ def verify_pictures(ns):
         for e in errs:
             print("  - " + e, file=sys.stderr)
         sys.exit(1)
+
+
+def verify_slots(ns):
+    """Plan slots are unique per venue: two looks may share a plan OBJ slot only with the same colours (a shared palette), and the
+    page's dual 'plan OBJ n / game OBJ m' numbers must differ; the NOW line is labelled."""
+    errs = []
+    use = {}
+    for key, sl, name, cols in ns["SLOTS"]:
+        use.setdefault((key, sl), {}).setdefault(cols, []).append(name)
+    for (key, sl), d in sorted(use.items()):
+        if len(d) > 1:
+            errs.append("%s: plan OBJ %d is given to looks with different colours: %s" % (key, sl, "; ".join("%s %s" % (", ".join(n), c) for c, n in d.items())))
+    for key, name, kind, a, b in ns["DUAL"]:
+        if a == b:
+            errs.append("%s %s: dual %s numbers are the same (%d)" % (key, name, kind, a))
+    if errs:
+        print("\nATLAS SELF-CHECK FAILED (slots)\n  " + "\n  ".join(errs))
+        raise SystemExit(1)
+    print("self-check: plan slots unique per venue (%d looks, %d dual numbers)" % (len(ns["SLOTS"]), len(ns["DUAL"])))
