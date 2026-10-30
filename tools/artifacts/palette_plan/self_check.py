@@ -135,3 +135,77 @@ def verify_shown(ns):
         for e in errs:
             print("  - " + e, file=sys.stderr)
         sys.exit(1)
+
+
+# ---- checks that need no capture and no ROM (tests/test_atlas_page.py runs these in `make test`) ----
+PICKS_GLOB = "docs/dev/concepts/*/PICKS.md"
+Q_RE = re.compile(r"^(Q\d+|\d{4}-\d\d-\d\d)$")
+# Patrons the PICKS notes accept in prose (Q24-Q37), not in the round tables; names as the notes spell them (renames applied after).
+PICKS_PROSE = ["MOTH", "BLOB", "VIXEN_B", "VIXEN_D", "ASTRONAUT", "CLANK", "BUBBLE"]
+
+
+def picks_names(root):
+    """{accepted patron name: PICKS file} from every docs/dev/concepts/*/PICKS.md: the final-fronts table rows (Round 3) and the prose accepts,
+    with the owner's renames applied (the 'Names' paragraph). A patron marked held is not accepted."""
+    import glob
+    import os
+    res = {}
+    for f in sorted(glob.glob(os.path.join(root, PICKS_GLOB))):
+        t = open(f).read()
+        ren = {}
+        m = re.search(r"## Names.*?\n\n(.*?)(?:\n\n|\Z)", t, re.S)
+        if m:
+            for a, b in re.findall(r"([A-Z_]+) -> ([A-Z_]+)", m.group(1).replace("\n", " ")):
+                ren[a] = b
+        m = re.search(r"## Round 3.*?\n(.*?)\n\n(?:Trims|## )", t, re.S)
+        names = []
+        if m:
+            for row in m.group(1).splitlines():
+                cells = [c.strip() for c in row.strip().strip("|").split("|")]
+                if len(cells) != 2 or cells[0] in ("Venue", "---"):
+                    continue
+                txt = re.sub(r"\([^)]*held[^)]*\)", "", cells[1])
+                names += re.findall(r"\b([A-Z]{2,})\b", txt)
+            names += PICKS_PROSE
+        for n in names:
+            res[ren.get(n, n)] = os.path.relpath(f, root)
+    return res
+
+
+def plan_names(P):
+    """Every patron name the plan carries a row for: the game's looks, EXTRA_LOOKS, NEW_PATRONS, PLANS add / join / extras."""
+    out = {x.split(",")[0].strip().upper() for v in P.NAMES.values() for x in v}
+    out |= {n.upper() for v in P.EXTRA_LOOKS.values() for n in v}
+    out |= {n for v in P.NEW_PATRONS.values() for n, _ in v}
+    for pl in P.PLANS.values():
+        out |= {a[0] for a in pl.get("add", {}).values()}
+        out |= {n for ns in pl.get("join", {}).values() for n in ns}
+        out |= {e["name"] for e in pl.get("extras", [])}
+    return out
+
+
+def check_plan(P, root):
+    """Errors in the hand-kept plan alone (plan_data module P): every PLANS entry carries its Qn, every accepted pick has a row."""
+    errs = []
+    for k in P.NAMES:
+        pl = P.PLANS.get(k)
+        if pl is None:
+            errs.append("%s: no PLANS entry" % k)
+            continue
+        q = pl.get("q")
+        if not q or not all(Q_RE.match(x) for x in q):
+            errs.append("PLANS[%s] carries no Qn / dated owner statement (q=%r)" % (k, q))
+    have = plan_names(P)
+    for n, f in sorted(picks_names(root).items()):
+        if n not in have:
+            errs.append("accepted in %s but has no plan row: %s" % (f, n))
+    return errs
+
+
+def verify_plan(P, root):
+    errs = check_plan(P, root)
+    if errs:
+        print("\nATLAS SELF-CHECK FAILED (plan data):", file=sys.stderr)
+        for e in errs:
+            print("  - " + e, file=sys.stderr)
+        sys.exit(1)
