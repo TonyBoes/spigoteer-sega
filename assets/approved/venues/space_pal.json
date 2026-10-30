@@ -18,9 +18,9 @@
  "bar": {
   "hex": [
    "#202a58",
-   "#e0f8ff",
-   "#6c80a8",
-   "#1c2038"
+   "#e0e0e8",
+   "#98a0b0",
+   "#101018"
   ],
   "_note": "index 0 = wall colour behind patrons"
  },
