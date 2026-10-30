@@ -5,8 +5,10 @@
    changed since the commit the capture was made from (or are dirty now).
 2. Runs build.py, which runs the self-check and exits non-zero on any error: this command then fails too.
 3. Checks the built page as the owner sees it (page_check.py: 360 px layout, every image).
-4. Writes out/atlas_page/pub.json: the files to publish (index.html + the img/ files that changed or are new since the HEAD
-   index.html, with the ?v= hashes stripped for the names) and the img/ files that were removed.
+4. Writes out/atlas_page/pub.json: the files to publish (index.html + the img/ files that changed or are new since the
+   last publish, with the ?v= hashes stripped for the names) and the img/ files that were removed. The last publish is
+   published.json (image refs as published; HEAD's index.html if it is missing).
+After publishing: `python3 tools/artifacts/palette_plan/atlas_page.py --mark-published` and commit published.json.
 """
 import json
 import os
@@ -18,6 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 PAGE = os.path.join(HERE, "index.html")
 CAP = os.path.join(ROOT, "out/atlas/data/index.js")
+PUBLISHED = os.path.join(HERE, "published.json")
 GAME_PATHS = ["src", "assets", "tools/gen_art.py", "tools/gfx_atlas"]
 IMG_RE = re.compile(r"(img/[\w.\-]+\.png)(?:\?v=(\w+))?")
 FILE_LIMIT = 512
@@ -60,14 +63,20 @@ def img_refs(html):
     return {m.group(1): m.group(2) or "" for m in IMG_RE.finditer(html)}
 
 
-def publish_list(new_html, old_html):
-    new, old = img_refs(new_html), img_refs(old_html)
+def publish_list(new_html, old_html, old=None):
+    new = img_refs(new_html)
+    if old is None:
+        old = img_refs(old_html)
     changed = sorted(p for p, h in new.items() if old.get(p) != h)
     removed = sorted(p for p in old if p not in new)
     return new, changed, removed
 
 
 def main():
+    if sys.argv[1:] == ["--mark-published"]:
+        json.dump(img_refs(open(PAGE).read()), open(PUBLISHED, "w"), indent=0, sort_keys=True)
+        print("atlas-page: published.json now holds the image refs of the current index.html")
+        return
     stale, why = capture_stale()
     print("atlas-page: " + why)
     if stale:
@@ -88,7 +97,8 @@ def main():
     rc, old_html = git("show", "HEAD:" + rel)
     if rc:
         old_html = ""
-    new, changed, removed = publish_list(new_html, old_html)
+    old = json.load(open(PUBLISHED)) if os.path.exists(PUBLISHED) else None
+    new, changed, removed = publish_list(new_html, old_html, old)
     n_files = len(new) + 1
     out = os.path.join(ROOT, "out/atlas_page")
     os.makedirs(out, exist_ok=True)

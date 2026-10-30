@@ -1694,7 +1694,7 @@ for i, v in enumerate(venues):
                 DUAL.append((v["key"], r["name"], "BG", r["bg"], gbg))
         rows.append(dict(html=(img, "plan" if r["planned"] else "now", esc(r["name"]), sw, obj_cell, bg, vtxt, dtxt)))
         md += "| %s%s | %s | OBJ %s | %s | %s |\n" % (r["name"], " (planned)" if r["planned"] else "", " ".join("`%s`" % c for c in cols), re.sub("<[^>]+>", "", obj_txt),
-                                                ("BG %s" % bg) if (sal or "bg" in r) else "to assign", dtxt or "Color only")
+                                                (str(bg) if str(bg).startswith(("BG", "plan")) else "BG %s" % bg) if (sal or "bg" in r) else "to assign", dtxt or "Color only")
     nx = len(EXTRA_LOOKS.get(v["key"], []))
     w('<div class="stat"><b>%d</b><span>identified patrons</span></div>' % (len(ident) - nx))
     if nx:

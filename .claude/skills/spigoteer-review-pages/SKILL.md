@@ -21,6 +21,7 @@ report the exact list of files to publish.
    - look at a `tools/dev/contact_sheet.py` sheet of the thumbnails that changed (the changed `img/` paths in pub.json);
    - read the live page's title with `Artifact read` before publishing; republish to the same URL;
    - publish exactly pub.json's `publish` list as files and check the file count (limit 512); verify any deletes or renames with `list`;
+   - then `python3 tools/artifacts/palette_plan/atlas_page.py --mark-published` and commit `published.json` (the next pub.json diffs against it);
    - owner decisions go into `plan_data.py` (PLANS with their Qn) and a LOG line in `build.py`; commit the page and `img/`.
 3. **Open Questions** (if a question was asked or answered): update the cards, the count and the stamp.
 4. Copy every changed page source and its media into `tools/artifacts/` and commit (sources must survive a lost
