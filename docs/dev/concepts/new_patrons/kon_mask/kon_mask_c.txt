@@ -1,0 +1,17 @@
+; C: red-faced mask with cream centre blaze, cream-inner ears, slanted ink eye slits on red, cream muzzle with ink nose and red cheek flanks. Head symmetric about x7.5. Rows 12-15 unchanged.
+...#........#...
+..#-#......#-#..
+..#--#....#--#..
+.##+++####+++##.
+.##++++--++++##.
+.##+##----##+##.
+.##++##--##++##.
+.##+++----+++##.
+.###+------+###.
+.###+--##--+###.
+.####--++--####.
+.#####----#####.
+.##++-####-++##.
+.#+++-#--#-+++#.
+#++++-#--#-+++#.
+#++++-#--#-+++#.

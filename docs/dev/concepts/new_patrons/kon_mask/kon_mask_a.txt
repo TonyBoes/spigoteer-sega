@@ -1,0 +1,17 @@
+; A: tall pointed ears (red inner), slanted fierce eye slits, red brow ticks, red under-eye sweeps and cheek whiskers, small ink nose. Head symmetric about x7.5 (current ears sit off-centre). Rows 12-15 unchanged.
+...#........#...
+..#+#......#+#..
+..#++#....#++#..
+.##+++####+++##.
+.##-+------+-##.
+.##-##----##-##.
+.##--##--##--##.
+.##-++----++-##.
+.###+------+###.
+.###---##---###.
+.####--++--####.
+.#####----#####.
+.##++-####-++##.
+.#+++-#--#-+++#.
+#++++-#--#-+++#.
+#++++-#--#-+++#.
