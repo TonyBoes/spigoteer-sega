@@ -1,0 +1,17 @@
+; C (3/4, faces right): mask tilted up, covering the eyes only; ink line under it, human lower face (skin cream) with a small red mouth below, dark hair around, red cord. Rows 11-15 unchanged.
+....#...........
+...#-#.....#....
+..#---#####-#...
+..##--------##..
+..###-++-++-##..
+..+++-##--#-##..
+..###-------##..
+..############..
+..###-------##..
+..###---++--##..
+..####-----###..
+.#####----#####.
+.##++-####-++##.
+.#+++-#--#-+++#.
+#++++-#--#-+++#.
+#++++-#--#-+++#.

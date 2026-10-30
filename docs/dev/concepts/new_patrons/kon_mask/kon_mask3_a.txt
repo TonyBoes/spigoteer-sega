@@ -1,0 +1,17 @@
+; A (3/4, faces right): minimal worn flat mask. Cream oval mask over dark hair, small ear points on the mask top, thin red brows, ink eye slits (far one narrower), thin red cheek lines, one red painted nose dot on a 1 px edge bump, red cord across the hair at the near side, hair-dark jaw under the mask. Rows 11-15 unchanged.
+....#...........
+...#-#.....#....
+..#---#####-#...
+..##--------##..
+..###-++-++-##..
+..+++-##--#-##..
+..###-+---+-##..
+..###-------##..
+..###-----+-#...
+..###------##...
+..############..
+.#####----#####.
+.##++-####-++##.
+.#+++-#--#-+++#.
+#++++-#--#-+++#.
+#++++-#--#-+++#.
