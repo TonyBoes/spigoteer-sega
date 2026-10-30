@@ -168,3 +168,17 @@ SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 0, "HANK": 0, "ROSIE": 3, "REDD"
 INST_OBJ, INST_BG = [3, 6, 7, 4, 5], [2, 3, 4, 7, 5]      # palette instance 0-4 -> OBJ slot, BG slot (the Saloon has all 5)
 PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
 BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
+
+
+# Planned art that breaks a patron rule and is shown anyway, until the artist's next pass: (venue, NAME, "front" | "back", "bottom" | "holes" | "x15").
+# self_check.verify_pictures lists every other violation as an error and refuses an entry that is no longer needed. Each is a question for the owner
+# or the artist, not a decision: bottom = a dark pixel on row 15 under a lighter one on row 14 (read as the old bottom outline, owner 10-29);
+# holes = index 0 enclosed by the figure (a lifted patron is see-through there, unless the owner drew the gap: PLANNED_GAPS).
+ART_RULE_EXCEPTIONS = {
+    ("lumberjacks", "INES", "front", "bottom"): "row 15 x=14",
+    ("chefs", "PINOT", "front", "bottom"): "row 15 x=4, 6, 7",
+    ("chefs", "PINOT", "back", "bottom"): "row 15 x=6, 8",
+    ("robots", "TELLY", "front", "holes"): "(2, 1) and (3, 2) enclosed; the owner has not said it is a gap",
+}
+# Index-0 gaps the owner drew on purpose in planned art: (venue, NAME, side) -> {(x, y)}.
+PLANNED_GAPS = {}

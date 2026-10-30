@@ -209,3 +209,99 @@ def verify_plan(P, root):
         for e in errs:
             print("  - " + e, file=sys.stderr)
         sys.exit(1)
+
+
+# ---- picture level: the page's thumbnails against the capture (what the ROM really draws) and the patron rules ----
+def swap12(rows):
+    return [x.translate(str.maketrans("-+", "+-")) for x in rows]
+
+
+def patron_rule_errors(rows, gaps=(), side="front"):
+    """Owner's patron rules for art not in the game yet: column x=15 clear (10-28), no ink line on the bottom row (10-29: no run of two or more
+    darkest pixels on row 15), no index-0 pixel enclosed by the figure (gen_art index0_holes; gaps the owner drew are listed)."""
+    import os
+    sys.path.insert(0, os.path.join(game_truth.ROOT, "tools"))
+    import gen_art
+    errs = []
+    if len(rows) != 16 or any(len(r) != 16 for r in rows):
+        return ["not 16x16"]
+    if side == "front" and any(r[15] != "." for r in rows):          # the owner's x=15 rule is for the fronts (10-28); backs may use it
+        errs.append("column x=15 is not clear (rows %s)" % [y for y, r in enumerate(rows) if r[15] != "."])
+    ink = [x for x in range(16) if rows[15][x] == "#" and rows[14][x] != "#"]
+    if ink:
+        errs.append("bottom row has an ink line under the body at x %s: %s" % (ink, rows[15]))
+    holes = gen_art.index0_holes(rows) - set(gaps)
+    if holes:
+        errs.append("index 0 enclosed at (x, y) %s" % sorted(holes)[:6])
+    return errs
+
+
+def verify_pictures(ns):
+    """a. the game's text art (assets/art/patrons, GUS swapped as the Color game does) equals the capture's VRAM tiles for every look;
+    b. every thumbnail from the game is, pixel for pixel and colour for colour, the captured tiles with the captured palette RAM (re-read from the
+       PNG that is published); c. every thumbnail from the plan passes the patron rules (x=15, bottom row, holes)."""
+    import os
+    from PIL import Image
+    T = game_truth.truth()
+    load, hexc, venues, OUT = ns["load"], ns["hexc"], ns["venues"], ns["OUT"]
+    vkey = {v["key"]: v for v in venues}
+    gaps_plan = ns.get("PLANNED_GAPS", {})
+    exc = set(ns.get("ART_RULE_EXCEPTIONS", {}))
+    used_exc = set()
+    errs = []
+    for k, idx, gf, gb, cf, cb in ns["GAME_ART"]:
+        sw = (lambda r: swap12(r)) if (k == "cowboys" and idx == 2) else (lambda r: r)
+        for side, txt, cap in (("front", gf, cf), ("back", gb, cb)):
+            if cap is None:
+                errs.append("%s look %d %s: its tiles are not loaded in the capture" % (k, idx, side))
+            elif sw(txt) != cap:
+                n = sum(a != b for r1, r2 in zip(sw(txt), cap) for a, b in zip(r1, r2))
+                errs.append("%s look %d %s: assets/art/patrons text differs from the capture's tiles in %d pixels (stale capture, or a transform the page does not know)" % (k, idx, side, n))
+    for pic in ns["PICS"]:
+        k, name, idx, side, inst = pic["who"]
+        where = "%s %s %s" % (k, name.split(",")[0], side)
+        im = Image.open(os.path.join(os.path.dirname(OUT), pic["rel"]))
+        if im.size != (16, 16) or im.mode != "P":
+            errs.append("%s: %s is %s %s, not a 16x16 indexed picture" % (where, pic["rel"], im.size, im.mode))
+            continue
+        pal = im.getpalette()
+        got_cols = ["#%02X%02X%02X" % tuple(pal[3 * i:3 * i + 3]) for i in range(4)]
+        got = ["".join(".-+#"[im.getpixel((x, y))] for x in range(16)) for y in range(16)]
+        if got != pic["rows"]:
+            errs.append("%s: the published PNG is not the picture the page means to show" % where)
+        if pic["src"] == "game":
+            cf, cb = ns["captured_look"](vkey[k], idx)
+            cap = cf if side == "front" else cb
+            if got != cap:
+                errs.append("%s: the thumbnail is not the capture's tiles (%d pixels differ)" % (where, sum(a != b for r1, r2 in zip(got, cap or ["?" * 16] * 16) for a, b in zip(r1, r2))))
+            lv = load("level_" + k)["cgb"]["pal"]
+            slot = T["obj_of"][inst] if inst is not None and inst < 5 else None
+            if slot is None:
+                errs.append("%s: no palette instance" % where)
+                continue
+            want = [hexc(lv["bg"][0]["rep"][0])] + [hexc(c) for c in lv["obj"][slot]["rep"][1:]]
+            if not pic.get("palplan") and [c.upper() for c in got_cols] != [c.upper() for c in want]:
+                errs.append("%s: thumbnail colours %s, the capture's palette RAM (OBJ %d) has %s" % (where, got_cols, slot, want))
+        else:
+            nm = name.split(",")[0].strip().upper()
+            g = set(gaps_plan.get((k, nm, side), ()))
+            if idx is not None:                       # a look the game ships: gaps its art already has stay
+                import os as _os
+                sys.path.insert(0, _os.path.join(game_truth.ROOT, "tools"))
+                import gen_art
+                cf, cb = ns["captured_look"](vkey[k], idx)
+                g |= gen_art.index0_holes(cf if side == "front" else cb) if (cf if side == "front" else cb) else set()
+            found = patron_rule_errors(pic["rows"], g, side)
+            for e in found:
+                rule = "bottom" if e.startswith("bottom") else "holes" if e.startswith("index 0") else "x15"
+                if (k, nm, side, rule) in exc:
+                    used_exc.add((k, nm, side, rule))
+                else:
+                    errs.append("%s (planned art): %s" % (where, e))
+    for x in sorted(exc - used_exc):
+        errs.append("ART_RULE_EXCEPTIONS %s is no longer needed (the art passes or is not shown): remove it" % (x,))
+    if errs:
+        print("\nATLAS SELF-CHECK FAILED (pictures): %d problems" % len(errs), file=sys.stderr)
+        for e in errs:
+            print("  - " + e, file=sys.stderr)
+        sys.exit(1)

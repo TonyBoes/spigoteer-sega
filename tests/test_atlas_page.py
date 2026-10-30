@@ -79,3 +79,25 @@ def test_full_self_check_against_the_capture(tmp_path):
         pytest.skip("needs the emulator capture (`make atlas-page`): " + why)
     r = subprocess.run([sys.executable, str(PP / "build.py"), str(ROOT / "out/atlas/data"), str(tmp_path / "index.html")], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-3000:]
+
+
+def _fig(row14="..#++++++++++#..", row15="..#++++++++++#.."):
+    rows = ["." * 16] + ["..#++++++++++#.."] * 14 + [row15]
+    rows[14] = row14
+    return rows
+
+
+def test_patron_rules_catch_x15_bottom_outline_and_holes():
+    ok = _fig()
+    assert self_check.patron_rule_errors(ok) == []
+    assert any("x=15" in e for e in self_check.patron_rule_errors([r[:15] + "#" for r in ok]))
+    assert any("bottom row" in e for e in self_check.patron_rule_errors(_fig(row15="..############..")))
+    assert self_check.patron_rule_errors(_fig(row14="..############..", row15="..############..")) == []     # a dark garment is not an outline
+    holey = list(ok)
+    holey[5] = "..#+++..++++++#."
+    assert any("enclosed" in e for e in self_check.patron_rule_errors(holey))
+    assert self_check.patron_rule_errors(holey, gaps={(6, 5), (7, 5)}) == []
+
+
+def test_gus_plane_swap_helper():
+    assert self_check.swap12(["-+#."]) == ["+-#."]

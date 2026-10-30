@@ -501,7 +501,11 @@ def accepted(v, name):
     back = old("_back") if first in names else None
     return front, back
 
-def thumb(rows, cols, wall, name):
+PICS = []        # every thumbnail written: (img path, rows, colours, wall, source "game" | "plan", venue, patron, side): self_check.verify_pictures reads it back
+GAME_ART = []    # (venue, look, game text front, game text back, captured front, captured back): self_check.verify_pictures
+
+
+def thumb(rows, cols, wall, name, src="plan", who=None, palplan=False):
     """img/<name>_1x.png beside OUT: a 16x16 view, indexed (colour 0 the wall, transparent), shown x3 by CSS and downloaded
     as is (one file per picture: the artifact holds at most 512 files). Returns its relative path."""
     from PIL import Image
@@ -515,6 +519,7 @@ def thumb(rows, cols, wall, name):
             if ch in "-+#":
                 one.putpixel((x, y), "-+#".index(ch) + 1)
     one.save(path[:-4] + "_1x.png", "PNG", transparency=0)
+    PICS.append(dict(rel=rel, rows=list(rows), cols=list(cols), wall=wall, src=src, who=who, palplan=palplan))
     return rel
 
 
@@ -1519,12 +1524,38 @@ def back_info(v, i):
     return rows, ("stand-in" if standin else "")
 
 
+def captured_look(v, i):
+    """(front rows, back rows) of look i as the game's VRAM holds them in the atlas capture (Color model): 16 strings of 16 chars in the house
+    alphabet . - + #, or None for a view whose tiles were not loaded. Looks A-C are bank 0; the Saloon's D-H are bank 1 (art.h SALOON_X_S0 / SALOON_X_BACK).
+    The front is the shift-0 pose (4 tiles, column-major); the back is 4 tiles, row-major (render.c put_back_col)."""
+    if v["key"] == "cowboys" and i >= 3:
+        b, s0, back = 1, 206 + 4 * (i - 3), 226 + 4 * (i - 3)
+    else:
+        b, s0, back = 0, PAT_FIRST + PAT_S0 + i * 4, PAT_FIRST + PAT_BACK + i * 4
+    _, live, _, _, T = tile_data(v, "cgb")[b]
+    out = []
+    for base, pos in ((s0, lambda k: (k // 2, k % 2)), (back, lambda k: (k % 2, k // 2))):
+        sl = [bgslot(base + k) for k in range(4)]
+        if not all(live[s] for s in sl):
+            out.append(None)
+            continue
+        g = [[0] * 16 for _ in range(16)]
+        for k, s in enumerate(sl):
+            c, r = pos(k)
+            for y in range(8):
+                for x in range(8):
+                    g[r * 8 + y][c * 8 + x] = T[s][y][x]
+        out.append(["".join(".-+#"[p] for p in row) for row in g])
+    return tuple(out)
+
+
 def back_rows_by_look(v):
     n = len(game_truth.truth()["saloon"]) if v["key"] == "cowboys" else 3
     return [back_info(v, i)[0] for i in range(n)]
 
 
 SHOWN = set()                      # (venue, look, palette instance) of every thumbnail pair written below
+
 self_check.verify_plan(sys.modules["plan_data"], ROOT)
 self_check.verify_now(globals())
 
@@ -1587,29 +1618,44 @@ for i, v in enumerate(venues):
         first = r["name"].split(",")[0].strip().lower()
         idx = r["look"] if sal else next((k_ for k_, n_ in enumerate(NAMES[v["key"]]) if n_.split(",")[0].strip().lower() == first), None)
         ftag = ""
+        cap_f = cap_b = None
+        fsrc = bsrc = "plan"
         if idx is None:                                   # a reserved patron: not in the game yet, its art is the plan's
             fr, bk = accepted(v, r["name"])
             btag = "planned" if bk else ""
         else:
-            fr = game_front(v, idx) if sal else accepted(v, r["name"])[0]
-            bk, btag = back_info(v, idx)
-            tr = trimmed_front(v, idx, fr)
+            # A look the game ships is drawn from the capture's VRAM tiles (what the ROM really holds, GUS's plane swap included). The plan's art
+            # (an accepted pick, a right-column trim) replaces it only where it differs, and then says so. The Color game swaps GUS's colours 1 and
+            # 2 at load (src/level.c swap_gus), so any planned GUS art is swapped the same way, whichever file it came from.
+            cap_f, cap_b = captured_look(v, idx)
+            pf = game_front(v, idx) if sal else accepted(v, r["name"])[0]
+            pb, btag = back_info(v, idx)
+            tr = trimmed_front(v, idx, pf)
             if tr:
-                fr, ftag = tr, "planned front"
-            if sal and idx == 2:                          # the Color Saloon swaps GUS's colours 1 and 2 (owner Q46 2026-10-29, src/level.c swap_gus)
+                pf = tr
+            if sal and idx == 2:
                 swap12 = lambda g: [x.translate(str.maketrans("-+", "+-")) for x in g] if g else g
-                fr, bk = swap12(fr), swap12(bk)
+                pf, pb = swap12(pf), swap12(pb)
+            GAME_ART.append((v["key"], idx, game_front(v, idx) if sal else frames(os.path.join(ROOT, "assets/art/patrons/%s.txt" % v["key"]))[idx],
+                             game_truth.backs(v["key"])[idx][1], cap_f, cap_b))
+            fr, fsrc = (cap_f, "game") if cap_f and pf == cap_f else (pf, "plan")
+            if fsrc == "plan" and cap_f:
+                ftag = "planned front"
+            bk, bsrc = (cap_b, "game") if cap_b and (pb == cap_b or btag != "planned") else (pb, "plan")
+            if btag == "planned" and bsrc == "game":
+                btag = ""                                  # the pick is already in the game
+        palplan = (not sal) and d is not None and idx is not None and (r["obj"] != GT["obj_of"][idx] or bool(d["new"]))   # the plan recolours or moves it: its colours are not the capture's
         combos = [(cols, "")]                              # (colours, file suffix) per palette the game spawns the look in; the own palette first
         if sal:
             combos = [([hexc(c) for c in GT["inst"]["cowboys"][p]], "" if n_ == 0 else "_o%d" % INST_OBJ[p]) for n_, p in enumerate(ps)]
         img = ""
         if len(combos) > 1:
-            swaps.append((r["name"], first, fr, bk, combos[1:], ps[1:] if sal else [None] * (len(combos) - 1)))
+            swaps.append((r["name"], first, fr, bk, combos[1:], ps[1:] if sal else [None] * (len(combos) - 1), fsrc, bsrc, idx))
         for n_, (ccols, suf) in enumerate(combos[:1]):
             pair = ""
             for rows_, side in ((fr, "front"), (bk, "back")):
                 if rows_:
-                    rel = thumb(rows_, ccols, v["bg"][0][0], "%s_%s%s_%s" % (v["key"], first, suf, side))
+                    rel = thumb(rows_, ccols, v["bg"][0][0], "%s_%s%s_%s" % (v["key"], first, suf, side), fsrc if side == "front" else bsrc, (v["key"], r["name"], idx, side, ps[n_] if sal else idx), palplan)
                     pair += ('<a class="dl" href="%s" download="%s_%s.png" data-file="%s_%s.png" title="Download %s %s (16x16)">'
                              '<img class="pimg" alt="%s %s" width="48" height="48" style="background:%s" src="%s"></a>'
                              % (rel, first + suf, side, first + suf, side, esc(first.upper()), side, esc(r["name"]), side, v["bg"][0][0], rel))
@@ -1674,13 +1720,13 @@ for i, v in enumerate(venues):
     w('</tbody></table></div>')
     if swaps:                                      # owner 2026-10-29: approved palette swaps in their own section, below the primaries
         w('<h2>Palette swaps</h2><div class="tbl"><table class="pt"><thead><tr><th>Patron</th><th>Swaps</th></tr></thead><tbody>')
-        for name, first_, fr_, bk_, cmb, pis in swaps:
+        for name, first_, fr_, bk_, cmb, pis, fsrc_, bsrc_, idx_ in swaps:
             cells = ""
             for (ccols, suf), pi in zip(cmb, pis):
                 pair = ""
                 for rows_, side in ((fr_, "front"), (bk_, "back")):
                     if rows_:
-                        rel = thumb(rows_, ccols, v["bg"][0][0], "%s_%s%s_%s" % (v["key"], first_, suf, side))
+                        rel = thumb(rows_, ccols, v["bg"][0][0], "%s_%s%s_%s" % (v["key"], first_, suf, side), fsrc_ if side == "front" else bsrc_, (v["key"], name, idx_, side, pi))
                         pair += '<img class="pimg" alt="%s %s" width="48" height="48" style="background:%s" src="%s">' % (esc(name), side, v["bg"][0][0], rel)
                 if pi is not None:
                     SHOWN.add((v["key"], NAMES["cowboys"].index(name), pi))
@@ -1693,6 +1739,7 @@ for i, v in enumerate(venues):
     w(tile_grid(v))
     w('</section>')
 self_check.verify_shown(globals())
+self_check.verify_pictures(globals())
 w('<p class="foot">This is the plan. <span style="color:var(--now)">Green</span>: patrons as in the game today. <span style="color:var(--plan)">Yellow</span>: planned changes. Click a colour to copy it. '
   'Game %s, plan %s, %s.</p>' % (esc(commit), esc(plan_commit), LOG[-1][0]))
 w('</div><div id="toast" role="status" aria-live="polite" hidden></div>')
