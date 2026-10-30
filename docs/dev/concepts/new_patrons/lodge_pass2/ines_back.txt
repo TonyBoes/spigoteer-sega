@@ -1,0 +1,21 @@
+; INES back (Lumber Lodge, Color only), lodge pass 2 (proposal 2026-10-29); palette skin #E0A878, purple #A050C0,
+; dark #281830; slot OBJ 6 / BG 3. Beanie rows 0-4 as the front (pompom, crown, ribbed band); black bob covering the
+; back of the head, ends curling in at the nape (wall notch at row 11 parts it from the shoulders); her front's ear and
+; purple hoop on the side they are on from behind (col 12); 2 px nape; purple shirt collar; dark puffer vest with the
+; front's purple lines and sleeve continuing round the back
+......#++#......
+....###++###....
+...#++++++++#...
+..#+#+#+#+#+#...
+..############..
+..############..
+..##########-#..
+..##########-#..
+..##########+#..
+..############..
+..############..
+...####--####...
+..###+++++####..
+.###+#####+####.
+#+##+#####+##+#.
+#+##+#####+##+#.
