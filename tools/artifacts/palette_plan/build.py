@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-30", "Owner sent RONIN recoloured: OBJ 7 colour 2 #A82830 -> #902000 (rust). In the game (ninjas_c)."),
     ("2026-10-30", "Owner (Q64): \"The Atlas says BG2 is free.\" MONK gets his own orange palette (concept colours #E8B878 #E07820 #301810) on OBJ 5 and BG 2."),
     ("2026-10-30", "Owner: \"Poet and sensei to sals palette.\" Teahouse: POET and SENSEI share Sal's OBJ 0 (BG 5 takes its colours); their blended OBJ 5 is free."),
     ("2026-10-30", "Owner (Q63): \"No sensei swap.\" SENSEI keeps his colour order."),
