@@ -1,0 +1,37 @@
+; Igloo (group divers, CGB wall #4a4078) - DENALI_B 3/4 right, round 2: St Bernard traits restored. CONCEPTS, not imported.
+; @fig DENALI_A #f0f0f8 #c08050 #281818
+; DENALI A: St Bernard turned slightly right: broad head, heavy hanging near ear, far ear sliver, dark droopy eye mask with a glint, white blaze, short blunt muzzle with a dark nose, heavy flews, wide neck and chest, dark collar with a one-hoop brandy barrel. shares MUSH
+....#########...
+..##+++++++++##.
+.#++#+++++++#+#.
+#+++#++--+++#+#.
+#+++#++--+++#+#.
+#+++##---#-##+#.
+#+++###--####+#.
+#+++#+-----++#..
+#+++#+--###-+#..
+.#++#+---##--#..
+.####--------#..
+..#############.
+#----#--+#++#-#.
+#----#+-+#++#-#.
+#----#+++#++#-#.
+#-------------#.
+; @fig DENALI_B #f0f0f8 #c08050 #281818
+; DENALI B: fuller 3/4 to the right: broad heavy head, far ear a tip, dark droopy eye mask with a glint each side of a white blaze, short deep blunt muzzle with the broad dark nose at the front, heavy hanging flews, big neck and chest, dark collar with a one-hoop brandy barrel. shares MUSH
+....#########...
+..##+++++++++##.
+.#++#+++++++#+#.
+#+++#+++--++#+#.
+#+++#+++--++#+#.
+#+++##-#--#-#+#.
+#+++####--###+#.
+#+++#++-----+#..
+#+++#++---####..
+.#++#+----##-#..
+.####---------#.
+..#############.
+#----#--+#++#-#.
+#----#+-+#++#-#.
+#----#+++#++#-#.
+#-------------#.

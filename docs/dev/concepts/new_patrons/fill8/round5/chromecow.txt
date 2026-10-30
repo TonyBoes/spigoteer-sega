@@ -1,0 +1,90 @@
+; @fig CURTAIN #f0e0f0 #9048c0 #180818
+; CURTAIN: goth guy, long straight black hair in a centre part curtaining both sides of a pale face, dark eyeliner and lips, high black coat collar with a cross pendant on a purple coat. Silhouette: tall hair curtain, no tufts. shares RAVEN
+.....######.....
+...##########...
+..######+#####..
+.######++######.
+.####-----#####.
+.###---------##.
+.###-##--##--##.
+.###-#---#---##.
+.###---------##.
+.###-----++--##.
+.####-------###.
+.###+##---##+##.
+.###++#---#++##.
+.##+++##-##+++#.
+#++++++---++++#.
+#+++++++-+++++#.
+; @fig DEATHROCK #f0e0f0 #9048c0 #180818
+; DEATHROCK: goth guy, tall teased black spikes with purple streaks, pale face with dark lipstick and heavy eyes, studded leather jacket over a band tee. Silhouette: spiked crown. shares RAVEN
+..#..#...#..#...
+..##.##..##.##..
+.#####+########.
+.####+++#######.
+.###---------##.
+.###-##--##--##.
+.###-#---#---##.
+.###---------##.
+.###----##---##.
+.####-------###.
+..####-----###..
+.##++##---##++#.
+.#+++#-----#++#.
+#++++#--#--#+++.
+#++++#-----#++#.
+#++++#-----#++#.
+; @fig FRINGE #f0e0f0 #9048c0 #180818
+; FRINGE: goth guy, undercut with a long black fringe swept over one eye, shaved purple sides, dark choker, long black coat with the collar up. Silhouette: swept pompadour over a shaved head. shares RAVEN
+....#########...
+...###########..
+..##+++########.
+..############..
+..#+########-#..
+..#+#######--#..
+..#+#####-##-#..
+..#+####--#--#..
+..#+###------#..
+..#+#---++--#...
+..#+##-----#....
+...#+#######+#..
+.##++#-----#++#.
+.#+++##---##++#.
+#++++#-----#++#.
+#++++#--#--#++#.
+; @fig CRIMP #f0e0f0 #9048c0 #180818
+; CRIMP: goth girl, tall crimped black-and-purple teased hair that towers over the head, pale bare shoulders, dark lipstick, studded black corset. Silhouette: tall zigzag hair tower, taller than RAVEN's tufts. shares RAVEN
+..#...#..#..#...
+..###.#.###.##..
+.##+##+##+#####.
+#+##+##+##+####.
+#+##+#######+##.
+#+#+---------+#.
+#++#-##--##--#+.
+#++#-#---#---#+.
+#++#---------#+.
+#++#-----++--#+.
+#+++#-------#++.
+#+++##-----##++.
+#++#---------#+.
+#+##-#######-#+.
+#++##-#-#-#-##+.
+#+++#-#-#-#+++#.
+; @fig VEIL #f0e0f0 #9048c0 #180818
+; VEIL: goth girl, pale Victorian mourner in a small black pillbox hat with a purple lace veil falling past both cheeks, high lace collar, dark high-necked dress with a cameo. Silhouette: neat hat on a narrow veiled column. shares RAVEN
+....#######.....
+...#+++++++#....
+..###########...
+...###########..
+..###--------##.
+..#+#-##--##-#+.
+..#+#-#---#--#+.
+..#+#--------#+.
+..#+#---++---#+.
+..#++#------#++.
+..#++##----##++.
+.#+#-#-#-#-#-#+.
+.#+#---------#+.
+#++##########+..
+#++#####-####+..
+#+++####-###+++.
