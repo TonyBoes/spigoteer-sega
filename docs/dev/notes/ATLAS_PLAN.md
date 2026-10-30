@@ -1,16 +1,24 @@
 # Keeping the Atlas current and correct (plan, 2026-10-29)
 
 Owner: "You for real need to figure out how to keep the atlas up to date and correct. Please make a plan."
+Then: "Ok, but look at our past atlas failures too. This isn't the first mistake."
 
-## What went wrong (2026-10-29 alone)
-1. GUS showed unswapped in his own palette: a second art source (right-column trimmed fronts) overrode the swap,
-   and the self-check compares lists, not pictures.
-2. SALOON_LOOKS / SALOON_PRIMARY are hand copies of src/mirror.c: stale twice (self-check caught it, after the fact).
-3. Owner-accepted proposals (FRANK, LOUIS, PIPER, POET, MUFFY) reached the plan art late: a manual copy step.
-4. Publishing is five manual steps (make atlas, build.py, self-check, diff image refs, publish list); skipping one
-   leaves a stale or partial page.
-5. Art for one patron can come from four places (assets/, art/, patron_pass ACCEPTED, right_column TRIM) with
-   ad-hoc precedence.
+## Failure history (10-21 .. 10-29, 30 owner-visible failures; full table in out/atlas_failures.md)
+| Cause | Count | Examples |
+|---|---|---|
+| Hand copy of game data drifted | 3 | boss hat in OBJ 7 (10-26), saloon colour coding (10-28), SALOON_LOOKS twice (10-29) |
+| Stale capture / not republished | 4 | rebuilt on older main five times (10-26..27), browser cache |
+| Art source precedence | 4 | backs with the old bottom outline, GLOP fish, GUS unswapped (10-29) |
+| Accepted pick not copied into the plan | 3 | Palette Merges picks, 32 new patrons, FRANK..MUFFY |
+| Missing patron or content | 4 | space/robot chapters, all new patrons, current backs, whole-level palettes |
+| Plan slot vs game slot numbering | 3 | "BG1" read as the game's slot; renumbered BG slots clashing |
+| Wrong palette claim | 3 | OBJ 5 "show dancers" (event-swapped), first-listed palette shown |
+| Page shows game state, owner wants plan | 3 | "reflect my plan, not once it's dropped", planned tile counts |
+| Rendering / phone layout | 2 | empty sprite column (img collapse), horizontal scroll at phone width |
+| Information overload / unwanted stats | 4 | "TOO MUCH INFORMATION", tiles-used cards |
+| Publish problems | 3 | live title reverted, delete needed two tries, 512-file limit |
+
+Pattern: every failure is a manual step skipped or a second copy of a fact. Nothing checked the page as the owner sees it.
 
 ## The fix
 1. **Game looks are drawn from the game.** For every look the game ships, the thumbnail comes from the atlas
@@ -31,6 +39,22 @@ Owner: "You for real need to figure out how to keep the atlas up to date and cor
 7. **Supervisor checklist** (spigoteer-review-pages skill): after any merge touching assets/, palettes or patron code,
    and after every art pick: `make atlas-page`, look at a contact sheet of the changed thumbnails, publish, commit.
 
+Added after the failure review (gaps the first seven steps did not cover):
+
+8. **Every pick has a row.** The self-check fails if a patron accepted in any `docs/dev/concepts/*/PICKS.md`, or an
+   answered Qn about art or palettes, has no ART or PLANS row. PLANS entries carry their Qn.
+9. **Plan first, labelled.** The page shows the planned state by default. Any number or swatch that shows the game
+   as it is now carries a NOW label; the self-check refuses unlabelled ones.
+10. **Both slot numbers.** Where the plan renumbers a slot, show "plan OBJ 5 / game OBJ 6". The self-check fails
+    on two looks sharing a plan slot in one venue.
+11. **Check the page as the owner sees it.** A headless render of index.html at 360 px: no horizontal scroll, every
+    image has a real width. Before publishing, read the live page and keep its title; check the file count limit.
+12. **Event-swapped palettes.** The capture records palettes that game events reload; the page labels them per event.
+13. **Verify deletes and renames** with a page `list` afterwards.
+14. **Page rules list** in tools/artifacts/README.md (bare labels, free tiles only, summary first, no extra stats),
+    checked by eye on the contact sheet before each publish.
+
 ## Order
-Steps 4 and 6 first (cheap, stop staleness now), then 1 and 5 (correctness), then 2 and 3 (cleanup).
-One gb-worker, about a day; Color/DMG: page only, no game change.
+Steps 4, 6 and 8 first (cheap, stop staleness and missed picks now), then 1, 5 and 11 (correctness of the
+pictures), then 9, 10, 12 (plan vs game clarity), then 2, 3, 13, 14 (cleanup).
+One gb-worker, one to two days; Color/DMG: page only, no game change.
