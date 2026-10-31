@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-30", "Q69 Igloo (owner's marked grid): swaps cut: FROSTI OBJ 3, 4, 6, 7; IGGY 2; MUFFY 2; MUSH 2, 3, 4, 6, 7; CUB 3, 4, 6, 7; DENALI 4, 6, 7; POLLY 2; MOOSE 2. Color only."),
     ("2026-10-30", "Q68 (owner): back views. ARTISTE and DENALI kept; redrawn backs picked: CRITIC A, ANVIL A, RAJA B, PEPPER A, PIP B. FRINGE back: C (second redraw)."),
     ("2026-10-30", "Q66/Q67 (owner): every venue to 8 patrons, Color only. Bistro: ARTISTE (OBJ 4 / BG 4) and the food critic CRITIC (OBJ 5 / BG 5), own new palettes. Chrome Cow: ANVIL in ROADY's, FRINGE (with VEIL's shirt) in RAVEN's. Lodge: PIP in BOONE's. Igloo: DENALI, the St Bernard rescue dog, in MUSH's. Zoo: RAJA, the tiger, in TUCO's. Factory: PEPPER in CLANK's. Quality pass approved (\"These look good.\")."),
     ("2026-10-30", "Q62 Teahouse (owner's marked grid): swaps cut: SENSEI OBJ 3, 4, 5, 6 (keeps 7); KAGE 0, 7; HANA 0, 7; MONK 4; RONIN 0, 5; POET 4. SAKURA and KON keep all. Color only. Q62 closed."),
