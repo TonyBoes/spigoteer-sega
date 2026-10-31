@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Q69 (owner, marked grid): Bistro cuts PIERRE, NONNA and HERB in OBJ 3 (MIME's palette); every other swap stays. Color only."),
     ("2026-10-31", "Q69 (owner): \"Keep all chrome cow pallets. They all look good alternate looks across all.\" Chrome Cow: no swap cuts. Color only."),
     ("2026-10-31", "Q82 (owner): \"Ziggy b\". ZIGGY = pass A, face stripe moved down level with the eye; back pass A. Color only."),
     ("2026-10-31", "Q83 (owner): \"Do yellow.\" DJ gets his own palette #B07048 #F0D040 #181010 (medium skin, yellow) on the Chrome Cow OBJ 2 / BG 2 once the mug change frees OBJ 2. Q81 (owner): HARLEY's OBJ 6 to deep skin, after the mug change. Color only."),

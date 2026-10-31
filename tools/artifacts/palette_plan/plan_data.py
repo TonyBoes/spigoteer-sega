@@ -130,7 +130,8 @@ VARIANT_CUTS = {"sports": {"NORM": [1, 2, 5, 6, 7], "FRANK": [2]},
                 "ninjas": {"SENSEI": [3, 4, 5, 6], "KAGE": [0, 7], "HANA": [0, 7], "MONK": [4], "RONIN": [0, 5], "POET": [4]},   # owner 2026-10-30 (Q62 Teahouse)
                 "divers": {"FROSTI": [3, 4, 6, 7], "IGGY": [2], "MUFFY": [2], "MUSH": [2, 3, 4, 6, 7], "CUB": [3, 4, 6, 7],
                            "DENALI": [4, 6, 7], "POLLY": [2], "MOOSE": [2]},   # owner 2026-10-30 (Q69 Igloo)
-                "punks": {}}   # owner 2026-10-31 (Q69 Chrome Cow): "Keep all chrome cow pallets." No cuts
+                "punks": {},   # owner 2026-10-31 (Q69 Chrome Cow): "Keep all chrome cow pallets." No cuts
+                "chefs": {"PIERRE": [3], "NONNA": [3], "HERB": [3]}}   # owner 2026-10-31 (Q69 Bistro, marked grid)
 # Owner 2026-10-29: "Auto assigned palettes to new patrons where available make suggestions for palette merges."
 # Own palette where an OBJ slot and a playfield BG slot are free: (OBJ, BG, name), the concept's colours.
 AUTO_OWN = {
