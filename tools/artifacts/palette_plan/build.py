@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-30", "Q70 (owner): Bistro's free OBJ 6 / BG 6 becomes a deep-skin chef palette #FFFFF6 #9C6038 #201820, a swap palette for the Bistro looks. Color only."),
     ("2026-10-30", "Q69 Igloo (owner's marked grid): swaps cut: FROSTI OBJ 3, 4, 6, 7; IGGY 2; MUFFY 2; MUSH 2, 3, 4, 6, 7; CUB 3, 4, 6, 7; DENALI 4, 6, 7; POLLY 2; MOOSE 2. Color only."),
     ("2026-10-30", "Q68 (owner): back views. ARTISTE and DENALI kept; redrawn backs picked: CRITIC A, ANVIL A, RAJA B, PEPPER A, PIP B. FRINGE back: C (second redraw)."),
     ("2026-10-30", "Q66/Q67 (owner): every venue to 8 patrons, Color only. Bistro: ARTISTE (OBJ 4 / BG 4) and the food critic CRITIC (OBJ 5 / BG 5), own new palettes. Chrome Cow: ANVIL in ROADY's, FRINGE (with VEIL's shirt) in RAVEN's. Lodge: PIP in BOONE's. Igloo: DENALI, the St Bernard rescue dog, in MUSH's. Zoo: RAJA, the tiger, in TUCO's. Factory: PEPPER in CLANK's. Quality pass approved (\"These look good.\")."),
@@ -1600,7 +1601,8 @@ for i, v in enumerate(venues):
     for sl in range(8):
         d = m[("OBJ", sl)]
         for t, planned in d["pat"]:
-            ident.append(dict(name=t, obj=sl, planned=planned))
+            if t not in SWAP_PALETTES.get(v["key"], ()):     # a swap palette holds a slot but is no look of its own
+                ident.append(dict(name=t, obj=sl, planned=planned))
         if d["open"]:
             reserved.append(dict(name=d["open"], obj=sl, planned=True))
     for r in ident + reserved:
