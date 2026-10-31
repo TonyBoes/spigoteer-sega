@@ -379,7 +379,10 @@ void boss_reset(void) BANKED {
 
 // The capacity indicator's two mugs (assets/art/boss/tag.txt: ROOM, TAKEN, 8x16 each), 64 bytes to dst: OBJ_CAP.
 void boss_cap_stage(uint8_t *dst) BANKED {
+    uint8_t i, a;
     memcpy(dst, boss_cap_tiles, BOSS_CAP_BYTES);
+    if (is_cgb && venue_id == 6)                  // the Chrome Cow: OBJ palette 1 (the full mug's) holds colours 1 and 2 the other way round than 2 did
+        for (i = 0; i != BOSS_CAP_BYTES; i += 2) { a = dst[i]; dst[i] = dst[i + 1]; dst[i + 1] = a; }
 }
 
 // story shift_start: the fight's goal_t (its banner lines, the pace: the row's walk, spawns x BOSS_SPAWN_PCT %)
@@ -900,7 +903,7 @@ static uint8_t room_free(void) {
 // row above and to the right of him (his top line, from his right edge): a TAKEN (full, dark) mug for each empty he holds, then a ROOM (empty,
 // bright) one for each free hand (OBJ_CAP, tag.txt). It follows his drinking sway. Only the taken ones when there is no limit (the Sumo, the
 // Prototype's red light). OAM 39 down to 37 (Leo has 2 hands, Tex 3: Tex has no effect sprites).
-#define CAP_PROP   (is_cgb ? OBJPAL_MUG_EMPTY : 0)   // (the venue's empty-glass palette; DMG OBP0, the bartender's)
+#define CAP_PROP   (is_cgb ? (venue_id == 6 ? OBJPAL_MUG_FULL : OBJPAL_MUG_EMPTY) : 0)   // (The Chrome Cow: OBJ 1, the tiles' bit planes swapped in boss_cap_stage)   // (the venue's empty-glass palette; DMG OBP0, the bartender's)
 // n: the bands from the topper's y `top`; hat: 1 if the hat is drawn (its budget first). Returns the icons drawn.
 static uint8_t cap_draw(uint8_t top, const uint8_t *n, uint8_t hat) {
     uint8_t *p = (uint8_t *)(shadow_OAM + OAM_CAP), f = room_free(), sl = boss_hands, tk, k, x;

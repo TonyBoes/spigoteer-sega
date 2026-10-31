@@ -245,7 +245,7 @@ def check_row(gb, model, c, taken, free):
     assert dx in (0, 2, -2), "sways with him"
     for k, (tile, flags, x, y) in enumerate(g):
         assert (x, y) == (x0 + dx + 8 * k, y0), (k, x, y)
-        assert tile == OBJ_CAP + (2 if k < taken else 0) and flags == (2 if model == "cgb" else 0), (k, tile, flags)
+        assert tile == OBJ_CAP + (2 if k < taken else 0) and flags == ((1 if c == 6 else 2) if model == "cgb" else 0), (k, tile, flags)
 
 
 def cap_art():
@@ -270,8 +270,12 @@ def test_the_row_shows_an_icon_per_hand_taken_or_free(model, c):
             frames(gb, 3)
             check_row(gb, model, c, taken, hands - taken)
         # the tiles themselves
-        assert bytes(gb.read(0x8000 + OBJ_CAP * 16, 64)) == cap_art(), "ROOM and TAKEN at OBJ 124-127"
-        if model == "cgb":
+        art_ = bytearray(cap_art())
+        if model == "cgb" and c == 6:                      # the Chrome Cow (owner 2026-10-31): OBJ 1 with the bit planes swapped, OBJ 2 unused (test_chrome_cow_obj2)
+            for i in range(0, 64, 2):
+                art_[i], art_[i + 1] = art_[i + 1], art_[i]
+        assert bytes(gb.read(0x8000 + OBJ_CAP * 16, 64)) == bytes(art_), "ROOM and TAKEN at OBJ 124-127"
+        if model == "cgb" and c != 6:
             from test_venues import cgb_palette
             assert gb.oam()[OAM_CAP - 1]["flags"] & 7 == 2 and cgb_palette(gb, 2, True) == venue_pal(c, "empty")
         gb.write("boss_hold", 0)

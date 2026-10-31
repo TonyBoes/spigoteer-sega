@@ -76,6 +76,22 @@ static const uint8_t lift_tile[8] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON
 uint8_t lift_prop[4];                 // [0]: the OAM attribute bits every lifted patron has (CGB 0; DMG OBP1: S_PALETTE); the OBJ palette and the bank bit come from his variant byte (draw_lifted_asm)
 static uint8_t mg_live;
 
+// The Chrome Cow, Color (owner 2026-10-31): its empty mug and glass look are the full mug's OBJ palette 1 with the two bit planes swapped,
+// kept as copies at the same tile numbers in VRAM bank 1 (OAM attribute bit 3): the shared shards and tip tiles are drawn full at one end of the bar
+// and empty at the other, so they cannot be swapped in place. OBJ palette 2 is then unused in the venue. n tiles from id. LCD off.
+#define VENUE_CHROME_COW 6
+#define OAM_BANK1 0x08
+static void swap_bank1(uint8_t id, uint8_t n) {
+    const uint8_t *s = (const uint8_t *)(0x8000u + (uint16_t)id * 16u);
+    uint8_t *d = (uint8_t *)s, k, a, b;
+    for (k = n * 8; k; k--) {
+        a = s[0]; b = s[1];
+        VBK_REG = VBK_BANK_1; d[0] = b; d[1] = a; VBK_REG = VBK_BANK_0;
+        s += 2; d += 2;
+    }
+    music_pump();
+}
+
 // n OBJ tiles src -> dst with the two bit planes swapped (colours 1 and 2 trade places). LCD off.
 static void swap_copy(uint8_t src, uint8_t dst, uint8_t n) {
     const uint8_t *s = (const uint8_t *)(0x8000u + (uint16_t)src * 16u);
@@ -109,6 +125,12 @@ void lift_level_init(uint8_t g) BANKED {
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         spr_hempty_t = OBJ_MUG_DRINK + 6;    spr_hempty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
+        if (venue_id == VENUE_CHROME_COW) {
+            swap_bank1(OBJ_MUG, MUG_TILE_COUNT + GLASS_TILE_COUNT);       // the empty mug, the crash (tip, falls, shards)
+            swap_bank1(OBJ_MUG_DRINK, MUG_DRINK_TILE_COUNT);              // the empty in a patron's hand
+            spr_empty_p = S_PALETTE | OBJPAL_MUG_FULL | OAM_BANK1;
+            spr_hempty_p = S_PALETTE | OBJPAL_MUG_FULL | OAM_BANK1;
+        }
         return;
     }
     OBP1_REG = OBP1_PLAY;
