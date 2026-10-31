@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Owner: MIME's palette reordered so his white is colour 2 (the skin slot) and red colour 1: #D83040 #F8F8F8 #181828; his art's colours 1 and 2 swapped, so he looks the same. Shared with others, their skin is his white. Color only."),
     ("2026-10-31", "Owner: \"Put herb in a pallete that has his skin as the tan.\" HERB now shares PINOT and BASIL's OBJ 7 (#F0F0E8 #C88858 #401820, tan skin in colour 2); OBJ 5 / BG 5 free again. Color only."),
     ("2026-10-31", "Q75 (owner): \"Per anvil, let's use option a, but make the patch on his back red only.\" ANVIL shirt = A (dark vest, bare arms); back patch all red. Head unchanged. Color only."),
     ("2026-10-31", "Owner: \"Critics named Herb. He's a waiter.\" CRITIC renamed HERB (art/chefs_herb*.txt); same art, palette and slot (OBJ 5 / BG 5). Color only."),
