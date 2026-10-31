@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Owner: \"Put herb in a pallete that has his skin as the tan.\" HERB now shares PINOT and BASIL's OBJ 7 (#F0F0E8 #C88858 #401820, tan skin in colour 2); OBJ 5 / BG 5 free again. Color only."),
     ("2026-10-31", "Q75 (owner): \"Per anvil, let's use option a, but make the patch on his back red only.\" ANVIL shirt = A (dark vest, bare arms); back patch all red. Head unchanged. Color only."),
     ("2026-10-31", "Owner: \"Critics named Herb. He's a waiter.\" CRITIC renamed HERB (art/chefs_herb*.txt); same art, palette and slot (OBJ 5 / BG 5). Color only."),
     ("2026-10-30", "Q72 (owner): \"Tan is good for critic.\" OBJ 5 / BG 5 = #F8F8F0 #D09060 #201818 (5b). OBJ 4 still open. Color only."),
