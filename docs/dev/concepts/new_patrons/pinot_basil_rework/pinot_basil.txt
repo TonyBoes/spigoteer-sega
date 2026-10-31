@@ -1,0 +1,230 @@
+; PINOT and BASIL rework proposals. 16x16, . wall (index 0), - whites (1), + skin (2), # dark (3). Palette #F0F0E8 #C88858 #401820 for both.
+; CUR figures are the shipped / planned art copied unchanged (PINOT: palette_plan chefs_pinot, fix B; BASIL: assets/art/patrons/chefs, third figure). They are exempt from the checker's x=15 and bottom-row rules.
+; @fig PINOT_CUR #F0F0E8 #C88858 #401820
+; current: dark hair mass with shine, white shirt, dark bib apron (owner's fix B)
+................
+....#######.....
+...##---#####...
+..#############.
+..###++++++++#..
+..#+#+++#++#+#..
+..#+#+++#++#+#..
+..#+++++++++++#.
+..##+++++--+##..
+...##+++++++#...
+.....#+++++#....
+..###-++-####...
+.#---#-+--#---#.
+#----##+###---#.
+#----#--###---#.
+#---#######---#.
+
+; @fig PINOT_CUR_BACK #F0F0E8 #C88858 #401820
+; current back: all dark hair, white collar
+................
+....#######.....
+...###---###....
+..###########...
+..###########...
+.+###########+..
+.+###########+..
+..###########...
+...#########....
+....##+++##.....
+....#+++++#.....
+...##-----##....
+.#---#---#---#..
+#-----#-#-----#.
+#------#------#.
+#-----#-#-----#.
+
+; @fig PINOT_A #F0F0E8 #C88858 #401820
+; waiter: tall slicked quiff rising to row 0, pencil moustache, dark vest with white bow tie and a narrow shirt V, white sleeves. Slim, torso mostly dark. Drops the bib apron.
+......#####.....
+....#########...
+...##--#######..
+..#############.
+..###++++++++#..
+..#+#+++#++#+#..
+..#+#+++#++#+#..
+..#+++++++++++#.
+..##++####+++#..
+...##+++++++#...
+.....#+++++#....
+...###-+++-###..
+.#-####-#-###-#.
+#---####-###--#.
+#---####-###--#.
+#---####-###--#.
+
+; @fig PINOT_A_BACK #F0F0E8 #C88858 #401820
+; same quiff and hair from behind, ear bumps, nape, white collar, dark vest back with a white cinch strap with an off-centre buckle
+......#####.....
+....#########...
+...##--#######..
+..#############.
+..#############.
+.+###########+#.
+.+###########+#.
+...###########..
+....#########...
+.....##+++##....
+.....#+++++#....
+...###-----###..
+.#-##########-#.
+#---#---#--#--#.
+#---########--#.
+#---########--#.
+
+; @fig PINOT_B #F0F0E8 #C88858 #401820
+; keeps the white shirt and dark bib apron the owner liked (fix B) but slimmer; three-spike swept-up hair breaks the silhouette; white towel tucked in the apron
+....#...#...#...
+...###.###.###..
+..##--#########.
+..#############.
+..###++++++++#..
+..#+#+++#++#+#..
+..#+#+++#++#+#..
+..#+++++++++++#.
+..##+++++--+##..
+...##+++++++#...
+.....#+++++#....
+..###-++-####...
+..#--#####--#...
+.#---#####---#..
+.#---##-###--#..
+.#---##-###--#..
+
+; @fig PINOT_B_BACK #F0F0E8 #C88858 #401820
+; same spikes and hair from behind, ear bumps, white collar, apron straps as a dark back panel with a a small white tie knot with a tail at the waist
+....#...#...#...
+...###.###.###..
+..##--#########.
+..#############.
+..#############.
+.+###########+#.
+.+###########+#.
+...###########..
+....#########...
+.....##+++##....
+.....#+++++#....
+..###-----####..
+..#--#####--#...
+.#---#---#---#..
+.#---##-##---#..
+.#---##-##---#..
+
+; @fig BASIL_CUR #F0F0E8 #C88858 #401820
+; current: flat-top white chef cap with a skin stripe, white jacket with dark bib, skin hands
+....########....
+...#--------#...
+..#---------+#..
+..#--------++#..
+..############..
+...##++++++++#..
+...##+#+++#++#..
+...#++#+++#++#..
+...#+++++++++#..
+...#++#--#+++#..
+....#+++++++#...
+...#-##+++##-#..
+..#--#######--#.
+.#+-#########-+#
+.#+-##-----##-+#
+.#+-##-----##-+#
+
+; @fig BASIL_CUR_BACK #F0F0E8 #C88858 #401820
+; current back: white cap, dark hair block, white jacket with a dark patch
+....########....
+...#--------#...
+..#----------#..
+..#----------#..
+..############..
+..############..
+..#+########+#..
+..#+########+#..
+....##++++##....
+.....#++++#.....
+....##++++##....
+...#--#++#--#...
+..#---####---#..
+.#+----------+#.
+.#+---####---+#.
+.#+---####---+#.
+
+; @fig BASIL_A #F0F0E8 #C88858 #401820
+; tall puffy toque (mushroom top, with vertical pleats) wider than any other Bistro head, bare round face with a grin, white double-breasted jacket with a dark neckerchief knot, no bib, skin hands
+....#######.....
+...#---------#..
+.#----#---#---#.
+.#----#---#---#.
+..#---#---#--#..
+...###########..
+...#+++++++++#..
+...#++++#++#+#..
+...#++++#++#+#..
+....#++--++++#..
+.....#+++++#....
+..#---#+++#---#.
+.#-----###----#.
+.#+----#-#---+#.
+.#+----#-#---+#.
+.#+----#-#---+#.
+
+; @fig BASIL_A_BACK #F0F0E8 #C88858 #401820
+; same toque from behind sitting low over the head (white stays the dominant head colour), dark hair only at the nape, ear bumps, neckerchief tied behind with two tails, plain white jacket back
+....#######.....
+...#---------#..
+.#----#---#---#.
+.#----#---#---#.
+..#---#---#--#..
+...#--#---#--#..
+...###########..
+..+###########+.
+....#########...
+.....##+++##....
+.....#+++++#....
+..#---#####---#.
+.#-----###----#.
+.#+-----#-#--+#.
+.#+------#---+#.
+.#+----------+#.
+
+; @fig BASIL_B #F0F0E8 #C88858 #401820
+; round dome baker's cap, forehead and eyes only, big full dark beard and moustache (mouth a skin notch), white jacket with a dark apron at the waist, skin hands. Head heavy at the bottom
+................
+.....#######....
+...##--------#..
+..#-----------#.
+..#############.
+...#++++++++++#.
+...#++++#++#++#.
+...#++++#++#++#.
+...#+########+#.
+...#####++#####.
+....##########..
+...#--######--#.
+..#----##-----#.
+.#+----------+#.
+.#+-########-+#.
+.#+-########-+#.
+
+; @fig BASIL_B_BACK #F0F0E8 #C88858 #401820
+; same dome cap with a plain crown from behind, dark hair, ear bumps, beard wisps either side of the neck, white jacket back with a centre seam, apron band with a white bow
+................
+.....#######....
+...##--------#..
+..#-----------#.
+..#############.
+...############.
+..+###########+.
+..+###########+.
+....###+++###...
+.....##+++##....
+.....#+++++#....
+...#----------#.
+..#-----#-----#.
+.#+-----#----+#.
+.#+-###--###-+#.
+.#+-###--###-+#.
+
