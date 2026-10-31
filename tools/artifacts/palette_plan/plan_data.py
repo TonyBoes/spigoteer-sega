@@ -109,14 +109,20 @@ EXTRA_LOOKS = {"aliens": ["DASH"], "robots": ["NEKA", "TELLY"]}
 # yet. Fronts and backs copied into art/<venue>_<name>(_back).txt; colours are each concept's own palette.
 NEW_PATRONS = {
     "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D09850", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#A87050", "#7040B0", "#100818"]), ("MIKE", ["#A87050", "#186030", "#081008"])],
-    "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"]), ("INES", ["#E0A878", "#A050C0", "#281830"])],
-    "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"])],
-    "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"])],
-    "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("ROADY", ["#F0B890", "#B04828", "#181018"])],
+    "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"]), ("INES", ["#E0A878", "#A050C0", "#281830"]),
+                    ("PIP", ["#F0B888", "#A8A098", "#302820"])],   # Q66/Q67
+    "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"]),
+              ("ARTISTE", ["#F0D0B0", "#D04858", "#283868"]), ("CRITIC", ["#F8F8F0", "#E88890", "#582040"])],   # Q66/Q67 (owner 2026-10-30): fill to 8
+    "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"]),
+               ("DENALI", ["#F0F0F8", "#C08050", "#281818"])],   # Q66/Q67
+    "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("ROADY", ["#F0B890", "#B04828", "#181018"]),
+              ("ANVIL", ["#F0B890", "#B04828", "#181018"]), ("FRINGE", ["#F0E0F0", "#9048C0", "#180818"])],   # Q66/Q67
     "ninjas": [("SENSEI", ["#F8F8F0", "#D8A070", "#302018"]), ("KON", ["#F8E8D8", "#C82838", "#181010"]), ("MONK", ["#F0C8A0", "#E07820", "#301810"]), ("POET", ["#F8E0C0", "#C89838", "#100810"]), ("HANA", ["#F8D8C0", "#30A8A0", "#182030"])],
-    "zoo": [("TUCO", ["#F8F8E8", "#F89820", "#101018"]), ("ELLIE", ["#F8F8F0", "#A0A0B0", "#101010"]), ("ZIGGY", ["#F8F8F0", "#A0A0B0", "#101010"]), ("PINKY", ["#F8B0C8", "#E04880", "#301020"])],
+    "zoo": [("TUCO", ["#F8F8E8", "#F89820", "#101018"]), ("ELLIE", ["#F8F8F0", "#A0A0B0", "#101010"]), ("ZIGGY", ["#F8F8F0", "#A0A0B0", "#101010"]), ("PINKY", ["#F8B0C8", "#E04880", "#301020"]),
+            ("RAJA", ["#F8F8E8", "#F89820", "#101018"])],   # Q66/Q67
     "aliens": [("MOTHMA", ["#F8F0D0", "#C8A068", "#382010"]), ("GLOP", ["#D0F0F8", "#58A0F0", "#081828"]), ("LUNA", ["#F0F0F8", "#40B8A8", "#100820"]), ("VENUS", ["#C8F8F0", "#6058E0", "#180828"])],
-    "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("TOOB", ["#E8F0F8", "#9068D8", "#180830"])],
+    "robots": [("CLANK", ["#F8E8B8", "#E07838", "#201008"]), ("TOOB", ["#E8F0F8", "#9068D8", "#180830"]),
+               ("PEPPER", ["#F8E8B8", "#E07838", "#201008"])],   # Q66/Q67
 }
 # Palette-swap picks (Q62): the OBJ slots the owner crossed out per look; every other patron OBJ slot of the venue is allowed (Color only).
 VARIANT_CUTS = {"sports": {"NORM": [1, 2, 5, 6, 7], "FRANK": [2]},
@@ -127,7 +133,7 @@ VARIANT_CUTS = {"sports": {"NORM": [1, 2, 5, 6, 7], "FRANK": [2]},
 AUTO_OWN = {
     "sports": [(4, 4, "PIPER"), (5, 5, "TOM"), (6, 6, "MIKE")],
     "lumberjacks": [(4, 4, "SMITH"), (5, 5, "ROD"), (6, 3, "INES")],
-    "chefs": [(3, 3, "MIME")],
+    "chefs": [(3, 3, "MIME"), (4, 4, "ARTISTE"), (5, 5, "CRITIC")],   # Q66 (owner 2026-10-30): the Bistro's free OBJ 4-5 / BG 4-5
     "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
     "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY")],
     "ninjas": [(4, 4, "HANA"), (5, 2, "MONK"), (7, 7, "POET")],   # owner 2026-10-30: MONK in his orange concept colours on the freed OBJ 5 and the free BG 2
@@ -136,8 +142,10 @@ AUTO_OWN = {
     "robots": [(5, 5, "TOOB")],                 # owner 2026-10-29: "With the freed up slot, lets make Bubble Purple again."
 }
 # Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
-AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT"]}, "punks": {7: ["DJ"]}, "ninjas": {6: ["KON"], 0: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"]},
-              "divers": {5: ["CUB"], 2: ["FROSTI"]}, "robots": {1: ["CLANK"]},       # Q43 (owner 2026-10-29)
+AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT"]}, "punks": {7: ["DJ"], 4: ["FRINGE"], 5: ["ANVIL"]},   # Q66: FRINGE in RAVEN's, ANVIL in ROADY's
+              "lumberjacks": {1: ["PIP"]},   # Q66: PIP in BOONE's (the Sasquatch's OBJ 1)
+              "ninjas": {6: ["KON"], 0: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"], 3: ["RAJA"]},
+              "divers": {5: ["CUB", "DENALI"], 2: ["FROSTI"]}, "robots": {1: ["CLANK", "PEPPER"]},       # Q43 (owner 2026-10-29)
               "aliens": {4: ["GLOP"], 5: ["VENUS"]}}          # owner 2026-10-29: GLOP in LUNA's palette; VENUS on OBJ 5
 # Q43: "Sensei & poet -- blend colors so closer together but matching neither." Their shared OBJ 5 palette, halfway between.
 _NP_BLEND = {"POET": ["#F8D8C0", "#905830", "#100810"]}   # owner 2026-10-30: "Give poet his own with brown shirt." (colour 2: sleeves, hat brim)
