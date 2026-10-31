@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Owner drew a new PIERRE front (outlined toque, white moustache and beard): patron_pass/chefs/pierre_owner.txt; back still the game's; held. DMG and Color."),
     ("2026-10-31", "Q69 (owner): \"Robots keep all swaps.\" Robot Factory: no cuts. Color only."),
     ("2026-10-31", "Q85 (owner): \"Taller eyes help. Yes.\" PIERRE and BRIE get 2 px eyes (patron_pass/chefs/*_eyes.txt); into the game when the patron hold lifts. DMG and Color."),
     ("2026-10-31", "Q69 (owner, marked grid): Zoo cuts COCO 4; TUCO 1, 7; RAJA 4, 7; PINKY 1, 6; BAMBOO 1, 3, 4; ELLIE 3, 4; ZIGGY 1, 4, 7; MUDDY 1, 3. Color only."),
