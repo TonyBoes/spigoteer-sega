@@ -162,8 +162,9 @@ for _v, _d in AUTO_SHARE.items():
     for _o, _ns in _d.items():
         PLANS[_v].setdefault("join", {}).setdefault(("OBJ", _o), []).extend(_ns)
 PLANS["ninjas"].setdefault("bg", {}).update(SENSEI=5)    # owner 2026-10-30: Sal's OBJ 0, its colours on BG 5
-SWAP_PALETTES = {"chefs": ["Deep skin"]}   # palette-only slots: swap colours for the venue's looks, no look of their own
+SWAP_PALETTES = {"chefs": ["Deep skin", "Sage"]}   # palette-only slots: swap colours for the venue's looks, no look of their own
 PLANS["chefs"].setdefault("add", {})[("OBJ", 6)] = ("Deep skin", ["#FFFFF6", "#9C6038", "#201820"])   # Q70 (owner 2026-10-30): a swap palette on the free OBJ 6 / BG 6
+PLANS["chefs"]["add"][("OBJ", 5)] = ("Sage", ["#D0E0A8", "#C88860", "#201820"])   # Q80 (owner 2026-10-31): sage swap palette, dark kept near-black like the others, on the freed OBJ 5 / BG 5
 PLANS["chefs"].setdefault("bg", {})["NONNA"] = 2                  # PIERRE and BRIE's BG 2 (OBJ 0 is Sal's)
 PLANS["lumberjacks"].setdefault("bg", {})["BOONE"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
 PLANS["robots"].setdefault("bg", {})["CLANK"] = 2                 # Q43 B: the full mug's OBJ 1; BG 1 is the keg's

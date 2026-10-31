@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Q80 (owner): \"I like the sage, but let's leave the background color as the black like it is for the others.\" New Bistro swap palette Sage on OBJ 5 / BG 5: #D0E0A8 #C88860 #201820. Color only."),
     ("2026-10-31", "Q71/Q74, Q79 (owner): HARLEY (woodcarver, bare arms, tank with buttons), PIERRE (shirt SB) and BRIE (shirt CUR), faces 1 px taller, imported into the game. DMG and Color."),
     ("2026-10-31", "Q76 (owner): \"Olive works as a name.\" ARTISTE renamed OLIVE (art/chefs_olive*.txt); same art and mustard palette, OBJ 4 / BG 4. Color only."),
     ("2026-10-31", "Q72 (owner): \"Now I want the artist in the mustard.\" ARTISTE OBJ 4 / BG 4 = #D8A030 #F0D0B0 #302018 (4b). Color only."),
