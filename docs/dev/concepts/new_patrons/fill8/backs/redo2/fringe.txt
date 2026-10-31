@@ -1,0 +1,36 @@
+; @fig FRINGE_C #F0E0F0 #9048C0 #180818
+; From behind: the front's hair mass with the purple streak as a two-pixel lock down viewer's left (her left) that drapes onto the purple shoulder, two diagonal purple sheen strands flowing down-left across the hair from a crown highlight, hair tips on the light yoke band, dark shirt with purple sleeves and a purple back seam.
+....#########...
+...###########..
+..##+++##+++###.
+..#++#########..
+..#++###+#####..
+..#++###+##+##..
+..#++##+###+##..
+..#++##+##+###..
+..#++#+###+###..
+..#++#+###+##...
+..#+########....
+.#++-#######-++.
+.#++---------++.
+#++####+######+.
+#++####+#####++.
+#+++#+#+#+#+#++.
+; @fig FRINGE_D #F0E0F0 #9048C0 #180818
+; From behind: hair with a centre parting and two curtains, each with long vertical purple sheen strands, the one-pixel purple streak lock down viewer's left like the front, dark shirt with purple sleeves and a purple hem row.
+....#########...
+...####+######..
+..##++#+##++###.
+..#+###+######..
+..#+###+###+##..
+..#+###+###+##..
+..#+#+#####+##..
+..#+#+#####+##..
+..#+#+##+#####..
+..#+####+####...
+..#+#########...
+.#++-#######-++.
+.#++---------++.
+#++##########++.
+#++###########+.
+#++++#+#+#+#+++.
