@@ -281,6 +281,8 @@ def users(kind, v, s):
             pat = [n[e] + " (left half, lifted)"]
         other = {0: ["Sal", "Tip coin"], 1: ["Full mug", "Fill glass", "Breaking glass", "Pour sparkle"],
                  2: ["Empty mug", "Breaking glass", "Boss: capacity mugs"], 5: ["Show dancers"], 7: ["Boss fight: " + TOPPER[v["key"]]]}.get(s, [])
+        if v["key"] == "punks" and s in (1, 2):          # the Chrome Cow draws its empty mug, glass and capacity mugs in OBJ 1 on CGB (2026-10-31)
+            other = ["Full mug", "Fill glass", "Breaking glass", "Pour sparkle", "Empty mug", "Boss: capacity mugs"] if s == 1 else []
     else:
         pat = [n[BG_PATRON[s]]] if s in BG_PATRON else []
         if v["key"] == "cowboys":

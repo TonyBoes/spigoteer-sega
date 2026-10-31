@@ -64,9 +64,9 @@ PLANS = {
     "punks": dict(
         q=["Q43","2026-10-25"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
         moves=[("Show dancers", "OBJ", 5, 6, "The band")],
-        recolour={("BG", 3): "OBJ 6"},
+        recolour={("BG", 3): "OBJ 6", ("OBJ", 6): {1: "#8C5A3C"}},   # Q81 (owner 2026-10-31): HARLEY's skin deep
         open={},
-        why="Owner 2026-10-25: the band shares HARLEY's palette.",
+        why="Owner 2026-10-25: the band shares HARLEY's palette. 2026-10-31: HARLEY deep skin (Q81).",
     ),
     "ninjas": dict(
         q=["Q43","Q51","2026-10-25","2026-10-30"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
@@ -115,7 +115,7 @@ NEW_PATRONS = {
               ("OLIVE", ["#D8A030", "#F0D0B0", "#302018"]), ("HERB", ["#F0F0E8", "#C88858", "#401820"])],   # Q66/Q67 (owner 2026-10-30): fill to 8
     "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"]),
                ("DENALI", ["#F0F0F8", "#C08050", "#281818"])],   # Q66/Q67
-    "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("ROADY", ["#F0B890", "#B04828", "#181018"]),
+    "punks": [("DJ", ["#B07048", "#F0D040", "#181010"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("ROADY", ["#F0B890", "#B04828", "#181018"]),
               ("ANVIL", ["#F0B890", "#B04828", "#181018"]), ("FRINGE", ["#F0E0F0", "#9048C0", "#180818"])],   # Q66/Q67
     "ninjas": [("SENSEI", ["#F8F8F0", "#D8A070", "#302018"]), ("KON", ["#F8E8D8", "#C82838", "#181010"]), ("MONK", ["#F0C8A0", "#E07820", "#301810"]), ("POET", ["#F8E0C0", "#C89838", "#100810"]), ("HANA", ["#F8D8C0", "#30A8A0", "#182030"])],
     "zoo": [("TUCO", ["#F8F8E8", "#F89820", "#101018"]), ("ELLIE", ["#F8F8F0", "#A0A0B0", "#101010"]), ("ZIGGY", ["#F8F8F0", "#A0A0B0", "#101010"]), ("PINKY", ["#F8B0C8", "#E04880", "#301020"]),
@@ -137,14 +137,14 @@ AUTO_OWN = {
     "lumberjacks": [(4, 4, "SMITH"), (5, 5, "ROD"), (6, 3, "INES")],
     "chefs": [(3, 3, "MIME"), (4, 4, "OLIVE")],   # Q66 (owner 2026-10-30): the Bistro's free OBJ 4 / BG 4; HERB moved to OBJ 7 (owner 2026-10-31)
     "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
-    "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY")],
+    "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY"), (2, 2, "DJ")],   # Q83 (owner 2026-10-31): DJ yellow on the OBJ 2 the mug change freed, free BG 2
     "ninjas": [(4, 4, "HANA"), (5, 2, "MONK"), (7, 7, "POET")],   # owner 2026-10-30: MONK in his orange concept colours on the freed OBJ 5 and the free BG 2
     "zoo": [(3, 3, "TUCO"), (4, 4, "PINKY")],
     "aliens": [(3, 5, "MOTHMA"), (4, 4, "LUNA")],
     "robots": [(5, 5, "TOOB")],                 # owner 2026-10-29: "With the freed up slot, lets make Bubble Purple again."
 }
 # Concepts drawn in an existing patron's colours (within a few RGB steps): they share that palette, no slot spent.
-AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT", "HERB"]}, "punks": {7: ["DJ"], 4: ["FRINGE"], 5: ["ANVIL"]},   # Q66: FRINGE in RAVEN's, ANVIL in ROADY's
+AUTO_SHARE = {"chefs": {0: ["NONNA"], 7: ["PINOT", "HERB"]}, "punks": {4: ["FRINGE"], 5: ["ANVIL"]},   # Q66: FRINGE in RAVEN's, ANVIL in ROADY's
               "lumberjacks": {1: ["PIP"]},   # Q66: PIP in BOONE's (the Sasquatch's OBJ 1)
               "ninjas": {6: ["KON"], 0: ["SENSEI"]}, "zoo": {6: ["ELLIE", "ZIGGY"], 3: ["RAJA"]},
               "divers": {5: ["CUB", "DENALI"], 2: ["FROSTI"]}, "robots": {1: ["CLANK", "PEPPER"]},       # Q43 (owner 2026-10-29)
@@ -212,7 +212,7 @@ PATRON_ART = {
 
     # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
     "chefs": {"pierre": ("old", "old", "Q79 (owner 2026-10-31), in the game"), "brie": ("old", "old", "Q79 (owner 2026-10-31), in the game"), "basil": ("basil_face", "basil_back", ART_PICKS_Q)},
-    "punks": {"punk": ("spike", "spike_back", ART_PICKS_Q), "harley": ("old", "old", "Q71/Q74 (owner 2026-10-31), in the game"), "baby": ("slick", "slick_back", ART_PICKS_Q)},
+    "punks": {"punk": ("old", "old", "Q84 (owner 2026-10-31), in the game"), "harley": ("old", "old", "Q71/Q74 (owner 2026-10-31), in the game"), "baby": ("old", "old", "Q84 (owner 2026-10-31), in the game")},
     "ninjas": {"kage": ("old", "old", ART_PICKS_Q), "sakura": ("old", "sakura_back", ART_PICKS_Q), "ronin": ("old", "ronin_v2_back", ART_PICKS_Q)},
     "zoo": {"coco": ("coco", "coco_back", ART_PICKS_Q), "bamboo": ("bamboo", "bamboo_back", ART_PICKS_Q), "muddy": ("old", "old", ART_PICKS_Q)},
     "aliens": {"zorp": ("old", "zorp_v2_back", ART_PICKS_Q), "xeno": ("old", "xeno_v2_back", ART_PICKS_Q), "glorp": ("glorp_v2", "glorp_v2_back", ART_PICKS_Q)},
