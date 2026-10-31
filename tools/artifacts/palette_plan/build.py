@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Q75 (owner): \"Per anvil, let's use option a, but make the patch on his back red only.\" ANVIL shirt = A (dark vest, bare arms); back patch all red. Head unchanged. Color only."),
+    ("2026-10-31", "Owner: \"Critics named Herb. He's a waiter.\" CRITIC renamed HERB (art/chefs_herb*.txt); same art, palette and slot (OBJ 5 / BG 5). Color only."),
     ("2026-10-30", "Q72 (owner): \"Tan is good for critic.\" OBJ 5 / BG 5 = #F8F8F0 #D09060 #201818 (5b). OBJ 4 still open. Color only."),
     ("2026-10-30", "Owner: ARTISTE had the skin/accent reversal: her colours 1 and 2 swapped (art and palette), skin now in colour 2 like every Bistro look; she looks the same. OBJ 4 = #D04858 #F0D0B0 #283868. Color only."),
     ("2026-10-30", "Q70 (owner): Bistro's free OBJ 6 / BG 6 becomes a deep-skin chef palette #FFFFF6 #9C6038 #201820, a swap palette for the Bistro looks. Color only."),

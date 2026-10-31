@@ -112,7 +112,7 @@ NEW_PATRONS = {
     "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"]), ("INES", ["#E0A878", "#A050C0", "#281830"]),
                     ("PIP", ["#F0B888", "#A8A098", "#302820"])],   # Q66/Q67
     "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#F8F8F8", "#D83040", "#181828"]),
-              ("ARTISTE", ["#D04858", "#F0D0B0", "#283868"]), ("CRITIC", ["#F8F8F0", "#D09060", "#201818"])],   # Q66/Q67 (owner 2026-10-30): fill to 8
+              ("ARTISTE", ["#D04858", "#F0D0B0", "#283868"]), ("HERB", ["#F8F8F0", "#D09060", "#201818"])],   # Q66/Q67 (owner 2026-10-30): fill to 8
     "divers": [("MUFFY", ["#E0A878", "#E85898", "#301030"]), ("CUB", ["#F0F8F8", "#E0A878", "#283050"]), ("MUSH", ["#F0F0F8", "#C08050", "#281818"]), ("FROSTI", ["#F0F0F8", "#78A8C8", "#182038"]),
                ("DENALI", ["#F0F0F8", "#C08050", "#281818"])],   # Q66/Q67
     "punks": [("DJ", ["#F8D8C0", "#3878F8", "#100C28"]), ("RAVEN", ["#F0E0F0", "#9048C0", "#180818"]), ("ROADY", ["#F0B890", "#B04828", "#181018"]),
@@ -135,7 +135,7 @@ VARIANT_CUTS = {"sports": {"NORM": [1, 2, 5, 6, 7], "FRANK": [2]},
 AUTO_OWN = {
     "sports": [(4, 4, "PIPER"), (5, 5, "TOM"), (6, 6, "MIKE")],
     "lumberjacks": [(4, 4, "SMITH"), (5, 5, "ROD"), (6, 3, "INES")],
-    "chefs": [(3, 3, "MIME"), (4, 4, "ARTISTE"), (5, 5, "CRITIC")],   # Q66 (owner 2026-10-30): the Bistro's free OBJ 4-5 / BG 4-5
+    "chefs": [(3, 3, "MIME"), (4, 4, "ARTISTE"), (5, 5, "HERB")],   # Q66 (owner 2026-10-30): the Bistro's free OBJ 4-5 / BG 4-5
     "divers": [(4, 4, "MUFFY"), (5, 5, "MUSH")],
     "punks": [(4, 4, "RAVEN"), (5, 5, "ROADY")],
     "ninjas": [(4, 4, "HANA"), (5, 2, "MONK"), (7, 7, "POET")],   # owner 2026-10-30: MONK in his orange concept colours on the freed OBJ 5 and the free BG 2
