@@ -40,9 +40,9 @@ PLANS = {
     ),
     # owner 2026-10-25: every recommended and optional merge on the Palette Merges page (tools/artifacts/palette_merges/build.py MERGES)
     "lumberjacks": dict(
-        q=["Q59","Q60","2026-10-25","2026-10-29"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
+        q=["Q59","Q60","2026-10-25","2026-10-29","Q86"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
         moves=[("Show dancers", "OBJ", 5, 1, "Sasquatch"), ("WILLOW", "OBJ", 6, 3, "WILLOW, red hair"), ("WILLOW", "BG", 3, 2, "WILLOW, red hair")],
-        recolour={},
+        recolour={("OBJ", 7): {1: "#C08858"}, ("BG", 4): "OBJ 7"},   # Q86 (owner 2026-10-31): "Ash to medium"
         open={},
         join={("OBJ", 1): ["BOONE"]},   # owner 2026-10-29: BOONE shares the Sasquatch's palette
         why="Owner 2026-10-25: the Sasquatch shares the full mug (foam to cream); CEDAR and WILLOW share CEDAR's palette (WILLOW's navy goes).",
@@ -109,7 +109,7 @@ EXTRA_LOOKS = {"aliens": ["DASH"], "robots": ["NEKA", "TELLY"]}
 # yet. Fronts and backs copied into art/<venue>_<name>(_back).txt; colours are each concept's own palette.
 NEW_PATRONS = {
     "sports": [("FRANK", ["#F8E0C8", "#E03830", "#301818"]), ("PIPER", ["#F0C098", "#D09850", "#182058"]), ("LOUIS", ["#F0C8A0", "#389850", "#101828"]), ("TOM", ["#A87050", "#7040B0", "#100818"]), ("MIKE", ["#A87050", "#186030", "#081008"])],
-    "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#F8C090", "#488878", "#182028"]), ("INES", ["#E0A878", "#A050C0", "#281830"]),
+    "lumberjacks": [("BOONE", ["#F0B888", "#A8A098", "#302820"]), ("SMITH", ["#F8C090", "#988838", "#283018"]), ("ROD", ["#8C5A3C", "#488878", "#182028"]), ("INES", ["#E0A878", "#A050C0", "#281830"]),
                     ("PIP", ["#F0B888", "#A8A098", "#302820"])],   # Q66/Q67
     "chefs": [("PINOT", ["#F0F0E8", "#C88858", "#401820"]), ("NONNA", ["#F8F8F0", "#F0B888", "#202030"]), ("MIME", ["#D83040", "#F8F8F8", "#181828"]),
               ("OLIVE", ["#D8A030", "#F0D0B0", "#302018"]), ("HERB", ["#F0F0E8", "#C88858", "#401820"])],   # Q66/Q67 (owner 2026-10-30): fill to 8
