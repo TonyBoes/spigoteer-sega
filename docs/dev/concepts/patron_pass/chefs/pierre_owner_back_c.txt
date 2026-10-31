@@ -1,0 +1,17 @@
+; PIERRE back C (revision 2026-10-31): the front's toque rows exactly; rounded white hair (wider at the ears, dark bottom corners), 1x2 skin ears, 1-row skin neck, dark collar line, plain jacket with sleeve lines.
+....#--------#..
+...#--+--+--+-#.
+...#--+--+--+-#.
+...#--+--+--+-#.
+....#--------#..
+....##########..
+....#--------#..
+...#----------#.
+...#+--------+#.
+...#+--------+#.
+....#--------#..
+....##------##..
+......#++++#....
+..############..
+.#--#------#--#.
+.#--#------#--#.
