@@ -78,6 +78,8 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Q83 (owner): \"Do yellow.\" DJ gets his own palette #B07048 #F0D040 #181010 (medium skin, yellow) on the Chrome Cow OBJ 2 / BG 2 once the mug change frees OBJ 2. Q81 (owner): HARLEY's OBJ 6 to deep skin, after the mug change. Color only."),
+    ("2026-10-31", "Q82 (owner): \"Ellie a, ziggy a but fix eyes.\" ELLIE = pass A (rounder head, trunk tip). ZIGGY eye fix shown for a pick. Color only."),
     ("2026-10-31", "Q80 (owner): \"I like the sage, but let's leave the background color as the black like it is for the others.\" New Bistro swap palette Sage on OBJ 5 / BG 5: #D0E0A8 #C88860 #201820. Color only."),
     ("2026-10-31", "Q71/Q74, Q79 (owner): HARLEY (woodcarver, bare arms, tank with buttons), PIERRE (shirt SB) and BRIE (shirt CUR), faces 1 px taller, imported into the game. DMG and Color."),
     ("2026-10-31", "Q76 (owner): \"Olive works as a name.\" ARTISTE renamed OLIVE (art/chefs_olive*.txt); same art and mustard palette, OBJ 4 / BG 4. Color only."),
