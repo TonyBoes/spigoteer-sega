@@ -70,6 +70,8 @@ static const level_cfg_t level_table[LEVEL_ROWS] = {
 // Color, the Saloon: GUS (look 2, variant C) is drawn with his skin in colour 2 and his beard in 1, every other look the other way round, so his
 // tiles get their two bitplanes swapped (1 <-> 2; 0 and 3 stay) and palette instance 0 (HANK's) is his own (owner Q46 2026-10-29). LCD off.
 // Tiles: the 42 shifted ones, the shift-0 pose and the back view (the credits load pose 0 from ROM unswapped, with EMMA's palette: the same picture).
+// The Lodge's ASH (look 2 too, the same offsets; owner 2026-10-30: skin in colour 1 like every other look, so palettes can be shared) is the same swap
+// with lumberjacks_c's colours 1 and 2 exchanged in assets/palettes.json: the same picture. The credits swap that palette back (credits.c).
 static void swap_tiles(uint8_t id, uint8_t n) {
     uint8_t *q, a, t;
     for (; n; n--, id++) {
@@ -88,7 +90,7 @@ static void load_patron_group(uint8_t g) {
     uint8_t v;
     load_patron_tiles(g, PATRON_TILE_BASE);      // 144 pre-shifted + 12 back-view tiles, from the group's bank (LCD is off)
     if (!is_cgb) return;
-    if (!g) swap_gus();
+    if (!g || g == 2) swap_gus();   // (the Saloon's GUS, the Lodge's ASH)
     for (v = 0; v < 3; v++) {                    // colour 0 = the wall, so the art needs no transparency
         patron_pal_get(g, v, p);
         p[0] = WALL_RGB;

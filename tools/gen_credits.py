@@ -46,6 +46,7 @@ PATRONS = [
 SLOT = [[0, 1, 2]] * 10
 SLOT[2] = [0, 2, 1]
 PAL = [list(s) for s in SLOT]             # the palette instance of each slot (Color): the variant's, but the Saloon's C (GUS) wears his own palette,
+PAL[2] = [0, 5, 1]                        # the Lodge's ASH: his pose is unswapped here (level.c swaps it on Color), so instance 5 = lumberjacks_c with colours 1 and 2 as before
 PAL[0] = [0, 1, 1]                        # EMMA's (owner 2026-10-29); instance 2 is the moss swap he never spawns in
 
 # the roll: one string a tilemap ROW, centred; "" is a blank row. A sentence's lines are on consecutive rows, a list's items have two blank rows

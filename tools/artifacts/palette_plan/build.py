@@ -1662,7 +1662,7 @@ for i, v in enumerate(venues):
             tr = trimmed_front(v, idx, pf)
             if tr:
                 pf = tr
-            if sal and idx == 2:
+            if (sal or v["key"] == "lumberjacks") and idx == 2:
                 swap12 = lambda g: [x.translate(str.maketrans("-+", "+-")) for x in g] if g else g
                 pf, pb = swap12(pf), swap12(pb)
             GAME_ART.append((v["key"], idx, game_front(v, idx) if sal else frames(os.path.join(ROOT, "assets/art/patrons/%s.txt" % v["key"]))[idx],

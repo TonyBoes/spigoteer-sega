@@ -247,7 +247,7 @@ def patron_rule_errors(rows, gaps=(), side="front"):
 
 
 def verify_pictures(ns):
-    """a. the game's text art (assets/art/patrons, GUS swapped as the Color game does) equals the capture's VRAM tiles for every look;
+    """a. the game's text art (assets/art/patrons, GUS and ASH swapped as the Color game does) equals the capture's VRAM tiles for every look;
     b. every thumbnail from the game is, pixel for pixel and colour for colour, the captured tiles with the captured palette RAM (re-read from the
        PNG that is published); c. every thumbnail from the plan passes the patron rules (x=15, bottom row, holes)."""
     import os
@@ -260,7 +260,7 @@ def verify_pictures(ns):
     used_exc = set()
     errs = []
     for k, idx, gf, gb, cf, cb in ns["GAME_ART"]:
-        sw = (lambda r: swap12(r)) if (k == "cowboys" and idx == 2) else (lambda r: r)
+        sw = (lambda r: swap12(r)) if (k in ("cowboys", "lumberjacks") and idx == 2) else (lambda r: r)
         for side, txt, cap in (("front", gf, cf), ("back", gb, cb)):
             if cap is None:
                 errs.append("%s look %d %s: its tiles are not loaded in the capture" % (k, idx, side))
