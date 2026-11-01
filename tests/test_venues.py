@@ -189,14 +189,13 @@ def test_each_level_loads_its_venue(gb, group):
         assert cgb_palette(gb, 5) == v["pal"][0] and cgb_palette(gb, 6) == v["pal"][1]
         assert cgb_palette(gb, BGPAL_BAR) == v["pal"][2]
         # (the Saloon's BG 7 holds its palette instance 3, ROSIE and REDD: the keg's slot is free there; its colour 0 is the wall, below)
-        if GROUPS[group] == "robots":      # (the Factory, generated looks: BG 7 holds palette instance 5, TELLY's mint, loaded with the level; its keg is on BG 1)
-            assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and cgb_palette(gb, 7)[1:] == json.loads((ROOT / "assets" / "palettes.json").read_text())["robots_c"]["rgb15"]
-        elif GROUPS[group] in ("zoo", "aliens"):      # (the Zoo's MUDDY, the Space Lounge's GLORP: their own BG 7, the Atlas's slot; the keg is on BG 1)
-            assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and cgb_palette(gb, 7)[1:] == json.loads((ROOT / "assets" / "palettes.json").read_text())["zoo_hippo" if GROUPS[group] == "zoo" else "aliens_c"]["rgb15"]
+        if GROUPS[group] in ("robots", "divers", "punks", "ninjas", "zoo", "aliens"):      # (the generated venues: BG 7 holds look C's palette instance (TELLY's mint, MOOSE's), loaded with the level; the keg is on BG 1)
+            assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and cgb_palette(gb, 7)[1:] == json.loads((ROOT / "assets" / "palettes.json").read_text())[{"ninjas": "ninjas_poet", "zoo": "zoo_hippo"}.get(GROUPS[group], GROUPS[group] + "_c")]["rgb15"]
         else:
             assert cgb_palette(gb, 7) == v["pal"][3] if group else cgb_palette(gb, 7)[0] == v["pal"][2][0]
         assert cgb_palette(gb, OBJPAL_MUG_FULL, obj=True)[1:] == v["pal"][4][1:]
-        assert cgb_palette(gb, OBJPAL_MUG_EMPTY, obj=True)[1:] == v["pal"][5][1:]
+        if GROUPS[group] != "punks":             # (the Chrome Cow's empty mug is OBJ 1 with the bit planes swapped, lift.c: its OBJ 2 is DJ's yellow)
+            assert cgb_palette(gb, OBJPAL_MUG_EMPTY, obj=True)[1:] == v["pal"][5][1:]
         looks_on = re.search(r"looks_on\[\d+\] = \{ ([^}]*)\}", (ROOT / "build" / "looks_pick.h").read_text()).group(1).replace(",", "").split()
         if group and looks_on[group] == "0":     # (the Saloon and a venue with Color-only looks keep their 5th palette instance in OBJ 5 until a show takes it: render.c pal5_check)
             assert cgb_palette(gb, OBJPAL_DANCER, obj=True)[1:] == v["pal"][6][1:]

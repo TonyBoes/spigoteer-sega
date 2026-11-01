@@ -255,7 +255,8 @@ def check_start(gb, c, a, model):
     r = row(c)
     if model == "cgb":
         wall = cgb_palette(gb, 2)[0]
-        assert cgb_palette(gb, 4) == [wall] + a["pal"][1:], "BG 4: his colours over the venue's wall"
+        body = gb.read(gb.addr("story_scratch") + 262 + 2, 1)[0]       # (look 2's BG slot, INST_BG[2]: BG 4 in the legacy venues, the Atlas's in a generated one: BOSS_PAL)
+        assert cgb_palette(gb, body) == [wall] + a["pal"][1:], f"BG {body}: his colours over the venue's wall"
         lamp = a["name"] == "prototype"       # (the Prototype's lamp: colour 2 is green in OBJ 7 at the start)
         want = a["pal"][1:]
         if a["name"] == "duke":               # (his helmet has its own colours: red shell, white stripe, outline)

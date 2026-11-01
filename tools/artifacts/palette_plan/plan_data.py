@@ -200,17 +200,22 @@ BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
 # What the engine can hold for the generated looks tables (tools/gen_looks.py): the BG slots patron palette instances may sit on. Each instance's own slot is the
 # Atlas's (plan_slots.json: the BG slot listing the same patrons); BG 2, 3, 4, 7 are loaded with the level, and the Factory's chain reloads BG 5 early
 # (line 31) and BG 6 late (line 39), where the playfield starts.
-ENGINE_BG = {"robots": [2, 3, 4, 5, 6, 7]}
+ENGINE_BG = {"robots": [2, 3, 4, 5, 6, 7], "divers": [2, 3, 4, 5, 6, 7], "punks": [2, 3, 4, 5, 6, 7], "ninjas": [2, 3, 4, 5, 6, 7]}
 # OBJ slots a boss fight loads its own palettes into (src/boss_prototype.c: lamp OBJ 4, body OBJ 5, topper OBJ 7): a patron on one of them sits out the fight,
 # and so does look 2 (the C slot's tiles are the boss's). gen_looks.py turns these into combo_boss.
-BOSS_OWN_OBJ = {"robots": [4, 5, 7]}
+BOSS_OWN_OBJ = {"robots": [4, 5, 7], "divers": [7], "punks": [5, 7], "ninjas": [7], "zoo": [4, 7], "aliens": [4, 7]}
+# Instances 0-2 are looks 0-2's OBJ slots (gen_looks.py). Where the plan puts two of the three natives on one OBJ slot (the Teahouse: RONIN joined SAKURA's OBJ 6) the
+# third instance is named here: look 2's boss slot (the Sumo's body is BG 7, his topknot OBJ 7 = POET's freed palette). Look 2 may still spawn on any of its allowed slots.
+NATIVE_OBJ = {"ninjas": [3, 6, 7]}
+# The stage palette the mid-frame chain reloads EARLY (line 31, the end of the stage's third text row); the other is reloaded late (line 39). The early one must not be used
+# in the stage's last row: the Factory's BG 5 ends on row 3 (its BG 6 is the shelf under the stage); the Igloo, the Chrome Cow and the Teahouse have BG 5 on the last row
+# and BG 6 earlier, so BG 6 is the early one there. tests/test_extra_looks_venues.py checks this against the venues' stage attributes.
+STAGE_EARLY = {"robots": 5, "divers": 6, "punks": 6, "ninjas": 6, "zoo": 6, "aliens": 6}
 # Jungle Zoo and Space Lounge (any boss: body BG 4 = BOSS_PAL, topper OBJ 7; the BG 4 patrons' OBJ 4 sits out too). Space: BG 0 is XENO's walking palette (the bar
 # takes his colours, owner Q53), so the engine may put an instance on it; BG_PAIR: OBJ slot -> BG slot where the Atlas lists the patron on a shared BG slot (flagged:
 # Space BG 3 is listed for "XENO, VENUS" with XENO's colours, but VENUS's OBJ 5 colours are the show's; she gets BG 3 in those colours, XENO the bar's BG 0).
 ENGINE_BG["zoo"] = [2, 3, 4, 6, 7]
 ENGINE_BG["aliens"] = [0, 2, 3, 4, 5, 6, 7]
-BOSS_OWN_OBJ["zoo"] = [4, 7]
-BOSS_OWN_OBJ["aliens"] = [4, 7]
 BG_PAIR = {"aliens": {2: 0, 5: 3}}
 
 
