@@ -113,7 +113,7 @@ KEG = 7                                 # BGPAL_BAR_B: the keg's yellow / steel 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_conveyor_is_the_approved_k5_stripes_and_k6_arrows(model):
     """The 2 conveyor tiles (BG 246-247) are exactly K5's front + K6's top; the front is the same in both frames and the
-    arrows move; CGB: palette 7 (the keg's) holds yellow, steel and dark, the same colours the tiles were drawn in.
+    arrows move; CGB: the keg's palette (BG 1 below the stage) holds yellow, steel and dark, the same colours the tiles were drawn in.
     DMG: the shades 153 / 85 / 0 are the bar's own greys under the same indices."""
     assert A["conv"] == tile_bytes(CONV_A) + tile_bytes(CONV_B)
     assert CONV_A[4:] == CONV_B[4:] and CONV_A[:3] != CONV_B[:3]
@@ -121,7 +121,8 @@ def test_the_conveyor_is_the_approved_k5_stripes_and_k6_arrows(model):
         quiet(gb)
         assert bytes(gb.read(0x8000 + CONV * 16, 32)) == bytes(A["conv"])
         if model == "cgb":
-            pal = cgb_palette(gb, KEG)
+            raw = [gb.read(gb.addr("story_scratch") + 270 + i, 1)[0] for i in range(8)]       # (the keg's slot is BG 1 on the level screen: below the stage the mid-frame chain writes KEG_PAL into it)
+            pal = [raw[2 * i] | raw[2 * i + 1] << 8 for i in range(4)]
             assert pal[1:] == [RGB(31, 27, 9), RGB(15, 17, 20), RGB(2, 3, 5)], pal
 
 
@@ -167,6 +168,7 @@ def test_the_cycle_green_yellow_red_ride(model):
         to_t(gb, T_RED)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_SPECIAL and lamp(gb)[0] == HAT_X
+        frames(gb, 1)                    # (the frame the state changes is a heavy one, logic to line ~107; with the mid-frame chain's VBlank handler the body's redraw is drained a frame later than it was)
         assert_body(gb, C, A, x, BP_RED)
         until(gb, lambda: counter(gb, B) == belt_row(0) or counter(gb, B) == belt_row(1), 8)
         if model == "cgb":

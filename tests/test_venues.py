@@ -1,6 +1,7 @@
 # M9: themed venues. Each level loads the venue of its theme (theme index = patron group): stage, bar, floor, the
 # drink in place of the beer mug, the show performers, and on CGB their palettes. Expected tile ids, maps and tile
 # data come from build/venues.json (tools/gen_art.py), which is cut from assets/approved/venues/.
+import json
 import re
 
 import pytest
@@ -188,7 +189,10 @@ def test_each_level_loads_its_venue(gb, group):
         assert cgb_palette(gb, 5) == v["pal"][0] and cgb_palette(gb, 6) == v["pal"][1]
         assert cgb_palette(gb, BGPAL_BAR) == v["pal"][2]
         # (the Saloon's BG 7 holds its palette instance 3, ROSIE and REDD: the keg's slot is free there; its colour 0 is the wall, below)
-        assert cgb_palette(gb, 7) == v["pal"][3] if group else cgb_palette(gb, 7)[0] == v["pal"][2][0]
+        if GROUPS[group] == "robots":      # (the Factory, generated looks: BG 7 holds palette instance 5, TELLY's mint, loaded with the level; its keg is on BG 1)
+            assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and cgb_palette(gb, 7)[1:] == json.loads((ROOT / "assets" / "palettes.json").read_text())["robots_c"]["rgb15"]
+        else:
+            assert cgb_palette(gb, 7) == v["pal"][3] if group else cgb_palette(gb, 7)[0] == v["pal"][2][0]
         assert cgb_palette(gb, OBJPAL_MUG_FULL, obj=True)[1:] == v["pal"][4][1:]
         assert cgb_palette(gb, OBJPAL_MUG_EMPTY, obj=True)[1:] == v["pal"][5][1:]
         looks_on = re.search(r"looks_on\[\d+\] = \{ ([^}]*)\}", (ROOT / "build" / "looks_pick.h").read_text()).group(1).replace(",", "").split()

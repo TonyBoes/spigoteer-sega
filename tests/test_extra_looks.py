@@ -1,7 +1,9 @@
-# A2: the generic Color-only extra looks, built for the Robot Factory (docs/dev/handoffs/PLAN_extra_looks.md).
-#   - the (look, palette) table is generated from the Graphics Atlas plan (tools/gen_looks.py, build/looks.c): it matches the plan's table,
-#     follows the instance count of the engine's BG table, leaves out the plan's instance with the fewest looks when there are too many;
-#   - the Factory's palette instances sit where the table says (OBJ and BG slots, the chain's BG 5 and 6, the full-mug instance);
+# A2: the generic Color-only extra looks, built for the Robot Factory per the Graphics Atlas slot table (docs/dev/queue_briefs/extra_looks_slots.md).
+#   - the (look, palette) table is generated from the Atlas plan (tools/gen_looks.py, build/looks.c): six palette instances (OBJ 3, 6, 4, 1, 5, 7), each on
+#     the BG slot the Atlas lists the same patrons on (BG 3, 6, 4, 2, 5, 7), 48 combinations; with fewer BG slots in the engine it leaves out the instance with
+#     the fewest looks;
+#   - the Factory's palette instances sit where the table says (OBJ and BG slots; BG 2, 3, 4, 7 loaded with the level, BG 5 reloaded early and BG 6 late by the
+#     mid-frame chain, the full-mug instance);
 #   - the Factory's five extra looks are in VRAM bank 1 (252 of 256 tiles), come from the owner's art, spawn only in allowed pairs;
 #   - a lifted extra look changes no pixel and wears its OBJ palette and bank 1; an R level mirrors them pixel for pixel.
 import json
@@ -41,7 +43,7 @@ def table():
 
 
 def looks_c():
-    txt = (ROOT / "build" / "looks.c").read_text()
+    txt = (ROOT / "build" / "looks_pick.h").read_text()
     def arr(name):
         m = re.search(name + r"_5\[\d+\] = \{ (.*?) \};", txt)
         return [int(h, 16) for h in re.findall(r"0x([0-9A-F]{2})", m.group(1))]
@@ -54,35 +56,48 @@ def test_the_factory_combos_are_the_plans_table():
     t = table()
     looks, inst, allowed = EC.venue_table("robots")
     assert t["looks"] == looks == ["BOXY", "VOLTA", "BLIP", "NEKA", "TELLY", "CLANK", "TOOB", "PEPPER"]
-    assert len(t["order"]) == len(P.ENGINE_BG["robots"]) == 5, "the instance count is the engine's BG table's (BG 2-6)"
+    assert len(t["order"]) == len(P.ENGINE_BG["robots"]) == 6, "the plan has six instances and the engine six BG slots (BG 2-7)"
     assert t["order"][:3] == [3, 6, 4], "instances 0-2: the OBJ slots of BOXY, VOLTA, BLIP (the plan moved BLIP to NEKA's cyan OBJ 4)"
     assert t["order"][4] == 5, "instance 4 is OBJ 5: the one the show's dancers take (render.c pal5_check)"
-    assert t["dropped"] == [7] and 7 not in t["order"] and set(inst) - set(t["order"]) == {7}, "the plan has 6 instances: TELLY's OBJ 7 is left out"
+    assert t["order"] == [3, 6, 4, 1, 5, 7] and t["dropped"] == [] and set(inst) == set(t["order"]), "all six of the plan's instances are in"
+    assert t["bg"] == [3, 6, 4, 2, 5, 7], "each instance sits on the BG slot the Atlas lists its patrons on (BOXY BG 3, VOLTA 6, BLIP and NEKA 4, CLANK and PEPPER 2, TOOB 5, TELLY 7)"
     counts = {o: sum(o in a for a in allowed.values()) for o in inst}
-    assert set(counts.values()) == {8}, "no instance has fewer looks (the Factory keeps all swaps): the tie goes to the fewest owners, then the highest OBJ slot"
+    assert set(counts.values()) == {8}, "no instance has fewer looks (the Factory keeps all swaps)"
     want = [(li, pi) for li, n in enumerate(looks) for pi, o in enumerate(t["order"]) if o in allowed[n]]
-    assert t["combo"] == want and len(want) == 40
+    assert t["combo"] == want and len(want) == 48
     assert t["boss"] == [(l, p) for l, p in want if l != 2 and t["order"][p] not in (4, 5, 7)] and len(t["boss"]) == 21
     combo, boss = looks_c()
-    assert combo == [GL.V(l, p) for l, p in want], "build/looks.c is this table"
-    assert boss == [GL.V(l, p) for l, p in t["boss"]]
+    spread = lambda lst: [GL.V(*lst[r * len(lst) >> 8]) for r in range(256)]       # (the pick indexes by the random byte itself: r * n >> 8)
+    assert combo == spread(want), "build/looks_pick.h is this table"
+    assert boss == spread(t["boss"])
 
 
-def test_a_6th_instance_is_a_table_change(monkeypatch):
-    monkeypatch.setitem(P.ENGINE_BG, "robots", [2, 3, 4, 5, 6, 7])
+def test_each_instance_sits_on_the_atlas_slots_with_the_atlas_colours():
+    """The generated table against plan_slots.json (the Atlas's own export): the OBJ and BG slot of every instance list the same patrons, and the colours
+    the game puts there (palettes.json, the full mug's own for CLANK and PEPPER) are the Atlas's, colours 1-3 of the OBJ slot and of its BG twin."""
     t = table()
-    assert t["order"] == [3, 6, 4, 1, 5, 7] and t["bg"] == [2, 3, 4, 5, 6, 7] and t["dropped"] == []
-    assert len(t["combo"]) == 48
-    assert t["pal"][5] == ("pal", "robots_c"), "TELLY's OBJ 7 keeps BLIP's old mint"
+    atlas = GL.SLOTS["robots"]
+    owners = {n: i for i, n in enumerate(t["looks"])}
+    for pi, (o, bg, pal) in enumerate(zip(t["order"], t["bg"], t["pal"])):
+        names = sorted(atlas["obj"][str(o)]["patrons"])
+        assert names == sorted(atlas["bg"][str(bg)]["patrons"]) and names, (pi, o, bg)
+        assert all(n in owners for n in names), names
+        if pal[0] == "pal":
+            rgb5 = lambda hexs: [(int(h[1:3], 16) >> 3, int(h[3:5], 16) >> 3, int(h[5:7], 16) >> 3) for h in hexs]     # (the Atlas shows the colours lifted to 8 bits: the 5-bit values are the game's)
+            assert rgb5(PALS[pal[1]]["hex"]) == rgb5(atlas["obj"][str(o)]["cols"][1:]), (pi, pal)
+            assert rgb5(atlas["bg"][str(bg)]["cols"][1:]) == rgb5(atlas["obj"][str(o)]["cols"][1:]), (pi, "BG twin")
 
 
-ALL = ["BOXY", "VOLTA", "BLIP", "NEKA", "TELLY", "CLANK", "TOOB", "PEPPER"]
-
-
-def test_the_instance_with_the_fewest_looks_is_left_out(monkeypatch):
+def test_with_fewer_bg_slots_the_instance_with_the_fewest_looks_is_left_out(monkeypatch):
+    ALL = ["BOXY", "VOLTA", "BLIP", "NEKA", "TELLY", "CLANK", "TOOB", "PEPPER"]
+    monkeypatch.setitem(P.ENGINE_BG, "robots", [2, 3, 4, 5, 6])
+    t = table()
+    assert t["dropped"] == [7] and t["order"] == [3, 6, 4, 1, 5], "five BG slots for six instances: the tie goes to the fewest owners, then the highest OBJ slot"
+    monkeypatch.setitem(P.ENGINE_BG, "robots", [3, 4, 5, 6, 7])
     monkeypatch.setitem(P.VARIANT_CUTS, "robots", {n: [1] for n in ALL if n != "CLANK"})      # OBJ 1 only for CLANK: 1 look against 8
     t = table()
     assert t["dropped"] == [1] and t["order"] == [3, 6, 4, 7, 5], t["order"]
+    monkeypatch.setitem(P.ENGINE_BG, "robots", [2, 3, 4, 5, 6])
     monkeypatch.setitem(P.VARIANT_CUTS, "robots", {n: [5] for n in ALL if n != "BOXY"})      # OBJ 5 would be the fewest, but it is the show's slot: never dropped
     t = table()
     assert t["dropped"] == [7] and t["order"] == [3, 6, 4, 1, 5], t["order"]
@@ -132,19 +147,21 @@ def test_the_factory_loads_its_instances_where_the_table_says(model):
     gb = factory()
     try:
         t = table()
-        assert scratch(gb, 254, 5) == t["order"] and scratch(gb, 262, 5) == t["bg"]
+        assert scratch(gb, 254, 6) == t["order"] and scratch(gb, 262, 6) == t["bg"] == [3, 6, 4, 2, 5, 7]
         wall = cgb_palette(gb, 0)[0]
         a, b, c = (PALS["robots_" + k]["rgb15"] for k in "abc")
         cyan, purple = PALS["robots_neka"]["rgb15"], PALS["robots_toob"]["rgb15"]
         assert cgb_palette(gb, 3, obj=True)[1:] == a and cgb_palette(gb, 6, obj=True)[1:] == b
         assert cgb_palette(gb, 4, obj=True)[1:] == cyan and cgb_palette(gb, 5, obj=True)[1:] == purple, "NEKA's cyan is BLIP's too; TOOB is purple on OBJ 5"
+        assert cgb_palette(gb, 7, obj=True)[1:] == c, "TELLY keeps the mint on OBJ 7"
         mug = cgb_palette(gb, 1, obj=True)
         assert mug != cgb_palette(gb, 2, obj=True)
-        assert [cgb_palette(gb, s)[1:] for s in (2, 3, 4)] == [a, b, cyan]
-        assert [cgb_palette(gb, s)[0] for s in (2, 3, 4)] == [wall] * 3
-        assert gb.read(0xFFD4, 1)[0] == 2, "the chain: BG 5 early, BG 6 late"
-        assert list(gb.read(0xFFD6, 8)) == rgb_bytes([wall] + purple), "late line: TOOB's purple in BG 6"
-        assert scratch(gb, 236 + 2, 8) == rgb_bytes([wall] + mug[1:]), "early line: the full mug's colours in BG 5 (CLANK, PEPPER)"
+        assert [cgb_palette(gb, s)[1:] for s in (3, 4, 7)] == [a, cyan, c], "BG 3 BOXY, BG 4 BLIP and NEKA, BG 7 TELLY: loaded with the level"
+        assert cgb_palette(gb, 2)[1:] == mug[1:], "BG 2: CLANK and PEPPER wear the full mug's colours"
+        assert [cgb_palette(gb, s)[0] for s in (2, 3, 4, 7)] == [wall] * 4
+        assert gb.read(0xFFD4, 1)[0] == 3, "the mid-frame chain is on (SPLIT_ON 3)"
+        assert list(gb.read(0xFFD6, 8)) == rgb_bytes([wall] + b), "late line: VOLTA's colours in BG 6"
+        assert scratch(gb, 236 + 2, 8) == rgb_bytes([wall] + purple), "early line: TOOB's purple in BG 5"
     finally:
         gb.stop()
 
@@ -199,8 +216,8 @@ def test_the_factory_spawns_only_the_tables_combinations_and_all_of_them(model):
         gb.stop()
 
 
-LIFT_OBJ = [3, 6, 4, 1, 5]
-COMBOS = [(3, 2), (3, 0), (4, 3), (5, 3), (5, 1), (6, 4), (7, 3), (7, 4), (2, 2), (0, 3)]
+LIFT_OBJ = [3, 6, 4, 1, 5, 7]
+COMBOS = [(3, 2), (3, 0), (4, 3), (5, 3), (5, 1), (6, 4), (7, 3), (7, 4), (2, 2), (0, 3), (4, 5), (6, 5), (1, 5), (7, 1)]
 
 
 @pytest.mark.parametrize("look,inst", COMBOS, ids=[f"look{lk}-inst{i}" for lk, i in COMBOS])
@@ -240,7 +257,9 @@ def test_a_lifted_factory_look_changes_no_pixel_and_wears_its_palette(model, loo
 
 @pytest.mark.parametrize("name", ["looks345", "looks673"])
 def test_the_factory_looks_mirror_pixel_for_pixel_on_an_r_level(model, name):
-    looks = {"looks345": {0: variant(3, 2), 1: variant(4, 3), 2: variant(5, 4)},
+    """(Run at double speed, conftest PERF_DS: the way the game ships. At normal speed the R run's frames, with the mid-frame chain and the mirrored compose,
+    overrun their VBlank and show up to three frames behind the L run, where test_classic's Mirror lets b show one late.)"""
+    looks = {"looks345": {0: variant(3, 2), 1: variant(4, 3), 2: variant(5, 5)},
              "looks673": {0: variant(6, 4), 1: variant(7, 3), 2: variant(3, 0)}}[name]
     a, b = tc.pair("cgb", tc.ALL_R, lv=FACTORY + 1)
     try:

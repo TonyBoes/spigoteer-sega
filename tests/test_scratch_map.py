@@ -93,7 +93,7 @@ GROUPS = {
 
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
-        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 20, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 48, "src/mg.h": 3, "src/mg_list.c": 5,
+        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 20, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 51, "src/mg.h": 3, "src/mg_list.c": 5,
         "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 2, "src/smap.c": 6,
         "src/story.c": 16, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 3, "src/ts.c": 1}
 

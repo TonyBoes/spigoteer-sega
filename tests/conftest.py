@@ -47,6 +47,7 @@ PERF_DS = {
     "test_boss_in_place": {"test_a_boss_fight_s_frames_end_no_later_than_at_579e173", "test_a_boss_fight_with_regulars_is_late_on_hardly_any_frame",
                            "test_a_boss_entrance_has_no_late_frame_but_dukes_hand_over"},
     "test_debug_stress": {"test_the_crowd_stays_at_its_target_with_an_idle_player"},
+    "test_extra_looks": {"test_the_factory_looks_mirror_pixel_for_pixel_on_an_r_level"},
     "test_flow": {"test_submenu_redraws_stay_within_the_vblank_drain_budget"},
     "test_half_rate": {"test_the_heaviest_levels_run_at_60_game_steps_a_second_and_keep_the_budgets"},
     "test_menu_scroll": {"test_mashing_a_list_never_runs_a_frame_late", "test_mashing_the_soundtrack_while_a_tune_plays_never_runs_a_frame_late"},
@@ -170,6 +171,9 @@ def golden_report(name, model, actual):
     box = ImageChops.difference(ref, actual.convert("RGB")).getbbox() if ref.size == actual.size else "size"
     with open(GOLDEN_REPORT, "a") as f:
         f.write(f"{name}.{model} {box}\n")
+    new = Path(GOLDEN_REPORT).parent / "golden_new"                  # the picture the game drew now, for the old | new sheets (never under tests/golden)
+    new.mkdir(exist_ok=True)
+    actual.convert("RGB").save(new / f"{name}.{model}.png")
 
 
 # ---- test hook: the game rebuilds its per-bar patron lists only when a patron arrives or leaves (M8a perf).
