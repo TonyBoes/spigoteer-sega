@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Bistro swaps (owner's third marked grid, with his new BASIL): cut PIERRE OBJ 3; BRIE 3; NONNA 3; MIME 0, 4, 5, 6, 7; PINOT 3; HERB 3. BASIL now keeps all; OLIVE keeps all. Color only."),
     ("2026-10-31", "Owner sent replacement fronts for PIERRE (his front moved 1 px left, centred on the body, matching back C) and BASIL (new drawing; OBJ 7 colours: white, skin, dark). Bottom-row exceptions for his drawings: PIERRE x=4, 12; BASIL x=2, 12. DMG and Color; held for the game."),
     ("2026-10-31", "Bistro swaps (owner's second marked grid): cut PIERRE OBJ 3; NONNA 3; MIME 0, 4, 5, 6, 7 (keeps only his own); BASIL 3; PINOT 3; HERB 3. BRIE and OLIVE keep all. Color only."),
     ("2026-10-31", "Q69 Lodge (owner's marked grid): swaps cut: BOONE OBJ 5, 6, 7; WILLOW OBJ 5, 6, 7. Everyone else keeps all. Q69 closed: every venue's swaps decided. Color only."),

@@ -131,7 +131,7 @@ VARIANT_CUTS = {"sports": {"NORM": [1, 2, 5, 6, 7], "FRANK": [2]},
                 "divers": {"FROSTI": [3, 4, 6, 7], "IGGY": [2], "MUFFY": [2], "MUSH": [2, 3, 4, 6, 7], "CUB": [3, 4, 6, 7],
                            "DENALI": [4, 6, 7], "POLLY": [2], "MOOSE": [2]},   # owner 2026-10-30 (Q69 Igloo)
                 "punks": {},   # owner 2026-10-31 (Q69 Chrome Cow): "Keep all chrome cow pallets." No cuts
-                "chefs": {"PIERRE": [3], "NONNA": [3], "MIME": [0, 4, 5, 6, 7], "BASIL": [3], "PINOT": [3], "HERB": [3]},   # owner 2026-10-31 (Q69 Bistro, marked grid; second marked grid adds MIME, BASIL, PINOT)
+                "chefs": {"PIERRE": [3], "BRIE": [3], "NONNA": [3], "MIME": [0, 4, 5, 6, 7], "PINOT": [3], "HERB": [3]},   # owner 2026-10-31 (Bistro, third marked grid: BRIE 3 cut, BASIL keeps all with his new front)
                 "zoo": {"COCO": [4], "TUCO": [1, 7], "RAJA": [4, 7], "PINKY": [1, 6], "BAMBOO": [1, 3, 4], "ELLIE": [3, 4],
                         "ZIGGY": [1, 4, 7], "MUDDY": [1, 3]},   # owner 2026-10-31 (Q69 Zoo, marked grid)
                 "robots": {},   # owner 2026-10-31 (Q69 Factory): "Robots keep all swaps."
