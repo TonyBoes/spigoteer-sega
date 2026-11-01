@@ -389,7 +389,7 @@ void mg_list_enter(void) BANKED {
     hide_all_sprites();
     story_on = 0;                               // (Practice is never a story)
     music_play(TUNE_TITLE);                     // (left alone when it already plays: from the title; after a game its patterns are
-    music_load_now();                           // copied back now, and the pumps below tick it through the rebuild)
+    music_load_now_p();                         // copied back now, and the pumps below tick it through the rebuild)
     music_pump();
     story_font_load();                          // the punctuation (over the title's lettering: title_enter reloads it)
     ol_load();

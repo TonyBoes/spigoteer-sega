@@ -24,6 +24,9 @@
 #include "mg.h"
 #include "trans_art.h"
 
+// (the scene change's window writes: the plain store, and the plan only where the chain runs, SPLIT_ON 3: Color; the DMG path is the original's, a test and a skip each)
+#define TWY(x) do { WY_REG = (x); if (SPLIT_ON == 3) set_wy(x); } while (0)
+
 extern uint8_t overlay_on;
 
 #define TR_ARMED   4
@@ -383,13 +386,13 @@ void trans_cover(void) BANKED {
     HR_LYC = WIN_LYC_NOW;                                        // (back after the cover: the rebuild leaves LYC and WY to the scene's own setting)
     if (in_milkrun()) plain_isr();
     load_tiles(0);
-    WX_REG = 7; SET_LYC(255); SET_WY(144); SHOW_WIN; WIN_SYNC();
+    WX_REG = 7; SET_LYC(255); TWY(144); SHOW_WIN; WIN_SYNC();
     drink_rows(0, 1);
     rows = 1;
     for (i = 1; i <= RISE_N; i++) {
         vsync();
         wy = 144 - RISE_STEP * i;
-        SET_WY(wy);
+        TWY(wy);
         for (j = 0; j < 40; j++) if (shadow_OAM[j].y > wy) shadow_OAM[j].y = 0;   // under the foam: gone (the old scene is not drawn again)
         volume((RISE_N - i) * 7 / RISE_N);
         if (!(i & 3)) tile(T_BUB1, FZ_BUB + ((i >> 2) & 1));
@@ -405,7 +408,7 @@ void trans_cover(void) BANKED {
     }
     volume(0);
     lcd_off_p();                                                 // (TR_WANT is already clear: the plain way)
-    SET_LYC(HR_LYC); SET_WY(BANNER_WY); HIDE_WIN; WIN_SYNC();              // the banner window as it stands when nothing shows it
+    SET_LYC(HR_LYC); TWY(BANNER_WY); HIDE_WIN; WIN_SYNC();              // the banner window as it stands when nothing shows it
     for (i = 0; i < 20; i++) b[i] = TILE_PANEL_TOP;              // the banner window's rows as win_init left them (the scene's own writes come after)
     win_put(0, b);
     for (i = 0; i < 20; i++) b[i] = TILE_HUD_BLANK;
@@ -430,7 +433,7 @@ void trans_arm(void) BANKED {
     music_load_now();                                            // (the new tune's patterns copied at once, not a few frames into the drain)
     load_tiles(1);
     drink_rows(0, 18);
-    WX_REG = 7; SET_WY(0); SET_LYC(255); SHOW_WIN; WIN_SYNC(); HIDE_SPRITES;
+    WX_REG = 7; TWY(0); SET_LYC(255); SHOW_WIN; WIN_SYNC(); HIDE_SPRITES;
     volume(0);
 }
 
@@ -445,11 +448,11 @@ void trans_reveal(void) BANKED {
     if (lyc == 255) lyc = HR_LYC;                                // (the scene may have set its own after lcd_on_p)
     TRANS &= ~(TR_PEND | TR_ARMED);
     if (in_milkrun()) plain_isr();
-    SET_WY(0); SET_LYC(255); SHOW_WIN; WIN_SYNC(); HIDE_SPRITES;           // (as trans_arm: the scene's code ran after it)
+    TWY(0); SET_LYC(255); SHOW_WIN; WIN_SYNC(); HIDE_SPRITES;           // (as trans_arm: the scene's code ran after it)
     for (i = 0; i <= RISE_N + HOLD_N; i++) {
         vsync();
         wy = i < HOLD_N ? 0 : (i - HOLD_N) * RISE_STEP;
-        SET_WY(wy);
+        TWY(wy);
         volume(i > RISE_N ? 7 : i * 7 / RISE_N);
         if (i == 1) { tile(T_FILL, FZ_FILL); tile(T_BUB2, FZ_BUB + 3); }          // the cream darkens to amber
         if (i < 8) { if (i == 1 || i == 4) tile(T_BUB1, FZ_BUB + (i >> 2)); }   // the shimmer, then the bubbles pop and are gone
@@ -470,7 +473,7 @@ void trans_reveal(void) BANKED {
         vsync();
         music_tick();
     }
-    SET_WY(BANNER_WY); SET_LYC(lyc);
+    TWY(BANNER_WY); SET_LYC(lyc);
     if (overlay_on) SHOW_WIN; else HIDE_WIN;
     WIN_SYNC();
     if (lcdc & LCDCF_OBJON) SHOW_SPRITES;

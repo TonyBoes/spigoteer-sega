@@ -456,9 +456,15 @@ static void tick(void) {
 // a frame, so the tune starts with the screen's first pump and not four frames after it (music_play: the title tune after
 // a game, a boss fight or the soundtrack player overwrote its buffer). Nothing to do when no such load is running.
 void music_load_now(void) BANKED {
+    while (ld_tune != TUNE_NONE && ld_play)
+        if (load_step()) break;
+}
+// The same with a pump after each slice, for a rebuild that is not the scene change's (mg_list_enter): the slices take ~0.9 of a frame in all, and a tick
+// that fell due in them was a frame late, by the phase it began at. (trans_arm's own load stays as it was: a tick there moves the drink's frames.)
+void music_load_now_p(void) BANKED {
     while (ld_tune != TUNE_NONE && ld_play) {
         if (load_step()) break;
-        music_pump();                    // (the slices take ~0.9 of a frame in all: a tick that fell due in them was a frame late, by the phase it began at)
+        music_pump();
     }
 }
 
