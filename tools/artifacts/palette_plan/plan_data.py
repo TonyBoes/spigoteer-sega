@@ -32,7 +32,7 @@ PLANS = {
         q=["Q16","Q45","Q49","Q58","2026-10-21","2026-10-29"],   # the Qn (or dated owner statement) behind this venue's plan: self_check.check_plan refuses an entry without one
         moves=[("PETE", "OBJ", 3, 1, "PETE, the cap fan"), ("Show dancers", "OBJ", 5, 1, "Cheerleaders"),
                ("NORM", "OBJ", 6, 0, "NORM, the ref")],
-        recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 4): "OBJ 0"},
+        recolour={("OBJ", 1): {1: TAN}, ("OBJ", 2): {1: TAN}, ("BG", 2): "OBJ 1", ("BG", 3): "OBJ 0"},
         open={},
         join={("OBJ", 2): ["LOUIS"], ("OBJ", 1): ["FRANK"]},   # owner 2026-10-29: LOUIS takes the reserved patron slot; FRANK shares PETE's
         field_moves=[("Keg, spout", 1, 0)],          # playfield: BG 0 takes BG 1's (keg / spout) palette and the keg / spout share it
@@ -98,7 +98,7 @@ PLANS = {
         moves=[("ZORP", "OBJ", 3, 1, "ZORP, eye stalks"), ("XENO", "OBJ", 6, 2, "XENO, the grey one")],
         recolour={("BG", 2): "OBJ 1"},
         open={},
-        bg={"VENUS": 3},   # owner Q53 2026-10-29: the bar (BG 0) takes XENO's colours and XENO walks in it, freeing BG 3
+        bg={"VENUS": 3, "XENO": 0},   # owner Q53 2026-10-29: the bar (BG 0) takes XENO's colours and XENO walks in it, freeing BG 3
         why="Owner 2026-10-25: ZORP shares the full mug's palette, XENO the empty mug's. Check the Space boss's OBJ 2 use. 2026-10-29: XENO walks in the bar's BG 0.",
     ),
 }
@@ -172,10 +172,10 @@ SWAP_PALETTES = {"chefs": ["Deep skin", "Sage"]}   # palette-only slots: swap co
 PLANS["chefs"].setdefault("add", {})[("OBJ", 6)] = ("Deep skin", ["#FFFFF6", "#9C6038", "#201820"])   # Q70 (owner 2026-10-30): a swap palette on the free OBJ 6 / BG 6
 PLANS["chefs"]["add"][("OBJ", 5)] = ("Sage", ["#D0E0A8", "#C88860", "#201820"])   # Q80 (owner 2026-10-31): sage swap palette, dark kept near-black like the others, on the freed OBJ 5 / BG 5
 PLANS["chefs"].setdefault("bg", {})["NONNA"] = 2                  # PIERRE and BRIE's BG 2 (OBJ 0 is Sal's)
-PLANS["lumberjacks"].setdefault("bg", {})["BOONE"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
+PLANS["lumberjacks"].setdefault("bg", {})["BOONE"] = 6          # BG 1 is the keg's, BG 2 is CEDAR's: the Sasquatch colours (OBJ 1) on the free BG 6 (owner 2026-11-01: BG = OBJ colours)
 PLANS["robots"].setdefault("bg", {})["CLANK"] = 2                 # Q43 B: the full mug's OBJ 1; BG 1 is the keg's
 # A patron who shares another's OBJ palette shares that palette's BG too (owner 2026-11-01: Lodge showed -1 free BG)
-PLANS["lumberjacks"]["bg"]["PIP"] = 2                            # PIP shares BOONE's OBJ 1, so BOONE's BG 2
+PLANS["lumberjacks"]["bg"]["PIP"] = 6                            # PIP shares BOONE's OBJ 1, so BOONE's BG 6
 PLANS["robots"]["bg"]["PEPPER"] = 2                              # PEPPER shares CLANK's OBJ 1, so CLANK's BG 2
 for _v, _l in NEW_PATRONS.items():
     EXTRA_LOOKS.setdefault(_v, []).extend(n for n, _ in _l)
