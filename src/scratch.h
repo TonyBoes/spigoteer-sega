@@ -36,6 +36,12 @@
 #define SCR_TIP2_AT      230     // struct tip2 (4 bytes): only means something while the first coin (tip_timer) is out
 #define SCR_TIP2_N       4
 
+// ---- the mid-frame palette split's second palette (src/game.h SPLIT_E_*, main.c split_isr): alive with every level screen on Color (a fight included)
+#define SCR_SPLIT_AT     236     // 18 bytes: the early reload's BCPS, the late one's, the early patron palette, the stage's own
+#define SCR_SPLIT_N      18
+typedef char scr_split_above_tip2[SCR_TIP2_AT + SCR_TIP2_N <= SCR_SPLIT_AT ? 1 : -1];
+typedef char scr_split_below_cap[SCR_SPLIT_AT + SCR_SPLIT_N <= SCR_CAP_AT ? 1 : -1];
+
 // ---- the one-line menus (src/oneline.h: SOUNDTRACK, MINI GAMES, BOSS RUSH's list): alive only while one of them shows, with that screen's row buffers ------------
 #define SCR_OL_AT        364     // struct ol_state: the arrows' bob and the key repeat (right after the fight's staging; below the Boss Rush struct)
 #define SCR_OL_N         5       // sizeof(struct ol_state), asserted in oneline.c

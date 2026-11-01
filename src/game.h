@@ -314,18 +314,27 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 // with the patron palette in SPLIT_PAL; split_vbl (vq_vbl's place in the VBlank chain while armed) puts the stage's back from SPLIT_STG first. Armed, split_isr and split_vbl replace lcd_isr and vq_vbl (level.c split_arm / split_off): the DMG and every other screen run the original handlers, not a cycle more. The window's own LYC (banner, note,
 // goal, pause) is kept in SPLIT_WANT and comes back after the split: level-screen writers use SET_LYC; readers WIN_LYC_NOW (the other screens are never armed: LCD off disarms). HRAM 0xFFD4-0xFFE5 (free: the linker uses
 // 0xFF80-0xFF92, the scene change 0xFF94-0xFFD3, 0xFFF0-4 are the pause menu, TRANS and HALF); cleared at boot, armed by start_level, off at lcd_off_p.
-#define SPLIT_ON    (*(volatile uint8_t *)0xFFD4)
+#define SPLIT_ON    (*(volatile uint8_t *)0xFFD4)    // 0 off, 1 the Saloon's (one reload, BG 5), 2 another venue's (the early reload too: SPLIT_EARLY)
 #define SPLIT_WANT  (*(volatile uint8_t *)0xFFD5)
 #define SPLIT_PAL   ((volatile uint8_t *)0xFFD6)      // 8 bytes: the patron palette for BG BGPAL_STAGE below the stage
 #define SPLIT_STG   ((volatile uint8_t *)0xFFDE)      // 8 bytes: the stage's own (read back from palette RAM at arm time: SCREEN BRIGHT is in it)
 #define SPLIT_LY    ((STAGE_LAST_ROW + 1) * 8 - 1)
+// A venue whose stage palette that ends a text row early (the Factory: BG 5 last on row 3, BG 6 on row 4) reloads it at the end of ITS last row, SPLIT_EARLY_LY, in its own HBlank
+// (8 bytes is one HBlank's worth: two palettes at SPLIT_LY would not fit). In story_scratch (src/scratch.h SCR_SPLIT_AT), alive with the level: [0] the early palette's BCPS
+// (0x80 | slot << 3; 0 = no early reload), [1] the late one's (SPLIT_PAL / SPLIT_STG), [2..9] the early patron-side palette, [10..17] the stage's own, for the VBlank.
+#define SPLIT_EARLY_LY  31
+#define SPLIT_E_BCPS    (story_scratch[SCR_SPLIT_AT])
+#define SPLIT_L_BCPS    (story_scratch[SCR_SPLIT_AT + 1])
+#define SPLIT_E_PAL     (story_scratch + SCR_SPLIT_AT + 2)
+#define SPLIT_E_STG     (story_scratch + SCR_SPLIT_AT + 10)
 #define WIN_LYC_NOW (SPLIT_ON ? SPLIT_WANT : LYC_REG)   // the window's own LYC (LYC_REG itself is the split's line half the frame)
 void set_lyc(uint8_t x);                      // main.c: LYC_REG = x, kept as the window's own line while the split runs
 #define SET_LYC(x)  do { if (SPLIT_ON) set_lyc(x); else LYC_REG = (x); } while (0)   // (inline: the DMG and every other screen pay a test, no call)
 void split_isr(void);                         // main.c: lcd_isr's twin while the split is armed (swapped in by level.c split_arm, out by split_off)
 void split_vbl(void);                         // main.c: the VBlank handler of the split (the stage's palette back)
 void split_off(void) BANKED;                  // level.c: the screen goes away: the stage's palette back, the split stops
-void split_pal_put(const volatile uint8_t *src);   // main.c: BG BGPAL_STAGE <- 8 bytes (HBlank, VBlank or LCD off)
+void split_pal_put(const volatile uint8_t *src);   // main.c: the late split palette <- 8 bytes (HBlank, VBlank or LCD off)
+void split_pal_put_e(const volatile uint8_t *src); // the early one
 // ROM0 helpers: copy out of another ROM bank and come back to the caller's
 void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
 void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);

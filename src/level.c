@@ -181,18 +181,27 @@ void split_off(void) BANKED {   // (the LCD is off) the stage's palette back, th
     SPLIT_ON = 0;
     LYC_REG = SPLIT_WANT;                          // (the window's own line back: the ISR may have left the split's)
     CRITICAL { remove_VBL(split_vbl); remove_VBL(vq_vbl); add_VBL(vq_vbl); remove_LCD(split_isr); remove_LCD(lcd_isr); add_LCD(lcd_isr); }
-    if (!(LCDC_REG & LCDCF_ON)) split_pal_put(SPLIT_STG);
+    if (!(LCDC_REG & LCDCF_ON)) { split_pal_put(SPLIT_STG); if (SPLIT_E_BCPS) split_pal_put_e(SPLIT_E_STG); }
 }
 
-static void split_arm(void) {        // (LCD off) the stage's palette is read back into SPLIT_STG; the patron palette starts as the same (the caller sets it)
+// (LCD off) The stage palettes the split rewrites are read back into the STG buffers; the patron-side ones start as the same (the caller sets them).
+// late: the BG slot reloaded at SPLIT_LY (the Saloon's BG 5); early: the one at SPLIT_EARLY_LY, 0 = none.
+static void split_arm(uint8_t late, uint8_t early) {
     uint8_t k, v;
+    SPLIT_L_BCPS = 0x80 | (late << 3);
+    SPLIT_E_BCPS = early ? 0x80 | (early << 3) : 0;
     for (k = 0; k < 8; k++) {
-        BCPS_REG = (BGPAL_STAGE << 3) | k;
+        BCPS_REG = (late << 3) | k;
         v = BCPD_REG;
         SPLIT_STG[k] = v; SPLIT_PAL[k] = v;
+        if (early) {
+            BCPS_REG = (early << 3) | k;
+            v = BCPD_REG;
+            SPLIT_E_STG[k] = v; SPLIT_E_PAL[k] = v;
+        }
     }
     SPLIT_WANT = LYC_REG;
-    SPLIT_ON = 1;
+    SPLIT_ON = early ? 2 : 1;
     CRITICAL { remove_VBL(vq_vbl); remove_VBL(split_vbl); add_VBL(split_vbl); remove_LCD(lcd_isr); remove_LCD(split_isr); add_LCD(split_isr); }   // (split_vbl is vq_vbl with the stage's palette put back first: early in the VBlank)
 }
 
@@ -224,10 +233,20 @@ void start_level(void) BANKED {
     load_patron_group(cur_group);
     if (is_cgb && cur_group == 0) {             // patron-rev-2: the Saloon's mid-frame palette split (game.h)
         palette_t q;
-        split_arm();
+        split_arm(BGPAL_STAGE, 0);
         patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others
         q[0] = WALL_RGB;
         for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
+    } else if (is_cgb && cur_group == 5) {      // A1 prototype (the Factory): BG 5 ends on stage row 3, BG 6 on row 4: two reloads; the patron side is a copy of instance 0's colours for now
+        palette_t q;
+        split_arm(BGPAL_STAGE_B, BGPAL_STAGE);
+        patron_pal_get(5, 0, q);
+        q[0] = WALL_RGB;
+        for (k = 0; k < 4; k++) {
+            uint16_t c = BRIGHTEN(q[k]);
+            SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8;
+            SPLIT_E_PAL[k << 1] = c; SPLIT_E_PAL[(k << 1) | 1] = c >> 8;
+        }
     }
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
     mirror_load(play_mode == MODE_LEVEL ? level_dirs : classic_dirs);   // P3: bars from the right (the harness, CLASSIC)

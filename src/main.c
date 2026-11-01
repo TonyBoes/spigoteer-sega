@@ -184,12 +184,14 @@ void lose_life(void) {
     if (lives == 0) game_over = 1;
 }
 
-// The mid-frame palette split (game.h SPLIT_*): BG palette BGPAL_STAGE is rewritten from `src` (8 bytes; HBlank, VBlank or LCD off).
+// The mid-frame palette split (game.h SPLIT_*): a stage palette is rewritten from `src` (8 bytes; HBlank, VBlank or LCD off). The late one (SPLIT_LY, the Saloon's BG 5)
+// is BCPS SPLIT_L_BCPS, the early one (SPLIT_EARLY_LY, another venue's stage palette that ends a row sooner) SPLIT_E_BCPS.
 #if ASM_SPLIT_PAL
-void split_pal_put(const volatile uint8_t *src) __naked {
+void split_pal_put(const volatile uint8_t *src) __naked {      // the late palette
     (void)src;
 __asm
-    ld   a, #(0x80 | (5 << 3))      ; BCPS: BGPAL_STAGE, auto-increment
+    ld   a, (_story_scratch + SCR_SPLIT_AT + 1)   ; BCPS of the late palette
+_split_put_a::                      ; A = BCPS (auto-increment), DE = the 8 bytes
     ldh  (0x68), a
     ld   h, d
     ld   l, e
@@ -213,10 +215,22 @@ __asm
     ret
 __endasm;
 }
+void split_pal_put_e(const volatile uint8_t *src) __naked {    // the early palette
+    (void)src;
+__asm
+    ld   a, (_story_scratch + SCR_SPLIT_AT)
+    jr   _split_put_a
+__endasm;
+}
 #else
 void split_pal_put(const volatile uint8_t *src) {
     uint8_t i;                                  // (cold, LCD off: a loop; the hot callers write the bytes themselves, split_line / split_vbl)
-    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
+    BCPS_REG = SPLIT_L_BCPS;
+    for (i = 0; i != 8; i++) BCPD_REG = src[i];
+}
+void split_pal_put_e(const volatile uint8_t *src) {
+    uint8_t i;
+    BCPS_REG = SPLIT_E_BCPS;
     for (i = 0; i != 8; i++) BCPD_REG = src[i];
 }
 #endif
@@ -226,65 +240,143 @@ void lcd_isr(void) {          // LYC: switch the banner window off below the ban
 }
 
 #if ASM_SPLIT_PAL
-// (asm: the window's end must be hidden as early as lcd_isr does, a few cycles late and a 48 px menu shows one line more; the split's own
-// line gives the window back before the line's pixels start)
+// (asm: the window's end must be hidden as early as lcd_isr does, a few cycles late and a 48 px menu shows one line more; a split line gives the window back
+// before its pixels start, unless it is also the window's own line)
+// The events of a frame, in line order: the early reload (31, when SPLIT_E_BCPS), the late one (39), the window's own line (SPLIT_WANT, anywhere). LYC holds the next one;
+// a window line only records itself in SPLIT_WANT. The next event after line b: the first of the chain lines after b, or the window's line if that comes sooner.
 typedef char split_ly_is_39[(SPLIT_LY == 39) ? 1 : -1];
+typedef char split_early_is_31[(SPLIT_EARLY_LY == 31) ? 1 : -1];
 void split_isr(void) __naked {
 __asm
     ldh  a, (0x40)                  ; LCDC
     ld   c, a
     res  5, a
     ldh  (0x40), a                  ; HIDE_WIN
-    ldh  a, (0x45)                  ; LYC
+    ldh  a, (0x45)                  ; LYC: the line that fired
+    ld   b, a
     cp   a, #39                     ; SPLIT_LY
     jr   z, 9100$
+    cp   a, #31                     ; SPLIT_EARLY_LY
+    jr   nz, 9109$
+    ld   a, (_story_scratch + SCR_SPLIT_AT)
+    or   a, a
+    jr   z, 9109$                   ; (no early reload: 31 is the window's own line)
+    ld   de, #_story_scratch + SCR_SPLIT_AT + 2
+    call 9120$                      ; the window back (unless it ends here too), HBlank, A = BCPS, DE
+    jr   9110$
+9109$:
+    ld   a, b
     ldh  (0xD5), a                  ; SPLIT_WANT = the window's line
-    ld   a, #39
+    jr   9110$
+9100$:
+    ld   de, #0xFFD6                ; SPLIT_PAL
+    ld   a, (_story_scratch + SCR_SPLIT_AT + 1)
+    call 9120$
+9110$:                              ; LYC = the next event after line b
+    ld   a, (_story_scratch + SCR_SPLIT_AT)
+    or   a, a
+    ld   d, #39
+    jr   z, 9111$
+    ld   d, #31                     ; d = the first chain line
+9111$:
+    ld   a, b
+    cp   a, d
+    ld   e, d                       ; e = the chain's next line: d, 39 or (wrapped) d
+    jr   c, 9112$
+    cp   a, #39
+    jr   nc, 9112$
+    ld   e, #39
+9112$:
+    ldh  a, (0xD5)                  ; l = the window's line
+    ld   l, a
+    cp   a, b
+    jr   z, 9116$
+    jr   c, 9114$
+    ld   a, b                       ; the window's line is after b: it comes first if the chain wraps or it is sooner
+    cp   a, e
+    jr   nc, 9115$
+    ld   a, l
+    cp   a, e
+    jr   nc, 9116$
+    jr   9115$
+9114$:                              ; before b: only after the chain wraps
+    ld   a, b
+    cp   a, e
+    jr   c, 9116$
+    ld   a, l
+    cp   a, e
+    jr   nc, 9116$
+9115$:
+    ld   e, l
+9116$:
+    ld   a, e
     ldh  (0x45), a
     ret
-9100$:
+9120$:                              ; the split line: window back unless its own line is this one, wait for HBlank, write the palette at DE (A = BCPS)
+    push af
+    ldh  a, (0xD5)
+    cp   a, b
+    jr   z, 9121$
     ld   a, c
     ldh  (0x40), a                  ; the window as it was
-9101$:
+9121$:
     ldh  a, (0x41)                  ; STAT: HBlank, palette RAM is open; the line's pixels are out
     and  a, #3
-    jr   nz, 9101$
-    ld   de, #0xFFD6                ; SPLIT_PAL
-    call _split_pal_put
-    ldh  a, (0xD5)
-    ldh  (0x45), a                  ; LYC = SPLIT_WANT
-    ret
+    jr   nz, 9121$
+    pop  af
+    jp   _split_put_a
 __endasm;
 }
 #else
-static void split_line(void) {  // (the split's own line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
-    // (the 8 bytes are read from their fixed HRAM addresses as they go out, `ldh a, (n)` then `ldh (c), a`: no pre-read into locals, whose spills ended after the line did)
+static void split_line(uint8_t early) {  // (a split line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
+    // (the 8 bytes are read from their fixed addresses as they go out: no pre-read into locals, whose spills ended after the line did)
     while (STAT_REG & 3) ;                     // (HBlank: palette RAM is open; the line's pixels are out)
-    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
+    if (early) {
+        BCPS_REG = SPLIT_E_BCPS;
+        BCPD_REG = SPLIT_E_PAL[0]; BCPD_REG = SPLIT_E_PAL[1]; BCPD_REG = SPLIT_E_PAL[2]; BCPD_REG = SPLIT_E_PAL[3];
+        BCPD_REG = SPLIT_E_PAL[4]; BCPD_REG = SPLIT_E_PAL[5]; BCPD_REG = SPLIT_E_PAL[6]; BCPD_REG = SPLIT_E_PAL[7];
+        return;
+    }
+    BCPS_REG = SPLIT_L_BCPS;
     BCPD_REG = SPLIT_PAL[0]; BCPD_REG = SPLIT_PAL[1]; BCPD_REG = SPLIT_PAL[2]; BCPD_REG = SPLIT_PAL[3];
     BCPD_REG = SPLIT_PAL[4]; BCPD_REG = SPLIT_PAL[5]; BCPD_REG = SPLIT_PAL[6]; BCPD_REG = SPLIT_PAL[7];
-    LYC_REG = SPLIT_WANT;
+}
+
+static void split_next(uint8_t ly) {          // LYC = the next event after line ly (see the asm twin)
+    uint8_t f = SPLIT_E_BCPS ? SPLIT_EARLY_LY : SPLIT_LY, n = f, w = SPLIT_WANT;
+    if (ly >= f && ly < SPLIT_LY) n = SPLIT_LY;
+    if (w != ly) {
+        if (w > ly) { if (ly >= n || w < n) n = w; }
+        else if (ly >= n && w < n) n = w;
+    }
+    LYC_REG = n;
 }
 
 void split_isr(void) {        // (the C twin; hides the window FIRST, as the asm does: a window's end on its own line must be as early as lcd_isr's)
-    uint8_t lcdc = LCDC_REG;
+    uint8_t lcdc = LCDC_REG, ly;
     LCDC_REG = lcdc & ~0x20;                   // (HIDE_WIN, from the one read)
-    if (LYC_REG == SPLIT_LY) {
-        LCDC_REG = lcdc;                       // (the window as it was)
-        split_line();
-        return;
-    }
-    SPLIT_WANT = LYC_REG; LYC_REG = SPLIT_LY;
+    ly = LYC_REG;
+    if (ly == SPLIT_LY || (ly == SPLIT_EARLY_LY && SPLIT_E_BCPS)) {
+        if (SPLIT_WANT != ly) LCDC_REG = lcdc; // (the window as it was, unless its end is this line too)
+        split_line(ly != SPLIT_LY);
+    } else SPLIT_WANT = ly;
+    split_next(ly);
 }
 #endif
 
 void split_vbl(void) {        // vq_vbl's place while the split is armed (the VBlank chain keeps its one entry)
 #if ASM_SPLIT_PAL
     split_pal_put(SPLIT_STG);
+    if (SPLIT_E_BCPS) split_pal_put_e(SPLIT_E_STG);
 #else
-    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);      // (the C twin: fixed HRAM addresses, `ldh a, (n)`: through a pointer parameter SDCC spends 4 lines of a frame here)
+    BCPS_REG = SPLIT_L_BCPS;                   // (the C twin: fixed HRAM addresses, `ldh a, (n)`: through a pointer parameter SDCC spends 4 lines of a frame here)
     BCPD_REG = SPLIT_STG[0]; BCPD_REG = SPLIT_STG[1]; BCPD_REG = SPLIT_STG[2]; BCPD_REG = SPLIT_STG[3];
     BCPD_REG = SPLIT_STG[4]; BCPD_REG = SPLIT_STG[5]; BCPD_REG = SPLIT_STG[6]; BCPD_REG = SPLIT_STG[7];
+    if (SPLIT_E_BCPS) {
+        BCPS_REG = SPLIT_E_BCPS;
+        BCPD_REG = SPLIT_E_STG[0]; BCPD_REG = SPLIT_E_STG[1]; BCPD_REG = SPLIT_E_STG[2]; BCPD_REG = SPLIT_E_STG[3];
+        BCPD_REG = SPLIT_E_STG[4]; BCPD_REG = SPLIT_E_STG[5]; BCPD_REG = SPLIT_E_STG[6]; BCPD_REG = SPLIT_E_STG[7];
+    }
 #endif
     vq_vbl();
 }
