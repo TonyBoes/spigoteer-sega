@@ -200,10 +200,10 @@ BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
 # What the engine can hold for the generated looks tables (tools/gen_looks.py): the BG slots patron palette instances may sit on. Each instance's own slot is the
 # Atlas's (plan_slots.json: the BG slot listing the same patrons); BG 2, 3, 4, 7 are loaded with the level, and the Factory's chain reloads BG 5 early
 # (line 31) and BG 6 late (line 39), where the playfield starts.
-ENGINE_BG = {"robots": [2, 3, 4, 5, 6, 7], "divers": [2, 3, 4, 5, 6, 7]}
+ENGINE_BG = {"robots": [2, 3, 4, 5, 6, 7], "divers": [2, 3, 4, 5, 6, 7], "punks": [2, 3, 4, 5, 6, 7]}
 # OBJ slots a boss fight loads its own palettes into (src/boss_prototype.c: lamp OBJ 4, body OBJ 5, topper OBJ 7): a patron on one of them sits out the fight,
 # and so does look 2 (the C slot's tiles are the boss's). gen_looks.py turns these into combo_boss.
-BOSS_OWN_OBJ = {"robots": [4, 5, 7], "divers": [7]}
+BOSS_OWN_OBJ = {"robots": [4, 5, 7], "divers": [7], "punks": [5, 7]}
 
 
 # Planned art that breaks a patron rule and is shown anyway, until the artist's next pass: (venue, NAME, "front" | "back", "bottom" | "holes" | "x15").
