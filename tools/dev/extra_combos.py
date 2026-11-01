@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, "tools/artifacts/palette_plan"))
 import plan_data as P  # noqa: E402
 
-BG_CAPACITY_NOW = {"cowboys": 5}      # BG 2, 3, 4, 7 (keg is on BG 0 there) and 5 (the split): every other venue has the keg on BG 7: 2, 3, 4, 5 = 4
+BG_CAPACITY_NOW = {"cowboys": 5, **{v: len(b) for v, b in P.ENGINE_BG.items()}}      # the Saloon: BG 2, 3, 4, 7 (keg is on BG 0 there) and 5 (the split); plan_data ENGINE_BG: the Factory's chain (BG 2-6); every other venue: keg on BG 7: 2, 3, 4, 5 = 4
 BG_CAPACITY_DEFAULT = 4
 
 

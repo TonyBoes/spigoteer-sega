@@ -194,6 +194,13 @@ SALOON_PRIMARY = {"DUSTY": 1, "EMMA": 1, "GUS": 0, "HANK": 0, "ROSIE": 3, "REDD"
 INST_OBJ, INST_BG = [3, 6, 7, 4, 5], [2, 3, 4, 7, 5]      # palette instance 0-4 -> OBJ slot, BG slot (the Saloon has all 5)
 PATRON_SLOT = {3: 0, 6: 1, 7: 2}          # OBJ slot -> art variant A, B, C (lifted)
 BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
+# What the engine does today for the generated looks tables (tools/gen_looks.py): the BG slot of each patron palette instance, in instance order
+# (instances 0-2 are the looks 0-2's own: BG 2, 3, 4; the Factory's chain reloads BG 5 early (line 31) and BG 6 late (line 39) for the 4th and
+# 5th). A 6th instance is added by appending the next free BG slot here (7, once the keg leaves it).
+ENGINE_BG = {"robots": [2, 3, 4, 5, 6]}
+# OBJ slots a boss fight loads its own palettes into (src/boss_prototype.c: lamp OBJ 4, body OBJ 5, topper OBJ 7): a patron on one of them sits out the fight,
+# and so does look 2 (the C slot's tiles are the boss's). gen_looks.py turns these into combo_boss.
+BOSS_OWN_OBJ = {"robots": [4, 5, 7]}
 
 
 # Planned art that breaks a patron rule and is shown anyway, until the artist's next pass: (venue, NAME, "front" | "back", "bottom" | "holes" | "x15").

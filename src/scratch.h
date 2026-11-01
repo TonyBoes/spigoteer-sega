@@ -42,6 +42,13 @@
 typedef char scr_split_above_tip2[SCR_TIP2_AT + SCR_TIP2_N <= SCR_SPLIT_AT ? 1 : -1];
 typedef char scr_split_below_cap[SCR_SPLIT_AT + SCR_SPLIT_N <= SCR_CAP_AT ? 1 : -1];
 
+// ---- the palette instances' slots (src/lift.c INST_OBJ, src/render.c INST_BG; build/looks.c looks_insts fills them at a level load): alive with every level screen
+// (a fight's level included; the DMG's lifted patrons read the OBJ side for their OAM attribute too)
+#define SCR_INST_AT      254     // 16 bytes: the OBJ palette slot of instances 0-7, then their BG slots
+#define SCR_INST_N       16
+typedef char scr_inst_above_split[SCR_SPLIT_AT + SCR_SPLIT_N <= SCR_INST_AT ? 1 : -1];
+typedef char scr_inst_below_cap[SCR_INST_AT + SCR_INST_N <= SCR_CAP_AT ? 1 : -1];
+
 // ---- the one-line menus (src/oneline.h: SOUNDTRACK, MINI GAMES, BOSS RUSH's list): alive only while one of them shows, with that screen's row buffers ------------
 #define SCR_OL_AT        364     // struct ol_state: the arrows' bob and the key repeat (right after the fight's staging; below the Boss Rush struct)
 #define SCR_OL_N         5       // sizeof(struct ol_state), asserted in oneline.c

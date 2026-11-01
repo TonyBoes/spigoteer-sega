@@ -85,19 +85,29 @@ static void swap_gus(void) {
     swap_tiles(PATRON_BACK_BASE + 8, 4);
 }
 
+// The BG side of palette instance pi of venue g: colour 0 = the wall; the full-mug instance takes the venue's own drink colours (build/looks.c looks_pal_get)
+static void inst_bg_pal(uint8_t g, uint8_t pi, palette_t q) {
+    uint8_t k;
+    if (looks_pal_get(g, pi, q)) for (k = 1; k < 4; k++) q[k] = venue.pal[VENUE_PAL_DRINK_FULL][k];
+    q[0] = WALL_RGB;
+}
+
 static void load_patron_group(uint8_t g) {
     palette_t p;
     uint8_t v;
+    looks_insts(g, INST_OBJ, INST_BG);           // the instances' palette slots (the DMG reads the OBJ ones for its OAM attribute too)
     load_patron_tiles(g, PATRON_TILE_BASE);      // 144 pre-shifted + 12 back-view tiles, from the group's bank (LCD is off)
     if (!is_cgb) return;
     if (!g || g == 2) swap_gus();   // (the Saloon's GUS, the Lodge's ASH)
     for (v = 0; v < 3; v++) {                    // colour 0 = the wall, so the art needs no transparency
-        patron_pal_get(g, v, p);
-        p[0] = WALL_RGB;
+        inst_bg_pal(g, v, p);
         set_bkg_palette(BGPAL_PATRON + v, 1, p);
         music_pump();                            // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
     }
-    if (g) return;
+    if (g) {
+        if (extra_on()) for (v = 0; v < 8; v++) { looks_load(g, v); music_pump(); }   // a generated venue's Color-only looks 3-7: tiles in VRAM bank 1 (its BG 5 / 6 are the split's: start_level)
+        return;
+    }
     for (v = 0; v < 8; v++) { load_saloon_x(v); music_pump(); }   // the Saloon's Color-only looks 3-7: tiles in VRAM bank 1
     patron_pal_get(0, 3, p);                     // palette instance 3 (ROSIE, REDD): the keg's BG slot, free in the Saloon's playfield
     p[0] = WALL_RGB;
@@ -240,15 +250,19 @@ void start_level(void) BANKED {
         patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others
         q[0] = WALL_RGB;
         for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
-    } else if (is_cgb && cur_group == 5) {      // A1 prototype (the Factory): BG 5 ends on stage row 3, BG 6 on row 4: two reloads; the patron side is a copy of instance 0's colours for now
+    } else if (extra_on()) {                    // a generated venue (the Factory): its instances on BG 5 (reloaded early, line 31) and BG 6 (late, line 39) are the split's, a chain of two reloads
         palette_t q;
-        split_arm(BGPAL_STAGE_B, BGPAL_STAGE);
-        patron_pal_get(5, 0, q);
-        q[0] = WALL_RGB;
-        for (k = 0; k < 4; k++) {
-            uint16_t c = BRIGHTEN(q[k]);
-            SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8;
-            SPLIT_E_PAL[k << 1] = c; SPLIT_E_PAL[(k << 1) | 1] = c >> 8;
+        uint8_t e = 255, l = 255, i;
+        for (i = 0; i < 8; i++) { if (INST_BG[i] == BGPAL_STAGE) e = i; else if (INST_BG[i] == BGPAL_STAGE_B) l = i; }
+        if (l == 255) { l = e; e = 255; }       // (only BG 5 used: the Saloon's single reload)
+        if (l != 255) {
+            split_arm(e == 255 ? BGPAL_STAGE : BGPAL_STAGE_B, e == 255 ? 0 : BGPAL_STAGE);
+            inst_bg_pal(cur_group, l, q);
+            for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
+            if (e != 255) {
+                inst_bg_pal(cur_group, e, q);
+                for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_E_PAL[k << 1] = c; SPLIT_E_PAL[(k << 1) | 1] = c >> 8; }
+            }
         }
     }
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted

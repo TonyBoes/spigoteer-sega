@@ -95,6 +95,9 @@ void sec_mark(uint8_t i);
 #define PATRON_BANK1     0x40 // patron_variant bit 6: one of the Saloon's Color-only looks (3-7), its tiles in VRAM bank 1 (render.c patron_attr, mirror.c pose)
 uint8_t spawn_variant(uint8_t r) BANKED;    // mirror.c: a new patron's patron_variant byte from a random byte (the Saloon on Color: 8 looks and their palettes)
 uint8_t saloon_variant(uint8_t r) BANKED;
+uint8_t extra_variant(uint8_t r) BANKED;    // mirror.c: the Saloon's pick or the generated one (build/looks.c) of the venue cur_group (a Color venue with extra looks)
+#include "looks.h"
+uint8_t extra_on(void) BANKED;              // mirror.c: Color, and the venue has Color-only looks (the Saloon's hand-written table, or one generated into build/looks.c)
 #define DRAW_BACK        0x80 // patron_draw bit 7: drawn in its back view (x < 128, so the bit is free)
 #define SHUFFLE_MAX         4 // a patron turning to watch the show shuffles at most this far to a multiple of 8 px
 // BG tile budget (signed 0x8800 mode, LCDC bit 4 clear): ids 0..255. OBJ tiles stay below 128, so BG ids 128+
@@ -327,6 +330,9 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 #define SPLIT_L_BCPS    (story_scratch[SCR_SPLIT_AT + 1])
 #define SPLIT_E_PAL     (story_scratch + SCR_SPLIT_AT + 2)
 #define SPLIT_E_STG     (story_scratch + SCR_SPLIT_AT + 10)
+// The OBJ and BG palette slot of palette instance 0-7 (patron_variant), filled at the level load by looks_insts (build/looks.c): story_scratch, SCR_INST_AT.
+#define INST_OBJ        (story_scratch + SCR_INST_AT)
+#define INST_BG         (story_scratch + SCR_INST_AT + 8)
 #define WIN_LYC_NOW (SPLIT_ON ? SPLIT_WANT : LYC_REG)   // the window's own LYC (LYC_REG itself is the split's line half the frame)
 void set_lyc(uint8_t x);                      // main.c: LYC_REG = x, kept as the window's own line while the split runs
 #define SET_LYC(x)  do { if (SPLIT_ON) set_lyc(x); else LYC_REG = (x); } while (0)   // (inline: the DMG and every other screen pay a test, no call)

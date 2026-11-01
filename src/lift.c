@@ -68,8 +68,10 @@ enum { RES_NONE, RES_DONE, RES_REFUSED };
 #define MUG_OAM_ALL    (OAM_MUG_END - (OAM_FILL + 1))     // 21 entries for mugs and lifted patrons together
 #define OAM_SPARE      2                                  // kept free for this frame's new mug / breaking glass
 
-// OBJ palette of palette instance pi (patron_variant, render.c patron_attr): the legacy A, B, C, then the Saloon's two extra sets (OBJPAL_PATRON_D, _E)
-static const uint8_t lift_obj[5] = { OBJPAL_PATRON_A, OBJPAL_PATRON_B, OBJPAL_PATRON_C, OBJPAL_PATRON_D, OBJPAL_PATRON_E };
+// OBJ palette of palette instance pi (patron_variant, render.c patron_attr): INST_OBJ, 8 bytes in story_scratch that looks_insts (build/looks.c) fills at the
+// level load: the legacy A, B, C (OBJ 3, 6, 7), then the Saloon's two extra sets (OBJ 4, 5) or the generated venue's own (the Factory: 4, 1, 5)
+#define lift_obj INST_OBJ
+typedef char lift_obj_at_254[SCR_INST_AT == 254 ? 1 : -1];   // (draw_lifted_asm reads it at _story_scratch + 254)
 // shift-0 OBJ tile of look v: 0-2 the group's, 3-7 the Saloon's Color-only looks (VRAM bank 1: OAM bit 3 from patron_variant bit 6)
 static const uint8_t lift_tile[8] = { (uint8_t)PATRON_OBJ_BASE, (uint8_t)(PATRON_OBJ_BASE + 4), (uint8_t)(PATRON_OBJ_BASE + 8),
     SALOON_X_S0, SALOON_X_S0 + 4, SALOON_X_S0 + 8, SALOON_X_S0 + 12, SALOON_X_S0 + 16 };
@@ -103,7 +105,7 @@ static void swap_copy(uint8_t src, uint8_t dst, uint8_t n) {
 // Level load, LCD off, after load_venue / the patron tiles: nobody lifted; CGB the patrons' OBJ palettes (colours 1-3 of
 // their BG palettes); DMG OBP1 for the patrons and OBP0 copies for what used OBP1. Sets the mug / glass looks.
 void lift_level_init(uint8_t g) BANKED {
-    uint8_t v;
+    uint8_t v, n;
     palette_t p;
     for (v = 0; v < MAX_PATRONS; v++) { patron_lift[v] = LIFT_BG; patron_ovl[v] = 0; lift_pin[v] = 0; }
     ovl_bars = 0; ovl_dirty = 0;
@@ -114,14 +116,15 @@ void lift_level_init(uint8_t g) BANKED {
     lift_prop[0] = S_PALETTE;
     if (is_cgb) {
         lift_prop[0] = 0;
-        for (v = 0; v < (g ? 3 : 5); v++) {       // (the Saloon: 5 palette instances; the 5th is OBJ 5, which the show takes from it and gives back, render.c pal5_check)
-            patron_pal_get(g, v, p);
+        n = looks_insts(g, INST_OBJ, INST_BG);    // (the Saloon: 5 palette instances, the Factory 5, the others 3; the 5th is OBJ 5, which the show takes from it and gives back, render.c pal5_check)
+        for (v = 0; v < n; v++) {
+            if (looks_pal_get(g, v, p)) continue; // (the full-mug instance: its OBJ 1 is the venue's drink palette already, venue_pals)
             p[0] = 0;
             set_sprite_palette(lift_obj[v], 1, p);
             music_pump();                         // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
         }
-        if (g) set_sprite_palette(OBJPAL_PATRON_D, 1, p);   // (OBJ 4 is no patron's outside the Saloon: a level start sets it, so no mini-game's or story scene's colours stay in it)
-        if (!g) pal5_cur = 0;
+        if (n < 5) set_sprite_palette(OBJPAL_PATRON_D, 1, p);   // (OBJ 4 is no patron's outside the Saloon and the generated venues: a level start sets it, so no mini-game's or story scene's colours stay in it)
+        else pal5_cur = 0;
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         spr_hempty_t = OBJ_MUG_DRINK + 6;    spr_hempty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
@@ -1876,10 +1879,10 @@ __asm
     ld   d, a
     xor  a, e
     and  a, #7              ; the palette instance
-    add  a, #<(_lift_obj)
+    add  a, #<(_story_scratch + 254)
     ld   l, a
     ld   a, #0
-    adc  a, #>(_lift_obj)
+    adc  a, #>(_story_scratch + 254)
     ld   h, a
     ld   a, (hl)            ; its OBJ palette
     ld   e, a

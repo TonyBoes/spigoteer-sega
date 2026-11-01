@@ -179,8 +179,9 @@ uint8_t st_tab[64];
 #define SB(v) ((uint8_t)(PATRON_BACK_BASE + (v) * 4u))                     // first back-view tile of variant v
 #define SX(k) ((uint8_t)(SALOON_X_BACK + (k) * 4u))                         // first back-view tile of the Saloon's look 3 + k (VRAM bank 1)
 static const uint8_t back_tile[8] = { SB(0), SB(1), SB(2), SX(0), SX(1), SX(2), SX(3), SX(4) };   // by look (3-7: the Color-only ones)
-// BG palette slot of palette instance pi (patron_variant): 0-2 the legacy A, B, C; 3 and 4 the Saloon's extra sets (7: the keg's, free in the Saloon's playfield; 5: the stage's, below the split line)
-static const uint8_t pal_bg[5] = { BGPAL_PATRON, BGPAL_PATRON + 1, BGPAL_PATRON + 2, BGPAL_BAR_B, BGPAL_STAGE };
+// BG palette slot of palette instance pi (patron_variant): INST_BG, 8 bytes in story_scratch that looks_insts (build/looks.c) fills at the level load: 0-2 the legacy A, B, C (BG 2-4);
+// 3 and 4 the Saloon's extra sets (7: the keg's, free in the Saloon's playfield; 5: the stage's, below the split line) or the Factory's (5 and 6: the chain's reloads)
+#define pal_bg INST_BG
 
 extern uint8_t cur_group;
 #define SPACE_GROUP 9                       // the Space Lounge's patron group (the aliens)
@@ -801,11 +802,11 @@ static void draw_coin(void) {
 // drawing, written by the VBlank interrupt (vq_vbl) right after the OAM DMA that shows the frame.
 static void pal5_check(void) {
     if (!is_cgb) return;
-    if (!show_timer) {                            // the Saloon (Color) keeps its 5th palette instance in OBJ 5 (lift.c): back from the show's colours when the show ends
-        if (pal5_cur == 2 && SPLIT_ON == 1) { pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (SPLIT_PAL: that instance, already lifted for SCREEN BRIGHT)
+    if (!show_timer) {                            // the Saloon and the Factory (Color) keep their 5th palette instance in OBJ 5 (lift.c): back from the show's colours when the show ends
+        if (pal5_cur == 2 && SPLIT_ON) { pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (SPLIT_PAL: that instance, already lifted for SCREEN BRIGHT)
         return;
     }
-    if (pal5_cur == 2 || (SPLIT_ON == 1 && lift_pi4())) return;   // (the Saloon, Color: a lifted patron wearing the 5th instance keeps OBJ 5 until he is gone: no new lift of one during a show, lift.c try_lift)
+    if (pal5_cur == 2 || (SPLIT_ON && lift_pi4())) return;   // (the Saloon, Color: a lifted patron wearing the 5th instance keeps OBJ 5 until he is gone: no new lift of one during a show, lift.c try_lift)
     if (SCR_BRIGHT()) { pal5_lift(); pal5_src = pal5_lifted; }   // SCREEN BRIGHT: the VBlank writes pal5_lifted raw, so the show's colours are lifted into it here (src/bright.c)
     else pal5_src = venue.pal[VENUE_PAL_SHOW];
     pal5_cur = 2;

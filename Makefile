@@ -45,14 +45,14 @@ endif
 
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
-PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patrons_saloon_x.c $(BUILD)/patron_load.c
+PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patrons_saloon_x.c $(BUILD)/patrons_robots_x.c $(BUILD)/patron_load.c
 # M9 themed venues (theme index = patron group): stage, bar, floor, drink, show and palettes per theme, one banked file each
 VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space festival
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
 # M11b story mode: the script (docs/story.md), the portraits and the story font -> two banked files (tools/gen_story.py)
 STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c $(BUILD)/story_pictures.c
 PRACTICE_C := $(BUILD)/practice_art_a.c $(BUILD)/practice_art_b.c
-GEN      := $(BUILD)/art.c $(PRACTICE_C) $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(BUILD)/music_pat23.c $(BUILD)/music_pat24.c $(STORY_C) $(BUILD)/credits_text.c
+GEN      := $(BUILD)/art.c $(PRACTICE_C) $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/looks.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(BUILD)/music_pat23.c $(BUILD)/music_pat24.c $(STORY_C) $(BUILD)/credits_text.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by
 # rgb2sdas.py, placed in ROM bank 2 next to the order tables and src/music.c (all `#pragma bank 2`); the song patterns are
 # in bank 10 (build/music_pat10.c) and src/music.c copies them to WRAM, see tools/gen_music.py.
@@ -204,6 +204,10 @@ $(BUILD)/trans_art.h: tools/gen_trans.py tools/gen_art.py assets/art/fizz.txt | 
 $(BUILD)/palettes.c $(BUILD)/palettes.h: tools/palettes2c.py assets/palettes.json | $(BUILD)
 	python3 tools/palettes2c.py assets/palettes.json $(BUILD)
 
+# The Color-only extra looks' (look, palette) combination tables and instance slots: generated from the Graphics Atlas plan (tools/gen_looks.py)
+$(BUILD)/looks.c $(BUILD)/looks.h $(BUILD)/looks_pick.h: tools/gen_looks.py tools/dev/extra_combos.py $(wildcard tools/artifacts/palette_plan/*.py) assets/palettes.json src/mirror.c $(BUILD)/palettes.c | $(BUILD)
+	python3 tools/gen_looks.py $(BUILD)
+
 # Music: tune sources in tools/gen_music.py + tools/songs.py -> build/music_data.c (bank 2: order tables, jingles) and
 # build/music_pat10.c (bank 10: the pattern blobs src/music.c copies into WRAM)
 $(BUILD)/music_data.c: tools/gen_music.py tools/songs.py src/music.h | $(BUILD)
@@ -236,7 +240,7 @@ $(HUGE_OBJ): $(BUILD)/hUGEDriver.obj $(HUGE)/tools/rgb2sdas.py
 # on the flags at all, so a changed DEBUGFLAGS/LCCFLAGS reused the old ROM. Now build/obj/<variant>/ holds a private copy of
 # the hUGEDriver object and the lcc temp files (-tempdir), and build/<variant>.flags (rewritten only when the flags change)
 # is a prerequisite of the ROM.
-ROM_DEPS := $(SRC) $(wildcard src/*.h) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
+ROM_DEPS := $(SRC) $(wildcard src/*.h) $(GEN) $(BONUS_H) $(BUILD)/art.h $(BUILD)/palettes.h $(BUILD)/looks.h $(BUILD)/looks_pick.h $(HUGE_OBJ) $(HUGE)/include/hUGEDriver.h
 
 .PHONY: FORCE
 FORCE:
