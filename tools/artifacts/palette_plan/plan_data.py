@@ -204,6 +204,11 @@ ENGINE_BG = {"robots": [2, 3, 4, 5, 6, 7]}
 # OBJ slots a boss fight loads its own palettes into (src/boss_prototype.c: lamp OBJ 4, body OBJ 5, topper OBJ 7): a patron on one of them sits out the fight,
 # and so does look 2 (the C slot's tiles are the boss's). gen_looks.py turns these into combo_boss.
 BOSS_OWN_OBJ = {"robots": [4, 5, 7]}
+# Jungle Zoo and Space Lounge (any boss: body BG 4 = BOSS_PAL, topper OBJ 7; the BG 4 patrons' OBJ 4 sits out too). Space: BG 0 is XENO's walking palette (the bar
+# takes his colours, owner Q53), so the engine may put an instance on it; BG_PAIR: OBJ slot -> BG slot where the Atlas lists the patron on a shared BG slot (flagged:
+# Space BG 3 is listed for "XENO, VENUS" with XENO's colours, but VENUS's OBJ 5 colours are the show's; she gets BG 3 in those colours, XENO the bar's BG 0).
+ENGINE_BG["zoo"] = [2, 3, 4, 6, 7]
+BOSS_OWN_OBJ["zoo"] = [4, 7]
 
 
 # Planned art that breaks a patron rule and is shown anyway, until the artist's next pass: (venue, NAME, "front" | "back", "bottom" | "holes" | "x15").

@@ -72,9 +72,11 @@ def test_factorys_boxy_is_yellow_grey_blue_and_dark():
 def bg_slot_colours(gb, slot):
     """Colours 1-3 of BG palette `slot` as the playfield shows it: the palette RAM, except the chain's slots (BG 5 early, BG 6 late: the mid-frame reloads put them
     in the playfield and the VBlank puts the stage's back), whose playfield colours are the buffers the ISR writes from (game.h SPLIT_E_PAL, SPLIT_PAL)."""
-    if slot == 6 and gb.read(0xFFD4, 1)[0] == 3:
+    sc, want = gb.addr("story_scratch"), 0x80 | slot << 3
+    early, late = gb.read(sc + 236, 1)[0], gb.read(sc + 237, 1)[0]       # (the chain's BCPS bytes: which slot each reload writes; the Zoo reloads only BG 6)
+    if late == want and gb.read(0xFFD4, 1)[0] == 3:
         raw = list(gb.read(0xFFD6, 8))
-    elif slot == 5 and gb.read(0xFFD4, 1)[0] == 3:
+    elif early == want and gb.read(0xFFD4, 1)[0] == 3:
         base = gb.addr("story_scratch") + 238
         raw = [gb.read(base + i, 1)[0] for i in range(8)]
     else:

@@ -16,7 +16,7 @@ from test_venues import cgb_palette
 
 ATLAS = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"]
 THEMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]      # the game's theme order (saloon .. space)
-NOT_IMPORTED = {"sports", "lumberjacks", "chefs", "divers", "punks", "ninjas", "zoo", "aliens"}
+NOT_IMPORTED = {"sports", "lumberjacks", "chefs", "divers", "punks", "ninjas", "aliens"}
 pytestmark = pytest.mark.timeout(120)
 
 
@@ -72,6 +72,38 @@ def test_the_factory_slots_are_the_atlas_slots(gb):
     obj, bg = list(gb.read(s + 254, 6)), list(gb.read(s + 262, 6))
     for o, b in zip(obj, bg):
         assert sorted(v["obj"][str(o)]["patrons"]) == sorted(v["bg"][str(b)]["patrons"]) and v["obj"][str(o)]["patrons"], (o, b)
+
+
+# Atlas inconsistency, flagged in the Space Lounge's import: BG 3 is listed for "XENO, VENUS" in XENO's colours, but XENO walks in the bar's BG 0 (owner Q53: the bar
+# takes his colours, so BG 0 shows them) and BG 3 is VENUS's, in her OBJ 5 colours (the show's). Per venue: BG slot -> the OBJ slot whose colours it holds.
+BG_AS_OBJ = {}
+
+
+@pytest.mark.only_model("cgb")
+@pytest.mark.parametrize("k", ["zoo"])
+def test_the_extra_looks_venues_slots_are_the_atlas_slots(gb, k):
+    """The Zoo and the Space Lounge: every BG 0-7 and OBJ 1-7 slot has the Atlas's colours (chain slots from their buffers) and every palette instance pairs an OBJ slot
+    with a BG slot of the same colours 1-3 (the Atlas's "as OBJ n")."""
+    settle(gb, k)
+    v = ATLAS[k]
+    assert gb.read(0xFFD4, 1)[0] == 3, "the mid-frame chain is on"
+    for slot in range(8):
+        as_obj = BG_AS_OBJ.get(k, {}).get(slot)
+        src = v["obj"][str(as_obj)] if as_obj is not None else v["bg"][str(slot)]
+        got = keg_colours(gb) if slot == 1 and v["keg_bg"] == 1 else bg_slot_colours(gb, slot)
+        assert [to5(c) for c in got] == atlas5(src["cols"][1:]), f"BG {slot}"
+    for slot in range(1, 8):
+        if not v["obj"][str(slot)]["patrons"] and not v["obj"][str(slot)]["other"]:
+            continue
+        got = [to5(c) for c in cgb_palette(gb, slot, obj=True)[1:]]
+        assert got == atlas5(v["obj"][str(slot)]["cols"][1:]), f"OBJ {slot}"
+    s = gb.addr("story_scratch")
+    obj, bg = list(gb.read(s + 254, 8)), list(gb.read(s + 262, 8))
+    pairs = [(o, b) for o, b in zip(obj, bg) if o]
+    assert len(pairs) >= 5
+    for o, b in pairs:
+        got_b = keg_colours(gb) if b == 1 else bg_slot_colours(gb, b)
+        assert [to5(c) for c in got_b] == [to5(c) for c in cgb_palette(gb, o, obj=True)[1:]], (o, b)
 
 
 def patron_slots_match(gb, k):

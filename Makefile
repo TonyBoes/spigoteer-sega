@@ -45,7 +45,7 @@ endif
 
 SRC      := $(wildcard src/*.c)
 PATRON_GROUPS := cowboys sports lumberjacks chefs divers robots punks ninjas zoo aliens
-PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(BUILD)/patrons_saloon_x.c $(BUILD)/patrons_robots_x.c $(BUILD)/patron_load.c
+PATRON_C := $(foreach g,$(PATRON_GROUPS),$(BUILD)/patrons_$(g).c) $(foreach x,$(patsubst assets/art/patrons/%.txt,%,$(wildcard assets/art/patrons/*_x.txt)),$(BUILD)/patrons_$(x).c) $(BUILD)/patron_load.c
 # M9 themed venues (theme index = patron group): stage, bar, floor, drink, show and palettes per theme, one banked file each
 VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space festival
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c

@@ -1192,7 +1192,7 @@ def _main():
     # BG ids of bank 1 (all free there): the 35 shifted poses of 6 tiles (look k, shift s: pose q = 7 k + s - 1) at 6 q for q < 34, the
     # blank pair at PATRON_BLANK (so a bank-1 look's shift-0 3rd column is the same id as bank 0's), the five shift-0 poses (4 tiles,
     # OBJ-able: even, >= 128) from X_S0, the five back views (4 tiles) from X_BACK, and the last pose (q = 34) at X_LAST.
-    for tag in ("saloon_x", "robots_x"):   # (the Saloon's Color-only looks and the Factory's: one layout, two blobs and two loaders)
+    for tag in sorted(f.stem for f in (ROOT / "assets/art/patrons").glob("*_x.txt")):   # (every venue's Color-only looks, assets/art/patrons/<venue>_x.txt: one layout, one blob and one loader each)
         xs = [r for _, r in blocks(ROOT / f"assets/art/patrons/{tag}.txt")]
         xb = [r for _, r in blocks(ROOT / f"assets/art/patrons/{tag}_back.txt")]
         assert len(xs) == 5 and len(xb) == 5 and all(len(v) == 16 and all(len(r) == 16 for r in v) for v in xs + xb)
