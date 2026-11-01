@@ -76,11 +76,6 @@ def test_the_imported_venues_slots_are_the_atlas_slots(gb, k):
         assert sorted(v["obj"][str(o)]["patrons"]) == sorted(v["bg"][str(b)]["patrons"]) and v["obj"][str(o)]["patrons"], (o, b)
 
 
-# Atlas inconsistency, flagged in the Space Lounge's import: BG 3 is listed for "XENO, VENUS" in XENO's colours, but XENO walks in the bar's BG 0 (owner Q53: the bar
-# takes his colours, so BG 0 shows them) and BG 3 is VENUS's, in her OBJ 5 colours (the show's). Per venue: BG slot -> the OBJ slot whose colours it holds.
-BG_AS_OBJ = {"aliens": {3: 5}}
-
-
 @pytest.mark.only_model("cgb")
 @pytest.mark.parametrize("k", ["zoo", "aliens"])
 def test_the_extra_looks_venues_slots_are_the_atlas_slots(gb, k):
@@ -90,8 +85,7 @@ def test_the_extra_looks_venues_slots_are_the_atlas_slots(gb, k):
     v = ATLAS[k]
     assert gb.read(0xFFD4, 1)[0] == 3, "the mid-frame chain is on"
     for slot in range(8):
-        as_obj = BG_AS_OBJ.get(k, {}).get(slot)
-        src = v["obj"][str(as_obj)] if as_obj is not None else v["bg"][str(slot)]
+        src = v["bg"][str(slot)]
         got = keg_colours(gb) if slot == 1 and v["keg_bg"] == 1 else bg_slot_colours(gb, slot)
         assert [to5(c) for c in got] == atlas5(src["cols"][1:]), f"BG {slot}"
     for slot in range(1, 8):

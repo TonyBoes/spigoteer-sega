@@ -212,11 +212,9 @@ NATIVE_OBJ = {"ninjas": [3, 6, 7]}
 # and BG 6 earlier, so BG 6 is the early one there. tests/test_extra_looks_venues.py checks this against the venues' stage attributes.
 STAGE_EARLY = {"robots": 5, "divers": 6, "punks": 6, "ninjas": 6, "zoo": 6, "aliens": 6}
 # Jungle Zoo and Space Lounge (any boss: body BG 4 = BOSS_PAL, topper OBJ 7; the BG 4 patrons' OBJ 4 sits out too). Space: BG 0 is XENO's walking palette (the bar
-# takes his colours, owner Q53), so the engine may put an instance on it; BG_PAIR: OBJ slot -> BG slot where the Atlas lists the patron on a shared BG slot (flagged:
-# Space BG 3 is listed for "XENO, VENUS" with XENO's colours, but VENUS's OBJ 5 colours are the show's; she gets BG 3 in those colours, XENO the bar's BG 0).
+# takes his colours, owner Q53), so the engine may put an instance on it (the Atlas lists XENO on BG 0 and VENUS on BG 3 in her OBJ 5 colours).
 ENGINE_BG["zoo"] = [2, 3, 4, 6, 7]
 ENGINE_BG["aliens"] = [0, 2, 3, 4, 5, 6, 7]
-BG_PAIR = {"aliens": {2: 0, 5: 3}}
 
 
 # Planned art that breaks a patron rule and is shown anyway, until the artist's next pass: (venue, NAME, "front" | "back", "bottom" | "holes" | "x15").

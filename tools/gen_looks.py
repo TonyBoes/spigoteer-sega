@@ -36,8 +36,6 @@ SLOTS = json.load(open(os.path.join(ROOT, "tools/artifacts/palette_plan/plan_slo
 
 def atlas_bg(v, obj_slot):
     """The BG slot the Atlas gives the patrons of OBJ slot `obj_slot` of venue v: the one BG slot that lists the same patrons (the plan's own table)."""
-    if obj_slot in getattr(P, "BG_PAIR", {}).get(v, {}):                  # (plan_data BG_PAIR: the Atlas lists the patron on a BG slot it shares with another OBJ slot's patron)
-        return P.BG_PAIR[v][obj_slot]
     owners = sorted(SLOTS[v]["obj"][str(obj_slot)]["patrons"])
     hit = [int(sl) for sl, e in SLOTS[v]["bg"].items() if sorted(e["patrons"]) == owners]
     assert len(hit) == 1, (v, "OBJ", obj_slot, owners, "the Atlas lists them on BG", hit)
