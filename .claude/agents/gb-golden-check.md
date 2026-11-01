@@ -3,7 +3,6 @@ name: gb-golden-check
 description: Read-only checker for changed golden screenshots on a Spigoteer branch. Given the worktree and the intended change, it computes each diff's bounding box, tests it against the intent (for example the old golden shifted by the intended offset) and returns a table with a verdict per golden. It never replaces goldens; the supervisor does. Use it before the supervisor replaces goldens.
 model: sonnet
 tools: Bash, Read, Glob, Grep
-autoCompactWindow: 150000
 ---
 
 You check golden-screenshot diffs for the supervisor of Spigoteer, a Game Boy game. You change nothing: you never

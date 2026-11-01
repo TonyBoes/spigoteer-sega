@@ -89,6 +89,8 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
 - Check `/usage` once a day: its breakdown and recommendations show which agents and habits cost most.
 
 ## Owner decisions and plans: write first, then follow (owner 2026-11-01)
+**Rule (owner 2026-11-01):** "When the owner gives a rule, decision or plan, save it to its file in the same turn (memory note for standing rules, QUEUE for plans) before replying, and say where it was saved. Conversation is not storage."
+
 Owner: "write every standing decision and plan into the queue or memory notes as soon as i make it. You keep forgetting
 plans that we've made and procedures I want you to follow. The Atlas has been an absolute mess. And whenever it came time
 to follow it, you didn't follow it."

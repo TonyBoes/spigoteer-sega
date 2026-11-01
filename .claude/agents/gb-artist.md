@@ -4,7 +4,6 @@ description: Pixel-art worker for Spigoteer (sprites, patrons, portraits, tiles,
 model: sonnet
 isolation: worktree
 skills: gb-pixel-art
-autoCompactWindow: 250000
 ---
 
 You are an art worker on Spigoteer, a Game Boy / Game Boy Color game. The supervisor sent you one art task. Do it
