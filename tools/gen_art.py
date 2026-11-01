@@ -377,6 +377,17 @@ def stage_anim(t, path, sgrid):
             "script": [(used.index(fn), hold) for fn, hold in script], "tiles": frames}
 
 
+def keg_mask():
+    """Bit t set: theme t's keg sits on BG 0 in the level screen. From the Atlas's slot plan (tools/dev/export_plan_slots.py), nothing typed here."""
+    plan = json.load(open(ROOT / "tools/artifacts/palette_plan/plan_slots.json"))["venues"]
+    m = 0
+    for i, g in enumerate(PATRON_GROUPS):
+        k = plan[g]["keg_bg"]
+        assert k in (0, 1), f"{g}: the keg's BG slot {k} (the level screen takes BG 0 or 1)"
+        m |= (k == 0) << i
+    return m
+
+
 def venues(outdir, prev):
     """assets/approved/venues/<t>_* -> build/venue_<t>.c (one banked file per theme: tiles, maps, palettes),
     build/venue_load.c (venue_fetch: copies theme t's venue_t into WRAM), build/venues.json (for the tests) and
@@ -391,6 +402,8 @@ def venues(outdir, prev):
          "#define VENUE_PAL_SHOW 6", f"#define VENUE_PALS {len(VENUE_PALS)}",
          f"#define VENUE_BGPAL_STAGE_A {PAL_STAGE_A}", f"#define VENUE_BGPAL_STAGE_B {PAL_STAGE_B}",
          f"#define VENUE_BGPAL_BAR {PAL_BAR}", f"#define VENUE_BGPAL_BAR_B {PAL_BAR_B}",
+         f"#define VENUE_KEG_BG0 {keg_mask()}   // bit t: venue t's keg is on BG 0 (the Atlas plan, tools/artifacts/palette_plan/plan_slots.json), else BG 1; the level screen's (level.c keg_remap)",
+         "#define VENUE_KEG_BG(t) (((VENUE_KEG_BG0 >> (t)) & 1) ? 0 : 1)",
          "#define VENUE_DRINK_TILES 20   // full, empty (OBJ_MUG), fill x4 (OBJ_MUG_FILL), drink x4 (OBJ_MUG_DRINK); the crash follows (OBJ_GLASS)",
          "typedef struct {",
          "    const uint8_t *stage_tiles, *bar_tiles, *drink_tiles, *show_tiles;   // in the venue's own bank",

@@ -11,7 +11,7 @@ import pytest
 from boss_common import (skip_entrance, BP_HAPPY, BP_WALK, BS_JUMP, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OAM_TOPPER,
                          OBJ_TOPPER, Own, RETURN, SP_FAIL, SP_OUTRO, TAP_X, art, assert_body, bar_row, check_start, fight,
                          frames, hud, meter_tiles, mugs, play, pose_cols, pour, row, still_regulars, throw, to_bar, until)
-from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
+from conftest import keg_bg, level_attr, clear_regulars, ROOT, check_golden, logic_paused, venue
 from test_boss_mascot import marker_at, rows_of
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, set_patron, score, state, tilemap_row
 from test_story import banner_text, centred, post, settle, to_goal
@@ -170,7 +170,7 @@ def test_the_cycle_green_yellow_red_ride(model):
         assert_body(gb, C, A, x, BP_RED)
         until(gb, lambda: counter(gb, B) == belt_row(0) or counter(gb, B) == belt_row(1), 8)
         if model == "cgb":
-            assert attr_row(gb, 5 + 3 * B + 2) == [KEG] * 20, "the belt in the keg's palette (the keg's own columns are 7 too)"
+            assert attr_row(gb, 5 + 3 * B + 2) == [keg_bg(5)] * 20, "the belt in the keg's palette (the keg's own columns are 7 too)"
         seen = [counter(gb, B)]
         for _ in range(3):
             f0 = counter(gb, B)
@@ -189,7 +189,7 @@ def test_the_cycle_green_yellow_red_ride(model):
         until(gb, lambda: counter(gb, B) == FACTORY[40:60], 8)
         frames(gb, 2)
         if model == "cgb":
-            assert attr_row(gb, 5 + 3 * B + 2) == venue("factory")["bar_attr"][40:60], "the counter's palette back"
+            assert attr_row(gb, 5 + 3 * B + 2) == level_attr(5, venue("factory")["bar_attr"])[40:60], "the counter's palette back"
         top, bottom = rows_of(gb, B)
         assert gb.oam()[OAM_TOPPER]["y"] == 0
         assert top[x // 8:x // 8 + 4] != pose_cols(A, BP_WALK), "his body is gone"
@@ -218,7 +218,7 @@ def test_the_belts_tiles_and_palette_change_in_the_same_frame(model):
             tiles = counter(gb, B)[:18]
             attrs = attr_row(gb, 5 + 3 * B + 2)[:18]
             belt = any(t in (CONV, CONV + 1) for t in tiles)
-            sevens = attrs == [KEG] * 18
+            sevens = attrs == [keg_bg(5)] * 18
             assert belt == sevens, (t_of(gb), tiles, attrs)
             seen.append(belt)
         assert not seen[0] and seen[-1] and seen.index(True) > 0, "the belt starts inside the window"
@@ -315,7 +315,7 @@ def test_a_life_lost_in_red_restores_the_counter_and_brings_him_home(model):
             B, R["x"], BS_WALK, 2, 12)
         assert t_of(gb) < 20 and counter(gb, B) == FACTORY[40:60] and lamp(gb)[0] in (0, 2)
         if model == "cgb":
-            assert attr_row(gb, 5 + 3 * B + 2) == venue("factory")["bar_attr"][40:60], "the counter's palette back"
+            assert attr_row(gb, 5 + 3 * B + 2) == level_attr(5, venue("factory")["bar_attr"])[40:60], "the counter's palette back"
         assert all(marker_at(gb, b) is None for b in range(4))
 
 

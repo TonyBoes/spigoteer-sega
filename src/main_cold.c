@@ -25,6 +25,38 @@ extern uint8_t  fill_timer, fill_stage, slide_timer, game_over, state_timer, ove
 extern uint8_t  story_shift, story_chapter;
 extern uint8_t  frame_counter, joy, joy_prev, rng_state, score_digits[6], arcade_loop, new_rank;
 
+// ---- moved from src/main.c (ROM0 relief): the HUD's tile ids, a life lost, a note's end ----
+static uint8_t digit_tile(uint8_t d);
+
+// the lives (HUD row, cols 7-8: the Spigoteer's head and the count as a digit) and the score digits (cols 0-5): the
+// tile ids are prepared by prep_hud() in the logic phase so that the VBlank part is nothing but a copy.
+void prep_hud(void) BANKED {
+    uint8_t i;
+    lives_tiles[0] = TILE_HUD_HEAD;
+    lives_tiles[1] = digit_tile(lives);
+    for (i = 0; i < 6; i++) score_tiles[i] = digit_tile(score_digits[i]);
+}
+
+
+void lose_life(void) BANKED {
+    if (life_lost) return;          // one incident costs one life, however many things go wrong in the same frame
+    if (lives) lives--;
+    hud_dirty |= HUD_LIVES;
+    prep_hud();
+    life_lost = 1;
+    pour_streak = 0;                // (a lost life ends the perfect-pour streak: src/mugs.c)
+    if (lives == 0) game_over = 1;
+}
+
+void end_note(void) BANKED {
+    uint8_t *b, n = 20;
+    if (overlay_on != 2) return;
+    b = mg_say(32, "");
+    while (n) b[--n] = TILE_PANEL_TOP;
+    SET_WY(BANNER_WY); SET_LYC(BANNER_LYC);
+    overlay_on = 0; HIDE_WIN;
+}
+
 // ---- palettes ----------------------------------------------------------------
 #define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
 

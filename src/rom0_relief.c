@@ -9,7 +9,6 @@ extern uint8_t story_arc;
 extern uint32_t score, extra_at;
 extern uint8_t score_digits[6];
 extern uint8_t hud_dirty;
-void prep_hud(void);
 
 static const uint8_t dancer_x[NUM_DANCERS] = { 24, 72, 120 };   // screen x of the left edge, across the stage
 #define DANCER_OAM_Y (STAGE_LAST_ROW * 8 - 24 + 16)   // OAM y of a dancer's top entries: art 24 px tall, feet on the platform

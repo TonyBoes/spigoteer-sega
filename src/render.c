@@ -803,10 +803,10 @@ static void draw_coin(void) {
 static void pal5_check(void) {
     if (!is_cgb) return;
     if (!show_timer) {                            // the Saloon and the Factory (Color) keep their 5th palette instance in OBJ 5 (lift.c): back from the show's colours when the show ends
-        if (pal5_cur == 2 && SPLIT_ON) { pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (SPLIT_PAL: that instance, already lifted for SCREEN BRIGHT)
+        if (pal5_cur == 2 && (SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS))) { pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (SPLIT_PAL: that instance, already lifted for SCREEN BRIGHT)
         return;
     }
-    if (pal5_cur == 2 || (SPLIT_ON && lift_pi4())) return;   // (the Saloon, Color: a lifted patron wearing the 5th instance keeps OBJ 5 until he is gone: no new lift of one during a show, lift.c try_lift)
+    if (pal5_cur == 2 || ((SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS)) && lift_pi4())) return;   // (the Saloon, Color: a lifted patron wearing the 5th instance keeps OBJ 5 until he is gone: no new lift of one during a show, lift.c try_lift)
     if (SCR_BRIGHT()) { pal5_lift(); pal5_src = pal5_lifted; }   // SCREEN BRIGHT: the VBlank writes pal5_lifted raw, so the show's colours are lifted into it here (src/bright.c)
     else pal5_src = venue.pal[VENUE_PAL_SHOW];
     pal5_cur = 2;

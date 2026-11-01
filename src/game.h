@@ -301,12 +301,12 @@ extern const uint8_t bar_oam_y[NUM_BARS];     // OAM y (+16) of the bar's top pi
 uint8_t next_rand(void);
 void add_score(uint16_t n) BANKED;                      // src/rom0_relief.c (bank 21)
 void dancers_step(void) BANKED;                         // src/rom0_relief.c: the show's dancer entries
-void lose_life(void);
-void prep_hud(void);                          // lives_tiles (head, digit) / score_tiles from lives and score_digits
+void lose_life(void) BANKED;
+void prep_hud(void) BANKED;                          // lives_tiles (head, digit) / score_tiles from lives and score_digits
 #define NOTE_WY    ((STAGE_FIRST_ROW + 2) * 8)  // a note (show_note): the window is ONE row, over the stage's wall under the sign (y 24..30), where nothing plays
 #define NOTE_LYC   (NOTE_WY + 7)               // (the glyphs are 7 lines tall: the 8th is blank, so the window may end a line early)
 void show_note(const char *s);                // a one-row message on the stage wall while play goes on (never over a bar); end_note takes it away
-void end_note(void);                          // (no-op unless a note shows) the banner window's rows, WY and LYC as the banner wants them
+void end_note(void) BANKED;                          // (no-op unless a note shows) the banner window's rows, WY and LYC as the banner wants them
 void show_overlay(const char *s);             // the banner's text (ROM0: callers pass strings from their own bank)
 uint8_t *mg_say(uint8_t row, const char *s);  // a centred line of HUD glyphs on map row `row` (queued; LCD off: written)
 extern uint8_t say_bang;                      // (main_cold.c glyph_for) the tile drawn for '!' (bonus2's own, else blank)
@@ -317,32 +317,74 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 // with the patron palette in SPLIT_PAL; split_vbl (vq_vbl's place in the VBlank chain while armed) puts the stage's back from SPLIT_STG first. Armed, split_isr and split_vbl replace lcd_isr and vq_vbl (level.c split_arm / split_off): the DMG and every other screen run the original handlers, not a cycle more. The window's own LYC (banner, note,
 // goal, pause) is kept in SPLIT_WANT and comes back after the split: level-screen writers use SET_LYC; readers WIN_LYC_NOW (the other screens are never armed: LCD off disarms). HRAM 0xFFD4-0xFFE5 (free: the linker uses
 // 0xFF80-0xFF92, the scene change 0xFF94-0xFFD3, 0xFFF0-4 are the pause menu, TRANS and HALF); cleared at boot, armed by start_level, off at lcd_off_p.
-#define SPLIT_ON    (*(volatile uint8_t *)0xFFD4)    // 0 off, 1 the Saloon's (one reload, BG 5), 2 another venue's (the early reload too: SPLIT_EARLY)
+#define SPLIT_ON    (*(volatile uint8_t *)0xFFD4)    // 0 off, 1 the Saloon's (one reload, BG 5, split_isr), 3 every other venue's (split_isr3: the keg, the stage's palettes)
 #define SPLIT_WANT  (*(volatile uint8_t *)0xFFD5)
 #define SPLIT_PAL   ((volatile uint8_t *)0xFFD6)      // 8 bytes: the patron palette for BG BGPAL_STAGE below the stage
 #define SPLIT_STG   ((volatile uint8_t *)0xFFDE)      // 8 bytes: the stage's own (read back from palette RAM at arm time: SCREEN BRIGHT is in it)
 #define SPLIT_LY    ((STAGE_LAST_ROW + 1) * 8 - 1)
-// A venue whose stage palette that ends a text row early (the Factory: BG 5 last on row 3, BG 6 on row 4) reloads it at the end of ITS last row, SPLIT_EARLY_LY, in its own HBlank
-// (8 bytes is one HBlank's worth: two palettes at SPLIT_LY would not fit). In story_scratch (src/scratch.h SCR_SPLIT_AT), alive with the level: [0] the early palette's BCPS
-// (0x80 | slot << 3; 0 = no early reload), [1] the late one's (SPLIT_PAL / SPLIT_STG), [2..9] the early patron-side palette, [10..17] the stage's own, for the VBlank.
+// Mode 3 (src/main.c split_isr3, planned by level.c split_plan) reloads up to three BG palettes in a frame, each in its own HBlank (8 bytes are one HBlank's worth, at double
+// speed; two palettes on one line would not fit):
+//   the early one at SPLIT_EARLY_LY: a stage palette that ends a text row sooner (the Factory: BG 5 last on row 3);
+//   the late one at SPLIT_LY: the other (BG 6, or the Saloon's BG 5);
+//   BG 1, the keg's: the HUD's palette above the playfield, the keg's below its first line (KEG_LY, 38 when the late reload is on line 39, else 39).
+// In story_scratch (src/scratch.h SCR_SPLIT_AT), alive with the level: [0] the early palette's BCPS (0x80 | slot << 3; 0 = none), [1] the late one's (0 = none; SPLIT_PAL / SPLIT_STG),
+// [2..9] the early patron-side palette, [10..17] the stage's own, for the VBlank. The keg's blocks are KEG_* / EV_* below.
+// A WINDOW over the playfield (the banner, a note, the pause menu, a scene change) is drawn in the HUD's BG 1 palette: the plan has the HUD's colours put back in BG 1 on the line
+// before the window starts (WY_REG) and the keg's again on the line before it ends (SPLIT_WANT, the window's own LYC), when the window is shown. level.c split_plan sorts the frame's
+// events into the list the ISR walks: one LYC hit and at most one palette each; it runs on every change of SPLIT_WANT or WY_REG (set_lyc, SET_WY).
 #define SPLIT_EARLY_LY  31
 #define SPLIT_E_BCPS    (story_scratch[SCR_SPLIT_AT])
 #define SPLIT_L_BCPS    (story_scratch[SCR_SPLIT_AT + 1])
 #define SPLIT_E_PAL     (story_scratch + SCR_SPLIT_AT + 2)
 #define SPLIT_E_STG     (story_scratch + SCR_SPLIT_AT + 10)
+#define KEG_BCPS        (story_scratch[SCR_KEG2_AT + 1])    // 0x80 | 1 << 3, or 0: the keg is not in BG 1 (the Saloon's and the Stadium's are in BG 0)
+#define SHOW_PAL        (story_scratch[SCR_KEG2_AT])        // the OBJ palette the show's dancers wear (OBJPAL_DANCER, or Sal's 0 where the plan puts them there)
+#define KEG_PAL         (story_scratch + SCR_KEG_AT)        // 8 bytes: the keg's colours (SCREEN BRIGHT lifted)
+#define KEG_STG         (story_scratch + SCR_KEG_AT + 8)    // 8 bytes: the HUD's, read back from palette RAM at arm time
+#define EV_N            (story_scratch[SCR_KEG_AT + 16])    // the events of a frame, in line order: how many, the next to come, then (line, kind) each
+#define EV_I            (story_scratch[SCR_KEG_AT + 17])
+#define EV_LINE(i)      (story_scratch[SCR_KEG_AT + 18 + (i)])
+#define EV_KINDS(j)     (story_scratch[SCR_KEG_AT + 26 + (j)])                         // (the kinds, a nibble each: event i's is in byte i >> 1)
+#define EV_KIND(i)      ((EV_KINDS((i) >> 1) >> (((i) & 1) << 2)) & 15)
+#define EV_MAX          8
+#define EV_NONE         0       // the window's end line: only the window goes off (the prologue of every hit)
+#define EV_E            1       // the early stage palette
+#define EV_L            2       // the late one
+#define EV_KEG          3       // BG 1 = the keg's
+#define EV_KEG_HID      4       // ... only if no window is shown (it covers this line)
+#define EV_HUD_SHOWN    5       // BG 1 = the HUD's, only if a window is shown (it starts on the next line)
+#define EV_KEG_SHOWN    6       // BG 1 = the keg's, only if a window is shown (it ended on this line)
+#define EV_HUD_END      7       // BG 1 = the HUD's, always: the line under the last keg row, so the VBlank has nothing to put back
+// The event the next LYC hit is for, decoded by main.c split_prime (HRAM 0xFFE6-0xFFE9, free: the ISR's hot path reads these four bytes and nothing else): its palette's BCPS (0: no
+// palette, the window's end), the 8 colour bytes' address, the window it needs (LCDC bit 5: 0xFF any, 0 not shown, 0x20 shown).
+#define NX_BCPS         (*(volatile uint8_t *)0xFFE6)
+#define NX_LO           (*(volatile uint8_t *)0xFFE7)
+#define NX_HI           (*(volatile uint8_t *)0xFFE8)
+#define NX_REQ          (*(volatile uint8_t *)0xFFE9)
+#define NX_NEXT         (*(volatile uint8_t *)0xFFEF)   // HRAM: the line of the event AFTER the one in NX_* (the ISR writes it to LYC first thing, so the next hit is set up even when this handler runs past that line)
+#define F0_BCPS         (*(volatile uint8_t *)0xFFEA)    // the frame's first event, the same five (and its line): the VBlank copies them in, no decoding
+#define F0_LO           (*(volatile uint8_t *)0xFFEB)
+#define F0_HI           (*(volatile uint8_t *)0xFFEC)
+#define F0_REQ          (*(volatile uint8_t *)0xFFED)
+#define F0_LINE         (*(volatile uint8_t *)0xFFEE)
+void split_prime(void);                       // main.c: NX_* and LYC for event EV_I
+void split_advance(void);                     // main.c: the next event, split_prime'd (the asm ISR's tail)
 // The OBJ and BG palette slot of palette instance 0-7 (patron_variant), filled at the level load by looks_insts (build/looks.c): story_scratch, SCR_INST_AT.
 #define INST_OBJ        (story_scratch + SCR_INST_AT)
 #define INST_BG         (story_scratch + SCR_INST_AT + 8)
 #define WIN_LYC_NOW (SPLIT_ON ? SPLIT_WANT : LYC_REG)   // the window's own LYC (LYC_REG itself is the split's line half the frame)
 void set_lyc(uint8_t x);                      // main.c: LYC_REG = x, kept as the window's own line while the split runs
 #define SET_LYC(x)  do { if (SPLIT_ON) set_lyc(x); else LYC_REG = (x); } while (0)   // (inline: the DMG and every other screen pay a test, no call)
-void split_isr2(void);                        // the Factory's chain (two reloads); split_isr is the Saloon's, cycle for cycle the original
-void split_vbl2(void);
+void split_resume(void) BANKED;               // level.c: the pause card closed on a level: the split the card's LCD-off dropped, back
+void split_plan(void) BANKED;                 // level.c: mode 3's events for this frame from SPLIT_WANT and WY_REG (call after changing either)
+#define SET_WY(x)   do { WY_REG = (x); if (SPLIT_ON == 3) split_plan(); } while (0)   // (the window's top: every level-screen writer, so the keg's BG 1 follows it)
+void split_isr3(void);                        // every other venue's: the keg and the stage palettes' reloads (SPLIT_ON 3); split_isr is the Saloon's, cycle for cycle the original
+void split_vbl3(void);
 void split_isr(void);                         // main.c: lcd_isr's twin while the split is armed (swapped in by level.c split_arm, out by split_off)
 void split_vbl(void);                         // main.c: the VBlank handler of the split (the stage's palette back)
 void split_off(void) BANKED;                  // level.c: the screen goes away: the stage's palette back, the split stops
 void split_pal_put(const volatile uint8_t *src);   // main.c: the late split palette <- 8 bytes (HBlank, VBlank or LCD off)
-void split_pal_put_e(const volatile uint8_t *src); // the early one
+void split_put_a(uint8_t bcps, const volatile uint8_t *src);   // main.c: 8 palette bytes at BCPS (HBlank, VBlank or LCD off; the asm label of split_pal_put, or its C twin)
 // ROM0 helpers: copy out of another ROM bank and come back to the caller's
 void far_copy(void *dst, const void *src, uint16_t n, uint8_t bank);
 void bkg_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);

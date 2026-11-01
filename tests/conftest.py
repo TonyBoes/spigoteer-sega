@@ -630,6 +630,18 @@ def venue(theme):
     return VENUES["venues"][THEMES[theme] if isinstance(theme, int) else theme]
 
 
+def keg_bg(theme):
+    """The keg's BG palette slot on the level screen (the Atlas plan, build/art.h VENUE_KEG_BG0: bit t set = BG 0, else BG 1); the venue art itself names BG 7 (mini-games, title)."""
+    mask = int(_re.search(r"#define VENUE_KEG_BG0 (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))
+    return 0 if (mask >> theme) & 1 else 1
+
+
+def level_attr(theme, attrs):
+    """The venue's attribute bytes as the level screen draws them: the keg tiles' BG 7 is the plan's keg slot (src/level.c keg_remap)."""
+    k = keg_bg(theme)
+    return [k if a == 7 else a for a in attrs]
+
+
 def venue_rows(theme, key):
     """A 20-wide map of the venue as a list of rows."""
     m = venue(theme)[key]

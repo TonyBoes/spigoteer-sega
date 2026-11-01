@@ -7,7 +7,7 @@
 import pytest
 from PIL import ImageChops
 
-from conftest import (GAME, LAYOUT, bar_counter_row, bar_top_row, bar_top_y, check_golden, hold_stage_anim, logic_paused,
+from conftest import (GAME, level_attr, LAYOUT, bar_counter_row, bar_top_row, bar_top_y, check_golden, hold_stage_anim, logic_paused,
                       title_level, venue_rows)
 from test_classic import (MAX_M, MAX_P, Mirror, close, entries, flipped, new_rom, run_both, scene, tile_data)
 from test_classic_mode import built_rows, classic_at
@@ -81,7 +81,8 @@ def test_the_title_puts_the_bars_straight_again(boot):
 def window(theme):
     """The venue's three bar rows BASE_W wide, as load_venue builds them (columns 20.. plain wall: the wall rows' columns
     2..; the counter row's from the upper wall row)."""
-    m, a = venue_rows(theme, "bar_map"), venue_rows(theme, "bar_attr")
+    m = venue_rows(theme, "bar_map")
+    a = [level_attr(theme, r) for r in venue_rows(theme, "bar_attr")]    # (the keg's slot on the level screen)
     rows = []
     for r in range(3):
         src = r if r < 2 else 0

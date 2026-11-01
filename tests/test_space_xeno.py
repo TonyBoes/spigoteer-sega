@@ -18,7 +18,7 @@ def space_with_aliens(gb):
     spots = [(0, 24, 1), (1, 56, 0), (2, 88, 1), (3, 40, 2)]
     for bar, x, var in spots:
         set_patron(gb, bar, x, variant=var)
-    gb.run(6)
+    gb.run(10)                               # (6 frames drew every bar before the venue had the keg split on Color: its ISRs cost the normal-speed frame a vblank)
     return spots
 
 

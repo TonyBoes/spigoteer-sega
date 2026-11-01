@@ -201,7 +201,7 @@ static void card_open(void) {
     if (LCDC_REG & LCDCF_OBJON) s |= PAUSE_OBJ;
     state_timer = s | PAUSE_CARD;
     HIDE_SPRITES;
-    WY_REG = 0;                                  // the window over the whole screen: no LYC end
+    SET_WY(0);                                  // the window over the whole screen: no LYC end
     mg_card_win_open(pause_card(s));
     overlay_on = 1;                              // (the card is the window: main.c's update shows it every frame while this is set; the boss's first-appearance card came here with it 0, and the next frame's update hid the card, the paused game staying up behind a dead screen. The menu's card has it set already)
     if (!(mg_id == MG_MILKRUN)) SET_LYC(255);   // (Milk Run's handler: main.c mr_lcd_isr takes PAUSE_CARD into account)
@@ -214,7 +214,7 @@ static void card_close(void) {
     uint8_t s = state_timer;
     CARD_OFF();
     mg_card_win_close();
-    WY_REG = BANNER_WY;
+    SET_WY(BANNER_WY);
     if (s & PAUSE_OBJ) SHOW_SPRITES;
     if (s & PAUSE_ASK) {                         // the first-encounter card (pause_boss_card): no menu behind it, the game goes on
         put_back();                              // (the banner window hidden, the sound and the letters back; LYC at the banner's)
@@ -224,6 +224,7 @@ static void card_close(void) {
         DISPLAY_ON;
 #endif
         game_state = GS_PLAYING;
+        split_resume();                          // (the card's LCD-off dropped the level's palette split)
         return;
     }
     set_bkg_data(TILE_GLYPH_J, 1, qmark_tile);
@@ -257,7 +258,7 @@ void pause_open(void) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     apply(state_timer, 1);                       // (Milk Run's handler walks LYC itself)
-    if (WY_REG == NOTE_WY) WY_REG = BANNER_WY;   // (a note cut off before this frame's update: the band starts on its line)
+    if (WY_REG == NOTE_WY) SET_WY(BANNER_WY);   // (a note cut off before this frame's update: the band starts on its line)
     overlay_on = 1;
 }
 
@@ -294,6 +295,7 @@ void pause_close(void) BANKED {
     uint8_t mini = state_timer & PAUSE_MINI;
     put_back();
     game_state = mini ? GS_MINI : GS_PLAYING;
+    if (!mini) split_resume();                   // (a card dropped it: the LCD went off)
 }
 
 // YES: the run (or the mini-game) ends
