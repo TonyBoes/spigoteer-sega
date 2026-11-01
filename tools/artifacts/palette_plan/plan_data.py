@@ -207,6 +207,10 @@ BOSS_OWN_OBJ = {"robots": [4, 5, 7], "divers": [7], "punks": [5, 7], "ninjas": [
 # Instances 0-2 are looks 0-2's OBJ slots (gen_looks.py). Where the plan puts two of the three natives on one OBJ slot (the Teahouse: RONIN joined SAKURA's OBJ 6) the
 # third instance is named here: look 2's boss slot (the Sumo's body is BG 7, his topknot OBJ 7 = POET's freed palette). Look 2 may still spawn on any of its allowed slots.
 NATIVE_OBJ = {"ninjas": [3, 6, 7]}
+# The stage palette the mid-frame chain reloads EARLY (line 31, the end of the stage's third text row); the other is reloaded late (line 39). The early one must not be used
+# in the stage's last row: the Factory's BG 5 ends on row 3 (its BG 6 is the shelf under the stage); the Igloo, the Chrome Cow and the Teahouse have BG 5 on the last row
+# and BG 6 earlier, so BG 6 is the early one there. tests/test_extra_looks_venues.py checks this against the venues' stage attributes.
+STAGE_EARLY = {"robots": 5, "divers": 6, "punks": 6, "ninjas": 6}
 
 
 # Planned art that breaks a patron rule and is shown anyway, until the artist's next pass: (venue, NAME, "front" | "back", "bottom" | "holes" | "x15").

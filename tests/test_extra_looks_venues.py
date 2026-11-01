@@ -24,6 +24,7 @@ import plan_data as P  # noqa: E402
 pytestmark = [pytest.mark.only_model("cgb"), pytest.mark.timeout(240)]
 
 GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]
+VENUE_NAMES = ["saloon", "sports", "lodge", "bistro", "igloo", "factory", "biker", "teahouse", "zoo", "space"]
 VENUES = ["divers", "punks", "ninjas"]
 PALS = json.loads((ROOT / "assets" / "palettes.json").read_text())
 
@@ -145,15 +146,16 @@ def test_the_game_loads_its_instances_where_the_table_says(model, v):
         assert scratch(gb, 254, 6) == t["order"] and scratch(gb, 262, 6) == t["bg"]
         wall = cgb_palette(gb, 0)[0]
         assert gb.read(0xFFD4, 1)[0] == 3, "the mid-frame chain is on (SPLIT_ON 3)"
-        late = [i for i, b in enumerate(t["bg"]) if b == 6]
-        early = [i for i, b in enumerate(t["bg"]) if b == 5]
+        es = P.STAGE_EARLY[v]
+        late = [i for i, b in enumerate(t["bg"]) if b == 11 - es]
+        early = [i for i, b in enumerate(t["bg"]) if b == es]
         for pi, (o, bg, pal) in enumerate(zip(t["order"], t["bg"], t["pal"])):
             if pal[0] != "pal":
                 continue
             cols = PALS[pal[1]]["rgb15"]
             if o not in (0, 1, 2) and o != 5:
                 assert cgb_palette(gb, o, obj=True)[1:] == cols, ("OBJ", o)
-            if bg not in (5, 6):
+            if bg not in (5, 6):                      # (the chain's slots are read from their buffers below)
                 assert cgb_palette(gb, bg)[1:] == cols and cgb_palette(gb, bg)[0] == wall, ("BG", bg)
         if late:
             assert list(gb.read(0xFFD6, 8)) == rgb_bytes([wall] + PALS[t["pal"][late[0]][1]]["rgb15"]) if t["pal"][late[0]][0] == "pal" else True
@@ -292,3 +294,30 @@ def test_the_looks_mirror_pixel_for_pixel_on_an_r_level(model, v):
             assert not bad, (f, bad)
     finally:
         tc.close(a, b)
+
+
+@pytest.mark.parametrize("v", VENUES + ["robots"])
+def test_the_stage_palette_reloaded_early_is_not_on_the_stages_last_row(v):
+    """The chain reloads one stage palette at line 31 (the end of text row 3 of the stage) and the other at line 39: the early one may not be on the stage's 4th row."""
+    stage = json.loads((ROOT / "build" / "venues.json").read_text())["venues"][VENUE_NAMES[GROUPS.index(v)]]["stage_attr"]
+    assert P.STAGE_EARLY[v] not in {a & 7 for a in stage[60:80]}, (v, "the early slot is on the stage's last row")
+    assert (11 - P.STAGE_EARLY[v]) in {a & 7 for a in stage[60:80]} or v == "robots", "(so the late one is the one that is)"
+
+
+@pytest.mark.parametrize("v", VENUES + ["robots"])
+def test_a_show_gives_slot_5_back_to_palette_instance_4(model, v):
+    """Instance 4 is OBJ 5 as a sprite; a show takes the slot for its dancers and gives it back, with instance 4's own colours (not the chain's late palette)."""
+    gb = venue_play(v)
+    try:
+        t = table(v)
+        assert t["order"][4] == 5
+        mine = cgb_palette(gb, 5, obj=True)
+        gb.run(3)
+        gb.write("show_timer", 100)
+        gb.run(3)
+        assert cgb_palette(gb, 5, obj=True) != mine and gb.mem("pal5_cur") == 2, "the show's colours"
+        gb.write("show_timer", 0)
+        gb.run(3)
+        assert cgb_palette(gb, 5, obj=True)[1:] == mine[1:] and gb.mem("pal5_cur") == 0, "given back"
+    finally:
+        gb.stop()

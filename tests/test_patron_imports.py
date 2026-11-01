@@ -72,9 +72,10 @@ def test_factorys_boxy_is_yellow_grey_blue_and_dark():
 def bg_slot_colours(gb, slot):
     """Colours 1-3 of BG palette `slot` as the playfield shows it: the palette RAM, except the chain's slots (BG 5 early, BG 6 late: the mid-frame reloads put them
     in the playfield and the VBlank puts the stage's back), whose playfield colours are the buffers the ISR writes from (game.h SPLIT_E_PAL, SPLIT_PAL)."""
-    if slot == 6 and gb.read(0xFFD4, 1)[0] == 3:
+    early = 6 if (int(re.search(r"LOOKS_EARLY6 0x([0-9A-F]+)u", (ROOT / "build" / "looks.h").read_text()).group(1), 16) >> gb.mem("cur_group")) & 1 else 5   # (looks.h: which stage slot the chain reloads early)
+    if slot in (5, 6) and gb.read(0xFFD4, 1)[0] == 3 and slot != early:
         raw = list(gb.read(0xFFD6, 8))
-    elif slot == 5 and gb.read(0xFFD4, 1)[0] == 3:
+    elif slot in (5, 6) and gb.read(0xFFD4, 1)[0] == 3:
         base = gb.addr("story_scratch") + 238
         raw = [gb.read(base + i, 1)[0] for i in range(8)]
     else:
