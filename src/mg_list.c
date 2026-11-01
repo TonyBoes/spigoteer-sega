@@ -411,7 +411,7 @@ void mg_list_enter(void) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     game_state = GS_MGLIST;
-    if (NR51_REG) while (TIMA_REG > DS_SCALE(23)) music_pump();   // (as trans.c tick_sync: the LCD comes on just after a tick; the picture's load moved the phase)
+    if (!(TMA_REG & 2)) while (TIMA_REG > DS_SCALE(23)) music_pump();   // (as trans.c tick_sync: the LCD comes on just after a tick; the picture's load moved the phase. Not NR51: a silent tune ticks too, and the list is never under the pause menu)
     DISPLAY_ON;
 }
 

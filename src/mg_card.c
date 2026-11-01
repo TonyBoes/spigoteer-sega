@@ -219,7 +219,7 @@ void mg_card_win_open(uint8_t game) BANKED {
     if (is_cgb) {
         VBK_REG = VBK_BANK_1;
         for (i = 0; i < 20; i++) b[i] = BGPAL_HUD;
-        for (i = 0; i < 18; i++) set_win_tiles(0, i, 20, 1, b);
+        for (i = 0; i < 18; i++) { set_win_tiles(0, i, 20, 1, b); if (!(i & 3)) music_pump(); }   // (a twentieth of a frame a row, LCD off: the tune ticks through)
         VBK_REG = VBK_BANK_0;
     }
     draw_rows(game, 2);
