@@ -87,8 +87,8 @@ static void swap_gus(void) {
 
 // The BG side of palette instance pi of venue g: colour 0 = the wall; the full-mug instance takes the venue's own drink colours (build/looks.c looks_pal_get)
 static void inst_bg_pal(uint8_t g, uint8_t pi, palette_t q) {
-    uint8_t k;
-    if (looks_pal_get(g, pi, q)) for (k = 1; k < 4; k++) q[k] = venue.pal[VENUE_PAL_DRINK_FULL][k];
+    uint8_t k, r = looks_pal_get(g, pi, q);
+    if (r) for (k = 1; k < 4; k++) q[k] = venue.pal[r == 1 ? VENUE_PAL_DRINK_FULL : VENUE_PAL_DRINK_EMPTY][k];
     q[0] = WALL_RGB;
 }
 

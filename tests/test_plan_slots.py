@@ -16,7 +16,11 @@ from test_venues import cgb_palette
 
 ATLAS = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"]
 THEMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]      # the game's theme order (saloon .. space)
-NOT_IMPORTED = {"sports", "lumberjacks", "chefs", "divers", "punks", "ninjas", "zoo", "aliens"}
+NOT_IMPORTED = {"sports", "lumberjacks", "chefs",
+                "punks",
+                "ninjas",
+                "zoo", "aliens"}
+IMPORTED = sorted(set(THEMES) - NOT_IMPORTED - {"cowboys"})        # the generated venues (tools/gen_looks.py): each checked slot by slot
 pytestmark = pytest.mark.timeout(120)
 
 
@@ -49,9 +53,10 @@ def test_the_atlas_export_has_the_documented_shape():
 
 
 @pytest.mark.only_model("cgb")
-def test_the_factory_slots_are_the_atlas_slots(gb):
-    settle(gb, "robots")
-    v = ATLAS["robots"]
+@pytest.mark.parametrize("k", IMPORTED)
+def test_the_imported_venues_slots_are_the_atlas_slots(gb, k):
+    settle(gb, k)
+    v = ATLAS[k]
     assert gb.read(0xFFD4, 1)[0] == 3, "the mid-frame chain is on"
     for slot in range(8):
         want = atlas5(v["bg"][str(slot)]["cols"][1:])
