@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Bistro swaps (owner's second marked grid): cut PIERRE OBJ 3; NONNA 3; MIME 0, 4, 5, 6, 7 (keeps only his own); BASIL 3; PINOT 3; HERB 3. BRIE and OLIVE keep all. Color only."),
     ("2026-10-31", "Q69 Lodge (owner's marked grid): swaps cut: BOONE OBJ 5, 6, 7; WILLOW OBJ 5, 6, 7. Everyone else keeps all. Q69 closed: every venue's swaps decided. Color only."),
     ("2026-10-31", "Q87 (owner): \"C, but center his head on his body.\" PIERRE's new back = option C with the head moved 1 px left (docs/dev/concepts/patron_pass/chefs/pierre_owner_back.txt). DMG and Color; held for the game."),
     ("2026-10-31", "Q86 (owner): \"Ash to medium, rod to dark.\" Lodge OBJ 7 (ASH) skin #946A00 -> #C08858; ROD's OBJ 5 skin #F8C090 -> #8C5A3C. Color only; ASH's DMG greys unchanged; held for the game."),
