@@ -370,6 +370,7 @@ void start_new_game(uint8_t lv) BANKED;
 void resume_after_life(void) BANKED;
 void enter_game_over(void) BANKED;
 void enter_level_clear(void) BANKED;
+uint8_t update_cold(uint8_t pressed) BANKED;   // main_cold.c: one frame of the screens main.c's update() does not run itself; 0: go on, 1: return, 2: frame_counter++ and return
 
 // ---- patrons.c --------------------------------------------------------------------------
 extern uint8_t lists_ok;                      // 0: bar lists must be rebuilt before use (see patrons.c)
@@ -481,7 +482,8 @@ void mirror_load(uint8_t dirs) BANKED;        // LCD off: after load_venue and t
 void draw_bartender(void);
 void draw_stage_fx(void);
 void hide_all_sprites(void);
-extern const uint8_t sway_tab[256];                 // (patrons.c, ROM0) (t / SWAY_FRAMES) & 1 for t < WINDUP_T0, else 0
+extern const uint8_t sway_tab[WINDUP_T0];           // (patrons.c, ROM0) (t / SWAY_FRAMES) & 1 for t < WINDUP_T0
+#define SWAY_AT(t) ((t) < WINDUP_T0 && sway_tab[t])   // (0 from the windup on: any uint8_t t)
 void oam_touched(void);                       // OAM entries were changed behind the drawing code: redraw cached ones
 uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
 uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c-1..c+3 of bar b first thing this frame (0: not now)

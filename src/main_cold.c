@@ -314,3 +314,50 @@ void enter_level_clear(void) BANKED {
     if (play_mode == MODE_CLASSIC || (story_on && !boss_on && story_shift)) { antics_start(); state_timer = 255; }
     game_state = GS_LEVEL_CLEAR;                 // last: whoever sees the state sees the banner and the jingle
 }
+
+#define CLEAR_FRAMES        150
+#define LOOP_FRAMES         120                  // the "LOOP n" banner, before the level's intro
+#define GAMEOVER_FRAMES     240                  // the GAME OVER banner goes on to the initials / table by itself after 4 s
+
+// The states main.c's update() does not run itself (ROM0 relief; it keeps the title, play, pause and the mini-games). 0: the frame goes on
+// to the shared tail, 1: update() returns, 2: it counts the frame and returns.
+uint8_t update_cold(uint8_t pressed) BANKED {
+    switch (game_state) {
+    case GS_LIFE_LOST:
+        update_glass();
+        fill_timer = 0; fill_stage = 0;
+        bartender_frame = BT_FAIL;
+        if (story_on) story_life_frame();       // story: a strict rule's 2 lives blink
+        if (++state_timer >= LIFE_FREEZE_FRAMES) {
+            if (lives == 0) enter_game_over(); else resume_after_life();
+        }
+        break;
+    case GS_LEVEL_CLEAR:                         // (CLASSIC: the antics, src/antics.c, and their own length)
+        if (state_timer == 255 ? antics_frame() : ++state_timer >= CLEAR_FRAMES) {   // (255: the antics, enter_level_clear)
+            if (story_on) { story_level_done(); return 1; }   // M11b / ARCADE: the next step (story.c)
+            if (play_mode == MODE_CLASSIC ? classic_bonus_due() : !(level & 1)) {   // the harness: after even levels
+                bonus_enter();
+                game_state = GS_BONUS;
+                return 1;
+            }
+            if (level < 99) level++;
+            enter_level_screen();
+            return 1;
+        }
+        break;
+    case GS_DEBUG:
+        if (debug_step(pressed)) return 2;
+        break;
+    case GS_GAME_OVER:                           // M10b: then the initials (top 5) or the table, then the title
+        if ((pressed & (J_START | J_A)) || ++state_timer >= GAMEOVER_FRAMES) { scores_after_game(); return 1; }
+        break;
+    case GS_INITIALS:
+    case GS_SCORES:
+        if (scores_update(pressed)) { title_enter(); return 1; }
+        break;
+    case GS_LOOP:
+        if (++state_timer >= LOOP_FRAMES) { game_state = GS_PLAYING; overlay_on = 0; }
+        break;
+    }
+    return 0;
+}

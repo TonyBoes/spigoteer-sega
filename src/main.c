@@ -662,7 +662,7 @@ static void play_frame(uint8_t pressed) {
 
 
 static void update(void) {
-    uint8_t pressed;
+    uint8_t pressed, t;
 
     vq_frame_begin();                // the VBlank interrupt has drained last frame's copy list (or it waits)
 #ifdef GLOW_A
@@ -716,29 +716,13 @@ static void update(void) {
             return;
         }
         break;
-    case GS_LIFE_LOST:
-        update_glass();
-        fill_timer = 0; fill_stage = 0;
-        bartender_frame = BT_FAIL;
-        if (story_on) story_life_frame();       // story: a strict rule's 2 lives blink
-        if (++state_timer >= LIFE_FREEZE_FRAMES) {
-            if (lives == 0) enter_game_over(); else resume_after_life();
-        }
+    case GS_PAUSED:
+        if (pause_update(pressed)) return;       // RESUME / QUIT TO MENU (src/pause.c); 1: the run is over
         break;
-    case GS_LEVEL_CLEAR:                         // (CLASSIC: the antics, src/antics.c, and their own length)
-        if (state_timer == 255 ? antics_frame() : ++state_timer >= CLEAR_FRAMES) {   // (255: the antics, enter_level_clear)
-            if (story_on) { story_level_done(); return; }   // M11b / ARCADE: the next step (story.c)
-            if (play_mode == MODE_CLASSIC ? classic_bonus_due() : !(level & 1)) {   // the harness: after even levels
-                bonus_enter();
-                game_state = GS_BONUS;
-                return;
-            }
-            if (level < 99) level++;
-            enter_level_screen();
-            return;
-        }
+    case GS_MINI:                                // a mini-game (src/mg.c); 1: it left, the next screen is up
+        if (mg_update(pressed)) return;
         break;
-    case GS_BONUS:
+    case GS_BONUS:                               // (these four stay: their frames are long or tick-sensitive, a banked call more shows in the music-tick and bonus-judge tests)
         if (bonus_update(pressed)) {
             if (story_on) { arcade_next(); return; }  // ARCADE: the bonus round after a venue, then the next venue
             if (level < 99) level++;
@@ -746,25 +730,9 @@ static void update(void) {
             return;
         }
         break;
-    case GS_DEBUG:
-        if (debug_step(pressed)) { frame_counter++; return; }
-        break;
-    case GS_GAME_OVER:                           // M10b: then the initials (top 5) or the table, then the title
-        if ((pressed & (J_START | J_A)) || ++state_timer >= GAMEOVER_FRAMES) { scores_after_game(); return; }
-        break;
-    case GS_INITIALS:
-    case GS_SCORES:
-        if (scores_update(pressed)) { title_enter(); return; }
-        break;
-    case GS_PAUSED:
-        if (pause_update(pressed)) return;       // RESUME / QUIT TO MENU (src/pause.c); 1: the run is over
-        break;
     case GS_STORY:                               // M11b: a cut-scene / TRY AGAIN, the goal banner
     case GS_GOAL:
         if (story_update(pressed)) return;
-        break;
-    case GS_MINI:                                // a mini-game (src/mg.c); 1: it left, the next screen is up
-        if (mg_update(pressed)) return;
         break;
     case GS_JUKEBOX:                             // the title's BONUS: the soundtrack player (src/jukebox.c)
         if (jukebox_update(pressed)) return;
@@ -772,8 +740,9 @@ static void update(void) {
     case GS_MGLIST:                              // BONUS > MINI GAMES: the list (src/mg_list.c)
         if (mg_list_update(pressed)) return;
         break;
-    case GS_LOOP:
-        if (++state_timer >= LOOP_FRAMES) { game_state = GS_PLAYING; overlay_on = 0; }
+    default:                                    // the other screens (life lost, level clear, bonus, debug, game over, scores, story, jukebox, list, loop): src/main_cold.c, banked (ROM0 relief)
+        t = update_cold(pressed);
+        if (t) { if (t == 2) frame_counter++; return; }
         break;
     }
 
