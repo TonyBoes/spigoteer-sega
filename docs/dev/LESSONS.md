@@ -101,3 +101,4 @@ See `tools/artifacts/README.md` for the review pages' links and how to republish
   git in another agent's tree. Commit the old tree's work as a WIP commit (say NOT GREEN, list the failures, add a
   handoff under `docs/dev/handoffs/`), then tell the new agent to merge that branch into its own.
 - Long-running agents that keep stopping mid-test (context past ~150k) waste turns: stop them, WIP-commit, start fresh.
+- **Commit messages (2026-11-01, twice in one day):** a failed Write to msg.txt followed by `git commit -F` in the same response commits the previous message. Never send the commit in the same response as the Write of its message; check the Write succeeded first.
