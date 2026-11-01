@@ -385,23 +385,11 @@ void clear_dirty(void) {
     for (b = 0; b < NUM_BARS; b++) { dirty_x0[b] = 255; dirty_x1[b] = 0; attr_x0[b] = 255; attr_x1[b] = 0; }
 }
 
-static void write_span(uint8_t b, uint8_t x0, uint8_t x1) {
-    uint8_t r, y, w = x1 - x0;
-    for (r = 0; r < 2; r++) {
-        y = BAR_TOP_ROW(b) + r;
-        vram_put(x0, y, &sh_tile[(b << 1) | r][x0], w);
-        if (is_cgb) {
-            VBK_REG = VBK_BANK_1;
-            vram_put(x0, y, &sh_attr[(b << 1) | r][x0], w);
-            VBK_REG = VBK_BANK_0;
-        }
-    }
-}
-
 void write_all_bars(void) {          // LCD off only
     uint8_t b;
     cz_x0 = 0; cz_x1 = 20; cz_attrs = is_cgb;
-    for (b = 0; b < NUM_BARS; b++) { compose_bar(b); write_span(b, 0, 20); }
+    for (b = 0; b < NUM_BARS; b++) compose_bar(b);
+    write_all_spans();
     clear_dirty();
 }
 

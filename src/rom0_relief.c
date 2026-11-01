@@ -84,3 +84,19 @@ void add_score(uint16_t n) BANKED {
     prep_hud();
 }
 
+
+// The bars' two wall rows each, all 20 columns, tiles and (Color) attributes, straight to VRAM: render.c write_all_bars (LCD off, level start; it was a
+// static write_span in ROM0). sh_rows: [0] tile ids, [1] attributes, row (bar << 1) | r, 32 wide.
+extern uint8_t sh_rows[2][NUM_BARS * 2][32];
+void write_all_spans(void) BANKED {
+    uint8_t b, r, y;
+    for (b = 0; b < NUM_BARS; b++) for (r = 0; r < 2; r++) {
+        y = BAR_TOP_ROW(b) + r;
+        vram_put(0, y, &sh_rows[0][(b << 1) | r][0], 20);
+        if (is_cgb) {
+            VBK_REG = VBK_BANK_1;
+            vram_put(0, y, &sh_rows[1][(b << 1) | r][0], 20);
+            VBK_REG = VBK_BANK_0;
+        }
+    }
+}
