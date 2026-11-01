@@ -190,7 +190,7 @@ void level_pace_again(void) BANKED {
 void split_off(void) BANKED {   // (the LCD is off) the stage's palette back, the split stops
     SPLIT_ON = 0;
     LYC_REG = SPLIT_WANT;                          // (the window's own line back: the ISR may have left the split's)
-    CRITICAL { remove_VBL(split_vbl); remove_VBL(split_vbl3); remove_VBL(vq_vbl); add_VBL(vq_vbl); remove_LCD(split_isr); remove_LCD(split_isr3); remove_LCD(lcd_isr); add_LCD(lcd_isr); }
+    CRITICAL { remove_VBL(split_vbl); remove_VBL(split_vbl3); remove_VBL(vq_vbl); add_VBL(vq_vbl); remove_LCD(split_isr); SPLIT_ISR3_OFF(); remove_LCD(lcd_isr); add_LCD(lcd_isr); }
     if (!(LCDC_REG & LCDCF_ON)) {
         if (SPLIT_L_BCPS) split_put_a(SPLIT_L_BCPS, SPLIT_STG);
         if (SPLIT_E_BCPS) split_put_a(SPLIT_E_BCPS, SPLIT_E_STG);
@@ -205,10 +205,10 @@ void split_resume(void) BANKED {   // the pause card closed on a level: the spli
     if (!is_cgb || SPLIT_ON || !(cur_group == 0 || VENUE_KEG_BG(cur_group) == 1 || extra_on())) return;
     SPLIT_WANT = LYC_REG;
     SPLIT_ON = cur_group ? 3 : 1;
-    if (cur_group) { EV_N = 0; EV_I = 0; split_plan(); }
+    if (cur_group) split_plan();
     CRITICAL {
         remove_VBL(vq_vbl); remove_LCD(lcd_isr);
-        if (cur_group) { add_VBL(split_vbl3); add_LCD(split_isr3); } else { add_VBL(split_vbl); add_LCD(split_isr); }
+        if (cur_group) { add_VBL(split_vbl3); add_LCD(SPLIT_ISR3); } else { add_VBL(split_vbl); add_LCD(split_isr); }
     }
 }
 
@@ -224,11 +224,10 @@ static void split_arm(uint8_t late, uint8_t early, uint8_t keg) {
     }
     SPLIT_WANT = LYC_REG;
     SPLIT_ON = (early || keg) ? 3 : 1;
-    EV_I = 0;
-    if (SPLIT_ON == 3) { EV_N = 0; split_plan(); }
+    if (SPLIT_ON == 3) split_plan();
     CRITICAL {
-        remove_VBL(vq_vbl); remove_VBL(split_vbl); remove_VBL(split_vbl3); remove_LCD(lcd_isr); remove_LCD(split_isr); remove_LCD(split_isr3);
-        if (SPLIT_ON == 3) { add_VBL(split_vbl3); add_LCD(split_isr3); } else { add_VBL(split_vbl); add_LCD(split_isr); }
+        remove_VBL(vq_vbl); remove_VBL(split_vbl); remove_VBL(split_vbl3); remove_LCD(lcd_isr); remove_LCD(split_isr); SPLIT_ISR3_OFF();
+        if (SPLIT_ON == 3) { add_VBL(split_vbl3); add_LCD(SPLIT_ISR3); } else { add_VBL(split_vbl); add_LCD(split_isr); }
     }   // (split_vbl is vq_vbl with the stage's palette put back first: early in the VBlank)
 }
 
@@ -237,13 +236,14 @@ static void split_arm(uint8_t late, uint8_t early, uint8_t keg) {
 // Sorted by line; a line holds one event, the later one moves down a line; the window's end line is an event only when no palette is due on it (the ISR's prologue hides the window).
 // Runs whenever SPLIT_WANT or WY_REG changes (set_lyc, SET_WY), and at the arm; the next event is the first below the beam (LY), the first of the frame when none is.
 void split_plan(void) BANKED {
-    uint8_t line[EV_MAX], kind[EV_MAX], n = 0, i, j, k_, t, w = SPLIT_WANT, wy = WY_REG, kl = SPLIT_L_BCPS ? SPLIT_LY - 1 : SPLIT_LY, ly = LY_REG;
+    uint8_t line[EV_MAX], kind[EV_MAX], n = 0, i, j, k_, t, w = SPLIT_WANT, wy = WY_REG, kl = SPLIT_L_BCPS ? SPLIT_LY - 1 : SPLIT_LY, ly = LY_REG, shown = LCDC_REG & LCDCF_WINON, ds = DS_NOW ? 0 : 1;
     if (SPLIT_E_BCPS) { line[n] = SPLIT_EARLY_LY; kind[n++] = EV_E; }
     if (SPLIT_L_BCPS) { line[n] = SPLIT_LY; kind[n++] = EV_L; }
     if (KEG_BCPS) {
-        line[n] = kl; kind[n++] = (wy <= kl + 1 && kl + 1 < w) ? EV_KEG_HID : EV_KEG;   // (a window over the line below it: no keg there, the window's end brings it)
-        if (wy > kl + 1 && wy < FLOOR_ROW * 8) { line[n] = wy - 1; kind[n++] = EV_HUD_SHOWN; }
-        if (w > kl + 1 && w < FLOOR_ROW * 8) { line[n] = w - 1; kind[n++] = EV_KEG_SHOWN; }
+        if (!ds && SPLIT_L_BCPS && !(shown && wy <= kl + 1 && kl + 1 < w)) kind[n - 1] = EV_KEG_L;   // (double speed: the keg's put rides in the late reload's HBlank, one hit)
+        else { line[n] = kl; kind[n++] = (shown && wy <= kl + 1 && kl + 1 < w) ? EV_KEG_HID : EV_KEG; }   // (a window over the line below it: no keg there, the window's end brings it)
+        if (shown && wy > kl + 1 && wy < FLOOR_ROW * 8) { line[n] = wy - 1; kind[n++] = EV_HUD_SHOWN; }
+        if (shown && w > kl + 1 && w < FLOOR_ROW * 8) { line[n] = w - 1; kind[n++] = EV_KEG_SHOWN; }
         line[n] = FLOOR_ROW * 8; kind[n++] = EV_HUD_END;   // (the floor row has no keg: BG 1 is the HUD's for the next frame's first line)
     }
     for (i = 1; i < n; i++) {                       // (insertion sort: six at most)
@@ -253,20 +253,27 @@ void split_plan(void) BANKED {
     }
     for (i = 1; i < n; i++) if (line[i] <= line[i - 1]) line[i] = line[i - 1] + 1;   // (one palette an HBlank)
     for (i = 0; i < n; i++) if (line[i] > 142) kind[i] = EV_NONE;               // (no HBlank before the frame's end)
-    for (i = 0; i < n && line[i] != w; i++) ;
-    if (i == n && w < 154) {                        // the window's end: its own event, in its place
+    for (i = j = 0; i < n; i++) {
+        if (!ds) { if (line[i] == w) j = 1; }                 // (double speed: the ISR hides the window as its hit starts, an event on the end line is the end)
+        else if (shown && w < 154) {                          // (normal speed: a palette on the line before the window's end takes the window off after itself; one on the end line, as the line starts)
+            if (line[i] == w) { if (kind[i]) kind[i] |= EV_HIDE_FIRST; j = 1; }
+            else if (kind[i] && line[i] + 1 == w) { kind[i] |= EV_HIDE_AFTER; j = 1; }
+        }
+    }
+    if (shown && !j && w < 154) {                            // the window's end: its own event, in its place
         for (i = 0; i < n && line[i] < w; i++) ;
         for (j = n; j > i; j--) { line[j] = line[j - 1]; kind[j] = kind[j - 1]; }
         line[i] = w; kind[i] = EV_NONE; n++;
     }
-    if (n < 2) { line[n] = 143; kind[n++] = EV_NONE; }    // (the ISR always has a next line to set: a frame's one event gets a harmless second)
+    if (n < 2) { line[n] = 143; kind[n++] = EV_PAD; }    // (the ISR always has a next line to set: a frame's one event gets a harmless second)
     for (i = 0; i < n && line[i] <= ly; i++) ;
     CRITICAL {
-        for (j = 0; j < EV_MAX / 2; j++) EV_KINDS(j) = 0;
-        for (j = 0; j < n; j++) { EV_LINE(j) = line[j]; EV_KINDS(j >> 1) |= kind[j] << ((j & 1) << 2); }
+        SPLIT_OFF = ds;
+        for (j = 0; j < n; j++) { EV_LINE(j) = line[j] - ds; EV_KIND(j) = kind[j]; }
+        EV_LINE(n) = line[0] - ds;                                      // (the sentinel: the line after the last is the first's, next frame)
         EV_N = n;
+        EV_PS = shown ? 0x80 : 0;                                  // (planned for a shown window: win_on_ / win_off_ replan when the window is not that)
         EV_I = i < n ? i : 0;
-        split_prime();
         LYC_REG = EV_LINE(EV_I);
     }
 }

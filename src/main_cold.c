@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "scratch.h"
 #include "palettes.h"
 #include "bonus.h"
 #include "music.h"
@@ -354,6 +355,7 @@ void enter_level_clear(void) BANKED {
 // The states main.c's update() does not run itself (ROM0 relief; it keeps the title, play, pause and the mini-games). 0: the frame goes on
 // to the shared tail, 1: update() returns, 2: it counts the frame and returns.
 uint8_t update_cold(uint8_t pressed) BANKED {
+    WIN_FIX();                                   // (the banners' windows: the plan)
     switch (game_state) {
     case GS_LIFE_LOST:
         update_glass();

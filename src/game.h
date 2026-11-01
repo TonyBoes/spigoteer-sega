@@ -322,6 +322,9 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 #define SPLIT_PAL   ((volatile uint8_t *)0xFFD6)      // 8 bytes: the patron palette for BG BGPAL_STAGE below the stage
 #define SPLIT_STG   ((volatile uint8_t *)0xFFDE)      // 8 bytes: the stage's own (read back from palette RAM at arm time: SCREEN BRIGHT is in it)
 #define SPLIT_LY    ((STAGE_LAST_ROW + 1) * 8 - 1)
+#define SPLIT_OFF   (*(volatile uint8_t *)0xFFE6)    // mode 3: 1 at normal speed (the hit comes a line before its event's line and waits for it), 0 at double speed
+#define SPLIT_TGT   (*(volatile uint8_t *)0xFFE7)    // (the ISR's own: the line it waits for, then its window flags)
+#define SPLIT_FLG   (*(volatile uint8_t *)0xFFE8)
 // Mode 3 (src/main.c split_isr3, planned by level.c split_plan) reloads up to three BG palettes in a frame, each in its own HBlank (8 bytes are one HBlank's worth, at double
 // speed; two palettes on one line would not fit):
 //   the early one at SPLIT_EARLY_LY: a stage palette that ends a text row sooner (the Factory: BG 5 last on row 3);
@@ -341,34 +344,25 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 #define SHOW_PAL        (story_scratch[SCR_KEG2_AT])        // the OBJ palette the show's dancers wear (OBJPAL_DANCER, or Sal's 0 where the plan puts them there)
 #define KEG_PAL         (story_scratch + SCR_KEG_AT)        // 8 bytes: the keg's colours (SCREEN BRIGHT lifted)
 #define KEG_STG         (story_scratch + SCR_KEG_AT + 8)    // 8 bytes: the HUD's, read back from palette RAM at arm time
-#define EV_N            (story_scratch[SCR_KEG_AT + 16])    // the events of a frame, in line order: how many, the next to come, then (line, kind) each
+#define EV_N            (story_scratch[SCR_KEG_AT + 16])    // the events of a frame, in line order: how many, the next to come (decoded by the ISR itself when its line hits), planned for a shown window
 #define EV_I            (story_scratch[SCR_KEG_AT + 17])
-#define EV_LINE(i)      (story_scratch[SCR_KEG_AT + 18 + (i)])
-#define EV_KINDS(j)     (story_scratch[SCR_KEG_AT + 26 + (j)])                         // (the kinds, a nibble each: event i's is in byte i >> 1)
-#define EV_KIND(i)      ((EV_KINDS((i) >> 1) >> (((i) & 1) << 2)) & 15)
+#define EV_PS           (story_scratch[SCR_KEG_AT + 18])    // 0x80: the plan was made for a shown window (win_on_ / win_off_ replan when it is not)
+#define EV_LINE(i)      (story_scratch[SCR_EVT_AT + ((i) << 1)])       // the events, (line, kind) each, then one more: the first's line again (the ISR sets LYC to the line after it, no wrap to compute)
+#define EV_KIND(i)      (story_scratch[SCR_EVT_AT + 1 + ((i) << 1)])
 #define EV_MAX          8
+// The kinds are 5 times their number: main.c's asm ISR indexes its 5-byte table with them as they are.
 #define EV_NONE         0       // the window's end line: only the window goes off (the prologue of every hit)
-#define EV_E            1       // the early stage palette
-#define EV_L            2       // the late one
-#define EV_KEG          3       // BG 1 = the keg's
-#define EV_KEG_HID      4       // ... only if no window is shown (it covers this line)
-#define EV_HUD_SHOWN    5       // BG 1 = the HUD's, only if a window is shown (it starts on the next line)
-#define EV_KEG_SHOWN    6       // BG 1 = the keg's, only if a window is shown (it ended on this line)
-#define EV_HUD_END      7       // BG 1 = the HUD's, always: the line under the last keg row, so the VBlank has nothing to put back
-// The event the next LYC hit is for, decoded by main.c split_prime (HRAM 0xFFE6-0xFFE9, free: the ISR's hot path reads these four bytes and nothing else): its palette's BCPS (0: no
-// palette, the window's end), the 8 colour bytes' address, the window it needs (LCDC bit 5: 0xFF any, 0 not shown, 0x20 shown).
-#define NX_BCPS         (*(volatile uint8_t *)0xFFE6)
-#define NX_LO           (*(volatile uint8_t *)0xFFE7)
-#define NX_HI           (*(volatile uint8_t *)0xFFE8)
-#define NX_REQ          (*(volatile uint8_t *)0xFFE9)
-#define NX_NEXT         (*(volatile uint8_t *)0xFFEF)   // HRAM: the line of the event AFTER the one in NX_* (the ISR writes it to LYC first thing, so the next hit is set up even when this handler runs past that line)
-#define F0_BCPS         (*(volatile uint8_t *)0xFFEA)    // the frame's first event, the same five (and its line): the VBlank copies them in, no decoding
-#define F0_LO           (*(volatile uint8_t *)0xFFEB)
-#define F0_HI           (*(volatile uint8_t *)0xFFEC)
-#define F0_REQ          (*(volatile uint8_t *)0xFFED)
-#define F0_LINE         (*(volatile uint8_t *)0xFFEE)
-void split_prime(void);                       // main.c: NX_* and LYC for event EV_I
-void split_advance(void);                     // main.c: the next event, split_prime'd (the asm ISR's tail)
+#define EV_E            5       // the early stage palette
+#define EV_L            10      // the late one
+#define EV_KEG          15      // BG 1 = the keg's
+#define EV_KEG_HID      20      // ... only if no window is shown (it covers this line)
+#define EV_HUD_SHOWN    25      // BG 1 = the HUD's, only if a window is shown (it starts on the next line)
+#define EV_KEG_SHOWN    30      // BG 1 = the keg's, only if a window is shown (it ended on this line)
+#define EV_HUD_END      35      // BG 1 = the HUD's, always: the line under the last keg row, so the VBlank has nothing to put back
+#define EV_PAD          40      // nothing (the list's second event when a frame has one)
+#define EV_KEG_L        45      // double speed: the keg's put and the late palette's together, in the late one's HBlank (one hit, not two)
+#define EV_HIDE_FIRST   0x40    // ORed into a kind: the window off on this line (it ends here), before the palette
+#define EV_HIDE_AFTER   0x80    // ... after the palette (it ends on the next line)
 // The OBJ and BG palette slot of palette instance 0-7 (patron_variant), filled at the level load by looks_insts (build/looks.c): story_scratch, SCR_INST_AT.
 #define INST_OBJ        (story_scratch + SCR_INST_AT)
 #define INST_BG         (story_scratch + SCR_INST_AT + 8)
@@ -377,8 +371,24 @@ void set_lyc(uint8_t x);                      // main.c: LYC_REG = x, kept as th
 #define SET_LYC(x)  do { if (SPLIT_ON) set_lyc(x); else LYC_REG = (x); } while (0)   // (inline: the DMG and every other screen pay a test, no call)
 void split_resume(void) BANKED;               // level.c: the pause card closed on a level: the split the card's LCD-off dropped, back
 void split_plan(void) BANKED;                 // level.c: mode 3's events for this frame from SPLIT_WANT and WY_REG (call after changing either)
-#define SET_WY(x)   do { WY_REG = (x); if (SPLIT_ON == 3) split_plan(); } while (0)   // (the window's top: every level-screen writer, so the keg's BG 1 follows it)
+// The window's state is what mode 3's plan keys on (level.c split_plan: with no window shown the frame has no window events). SHOW_WIN / HIDE_WIN stay GBDK's plain writes (the DMG and
+// every other screen pay nothing); main.c's update replans when the state is not what the plan was made for, and the scene change and the pause menu (trans.c, pause.c) say WIN_SYNC().
+// (the plan is stale when the window shows and it was made for none, or the window is hidden by update, not by the ISR at its end line (overlay_on says it is wanted), and it was made for one)
+#define WIN_STALE() ((LCDC_REG & 0x20) ? !EV_PS : (!overlay_on && EV_PS))
+#define WIN_FIX()   do { if (SPLIT_ON == 3 && WIN_STALE()) split_plan(); } while (0)   // (every frame of a screen that is not drawn by draw_stage_fx: pause_update, story_update, update_cold)
+#define WIN_SYNC()  do { if (SPLIT_ON == 3) split_plan(); } while (0)
+void set_wy(uint8_t x);
+#define SET_WY(x)   set_wy(x)   // (the window's top: every level-screen writer, so the keg's BG 1 follows it)
 void split_isr3(void);                        // every other venue's: the keg and the stage palettes' reloads (SPLIT_ON 3); split_isr is the Saloon's, cycle for cycle the original
+#include "asm_cfg.h"
+#if ASM_SPLIT_PAL
+void split_isr3n(void);                       // the same at normal speed (a Color game that is not switched to double speed: the tests, the goldens): the hit comes a line early and waits for its line
+#define SPLIT_ISR3  (DS_NOW ? split_isr3 : split_isr3n)
+#define SPLIT_ISR3_OFF() do { remove_LCD(split_isr3); remove_LCD(split_isr3n); } while (0)
+#else
+#define SPLIT_ISR3  split_isr3                  // (the C twin does both: SPLIT_OFF)
+#define SPLIT_ISR3_OFF() remove_LCD(split_isr3)
+#endif
 void split_vbl3(void);
 void split_isr(void);                         // main.c: lcd_isr's twin while the split is armed (swapped in by level.c split_arm, out by split_off)
 void split_vbl(void);                         // main.c: the VBlank handler of the split (the stage's palette back)

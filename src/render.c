@@ -183,7 +183,7 @@ static const uint8_t back_tile[8] = { SB(0), SB(1), SB(2), SX(0), SX(1), SX(2), 
 // 3 and 4 the Saloon's extra sets (7: the keg's, free in the Saloon's playfield; 5: the stage's, below the split line) or the Factory's (5 and 6: the chain's reloads)
 #define pal_bg INST_BG
 
-extern uint8_t cur_group;
+extern uint8_t cur_group, overlay_on;
 #define SPACE_GROUP 9                       // the Space Lounge's patron group (the aliens)
 static uint8_t st_t;                      // first tile of the patron being stamped
 static uint8_t cz_dir, cz_sto, cz_flip, cz_bswap;   // the bar being composed is R; its st_tab offset, attribute bit, back-view swap
@@ -802,6 +802,7 @@ static void draw_coin(void) {
 // drawing, written by the VBlank interrupt (vq_vbl) right after the OAM DMA that shows the frame.
 static void pal5_check(void) {
     if (!is_cgb) return;
+    WIN_FIX();   // (mode 3, here because the DMG never gets this far: the window is not what the plan was made for: the ISR hid it at the plan's end line, or update just showed it)
     if (!show_timer) {                            // the Saloon and the Factory (Color) keep their 5th palette instance in OBJ 5 (lift.c): back from the show's colours when the show ends
         if (pal5_cur == 2 && (SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS))) { pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (SPLIT_PAL: that instance, already lifted for SCREEN BRIGHT)
         return;
