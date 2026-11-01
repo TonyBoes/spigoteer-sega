@@ -7,13 +7,14 @@
 # E4 (owner 2026-10-15): the ice's trade-off, the FROZEN TAP (nothing can be poured at him on his icy bar; the banner
 # TAP FROZEN, a thud on a blocked press; the other bars and the tell pour as ever), and the entrance, the FROST FRONT
 # (the wall bare, the counter frosts over, he steps out of the frost in the BLOW pose, it thaws, he walks).
+import contextlib
 import re
 
 import pytest
 from boss_common import (BP_HAPPY, BP_WALK, BS_GULP, BS_OUTRO, BS_SPECIAL, BS_TELL, Clock, EMPTY, FULL, SP_OUTRO,
                          SPOUT_X, TAP_X, art, arrivals_ok, assert_body, body, pair_id, check_start, fight, frames, mugs, play, pour, row,
                          still_regulars, throw, to_bar, until)
-from conftest import clear_regulars, ROOT, check_golden, venue
+from conftest import clear_regulars, ROOT, check_golden, venue, double_speed
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, inject_mug, run_until, state, tilemap_row
 from test_story import banner_text, centred, post, settle, to_goal
 
@@ -122,7 +123,8 @@ def test_the_breath_tell_ice_and_thaw(model):
     columns every 12 frames, every counter column icy when the ice starts; the ice: BLOW for 30 frames, then his
     standing pose, 180 frames (boss_icy), his bar fast; the thaw: the counter back in 2 frames; then he walks and the
     next breath is 360 frames away. Goldens boss_yeti_inhale and boss_yeti_blow (the tell and the blow)."""
-    with fight(model, C) as gb:
+    # (Color at double speed, the way the game ships: at normal speed the blow frame, with the Igloo's mid-frame palette chain, runs late and the golden catches the HUD half drawn)
+    with (double_speed() if model == "cgb" else contextlib.nullcontext()), fight(model, C) as gb:
         quiet(gb)
         clock = Clock(gb)
         until(gb, lambda: clock.now() and gb.mem("yeti_phase") == YP_TELL, EVERY + 10)   # (the clock read every frame)

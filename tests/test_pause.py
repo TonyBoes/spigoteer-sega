@@ -3,7 +3,10 @@
 # STORY (shifts, boss fights, the Pour-Off): the title, the save untouched; ARCADE / CLASSIC: the initials when the score makes the
 # top 5, else the title; mini-games: the list (practice, no medal) or as the run they are part of; BOSS RUSH: its menu, no time.
 # Every mini-game's quit leaves what its normal leave leaves (OBP0, the LCD handler, the mute mask, OBJ / BG tiles, palettes).
+import contextlib
+
 import pytest
+from conftest import double_speed
 from split_helpers import win_lyc
 from tick_helpers import FRAME
 from conftest import unlock_debug
@@ -1077,6 +1080,11 @@ def _boss_state(gb):
             gb.mem("boss_hp"), gb.mem("boss_on"), gb.mem("game_state"), palettes(gb))
 
 
+# The fights whose Color frames, with the venue's mid-frame palette chain and its Color-only looks, overrun at normal speed (the Chrome Cow's Duke:
+# 15 missed frames in 130, so the two runs below differ by a frame's phase): they run at double speed, the way the game ships (owner Q92).
+HEAVY_FIGHTS = {6}
+
+
 @pytest.mark.parametrize("model", MODES)
 @pytest.mark.parametrize("c", _bosses())
 def test_a_boss_hint_card_and_back_leaves_the_fight_as_if_it_had_not_been_opened(model, c):
@@ -1084,7 +1092,7 @@ def test_a_boss_hint_card_and_back_leaves_the_fight_as_if_it_had_not_been_opened
     from boss_common import fight, play
 
     def run(card):
-        with fight(model, c) as gb:
+        with (double_speed() if model == "cgb" and c in HEAVY_FIGHTS else contextlib.nullcontext()), fight(model, c) as gb:
             play(gb)
             gb.run(40)
             tap(gb, "start", 3)

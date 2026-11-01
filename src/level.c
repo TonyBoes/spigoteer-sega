@@ -87,8 +87,8 @@ static void swap_gus(void) {
 
 // The BG side of palette instance pi of venue g: colour 0 = the wall; the full-mug instance takes the venue's own drink colours (build/looks.c looks_pal_get)
 static void inst_bg_pal(uint8_t g, uint8_t pi, palette_t q) {
-    uint8_t k;
-    if (looks_pal_get(g, pi, q)) for (k = 1; k < 4; k++) q[k] = venue.pal[VENUE_PAL_DRINK_FULL][k];
+    uint8_t k, r = looks_pal_get(g, pi, q);
+    if (r) for (k = 1; k < 4; k++) q[k] = venue.pal[r == 1 ? VENUE_PAL_DRINK_FULL : VENUE_PAL_DRINK_EMPTY][k];
     q[0] = WALL_RGB;
 }
 
@@ -328,10 +328,12 @@ void start_level(void) BANKED {
     } else if (is_cgb) {                        // every other venue (mode 3): the keg's BG 1 and, for a generated one (the Factory), its instances on BG 5 (reloaded early, line 31) and BG 6 (late, line 39)
         palette_t q;
         uint8_t e = 255, l = 255, i, keg = VENUE_KEG_BG(cur_group) == 1 ? BGPAL_HUD : 0;
-        if (extra_on()) for (i = 0; i < 8; i++) { if (INST_BG[i] == BGPAL_STAGE) e = i; else if (INST_BG[i] == BGPAL_STAGE_B) l = i; }
-        if (l == 255) { l = e; e = 255; }       // (only BG 5 used: the one late reload)
+        uint8_t es = BGPAL_STAGE, ls = BGPAL_STAGE_B;       // (the early and the late reload's BG slot: the Factory's BG 5 ends the stage's row 3, its BG 6 the row 4)
+        if ((LOOKS_EARLY6 >> cur_group) & 1) { es = BGPAL_STAGE_B; ls = BGPAL_STAGE; }   // (the Igloo, the Chrome Cow, the Teahouse: BG 5 is on the stage's last row, BG 6 is not)
+        if (extra_on()) for (i = 0; i < 8; i++) { if (INST_BG[i] == es) e = i; else if (INST_BG[i] == ls) l = i; }
+        if (l == 255) { l = e; e = 255; ls = es; }   // (only one used: the one late reload)
         if (keg || l != 255) {
-            split_arm(l == 255 ? 0 : (e == 255 ? BGPAL_STAGE : BGPAL_STAGE_B), e == 255 ? 0 : BGPAL_STAGE, keg);
+            split_arm(l == 255 ? 0 : ls, e == 255 ? 0 : es, keg);
             if (keg) for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(venue.pal[VENUE_PAL_BAR_B][k]); KEG_PAL[k << 1] = c; KEG_PAL[(k << 1) | 1] = c >> 8; }
             if (l != 255) {
                 inst_bg_pal(cur_group, l, q);
