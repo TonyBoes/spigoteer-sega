@@ -35,8 +35,7 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
   - agents running: "Good point to `/compact`".
 - **Before the owner steps away** (overnight, a meeting), say so too: the first message after a cache expiry
   re-processes the whole context, so a `/clear` (no agents running) or `/compact` first saves a large re-write.
-- **Backstop:** `.claude/settings.json` sets `autoCompactWindow` to 400000. CLAUDE.md's "Compact instructions" say
-  what survives.
+- **Compaction:** automatic (no autoCompactWindow override). CLAUDE.md's "Compact instructions" say what survives.
 - **Images:** ask for ONE labelled contact sheet per review instead of opening many stills.
 - **Reading:** grep, then read ranges. Never read `PLAN.full.md` or `ALL_AGENT_BRIEFS.md` whole.
 
