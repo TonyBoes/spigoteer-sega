@@ -52,6 +52,9 @@ def venue_tables(v):
     nat = []
     for k in range(3):
         nat.append(next(o for o, ns in inst.items() if looks[k] in ns))
+    if v in P.NATIVE_OBJ:
+        nat = list(P.NATIVE_OBJ[v])
+        assert all(o in inst for o in nat), (v, "NATIVE_OBJ names an OBJ slot that is no instance", nat, sorted(inst))
     assert len(set(nat)) == 3, (v, "the three natives must be on three different OBJ slots", nat)
     cap = len(P.ENGINE_BG[v])
     rest = [o for o in sorted(inst) if o not in nat]

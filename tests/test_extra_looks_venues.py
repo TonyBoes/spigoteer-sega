@@ -24,7 +24,7 @@ import plan_data as P  # noqa: E402
 pytestmark = [pytest.mark.only_model("cgb"), pytest.mark.timeout(240)]
 
 GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]
-VENUES = ["divers", "punks"]
+VENUES = ["divers", "punks", "ninjas"]
 PALS = json.loads((ROOT / "assets" / "palettes.json").read_text())
 
 

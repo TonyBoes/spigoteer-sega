@@ -1192,7 +1192,7 @@ def _main():
     # BG ids of bank 1 (all free there): the 35 shifted poses of 6 tiles (look k, shift s: pose q = 7 k + s - 1) at 6 q for q < 34, the
     # blank pair at PATRON_BLANK (so a bank-1 look's shift-0 3rd column is the same id as bank 0's), the five shift-0 poses (4 tiles,
     # OBJ-able: even, >= 128) from X_S0, the five back views (4 tiles) from X_BACK, and the last pose (q = 34) at X_LAST.
-    for tag in ("saloon_x", "robots_x", "divers_x", "punks_x"):   # (the Saloon's Color-only looks and the Factory's: one layout, two blobs and two loaders)
+    for tag in ("saloon_x", "robots_x", "divers_x", "punks_x", "ninjas_x"):   # (the Saloon's Color-only looks and the Factory's: one layout, two blobs and two loaders)
         xs = [r for _, r in blocks(ROOT / f"assets/art/patrons/{tag}.txt")]
         xb = [r for _, r in blocks(ROOT / f"assets/art/patrons/{tag}_back.txt")]
         assert len(xs) == 5 and len(xb) == 5 and all(len(v) == 16 and all(len(r) == 16 for r in v) for v in xs + xb)
@@ -1306,6 +1306,7 @@ def _main():
                 "void load_robots_x(uint8_t part) BANKED;   // build/patrons_robots_x.c: the Robot Factory's (the same layout and ids)",
                 "void load_divers_x(uint8_t part) BANKED;   // build/patrons_divers_x.c: the Igloo's",
                 "void load_punks_x(uint8_t part) BANKED;   // build/patrons_punks_x.c: the Chrome Cow's",
+                "void load_ninjas_x(uint8_t part) BANKED;   // build/patrons_ninjas_x.c: the Teahouse's",
                 "void load_patron_pose0(uint8_t g, uint8_t first, uint8_t v, uint8_t t) BANKED;   // build/patron_load.c: tile t (0-5) of variant v's shift-0 pose as OBJ tile first + t (the credits cast)", ""]
 
     (outdir / "art.h").write_text("\n".join(h))
