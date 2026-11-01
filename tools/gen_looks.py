@@ -5,12 +5,13 @@
 
 Nothing is typed here: tools/dev/extra_combos.py derives each venue's looks, palette instances (OBJ slots) and each look's allowed OBJ slots from
 tools/artifacts/palette_plan/plan_data.py (NAMES, EXTRA_LOOKS, PLANS moves / add / join, VARIANT_CUTS); plan_data also names what the engine can do
-(ENGINE_BG: one BG slot per instance) and what a boss fight owns (BOSS_OWN_OBJ). The generator
+(ENGINE_BG: the BG slots instances may sit on) and what a boss fight owns (BOSS_OWN_OBJ). The generator
 
   * numbers the instances: 0-2 are the OBJ slots of looks 0-2 (patron_variant keeps `look | (instance ^ look) << 3`), then the rest, OBJ 5 last
     (instance 4 is the one the show's dancers take, render.c pal5_check);
+  * puts each instance on the BG slot the Atlas lists the same patrons on (plan_slots.json, the Atlas's export; asserted distinct and inside ENGINE_BG);
   * keeps as many as the engine has BG slots (len(ENGINE_BG[venue])); when the plan has more it leaves out the instance that gives the fewest looks, then
-    has the fewest owners, then the highest OBJ slot (never OBJ 5): the 6th is added by appending a BG slot to ENGINE_BG, nothing else;
+    has the fewest owners, then the highest OBJ slot (never OBJ 5);
   * writes combo[] = V(look, instance) of every allowed pair (look-major) and combo_boss[] without look 2 and without the boss's OBJ slots;
   * checks the instance palettes (assets/palettes.json `<venue>_<name>` of the look that brought its colours) against the plan's hex.
 
@@ -28,6 +29,17 @@ import plan_data as P  # noqa: E402
 import extra_combos as E  # noqa: E402
 
 GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]   # = gen_art.PATRON_GROUPS
+
+
+SLOTS = json.load(open(os.path.join(ROOT, "tools/artifacts/palette_plan/plan_slots.json")))["venues"]   # the Atlas's slot plan (tools/dev/export_plan_slots.py)
+
+
+def atlas_bg(v, obj_slot):
+    """The BG slot the Atlas gives the patrons of OBJ slot `obj_slot` of venue v: the one BG slot that lists the same patrons (the plan's own table)."""
+    owners = sorted(SLOTS[v]["obj"][str(obj_slot)]["patrons"])
+    hit = [int(sl) for sl, e in SLOTS[v]["bg"].items() if sorted(e["patrons"]) == owners]
+    assert len(hit) == 1, (v, "OBJ", obj_slot, owners, "the Atlas lists them on BG", hit)
+    return hit[0]
 
 
 def V(look, pi):
@@ -77,7 +89,9 @@ def venue_tables(v):
                 combo.append((li, pi))
                 if li != 2 and o not in own:
                     boss.append((li, pi))
-    return dict(looks=looks, order=order, bg=P.ENGINE_BG[v][:len(order)], pal=pal, combo=combo, boss=boss, dropped=dropped, inst=inst, allowed=allowed)
+    bg = [atlas_bg(v, o) for o in order]
+    assert len(set(bg)) == len(bg) and all(b in P.ENGINE_BG[v] for b in bg), (v, "the Atlas's BG slots", bg, "must be distinct engine slots", P.ENGINE_BG[v])
+    return dict(looks=looks, order=order, bg=bg, pal=pal, combo=combo, boss=boss, dropped=dropped, inst=inst, allowed=allowed)
 
 
 def render(outdir):

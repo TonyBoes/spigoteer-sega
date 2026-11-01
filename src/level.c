@@ -94,14 +94,15 @@ static void inst_bg_pal(uint8_t g, uint8_t pi, palette_t q) {
 
 static void load_patron_group(uint8_t g) {
     palette_t p;
-    uint8_t v;
-    looks_insts(g, INST_OBJ, INST_BG);           // the instances' palette slots (the DMG reads the OBJ ones for its OAM attribute too)
+    uint8_t v, n = looks_insts(g, INST_OBJ, INST_BG);   // the instances' palette slots (the DMG reads the OBJ ones for its OAM attribute too)
     load_patron_tiles(g, PATRON_TILE_BASE);      // 144 pre-shifted + 12 back-view tiles, from the group's bank (LCD is off)
     if (!is_cgb) return;
     if (!g || g == 2) swap_gus();   // (the Saloon's GUS, the Lodge's ASH)
-    for (v = 0; v < 3; v++) {                    // colour 0 = the wall, so the art needs no transparency
+    if (!g || n < 3) n = 3;                      // (the Saloon's 4th and 5th are loaded below)
+    for (v = 0; v < n; v++) {                    // colour 0 = the wall, so the art needs no transparency
+        if (INST_BG[v] == BGPAL_STAGE || INST_BG[v] == BGPAL_STAGE_B) continue;   // (a chain slot: start_level loads it, reloaded where the playfield starts)
         inst_bg_pal(g, v, p);
-        set_bkg_palette(BGPAL_PATRON + v, 1, p);
+        set_bkg_palette(INST_BG[v], 1, p);       // (the legacy venues: instance v on BG 2 + v)
         music_pump();                            // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
     }
     if (g) {
@@ -240,8 +241,10 @@ void split_plan(void) BANKED {
     if (SPLIT_E_BCPS) { line[n] = SPLIT_EARLY_LY; kind[n++] = EV_E; }
     if (SPLIT_L_BCPS) { line[n] = SPLIT_LY; kind[n++] = EV_L; }
     if (KEG_BCPS) {
-        if (!ds && SPLIT_L_BCPS && !(shown && wy <= kl + 1 && kl + 1 < w)) kind[n - 1] = EV_KEG_L;   // (double speed: the keg's put rides in the late reload's HBlank, one hit)
-        else { line[n] = kl; kind[n++] = (shown && wy <= kl + 1 && kl + 1 < w) ? EV_KEG_HID : EV_KEG; }   // (a window over the line below it: no keg there, the window's end brings it)
+        if (SPLIT_L_BCPS && !(shown && wy <= kl + 1 && kl + 1 < w) && !(ds && shown && w <= kl + 2)) {   // (the keg's put and the late reload's: one hit)
+            kind[n - 1] = EV_KEG_L;                                      // (double speed: both in the late line's HBlank; normal speed: the hit is on the keg's line, the late palette follows in the next line's HBlank)
+            if (ds) line[n - 1] = kl;
+        } else { line[n] = kl; kind[n++] = (shown && wy <= kl + 1 && kl + 1 < w) ? EV_KEG_HID : EV_KEG; }   // (a window over the line below it: no keg there, the window's end brings it)
         if (shown && wy > kl + 1 && wy < FLOOR_ROW * 8) { line[n] = wy - 1; kind[n++] = EV_HUD_SHOWN; }
         if (shown && w > kl + 1 && w < FLOOR_ROW * 8) { line[n] = w - 1; kind[n++] = EV_KEG_SHOWN; }
         line[n] = FLOOR_ROW * 8; kind[n++] = EV_HUD_END;   // (the floor row has no keg: BG 1 is the HUD's for the next frame's first line)

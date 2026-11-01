@@ -486,6 +486,12 @@ __asm
     ld   a, e
     and  a, #0x3F
     ld   e, a
+    cp   a, #45                     ; EV_KEG_L: the keg's put on its line, the late palette's in the next line's HBlank (flag bit 5)
+    jr   nz, 9185$
+    ldh  a, (0xE8)
+    or   a, #0x20
+    ldh  (0xE8), a
+9185$:
     ld   hl, #9310$
     add  hl, de
     ld   a, (hl+)                   ; the window state it wants
@@ -531,10 +537,28 @@ __asm
     and  a, #2
     jr   nz, 9121$
     ld   a, h
+    bit  5, l
+    jr   nz, 9180$
     bit  7, l
     jp   z, _split_put_a
     call _split_put_a
     jr   9162$                      ; (the window ends on the next line: off now)
+9180$:
+    call _split_put_a               ; the keg's
+    ldh  a, (0xE7)
+    inc  a
+    ld   b, a                       ; the late palette's line
+9181$:
+    ldh  a, (0x44)
+    cp   a, b
+    jr   c, 9181$
+9183$:
+    ldh  a, (0x41)
+    and  a, #2
+    jr   nz, 9183$
+    ld   de, #0xFFD6                ; SPLIT_PAL
+    ld   a, (_story_scratch + 237)  ; its BCPS
+    jp   _split_put_a
 9160$:
     ldh  a, (0xE7)                  ; the window's end line: wait for it, then hide
     ld   b, a
@@ -566,6 +590,8 @@ __asm
     .dw _story_scratch + 235, _story_scratch + 278
     .db 0x40                                         ; EV_PAD: never this window state
     .dw 0, 0
+    .db 0xFF                                         ; EV_KEG_L
+    .dw _story_scratch + 235, _story_scratch + 270
 __endasm;
 }
 #else
@@ -585,7 +611,10 @@ void split_isr3(void) {       // (the C twin: the same decode)
     if (kk & EV_HIDE_FIRST) { while (LY_REG < tgt) ; HIDE_WIN; }   // (the window ends on this line)
     while (LY_REG < tgt || (STAT_REG & 2)) ;                 // (its line's HBlank, or the VBlank: palette RAM is open; the line's pixels are out)
     split_put_a(b, s);
-    if (k == EV_KEG_L) split_put_a(SPLIT_L_BCPS, SPLIT_PAL);   // (double speed: the keg's put and the late palette's in one HBlank)
+    if (k == EV_KEG_L) {                                     // (double speed: the keg's put and the late palette's in one HBlank; normal speed: the late one in the next line's)
+        if (SPLIT_OFF) { tgt++; while (LY_REG < tgt || (STAT_REG & 2)) ; }
+        split_put_a(SPLIT_L_BCPS, SPLIT_PAL);
+    }
     if (kk & EV_HIDE_AFTER) HIDE_WIN;                        // (the window ends on the next line)
 }
 #endif
