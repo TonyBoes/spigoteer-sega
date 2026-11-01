@@ -265,7 +265,6 @@ void start_level(void) BANKED {
             }
         }
     }
-    else if (is_cgb) split_arm(BGPAL_HUD, 0);   // PROBE: the keg's BG 1 reload at line 39 in every other venue
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
     mirror_load(play_mode == MODE_LEVEL ? level_dirs : classic_dirs);   // P3: bars from the right (the harness, CLASSIC)
     place_start_patrons();

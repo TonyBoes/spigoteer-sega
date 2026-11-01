@@ -268,7 +268,7 @@ __asm
     and  a, #3
     jr   nz, 9101$
     ld   de, #0xFFD6                ; SPLIT_PAL
-    ld   a, (_story_scratch + SCR_SPLIT_AT + 1)   ; BCPS of the late palette (the Saloon: BG 5)
+    ld   a, #0xA8                   ; BCPS: BG 5, auto-increment
     call _split_put_a
     ldh  a, (0xD5)
     ldh  (0x45), a                  ; LYC = SPLIT_WANT
