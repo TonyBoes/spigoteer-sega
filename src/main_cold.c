@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "scratch.h"
 #include "palettes.h"
 #include "bonus.h"
 #include "music.h"
@@ -24,6 +25,38 @@ extern uint8_t  bar, bartender_x, bartender_frac, facing, bartender_frame, at_ta
 extern uint8_t  fill_timer, fill_stage, slide_timer, game_over, state_timer, overlay_on, level, cur_group;
 extern uint8_t  story_shift, story_chapter;
 extern uint8_t  frame_counter, joy, joy_prev, rng_state, score_digits[6], arcade_loop, new_rank;
+
+// ---- moved from src/main.c (ROM0 relief): the HUD's tile ids, a life lost, a note's end ----
+static uint8_t digit_tile(uint8_t d);
+
+// the lives (HUD row, cols 7-8: the Spigoteer's head and the count as a digit) and the score digits (cols 0-5): the
+// tile ids are prepared by prep_hud() in the logic phase so that the VBlank part is nothing but a copy.
+void prep_hud(void) BANKED {
+    uint8_t i;
+    lives_tiles[0] = TILE_HUD_HEAD;
+    lives_tiles[1] = digit_tile(lives);
+    for (i = 0; i < 6; i++) score_tiles[i] = digit_tile(score_digits[i]);
+}
+
+
+void lose_life(void) BANKED {
+    if (life_lost) return;          // one incident costs one life, however many things go wrong in the same frame
+    if (lives) lives--;
+    hud_dirty |= HUD_LIVES;
+    prep_hud();
+    life_lost = 1;
+    pour_streak = 0;                // (a lost life ends the perfect-pour streak: src/mugs.c)
+    if (lives == 0) game_over = 1;
+}
+
+void end_note(void) BANKED {
+    uint8_t *b, n = 20;
+    if (overlay_on != 2) return;
+    b = mg_say(32, "");
+    while (n) b[--n] = TILE_PANEL_TOP;
+    SET_WY(BANNER_WY); SET_LYC(BANNER_LYC);
+    overlay_on = 0; HIDE_WIN;
+}
 
 // ---- palettes ----------------------------------------------------------------
 #define RGB15(r, g, b) ((uint16_t)((r) | ((g) << 5) | ((b) << 10)))
@@ -313,4 +346,52 @@ void enter_level_clear(void) BANKED {
     // 255 tells main.c's GS_LEVEL_CLEAR that the antics run (a plain clear counts it up to CLEAR_FRAMES, never so far).
     if (play_mode == MODE_CLASSIC || (story_on && !boss_on && story_shift)) { antics_start(); state_timer = 255; }
     game_state = GS_LEVEL_CLEAR;                 // last: whoever sees the state sees the banner and the jingle
+}
+
+#define CLEAR_FRAMES        150
+#define LOOP_FRAMES         120                  // the "LOOP n" banner, before the level's intro
+#define GAMEOVER_FRAMES     240                  // the GAME OVER banner goes on to the initials / table by itself after 4 s
+
+// The states main.c's update() does not run itself (ROM0 relief; it keeps the title, play, pause and the mini-games). 0: the frame goes on
+// to the shared tail, 1: update() returns, 2: it counts the frame and returns.
+uint8_t update_cold(uint8_t pressed) BANKED {
+    WIN_FIX();                                   // (the banners' windows: the plan)
+    switch (game_state) {
+    case GS_LIFE_LOST:
+        update_glass();
+        fill_timer = 0; fill_stage = 0;
+        bartender_frame = BT_FAIL;
+        if (story_on) story_life_frame();       // story: a strict rule's 2 lives blink
+        if (++state_timer >= LIFE_FREEZE_FRAMES) {
+            if (lives == 0) enter_game_over(); else resume_after_life();
+        }
+        break;
+    case GS_LEVEL_CLEAR:                         // (CLASSIC: the antics, src/antics.c, and their own length)
+        if (state_timer == 255 ? antics_frame() : ++state_timer >= CLEAR_FRAMES) {   // (255: the antics, enter_level_clear)
+            if (story_on) { story_level_done(); return 1; }   // M11b / ARCADE: the next step (story.c)
+            if (play_mode == MODE_CLASSIC ? classic_bonus_due() : !(level & 1)) {   // the harness: after even levels
+                bonus_enter();
+                game_state = GS_BONUS;
+                return 1;
+            }
+            if (level < 99) level++;
+            enter_level_screen();
+            return 1;
+        }
+        break;
+    case GS_DEBUG:
+        if (debug_step(pressed)) return 2;
+        break;
+    case GS_GAME_OVER:                           // M10b: then the initials (top 5) or the table, then the title
+        if ((pressed & (J_START | J_A)) || ++state_timer >= GAMEOVER_FRAMES) { scores_after_game(); return 1; }
+        break;
+    case GS_INITIALS:
+    case GS_SCORES:
+        if (scores_update(pressed)) { title_enter(); return 1; }
+        break;
+    case GS_LOOP:
+        if (++state_timer >= LOOP_FRAMES) { game_state = GS_PLAYING; overlay_on = 0; }
+        break;
+    }
+    return 0;
 }

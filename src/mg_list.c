@@ -389,7 +389,7 @@ void mg_list_enter(void) BANKED {
     hide_all_sprites();
     story_on = 0;                               // (Practice is never a story)
     music_play(TUNE_TITLE);                     // (left alone when it already plays: from the title; after a game its patterns are
-    music_load_now();                           // copied back now, and the pumps below tick it through the rebuild)
+    music_load_now_p();                         // copied back now, and the pumps below tick it through the rebuild)
     music_pump();
     story_font_load();                          // the punctuation (over the title's lettering: title_enter reloads it)
     ol_load();
@@ -411,7 +411,7 @@ void mg_list_enter(void) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     game_state = GS_MGLIST;
-    if (NR51_REG) while (TIMA_REG > DS_SCALE(23)) music_pump();   // (as trans.c tick_sync: the LCD comes on just after a tick; the picture's load moved the phase)
+    if (!(TMA_REG & 2)) while (TIMA_REG > DS_SCALE(23)) music_pump();   // (as trans.c tick_sync: the LCD comes on just after a tick; the picture's load moved the phase. Not NR51: a silent tune ticks too, and the list is never under the pause menu)
     DISPLAY_ON;
 }
 

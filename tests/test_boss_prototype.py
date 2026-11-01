@@ -11,7 +11,7 @@ import pytest
 from boss_common import (skip_entrance, BP_HAPPY, BP_WALK, BS_JUMP, BS_OUTRO, BS_SPECIAL, BS_TELL, BS_WALK, Clock, EMPTY, FULL, OAM_TOPPER,
                          OBJ_TOPPER, Own, RETURN, SP_FAIL, SP_OUTRO, TAP_X, art, assert_body, bar_row, check_start, fight,
                          frames, hud, meter_tiles, mugs, play, pose_cols, pour, row, still_regulars, throw, to_bar, until)
-from conftest import clear_regulars, ROOT, check_golden, logic_paused, venue
+from conftest import keg_bg, level_attr, clear_regulars, ROOT, check_golden, logic_paused, venue
 from test_boss_mascot import marker_at, rows_of
 from test_flow import GS_STORY, LEVEL_CLEAR, LIFE_LOST, PLAYING, run_until, set_patron, score, state, tilemap_row
 from test_story import banner_text, centred, post, settle, to_goal
@@ -113,7 +113,7 @@ KEG = 7                                 # BGPAL_BAR_B: the keg's yellow / steel 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_conveyor_is_the_approved_k5_stripes_and_k6_arrows(model):
     """The 2 conveyor tiles (BG 246-247) are exactly K5's front + K6's top; the front is the same in both frames and the
-    arrows move; CGB: palette 7 (the keg's) holds yellow, steel and dark, the same colours the tiles were drawn in.
+    arrows move; CGB: the keg's palette (BG 1 below the stage) holds yellow, steel and dark, the same colours the tiles were drawn in.
     DMG: the shades 153 / 85 / 0 are the bar's own greys under the same indices."""
     assert A["conv"] == tile_bytes(CONV_A) + tile_bytes(CONV_B)
     assert CONV_A[4:] == CONV_B[4:] and CONV_A[:3] != CONV_B[:3]
@@ -121,7 +121,8 @@ def test_the_conveyor_is_the_approved_k5_stripes_and_k6_arrows(model):
         quiet(gb)
         assert bytes(gb.read(0x8000 + CONV * 16, 32)) == bytes(A["conv"])
         if model == "cgb":
-            pal = cgb_palette(gb, KEG)
+            raw = [gb.read(gb.addr("story_scratch") + 270 + i, 1)[0] for i in range(8)]       # (the keg's slot is BG 1 on the level screen: below the stage the mid-frame chain writes KEG_PAL into it)
+            pal = [raw[2 * i] | raw[2 * i + 1] << 8 for i in range(4)]
             assert pal[1:] == [RGB(31, 27, 9), RGB(15, 17, 20), RGB(2, 3, 5)], pal
 
 
@@ -170,7 +171,7 @@ def test_the_cycle_green_yellow_red_ride(model):
         assert_body(gb, C, A, x, BP_RED)
         until(gb, lambda: counter(gb, B) == belt_row(0) or counter(gb, B) == belt_row(1), 8)
         if model == "cgb":
-            assert attr_row(gb, 5 + 3 * B + 2) == [KEG] * 20, "the belt in the keg's palette (the keg's own columns are 7 too)"
+            assert attr_row(gb, 5 + 3 * B + 2) == [keg_bg(5)] * 20, "the belt in the keg's palette (the keg's own columns are 7 too)"
         seen = [counter(gb, B)]
         for _ in range(3):
             f0 = counter(gb, B)
@@ -189,7 +190,7 @@ def test_the_cycle_green_yellow_red_ride(model):
         until(gb, lambda: counter(gb, B) == FACTORY[40:60], 8)
         frames(gb, 2)
         if model == "cgb":
-            assert attr_row(gb, 5 + 3 * B + 2) == venue("factory")["bar_attr"][40:60], "the counter's palette back"
+            assert attr_row(gb, 5 + 3 * B + 2) == level_attr(5, venue("factory")["bar_attr"])[40:60], "the counter's palette back"
         top, bottom = rows_of(gb, B)
         assert gb.oam()[OAM_TOPPER]["y"] == 0
         assert top[x // 8:x // 8 + 4] != pose_cols(A, BP_WALK), "his body is gone"
@@ -218,7 +219,7 @@ def test_the_belts_tiles_and_palette_change_in_the_same_frame(model):
             tiles = counter(gb, B)[:18]
             attrs = attr_row(gb, 5 + 3 * B + 2)[:18]
             belt = any(t in (CONV, CONV + 1) for t in tiles)
-            sevens = attrs == [KEG] * 18
+            sevens = attrs == [keg_bg(5)] * 18
             assert belt == sevens, (t_of(gb), tiles, attrs)
             seen.append(belt)
         assert not seen[0] and seen[-1] and seen.index(True) > 0, "the belt starts inside the window"
@@ -315,7 +316,7 @@ def test_a_life_lost_in_red_restores_the_counter_and_brings_him_home(model):
             B, R["x"], BS_WALK, 2, 12)
         assert t_of(gb) < 20 and counter(gb, B) == FACTORY[40:60] and lamp(gb)[0] in (0, 2)
         if model == "cgb":
-            assert attr_row(gb, 5 + 3 * B + 2) == venue("factory")["bar_attr"][40:60], "the counter's palette back"
+            assert attr_row(gb, 5 + 3 * B + 2) == level_attr(5, venue("factory")["bar_attr"])[40:60], "the counter's palette back"
         assert all(marker_at(gb, b) is None for b in range(4))
 
 

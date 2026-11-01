@@ -11,6 +11,7 @@ import re
 
 import pytest
 from conftest import ROM, K_ARCADE, K_CLASSIC, K_PLAY, K_STORY, TR_OFF, TRANS_ADDR, check_golden, hold_stage_anim, menu_tap, title_pick, trans_enable
+from split_helpers import win_lyc
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, lose_a_life, run_until, state
 from test_music_transitions import FRAME, LATE, tick_log
 from test_sound import make_rom
@@ -40,7 +41,7 @@ class Trace:
 
     def snap(self):
         m = self.gb.pb.memory
-        self.fr.append(dict(lcdc=m[0xFF40], wy=m[0xFF4A], lyc=m[0xFF45], tr=m[TRANS_ADDR], nr50=m[0xFF24], st=state(self.gb),
+        self.fr.append(dict(lcdc=m[0xFF40], wy=m[0xFF4A], lyc=win_lyc(m.__getitem__), tr=m[TRANS_ADDR], nr50=m[0xFF24], st=state(self.gb),
                             tune=self.gb.mem("cur_tune"), c=self.gb.pb._cycles()))
 
     def run(self, n=1):

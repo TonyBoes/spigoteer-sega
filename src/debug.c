@@ -355,7 +355,7 @@ void debug_open(void) BANKED {
     for (i = 0; i < 40; i++) shadow_OAM[i].y = 0;
     cursor();
     oam_touched();
-    WY_REG = 0; SET_LYC(255);
+    SET_WY(0); SET_LYC(255);
     overlay_on = 1;
     game_state = GS_DEBUG;
     debug_menu_open = 1;
@@ -391,7 +391,7 @@ static void close_menu(void) {
         }
     }
     SET_LYC(vget((const volatile uint8_t *)(0x9C00 + (DBG_SAVE_ROW + 3) * 32)));
-    WY_REG = BANNER_WY;
+    SET_WY(BANNER_WY);
     fill_win(0, TILE_PANEL_TOP);                     // (win_init's banner: panel, a blank text row, panel)
     fill_win(1, TILE_HUD_BLANK);
     fill_win(2, TILE_PANEL_BOT);

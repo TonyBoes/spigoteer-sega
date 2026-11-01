@@ -97,7 +97,7 @@ static void counter_attr(uint8_t belt) {
     if (!is_cgb) return;
     if (belt) {
         uint8_t *d = BELT_ATTR;
-        for (k = 0; k != CONV_COLS; k++) *d++ = BGPAL_BAR_B;
+        for (k = 0; k != CONV_COLS; k++) *d++ = VENUE_KEG_BG(venue_id);   // (the keg's BG slot on the level screen: level.c keg_remap)
         src = BELT_ATTR;
     }
     if (LCDC_REG & LCDCF_ON) vq_add(1, src, 0, counter_y(), CONV_COLS);

@@ -69,14 +69,36 @@ def test_factorys_boxy_is_yellow_grey_blue_and_dark():
     assert PALS["robots_a"]["rgb15"] == [rgb15("#f8d848"), rgb15("#7888a0"), rgb15("#101828")]
 
 
+def bg_slot_colours(gb, slot):
+    """Colours 1-3 of BG palette `slot` as the playfield shows it: the palette RAM, except the chain's slots (BG 5 early, BG 6 late: the mid-frame reloads put them
+    in the playfield and the VBlank puts the stage's back), whose playfield colours are the buffers the ISR writes from (game.h SPLIT_E_PAL, SPLIT_PAL)."""
+    if slot == 6 and gb.read(0xFFD4, 1)[0] == 3:
+        raw = list(gb.read(0xFFD6, 8))
+    elif slot == 5 and gb.read(0xFFD4, 1)[0] == 3:
+        base = gb.addr("story_scratch") + 238
+        raw = [gb.read(base + i, 1)[0] for i in range(8)]
+    else:
+        return cgb_palette(gb, slot)[1:]
+    return [raw[2 * i] | raw[2 * i + 1] << 8 for i in range(1, 4)]
+
+
+# The slots of the three looks A, B, C (looks 0-2) on the Color level screen, and their palettes. The other venues keep BG 2 + v and the legacy OBJ slots; the
+# Factory follows the Graphics Atlas (extra_looks_slots.md): BOXY BG 3 / OBJ 3, VOLTA BG 6 (the chain's late reload) / OBJ 6, and BLIP on NEKA's cyan,
+# BG 4 / OBJ 4 (the owner moved BLIP off OBJ 7 to the cyan: plan_data PLANS["robots"] moves).
+def looks_slots(g):
+    if g == "robots":
+        return [(3, 3, "robots_a"), (6, 6, "robots_b"), (4, 4, "robots_neka")]
+    return [(2 + v, LIFT_PAL[v], f"{g}_{k}") for v, k in enumerate("abc")]
+
+
 @pytest.mark.only_model("cgb")
 @pytest.mark.parametrize("g", IMPORTS)
 def test_the_color_game_loads_each_looks_palette_into_bg_and_obj(gb, g):
     settle(gb, g)
-    for v, k in enumerate("abc"):
-        want = PALS[f"{g}_{k}"]["rgb15"]
-        assert cgb_palette(gb, 2 + v)[1:] == want, f"{g} look {v}: BG palette {2 + v}"
-        assert cgb_palette(gb, LIFT_PAL[v], obj=True)[1:] == want, f"{g} look {v}: lifted OBJ palette"
+    for v, (bg, obj, key) in enumerate(looks_slots(g)):
+        want = PALS[key]["rgb15"]
+        assert bg_slot_colours(gb, bg) == want, f"{g} look {v}: BG palette {bg}"
+        assert cgb_palette(gb, obj, obj=True)[1:] == want, f"{g} look {v}: lifted OBJ palette {obj}"
 
 
 def test_the_group_tile_block_is_the_documented_size():

@@ -46,6 +46,11 @@ USERS = {
     "fight.OWN": (B0 + (POSES_MAX + 1) * 5 + 4, B0 + (POSES_MAX + 1) * 5 + 4 + BOSS_OWN_N, "boss.h BOSS_OWN: a boss file's state"),
     "fight.FX": (N - 4, N, "game.h BOSS_FX: the landing marker, the topper's look"),
     "tip2.COIN": (H["SCR_TIP2_AT"], H["SCR_TIP2_AT"] + H["SCR_TIP2_N"], "tip2.h struct tip2: the second tip coin (a level, a fight's level included)"),
+    "split.PAL": (H["SCR_SPLIT_AT"], H["SCR_SPLIT_AT"] + H["SCR_SPLIT_N"], "game.h SPLIT_E_*: the mid-frame palette split's early reload (a Color level, a fight's level included)"),
+    "inst.TAB": (H["SCR_INST_AT"], H["SCR_INST_AT"] + H["SCR_INST_N"], "game.h INST_OBJ / INST_BG: the patron palette instances' OBJ and BG slots (a level, a fight's level included)"),
+    "keg.TAB": (H["SCR_KEG_AT"], H["SCR_KEG_AT"] + H["SCR_KEG_N"], "game.h KEG_PAL / KEG_STG / EV_*: the keg's colours, the HUD's own, the frame's event list (a Color level, a fight's level included)"),
+    "evt.TAB": (H["SCR_EVT_AT"], H["SCR_EVT_AT"] + H["SCR_EVT_N"], "game.h EV_LINE / EV_KIND: the frame's events (line, kind) and the sentinel (a Color level, a fight's level included)"),
+    "keg2.TAB": (H["SCR_KEG2_AT"], H["SCR_KEG2_AT"] + H["SCR_KEG2_N"], "game.h SHOW_PAL / KEG_BCPS: the show's OBJ palette and whether BG 1 is the keg's (a Color level, a fight's level included)"),
     # the Boss Rush screens (menu, list, NEXT, RESULT): the struct above and the row buffers
     "rush.ROWS": (0, 14 * 20, "rush.c ROW(k): the menu's and the list's row buffers"),
     "ol.STATE": (H["SCR_OL_AT"], H["SCR_OL_AT"] + H["SCR_OL_N"], "oneline.h struct ol_state: the arrows' bob and the key repeat (SOUNDTRACK, MINI GAMES, the Boss Rush list)"),
@@ -76,7 +81,7 @@ USERS = {
 # one is entered with the LCD off and rebuilds what it reads. A group says what a single screen or mode holds together.)
 GROUPS = {
     "a boss fight, in a BOSS RUSH run (the struct is alive through every fight)":
-        ["fight.LD", "fight.HB", "fight.BELT", "fight.CAP", "rush.STRUCT", "fight.LIGHTS", "fight.MAP", "fight.HAND", "fight.OWN", "fight.FX", "tip2.COIN"],
+        ["fight.LD", "fight.HB", "fight.BELT", "fight.CAP", "rush.STRUCT", "fight.LIGHTS", "fight.MAP", "fight.HAND", "fight.OWN", "fight.FX", "tip2.COIN", "split.PAL", "inst.TAB", "keg.TAB", "keg2.TAB", "evt.TAB"],
     "a Boss Rush screen": ["rush.ROWS", "rush.STRUCT", "ol.STATE"],
     "the story map": ["smap.ROWS", "smap.ATTR_PANEL", "smap.ATTR_TAG", "smap.TAGROW", "smap.V"],
     "the Practice list": ["mglist.ROWS", "mglist.STATE", "mglist.ART", "mglist.STAGE", "ol.STATE"],
@@ -88,7 +93,7 @@ GROUPS = {
 
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
-        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 5, "src/jukebox.c": 3, "src/main.c": 5, "src/mg.h": 3, "src/mg_list.c": 5,
+        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 20, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 51, "src/mg.h": 3, "src/mg_list.c": 5,
         "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 2, "src/smap.c": 6,
         "src/story.c": 16, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 3, "src/ts.c": 1}
 

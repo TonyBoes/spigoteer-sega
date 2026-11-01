@@ -44,4 +44,4 @@ def test_the_realistic_peak_with_the_color_only_looks_on_screen(model, saloon_ro
     assert all(line <= 10 and n <= 40 for _, _, line, n in ticks), [t for t in ticks if t[2] > 10 or t[3] > 40][:5]
     assert_music_every_frame([(f, m) for f, m, _, _ in ticks])
     assert gb.mem("vq_drain_ly_max") <= gb.mem("vq_latest_ly")
-    assert_typical(gb, mean=141, p90=178, p99=212)
+    assert_typical(gb, mean=141, p90=178, p99=212, ds=(73.5, 102, 122))  # (double speed, owner Q92: main's logic-end baseline 43.1 / 62 / 75 + the margin over its normal-speed 110.6 / 138 / 165)

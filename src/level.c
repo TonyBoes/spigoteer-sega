@@ -85,19 +85,30 @@ static void swap_gus(void) {
     swap_tiles(PATRON_BACK_BASE + 8, 4);
 }
 
+// The BG side of palette instance pi of venue g: colour 0 = the wall; the full-mug instance takes the venue's own drink colours (build/looks.c looks_pal_get)
+static void inst_bg_pal(uint8_t g, uint8_t pi, palette_t q) {
+    uint8_t k;
+    if (looks_pal_get(g, pi, q)) for (k = 1; k < 4; k++) q[k] = venue.pal[VENUE_PAL_DRINK_FULL][k];
+    q[0] = WALL_RGB;
+}
+
 static void load_patron_group(uint8_t g) {
     palette_t p;
-    uint8_t v;
+    uint8_t v, n = looks_insts(g, INST_OBJ, INST_BG);   // the instances' palette slots (the DMG reads the OBJ ones for its OAM attribute too)
     load_patron_tiles(g, PATRON_TILE_BASE);      // 144 pre-shifted + 12 back-view tiles, from the group's bank (LCD is off)
     if (!is_cgb) return;
     if (!g || g == 2) swap_gus();   // (the Saloon's GUS, the Lodge's ASH)
-    for (v = 0; v < 3; v++) {                    // colour 0 = the wall, so the art needs no transparency
-        patron_pal_get(g, v, p);
-        p[0] = WALL_RGB;
-        set_bkg_palette(BGPAL_PATRON + v, 1, p);
+    if (!g || n < 3) n = 3;                      // (the Saloon's 4th and 5th are loaded below)
+    for (v = 0; v < n; v++) {                    // colour 0 = the wall, so the art needs no transparency
+        if (INST_BG[v] == BGPAL_STAGE || INST_BG[v] == BGPAL_STAGE_B) continue;   // (a chain slot: start_level loads it, reloaded where the playfield starts)
+        inst_bg_pal(g, v, p);
+        set_bkg_palette(INST_BG[v], 1, p);       // (the legacy venues: instance v on BG 2 + v)
         music_pump();                            // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
     }
-    if (g) return;
+    if (g) {
+        if (extra_on()) for (v = 0; v < 8; v++) { looks_load(g, v); music_pump(); }   // a generated venue's Color-only looks 3-7: tiles in VRAM bank 1 (its BG 5 / 6 are the split's: start_level)
+        return;
+    }
     for (v = 0; v < 8; v++) { load_saloon_x(v); music_pump(); }   // the Saloon's Color-only looks 3-7: tiles in VRAM bank 1
     patron_pal_get(0, 3, p);                     // palette instance 3 (ROSIE, REDD): the keg's BG slot, free in the Saloon's playfield
     p[0] = WALL_RGB;
@@ -180,20 +191,105 @@ void level_pace_again(void) BANKED {
 void split_off(void) BANKED {   // (the LCD is off) the stage's palette back, the split stops
     SPLIT_ON = 0;
     LYC_REG = SPLIT_WANT;                          // (the window's own line back: the ISR may have left the split's)
-    CRITICAL { remove_VBL(split_vbl); remove_VBL(vq_vbl); add_VBL(vq_vbl); remove_LCD(split_isr); remove_LCD(lcd_isr); add_LCD(lcd_isr); }
-    if (!(LCDC_REG & LCDCF_ON)) split_pal_put(SPLIT_STG);
+    CRITICAL { remove_VBL(split_vbl); remove_VBL(split_vbl3); remove_VBL(vq_vbl); add_VBL(vq_vbl); remove_LCD(split_isr); SPLIT_ISR3_OFF(); remove_LCD(lcd_isr); add_LCD(lcd_isr); }
+    if (!(LCDC_REG & LCDCF_ON)) {
+        if (SPLIT_L_BCPS) split_put_a(SPLIT_L_BCPS, SPLIT_STG);
+        if (SPLIT_E_BCPS) split_put_a(SPLIT_E_BCPS, SPLIT_E_STG);
+        if (KEG_BCPS) split_put_a(KEG_BCPS, KEG_STG);
+    }
 }
 
-static void split_arm(void) {        // (LCD off) the stage's palette is read back into SPLIT_STG; the patron palette starts as the same (the caller sets it)
+// (LCD off) The palettes the split rewrites are read back into the STG buffers; the patron-side ones start as the same (the caller sets them).
+// late: the BG slot reloaded at SPLIT_LY (the Saloon's BG 5); early: the one at SPLIT_EARLY_LY; keg: BG 1, the HUD's, which holds the keg's colours below the bar's top. 0 = none.
+// The Saloon alone (late BG 5, nothing else) is mode 1, the asm handler; any other is mode 3 (main.c split_isr3).
+void split_resume(void) BANKED {   // the pause card closed on a level: the split the card's LCD-off dropped, as start_level armed it (the scratch holds its colours; split_off wrote the STG buffers back)
+    if (!is_cgb || SPLIT_ON || !(cur_group == 0 || VENUE_KEG_BG(cur_group) == 1 || extra_on())) return;
+    SPLIT_WANT = LYC_REG;
+    SPLIT_ON = cur_group ? 3 : 1;
+    if (cur_group) split_plan();
+    CRITICAL {
+        remove_VBL(vq_vbl); remove_LCD(lcd_isr);
+        if (cur_group) { add_VBL(split_vbl3); add_LCD(SPLIT_ISR3); } else { add_VBL(split_vbl); add_LCD(split_isr); }
+    }
+}
+
+static void split_arm(uint8_t late, uint8_t early, uint8_t keg) {
     uint8_t k, v;
+    SPLIT_L_BCPS = late ? 0x80 | (late << 3) : 0;
+    SPLIT_E_BCPS = early ? 0x80 | (early << 3) : 0;
+    KEG_BCPS = keg ? 0x80 | (keg << 3) : 0;
     for (k = 0; k < 8; k++) {
-        BCPS_REG = (BGPAL_STAGE << 3) | k;
-        v = BCPD_REG;
-        SPLIT_STG[k] = v; SPLIT_PAL[k] = v;
+        if (late) { BCPS_REG = (late << 3) | k; v = BCPD_REG; SPLIT_STG[k] = v; SPLIT_PAL[k] = v; }
+        if (early) { BCPS_REG = (early << 3) | k; v = BCPD_REG; SPLIT_E_STG[k] = v; SPLIT_E_PAL[k] = v; }
+        if (keg) { BCPS_REG = (keg << 3) | k; v = BCPD_REG; KEG_STG[k] = v; KEG_PAL[k] = v; }
     }
     SPLIT_WANT = LYC_REG;
-    SPLIT_ON = 1;
-    CRITICAL { remove_VBL(vq_vbl); remove_VBL(split_vbl); add_VBL(split_vbl); remove_LCD(lcd_isr); remove_LCD(split_isr); add_LCD(split_isr); }   // (split_vbl is vq_vbl with the stage's palette put back first: early in the VBlank)
+    SPLIT_ON = (early || keg) ? 3 : 1;
+    if (SPLIT_ON == 3) split_plan();
+    CRITICAL {
+        remove_VBL(vq_vbl); remove_VBL(split_vbl); remove_VBL(split_vbl3); remove_LCD(lcd_isr); remove_LCD(split_isr); SPLIT_ISR3_OFF();
+        if (SPLIT_ON == 3) { add_VBL(split_vbl3); add_LCD(SPLIT_ISR3); } else { add_VBL(split_vbl); add_LCD(split_isr); }
+    }   // (split_vbl is vq_vbl with the stage's palette put back first: early in the VBlank)
+}
+
+// Mode 3's events of a frame (game.h EV_*), from what the frame holds: the early and late stage reloads, the keg's BG 1 (below the stage's last row, on the line before the late
+// reload's when there is one: one palette an HBlank) and the window's: when a window is shown, BG 1 is the HUD's again from its top line (WY_REG) to its end (SPLIT_WANT, its LYC).
+// Sorted by line; a line holds one event, the later one moves down a line; the window's end line is an event only when no palette is due on it (the ISR's prologue hides the window).
+// Runs whenever SPLIT_WANT or WY_REG changes (set_lyc, SET_WY), and at the arm; the next event is the first below the beam (LY), the first of the frame when none is.
+void split_plan(void) BANKED {
+    uint8_t line[EV_MAX], kind[EV_MAX], n = 0, i, j, k_, t, w = SPLIT_WANT, wy = WY_REG, kl = SPLIT_L_BCPS ? SPLIT_LY - 1 : SPLIT_LY, ly = LY_REG, shown = LCDC_REG & LCDCF_WINON, ds = DS_NOW ? 0 : 1;
+    if (SPLIT_E_BCPS) { line[n] = SPLIT_EARLY_LY; kind[n++] = EV_E; }
+    if (SPLIT_L_BCPS) { line[n] = SPLIT_LY; kind[n++] = EV_L; }
+    if (KEG_BCPS) {
+        if (SPLIT_L_BCPS && !(shown && wy <= kl + 1 && kl + 1 < w) && !(ds && shown && w <= kl + 2)) {   // (the keg's put and the late reload's: one hit)
+            kind[n - 1] = EV_KEG_L;                                      // (double speed: both in the late line's HBlank; normal speed: the hit is on the keg's line, the late palette follows in the next line's HBlank)
+            if (ds) line[n - 1] = kl;
+        } else { line[n] = kl; kind[n++] = (shown && wy <= kl + 1 && kl + 1 < w) ? EV_KEG_HID : EV_KEG; }   // (a window over the line below it: no keg there, the window's end brings it)
+        if (shown && wy > kl + 1 && wy < FLOOR_ROW * 8) { line[n] = wy - 1; kind[n++] = EV_HUD_SHOWN; }
+        if (shown && w > kl + 1 && w < FLOOR_ROW * 8) { line[n] = w - 1; kind[n++] = EV_KEG_SHOWN; }
+        line[n] = FLOOR_ROW * 8; kind[n++] = EV_HUD_END;   // (the floor row has no keg: BG 1 is the HUD's for the next frame's first line)
+    }
+    for (i = 1; i < n; i++) {                       // (insertion sort: six at most)
+        t = line[i]; j = kind[i];
+        for (k_ = i; k_ && line[k_ - 1] > t; k_--) { line[k_] = line[k_ - 1]; kind[k_] = kind[k_ - 1]; }
+        line[k_] = t; kind[k_] = j;
+    }
+    for (i = 1; i < n; i++) if (line[i] <= line[i - 1]) line[i] = line[i - 1] + 1;   // (one palette an HBlank)
+    for (i = 0; i < n; i++) if (line[i] > 142) kind[i] = EV_NONE;               // (no HBlank before the frame's end)
+    for (i = j = 0; i < n; i++) {
+        if (!ds) { if (line[i] == w) j = 1; }                 // (double speed: the ISR hides the window as its hit starts, an event on the end line is the end)
+        else if (shown && w < 154) {                          // (normal speed: a palette on the line before the window's end takes the window off after itself; one on the end line, as the line starts)
+            if (line[i] == w) { if (kind[i]) kind[i] |= EV_HIDE_FIRST; j = 1; }
+            else if (kind[i] && line[i] + 1 == w) { kind[i] |= EV_HIDE_AFTER; j = 1; }
+        }
+    }
+    if (shown && !j && w < 154) {                            // the window's end: its own event, in its place
+        for (i = 0; i < n && line[i] < w; i++) ;
+        for (j = n; j > i; j--) { line[j] = line[j - 1]; kind[j] = kind[j - 1]; }
+        line[i] = w; kind[i] = EV_NONE; n++;
+    }
+    if (n < 2) { line[n] = 143; kind[n++] = EV_PAD; }    // (the ISR always has a next line to set: a frame's one event gets a harmless second)
+    for (i = 0; i < n && line[i] <= ly; i++) ;
+    CRITICAL {
+        SPLIT_OFF = ds;
+        for (j = 0; j < n; j++) { EV_LINE(j) = line[j] - ds; EV_KIND(j) = kind[j]; }
+        EV_LINE(n) = line[0] - ds;                                      // (the sentinel: the line after the last is the first's, next frame)
+        EV_N = n;
+        EV_PS = shown ? 0x80 : 0;                                  // (planned for a shown window: win_on_ / win_off_ replan when the window is not that)
+        EV_I = i < n ? i : 0;
+        LYC_REG = EV_LINE(EV_I);
+    }
+}
+
+// The keg tiles' BG slot on the level screen (the Atlas plan: BG 1 or BG 0, art.h VENUE_KEG_BG): the venue art names BGPAL_BAR_B for them (the mini-games and the title keep that),
+// the level's bars, counter and the boss's belt take the plan's. Run after load_venue, before the bars are mirrored.
+static void keg_remap(void) {
+    uint8_t k = VENUE_KEG_BG(cur_group), r, c;
+    for (c = 0; c < sizeof venue.bar_attr; c++) if (venue.bar_attr[c] == BGPAL_BAR_B) venue.bar_attr[c] = k;
+    for (c = 0; c < BASE_W; c++) {
+        for (r = 0; r < 2; r++) if (base_attr[r][c] == BGPAL_BAR_B) base_attr[r][c] = k;
+        if (ctr_all[1][c] == BGPAL_BAR_B) ctr_all[1][c] = k;
+    }
 }
 
 
@@ -222,12 +318,30 @@ void start_level(void) BANKED {
     clear_dirty();
     load_venue(cur_group);                      // M9: the venue of the level's theme (theme index = patron group)
     load_patron_group(cur_group);
+    if (is_cgb) keg_remap();
     if (is_cgb && cur_group == 0) {             // patron-rev-2: the Saloon's mid-frame palette split (game.h)
         palette_t q;
-        split_arm();
+        split_arm(BGPAL_STAGE, 0, 0);
         patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others
         q[0] = WALL_RGB;
         for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
+    } else if (is_cgb) {                        // every other venue (mode 3): the keg's BG 1 and, for a generated one (the Factory), its instances on BG 5 (reloaded early, line 31) and BG 6 (late, line 39)
+        palette_t q;
+        uint8_t e = 255, l = 255, i, keg = VENUE_KEG_BG(cur_group) == 1 ? BGPAL_HUD : 0;
+        if (extra_on()) for (i = 0; i < 8; i++) { if (INST_BG[i] == BGPAL_STAGE) e = i; else if (INST_BG[i] == BGPAL_STAGE_B) l = i; }
+        if (l == 255) { l = e; e = 255; }       // (only BG 5 used: the one late reload)
+        if (keg || l != 255) {
+            split_arm(l == 255 ? 0 : (e == 255 ? BGPAL_STAGE : BGPAL_STAGE_B), e == 255 ? 0 : BGPAL_STAGE, keg);
+            if (keg) for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(venue.pal[VENUE_PAL_BAR_B][k]); KEG_PAL[k << 1] = c; KEG_PAL[(k << 1) | 1] = c >> 8; }
+            if (l != 255) {
+                inst_bg_pal(cur_group, l, q);
+                for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
+            }
+            if (e != 255) {
+                inst_bg_pal(cur_group, e, q);
+                for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_E_PAL[k << 1] = c; SPLIT_E_PAL[(k << 1) | 1] = c >> 8; }
+            }
+        }
     }
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
     mirror_load(play_mode == MODE_LEVEL ? level_dirs : classic_dirs);   // P3: bars from the right (the harness, CLASSIC)

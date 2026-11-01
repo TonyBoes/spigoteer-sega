@@ -1,10 +1,11 @@
 # M9: themed venues. Each level loads the venue of its theme (theme index = patron group): stage, bar, floor, the
 # drink in place of the beer mug, the show performers, and on CGB their palettes. Expected tile ids, maps and tile
 # data come from build/venues.json (tools/gen_art.py), which is cut from assets/approved/venues/.
+import json
 import re
 
 import pytest
-from conftest import GAME, LAYOUT, ROOT, THEMES, VENUES, bar_counter_row, bar_top_row, check_golden, logical_tile, venue
+from conftest import GAME, LAYOUT, ROOT, THEMES, VENUES, bar_counter_row, bar_top_row, check_golden, level_attr, logical_tile, venue
 from test_art import GROUPS, goto_group
 from test_bonus import enter_bonus, pick
 from test_flow import BONUS, PLAYING, run_until, state, tilemap_row
@@ -183,15 +184,19 @@ def test_each_level_loads_its_venue(gb, group):
         for r in range(4):
             assert attr_row(gb, first + r) == v["stage_attr"][r * 20:r * 20 + 20]
         for b in range(4):
-            assert attr_row(gb, bar_counter_row(b)) == v["bar_attr"][40:60]
-            assert attr_row(gb, bar_top_row(b) + 1)[17:20] == v["bar_attr"][37:40], "spout and keg"
+            assert attr_row(gb, bar_counter_row(b)) == level_attr(group, v["bar_attr"])[40:60]
+            assert attr_row(gb, bar_top_row(b) + 1)[17:20] == level_attr(group, v["bar_attr"])[37:40], "spout and keg"
         assert cgb_palette(gb, 5) == v["pal"][0] and cgb_palette(gb, 6) == v["pal"][1]
         assert cgb_palette(gb, BGPAL_BAR) == v["pal"][2]
         # (the Saloon's BG 7 holds its palette instance 3, ROSIE and REDD: the keg's slot is free there; its colour 0 is the wall, below)
-        assert cgb_palette(gb, 7) == v["pal"][3] if group else cgb_palette(gb, 7)[0] == v["pal"][2][0]
+        if GROUPS[group] == "robots":      # (the Factory, generated looks: BG 7 holds palette instance 5, TELLY's mint, loaded with the level; its keg is on BG 1)
+            assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and cgb_palette(gb, 7)[1:] == json.loads((ROOT / "assets" / "palettes.json").read_text())["robots_c"]["rgb15"]
+        else:
+            assert cgb_palette(gb, 7) == v["pal"][3] if group else cgb_palette(gb, 7)[0] == v["pal"][2][0]
         assert cgb_palette(gb, OBJPAL_MUG_FULL, obj=True)[1:] == v["pal"][4][1:]
         assert cgb_palette(gb, OBJPAL_MUG_EMPTY, obj=True)[1:] == v["pal"][5][1:]
-        if group:                            # (the Saloon on Color keeps its 5th palette instance in OBJ 5 until a show takes it: render.c pal5_check)
+        looks_on = re.search(r"looks_on\[\d+\] = \{ ([^}]*)\}", (ROOT / "build" / "looks_pick.h").read_text()).group(1).replace(",", "").split()
+        if group and looks_on[group] == "0":     # (the Saloon and a venue with Color-only looks keep their 5th palette instance in OBJ 5 until a show takes it: render.c pal5_check)
             assert cgb_palette(gb, OBJPAL_DANCER, obj=True)[1:] == v["pal"][6][1:]
     else:
         assert gb.read(0xFF47, 1)[0] == 0xE4, "DMG: the fixed grey ramp (the venue art is luminance-ordered)"

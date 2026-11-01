@@ -37,6 +37,66 @@ def double_speed():
         _DS[0] = old
 
 
+# ---- Owner Q92 (2026-11-01, "A"): the Color ([cgb]) speed checks run at double speed, the way the game ships.
+# These are the perf / timing guards (missed and late frames, end lines, VBlank drain budgets): every [cgb] instance of them runs the ROM as built.
+# They measure the line the frame's LOGIC ended on at double speed (perf_helpers.end_line: the music tick waits for a fixed line there, so the end
+# line only shows that line). Everything else (screens, goldens, mechanics) stays at normal speed (the patch above). The DMG is untouched.
+# module -> the tests (None: every test of the module).
+PERF_DS = {
+    "test_perf": None, "test_perf_arcade": None, "test_perf_saloon": None,
+    "test_boss_in_place": {"test_a_boss_fight_s_frames_end_no_later_than_at_579e173", "test_a_boss_fight_with_regulars_is_late_on_hardly_any_frame",
+                           "test_a_boss_entrance_has_no_late_frame_but_dukes_hand_over"},
+    "test_debug_stress": {"test_the_crowd_stays_at_its_target_with_an_idle_player"},
+    "test_extra_looks": {"test_the_factory_looks_mirror_pixel_for_pixel_on_an_r_level"},
+    "test_flow": {"test_submenu_redraws_stay_within_the_vblank_drain_budget"},
+    "test_half_rate": {"test_the_heaviest_levels_run_at_60_game_steps_a_second_and_keep_the_budgets"},
+    "test_menu_scroll": {"test_mashing_a_list_never_runs_a_frame_late", "test_mashing_the_soundtrack_while_a_tune_plays_never_runs_a_frame_late"},
+    "test_mg_logroll": {"test_a_whole_game_has_no_late_frame_and_no_copy_into_the_picture"},
+    "test_mg_logroll_fish": {"test_the_fish_cost_no_late_frame_and_few_lines"},
+    "test_patrons": {"test_four_patrons_stepping_together_fit_in_vblank"},
+    "test_pouroff": {"test_a_frame_of_the_game_ends_before_the_next_vblank"},
+    "test_practice_art": {"test_fast_left_right_never_runs_a_frame_late_and_settles"},
+    "test_sound": {"test_no_frame_is_skipped_with_music_and_effects_running"},
+    "test_stage_anim": {"test_the_stage_animates_only_its_own_tiles"},
+    "test_story_pictures": {"test_finale_streams_each_speakers_portrait_into_the_one_slot", "test_the_pieces_fly_off_the_screen_and_the_trail_fades",
+                            "test_mashing_a_through_the_burst_keeps_the_line_limit", "test_mashing_a_never_makes_the_drain_leave_vblank"},
+    "test_twists": {"test_a_mosh_on_all_four_bars_keeps_the_sprite_budgets", "test_a_mosh_on_two_bars_keeps_the_frame_time"},
+    "test_vq_budget": {"test_classic_crowd_drains_inside_vblank"},
+}
+# In those modules, but kept at normal speed (their assertion is about a phase or a mechanic at normal speed, not a limit): module -> {test: why}.
+PERF_NORMAL = {
+    "test_sound": {"test_no_frame_is_skipped_with_music_and_effects_running": "reads frame_counter after run(1) from a state poked between frames: at double speed the first emulator frame has no counter step (a phase, frame 0 only); test_double_speed (c) checks a game frame per emulator frame at double speed"},
+    "test_perf": {"test_vram_queue_is_drained_only_inside_vblank": "pokes vq_latest_ly and counts frames from the poke: at double speed the poked list forms one frame later (the shipped game still never writes outside VBlank: diagnosed, same refusals, same drain)"},
+}
+
+
+def pytest_collection_modifyitems(config, items):
+    """PERF_ONLY=1: keep only the perf / timing guards of PERF_DS (a quick run of just the Color speed checks)."""
+    if os.environ.get("PERF_ONLY"):
+        keep = [i for i in items if i.module.__name__ in PERF_DS and (PERF_DS[i.module.__name__] is None or i.function.__name__ in PERF_DS[i.module.__name__])]
+        config.hook.pytest_deselected(items=[i for i in items if i not in keep])
+        items[:] = keep
+
+
+@pytest.fixture(autouse=True)
+def _perf_guards_at_double_speed(request):
+    mod = request.module.__name__.split(".")[-1]
+    names = PERF_DS.get(mod, ())
+    fn = getattr(request.function, "__name__", None) if request.scope == "function" else None
+    cs = getattr(request.node, "callspec", None)
+    cgb = cs is None or "cgb" in cs.id.split("-")   # (a test without a model parameter builds its own Color: they are listed only when they do)
+    if fn and cgb and not os.environ.get("GB_PERF_NORMAL") and mod in PERF_DS and (names is None or fn in names) and fn not in PERF_NORMAL.get(mod, {}):
+        with double_speed():
+            yield
+    else:
+        yield
+
+
+def ds_active():
+    """True inside `double_speed()` (or with GB_DOUBLE_SPEED=1): a Color built now runs at double speed."""
+    return _DS[0]
+
+
 def _speed_off_copy(path):
     """The ROM at `path` with its speed-switch byte 0 (a temp copy under out/dsoff/), or `path` itself when it is not this game's ROM."""
     key = str(path)
@@ -111,6 +171,9 @@ def golden_report(name, model, actual):
     box = ImageChops.difference(ref, actual.convert("RGB")).getbbox() if ref.size == actual.size else "size"
     with open(GOLDEN_REPORT, "a") as f:
         f.write(f"{name}.{model} {box}\n")
+    new = Path(GOLDEN_REPORT).parent / "golden_new"                  # the picture the game drew now, for the old | new sheets (never under tests/golden)
+    new.mkdir(exist_ok=True)
+    actual.convert("RGB").save(new / f"{name}.{model}.png")
 
 
 # ---- test hook: the game rebuilds its per-bar patron lists only when a patron arrives or leaves (M8a perf).
@@ -569,6 +632,18 @@ THEMES = VENUES["themes"]                     # theme index = patron group index
 def venue(theme):
     """Theme (name or index) -> dict: stage_map / stage_attr (20x4), bar_map / bar_attr (20x3), floor_tile, pal, ..."""
     return VENUES["venues"][THEMES[theme] if isinstance(theme, int) else theme]
+
+
+def keg_bg(theme):
+    """The keg's BG palette slot on the level screen (the Atlas plan, build/art.h VENUE_KEG_BG0: bit t set = BG 0, else BG 1); the venue art itself names BG 7 (mini-games, title)."""
+    mask = int(_re.search(r"#define VENUE_KEG_BG0 (\d+)", (ROOT / "build" / "art.h").read_text()).group(1))
+    return 0 if (mask >> theme) & 1 else 1
+
+
+def level_attr(theme, attrs):
+    """The venue's attribute bytes as the level screen draws them: the keg tiles' BG 7 is the plan's keg slot (src/level.c keg_remap)."""
+    k = keg_bg(theme)
+    return [k if a == 7 else a for a in attrs]
 
 
 def venue_rows(theme, key):

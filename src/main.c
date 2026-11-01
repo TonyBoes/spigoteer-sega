@@ -161,35 +161,18 @@ uint8_t  dance_tick;        // frames in the current dance step
 // ---- palettes ----------------------------------------------------------------
 
 // ---- scene -------------------------------------------------------------------
-static uint8_t digit_tile(uint8_t d) { return TILE_GLYPH_0 + d; }
-
-// the lives (HUD row, cols 7-8: the Spigoteer's head and the count as a digit) and the score digits (cols 0-5): the
-// tile ids are prepared by prep_hud() in the logic phase so that the VBlank part is nothing but a copy.
-void prep_hud(void) {
-    uint8_t i;
-    lives_tiles[0] = TILE_HUD_HEAD;
-    lives_tiles[1] = digit_tile(lives);
-    for (i = 0; i < 6; i++) score_tiles[i] = digit_tile(score_digits[i]);
-}
-
+// prep_hud, lose_life and end_note: src/main_cold.c (banked: ROM0 relief for the mid-frame palette split's handlers)
 // add_score (score as 32-bit total plus decimal digits) lives in src/rom0_relief.c, banked: ROM0 relief.
 
-void lose_life(void) {
-    if (life_lost) return;          // one incident costs one life, however many things go wrong in the same frame
-    if (lives) lives--;
-    hud_dirty |= HUD_LIVES;
-    prep_hud();
-    life_lost = 1;
-    pour_streak = 0;                // (a lost life ends the perfect-pour streak: src/mugs.c)
-    if (lives == 0) game_over = 1;
-}
 
-// The mid-frame palette split (game.h SPLIT_*): BG palette BGPAL_STAGE is rewritten from `src` (8 bytes; HBlank, VBlank or LCD off).
+// The mid-frame palette split (game.h SPLIT_*): a stage palette is rewritten from `src` (8 bytes; HBlank, VBlank or LCD off). The late one (SPLIT_LY, the Saloon's BG 5)
+// is BCPS SPLIT_L_BCPS, the early one (SPLIT_EARLY_LY, another venue's stage palette that ends a row sooner) SPLIT_E_BCPS.
 #if ASM_SPLIT_PAL
-void split_pal_put(const volatile uint8_t *src) __naked {
+void split_pal_put(const volatile uint8_t *src) __naked {      // the late palette
     (void)src;
 __asm
-    ld   a, #(0x80 | (5 << 3))      ; BCPS: BGPAL_STAGE, auto-increment
+    ld   a, (_story_scratch + SCR_SPLIT_AT + 1)   ; BCPS of the late palette
+_split_put_a::                      ; A = BCPS (auto-increment), DE = the 8 bytes
     ldh  (0x68), a
     ld   h, d
     ld   l, e
@@ -216,20 +199,28 @@ __endasm;
 #else
 void split_pal_put(const volatile uint8_t *src) {
     uint8_t i;                                  // (cold, LCD off: a loop; the hot callers write the bytes themselves, split_line / split_vbl)
-    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
+    BCPS_REG = SPLIT_L_BCPS;
     for (i = 0; i != 8; i++) BCPD_REG = src[i];
 }
 #endif
 
+void set_wy(uint8_t x) {      // (game.h SET_WY: out of line, ROM0)
+    WY_REG = x;
+    if (SPLIT_ON == 3 && (LCDC_REG & LCDCF_ON)) split_plan();   // (LCD off: the screen's builder plans once at its end, WIN_SYNC; a plan is ~15000 cycles, the pause card's build has the music to tick)
+}
 void lcd_isr(void) {          // LYC: switch the banner window off below the banner
     HIDE_WIN;
 }
 
 #if ASM_SPLIT_PAL
-// (asm: the window's end must be hidden as early as lcd_isr does, a few cycles late and a 48 px menu shows one line more; the split's own
-// line gives the window back before the line's pixels start)
+// (asm: the window's end must be hidden as early as lcd_isr does, a few cycles late and a 48 px menu shows one line more; a split line gives the window back
+// before its pixels start, unless it is also the window's own line)
+// The events of a frame, in line order: the early reload (31, when SPLIT_E_BCPS), the late one (39), the window's own line (SPLIT_WANT, anywhere). LYC holds the next one;
+// a window line only records itself in SPLIT_WANT. The next event after line b: the first of the chain lines after b, or the window's line if that comes sooner.
 typedef char split_ly_is_39[(SPLIT_LY == 39) ? 1 : -1];
-void split_isr(void) __naked {
+typedef char split_early_is_31[(SPLIT_EARLY_LY == 31) ? 1 : -1];
+typedef char split_stage_is_5[(BGPAL_STAGE == 5) ? 1 : -1];
+void split_isr(void) __naked {          // the Saloon's one reload (SPLIT_ON 1): cycle for cycle what it was before the chain existed
 __asm
     ldh  a, (0x40)                  ; LCDC
     ld   c, a
@@ -250,14 +241,15 @@ __asm
     and  a, #3
     jr   nz, 9101$
     ld   de, #0xFFD6                ; SPLIT_PAL
-    call _split_pal_put
+    ld   a, #0xA8                   ; BCPS: BG 5, auto-increment
+    call _split_put_a
     ldh  a, (0xD5)
     ldh  (0x45), a                  ; LYC = SPLIT_WANT
     ret
 __endasm;
 }
 #else
-static void split_line(void) {  // (the split's own line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
+static void split_line(void) {  // (the Saloon's split line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
     // (the 8 bytes are read from their fixed HRAM addresses as they go out, `ldh a, (n)` then `ldh (c), a`: no pre-read into locals, whose spills ended after the line did)
     while (STAT_REG & 3) ;                     // (HBlank: palette RAM is open; the line's pixels are out)
     BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
@@ -266,7 +258,7 @@ static void split_line(void) {  // (the split's own line, in its own function: t
     LYC_REG = SPLIT_WANT;
 }
 
-void split_isr(void) {        // (the C twin; hides the window FIRST, as the asm does: a window's end on its own line must be as early as lcd_isr's)
+void split_isr(void) {        // (the Saloon's, the C twin: the one reload)
     uint8_t lcdc = LCDC_REG;
     LCDC_REG = lcdc & ~0x20;                   // (HIDE_WIN, from the one read)
     if (LYC_REG == SPLIT_LY) {
@@ -276,21 +268,408 @@ void split_isr(void) {        // (the C twin; hides the window FIRST, as the asm
     }
     SPLIT_WANT = LYC_REG; LYC_REG = SPLIT_LY;
 }
+
 #endif
 
 void split_vbl(void) {        // vq_vbl's place while the split is armed (the VBlank chain keeps its one entry)
 #if ASM_SPLIT_PAL
     split_pal_put(SPLIT_STG);
 #else
-    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);      // (the C twin: fixed HRAM addresses, `ldh a, (n)`: through a pointer parameter SDCC spends 4 lines of a frame here)
+    BCPS_REG = SPLIT_L_BCPS;                   // (the C twin: fixed HRAM addresses, `ldh a, (n)`: through a pointer parameter SDCC spends 4 lines of a frame here)
     BCPD_REG = SPLIT_STG[0]; BCPD_REG = SPLIT_STG[1]; BCPD_REG = SPLIT_STG[2]; BCPD_REG = SPLIT_STG[3];
     BCPD_REG = SPLIT_STG[4]; BCPD_REG = SPLIT_STG[5]; BCPD_REG = SPLIT_STG[6]; BCPD_REG = SPLIT_STG[7];
 #endif
     vq_vbl();
 }
 
+// ---- mode 3 (SPLIT_ON 3, every venue but the Saloon): game.h KEG_* / SPLIT_E_* / SPLIT_L_*. C only: the writes are split_put_a (asm label, or its C twin below).
+#if !ASM_SPLIT_PAL
+void split_put_a(uint8_t bcps, const volatile uint8_t *src) {   // (the C twin of the asm label: 8 bytes at BCPS)
+    uint8_t i;
+    BCPS_REG = bcps;
+    for (i = 0; i != 8; i++) BCPD_REG = src[i];
+}
+#endif
+
+// The ISR walks the frame's event list (level.c split_plan keeps it: sorted lines, one palette at most on each, EV_*): the LYC hit at an event's line writes its palette in that line's
+// HBlank (the next line shows it). The window is hidden FIRST (a window's end on its own line must be as early as lcd_isr's) and given back unless this line is its end (SPLIT_WANT).
+// Every hit comes from the list, so a line the list does not name never fires. The hit decodes its own event (EV_I): LYC is the next event's line first thing after the window, so a
+// handler that runs on past the next line still has that hit waiting, and the VBlank has no event to decode.
+#if ASM_SPLIT_PAL
+// (asm, behind ASM_SPLIT_PAL; the C twin is under #else: the same walk. Cycles are the CPU's T-cycles at double speed: a line is 912, the handler starts ~160 into it, the HBlank is
+// open from ~500, a palette write is ~190, the dispatcher's own exit waits for an HBlank (STAT) when the handler is still running as the next line begins: ~540 more. So the whole hit,
+// decode included, has to be out by 912.) The kinds' table: 5 bytes each, EV_* are their offsets: the window state it wants (0xFF any), where its BCPS is kept (0: none), its palette.
+void split_isr3(void) __naked {
+__asm
+    ldh  a, (0x40)                  ; LCDC
+    ld   c, a
+    res  5, a
+    ldh  (0x40), a                  ; HIDE_WIN
+    ldh  a, (0x45)                  ; LYC: this line
+    ld   b, a
+    bit  5, c
+    jr   z, 9100$                   ; (no window was up)
+    ldh  a, (0xD5)                  ; SPLIT_WANT
+    cp   a, b
+    jr   z, 9100$                   ; (this line is its end: it stays off)
+    ld   a, c
+    ldh  (0x40), a                  ; the window as it was
+9100$:
+    ld   hl, #_story_scratch + 287  ; EV_I
+    ld   a, (hl)
+    ld   b, a                       ; i
+    inc  a
+    ld   e, a                       ; i + 1
+    ld   a, (_story_scratch + 286)  ; EV_N
+    cp   a, e
+    ld   a, e
+    jr   nz, 9140$
+    xor  a, a                       ; the last: the first is next
+9140$:
+    ld   (hl), a                    ; EV_I
+    ld   a, e                       ; LYC = the line of event i + 1 (the sentinel after the last: the first's)
+    add  a, a
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_story_scratch + 369
+    add  hl, de
+    ld   a, (hl)
+    ldh  (0x45), a
+    ld   a, b                       ; this event's kind
+    add  a, a
+    ld   e, a
+    ld   hl, #_story_scratch + 370
+    add  hl, de
+    ld   e, (hl)
+    ld   hl, #9310$
+    add  hl, de
+    ld   a, (hl+)                   ; the window state it wants
+    cp   a, #0xFF
+    jr   z, 9110$
+    ld   b, a
+    ld   a, c
+    and  a, #0x20
+    cp   a, b
+    ret  nz                         ; (not this window state: nothing to write)
+9110$:
+    ld   a, (hl+)
+    ld   e, a
+    ld   a, (hl+)
+    ld   d, a                       ; DE: where its BCPS is kept
+    or   a, e
+    ret  z                          ; (the window's end line: no palette)
+    ld   a, (hl+)
+    ld   c, a
+    ld   b, (hl)                    ; BC: its 8 colour bytes
+    ld   a, (de)
+    ld   h, a                       ; its BCPS
+    ld   d, b
+    ld   e, c
+    ld   a, l                       ; (L is still the row's end: the keg-and-late row)
+    cp   a, #<(9310$ + 49)
+    jr   z, 9300$
+9121$:
+    ldh  a, (0x41)                  ; STAT: HBlank, palette RAM is open; the line's pixels are out
+    and  a, #3
+    jr   nz, 9121$
+    ld   a, h
+    jp   _split_put_a
+9300$:                              ; EV_KEG_L: the keg's palette and the late one's in one HBlank, nothing but the 16 writes after it opens (BCPS, pointers and the second BCPS
+    ld   a, h                       ; are set while it waits: they are not palette RAM accesses). 32 (poll) + 128 + 28 + 128 = ~316 cycles from the HBlank's start; the
+    ldh  (0x68), a                  ; last write is then at most ~310 into HBlank + the next line's mode 2 (~1072 - 8 at the latest mode 3 end, Pan Docs' 289 dots = 738): no write in mode 3
+    ld   a, (_story_scratch + 237)  ; the late palette's BCPS
+    ld   b, a
+    ld   h, d
+    ld   l, e
+    ld   c, #0x69
+9301$:
+    ldh  a, (0x41)
+    and  a, #3
+    jr   nz, 9301$
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl)
+    ldh  (c), a
+    ld   a, b
+    ldh  (0x68), a
+    ld   hl, #0xFFD6                ; SPLIT_PAL
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl)
+    ldh  (c), a
+    ret
+9310$:                              ; by EV_*: the window it wants, BCPS at, palette
+    .db 0xFF
+    .dw 0, 0
+    .db 0xFF                                         ; EV_E
+    .dw _story_scratch + 236, _story_scratch + 238
+    .db 0xFF                                         ; EV_L (SPLIT_PAL)
+    .dw _story_scratch + 237, 0xFFD6
+    .db 0xFF                                         ; EV_KEG (KEG_PAL)
+    .dw _story_scratch + 235, _story_scratch + 270
+    .db 0x00                                         ; EV_KEG_HID
+    .dw _story_scratch + 235, _story_scratch + 270
+    .db 0x20                                         ; EV_HUD_SHOWN (KEG_STG)
+    .dw _story_scratch + 235, _story_scratch + 278
+    .db 0x20                                         ; EV_KEG_SHOWN
+    .dw _story_scratch + 235, _story_scratch + 270
+    .db 0xFF                                         ; EV_HUD_END
+    .dw _story_scratch + 235, _story_scratch + 278
+    .db 0x40                                         ; EV_PAD: never this window state
+    .dw 0, 0
+    .db 0xFF                                         ; EV_KEG_L (the keg's put, then the late palette's)
+    .dw _story_scratch + 235, _story_scratch + 270
+__endasm;
+}
+void split_isr3n(void) __naked {
+__asm
+    ldh  a, (0x40)                  ; LCDC: the window as it stands
+    ld   c, a
+    ldh  a, (0x45)                  ; LYC: this event's line less SPLIT_OFF
+    ld   b, a
+    ldh  a, (0xE6)                  ; SPLIT_OFF
+    add  a, b
+    ldh  (0xE7), a                  ; SPLIT_TGT: its line
+    ld   hl, #_story_scratch + 287  ; EV_I
+    ld   a, (hl)
+    ld   b, a                       ; i
+    inc  a
+    ld   e, a                       ; i + 1
+    ld   a, (_story_scratch + 286)  ; EV_N
+    cp   a, e
+    ld   a, e
+    jr   nz, 9140$
+    xor  a, a                       ; the last: the first is next
+9140$:
+    ld   (hl), a                    ; EV_I
+    ld   a, e                       ; LYC = the line of event i + 1 (the sentinel after the last: the first's)
+    add  a, a
+    ld   e, a
+    ld   d, #0
+    ld   hl, #_story_scratch + 369
+    add  hl, de
+    ld   a, (hl)
+    ldh  (0x45), a
+    ld   a, b                       ; this event's kind
+    add  a, a
+    ld   e, a
+    ld   hl, #_story_scratch + 370
+    add  hl, de
+    ld   a, (hl)
+    ld   e, a
+    and  a, #0xC0                   ; EV_HIDE_FIRST (6): the window off on the event's line, before its palette; EV_HIDE_AFTER (7): off after it
+    ldh  (0xE8), a
+    ld   a, e
+    and  a, #0x3F
+    ld   e, a
+    cp   a, #45                     ; EV_KEG_L: the keg's put on its line, the late palette's in the next line's HBlank (flag bit 5)
+    jr   nz, 9185$
+    ldh  a, (0xE8)
+    or   a, #0x20
+    ldh  (0xE8), a
+9185$:
+    ld   hl, #9310$
+    add  hl, de
+    ld   a, (hl+)                   ; the window state it wants
+    cp   a, #0xFF
+    jr   z, 9110$
+    ld   b, a
+    ld   a, c
+    and  a, #0x20
+    cp   a, b
+    ret  nz                         ; (not this window state: nothing to write)
+9110$:
+    ld   a, (hl+)
+    ld   e, a
+    ld   a, (hl+)
+    ld   d, a                       ; DE: where its BCPS is kept
+    or   a, e
+    jr   z, 9160$                   ; (the window's end line: no palette)
+    ld   a, (hl+)
+    ld   c, a
+    ld   b, (hl)                    ; BC: its 8 colour bytes
+    ld   a, (de)
+    ld   h, a                       ; its BCPS
+    ld   d, b
+    ld   e, c
+    ldh  a, (0xE7)
+    ld   b, a                       ; its line
+    ldh  a, (0xE8)
+    ld   l, a                       ; the window flags
+    bit  6, l
+    jr   z, 9121$
+9170$:
+    ldh  a, (0x44)                  ; (the window ends on this line: it goes off as the line starts, then the palette in its HBlank)
+    cp   a, b
+    jr   c, 9170$
+    ldh  a, (0x40)
+    res  5, a
+    ldh  (0x40), a
+9121$:
+    ldh  a, (0x44)                  ; LY: the hit comes SPLIT_OFF lines early at normal speed (the handler is too slow to be in this line's HBlank otherwise): wait for the line
+    cp   a, b
+    jr   c, 9121$
+    ldh  a, (0x41)                  ; STAT: HBlank (or VBlank), palette RAM is open; the line's pixels are out
+    and  a, #2
+    jr   nz, 9121$
+    ld   a, h
+    bit  5, l
+    jr   nz, 9180$
+    bit  7, l
+    jp   z, _split_put_a
+    call _split_put_a
+    jr   9162$                      ; (the window ends on the next line: off now)
+9180$:
+    call _split_put_a               ; the keg's
+    ldh  a, (0xE7)
+    inc  a
+    ld   b, a                       ; the late palette's line
+9181$:
+    ldh  a, (0x44)
+    cp   a, b
+    jr   c, 9181$
+9183$:
+    ldh  a, (0x41)
+    and  a, #2
+    jr   nz, 9183$
+    ld   de, #0xFFD6                ; SPLIT_PAL
+    ld   a, (_story_scratch + 237)  ; its BCPS
+    jp   _split_put_a
+9160$:
+    ldh  a, (0xE7)                  ; the window's end line: wait for it, then hide
+    ld   b, a
+9161$:
+    ldh  a, (0x44)
+    cp   a, b
+    jr   c, 9161$
+9162$:
+    ldh  a, (0x40)
+    res  5, a
+    ldh  (0x40), a                  ; HIDE_WIN
+    ret
+9310$:                              ; by EV_*: the window state it wants, BCPS at, palette
+    .db 0xFF
+    .dw 0, 0
+    .db 0xFF                                         ; EV_E
+    .dw _story_scratch + 236, _story_scratch + 238
+    .db 0xFF                                         ; EV_L (SPLIT_PAL)
+    .dw _story_scratch + 237, 0xFFD6
+    .db 0xFF                                         ; EV_KEG (KEG_PAL)
+    .dw _story_scratch + 235, _story_scratch + 270
+    .db 0x00                                         ; EV_KEG_HID
+    .dw _story_scratch + 235, _story_scratch + 270
+    .db 0x20                                         ; EV_HUD_SHOWN (KEG_STG)
+    .dw _story_scratch + 235, _story_scratch + 278
+    .db 0x20                                         ; EV_KEG_SHOWN
+    .dw _story_scratch + 235, _story_scratch + 270
+    .db 0xFF                                         ; EV_HUD_END
+    .dw _story_scratch + 235, _story_scratch + 278
+    .db 0x40                                         ; EV_PAD: never this window state
+    .dw 0, 0
+    .db 0xFF                                         ; EV_KEG_L
+    .dw _story_scratch + 235, _story_scratch + 270
+__endasm;
+}
+#else
+void split_isr3(void) {       // (the C twin: the same decode)
+    uint8_t lcdc = LCDC_REG, tgt = LYC_REG + SPLIT_OFF, i = EV_I, kk = EV_KIND(i), k = kk & 0x3F, r = 0xFF, b = KEG_BCPS;
+    const volatile uint8_t *s = KEG_PAL;
+    EV_I = i + 1 == EV_N ? 0 : i + 1;
+    LYC_REG = EV_LINE(i + 1);
+    if (k == EV_E) { b = SPLIT_E_BCPS; s = SPLIT_E_PAL; }
+    else if (k == EV_L) { b = SPLIT_L_BCPS; s = SPLIT_PAL; }
+    else if (k >= EV_KEG_HID) {
+        r = k == EV_KEG_HID ? 0 : (k == EV_HUD_END || k == EV_KEG_L) ? 0xFF : k == EV_PAD ? 0x40 : 0x20;
+        if (k == EV_HUD_SHOWN || k == EV_HUD_END) s = KEG_STG;
+    }
+    if (r != 0xFF && r != (lcdc & 0x20)) return;             // (not this window state)
+    if (!k) { while (LY_REG < tgt) ; HIDE_WIN; return; }     // (the window's end line: wait for it, then the window off)
+    if (kk & EV_HIDE_FIRST) { while (LY_REG < tgt) ; HIDE_WIN; }   // (the window ends on this line)
+    while (LY_REG < tgt || (STAT_REG & 2)) ;                 // (its line's HBlank, or the VBlank: palette RAM is open; the line's pixels are out)
+    split_put_a(b, s);
+    if (k == EV_KEG_L) {                                     // (double speed: the keg's put and the late palette's in one HBlank; normal speed: the late one in the next line's)
+        if (SPLIT_OFF) { tgt++; while (LY_REG < tgt || (STAT_REG & 2)) ; }
+        split_put_a(SPLIT_L_BCPS, SPLIT_PAL);
+    }
+    if (kk & EV_HIDE_AFTER) HIDE_WIN;                        // (the window ends on the next line)
+}
+#endif
+
+// The VBlank side: the frame's first event is next (EV_I 0, LYC its line; the HUD's BG 1 is back already: the frame's last event, EV_HUD_END), then vq_vbl (its drain must start by
+// line VQ_LATEST_LY = 147 or the frame's copy list waits; the VBlank chain starts this handler on line 145 at normal speed, so no cycle may go before it that need not), then the stage
+// palettes: they are wanted from line 8, the drain may end on line 153, so each waits for an HBlank or VBlank (split_put_w) rather than assume the VBlank is still there.
+#if ASM_SPLIT_PAL
+void split_vbl3(void) __naked {   // vq_vbl's place while mode 3 is armed
+__asm
+    xor  a, a
+    ld   (_story_scratch + 270 + 17), a   ; EV_I = 0
+    ld   a, (_story_scratch + 369)  ; EV_LINE(0)
+    ldh  (0x45), a
+    call _vq_vbl
+    ld   a, (_story_scratch + 237)  ; the late palette's BCPS (0: none)
+    or   a, a
+    jr   z, 9200$
+    ld   de, #0xFFDE                ; SPLIT_STG
+    call _split_put_w
+9200$:
+    ld   a, (_story_scratch + 236)  ; the early one's
+    or   a, a
+    ret  z
+    ld   de, #_story_scratch + 246  ; SPLIT_E_STG
+_split_put_w:
+    ld   h, a
+9210$:
+    ldh  a, (0x41)                  ; STAT: mode 0 or 1 (bit 1 clear): palette RAM is open for the whole write
+    and  a, #2
+    jr   nz, 9210$
+    ld   a, h
+    jp   _split_put_a
+__endasm;
+}
+#else
+static void split_put_w(uint8_t bcps, const volatile uint8_t *src) {
+    while (STAT_REG & 2) ;
+    split_put_a(bcps, src);
+}
+void split_vbl3(void) {       // (the C twin)
+    EV_I = 0;
+    LYC_REG = EV_LINE(0);
+    vq_vbl();
+    if (SPLIT_L_BCPS) split_put_w(SPLIT_L_BCPS, SPLIT_STG);
+    if (SPLIT_E_BCPS) split_put_w(SPLIT_E_BCPS, SPLIT_E_STG);
+}
+#endif
+
 void set_lyc(uint8_t x) {
-    if (SPLIT_ON) { SPLIT_WANT = x; if (LYC_REG == SPLIT_LY) return; }
+    if (SPLIT_ON) {
+        SPLIT_WANT = x;
+        if (SPLIT_ON == 3) { if (LCDC_REG & LCDCF_ON) split_plan(); return; }
+        if (LYC_REG == SPLIT_LY) return;           // (the Saloon's chain line: the ISR takes SPLIT_WANT up)
+    }
     LYC_REG = x;
 }
 
@@ -309,7 +688,7 @@ void cast_isr(void) {
 // MR_SPLIT_LY; mg.c does not set LYC for Milk Run.
 void mr_lcd_isr(void) {
     uint8_t ly;
-    HIDE_WIN;                                    // (as lcd_isr: the banner window's end)
+    HIDE_WIN;                                // (as lcd_isr: the banner window's end)
     if (is_cgb && (KEY1_REG & 0x80)) while ((STAT_REG & 3) > 1) ;   // (Color double speed: the handler reaches its SCX write in half the dots, still inside the split line, so that line scrolled with the street; normal speed writes after the line's pixels (the stub's dispatch is 60+ cycles). Wait for HBlank (or VBlank: line 144) as that lands)
     if ((game_state == GS_MINI || game_state == GS_PAUSED) && mg_id == MG_MILKRUN) {
         ly = LYC_REG;
@@ -317,7 +696,7 @@ void mr_lcd_isr(void) {
         else if (ly == MR_SPLIT_LY) {
             SCX_REG = MG->mr.scx;
             if (overlay_on) {
-                SHOW_WIN;                        // (the banner window is wanted from its top line)
+                SHOW_WIN;                    // (the banner window is wanted from its top line)
                 if (game_state == GS_PAUSED && (state_timer & 8)) ly = 144;   // (pause.c's HOW TO PLAY card: the window is the whole screen)
                 else if (game_state == GS_PAUSED) ly = BANNER_WY + ((state_timer & 0x80) ? 38 : 46);   // (pause.c WIN_LYC: a mini-game's menu is 5 rows)
                 else ly = mg_phase == MG_RESULT ? BANNER_WY + 46 : BANNER_LYC;
@@ -434,18 +813,10 @@ uint8_t *mg_say(uint8_t row, const char *s) {
 // frame, put back by end_note), WY and LYC moved to it. Nothing plays there, so a message can show while the game runs.
 void show_note(const char *s) {
     mg_say(32, s);
-    WY_REG = NOTE_WY; SET_LYC(NOTE_LYC);
+    SET_WY(NOTE_WY); SET_LYC(NOTE_LYC);
     overlay_on = 2;
 }
 
-void end_note(void) {
-    uint8_t *b, n = 20;
-    if (overlay_on != 2) return;
-    b = mg_say(32, "");
-    while (n) b[--n] = TILE_PANEL_TOP;
-    WY_REG = BANNER_WY; SET_LYC(BANNER_LYC);
-    overlay_on = 0; HIDE_WIN;
-}
 
 void show_overlay(const char *s) {
     end_note();
@@ -570,7 +941,7 @@ static void play_frame(uint8_t pressed) {
 
 
 static void update(void) {
-    uint8_t pressed;
+    uint8_t pressed, t;
 
     vq_frame_begin();                // the VBlank interrupt has drained last frame's copy list (or it waits)
 #ifdef GLOW_A
@@ -581,7 +952,7 @@ static void update(void) {
     if (overlay_on) SHOW_WIN;
     else {
         HIDE_WIN;
-        if (WY_REG == NOTE_WY) { WY_REG = BANNER_WY; SET_LYC(BANNER_LYC); }   // (a note cut off by a life lost or a scene change: overlay_on 0 without end_note; the next window would start on the note's line)
+        if (WY_REG == NOTE_WY) { SET_WY(BANNER_WY); SET_LYC(BANNER_LYC); }   // (a note cut off by a life lost or a scene change: overlay_on 0 without end_note; the next window would start on the note's line)
     }
 
     joy_prev = joy;
@@ -624,29 +995,13 @@ static void update(void) {
             return;
         }
         break;
-    case GS_LIFE_LOST:
-        update_glass();
-        fill_timer = 0; fill_stage = 0;
-        bartender_frame = BT_FAIL;
-        if (story_on) story_life_frame();       // story: a strict rule's 2 lives blink
-        if (++state_timer >= LIFE_FREEZE_FRAMES) {
-            if (lives == 0) enter_game_over(); else resume_after_life();
-        }
+    case GS_PAUSED:
+        if (pause_update(pressed)) return;       // RESUME / QUIT TO MENU (src/pause.c); 1: the run is over
         break;
-    case GS_LEVEL_CLEAR:                         // (CLASSIC: the antics, src/antics.c, and their own length)
-        if (state_timer == 255 ? antics_frame() : ++state_timer >= CLEAR_FRAMES) {   // (255: the antics, enter_level_clear)
-            if (story_on) { story_level_done(); return; }   // M11b / ARCADE: the next step (story.c)
-            if (play_mode == MODE_CLASSIC ? classic_bonus_due() : !(level & 1)) {   // the harness: after even levels
-                bonus_enter();
-                game_state = GS_BONUS;
-                return;
-            }
-            if (level < 99) level++;
-            enter_level_screen();
-            return;
-        }
+    case GS_MINI:                                // a mini-game (src/mg.c); 1: it left, the next screen is up
+        if (mg_update(pressed)) return;
         break;
-    case GS_BONUS:
+    case GS_BONUS:                               // (these four stay: their frames are long or tick-sensitive, a banked call more shows in the music-tick and bonus-judge tests)
         if (bonus_update(pressed)) {
             if (story_on) { arcade_next(); return; }  // ARCADE: the bonus round after a venue, then the next venue
             if (level < 99) level++;
@@ -654,25 +1009,9 @@ static void update(void) {
             return;
         }
         break;
-    case GS_DEBUG:
-        if (debug_step(pressed)) { frame_counter++; return; }
-        break;
-    case GS_GAME_OVER:                           // M10b: then the initials (top 5) or the table, then the title
-        if ((pressed & (J_START | J_A)) || ++state_timer >= GAMEOVER_FRAMES) { scores_after_game(); return; }
-        break;
-    case GS_INITIALS:
-    case GS_SCORES:
-        if (scores_update(pressed)) { title_enter(); return; }
-        break;
-    case GS_PAUSED:
-        if (pause_update(pressed)) return;       // RESUME / QUIT TO MENU (src/pause.c); 1: the run is over
-        break;
     case GS_STORY:                               // M11b: a cut-scene / TRY AGAIN, the goal banner
     case GS_GOAL:
         if (story_update(pressed)) return;
-        break;
-    case GS_MINI:                                // a mini-game (src/mg.c); 1: it left, the next screen is up
-        if (mg_update(pressed)) return;
         break;
     case GS_JUKEBOX:                             // the title's BONUS: the soundtrack player (src/jukebox.c)
         if (jukebox_update(pressed)) return;
@@ -680,8 +1019,9 @@ static void update(void) {
     case GS_MGLIST:                              // BONUS > MINI GAMES: the list (src/mg_list.c)
         if (mg_list_update(pressed)) return;
         break;
-    case GS_LOOP:
-        if (++state_timer >= LOOP_FRAMES) { game_state = GS_PLAYING; overlay_on = 0; }
+    default:                                    // the other screens (life lost, level clear, bonus, debug, game over, scores, story, jukebox, list, loop): src/main_cold.c, banked (ROM0 relief)
+        t = update_cold(pressed);
+        if (t) { if (t == 2) frame_counter++; return; }
         break;
     }
 

@@ -1020,6 +1020,7 @@ static uint8_t scene_frame(uint8_t pressed) {
 // One frame of GS_STORY (a cut-scene, or TRY AGAIN) or GS_GOAL. 1: the screen was redrawn (LCD off): skip the rest.
 uint8_t story_update(uint8_t pressed) BANKED {
     uint8_t btn;
+    WIN_FIX();                                   // (the goal banner's window: the plan, main.c's update shows it before this)
     if (story_phase != SP_SCENE) story_t++;      // (a scene's story_t is the typing's beat counter: page_begin, type_frame)
     switch (story_phase) {
     case SP_GOAL:

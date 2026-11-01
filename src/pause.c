@@ -44,6 +44,7 @@
 #include <string.h>
 
 #include "game.h"
+#include "scratch.h"
 #include "music.h"
 #include "mg.h"
 #include "boss.h"
@@ -154,7 +155,7 @@ static void apply(uint8_t s, uint8_t hidden) {
         for (i = 0; i < ((s & PAUSE_MINI) ? 3 : 4); i++) set_win_tiles(COL_ITEM, i + 1, 14, 1, b + i * 20 + COL_ITEM);
         if (overlay_on) {                        // (lcd_isr hid it at the menu's last line; shown from VBlank on or while the beam is above its top: below that it would start under the beam)
             while (LY_REG >= BANNER_WY && LY_REG < 144) music_pump();
-            SHOW_WIN;
+            SHOW_WIN; WIN_SYNC();
         }
     }
     state_timer = s;
@@ -180,7 +181,7 @@ static void glyphs_back(void) {
 // (Milk Run's handler: LYC at 144 / the menu's end and SCX 0 as the frame before its split would have them.)
 static void lcd_back(uint8_t lyc) {
     if (mg_id == MG_MILKRUN) { SCX_REG = 0; SET_LYC(lyc); }
-    SHOW_WIN;                                    // (lcd_isr hid it at the menu's last line; main.c's update shows it from the next frame)
+    SHOW_WIN; WIN_SYNC();                        // (lcd_isr hid it at the menu's last line; main.c's update shows it from the next frame)
 #if CARD_FADE
     trans_card_in();                             // (the new screen's palettes kept, the screen white, the LCD on, and faded in)
 #else
@@ -201,7 +202,7 @@ static void card_open(void) {
     if (LCDC_REG & LCDCF_OBJON) s |= PAUSE_OBJ;
     state_timer = s | PAUSE_CARD;
     HIDE_SPRITES;
-    WY_REG = 0;                                  // the window over the whole screen: no LYC end
+    SET_WY(0);                                  // the window over the whole screen: no LYC end
     mg_card_win_open(pause_card(s));
     overlay_on = 1;                              // (the card is the window: main.c's update shows it every frame while this is set; the boss's first-appearance card came here with it 0, and the next frame's update hid the card, the paused game staying up behind a dead screen. The menu's card has it set already)
     if (!(mg_id == MG_MILKRUN)) SET_LYC(255);   // (Milk Run's handler: main.c mr_lcd_isr takes PAUSE_CARD into account)
@@ -214,7 +215,7 @@ static void card_close(void) {
     uint8_t s = state_timer;
     CARD_OFF();
     mg_card_win_close();
-    WY_REG = BANNER_WY;
+    SET_WY(BANNER_WY);
     if (s & PAUSE_OBJ) SHOW_SPRITES;
     if (s & PAUSE_ASK) {                         // the first-encounter card (pause_boss_card): no menu behind it, the game goes on
         put_back();                              // (the banner window hidden, the sound and the letters back; LYC at the banner's)
@@ -224,6 +225,7 @@ static void card_close(void) {
         DISPLAY_ON;
 #endif
         game_state = GS_PLAYING;
+        split_resume();                          // (the card's LCD-off dropped the level's palette split)
         return;
     }
     set_bkg_data(TILE_GLYPH_J, 1, qmark_tile);
@@ -236,7 +238,7 @@ static void card_close(void) {
 void pause_open(void) BANKED {
     uint8_t i, mini = game_state == GS_MINI;
     end_note();                                  // (a note moved WY and LYC; its row 32 is the menu's now)
-    overlay_on = 0; HIDE_WIN;                    // (hidden while its rows are written; shown again by main.c's next update)
+    overlay_on = 0; HIDE_WIN; WIN_SYNC();                    // (hidden while its rows are written; shown again by main.c's next update)
     state_timer = mini ? PAUSE_MINI : 0;
     game_state = GS_PAUSED;
     i = NR51_REG;                                // the music plays on as the bass and the drums (main.c ticks it while NR51 is not 0); where
@@ -257,7 +259,7 @@ void pause_open(void) BANKED {
         VBK_REG = VBK_BANK_0;
     }
     apply(state_timer, 1);                       // (Milk Run's handler walks LYC itself)
-    if (WY_REG == NOTE_WY) WY_REG = BANNER_WY;   // (a note cut off before this frame's update: the band starts on its line)
+    if (WY_REG == NOTE_WY) SET_WY(BANNER_WY);   // (a note cut off before this frame's update: the band starts on its line)
     overlay_on = 1;
 }
 
@@ -267,7 +269,7 @@ void pause_open(void) BANKED {
 void pause_boss_card(void) BANKED {
     uint8_t i;
     end_note();
-    overlay_on = 0; HIDE_WIN;
+    overlay_on = 0; HIDE_WIN; WIN_SYNC();
     state_timer = PAUSE_ASK;
     game_state = GS_PAUSED;
     i = NR51_REG;
@@ -279,7 +281,7 @@ void pause_boss_card(void) BANKED {
 
 // the sound, the two letters' tiles and the banner window (panel, a blank text row, panel; its LYC) as they were
 static void put_back(void) {
-    overlay_on = 0; HIDE_WIN;                    // (first: the window is gone before its rows change)
+    overlay_on = 0; HIDE_WIN; WIN_SYNC();                    // (first: the window is gone before its rows change)
     if (!NR51_REG) { TIMA_REG = 0; if (DS_NOW) CRITICAL { IF_REG &= ~0x04; } }   // (the tune stood still, the timer ran on: no catch-up ticks from the pumps below; a clocked game's beat is the ticks)
     NR51_REG = PAUSE_NR51; PAUSE_NR51 = 0; TMA_REG &= ~2;
     glyphs_back();
@@ -294,6 +296,7 @@ void pause_close(void) BANKED {
     uint8_t mini = state_timer & PAUSE_MINI;
     put_back();
     game_state = mini ? GS_MINI : GS_PLAYING;
+    if (!mini) split_resume();                   // (a card dropped it: the LCD went off)
 }
 
 // YES: the run (or the mini-game) ends
@@ -328,6 +331,7 @@ static void quit(void) {
 uint8_t pause_update(uint8_t pressed) BANKED {
     uint8_t s = state_timer, c = s & 3, m = s & PAUSE_MINI;
     if (!PAUSE_NR51) return 0;                   // (no menu open: a test poked game_state = GS_PAUSED for a frame)
+    WIN_FIX();   // (the menu's window came up after pause_open's plan, which was made for none: main.c's update shows it; no draw_stage_fx runs in a pause)
     if (s & PAUSE_CARD) {                        // the HOW TO PLAY card: A turns the page (on the last it closes), B and START close it
         if ((pressed & J_A) && ((s & PAUSE_PAGE) >> 4) + 1 < mg_card_pages(pause_card(s))) {
             state_timer = s + 0x10;

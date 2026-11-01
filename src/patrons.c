@@ -60,7 +60,7 @@ static uint8_t catch_ok;               // bit b: catch_p/catch_x of bar b are up
 #define SWAY4(n)  SWAY(n), SWAY((n) + 1), SWAY((n) + 2), SWAY((n) + 3)
 #define SWAY16(n) SWAY4(n), SWAY4((n) + 4), SWAY4((n) + 8), SWAY4((n) + 12)
 #define SWAY64(n) SWAY16(n), SWAY16((n) + 16), SWAY16((n) + 32), SWAY16((n) + 48)
-const uint8_t sway_tab[256] = { SWAY64(0), SWAY64(64), SWAY64(128), SWAY64(192) };
+const uint8_t sway_tab[WINDUP_T0] = { SWAY64(0), SWAY16(64), SWAY16(80) };   // (ROM0 relief: the 160 zero entries past the windup are the SWAY_AT test; WINDUP_T0 is 96)
 
 static void list_add(uint8_t p) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1);
@@ -78,8 +78,8 @@ void build_lists(void) {
 // Where patron p is drawn (pushed back or drinking): its position, +2 px on alternate beats while drinking (sway).
 // (draw_mask, P4: 0xFE on a DMG mixed level, where the patrons are drawn at even x only: mirror.c)
 static uint8_t drawn_x(uint8_t p) {
-    uint8_t x = patron_x[p] & draw_mask;
-    if (patron_state[p] == PATRON_DRINKING && sway_tab[patron_timer[p]]) x += 2;
+    uint8_t x = patron_x[p] & draw_mask, t;
+    if (patron_state[p] == PATRON_DRINKING && (t = patron_timer[p], SWAY_AT(t))) x += 2;
     return x;
 }
 
@@ -731,7 +731,7 @@ static uint8_t drinking_step(uint8_t p) {
         if (patron_state[p] != PATRON_DRINKING) { refresh_patron(p); return 1; }
         t = patron_timer[p];
     }
-    if (sway_tab[t] == sway_tab[(uint8_t)(t - 2)] && patron_draw[p] != 255) return 1;   // same sway: drawn as before
+    if (SWAY_AT(t) == SWAY_AT((uint8_t)(t - 2)) && patron_draw[p] != 255) return 1;  // same sway: drawn as before
     refresh_patron(p);
     return 1;
 }

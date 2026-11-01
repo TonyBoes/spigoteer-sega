@@ -6,6 +6,7 @@
 # (perf_end_last, main.c: the line the frame's logic and music tick ended on; > 143 is late) and that after the last tap the screen
 # shows the selected line's details (the rows that were left pending catch up).
 import pytest
+import perf_helpers as ph
 from conftest import K_BONUS, K_BOSSRUSH, K_MINIGAMES, K_SOUNDTRACK, hold_stage_anim, menu_tap, menu_to, title_pick
 from test_flow import tilemap_row
 
@@ -52,7 +53,7 @@ def mash(gb, key, period, seconds=SECONDS):
         elif i % period == 1:
             gb.release(key)
         gb.run(1)
-        e = gb.mem16("perf_end_last")
+        e = ph.end_line(gb)
         worst = max(worst, e)
         late += e > LATE
     gb.release(key)

@@ -298,8 +298,19 @@ uint8_t saloon_variant(uint8_t r) BANKED {
     return sal_combo[(uint8_t)((((uint16_t)r << 5) + ((uint16_t)r << 2)) >> 8)];                // r * 36 / 256 (36 = 32 + 4: no multiply call)
 }
 
+#include "looks_pick.h"                   // build/looks_pick.h: looks_variant(g, r, boss), the generated venues' picks
+static uint8_t extra_on_(void) {
+    return is_cgb && looks_on[cur_group];
+}
+uint8_t extra_on(void) BANKED { return extra_on_(); }
+
+uint8_t extra_variant(uint8_t r) BANKED {
+    if (!cur_group) return saloon_variant(r);
+    return looks_variant(cur_group, r, boss_on);   // (build/looks_pick.h, generated from the Graphics Atlas plan: the venue's allowed (look, palette) pairs, one random byte)
+}
+
 uint8_t spawn_variant(uint8_t r) BANKED {
-    if (is_cgb && !cur_group) return saloon_variant(r);
+    if (extra_on_()) return cur_group ? looks_variant(cur_group, r, boss_on) : saloon_variant(r);   // (not extra_variant: one trampoline less on a spawn frame, and looks_variant is in this bank)
     r = (r >> 4) + (r & 15);                      // r % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
     r = (r >> 2) + (r & 3);
     r = (r >> 2) + (r & 3);
