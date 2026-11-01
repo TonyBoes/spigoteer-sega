@@ -168,7 +168,6 @@ def test_the_cycle_green_yellow_red_ride(model):
         to_t(gb, T_RED)
         frames(gb, 2)
         assert gb.mem("boss_state") == BS_SPECIAL and lamp(gb)[0] == HAT_X
-        frames(gb, 1)                    # (the frame the state changes is a heavy one, logic to line ~107; with the mid-frame chain's VBlank handler the body's redraw is drained a frame later than it was)
         assert_body(gb, C, A, x, BP_RED)
         until(gb, lambda: counter(gb, B) == belt_row(0) or counter(gb, B) == belt_row(1), 8)
         if model == "cgb":
