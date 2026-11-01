@@ -15,11 +15,13 @@
       "#9CA4B4",
       "#101018"
      ],
-     "match": "",
+     "match": "OBJ 2",
      "other": [
       "Bar, wall"
      ],
-     "patrons": []
+     "patrons": [
+      "XENO, the grey one"
+     ]
     },
     "1": {
      "cols": [
@@ -50,14 +52,13 @@
     "3": {
      "cols": [
       "#20295A",
-      "#E6E6EE",
-      "#9CA4B4",
-      "#101018"
+      "#DEFFD5",
+      "#AC4ADE",
+      "#182041"
      ],
-     "match": "",
+     "match": "OBJ 5",
      "other": [],
      "patrons": [
-      "XENO, the grey one",
       "VENUS"
      ]
     },
@@ -1073,9 +1074,7 @@
      "other": [],
      "patrons": [
       "CEDAR, in the cap",
-      "WILLOW, red hair",
-      "BOONE",
-      "PIP"
+      "WILLOW, red hair"
      ]
     },
     "3": {
@@ -1119,14 +1118,17 @@
     },
     "6": {
      "cols": [
-      "#F6EECD",
-      "#DEA452",
-      "#5A3118",
-      "#201008"
+      "#6A4A31",
+      "#F6E6C5",
+      "#834A29",
+      "#291010"
      ],
-     "match": "",
+     "match": "OBJ 1",
      "other": [],
-     "patrons": []
+     "patrons": [
+      "BOONE",
+      "PIP"
+     ]
     },
     "7": {
      "cols": [
@@ -2063,7 +2065,7 @@
       "#F6BD8B",
       "#202031"
      ],
-     "match": "",
+     "match": "OBJ 0",
      "other": [],
      "patrons": [
       "NORM, the ref"
@@ -2111,11 +2113,11 @@
     "7": {
      "cols": [
       "#39415A",
-      "#FFFFF6",
-      "#F6BD8B",
-      "#202031"
+      "#B47B52",
+      "#295ADE",
+      "#000000"
      ],
-     "match": "OBJ 0",
+     "match": "",
      "other": [
       "Boss body"
      ],
