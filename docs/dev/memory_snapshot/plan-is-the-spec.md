@@ -17,3 +17,5 @@ When importing patrons, every palette/slot question is already answered by the p
 Owner, after: "This is why we made the Atlas in the first place ... This is what I've been working on for entire week. I have no idea why you ignored all of my work." Every patron/palette brief starts from the per-venue table in docs/dev/queue_briefs/extra_looks_slots.md (regenerate it from the Atlas if the plan changes); check an agent's question against the Atlas before it reaches the owner.
 
 Owner 2026-11-01 (on the unsaved-decisions audit): "None of those patron decisions are important to keep, they're already in the patron plan in the Atlas." Patron decisions are stored in the Atlas only; do not copy them into memory or QUEUE.
+
+2026-11-01: Q91 (speed pass vs loosen checks) was also withdrawn: I called a [cgb] perf test failure a hard limit, but those tests run a Color at NORMAL speed (conftest patches ROM 0x3FFE); the shipped game runs Color at double speed (owner Q8, [[gbc-enhanced-direction]]). Before reporting a Color-only perf limit, measure it at double speed.
