@@ -934,7 +934,10 @@ def index0_holes(art):
 # Any other enclosed index-0 pixel fails the build. Key: (group, "front" | "back", variant 0-2).
 DRAWN_GAPS = {("robots", "front", 1): {(8, 1), (9, 1)},      # VOLTA's crest
               ("robots", "back", 1): {(8, 1), (9, 1)},
-              ("cowboys", "front", 1): {(6, 13), (7, 14), (9, 14), (11, 13)}}   # existing art (diagonal leg gaps), listed so the check passes
+              ("cowboys", "front", 1): {(6, 13), (7, 14), (9, 14), (11, 13)},
+              # the owner's own drawings 2026-10-31 (row 15, '#' under lighter pixels): PIERRE x=4, 12; BASIL x=2, 12
+              ("chefs", "front", 0): {(4, 15), (12, 15)},
+              ("chefs", "front", 2): {(2, 15), (12, 15)}}   # existing art (diagonal leg gaps), listed so the check passes
 
 
 def check_holes(g, kind, vi, art):

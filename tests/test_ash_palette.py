@@ -11,7 +11,7 @@ from test_venues import cgb_palette
 
 pytestmark = pytest.mark.timeout(60)
 
-OLD = {1: 0x389040, 2: 0x906800, 3: 0x102810}      # the original lumberjacks_c: index 1 (art '-') hat and clothes, 2 ('+') skin, 3 ('#') dark
+OLD = {1: 0x389040, 2: 0xC08858, 3: 0x102810}      # lumberjacks_c: index 1 (art '-') hat and clothes, 2 ('+') skin (#906800 until the owner's 2026-10-31 "Ash to medium", Q86), 3 ('#') dark
 
 
 def rgb15(c):
@@ -39,7 +39,7 @@ def test_ash_looks_the_same_on_color(gb):
     rom = rom_tiles()
     vram = gb.pb.memory
     bg = cgb_palette(gb, 2 + 2)                     # BGPAL_PATRON + 2: variant C
-    assert bg[1] == rgb15(0x906800) and bg[2] == rgb15(0x389040) and bg[3] == rgb15(0x102810), "skin in colour 1, green in 2"
+    assert bg[1] == rgb15(0xC08858) and bg[2] == rgb15(0x389040) and bg[3] == rgb15(0x102810), "skin in colour 1, green in 2"
     swapped = 0
     for o in ash_ids():
         t = BASE + o
