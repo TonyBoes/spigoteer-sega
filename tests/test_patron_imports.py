@@ -87,7 +87,7 @@ def bg_slot_colours(gb, slot):
 # The slots of the three looks A, B, C (looks 0-2) on the Color level screen, and their palettes. The other venues keep BG 2 + v and the legacy OBJ slots; the
 # Factory follows the Graphics Atlas (extra_looks_slots.md): BOXY BG 3 / OBJ 3, VOLTA BG 6 (the chain's late reload) / OBJ 6, and BLIP on NEKA's cyan,
 # BG 4 / OBJ 4 (the owner moved BLIP off OBJ 7 to the cyan: plan_data PLANS["robots"] moves).
-ATLAS_LOOKS = {"sports": [(None, 1, "sports_a"), (3, 0, "sports_b"), (None, 7, "sports_c")],
+ATLAS_LOOKS = {"sports": [(None, 1, "sports_a"), (3, 0, "sports_b"), (7, 7, "sports_c")],
                "lumberjacks": [(2, 3, "lumberjacks_a"), (2, 3, "lumberjacks_b"), (7, 7, "lumberjacks_c")],
                "chefs": [(2, 0, "chefs_a"), (2, 0, "chefs_b"), (7, 7, "chefs_c")]}
 
@@ -96,7 +96,7 @@ def looks_slots(g):
     if g == "robots":
         return [(3, 3, "robots_a"), (6, 6, "robots_b"), (4, 4, "robots_neka")]
     if g in ATLAS_LOOKS:                           # the other imported venues, on the Atlas slots (None: no BG check here, the drift test (test_plan_slots) has it:
-        return ATLAS_LOOKS[g]                      # BG 1 is the chain's, and the Atlas's BG 7 is Sal's colours, not SERENA's own)
+        return ATLAS_LOOKS[g]                      # BG 1 is the chain's)
     return [(2 + v, LIFT_PAL[v], f"{g}_{k}") for v, k in enumerate("abc")]
 
 

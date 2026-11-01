@@ -202,7 +202,7 @@ BG_PATRON = {2: 0, 3: 1, 4: 2}            # BG slot -> art variant (walking)
 # (line 31) and BG 6 late (line 39), where the playfield starts.
 ENGINE_BG = {"robots": [2, 3, 4, 5, 6, 7], "divers": [2, 3, 4, 5, 6, 7], "punks": [2, 3, 4, 5, 6, 7], "ninjas": [2, 3, 4, 5, 6, 7],
              "sports": [1, 2, 3, 4, 5, 6, 7],            # (BG 1: PETE and FRANK, the chain's HUD slot: the keg is on BG 0 in the Stadium)
-             "lumberjacks": [2, 3, 4, 5, 7],             # (the keg is BG 1; BG 6 is free in the Atlas)
+             "lumberjacks": [2, 3, 4, 5, 6, 7],          # (the keg is BG 1; BOONE and PIP on BG 6, the chain's late slot)
              "chefs": [2, 3, 4, 5, 6, 7]}
 # OBJ slots a boss fight loads its own palettes into (src/boss_prototype.c: lamp OBJ 4, body OBJ 5, topper OBJ 7): a patron on one of them sits out the fight,
 # and so does look 2 (the C slot's tiles are the boss's). gen_looks.py turns these into combo_boss.

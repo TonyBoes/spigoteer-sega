@@ -153,8 +153,7 @@ SET_B = [(2, 61), (2, 100)]
 def place(gb, group):
     goto_group(gb, group)
     freeze(gb)
-    flip = {1: {2: 1}}.get(group, {})             # (the Stadium's SERENA: the Atlas's BG 7 is Sal's colours, her OBJ 7 her own, so she changes colour when lifted: not what this test is about; another look stands in)
-    slots = lineup(gb, {b: [(x, flip.get(v, v), 0) for x, v, _ in row] for b, row in PLACES.items() if row})
+    slots = lineup(gb, {b: [(x, v, 0) for x, v, _ in row] for b, row in PLACES.items() if row})
     for (b, x), (i, v, d) in slots.items():
         if any(xx == x and dr for xx, _, dr in PLACES[b]):
             put(gb, "patron_state", i, DRINKING)
