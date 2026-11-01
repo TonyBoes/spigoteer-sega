@@ -10,15 +10,15 @@ Playfield BG slots (above the playfield: BG 1 HUD, BG 5 and BG 6 stage; they are
 | Venue | BG 0 | BG 1 | BG 2 | BG 3 | BG 4 | BG 5 | BG 6 | BG 7 |
 |---|---|---|---|---|---|---|---|---|
 | Saloon | bar, wall, keg | free | GUS, HANK | DUSTY, EMMA | (4 swaps) | free | free | ROSIE, REDD |
-| Stadium | bar, wall, keg (keg colour 3 #311018 -> #20294A) | PETE, FRANK (as OBJ 1) | LOUIS (as OBJ 2) | NORM | PIPER (as OBJ 4) | TOM (as OBJ 5) | MIKE (as OBJ 6) | SERENA |
-| Lumber Lodge | bar, wall | keg | CEDAR, WILLOW, BOONE, PIP | INES (as OBJ 6) | SMITH (as OBJ 4) | ROD (as OBJ 5) | free | ASH |
+| Stadium | bar, wall, keg (keg colour 3 #311018 -> #20294A) | PETE, FRANK (as OBJ 1) | LOUIS (as OBJ 2) | NORM (as OBJ 0) | PIPER (as OBJ 4) | TOM (as OBJ 5) | MIKE (as OBJ 6) | SERENA (as OBJ 7) |
+| Lumber Lodge | bar, wall | keg | CEDAR, WILLOW | INES (as OBJ 6) | SMITH (as OBJ 4) | ROD (as OBJ 5) | BOONE, PIP (as OBJ 1) | ASH |
 | Bistro | bar, wall | keg | PIERRE, BRIE, NONNA | MIME (as OBJ 3) | OLIVE (as OBJ 4) | Sage (as OBJ 5) | Deep skin (as OBJ 6) | BASIL, PINOT, HERB |
 | Igloo | bar, wall | keg | FROSTI (as OBJ 2) | IGGY | MUFFY (as OBJ 4) | MUSH, CUB, DENALI (as OBJ 5) | POLLY | MOOSE |
 | Robot Factory | bar, wall | keg | CLANK, PEPPER (as OBJ 1) | BOXY | BLIP, NEKA (as OBJ 4) | TOOB (as OBJ 5) | VOLTA | TELLY |
 | Chrome Cow | bar, wall | keg | DJ (as OBJ 2) | PUNK | RAVEN, FRINGE (as OBJ 4) | ROADY, ANVIL (as OBJ 5) | HARLEY (as OBJ 6) | BABY |
 | Teahouse | bar, wall | keg | MONK (as OBJ 5) | KAGE | HANA (as OBJ 4) | SENSEI (as OBJ 0) | SAKURA, RONIN, KON (as OBJ 6) | POET |
 | Jungle Zoo | bar, wall | keg | COCO | TUCO, RAJA (as OBJ 3) | PINKY (as OBJ 4) | free | BAMBOO, ELLIE, ZIGGY | MUDDY |
-| Space Lounge | bar, wall | keg | ZORP | XENO, VENUS | LUNA, GLOP (as OBJ 4) | MOTHMA (as OBJ 3) | DASH (as OBJ 6) | GLORP |
+| Space Lounge | bar, wall, XENO | keg | ZORP | VENUS (as OBJ 5) | LUNA, GLOP (as OBJ 4) | MOTHMA (as OBJ 3) | DASH (as OBJ 6) | GLORP |
 
 OBJ slots (sprites).
 
