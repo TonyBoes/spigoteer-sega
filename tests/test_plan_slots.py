@@ -16,7 +16,8 @@ from test_venues import cgb_palette
 
 ATLAS = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"]
 THEMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]      # the game's theme order (saloon .. space)
-NOT_IMPORTED = {"sports", "lumberjacks", "chefs", "divers", "punks", "ninjas", "zoo", "aliens"}
+IMPORTED = ["robots", "sports", "lumberjacks", "chefs"]      # the venues on the Atlas slots (the generated instances: build/looks.c)
+NOT_IMPORTED = {"divers", "punks", "ninjas", "zoo", "aliens"}
 pytestmark = pytest.mark.timeout(120)
 
 
@@ -49,14 +50,17 @@ def test_the_atlas_export_has_the_documented_shape():
 
 
 @pytest.mark.only_model("cgb")
-def test_the_factory_slots_are_the_atlas_slots(gb):
-    settle(gb, "robots")
-    v = ATLAS["robots"]
+@pytest.mark.parametrize("k", IMPORTED)
+def test_the_imported_venues_slots_are_the_atlas_slots(gb, k):
+    settle(gb, k)
+    v = ATLAS[k]
     assert gb.read(0xFFD4, 1)[0] == 3, "the mid-frame chain is on"
     for slot in range(8):
+        if not v["bg"][str(slot)]["patrons"] and not v["bg"][str(slot)]["other"]:
+            continue                                          # (a free slot: the stage's palette above the playfield, nobody's in it)
         want = atlas5(v["bg"][str(slot)]["cols"][1:])
-        if slot == 1 and v["keg_bg"] == 1:
-            got = keg_colours(gb)
+        if slot == 1:
+            got = keg_colours(gb)                             # (the chain's HUD slot: the keg's, or the Stadium's PETE and FRANK)
         else:
             got = bg_slot_colours(gb, slot)
         assert [to5(c) for c in got] == want, f"BG {slot}"
@@ -69,9 +73,9 @@ def test_the_factory_slots_are_the_atlas_slots(gb):
         got = [to5(c) for c in cgb_palette(gb, slot, obj=True)[1:]]
         assert got == want, f"OBJ {slot}"
     s = gb.addr("story_scratch")
-    obj, bg = list(gb.read(s + 254, 6)), list(gb.read(s + 262, 6))
-    for o, b in zip(obj, bg):
-        assert sorted(v["obj"][str(o)]["patrons"]) == sorted(v["bg"][str(b)]["patrons"]) and v["obj"][str(o)]["patrons"], (o, b)
+    obj, bg = list(gb.read(s + 254, 8)), list(gb.read(s + 262, 8))
+    for o, b in list(zip(obj, bg))[:6 if k == "robots" else 7]:
+        assert set(v["obj"][str(o)]["patrons"]) <= set(v["bg"][str(b)]["patrons"]) and v["obj"][str(o)]["patrons"], (o, b)   # (the Lodge's BG 2 lists the patrons of OBJ 1 and 3 both)
 
 
 def patron_slots_match(gb, k):

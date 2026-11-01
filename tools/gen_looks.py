@@ -36,10 +36,15 @@ SLOTS = json.load(open(os.path.join(ROOT, "tools/artifacts/palette_plan/plan_slo
 
 def atlas_bg(v, obj_slot):
     """The BG slot the Atlas gives the patrons of OBJ slot `obj_slot` of venue v: the one BG slot that lists the same patrons (the plan's own table)."""
-    owners = sorted(SLOTS[v]["obj"][str(obj_slot)]["patrons"])
-    hit = [int(sl) for sl, e in SLOTS[v]["bg"].items() if sorted(e["patrons"]) == owners]
-    assert len(hit) == 1, (v, "OBJ", obj_slot, owners, "the Atlas lists them on BG", hit)
+    owners = set(SLOTS[v]["obj"][str(obj_slot)]["patrons"])
+    hit = [int(sl) for sl, e in SLOTS[v]["bg"].items() if owners <= set(e["patrons"])]   # (a BG slot may list more: the Lodge's BG 2 holds CEDAR, WILLOW, BOONE and PIP of OBJ 1 and 3)
+    assert len(hit) == 1, (v, "OBJ", obj_slot, sorted(owners), "the Atlas lists them on BG", hit)
     return hit[0]
+
+
+def rgb555(h):
+    """the game's raw colour of an Atlas hex colour (5 bits a channel: the Atlas shows what the game holds, lifted to 8 bits)"""
+    return (int(h[1:3], 16) >> 3) | (int(h[3:5], 16) >> 3) << 5 | (int(h[5:7], 16) >> 3) << 10
 
 
 def V(look, pi):
@@ -52,15 +57,16 @@ def venue_tables(v):
     nat = []
     for k in range(3):
         nat.append(next(o for o, ns in inst.items() if looks[k] in ns))
-    assert len(set(nat)) == 3, (v, "the three natives must be on three different OBJ slots", nat)
-    cap = len(P.ENGINE_BG[v])
+    cap = len(P.ENGINE_BG[v])     # (BG slots: instances share one when the Atlas lists their patrons together, e.g. the Lodge's CEDAR, WILLOW, BOONE and PIP on BG 2)
     rest = [o for o in sorted(inst) if o not in nat]
     dropped = []
-    if len(rest) > cap - 3:
-        def key(o):
-            return (sum(o in a for a in allowed.values()), len(inst[o]), -o)
-        dropped = sorted((o for o in rest if o != 5), key=key)[:len(rest) - (cap - 3)]
-        rest = [o for o in rest if o not in dropped]
+
+    def key(o):
+        return (sum(o in a for a in allowed.values()), len(inst[o]), -o)
+    while len({atlas_bg(v, o) for o in nat + rest}) > cap:        # the engine's BG slots are short: leave out the instance that gives the fewest looks
+        o = min((o for o in rest if o != 5), key=key)
+        rest.remove(o)
+        dropped.append(o)
     others = [o for o in rest if o != 5]
     order = nat + others[:1] + ([5] if 5 in rest else []) + others[1:]     # (OBJ 5 is instance 4 whatever the count: the one the show's dancers take)
     assert 5 not in order or order.index(5) == 4, (v, "instance 4 must be OBJ 5 (the show's slot)", order)
@@ -71,13 +77,15 @@ def venue_tables(v):
     for pi, o in enumerate(order):
         if o in adds:
             name, cols = adds[o]
-            key = "%s_%s" % (v, name.lower())
-            assert key in pals, (v, "assets/palettes.json needs " + key)
+            key = "%s_%s" % (v, name.lower().replace(" ", "_"))
+            if key not in pals:
+                pal.append(("lit", [0] + [rgb555(h) for h in cols]))     # (a palette only the plan names: its colours as literals, no assets/palettes.json entry)
+                continue
             got = [c.upper() for c in pals[key]["hex"]]
             assert got == [c.upper() for c in cols], (key, got, cols)
             pal.append(("pal", key))
-        elif o == 1:
-            pal.append(("mug", None))        # the full mug's OBJ 1: the venue's own drink colours (venue.pal[VENUE_PAL_DRINK_FULL])
+        elif o in (0, 1, 2):
+            pal.append(("venue", None))      # Sal's OBJ 0, the full mug's 1, the empty mug's 2: the venue loads them (the patron shares the colours); only the BG side is ours
         else:
             assert o in P.PATRON_SLOT, (v, "instance", pi, "OBJ", o, "has no palette: add it to plan_data")
             pal.append(("pal", "%s_%s" % (v, "abc"[P.PATRON_SLOT[o]])))      # a native slot: the art variant A, B, C's palette (robots_a, _b, _c)
@@ -85,13 +93,14 @@ def venue_tables(v):
     combo, boss = [], []
     for li, name in enumerate(looks):
         for pi, o in enumerate(order):
-            if o in allowed[name]:
+            if o in allowed[name] and pi == (li if li < 3 and order[li] == o else order.index(o)):   # (one instance a slot, but a native look keeps its own: patron_variant of look k < 3 is instance k)
                 combo.append((li, pi))
                 if li != 2 and o not in own:
                     boss.append((li, pi))
     bg = [atlas_bg(v, o) for o in order]
-    assert len(set(bg)) == len(bg) and all(b in P.ENGINE_BG[v] for b in bg), (v, "the Atlas's BG slots", bg, "must be distinct engine slots", P.ENGINE_BG[v])
-    return dict(looks=looks, order=order, bg=bg, pal=pal, combo=combo, boss=boss, dropped=dropped, inst=inst, allowed=allowed)
+    assert all(b in P.ENGINE_BG[v] for b in bg), (v, "the Atlas's BG slots", bg, "must be engine slots", P.ENGINE_BG[v])
+    bgcols = [[rgb555(h) for h in SLOTS[v]["bg"][str(b)]["cols"]] for b in bg]   # the BG slot's colours as the Atlas draws them (colour 0 = the wall)
+    return dict(bgcols=bgcols, looks=looks, order=order, bg=bg, pal=pal, combo=combo, boss=boss, dropped=dropped, inst=inst, allowed=allowed)
 
 
 def render(outdir):
@@ -106,11 +115,12 @@ def render(outdir):
          "uint8_t looks_insts(uint8_t g, uint8_t *obj, uint8_t *bg) BANKED;   // the 8 OBJ and 8 BG palette slots of palette instances 0-7 of group g; returns how many instances the venue has (3 legacy, 5 the Saloon, the venue's own)",
          "void looks_load(uint8_t g, uint8_t part) BANKED;                    // part 0..7 of the venue's Color-only looks' tiles into VRAM bank 1 (LCD off; the caller pumps the tune between parts)",
          "uint8_t looks_pal_get(uint8_t g, uint8_t pi, uint16_t *dst) BANKED; // dst[0..3] = instance pi's palette (colour 0 = 0); returns 1 when it is the venue's full-mug colours (dst untouched)",
+         "uint8_t looks_bg_get(uint8_t g, uint8_t pi, uint16_t *dst) BANKED;  // dst[0..3] = the colours of the BG slot of instance pi as the Atlas draws it (colour 0 = the wall); 0 when the venue has none (the legacy palettes)",
          "", "#endif", ""]
     pk = ["// generated by tools/gen_looks.py from the Graphics Atlas plan -- do not edit",
           "// included by src/mirror.c: the pick is a plain call in the spawn's own bank (a spawn frame is the tightest of a fight)", ""]
     c = ["// generated by tools/gen_looks.py from the Graphics Atlas plan -- do not edit", "#pragma bank 255", "#include <gb/gb.h>", '#include "palettes.h"', '#include "art.h"', '#include "looks.h"', ""]
-    sw_v, sw_i, sw_p, sw_l = [], [], [], []
+    sw_v, sw_i, sw_p, sw_l, sw_b = [], [], [], [], []
     for v in venues:
         d, g = t[v], GROUPS.index(v)
         names = d["looks"]
@@ -118,7 +128,7 @@ def render(outdir):
             v, len(names), len(d["order"]), d["order"], ", plan's OBJ %s left out: the engine has %d BG slots" % (d["dropped"], len(P.ENGINE_BG[v])) if d["dropped"] else "",
             len(d["combo"]), len(d["boss"]))]
         c += ["//   looks: " + ", ".join("%d %s" % (i, n) for i, n in enumerate(names))]
-        c += ["//   instances: " + ", ".join("%d OBJ %d BG %d %s" % (i, o, b, p[1] or p[0]) for i, (o, b, p) in enumerate(zip(d["order"], d["bg"], d["pal"])))]
+        c += ["//   instances: " + ", ".join("%d OBJ %d BG %d %s" % (i, o, b, p[1] if isinstance(p[1], str) else p[0]) for i, (o, b, p) in enumerate(zip(d["order"], d["bg"], d["pal"])))]
         for nm, lst in (("combo", d["combo"]), ("boss", d["boss"])):
             body = ", ".join("0x%02X" % V(*lst[r * len(lst) >> 8]) for r in range(256))     # (indexed by the random byte itself: r * n >> 8 is worked out here, not on a spawn frame)
             pk += ["static const uint8_t %s_%d[256] = { %s };   // %d pairs" % (nm, g, body, len(lst))]
@@ -130,9 +140,13 @@ def render(outdir):
         for pi, (kind, key) in enumerate(d["pal"]):
             if kind == "pal":
                 cases.append("        case %d: pal_get(PAL_%s, dst); return 0;" % (pi, key.upper()))
-            elif kind == "mug":
+            elif kind == "venue":
                 cases.append("        case %d: return 1;" % pi)
+            elif kind == "lit":
+                cases.append("        case %d: dst[0] = 0; dst[1] = 0x%04X; dst[2] = 0x%04X; dst[3] = 0x%04X; return 0;" % ((pi,) + tuple(key[1:])))
         sw_l += ["    case %d: load_%s_x(part); return;" % (g, v)]
+        sw_b += ["    case %d: { static const uint16_t c[8][4] = {%s}; for (k = 0; k < 4; k++) dst[k] = c[pi][k]; return 1; }" % (
+            g, ", ".join("{%s}" % ", ".join("0x%04X" % x for x in cols) for cols in d["bgcols"]))]
         sw_p += ["    case %d:" % g, "        switch (pi) {", *cases, "        }", "        break;"]
         c += [""]
     dflt = ", ".join(map(str, P.INST_OBJ + [0] * 3)), ", ".join(map(str, P.INST_BG + [0] * 3))
@@ -147,6 +161,9 @@ def render(outdir):
           "      for (k = 0; k < 8; k++) { obj[k] = o[k]; bg[k] = b[k]; } }",
           "    return g ? 3 : 5;", "}", "",
           "void looks_load(uint8_t g, uint8_t part) BANKED {", "    switch (g) {", *sw_l, "    }", "}", "",
+          "uint8_t looks_bg_get(uint8_t g, uint8_t pi, uint16_t *dst) BANKED {",
+          "    uint8_t k;",
+          "    switch (g) {", *sw_b, "    }", "    return 0;", "}", "",
           "uint8_t looks_pal_get(uint8_t g, uint8_t pi, uint16_t *dst) BANKED {",
           "    switch (g) {", *sw_p, "    }",
           "    patron_pal_get(g, pi, dst);", "    return 0;", "}", ""]

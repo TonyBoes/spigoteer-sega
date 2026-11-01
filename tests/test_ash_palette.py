@@ -38,7 +38,7 @@ def test_ash_looks_the_same_on_color(gb):
     assert gb.mem("cur_group") == 2
     rom = rom_tiles()
     vram = gb.pb.memory
-    bg = cgb_palette(gb, 2 + 2)                     # BGPAL_PATRON + 2: variant C
+    bg = cgb_palette(gb, 7)                         # the Lodge on the Atlas slots: variant C (ASH) walks on BG 7
     assert bg[1] == rgb15(0xC08858) and bg[2] == rgb15(0x389040) and bg[3] == rgb15(0x102810), "skin in colour 1, green in 2"
     swapped = 0
     for o in ash_ids():
