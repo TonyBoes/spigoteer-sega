@@ -7,12 +7,16 @@
 #   others   NOT_IMPORTED lists the venues whose palettes are still the old ones; the test says so rather than passing silently, and the list must shrink,
 #            never grow: a venue that already matches is rejected from it.
 import json
+import sys
 
 import pytest
 from conftest import ROOT, keg_bg
 from test_art import goto_group
 from test_patron_imports import bg_slot_colours, settle
 from test_venues import cgb_palette
+
+sys.path.insert(0, str(ROOT / "tools"))
+import gen_looks as GL  # noqa: E402
 
 ATLAS = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"]
 THEMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]      # the game's theme order (saloon .. space)
@@ -71,7 +75,8 @@ def test_the_imported_venues_slots_are_the_atlas_slots(gb, k):
         got = [to5(c) for c in cgb_palette(gb, slot, obj=True)[1:]]
         assert got == want, f"OBJ {slot}"
     s = gb.addr("story_scratch")
-    obj, bg = list(gb.read(s + 254, 6)), list(gb.read(s + 262, 6))
+    n = len(GL.venue_tables(k)["order"])               # (the venue's real palette instance count: looks_insts's return; the slots past it are unset)
+    obj, bg = list(gb.read(s + 254, n)), list(gb.read(s + 262, n))
     for o, b in zip(obj, bg):
         assert sorted(v["obj"][str(o)]["patrons"]) == sorted(v["bg"][str(b)]["patrons"]) and v["obj"][str(o)]["patrons"], (o, b)
 
