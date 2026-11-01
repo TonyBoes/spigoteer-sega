@@ -17,7 +17,7 @@ from test_venues import cgb_palette
 ATLAS = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"]
 THEMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]      # the game's theme order (saloon .. space)
 NOT_IMPORTED = {"sports", "lumberjacks", "chefs"}
-IMPORTED = sorted(set(THEMES) - NOT_IMPORTED - {"cowboys", "zoo", "aliens"})        # the generated venues except the Zoo and the Space Lounge (their own test below, with the flagged slot differences) (tools/gen_looks.py): each checked slot by slot
+IMPORTED = sorted(set(THEMES) - NOT_IMPORTED - {"cowboys"})        # the generated venues (tools/gen_looks.py): each checked slot by slot
 pytestmark = pytest.mark.timeout(120)
 
 
