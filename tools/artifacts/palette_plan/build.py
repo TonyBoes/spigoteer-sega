@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-11-01", "Owner: Lodge showed -1 free BG and INES on two BG palettes. Both were page bugs: INES (OBJ 6 / planned BG 3) was also parked on the empty BG 6; PIP and PEPPER, who share BOONE's / CLANK's OBJ 1, were not given their BG 2. Fixed: Lodge 1 free BG (BG 6), Factory 0. The self-check now fails on a patron shown on two BG palettes or a venue whose plan does not fit."),
     ("2026-10-31", "Q88 (owner): \"C is good. Shorter neck though.\" BASIL's new back = option C with a 1-row neck (docs/dev/concepts/patron_pass/chefs/basil_owner_back.txt). DMG and Color; held for the game."),
     ("2026-10-31", "Bistro swaps (owner's third marked grid, with his new BASIL): cut PIERRE OBJ 3; BRIE 3; NONNA 3; MIME 0, 4, 5, 6, 7; PINOT 3; HERB 3. BASIL now keeps all; OLIVE keeps all. Color only."),
     ("2026-10-31", "Owner sent replacement fronts for PIERRE (his front moved 1 px left, centred on the body, matching back C) and BASIL (new drawing; OBJ 7 colours: white, skin, dark). Bottom-row exceptions for his drawings: PIERRE x=4, 12; BASIL x=2, 12. DMG and Color; held for the game."),
@@ -803,8 +804,11 @@ def field_model(v, m):
     pats = [(t, sl) for sl in range(8) for t, _ in m[("OBJ", sl)]["pat"]] + [(m[("OBJ", sl)]["open"], sl) for sl in range(8) if m[("OBJ", sl)]["open"]]
     if v["key"] == "cowboys":
         pats = []                                   # the game's own BG slots (users(), SALOON_LOOKS): nothing to renumber
+    held = set(PLANS.get(v["key"], {}).get("bg", {}))   # patrons with a planned BG away from their OBJ number: placed below, never renumbered
     for _ in range(4):
         for name, o in pats:
+            if name in held:
+                continue
             b = next((sl for sl in range(8) if any(x[0] == name for x in field[sl]["pat"])), None)
             if b == o:
                 continue
@@ -1615,12 +1619,18 @@ def back_rows_by_look(v):
 
 SHOWN = set()                      # (venue, look, palette instance) of every thumbnail pair written below
 
+FIELD_ERRS = []   # owner 2026-11-01 (Lodge showed -1 free BG and INES on two BG palettes): the page must never show either
 self_check.verify_plan(sys.modules["plan_data"], ROOT)
 self_check.verify_now(globals())
 
 for i, v in enumerate(venues):
     m = model(v)
     field = field_model(v, m)
+    _seen = {}
+    for _sl in range(8):
+        for _n, _ in field[_sl]["pat"]:
+            _seen.setdefault(_n, []).append(_sl)
+    FIELD_ERRS.extend("%s: %s is on more than one BG palette (BG %s)" % (v["key"], _n, ", ".join(map(str, _s))) for _n, _s in _seen.items() if len(_s) > 1 and v["key"] != "cowboys")   # the Saloon lists its swaps on every palette
     ofree = [sl for sl in range(8) if card("OBJ", sl, m[("OBJ", sl)], True).find('class="pal free"') >= 0]
     bfree = [sl for sl in range(8) if not field[sl]["pat"] and not field[sl].get("open") and not [x for x in field[sl]["oth"] if not x[0].startswith("Boss")]]
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
@@ -1760,6 +1770,9 @@ for i, v in enumerate(venues):
         w('<div class="stat%s"><b>%d</b><span>%s</span></div>' % (" over" if over else "", n, label))
     stat(len(ofree) - need_o, "free OBJ palettes", len(ofree) < need_o)
     stat(len(bfree) - need_b, "free BG palettes", len(bfree) < need_b)
+    if not sal and (len(bfree) < need_b or len(ofree) < need_o):
+        FIELD_ERRS.append("%s: the plan does not fit (free OBJ %d, free BG %d; patrons without a slot: %s)" % (v["key"], len(ofree) - need_o, len(bfree) - need_b,
+                          ", ".join(r["name"] for r in ident + reserved if "bg" not in r or r.get("obj") is None) or "none"))
     tl = planned_tiles(v, len(ident) + len(reserved))
     for k, label in (("bg", "free BG"), ("sp", "free sprite-only"), ("bg1", "free bank 1 BG"), ("sp1", "free bank 1 sprite-only"), ("fbg", "boss fight free BG")):
         stat(tl[k], label, tl[k] < 0)

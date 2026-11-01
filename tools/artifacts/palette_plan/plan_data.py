@@ -174,6 +174,9 @@ PLANS["chefs"]["add"][("OBJ", 5)] = ("Sage", ["#D0E0A8", "#C88860", "#201820"]) 
 PLANS["chefs"].setdefault("bg", {})["NONNA"] = 2                  # PIERRE and BRIE's BG 2 (OBJ 0 is Sal's)
 PLANS["lumberjacks"].setdefault("bg", {})["BOONE"] = 2          # BG 1 is the keg's: the Sasquatch colours on the free BG 2
 PLANS["robots"].setdefault("bg", {})["CLANK"] = 2                 # Q43 B: the full mug's OBJ 1; BG 1 is the keg's
+# A patron who shares another's OBJ palette shares that palette's BG too (owner 2026-11-01: Lodge showed -1 free BG)
+PLANS["lumberjacks"]["bg"]["PIP"] = 2                            # PIP shares BOONE's OBJ 1, so BOONE's BG 2
+PLANS["robots"]["bg"]["PEPPER"] = 2                              # PEPPER shares CLANK's OBJ 1, so CLANK's BG 2
 for _v, _l in NEW_PATRONS.items():
     EXTRA_LOOKS.setdefault(_v, []).extend(n for n, _ in _l)
     _joined = [n for ns in PLANS[_v].get("join", {}).values() for n in ns] + [a[0] for a in PLANS[_v].get("add", {}).values()]   # given a palette slot: listed there, not as an extra
@@ -212,8 +215,6 @@ ART_RULE_EXCEPTIONS = {
     ("chefs", "PINOT", "front", "bottom"): "row 15 x=4, 6, 7",
     ("chefs", "PINOT", "back", "bottom"): "row 15 x=6, 8",
     ("ninjas", "POET", "front", "bottom"): "row 15 x=12",          # the owner's drawing 2026-10-30
-    ("chefs", "PIERRE", "front", "bottom"): "row 15 x=4, 12",       # the owner's drawing 2026-10-31
-    ("chefs", "BASIL", "front", "bottom"): "row 15 x=2, 12",        # the owner's drawing 2026-10-31
     ("robots", "TELLY", "front", "holes"): "(2, 1) and (3, 2) enclosed; the owner has not said it is a gap",
 }
 # Index-0 gaps the owner drew on purpose in planned art: (venue, NAME, side) -> {(x, y)}.
@@ -226,7 +227,7 @@ ART_PICKS_Q = "Q56-Q59 (owner picks 2026-10-26)"
 PATRON_ART = {
 
     # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
-    "chefs": {"pierre": ("pierre_owner", "pierre_owner_back", "owner's own front 2026-10-31 (second version, centred); Q87 back C, head centred; held"), "brie": ("brie_eyes", "old", "Q85 (owner 2026-10-31): 2 px eyes, held"), "basil": ("basil_owner", "basil_owner_back", "owner's own front 2026-10-31; Q88 back C, shorter neck; held")},
+    "chefs": {"pierre": ("old", "old", "in the game 2026-11-01 (owner front, Q87 back)"), "brie": ("old", "old", "in the game 2026-11-01 (Q85 eyes)"), "basil": ("old", "old", "in the game 2026-11-01 (owner front, Q88 back)")},
     "punks": {"punk": ("old", "old", "Q84 (owner 2026-10-31), in the game"), "harley": ("old", "old", "Q71/Q74 (owner 2026-10-31), in the game"), "baby": ("old", "old", "Q84 (owner 2026-10-31), in the game")},
     "ninjas": {"kage": ("old", "old", ART_PICKS_Q), "sakura": ("old", "sakura_back", ART_PICKS_Q), "ronin": ("old", "ronin_v2_back", ART_PICKS_Q)},
     "zoo": {"coco": ("coco", "coco_back", ART_PICKS_Q), "bamboo": ("bamboo", "bamboo_back", ART_PICKS_Q), "muddy": ("old", "old", ART_PICKS_Q)},

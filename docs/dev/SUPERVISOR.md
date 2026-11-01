@@ -35,8 +35,7 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
   - agents running: "Good point to `/compact`".
 - **Before the owner steps away** (overnight, a meeting), say so too: the first message after a cache expiry
   re-processes the whole context, so a `/clear` (no agents running) or `/compact` first saves a large re-write.
-- **Backstop:** `.claude/settings.json` sets `autoCompactWindow` to 400000. CLAUDE.md's "Compact instructions" say
-  what survives.
+- **Compaction:** automatic (no autoCompactWindow override). CLAUDE.md's "Compact instructions" say what survives.
 - **Images:** ask for ONE labelled contact sheet per review instead of opening many stills.
 - **Reading:** grep, then read ranges. Never read `PLAN.full.md` or `ALL_AGENT_BRIEFS.md` whole.
 
@@ -88,3 +87,18 @@ over 1,950 calls, 45% of all usage. Cost per call scales with context size.
 - Wait on a PID or a log marker; never on a `pgrep -f` loop, which matches itself.
 - Delete branches only by exact name, listing them first (a `gb-runner` cleanup list).
 - Check `/usage` once a day: its breakdown and recommendations show which agents and habits cost most.
+
+## Owner decisions and plans: write first, then follow (owner 2026-11-01)
+Owner: "write every standing decision and plan into the queue or memory notes as soon as i make it. You keep forgetting
+plans that we've made and procedures I want you to follow. The Atlas has been an absolute mess. And whenever it came time
+to follow it, you didn't follow it."
+1. Record in the same reply, before acting on it: a patron/palette/art decision -> the Atlas (plan_data.py + a LOG line in
+   build.py, republished); a plan or task -> docs/dev/notes/QUEUE.md; a standing rule or procedure -> a memory note (and
+   here if it is about how the supervisor works). Quote his words. Commit it.
+2. Before every brief: grep QUEUE.md and the memory index for the topic and put the decisions in the brief. Patron or
+   palette work: the brief starts from the Atlas (docs/dev/queue_briefs/extra_looks_slots.md, regenerated when the plan
+   changes) and says "implement this as written".
+3. Before a question reaches the owner: check it against QUEUE.md, memory and the Atlas. If they answer it, do not ask.
+   Only a hard limit (perf guard, budget, a rule) that stops the plan goes to him, with numbers.
+4. The Atlas self-check is the safety net: it fails on a patron shown on two palettes or a venue whose plan does not fit.
+   When the Atlas looks wrong, fix the generator and add a check, never hand-wave it.
