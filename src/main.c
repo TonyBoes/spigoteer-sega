@@ -357,7 +357,27 @@ __asm
 __endasm;
 }
 #else
-static void split_line(uint8_t early) {  // (a split line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
+static void split_line(void) {  // (the Saloon's split line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
+    // (the 8 bytes are read from their fixed HRAM addresses as they go out, `ldh a, (n)` then `ldh (c), a`: no pre-read into locals, whose spills ended after the line did)
+    while (STAT_REG & 3) ;                     // (HBlank: palette RAM is open; the line's pixels are out)
+    BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
+    BCPD_REG = SPLIT_PAL[0]; BCPD_REG = SPLIT_PAL[1]; BCPD_REG = SPLIT_PAL[2]; BCPD_REG = SPLIT_PAL[3];
+    BCPD_REG = SPLIT_PAL[4]; BCPD_REG = SPLIT_PAL[5]; BCPD_REG = SPLIT_PAL[6]; BCPD_REG = SPLIT_PAL[7];
+    LYC_REG = SPLIT_WANT;
+}
+
+void split_isr(void) {        // (the Saloon's, the C twin: the one reload)
+    uint8_t lcdc = LCDC_REG;
+    LCDC_REG = lcdc & ~0x20;                   // (HIDE_WIN, from the one read)
+    if (LYC_REG == SPLIT_LY) {
+        LCDC_REG = lcdc;                       // (the window as it was)
+        split_line();
+        return;
+    }
+    SPLIT_WANT = LYC_REG; LYC_REG = SPLIT_LY;
+}
+
+static void split_line2(uint8_t early) {  // (a split line, in its own function: the ISR's frame must not cost cycles before the window is hidden)
     // (the 8 bytes are read from their fixed addresses as they go out: no pre-read into locals, whose spills ended after the line did)
     while (STAT_REG & 3) ;                     // (HBlank: palette RAM is open; the line's pixels are out)
     if (early) {
@@ -381,13 +401,13 @@ static void split_next(uint8_t ly) {          // LYC = the next event after line
     LYC_REG = n;
 }
 
-void split_isr(void) {        // (the C twin; hides the window FIRST, as the asm does: a window's end on its own line must be as early as lcd_isr's)
+void split_isr2(void) {       // (the Factory's chain, the C twin; hides the window FIRST, as the asm does: a window's end on its own line must be as early as lcd_isr's)
     uint8_t lcdc = LCDC_REG, ly;
     LCDC_REG = lcdc & ~0x20;                   // (HIDE_WIN, from the one read)
     ly = LYC_REG;
     if (ly == SPLIT_LY || (ly == SPLIT_EARLY_LY && SPLIT_E_BCPS)) {
         if (SPLIT_WANT != ly) LCDC_REG = lcdc; // (the window as it was, unless its end is this line too)
-        split_line(ly != SPLIT_LY);
+        split_line2(ly != SPLIT_LY);
     } else SPLIT_WANT = ly;
     split_next(ly);
 }
@@ -400,22 +420,24 @@ void split_vbl(void) {        // vq_vbl's place while the split is armed (the VB
     BCPS_REG = SPLIT_L_BCPS;                   // (the C twin: fixed HRAM addresses, `ldh a, (n)`: through a pointer parameter SDCC spends 4 lines of a frame here)
     BCPD_REG = SPLIT_STG[0]; BCPD_REG = SPLIT_STG[1]; BCPD_REG = SPLIT_STG[2]; BCPD_REG = SPLIT_STG[3];
     BCPD_REG = SPLIT_STG[4]; BCPD_REG = SPLIT_STG[5]; BCPD_REG = SPLIT_STG[6]; BCPD_REG = SPLIT_STG[7];
-    if (SPLIT_E_BCPS) {
-        BCPS_REG = SPLIT_E_BCPS;
-        BCPD_REG = SPLIT_E_STG[0]; BCPD_REG = SPLIT_E_STG[1]; BCPD_REG = SPLIT_E_STG[2]; BCPD_REG = SPLIT_E_STG[3];
-        BCPD_REG = SPLIT_E_STG[4]; BCPD_REG = SPLIT_E_STG[5]; BCPD_REG = SPLIT_E_STG[6]; BCPD_REG = SPLIT_E_STG[7];
-    }
 #endif
     vq_vbl();
 }
 
+void split_vbl2(void) {       // the Factory's: both stage palettes back
 #if ASM_SPLIT_PAL
-void split_vbl2(void) {       // the Factory's: both stage palettes back (the C build has the one split_vbl for both)
     split_pal_put(SPLIT_STG);
     split_pal_put_e(SPLIT_E_STG);
+#else
+    BCPS_REG = SPLIT_L_BCPS;
+    BCPD_REG = SPLIT_STG[0]; BCPD_REG = SPLIT_STG[1]; BCPD_REG = SPLIT_STG[2]; BCPD_REG = SPLIT_STG[3];
+    BCPD_REG = SPLIT_STG[4]; BCPD_REG = SPLIT_STG[5]; BCPD_REG = SPLIT_STG[6]; BCPD_REG = SPLIT_STG[7];
+    BCPS_REG = SPLIT_E_BCPS;
+    BCPD_REG = SPLIT_E_STG[0]; BCPD_REG = SPLIT_E_STG[1]; BCPD_REG = SPLIT_E_STG[2]; BCPD_REG = SPLIT_E_STG[3];
+    BCPD_REG = SPLIT_E_STG[4]; BCPD_REG = SPLIT_E_STG[5]; BCPD_REG = SPLIT_E_STG[6]; BCPD_REG = SPLIT_E_STG[7];
+#endif
     vq_vbl();
 }
-#endif
 
 void set_lyc(uint8_t x) {
     uint8_t ly;
