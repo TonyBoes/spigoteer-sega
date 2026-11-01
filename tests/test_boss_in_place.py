@@ -420,7 +420,7 @@ PERF_BEFORE = {   # (model, venue): (mean, p50, p99) of the frame's end line at 
     ('cgb', 2): (49.5, 46, 105),
     ('cgb', 3): (49.8, 45, 105),
     ('cgb', 4): (48.6, 45, 103),
-    ('cgb', 5): (49.7, 46, 106),
+    ('cgb', 5): (50.0, 47, 109),   # owner Q89 2026-11-01: loosened from (49.7, 46, 106) by the measured cost of the Factory's two palette reloads (BG 5/6 split chain)
     ('cgb', 6): (53.1, 48, 105),
     ('cgb', 7): (46.5, 42, 101),
     ('cgb', 8): (50.6, 47, 107),

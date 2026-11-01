@@ -33,7 +33,7 @@ FRAMES = 1800
 # The owner's target for the 10-patron peak was 15-25 %; the asm pass's mug code brought it there (the catch scans of patrons.c and
 # the lift / patron drawing are the next costs).
 LIMITS = {("dmg", 8): (21, 124), ("cgb", 8): (23, 125),
-          ("dmg", 10): (24, 128), ("cgb", 10): (26, 129)}
+          ("dmg", 10): (24, 128), ("cgb", 10): (26, 130)}   # cgb 10 mean end line 129 -> 130: owner Q89 2026-11-01 (the Factory's split chain)
 # The all-C ROM (`make cfall`, GB_ROM=build/game-c.gb, the owner's porting reference) is slower: the limits it had before the asm mug code.
 C_LIMITS = {("dmg", 8): (30, 132), ("cgb", 8): (32, 134), ("dmg", 10): (35, 138), ("cgb", 10): (41, 142)}
 if ROM.stem.endswith("-c"):
