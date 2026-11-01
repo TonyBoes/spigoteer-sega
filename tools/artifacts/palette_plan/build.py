@@ -78,6 +78,9 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-11-01", "Page/generator fix restoring the owner's BG = OBJ colours rule: Stadium BG 7 showed NORM's colours (the plan's BG recolour 'as OBJ 0' hit the game's BG 4, SERENA's, not NORM's BG 3). Now BG 3 = NORM as OBJ 0 and BG 7 = SERENA as OBJ 7 (#B47B52 #295ADE #000000), with the boss body."),
+    ("2026-11-01", "Page/generator fix restoring the owner's BG = OBJ colours rule: Lodge BOONE and PIP (OBJ 1, the Sasquatch's colours) were listed on BG 2, which is CEDAR's in the playfield. They are now on the free BG 6 as OBJ 1 (#F6E6C5 #834A29 #291010); BG 2 keeps CEDAR and WILLOW."),
+    ("2026-11-01", "Page/generator fix restoring the owner's BG = OBJ colours rule: Space BG 3 showed XENO's colours with XENO and VENUS (Q53 says the bar BG 0 takes XENO's colours and XENO walks in it). Now XENO is listed on BG 0 and BG 3 = VENUS as OBJ 5 (#DEFFD5 #AC4ADE #182041). The self-check now fails on any patron whose BG colours 1-3 differ from its OBJ palette's (not the Saloon)."),
     ("2026-11-01", "Owner: Lodge showed -1 free BG and INES on two BG palettes. Both were page bugs: INES (OBJ 6 / planned BG 3) was also parked on the empty BG 6; PIP and PEPPER, who share BOONE's / CLANK's OBJ 1, were not given their BG 2. Fixed: Lodge 1 free BG (BG 6), Factory 0. The self-check now fails on a patron shown on two BG palettes or a venue whose plan does not fit."),
     ("2026-10-31", "Q88 (owner): \"C is good. Shorter neck though.\" BASIL's new back = option C with a 1-row neck (docs/dev/concepts/patron_pass/chefs/basil_owner_back.txt). DMG and Color; held for the game."),
     ("2026-10-31", "Bistro swaps (owner's third marked grid, with his new BASIL): cut PIERRE OBJ 3; BRIE 3; NONNA 3; MIME 0, 4, 5, 6, 7; PINOT 3; HERB 3. BASIL now keeps all; OLIVE keeps all. Color only."),
@@ -826,7 +829,12 @@ def field_model(v, m):
                 d = field[b]
                 put(o, (name, True), eff(d), d.get("match") if str(d.get("match", "")).startswith("OBJ") else None)
                 take(b, name)
-    for name, to in PLANS.get(v["key"], {}).get("bg", {}).items():          # a patron's BG away from its OBJ number
+    planned = {next((t for t, _ in pats if t.split(",")[0] == n), n): to for n, to in PLANS.get(v["key"], {}).get("bg", {}).items()}   # plan names are short (XENO), the model's are full (XENO, the grey one)
+    for name, to in planned.items():          # a patron planned on another BG leaves the slot it walked in (2026-11-01: XENO left BG 3 for the bar's BG 0)
+        for sl in range(8):
+            if sl != to and any(x[0] == name for x in field[sl]["pat"]):
+                take(sl, name)
+    for name, to in planned.items():          # a patron's BG away from its OBJ number
         o = next(sl for sl in range(8) if any(x[0] == name for x in m[("OBJ", sl)]["pat"]))
         oc = eff(m[("OBJ", o)])
         if field[to].get("open") == "(held)":
@@ -834,7 +842,7 @@ def field_model(v, m):
         if field[to]["pat"]:
             field[to]["pat"] = field[to]["pat"] + [(name, True)]
         else:
-            put(to, (name, True), [eff(field[0])[0]] + oc[1:], "OBJ %d" % o)
+            put(to, (name, True), [eff(field[0])[0]] + oc[1:], "OBJ %d" % o, [x for x in field[to]["oth"] if not x[0].startswith("Boss")])   # keeps the bar / keg on its slot
     objof = {t: so for t, so in pats}
     for sl in range(8):
         names = [x[0] for x in field[sl]["pat"]]
@@ -1631,6 +1639,14 @@ for i, v in enumerate(venues):
         for _n, _ in field[_sl]["pat"]:
             _seen.setdefault(_n, []).append(_sl)
     FIELD_ERRS.extend("%s: %s is on more than one BG palette (BG %s)" % (v["key"], _n, ", ".join(map(str, _s))) for _n, _s in _seen.items() if len(_s) > 1 and v["key"] != "cowboys")   # the Saloon lists its swaps on every palette
+    if v["key"] != "cowboys":   # owner's standing rule: a patron's BG colours 1-3 are its OBJ palette's (the Saloon lists swaps on every palette)
+        _objof = {t: sl for sl in range(8) for t, _ in m[("OBJ", sl)]["pat"]}
+        _objof.update({m[("OBJ", sl)]["open"]: sl for sl in range(8) if m[("OBJ", sl)]["open"]})
+        for _sl in range(8):
+            for _n, _ in field[_sl]["pat"]:
+                if _n in _objof and eff(field[_sl])[1:] != eff(m[("OBJ", _objof[_n])])[1:]:
+                    FIELD_ERRS.append("%s: %s on BG %d has colours %s but its OBJ %d has %s (a BG palette must equal its patron's OBJ palette in colours 1-3)" % (
+                        v["key"], _n, _sl, eff(field[_sl])[1:], _objof[_n], eff(m[("OBJ", _objof[_n])])[1:]))
     ofree = [sl for sl in range(8) if card("OBJ", sl, m[("OBJ", sl)], True).find('class="pal free"') >= 0]
     bfree = [sl for sl in range(8) if not field[sl]["pat"] and not field[sl].get("open") and not [x for x in field[sl]["oth"] if not x[0].startswith("Boss")]]
     w('<section class="panel" role="tabpanel" id="p-%s" aria-labelledby="t-%s"%s>' % (v["key"], v["key"], "" if i == 0 else " hidden"))
