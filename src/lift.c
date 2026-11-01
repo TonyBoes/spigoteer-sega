@@ -105,7 +105,7 @@ static void swap_copy(uint8_t src, uint8_t dst, uint8_t n) {
 // Level load, LCD off, after load_venue / the patron tiles: nobody lifted; CGB the patrons' OBJ palettes (colours 1-3 of
 // their BG palettes); DMG OBP1 for the patrons and OBP0 copies for what used OBP1. Sets the mug / glass looks.
 void lift_level_init(uint8_t g) BANKED {
-    uint8_t v, n;
+    uint8_t v, n, m;
     palette_t p;
     for (v = 0; v < MAX_PATRONS; v++) { patron_lift[v] = LIFT_BG; patron_ovl[v] = 0; lift_pin[v] = 0; }
     ovl_bars = 0; ovl_dirty = 0;
@@ -117,12 +117,15 @@ void lift_level_init(uint8_t g) BANKED {
     if (is_cgb) {
         lift_prop[0] = 0;
         n = looks_insts(g, INST_OBJ, INST_BG);    // (the Saloon: 5 palette instances, the Factory 5, the others 3; the 5th is OBJ 5, which the show takes from it and gives back, render.c pal5_check)
+        m = 0;
         for (v = 0; v < n; v++) {
+            m |= 1 << lift_obj[v];
             if (looks_pal_get(g, v, p)) continue; // (the full-mug instance: its OBJ 1 is the venue's drink palette already, venue_pals)
             p[0] = 0;
             set_sprite_palette(lift_obj[v], 1, p);
             music_pump();                         // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
         }
+        if (n >= 5) for (v = 3; v < 8; v++) if (v != 5 && !(m & (1 << v))) set_sprite_palette(v, 1, p);   // (a generated venue's free OBJ slot, the Stadium's 3: a level start sets it, so no mini-game's colours stay in it)
         if (n < 5) set_sprite_palette(OBJPAL_PATRON_D, 1, p);   // (OBJ 4 is no patron's outside the Saloon and the generated venues: a level start sets it, so no mini-game's or story scene's colours stay in it)
         else pal5_cur = 0;
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;

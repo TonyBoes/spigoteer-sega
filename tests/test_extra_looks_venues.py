@@ -296,7 +296,7 @@ def test_the_looks_mirror_pixel_for_pixel_on_an_r_level(model, v):
         tc.close(a, b)
 
 
-@pytest.mark.parametrize("v", VENUES + ["robots"])
+@pytest.mark.parametrize("v", VENUES + ["robots", "sports", "lumberjacks", "chefs"])
 def test_the_stage_palette_reloaded_early_is_not_on_the_stages_last_row(v):
     """The chain reloads one stage palette at line 31 (the end of text row 3 of the stage) and the other at line 39: the early one may not be on the stage's 4th row."""
     stage = json.loads((ROOT / "build" / "venues.json").read_text())["venues"][VENUE_NAMES[GROUPS.index(v)]]["stage_attr"]
