@@ -5,6 +5,7 @@
 # key's RGB15 colour).
 import numpy as np
 import pytest
+import perf_helpers as ph
 from PIL import Image
 from conftest import ROOT, check_golden
 from test_flow import GS_STORY, run_until, state, tilemap_row
@@ -462,7 +463,7 @@ def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
                 for v in ("drain_ticks_max", "vq_end_ly_max", "vq_late"):  # the explosion's trail alone
                     gb.write(v, 0)
             if not fading:
-                logic_end.append(gb.mem16("perf_end_last"))
+                logic_end.append(ph.end_line(gb))
             oam = burst_oam(gb)
             lo = SPARKS if step >= BURST["crackle_t"] else 0              # (from then on OAM 20-25 are the sparks': their own test)
             assert [v for e in oam[lo:] for v in (e["y"], e["x"])] == row(step)[lo * 2:], f"frame {step}: OAM is the table"
@@ -481,7 +482,8 @@ def test_the_pieces_fly_off_the_screen_and_the_trail_fades(model):
             prev = now
         gb.run(6)
         assert not any(e["y"] for e in pieces_oam(gb)), "every piece has left the screen"
-        assert max(logic_end) < 110, f"the frame's logic ends on line {max(logic_end)}: inside the frame (VBlank is 144)"   # 102 on DMG with the name plates + the sparks (was < 100, then < 106; < 110 since the INTRO got 4 more pages: its worst frame is line 107, VBlank is 144)
+        ph.plog("logic_end", max(logic_end))
+        assert max(logic_end) < (52 if ph.is_ds(gb) else 110), f"the frame's logic ends on line {max(logic_end)}: inside the frame (VBlank is 144)"   # 102 on DMG with the name plates + the sparks (was < 100, then < 106; < 110 since the INTRO got 4 more pages: its worst frame is line 107, VBlank is 144)
         assert gb.mem16("vq_late") == 0 and gb.mem("vq_end_ly_max") <= 153
         assert 0 < gb.mem("drain_ticks_max") <= 13, gb.mem("drain_ticks_max")
         assert 30 <= end <= 70, end

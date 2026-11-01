@@ -12,7 +12,7 @@
 #
 # The frame-time counter (main.c FRAME_STATS) is in the test build only (DEBUG_MENU), which is what this test runs.
 import pytest
-from conftest import ROM
+from conftest import ROM, ds_active
 from gbtools import Rom
 import perf_helpers as ph
 from test_arcade import start_arcade
@@ -38,6 +38,11 @@ LIMITS = {("dmg", 8): (21, 124), ("cgb", 8): (23, 125),
 C_LIMITS = {("dmg", 8): (30, 132), ("cgb", 8): (32, 134), ("dmg", 10): (35, 138), ("cgb", 10): (41, 142)}
 if ROM.stem.endswith("-c"):
     LIMITS = C_LIMITS
+# Owner Q92 (2026-11-01): the Color runs at double speed, the way the game ships, and the guard measures the line the frame's LOGIC ended on.
+# Late share limits stay; the mean limit is main's double-speed baseline + the margin today's limit has over main's normal-speed baseline
+# (cgb 8: 49.3 + 125 - 117.5; cgb 10: 50.0 + 130 - 127.5 (130 is Q89's); the all-C ROM: see C_DS_MEAN).
+DS_MEAN = {8: 56.8, 10: 52.5}
+C_DS_MEAN = {8: 59.3, 10: 61.0}      # (the C ROM on main: 56.7 + 134 - 131.4 and 58.0 + 142 - 139)
 
 
 def arcade_peak_gb(model):
@@ -106,4 +111,6 @@ def test_the_arcade_peak_is_late_on_a_bounded_share_of_its_frames(model, target)
     print("ARCADE PEAK", model, target, "late", share, "% of", n, "frames, mean end line", mean, "patrons", round(sum(crowd) / len(crowd), 1))
     assert sum(crowd) / len(crowd) >= 8, "the scene is a crowd (the realistic peak's own rules keep the bars full)"
     lim_share, lim_mean = LIMITS[(model, target)]
+    if model == "cgb" and ds_active():
+        lim_mean = (C_DS_MEAN if ROM.stem.endswith("-c") else DS_MEAN)[target]
     assert share <= lim_share and mean <= lim_mean, (share, mean, (lim_share, lim_mean))

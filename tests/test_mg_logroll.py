@@ -8,6 +8,7 @@ import json
 import re
 
 import pytest
+import perf_helpers as ph
 from conftest import ROOT, check_golden, hold_stage_anim, logic_paused, title_level
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, run_until, state, tilemap_row
 from test_mg import (BLANK, GS_MGLIST, GS_MINI, MG_COUNT, MG_END, MG_GAME_BG, MG_PLAY, MG_PRACTICE, MG_RESULT, MG_STORY,
@@ -952,11 +953,12 @@ def test_a_whole_game_has_no_late_frame_and_no_copy_into_the_picture(model):
             since += 1
             gb.run(1)
             i += 1
-            worst_end = max(worst_end, gb.mem16("perf_end_last"))
+            worst_end = max(worst_end, ph.end_line(gb))
             worst_drain = max(worst_drain, gb.mem("vq_end_ly_max"))
             gb.write("vq_end_ly_max", 0)
         assert gb.mem("mg_phase") != MG_PLAY and snap(gb)["falls"] >= 1
-        assert worst_end < 128, f"a frame ended at line {worst_end}"
+        ph.plog("worst_end", worst_end)
+        assert worst_end < (56 if ph.is_ds(gb) else 128), f"a frame ended at line {worst_end}"   # (double speed, owner Q92: 128 - main's normal 122 + its double-speed logic end 50)
         assert gb.mem16("vq_late") == late0, "a VBlank copy was refused"
         assert worst_drain < 154, f"a copy ended at line {worst_drain - 154} of the next frame"
 

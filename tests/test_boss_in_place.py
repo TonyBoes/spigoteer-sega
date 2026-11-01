@@ -9,7 +9,7 @@
 import pytest
 from split_helpers import win_lyc
 from boss_common import BS_ENTER, BS_WALK, BS_WALKIN, BS_WARM, hud, meter_tiles, row
-from conftest import BK_AT, bk_block, clear_regulars
+from conftest import BK_AT, bk_block, clear_regulars, ds_active
 from save_images import put
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, run_until, state
 from test_pause import CARD_FRAMES, PAUSE_NR51, PAUSED, boss_cards, card_rows, tap
@@ -437,6 +437,13 @@ PERF_BEFORE = {   # (model, venue): (mean, p50, p99) of the frame's end line at 
     ('dmg', 9): (52.1, 48, 103),
 }
 
+# Owner Q92 (2026-11-01): a Color runs these at double speed and the guard measures the line the frame's LOGIC ended on. Per venue (mean, p50, p99):
+# main's double-speed baseline + the margin the limit above has over main's normal-speed baseline (limits never above PERF_BEFORE).
+BOSS_DS = {0: (17.9, 15, 33), 1: (19.0, 16, 37), 2: (18.1, 17, 36), 3: (18.4, 16, 37), 4: (18.0, 16, 36),
+           5: (18.0, 17, 39), 6: (19.9, 17, 37), 7: (16.7, 13, 34), 8: (18.5, 17, 38), 9: (19.9, 17, 40)}
+# (a fight with regulars: the mean limit 76) the same way, per venue
+REGULARS_DS_MEAN = {0: 27.6, 1: 32.6, 2: 33.5, 3: 32.7, 4: 35.7, 5: 31.3, 6: 30.2, 7: 34.2, 8: 33.8, 9: 29.8}
+
 
 @pytest.mark.parametrize("model", MODES)
 @pytest.mark.parametrize("c", VENUES)
@@ -459,6 +466,8 @@ def test_a_boss_fight_s_frames_end_no_later_than_at_579e173(model, c):
             gb.write("patrons_live", 0)
         st = ph.perf_stats(gb)
     mean, p50, p99 = PERF_BEFORE[model, c]
+    if model == "cgb" and ds_active():
+        mean, p50, p99 = BOSS_DS[c]
     assert st["n"] > 300 and st["late"] == 0, st
     assert st["mean"] <= mean and st["p50"] <= p50 and st["p99"] <= p99, f"{st} against mean {mean}, p50 {p50}, p99 {p99} at 579e173"
 
@@ -479,7 +488,7 @@ def test_a_boss_fight_with_regulars_is_late_on_hardly_any_frame(model, c):
         ph.play_script(gb, 600, keep=lambda g, i: g.write("lives", 3))
         st = ph.perf_stats(gb)
     assert st["n"] > 250, st
-    assert st["late154"] * 1000 <= st["n"] * 15 and st["mean"] <= 76, st
+    assert st["late154"] * 1000 <= st["n"] * 15 and st["mean"] <= (REGULARS_DS_MEAN[c] if model == "cgb" and ds_active() else 76), st
 
 
 @pytest.mark.parametrize("model", MODES)

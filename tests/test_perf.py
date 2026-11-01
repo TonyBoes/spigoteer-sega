@@ -22,13 +22,17 @@ def rom(request):
         yield gb
 
 
-def assert_typical(gb, mean, p90, p99=None):
+def assert_typical(gb, mean, p90, p99=None, ds=None):
     """The frame-time regression guard, on the distribution of the frames' end lines (perf_helpers.perf_stats) and not on the single worst
     frame: in a heavy scenario the worst frame is a pair whose start lands badly against VBlank, which moves by 10-20 lines with any
     change of code layout or timing (measured: the worst frame 312-335 and the level-8 CGB peak 118-119 over builds with 0-29 dummy reads
     added in the title, story, music and main loop; the mean moved by 2, the 90th percentile by 7). A frame cost that really grew moves the
-    whole distribution, so mean and p90 carry the guard (limits: the measured spread plus a margin of ~8 lines, about 5 % of a heavy frame)."""
+    whole distribution, so mean and p90 carry the guard (limits: the measured spread plus a margin of ~8 lines, about 5 % of a heavy frame).
+    `ds` = (mean, p90, p99) for a Color at double speed (owner Q92 2026-11-01: the guards run the ROM as built and measure the line the frame's
+    LOGIC ended on, perf_helpers.end_line): main's double-speed baseline + the margin the same limit has over main's normal-speed baseline."""
     st = ph.perf_stats(gb)
+    if ds and ph.is_ds(gb):
+        mean, p90, p99 = ds
     assert st["mean"] <= mean and st["p90"] <= p90 and (p99 is None or st["p99"] <= p99), (st, (mean, p90, p99))
 
 
@@ -56,7 +60,7 @@ def test_level8_script_never_misses_a_frame(rom):
     r = ph.perf_read(rom)
     print(rom.model_name, "level 8 script", r)
     assert r["missed"] == 0, r                    # (so no frame ends past line 143: the hard bound; the typical frame ends near line 45, the worst 106-119)
-    assert_typical(rom, mean=52, p90=73, p99=115)  # (measured 42-44 / 63-65 / 91-107; the old single-frame guard was `end <= 118` = END_LY_TARGET, the worst of 796 frames)
+    assert_typical(rom, mean=52, p90=73, p99=115, ds=(19.4, 29, 52))  # (main: normal 43.9 / 65 / 99, double speed 11.3 / 21 / 36)  # (measured 42-44 / 63-65 / 91-107; the old single-frame guard was `end <= 118` = END_LY_TARGET, the worst of 796 frames)
     assert_music_every_frame(ticks)
     assert rom.mem16("vq_late") == 0, "no drain was ever refused"
     assert 144 <= rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly"), "drains start early in VBlank"
@@ -107,7 +111,7 @@ def test_worst_case_pile(rom):
     # TEMPORARY 2026-10-16 (owner: "You can relax it for now"): Option C serves more patrons at once, each sliding off and
     # redrawn every pixel: DMG 310 / 231, CGB 310 / 235. The worst frame (`end <= 320` until the asm pass, was 300) flipped with
     # any layout change (311-335); the distribution does not: mean 165-167, p90 201-208, p99 290-312 over the perturbed builds.
-    assert_typical(rom, mean=175, p90=216, p99=325)
+    assert_typical(rom, mean=175, p90=216, p99=325, ds=(98.6, 132, 227))  # (main: normal 137.3 / 162 / 198, double speed 60.9 / 78 / 100)
 
 
 def patron_cols(gb, bar):
@@ -194,7 +198,7 @@ def test_level9_overlap_scenario(rom):
     # 184 / 338, CGB 189 / 348)
     # (the worst frame, `end <= 200` at 194-199 measured, is replaced by the distribution: mean 131-134, p90 161-167, p99 179-184)
     assert r["missed"] <= 360, r
-    assert_typical(rom, mean=142, p90=176, p99=195)
+    assert_typical(rom, mean=142, p90=176, p99=195, ds=(70.9, 101, 114))  # (main: normal 124.5 / 143 / 160, double speed 53.4 / 68 / 79)
 
 
 # ---- M13c: the realistic peak of play -------------------------------------------------------------------------------
@@ -275,7 +279,7 @@ def test_realistic_peak(rom):
     # speed-up found). missed stays <= 400: the CGB count swings about +-30 with any code timing; the old 165 needs the asm pass.
     # Robust form (the worst frame, 212-233 against the 240 guard, and the missed count, 232-375 over layout-only changes, are chaotic):
     # the distribution of the frames' end lines: measured mean 121-132, p50 115-127, p90 161-169, p99 182-202 over the perturbed builds.
-    assert_typical(rom, mean=141, p90=178, p99=212)
+    assert_typical(rom, mean=141, p90=178, p99=212, ds=(74.5, 94, 129))  # (main: normal 112.7 / 150 / 164, double speed 46.2 / 66 / 81)
 
 
 @pytest.mark.xfail(strict=False, reason="owner target NOT met at the realistic peak (PyBoy; no doors). Re-measured 2026-10-28 on main "
@@ -317,7 +321,8 @@ def test_classic_peak(rom, dirs):
     assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
     # guard only (measured P4, PyBoy: R L R L DMG end 329 / 440 missed of 1200, CGB 315 / 575; every bar L DMG 283 / 335,
     # CGB 289 / 402; the scenario's patron count depends on the frame timing: mean 11-14.6 of up to 16)
-    assert r["end"] <= 450 and r["missed"] <= 900, r
+    # double speed (owner Q92): 450 - main's normal-speed end (dirs 0: 239, 5: 242) + its double-speed logic end (111, 120)
+    assert r["end"] <= ph.pick(rom, 450, {0: 322, 5: 328}.get(dirs)) and r["missed"] <= 900, r
 
 
 # ---- Modes P6: ClassicPeak on CLASSIC's own busiest rows (level 12: R L R L; 23-26: R R R R; all slanted) ---------------
@@ -344,7 +349,8 @@ def test_classic_peak_real_rows(rom, lv):
     assert all(line <= 10 and k <= 40 for _, _, line, k in ticks), [t for t in ticks if t[2] > 10 or t[3] > 40][:5]
     assert_music_every_frame([(f, m) for f, m, _, _ in ticks])
     assert rom.mem("vq_drain_ly_max") <= rom.mem("vq_latest_ly")
-    assert r["end"] <= 450 and r["missed"] <= 900, r
+    # double speed (owner Q92): 450 - main's normal-speed end (266, 245, 245, 248, 248) + its double-speed logic end (113, 114, 114, 122, 122)
+    assert r["end"] <= ph.pick(rom, 450, {12: 297, 23: 319, 24: 319, 25: 324, 26: 324}.get(lv)) and r["missed"] <= 900, r
 
 
 @pytest.mark.parametrize("skew", [1, 2, 3, 4, 5, 6, 7])

@@ -352,7 +352,7 @@ def test_a_mosh_on_all_four_bars_keeps_the_sprite_budgets(model):
         print(model, "mosh on four bars", r)
         assert_music_every_frame(ticks)
         assert gb.mem("vq_drain_ly_max") <= gb.mem("vq_latest_ly")
-        assert r["missed"] <= 22 and r["end"] <= 190, r
+        assert r["missed"] <= 22 and r["end"] <= ph.pick(gb, 190, 115), r   # (double speed, owner Q92: 190 - main's normal end 153 + its double-speed logic end 78)
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -370,7 +370,7 @@ def test_a_mosh_on_two_bars_keeps_the_frame_time(model):
         gb.run(PUSH + 40)
         r = ph.perf_read(gb)
         assert gb.mem("mosh_count") == 2
-        assert r["missed"] <= 2 and r["end"] <= 160, r   # (measured DMG 1 / 136, CGB 2 / 158)
+        assert r["missed"] <= 2 and r["end"] <= ph.pick(gb, 160, 99), r   # (measured DMG 1 / 136, CGB 2 / 158; double speed, owner Q92: 160 - main's normal end 126 + its double-speed logic end 65)
 
 
 # ---- the band plays faster in the Last call ------------------------------------------------------------------------------

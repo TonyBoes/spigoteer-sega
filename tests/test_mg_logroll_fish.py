@@ -3,6 +3,7 @@
 import re
 
 import pytest
+import perf_helpers as ph
 from conftest import check_golden, hold_stage_anim, logic_paused
 from test_mg import MG_RESULT, frames, lines, to_play, until
 from test_mg_logroll import (ART, BASE_Y, CLEAR, DROPS, FISH_FIRST, FISH_LAST, FLY, GAP0, HALF, HOP_END, HOP_LEN, KICK, LAND, LAYOUT, LR_C,
@@ -493,7 +494,7 @@ def end_lines(gb, n, each=None):
         if each:
             each(i)
         gb.run(1)
-        v = gb.mem16("perf_end_last")
+        v = ph.end_line(gb)
         tot += v
         worst = max(worst, v)
     return tot / n, worst, gb.mem16("vq_late") - late0, gb.mem16("missed_frames") - missed0
@@ -522,9 +523,12 @@ def test_the_fish_cost_no_late_frame_and_few_lines(model):
         calm(gb)
         with_fish = end_lines(gb, 1200, each)
         print(f"perf {model}: no fish mean {base[0]:.1f} worst {base[1]}; fish mean {with_fish[0]:.1f} worst {with_fish[1]}")
+        ph.plog("fish", (base, with_fish))
         assert base[2:] == (0, 0) and with_fish[2:] == (0, 0), (base, with_fish)
-        assert with_fish[1] < 128 and base[1] < 128
-        assert with_fish[0] - base[0] < 10, (with_fish, base)
+        # (double speed, owner Q92: main's double-speed baseline + today's margin: worst 34 / 35 + 128 - 87 / 89 -> 75 / 74; the fish's mean cost 3.5 + 10 - 7.1 -> 6.4)
+        ds = ph.is_ds(gb)
+        assert with_fish[1] < (74 if ds else 128) and base[1] < (75 if ds else 128)
+        assert with_fish[0] - base[0] < (6.4 if ds else 10), (with_fish, base)
 
 
 def poke_fish(gb, tgt, direction):

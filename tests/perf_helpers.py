@@ -42,6 +42,18 @@ def start_game(gb):
     assert gb.mem("game_state") == PLAYING
 
 
+def is_ds(gb):
+    """True when this Color runs at double speed (KEY1 bit 7), as the game ships (Q92: the [cgb] perf guards run it that way)."""
+    return gb.model == "cgb" and bool(gb.pb.memory[0xFF4D] & 0x80)
+
+
+def end_line(gb):
+    """The line this frame's work ended on, the guards' metric. At normal speed: logic + music tick (perf_end_last). At double speed
+    the music tick waits for a fixed line (main.c DS_TICK_LY: the spare time is idle), so the end line only shows that line; the
+    metric is then the line the frame's LOGIC ended on (perf_logic_last; > 143 = ran past the next VBlank). Owner Q92 2026-11-01."""
+    return gb.mem16("perf_logic_last" if is_ds(gb) else "perf_end_last")
+
+
 def perf_reset(gb):
     for name in ("perf_logic_max", "perf_end_max", "missed_frames"):
         put16(gb, name, 0)
@@ -53,7 +65,7 @@ def sample(gb):
     Only frames the game itself counts (main.c: the state at the frame's start was PLAYING, and at the one before's too: a transition's
     LCD-off frames are not normal ones); the state at a frame's start is the one the frame before ended in."""
     if gb.perf_hist[0] and gb.perf_hist[1]:
-        gb.perf_samples.append(gb.mem16("perf_end_last"))
+        gb.perf_samples.append(end_line(gb))
     gb.perf_hist = [gb.perf_hist[1], gb.mem("game_state") == PLAYING]
 
 
@@ -63,14 +75,33 @@ def perf_stats(gb):
     and the share of late frames are what a slower engine moves and a different layout does not."""
     v = sorted(gb.perf_samples)
     n = len(v)
-    return dict(n=n, mean=round(sum(v) / n, 1), p50=v[n // 2], p90=v[n * 9 // 10], p99=v[n * 99 // 100], worst=v[-1],
-                late=sum(x >= 144 for x in v), late154=sum(x >= 154 for x in v))
+    st = dict(n=n, mean=round(sum(v) / n, 1), p50=v[n // 2], p90=v[n * 9 // 10], p99=v[n * 99 // 100], worst=v[-1],
+              late=sum(x >= 144 for x in v), late154=sum(x >= 154 for x in v))
+    if os.environ.get("PERF_LOG"):                 # (a file: every call's stats, to measure a baseline)
+        with open(os.environ["PERF_LOG"], "a") as f:
+            f.write(os.environ.get("PYTEST_CURRENT_TEST", "").split(" ")[0] + " " + repr(st) + "\n")
+    return st
+
+
+def pick(gb, normal, ds):
+    """The limit to assert: `normal` (today's, the DMG's and a Color at normal speed), or `ds` on a Color at double speed (owner Q92: main's double-speed
+    baseline of the logic-end metric plus the margin the guard has at normal speed, never above `normal`)."""
+    return ds if ds is not None and is_ds(gb) else normal
+
+
+def plog(tag, value):
+    """PERF_LOG (a file): record a measured value under the running test's id, to measure a baseline."""
+    if os.environ.get("PERF_LOG"):
+        with open(os.environ["PERF_LOG"], "a") as f:
+            f.write(os.environ.get("PYTEST_CURRENT_TEST", "").split(" ")[0] + "#" + tag + " " + repr(value) + "\n")
 
 
 def perf_read(gb):
     if os.environ.get("PERF_REPORT") and getattr(gb, "perf_samples", None):
         print("PERFSTATS", os.environ.get("PYTEST_CURRENT_TEST", "").split("::")[-1].split(" ")[0], perf_stats(gb), flush=True)
-    return dict(logic=gb.mem16("perf_logic_max"), end=gb.mem16("perf_end_max"), missed=gb.mem16("missed_frames"))
+    r = dict(logic=gb.mem16("perf_logic_max"), end=gb.mem16("perf_logic_max" if is_ds(gb) else "perf_end_max"), missed=gb.mem16("missed_frames"))
+    plog("read", r)
+    return r
 
 
 def goto_level(gb, lvl):
