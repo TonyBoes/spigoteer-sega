@@ -191,7 +191,7 @@ def test_each_level_loads_its_venue(gb, group):
         # (the Saloon's BG 7 holds its palette instance 3, ROSIE and REDD: the keg's slot is free there; its colour 0 is the wall, below)
         if GROUPS[group] == "robots":      # (the Factory, generated looks: BG 7 holds palette instance 5, TELLY's mint, loaded with the level; its keg is on BG 1)
             assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and cgb_palette(gb, 7)[1:] == json.loads((ROOT / "assets" / "palettes.json").read_text())["robots_c"]["rgb15"]
-        elif GROUPS[group] == "zoo":      # (the Zoo's MUDDY, the Space Lounge's GLORP: their own BG 7, the Atlas's slot; the keg is on BG 1)
+        elif GROUPS[group] in ("zoo", "aliens"):      # (the Zoo's MUDDY, the Space Lounge's GLORP: their own BG 7, the Atlas's slot; the keg is on BG 1)
             assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and cgb_palette(gb, 7)[1:] == json.loads((ROOT / "assets" / "palettes.json").read_text())["zoo_hippo" if GROUPS[group] == "zoo" else "aliens_c"]["rgb15"]
         else:
             assert cgb_palette(gb, 7) == v["pal"][3] if group else cgb_palette(gb, 7)[0] == v["pal"][2][0]

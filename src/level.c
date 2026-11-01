@@ -334,6 +334,9 @@ void start_level(void) BANKED {
         uint8_t e = 255, l = 255, i, keg = VENUE_KEG_BG(cur_group) == 1 ? BGPAL_HUD : 0;
         if (extra_on()) for (i = 0; i < 8; i++) { if (INST_BG[i] == BGPAL_STAGE) e = i; else if (INST_BG[i] == BGPAL_STAGE_B) l = i; }
         if (l == 255) { l = e; e = 255; }       // (only BG 5 used: the one late reload)
+        else if (e != 255) {                    // (both: the slot the stage's last row (lines 32-39) still shows is the late one, the other is reloaded after row 3, line 31)
+            for (i = 60; i < 80; i++) if ((venue.stage_attr[i] & 7) == BGPAL_STAGE) { i = e; e = l; l = i; break; }   // (the Factory's last row is BG 6's: BG 5 early; the Space Lounge's is BG 5's)
+        }
         if (keg || l != 255) {
             split_arm(l == 255 ? 0 : INST_BG[l], e == 255 ? 0 : INST_BG[e], keg);   // (the late one: BG 5 or 6, the early one BG 5)
             if (keg) for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(venue.pal[VENUE_PAL_BAR_B][k]); KEG_PAL[k << 1] = c; KEG_PAL[(k << 1) | 1] = c >> 8; }

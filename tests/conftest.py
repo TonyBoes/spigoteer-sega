@@ -60,6 +60,7 @@ PERF_DS = {
     "test_stage_anim": {"test_the_stage_animates_only_its_own_tiles"},
     "test_story_pictures": {"test_finale_streams_each_speakers_portrait_into_the_one_slot", "test_the_pieces_fly_off_the_screen_and_the_trail_fades",
                             "test_mashing_a_through_the_burst_keeps_the_line_limit", "test_mashing_a_never_makes_the_drain_leave_vblank"},
+    "test_taper": {"test_a_slanted_r_bar_is_the_slanted_l_bar_mirrored"},      # (the Space Lounge's level 10: at normal speed its R run lags the L run by frames, as the Factory's)
     "test_twists": {"test_a_mosh_on_all_four_bars_keeps_the_sprite_budgets", "test_a_mosh_on_two_bars_keeps_the_frame_time"},
     "test_vq_budget": {"test_classic_crowd_drains_inside_vblank"},
 }

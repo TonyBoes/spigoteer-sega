@@ -16,7 +16,7 @@ from test_venues import cgb_palette
 
 ATLAS = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"]
 THEMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]      # the game's theme order (saloon .. space)
-NOT_IMPORTED = {"sports", "lumberjacks", "chefs", "divers", "punks", "ninjas", "aliens"}
+NOT_IMPORTED = {"sports", "lumberjacks", "chefs", "divers", "punks", "ninjas"}
 pytestmark = pytest.mark.timeout(120)
 
 
@@ -76,11 +76,11 @@ def test_the_factory_slots_are_the_atlas_slots(gb):
 
 # Atlas inconsistency, flagged in the Space Lounge's import: BG 3 is listed for "XENO, VENUS" in XENO's colours, but XENO walks in the bar's BG 0 (owner Q53: the bar
 # takes his colours, so BG 0 shows them) and BG 3 is VENUS's, in her OBJ 5 colours (the show's). Per venue: BG slot -> the OBJ slot whose colours it holds.
-BG_AS_OBJ = {}
+BG_AS_OBJ = {"aliens": {3: 5}}
 
 
 @pytest.mark.only_model("cgb")
-@pytest.mark.parametrize("k", ["zoo"])
+@pytest.mark.parametrize("k", ["zoo", "aliens"])
 def test_the_extra_looks_venues_slots_are_the_atlas_slots(gb, k):
     """The Zoo and the Space Lounge: every BG 0-7 and OBJ 1-7 slot has the Atlas's colours (chain slots from their buffers) and every palette instance pairs an OBJ slot
     with a BG slot of the same colours 1-3 (the Atlas's "as OBJ n")."""

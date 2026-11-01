@@ -240,14 +240,14 @@ def test_the_eighth_drink_flashes_then_splits(model):
         assert gb.mem("boss_x") == 16
     with to_shift(model, C, 0) as ref:                       # the same group's patrons in an ordinary shift
         ref_tiles = patron_tiles(ref)
-        ref_pal = [cgb_palette(ref, 4), cgb_palette(ref, 7, True)] if model == "cgb" else None
+        ref_pal = [cgb_palette(ref, 7), cgb_palette(ref, 7, True)] if model == "cgb" else None   # (variant C = GLORP: BG 7 / OBJ 7 in the level; the fight puts his colours on the boss's BG 4)
     with fight(model, C) as gb:
         quiet(gb)
         to_minis(gb)
         mine = patron_tiles(gb)
         assert mine == ref_tiles, "the group's patron tiles are back (variant C's over the saucer's)"
         if model == "cgb":
-            assert [cgb_palette(gb, 4), cgb_palette(gb, 7, True)] == ref_pal, "variant C's own BG 4 and OBJ 7"
+            assert [cgb_palette(gb, 4), cgb_palette(gb, 7, True)] == ref_pal, "variant C's own colours on BG 4 and OBJ 7"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -342,7 +342,7 @@ def test_the_minis_are_hurried_and_regulars_still_come(model):
         assert moved and all(abs(d - 200 * hs / 256) <= 6 for d in moved), (moved, hs)
         st, var, bar = gb.read("patron_state", 16), gb.read("patron_variant", 16), gb.read("patron_bar", 16)
         regulars = [(var[p], bar[p] & 3) for p in range(16) if st[p] and p not in x0]
-        assert regulars and all(v in (0, 1) and b != dead for v, b in regulars), regulars
+        assert regulars and all((v & 7) != 2 and b != dead for v, b in regulars), regulars   # (look 0, 1 or a Color-only look 3-7 on any palette instance; look 2 is the minis')
 
 
 def bot_target(gb):
