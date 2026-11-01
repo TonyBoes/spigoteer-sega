@@ -1,7 +1,7 @@
 # Owner 2026-10-31: "In the Chrome cow, the full mug and the empty mug seem to be very similar, with only one color slot swapped around. Could we use
 # the full mug for the empty mug and effects as well, just recolor the items as appropriate?"  On Color, in the Chrome Cow (venue 6) every sprite that
 # used OBJ palette 2 (the empty mug, the held empty, the breaking glass, the boss's capacity mugs) uses OBJ palette 1 instead, with its tiles' two bit
-# planes swapped (lift.c: copies in VRAM bank 1, OAM bit 3; boss.c boss_cap_stage: in place). OBJ 2 is then free there. The two palettes were not
+# planes swapped (lift.c: copies in VRAM bank 1, OAM bit 3; boss.c boss_cap_stage: in place). OBJ 2 is then free there (the Atlas import gives it to DJ, a patron: only mug, glass and capacity sprites are checked). The two palettes were not
 # exactly each other swapped (#FFFFF6 / #ACDEFF against #FFFFFF / #ACCDE6), so the shown colours move by at most 3 of 31 in a channel.
 import re
 
@@ -10,7 +10,7 @@ from boss_common import fight, play, still_regulars
 from conftest import ROOT
 from test_art import goto_group
 from test_flow import inject_mug
-from test_venues import cgb_palette
+from test_venues import cgb_palette, venue
 
 pytestmark = [pytest.mark.timeout(400), pytest.mark.only_model("cgb")]
 
@@ -48,7 +48,8 @@ def scan(gb, seen):
         if visible(s):
             seen["pal"].add(s[3] & 7)
             seen["bank1"] += bool(s[3] & 8)
-            assert s[3] & 7 != 2, f"a visible sprite uses OBJ palette 2: {s.hex()}"
+            if s[2] < 128:                    # (mug, glass, capacity and show tiles; a lifted patron's tiles are 128 up: DJ wears OBJ 2 since the Atlas import)
+                assert s[3] & 7 != 2, f"a visible mug or glass sprite uses OBJ palette 2: {s.hex()}"
 
 
 def test_empty_mug_colours_are_the_same_roles(gb):
@@ -57,7 +58,7 @@ def test_empty_mug_colours_are_the_same_roles(gb):
     gb.run(30)
     assert gb.mem("venue_id") == DUKE
     rom = drink_rom()
-    old, new = cgb_palette(gb, 2, obj=True), cgb_palette(gb, 1, obj=True)
+    old, new = venue(DUKE)["pal"][5], cgb_palette(gb, 1, obj=True)        # (the venue's empty-drink palette: OBJ 2 itself is DJ's yellow since the Atlas import)
     mem = gb.pb.memory
     spans = [(OBJ_MUG, MUG_TILES + GLASS_TILES), (OBJ_MUG_DRINK, DRINK_TILES)]
     checked = 0

@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include "game.h"
 #include "palettes.h"
+#include "looks.h"
 
 static const uint8_t bright_tbl[32] = { 0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 20, 21, 22, 23, 24, 24, 25, 26, 27, 27, 28, 29, 30, 30, 31 };
 
@@ -28,4 +29,12 @@ void pal_put_b(uint8_t first, uint8_t n, uint16_t *q) BANKED {   // (first | 0x8
 void pal5_lift(void) BANKED {
     uint8_t i;
     for (i = 0; i < 4; i++) pal5_lifted[i] = bright_col(venue.pal[VENUE_PAL_SHOW][i]);
+}
+// The generated venues give OBJ palette 5 back to palette instance 4 after a show: its colours (lifted when BRIGHT) into pal5_lifted, which the VBlank writes raw.
+void pal5_inst4(uint8_t g) BANKED {
+    uint8_t i, r = looks_pal_get(g, 4, pal5_lifted);       // (1 / 2: the venue's full / empty mug colours, dst untouched)
+    for (i = 0; i < 4; i++) {
+        if (r) pal5_lifted[i] = venue.pal[r == 1 ? VENUE_PAL_DRINK_FULL : VENUE_PAL_DRINK_EMPTY][i];
+        pal5_lifted[i] = BRIGHTEN(pal5_lifted[i]);
+    }
 }

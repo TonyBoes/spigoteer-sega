@@ -16,8 +16,8 @@ from test_venues import cgb_palette
 
 ATLAS = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"]
 THEMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]      # the game's theme order (saloon .. space)
-IMPORTED = ["robots", "sports", "lumberjacks", "chefs"]      # the venues on the Atlas slots (the generated instances: build/looks.c)
-NOT_IMPORTED = {"divers", "punks", "ninjas", "zoo", "aliens"}
+NOT_IMPORTED = {"zoo", "aliens"}
+IMPORTED = sorted(set(THEMES) - NOT_IMPORTED - {"cowboys"})        # the generated venues (tools/gen_looks.py): each checked slot by slot
 pytestmark = pytest.mark.timeout(120)
 
 
@@ -74,7 +74,7 @@ def test_the_imported_venues_slots_are_the_atlas_slots(gb, k):
         assert got == want, f"OBJ {slot}"
     s = gb.addr("story_scratch")
     obj, bg = list(gb.read(s + 254, 8)), list(gb.read(s + 262, 8))
-    for o, b in list(zip(obj, bg))[:6 if k == "robots" else 7]:
+    for o, b in [(o, b) for o, b in zip(obj, bg) if b]:     # (the padding is BG 0, no instance's)
         assert set(v["obj"][str(o)]["patrons"]) <= set(v["bg"][str(b)]["patrons"]) and v["obj"][str(o)]["patrons"], (o, b)   # (the Lodge's BG 2 lists the patrons of OBJ 1 and 3 both)
 
 

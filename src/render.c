@@ -792,7 +792,7 @@ static void pal5_check(void) {
     if (!is_cgb) return;
     WIN_FIX();   // (mode 3, here because the DMG never gets this far: the window is not what the plan was made for: the ISR hid it at the plan's end line, or update just showed it)
     if (!show_timer) {                            // the Saloon and the Factory (Color) keep their 5th palette instance in OBJ 5 (lift.c): back from the show's colours when the show ends
-        if (pal5_cur == 2 && (SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS))) { pal5_src = (const uint16_t *)(SPLIT_E_BCPS ? SPLIT_E_PAL : SPLIT_PAL); pal5_cur = 0; pal5_req = 1; }   // (the BG 5 reload's buffer, already lifted for SCREEN BRIGHT: the early one when a venue reloads BG 6 late too)
+        if (pal5_cur == 2 && (SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS))) { if (cur_group) { pal5_inst4(cur_group); pal5_src = pal5_lifted; } else pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (the Saloon: SPLIT_PAL is that instance, already lifted for SCREEN BRIGHT; a generated venue's instance 4 need not be on the chain's late slot)
         return;
     }
     if (pal5_cur == 2 || ((SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS)) && lift_pi4())) return;   // (the Saloon, Color: a lifted patron wearing the 5th instance keeps OBJ 5 until he is gone: no new lift of one during a show, lift.c try_lift)

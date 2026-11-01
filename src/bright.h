@@ -19,6 +19,7 @@ void pal_lift(uint16_t *q) BANKED;                                // four colour
 void pal_put_b(uint8_t first, uint8_t n, uint16_t *q) BANKED;     // pal_put's BRIGHT half: n palettes in RAM lifted in place, then written
 extern uint16_t pal5_lifted[4];                                   // (render.c)
 void pal5_lift(void) BANKED;                                      // pal5_lifted = the show's colours (OBJ palette 5) lifted
+void pal5_inst4(uint8_t g) BANKED;                                   // pal5_lifted = palette instance 4's colours (a generated venue: the slot the show gives back) lifted
 #define BRIGHTEN(c)   (SCR_BRIGHT() ? bright_col(c) : (c))        // a colour computed in RAM, lifted when SCREEN is BRIGHT
 void pal_put(uint8_t first, uint8_t n, const uint16_t *p);        // first | 0x80: OBJ palettes; lifts the colours when BRIGHT, then GBDK's writer
 #define set_bkg_palette(first, n, p)     pal_put((first), (n), (p))

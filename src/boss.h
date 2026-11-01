@@ -78,7 +78,7 @@ enum { BP_WALK, BP_STOMP, BP_GULP, BP_WINCE, BP_HAPPY, BP_EXTRA };
 #define BOSS_HUD_BG     252                       // the face, then the meter's EMPTY, HALF, FULL
 #define BOSS_ICE_BG     246                       // extra BG tiles (the Yeti's icy counter, the Prototype's conveyor):
                                                   // 246-251 are free in the story; 248-251 the landing marker (game.h)
-#define BOSS_PAL        (BGPAL_PATRON + 2)
+#define BOSS_PAL        (INST_BG[2])              // look 2's BG slot: 4 (A, B, C on BG 2-4) in the legacy venues, the Atlas's slot in a generated one (the Igloo's 7)
 #define OBJ_TOPPER      OBJ_DANCER                // 4 tiles: STILL, BOB (8x16 each)
 #if BOSS_BG_A + 2 * BOSS_PAIRS_A != PATRON_BLANK || BOSS_BG_B + 16 != PATRON_BACK_BASE + 12 \
     || BOSS_PAIRS_A + 8 != BOSS_PAIRS_MAX || PATRON_BACK_BASE + 12 > OBJ_SHARED_TOP || BOSS_HUD_BG < OBJ_DMG_COPY + 6 \

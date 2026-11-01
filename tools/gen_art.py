@@ -27,7 +27,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-X_TAGS = ["saloon_x", "robots_x", "sports_x", "lumberjacks_x", "chefs_x"]   # the bank-1 looks blobs (assets/art/patrons/<tag>.txt)
+X_TAGS = ["saloon_x", "robots_x", "divers_x", "punks_x", "ninjas_x", "sports_x", "lumberjacks_x", "chefs_x"]   # the bank-1 looks blobs (assets/art/patrons/<tag>.txt)
 PATRON_GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]
 PATRON_SHIFTS = 8
 # M9 themed venues, one per patron group, in PATRON_GROUPS order (theme index = group index; saloon = theme 0)
@@ -1305,7 +1305,10 @@ def _main():
                 "void load_patron_tiles(uint8_t g, uint8_t first) BANKED;   // build/patron_load.c",
                 "void load_saloon_x(uint8_t part) BANKED;   // build/patrons_saloon_x.c: part 0..7 of the Saloon's Color-only looks into VRAM bank 1 (LCD off)",
                 "void load_robots_x(uint8_t part) BANKED;   // build/patrons_robots_x.c: the Robot Factory's (the same layout and ids)",
-                *["void load_%s(uint8_t part) BANKED;   // build/patrons_%s.c: the venue's (the same layout and ids)" % (t, t) for t in X_TAGS if t not in ("saloon_x", "robots_x")],
+                "void load_divers_x(uint8_t part) BANKED;   // build/patrons_divers_x.c: the Igloo's",
+                "void load_punks_x(uint8_t part) BANKED;   // build/patrons_punks_x.c: the Chrome Cow's",
+                "void load_ninjas_x(uint8_t part) BANKED;   // build/patrons_ninjas_x.c: the Teahouse's",
+                *["void load_%s(uint8_t part) BANKED;   // build/patrons_%s.c: the venue's (the same layout and ids)" % (t, t) for t in ("sports_x", "lumberjacks_x", "chefs_x")],
                 "void load_patron_pose0(uint8_t g, uint8_t first, uint8_t v, uint8_t t) BANKED;   // build/patron_load.c: tile t (0-5) of variant v's shift-0 pose as OBJ tile first + t (the credits cast)", ""]
 
     (outdir / "art.h").write_text("\n".join(h))
