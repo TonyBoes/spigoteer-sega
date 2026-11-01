@@ -344,6 +344,7 @@ def verify_slots(ns):
     for (key, sl), d in sorted(use.items()):
         if len(d) > 1:
             errs.append("%s: plan OBJ %d is given to looks with different colours: %s" % (key, sl, "; ".join("%s %s" % (", ".join(n), c) for c, n in d.items())))
+    errs.extend(ns.get("FIELD_ERRS", []))   # a patron on two BG palettes, or a venue whose plan does not fit its palettes
     for key, name, kind, a, b in ns["DUAL"]:
         if a == b:
             errs.append("%s %s: dual %s numbers are the same (%d)" % (key, name, kind, a))
