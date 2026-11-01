@@ -365,18 +365,63 @@ __asm
     ld   h, a                       ; its BCPS
     ld   d, b
     ld   e, c
+    ld   a, l                       ; (L is still the row's end: the keg-and-late row)
+    cp   a, #<(9310$ + 49)
+    jr   z, 9300$
 9121$:
     ldh  a, (0x41)                  ; STAT: HBlank, palette RAM is open; the line's pixels are out
     and  a, #3
     jr   nz, 9121$
-    ld   a, l                       ; (L is still the row's end: the keg-and-late row writes the late palette right after the keg's, in the same HBlank: two puts are ~380 of its ~410)
-    cp   a, #<(9310$ + 49)
     ld   a, h
-    jp   nz, _split_put_a
-    call _split_put_a
-    ld   a, (_story_scratch + 237)  ; the late palette's BCPS
-    ld   de, #0xFFD6                ; SPLIT_PAL
     jp   _split_put_a
+9300$:                              ; EV_KEG_L: the keg's palette and the late one's in one HBlank, nothing but the 16 writes after it opens (BCPS, pointers and the second BCPS
+    ld   a, h                       ; are set while it waits: they are not palette RAM accesses). 32 (poll) + 128 + 28 + 128 = ~316 cycles from the HBlank's start; the
+    ldh  (0x68), a                  ; last write is then at most ~310 into HBlank + the next line's mode 2 (~1072 - 8 at the latest mode 3 end, Pan Docs' 289 dots = 738): no write in mode 3
+    ld   a, (_story_scratch + 237)  ; the late palette's BCPS
+    ld   b, a
+    ld   h, d
+    ld   l, e
+    ld   c, #0x69
+9301$:
+    ldh  a, (0x41)
+    and  a, #3
+    jr   nz, 9301$
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl)
+    ldh  (c), a
+    ld   a, b
+    ldh  (0x68), a
+    ld   hl, #0xFFD6                ; SPLIT_PAL
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl)
+    ldh  (c), a
+    ret
 9310$:                              ; by EV_*: the window it wants, BCPS at, palette
     .db 0xFF
     .dw 0, 0
