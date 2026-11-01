@@ -12,3 +12,6 @@ Owner 2026-11-01: "I'm not terribly concerned about the c version passing all of
 
 **Why:** the asm pass exists for speed; the C build is the porting reference ([[asm-pass-keep-c]]), not a shipped ROM.
 **How to apply:** in verify.sh's C-build run, speed/timing guard failures (perf, late frames, "ends on time") are expected and do not block a merge. Wrong pictures, wrong behaviour, crashes, hangs and asm/C mismatches still block. When a C-build screen differs only because the slower C code lands a mid-frame write late, say so with evidence; don't call it a speed-only failure without checking.
+
+Owner 2026-11-01 (later): "You can hold off for running tests on the C version until we get everything imported. Right now, all I care is that the assembly version comes out correctly. We can go back and work on the C version before we put it out for porting to other platforms."
+**How to apply now:** during the patron import, no C-build test runs and no C-build fixes (make cfall must still link so the C twin exists). C-build correctness work is queued for after the import, before any porting release.
