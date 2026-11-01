@@ -217,7 +217,7 @@ ART_PICKS_Q = "Q56-Q59 (owner picks 2026-10-26)"
 PATRON_ART = {
 
     # lumberjacks, sports, robots: the owner-picked art of their later proposals is in the game (2026-10-27/28 art imports), so no entry
-    "chefs": {"pierre": ("pierre_owner", "old", "owner's own front 2026-10-31, held"), "brie": ("brie_eyes", "old", "Q85 (owner 2026-10-31): 2 px eyes, held"), "basil": ("basil_face", "basil_back", ART_PICKS_Q)},
+    "chefs": {"pierre": ("pierre_owner", "pierre_owner_back", "owner's own front 2026-10-31; Q87 back C, head centred; held"), "brie": ("brie_eyes", "old", "Q85 (owner 2026-10-31): 2 px eyes, held"), "basil": ("basil_face", "basil_back", ART_PICKS_Q)},
     "punks": {"punk": ("old", "old", "Q84 (owner 2026-10-31), in the game"), "harley": ("old", "old", "Q71/Q74 (owner 2026-10-31), in the game"), "baby": ("old", "old", "Q84 (owner 2026-10-31), in the game")},
     "ninjas": {"kage": ("old", "old", ART_PICKS_Q), "sakura": ("old", "sakura_back", ART_PICKS_Q), "ronin": ("old", "ronin_v2_back", ART_PICKS_Q)},
     "zoo": {"coco": ("coco", "coco_back", ART_PICKS_Q), "bamboo": ("bamboo", "bamboo_back", ART_PICKS_Q), "muddy": ("old", "old", ART_PICKS_Q)},

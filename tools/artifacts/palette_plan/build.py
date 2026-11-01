@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-10-31", "Q87 (owner): \"C, but center his head on his body.\" PIERRE's new back = option C with the head moved 1 px left (docs/dev/concepts/patron_pass/chefs/pierre_owner_back.txt). DMG and Color; held for the game."),
     ("2026-10-31", "Q86 (owner): \"Ash to medium, rod to dark.\" Lodge OBJ 7 (ASH) skin #946A00 -> #C08858; ROD's OBJ 5 skin #F8C090 -> #8C5A3C. Color only; ASH's DMG greys unchanged; held for the game."),
     ("2026-10-31", "Owner drew a new PIERRE front (outlined toque, white moustache and beard): patron_pass/chefs/pierre_owner.txt; back still the game's; held. DMG and Color."),
     ("2026-10-31", "Q69 (owner): \"Robots keep all swaps.\" Robot Factory: no cuts. Color only."),
