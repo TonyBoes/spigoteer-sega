@@ -2,6 +2,8 @@
 
 Question numbering reset (owner 2026-10-28, after Q78: "Also, reset question numbering."): the next question is Q1. Q-numbers below up to Q78 are the old series.
 
+- CANCELLED (owner 2026-11-01): DIAGNOSIS_REQUEST.md. "Forget the diagnosis request, period. I'm not going to run it."
+
 ## PATRON IMPORT (current, 2026-11-01). Spec: the Atlas plan; slot table docs/dev/queue_briefs/extra_looks_slots.md
 - 2026-10-31 owner set a patron hold, then "Hold lifted." the same day.
 - MERGED ae8ebc5d + goldens 61bdeb67 (record 8850ddbf): PIERRE owner front + Q87 back C centred; BASIL owner front + Q88 back C short neck; BRIE 2 px eyes; HARLEY deep #8C5A3C (credits keep old: punks_harley_credits); ASH medium #C08858 (credits keep old: lumberjacks_ash_credits). The Sasquatch has his own palette (unchanged).

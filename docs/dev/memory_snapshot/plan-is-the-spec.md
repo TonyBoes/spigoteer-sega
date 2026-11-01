@@ -15,3 +15,5 @@ When importing patrons, every palette/slot question is already answered by the p
 **How to apply:** brief workers to implement the Atlas plan exactly (read its BG assignment per look, not a count by OBJ slot). Only go to the owner when the plan itself cannot be built within a hard rule (perf guard, budget), with numbers. See [[palette-labels-follow-plan]], [[think-before-relaying]].
 
 Owner, after: "This is why we made the Atlas in the first place ... This is what I've been working on for entire week. I have no idea why you ignored all of my work." Every patron/palette brief starts from the per-venue table in docs/dev/queue_briefs/extra_looks_slots.md (regenerate it from the Atlas if the plan changes); check an agent's question against the Atlas before it reaches the owner.
+
+Owner 2026-11-01 (on the unsaved-decisions audit): "None of those patron decisions are important to keep, they're already in the patron plan in the Atlas." Patron decisions are stored in the Atlas only; do not copy them into memory or QUEUE.
