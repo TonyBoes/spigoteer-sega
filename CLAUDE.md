@@ -50,6 +50,8 @@ everything you need is local. The owner pushes to GitHub himself.
   URL changes per session, so the supervisor puts the current lines in each brief).
 - **Done** means committed and green on DMG and CGB. Report the commits, the goldens, the budget numbers, the preview
   paths and anything you are unsure about.
+- **Owner decisions:** When the owner gives a rule, decision or plan, save it to its file in the same turn (memory note
+  for standing rules, QUEUE for plans) before replying, and say where it was saved. Conversation is not storage.
 
 ## The loop
 

@@ -38,3 +38,10 @@
 - [Worktree base stale](worktree-base-stale.md) — agent worktrees start at the pushed commit; brief them to ff-merge main first
 - [Patron right column clear](patron-right-column-clear.md) — patron fronts keep x=15 empty (owner 10-28); put it in every patron art brief
 - [Patron bottom no outline](patron-bottom-no-outline.md) — no ink line on patrons' bottom row (owner 10-29); the bar top has one
+- [Face pass minimal](face-pass-minimal.md) — "face work" = face pixels only, hats/hair/body identical; changed-cells check; SMITH/ROD overreach 10-29
+- [Patron backs are designed](patron-backs-designed.md) — a back is a real matching back, not the front minus the face; judge art strictly (6 of 8 rejected 10-30)
+- [Palette rearrange = slot swap](palette-rearrange-means-slot-swap.md) — reorder slots so the skin slot works when shared; never recolour the look (MIME 10-31)
+- [Patron import hold](patron-import-hold-2026-10-31.md) — 10-31 hold LIFTED same day; queued patron work (HARLEY, PIERRE, BASIL, BRIE, ASH, extras) being imported
+- [Plan is the spec](plan-is-the-spec.md) — the Atlas patron plan already decides slots/keg/splits; implement it, never re-ask the owner (Q90 withdrawn 11-01)
+- [Record decisions immediately](record-decisions-immediately.md) — owner 11-01: write every decision/plan/procedure down in the same reply; procedure in SUPERVISOR.md
+- [Color perf at double speed](color-perf-double-speed.md) — owner Q92 11-01: [cgb] speed checks run at double speed as shipped; DMG strict
