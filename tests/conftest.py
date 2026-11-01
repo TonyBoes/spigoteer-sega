@@ -48,6 +48,7 @@ PERF_DS = {
                            "test_a_boss_entrance_has_no_late_frame_but_dukes_hand_over"},
     "test_debug_stress": {"test_the_crowd_stays_at_its_target_with_an_idle_player"},
     "test_extra_looks": {"test_the_factory_looks_mirror_pixel_for_pixel_on_an_r_level"},
+    "test_extra_looks_zoo_space": {"test_the_looks_mirror_pixel_for_pixel_on_an_r_level"},
     "test_flow": {"test_submenu_redraws_stay_within_the_vblank_drain_budget"},
     "test_half_rate": {"test_the_heaviest_levels_run_at_60_game_steps_a_second_and_keep_the_budgets"},
     "test_menu_scroll": {"test_mashing_a_list_never_runs_a_frame_late", "test_mashing_the_soundtrack_while_a_tune_plays_never_runs_a_frame_late"},
