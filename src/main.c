@@ -246,7 +246,36 @@ void lcd_isr(void) {          // LYC: switch the banner window off below the ban
 // a window line only records itself in SPLIT_WANT. The next event after line b: the first of the chain lines after b, or the window's line if that comes sooner.
 typedef char split_ly_is_39[(SPLIT_LY == 39) ? 1 : -1];
 typedef char split_early_is_31[(SPLIT_EARLY_LY == 31) ? 1 : -1];
-void split_isr(void) __naked {
+typedef char split_stage_is_5[(BGPAL_STAGE == 5) ? 1 : -1];
+void split_isr(void) __naked {          // the Saloon's one reload (SPLIT_ON 1): cycle for cycle what it was before the chain existed
+__asm
+    ldh  a, (0x40)                  ; LCDC
+    ld   c, a
+    res  5, a
+    ldh  (0x40), a                  ; HIDE_WIN
+    ldh  a, (0x45)                  ; LYC
+    cp   a, #39                     ; SPLIT_LY
+    jr   z, 9100$
+    ldh  (0xD5), a                  ; SPLIT_WANT = the window's line
+    ld   a, #39
+    ldh  (0x45), a
+    ret
+9100$:
+    ld   a, c
+    ldh  (0x40), a                  ; the window as it was
+9101$:
+    ldh  a, (0x41)                  ; STAT: HBlank, palette RAM is open; the line's pixels are out
+    and  a, #3
+    jr   nz, 9101$
+    ld   de, #0xFFD6                ; SPLIT_PAL
+    ld   a, #0xA8                   ; BCPS: BG 5, auto-increment
+    call _split_put_a
+    ldh  a, (0xD5)
+    ldh  (0x45), a                  ; LYC = SPLIT_WANT
+    ret
+__endasm;
+}
+void split_isr2(void) __naked {
 __asm
     ldh  a, (0x40)                  ; LCDC
     ld   c, a
@@ -367,7 +396,6 @@ void split_isr(void) {        // (the C twin; hides the window FIRST, as the asm
 void split_vbl(void) {        // vq_vbl's place while the split is armed (the VBlank chain keeps its one entry)
 #if ASM_SPLIT_PAL
     split_pal_put(SPLIT_STG);
-    if (SPLIT_E_BCPS) split_pal_put_e(SPLIT_E_STG);
 #else
     BCPS_REG = SPLIT_L_BCPS;                   // (the C twin: fixed HRAM addresses, `ldh a, (n)`: through a pointer parameter SDCC spends 4 lines of a frame here)
     BCPD_REG = SPLIT_STG[0]; BCPD_REG = SPLIT_STG[1]; BCPD_REG = SPLIT_STG[2]; BCPD_REG = SPLIT_STG[3];
@@ -381,8 +409,20 @@ void split_vbl(void) {        // vq_vbl's place while the split is armed (the VB
     vq_vbl();
 }
 
+#if ASM_SPLIT_PAL
+void split_vbl2(void) {       // the Factory's: both stage palettes back (the C build has the one split_vbl for both)
+    split_pal_put(SPLIT_STG);
+    split_pal_put_e(SPLIT_E_STG);
+    vq_vbl();
+}
+#endif
+
 void set_lyc(uint8_t x) {
-    if (SPLIT_ON) { SPLIT_WANT = x; if (LYC_REG == SPLIT_LY) return; }
+    uint8_t ly;
+    if (SPLIT_ON) {
+        SPLIT_WANT = x; ly = LYC_REG;
+        if (ly == SPLIT_LY || (SPLIT_E_BCPS && ly == SPLIT_EARLY_LY)) return;    // (a chain line: the ISR takes SPLIT_WANT up)
+    }
     LYC_REG = x;
 }
 

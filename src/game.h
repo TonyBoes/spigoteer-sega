@@ -330,6 +330,14 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 #define WIN_LYC_NOW (SPLIT_ON ? SPLIT_WANT : LYC_REG)   // the window's own LYC (LYC_REG itself is the split's line half the frame)
 void set_lyc(uint8_t x);                      // main.c: LYC_REG = x, kept as the window's own line while the split runs
 #define SET_LYC(x)  do { if (SPLIT_ON) set_lyc(x); else LYC_REG = (x); } while (0)   // (inline: the DMG and every other screen pay a test, no call)
+#include "asm_cfg.h"
+#if ASM_SPLIT_PAL
+void split_isr2(void);                        // the Factory's chain (two reloads); split_isr is the Saloon's, cycle for cycle the original
+void split_vbl2(void);
+#else
+#define split_isr2 split_isr                  // (the C twin has one of each for both)
+#define split_vbl2 split_vbl
+#endif
 void split_isr(void);                         // main.c: lcd_isr's twin while the split is armed (swapped in by level.c split_arm, out by split_off)
 void split_vbl(void);                         // main.c: the VBlank handler of the split (the stage's palette back)
 void split_off(void) BANKED;                  // level.c: the screen goes away: the stage's palette back, the split stops

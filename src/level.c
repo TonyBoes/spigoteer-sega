@@ -180,7 +180,7 @@ void level_pace_again(void) BANKED {
 void split_off(void) BANKED {   // (the LCD is off) the stage's palette back, the split stops
     SPLIT_ON = 0;
     LYC_REG = SPLIT_WANT;                          // (the window's own line back: the ISR may have left the split's)
-    CRITICAL { remove_VBL(split_vbl); remove_VBL(vq_vbl); add_VBL(vq_vbl); remove_LCD(split_isr); remove_LCD(lcd_isr); add_LCD(lcd_isr); }
+    CRITICAL { remove_VBL(split_vbl); remove_VBL(split_vbl2); remove_VBL(vq_vbl); add_VBL(vq_vbl); remove_LCD(split_isr); remove_LCD(split_isr2); remove_LCD(lcd_isr); add_LCD(lcd_isr); }
     if (!(LCDC_REG & LCDCF_ON)) { split_pal_put(SPLIT_STG); if (SPLIT_E_BCPS) split_pal_put_e(SPLIT_E_STG); }
 }
 
@@ -202,7 +202,10 @@ static void split_arm(uint8_t late, uint8_t early) {
     }
     SPLIT_WANT = LYC_REG;
     SPLIT_ON = early ? 2 : 1;
-    CRITICAL { remove_VBL(vq_vbl); remove_VBL(split_vbl); add_VBL(split_vbl); remove_LCD(lcd_isr); remove_LCD(split_isr); add_LCD(split_isr); }   // (split_vbl is vq_vbl with the stage's palette put back first: early in the VBlank)
+    CRITICAL {
+        remove_VBL(vq_vbl); remove_VBL(split_vbl); remove_VBL(split_vbl2); remove_LCD(lcd_isr); remove_LCD(split_isr); remove_LCD(split_isr2);
+        if (early) { add_VBL(split_vbl2); add_LCD(split_isr2); } else { add_VBL(split_vbl); add_LCD(split_isr); }
+    }   // (split_vbl is vq_vbl with the stage's palette put back first: early in the VBlank)
 }
 
 
