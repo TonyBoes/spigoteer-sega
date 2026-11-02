@@ -281,7 +281,8 @@ static void begin_drop(uint8_t p) {
     patron_lift[p] |= LIFT_DROP;
     lift_pin[p] = 0;
     ovl_dirty |= bar_bit[b];                              // (the chooser looks at the bar again: he is BG now)
-    if (!bg_urgent(b, c)) mark_dirty(b, c, c + 3);
+    if (is_cgb) patron_ovl[p] |= OVL_SHARED;              // (until it has: he may stand over another BG patron, and a quick, tiles-only redraw of him would put his tiles over the other's attribute)
+    if (!bg_urgent(b, c)) mark_dirty_attrs(b, c, c + 3);
 }
 
 // A forced drop: BG copy queued at the head of this frame's list and the sprite gone with the same VBlank, so the
@@ -291,7 +292,8 @@ static void begin_drop(uint8_t p) {
 static void force_drop(uint8_t p) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1), c = col_of(p);
     lift_forced++;
-    if (!bg_urgent(b, c)) mark_dirty(b, c, c + 3);
+    if (is_cgb) patron_ovl[p] |= OVL_SHARED;              // (as begin_drop)
+    if (!bg_urgent(b, c)) mark_dirty_attrs(b, c, c + 3);
     patron_lift[p] = LIFT_BG;
     lift_pin[p] = 0;
     ovl_dirty |= bar_bit[b];
@@ -797,7 +799,10 @@ static void shared_pair(void) {       // r and x share real columns (both on the
     if (!(c & OVL_TOP) || (a & OVL_TOP)) patron_ovl[s_x] = c | OVL_SHARED;
 }
 #endif
-static void md_g(void) { mark_dirty(ch_b, md_x0, md_x1); }
+// (Glitch hunt 2026-11-01: with the attributes. A patron whose OVL flags change is composed again, 2 columns (his 3rd stays wall, attribute too) one way and
+// 3 the other; tiles alone left the 3rd column's attribute the wall's after the flags cleared, and his next 1 px step (a quick, tiles-only redraw) put his tile
+// on it: a column of his body in the wall's palette until he next changed columns.)
+static void md_g(void) { mark_dirty_attrs(ch_b, md_x0, md_x1); }
 
 // Bar b: lift so that the BG patrons are column-disjoint (greedy, left to right), flag the pairs that stay on the BG,
 // and note which lifted patrons still cover a BG one. ASM_CHOOSER (asm_cfg.h): the whole function is hand-written; the #else is the
@@ -1703,7 +1708,7 @@ static void choose_bar(uint8_t b) {
     if (rec_end == rec + 4) {                             // one patron: nothing to share
         s = rec[3];
         if (s & REC_OBJ) lift_busy[s & REC_SLOT] = 0;
-        if (s & 0x70) mark_dirty(b, rec[0], rec[2]);      // (his old flags are gone)
+        if (s & 0x70) mark_dirty_attrs(b, rec[0], rec[2]);      // (his old flags are gone: with the attributes, see md_g)
         return;
     }
     choose_asm();

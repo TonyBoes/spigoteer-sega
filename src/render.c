@@ -673,9 +673,10 @@ static void queue_quick(void) {
         if (patron_state[p] == PATRON_NONE || d == 255) continue;   // gone: remove_patron() marked his columns
         if (LIFT_OFF_BG(patron_lift[p])) continue;                  // lifted: his columns stay plain wall
         // (M13b: his footprint meets another BG patron's: OVL_SHARED, or he covers one and stands on shift 0, where a
-        // quick redraw would put his empty 3rd column over the other)
-        if ((d & DRAW_BACK) || (patron_ovl[p] & OVL_SHARED) || (!(d & 7) && (patron_ovl[p] & OVL_TOP))) {
-            d = (d & ~DRAW_BACK) >> 3; mark_dirty(patron_bar[p] & (NUM_BARS - 1), d, d + 3); continue;
+        // quick redraw would put his empty 3rd column over the other; glitch hunt 2026-11-01, Color: and on his step to shift 1, whose new 3rd column was the other's cell:
+        // tiles alone left it in the other's attribute until his next column change)
+        if ((d & DRAW_BACK) || (patron_ovl[p] & OVL_SHARED) || (!(d & (is_cgb ? 6 : 7)) && (patron_ovl[p] & OVL_TOP))) {
+            d = (d & ~DRAW_BACK) >> 3; mark_dirty_attrs(patron_bar[p] & (NUM_BARS - 1), d, d + 3); continue;
         }
         qv_cost += QUICK_COST;
         quick_entries(p, d);
