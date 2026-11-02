@@ -177,3 +177,5 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
   Part of the patron revision (still held): Bistro PIERRE/BRIE/waiter -> Sal's OBJ 0; Teahouse drummer -> SAKURA OBJ 6;
   Chrome Cow band -> BANDIT OBJ 6; Lodge Sasquatch -> full mug OBJ 1, WILLOW -> CEDAR OBJ 3; Zoo COCO -> OBJ 1;
   Space ZORP -> OBJ 1, XENO -> OBJ 2 (check the Space boss's OBJ 2); Igloo penguin -> Sal's OBJ 0.
+
+- BUG/ASK (owner 2026-11-01): "How are patron palettes being picked? It doesn't feel random. I got Sal colored Pete like five times last round." Finding: the picks are uniform over each venue's (look, palette) list (mirror.c sal_combo, build/looks_pick.h), but the random byte comes from an 8-bit xorshift (main.c next_rand) seeded once at power-on (0xA7, main_cold.c) and never mixed with timing: same sequence every power-on, only 255 states, some strides reach fewer pairs. -> agent: measure real spawns, then seed from the player's timing (no new WRAM) and add a distribution test.
