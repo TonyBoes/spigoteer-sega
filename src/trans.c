@@ -105,8 +105,10 @@ static void keep_win(void) { if (game_state == GS_PAUSED && overlay_on) { SHOW_W
 //        ~2000 cycles in C and palette RAM is only writable in VBlank (~2700 cycles left after the VBlank handler), so a step is computed in the frame's
 //        active part into RES (HRAM, one group of 32 colours) and written in the next VBlank by an unrolled burst: BG one frame, OBJ the next.
 //        The scene's colours are read into a 128-byte stack buffer in the first 4 frames (16 a VBlank; the picture still stands); the LCD-off then
-//        gets them back (a scene that does not rewrite a palette keeps it). trans_arm keeps the NEW scene's colours in VRAM bank 1, tile ids 248-255 (no
-//        bank-1 tile reaches them; the LCD is off), paints the palettes white; trans_reveal reads them back (4 white frames) and fades them in.
+//        gets them back (a scene that does not rewrite a palette keeps it). trans_arm keeps the NEW scene's colours in VRAM the BG
+//        half in HRAM (0xFF94-0xFFD3, the scene change's, free while the scene is built) and the OBJ half in VRAM bank 1, tile ids 252-255 (no bank-1 tile reaches them:
+//        the Color-only looks' blob is 252 tiles; the first 8 ids, 248-255, held all 128 bytes until 2026-11-01 and overwrote the blob's last four tiles, ARTIE's poses,
+//        and the fade left them as colour bytes: tests/test_extra_looks_pixels.py), paints the palettes white; trans_reveal reads them back (4 white frames) and fades them in.
 #define V_WHITE    1
 #define V_AMBER    2
 #define COL_W      0x7FFF
@@ -114,7 +116,7 @@ static void keep_win(void) { if (game_state == GS_PAUSED && overlay_on) { SHOW_W
 #define COL_AB     BRIGHTEN(COL_A)               // (SCREEN BRIGHT lifts the drink's amber too: the fade out to it and back to white run on lifted colours)
 #define FADE_STEP  3                              // frames a CGB step takes (at least: compute + the two bursts)
 #define FADE_DMG   6
-#define STASH      ((volatile uint8_t *)0x8F80)
+#define STASH      ((volatile uint8_t *)0x8FC0)       // the OBJ half (64 bytes: tile ids 252-255 of VRAM bank 1; the BG half is in HRAM, HRB(0..63))
 #define RES        ((uint8_t *)0xFF94)            // HRAM 0xFF94-0xFFD3: the next 32 colours (the drink's banner rows' place; the variants never overlap)
 #define HR_PAL     ((uint8_t *)0xFF94)            // DMG: the scene's BGP, OBP0, OBP1
 #define HRB(n)     (*(volatile uint8_t *)(0xFF94 + (n)))
@@ -250,9 +252,12 @@ static uint8_t pal_in(uint8_t *o, uint8_t stash, uint8_t n, uint8_t rise) {
         f += vframe(2, 0);
         if (stash) {
             CRITICAL {
-                VBK_REG = VBK_BANK_1;
-                do { o[c] = STASH[c]; c++; } while (c < 128 && pal_gap());
-                VBK_REG = VBK_BANK_0;
+                if (c < 64) { do { o[c] = HRB(c); c++; } while (c < 64 && pal_gap()); }       // (the BG half: HRAM, no VRAM read)
+                else {
+                    VBK_REG = VBK_BANK_1;
+                    do { o[c] = STASH[c - 64]; c++; } while (c < 128 && pal_gap());
+                    VBK_REG = VBK_BANK_0;
+                }
             }
         } else {
             uint8_t *q = o + (c << 1);
@@ -334,7 +339,10 @@ static void fade_arm(void) {                                     // LCD off, the
             i = (c & 31) << 1;
             if (c < 32) { BCPS_REG = i; lo = BCPD_REG; BCPS_REG = i | 1; hi = BCPD_REG; BCPS_REG = 0x80 | i; BCPD_REG = 0xFF; BCPD_REG = 0x7F; }
             else { OCPS_REG = i; lo = OCPD_REG; OCPS_REG = i | 1; hi = OCPD_REG; OCPS_REG = 0x80 | i; OCPD_REG = 0xFF; OCPD_REG = 0x7F; }
-            if (!a || lo != 0xFF || hi != 0x7F) { STASH[c << 1] = lo; STASH[(c << 1) | 1] = hi; }
+            if (!a || lo != 0xFF || hi != 0x7F) {
+                if (c < 32) { HRB(c << 1) = lo; HRB((c << 1) | 1) = hi; }
+                else { STASH[(c - 32) << 1] = lo; STASH[((c - 32) << 1) | 1] = hi; }
+            }
         }
         VBK_REG = VBK_BANK_0;
         if (SPLIT_ON) chain_flat();                              // (the chain, armed by the scene, reloads white too until the fade-in's steps give it the colours)
