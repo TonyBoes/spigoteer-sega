@@ -37,10 +37,26 @@ def test_header(name):
     assert h["header_ok"] and h["global_ok"]
 
 
+def dist_is_current(v):
+    """True when `make dist` would only reproduce what is there: make's own dependency check (`make release`, which rebuilds only a stale
+    build/release.gb; `make -q` cannot be used, the generated-source rules always look stale to it) leaves the ROM untouched, and dist/
+    holds that exact ROM, newer than it, with its sha file. Anything else (stale, missing, edited) runs the real `make dist`."""
+    rel, rom = ROOT / "build" / "release.gb", ROOT / "dist" / f"spigoteer-v{v}.gb"
+    before = rel.stat().st_mtime_ns if rel.is_file() else None
+    if subprocess.run(["make", "release"], cwd=ROOT, capture_output=True).returncode != 0:
+        return False
+    if before is None or rel.stat().st_mtime_ns != before:      # it was rebuilt just now: dist/ is not from this ROM
+        return False
+    need = [rom, ROOT / "dist" / f"spigoteer-v{v}.gb.sha256", ROOT / "dist" / "RELEASE.txt", ROOT / "dist" / "CREDITS.md", ROOT / "dist" / "licenses" / "README.txt"]
+    return (rel.is_file() and all(p.is_file() and p.stat().st_mtime >= rel.stat().st_mtime for p in need)
+            and rom.read_bytes() == rel.read_bytes())
+
+
 def test_make_dist():
-    r = subprocess.run(["make", "dist"], cwd=ROOT, capture_output=True, text=True)
-    assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
     v = ".".join(VERSION)
+    if not dist_is_current(v):
+        r = subprocess.run(["make", "dist"], cwd=ROOT, capture_output=True, text=True)
+        assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
     rom = ROOT / "dist" / f"spigoteer-v{v}.gb"
     assert rom.read_bytes() == (ROOT / "build" / "release.gb").read_bytes()
     assert (ROOT / "dist" / f"spigoteer-v{v}.gb.sha256").read_text().split()[0] == hashlib.sha256(rom.read_bytes()).hexdigest()

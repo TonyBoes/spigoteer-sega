@@ -74,10 +74,21 @@ def collect(pytest_args):
 def plan(ids, jobs, dur):
     """Units (contiguous runs of node ids of one file, with a weight), then LPT into `jobs` shards."""
     tests = dur.get("tests", {})
-    avg = dur.get("default", 0.05)               # a test not in the file (new, or under 0.1 s)
+    files = dur.get("files", {})
+    counts = dur.get("counts", {})
+    # A test the file does not list is new (--record lists every test, small ones too), so it is planned as slow, not as 0.05 s:
+    # the file's known average per test (at least NEW_MIN), or NEW_FILE for a file the record never saw.
+    NEW_MIN, NEW_FILE = 1.0, 5.0
 
     def w(i):
-        return tests.get(i, avg)
+        if i in tests:
+            return tests[i]
+        if not counts:                           # an old-format file: nothing says which tests are small, keep the old guess
+            return dur.get("default", 0.05)
+        f = i.split("::")[0]
+        if f in counts and counts[f]:
+            return max(files.get(f, 0) / counts[f], NEW_MIN)
+        return NEW_FILE
 
     by_file = {}
     for i in ids:
@@ -250,7 +261,10 @@ def main():
     if a.record:
         allt = {i: t for i, (_o, t) in results.items()}
         small = sorted(t for t in allt.values() if t < 0.1)
-        tests = {i: round(t, 2) for i, t in allt.items() if t >= 0.1}
+        tests = {i: round(t, 2) for i, t in allt.items()}      # every test, so a test missing from the file is known to be new
+        counts = {}
+        for i in allt:
+            counts[i.split("::")[0]] = counts.get(i.split("::")[0], 0) + 1
         files = {}
         for i, t in tests.items():
             f = i.split("::")[0]
@@ -260,7 +274,7 @@ def main():
                 f = i.split("::")[0]
                 files[f] = round(files.get(f, 0) + t, 2)
         DURATIONS.write_text(json.dumps({"note": "seconds per test, from `tools/dev/ptest.py -j 1 --record` (balances shards only)",
-                                         "default": round(small[len(small) // 2], 3) if small else 0.05, "total": round(sum(files.values()), 1), "files": dict(sorted(files.items(), key=lambda kv: -kv[1])),
+                                         "default": round(small[len(small) // 2], 3) if small else 0.05, "total": round(sum(files.values()), 1), "files": dict(sorted(files.items(), key=lambda kv: -kv[1])), "counts": dict(sorted(counts.items())),
                                          "tests": dict(sorted(tests.items()))}, indent=0, separators=(",", ":")) + "\n")
         print(f"ptest: wrote {DURATIONS}")
     return rc
