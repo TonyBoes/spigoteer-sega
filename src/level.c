@@ -90,7 +90,7 @@ static void inst_bg_pal(uint8_t g, uint8_t pi, palette_t q) {
     uint8_t k, r;
     if (g && looks_bg_get(g, pi, q)) return;    // (a generated venue: the slot's colours as the Atlas draws them)
     r = looks_pal_get(g, pi, q);
-    if (r) for (k = 1; k < 4; k++) q[k] = venue.pal[r == 1 ? VENUE_PAL_DRINK_FULL : VENUE_PAL_DRINK_EMPTY][k];
+    if (r) for (k = 1; k < 4; k++) q[k] = venue.pal[r == 1 ? VENUE_PAL_DRINK_FULL : r == 2 ? VENUE_PAL_DRINK_EMPTY : VENUE_PAL_SHOW][k];
     q[0] = WALL_RGB;
 }
 
@@ -102,7 +102,7 @@ static void load_patron_group(uint8_t g) {
     if (!g || g == 2) swap_gus();   // (the Saloon's GUS, the Lodge's ASH)
     if (!g || n < 3) n = 3;                      // (the Saloon's 4th and 5th are loaded below)
     for (v = 0; v < n; v++) {                    // colour 0 = the wall, so the art needs no transparency
-        if (INST_BG[v] == BGPAL_STAGE || INST_BG[v] == BGPAL_STAGE_B || (g && INST_BG[v] == BGPAL_HUD)) continue;   // (a chain slot: start_level loads it, reloaded where the playfield starts; BG 1 is the HUD's above it)
+        if (INST_BG[v] == BGPAL_STAGE || INST_BG[v] == BGPAL_STAGE_B || (g && INST_BG[v] == BGPAL_HUD) || !INST_BG[v]) continue;   // (a chain slot: start_level loads it, reloaded where the playfield starts; BG 1 is the HUD's above it; BG 0: the bar's own palette, which is XENO's colours in the Space Lounge)
         inst_bg_pal(g, v, p);
         set_bkg_palette(INST_BG[v], 1, p);       // (the legacy venues: instance v on BG 2 + v)
         music_pump();                            // (BRIGHT: ~0.1 frame a palette's lift, LCD off)

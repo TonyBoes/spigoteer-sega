@@ -27,7 +27,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-X_TAGS = ["saloon_x", "robots_x", "divers_x", "punks_x", "ninjas_x", "sports_x", "lumberjacks_x", "chefs_x"]   # the bank-1 looks blobs (assets/art/patrons/<tag>.txt)
+X_TAGS = ["saloon_x", "robots_x", "divers_x", "punks_x", "ninjas_x", "sports_x", "lumberjacks_x", "chefs_x", "zoo_x", "aliens_x"]   # the bank-1 looks blobs (assets/art/patrons/<tag>.txt)
 PATRON_GROUPS = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]
 PATRON_SHIFTS = 8
 # M9 themed venues, one per patron group, in PATRON_GROUPS order (theme index = group index; saloon = theme 0)

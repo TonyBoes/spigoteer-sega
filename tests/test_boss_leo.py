@@ -405,6 +405,7 @@ def test_the_entrance_plays_once_with_the_hoop_the_leap_and_the_landing_roar(mod
         assert gb.mem("intro_timer") >= 80
         until(gb, lambda: ent_t(gb) is None, ROAR + 10)
         assert LEO.get(gb, "blown") == 0 and not arcs(gb)
+        frames(gb, 1)                                         # (the state-change frame drains one frame later with the Zoo's palette chain: the WALK body redraw)
         assert_body(gb, C, A, R["x"], BP_WALK)
         assert phase(gb) == LP_WALK and gb.mem16("boss_special_t") == EVERY
         play(gb)

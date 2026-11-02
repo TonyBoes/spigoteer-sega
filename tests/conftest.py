@@ -48,6 +48,7 @@ PERF_DS = {
                            "test_a_boss_entrance_has_no_late_frame_but_dukes_hand_over"},
     "test_debug_stress": {"test_the_crowd_stays_at_its_target_with_an_idle_player"},
     "test_extra_looks": {"test_the_factory_looks_mirror_pixel_for_pixel_on_an_r_level"},
+    "test_extra_looks_zoo_space": {"test_the_looks_mirror_pixel_for_pixel_on_an_r_level"},
     "test_flow": {"test_submenu_redraws_stay_within_the_vblank_drain_budget"},
     "test_half_rate": {"test_the_heaviest_levels_run_at_60_game_steps_a_second_and_keep_the_budgets"},
     "test_menu_scroll": {"test_mashing_a_list_never_runs_a_frame_late", "test_mashing_the_soundtrack_while_a_tune_plays_never_runs_a_frame_late"},
@@ -60,6 +61,7 @@ PERF_DS = {
     "test_stage_anim": {"test_the_stage_animates_only_its_own_tiles"},
     "test_story_pictures": {"test_finale_streams_each_speakers_portrait_into_the_one_slot", "test_the_pieces_fly_off_the_screen_and_the_trail_fades",
                             "test_mashing_a_through_the_burst_keeps_the_line_limit", "test_mashing_a_never_makes_the_drain_leave_vblank"},
+    "test_taper": {"test_a_slanted_r_bar_is_the_slanted_l_bar_mirrored"},      # (the Space Lounge's level 10: at normal speed its R run lags the L run by frames, as the Factory's)
     "test_twists": {"test_a_mosh_on_all_four_bars_keeps_the_sprite_budgets", "test_a_mosh_on_two_bars_keeps_the_frame_time"},
     "test_vq_budget": {"test_classic_crowd_drains_inside_vblank"},
 }

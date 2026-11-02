@@ -7,6 +7,7 @@
 #   others   NOT_IMPORTED lists the venues whose palettes are still the old ones; the test says so rather than passing silently, and the list must shrink,
 #            never grow: a venue that already matches is rejected from it.
 import json
+import sys
 
 import pytest
 from conftest import ROOT, keg_bg
@@ -14,9 +15,12 @@ from test_art import goto_group
 from test_patron_imports import bg_slot_colours, settle
 from test_venues import cgb_palette
 
+sys.path.insert(0, str(ROOT / "tools"))
+import gen_looks as GL  # noqa: E402
+
 ATLAS = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"]
 THEMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]      # the game's theme order (saloon .. space)
-NOT_IMPORTED = {"zoo", "aliens"}
+NOT_IMPORTED = set()
 IMPORTED = sorted(set(THEMES) - NOT_IMPORTED - {"cowboys"})        # the generated venues (tools/gen_looks.py): each checked slot by slot
 pytestmark = pytest.mark.timeout(120)
 
@@ -73,9 +77,36 @@ def test_the_imported_venues_slots_are_the_atlas_slots(gb, k):
         got = [to5(c) for c in cgb_palette(gb, slot, obj=True)[1:]]
         assert got == want, f"OBJ {slot}"
     s = gb.addr("story_scratch")
-    obj, bg = list(gb.read(s + 254, 8)), list(gb.read(s + 262, 8))
-    for o, b in [(o, b) for o, b in zip(obj, bg) if b]:     # (the padding is BG 0, no instance's)
+    n = len(GL.venue_tables(k)["order"])               # (the venue's real palette instance count: looks_insts's return; the slots past it are unset)
+    obj, bg = list(gb.read(s + 254, n)), list(gb.read(s + 262, n))
+    for o, b in zip(obj, bg):
         assert set(v["obj"][str(o)]["patrons"]) <= set(v["bg"][str(b)]["patrons"]) and v["obj"][str(o)]["patrons"], (o, b)   # (the Lodge's BG 2 lists the patrons of OBJ 1 and 3 both)
+
+
+@pytest.mark.only_model("cgb")
+@pytest.mark.parametrize("k", ["zoo", "aliens"])
+def test_the_extra_looks_venues_slots_are_the_atlas_slots(gb, k):
+    """The Zoo and the Space Lounge: every BG 0-7 and OBJ 1-7 slot has the Atlas's colours (chain slots from their buffers) and every palette instance pairs an OBJ slot
+    with a BG slot of the same colours 1-3 (the Atlas's "as OBJ n")."""
+    settle(gb, k)
+    v = ATLAS[k]
+    assert gb.read(0xFFD4, 1)[0] == 3, "the mid-frame chain is on"
+    for slot in range(8):
+        src = v["bg"][str(slot)]
+        got = keg_colours(gb) if slot == 1 and v["keg_bg"] == 1 else bg_slot_colours(gb, slot)
+        assert [to5(c) for c in got] == atlas5(src["cols"][1:]), f"BG {slot}"
+    for slot in range(1, 8):
+        if not v["obj"][str(slot)]["patrons"] and not v["obj"][str(slot)]["other"]:
+            continue
+        got = [to5(c) for c in cgb_palette(gb, slot, obj=True)[1:]]
+        assert got == atlas5(v["obj"][str(slot)]["cols"][1:]), f"OBJ {slot}"
+    s = gb.addr("story_scratch")
+    obj, bg = list(gb.read(s + 254, 8)), list(gb.read(s + 262, 8))
+    pairs = [(o, b) for o, b in zip(obj, bg) if o]
+    assert len(pairs) >= 5
+    for o, b in pairs:
+        got_b = keg_colours(gb) if b == 1 else bg_slot_colours(gb, b)
+        assert [to5(c) for c in got_b] == [to5(c) for c in cgb_palette(gb, o, obj=True)[1:]], (o, b)
 
 
 def patron_slots_match(gb, k):

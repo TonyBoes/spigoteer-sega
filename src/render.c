@@ -184,7 +184,6 @@ static const uint8_t back_tile[8] = { SB(0), SB(1), SB(2), SX(0), SX(1), SX(2), 
 #define pal_bg INST_BG
 
 extern uint8_t cur_group, overlay_on;
-#define SPACE_GROUP 9                       // the Space Lounge's patron group (the aliens)
 static uint8_t st_t;                      // first tile of the patron being stamped
 static uint8_t cz_dir, cz_sto, cz_flip, cz_bswap;   // the bar being composed is R; its st_tab offset, attribute bit, back-view swap
 
@@ -192,7 +191,6 @@ static uint8_t cz_dir, cz_sto, cz_flip, cz_bswap;   // the bar being composed is
 // Color-only look drawn from VRAM bank 1 (its BG attribute and OAM bit 3 = bit 6 >> 3). game.h PATRON_BANK1.
 static void patron_attr(uint8_t v) {                     // cz_pal of a patron with variant byte v
     uint8_t i = v >> 3, b = pal_bg[(v ^ i) & 7];
-    if (b == BGPAL_PATRON + 1 && cur_group == SPACE_GROUP) b = BGPAL_BAR;   // XENO: the Space Lounge's bar palette is his colours (BG 3 is free)
     cz_pal = b | (i & 8) | cz_flip;
 }
 
@@ -792,7 +790,7 @@ static void pal5_check(void) {
     if (!is_cgb) return;
     WIN_FIX();   // (mode 3, here because the DMG never gets this far: the window is not what the plan was made for: the ISR hid it at the plan's end line, or update just showed it)
     if (!show_timer) {                            // the Saloon and the Factory (Color) keep their 5th palette instance in OBJ 5 (lift.c): back from the show's colours when the show ends
-        if (pal5_cur == 2 && (SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS))) { if (cur_group) { pal5_inst4(cur_group); pal5_src = pal5_lifted; } else pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (the Saloon: SPLIT_PAL is that instance, already lifted for SCREEN BRIGHT; a generated venue's instance 4 need not be on the chain's late slot)
+        if (pal5_cur == 2 && !((LOOKS_SHOW5 >> cur_group) & 1) && (SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS))) { if (cur_group) { pal5_inst4(cur_group); pal5_src = pal5_lifted; } else pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (the Saloon: SPLIT_PAL is that instance, already lifted for SCREEN BRIGHT; a generated venue's instance 4 need not be on the chain's late slot)
         return;
     }
     if (pal5_cur == 2 || ((SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS)) && lift_pi4())) return;   // (the Saloon, Color: a lifted patron wearing the 5th instance keeps OBJ 5 until he is gone: no new lift of one during a show, lift.c try_lift)

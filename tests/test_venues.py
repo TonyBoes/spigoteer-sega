@@ -189,8 +189,8 @@ def test_each_level_loads_its_venue(gb, group):
         assert cgb_palette(gb, 5) == v["pal"][0] and cgb_palette(gb, 6) == v["pal"][1]
         assert cgb_palette(gb, BGPAL_BAR) == v["pal"][2]
         # (the Saloon's BG 7 holds its palette instance 3, ROSIE and REDD: the keg's slot is free there; its colour 0 is the wall, below)
-        if GROUPS[group] in ("robots", "divers", "punks", "ninjas"):      # (the generated venues: BG 7 holds look C's palette instance (TELLY's mint, MOOSE's), loaded with the level; the keg is on BG 1)
-            assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and cgb_palette(gb, 7)[1:] == json.loads((ROOT / "assets" / "palettes.json").read_text())[{"ninjas": "ninjas_poet"}.get(GROUPS[group], GROUPS[group] + "_c")]["rgb15"]
+        if GROUPS[group] in ("robots", "divers", "punks", "ninjas", "zoo", "aliens"):      # (the generated venues: BG 7 holds look C's palette instance (TELLY's mint, MOOSE's), loaded with the level; the keg is on BG 1)
+            assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and cgb_palette(gb, 7)[1:] == json.loads((ROOT / "assets" / "palettes.json").read_text())[{"ninjas": "ninjas_poet", "zoo": "zoo_hippo"}.get(GROUPS[group], GROUPS[group] + "_c")]["rgb15"]
         elif GROUPS[group] in ("sports", "lumberjacks", "chefs"):    # (generated looks on the Atlas slots: BG 7 holds palette instance 2's patrons, the Atlas's colours)
             at = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"][GROUPS[group]]["bg"]["7"]["cols"]
             assert cgb_palette(gb, 7)[0] == v["pal"][2][0] and [(c & 31, (c >> 5) & 31, (c >> 10) & 31) for c in cgb_palette(gb, 7)[1:]] == [(int(h[1:3], 16) >> 3, int(h[3:5], 16) >> 3, int(h[5:7], 16) >> 3) for h in at[1:]]
