@@ -8,7 +8,7 @@
 - [Three modes decisions](three-modes-decisions.md) — owner answers for STORY/ARCADE/CLASSIC (lives, scores, DMG steps, slanted bars)
 - [Owner tests judgement only](owner-testing-judgement-only.md) — test lists hold look/sound/feel calls only; verify mechanics ourselves
 - [Agents: reversible actions only](agents-reversible-actions.md) — new commits/branches only; no amend/rebase/reset by agents
-- [Numbered questions only](batched-numbered-questions.md) — Qn ONLY on direct questions/decisions (restarted at Q1 2026-10-28, after Q78); batch them, images under each
+- [Numbered questions only](batched-numbered-questions.md) — Qn ONLY on direct questions/decisions (restarted at Q1 2026-11-01, after Q93); batch them, images under each
 - [PyBoy audio stale row](pyboy-audio-stale-row.md) — slice ndarray[:raw_buffer_head//2] per frame or mp3s crackle; rebuild after merges
 - [PyBoy zeroed RAM](pyboy-zeroed-ram.md) — real hardware leaves HRAM junk; clear hand-placed bytes in main(), test with a junk poke
 - [Goldens: supervisor only](goldens-supervisor-only.md) — I replace goldens one by one; gb-golden-check's verdict table first, pictures for UNEXPECTED/UNSURE rows
