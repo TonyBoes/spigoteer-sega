@@ -31,7 +31,7 @@
 #include "title_art.h"      // this bank's own art data (static const)
 #include "story.h"
 
-extern uint8_t overlay_on, hi_digits[6];
+extern uint8_t overlay_on, hi_digits[6], rng_state;
 extern const uint8_t bar_tiles[];
 BANKREF_EXTERN(art_tiles)
 BANKREF_EXTERN(patron_tiles_cowboys)
@@ -728,6 +728,14 @@ static uint8_t settings_input(uint8_t pressed) {
 // One title frame. 2: no key for TITLE_IDLE_FRAMES (the table).
 // ARCADE (and the test hook title_go) start a game, STORY / CONTINUE the story mode from here (src/story.c), SOUNDTRACK the soundtrack player (src/jukebox.c): the
 // screen changes, 0 is returned. A top-level item opens its submenu; B in a submenu goes back to the top level.
+// The player's timing seeds the generator: the DIV counter at the key that starts a game is mixed into rng_state (never 0: xorshift sticks there). Without it every
+// power-on replays one sequence. (Only in the ROM as built: byte 0x3FFD, the tests' seed switch, is 0 in every test ROM, so the fixed seeds stay reproducible.)
+static void rng_mix(void) {
+    if (!*(const volatile uint8_t *)0x3FFD) return;
+    rng_state ^= DIV_REG;
+    if (!rng_state) rng_state = 0xA7;
+}
+
 uint8_t title_update(uint8_t pressed) BANKED {
     uint8_t old = title_sel, last = title_n - 1, full = 1;
     if (title_go) {
@@ -779,13 +787,13 @@ uint8_t title_update(uint8_t pressed) BANKED {
     }
     else if (pressed & (J_A | J_START)) {
         switch (title_items[title_sel]) {
-        case K_ARCADE: arcade_begin(); return 0;
-        case K_CLASSIC: play_mode = MODE_CLASSIC; start_new_game(1); return 0;   // CLASSIC's level 1 (classic.c)
+        case K_ARCADE: rng_mix(); arcade_begin(); return 0;
+        case K_CLASSIC: rng_mix(); play_mode = MODE_CLASSIC; start_new_game(1); return 0;   // CLASSIC's level 1 (classic.c)
         case K_STORY: menu_open(TM_HARD, 1); break;                            // (a new story asks "HOW HARD", the cursor on NORMAL; CONTINUE does not: the save holds it)
-        case K_EASY: story_begin(DIFF_EASY << 1); return 0;
-        case K_NORMAL: story_begin(DIFF_NORMAL << 1); return 0;
-        case K_HARD: story_begin(DIFF_HARD << 1); return 0;
-        case K_CONTINUE: story_begin(1); return 0;
+        case K_EASY: rng_mix(); story_begin(DIFF_EASY << 1); return 0;
+        case K_NORMAL: rng_mix(); story_begin(DIFF_NORMAL << 1); return 0;
+        case K_HARD: rng_mix(); story_begin(DIFF_HARD << 1); return 0;
+        case K_CONTINUE: rng_mix(); story_begin(1); return 0;
         case K_SOUNDTRACK: title_back = TM_BONUS; title_back_sel = 1; jukebox_enter(); return 0;   // (B there comes back to BONUS, on SOUNDTRACK)
         case K_MINIGAMES: mg_list_enter(); return 0;                           // (its B: BONUS, on MINI GAMES)
         case K_CREDITS: credits_enter(0); return 0;                            // (its end / B: BONUS, on CREDITS)

@@ -23,6 +23,19 @@ import pyboy as _pyboy_mod
 import gbtools.rom as _gbtools_rom
 
 SPEED_BYTE = 0x3FFE
+SEED_BYTE = 0x3FFD       # free ROM0 padding too, 0xFF as built: the DIV counter is mixed into the random generator only while it is non-zero (src/title.c rng_mix, src/mirror.c spawn_variant).
+                         # Every test ROM has it 0 (a DMG too, double speed or not): the fixed seeds stay reproducible. tests/test_rng.py runs `with seeding():`.
+_SEEDING = [False]
+
+
+@contextlib.contextmanager
+def seeding():
+    """Inside the block a PyBoy made keeps the ROM's seed byte (the DIV mixing of the shipped game)."""
+    old, _SEEDING[0] = _SEEDING[0], True
+    try:
+        yield
+    finally:
+        _SEEDING[0] = old
 _DS = [bool(os.environ.get("GB_DOUBLE_SPEED"))]
 _patched_cache = {}
 
@@ -100,25 +113,29 @@ def ds_active():
 
 
 def _speed_off_copy(path):
-    """The ROM at `path` with its speed-switch byte 0 (a temp copy under out/dsoff/), or `path` itself when it is not this game's ROM."""
+    """The ROM at `path` with its speed-switch byte 0 (unless double_speed()) and its seed byte 0 (unless seeding()): a temp copy under out/dsoff/, or `path` itself when it is not this game's ROM."""
     key = str(path)
     st = os.stat(key)
-    ck = (key, st.st_mtime_ns, st.st_size)
+    ck = (key, st.st_mtime_ns, st.st_size, _DS[0], _SEEDING[0])
     if ck in _patched_cache:
         return _patched_cache[ck]
     data = Path(key).read_bytes()
     out = key
-    if len(data) > SPEED_BYTE and data[0x134:0x13D] == b"SPIGOTEER" and data[SPEED_BYTE] == 0xFF:
+    if len(data) > SPEED_BYTE and data[0x134:0x13D] == b"SPIGOTEER":
         b = bytearray(data)
-        b[SPEED_BYTE] = 0
-        d = ROOT / "out" / "dsoff"
-        d.mkdir(parents=True, exist_ok=True)
-        p = d / (hashlib.sha1(bytes(b)).hexdigest()[:16] + ".gb")
-        if not p.is_file():
-            tmp = d / f".{os.getpid()}.{p.name}"
-            tmp.write_bytes(bytes(b))
-            os.replace(tmp, p)
-        out = str(p)
+        if not _DS[0] and b[SPEED_BYTE] == 0xFF:
+            b[SPEED_BYTE] = 0
+        if not _SEEDING[0] and b[SEED_BYTE] == 0xFF:
+            b[SEED_BYTE] = 0
+        if bytes(b) != data:
+            d = ROOT / "out" / "dsoff"
+            d.mkdir(parents=True, exist_ok=True)
+            p = d / (hashlib.sha1(bytes(b)).hexdigest()[:16] + ".gb")
+            if not p.is_file():
+                tmp = d / f".{os.getpid()}.{p.name}"
+                tmp.write_bytes(bytes(b))
+                os.replace(tmp, p)
+            out = str(p)
     _patched_cache[ck] = out
     return out
 
@@ -151,7 +168,7 @@ def _with_choice(ram, choice):
 
 class _PyBoy(_pyboy_mod.PyBoy):
     def __init__(self, gamerom, *a, **kw):
-        if not _DS[0] and kw.get("cgb") is not False and isinstance(gamerom, (str, os.PathLike)) and Path(gamerom).suffix in (".gb", ".gbc"):
+        if isinstance(gamerom, (str, os.PathLike)) and Path(gamerom).suffix in (".gb", ".gbc"):
             gamerom = _speed_off_copy(gamerom)
         if _GBA[0] and _SC[0]:
             rf = kw.get("ram_file")
