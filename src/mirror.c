@@ -310,6 +310,7 @@ uint8_t extra_variant(uint8_t r) BANKED {
 }
 
 uint8_t spawn_variant(uint8_t r) BANKED {
+    if (*(const volatile uint8_t *)0x3FFD) r ^= DIV_REG;   // the pick takes the DIV counter too: the 8-bit generator alone has 255 states, so each pair is followed by only about 5 of the 50 (tests/test_rng.py). ROM byte 0x3FFD is the tests' seed switch (0xFF as built, 0 in every test ROM: the fixed seeds stay reproducible)
     if (extra_on_()) return cur_group ? looks_variant(cur_group, r, boss_on) : saloon_variant(r);   // (not extra_variant: one trampoline less on a spawn frame, and looks_variant is in this bank)
     r = (r >> 4) + (r & 15);                      // r % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
     r = (r >> 2) + (r & 3);
