@@ -20,7 +20,7 @@ import gen_looks as GL  # noqa: E402
 
 ATLAS = json.loads((ROOT / "tools" / "artifacts" / "palette_plan" / "plan_slots.json").read_text())["venues"]
 THEMES = ["cowboys", "sports", "lumberjacks", "chefs", "divers", "robots", "punks", "ninjas", "zoo", "aliens"]      # the game's theme order (saloon .. space)
-NOT_IMPORTED = {"sports", "lumberjacks", "chefs"}
+NOT_IMPORTED = set()
 IMPORTED = sorted(set(THEMES) - NOT_IMPORTED - {"cowboys"})        # the generated venues (tools/gen_looks.py): each checked slot by slot
 pytestmark = pytest.mark.timeout(120)
 
@@ -60,9 +60,11 @@ def test_the_imported_venues_slots_are_the_atlas_slots(gb, k):
     v = ATLAS[k]
     assert gb.read(0xFFD4, 1)[0] == 3, "the mid-frame chain is on"
     for slot in range(8):
+        if not v["bg"][str(slot)]["patrons"] and not v["bg"][str(slot)]["other"]:
+            continue                                          # (a free slot: the stage's palette above the playfield, nobody's in it)
         want = atlas5(v["bg"][str(slot)]["cols"][1:])
-        if slot == 1 and v["keg_bg"] == 1:
-            got = keg_colours(gb)
+        if slot == 1:
+            got = keg_colours(gb)                             # (the chain's HUD slot: the keg's, or the Stadium's PETE and FRANK)
         else:
             got = bg_slot_colours(gb, slot)
         assert [to5(c) for c in got] == want, f"BG {slot}"
@@ -78,7 +80,7 @@ def test_the_imported_venues_slots_are_the_atlas_slots(gb, k):
     n = len(GL.venue_tables(k)["order"])               # (the venue's real palette instance count: looks_insts's return; the slots past it are unset)
     obj, bg = list(gb.read(s + 254, n)), list(gb.read(s + 262, n))
     for o, b in zip(obj, bg):
-        assert sorted(v["obj"][str(o)]["patrons"]) == sorted(v["bg"][str(b)]["patrons"]) and v["obj"][str(o)]["patrons"], (o, b)
+        assert set(v["obj"][str(o)]["patrons"]) <= set(v["bg"][str(b)]["patrons"]) and v["obj"][str(o)]["patrons"], (o, b)   # (the Lodge's BG 2 lists the patrons of OBJ 1 and 3 both)
 
 
 @pytest.mark.only_model("cgb")

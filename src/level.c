@@ -87,12 +87,10 @@ static void swap_gus(void) {
 
 // The BG side of palette instance pi of venue g: colour 0 = the wall; the full-mug instance takes the venue's own drink colours (build/looks.c looks_pal_get)
 static void inst_bg_pal(uint8_t g, uint8_t pi, palette_t q) {
-    uint8_t k;
-    k = looks_pal_get(g, pi, q);
-    if (k) {
-        const uint16_t *s = venue.pal[k == 1 ? VENUE_PAL_DRINK_FULL : k == 2 ? VENUE_PAL_DRINK_EMPTY : VENUE_PAL_SHOW];
-        for (k = 1; k < 4; k++) q[k] = s[k];
-    }
+    uint8_t k, r;
+    if (g && looks_bg_get(g, pi, q)) return;    // (a generated venue: the slot's colours as the Atlas draws them)
+    r = looks_pal_get(g, pi, q);
+    if (r) for (k = 1; k < 4; k++) q[k] = venue.pal[r == 1 ? VENUE_PAL_DRINK_FULL : r == 2 ? VENUE_PAL_DRINK_EMPTY : VENUE_PAL_SHOW][k];
     q[0] = WALL_RGB;
 }
 
@@ -104,7 +102,7 @@ static void load_patron_group(uint8_t g) {
     if (!g || g == 2) swap_gus();   // (the Saloon's GUS, the Lodge's ASH)
     if (!g || n < 3) n = 3;                      // (the Saloon's 4th and 5th are loaded below)
     for (v = 0; v < n; v++) {                    // colour 0 = the wall, so the art needs no transparency
-        if (INST_BG[v] == BGPAL_STAGE || INST_BG[v] == BGPAL_STAGE_B || !INST_BG[v]) continue;   // (a chain slot: start_level loads it, reloaded where the playfield starts; BG 0: the bar's own palette, which is his colours: the Space Lounge's XENO)
+        if (INST_BG[v] == BGPAL_STAGE || INST_BG[v] == BGPAL_STAGE_B || (g && INST_BG[v] == BGPAL_HUD) || !INST_BG[v]) continue;   // (a chain slot: start_level loads it, reloaded where the playfield starts; BG 1 is the HUD's above it; BG 0: the bar's own palette, which is XENO's colours in the Space Lounge)
         inst_bg_pal(g, v, p);
         set_bkg_palette(INST_BG[v], 1, p);       // (the legacy venues: instance v on BG 2 + v)
         music_pump();                            // (BRIGHT: ~0.1 frame a palette's lift, LCD off)
@@ -331,14 +329,17 @@ void start_level(void) BANKED {
         for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
     } else if (is_cgb) {                        // every other venue (mode 3): the keg's BG 1 and, for a generated one (the Factory), its instances on BG 5 (reloaded early, line 31) and BG 6 (late, line 39)
         palette_t q;
-        uint8_t e = 255, l = 255, i, keg = VENUE_KEG_BG(cur_group) == 1 ? BGPAL_HUD : 0;
+        uint8_t e = 255, l = 255, i, kp = 255, keg = VENUE_KEG_BG(cur_group) == 1 ? BGPAL_HUD : 0;
         uint8_t es = BGPAL_STAGE, ls = BGPAL_STAGE_B;       // (the early and the late reload's BG slot: the Factory's BG 5 ends the stage's row 3, its BG 6 the row 4)
         if ((LOOKS_EARLY6 >> cur_group) & 1) { es = BGPAL_STAGE_B; ls = BGPAL_STAGE; }   // (the Igloo, the Chrome Cow, the Teahouse: BG 5 is on the stage's last row, BG 6 is not)
-        if (extra_on()) for (i = 0; i < 8; i++) { if (INST_BG[i] == es) e = i; else if (INST_BG[i] == ls) l = i; }
+        if (extra_on()) for (i = 0; i < 8; i++) { if (INST_BG[i] == es) e = i; else if (INST_BG[i] == ls) l = i; else if (INST_BG[i] == BGPAL_HUD) { kp = i; keg = BGPAL_HUD; } }   // (the Stadium: PETE and FRANK on BG 1, the keg on BG 0)
         if (l == 255) { l = e; e = 255; ls = es; }   // (only one used: the one late reload)
         if (keg || l != 255) {
             split_arm(l == 255 ? 0 : ls, e == 255 ? 0 : es, keg);
-            if (keg) for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(venue.pal[VENUE_PAL_BAR_B][k]); KEG_PAL[k << 1] = c; KEG_PAL[(k << 1) | 1] = c >> 8; }
+            if (keg) {
+                if (kp != 255) { inst_bg_pal(cur_group, kp, q); for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); KEG_PAL[k << 1] = c; KEG_PAL[(k << 1) | 1] = c >> 8; } }
+                else for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(venue.pal[VENUE_PAL_BAR_B][k]); KEG_PAL[k << 1] = c; KEG_PAL[(k << 1) | 1] = c >> 8; }
+            }
             if (l != 255) {
                 inst_bg_pal(cur_group, l, q);
                 for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
