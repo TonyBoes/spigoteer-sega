@@ -87,7 +87,7 @@ static uint8_t drawn_x(uint8_t p) {
 // (Only a change of columns changes the CGB attributes: moving within his columns, or turning round, he changes
 // tile ids only.)
 void redraw_at(uint8_t p, uint8_t nd) {
-    uint8_t od = patron_draw[p], lo, hi;
+    uint8_t od = patron_draw[p], lo, hi, turned;
     patron_draw[p] = nd;
     patron_facing[p] = nd >> 7;
     if (od == 255) { nd &= ~DRAW_BACK; mark_dirty_attrs(patron_bar[p], nd >> 3, (nd >> 3) + 3); ovl_touch(p); return; }
@@ -96,10 +96,13 @@ void redraw_at(uint8_t p, uint8_t nd) {
         mark_quick(p);
         return;
     }
+    turned = (od ^ nd) & DRAW_BACK;
     nd &= ~DRAW_BACK; od &= ~DRAW_BACK;
     if (nd < od) { lo = nd; hi = od; } else { lo = od; hi = nd; }
     lo >>= 3; hi >>= 3;
-    if (lo == hi) mark_dirty(patron_bar[p], lo, lo + 3);
+    // (Turning round in place changes the attributes too: the back view's 3rd column is wall, the front's his own. Left stale, the wall's attribute
+    // shows his Color-only look's bank-1 3rd-column tile from bank 0: a font glyph in front of him until he next changes columns.)
+    if (lo == hi && !turned) mark_dirty(patron_bar[p], lo, lo + 3);
     else mark_dirty_attrs(patron_bar[p], lo, hi + 3);
     ovl_touch(p);
 }
