@@ -234,6 +234,51 @@ static void split_arm(uint8_t late, uint8_t early, uint8_t keg) {
     }   // (split_vbl is vq_vbl with the stage's palette put back first: early in the VBlank)
 }
 
+// The chain's lower colours (patron side of the reloads), recomputed from the venue's tables: start_level arms with them (chain_set) and the palette fades (trans.c) ask for them at
+// every step, so a fade can lift the reloaded palettes with the screen. d: 24 bytes, the keg's BG 1 (8), the late reload's (8), the early one's (8); an unused one is left alone.
+// chain_sel: s[0] the late slot, s[1] the early slot, s[2] the keg's slot (0 none), s[3] the late instance, s[4] the early one, s[5] the keg's instance (255 none).
+static void chain_sel(uint8_t *s) {
+    uint8_t e = 255, l = 255, i, kp = 255, keg = VENUE_KEG_BG(cur_group) == 1 ? BGPAL_HUD : 0;
+    uint8_t es = BGPAL_STAGE, ls = BGPAL_STAGE_B;       // (the early and the late reload's BG slot: the Factory's BG 5 ends the stage's row 3, its BG 6 the row 4)
+    if ((LOOKS_EARLY6 >> cur_group) & 1) { es = BGPAL_STAGE_B; ls = BGPAL_STAGE; }   // (the Igloo, the Chrome Cow, the Teahouse: BG 5 is on the stage's last row, BG 6 is not)
+    if (extra_on()) for (i = 0; i < 8; i++) { if (INST_BG[i] == es) e = i; else if (INST_BG[i] == ls) l = i; else if (INST_BG[i] == BGPAL_HUD) { kp = i; keg = BGPAL_HUD; } }   // (the Stadium: PETE and FRANK on BG 1, the keg on BG 0)
+    if (l == 255) { l = e; e = 255; ls = es; }   // (only one used: the one late reload)
+    s[0] = ls; s[1] = es; s[2] = keg; s[3] = l; s[4] = e; s[5] = kp;
+}
+
+static void chain_put(uint8_t *d, const uint16_t *q) {
+    uint8_t k;
+    for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); d[k << 1] = c; d[(k << 1) | 1] = c >> 8; }
+}
+
+void chain_cols(uint8_t *d) BANKED {
+    palette_t q;
+    uint8_t s[6];
+    if (cur_group == 0) {
+        patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others
+        q[0] = WALL_RGB;
+        chain_put(d + 8, q);
+        return;
+    }
+    chain_sel(s);
+    if (KEG_BCPS) {
+        if (s[5] != 255) inst_bg_pal(cur_group, s[5], q); else { uint8_t j; for (j = 0; j < 4; j++) q[j] = venue.pal[VENUE_PAL_BAR_B][j]; }
+        chain_put(d, q);
+    }
+    if (SPLIT_L_BCPS && s[3] != 255) { inst_bg_pal(cur_group, s[3], q); chain_put(d + 8, q); }
+    if (SPLIT_E_BCPS && s[4] != 255) { inst_bg_pal(cur_group, s[4], q); chain_put(d + 16, q); }
+}
+
+static void chain_set(void) {                   // the colours below the split, from the venue
+    uint8_t d[24], k;
+    chain_cols(d);
+    for (k = 0; k < 8; k++) {
+        if (KEG_BCPS) KEG_PAL[k] = d[k];
+        if (SPLIT_L_BCPS) SPLIT_PAL[k] = d[8 + k];
+        if (SPLIT_E_BCPS) SPLIT_E_PAL[k] = d[16 + k];
+    }
+}
+
 // Mode 3's events of a frame (game.h EV_*), from what the frame holds: the early and late stage reloads, the keg's BG 1 (below the stage's last row, on the line before the late
 // reload's when there is one: one palette an HBlank) and the window's: when a window is shown, BG 1 is the HUD's again from its top line (WY_REG) to its end (SPLIT_WANT, its LYC).
 // Sorted by line; a line holds one event, the later one moves down a line; the window's end line is an event only when no palette is due on it (the ISR's prologue hides the window).
@@ -324,31 +369,13 @@ void start_level(void) BANKED {
     if (is_cgb && cur_group == 0) {             // patron-rev-2: the Saloon's mid-frame palette split (game.h)
         palette_t q;
         split_arm(BGPAL_STAGE, 0, 0);
-        patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others
+        patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others (chain_cols: the same, for the fades)
         q[0] = WALL_RGB;
-        for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
+        chain_put((uint8_t *)SPLIT_PAL, q);
     } else if (is_cgb) {                        // every other venue (mode 3): the keg's BG 1 and, for a generated one (the Factory), its instances on BG 5 (reloaded early, line 31) and BG 6 (late, line 39)
-        palette_t q;
-        uint8_t e = 255, l = 255, i, kp = 255, keg = VENUE_KEG_BG(cur_group) == 1 ? BGPAL_HUD : 0;
-        uint8_t es = BGPAL_STAGE, ls = BGPAL_STAGE_B;       // (the early and the late reload's BG slot: the Factory's BG 5 ends the stage's row 3, its BG 6 the row 4)
-        if ((LOOKS_EARLY6 >> cur_group) & 1) { es = BGPAL_STAGE_B; ls = BGPAL_STAGE; }   // (the Igloo, the Chrome Cow, the Teahouse: BG 5 is on the stage's last row, BG 6 is not)
-        if (extra_on()) for (i = 0; i < 8; i++) { if (INST_BG[i] == es) e = i; else if (INST_BG[i] == ls) l = i; else if (INST_BG[i] == BGPAL_HUD) { kp = i; keg = BGPAL_HUD; } }   // (the Stadium: PETE and FRANK on BG 1, the keg on BG 0)
-        if (l == 255) { l = e; e = 255; ls = es; }   // (only one used: the one late reload)
-        if (keg || l != 255) {
-            split_arm(l == 255 ? 0 : ls, e == 255 ? 0 : es, keg);
-            if (keg) {
-                if (kp != 255) { inst_bg_pal(cur_group, kp, q); for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); KEG_PAL[k << 1] = c; KEG_PAL[(k << 1) | 1] = c >> 8; } }
-                else for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(venue.pal[VENUE_PAL_BAR_B][k]); KEG_PAL[k << 1] = c; KEG_PAL[(k << 1) | 1] = c >> 8; }
-            }
-            if (l != 255) {
-                inst_bg_pal(cur_group, l, q);
-                for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_PAL[k << 1] = c; SPLIT_PAL[(k << 1) | 1] = c >> 8; }
-            }
-            if (e != 255) {
-                inst_bg_pal(cur_group, e, q);
-                for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); SPLIT_E_PAL[k << 1] = c; SPLIT_E_PAL[(k << 1) | 1] = c >> 8; }
-            }
-        }
+        uint8_t s[6];
+        chain_sel(s);
+        if (s[2] || s[3] != 255) { split_arm(s[3] == 255 ? 0 : s[0], s[4] == 255 ? 0 : s[1], s[2]); chain_set(); }
     }
     lift_level_init(cur_group);                 // M13a: lifted-patron palettes, DMG copies, nobody lifted
     mirror_load(play_mode == MODE_LEVEL ? level_dirs : classic_dirs);   // P3: bars from the right (the harness, CLASSIC)

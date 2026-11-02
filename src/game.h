@@ -371,6 +371,7 @@ void set_lyc(uint8_t x);                      // main.c: LYC_REG = x, kept as th
 #define SET_LYC(x)  do { if (SPLIT_ON) set_lyc(x); else LYC_REG = (x); } while (0)   // (inline: the DMG and every other screen pay a test, no call)
 void split_resume(void) BANKED;               // level.c: the pause card closed on a level: the split the card's LCD-off dropped, back
 void split_plan(void) BANKED;                 // level.c: mode 3's events for this frame from SPLIT_WANT and WY_REG (call after changing either)
+void chain_cols(uint8_t *d) BANKED;           // level.c: the split's reloaded colours (the keg's, the late one's, the early one's: 3 x 8 bytes) as the venue sets them: the palette fades (trans.c) lift them with the screen
 // The window's state is what mode 3's plan keys on (level.c split_plan: with no window shown the frame has no window events). SHOW_WIN / HIDE_WIN stay GBDK's plain writes (the DMG and
 // every other screen pay nothing); main.c's update replans when the state is not what the plan was made for, and the scene change and the pause menu (trans.c, pause.c) say WIN_SYNC().
 // (the plan is stale when the window shows and it was made for none, or the window is hidden by update, not by the ISR at its end line (overlay_on says it is wanted), and it was made for one)

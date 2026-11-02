@@ -153,9 +153,45 @@ static void burst(uint8_t obj) {                             // RES -> BG (0) or
     }
 }
 
+// The Color levels' palette chain (SPLIT_ON: split_isr / split_isr3 reload BG palettes from the HRAM / scratch buffers partway down the screen, and the VBlank puts the stage's back
+// from the STG buffers). A fade writes the whole BG palette RAM in one VBlank burst, so the chain has to fade with it: its patron-side colours (chain_cols, level.c: what the venue
+// sets) are lerped to the step's level into ch, and put into the buffers right after the burst (chain_apply); the stage-side STG buffers take the burst's own
+// colours (RES, BG slot BCPS & 0x3F). No state is kept: each step starts from the venue's colours again, so the last step (k 8) leaves them exact.
+#define CH_ON      (is_cgb && SPLIT_ON)
+
+static void chain_apply(const uint8_t *ch) {
+    uint8_t k;
+    for (k = 0; k < 8; k++) {
+        if (KEG_BCPS) { KEG_PAL[k] = ch[k]; KEG_STG[k] = HRB(KEG_BCPS & 0x3F | k); }
+        if (SPLIT_L_BCPS) { SPLIT_PAL[k] = ch[8 + k]; SPLIT_STG[k] = HRB(SPLIT_L_BCPS & 0x3F | k); }
+        if (SPLIT_E_BCPS) { SPLIT_E_PAL[k] = ch[16 + k]; SPLIT_E_STG[k] = HRB(SPLIT_E_BCPS & 0x3F | k); }
+    }
+}
+
+// the chain's buffers all one colour (the screen white while a scene fades in: the LCD is off)
+static void chain_flat(void) {
+    uint8_t k;
+    for (k = 0; k < 8; k++) {
+        uint8_t c = (k & 1) ? 0x7F : 0xFF;
+        if (KEG_BCPS) KEG_PAL[k] = KEG_STG[k] = c;
+        if (SPLIT_L_BCPS) SPLIT_PAL[k] = SPLIT_STG[k] = c;
+        if (SPLIT_E_BCPS) SPLIT_E_PAL[k] = SPLIT_E_STG[k] = c;
+    }
+}
+
+// the buffers as the scene had them (o: its 64 BG colours, d: chain_cols): after a fade out that ends in the LCD off, the pause card's level comes back (split_resume)
+static void chain_back(const uint8_t *o, const uint8_t *d) {
+    uint8_t k;
+    for (k = 0; k < 8; k++) {
+        if (KEG_BCPS) { KEG_PAL[k] = d[k]; KEG_STG[k] = o[KEG_BCPS & 0x3F | k]; }
+        if (SPLIT_L_BCPS) { SPLIT_PAL[k] = d[8 + k]; SPLIT_STG[k] = o[SPLIT_L_BCPS & 0x3F | k]; }
+        if (SPLIT_E_BCPS) { SPLIT_E_PAL[k] = d[16 + k]; SPLIT_E_STG[k] = o[SPLIT_E_BCPS & 0x3F | k]; }
+    }
+}
+
 // One frame: wait for a VBlank with room for a burst / a read (lines 144-149 for a burst, to 152 for a read; a frame that ran late waits for the next, the music ticking through it),
 // then burst group g (0 BG, 1 OBJ; 2 nothing). Returns the frames it took.
-static uint8_t vframe(uint8_t g) {
+static uint8_t vframe(uint8_t g, const uint8_t *ch) {
     uint8_t f = 0, ly;
     for (;;) {
         vsync(); f++;
@@ -165,6 +201,7 @@ static uint8_t vframe(uint8_t g) {
         music_tick();
     }
     if (g < 2) burst(g);
+    if (ch) chain_apply(ch);                                  // (after the burst: the buffers are read from line 31 of the next frame on, the burst must not wait for them)
     return f;
 }
 
@@ -174,14 +211,12 @@ static void fa_tail(uint8_t f, uint8_t n, uint8_t rise) {
     if (game_state != GS_PAUSED || NR51_REG) music_tick();   // (a pause with the tune standing still, NR51 0: no tick, as main.c)
 }
 
-// RES = group g's 32 colours of `o` (64 bytes) at level k toward t; o null: all `base` at level k
-static void group(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base) {
+// q[0..n-1] = the colours p (null: all `base`) at level k toward t
+static void lerpn(uint16_t *q, const uint16_t *p, uint8_t n, uint8_t k, uint16_t t, uint16_t base) {
     uint8_t i, a = k & 4, b = k & 2, c = k & 1;
     uint16_t kk = t - part(t, k), w, r;
-    uint16_t *q = (uint16_t *)RES;
-    const uint16_t *p = (const uint16_t *)o;
-    for (i = 0; i < 32; i++) {
-        w = o ? *p++ : base;
+    for (i = 0; i < n; i++) {
+        w = p ? *p++ : base;
         if (k == 8) r = w;
         else {
             r = kk;
@@ -193,14 +228,18 @@ static void group(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base) {
     }
 }
 
-// One step, all 64 colours of `o` (null: flat `base`) to level k of t, f frames in all of at least minf; f0 / n: the volume's place in the whole fade.
-static uint8_t cstep(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base, uint8_t minf, uint8_t f0, uint8_t n, uint8_t rise) {
-    uint8_t f = 0;
+// RES = group g's 32 colours of `o` (64 bytes) at level k toward t; o null: all `base` at level k
+static void group(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base) { lerpn((uint16_t *)RES, (const uint16_t *)o, 32, k, t, base); }
+
+// One step, all 64 colours of `o` (null: flat `base`) to level k of t, f frames in all of at least minf; f0 / n: the volume's place in the whole fade; co: the chain's colours (chain_cols), null with no chain.
+static uint8_t cstep(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base, uint8_t minf, uint8_t f0, uint8_t n, uint8_t rise, const uint8_t *co) {
+    uint8_t f = 0, ch[24];
     group(o, k, t, base);
-    f += vframe(0); fa_tail(f0 + f, n, rise);
+    if (co) lerpn((uint16_t *)ch, o ? (const uint16_t *)co : 0, 12, k, t, base);
+    f += vframe(0, co ? ch : 0); fa_tail(f0 + f, n, rise);
     group(o ? o + 64 : 0, k, t, base);
-    f += vframe(1); fa_tail(f0 + f, n, rise);
-    while (f < minf) { f += vframe(2); fa_tail(f0 + f, n, rise); }
+    f += vframe(1, 0); fa_tail(f0 + f, n, rise);
+    while (f < minf) { f += vframe(2, 0); fa_tail(f0 + f, n, rise); }
     return f;
 }
 
@@ -210,7 +249,7 @@ static uint8_t cstep(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base, uin
 static uint8_t pal_in(uint8_t *o, uint8_t stash, uint8_t n, uint8_t rise) {
     uint8_t c = 0, i, f = 0;
     while (c < (stash ? 128 : 64)) {
-        f += vframe(2);
+        f += vframe(2, 0);
         if (stash) {
             CRITICAL {
                 if (c < 64) { do { o[c] = HRB(c); c++; } while (c < 64 && pal_gap()); }       // (the BG half: HRAM, no VRAM read)
@@ -259,13 +298,16 @@ static uint8_t dstep(const uint8_t *o, uint8_t k, uint8_t fr, uint8_t f0, uint8_
 static void cgb_cover(uint8_t v) {
     uint8_t s, f, fast = FAST_ON, n = fast ? 4 + 2 * 2 : 4 + 6 * FADE_STEP + (v == V_AMBER ? 3 * FADE_STEP : 0), o[128];
     uint16_t t = v == V_AMBER ? COL_AB : COL_W;
+    uint8_t ch = CH_ON, co[24];
+    if (ch) chain_cols(co);
     f = pal_in(o, 0, n, 0);
-    if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_out[s], t, 0, 2, f, n, 0);
-    else for (s = 0; s < 6; s++) f += cstep(o, k_out[s], t, 0, FADE_STEP, f, n, 0);
-    if (v == V_AMBER) for (s = 0; s < 3; s++) f += cstep(0, k_amb[s], COL_W, COL_AB, FADE_STEP, f, n, 0);
+    if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_out[s], t, 0, 2, f, n, 0, ch ? co : 0);
+    else for (s = 0; s < 6; s++) f += cstep(o, k_out[s], t, 0, FADE_STEP, f, n, 0, ch ? co : 0);
+    if (v == V_AMBER) for (s = 0; s < 3; s++) f += cstep(0, k_amb[s], COL_W, COL_AB, FADE_STEP, f, n, 0, ch ? co : 0);
     volume(0);
     lcd_off_p();                                                 // (TR_WANT is already clear: the plain way) the LCD goes off in the white
     if (game_state != GS_PAUSED) music_pump();                   // (the tick that fell due while the LCD went off)
+    if (ch) chain_back(o, co);
     BCPS_REG = 0x80;                                             // the scene's own colours back (LCD off: palette RAM is free)
     for (s = 0; s < 64; s++) BCPD_REG = o[s];
     if (game_state != GS_PAUSED) music_pump();
@@ -303,6 +345,7 @@ static void fade_arm(void) {                                     // LCD off, the
             }
         }
         VBK_REG = VBK_BANK_0;
+        if (SPLIT_ON) chain_flat();                              // (the chain, armed by the scene, reloads white too until the fade-in's steps give it the colours)
     } else {                                                     // (the same for the DMG palettes: white is 0)
         if (!a || BGP_REG) h[0] = BGP_REG;
         if (!a || OBP0_REG) h[1] = OBP0_REG;
@@ -312,14 +355,15 @@ static void fade_arm(void) {                                     // LCD off, the
 }
 
 static void fade_reveal(void) {                                  // LCD on, white: the new scene's colours come in
-    uint8_t s, f = 0, n, o[128], fast = FAST_ON;
+    uint8_t s, f = 0, n, o[128], fast = FAST_ON, co[24];
+    if (CH_ON) chain_cols(co);
     if (game_state != GS_PAUSED) music_tick();                   // (the tick the main loop would give straight after DISPLAY_ON: the first vsync below is ~1 frame away)
     if (is_cgb) {
         n = fast ? 4 + 2 * 2 + 2 : 4 + 5 * FADE_STEP + 2;
         f = pal_in(o, 1, n, 1);                                  // (4 frames of white while the colours are read back)
-        if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_in[s], COL_W, 0, 2, f, n, 1);
-        else for (s = 0; s < 5; s++) f += cstep(o, k_in[s], COL_W, 0, FADE_STEP, f, n, 1);
-        cstep(o, 8, 0, 0, 2, f, n, 1);
+        if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_in[s], COL_W, 0, 2, f, n, 1, CH_ON ? co : 0);
+        else for (s = 0; s < 5; s++) f += cstep(o, k_in[s], COL_W, 0, FADE_STEP, f, n, 1, CH_ON ? co : 0);
+        cstep(o, 8, 0, 0, 2, f, n, 1, CH_ON ? co : 0);
     } else {
         uint8_t fr = fast ? 2 : FADE_DMG;
         n = 2 + 2 * fr + 1;
@@ -370,8 +414,8 @@ void trans_card_in(void) BANKED {
     tick_sync();
     DISPLAY_ON;
     vsync(); keep_win(); f++; fa_tail(f, n, 1);                  // (the LCD's first frame is not whole: white)
-    for (s = 0; s < 2; s++) f += cstep(o, kc_in[s], COL_W, 0, 2, f, n, 1);
-    cstep(o, 8, 0, 0, 2, f, n, 1);
+    for (s = 0; s < 2; s++) f += cstep(o, kc_in[s], COL_W, 0, 2, f, n, 1, 0);
+    cstep(o, 8, 0, 0, 2, f, n, 1, 0);
     volume(7);
 }
 
@@ -563,7 +607,7 @@ uint8_t trans_cast(uint8_t *o, uint8_t in, uint8_t hdr) BANKED {      // in 0: t
             k = in ? k_ci[s] : k_co[s];
             for (g = 0; g < 2; g++) {
                 group_t(g ? o + 64 : o, k, s || g, !g && !hdr);            // (the first group's frame has had its tick)
-                f += vframe(g);
+                f += vframe(g, 0);
             }
         }
     } else {
@@ -586,6 +630,6 @@ uint8_t trans_cast(uint8_t *o, uint8_t in, uint8_t hdr) BANKED {      // in 0: t
 }
 
 void trans_cast_set(uint8_t *o) BANKED {                  // the colours in o to the hardware at once (in the VBlank)
-    if (is_cgb) { group(o, 8, 0, 0); vframe(0); group(o + 64, 8, 0, 0); vframe(1); }
+    if (is_cgb) { group(o, 8, 0, 0); vframe(0, 0); group(o + 64, 8, 0, 0); vframe(1, 0); }
     else { BGP_REG = o[0]; OBP0_REG = o[1]; OBP1_REG = o[2]; }
 }
