@@ -825,40 +825,17 @@ def test_centring_audit_of_every_card(model):
         mid = (head + 144) / 2                                               # the middle of the space under the header (the screen without one)
         out[names[c]] = {"x0": int(cols[0]), "x1": int(cols[-1]) + 1, "centre_x": (int(cols[0]) + int(cols[-1]) + 1) / 2 - 80,
                          "y0": int(brows[0]), "y1": int(brows[-1]) + 1, "centre_y": (int(brows[0]) + int(brows[-1]) + 1) / 2 - mid}
-    with roll_from_bonus(model, sound=False) as gb:             # the title card, the roll's lines, the robot band, the last words
+    with roll_from_bonus(model, sound=False) as gb:             # the title card (the roll's lines are checked by test_the_roll_shows_every_line_centred_...)
         at(gb, CARD_START[0] + 60)
         m = ink(gb.image())
         cols = np.where(m.any(axis=0))[0]
         out["title"] = {"x0": int(cols[0]), "x1": int(cols[-1]) + 1, "centre_x": (int(cols[0]) + int(cols[-1]) + 1) / 2 - 80}
-        at(gb, ROLL + 12, settle=80)
-        worst_line = 0
-        lines = {}
-        band = None
-        for f in range(ROLL_START, SCROLL_END + 60, 6):
-            set_t(gb, f)
-            gb.run(1)
-            im = gb.image().convert("RGB")
-            a = np.asarray(im)
-            for r in visible_rows(gb):
-                t = row_text(gb, r)
-                if t:
-                    lines[t] = ink_centre([n for rr, n in matched_rows(gb) if rr == r][0]) - 80
-            xs = [s["x"] for s in gb.visible_sprites() if s["tile"] in (100, 102, 106, 108, 112, 114, 118, 0, 2, 4, 6) or s["tile"] < 56]
-            if xs and band is None:
-                sp = gb.visible_sprites()
-                if len(sp) >= 8:
-                    band = (min(s["x"] for s in sp) - 8, max(s["x"] for s in sp) - 8 + 8)
-        out["roll lines (px from the centre; odd-length lines are half a tile left)"] = lines
-        if band:
-            out["robot band"] = {"x0": band[0], "x1": band[1], "centre_x": (band[0] + band[1]) / 2 - 80}
-        worst_line = max(abs(v) for v in lines.values())
     cards = {k: v for k, v in out.items() if isinstance(v, dict) and "centre_x" in v}
     worst = sorted(cards.items(), key=lambda kv: -abs(kv[1]["centre_x"]))
     (ROOT / "out").mkdir(exist_ok=True)
     (ROOT / "out" / f"credits_offsets.{model}.json").write_text(json.dumps({"worst_first": [k for k, _ in worst], **out}, indent=1))
     print("\nworst offenders (px from the screen centre):", [(k, v["centre_x"]) for k, v in worst[:5]])
     assert all(abs(v["centre_x"]) <= 6 for v in cards.values()), [(k, v["centre_x"]) for k, v in worst[:5]]
-    assert worst_line <= 1, "a text line is centred to the pixel"
     worst_y = sorted(cards.items(), key=lambda kv: -abs(kv[1].get("centre_y", 0)))
     print("worst vertical offsets (px from the middle of the space under the header):", [(k, v.get("centre_y")) for k, v in worst_y[:5]])
     assert all(abs(v["centre_y"]) <= 4 for v in cards.values() if "centre_y" in v), [(k, v["centre_y"]) for k, v in worst_y[:5]]
