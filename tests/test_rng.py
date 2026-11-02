@@ -5,6 +5,7 @@
 # switch (0 in every test ROM), switches both off so the tests' fixed seeds stay; these tests load the ROM as built.
 # Played here as a player would (arcade, random keys), the Stadium (group 1), the spawn timer forced to 0 so a run has hundreds of spawns.
 import collections
+import multiprocessing
 import random
 import re
 
@@ -73,6 +74,10 @@ def play_picks(model, wait, frames, seed=1, group=1):
     return picks
 
 
+def _stadium_run(wait, seed):
+    return play_picks("cgb", wait, 90000, seed)
+
+
 def test_the_seed_switch_byte_is_the_free_rom0_padding(model):
     assert ROM.read_bytes()[0x3FFD] == 0xFF, "0xFF as built: the DIV mixing is on (every test ROM has it 0, conftest.seeding())"
 
@@ -102,9 +107,10 @@ def test_two_title_timings_give_different_spawn_sequences(model):
 @pytest.mark.only_model("cgb")
 @pytest.mark.timeout(600)
 def test_the_stadium_picks_are_uniform_and_not_locked_to_a_few_successors(model):
-    picks = []
-    for wait, seed in ((0, 1), (37, 2), (171, 3), (90, 4), (213, 5)):
-        picks += play_picks("cgb", wait, 90000, seed)
+    # the five runs play at once, one forked process each (they share nothing); the picks are joined in the same order as a serial run
+    runs = ((0, 1), (37, 2), (171, 3), (90, 4), (213, 5))
+    with multiprocessing.get_context("fork").Pool(len(runs)) as pool:
+        picks = [p for r in pool.starmap(_stadium_run, runs) for p in r]
     assert len(picks) >= 1000, len(picks)
     x2, distinct = chi2(picks, 50)
     assert distinct == 50, "every one of the Stadium's 50 (look, palette) pairs comes up"
