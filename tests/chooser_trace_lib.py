@@ -81,7 +81,8 @@ def run_cases(rom, model, cases):
     rig = Rig(rom, model)
     tab = Table(rig)
     res = rig.run([call(c) for c in cases], frames_max=3 * len(cases) + 100)
-    return [{tab.name(a): v for a, v in r.diff.items() if a not in tab.scratch} for r in res], res
+    # (render:_attr_x, the dirty spans' attribute bookkeeping, is not a decision: since the glitch hunt (2026-11-01) a changed flag marks the patron's attributes dirty too, md_g)
+    return [{n: v for a, v in r.diff.items() if a not in tab.scratch for n in [tab.name(a)] if not n.startswith("render:_attr_x")} for r in res], res
 
 
 def load(path=DATA):
