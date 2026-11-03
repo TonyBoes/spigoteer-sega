@@ -124,6 +124,8 @@ def test_the_show_tables():
         v = venue(t)
         tab, band = v["show_table"], v["show_band"]
         assert len(tab) == 6 and all(len(r) == 4 for r in tab), t
+        if v.get("show_ext"):
+            continue                                 # (per-performer loops, any number of frames: tests/test_show_ext.py)
         assert band == (v["show_frames"] == 6), t
         assert all(0 <= x < 32 and x % 2 == 0 for r in (tab if band else tab[:4]) for x in r), t     # (a dance's rows 4-5 are its step table: tests/test_show_three.py)
         if not band:
@@ -258,6 +260,8 @@ def test_the_show_uses_the_venue_performers(gb, group):
     ds = [s for s in gb.visible_sprites() if OBJ_DANCER <= s["tile"] < OBJ_DANCER + 32]
     assert len(ds) == 12, "three performers of 4 entries"
     assert obj_vram(gb, OBJ_DANCER, 32) == bytes(v["show"])
+    if v.get("show_ext"):
+        return                                       # (per-performer loops: tests/test_show_ext.py)
     check_show_rows(gb, v)
 
 
