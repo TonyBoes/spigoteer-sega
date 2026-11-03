@@ -502,7 +502,7 @@ def test_patron_obj_palettes_and_dmg_copies(gb):
 def test_the_coin_wears_sals_palette_and_slot_5_is_the_shows_alone(gb):
     """Owner Q37: the tip coin uses Sal's OBJ palette 0 (pale gold on the coin shape), with or without a show; OBJ 5 holds the venue's
     show palette and a coin never swaps it (it used to take the dancers' colours when a tip dropped during a show)."""
-    from conftest import venue
+    from conftest import venue, logic_paused
     from test_tips import coin_sprites
     show = venue(0)["pal"][6]
     cgb = gb.model_name == "cgb"
@@ -522,23 +522,25 @@ def test_the_coin_wears_sals_palette_and_slot_5_is_the_shows_alone(gb):
     if cgb:
         assert (cgb_obj_palette(gb, 5)[1:] == show5[1:]) if show5 else (cgb_obj_palette(gb, 5)[1:] == show[1:]), "slot 5 untouched by the coin"
         assert cgb_obj_palette(gb, 0)[1:] != show[1:]
-    gb.write("show_timer", 100)
+    with logic_paused(gb):
+        gb.write("show_timer", 100)
     gb.run(3)
     cs = coin_sprites(gb)
     assert len(cs) == 1 and cs[0]["flags"] & 7 == 0, "a tip during a show: still Sal's palette"
     if cgb:
-        assert cgb_obj_palette(gb, 5)[1:] == show[1:] and gb.mem("pal5_cur") == 2, "the show: its colours"
-    gb.write("show_timer", 0)
-    gb.write("tip_timer", 0)
+        assert cgb_obj_palette(gb, 5)[1:] == show[1:] and gb.mem("pal5_cur") == (3 if gb.mem("cur_group") == 0 else 2), "the show: its colours at the top of the frame (the Saloon: the patron's again below the dancers, pal5_cur 3)"
+    with logic_paused(gb):
+        gb.write("show_timer", 0)
+        gb.write("tip_timer", 0)
     if cgb and show5:                        # the show ended: the Saloon's 5th palette instance is back in slot 5
         gb.run(3)
         assert cgb_obj_palette(gb, 5)[1:] == show5[1:] and gb.mem("pal5_cur") == 0, "slot 5 given back after the show"
 
 
-def test_a_lifted_5th_instance_patron_keeps_his_colours_through_a_show_and_none_is_lifted_during_one():
-    """Color Saloon: palette instance 4 (MABEL, ARTIE) is OBJ 5 as a sprite, the slot the show's dancers use. A show starting
-    while one is lifted waits (no dancers, slot 5 his) until he is dropped; during a show none is lifted at all."""
-    from test_venues import cgb_palette
+def test_a_lifted_5th_instance_patron_keeps_his_colours_through_a_show_and_the_dancers_do_not_wait():
+    """Color Saloon: palette instance 4 (MABEL, ARTIE) is OBJ 5 as a sprite, the slot the show's dancers use. Owner 2026-11-02 (Q7 a): the dancers have OBJ 5 above
+    the stage's last line (the show's colours, written in the VBlank), the patron below it (his own, written back in an HBlank), so a show neither waits for him
+    nor benches him: dancers at once, his lift stays, and a lift of his during a show is allowed (the pixels: tests/test_show_obj5.py)."""
     g = boot_play("cgb")
     try:
         assert g.mem("cur_group") == 0
@@ -548,23 +550,21 @@ def test_a_lifted_5th_instance_patron_keeps_his_colours_through_a_show_and_none_
         p4, p3 = slot[(0, 20)], slot[(0, 60)]
         g.write(g.addr("patron_variant") + p4, 4 << 3)      # look 0, palette instance 4
         g.write(g.addr("patron_variant") + p3, 0)
-        mine = cgb_palette(g, 5, obj=True)
         hook(g, p4, HOOK_LIFT)
         g.run(4)
         assert g.mem("lift_hook_res") == 1 and g.read("patron_lift", MAX_P)[p4], "lifted before the show"
         g.write("show_timer", 200)
         g.write(g.addr("show_timer") + 1, 0)
         g.run(12)
-        assert g.mem("pal5_cur") == 0 and cgb_palette(g, 5, obj=True) == mine, "slot 5 stays his"
-        assert not any(s["y"] for s in g.oam()[OAM_DANCERS:]), "no dancers in his colours"
+        assert g.mem("pal5_cur") == 3, "the chain: the show's colours above the stage, his below"
+        assert any(s["y"] for s in g.oam()[OAM_DANCERS:]), "the dancers do not wait for him"
+        assert g.read("patron_lift", MAX_P)[p4], "he stays lifted"
         hook(g, p4, HOOK_DROP)
         g.run(40)
         assert not g.read("patron_lift", MAX_P)[p4]
-        assert g.mem("pal5_cur") == 2 and cgb_palette(g, 5, obj=True) != mine, "the show's colours once he is down"
-        assert any(s["y"] for s in g.oam()[OAM_DANCERS:]), "dancers"
-        hook(g, p4, HOOK_LIFT)                               # a lift of his during the show: refused
+        hook(g, p4, HOOK_LIFT)                               # a lift of his during the show: allowed now
         g.run(4)
-        assert not g.read("patron_lift", MAX_P)[p4]
+        assert g.read("patron_lift", MAX_P)[p4]
         hook(g, p3, HOOK_LIFT)                               # any other look lifts as before
         g.run(4)
         assert g.read("patron_lift", MAX_P)[p3]

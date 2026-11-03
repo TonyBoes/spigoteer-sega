@@ -17,7 +17,7 @@
 uint8_t row_buf[20];
 uint8_t pal5_cur;                 // CGB OBJ palette 5 holds the show (2) or not (0, 1: something else) (load_venue loads the show's); see pal5_check
 volatile uint8_t pal5_req;        // bit 0: OBJ palette 5, the show's (pal5_write); bit 1: the Mothership's lights (boss_mothership.c lights; pal5_other)
-static const uint16_t *pal5_src;
+const uint16_t *pal5_src;
 uint16_t pal5_lifted[4];       // SCREEN BRIGHT: the show's colours lifted, written raw by the VBlank (bright.c pal5_lift)
 static void pal5_write(void);
 uint8_t score_tiles[6];      // the HUD digits as BG tile ids, prepared outside VBlank
@@ -785,20 +785,13 @@ static void draw_coin(void) {
     o->prop = OBJPAL_BARTENDER;          // (owner Q37: Sal's palette reads as pale gold; OBJ 5 is the show's alone. DMG: palette 0 too)
 }
 
-// CGB OBJ palette 5: the show's (the coin wears Sal's OBJ 0). Loaded with the venue; this reloads it if something else (a fight) had it. Asked for at the end of the frame's
-// drawing, written by the VBlank interrupt (vq_vbl) right after the OAM DMA that shows the frame.
+// CGB OBJ palette 5: the show's (the coin wears Sal's OBJ 0). Loaded with the venue; a show asks for its colours (level.c show_pal5: for a venue whose palette instance 4 is OBJ 5 they go in every VBlank and the patron's
+// colours back in the HBlank under the dancers, pal5_cur 3). Asked for at the end of the frame's drawing, written by the VBlank interrupt (vq_vbl) right after the OAM DMA that shows the frame.
 static void pal5_check(void) {
     if (!is_cgb) return;
     WIN_FIX();   // (mode 3, here because the DMG never gets this far: the window is not what the plan was made for: the ISR hid it at the plan's end line, or update just showed it)
-    if (!show_timer) {                            // the Saloon and the Factory (Color) keep their 5th palette instance in OBJ 5 (lift.c): back from the show's colours when the show ends
-        if (pal5_cur == 2 && !((LOOKS_SHOW5 >> cur_group) & 1) && (SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS))) { if (cur_group) { pal5_inst4(cur_group); pal5_src = pal5_lifted; } else pal5_src = (const uint16_t *)SPLIT_PAL; pal5_cur = 0; pal5_req = 1; }   // (the Saloon: SPLIT_PAL is that instance, already lifted for SCREEN BRIGHT; a generated venue's instance 4 need not be on the chain's late slot)
-        return;
-    }
-    if (pal5_cur == 2 || ((SPLIT_ON == 1 || (SPLIT_ON && SPLIT_L_BCPS)) && lift_pi4())) return;   // (the Saloon, Color: a lifted patron wearing the 5th instance keeps OBJ 5 until he is gone: no new lift of one during a show, lift.c try_lift)
-    if (SCR_BRIGHT()) { pal5_lift(); pal5_src = pal5_lifted; }   // SCREEN BRIGHT: the VBlank writes pal5_lifted raw, so the show's colours are lifted into it here (src/bright.c)
-    else pal5_src = venue.pal[VENUE_PAL_SHOW];
-    pal5_cur = 2;
-    pal5_req = 1;
+    if (!show_timer) { if (pal5_cur & 1) show_pal5(0); return; }
+    if (pal5_cur < 2) show_pal5(1);
 }
 
 static void pal5_other(void) {                    // (a lights request: off the coin's own path, VBlank cycles are tight; a fight has no coin, so none waits with it)
@@ -818,7 +811,7 @@ static void pal5_write(void) {
     OCPD_REG = s[0]; OCPD_REG = s[1]; OCPD_REG = s[2]; OCPD_REG = s[3];     // (unrolled: the compare above is paid for; this runs in every frame the coin changes)
     s += 4;
     OCPD_REG = s[0]; OCPD_REG = s[1]; OCPD_REG = s[2]; OCPD_REG = s[3];
-    pal5_req = 0;
+    if (pal5_cur != 3) pal5_req = 0;                                        // (3: a show's colours go in every VBlank, until show_pal5 ends it)
 }
 
 void draw_stage_fx(void) {
@@ -826,7 +819,7 @@ void draw_stage_fx(void) {
     draw_coin();
     if (shadow_OAM[OAM_COIN - 1].y || (tip_timer && tip_pocket && TIP2->t)) tip_draw2();   // (the second coin, OAM 26: src/tip.c, banked, so only when it shows or must be hidden)
     pal5_check();
-    if (!show_timer || (is_cgb && pal5_cur != 2)) {                // (Color: the dancers wait for their colours, pal5_check)
+    if (!show_timer || (is_cgb && pal5_cur < 2)) {                 // (Color: the dancers wait for their colours, pal5_check)
         if (dancers_vis) {
             OAM_item_t *o = shadow_OAM + OAM_DANCERS;
             for (k = 0; k < NUM_DANCERS * 4; k++) o[k].y = 0;

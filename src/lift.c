@@ -128,7 +128,8 @@ void lift_level_init(uint8_t g) BANKED {
         }
         if (n >= 5) for (v = 3; v < 8; v++) if (v != 5 && !(m & (1 << v))) set_sprite_palette(v, 1, p);   // (a generated venue's free OBJ slot, the Stadium's 3: a level start sets it, so no mini-game's colours stay in it)
         if (n < 5) set_sprite_palette(OBJPAL_PATRON_D, 1, p);   // (OBJ 4 is no patron's outside the Saloon and the generated venues: a level start sets it, so no mini-game's or story scene's colours stay in it)
-        else if (!((LOOKS_SHOW5 >> cur_group) & 1)) pal5_cur = 0;       // (the 5th instance is the one the show takes OBJ 5 from; the Space Lounge's VENUS wears the show's colours, a venue's own OBJ 5 stays)
+        else if (OBJ5_CHAIN()) pal5_cur = 0;     // (instance 4 is OBJ 5: the patron's, the show's colours above the stage during a show, level.c show_pal5; the Space Lounge's VENUS wears the show's colours, the Zoo's 5th is OBJ 4)
+        pal5_req = 0;                                 // (a request of the last level: its colours are not these)
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         spr_hempty_t = OBJ_MUG_DRINK + 6;    spr_hempty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
@@ -459,19 +460,9 @@ static void forced_drops(void) {
         force_out(p);
 }
 
-// Palette instance 4 (patron_variant, render.c patron_attr) is OBJ 5 as a sprite: the show's colours (the dancers) take that slot while a show runs.
-#define PI4(v) ((((v) ^ ((v) >> 3)) & 7) == 4)
-uint8_t lift_pi4(void) BANKED {
-    uint8_t p;
-    if ((LOOKS_SHOW5 >> cur_group) & 1) return 0;            // (the 5th instance is not a swapped palette: a venue whose OBJ 5 is the show's colours already (VENUS) or whose 5th is another OBJ slot)
-    for (p = 0; p != MAX_PATRONS; p++) if (patron_lift[p] && PI4(patron_variant[p])) return 1;
-    return 0;
-}
-
 // The hook's lift: 0 refused, 1 done, 2 not this frame.
 static uint8_t try_lift(uint8_t p, uint8_t mode) {
     uint8_t b = patron_bar[p] & (NUM_BARS - 1), d = patron_draw[p];
-    if (show_timer && !((LOOKS_SHOW5 >> cur_group) & 1) && PI4(patron_variant[p])) return 0;   // (the Saloon and the Factory on Color: during a show OBJ 5 is the dancers')
     if (patron_state[p] == PATRON_NONE || patron_lift[p] || d == 255 || (d & DRAW_BACK) || patron_dist[p]) return 0;
     if (lift_total >= LIFT_MAX || lift_n[b] >= LIFT_PER_BAR) return 0;
     if (mugs_live + ((lift_total + 1) << 1) > MUG_OAM_ALL - OAM_SPARE) return 0;   // (cheap first: mugs_live <= their entries)

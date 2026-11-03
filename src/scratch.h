@@ -59,6 +59,16 @@ typedef char scr_keg_below_cap[SCR_KEG_AT + SCR_KEG_N <= SCR_CAP_AT ? 1 : -1];
 typedef char scr_keg2_above_tip2[SCR_TIP2_AT + SCR_TIP2_N <= SCR_KEG2_AT ? 1 : -1];
 typedef char scr_keg2_below_split[SCR_KEG2_AT + SCR_KEG2_N <= SCR_SPLIT_AT ? 1 : -1];
 
+// ---- OBJ palette 5 while a show plays (src/game.h OBJ_PAT / OBJ_SHOW): alive with every level screen on Color (a fight's level included). Two gaps: 218..229 (above the second tip coin, under the belt's 218) and 289..299 (under the staging buffer)
+#define SCR_OBJ_AT       218     // 8 bytes: the patron's colours of OBJ 5, written in HBlank below the dancers by split_isr3 (EV_OBJ)
+#define SCR_OBJ_N        8
+#define SCR_OBJ2_AT      289     // 8 bytes: the show's colours of OBJ 5, written in every VBlank (render.c pal5_write)
+#define SCR_OBJ2_N       8
+typedef char scr_obj_above_belt[SCR_BELT_AT + SCR_BELT_N <= SCR_OBJ_AT ? 1 : -1];
+typedef char scr_obj_below_tip2[SCR_OBJ_AT + SCR_OBJ_N <= SCR_TIP2_AT ? 1 : -1];
+typedef char scr_obj2_above_keg[SCR_KEG_AT + SCR_KEG_N <= SCR_OBJ2_AT ? 1 : -1];
+typedef char scr_obj2_below_cap[SCR_OBJ2_AT + SCR_OBJ2_N <= SCR_CAP_AT ? 1 : -1];
+
 // ---- the one-line menus (src/oneline.h: SOUNDTRACK, MINI GAMES, BOSS RUSH's list): alive only while one of them shows, with that screen's row buffers ------------
 #define SCR_EVT_AT       369     // 18 bytes (the gap above the one-line menus' state, under the Boss Rush struct): the frame's events (line, kind) x 8 and the sentinel (game.h EV_*)
 #define SCR_EVT_N        18

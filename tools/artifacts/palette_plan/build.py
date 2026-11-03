@@ -78,6 +78,7 @@ IDEAS = [
 ]
 
 LOG = [
+    ("2026-11-02", "Q7 (owner, a): the stage show's dancers get their own OBJ palette above the stage line and the patrons on that slot keep their own look during shows. Built: a mid-frame OBJ 5 write on line 35 (Color only); no plan colour changes."),
     ("2026-11-01", "Page/generator fix restoring the owner's BG = OBJ colours rule: Stadium BG 7 showed NORM's colours (the plan's BG recolour 'as OBJ 0' hit the game's BG 4, SERENA's, not NORM's BG 3). Now BG 3 = NORM as OBJ 0 and BG 7 = SERENA as OBJ 7 (#B47B52 #295ADE #000000), with the boss body."),
     ("2026-11-01", "Page/generator fix restoring the owner's BG = OBJ colours rule: Lodge BOONE and PIP (OBJ 1, the Sasquatch's colours) were listed on BG 2, which is CEDAR's in the playfield. They are now on the free BG 6 as OBJ 1 (#F6E6C5 #834A29 #291010); BG 2 keeps CEDAR and WILLOW."),
     ("2026-11-01", "Page/generator fix restoring the owner's BG = OBJ colours rule: Space BG 3 showed XENO's colours with XENO and VENUS (Q53 says the bar BG 0 takes XENO's colours and XENO walks in it). Now XENO is listed on BG 0 and BG 3 = VENUS as OBJ 5 (#DEFFD5 #AC4ADE #182041). The self-check now fails on any patron whose BG colours 1-3 differ from its OBJ palette's (not the Saloon)."),

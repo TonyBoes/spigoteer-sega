@@ -45,7 +45,7 @@ def pack(img):
     return a[:, :, 0] | (a[:, :, 1] << 5) | (a[:, :, 2] << 10)
 
 
-def scene_change(old, variant, ds, model="cgb", bright=False):
+def scene_change(old, variant, ds, model="cgb", bright=False, setup=None, sprites=False):
     """Venue `old` playing (no transitions), then the next level's start with the fade on: every frame of it."""
     new = (old + 1) % 10
     cm = double_speed() if ds else contextlib.nullcontext()
@@ -57,6 +57,8 @@ def scene_change(old, variant, ds, model="cgb", bright=False):
         if old or bright:
             goto_group(gb, old)
         gb.run(10)
+        if setup:                                    # (tests/test_show_obj5.py: a show over a lifted patron, the sprites on)
+            setup(gb)
         trans_enable(gb, True)
         gb.pb.memory[TRANS_ADDR] = (gb.pb.memory[TRANS_ADDR] & ~0x60) | (variant << 5)
         gb.write("level", new)
@@ -71,7 +73,8 @@ def scene_change(old, variant, ds, model="cgb", bright=False):
         known = set()
         frames = [pack(gb.image())]
         for _ in range(FRAMES):
-            gb.write(0xFF40, gb.read(0xFF40, 1)[0] & ~2)         # (sprites off: their palettes follow the BG ones a frame later, and this is about the BG chain)
+            if not sprites:
+                gb.write(0xFF40, gb.read(0xFF40, 1)[0] & ~2)     # (sprites off: their palettes follow the BG ones a frame later, and this is about the BG chain)
             gb.run(1)
             frames.append(pack(gb.image()))
         for _ in range(3):                           # (the new scene settled: its palettes' colours, the sprites' too)
@@ -83,9 +86,16 @@ def scene_change(old, variant, ds, model="cgb", bright=False):
             for n in range(8):
                 known |= set(cgb_palette(gb, n, obj))
         assert gb.mem("cur_group") == new
+        if sprites:                                  # (the chain's own colours too: the reloaded palettes and OBJ 5's two sets, wherever a patron or a dancer of the new scene shows them)
+            sc, m = gb.addr("story_scratch"), gb.pb.memory
+            for a in (sc + 270, sc + 238, sc + 218, sc + 289, 0xFFD6):
+                known |= {m[a + 2 * i] | m[a + 2 * i + 1] << 8 for i in range(4)}
         return frames, known
     finally:
         gb.stop()
+
+
+scene_change_frames = scene_change
 
 
 def level_sets(known):

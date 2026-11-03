@@ -166,6 +166,9 @@ static void chain_apply(const uint8_t *ch) {
         if (SPLIT_L_BCPS) { SPLIT_PAL[k] = ch[8 + k]; SPLIT_STG[k] = HRB(SPLIT_L_BCPS & 0x3F | k); }
         if (SPLIT_E_BCPS) { SPLIT_E_PAL[k] = ch[16 + k]; SPLIT_E_STG[k] = HRB(SPLIT_E_BCPS & 0x3F | k); }
     }
+    if (OBJ5_CHAIN() && (pal5_cur & 1)) CRITICAL {      // (OBJ 5 of a show: the patron's and the show's, faded with the screen; atomic, the line-35 handler reads them mid-frame)
+        for (k = 0; k < 8; k++) { OBJ_PAT[k] = ch[24 + k]; OBJ_SHOW[k] = ch[32 + k]; }
+    }
 }
 
 // the chain's buffers all one colour (the screen white while a scene fades in: the LCD is off)
@@ -176,6 +179,7 @@ static void chain_flat(void) {
         if (KEG_BCPS) KEG_PAL[k] = KEG_STG[k] = c;
         if (SPLIT_L_BCPS) SPLIT_PAL[k] = SPLIT_STG[k] = c;
         if (SPLIT_E_BCPS) SPLIT_E_PAL[k] = SPLIT_E_STG[k] = c;
+        if (pal5_cur & 1) OBJ_PAT[k] = OBJ_SHOW[k] = c;
     }
 }
 
@@ -186,6 +190,9 @@ static void chain_back(const uint8_t *o, const uint8_t *d) {
         if (KEG_BCPS) { KEG_PAL[k] = d[k]; KEG_STG[k] = o[KEG_BCPS & 0x3F | k]; }
         if (SPLIT_L_BCPS) { SPLIT_PAL[k] = d[8 + k]; SPLIT_STG[k] = o[SPLIT_L_BCPS & 0x3F | k]; }
         if (SPLIT_E_BCPS) { SPLIT_E_PAL[k] = d[16 + k]; SPLIT_E_STG[k] = o[SPLIT_E_BCPS & 0x3F | k]; }
+    }
+    if (OBJ5_CHAIN() && (pal5_cur & 1)) CRITICAL {
+        for (k = 0; k < 8; k++) { OBJ_PAT[k] = d[24 + k]; OBJ_SHOW[k] = d[32 + k]; }
     }
 }
 
@@ -233,9 +240,9 @@ static void group(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base) { lerp
 
 // One step, all 64 colours of `o` (null: flat `base`) to level k of t, f frames in all of at least minf; f0 / n: the volume's place in the whole fade; co: the chain's colours (chain_cols), null with no chain.
 static uint8_t cstep(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base, uint8_t minf, uint8_t f0, uint8_t n, uint8_t rise, const uint8_t *co) {
-    uint8_t f = 0, ch[24];
+    uint8_t f = 0, ch[40];
     group(o, k, t, base);
-    if (co) lerpn((uint16_t *)ch, o ? (const uint16_t *)co : 0, 12, k, t, base);
+    if (co) lerpn((uint16_t *)ch, o ? (const uint16_t *)co : 0, OBJ5_CHAIN() ? 20 : 12, k, t, base);
     f += vframe(0, co ? ch : 0); fa_tail(f0 + f, n, rise);
     group(o ? o + 64 : 0, k, t, base);
     f += vframe(1, 0); fa_tail(f0 + f, n, rise);
@@ -298,7 +305,7 @@ static uint8_t dstep(const uint8_t *o, uint8_t k, uint8_t fr, uint8_t f0, uint8_
 static void cgb_cover(uint8_t v) {
     uint8_t s, f, fast = FAST_ON, n = fast ? 4 + 2 * 2 : 4 + 6 * FADE_STEP + (v == V_AMBER ? 3 * FADE_STEP : 0), o[128];
     uint16_t t = v == V_AMBER ? COL_AB : COL_W;
-    uint8_t ch = CH_ON, co[24];
+    uint8_t ch = CH_ON, co[40];
     if (ch) chain_cols(co);
     f = pal_in(o, 0, n, 0);
     if (fast) for (s = 0; s < 2; s++) f += cstep(o, kc_out[s], t, 0, 2, f, n, 0, ch ? co : 0);
@@ -355,7 +362,7 @@ static void fade_arm(void) {                                     // LCD off, the
 }
 
 static void fade_reveal(void) {                                  // LCD on, white: the new scene's colours come in
-    uint8_t s, f = 0, n, o[128], fast = FAST_ON, co[24];
+    uint8_t s, f = 0, n, o[128], fast = FAST_ON, co[40];
     if (CH_ON) chain_cols(co);
     if (game_state != GS_PAUSED) music_tick();                   // (the tick the main loop would give straight after DISPLAY_ON: the first vsync below is ~1 frame away)
     if (is_cgb) {
