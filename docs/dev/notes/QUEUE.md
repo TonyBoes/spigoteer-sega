@@ -219,3 +219,5 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - Owner 2026-11-02: "Give me the cheerleader kick" -> sent sports_show_p6 frame 1 (kick right, on his new front) as sports_p6_kick.png; wait for his edit.
 - Saloon p9 merged 2026-11-02 (frame 1 = owner's kick; frame 3 kick left: lower body from his kick flipped then hand-fixed, head/torso not mirrored, shifted 1 col right; weak: carried-over skin patch/purple strip on the non-kick side). Q8 now asks about p9.
 - Owner 2026-11-02 sent his cheerleader kick (sports_owner_kick.png) -> frame 1 of sports_show_p7_base.txt; gb-artist redraws frame 3 (kick left) to match -> p7.
+- Owner 2026-11-02 sent his Saloon kick left ("Saloon kick l", saloon_owner_kick_l.png) -> saloon_show_p10.txt = his front, his kick R, hop (agent), his kick L; builds clean in a scratch worktree with saloon_show_pal_owner.json. Q8 now asks about p10.
+- Stadium p7 merged 2026-11-02 (frame 1 = owner's kick; frame 3 kick left hand-drawn in his style; weak: dark pom/hair/foot cluster on the left in frame 3, plainer torso than his). Q9 now asks about p7.
