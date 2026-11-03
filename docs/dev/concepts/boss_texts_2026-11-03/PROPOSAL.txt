@@ -1,0 +1,366 @@
+BOSS INSTRUCTION TEXTS: REVIEW AND PROPOSAL (2026-11-03)
+Branch review/boss-texts. PROPOSAL ONLY: no source was changed. Owner ask 2026-11-03: "the text instructions for big tex seem a little incoherent. Can you review all of the boss instructions?"
+
+LIMITS (read from the code)
+- Card page (src/mg_card.c, drawn by mg_card_page / line()): a title (the boss name, at most 18 letters) and EXACTLY 4 lines, on rows 7, 9, 11, 13 (a blank row between). A line is at most 18 glyphs (20 minus the frame's two columns); a longer line is drawn over the frame, as the pending-card banners were, so never use it. An empty line "" is allowed (it draws a blank row), but the layout looks best with all four used.
+- Pages: a card may have 1-3 pages (page 1 in cards[], the others in more[]). The prompt reads NEXT on all but the last page.
+- Glyphs on a card (mg_card.c glyph()): A-Z, 0-9, space, and . , ! ? ' - :  Nothing else (no % / + = ; " ( ) & #). Lower case does not exist. Digits come from the HUD set.
+- Banner (story.c banner_build / centre): the word BOSS, then line1 and line2 of boss.c rows[], each at most 20 glyphs (the window row), the same character set (st_glyph: A-Z 0-9 . , ! ? ' - :). Header comment in boss.c says '<= 20'. Nothing else is shown at the fight start; the HOW TO PLAY card opens by itself the first time a boss appears (page 1; NEXT turns the page) and from the pause menu.
+- Checked all proposed lines with a script: max card line 18, max banner line 19; every character is in the set above.
+
+WHERE BOSS INSTRUCTION TEXT LIVES
+1. src/mg_card.c cards[] (page 1) and more[] (page 2), card id MG_BOSS_CARD + boss id: the pause menu's HOW TO PLAY in a fight and the first-appearance card (boss.c HOOK_CARD / pause_boss_card). THE TEXT THIS REVIEW COVERS.
+2. src/boss.c rows[] line1/line2: the banner at the fight's start (and in BOSS RUSH). Six of ten are pinned by tests (test_boss_mascot.py:73, _mothership.py:96, _sasquatch.py:46, _duke.py:78, _sumo.py:113, _prototype.py:87): a changed banner needs its test line changed in the same commit.
+3. In-fight notes: boss_yeti.c show_note("TAP FROZEN") (40 frames at the blow) and boss.c show_note("CLEAR THE BAR"), plus the Critic's speech bubbles NO! / BAD (art). Fine as they are.
+4. src/rush.c: boss_name[] and venue_name[] only; the BOSS RUSH list has no instruction text.
+5. docs/minigames_bosses.md 3.3-3.12: design text, not shown in the game; no 'hint' lines exist as such. Its 'Suggested story text' (section 7) and docs/story.md PRE_*/POST_* scenes are story only, they teach no boss rules (the old suggested PRE_SALOON 'WATCH FOR BIG TEX' is not in the script).
+6. tests: tests/test_mg_card.py pins the Log Roll card only; the boss cards are not pinned by text, so the changes need no golden for them. Any card screenshot golden would show a changed card as a diff (the check list for the commit that applies this).
+
+THE WORST PROBLEMS
+a. 'EMPTY MUG: THROW / FULL MUG: BUSY' is a leftover of the status tag that the owner had removed on 2026-10-17. What it now means is the capacity indicator (one mug icon per hand, bright = room, dark = he holds an empty), and the words 'EMPTY' and 'FULL' are the reverse of what the player sees (a bright mug is the empty one: room). It sits on 8 of 10 second pages and so crowds out the facts that differ per boss.
+b. The Critic's page 2 still says 'SHAKING: SENT BACK'. There is no shaking tag any more.
+c. Several lines break inside a phrase ('A MUG AT HIS OLD / BAR BREAKS', 'A MUG WHILE HE / REVS STALLS HIM', 'THEN POPS UP WHERE / FOOTPRINTS BLINK'), and 'NO SUCH THING' (Sasquatch's banner) and 'NO FEAR' (Leo's) tell a first-time player nothing.
+d. No card tells the player the basics that cost a life: his empties come back and must be caught at the tap; reaching the tap is a life. Only Tex's page 1 said the second.
+e. Big Tex's banner says 'RIDES IN'; he walks in (riding a horse is listed as not built).
+f. Sumo's card never says how to win (ring-out at the left end). Sasquatch has no goal line.
+
+PROPOSED STRUCTURE
+- Page 1: the goal, the boss's one trick, and the one thing that costs a life. Page 2: the details and what hurts.
+- NEW, optional page 3 (a shared entry, same four lines for seven bosses: Tex, Mascot, Sasquatch, Yeti, Duke, Leo, Mothership): the mug icons. Text:
+      MUG ICONS BY HIM:
+      BRIGHT: THROW MORE
+      DARK: HE HOLDS ONE
+      FULL UP: IT BREAKS
+  It replaces the 'EMPTY MUG: THROW / FULL MUG: BUSY' lines. Not for the Critic (his page 2 says it in words), the Prototype (no limit: only the dark icons show) or the Sumo (no limit). Cost: 7 more[] entries, 4 pointers each (about 7 x 9 B = 63 B in the card's bank 255; the strings can be shared) and the PRESS A prompt moves to page 3: the first-appearance card then needs one more NEXT press. If the owner wants only two pages, drop page 3 and the icon legend goes unexplained (the icons are self-evident once you see 3 of them fill up); say so and I will give Tex a legend page 2 instead.
+- The banner is the goal in two lines: line 1 the boss or his trick, line 2 the number to beat.
+
+==============================================================================
+1. BIG TEX (card id MG_BOSS_CARD + 0, rows[0])
+CURRENT page 1:
+    TEX STOMPS TO TAP
+    MUGS PUSH HIM BACK
+    8 MUGS BEAT HIM
+    AT THE TAP: A LIFE
+CURRENT page 2:
+    HE HOLDS 3 MUGS,
+    THE 4TH ONE BREAKS
+    EMPTY MUG: THROW
+    FULL MUG: BUSY
+CURRENT banner:   BIG TEX RIDES IN  /  QUENCH HIM 8 MUGS
+PROPOSED page 1:
+    SEND TEX 8 MUGS.
+    HITS PUSH HIM BACK
+    IF HE REACHES TAP,
+    YOU LOSE A LIFE.
+PROPOSED page 2:
+    HE SENDS EMPTIES
+    BACK UP HIS BAR.
+    CATCH EACH AT THE
+    TAP OR LOSE A LIFE
+PROPOSED page 3: the shared icon page (see above)
+PROPOSED banner: BIG TEX STOMPS IN  /  SLIDE HIM 8 MUGS
+WHY:
+  - P1: 'TEX STOMPS TO TAP' is a fragment (to THE tap?) and the lines read as four slogans. Now: what to do (send 8 mugs), what a hit does, what costs a life.
+  - P2: 'HE HOLDS 3 MUGS, THE 4TH ONE BREAKS' is true (hands 3) but 'MUGS' means his empties and yours alike. Now says what the player must do with his empties (catch them at the tap, else a life); the hands rule moves to the icon page.
+  - Banner: 'RIDES IN' is wrong, he walks in (E8 'the swagger'; 'riding in on a horse' is listed as NOT built). 'QUENCH HIM' is a pun that hides the task; 'SLIDE HIM 8 MUGS' says it.
+CODE VS DOC:
+  - Doc 3.3 says 'Each sarsaparilla knocks him back two hops': code push 16 px = two 8 px hops. Agrees.
+  - boss_big_tex.c says 'the tutorial boss, no special'. Agrees. (Doc 3.3's old suggested PRE_SALOON text 'WATCH FOR BIG TEX' is not in the built story script.)
+------------------------------------------------------------------------------
+2. THE MASCOT (card id MG_BOSS_CARD + 1, rows[1])
+CURRENT page 1:
+    HE HOPS TO ANOTHER
+    BAR. DUST SHOWS
+    WHERE HE WILL LAND
+    FOLLOW HIM THERE
+CURRENT page 2:
+    A MUG AT HIS OLD
+    BAR BREAKS
+    EMPTY MUG: THROW
+    FULL MUG: BUSY
+CURRENT banner:   THE MASCOT JUMPS  /  FOLLOW HIM 10 MUGS
+PROPOSED page 1:
+    10 MUGS BEAT HIM.
+    HE CROUCHES, THEN
+    JUMPS TO ANOTHER
+    BAR: DUST MARKS IT
+PROPOSED page 2:
+    HE WAITS FOR MUGS
+    ALREADY SLIDING.
+    A MUG THROWN AFTER
+    HE LEAVES BREAKS.
+PROPOSED page 3: the shared icon page (see above)
+PROPOSED banner: THE MASCOT JUMPS  /  FOLLOW HIM 10 MUGS   (unchanged)
+WHY:
+  - P1: 'HE HOPS TO ANOTHER / BAR. DUST SHOWS...' broke the sentence after 'ANOTHER'. Now the win condition is first (meter is 10) and the jump is one sentence over three lines, with the crouch (the 1 s tell) named.
+  - P2: 'A MUG AT HIS OLD / BAR BREAKS' broke mid-phrase and was vague ('at' = thrown at). Code: he leaps only after mugs already on his bar have reached him (max 60 frames); a mug thrown into the crouch that is still short of him when he goes slides on and breaks. Now says exactly that.
+  - Banner: fine; kept (a test pins it: tests/test_boss_mascot.py:73).
+CODE VS DOC:
+  - boss_mascot.c header says gulp 24; boss.c rows[1] and the doc 3.2 say 34 (the 2011c71 slowdown). Code row wins: 34. Header comment is stale, harmless.
+------------------------------------------------------------------------------
+3. SASQUATCH (card id MG_BOSS_CARD + 2, rows[2])
+CURRENT page 1:
+    HE DUCKS, VANISHES
+    THEN POPS UP WHERE
+    FOOTPRINTS BLINK
+    GO THERE FIRST
+CURRENT page 2:
+    A MUG AT HIS EMPTY
+    BAR BREAKS
+    EMPTY MUG: THROW
+    FULL MUG: BUSY
+CURRENT banner:   NO SUCH THING  /  12 COFFEES FAST
+PROPOSED page 1:
+    12 COFFEES WIN.
+    HE DUCKS, VANISHES
+    AND POPS UP WHERE
+    FOOTPRINTS BLINK.
+PROPOSED page 2:
+    HIS EMPTIES COME
+    BACK 2X AS FAST.
+    A MUG SENT TO THE
+    EMPTY BAR BREAKS.
+PROPOSED page 3: the shared icon page (see above)
+PROPOSED banner: THE SASQUATCH HIDES  /  12 COFFEES BEAT HIM
+WHY:
+  - P1: 'HE DUCKS, VANISHES / THEN POPS UP WHERE / FOOTPRINTS BLINK / GO THERE FIRST' lacked how to win and 'GO THERE FIRST' is an order with no reason. Now: the goal, then the trick as one sentence. The player infers 'go to the footprints' from 'pops up where footprints blink'.
+  - P2 is new: the original page 2 was only the shared mug rule. The facts that hurt: his empties return at 1 px/frame (twice normal, code and doc agree) and while he is gone his old bar has no catcher, so a mug sent there breaks (a life).
+  - Banner: 'NO SUCH THING' is a joke with no meaning for a first-time player ('no such thing as Sasquatch'). 'THE SASQUATCH HIDES / 12 COFFEES BEAT HIM' says the trick and the goal. (Pinned by tests/test_boss_sasquatch.py:46: update with the change.)
+CODE VS DOC:
+  - Doc 3.5 says he vanishes after 'at least 36 frames' of ducking, then waits up to 150 frames for mugs; code constants SASQ_DUCK 36, SASQ_WAITMAX 150. Agrees.
+  - Doc 3.2 table lists his meter 12, code 12. Agrees.
+------------------------------------------------------------------------------
+4. THE FOOD CRITIC (card id MG_BOSS_CARD + 3, rows[3])
+CURRENT page 1:
+    PERFECT POURS ONLY
+    LET GO WHEN THE
+    WINE GLOWS WHITE
+    SLOPPY COMES BACK
+CURRENT page 2:
+    EMPTY MUG: THROW
+    FULL MUG: BUSY
+    SHAKING: SENT BACK
+    CATCH THEM AT TAP
+CURRENT banner:   THE CRITIC DINES  /  PERFECT POURS ONLY
+PROPOSED page 1:
+    8 PERFECT POURS
+    BEAT THE CRITIC.
+    RELEASE A WHEN THE
+    WINE SPARKLES.
+PROPOSED page 2:
+    SLOPPY OR BUSY:
+    HE WAVES IT BACK.
+    CATCH IT AT TAP,
+    OR LOSE A LIFE.
+PROPOSED page 3: none
+PROPOSED banner: THE CRITIC DINES  /  PERFECT POURS ONLY   (unchanged)
+WHY:
+  - P1: kept the idea ('PERFECT POURS ONLY', 'LET GO WHEN') but added the goal (8) and named the button. 'GLOWS WHITE' replaced with 'SPARKLES': the code and doc call the window the 'sparkle frame'; I could not confirm from the code that it is white (see doubts).
+  - P2: the original page 2 ('EMPTY MUG: THROW / FULL MUG: BUSY / SHAKING: SENT BACK / CATCH THEM AT TAP') describes the status tag that the owner had REMOVED on 2026-10-17 ('get rid of the drink arrow on the bosses'). There is no shaking mug any more. What really happens: a sloppy pour he tastes, or any drink while he holds his glass or tastes, is waved back as a full mug the bartender must catch at the tap (a miss is a life; a bubble 'NO!' or 'BAD' shows).
+  - No icon page: with hands 1 the indicator is one mug icon that goes dark while he is busy; P2 says it in plain words.
+  - Banner: fine; kept.
+CODE VS DOC:
+  - Doc 3.6: 12-frame perfect window. Code CRIT_WIN 12 (the story's own pour window is 5). Agrees.
+  - Doc 3.6 says 'hands 1: a busy critic waves drinks back'. Code agrees, but also caps the waiting returns at CRIT_QUEUE 3 and then a drink breaks; not on the card (rare).
+------------------------------------------------------------------------------
+5. THE YETI (card id MG_BOSS_CARD + 4, rows[4])
+CURRENT page 1:
+    HE BLOWS ICE ONTO
+    HIS BAR. THE TAP
+    FREEZES: NO THROWS
+    AT HIM WHILE ICY
+CURRENT page 2:
+    THROW ONE BEFORE
+    THE FROST COMES
+    EMPTY MUG: THROW
+    FULL MUG: BUSY
+CURRENT banner:   THE YETI IS COLD  /  12 COCOAS ON ICE
+PROPOSED page 1:
+    12 COCOAS BEAT HIM
+    HE BLOWS FROST ON
+    HIS BAR. YOUR TAP
+    THERE FREEZES.
+PROPOSED page 2:
+    THROW ONE BEFORE
+    THE ICE, OR SERVE
+    REGULARS, THEN BE
+    BACK FOR EMPTIES.
+PROPOSED page 3: the shared icon page (see above)
+PROPOSED banner: THE YETI IS COLD  /  12 COCOAS ON ICE   (unchanged)
+WHY:
+  - P1: the original ('HE BLOWS ICE ONTO / HIS BAR. THE TAP / FREEZES: NO THROWS / AT HIM WHILE ICY') was accurate but had no goal; 'WHILE ICY' is jargon. Now goal first, then the trick: the tap on his bar freezes (it is the owner's 'frozen tap' rework).
+  - P2: the original page 2 had 'THROW ONE BEFORE THE FROST COMES' and then the shared mug rule. Kept the advice (it is the design intent in the doc: one last mug before the frost, or serve other bars) and added what hurts: his empties come back at 1 px/frame during the ice, so be at his tap for them. The ice lasts 3 s (180 frames), too long to fit in a line.
+  - Banner: 'THE YETI IS COLD' fine; '12 COCOAS ON ICE' is a pun that still states the goal; kept.
+CODE VS DOC:
+  - Doc 1.2 (the original pitch table) says 'icy mugs 2x'; code and doc 3.7 say full mugs 3 px/frame (3x), empties 1 px/frame. Code wins; not on the card.
+------------------------------------------------------------------------------
+6. THE PROTOTYPE (card id MG_BOSS_CARD + 5, rows[5])
+CURRENT page 1:
+    WATCH HIS LAMP
+    GREEN: THROW
+    YELLOW: STOP
+    RED: MUGS BOUNCE
+CURRENT page 2:
+    AFTER RED HE RIDES
+    TO ANOTHER BAR
+    EMPTY MUG: THROW
+    FULL MUG: BUSY
+CURRENT banner:   GREEN MEANS GO  /  RED MEANS STOP
+PROPOSED page 1:
+    12 BATTERIES WIN.
+    GREEN LAMP: THROW
+    YELLOW: STOP SOON
+    RED: THEY BOUNCE
+PROPOSED page 2:
+    RED BOUNCES THEM
+    BACK: CATCH THEM.
+    MISS ONE: A LIFE.
+    THEN HE MOVES BARS
+PROPOSED page 3: none
+PROPOSED banner: GREEN MEANS GO  /  RED MEANS STOP   (unchanged)
+WHY:
+  - P1: the original ('WATCH HIS LAMP / GREEN: THROW / YELLOW: STOP / RED: MUGS BOUNCE') was the clearest of the ten; kept its shape, added the goal, and fixed YELLOW: in code yellow still takes a battery, it is the 60-frame warning, so 'STOP SOON' not 'STOP'.
+  - P2: the original was the shared mug rule. In the Prototype's fight the icons are different (no limit, only the held ones show), so 'EMPTY MUG: THROW / FULL MUG: BUSY' was misleading. Now: what red does to every battery on his bar and why it matters (they return like empties: catch them at the tap, a miss is a life), and the second trick (after red he rides to another bar; the landing marker shows for the last second).
+  - Banner: fine; kept (pinned by tests/test_boss_prototype.py:87).
+CODE VS DOC:
+  - Doc 3.8 and code agree on the cycle 240 green, 60 yellow, 150 red, 10 ride. The tag/legend for this boss: the engine shows only the 'taken' mugs (room_free 254 when boss_cap > 9) so there is no bright 'room' icon.
+------------------------------------------------------------------------------
+7. DUKE (card id MG_BOSS_CARD + 6, rows[6])
+CURRENT page 1:
+    DUKE REVS, THEN
+    LURCHES AT THE TAP
+    A MUG WHILE HE
+    REVS STALLS HIM
+CURRENT page 2:
+    STEADY MUGS KEEP
+    HIM FROM LURCHING
+    EMPTY MUG: THROW
+    FULL MUG: BUSY
+CURRENT banner:   THE BIGGEST SHAKE  /  12 MILKS FOR DUKE
+PROPOSED page 1:
+    12 MILKS BEAT DUKE
+    REVS, THEN LURCHES
+    IF HE REACHES TAP,
+    YOU LOSE A LIFE.
+PROPOSED page 2:
+    A MUG DURING A REV
+    STOPS HIS LURCH.
+    HE REVS SOONER AS
+    HIS SHAKE FILLS.
+PROPOSED page 3: the shared icon page (see above)
+PROPOSED banner: THE BIGGEST SHAKE  /  12 MILKS FOR DUKE   (unchanged)
+WHY:
+  - P1: 'REVS, THEN LURCHES' is honest to the code (rev 50 frames, then a 16 px lurch in 8 frames). The original ('DUKE REVS, THEN / LURCHES AT THE TAP / A MUG WHILE HE / REVS STALLS HIM') split the key rule across two cards and broke 'A MUG WHILE HE / REVS'. The rule 'a mug during the rev stalls him' now sits whole on page 2; page 1 has the goal and the one thing he does.
+  - P2 adds a fact the player cannot see otherwise: his idle time before the next rev is 150, 120, then 90 frames as the meter falls (boss_duke.c), so he gets pushier toward the end. 'Shake' = the milkshake meter.
+  - Banner: fine; kept (pinned by tests/test_boss_duke.py:78).
+CODE VS DOC:
+  - Doc 3.12 text above 'as built' says he rolls in on a bike and the bike lurches; the code: he STANDS behind the bar, no bike in the fight (only in the entrance, 62 frames). The card never mentions a bike. Agrees with code.
+  - Doc 3.2 table row 'Duke (PROPOSAL)' is the proposal; the code row: step 0, push 16, gulp 30 (header comment in boss_duke.c says 20; rows[6] says 30). Row wins.
+------------------------------------------------------------------------------
+8. SUMO CHAMPION (card id MG_BOSS_CARD + 7, rows[7])
+CURRENT page 1:
+    NO DRINK LIMIT
+    FILL THE METER TO
+    SHOVE HIM BACK
+    PUSH HIM OUT!
+CURRENT page 2:
+    HE STEPS ON THE
+    DRUM BEAT
+    A MUG CALLS OFF
+    HIS STAMP
+CURRENT banner:   THE CHAMPION  /  PUSH HIM OUT
+PROPOSED page 1:
+    PUSH HIM OFF THE
+    LEFT END TO WIN.
+    IF HE REACHES TAP,
+    YOU LOSE A LIFE.
+PROPOSED page 2:
+    EACH FULL METER
+    SHOVES HIM BACK.
+    NEXT: ONE SHORTER.
+    A STAMP? FEED HIM!
+PROPOSED page 3: none
+PROPOSED banner: THE CHAMPION  /  PUSH HIM OUT   (unchanged)
+WHY:
+  - P1: the original ('NO DRINK LIMIT / FILL THE METER TO / SHOVE HIM BACK / PUSH HIM OUT!') never said that the way to WIN is to push him off the bar's left end, nor that reaching the tap costs a life. Now both.
+  - P2: the meter (a full one shoves him back 32 px, the next is one cup shorter: 6, 5, 4 ... 1) and the one special: a stamp is a charge, and any cup during the stamp calls it off (the stamp rule went here, on page 2, in place of the 'every cup fills it' line, which the HUD shows). The original had 'HE STEPS ON THE DRUM BEAT'; that is visible and audible, so dropped for space.
+  - No icon page: the Sumo has no drink limit, so the icons mean nothing (the original card, correctly, has none either).
+  - Banner: 'THE CHAMPION / PUSH HIM OUT' is accurate; kept (pinned by tests/test_boss_sumo.py:113).
+CODE VS DOC:
+  - Doc 3.2 table row for the Sumo is the OLD design: step 90, start x 16, meter 12 'single / chained hits', push 0/8. Doc 10.2 and the code: step 192 on the drum beat, start x 24, meter 6 shrinking to 1, ring-out at x 0. Code wins; card follows the code.
+  - Doc 1.2 table 'chained hits' is the old pitch.
+------------------------------------------------------------------------------
+9. LEO THE LION (card id MG_BOSS_CARD + 8, rows[8])
+CURRENT page 1:
+    HIS ROAR IS A WIND
+    BLOWING FULL MUGS
+    BACK ON EVERY BAR
+    CATCH THEM!
+CURRENT page 2:
+    '!' MEANS A ROAR:
+    STOP, CATCH MUGS
+    EMPTY MUG: THROW
+    FULL MUG: BUSY
+CURRENT banner:   LEO THE LION  /  14 COCONUTS NO FEAR
+PROPOSED page 1:
+    14 COCONUTS WIN.
+    HIS ROAR IS A WIND
+    BLOWING MUGS BACK
+    ON EVERY BAR.
+PROPOSED page 2:
+    '!!' BY HIS HEAD:
+    STOP THROWING!
+    CATCH THEM AT TAP
+    OR LOSE A LIFE.
+PROPOSED page 3: the shared icon page (see above)
+PROPOSED banner: LEO THE LION  /  14 COCONUTS WIN
+WHY:
+  - P1: the original ('HIS ROAR IS A WIND / BLOWING FULL MUGS / BACK ON EVERY BAR / CATCH THEM!') is good and accurate; kept, with the goal added and 'FULL' dropped (a player says mug, not full mug).
+  - P2: the original page 2 was the shared mug rule. The real second page is the tell: two '!' appear beside his head for a second before each roar; mugs in flight on any bar come back, to be caught at that bar's tap (a miss is a life).
+  - Banner: '14 COCONUTS NO FEAR' hints at the courage joke but 'NO FEAR' tells nothing; now '14 COCONUTS WIN'. (No test pins Leo's banner.)
+CODE VS DOC:
+  - Doc 3.11 says roar OAM 29-36; code: 30-37. Not relevant to text.
+  - Doc 1.2 'walkers jump back 16 px, drinkers send empties early' is the old pitch; built: the roar is a wind (mugs blow back); walkers are still pushed back 16 px (LEO_PUSH) but the card does not need it.
+------------------------------------------------------------------------------
+10. THE MOTHERSHIP (card id MG_BOSS_CARD + 9, rows[9])
+CURRENT page 1:
+    SAUCER JUMPS BARS
+    BEAM SHOWS WHERE
+    AFTER 8 IT SPLITS
+    MINIS WANT 2 EACH
+CURRENT page 2:
+    EACH JUMP BRINGS
+    2 PASSENGERS
+    STAYING PUT: STUN
+    RAY! CHANGE BARS
+CURRENT banner:   THE MOTHERSHIP  /  IT SPLITS WHEN FULL
+PROPOSED page 1:
+    IT JUMPS BARS:
+    A BEAM SHOWS WHERE
+    8 DRINKS SPLIT IT:
+    MINIS WANT 2 EACH
+PROPOSED page 2:
+    2 PASSENGERS LAND
+    WITH EACH JUMP.
+    STAY ON ONE BAR:
+    RAY STUNS: SWITCH!
+PROPOSED page 3: the shared icon page (see above)
+PROPOSED banner: THE MOTHERSHIP  /  IT SPLITS WHEN FULL   (unchanged)
+WHY:
+  - P1: the original facts were right; 'AFTER 8 IT SPLITS' is now 'FULL' of what: 8 drinks. The two 'beams' confuse (the landing beam and the stun ray); P1 says 'A BEAM SHOWS WHERE', P2 calls the other thing the ray.
+  - P2: 'STAYING PUT: STUN / RAY! CHANGE BARS' is cryptic. Code: if the bartender stays on one bar 270 frames (4.5 s) the ship charges for 60 frames (a blinking beam under it on HIS bar), then stuns the bartender 90 frames; any bar change in the charge dodges it. Now a sentence a player can follow.
+  - Banner: fine; kept (pinned by tests/test_boss_mothership.py:96).
+CODE VS DOC:
+  - Doc 3.10 says meter 6 and minis at x 16; code: meter 14 = 8 + 6, minis at x 24 (doc says 'as built' notes, 3.2 table lists 6 then 3 minis x 2). Code wins; card says 8 drinks then minis, which is right.
+  - The ray (phase 1 only), and the passengers, came with E7 (2026-10-15) and are not in doc 3.10's text, only in 10.2.
+------------------------------------------------------------------------------
+
+COMMON CODE VS DOC NOTES
+- docs/minigames_bosses.md section 3.2's table and section 1.2 are the original design; section 10 and the code are the built game. Disagreements: Sumo (step 192 not 90, start x 24 not 16, meter 6 shrinking not 12, ring-out), Mothership (meter 8 + 6 not 6, minis at x 24, passengers and the stun ray are E7), Yeti ('icy mugs 2x' is 3 px/frame), Leo (the roar is a wind, not 'walkers jump back'), Duke (no bike in the fight).
+- Both the status tag and the 'READY / BUSY / shaking' wording survive only in docs 2.5 as history ('gone, owner 2026-10-17'): the cards were never updated.
+
+WHAT I CHECKED AND WHAT I ASSUMED
+- Checked in code: each boss file's header and constants (EVERY, TELL, WAIT, STAY, KNOCK values), boss.c rows[] and the engine's rules (catch, hands, breaking, the tap, indicator in cap_draw / room_free), mg_card.c's renderer and glyph set, story.c's banner.
+- Assumed: the full mug passing a busy boss breaks and costs a life (doc 2.5: 'breaks at the left end (a life)'); a missed empty or returned mug costs a life at the tap end (the common rule, code comments in boss_critic.c and boss_leo.c say 'a life if it gets past'). I did not run the game to see each card; the renders are from the font tiles (assets/tiles/bar.txt and story.txt), not from SameBoy.
+- Unsure: whether the Critic's sparkle looks white (card says SPARKLES; the old text said GLOWS WHITE, from an art decision I could not find in code); the Critic's perfect pour needs the A button released (assumed from pour.c comments 'released in the sparkle window').
+- Not covered: the drink word per venue (sarsaparilla, coffee, cocoa, batteries, milk, coconuts, drinks) is used where the card has room and 'MUG' elsewhere; the banners already name the drink.
