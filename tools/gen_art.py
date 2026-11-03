@@ -231,6 +231,113 @@ def step_rows(t, steps):
     return [b[:4], b[4:]]
 
 
+# ---- per-performer shows (owner Q14 A 2026-11-03): "performers" in <t>_show_pal.json; a Color-only bigger show: <t>_show_cgb.txt ----
+# A venue with "performers": [{"loop": [frame ids], "flip": 0|1} x3] (left, middle, right; a loop of 1-8 steps, any order, repeats allowed, each performer its own length; one step a beat)
+# dances every performer on its own loop of frames of <t>_show.txt (any number of frames, 16x24); "flip" draws that performer X-flipped (the OAM
+# flag: no extra tiles, works on the DMG). Cells that are empty cost no tile and no OAM entry; a frame has at most 4 non-empty cells.
+# Written as a "block" at the end of the venue's show data (venue.show_band bit 4 = the block exists, src/show_ext.c):
+#   [0] block size, [1] figure width (16 or 24), [2] the beat period (lcm of the three loop lengths, <= 255), [3..5] performer k: loop length (1-8) | flip << 4,
+#   [6..29] performer k's 8 frame ids (at 6 + 8k), [30..] per frame 4 entries of (tile, pos): pos bit 7 = no entry, bits 0-1 the cell column, bit 2 the cell row (0: lines 0-15 of the figure,
+#   1: lines 16-23 + a pad), bit 3 a VRAM bank 1 tile (tile = its OBJ id) else tile = offset from OBJ_DANCER.
+# The Color file (bit 5): a second block (frames of 16 or 24 px wide x 24, ids and loops its own, from "performers_cgb" else "performers") whose tiles
+# are 8x16 quarters in VRAM bank 1 at ids free there (below), then the pool section: [segments n] [first OBJ id, tiles] x n, then the tiles.
+SHOW_LOOP_LENS = tuple(range(1, 9))
+SHOW_MAX_FRAMES = 27                 # block size 29 + 8 frames <= 255
+SHOW_BANK1_FREE = {"biker": [(0, 56), (76, 8), (92, 36)]}   # OBJ ids free in VRAM bank 1 in a level: all but the Chrome Cow's copies of the mug and the glass (src/lift.c swap_bank1: 56..75, 84..91)
+SHOW_BANK1_ALL = [(0, 128)]
+
+
+def show_cells(frames, w):
+    """Per frame the non-empty 8x16 cells [(col, row, quarter)]; fails on a frame of over 4."""
+    out = []
+    for fi, f in enumerate(frames):
+        f = list(f) + ["." * w] * 8
+        cells = []
+        for row, y0 in enumerate((0, 16)):
+            for col in range(w // 8):
+                q = tuple(r[8 * col:8 * col + 8] for r in f[y0:y0 + 16])
+                if any(c != "." for r in q for c in r):
+                    cells.append((col, row, q))
+        if len(cells) > 4:
+            sys.exit(f"gen_art: show frame {fi}: {len(cells)} non-empty 8x16 cells ({', '.join(f'c{c}r{r}' for c, r, _ in cells)}); at most 4 (the performer's OAM entries)")
+        out.append(cells)
+    return out
+
+
+def show_block(t, perf, cells, w, tile_of, bank_bit):
+    """The block bytes (see above). tile_of(quarter) -> tile byte."""
+    assert len(perf) == 3, f"{t}: performers: 3 (left, middle, right)"
+    nf = len(cells)
+    assert 1 <= nf <= SHOW_MAX_FRAMES, f"{t}: show frames {nf} (1..{SHOW_MAX_FRAMES})"
+    hdr, steps = [], []
+    for k, p in enumerate(perf):
+        loop = p["loop"]
+        assert len(loop) in SHOW_LOOP_LENS and all(0 <= f < nf for f in loop), f"{t}: performer {k}: a loop of 1-8 frame ids < {nf}"
+        hdr.append(len(loop) | (16 if p.get("flip") else 0))
+        steps += list(loop) + [0] * (8 - len(loop))
+    fr = []
+    for cl in cells:
+        for e in range(4):
+            if e < len(cl):
+                c, r, q = cl[e]
+                fr += [tile_of(q), c | r << 2 | bank_bit]
+            else:
+                fr += [0, 0x80]
+    import math
+    period = 1
+    for p in perf:
+        period = period * len(p["loop"]) // math.gcd(period, len(p["loop"]))
+    assert period <= 255, f"{t}: the three loops' lengths {[len(p['loop']) for p in perf]} meet only every {period} beats (at most 255)"
+    b = [w, period] + hdr + steps + fr
+    return [len(b) + 1] + b
+
+
+def show_ext(t, shows, perf, cgb_path, cgb_perf, bank1):
+    """-> (D block bytes, the 32 DMG tiles, C block + pool bytes or [], info). D: shows (16x24) over the 32 tiles."""
+    cells = show_cells(shows, 16)
+    quarters = []
+    for cl in cells:
+        for _, _, q in cl:
+            if q not in quarters:
+                quarters.append(q)
+    if len(quarters) > SHOW_QUARTERS:
+        sys.exit(f"gen_art: venue {t}: the show needs {len(quarters)} 8x16 quarters, at most {SHOW_QUARTERS} (32 OBJ tiles)")
+    d = show_block(t, perf, cells, 16, lambda q: 2 * quarters.index(q), 0)
+    stiles = obj_tiles([list(q) for q in quarters + [tuple(["." * 8] * 16)] * (SHOW_QUARTERS - len(quarters))], 8)
+    c, info = [], {}
+    if cgb_path is not None:
+        cf = [r for _, r in blocks(cgb_path)]
+        w = len(cf[0][0])
+        assert w in (16, 24) and all(len(f) == 24 and all(len(r) == w for r in f) for f in cf), f"{cgb_path.name}: frames of 16 or 24 px wide x 24 rows"
+        cc = show_cells(cf, w)
+        cq = []
+        for cl in cc:
+            for _, _, q in cl:
+                if q not in cq:
+                    cq.append(q)
+        ids = [i for s, n in bank1 for i in range(s, s + n, 2)]
+        if len(cq) > len(ids):
+            sys.exit(f"gen_art: {cgb_path.name}: {len(cq)} 8x16 quarters, the free VRAM bank 1 ids of {t} hold {len(ids)}")
+        cb = show_block(t, cgb_perf, cc, w, lambda q: ids[cq.index(q)], 8)
+        # the pool: the quarters in id order, split at the gaps of the free ranges
+        segs, data = [], []
+        for qi, q in enumerate(cq):
+            i = ids[qi]
+            if segs and segs[-1][0] + segs[-1][1] == i:
+                segs[-1][1] += 2
+            else:
+                segs.append([i, 2])
+            data += obj_tiles([list(q)], 8)
+        c = cb + [len(segs)] + [v for s in segs for v in s] + data
+        info = {"c_quarters": len(cq), "c_capacity": len(ids), "c_frames": len(cf), "c_width": w, "c_segs": segs, "c_block": cb, "c_ids": ids[:len(cq)], "c_tiles": data}
+    # the legacy rows 0-3 (the mini-games' partners, tk.c / lr.c / ou.c read venue.show_tile[f] = TL TR BL BR of frame f): the first four frames' cells (a missing cell: tile 0)
+    legacy = []
+    for cl in cells[:4] + [[]] * (4 - len(cells)):
+        at = {(c, r): 2 * quarters.index(q) for c, r, q in cl}
+        legacy.append([at.get(k, 0) for k in ((0, 0), (1, 0), (0, 1), (1, 1))])
+    return d, stiles, c, {"legacy": legacy, "d_quarters": len(quarters), "d_frames": len(shows), "d_block": d, **info}
+
+
 # ---- the breaking drink (crash), per venue: generated from the venue's own drink so it matches the sliding one ----
 # 16 OBJ tiles at OBJ_GLASS (8x16 entries, column-major as obj_tiles): tip 0-1 (the venue's tilted "drink" pose, frame 8
 # of <t>_drink.txt), fall full 2-5 and fall empty 6-9 (the full / empty frame turned 90 degrees, mouth left, 16x16), the
@@ -428,7 +535,7 @@ def venues(outdir, prev):
          "    const uint8_t *anim_frames, *anim_script;    // stage animation (src/venue.c), in the venue's own bank",
          "    uint16_t anim_frames_n;                      // bytes of anim_frames (0: the stage does not move)",
          "    uint8_t anim_script_n, anim_first, anim_k;   // script bytes; first animated stage id, animated tiles",
-         "    uint8_t show_band;                           // bit 0: 0 one dance for all three (row = dance frame), 1 a band; bits 1-2: FILL_DY (src/mugs.c); bit 3: three show palettes (Color)",
+         "    uint8_t show_band;                           // bit 0: 0 one dance for all three (row = dance frame), 1 a band; bits 1-2: FILL_DY (src/mugs.c); bit 3: three show palettes (Color); bit 4: a per-performer show block follows the tiles (src/show_ext.c); bit 5: with a Color block + its bank 1 pool",
          f"    uint8_t show_tile[{SHOW_ROWS}][4];             // per row: OBJ tile offsets from OBJ_DANCER, TL TR BL BR",
          "    uint8_t splash_tile;                         // the counter splash's BG id (assets/art/splash; 0: none)",
          "} venue_t;",
@@ -551,12 +658,25 @@ def venues(outdir, prev):
         drinks = [r for _, r in blocks(vd / f"{ds}_drink.txt")]
         assert len(drinks) == 10 and all(len(f) == 16 and all(len(r) == 8 for r in f) for f in drinks), f"{t}_drink.txt: 10 frames 8x16"
         shows = [r for _, r in blocks(vd / f"{ds}_show.txt")]
-        assert len(shows) in (DANCE_FRAMES, BAND_FRAMES) and all(len(f) == 24 and all(len(r) == 16 for r in f) for f in shows), \
-            f"{t}_show.txt: {DANCE_FRAMES} frames 16x24 (one dancer, all three dance it) or {BAND_FRAMES} (a band of three)"
+        perf = spal.get("performers")           # per-performer frames (src/show_ext.c): any number of 16x24 frames, each performer its own loop
+        assert all(len(f) == 24 and all(len(r) == 16 for r in f) for f in shows) and (perf is not None or len(shows) in (DANCE_FRAMES, BAND_FRAMES)), \
+            f"{t}_show.txt: {DANCE_FRAMES} frames 16x24 (one dancer, all three dance it) or {BAND_FRAMES} (a band of three), or any number with \"performers\" in the show pal json"
         dtile = obj_tiles(pour_stream(drinks, bar, fdy, mug_dy), 8) + crash_tiles(drinks, shards)
-        stiles, band, show_tab = show_tiles(t, shows)
-        if not band:
-            show_tab = show_tab[:4] + step_rows(t, spal.get("steps"))
+        ext_bytes, ext_info = [], None
+        cgb_path, cgb_perf = vd / f"{ds}_show_cgb.txt", spal.get("performers_cgb", perf)
+        test_cgb = os.environ.get("SPIGOTEER_TEST_SHOW_CGB", "")      # test hook (tests/test_show_ext.py): "<theme>=<file>" is that theme's Color show, its loops from <file>.json
+        if test_cgb.split("=")[0] == ds and "=" in test_cgb:
+            cgb_path = Path(test_cgb.split("=", 1)[1])
+            cgb_perf = json.loads(cgb_path.with_suffix(".json").read_text())["performers_cgb"]
+        if perf is not None:
+            d_blk, stiles, c_blk, ext_info = show_ext(t, shows, perf, cgb_path if cgb_path.exists() else None, cgb_perf, SHOW_BANK1_FREE.get(ds, SHOW_BANK1_ALL))
+            band, show_tab = 0, ext_info["legacy"] + step_rows(t, None)
+            ext_bytes = d_blk + c_blk
+        else:
+            assert not cgb_path.exists(), f"{cgb_path.name}: a Color show needs \"performers\" in {ds}_show_pal.json (the DMG block it comes with)"
+            stiles, band, show_tab = show_tiles(t, shows)
+            if not band:
+                show_tab = show_tab[:4] + step_rows(t, spal.get("steps"))
         assert len(dtile) == (20 + GLASS_TILES) * 16 and len(stiles) == 32 * 16
         show_extra = [b for pp in show_pals[1:] for c in pp for b in (c & 255, c >> 8)]   # the middle and right performers' palettes follow the 32 tiles (venue.show_band bit 3)
         abs_smap = list(smap)
@@ -576,7 +696,7 @@ def venues(outdir, prev):
               fmt(f"{sym}_stage", stile).replace("const uint8_t", "static const uint8_t"),
               fmt(f"{sym}_bar", btile + btrail).replace("const uint8_t", "static const uint8_t"),
               fmt(f"{sym}_drink", dtile).replace("const uint8_t", "static const uint8_t"),
-              fmt(f"{sym}_show", stiles + show_extra).replace("const uint8_t", "static const uint8_t"),
+              fmt(f"{sym}_show", stiles + show_extra + ext_bytes).replace("const uint8_t", "static const uint8_t"),
               ] + ([fmt(f"{sym}_anim_frames", anim["data"]).replace("const uint8_t", "static const uint8_t"),
                     fmt(f"{sym}_anim_script", ascript).replace("const uint8_t", "static const uint8_t")] if anim else []) + [
               f"const venue_t {sym} = {{",
@@ -586,7 +706,7 @@ def venues(outdir, prev):
               "    { " + ", ".join(arr(x) for x in pal15) + " },",
               (f"    {sym}_anim_frames, {sym}_anim_script, {len(anim['data'])}, {len(ascript)}, {a_first}, {anim['k']},"
                if anim else "    0, 0, 0, 0, 0, 0,"),
-              f"    {band | fdy << 1 | (8 if len(show_pals) == 3 else 0)}, {{ " + ", ".join(arr(r) for r in show_tab) + " },", f"    {bar_base + sid if sid is not None else 0}",
+              f"    {band | fdy << 1 | (8 if len(show_pals) == 3 else 0) | (16 if perf is not None else 0) | (32 if ext_info and "c_block" in ext_info else 0)}, {{ " + ", ".join(arr(r) for r in show_tab) + " },", f"    {bar_base + sid if sid is not None else 0}",
               "};", ""]
         (outdir / f"{sym}.c").write_text("\n".join(vc))
         load += [f"BANKREF_EXTERN({sym})", f"extern const venue_t {sym};"]
@@ -595,7 +715,7 @@ def venues(outdir, prev):
                              "splash_tile": bar_base + sid if sid is not None else 0,
                              "stage_map": abs_smap, "stage_attr": abs_sattr, "bar_map": abs_bmap, "bar_attr": abs_battr,
                              "pal": pal15, "show_pals": show_pals, "show_pal_n": len(show_pals),"show_steps": spal.get("steps"), "drink": dtile[:20 * 16], "crash": dtile[20 * 16:], "show": stiles,
-                             "show_band": band, "fill_dy": fdy, "bar_alt": [bar_base + a for a, _ in alt], "bar_alt_tiles": [tile_bytes(list(rt), 0, 0) for _, rt in alt], "show_table": show_tab, "show_frames": len(shows), "stage_tiles": stile, "bar_tiles": btile,
+                             "show_band": band, "fill_dy": fdy, "bar_alt": [bar_base + a for a, _ in alt], "bar_alt_tiles": [tile_bytes(list(rt), 0, 0) for _, rt in alt], "show_table": show_tab, "show_frames": len(shows), "show_ext": ext_info, "show_extra_n": len(show_extra), "stage_tiles": stile, "bar_tiles": btile,
                              "anim": {"first": a_first, "k": anim["k"], "slots": anim["slots"], "names": anim["frames"],
                                       "frames": [anim["data"][i * anim["k"] * 16:(i + 1) * anim["k"] * 16]
                                                  for i in range(len(anim["frames"]))],

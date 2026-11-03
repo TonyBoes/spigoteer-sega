@@ -71,8 +71,9 @@ void dance_next(void) BANKED {                  // a dance beat (main.c)
         if (!(OBJX_F & 0xC0)) dancer_sig = 0;   // (the dancers up since the start frame wear OBJ 5 still: drawn again with their own palettes)
         return;
     }
+    if (venue.show_band & 0x10) { show_ext_next(); return; }    // (per-performer loops: src/show_ext.c)
     if (venue.show_band & 1) { dancer_frame = (dancer_frame + 1) & 3; return; }
-    if (i >= (venue.show_tile[4][0] & 15)) i = 0;
+    if (i >=(venue.show_tile[4][0] & 15)) i = 0;
     DANCE_STEP = i;
     dancer_frame = loop_frame(i);
 }
@@ -83,6 +84,7 @@ void dancers_step(void) BANKED {
     uint8_t sig = dancer_look();
     if (sig == dancer_sig) return;               // the entries already show exactly this
     dancer_sig = sig;
+    if (venue.show_band & 0x10) { show_ext_draw(sig); return; }
     draw_dancers(sig);
 }
 
