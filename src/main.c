@@ -194,16 +194,15 @@ _split_put_a::                      ; A = BCPS (auto-increment), DE = the 8 byte
     ld   a, (hl)
     ldh  (c), a
     ret
-_split_put_o2::                     ; the next line's HBlank, then the write below: mode 3 first (the line we are on is over or ending), then mode 0
+_split_put_o2::                     ; the next line's HBlank, then the write below: this HBlank over first (mode 2 or 3: not "mode 3", which WasmBoy, Pocket Player's core, never reports: it hung there, owner 11-03), then mode 0
     ld   h, a
     ldh  a, (0x44)
     cp   a, #38
-    ret  nc                         ; (late: the first write was a frame's end away, or in the VBlank: no mode 3 to wait for before the next frame's)
+    ret  nc                         ; (late: the first write was a frame's end away, or in the VBlank: no line to wait for before the next frame's)
 9403$:
     ldh  a, (0x41)
     and  a, #3
-    cp   a, #3
-    jr   nz, 9403$
+    jr   z, 9403$
 9404$:
     ldh  a, (0x41)
     and  a, #3
@@ -345,7 +344,7 @@ void split_vbl(void) {        // vq_vbl's place while the split is armed (the VB
 #if !ASM_SPLIT_PAL
 static void put_o8(uint8_t ocps, const volatile uint8_t *src, uint8_t wait) {   // (C twin: 8 bytes at OCPS, in the HBlank after the next mode 3 when `wait`)
     uint8_t i;
-    if (wait) { while ((STAT_REG & 3) != 3) ; while (STAT_REG & 3) ; }
+    if (wait) { while (!(STAT_REG & 3)) ; while (STAT_REG & 3) ; }   // (this HBlank over, then the next: no wait for mode 3, which WasmBoy never reports)
     OCPS_REG = ocps;
     for (i = 0; i != 8; i++) OCPD_REG = src[i];
 }
