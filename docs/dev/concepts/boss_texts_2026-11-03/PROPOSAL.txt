@@ -239,9 +239,9 @@ CURRENT page 2:
 CURRENT banner:   THE BIGGEST SHAKE  /  12 MILKS FOR DUKE
 PROPOSED page 1:
     12 MILKS BEAT DUKE
-    HE REVS, THEN
-    LURCHES FORWARD.
-    AT THE TAP: A LIFE
+    REVS, THEN LURCHES
+    IF HE REACHES TAP,
+    YOU LOSE A LIFE.
 PROPOSED page 2:
     A MUG DURING A REV
     STOPS HIS LURCH.
@@ -250,7 +250,7 @@ PROPOSED page 2:
 PROPOSED page 3: the shared icon page (see above)
 PROPOSED banner: THE BIGGEST SHAKE  /  12 MILKS FOR DUKE   (unchanged)
 WHY:
-  - P1: the original ('DUKE REVS, THEN / LURCHES AT THE TAP / A MUG WHILE HE / REVS STALLS HIM') split the key rule across two cards and broke 'A MUG WHILE HE / REVS'. The rule 'a mug during the rev stalls him' now sits whole on page 2; page 1 has the goal and the one thing he does.
+  - P1: 'REVS, THEN LURCHES' is honest to the code (rev 50 frames, then a 16 px lurch in 8 frames). The original ('DUKE REVS, THEN / LURCHES AT THE TAP / A MUG WHILE HE / REVS STALLS HIM') split the key rule across two cards and broke 'A MUG WHILE HE / REVS'. The rule 'a mug during the rev stalls him' now sits whole on page 2; page 1 has the goal and the one thing he does.
   - P2 adds a fact the player cannot see otherwise: his idle time before the next rev is 150, 120, then 90 frames as the meter falls (boss_duke.c), so he gets pushier toward the end. 'Shake' = the milkshake meter.
   - Banner: fine; kept (pinned by tests/test_boss_duke.py:78).
 CODE VS DOC:
@@ -270,20 +270,20 @@ CURRENT page 2:
     HIS STAMP
 CURRENT banner:   THE CHAMPION  /  PUSH HIM OUT
 PROPOSED page 1:
-    SHOVE HIM OUT OF
-    THE LEFT END: WIN.
-    AT THE TAP: A LIFE
-    A STAMP? FEED HIM!
+    PUSH HIM OFF THE
+    LEFT END TO WIN.
+    IF HE REACHES TAP,
+    YOU LOSE A LIFE.
 PROPOSED page 2:
-    EACH CUP FILLS HIS
-    METER. FULL SHOVES
-    HIM BACK, THEN IT
-    SHRINKS BY ONE.
+    EACH FULL METER
+    SHOVES HIM BACK.
+    NEXT: ONE SHORTER.
+    A STAMP? FEED HIM!
 PROPOSED page 3: none
 PROPOSED banner: THE CHAMPION  /  PUSH HIM OUT   (unchanged)
 WHY:
-  - P1: the original ('NO DRINK LIMIT / FILL THE METER TO / SHOVE HIM BACK / PUSH HIM OUT!') never said that the way to WIN is to push him off the bar's left end, nor that reaching the tap costs a life. Now both, plus the one special: a stamp is a charge, and any cup during the stamp calls it off.
-  - P2: the meter mechanic, in order: every cup fills it, full shoves him back 32 px, the next meter is one cup shorter (6, 5, 4 ... 1). The original had 'HE STEPS ON THE DRUM BEAT'; that is visible and audible, so dropped for space (see doubts).
+  - P1: the original ('NO DRINK LIMIT / FILL THE METER TO / SHOVE HIM BACK / PUSH HIM OUT!') never said that the way to WIN is to push him off the bar's left end, nor that reaching the tap costs a life. Now both.
+  - P2: the meter (a full one shoves him back 32 px, the next is one cup shorter: 6, 5, 4 ... 1) and the one special: a stamp is a charge, and any cup during the stamp calls it off (the stamp rule went here, on page 2, in place of the 'every cup fills it' line, which the HUD shows). The original had 'HE STEPS ON THE DRUM BEAT'; that is visible and audible, so dropped for space.
   - No icon page: the Sumo has no drink limit, so the icons mean nothing (the original card, correctly, has none either).
   - Banner: 'THE CHAMPION / PUSH HIM OUT' is accurate; kept (pinned by tests/test_boss_sumo.py:113).
 CODE VS DOC:
