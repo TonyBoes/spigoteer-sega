@@ -246,3 +246,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-11-02 owner on peacock pass 1: "I can't tell what the peacock is trying to do with its tail. It looks like a bladder inflating." -> pass 1 rejected; pass 2 (fan behind the bird) running, his words forwarded.
 - 2026-11-02 owner sent an edited crouch -> replaces frame 2 of p9 (30 px: bow flicks up, midriff row back, feet closer): sports_show_p10.txt. Q9 now asks about p10.
 - 2026-11-02 Bistro p5 merged: skirt swishes left/right (head and mouth now still, they funded it), bellows sag ~2 px on pull-out (max within 16 quarters). On Q5.
+- 2026-11-02 peacock pass 2 merged (zoo_show_peacock2.txt): ribbed fan, front view in frames 2-3. Supervisor read: frame 2 Color reads as a displayed peacock; DMG fan checkered/busy; frame 0 train thin, frame 1 wedge reads as a duster; side-to-front turn abrupt. On Q5.
