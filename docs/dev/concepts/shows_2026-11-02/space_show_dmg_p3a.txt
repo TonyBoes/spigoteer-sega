@@ -1,3 +1,4 @@
+; LOCKED 2026-11-03 (owner Q34 "a"): DMG Space band = this file (arm swings out on the head dips). Color keeps space_show_p9_cgb.txt. Import as is.
 ; space show DMG p3a (proposal; nothing imported). owner 2026-11-03: "a livelier strumming hand". Built on space_show_dmg_p1.txt. Idea A = THE ARM SWINGS OUT past the body's outline.
 ; Same four frames, heads, head dip, sway, feet, loops and flips as p1. F0 and F2 are p1 untouched (hand on the strings, arm tucked). Only arm pixels changed, on the right of the torso (the free columns x12-15):
 ;   F1 (head dip): the arm swings OUT LOW to the right, a white forearm (3 wide, 2 tall, black outline) with the hand at its end, rows 16-19, x12-15: 12 cells changed.
