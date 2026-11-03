@@ -81,10 +81,18 @@ void dance_next(void) BANKED {                  // a dance beat (main.c)
 // One call a frame while the show runs (render.c draw_stage_fx): compute what the dancer entries must show and rewrite them only
 // when that changed (dancer_sig).
 void dancers_step(void) BANKED {
-    uint8_t sig = dancer_look();
+    uint8_t sig = dancer_look(), k;
+    if (venue.show_band & 0x10) {                // (per-performer loops, src/show_ext.c: one performer a frame; dancer_sig bits 5-6 = how many are drawn, bit 7 clear until all three are, so render.c calls on)
+        k = dancer_sig;
+        if ((k & 0x1F) != (sig & 0x1F)) k = sig & 0x1F;          // (a new look: from performer 0)
+        else if (k & 0x80) return;               // all three show exactly this
+        show_ext_draw(sig, (k >> 5) & 3);
+        k += 0x20;
+        dancer_sig = (k & 0x60) == 0x60 ? k | 0x80 : k;
+        return;
+    }
     if (sig == dancer_sig) return;               // the entries already show exactly this
     dancer_sig = sig;
-    if (venue.show_band & 0x10) { show_ext_draw(sig); return; }
     draw_dancers(sig);
 }
 

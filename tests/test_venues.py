@@ -257,11 +257,11 @@ def test_the_show_uses_the_venue_performers(gb, group):
     v = at_theme(gb, group)
     w16(gb, "show_timer", SHOW_FRAMES)
     gb.run(40)
-    ds = [s for s in gb.visible_sprites() if OBJ_DANCER <= s["tile"] < OBJ_DANCER + 32]
-    assert len(ds) == 12, "three performers of 4 entries"
     assert obj_vram(gb, OBJ_DANCER, 32) == bytes(v["show"])
     if v.get("show_ext"):
-        return                                       # (per-performer loops: tests/test_show_ext.py)
+        return                                       # (per-performer loops, entries only where the figure has a cell, Color's tiles in VRAM bank 1: tests/test_show_ext.py)
+    ds = [s for s in gb.visible_sprites() if OBJ_DANCER <= s["tile"] < OBJ_DANCER + 32]
+    assert len(ds) == 12, "three performers of 4 entries"
     check_show_rows(gb, v)
 
 

@@ -22,7 +22,7 @@ DUST_LEN = 12
 
 def dust(gb):
     """The puff's sprite (tile 246..251), or None."""
-    d = [s for s in gb.visible_sprites() if OBJ_DUST <= s["tile"] <= OBJ_DUST + 5]
+    d = [s for s in gb.visible_sprites() if OBJ_DUST <= s["tile"] <= OBJ_DUST + 5 and not s["flags"] & 8]       # (bank 0: a Color show's quarters in VRAM bank 1 use ids of their own)
     assert len(d) <= 1
     return d[0] if d else None
 

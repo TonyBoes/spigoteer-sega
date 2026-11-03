@@ -1,4 +1,14 @@
-; space show performer: alien musician with a glow-harp. 16x24, 4 frames: rest + 3 dance frames. palette in space_show_pal.json (OBJ: index1 light, 2 mid, 3 dark; 0 transparent)
+; space show DMG p3a (proposal; nothing imported). owner 2026-11-03: "a livelier strumming hand". Built on space_show_dmg_p1.txt. Idea A = THE ARM SWINGS OUT past the body's outline.
+; Same four frames, heads, head dip, sway, feet, loops and flips as p1. F0 and F2 are p1 untouched (hand on the strings, arm tucked). Only arm pixels changed, on the right of the torso (the free columns x12-15):
+;   F1 (head dip): the arm swings OUT LOW to the right, a white forearm (3 wide, 2 tall, black outline) with the hand at its end, rows 16-19, x12-15: 12 cells changed.
+;   F3 (dip + lean): the arm swings OUT MID, rows 14-17, x12-15: 11 cells changed. So the arm goes in, out low, in, out higher: a swing the silhouette shows. The arm is white with a black outline, not grey (grey vanishes on the stage).
+; The p1 chest hand and strings are not touched. Silhouette is the read; no detail inside the body is asked to carry it.
+; 4 frames, 14 quarters (limit 16; p1 12). The left performer is flipped, so his arm swings out to the left.
+; loops (one step a beat), unchanged from p1:
+;   left  0 1 2 3   flip 1
+;   middle 1 2 3 0  flip 0
+;   right 2 3 0 1   flip 0
+; "performers": [{"loop": [0, 1, 2, 3], "flip": 1}, {"loop": [1, 2, 3, 0], "flip": 0}, {"loop": [2, 3, 0, 1], "flip": 0}]
 .#++#.......#++#
 ..##-#######-##.
 ....#-------#...
@@ -24,9 +34,10 @@
 .#+++++++++++++#
 ..#+++++++++###.
 
+................
+................
 .#++#.......#++#
-..##-#.....#-##.
-...#-#######-#..
+..##-#######-##.
 ....#-------#...
 ...#---------#..
 ..#-----------#.
@@ -35,15 +46,14 @@
 .#--####-####--#
 ..#-####-####-#.
 ..#--##---##--#.
-..#----###----#.
-...#---##++--#..
+..#-----------#.
+...#---###---#..
 ..#++#--+++##...
-..#++--+++--#...
 ..#++-#+----#...
-..#++#++-----#..
-..#++#+--#--#...
-..#+#+------#...
-..#+#+--#--#....
+..#++#++-----##.
+..#++#+--#-----#
+..#+#+---------#
+..#+#+--#--####.
 ..#+++-#---####.
 .#+++++++++++++#
 .#+++++++++++++#
@@ -62,31 +72,6 @@
 ..#-----------#.
 ...#---###---#..
 ...###---++##...
-..#++#--+++#....
-..#++--+++--#...
-..#++---#---#...
-..#++-++#----#..
-..#++-+#---##...
-..#+-+#---#-#...
-..#+-+#---##....
-..#+++-#---####.
-.#+++++++++++++#
-.#+++++++++++++#
-..#+++++++++###.
-
-.#++#.......#++#
-..##-#.....#-##.
-...#-#######-#..
-....#-------#...
-...#---------#..
-..#-----------#.
-..#--##---##--#.
-..#-#-##-#-##-#.
-.#--####-####--#
-..#-####-####-#.
-..#--##---##--#.
-..#-----------#.
-...#---##++--#..
 ..#++#--+++##...
 ..#++--+++--#...
 ..#++-#+----#...
@@ -94,6 +79,31 @@
 ..#++#+--#--#...
 ..#+#+------#...
 ..#+#+--#--#....
+..#+++-#---####.
+.#+++++++++++++#
+.#+++++++++++++#
+..#+++++++++###.
+
+................
+................
+#++#.......#++#.
+.##-#######-##..
+...#-------#....
+..#---------#...
+.#-----------#..
+.#--##---##--#..
+.#-#-##-#-##-#..
+#--####-####--#.
+.#-####-####-#..
+.#--##---##--#..
+.#-----------#..
+..#---###---#...
+...###---++####.
+..#++---#------#
+..#++-++#------#
+..#++-+#---####.
+..#+-+#---#-#...
+..#+-+#---##....
 ..#+++-#---####.
 .#+++++++++++++#
 .#+++++++++++++#

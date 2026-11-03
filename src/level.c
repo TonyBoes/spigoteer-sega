@@ -293,8 +293,8 @@ void obj_stage(void) BANKED {
         if (OBJX_PAT4[k] != OBJX_SHOW[8 + k]) f |= 2;
         if (OBJX_PAT3[k] != OBJX_SHOW[k]) f |= 4;
     }
-    OBJX_F = f;
-    if (pal5_cur == 3 && SPLIT_ON == 3) split_plan();
+    if (pal5_cur == 3 && SPLIT_ON == 3) { OBJX_F = 0x88 | (f << 3 & 0x70); split_plan(); }   // (the plan takes frame's third: until it is swapped in, the events run as the old plan timed them, so the give-back bits wait in bits 3-5 and split_plan publishes them with the swap)
+    else OBJX_F = f;
 }
 
 void chain_cols(uint8_t *d) BANKED {    // d: 40 bytes; [24..39] the OBJ 5 pair (a venue whose instance 4 is OBJ 5), else left alone; with three show palettes OBJX_CO gets OBJ 4's and OBJ 3's (the fades' source colours)
@@ -332,7 +332,7 @@ static void chain_set(void) {                   // the colours below the split, 
 // Sorted by line; a line holds one event, the later one moves down a line; the window's end line is an event only when no palette is due on it (the ISR's prologue hides the window).
 // Runs whenever SPLIT_WANT or WY_REG changes (set_lyc, SET_WY), and at the arm; the next event is the first below the beam (LY), the first of the frame when none is.
 void split_plan(void) BANKED {
-    uint8_t line[EV_MAX], kind[EV_MAX], n = 0, i, j, k_, t, w = SPLIT_WANT, wy = WY_REG, kl = SPLIT_L_BCPS ? SPLIT_LY - 1 : SPLIT_LY, ly = LY_REG, shown = LCDC_REG & LCDCF_WINON, ds = DS_NOW ? 0 : 1;
+    uint8_t line[EV_MAX], kind[EV_MAX], n = 0, i, j, k_, t, w = SPLIT_WANT, wy = WY_REG, kl = SPLIT_L_BCPS ? SPLIT_LY - 1 : SPLIT_LY, ly = LY_REG, shown = LCDC_REG & LCDCF_WINON, ds = DS_NOW ? 0 : 1, xf = ((OBJX_F & 0x88) == 0x88) ? (OBJX_F >> 3) & 7 : OBJX_F & 7;
     if (SPLIT_E_BCPS) { line[n] = SPLIT_EARLY_LY; kind[n++] = EV_E; }
     if (SPLIT_L_BCPS) { line[n] = SPLIT_LY; kind[n++] = EV_L; }
     if (KEG_BCPS) {
@@ -345,11 +345,11 @@ void split_plan(void) BANKED {
         line[n] = FLOOR_ROW * 8; kind[n++] = EV_HUD_END;   // (the floor row has no keg: BG 1 is the HUD's for the next frame's first line)
     }
     if (pal5_cur & 1) {                                               // (a show: OBJ 5 the patron's again, between the dancers' last line and the first bar's; main.c's wait for it takes no window flags: off the window's end line)
-        t = (OBJX_F & 6) ? EV_OBJ_LY3 : EV_OBJ_LY;                    // (three show palettes: OBJ 4's and 3's give-backs follow in the next lines' HBlanks, main.c _split_put_o)
-        if (shown && (t == w || t + 1 == w || ((OBJX_F & 6) && t + 1 < w && w <= t + 3))) t += (OBJX_F & 6) ? 4 : 2;   // (the window's end line is not for a palette; no window ends near the stage's last lines but the note's, 31)
+        t = (xf & 6) ? EV_OBJ_LY3 : EV_OBJ_LY;                    // (three show palettes: OBJ 4's and 3's give-backs follow in the next lines' HBlanks, main.c _split_put_o)
+        if (shown && (t == w || t + 1 == w || ((xf & 6) && t + 1 < w && w <= t + 3))) t += (xf & 6) ? 4 : 2;   // (the window's end line is not for a palette; no window ends near the stage's last lines but the note's, 31)
         j = t;
         line[n] = j; kind[n++] = EV_OBJ;
-        if (OBJX_ON) { line[n] = EV_OBJS_LY; kind[n++] = EV_OBJS; }    // (three show palettes: OBJ 3 and 4 hold the patrons' colours since the give-backs above: the show's go in at the top of the frame, before the dancers' first line)
+        if (xf & 1) { line[n] = EV_OBJS_LY; kind[n++] = EV_OBJS; }    // (three show palettes: OBJ 3 and 4 hold the patrons' colours since the give-backs above: the show's go in at the top of the frame, before the dancers' first line)
     }
     for (i = 1; i < n; i++) {                       // (insertion sort: six at most)
         t = line[i]; j = kind[i];
@@ -375,6 +375,7 @@ void split_plan(void) BANKED {
     for (i = 0; i < n && line[i] <= ly; i++) ;
     CRITICAL {
         SPLIT_OFF = ds;
+        if ((OBJX_F & 0x88) == 0x88) OBJX_F = xf;                  // (obj_stage's give-back bits: with the new table)
         for (j = 0; j < n; j++) { EV_LINE(j) = line[j] - ds; EV_KIND(j) = kind[j]; }
         EV_LINE(n) = line[0] - ds;                                      // (the sentinel: the line after the last is the first's, next frame)
         EV_N = n;

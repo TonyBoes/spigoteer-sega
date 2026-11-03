@@ -3,9 +3,9 @@
 // extra show palettes when bit 3): the DMG's performers, each on its own loop of frames, optionally X-flipped by the OAM flag. With bit 5
 // a second block follows that Color uses instead (frames of up to 24 px wide whose tiles are 8x16 quarters in VRAM bank 1, OAM bit 3)
 // and then the pool section that load_venue puts into bank 1 (LCD off).
-// Block: [0] size, [1] figure width, [2] beat period, [3..5] loop length | flip << 4 (performer k), [6..29] the loops' frame ids (8 each),
-// [30..] per frame 4 x (tile, pos): pos bit 7 none, bits 0-1 cell column, bit 2 cell row (lines 0-15 / 16-23), bit 3 bank 1 (tile = its id)
-// else tile = offset from OBJ_DANCER. Beat = DANCE_STEP (0..period-1). No WRAM: the block is read from the venue's bank on each change.
+// Block: [0..1] size, [2] beat period, then per beat a row of 6 bytes (performer k's record offset at 2k), then the 16-byte records: 4 finished OAM entries
+// (y + 1 or 0, x from the figure's left edge, tile, prop) that the draw copies into shadow OAM and offsets by the performer's place. Beat = DANCE_STEP (0..period-1).
+// No WRAM: the block is read from the venue's bank on each change.
 #pragma bank 255
 #include <gb/gb.h>
 #include <stdint.h>
@@ -13,8 +13,9 @@
 #include "scratch.h"
 #include "music.h"
 
-#define EXT_HEAD   30
-#define EXT_OAM_B1 0x08
+#if OBJ_DANCER != 96
+#error "tools/gen_art.py OBJ_DANCER (the records' bank 0 tile ids)"
+#endif
 
 static const uint8_t ext_x[NUM_DANCERS] = { 24, 72, 120 };               // as rom0_relief.c dancer_x / dancer_pal
 static const uint8_t ext_pal[NUM_DANCERS] = { OBJPAL_DANCER, 4, 3 };
@@ -23,36 +24,27 @@ static const uint8_t ext_pal[NUM_DANCERS] = { OBJPAL_DANCER, 4, 3 };
 // The block this screen uses: Color takes its own when the venue has one.
 static const uint8_t *ext_block(void) {
     const uint8_t *p = venue.show_tiles + DANCER_TILE_COUNT * 16 + ((venue.show_band & 8) ? 16 : 0);
-    uint8_t sz;
-    if (is_cgb && (venue.show_band & 0x20)) { far_copy(&sz, p, 1, venue_bank); p += sz; }
+    if (is_cgb && (venue.show_band & 0x20)) p += venue.show_tile[5][0] | (uint16_t)venue.show_tile[5][1] << 8;     // (gen_art.py: the DMG block's size)
     return p;
 }
 
-// The three performers' OAM entries (OAM_DANCERS..): sig as rom0_relief.c dancer_look (bit k: performer k is up).
-void show_ext_draw(uint8_t sig) BANKED {
-    uint8_t h[EXT_HEAD], r[8], k, e, f, n, hd, w, x, pos, flags;
+// Performer k's four OAM entries (OAM_DANCERS + 4k..): sig as rom0_relief.c dancer_look (bit k: performer k is up). One performer a call, a frame apart
+// (rom0_relief.c dancers_step): the beat's row names the record, the record is copied into shadow OAM and moved to the performer's place.
+void show_ext_draw(uint8_t sig, uint8_t k) BANKED {
+    uint16_t off, s = DANCE_STEP;
+    uint8_t e, x, flags;
     const uint8_t *p = ext_block();
-    OAM_item_t *o = shadow_OAM + OAM_DANCERS;
-    far_copy(h, p, EXT_HEAD, venue_bank);
-    w = h[1];
-    for (k = 0; k < NUM_DANCERS; k++, o += 4) {
-        if (!(sig & (1 << k))) { o[0].y = o[1].y = o[2].y = o[3].y = 0; continue; }
-        hd = h[3 + k];
-        n = hd & 15;
-        f = DANCE_STEP;
-        while (f >= n) f -= n;                                   // (the beat modulo this performer's loop length)
-        far_copy(r, p + EXT_HEAD + ((uint16_t)h[6 + (k << 3) + f] << 3), 8, venue_bank);
-        flags = (is_cgb ? (OBJX_ON ? ext_pal[k] : OBJPAL_DANCER) : 0) | ((hd & 16) ? S_FLIPX : 0);
-        x = ext_x[k] + 8 - ((w - 16) >> 1);                      // (a 24 px figure reaches 4 px past the 16 px one's edges)
-        for (e = 0; e < 4; e++) {
-            pos = r[2 * e + 1];
-            if (pos & 0x80) { o[e].y = 0; continue; }
-            n = (pos & 3) << 3;
-            o[e].y = EXT_OAM_Y + ((pos & 4) ? 16 : 0);
-            o[e].x = x + ((hd & 16) ? (uint8_t)(w - 8 - n) : n);
-            o[e].tile = (pos & EXT_OAM_B1) ? r[2 * e] : (uint8_t)(OBJ_DANCER + r[2 * e]);
-            o[e].prop = flags | (pos & EXT_OAM_B1);
-        }
+    OAM_item_t *o = shadow_OAM + OAM_DANCERS + (k << 2);
+    if (!(sig & (1 << k))) { o[0].y = o[1].y = o[2].y = o[3].y = 0; return; }
+    far_copy(&off, p + 3 + (s << 2) + (s << 1) + (k << 1), 2, venue_bank);
+    far_copy(o, p + off, 16, venue_bank);
+    flags = is_cgb ? (OBJX_ON ? ext_pal[k] : OBJPAL_DANCER) : 0;
+    x = ext_x[k];
+    for (e = 0; e < 4; e++, o++) {
+        if (!o->y) continue;
+        o->y += EXT_OAM_Y - 1;
+        o->x += x;
+        o->prop |= flags;
     }
 }
 
@@ -66,9 +58,10 @@ void show_ext_next(void) BANKED {
 
 // The Color pool into VRAM bank 1 (load_venue, LCD off, Color only): [segments n] [first OBJ id, tiles] x n, then the tiles, after the Color block.
 void show_pool_load(void) BANKED {
-    uint8_t ns, i, d[8], sz;
+    uint8_t ns, i, d[8];
+    uint16_t sz;
     const uint8_t *p = ext_block();
-    far_copy(&sz, p, 1, venue_bank);
+    far_copy(&sz, p, 2, venue_bank);
     p += sz;
     far_copy(&ns, p, 1, venue_bank);
     far_copy(d, p + 1, 2 * ns, venue_bank);

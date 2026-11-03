@@ -55,7 +55,7 @@ def three_pals():
 def test_the_saloon_lists_three_palettes_and_the_others_one():
     for i, t in enumerate(THEMES):
         v = venue_art(t)
-        assert v["show_pal_n"] == (3 if t == "saloon" else 1), t
+        assert v["show_pal_n"] == (3 if t in ("saloon", "bistro") else 1), t
         assert v["pal"][6] == v["show_pals"][0], "the venue's show palette is the first (the left dancer's, OBJ 5)"
     pals = three_pals()
     assert [p[1] for p in pals] != [pals[0][1]] * 3 and len({p[0] for p in pals}) == 1 and len({p[2] for p in pals}) == 1, "skin and black shared, three dresses"
