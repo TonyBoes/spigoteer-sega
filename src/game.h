@@ -348,7 +348,18 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 #define OBJ_PAT         (story_scratch + SCR_OBJ_AT)            // 8 bytes: palette instance 4's colours (lifted for SCREEN BRIGHT), for the HBlank write
 #define OBJ_SHOW        (story_scratch + SCR_OBJ2_AT)           // 8 bytes: the show's colours (lifted), for the VBlank write
 #define OBJ5_CHAIN()    (INST_OBJ[4] == OBJPAL_DANCER && !((LOOKS_SHOW5 >> cur_group) & 1))
-#define EV_OBJ_LY       35
+#define EV_OBJ_LY       35      // OBJ 5's give-back line; with three show palettes (OBJX_ON, OBJX_F bits 1-2) it starts a line earlier and OBJ 4's and OBJ 3's follow in the next two lines (34, 35, 36: before the first line a patron, mug or coin sprite can occupy, 40), one HBlank each, all in one event: two handlers a line apart start late (the second's LYC hit comes a line after its line)
+#define EV_OBJ_LY3      34
+#define EV_OBJS_LY      4       // (three show palettes: the first line below the HUD's BG row that no sprite is on, before the dancers' first, 8: OBJ 3's HBlank, OBJ 4's the line after)
+// Three show palettes (venue.show_band bit 3, Color, a venue that runs the chain): the left dancer wears OBJ 5, the middle OBJ 4, the right OBJ 3 (OBJX_SLOT), loaded in every VBlank (render.c pal5_write: OBJ 5 from pal5_src,
+// OBJ 3 and 4 from OBJX_SHOW) and given back one HBlank each below the stage (main.c _split_put_o: the buffers OBJX_PAT4 / OBJX_PAT3). An OBJ slot whose give-back is no different from the show's colours is not written (OBJX_F bits 1-2).
+#define OBJX_PAT4       (story_scratch + SCR_OBJX_AT)           // 8 bytes: OBJ 4's patron colours (lifted for SCREEN BRIGHT), for the HBlank write
+#define OBJX_PAT3       (story_scratch + SCR_OBJX_AT + 8)       // 8 bytes: OBJ 3's
+#define OBJX_SHOW       (story_scratch + SCR_OBJX_AT + 16)      // 16 bytes: the show's colours for OBJ 3 then OBJ 4 (contiguous in palette RAM), for the VBlank write
+#define OBJX_CO         (story_scratch + SCR_OBJXC_AT)          // 32 bytes: the fades' source colours of the same four (level.c chain_cols)
+#define OBJX_F          (story_scratch[SCR_OBJF_AT])            // bit 0 the three dancers wear their own palettes (a show is on, pal5_cur 3), bit 1 OBJ 4's give-back is an event, bit 2 OBJ 3's
+#define OBJX_ON         (OBJX_F & 1)
+#define DANCE_STEP      (story_scratch[SCR_OBJF_AT + 1])        // the dance's step (src/rom0_relief.c dance_next)
 #define KEG_PAL         (story_scratch + SCR_KEG_AT)        // 8 bytes: the keg's colours (SCREEN BRIGHT lifted)
 #define KEG_STG         (story_scratch + SCR_KEG_AT + 8)    // 8 bytes: the HUD's, read back from palette RAM at arm time
 #define EV_N            (story_scratch[SCR_KEG_AT + 16])    // the events of a frame, in line order: how many, the next to come (decoded by the ISR itself when its line hits), planned for a shown window
@@ -369,6 +380,7 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 #define EV_PAD          40      // nothing (the list's second event when a frame has one)
 #define EV_KEG_L        45      // double speed: the keg's put and the late palette's together, in the late one's HBlank (one hit, not two)
 #define EV_OBJ          50      // OBJ 5 = the patron's (OBJ_PAT): the show's dancers are done (its BCPS has bit 6 set: main.c split_put_a writes OCPS / OCPD then)
+#define EV_OBJS         55      // OBJ 3 and OBJ 4 = the middle and right dancers' (OBJX_SHOW), line EV_OBJS_LY and the next: main.c _split_put_o (OCPS 0xD8)
 #define EV_HIDE_FIRST   0x40    // ORed into a kind: the window off on this line (it ends here), before the palette
 #define EV_HIDE_AFTER   0x80    // ... after the palette (it ends on the next line)
 // The OBJ and BG palette slot of palette instance 0-7 (patron_variant), filled at the level load by looks_insts (build/looks.c): story_scratch, SCR_INST_AT.
@@ -561,6 +573,9 @@ extern volatile uint8_t pal5_req;             // (render.c) VBlank palette reque
 extern uint8_t pal5_cur;                      // CGB OBJ palette 5: 0 the patron's (a venue whose instance 4 is OBJ 5), 2 the show's alone, 3 the show's above the stage and the patron's below (game.h OBJ_PAT)
 extern const uint16_t *pal5_src;              // (render.c) what the VBlank writes into OBJ 5 (pal5_write)
 extern uint8_t cur_group, overlay_on;
+void dance_start(void) BANKED;               // rom0_relief.c: a show starts: the venue's first dance frame (its intro, else loop step 0)
+void dance_next(void) BANKED;
+void obj_stage(void) BANKED;                // ... the next beat's frame (the venue's step table, tools/gen_art.py step_rows)
 void show_pal5(uint8_t on) BANKED;            // level.c: a show starts (1) or ends (0) on Color: OBJ 5's colours, and the chain's event for the dancers
 // ---- lift.c (banked, M13a lifted patrons) ------------------------------------------------------
 void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palettes / DMG copies and looks, no one lifted

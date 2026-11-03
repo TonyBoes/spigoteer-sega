@@ -254,19 +254,53 @@ static void chain_put(uint8_t *d, const uint16_t *q) {
     for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); d[k << 1] = c; d[(k << 1) | 1] = c >> 8; }
 }
 
-// OBJ 5 during a show (game.h OBJ_PAT / OBJ_SHOW), d: 16 bytes, the patron's (palette instance 4, lifted for SCREEN BRIGHT) and the show's
-static void obj_cols(uint8_t *d) {
+// OBJ 5 during a show (game.h OBJ_PAT / OBJ_SHOW), d: 16 bytes, the patron's (palette instance 4, lifted for SCREEN BRIGHT) and the show's. With three show palettes (OBJX_ON) x is 32 bytes, scratch.h's SCR_OBJX
+// buffers as they lie: the patron colours of OBJ 4 and OBJ 3 (the instances that wear those slots), then the show's for OBJ 3 (the right dancer's palette) and OBJ 4 (the middle's).
+static void obj_pat(uint8_t inst, uint8_t *d) {      // the colours of palette instance inst (lifted); the venue's mug colours where it is the mug's
     palette_t q;
-    uint8_t r = looks_pal_get(cur_group, 4, q), j;
-    if (r) for (j = 0; j < 4; j++) q[j] = venue.pal[r == 1 ? VENUE_PAL_DRINK_FULL : VENUE_PAL_DRINK_EMPTY][j];   // (1 / 2: the venue's full / empty mug colours)
+    uint8_t r = looks_pal_get(cur_group, inst, q), j;
+    if (r) for (j = 0; j < 4; j++) q[j] = venue.pal[r == 1 ? VENUE_PAL_DRINK_FULL : r == 2 ? VENUE_PAL_DRINK_EMPTY : VENUE_PAL_SHOW][j];   // (1 / 2: the venue's full / empty mug colours, 3: the show's)
     chain_put(d, q);
-    chain_put(d + 8, venue.pal[VENUE_PAL_SHOW]);
 }
 
-void chain_cols(uint8_t *d) BANKED {    // d: 40 bytes; [24..39] the OBJ 5 pair (a venue whose instance 4 is OBJ 5), else left alone
+static void obj_x(uint8_t *x) {
+    {
+        uint16_t p[8];
+        uint8_t i;
+        far_copy(p, venue.show_tiles + DANCER_TILE_COUNT * 16, 16, venue_bank);   // (the middle and the right performer's palettes follow the show's tiles in the venue's bank)
+        chain_put(x + 16, p + 4);
+        chain_put(x + 24, p);
+        for (i = 0; i < 8; i++) { x[i] = x[24 + i]; x[8 + i] = x[16 + i]; }       // (an OBJ slot no instance wears: its "patron" colours are the show's: nothing to give back)
+        for (i = 0; i < 5; i++) {
+            if (INST_OBJ[i] == 4) obj_pat(i, x);
+            if (INST_OBJ[i] == 3) obj_pat(i, x + 8);
+        }
+    }
+}
+static void obj_cols(uint8_t *d, uint8_t *x) {
+    obj_pat(4, d);
+    chain_put(d + 8, venue.pal[VENUE_PAL_SHOW]);
+    if (OBJX_ON) obj_x(x);
+}
+
+// The three show palettes' setup is spread over the show's first three frames (the start frame is the one that has the coin, the plan and the dancers' first entry to do: it is full): show_pal5 only
+// asks (OBJX_F 0x40), then one call a frame (rom0_relief.c dance_tick_step): 0x40 fills the colour buffers, 0x80 decides which slots have a give-back and plans the events (OBJX_ON). The dancers pop in
+// from the 8th frame on (DANCER_STAGGER), the first one is the left one, who wears OBJ 5 in either state.
+void obj_stage(void) BANKED {
+    uint8_t k, f = 1;
+    if (OBJX_F & 0x40) { obj_x((uint8_t *)OBJX_PAT4); OBJX_F = 0x80; return; }
+    for (k = 0; k < 8; k++) {
+        if (OBJX_PAT4[k] != OBJX_SHOW[8 + k]) f |= 2;
+        if (OBJX_PAT3[k] != OBJX_SHOW[k]) f |= 4;
+    }
+    OBJX_F = f;
+    if (pal5_cur == 3 && SPLIT_ON == 3) split_plan();
+}
+
+void chain_cols(uint8_t *d) BANKED {    // d: 40 bytes; [24..39] the OBJ 5 pair (a venue whose instance 4 is OBJ 5), else left alone; with three show palettes OBJX_CO gets OBJ 4's and OBJ 3's (the fades' source colours)
     palette_t q;
     uint8_t s[6];
-    if (OBJ5_CHAIN()) obj_cols(d + 24);
+    if (OBJ5_CHAIN()) obj_cols(d + 24, OBJX_CO);
     if (cur_group == 0) {
         patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others
         q[0] = WALL_RGB;
@@ -311,8 +345,11 @@ void split_plan(void) BANKED {
         line[n] = FLOOR_ROW * 8; kind[n++] = EV_HUD_END;   // (the floor row has no keg: BG 1 is the HUD's for the next frame's first line)
     }
     if (pal5_cur & 1) {                                               // (a show: OBJ 5 the patron's again, between the dancers' last line and the first bar's; main.c's wait for it takes no window flags: off the window's end line)
-        j = EV_OBJ_LY + ((shown && (EV_OBJ_LY == w || EV_OBJ_LY + 1 == w)) ? 2 : 0);
+        t = (OBJX_F & 6) ? EV_OBJ_LY3 : EV_OBJ_LY;                    // (three show palettes: OBJ 4's and 3's give-backs follow in the next lines' HBlanks, main.c _split_put_o)
+        if (shown && (t == w || t + 1 == w || ((OBJX_F & 6) && t + 1 < w && w <= t + 3))) t += (OBJX_F & 6) ? 4 : 2;   // (the window's end line is not for a palette; no window ends near the stage's last lines but the note's, 31)
+        j = t;
         line[n] = j; kind[n++] = EV_OBJ;
+        if (OBJX_ON) { line[n] = EV_OBJS_LY; kind[n++] = EV_OBJS; }    // (three show palettes: OBJ 3 and 4 hold the patrons' colours since the give-backs above: the show's go in at the top of the frame, before the dancers' first line)
     }
     for (i = 1; i < n; i++) {                       // (insertion sort: six at most)
         t = line[i]; j = kind[i];
@@ -334,6 +371,7 @@ void split_plan(void) BANKED {
         line[i] = w; kind[i] = EV_NONE; n++;
     }
     if (n < 2) { line[n] = 143; kind[n++] = EV_PAD; }    // (the ISR always has a next line to set: a frame's one event gets a harmless second)
+    ly = LY_REG;                                       // (the plan took a tenth of a frame or more: the beam is where it is now, not where it was when this began)
     for (i = 0; i < n && line[i] <= ly; i++) ;
     CRITICAL {
         SPLIT_OFF = ds;
@@ -369,16 +407,23 @@ static uint8_t saloon_mode(uint8_t m) {
 // runs the chain: the show's colours go into OBJ 5 in every VBlank, split_isr3 writes the patron's back below the dancers (EV_OBJ); any other has the show's colours in OBJ 5 alone.
 void show_pal5(uint8_t on) BANKED {
     if (!on) {                                   // (pal5_cur 3: OBJ 5 is the patron's already, the last event of the frame wrote it)
-        if (pal5_cur == 3) { pal5_cur = 1; pal5_req &= 2; return; }          // (1: the show is over, the event stays one more frame: the palette RAM holds the show's colours until it has written the patron's)
+        if (pal5_cur == 3) { pal5_cur = 1; pal5_req &= 2; OBJX_F &= 6; if (OBJX_F && SPLIT_ON == 3) split_plan(); return; }   // (three show palettes: the give-backs stay for this frame, the show's colours at lines 4 and 5 do not come again)          // (1: the show is over, the event stays one more frame: the palette RAM holds the show's colours until it has written the patron's)
         if (cur_group == 0 && SPLIT_ON == 3 && !saloon_mode(1)) return;     // (a window is up: next frame)
         pal5_cur = 0;
+        OBJX_F = 0;
         if (SPLIT_ON == 3) split_plan();
         return;
     }
     if (SPLIT_ON && OBJ5_CHAIN()) {
         pal5_cur = 3;                            // (the plan below has the event)
-        { uint8_t d[16], k; obj_cols(d); for (k = 0; k < 8; k++) { OBJ_PAT[k] = d[k]; OBJ_SHOW[k] = d[8 + k]; } }   // (the buffers are the fades' only while a show is on: pal5_cur odd)
-        if (SPLIT_ON == 1) { if (!saloon_mode(3)) { pal5_cur = 0; return; } }
+        {
+            uint8_t d[16], k;
+            if (venue.show_band & 8) dance_tick = DANCER_BEAT;
+            OBJX_F = (venue.show_band & 8) ? 0x40 : 0;   // (three show palettes: the dancers' own OBJ slots, and the give-backs of those that differ: obj_stage, the next frames)
+            obj_cols(d, (uint8_t *)OBJX_PAT4);
+            for (k = 0; k < 8; k++) { OBJ_PAT[k] = d[k]; OBJ_SHOW[k] = d[8 + k]; }   // (the buffers are the fades' only while a show is on: pal5_cur odd)
+        }
+        if (SPLIT_ON == 1) { if (!saloon_mode(3)) { pal5_cur = 0; OBJX_F = 0; return; } }
         else split_plan();
         pal5_src = (const uint16_t *)OBJ_SHOW; pal5_req = 1;
         return;

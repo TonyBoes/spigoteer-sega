@@ -32,6 +32,11 @@ def ds(request):
     return request.param
 
 
+def show_cols(v):
+    """Every colour of the venue's show palette(s): the Saloon's three dancers wear a palette each."""
+    return {int(c) for p in venue_art(v)["show_pals"] for c in p[1:]}
+
+
 def play(group, ds, model="cgb"):
     cm = double_speed() if ds else contextlib.nullcontext()
     with cm:
@@ -99,7 +104,7 @@ def test_the_dancers_wear_the_show_s_colours_and_a_patron_on_their_slot_keeps_hi
     gb = play(v, ds)
     try:
         chain = inst4_is_obj5(gb)
-        show = [c for c in venue_art(v)["pal"][6][1:]]
+        show = show_cols(v)
         if chain:
             slot = lifted_patron(gb)
             assert sprites(gb, 5), "his sprite is in OBJ 5"
@@ -147,7 +152,7 @@ def test_the_obj_5_write_is_one_a_frame_in_its_own_line_s_hblank(v, ds):
                 m = gb.pb.memory
                 log.append((name, m[0xFF44], m[0xFF41] & 3))
             gb.pb.hook_register(a >> 16, a & 0xFFFF, cb, None)
-        for n in ("split_put_o", "split_put_oe", "split_put_a"):
+        for n in ("split_put_o", "split_put_o2", "split_put_oe", "split_put_a"):
             hook_at(n)
         gb.run(5)
         start_show(gb)
@@ -160,8 +165,12 @@ def test_the_obj_5_write_is_one_a_frame_in_its_own_line_s_hblank(v, ds):
         if not chain:
             assert not ent, "this venue's dancers keep OBJ 5 alone: no write"
             return
-        assert len(ent) == len(ext) and n - 3 <= len(ent) <= n + 3, ("one write a frame", len(ent), n)
+        three = venue_art(v)["show_pal_n"] == 3                  # (three show palettes: OBJ 4's and 3's give-backs follow, one HBlank each: tests/test_show_three.py)
         assert all(x[2] != 3 for x in ent + ext), ("a write in mode 3", sorted({(x[1], x[2]) for x in ent + ext}))
+        if three:                                                # (the Saloon's three palettes: the show's OBJ 3 and 4 at the top of the frame, the three give-backs: 5 writes a frame, tests/test_show_three.py has their lines)
+            assert 5 * (n - 3) <= len(ext) <= 5 * (n + 3) and len(ent) == len(ext), (len(ent), len(ext), n)
+            return
+        assert len(ext) == len(ent) and n - 3 <= len(ent) <= n + 3, ("one write a frame", len(ent), n)
         assert {x[1] for x in ent} == {EV_OBJ_LY} and all(x[2] == 0 for x in ent), ("entry: its line, in HBlank", sorted({(x[1], x[2]) for x in ent}))
         assert {x[1] for x in ext} <= {EV_OBJ_LY, EV_OBJ_LY + 1} and all(x[2] in (0, 2) for x in ext if x[1] == EV_OBJ_LY + 1), ("exit: HBlank, or the next line's OAM scan (mode 2: palette RAM is open)", sorted({(x[1], x[2]) for x in ext}))
         others = {x[1] for x in log if x[0] == "split_put_a"}
@@ -206,7 +215,7 @@ def test_a_show_starting_and_ending_holds_no_wrong_colour_frame(v, ds):
         r_pat = rect(sprites(gb, 5))
         r_d = (8, 8, 152, DANCERS_LAST_LINE + 1)
         bg = set(np.unique(patch(ref, r_d)).tolist())
-        show = {int(c) for c in venue_art(v)["pal"][6][1:]}
+        show = show_cols(v)
         bad = watch_show(gb, r_pat, ref, r_d, bg, show, 120, {5: lambda: start_show(gb, 60)})        # (the show ends by itself after 60 frames: end_show, and the Saloon's split goes back to its one reload)
         assert not bad, bad[:6]
         assert gb.mem("show_timer") == 0 and gb.mem("pal5_cur") == 0, "over"
@@ -234,9 +243,9 @@ def test_the_dancers_come_in_the_same_frame_whether_a_patron_is_lifted_or_not(v)
 
 # fades: tests/test_fade_chain.py's scene change with the sprites ON and a show running over a lifted OBJ 5 patron: every pixel of every frame is in a colour of the fade's level
 # (the sprites' palettes follow the BG's by a frame, so up to three eighths either side, the unfaded set only in the first step).
-def fade_check(old, variant, ds):
+def fade_check(old, variant, ds, lift=lifted_patron):
     def setup(gb):
-        lifted_patron(gb)
+        lift(gb)
         start_show(gb, 600)
         gb.run(10)
     frames, known = scene_change_frames(old, variant, ds, setup=setup, sprites=True)

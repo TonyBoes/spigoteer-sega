@@ -233,7 +233,7 @@ void update_glass(void) {
 void draw_fill(void) {
     OAM_item_t *o = shadow_OAM + OAM_FILL;
     if (!fill_timer) { o->y = 0; return; }
-    o->y = bar_oam_y[bar] + MUG_DY + (venue.show_band >> 1); o->x = (uint8_t)(tap_now + (SPOUT_X - TAP_X + 8));
+    o->y = bar_oam_y[bar] + MUG_DY + (((venue.show_band >> 1) & 3)); o->x = (uint8_t)(tap_now + (SPOUT_X - TAP_X + 8));
     o->tile = OBJ_MUG_FILL + fill_stage * 2; o->prop = is_cgb ? OBJPAL_MUG_FULL : 0;   // DMG: OBP0 (beer light grey) shows on the white wall; OBP1 would make it white
 }
 

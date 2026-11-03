@@ -52,6 +52,9 @@ USERS = {
     "evt.TAB": (H["SCR_EVT_AT"], H["SCR_EVT_AT"] + H["SCR_EVT_N"], "game.h EV_LINE / EV_KIND: the frame's events (line, kind) and the sentinel (a Color level, a fight's level included)"),
     "keg2.TAB": (H["SCR_KEG2_AT"], H["SCR_KEG2_AT"] + H["SCR_KEG2_N"], "game.h KEG_BCPS (SHOW_PAL, unused: OBJ_PAT / OBJ_SHOW took its job): whether BG 1 is the keg's (a Color level, a fight's level included)"),
     "obj.PAT": (H["SCR_OBJ_AT"], H["SCR_OBJ_AT"] + H["SCR_OBJ_N"], "game.h OBJ_PAT: OBJ 5's patron colours, written in HBlank below the dancers (a Color level, a fight's level included)"),
+    "obj.PATX": (H["SCR_OBJX_AT"], H["SCR_OBJX_AT"] + H["SCR_OBJX_N"], "game.h OBJX_*: the three show palettes' buffers (OBJ 4 and OBJ 3's patron and show colours; a Color level's show)"),
+    "obj.CO": (H["SCR_OBJXC_AT"], H["SCR_OBJXC_AT"] + H["SCR_OBJXC_N"], "game.h OBJX_CO: the same, a screen fade's destination colours"),
+    "obj.F": (H["SCR_OBJF_AT"], H["SCR_OBJF_AT"] + H["SCR_OBJF_N"], "game.h OBJX_F / DANCE_STEP: the three palettes' flags, the dance's step"),
     "obj.SHOW": (H["SCR_OBJ2_AT"], H["SCR_OBJ2_AT"] + H["SCR_OBJ2_N"], "game.h OBJ_SHOW: OBJ 5's show colours, written in every VBlank of a show (a Color level, a fight's level included)"),
     # the Boss Rush screens (menu, list, NEXT, RESULT): the struct above and the row buffers
     "rush.ROWS": (0, 14 * 20, "rush.c ROW(k): the menu's and the list's row buffers"),
@@ -83,7 +86,7 @@ USERS = {
 # one is entered with the LCD off and rebuilds what it reads. A group says what a single screen or mode holds together.)
 GROUPS = {
     "a boss fight, in a BOSS RUSH run (the struct is alive through every fight)":
-        ["fight.LD", "fight.HB", "fight.BELT", "fight.CAP", "rush.STRUCT", "fight.LIGHTS", "fight.MAP", "fight.HAND", "fight.OWN", "fight.FX", "tip2.COIN", "split.PAL", "inst.TAB", "keg.TAB", "keg2.TAB", "evt.TAB", "obj.PAT", "obj.SHOW"],
+        ["fight.LD", "fight.HB", "fight.BELT", "fight.CAP", "rush.STRUCT", "fight.LIGHTS", "fight.MAP", "fight.HAND", "fight.OWN", "fight.FX", "tip2.COIN", "split.PAL", "inst.TAB", "keg.TAB", "keg2.TAB", "evt.TAB", "obj.PAT", "obj.SHOW", "obj.PATX", "obj.CO", "obj.F"],
     "a Boss Rush screen": ["rush.ROWS", "rush.STRUCT", "ol.STATE"],
     "the story map": ["smap.ROWS", "smap.ATTR_PANEL", "smap.ATTR_TAG", "smap.TAGROW", "smap.V"],
     "the Practice list": ["mglist.ROWS", "mglist.STATE", "mglist.ART", "mglist.STAGE", "ol.STATE"],
@@ -95,9 +98,9 @@ GROUPS = {
 
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
-        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 21, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 53, "src/mg.h": 3, "src/mg_list.c": 5,
+        "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 27, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 61, "src/mg.h": 3, "src/mg_list.c": 5,
         "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 2, "src/smap.c": 6,
-        "src/story.c": 16, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 3, "src/ts.c": 1}
+        "src/story.c": 16, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 5, "src/ts.c": 1}
 
 # the numbers each source must still contain (a literal moved there without the table moving fails here)
 SOURCE_HAS = {
