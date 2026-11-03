@@ -2,6 +2,8 @@ import re, sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from PIL import Image, ImageDraw
 import data
+import rev2
+rev2.apply(data)   # revision 2 texts over data.py's reasons and banners
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../.."))   # repo root; run: python3 render.py
 OUT = os.path.dirname(os.path.abspath(__file__))
@@ -96,15 +98,15 @@ w("THE WORST PROBLEMS")
 w("a. 'EMPTY MUG: THROW / FULL MUG: BUSY' is a leftover of the status tag that the owner had removed on 2026-10-17. What it now means is the capacity indicator (one mug icon per hand, bright = room, dark = he holds an empty), and the words 'EMPTY' and 'FULL' are the reverse of what the player sees (a bright mug is the empty one: room). It sits on 8 of 10 second pages and so crowds out the facts that differ per boss.")
 w("b. The Critic's page 2 still says 'SHAKING: SENT BACK'. There is no shaking tag any more.")
 w("c. Several lines break inside a phrase ('A MUG AT HIS OLD / BAR BREAKS', 'A MUG WHILE HE / REVS STALLS HIM', 'THEN POPS UP WHERE / FOOTPRINTS BLINK'), and 'NO SUCH THING' (Sasquatch's banner) and 'NO FEAR' (Leo's) tell a first-time player nothing.")
-w("d. No card tells the player the basics that cost a life: his empties come back and must be caught at the tap; reaching the tap is a life. Only Tex's page 1 said the second.")
+w("d. (Revision 1 also proposed life-loss lines; the owner ruled 2026-11-03 that losing a life is normal play and needs no card line. Revision 2 has none: grep the proposed pages for LIFE, BREAK, LOSE.)")
 w("e. Big Tex's banner says 'RIDES IN'; he walks in (riding a horse is listed as not built).")
 w("f. Sumo's card never says how to win (ring-out at the left end). Sasquatch has no goal line.")
 w("")
 w("PROPOSED STRUCTURE")
-w("- Page 1: the goal, the boss's one trick, and the one thing that costs a life. Page 2: the details and what hurts.")
-w("- NEW, optional page 3 (a shared entry, same four lines for seven bosses: Tex, Mascot, Sasquatch, Yeti, Duke, Leo, Mothership): the mug icons. Text:")
+w("- REVISION 2 (owner 2026-11-03: no line about losing a life). Page 1: the goal and the boss's trick. Page 2: the details and what to watch for. Every boss has 2 pages; no page uses fewer than 4 lines.")
+w("- The shared icon page 3 is DROPPED: it only taught something the player can see (mugs fill up beside him) once the 'it breaks' line went. The one thing the icons say that is not obvious, 'all dark: a mug now is wasted', is kept ONLY on Big Tex's page 2, where the player first meets them:")
 for l in data.ICONS: w("      " + l)
-w("  It replaces the 'EMPTY MUG: THROW / FULL MUG: BUSY' lines. Not for the Critic (his page 2 says it in words), the Prototype (no limit: only the dark icons show) or the Sumo (no limit). Cost: 7 more[] entries, 4 pointers each (about 7 x 9 B = 63 B in the card's bank 255; the strings can be shared) and the PRESS A prompt moves to page 3: the first-appearance card then needs one more NEXT press. If the owner wants only two pages, drop page 3 and the icon legend goes unexplained (the icons are self-evident once you see 3 of them fill up); say so and I will give Tex a legend page 2 instead.")
+w("  The 'EMPTY MUG: THROW / FULL MUG: BUSY' lines are gone from every other boss. Page count unchanged from today (2 each), so no new more[] entries.")
 w("- The banner is the goal in two lines: line 1 the boss or his trick, line 2 the number to beat.")
 w("")
 w("=" * 78)
@@ -163,9 +165,7 @@ for b in data.B:
         sheet.paste(a_.resize((W, 144 * S), Image.NEAREST), (G, y)); sheet.paste(p_.resize((W, 144 * S), Image.NEAREST), (2 * G + W, y)); y += 144 * S + 6
     d.text((G, y), "current banner", fill=(235, 235, 235)); d.text((2 * G + W, y), "proposed banner", fill=(235, 235, 235)); y += 14
     sheet.paste(banner(*curb[i]).resize((W, 40 * S), Image.NEAREST), (G, y)); sheet.paste(banner(*b["banner"]).resize((W, 40 * S), Image.NEAREST), (2 * G + W, y)); y += 40 * S + 14
-d.text((G, y), "Shared optional page 3 (icons), for 7 bosses:", fill=(235, 235, 235)); y += 14
-sheet.paste(card("ANY BOSS", data.ICONS, "PRESS A").resize((W, 144 * S), Image.NEAREST), (G, y)) if y + 288 <= sheet.height else None
-sheet = sheet.crop((0, 0, sheet_w, min(sheet.height, y + 144 * S + 10)))
+sheet = sheet.crop((0, 0, sheet_w, y))
 os.makedirs(ROOT + "/out", exist_ok=True)
 sheet.save(ROOT + "/out/boss_text_sheet.png"); sheet.save(OUT + "/boss_text_sheet.png")
 print(sheet.size)
