@@ -209,3 +209,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - Saloon p7 merged 2026-11-02 (frames 1-3 rebuilt on the owner's new front; weak: hop hem strays, ruffle speckle noisy on DMG). Q8 now asks about p7.
 - Owner 2026-11-02 sent another Saloon frame (saloon_owner_edit2.png: hair swept left, long skirt to the floor, no legs). Not matched to a frame (97+ px from each p7 frame); asked Q10 which frame it is, after the frame-1/front mix-up.
 - Q10 ANSWERED 2026-11-02 (owner): "A" = saloon_owner_edit2.png is the new FRONT pose (frame 0). saloon_show_p8_base.txt = it + p7 frames 1-3; gb-artist rebuilds frames 1-3 to match it (hair swept left, long floor-length skirt lifted for the kicks) -> p8.
+- Saloon p8 merged 2026-11-02 (frames 1-3 on the owner's third front: long skirt cut away on the kick side, hop with a shortened ruffle hem; weak: kick legs long sticks from a chopped skirt edge, stubby hop legs). Q8 now asks about p8.
