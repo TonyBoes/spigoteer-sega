@@ -5,7 +5,7 @@
   space_p6prev.py sheet OUT.png   contact sheet: 1x, x4, every frame x8 (Colour and DMG)
   space_p6prev.py chk             frame sizes and the 8x16 quarter count of p6
 
-p5: 16x24 frames at strip y 8 (as the engine draws them). p6: 16x32 frames, feet on the same strip row, so row 0 is at strip y 0.
+p5: 16x24 frames at strip y 8 (as the engine draws them). p6: 16x24 frames at the same place as p5 (top at strip y 8).
 Loops: singer 0 1, keytar 2 3, alien frames 4 5 6 5 7 5 (poses A B C B D B).
 """
 import sys
@@ -32,6 +32,7 @@ def load(path, rows):
 def quarters(frames):
     qs = []
     for f in frames:
+        f = list(f) + ["." * 16] * 8
         for y0, x0 in ((0, 0), (0, 8), (16, 0), (16, 8)):
             q = tuple(r[x0:x0 + 8] for r in f[y0:y0 + 16])
             if q not in qs:
@@ -62,7 +63,7 @@ def scene6(fr, beat, cgb, base):
     im, p = base.copy(), pal()
     for k, x0 in enumerate((24, 72, 120)):
         i = (beat & 1) + 2 * k if k < 2 else LOOP_ALIEN[beat % len(LOOP_ALIEN)]
-        put(im, fr[i], x0, 0, cgb, p)
+        put(im, fr[i], x0, 8, cgb, p)
     return im
 
 
@@ -76,7 +77,7 @@ def stack(a, b, scale):
 def main():
     cmd = sys.argv[1]
     p5 = load(str(HERE / "space_show_p5.txt"), 24)
-    p6 = load(str(HERE / "space_show_p6_cgb.txt"), 32)
+    p6 = load(str(HERE / "space_show_p6_cgb.txt"), 24)
     if cmd == "chk":
         print(len(p6), "frames; quarters p6:", quarters(p6), "singer", quarters(p6[0:2]), "keytar", quarters(p6[2:4]),
               "alien", quarters(p6[4:8]))
@@ -111,12 +112,12 @@ def main():
         sh.paste(right(b, 4), (8 + i * 650, 180))
     d.text((8, 450), "x8 alien frames A B C D: Colour on the stage wall, DMG below", fill=(255, 255, 0))
     for i, fi in enumerate((4, 5, 6, 7)):
-        a = Image.new("RGB", (16, 32), ns["hexrgb"](pj["stage_a"]["hex"][1]))
-        g = Image.new("RGB", (16, 32), ns["DMG_BG"][2])
+        a = Image.new("RGB", (16, 24), ns["hexrgb"](pj["stage_a"]["hex"][1]))
+        g = Image.new("RGB", (16, 24), ns["DMG_BG"][2])
         put(a, p6[fi], 0, 0, True, pal())
         put(g, p6[fi], 0, 0, False, pal())
-        sh.paste(a.resize((128, 256), Image.NEAREST), (8 + i * 140, 466))
-        sh.paste(g.resize((128, 256), Image.NEAREST), (8 + i * 140, 730))
+        sh.paste(a.resize((128, 192), Image.NEAREST), (8 + i * 140, 466))
+        sh.paste(g.resize((128, 192), Image.NEAREST), (8 + i * 140, 666))
     sh.crop((0, 0, 1300, 1000)).save(out)
 
 main()
