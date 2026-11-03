@@ -235,14 +235,19 @@ def step_rows(t, steps):
 # A venue with "performers": [{"loop": [frame ids], "flip": 0|1} x3] (left, middle, right; a loop of 1-8 steps, any order, repeats allowed, each performer its own length; one step a beat)
 # dances every performer on its own loop of frames of <t>_show.txt (any number of frames, 16x24); "flip" draws that performer X-flipped (the OAM
 # flag: no extra tiles, works on the DMG). Cells that are empty cost no tile and no OAM entry; a frame has at most 4 non-empty cells.
-# Written as a "block" at the end of the venue's show data (venue.show_band bit 4 = the block exists, src/show_ext.c):
-#   [0] block size, [1] figure width (16 or 24), [2] the beat period (lcm of the three loop lengths, <= 255), [3..5] performer k: loop length (1-8) | flip << 4,
-#   [6..29] performer k's 8 frame ids (at 6 + 8k), [30..] per frame 4 entries of (tile, pos): pos bit 7 = no entry, bits 0-1 the cell column, bit 2 the cell row (0: lines 0-15 of the figure,
-#   1: lines 16-23 + a pad), bit 3 a VRAM bank 1 tile (tile = its OBJ id) else tile = offset from OBJ_DANCER.
+# Written as a "block" at the end of the venue's show data (venue.show_band bit 4 = the block exists, src/show_ext.c). The engine's draw is one far read of the beat's row and one of
+# the performer's finished OAM entries (its work is the show's per-beat cost: the busy scenes' perf guards), so the generator does the arithmetic:
+#   [0..1] block size (16 bit, little endian), [2] the beat period (lcm of the three loop lengths, <= SHOW_PERIOD_MAX), then per beat 0..period-1 a row of 6 bytes: performer k's
+#   record offset (16 bit, from the block's start) at 2k, then the records: per (performer, frame) 16 bytes = 4 OAM entries (y, x, tile, prop), y = 1 + 16 * the cell row
+#   (0: hidden entry, all four bytes 0; the engine adds EXT_OAM_Y - 1), x = the cell's column offset from the performer's left edge (X-mirrored when the performer flips: its
+#   figure's width - 8 - 8 * column, prop bit 5) + 8 - (width - 16) / 2 (the engine adds the performer's x), tile = OBJ_DANCER + the quarter's offset (bank 0) or its OBJ id (prop bit 3 = VRAM bank 1).
+# The venue's show_tile[5][0..1] = the first block's size (the Color block follows it).
 # The Color file (bit 5): a second block (frames of 16 or 24 px wide x 24, ids and loops its own, from "performers_cgb" else "performers") whose tiles
 # are 8x16 quarters in VRAM bank 1 at ids free there (below), then the pool section: [segments n] [first OBJ id, tiles] x n, then the tiles.
 SHOW_LOOP_LENS = tuple(range(1, 9))
-SHOW_MAX_FRAMES = 27                 # block size 29 + 8 frames <= 255
+SHOW_MAX_FRAMES = 27
+SHOW_PERIOD_MAX = 64                 # the beat rows: 6 bytes a beat
+OBJ_DANCER = 96                      # src/game.h (src/show_ext.c checks it)
 SHOW_BANK1_FREE = {"biker": [(0, 56), (76, 8), (92, 36)]}   # OBJ ids free in VRAM bank 1 in a level: all but the Chrome Cow's copies of the mug and the glass (src/lift.c swap_bank1: 56..75, 84..91)
 SHOW_BANK1_ALL = [(0, 128)]
 
@@ -265,31 +270,42 @@ def show_cells(frames, w):
 
 
 def show_block(t, perf, cells, w, tile_of, bank_bit):
-    """The block bytes (see above). tile_of(quarter) -> tile byte."""
+    """The block bytes (see above). tile_of(quarter) -> tile byte (bank 0: OBJ_DANCER + the offset)."""
+    import math
     assert len(perf) == 3, f"{t}: performers: 3 (left, middle, right)"
     nf = len(cells)
     assert 1 <= nf <= SHOW_MAX_FRAMES, f"{t}: show frames {nf} (1..{SHOW_MAX_FRAMES})"
-    hdr, steps = [], []
+    period = 1
     for k, p in enumerate(perf):
         loop = p["loop"]
         assert len(loop) in SHOW_LOOP_LENS and all(0 <= f < nf for f in loop), f"{t}: performer {k}: a loop of 1-8 frame ids < {nf}"
-        hdr.append(len(loop) | (16 if p.get("flip") else 0))
-        steps += list(loop) + [0] * (8 - len(loop))
-    fr = []
-    for cl in cells:
+        period = period * len(loop) // math.gcd(period, len(loop))
+    assert period <= SHOW_PERIOD_MAX, f"{t}: the three loops' lengths {[len(p['loop']) for p in perf]} meet only every {period} beats (at most {SHOW_PERIOD_MAX})"
+    recs, order = {}, []
+    for k, p in enumerate(perf):
+        for f in p["loop"]:
+            if (k, f) not in recs:
+                recs[(k, f)] = len(order)
+                order.append((k, f))
+    head = 3 + 6 * period
+    rows = []
+    for s in range(period):
+        for k, p in enumerate(perf):
+            off = head + 16 * recs[(k, p["loop"][s % len(p["loop"])])]
+            rows += [off & 255, off >> 8]
+    body = []
+    for k, f in order:
+        flip = bool(perf[k].get("flip"))
+        cl = cells[f]
         for e in range(4):
             if e < len(cl):
                 c, r, q = cl[e]
-                fr += [tile_of(q), c | r << 2 | bank_bit]
+                x = (w - 8 - 8 * c if flip else 8 * c) + 8 - ((w - 16) >> 1)
+                body += [1 + 16 * r, x, tile_of(q), bank_bit | (0x20 if flip else 0)]
             else:
-                fr += [0, 0x80]
-    import math
-    period = 1
-    for p in perf:
-        period = period * len(p["loop"]) // math.gcd(period, len(p["loop"]))
-    assert period <= 255, f"{t}: the three loops' lengths {[len(p['loop']) for p in perf]} meet only every {period} beats (at most 255)"
-    b = [w, period] + hdr + steps + fr
-    return [len(b) + 1] + b
+                body += [0, 0, 0, 0]
+    size = head + len(body)
+    return [size & 255, size >> 8, period] + rows + body
 
 
 def show_ext(t, shows, perf, cgb_path, cgb_perf, bank1):
@@ -302,7 +318,7 @@ def show_ext(t, shows, perf, cgb_path, cgb_perf, bank1):
                 quarters.append(q)
     if len(quarters) > SHOW_QUARTERS:
         sys.exit(f"gen_art: venue {t}: the show needs {len(quarters)} 8x16 quarters, at most {SHOW_QUARTERS} (32 OBJ tiles)")
-    d = show_block(t, perf, cells, 16, lambda q: 2 * quarters.index(q), 0)
+    d = show_block(t, perf, cells, 16, lambda q: OBJ_DANCER + 2 * quarters.index(q), 0)
     stiles = obj_tiles([list(q) for q in quarters + [tuple(["." * 8] * 16)] * (SHOW_QUARTERS - len(quarters))], 8)
     c, info = [], {}
     if cgb_path is not None:
@@ -671,6 +687,7 @@ def venues(outdir, prev):
         if perf is not None:
             d_blk, stiles, c_blk, ext_info = show_ext(t, shows, perf, cgb_path if cgb_path.exists() else None, cgb_perf, SHOW_BANK1_FREE.get(ds, SHOW_BANK1_ALL))
             band, show_tab = 0, ext_info["legacy"] + step_rows(t, None)
+            show_tab[5] = [len(d_blk) & 255, len(d_blk) >> 8, 0, 0]    # (row 5 is a dance's step table's spare: the DMG block's size, where the Color block starts: src/show_ext.c ext_block reads no ROM for it)
             ext_bytes = d_blk + c_blk
         else:
             assert not cgb_path.exists(), f"{cgb_path.name}: a Color show needs \"performers\" in {ds}_show_pal.json (the DMG block it comes with)"

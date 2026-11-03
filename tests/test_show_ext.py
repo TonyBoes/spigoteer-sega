@@ -31,30 +31,28 @@ def ext_blocks(v):
     return e["d_block"], e.get("c_block")
 
 
-def entries(block, w_beat_loops=None):
-    """Block bytes -> (width, period, [(len, flip)], steps[3][8], frames[[(tile, pos)] x 4])"""
-    size, w, period = block[0], block[1], block[2]
-    hdr = [(b & 15, bool(b & 16)) for b in block[3:6]]
-    steps = [block[6 + 8 * k:14 + 8 * k] for k in range(3)]
-    fr = [[(block[30 + 8 * f + 2 * e], block[31 + 8 * f + 2 * e]) for e in range(4)] for f in range((size - 30) // 8)]
-    return w, period, hdr, steps, fr
+def entries(block):
+    """Block bytes -> (period, rows[beat][k] = record index, records[[(y, x, tile, prop)] x 4], flips[k]). A record is 16 bytes (src/show_ext.c): y = 1 + 16 * cell row (0: no entry)."""
+    size, period = block[0] | block[1] << 8, block[2]
+    assert size == len(block), (size, len(block))
+    head = 3 + 6 * period
+    rows = [[(block[3 + 6 * s + 2 * k] | block[4 + 6 * s + 2 * k] << 8) for k in range(3)] for s in range(period)]
+    assert all(o >= head and (o - head) % 16 == 0 for r in rows for o in r)
+    recs = [[tuple(block[head + 16 * i + 4 * e:head + 16 * i + 4 * e + 4]) for e in range(4)] for i in range((size - head) // 16)]
+    rows = [[(o - head) // 16 for o in r] for r in rows]
+    flips = [any(e[3] & 0x20 for e in recs[rows[0][k]]) for k in range(3)]
+    return period, rows, recs, flips
 
 
-def expect(block, beat, bank1_base=None):
-    """What OAM 28..39 must hold on `beat`: per performer a list of (y, x, tile, flags_extra) for its entries (screen y/x as OAM sees them minus 16 / 8)."""
-    w, period, hdr, steps, fr = entries(block)
+def expect(block, beat):
+    """What OAM 28..39 must hold on `beat`: per performer a list of (y, x, tile, flags) for its entries (OAM y - 16, OAM x - 8, tile, prop bits 3 and 5)."""
+    period, rows, recs, flips = entries(block)
     out = []
     for k in range(3):
-        n, flip = hdr[k]
-        f = steps[k][beat % n]
-        x0 = DANCER_X[k] - ((w - 16) >> 1)
         ents = []
-        for tile, pos in fr[f]:
-            if pos & 0x80:
-                continue
-            c, r, b1 = pos & 3, (pos >> 2) & 1, bool(pos & 8)
-            x = x0 + ((w - 8 - 8 * c) if flip else 8 * c)
-            ents.append((8 + 16 * r, x, tile if b1 else OBJ_DANCER + tile, (0x08 if b1 else 0) | (0x20 if flip else 0)))
+        for y, x, tile, prop in recs[rows[beat % period][k]]:
+            if y:
+                ents.append((y - 1 + 8, DANCER_X[k] + x - 8, tile, prop & 0x28))
         out.append(ents)
     return out
 
@@ -120,23 +118,27 @@ def boot_at(group, model, rom=None):
 def test_the_factory_block_lists_the_lineup():
     v = venue_art("factory")
     block = v["show_ext"]["d_block"]
-    w, period, hdr, steps, fr = entries(block)
-    assert (w, period, len(fr)) == (16, 4, 8)
-    assert hdr == [(4, False), (4, False), (4, True)], "left and middle unflipped, right X-flipped"
-    assert steps[0][:4] == [0, 1, 2, 3] and steps[2][:4] == [0, 1, 2, 3] and steps[1][:4] == [4, 5, 6, 7]
+    period, rows, recs, flips = entries(block)
+    assert period == 4 and len(recs) == 12, "three performers x 4 frames"
+    assert flips == [False, False, True], "left and middle unflipped, right X-flipped"
+    assert [r[0] for r in rows] == [0, 1, 2, 3] and [r[1] for r in rows] == [4, 5, 6, 7] and [r[2] for r in rows] == [8, 9, 10, 11]
     assert v["show_ext"]["d_quarters"] == 16, "8 frames, 16 deduplicated 8x16 quarters = the 32 tiles"
-    assert v["show_ext"].get("c_block") is None, "no Color-only file: both models show the same"
+    assert v["show_ext"]["c_block"] is not None, "Color has its own file (lights and sparks, 16 frames); the DMG keeps the lineup"
 
 
 def test_a_block_can_say_the_bistro_band():
     """The format expresses the Bistro band (12 frames, accordion A B C D, fiddler A B C D C B, singer A B C D; 26 quarters) and loops of every length 1-8."""
     import gen_art
+    import math
     for n in range(1, 9):
         p = [{"loop": [0] * n}, {"loop": [0] * 8}, {"loop": [0]}]
         b = gen_art.show_block("t", p, [[(0, 0, ())]] * 2, 24, lambda q: 0, 0)
-        assert b[2] == (n * 8 // __import__("math").gcd(n, 8)) and b[3] == n
+        assert b[2] == (n * 8 // math.gcd(n, 8))
+        assert b[0] | b[1] << 8 == len(b)
     b = gen_art.show_block("t", [{"loop": [0, 1, 2, 3]}, {"loop": [4, 5, 6, 7, 6, 5]}, {"loop": [8, 9, 10, 11]}], [[(0, 0, ())]] * 12, 24, lambda q: 0, 0)
-    assert b[2] == 12 and [b[3], b[4], b[5]] == [4, 6, 4]
+    assert b[2] == 12
+    period, rows, recs, flips = entries(b)
+    assert len(recs) == 12 and block_loops(b, [[0, 1, 2, 3], [4, 5, 6, 7, 6, 5], [8, 9, 10, 11]])
 
 
 def test_the_pool_fits_every_venue_but_the_biker_s_copies():
@@ -153,14 +155,14 @@ def test_the_pool_fits_every_venue_but_the_biker_s_copies():
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_the_factory_robots_follow_their_loops_and_the_two_mirror(model):
     v = venue_art("factory")
-    block = v["show_ext"]["d_block"]
+    block = v["show_ext"]["d_block"] if model == "dmg" else v["show_ext"]["c_block"]
     gb = boot_at(FACTORY, model)
     try:
-        seen = check_beats(gb, block, 9)
-        assert seen == {0, 1, 2, 3}
+        seen = check_beats(gb, block, 9 if model == "dmg" else 17)
+        assert seen == ({0, 1, 2, 3} if model == "dmg" else set(range(8)))
         assert {s["flags"] & 0x20 for s in dancer_oam(gb)[8:12]} == {0x20} and {s["flags"] & 0x20 for s in dancer_oam(gb)[0:8]} == {0}
         # the picture the hardware draws (PyBoy renders the OAM flag): the right robot is the left one mirrored, every beat, and the middle one differs
-        for _ in range(8):
+        for _ in range(8 if model == "dmg" else 0):          # (Color's right robot runs half a loop behind the left one: no pixel mirror)
             gb.run(BEAT, render=True)
             l, m, r = (figure(gb, k) for k in range(3))
             assert (l == r[:, ::-1]).all() and l.any(), "the right dancer is the left one X-flipped"
@@ -247,5 +249,124 @@ def test_the_same_rom_on_the_dmg_shows_the_16_px_show(cgb_rom):
     try:
         seen = check_beats(gb, info["d_block"], 9)
         assert seen == {0, 1, 2, 3} and not any(s["flags"] & 8 for s in dancer_oam(gb))
+    finally:
+        gb.stop()
+
+# ---- the imported shows (2026-11-03: every venue's locked show) --------------------------------------------------------------------------------------------------------------------
+# venue: (Color loops, Color flips, Color figure width, Color frames, DMG loops, DMG flips, DMG frames)
+SHOWS = {
+    "space": ([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 9, 11, 9]], [0, 0, 0], 16, 12, [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1]], [1, 0, 0], 4),
+    "bistro": ([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11, 10, 9]], [0, 0, 0], 16, 12, [[0, 1], [4, 5], [2, 3]], [0, 0, 0], 6),
+    "factory": ([[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15], [4, 5, 6, 7, 0, 1, 2, 3]], [0, 0, 1], 16, 16, [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 2, 3]], [0, 0, 1], 8),
+    "zoo": ([[0, 1, 2, 3, 4, 3, 2, 1], [5, 6, 7, 8], [0, 1, 2, 3, 4, 3, 2, 1]], [1, 0, 0], 24, 9, [[0, 0, 1, 2, 2, 2, 1, 1], [3, 4, 3, 4, 3, 4, 3, 4], [0, 0, 1, 2, 2, 2, 1, 1]], [1, 0, 0], 5),
+}
+
+
+def block_loops(block, loops):
+    """True when each performer's record sequence over the period follows the given loop of frame ids (same frame -> same record, different -> different)."""
+    period, rows, recs, flips = entries(block)
+    for k in range(3):
+        seq = [rows[s][k] for s in range(period)]
+        want = [loops[k][s % len(loops[k])] for s in range(period)]
+        m = {}
+        for r, f in zip(seq, want):
+            if m.setdefault(f, r) != r:
+                return False
+        if len(set(m.values())) != len(m):
+            return False
+    return True
+
+
+def block_info(block):
+    period, rows, recs, flips = entries(block)
+    return period, [int(f) for f in flips], len(recs)
+
+
+@pytest.mark.parametrize("t", list(SHOWS))
+def test_each_imported_show_lists_its_loops(t):
+    import math
+    cl, cf, cw, cn, dl, df, dn = SHOWS[t]
+    v = venue_art(t)
+    d, c = ext_blocks(v)
+    for blk, loops, flips in ((d, dl, df), (c, cl, cf)):
+        per = 1
+        for l in loops:
+            per = per * len(l) // math.gcd(per, len(l))
+        assert block_loops(blk, loops), (t, "the records follow the loops")
+        assert block_info(blk)[:2] == (per, flips), (t, "period and flips")
+    assert v["show_ext"]["c_quarters"] <= v["show_ext"]["c_capacity"]
+
+
+@pytest.mark.parametrize("t", ["teahouse", "sports"])
+def test_the_shared_shows_stay_a_four_frame_dance(t):
+    v = venue_art(t)
+    assert v["show_frames"] == 4 and v["show_ext"] is None
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+@pytest.mark.parametrize("t", list(SHOWS))
+def test_the_imported_shows_dance_their_loops(t, model):
+    v = venue_art(t)
+    d, c = ext_blocks(v)
+    block = c if model == "cgb" else d
+    gb = boot_at(THEMES.index(t), model)
+    try:
+        period = block[2]
+        seen = check_beats(gb, block, period + 2)
+        assert len(seen) == period, (t, model, len(seen), period)
+        assert all(s["y"] == 0 or s["y"] >= 16 for s in dancer_oam(gb)), "nothing above row 0"
+        if model == "cgb":
+            mem = gb.pb.memory
+            e = v["show_ext"]
+            for q, i in enumerate(e["c_ids"]):
+                assert bytes(mem[1, 0x8000 + 16 * i:0x8000 + 16 * i + 32]) == bytes(e["c_tiles"][32 * q:32 * q + 32]), (t, q)
+    finally:
+        gb.stop()
+
+
+# ---- the Bistro singer's own OBJ palette (Color only) ----------------------------------------------------------------------------------------------------------------------------
+BISTRO = THEMES.index("bistro")
+WINE = 0x8A1C3A
+
+
+def rgb15_of(h):
+    return (h >> 16 & 255) // 8 | (h >> 8 & 255) // 8 << 5 | (h & 255) // 8 << 10
+
+
+def test_the_bistro_lists_three_show_palettes_the_singer_s_in_wine():
+    v = venue_art("bistro")
+    assert v["show_pal_n"] == 3
+    a, s, b = v["show_pals"]
+    assert a == b and s[1] == rgb15_of(WINE) and s[0] == a[0] == 0 and s[2:] == a[2:] and s[1] != a[1], "the band's palette on both sides; the singer's colour 1 is the wine"
+    assert v["show_pals"][0] == v["pal"][6]
+
+
+def test_the_bistro_singer_wears_her_wine_dress_on_color_and_the_band_does_not():
+    """The middle performer's entries use OBJ 4 and the others OBJ 5 / OBJ 3 (the Saloon mechanism); the picture shows the wine on her alone, and the OBJ 4 palette RAM (OCPD) reads back her colours."""
+    from test_fade_chain import pack
+    from test_show_obj5 import play, start_show, patch
+    from test_venues import cgb_palette
+    v = venue_art("bistro")
+    band, singer = v["show_pals"][0], v["show_pals"][1]
+    gb = play(BISTRO, False)
+    try:
+        freeze(gb)
+        gb.run(1, render=True)
+        before = pack(gb.image())
+        start_show(gb, 400)
+        gb.run(30)
+        got = [sorted({s["flags"] & 7 for s in gb.oam()[28 + 4 * k:32 + 4 * k] if s["y"]}) for k in range(3)]
+        assert got == [[5], [4], [3]], got
+        assert cgb_palette(gb, 4, obj=True)[1:] == singer[1:], "OBJ 4 in palette RAM holds the singer's colours"
+        seen = [set(), set(), set()]
+        for _ in range(48):                     # (four beats: every pose)
+            gb.run(1, render=True)
+            during = pack(gb.image())
+            for k in range(3):
+                r = (DANCER_X[k], 8, DANCER_X[k] + 16, 32)
+                seen[k] |= set(np.unique(patch(during, r)).tolist()) - set(np.unique(patch(before, r)).tolist())
+        assert singer[1] in seen[1] and singer[1] not in seen[0] | seen[2], "the wine on the singer only"
+        assert band[1] in seen[0] and band[1] in seen[2] and band[1] not in seen[1], "the band keeps its own dress colour"
+        assert seen[1] <= set(singer), "the singer's pixels all in her palette"
     finally:
         gb.stop()

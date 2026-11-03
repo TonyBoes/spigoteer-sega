@@ -168,7 +168,8 @@ def test_the_obj_5_write_is_one_a_frame_in_its_own_line_s_hblank(v, ds):
         three = venue_art(v)["show_pal_n"] == 3                  # (three show palettes: OBJ 4's and 3's give-backs follow, one HBlank each: tests/test_show_three.py)
         assert all(x[2] != 3 for x in ent + ext), ("a write in mode 3", sorted({(x[1], x[2]) for x in ent + ext}))
         if three:                                                # (the Saloon's three palettes: the show's OBJ 3 and 4 at the top of the frame, the three give-backs: 5 writes a frame, tests/test_show_three.py has their lines)
-            assert 5 * (n - 3) <= len(ext) <= 5 * (n + 3) and len(ent) == len(ext), (len(ent), len(ext), n)
+            w = 3 + bin(gb.pb.memory[gb.addr("story_scratch") + 226] & 6).count("1")           # (the show's OBJ 3 and 4 at the top, OBJ 5's give-back, and one more for each of OBJ 4 and OBJ 3 a patron wears: the Saloon's five, the Bistro's four, nobody wears its OBJ 4)
+            assert w * (n - 3) <= len(ext) <= w * (n + 3) and len(ent) == len(ext), (len(ent), len(ext), n, w)
             return
         assert len(ext) == len(ent) and n - 3 <= len(ent) <= n + 3, ("one write a frame", len(ent), n)
         assert {x[1] for x in ent} == {EV_OBJ_LY} and all(x[2] == 0 for x in ent), ("entry: its line, in HBlank", sorted({(x[1], x[2]) for x in ent}))

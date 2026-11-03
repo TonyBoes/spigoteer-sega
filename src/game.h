@@ -301,7 +301,7 @@ extern const uint8_t bar_oam_y[NUM_BARS];     // OAM y (+16) of the bar's top pi
 uint8_t next_rand(void);
 void add_score(uint16_t n) BANKED;                      // src/rom0_relief.c (bank 21)
 void dancers_step(void) BANKED;                         // src/rom0_relief.c: the show's dancer entries
-void show_ext_draw(uint8_t sig) BANKED;                  // src/show_ext.c: the per-performer show (venue.show_band bit 4)
+void show_ext_draw(uint8_t sig, uint8_t k) BANKED;                  // src/show_ext.c: the per-performer show (venue.show_band bit 4)
 void show_ext_next(void) BANKED;                         // its beat
 void show_pool_load(void) BANKED;                        // its Color pool into VRAM bank 1 (LCD off)
 void lose_life(void) BANKED;

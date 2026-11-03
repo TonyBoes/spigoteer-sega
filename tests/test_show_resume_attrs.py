@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.only_model("cgb"), pytest.mark.timeout(240)]
 
 PATRON_BANK1 = 0x40
 DRAW_BACK = 0x80
-WALL = (0x18, 0x19)
+WALL = (0x17, 0x18, 0x19)        # (0x17: the shared blank pair PATRON_BLANK, the 3rd column of a shift-0 pose, in both banks; 0x18, 0x19: the plain wall)
 
 
 @pytest.fixture(params=["cgb"])
