@@ -212,3 +212,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - Saloon p8 merged 2026-11-02 (frames 1-3 on the owner's third front: long skirt cut away on the kick side, hop with a shortened ruffle hem; weak: kick legs long sticks from a chopped skirt edge, stubby hop legs). Q8 now asks about p8.
 - Owner 2026-11-02: "New cheerleader" + sports_owner_pose2.png (40 px from p5 frame 0: hair swept left with the red ribbon on the left, longer hair; same palette) -> taken as the new FRONT pose (frame 0); sports_show_p6_base.txt; gb-artist rebuilds frames 1-3 on it -> p6.
 - Owner 2026-11-02: "Give me the first kick frame" (cheerleader) -> sent sports_show_p5 frame 1 (kick right, drawn on his first front pose) as sports_p5_kick.png; the p6 rebuild on his new front is running.
+- Owner 2026-11-02: "I meant the saloon dancer front kick" -> sent saloon_show_p8 frame 1 (kick right, on his newest front) as saloon_p8_kick.png; wait for his edit.
