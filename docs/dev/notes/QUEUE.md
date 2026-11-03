@@ -204,3 +204,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - Owner 2026-11-02 sent a Stadium cheerleader pose (16x24, exactly the sports show palette: skin/red/dark) -> sports_owner_pose.txt. PLAN: gb-artist animates frames 1-3 from it (his pose = frame 0, untouched) -> sports_show_p5.txt; supersedes the Q5 Stadium entry.
 - Owner 2026-11-02: "Give me a kick frame for the salute dancer" (read as the Saloon dancer) -> sent frame 1 of saloon_show_p5 (kick right) as saloon_p5_kick.png in his colours; wait for his edit.
 - Q9 OPEN 2026-11-02: Stadium p5 (sports_show_p5.txt; frame 0 = owner's pose; kick R, hop with feet up 3 px, kick L; raised poms lose 4 px beside the hair) yes / another pass. Q5 now covers Bistro, Space, Zoo only.
+- Owner 2026-11-02 sent his edit of the Saloon frame 1 (arms out, ruffled skirt, legs down: not a kick) -> saloon_show_p6.txt = p5 with his frame as frame 1 (saloon_owner_frame1.png); Q8 now asks about p6.
