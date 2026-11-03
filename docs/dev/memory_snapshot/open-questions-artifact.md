@@ -13,6 +13,7 @@ The Open Questions page is at https://claude.ai/artifact/Fdq4kaVWUSrAJH8XZJrm8d.
 **Why:** he lost track of what was a question versus a report. One canonical list fixes that.
 **How to apply:**
 - Whenever I ask a new Qn or he answers one, update the page: add or remove the card, update the count and the stamp, and republish the same file path or URL.
+- Owner 2026-11-03: "The questions in the open questions artefact don't seem to be questions." Every card's highlighted ask is a full question ending in "?" that says what to answer (e.g. "Which peacock should get the next pass: A (side view) or B (facing you)?"), never a bare option list like "A side view · B facing you". The index line is phrased as the question too. Each option's meaning goes in the bullets in plain words.
 - In chat, still state new questions briefly and point to the page.
 - The Review Board was deleted 2026-10-29: animations and large items for a question go on its card here.
 
