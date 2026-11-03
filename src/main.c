@@ -194,6 +194,29 @@ _split_put_a::                      ; A = BCPS (auto-increment), DE = the 8 byte
     ld   a, (hl)
     ldh  (c), a
     ret
+_split_put_o::                      ; OBJ 5 (game.h EV_OBJ): A = OCPS, DE = the 8 bytes (split_isr3 / split_isr3n after the HBlank wait; tests/test_show_obj5.py hooks this and _split_put_oe: the whole write must be in HBlank)
+    ldh  (0x6A), a                  ; OCPS: OBJ 5, auto-increment
+    ld   h, d
+    ld   l, e
+    ld   c, #0x6B                   ; OCPD
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl+)
+    ldh  (c), a
+    ld   a, (hl)
+    ldh  (c), a
+_split_put_oe::
+    ret
 __endasm;
 }
 #else
@@ -286,6 +309,7 @@ void split_vbl(void) {        // vq_vbl's place while the split is armed (the VB
 #if !ASM_SPLIT_PAL
 void split_put_a(uint8_t bcps, const volatile uint8_t *src) {   // (the C twin of the asm label: 8 bytes at BCPS)
     uint8_t i;
+    if (bcps & 0x40) { OCPS_REG = bcps; for (i = 0; i != 8; i++) OCPD_REG = src[i]; return; }   // (EV_OBJ: OBJ 5)
     BCPS_REG = bcps;
     for (i = 0; i != 8; i++) BCPD_REG = src[i];
 }
@@ -368,12 +392,20 @@ __asm
     ld   a, l                       ; (L is still the row's end: the keg-and-late row)
     cp   a, #<(9310$ + 49)
     jr   z, 9300$
+    cp   a, #<(9310$ + 54)
+    jr   z, 9320$                   ; EV_OBJ
 9121$:
     ldh  a, (0x41)                  ; STAT: HBlank, palette RAM is open; the line's pixels are out
     and  a, #3
     jr   nz, 9121$
     ld   a, h
     jp   _split_put_a
+9320$:                              ; EV_OBJ: its own wait and tail, so the BG palettes' paths cost what they did
+    ldh  a, (0x41)
+    and  a, #3
+    jr   nz, 9320$
+    ld   a, h
+    jp   _split_put_o
 9300$:                              ; EV_KEG_L: the keg's palette and the late one's in one HBlank, nothing but the 16 writes after it opens (BCPS, pointers and the second BCPS
     ld   a, h                       ; are set while it waits: they are not palette RAM accesses). 32 (poll) + 128 + 28 + 128 = ~316 cycles from the HBlank's start; the
     ldh  (0x68), a                  ; last write is then at most ~310 into HBlank + the next line's mode 2 (~1072 - 8 at the latest mode 3 end, Pan Docs' 289 dots = 738): no write in mode 3
@@ -443,6 +475,10 @@ __asm
     .dw 0, 0
     .db 0xFF                                         ; EV_KEG_L (the keg's put, then the late palette's)
     .dw _story_scratch + 235, _story_scratch + 270
+    .db 0xFF                                         ; EV_OBJ (OBJ_PAT; its OCPS: bit 6 makes _split_put write OCPD)
+    .dw 9340$, _story_scratch + 218
+9340$:
+    .db 0xE8
 __endasm;
 }
 void split_isr3n(void) __naked {
@@ -520,6 +556,8 @@ __asm
     ld   b, a                       ; its line
     ldh  a, (0xE8)
     ld   l, a                       ; the window flags
+    bit  6, h
+    jp   nz, 9330$                  ; EV_OBJ (its OCPS has bit 6 set; split_plan keeps its line off the window's: no flags)
     bit  6, l
     jr   z, 9121$
 9170$:
@@ -559,6 +597,15 @@ __asm
     ld   de, #0xFFD6                ; SPLIT_PAL
     ld   a, (_story_scratch + 237)  ; its BCPS
     jp   _split_put_a
+9330$:                              ; EV_OBJ: its line (the hit comes SPLIT_OFF early), then its HBlank, then OCPD
+    ldh  a, (0x44)
+    cp   a, b
+    jr   c, 9330$
+    ldh  a, (0x41)
+    and  a, #2
+    jr   nz, 9330$
+    ld   a, h
+    jp   _split_put_o
 9160$:
     ldh  a, (0xE7)                  ; the window's end line: wait for it, then hide
     ld   b, a
@@ -592,6 +639,10 @@ __asm
     .dw 0, 0
     .db 0xFF                                         ; EV_KEG_L
     .dw _story_scratch + 235, _story_scratch + 270
+    .db 0xFF                                         ; EV_OBJ
+    .dw 9340$, _story_scratch + 218
+9340$:
+    .db 0xE8
 __endasm;
 }
 #else
@@ -602,6 +653,7 @@ void split_isr3(void) {       // (the C twin: the same decode)
     LYC_REG = EV_LINE(i + 1);
     if (k == EV_E) { b = SPLIT_E_BCPS; s = SPLIT_E_PAL; }
     else if (k == EV_L) { b = SPLIT_L_BCPS; s = SPLIT_PAL; }
+    else if (k == EV_OBJ) { b = 0xE8; s = OBJ_PAT; }
     else if (k >= EV_KEG_HID) {
         r = k == EV_KEG_HID ? 0 : (k == EV_HUD_END || k == EV_KEG_L) ? 0xFF : k == EV_PAD ? 0x40 : 0x20;
         if (k == EV_HUD_SHOWN || k == EV_HUD_END) s = KEG_STG;

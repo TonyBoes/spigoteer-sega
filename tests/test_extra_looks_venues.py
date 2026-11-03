@@ -9,7 +9,7 @@ import re
 import sys
 
 import pytest
-from conftest import ROOT, double_speed
+from conftest import ROOT, double_speed, logic_paused
 from test_art import goto_group
 from test_lift import HOOK_DROP, HOOK_LIFT, boot_play, freeze, hook, lifted_sprites, lift_state, obj_tile_of, screen
 from test_patrons import MAX_P, WALKING, lineup, patrons
@@ -306,17 +306,19 @@ def test_the_stage_palette_reloaded_early_is_not_on_the_stages_last_row(v):
 
 @pytest.mark.parametrize("v", VENUES + ["robots"])
 def test_a_show_gives_slot_5_back_to_palette_instance_4(model, v):
-    """Instance 4 is OBJ 5 as a sprite; a show takes the slot for its dancers and gives it back, with instance 4's own colours (not the chain's late palette)."""
+    """Instance 4 is OBJ 5 as a sprite; a show's dancers have the slot above the stage and it is instance 4's own colours (not the chain's late palette) again below it and after the show."""
     gb = venue_play(v)
     try:
         t = table(v)
         assert t["order"][4] == 5
         mine = cgb_palette(gb, 5, obj=True)
         gb.run(3)
-        gb.write("show_timer", 100)
+        with logic_paused(gb):
+            gb.write("show_timer", 100)
         gb.run(3)
-        assert cgb_palette(gb, 5, obj=True) != mine and gb.mem("pal5_cur") == 2, "the show's colours"
-        gb.write("show_timer", 0)
+        assert cgb_palette(gb, 5, obj=True) != mine and gb.mem("pal5_cur") == 3, "the show's colours at the top of the frame (the patron's again below the dancers: tests/test_show_obj5.py)"
+        with logic_paused(gb):
+            gb.write("show_timer", 0)
         gb.run(3)
         assert cgb_palette(gb, 5, obj=True)[1:] == mine[1:] and gb.mem("pal5_cur") == 0, "given back"
     finally:

@@ -10,6 +10,7 @@
 #include "palettes.h"
 #include "music.h"
 #include "tip2.h"
+#include "scratch.h"
 
 extern uint8_t level, cur_group, arcade_loop, served, step_frames, pushback_cols;
 #define WALL_RGB    (venue.pal[VENUE_PAL_BAR][0])   // the venue's wall: colour 0 of the bar and of the patron palettes
@@ -192,6 +193,7 @@ void level_pace_again(void) BANKED {
 
 void split_off(void) BANKED {   // (the LCD is off) the stage's palette back, the split stops
     SPLIT_ON = 0;
+    pal5_req &= 2;                                 // (a show's OBJ 5 colours, pal5_cur 3: asked for again by split_resume)
     LYC_REG = SPLIT_WANT;                          // (the window's own line back: the ISR may have left the split's)
     CRITICAL { remove_VBL(split_vbl); remove_VBL(split_vbl3); remove_VBL(vq_vbl); add_VBL(vq_vbl); remove_LCD(split_isr); SPLIT_ISR3_OFF(); remove_LCD(lcd_isr); add_LCD(lcd_isr); }
     if (!(LCDC_REG & LCDCF_ON)) {
@@ -207,11 +209,12 @@ void split_off(void) BANKED {   // (the LCD is off) the stage's palette back, th
 void split_resume(void) BANKED {   // the pause card closed on a level: the split the card's LCD-off dropped, as start_level armed it (the scratch holds its colours; split_off wrote the STG buffers back)
     if (!is_cgb || SPLIT_ON || !(cur_group == 0 || VENUE_KEG_BG(cur_group) == 1 || extra_on())) return;
     SPLIT_WANT = LYC_REG;
-    SPLIT_ON = cur_group ? 3 : 1;
-    if (cur_group) split_plan();
+    SPLIT_ON = (cur_group || (pal5_cur & 1)) ? 3 : 1;     // (the Saloon runs the event list while a show's dancers share OBJ 5 with MABEL and ARTIE: show_pal5)
+    if (SPLIT_ON == 3) split_plan();
+    if (pal5_cur == 3) pal5_req |= 1;
     CRITICAL {
         remove_VBL(vq_vbl); remove_LCD(lcd_isr);
-        if (cur_group) { add_VBL(split_vbl3); add_LCD(SPLIT_ISR3); } else { add_VBL(split_vbl); add_LCD(split_isr); }
+        if (SPLIT_ON == 3) { add_VBL(split_vbl3); add_LCD(SPLIT_ISR3); } else { add_VBL(split_vbl); add_LCD(split_isr); }
     }
 }
 
@@ -251,9 +254,19 @@ static void chain_put(uint8_t *d, const uint16_t *q) {
     for (k = 0; k < 4; k++) { uint16_t c = BRIGHTEN(q[k]); d[k << 1] = c; d[(k << 1) | 1] = c >> 8; }
 }
 
-void chain_cols(uint8_t *d) BANKED {
+// OBJ 5 during a show (game.h OBJ_PAT / OBJ_SHOW), d: 16 bytes, the patron's (palette instance 4, lifted for SCREEN BRIGHT) and the show's
+static void obj_cols(uint8_t *d) {
+    palette_t q;
+    uint8_t r = looks_pal_get(cur_group, 4, q), j;
+    if (r) for (j = 0; j < 4; j++) q[j] = venue.pal[r == 1 ? VENUE_PAL_DRINK_FULL : VENUE_PAL_DRINK_EMPTY][j];   // (1 / 2: the venue's full / empty mug colours)
+    chain_put(d, q);
+    chain_put(d + 8, venue.pal[VENUE_PAL_SHOW]);
+}
+
+void chain_cols(uint8_t *d) BANKED {    // d: 40 bytes; [24..39] the OBJ 5 pair (a venue whose instance 4 is OBJ 5), else left alone
     palette_t q;
     uint8_t s[6];
+    if (OBJ5_CHAIN()) obj_cols(d + 24);
     if (cur_group == 0) {
         patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others
         q[0] = WALL_RGB;
@@ -270,12 +283,13 @@ void chain_cols(uint8_t *d) BANKED {
 }
 
 static void chain_set(void) {                   // the colours below the split, from the venue
-    uint8_t d[24], k;
+    uint8_t d[40], k;
     chain_cols(d);
     for (k = 0; k < 8; k++) {
         if (KEG_BCPS) KEG_PAL[k] = d[k];
         if (SPLIT_L_BCPS) SPLIT_PAL[k] = d[8 + k];
         if (SPLIT_E_BCPS) SPLIT_E_PAL[k] = d[16 + k];
+        if (OBJ5_CHAIN()) { OBJ_PAT[k] = d[24 + k]; OBJ_SHOW[k] = d[32 + k]; }
     }
 }
 
@@ -295,6 +309,10 @@ void split_plan(void) BANKED {
         if (shown && wy > kl + 1 && wy < FLOOR_ROW * 8) { line[n] = wy - 1; kind[n++] = EV_HUD_SHOWN; }
         if (shown && w > kl + 1 && w < FLOOR_ROW * 8) { line[n] = w - 1; kind[n++] = EV_KEG_SHOWN; }
         line[n] = FLOOR_ROW * 8; kind[n++] = EV_HUD_END;   // (the floor row has no keg: BG 1 is the HUD's for the next frame's first line)
+    }
+    if (pal5_cur & 1) {                                               // (a show: OBJ 5 the patron's again, between the dancers' last line and the first bar's; main.c's wait for it takes no window flags: off the window's end line)
+        j = EV_OBJ_LY + ((shown && (EV_OBJ_LY == w || EV_OBJ_LY + 1 == w)) ? 2 : 0);
+        line[n] = j; kind[n++] = EV_OBJ;
     }
     for (i = 1; i < n; i++) {                       // (insertion sort: six at most)
         t = line[i]; j = kind[i];
@@ -323,9 +341,52 @@ void split_plan(void) BANKED {
         EV_LINE(n) = line[0] - ds;                                      // (the sentinel: the line after the last is the first's, next frame)
         EV_N = n;
         EV_PS = shown ? 0x80 : 0;                                  // (planned for a shown window: win_on_ / win_off_ replan when the window is not that)
-        EV_I = i < n ? i : 0;
-        LYC_REG = EV_LINE(EV_I);
+        if (SPLIT_ON == 3) { EV_I = i < n ? i : 0; LYC_REG = EV_LINE(EV_I); }     // (the Saloon changing over from its one reload: saloon_mode puts these after the swap)
     }
+}
+
+// The Saloon's split between its two modes (game.h SPLIT_ON 1 / 3) while a show plays: 1 the one reload, 3 the event list (EV_OBJ needs it). Not while a window is up (its end line is the ISR's
+// work and the plan takes a frame's tenth): 0, and the caller tries again next frame.
+static uint8_t saloon_mode(uint8_t m) {
+    uint8_t i;
+    if ((LCDC_REG & LCDCF_WINON) || overlay_on) return 0;
+    if (m == 3) split_plan();                    // (SPLIT_ON is 1 still, the one reload goes on while the list is made: the swap below puts EV_I and LYC, for the beam as it is by then)
+    while (LY_REG >= 30 && LY_REG < 44) ;        // (not while the reload's hit (line 38 / 39) or the OBJ 5 write's (34 / 35) is near: a handler that starts a line late writes a line late; the logic of a Saloon frame ends about here)
+    CRITICAL {
+        remove_VBL(split_vbl); remove_VBL(split_vbl3); remove_LCD(split_isr); SPLIT_ISR3_OFF();
+        SPLIT_ON = m;
+        if (m == 3) {
+            add_VBL(split_vbl3); add_LCD(SPLIT_ISR3);
+            for (i = 0; i < EV_N && EV_LINE(i) + SPLIT_OFF <= LY_REG; i++) ;
+            EV_I = i < EV_N ? i : 0;
+            LYC_REG = EV_LINE(EV_I);
+        } else { add_VBL(split_vbl); add_LCD(split_isr); LYC_REG = SPLIT_LY; }
+    }
+    return 1;
+}
+
+// A show starts (on) or ends on a Color level (render.c pal5_check; draw_stage_fx waits for pal5_cur 2 or 3 to draw the dancers). A venue whose palette instance 4 is OBJ 5 (OBJ5_CHAIN: the Saloon, the Factory...)
+// runs the chain: the show's colours go into OBJ 5 in every VBlank, split_isr3 writes the patron's back below the dancers (EV_OBJ); any other has the show's colours in OBJ 5 alone.
+void show_pal5(uint8_t on) BANKED {
+    if (!on) {                                   // (pal5_cur 3: OBJ 5 is the patron's already, the last event of the frame wrote it)
+        if (pal5_cur == 3) { pal5_cur = 1; pal5_req &= 2; return; }          // (1: the show is over, the event stays one more frame: the palette RAM holds the show's colours until it has written the patron's)
+        if (cur_group == 0 && SPLIT_ON == 3 && !saloon_mode(1)) return;     // (a window is up: next frame)
+        pal5_cur = 0;
+        if (SPLIT_ON == 3) split_plan();
+        return;
+    }
+    if (SPLIT_ON && OBJ5_CHAIN()) {
+        pal5_cur = 3;                            // (the plan below has the event)
+        { uint8_t d[16], k; obj_cols(d); for (k = 0; k < 8; k++) { OBJ_PAT[k] = d[k]; OBJ_SHOW[k] = d[8 + k]; } }   // (the buffers are the fades' only while a show is on: pal5_cur odd)
+        if (SPLIT_ON == 1) { if (!saloon_mode(3)) { pal5_cur = 0; return; } }
+        else split_plan();
+        pal5_src = (const uint16_t *)OBJ_SHOW; pal5_req = 1;
+        return;
+    }
+    if (SCR_BRIGHT()) { pal5_lift(); pal5_src = pal5_lifted; }   // SCREEN BRIGHT: the VBlank writes pal5_lifted raw, so the show's colours are lifted into it here (src/bright.c)
+    else pal5_src = venue.pal[VENUE_PAL_SHOW];
+    pal5_cur = 2;
+    pal5_req = 1;
 }
 
 // The keg tiles' BG slot on the level screen (the Atlas plan: BG 1 or BG 0, art.h VENUE_KEG_BG): the venue art names BGPAL_BAR_B for them (the mini-games and the title keep that),
@@ -371,7 +432,7 @@ void start_level(void) BANKED {
         split_arm(BGPAL_STAGE, 0, 0);
         patron_pal_get(0, 4, q);                // palette instance 4 (MABEL, ARTIE): BG 5 below the split, lifted once (BRIGHT) like the others (chain_cols: the same, for the fades)
         q[0] = WALL_RGB;
-        chain_put((uint8_t *)SPLIT_PAL, q);
+        chain_put((uint8_t *)SPLIT_PAL, q);     // (OBJ 5's two colour sets: show_pal5, when a show starts; the level load is already a frame's work)
     } else if (is_cgb) {                        // every other venue (mode 3): the keg's BG 1 and, for a generated one (the Factory), its instances on BG 5 (reloaded early, line 31) and BG 6 (late, line 39)
         uint8_t s[6];
         chain_sel(s);

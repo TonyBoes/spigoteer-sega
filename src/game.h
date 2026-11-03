@@ -341,7 +341,14 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 #define SPLIT_E_PAL     (story_scratch + SCR_SPLIT_AT + 2)
 #define SPLIT_E_STG     (story_scratch + SCR_SPLIT_AT + 10)
 #define KEG_BCPS        (story_scratch[SCR_KEG2_AT + 1])    // 0x80 | 1 << 3, or 0: the keg is not in BG 1 (the Saloon's and the Stadium's are in BG 0)
-#define SHOW_PAL        (story_scratch[SCR_KEG2_AT])        // the OBJ palette the show's dancers wear (OBJPAL_DANCER, or Sal's 0 where the plan puts them there)
+// OBJ 5 during a show (owner 2026-11-02, Q7 a): the dancers wear OBJ 5 above the stage's last line, a patron whose palette instance is OBJ 5 (the Saloon's MABEL and ARTIE, the Factory's TOOB...) wears his own colours
+// below it. pal5_cur 3 (1: the show is over, one more frame of the event): the show's colours (OBJ_SHOW) are written by every VBlank (pal5_write keeps its request), the patron's (OBJ_PAT) by split_isr3's EV_OBJ event at line EV_OBJ_LY, in that line's HBlank,
+// after the dancers' last line (STAGE_LAST_ROW * 8 - 1 = 31) and before the first line a patron, mug or coin sprite can occupy (the top bar's, BAR_TOP_Y(0) = 40). Both are kept up to date by the palette fades (trans.c).
+// A Color level whose palette instance 4 is OBJ 5 and not the show's colours already (LOOKS_SHOW5) runs the chain while a show plays; the Saloon's split (mode 1, one reload) is mode 3 while it does.
+#define OBJ_PAT         (story_scratch + SCR_OBJ_AT)            // 8 bytes: palette instance 4's colours (lifted for SCREEN BRIGHT), for the HBlank write
+#define OBJ_SHOW        (story_scratch + SCR_OBJ2_AT)           // 8 bytes: the show's colours (lifted), for the VBlank write
+#define OBJ5_CHAIN()    (INST_OBJ[4] == OBJPAL_DANCER && !((LOOKS_SHOW5 >> cur_group) & 1))
+#define EV_OBJ_LY       35
 #define KEG_PAL         (story_scratch + SCR_KEG_AT)        // 8 bytes: the keg's colours (SCREEN BRIGHT lifted)
 #define KEG_STG         (story_scratch + SCR_KEG_AT + 8)    // 8 bytes: the HUD's, read back from palette RAM at arm time
 #define EV_N            (story_scratch[SCR_KEG_AT + 16])    // the events of a frame, in line order: how many, the next to come (decoded by the ISR itself when its line hits), planned for a shown window
@@ -361,6 +368,7 @@ void lcd_isr(void);                           // LYC handler: the banner window 
 #define EV_HUD_END      35      // BG 1 = the HUD's, always: the line under the last keg row, so the VBlank has nothing to put back
 #define EV_PAD          40      // nothing (the list's second event when a frame has one)
 #define EV_KEG_L        45      // double speed: the keg's put and the late palette's together, in the late one's HBlank (one hit, not two)
+#define EV_OBJ          50      // OBJ 5 = the patron's (OBJ_PAT): the show's dancers are done (its BCPS has bit 6 set: main.c split_put_a writes OCPS / OCPD then)
 #define EV_HIDE_FIRST   0x40    // ORed into a kind: the window off on this line (it ends here), before the palette
 #define EV_HIDE_AFTER   0x80    // ... after the palette (it ends on the next line)
 // The OBJ and BG palette slot of palette instance 0-7 (patron_variant), filled at the level load by looks_insts (build/looks.c): story_scratch, SCR_INST_AT.
@@ -550,13 +558,15 @@ void oam_touched(void);                       // OAM entries were changed behind
 uint8_t bg_pending(uint8_t p);                // patron p's BG columns still wait to be queued
 uint8_t bg_urgent(uint8_t b, uint8_t c);      // compose + queue columns c-1..c+3 of bar b first thing this frame (0: not now)
 extern volatile uint8_t pal5_req;             // (render.c) VBlank palette requests: bit 0 the show's OBJ 5, bit 1 the Mothership's lights, already in LIGHTS_BUF (boss.h)
-extern uint8_t pal5_cur;                      // CGB OBJ palette 5 holds the show (2) or not
+extern uint8_t pal5_cur;                      // CGB OBJ palette 5: 0 the patron's (a venue whose instance 4 is OBJ 5), 2 the show's alone, 3 the show's above the stage and the patron's below (game.h OBJ_PAT)
+extern const uint16_t *pal5_src;              // (render.c) what the VBlank writes into OBJ 5 (pal5_write)
+extern uint8_t cur_group, overlay_on;
+void show_pal5(uint8_t on) BANKED;            // level.c: a show starts (1) or ends (0) on Color: OBJ 5's colours, and the chain's event for the dancers
 // ---- lift.c (banked, M13a lifted patrons) ------------------------------------------------------
 void lift_level_init(uint8_t g) BANKED;       // level load (LCD off): OBJ palettes / DMG copies and looks, no one lifted
 void lift_frame(void) BANKED;                 // after the rules, before queue_vram: drops, forced drops, the test hook
 void draw_lifted(void) BANKED;                // OAM 25 down, after draw_mugs
 uint8_t lift_spawn(uint8_t p) BANKED;         // lift a new patron at the left edge now (1), or not (0: no room)
-uint8_t lift_pi4(void) BANKED;                // 1 if a lifted patron wears palette instance 4 (OBJ 5: the show's colours take it; render.c pal5_check)
 uint8_t lift_leave(uint8_t p) BANKED;         // a served patron slides out as a sprite: 1 done, 2 done (wait for his BG copy to go), 0 no room
 extern uint8_t lift_prop[4];                  // (lift.c) OAM attributes of variant v's lifted entries (CGB OBJ palette, DMG OBP1)
 // ---- venue.c (banked, M9 themed venues; LCD off) ----------------------------------------------
