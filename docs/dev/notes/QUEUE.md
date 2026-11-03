@@ -248,3 +248,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-11-02 Bistro p5 merged: skirt swishes left/right (head and mouth now still, they funded it), bellows sag ~2 px on pull-out (max within 16 quarters). On Q5.
 - 2026-11-02 peacock pass 2 merged (zoo_show_peacock2.txt): ribbed fan, front view in frames 2-3. Supervisor read: frame 2 Color reads as a displayed peacock; DMG fan checkered/busy; frame 0 train thin, frame 1 wedge reads as a duster; side-to-front turn abrupt. On Q5.
 - 2026-11-02 owner sent another kick fix ("Hopefully the last fixed kick") -> frame 1 (kick R) of p10, 11 px: sports_show_p11.txt. Q9 now asks about p11.
+- 2026-11-02 owner: "Cheerleader locked in" -> Q9 closed. Stadium show = sports_show_p11.txt (frames 0,1,2 the owner's; frame 3 kick L agent's). Import with the other shows after picks. Peacock Q5 GIF rebuilt from the grid (the agent's engine crop cut the fan top off).
