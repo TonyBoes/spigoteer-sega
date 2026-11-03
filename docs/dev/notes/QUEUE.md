@@ -223,3 +223,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - Stadium p7 merged 2026-11-02 (frame 1 = owner's kick; frame 3 kick left hand-drawn in his style; weak: dark pom/hair/foot cluster on the left in frame 3, plainer torso than his). Q9 now asks about p7.
 - Owner 2026-11-02 sent his Saloon hop ("replacing the saloon gem frame" = hop) -> saloon_show_p11.txt: all 4 frames his own (front, kick R, hop, kick L). Animation saloon_p11.gif at game speed (DANCER_BEAT 12 frames = 200 ms) on Q8. Q8 now asks about p11.
 - Owner 2026-11-02: "I don't think the jump animation looks" (cut off; read as the cheerleader's hop, frame 2, agent-drawn) -> sent sports_p7_hop.png; asked whether he redraws it or wants an agent pass.
+- Q11 ANSWERED 2026-11-02 (owner): "Try the Crouch" -> cheerleader frame 2 (the hop) becomes a crouch (knees bent, poms down, ready to spring), drawn by gb-artist in his style; frames 0, 1, 3 unchanged -> sports_show_p8.txt.
