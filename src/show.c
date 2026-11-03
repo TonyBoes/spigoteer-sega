@@ -53,7 +53,7 @@ void start_show(void) BANKED {
     if (show_timer && tip_pocket == TILE_HUD_BLANK) { pocket_take(); return; }   // a tip during a show: into the pocket (pocket.c)
     show_timer = SHOW_FRAMES;
     music_play(TUNE_SHOW | MUSIC_LATER);              // "Galop infernal" for as long as the show runs
-    dancer_frame = 0; dance_tick = 0;
+    dance_start();                                   // (the dance's first frame: rom0_relief.c)
     for (p = 0; p < MAX_PATRONS; p++) old |= patron_dist[p];
     for (p = 0; p < MAX_PATRONS; p++) {
         patron_dist[p] = 0;

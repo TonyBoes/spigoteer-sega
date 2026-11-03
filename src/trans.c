@@ -181,6 +181,7 @@ static void chain_flat(void) {
         if (SPLIT_E_BCPS) SPLIT_E_PAL[k] = SPLIT_E_STG[k] = c;
         if (pal5_cur & 1) OBJ_PAT[k] = OBJ_SHOW[k] = c;
     }
+    if ((pal5_cur & 1) && OBJX_ON) for (k = 0; k < SCR_OBJX_N; k++) story_scratch[SCR_OBJX_AT + k] = (k & 1) ? 0x7F : 0xFF;
 }
 
 // the buffers as the scene had them (o: its 64 BG colours, d: chain_cols): after a fade out that ends in the LCD off, the pause card's level comes back (split_resume)
@@ -193,6 +194,7 @@ static void chain_back(const uint8_t *o, const uint8_t *d) {
     }
     if (OBJ5_CHAIN() && (pal5_cur & 1)) CRITICAL {
         for (k = 0; k < 8; k++) { OBJ_PAT[k] = d[24 + k]; OBJ_SHOW[k] = d[32 + k]; }
+        if (OBJX_ON) for (k = 0; k < SCR_OBJX_N; k++) story_scratch[SCR_OBJX_AT + k] = OBJX_CO[k];
     }
 }
 
@@ -243,7 +245,9 @@ static uint8_t cstep(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base, uin
     uint8_t f = 0, ch[40];
     group(o, k, t, base);
     if (co) lerpn((uint16_t *)ch, o ? (const uint16_t *)co : 0, OBJ5_CHAIN() ? 20 : 12, k, t, base);
-    f += vframe(0, co ? ch : 0); fa_tail(f0 + f, n, rise);
+    f += vframe(0, co ? ch : 0);
+    if (co && OBJX_ON) lerpn((uint16_t *)OBJX_PAT4, o ? (const uint16_t *)OBJX_CO : 0, SCR_OBJX_N / 2, k, t, base);   // (three show palettes: OBJ 4's and 3's, lerped into the buffers themselves: they are read from line 34 of the next frame, and the stack has no room for another 32 bytes)
+    fa_tail(f0 + f, n, rise);
     group(o ? o + 64 : 0, k, t, base);
     f += vframe(1, 0); fa_tail(f0 + f, n, rise);
     while (f < minf) { f += vframe(2, 0); fa_tail(f0 + f, n, rise); }

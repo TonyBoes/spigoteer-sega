@@ -194,8 +194,23 @@ _split_put_a::                      ; A = BCPS (auto-increment), DE = the 8 byte
     ld   a, (hl)
     ldh  (c), a
     ret
-_split_put_o::                      ; OBJ 5 (game.h EV_OBJ): A = OCPS, DE = the 8 bytes (split_isr3 / split_isr3n after the HBlank wait; tests/test_show_obj5.py hooks this and _split_put_oe: the whole write must be in HBlank)
-    ldh  (0x6A), a                  ; OCPS: OBJ 5, auto-increment
+_split_put_o2::                     ; the next line's HBlank, then the write below: mode 3 first (the line we are on is over or ending), then mode 0
+    ld   h, a
+    ldh  a, (0x44)
+    cp   a, #38
+    ret  nc                         ; (late: the first write was a frame's end away, or in the VBlank: no mode 3 to wait for before the next frame's)
+9403$:
+    ldh  a, (0x41)
+    and  a, #3
+    cp   a, #3
+    jr   nz, 9403$
+9404$:
+    ldh  a, (0x41)
+    and  a, #3
+    jr   nz, 9404$
+    ld   a, h
+_split_put_o::                      ; OBJ palettes during a show (game.h EV_OBJ, EV_OBJS): A = OCPS, DE = the 8 bytes (split_isr3 / split_isr3n after the HBlank wait, nothing before the write: it must be out before
+    ldh  (0x6A), a                  ; mode 3 of the next line; tests/test_show_obj5.py hooks this, _split_put_o2 and _split_put_oe: every write must be in HBlank). OCPS: auto-increment
     ld   h, d
     ld   l, e
     ld   c, #0x6B                   ; OCPD
@@ -215,8 +230,29 @@ _split_put_o::                      ; OBJ 5 (game.h EV_OBJ): A = OCPS, DE = the 
     ldh  (c), a
     ld   a, (hl)
     ldh  (c), a
-_split_put_oe::
-    ret
+_split_put_oe::                     ; what comes next is by the source (DE): OBJ 5's give-back (OBJ_PAT) goes on to OBJ 4's and OBJ 3's, the show's OBJ 3 (OBJX_SHOW) to OBJ 4's; the others are the second and third writes: done
+    ld   a, e
+    cp   a, #<(_story_scratch + 218)
+    jr   z, 9407$
+    cp   a, #<(_story_scratch + 16)
+    ret  nz
+    ld   a, #0xE0                   ; the show's OBJ 4 (OBJX_SHOW + 8)
+    ld   de, #_story_scratch + 24
+    jr   _split_put_o2
+9407$:
+    ld   a, (_story_scratch + 226)  ; OBJX_F: three show palettes: bit 1 OBJ 4's give-back, bit 2 OBJ 3's, each in the HBlank of the next line (and the one after)
+    ld   b, a
+    bit  1, b
+    jr   z, 9401$
+    ld   a, #0xE0                   ; OBJ 4's OCPS
+    ld   de, #_story_scratch + 0    ; OBJX_PAT4
+    call _split_put_o2
+9401$:
+    bit  2, b
+    ret  z
+    ld   a, #0xD8                   ; OBJ 3's
+    ld   de, #_story_scratch + 8    ; OBJX_PAT3
+    jr   _split_put_o2
 __endasm;
 }
 #else
@@ -307,9 +343,23 @@ void split_vbl(void) {        // vq_vbl's place while the split is armed (the VB
 
 // ---- mode 3 (SPLIT_ON 3, every venue but the Saloon): game.h KEG_* / SPLIT_E_* / SPLIT_L_*. C only: the writes are split_put_a (asm label, or its C twin below).
 #if !ASM_SPLIT_PAL
-void split_put_a(uint8_t bcps, const volatile uint8_t *src) {   // (the C twin of the asm label: 8 bytes at BCPS)
+static void put_o8(uint8_t ocps, const volatile uint8_t *src, uint8_t wait) {   // (C twin: 8 bytes at OCPS, in the HBlank after the next mode 3 when `wait`)
     uint8_t i;
-    if (bcps & 0x40) { OCPS_REG = bcps; for (i = 0; i != 8; i++) OCPD_REG = src[i]; return; }   // (EV_OBJ: OBJ 5)
+    if (wait) { while ((STAT_REG & 3) != 3) ; while (STAT_REG & 3) ; }
+    OCPS_REG = ocps;
+    for (i = 0; i != 8; i++) OCPD_REG = src[i];
+}
+void split_put_a(uint8_t bcps, const volatile uint8_t *src) {   // (the C twin of the asm label: 8 bytes at BCPS)
+    uint8_t i, f = OBJX_F;
+    if (bcps & 0x40) {                                  // (EV_OBJ: OBJ 5, then with three show palettes OBJ 4 and OBJ 3, each in the next line's HBlank. EV_OBJS: OBJ 3, then OBJ 4 with the show's colours)
+        put_o8(bcps, src, 0);
+        if (bcps == 0xD8) put_o8(0xE0, src + 8, 1);
+        else {
+            if (f & 2) put_o8(0xE0, OBJX_PAT4, 1);
+            if (f & 4) put_o8(0xD8, OBJX_PAT3, 1);
+        }
+        return;
+    }
     BCPS_REG = bcps;
     for (i = 0; i != 8; i++) BCPD_REG = src[i];
 }
@@ -392,8 +442,8 @@ __asm
     ld   a, l                       ; (L is still the row's end: the keg-and-late row)
     cp   a, #<(9310$ + 49)
     jr   z, 9300$
-    cp   a, #<(9310$ + 54)
-    jr   z, 9320$                   ; EV_OBJ
+    bit  6, h
+    jr   nz, 9320$                  ; EV_OBJ (its OCPS has bit 6 set; same cost as the compare it replaces)
 9121$:
     ldh  a, (0x41)                  ; STAT: HBlank, palette RAM is open; the line's pixels are out
     and  a, #3
@@ -477,8 +527,10 @@ __asm
     .dw _story_scratch + 235, _story_scratch + 270
     .db 0xFF                                         ; EV_OBJ (OBJ_PAT; its OCPS: bit 6 makes _split_put write OCPD)
     .dw 9340$, _story_scratch + 218
+    .db 0xFF                                         ; EV_OBJS (OBJX_SHOW)
+    .dw 9340$ + 1, _story_scratch + 16
 9340$:
-    .db 0xE8
+    .db 0xE8, 0xD8
 __endasm;
 }
 void split_isr3n(void) __naked {
@@ -641,8 +693,10 @@ __asm
     .dw _story_scratch + 235, _story_scratch + 270
     .db 0xFF                                         ; EV_OBJ
     .dw 9340$, _story_scratch + 218
+    .db 0xFF                                         ; EV_OBJS
+    .dw 9340$ + 1, _story_scratch + 16
 9340$:
-    .db 0xE8
+    .db 0xE8, 0xD8
 __endasm;
 }
 #else
@@ -654,6 +708,7 @@ void split_isr3(void) {       // (the C twin: the same decode)
     if (k == EV_E) { b = SPLIT_E_BCPS; s = SPLIT_E_PAL; }
     else if (k == EV_L) { b = SPLIT_L_BCPS; s = SPLIT_PAL; }
     else if (k == EV_OBJ) { b = 0xE8; s = OBJ_PAT; }
+    else if (k == EV_OBJS) { b = 0xD8; s = OBJX_SHOW; }
     else if (k >= EV_KEG_HID) {
         r = k == EV_KEG_HID ? 0 : (k == EV_HUD_END || k == EV_KEG_L) ? 0xFF : k == EV_PAD ? 0x40 : 0x20;
         if (k == EV_HUD_SHOWN || k == EV_HUD_END) s = KEG_STG;
@@ -980,7 +1035,7 @@ static void play_frame(uint8_t pressed) {
         }
     }
     if (show_timer) {
-        if (++dance_tick >= DANCER_BEAT) { dance_tick = 0; dancer_frame = (dancer_frame + 1) & 3; }
+        if (++dance_tick >= DANCER_BEAT) { dance_tick = 0; dance_next(); }
         if (--show_timer == 0) end_show();
     }
 

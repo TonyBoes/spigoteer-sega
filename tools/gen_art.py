@@ -218,6 +218,19 @@ def show_tiles(t, shows):
     return obj_tiles([list(q) for q in quarters], 8), 1, tab
 
 
+# The dance's step table (<t>_show_pal.json "steps": {"intro": frame, "loop": [up to 8 frames]}), in the dance venue's rows 4-5 (8 bytes; src/rom0_relief.c dance_start / dance_next):
+# byte 0: loop length n | (intro frame + 1) << 4 (0: no intro); bytes 1-2: the loop's frames, 2 bits each, step i in byte 1 + i / 4 at bit 2 * (i % 4). Default: no intro, loop 0 1 2 3.
+# An intro frame is shown once when the show starts (a loop step follows it every DANCER_BEAT); a venue without "steps" dances 0 1 2 3 as ever. Saloon: F = 0 (front), R = 1 (kick right), H = 2 (hop), L = 3 (kick left).
+def step_rows(t, steps):
+    steps = steps or {"loop": [0, 1, 2, 3]}
+    loop, intro = steps["loop"], steps.get("intro")
+    assert 1 <= len(loop) <= 8 and all(f in range(DANCE_FRAMES) for f in loop) and (intro is None or intro in range(DANCE_FRAMES)), f"{t}: show steps: a loop of 1-8 frames 0-3, an optional intro 0-3"
+    b = [len(loop) | ((intro + 1) << 4 if intro is not None else 0), 0, 0] + [0] * 5
+    for i, f in enumerate(loop):
+        b[1 + (i >> 2)] |= f << (2 * (i & 3))
+    return [b[:4], b[4:]]
+
+
 # ---- the breaking drink (crash), per venue: generated from the venue's own drink so it matches the sliding one ----
 # 16 OBJ tiles at OBJ_GLASS (8x16 entries, column-major as obj_tiles): tip 0-1 (the venue's tilted "drink" pose, frame 8
 # of <t>_drink.txt), fall full 2-5 and fall empty 6-9 (the full / empty frame turned 90 degrees, mouth left, 16x16), the
@@ -415,7 +428,7 @@ def venues(outdir, prev):
          "    const uint8_t *anim_frames, *anim_script;    // stage animation (src/venue.c), in the venue's own bank",
          "    uint16_t anim_frames_n;                      // bytes of anim_frames (0: the stage does not move)",
          "    uint8_t anim_script_n, anim_first, anim_k;   // script bytes; first animated stage id, animated tiles",
-         "    uint8_t show_band;                           // bit 0: 0 one dance for all three (row = dance frame), 1 a band; bits 1-2: FILL_DY (src/mugs.c)",
+         "    uint8_t show_band;                           // bit 0: 0 one dance for all three (row = dance frame), 1 a band; bits 1-2: FILL_DY (src/mugs.c); bit 3: three show palettes (Color)",
          f"    uint8_t show_tile[{SHOW_ROWS}][4];             // per row: OBJ tile offsets from OBJ_DANCER, TL TR BL BR",
          "    uint8_t splash_tile;                         // the counter splash's BG id (assets/art/splash; 0: none)",
          "} venue_t;",
@@ -454,9 +467,12 @@ def venues(outdir, prev):
         pals = [pal["stage_a"]["hex"], pal["stage_b"]["hex"], pal["bar"]["hex"], pal.get("bar_b", pal["bar"])["hex"]]
         assert all(len(x) == 4 for x in pals), f"{t}_pal.json: BG palettes need 4 colours"
         assert pals[3][0].lower() == pals[2][0].lower(), f"{t}_pal.json: bar_b colour 0 must be the wall colour"
-        assert all(len(x) == 3 for x in (dpal["full"]["hex"], dpal["empty"]["hex"], spal["obj"]["hex"]))
-        pal15 = [rgb15(x) for x in pals] + [[0] + rgb15(dpal["full"]["hex"]), [0] + rgb15(dpal["empty"]["hex"]),
-                                            [0] + rgb15(spal["obj"]["hex"])]
+        # the show's OBJ palettes: "obj" is one {"hex": [3 colours]} (all three performers wear it) or a list of 3 (left, middle, right: Color gives each its own OBJ slot, src/level.c show_pal5)
+        sobj = spal["obj"] if isinstance(spal["obj"], list) else [spal["obj"]]
+        assert len(sobj) in (1, 3) and all(len(x["hex"]) == 3 for x in sobj), f"{ds}_show_pal.json: obj is 1 or 3 palettes of 3 colours"
+        assert all(len(x) == 3 for x in (dpal["full"]["hex"], dpal["empty"]["hex"]))
+        show_pals = [[0] + rgb15(x["hex"]) for x in sobj]
+        pal15 = [rgb15(x) for x in pals] + [[0] + rgb15(dpal["full"]["hex"]), [0] + rgb15(dpal["empty"]["hex"]), show_pals[0]]
         # stage: unique tiles -> ids TILE_STAGE_BASE..; the animated tiles (<t>_anim.txt) get their own ids, last and
         # contiguous (never merged with a static tile), so one copy entry rewrites them
         sgrid, suniq = cut(stage, 20, 4), []
@@ -539,7 +555,10 @@ def venues(outdir, prev):
             f"{t}_show.txt: {DANCE_FRAMES} frames 16x24 (one dancer, all three dance it) or {BAND_FRAMES} (a band of three)"
         dtile = obj_tiles(pour_stream(drinks, bar, fdy, mug_dy), 8) + crash_tiles(drinks, shards)
         stiles, band, show_tab = show_tiles(t, shows)
+        if not band:
+            show_tab = show_tab[:4] + step_rows(t, spal.get("steps"))
         assert len(dtile) == (20 + GLASS_TILES) * 16 and len(stiles) == 32 * 16
+        show_extra = [b for pp in show_pals[1:] for c in pp for b in (c & 255, c >> 8)]   # the middle and right performers' palettes follow the 32 tiles (venue.show_band bit 3)
         abs_smap = list(smap)
         abs_bmap = [bar_base + i for i in bmap]
         abs_sattr = [PAL_STAGE_B if a else PAL_STAGE_A for r in sattr for a in r]
@@ -557,7 +576,7 @@ def venues(outdir, prev):
               fmt(f"{sym}_stage", stile).replace("const uint8_t", "static const uint8_t"),
               fmt(f"{sym}_bar", btile + btrail).replace("const uint8_t", "static const uint8_t"),
               fmt(f"{sym}_drink", dtile).replace("const uint8_t", "static const uint8_t"),
-              fmt(f"{sym}_show", stiles).replace("const uint8_t", "static const uint8_t"),
+              fmt(f"{sym}_show", stiles + show_extra).replace("const uint8_t", "static const uint8_t"),
               ] + ([fmt(f"{sym}_anim_frames", anim["data"]).replace("const uint8_t", "static const uint8_t"),
                     fmt(f"{sym}_anim_script", ascript).replace("const uint8_t", "static const uint8_t")] if anim else []) + [
               f"const venue_t {sym} = {{",
@@ -567,7 +586,7 @@ def venues(outdir, prev):
               "    { " + ", ".join(arr(x) for x in pal15) + " },",
               (f"    {sym}_anim_frames, {sym}_anim_script, {len(anim['data'])}, {len(ascript)}, {a_first}, {anim['k']},"
                if anim else "    0, 0, 0, 0, 0, 0,"),
-              f"    {band | fdy << 1}, {{ " + ", ".join(arr(r) for r in show_tab) + " },", f"    {bar_base + sid if sid is not None else 0}",
+              f"    {band | fdy << 1 | (8 if len(show_pals) == 3 else 0)}, {{ " + ", ".join(arr(r) for r in show_tab) + " },", f"    {bar_base + sid if sid is not None else 0}",
               "};", ""]
         (outdir / f"{sym}.c").write_text("\n".join(vc))
         load += [f"BANKREF_EXTERN({sym})", f"extern const venue_t {sym};"]
@@ -575,7 +594,7 @@ def venues(outdir, prev):
         (info["venues"] if t in THEMES else info.setdefault("extra", {}))[t] = {"stage_n": len(suniq), "bar_n": len(buniq), "bar_base": bar_base, "floor_tile": bar_base + fid,
                              "splash_tile": bar_base + sid if sid is not None else 0,
                              "stage_map": abs_smap, "stage_attr": abs_sattr, "bar_map": abs_bmap, "bar_attr": abs_battr,
-                             "pal": pal15, "drink": dtile[:20 * 16], "crash": dtile[20 * 16:], "show": stiles,
+                             "pal": pal15, "show_pals": show_pals, "show_pal_n": len(show_pals),"show_steps": spal.get("steps"), "drink": dtile[:20 * 16], "crash": dtile[20 * 16:], "show": stiles,
                              "show_band": band, "fill_dy": fdy, "bar_alt": [bar_base + a for a, _ in alt], "bar_alt_tiles": [tile_bytes(list(rt), 0, 0) for _, rt in alt], "show_table": show_tab, "show_frames": len(shows), "stage_tiles": stile, "bar_tiles": btile,
                              "anim": {"first": a_first, "k": anim["k"], "slots": anim["slots"], "names": anim["frames"],
                                       "frames": [anim["data"][i * anim["k"] * 16:(i + 1) * anim["k"] * 16]

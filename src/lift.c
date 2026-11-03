@@ -130,6 +130,7 @@ void lift_level_init(uint8_t g) BANKED {
         if (n < 5) set_sprite_palette(OBJPAL_PATRON_D, 1, p);   // (OBJ 4 is no patron's outside the Saloon and the generated venues: a level start sets it, so no mini-game's or story scene's colours stay in it)
         else if (OBJ5_CHAIN()) pal5_cur = 0;     // (instance 4 is OBJ 5: the patron's, the show's colours above the stage during a show, level.c show_pal5; the Space Lounge's VENUS wears the show's colours, the Zoo's 5th is OBJ 4)
         pal5_req = 0;                                 // (a request of the last level: its colours are not these)
+        OBJX_F = 0;                                   // (no show: scratch.h's three-palette state is whatever the last screen left)
         spr_full_t = OBJ_MUG;                spr_full_p = S_PALETTE | OBJPAL_MUG_FULL;
         spr_empty_t = OBJ_MUG + 2;           spr_empty_p = S_PALETTE | OBJPAL_MUG_EMPTY;
         spr_hempty_t = OBJ_MUG_DRINK + 6;    spr_hempty_p = S_PALETTE | OBJPAL_MUG_EMPTY;

@@ -68,6 +68,18 @@ typedef char scr_obj_above_belt[SCR_BELT_AT + SCR_BELT_N <= SCR_OBJ_AT ? 1 : -1]
 typedef char scr_obj_below_tip2[SCR_OBJ_AT + SCR_OBJ_N <= SCR_TIP2_AT ? 1 : -1];
 typedef char scr_obj2_above_keg[SCR_KEG_AT + SCR_KEG_N <= SCR_OBJ2_AT ? 1 : -1];
 typedef char scr_obj2_below_cap[SCR_OBJ2_AT + SCR_OBJ2_N <= SCR_CAP_AT ? 1 : -1];
+// Three show palettes (owner 2026-11-02, Q13 a: the Saloon's dancers each wear their own OBJ slot above the stage, level.c show_pal5): 32 bytes in the free low end (a level's and a fight's level's story_scratch has nothing in 0..69:
+// the cut-scene and credits users are other screens), the patron colours of OBJ 4 and OBJ 3 for the HBlank, the show's for OBJ 3 then OBJ 4 (contiguous in palette RAM) for the VBlank; and 2 bytes after OBJ_PAT.
+#define SCR_OBJX_AT      0       // 32 bytes: [0..7] OBJ 4's patron colours, [8..15] OBJ 3's, [16..23] the show's for OBJ 3, [24..31] for OBJ 4
+#define SCR_OBJX_N       32
+#define SCR_OBJXC_AT     32      // 32 bytes: the same, as the fade began (trans.c lerps from them into the buffers above)
+#define SCR_OBJXC_N      32
+#define SCR_OBJF_AT      226     // 2 bytes: [0] OBJX flags (game.h OBJX_*), [1] the dance's step (rom0_relief.c)
+#define SCR_OBJF_N       2
+typedef char scr_objx_below_co[SCR_OBJX_AT + SCR_OBJX_N <= SCR_OBJXC_AT ? 1 : -1];
+typedef char scr_objxc_below_ld[SCR_OBJXC_AT + SCR_OBJXC_N <= SCR_LD_AT ? 1 : -1];
+typedef char scr_objf_above_pat[SCR_OBJ_AT + SCR_OBJ_N <= SCR_OBJF_AT ? 1 : -1];
+typedef char scr_objf_below_tip2[SCR_OBJF_AT + SCR_OBJF_N <= SCR_TIP2_AT ? 1 : -1];
 
 // ---- the one-line menus (src/oneline.h: SOUNDTRACK, MINI GAMES, BOSS RUSH's list): alive only while one of them shows, with that screen's row buffers ------------
 #define SCR_EVT_AT       369     // 18 bytes (the gap above the one-line menus' state, under the Boss Rush struct): the frame's events (line, kind) x 8 and the sentinel (game.h EV_*)

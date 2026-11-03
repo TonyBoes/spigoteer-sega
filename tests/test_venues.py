@@ -125,7 +125,7 @@ def test_the_show_tables():
         tab, band = v["show_table"], v["show_band"]
         assert len(tab) == 6 and all(len(r) == 4 for r in tab), t
         assert band == (v["show_frames"] == 6), t
-        assert all(0 <= x < 32 and x % 2 == 0 for r in tab for x in r), t
+        assert all(0 <= x < 32 and x % 2 == 0 for r in (tab if band else tab[:4]) for x in r), t     # (a dance's rows 4-5 are its step table: tests/test_show_three.py)
         if not band:
             assert tab[:4] == [[8 * f, 8 * f + 2, 8 * f + 4, 8 * f + 6] for f in range(4)], t
             continue

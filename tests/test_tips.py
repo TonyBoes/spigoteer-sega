@@ -230,7 +230,7 @@ def test_walking_over_the_coin_scores_1500_and_starts_the_show(gb):
     xs = sorted({s["x"] - 8 for s in ds})
     assert xs == [24, 32, 72, 80, 120, 128] and xs[2] - xs[0] == 48
     if gb.model_name == "cgb":
-        assert {s["flags"] & 7 for s in ds} == {5}
+        assert {s["flags"] & 7 for s in ds} == {5, 4, 3}, "the Saloon's three dancers each in their own OBJ palette (OBJ 5, 4, 3)"
 
 
 def test_the_coin_on_another_bar_is_not_picked_up(gb):
@@ -261,7 +261,7 @@ def test_dancers_kick(gb):
         ds = dancer_sprites(gb)
         if len(ds) == 12:
             seen.add(tuple(sorted(s["tile"] for s in ds)))
-    assert len(seen) >= 4, "stand, left kick, arms up, right kick"
+    assert len(seen) >= 3, "the Saloon's steps (Q12): the front pose once, then hop, left kick, hop, right kick: three more poses in the loop (the front is gone before all three dancers are up)"
 
 
 def test_dancers_pop_in_and_out_one_after_the_other(gb):
@@ -643,6 +643,6 @@ def test_show_golden(gb):
     gb.write("tip_x", 100)
     gb.write("dancer_frame", 0)
     gb.write("dance_tick", 0)
-    gb.run(15)                                     # the first step (12 frames) is over: left kick
-    assert gb.mem("dancer_frame") == 1 and len(dancer_sprites(gb)) == 12
+    gb.run(15)                                     # the first step (12 frames) is over: left kick (the Saloon's table: loop step 1 = frame 3)
+    assert gb.mem("dancer_frame") == 3 and len(dancer_sprites(gb)) == 12
     check_golden(gb, "show")

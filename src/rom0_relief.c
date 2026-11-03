@@ -4,6 +4,7 @@
 #include <gb/gb.h>
 #include <stdint.h>
 #include "game.h"
+#include "scratch.h"
 
 extern uint8_t story_arc;
 extern uint32_t score, extra_at;
@@ -11,6 +12,7 @@ extern uint8_t score_digits[6];
 extern uint8_t hud_dirty;
 
 static const uint8_t dancer_x[NUM_DANCERS] = { 24, 72, 120 };   // screen x of the left edge, across the stage
+static const uint8_t dancer_pal[NUM_DANCERS] = { OBJPAL_DANCER, 4, 3 };   // their OBJ palettes when each wears her own (game.h OBJX_ON)
 #define DANCER_OAM_Y (STAGE_LAST_ROW * 8 - 24 + 16)   // OAM y of a dancer's top entries: art 24 px tall, feet on the platform
 
 // What the dancer entries must show: 0x80 | dance frame << 3 | bit k: dancer k is on stage. They pop in one
@@ -31,9 +33,9 @@ static void draw_dancers(uint8_t sig) {
     OAM_item_t *o = shadow_OAM + OAM_DANCERS;
     const uint8_t *t;
     uint8_t k, flags, x;
-    flags = is_cgb ? OBJPAL_DANCER : 0;
     for (k = 0; k < NUM_DANCERS; k++, o += 4) {
         if (!(sig & (1 << k))) { o[0].y = o[1].y = o[2].y = o[3].y = 0; continue; }
+        flags = is_cgb ? (OBJX_ON ? dancer_pal[k] : OBJPAL_DANCER) : 0;     // (three show palettes: OBJ 5, 4, 3 left to right, game.h OBJX_*)
         t = venue.show_tile[(venue.show_band & 1) ? (k << 1) | (dancer_frame & 1) : dancer_frame];
         x = dancer_x[k] + 8;
         o[0].y = DANCER_OAM_Y;      o[0].x = x;     o[0].tile = OBJ_DANCER + t[0]; o[0].prop = flags;
@@ -43,6 +45,37 @@ static void draw_dancers(uint8_t sig) {
     }
 }
 
+
+// The dance's steps (tools/gen_art.py step_rows: the venue's rows 4-5, venue.show_tile[4]): byte 0 the loop's length | (intro frame + 1) << 4, bytes 1-2 the loop's frames, 2 bits each.
+// A show starts on its intro frame, if the venue has one, else on loop step 0; every DANCER_BEAT after, the next loop step (the intro is not in the loop). A band's frames just count (render.c).
+static uint8_t loop_frame(uint8_t i) {
+    const uint8_t *t = venue.show_tile[4];
+    return (t[1 + (i >> 2)] >> ((i & 3) << 1)) & 3;
+}
+
+void dance_start(void) BANKED {                 // a show starts (show.c start_show)
+    const uint8_t *t = venue.show_tile[4];
+    DANCE_STEP = 0;
+    dancer_frame = 0;
+    dance_tick = 0;
+    if (venue.show_band & 1) return;
+    if (t[0] >> 4) { dancer_frame = (t[0] >> 4) - 1; DANCE_STEP = 255; }      // (the intro: the loop's step 0 follows it)
+    else dancer_frame = loop_frame(0);
+}
+
+void dance_next(void) BANKED {                  // a dance beat (main.c)
+    uint8_t i = DANCE_STEP + 1;
+    if (OBJX_F & 0xC0) {                        // (the three show palettes' setup, level.c obj_stage: one step a frame for two frames, main.c calls here every frame while dance_tick stays at the beat; the dance itself waits, its count goes on)
+        obj_stage();
+        dance_tick = (OBJX_F & 0xC0) ? DANCER_BEAT : 3;
+        if (!(OBJX_F & 0xC0)) dancer_sig = 0;   // (the dancers up since the start frame wear OBJ 5 still: drawn again with their own palettes)
+        return;
+    }
+    if (venue.show_band & 1) { dancer_frame = (dancer_frame + 1) & 3; return; }
+    if (i >= (venue.show_tile[4][0] & 15)) i = 0;
+    DANCE_STEP = i;
+    dancer_frame = loop_frame(i);
+}
 
 // One call a frame while the show runs (render.c draw_stage_fx): compute what the dancer entries must show and rewrite them only
 // when that changed (dancer_sig).
