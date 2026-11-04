@@ -37,6 +37,7 @@
 
 #include "game.h"
 #include "music.h"
+#include "mg.h"
 #include "story.h"
 #include "list_keys.h"          // static const uint8_t list_key_tiles[]: the keys line's A, B and right buttons (assets/art/list_keys.txt)
 
@@ -643,6 +644,45 @@ uint8_t auto_boss(void) BANKED {
                 sa_hold = 255;
             }
         }
+    }
+    return j;
+}
+#endif
+
+#ifdef AUTO_MG                          // test-only (tools/mg_capture.py, never in a release): boot -> mini-game `id` at frame 100 + delay, then a fixed button pattern. The settings are the free ROM0 bytes
+extern uint8_t frame_counter;                   // (patched into the ROM: 3FF8 non-zero: through the MINI GAMES list, 3FFF delay (0xFF none), 3FFD game id, 3FFC mode, 3FFB frames/4 of play before the timer is forced out (0xFF never), 3FFA score/16 given then, 3FF9 non-zero: the full card)
+extern uint32_t score;
+void card_mark(uint8_t id) BANKED;
+void mg_enter(uint8_t id, uint8_t mode) BANKED;
+extern uint8_t ml_sel, story_unskip;
+uint8_t auto_mg(void) BANKED {
+    static uint16_t am_t, am_p, am_r;
+    static uint8_t am_on;
+    const volatile uint8_t *c = (const volatile uint8_t *)0x3FF8;
+    uint8_t j = 0, d = c[7] == 0xFF ? 0 : c[7];
+    if (game_state == GS_TITLE) {
+        if (!am_on && ++am_t == (uint16_t)(100 + d)) {
+            am_on = 1;
+            if (!c[1]) card_mark(c[5]);
+            if (c[0] == 2) { story_unskip = 255; story_debug_start(c[5], 3, 0); }   // (3FF8 2: the story's mini-game step of chapter 3FFD, a game id 0-9)
+            else if (c[0]) mg_list_enter(); else mg_enter(c[5], c[4]);   // (3FF8 1: through BONUS > MINI GAMES, the way a player goes)
+        }
+        return 0;
+    }
+    if (game_state == GS_MGLIST) {
+        if (!++am_p) am_p = 1;
+        ml_sel = c[5] > 11 ? c[5] - 2 : c[5];
+        if (am_p == 40) j = J_A;
+        return j;
+    }
+    if (game_state != GS_MINI) return 0;
+    if (mg_phase == MG_CARD) { if (!(++am_p & 255)) j = J_A; }
+    else if (mg_phase == MG_INTRO || mg_phase == MG_COUNT) { }
+    else if (mg_phase == MG_RESULT) { if (c[0] == 1 && ++am_r == 200) j = J_B; }   // (from the list: B, back to it)
+    else if (mg_phase == MG_PLAY) {
+        am_p++;
+        j = (am_p & 8) ? ((am_p & 16) ? J_A : J_B) : ((am_p & 32) ? J_RIGHT : J_LEFT);
+        if (c[3] != 0xFF && am_p >= (uint16_t)c[3] * 4) { mg_timer = 1; mg_score = (uint16_t)c[2] * 16; }
     }
     return j;
 }

@@ -745,6 +745,9 @@ uint8_t auto_card(void) BANKED;                         // src/debug.c: the test
 #ifdef AUTO_MR
 uint8_t auto_mr(void) BANKED;                           // src/debug.c: the test-only Milk Run hook of tests/test_double_speed.py
 #endif
+#ifdef AUTO_MG
+uint8_t auto_mg(void) BANKED;                           // src/debug.c: the test-only mini-game hook of tools/mg_capture.py
+#endif
 #ifdef GLOW_A
 void glow_tick(void) BANKED;                            // src/glow.c: the bistro's palette pulse (make GLOW=A)
 #endif

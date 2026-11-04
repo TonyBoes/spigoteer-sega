@@ -207,6 +207,7 @@ static uint8_t prelude(uint8_t id, uint8_t mode) {
     if (mode != MG_STORY) TRANS_MENU();          // (src/trans.c: Practice from the list: the quick white fade; a story's mini-game has the drink wanted already)
     DISPLAY_OFF;
     smap_pal_back();                             // (from the story map: the HUD palette its picture borrowed)
+    if (mode != MG_STORY && !(mode & MG_MAP)) hud_pal_reset();   // (Practice from the list: its picture's palette took BG 0 or 1, the HUD's slot: the card, the HUD row, the result window and the medal icon's band are drawn in it)
     overlay_on = 0; HIDE_WIN; LYC_REG = BANNER_LYC; SCX_REG = 0;
     vq_reset(); hud_dirty = 0; vram_pending = 0; life_lost = 0;
     clear_dirty();

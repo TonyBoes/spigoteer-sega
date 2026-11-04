@@ -355,11 +355,21 @@ var ROM_LIST = [
     pushPad();
     statusEl.textContent = (model === "cgb" ? "Game Boy Color" : "DMG") + " mode" + (ex.isGBC() ? " (colour)" : " (4 shades)");
   }
+  // executeFrame ends after a fixed number of CPU cycles, on whatever line the LCD has then reached (LY 51 at double speed, 120 at normal speed on a Color), not at
+  // VBlank. The frame buffer then holds the next picture down to that line and this one below it, so anything moving sideways is sheared there (Taiko Pour's notes
+  // across the top lane). The buffer of the call before holds this picture's top: keep each call's buffer and draw the top lines from the earlier one.
+  var fbPrev = new Uint8Array(160 * 144 * 3), fbCur = new Uint8Array(160 * 144 * 3), fbLy = 144;
+  function grabFrame() {
+    var t = fbPrev; fbPrev = fbCur; fbCur = t;
+    fbCur.set(mem.subarray(ex.FRAME_LOCATION, ex.FRAME_LOCATION + 160 * 144 * 3));
+    fbLy = ex.getLY();
+  }
   function drawFrame() {
-    var o = ex.FRAME_LOCATION, d = img.data, i, j = 0;
+    var d = img.data, i, j = 0, cut = fbLy < 144 ? fbLy * 160 : 0, src;
     for (i = 0; i < 160 * 144; i++) {
-      d[j] = mem[o]; d[j + 1] = mem[o + 1]; d[j + 2] = mem[o + 2]; d[j + 3] = 255;
-      j += 4; o += 3;
+      src = i < cut ? fbPrev : fbCur;
+      d[j] = src[3 * i]; d[j + 1] = src[3 * i + 1]; d[j + 2] = src[3 * i + 2]; d[j + 3] = 255;
+      j += 4;
     }
     ctx.putImageData(img, 0, 0);
   }
@@ -374,6 +384,7 @@ var ROM_LIST = [
     while (acc >= FRAME_MS - 0.5 && ran < 4) {        // 0.5 ms slack so 60 Hz screens do not drop a frame
       if (ex.executeFrame() < 0) { running = false; statusEl.textContent = "Emulator core stopped (crash)."; return; }
       pushAudio();
+      grabFrame();
       if (ran === 0) { latch = {}; applyPad(); }         // the latched taps have lived one frame
       acc -= FRAME_MS; ran++; frames++; fpsCount++;
     }
