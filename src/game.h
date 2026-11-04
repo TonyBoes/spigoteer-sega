@@ -624,9 +624,9 @@ extern uint8_t title_back_sel;                          // the line its cursor s
 uint8_t konami_step(uint8_t i, uint8_t pressed) BANKED; // the code's progress after a frame's new presses; KONAMI_DONE: complete
 uint8_t debug_gesture(uint8_t pressed) BANKED;          // SELECT held: SELECT + three START taps open the menu; `pressed` back without the taps
 void debug_open(void) BANKED;                           // the full-screen menu (GS_DEBUG)
-#ifdef DEBUG_MENU
-extern uint8_t debug_from_title;                      // bit 0 opened on the title; bits 1-2 a STRESS run (src/debug.c; story.c pat_done holds its crowd)
-#endif
+extern uint8_t debug_from_title;                      // bit 0 opened on the title; bits 1-2 a STRESS run (src/debug.c; story.c pat_done holds its crowd); bits 3-7 the TUNING page's values
+#define TUNE_GUS_ROLLS 0x80                             // debug_from_title bit 7: GUS ALWAYS is OFF on the TUNING page (tip.c maybe_tip)
+uint8_t tip_tuned(void) BANKED;                         // the TUNING page's COINS value, tip_chance's (default TIP_CHANCE_DEFAULT; boss.c restores it)
 uint8_t debug_step(uint8_t pressed) BANKED;             // one GS_DEBUG frame; 1: a game started
 extern uint8_t debug_menu_open;
 // ---- jukebox.c (banked: the title's BONUS, the soundtrack player) ---------------------------------

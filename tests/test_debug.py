@@ -283,14 +283,17 @@ def test_the_mode_line_switches_between_the_four_runs(boot):
     release_combo(boot)
     goto(boot, 0)
     seen = []
-    for _ in range(5):                                    # (the playtest builds' fifth mode, STRESS: tests/test_debug_stress.py)
+    for _ in range(6):                                    # (TUNING: tests/test_debug_tuning.py; the playtest builds' sixth mode, STRESS: tests/test_debug_stress.py)
         tap(boot, "right")
         boot.run(6)
         seen.append((line(boot, 2)[1], boot.mem("debug_story"), boot.mem("debug_classic")))
-    assert seen == [("STORY", 1, 0), ("ARCADE", 2, 0), ("CLASSIC", 0, 1), ("STRESS", 3, 0), ("LEVEL", 0, 0)]
+    assert seen == [("STORY", 1, 0), ("ARCADE", 2, 0), ("CLASSIC", 0, 1), ("TUNING", 0, 2), ("STRESS", 3, 0), ("LEVEL", 0, 0)]
     tap(boot, "left")
     boot.run(6)
     assert line(boot, 2)[1] == "STRESS" and [line(boot, y)[0] for y in (2, 4, 6, 8)] == ["MODE", "PEAK", "30 FPS", ""]
+    tap(boot, "left")
+    boot.run(6)
+    assert line(boot, 2)[1] == "TUNING" and [line(boot, y)[0] for y in (2, 4, 6, 8)] == ["MODE", "COINS", "GUS ALWAYS", ""]
     tap(boot, "left")
     boot.run(6)
     assert line(boot, 2)[1] == "CLASSIC" and [line(boot, y)[0] for y in (2, 4, 6, 8, 10)] == ["MODE", "LEVEL", "30 FPS", "MIXED", ""]

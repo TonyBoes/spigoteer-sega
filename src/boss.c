@@ -224,7 +224,7 @@ static void boss_limit(void) {
 void boss_set(uint8_t id) BANKED {
     uint8_t s;
     if (id == BOSS_NONE) {
-        if (boss_on) tip_chance = TIP_CHANCE_DEFAULT;
+        if (boss_on) tip_chance = tip_tuned();   // (the default unless the debug menu's TUNING page set COINS)
         boss_on = 0; boss_bar = BOSS_NONE; boss_lim = 0;
         return;
     }
