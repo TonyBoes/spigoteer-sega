@@ -1,0 +1,36 @@
+--- src/story.c	2026-11-04 02:08:52.390699316 -0600
++++ out/cam/src/story.c	2026-11-04 02:19:44.000768021 -0600
+@@ -68,6 +68,9 @@
+ void dg_load(uint8_t *st, uint8_t v) BANKED;
+ void dg_page(uint8_t *st, uint8_t scene, uint8_t prev, uint8_t spk) BANKED;
+ void dg_frame(uint8_t *st) BANKED;
++void cam_load(uint8_t s) BANKED;            // MOCKUP: boss cameos / the UFO (src/cameo.c)
++void cam_page(uint8_t s, uint8_t page) BANKED;
++void cam_frame(void) BANKED;
+ 
+ #define G_BOSS           3         // story_goal.type of a boss fight (boss.c), and after Last call's quota while the bars empty (shift_won)
+ #define SCENE_BAR        1         // the Spigoteer stands at this bar's tap during a cut-scene
+@@ -364,6 +367,7 @@
+         gap = page_buf[0] != story_spk ? STORY_GAP_SPEAKER : STORY_GAP_PAGE;   // a page turn / speaker change never types at once
+     story_t = gap;                                // (the beat counter: story_update does not count frames in a scene)
+     story_spk = page_buf[0];
++    if (!PIC_SCENE) cam_page(story_scene, story_page);
+     if (story_page && !PIC_SCENE) dg_page(win_rows[0], story_scene, prev, story_spk);   // Dregs's exit gag, on the narrator page after his
+     story_pid = page_buf[55];
+     story_typed = 0;
+@@ -447,6 +451,7 @@
+         draw_bartender();
+         stage_anim_start();
+         if (!(s & 1)) dg_load(win_rows[0], story_hdr.venue);   // a POST scene: Dregs's gag tiles and palettes (OBJ 56.., LCD off)
++        cam_load(s);
+     } else {
+         story_pic_draw(story_hdr.pic, is_cgb);
+         PS_FX = 0;
+@@ -1001,6 +1006,7 @@
+ static uint8_t scene_frame(uint8_t pressed) {
+     if (story_hdr.swpage && PS_FX) return pic_fx();   // the picture switch: nothing else moves
+     if (win_rows[0][4] == 1) dg_frame(win_rows[0]);   // Dregs's gag (src/dgag.c) draws its sprites
++    if (!PIC_SCENE) cam_frame();
+     if (story_swap) swap_frame(VQ_STORY_ROOM - ((pressed & (J_A | J_B)) ? story_typed < 54 ? 3 * COST(18) : VQ_STORY_ROOM : 0));
+                                                  // (the press queues the page's text, or turns the page: the swap waits a frame)
+     if (story_typed < 54) {
