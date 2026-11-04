@@ -247,6 +247,7 @@ def step_rows(t, steps):
 SHOW_LOOP_LENS = tuple(range(1, 9))
 SHOW_MAX_FRAMES = 27
 SHOW_PERIOD_MAX = 64                 # the beat rows: 6 bytes a beat
+SHOW_GLIDE_BEATS = 32                # a glide block's beats (4 rows of 9 bytes a beat; DANCE_STEP * 4 + 3 < 256)
 OBJ_DANCER = 96                      # src/game.h (src/show_ext.c checks it)
 SHOW_BANK1_FREE = {"biker": [(0, 56), (76, 8), (92, 36)]}   # OBJ ids free in VRAM bank 1 in a level: all but the Chrome Cow's copies of the mug and the glass (src/lift.c swap_bank1: 56..75, 84..91)
 SHOW_BANK1_ALL = [(0, 128)]
@@ -270,32 +271,52 @@ def show_cells(frames, w):
 
 
 def show_block(t, perf, cells, w, tile_of, bank_bit):
-    """The block bytes (see above). tile_of(quarter) -> tile byte (bank 0: OBJ_DANCER + the offset)."""
+    """The block bytes (see above). tile_of(quarter) -> tile byte (bank 0: OBJ_DANCER + the offset).
+    A glide block (Color only: every performer has "dx"): "loop" is a row every 3 frames (4 a beat; the three of one length, a multiple of 4, at most
+    4 * SHOW_GLIDE_BEATS), "dx" a signed x shift per row (-128..127), "flip" 0|1 or one per row; the period byte is the beats | 0x80 and a row is
+    9 bytes (performer k's record offset at 3k, its x shift at 3k + 2), a record per (performer, frame, flip) (src/show_ext.c)."""
     import math
     assert len(perf) == 3, f"{t}: performers: 3 (left, middle, right)"
     nf = len(cells)
     assert 1 <= nf <= SHOW_MAX_FRAMES, f"{t}: show frames {nf} (1..{SHOW_MAX_FRAMES})"
-    period = 1
-    for k, p in enumerate(perf):
-        loop = p["loop"]
-        assert len(loop) in SHOW_LOOP_LENS and all(0 <= f < nf for f in loop), f"{t}: performer {k}: a loop of 1-8 frame ids < {nf}"
-        period = period * len(loop) // math.gcd(period, len(loop))
-    assert period <= SHOW_PERIOD_MAX, f"{t}: the three loops' lengths {[len(p['loop']) for p in perf]} meet only every {period} beats (at most {SHOW_PERIOD_MAX})"
+    glide = all("dx" in p for p in perf)
+    assert glide or not any("dx" in p for p in perf), f"{t}: a glide show gives every performer a dx"
+
+    def flip_at(p, s):
+        fl = p.get("flip", 0)
+        return int(bool(fl[s] if isinstance(fl, list) else fl))
+    if glide:
+        n = len(perf[0]["loop"])
+        assert bank_bit and n % 4 == 0 and 4 <= n <= 4 * SHOW_GLIDE_BEATS, f"{t}: a glide show (Color only): rows in fours, at most {4 * SHOW_GLIDE_BEATS}"
+        for k, p in enumerate(perf):
+            fl = p.get("flip", 0)
+            assert len(p["loop"]) == n and len(p["dx"]) == n and (not isinstance(fl, list) or len(fl) == n), f"{t}: performer {k}: loop, dx (and a flip list) of {n} rows"
+            assert all(0 <= f < nf for f in p["loop"]) and all(-128 <= d <= 127 for d in p["dx"]), f"{t}: performer {k}: frame ids < {nf}, dx -128..127"
+        period, stride = n, 9
+    else:
+        period, stride = 1, 6
+        for k, p in enumerate(perf):
+            loop = p["loop"]
+            assert len(loop) in SHOW_LOOP_LENS and all(0 <= f < nf for f in loop), f"{t}: performer {k}: a loop of 1-8 frame ids < {nf}"
+            period = period * len(loop) // math.gcd(period, len(loop))
+        assert period <= SHOW_PERIOD_MAX, f"{t}: the three loops' lengths {[len(p['loop']) for p in perf]} meet only every {period} beats (at most {SHOW_PERIOD_MAX})"
     recs, order = {}, []
     for k, p in enumerate(perf):
-        for f in p["loop"]:
-            if (k, f) not in recs:
-                recs[(k, f)] = len(order)
-                order.append((k, f))
-    head = 3 + 6 * period
+        for s in range(period):
+            f = p["loop"][s % len(p["loop"])]
+            key = (k, f, flip_at(p, s % len(p["loop"])))
+            if key not in recs:
+                recs[key] = len(order)
+                order.append(key)
+    head = 3 + stride * period
     rows = []
     for s in range(period):
         for k, p in enumerate(perf):
-            off = head + 16 * recs[(k, p["loop"][s % len(p["loop"])])]
-            rows += [off & 255, off >> 8]
+            i = s % len(p["loop"])
+            off = head + 16 * recs[(k, p["loop"][i], flip_at(p, i))]
+            rows += [off & 255, off >> 8] + ([p["dx"][i] & 255] if glide else [])
     body = []
-    for k, f in order:
-        flip = bool(perf[k].get("flip"))
+    for k, f, flip in order:
         cl = cells[f]
         for e in range(4):
             if e < len(cl):
@@ -305,7 +326,7 @@ def show_block(t, perf, cells, w, tile_of, bank_bit):
             else:
                 body += [0, 0, 0, 0]
     size = head + len(body)
-    return [size & 255, size >> 8, period] + rows + body
+    return [size & 255, size >> 8, (period >> 2) | 0x80 if glide else period] + rows + body
 
 
 def show_ext(t, shows, perf, cgb_path, cgb_perf, bank1):
@@ -551,7 +572,7 @@ def venues(outdir, prev):
          "    const uint8_t *anim_frames, *anim_script;    // stage animation (src/venue.c), in the venue's own bank",
          "    uint16_t anim_frames_n;                      // bytes of anim_frames (0: the stage does not move)",
          "    uint8_t anim_script_n, anim_first, anim_k;   // script bytes; first animated stage id, animated tiles",
-         "    uint8_t show_band;                           // bit 0: 0 one dance for all three (row = dance frame), 1 a band; bits 1-2: FILL_DY (src/mugs.c); bit 3: three show palettes (Color); bit 4: a per-performer show block follows the tiles (src/show_ext.c); bit 5: with a Color block + its bank 1 pool",
+         "    uint8_t show_band;                           // bit 0: 0 one dance for all three (row = dance frame), 1 a band; bits 1-2: FILL_DY (src/mugs.c); bit 3: three show palettes (Color); bit 4: a per-performer show block follows the tiles (src/show_ext.c); bit 5: with a Color block + its bank 1 pool; bit 6: the Color block is a glide block (src/show_ext.c)",
          f"    uint8_t show_tile[{SHOW_ROWS}][4];             // per row: OBJ tile offsets from OBJ_DANCER, TL TR BL BR",
          "    uint8_t splash_tile;                         // the counter splash's BG id (assets/art/splash; 0: none)",
          "} venue_t;",
@@ -723,7 +744,7 @@ def venues(outdir, prev):
               "    { " + ", ".join(arr(x) for x in pal15) + " },",
               (f"    {sym}_anim_frames, {sym}_anim_script, {len(anim['data'])}, {len(ascript)}, {a_first}, {anim['k']},"
                if anim else "    0, 0, 0, 0, 0, 0,"),
-              f"    {band | fdy << 1 | (8 if len(show_pals) == 3 else 0) | (16 if perf is not None else 0) | (32 if ext_info and "c_block" in ext_info else 0)}, {{ " + ", ".join(arr(r) for r in show_tab) + " },", f"    {bar_base + sid if sid is not None else 0}",
+              f"    {band | fdy << 1 | (8 if len(show_pals) == 3 else 0) | (16 if perf is not None else 0) | (32 if ext_info and "c_block" in ext_info else 0) | (64 if ext_info and ext_info.get("c_block") and ext_info["c_block"][2] & 0x80 else 0)}, {{ " + ", ".join(arr(r) for r in show_tab) + " },", f"    {bar_base + sid if sid is not None else 0}",
               "};", ""]
         (outdir / f"{sym}.c").write_text("\n".join(vc))
         load += [f"BANKREF_EXTERN({sym})", f"extern const venue_t {sym};"]
