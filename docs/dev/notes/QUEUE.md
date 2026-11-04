@@ -383,3 +383,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-11-03 Owner: "Show me all of the story scenes" -> Story Scenes page https://claude.ai/artifact/2zVytB94Mn2Z3NeiyP1XKi (24 scenes, 161 pages, Color).
 - 2026-11-03 Sumo HMPH round 4 merged (Opus; round4/: R4a hands over belly, R4b pushed past arms; 26/29). Q53 asked.
 - 2026-11-03 Food Critic round 4 merged (Opus; round4/: F1 eyes shut, F2 cocked brow, F3 side-eye; beret one row shallower; 28/29). Q54 asked.
+- 2026-11-04 Lodge/Igloo show concepts merged (Opus; shows_2026-11-03/: L1 32 quarters no engine change; L3 16 + Color show-time anim switch for fire; I1 27, needs generator 16-step loops + x shift, previewer only; I3 17 + anim switch for snow). Q55 asked.
