@@ -3,7 +3,7 @@
 - [Art in-house](art-in-house.md) — owner dropped the external artist; our agents do all art, proposals first
 - [No long perf loops](perf-no-long-loops.md) — small tweaks ok; optimize only on a reported slowdown
 - [Wait loops and pgrep](wait-loop-pgrep.md) — pgrep -f self-matches its own loop; wait on a PID or a log marker
-- [Subagent model choice](subagent-model-choice.md) — spawn by type: gb-worker/gb-artist/gb-golden-check (Sonnet), gb-runner (Haiku); Opus/Fable only when named; ~3 at once
+- [Subagent model choice](subagent-model-choice.md) — gb-worker/gb-artist/gb-golden-check (Sonnet), gb-runner (Haiku); Opus for boss designs + Lodge/Igloo shows (owner 11-03); ~3 at once
 - [Context hygiene](context-hygiene.md) — supervisor context drives cost: helpers do mechanics, handoff then /clear or /compact at milestones, contact sheets
 - [Three modes decisions](three-modes-decisions.md) — owner answers for STORY/ARCADE/CLASSIC (lives, scores, DMG steps, slanted bars)
 - [Owner tests judgement only](owner-testing-judgement-only.md) — test lists hold look/sound/feel calls only; verify mechanics ourselves
