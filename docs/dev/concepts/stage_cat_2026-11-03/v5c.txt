@@ -1,0 +1,91 @@
+; NAME: tail + glance
+; V5C: V5A's tail swing plus a glance: at the far end of the swing the cat glances left toward the dancers (A_look: both eye pixels 1 px left, head silhouette unchanged: eye pixels only), and return as the tail settles.
+; Format as v1.txt: @static = tiles (13,2)+(14,2); @A_* = tile (14,1) head; @B_* = tile (13,3) tail over the lip.
+; FRAME base = A_base B_hang
+; FRAME s = A_base B_S
+; FRAME l1 = A_base B_L1
+; FRAME l2 = A_base B_L2
+; FRAME look_l2 = A_look B_L2
+; FRAME look_l1 = A_look B_L1
+; FRAME hang_blink = A_blink B_hang
+; SCRIPT: base:50 s:8 l1:8 l2:14 look_l2:32 look_l1:10 s:8 base:50 hang_blink:7 base:36 s:8 l1:8 l2:18 l1:8 s:8 base:40 hang_blink:7 base:30 s:8 l1:8 l2:12 look_l2:30 look_l1:10 s:8 base:44
+
+@static
+-------# +..+..#-
+------#. +...+.#-
+-----#+. .+....#-
+----#.+. ....+.#-
+----#..+ ....+.#-
+---#.+.. ......#-
+---#.+.. ..+....#
+--#..+.. .+..+..#
+
+@A_base
+-------+
+-#---#-+
+-##-##-+
+-#....#+
+#+.#.#.#
+#.+..+.#
+#+..+.+#
+#.....#+
+
+@A_blink
+-------+
+-#---#-+
+-##-##-+
+-#....#+
+#+.+.+.#
+#.+..+.#
+#+..+.+#
+#.....#+
+
+@A_look
+-------+
+-#---#-+
+-##-##-+
+-#....#+
+#+#.#..#
+#.+..+.#
+#+..+.+#
+#.....#+
+
+@B_hang
+###.####
+--#+#+--
+--#.#+--
+--#.#+--
+###++###
+++##.#++
+++++#+++
+########
+
+@B_S
+###.####
+--#+#+--
+--#.#+--
+--#.#+--
+###+####
+++#.#+++
++++#++++
+########
+
+@B_L1
+###.####
+--#+#+--
+--#.#+--
+-#.#-+--
+##+#####
++#.#++++
+++#+++++
+########
+
+@B_L2
+###.####
+--#+#+--
+-#.#-+--
+-#.#-+--
+#++#####
+#.#+++++
++#++++++
+########
