@@ -26,6 +26,8 @@
 
 #include "game.h"
 #include "music.h"
+#include "looks.h"
+#include "scratch.h"
 extern uint8_t cur_group, rng_state;
 
 uint8_t level_dirs;                 // the LEVEL harness's directions for its next level load (test hook, debug box)
@@ -304,14 +306,25 @@ static uint8_t extra_on_(void) {
 }
 uint8_t extra_on(void) BANKED { return extra_on_(); }
 
-uint8_t extra_variant(uint8_t r) BANKED {
-    if (!cur_group) return saloon_variant(r);
-    return looks_variant(cur_group, r, boss_on);   // (build/looks_pick.h, generated from the Graphics Atlas plan: the venue's allowed (look, palette) pairs, one random byte)
+// The Color pick: one (look, palette) pair of the venue's allowed ones from the random byte r (build/looks_pick.h, generated from the Graphics Atlas plan; the Saloon's table above), again with r + 97
+// while its look is one of the last 3 that spawned (LOOK_HIST, scratch.h; build/looks.c; owner 2026-11-04). It ends: r + 97, + 194 ... visits every byte, and every venue allows at least 4 looks (tools/gen_looks.py).
+static uint8_t pick_x(uint8_t r, uint8_t now) {
+    uint8_t v, l, *h = LOOK_HIST;
+    if (!now) looks_sync();                      // (the start patrons and the show's: a pick from before is not committed late, note drops it)
+    for (;;) {
+        v = cur_group ? looks_variant(cur_group, r, boss_on) : saloon_variant(r);   // (not extra_variant: one trampoline less on a spawn frame, and looks_variant is in this bank)
+        l = v & 7;
+        if (l != h[0] && l != h[1] && l != h[2]) break;
+        r += 97;                                 // (not next_rand: the generator's stream stays the one every other draw saw; 97 is odd, so the 256 bytes all come up and the loop ends)
+    }
+    looks_note(v, now);
+    return v;
 }
+uint8_t extra_variant(uint8_t r) BANKED { return pick_x(r, 1); }   // (the start patrons and the show's: placed at once)
 
 uint8_t spawn_variant(uint8_t r) BANKED {
     if (*(const volatile uint8_t *)0x3FFD) r ^= DIV_REG;   // the pick takes the DIV counter too: the 8-bit generator alone has 255 states, so each pair is followed by only about 5 of the 50 (tests/test_rng.py). ROM byte 0x3FFD is the tests' seed switch (0xFF as built, 0 in every test ROM: the fixed seeds stay reproducible)
-    if (extra_on_()) return cur_group ? looks_variant(cur_group, r, boss_on) : saloon_variant(r);   // (not extra_variant: one trampoline less on a spawn frame, and looks_variant is in this bank)
+    if (extra_on_()) return pick_x(r, 0);   // (try_spawn: the add can still fail)
     r = (r >> 4) + (r & 15);                      // r % 3 without SDCC's divide call (16 = 4 = 1 mod 3)
     r = (r >> 2) + (r & 3);
     r = (r >> 2) + (r & 3);
