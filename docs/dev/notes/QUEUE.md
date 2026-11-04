@@ -372,3 +372,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-11-03 Sumo HMPH round 3 merged (round3/: B1 small 3-finger hands, B2 wider 4-finger; flat mouth; 26/29 pairs). Q50 asked.
 - 2026-11-03 Food Critic round 3 merged (round3/: A3, 27/29 pairs). Q51 asked: import or another pass.
 - 2026-11-03 Mini-game sweep merged: Practice start resets HUD palette (cards, HUD, medal box on Color); Pocket Player shows whole VBlank frames (Taiko shear was WasmBoy mid-frame grabs). Pocket Player v51. Open: Shirt Cannon TIME UP banner dark on dark (seen on sweep sheet), Asteroid TIME UP twice.
+- 2026-11-03 Q50 answered (owner): Sumo "b2 but rework. Currently, they look like tattoos on his arm instead of hands." -> round 4: B2 hands as separate shapes (own outline, break the arm/body silhouette); show, then import.
