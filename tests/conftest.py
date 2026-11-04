@@ -429,6 +429,19 @@ def gb(boot):
     return boot
 
 
+def without_water(img):
+    """The screen's bytes with the town pictures' jet cells blacked out. The fountain flows (src/story.c story_water, owner Q74 2026-11-04):
+    the jet cells' tiles change every 8 frames, so two runs that bring a picture up at different times show the jets in different phases.
+    (tests/test_story_pictures.py checks the water itself.)"""
+    import json
+    from PIL import ImageDraw
+    im = img.convert("RGB").copy()
+    d = ImageDraw.Draw(im)
+    for cx, cy in json.loads((ROOT / "build" / "story.json").read_text())["water_cells"]:
+        d.rectangle((cx * 8, cy * 8, cx * 8 + 7, cy * 8 + 7), fill=(0, 0, 0))
+    return im.tobytes()
+
+
 def check_golden(gb, name):
     """Compare the screen with tests/golden/<name>.<model>.png; diffs land in out/diff/."""
     ok = gb.golden(GOLDEN / f"{name}.{gb.model_name}.png", update=UPDATE, diff_dir=ROOT / "out" / "diff")

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import perf_helpers as ph
 from PIL import Image
-from conftest import ROOT, check_golden
+from conftest import ROOT, check_golden, until_game
 from test_flow import GS_STORY, run_until, state, tilemap_row
 from test_story import (DMG_GREY, PORTRAITS, SC, SCENES, STORY, STORY_STEPS, gen_story, page_ready, picture_switching, post, q15, settle,
                         skip_scene, start_story, through_the_pouroff, to_goal, v7_image, win)
@@ -35,12 +35,30 @@ def expected(name, model):
     return _EXPECT[name, model]
 
 
+WATER_CELLS = [tuple(c) for c in STORY["water_cells"]]   # the jets' cells (left jet's three, then the right's): their tiles flow
+
+
+def jet_tiles(gb, name):
+    """the six jet cells' tiles as VRAM holds them now"""
+    return [[gb.pb.memory[a + k] for k in range(16)] for a in PICS[name]["water_addr"]]
+
+
+def water_phases(gb, name):
+    """the phase each jet (left, right) shows: its three tiles are that phase's (story.json); None when they are no phase"""
+    w, t = PICS[name]["water"], jet_tiles(gb, name)
+    return tuple(next((ph for ph in range(len(w)) if w[ph][j * 3:j * 3 + 3] == t[j * 3:j * 3 + 3]), None) for j in (0, 1))
+
+
 def picture_diff(gb, name, skip=None):
-    """Pixels of the picture area (rows 0-12) that differ from the source; `skip` = a rectangle to leave out."""
+    """Pixels of the picture area (rows 0-12) that differ from the source; `skip` = a rectangle to leave out. A picture whose
+    fountain flows: its jet cells are left out here (assert_picture checks their tiles are one of the water's phases)."""
     got = np.array(gb.image())[:104, :160]
     bad = np.any(got != expected(name, gb.model_name), axis=2)
     if name == "intro_a":
         bad[CRACKLE[1]:CRACKLE[3], CRACKLE[0]:CRACKLE[2]] = False
+    if PICS[name]["water"]:
+        for cx, cy in WATER_CELLS:
+            bad[cy * 8:cy * 8 + 8, cx * 8:cx * 8 + 8] = False
     if skip:
         x0, y0, x1, y1 = skip
         bad[y0:y1, x0:x1] = False
@@ -58,6 +76,8 @@ def assert_picture(gb, name, skip=None):
             lo, hi = skip[0] // 8, skip[2] // 8
             row, want = row[:lo] + row[hi:], want[:lo] + want[hi:]
         assert row == want, f"{name}: tile map row {r}"
+    if p["water"]:
+        assert None not in water_phases(gb, name), f"{name}: the jets' tiles are no phase of the water"
 
 
 # ---- the build -----------------------------------------------------------------------------------------------
@@ -278,6 +298,66 @@ def test_intro_before_then_flash_then_the_explosion(model):
             raise golden_err
 
 
+PW_AT = 300                            # src/story.c story_water's bytes in story_scratch: PW_T, PW_PH, PW_DUE, then its buffer
+
+
+def assert_water_flows(gb, name, frames=72, skip=None):
+    """Owner Q74 (the town approved, 2026-11-04): the jets' highlights run down the two jets: a phase step every 8 game frames, in
+    order (0 1 2 3 0 ...), the left jet's tiles queued that frame and the right's the next. Nothing else of the picture moves: every
+    other pixel of rows 0-12 stays as the source has it, and so does the tile map."""
+    sc = gb.addr("story_scratch") + PW_AT
+    log = []                                                    # per GAME frame, at the end of its logic: (PW_T, PW_PH, PW_DUE)
+    def rec():
+        log.append(tuple(gb.pb.memory[sc + k] for k in range(3)))
+        return len(log) > frames + 1
+    until_game(gb, rec, limit=frames * 3)
+    log = log[1:]                                               # (until_game checks once at once: not a frame end)
+    for (t0, p0, d0), (t1, p1, d1) in zip(log, log[1:]):
+        assert t1 == (t0 + 1) & 255, log                        # one count a game frame
+        if t1 & 7:
+            assert p1 == p0, log
+        else:
+            assert p1 == (p0 + 1) & 3 and d1 == 2, log           # the step: the left jet's tiles go this frame ...
+    for (t0, p0, d0), (t1, p1, d1) in zip(log, log[1:]):
+        if not t0 & 7:
+            assert d1 == 0, log                                  # ... the right jet's the next
+    assert {q[1] for q in log} == {0, 1, 2, 3}
+    seen = []                                                   # per EMULATOR frame: what VRAM shows
+    for f in range(frames):
+        gb.run(1)
+        seen.append(water_phases(gb, name))
+        assert None not in seen[-1], f"frame {f}: the jets' tiles are no phase of the water"
+        if f % 9 == 0:
+            assert_picture(gb, name, skip)                       # (everything else as the source, the jets in a phase)
+    for j in (0, 1):
+        ph = [q[j] for q in seen]
+        assert all(b in (a, (a + 1) & 3) for a, b in zip(ph, ph[1:])), (j, ph)
+        assert set(ph) == {0, 1, 2, 3}, (j, ph)
+    assert gb.mem("drain_ticks_max") <= 13 and gb.mem("vq_end_ly_max") <= 153 and gb.mem16("vq_late") == 0
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_fountain_flows_at_night_and_the_rest_stays(model):
+    with start_story(model) as gb:
+        page_ready(gb)
+        assert_water_flows(gb, "intro_before")
+
+
+def test_the_water_tiles_are_the_jets_own():
+    """The water's tiles (story.json, from assets/story/pictures/water.txt): phase 0 is each picture's own jet tiles, the phases
+    differ, and only the jet cells' tile ids are rewritten (each one used by its cell alone). INTRO A's fountain has stopped."""
+    assert [n for n, p in PICS.items() if p["water"]] == ["intro_before", "finale_a", "finale_contest", "credits_b"]
+    for n, p in PICS.items():
+        if not p["water"]:
+            continue
+        ids = [p["map"][cy * 20 + cx] for cx, cy in WATER_CELLS]
+        assert all(p["map"].count(i) == 1 for i in ids), n
+        assert p["water_addr"] == [(0x9000 + i * 16) if i < 128 else 0x8800 + (i - 128) * 16 for i in ids], n
+        assert len(p["water"]) == STORY["water_phases"] == 4
+        for j in (0, 1):
+            assert len({tuple(map(tuple, p["water"][ph][j * 3:j * 3 + 3])) for ph in range(4)}) == 4, (n, j)
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_start_skips_the_intro_before_and_during_the_flash(model):
     """START on page 1 and START in the middle of the white flash both end the scene cleanly: the same screen of the
@@ -344,6 +424,7 @@ def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
         assert_picture(gb, "finale_a", skip=None if s["pages"][0]["portrait"] is None else FRAME)
         if scene == "FINALE_A":
             check_golden(gb, "story_pic_finale_a")
+            assert_water_flows(gb, "finale_a", 40, skip=None if s["pages"][0]["portrait"] is None else FRAME)   # (by day: the right jet into the glass)
         seen_states = set()
         gb.write("drain_ticks_max", 0)
         for k, page in enumerate(s["pages"]):
@@ -366,6 +447,7 @@ def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
                         check_golden(gb, "story_pic_finale_contest")
                     else:
                         gb.golden(g, update=True)
+                    assert_water_flows(gb, "finale_contest", 40)  # (the jet runs into the basin again: nobody holds a glass up)
             else:
                 assert gb.mem("story_cur") == PORTRAITS[name]["pid"], (k, name)
                 assert_picture(gb, pic, skip=FRAME)
@@ -390,6 +472,7 @@ def test_credits_picture_and_start_skips_the_finale(model):
         page_ready(gb)
         assert_picture(gb, "credits_b")
         check_golden(gb, "story_pic_credits_b")
+        assert_water_flows(gb, "credits_b", 40)                  # (at dawn)
         gb.press("start", 2)                                      # ... and the CREDITS pages: on to the credits roll (tests/test_credits.py)
         run_until(gb, lambda: gb.mem("story_phase") == 8, 60)
 

@@ -148,8 +148,14 @@ uint8_t story_scratch[STORY_SCRATCH];
 #define PS_OUT   ((uint16_t *)(story_scratch + 40 + PS_BURST * 16 + 40))   // the fade step to write next (20 words)
 #define PS_W     (story_scratch[1])                  // its w: 3 white .. 0 as drawn (also what DMG's BGP is set from)
 #define PB_T     (story_scratch[168])                // the INTRO's explosion: frames since the flash (255: none running)
+#define PW_AT    300                                 // the fountain flowing (story_water), above the burst's bytes:
+#define PW_T     (story_scratch[PW_AT])              // frames since the picture came up (mod 256)
+#define PW_PH    (story_scratch[PW_AT + 1])          // the jets' phase now (0 .. STORY_WATER_PHASES - 1; 0 = the picture as drawn)
+#define PW_DUE   (story_scratch[PW_AT + 2])          // bit j: jet j (0 left, 1 right) still shows an older phase
+#define PW_BUF   (story_scratch + PW_AT + 3)         // a jet's three tiles (48 bytes), then their VRAM addresses (6), on their way through the list
+#define PW_END   (PW_AT + 3 + 54)
 // a picture scene's bytes in order, none touching the next (and the INTRO burst's own, generated: gen_story.py, STORY_STB_AT..STORY_STB_END)
-typedef char ps_fits[(2 + SWAP_ROWS * 18 <= 40 && 40 + PS_BURST * 16 + 40 + 40 <= 168 && 168 + 1 <= STORY_STB_AT && STORY_STB_END <= STORY_SCRATCH) ? 1 : -1];
+typedef char ps_fits[(2 + SWAP_ROWS * 18 <= 40 && 40 + PS_BURST * 16 + 40 + 40 <= 168 && 168 + 1 <= STORY_STB_AT && STORY_STB_END <= PW_AT && PW_END <= STORY_SCRATCH) ? 1 : -1];
                                                      // (+170: the trail's cursor and stage, build/story_pictures.c)
 #define PIC_SCENE (story_hdr.venue == 255)
 uint8_t story_unskip;              // test hook: bit s set = step s of every chapter is played even if marked STEP_SKIP
@@ -456,6 +462,7 @@ static void scene_enter(uint8_t s) {
         story_pic_draw(story_hdr.pic, is_cgb);
         PS_FX = 0;
         PB_T = 255;
+        PW_T = 0; PW_PH = 0; PW_DUE = 0;         // (the jets as drawn)
     }
     // the text box
     fill(row_buf, TILE_PANEL_TOP, 20); set_bkg_tiles(0, BOX_ROW, 20, 1, row_buf);
@@ -960,6 +967,23 @@ static void pic_put(void) {
     for (k = 0; k < 5; k++) (set_bkg_palette)(pic_slot[k], 1, PS_OUT + k * 4);   // (raw: pic_calc lifted them)
 }
 
+// The fountain flowing (owner Q74, 2026-11-04; assets/story/pictures/water.txt): every 8 frames the jets' phase steps on, and each
+// jet's three tiles go out through the VBlank list, the left jet one frame and the right the next, when the list has room for them
+// and nothing else is changing the screen (a portrait swap, the picture switch's flash, last frame's list still waiting). A jet that
+// had to wait shows the newer phase when it goes. DMG and Color alike; a picture without water (INTRO A) answers 0.
+static void story_water(void) {
+    uint8_t j, k;
+    if (!(++PW_T & 7)) { PW_PH = (PW_PH + 1) & (STORY_WATER_PHASES - 1); PW_DUE = 3; }
+    if (!PW_DUE || vq_held || story_swap != SW_IDLE || (story_hdr.swpage && PS_FX) || room_left(VQ_STORY_ROOM) < 3 * COST(16)) return;
+    j = (PW_DUE & 1) ? 0 : 1;
+    PW_DUE &= j ? 1 : 2;
+    if (!story_water_tiles(story_hdr.pic, j, PW_PH, PW_BUF)) { PW_DUE = 0; return; }
+    for (k = 0; k < 3; k++) {
+        vq_add(0, PW_BUF + k * 16, 0, 0, 16);
+        vq[vq_count - 1].dst = (uint8_t *)(PW_BUF[48 + 2 * k] | ((uint16_t)PW_BUF[49 + 2 * k] << 8));
+    }
+}
+
 // One step of the switch (PS_FX = the step, 1 on the page turn). 1: the LCD was off for it.
 static uint8_t pic_fx(void) {
     uint8_t f = PS_FX++, k;
@@ -980,6 +1004,7 @@ static uint8_t pic_fx(void) {
         story_swap = SW_IDLE;
         story_hdr.pic++;                         // (the wipes of pages 6-8 restore this one: story_pic_row)
         story_pic_draw(story_hdr.pic, is_cgb);
+        PW_PH = 0; PW_DUE = 0;                   // (its jets as drawn)
         story_pic_pals(story_hdr.pic, PS_PALS);
         if (story_hdr.pic == STORY_BURST_PIC) story_burst_load(is_cgb);   // (the INTRO's explosion: ten pieces' OBJ tiles and palette, flown by story_update; FINALE_A's second picture has none)
         page_begin(1);                           // the narrator's page: its box and tag, no portrait (story_cur 255)
@@ -1085,6 +1110,7 @@ uint8_t story_update(uint8_t pressed) BANKED {
         if (PB_T != 255)                         // the INTRO's explosion, last: its trail and star go into whatever room the frame's list has
             PB_T = story_burst_step(PB_T, (story_hdr.swpage && PS_FX) || (pressed & (J_A | J_B)) ? 0 : story_swap ? 1 : STORY_BURST_PER) ? 255 : PB_T + 1;
         else if (story_hdr.pic == STORY_BURST_PIC && !PS_FX) story_burst_crackle(story_t);   // over: the sparks keep on off the stump
+        story_water();                           // (after the burst: it takes what room the frame's list has left)
     }
     return btn;
 }

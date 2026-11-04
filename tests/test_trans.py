@@ -10,7 +10,7 @@
 import re
 
 import pytest
-from conftest import ROM, K_ARCADE, K_CLASSIC, K_PLAY, K_STORY, TR_OFF, TRANS_ADDR, check_golden, hold_stage_anim, menu_tap, title_pick, trans_enable
+from conftest import ROM, K_ARCADE, K_CLASSIC, K_PLAY, K_STORY, TR_OFF, TRANS_ADDR, check_golden, hold_stage_anim, menu_tap, title_pick, trans_enable, without_water
 from split_helpers import win_lyc
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, TITLE, lose_a_life, run_until, state
 from test_music_transitions import FRAME, LATE, tick_log
@@ -173,10 +173,11 @@ def test_title_to_classic_runs_the_drink(title):
 
 
 def test_the_scene_after_the_drink_is_the_scene_without_it(title):
-    """The intro's first page, a settled frame later, is the same picture with the drink as without."""
+    """The intro's first page, a settled frame later, is the same picture with the drink as without (the fountain's jets aside: they flow,
+    and the two runs bring the picture up at different times)."""
     title_pick(title, K_PLAY, K_STORY)
     title.run(250)
-    with_drink = shown(title)
+    with_drink = without_water(title.image())
     trans_enable(title, False)
     # (the same game again, drink off)
     other = make_rom(title.model_name, None, sound=True)
@@ -184,7 +185,7 @@ def test_the_scene_after_the_drink_is_the_scene_without_it(title):
     hold_stage_anim(other)
     title_pick(other, K_PLAY, K_STORY)
     other.run(250)
-    assert shown(other) == with_drink
+    assert without_water(other.image()) == with_drink
     other.pb.stop(save=False)
 
 

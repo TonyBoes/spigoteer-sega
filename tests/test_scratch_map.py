@@ -78,6 +78,7 @@ USERS = {
     "pic.FX_W": (0, 2, "PS_FX, PS_W"), "pic.ROWS": (2, 38, "PS_ROWS"), "pic.TILES": (40, 88, "PS_TILES"), "pic.PALS": (88, 128, "PS_PALS"),
     "pic.OUT": (128, 168, "PS_OUT"), "pic.PB_T": (168, 169, "PB_T"), "pic.CURSOR": (170, 172, "STB_CURSOR"), "pic.STAGE": (172, 180, "STB_STAGE"),
     "pic.RCUR": (180, 181, "STB_RCUR"), "pic.RSTAGE": (181, 185, "STB_RSTAGE"), "pic.SPARKS": (192, 237, "STB_SPK, RNG, TM, LEFT"),
+    "pic.WATER": (300, 357, "story.c story_water: PW_T, PW_PH, PW_DUE, PW_BUF (a jet's 3 tiles + their 3 VRAM addresses)"),
     # a venue scene: the backdrop under the portrait slot (13 rows of map, then attributes)
     "scene.BD_MAP": (0, 260, "story.c bd_map"), "scene.BD_ATTR": (260, 520, "story.c bd_attr"),
     # the mini-games: one union (mg.h), the largest member is the Pour-Off (po_state)
@@ -94,7 +95,7 @@ GROUPS = {
     "the Practice list": ["mglist.ROWS", "mglist.STATE", "mglist.ART", "mglist.STAGE", "ol.STATE"],
     "the soundtrack": ["jukebox.ROWS", "jukebox.METER", "ol.STATE"],
     "the credits": ["credits.CR", "credits.BGP", "credits.PAL", "credits.PT", "credits.BUF"],
-    "a picture scene": ["pic.FX_W", "pic.ROWS", "pic.TILES", "pic.PALS", "pic.OUT", "pic.PB_T", "pic.CURSOR", "pic.STAGE", "pic.RCUR", "pic.RSTAGE", "pic.SPARKS"],
+    "a picture scene": ["pic.FX_W", "pic.ROWS", "pic.TILES", "pic.PALS", "pic.OUT", "pic.PB_T", "pic.CURSOR", "pic.STAGE", "pic.RCUR", "pic.RSTAGE", "pic.SPARKS", "pic.WATER"],
     "a venue scene": ["scene.BD_MAP", "scene.BD_ATTR"],
 }
 
@@ -102,13 +103,13 @@ GROUPS = {
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
         "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 27, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 61, "src/mg.h": 3, "src/mg_list.c": 5,
         "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 6,
-        "src/story.c": 16, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 5, "src/ts.c": 1}
+        "src/story.c": 20, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 5, "src/ts.c": 1}
 
 # the numbers each source must still contain (a literal moved there without the table moving fails here)
 SOURCE_HAS = {
     "src/story.c": [r"story_scratch\[0\]", r"story_scratch\[1\]", r"story_scratch \+ 2\)", r"story_scratch \+ 40\)", r"story_scratch\[168\]",
                     r"story_scratch \+ STORY_PIC_ROWS \* 20", r"#define PS_BURST 3", r"story_scratch \+ 40 \+ PS_BURST \* 16\)\)",
-                    r"story_scratch \+ 40 \+ PS_BURST \* 16 \+ 40\)\)", r"story_scratch \+ SCR_HB_AT"],
+                    r"story_scratch \+ 40 \+ PS_BURST \* 16 \+ 40\)\)", r"story_scratch \+ SCR_HB_AT", r"#define PW_AT\s+300\b", r"story_scratch\[PW_AT\]", r"story_scratch \+ PW_AT \+ 3\)", r"#define PW_END\s+\(PW_AT \+ 3 \+ 54\)"],
     "src/smap.c": [r"story_scratch \+ 140\)", r"story_scratch \+ 160\)", r"story_scratch \+ 180\)", r"story_scratch\[400 \+ \(n\)\]", r"#define ROWS_MAX\s+7"],
     "src/mg_list.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ ML_ROWS \* 20\)\)", r"#define ML_ROWS\s+11\b", r"#define ML_PA_AT\s+\(ML_ROWS \* 20 \+ 2\)", r"#define ML_STAGE_AT\s+\(ML_PA_AT \+ 22\)"],
     "src/jukebox.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ JB_ROWS \* 20\)\)", r"#define JB_ROWS\s+9\b"],

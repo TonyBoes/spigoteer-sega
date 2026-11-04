@@ -1,0 +1,97 @@
+; The Golden Spigot's fountain flowing (town import, owner Q74 2026-11-04): the two jets' highlights run down the jet,
+; 4 phases, one step every 8 game frames (src/story.c story_water), on DMG and Color, in the pictures listed under @pic.
+; tools/gen_story.py turns each phase into the BG tiles of the jet cells (10, 6-8) and (15, 6-8) and checks that phase 0
+; is the picture as drawn. Every highlight is hand-placed (round 4 motion plan, docs/dev/concepts/town_2026-11-04).
+;
+; @jet NAME, then one line per row: "y x0 x1" = the jet's pixels x0..x1 on row y (each b or W in the art). The tool sets
+;   them all to water (b), then sets the phase's highlights to spray (W).
+; @phase NAME N, then "x,y" pairs on one line: phase N's highlights (each one a pixel of the jet).
+; @pic PICTURE JET JET: the picture's left and right jet.
+
+@jet left
+50 85 86
+51 85 86
+52 84 85
+53 84 85
+54 84 85
+55 84 85
+56 84 85
+57 84 85
+58 83 84
+59 83 84
+60 83 84
+61 83 84
+62 83 84
+63 83 84
+64 83 84
+65 83 84
+66 83 84
+67 82 83
+68 82 83
+
+@jet right
+50 121 122
+51 121 122
+52 122 123
+53 122 123
+54 122 123
+55 122 123
+56 122 123
+57 122 123
+58 123 124
+59 123 124
+60 123 124
+61 123 124
+62 123 124
+63 123 124
+64 123 124
+65 123 124
+66 123 124
+67 124 125
+68 124 125
+
+; FINALE: the jet runs into the Spigoteer's glass at y 59
+@jet right_glass
+50 121 122
+51 121 122
+52 122 123
+53 122 123
+54 122 123
+55 122 123
+56 122 123
+57 122 123
+58 123 124
+
+; the left jet's light is on its left pixel, the right jet's on its right pixel (as drawn); each phase moves every
+; highlight one row down the jet
+@phase left 0
+85,50 84,54 83,58 83,62 83,66
+@phase left 1
+85,51 84,55 83,59 83,63 82,67
+@phase left 2
+84,52 84,56 83,60 83,64 82,68
+@phase left 3
+84,53 84,57 83,61 83,65
+
+@phase right 0
+122,50 123,54 124,58 124,62 123,66 124,66
+@phase right 1
+122,51 123,55 124,59 124,63 125,67
+@phase right 2
+123,52 123,56 124,60 124,64 125,68
+@phase right 3
+123,53 123,57 124,61 124,65
+
+@phase right_glass 0
+122,50 123,54 124,58
+@phase right_glass 1
+122,51 123,55
+@phase right_glass 2
+123,52 123,56
+@phase right_glass 3
+123,53 123,57
+
+@pic intro_before left right
+@pic finale_a left right_glass
+@pic finale_contest left right
+@pic credits_b left right

@@ -653,6 +653,83 @@ def read_pic(name, bg2=False):
     return {"name": name, "px": px, "tiles": tiles, "tmap": tmap, "attr": attr, "pals": pals, "key": key, "pix": pix}
 
 
+# ---- the fountain flowing: assets/story/pictures/water.txt ------------------------------------------------------------
+# Owner Q74 (2026-11-04, the town approved): the jets' highlights run down the two jets, WATER_PHASES BG tile frames of the jet cells,
+# one step every 8 game frames (src/story.c story_water: the left jet's three tiles one frame, the right's the next, through the
+# VBlank list from story_scratch), DMG and Color alike, in the pictures water.txt lists (not INTRO A: its fountain has stopped).
+# The tool only converts: water.txt hand-lists each phase's highlights; phase 0 must be the picture as drawn, every jet pixel must
+# be water or spray and inside its three cells, and each jet cell's tile must be used by that cell alone (its VRAM tile changes).
+WATER_FILE = "water.txt"
+WATER_CELLS = ((10, 6), (10, 7), (10, 8), (15, 6), (15, 7), (15, 8))   # the left jet's three cells (top down), then the right's
+WATER_PHASES = 4
+
+
+def read_water():
+    """water.txt -> (jets {name: [(x, y)]}, phases {(jet, n): [(x, y)]}, pics {picture: (left jet, right jet)})"""
+    jets, phases, pics, cur = {}, {}, {}, None
+    path = PIC_DIR / WATER_FILE
+    for ln in path.read_text().splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith(";"):
+            continue
+        w = ln.split()
+        if w[0] == "@jet":
+            cur = jets.setdefault(w[1], [])
+        elif w[0] == "@phase":
+            cur = phases.setdefault((w[1], int(w[2])), [])
+        elif w[0] == "@pic":
+            pics[w[1]] = (w[2], w[3])
+            cur = None
+        elif cur is None:
+            fail(f"{path}: {ln!r} outside a @jet or @phase")
+        elif "," in w[0]:
+            cur += [tuple(int(v) for v in t.split(",")) for t in w]
+        else:
+            y, x0, x1 = (int(v) for v in w)
+            cur += [(x, y) for x in range(x0, x1 + 1)]
+    for name, (lj, rj) in pics.items():
+        for j in (lj, rj):
+            if j not in jets or any((j, n) not in phases for n in range(WATER_PHASES)):
+                fail(f"{path}: {name}: jet {j} needs @jet and @phase 0-{WATER_PHASES - 1}")
+    return jets, phases, pics
+
+
+def water_build(p, jets, phases, pair):
+    """the picture's jet cells per phase: [phase][cell of WATER_CELLS] 16-byte tiles (phase 0: the picture's own)"""
+    name, out = p["name"], []
+    for cx, cy in WATER_CELLS:
+        t = p["tmap"][cy * 20 + cx]
+        if p["tmap"].count(t) != 1:
+            fail(f"{name}: the jet cell ({cx},{cy})'s tile is used by other cells too (it changes with the water)")
+    for ph in range(WATER_PHASES):
+        pix = [list(r) for r in p["pix"]]
+        for side, jet in enumerate(pair):
+            cells = set(jets[jet])
+            cx = WATER_CELLS[side * 3][0]
+            for x, y in cells:
+                if not (cx * 8 <= x < cx * 8 + 8 and WATER_CELLS[0][1] * 8 <= y < WATER_CELLS[2][1] * 8 + 8):
+                    fail(f"{name}: jet {jet} pixel ({x},{y}) is outside its cells (column {cx}, rows 6-8)")
+                if pix[y][x] not in "bW":
+                    fail(f"{name}: jet {jet} pixel ({x},{y}) is {pix[y][x]!r}, not water b or spray W")
+                pix[y][x] = "b"
+            for x, y in phases[(jet, ph)]:
+                if (x, y) not in cells:
+                    fail(f"{name}: jet {jet} phase {ph} highlight ({x},{y}) is not on the jet")
+                pix[y][x] = "W"
+        if ph == 0 and ["".join(r) for r in pix] != ["".join(r) for r in p["pix"]]:
+            fail(f"{name}: water.txt phase 0 is not the picture as drawn")
+        srows = ["".join(".-+#"[p["key"][c]["dmg"]] for c in r) for r in pix]
+        out.append([tuple(tile_bytes(srows, cx * 8, cy * 8)) for cx, cy in WATER_CELLS])
+    if out[0] != [p["tiles"][p["tmap"][cy * 20 + cx]] for cx, cy in WATER_CELLS]:
+        fail(f"{name}: the water's phase 0 tiles are not the picture's")
+    return out
+
+
+def bg_tile_addr(i):
+    """VRAM address of BG tile id i (LCDC bit 4 clear: ids 0-127 at 0x9000, 128-255 at 0x8800)"""
+    return 0x9000 + i * 16 if i < 128 else 0x8800 + (i - 128) * 16
+
+
 # ---- the INTRO's explosion: assets/story/pictures/intro_pieces.txt ---------------------------------------------------
 # The ten pieces of the Golden Spigot start where they sit in the intact spigot of intro_before (an OBJ sprite each cell,
 # in place the moment the white flash lets go: the picture itself, intro_a, shows the spigot gone) and fly OUTWARD in a
@@ -1381,6 +1458,10 @@ def main():
     # above the scene's one portrait slot (STORY_PORTRAIT_BASE + its biggest portrait) up to 255; map, attributes
     # (CGB palette slots 0 5 6 7, or 1 = the HUD's) and palettes. A scene's second picture loads over its first.
     check_pictures(scenes)
+    wjets, wphases, wpics = read_water()
+    for name in wpics:
+        if name not in {n for v in SCENE_PICS.values() for _, n in v}:
+            fail(f"{WATER_FILE}: {name} is no picture of SCENE_PICS")
     pics = []
     for sid in PICTURE_SCENES:
         sc = next(s for s in scenes if s["id"] == sid)
@@ -1410,6 +1491,9 @@ def main():
             pid = [i if i < PIC_POOL else pbase + i - PIC_POOL for i in range(n)]
             p.update(scene=sid, page=page, base=pbase, bg2=bg2, ids=pid, map=[pid[t] for t in p["tmap"]], n_extra=len(p.get("extra", [])),
                      cattr=[1 if a == "H" else PIC_SLOTS[a] for a in p["attr"]])
+            if name in wpics:
+                p["water"] = water_build(p, wjets, wphases, wpics[name])
+                p["water_addr"] = [bg_tile_addr(pid[p["tmap"][cy * 20 + cx]]) for cx, cy in WATER_CELLS]
             pics.append(p)
             if page > 1:
                 sc["swpage"] = page
@@ -1538,7 +1622,7 @@ def main():
 
     # ---- build/story_pictures.c (its own bank: the pictures' tiles are ~7 KB) ----
     PC = ["// generated by tools/gen_story.py from assets/story/pictures/*.txt -- do not edit",
-          "#pragma bank 255", "#include <gb/gb.h>", "#include <gb/cgb.h>", "#include <stdint.h>", '#include "mpump.h"', '#include "story.h"', '#include "bright.h"', ""]   # (bright.h: SETTINGS > SCREEN BRIGHT lifts set_*_palette)
+          "#pragma bank 255", "#include <gb/gb.h>", "#include <gb/cgb.h>", "#include <stdint.h>", "#include <string.h>", '#include "mpump.h"', '#include "story.h"', '#include "bright.h"', ""]   # (bright.h: SETTINGS > SCREEN BRIGHT lifts set_*_palette)
     hud = hud_palette()
     def runs_of(tids):                           # (pool start lo, hi, count) per run of consecutive pool tiles; a run never crosses tile 36 (the ids jump there)
         out, k = [], 0
@@ -1609,6 +1693,36 @@ def main():
            "    uint8_t i;",
            "    for (i = 0; i < 16; i++) dst[i] = stp_pal[pic][i];",
            "    for (i = 0; i < 4; i++) dst[16 + i] = stp_hud[i];",
+           "}", ""]
+    wpool, widx, waddr = [], [], []
+    for p in pics:
+        for ph in range(WATER_PHASES):
+            for c in range(len(WATER_CELLS)):
+                t = p["water"][ph][c] if "water" in p else None
+                if t is not None and t not in wpool:
+                    wpool.append(t)
+                widx.append(wpool.index(t) if t is not None else 0)
+        waddr += p.get("water_addr", [0] * len(WATER_CELLS))
+    assert len(wpool) <= 255
+    PC += [f"// the fountain flowing (assets/story/pictures/{WATER_FILE}): per picture, phase and jet cell its tile ({len(wpool)} distinct), and the",
+           "// cells' VRAM tile addresses; stw_on 0: the picture's water does not move",
+           carr("stw_on", [int("water" in p) for p in pics]),
+           carr("stw_pool", [b for t in wpool for b in t]),
+           carr("stw_idx", widx), carr("stw_addr", waddr, "uint16_t"), "",
+           f"// picture pic's jet (0 left, 1 right) at phase ph (0-{WATER_PHASES - 1}): its three tiles into dst[0..47], their VRAM addresses into",
+           "// dst[48..53] (little endian); 0 when the picture's water does not move",
+           "uint8_t story_water_tiles(uint8_t pic, uint8_t jet, uint8_t ph, uint8_t *dst) BANKED {",
+           "    const uint8_t *t;",
+           "    const uint16_t *a;",
+           "    uint8_t k;",
+           "    if (!stw_on[pic]) return 0;",
+           f"    t = stw_idx + (uint16_t)(pic * {WATER_PHASES} + ph) * {len(WATER_CELLS)} + jet * 3;",
+           f"    a = stw_addr + pic * {len(WATER_CELLS)} + jet * 3;",
+           "    for (k = 0; k < 3; k++) {",
+           "        memcpy(dst + k * 16, stw_pool + (uint16_t)t[k] * 16, 16);",
+           "        dst[48 + 2 * k] = (uint8_t)a[k]; dst[49 + 2 * k] = (uint8_t)(a[k] >> 8);",
+           "    }",
+           "    return 1;",
            "}", ""]
     PC += burst_c(bkey, bpieces, burst, next(p for p in pics if p["name"] == BURST_PIC))
     (outdir / "story_pictures.c").write_text("\n".join(PC))
@@ -1756,7 +1870,8 @@ def main():
           f"#define STORY_PLATE_FULL {int(PLATE_FULL)}   // 1: the name plate uses all the frame row's cells, 0: those between its corners",
           f"#define STORY_BURST_PER {TRAIL_PER_FRAME}      // trail map writes a frame at most",
           f"#define STORY_STB_AT {SCRATCH_CURSOR}      // story_scratch: the INTRO burst's own bytes (cursor, stages, sparks) are [STORY_STB_AT, STORY_STB_END); src/story.c checks them against its picture switch's",
-          f"#define STORY_STB_END {SPARK_SCRATCH + 7 * SPARK_N + 3}", "",
+          f"#define STORY_STB_END {SPARK_SCRATCH + 7 * SPARK_N + 3}",
+          f"#define STORY_WATER_PHASES {WATER_PHASES}   // the fountain's flow: tile frames of each jet (story_water_tiles)", "",
           "typedef struct {",
           "    uint8_t w, h, x, y;          // tiles (w 0: no portrait); x, y the picture's top-left screen tile",
           "    uint8_t npal, ntiles, nobj, nobjpal, nobjtiles;",
@@ -1785,6 +1900,7 @@ def main():
           "void story_pic_row(uint8_t pic, uint8_t y, uint8_t x, uint8_t w, uint8_t *dst) BANKED;   // dst[2 w]: tiles, attributes",
           "void story_pic_pals(uint8_t pic, uint16_t *dst) BANKED;    // dst[20]: its 4 palettes (slots 0 5 6 7), then the HUD's",
           "void story_burst_load(uint8_t cgb) BANKED;   // LCD off: the INTRO's pieces' OBJ tiles and (CGB) palette 4",
+          "uint8_t story_water_tiles(uint8_t pic, uint8_t jet, uint8_t ph, uint8_t *dst) BANKED;   // dst[54]: a jet's 3 tiles of phase ph, their VRAM addresses; 0: no water",
           "void story_burst_crackle(uint8_t t) BANKED;   // after the explosion: the sparks (one frame; t unused) (each frame, while INTRO A shows)",
           "uint8_t story_burst_step(uint8_t t, uint8_t ev) BANKED;  // frame t of their flight into shadow_OAM (+ up to ev trail map writes); 1 when done",
           "void portrait_tile_copy(uint8_t spk, uint8_t first, uint8_t n, uint8_t *dst) BANKED;   // BG tiles into WRAM",
@@ -1824,8 +1940,9 @@ def main():
           "pictures": [{"id": p["name"], "name": p["name"], "scene": p["scene"], "page": p["page"], "map": p["map"],
                         "attr": p["cattr"], "tiles": len(p["tiles"]), "extra": p.get("n_extra", 0), "base": p["base"], "ids": p["ids"],
                         "pals": p["pals"], "hud_cells": p["attr"].count("H"), "bg2": p["bg2"],
+                        "water": [[list(t) for t in ph] for ph in p["water"]] if "water" in p else None, "water_addr": p.get("water_addr"),
                         "art": f"assets/story/pictures/{p['name']}.txt"} for p in pics],
-          "pic_slots": list(PIC_SLOTS), "pic_pool": PIC_POOL,
+          "pic_slots": list(PIC_SLOTS), "pic_pool": PIC_POOL, "water_cells": [list(c) for c in WATER_CELLS], "water_phases": WATER_PHASES,
           "burst": {"file": f"assets/story/pictures/{BURST_FILE}", "oam": BURST_OAM, "obj": BURST_OBJ, "pal": BURST_PAL,
                     "end": burst["end"], "crackle_t": burst["crackle_t"], "crackle_obj": CRACKLE_OBJ, "crackle_xy": list(CRACKLE_XY), "star_cells": [BURST_CELL0[0], BURST_CELL0[1], BURST_W, BURST_H], "star0": burst["star0"], "rows": burst["rows"], "timeline": [list(q) for q in BURST_TIMELINE], "worst_line": burst["worst"], "worst_frame": burst["worst_t"], "leave": burst["leave"],
                     "key": bkey, "frame": list(BURST_FRAME), "acc": BURST_ACC, "scratch_cursor": SCRATCH_CURSOR,
