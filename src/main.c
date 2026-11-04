@@ -1077,6 +1077,9 @@ static void update(void) {
 #ifdef AUTO_MR                         // test-only (tests/test_double_speed.py): the hook is in src/debug.c
     joy = auto_mr();
 #endif
+#ifdef AUTO_MG                         // test-only (tools/mg_capture.py): the hook is in src/debug.c
+    joy = auto_mg();
+#endif
 #ifdef AUTO_CARD                       // test-only (tests/test_fade_hw.py, never in a release): the hook is in src/debug.c (a banked file: ROM0 has no room)
     joy = auto_card();
 #endif
