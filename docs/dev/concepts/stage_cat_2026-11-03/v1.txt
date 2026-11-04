@@ -1,0 +1,86 @@
+; NAME: teardrop
+; V1: round head (cut corners), triangle ears; a short neck shadow; the back slopes in runs 4,2,1 into a round haunch, chest tapered, paws forward.
+; Hand-drawn tile grids (.-+# = colour 0..3 of stage_b; '-' wall, '+' also the wall's mortar joint at x111 / x119).
+; @static = tiles (13,2) and (14,2) side by side, y16-23. @A_* = tile (14,1) the head, y8-15. @B_* = tile (13,3) the tail over the lip, y24-31.
+; Frames as saloon_anim.txt: base/left/right/flick use A_base; hang_blink/left_blink use A_blink; hang_ear uses A_ear;
+; tails: base,hang_blink,hang_ear = B_hang; left,left_blink = B_left; right = B_right; flick = B_flick.
+
+@static
+-----### #.....#-
+---##... .+....#-
+--#....+ .+....#-
+--#....+ ...+..#-
+--#..+.+ ...+...#
+--.#.+.. .......#
+--.#.... ....+..#
+--..#### ########
+
+@A_base
+-------+
+-#----#+
+-##--##+
+-#....#+
+#.#..#.#
+#...+..#
+-#....#+
+-#.++.#+
+
+@A_blink
+-------+
+-#----#+
+-##--##+
+-#....#+
+#.+..+.#
+#...+..#
+-#....#+
+-#.++.#+
+
+@A_ear
+-------+
+------#+
+##---##+
+-#....#+
+#.#..#.#
+#...+..#
+-#....#+
+-#.++.#+
+
+@B_hang
+##..####
+--++-+--
+--..-+--
+--..-+--
+###++###
++++..+++
++++.++++
+########
+
+@B_left
+##..####
+--++-+--
+-..--+--
+-..--+--
+++######
+..++++++
+.+++++++
+########
+
+@B_right
+##..####
+--++-+--
+---..+--
+---..+--
+####++##
+++++..++
++++++.++
+########
+
+@B_flick
+##..####
+--++-+--
+--..-+--
+---..+--
+####+..#
+++++++++
+++++++++
+########
