@@ -381,3 +381,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-11-03 OWNER Q52: "L1, L3, i1, and i3" -> Opus artist draws Lodge L1 jug band + L3 fireside, Igloo I1 waddle wave + I3 snow show (Color first; DMG kept). Proposals only.
 - 2026-11-03 Owner "Artie fix" (image): ARTIE front rows 10-15 narrowed, x=15 clear, applied to saloon_x.txt. Goldens replaced (CGB only, bbox = his lower body): boss_big_tex_entrance, boss_fight, classic_start, crash_saloon, patrons, stage_anim_saloon, venue_saloon.
 - 2026-11-03 Owner: "Show me all of the story scenes" -> Story Scenes page https://claude.ai/artifact/2zVytB94Mn2Z3NeiyP1XKi (24 scenes, 161 pages, Color).
+- 2026-11-03 Sumo HMPH round 4 merged (Opus; round4/: R4a hands over belly, R4b pushed past arms; 26/29). Q53 asked.
