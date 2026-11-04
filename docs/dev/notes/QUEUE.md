@@ -365,3 +365,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-11-03 OWNER Q46 yes, Q47 yes -> import big_tex_B3.txt and yeti_A2.txt into assets/art/boss/ (supervisor).
 - 2026-11-03 MERGED Big Tex B3 + Yeti A2 into assets (8 Yeti goldens replaced). Pocket Player v50, ROM sent.
 - 2026-11-03 Sumo HMPH round 2 merged (round2/: A hands high, B low, each +frown (mouth only); 25-26 pairs). Q48 asked.
+- 2026-11-03 Food Critic round 2 merged (round2/: A raised brow, B heavy brow; 28/29 pairs; HOLD glass needs hand_draw for BP_HOLD/BP_HOLDHOP). Q49 asked.
