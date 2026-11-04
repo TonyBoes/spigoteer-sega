@@ -259,7 +259,7 @@ def test_a_starts_that_level_from_scratch(boot, lvl):
     for _ in range(lvl - 1):
         boot.press("right", 2)
     boot.press("a", 2)
-    boot.run(15)       # the level load takes a few frames (LCD off)
+    boot.run(20 if boot.model_name == "cgb" and lvl == 5 else 15)       # the level load takes a few frames (LCD off); the Igloo on Color (level 5) loads a bank-1 show pool, like bistro, factory and space: 17 frames
     assert boot.mem("debug_menu_open") == 0 and boot.mem("game_state") == PLAYING
     assert boot.mem("level") == lvl and boot.mem("cur_group") == (lvl - 1) % 10, "its venue"
     assert boot.mem("lives") == 3 and boot.mem("score") == 0 and boot.mem("overlay_on") == 0
