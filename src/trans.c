@@ -20,6 +20,7 @@
 
 #include "game.h"
 #include "scratch.h"
+#include "showlights.h"
 #include "music.h"
 #include "mg.h"
 #include "trans_art.h"
@@ -259,6 +260,7 @@ static uint8_t cstep(const uint8_t *o, uint8_t k, uint16_t t, uint16_t base, uin
 // does not fit the VBlank: each frame reads until LY leaves lines 144-152 (pal_gap) and the next frame goes on from where it stopped.
 static uint8_t pal_in(uint8_t *o, uint8_t stash, uint8_t n, uint8_t rise) {
     uint8_t c = 0, i, f = 0;
+    CRITICAL { pal5_req &= ~SHOWLT_REQ; }                        // (a fade owns the BG palettes: the show's dark stage is not written under it, showlights.h; lights_frame asks again after)
     while (c < (stash ? 128 : 64)) {
         f += vframe(2, 0);
         if (stash) {

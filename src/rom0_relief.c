@@ -143,3 +143,23 @@ void write_all_spans(void) BANKED {
         }
     }
 }
+
+// The copy list's dirty bookkeeping, cleared at a level / screen start (most of render.c clear_dirty, which was all in ROM0).
+extern uint8_t dirty_x0[NUM_BARS], dirty_x1[NUM_BARS], attr_x0[NUM_BARS], attr_x1[NUM_BARS];
+extern uint8_t quick_list[MAX_PATRONS], quick_n, quick_on[MAX_PATRONS];
+void clear_dirty_lists(void) BANKED {         // (render.c clear_dirty: the rest of it)
+    uint8_t b;
+    while (quick_n) quick_on[quick_list[--quick_n]] = 0;
+    for (b = 0; b < NUM_BARS; b++) { dirty_x0[b] = 255; dirty_x1[b] = 0; attr_x0[b] = 255; attr_x1[b] = 0; }
+}
+
+// Every bar's wall rows composed and written, LCD off only (it was render.c's, in ROM0).
+extern uint8_t cz_x0, cz_x1, cz_attrs;
+void compose_bar(uint8_t b);
+void write_all_bars(void) BANKED {
+    uint8_t b;
+    cz_x0 = 0; cz_x1 = 20; cz_attrs = is_cgb;
+    for (b = 0; b < NUM_BARS; b++) compose_bar(b);
+    write_all_spans();
+    clear_dirty();
+}

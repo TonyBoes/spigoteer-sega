@@ -11,6 +11,7 @@
 #include "music.h"
 #include "tip2.h"
 #include "scratch.h"
+#include "showlights.h"
 
 extern uint8_t level, cur_group, arcade_loop, served, step_frames, pushback_cols;
 #define WALL_RGB    (venue.pal[VENUE_PAL_BAR][0])   // the venue's wall: colour 0 of the bar and of the patron palettes
@@ -280,7 +281,7 @@ static void obj_x(uint8_t *x) {
 static void obj_cols(uint8_t *d, uint8_t *x) {
     obj_pat(4, d);
     chain_put(d + 8, venue.pal[VENUE_PAL_SHOW]);
-    if (OBJX_ON) obj_x(x);
+    if (OBJX_ON) { obj_x(x); SHOWLT_STAMP = 0; }       // (OBJX_CO is the show lights' buffer too: showlights.h)
 }
 
 // The three show palettes' setup is spread over the show's first three frames (the start frame is the one that has the coin, the plan and the dancers' first entry to do: it is full): show_pal5 only

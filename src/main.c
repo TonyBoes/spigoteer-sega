@@ -22,6 +22,7 @@
 #include "music.h"
 #include "mg.h"
 #include "asm_cfg.h"
+#include "showlights.h"
 
 BANKREF_EXTERN(art_tiles)
 
@@ -1332,6 +1333,7 @@ void main(void) {
         if (is_cgb && (KEY1_REG & 0x80) && (LCDC_REG & LCDCF_ON)) while (LY_REG < DS_TICK_LY) ;   // (double speed: a frame's logic ends by line 20-60, a heavy pass's much later: the ticks would bunch up to 0.7 frame apart. The tick waits for a fixed line, as the credits' and the fades' do: the spare time is idle anyway)
         if (game_state != GS_PAUSED || !PAUSE_NR51 || NR51_REG) music_tick();   // (the pause menu: the bass and drums play on; NR51 0: a tune the game is clocked by stands still, pause.c)
         SEC(SEC_MUSIC);
+        if (show_timer && is_cgb && game_state == GS_PLAYING && (!((uint8_t)show_timer & 7) || !SHOWLT_STAMP) && LY_REG < LT_LY_MAX) lights_frame();   // (the show's stage wash, src/lights.c: after the tick, in the time a double-speed frame leaves idle; most frames need nothing)
 #ifdef FRAME_STATS
         perf_snap();
 #endif

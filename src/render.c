@@ -13,6 +13,7 @@
 #include "tip2.h"
 #include "palettes.h"
 #include "boss.h"
+#include "showlights.h"
 
 uint8_t row_buf[20];
 uint8_t pal5_cur;                 // CGB OBJ palette 5 holds the show (2) or not (0, 1: something else) (load_venue loads the show's); see pal5_check
@@ -128,8 +129,8 @@ void put_row(uint8_t y) {
 uint8_t sh_rows[2][NUM_BARS * 2][32];          // [0]: tile ids, [1]: CGB attributes, right behind (mirror.c: quick_mirror)
 #define sh_tile sh_rows[0]
 #define sh_attr sh_rows[1]
-static uint8_t dirty_x0[NUM_BARS], dirty_x1[NUM_BARS];
-static uint8_t attr_x0[NUM_BARS], attr_x1[NUM_BARS];   // CGB: the part of the dirty span whose attributes changed
+uint8_t dirty_x0[NUM_BARS], dirty_x1[NUM_BARS];
+uint8_t attr_x0[NUM_BARS], attr_x1[NUM_BARS];   // CGB: the part of the dirty span whose attributes changed
 uint8_t vram_pending;             // dirty spans left to queue (keeps idle frames cheap)
 
 // The bar's two wall rows without patrons (wall, spout, keg), tile ids and CGB attributes by row and column:
@@ -155,11 +156,12 @@ void mark_dirty_attrs(uint8_t b, uint8_t x0, uint8_t x1) {
 
 extern uint8_t bar_list[NUM_BARS][MAX_PATRONS], bar_n[NUM_BARS];
 void build_lists(void);
+void clear_dirty_lists(void) BANKED;
 
 // Compose columns cz_x0..cz_x1-1 of a bar: the wall restored over the span, then each patron of the bar stamped
 // over it in slot order. Split into small functions on purpose: SDCC keeps their few values in registers; one
 // big function spends most of its time moving spilled values to and from the stack.
-static uint8_t cz_x0, cz_x1, cz_pal;      // span of the bar being composed, palette of the patron being stamped
+uint8_t cz_x0, cz_x1; static uint8_t cz_pal;      // span of the bar being composed, palette of the patron being stamped
 static uint8_t *cz_tile, *cz_attr;        // its first wall row in sh_tile / sh_attr (cz_attr 0 on DMG)
 static const uint8_t *cz_base;            // its window into base_all (P6: bar_bofs)
 
@@ -270,7 +272,7 @@ static void stamp_blank(uint8_t s) {
     put_col(c, (uint8_t)PATRON_BLANK); put_col(c + 1, (uint8_t)PATRON_BLANK); put_col(c + 2, (uint8_t)PATRON_BLANK);
 }
 
-static uint8_t cz_attrs;                  // compose the attributes too (CGB, and they changed)
+uint8_t cz_attrs;                  // compose the attributes too (CGB, and they changed)
 
 static void restore_base(void) {                         // the wall over the span (cz_*), both rows
     uint8_t x0 = cz_x0;
@@ -330,7 +332,7 @@ static void stamp_fight(uint8_t b) {
     put_col(BOSS_MARK_COL + 1, (uint8_t)(BOSS_MARK_BG + 2));
 }
 
-static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1-1 of bar b
+void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1-1 of bar b
     if (!lists_ok) build_lists();
     cz_tile = sh_tile[b << 1];
     cz_base = &base_all[0][0][0] + bar_bofs[b];
@@ -346,8 +348,8 @@ static void compose_bar(uint8_t b) {                     // columns cz_x0..cz_x1
 // the 24 px footprint). So instead of a dirty span (wall restored, every patron of the bar stamped) he goes on
 // this list, and queue_vram() writes his 6 ids straight into the shadow and queues them, tiles only: about a
 // third of a span's cost. Walking at 1 px steps makes this the common redraw.
-static uint8_t quick_list[MAX_PATRONS], quick_n;
-static uint8_t quick_on[MAX_PATRONS];        // p is on quick_list
+uint8_t quick_list[MAX_PATRONS], quick_n;
+uint8_t quick_on[MAX_PATRONS];        // p is on quick_list
 
 void mark_quick(uint8_t p) {
     if (quick_on[p]) return;
@@ -376,20 +378,12 @@ uint8_t bg_urgent(uint8_t b, uint8_t c) {
 }
 
 void clear_dirty(void) {
-    uint8_t b;
     vram_pending = 0;
     urg_n = 0;
-    while (quick_n) quick_on[quick_list[--quick_n]] = 0;
-    for (b = 0; b < NUM_BARS; b++) { dirty_x0[b] = 255; dirty_x1[b] = 0; attr_x0[b] = 255; attr_x1[b] = 0; }
+    clear_dirty_lists();                          // (src/rom0_relief.c: the quick list and the bars' dirty spans)
 }
 
-void write_all_bars(void) {          // LCD off only
-    uint8_t b;
-    cz_x0 = 0; cz_x1 = 20; cz_attrs = is_cgb;
-    for (b = 0; b < NUM_BARS; b++) compose_bar(b);
-    write_all_spans();
-    clear_dirty();
-}
+// write_all_bars: src/rom0_relief.c
 
 // ---- VBlank copy queue --------------------------------------------------------------
 // SDCC code is far too slow to do the BG writes inside VBlank (a single 3-tile row
@@ -806,6 +800,14 @@ static void pal5_other(void) {                    // (a lights request: off the 
 
 static void pal5_write(void) {
     const uint8_t *s = (const uint8_t *)pal5_src;
+    if (pal5_req & SHOWLT_REQ) {                  // (the show's dark stage: BG 5 and 6, 16 bytes; the split's own put-back of a reloaded one follows in the VBlank handler)
+        BCPS_REG = 0x80 | (BGPAL_STAGE << 3);
+        const uint8_t *l = SHOWLT_BUF;
+        uint8_t i = SHOWLT_N;
+        do BCPD_REG = *l++; while (--i);
+        pal5_req &= ~SHOWLT_REQ;
+        if (!pal5_req) return;
+    }
     if (pal5_req != 1) { pal5_other(); return; }
     OCPS_REG = 0x80 | (OBJPAL_COIN << 3);
     OCPD_REG = s[0]; OCPD_REG = s[1]; OCPD_REG = s[2]; OCPD_REG = s[3];     // (unrolled: the compare above is paid for; this runs in every frame the coin changes)
