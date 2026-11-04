@@ -518,7 +518,7 @@ extern uint8_t frame_t0;                                    // (main.c) the low 
 void mark_dirty_attrs(uint8_t b, uint8_t x0, uint8_t x1);   // ... and their CGB attributes too
 void mark_quick(uint8_t p);                                 // patron p moved within his own 3 columns (tile ids only)
 void clear_dirty(void);
-void write_all_bars(void);
+void write_all_bars(void) BANKED;       // (src/rom0_relief.c)
 void write_all_spans(void) BANKED;   // (rom0_relief.c: the bars' wall rows to VRAM, LCD off)
 void vq_add(uint8_t bank, const uint8_t *src, uint8_t x, uint8_t y, uint8_t n);
 void vq_vbl(void);

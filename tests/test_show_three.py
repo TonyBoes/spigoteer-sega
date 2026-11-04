@@ -10,6 +10,7 @@ import contextlib
 import numpy as np
 import pytest
 
+from wash_helpers import wash_colours
 from conftest import ROOT, double_speed, venue as venue_art, THEMES
 from test_art import goto_group
 from test_fade_chain import pack
@@ -129,7 +130,7 @@ def test_each_dancer_wears_her_own_colours_and_each_patron_below_his_in_the_same
         pals = three_pals()
         for k in range(3):
             r = (DANCER_X[k], 8, DANCER_X[k] + 16, DANCERS_LAST_LINE + 1)
-            bg = set(np.unique(patch(before, r)).tolist())
+            bg = set(np.unique(patch(before, r)).tolist()) | wash_colours(0)
             mine = set(np.unique(patch(during, r)).tolist()) - bg
             assert mine, f"dancer {k} is on the picture"
             assert mine <= set(pals[k]), (k, "pixels in colours that are not her palette's", sorted(mine - set(pals[k])), pals[k])
@@ -210,7 +211,7 @@ def test_a_show_starting_and_ending_with_three_palettes_holds_no_wrong_colour_fr
         gb.run(1, render=True)
         ref = pack(gb.image())
         r_pats = [rect(sprites(gb, pal)) for _, pal in lifted]
-        bg = set(np.unique(patch(ref, (8, 8, 152, DANCERS_LAST_LINE + 1))).tolist())
+        bg = set(np.unique(patch(ref, (8, 8, 152, DANCERS_LAST_LINE + 1))).tolist()) | wash_colours(0)
         show = {c for p in three_pals() for c in p}
         bad = []
         for i in range(130):

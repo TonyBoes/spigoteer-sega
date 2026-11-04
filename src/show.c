@@ -7,6 +7,7 @@
 
 #include "game.h"
 #include "music.h"
+#include "showlights.h"
 
 extern uint8_t cur_group;
 extern uint8_t bar_list[NUM_BARS][MAX_PATRONS], bar_n[NUM_BARS];
@@ -52,6 +53,7 @@ void start_show(void) BANKED {
     uint8_t p, any = 0, first = NO_SLOT, old = 0;
     if (show_timer && tip_pocket == TILE_HUD_BLANK) { pocket_take(); return; }   // a tip during a show: into the pocket (pocket.c)
     show_timer = SHOW_FRAMES;
+    if (is_cgb) SHOWLT_STAMP = 0;                    // (the wash builds its colours from the first frame: src/lights.c)
     music_play(TUNE_SHOW | MUSIC_LATER);              // "Galop infernal" for as long as the show runs
     dance_start();                                   // (the dance's first frame: rom0_relief.c)
     for (p = 0; p < MAX_PATRONS; p++) old |= patron_dist[p];

@@ -11,6 +11,7 @@ import contextlib
 import numpy as np
 import pytest
 
+from wash_helpers import wash_colours
 from conftest import double_speed, logic_paused, venue as venue_art
 from test_art import goto_group
 from test_fade_chain import AMBER, WHITE, lerp, level_sets, pack, scene_change_frames
@@ -122,7 +123,7 @@ def test_the_dancers_wear_the_show_s_colours_and_a_patron_on_their_slot_keeps_hi
         r_d = rect(dancers, 24)
         r_d = (r_d[0], r_d[1], r_d[2], min(r_d[3], DANCERS_LAST_LINE + 1))
         assert r_d[3] <= DANCERS_LAST_LINE + 1
-        bg = set(np.unique(patch(before, r_d)).tolist())
+        bg = set(np.unique(patch(before, r_d)).tolist()) | wash_colours(v)      # (the stage behind them is the wash's dim colours now, tests/test_show_wash.py)
         mine = set(np.unique(patch(during, r_d)).tolist()) - bg
         want = {int(c) for c in show}
         assert mine, "the dancers are on the picture"
@@ -215,7 +216,7 @@ def test_a_show_starting_and_ending_holds_no_wrong_colour_frame(v, ds):
         ref = pack(gb.image())
         r_pat = rect(sprites(gb, 5))
         r_d = (8, 8, 152, DANCERS_LAST_LINE + 1)
-        bg = set(np.unique(patch(ref, r_d)).tolist())
+        bg = set(np.unique(patch(ref, r_d)).tolist()) | wash_colours(v)
         show = show_cols(v)
         bad = watch_show(gb, r_pat, ref, r_d, bg, show, 120, {5: lambda: start_show(gb, 60)})        # (the show ends by itself after 60 frames: end_show, and the Saloon's split goes back to its one reload)
         assert not bad, bad[:6]

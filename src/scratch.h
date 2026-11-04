@@ -76,6 +76,10 @@ typedef char scr_obj2_below_cap[SCR_OBJ2_AT + SCR_OBJ2_N <= SCR_CAP_AT ? 1 : -1]
 #define SCR_OBJXC_N      32
 #define SCR_OBJF_AT      226     // 2 bytes: [0] OBJX flags (game.h OBJX_*), [1] the dance's step (rom0_relief.c)
 #define SCR_OBJF_N       2
+#define SCR_LTST_AT      64      // 1 byte: src/showlights.h SHOWLT_STAMP (the show's stage lighting: its buffer, OBJXC[0..15], is good); a level screen's 64..69 are nobody's
+#define SCR_LTST_N       1
+typedef char scr_ltst_above_ld[SCR_LTST_AT + SCR_LTST_N <= SCR_LD_AT ? 1 : -1];
+typedef char scr_ltst_below_co[SCR_OBJXC_AT + SCR_OBJXC_N <= SCR_LTST_AT ? 1 : -1];
 typedef char scr_objx_below_co[SCR_OBJX_AT + SCR_OBJX_N <= SCR_OBJXC_AT ? 1 : -1];
 typedef char scr_objxc_below_ld[SCR_OBJXC_AT + SCR_OBJXC_N <= SCR_LD_AT ? 1 : -1];
 typedef char scr_objf_above_pat[SCR_OBJ_AT + SCR_OBJ_N <= SCR_OBJF_AT ? 1 : -1];
