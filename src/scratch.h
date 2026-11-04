@@ -78,6 +78,14 @@ typedef char scr_obj2_below_cap[SCR_OBJ2_AT + SCR_OBJ2_N <= SCR_CAP_AT ? 1 : -1]
 #define SCR_OBJF_N       2
 #define SCR_LTST_AT      64      // 1 byte: src/showlights.h SHOWLT_STAMP (the show's stage lighting: its buffer, OBJXC[0..15], is good); a level screen's 64..69 are nobody's
 #define SCR_LTST_N       1
+// The Color spawn rule's history (owner 2026-11-04: a look may not spawn again until 3 other looks have): [0..2] the last 3 looks (0-7, 255 = none yet), newest first; [3] the look picked by the last
+// spawn_variant that may not have spawned yet (255 none) and [4] `spawned` as it was then (a pick counts once try_spawn's spawned++ shows it did). Written by build/looks.c looks_accept and
+// cleared by level.c start_level (Color only). Alive with every Color level screen (a fight's level included); a level screen's 65..69 are nobody's (credits.BGP at 68..69 is the credits').
+#define SCR_LOOKH_AT     65
+#define SCR_LOOKH_N      5
+#define LOOK_HIST        (story_scratch + SCR_LOOKH_AT)
+typedef char scr_lookh_above_ld[SCR_LOOKH_AT + SCR_LOOKH_N <= SCR_LD_AT ? 1 : -1];
+typedef char scr_lookh_below_ltst[SCR_LTST_AT + SCR_LTST_N <= SCR_LOOKH_AT ? 1 : -1];
 typedef char scr_ltst_above_ld[SCR_LTST_AT + SCR_LTST_N <= SCR_LD_AT ? 1 : -1];
 typedef char scr_ltst_below_co[SCR_OBJXC_AT + SCR_OBJXC_N <= SCR_LTST_AT ? 1 : -1];
 typedef char scr_objx_below_co[SCR_OBJX_AT + SCR_OBJX_N <= SCR_OBJXC_AT ? 1 : -1];

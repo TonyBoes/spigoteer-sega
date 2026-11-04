@@ -439,8 +439,9 @@ PERF_BEFORE = {   # (model, venue): (mean, p50, p99) of the frame's end line at 
 
 # Owner Q92 (2026-11-01): a Color runs these at double speed and the guard measures the line the frame's LOGIC ended on. Per venue (mean, p50, p99):
 # main's double-speed baseline + the margin the limit above has over main's normal-speed baseline (limits never above PERF_BEFORE).
-BOSS_DS = {0: (17.9, 15, 33), 1: (19.0, 16, 37), 2: (18.1, 17, 36), 3: (18.4, 16, 37), 4: (18.0, 16, 36),
-           5: (18.0, 17, 39), 6: (19.9, 17, 37), 7: (16.7, 13, 34), 8: (18.5, 17, 38), 9: (19.9, 17, 40)}
+# owner Q67 (2026-11-04, "67, yes."): re-baselined for the Color spawn rule (a look not again until 3 others): the scenario's spawns now succeed (47-49 lines, was a failing 34); each limit = the new measure + the margin it had.
+BOSS_DS = {0: (18.2, 15, 46), 1: (19.3, 16, 50), 2: (18.4, 17, 51), 3: (18.6, 16, 51), 4: (18.2, 16, 50),
+           5: (18.4, 17, 48), 6: (19.9, 17, 50), 7: (16.9, 13, 46), 8: (18.8, 17, 51), 9: (20.2, 17, 52)}
 # (a fight with regulars: the mean limit 76) the same way, per venue
 REGULARS_DS_MEAN = {0: 27.6, 1: 32.6, 2: 33.5, 3: 32.7, 4: 35.7, 5: 31.3, 6: 30.2, 7: 34.2, 8: 33.8, 9: 29.8}
 
