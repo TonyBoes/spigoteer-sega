@@ -370,3 +370,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-11-03 Q49 answered (owner): Food Critic "a is better, but not great." -> round 3: quality pass on A (bolder snooty read, real resting hand, brow not eyeshadow); show, then import + hand_draw HOLD glass.
 - 2026-11-03 Owner: mini-game graphics sweep. Reported: instruction cards wrong colours; outlines around medals at the finishing message; Taiko rhythm marks tear while scrolling; "etc". -> gb-worker sweeps every mini-game (card, play, results; DMG + CGB; SameBoy timing), fixes, report.
 - 2026-11-03 Sumo HMPH round 3 merged (round3/: B1 small 3-finger hands, B2 wider 4-finger; flat mouth; 26/29 pairs). Q50 asked.
+- 2026-11-03 Food Critic round 3 merged (round3/: A3, 27/29 pairs). Q51 asked: import or another pass.
