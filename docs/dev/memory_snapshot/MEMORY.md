@@ -46,3 +46,4 @@
 - [Record decisions immediately](record-decisions-immediately.md) — owner 11-01: write every decision/plan/procedure down in the same reply; procedure in SUPERVISOR.md
 - [Color perf at double speed](color-perf-double-speed.md) — owner Q92 11-01: [cgb] speed checks run at double speed as shipped; DMG strict
 - [C build: speed not required](c-build-speed-not-required.md) — owner 11-01: C speed fails ok; C tests on HOLD until the patron import is done (asm only)
+- [No flashing lights](no-flashing-lights.md) — owner 11-04: stage colours fade, never cut or flash; check GIFs for strobing before showing
