@@ -1,6 +1,6 @@
 # The show stage's wash (owner 2026-11-03: "The wash is good enough. No sweeps."; src/lights.c, src/showlights.h, render.c pal5_check / pal5_write), Color only.
 #   While a show plays the stage's BG palettes 5 and 6 (text rows 1-4) go dark with a tint that steps every two dance beats through magenta, blue, amber and green (lt_tint, read from the source here);
-#   16 frames of fade in at the start and out at the end. The dim colours come from the BRIGHT-lifted stage colours. The HUD, the bars and the performers keep their palettes; the DMG is untouched.
+#   each change of tint is a crossfade over LT_BLEND frames (owner 2026-11-04: no hard cuts); 16 frames of fade in at the start and out at the end. The dim colours come from the BRIGHT-lifted stage colours. The HUD, the bars and the performers keep their palettes; the DMG is untouched.
 #   The 16 bytes it writes live in story_scratch[32..47] (OBJX_CO, the fades' OBJ-colour source), with a stamp byte at story_scratch[64].
 import numpy as np
 import pytest
@@ -13,7 +13,7 @@ from test_show_obj5 import play
 from test_story import call_banked
 from test_venues import cgb_palette
 
-from wash_helpers import BEAT, FADE, SHOW_FRAMES, STEP, TINTS, chan, dim
+from wash_helpers import BEAT, BLEND, FADE, SHOW_FRAMES, STEP, TINTS, chan, dim, dim_el
 
 SCR_OBJXC, SCR_LTST = 32, 64
 MODEL = pytest.mark.only_model("cgb")
@@ -44,8 +44,7 @@ def lit_of(gb):
 
 def expect(lit, el, left):
     """The palettes (5, 6) the wash makes of the lit ones at `el` frames into a show with `left` frames to go."""
-    lvl = min(FADE, el, FADE if left > FADE else left - 1)
-    return [[dim(w, (el // STEP) & 3, lvl) for w in p] for p in lit]
+    return [[dim_el(w, el, left) for w in p] for p in lit]
 
 
 def near(gb, lit, spread=1):
@@ -107,8 +106,10 @@ def test_the_tints_step_in_order_every_two_beats():
             runs.append([ti, el, el])
         runs[-1][2] = el
     assert [r[0] for r in runs][:8] == [(runs[0][0] + k) & 3 for k in range(8)], runs[:8]
+    for a, b in zip(runs[1:], runs[2:-1]):
+        assert abs((b[1] - a[1]) - STEP) <= 2, ("a tint starts every two beats", a, b)       # (the steady part of each step, after its blend, starts a step apart)
     for r in runs[1:-1]:
-        assert abs((r[2] - r[1] + 1) - STEP) <= 2, ("a tint lasts two beats", r)
+        assert abs((r[2] - r[1] + 1) - (STEP - BLEND)) <= 2, ("steady for what the blend leaves", r)
     assert len({tuple(t) for t in TINTS}) == 4 and len(TINTS) == 4, "magenta, blue, amber, green"
 
 
@@ -127,7 +128,7 @@ def test_the_wash_fades_in_and_out_over_sixteen_frames():
     assert lum(lit) >= ins[0] > ins[FADE + 1], "the first frame is hardly dim, the last of the fade is dark"
     assert len(set(ins[:FADE])) >= 8, "a gradual fade, not a jump"
     out = []
-    while timer(gb) > FADE + 3:
+    while timer(gb) > FADE:                       # (past the last tint change's blend, which ends as the fade starts)
         gb.run(1)
     while timer(gb) > 0:
         gb.run(1)
@@ -268,7 +269,7 @@ def test_a_color_at_normal_speed_has_no_wash():
 
 
 # ---- goldens (new): the stage at the four tints, steady (the show poked to the frames where each tint is on, so the picture does not move with the dance's own clock) -----------------------------
-TINT_T = [608, 584, 560, 536]               # show_timer where tint 0 (magenta), 1 (blue), 2 (amber), 3 (green) has been on for a while: el = 96, 120, 144, 168 (e // 3 = 4..7)
+TINT_T = [592, 568, 544, 520]               # show_timer where tint 0 (magenta), 1 (blue), 2 (amber), 3 (green) has been on for a while, past its blend: el = 112, 136, 160, 184 (e // 3 = 4..7, 16 frames in)
 
 
 def shot_at(gb, t):
@@ -293,3 +294,41 @@ def test_golden_the_stage_wash_at_each_tint(g, k):
     shot_at(gb, TINT_T[k])
     assert pals(gb) == [[dim(w, k, FADE) for w in p] for p in lit], "the steady tint k"
     check_golden(gb, f"wash_{THEMES[g]}_{k}")
+
+
+# ---- no strobe: the crossfade (owner 2026-11-04: "Some of those lodge shows are going to give me a seizure with the flashing lights") ---------------------------------------------------------
+MAX_STEP = 2          # the biggest change of any 5-bit channel of BG 5 / 6 between two frames: the blend moves a channel by (tint difference <= 14/32 of <= 31) / 16 < 1, a fade by 22/32 * 31 / 16 < 2 (the first frame jumps from lit 31 to 31: no step)
+
+
+def worst_step(gb, frames):
+    prev, worst = None, 0
+    for _ in range(frames):
+        gb.run(1)
+        cur = [[(w & 31, (w >> 5) & 31, (w >> 10) & 31) for w in p] for p in pals(gb)]
+        if prev:
+            worst = max([worst] + [abs(a - b) for pa, pb in zip(cur, prev) for ca, cb in zip(pa, pb) for a, b in zip(ca, cb)])
+        prev = cur
+    return worst
+
+
+@MODEL
+@pytest.mark.parametrize("g", range(len(THEMES)), ids=list(THEMES))
+def test_a_whole_show_never_jumps_a_stage_colour(g):
+    """Every venue, Color at double speed: through a whole show (fade in, four-plus tint changes, fade out) neither stage palette changes by more than MAX_STEP in any channel in a frame."""
+    gb = show_play(g)
+    start(gb)
+    w = worst_step(gb, SHOW_FRAMES - 2)
+    assert w <= MAX_STEP
+
+
+@MODEL
+def test_the_tint_change_is_a_blend_over_the_set_frames():
+    gb = show_play(0)
+    lit = lit_of(gb)
+    start(gb)
+    gb.run(STEP - 2)                             # (just before the first change)
+    seen = []
+    for i in range(BLEND + 6):
+        gb.run(1)
+        seen.append(tuple(map(tuple, pals(gb))))
+    assert len(set(seen)) >= BLEND // 2, "a gradual change, not a cut"
