@@ -69,15 +69,19 @@ def test_the_pictures_are_built_to_the_budget():
         sc = by_scene[p["scene"]]
         slot = sc["bg_tiles"]
         assert p["base"] == SLOT_BASE + slot, name
-        assert len(p["pals"]) <= 4 and len(p["map"]) == len(p["attr"]) == 260
+        assert len(p["pals"]) <= (5 if p["bg2"] else 4) and len(p["map"]) == len(p["attr"]) == 260
         ids = set(p["map"])
         assert len(ids) == p["tiles"] and ids <= set(range(36)) | set(range(p["base"], 256)), f"{name}: tile ids"
         assert p["extra"] == (BURST["extra_tiles"] if name == "intro_a" else 0)          # the trail dots' tiles, unused by the map
-        assert all(a in (0, 5, 6, 7, 1) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
+        assert all(a in (0, 5, 6, 7, 1) + ((2,) if p["bg2"] else ()) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
         assert p["tiles"] + p["extra"] <= 36 + 256 - p["base"], name
     # the numbers of the report (the picture tiles, the HUD palette cells of CREDITS)
-    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 117, "intro_a": 112, "finale_a": 134, "finale_contest": 131, "credits_b": 132}
-    assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "finale_contest": 0, "credits_b": 12}
+    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 120, "intro_a": 109, "finale_a": 146, "finale_contest": 142, "credits_b": 130}
+    assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "finale_contest": 0, "credits_b": 0}
+    assert {n: len(p["pals"]) for n, p in PICS.items()} == {"intro_before": 4, "intro_a": 3, "finale_a": 4, "finale_contest": 4, "credits_b": 5}
+    # Option A (town import 2026-11-04): the credits' fifth palette (the dawn jets' blue) is in BG 2, which a scene with no speaker page,
+    # no picture switch and no sharer never needs; no other picture may use it
+    assert {n for n, p in PICS.items() if p["bg2"]} == {"credits_b"} and 2 in PICS["credits_b"]["attr"]
     # the portrait slot sits below the picture's tiles in every scene
     assert all(max(i for i in PICS[n]["map"] if i >= 36) < 256 for n in PICS)
 
@@ -91,29 +95,39 @@ def _region(pix, x0, y0, x1, y1):
     return ["".join(r[x0:x1]) for r in pix[y0:y1]]
 
 
-def test_the_four_pictures_are_one_square_one_fountain_one_spigot():
-    """The continuity pass: the sources share one master layout (the same characters in the same places), the
-    same large gold F1 spigot and the same gold in every key, three times of day."""
+# The town master (owner 2026-11-04, round 6 with the roof, Q74): every picture of the square is one hand-drawn grid of material keys
+# (docs/dev/concepts/town_2026-11-04: tools/master.py, compose.py) and its own key is the time of day. Each picture differs from the
+# night's intro_before only where its own props stand (x0, y0, x1, y1 inclusive), above the plaza's edge (y 88).
+TOWN_PROPS = {
+    "intro_a": {"the broken spigot": (84, 0, 123, 47), "the stopped jets": (72, 48, 127, 71), "Dregs": (40, 64, 63, 87),
+                "the Spigoteer's shrug": (134, 64, 159, 87), "the crowd's heads": (64, 76, 119, 87)},
+    "finale_a": {"sun and clouds": (0, 0, 159, 23), "the Spigoteer and his glass": (112, 56, 141, 87), "Dregs": (136, 56, 159, 87),
+                 "the crowd's heads": (40, 76, 127, 87)},
+    "finale_contest": {"sun and clouds": (0, 0, 159, 23), "the Spigoteer": (56, 64, 79, 87), "Dregs": (136, 56, 159, 87),
+                       "the crowd's heads": (40, 76, 127, 87)},
+    "credits_b": {"sun and clouds": (0, 0, 159, 23), "the sun behind the town": (0, 24, 47, 47), "the drips": (80, 32, 127, 63),
+                  "Dregs and his mop": (32, 64, 63, 87), "the crowd's heads": (40, 76, 127, 87), "the right house, nobody at it": (136, 64, 159, 87)},
+}
+
+
+def test_the_pictures_are_one_town_master_with_their_own_props():
     pics = {n: _pix(n) for n in PICS}
-    for n, (key, _) in pics.items():                               # one gold, the INTRO's
-        assert key["Y"]["hex"] == "#f8f0a0" and key["y"]["hex"] == "#e8a828", n
-    # the spigot, the bowl and the pedestal (x 88-118, y 6-72): identical in the three pictures that
-    # show it whole (the credits' drips and the finale's glass aside)
-    ref = _region(pics["intro_before"][1], 88, 6, 119, 72)
-    for n in ("finale_a", "credits_b"):
-        got = _region(pics[n][1], 88, 6, 119, 72)
-        diff = {(x + 88, y + 6) for y, (a, b) in enumerate(zip(ref, got)) for x, (c, d) in enumerate(zip(a, b)) if c != d}
-        assert all(109 <= x < 116 and 37 <= y < 43 for x, y in diff), (n, sorted(diff)[:5])   # the drips of the credits
-    assert _region(pics["intro_before"][1], 72, 72, 120, 81) == _region(pics["finale_a"][1], 72, 72, 120, 81)  # the wall (the crowd aside)
-    # the clock tower and the houses at the left (x 0-30, y 29-87): the same everywhere (the dawn sun sits behind them)
-    ref = _region(pics["intro_before"][1], 0, 29, 31, 88)
-    for n in ("intro_a", "finale_a", "credits_b"):
-        got = [r.replace("y", ".") for r in _region(pics[n][1], 0, 29, 31, 88)] if n == "credits_b" else _region(pics[n][1], 0, 29, 31, 88)
-        assert got == ref, n
-    # the string lights hang in the three pictures that show them taut; the finale adds pennants among them
-    for n in ("intro_before", "intro_a", "finale_a"):
-        assert any("#" in r for r in _region(pics[n][1], 33, 41, 72, 50)), n
-    assert "r" in "".join(_region(pics["finale_a"][1], 33, 41, 160, 55)) and "r" not in "".join(_region(pics["intro_before"][1], 33, 41, 160, 55))
+    ref = pics["intro_before"][1]
+    assert set(TOWN_PROPS) == set(PICS) - {"intro_before"}
+    for n, boxes in TOWN_PROPS.items():
+        p = pics[n][1]
+        stray = [(x, y) for y in range(88) for x in range(160) if p[y][x] != ref[y][x] and ref[y][x] != "K"      # (K: the night's stars)
+                 and not any(x0 <= x <= x1 and y0 <= y <= y1 for x0, y0, x1, y1 in boxes.values())]
+        assert not stray, (n, stray[:8])
+        assert _region(p, 0, 0, 160, 8) == _region(ref, 0, 0, 160, 8), f"{n}: the bunting"
+    for n, (key, _) in pics.items():                               # one gold
+        assert key["y"]["hex"] == "#e8a828", n
+    # the Golden Spigot, the bowl and the pedestal (x 88-116, y 24-72): the same in the three pictures that show it whole (the credits' drips aside)
+    ref_sp = _region(ref, 88, 24, 117, 73)
+    for n in ("finale_a", "finale_contest", "credits_b"):
+        got = _region(pics[n][1], 88, 24, 117, 73)
+        diff = {(x + 88, y + 24) for y, (a, b) in enumerate(zip(ref_sp, got)) for x, (c, d) in enumerate(zip(a, b)) if c != d}
+        assert all(n == "credits_b" and 80 <= x <= 127 and 32 <= y <= 63 for x, y in diff), (n, sorted(diff)[:5])
     # the finale: the Spigoteer's glass is in the jet (water in the glass, the jet above it down to its rim)
     f = pics["finale_a"][1]
     assert all(f[y][122] == "b" or f[y][123] == "b" for y in range(51, 58))
@@ -124,7 +138,7 @@ def test_the_picture_sources_convert_exactly():
     """Each source reads back as the map/tiles in build/story.json (re-converted here), tile for tile."""
     g = gen_story()
     for name, p in PICS.items():
-        r = g.read_pic(name)
+        r = g.read_pic(name, p["bg2"])
         assert [p["ids"][t] for t in r["tmap"]] == p["map"], name
         # every cell's pixels are its tile's: DMG shades through the key, colours through the cell's palette
         for ty in range(13):
@@ -690,20 +704,6 @@ def test_mashing_a_through_the_burst_keeps_the_line_limit(model):
 
 
 # ---- the owner review of the finale and the credits ------------------------------------------------------------
-DREGS_J2 = ['..................', '........#####.....', '......#########...', '.....###########..', '....######mmm#####', '....##############',
-            '....######DDD##...', '....####DDDDDD#...', '....#D##DDDDDD#...', '....#DD#DDD###D#..', '....#DD#DDDDDDDD#.', '....#DDDDDDDDDDDD#',
-            '.....#DDDDDDDD####', '.....#DDDDD###D#..', '.....#DDDDDDDDD#..', '......##DDDDDD#...', '........#DDDD#....', '........#DDD#.....',
-            '.....###D#D#D###..', '....#mmD#####Dmm#.', '...#mmmD#D#D#Dmmm#', '...#mmmmD#D#Dmmmm#', '...#m#mmmD#Dmmm#m#', '...#m#mmmmDmmmm#m#',
-            '...#m#mmmmmmmmm#m#', '...#D#mmmmmmmmm#D#', '....#.#########.#.']      # his approved small art (J2), rows 0-26
-PENNANTS = {"r": ["#rrr#", ".#r#.", "..#.."], "y": ["#yyy#", ".#y#.", "..#.."], "b": ["#bbb#", ".#b#.", "..#.."]}
-
-
-def _find(pix, shape):
-    h, w = len(shape), len(shape[0])
-    return [(x, y) for y in range(len(pix) - h) for x in range(len(pix[0]) - w)
-            if all(pix[y + j][x + i] == shape[j][i] for j in range(h) for i in range(w) if shape[j][i] != ".")]
-
-
 def mash_scene(model, scene):
     """A cut-scene ready to be crawled, and when to stop (INTRO and a PRE scene end at the goal banner, FINALE_A at the Pour-Off,
     FINALE_B on leaving the story state or when the credits roll has scrolled to its end)."""
@@ -750,72 +750,73 @@ def test_mashing_a_never_makes_the_drain_leave_vblank(model, scene, period):
 
 
 
+def _frames(path):
+    rows = [r for r in (ROOT / path).read_text().splitlines() if r and not r.startswith(";")]
+    return [rows[k:k + 24] for k in range(0, len(rows), 24)]
+
+
+def _stamped(pix, frame, x0, y0, keymap, flip=False):
+    """the sprite pixels of frame (its keys mapped) that the picture does not show at (x0, y0)"""
+    return [(x0 + k, y0 + j) for j, r in enumerate(frame) for k, c in enumerate(r[::-1] if flip else r)
+            if c != "." and pix[y0 + j][x0 + k] != keymap[c]]
+
+
 def test_the_finale_shows_dregs_not_a_second_bartender():
-    """Dregs is his Pour-Off sprite (assets/art/dregs/dregs.txt, faces left toward the Spigoteer): the sprite's head (face
-    variant F1, owner 2026-10-12), the sprite's jacket body stretched to the picture's size (torso +2 rows, hem at y 88;
-    no legs here: the pavement hides them), no white shirt or apron, and his colours are not the Spigoteer's. His skin is the
-    finale's S, not the sprite's cream: a fifth BG palette would be needed (gen_story allows four)."""
-    key, pix = _pix("finale_a")
-    got = _region(pix, 142, 62, 160, 89)              # (face variant F1 since 2026-10-12: the head is the sprite's, below)
-    sprite = [r for r in (ROOT / "assets/art/dregs/dregs.txt").read_text().splitlines() if r and not r.startswith(";")][:24]
-    sm = lambda r: r.replace("-", "S").replace("+", "m")
-    # (the picture's Dregs is the Pour-Off sprite itself, idle frame, hung 3 rows lower than the old figure)
-    assert all(got[4 + i][:16] == sm(sprite[i]) for i in range(14)), "the head and neck are the sprite's (rows 0-13)"
-    assert got[18][:16] == sprite[14].replace("-", "S").replace("+", "m"), "the sprite's collar"
-    assert "W" not in "".join(_region(pix, 139, 60, 160, 89)), "no white shirt or apron on Dregs"
-    assert "r" not in "".join(got)                                                        # no rose on Dregs (the Spigoteer's cap is cream)
-    assert key["m"]["hex"] == "#b0a0b8" and "".join(got).count("m") > 40                  # Dregs wears the grey jacket
+    """Dregs is his Pour-Off sprite (assets/art/dregs/dregs.txt, the v8 idle, the owner's), whole, feet on the cobble at y 93, by day:
+    skin S (DMG 1), jacket B (the wall's lilac, DMG 2), ink. The contest picture shows him in the same place (shared tiles)."""
+    idle = _frames("assets/art/dregs/dregs.txt")[0]
+    for n in ("finale_a", "finale_contest"):
+        key, pix = _pix(n)
+        assert not _stamped(pix, idle, 142, 70, {"-": "S", "+": "B", "#": "#"}), n
+        assert (key["S"]["dmg"], key["B"]["dmg"]) == (1, 2)
+        assert "W" not in "".join(_region(pix, 142, 70, 158, 94)), "no white shirt or apron on Dregs"
 
 
-def test_the_credits_flags_match_the_finales_and_the_stand_and_legs_read():
-    fkey, f = _pix("finale_a")
-    ckey, c = _pix("credits_b")
-    for ch, shape in PENNANTS.items():                      # the same pennant shape in the same colour in both pictures
-        assert ckey[ch]["hex"] == fkey[ch]["hex"], ch
-        assert _find(f, shape) and _find(c, shape), ch
-    assert len(_find(c, PENNANTS["r"])) >= 2 and len(_find(c, PENNANTS["b"])) >= 1 and len(_find(c, PENNANTS["y"])) >= 2
-    # Dregs stands on the cobbles in his apron: outlined trousers (rows 88-91, ink round a B fill, a seam between the legs)
-    # and ink shoes (rows 92-93, toes to the right) below the apron's hem (y 87)
-    assert all("".join(c[y][34:43]) == "#BBB#BBB#" for y in (88, 89, 90, 91))
-    assert all("".join(c[y][33:39]) == "######" and "".join(c[y][40:46]) == "######" for y in (92, 93))
-    # the Sasquatch's coffee stand (24 x 32 in the HUD palette cells, a cup sign on its roof, a pale steaming cup
-    # in the window and his furry arm)
-    stand = _region(c, 136, 56, 160, 88)
-    assert set("".join(stand)) <= set("CTGZ")
-    assert stand[1] == "ZGGGCCCCGGGGCCCCGGGGCCCZ"            # the striped awning
-    sign = "".join(_region(c, 139, 43, 157, 56))
-    assert sign.count("Y") >= 60 and sign.count("y") >= 20
-    window = "".join(stand[8:23])
-    assert window.count("C") >= 30 and window.count("T") >= 30 and window.count("G") >= 60       # cup and steam, hand, fur
+def test_the_credits_dregs_mops_and_no_coffee_stand():
+    """Dregs mops in front of the tavern in his v8 fill pose (unflipped, as the game shows it), feet on the cobble at y 93, by dawn:
+    skin D, head and jacket B (the dawn violet), ink, the mop in his hands. The coffee stand is gone (owner, round 5: in every picture or
+    in none) and nobody stands at the right house."""
+    key, c = _pix("credits_b")
+    fill = _frames("assets/art/dregs/dregs.txt")[3]
+    off = _stamped(c, fill, 46, 70, {"-": "D", "+": "B", "#": "#"})
+    assert all(36 <= x <= 46 and 85 <= y <= 93 for x, y in off), off[:5]          # (only where the mop crosses him)
+    assert len(off) < 12
+    assert PICS["credits_b"]["hud_cells"] == 0 and not set("CTGZ") & set(key)
+    assert set("".join(_region(c, 141, 64, 159, 88))) <= set("B#")
 
 
 def test_the_contest_picture_is_the_first_pour_courtyard_with_the_two_game_sprites_and_no_pour():
-    """finale_contest = finale_a outside the old Spigoteer / Dregs spot (x 112-159, y 58-87) and the two sprites' boxes: the Golden Spigot, the
-    fountain and the ten owners are untouched, nothing is held up to the jet, the Spigoteer and Dregs are the game's idle sprites facing each other."""
+    """finale_contest = finale_a outside the first pour's Spigoteer (x 112-141, y 56-93) and the game Spigoteer's box: there the square is
+    the town master's (intro_before's characters, finale_a's basin line), the Golden Spigot untouched, the ten owners along the bottom, nothing
+    held up to the jet; the Spigoteer is the game's idle sprite (flipped, facing Dregs) in front of the tavern, Dregs as in finale_a."""
     key, a = _pix("finale_a")
     key2, b = _pix("finale_contest")
+    _, night = _pix("intro_before")
     assert key == key2
     for y in range(104):
         for x in range(160):
-            in_spot = 112 <= x < 160 and 58 <= y < 88
-            in_sal = 56 <= x < 72 and 64 <= y < 88
+            in_spot = 112 <= x <= 141 and 56 <= y <= 93
+            in_sal = 59 <= x <= 74 and 71 <= y <= 94
             if not (in_spot or in_sal):
                 assert a[y][x] == b[y][x], (x, y)
+            elif 112 <= x <= 140 and 56 <= y <= 87:
+                assert b[y][x] == (a[y][x] if y == 87 and x <= 126 else night[y][x]), (x, y)
     assert _region(a, 88, 6, 119, 40) == _region(b, 88, 6, 119, 40)             # the Golden Spigot, whole
-    assert _region(a, 0, 88, 160, 104) == _region(b, 0, 88, 160, 104)          # the owners
-    assert not any("S" in r[112:137] for r in b[58:80])                         # nobody holds a glass up to the right jet: the hand and the Spigoteer are gone from the basin
-    assert sum(c != "." for r in _region(b, 56, 64, 72, 88) for c in r) > 60      # the Spigoteer
-    assert sum(c != "." for r in _region(b, 137, 64, 153, 88) for c in r) > 60    # Dregs
+    assert _region(a, 0, 95, 160, 104) == _region(b, 0, 95, 160, 104)          # the owners
+    assert not any("S" in r[112:137] for r in b[58:80])                         # nobody holds a glass up to the right jet
+    sal = _frames("assets/art/bartender.txt")[0]
+    assert not _stamped(b, sal, 59, 71, {"-": "W", "+": "S", "#": "#"}, flip=True)
+    assert key["W"]["dmg"] == 0 and key["S"]["dmg"] == 1
 
 
 def test_the_finale_spigoteer_wears_the_cream_wooly_cap_and_his_mustache_shows():
     """Owner 2026-10-20: Aurora knits a cream wooly (newsboy) cap. The owner redrew it 2026-10-29 (Q42: shading in gold
-    y, since skin and cream share a DMG shade): cream Y with gold shading, an ink brim line at row 71, no pink on him,
-    and the mustache rows are ink."""
+    y). Town round 6 (approved, Q74): the joined hall's lilac wall stands behind the crown now and the crown's gold shading and the
+    lilac are both DMG 2, so the crown is all sunlit cream Y; an ink brim line at row 71, no pink on him, and the mustache rows are ink."""
     key, pix = _pix("finale_a")
     hat = _region(pix, 127, 65, 139, 72)
     cap = "".join(hat)
-    assert cap.count("Y") >= 15 and cap.count("y") >= 4 and "#" * 10 in hat[6]
+    assert cap.count("Y") >= 15 and "#" * 10 in hat[6]
     assert "r" not in "".join(_region(pix, 124, 64, 142, 90)), "no pink on the Spigoteer"
     face = _region(pix, 128, 72, 138, 82)
     assert "r" not in "".join(face) and "#####" in face[5], "the mustache (ink) is uncovered"

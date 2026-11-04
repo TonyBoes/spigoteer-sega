@@ -103,8 +103,12 @@ SCENE_PICS = {"INTRO": [(1, "intro_before"), (7, "intro_a")], "FINALE_A": [(1, "
 PIC_SHARE = {"FINALE_B": "FINALE_A"}
 PIC_DIR = ROOT / "assets/story/pictures"
 PIC_W, PIC_H = 160, 104
-PIC_SLOTS = (0, 5, 6, 7)         # CGB BG palette slots of a picture's palettes, in order (BG 1, the HUD, is also usable)
-PIC_MAX_PALS = len(PIC_SLOTS)
+PIC_SLOTS = (0, 5, 6, 7, 2)      # CGB BG palette slots of a picture's palettes, in order (BG 1, the HUD, is also usable)
+PIC_MAX_PALS = 4                 # ... the first four: the ones the switch's fade (src/story.c pic_calc / pic_put) and a speaker page leave alone
+# Option A (town import, 2026-11-04): a picture may use a fifth palette, in BG 2 (BGPAL_PATRON, a speaker's portrait palette), anywhere,
+# when its scene has no speaker page, no picture switch and no other scene showing it (CREDITS: its dawn jets). story_pic_draw writes it
+# at the scene's load with the others; the scene transition's fade reads and fades all eight BG palettes, so it fades with them.
+PIC_MAX_PALS_BG2 = len(PIC_SLOTS)
 # Page text variants (docs/story.md "Script format"): a page may carry variants "SPEAKER IF COND" whose lines replace
 # its own when the condition holds (the first that holds, in script order). Condition ids 1-8: bit id - 1 of src/story.c
 # story_conds, set and cleared by the engine; the data stores the id (one byte per variant page). The page's portrait
@@ -594,10 +598,10 @@ def q5(hexc):
     return tuple(int(hexc[i:i + 2], 16) >> 3 for i in (1, 3, 5))
 
 
-def read_pic(name):
+def read_pic(name, bg2=False):
     """One full-screen picture source (assets/story/pictures/<name>.txt, portrait-v2 at 160x104) -> dict: px (DMG
     shade rows), tiles (unique 8x8 tiles by pixels, in order of first use), tmap (index per map cell, row-major,
-    20 x 13), attr (per cell: 'H' the HUD palette, else the index of its palette in pals), pals (<= 4 x four #rrggbb),
+    20 x 13), attr (per cell: 'H' the HUD palette, else the index of its palette in pals), pals (<= 4 x four #rrggbb; 5 with bg2),
     key, pix. Exact or fails: two colours on one DMG shade in a tile, more than four palettes. A cell whose colours
     are exactly the HUD palette's (and that no picture palette covers) uses BG palette 1."""
     path = PIC_DIR / f"{name}.txt"
@@ -606,8 +610,10 @@ def read_pic(name):
     key, pix, meta = parse_v2(path)
     if (meta["w"], meta["h"]) != (PIC_W, PIC_H):
         fail(f"{name}: {meta['w']}x{meta['h']} (a picture is {PIC_W}x{PIC_H}: rows 0-{PIC_ROWS - 1})")
-    if meta["maxpal"] > PIC_MAX_PALS:
-        fail(f"{name}: @maxpal {meta['maxpal']} (CGB BG palettes 0, 5, 6, 7 are free: max {PIC_MAX_PALS})")
+    most = PIC_MAX_PALS_BG2 if bg2 else PIC_MAX_PALS
+    if meta["maxpal"] > most:
+        fail(f"{name}: @maxpal {meta['maxpal']} (CGB BG palettes 0, 5, 6, 7 are free: max {PIC_MAX_PALS}; BG 2 as a fifth only "
+             f"in a scene with no speaker, no picture switch and no sharer)")
     if any(k["obj"] for k in key.values()):
         fail(f"{name}: a picture has no OBJ accents")
     px = [[key[c]["dmg"] for c in r] for r in pix]
@@ -629,8 +635,8 @@ def read_pic(name):
             umaps.append(tuple(sorted(m.items())))
     big = list(dict.fromkeys(m for m in umaps if not any(set(m) < set(o) for o in umaps)))
     pals = pack_palettes([dict(m) for m in big])[0] if big else []
-    if len(pals) > min(meta["maxpal"], PIC_MAX_PALS):
-        fail(f"{name}: needs {len(pals)} CGB BG palettes (max {min(meta['maxpal'], PIC_MAX_PALS)})")
+    if len(pals) > min(meta["maxpal"], most):
+        fail(f"{name}: needs {len(pals)} CGB BG palettes (max {min(meta['maxpal'], most)})")
     attr = []
     for m in maps:
         own = next((i for i, p in enumerate(pals) if all(p.get(s, c) == c for s, c in m.items())), None)
@@ -1388,8 +1394,9 @@ def main():
             continue
         pbase = port_base + sc["bg_tiles"]
         sc["pic"] = len(pics)
+        bg2 = not sc["spk"] and len(SCENE_PICS[sid]) == 1 and sid not in PIC_SHARE.values()   # (Option A: BG 2 is free all scene long)
         for page, name in SCENE_PICS[sid]:
-            p = read_pic(name)
+            p = read_pic(name, bg2)
             if name == BURST_PIC:                # its explosion: the pieces' OBJ tiles and the trail dots' BG tiles (appended)
                 bkey, bpieces = read_pieces(p["key"])
                 burst = burst_build(bkey, bpieces, p)
@@ -1401,7 +1408,7 @@ def main():
                      f"the scene's biggest portrait, {ports[big]['name']} ({len(ports[big]['tiles'])} tiles), may have at most "
                      f"{len(ports[big]['tiles']) - (n - room)} unique tiles with this picture")
             pid = [i if i < PIC_POOL else pbase + i - PIC_POOL for i in range(n)]
-            p.update(scene=sid, page=page, base=pbase, ids=pid, map=[pid[t] for t in p["tmap"]], n_extra=len(p.get("extra", [])),
+            p.update(scene=sid, page=page, base=pbase, bg2=bg2, ids=pid, map=[pid[t] for t in p["tmap"]], n_extra=len(p.get("extra", [])),
                      cattr=[1 if a == "H" else PIC_SLOTS[a] for a in p["attr"]])
             pics.append(p)
             if page > 1:
@@ -1574,7 +1581,7 @@ def main():
            carr("stp_slot", PIC_SLOTS),
            carr("stp_hud", [v for c in hud for v in [c[0] | (c[1] << 5) | (c[2] << 10)]], "uint16_t"), "",
            "// LCD off: picture pic's tiles (ids 0-35, then the scene's free ids), its map and attributes over rows",
-           "// 0..STORY_PIC_ROWS-1, and on CGB its palettes in BG slots 0, 5, 6, 7",
+           "// 0..STORY_PIC_ROWS-1, and on CGB its palettes in BG slots 0, 5, 6, 7 (and 2: a scene with no speaker, see PIC_MAX_PALS_BG2)",
            "void story_pic_draw(uint8_t pic, uint8_t cgb) BANKED {",
            "    uint8_t n = stp_n[pic], k;",
            "    const uint8_t *r = stp_runs[pic];",
@@ -1816,7 +1823,7 @@ def main():
                         for pid, sp in sorted(ports.items())},
           "pictures": [{"id": p["name"], "name": p["name"], "scene": p["scene"], "page": p["page"], "map": p["map"],
                         "attr": p["cattr"], "tiles": len(p["tiles"]), "extra": p.get("n_extra", 0), "base": p["base"], "ids": p["ids"],
-                        "pals": p["pals"], "hud_cells": p["attr"].count("H"),
+                        "pals": p["pals"], "hud_cells": p["attr"].count("H"), "bg2": p["bg2"],
                         "art": f"assets/story/pictures/{p['name']}.txt"} for p in pics],
           "pic_slots": list(PIC_SLOTS), "pic_pool": PIC_POOL,
           "burst": {"file": f"assets/story/pictures/{BURST_FILE}", "oam": BURST_OAM, "obj": BURST_OBJ, "pal": BURST_PAL,

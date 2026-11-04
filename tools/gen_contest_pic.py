@@ -1,20 +1,34 @@
 #!/usr/bin/env python3
-"""assets/story/pictures/finale_contest.txt: the FINALE courtyard staged as the Pour-Off's set-up (owner Q56, 2026-10-18).
+"""assets/story/pictures/finale_contest.txt: the FINALE square staged as the Pour-Off's set-up (owner Q56, 2026-10-18).
 
-Derived from finale_a.txt (its key, its tiles) with no new art: the picture's own Spigoteer and Dregs (the first pour) are repainted away -- the
-fountain basin's right end is the left half mirrored about the pillar (x = 104) and the rest is sky, which also takes the raised hand and the
-stream's end -- and the game's own idle sprites stand there instead, facing each other: the Spigoteer (assets/art/bartender.txt, frame 1,
-flipped) and Dregs (assets/art/dregs/dregs.txt, frame 0). The Golden Spigot is not poured from; the ten owners' heads along the bottom stay.
-The sprites' colours are the picture's own keys: white = the sky's colour 'W', skin 'S', grey 'm', ink '#'.
+Derived from finale_a.txt (its key, its tiles) with no new art. Since the town master (2026-11-04) every picture of the square is the same
+grid of material keys with its own time-of-day key, so the square behind the first pour's Spigoteer is known: it is intro_before.txt's
+(the same fountain, hall and houses; the right jet runs down into the basin, nobody holds a glass up to it):
+
+- PLATE: x 112-140, y 56-87 (the Spigoteer, his raised glass and the jet's bend to it) come from intro_before.txt, character for
+  character. Its key is the night's, but the characters are materials and finale_a.txt's key colours them by day. Row 87 at x 112-126,
+  the basin's bottom line, stays finale_a's (intro_before has a crowd head on it there).
+- His legs on the plaza (x 125-140, y 89-93) become cobble again: the plaza's cobble repeats every 16 px, so it is finale_a's own 16 px
+  to the left.
+- The game's own idle sprites stand there instead, facing each other across the fountain: the Spigoteer (assets/art/bartender.txt,
+  frame 0, flipped) in front of the tavern, and Dregs exactly as finale_a has him (his v8 idle at x 142, y 70), so his tiles are
+  shared. Both stand on the cobble at y 93.
+The sprites' colours are the picture's own keys: white = the spray's cream 'W', skin 'S', grey = Dregs's jacket 'B', ink '#'.
 
     python3 tools/gen_contest_pic.py          rewrites assets/story/pictures/finale_contest.txt
 """
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "assets/story/pictures/finale_a.txt"
-OUT = ROOT / "assets/story/pictures/finale_contest.txt"
-SAL_X, DREGS_X, TOP = 56, 137, 64
+PICS = ROOT / "assets/story/pictures"
+SRC = PICS / "finale_a.txt"
+PLATE_SRC = PICS / "intro_before.txt"
+OUT = PICS / "finale_contest.txt"
+PLATE = (112, 56, 140, 87)                       # x0, y0, x1, y1 (inclusive)
+KEEP_BASIN_LINE = (112, 126, 87)                 # x0, x1, y: finale_a's own basin bottom line
+LEGS = (125, 89, 140, 93)                        # the first pour's Spigoteer's legs on the plaza
+SAL_X, SAL_TOP = 59, 71
+DREGS_X, DREGS_TOP = 142, 70
 
 
 def blocks(path):
@@ -33,37 +47,44 @@ def blocks(path):
     return out
 
 
-def main():
-    lines = SRC.read_text().splitlines()
+def pixels(path):
+    lines = path.read_text().splitlines()
     i = lines.index("@pixels")
+    return lines, i, [list(r) for r in lines[i + 1:i + 1 + 104]]
+
+
+def main():
+    lines, i, pix = pixels(SRC)
     head = [l for l in lines[:i] if not l.startswith(";")]
-    pix = [list(r) for r in lines[i + 1:i + 1 + 104]]
-    src = [r[:] for r in pix]
-    for y in range(58, 88):                       # the old Spigoteer / Dregs spot: the basin's right half (mirrored), else sky
-        for x in range(112, 160):
-            mx = 208 - x
-            if 72 <= mx <= 103 and x <= 136 and not (y >= 80 and 83 <= mx <= 92):
-                pix[y][x] = src[y][mx]
-            elif y >= 80 and x <= 136:
-                pix[y][x] = "m"
-            else:
-                pix[y][x] = "."
-    for x in range(112, 137):
-        pix[87][x] = src[87][208 - x] if 208 - x <= 82 else "#"
+    keys = {l[0] for l in head[head.index("@key") + 1:]}
+    _, _, night = pixels(PLATE_SRC)
+    x0, y0, x1, y1 = PLATE
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if y == KEEP_BASIN_LINE[2] and KEEP_BASIN_LINE[0] <= x <= KEEP_BASIN_LINE[1]:
+                continue
+            c = night[y][x]
+            assert c in keys, f"plate ({x},{y}): {c!r} has no day key in finale_a.txt"
+            pix[y][x] = c
+    x0, y0, x1, y1 = LEGS
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            pix[y][x] = pix[y][x - 16]
     sal = blocks(ROOT / "assets/art/bartender.txt")[0]
     dre = blocks(ROOT / "assets/art/dregs/dregs.txt")[0]
     smap = {"-": "W", "+": "S", "#": "#"}
-    dmap = {"-": "S", "+": "m", "#": "#"}
+    dmap = {"-": "S", "+": "B", "#": "#"}
     for j, r in enumerate(sal):
         for k, c in enumerate(r[::-1]):
             if c in smap:
-                pix[TOP + j][SAL_X + k] = smap[c]
-    for j, r in enumerate(dre):
+                pix[SAL_TOP + j][SAL_X + k] = smap[c]
+    for j, r in enumerate(dre):                  # (finale_a's Dregs: these writes change nothing there; they keep him whole)
         for k, c in enumerate(r):
             if c in dmap:
-                pix[TOP + j][DREGS_X + k] = dmap[c]
-    text = ["; FINALE contest: the courtyard of finale_a.txt staged as the Pour-Off's set-up: the Spigoteer and Dregs (the game's own idle sprites) face each other in front of the",
-            "; fountain, the Golden Spigot untouched, the ten owners along the bottom. Generated by tools/gen_contest_pic.py from finale_a.txt (no new art); do not hand-edit.",
+                pix[DREGS_TOP + j][DREGS_X + k] = dmap[c]
+    text = ["; FINALE contest: the square of finale_a.txt staged as the Pour-Off's set-up: the Spigoteer and Dregs (the game's own idle sprites) face each other across",
+            "; the fountain, the Golden Spigot untouched, the ten owners along the bottom. Generated by tools/gen_contest_pic.py from finale_a.txt and intro_before.txt",
+            "; (the same town master; no new art); do not hand-edit.",
             "; Full-screen story picture, portrait-v2 at 160x104 (rows 0-12); see docs/story.md and tools/gen_story.py SCENE_PICS."] + head + ["@pixels"] + ["".join(r) for r in pix]
     OUT.write_text("\n".join(text) + "\n")
     print(OUT)
