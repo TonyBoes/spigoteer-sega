@@ -42,10 +42,32 @@ Today the Color show reads one row a beat. I1b uses a "glide block": 4 rows a be
 - `make test` on the scratch build: 6220 passed, 4 failed. 3 are `test_atlas_page.py`, which also fail on an unchanged copy (the scratch copy has no docs/dev). 1 is real: `tests/test_debug.py::test_a_starts_that_level_from_scratch[cgb-5]`. Level 5 is the igloo; with a bank-1 pool its load takes 17 frames, the same as bistro, factory and space already do, and the test waits 15. Importing I1b needs that wait raised (a test change, not a perf guard). All perf guards passed.
 - Capture: tests' play() + start() on Color at double speed, every frame of one loop (192 frames, from beat 0 of the 2nd loop). GIF: stage area x3; GIF delays come in 10 ms steps, so every 6th frame is dropped and the rest show 20 ms each (50 shown a second = 60 game frames a second, real speed).
 
+## I1c (round 3): slower slides
+
+Owner 2026-11-04 on igloo_I1b.gif: "they could probably slide a little bit slower with the penguins." Files: igloo_show_I1c_cgb.txt, igloo_I1c.gif (real engine, double speed, stage x3).
+
+- Same frames as I1b (no new art), same choreography: both-ends crossing slide with the hop, then the two leapfrogs. No slide dropped. **The loop is longer: 20 beats (80 rows) instead of 16.** Bar B is 6 beats and bars C and D are 5 beats each.
+- Long slide (96 px, both ends at once): 17 rows = 51 frames, was 11 rows = 33 frames (about 1.5x). It moves 10, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 3, 3, 2 px per update, so the top speed is 9 px an update after the take-off, down from 13.
+- Short slides (48 px): 11 rows = 33 frames, was 7 rows = 21 frames (about 1.6x). They move 6, 5, 5, 4, 4, 3, 3, 2, 2, 1 px per update, so the top speed is 6, down from 9.
+- The hop and the leapfrogs are retimed to the slower slides: the middle penguin's tuck lasts 7 rows (it was 5), and the leaps move about 12 px a row (they were 14).
+- Every penguin ends on a spot, and the wrap is a normal beat change, as in I1b.
+
+| | I1b | I1c |
+|---|---|---|
+| 8x16 quarters (bank-1 pool 64) | 33 | 33 |
+| OBJ entries per line, worst (limit 10) | 8 | 8, measured on lines 24-39 over a whole show |
+| Glide block | 1171 B (64 rows) | 1315 B (80 rows, 37 records) |
+| Igloo show data | +2449 B | +2593 B |
+| Banked ROM in all, with show_ext.c +78 B | +2527 B | +2671 B |
+| ROM0 | 447 B free, unchanged | 447 B free, unchanged |
+| WRAM | 0 new (WRAM_LO 160 free, WRAM_HI_0 461 free) | same |
+| Perf: logic end line, igloo show, 5 patrons, double speed | worst 75, mean 24.7, no late frames | worst 75, mean 24.7, no late frames |
+| `make test` (scratch) | 6220 passed; 3 atlas (copy artifact) + test_debug level 5 load wait | same |
+
 ## To import (for the supervisor, after the owner picks)
 
 1. Apply the two diffs below.
-2. `assets/approved/venues/igloo_show_cgb.txt` = igloo_show_I1b_cgb.txt; in `igloo_show_pal.json` add `"performers"` (three `{"loop": [0, 1, 2, 3], "flip": 0}`, today's dance) and `"performers_cgb"` (the JSON line in the file's header).
+2. `assets/approved/venues/igloo_show_cgb.txt` = the picked file (igloo_show_I1c_cgb.txt, or igloo_show_I1b_cgb.txt); in `igloo_show_pal.json` add `"performers"` (three `{"loop": [0, 1, 2, 3], "flip": 0}`, today's dance) and `"performers_cgb"` (the JSON line in the file's header).
 3. Raise the wait in test_debug.py's level-start test (15 to 20 frames). Add tests for the glide block (row decoding, flip per row, the 3-frame redraw).
 
 ## Diff: src/show_ext.c
