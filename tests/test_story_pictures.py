@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import perf_helpers as ph
 from PIL import Image
-from conftest import ROOT, check_golden
+from conftest import ROOT, check_golden, until_game
 from test_flow import GS_STORY, run_until, state, tilemap_row
 from test_story import (DMG_GREY, PORTRAITS, SC, SCENES, STORY, STORY_STEPS, gen_story, page_ready, picture_switching, post, q15, settle,
                         skip_scene, start_story, through_the_pouroff, to_goal, v7_image, win)
@@ -35,12 +35,77 @@ def expected(name, model):
     return _EXPECT[name, model]
 
 
+WATER_CELLS = [tuple(c) for c in STORY["water_cells"]]   # the jets' cells (left jet's three, then the right's): their tiles flow
+
+
+def jet_tiles(gb, name):
+    """the six jet cells' tiles as VRAM holds them now"""
+    return [[gb.pb.memory[a + k] for k in range(16)] for a in PICS[name]["water_addr"]]
+
+
+def water_phases(gb, name):
+    """the phase each jet (left, right) shows: its three tiles are that phase's (story.json); None when they are no phase"""
+    w, t = PICS[name]["water"], jet_tiles(gb, name)
+    return tuple(next((ph for ph in range(len(w)) if w[ph][j * 3:j * 3 + 3] == t[j * 3:j * 3 + 3]), None) for j in (0, 1))
+
+
+SKY = STORY["sky"]                     # Color: the clouds as OBJ sprites that drift (assets/story/pictures/sky.txt)
+SK_AT = 357                            # src/story.c story_sky's bytes in story_scratch: SK_C (the drift), SK_ON, then its buffer
+_SKY = {}
+
+
+def sky_state(gb):
+    """(SK_C, SK_ON): SK_ON 1 = the clouds are sprites drifting SK_C px right of their place (their BG cells are plain sky)"""
+    a = gb.addr("story_scratch") + SK_AT
+    return gb.pb.memory[a], gb.pb.memory[a + 1]
+
+
+def sky_expected(name, c):
+    """The picture on a Color with its clouds drifted c px (story_sky_oam): the cloud pixels go to sky where they were and are drawn
+    by their 8x16 sprites at x+c (wrapping round the 256-px OAM x, a sprite shown while 0 < its OAM x < 168), except where the
+    picture has a non-sky pixel: a mask sprite with that pixel is over the cloud there (gen_story.py checks every such pixel has one)."""
+    if (name, c) not in _SKY:
+        k = PICS[name]["sky"]
+        key, pix, _ = gen_story().parse_v2(ROOT / PICS[name]["art"])
+        sky = q15(key["."]["hex"])
+        skyish = {ch for ch, v in key.items() if v["hex"] == key["."]["hex"] and v["dmg"] == key["."]["dmg"]}
+        im = expected(name, "cgb").copy()
+        cloud = q15(key[k["key"]]["hex"])
+        for y, row in enumerate(pix):
+            for x, ch in enumerate(row):
+                if ch == k["key"]:
+                    im[y, x] = sky
+        for x0, y0, x1, y1, _top in k["clouds"]:
+            for y in range(y0, y1 + 1):
+                for x in range(x0, x1 + 1):
+                    if pix[y][x] != k["key"]:
+                        continue
+                    sx0 = x0 + (x - x0) // 8 * 8                 # its sprite's place in the picture
+                    ox = (sx0 + 8 + c) & 255
+                    if not 0 < ox < 168:
+                        continue
+                    sx = ox - 8 + x - sx0
+                    if 0 <= sx < 160 and (pix[y][sx] in skyish or pix[y][sx] == k["key"]):
+                        im[y, sx] = cloud
+        _SKY[name, c] = im
+    return _SKY[name, c]
+
+
 def picture_diff(gb, name, skip=None):
-    """Pixels of the picture area (rows 0-12) that differ from the source; `skip` = a rectangle to leave out."""
+    """Pixels of the picture area (rows 0-12) that differ from the source; `skip` = a rectangle to leave out. A picture whose
+    fountain flows: its jet cells are left out here (assert_picture checks their tiles are one of the water's phases). A Color
+    picture with drifting clouds (SK_ON 1): the source with its clouds at the drift the OAM had this frame (SK_C or SK_C - 1)."""
     got = np.array(gb.image())[:104, :160]
-    bad = np.any(got != expected(name, gb.model_name), axis=2)
+    c, on = sky_state(gb)
+    if gb.model_name == "cgb" and PICS[name].get("sky") and on == 1:
+        bad = min((np.any(got != sky_expected(name, d & 255), axis=2) for d in (c, c - 1)), key=lambda b: int(b.sum()))
+    else:
+        bad = np.any(got != expected(name, gb.model_name), axis=2)
     if name == "intro_a":
         bad[CRACKLE[1]:CRACKLE[3], CRACKLE[0]:CRACKLE[2]] = False
+    if PICS[name]["water"]:
+        for cx, cy in WATER_CELLS:
+            bad[cy * 8:cy * 8 + 8, cx * 8:cx * 8 + 8] = False
     if skip:
         x0, y0, x1, y1 = skip
         bad[y0:y1, x0:x1] = False
@@ -51,13 +116,19 @@ def assert_picture(gb, name, skip=None):
     n = picture_diff(gb, name, skip)
     assert n == 0, f"{n} pixels of the screen differ from {name}"
     p = PICS[name]
+    want_map = list(p["map"])
+    if gb.model_name == "cgb" and p.get("sky") and sky_state(gb)[1] == 1:   # (the cloud cells: the plain sky tile under the sprites)
+        for cx, cy in p["sky"]["cells"]:
+            want_map[cy * 20 + cx] = p["sky"]["sky_id"]
     for r in range(13):                                           # the tile map is the picture's too
         row = tilemap_row(gb, r, 0, 20)
-        want = p["map"][r * 20:(r + 1) * 20]
+        want = want_map[r * 20:(r + 1) * 20]
         if skip and r * 8 >= skip[1]:
             lo, hi = skip[0] // 8, skip[2] // 8
             row, want = row[:lo] + row[hi:], want[:lo] + want[hi:]
         assert row == want, f"{name}: tile map row {r}"
+    if p["water"]:
+        assert None not in water_phases(gb, name), f"{name}: the jets' tiles are no phase of the water"
 
 
 # ---- the build -----------------------------------------------------------------------------------------------
@@ -69,15 +140,19 @@ def test_the_pictures_are_built_to_the_budget():
         sc = by_scene[p["scene"]]
         slot = sc["bg_tiles"]
         assert p["base"] == SLOT_BASE + slot, name
-        assert len(p["pals"]) <= 4 and len(p["map"]) == len(p["attr"]) == 260
+        assert len(p["pals"]) <= (5 if p["bg2"] else 4) and len(p["map"]) == len(p["attr"]) == 260
         ids = set(p["map"])
         assert len(ids) == p["tiles"] and ids <= set(range(36)) | set(range(p["base"], 256)), f"{name}: tile ids"
         assert p["extra"] == (BURST["extra_tiles"] if name == "intro_a" else 0)          # the trail dots' tiles, unused by the map
-        assert all(a in (0, 5, 6, 7, 1) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
+        assert all(a in (0, 5, 6, 7, 1) + ((2,) if p["bg2"] else ()) for a in p["attr"]) and p["hud_cells"] == p["attr"].count(1), name
         assert p["tiles"] + p["extra"] <= 36 + 256 - p["base"], name
     # the numbers of the report (the picture tiles, the HUD palette cells of CREDITS)
-    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 117, "intro_a": 112, "finale_a": 134, "finale_contest": 131, "credits_b": 132}
-    assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "finale_contest": 0, "credits_b": 12}
+    assert {n: p["tiles"] for n, p in PICS.items()} == {"intro_before": 120, "intro_a": 109, "finale_a": 146, "finale_contest": 142, "credits_b": 130}
+    assert {n: p["hud_cells"] for n, p in PICS.items()} == {"intro_before": 0, "intro_a": 0, "finale_a": 0, "finale_contest": 0, "credits_b": 0}
+    assert {n: len(p["pals"]) for n, p in PICS.items()} == {"intro_before": 4, "intro_a": 3, "finale_a": 4, "finale_contest": 4, "credits_b": 5}
+    # Option A (town import 2026-11-04): the credits' fifth palette (the dawn jets' blue) is in BG 2, which a scene with no speaker page,
+    # no picture switch and no sharer never needs; no other picture may use it
+    assert {n for n, p in PICS.items() if p["bg2"]} == {"credits_b"} and 2 in PICS["credits_b"]["attr"]
     # the portrait slot sits below the picture's tiles in every scene
     assert all(max(i for i in PICS[n]["map"] if i >= 36) < 256 for n in PICS)
 
@@ -91,29 +166,39 @@ def _region(pix, x0, y0, x1, y1):
     return ["".join(r[x0:x1]) for r in pix[y0:y1]]
 
 
-def test_the_four_pictures_are_one_square_one_fountain_one_spigot():
-    """The continuity pass: the sources share one master layout (the same characters in the same places), the
-    same large gold F1 spigot and the same gold in every key, three times of day."""
+# The town master (owner 2026-11-04, round 6 with the roof, Q74): every picture of the square is one hand-drawn grid of material keys
+# (docs/dev/concepts/town_2026-11-04: tools/master.py, compose.py) and its own key is the time of day. Each picture differs from the
+# night's intro_before only where its own props stand (x0, y0, x1, y1 inclusive), above the plaza's edge (y 88).
+TOWN_PROPS = {
+    "intro_a": {"the broken spigot": (84, 0, 123, 47), "the stopped jets": (72, 48, 127, 71), "Dregs": (40, 64, 63, 87),
+                "the Spigoteer's shrug": (134, 64, 159, 87), "the crowd's heads": (64, 76, 119, 87)},
+    "finale_a": {"sun and clouds": (0, 0, 159, 23), "the Spigoteer and his glass": (112, 56, 141, 87), "Dregs": (136, 56, 159, 87),
+                 "the crowd's heads": (40, 76, 127, 87)},
+    "finale_contest": {"sun and clouds": (0, 0, 159, 23), "the Spigoteer": (56, 64, 79, 87), "Dregs": (136, 56, 159, 87),
+                       "the crowd's heads": (40, 76, 127, 87)},
+    "credits_b": {"sun and clouds": (0, 0, 159, 23), "the sun behind the town": (0, 24, 47, 47), "the drips": (80, 32, 127, 63),
+                  "Dregs and his mop": (32, 64, 63, 87), "the crowd's heads": (40, 76, 127, 87), "the right house, nobody at it": (136, 64, 159, 87)},
+}
+
+
+def test_the_pictures_are_one_town_master_with_their_own_props():
     pics = {n: _pix(n) for n in PICS}
-    for n, (key, _) in pics.items():                               # one gold, the INTRO's
-        assert key["Y"]["hex"] == "#f8f0a0" and key["y"]["hex"] == "#e8a828", n
-    # the spigot, the bowl and the pedestal (x 88-118, y 6-72): identical in the three pictures that
-    # show it whole (the credits' drips and the finale's glass aside)
-    ref = _region(pics["intro_before"][1], 88, 6, 119, 72)
-    for n in ("finale_a", "credits_b"):
-        got = _region(pics[n][1], 88, 6, 119, 72)
-        diff = {(x + 88, y + 6) for y, (a, b) in enumerate(zip(ref, got)) for x, (c, d) in enumerate(zip(a, b)) if c != d}
-        assert all(109 <= x < 116 and 37 <= y < 43 for x, y in diff), (n, sorted(diff)[:5])   # the drips of the credits
-    assert _region(pics["intro_before"][1], 72, 72, 120, 81) == _region(pics["finale_a"][1], 72, 72, 120, 81)  # the wall (the crowd aside)
-    # the clock tower and the houses at the left (x 0-30, y 29-87): the same everywhere (the dawn sun sits behind them)
-    ref = _region(pics["intro_before"][1], 0, 29, 31, 88)
-    for n in ("intro_a", "finale_a", "credits_b"):
-        got = [r.replace("y", ".") for r in _region(pics[n][1], 0, 29, 31, 88)] if n == "credits_b" else _region(pics[n][1], 0, 29, 31, 88)
-        assert got == ref, n
-    # the string lights hang in the three pictures that show them taut; the finale adds pennants among them
-    for n in ("intro_before", "intro_a", "finale_a"):
-        assert any("#" in r for r in _region(pics[n][1], 33, 41, 72, 50)), n
-    assert "r" in "".join(_region(pics["finale_a"][1], 33, 41, 160, 55)) and "r" not in "".join(_region(pics["intro_before"][1], 33, 41, 160, 55))
+    ref = pics["intro_before"][1]
+    assert set(TOWN_PROPS) == set(PICS) - {"intro_before"}
+    for n, boxes in TOWN_PROPS.items():
+        p = pics[n][1]
+        stray = [(x, y) for y in range(88) for x in range(160) if p[y][x] != ref[y][x] and ref[y][x] != "K"      # (K: the night's stars)
+                 and not any(x0 <= x <= x1 and y0 <= y <= y1 for x0, y0, x1, y1 in boxes.values())]
+        assert not stray, (n, stray[:8])
+        assert _region(p, 0, 0, 160, 8) == _region(ref, 0, 0, 160, 8), f"{n}: the bunting"
+    for n, (key, _) in pics.items():                               # one gold
+        assert key["y"]["hex"] == "#e8a828", n
+    # the Golden Spigot, the bowl and the pedestal (x 88-116, y 24-72): the same in the three pictures that show it whole (the credits' drips aside)
+    ref_sp = _region(ref, 88, 24, 117, 73)
+    for n in ("finale_a", "finale_contest", "credits_b"):
+        got = _region(pics[n][1], 88, 24, 117, 73)
+        diff = {(x + 88, y + 24) for y, (a, b) in enumerate(zip(ref_sp, got)) for x, (c, d) in enumerate(zip(a, b)) if c != d}
+        assert all(n == "credits_b" and 80 <= x <= 127 and 32 <= y <= 63 for x, y in diff), (n, sorted(diff)[:5])
     # the finale: the Spigoteer's glass is in the jet (water in the glass, the jet above it down to its rim)
     f = pics["finale_a"][1]
     assert all(f[y][122] == "b" or f[y][123] == "b" for y in range(51, 58))
@@ -124,7 +209,7 @@ def test_the_picture_sources_convert_exactly():
     """Each source reads back as the map/tiles in build/story.json (re-converted here), tile for tile."""
     g = gen_story()
     for name, p in PICS.items():
-        r = g.read_pic(name)
+        r = g.read_pic(name, p["bg2"])
         assert [p["ids"][t] for t in r["tmap"]] == p["map"], name
         # every cell's pixels are its tile's: DMG shades through the key, colours through the cell's palette
         for ty in range(13):
@@ -264,6 +349,66 @@ def test_intro_before_then_flash_then_the_explosion(model):
             raise golden_err
 
 
+PW_AT = 300                            # src/story.c story_water's bytes in story_scratch: PW_T, PW_PH, PW_DUE, then its buffer
+
+
+def assert_water_flows(gb, name, frames=72, skip=None):
+    """Owner Q74 (the town approved, 2026-11-04): the jets' highlights run down the two jets: a phase step every 8 game frames, in
+    order (0 1 2 3 0 ...), the left jet's tiles queued that frame and the right's the next. Nothing else of the picture moves: every
+    other pixel of rows 0-12 stays as the source has it, and so does the tile map."""
+    sc = gb.addr("story_scratch") + PW_AT
+    log = []                                                    # per GAME frame, at the end of its logic: (PW_T, PW_PH, PW_DUE)
+    def rec():
+        log.append(tuple(gb.pb.memory[sc + k] for k in range(3)))
+        return len(log) > frames + 1
+    until_game(gb, rec, limit=frames * 3)
+    log = log[1:]                                               # (until_game checks once at once: not a frame end)
+    for (t0, p0, d0), (t1, p1, d1) in zip(log, log[1:]):
+        assert t1 == (t0 + 1) & 255, log                        # one count a game frame
+        if t1 & 7:
+            assert p1 == p0, log
+        else:
+            assert p1 == (p0 + 1) & 3 and d1 == 2, log           # the step: the left jet's tiles go this frame ...
+    for (t0, p0, d0), (t1, p1, d1) in zip(log, log[1:]):
+        if not t0 & 7:
+            assert d1 == 0, log                                  # ... the right jet's the next
+    assert {q[1] for q in log} == {0, 1, 2, 3}
+    seen = []                                                   # per EMULATOR frame: what VRAM shows
+    for f in range(frames):
+        gb.run(1)
+        seen.append(water_phases(gb, name))
+        assert None not in seen[-1], f"frame {f}: the jets' tiles are no phase of the water"
+        if f % 9 == 0:
+            assert_picture(gb, name, skip)                       # (everything else as the source, the jets in a phase)
+    for j in (0, 1):
+        ph = [q[j] for q in seen]
+        assert all(b in (a, (a + 1) & 3) for a, b in zip(ph, ph[1:])), (j, ph)
+        assert set(ph) == {0, 1, 2, 3}, (j, ph)
+    assert gb.mem("drain_ticks_max") <= 13 and gb.mem("vq_end_ly_max") <= 153 and gb.mem16("vq_late") == 0
+
+
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_fountain_flows_at_night_and_the_rest_stays(model):
+    with start_story(model) as gb:
+        page_ready(gb)
+        assert_water_flows(gb, "intro_before")
+
+
+def test_the_water_tiles_are_the_jets_own():
+    """The water's tiles (story.json, from assets/story/pictures/water.txt): phase 0 is each picture's own jet tiles, the phases
+    differ, and only the jet cells' tile ids are rewritten (each one used by its cell alone). INTRO A's fountain has stopped."""
+    assert [n for n, p in PICS.items() if p["water"]] == ["intro_before", "finale_a", "finale_contest", "credits_b"]
+    for n, p in PICS.items():
+        if not p["water"]:
+            continue
+        ids = [p["map"][cy * 20 + cx] for cx, cy in WATER_CELLS]
+        assert all(p["map"].count(i) == 1 for i in ids), n
+        assert p["water_addr"] == [(0x9000 + i * 16) if i < 128 else 0x8800 + (i - 128) * 16 for i in ids], n
+        assert len(p["water"]) == STORY["water_phases"] == 4
+        for j in (0, 1):
+            assert len({tuple(map(tuple, p["water"][ph][j * 3:j * 3 + 3])) for ph in range(4)}) == 4, (n, j)
+
+
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 def test_start_skips_the_intro_before_and_during_the_flash(model):
     """START on page 1 and START in the middle of the white flash both end the scene cleanly: the same screen of the
@@ -330,6 +475,7 @@ def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
         assert_picture(gb, "finale_a", skip=None if s["pages"][0]["portrait"] is None else FRAME)
         if scene == "FINALE_A":
             check_golden(gb, "story_pic_finale_a")
+            assert_water_flows(gb, "finale_a", 40, skip=None if s["pages"][0]["portrait"] is None else FRAME)   # (by day: the right jet into the glass)
         seen_states = set()
         gb.write("drain_ticks_max", 0)
         for k, page in enumerate(s["pages"]):
@@ -352,6 +498,7 @@ def test_finale_streams_each_speakers_portrait_into_the_one_slot(model, scene):
                         check_golden(gb, "story_pic_finale_contest")
                     else:
                         gb.golden(g, update=True)
+                    assert_water_flows(gb, "finale_contest", 40)  # (the jet runs into the basin again: nobody holds a glass up)
             else:
                 assert gb.mem("story_cur") == PORTRAITS[name]["pid"], (k, name)
                 assert_picture(gb, pic, skip=FRAME)
@@ -376,6 +523,7 @@ def test_credits_picture_and_start_skips_the_finale(model):
         page_ready(gb)
         assert_picture(gb, "credits_b")
         check_golden(gb, "story_pic_credits_b")
+        assert_water_flows(gb, "credits_b", 40)                  # (at dawn)
         gb.press("start", 2)                                      # ... and the CREDITS pages: on to the credits roll (tests/test_credits.py)
         run_until(gb, lambda: gb.mem("story_phase") == 8, 60)
 
@@ -690,20 +838,6 @@ def test_mashing_a_through_the_burst_keeps_the_line_limit(model):
 
 
 # ---- the owner review of the finale and the credits ------------------------------------------------------------
-DREGS_J2 = ['..................', '........#####.....', '......#########...', '.....###########..', '....######mmm#####', '....##############',
-            '....######DDD##...', '....####DDDDDD#...', '....#D##DDDDDD#...', '....#DD#DDD###D#..', '....#DD#DDDDDDDD#.', '....#DDDDDDDDDDDD#',
-            '.....#DDDDDDDD####', '.....#DDDDD###D#..', '.....#DDDDDDDDD#..', '......##DDDDDD#...', '........#DDDD#....', '........#DDD#.....',
-            '.....###D#D#D###..', '....#mmD#####Dmm#.', '...#mmmD#D#D#Dmmm#', '...#mmmmD#D#Dmmmm#', '...#m#mmmD#Dmmm#m#', '...#m#mmmmDmmmm#m#',
-            '...#m#mmmmmmmmm#m#', '...#D#mmmmmmmmm#D#', '....#.#########.#.']      # his approved small art (J2), rows 0-26
-PENNANTS = {"r": ["#rrr#", ".#r#.", "..#.."], "y": ["#yyy#", ".#y#.", "..#.."], "b": ["#bbb#", ".#b#.", "..#.."]}
-
-
-def _find(pix, shape):
-    h, w = len(shape), len(shape[0])
-    return [(x, y) for y in range(len(pix) - h) for x in range(len(pix[0]) - w)
-            if all(pix[y + j][x + i] == shape[j][i] for j in range(h) for i in range(w) if shape[j][i] != ".")]
-
-
 def mash_scene(model, scene):
     """A cut-scene ready to be crawled, and when to stop (INTRO and a PRE scene end at the goal banner, FINALE_A at the Pour-Off,
     FINALE_B on leaving the story state or when the credits roll has scrolled to its end)."""
@@ -750,72 +884,211 @@ def test_mashing_a_never_makes_the_drain_leave_vblank(model, scene, period):
 
 
 
+def _frames(path):
+    rows = [r for r in (ROOT / path).read_text().splitlines() if r and not r.startswith(";")]
+    return [rows[k:k + 24] for k in range(0, len(rows), 24)]
+
+
+def _stamped(pix, frame, x0, y0, keymap, flip=False):
+    """the sprite pixels of frame (its keys mapped) that the picture does not show at (x0, y0)"""
+    return [(x0 + k, y0 + j) for j, r in enumerate(frame) for k, c in enumerate(r[::-1] if flip else r)
+            if c != "." and pix[y0 + j][x0 + k] != keymap[c]]
+
+
 def test_the_finale_shows_dregs_not_a_second_bartender():
-    """Dregs is his Pour-Off sprite (assets/art/dregs/dregs.txt, faces left toward the Spigoteer): the sprite's head (face
-    variant F1, owner 2026-10-12), the sprite's jacket body stretched to the picture's size (torso +2 rows, hem at y 88;
-    no legs here: the pavement hides them), no white shirt or apron, and his colours are not the Spigoteer's. His skin is the
-    finale's S, not the sprite's cream: a fifth BG palette would be needed (gen_story allows four)."""
-    key, pix = _pix("finale_a")
-    got = _region(pix, 142, 62, 160, 89)              # (face variant F1 since 2026-10-12: the head is the sprite's, below)
-    sprite = [r for r in (ROOT / "assets/art/dregs/dregs.txt").read_text().splitlines() if r and not r.startswith(";")][:24]
-    sm = lambda r: r.replace("-", "S").replace("+", "m")
-    # (the picture's Dregs is the Pour-Off sprite itself, idle frame, hung 3 rows lower than the old figure)
-    assert all(got[4 + i][:16] == sm(sprite[i]) for i in range(14)), "the head and neck are the sprite's (rows 0-13)"
-    assert got[18][:16] == sprite[14].replace("-", "S").replace("+", "m"), "the sprite's collar"
-    assert "W" not in "".join(_region(pix, 139, 60, 160, 89)), "no white shirt or apron on Dregs"
-    assert "r" not in "".join(got)                                                        # no rose on Dregs (the Spigoteer's cap is cream)
-    assert key["m"]["hex"] == "#b0a0b8" and "".join(got).count("m") > 40                  # Dregs wears the grey jacket
+    """Dregs is his Pour-Off sprite (assets/art/dregs/dregs.txt, the v8 idle, the owner's), whole, feet on the cobble at y 93, by day:
+    skin S (DMG 1), jacket B (the wall's lilac, DMG 2), ink. The contest picture shows him in the same place (shared tiles)."""
+    idle = _frames("assets/art/dregs/dregs.txt")[0]
+    for n in ("finale_a", "finale_contest"):
+        key, pix = _pix(n)
+        assert not _stamped(pix, idle, 142, 70, {"-": "S", "+": "B", "#": "#"}), n
+        assert (key["S"]["dmg"], key["B"]["dmg"]) == (1, 2)
+        assert "W" not in "".join(_region(pix, 142, 70, 158, 94)), "no white shirt or apron on Dregs"
 
 
-def test_the_credits_flags_match_the_finales_and_the_stand_and_legs_read():
-    fkey, f = _pix("finale_a")
-    ckey, c = _pix("credits_b")
-    for ch, shape in PENNANTS.items():                      # the same pennant shape in the same colour in both pictures
-        assert ckey[ch]["hex"] == fkey[ch]["hex"], ch
-        assert _find(f, shape) and _find(c, shape), ch
-    assert len(_find(c, PENNANTS["r"])) >= 2 and len(_find(c, PENNANTS["b"])) >= 1 and len(_find(c, PENNANTS["y"])) >= 2
-    # Dregs stands on the cobbles in his apron: outlined trousers (rows 88-91, ink round a B fill, a seam between the legs)
-    # and ink shoes (rows 92-93, toes to the right) below the apron's hem (y 87)
-    assert all("".join(c[y][34:43]) == "#BBB#BBB#" for y in (88, 89, 90, 91))
-    assert all("".join(c[y][33:39]) == "######" and "".join(c[y][40:46]) == "######" for y in (92, 93))
-    # the Sasquatch's coffee stand (24 x 32 in the HUD palette cells, a cup sign on its roof, a pale steaming cup
-    # in the window and his furry arm)
-    stand = _region(c, 136, 56, 160, 88)
-    assert set("".join(stand)) <= set("CTGZ")
-    assert stand[1] == "ZGGGCCCCGGGGCCCCGGGGCCCZ"            # the striped awning
-    sign = "".join(_region(c, 139, 43, 157, 56))
-    assert sign.count("Y") >= 60 and sign.count("y") >= 20
-    window = "".join(stand[8:23])
-    assert window.count("C") >= 30 and window.count("T") >= 30 and window.count("G") >= 60       # cup and steam, hand, fur
+def test_the_credits_dregs_mops_and_no_coffee_stand():
+    """Dregs mops in front of the tavern in his v8 fill pose (unflipped, as the game shows it), feet on the cobble at y 93, by dawn:
+    skin D, head and jacket B (the dawn violet), ink, the mop in his hands. The coffee stand is gone (owner, round 5: in every picture or
+    in none) and nobody stands at the right house."""
+    key, c = _pix("credits_b")
+    fill = _frames("assets/art/dregs/dregs.txt")[3]
+    off = _stamped(c, fill, 46, 70, {"-": "D", "+": "B", "#": "#"})
+    assert all(36 <= x <= 46 and 85 <= y <= 93 for x, y in off), off[:5]          # (only where the mop crosses him)
+    assert len(off) < 12
+    assert PICS["credits_b"]["hud_cells"] == 0 and not set("CTGZ") & set(key)
+    assert set("".join(_region(c, 141, 64, 159, 88))) <= set("B#")
 
 
 def test_the_contest_picture_is_the_first_pour_courtyard_with_the_two_game_sprites_and_no_pour():
-    """finale_contest = finale_a outside the old Spigoteer / Dregs spot (x 112-159, y 58-87) and the two sprites' boxes: the Golden Spigot, the
-    fountain and the ten owners are untouched, nothing is held up to the jet, the Spigoteer and Dregs are the game's idle sprites facing each other."""
+    """finale_contest = finale_a outside the first pour's Spigoteer (x 112-141, y 56-93) and the game Spigoteer's box: there the square is
+    the town master's (intro_before's characters, finale_a's basin line), the Golden Spigot untouched, the ten owners along the bottom, nothing
+    held up to the jet; the Spigoteer is the game's idle sprite (flipped, facing Dregs) in front of the tavern, Dregs as in finale_a."""
     key, a = _pix("finale_a")
     key2, b = _pix("finale_contest")
+    _, night = _pix("intro_before")
     assert key == key2
     for y in range(104):
         for x in range(160):
-            in_spot = 112 <= x < 160 and 58 <= y < 88
-            in_sal = 56 <= x < 72 and 64 <= y < 88
+            in_spot = 112 <= x <= 141 and 56 <= y <= 93
+            in_sal = 59 <= x <= 74 and 71 <= y <= 94
             if not (in_spot or in_sal):
                 assert a[y][x] == b[y][x], (x, y)
+            elif 112 <= x <= 140 and 56 <= y <= 87:
+                assert b[y][x] == (a[y][x] if y == 87 and x <= 126 else night[y][x]), (x, y)
     assert _region(a, 88, 6, 119, 40) == _region(b, 88, 6, 119, 40)             # the Golden Spigot, whole
-    assert _region(a, 0, 88, 160, 104) == _region(b, 0, 88, 160, 104)          # the owners
-    assert not any("S" in r[112:137] for r in b[58:80])                         # nobody holds a glass up to the right jet: the hand and the Spigoteer are gone from the basin
-    assert sum(c != "." for r in _region(b, 56, 64, 72, 88) for c in r) > 60      # the Spigoteer
-    assert sum(c != "." for r in _region(b, 137, 64, 153, 88) for c in r) > 60    # Dregs
+    assert _region(a, 0, 95, 160, 104) == _region(b, 0, 95, 160, 104)          # the owners
+    assert not any("S" in r[112:137] for r in b[58:80])                         # nobody holds a glass up to the right jet
+    sal = _frames("assets/art/bartender.txt")[0]
+    assert not _stamped(b, sal, 59, 71, {"-": "W", "+": "S", "#": "#"}, flip=True)
+    assert key["W"]["dmg"] == 0 and key["S"]["dmg"] == 1
 
 
 def test_the_finale_spigoteer_wears_the_cream_wooly_cap_and_his_mustache_shows():
     """Owner 2026-10-20: Aurora knits a cream wooly (newsboy) cap. The owner redrew it 2026-10-29 (Q42: shading in gold
-    y, since skin and cream share a DMG shade): cream Y with gold shading, an ink brim line at row 71, no pink on him,
-    and the mustache rows are ink."""
+    y). Town round 6 (approved, Q74): the joined hall's lilac wall stands behind the crown now and the crown's gold shading and the
+    lilac are both DMG 2, so the crown is all sunlit cream Y; an ink brim line at row 71, no pink on him, and the mustache rows are ink."""
     key, pix = _pix("finale_a")
     hat = _region(pix, 127, 65, 139, 72)
     cap = "".join(hat)
-    assert cap.count("Y") >= 15 and cap.count("y") >= 4 and "#" * 10 in hat[6]
+    assert cap.count("Y") >= 15 and "#" * 10 in hat[6]
     assert "r" not in "".join(_region(pix, 124, 64, 142, 90)), "no pink on the Spigoteer"
     face = _region(pix, 128, 72, 138, 82)
     assert "r" not in "".join(face) and "#####" in face[5], "the mustache (ink) is uncovered"
+
+
+# ---- the clouds drift (Color only; assets/story/pictures/sky.txt, src/story.c story_sky) -------------------------------------
+SKY_PICS = [n for n, p in PICS.items() if p.get("sky")]
+
+
+def sky_guard(gb):
+    """Every frame of a sky picture's scene on a Color: the sprites past the Spigoteer's (OAM 0-3) are the overlay's (OAM 4-19,
+    tiles from OBJ_DANCER, OBJ palettes 3 7: never the clouds' 4 6) or the clouds' (OAM 20.., tiles 56.., palettes 4 6), no line
+    holds more than 10 sprites, and the clouds show only while they drift (SK_ON 1)."""
+    c, on = sky_state(gb)
+    lo, n = SKY["oam"], max(len(PICS[s]["sky"]["spr"]) for s in SKY_PICS)
+    hi_t = SKY["obj"] + max(PICS[s]["sky"]["ntiles"] for s in SKY_PICS)
+    for i, e in enumerate(gb.oam()):
+        if not (0 < e["y"] < 160 and 0 < e["x"] < 168):
+            continue
+        if 4 <= i < lo:
+            assert e["tile"] >= 96 and e["flags"] & 7 not in SKY["pals"], (i, e)
+        elif i >= lo:
+            assert on == 1 and i < lo + n and SKY["obj"] <= e["tile"] < hi_t and e["flags"] & 7 in SKY["pals"], (i, e, on)
+    assert line_max(gb) <= SKY["line_max"]
+
+
+def test_the_clouds_borrow_only_what_the_burst_leaves_free():
+    """The clouds borrow the INTRO burst's OAM (20..) and OBJ tiles (56..): the burst is the INTRO's alone, and no sky picture is
+    the INTRO's. The FINALE / CREDITS speakers' overlays keep to OBJ palette 3 (one palette each), OAM 4-19 and tiles from 96, so
+    the clouds' palettes 4 and 6 are theirs; a line never holds more than 10 sprites at any drift (the build simulates all 256)."""
+    g = gen_story()
+    pics_of = {sc: [n for _, n in v] for sc, v in g.SCENE_PICS.items()}
+    assert not set(pics_of["INTRO"]) & set(SKY_PICS)
+    assert sorted(SKY_PICS) == ["credits_b", "finale_a", "finale_contest"]
+    assert set(SKY_PICS) <= {n for sc, v in pics_of.items() if sc != "INTRO" for n in v}
+    assert SKY == {"oam": BURST["oam"], "obj": BURST["obj"], "pals": [4, 6], "line_max": 10}
+    for n in SKY_PICS:
+        k = PICS[n]["sky"]
+        assert len(k["spr"]) <= 16 and SKY["oam"] + len(k["spr"]) <= 40
+        assert k["ntiles"] <= 36 and SKY["obj"] + k["ntiles"] <= 96, n          # (BURST_OBJ_N; the overlay tiles start at 96)
+        assert k["worst"] <= 10 and len(k["cells"]) <= 8, n
+    for sc in ("FINALE_A", "FINALE_B", "CREDITS"):
+        spk = {pg["portrait"] for pg in SCENES[SC[sc]]["pages"]} - {None}
+        assert all(STORY["portraits"][s]["obj_pals"] <= 1 for s in spk), sc
+        assert SCENES[SC[sc]]["obj_tiles"] <= 32
+
+
+def sky_log(gb, frames):
+    """per game frame, at the end of its logic: (PW_T, SK_C, SK_ON), with sky_guard after every emulator frame"""
+    sc = gb.addr("story_scratch")
+    log = []
+
+    def rec():
+        log.append((gb.pb.memory[sc + PW_AT], gb.pb.memory[sc + SK_AT], gb.pb.memory[sc + SK_AT + 1]))
+        return len(log) > frames + 1
+    until_game(gb, rec, limit=frames * 3, each=sky_guard)
+    return log[1:]
+
+
+@pytest.mark.parametrize("scene", ["FINALE_A", "CREDITS"])
+def test_the_clouds_drift_on_a_color(scene):
+    """Owner Q74 (2026-11-04): on a Color the clouds drift one pixel right every 8 game frames (with the water's count); their cells
+    are plain sky under them, the masks keep them behind the Golden Spigot and the spire, and the rest of the picture stays."""
+    with to_finale("cgb") as gb:
+        name = "finale_a"
+        if scene == "CREDITS":
+            through_the_pouroff(gb)
+            gb.press("start", 2)
+            run_until(gb, lambda: gb.mem("story_scene") == SC["CREDITS"], 30)
+            settle(gb)
+            name = "credits_b"
+        page_ready(gb)
+        assert sky_state(gb)[1] == 1
+        log = sky_log(gb, 72)
+        for (t0, c0, on0), (t1, c1, on1) in zip(log, log[1:]):
+            assert on1 == 1 and c1 == ((c0 + 1) & 255 if not t1 & 7 else c0), log
+        assert log[-1][1] - log[0][1] >= 8
+        skip = None if scene == "CREDITS" or SCENES[SC[scene]]["pages"][0]["portrait"] is None else FRAME
+        for f in range(40):
+            gb.run(1)
+            sky_guard(gb)
+            if f % 5 == 0:
+                assert_picture(gb, name, skip)
+        k = PICS[name]["sky"]
+        first = next(i for i, s in enumerate(k["spr"]) if s[0] == "cloud")
+        xs = []
+        for f in range(24):
+            gb.run(1)
+            xs.append(gb.oam()[SKY["oam"] + first]["x"])
+        assert len(set(xs)) >= 3 and all(b in (a, (a + 1) & 255) for a, b in zip(xs, xs[1:])), xs
+        # a cloud behind the spigot: poke the drift so the first cloud sits under the spigot's mask, and the picture is still exact
+        sc = gb.addr("story_scratch") + SK_AT
+        x0 = k["clouds"][0][0]
+        gb.pb.memory[sc] = (100 - x0 - 1) & 255
+        until_game(gb, lambda: gb.pb.memory[sc] == (100 - x0) & 255, 20)
+        gb.run(2)
+        assert any(0 < e["y"] < 160 for e in gb.oam()[SKY["oam"]:SKY["oam"] + first]), "a mask is up over the spigot"
+        sky_guard(gb)
+        assert_picture(gb, name, skip)
+        assert gb.mem("drain_ticks_max") <= 13 and gb.mem("vq_end_ly_max") <= 153 and gb.mem16("vq_late") == 0
+
+
+def test_a_dmg_keeps_the_still_clouds():
+    """On a DMG nothing of the sky moves: SK_ON stays 0, OAM 20-39 stays hidden (the sprites are the ones the scene always had: the
+    Spigoteer's four), the cloud cells keep their tiles and the picture is the source, exact, frame after frame."""
+    with to_finale("dmg") as gb:
+        page_ready(gb)
+        before = [i for i, e in enumerate(gb.oam()) if 0 < e["y"] < 160]
+        assert max(before, default=0) < SKY["oam"]
+        for f in range(80):
+            gb.run(1)
+            assert sky_state(gb) == (0, 0)
+            assert all(e["y"] == 0 for e in gb.oam()[SKY["oam"]:])
+            assert [i for i, e in enumerate(gb.oam()) if 0 < e["y"] < 160] == before
+            if f % 10 == 0:
+                skip = None if SCENES[SC["FINALE_A"]]["pages"][0]["portrait"] is None else FRAME
+                assert_picture(gb, "finale_a", skip)
+        p = PICS["finale_a"]
+        for cx, cy in p["sky"]["cells"]:
+            assert tilemap_row(gb, cy, cx, 1) == [p["map"][cy * 20 + cx]]
+
+
+def test_the_clouds_hide_for_the_contest_flash_and_come_back_after_its_fade_in():
+    """FINALE_A's picture switch (the contest's set-up): the clouds' sprites are off for the white, the contest's clouds come back
+    once it has faded in (cells to sky and sprites in the same frame), and every frame of the scene keeps the guard."""
+    with to_finale("cgb") as gb:
+        s = SCENES[SC["FINALE_A"]]
+        page_ready(gb)
+        seen = []
+        for k in range(1, len(s["pages"])):
+            gb.press("a", 2)
+            for f in range(400):
+                gb.run(1)
+                sky_guard(gb)
+                seen.append(sky_state(gb)[1])
+                if gb.mem("story_swap") == 0 and gb.mem("story_typed") > 0 and (k != 3 or sky_state(gb)[1] == 1):
+                    break
+            page_ready(gb)
+            if k == 3:
+                assert 0 in seen and 3 in seen and seen[-1] == 1, seen
+                assert_picture(gb, "finale_contest")

@@ -5,7 +5,7 @@
 #   - (the puff's tiles after every variant: tests/test_trans_puff.py)
 import pytest
 
-from conftest import K_PLAY, K_STORY, TR_OFF, TRANS_ADDR, hold_stage_anim, menu_tap, title_pick, trans_enable
+from conftest import K_PLAY, K_STORY, TR_OFF, TRANS_ADDR, hold_stage_anim, menu_tap, title_pick, trans_enable, without_water
 from test_sound import make_rom
 from test_story import to_shift, win
 
@@ -35,7 +35,7 @@ def test_the_picture_after_the_transition_is_the_picture_without_it(model, varia
         menu_tap(gb, "a")
         menu_tap(gb, "a")
         gb.run(300)
-        shots.append(gb.image().tobytes())
+        shots.append(without_water(gb.image()))         # (the INTRO's fountain flows: its jets' phase depends on when the picture came up)
         if on:
             m = gb.pb.memory
             assert not m[TRANS_ADDR] & 7, "TRANS flags clear after the transition"

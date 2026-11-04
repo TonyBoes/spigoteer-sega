@@ -1,0 +1,36 @@
+; The clouds drifting, Color only (town import, owner Q74 2026-11-04; the round 4 motion plan). On a Color the picture's own
+; cloud pixels become OBJ sprites that drift right one pixel every 8 game frames (src/story.c story_sky), wrapping round the
+; 256-pixel OAM x; their BG cells are swapped to the plain sky tile when the picture loads. Where a cloud passes behind the
+; town (the Golden Spigot, the clock tower's spire, the dawn sun), mask sprites with the picture's own pixels, at lower OAM
+; indexes, are drawn over it while it passes. A DMG keeps the still BG clouds.
+; tools/gen_story.py only converts: it cuts the clouds' pixels and the masks' pixels out of the picture, checks every
+; non-sky pixel a cloud passes is under a mask, that the colours fit two OBJ palettes, and that no line ever holds more than
+; 10 sprites at any drift.
+;
+; @pic PICTURE KEY: the picture and its cloud key (the pixels that drift)
+; @cloud X0 Y0 X1 Y1 [TOP]: one cloud (numbered from 1 in its picture), the KEY pixels in this rectangle (inclusive); cut into
+;   8x16 sprites from X0, the sprites' top at TOP (default Y0). A sprite takes a place on all its 16 lines: TOP keeps a thin
+;   strip's sprites off the lines of another.
+; @mask X Y N CLOUD...: N mask sprites side by side, top-left (X, Y): the picture's non-sky pixels there on the rows of the
+;   clouds named, shown while one of those clouds passes over its columns
+
+@pic finale_a o
+@cloud 40 16 63 21
+@cloud 128 18 143 21
+@cloud 3 20 12 22
+@mask 95 16 3 1 2 3
+@mask 20 16 1 1 2 3
+
+@pic finale_contest o
+@cloud 40 16 63 21
+@cloud 128 18 143 21
+@cloud 3 20 12 22
+@mask 95 16 3 1 2 3
+@mask 20 16 1 1 2 3
+
+@pic credits_b O
+@cloud 50 14 80 15 0
+@cloud 124 22 147 23
+@mask 95 0 3 1
+@mask 99 22 2 2
+@mask 19 22 2 2

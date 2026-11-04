@@ -148,8 +148,18 @@ uint8_t story_scratch[STORY_SCRATCH];
 #define PS_OUT   ((uint16_t *)(story_scratch + 40 + PS_BURST * 16 + 40))   // the fade step to write next (20 words)
 #define PS_W     (story_scratch[1])                  // its w: 3 white .. 0 as drawn (also what DMG's BGP is set from)
 #define PB_T     (story_scratch[168])                // the INTRO's explosion: frames since the flash (255: none running)
+#define PW_AT    300                                 // the fountain flowing (story_water), above the burst's bytes:
+#define PW_T     (story_scratch[PW_AT])              // frames since the picture came up (mod 256)
+#define PW_PH    (story_scratch[PW_AT + 1])          // the jets' phase now (0 .. STORY_WATER_PHASES - 1; 0 = the picture as drawn)
+#define PW_DUE   (story_scratch[PW_AT + 2])          // bit j: jet j (0 left, 1 right) still shows an older phase
+#define PW_BUF   (story_scratch + PW_AT + 3)         // a jet's three tiles (48 bytes), then their VRAM addresses (6), on their way through the list
+#define PW_END   (PW_AT + 3 + 54)
+#define SK_C     (story_scratch[PW_END])             // the clouds drifting (Color, story_sky): px right of their place in the picture
+#define SK_ON    (story_scratch[PW_END + 1])         // 0 none or hidden, 1 drifting, 2 to come on this frame, 3 waiting for the switch's fade-in
+#define SK_BUF   (story_scratch + PW_END + 2)        // the cloud cells for the VBlank list: count, the sky tile id, x y each (story_sky_cells)
+#define SK_END   (PW_END + 2 + 2 + 2 * STORY_SKY_CELLS)
 // a picture scene's bytes in order, none touching the next (and the INTRO burst's own, generated: gen_story.py, STORY_STB_AT..STORY_STB_END)
-typedef char ps_fits[(2 + SWAP_ROWS * 18 <= 40 && 40 + PS_BURST * 16 + 40 + 40 <= 168 && 168 + 1 <= STORY_STB_AT && STORY_STB_END <= STORY_SCRATCH) ? 1 : -1];
+typedef char ps_fits[(2 + SWAP_ROWS * 18 <= 40 && 40 + PS_BURST * 16 + 40 + 40 <= 168 && 168 + 1 <= STORY_STB_AT && STORY_STB_END <= PW_AT && SK_END <= STORY_SCRATCH) ? 1 : -1];
                                                      // (+170: the trail's cursor and stage, build/story_pictures.c)
 #define PIC_SCENE (story_hdr.venue == 255)
 uint8_t story_unskip;              // test hook: bit s set = step s of every chapter is played even if marked STEP_SKIP
@@ -456,6 +466,10 @@ static void scene_enter(uint8_t s) {
         story_pic_draw(story_hdr.pic, is_cgb);
         PS_FX = 0;
         PB_T = 255;
+        PW_T = 0; PW_PH = 0; PW_DUE = 0;         // (the jets as drawn)
+        SK_C = 0;                                // Color: the clouds as OBJ sprites where the picture has them (LCD off: their cells made
+        SK_ON = is_cgb && story_sky_load(story_hdr.pic, 1);   // sky at once; the scene's transition fades the OBJ palettes in with the rest)
+        if (SK_ON) story_sky_oam(story_hdr.pic, 0);
     }
     // the text box
     fill(row_buf, TILE_PANEL_TOP, 20); set_bkg_tiles(0, BOX_ROW, 20, 1, row_buf);
@@ -960,10 +974,44 @@ static void pic_put(void) {
     for (k = 0; k < 5; k++) (set_bkg_palette)(pic_slot[k], 1, PS_OUT + k * 4);   // (raw: pic_calc lifted them)
 }
 
+// The fountain flowing (owner Q74, 2026-11-04; assets/story/pictures/water.txt): every 8 frames the jets' phase steps on, and each
+// jet's three tiles go out through the VBlank list, the left jet one frame and the right the next, when the list has room for them
+// and nothing else is changing the screen (a portrait swap, the picture switch's flash, last frame's list still waiting). A jet that
+// had to wait shows the newer phase when it goes. DMG and Color alike; a picture without water (INTRO A) answers 0.
+static void story_water(void) {
+    uint8_t j, k;
+    if (!(++PW_T & 7)) { PW_PH = (PW_PH + 1) & (STORY_WATER_PHASES - 1); PW_DUE = 3; }
+    if (!PW_DUE || vq_held || story_swap != SW_IDLE || (story_hdr.swpage && PS_FX) || room_left(VQ_STORY_ROOM) < 3 * COST(16)) return;
+    j = (PW_DUE & 1) ? 0 : 1;
+    PW_DUE &= j ? 1 : 2;
+    if (!story_water_tiles(story_hdr.pic, j, PW_PH, PW_BUF)) { PW_DUE = 0; return; }
+    for (k = 0; k < 3; k++) {
+        vq_add(0, PW_BUF + k * 16, 0, 0, 16);
+        vq[vq_count - 1].dst = (uint8_t *)(PW_BUF[48 + 2 * k] | ((uint16_t)PW_BUF[49 + 2 * k] << 8));
+    }
+}
+
+// The clouds drifting, Color only (owner Q74, 2026-11-04; assets/story/pictures/sky.txt): the picture's clouds are OBJ sprites that move
+// one pixel right every 8 frames (with the water's count), masks of the picture's own pixels over them where they pass behind the town.
+// After the picture switch's fade-in (SK_ON 2) their BG cells go to sky in the same VBlank as the sprites come on, where the BG clouds were.
+static void story_sky(void) {
+    uint8_t k;
+    if (SK_ON == 2) {
+        if (vq_held || room_left(VQ_STORY_ROOM) < (uint8_t)(SK_BUF[0] * COST(1))) return;
+        for (k = 0; k < SK_BUF[0]; k++) vq_add(0, SK_BUF + 1, SK_BUF[2 + 2 * k], SK_BUF[3 + 2 * k], 1);
+        SK_ON = 1;
+        story_sky_oam(story_hdr.pic, SK_C);
+    } else if (SK_ON == 1 && !(PW_T & 7) && story_swap == SW_IDLE) story_sky_oam(story_hdr.pic, ++SK_C);   // (not on a page's swap frames: they are full)
+}
+
 // One step of the switch (PS_FX = the step, 1 on the page turn). 1: the LCD was off for it.
 static uint8_t pic_fx(void) {
     uint8_t f = PS_FX++, k;
     if (f == 1) {                                // white (all eight BG palettes: the frame's are white too)
+        if (SK_ON) {                             // (the clouds are sprites: not over the white; they come back after the fade-in)
+            for (k = 0; k < STORY_SKY_SPR; k++) shadow_OAM[STORY_SKY_OAM + k].y = 0;
+            SK_ON = 0;
+        }
         story_pic_pals(story_hdr.pic, PS_PALS);  // (the HUD's palette is kept to fade back to: a skip needs it too)
         pic_calc(3);
         if (!is_cgb) pic_put();
@@ -980,6 +1028,9 @@ static uint8_t pic_fx(void) {
         story_swap = SW_IDLE;
         story_hdr.pic++;                         // (the wipes of pages 6-8 restore this one: story_pic_row)
         story_pic_draw(story_hdr.pic, is_cgb);
+        PW_PH = 0; PW_DUE = 0;                   // (its jets as drawn)
+        SK_C = 0;                                // (its clouds: tiles and palettes now, the cells and sprites once it has faded in)
+        if (is_cgb && story_sky_load(story_hdr.pic, 0)) SK_ON = 3;
         story_pic_pals(story_hdr.pic, PS_PALS);
         if (story_hdr.pic == STORY_BURST_PIC) story_burst_load(is_cgb);   // (the INTRO's explosion: ten pieces' OBJ tiles and palette, flown by story_update; FINALE_A's second picture has none)
         page_begin(1);                           // the narrator's page: its box and tag, no portrait (story_cur 255)
@@ -996,7 +1047,10 @@ static uint8_t pic_fx(void) {
         k = (FX_END - f) >> 1;
         if (!((FX_END - f) & 1)) {
             pic_put();
-            if (!k) PS_FX = 0;                     // (faded in: the trail's map writes may go out from now on)
+            if (!k) {
+                PS_FX = 0;                         // (faded in: the trail's map writes may go out from now on)
+                if (SK_ON == 3) { story_sky_cells(story_hdr.pic, SK_BUF); SK_ON = 2; }
+            }
         } else pic_calc(k);
     }
     return 0;
@@ -1085,6 +1139,8 @@ uint8_t story_update(uint8_t pressed) BANKED {
         if (PB_T != 255)                         // the INTRO's explosion, last: its trail and star go into whatever room the frame's list has
             PB_T = story_burst_step(PB_T, (story_hdr.swpage && PS_FX) || (pressed & (J_A | J_B)) ? 0 : story_swap ? 1 : STORY_BURST_PER) ? 255 : PB_T + 1;
         else if (story_hdr.pic == STORY_BURST_PIC && !PS_FX) story_burst_crackle(story_t);   // over: the sparks keep on off the stump
+        story_water();                           // (after the burst: it takes what room the frame's list has left)
+        story_sky();                             // (Color: the clouds; nothing on a DMG, SK_ON stays 0)
     }
     return btn;
 }
