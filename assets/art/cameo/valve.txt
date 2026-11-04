@@ -1,0 +1,16 @@
+; PROPOSAL (2026-11-04): the Sasquatch's valve as a handwheel (ring, spokes, hub, short stem), 11x14, hand-typed.
+; Keys: . clear, - light gold (idx 1), + mid gold (idx 2), # dark outline (idx 3). Replaces the intro's bulb-shaped valve piece for the cameo.
+...#####...
+..#----+#..
+.#-#####+#.
+#-#..+..#+#
+#-#..+..#+#
+#-#++-++#+#
+#-#..+..#+#
+#+#..+..#+#
+.#+#####+#.
+..#+++++#..
+...#####...
+....#-#....
+....#+#....
+...#####...

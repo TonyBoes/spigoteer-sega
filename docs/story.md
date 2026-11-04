@@ -939,26 +939,26 @@ AND HIS DIGNITY.
 SPIGOTEER
 NINE DOWN!| ONE
 PIECE LEFT. NEXT:
-OUTER SPACE.| BUS?
+OUTER SPACE.| HOW?
 ```
 
 ---
 
 ### PRE_SPACE: "One Small Sip"
 
-Picture: a neon space lounge with a ringed planet in the window. A city bus with a SPACE route sign is parked outside the airlock.
+Picture: a neon space lounge with a ringed planet in the window. A UFO beams the Spigoteer up from the mountain.
 
 ```
 NARRATOR
 @beat 2
-THE SPIGOTEER
-TOOK THE BUS TO
-OUTER SPACE.
+A UFO BEAMED THE
+SPIGOTEER UP
+OFF THE MOUNTAIN.
 
 NARRATOR
 @beat 3
 IT WAS A VERY|
-LONG BUS RIDE.
+SHORT TRIP.
 
 ZIZZ
 GREETINGS, EARTH|
@@ -1266,7 +1266,7 @@ cookie) must not be added to a portrait unless the owner asks. These lines descr
 | POST_TEAHOUSE | Hana pouring tea at a low table; taiko drummer bows. |
 | PRE_ZOO | Jungle bar under vines, Leo wearing the golden crown, Kiki in the ferns. |
 | POST_ZOO | Leo crowns the Spigoteer; flamingos high-kick behind. |
-| PRE_SPACE | Neon lounge, ringed planet in the window, a city bus parked at the airlock. |
+| PRE_SPACE | Neon lounge, ringed planet in the window. A UFO beams him up from the mountain. |
 | POST_SPACE | Alien musician with a many-armed keytar; Zizz floats with the lever; a little saucer beams Dregs back down in a souvenir T-shirt. |
 | FINALE_A, FINALE_B | Restored spigot gleaming by day, ten owners and Dregs around it, a glass of water. |
 | CREDITS | Spigot dripping over the credits, Dregs mopping in an apron. |
