@@ -363,3 +363,4 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - 2026-11-03 Big Tex arm B3 merged (concept, big_tex_B3.txt: stein restored in HAPPY, fist under the mug base in sip/sway; rise/end mug 3 px beside hand as today; 28 pairs, sway 1). Q46 asked: import B3?
 - 2026-11-03 Yeti A2 merged (concept, yeti_A2.txt: left arm mirrors the right, tucked inside the torso, 27 pairs). Q47 asked: import A2?
 - 2026-11-03 OWNER Q46 yes, Q47 yes -> import big_tex_B3.txt and yeti_A2.txt into assets/art/boss/ (supervisor).
+- 2026-11-03 MERGED Big Tex B3 + Yeti A2 into assets (8 Yeti goldens replaced). Pocket Player v50, ROM sent.
