@@ -234,7 +234,7 @@ enum { BT_IDLE, BT_WALK1, BT_WALK2, BT_FILL, BT_SLIDE, BT_CATCH, BT_FAIL };
 #define TIP_FRAMES       480   // a tip stays this long (8 s)
 #define TIP_BLINK         60   // ... and blinks for the last second
 #define TIP_SCORE       1500
-#define TIP_CHANCE_DEFAULT 64  // out of 256 per served patron (255 = always, 0 = never)
+#define TIP_CHANCE_DEFAULT 32  // 1 in 8 (owner Q37 2026-11-03; was 64): out of 256 per served patron (255 = always, 0 = never)
 #define SHOW_FRAMES      704
 #define DANCER_BEAT       12   // frames per dance step
 #define DANCER_STAGGER     8   // dancers pop in / out one after the other
