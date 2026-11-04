@@ -1,0 +1,140 @@
+; FINALE: the same square by day (the town master in the Pour-Off venue's day colours): the Golden Spigot (F1) on the fountain, the Spigoteer with his glass in the jet, Dregs sheepish, the ten owners as a crowd of silhouettes on the plaza.
+; Full-screen story picture, portrait-v2 at 160x104 (rows 0-12); see docs/story.md and tools/gen_story.py SCENE_PICS.
+@size 160 104
+@maxpal 5
+@key
+# 3 #201828 ink (the venue's)
+. 1 #b8dcf4 sky (the Pour-Off venue's)
+A 0 #fff0b0 awning cream
+B 2 #a090b0 wall (the venue's lilac)
+H 2 #a090b0 hall wall behind the fountain (the wall's lilac, plain)
+L 0 #fff0b0 window (the venue's cream)
+O 1 #b8dcf4 (dawn strip: sky)
+P 2 #f08828 pennant orange (the venue's)
+Q 0 #fff0b0 pennant cream (the venue's)
+R 1 #f0b888 roof tiles (light terracotta: the skin colour's slot)
+S 1 #f0b888 skin
+U 2 #a090b0 spire (slate: the wall's lilac)
+W 0 #fff0b0 spray
+X 1 #f0b888 wall texture: sandstone brick hints (the cobble's colour)
+Y 0 #fff0b0 gold light
+a 2 #f08828 awning orange (the venue's)
+b 1 #b8dcf4 water (the sky's blue)
+c 0 #fff0b0 clock face
+d 3 #201828 door (dark opening)
+e 0 #fff0b0 sunlit trim (the venue's cream)
+g 0 #fff0b0 highlight
+h 0 #fff0b0 cobble highlight
+i 2 #a090b0 patron silhouette (the wall's lilac)
+m 0 #fff0b0 stone (sunlit pale stone, lighter than every wall)
+o 0 #fff0b0 cloud (the venue's cream)
+p 1 #f0b888 cobble (warm sandstone: the skin colour's slot)
+q 2 #a090b0 mortar (the stone's lilac)
+r 2 #a090b0 roof course (the wall's lilac)
+u 3 #201828 spire course
+y 2 #e8a828 gold
+@pixels
+##............####............####............####............####............####............####............####............####............####............##
+.Q##........##Q#.Q##........##Q#.Q##........##Q#.Q##........##Q#.Q##........##Q#.Q##........##Q#.Q##........##Q#.Q##........##Q#.Q##........##Q#.Q##........##Q#
+.QPP##....##QQQ#.QPP##....##QQQ#.QPP##....##QQQ#.QPP##....##QQQ#.QPP##....##QQQ#.QPP##....##QQQ#.QPP##....##QQQ#.QPP##....##QQQ#.QPP##....##QQQ#.QPP##....##QQQ#
+..PPPP####QQQQ#...PPPP####QQQQ#...PPPP####QQQQ#...PPPP####QQQQ#...PPPP####QQQQ#...PPPP####QQQQ#...PPPP####QQQQ#...PPPP####QQQQ#...PPPP####QQQQ#...PPPP####QQQQ#.
+..PPPP...#QQQQ#...PPPP...#QQQQ#...PPPP...#QQQQ#...PPPP...#QQQQ#...PPPP...#QQQQ#...PPPP...#QQQQ#...PPPP...#QQQQ#...PPPP...#QQQQ#...PPPP...#QQQQ#...PPPP...#QQQQ#.
+...PP.....#QQ#.....PP.....#QQ#.....PP.....#QQ#.....PP.....#QQ#.....PP.....#QQ#.....PP.....#QQ#.....PP.....#QQ#.....PP.....#QQ#.....PP.....#QQ#.....PP.....#QQ#..
+...........##..............##..............##..............##..............##..............##..............##..............##..............##..............##...
+................................................................................................................................................................
+................................................................................................................................................................
+...................................................................................................#...#...#....................................................
+..................................................................................................#Y###Y###Y#...................................................
+..................................................................................................#YYYYYYYYy#...................................................
+..................................................................................................#yyyyyyyyy#...................................................
+................................................................................................##.#########.##.................................................
+........................................................OOOOOOOOOOOOOOOOOO.....................#YY####YYY####Yy#................................................
+....................................................OOOOOOOOOOOOOOOOOOOOOOOOOO.................#YyYYYYYyyYYYYYy#................................................
+.................................................ooo...........................................#Yyyyyyyyyyyyyyy#................................................
+..............................................oooooooo.........................................#yy####yyy####yy#................................................
+............................................ooooooooooo.oooo....................................##....###....##......................ooo........................
+..........................................oooooooooooooooooooo.......................................#YYy#.........................ooooooo.ooo..................
+......ooo..............##................oooooooooooooooooooooo......................................#Yyy#.......................oooooooooooooo.................
+....ooooooo...........#UU#..............oooooooooooooooooooooooo.....................................#Yyy#......................oooooooooooooooo................
+...oooooooooo........#UUUU#.........................................................................#YYyyy#.####................OOOOOOOOOOOOOOOO................
+....................#uuuuuu#.......................................................................#YYyyyyy#YYYY#...........OOOOOOOOOOOOOOOOOOOOOOO.............
+...................#eUUUUUUU#.................................................................###.#YYyyyyyyYYyyyy#..............................................
+..................#eUUUUUUUUU#...............................................................#YYY##Yyyyyyyyyyyyyyy#.............................................
+.................#eUUUUUUUUUUU#.............................................................#YYyyy#Yyyyyyyyy###Yyy#.............................................
+................#euuuuuuuuuuuuu#............................................................#YyyyyYyyyyyyyyy#.#Yyy#.............................................
+................################............................................................#Yyyyyy#Yyyyyyy#..#Yyy#.............................................
+................#eeeeeeeeeeeeee#.............................................................#yyy###Yyyyyyy#..#Yyy#.............................................
+................#BBBBBBBBBBBBBB#..............................................................###..#yyyyyyy#..#Yyy#.............................................
+................#BBBBBBBBBBBBBB#...................................................................#########..#Yyy#.............................................
+....##..........#BBBBBB###BBBBB#########################################..........................#YYYYYYYYy#.#Yyy#................................##...........
+...#ee#.........#BBBBB#ccc#BBBB#eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee#..........................#yyyyyyyyy#.#Yyy#...............................#ee#..........
+..#eBBB#........#BBBB#ccccc#BBB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#.........................###########.#Yyyyy#.............................#eBBB#.........
+.#eBBBBB#.......#BBB#ccc#ccc#BB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#........................#YYYYYyyyyy#.#yyyyy#............................#eBBBBB#........
+#eBBBBBBB#......#BBB#ccc##cc#BB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#.......................#Yyy#YYyyyyy#..#####............................#eBBBBBBB#.......
+eBBBBBBBBB#.....#BBB#ccccccc#BB#rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr#......................#Yyy##YYyyyyy#....Y.............................#eBBBBBBBBB#......
+BBBB##BBBBB#....#BBBB#ccccc#BBB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#.....................#Yyy#.#YYyyyyy#...YYY...........................#eBBBB##BBBBB#.....
+BBB#LL#BBBBB#...#BBBBB#ccc#BBBB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#....................#Yyy#..#YYyyyyy#....Y...........................#eBBBB#LL#BBBBB#....
+BBB#LL#BBBBBB#..#BBBBBB###BBBBB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#.....................###...#YYyyyyy#...............................#eBBBBB#LL#BBBBBB#...
+BBBB##BBBBBBBB#.#BBBBBBBBBBBBBB#rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr#.........................#############............................#eBBBBBBB##BBBBBBBB#..
+BBBBBBBBBBBBBBB##BBBBBBBBBBBBBB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#........................#YYYYYYYYYYYYy#..........................#eBBBBBBBBBBBBBBBBBBB#.
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#........................#yyyyyyyyyyyyy#.........................#eBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#.....................#####################......................#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr#....................#YYYYYYYYYYYYYYYYYYYYy#.....................#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR#....................#yyyyyyyyyyyyyyyyyyyyy#.....................#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#########################################.....................#####################......................#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#BBBBBBBBBBBBBBBB########BBBBBBBBBBBBBBB##################################################################BBBBBBBBBBBBBBBBBBBBBB#
+B########BBBBBBB#BBBBBBBBBBBBBB#BBBBBB###BBBBBBB#QQQQQQ#BBBBBB###BBBBBB#UUUUUUUUUUUUUUUUUggggggggggggggggggggggggggggggUUUUUUUUUUUUUUUUU#BBBBBBB########BBBBBBB#
+#LLL##LLL#BBBBBB#BBBBBBBBBBBBBB#BBBBB#LLL#BBBBBB#QPPPPQ#BBBBB#LLL#BBBBB#UUUUUUUUUUUU#Wb#UU##mmmmmmmmmmmmmmmmmmmmmmmm##UU#bW#UUUUUUUUUUUU#BBBBBB#LLL##LLL#BBBBBB#
+#LLL##LLL#BBBBBB#BBBBBBBBBBBBBB#BBBBB#LLL#BBBBBB#QP##PQ#BBBBB#LLL#BBBBB#uuuuuuuuuuuu#bb#uuuu#mmmmmmmmmmmmmmmmmmmmmg#uuuu#bb#uuuuuuuuuuuu#BBBBBB#LLL##LLL#BBBBBB#
+#LLL##LLL#BBBBBB#BBBBBBBBBBBBBB#BBBBB#LLL#BBBBBB#QP##PQ#BBBBB#LLL#BBBBB#UUUUUUUUUUU#bb#UUUUU##mmmmmmmmmmmmmmmmmmmm##UUUUU#bb#UUUUUUUUUUU#BBBBBB#LLL##LLL#BBBBBB#
+#LLL##LLL#BBBBBB#BBBBBBBBBBBBBB#BBBBB#LLL#BBBBBB#QPPPPQ#BBBBB#LLL#BBBBB#UUUUUUUUUUU#bb#UUUUUUU#mmmmmmmmmmmmmmmmmg#UUUUUUU#bb#UUUUUUUUUUU#BBBBBB#LLL##LLL#BBBBBB#
+B########BBBBBBB#BBBBBBBBBBBBBB#BBBBBB###BBBBBBB#QQQQQQ#BBBBBB###BBBBBB#UUUUUUUUUUU#Wb#UUUUUUU##mmmmmmmmmmmmmmmm##UUUUUUU#bW#UUUUUUUUUUU#BBBBBBB########BBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#BBBBBBBBBBBBBBBB#QQQQQQ#BBBBBBBBBBBBBBB#uuuuuuuuuuu#bb#uuuuuuuuu################uuuuuuuuu#bb#uuuuuuuuuuu#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#BBBBBBBBBBBBBBBB#QQQQQQ#BBBBBBBBBBBBBBB#############bb##########H#mmmmmmmmmmmm#H##########bb#############BBBBBBBBBBBBBBBBBBBBBB#
+BXXXBBBBBBBBBBBB#BB###BBBB###BB#BBBBBBBBBBBBBBBB#QQQQQQ#BXXXBBBBBBBBBBB#HHHHHHHHHHH#bb#HHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHHH#bb#HHHHHHHHHHH#BBBBBBBBXXXBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#B#LLL#BB#LLL#B#BBBBXXXBBBBBBBBB#QQQQQQ#BBBBBBBBBBBBBBB#HHHHHHHHHH#Wb#HHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHHHH#bW#HHHH###HHH#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#B#LLL#BB#LLL#B#BBBBBBBBBBBBBBBB#QQ##QQ#BBBBBBBBBBBBBBB#HHHHHHHHHH#bb#HHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHH#HHHH#HHH#LLL#HH#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#B#LLL#BB#LLL#B#BBBBBBBBBBBBBBBB#Q#BB#Q#BBBBBBBBBBBBBBB#HHHHHHHHHH#bb#HHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHH#bbbb#HHH#LLL#HH#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBXXBBBBBBBBB#B#LLL#BB#LLL#B#BBBBBBBBBBBBBBBB##BBBB##BBBBBXXBBBBBBBB#HHHHHHHHHH#bb#HHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHH#Wbbb#HHH#LLL#HH#BBBBBBBBBBBBXXBBBBBBBB#
+BBBBBBBBBBBBBBBB#BB###BBBB###BB#XXBBBBBBBBBBBBBBB#BBBB#BBBBBBBBBBBBBBBB#HHHHHHHHHH#Wb#HHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHH#Wbbb#HHH#LLL#HH#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB#HHHHHHHHHH#bb#HHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHHH#bb#HHHHH###HHH#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#########################################HHHHHHHHHH#bb#HHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHHH#WW#HHHHHHHHHHH#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#AAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAa#HHHHHHHHHH#bb#HHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHHHH##HHHHHHHHHHHH#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBXXXB#BBBBBBBBBBBBBB#AAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAa#HHHHHHHHHH#Wb#HHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHHH#SS#HHHHHHHH#HH#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#AAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAa#HHHHHHHHH#bb#HWHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHH#SSSS#HHHHH##Y###BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBBBBBBBBBB#AAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAa#HHHHHHHHHWbb#HHHHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHH#SSS#HHHHH#YYYYY#BBBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBBBBBBBBB#BBBBBB##BBBBBB#AAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAa#HHHHHHHHWWWWWWWWHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHHH#SS#HHH##YYYYYY##BBBBBBBBBBBBBBBBBBBBB#
+BBBBBBBBXXBBBBBB#BBBBB#dd#BBBBB#AA##AA##AA##AA##AA##AA##AA##AA##AA##AA##HHHHHHHHWWWWWWWWHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHHHH#gg#H#YYYYYYYYY#BBBBBBB#########BBBBB#
+BBBBBBBBBBBBBBBB#BBBB#dddd#BBBB#########################################HHHHHHHHWWWWWWWWHHHHHHHHH#mmmmmmmmmmgm#HHHHHHHHHHH#gg#H##########BBBBBBB#####BB####BBBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB####################################################gg##H##SSSSS##BBBBBBB#B#S###BB###BBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB##gggggggggggggggggggggggggggggggggggggggggggggggggg#gg#H#SSgSgSS#BBBBBBBB#SSSS####B#BBB#
+BBBBXXXBBBBBBBBB#BBB#dddddd#BBB#BBB#################################BBB##mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm#gg###SS#S#SS#BBBBBBBB#S#S#S#####BBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBB#LLLLLLL#LLLLLLL#LLLLLLL#LLLLLLL#BBB##mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm#gg#S#SSSSS#SBBBBBBBBB##S##SBS##BBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBB#iiLLLLL#LLLLLLL#LLLLLLL#LLLLLLL#BBB######################################################gg##S#SS#SS#BBBBBBBB#SBSBSSSS##BBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBB#iiLiiiL#LLLLLLL#LLLLLLL#LLiiiLL#BBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmm#gg#########BBBBBBB#SSSSS#SS##BBBB#
+XXBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBB#LiLiiiL#LLLLLLL#LLLLLLL#LLiiiLL#BBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmm#ggHSSgggSS#BBBBBBBB#S###SS#BBBBBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBB#LiLLiLL#LLLLLLL#LLLLLLL#LLLiLLL#BBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmm#ggHSSSSS##BBBBBBBB#SSSSS#BBBBBBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBB#Liiiiii#LLLLLLL#LLLLLLL#LiiiiiL#BBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmm#gg#g##gg###BBBBBBBB##SSS###BBBBB#
+BBBBBBBBBXXXBBBB#BBB#dddddd#BBB#BBB#iiiiiii#LLLLLLL#LLLLLLL#iiiiiii#BBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmm###g#g#g##g#BBBBBB##B#S#BBB#BBBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBB#iiiiiii#LLLLLLL#LLLLLLL#iiiiiii#BBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm###ggg###g#BBBBB#BBB###BBBB#BBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBB#################################BBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm###gg####g#BBBBB#B#B###B#BB#BBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm###gg####g#BBBBB#B#BB#BB#BB#BBB#
+BBBBBBBBBBBBBXXB#BBB#dddddd#BBB#BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#########g#BBBBB#B#BBBBB#BB#BBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB##mmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#mmmmmmmmmmmmmmm#g#####g#SSBBBBB#B#BB#BB#BB#BBB#
+BBBBBBBBBBBBBBBB#BBB#dddddd#BBB#BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB############################################################gggg###SBBBBB#S#BBBBB#SS#BBB#
+################################################################################################################################################################
+hhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqhhhppppqp########hhppppqhh###pp###pppppq
+pppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqp###pp###ppppppqpp###pp###pppppq
+pppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqp###pp###ppppppqpp###pp###pppppq
+pppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqp###pp###ppppppqpp###pp###pppppq
+pppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppqpppppppq####pp####pppppqp####pp####ppppq
+qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+hhhqpp####hqpppphhhqpppphhhqpppphhhqppp##hhqpppphhh##########ppphhhqpppphhhqpppphhhqpppp##hqpppphhhqpppphhhqpppphhhqpppphhhqpppphhhqpppphhhqpppphhhqppp#hhhqpppp
+p#pqp######qpp#ppppqpppppppqpppppppqpp####pqppppppp##########ppppppqpp####pqpppppppqpppp#ppqpppppppqpppppppqpppppppqpp###ppqpppppppqpp####pqpppppppqppp##ppqpppp
+p##############ppppqp#####pqpppppppqppp##ppqpppppppq########ppppppp#p######q#ppppppq#########ppppppqpppppppqpppppppqp#####pqpppppppqp######qpppppppqpp####pqpppp
+pp############pppppq#######qpppppppq########pppppppqp######qppppppp##########ppppppq#########ppppppqp######qpppppppqpp###ppqpppppppq########pppppppqp######qpppp
+pppq########pppppppq##########pppppq########pppppppq########pppppp############pppppq#########ppppppq###########ppppqp######qpppppp############pppppq########pppp
+qqq##########qqqqqqq#######qqqqqq##############qqqqq########qqqqqq############qqqqqq#########qqqqqqq#########q#qqqqq########qqqqqqqq########qqqqqqq##########qqq
+hhh##########ppqhhhp#######ppppqhh############pqhhhp########pppqhh############pqhhhp#########ppqhhh##########ppqhhhp########pppqhhhp########pppqhh############pq
+ppp##########ppqpppp#######ppppqp##############qppppp######ppppqppp##########ppqpppp#########ppqppp##########ppqpppp########pppqpppp#########ppqpp############pq
+pp############pqppppp#####pppppqpp############pqpppppp#####ppppqpp############pqppppppp#####pppqpppp########pppqppppp######ppppqpppp##########pqpp############pq
