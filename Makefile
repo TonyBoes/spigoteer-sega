@@ -51,7 +51,7 @@ PATRON_C += $(foreach v,sports lumberjacks chefs zoo aliens,$(BUILD)/patrons_$(v
 VENUES   := saloon sports lodge bistro igloo factory biker teahouse zoo space festival
 VENUE_C  := $(foreach t,$(VENUES),$(BUILD)/venue_$(t).c) $(BUILD)/venue_load.c
 # M11b story mode: the script (docs/story.md), the portraits and the story font -> two banked files (tools/gen_story.py)
-STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c $(BUILD)/story_pictures.c
+STORY_C  := $(BUILD)/story_data.c $(BUILD)/story_portraits.c $(BUILD)/story_pictures.c $(BUILD)/story_motion.c
 PRACTICE_C := $(BUILD)/practice_art_a.c $(BUILD)/practice_art_b.c
 GEN      := $(BUILD)/art.c $(PRACTICE_C) $(PATRON_C) $(VENUE_C) $(BUILD)/palettes.c $(BUILD)/looks.c $(BUILD)/music_data.c $(BUILD)/music_pat10.c $(BUILD)/music_pat22.c $(BUILD)/music_pat23.c $(BUILD)/music_pat24.c $(STORY_C) $(BUILD)/credits_text.c
 # hUGEDriver (public domain, third_party/hugedriver): assembled with RGBDS, converted to a GBDK object by

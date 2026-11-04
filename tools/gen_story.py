@@ -725,6 +725,165 @@ def water_build(p, jets, phases, pair):
     return out
 
 
+# ---- the clouds drifting, Color only: assets/story/pictures/sky.txt ---------------------------------------------------
+# On a Color the picture's own cloud pixels become OBJ sprites drifting right 1 px every 8 game frames (src/story.c story_sky), their
+# BG cells the plain sky tile; mask sprites (the picture's own pixels, lower OAM indexes) cover them where they pass behind the town.
+# They borrow the INTRO burst's OAM entries and OBJ tiles (free in the FINALE and CREDITS: no burst, the speakers' overlays use OAM
+# 4..19 and OBJ tiles from OBJ_DANCER) and OBJ palettes 4 and 6 (a speaker's overlay uses 3, then 4, 6, 7: these scenes' speakers
+# have at most one overlay palette, checked here). DMG: nothing of this (the BG clouds stay).
+SKY_FILE = "sky.txt"
+SKY_OAM = 20                    # = BURST_OAM: masks first (drawn over the clouds), then the clouds
+SKY_OBJ = 56                    # = BURST_OBJ: their 8x16 tile pairs, at most BURST_OBJ_N tiles
+SKY_PALS = (4, 6)               # CGB OBJ palette slots
+SKY_LINE_MAX = 10
+
+
+def read_sky():
+    """sky.txt -> {picture: {"key": ch, "clouds": [(x0, y0, x1, y1, sprite top)], "masks": [(x, y, n, [cloud numbers])]}}"""
+    out, cur = {}, None
+    path = PIC_DIR / SKY_FILE
+    for ln in path.read_text().splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith(";"):
+            continue
+        w = ln.split()
+        if w[0] == "@pic":
+            cur = out.setdefault(w[1], {"key": w[2], "clouds": [], "masks": []})
+        elif cur is None:
+            fail(f"{path}: {ln!r} before a @pic")
+        elif w[0] == "@cloud" and len(w) in (5, 6):
+            v = [int(q) for q in w[1:]]
+            cur["clouds"].append(tuple(v[:4]) + (v[4] if len(v) == 5 else v[1],))
+        elif w[0] == "@mask" and len(w) >= 5:
+            cur["masks"].append((int(w[1]), int(w[2]), int(w[3]), [int(q) - 1 for q in w[4:]]))
+        else:
+            fail(f"{path}: {ln!r}")
+    return out
+
+
+def sky_sprites(spr, c):
+    """the OAM the runtime writes at drift c (story_sky_oam): per sprite, masks first, (top y on screen or None, x on screen).
+    A cloud sprite off the screen is hidden; a mask sprite shows while a shown sprite of one of its clouds overlaps its columns."""
+    clouds, masks, shown = [], [], []
+    for kind, x, y, _t, _p, link in spr:
+        if kind == "cloud":
+            ox = (x + 8 + c) & 255
+            vis = 0 < ox < 168
+            clouds.append((y if vis else None, ox - 8))
+            if vis:
+                shown.append((ox - 8, link))
+    for kind, x, y, _t, _p, link in spr:
+        if kind == "mask":
+            vis = any((b & link) and l <= x + 7 and l + 7 >= x for l, b in shown)
+            masks.append((y if vis else None, x))
+    return masks + clouds
+
+
+def sky_build(p, sky):
+    """the picture's clouds as OBJ sprites: tiles, two OBJ palettes, the sprite list (masks first), the cloud cells to make sky"""
+    name, pix, key = p["name"], p["pix"], p["key"]
+    ck = sky["key"]
+    if ck not in key:
+        fail(f"{SKY_FILE}: {name} has no key {ck!r}")
+    sky_hex, sky_dmg = key["."]["hex"], key["."]["dmg"]
+    skyish = {c for c, k in key.items() if k["hex"] == sky_hex and k["dmg"] == sky_dmg}
+    cloud_hex = key[ck]["hex"]
+    rows_of, cpix_of = [], []
+    for x0, y0, x1, y1, sy in sky["clouds"]:
+        px = {(x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1) if pix[y][x] == ck}
+        if not px:
+            fail(f"{SKY_FILE}: {name} cloud {(x0, y0, x1, y1)} has no {ck!r} pixel")
+        if not sy <= y0 <= y1 <= sy + 15:
+            fail(f"{SKY_FILE}: {name} cloud {(x0, y0, x1, y1)}: rows outside its sprite (top {sy}, 16 rows)")
+        cpix_of.append(px)
+        rows_of.append({y for _, y in px})
+    cpix = set().union(*cpix_of)
+    rest = {(x, y) for y in range(PIC_H) for x in range(PIC_W) if pix[y][x] == ck} - cpix
+    if rest:
+        fail(f"{SKY_FILE}: {name}: {ck!r} pixels outside every @cloud, e.g. {sorted(rest)[:3]}")
+    if len(sky["clouds"]) > 8:
+        fail(f"{SKY_FILE}: {name}: more than 8 clouds (a mask's link is a byte)")
+    for x, y, n, cl in sky["masks"]:
+        if not cl or any(not 0 <= i < len(sky["clouds"]) for i in cl):
+            fail(f"{SKY_FILE}: {name}: mask {(x, y, n)} names no cloud of the picture")
+    # every non-sky pixel a cloud passes (its own rows, any x) is under a mask sprite that is that cloud's
+    for i, r in enumerate(rows_of):
+        for yy in r:
+            for xx in range(PIC_W):
+                if pix[yy][xx] not in skyish and pix[yy][xx] != ck and not any(
+                        i in cl and x <= xx < x + 8 * n and y <= yy < y + 16 for x, y, n, cl in sky["masks"]):
+                    fail(f"{SKY_FILE}: {name}: cloud {i + 1} passes the non-sky pixel ({xx},{yy}) {pix[yy][xx]!r} with no mask of its over it")
+    # the colours: the cloud's, then each mask sprite's, packed into the two OBJ palettes (3 colours each)
+    pals = [[cloud_hex]]
+    spr, tiles = [], []
+
+    def colour_index(cols):
+        for i, pl in enumerate(pals):
+            if len(set(pl) | cols) <= 3:
+                for c in sorted(cols - set(pl)):
+                    pl.append(c)
+                return i
+        if len(pals) < len(SKY_PALS):
+            pals.append(sorted(cols))
+            return len(pals) - 1
+        fail(f"{SKY_FILE}: {name}: the clouds' and masks' colours do not fit {len(SKY_PALS)} OBJ palettes")
+
+    def add_sprite(kind, x, y, art, link):
+        """art: {(dx, dy): '#rrggbb'}"""
+        pi = colour_index(set(art.values())) if kind == "mask" else 0
+        idx = {c: i + 1 for i, c in enumerate(pals[pi])}
+        rws = ["".join(".-+#"[idx[art[(dx, dy)]]] if (dx, dy) in art else "." for dx in range(8)) for dy in range(16)]
+        t = len(tiles)
+        tiles.append(tuple(tile_bytes(rws, 0, 0)))
+        tiles.append(tuple(tile_bytes(rws, 0, 8)))
+        spr.append((kind, x, y, SKY_OBJ + t, pi, link))
+
+    for x, y, n, cl in sky["masks"]:
+        rows = set().union(*(rows_of[i] for i in cl))
+        for k in range(n):
+            art = {(dx, dy): key[pix[y + dy][x + 8 * k + dx]]["hex"] for dy in range(16) for dx in range(8)
+                   if y + dy in rows and pix[y + dy][x + 8 * k + dx] not in skyish and pix[y + dy][x + 8 * k + dx] != ck}
+            add_sprite("mask", x + 8 * k, y, art, sum(1 << i for i in cl))
+    for i, (x0, y0, x1, y1, sy) in enumerate(sky["clouds"]):
+        for k in range(0, x1 - x0 + 1, 8):
+            art = {(dx, dy): cloud_hex for dy in range(16) for dx in range(8)
+                   if (x0 + k + dx, sy + dy) in cpix_of[i] and x0 + k + dx <= x1}
+            add_sprite("cloud", x0 + k, sy, art, 1 << i)
+    if len(tiles) > BURST_OBJ_N:
+        fail(f"{SKY_FILE}: {name}: {len(tiles)} OBJ tiles (ids {SKY_OBJ}.. hold {BURST_OBJ_N})")
+    if len(spr) > 40 - SKY_OAM or len(spr) > 16:
+        fail(f"{SKY_FILE}: {name}: {len(spr)} sprites (OAM {SKY_OAM}..39, 16 at most)")
+    # at every drift, no line holds more than SKY_LINE_MAX sprites (8x16: a sprite counts on its 16 lines, whatever its x)
+    worst = (0, 0, 0)
+    for c in range(256):
+        lines = [0] * 160
+        for y, _x in sky_sprites(spr, c):
+            if y is not None:
+                for ln in range(y, y + 16):
+                    lines[ln] += 1
+        m = max(lines)
+        if m > worst[0]:
+            worst = (m, c, lines.index(m))
+    if worst[0] > SKY_LINE_MAX:
+        fail(f"{SKY_FILE}: {name}: {worst[0]} sprites on line {worst[2]} at drift {worst[1]} (max {SKY_LINE_MAX})")
+    # the cloud cells: without the cloud they are the plain sky tile, whose colour the cell's palette has on that shade
+    sky_tile = tuple(tile_bytes([".-+#"[sky_dmg] * 8] * 8, 0, 0))
+    if sky_tile not in p["tiles"]:
+        fail(f"{name}: no plain sky tile to put under the drifting clouds")
+    cells = sorted({(x // 8, y // 8) for x, y in cpix}, key=lambda q: (q[1], q[0]))
+    for cx, cy in cells:
+        for y in range(cy * 8, cy * 8 + 8):
+            for x in range(cx * 8, cx * 8 + 8):
+                if pix[y][x] not in skyish and pix[y][x] != ck:
+                    fail(f"{name}: the cloud cell ({cx},{cy}) holds the non-sky pixel ({x},{y}) {pix[y][x]!r}")
+        a = p["attr"][cy * 20 + cx]
+        if a == "H" or p["pals"][a][sky_dmg] != sky_hex:
+            fail(f"{name}: the cloud cell ({cx},{cy})'s palette has no sky on shade {sky_dmg}")
+    return {"tiles": tiles, "pals": [["#000000"] + [pl[i] if i < len(pl) else "#000000" for i in range(3)] for pl in pals],
+            "spr": spr, "cells": cells, "clouds": [list(c) for c in sky["clouds"]], "key": ck, "sky_id": p["ids"][p["tiles"].index(sky_tile)], "worst": worst[0],
+            "rows": sorted(set().union(*rows_of))}
+
+
 def bg_tile_addr(i):
     """VRAM address of BG tile id i (LCDC bit 4 clear: ids 0-127 at 0x9000, 128-255 at 0x8800)"""
     return 0x9000 + i * 16 if i < 128 else 0x8800 + (i - 128) * 16
@@ -1459,6 +1618,10 @@ def main():
     # (CGB palette slots 0 5 6 7, or 1 = the HUD's) and palettes. A scene's second picture loads over its first.
     check_pictures(scenes)
     wjets, wphases, wpics = read_water()
+    skies = read_sky()
+    for name in skies:
+        if name not in {n for v in SCENE_PICS.values() for _, n in v}:
+            fail(f"{SKY_FILE}: {name} is no picture of SCENE_PICS")
     for name in wpics:
         if name not in {n for v in SCENE_PICS.values() for _, n in v}:
             fail(f"{WATER_FILE}: {name} is no picture of SCENE_PICS")
@@ -1494,6 +1657,10 @@ def main():
             if name in wpics:
                 p["water"] = water_build(p, wjets, wphases, wpics[name])
                 p["water_addr"] = [bg_tile_addr(pid[p["tmap"][cy * 20 + cx]]) for cx, cy in WATER_CELLS]
+            if name in skies:
+                p["sky"] = sky_build(p, skies[name])
+                if any(len(ports[q]["obj_pals"]) > 1 for q in sc["spk"]):
+                    fail(f"{name}: a speaker of {sid} has more than one overlay OBJ palette (the clouds use OBJ 4 and 6)")
             pics.append(p)
             if page > 1:
                 sc["swpage"] = page
@@ -1694,6 +1861,10 @@ def main():
            "    for (i = 0; i < 16; i++) dst[i] = stp_pal[pic][i];",
            "    for (i = 0; i < 4; i++) dst[16 + i] = stp_hud[i];",
            "}", ""]
+    # ---- build/story_motion.c (its own bank: the pictures' bank is full): the water's tile frames, the Color clouds ----
+    MC = ["// generated by tools/gen_story.py from assets/story/pictures/water.txt and sky.txt -- do not edit",
+          "#pragma bank 255", "#include <gb/gb.h>", "#include <gb/cgb.h>", "#include <stdint.h>", "#include <string.h>", '#include "mpump.h"',
+          '#include "story.h"', '#include "bright.h"', ""]   # (bright.h: SETTINGS > SCREEN BRIGHT lifts set_*_palette)
     wpool, widx, waddr = [], [], []
     for p in pics:
         for ph in range(WATER_PHASES):
@@ -1704,7 +1875,73 @@ def main():
                 widx.append(wpool.index(t) if t is not None else 0)
         waddr += p.get("water_addr", [0] * len(WATER_CELLS))
     assert len(wpool) <= 255
-    PC += [f"// the fountain flowing (assets/story/pictures/{WATER_FILE}): per picture, phase and jet cell its tile ({len(wpool)} distinct), and the",
+    MC += ["// the clouds drifting, Color only (assets/story/pictures/sky.txt): per picture its OBJ tiles, its two OBJ palettes, its sprites",
+           "// (x, y, tile, CGB palette, link: a cloud's bit / a mask's clouds; the masks first) and its cloud cells (count, the plain sky tile id,",
+           "// x y each)"]
+    same = {}                                    # a picture whose clouds are an earlier one's (the contest's: the first pour's) shares its arrays
+    for i, p in enumerate(pics):
+        if "sky" in p:
+            k = p["sky"]
+            arrs = (tuple(k["tiles"]), str(k["pals"]), tuple(k["spr"]), tuple(k["cells"]), k["sky_id"])
+            if arrs in same:
+                p["sky_as"] = same[arrs]
+                continue
+            same[arrs] = i
+            MC += [carr(f"stk{i}_tiles", [b for t in k["tiles"] for b in t]),
+                   carr(f"stk{i}_pal", [v for pl in k["pals"] for v in rgb15(pl)], "uint16_t"),
+                   carr(f"stk{i}_spr", [v for (_k, x, y, t, pi, link) in k["spr"] for v in (x, y, t, SKY_PALS[pi], link)]),
+                   carr(f"stk{i}_cells", [len(k["cells"]), k["sky_id"]] + [v for c in k["cells"] for v in c])]
+    sk = lambda i, p, f, d="0": (f"stk{p.get('sky_as', i)}_{f}" if "sky" in p else d)
+    MC += [carr("stk_ntiles", [len(p["sky"]["tiles"]) if "sky" in p else 0 for p in pics]),
+           carr("stk_nspr", [len(p["sky"]["spr"]) if "sky" in p else 0 for p in pics]),
+           carr("stk_nmask", [sum(1 for q in p["sky"]["spr"] if q[0] == "mask") if "sky" in p else 0 for p in pics]),
+           f"static const uint8_t *const stk_tiles[{len(pics)}] = {{ " + ", ".join(sk(i, p, "tiles") for i, p in enumerate(pics)) + " };",
+           f"static const uint16_t *const stk_pal[{len(pics)}] = {{ " + ", ".join(sk(i, p, "pal") for i, p in enumerate(pics)) + " };",
+           f"static const uint8_t *const stk_spr[{len(pics)}] = {{ " + ", ".join(sk(i, p, "spr") for i, p in enumerate(pics)) + " };",
+           f"static const uint8_t *const stk_cells[{len(pics)}] = {{ " + ", ".join(sk(i, p, "cells") for i, p in enumerate(pics)) + " };", "",
+           "// LCD off, Color: picture pic's cloud sprites' tiles and OBJ palettes, and (patch) its cloud cells made sky; 0: it has no drifting clouds",
+           "uint8_t story_sky_load(uint8_t pic, uint8_t patch) BANKED {",
+           "    const uint8_t *c;",
+           "    uint8_t k;",
+           "    if (!stk_nspr[pic]) return 0;",
+           f"    set_sprite_data({SKY_OBJ}, stk_ntiles[pic], stk_tiles[pic]);",
+           f"    set_sprite_palette({SKY_PALS[0]}, 1, stk_pal[pic]);",
+           f"    set_sprite_palette({SKY_PALS[1]}, 1, stk_pal[pic] + 4);",
+           "    if (patch) {",
+           "        c = stk_cells[pic];",
+           "        for (k = 0; k < c[0]; k++) set_bkg_tiles(c[2 + 2 * k], c[3 + 2 * k], 1, 1, c + 1);   // (not set_bkg_tile_xy: its library code would land in ROM0)",
+           "    }",
+           "    return 1;",
+           "}", "",
+           "// the cloud cells (count, the sky tile id, x y each) into dst, for the VBlank list",
+           "void story_sky_cells(uint8_t pic, uint8_t *dst) BANKED {",
+           "    const uint8_t *c = stk_cells[pic];",
+           "    memcpy(dst, c, 2 + 2 * c[0]);",
+           "}", "",
+           f"// the clouds at drift c (px right of the picture's own place, wrapping at 256) into shadow_OAM {SKY_OAM}..: a cloud sprite off the",
+           "// screen is hidden (y 0: it takes no line's room), a mask sprite shows only while a shown cloud sprite overlaps its columns",
+           "void story_sky_oam(uint8_t pic, uint8_t c) BANKED {",
+           "    const uint8_t *s;",
+           "    OAM_item_t *o;",
+           "    int16_t left[16];",
+           "    uint8_t bit[16];",
+           "    uint8_t k, j, n, m, ox, cn = 0, vis;",
+           "    n = stk_nspr[pic];",
+           "    if (!n) return;",
+           "    m = stk_nmask[pic];",
+           f"    s = stk_spr[pic] + m * 5; o = shadow_OAM + {SKY_OAM} + m;",
+           "    for (k = m; k < n; k++, s += 5, o++) {",
+           "        ox = s[0] + 8 + c;",
+           "        if (ox && ox < 168) { o->y = s[1] + 16; left[cn] = (int16_t)ox - 8; bit[cn++] = s[4]; } else o->y = 0;",
+           "        o->x = ox; o->tile = s[2]; o->prop = s[3];",
+           "    }",
+           f"    s = stk_spr[pic]; o = shadow_OAM + {SKY_OAM};",
+           "    for (k = 0; k < m; k++, s += 5, o++) {",
+           "        for (vis = 0, j = 0; j < cn; j++) if ((bit[j] & s[4]) && left[j] <= (int16_t)s[0] + 7 && left[j] + 7 >= (int16_t)s[0]) vis = 1;",
+           "        o->y = vis ? s[1] + 16 : 0; o->x = s[0] + 8; o->tile = s[2]; o->prop = s[3];",
+           "    }",
+           "}", ""]
+    MC += [f"// the fountain flowing (assets/story/pictures/{WATER_FILE}): per picture, phase and jet cell its tile ({len(wpool)} distinct), and the",
            "// cells' VRAM tile addresses; stw_on 0: the picture's water does not move",
            carr("stw_on", [int("water" in p) for p in pics]),
            carr("stw_pool", [b for t in wpool for b in t]),
@@ -1726,6 +1963,7 @@ def main():
            "}", ""]
     PC += burst_c(bkey, bpieces, burst, next(p for p in pics if p["name"] == BURST_PIC))
     (outdir / "story_pictures.c").write_text("\n".join(PC))
+    (outdir / "story_motion.c").write_text("\n".join(MC))
 
     # ---- build/story_portraits.c ----
     P = ["// generated by tools/gen_story.py from assets/story/portraits.json -- do not edit",
@@ -1871,7 +2109,10 @@ def main():
           f"#define STORY_BURST_PER {TRAIL_PER_FRAME}      // trail map writes a frame at most",
           f"#define STORY_STB_AT {SCRATCH_CURSOR}      // story_scratch: the INTRO burst's own bytes (cursor, stages, sparks) are [STORY_STB_AT, STORY_STB_END); src/story.c checks them against its picture switch's",
           f"#define STORY_STB_END {SPARK_SCRATCH + 7 * SPARK_N + 3}",
-          f"#define STORY_WATER_PHASES {WATER_PHASES}   // the fountain's flow: tile frames of each jet (story_water_tiles)", "",
+          f"#define STORY_WATER_PHASES {WATER_PHASES}   // the fountain's flow: tile frames of each jet (story_water_tiles)",
+          f"#define STORY_SKY_OAM {SKY_OAM}      // the drifting clouds' OAM entries (Color): from here ...",
+          f"#define STORY_SKY_SPR {max([len(p['sky']['spr']) for p in pics if 'sky' in p] or [0])}      // ... at most this many",
+          f"#define STORY_SKY_CELLS {max([len(p['sky']['cells']) for p in pics if 'sky' in p] or [0])}      // a picture's cloud cells, at most", "",
           "typedef struct {",
           "    uint8_t w, h, x, y;          // tiles (w 0: no portrait); x, y the picture's top-left screen tile",
           "    uint8_t npal, ntiles, nobj, nobjpal, nobjtiles;",
@@ -1901,6 +2142,9 @@ def main():
           "void story_pic_pals(uint8_t pic, uint16_t *dst) BANKED;    // dst[20]: its 4 palettes (slots 0 5 6 7), then the HUD's",
           "void story_burst_load(uint8_t cgb) BANKED;   // LCD off: the INTRO's pieces' OBJ tiles and (CGB) palette 4",
           "uint8_t story_water_tiles(uint8_t pic, uint8_t jet, uint8_t ph, uint8_t *dst) BANKED;   // dst[54]: a jet's 3 tiles of phase ph, their VRAM addresses; 0: no water",
+          "uint8_t story_sky_load(uint8_t pic, uint8_t patch) BANKED;   // Color, LCD off: the drifting clouds' tiles and palettes (+ cloud cells made sky); 0: none",
+          "void story_sky_cells(uint8_t pic, uint8_t *dst) BANKED;   // dst[2 + 2 * STORY_SKY_CELLS]: count, the sky tile id, x y per cloud cell",
+          "void story_sky_oam(uint8_t pic, uint8_t c) BANKED;   // the clouds at drift c into shadow_OAM STORY_SKY_OAM..",
           "void story_burst_crackle(uint8_t t) BANKED;   // after the explosion: the sparks (one frame; t unused) (each frame, while INTRO A shows)",
           "uint8_t story_burst_step(uint8_t t, uint8_t ev) BANKED;  // frame t of their flight into shadow_OAM (+ up to ev trail map writes); 1 when done",
           "void portrait_tile_copy(uint8_t spk, uint8_t first, uint8_t n, uint8_t *dst) BANKED;   // BG tiles into WRAM",
@@ -1935,14 +2179,17 @@ def main():
           "portraits": {sp["name"]: {"pid": pid, "speaker": SPEAKERS[sp["speaker"]], "variant": sp["variant"],
                                      "art": sp["art"], "w": sp["w"], "h": sp["h"], "x": sp["x"], "y": sp["y"],
                                      "plate_full": int(PLATE_FULL), "tiles": len(sp["tiles"]), "art_tiles": sp["art_tiles"], "plate_name": sp["plate_name"], "plate": sp["plate"], "pals": len(sp["pals"]), "obj": len(sp["obj"]),
-                                     "map": sp["map"], "attr": sp["attr"], "palettes": sp["pals"]}
+                                     "map": sp["map"], "attr": sp["attr"], "palettes": sp["pals"], "obj_pals": len(sp["obj_pals"])}
                         for pid, sp in sorted(ports.items())},
           "pictures": [{"id": p["name"], "name": p["name"], "scene": p["scene"], "page": p["page"], "map": p["map"],
                         "attr": p["cattr"], "tiles": len(p["tiles"]), "extra": p.get("n_extra", 0), "base": p["base"], "ids": p["ids"],
                         "pals": p["pals"], "hud_cells": p["attr"].count("H"), "bg2": p["bg2"],
                         "water": [[list(t) for t in ph] for ph in p["water"]] if "water" in p else None, "water_addr": p.get("water_addr"),
+                        "sky": {"spr": [list(q) for q in p["sky"]["spr"]], "cells": [list(c) for c in p["sky"]["cells"]], "sky_id": p["sky"]["sky_id"],
+                                "pals": p["sky"]["pals"], "ntiles": len(p["sky"]["tiles"]), "worst": p["sky"]["worst"], "rows": p["sky"]["rows"], "clouds": p["sky"]["clouds"], "key": p["sky"]["key"]} if "sky" in p else None,
                         "art": f"assets/story/pictures/{p['name']}.txt"} for p in pics],
           "pic_slots": list(PIC_SLOTS), "pic_pool": PIC_POOL, "water_cells": [list(c) for c in WATER_CELLS], "water_phases": WATER_PHASES,
+          "sky": {"oam": SKY_OAM, "obj": SKY_OBJ, "pals": list(SKY_PALS), "line_max": SKY_LINE_MAX},
           "burst": {"file": f"assets/story/pictures/{BURST_FILE}", "oam": BURST_OAM, "obj": BURST_OBJ, "pal": BURST_PAL,
                     "end": burst["end"], "crackle_t": burst["crackle_t"], "crackle_obj": CRACKLE_OBJ, "crackle_xy": list(CRACKLE_XY), "star_cells": [BURST_CELL0[0], BURST_CELL0[1], BURST_W, BURST_H], "star0": burst["star0"], "rows": burst["rows"], "timeline": [list(q) for q in BURST_TIMELINE], "worst_line": burst["worst"], "worst_frame": burst["worst_t"], "leave": burst["leave"],
                     "key": bkey, "frame": list(BURST_FRAME), "acc": BURST_ACC, "scratch_cursor": SCRATCH_CURSOR,

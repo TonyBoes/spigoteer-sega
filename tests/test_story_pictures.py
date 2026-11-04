@@ -49,11 +49,58 @@ def water_phases(gb, name):
     return tuple(next((ph for ph in range(len(w)) if w[ph][j * 3:j * 3 + 3] == t[j * 3:j * 3 + 3]), None) for j in (0, 1))
 
 
+SKY = STORY["sky"]                     # Color: the clouds as OBJ sprites that drift (assets/story/pictures/sky.txt)
+SK_AT = 357                            # src/story.c story_sky's bytes in story_scratch: SK_C (the drift), SK_ON, then its buffer
+_SKY = {}
+
+
+def sky_state(gb):
+    """(SK_C, SK_ON): SK_ON 1 = the clouds are sprites drifting SK_C px right of their place (their BG cells are plain sky)"""
+    a = gb.addr("story_scratch") + SK_AT
+    return gb.pb.memory[a], gb.pb.memory[a + 1]
+
+
+def sky_expected(name, c):
+    """The picture on a Color with its clouds drifted c px (story_sky_oam): the cloud pixels go to sky where they were and are drawn
+    by their 8x16 sprites at x+c (wrapping round the 256-px OAM x, a sprite shown while 0 < its OAM x < 168), except where the
+    picture has a non-sky pixel: a mask sprite with that pixel is over the cloud there (gen_story.py checks every such pixel has one)."""
+    if (name, c) not in _SKY:
+        k = PICS[name]["sky"]
+        key, pix, _ = gen_story().parse_v2(ROOT / PICS[name]["art"])
+        sky = q15(key["."]["hex"])
+        skyish = {ch for ch, v in key.items() if v["hex"] == key["."]["hex"] and v["dmg"] == key["."]["dmg"]}
+        im = expected(name, "cgb").copy()
+        cloud = q15(key[k["key"]]["hex"])
+        for y, row in enumerate(pix):
+            for x, ch in enumerate(row):
+                if ch == k["key"]:
+                    im[y, x] = sky
+        for x0, y0, x1, y1, _top in k["clouds"]:
+            for y in range(y0, y1 + 1):
+                for x in range(x0, x1 + 1):
+                    if pix[y][x] != k["key"]:
+                        continue
+                    sx0 = x0 + (x - x0) // 8 * 8                 # its sprite's place in the picture
+                    ox = (sx0 + 8 + c) & 255
+                    if not 0 < ox < 168:
+                        continue
+                    sx = ox - 8 + x - sx0
+                    if 0 <= sx < 160 and (pix[y][sx] in skyish or pix[y][sx] == k["key"]):
+                        im[y, sx] = cloud
+        _SKY[name, c] = im
+    return _SKY[name, c]
+
+
 def picture_diff(gb, name, skip=None):
     """Pixels of the picture area (rows 0-12) that differ from the source; `skip` = a rectangle to leave out. A picture whose
-    fountain flows: its jet cells are left out here (assert_picture checks their tiles are one of the water's phases)."""
+    fountain flows: its jet cells are left out here (assert_picture checks their tiles are one of the water's phases). A Color
+    picture with drifting clouds (SK_ON 1): the source with its clouds at the drift the OAM had this frame (SK_C or SK_C - 1)."""
     got = np.array(gb.image())[:104, :160]
-    bad = np.any(got != expected(name, gb.model_name), axis=2)
+    c, on = sky_state(gb)
+    if gb.model_name == "cgb" and PICS[name].get("sky") and on == 1:
+        bad = min((np.any(got != sky_expected(name, d & 255), axis=2) for d in (c, c - 1)), key=lambda b: int(b.sum()))
+    else:
+        bad = np.any(got != expected(name, gb.model_name), axis=2)
     if name == "intro_a":
         bad[CRACKLE[1]:CRACKLE[3], CRACKLE[0]:CRACKLE[2]] = False
     if PICS[name]["water"]:
@@ -69,9 +116,13 @@ def assert_picture(gb, name, skip=None):
     n = picture_diff(gb, name, skip)
     assert n == 0, f"{n} pixels of the screen differ from {name}"
     p = PICS[name]
+    want_map = list(p["map"])
+    if gb.model_name == "cgb" and p.get("sky") and sky_state(gb)[1] == 1:   # (the cloud cells: the plain sky tile under the sprites)
+        for cx, cy in p["sky"]["cells"]:
+            want_map[cy * 20 + cx] = p["sky"]["sky_id"]
     for r in range(13):                                           # the tile map is the picture's too
         row = tilemap_row(gb, r, 0, 20)
-        want = p["map"][r * 20:(r + 1) * 20]
+        want = want_map[r * 20:(r + 1) * 20]
         if skip and r * 8 >= skip[1]:
             lo, hi = skip[0] // 8, skip[2] // 8
             row, want = row[:lo] + row[hi:], want[:lo] + want[hi:]
@@ -903,3 +954,141 @@ def test_the_finale_spigoteer_wears_the_cream_wooly_cap_and_his_mustache_shows()
     assert "r" not in "".join(_region(pix, 124, 64, 142, 90)), "no pink on the Spigoteer"
     face = _region(pix, 128, 72, 138, 82)
     assert "r" not in "".join(face) and "#####" in face[5], "the mustache (ink) is uncovered"
+
+
+# ---- the clouds drift (Color only; assets/story/pictures/sky.txt, src/story.c story_sky) -------------------------------------
+SKY_PICS = [n for n, p in PICS.items() if p.get("sky")]
+
+
+def sky_guard(gb):
+    """Every frame of a sky picture's scene on a Color: the sprites past the Spigoteer's (OAM 0-3) are the overlay's (OAM 4-19,
+    tiles from OBJ_DANCER, OBJ palettes 3 7: never the clouds' 4 6) or the clouds' (OAM 20.., tiles 56.., palettes 4 6), no line
+    holds more than 10 sprites, and the clouds show only while they drift (SK_ON 1)."""
+    c, on = sky_state(gb)
+    lo, n = SKY["oam"], max(len(PICS[s]["sky"]["spr"]) for s in SKY_PICS)
+    hi_t = SKY["obj"] + max(PICS[s]["sky"]["ntiles"] for s in SKY_PICS)
+    for i, e in enumerate(gb.oam()):
+        if not (0 < e["y"] < 160 and 0 < e["x"] < 168):
+            continue
+        if 4 <= i < lo:
+            assert e["tile"] >= 96 and e["flags"] & 7 not in SKY["pals"], (i, e)
+        elif i >= lo:
+            assert on == 1 and i < lo + n and SKY["obj"] <= e["tile"] < hi_t and e["flags"] & 7 in SKY["pals"], (i, e, on)
+    assert line_max(gb) <= SKY["line_max"]
+
+
+def test_the_clouds_borrow_only_what_the_burst_leaves_free():
+    """The clouds borrow the INTRO burst's OAM (20..) and OBJ tiles (56..): the burst is the INTRO's alone, and no sky picture is
+    the INTRO's. The FINALE / CREDITS speakers' overlays keep to OBJ palette 3 (one palette each), OAM 4-19 and tiles from 96, so
+    the clouds' palettes 4 and 6 are theirs; a line never holds more than 10 sprites at any drift (the build simulates all 256)."""
+    g = gen_story()
+    pics_of = {sc: [n for _, n in v] for sc, v in g.SCENE_PICS.items()}
+    assert not set(pics_of["INTRO"]) & set(SKY_PICS)
+    assert sorted(SKY_PICS) == ["credits_b", "finale_a", "finale_contest"]
+    assert set(SKY_PICS) <= {n for sc, v in pics_of.items() if sc != "INTRO" for n in v}
+    assert SKY == {"oam": BURST["oam"], "obj": BURST["obj"], "pals": [4, 6], "line_max": 10}
+    for n in SKY_PICS:
+        k = PICS[n]["sky"]
+        assert len(k["spr"]) <= 16 and SKY["oam"] + len(k["spr"]) <= 40
+        assert k["ntiles"] <= 36 and SKY["obj"] + k["ntiles"] <= 96, n          # (BURST_OBJ_N; the overlay tiles start at 96)
+        assert k["worst"] <= 10 and len(k["cells"]) <= 8, n
+    for sc in ("FINALE_A", "FINALE_B", "CREDITS"):
+        spk = {pg["portrait"] for pg in SCENES[SC[sc]]["pages"]} - {None}
+        assert all(STORY["portraits"][s]["obj_pals"] <= 1 for s in spk), sc
+        assert SCENES[SC[sc]]["obj_tiles"] <= 32
+
+
+def sky_log(gb, frames):
+    """per game frame, at the end of its logic: (PW_T, SK_C, SK_ON), with sky_guard after every emulator frame"""
+    sc = gb.addr("story_scratch")
+    log = []
+
+    def rec():
+        log.append((gb.pb.memory[sc + PW_AT], gb.pb.memory[sc + SK_AT], gb.pb.memory[sc + SK_AT + 1]))
+        return len(log) > frames + 1
+    until_game(gb, rec, limit=frames * 3, each=sky_guard)
+    return log[1:]
+
+
+@pytest.mark.parametrize("scene", ["FINALE_A", "CREDITS"])
+def test_the_clouds_drift_on_a_color(scene):
+    """Owner Q74 (2026-11-04): on a Color the clouds drift one pixel right every 8 game frames (with the water's count); their cells
+    are plain sky under them, the masks keep them behind the Golden Spigot and the spire, and the rest of the picture stays."""
+    with to_finale("cgb") as gb:
+        name = "finale_a"
+        if scene == "CREDITS":
+            through_the_pouroff(gb)
+            gb.press("start", 2)
+            run_until(gb, lambda: gb.mem("story_scene") == SC["CREDITS"], 30)
+            settle(gb)
+            name = "credits_b"
+        page_ready(gb)
+        assert sky_state(gb)[1] == 1
+        log = sky_log(gb, 72)
+        for (t0, c0, on0), (t1, c1, on1) in zip(log, log[1:]):
+            assert on1 == 1 and c1 == ((c0 + 1) & 255 if not t1 & 7 else c0), log
+        assert log[-1][1] - log[0][1] >= 8
+        skip = None if scene == "CREDITS" or SCENES[SC[scene]]["pages"][0]["portrait"] is None else FRAME
+        for f in range(40):
+            gb.run(1)
+            sky_guard(gb)
+            if f % 5 == 0:
+                assert_picture(gb, name, skip)
+        k = PICS[name]["sky"]
+        first = next(i for i, s in enumerate(k["spr"]) if s[0] == "cloud")
+        xs = []
+        for f in range(24):
+            gb.run(1)
+            xs.append(gb.oam()[SKY["oam"] + first]["x"])
+        assert len(set(xs)) >= 3 and all(b in (a, (a + 1) & 255) for a, b in zip(xs, xs[1:])), xs
+        # a cloud behind the spigot: poke the drift so the first cloud sits under the spigot's mask, and the picture is still exact
+        sc = gb.addr("story_scratch") + SK_AT
+        x0 = k["clouds"][0][0]
+        gb.pb.memory[sc] = (100 - x0 - 1) & 255
+        until_game(gb, lambda: gb.pb.memory[sc] == (100 - x0) & 255, 20)
+        gb.run(2)
+        assert any(0 < e["y"] < 160 for e in gb.oam()[SKY["oam"]:SKY["oam"] + first]), "a mask is up over the spigot"
+        sky_guard(gb)
+        assert_picture(gb, name, skip)
+        assert gb.mem("drain_ticks_max") <= 13 and gb.mem("vq_end_ly_max") <= 153 and gb.mem16("vq_late") == 0
+
+
+def test_a_dmg_keeps_the_still_clouds():
+    """On a DMG nothing of the sky moves: SK_ON stays 0, OAM 20-39 stays hidden (the sprites are the ones the scene always had: the
+    Spigoteer's four), the cloud cells keep their tiles and the picture is the source, exact, frame after frame."""
+    with to_finale("dmg") as gb:
+        page_ready(gb)
+        before = [i for i, e in enumerate(gb.oam()) if 0 < e["y"] < 160]
+        assert max(before, default=0) < SKY["oam"]
+        for f in range(80):
+            gb.run(1)
+            assert sky_state(gb) == (0, 0)
+            assert all(e["y"] == 0 for e in gb.oam()[SKY["oam"]:])
+            assert [i for i, e in enumerate(gb.oam()) if 0 < e["y"] < 160] == before
+            if f % 10 == 0:
+                skip = None if SCENES[SC["FINALE_A"]]["pages"][0]["portrait"] is None else FRAME
+                assert_picture(gb, "finale_a", skip)
+        p = PICS["finale_a"]
+        for cx, cy in p["sky"]["cells"]:
+            assert tilemap_row(gb, cy, cx, 1) == [p["map"][cy * 20 + cx]]
+
+
+def test_the_clouds_hide_for_the_contest_flash_and_come_back_after_its_fade_in():
+    """FINALE_A's picture switch (the contest's set-up): the clouds' sprites are off for the white, the contest's clouds come back
+    once it has faded in (cells to sky and sprites in the same frame), and every frame of the scene keeps the guard."""
+    with to_finale("cgb") as gb:
+        s = SCENES[SC["FINALE_A"]]
+        page_ready(gb)
+        seen = []
+        for k in range(1, len(s["pages"])):
+            gb.press("a", 2)
+            for f in range(400):
+                gb.run(1)
+                sky_guard(gb)
+                seen.append(sky_state(gb)[1])
+                if gb.mem("story_swap") == 0 and gb.mem("story_typed") > 0 and (k != 3 or sky_state(gb)[1] == 1):
+                    break
+            page_ready(gb)
+            if k == 3:
+                assert 0 in seen and 3 in seen and seen[-1] == 1, seen
+                assert_picture(gb, "finale_contest")
