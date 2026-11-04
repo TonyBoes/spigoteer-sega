@@ -20,7 +20,7 @@ void maybe_tip(uint8_t p) BANKED {
     if (tip_first || (show_timer && tip_pocket != TILE_HUD_BLANK)) return;   // (CLASSIC: not before the level's first tip, send_empty)
     if (tip_timer && (!tip_pocket || t->t)) return;                          // one coin there already (CLASSIC: one at a time), or two
     if (!tip_chance) return;                                                 // 0 never (and draws no random number)
-    if (!(tip_pocket && !cur_group && (patron_variant[p] & 7) == 2) &&       // GUS: always
+    if (!(tip_pocket && !cur_group && (patron_variant[p] & 7) == 2 && !(debug_from_title & TUNE_GUS_ROLLS)) &&   // GUS: always (unless the debug TUNING page says not)
         tip_chance != 255 && next_rand() >= tip_chance) return;
     if (tip_timer) { t->t = TIP_FRAMES; t->bar = patron_bar[p]; t->x = patron_x[p] + 4; return; }
     t->t = 0;

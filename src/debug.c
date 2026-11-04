@@ -48,16 +48,17 @@
 #define SKIN_SAVE_N         4
 #define SKIN_PALS           6
 
-extern uint8_t overlay_on, level, story_chapter, story_step, state_timer;
+extern uint8_t overlay_on, level, story_chapter, story_step, state_timer, boss_on;
 uint8_t debug_menu_open;
 uint8_t debug_level;               // LEVEL's / CLASSIC's level
-uint8_t debug_from_title;          // bit 0: opened on the title. DEBUG_MENU builds: bits 1-2 the STRESS run in play (1 SPACE, 2 CLASSIC, 3 ARCADE; 0 none), kept while the menu is closed
+uint8_t debug_from_title;          // bit 0: opened on the title. DEBUG_MENU builds: bits 1-2 the STRESS run in play (1 SPACE, 2 CLASSIC, 3 ARCADE; 0 none), kept while the menu is closed.
+                                   // Bits 3-6 and 7: the TUNING page's values (below), session only, 0 = the game's own default; debug_open and title_enter leave them alone
 uint8_t debug_sel;                 // open: the cursor's line. Before it: bit 0 the title's SELECT toggled the music, bits 1-2 the START taps so far
 uint8_t debug_timer;               // the gesture's frames left
 uint8_t debug_story;               // 1: the menu selects a story position, 2: an ARCADE one, 3 (DEBUG_MENU builds): a STRESS case in debug_pos (0: a level)
 uint8_t debug_chapter;             // its chapter (0..STORY_CHAPTERS-1)
 uint8_t debug_pos;                 // its position (0 PRE, 1..STORY_STEPS step pos-1, POS_POST)
-uint8_t debug_classic;             // 1: the menu is CLASSIC's (debug_level is its level, 1..CLASSIC_ROWS)
+uint8_t debug_classic;             // 1: the menu is CLASSIC's (debug_level is its level, 1..CLASSIC_ROWS); 2: the TUNING page
 void story_debug_start(uint8_t ch, uint8_t pos, uint8_t arc) BANKED;   // src/story.c
 
 // ---- the unlock's trigger ----------------------------------------------------------------------------------------------------
@@ -95,31 +96,60 @@ uint8_t debug_gesture(uint8_t pressed) BANKED {
 }
 
 // ---- the lines ----------------------------------------------------------------------------------------------------------------
-enum { DL_MODE, DL_LEVEL, DL_CHAPTER, DL_STEP, DL_BARS, DL_CHANGE, DL_FPS, DL_MIXED, DL_PEAK };
-enum { DM_LEVEL, DM_STORY, DM_ARCADE, DM_CLASSIC, DM_STRESS };
+enum { DL_MODE, DL_LEVEL, DL_CHAPTER, DL_STEP, DL_BARS, DL_CHANGE, DL_FPS, DL_MIXED, DL_PEAK, DL_TUNE };   // (DL_TUNE + i: the TUNING page's knob i)
+enum { DM_LEVEL, DM_STORY, DM_ARCADE, DM_CLASSIC, DM_TUNE, DM_STRESS };
+#define FROM_TITLE (debug_from_title & 1)
 #ifdef DEBUG_MENU
 #define DM_LAST DM_STRESS                                // the playtest builds add STRESS: the automated perf scenarios' crowds (below)
-#define FROM_TITLE (debug_from_title & 1)
 #define STRESS_MENU (debug_story == 3)
 #else
-#define DM_LAST DM_CLASSIC
-#define FROM_TITLE debug_from_title
+#define DM_LAST DM_TUNE
 #define STRESS_MENU 0
 #endif
 
 #ifdef DEBUG_MENU
 static uint8_t dmode(void) {
     if (STRESS_MENU) return DM_STRESS;
-    return debug_classic ? DM_CLASSIC : debug_story ? DM_STORY - 1 + debug_story : DM_LEVEL;
+    return debug_classic ? DM_CLASSIC - 1 + debug_classic : debug_story ? DM_STORY - 1 + debug_story : DM_LEVEL;
 }
 #else
-static uint8_t dmode(void) { return debug_classic ? DM_CLASSIC : debug_story ? DM_STORY - 1 + debug_story : DM_LEVEL; }
+static uint8_t dmode(void) { return debug_classic ? DM_CLASSIC - 1 + debug_classic : debug_story ? DM_STORY - 1 + debug_story : DM_LEVEL; }
 #endif
+
+
+// ---- the TUNING page (owner 2026-11-03): single-number knobs to change while testing; session only (nothing saved, power-on resets them) ----------------------------
+// ONE ENTRY PER KNOB in tune_knob[] (name, number of values, the labels, get / set of the value's index); the page's lines, the drawing and Left / Right follow
+// the table, TUNE_N is its length. The values live in debug_from_title's bits 3-7 (no WRAM global), stored so that 0 is the game's own default (a power-on
+// needs no setting): COINS bits 3-6 (the list's index xor 6: "1 IN 8" is index 6), GUS bit 7 (1: he rolls like the others). Other code reads them
+// through tip_tuned() (boss.c restores tip_chance with it when a fight ends) and the bit TUNE_GUS_ROLLS (game.h; tip.c maybe_tip).
+#define COIN_N 11
+static const char *const coin_label[COIN_N] = { "OFF", "1 IN 2", "1 IN 3", "1 IN 4", "1 IN 5", "1 IN 6", "1 IN 8", "1 IN 10", "1 IN 12", "1 IN 16", "ALWAYS" };
+static const uint8_t coin_val[COIN_N] = { 0, 128, 85, 64, 51, 43, 32, 26, 21, 16, 255 };   // tip_chance (out of 256) of each
+static const char *const onoff_label[2] = { "ON", "OFF" };
+
+// COINS: the index. Setting it also applies it at once (not during a boss fight: its no-tips stays until it ends and boss.c restores tip_tuned())
+static uint8_t coin_get(void) { return ((debug_from_title >> 3) & 15) ^ 6; }
+static void coin_set(uint8_t i) {
+    debug_from_title = (debug_from_title & ~0x78) | ((i ^ 6) << 3);
+    if (!boss_on) tip_chance = coin_val[i];
+}
+static uint8_t gus_get(void) { return debug_from_title >> 7; }                              // 0 ON (always tips), 1 OFF
+static void gus_set(uint8_t i) { debug_from_title = (debug_from_title & 0x7F) | (i << 7); }
+
+struct knob { const char *name; uint8_t n; const char *const *label; uint8_t (*get)(void); void (*set)(uint8_t); };
+static const struct knob tune_knob[] = {
+    { "COINS",      COIN_N, coin_label,  coin_get, coin_set },
+    { "GUS ALWAYS", 2,      onoff_label, gus_get,  gus_set },
+};
+#define TUNE_N (sizeof tune_knob / sizeof tune_knob[0])
+
+uint8_t tip_tuned(void) BANKED { return coin_val[coin_get()]; }                   // the COINS value (boss.c: a fight's end)
 
 // the kind of each line of the mode shown into k[]; the number of lines
 static uint8_t lines(uint8_t *k) {
-    uint8_t n = 0;
+    uint8_t n = 0, i;
     k[n++] = DL_MODE;
+    if (debug_classic == 2) { for (i = 0; i < TUNE_N; i++) k[n++] = DL_TUNE + i; return n; }
     if (debug_classic) k[n++] = DL_LEVEL;
 #ifdef DEBUG_MENU
     else if (STRESS_MENU) k[n++] = DL_PEAK;
@@ -133,12 +163,12 @@ static uint8_t lines(uint8_t *k) {
 
 static const char *const step_label[4] = { "OPEN", "HAPPY", "LAST", "" };   // a shift's index (STEP_INDEX)
 #ifdef DEBUG_MENU
-static const char *const mode_name[5] = { "LEVEL", "STORY", "ARCADE", "CLASSIC", "STRESS" };
-static const char *const info_text[5] = { "LEVEL TEST RUN", "NOTHING IS SAVED", "NOTHING IS SAVED", "CLASSIC 1983 RUN", "WORST CASE CROWD" };
+static const char *const mode_name[6] = { "LEVEL", "STORY", "ARCADE", "CLASSIC", "TUNING", "STRESS" };
+static const char *const info_text[6] = { "LEVEL TEST RUN", "NOTHING IS SAVED", "NOTHING IS SAVED", "CLASSIC 1983 RUN", "THIS SESSION ONLY", "WORST CASE CROWD" };
 static const char *const peak_name[3] = { "SPACE", "CLASSIC", "ARCADE" };
 #else
-static const char *const mode_name[4] = { "LEVEL", "STORY", "ARCADE", "CLASSIC" };
-static const char *const info_text[4] = { "LEVEL TEST RUN", "NOTHING IS SAVED", "NOTHING IS SAVED", "CLASSIC 1983 RUN" };
+static const char *const mode_name[5] = { "LEVEL", "STORY", "ARCADE", "CLASSIC", "TUNING" };
+static const char *const info_text[5] = { "LEVEL TEST RUN", "NOTHING IS SAVED", "NOTHING IS SAVED", "CLASSIC 1983 RUN", "THIS SESSION ONLY" };
 #endif
 
 // 1: position p of chapter ch can be started
@@ -231,7 +261,9 @@ static void line_row(uint8_t kind, uint8_t *r) {
     case DL_MIXED:                                       // the DMG's mixed levels: A (2 px steps, both directions at even shifts) or B (1 px, looks split by direction)
         put(r, COL_LABEL, "MIXED"); put(r, COL_VALUE + 1, is_cgb ? "NO CGB" : (level_dirs & MIXED_B) ? "B" : "A");
         break;
-    default: put(r, COL_LABEL, "BAR CHANGE"); put(r, COL_VALUE + 1, (level_dirs & KEEP_POS) ? "KEEP" : "SNAP");
+    default:
+        if (kind >= DL_TUNE) { const struct knob *t = &tune_knob[kind - DL_TUNE]; put(r, COL_LABEL, t->name); put(r, COL_VALUE, t->label[t->get()]); break; }
+        put(r, COL_LABEL, "BAR CHANGE"); put(r, COL_VALUE + 1, (level_dirs & KEEP_POS) ? "KEEP" : "SNAP");
     }
 }
 
@@ -287,9 +319,9 @@ void debug_open(void) BANKED {
     uint8_t k, i, b[20];
     if (game_state == GS_PAUSED) pause_close();      // opened from the pause menu: its window and the sound go back first
 #ifdef DEBUG_MENU
-    debug_from_title = (debug_from_title & 6) | (game_state == GS_TITLE);
+    debug_from_title = (debug_from_title & ~1) | (game_state == GS_TITLE);   // (the STRESS run's bits and the TUNING values stay)
 #else
-    debug_from_title = game_state == GS_TITLE;
+    debug_from_title = (debug_from_title & ~1) | (game_state == GS_TITLE);
 #endif
     debug_story = 0; debug_classic = 0;
     if (debug_from_title) {
@@ -414,7 +446,7 @@ static void set_mode(uint8_t m) {
 #else
     debug_story = m == DM_STORY ? 1 : m == DM_ARCADE ? 2 : 0;
 #endif
-    debug_classic = m == DM_CLASSIC;
+    debug_classic = m == DM_CLASSIC ? 1 : m == DM_TUNE ? 2 : 0;
     debug_level = 1;
     debug_chapter = 0;
     debug_pos = debug_story == 2 ? pos_next(0, 0, 1) : 0;    // (STORY: its PRE scene; ARCADE: the first step it can play)
@@ -508,12 +540,19 @@ uint8_t debug_step(uint8_t pressed) BANKED {
         level_dirs ^= MIXED_B;
         draw_line(old);
         break;
-    default:                                                         // BAR CHANGE: SNAP <-> KEEP
-        level_dirs ^= KEEP_POS;
+    default:
+        if (kind >= DL_TUNE) {                                       // a TUNING knob: its next / previous value
+            const struct knob *t = &tune_knob[kind - DL_TUNE];
+            m = t->get();
+            t->set(d == 1 ? (m == t->n - 1 ? 0 : m + 1) : (m ? m - 1 : t->n - 1));
+            draw_line(old);
+            break;
+        }
+        level_dirs ^= KEEP_POS;                                      // BAR CHANGE: SNAP <-> KEEP
         draw_line(old);
     }
     if (debug_sel != old) cursor();
-    if (pressed & (J_A | J_START)) {
+    if ((pressed & (J_A | J_START)) && debug_classic != 2) {
         close_menu();
 #ifdef DEBUG_MENU
         debug_from_title &= 1;                                       // (a plain start ends a STRESS run)
@@ -523,7 +562,7 @@ uint8_t debug_step(uint8_t pressed) BANKED {
         else { play_mode = debug_classic ? MODE_CLASSIC : MODE_LEVEL; start_new_game(debug_level); }
         return 1;
     }
-    if (pressed & J_B) {
+    if (pressed & (J_B | J_A | J_START)) {                           // (A and START on the TUNING page: nothing to start, they close it as B does)
         close_menu();
         game_state = FROM_TITLE ? GS_TITLE : GS_PLAYING;
         DISPLAY_ON;

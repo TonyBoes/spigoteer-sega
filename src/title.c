@@ -468,7 +468,7 @@ void title_enter(void) BANKED {
     DISPLAY_OFF;
     TUNE_FLUSH();                                     // (a tune unlock heard in the story and not saved yet: a quit, a game over)
 #ifdef DEBUG_MENU
-    debug_from_title &= 1;                            // (a STRESS run ends here: src/debug.c)
+    debug_from_title &= ~6;                           // (a STRESS run ends here: src/debug.c; the TUNING bits stay)
 #endif
     music_pump();                                     // (the tick this pass is due: the load below runs several frames)
     overlay_on = 0; HIDE_WIN; vq_reset(); hud_dirty = 0;
