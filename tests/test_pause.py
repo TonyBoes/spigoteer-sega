@@ -1023,8 +1023,13 @@ def boss_cards():
     for i, m in enumerate(re.finditer(r'/\* B_\w+\s*\*/ \{ "([^"]*)", \{ "([^"]*)", "([^"]*)", "([^"]*)", "([^"]*)" \} \},', src)):
         out[i] = [m.group(1), list(m.groups()[1:]), None]
     for m in re.finditer(r'\{ MG_BOSS_CARD \+ (\d+), \{ "([^"]*)", "([^"]*)", "([^"]*)", "([^"]*)" \} \},', src):
-        out[int(m.group(1))][2] = list(m.groups()[1:])
+        out[int(m.group(1))][2] = [t.replace("\\001", "\x01").replace("\\002", "\x02") for t in m.groups()[1:]]   # (\001 ROOM mug, \002 TAKEN mug)
     return out
+
+
+def shown(lines):
+    """A page's lines as card_rows reads them: the two capacity mugs are the story font's '!' (ROOM) and '?' (TAKEN) tiles, loaded over."""
+    return [t.translate({1: "!", 2: "?"}).strip() for t in lines]
 
 
 def test_every_boss_has_a_hint_card_of_one_or_two_pages_with_short_plain_lines():
@@ -1033,7 +1038,7 @@ def test_every_boss_has_a_hint_card_of_one_or_two_pages_with_short_plain_lines()
     assert sorted(cards) == list(range(10))
     for b, (name, p1, p2) in cards.items():
         for t in [name] + p1 + (p2 or []):
-            assert re.fullmatch(r"[A-Z0-9 .,!?:'-]*", t) and len(t) <= 18, (b, t)
+            assert re.fullmatch(r"[A-Z0-9 .,!?:'\x01\x02-]*", t) and len(t) <= 18, (b, t)
         assert p1[0] and (p2 is None or p2[0])
 
 
@@ -1061,7 +1066,7 @@ def test_a_boss_fight_pause_menu_opens_his_hint_card(model, c):
         if p2:
             tap(gb, "a", CARD_FRAMES)
             rows = card_rows(gb)
-            assert rows[5] == name and rows[7:14:2] == p2 and rows[16] == "A BACK", rows
+            assert rows[5] == name and rows[7:14:2] == shown(p2) and rows[16] == "A BACK", rows
             if c in (0, 7):
                 check_golden(gb, f"pause_card_boss{c}_p2")
         tap(gb, "a", CARD_FRAMES)
@@ -1071,6 +1076,61 @@ def test_a_boss_fight_pause_menu_opens_his_hint_card(model, c):
         assert menu_rows(gb) == ["ARE YOU SURE?", "", "YES", "> NO"], menu_rows(gb)
         tap(gb, "a")
         assert menu_rows(gb) == ["RESUME", "HOW TO PLAY", "> QUIT TO MENU", ""], menu_rows(gb)
+
+
+@pytest.mark.parametrize("model", MODES)
+def test_big_texs_second_page_shows_the_capacity_mugs_and_the_font_comes_back(model):
+    """Rev 4: page 2 has 3 ROOM / TAKEN mug tiles (the font's '!' and '?' tiles loaded over) before each of the first three lines; closing puts the font back."""
+    from boss_common import fight, play
+    import re
+    from conftest import ROOT
+    src = (ROOT / "src" / "mg_card.c").read_text()
+    body = re.search(r"cap_tiles\[32\] = \{([^}]*)\}", src).group(1)
+    want = bytes(int(x, 16) for x in re.findall(r"0x[0-9A-Fa-f]{2}", body))
+    with fight(model, 0) as gb:
+        play(gb)
+        gb.run(40)
+        excl, quest = _glyph_ids()
+        font = (tile(gb, excl), tile(gb, quest))      # (in a fight these ids hold his art)
+        tap(gb, "start", 3)
+        tap(gb, "down")
+        tap(gb, "a", CARD_FRAMES)
+        assert font[0] + font[1] != want
+        tap(gb, "a", CARD_FRAMES)
+        room, taken = tile(gb, excl), tile(gb, quest)
+        assert room + taken == want and room != taken
+        pattern = [(excl, excl, excl), (quest, excl, excl), (quest, quest, quest)]
+        for k, p in enumerate(pattern):
+            assert tuple(tilemap_row(gb, 7 + 2 * k, 0, 20, True)[2:5]) == p, k
+        assert tilemap_row(gb, 13, 0, 20, True)[2] not in (excl, quest)
+        check_golden(gb, "pause_card_tex_mugs_p2")
+        tap(gb, "a", CARD_FRAMES)
+        assert (tile(gb, excl), tile(gb, quest)) == font, "the '!' and '?' tiles are back"
+
+
+def _glyph_ids():
+    import re
+    from conftest import ROOT
+    h = (ROOT / "build" / "story.h").read_text()
+    base = int(re.search(r"STORY_PORTRAIT_BASE != (\d+)", h).group(1)) - 16
+    return base + 2, base + 3
+
+
+@pytest.mark.parametrize("model", MODES)
+@pytest.mark.parametrize("c", (1, 7))
+def test_the_mascots_and_the_sumos_one_page_cards_close_on_a(model, c):
+    """Rev 4: the Mascot and the Sumo have a single page: the prompt reads A BACK at once and A closes the card."""
+    from boss_common import fight, play
+    with fight(model, c) as gb:
+        play(gb)
+        gb.run(40)
+        tap(gb, "start", 3)
+        tap(gb, "down")
+        tap(gb, "a", CARD_FRAMES)
+        rows = card_rows(gb)
+        assert rows[1] == "HOW TO PLAY" and rows[16] == "A BACK", rows
+        tap(gb, "a", CARD_FRAMES)
+        assert win_text(gb, 2) == "> HOW TO PLAY" and state(gb) == PAUSED
 
 
 def _boss_state(gb):

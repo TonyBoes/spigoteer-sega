@@ -8,6 +8,8 @@
 //   (page 2, then 3: four lines each, under the same name). With more pages to come the prompt row reads NEXT (A turns the page); on the last page
 //   A starts the game (PRESS A). From BONUS > MINI GAMES the full card also takes B (back to the list): its prompt row then reads
 //   "A START  B BACK" ("A NEXT  B BACK" on a page that is not the last).
+//   Rev 4 (owner 2026-11-03): the boss cards say what is unique to each boss; Big Tex's page 2 starts three lines with capacity mugs (text bytes
+//   \001 ROOM, \002 TAKEN: cap_tiles over the font's '!' '?' tiles). The Mascot and the Sumo have one page (prompt A BACK).
 //   OVER A PAUSED GAME (kind 2, pause.c's HOW TO PLAY row): the same card drawn into the window map (0x9C00) rows 0-17, so the game's own BG map and
 //   tiles stay untouched; sprites are switched off by pause.c, the story font's tiles (16: the punctuation, the frame, the spigot icon the
 //   game's icon replaces) are kept in the window map's rows 20-27 (never on screen) while the card shows them and put back afterwards.
@@ -59,14 +61,14 @@ static const card_t cards[MG_GAMES + MG_BOSS_CARDS] = {
     /* G_B1   */ { "PERFECT POUR", { "HOLD A: POUR", "LET GO AT THE LINE", "3 GLASSES TO FILL", "FOAM KEEPS RISING" } },
     /* G_B2   */ { "TIP SHOWER", { "LEFT RIGHT: WALK", "TRAY CATCHES COINS", "AVOID THE TOMATOES", "100 POINTS A COIN" } },
     // the bosses' hint pages (pause.c: HOW TO PLAY in a fight), card id MG_BOSS_CARD + boss_id; page 2 is in more[]
-    /* B_TEX  */ { "BIG TEX", { "TEX STOMPS TO TAP", "MUGS PUSH HIM BACK", "8 MUGS BEAT HIM", "AT THE TAP: A LIFE" } },
-    /* B_MASC */ { "THE MASCOT", { "HE HOPS TO ANOTHER", "BAR. DUST SHOWS", "WHERE HE WILL LAND", "FOLLOW HIM THERE" } },
-    /* B_SASQ */ { "SASQUATCH", { "HE DUCKS, VANISHES", "THEN POPS UP WHERE", "FOOTPRINTS BLINK", "GO THERE FIRST" } },
+    /* B_TEX  */ { "BIG TEX", { "EVERY BOSS WALKS", "TO YOUR TAP. A MUG", "PUSHES HIM BACK", "AND FILLS HIM UP." } },
+    /* B_MASC */ { "THE MASCOT", { "HE JUMPS TO A NEW", "BAR NOW AND THEN.", "WHEN HE CROUCHES,", "HOLD YOUR MUGS." } },
+    /* B_SASQ */ { "SASQUATCH", { "HE VANISHES, THEN", "POPS UP ON ANOTHER", "BAR. WATCH OUT!", "" } },
     /* B_CRIT */ { "THE FOOD CRITIC", { "PERFECT POURS ONLY", "LET GO WHEN THE", "WINE GLOWS WHITE", "SLOPPY COMES BACK" } },
     /* B_YETI */ { "THE YETI", { "HE BLOWS ICE ONTO", "HIS BAR. THE TAP", "FREEZES: NO THROWS", "AT HIM WHILE ICY" } },
-    /* B_PROT */ { "THE PROTOTYPE", { "WATCH HIS LAMP", "GREEN: THROW", "YELLOW: STOP", "RED: MUGS BOUNCE" } },
-    /* B_DUKE */ { "DUKE", { "DUKE REVS, THEN", "LURCHES AT THE TAP", "A MUG WHILE HE", "REVS STALLS HIM" } },
-    /* B_SUMO */ { "SUMO CHAMPION", { "NO DRINK LIMIT", "FILL THE METER TO", "SHOVE HIM BACK", "PUSH HIM OUT!" } },
+    /* B_PROT */ { "THE PROTOTYPE", { "GREEN: SERVE HIM.", "YELLOW: GET READY.", "RED: HIS BELT RUNS", "BACKWARDS." } },
+    /* B_DUKE */ { "DUKE", { "HE LURCHES FORWARD", "IN BURSTS. A MUG", "DURING HIS REV", "STOPS THE LURCH." } },
+    /* B_SUMO */ { "SUMO CHAMPION", { "PUSH HIM OUT OF", "THE TEAHOUSE TO", "WIN. EACH PUSH", "NEEDS FEWER CUPS." } },
     /* B_LEO  */ { "LEO THE LION", { "HIS ROAR IS A WIND", "BLOWING FULL MUGS", "BACK ON EVERY BAR", "CATCH THEM!" } },
     /* B_MOTH */ { "THE MOTHERSHIP", { "SAUCER JUMPS BARS", "BEAM SHOWS WHERE", "AFTER 8 IT SPLITS", "MINIS WANT 2 EACH" } },
 };
@@ -80,14 +82,12 @@ static const more_t more[] = {
     { G_MR,   { "GRAB MILK BOTTLES", "FOR 3 MORE CRATES", "BUMPS DROP 2 OR 3", "FAST FINISH: BONUS" } },
     { G_B0,   { "3 LEVELS, EACH", "FASTER THAN LAST", "MISS: RUN ENDS", "" } },
     { G_TS,   { "FANS RAISE HANDS", "LOB IT: CATCH 300", "FLAT OR OTHER: 30", "SHORT OR FAR: 0" } },
-    { MG_BOSS_CARD + 0, { "HE HOLDS 3 MUGS,", "THE 4TH ONE BREAKS", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
-    { MG_BOSS_CARD + 1, { "A MUG AT HIS OLD", "BAR BREAKS", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
-    { MG_BOSS_CARD + 2, { "A MUG AT HIS EMPTY", "BAR BREAKS", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
+    { MG_BOSS_CARD + 0, { "\001\001\001 HE HAS ROOM", "\002\001\001 HOLDING ONE", "\002\002\002 HANDS FULL:", "NEXT MUG BREAKS." } },
+    { MG_BOSS_CARD + 2, { "HE DRINKS FAST AND", "HIS EMPTIES SLIDE", "BACK REAL FAST.", "" } },
     { MG_BOSS_CARD + 3, { "EMPTY MUG: THROW", "FULL MUG: BUSY", "SHAKING: SENT BACK", "CATCH THEM AT TAP" } },
     { MG_BOSS_CARD + 4, { "THROW ONE BEFORE", "THE FROST COMES", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
-    { MG_BOSS_CARD + 5, { "AFTER RED HE RIDES", "TO ANOTHER BAR", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
-    { MG_BOSS_CARD + 6, { "STEADY MUGS KEEP", "HIM FROM LURCHING", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
-    { MG_BOSS_CARD + 7, { "HE STEPS ON THE", "DRUM BEAT", "A MUG CALLS OFF", "HIS STAMP" } },
+    { MG_BOSS_CARD + 5, { "THEN HE MOVES TO", "ANOTHER BAR.", "", "" } },
+    { MG_BOSS_CARD + 6, { "THE MORE HE DRINKS", "THE SOONER HE", "REVS AGAIN.", "" } },
     { MG_BOSS_CARD + 8, { "'!' MEANS A ROAR:", "STOP, CATCH MUGS", "EMPTY MUG: THROW", "FULL MUG: BUSY" } },
     { MG_BOSS_CARD + 9, { "EACH JUMP BRINGS", "2 PASSENGERS", "STAYING PUT: STUN", "RAY! CHANGE BARS" } },
 };
@@ -113,6 +113,7 @@ static uint8_t glyph(char c) {
     case '.': return ST_GLYPH_PERIOD; case ',': return ST_GLYPH_COMMA; case '!': return ST_GLYPH_EXCL;
     case '?': return ST_GLYPH_QUEST;  case '\'': return ST_GLYPH_APOS; case '-': return ST_GLYPH_HYPHEN;
     case ':': return ST_GLYPH_COLON;
+    case 1: return ST_GLYPH_EXCL; case 2: return ST_GLYPH_QUEST;   // the capacity mugs (Big Tex's page 2): the '!' and '?' tiles, loaded over by cap_tiles
     }
     return GLYPH_FAST(c, glyph_for(c));
 }
@@ -133,7 +134,7 @@ static void line(uint8_t kind, uint8_t y, const char *s) {     // a centred text
     while (s[n]) n++;
     edges(b);
     if (n > 18) { b[0] = b[19] = TILE_HUD_BLANK; x = (uint8_t)(20 - n) >> 1; }   // (a pending card's banner line: over the frame's sides)
-    else x = 1 + ((uint8_t)(18 - n) >> 1);
+    else x = *s < 3 ? 2 : 1 + ((uint8_t)(18 - n) >> 1);   // (a line that starts with a mug: the icon lines are a left-aligned block, 15 wide)
     while (*s) b[x++] = glyph(*s++);
     put(kind, y, b);
 }
@@ -164,12 +165,22 @@ void mg_card_prompt(uint8_t game, uint8_t page, uint8_t kind, uint8_t on) BANKED
     line(kind, MG_CARD_PROMPT_ROW, on ? prompt(game, page, kind) : "");
 }
 
+// Big Tex's page 2 (rev 4, owner 2026-11-03): the ROOM and TAKEN mugs of the capacity indicator (assets/art/boss/tag.txt, the top 8 rows) as BG tiles
+// in the HUD palette's colours, over the story font's '!' and '?' tiles (saved by mg_card_win_open with all the font's; this page uses neither;
+// mg_card_win_close puts them back). Text bytes 1 = ROOM, 2 = TAKEN.
+static const uint8_t cap_tiles[32] = {
+    0xFF, 0xFF, 0xFF, 0xFF, 0xC7, 0xC7, 0xCF, 0xC7, 0xC7, 0xC7, 0xC7, 0xC7, 0xC7, 0xC7, 0xFF, 0xFF,
+    0xFF, 0xFF, 0x83, 0x83, 0xB8, 0xB8, 0xBA, 0xAA, 0xBA, 0xBA, 0xBA, 0xBA, 0xB8, 0xB8, 0x83, 0x83 };
+
 // the rows that change from page to page: the four lines and the prompt
 void mg_card_page(uint8_t game, uint8_t page, uint8_t kind) BANKED {
     uint8_t y;
+    if (game == MG_BOSS_CARD && page == 1) set_bkg_data(ST_GLYPH_EXCL, 2, cap_tiles);   // (ST_GLYPH_EXCL and QUEST are adjacent: typedef below)
     for (y = 0; y < 4; y++) line(kind, ROW_LINE + 2 * y, page_line(game, page, y));
     mg_card_prompt(game, page, kind, 1);
 }
+
+typedef char excl_quest_adjacent[ST_GLYPH_QUEST == ST_GLYPH_EXCL + 1 ? 1 : -1];
 
 static void draw_rows(uint8_t game, uint8_t kind) {
     uint8_t y, b[20];

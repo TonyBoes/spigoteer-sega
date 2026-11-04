@@ -12,7 +12,7 @@ from boss_common import BS_ENTER, BS_WALK, BS_WALKIN, BS_WARM, hud, meter_tiles,
 from conftest import BK_AT, bk_block, clear_regulars, ds_active
 from save_images import put
 from test_flow import GS_GOAL, LEVEL_CLEAR, PLAYING, run_until, state
-from test_pause import CARD_FRAMES, PAUSE_NR51, PAUSED, boss_cards, card_rows, tap
+from test_pause import CARD_FRAMES, PAUSE_NR51, PAUSED, boss_cards, card_rows, shown, tap
 from test_scores import booted, v7_image
 from test_sound import save_ram
 from test_story import (BOSS_BUILT, GAME_ART, SHIFT_STEP, SHIFTS, banner_text, boss_streamed, centred, clear_bars, to_boss_banner, to_chapter, to_goal,
@@ -256,7 +256,7 @@ def test_the_first_time_a_boss_appears_the_game_pauses_on_his_card_and_resumes_w
         pages = card_pages(gb)
         assert pages[0][1] == "HOW TO PLAY" and pages[0][5] == name and pages[0][7:14:2] == p1, pages[0]
         if p2:
-            assert pages[-1][7:14:2] == p2
+            assert pages[-1][7:14:2] == shown(p2)
         hp, lives = gb.mem("boss_hp"), gb.mem("lives")
         tap(gb, "a", CARD_FRAMES)                   # (A on the last page leaves the card: no menu comes back)
         assert state(gb) == PLAYING and gb.mem(PAUSE_NR51) == 0, "unpaused by itself"
