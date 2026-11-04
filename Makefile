@@ -169,6 +169,12 @@ BONUS_H  += $(BUILD)/rush_portraits.h
 $(BUILD)/rush_portraits.h: tools/gen_rush_portraits.py assets/tiles/story.txt $(BOSS_H) | $(BUILD)
 	python3 tools/gen_rush_portraits.py $(BUILD)
 
+BONUS_H  += $(BUILD)/cameo_art.h
+# Story cameos (src/cameo.c): the Sasquatch / Leo poses, the valve and the map UFO transcribed to OBJ tiles + the hand-placed beam
+# (assets/art/cameo/beam.txt) -> build/cameo_art.h
+$(BUILD)/cameo_art.h: tools/gen_cameo.py assets/art/cameo/beam.txt assets/art/cameo/valve.txt assets/art/boss/sasquatch.txt assets/art/boss/leo.txt assets/story_map/obj_ufo.png | $(BUILD)
+	python3 tools/gen_cameo.py $(BUILD)
+
 BONUS_H  += $(BUILD)/dgag_art.h $(BUILD)/smap_art.h
 # Dregs's late-arrival gags (src/dgag.c; docs/story.md "Dregs's exits"): new PROPOSAL art in assets/art/dgag plus the Pour-Off's Dregs, the
 # Monkey Business monkey and the dust puff -> build/dgag_art.h, build/dgag.json (tests), out/preview/dgag_x8.png

@@ -829,6 +829,15 @@ def crackle_sprites(gb, sid, k, s):
     return len(lit)
 
 
+def cameo_sprites(gb):
+    """The page's cameo sprites (src/cameo.c: its on-screen entries, OAM 20-39, while a cue draws (win_rows[4][2] != 0)); the UFO page also hides the Spigoteer (see test_cameos.py)."""
+    if not gb.mem(gb.addr("win_rows") + 82):
+        return 0
+    oam = gb.oam()
+    on = [i for i, e in enumerate(oam) if 0 < e["y"] < 160 and 0 < e["x"] < 168]
+    return sum(1 for i in on if i >= 20) - sum(1 for i in range(4) if i not in on)   # (the UFO page hides the Spigoteer's entries meanwhile)
+
+
 def tour_scene(gb, sid, seen):
     """Every page of the scene on screen: the page's portrait (the speaker's own or his variant) pixel for pixel,
     framed above the box with its name on the plate, its tile map the scene's copy of its tiles (nothing of the previous one left);
@@ -862,7 +871,7 @@ def tour_scene(gb, sid, seen):
                 assert rows == [pic[r * 20 + rect[0]:r * 20 + rect[0] + rect[2]]
                                 for r in range(rect[1], rect[1] + rect[3])], f"{sid} page {k + 1}: the frame is wiped"
             held = 4 if (sid, k) == ("POST_BIKER", 5) else 0   # the chord page's gag leaves Dregs (4 entries) standing for the blast page
-            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) == spigoteer + held
+            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) - cameo_sprites(gb) == spigoteer + held
         else:
             p = PORTRAITS[name]
             assert_portrait_exact(gb, name)
@@ -871,7 +880,7 @@ def tour_scene(gb, sid, seen):
             for r in range(p["h"]):
                 assert tilemap_row(gb, p["y"] + r, p["x"], p["w"]) == \
                     [b + t for t in p["map"][r * p["w"]:(r + 1) * p["w"]]], f"{sid} page {k + 1} row {r}"
-            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) - spigoteer == (PORTRAITS[name]["obj"] if gb.model_name == "cgb" else 0)
+            assert len(gb.visible_sprites()) - crackle_sprites(gb, sid, k, s) - cameo_sprites(gb) - spigoteer == (PORTRAITS[name]["obj"] if gb.model_name == "cgb" else 0)
             if cur and cur != name:
                 seen.add((cur, name))
         if (sid, k) in TOUR_GOLDENS:
