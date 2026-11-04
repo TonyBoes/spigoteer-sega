@@ -5,6 +5,7 @@
 // and then the pool section that load_venue puts into bank 1 (LCD off).
 // Block: [0..1] size, [2] beat period, then per beat a row of 6 bytes (performer k's record offset at 2k), then the 16-byte records: 4 finished OAM entries
 // (y + 1 or 0, x from the figure's left edge, tile, prop) that the draw copies into shadow OAM and offsets by the performer's place. Beat = DANCE_STEP (0..period-1).
+// A glide block (Color only; venue.show_band bit 6, its period byte = beats | 0x80): 4 rows a beat of 9 bytes (performer k's record offset and a signed x shift at 3k), so a performer moves every 3 frames.
 // No WRAM: the block is read from the venue's bank on each change.
 #pragma bank 255
 #include <gb/gb.h>
@@ -31,15 +32,26 @@ static const uint8_t *ext_block(void) {
 // Performer k's four OAM entries (OAM_DANCERS + 4k..): sig as rom0_relief.c dancer_look (bit k: performer k is up). One performer a call, a frame apart
 // (rom0_relief.c dancers_step): the beat's row names the record, the record is copied into shadow OAM and moved to the performer's place.
 void show_ext_draw(uint8_t sig, uint8_t k) BANKED {
-    uint16_t off, s = DANCE_STEP;
-    uint8_t e, x, flags;
+    uint16_t off = 0, s = DANCE_STEP;
+    uint8_t e, x, flags, r[3];
     const uint8_t *p = ext_block();
     OAM_item_t *o = shadow_OAM + OAM_DANCERS + (k << 2);
+    x = ext_x[k];
+    r[0] = 0;
+    if (is_cgb && (venue.show_band & 0x40)) {   // a glide block (Color, gen_art.py): 4 rows a beat, one every 3 frames (dance_tick / 3), each performer's 3 bytes: record offset, x shift
+        if (k == 2) dancer_frame = (dancer_frame + 1) & 3;     // (a new look: render.c draws all three again from the next frame, one a frame, so each is redrawn every 3 frames)
+        e = dance_tick / 3;
+        if (e > 3) e = 3;
+        s = (s << 2) + e;
+        far_copy(r, p + 3 + (s << 3) + s + (k << 1) + k, 3, venue_bank);
+        off = r[0] | (uint16_t)r[1] << 8;
+        x += r[2];
+        r[0] = 0x80;
+    }
     if (!(sig & (1 << k))) { o[0].y = o[1].y = o[2].y = o[3].y = 0; return; }
-    far_copy(&off, p + 3 + (s << 2) + (s << 1) + (k << 1), 2, venue_bank);
+    if (!(r[0] & 0x80)) far_copy(&off, p + 3 + (s << 2) + (s << 1) + (k << 1), 2, venue_bank);
     far_copy(o, p + off, 16, venue_bank);
     flags = is_cgb ? (OBJX_ON ? ext_pal[k] : OBJPAL_DANCER) : 0;
-    x = ext_x[k];
     for (e = 0; e < 4; e++, o++) {
         if (!o->y) continue;
         o->y += EXT_OAM_Y - 1;
@@ -52,7 +64,7 @@ void show_ext_draw(uint8_t sig, uint8_t k) BANKED {
 void show_ext_next(void) BANKED {
     uint8_t per, i = DANCE_STEP + 1;
     far_copy(&per, ext_block() + 2, 1, venue_bank);
-    DANCE_STEP = i >= per ? 0 : i;
+    DANCE_STEP = i >= (per & 0x7F) ? 0 : i;
     dancer_frame = (dancer_frame + 1) & 3;
 }
 
