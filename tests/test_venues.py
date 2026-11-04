@@ -301,7 +301,10 @@ def test_a_bonus_round_between_levels_restores_the_performer_tiles(gb):
     assert obj_vram(gb, OBJ_DANCER, 32) == bytes(lodge["show"]), "level 3 shows the lodge's performers"
     w16(gb, "show_timer", SHOW_FRAMES)
     gb.run(40)
-    assert len([s for s in gb.visible_sprites() if OBJ_DANCER <= s["tile"] < OBJ_DANCER + 32]) == 12
+    if gb.model == "cgb":    # the Color log roll (L4, owner Q66) draws from the bank-1 show pool: OAM 28..39, VRAM bank 1
+        assert len([s for s in gb.oam()[28:40] if 0 < s["y"] < 160 and 0 < s["x"] < 168 and s["flags"] & 8]) == 12
+    else:
+        assert len([s for s in gb.visible_sprites() if OBJ_DANCER <= s["tile"] < OBJ_DANCER + 32]) == 12
 
 
 def test_the_bonus_round_stands_in_the_venue_just_played(gb):
