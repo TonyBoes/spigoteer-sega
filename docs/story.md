@@ -1156,7 +1156,7 @@ ROUND'S ON ME!
 
 ### CREDITS: "Last Call"
 
-Picture: the morning after, the same Fizzwater square at dawn. The restored Golden Spigot drips on its fountain, Dregs in an apron mops the cobbles, and last night's string lights have come loose. (`assets/story/pictures/credits_b.txt`)
+Picture: the morning after, the same Fizzwater square at dawn. The restored Golden Spigot drips on its fountain, Dregs mops the cobbles, and last night's string lights have come loose. (`assets/story/pictures/credits_b.txt`)
 
 ```
 NARRATOR
