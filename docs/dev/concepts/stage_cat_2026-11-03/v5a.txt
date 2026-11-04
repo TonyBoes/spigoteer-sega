@@ -1,0 +1,101 @@
+; NAME: tail only
+; V5A: the owner's V5 rest frame (@static, @A_base, @B_hang pixel-identical) with a redrawn lazy tail swing: hang -> S -> L1 -> L2 and back (a pendulum rooted at the lip, tip travelling furthest, 1 px steps), the old blink / ear flick / tip flick kept.
+; Format as v1.txt: @static = tiles (13,2)+(14,2); @A_* = tile (14,1) head; @B_* = tile (13,3) tail over the lip.
+; FRAME base = A_base B_hang
+; FRAME s = A_base B_S
+; FRAME l1 = A_base B_L1
+; FRAME l2 = A_base B_L2
+; FRAME hang_blink = A_blink B_hang
+; FRAME hang_ear = A_ear B_hang
+; FRAME flick = A_base B_flick
+; SCRIPT: base:50 s:8 l1:8 l2:24 l1:8 s:8 base:44 hang_blink:7 base:40 s:8 l1:8 l2:20 l1:8 s:8 base:30 hang_ear:8 base:10 hang_ear:6 base:36 flick:14 base:36
+
+@static
+-------# +..+..#-
+------#. +...+.#-
+-----#+. .+....#-
+----#.+. ....+.#-
+----#..+ ....+.#-
+---#.+.. ......#-
+---#.+.. ..+....#
+--#..+.. .+..+..#
+
+@A_base
+-------+
+-#---#-+
+-##-##-+
+-#....#+
+#+.#.#.#
+#.+..+.#
+#+..+.+#
+#.....#+
+
+@A_blink
+-------+
+-#---#-+
+-##-##-+
+-#....#+
+#+.+.+.#
+#.+..+.#
+#+..+.+#
+#.....#+
+
+@A_ear
+-------+
+-----#-+
+##--##-+
+-#....#+
+#+.#.#.#
+#.+..+.#
+#+..+.+#
+#.....#+
+
+@B_hang
+###.####
+--#+#+--
+--#.#+--
+--#.#+--
+###++###
+++##.#++
+++++#+++
+########
+
+@B_S
+###.####
+--#+#+--
+--#.#+--
+--#.#+--
+###+####
+++#.#+++
++++#++++
+########
+
+@B_L1
+###.####
+--#+#+--
+--#.#+--
+-#.#-+--
+##+#####
++#.#++++
+++#+++++
+########
+
+@B_L2
+###.####
+--#+#+--
+-#.#-+--
+-#.#-+--
+#++#####
+#.#+++++
++#++++++
+########
+
+@B_flick
+###.####
+--#+#+--
+--#.#+--
+--#.#+--
+###++###
+++##..#+
+++++##++
+########

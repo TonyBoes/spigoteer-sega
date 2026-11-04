@@ -30,6 +30,28 @@ FRAMES = {"base": ("A_base", "B_hang"), "left": ("A_base", "B_left"), "right": (
 CAT_TILES = {(14, 1): "A", (13, 2): "C", (14, 2): "D", (13, 3): "B"}
 
 
+def frames_of(ver):
+    """frame name -> (head block, tail block): the version's own '; FRAME name = HEAD TAIL' lines, else FRAMES."""
+    own = {}
+    p = HERE / f"{ver}.txt"
+    if p.exists():
+        for l in p.read_text().split("\n"):
+            if l.startswith("; FRAME "):
+                n, _, rest = l[8:].partition("=")
+                h, t = rest.split()
+                own[n.strip()] = (h, t)
+    return own or FRAMES
+
+
+def own_script(ver):
+    p = HERE / f"{ver}.txt"
+    if p.exists():
+        for l in p.read_text().split("\n"):
+            if l.startswith("; SCRIPT:"):
+                return [(a.split(":")[0], int(a.split(":")[1])) for a in l[9:].split()]
+    return None
+
+
 def hexrgb(h):
     return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
 
@@ -55,7 +77,7 @@ def stage_pixels(ver, frame="base"):
     for y, ln in enumerate(b["static"]):
         c, d = ln.split(" ")
         rows[16 + y][104:112], rows[16 + y][112:120] = list(c), list(d)
-    ah, bt = FRAMES[frame]
+    ah, bt = frames_of(ver)[frame]
     for y in range(8):
         rows[8 + y][112:120], rows[24 + y][104:112] = list(b[ah][y]), list(b[bt][y])
     return rows
@@ -84,7 +106,7 @@ def detail(ver, cgb, scale=8):
 
 
 def versions():
-    return ["current"] + sorted(p.stem for p in HERE.glob("v[0-9].txt"))
+    return ["current"] + sorted(p.stem for p in HERE.glob("v[0-9]*.txt"))
 
 
 NAMES = {"current": "CURRENT"}
@@ -97,11 +119,11 @@ def label_of(ver):
     return ver
 
 
-def sheet(out):
+def sheet(out, only=None):
     tmp = HERE / "_tmp"
     tmp.mkdir(exist_ok=True)
     items = []
-    for v in versions():
+    for v in (only or versions()):
         lab = "CURRENT" if v == "current" else f"{v.upper()} {label_of(v)}"
         strip = Image.new("RGB", (80 * 3, 32 * 3 * 2 + 4), (40, 40, 40))
         strip.paste(crop(stage_img(v, False), 3), (0, 0))
@@ -127,7 +149,9 @@ def sheet(out):
     tmp.rmdir()
 
 
-def script():
+def script(ver=None):
+    if ver and own_script(ver):
+        return own_script(ver)
     for l in (VD / "saloon_anim.txt").read_text().split("\n"):
         if l.startswith("!script"):
             return [(a.split(":")[0], int(a.split(":")[1])) for a in l.split()[1:]]
@@ -135,7 +159,7 @@ def script():
 
 def gif(ver, out):
     cache, frames, durs = {}, [], []
-    for fr, hold in script():
+    for fr, hold in script(ver):
         if fr not in cache:
             im = Image.new("RGB", (240, 200), (40, 40, 40))
             im.paste(crop(stage_img(ver, True, fr), 3), (0, 0))
@@ -144,6 +168,21 @@ def gif(ver, out):
         frames.append(cache[fr])
         durs.append(round(hold * 1000 / 60 / 10) * 10)
     frames[0].save(out, save_all=True, append_images=frames[1:], duration=durs, loop=0)
+
+
+def frame_sheet(ver, out, scale=8):
+    """Every frame of a version at x8, Color over DMG, labelled, in order of first use in its script."""
+    from PIL import ImageDraw
+    names = list(dict.fromkeys(["base"] + [f for f, _ in script(ver)]))
+    w = 24 * scale
+    im = Image.new("RGB", (len(names) * (w + 6), 2 * w + 10 + 16), (40, 40, 40))
+    d = ImageDraw.Draw(im)
+    for i, n in enumerate(names):
+        x = i * (w + 6)
+        for r, cgb in enumerate((True, False)):
+            im.paste(stage_img(ver, cgb, n).crop((100, 8, 124, 32)).resize((w, w), Image.NEAREST), (x, r * (w + 4)))
+        d.text((x + 2, 2 * w + 10), f"{i}: {n}", fill=(255, 255, 255))
+    im.save(out)
 
 
 def main():
@@ -186,7 +225,9 @@ def main():
             im.paste(detail(v, True, 10), (i * 492 + 246, 0))
         im.save(sys.argv[2])
     elif m == "sheet":
-        sheet(sys.argv[2])
+        sheet(sys.argv[2], sys.argv[3:] or None)
+    elif m == "frames":  # frames VERSION OUT.png: every frame x8, Color over DMG
+        frame_sheet(sys.argv[2], sys.argv[3])
     elif m == "gif":
         gif(sys.argv[2], sys.argv[3])
     elif m == "png":

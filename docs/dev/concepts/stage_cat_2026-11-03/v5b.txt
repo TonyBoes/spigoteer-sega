@@ -1,0 +1,91 @@
+; NAME: tail + head bob
+; V5B: V5A's tail swing plus a 1 px head bob: as the tail passes the far end of its swing the head sinks 1 px (A_bob: the whole head one row lower, the lower cheek row folded into the chest) and comes back as the tail settles.
+; Format as v1.txt: @static = tiles (13,2)+(14,2); @A_* = tile (14,1) head; @B_* = tile (13,3) tail over the lip.
+; FRAME base = A_base B_hang
+; FRAME s = A_base B_S
+; FRAME l1 = A_base B_L1
+; FRAME l2 = A_base B_L2
+; FRAME bob_l1 = A_bob B_L1
+; FRAME bob_s = A_bob B_S
+; FRAME hang_blink = A_blink B_hang
+; SCRIPT: base:50 s:8 l1:8 l2:22 bob_l1:12 bob_s:10 base:50 hang_blink:7 base:36 s:8 l1:8 l2:18 l1:8 s:8 base:40 hang_blink:7 base:30 s:8 l1:8 l2:20 bob_l1:12 bob_s:10 base:44
+
+@static
+-------# +..+..#-
+------#. +...+.#-
+-----#+. .+....#-
+----#.+. ....+.#-
+----#..+ ....+.#-
+---#.+.. ......#-
+---#.+.. ..+....#
+--#..+.. .+..+..#
+
+@A_base
+-------+
+-#---#-+
+-##-##-+
+-#....#+
+#+.#.#.#
+#.+..+.#
+#+..+.+#
+#.....#+
+
+@A_blink
+-------+
+-#---#-+
+-##-##-+
+-#....#+
+#+.+.+.#
+#.+..+.#
+#+..+.+#
+#.....#+
+
+@A_bob
+-------+
+-------+
+-#---#-+
+-##-##-+
+-#....#+
+#+.#.#.#
+#.+..+.#
+#.....#+
+
+@B_hang
+###.####
+--#+#+--
+--#.#+--
+--#.#+--
+###++###
+++##.#++
+++++#+++
+########
+
+@B_S
+###.####
+--#+#+--
+--#.#+--
+--#.#+--
+###+####
+++#.#+++
++++#++++
+########
+
+@B_L1
+###.####
+--#+#+--
+--#.#+--
+-#.#-+--
+##+#####
++#.#++++
+++#+++++
+########
+
+@B_L2
+###.####
+--#+#+--
+-#.#-+--
+-#.#-+--
+#++#####
+#.#+++++
++#++++++
+########
