@@ -240,4 +240,5 @@ def main():
         im.save(sys.argv[3])
 
 
-main()
+if __name__ == "__main__":
+    main()
