@@ -1,0 +1,66 @@
+; lodge SHOW-TIME stage animation for L3 "fireside" (proposal; needs the engine's show-time anim switch, COSTS.md). '.-+#' = colour 0..3 of the tile's own stage palette (stage_b).
+; Frames base and a-d are today's assets/approved/venues/lodge_anim.txt, pixel-exact. New: @e, the flare (flames licking 3 rows higher into the hearth, the ball brimming).
+; The script is beat-locked: 48 frames = 4 beats of 12 (DANCER_BEAT), started on the show's first beat, so the flare lands on beats 0 and 2 (the singer's cup-up frames).
+; 2 tile(s), 32 B per update, 6 frames (base a b c d e) = 192 B in sa_frames (SA_BUF is 224 today: no WRAM growth). Outside a show, today's lodge_anim.txt plays as now.
+!slots 6,1 6,2
+!script e:6 a:6 b:6 c:6 e:6 d:6 b:6 a:6
+
+@base
+-------- ########
+-------- #------#
+######## --------
+######## --....--
+######## -......-
+######## -......-
+######## -......-
+######## --....--
+
+@a
+-------- ##-.#--#
+-------- #--..--#
+######## --....--
+######## --....--
+######## -......-
+######## -......-
+###-#### -......-
+##--##-# --....--
+
+@b
+-------- #-.--.-#
+-------- #--..--#
+######## --....--
+######## --....--
+######## -......-
+#####-## -......-
+##-##-## -......-
+##--#--# --....--
+
+@c
+-------- #--.--##
+-------- #-...--#
+######## --....--
+######## --....--
+###.#### -......-
+######## -......-
+####-### -......-
+###--### --....--
+
+@d
+-------- ##-.-###
+-------- #-...-##
+######## --....--
+######## --....--
+######## -......-
+#.###### -......-
+######## -......-
+####-### --....--
+
+@e
+-------- #-....-#
+-------- #-....-#
+######## --....--
+####-### -......-
+###--#-# -......-
+#-#-.--# -......-
+##-..-## -......-
+#--..--# --....--

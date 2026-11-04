@@ -1,0 +1,58 @@
+; igloo SHOW-TIME stage animation for I3 "snow show" (Color only; proposal 2026-11-03, not imported). Same format as igloo_anim.txt.
+; Snow drifts down the ice-block wall: one 5-px flake ('.', colour 0) per wall tile, 2 px down per step, falling straight; the
+; wall's tiles 2 and 3 are stacked in rows 1-2, so a flake leaving a row-1 tile enters the row-2 tile below it.
+; The two wall tiles run half a cycle apart so neighbouring columns do not fall in step. During the show the wall's sparkle dots are left out, so every light dot on the wall is falling snow.
+; The aurora (row 0) holds still during the show. Needs the Color-only show-time anim switch (COSTS.md).
+; 2 tile(s), 32 B per step, 5 frames in WRAM = 160 B (<= SA_BUF 224), loop 24 frames = 2 beats.
+!slots 0,1 1,1 2,1 11,1 17,1 18,1 19,1 0,2 1,2 2,2 6,2 8,2 14,2 17,2 18,2 19,2 3,1 4,1 9,1 10,1 15,1 16,1 3,2 4,2 9,2 10,2 15,2 16,2
+!script s0:6 s1:6 s2:6 s3:6
+
+@base
+-------+ -------+
+-.-----+ -------+
+-------+ -----.-+
+++++++++ ++++++++
+---+---- ---+----
+---+-.-- ---+----
+---+---- -.-+----
+++++++++ ++++++++
+
+@s0
+---.---+ -------+
+--...--+ -------+
+---.---+ -------+
+++++++++ ++++++++
+---+---- ---+-.--
+---+---- ---+...-
+---+---- ---+-.--
+++++++++ ++++++++
+
+@s1
+-------+ -----.-+
+-------+ -------+
+---.---+ -------+
+++...+++ ++++++++
+---.---- ---+----
+---+---- ---+----
+---+---- ---+-.--
+++++++++ ++++...+
+
+@s2
+-------+ -----.-+
+-------+ ----...+
+-------+ -----.-+
+++++++++ ++++++++
+---.---- ---+----
+--...--- ---+----
+---.---- ---+----
+++++++++ ++++++++
+
+@s3
+---.---+ -------+
+-------+ -------+
+-------+ -----.-+
+++++++++ ++++...+
+---+---- ---+-.--
+---+---- ---+----
+---.---- ---+----
+++...+++ ++++++++
