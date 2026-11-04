@@ -57,3 +57,52 @@ def test_the_igloo_color_show_runs_its_loop_and_the_penguins_end_on_their_spots(
         assert len(starts) >= 2 and all(s == starts[0] for s in starts), f"the penguins are back on their spots at each wrap: {starts}"
     finally:
         gb.stop()
+
+
+# ---- the Lodge's Color show "Log roll" L4 (owner Q66, 2026-11-04: "The log roll is probably best when the lights are fixed."): the same glide block, 16 beats.
+#   - the data: 64 rows = 16 beats, each performer (two birlers, the cheerer) back on its own place at the wrap, which is the place of beat 0;
+#   - the engine on Color: the 16-beat loop runs, every performer is back where it started at each wrap, no line of 8-39 has more than 8 sprites
+#     (the show band; the patrons start at line 40) and no line of the screen more than 10;
+#   - the DMG keeps today's lodge dance.
+LODGE = THEMES.index("lodge")
+
+
+def test_the_lodge_color_block_is_a_16_beat_glide_block():
+    c = venue_art("lodge")["show_ext"]["c_block"]
+    period, rows = rows_of(c)
+    assert period & 0x80 and period & 0x7F == 16 and len(rows) == 64
+    for k in range(3):
+        assert rows[-1][k][1] == rows[0][k][1], f"performer {k} ends where it starts"
+    assert len({DANCER_X[k] + rows[0][k][1] for k in range(3)}) == 3
+
+
+def test_the_lodge_dmg_block_is_today_s_4_beat_dance():
+    d = venue_art("lodge")["show_ext"]["d_block"]
+    assert not d[2] & 0x80 and d[2] == 4
+
+
+def test_the_lodge_color_show_runs_its_loop_with_at_most_8_sprites_a_line_on_the_stage():
+    gb = boot_at(LODGE, "cgb")
+    try:
+        steps, starts, band, screen = [], [], 0, 0
+        for f in range(16 * BEAT * 2 + 30):
+            gb.run(1)
+            step = gb.read("story_scratch", 228)[227]
+            if not steps or steps[-1] != step:
+                steps.append(step)
+            vis = [s for s in gb.oam() if 0 < s["y"] < 160]
+            for line in range(144):
+                n = len([s for s in vis if s["y"] - 16 <= line < s["y"]])
+                screen = max(screen, n)
+                if 8 <= line < 40:
+                    band = max(band, n)
+            if step == 0 and gb.mem("dance_tick") == 6:
+                d = dancer_oam(gb)
+                starts.append([min([s["x"] for s in d[4 * k:4 * k + 4] if s["y"]] or [0]) for k in range(3)])
+        assert band <= 8, f"sprites per line on 8-39: {band}"
+        assert screen <= 10, f"sprites per line on the screen: {screen}"
+        loop = steps[steps.index(0):]
+        assert loop[:17] == list(range(16)) + [0], f"the 16-beat loop: {loop[:18]}"
+        assert len(starts) >= 2 and all(s == starts[0] for s in starts), f"every performer is back on its place at each wrap: {starts}"
+    finally:
+        gb.stop()

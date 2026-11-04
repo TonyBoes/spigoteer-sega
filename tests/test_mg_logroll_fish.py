@@ -4,7 +4,7 @@ import re
 
 import pytest
 import perf_helpers as ph
-from conftest import check_golden, hold_stage_anim, logic_paused
+from conftest import check_golden, hold_stage_anim, logic_paused, venue
 from test_mg import MG_RESULT, frames, lines, to_play, until
 from test_mg_logroll import (ART, BASE_Y, CLEAR, DROPS, FISH_FIRST, FISH_LAST, FLY, GAP0, HALF, HOP_END, HOP_LEN, KICK, LAND, LAYOUT, LR_C,
                              LS_RUN, LS_WATER, ONE, OAM_DROPS, OAM_FISH, OAM_RING, OAM_SPIG, OAM_SQ, PTS_DODGE, PTS_SEC, RAMP, SPIG_CX, SQ_CX, SQ_END,
@@ -43,7 +43,10 @@ def leap(gb, tgt=0, direction=-1, dodge=0):
 
 
 def sq_frame(o):
-    return (o[OAM_SQ]["tile"] - OBJ_DANCER) // 8      # the dance frame f's tiles start at OBJ_DANCER + 8 f
+    """The lodge dance frame the Sasquatch shows: src/lr.c draws frame f's top-left quarter at OBJ_DANCER + the lodge's legacy show_table[f][0]
+    (since the Color log roll L4, the DMG block packs the 4 frames into shared 8x16 quarters, so the ids are no longer 8 f)."""
+    firsts = [row[0] for row in venue("lodge")["show_table"][:4]]
+    return firsts.index(o[OAM_SQ]["tile"] - OBJ_DANCER)
 
 
 def run_leap(gb, limit=260):
