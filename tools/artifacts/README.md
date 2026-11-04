@@ -58,3 +58,6 @@ Merges builds read its `out/atlas/data`.
 
 When a page changes, update its source here in the same change: the page HTML, plus the media for the two hand-kept
 pages. The ROM packs and the atlas output are generated and are not committed.
+
+## Story Scenes
+https://claude.ai/artifact/2zVytB94Mn2Z3NeiyP1XKi. Source: tools/artifacts/story_scenes/index.html. Rebuild: capture with out/story_scenes/cap.py (gb-runner), copy pages to out/story_page/img/, regenerate index.html, publish with root out/story_page and every img/*.png.
