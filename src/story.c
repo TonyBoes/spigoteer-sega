@@ -1004,14 +1004,33 @@ static void story_sky(void) {
     } else if (SK_ON == 1 && !(PW_T & 7) && story_swap == SW_IDLE) story_sky_oam(story_hdr.pic, ++SK_C);   // (not on a page's swap frames: they are full)
 }
 
+// The clouds are sprites: not over the white; they come back after the fade-in.
+static void pic_hide_sky(void) {
+    uint8_t k;
+    if (SK_ON) {
+        for (k = 0; k < STORY_SKY_SPR; k++) shadow_OAM[STORY_SKY_OAM + k].y = 0;
+        SK_ON = 0;
+    }
+}
+
+#define FX_OUT       9                               // the contest switch: frames 1-8 fade the old picture out, 3 a step (put at 2, 5, 8)
+
 // One step of the switch (PS_FX = the step, 1 on the page turn). 1: the LCD was off for it.
+// INTRO page 5 (the explosion, picture 0 -> 1): white at once, on purpose. Any other switch (FINALE's contest, owner Q77 2026-11-04,
+// "quick fade") first fades the picture out to white in w 1, 2, 3 (BGP / palette blend), then goes on as step 1 of the same switch.
 static uint8_t pic_fx(void) {
     uint8_t f = PS_FX++, k;
-    if (f == 1) {                                // white (all eight BG palettes: the frame's are white too)
-        if (SK_ON) {                             // (the clouds are sprites: not over the white; they come back after the fade-in)
-            for (k = 0; k < STORY_SKY_SPR; k++) shadow_OAM[STORY_SKY_OAM + k].y = 0;
-            SK_ON = 0;
+    if (story_hdr.pic > STORY_BURST_PIC) {              // (the INTRO's pictures are 0 and 1, the FINALE's 2 and 3)
+        if (f < FX_OUT) {
+            if (f == 1) { pic_hide_sky(); story_pic_pals(story_hdr.pic, PS_PALS); }
+            if (f == 1 || f == 3 || f == 6) pic_calc(f == 1 ? 1 : f == 3 ? 2 : 3);
+            else if (f == 2 || f == 5 || f == 8) pic_put();
+            return 0;
         }
+        f -= FX_OUT - 1;
+    }
+    if (f == 1) {                                // white (all eight BG palettes: the frame's are white too)
+        pic_hide_sky();
         story_pic_pals(story_hdr.pic, PS_PALS);  // (the HUD's palette is kept to fade back to: a skip needs it too)
         pic_calc(3);
         if (!is_cgb) pic_put();
