@@ -47,7 +47,7 @@ TUNES = {   # name: (cur_tune, frames of one pass, extra frames recorded, proarr
     "clear": (1, 112, 30, "jingles/clear_b4"),
     "over": (2, 252, 30, "jingles/over_b4"),
     "bonus": (3, 480, 30, "jingles/bonus_b4"),
-    "credits": (15, 9692, 30, "credits/credits_b4"),
+    "credits": (15, 8732, 30, "credits/credits_b4"),
 }
 JINGLES = ("clear", "over", "bonus")
 LEVEL = {n: i + 1 for i, n in enumerate(["susanna", "ballgame", "mountain", "funicula", "skaters", "hall", "sailor", "sakura", "weasel", "danube"])}
