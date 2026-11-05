@@ -455,3 +455,10 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - Replaced story_map_scroll_walking.cgb (5 px, Sal's walk pose tick).
 - Q81 asked: DMG walk smooth enough, or one more speed pass? Open Questions v430, Pocket Player v61.
 - Small: the UFO's 1 px bob freezes while Sal walks (agent note); DMG 38-frame map entry not cut.
+
+## 2026-11-05 Owner plan: quit a level -> the map, with RESUME
+Owner: "From inside the game quitting a level should quit to map. With an option to resume the level added to the option to renter the venue."
+- STORY only. Pause > QUIT (reads QUIT TO MAP in a story) -> the story map, Sal at that venue's stop. (Arcade / Classic / Practice / Boss Rush unchanged; the map's own START > QUIT TO TITLE unchanged.)
+- A at that venue then shows a panel: RESUME (back into the level where it was quit) / ENTER (re-enter the venue: start the chapter over, as A does today) / BACK.
+- Supervisor defaults (not owner words): RESUME lives in RAM only (power off -> CONTINUE -> map, no RESUME); walking to another venue or playing a cleared venue or festival game keeps RESUME unless memory forces dropping it (worker reports which); DMG and Color both.
+- Build: gb-worker a28259c6a051a5f91 (worktree agent-a28259c6a051a5f91), started 2026-11-05.
