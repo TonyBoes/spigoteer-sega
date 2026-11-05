@@ -40,7 +40,7 @@ enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_W
        V_JK, V_JI, V_JA, V_JN, V_JP,                                           // the add job: none / column / row, the line's index, its first cell, its length, the next cell
        V_DK, V_DI, V_DA, V_DN, V_DP,                                           // the drop job: the same
        V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_RR, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB,
-       V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
+       V_BF, V_BCAP, V_PWL, V_PWH, V_LIMC, V_LIMQ, V_BM, V_BMODE, V_ID, V_NDISP, V_CS, V_SLOW, V_DOTS, V_LAG, V_FULL, V_N };   // (V_BF..V_ID: the DMG burst's parameters, smap_burst)
 typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_PSTG && A_PSTG + 9 <= S_V
                                 && A_ATTR_UI + 20 <= A_IDA && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
 #define PANBUF       (S_T)                                          // the panel's rolling rows (2 x 20 bytes)
@@ -63,7 +63,10 @@ extern vq_entry_t vq[];
 // The frame's spare time: the first slow job (a cell that needs a lookup or a load) of a frame always runs, the next ones only before line LY_WORK (a frame that starts late, in the
 // VBlank, counts as new). What does not get done waits a frame: the camera waits for the lines it needs.
 #define LY_WORK 64
-static uint8_t ly_ok(void) { uint8_t l = LY_REG; return l >= 144 || l < LY_WORK; }
+#define LY_FIRST 64
+#define CAM_LAG  24                                   // Sal waits while the camera is further behind him than this (px, both axes together)
+// (the first slow job of a frame waits for the line LY_FIRST only while Sal walks with the camera in step: standing, or with the camera behind, it always runs: no deadlock)
+static uint8_t ly_ok(void) { uint8_t l = LY_REG; return l >= 144 || l < (V(V_SLOW) ? LY_WORK : (!V(V_WALK) || V(V_LAG) > CAM_LAG) ? 255 : LY_FIRST); }
 
 static void qraw(uint8_t bank, const uint8_t *src, uint16_t dst, uint8_t n) {
     vq_entry_t *e;
@@ -80,11 +83,10 @@ static uint16_t map_addr(uint8_t cx, uint8_t cy) { return 0x9800 + ((uint16_t)(c
 static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   // the pool: BG ids 0-35 and 93-232 (the generic tiles, the font and the dim letters stay out)
 
 #define CAM_SPD  4
-#define CAM_LAG  24                                   // Sal waits while the camera is further behind him than this (px, both axes together)
 #define CAM_MAXX 352                                  // 512 - 160
 #define CAM_MAXY 240                                  // 384 - 144
 #define WALK_SPD 1
-#define ADD_CAP  4                                    // cells a frame the add job and the drop job each handle
+#define ADD_CAP  4
 #define DROP_CAP 4
 
 // the engine (src/smap_eng.c)

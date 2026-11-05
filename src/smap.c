@@ -156,6 +156,99 @@ static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand
             o_->y = (uint8_t)((py) + 16); o_->x = (uint8_t)((px) + 8); o_->tile = (tl); o_->prop = cgbp ? ((pl) | (fl)) : (fl); \
         } else o_->y = 0; } while (0)
 
+// The dots' quick cull. a = the camera's cell column + 4 px, e = its row: bc = a mask (bit 5 + s set when stop s lies within the cull window, 21 + 2 + 2 cells wide and 19 + 2 + 2 tall);
+// the entries of the others are hidden. (The C twin is the loop in draw_still. Asm: the compiler's 16-bit arithmetic made that loop 25 lines of the frame.)
+#if ASM_SMAP
+typedef char smap_dots_offsets[(OAM_DOTS == 8 && NSTOPS == 11) ? 1 : -1];
+static uint16_t dots_near(uint8_t ccx, uint8_t ccy) __naked {
+    (void)ccx; (void)ccy;
+__asm
+    ld   b, a
+    ld   c, e
+    ld   de, #0
+    ld   hl, #_smapw_stopc
+    ld   a, #32                             ; OAM_DOTS * 4: the low byte of the first dot's entry (shadow_OAM is at 0xC000)
+    ld   (_story_scratch + 449), a          ; V_BCAP: the entry's low byte (free: the burst keeps no state in it)
+1$:
+    ld   a, (hl+)
+    sub  a, b
+    add  a, #2
+    cp   a, #25
+    jr   nc, 3$
+    ld   a, (hl+)
+    sub  a, c
+    add  a, #2
+    cp   a, #23
+    jr   nc, 4$
+    scf
+    jr   5$
+3$:
+    inc  hl
+4$:
+    push hl
+    ld   a, (_story_scratch + 449)
+    ld   l, a
+    ld   h, #0xC0
+    ld   (hl), #0
+    pop  hl
+    or   a, a
+5$:
+    rr   d
+    rr   e
+    ld   a, (_story_scratch + 449)
+    add  a, #4
+    ld   (_story_scratch + 449), a
+    cp   a, #76                             ; (OAM_DOTS + NSTOPS) * 4
+    jr   nz, 1$
+    ld   b, d
+    ld   c, e
+    ret
+__endasm;
+}
+#endif
+
+// The sprites that stand in the world, not on Sal: the bang over the tent, the stops' dots, the UFO. They only move when the camera does (or a window covers them): their entries stay
+// in the shadow OAM between those frames.
+static void draw_still(uint8_t wh, int16_t wy, int16_t wend) {
+    uint8_t s, p = V(V_STATE), ccx, ccy, cgbp = is_cgb, tk = V(V_TICK);
+    uint16_t near;
+    int16_t ax, ay, cx = (int16_t)g16(V_CAMX), cy = (int16_t)g16(V_CAMY);
+    const uint16_t *sp = &smapw_stop[0][0];
+    const uint8_t *q = &smapw_stopc[0][0];
+    OAM_item_t *o = shadow_OAM + OAM_DOTS;
+    V(V_DOTS) = 0;
+    if ((uint16_t)(SMAPW_BANG_X - cx + 8) < 176 && bang_wanted()) { ax = SMAPW_BANG_X - cx; ay = SMAPW_BANG_Y - cy; SPR(OAM_BANG, ax, ay, OB + SOB_BANG0, PAL_BANG, 0, 8); }
+    else shadow_OAM[OAM_BANG].y = 0;
+    cx += 4; cy += 8;
+    ccx = (uint8_t)(cx >> 3); ccy = (uint8_t)(cy >> 3);
+#if ASM_SMAP
+    near = dots_near(ccx, ccy) >> 5;
+#else
+    near = 0;
+    for (s = 0; s < NSTOPS; s++, q += 2) {          // (the quick cull in cells: well off the screen)
+        if ((uint8_t)(q[0] - ccx + 2) > 24 || (uint8_t)(q[1] - ccy + 2) > 22) o[s].y = 0; else near |= 1 << s;
+    }
+#endif
+    for (s = 0; s < NSTOPS; s++, sp += 2, o++, near >>= 1) {   // the dots: green where Sal may go (the stops before the next, and the town), red at the next stop (on the cloud's edge); none beyond
+        if (!(near & 1) || (s > p && s != TOWN)) continue;     // (their entries stay hidden: smap_enter)
+        ax = (int16_t)sp[0] - cx;
+        ay = (int16_t)sp[1] - cy;
+        if ((uint16_t)(ax + 7) >= 167 || (uint16_t)(ay + 7) >= 151 || (wh && ay < wend && ay + 8 > wy)) { o->y = 0; continue; }
+        o->y = (uint8_t)(ay + 16); o->x = (uint8_t)(ax + 8);
+        if (s < p || s == TOWN) { o->tile = OB + SOB_DOT_OPEN0; o->prop = cgbp ? PAL_OPEN : 0; }
+        else { o->tile = OB + SOB_DOT_LOCKED0; o->prop = cgbp ? PAL_LOCKED : 0; }
+    }
+    cx -= 4; cy -= 8;
+    if (p >= 10 && (uint16_t)(SMAPW_UFO_X - cx + 24) < 200) {   // the UFO over the space lounge, once that is open (bobbing 1 px)
+        ax = SMAPW_UFO_X - cx; ay = SMAPW_UFO_Y + ((tk >> 5) & 1) - cy;
+        SPR(OAM_UFO, ax, ay, OB + SOB_UFO0, PAL_UFO, 0, 16);
+        ax += 8;
+        SPR(OAM_UFO + 1, ax, ay, OB + SOB_UFO1, PAL_UFO, 0, 16);
+        ax += 8;
+        SPR(OAM_UFO + 2, ax, ay, OB + SOB_UFO2, PAL_UFO, 0, 16);
+    } else if (p >= 10) { shadow_OAM[OAM_UFO].y = 0; shadow_OAM[OAM_UFO + 1].y = 0; shadow_OAM[OAM_UFO + 2].y = 0; }
+}
+
 static void draw(void) {
     uint8_t s, d, n = 0, t, ccx, ccy, p = V(V_STATE), pic = 0, nudge, panel = V(V_PANEL), wh = V(V_WH), cgbp = is_cgb, tk = V(V_TICK);
     int16_t sx, sy, ax, ay, cx = (int16_t)g16(V_CAMX), cy = (int16_t)g16(V_CAMY), wy = V(V_WY), wend = (int16_t)V(V_WY) + wh;
@@ -182,38 +275,30 @@ static void draw(void) {
     ay = sy + 16;
     SPR(OAM_SAL + 2, sx, ay, t + 4, OBJPAL_BARTENDER, 0, 8);
     SPR(OAM_SAL + 3, sx + 8, ay, t + 6, OBJPAL_BARTENDER, 0, 8);
-    if (bang_wanted()) { ax = SMAPW_BANG_X - cx; ay = SMAPW_BANG_Y - cy; SPR(OAM_BANG, ax, ay, OB + SOB_BANG0, PAL_BANG, 0, 8); }
-    else shadow_OAM[OAM_BANG].y = 0;
-    cx += 4; cy += 8;                               // (the dot's entry lies 4 px left of and 8 px above the stop)
-    ccx = (uint8_t)(cx >> 3); ccy = (uint8_t)(cy >> 3);
-    for (s = 0; s < NSTOPS; s++, sp += 2) {         // the dots: green where Sal may go (the stops before the next, and the town), red at the next stop (on the cloud's edge); none beyond (their entries
-        if (s > p && s != TOWN) continue;           // stay hidden: smap_enter)
-        if ((uint8_t)(smapw_stopc[s][0] - ccx + 2) > 24 || (uint8_t)(smapw_stopc[s][1] - ccy + 2) > 22) { shadow_OAM[OAM_DOTS + s].y = 0; continue; }     // (a quick cull in cells: well off the screen)
-        ax = (int16_t)sp[0] - cx;
-        if ((uint16_t)(ax + 7) >= 167) { shadow_OAM[OAM_DOTS + s].y = 0; continue; }
-        ay = (int16_t)sp[1] - cy;
-        if (s < p || s == TOWN) SPR(OAM_DOTS + s, ax, ay, OB + SOB_DOT_OPEN0, PAL_OPEN, 0, 8);
-        else SPR(OAM_DOTS + s, ax, ay, OB + SOB_DOT_LOCKED0, PAL_LOCKED, 0, 8);
-    }
-    cx -= 4; cy -= 8;
-    if (p >= 10) {                                  // the UFO over the space lounge, once that is open (bobbing 1 px)
-        ax = SMAPW_UFO_X - cx; ay = SMAPW_UFO_Y + ((tk >> 5) & 1) - cy;
-        SPR(OAM_UFO, ax, ay, OB + SOB_UFO0, PAL_UFO, 0, 16);
-        ax += 8;
-        SPR(OAM_UFO + 1, ax, ay, OB + SOB_UFO1, PAL_UFO, 0, 16);
-        ax += 8;
-        SPR(OAM_UFO + 2, ax, ay, OB + SOB_UFO2, PAL_UFO, 0, 16);
-    }
+    V(V_FULL) = 0;
+    if (V(V_DOTS) || wh) draw_still(wh, wy, wend);
     if (panel && V(V_DONE) && panel != P_NUDGE) {  // the selection arrow, at the selected line's left
         s = V(V_PANEL) == P_VENUE ? 2 : 1;
         put(OAM_CURSOR, 8, V(V_WY) + (s + V(V_SEL)) * 8, OB + SOB_ARROW_R0, PAL_ARROW, 0, 8);
     } else shadow_OAM[OAM_CURSOR].y = 0;
 }
 
+// A walking frame on which the camera did not move and no window is up: only Sal's four entries change (the rest of the sprites keep their place in the shadow OAM)
+static void draw_walk(void) {
+    uint8_t t = pic_seq[(V(V_TICK) >> 2) & 3] * BARTENDER_TILES_PER_FRAME, cgbp = is_cgb, wh = 0;
+    int16_t sx = (int16_t)g16(V_FX) - 8 - (int16_t)g16(V_CAMX), sy = (int16_t)g16(V_FY) - 24 - (int16_t)g16(V_CAMY), ay, wy = 0, wend = 0;
+    SPR(OAM_SAL, sx, sy, t, OBJPAL_BARTENDER, 0, 16);
+    SPR(OAM_SAL + 1, sx + 8, sy, t + 2, OBJPAL_BARTENDER, 0, 16);
+    ay = sy + 16;
+    SPR(OAM_SAL + 2, sx, ay, t + 4, OBJPAL_BARTENDER, 0, 8);
+    SPR(OAM_SAL + 3, sx + 8, ay, t + 6, OBJPAL_BARTENDER, 0, 8);
+    if (V(V_DOTS)) draw_still(0, 0, 0);
+}
+
 // ---- the window layer ---------------------------------------------------------------------------------------------------------------------------------------
 static void win_show(uint8_t y, uint8_t h, uint8_t lyc) {   // the window over lines y .. y + h - 1; lyc: where the LCD interrupt cuts it (LYC_NONE: at the screen's end)
     WX_REG = 7; WY_REG = y; LYC_REG = lyc;
-    V(V_WY) = y; V(V_WH) = h;
+    V(V_WY) = y; V(V_WH) = h; V(V_DOTS) = V(V_FULL) = 1;
     overlay_on = 3;                                // (1 would hide the sprites over the banner, 2 is a note: main.c)
 }
 
@@ -221,7 +306,7 @@ static void win_hide(void) {
     overlay_on = 0; HIDE_WIN;
     WY_REG = BANNER_WY; LYC_REG = BANNER_LYC;      // (the banner window's own place again)
     WX_REG = 7;
-    V(V_WH) = 0; V(V_TAG) = 0;
+    V(V_WH) = 0; V(V_TAG) = 0; V(V_DOTS) = V(V_FULL) = 1;
 }
 
 static uint8_t ui_attr(void) {                     // Color: the attribute of the window layer's cells: the town palette's hardware slot (held for as long as the map is up)
@@ -355,7 +440,7 @@ static void start_walk(uint8_t d) {
     if (t == NIL || !open_stop(t)) return;
     V(V_LEG) = leg; V(V_REV) = rev; V(V_DEST) = t;
     V(V_WK) = rev ? smapw_leg_n[leg] - 2 : 1;        // the waypoint after the one Sal stands on
-    V(V_WALK) = 1;
+    V(V_WALK) = 1; V(V_DOTS) = V(V_FULL) = 1;
     if (V(V_TAG)) V(V_TAG) = 1;                      // (the name tag goes when Sal sets off: a frame that runs late would drop the window for a frame: a flicker)
     SFX(SFX_DON);
 }
@@ -363,19 +448,14 @@ static void start_walk(uint8_t d) {
 static void walk_step(void) {
     uint8_t leg = V(V_LEG), k = V(V_WK), rev = V(V_REV);
     uint16_t fx = g16(V_FX), fy = g16(V_FY), tx = smapw_leg_pt[leg][k][0], ty = smapw_leg_pt[leg][k][1];
-    int16_t ctx, cty, lx, ly;
-    smap_cam_target(&ctx, &cty);
-    lx = ctx - (int16_t)g16(V_CAMX); ly = cty - (int16_t)g16(V_CAMY);
-    if (lx < 0) lx = -lx;
-    if (ly < 0) ly = -ly;
-    if (lx + ly > CAM_LAG) return;                   // the camera is behind: Sal waits for it
+    if (V(V_LAG) > CAM_LAG) return;                  // the camera is behind (the last camera step measured it): Sal waits for it
     if (fx != tx) fx = fx < tx ? (tx - fx < WALK_SPD ? tx : fx + WALK_SPD) : (fx - tx < WALK_SPD ? tx : fx - WALK_SPD);
     else if (fy != ty) fy = fy < ty ? (ty - fy < WALK_SPD ? ty : fy + WALK_SPD) : (fy - ty < WALK_SPD ? ty : fy - WALK_SPD);
     s16(V_FX, fx); s16(V_FY, fy);
     if (fx != tx || fy != ty) return;
     if (rev ? !k : k + 1 == smapw_leg_n[leg]) {      // the last waypoint: Sal is there
         smap_stop = V(V_DEST);
-        V(V_WALK) = 0;
+        V(V_WALK) = 0; V(V_DOTS) = V(V_FULL) = 1;
         tag_show();
     } else V(V_WK) = rev ? k - 1 : k + 1;
 }
@@ -469,10 +549,12 @@ uint8_t smap_update(uint8_t pressed) BANKED {
         if (smap_camera_step()) {
             SC(S_T + T_CAM)[0] = (uint8_t)g16(V_CAMY); SC(S_T + T_CAM)[1] = (uint8_t)g16(V_CAMX);
             qraw(0, SC(S_T + T_CAM), 0xFF42, 2);
+            V(V_DOTS) = 1;
         }
         smap_region_work();
     }
-    draw();
+    if (V(V_WALK) && !V(V_FULL) && !V(V_WH)) draw_walk();
+    else { if (!V(V_WALK)) V(V_DOTS) = 1; draw(); }          // (standing still: the bang, the dots and the UFO follow the progress and the tick)
     return 0;
 }
 
@@ -533,6 +615,7 @@ void smap_enter(uint8_t quick) BANKED {
     smap_pin_town();                               // (Color: the town palette is held for good: it is the window layer's)
     smap_fill_view((uint8_t)(tx >> 3), (uint8_t)((tx + 159) >> 3));
     SCX_REG = (uint8_t)tx; SCY_REG = (uint8_t)ty;
+    V(V_DOTS) = V(V_FULL) = 1;
     V(V_PREV) = 1;                                 // (the arrival tag is queued by the first frame: the transition's reveal has put the window rows back by then)
     story_phase = STORY_PHASE_MAP;
     game_state = GS_STORY;

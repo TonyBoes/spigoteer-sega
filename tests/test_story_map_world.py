@@ -188,7 +188,9 @@ def test_walking_a_leg_never_shows_a_tile_that_is_not_loaded(model, s, d):
     assert gb.mem("smap_stop") == EXITS[s][d], "Sal arrives at the stop the leg leads to"
     assert w.frames < 1200, w.frames
     assert not w.bad, w.bad[:4]
-    gb.run(60)                                                   # (the region settles and the picture is still the world's)
+    gb.run(58)                                                   # (the region settles and the picture is still the world's)
+    w.frame()                                                    # (this one only gives the sprite mask its frame before: the arrows bob by 1 px)
+    w.bad.clear()
     w.frame()
     assert not w.bad, w.bad[:4]
 
@@ -207,7 +209,7 @@ def test_the_c_twin_of_the_asm_walks_the_same(monkeypatch, s, d):
 # ---- the cost ---------------------------------------------------------------------------------------------------------------------------------------------------
 # The logic's lines per frame (perf_logic_last: 154 lines a frame) over every leg, bounds taken from the measured walks and never to be raised: the DMG's worst
 # frame (a job abort or a load) and the Color's at double speed (owner Q92). A hold is a walking frame on which Sal did not move (the stream was behind).
-PERF = {"dmg": dict(worst=245, p90=165, holds=0.25), "cgb": dict(worst=100, p90=90, holds=0.16)}
+PERF = {"dmg": dict(worst=172, p90=133, holds=0.083), "cgb": dict(worst=93, p90=79, holds=0.0)}
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])

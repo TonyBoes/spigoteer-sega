@@ -511,7 +511,7 @@ static uint8_t job_run(uint8_t cap) {
 #endif
             if (pos > first && fc[k].w == pw) r = add_same(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             else {
-                if (V(V_SLOW) && !ly_ok()) { r = R_ROOM; break; }
+                if (!ly_ok()) { r = R_ROOM; break; }
                 V(V_SLOW) = 1;
                 r = add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
             }
@@ -558,7 +558,7 @@ static void drop_run(uint8_t cap) {
                 V(V_BM) = m - k; V(V_BMODE) = 1;
                 smap_burst(fc + k);
                 k = m - V(V_BM);
-                if (k >= m || (V(V_SLOW) && !ly_ok())) break;
+                if (k >= m || !ly_ok()) break;
                 V(V_SLOW) = 1;
                 drop_cells(fc + k, 1);
                 k++;
@@ -567,7 +567,7 @@ static void drop_run(uint8_t cap) {
 #endif
         for (k = 0; k < m; k = j) {
             for (j = k + 1; j < m && fc[j].w == fc[k].w; j++) ;
-            if (V(V_SLOW) && !ly_ok()) break;
+            if (!ly_ok()) break;
             V(V_SLOW) = 1;
             drop_cells(fc + k, j - k);
         }
@@ -599,6 +599,9 @@ uint8_t smap_camera_step(void) BANKED {
     ny = cy + d;
     while (ny != cy && !cov_y(ny)) ny += ny > cy ? -1 : 1;
     if (!V(V_WALK) && nx == tx && ny == ty) { V(V_DIRX) = 0; V(V_DIRY) = 0; }
+    d = tx - nx; if (d < 0) d = -d;                                   // how far the camera is behind Sal's spot (px, both axes together): the walk waits while it is too far
+    d += ty > ny ? ty - ny : ny - ty;
+    V(V_LAG) = d > 255 ? 255 : (uint8_t)d;
     if (nx == cx && ny == cy) return 0;
     s16(V_CAMX, nx); s16(V_CAMY, ny);
     return 1;
