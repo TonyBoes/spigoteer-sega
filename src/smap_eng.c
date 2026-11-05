@@ -527,20 +527,25 @@ static uint8_t job_run(uint8_t cap) {
     return pos >= n;
 }
 
-// the cells of the add job's line already added leave again (the job is given up)
-static void job_abort(void) {
-    uint8_t vert = V(V_JK) == J_COL, a = V(V_JA), idx = V(V_JI), pos = V(V_JP), c = 0, m, k, j;
+// the add job's line is given up: the cells of it already added leave again, from the end, at most DROP_CAP a frame (the job's position falls with them: a camera that turns
+// back finds the job where it is). 1: none is left.
+static uint8_t job_abort(void) {
+    uint8_t vert = V(V_JK) == J_COL, a = V(V_JA), idx = V(V_JI), pos = V(V_JP), cap = DROP_CAP, m, k, j;
     smap_fc fc[8];
-    while (c < pos) {
-        m = pos - c; if (m > 8) m = 8;
-        fetch(vert ? idx : a + c, vert ? a + c : idx, m, vert, fc);
+    while (pos && cap) {
+        m = pos; if (m > 8) m = 8;
+        if (m > cap) m = cap;
+        pos -= m; cap -= m;
+        fetch(vert ? idx : a + pos, vert ? a + pos : idx, m, vert, fc);
         for (k = 0; k < m; k = j) {
             for (j = k + 1; j < m && fc[j].w == fc[k].w; j++) ;
             drop_cells(fc + k, j - k);
         }
-        c += m;
+        V(V_JP) = pos;
     }
-    V(V_JK) = J_NONE; V(V_JP) = 0; V(V_STALL) = 0;
+    if (pos) return 0;
+    V(V_JK) = J_NONE; V(V_STALL) = 0;
+    return 1;
 }
 
 // the drop job's line leaves the region: at most cap cells now (its extents left the region when the job started)
@@ -612,26 +617,27 @@ uint8_t smap_camera_step(void) BANKED {
 void smap_region_work(void) BANKED {
     uint16_t cx = g16(V_CAMX), cy = g16(V_CAMY);
     uint8_t nc0 = (uint8_t)(cx >> 3), nc1 = (uint8_t)((cx + 159) >> 3), nr0 = (uint8_t)(cy >> 3), nr1 = (uint8_t)((cy + 143) >> 3);
-    uint8_t wc0 = nc0, wc1 = nc1, wr0 = nr0, wr1 = nr1, dx = V(V_DIRX), dy = V(V_DIRY), kind = V(V_JK), i, dk, di = 0;
+    uint8_t wc0 = nc0, wc1 = nc1, wr0 = nr0, wr1 = nr1, dx = V(V_DIRX), dy = V(V_DIRY), kind = V(V_JK), i, dk, di = 0, *eg = 0;
+    int8_t egd = 0;
     if (dx == 1 && wc0) wc0--;
     if (dx == 2 && wc1 < 63) wc1++;
     if (dy == 1 && wr0) wr0--;
     if (dy == 2 && wr1 < 47) wr1++;
     i = V(V_JI);
-    if ((kind == J_COL && (i < wc0 || i > wc1)) || (kind == J_ROW && (i < wr0 || i > wr1))) job_abort();
+    if ((kind == J_COL && (i < wc0 || i > wc1)) || (kind == J_ROW && (i < wr0 || i > wr1))) { if (!job_abort()) return; }       // (still taking its cells out: nothing else this frame)
     if (V(V_PANEL) || vq_held) return;
     if (V(V_DK) == J_NONE) {                         // the next line to drop, if any: its place in the region goes now, its cells a few at a time
         dk = J_COL;
-        if (V(V_C0) < wc0 && V(V_C0) < V(V_C1)) di = V(V_C0)++;
-        else if (V(V_C1) > wc1 && V(V_C1) > V(V_C0)) di = V(V_C1)--;
+        if (V(V_C0) < wc0 && V(V_C0) < V(V_C1)) { eg = &V(V_C0); egd = 1; di = (*eg)++; }
+        else if (V(V_C1) > wc1 && V(V_C1) > V(V_C0)) { eg = &V(V_C1); egd = -1; di = (*eg)--; }
         else {
             dk = J_ROW;
-            if (V(V_R0) < wr0 && V(V_R0) < V(V_R1)) di = V(V_R0)++;
-            else if (V(V_R1) > wr1 && V(V_R1) > V(V_R0)) di = V(V_R1)--;
+            if (V(V_R0) < wr0 && V(V_R0) < V(V_R1)) { eg = &V(V_R0); egd = 1; di = (*eg)++; }
+            else if (V(V_R1) > wr1 && V(V_R1) > V(V_R0)) { eg = &V(V_R1); egd = -1; di = (*eg)--; }
             else dk = J_NONE;
         }
         if (dk != J_NONE) {
-            if (V(V_JK) != J_NONE && V(V_JK) != dk) job_abort();     // (an add job across it would add cells of the line that leaves)
+            if (V(V_JK) != J_NONE && V(V_JK) != dk && !job_abort()) { *eg -= egd; return; }     // (an add job across it would add cells of the line that leaves: it goes first; the line stays)
             V(V_DK) = dk; V(V_DI) = di; V(V_DP) = 0;
             if (dk == J_COL) { V(V_DA) = V(V_R0); V(V_DN) = V(V_R1) - V(V_R0) + 1; }
             else { V(V_DA) = V(V_C0); V(V_DN) = V(V_C1) - V(V_C0) + 1; }

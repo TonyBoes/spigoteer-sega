@@ -156,6 +156,65 @@ static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand
             o_->y = (uint8_t)((py) + 16); o_->x = (uint8_t)((px) + 8); o_->tile = (tl); o_->prop = cgbp ? ((pl) | (fl)) : (fl); \
         } else o_->y = 0; } while (0)
 
+// The same for the still sprites (the bang, the dots, the UFO): with no window up an entry stays live 16 px beyond the screen's edges (its y at least 1: 0 means hidden), because on
+// the frames between two redraws oam_shift moves it with the camera and it slides in by itself.
+#define SPRM(i, px, py, tl, pl, fl, vh) do { \
+        OAM_item_t *o_ = shadow_OAM + (i); \
+        if (wh ? ((uint16_t)((px) + 7) < 167 && (uint16_t)((py) + (vh) - 1) < (uint16_t)(143 + (vh)) && !((py) < wend && (py) + (vh) > wy)) \
+               : ((uint16_t)((px) + 16) < 192 && (uint16_t)((py) + 15) < 175)) { \
+            o_->y = (uint8_t)((py) + 16); o_->x = (uint8_t)((px) + 8); o_->tile = (tl); o_->prop = cgbp ? ((pl) | (fl)) : (fl); \
+        } else o_->y = 0; } while (0)
+
+// The camera moved by less than a cell: the live still sprites (entries OAM_BANG .. OAM_UFO + 2) move with it. dx, dy: how far they go on the screen.
+// (The C twin is the loop below the #else.) A live entry never becomes 0 (hidden).
+#if ASM_SMAP
+static void oam_shift(int8_t dx, int8_t dy) __naked {
+    (void)dx; (void)dy;
+__asm
+    ld   c, a
+    ld   b, e
+    ld   hl, #_shadow_OAM + 28              ; OAM_BANG * 4
+    ld   e, #15                             ; the bang, 11 dots, the UFO's 3
+1$:
+    ld   a, (hl)
+    or   a, a
+    jr   z, 2$
+    add  a, b
+    jr   nz, 3$
+    inc  a
+3$:
+    ld   (hl+), a
+    ld   a, (hl)
+    add  a, c
+    ld   (hl+), a
+    inc  hl
+    inc  hl
+    jr   4$
+2$:
+    inc  hl
+    inc  hl
+    inc  hl
+    inc  hl
+4$:
+    dec  e
+    jr   nz, 1$
+    ret
+__endasm;
+}
+#else
+static void oam_shift(int8_t dx, int8_t dy) {
+    uint8_t k, y;
+    OAM_item_t *o = shadow_OAM + OAM_BANG;
+    for (k = 0; k < 15; k++, o++) {
+        y = o->y;
+        if (!y) continue;
+        y += dy;
+        o->y = y ? y : 1;
+        o->x += dx;
+    }
+}
+#endif
+
 // The dots' quick cull. a = the camera's cell column + 4 px, e = its row: bc = a mask (bit 5 + s set when stop s lies within the cull window, 21 + 2 + 2 cells wide and 19 + 2 + 2 tall);
 // the entries of the others are hidden. (The C twin is the loop in draw_still. Asm: the compiler's 16-bit arithmetic made that loop 25 lines of the frame.)
 #if ASM_SMAP
@@ -217,7 +276,7 @@ static void draw_still(uint8_t wh, int16_t wy, int16_t wend) {
     const uint8_t *q = &smapw_stopc[0][0];
     OAM_item_t *o = shadow_OAM + OAM_DOTS;
     V(V_DOTS) = 0;
-    if ((uint16_t)(SMAPW_BANG_X - cx + 8) < 176 && bang_wanted()) { ax = SMAPW_BANG_X - cx; ay = SMAPW_BANG_Y - cy; SPR(OAM_BANG, ax, ay, OB + SOB_BANG0, PAL_BANG, 0, 8); }
+    if ((uint16_t)(SMAPW_BANG_X - cx + 16) < 192 && bang_wanted()) { ax = SMAPW_BANG_X - cx; ay = SMAPW_BANG_Y - cy; SPRM(OAM_BANG, ax, ay, OB + SOB_BANG0, PAL_BANG, 0, 8); }
     else shadow_OAM[OAM_BANG].y = 0;
     cx += 4; cy += 8;
     ccx = (uint8_t)(cx >> 3); ccy = (uint8_t)(cy >> 3);
@@ -233,19 +292,19 @@ static void draw_still(uint8_t wh, int16_t wy, int16_t wend) {
         if (!(near & 1) || (s > p && s != TOWN)) continue;     // (their entries stay hidden: smap_enter)
         ax = (int16_t)sp[0] - cx;
         ay = (int16_t)sp[1] - cy;
-        if ((uint16_t)(ax + 7) >= 167 || (uint16_t)(ay + 7) >= 151 || (wh && ay < wend && ay + 8 > wy)) { o->y = 0; continue; }
+        if (wh ? ((uint16_t)(ax + 7) >= 167 || (uint16_t)(ay + 7) >= 151 || (ay < wend && ay + 8 > wy)) : ((uint16_t)(ax + 16) >= 192 || (uint16_t)(ay + 15) >= 175)) { o->y = 0; continue; }
         o->y = (uint8_t)(ay + 16); o->x = (uint8_t)(ax + 8);
         if (s < p || s == TOWN) { o->tile = OB + SOB_DOT_OPEN0; o->prop = cgbp ? PAL_OPEN : 0; }
         else { o->tile = OB + SOB_DOT_LOCKED0; o->prop = cgbp ? PAL_LOCKED : 0; }
     }
     cx -= 4; cy -= 8;
-    if (p >= 10 && (uint16_t)(SMAPW_UFO_X - cx + 24) < 200) {   // the UFO over the space lounge, once that is open (bobbing 1 px)
+    if (p >= 10 && (uint16_t)(SMAPW_UFO_X - cx + 40) < 216) {   // the UFO over the space lounge, once that is open (bobbing 1 px)
         ax = SMAPW_UFO_X - cx; ay = SMAPW_UFO_Y + ((tk >> 5) & 1) - cy;
-        SPR(OAM_UFO, ax, ay, OB + SOB_UFO0, PAL_UFO, 0, 16);
+        SPRM(OAM_UFO, ax, ay, OB + SOB_UFO0, PAL_UFO, 0, 16);
         ax += 8;
-        SPR(OAM_UFO + 1, ax, ay, OB + SOB_UFO1, PAL_UFO, 0, 16);
+        SPRM(OAM_UFO + 1, ax, ay, OB + SOB_UFO1, PAL_UFO, 0, 16);
         ax += 8;
-        SPR(OAM_UFO + 2, ax, ay, OB + SOB_UFO2, PAL_UFO, 0, 16);
+        SPRM(OAM_UFO + 2, ax, ay, OB + SOB_UFO2, PAL_UFO, 0, 16);
     } else if (p >= 10) { shadow_OAM[OAM_UFO].y = 0; shadow_OAM[OAM_UFO + 1].y = 0; shadow_OAM[OAM_UFO + 2].y = 0; }
 }
 
@@ -522,6 +581,7 @@ static void panel_input(uint8_t pressed) {
 // One frame (story.c story_update, STORY_PHASE_MAP). 1: the screen was left (the next one is up).
 uint8_t smap_update(uint8_t pressed) BANKED {
     uint8_t d;
+    uint16_t ocx, ocy;
     V(V_NSTG) = 0; V(V_PALQ) = 0; V(V_SLOW) = 0; V(V_TICK)++;
     if (V(V_PANEL)) {
         panel_pump();
@@ -546,11 +606,14 @@ uint8_t smap_update(uint8_t pressed) BANKED {
         else if (pressed & J_START) panel_open(P_MENU, 0);
     }
     if (!V(V_PANEL) && !vq_held) {
+        ocx = g16(V_CAMX); ocy = g16(V_CAMY);
         if (smap_camera_step()) {
             SC(S_T + T_CAM)[0] = (uint8_t)g16(V_CAMY); SC(S_T + T_CAM)[1] = (uint8_t)g16(V_CAMX);
             qraw(0, SC(S_T + T_CAM), 0xFF42, 2);
-            V(V_DOTS) = 1;
+            if ((ocx >> 3) != (g16(V_CAMX) >> 3) || (ocy >> 3) != (g16(V_CAMY) >> 3) || V(V_WH)) V(V_DOTS) = 1;      // (another cell: all the still sprites are looked at again)
+            else oam_shift((int8_t)(ocx - g16(V_CAMX)), (int8_t)(ocy - g16(V_CAMY)));
         }
+        if (!(V(V_TICK) & 31) && V(V_STATE) >= 10) V(V_DOTS) = 1;       // (the UFO bobs 1 px every 32 frames)
         smap_region_work();
     }
     if (V(V_WALK) && !V(V_FULL) && !V(V_WH)) draw_walk();
