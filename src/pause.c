@@ -21,8 +21,9 @@
 // cursor). YES ends the run through the same exits as finishing it:
 //   - a mini-game: mg.c's own leave (tk_leave, OBP0, the LCD handlers, the sprites), then BONUS > MINI GAMES (practice, no
 //     medal recorded), or as the story / ARCADE run it is part of;
-//   - STORY (shifts, boss fights, the Pour-Off): the title. Nothing is saved here: the progress is what story.c saved at the
-//     start of the venue / shift (story_save in story_level_done), so CONTINUE starts from that;
+//   - STORY (shifts, boss fights, the venue's mini-game; the label reads QUIT TO MAP): the story map, Sal at the venue (the Pour-Off: the town), the run, its
+//     difficulty and HUD tint kept; A there offers RESUME / ENTER / BACK (src/smap.c, SMAP_RESUME): RESUME restarts the shift from its start (story.c
+//     story_resume). Nothing is saved here (story_save at the start of a venue / shift is what CONTINUE reads). A debug-select run: the title;
 //   - ARCADE, CLASSIC (and the LEVEL harness): the run ends as a game over does: the score into the mode's top 5, the
 //     initials when it made it (scores_after_game), else the title;
 //   - BOSS RUSH: the BOSS RUSH menu, no time recorded.
@@ -84,6 +85,7 @@ static uint8_t gl(char c) {
 static const uint8_t w_resume[] = { 6, G(R), G(E), G(S), G(U), G(M), G(E) };
 static const uint8_t w_how[]    = { 11, G(H), G(O), G(W), SP, G(T), G(O), SP, G(P), G(L), G(A), G(Y) };
 static const uint8_t w_quit[]   = { 12, G(Q), G(U), G(I), G(T), SP, G(T), G(O), SP, G(M), G(E), G(N), G(U) };
+static const uint8_t w_qmap[]   = { 11, G(Q), G(U), G(I), G(T), SP, G(T), G(O), SP, G(M), G(A), G(P) };
 static const uint8_t w_yes[]    = { 3, G(Y), G(E), G(S) };
 static const uint8_t w_no[]     = { 2, G(N), G(O) };
 static const uint8_t w_sure[]   = { 13, G(A), G(R), G(E), SP, G(Y), G(O), G(U), SP, G(S), G(U), G(R), G(E), TILE_GLYPH_J };   // (J: the '?' while paused)
@@ -110,6 +112,11 @@ static uint8_t pause_card(uint8_t s) {
 
 static const uint8_t *const names[] = { w_resume, w_how, w_quit, w_yes, w_no };
 
+// QUIT goes to the story map: a story run's shift, boss fight or mini-game (not a play from the map, BONUS > MINI GAMES, ARCADE, CLASSIC, BOSS RUSH, a debug-select run)
+static uint8_t quit_to_map(uint8_t s) {
+    return story_on && play_mode == MODE_STORY && !(story_arc & 1) && !save_lock && !((s & PAUSE_MINI) && mg_mode != MG_STORY);
+}
+
 // where the items are in menu state s: the first item's window row, and the item the cursor is on
 // (a boss fight lists three items like a mini-game, on rows 1-3 of its 6-row window; the other levels two, on rows 2-3)
 #define three(s) (((s) & PAUSE_MINI) || (boss_on && !((s) & PAUSE_ASK)))
@@ -131,7 +138,7 @@ static void build(uint8_t s, uint8_t *b) {
     for (i = 0; i < 20; i++) b[(pr - 1) * 20 + i] = TILE_PANEL_BOT;
     music_pump();
     if (s & PAUSE_ASK) put(b, 255, 0, w_sure);
-    for (i = 0; i < n; i++) put(b + (r - 1 + i) * 20, COL_ITEM + 2, i == sel ? TILE_GLYPH_Z : TILE_HUD_BLANK, names[base + i * step]);
+    for (i = 0; i < n; i++) put(b + (r - 1 + i) * 20, COL_ITEM + 2, i == sel ? TILE_GLYPH_Z : TILE_HUD_BLANK, base + i * step == 2 && quit_to_map(s) ? w_qmap : names[base + i * step]);
 }
 
 // The window is on screen from line BANNER_WY to its LYC (WY + 38 or 46), and a write through set_win_tiles waits for VRAM (a byte per
@@ -313,7 +320,13 @@ static void quit(void) {
     }
     boss_set(BOSS_NONE);
     story_phase = 0;                             // (SP_OFF)
-    if (story_on && !(story_arc & 1)) {              // STORY: the title; CONTINUE starts from the last save
+    if (story_on && !(story_arc & 1) && !save_lock && play_mode == MODE_STORY) {   // STORY: the map, Sal at this venue; A there offers RESUME (the shift again from its start)
+        smap_stop = mg_id == MG_POUROFF && (state_timer & PAUSE_MINI) ? 10 : story_chapter;   // (the Pour-Off: the town, nothing to resume)
+        if (smap_stop != 10) smap_flags |= SMAP_RESUME; else smap_flags &= ~SMAP_RESUME;
+        smap_back();                             // (the venue's start score back, as after a map play; the run, its difficulty and its HUD tint go on)
+        return;
+    }
+    if (story_on && !(story_arc & 1)) {              // a debug-select run: the title; CONTINUE resumes it
         story_on = 0; story_arc = 0; hud_pal_reset();   // (the run's difficulty and the HUD colour it tinted end here)
         if (save_lock == SAVE_LOCK_DEBUG) story_chapter |= DEBUG_RESUME;   // a debug-select run saved nothing: CONTINUE resumes it (story_begin)
         title_enter();

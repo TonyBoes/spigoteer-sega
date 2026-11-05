@@ -64,7 +64,8 @@ def win_text(gb, row):
 
 
 def menu_rows(gb):
-    return [win_text(gb, r) for r in (1, 2, 3, 4)]
+    """The menu's text rows; a story run's QUIT TO MAP reads as QUIT TO MENU here (its own label is checked in tests/test_story_resume.py)."""
+    return [win_text(gb, r).replace("QUIT TO MAP", "QUIT TO MENU") for r in (1, 2, 3, 4)]
 
 
 def music(gb):
@@ -114,6 +115,15 @@ def quit_yes(gb):
 
 
 def settled(gb, st, limit=60):
+    if st == TITLE:                              # a story run's QUIT lands on the story map (tests/test_story_resume.py): START > QUIT TO TITLE goes on to the title
+        from test_story_map import SP_MAP, tap as map_tap
+        run_until(gb, lambda: state(gb) in (TITLE, GS_STORY) and gb.pb.memory[0xFF40] & 0x80, limit)
+        if state(gb) == GS_STORY and gb.mem("story_phase") == SP_MAP:
+            gb.run(100)
+            map_tap(gb, "start", 20)
+            gb.run(10)
+            map_tap(gb, "down", 4)
+            gb.press("a", 2)
     run_until(gb, lambda: state(gb) == st and gb.pb.memory[0xFF40] & 0x80, limit)
     gb.run(4)
 

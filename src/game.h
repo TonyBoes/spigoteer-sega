@@ -808,6 +808,8 @@ void rush_fight(uint8_t venue) BANKED;                  // story.c: venue's boss
 extern uint8_t smap_stop, smap_flags;                   // the stop Sal stands at (0..9 a venue = a chapter, 10 the town); festival played / gold bits (src/smap.c)
 void smap_enter(uint8_t quick) BANKED;                  // LCD off: the map (quick 1: back from a mini-game it started)
 uint8_t smap_update(uint8_t pressed) BANKED;            // a frame of the map; 1: the screen changed
+#define SMAP_RESUME     0x08                            // smap_flags bit 3: the story shift being played was quit to the map (pause.c): A at its venue offers RESUME / ENTER / BACK (not saved; a new run or CONTINUE clears it)
+void story_resume(void) BANKED;                         // src/story.c: restart the shift that was quit, with the lives and score it began with
 void smap_back(void) BANKED;                            // a mini-game the map started is over: the map again, the story's score back
 void smap_new_run(void) BANKED;                         // a new story: Sal at the saloon, no festival game played or won
 void smap_continue(void) BANKED;                        // CONTINUE: the saved map block, then the map

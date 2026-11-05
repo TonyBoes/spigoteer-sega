@@ -655,12 +655,26 @@ static uint8_t next_step(uint8_t s) {
 // whatever the medal: mini-games never block the story), or a shift. There is no boss step: Last call's serve quota turns
 // that level into the venue's boss fight in place (boss_in_place; src/boss.c). A slot not built yet is STEP_SKIP in the data
 // (gen_story NOT_BUILT) and never reaches here.
+// The state a shift begins with, kept in HRAM (no WRAM): the lives, the step and the score, for RESUME after a QUIT TO MAP (the map overwrites every other byte of the level)
+#define RS_LIVES (*(volatile uint8_t *)0xFFF5)
+#define RS_STEP  (*(volatile uint8_t *)0xFFF6)
+#define RS_SCORE (*(volatile uint32_t *)0xFFF7)    // 0xFFF7-0xFFFA
+
 static void step_start(void) {
     uint8_t s = story_step_get(story_chapter, story_step);
+    RS_LIVES = lives; RS_STEP = story_step; RS_SCORE = score;
     boss_set(BOSS_NONE);                         // (no fight until Last call's quota is met)
     if ((s & STEP_KIND) == STEP_MINI) { mg_enter(mg_of_venue(story_chapter), MG_STORY); return; }   // (the game id, not the venue)
     story_shift = s & STEP_INDEX;
     shift_start();
+}
+
+// RESUME on the story map: the shift (or mini-game) that was quit, again from its start, with the lives and the score it began with
+void story_resume(void) BANKED {
+    TRANS_WANT();                                // (src/trans.c: the map -> the level behind the fade)
+    lives = RS_LIVES; story_step = RS_STEP; score = RS_SCORE;
+    split6(score_digits, score);
+    step_start();
 }
 
 // the venue (chapter) from its first playable step, with 3 lives (a new chapter, a lost last life, CONTINUE): a new

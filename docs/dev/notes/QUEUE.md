@@ -455,3 +455,8 @@ Back views still to draw: DUSTY, HANK, MABEL (placeholder), ROSIE, EMMA, ARTIE, 
 - Replaced story_map_scroll_walking.cgb (5 px, Sal's walk pose tick).
 - Q81 asked: DMG walk smooth enough, or one more speed pass? Open Questions v430, Pocket Player v61.
 - Small: the UFO's 1 px bob freezes while Sal walks (agent note); DMG 38-frame map entry not cut.
+
+## 2026-11-05 QUIT TO MAP + RESUME (worktree-agent-a28259c6a051a5f91)
+- Owner: "quitting a level should quit to map ... option to resume the level"; then "Resume doesn't need to take you back exactly where you were. Just restart the shift."
+- Built: story pause label QUIT TO MAP; QUIT goes to the map at the venue (run, difficulty, HUD tint kept); A there: RESUME / ENTER / BACK (smap_flags bit 3 SMAP_RESUME, RAM only). RESUME = the shift (boss fight: Last call; mini-game: that step) again from its start with the lives and score it began with, kept in HRAM 0xFFF5-0xFFFA (story.c step_start). No snapshot, no SRAM, no new WRAM.
+- Golden changed on purpose: pause_menu_boss.dmg / .cgb (label), bbox 113,88,133,94.
