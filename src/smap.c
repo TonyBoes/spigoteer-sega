@@ -356,6 +356,7 @@ static void start_walk(uint8_t d) {
     V(V_LEG) = leg; V(V_REV) = rev; V(V_DEST) = t;
     V(V_WK) = rev ? smapw_leg_n[leg] - 2 : 1;        // the waypoint after the one Sal stands on
     V(V_WALK) = 1;
+    if (V(V_TAG)) V(V_TAG) = 1;                      // (the name tag goes when Sal sets off: a frame that runs late would drop the window for a frame: a flicker)
     SFX(SFX_DON);
 }
 

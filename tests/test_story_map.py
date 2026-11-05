@@ -260,6 +260,16 @@ def test_the_name_tag_shows_90_frames_on_the_window_layer(model):
     assert gb.mem("overlay_on") == 0
 
 
+@pytest.mark.parametrize("model", ["dmg", "cgb"])
+def test_the_name_tag_goes_when_sal_sets_off(model):
+    """A frame that runs late drops the window for a frame (a flicker on the DMG): the tag is gone before the first step is drawn."""
+    gb = to_map(model, 10, step=1, stop=1, tag_gone=False)
+    run_until(gb, lambda: gb.mem("overlay_on") == 3, 60)
+    gb.press("right", 4)
+    gb.run(4)
+    assert gb.read("story_scratch", 520)[SV + V_WALK] and gb.mem("overlay_on") == 0
+
+
 # ---- A at a venue -----------------------------------------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
 @pytest.mark.parametrize("progress", [1, 3, 9])
