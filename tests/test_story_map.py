@@ -601,7 +601,7 @@ def test_a_new_story_run_resets_the_festival_golds(model):
     gb.write("smap_stop", 7)
     title_pick(gb, ts.K_PLAY, ts.K_STORY)
     run_until(gb, lambda: state(gb) == GS_STORY and gb.mem("story_phase") == SP_SCENE, 60)
-    assert gb.mem("smap_flags") & 0x7F == 0 and gb.mem("smap_stop") == 0, "a new run: no festival game played or won, Sal at the saloon"
+    assert gb.mem("smap_flags") & 0x7F == 0 and gb.mem("smap_stop") == TOWN,"a new run: no festival game played or won, Sal at the town"
 
 
 @pytest.mark.parametrize("model", ["dmg", "cgb"])
@@ -679,7 +679,10 @@ def test_intro_leads_to_the_map_and_a_there_starts_chapter_1(model):
     gb = ts.start_story(model)
     ts.skip_scene(gb, stay=True)                # INTRO
     run_until(gb, lambda: gb.mem("story_phase") == SP_MAP, 60)
-    assert gb.mem("smap_stop") == 0 and gb.mem("story_chapter") == 0
+    assert gb.mem("smap_stop") == TOWN and gb.mem("story_chapter") == 0, "a new story starts the map at the town (owner 2026-11-05)"
+    gb.run(100)
+    go(gb, "left")                              # (the saloon is the next stop: Sal walks there)
+    assert gb.mem("smap_stop") == 0
     tap(gb, "a", 2)
     run_until(gb, lambda: gb.mem("story_phase") == SP_SCENE, 60)
     assert gb.mem("story_scene") == ts.pre(0)

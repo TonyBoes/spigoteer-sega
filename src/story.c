@@ -783,7 +783,7 @@ static void scene_done(void) {
     if (s == SC_FINALE_B) { scene_enter(SC_CREDITS); return; }
     if (s == SC_INTRO) {                         // the map; a debug-select run (nothing saved, no map) goes on to the first PRE
         if (save_lock) { scene_enter(SC_PRE_SALOON); return; }
-        smap_stop = 0; smap_enter(0);
+        smap_stop = 10; smap_enter(0);          // (a new story starts the map at the town: the saloon is the next stop, Sal walks there)
         return;
     }
     if (!((s - SC_PRE_SALOON) & 1)) { venue_score_put(story_chapter, score); venue_start(); return; }     // a PRE scene: the chapter

@@ -530,7 +530,7 @@ static void walk_step(void) {
 // ---- leaving ---------------------------------------------------------------------------------------------------------------------------------------------------------
 static void leave(void) {                          // before any other screen: the window and its interrupt as the game keeps them, the scroll back, the map block saved
     win_hide();
-    SCX_REG = 0; SCY_REG = 0;
+    if (TRANS & TR_OFF) { SCX_REG = 0; SCY_REG = 0; }   // (else the scene change's cover shows the map as it stands and the scroll goes home once the LCD is off: src/trans.c)
     sm_put(smap_stop, smap_flags & F_SAVED);
 }
 
@@ -712,9 +712,9 @@ void smap_back(void) BANKED {
     smap_enter(1);
 }
 
-// a new story run: Sal at the saloon, no festival game played or won yet
+// a new story run: Sal at the town, no festival game played or won yet
 void smap_new_run(void) BANKED {
-    smap_stop = 0; smap_flags &= F_PALS;
+    smap_stop = TOWN; smap_flags &= F_PALS;
 }
 
 // CONTINUE: the saved map block (stop, played / gold flags), else Sal at the next venue
