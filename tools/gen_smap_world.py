@@ -316,6 +316,57 @@ def min_conflict(conf, weight, k):
     return col, bad
 
 
+def path_windows(stops, legs, pad=1):
+    """The cell windows the region can hold while Sal walks: for every pixel of every leg (and every stop) the camera's view (Sal's feet at the screen's
+    centre, clamped to the world) in cells, padded by pad cells on every side (the line ahead, the one the drop has not yet taken)."""
+    def cam(fx, fy):
+        return min(max(fx - 80, 0), CW * 8 - 160), min(max(fy - 84, 0), CH * 8 - 144)
+    wins = set()
+
+    def add(fx, fy):
+        cx, cy = cam(fx, fy)
+        wins.add((max((cx >> 3) - pad, 0), min(((cx + 159) >> 3) + pad, CW - 1), max((cy >> 3) - pad, 0), min(((cy + 143) >> 3) + pad, CH - 1)))
+    for sx, sy in stops:
+        add(sx, sy)
+    for a, b, pts in legs:
+        for k in range(len(pts) - 1):
+            (x0, y0), (x1, y1) = pts[k], pts[k + 1]
+            n = max(abs(x1 - x0), abs(y1 - y0), 1)
+            for i in range(n + 1):
+                add(x0 + (x1 - x0) * i // n, y0 + (y1 - y0) * i // n)
+    return sorted(wins)
+
+
+def path_hints(dm, wins, k):
+    """DMG allocator hints: the colouring that matters is the one of the windows the camera can actually show.  Tiles conflict when some such window of
+    some state holds both; the weight of a pair is the number of such windows; a min-conflict pass, then local search until no tile gains by moving."""
+    n = dm.nt
+    conf = np.zeros((n, n), dtype=bool)
+    wt = np.zeros((n, n), dtype=np.float32)
+    for p in range(1, 11):
+        gr = dm.grids[p]
+        for (c0, c1, r0, r1) in wins:
+            ts = np.unique(gr[r0:r1 + 1, c0:c1 + 1])
+            conf[np.ix_(ts, ts)] = True
+            wt[np.ix_(ts, ts)] += 1
+    np.fill_diagonal(conf, False)
+    col, _ = min_conflict(conf, wt, k)
+    for _ in range(12):
+        moved = 0
+        for v in range(n):
+            nb = np.nonzero(conf[v])[0]
+            cost = np.zeros(k)
+            np.add.at(cost, col[nb], wt[v, nb])
+            best = int(np.argmin(cost))
+            if cost[best] < cost[col[v]]:
+                col[v] = best
+                moved += 1
+        if not moved:
+            break
+    bad = sum(1 for v in range(n) for u in np.nonzero(conf[v])[0] if u > v and col[u] == col[v])
+    return col, bad
+
+
 # ---- geometry ----------------------------------------------------------------------------------------------------------------------------
 def geometry():
     stops = [W.STOPS[n] for n in STOP_ORDER]
@@ -407,6 +458,11 @@ void {tag}_palette(uint8_t i, uint8_t *dst) BANKED {{
     for (k = 0; k < 4; k++) {{ *dst++ = (uint8_t)s[k]; *dst++ = (uint8_t)(s[k] >> 8); }}
 }}
 """)
+    else:
+        L.append(f"""
+// tile t's hint slot (the allocator asks it of the tile a slot holds)
+uint8_t {tag}_hintof(uint16_t t) BANKED {{ return {tag}_hint[t]; }}
+""")
     return "\n".join(L)
 
 
@@ -471,15 +527,13 @@ def main(build, preview):
         cols = PAL.get(name)
         cg.pal_words += [rgb555(c) for c in cols]
     # the DMG hints: a min-conflict colouring of the DMG tiles in 176 slots (the allocator takes a tile's hint slot when it is free)
-    conf_d = dm.conflicts(*WIN_C)
-    weight = np.ones_like(conf_d, dtype=np.float32)
-    col_d, bad_d = min_conflict(conf_d, weight, POOL)
+    stops, legs, exits, exit_leg = geometry()
+    col_d, bad_d = path_hints(dm, path_windows(stops, legs), POOL)
     dm.hint = [int(c) for c in col_d]
     if fail:
         print("gen_smap_world: BUDGET FAILURES\n  " + "\n  ".join(fail), file=sys.stderr)
         sys.exit(1)
     # ---- geometry ------------------------------------------------------------------------------------------------------------------------
-    stops, legs, exits, exit_leg = geometry()
     assert reachable(exits) == set(range(11)), "a stop cannot be reached from the town along the legs"
     # ---- files -------------------------------------------------------------------------------------------------------------------------------
     ufo = (W.VENUES["space"][1][0] * 8 + 62, W.VENUES["space"][1][1] * 8 + 6)
@@ -493,9 +547,11 @@ def main(build, preview):
          "void smap_c_palette(uint8_t i, uint8_t *dst) BANKED;",
          "void smap_c_tile(uint16_t t, uint8_t *dst) BANKED;",
          "void smap_d_fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, uint8_t p, smap_fc *out) BANKED;",
-         "void smap_d_tile(uint16_t t, uint8_t *dst) BANKED;", "",
+         "void smap_d_tile(uint16_t t, uint8_t *dst) BANKED;",
+         "uint8_t smap_d_hintof(uint16_t t) BANKED;", "",
          "#ifdef SMAPW_GEOMETRY   // (src/smap.c alone)",
          f"static const uint16_t smapw_stop[11][2] = {{ " + ", ".join("{ %d, %d }" % s for s in stops) + " };",
+         f"static const uint8_t smapw_stopc[11][2] = {{ " + ", ".join("{ %d, %d }" % (s[0] >> 3, s[1] >> 3) for s in stops) + " };   // (the stops' cells: the dots' quick cull)",
          "static const uint8_t smapw_exit[11][4] = {   // U, D, L, R: the stop that button walks to (255: none)"]
     for s in range(11):
         h.append("    { " + ", ".join(str(v) for v in exits[s]) + " },")

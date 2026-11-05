@@ -62,8 +62,10 @@ USERS = {
     "rush.ROWS": (0, 14 * 20, "rush.c ROW(k): the menu's and the list's row buffers"),
     "ol.STATE": (H["SCR_OL_AT"], H["SCR_OL_AT"] + H["SCR_OL_N"], "oneline.h struct ol_state: the arrows' bob and the key repeat (SOUNDTRACK, MINI GAMES, the Boss Rush list)"),
     # the story map
-    "smap.ROWS": (0, 140, "smap.c ROWBUF"), "smap.ATTR_PANEL": (140, 160, "smap.c"), "smap.ATTR_TAG": (160, 180, "smap.c"),
-    "smap.TAGROW": (180, 200, "smap.c"), "smap.V": (400, 412, "smap.c V(n)"),
+    # (the scrolling map owns the whole of it: smap_priv.h lays it out)
+    "smap.TABLES": (0, 396, "smap_priv.h A_*: the tile allocator's tables (DMG 176 slots + counts; Color nibbles), the palettes' counts and slots, the window layer's attribute row, the cells' attributes, the palette write"),
+    "smap.V": (396, 464, "smap_priv.h V(n): the variables (camera, Sal, region, add and drop jobs)"),
+    "smap.STAGE": (464, 520, "smap_priv.h S_T: the tile staging, the line's tile ids, the scroll bytes; the panel's two rolling rows and the name tag's row lie over the first 40"),
     # the Practice list
     "mglist.ROWS": (0, 220, "mg_list.c ML_ROW(k) (11 rows)"), "mglist.STATE": (220, 222, "ml_d: the rows to redraw"),
     "mglist.ART": (222, 244, "mg_list.c struct pa: the illustration loader's state (222 + 22: ML_PA_AT, ML_STAGE_AT)"),
@@ -92,7 +94,7 @@ GROUPS = {
     "a boss fight, in a BOSS RUSH run (the struct is alive through every fight)":
         ["fight.LD", "fight.HB", "fight.BELT", "fight.CAP", "rush.STRUCT", "fight.LIGHTS", "fight.MAP", "fight.HAND", "fight.OWN", "fight.FX", "tip2.COIN", "split.PAL", "inst.TAB", "keg.TAB", "keg2.TAB", "evt.TAB", "ltst.STAMP", "looks.HIST", "obj.PAT", "obj.SHOW", "obj.PATX", "obj.CO", "obj.F"],
     "a Boss Rush screen": ["rush.ROWS", "rush.STRUCT", "ol.STATE"],
-    "the story map": ["smap.ROWS", "smap.ATTR_PANEL", "smap.ATTR_TAG", "smap.TAGROW", "smap.V"],
+    "the story map": ["smap.TABLES", "smap.V", "smap.STAGE"],
     "the Practice list": ["mglist.ROWS", "mglist.STATE", "mglist.ART", "mglist.STAGE", "ol.STATE"],
     "the soundtrack": ["jukebox.ROWS", "jukebox.METER", "ol.STATE"],
     "the credits": ["credits.CR", "credits.BGP", "credits.PAL", "credits.PT", "credits.BUF"],
@@ -103,7 +105,7 @@ GROUPS = {
 # Every use of the name in code (comments stripped), per file: a new one (or a removed one) fails until the map above is looked at.
 USES = {"build/story_pictures.c": 9, "src/ad.c": 1, "src/boss.c": 1, "src/boss.h": 2, "src/boss_duke.c": 1, "src/boss_prototype.c": 1,
         "src/boss_sumo.c": 1, "src/credits.c": 7, "src/game.h": 27, "src/lift.c": 2,"src/jukebox.c": 3, "src/main.c": 61, "src/mg.h": 3, "src/mg_list.c": 5,
-        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 6,
+        "src/mk.c": 1, "src/oneline.h": 1, "src/mm.c": 1, "src/ou.c": 1, "src/po.c": 1, "src/rush.c": 2, "src/rush.h": 2, "src/scratch.h": 3, "src/showlights.h": 1, "src/smap.c": 2, "src/smap_eng.c": 25, "src/smap_priv.h": 3,
         "src/story.c": 23, "src/tip2.h": 1, "src/tk.c": 1, "src/trans.c": 5, "src/ts.c": 1}
 
 # the numbers each source must still contain (a literal moved there without the table moving fails here)
@@ -111,7 +113,8 @@ SOURCE_HAS = {
     "src/story.c": [r"story_scratch\[0\]", r"story_scratch\[1\]", r"story_scratch \+ 2\)", r"story_scratch \+ 40\)", r"story_scratch\[168\]",
                     r"story_scratch \+ STORY_PIC_ROWS \* 20", r"#define PS_BURST 3", r"story_scratch \+ 40 \+ PS_BURST \* 16\)\)",
                     r"story_scratch \+ 40 \+ PS_BURST \* 16 \+ 40\)\)", r"story_scratch \+ SCR_HB_AT", r"#define PW_AT\s+300\b", r"story_scratch\[PW_AT\]", r"story_scratch \+ PW_AT \+ 3\)", r"#define PW_END\s+\(PW_AT \+ 3 \+ 54\)", r"story_scratch\[PW_END\]", r"story_scratch \+ PW_END \+ 2\)", r"#define SK_END\s+\(PW_END \+ 2 \+ 2 \+ 2 \* STORY_SKY_CELLS\)"],
-    "src/smap.c": [r"story_scratch \+ 140\)", r"story_scratch \+ 160\)", r"story_scratch \+ 180\)", r"story_scratch\[400 \+ \(n\)\]", r"#define ROWS_MAX\s+7"],
+    "src/smap_priv.h": [r"#define A_CNT\s+220\b", r"#define S_V\s+396\b", r"#define S_T\s+464\b", r"story_scratch\[S_V \+ \(n\)\]"],
+    "src/smap.c": [r"story_scratch\[i\] = 0"],
     "src/mg_list.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ ML_ROWS \* 20\)\)", r"#define ML_ROWS\s+11\b", r"#define ML_PA_AT\s+\(ML_ROWS \* 20 \+ 2\)", r"#define ML_STAGE_AT\s+\(ML_PA_AT \+ 22\)"],
     "src/jukebox.c": [r"story_scratch \+ \(uint8_t\)\(k\) \* 20", r"story_scratch \+ JB_ROWS \* 20\)\)", r"#define JB_ROWS\s+9\b"],
     "src/oneline.h": [r"story_scratch \+ SCR_OL_AT\)\)"],

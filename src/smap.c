@@ -38,12 +38,14 @@
 #include <gb/cgb.h>
 #include <stdint.h>
 
+#include "asm_cfg.h"
 #include "game.h"
 #include "music.h"
 #include "story.h"
 #include "mg.h"
 #include "palettes.h"
 #include "smap_art.h"
+#include "smap_priv.h"
 #define SMAPW_GEOMETRY
 #include "smap_world.h"
 extern void spr_data_far(uint8_t first, uint8_t n, const uint8_t *d, uint8_t bank);
@@ -65,14 +67,6 @@ uint8_t smap_flags;                           // bits 0-2: festival game k was p
 #define F_PALS       0x80
 #define F_SAVED      0x77
 
-#define NSTOPS       11
-#define TOWN         10
-#define NIL          255
-#define FEST_N       3
-#define OB           56                       // the map's OBJ tiles start at this id (0-55 are the bartender's, the mugs' and the coin: boot-time tiles)
-#define TAG_FRAMES   90
-#define TAG_SLIDE    12                       // frames the tag takes to slide in from the right (and out)
-#define LYC_NONE     255                      // the window runs to the screen's bottom: no raster interrupt wanted
 
 // ---- the stops (feet positions and the legs: build/smap_world.h) ----------------------------------------------------------------------------------------------
 static const char *const tag_name[NSTOPS] = {
@@ -86,44 +80,8 @@ static const char *const medal_long[4] = { "NONE", "BRONZE", "SILVER", "GOLD" };
 static const char *const medal_short[4] = { "----", "BRNZ", "SLVR", "GOLD" };
 static const char dim_set[SMAP_DIM_N + 1] = "THEPOURF-";   // the letters of the one greyed line (THE POUR-OFF)
 
-// ---- story_scratch: the whole of it is the map's while the map is up -----------------------------------------------------------------------------------------
-#define SC(o)        (story_scratch + (o))
-// region A, 0..395: the tile tables (the two models lay theirs over each other)
-#define A_TBL        0       // DMG: 220 bytes: 176 low bytes of the tile id in each slot, then 44 bytes of the 2-bit highs (0x3FF: free)
-#define A_CNT        220     // DMG: 176 use counts (cells of the region that show the slot's tile)
-#define A_NIB        0       // Color: 176 bytes: the variant resident in each of the 352 slots, a nibble each (15: none)
-#define A_PCNT       176     // Color: 18 x u16: the cells of the region in each palette
-#define A_PSLOT      212     // Color: 18 bytes: the hardware slot of each palette (255: none)
-#define A_PUSE       230     // Color: 8 bytes: the palette in each hardware slot (255: free)
-#define A_ATTR_UI    240     // Color: 20 bytes: the window layer's attribute row (the town palette's slot)
-#define A_IDA        260     // Color: 22 bytes: the attribute bytes of the cells being written
-#define A_PSTG       282     // Color: 9 bytes: the palette write (BCPS, then 8 colour bytes)
-#define S_V          396     // the variables (V_N <= 68)
-#define S_T          464     // 56 bytes: tile staging (2 tiles) | the line's tile ids (22) | SCY, SCX; the panel's two rolling rows and the name tag's row lie over the first 40
-#define T_TILES      0
-#define T_IDS        32
-#define T_CAM        54
-#define V(n)         (story_scratch[S_V + (n)])
-enum { V_PANEL, V_SEL, V_ROWS, V_STEP, V_TAG, V_BOTTOM, V_TOP, V_ATTR, V_WY, V_WH, V_DONE, V_PREV,
-       V_CAMX = 12, V_CAMY = 14, V_FX = 16, V_FY = 18,                         // the camera's and Sal's feet's pixel positions in the world (16 bit each)
-       V_WALK = 20, V_LEG, V_REV, V_WK, V_DEST, V_TICK,                        // the walk: on, the leg, walked backwards, the waypoint heading for, the stop heading for
-       V_C0, V_C1, V_R0, V_R1,                                                 // the region (cells; V_C1 = V_C0 - 1: no columns yet)
-       V_JK, V_JI, V_JA, V_JN, V_JP,                                           // the add job: none / column / row, the line's index, its first cell, its length, the next cell
-       V_DK, V_DI, V_DA, V_DN, V_DP,                                           // the drop job: the same
-       V_STATE, V_DIRECT, V_NSTG, V_RES, V_RESE, V_STALL, V_RR, V_UIPAL, V_PALQ, V_DIRX, V_DIRY, V_WXB, V_N };
-typedef char smap_scratch_fits[(S_V + V_N <= S_T && S_T + 56 <= STORY_SCRATCH && A_IDA + 22 <= A_PSTG && A_PSTG + 9 <= S_V
-                                && A_ATTR_UI + 20 <= A_IDA && A_CNT + 176 <= S_V && T_CAM + 2 <= 56 && T_IDS + 22 <= T_CAM) ? 1 : -1];
-#define PANBUF       (S_T)                                          // the panel's rolling rows (2 x 20 bytes)
-#define J_NONE       0
-#define J_COL        1
-#define J_ROW        2
-enum { P_NONE, P_TOWN, P_VENUE, P_FEST, P_NUDGE, P_MENU };
 
-static void fill(uint8_t *d, uint8_t v, uint8_t n) { while (n--) *d++ = v; }
-static uint16_t g16(uint8_t n) { return V(n) | ((uint16_t)V(n + 1) << 8); }
-static void s16(uint8_t n, uint16_t v) { V(n) = (uint8_t)v; V(n + 1) = (uint8_t)(v >> 8); }
 
-static uint8_t open_stop(uint8_t s) { return s == TOWN || s <= story_progress; }
 
 static uint8_t popcount3(uint8_t v) { return (v & 1) + ((v >> 1) & 1) + ((v >> 2) & 1); }
 
@@ -163,24 +121,6 @@ static void centre_text(uint8_t *row, const char *s) {
 
 static uint8_t *blank_row(uint8_t *r) { fill(r, TILE_HUD_BLANK, 20); return r; }
 
-// ---- the VBlank copy list: entries the list's own vq_add cannot name (a raw address), with its tally ---------------------------------------------------------
-typedef struct { uint8_t n, bank; const uint8_t *src; uint8_t *dst; uint8_t pad[2]; } vq_entry_t;   // (render.c's list entry)
-extern vq_entry_t vq[];
-#define VQ_USE       22                       // entries a frame may add (the list holds 24; the panel and the tag take their own through vq_add)
-
-static void qraw(uint8_t bank, const uint8_t *src, uint16_t dst, uint8_t n) {
-    vq_entry_t *e;
-    if (vq_count >= VQ_USE + 2) return;       // (cannot happen: every caller checks its room first)
-    e = &vq[vq_count++];
-    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += n + 3 + (bank << 1);
-    e->n = n; e->bank = bank; e->src = src; e->dst = (uint8_t *)dst;
-}
-
-static uint8_t room(void) { return qv_cost >= VQ_DRAIN_BUDGET ? 0 : (uint8_t)(VQ_DRAIN_BUDGET - qv_cost); }
-
-static uint16_t tile_addr(uint8_t id) { return id < 128 ? 0x9000 + ((uint16_t)id << 4) : 0x8800 + ((uint16_t)(id - 128) << 4); }
-static uint16_t map_addr(uint8_t cx, uint8_t cy) { return 0x9800 + ((uint16_t)(cy & 31) << 5) + (cx & 31); }
-static uint8_t pool_id(uint8_t i) { return i < 36 ? i : (uint8_t)(i + 57); }   // the pool: BG ids 0-35 and 93-232 (the generic tiles, the font and the dim letters stay out)
 
 // ---- the sprites -----------------------------------------------------------------------------------------------------------------------------------------------
 // OBJ palettes (CGB): Sal 0 (the bartender's), ufo 2, open dot 3, locked dot 4, arrow 6, bang 7. DMG: OBP0 for all.
@@ -217,12 +157,13 @@ static const uint8_t pic_seq[4] = { 1, 0, 2, 0 };     // the walk: step 1, stand
         } else o_->y = 0; } while (0)
 
 static void draw(void) {
-    uint8_t s, d, n = 0, t, p = V(V_STATE), pic = 0, nudge, panel = V(V_PANEL), wh = V(V_WH), cgbp = is_cgb;
+    uint8_t s, d, n = 0, t, ccx, ccy, p = V(V_STATE), pic = 0, nudge, panel = V(V_PANEL), wh = V(V_WH), cgbp = is_cgb, tk = V(V_TICK);
     int16_t sx, sy, ax, ay, cx = (int16_t)g16(V_CAMX), cy = (int16_t)g16(V_CAMY), wy = V(V_WY), wend = (int16_t)V(V_WY) + wh;
+    const uint16_t *sp = &smapw_stop[0][0];
     sx = (int16_t)g16(V_FX) - 8 - cx;               // Sal's top-left on the screen
     sy = (int16_t)g16(V_FY) - 24 - cy;
-    nudge = (V(V_TICK) / 12) & 1;
-    if (V(V_WALK)) pic = pic_seq[(V(V_TICK) >> 2) & 3];
+    nudge = (tk >> 4) & 1;                          // (the arrows bob 1 px every 16 frames, the UFO every 32)
+    if (V(V_WALK)) pic = pic_seq[(tk >> 2) & 3];
     if (!panel && !V(V_WALK))                       // the arrows: where each button leads (none while a panel is up or Sal walks)
         for (d = 0; d < 4; d++) {
             s = smapw_exit[smap_stop][d];
@@ -243,21 +184,26 @@ static void draw(void) {
     SPR(OAM_SAL + 3, sx + 8, ay, t + 6, OBJPAL_BARTENDER, 0, 8);
     if (bang_wanted()) { ax = SMAPW_BANG_X - cx; ay = SMAPW_BANG_Y - cy; SPR(OAM_BANG, ax, ay, OB + SOB_BANG0, PAL_BANG, 0, 8); }
     else shadow_OAM[OAM_BANG].y = 0;
-    for (s = 0; s < NSTOPS; s++) {                  // the dots: green where Sal may go, red at the next stop (on the cloud's edge); none beyond
-        ax = (int16_t)smapw_stop[s][0] - 4 - cx;
-        if ((uint16_t)(ax + 7) >= 167 || (s > p && s != TOWN) || (s != p && !open_stop(s))) { shadow_OAM[OAM_DOTS + s].y = 0; continue; }
-        ay = (int16_t)smapw_stop[s][1] - 8 - cy;
-        if (open_stop(s)) SPR(OAM_DOTS + s, ax, ay, OB + SOB_DOT_OPEN0, PAL_OPEN, 0, 8);
+    cx += 4; cy += 8;                               // (the dot's entry lies 4 px left of and 8 px above the stop)
+    ccx = (uint8_t)(cx >> 3); ccy = (uint8_t)(cy >> 3);
+    for (s = 0; s < NSTOPS; s++, sp += 2) {         // the dots: green where Sal may go (the stops before the next, and the town), red at the next stop (on the cloud's edge); none beyond (their entries
+        if (s > p && s != TOWN) continue;           // stay hidden: smap_enter)
+        if ((uint8_t)(smapw_stopc[s][0] - ccx + 2) > 24 || (uint8_t)(smapw_stopc[s][1] - ccy + 2) > 22) { shadow_OAM[OAM_DOTS + s].y = 0; continue; }     // (a quick cull in cells: well off the screen)
+        ax = (int16_t)sp[0] - cx;
+        if ((uint16_t)(ax + 7) >= 167) { shadow_OAM[OAM_DOTS + s].y = 0; continue; }
+        ay = (int16_t)sp[1] - cy;
+        if (s < p || s == TOWN) SPR(OAM_DOTS + s, ax, ay, OB + SOB_DOT_OPEN0, PAL_OPEN, 0, 8);
         else SPR(OAM_DOTS + s, ax, ay, OB + SOB_DOT_LOCKED0, PAL_LOCKED, 0, 8);
     }
+    cx -= 4; cy -= 8;
     if (p >= 10) {                                  // the UFO over the space lounge, once that is open (bobbing 1 px)
-        ax = SMAPW_UFO_X - cx; ay = SMAPW_UFO_Y + ((V(V_TICK) / 24) & 1) - cy;
+        ax = SMAPW_UFO_X - cx; ay = SMAPW_UFO_Y + ((tk >> 5) & 1) - cy;
         SPR(OAM_UFO, ax, ay, OB + SOB_UFO0, PAL_UFO, 0, 16);
         ax += 8;
         SPR(OAM_UFO + 1, ax, ay, OB + SOB_UFO1, PAL_UFO, 0, 16);
         ax += 8;
         SPR(OAM_UFO + 2, ax, ay, OB + SOB_UFO2, PAL_UFO, 0, 16);
-    } else for (s = 0; s < 3; s++) shadow_OAM[OAM_UFO + s].y = 0;
+    }
     if (panel && V(V_DONE) && panel != P_NUDGE) {  // the selection arrow, at the selected line's left
         s = V(V_PANEL) == P_VENUE ? 2 : 1;
         put(OAM_CURSOR, 8, V(V_WY) + (s + V(V_SEL)) * 8, OB + SOB_ARROW_R0, PAL_ARROW, 0, 8);
@@ -402,319 +348,7 @@ static void panel_pump(void) {
     V(V_STEP) = s;
 }
 
-// ---- the world: slots, palettes, lines ---------------------------------------------------------------------------------------------------------------------------
-static uint8_t nib_get(uint16_t s) { return (SC(A_NIB)[s >> 1] >> ((s & 1) << 2)) & 15; }
-static void nib_set(uint16_t s, uint8_t v) {
-    uint8_t *p = SC(A_NIB) + (s >> 1);
-    if (s & 1) *p = (*p & 0x0F) | (v << 4); else *p = (*p & 0xF0) | v;
-}
-
-static uint16_t tbl_get(uint8_t s) {
-    return SC(A_TBL)[s] | ((uint16_t)((SC(A_TBL)[176 + (s >> 2)] >> ((s & 3) << 1)) & 3) << 8);
-}
-static void tbl_set(uint8_t s, uint16_t t) {
-    uint8_t *h = SC(A_TBL) + 176 + (s >> 2), sh = (s & 3) << 1;
-    SC(A_TBL)[s] = (uint8_t)t;
-    *h = (*h & ~(3 << sh)) | ((t >> 8) << sh);
-}
-static uint8_t tbl_find(uint16_t t, uint8_t hint) {     // the slot holding tile t, or NIL
-    uint8_t s, lo = (uint8_t)t;
-    if (tbl_get(hint) == t) return hint;
-    for (s = 0; s < SMAPW_POOL; s++) if (SC(A_TBL)[s] == lo && tbl_get(s) == t) return s;
-    return NIL;
-}
-
-// stage a tile load (the staging area holds two a frame; the caller has checked V_NSTG and the room) and queue it, or, with the LCD off, put it in VRAM
-static void tile_load(uint8_t bank, uint8_t id, uint16_t tile) {
-    uint8_t *d = SC(S_T + T_TILES + (V(V_NSTG) << 4));
-    if (is_cgb) smap_c_tile(tile, d); else smap_d_tile(tile, d);
-    if (V(V_DIRECT)) {
-        if (bank) VBK_REG = VBK_BANK_1;
-        set_bkg_data(id, 1, d);
-        VBK_REG = VBK_BANK_0;
-        return;
-    }
-    qraw(bank, d, tile_addr(id), 16);
-    V(V_NSTG)++;
-}
-
-// Color: palette pal takes a hardware slot (NIL: none free) and its colours are written (queued: one palette a frame, the caller checked V_PALQ and the room)
-static uint8_t pal_take(uint8_t pal) {
-    uint8_t s, *st = SC(A_PSTG);
-    for (s = 0; s < 8; s++) if (SC(A_PUSE)[s] == NIL) break;
-    if (s == 8) return NIL;
-    SC(A_PUSE)[s] = pal; SC(A_PSLOT)[pal] = s;
-    smap_c_palette(pal, st + 1);
-    if (V(V_DIRECT)) { set_bkg_palette(s, 1, (const uint16_t *)(st + 1)); return s; }
-    st[0] = 0x80 | (s << 3);                       // BCPS: auto increment from colour 0 of palette s
-    qraw(0, st, 0xFF68, 1);
-    for (pal = 1; pal < 9; pal++) qraw(0, st + pal, 0xFF69, 1);
-    V(V_PALQ) = 1;
-    return s;
-}
-
-static void pal_count(uint8_t pal, int8_t d) {          // the region's cells in palette pal change by d; the slot is free at 0
-    uint8_t *c = SC(A_PCNT) + (pal << 1);
-    uint16_t v = (c[0] | ((uint16_t)c[1] << 8)) + (int16_t)d;
-    c[0] = (uint8_t)v; c[1] = (uint8_t)(v >> 8);
-    if (!v && d < 0) { SC(A_PUSE)[SC(A_PSLOT)[pal]] = NIL; SC(A_PSLOT)[pal] = NIL; }
-}
-
-#define R_OK    0
-#define R_RES   1                                   // no slot or palette free: the line waits for the camera to drop a line
-#define R_ROOM  2                                   // not enough room in this frame's list: tomorrow
-
-static uint8_t slot_of_id(uint8_t id) { return id < 36 ? id : (uint8_t)(id - 57); }      // (pool_id's inverse)
-
-// the cells' map entries: a column's own (the map's addresses are 32 apart), a row's go out as runs when its line is flushed
-static void emit_cell(uint8_t k, uint16_t addr, uint8_t cost) {
-    vq_entry_t *e;
-    e = &vq[vq_count++];
-    e->n = 1; e->bank = 0; e->src = SC(S_T + T_IDS + k); e->dst = (uint8_t *)addr;
-    if (is_cgb) {
-        e = &vq[vq_count++];
-        e->n = 1; e->bank = 1; e->src = SC(A_IDA + k); e->dst = (uint8_t *)addr;
-    }
-    if (qv_cost <= VQ_DRAIN_BUDGET) qv_cost += cost;
-}
-
-// One cell into the region: its tile (and palette) made resident, its id and attribute in the line buffers at k (a column's cell gets its map entries queued here, a row's
-// are flushed by the caller). R_OK, or why not (nothing changed then).
-static uint8_t add_cell(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uint8_t vert) {
-    uint16_t t = f->w & 0x3FF, slot9 = 0;
-    uint8_t direct = V(V_DIRECT), need_t, need_p = 0, hw = 0, slot = 0, id, att = 0, pal = 0, bank = 0, var = 0, cost, ents, h, s, rr, n;
-    if (is_cgb) {
-        pal = (uint8_t)(f->w >> 10);
-        slot9 = f->aux & 0x1FF; var = (uint8_t)(f->aux >> 9);
-        need_p = SC(A_PSLOT)[pal] == NIL;
-        need_t = nib_get(slot9) != var;
-        bank = slot9 >= SMAPW_POOL;
-    } else {
-        slot = tbl_find(t, (uint8_t)f->aux);
-        need_t = slot == NIL;
-    }
-    if (!direct) {
-        if (vert) { cost = is_cgb ? 10 : 4; ents = is_cgb ? 2 : 1; } else { cost = is_cgb ? 2 : 1; ents = 0; }
-        if (need_t) { if (V(V_NSTG) >= 2) return R_ROOM; cost += 19 + (bank << 1); ents++; }
-        if (need_p) { if (V(V_PALQ)) return R_ROOM; cost += 36; ents += 9; }
-        if (room() < (uint8_t)(cost + V(V_RES)) || (uint8_t)(vq_count + ents + V(V_RESE)) > VQ_USE) return R_ROOM;
-    }
-    if (is_cgb) {
-        hw = SC(A_PSLOT)[pal];
-        if (need_p) { hw = pal_take(pal); if (hw == NIL) return R_RES; }
-        id = pool_id(bank ? (uint8_t)(slot9 - SMAPW_POOL) : (uint8_t)slot9);
-        if (need_t) { nib_set(slot9, var); tile_load(bank, id, t); }
-        pal_count(pal, 1);
-        att = hw | (bank ? 8 : 0);
-    } else {
-        if (need_t) {                                // the hint slot when no cell shows what it holds, else the next such slot after the pointer
-            h = (uint8_t)f->aux;
-            if (SC(A_CNT)[h] == 0) s = h;
-            else {
-                rr = V(V_RR);
-                for (n = 0; n < SMAPW_POOL; n++) { s = rr; rr = rr + 1 >= SMAPW_POOL ? 0 : rr + 1; if (SC(A_CNT)[s] == 0) break; }
-                if (n == SMAPW_POOL) return R_RES;
-                V(V_RR) = rr;
-            }
-            slot = s;
-            tbl_set(slot, t);
-            tile_load(0, pool_id(slot), t);
-        }
-        id = pool_id(slot);
-        SC(A_CNT)[slot]++;
-    }
-    SC(S_T + T_IDS)[k] = id;
-    if (is_cgb) SC(A_IDA)[k] = att;
-    if (direct) {
-        *(volatile uint8_t *)map_addr(cx, cy) = id;
-        if (is_cgb) { VBK_REG = VBK_BANK_1; *(volatile uint8_t *)map_addr(cx, cy) = att; VBK_REG = VBK_BANK_0; }
-    } else if (vert) emit_cell(k, map_addr(cx, cy), is_cgb ? 10 : 4);
-    return R_OK;
-}
-
-// the next cell shows what the one before it does (the same tile and palette, already resident): no lookup, no load
-static uint8_t add_same(const smap_fc *f, uint8_t k, uint8_t cx, uint8_t cy, uint8_t vert) {
-    uint8_t direct = V(V_DIRECT), id = SC(S_T + T_IDS)[k - 1], att = 0;
-    if (!direct) {
-        if (room() < (uint8_t)((vert ? (is_cgb ? 10 : 4) : (is_cgb ? 2 : 1)) + V(V_RES)) || (uint8_t)(vq_count + (vert ? (is_cgb ? 2 : 1) : 0) + V(V_RESE)) > VQ_USE) return R_ROOM;
-    }
-    if (is_cgb) { att = SC(A_IDA)[k - 1]; SC(A_IDA)[k] = att; pal_count((uint8_t)(f->w >> 10), 1); }
-    else SC(A_CNT)[slot_of_id(id)]++;
-    SC(S_T + T_IDS)[k] = id;
-    if (direct) {
-        *(volatile uint8_t *)map_addr(cx, cy) = id;
-        if (is_cgb) { VBK_REG = VBK_BANK_1; *(volatile uint8_t *)map_addr(cx, cy) = att; VBK_REG = VBK_BANK_0; }
-    } else if (vert) emit_cell(k, map_addr(cx, cy), is_cgb ? 10 : 4);
-    return R_OK;
-}
-
-// n cells that show f's tile leave the region
-static void drop_cells(const smap_fc *f, uint8_t n) {
-    uint8_t s;
-    if (is_cgb) { pal_count((uint8_t)(f->w >> 10), -(int8_t)n); return; }
-    s = tbl_find(f->w & 0x3FF, (uint8_t)f->aux);
-    if (s != NIL) SC(A_CNT)[s] -= n;
-}
-
-static void fetch(uint8_t cx, uint8_t cy, uint8_t n, uint8_t vert, smap_fc *out) {
-    if (is_cgb) smap_c_fetch(cx, cy, n, vert, V(V_STATE), out); else smap_d_fetch(cx, cy, n, vert, V(V_STATE), out);
-}
-
-// the row cells [a, b) of the line at map row cy, from cell column cx0, into the copy list: at most two runs (the map wraps at column 31), each with its attributes
-static void flush_run(uint8_t cx0, uint8_t cy, uint8_t a, uint8_t b) {
-    uint8_t n, x;
-    while (a < b) {
-        x = (cx0 + a) & 31;
-        n = b - a;
-        if (x + n > 32) n = 32 - x;
-        qraw(0, SC(S_T + T_IDS + a), map_addr(cx0 + a, cy), n);
-        if (is_cgb) qraw(1, SC(A_IDA + a), map_addr(cx0 + a, cy), n);
-        a += n;
-    }
-}
-
-// Work on the add job's line: at most cap cells now, and what is left of this frame's list. 1: the line is complete.
-static uint8_t job_run(uint8_t cap) {
-    uint8_t vert = V(V_JK) == J_COL, idx = V(V_JI), a = V(V_JA), n = V(V_JN), pos = V(V_JP), first = pos, m, k, r = R_OK, cx, cy;
-    smap_fc fc[8];
-    uint16_t pw = 0;
-    V(V_RES) = 0; V(V_RESE) = 0;
-    if (!vert && !V(V_DIRECT)) { V(V_RES) = is_cgb ? 16 : 6; V(V_RESE) = is_cgb ? 4 : 2; }   // (a row's entries come at the end: their overhead is kept back)
-    while (pos < n && r == R_OK && cap) {
-        m = n - pos; if (m > 8) m = 8;
-        cx = vert ? idx : a + pos; cy = vert ? a + pos : idx;
-        fetch(cx, cy, m, vert, fc);
-        for (k = 0; k < m && cap; k++) {
-            if (pos > first && fc[k].w == pw) r = add_same(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
-            else r = add_cell(fc + k, pos, vert ? cx : cx + k, vert ? cy + k : cy, vert);
-            if (r) break;
-            pw = fc[k].w; pos++; cap--;
-        }
-    }
-    if (!vert && !V(V_DIRECT) && pos > first) { V(V_RES) = 0; V(V_RESE) = 0; flush_run(a, idx, first, pos); }
-    V(V_RES) = 0; V(V_RESE) = 0;
-    V(V_JP) = pos;
-    if (r == R_RES) { if (V(V_STALL) < 255) V(V_STALL)++; } else V(V_STALL) = 0;
-    return pos >= n;
-}
-
-// the cells of the add job's line already added leave again (the job is given up)
-static void job_abort(void) {
-    uint8_t vert = V(V_JK) == J_COL, a = V(V_JA), idx = V(V_JI), pos = V(V_JP), c = 0, m, k, j;
-    smap_fc fc[8];
-    while (c < pos) {
-        m = pos - c; if (m > 8) m = 8;
-        fetch(vert ? idx : a + c, vert ? a + c : idx, m, vert, fc);
-        for (k = 0; k < m; k = j) {
-            for (j = k + 1; j < m && fc[j].w == fc[k].w; j++) ;
-            drop_cells(fc + k, j - k);
-        }
-        c += m;
-    }
-    V(V_JK) = J_NONE; V(V_JP) = 0; V(V_STALL) = 0;
-}
-
-// the drop job's line leaves the region: at most cap cells now (its extents left the region when the job started)
-static void drop_run(uint8_t cap) {
-    uint8_t vert = V(V_DK) == J_COL, a = V(V_DA), idx = V(V_DI), n = V(V_DN), pos = V(V_DP), m, k, j;
-    smap_fc fc[8];
-    while (pos < n && cap) {
-        m = n - pos; if (m > 8) m = 8;
-        if (m > cap) m = cap;
-        fetch(vert ? idx : a + pos, vert ? a + pos : idx, m, vert, fc);
-        for (k = 0; k < m; k = j) {
-            for (j = k + 1; j < m && fc[j].w == fc[k].w; j++) ;
-            drop_cells(fc + k, j - k);
-        }
-        pos += m; cap -= m;
-    }
-    V(V_DP) = pos;
-    if (pos >= n) V(V_DK) = J_NONE;
-}
-
 // ---- the camera, the region, the walk ------------------------------------------------------------------------------------------------------------------------------------
-#define CAM_SPD  4
-#define CAM_LAG  24                                   // Sal waits while the camera is further behind him than this (px, both axes together)
-#define CAM_MAXX 352                                  // 512 - 160
-#define CAM_MAXY 240                                  // 384 - 144
-#define WALK_SPD 2
-#define ADD_CAP  6                                    // cells a frame the add job and the drop job each handle
-#define DROP_CAP 8
-
-static void cam_target(int16_t *tx, int16_t *ty) {
-    int16_t x = (int16_t)g16(V_FX) - 80, y = (int16_t)g16(V_FY) - 84;
-    *tx = x < 0 ? 0 : x > CAM_MAXX ? CAM_MAXX : x;
-    *ty = y < 0 ? 0 : y > CAM_MAXY ? CAM_MAXY : y;
-}
-
-static uint8_t cov_x(int16_t x) { return (uint8_t)(x >> 3) >= V(V_C0) && (uint8_t)((x + 159) >> 3) <= V(V_C1); }
-static uint8_t cov_y(int16_t y) { return (uint8_t)(y >> 3) >= V(V_R0) && (uint8_t)((y + 143) >> 3) <= V(V_R1); }
-
-// the camera moves toward Sal, but only where the region already covers what it will show. 1: it moved
-static uint8_t camera_step(void) {
-    int16_t cx = (int16_t)g16(V_CAMX), cy = (int16_t)g16(V_CAMY), tx, ty, nx, ny, d;
-    cam_target(&tx, &ty);
-    if (tx != cx) V(V_DIRX) = tx > cx ? 2 : 1;
-    if (ty != cy) V(V_DIRY) = ty > cy ? 2 : 1;
-    d = tx - cx; if (d > CAM_SPD) d = CAM_SPD; else if (d < -CAM_SPD) d = -CAM_SPD;
-    nx = cx + d;
-    while (nx != cx && !cov_x(nx)) nx += nx > cx ? -1 : 1;
-    d = ty - cy; if (d > CAM_SPD) d = CAM_SPD; else if (d < -CAM_SPD) d = -CAM_SPD;
-    ny = cy + d;
-    while (ny != cy && !cov_y(ny)) ny += ny > cy ? -1 : 1;
-    if (!V(V_WALK) && nx == tx && ny == ty) { V(V_DIRX) = 0; V(V_DIRY) = 0; }
-    if (nx == cx && ny == cy) return 0;
-    s16(V_CAMX, nx); s16(V_CAMY, ny);
-    return 1;
-}
-
-// the region follows the camera: the lines it has left drop (a few cells a frame), the lines the camera will want next (one ahead on each axis in the direction of
-// travel) load (a few cells a frame): one job of each kind at a time
-static void region_work(void) {
-    uint16_t cx = g16(V_CAMX), cy = g16(V_CAMY);
-    uint8_t nc0 = (uint8_t)(cx >> 3), nc1 = (uint8_t)((cx + 159) >> 3), nr0 = (uint8_t)(cy >> 3), nr1 = (uint8_t)((cy + 143) >> 3);
-    uint8_t wc0 = nc0, wc1 = nc1, wr0 = nr0, wr1 = nr1, dx = V(V_DIRX), dy = V(V_DIRY), kind = V(V_JK), i, dk, di = 0;
-    if (dx == 1 && wc0) wc0--;
-    if (dx == 2 && wc1 < 63) wc1++;
-    if (dy == 1 && wr0) wr0--;
-    if (dy == 2 && wr1 < 47) wr1++;
-    i = V(V_JI);
-    if ((kind == J_COL && (i < wc0 || i > wc1)) || (kind == J_ROW && (i < wr0 || i > wr1))) job_abort();
-    if (V(V_PANEL) || vq_held) return;
-    if (V(V_DK) == J_NONE) {                         // the next line to drop, if any: its place in the region goes now, its cells a few at a time
-        dk = J_COL;
-        if (V(V_C0) < wc0 && V(V_C0) < V(V_C1)) di = V(V_C0)++;
-        else if (V(V_C1) > wc1 && V(V_C1) > V(V_C0)) di = V(V_C1)--;
-        else {
-            dk = J_ROW;
-            if (V(V_R0) < wr0 && V(V_R0) < V(V_R1)) di = V(V_R0)++;
-            else if (V(V_R1) > wr1 && V(V_R1) > V(V_R0)) di = V(V_R1)--;
-            else dk = J_NONE;
-        }
-        if (dk != J_NONE) {
-            if (V(V_JK) != J_NONE && V(V_JK) != dk) job_abort();     // (an add job across it would add cells of the line that leaves)
-            V(V_DK) = dk; V(V_DI) = di; V(V_DP) = 0;
-            if (dk == J_COL) { V(V_DA) = V(V_R0); V(V_DN) = V(V_R1) - V(V_R0) + 1; }
-            else { V(V_DA) = V(V_C0); V(V_DN) = V(V_C1) - V(V_C0) + 1; }
-        }
-    }
-    if (V(V_DK) != J_NONE) drop_run(DROP_CAP);
-    if (V(V_JK) == J_NONE) {
-        if (V(V_C0) > wc0) { V(V_JK) = J_COL; V(V_JI) = V(V_C0) - 1; }
-        else if (V(V_C1) < wc1) { V(V_JK) = J_COL; V(V_JI) = V(V_C1) + 1; }
-        else if (V(V_R0) > wr0) { V(V_JK) = J_ROW; V(V_JI) = V(V_R0) - 1; }
-        else if (V(V_R1) < wr1) { V(V_JK) = J_ROW; V(V_JI) = V(V_R1) + 1; }
-        else return;
-        if (V(V_JK) == J_COL) { V(V_JA) = V(V_R0); V(V_JN) = V(V_R1) - V(V_R0) + 1; }
-        else { V(V_JA) = V(V_C0); V(V_JN) = V(V_C1) - V(V_C0) + 1; }
-        V(V_JP) = 0;
-    }
-    if (job_run(ADD_CAP)) {                          // complete: the line is part of the region
-        if (V(V_JK) == J_COL) { if (V(V_JI) < V(V_C0)) V(V_C0) = V(V_JI); else V(V_C1) = V(V_JI); }
-        else { if (V(V_JI) < V(V_R0)) V(V_R0) = V(V_JI); else V(V_R1) = V(V_JI); }
-        V(V_JK) = J_NONE;
-    }
-}
 
 static void start_walk(uint8_t d) {
     uint8_t t = smapw_exit[smap_stop][d], e = smapw_exit_leg[smap_stop][d], leg = e & 0x7F, rev = e >> 7;
@@ -729,7 +363,7 @@ static void walk_step(void) {
     uint8_t leg = V(V_LEG), k = V(V_WK), rev = V(V_REV);
     uint16_t fx = g16(V_FX), fy = g16(V_FY), tx = smapw_leg_pt[leg][k][0], ty = smapw_leg_pt[leg][k][1];
     int16_t ctx, cty, lx, ly;
-    cam_target(&ctx, &cty);
+    smap_cam_target(&ctx, &cty);
     lx = ctx - (int16_t)g16(V_CAMX); ly = cty - (int16_t)g16(V_CAMY);
     if (lx < 0) lx = -lx;
     if (ly < 0) ly = -ly;
@@ -737,7 +371,6 @@ static void walk_step(void) {
     if (fx != tx) fx = fx < tx ? (tx - fx < WALK_SPD ? tx : fx + WALK_SPD) : (fx - tx < WALK_SPD ? tx : fx - WALK_SPD);
     else if (fy != ty) fy = fy < ty ? (ty - fy < WALK_SPD ? ty : fy + WALK_SPD) : (fy - ty < WALK_SPD ? ty : fy - WALK_SPD);
     s16(V_FX, fx); s16(V_FY, fy);
-    V(V_TICK)++;
     if (fx != tx || fy != ty) return;
     if (rev ? !k : k + 1 == smapw_leg_n[leg]) {      // the last waypoint: Sal is there
         smap_stop = V(V_DEST);
@@ -808,7 +441,7 @@ static void panel_input(uint8_t pressed) {
 // One frame (story.c story_update, STORY_PHASE_MAP). 1: the screen was left (the next one is up).
 uint8_t smap_update(uint8_t pressed) BANKED {
     uint8_t d;
-    V(V_NSTG) = 0; V(V_PALQ) = 0;
+    V(V_NSTG) = 0; V(V_PALQ) = 0; V(V_SLOW) = 0; V(V_TICK)++;
     if (V(V_PANEL)) {
         panel_pump();
         panel_input(pressed);
@@ -832,11 +465,11 @@ uint8_t smap_update(uint8_t pressed) BANKED {
         else if (pressed & J_START) panel_open(P_MENU, 0);
     }
     if (!V(V_PANEL) && !vq_held) {
-        if (camera_step()) {
+        if (smap_camera_step()) {
             SC(S_T + T_CAM)[0] = (uint8_t)g16(V_CAMY); SC(S_T + T_CAM)[1] = (uint8_t)g16(V_CAMX);
             qraw(0, SC(S_T + T_CAM), 0xFF42, 2);
         }
-        region_work();
+        smap_region_work();
     }
     draw();
     return 0;
@@ -857,7 +490,6 @@ static void dim_load(void) {
 // the screen, LCD off. quick: back from a mini-game (the quick white fade); else the story's own change (a scene ended, CONTINUE)
 void smap_enter(uint8_t quick) BANKED {
     uint16_t i;
-    uint8_t c;
     uint16_t p4[4];
     int16_t tx, ty;
     if (quick) TRANS_MENU(); else TRANS_WANT();
@@ -893,18 +525,12 @@ void smap_enter(uint8_t quick) BANKED {
     if (smap_stop >= NSTOPS || !open_stop(smap_stop)) smap_stop = story_progress < NSTOPS - 1 ? story_progress : TOWN;
     V(V_STATE) = story_progress < 9 ? story_progress + 1 : 10;
     s16(V_FX, smapw_stop[smap_stop][0]); s16(V_FY, smapw_stop[smap_stop][1]);
-    cam_target(&tx, &ty);
+    smap_cam_target(&tx, &ty);
     s16(V_CAMX, tx); s16(V_CAMY, ty);
     V(V_C0) = tx >> 3; V(V_C1) = V(V_C0) - 1;      // the view's cells, column by column (no lines ahead yet: the walk asks for them)
     V(V_R0) = ty >> 3; V(V_R1) = (ty + 143) >> 3;
-    V(V_DIRECT) = 1;
-    if (is_cgb) { pal_take(SMAPW_PAL_TOWN); pal_count(SMAPW_PAL_TOWN, 1); }   // (the town palette is held for good: it is the window layer's)
-    for (c = tx >> 3; c <= (uint8_t)((tx + 159) >> 3); c++) {
-        V(V_JK) = J_COL; V(V_JI) = c; V(V_JA) = V(V_R0); V(V_JN) = V(V_R1) - V(V_R0) + 1; V(V_JP) = 0;
-        job_run(255);
-        V(V_C1) = c;
-    }
-    V(V_JK) = J_NONE; V(V_DIRECT) = 0;
+    smap_pin_town();                               // (Color: the town palette is held for good: it is the window layer's)
+    smap_fill_view((uint8_t)(tx >> 3), (uint8_t)((tx + 159) >> 3));
     SCX_REG = (uint8_t)tx; SCY_REG = (uint8_t)ty;
     V(V_PREV) = 1;                                 // (the arrival tag is queued by the first frame: the transition's reveal has put the window rows back by then)
     story_phase = STORY_PHASE_MAP;

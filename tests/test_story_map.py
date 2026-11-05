@@ -40,7 +40,8 @@ def to_map(model, progress=3, step=0, ram=None, stop=None, flags=None, cards=Tru
         step = 1                                          # (a save CONTINUE offers: a step reached in chapter 1; all ten cleared and the finale not done)
     rom = booted(model, ram if ram is not None else v7_image([], story=progress, step=step), cards=cards)
     title_pick(rom, ts.K_PLAY, K_CONTINUE, press=False)
-    menu_tap(rom, "a")
+    rom.press("a", 8)                                    # (a long press: a 2-frame tap can fall inside a long pass of the title and not be read)
+    rom.run(1)
     run_until(rom, lambda: rom.mem("story_phase") == SP_MAP and state(rom) == GS_STORY, 400)
     rom.run(100 if tag_gone else 4)                      # (the name tag on the window layer is up for the first 90 frames)
     if stop is not None:

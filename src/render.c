@@ -403,7 +403,7 @@ void clear_dirty(void) {
 // (vq_frame_begin) and queues nothing more, and it goes out with the next VBlank.
 typedef struct {
     uint8_t n;            // bytes to copy (>= 1)
-    uint8_t bank;         // VRAM bank to select (0 tiles, 1 CGB attributes)
+    uint8_t bank;         // VRAM bank to select (0 tiles, 1 CGB attributes); bit 7: a column (the bytes go to dst, dst + 32, dst + 64 ...: the story map's vertical lines)
     const uint8_t *src;
     uint8_t *dst;
     uint8_t pad[2];
@@ -435,11 +435,26 @@ __asm
     jr   z, 9$
     ld   c, a
     ld   hl, #_vq
+    jr   1$
+5$:
+    ld   a, (de)            ; a column: n bytes 32 apart (the caller keeps it inside the map's 32 rows)
+    inc  de
+    ld   (hl), a
+    ld   a, l
+    add  a, #32
+    ld   l, a
+    jr   nc, 6$
+    inc  h
+6$:
+    dec  b
+    jr   nz, 5$
+    jr   4$
 1$:
     ld   a, (hl+)           ; n
     ld   b, a
     ld   a, (hl+)           ; bank
-    ldh  (0x4F), a
+    ldh  (0x4F), a          ; (VBK keeps bit 0)
+    bit  7, a               ; (the flags survive the loads below up to the jr)
     ld   a, (hl+)           ; src
     ld   e, a
     ld   a, (hl+)
@@ -448,6 +463,7 @@ __asm
     push hl
     ld   h, (hl)
     ld   l, a
+    jr   nz, 5$             ; a column
     srl  b                  ; two bytes per pass, the odd one first
     jr   nc, 3$
     ld   a, (de)
